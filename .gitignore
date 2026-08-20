@@ -54,3 +54,6 @@ pynite_*.py
 __pycache__/
 *.pyc
 node_modules/
+
+# Auswertung gegen das AxisVM-Modell (SBB-Projektmaterial)
+pruefung_axisvm/
