@@ -2487,8 +2487,9 @@ titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
   pruef('gemessen: Anteile ergänzen sich zu eins', ge.OG + ge.UG, 1, 1e-12);
   wahr('gemessen liegt zwischen hälftig und I-Anteil',
        ge.OG > 0.5 && ge.OG < st.OG);
-  // Am Signaljoch (I_OG/I_UG = 2.45) hat PyNite 55.6 … 60.1 % gemessen.
-  pruef('gemessen trifft die Messung am Signaljoch', ge.OG, 0.574, 5e-3);
+  // Am Signaljoch (I_OG/I_UG = 2.45) hat PyNite 57.5 … 61.2 % gemessen,
+  // Mittel 59.4 %. Gegenprobe mit gleichen Gurten: exakt 50.0 %.
+  pruef('gemessen trifft die Messung am Signaljoch', ge.OG, 0.595, 5e-3);
   wahr('einhüllend ist nie kleiner als hälftig', hu.OG >= 0.5 && hu.UG >= 0.5);
   const gleich = gurtanteile({ profOG: pOG, profUG: pOG }, 'steifigkeit');
   pruef('Gleiche Gurte: wieder hälftig', gleich.OG, 0.5, 1e-12);

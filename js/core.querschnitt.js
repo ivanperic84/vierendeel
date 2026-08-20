@@ -69,25 +69,38 @@ export const GURTAUFTEILUNGEN = [
  * DÄMPFUNG DER STEIFIGKEITSAUFTEILUNG.
  *
  * Die reine I-Aufteilung ist zu scharf. Gemessen an einem Stabmodell des
- * Signaljochs (PyNite, 746 Stäbe, Gurtendmomente an 26 Stationen je Lastfall
- * DIREKT abgelesen statt aus Spannungen rückgerechnet):
+ * Signaljochs (PyNite, Gurtendmomente an den Stationen je Lastfall DIREKT
+ * abgelesen statt aus Spannungen rückgerechnet):
  *
  *      Verhältnis I_OG/I_UG = 2.45  ->  Anteil Obergurt
  *          hälftig                          50.0 %
- *          GEMESSEN (Schnee/G/Wind)   55.6 … 60.1 %,  Mittel 57.4 %
+ *          GEMESSEN   G 61.0 · Schnee 61.2 · Wind y 57.5 · Wind x 58.0 %
+ *                     Mittel 59.4 %, Median 58, Spanne 51 … 73 %
  *          nach I                           71.1 %
  *
  * Der Rahmen gleicht also aus: Bleche und Knotennachgiebigkeit ziehen die
  * Aufteilung zur Hälfte zurück. Mit
  *
- *      Anteil = 0.5 + k · (I_Gurt/ΣI − 0.5),   k = 0.35
+ *      Anteil = 0.5 + k · (I_Gurt/ΣI − 0.5),   k = 0.45
  *
- * trifft man die Messung (0.5 + 0.35·0.211 = 0.574).
+ * trifft man die Messung (0.5 + 0.45·0.211 = 0.595).
+ *
+ * GEGENPROBE: dasselbe Modell mit GLEICHEN Gurten liefert an jeder Station
+ * exakt 50.0 % - die Messmethode selbst ist damit bestätigt.
+ *
+ * KORREKTUR gegenüber der ersten Messung (die 57.4 % nannte): dort war im
+ * Lastfall G das Vorzeichen der Anbauteillasten falsch gesetzt (F_z ist
+ * positiv nach UNTEN), so dass sich Eigengewicht und Anbaulast teilweise
+ * aufhoben. Schnee und Wind waren nicht betroffen; der Fehler verschob den
+ * Mittelwert um zwei Prozentpunkte.
  *
  * >>> EIN Modell, EIN Steifigkeitsverhältnis. k ist gefittet, nicht
- * hergeleitet - bei anderen Verhältnissen ist es unbelegt. <<<
+ * hergeleitet - bei anderen Verhältnissen ist es unbelegt. Und der Mittelwert
+ * verdeckt eine Spanne von 51 bis 73 %: an einzelnen Stationen liegt diese
+ * Aufteilung für den einen oder den anderen Gurt zu tief. Wer beide Gurte
+ * gleichzeitig auf der sicheren Seite haben will, nimmt 'huellend'. <<<
  */
-export const GURT_DAEMPFUNG = 0.35;
+export const GURT_DAEMPFUNG = 0.45;
 
 /**
  * Anteil eines Gurtes an der Querkraft seiner VERTIKALEBENE.
