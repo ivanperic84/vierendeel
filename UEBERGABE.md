@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 663 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
+**Stand:** 666 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 663 Kontrollen
+node pruefung.mjs           # Prüfstand, 666 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,67 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### PyNite-Messung der Gurtendmomente — die I-Aufteilung war zu scharf
+
+Die Signaljoch-Geometrie durch PyNite gerechnet (746 Stäbe) und die
+**Gurtendmomente an 26 Stationen je Lastfall direkt abgelesen**, statt sie aus
+Spannungen rückzurechnen. Das trennt Momentenaufteilung und
+Spannungsermittlung sauber — und beendet das Ratespiel.
+
+**Anteil des Obergurtes an der Biegung der Vertikalebene** (I_OG/I_UG = 2.45):
+
+| | Anteil Obergurt |
+|---|---|
+| hälftig (bis vorgestern) | 50.0 % |
+| **PyNite gemessen** | **55.6 … 60.1 %**, Mittel **57.4 %** |
+| nach I/ΣI (was ich eingebaut hatte) | 71.1 % |
+
+**Die reine Steifigkeitsaufteilung ist also viel zu scharf.** Der Rahmen
+gleicht aus: Bleche und Knotennachgiebigkeit ziehen die Aufteilung zur Hälfte
+zurück. Neue Einstellung `gemessen`:
+
+```
+Anteil = 0.5 + k · (I_Gurt/ΣI − 0.5)        k = 0.35
+0.5 + 0.35 · 0.211 = 0.574                  gegen 0.574 gemessen
+```
+
+> **k ist gefittet, nicht hergeleitet** — ein Modell, ein
+> Steifigkeitsverhältnis. Bei anderen Verhältnissen ist es unbelegt.
+
+**Damit erklärt sich auch, warum `einhüllend` so gut aussah.** Der zu scharfe
+Anteil (0.711 statt 0.574, Faktor 1.24) hob den fehlenden Hauptachsenfaktor
+(1.30) fast genau auf. Zwei Fehler, die sich aufhoben — der Abgleich stimmte
+aus dem falschen Grund.
+
+Am Signaljoch, mittlere Abweichung über vier Lastfälle und beide Gurte:
+
+| Aufteilung / Spannungsmodell | Obergurt | Untergurt | mittlere \|Δ\| |
+|---|---|---|---|
+| gleich / schenkel (Stand vorgestern) | −30 … 19 % | 12 … 16 % | 19 % |
+| einhüllend / schenkel (**Vorgabe**) | −4 … 31 % | 12 … 16 % | 12 % |
+| **gemessen / schenkel** | −21 … 23 % | **−2 … 8 %** | **11 %** |
+| gleich / punkte | −12 … 25 % | 19 … 46 % | 25 % |
+| gemessen / punkte | −0 … 28 % | 17 … 27 % | 15 % |
+| steifigkeit / punkte | 20 … 32 % | −12 … 13 % | 17 % |
+
+**Vorgabe bleibt `einhüllend`.** `gemessen` ist der besser belegte Wert und
+trifft den Untergurt auf −2 … +8 % — aber er **senkt** ihn, und der Untergurt
+regiert η_gesamt bei jedem Katalogtyp:
+
+| Typ | η einhüllend → gemessen | |
+|---|---|---|
+| J60 / J80 / J90 (gleiche Gurte) | unverändert | 0.0 % |
+| J100 | 0.625 → 0.579 | −7.3 % |
+| J120 | 0.461 → 0.447 | −3.0 % |
+| J130 | 0.606 → 0.555 | −8.5 % |
+| J100-alt | 0.731 → 0.680 | −6.9 % |
+| J130-alt | 0.678 → 0.583 | **−14.1 %** |
+
+Bemessungswerte um bis zu 14 % zu senken ist eine Entscheidung des
+Auftraggebers, nicht meine — **das ist abzustimmen.**
+
+Prüfstand: Abschnitt 24 um vier Kontrollen erweitert.
 
 ### Hauptachsen des Winkels — gebaut, aber NICHT Vorgabe
 

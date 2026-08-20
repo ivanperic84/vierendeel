@@ -59,10 +59,35 @@ import { winkelwerteFuer, randspannung } from './core.winkel.js';
  * hälftig immer richtig und die Einstellung ohne Wirkung.
  */
 export const GURTAUFTEILUNGEN = [
-  { key: 'huellend', label: 'einhüllend – je Gurt der ungünstigere Anteil (empfohlen)' },
-  { key: 'steifigkeit', label: 'nach Biegesteifigkeit I/ΣI' },
+  { key: 'huellend', label: 'einhüllend – je Gurt der ungünstigere Anteil (Vorgabe)' },
+  { key: 'gemessen', label: 'gedämpft nach Steifigkeit – an PyNite gemessen, senkt den Untergurt' },
+  { key: 'steifigkeit', label: 'nach Biegesteifigkeit I/ΣI (ungedämpft)' },
   { key: 'gleich', label: 'hälftig (bisheriges Verhalten)' },
 ];
+
+/**
+ * DÄMPFUNG DER STEIFIGKEITSAUFTEILUNG.
+ *
+ * Die reine I-Aufteilung ist zu scharf. Gemessen an einem Stabmodell des
+ * Signaljochs (PyNite, 746 Stäbe, Gurtendmomente an 26 Stationen je Lastfall
+ * DIREKT abgelesen statt aus Spannungen rückgerechnet):
+ *
+ *      Verhältnis I_OG/I_UG = 2.45  ->  Anteil Obergurt
+ *          hälftig                          50.0 %
+ *          GEMESSEN (Schnee/G/Wind)   55.6 … 60.1 %,  Mittel 57.4 %
+ *          nach I                           71.1 %
+ *
+ * Der Rahmen gleicht also aus: Bleche und Knotennachgiebigkeit ziehen die
+ * Aufteilung zur Hälfte zurück. Mit
+ *
+ *      Anteil = 0.5 + k · (I_Gurt/ΣI − 0.5),   k = 0.35
+ *
+ * trifft man die Messung (0.5 + 0.35·0.211 = 0.574).
+ *
+ * >>> EIN Modell, EIN Steifigkeitsverhältnis. k ist gefittet, nicht
+ * hergeleitet - bei anderen Verhältnissen ist es unbelegt. <<<
+ */
+export const GURT_DAEMPFUNG = 0.35;
 
 /**
  * Anteil eines Gurtes an der Querkraft seiner VERTIKALEBENE.
@@ -79,7 +104,9 @@ export function gurtanteile(m, art = 'huellend') {
   if (!(summe > 0)) return { OG: 0.5, UG: 0.5 };
   const st = { OG: iOG / summe, UG: iUG / summe };
   if (art === 'steifigkeit') return st;
-  return { OG: Math.max(0.5, st.OG), UG: Math.max(0.5, st.UG) };
+  if (art === 'huellend') return { OG: Math.max(0.5, st.OG), UG: Math.max(0.5, st.UG) };
+  const k = GURT_DAEMPFUNG;
+  return { OG: 0.5 + k * (st.OG - 0.5), UG: 0.5 + k * (st.UG - 0.5) };
 }
 
 /**
