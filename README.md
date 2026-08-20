@@ -901,11 +901,14 @@ Die Eingabemaske, der Excel-Export und die Standardwerte werden **alle** aus
 
 ## Ablage und Weitergabe
 
-Die Ablage ist **ohne die drei Datenbanken** eingerichtet (`data/*.json` steht
-in der `.gitignore`) und nennt weder Betreiber noch Zeichnungs- oder
-Regelwerksnummern — sie ist damit öffentlich tragbar. Soll alles beisammen
-liegen, die vier Zeilen um `data/*.json` aus der `.gitignore` nehmen und eine
-**private** Ablage verwenden.
+Die Ablage ist **öffentlich** und deshalb **ohne die drei Datenbanken**
+eingerichtet (`data/*.json` steht in der `.gitignore`); sie nennt weder
+Betreiber noch Zeichnungs- oder Regelwerksnummern. Die Zahlen werden von Hand
+örtlich eingespielt: beim ersten Start fragt die Anwendung nach einem
+Datenpaket, hinterlegt es im Browser und findet es beim nächsten Mal wieder.
+
+> Soll doch alles beisammen liegen, die Zeile `data/*.json` aus der
+> `.gitignore` nehmen — dann aber eine **private** Ablage verwenden.
 
 `build_html.py` verträgt fehlende Datenbanken: es baut dann von selbst die
 datenfreie Ausgabe. `pruefung.mjs` dagegen **braucht** sie — ohne die drei

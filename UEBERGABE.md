@@ -516,11 +516,25 @@ kein Push**. Das bleibt Ihre Entscheidung.
 | `generate_vierendeel_L_SZS_C5.py` und die zwei Excel-Prüfer | nennen Betreiber und Zeichnungsnummern im Klartext, ausserdem nicht mehr synchron |
 | `Versand/`, `.claude/settings.local.json` | Erzeugnisse und örtliche Einstellungen |
 
-> **Eine Entscheidung steht noch aus:** öffentlich oder privat. So wie es jetzt
-> steht, ist die Ablage **öffentlich tragbar** — ohne Daten, ohne
-> Betreiberbezug. Für eine **private** Ablage die vier Zeilen um `data/*.json`
-> aus der `.gitignore` nehmen; dann liegt alles beisammen und `build_html.py`
-> bettet die Zahlen wieder ein.
+**Entschieden: die Ablage wird ÖFFENTLICH.** Die Datenbanken bleiben draussen
+und werden von Hand örtlich eingespielt. Der Weg ist durchgespielt worden —
+`data/` beiseite geschoben, Seite neu geladen:
+
+1. Die Anwendung meldet «Diese Ausgabe enthält keine Daten» und verlangt ein
+   Paket.
+2. `Tragjoch_Datenpaket_2026-08-20.json` gewählt → 14 Typen, 14 Vorlagen,
+   60 Bauteile.
+3. Nach dem Neuladen ist alles da; das Paket liegt im Browser und bleibt.
+
+Dazu zwei Anpassungen, die dieser Weg nötig gemacht hat:
+
+* `build_html.py` bricht bei fehlenden Datenbanken nicht mehr ab, sondern baut
+  von selbst die datenfreie Ausgabe.
+* **Die Ablageliste des Dienstarbeiters führt `data/` nicht mehr.** Die drei
+  Dateien sind keine Voraussetzung für den Start — sie können im Browser
+  hinterlegt sein und dann gibt es sie gar nicht. Sie aufzuführen hiesse, bei
+  jeder Einrichtung drei Fehlschläge zu erzeugen. Liegen sie doch daneben,
+  nimmt der Dienstarbeiter sie beim ersten Gebrauch von selbst auf.
 
 `build_html.py` verträgt jetzt fehlende Datenbanken: es baut dann von selbst
 die datenfreie Ausgabe statt abzubrechen. Für GitHub Pages muss die Datei

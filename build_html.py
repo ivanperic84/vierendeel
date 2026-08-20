@@ -159,10 +159,18 @@ RE_SW_BLOCK = re.compile(
 
 
 def schale():
-    """Alles, was die Anwendung zum Starten braucht - in Ladereihenfolge."""
+    """
+    Alles, was die Anwendung zum Starten braucht - in Ladereihenfolge.
+
+    OHNE data/. Die drei Datenbanken sind KEINE Voraussetzung für den Start:
+    sie können als Datenpaket im Browser hinterlegt sein und dann gibt es die
+    Dateien gar nicht (öffentliche Ablage). Sie hier aufzuführen hiesse, bei
+    jeder Einrichtung drei Fehlschläge zu erzeugen. Liegen sie doch daneben,
+    nimmt der Dienstarbeiter sie beim ersten Gebrauch von selbst auf - danach
+    ist auch dieser Weg offline vollständig.
+    """
     dateien = ["./", "index.html", "css/style.css", "manifest.webmanifest"]
     dateien += ["js/" + p.name for p in sorted(JS.glob("*.js"))]
-    dateien += ["data/" + p.name for p in sorted((WURZEL / "data").glob("*.json"))]
     dateien += ["icons/" + p.name for p in sorted(ICONS.glob("*"))
                 if p.suffix in (".png", ".svg")]
     return dateien
