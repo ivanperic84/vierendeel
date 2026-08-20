@@ -144,7 +144,8 @@ function neuRechnen(neuZeichnen = true) {
   const zeichneEingabe = () => {
     if (!neuZeichnen) return;
     const extras = letzte
-      ? { prof: ui.qskMarke(letzte.kl),
+      ? { geo: ui.hebelarmUebersicht(letzte.erg),
+          prof: ui.qskMarke(letzte.kl),
           blech: ui.blechUebersichtHtml(letzte.erg),
           stueck: ui.stuecklisteHtml(letzte.anzeige),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }

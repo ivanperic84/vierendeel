@@ -35,6 +35,52 @@
 import { U, RECHTECK } from './core.constants.js';
 import { lokaleQuerkraft } from './core.anbauteile.js';
 
+/**
+ * WIE SICH DIE EBENENQUERKRAFT AUF DIE BEIDEN GURTE EINER EBENE VERTEILT.
+ *
+ * In einer Vertikalebene stehen ein OBER- und ein UNTERGURT nebeneinander -
+ * bei den meisten Jochtypen mit VERSCHIEDENEN Profilen. Im Vierendeel-Rahmen
+ * teilt sich die Querkraft dann nach der Biegesteifigkeit, nicht hälftig:
+ * der steifere Gurt zieht Moment an sich.
+ *
+ * Der Vergleich mit einem AxisVM-Stabmodell (Signaljoch, L 100x100x10 oben,
+ * L 80x80x8 unten, I-Verhältnis 2.45) zeigt es deutlich: hälftig gerechnet
+ * wird der Obergurt um rund 30 % UNTERSCHÄTZT.
+ *
+ * Drei Wege:
+ *   gleich        wie bisher, je die Hälfte
+ *   steifigkeit   I_Gurt / ΣI - der Obergurt trifft damit auf wenige Prozent,
+ *                 der Untergurt wird dafür bis 25 % zu klein
+ *   huellend      je Gurt der ungünstigere der beiden - nie schlechter als
+ *                 bisher und beim steiferen Gurt richtig
+ *
+ * In den HORIZONTALEBENEN stehen zwei GLEICHE Gurte nebeneinander; dort ist
+ * hälftig immer richtig und die Einstellung ohne Wirkung.
+ */
+export const GURTAUFTEILUNGEN = [
+  { key: 'huellend', label: 'einhüllend – je Gurt der ungünstigere Anteil (empfohlen)' },
+  { key: 'steifigkeit', label: 'nach Biegesteifigkeit I/ΣI' },
+  { key: 'gleich', label: 'hälftig (bisheriges Verhalten)' },
+];
+
+/**
+ * Anteil eines Gurtes an der Querkraft seiner VERTIKALEBENE.
+ * @returns {{OG:number, UG:number}}
+ */
+export function gurtanteile(m, art = 'huellend') {
+  if (art === 'gleich') return { OG: 0.5, UG: 0.5 };
+  // Für die Rahmenbiegung in der Vertikalebene zählt das Trägheitsmoment um
+  // die schenkelparallele Achse - dieselbe Achse, mit der auch der Nachweis
+  // geführt wird (I = i_y² · A).
+  const I = (p) => p.iy * p.iy * p.A;
+  const iOG = I(m.profOG), iUG = I(m.profUG);
+  const summe = iOG + iUG;
+  if (!(summe > 0)) return { OG: 0.5, UG: 0.5 };
+  const st = { OG: iOG / summe, UG: iUG / summe };
+  if (art === 'steifigkeit') return st;
+  return { OG: Math.max(0.5, st.OG), UG: Math.max(0.5, st.UG) };
+}
+
 export const TORSIONSVERTEILUNGEN = [
   { key: 'schubfluss', label: 'Schubfluss im geschlossenen Kasten (Bredt)' },
   { key: 'nurVertikal', label: 'ganze Torsion in die Vertikalebenen (konservativ)' },
@@ -276,22 +322,33 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
   };
   const fMy = anschnitt(bleche?.vertikal);
   const fMz = anschnitt(bleche?.horizontal);
+  // AUFTEILUNG AUF DIE GURTE EINER EBENE, siehe GURTAUFTEILUNGEN.
+  // In der Vertikalebene stehen OG und UG nebeneinander und teilen die
+  // Querkraft nach Steifigkeit; in der Horizontalebene sind es zwei gleiche
+  // Gurte, dort bleibt es hälftig.
+  const anteil = gurtanteile(m, m.gurtaufteilung ?? 'huellend');
+  const My_KnotenG = { OG: q.vertikal.max * anteil.OG * (aGurt / 2),
+                       UG: q.vertikal.max * anteil.UG * (aGurt / 2) };
+  // Für Anzeige und Rückwärtsvergleich: der bisherige hälftige Wert.
   const My_Knoten = (q.vertikal.max / 2) * (aGurt / 2);
   const Mz_Knoten = (q.horizontal.max / 2) * (aGurt / 2);
   const My_lokal = My_Knoten * fMy;
   const Mz_lokal = Mz_Knoten * fMz;
+  const My_lokalG = { OG: My_KnotenG.OG * fMy, UG: My_KnotenG.UG * fMy };
 
   // --- Eckwinkel -----------------------------------------------------------
   const ecken = eckNormalkraefte(sg, m).map((e) => {
     const p = e.gurt === 'OG' ? m.profOG : m.profUG;
+    const myG = My_lokalG[e.gurt];
     const sig_N = (Math.abs(e.N) * U.kN_cm2__N_mm2) / p.A;
-    const sig_My = (My_lokal * U.kNm_cm3__N_mm2) / p.Wy;
+    const sig_My = (myG * U.kNm_cm3__N_mm2) / p.Wy;
     const sig_Mz = (Mz_lokal * U.kNm_cm3__N_mm2) / p.Wz;
     const sig_v = sig_N + sig_My + sig_Mz;
     return {
       ...e, profil: p.name, A: p.A, Wy: p.Wy, Wz: p.Wz,
       art: e.N < 0 ? 'Druck' : 'Zug',
-      My_lokal, Mz_lokal, sig_N, sig_My, sig_Mz, sig_v,
+      My_lokal: myG, Mz_lokal, gurtanteil: anteil[e.gurt],
+      sig_N, sig_My, sig_Mz, sig_v,
       eta: sig_v / m.fyd,
     };
   });
@@ -322,8 +379,15 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
     if (!blech) return null;
     const breite = blech.breite;      // Abmessung entlang der Jochachse [mm]
     const dicke = blech.dicke;
-    const M_K = (V_Ebene * aBlech) / 4;                          // [kNm] am Knoten
-    const V = (2 * M_K) / hebelarm;                              // [kN]
+    // AM KNOTEN TRÄGT DAS BLECH DIE SUMME DER GURTMOMENTE beider Nachbarfelder.
+    // Ist die Aufteilung auf die Gurte ungleich, sind die beiden Blechenden
+    // ungleich belastet; massgebend ist das grössere. Die QUERKRAFT bleibt
+    // davon unberührt: sie folgt aus der Summe beider Endmomente, und die
+    // Anteile ergänzen sich zu eins.
+    const gurtMax = art === 'vertikal'
+      ? Math.max(anteil.OG, anteil.UG) : 0.5;
+    const M_K = V_Ebene * aBlech * gurtMax / 2;                  // [kNm] am Knoten
+    const V = (V_Ebene * aBlech) / (2 * hebelarm);               // [kN]
 
     // STEIFER KNOTENBEREICH
     // Das Blech überlappt am Knoten den Gurtwinkel und ist dort mit ihm

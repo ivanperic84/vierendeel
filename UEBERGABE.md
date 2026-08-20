@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 615 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
+**Stand:** 638 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 615 Kontrollen
+node pruefung.mjs           # Prüfstand, 638 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,62 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Nach dem AxisVM-Vergleich: drei Korrekturen
+
+Grundlage ist `Vergleich_AxisVM_Signaljoch.md` (nicht in der Ablage — nennt
+Bauteilmasse aus dem Projekt). Umgesetzt sind die drei Punkte mit dem besten
+Verhältnis von Wirkung zu Aufwand.
+
+**1 · Einbaulage des stehenden Schenkels wirkt jetzt auf den Hebelarm.**
+`hebelarme()` rechnete b immer als `(jbb − 2·ja) + 2·zs` — das gilt für nach
+INNEN zeigende Schenkel. Zeigen sie nach aussen, ist `b = jbb − 2·zs`. Beim
+Signaljoch sind das **363 gegen 456 mm**, ein Fünftel Hebelarm. `ausrOG`/
+`ausrUG` gab es längst in der Eingabe, sie griffen nur nicht in die Rechnung.
+
+Dazu **stehen h und b jetzt in der Maske** (`hebelarmUebersicht` in `ui.js`,
+Gruppe Systemgeometrie) mit ihrer Herleitung und einer Schranke: liegt h
+ausserhalb `jd − 2·max(zs) … jd`, sagt es das rot und nennt den häufigsten
+Grund — jd als Aussenmass über die Anschlussbleche statt Winkelrücken zu
+Winkelrücken. Genau dieser Fehler hat mir beim ersten Nachbau 20–50 %
+eingebrockt, ohne dass irgendetwas verdächtig ausgesehen hätte.
+
+**2 · Querkraft auf die Gurte einer Vertikalebene nach Steifigkeit.**
+Neue Option `gurtaufteilung` (`core.querschnitt.js`, `GURTAUFTEILUNGEN`):
+
+| | |
+|---|---|
+| `huellend` (**Vorgabe**) | je Gurt der ungünstigere der beiden Anteile |
+| `steifigkeit` | I_Gurt / ΣI |
+| `gleich` | hälftig, das bisherige Verhalten |
+
+In einer Vertikalebene stehen Ober- und Untergurt nebeneinander, bei den
+meisten Typen mit **verschiedenen Profilen**. Hälftig gerechnet wird der
+steifere um rund 30 % unterschätzt. Wirkung am Signaljoch:
+
+| Lastfall | Obergurt vorher | jetzt |
+|---|---|---|
+| self weight | −29.9 % | **−4.5 %** |
+| added weight | −22.9 % | **−1.6 %** |
+| snow | −28.5 % | **−2.6 %** |
+
+Die reine I-Aufteilung träfe den Obergurt noch besser, macht aber den
+Untergurt bis 25 % zu klein — deshalb einhüllend als Vorgabe: **nie schlechter
+als bisher.** Katalogweit nachgefahren: bei gleichen Gurten (J60–J90) ändert
+sich **nichts**, bei ungleichen steigt η des Obergurts um 6–24 %, das Blech
+bis 45 % (Altbauweise), und **η_gesamt bleibt in jedem Fall gleich** — es
+regierte immer der Untergurt. Die Blechquerkraft ist unberührt: die Anteile
+ergänzen sich zu eins.
+
+**3 · Zwei verschiedene Maste.** `mastZwei` mit `mastProfilB`, `mastHB`,
+`mastStegB`; `drehfedern()` liefert cA und cB getrennt. Die beiden Enden eines
+Jochs stehen selten auf demselben Mast — im Vergleichsmodell HEB 260 (9.0 m)
+gegen HEM 240 (13.0 m), rund 10 % Unterschied auf die Vertikallastfälle.
+
+Prüfstand: Abschnitt 24, **23 neue Kontrollen** (Hebelarm gegen das Stabmodell
+auf 1 ‰, Anteile ergänzen sich, einhüllend nie günstiger, Blechquerkraft
+unverändert, zweiter Mast wirkungslos ohne Schalter).
+
 
 ### Installierbar und ohne Netz (PWA)
 

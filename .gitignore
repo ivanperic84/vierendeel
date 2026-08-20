@@ -21,6 +21,8 @@ Grundlagen/
 *.pdf
 *.docx
 *.xlsx
+# Auswertung eines Betreibermodells - nennt Bauteilmasse aus dem Projekt
+Vergleich_AxisVM_Signaljoch.md
 
 # GEBÜNDELTE AUSGABEN.
 # Erzeugnisse von build_html.py, kein Quelltext - und die vollständige Datei

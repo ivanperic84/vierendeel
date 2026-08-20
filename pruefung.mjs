@@ -2445,6 +2445,84 @@ titel('23  Vorzeichenrichtige Überlagerung je Blechebene');
 }
 
 // ===========================================================================
+titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
+{
+  const { hebelarme } = await import(J('core.vierendeel.js'));
+  const { gurtanteile } = await import(J('core.querschnitt.js'));
+  const { mastSteifigkeit, drehfedern } = await import(J('core.auflager.js'));
+
+  // --- 1 · Einbaulage des stehenden Schenkels -------------------------------
+  // Signaljoch: jbb 512 mm, L 100x100x10 (zs_V = 2.82 cm). Zeigt der Schenkel
+  // nach aussen, ist b = jbb - 2·zs; nach innen b = (jbb - 2·ja) + 2·zs.
+  const pOG = getProfil('L 100x100x10'), pUG = getProfil('L 80x80x8');
+  const phys = { jd: 600, jbbOG: 512, jbbUG: 491 };
+  const innen = hebelarme(phys, pOG, pUG, { og: { st: -1 }, ug: { st: -1 } });
+  const aussen = hebelarme(phys, pOG, pUG, { og: { st: +1 }, ug: { st: +1 } });
+  pruef('b Obergurt, Schenkel innen', innen.bOG, (512 - 200 + 2 * 28.2) / 1000, 1e-9, 'm');
+  pruef('b Obergurt, Schenkel aussen', aussen.bOG, (512 - 2 * 28.2) / 1000, 1e-9, 'm');
+  wahr('Schenkel aussen gibt den grösseren Hebelarm', aussen.bOG > innen.bOG);
+  pruef('h hängt nicht von der Querlage ab',
+        aussen.varianten.schwerpunkt.hT, innen.varianten.schwerpunkt.hT, 1e-12, 'm');
+  // Gegen das AxisVM-Modell: Schwerachsen ±228 mm -> b = 456 mm
+  pruef('b trifft das Stabmodell', aussen.bOG, 0.4556, 1e-3, 'm');
+  pruef('h trifft das Stabmodell', aussen.varianten.schwerpunkt.hT, 0.5493, 1e-3, 'm');
+  wahr('Ohne Angabe gilt die Regelbauart (Schenkel innen)',
+       Math.abs(hebelarme(phys, pOG, pUG).bOG - innen.bOG) < 1e-12);
+
+  // --- 2 · Aufteilung auf die Gurte einer Vertikalebene ---------------------
+  const mUngleich = { profOG: pOG, profUG: pUG };
+  const gl = gurtanteile(mUngleich, 'gleich');
+  const st = gurtanteile(mUngleich, 'steifigkeit');
+  const hu = gurtanteile(mUngleich, 'huellend');
+  pruef('hälftig: beide 0.5', gl.OG, 0.5, 1e-12);
+  pruef('Steifigkeitsanteile ergänzen sich zu eins', st.OG + st.UG, 1, 1e-12);
+  wahr('Der steifere Gurt bekommt mehr', st.OG > st.UG);
+  // I = i_y^2 * A: L100x10 -> 3.04^2*19.2 = 177.4 cm4, L80x8 -> 2.42^2*12.3 = 72.0
+  pruef('Anteil Obergurt nach I', st.OG, (3.04 ** 2 * 19.2)
+        / (3.04 ** 2 * 19.2 + 2.42 ** 2 * 12.3), 1e-9);
+  wahr('einhüllend nimmt je Gurt den ungünstigeren Anteil',
+       hu.OG === st.OG && hu.UG === 0.5);
+  wahr('einhüllend ist nie kleiner als hälftig', hu.OG >= 0.5 && hu.UG >= 0.5);
+  const gleich = gurtanteile({ profOG: pOG, profUG: pOG }, 'steifigkeit');
+  pruef('Gleiche Gurte: wieder hälftig', gleich.OG, 0.5, 1e-12);
+
+  // Wirkung im Nachweis: nur bei ungleichen Gurten, und nur nach oben.
+  const j130 = T.getTragjoch('J130');
+  const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j130),
+               typ: 'J130', L: 27, schneeAktiv: false, anbauteile: [],
+               endbedingung: 'gelenkig', torsionModell: 'huellkurve' };
+  const a = rechne({ ...e0, gurtaufteilung: 'gleich' });
+  const b = rechne({ ...e0, gurtaufteilung: 'huellend' });
+  wahr('J130 hat ungleiche Gurte', a.modell.profOG.name !== a.modell.profUG.name);
+  wahr('Einhüllend ist an keiner Station günstiger',
+       a.knoten.every((k, i) => k.ecken.every((e, j) =>
+         b.knoten[i].ecken[j].sig_v >= e.sig_v - 1e-9)));
+  wahr('Der steifere Obergurt wird ungünstiger',
+       b.max.etaOG.og.eta > a.max.etaOG.og.eta);
+  // Die Blechquerkraft bleibt unberührt - die Anteile ergänzen sich zu eins.
+  wahr('Blechquerkraft unverändert',
+       a.knoten.every((k, i) => k.ebenen.every((e, j) => e.V == null
+         || Math.abs(e.V - b.knoten[i].ebenen[j].V) < 1e-9)));
+
+  // --- 3 · Zwei verschiedene Maste ------------------------------------------
+  const mastEin = { endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.8,
+                    mastSteg: 'jochachse', mastAnschluss: 'kragarm' };
+  const f1 = drehfedern(mastEin);
+  pruef('Ein Mast: beide Enden gleich', f1.cA, f1.cB, 1e-12, 'kNm/rad');
+  const f2 = drehfedern({ ...mastEin, mastZwei: true,
+                          mastProfilB: 'HEM 240', mastHB: 12.0 });
+  wahr('Zwei Maste: die Enden unterscheiden sich', Math.abs(f2.cA - f2.cB) > 1);
+  pruef('Ende A unverändert', f2.cA, f1.cA, 1e-12, 'kNm/rad');
+  const mB = mastSteifigkeit({ ...mastEin, mastZwei: true,
+                               mastProfilB: 'HEM 240', mastHB: 12.0 }, 'B');
+  pruef('Ende B: EI/H des zweiten Mastes', f2.cB,
+        (210e6 * mB.I_cm4 * 1e-8) / 12.0, 1e-9, 'kNm/rad');
+  wahr('Ohne Schalter bleibt der zweite Mast wirkungslos',
+       Math.abs(drehfedern({ ...mastEin, mastProfilB: 'HEM 240', mastHB: 12.0 }).cB
+                - f1.cB) < 1e-12);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

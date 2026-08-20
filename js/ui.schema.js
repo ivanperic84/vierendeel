@@ -24,7 +24,8 @@ import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
-import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG } from './core.querschnitt.js';
+import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG,
+         GURTAUFTEILUNGEN } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE } from './core.auflager.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
@@ -131,6 +132,23 @@ export const FELDER = [
   { key: 'mastSteg', gruppe: 'aufl', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
     sichtbar: (w) => w.endbedingung === 'mast' },
+  // ZWEI MASTE.
+  // Die beiden Enden eines Jochs stehen selten auf demselben Mast: das Gelände
+  // fällt, die Profile unterscheiden sich, und damit auch die Einspannung.
+  // Bisher galt eine Drehfeder für beide Enden - beim Vergleichsmodell
+  // (HEB 260 gegen HEM 240, 9.0 gegen 13.0 m) waren das rund 10 % Unterschied.
+  { key: 'mastZwei', gruppe: 'aufl', typ: 'schalter',
+    label: 'Zweiter Mast am Ende B abweichend', standard: false,
+    sichtbar: (w) => w.endbedingung === 'mast' },
+  { key: 'mastProfilB', gruppe: 'aufl', typ: 'auswahl', label: 'Mastprofil Ende B',
+    standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
+    sichtbar: (w) => w.endbedingung === 'mast' && w.mastZwei },
+  { key: 'mastHB', gruppe: 'aufl', typ: 'zahl', label: 'Masthöhe Ende B',
+    sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.25, min: 0.5,
+    sichtbar: (w) => w.endbedingung === 'mast' && w.mastZwei },
+  { key: 'mastStegB', gruppe: 'aufl', typ: 'auswahl', label: 'Stegrichtung Ende B',
+    standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
+    sichtbar: (w) => w.endbedingung === 'mast' && w.mastZwei },
   { key: 'mastAnschluss', gruppe: 'aufl', typ: 'auswahl', label: 'Anschluss ans Joch',
     standard: 'durchlaufend', optionen: opt(MASTANSCHLUESSE),
     sichtbar: (w) => w.endbedingung === 'mast',
@@ -284,6 +302,18 @@ export const FELDER = [
   // Vorgabe bleibt die Hüllkurve: sie ist nie unsicher. Der vorzeichenrichtige
   // Weg SENKT Bemessungswerte an der günstigeren Ebene und ist deshalb eine
   // bewusste Wahl, keine stille Voreinstellung.
+  // Bei UNGLEICHEN Gurten teilt sich die Querkraft der Vertikalebene nach der
+  // Biegesteifigkeit. Vorgabe «einhüllend»: nie schlechter als das bisherige
+  // hälftige Verhalten, aber am steiferen Gurt richtig.
+  { key: 'gurtaufteilung', optionenDialog: true, gruppe: 'komb',
+    typ: 'auswahl', label: 'Querkraft auf die Gurte einer Ebene',
+    standard: 'huellend', optionen: opt(GURTAUFTEILUNGEN),
+    hinweis: 'In einer Vertikalebene stehen Ober- und Untergurt nebeneinander, '
+           + 'bei den meisten Typen mit verschiedenen Profilen. Im Rahmen zieht '
+           + 'der steifere Gurt Moment an sich; hälftig gerechnet wird er '
+           + 'unterschätzt – beim Vergleich mit einem Stabmodell um rund 30 %. '
+           + 'In den Horizontalebenen stehen zwei gleiche Gurte, dort ist die '
+           + 'Einstellung ohne Wirkung.' },
   { key: 'ebenenUeberlagerung', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Überlagerung je Blechebene',
     standard: 'huellkurve', optionen: opt(EBENEN_UEBERLAGERUNG),
@@ -365,8 +395,8 @@ export function sichtbareFelder(gruppe, werte) {
 /** Felder des Optionen-Dialogs, nach Abschnitten geordnet. */
 export const OPTIONEN_ABSCHNITTE = [
   { titel: 'Rechenmodell', keys: ['massVariante', 'blechQuelle', 'ausrOG', 'ausrUG'] },
-  { titel: 'Torsion', keys: ['torsionModell', 'torsionsverteilung',
-                             'ebenenUeberlagerung'] },
+  { titel: 'Torsion und Aufteilung', keys: ['torsionModell', 'torsionsverteilung',
+                             'ebenenUeberlagerung', 'gurtaufteilung'] },
   { titel: 'Einwirkungen', keys: ['lastHerkunft'] },
   { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { titel: 'Widerstand', keys: ['gammaM0'] },

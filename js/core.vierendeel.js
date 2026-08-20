@@ -18,6 +18,7 @@ import { bemessungslasten, auflagerkraefte, schnittgroessen,
 import { charakteristischeLasten, lastfallUebersicht, beiwerteFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile } from './data.anbauteile.js';
+import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
          mastNachweis } from './core.auflager.js';
 import { schnittAuswertung } from './core.querschnitt.js';
@@ -48,19 +49,47 @@ export const BLECHQUELLEN = [
   { key: 'manuell', label: 'manuell (ein Blech für alle Stationen)' },
 ];
 
-/** Rechnet die physischen Querschnittsmasse in die drei Hebelarm-Varianten um. */
-export function hebelarme(phys, pOG, pUG) {
+/**
+ * Rechnet die physischen Querschnittsmasse in die drei Hebelarm-Varianten um.
+ *
+ * DIE EINBAULAGE ENTSCHEIDET MIT.
+ * Der Schwerpunktsabstand quer hängt davon ab, wohin der STEHENDE Schenkel
+ * zeigt (siehe AUSRICHTUNGEN in geometry.js, Kennzeichen `st`):
+ *
+ *   stehend INNEN  (st = -1)   b = (jbb - 2·ja) + 2·zs_V
+ *                              Das Aussenmass jbb liegt an der Ferse, der
+ *                              Schenkel ragt nach innen, der Schwerpunkt
+ *                              liegt zs_V innerhalb der lichten Kante.
+ *   stehend AUSSEN (st = +1)   b = jbb - 2·zs_V
+ *                              Der Schenkelrücken bildet die Aussenkante, der
+ *                              Schwerpunkt liegt zs_V weiter innen.
+ *
+ * Der Unterschied ist gross: beim Signaljoch (jbb 512 mm, L 100x100x10) sind
+ * es 363 gegen 456 mm - ein Fünftel Hebelarm und damit ein Fünftel Gurtkraft.
+ * Bis hierher war nur die erste Lage gerechnet worden, obwohl die Ausrichtung
+ * in der Eingabe längst wählbar ist.
+ *
+ * @param {object} ausr {og:{st,lg}, ug:{st,lg}} - Einbaulagen; fehlt sie,
+ *        gilt die Regelbauart (stehend innen).
+ */
+export function hebelarme(phys, pOG, pUG, ausr = null) {
   const lichtOG = phys.jbbOG - 2 * pOG.aH;
   const lichtUG = phys.jbbUG - 2 * pUG.aH;
   const zsH_o = pOG.zsH * U.cm__mm, zsH_u = pUG.zsH * U.cm__mm;
   const zsV_o = pOG.zsV * U.cm__mm, zsV_u = pUG.zsV * U.cm__mm;
   const mm = (v) => v / U.m__mm;
+  // st = +1 heisst «stehender Schenkel nach aussen».
+  const stOG = ausr?.og?.st ?? -1;
+  const stUG = ausr?.ug?.st ?? -1;
+  const bOG = stOG > 0 ? phys.jbbOG - 2 * zsV_o : lichtOG + 2 * zsV_o;
+  const bUG = stUG > 0 ? phys.jbbUG - 2 * zsV_u : lichtUG + 2 * zsV_u;
   return {
-    lichtOG, lichtUG,
+    lichtOG, lichtUG, bOG: mm(bOG), bUG: mm(bUG),
+    stehendAussen: { og: stOG > 0, ug: stUG > 0 },
     varianten: {
       schwerpunkt: {
         hT: mm(phys.jd - zsH_o - zsH_u),
-        bT: mm(((lichtOG + 2 * zsV_o) + (lichtUG + 2 * zsV_u)) / 2),
+        bT: mm((bOG + bUG) / 2),
       },
       aussen: { hT: mm(phys.jd), bT: mm((phys.jbbOG + phys.jbbUG) / 2) },
       licht: { hT: mm(phys.jd - pOG.t - pUG.t), bT: mm((lichtOG + lichtUG) / 2) },
@@ -121,7 +150,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const variante = massVariante ?? inp.massVariante;
 
   const phys = { jd: inp.jd, jbbOG: inp.jbbOG, jbbUG: inp.jbbUG };
-  const ha = hebelarme(phys, profOG, profUG);
+  const ausr = { og: getAusrichtung(inp.ausrOG ?? 'LA_SI'),
+                 ug: getAusrichtung(inp.ausrUG ?? 'LA_SI') };
+  const ha = hebelarme(phys, profOG, profUG, ausr);
   const v = ha.varianten[variante];
   if (!v) throw new Error(`Unbekannte Massvariante: ${variante}`);
 
@@ -204,6 +235,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     torsionModell: inp.torsionModell,
     torsionsverteilung: inp.torsionsverteilung,
     ebenenUeberlagerung: inp.ebenenUeberlagerung ?? 'huellkurve',
+    gurtaufteilung: inp.gurtaufteilung ?? 'huellend',
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
     profOG, profUG, stahl, joch,
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,

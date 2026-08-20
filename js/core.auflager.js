@@ -117,16 +117,21 @@ export const MASTANSCHLUESSE = [
  * Drehsteifigkeit eines Mastes am Jochanschluss.
  * @param {object} inp Eingabe (mastProfil, mastH, mastSteg, mastAnschluss)
  */
-export function mastSteifigkeit(inp) {
-  const p = getMastprofil(inp.mastProfil);
-  const sr = getStegrichtung(inp.mastSteg);
+export function mastSteifigkeit(inp, ende = 'A') {
+  // Zwei Maste sind der Normalfall, nicht die Ausnahme: verschiedene Profile,
+  // verschiedene Höhen (Gelände!), verschiedene Stegrichtungen. Fehlt die
+  // zweite Angabe, gilt für beide Enden derselbe Mast.
+  const zwei = ende === 'B' && inp.mastZwei === true;
+  const p = getMastprofil(zwei ? (inp.mastProfilB ?? inp.mastProfil) : inp.mastProfil);
+  const sr = getStegrichtung(zwei ? (inp.mastStegB ?? inp.mastSteg) : inp.mastSteg);
+  const H = zwei ? (inp.mastHB ?? inp.mastH) : inp.mastH;
   const I_cm4 = sr.achse === 'y' ? p.Iy : p.Iz;
   const W_cm3 = sr.achse === 'y' ? p.Wy : p.Wz;
   const I = I_cm4 * 1e-8;                       // cm4 -> m4
   const an = MASTANSCHLUESSE.find((a) => a.key === (inp.mastAnschluss ?? 'durchlaufend'))
     ?? MASTANSCHLUESSE[0];
-  const cKragarm = (E_STAHL * I) / inp.mastH;   // kNm/rad
-  return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I,
+  const cKragarm = (E_STAHL * I) / H;           // kNm/rad
+  return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, ende,
            anschluss: an.key, faktor: an.faktor,
            cKragarm, cPhi: an.faktor * cKragarm };
 }
@@ -141,9 +146,13 @@ export function drehfedern(inp) {
     case 'voll':     return { cA: C_STARR, cB: C_STARR, mast: null, art: 'voll eingespannt' };
     case 'manuell':  return { cA: inp.cPhi, cB: inp.cPhi, mast: null, art: 'teilweise (manuell)' };
     case 'mast': {
-      const mast = mastSteifigkeit(inp);
-      return { cA: mast.cPhi, cB: mast.cPhi, mast,
-               art: `teilweise (Mast, ${mast.faktor === 1 ? 'Kragarm' : 'durchlaufend'})` };
+      const mastA = mastSteifigkeit(inp, 'A');
+      const mastB = mastSteifigkeit(inp, 'B');
+      const zwei = inp.mastZwei === true;
+      return { cA: mastA.cPhi, cB: mastB.cPhi,
+               mast: mastA, mastA, mastB, zweiMaste: zwei,
+               art: `teilweise (Mast${zwei ? 'e' : ''}, `
+                  + `${mastA.faktor === 1 ? 'Kragarm' : 'durchlaufend'})` };
     }
     default: throw new Error(`Unbekannte Endbedingung: ${inp.endbedingung}`);
   }

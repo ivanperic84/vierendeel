@@ -274,6 +274,47 @@ export function aktualisiereMaske(container, werte, extras = {}) {
  * der Abschnitt «Bindebleche» blieb leer, weil alle Eingabefelder nur bei
  * manueller Blechwahl gelten.
  */
+/**
+ * DIE BEIDEN HEBELARME, SICHTBAR.
+ *
+ * h und b entscheiden über jede Gurtkraft (N = M/h bzw. M/b) und standen
+ * bisher nur im Verlaufsblatt. Ein falsch verstandenes Zeichnungsmass fällt
+ * damit erst am Ende auf - beim Nachbau eines Signaljochs waren es 18 % auf h
+ * und 20 % auf b, ohne dass irgendetwas danach ausgesehen hätte.
+ *
+ * Deshalb stehen sie hier neben den Massen, mit ihrer Herleitung und einer
+ * Plausibilitätsschranke: h kann nie grösser als jd und nie kleiner als
+ * jd − 2·max(zs) sein.
+ */
+export function hebelarmUebersicht(erg) {
+  const m = erg.modell;
+  const ha = m.hebelarme;
+  if (!ha) return '';
+  const mm = (v) => f0(v * 1000);
+  const zsO = m.profOG.zsH * 10, zsU = m.profUG.zsH * 10;
+  const hMin = m.jd - 2 * Math.max(zsO, zsU), hMax = m.jd;
+  const hIst = m.h * 1000;
+  const heikel = hIst > hMax + 1 || hIst < hMin - 1;
+  const stA = ha.stehendAussen ?? { og: false, ug: false };
+  const lage = (aussen) => (aussen ? 'Schenkel aussen' : 'Schenkel innen');
+  return `${abschnitt('Hebelarme des Kräftepaars')}
+    <div class="kennzahlen">
+      ${kachel('h', mm(m.h), 'mm · Gurtschwerachsen')}
+      ${kachel('b', mm(m.b), 'mm · Ebenenabstand')}
+    </div>
+    <p class="hinweis" style="margin:2px 0 0">
+      h = jd − zs<sub>OG</sub> − zs<sub>UG</sub> = ${f0(m.jd)} − ${f1(zsO)} − ${f1(zsU)}
+      = ${mm(m.h)} mm<br>
+      b: Obergurt ${mm(ha.bOG ?? m.b)} mm (${esc(lage(stA.og))}) ·
+      Untergurt ${mm(ha.bUG ?? m.b)} mm (${esc(lage(stA.ug))})
+    </p>
+    ${heikel ? `<p class="hinweis" style="color:var(--fail)">
+      <b>h liegt ausserhalb des Erwartungsbereichs</b> (${f0(hMin)} … ${f0(hMax)} mm).
+      Meist ist jd das falsche Zeichnungsmass: gemeint ist der Abstand
+      <b>Winkelrücken zu Winkelrücken</b>, nicht das Aussenmass über die
+      Anschlussbleche.</p>` : ''}`;
+}
+
 export function blechUebersichtHtml(erg) {
   if (!erg) return '';
   const m = erg.modell;
