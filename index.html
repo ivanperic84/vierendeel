@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tragjoch</title>
+<meta name="description" content="Bemessung gegliederter Vierendeel-Tragjoche aus vier Winkelprofilen. Rechnet vollständig im Browser.">
+
+<!-- Installierbar und ohne Netz lauffähig (siehe js/pwa.js, sw.js).
+     Der Bundler entfernt die Manifest-Zeile für die Einzeldatei: dort gibt
+     es keine Nachbardateien, die sich nachladen liessen. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e0f11">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tragjoch">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <span class="tb-logo">TRAGJOCH</span>
+    <div class="tb-sep"></div>
+    <div class="tb-mitte">
+      <button class="tb-proj" id="btn-projekt" type="button"
+              title="Projektablage öffnen"></button>
+    </div>
+    <div id="kopf-werkzeuge" style="display:flex;gap:5px;align-items:center"></div>
+  </header>
+
+  <!-- Bannerschublade: Projektablage und Vorlagen ganzer Tragwerke.
+       Sie fährt unter dem Banner heraus, statt einen Dialog über das
+       Arbeitsblatt zu legen - so bleibt sichtbar, woran man gerade ist. -->
+  <div class="bannerschublade" id="bannerschublade" hidden></div>
+
+  <div class="ws" id="ws">
+
+    <!-- Bereich 1: Eingabe -->
+    <section class="panel panel-links" id="panel-eingabe">
+      <!-- Schiene: bleibt beim Einklappen stehen und trägt die Reiter als
+           Symbole. Ein Klick fährt die Schublade wieder aus, und zwar auf
+           genau diesen Reiter. -->
+      <div class="schiene" id="schiene-links"></div>
+      <div class="tabs" id="tabs"></div>
+      <div class="panel-koerper pad" id="maske"></div>
+    </section>
+
+    <div class="split" id="split-links" title="Breite ziehen"></div>
+
+    <!-- Bereich 2: Modellübersicht -->
+    <section class="panel" id="panel-modell">
+      <div class="panel-kopf">
+        <span class="panel-titel">Modellübersicht</span>
+        <span id="modell-info" class="ablage-meta"></span>
+        <div id="modell-werkzeuge" style="display:flex;gap:4px"></div>
+      </div>
+      <div class="viewer" id="viewer">
+        <canvas id="canvas3d"></canvas>
+        <!-- Bühne für ein vergrössertes Diagramm: legt sich über das Modell,
+             damit die Kurve die volle Breite bekommt und trotzdem live bleibt -->
+        <div class="viewer-buehne" id="diagramm-buehne" hidden></div>
+        <div class="viewer-tools" id="ansicht-tools"></div>
+        <div class="viewer-tools-r" id="ebenen-tools"></div>
+        <div class="viewer-oben" id="einwirkung-wahl"></div>
+        <div class="viewer-pop" id="viewer-pop" hidden></div>
+        <div class="legende" id="legende"></div>
+        <div class="viewer-fuss">
+          <span class="viewer-marke" id="pos-marke">x = 0.00 m</span>
+          <span class="viewer-marke" id="pos-station"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="split" id="split-rechts" title="Breite ziehen"></div>
+
+    <!-- Bereich 3: Auswertung -->
+    <section class="panel panel-rechts" id="panel-auswertung">
+      <!-- Schiene: eingeklappt stehen hier die Hauptnachweise, damit man beim
+           Arbeiten am Modell nie ohne η dasteht, darunter die Reiter. -->
+      <div class="schiene" id="schiene-rechts"></div>
+      <div class="panel-kopf">
+        <span class="panel-titel">Auswertung</span>
+        <div id="auswertung-werkzeuge" style="display:flex;gap:4px"></div>
+      </div>
+      <div class="tabs" id="tabs-auswertung"></div>
+      <div class="panel-koerper pad" id="auswertung"></div>
+    </section>
+
+  </div>
+
+  <footer class="statusbar">
+    <span id="st-urteil"></span>
+    <span id="st-modell"></span>
+    <span id="st-db"></span>
+    <span class="rechts" id="st-version"></span>
+  </footer>
+
+</div>
+
+<div id="ueberlagerung"></div>
+
+<script type="application/json" id="tragjoch-db"></script>
+<script type="application/json" id="anbauteil-db"></script>
+  <script type="application/json" id="fl-bauteil-db"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

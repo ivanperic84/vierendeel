@@ -1,0 +1,1198 @@
+/* ==========================================================================
+   style.css — Tragjoch
+   Die Farb- und Masswerte kommen als CSS-Variablen aus js/design.js
+   (uebertrageTokens). Hier stehen nur Struktur und Komponenten.
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--f-ui);
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--on);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mono { font-family: var(--f-mono); }
+
+/* --- Grundgerüst ---------------------------------------------------------- */
+
+.app {
+  display: grid;
+  grid-template-rows: var(--m-kopfhoehe) 1fr var(--m-fusshoehe);
+  height: 100dvh;
+  position: relative;
+}
+
+/* --- Kopfleiste ----------------------------------------------------------- */
+
+.topbar {
+  display: flex; align-items: center; gap: 6px; padding: 0 10px;
+  background: var(--s1); border-bottom: 1px solid var(--ol); z-index: 20;
+}
+.tb-logo {
+  font-family: var(--f-mono); font-size: 13px; font-weight: 500;
+  letter-spacing: .04em; white-space: nowrap;
+}
+.tb-mitte { flex: 1; display: flex; justify-content: center; min-width: 0; }
+.tb-proj {
+  display: flex; align-items: center; gap: 8px; background: transparent;
+  border: none; color: var(--on2); cursor: pointer; padding: 5px 10px;
+  border-radius: var(--m-r1); font-family: var(--f-mono); font-size: 11.5px;
+  max-width: min(58vw, 700px); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-proj:hover { background: var(--s2); color: var(--on); }
+.tb-proj b { font-weight: 500; color: var(--on); }
+.tb-sep { width: 1px; height: 20px; background: var(--ol); margin: 0 3px; }
+.tb-proj.offen { background: var(--acc-s); color: var(--on); }
+
+/* --- Bannerschublade ------------------------------------------------------
+   Projektablage und Vorlagen ganzer Tragwerke. Sie fährt unter dem Banner
+   heraus statt als Dialog über das Arbeitsblatt: man sieht dabei weiter, woran
+   man gerade rechnet, und der Weg zurück ist derselbe Klick. */
+.bannerschublade {
+  position: absolute; top: var(--m-kopfhoehe); left: 0; right: 0; z-index: 19;
+  background: var(--s1); border-bottom: 1px solid var(--ol2);
+  box-shadow: 0 12px 28px rgba(0,0,0,.38);
+  max-height: min(70vh, 620px); overflow: auto;
+  padding: 12px 16px 16px;
+  animation: schublade-auf .2s cubic-bezier(.4,0,.2,1);
+}
+.bannerschublade[hidden] { display: none; }
+@keyframes schublade-auf {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bs-spalten {
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start;
+}
+@media (max-width: 900px) { .bs-spalten { grid-template-columns: 1fr; } }
+.bs-kopf { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.bs-kopf .btn { flex-shrink: 0; }
+.bs-zu { margin-left: auto; }
+
+.btn-icon {
+  width: 30px; height: 30px; padding: 0; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--m-r1); background: var(--s2); border: 1px solid var(--ol);
+  color: var(--dim); cursor: pointer; transition: background .12s, color .12s;
+}
+.btn-icon:hover { background: var(--s3); color: var(--on); }
+.btn-icon.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-family: var(--f-ui); font-size: 12px; font-weight: 500;
+  padding: 6px 11px; border-radius: var(--m-r1);
+  background: var(--s2); border: 1px solid var(--ol); color: var(--on2);
+  transition: background .12s, color .12s, border-color .12s;
+}
+.btn:hover { background: var(--s3); color: var(--on); }
+.btn-acc { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+.btn-fail { color: var(--fail); }
+.btn-mini { padding: 3px 7px; font-size: 11px; }
+
+/* --- Arbeitsfläche: Eingabe | Modell | Auswertung ------------------------- */
+
+.ws {
+  /* Vorgabebreiten, bevor das Skript sie setzt */
+  --sp-links: 386px; --sp-rechts: 380px;
+  display: grid; min-height: 0; position: relative;
+  grid-template-columns: var(--sp-links) var(--m-splitBreite) 1fr var(--m-splitBreite) var(--sp-rechts);
+}
+/* Eingeklappt bleibt eine SCHIENE stehen – die Schublade verschwindet nie
+   ganz. In ihr stehen die Reiter als Symbole, rechts zusätzlich die
+   Hauptnachweise. Wer das Modell breit braucht, verliert damit die Übersicht
+   nicht, und der Weg zurück ist ein Klick auf den Reiter, den man sucht. */
+.ws { --m-schiene: 42px; }
+.ws.zu-links  { grid-template-columns: var(--m-schiene) var(--m-splitBreite) 1fr var(--m-splitBreite) var(--sp-rechts); }
+.ws.zu-rechts { grid-template-columns: var(--sp-links) var(--m-splitBreite) 1fr var(--m-splitBreite) var(--m-schiene); }
+.ws.zu-links.zu-rechts { grid-template-columns: var(--m-schiene) var(--m-splitBreite) 1fr var(--m-splitBreite) var(--m-schiene); }
+/* Beim Klicken weich fahren, beim Ziehen nicht: eine Übergangszeit am
+   Mauszeiger fühlt sich wie Verzögerung an. */
+.ws.animiert { transition: grid-template-columns .24s cubic-bezier(.4,0,.2,1); }
+
+.panel {
+  background: var(--s1); display: flex; flex-direction: column;
+  overflow: hidden; min-height: 0; min-width: 0;
+}
+.panel-links { border-right: 1px solid var(--ol); }
+.panel-rechts { border-left: 1px solid var(--ol); }
+
+/* --- Schienen der eingeklappten Schubladen -------------------------------- */
+.schiene { display: none; }
+.ws.zu-links  .panel-links  > :not(.schiene),
+.ws.zu-rechts .panel-rechts > :not(.schiene) { display: none; }
+.ws.zu-links  .panel-links  > .schiene,
+.ws.zu-rechts .panel-rechts > .schiene {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 8px 0; overflow: hidden;
+  /* Die Schiene füllt die Panelhöhe, damit die Nachweispillen darunter
+     wachsen können. */
+  flex: 1; min-height: 0;
+}
+.schiene-knopf {
+  width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: var(--m-r1);
+  color: var(--dim); padding: 0;
+}
+.schiene-knopf:hover { background: var(--s3); color: var(--on); }
+.schiene-knopf.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+.schiene-trenner { width: 20px; height: 1px; background: var(--ol); flex-shrink: 0; }
+
+/* HAUPTNACHWEISE in der rechten Schiene, unterhalb der Reiter.
+   In 42 px Breite haben zwei Zeichen Platz - Höhe ist dagegen reichlich da.
+   Die Beschriftung steht deshalb SENKRECHT und die Pillen teilen sich die
+   ganze übrige Höhe. So bleibt η auch bei eingeklappter Schublade ablesbar,
+   ohne dass etwas abgeschnitten wird. */
+.schiene-nw {
+  display: flex; flex-direction: column; gap: 3px;
+  width: 100%; padding: 0 5px 2px; flex: 1; min-height: 0;
+}
+/* Dezent angeschrieben: die Pillen sollen im Augenwinkel liegen, nicht rufen.
+   Farbe trägt nur der Wert und ein schmaler Streifen an der Kante - kein
+   voller Rahmen und kein Hintergrund, sonst leuchtet die Schiene stärker als
+   das Modell daneben. */
+.schiene-nw > div {
+  flex: 1; min-height: 40px; display: grid; place-items: center; overflow: hidden;
+  border-radius: var(--m-r1); background: var(--s2);
+  border: 1px solid var(--ol); border-left-width: 2px;
+}
+/* Von unten nach oben lesbar - die übliche Leserichtung für senkrechte
+   Beschriftungen an einer rechten Kante. */
+.schiene-nw .senkrecht {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  font-family: var(--f-mono); letter-spacing: .04em;
+}
+.schiene-nw i {
+  font-style: normal; font-size: 8.5px; color: var(--dim);
+}
+.schiene-nw b { font-size: 11px; }
+/* η gesamt trägt das Urteil und bekommt deshalb mehr Platz und mehr Gewicht. */
+.schiene-nw > div.gesamt { flex: 1.5; }
+.schiene-nw > div.gesamt i { font-size: 11px; }
+.schiene-nw > div.gesamt b { font-size: 14px; }
+.schiene-nw > div.ok   { border-left-color: var(--ok); }
+.schiene-nw > div.ok   b { color: var(--ok); }
+.schiene-nw > div.warn { border-left-color: var(--warn); }
+.schiene-nw > div.warn b { color: var(--warn); }
+.schiene-nw > div.nok  { border-left-color: var(--fail); }
+.schiene-nw > div.nok  b { color: var(--fail); }
+/* Nur η gesamt darf bei verletztem Nachweis auffallen - es ist das Urteil. */
+.schiene-nw > div.gesamt.nok { background: var(--fail-s); border-color: var(--fail); }
+
+.split {
+  cursor: col-resize; touch-action: none; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.split::after {
+  content: ''; width: 4px; height: 40px; border-radius: 3px; background: var(--ol2);
+  transition: background .12s, height .12s;
+}
+.split:hover::after { background: var(--acc); height: 56px; }
+.split.zu::after { background: var(--acc); height: 20px; }
+
+.panel-kopf {
+  display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--ol); flex-shrink: 0;
+}
+.panel-titel {
+  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--dim); flex: 1;
+}
+.panel-koerper { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; }
+.panel-koerper.pad { padding: 4px 12px 20px; }
+
+/* --- Reiter --------------------------------------------------------------- */
+
+.tabs { display: flex; border-bottom: 1px solid var(--ol); flex-shrink: 0; }
+.tab {
+  flex: 1; height: 36px; background: none; border: none; cursor: pointer;
+  color: var(--dim); font-family: var(--f-mono); font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase;
+  border-bottom: 2px solid transparent; transition: color .12s;
+}
+.tab:hover { color: var(--on2); }
+.tab.on { color: var(--acc); border-bottom-color: var(--acc); }
+
+/* --- Abschnitte und Felder ------------------------------------------------ */
+
+.sec {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--acc); margin: 18px 0 8px;
+  padding: 2px 0 2px 8px; border-left: 2px solid var(--acc);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.sec-r { font-size: 9px; color: var(--dim); letter-spacing: .04em; text-transform: none; }
+
+.feld { display: grid; gap: 3px; margin-bottom: 9px; }
+.feld > label {
+  font-size: 11.5px; color: var(--dim); display: flex; gap: 6px;
+  align-items: baseline;
+}
+.feld > label em { font-style: normal; color: var(--on2); font-family: var(--f-mono); font-size: 10.5px; }
+.zahlfeld { display: flex; align-items: center; gap: 6px; }
+.zahlfeld .einheit {
+  font-family: var(--f-mono); font-size: 10px; color: var(--xdim);
+  min-width: 42px; flex-shrink: 0;
+}
+
+/* input[type=search] gehört MIT in diese Liste. Fehlt sie, fällt das Feld auf
+   die Darstellung des Browsers zurück - weisser Grund und schwarze Schrift
+   mitten in der dunklen Oberfläche. */
+input[type=number], input[type=text], input[type=search], select, textarea {
+  font-family: var(--f-mono); font-size: 12.5px; padding: 6px 8px; width: 100%;
+  border: 1px solid var(--ol); border-radius: var(--m-r1);
+  background: var(--s2); color: var(--on); transition: border-color .12s;
+}
+select { font-family: var(--f-ui); }
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--acc); background: var(--s3);
+}
+/* Das Kreuzchen zum Leeren zeichnet der Browser selbst; über color-scheme
+   (siehe uebertrageTokens in design.js) folgt es dem Thema. Hier nur noch
+   Grösse und Zeiger. */
+input[type=search]::-webkit-search-cancel-button {
+  cursor: pointer; opacity: .55;
+}
+input[type=search]::-webkit-search-cancel-button:hover { opacity: 1; }
+input:disabled, select:disabled {
+  color: var(--on2); background: var(--s1); border-color: var(--ol);
+  cursor: not-allowed; opacity: .85;
+}
+.gesperrt > label::after {
+  content: 'DB'; font-family: var(--f-mono); font-size: 8px; letter-spacing: .08em;
+  color: var(--xdim); border: 1px solid var(--ol); border-radius: 3px;
+  padding: 0 3px; margin-left: auto;
+}
+
+.schalter { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on2); }
+.schalter input { width: auto; }
+.hinweis { font-size: 10.5px; color: var(--xdim); line-height: 1.45; }
+
+/* --- Lasttabelle ---------------------------------------------------------- */
+
+.lasttabelle { width: 100%; border-collapse: collapse; font-family: var(--f-mono); font-size: 11px; }
+.lasttabelle th {
+  color: var(--dim); font-weight: 500; font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase; padding: 4px 3px; border-bottom: 1px solid var(--ol);
+  white-space: nowrap; text-align: left;
+}
+.lasttabelle td { padding: 3px 2px; border-bottom: 1px solid var(--s3); }
+.lasttabelle input[type=number] { width: 58px; padding: 4px 5px; font-size: 11px; }
+.lasttabelle input.breit { width: 110px; }
+.lasttabelle select { width: 50px; padding: 4px; font-size: 11px; }
+.lasttabelle .leer { text-align: center; color: var(--xdim); padding: 14px; }
+.loeschen {
+  padding: 1px 6px; background: none; border: none; color: var(--xdim);
+  cursor: pointer; font-size: 14px; line-height: 1;
+}
+.loeschen:hover { color: var(--fail); }
+.vorlagen { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+/* --- Schieberegler --------------------------------------------------------- */
+
+input[type=range].rng {
+  flex: 1; padding: 0; border: none; background: none;
+  accent-color: var(--acc); height: 18px; min-width: 60px;
+}
+.zahlfeld input.kurz { width: 74px; flex-shrink: 0; text-align: right; }
+.rng-skala {
+  display: flex; justify-content: space-between;
+  font-family: var(--f-mono); font-size: 8.5px; color: var(--xdim);
+  margin-top: -1px;
+}
+
+/* --- Querschnittsklasse in der Profil-Sidebar ------------------------------ */
+
+.qsk {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  padding: 7px 9px; margin-top: 4px;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+}
+.qsk-t {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  color: var(--dim); margin-right: 2px;
+}
+.qsk .btn-mini { margin-left: auto; }
+
+/* --- Anbauteile ------------------------------------------------------------ */
+
+/* Vorlagenkacheln: ALLE gleich gross.
+   grid-auto-rows: 1fr gibt jeder Zeile die Höhe der höchsten - sonst ist die
+   Zeile mit einem zweizeiligen Namen höher als die darunter. Kachel und Hülle
+   müssen ihre Zelle dann auch ausfüllen: ein <button> ist von sich aus so
+   breit wie sein Inhalt, und die Hülle ist nur ein Positionierungsrahmen für
+   Stift und Kreuz. Ohne width/height stünden verschieden grosse Kästchen in
+   einem gleichmässigen Raster. */
+.kacheln {
+  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
+  gap: 5px; margin-bottom: 12px;
+}
+.kachel {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto;
+  gap: 1px 6px; align-items: center; align-content: start; text-align: left;
+  width: 100%; height: 100%;
+  padding: 7px 8px; cursor: grab;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  color: var(--on2); transition: border-color .12s, background .12s;
+}
+.kachel:hover { border-color: var(--acc); background: var(--s3); color: var(--on); }
+.kachel:active { cursor: grabbing; }
+.kachel-punkt { width: 8px; height: 8px; border-radius: 2px; grid-row: 1 / span 2; }
+.kachel-name { font-size: 11.5px; font-weight: 500; }
+.kachel-meta { font-family: var(--f-mono); font-size: 9px; color: var(--xdim); }
+
+.at-karte {
+  border: 1px solid var(--ol); border-radius: var(--m-r1);
+  background: var(--s2); padding: 7px 8px; margin-bottom: 6px;
+}
+.at-karte.aus { opacity: .5; }
+/* --- Übersicht der Anbauteile --------------------------------------------
+   Eine Zeile je Teil, aufgeklappt nur das angeklickte. Bei zwanzig Teilen ist
+   das der Unterschied zwischen einer Seite und acht. */
+.at-liste { display: grid; gap: 2px; }
+.at-gruppe { margin-bottom: 6px; }
+.at-karte {
+  position: relative; border: 1px solid transparent; border-radius: var(--m-r1);
+}
+.at-karte.offen {
+  border-color: var(--acc); background: var(--s1); padding-bottom: 8px;
+  margin: 4px 0 8px;
+}
+.at-karte.aus { opacity: .5; }
+.at-zeile {
+  display: grid; align-items: center; gap: 7px; cursor: pointer;
+  grid-template-columns: 9px 26px 1fr auto auto;
+  padding: 5px 84px 5px 7px; border-radius: var(--m-r1);
+}
+.at-zeile:hover { background: var(--s2); }
+.at-karte.offen .at-zeile { background: var(--acc-s); }
+.at-pos {
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+}
+.at-name {
+  font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.at-x, .at-kraft {
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); white-space: nowrap;
+}
+.at-tasten {
+  position: absolute; top: 3px; right: 5px;
+  display: flex; align-items: center; gap: 3px;
+}
+.at-tasten .btn-mini { padding: 2px 4px; }
+.at-tasten .btn-mini svg { display: block; }
+.at-koerper { padding: 4px 8px 0; }
+
+/* Suchfeld über der Liste */
+.at-suche { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
+.at-suche input { flex: 1; padding: 5px 8px; font-size: 11.5px; }
+.at-suche-zahl {
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); white-space: nowrap;
+}
+
+.at-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.at-kopf input[type=text] { flex: 1; padding: 4px 6px; font-size: 11.5px; }
+.at-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.at-feld { display: grid; gap: 2px; }
+.at-feld > span {
+  font-family: var(--f-mono); font-size: 9px; color: var(--dim);
+}
+.at-feld > span i { font-style: normal; color: var(--xdim); }
+.at-feld input, .at-feld select { padding: 4px 5px; font-size: 11px; }
+/* Die Befestigungsart braucht mehr Platz als ein Zahlenfeld. */
+.at-feld.breit2 { grid-column: span 3; }
+
+/* Eigene Vorlagen sind als solche erkennbar und einzeln entfernbar */
+.kachel-huelle { position: relative; display: block; height: 100%; }
+.kachel.eigen { border-style: dashed; }
+.kachel-weg {
+  position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
+  border: none; background: none; color: var(--dim); cursor: pointer;
+  border-radius: 3px; line-height: 1; font-size: 13px; padding: 0;
+}
+.kachel-weg:hover { background: var(--fail-s); color: var(--fail); }
+.at-kopf .btn-mini { padding: 2px 5px; }
+.at-kopf .btn-mini svg { display: block; }
+
+/* Lastgenerator */
+.gen-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* --- Module einer Baugruppe ----------------------------------------------- */
+/* Ein Anbauteil ist modular: Träger, Aufbauten und Drahtwerke, jedes auf
+   seiner eigenen Höhe. Die Lasten kommen aus der Tabelle und sind deshalb
+   angezeigt, nicht eingebbar. */
+.modul-liste { display: grid; gap: 6px; margin-bottom: 8px; }
+.modul {
+  border: 1px solid var(--ol); border-radius: var(--m-r1);
+  background: var(--s1); padding: 6px 7px;
+}
+.modul-kopf { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+.modul-kopf select { font-size: 11px; padding: 3px 5px; }
+.modul-lasten {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
+}
+.modul-lasten .stark { color: var(--acc); font-weight: 600; }
+/* Die Einwirkungsgruppe steht vor dem Wert: G, W_x, W_y, S. */
+.modul-lasten i {
+  font-style: normal; color: var(--acc); font-weight: 600; margin-right: 2px;
+}
+
+/* «Bauteil» und «Freie Last» sind die zwei Knöpfe, die man in einer Karte am
+   häufigsten braucht. Als graue Mini-Knöpfe gingen sie zwischen den
+   Zahlenfeldern unter - hier stehen sie über die volle Breite, mit
+   gestricheltem Rand als Einladung. */
+.btn.btn-zufuegen {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 6px; padding: 7px 8px; font-size: 11.5px;
+  border-style: dashed; border-color: var(--ol2); color: var(--on2);
+  background: var(--s1);
+}
+.btn.btn-zufuegen:hover {
+  border-style: solid; border-color: var(--acc); color: var(--acc);
+  background: var(--acc-s);
+}
+.btn.btn-zufuegen svg { display: block; }
+
+/* Kleiner Stift auf der Vorlagenkachel: Vorlage anpassen. */
+.kachel-stift {
+  position: absolute; bottom: 2px; right: 2px; width: 16px; height: 16px;
+  border: none; background: none; color: var(--xdim); cursor: pointer;
+  border-radius: 3px; line-height: 1; padding: 0; display: grid;
+  place-items: center;
+}
+.kachel-huelle:hover .kachel-stift { color: var(--dim); }
+.kachel-stift:hover { background: var(--acc-s); color: var(--acc); }
+
+/* Zwischenüberschrift innerhalb einer Karte: Angriffspunkt / Kraft / Moment.
+   Ohne sie stünden neun gleich aussehende Zahlenfelder untereinander und man
+   müsste die Beschriftung jedes einzelnen lesen, um sich zurechtzufinden. */
+.sec-klein {
+  font-family: var(--f-mono); font-size: 8.5px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+  margin: 7px 0 3px;
+}
+.modul > .sec-klein:first-of-type { margin-top: 2px; }
+
+/* Ein freier Lastblock: eine vollständig beschriebene Last. */
+.lastblock { border-left: 2px solid var(--acc); }
+.lastblock .modul-kopf select { flex: 1; }
+.lastblock details { margin-top: 6px; }
+
+/* Wert, der nicht hier eingegeben wird, aber zum Verständnis dazugehört. */
+.at-feld.lesbar > b {
+  font-family: var(--f-mono); font-size: 11px; padding: 4px 5px;
+  border: 1px dashed var(--ol); border-radius: var(--m-r1); color: var(--dim);
+}
+.at-feld .hinweis { font-size: 8.5px; line-height: 1.3; }
+
+/* --- Massskizze des Anbauteils -------------------------------------------- */
+/* Sie beantwortet die Frage, die zehn Zahlenfelder offenlassen: wo gehört
+   dieser Wert hin? Fokus im Feld lässt das zugehörige Mass aufleuchten. */
+.at-skizze {
+  width: 100%; height: auto; display: block; margin: 2px 0 10px;
+  background: var(--s1); border: 1px solid var(--ol); border-radius: var(--m-r1);
+}
+.at-skizze .sk-gurt { stroke: var(--stahl); stroke-width: 2.4; }
+.at-skizze .sk-steg { stroke: var(--ol2); stroke-width: 1; stroke-dasharray: 3 3; }
+.at-skizze .sk-winkel { fill: var(--stahl-kante); }
+.at-skizze .sk-an { stroke: var(--blech); stroke-width: 1.4; }
+.at-skizze .sk-teil line { stroke: var(--acc); stroke-width: 2.2; }
+.at-skizze .sk-teil circle { fill: var(--acc); }
+.at-skizze .sk-mass line { stroke: var(--dim); stroke-width: 0.8; }
+.at-skizze .sk-mass text,
+.at-skizze .sk-kraft text { font-family: var(--f-mono); font-size: 8px; fill: var(--dim); }
+.at-skizze .sk-kraft line { stroke: var(--achse); stroke-width: 1.2; }
+.at-skizze .sk-kraft polygon { fill: var(--achse); }
+.at-skizze .sk-titel {
+  font-family: var(--f-mono); font-size: 8px; fill: var(--xdim);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.at-skizze .sk-notiz { font-family: var(--f-mono); font-size: 7.5px; fill: var(--xdim); }
+/* Hervorhebung des gerade bearbeiteten Masses */
+.at-skizze [data-zu].hell line { stroke: var(--acc); stroke-width: 1.8; }
+.at-skizze [data-zu].hell text { fill: var(--acc); font-weight: 600; }
+.at-skizze [data-zu].hell polygon { fill: var(--acc); }
+.at-skizze [data-zu].hell circle { fill: var(--acc); }
+.at-feld.hervor input { border-color: var(--acc); background: var(--s3); }
+
+/* --- Modellansicht -------------------------------------------------------- */
+
+.viewer { position: relative; background: var(--viewer-bg); flex: 1; min-height: 0; }
+.viewer.ablegen { outline: 2px dashed var(--acc); outline-offset: -6px; }
+.viewer canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+.viewer-tools {
+  position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 4px;
+}
+.viewer-tools-r {
+  position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column;
+  gap: 4px;
+}
+/* Auswahl der dargestellten Einwirkung, oben mittig */
+.viewer-oben {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 3px; align-items: center; flex-wrap: wrap;
+  max-width: calc(100% - 96px); justify-content: center;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 3px 4px;
+}
+.viewer-oben label {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dim); padding: 0 3px;
+}
+.viewer-oben select {
+  width: auto; max-width: 176px; padding: 3px 6px; font-size: 11px;
+  background: var(--s3);
+}
+/* --- Werkzeuggruppen der Modellansicht ------------------------------------
+   Nach Art geordnet: Blick, Modell, Lasten, Resultate. Alle Schalter stehen
+   offen da, statt hinter einem Aufklappfenster zu warten - man sieht damit,
+   was an ist, ohne es aufzuklappen, und braucht einen Klick statt drei. */
+.viewer-tools-r { align-items: flex-end; gap: 7px; }
+.wz-gruppe {
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 4px 5px 5px; opacity: .82; transition: opacity .15s;
+}
+.wz-gruppe:hover { opacity: 1; }
+.wz-t {
+  font-family: var(--f-mono); font-size: 7.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 3px; text-align: center;
+}
+/* Hauptschalter der Gruppe: der Titel selbst schaltet sie ein und aus. */
+button.wz-haupt {
+  display: block; width: 100%; background: none; border: none; cursor: pointer;
+  padding: 1px 0 2px; border-bottom: 1px solid transparent;
+}
+button.wz-haupt.on { color: var(--acc); border-bottom-color: var(--acc); }
+button.wz-haupt:hover { color: var(--on); }
+/* Ausgeschaltete Gruppe: die Schalter bleiben stehen, damit man sieht, was
+   gerade nicht gilt - aber sie sind ausgegraut und nicht anklickbar. */
+.wz-gruppe.aus { opacity: .5; }
+.wz-s.aus, .wz-s:disabled {
+  opacity: .38; cursor: not-allowed; background: transparent;
+  border-style: dashed;
+}
+.wz-s.aus:hover { color: var(--dim); border-color: var(--ol); }
+.wz-knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.wz-s {
+  width: 26px; height: 24px; display: grid; place-items: center; cursor: pointer;
+  background: var(--s3); color: var(--dim); border: 1px solid var(--ol);
+  border-radius: var(--m-r1); padding: 0;
+}
+.wz-s:hover { color: var(--on); border-color: var(--ol2); }
+.wz-s.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+.wz-txt {
+  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: -.02em;
+}
+
+/* Aufklappfenster der Symbolknöpfe – schliesst sich nach der Wahl wieder */
+.viewer-pop {
+  position: absolute; top: 46px; right: 48px; z-index: 8;
+  background: var(--s2); border: 1px solid var(--ol2); border-radius: var(--m-r2);
+  padding: 9px 10px 10px; min-width: 176px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.viewer-pop[hidden] { display: none; }
+/* Beschriftete Steuertafel statt Icon-Raten: Modus, Sichtbarkeit, Blickrichtung */
+.tafel {
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 7px 8px 8px;
+}
+.tafel-t {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .10em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 5px;
+}
+.pillen { display: flex; gap: 3px; }
+.pillen button {
+  flex: 1; font: inherit; font-size: 10px; padding: 3px 2px; cursor: pointer;
+  background: var(--s3); color: var(--on2); border: 1px solid var(--ol);
+  border-radius: var(--m-r1); white-space: nowrap;
+}
+.pillen button:hover { border-color: var(--ol2); color: var(--on); }
+.pillen button.on { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
+.haken { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; }
+.haken label {
+  display: flex; align-items: center; gap: 4px; font-size: 10.5px;
+  color: var(--on2); cursor: pointer; user-select: none;
+}
+.haken input { accent-color: var(--acc); width: 12px; height: 12px; margin: 0; }
+.tafel-fuss {
+  font-size: 9.5px; color: var(--xdim); line-height: 1.35; margin-top: 6px;
+  border-top: 1px solid var(--ol); padding-top: 5px;
+}
+.legende-liste { display: grid; gap: 2px; max-height: 190px; overflow: auto; }
+.legende-liste div { display: flex; align-items: center; gap: 5px; font-size: 9.5px; }
+.legende-farbe {
+  width: 11px; height: 11px; border-radius: 2px; flex: none;
+  border: 1px solid rgba(255,255,255,.22);
+}
+.viewer-fuss {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px;
+  background: linear-gradient(transparent, var(--scrim) 45%);
+  display: flex; align-items: center; gap: 12px;
+}
+.viewer-fuss .pos { flex: 1; display: flex; align-items: center; gap: 9px; }
+.viewer-fuss input[type=range] { flex: 1; accent-color: var(--acc); background: none; border: none; padding: 0; }
+.viewer-marke {
+  font-family: var(--f-mono); font-size: 11px; color: var(--on);
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 3px 8px; white-space: nowrap;
+}
+/* Die Legende ist VERSCHIEBBAR. In der Betriebsart «Positionen» wird sie so
+   lang, dass sie sonst die Werkzeugleiste verdeckt - und sie hat keinen festen
+   Platz, an dem sie immer richtig läge. Gezogen wird an der Kopfzeile; ein
+   Doppelklick stellt sie zurück in die Ecke. */
+.legende {
+  position: absolute; right: 10px; bottom: 54px; background: var(--s2);
+  border: 1px solid var(--ol); border-radius: var(--m-r1); padding: 4px 10px 8px;
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  max-height: calc(100% - 96px); overflow: auto;
+}
+.legende.gezogen { right: auto; bottom: auto; }
+.legende-griff {
+  display: flex; align-items: center; gap: 6px; cursor: grab;
+  margin: -2px -4px 4px; padding: 2px 4px 3px; border-radius: var(--m-r1);
+  user-select: none;
+}
+.legende-griff:hover { background: var(--s3); }
+.legende-griff:active { cursor: grabbing; }
+.legende-griff::before {
+  content: ''; width: 9px; height: 9px; flex: none; opacity: .5;
+  background:
+    radial-gradient(circle, currentColor 1px, transparent 1.2px) 0 0/4px 4px;
+}
+.legende-griff span { flex: 1; }
+.legende-griff small { font-size: 8px; color: var(--xdim); }
+/* Der Farbbalken war fest 132 px breit, die Legende dagegen so breit wie ihr
+   breitestes Kind - bei Plots MIT Fussnote also gut 200 px. Der Balken sass
+   dann kurz in einem breiten Kasten, und die Skalenwerte darunter (die sich
+   über die volle Breite verteilen) standen nicht mehr über seinen Enden.
+   width:100% zieht ihn auf die Breite des Kastens, min-width hält ihn dort,
+   wo keine Fussnote steht - und legt zugleich die Mindestbreite des Kastens
+   fest. */
+.legende-bar {
+  height: 8px; width: 100%; min-width: 190px; border-radius: 2px; margin: 5px 0 3px;
+  background: linear-gradient(90deg, rgb(60,92,168), rgb(74,158,172), rgb(190,178,86), rgb(214,132,60), rgb(198,62,62));
+}
+.legende-skala { display: flex; justify-content: space-between; min-width: 190px; }
+/* Wo eine Grösse nicht für jedes Bauteil definiert ist, sagt die Legende das.
+   FESTE Breite, nicht max-width: sonst ist die Legende bei jedem Plot anders
+   breit und springt beim Umschalten. */
+.legende-fuss {
+  margin-top: 5px; width: 190px; line-height: 1.4; color: var(--xdim);
+  font-family: var(--f-ui); font-size: 9.5px;
+}
+/* Schalter für den Nachweisschnitt, direkt über dem Schieber */
+.schnitt-an { margin: 4px 0 2px; }
+
+/* --- Einklappbare Abschnitte ---------------------------------------------- */
+/* Erklärungen, Herleitungen und Nebenrechnungen sind zu, bis man sie braucht. */
+.klapp {
+  border: 1px solid var(--ol); border-radius: var(--m-r1);
+  background: var(--s2); margin: 8px 0;
+}
+.klapp > summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 6px 10px; list-style: none; user-select: none;
+}
+.klapp > summary::-webkit-details-marker { display: none; }
+.klapp > summary::before {
+  content: ''; width: 0; height: 0; flex-shrink: 0;
+  border-left: 4px solid var(--dim);
+  border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
+  transition: transform .12s;
+}
+.klapp[open] > summary::before { transform: rotate(90deg); }
+.klapp > summary:hover { background: var(--s3); }
+.klapp-t {
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--on2); flex: 1;
+}
+.klapp-r { font-family: var(--f-mono); font-size: 9px; color: var(--dim); }
+.klapp-koerper { padding: 2px 10px 10px; }
+.klapp-koerper > .sec:first-child { margin-top: 4px; }
+
+/* --- Diagramm gross im Modellfenster -------------------------------------- */
+/* Kein Modalfenster: die Kurve bekommt die breiteste Fläche, Eingabe und
+   Tabellen bleiben daneben sichtbar, und sie zeichnet live mit. */
+.viewer-buehne {
+  position: absolute; inset: 0; z-index: 6; background: var(--s1);
+  display: flex; flex-direction: column;
+}
+.viewer-buehne[hidden] { display: none; }
+.buehne-kopf {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-bottom: 1px solid var(--ol); flex-shrink: 0;
+}
+.buehne-kopf .panel-titel { flex: 1; }
+.buehne-koerper { flex: 1; overflow: auto; padding: 14px 18px; min-height: 0; }
+.buehne-koerper svg { width: 100%; height: auto; }
+/* Der Vergrössern-Knopf sitzt in der Abschnittszeile über dem Diagramm */
+.sec .btn-mini { padding: 1px 5px; }
+.sec .btn-mini svg { display: block; }
+
+/* Feldweiten als Zahlenkette – umbricht, statt die Seite zu sprengen */
+.kette {
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--on2);
+  line-height: 1.7; margin: 4px 0 8px; word-spacing: .1em;
+}
+
+/* --- Ergebnisdarstellung -------------------------------------------------- */
+
+.urteil {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 10px 12px; margin: 10px 0 4px; border-radius: var(--m-r1);
+  border: 1px solid; font-size: 12px;
+}
+.urteil.ok   { background: var(--ok-s);   color: var(--ok);   border-color: var(--ok); }
+.urteil.nok  { background: var(--fail-s); color: var(--fail); border-color: var(--fail); }
+.urteil.warn { background: var(--warn-s); color: var(--warn); border-color: var(--warn); }
+.urteil-zahl { font-family: var(--f-mono); font-size: 21px; font-weight: 600; }
+
+.kennzahlen { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; }
+.kz {
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 4px 6px 5px; position: relative;
+}
+.kz.ok   { border-color: var(--ok);   background: var(--ok-s); }
+.kz.warn { border-color: var(--warn); background: var(--warn-s); }
+.kz.fail { border-color: var(--fail); background: var(--fail-s); }
+.kz.klick { cursor: pointer; }
+.kz.klick:hover { border-color: var(--acc); background: var(--acc-s); }
+/* Zielkreuz als Hinweis, dass die Kachel ins Modell springt */
+.kz.klick::after {
+  content: ""; position: absolute; top: 5px; right: 5px; width: 7px; height: 7px;
+  border: 1px solid var(--xdim); border-radius: 50%; opacity: .6;
+}
+.kz.klick:hover::after { border-color: var(--acc); opacity: 1; }
+.kz-t { font-size: 9px; color: var(--dim); letter-spacing: .02em; line-height: 1.2; }
+.kz-w { font-family: var(--f-mono); font-size: 14px; font-weight: 500; margin: 1px 0 0; }
+.kz-e { font-family: var(--f-mono); font-size: 8.5px; color: var(--xdim); line-height: 1.25; }
+
+/* Kurzes Aufleuchten, wenn ein Mass im Modell sein Eingabefeld aufruft */
+@keyframes blitz { 0%, 100% { box-shadow: 0 0 0 0 transparent; }
+                   25% { box-shadow: 0 0 0 3px var(--acc-s); } }
+.blitz { animation: blitz 1.4s ease-out; border-radius: var(--m-r1); }
+
+.pl {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .06em; padding: 1px 5px;
+  border-radius: 3px; border: 1px solid; text-transform: uppercase;
+}
+.pl-ok   { color: var(--ok);   border-color: var(--ok);   background: var(--ok-s); }
+.pl-warn { color: var(--warn); border-color: var(--warn); background: var(--warn-s); }
+.pl-fail { color: var(--fail); border-color: var(--fail); background: var(--fail-s); }
+.pl-dim  { color: var(--dim);  border-color: var(--ol); }
+
+/* --- Tabellen ------------------------------------------------------------- */
+
+.tabellenrahmen { overflow-x: auto; }
+table.dt { width: 100%; border-collapse: collapse; font-family: var(--f-mono); font-size: 11px; }
+table.dt th {
+  color: var(--dim); font-weight: 500; font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase; text-align: left; padding: 5px 6px;
+  border-bottom: 1px solid var(--ol); white-space: nowrap;
+  position: sticky; top: 0; background: var(--s1); z-index: 1;
+}
+table.dt td { padding: 4px 6px; border-bottom: 1px solid var(--s3); }
+table.dt tr.klick { cursor: pointer; }
+table.dt tr.klick:hover { background: var(--s2); }
+table.dt tr.aktiv { background: var(--acc-s); }
+.num { text-align: right; }
+.stark { color: var(--on); font-weight: 500; }
+td.ok { color: var(--ok); } td.warn { color: var(--warn); } td.fail { color: var(--fail); }
+tr.nok td { color: var(--fail); }
+
+.warnbox, .fehlerbox, .infobox {
+  border-radius: var(--m-r1); padding: 8px 11px; margin: 8px 0; font-size: 11px;
+  border: 1px solid; line-height: 1.5;
+}
+.warnbox  { background: var(--warn-s); color: var(--warn); border-color: var(--warn); }
+.fehlerbox{ background: var(--fail-s); color: var(--fail); border-color: var(--fail); }
+.infobox  { background: var(--s2); color: var(--dim); border-color: var(--ol); }
+.warnbox ul, .fehlerbox ul, .infobox ul { margin: 5px 0 0; padding-left: 16px; }
+details.hinweise { margin-top: 10px; font-size: 11px; color: var(--dim); }
+details.hinweise summary { cursor: pointer; color: var(--acc); font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+details.hinweise li { margin-bottom: 5px; line-height: 1.5; }
+.notiz { font-size: 10.5px; color: var(--xdim); margin: 0 0 8px; line-height: 1.5; }
+.untertitel {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dim); margin: 14px 0 6px;
+}
+
+/* --- Zeichnungen und Diagramme -------------------------------------------- */
+
+figure.zeichnung, figure.diagramm {
+  margin: 0 0 10px; background: var(--s2); border: 1px solid var(--ol);
+  border-radius: var(--m-r1); padding: 7px 9px 3px;
+}
+figure figcaption {
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
+  margin-bottom: 4px; line-height: 1.4;
+}
+figure svg { width: 100%; height: auto; display: block; }
+
+.stahl { fill: var(--stahl); stroke: var(--stahl-kante); stroke-width: 1; }
+.blech { fill: var(--blech); fill-opacity: .5; stroke: var(--blech-kante); stroke-width: .9; }
+.blech-end { fill-opacity: .8; }
+.sysrect, .sysline-dash { fill: none; stroke: var(--achse); stroke-width: .9; stroke-dasharray: 7 3 2 3; }
+.heel { fill: var(--achse); }
+.sp line, .sp circle { stroke: var(--achse); stroke-width: 1; fill: none; }
+.auflager { fill: var(--dim); stroke: var(--dim); }
+.auflager-l { stroke: var(--dim); stroke-width: 2; }
+.einspann { fill: var(--dim); }
+.last line { stroke: var(--achse); stroke-width: 1.4; }
+.last polygon { fill: var(--achse); }
+.last text { fill: var(--achse); font-size: 9px; font-family: var(--f-mono); }
+.dim line { stroke: var(--xdim); stroke-width: .7; }
+.dim text { fill: var(--dim); font-size: 9px; font-family: var(--f-mono); }
+.lbl { fill: var(--on2); font-size: 10px; font-family: var(--f-mono); }
+.micro { fill: var(--xdim); font-size: 8px; font-family: var(--f-mono); }
+.schnitt line { stroke: var(--acc); stroke-width: 1.5; stroke-dasharray: 6 3; }
+.schnitt text { fill: var(--acc); font-size: 9.5px; font-family: var(--f-mono); }
+
+.grid { stroke: var(--ol); stroke-width: .5; }
+.nulllinie { stroke: var(--dim); stroke-width: 1; }
+.grenze { stroke: var(--fail); stroke-width: 1.1; stroke-dasharray: 5 3; }
+.grenze-txt { fill: var(--fail); font-size: 9px; font-family: var(--f-mono); }
+.tick { fill: var(--xdim); font-size: 9px; font-family: var(--f-mono); }
+.achse { fill: var(--dim); font-size: 9.5px; font-family: var(--f-mono); }
+.legende-txt, .legende { }
+text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
+.serie { fill: none; stroke-width: 1.7; stroke-linejoin: round; }
+.serie-1 { stroke: var(--acc); }
+.serie-2 { stroke: var(--fail); }
+.serie-3 { stroke: var(--ok); }
+.serie-4 { stroke: var(--warn); }
+
+/* --- Fussleiste ----------------------------------------------------------- */
+
+.statusbar {
+  background: var(--s1); border-top: 1px solid var(--ol); padding: 0 12px;
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim);
+}
+.statusbar .rechts { margin-left: auto; }
+.statusbar .pkt { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+/* --- Überlagerungen (Projektablage) --------------------------------------- */
+
+.scrim {
+  position: fixed; inset: 0; background: var(--scrim); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.dialog {
+  background: var(--s1); border: 1px solid var(--ol2); border-radius: var(--m-r2);
+  width: min(760px, 100%); max-height: 82vh; display: flex; flex-direction: column;
+  overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.dialog-kopf {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid var(--ol);
+}
+.dialog-kopf h2 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; }
+.dialog-koerper { padding: 12px 14px; overflow-y: auto; }
+.dialog-fuss {
+  display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px;
+  border-top: 1px solid var(--ol);
+}
+/* --- Handbuch --------------------------------------------------------------
+   Ein Fliesstext mit Formeln braucht Zeilenlänge und ein Verzeichnis, das
+   mitläuft - sonst weiss man nach dem dritten Abschnitt nicht mehr, wo man
+   ist. Deshalb ein breiter Dialog mit fester Randspalte. */
+.dialog-breit { width: min(1080px, 100%); max-height: 90vh; }
+/* Bewusst ohne scroll-behavior: smooth. Ein Sprung im Inhaltsverzeichnis soll
+   springen; die weiche Fahrt über achttausend Pixel dauert lange und wird von
+   jedem Radstoss abgebrochen - dann steht man irgendwo. */
+.dialog-breit .dialog-koerper { padding: 0; }
+
+.hb { display: grid; grid-template-columns: 210px 1fr; align-items: start; }
+.hb-toc {
+  position: sticky; top: 0; align-self: start; padding: 14px 10px 20px;
+  border-right: 1px solid var(--ol); display: grid; gap: 1px;
+}
+.hb-toc-t {
+  font-size: 9px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--xdim); margin-bottom: 5px;
+}
+.hb-toc-e {
+  font-size: 11px; color: var(--dim); padding: 4px 7px; cursor: pointer;
+  border-radius: var(--m-r1); border-left: 2px solid transparent; line-height: 1.35;
+}
+.hb-toc-e:hover { background: var(--s2); color: var(--on2); }
+.hb-toc-e.on { color: var(--acc); border-left-color: var(--acc); background: var(--acc-s); }
+
+.hb-text { padding: 14px 20px 30px; max-width: 74ch; }
+.hb-abschnitt { margin-bottom: 26px; scroll-margin-top: 10px; }
+.hb-abschnitt h3 {
+  margin: 0 0 10px; font-size: 13.5px; font-weight: 600; color: var(--on);
+  padding-bottom: 6px; border-bottom: 1px solid var(--ol);
+}
+.hb-abschnitt h4 {
+  margin: 16px 0 6px; font-size: 11.5px; font-weight: 600; color: var(--on2);
+}
+.hb-abschnitt p { margin: 0 0 9px; font-size: 12px; line-height: 1.62; color: var(--on2); }
+.hb-abschnitt b { color: var(--on); font-weight: 600; }
+.hb-abschnitt code {
+  font-family: var(--f-mono); font-size: 11px; color: var(--on);
+  background: var(--s3); padding: 0 3px; border-radius: 2px;
+}
+.hb-abschnitt table.dt { margin: 8px 0 12px; }
+.hb-abschnitt table.dt td { line-height: 1.5; vertical-align: top; }
+
+/* Formelblock: einzige Stelle, an der die Schrift fest ist - eine Formel darf
+   nicht umbrechen, wo sie will. */
+.hb-f {
+  font-family: var(--f-mono); font-size: 11.5px; line-height: 1.75;
+  background: var(--s2); border-left: 2px solid var(--acc);
+  padding: 9px 12px; margin: 9px 0 12px; color: var(--on);
+  overflow-x: auto; border-radius: 0 var(--m-r1) var(--m-r1) 0;
+}
+/* Merksatz: das, was man behalten soll, wenn man den Rest vergisst. */
+.hb-q {
+  border-left: 2px solid var(--warn); background: var(--s2);
+  padding: 9px 12px; margin: 10px 0 12px !important; border-radius: 0 var(--m-r1) var(--m-r1) 0;
+}
+.hb-quelle {
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim);
+  margin-top: 12px !important; padding-top: 6px; border-top: 1px dashed var(--ol);
+}
+/* --- Skizzen im Handbuch ---------------------------------------------------
+   Die Skizze trägt keine festen Farben: sie nimmt dieselben Tokens wie das
+   Modell, damit Stahl im Bild und Stahl in der Zeichnung dasselbe Grau sind
+   und beide Themen ohne zweite Fassung stimmen. */
+.hb-skizze { margin: 12px 0 16px; }
+.hb-skizze svg { width: 100%; height: auto; display: block; }
+.hb-skizze figcaption {
+  font-size: 10px; color: var(--xdim); margin-top: 5px; line-height: 1.45;
+  padding-left: 2px;
+}
+/* Bauteil, Achse, Hilfslinie */
+.hb-skizze .b  { stroke: var(--stahl); stroke-width: 3; fill: none; stroke-linecap: round; }
+.hb-skizze .st { fill: var(--stahl); stroke: none; }
+.hb-skizze .st2 { fill: var(--dim); stroke: none; }
+.hb-skizze .d  { stroke: var(--dim); stroke-width: 1; fill: none; stroke-dasharray: 7 3 2 3; }
+.hb-skizze .hl { stroke: var(--ol); stroke-width: 1; fill: none; }
+.hb-skizze .kasten { stroke: var(--stahl); stroke-width: 2; fill: none; }
+.hb-skizze .am { fill: var(--acc-s); stroke: none; }
+.hb-skizze .blech { fill: var(--blech); fill-opacity: .32; stroke: var(--blech); stroke-width: 1.2; }
+.hb-skizze .steif { fill: var(--dim); fill-opacity: .22; stroke: none; }
+.hb-skizze .kn { fill: var(--on2); stroke: none; }
+/* Masslinie und Kraft */
+.hb-skizze .m  { stroke: var(--dim); stroke-width: 1; fill: none; }
+.hb-skizze .mf { fill: var(--dim); stroke: none; }
+.hb-skizze .k  { stroke: var(--acc); stroke-width: 1.6; fill: none; }
+.hb-skizze .kf { fill: var(--acc); stroke: none; }
+/* Schrift */
+.hb-skizze text { fill: var(--on2); font-family: var(--f-mono); font-size: 11px; }
+.hb-skizze text.dim { fill: var(--dim); font-size: 10px; }
+.hb-skizze text.acc { fill: var(--acc); font-size: 10.5px; }
+
+.hb-liste { margin: 4px 0 10px; padding-left: 18px; }
+.hb-liste li { font-size: 12px; line-height: 1.6; color: var(--on2); margin-bottom: 5px; }
+/* Richtung einer Vereinfachung: auf der sicheren Seite oder nicht. */
+.hb-sicher { color: var(--ok); white-space: nowrap; }
+.hb-neutral { color: var(--warn); }
+
+.ablage-gruppe { margin-bottom: 14px; }
+.ablage-zeile {
+  display: flex; align-items: center; gap: 10px; padding: 7px 9px;
+  border: 1px solid var(--ol); border-radius: var(--m-r1); margin-bottom: 5px;
+  background: var(--s2);
+}
+.ablage-zeile:hover { border-color: var(--acc); }
+.ablage-name { flex: 1; min-width: 0; }
+.ablage-name b { font-weight: 500; }
+.ablage-meta { font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim); }
+
+/* --- Druck ---------------------------------------------------------------- */
+
+@media print {
+  body { overflow: visible; }
+  .app { display: block; height: auto; }
+  .topbar, .statusbar, .split, .panel-links, .viewer-tools, .viewer-tools-r,
+  .viewer-fuss, .btn, .btn-icon { display: none !important; }
+  .ws { display: block; }
+  .panel-rechts { border: none; }
+  .panel-koerper { overflow: visible; }
+
+  /* Handbuch drucken: nur das Handbuch. Das Arbeitsblatt hat auf demselben
+     Papier nichts zu suchen, und der Dialog soll nicht als Kasten mit
+     Bildlaufleiste erscheinen, sondern als fortlaufender Text. */
+  body.druck-handbuch .app { display: none !important; }
+  body.druck-handbuch #ueberlagerung .scrim {
+    position: static; display: block; padding: 0; background: none;
+  }
+  body.druck-handbuch #ueberlagerung .dialog {
+    width: auto; max-height: none; border: none; box-shadow: none;
+    display: block; overflow: visible;
+  }
+  body.druck-handbuch .dialog-koerper { overflow: visible; }
+  body.druck-handbuch .dialog-fuss { display: none !important; }
+  body.druck-handbuch .hb { display: block; }
+  body.druck-handbuch .hb-toc { display: none; }
+  body.druck-handbuch .hb-text { max-width: none; padding: 0; }
+  body.druck-handbuch .hb-abschnitt { break-inside: auto; page-break-inside: auto; }
+  body.druck-handbuch .hb-abschnitt h3 { break-after: avoid; page-break-after: avoid; }
+  body.druck-handbuch .hb-f, body.druck-handbuch .hb-q,
+  body.druck-handbuch .hb-skizze {
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  /* Auf Papier hat die Skizze feste Breite - über die volle Textbreite
+     gezogen würde sie unlesbar dünn. */
+  body.druck-handbuch .hb-skizze svg { max-width: 150mm; }
+}
+
+/* --- Lastfallmatrix -------------------------------------------------------- */
+.dt.kombi td.beiwert {
+  text-align: center; padding: 3px 6px; line-height: 1.25;
+  font-family: var(--f-mono); font-size: 12px; background: var(--s3);
+}
+/* Ein Beiwert 0 heisst: diese Einwirkung wirkt im Lastfall nicht mit. */
+.dt.kombi td.beiwert.null { color: var(--xdim); background: transparent; }
+/* Ein negativer Beiwert kehrt die Einwirkung um - das muss man sehen, ohne
+   das Minuszeichen zu suchen. */
+.dt.kombi td.beiwert.minus { color: var(--warn); }
+/* Charakteristische Lastfälle sind kein Nachweis - zurückgenommen gesetzt. */
+.dt.kombi tr.char > td { color: var(--dim); }
+.dt.kombi tr.aktiv > td { box-shadow: inset 0 1px 0 var(--warn), inset 0 -1px 0 var(--warn); }
+.dt.kombi td.lf-tasten { white-space: nowrap; padding: 2px 4px; }
+.dt.kombi td.lf-tasten .btn { padding: 2px 5px; }
+.lf-fuss {
+  display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; flex-wrap: wrap;
+}
+.lf-fuss .notiz { margin: 0; }
+.lf-fuss svg { vertical-align: -1px; }
+
+/* --- Aufklappfenster der Modellwerkzeuge ---------------------------------- */
+.pop-zeile {
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 11.5px;
+  padding: 5px 8px; margin-top: 2px; cursor: pointer; border-radius: var(--m-r1);
+  background: var(--s3); border: 1px solid transparent; color: var(--on2);
+}
+.pop-zeile:hover { background: var(--s4); color: var(--on); }
+.pop-zeile.on { background: var(--acc-s); border-color: var(--acc); color: var(--on); }
+.haken.haken-1 { grid-template-columns: 1fr; gap: 3px; }
+
+/* --- Steuerung des Nachweisschnitts --------------------------------------- */
+.schnitt-steuer { display: flex; align-items: center; gap: 6px; margin: 4px 0 6px; }
+.schnitt-steuer input[type=range] { flex: 1; accent-color: var(--acc); background: none; border: none; padding: 0; }
+.schnitt-steuer .btn-mini { padding: 2px 8px; }
+
+/* Hinweise des Rechenkerns über den Nachweisen: sie betreffen die Gültigkeit
+   der Zahlen und dürfen nicht nur im Excel-Export stehen. Ohne Einfärbung —
+   es sind Randbedingungen, keine Warnungen. */
+.hinweisliste { margin: 0; }
+.hinweisliste .notiz { margin: 0 0 5px; padding-left: 10px;
+  border-left: 1px solid var(--rand, rgba(128,128,128,.35)); }
+.hinweisliste .notiz:last-child { margin-bottom: 0; }
+
+/* Umbenennen-Knopf in der Kopfzeile einer Projektgruppe: er soll da sein,
+   aber die Gruppenbezeichnung nicht überstimmen. */
+.sec-btn { margin-left: 6px; padding: 1px 5px; opacity: .55; }
+.sec-btn:hover { opacity: 1; }
+
+/* --- Installierte Fassung (PWA) ------------------------------------------- */
+
+/* Meldung «neue Fassung»: ein schmaler Balken unten rechts. Kein Dialog —
+   er darf die Arbeit nicht unterbrechen, sondern nur bereitstehen. */
+.pwa-balken {
+  position: fixed; z-index: 60;
+  right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px; border-radius: var(--m-r2);
+  background: var(--s2); border: 1px solid var(--ol2); color: var(--on2);
+  font-family: var(--f-ui); font-size: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.45);
+}
+@media print { .pwa-balken { display: none; } }
+
+/* Als eigenes Fenster installiert gibt es keine Adressleiste; der sichere
+   Bereich (Kerbe, Gestensteg) muss dann von der Anwendung freigehalten
+   werden. */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .app { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .topbar { padding-top: env(safe-area-inset-top, 0px); }
+}
+
+/* Langer Hilfetext an einem Eingabefeld: erster Satz sichtbar, Rest auf Klick.
+   Ohne das stünden unter manchem Feld sechs Zeilen Fliesstext und die nächste
+   Eingabe rutschte aus dem Bild. Siehe hinweisHtml in ui.js. */
+.hinweis-klapp > summary {
+  cursor: pointer; display: block; list-style: none;
+}
+.hinweis-klapp > summary::-webkit-details-marker { display: none; }
+.hinweis-klapp > summary::after {
+  content: 'mehr'; margin-left: 4px; color: var(--acc);
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .04em;
+}
+.hinweis-klapp[open] > summary::after { content: 'weniger'; }
+.hinweis-klapp > summary:hover .hinweis { color: var(--dim); }
+.hinweis-klapp > .hinweis { display: block; margin-top: 3px; }
+.at-feld .hinweis-klapp > summary::after { font-size: 8px; }
+
+/* Lage-Schieber in der Anbauteil-Karte: über die ganze Kartenbreite, weil ein
+   Schieber auf einem Drittel nichts taugt. */
+.at-feld.breit3 { grid-column: span 3; }
+.at-feld.breit3 .zahlfeld { display: flex; align-items: center; gap: 6px; }
+.at-feld.breit3 .rng { flex: 1; }
+.at-feld.breit3 input.kurz { width: 68px; flex: none; text-align: right; }
+
+/* --- Diagramme: anklicken und Kraftbild ----------------------------------- */
+
+/* Das ganze Diagramm ist der Knopf ins Modellfenster. */
+.dia { cursor: zoom-in; border-radius: var(--m-r1); transition: background .12s; }
+.dia:hover { background: var(--s2); }
+
+/* Legendeneintrag mit Kraftbild: Trefferfläche und Hinweis, dass es geht. */
+.legende-eintrag { cursor: help; }
+.legende-treffer { fill: transparent; }
+.legende-eintrag:hover .legende-treffer { fill: var(--acc-s); }
+.legende-eintrag:hover text.legende { fill: var(--on); }
+
+/* Das Kraftbild unter dem Diagramm. */
+.dia-skizze {
+  margin: 2px 0 10px; padding: 8px 10px;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+}
+.dia-skizze[hidden] { display: none; }
+.dia-skizze svg.sk { width: 100%; max-width: 320px; display: block; margin: 0 auto; }
+.dia-skizze-t {
+  font-family: var(--f-ui); font-size: 10.5px; color: var(--on2);
+  line-height: 1.45; margin-top: 6px;
+}
+.dia-skizze-zu { margin-top: 7px; }
+
+/* Bausteine der Skizzen - Klassen statt fester Farben, damit sie beiden
+   Themen folgen. */
+svg.sk { overflow: visible; }
+svg.sk .sk-stahl { stroke: var(--stahl-kante); stroke-width: 2.4; }
+svg.sk .sk-blech { stroke: var(--blech); stroke-width: 1.6; }
+svg.sk .sk-blech-f { fill: var(--blech); opacity: .55; }
+svg.sk .sk-aufl { fill: var(--dim); }
+svg.sk .sk-kasten { fill: none; stroke: var(--stahl-kante); stroke-width: 1.6; }
+svg.sk .sk-eck { fill: var(--stahl-kante); }
+svg.sk .sk-k, svg.sk .sk-quer, svg.sk .sk-tors, svg.sk .sk-fluss,
+svg.sk .sk-zug, svg.sk .sk-druck { stroke-width: 1.6; fill: none; }
+svg.sk .sk-k { stroke: var(--on2); }        svg.sk .sk-k-f { fill: var(--on2); }
+svg.sk .sk-quer { stroke: var(--acc); }     svg.sk .sk-quer-f { fill: var(--acc); }
+svg.sk .sk-tors { stroke: var(--blech); }   svg.sk .sk-tors-f { fill: var(--blech); }
+svg.sk .sk-fluss { stroke: var(--warn); }   svg.sk .sk-fluss-f { fill: var(--warn); }
+svg.sk .sk-zug { stroke: var(--ok); }       svg.sk .sk-zug-f { fill: var(--ok); }
+svg.sk .sk-druck { stroke: var(--fail); }   svg.sk .sk-druck-f { fill: var(--fail); }
+svg.sk .sk-bar { fill: var(--s4); }
+svg.sk .sk-bar-voll { fill: var(--ok); opacity: .7; }
+svg.sk .sk-grenze { stroke: var(--fail); stroke-width: 1.6; stroke-dasharray: 3 2; }
+svg.sk text { font-family: var(--f-mono); }
+svg.sk .sk-t { font-size: 9px; fill: var(--on2); }
+svg.sk .sk-t2 { font-size: 7.5px; fill: var(--dim); }
+svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }

@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# WAS NICHT IN EIN ÖFFENTLICHES ABLAGE GEHÖRT
+#
+# Die Anwendung ist allgemein; die Zahlen darin und sämtliche Projektunterlagen
+# stammen aus den Vorlagen des Betreibers. Sie bleiben örtlich.
+# ---------------------------------------------------------------------------
+
+# DIE DREI DATENBANKEN.
+# Sortiment der Jochtypen, Anbauteil-Vorlagen und Lasttabelle stammen aus den
+# Unterlagen des Betreibers. Sie bleiben draussen, damit die Ablage öffentlich
+# sein kann; die Anwendung lädt sie als Datenpaket örtlich nach (js/data.paket.js).
+#
+# FÜR EINE PRIVATE ABLAGE diese vier Zeilen entfernen - dann liegt alles
+# beisammen und `python3 build_html.py` bettet die Zahlen wieder ein.
+data/*.json
+
+# Projektunterlagen des Betreibers
+Grundlagen/
+*.axs
+*.axe
+*.pdf
+*.docx
+*.xlsx
+
+# GEBÜNDELTE AUSGABEN.
+# Erzeugnisse von build_html.py, kein Quelltext - und die vollständige Datei
+# trägt die Zahlen des Betreibers eingebettet. Beide bleiben draussen;
+# `python3 build_html.py [--ohne-daten]` stellt sie in Sekunden wieder her.
+vierendeel_tool.html
+vierendeel_tool_ohne_daten.html
+
+# Der Excel-Erzeuger nennt Betreiber und Zeichnungsnummern im Klartext und ist
+# mit dem heutigen Rechenkern ohnehin nicht mehr synchron.
+generate_vierendeel_L_SZS_C5.py
+validate_xlsx.py
+vergleich_excel_js.py
+
+# Örtliche Einstellungen des Werkzeugs
+.claude/settings.local.json
+
+# Fertige Ausleitungen und Versandstücke
+Versand/
+AxisVM_*.json
+AxisVM_*.xlsx
+AxisVM_*.dxf
+com/AxisVM_schnittstelle.txt
+pynite_*.csv
+pynite_*.py
+
+# Betriebssystem und Werkzeuge
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/

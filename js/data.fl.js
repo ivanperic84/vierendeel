@@ -1,0 +1,140 @@
+/**
+ * data.fl.js
+ * ---------------------------------------------------------------------------
+ * ZUGRIFF auf die Lasttabelle der Fahrleitungsbauteile.
+ * Die DATEN stehen in data/fl_bauteile.json und werden dort gepflegt.
+ *
+ * Quelle: Lasttabelle "Fahrleitungsmast- und Jochberechnung / ständige und
+ * veränderliche Lasten" der Datenbasis.
+ *
+ * ACHSEN - die Tabelle spricht vom Gleis, das Werkzeug vom Joch:
+ *   Windlast QUER zum Gleis    ->  Richtung der Jochachse    ->  x
+ *   Windlast LÄNGS zum Gleis   ->  Gleisrichtung             ->  y
+ *   Eigengewicht                                             ->  z
+ *
+ * EINHEITEN
+ * Teile mit einer Länge (Rohre, Traversen, Drahtwerke) sind je Laufmeter
+ * angegeben und müssen mit ihrer Länge multipliziert werden; alle übrigen
+ * stehen als fertige Einzellast da. Welches gilt, sagt das Feld "einheit".
+ * ---------------------------------------------------------------------------
+ */
+
+let DB = null;
+
+export function setzeFlDB(obj) {
+  if (!obj || !Array.isArray(obj.bauteile)) {
+    throw new Error('Bauteil-Datenbank ungültig: Feld "bauteile" fehlt.');
+  }
+  DB = obj;
+  return DB;
+}
+
+export async function ladeFlBauteile(pfad = 'data/fl_bauteile.json') {
+  if (DB) return DB;
+  if (typeof document !== 'undefined') {
+    const roh = document.getElementById('fl-bauteil-db')?.textContent?.trim();
+    if (roh) return setzeFlDB(JSON.parse(roh));
+  }
+  const antwort = await fetch(pfad);
+  if (!antwort.ok) {
+    throw new Error(`Bauteil-Datenbank ${pfad} nicht ladbar (HTTP ${antwort.status}).`);
+  }
+  return setzeFlDB(await antwort.json());
+}
+
+function db() {
+  if (!DB) throw new Error('Bauteil-Datenbank nicht geladen.');
+  return DB;
+}
+
+/** Alle Bauteile, wahlweise auf eine Rolle eingeschränkt. */
+/** Die ganze Datenbank – für Prüfstand und Ausleitung. */
+export const flDB = () => db();
+
+export function flBauteile(rolle = null) {
+  const alle = db().bauteile;
+  return rolle ? alle.filter((b) => b.rolle === rolle) : alle;
+}
+
+export function getFlBauteil(id) {
+  const b = db().bauteile.find((x) => x.id === id);
+  if (!b) throw new Error(`Unbekanntes Fahrleitungsbauteil: ${id}`);
+  return b;
+}
+
+/** Wird das Bauteil je Laufmeter angegeben? */
+export const istStreckenlast = (b) => (b?.einheit ?? '').includes('/m');
+
+/** Einwirkungsklassen der Windlast, wie sie die Tabelle führt. */
+export const EK_KLASSEN = [
+  { key: 'EK1', qp: 0.90, label: 'EK1 – Referenz-Staudruck 0.90 kN/m²' },
+  { key: 'EK2', qp: 1.10, label: 'EK2 – Referenz-Staudruck 1.10 kN/m²' },
+  { key: 'EK3', qp: 1.30, label: 'EK3 – Referenz-Staudruck 1.30 kN/m²' },
+];
+
+/** Referenz-Staudruck einer Klasse [kN/m²]. */
+export const staudruck = (ek) =>
+  EK_KLASSEN.find((k) => k.key === ek)?.qp ?? 1.10;
+
+/**
+ * Profilbeiwerte nach RTE 27200.
+ *
+ * 1.4 ist der langjährige Erfahrungswert der Lasttabelle für
+ * Fahrleitungstragwerke und für Tragwerke mit flächigen Massen (Tafeln,
+ * Signale). 1.0 gilt für Rundprofile, also für Drähte.
+ */
+export const PROFILBEIWERTE = [
+  { key: 'flaechig', c: 1.4, label: 'flächig / Tragwerk (RTE 27200)' },
+  { key: 'rund', c: 1.0, label: 'Rundprofil (Draht)' },
+];
+
+/**
+ * Windlast aus der Angriffsfläche.
+ *      w = A · q_ref(EK) · c
+ * Für Bauteile, die nicht in der Tabelle stehen.
+ *
+ * @param {number} A Angriffsfläche [m²]
+ * @param {string} ek Einwirkungsklasse
+ * @param {number} c Profilbeiwert
+ */
+export const windAusFlaeche = (A, ek, c = 1.4) => (A ?? 0) * staudruck(ek) * c;
+
+/**
+ * Lastwerte eines Bauteils in der Form, die der Rechenkern braucht.
+ *
+ * @param {string} id  Bauteil-Id
+ * @param {object} o   {ek, laenge, anzahl}
+ * @returns {{Gz:number, Qx:number, Qy:number, streckenlast:boolean}}
+ *          Gz [kN] ständige Vertikallast · Qx [kN] Wind in Jochachse ·
+ *          Qy [kN] Wind in Gleisrichtung
+ */
+export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
+  const b = getFlBauteil(id);
+  // Nur Teile mit Längenangabe werden mit der Länge multipliziert. Bei den
+  // übrigen steht die fertige Einzellast in der Tabelle - dort wäre eine
+  // Multiplikation schlicht falsch.
+  const f = (istStreckenlast(b) ? (laenge ?? 0) : 1) * (anzahl ?? 1);
+  const wert = (feld) => {
+    const v = b[feld]?.[ek];
+    return Number.isFinite(v) ? v * f : 0;
+  };
+  return {
+    Gz: Number.isFinite(b.eigengewicht) ? b.eigengewicht * f : 0,
+    Qx: wert('windQuer'),
+    Qy: wert('windLaengs'),
+    streckenlast: istStreckenlast(b),
+    // Fehlt ein Windwert für diese Klasse, ist das eine Lücke in der Quelle
+    // und keine Null - das wird ausgewiesen statt verschwiegen.
+    ohneWindQuer: !Number.isFinite(b.windQuer?.[ek]),
+    ohneWindLaengs: !Number.isFinite(b.windLaengs?.[ek]),
+  };
+}
+
+/** Leiterzugkraft eines Drahtwerks [kN], bei T + 5 °C. */
+export const leiterzug = (id) => getFlBauteil(id).leiterzug ?? 0;
+
+export function flStand() {
+  const d = db();
+  return { version: d._version, stand: d._stand, bauteile: d.bauteile.length,
+           quelle: d._quelle?.dokument ?? '' };
+}
