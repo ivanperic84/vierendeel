@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 638 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
+**Stand:** 663 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 638 Kontrollen
+node pruefung.mjs           # Prüfstand, 663 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,54 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Hauptachsen des Winkels — gebaut, aber NICHT Vorgabe
+
+Neu `js/core.winkel.js`: Spannung durch schiefe Biegung, ausgewertet an den
+sechs Eckpunkten des Winkels. Option `spannungsmodell` (`schenkel` /
+`punkte`), **Vorgabe bleibt `schenkel`**.
+
+**Die Querschnittswerte stimmen.** I_yz steht in keiner Profiltabelle dieses
+Werkzeugs, folgt aber aus I₂ = i_min²·A und der Invarianz der Spur. Gegen die
+AxisVM-Werte derselben Profile:
+
+| | A | I_y | **I_yz** | I₁ | I₂ |
+|---|---|---|---|---|---|
+| L 100x100x10 | 0.23 % | 0.44 % | **0.75 %** | 0.55 % | 0.01 % |
+| L 80x80x8 | 0.26 % | −0.29 % | **−0.62 %** | −0.41 % | 0.18 % |
+
+Das wirksame Widerstandsmoment bei schenkelparalleler Biegung liegt damit um
+**Faktor 1.30** unter dem tabellierten (nicht 1.39 — meine frühere Schätzung
+aus W₁/W₂ war eine obere Schranke, weil sie unterstellt, dass beide
+Hauptachsenanteile am selben Punkt ihr Maximum haben).
+
+**Und jetzt der unbequeme Teil.** Der Faktor ist echt, aber er allein macht den
+Abgleich mit dem Stabmodell **schlechter**:
+
+| Gurtaufteilung / Spannungsmodell | Obergurt | Untergurt | mittlere \|Δ\| |
+|---|---|---|---|
+| gleich / schenkel (Stand vorher) | −30 … 19 % | 12 … 16 % | 19 % |
+| **einhüllend / schenkel (heute)** | **−4 … 31 %** | **12 … 16 %** | **12 %** |
+| gleich / punkte | −12 … 25 % | 19 … 46 % | 25 % |
+| steifigkeit / punkte | 20 … 32 % | −12 … 13 % | 17 % |
+| einhüllend / punkte | 20 … 32 % | 19 … 46 % | 30 % |
+
+Der Grund: **das örtliche Gurtmoment des Ersatzbalkens ist seinerseits zu
+gross**, und die beiden Fehler heben sich in der bisherigen Form teilweise
+auf. Wer nur einen davon behebt, verschlechtert die Summe. Die frühere Aussage
+im Vergleichsbericht — «Hauptachsen sind ein systematischer Fehler von 39 %,
+dessen Behebung hilft» — war in der Schlussfolgerung falsch: der Fehler ist
+da, aber er ist nicht der einzige, und er zeigt in die andere Richtung als der
+zweite.
+
+**Was daraus folgt.** `punkte` wird erst dann zur Vorgabe, wenn das
+Momentenmodell nachgeführt ist. Der nächste ehrliche Schritt ist **nicht** eine
+weitere Näherung, sondern eine Messung: die Signaljoch-Geometrie durch PyNite
+laufen lassen und die **Gurtendmomente je Station direkt ablesen**, statt sie
+aus Spannungen rückzurechnen. Erst das trennt Momentenaufteilung und
+Spannungsermittlung sauber.
+
+Prüfstand: Abschnitt 25, 25 Kontrollen.
 
 ### Nach dem AxisVM-Vergleich: drei Korrekturen
 

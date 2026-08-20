@@ -34,6 +34,7 @@
 
 import { U, RECHTECK } from './core.constants.js';
 import { lokaleQuerkraft } from './core.anbauteile.js';
+import { winkelwerteFuer, randspannung } from './core.winkel.js';
 
 /**
  * WIE SICH DIE EBENENQUERKRAFT AUF DIE BEIDEN GURTE EINER EBENE VERTEILT.
@@ -80,6 +81,36 @@ export function gurtanteile(m, art = 'huellend') {
   if (art === 'steifigkeit') return st;
   return { OG: Math.max(0.5, st.OG), UG: Math.max(0.5, st.UG) };
 }
+
+/**
+ * WIE DIE SPANNUNG IM WINKEL ERMITTELT WIRD.
+ *
+ * schenkel   σ = N/A + M_y/W_y + M_z/W_z, alle drei als Beträge addiert.
+ *            Einfach und nachvollziehbar, aber ein Winkel hat seine
+ *            Hauptachsen unter 45 Grad - die wirkliche Randspannung ist bei
+ *            schenkelparalleler Biegung rund 30 % grösser.
+ *
+ * punkte     Schiefe Biegung, ausgewertet an den sechs Eckpunkten des
+ *            Winkels (core.winkel.js). Das ist, was ein Stabwerksprogramm
+ *            führt - und was der Vergleich mit AxisVM verlangt.
+ *
+ * WARUM «schenkel» TROTZDEM DIE VORGABE BLEIBT
+ * Der Faktor 1.30 ist echt - aber er allein macht den Vergleich mit einem
+ * Stabmodell SCHLECHTER, nicht besser. Am Signaljoch:
+ *
+ *      einhüllend / schenkel     mittlere Abweichung 12 %
+ *      einhüllend / punkte       mittlere Abweichung 30 %
+ *
+ * Der Grund: das örtliche Gurtmoment des Ersatzbalkens ist seinerseits zu
+ * gross, und die beiden Fehler heben sich in der bisherigen Form teilweise
+ * auf. Wer nur einen davon behebt, verschlechtert die Summe. «punkte» ist
+ * die richtige Spannungsermittlung und steht bereit - sie wird erst dann zur
+ * Vorgabe, wenn das Momentenmodell gegen ein Rahmenmodell nachgeführt ist.
+ */
+export const SPANNUNGSMODELLE = [
+  { key: 'schenkel', label: 'über W schenkelparallel (Vorgabe, an AxisVM abgeglichen)' },
+  { key: 'punkte', label: 'an den Querschnittspunkten – schiefe Biegung, Faktor ≈ 1.30' },
+];
 
 export const TORSIONSVERTEILUNGEN = [
   { key: 'schubfluss', label: 'Schubfluss im geschlossenen Kasten (Bredt)' },
@@ -337,18 +368,29 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
   const My_lokalG = { OG: My_KnotenG.OG * fMy, UG: My_KnotenG.UG * fMy };
 
   // --- Eckwinkel -----------------------------------------------------------
+  const punkteModell = m.spannungsmodell === 'punkte';
   const ecken = eckNormalkraefte(sg, m).map((e) => {
     const p = e.gurt === 'OG' ? m.profOG : m.profUG;
     const myG = My_lokalG[e.gurt];
     const sig_N = (Math.abs(e.N) * U.kN_cm2__N_mm2) / p.A;
+    // Die beiden Anteile über W bleiben stehen: sie sind die verständliche
+    // Zerlegung, die in Tabelle und Bericht gezeigt wird. Massgebend ist
+    // je nach Modell ihre Summe oder die Randspannung an den Eckpunkten.
     const sig_My = (myG * U.kNm_cm3__N_mm2) / p.Wy;
     const sig_Mz = (Mz_lokal * U.kNm_cm3__N_mm2) / p.Wz;
-    const sig_v = sig_N + sig_My + sig_Mz;
+    let sig_v = sig_N + sig_My + sig_Mz;
+    let punkt = null;
+    if (punkteModell) {
+      const r = randspannung(winkelwerteFuer(p), e.N, myG, Mz_lokal);
+      sig_v = r.sig;
+      punkt = r.punkt;
+    }
     return {
       ...e, profil: p.name, A: p.A, Wy: p.Wy, Wz: p.Wz,
       art: e.N < 0 ? 'Druck' : 'Zug',
       My_lokal: myG, Mz_lokal, gurtanteil: anteil[e.gurt],
-      sig_N, sig_My, sig_Mz, sig_v,
+      sig_N, sig_My, sig_Mz, sig_v, randpunkt: punkt,
+      spannungsmodell: punkteModell ? 'punkte' : 'schenkel',
       eta: sig_v / m.fyd,
     };
   });

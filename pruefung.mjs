@@ -2523,6 +2523,76 @@ titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
 }
 
 // ===========================================================================
+titel('25  Winkelspannung an den Querschnittspunkten');
+// Die Querschnittswerte werden aus den Tabellenwerten hergeleitet - I_yz steht
+// in keiner Profiltabelle dieses Werkzeugs. Gegengeprüft wird an den Werten,
+// die AxisVM für dieselben Profile ausweist.
+{
+  const { winkelwerte, randspannung, wirksamesW } = await import(J('core.winkel.js'));
+  const AX = {
+    'L 100x100x10': { A: 1915.52, Iy: 1766604, Iyz: -1036581,
+                      I1: 2803186, I2: 730023 },
+    'L 80x80x8':    { A: 1226.78, Iy: 722397.8, Iyz: -423612.4,
+                      I1: 1146010, I2: 298785.4 },
+  };
+  Object.entries(AX).forEach(([name, a]) => {
+    const w = winkelwerte(getProfil(name));
+    pruef(`${name}: A`, w.A, a.A, 0.01, 'mm2');
+    pruef(`${name}: I_y`, w.Iy, a.Iy, 0.01, 'mm4');
+    // I_yz folgt aus I_2 = i_min²·A und der Invarianz der Spur.
+    pruef(`${name}: I_yz (hergeleitet)`, w.Iyz, a.Iyz, 0.01, 'mm4');
+    pruef(`${name}: I_1`, w.I1, a.I1, 0.01, 'mm4');
+    pruef(`${name}: I_2`, w.I2, a.I2, 0.01, 'mm4');
+    wahr(`${name}: I_1 + I_2 = I_y + I_z`,
+         Math.abs(w.I1 + w.I2 - (w.Iy + w.Iz)) < 1e-6);
+    wahr(`${name}: sechs Eckpunkte`, w.punkte.length === 6);
+  });
+
+  // Schiefe Biegung: die Randspannung ist grösser als M/W_schenkelparallel.
+  const p100 = getProfil('L 100x100x10');
+  const w100 = winkelwerte(p100);
+  const Weff = wirksamesW(w100);
+  wahr('Wirksames W ist kleiner als das schenkelparallele',
+       Weff < p100.Wy * 1000);
+  pruef('Faktor gegenüber W schenkelparallel', (p100.Wy * 1000) / Weff,
+        1.298, 5e-3);
+
+  // Reine Normalkraft: das Modell darf sie nicht verändern.
+  pruef('Nur Normalkraft: σ = N/A', randspannung(w100, 100, 0, 0).sig,
+        (100 * 1000) / w100.A, 1e-9, 'N/mm2');
+  // Vorzeichen der Momente ohne Wirkung - ausgewertet wird die Hüllkurve.
+  pruef('Vorzeichen von M_y ohne Wirkung', randspannung(w100, 0, -3, 0).sig,
+        randspannung(w100, 0, 3, 0).sig, 1e-12, 'N/mm2');
+  wahr('Zwei Momente sind ungünstiger als eines',
+       randspannung(w100, 0, 3, 2).sig > randspannung(w100, 0, 3, 0).sig);
+
+  // EINE Achse allein: die punktweise Ermittlung ist immer ungünstiger.
+  // Bei ZWEI Momenten gilt das nicht zwingend - die beiden Randpunkte fallen
+  // dann nicht zusammen, und die Summe der Einzelmaxima kann grösser sein als
+  // das wirkliche Maximum. Genau deshalb ist die Summe über W keine sichere
+  // obere Schranke, sondern nur eine andere Näherung.
+  [1, 5, 20].forEach((M) => {
+    const punkt = randspannung(w100, 0, M, 0).sig;
+    const ueberW = (M * 1e6) / (p100.Wy * 1000);
+    wahr(`M_y = ${M} kNm: punktweise ungünstiger`, punkt > ueberW * 1.2);
+  });
+
+  // Im Rechenkern: Vorgabe bleibt das schenkelparallele W.
+  const j130 = T.getTragjoch('J130');
+  const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j130),
+               typ: 'J130', L: 27, schneeAktiv: false, anbauteile: [],
+               endbedingung: 'gelenkig', torsionModell: 'huellkurve' };
+  const a = rechne(e0);
+  const b = rechne({ ...e0, spannungsmodell: 'punkte' });
+  wahr('Vorgabe ist das schenkelparallele W',
+       a.knoten[0].ecken[0].spannungsmodell === 'schenkel');
+  wahr('Punktweise gibt ein anderes Ergebnis',
+       Math.abs(b.max.etaOG.og.eta - a.max.etaOG.og.eta) > 1e-3);
+  wahr('Beide Modelle rechnen durch',
+       Number.isFinite(a.max.etaGesamt) && Number.isFinite(b.max.etaGesamt));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

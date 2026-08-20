@@ -24,6 +24,8 @@ export const U = {
   m__cm: 1e2,
   /** cm -> mm */
   cm__mm: 10,
+  /** cm² -> mm² */
+  cm2__mm2: 100,
   /** Erdbeschleunigung [m/s²] für die Eigengewichtsinfo */
   g: 9.81,
 };

@@ -25,7 +25,7 @@ import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
 import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG,
-         GURTAUFTEILUNGEN } from './core.querschnitt.js';
+         GURTAUFTEILUNGEN, SPANNUNGSMODELLE } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE } from './core.auflager.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
@@ -314,6 +314,17 @@ export const FELDER = [
            + 'unterschätzt – beim Vergleich mit einem Stabmodell um rund 30 %. '
            + 'In den Horizontalebenen stehen zwei gleiche Gurte, dort ist die '
            + 'Einstellung ohne Wirkung.' },
+  { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',
+    typ: 'auswahl', label: 'Spannung im Winkel',
+    standard: 'schenkel', optionen: opt(SPANNUNGSMODELLE),
+    hinweis: 'Ein Winkel hat seine Hauptachsen unter 45°; die wirkliche '
+           + 'Randspannung bei schenkelparalleler Biegung ist rund 30 % '
+           + 'grösser als M/W. Die punktweise Ermittlung ist die richtige – '
+           + 'sie allein verschlechtert aber den Abgleich mit einem '
+           + 'Stabmodell, weil das örtliche Gurtmoment des Ersatzbalkens '
+           + 'seinerseits zu gross ist und sich die beiden Fehler heute '
+           + 'teilweise aufheben. Deshalb bleibt W schenkelparallel die '
+           + 'Vorgabe, bis das Momentenmodell nachgeführt ist.' },
   { key: 'ebenenUeberlagerung', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Überlagerung je Blechebene',
     standard: 'huellkurve', optionen: opt(EBENEN_UEBERLAGERUNG),
@@ -396,7 +407,8 @@ export function sichtbareFelder(gruppe, werte) {
 export const OPTIONEN_ABSCHNITTE = [
   { titel: 'Rechenmodell', keys: ['massVariante', 'blechQuelle', 'ausrOG', 'ausrUG'] },
   { titel: 'Torsion und Aufteilung', keys: ['torsionModell', 'torsionsverteilung',
-                             'ebenenUeberlagerung', 'gurtaufteilung'] },
+                             'ebenenUeberlagerung', 'gurtaufteilung',
+                             'spannungsmodell'] },
   { titel: 'Einwirkungen', keys: ['lastHerkunft'] },
   { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { titel: 'Widerstand', keys: ['gammaM0'] },
