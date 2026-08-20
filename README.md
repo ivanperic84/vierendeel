@@ -899,6 +899,28 @@ Die Eingabemaske, der Excel-Export und die Standardwerte werden **alle** aus
 
 ---
 
+## Ablage und Weitergabe
+
+Die Ablage ist **ohne die drei Datenbanken** eingerichtet (`data/*.json` steht
+in der `.gitignore`) und nennt weder Betreiber noch Zeichnungs- oder
+Regelwerksnummern — sie ist damit öffentlich tragbar. Soll alles beisammen
+liegen, die vier Zeilen um `data/*.json` aus der `.gitignore` nehmen und eine
+**private** Ablage verwenden.
+
+`build_html.py` verträgt fehlende Datenbanken: es baut dann von selbst die
+datenfreie Ausgabe. `pruefung.mjs` dagegen **braucht** sie — ohne die drei
+JSON-Dateien laufen die Kontrollen nicht.
+
+Weitergegeben wird nicht die Ablage, sondern drei Dateien:
+
+| Datei | erzeugt durch |
+|---|---|
+| `vierendeel_tool_ohne_daten.html` | `python3 build_html.py --ohne-daten` |
+| `Tragjoch_Datenpaket_*.json` | Knopf **Datenbasis → sichern** in der Anwendung |
+| `Tragjoch_Handbuch.html` | Knopf **ⓘ → Als Datei sichern** |
+
+---
+
 ## Arbeiten am Code
 
 ```bash

@@ -450,13 +450,40 @@ doppelt so gross, und die Mitwirkung der liegenden Ebenen bleibt ungenutzt.`)}
 <h4>5.3 Querkraft je Ebene</h4>
 <p>Die beiden Ebenen einer Richtung teilen sich die Balkenquerkraft hälftig; der
 Torsionsanteil addiert sich auf der einen Seite und zieht auf der anderen ab.
-Massgebend ist die Seite mit Addition. Dazu kommt der örtliche Anteil aus der
-Lasteinleitung (Abschnitt 7):</p>
+Dazu kommt der örtliche Anteil aus der Lasteinleitung (Abschnitt 7). Wie die
+drei überlagert werden, ist <b>wählbar</b>:</p>
 
-${f(`V_Ebene = |V| / 2 &nbsp;+&nbsp; V_T &nbsp;+&nbsp; V_lokal`)}
+${f(`Hüllkurve &nbsp;&nbsp; V_Ebene = |V| / 2 &nbsp;+&nbsp; V_T &nbsp;+&nbsp; V_lokal`)}
+
+<p>Diese Form gibt <b>beiden</b> Ebenen einer Richtung denselben Wert – den der
+ungünstigeren. Sie ist nie unsicher, aber Ober- und Unterblech bekommen
+zwangsläufig dasselbe η, und das widerspricht dem, was ein Stab- oder
+FEM-Modell zeigt.</p>
+
+${f(`vorzeichenrichtig &nbsp;&nbsp; V_Ebene = | V / 2 &nbsp;±&nbsp; V_T | &nbsp;+&nbsp; V_lokal`)}
+
+<p>Der Schubfluss <b>läuft um</b>: er addiert sich auf der Ebene, zu der die Last
+exzentrisch sitzt, und zieht auf der gegenüberliegenden ab. Eine Kraft in y
+unterhalb der Jochachse – eine Hängestütze – beansprucht damit das
+<b>untere</b> Blech stärker; ein Aufsatz über dem Joch das obere.</p>
+
+${q(`Beide Anteile gehen mit Vorzeichen ein, nicht nur die Torsion. Querkraft und
+Torsion wechseln am Lastangriff <b>gemeinsam</b> das Vorzeichen – beide laufen
+von dort zu den Auflagern –, ihr Verhältnis bleibt also über die ganze Länge
+gleich. Nimmt man nur eines vorzeichenbehaftet, springt die massgebende Ebene
+am Anbauteil fälschlich auf die andere Seite.`)}
+
+<p>Das <b>höchste</b> η ändert sich dabei nicht: auf der Ebene, wo beides
+gleichsinnig läuft, ist |V + V_T| = |V| + V_T – genau die Hüllkurve.
+Vorzeichenrichtig zu rechnen entlastet nur die andere Ebene. Der örtliche
+Anteil bleibt in beiden Formen additiv auf beiden Ebenen.</p>
+
+${q(`Die Drehsinne sind an einem Stabmodell kalibriert, nicht hergeleitet. Ohne
+Drehsinn kein Vorzeichen: rechnet man die Torsion selbst als Hüllkurve
+(Abschnitt 4), fällt die Einstellung auf die Hüllkurve zurück.`)}
 
 <p class="hb-quelle">core.querschnitt.js · <code>torsionsSchubfluss</code>,
-<code>ebenenQuerkraefte</code>, <code>eckNormalkraefte</code></p>
+<code>ebenenQuerkraefte</code>, <code>eckNormalkraefte</code>, <code>EBENEN</code></p>
 `,
 },
 
@@ -692,10 +719,37 @@ zugeschlagen; 5 cm mehr Raster liessen die Einleitung ins Nachbarfeld kippen und
 <p>Das Kräftepaar wird zur Ebenenquerkraft <b>addiert</b>, nicht gemittelt und
 nicht gegen den globalen Schubfluss abgeglichen. Liegen beide Einleitungsstellen
 am selben Blech, muss dieses Blech das ganze Paar übertragen. Das ist bewusst
-konservativ.</p>
+konservativ – und es gilt auch dann, wenn die Ebenen vorzeichenrichtig
+überlagert werden (Abschnitt 5.3): der örtliche Anteil kommt auf beiden Ebenen
+mit vollem Betrag dazu.</p>
+
+<h4>7.5 Ausleger: die Fahrleitung als Auflager</h4>
+<p>Ein Ausleger ist kein Kragarm. Sein äusseres Ende hält die Fahrleitung, und
+die ist durch den <b>Leiterzug</b> seitlich gespannt – sie wirkt dort als
+Auflager. Der Wind auf den Ausleger verteilt sich damit auf zwei Auflager:</p>
+
+${f(`F_Fahrleitung = (1 &minus; α) · F_Wind &nbsp;&nbsp;&nbsp;
+     F_Träger = α · F_Wind &nbsp;&nbsp;&nbsp; α = 0.5 als Vorgabe`)}
+
+<p>Nur der Anteil α kommt an diesem Joch an; den Rest trägt die Fahrleitung
+längs zu den Nachbaraufhängungen ab. Und er kommt dort an, wo der Ausleger
+angeschlagen ist: auf der <b>Achse des Trägers</b>. Verändert wird deshalb der
+Abstand in y – die <b>Höhe z bleibt</b>, der Hebelarm e_v zur Jochachse
+ändert sich nicht, die Kraft wird kleiner.</p>
+
+<p>Unangetastet bleiben Eigengewicht, Schnee, Wind in x – und die
+<b>Drahtwerke</b>: deren Windlast ist über die Spannweite L_FL bereits der
+Anteil, der an dieser Aufhängung ankommt; sie ein zweites Mal zu teilen wäre
+doppelt gezählt.</p>
+
+${q(`Diese Aufteilung ist eine <b>Modellannahme</b>, kein gerechneter Wert. Sie
+setzt voraus, dass die Fahrleitung am betrachteten Ausleger tatsächlich
+seitlich gehalten ist. Sie ist deshalb je Anbauteil einzeln zu setzen und
+standardmässig ausgeschaltet.`)}
 
 <p class="hb-quelle">core.anbauteile.js · <code>anbauteilLasten</code>,
-<code>stationsAnteil</code>, <code>lokaleQuerkraft</code></p>
+<code>stationsAnteil</code>, <code>lokaleQuerkraft</code> ·
+data.anbauteile.js · <code>windAufTraeger</code></p>
 `,
 },
 

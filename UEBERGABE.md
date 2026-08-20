@@ -500,6 +500,53 @@ Beides ist mehrfach bestätigt worden und gilt weiter.
 
 ---
 
+## Bereit für Push und Versand
+
+**Ablage** — `git init` ist gelaufen, ein Stand ist eingecheckt, **kein Remote,
+kein Push**. Das bleibt Ihre Entscheidung.
+
+52 Dateien, geprüft auf Betreiberbezüge: **keine**. Draussen bleiben über
+`.gitignore`:
+
+| | |
+|---|---|
+| `data/*.json` | die drei Datenbanken — sie machen die Ablage sonst nicht-öffentlich |
+| `Grundlagen/`, `*.axs`, `*.axe`, `*.pdf`, `*.docx`, `*.xlsx` | Projektunterlagen |
+| `vierendeel_tool*.html` | Erzeugnisse von build_html.py; die vollständige trägt die Zahlen eingebettet |
+| `generate_vierendeel_L_SZS_C5.py` und die zwei Excel-Prüfer | nennen Betreiber und Zeichnungsnummern im Klartext, ausserdem nicht mehr synchron |
+| `Versand/`, `.claude/settings.local.json` | Erzeugnisse und örtliche Einstellungen |
+
+> **Eine Entscheidung steht noch aus:** öffentlich oder privat. So wie es jetzt
+> steht, ist die Ablage **öffentlich tragbar** — ohne Daten, ohne
+> Betreiberbezug. Für eine **private** Ablage die vier Zeilen um `data/*.json`
+> aus der `.gitignore` nehmen; dann liegt alles beisammen und `build_html.py`
+> bettet die Zahlen wieder ein.
+
+`build_html.py` verträgt jetzt fehlende Datenbanken: es baut dann von selbst
+die datenfreie Ausgabe statt abzubrechen. Für GitHub Pages muss die Datei
+`index.html` heissen — sie heisst so.
+
+`pruefung.mjs` **braucht** die drei `data/*.json`. In einer öffentlichen Ablage
+laufen die Kontrollen erst, wenn das Datenpaket örtlich danebenliegt. Das steht
+so im README.
+
+**Versand** — der Ordner ist frisch:
+
+```
+Versand/
+  vierendeel_tool_ohne_daten.html   681 kB   Doppelklick, keine Installation
+  Tragjoch_Datenpaket_2026-08-20.json 137 kB 14 Typen, 14 Vorlagen, 60 Bauteile
+  Tragjoch_Handbuch.html            108 kB   mit den neuen Abschnitten 5.3 und 7.5
+  LIESMICH.txt                               Inbetriebnahme in drei Schritten
+```
+
+Das Handbuch ist neu gesetzt und trägt jetzt beides: die **Überlagerung je
+Blechebene** (5.3, mit der Warnung, dass beide Anteile das Vorzeichen tragen
+müssen) und die **Fahrleitung als Auflager** (7.5). Auf SBB-Bezüge geprüft:
+keine.
+
+---
+
 ## Offene Punkte
 
 | Punkt | Stand |
