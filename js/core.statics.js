@@ -4,8 +4,10 @@
  * RECHENKERN, TEIL 1: Ersatzbalken.
  * Reine Funktionen - kein DOM, keine globalen Variablen.
  *
- * Statisches System: Einfeldträger der Spannweite L mit DREHFEDERN an beiden
- * Enden (gelenkig / teilweise / voll eingespannt, siehe core.auflager.js).
+ * Statisches System: Einfeldträger mit DREHFEDERN an beiden Enden (gelenkig /
+ * teilweise / voll eingespannt, siehe core.auflager.js). Die Auflager müssen
+ * NICHT an den Gurtenden stehen: liegen sie weiter innen, ragt das Joch als
+ * KRAGARM darüber hinaus (x_A > 0 bzw. x_B < L, siehe feldmodell).
  *
  *   q_d   vertikale Gleichlast (Eigengewicht + Schnee)
  *   w_d   horizontale Gleichlast (Wind)
@@ -57,13 +59,16 @@ export function bemessungslasten(i, anbauteile, h) {
 }
 
 /** Auflagerkräfte vertikal. Stützmomente erzeugen den Zusatzanteil (M_A-M_B)/L. */
-export function auflagerkraefte({ L, qd, P, M = [], MA = 0, MB = 0 }) {
+export function auflagerkraefte({ L, qd, P, M = [], MA = 0, MB = 0,
+                                  RkragA = 0, RkragB = 0 }) {
   // Ein eingeprägtes Moment M0 wird über ein Kräftepaar −M0/L / +M0/L abgetragen.
   const mSum = (M ?? []).reduce((s, m) => s + m.w, 0);
   const RA0 = (qd * L) / 2 + P.reduce((s, p) => s + (p.w * (L - p.x)) / L, 0) - mSum / L;
   const RB0 = (qd * L) / 2 + P.reduce((s, p) => s + (p.w * p.x) / L, 0) + mSum / L;
   const dV = (MA - MB) / L;
-  return { RA: RA0 + dV, RB: RB0 - dV, RA0, RB0 };
+  // Was auf dem Kragarm steht, läuft unmittelbar ins Auflager.
+  return { RA: RA0 + dV + RkragA, RB: RB0 - dV + RkragB, RA0, RB0,
+           RkragA, RkragB };
 }
 
 /**
@@ -103,10 +108,116 @@ export function torsion(x, { L, T, torsionModell }) {
 }
 
 /**
+ * KRAGARME: DAS AUFLAGER STEHT NICHT IMMER AM GURTENDE.
+ *
+ * Die Länge L ist die Länge der GURTE, von Ende zu Ende - das Mass der
+ * Zeichnung, an dem auch die Blecheinteilung hängt. Die Auflager stehen aber
+ * dort, wo die Maste stehen, und das ist oft weiter innen:
+ *
+ *      0            x_A                            x_B          L
+ *      ├── Kragarm ──┤────────── Spannweite ────────┤── Kragarm ─┤
+ *
+ * Der Unterschied ist nicht klein. Am nachgerechneten Signaljoch liegen die
+ * Mastachsen bei 0.13 und 19.065 m, die Gurte laufen von −0.20 bis 19.80 -
+ * die Stützweite ist 18.935 statt 20.00 m. Das sind 5.3 % Länge und rund
+ * 11 % auf JEDES globale Moment. Wer L als Stützweite einsetzt, rechnet still
+ * zu ungünstig; wer die Stützweite als Gurtlänge einsetzt, still zu günstig.
+ *
+ * WIE GERECHNET WIRD
+ * Der Kragarm ist statisch bestimmt. Seine Lasten geben am Auflager ein festes
+ * Moment M_k ab, das im Drehwinkelverfahren wie eine eingeprägte Einwirkung
+ * auf den Knoten wirkt (core.auflager.js). Das Feld dazwischen ist der
+ * bekannte Einfeldträger mit Drehfedern, nur mit verschobenem Nullpunkt.
+ * Innerhalb des Kragarms werden die Schnittgrössen direkt vom freien Ende her
+ * gerechnet.
+ *
+ * Torsions- und Normalkraftanteile, die auf dem Kragarm eingeleitet werden,
+ * laufen unmittelbar ins Auflager - das Feld sieht sie nicht.
+ *
+ * Ohne Kragarme (x_A = 0, x_B = L) fällt alles auf den bisherigen Weg zurück;
+ * dann wird dieses Untermodell gar nicht erst gebaut.
+ *
+ * @param {object} m Balkenmodell mit L, qd, wd, P, H, T, M, Mz, N, xA, xB
+ * @returns {object|null} Untermodell des FELDES (L = Stützweite, Lasten auf
+ *          das Auflager A bezogen) samt Kragarmmomenten - oder null.
+ */
+export function feldmodell(m) {
+  const xA = Math.max(0, m.xA ?? 0);
+  const xB = Math.min(m.L, m.xB ?? m.L);
+  if (xA <= TOL && xB >= m.L - TOL) return null;      // keine Kragarme
+  const Ls = xB - xA;
+  if (!(Ls > 0)) throw new Error('Die Stützweite ist null oder negativ.');
+
+  const imFeld = (p) => p.x >= xA - TOL && p.x <= xB + TOL;
+  const links = (p) => p.x < xA - TOL;
+  const rechts = (p) => p.x > xB + TOL;
+  const rein = (liste) => (liste ?? []).filter(imFeld).map((p) => ({ ...p, x: p.x - xA }));
+  const a = xA, b = m.L - xB;
+
+  // Kragarmmomente am Auflager, positiv als Zug oben (wie MA/MB).
+  const summe = (liste, arm) => (liste ?? []).reduce((s, p) => s + p.w * arm(p), 0);
+  const MkA = (m.qd * a * a) / 2 + summe((m.P ?? []).filter(links), (p) => xA - p.x);
+  const MkB = (m.qd * b * b) / 2 + summe((m.P ?? []).filter(rechts), (p) => p.x - xB);
+  // Grundriss: Wind-Gleichlast und horizontale Einzellasten auf den Kragarmen.
+  const MkzA = (m.wd * a * a) / 2 + summe((m.H ?? []).filter(links), (p) => xA - p.x);
+  const MkzB = (m.wd * b * b) / 2 + summe((m.H ?? []).filter(rechts), (p) => p.x - xB);
+  // Eingeprägte Momente auf dem Kragarm wirken unmittelbar am Auflager.
+  const MeA = summe((m.M ?? []).filter(links), () => 1);
+  const MeB = summe((m.M ?? []).filter(rechts), () => 1);
+
+  return {
+    xA, xB, Ls, kragA: a, kragB: b,
+    MkA: MkA - MeA, MkB: MkB + MeB, MkzA, MkzB,
+    // Auflagerkräfte bekommen die Kragarmlasten direkt zugeschlagen.
+    RkragA: m.qd * a + (m.P ?? []).filter(links).reduce((s, p) => s + p.w, 0),
+    RkragB: m.qd * b + (m.P ?? []).filter(rechts).reduce((s, p) => s + p.w, 0),
+    // Untermodell des Feldes: gleiche Struktur, nur L und Lastlagen verschoben.
+    feld: { ...m, L: Ls, xA: 0, xB: Ls, feldmodell: null,
+            P: rein(m.P), H: rein(m.H), T: rein(m.T),
+            M: rein(m.M), Mz: rein(m.Mz), N: rein(m.N) },
+  };
+}
+
+/** Schnittgrössen im Kragarm, vom freien Ende her gerechnet. */
+function kragarmSchnitt(x, m, seite) {
+  const auf = seite === 'links'
+    ? { von: 0, arm: (p) => x - p.x, drin: (p) => p.x < x - TOL, laenge: x }
+    : { von: m.L, arm: (p) => p.x - x, drin: (p) => p.x > x + TOL, laenge: m.L - x };
+  const l = auf.laenge;
+  const teil = (liste) => (liste ?? []).filter(auf.drin);
+  const bieg = (liste) => teil(liste).reduce((s, p) => s + p.w * auf.arm(p), 0);
+  const kraft = (liste) => teil(liste).reduce((s, p) => s + p.w, 0);
+  const vz = seite === 'links' ? -1 : +1;
+
+  // Kragarm: Zug oben, also negatives Feldmoment in unserer Zählung.
+  const My = -((m.qd * l * l) / 2 + bieg(m.P)) + teil(m.M).reduce((s, p) => s + p.w, 0) * vz;
+  const Vz = vz * (m.qd * l + kraft(m.P));
+  const Mz = (m.wd * l * l) / 2 + bieg(m.H) + teil(m.Mz).reduce((s, p) => s + p.w, 0) * vz;
+  const Vy = -vz * (m.wd * l + kraft(m.H));
+  // Torsion und Normalkraft laufen vom Angriff unmittelbar ins Auflager.
+  const Tx = teil(m.T).reduce((s, p) => s + p.w, 0);
+  const Nx = Math.abs(teil(m.N).reduce((s, p) => s + p.w, 0));
+  return { My, Mss: My, Vz, Mz, Vy, Tx: Math.abs(Tx), TxVz: Tx, Nx, kragarm: seite };
+}
+
+/**
  * Schnittgrössen des Ersatzbalkens an der Stelle x.
  * M_y = M_Gelenkträger - [ M_A*(1-x/L) + M_B*(x/L) ]
+ *
+ * Stehen die Auflager innerhalb der Gurtenden, wird ausserhalb der Stützweite
+ * der Kragarm gerechnet und innerhalb das verschobene Feld (siehe feldmodell).
  */
 export function schnittgroessen(x, m) {
+  const fm = m.feldmodell;
+  if (fm) {
+    if (x < fm.xA - TOL) return kragarmSchnitt(x, m, 'links');
+    if (x > fm.xB + TOL) return kragarmSchnitt(x, m, 'rechts');
+    return feldSchnitt(x - fm.xA, fm.feld);
+  }
+  return feldSchnitt(x, m);
+}
+
+function feldSchnitt(x, m) {
   const { L, qd, P, H, M: Mlast = [], N: Nlast = [], Mz: Mzlast = [],
           wd, MA = 0, MB = 0, RA0 } = m;
 
@@ -149,6 +260,11 @@ export function schnittgroessen(x, m) {
 /** Kandidatenstellen für Extremwerte: Auflager, Lastangriffe, Nullstellen von V. */
 function kandidaten(m) {
   const k = new Set([0, m.L]);
+  if (m.feldmodell) {
+    k.add(m.feldmodell.xA); k.add(m.feldmodell.xB);
+    k.add(Math.max(0, m.feldmodell.xA - 1e-6));
+    k.add(Math.min(m.L, m.feldmodell.xB + 1e-6));
+  }
   m.P.forEach((p) => { k.add(p.x); k.add(Math.max(0, p.x - 1e-6)); });
   m.H.forEach((p) => k.add(p.x));
   if (m.qd > 0) {

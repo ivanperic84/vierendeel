@@ -271,10 +271,10 @@ function fem({ L, qd, P, M = [] }) {
  * @returns {{cA, cB, MA, MB, FA, FB, begrenzt, durchgaenge}}
  */
 export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz,
-                                theta0A = 0, theta0B = 0 }) {
+                                theta0A = 0, theta0B = 0, MkA = 0, MkB = 0 }) {
   const kraft = (Mst) => (h > 0 ? Math.abs(Mst) / h : 0);
   let a = cA, b = cB, durchgaenge = 0, begrenzt = false;
-  let auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B });
+  let auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B, MkA, MkB });
 
   if (!(Fgrenz > 0) || !(h > 0)) {
     return { cA: a, cB: b, MA: auf.MA, MB: auf.MB, FA: kraft(auf.MA),
@@ -288,14 +288,15 @@ export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz,
     if (FB > Fgrenz) b = Math.max(0, b * (Fgrenz / FB));
     begrenzt = true;
     durchgaenge = i + 1;
-    auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B });
+    auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B, MkA, MkB });
   }
   return { cA: a, cB: b, MA: auf.MA, MB: auf.MB,
            FA: kraft(auf.MA), FB: kraft(auf.MB), begrenzt, durchgaenge };
 }
 
 export function auflagermomente({ L, qd, P, M, EI, cA, cB,
-                                  theta0A = 0, theta0B = 0 }) {
+                                  theta0A = 0, theta0B = 0,
+                                  MkA = 0, MkB = 0 }) {
   const F = fem({ L, qd, P, M });
   const K = EI / L;
 
@@ -306,8 +307,12 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
   // Rechte Seite: FEM und, falls der Auflagerpunkt selbst verdreht ist
   // (Wind auf den Mast, mastKopfdrehung), der Anteil c·θ₀ daraus.
   //     M_AB = −c_A·(θ_A − θ₀A)  =>  (4K+c_A)θ_A + 2K θ_B = −FEM_AB + c_A θ₀A
-  const rA = -F.AB + cA * (theta0A ?? 0);
-  const rB = -F.BA + cB * (theta0B ?? 0);
+  // Kragarmmomente wirken unmittelbar auf den Knoten: hängt am Auflager ein
+  // Kragarm, gibt er sein Endmoment dort ab, ganz gleich wie weich die Feder
+  // ist. Bei c = 0 bleibt genau M_A = M_kA übrig - der Gelenkträger mit
+  // Kragarm.
+  const rA = -F.AB + cA * (theta0A ?? 0) - (MkA ?? 0);
+  const rB = -F.BA + cB * (theta0B ?? 0) + (MkB ?? 0);
 
   const thetaA = (rA * a22 - rB * a12) / det;
   const thetaB = (rB * a11 - rA * a21) / det;
@@ -319,8 +324,8 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
   const MA = -M_AB;
   const MB = +M_BA;
 
-  const MAvoll = -F.AB;
-  const MBvoll = +F.BA;
+  const MAvoll = -F.AB + (MkA ?? 0);
+  const MBvoll = +F.BA + (MkB ?? 0);
   const M0A = cA * (theta0A ?? 0);
   const M0B = cB * (theta0B ?? 0);
   return {
@@ -329,6 +334,7 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
     kappaB: Math.abs(MBvoll) > 1e-12 ? MB / MBvoll : 0,
     thetaA, thetaB, MAvoll, MBvoll,
     theta0A: theta0A ?? 0, theta0B: theta0B ?? 0, M0A, M0B,
+    MkA: MkA ?? 0, MkB: MkB ?? 0,
   };
 }
 

@@ -381,7 +381,34 @@ wenige Prozent):</p>
 
 ${f(`I = h² · A_o · A_u / ( A_o + A_u )`)}
 
-<h4>4.5 Schnittgrössen</h4>
+<h4>4.5 Kragarme – das Auflager steht nicht immer am Gurtende</h4>
+<p>L ist die Länge der <b>Gurte</b>, von Ende zu Ende: das Mass der Zeichnung,
+an dem auch die Blecheinteilung hängt. Die Auflager stehen dort, wo die Maste
+stehen, und das ist oft weiter innen:</p>
+
+${f(`0 &nbsp;├── Kragarm c_A ──┤────── Stützweite L − c_A − c_B ──────┤── c_B ──┤&nbsp; L`)}
+
+<p>Der Kragarm ist statisch bestimmt. Seine Lasten geben am Auflager ein festes
+Moment M_k ab, das im Drehwinkelverfahren unmittelbar auf den Knoten wirkt –
+auch bei gelenkigem Auflager. Bei c = 0 bleibt genau M_A = M_k übrig, der
+Gelenkträger mit Kragarm. Innerhalb des Kragarms werden die Schnittgrössen vom
+freien Ende her gerechnet; Torsion und Normalkraft, die dort eingeleitet
+werden, laufen unmittelbar ins Auflager.</p>
+
+${q(`Der Unterschied ist nicht klein. Am nachgerechneten Signaljoch liegen die
+Mastachsen 0.33 und 0.735 m innerhalb der Gurtenden – 5.3 % Stützweite und rund
+<b>11 % auf jedes globale Moment</b>. Wer L als Stützweite einsetzt, rechnet
+still zu ungünstig; wer die Stützweite als Gurtlänge einsetzt, still zu
+günstig. Die Blecheinteilung bleibt davon unberührt: sie hängt an der
+Gurtlänge, nicht an der Stützweite.`)}
+
+<p><b>Gegenprobe.</b> Wird die Drehfeder am Signaljoch so geeicht, dass das
+<i>Feldmoment</i> des AxisVM-Modells getroffen wird (21.18 kNm), ergibt sich
+c_φ = 9215 kNm/rad – und das <i>Stützmoment</i> stellt sich mit 9.97 kNm gegen
+gemessene 10.05 kNm von selbst ein, obwohl es nicht mitgeeicht wurde. Ohne
+Kragarme lag dieselbe Rechnung beim Stützmoment 36 % daneben.</p>
+
+<h4>4.6 Schnittgrössen</h4>
 ${f(`M_y(x) = M_Gelenkträger(x) − [ M_A·(1−x/L) + M_B·(x/L) ]<br>
 M_z(x) = w_d·x·(L−x)/2 + M_Einzellasten + eingeprägte M_zz<br>
 T(x), N(x) &nbsp;&nbsp; wahlweise Hüllkurve oder Auflagerverteilung`)}
@@ -392,7 +419,7 @@ Extremwerte werden nicht am Knotenraster abgelesen, sondern über eine eigene
 Kandidatenliste (Auflager, Lastangriffe, Nullstellen von V) gesucht – sie sind
 damit unabhängig von der Blechteilung.</p>
 
-<h4>4.6 Torsionsmodell</h4>
+<h4>4.7 Torsionsmodell</h4>
 <table class="dt">
 <tr><td>Hüllkurve</td><td>konstante Summe aller Torsionsmomente über die ganze
   Länge – konservativ, kein Abbau zu den Auflagern</td></tr>

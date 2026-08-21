@@ -123,6 +123,18 @@ export const FELDER = [
   { key: 'cPhi', gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
     sichtbar: (w) => w.endbedingung === 'manuell' },
+  // Die Auflager stehen dort, wo die Maste stehen - nicht zwingend am Gurtende.
+  // L bleibt die Länge der GURTE (daran hängt die Blecheinteilung), die
+  // Stützweite ist L − kragA − kragB.
+  { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
+    sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+    hinweis: 'Abstand der Mastachse vom Gurtende. L ist die Länge der Gurte; ' +
+             'steht das Auflager weiter innen, ragt das Joch als Kragarm ' +
+             'darüber hinaus. Am nachgerechneten Signaljoch waren das 0.33 ' +
+             'und 0.735 m auf 20 m Gurtlänge - 5.3 % Stützweite und rund ' +
+             '11 % auf jedes globale Moment.' },
+  { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
+    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0 },
   { key: 'mastProfil', gruppe: 'aufl', typ: 'auswahl', label: 'Mastprofil',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
     sichtbar: (w) => w.endbedingung === 'mast' },

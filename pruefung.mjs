@@ -2673,6 +2673,87 @@ titel('26  Wind auf den Mast verdreht das Jochende');
 }
 
 // ===========================================================================
+titel('27  Kragarme: das Auflager steht nicht immer am Gurtende');
+// L ist die Länge der GURTE - daran hängt die Blecheinteilung. Die Auflager
+// stehen dort, wo die Maste stehen. Am nachgerechneten Signaljoch waren das
+// 0.33 und 0.735 m weiter innen: 5.3 % Stützweite, 11 % auf jedes Moment.
+{
+  const { feldmodell, schnittgroessen, auflagerkraefte } =
+    await import(J('core.statics.js'));
+  const { auflagermomente } = await import(J('core.auflager.js'));
+
+  const leer = { qd: 1, wd: 0, P: [], H: [], T: [], M: [], Mz: [], N: [],
+                 torsionModell: 'verteilt' };
+  wahr('Ohne Kragarme wird kein Untermodell gebaut',
+       feldmodell({ ...leer, L: 10 }) === null
+       && feldmodell({ ...leer, L: 10, xA: 0, xB: 10 }) === null);
+
+  // Einfeldträger 6 m mit je 2 m Kragarm, Gleichlast 1 kN/m, gelenkig.
+  const m0 = { ...leer, L: 10, xA: 2, xB: 8 };
+  const fm = feldmodell(m0);
+  pruef('Stützweite', fm.Ls, 6, 1e-12);
+  pruef('Kragarmmoment q·a²/2', fm.MkA, 2, 1e-12);
+  pruef('Kragarmlast läuft ins Auflager', fm.RkragA, 2, 1e-12);
+
+  const auf = auflagermomente({ L: fm.Ls, qd: 1, P: fm.feld.P, M: fm.feld.M,
+                                EI: 1e5, cA: 0, cB: 0, MkA: fm.MkA, MkB: fm.MkB });
+  pruef('Gelenkig: Stützmoment ist das Kragarmmoment', auf.MA, 2, 1e-9);
+  const rk = auflagerkraefte({ L: fm.Ls, qd: 1, P: fm.feld.P, M: fm.feld.M,
+                               MA: auf.MA, MB: auf.MB,
+                               RkragA: fm.RkragA, RkragB: fm.RkragB });
+  pruef('Auflagerkraft trägt die ganze Last', rk.RA + rk.RB, 10, 1e-9);
+  Object.assign(fm.feld, { RA0: rk.RA0, MA: auf.MA, MB: auf.MB });
+  const mm = { ...m0, feldmodell: fm, RA0: rk.RA0, MA: auf.MA, MB: auf.MB };
+  const My = (x) => schnittgroessen(x, mm).My;
+  pruef('Freies Ende momentenfrei', My(0), 0, 1e-12);
+  pruef('Kragarm: −q·x²/2', My(1), -0.5, 1e-12);
+  pruef('Am Auflager das Kragarmmoment', My(2), -2, 1e-9);
+  pruef('Feldmitte q·Ls²/8 − M_k', My(5), 6 * 6 / 8 - 2, 1e-9);
+  pruef('Symmetrisch am anderen Ende', My(9), My(1), 1e-9);
+  wahr('Im Kragarm ist der Bereich vermerkt',
+       schnittgroessen(1, mm).kragarm === 'links'
+       && schnittgroessen(9, mm).kragarm === 'rechts');
+
+  // --- im Werkzeug ----------------------------------------------------------
+  const j90 = T.getTragjoch('J90');
+  const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j90),
+               typ: 'J90', L: 15.5, schneeAktiv: false, anbauteile: [],
+               endbedingung: 'gelenkig', torsionModell: 'huellkurve' };
+  const ohne = rechne(e0);
+  const mit = rechne({ ...e0, kragA: 0.5, kragB: 0.5 });
+  pruef('Stützweite im Modell', mit.modell.stuetzweite, 14.5, 1e-12);
+  wahr('Kragarme senken das Feldmoment',
+       mit.extrem.MyMax < ohne.extrem.MyMax);
+  // Die Blecheinteilung hängt an der GURTLÄNGE und darf sich nicht rühren.
+  wahr('Blechstationen bleiben unverändert',
+       mit.knoten.length === ohne.knoten.length
+       && mit.knoten.every((k, i) => Math.abs(k.x - ohne.knoten[i].x) < 1e-12));
+  let fehler = null;
+  try { rechne({ ...e0, kragA: 8, kragB: 8 }); } catch (e) { fehler = e; }
+  wahr('Zu lange Kragarme werden abgewiesen', fehler !== null);
+
+  // --- Gegenprobe am Signaljoch ---------------------------------------------
+  // Aus den Gurtkräften des AxisVM-Modells zurückgerechnet: Feldmoment
+  // 21.18 kNm, Einspannmoment 10.05 kNm, Stützweite 18.935 m. Wird die Feder
+  // auf das FELDMOMENT geeicht, muss das STÜTZMOMENT von selbst stimmen -
+  // es ist nicht mitgefittet.
+  const sig = { ...basis(), typ: 'frei', L: 20.0, a1: 0.75,
+                jd: 600, jbbOG: 600, jbbUG: 560,
+                profOG: 'L 100x100x10', profUG: 'L 80x80x8',
+                blechQuelle: 'manuell', h2: 110, t2: 10, h1: 110, t1: 10,
+                endblechWieZwischen: true, schneeAktiv: false, anbauteile: [],
+                lastHerkunft: 'manuell', gkManuell: 0.6966, skManuell: 0,
+                wkManuell: 0, gammaM0: 1.0, schraubenGrenze: false,
+                endbedingung: 'manuell', cPhi: 9215,
+                kragA: 0.33, kragB: 0.735,
+                beiwerteFest: { G: 1, WindX: 0, WindY: 0, Schnee: 0, Leiterzug: 0 } };
+  const rs = rechne(sig);
+  pruef('Signaljoch: Stützweite', rs.modell.stuetzweite, 18.935, 1e-9);
+  pruef('Signaljoch: Feldmoment wie AxisVM', rs.extrem.MyMax, 21.18, 0.05);
+  pruef('Signaljoch: Stützmoment folgt von selbst', Math.abs(rs.modell.MA), 10.05, 0.15);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

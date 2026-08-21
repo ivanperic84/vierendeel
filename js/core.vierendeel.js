@@ -14,7 +14,7 @@
 
 import { U, TOL } from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
-         extremwerte, knotenraster, feldweite } from './core.statics.js';
+         extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
 import { charakteristischeLasten, lastfallUebersicht, beiwerteFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile } from './data.anbauteile.js';
@@ -202,25 +202,49 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const theta0A = bwX * kopf.A.theta0;
   const theta0B = bwX * kopf.B.theta0;
 
+  // KRAGARME: die Auflager müssen nicht an den Gurtenden stehen.
+  // L ist die Länge der Gurte (Mass der Zeichnung, daran hängt die
+  // Blecheinteilung); die Stützweite ist L − kragA − kragB.
+  const kragA = Math.max(0, inp.kragA ?? 0);
+  const kragB = Math.max(0, inp.kragB ?? 0);
+  if (kragA + kragB >= inp.L) {
+    throw new Error('Die Kragarme sind zusammen so lang wie das Joch - '
+                  + 'es bliebe keine Stützweite übrig.');
+  }
+  const fm = feldmodell({ L: inp.L, xA: kragA, xB: inp.L - kragB,
+                          qd: lasten.qd, wd: lasten.wd, P: lasten.P, H: lasten.H,
+                          T: lasten.T, M: lasten.M, Mz: lasten.Mz, N: lasten.N });
+  // Alles, was das Auflagerproblem betrifft, rechnet auf der STÜTZWEITE.
+  const sp = fm
+    ? { L: fm.Ls, P: fm.feld.P, M: fm.feld.M, MkA: fm.MkA, MkB: fm.MkB,
+        RkragA: fm.RkragA, RkragB: fm.RkragB }
+    : { L: inp.L, P: lasten.P, M: lasten.M, MkA: 0, MkB: 0,
+        RkragA: 0, RkragB: 0 };
+
   const grenzeAktiv = inp.schraubenGrenze !== false
     && inp.endbedingung !== 'voll'
     && federnRoh.cA + federnRoh.cB > 0 && inp.schraubenFgrenz > 0;
   const grenze = grenzeAktiv
-    ? begrenzeFeder({ L: inp.L, qd: lasten.qd, P: lasten.P, M: lasten.M,
+    ? begrenzeFeder({ L: sp.L, qd: lasten.qd, P: sp.P, M: sp.M,
                       EI: steif.EI, cA: federnRoh.cA, cB: federnRoh.cB,
-                      h: v.hT, Fgrenz: inp.schraubenFgrenz, theta0A, theta0B })
+                      h: v.hT, Fgrenz: inp.schraubenFgrenz, theta0A, theta0B,
+                      MkA: sp.MkA, MkB: sp.MkB })
     : null;
   const federn = { ...federnRoh, roh: federnRoh, grenze,
                    ...(grenze ? { cA: grenze.cA, cB: grenze.cB } : {}) };
 
   const auf = auflagermomente({
-    L: inp.L, qd: lasten.qd, P: lasten.P, M: lasten.M,
+    L: sp.L, qd: lasten.qd, P: sp.P, M: sp.M,
     EI: steif.EI, cA: federn.cA, cB: federn.cB, theta0A, theta0B,
+    MkA: sp.MkA, MkB: sp.MkB,
   });
   const reakt = auflagerkraefte({
-    L: inp.L, qd: lasten.qd, P: lasten.P, M: lasten.M,
-    MA: auf.MA, MB: auf.MB,
+    L: sp.L, qd: lasten.qd, P: sp.P, M: sp.M,
+    MA: auf.MA, MB: auf.MB, RkragA: sp.RkragA, RkragB: sp.RkragB,
   });
+  // Das Feld-Untermodell braucht die eben gerechneten Auflagerwerte, sonst
+  // kennt schnittgroessen() sie innerhalb der Stützweite nicht.
+  if (fm) Object.assign(fm.feld, { RA0: reakt.RA0, MA: auf.MA, MB: auf.MB });
 
   // Bindebleche: aus der Typendatenbank oder manuell
   const dbBleche = Boolean(joch) && hatBleche(joch) && inp.blechQuelle !== 'manuell';
@@ -257,6 +281,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     eps: Math.sqrt(235 / stahl.fy),
     char, ...lasten, ...reakt,
     steif, federn, ...auf, endbedingung: inp.endbedingung,
+    feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
     mastKopf: mastwindAn && (kopf.A.theta0 > 0 || kopf.B.theta0 > 0)
       ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast } : null,
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
