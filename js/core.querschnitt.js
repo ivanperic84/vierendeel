@@ -399,7 +399,17 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
   //
   // Die beiden Richtungen bekommen ihre eigene Blechbreite: M_y kommt aus den
   // Vertikalebenen, M_z aus den Horizontalebenen.
+  //
+  // KNOTENMODELL: steif oder Achse zu Achse.
+  // Ob der Überlappungsbereich als steif gilt, ist eine ABSPRACHE, keine
+  // Rechenfrage - und die beiden Antworten geben verschiedene Momente. Ein
+  // Prüfmodell, das Achse zu Achse rechnet (so rechnet AxisVM ohne Zutun),
+  // findet im Gurt das Knotenmoment und im Blech das volle Moment; dieses
+  // Werkzeug weist am Anschnitt nach und mindert entsprechend ab.
+  // Vorgabe bleibt der steife Knotenbereich.
+  const steifeKnoten = (m.knotenbereich ?? 'anschnitt') !== 'schwerachsen';
   const anschnitt = (blech) => {
+    if (!steifeKnoten) return 1;
     const bBl = blech?.breite ? blech.breite / U.m__mm : 0;
     return aGurt > 0 ? Math.max(0, Math.min(1, (aGurt - bBl) / aGurt)) : 1;
   };
@@ -496,7 +506,8 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
     // Ohne Längenangabe (manuelle Bleche) wird nicht abgemindert.
     const Lc = blech.laenge ? blech.laenge / U.m__mm : hebelarm;
     const steif = Math.max(0, (hebelarm - Lc) / 2);              // [m] je Ende
-    const faktor = hebelarm > 0 ? Math.min(1, Lc / hebelarm) : 1;
+    const faktor = steifeKnoten && hebelarm > 0
+      ? Math.min(1, Lc / hebelarm) : 1;
     const M = M_K * faktor;                                      // [kNm] am Anschnitt
 
     const W = (dicke * breite * breite) / RECHTECK.W_NENNER;     // [mm3]

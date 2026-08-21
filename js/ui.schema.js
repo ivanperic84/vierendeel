@@ -27,6 +27,7 @@ import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
 import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG,
          GURTAUFTEILUNGEN, SPANNUNGSMODELLE } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
+import { KNOTENMODELLE } from './export.axisvm.js';
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE } from './core.auflager.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE } from './core.lasten.js';
@@ -380,6 +381,21 @@ export const FELDER = [
            + 'Summe der Anteile ist dann grösser als eins. '
            + 'In den Horizontalebenen stehen zwei gleiche Gurte, dort ist die '
            + 'Einstellung ohne Wirkung.' },
+  // Der Überlappungsbereich Gurt/Blech: steif oder nicht. Das ist eine
+  // ABSPRACHE, keine Rechenfrage. Vorgabe bleibt der steife Knotenbereich -
+  // die Wahl gibt es, damit ein Vergleich gegen ein Prüfmodell, das Achse zu
+  // Achse rechnet, ohne Umbau möglich ist.
+  { key: 'knotenbereich', optionenDialog: true, gruppe: 'komb',
+    typ: 'auswahl', label: 'Knotenbereich Gurt/Blech',
+    standard: 'anschnitt', optionen: opt(KNOTENMODELLE),
+    hinweis: 'Am Knoten überlappt das Bindeblech den Gurtwinkel und ist mit '
+           + 'ihm verschweisst. Gilt der Überlappungsbereich als steif, ist '
+           + 'nicht das Moment auf der Knotenachse massgebend, sondern das am '
+           + 'ANSCHNITT – im Gurt M·(a₁−b_Bl)/a₁, im Blech M·L_c/h. Rechnet '
+           + 'ein Prüfmodell dagegen Achse zu Achse, fällt die Abminderung '
+           + 'weg und die Momente sind entsprechend grösser. Am '
+           + 'nachgerechneten Signaljoch trug allein diese Frage Faktor 1.3 '
+           + 'bis 1.6 auf die Blechmomente.' },
   { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Spannung im Winkel',
     standard: 'schenkel', optionen: opt(SPANNUNGSMODELLE),

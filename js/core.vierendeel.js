@@ -292,6 +292,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     ebenenUeberlagerung: inp.ebenenUeberlagerung ?? 'huellkurve',
     gurtaufteilung: inp.gurtaufteilung ?? 'gemessen',
     spannungsmodell: inp.spannungsmodell ?? 'schenkel',
+    knotenbereich: inp.knotenbereich ?? 'anschnitt',
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
     profOG, profUG, stahl, joch,
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,

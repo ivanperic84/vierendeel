@@ -2894,6 +2894,43 @@ titel('27  Kragarme: das Auflager steht nicht immer am Gurtende');
 }
 
 // ===========================================================================
+titel('28  Knotenbereich: steif oder Achse zu Achse');
+// Ob der Überlappungsbereich Gurt/Blech als steif gilt, ist eine ABSPRACHE.
+// Beide Antworten sind rechenbar; die Vorgabe bleibt der steife Knoten.
+{
+  const { KNOTENMODELLE } = await import(J('export.axisvm.js'));
+  const j90 = T.getTragjoch('J90');
+  const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j90),
+               typ: 'J90', L: 15.5, schneeAktiv: false, anbauteile: [],
+               endbedingung: 'gelenkig', torsionModell: 'huellkurve' };
+  const a = rechne(e0);
+  const b = rechne({ ...e0, knotenbereich: 'schwerachsen' });
+
+  wahr('Vorgabe ist der steife Knotenbereich',
+       a.modell.knotenbereich === 'anschnitt');
+  wahr('Beide Modelle sind wählbar',
+       KNOTENMODELLE.length === 2
+       && KNOTENMODELLE.some((k) => k.key === 'schwerachsen'));
+  // Ohne steifen Bereich fällt die Abminderung weg: Faktor 1.
+  pruef('Achse zu Achse: keine Abminderung im Gurt',
+        b.knoten[3].anschnittMy, 1, 1e-12);
+  wahr('Steif: der Gurt wird abgemindert', a.knoten[3].anschnittMy < 1);
+  const bl = (r) => r.knoten[3].ebenen.find((x) => x.art === 'vertikal');
+  pruef('Achse zu Achse: keine Abminderung im Blech',
+        bl(b).abminderung, 1, 1e-12);
+  wahr('Steif: das Blech wird abgemindert', bl(a).abminderung < 1);
+  // Das KNOTENmoment ist dasselbe - nur die Stelle des Nachweises ändert sich.
+  pruef('Das Knotenmoment bleibt unberührt',
+        bl(b).M_Knoten, bl(a).M_Knoten, 1e-12, 'kNm');
+  wahr('Achse zu Achse gibt durchweg grössere Werte',
+       b.max.etaGesamt > a.max.etaGesamt);
+  // Am nachgerechneten Signaljoch trug die Frage Faktor 1.3 bis 1.6 auf die
+  // Blechmomente; hier reicht die Richtung als Prüfung.
+  wahr('Der Unterschied ist erheblich, nicht kosmetisch',
+       b.max.etaGesamt / a.max.etaGesamt > 1.05);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

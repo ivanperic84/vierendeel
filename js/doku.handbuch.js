@@ -754,6 +754,29 @@ ${skizze('Ein Vierendeel-Feld: das Gurtmoment wird am Rand des Blechs abgelesen.
 <p>Jede Richtung bekommt ihre eigene Blechbreite: M_y aus den Vertikalebenen,
 M_z aus den Horizontalebenen.</p>
 
+<h4>6.2.1 Steifer Knotenbereich oder Achse zu Achse – eine Absprache</h4>
+<p>Ob der Überlappungsbereich als steif gilt, ist <b>keine Rechenfrage,
+sondern eine Festlegung</b> – und die beiden Antworten geben verschiedene
+Momente. Ein Prüfmodell, das Stäbe von Schwerachse zu Schwerachse laufen lässt
+(so rechnet AxisVM ohne Zutun), findet im Gurt das Knotenmoment und im Blech
+das volle Moment; dieses Werkzeug weist am Anschnitt nach und mindert
+entsprechend ab. Das <b>Knotenmoment selbst ist in beiden Fällen dasselbe</b> –
+nur die Stelle des Nachweises ändert sich.</p>
+
+<table><tr><th>Typ</th><th>η steif</th><th>η Achse zu Achse</th></tr>
+<tr><td>J60 · 12 m</td><td>0.361</td><td>0.417 <b>+15 %</b></td></tr>
+<tr><td>J90 · 15.5 m</td><td>0.244</td><td>0.274 <b>+13 %</b></td></tr>
+<tr><td>J100 · 18 m</td><td>0.423</td><td>0.472 <b>+11 %</b></td></tr>
+<tr><td>J120 · 22 m</td><td>0.345</td><td>0.388 <b>+12 %</b></td></tr>
+<tr><td>J130 · 27 m</td><td>0.449</td><td>0.501 <b>+11 %</b></td></tr></table>
+
+${q(`<b>Vorgabe ist der steife Knotenbereich.</b> Die Wahl steht in den
+Optionen, damit ein Vergleich gegen ein Prüfmodell ohne Umbau möglich ist –
+und damit sichtbar bleibt, dass ein Unterschied von 11 bis 15 % auf die
+Ausnutzung an einer Absprache hängt, nicht an einer Rechnung. Am
+nachgerechneten Signaljoch trug allein diese Frage Faktor 1.3 bis 1.6 auf die
+Blechmomente.`)}
+
 <h4>6.3 Nachweis des Bindeblechs</h4>
 <p>Am Rahmenknoten treffen die Gurtmomente der angrenzenden Felder zusammen; das
 Blech muss ihre Summe aufnehmen. Aus seinem eigenen Gleichgewicht – doppelte
