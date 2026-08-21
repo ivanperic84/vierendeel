@@ -393,7 +393,7 @@ export const FELDER = [
            + 'M·(a₁−b_Bl)/a₁, im Blech M·L_c/h. So ist der Nachweis dieses '
            + 'Werkzeugs festgelegt. Die zweite Einstellung rechnet Achse zu '
            + 'Achse, wie ein Stabwerksprogramm ohne Zutun, und dient nur dem '
-           + 'Vergleich mit einem Prüfmodell – sie ist KEINE zulässige '
+           + 'Vergleich mit einem Prüfmodell – sie ist keine '
            + 'Nachweisgrundlage. Der Unterschied beträgt 11 bis 15 % auf die '
            + 'Ausnutzung; das Knotenmoment selbst ist in beiden Fällen '
            + 'dasselbe.' },

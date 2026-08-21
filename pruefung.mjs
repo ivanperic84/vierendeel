@@ -2913,10 +2913,10 @@ titel('28  Knotenbereich: steif oder Achse zu Achse');
        && KNOTENBEREICHE.some((k) => k.key === 'schwerachsen'));
   // Ein damit gerechneter Bericht darf nicht als Nachweis durchgehen.
   const { hinweise: hw } = await import(J('core.checks.js'));
-  wahr('Der Vergleichsmodus wird als KEIN NACHWEIS ausgewiesen',
-       hw(b.modell).join(' | ').includes('KEIN NACHWEIS'));
-  wahr('Der Nachweisfall trägt keine solche Warnung',
-       !hw(a.modell).join(' | ').includes('KEIN NACHWEIS'));
+  wahr('Der Vergleichsmodus wird als kein vollständiger Nachweis ausgewiesen',
+       hw(b.modell).join(' | ').includes('kein vollständiger Nachweis'));
+  wahr('Der Nachweisfall trägt keinen solchen Hinweis',
+       !hw(a.modell).join(' | ').includes('kein vollständiger Nachweis'));
   // Ohne steifen Bereich fällt die Abminderung weg: Faktor 1.
   pruef('Achse zu Achse: keine Abminderung im Gurt',
         b.knoten[3].anschnittMy, 1, 1e-12);

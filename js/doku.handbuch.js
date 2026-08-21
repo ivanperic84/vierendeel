@@ -766,8 +766,8 @@ rechnet ein Stabwerksprogramm ohne Zutun), findet im Gurt das Knotenmoment und
 im Blech das volle Moment. Das <b>Knotenmoment selbst ist in beiden Fällen
 dasselbe</b> – nur die Stelle des Nachweises ändert sich. Diese zweite
 Einstellung steht in den Optionen zur Verfügung, damit ein solcher Vergleich
-ohne Umbau möglich ist; sie ist <b>keine zulässige Nachweisgrundlage</b>, und
-ein damit gerechneter Bericht weist das im Klartext aus.</p>
+ohne Umbau möglich ist; sie ist keine Nachweisgrundlage, und ein damit gerechneter Bericht vermerkt
+das unter den Hinweisen.</p>
 
 <table><tr><th>Typ</th><th>η steif</th><th>η Achse zu Achse</th></tr>
 <tr><td>J60 · 12 m</td><td>0.361</td><td>0.417 <b>+15 %</b></td></tr>
