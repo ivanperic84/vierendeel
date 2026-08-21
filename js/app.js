@@ -1703,12 +1703,15 @@ function dialogAxisvm() {
        Lasten laufen <b>je Einwirkungsgruppe getrennt und charakteristisch</b>
        — kombiniert wird in AxisVM.</p>
     <div class="feld"><label>Format</label>
-      <label class="schalter"><input type="radio" name="fmt" value="saf" checked>
-        <span>SAF-Mappe (.xlsx) — braucht das SAF-Interface in AxisVM</span></label>
+      <label class="schalter"><input type="radio" name="fmt" value="json" checked>
+        <span>JSON für die COM-Brücke — vollständig, ohne Zusatzmodul.
+              Datei neben <code>com/AxisVM_aufbauen.cmd</code> legen</span></label>
+      <label class="schalter"><input type="radio" name="fmt" value="saf">
+        <span>SAF-Mappe (.xlsx) — vollständig, braucht aber das SAF-Interface
+              in AxisVM (kostenpflichtiges Modul)</span></label>
       <label class="schalter"><input type="radio" name="fmt" value="dxf">
-        <span>DXF + Zuordnungsmappe — ohne Zusatzmodul, Zuweisung von Hand</span></label>
-      <label class="schalter"><input type="radio" name="fmt" value="json">
-        <span>JSON für die COM-Brücke — AxisVM baut das Modell selbst auf</span></label>
+        <span>DXF + Zuordnungsmappe — nur die Geometrie; Querschnitte,
+              Auflager und Lasten von Hand</span></label>
       <label class="schalter"><input type="radio" name="fmt" value="pynite">
         <span>PyNite-Skript (.py) — freie Gegenrechnung, läuft ohne AxisVM</span></label>
     </div>
