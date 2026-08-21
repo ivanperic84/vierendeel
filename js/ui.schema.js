@@ -201,6 +201,12 @@ export const FELDER = [
     hinweis: 'Der Wind quer zur Jochachse biegt den Mast in Gleisrichtung. ' +
              'Bei den HEB-Profilen ist er gleich gross wie der in Jochachse, ' +
              'beim HEM 240 nicht.' },
+  // VORGABE 'ein' IST EINE ENTSCHEIDUNG DES AUFTRAGGEBERS, kein Versehen.
+  // Der Anteil in Jochachse verbessert die Übereinstimmung mit dem geprüften
+  // FEM-Modell deutlich; der Anteil in Gleisrichtung verschlechtert sie
+  // (Handbuch 4.4), liegt aber auf der sicheren Seite und wirkt ohnehin nur
+  // bei zwei verschiedenen Masten. Beides bleibt eingeschaltet - wer es
+  // anders will, schaltet hier ab und hält es im Bericht fest.
   { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
     label: 'Mastwind wirkt auf das Joch', standard: true,
     sichtbar: (w) => w.endbedingung === 'mast',

@@ -396,6 +396,11 @@ laufen von +9…+23 % auf +48…+67 % hoch. Er liegt auf der sicheren Seite und
 wirkt nur, wenn zwei <i>verschiedene</i> Maste eingegeben sind – abschaltbar
 über denselben Schalter wie der Mastwind in Jochachse.</p>
 
+${q(`Der Schalter steht ab Werk auf <b>ein</b>, und das ist so entschieden, nicht
+übersehen: die Einwirkung ist wirklich vorhanden, sie wegzulassen wäre für die
+Vertikalbleche die unsichere Seite. Wer sie als Nebenrechnung führen will,
+schaltet sie ab und hält das im Bericht fest.`)}
+
 <p><b>Beide Windrichtungen.</b> Beide Anteile hängen am vorzeichenbehafteten
 Beiwert des Lastfalls und kehren mit ihm um, genau wie die Einwirkungen auf das
 Joch selbst. Der Mastwind in Jochachse wirkt <b>antimetrisch</b>: was das eine
