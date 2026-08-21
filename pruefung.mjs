@@ -2898,7 +2898,7 @@ titel('28  Knotenbereich: steif oder Achse zu Achse');
 // Ob der Überlappungsbereich Gurt/Blech als steif gilt, ist eine ABSPRACHE.
 // Beide Antworten sind rechenbar; die Vorgabe bleibt der steife Knoten.
 {
-  const { KNOTENMODELLE } = await import(J('export.axisvm.js'));
+  const { KNOTENBEREICHE } = await import(J('core.querschnitt.js'));
   const j90 = T.getTragjoch('J90');
   const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j90),
                typ: 'J90', L: 15.5, schneeAktiv: false, anbauteile: [],
@@ -2906,11 +2906,17 @@ titel('28  Knotenbereich: steif oder Achse zu Achse');
   const a = rechne(e0);
   const b = rechne({ ...e0, knotenbereich: 'schwerachsen' });
 
-  wahr('Vorgabe ist der steife Knotenbereich',
+  wahr('Nachweisgrundlage ist der steife Knotenbereich',
        a.modell.knotenbereich === 'anschnitt');
-  wahr('Beide Modelle sind wählbar',
-       KNOTENMODELLE.length === 2
-       && KNOTENMODELLE.some((k) => k.key === 'schwerachsen'));
+  wahr('Der Vergleichsmodus ist wählbar',
+       KNOTENBEREICHE.length === 2
+       && KNOTENBEREICHE.some((k) => k.key === 'schwerachsen'));
+  // Ein damit gerechneter Bericht darf nicht als Nachweis durchgehen.
+  const { hinweise: hw } = await import(J('core.checks.js'));
+  wahr('Der Vergleichsmodus wird als KEIN NACHWEIS ausgewiesen',
+       hw(b.modell).join(' | ').includes('KEIN NACHWEIS'));
+  wahr('Der Nachweisfall trägt keine solche Warnung',
+       !hw(a.modell).join(' | ').includes('KEIN NACHWEIS'));
   // Ohne steifen Bereich fällt die Abminderung weg: Faktor 1.
   pruef('Achse zu Achse: keine Abminderung im Gurt',
         b.knoten[3].anschnittMy, 1, 1e-12);

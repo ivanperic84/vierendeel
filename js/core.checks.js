@@ -127,6 +127,15 @@ export function hinweise(m) {
            `nachgewiesen, lokale Biegung ${wie}.`);
   }
 
+  // Der Vergleichsmodus darf nicht als Nachweis durchgehen.
+  if ((m.knotenbereich ?? 'anschnitt') === 'schwerachsen') {
+    h.push('KEIN NACHWEIS: der Knotenbereich ist auf «Achse zu Achse» '
+      + 'gestellt. Das ist ein Vergleichsmodus gegen Prüfmodelle – die '
+      + 'Abminderung auf den Anschnitt entfällt, Gurt- und Blechmomente '
+      + 'liegen 11 bis 15 % höher. Nachweisgrundlage ist der STEIFE '
+      + 'Knotenbereich.');
+  }
+
   // --- AUFLAGER: die Zahlen, an denen ein Eingabefehler auffällt ------------
   // Beim Nachbau eines geprüften FEM-Modells lagen genau hier die grössten
   // Fehler - eine geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um

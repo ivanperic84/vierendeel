@@ -159,6 +159,34 @@ export function gurtanteile(m, art = 'gemessen') {
  * die richtige Spannungsermittlung und steht bereit - sie wird erst dann zur
  * Vorgabe, wenn das Momentenmodell gegen ein Rahmenmodell nachgeführt ist.
  */
+/**
+ * KNOTENBEREICH GURT/BLECH.
+ *
+ * Am Knoten überlappt das Bindeblech den Gurtwinkel und ist mit ihm
+ * verschweisst. Ob dieser Bereich als BIEGESTEIF gilt, ist keine Rechenfrage,
+ * sondern eine Festlegung des Nachweises.
+ *
+ * >>> FESTGELEGT: der Knotenbereich ist STEIF. Nachgewiesen wird am
+ * ANSCHNITT - im Gurt M·(a₁−b_Bl)/a₁, im Blech M·L_c/h. Das entspricht dem
+ * Stand der Technik für gegliederte Stäbe (EN 1993-1-1, Bild 6.11) und ist
+ * die Grundlage aller Nachweise dieses Werkzeugs. <<<
+ *
+ * Die zweite Einstellung ist KEINE Alternative für den Nachweis. Sie rechnet
+ * Achse zu Achse, so wie ein Stabwerksprogramm ohne Zutun rechnet, und ist
+ * dazu da, einen Vergleich gegen ein Prüfmodell ohne Umbau führen zu können.
+ * Der Unterschied ist erheblich - 11 bis 15 % auf die Ausnutzung -, und genau
+ * deshalb soll er sichtbar und benennbar sein statt versteckt.
+ *
+ * Das KNOTENMOMENT ist in beiden Fällen dasselbe; nur die Stelle, an der
+ * nachgewiesen wird, ändert sich.
+ */
+export const KNOTENBEREICHE = [
+  { key: 'anschnitt',
+    label: 'steif, Nachweis am Anschnitt (Nachweisgrundlage)' },
+  { key: 'schwerachsen',
+    label: 'Achse zu Achse – nur zum Vergleich mit Prüfmodellen' },
+];
+
 export const SPANNUNGSMODELLE = [
   { key: 'schenkel', label: 'über W schenkelparallel (Vorgabe, an AxisVM abgeglichen)' },
   { key: 'punkte', label: 'an den Querschnittspunkten – schiefe Biegung, Faktor ≈ 1.30' },
