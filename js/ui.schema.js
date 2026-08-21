@@ -194,18 +194,29 @@ export const FELDER = [
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
-  { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
-    label: 'Mastwind verdreht das Jochende', standard: true,
+  { key: 'wMastQuer', gruppe: 'aufl', typ: 'zahl',
+    label: 'Windlast auf Mast, Gleisrichtung',
+    sym: 'w_Mast,y', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
     sichtbar: (w) => w.endbedingung === 'mast',
-    hinweis: 'Der Wind in der Jochachse biegt den Mast. Sein Kopf verdreht ' +
-             'sich um θ₀ = w·H³/(6·E·I), und weil das Jochende dort ' +
-             'angeschlossen ist, wird ihm diese Verdrehung aufgezwungen - ' +
-             'das Joch wird in Gegenkrümmung gebogen. Am nachgerechneten ' +
-             'Signaljoch trug der Mastwind rund die Hälfte der gesamten ' +
-             'Einwirkung dieses Lastfalls; ohne ihn lag das Werkzeug 80 % zu ' +
-             'tief. Der Wind auf den Mast in GLEISRICHTUNG ist damit nicht ' +
-             'erfasst - er verschiebt die Mastköpfe quer und verdreht sie um ' +
-             'die Jochachse, wofür der Ersatzbalken keine Entsprechung hat.' },
+    hinweis: 'Der Wind quer zur Jochachse biegt den Mast in Gleisrichtung. ' +
+             'Bei den HEB-Profilen ist er gleich gross wie der in Jochachse, ' +
+             'beim HEM 240 nicht.' },
+  { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
+    label: 'Mastwind wirkt auf das Joch', standard: true,
+    sichtbar: (w) => w.endbedingung === 'mast',
+    hinweis: 'IN JOCHACHSE: der Wind biegt den Mast, sein Kopf verdreht sich ' +
+             'um θ₀ = w·H³/(6·E·I), und weil das Jochende dort angeschlossen ' +
+             'ist, wird ihm diese Verdrehung aufgezwungen - das Joch wird in ' +
+             'Gegenkrümmung gebogen. Am nachgerechneten Signaljoch trug der ' +
+             'Mastwind rund die Hälfte der gesamten Einwirkung dieses ' +
+             'Lastfalls; ohne ihn lag das Werkzeug 80 % zu tief. ' +
+             'IN GLEISRICHTUNG: der Mastkopf verdreht sich um die Jochachse ' +
+             'und tordiert das Joch - aber nur, wenn die beiden Enden auf ' +
+             'VERSCHIEDENEN Masten stehen. Gleiche Maste verdrehen sich ' +
+             'gleich, das Joch dreht sich starr mit. Die Querverschiebung der ' +
+             'Mastköpfe richtet nichts an: im Grundriss ist das Joch statisch ' +
+             'bestimmt gelagert, und daraus folgen aus Auflagerverschiebungen ' +
+             'keine Schnittgrössen.' },
 
   // --- Gurtprofile ---------------------------------------------------------
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',

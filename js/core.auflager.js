@@ -131,9 +131,70 @@ export function mastSteifigkeit(inp, ende = 'A') {
   const an = MASTANSCHLUESSE.find((a) => a.key === (inp.mastAnschluss ?? 'durchlaufend'))
     ?? MASTANSCHLUESSE[0];
   const cKragarm = (E_STAHL * I) / H;           // kNm/rad
+  // Die ANDERE Achse: sie trägt die Biegung des Mastes in GLEISRICHTUNG und
+  // bestimmt damit, wie der Mastkopf sich um die JOCHACHSE verdrehen kann.
+  const Iq_cm4 = sr.achse === 'y' ? p.Iz : p.Iy;
+  const Iq = Iq_cm4 * 1e-8;
   return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, ende,
            anschluss: an.key, faktor: an.faktor,
-           cKragarm, cPhi: an.faktor * cKragarm };
+           cKragarm, cPhi: an.faktor * cKragarm,
+           Iq_cm4, Iq, cTorsion: (an.faktor * E_STAHL * Iq) / H };
+}
+
+/**
+ * TORSION AUS DEM WIND AUF DEN MAST IN GLEISRICHTUNG.
+ *
+ * Dieser Wind biegt den Mast quer zur Jochachse. Am Jochende kommt davon
+ * zweierlei an:
+ *
+ * 1. Eine VERSCHIEBUNG des Auflagerpunktes in Gleisrichtung. Sie richtet im
+ *    Joch nichts an. Im Grundriss ist das Joch an beiden Enden gelenkig
+ *    gelagert und ohne Drehfeder (die Verdrehung um die Hochachse würde die
+ *    Torsionssteifigkeit des offenen Mastprofils beanspruchen, siehe oben).
+ *    Ein statisch bestimmtes System bekommt aus Auflagerverschiebungen keine
+ *    Schnittgrössen - auch aus ungleichen nicht: das Joch dreht sich im
+ *    Grundriss als Ganzes.
+ *
+ * 2. Eine VERDREHUNG des Mastkopfes um die JOCHACHSE:
+ *
+ *        φ₀ = w_quer · H³ / (6 · E · I_quer)
+ *
+ *    Und die richtet etwas an - aber nur, wenn die beiden Enden sich
+ *    UNGLEICH verdrehen. Gleiche Maste verdrehen sich gleich, das Joch dreht
+ *    sich starr mit, und es entsteht keine Torsion. Stehen die Enden auf
+ *    verschiedenen Masten, wird das Joch zwischen ihnen verwunden.
+ *
+ * DAS JOCH WIRD DABEI ALS TORSIONSSTARR ANGENOMMEN. Der Differenzwinkel geht
+ * dann ganz auf die beiden Mastfedern, in Reihe geschaltet:
+ *
+ *        T₀ = (φ₀B − φ₀A) / (1/c_TA + 1/c_TB)
+ *
+ * Das ist die OBERE SCHRANKE - ein nachgiebiges Joch nimmt weniger auf. Am
+ * nachgerechneten Signaljoch (HEB 260 / 7.8 m gegen HEM 240 / 12.0 m) sind es
+ * 2.32 kNm gegenüber 2.04 kNm mit der Torsionssteifigkeit des Jochs, also
+ * 14 % mehr.
+ *
+ * Die Drehfeder um die Jochachse bekommt denselben Anschlussfaktor wie die
+ * vertikale Einspannung. Gemessen wurde er für jene; hier wirkt er auf der
+ * sicheren Seite, weil eine steifere Feder MEHR Torsion einleitet.
+ *
+ * @param {object} mastA Ergebnis aus mastSteifigkeit(), Ende A
+ * @param {object} mastB dito, Ende B
+ * @param {number} wQuer Windlast je Laufmeter Mast in Gleisrichtung [kN/m]
+ * @returns {{phiA:number, phiB:number, T0:number, gleich:boolean}}
+ */
+export function mastVerdrehung(mastA, mastB, wQuer) {
+  const w = Number.isFinite(wQuer) ? wQuer : 0;
+  const leer = { phiA: 0, phiB: 0, T0: 0, gleich: true };
+  if (!mastA || !mastB || !(w > 0)) return leer;
+  const dreh = (m) => (m.Iq > 0 && m.H > 0
+    ? (w * m.H ** 3) / (6 * E_STAHL * m.Iq) : 0);
+  const phiA = dreh(mastA), phiB = dreh(mastB);
+  const nachgiebig = (mastA.cTorsion > 0 ? 1 / mastA.cTorsion : Infinity)
+                   + (mastB.cTorsion > 0 ? 1 / mastB.cTorsion : Infinity);
+  const T0 = Number.isFinite(nachgiebig) && nachgiebig > 0
+    ? (phiB - phiA) / nachgiebig : 0;
+  return { phiA, phiB, T0, gleich: Math.abs(phiB - phiA) < 1e-12, wQuer: w };
 }
 
 /**

@@ -174,6 +174,21 @@ export function hinweise(m) {
       + 'nachgerechneten Signaljoch fehlte damit die Hälfte der Einwirkung '
       + 'des Lastfalls Wind in Jochachse.');
   }
+  if (m.mastDrehung) {
+    const d = m.mastDrehung;
+    h.push(d.gleich
+      ? 'Wind auf den Mast in Gleisrichtung: beide Enden verdrehen sich gleich '
+        + `(${(1000 * d.phiA).toFixed(2)} mrad um die Jochachse), das Joch dreht `
+        + 'sich starr mit – daraus entsteht KEINE Torsion. Erst verschiedene '
+        + 'Maste an den beiden Enden verwinden es.'
+      : `Wind auf den Mast in Gleisrichtung: Kopfverdrehung um die Jochachse `
+        + `${(1000 * d.phiA).toFixed(2)} / ${(1000 * d.phiB).toFixed(2)} mrad, `
+        + `Differenz ergibt T₀ = ${Math.abs(d.T0).toFixed(2)} kNm Torsion über `
+        + 'die ganze Jochlänge. Das Joch ist dabei als torsionsstarr '
+        + 'angenommen – die obere Schranke. Der Term ist hergeleitet, nicht '
+        + 'geeicht: gegen das eine verfügbare FEM-Modell verschlechtert er die '
+        + 'Übereinstimmung, er liegt aber auf der sicheren Seite.');
+  }
   [m.profOG, m.profUG].forEach((p) => {
     if (p.hinweis) h.push(`${p.name}: ${p.hinweis}`);
   });

@@ -2609,6 +2609,7 @@ titel('26  Wind auf den Mast verdreht das Jochende');
 {
   const { mastKopfdrehung, mastSteifigkeit, auflagermomente, E_STAHL: E } =
     await import(J('core.auflager.js'));
+  const { hinweise } = await import(J('core.checks.js'));
 
   const mast = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
                                  mastAnschluss: 'kragarm' }, 'A');
@@ -2670,6 +2671,61 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   // Ohne Mast als Auflager gibt es nichts zu verdrehen.
   const manuell = rechne({ ...e0, endbedingung: 'manuell', cPhi: 6000 });
   wahr('Ohne Mast kein Mastwind', manuell.modell.mastKopf === null);
+
+  // --- Wind in GLEISRICHTUNG: Torsion, aber nur bei UNGLEICHEN Masten -------
+  const { mastVerdrehung } = await import(J('core.auflager.js'));
+  const mA = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 7.8,
+                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A');
+  const mB = mastSteifigkeit({ mastProfil: 'HEM 240', mastH: 12.0,
+                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A');
+  // Die andere Achse trägt die Biegung in Gleisrichtung.
+  pruef('Quer-Trägheitsmoment ist die andere Achse', mA.Iq_cm4, 5135, 1e-9);
+  const dr = mastVerdrehung(mA, mB, 0.34);
+  pruef('Kopfverdrehung um die Jochachse', dr.phiA,
+        (0.34 * 7.8 ** 3) / (6 * E * mA.Iq), 1e-12);
+  wahr('Der weichere Mast verdreht sich mehr', Math.abs(dr.phiB) > Math.abs(dr.phiA));
+  // Reihenschaltung der beiden Federn, Joch torsionsstarr angenommen.
+  pruef('Torsion aus der Differenz', dr.T0,
+        (dr.phiB - dr.phiA) / (1 / mA.cTorsion + 1 / mB.cTorsion), 1e-12);
+  const gl = mastVerdrehung(mA, mA, 0.34);
+  wahr('Gleiche Maste geben keine Torsion', gl.T0 === 0 && gl.gleich === true);
+  wahr('Ohne Wind keine Torsion', mastVerdrehung(mA, mB, 0).T0 === 0);
+
+  // Im Werkzeug: T0 läuft über die GANZE Länge, anders als die Torsion der
+  // Anbauteile, die sich vom Angriff aus auf die Auflager verteilt.
+  const zwei = { ...e0, mastZwei: true, mastProfilB: 'HEM 240', mastHB: 12.0,
+                 mastStegB: 'jochachse', wMastQuer: 0.34,
+                 beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0, Leiterzug: 0 } };
+  const rz = rechne(zwei);
+  const re = rechne({ ...zwei, mastZwei: false });
+  wahr('Zwei verschiedene Maste erzeugen Torsion', Math.abs(rz.modell.T0) > 0.1);
+  pruef('Ein Masttyp: keine Torsion', re.modell.T0 ?? 0, 0, 1e-12);
+  wahr('Ohne Mastwind auf das Joch keine Torsion',
+       (rechne({ ...zwei, mastWindAufJoch: false }).modell.T0 ?? 0) === 0);
+  const hz = hinweise(rz.modell).join(' | ');
+  wahr('Die Torsion aus ungleichen Masten wird ausgewiesen',
+       hz.includes('Gleisrichtung') && hz.includes('torsionsstarr'));
+  wahr('Bei gleichen Masten wird erklärt, warum nichts passiert',
+       hinweise(re.modell).join(' | ').includes('dreht sich starr mit'));
+
+  // --- BEIDE WINDRICHTUNGEN, wie bei den Einwirkungen auf das Joch ----------
+  // Der Wind bläst in + und in −. Beide Anteile hängen am VORZEICHENBEHAFTETEN
+  // Beiwert des Lastfalls und kehren mit ihm um; die Hüllkurve über die
+  // Lastfälle deckt damit beide Enden und beide Drehsinne ab.
+  const { standardLastfaelle } = await import(J('core.lasten.js'));
+  const bd = { ...e0, mastZwei: true, mastProfilB: 'HEM 240', mastHB: 12.0,
+               mastStegB: 'jochachse', wMastQuer: 0.34, beiwerteFest: null };
+  const lf = Object.fromEntries(standardLastfaelle(bd).filter((l) => l.nachweis)
+    .map((l) => [l.key, rechne({ ...bd, beiwerteFest: l.beiwerte }).modell]));
+  pruef('Wind −y kehrt die Torsion um', lf.windYm.T0, -lf.windYp.T0, 1e-9);
+  wahr('Wind ±x kehrt die Auflagerdrehung um',
+       Math.sign(lf.windXp.theta0A) === -Math.sign(lf.windXm.theta0A)
+       && Math.abs(lf.windXp.theta0A) > 0);
+  // Antimetrisch: was das eine Ende im einen Lastfall bekommt, bekommt das
+  // andere im anderen. Ohne beide Vorzeichen bliebe ein Ende ungeprüft.
+  wahr('Jedes Ende wird in einem der beiden Lastfälle ungünstig',
+       Math.max(lf.windXp.MA, lf.windXm.MA) > Math.min(lf.windXp.MA, lf.windXm.MA)
+       && Math.max(lf.windXp.MB, lf.windXm.MB) > Math.min(lf.windXp.MB, lf.windXm.MB));
 }
 
 // ===========================================================================

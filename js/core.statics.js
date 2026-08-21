@@ -96,11 +96,17 @@ function einzellastSchnitt(lasten, x, L) {
  *          und wer ihn bräuchte, bekommt ehrlich null statt einer Zahl, die
  *          nur so aussieht, als wüsste sie es.
  */
-export function torsion(x, { L, T, torsionModell }) {
+export function torsion(x, { L, T, torsionModell, T0 = 0 }) {
+  // T0: Torsion aus dem Wind auf UNGLEICHE Maste in Gleisrichtung. Sie wird am
+  // einen Ende eingeleitet und am anderen abgegeben, läuft also über die ganze
+  // Jochlänge mit gleichem Betrag - anders als die Torsion aus den
+  // Anbauteilen, die sich vom Angriff aus auf beide Auflager verteilt.
+  // Siehe core.auflager.js, mastVerdrehung.
   if (torsionModell === 'huellkurve') {
-    return { betrag: T.reduce((s, t) => s + Math.abs(t.w), 0), vz: null };
+    return { betrag: T.reduce((s, t) => s + Math.abs(t.w), 0) + Math.abs(T0),
+             vz: null };
   }
-  let Tx = 0;
+  let Tx = T0;
   T.forEach((t) => {
     Tx += x < t.x ? -(t.w * (L - t.x)) / L : (t.w * t.x) / L;
   });
@@ -195,7 +201,8 @@ function kragarmSchnitt(x, m, seite) {
   const Mz = (m.wd * l * l) / 2 + bieg(m.H) + teil(m.Mz).reduce((s, p) => s + p.w, 0) * vz;
   const Vy = -vz * (m.wd * l + kraft(m.H));
   // Torsion und Normalkraft laufen vom Angriff unmittelbar ins Auflager.
-  const Tx = teil(m.T).reduce((s, p) => s + p.w, 0);
+  // T0 aus ungleichen Masten läuft dagegen durch das ganze Joch.
+  const Tx = teil(m.T).reduce((s, p) => s + p.w, 0) + (m.T0 ?? 0);
   const Nx = Math.abs(teil(m.N).reduce((s, p) => s + p.w, 0));
   return { My, Mss: My, Vz, Mz, Vy, Tx: Math.abs(Tx), TxVz: Tx, Nx, kragarm: seite };
 }

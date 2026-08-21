@@ -359,14 +359,50 @@ beiden Maste 6.10 kN gegenüber 6.42 kN auf den Anbauteilen. Das Werkzeug lag in
 diesem Lastfall rund 80 % zu tief; mit dem Anteil trifft das Bindeblech den
 Vergleichswert auf 2 %, die Gurte bleiben 30 bis 45 % darunter.`)}
 
-<p><b>Nicht erfasst</b> ist der Wind auf den Mast in Gleisrichtung. Er
-verschiebt die Mastköpfe quer und verdreht sie um die Jochachse; das Joch
-bekäme daraus eine Auflagerverschiebung und eine Torsion, wofür der
-Ersatzbalken keine Entsprechung hat. Stehen die beiden Enden auf
-<b>verschieden steifen</b> Masten, verschieben sich die Köpfe zudem
-ungleich – auch das ist hier nicht abgebildet.</p>
+<h4>4.4 Wind auf den Mast in Gleisrichtung – Torsion aus ungleichen Masten</h4>
+<p>Dieser Wind biegt den Mast quer zur Jochachse. Am Jochende kommt zweierlei
+an, und nur eines davon richtet etwas an.</p>
 
-<h4>4.4 Auflagermomente</h4>
+<p><b>Die Verschiebung des Auflagerpunktes nicht.</b> Im Grundriss ist das Joch
+an beiden Enden gelenkig gelagert und ohne Drehfeder – eine Einspannung dort
+würde die Torsionssteifigkeit des offenen Mastprofils beanspruchen, die zu
+gering ist (Abschnitt 4.2). Ein statisch bestimmt gelagerter Träger bekommt aus
+Auflagerverschiebungen keine Schnittgrössen, auch aus ungleichen nicht: das
+Joch dreht sich im Grundriss als Ganzes.</p>
+
+<p><b>Die Verdrehung des Mastkopfes um die Jochachse schon</b> – aber nur, wenn
+die beiden Enden sich <b>ungleich</b> verdrehen:</p>
+
+${f(`φ₀ = w_quer · H³ / (6 · E · I_quer)<br>
+T₀ = (φ₀B − φ₀A) / (1/c_T,A + 1/c_T,B)`)}
+
+<p>I_quer ist die <i>andere</i> Hauptachse als bei der vertikalen Einspannung.
+Gleiche Maste verdrehen sich gleich, das Joch dreht sich starr mit, T₀ = 0.
+Stehen die Enden auf verschiedenen Masten, wird es zwischen ihnen verwunden;
+T₀ läuft dann mit gleichem Betrag über die ganze Jochlänge – anders als die
+Torsion der Anbauteile, die sich vom Angriff aus auf beide Auflager
+verteilt.</p>
+
+${q(`Das Joch ist dabei als <b>torsionsstarr</b> angenommen: der Differenzwinkel
+geht ganz auf die beiden Mastfedern. Das ist die obere Schranke – ein
+nachgiebiges Joch nimmt weniger auf (am Signaljoch 2.32 gegen 2.04 kNm, also
+14 % mehr).`)}
+
+<p><b>Einordnung, ehrlich.</b> Der Term ist hergeleitet, nicht geeicht. Gegen
+das eine verfügbare FEM-Modell <b>verschlechtert</b> er die Übereinstimmung:
+das Verhältnis Vertikal- zu Horizontalblech wandert zwar in die richtige
+Richtung (0.24 → 0.41 gegen 0.75), aber beide Bleche steigen, und die Gurte
+laufen von +9…+23 % auf +48…+67 % hoch. Er liegt auf der sicheren Seite und
+wirkt nur, wenn zwei <i>verschiedene</i> Maste eingegeben sind – abschaltbar
+über denselben Schalter wie der Mastwind in Jochachse.</p>
+
+<p><b>Beide Windrichtungen.</b> Beide Anteile hängen am vorzeichenbehafteten
+Beiwert des Lastfalls und kehren mit ihm um, genau wie die Einwirkungen auf das
+Joch selbst. Der Mastwind in Jochachse wirkt <b>antimetrisch</b>: was das eine
+Ende im Lastfall Wind +x bekommt, bekommt das andere bei Wind −x. Die Hüllkurve
+über die Lastfälle deckt damit beide Enden und beide Drehsinne ab.</p>
+
+<h4>4.5 Auflagermomente</h4>
 <p>Aus dem Drehwinkelverfahren mit K = EI/L und den Volleinspannmomenten FEM;
 θ₀ ist die aufgezwungene Verdrehung des Auflagerpunktes (Abschnitt 4.3, ohne
 Mastwind null):</p>
@@ -381,7 +417,7 @@ wenige Prozent):</p>
 
 ${f(`I = h² · A_o · A_u / ( A_o + A_u )`)}
 
-<h4>4.5 Kragarme – das Auflager steht nicht immer am Gurtende</h4>
+<h4>4.6 Kragarme – das Auflager steht nicht immer am Gurtende</h4>
 <p>L ist die Länge der <b>Gurte</b>, von Ende zu Ende: das Mass der Zeichnung,
 an dem auch die Blecheinteilung hängt. Die Auflager stehen dort, wo die Maste
 stehen, und das ist oft weiter innen:</p>
@@ -408,7 +444,7 @@ c_φ = 9215 kNm/rad – und das <i>Stützmoment</i> stellt sich mit 9.97 kNm geg
 gemessene 10.05 kNm von selbst ein, obwohl es nicht mitgeeicht wurde. Ohne
 Kragarme lag dieselbe Rechnung beim Stützmoment 36 % daneben.</p>
 
-<h4>4.6 Schnittgrössen</h4>
+<h4>4.7 Schnittgrössen</h4>
 ${f(`M_y(x) = M_Gelenkträger(x) − [ M_A·(1−x/L) + M_B·(x/L) ]<br>
 M_z(x) = w_d·x·(L−x)/2 + M_Einzellasten + eingeprägte M_zz<br>
 T(x), N(x) &nbsp;&nbsp; wahlweise Hüllkurve oder Auflagerverteilung`)}
@@ -419,7 +455,7 @@ Extremwerte werden nicht am Knotenraster abgelesen, sondern über eine eigene
 Kandidatenliste (Auflager, Lastangriffe, Nullstellen von V) gesucht – sie sind
 damit unabhängig von der Blechteilung.</p>
 
-<h4>4.7 Torsionsmodell</h4>
+<h4>4.8 Torsionsmodell</h4>
 <table class="dt">
 <tr><td>Hüllkurve</td><td>konstante Summe aller Torsionsmomente über die ganze
   Länge – konservativ, kein Abbau zu den Auflagern</td></tr>
