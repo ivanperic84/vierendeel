@@ -89,6 +89,56 @@ Entscheidung im Programm — die Lasten laufen je Einwirkungsgruppe getrennt und
 charakteristisch heraus, damit hinterher ablesbar bleibt, welcher Anteil woher
 kommt.
 
+### Was der erste Lauf ergeben hat (2026-08-21)
+
+AxisVM **18 r1m De**, PowerShell 5.1, 64-bit. Der Bericht teilt die
+Schnittstelle sauber in zwei Hälften:
+
+| trägt, mit einfachen Zahlen | braucht Verbund-Typen |
+|---|---|
+| `Materials.AddFromCatalog(code, name)` | `Lines.Add(i, j, ELineGeomType, ref RLineGeomData)` |
+| `CrossSections.AddL(name, 6×double, process)` | `Lines.Item[i].DefineAsBeam(mat, qs, qs, ref RPoint3d, ref RPoint3d)` |
+| `CrossSections.AddRectangular(name, h, b, process)` | `NodalSupports.AddNodalGlobal_V153(ref RNodalSupportSpringParams, node)` |
+| `Nodes.Add(x, y, z)` | `Loads.AddNodalForce(RLoadNodalForce)` |
+| `LoadCases.Add(name, typ)` | `Loads.AddBeamDistributed(RLoadBeamDistributed)` |
+| `Loads.AddBeamSelfWeight(line, lc)` | |
+
+Die rechte Spalte ist die, auf die es ankommt — Stäbe, Auflager, **sämtliche**
+Lasten. PowerShell kann solche Strukturen nicht von sich aus anlegen; es
+braucht die Typbibliothek. Die steckt in der Programmdatei und lässt sich zur
+Laufzeit übersetzen (`TypeLibConverter`), ohne Zusatzwerkzeug. Genau das
+probiert der zweite Lauf.
+
+Zwei Dinge misst er mit, weil ein Fehler dort **nicht auffliegt**:
+
+- **die Einheit der Querschnittsmasse.** Ob `AddL` mm oder m erwartet, wirft
+  keinen Fehler — es entsteht still ein tausendfach falscher Querschnitt. Also
+  beide anlegen und die Fläche zurücklesen (`L 100x100x10` → 0.00192 m²).
+- **die Federsätze.** AxisVM 18 nimmt beim Auflager keine Federzahl, sondern
+  den Index eines **benannten** Federsatzes
+  (`SpringParams.IndexOfName('Rigid - Translational')`). Unsere Drehfeder hat
+  c = 12 452 kNm/rad — dafür braucht es einen eigenen Satz.
+
+Bis dahin ist der Bauweg **verriegelt**: er bräche sonst nach 607 Knoten bei
+Schritt 6 ab und liesse ein halbes Modell zurück.
+
+### Falls PowerShell doch nicht mag: PyAxisVM
+
+AxisVM selbst pflegt eine quelloffene Python-Anbindung — [AxisVM/pyaxisvm]
+(https://github.com/AxisVM/pyaxisvm), **MIT-Lizenz**. Sie setzt auf `comtypes`
+auf, das die Typbibliothek automatisch übersetzt; die Verbund-Typen und
+Aufzählungen liegen dann als `axisvm.com.tlb` bereit. Damit entfällt genau der
+Teil, der hier von Hand nachgebaut wird.
+
+Der Haken: `pip install axisvm` verlangt Python 3.8–3.10, und installieren
+lässt sich auf einem Firmenrechner nicht immer. PowerShell ist schon da.
+Deshalb zuerst dieser Weg — die Python-Variante bleibt als Rückfallebene.
+
+Massgebend für beide: [COM-Referenz zur AxisVM Library 18.1]
+(https://download.axisvm.eu/com/axisvm_com_18100.pdf) und
+[Creation of a simple model using AxisVM COM server]
+(https://axisvm.eu/docs/creation-of-a-simple-model-using-axisvm-com-server/).
+
 ### Das Skript findet sich selbst
 
 Die Namen der COM-Methoden verschieben sich zwischen den AxisVM-Fassungen: was

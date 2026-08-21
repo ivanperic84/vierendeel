@@ -191,17 +191,223 @@ if ($NurPruefen) {
     Abschnitt 'Nur erkundet - was das Modell anbietet'
     Mitglieder 'MODELL' $m
     foreach ($n in 'Materials','CrossSections','Nodes','Lines','Members',
-                   'NodalSupports','LoadCases','LoadGroups','ConcentratedLoads',
-                   'LineLoads','MemberLoads','SurfaceLoads','Loads') {
+                   'NodalSupports','LoadCases','LoadGroups','Loads') {
         $t = $null; try { $t = $m.$n } catch { }
         Mitglieder "MODELL.$n" $t
     }
+
+    # =======================================================================
+    # DIE VERBUND-TYPEN.
+    #
+    # AxisVM nimmt die wichtigen Angaben nicht als einzelne Zahlen, sondern
+    # als Verbund: Lines.Add(i, j, art, RLineGeomData), AddNodalForce(
+    # RLoadNodalForce), AddNodalGlobal(RStiffnesses, ...). PowerShell kennt
+    # diese Typen nicht - sie stehen in der Typbibliothek, die in der
+    # Programmdatei von AxisVM steckt.
+    #
+    # .NET kann eine Typbibliothek zur Laufzeit in eine Baugruppe wandeln -
+    # dasselbe, was tlbimp.exe tut, nur ohne SDK. Danach lassen sich die
+    # Verbund-Typen anlegen und ihre FELDER auslesen. Genau die fehlen noch:
+    # ohne die Feldnamen ist keine einzige Last zu setzen.
+    # =======================================================================
+    Abschnitt 'Verbund-Typen (Records) und Aufzaehlungen'
+
+    $exe = $null
+    $r = Versuche 'Programmdatei finden' @(
+        @{ name = 'laufender Prozess'; tu = {
+            $p = Get-Process -Name 'AxisVM*' -ErrorAction Stop |
+                 Where-Object { $_.Path } | Select-Object -First 1
+            if (-not $p) { throw 'kein Prozess mit Pfad' }
+            $p.Path } },
+        @{ name = 'Registry ProgID -> LocalServer32'; tu = {
+            $c = (Get-ItemProperty 'HKLM:\SOFTWARE\Classes\AxisVM.AxisVMApplication\CLSID' -ErrorAction Stop).'(default)'
+            $s = (Get-ItemProperty "HKLM:\SOFTWARE\Classes\CLSID\$c\LocalServer32" -ErrorAction Stop).'(default)'
+            ($s -replace '^"([^"]+)".*$', '$1') -replace '\s+/.*$', '' } }
+    )
+    if ($r.ok) { $exe = $r.wert; Schreib "  $exe" }
+
+    $asm = $null
+    if ($exe -and (Test-Path -LiteralPath $exe)) {
+        try {
+            if (-not ('TlbHilfe' -as [type])) {
+                Add-Type -TypeDefinition @'
+using System;
+using System.Reflection;
+using System.Runtime.InteropServices;
+public class TlbSenke : ITypeLibImporterNotifySink {
+    public void ReportEvent(ImporterEventKind k, int c, string m) { }
+    public Assembly ResolveRef(object tl) { return null; }
+}
+public class TlbHilfe {
+    [DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+    public static extern void LoadTypeLibEx(string datei, int art, out object tlb);
+}
+'@
+            }
+            $tlb = $null
+            [TlbHilfe]::LoadTypeLibEx($exe, 2, [ref]$tlb)   # 2 = REGKIND_NONE
+            Schreib '  Typbibliothek gelesen.'
+            $wandler = New-Object System.Runtime.InteropServices.TypeLibConverter
+            $asm = $wandler.ConvertTypeLibToAssembly(
+                $tlb, 'Interop.AxisVM.dll', 0, (New-Object TlbSenke),
+                $null, $null, 'AxisVM', $null)
+            Schreib "  Baugruppe erzeugt: $($asm.GetTypes().Count) Typen."
+            $gefunden.Add('Typbibliothek -> Interop-Baugruppe zur Laufzeit')
+        } catch {
+            Schreib "  Umwandlung fehlgeschlagen: $($_.Exception.Message)"
+        }
+    }
+
+    if ($asm) {
+        $typen = @()
+        try { $typen = $asm.GetTypes() }
+        catch [Reflection.ReflectionTypeLoadException] { $typen = $_.Exception.Types | Where-Object { $_ } }
+
+        # --- die Verbund-Typen, auf die es ankommt --------------------------
+        $wichtig = @(
+            'RPoint3d','RLineGeomData','RNodalSupportSpringParams',
+            'RSpringParamIndexes','RStiffnesses','RNonLinearity','RResistances',
+            'RLoadNodalForce','RLoadBeamConcentrated','RLoadBeamDistributed',
+            'RLoadMemberConcentrated','RLoadMemberDistributed'
+        )
+        Schreib ''
+        Schreib 'FELDER DER VERBUND-TYPEN:'
+        foreach ($w in $wichtig) {
+            $t = $typen | Where-Object { $_.Name -eq $w } | Select-Object -First 1
+            if (-not $t) { Schreib "  $w  ->  gibt es nicht"; continue }
+            Schreib "  $($t.Name)"
+            foreach ($f in $t.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+                Schreib ("      {0,-28} {1}" -f $f.Name, $f.FieldType.Name)
+            }
+        }
+
+        # --- alle Aufzaehlungen: ohne sie ist jede Zahl geraten -------------
+        Schreib ''
+        Schreib 'AUFZAEHLUNGEN:'
+        foreach ($t in ($typen | Where-Object { $_.IsEnum } | Sort-Object Name)) {
+            $n = [Enum]::GetNames($t)
+            if ($n.Count -gt 24) {
+                Schreib "  $($t.Name)  ($($n.Count) Werte, erste 24)"
+                $n = $n[0..23]
+            } else {
+                Schreib "  $($t.Name)"
+            }
+            foreach ($e in $n) {
+                Schreib ("      {0,-40} {1}" -f $e, [int]([Enum]::Parse($t, $e)))
+            }
+        }
+
+        # --- der entscheidende Versuch -------------------------------------
+        # Traegt ein Verbund-Typ durch die spaete Bindung? Wenn ja, genuegt
+        # PowerShell; wenn nein, muss frueh gebunden werden.
+        Abschnitt 'Probe: laesst sich damit wirklich bauen?'
+        $n1 = $m.Nodes.Add(0.0, 0.0, 0.0)
+        $n2 = $m.Nodes.Add(1.0, 0.0, 0.0)
+        Schreib "  zwei Probeknoten: $n1, $n2"
+        $tG = $typen | Where-Object { $_.Name -eq 'RLineGeomData' } | Select-Object -First 1
+        $rL = Versuche 'Stab mit Verbund-Typ' @(
+            @{ name = 'spaet gebunden, Wert';   tu = {
+                $g = [Activator]::CreateInstance($tG)
+                $m.Lines.Add($n1, $n2, 0, $g) } },
+            @{ name = 'spaet gebunden, [ref]';  tu = {
+                $g = [Activator]::CreateInstance($tG)
+                $m.Lines.Add($n1, $n2, 0, [ref]$g) } },
+            @{ name = 'frueh gebunden ueber IAxisVMModel'; tu = {
+                $ti = $typen | Where-Object { $_.Name -eq 'IAxisVMModel' } | Select-Object -First 1
+                if (-not $ti) { throw 'IAxisVMModel nicht in der Baugruppe' }
+                $mi = [System.Runtime.InteropServices.Marshal]::CreateWrapperOfType($m, $ti)
+                $g = [Activator]::CreateInstance($tG)
+                $mi.Lines.Add($n1, $n2, 0, [ref]$g) } },
+            @{ name = 'ohne Verbund-Typ';       tu = { $m.Lines.Add($n1, $n2, 0) } }
+        )
+        # Steht eine Linie, so haengen IHR Material und Querschnitt an Item(i)
+        # - DefineAsBeam(mat, qs, qs, ref RPoint3d, ref RPoint3d). Was diese
+        # Methode wirklich verlangt, war bisher nicht zu sehen: es gab keine
+        # Linie zum Hineinschauen.
+        if ($rL.ok -and $rL.wert) {
+            try { Mitglieder 'MODELL.Lines.Item(1)' $m.Lines.Item($rL.wert) }
+            catch { Schreib "  Lines.Item nicht lesbar: $($_.Exception.Message)" }
+        }
+
+        # --- Federsaetze ---------------------------------------------------
+        # AddNodalGlobal_V153 nimmt RNodalSupportSpringParams, und darin
+        # stehen INDIZES benannter Federsaetze - keine Federzahlen:
+        #   .SpringParamIndexes.x = SpringParams.IndexOfName('Rigid - ...')
+        # Unsere Drehfeder hat c = 12452 kNm/rad, dafuer braucht es einen
+        # EIGENEN Federsatz. Ob sich einer anlegen laesst, entscheidet hier.
+        Abschnitt 'Probe: Federsaetze fuer die Auflager'
+        try {
+            $sp = $m.SpringParams
+            Mitglieder 'MODELL.SpringParams' $sp
+            $anz = 0; try { $anz = $sp.Count } catch { }
+            Schreib "  vorhandene Federsaetze: $anz"
+            for ($i = 1; $i -le [Math]::Min($anz, 40); $i++) {
+                $nm = $null
+                foreach ($z in 'Name','ItemName') {
+                    try { $nm = $sp.$z($i) } catch { }
+                    if ($nm) { break }
+                }
+                Schreib ("      {0,3}  {1}" -f $i, $nm)
+            }
+            foreach ($g in 'Rigid - Translational','Rigid - Rotational',
+                           'Soft - Rotational','Free - Rotational') {
+                $ix = $null; try { $ix = $sp.IndexOfName($g) } catch { }
+                Schreib ("      IndexOfName('{0}') = {1}" -f $g, $ix)
+            }
+        } catch { Schreib "  SpringParams nicht lesbar: $($_.Exception.Message)" }
+
+        # --- Einheit der Querschnittsmasse ---------------------------------
+        # AddL nimmt sechs Zahlen. Ob mm oder m erwartet wird, WIRFT KEINEN
+        # FEHLER - es entsteht still ein tausendfach falscher Querschnitt.
+        # Also beide anlegen und die Flaeche zurueckmessen:
+        # L 100x100x10 hat A = 19.2 cm2 = 0.00192 m2.
+        Abschnitt 'Probe: Querschnittsmasse in mm oder in m?'
+        foreach ($v in @(@{ n = 'PROBE_MM'; f = 1.0 }, @{ n = 'PROBE_M'; f = 0.001 })) {
+            try {
+                $i = $m.CrossSections.AddL($v.n, 100 * $v.f, 100 * $v.f, 10 * $v.f,
+                                           10 * $v.f, 0, 0, 0)
+                Schreib "  $($v.n) angelegt als Nummer $i"
+                $cs = $m.CrossSections.Item($i)
+                foreach ($f in 'A','Ax','Ay','Az','Ix','Iy','Iz','It','h','b') {
+                    $w = $null; try { $w = $cs.$f } catch { }
+                    if ($null -ne $w) { Schreib ("      {0,-6} {1}" -f $f, $w) }
+                }
+                if ($v.n -eq 'PROBE_MM') { try { Mitglieder 'QUERSCHNITT' $cs } catch { } }
+            } catch { Schreib "  $($v.n): $($_.Exception.Message)" }
+        }
+        Schreib '  Erwartet fuer L 100x100x10:  A = 0.00192 m2'
+    } else {
+        Schreib ''
+        Schreib '  OHNE die Typbibliothek geht es nicht weiter - Lines, Auflager'
+        Schreib '  und saemtliche Lasten nehmen Verbund-Typen.'
+    }
+
     try { $app.Models.Delete($idx) } catch { }
     try { $app.Quit() } catch { }
     $zeilen | Set-Content -Path $bericht -Encoding UTF8
     Write-Host ''; Write-Host "Bericht: $bericht"
+    Write-Host 'Diese Datei zurueckschicken.'
     Read-Host "`nWeiter mit Enter"
     exit 0
+}
+
+
+<#  STAND DES BAUWEGS.
+    Der Bericht vom 2026-08-21 (AxisVM 18 r1m De) zeigt: Material, Quer-
+    schnitte, Knoten und Lastfaelle nehmen einfache Zahlen und tragen. Staebe,
+    Auflager und SAEMTLICHE Lasten nehmen dagegen Verbund-Typen -
+    Lines.Add(i, j, ELineGeomType, RLineGeomData), AddNodalGlobal_V153(
+    RNodalSupportSpringParams, int), AddBeamDistributed(RLoadBeamDistributed).
+    Die braucht es frueh gebunden, ueber die Typbibliothek.
+
+    Bauen wir trotzdem los, so stehen nach kurzer Zeit 607 Knoten in einem
+    Modell, das bei Schritt 6 abbricht und nichts traegt. Deshalb der Riegel:
+    erst messen, dann bauen.                                               #>
+if (-not $NurPruefen) {
+    Beenden 10 ('Der Bauweg ist noch nicht anschlussfaehig. Staebe, Auflager ' +
+                'und Lasten nehmen Verbund-Typen, die erst ueber die Typ- ' +
+                'bibliothek angelegt werden muessen. Bitte AxisVM_pruefen.cmd ' +
+                'laufen lassen und den Bericht zurueckschicken.')
 }
 
 # --- 3 - Material ------------------------------------------------------------
