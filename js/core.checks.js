@@ -118,8 +118,61 @@ export function hinweise(m) {
            'GELENK ansetzen – der Anschluss ans Mast trägt kein Einspannmoment.');
   }
   if (m.profOG.name !== m.profUG.name) {
+    const art = m.gurtaufteilung ?? 'huellend';
+    const wie = { huellend: 'je Gurt der ungünstigere Anteil (einhüllend)',
+                  gemessen: 'gedämpft nach Steifigkeit, an PyNite geeicht',
+                  steifigkeit: 'nach Biegesteifigkeit I/ΣI',
+                  gleich: 'hälftig' }[art] ?? art;
     h.push(`Gurte verschieden (${m.profOG.name} / ${m.profUG.name}): getrennt ` +
-           'nachgewiesen, lokale Biegung hälftig verteilt.');
+           `nachgewiesen, lokale Biegung ${wie}.`);
+  }
+
+  // --- AUFLAGER: die Zahlen, an denen ein Eingabefehler auffällt ------------
+  // Beim Nachbau eines geprüften FEM-Modells lagen genau hier die grössten
+  // Fehler - eine geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um
+  // 5 %. Beides sieht man dem Ergebnis nicht an, wenn es nirgends steht.
+  if (Number.isFinite(m.kappaA)) {
+    const grad = (k) => `${(100 * Math.max(0, Math.min(1, k))).toFixed(0)} %`;
+    const cTxt = (c) => (c >= 1e11 ? 'starr'
+      : c <= 0 ? '0' : `${c.toFixed(0)} kNm/rad`);
+    h.push(`Auflager ${m.federn.art}: c_φ = ${cTxt(m.federn.cA)}`
+      + (Math.abs(m.federn.cB - m.federn.cA) > 1 ? ` / ${cTxt(m.federn.cB)}` : '')
+      + `, Einspanngrad ${grad(m.kappaA)}`
+      + (Math.abs(m.kappaB - m.kappaA) > 0.01 ? ` / ${grad(m.kappaB)}` : '')
+      + `, Stützmoment ${Math.abs(m.MA).toFixed(2)}`
+      + (Math.abs(Math.abs(m.MB) - Math.abs(m.MA)) > 0.005
+         ? ` / ${Math.abs(m.MB).toFixed(2)}` : '') + ' kNm.');
+  }
+  if (m.federn?.mast) {
+    h.push('Die Drehfeder aus dem Mast ist eine untere Schranke: gegen ein '
+      + 'geprüftes FEM-Modell kam sie rund zweieinhalbmal zu weich heraus. '
+      + 'Eine zu weiche Feder überschätzt das Feld- und UNTERSCHÄTZT das '
+      + 'Stützmoment – am verjüngten Jochende ist das die unsichere Seite.');
+  }
+  if (m.federn?.grenze?.begrenzt) {
+    h.push(`Drehfeder auf die Gurtverbindung begrenzt: c_φ von `
+      + `${m.federn.roh.cA.toFixed(0)} auf ${m.federn.cA.toFixed(0)} kNm/rad `
+      + `herabgesetzt, Gurtkraft ${m.federn.grenze.FA.toFixed(1)} kN.`);
+  }
+  if (m.kragA > 0 || m.kragB > 0) {
+    h.push(`Auflager innerhalb der Gurtenden: Stützweite `
+      + `${m.stuetzweite.toFixed(3)} m gegen ${m.L.toFixed(3)} m Gurtlänge, `
+      + `Kragarme ${m.kragA.toFixed(3)} / ${m.kragB.toFixed(3)} m. Die `
+      + 'Blecheinteilung hängt an der Gurtlänge und bleibt unberührt.');
+  } else if (m.endbedingung !== 'gelenkig') {
+    h.push('Auflager an den Gurtenden, keine Kragarme. Steht der Mast weiter '
+      + 'innen, ist das unter «Kragarm» einzugeben – 5 % Stützweite sind rund '
+      + '11 % auf jedes globale Moment.');
+  }
+  if (m.mastKopf) {
+    h.push(`Wind auf den Mast verdreht das Jochende: θ₀ = `
+      + `${(1000 * m.mastKopf.A.theta0).toFixed(2)} mrad, eingeleitetes Moment `
+      + `bis ${m.mastKopf.A.M0.toFixed(2)} kNm je Ende. Der Mastwind in `
+      + 'GLEISRICHTUNG ist damit nicht erfasst.');
+  } else if (m.federn?.mast) {
+    h.push('Mastwind wirkt nur auf den Mast, nicht auf das Joch. Am '
+      + 'nachgerechneten Signaljoch fehlte damit die Hälfte der Einwirkung '
+      + 'des Lastfalls Wind in Jochachse.');
   }
   [m.profOG, m.profUG].forEach((p) => {
     if (p.hinweis) h.push(`${p.name}: ${p.hinweis}`);

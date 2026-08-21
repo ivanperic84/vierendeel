@@ -2751,6 +2751,32 @@ titel('27  Kragarme: das Auflager steht nicht immer am Gurtende');
   pruef('Signaljoch: Stützweite', rs.modell.stuetzweite, 18.935, 1e-9);
   pruef('Signaljoch: Feldmoment wie AxisVM', rs.extrem.MyMax, 21.18, 0.05);
   pruef('Signaljoch: Stützmoment folgt von selbst', Math.abs(rs.modell.MA), 10.05, 0.15);
+
+  // --- Die Zahlen müssen SICHTBAR sein --------------------------------------
+  // Beim Nachbau eines geprüften FEM-Modells lagen die grössten Fehler in der
+  // Eingabe: eine geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um
+  // 5 %. Beides sieht man dem Ergebnis nicht an, wenn es nirgends steht.
+  const { hinweise } = await import(J('core.checks.js'));
+  const hs = hinweise(rs.modell).join(' | ');
+  wahr('Stützweite und Kragarme stehen im Klartext',
+       hs.includes('18.935') && hs.includes('Kragarme'));
+  wahr('Feder, Einspanngrad und Stützmoment stehen im Klartext',
+       /c_φ = 9215/.test(hs) && /Einspanngrad/.test(hs) && /Stützmoment/.test(hs));
+  const hOhne = hinweise(rechne({ ...sig, kragA: 0, kragB: 0 }).modell).join(' | ');
+  wahr('Ohne Kragarme wird darauf hingewiesen',
+       hOhne.includes('keine Kragarme'));
+  const hMast = hinweise(rechne({ ...sig, endbedingung: 'mast',
+      mastProfil: 'HEB 260', mastH: 7.8, mastSteg: 'jochachse',
+      mastAnschluss: 'durchlaufend', wMastAusTabelle: false, wMast: 0.31,
+      beiwerteFest: { G: 1, WindX: 1, WindY: 0, Schnee: 0, Leiterzug: 0 },
+    }).modell).join(' | ');
+  wahr('Die Feder aus dem Mast wird als untere Schranke benannt',
+       hMast.includes('untere Schranke'));
+  wahr('Der Mastwind auf das Joch wird ausgewiesen',
+       hMast.includes('verdreht das Jochende'));
+  wahr('Die gewählte Gurtaufteilung steht im Klartext',
+       hinweise(rechne({ ...sig, gurtaufteilung: 'gemessen' }).modell)
+         .join(' | ').includes('gedämpft nach Steifigkeit'));
 }
 
 // ===========================================================================
