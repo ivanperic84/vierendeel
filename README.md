@@ -968,6 +968,20 @@ Implementierungen gegeneinander halten. Der Vergleich braucht `node` und
 pip3 install openpyxl formulas
 ```
 
+## Modell nach AxisVM
+
+Drei Wege, einer davon ohne Zusatzlizenz:
+
+| Weg | was ankommt | Haken |
+|---|---|---|
+| SAF (Excel) | alles | der Import ist bei AxisVM ein kostenpflichtiges Modul |
+| DXF | nur die Geometrie | keine Querschnitte, keine Auflager, keine Lasten |
+| **COM** | alles | braucht Windows und AxisVM auf demselben Rechner |
+
+Für COM: `Ausleiten → JSON für die COM-Brücke`, die Datei neben
+`com/AxisVM_aufbauen.cmd` legen, doppelklicken. Einzelheiten in
+`com/LIESMICH.md`.
+
 ## Abgleich gegen ein FEM-Modell
 
 Zwei Werkzeuge, beide ohne Projektzahlen:

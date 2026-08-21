@@ -63,38 +63,66 @@ getrennt und charakteristisch heraus.
 
 ---
 
-## Schritt 3 — noch zu bauen
+## Schritt 3 — Modell aufbauen
 
-`AxisVM_aufbauen.ps1`: liest das JSON, legt ein neues Modell an, schreibt
-Material, Querschnitte, Knoten, Stäbe, Auflager, Lastfälle und Lasten, rechnet
-und schreibt die Ergebnisse zurück. Fehlt noch — dafür wird die Ausgabe aus
-Schritt 1 gebraucht.
+> Doppelklick auf **`AxisVM_aufbauen.cmd`**
+
+Liegt genau eine `*.json` daneben, wird sie genommen; sonst mit
+`-Json <datei>` auswählen. Das Skript legt ein neues Modell an und schreibt
+Material, Querschnitte, Knoten, Stäbe, Auflager, Lastfälle und Lasten.
+
+**Gerechnet wird nicht.** Lastkombinationen und Berechnung bleiben Ihre
+Entscheidung im Programm — die Lasten laufen je Einwirkungsgruppe getrennt und
+charakteristisch heraus, damit hinterher ablesbar bleibt, welcher Anteil woher
+kommt.
+
+### Das Skript findet sich selbst
+
+Die Namen der COM-Methoden verschieben sich zwischen den AxisVM-Fassungen: was
+in der einen `Lines.Add` heisst, heisst in der nächsten anders oder nimmt
+andere Argumente. Ein Skript mit fest angenommener Schreibweise scheitert
+mitten im Aufbau und lässt ein halbes Modell zurück.
+
+Dieses probiert je Schritt **mehrere bekannte Schreibweisen** durch, merkt sich
+die erste, die trägt, und schreibt am Ende `AxisVM_aufbau_bericht.txt`. Findet
+es für einen Schritt gar nichts, listet es auf, was das betreffende COM-Objekt
+**wirklich** anbietet, und hält an — statt weiterzubauen.
+
+> **Es ist gegen keine laufende AxisVM-Fassung erprobt.** Der erste Lauf ist
+> deshalb zugleich der Versuch: er baut das Modell, oder er sagt genau, woran
+> es liegt. Den Bericht zurückschicken — mit ihm ist die Lücke in Minuten
+> geschlossen.
+
+Nur erkunden, ohne zu bauen:
+
+```
+powershell -ExecutionPolicy Bypass -File AxisVM_aufbauen.ps1 -NurPruefen
+```
 
 ---
 
-## Die COM-Brücke ist NICHT der einzige Weg — und nicht der kürzeste
+## Warum nicht SAF, warum nicht DXF
 
-Der Abgleich gegen AxisVM läuft heute vollständig **ohne** COM:
+| Weg | was ankommt | Haken |
+|---|---|---|
+| **SAF** (Excel) | alles: Geometrie, Querschnitte, Auflager, Lasten | Import ist bei AxisVM ein **kostenpflichtiges Modul** |
+| **DXF** | nur die Geometrie | keine Querschnitte, keine Auflager, keine Lasten — damit ist nichts nachzurechnen |
+| **COM** | alles | braucht Windows und AxisVM auf demselben Rechner |
 
-```
-App  →  SAF-Mappe (Ausleiten → AxisVM)  →  Datei/Importieren/SAF
-     →  rechnen, Spannungen ausgeben
-     →  vergleich_axisvm.py
-```
+Die SAF-Mappe und die DXF-Ausleitung bleiben im Werkzeug — wer das Modul hat
+oder nur die Geometrie braucht, ist damit schneller. Der Weg, der ohne
+Zusatzlizenz ein **vollständiges** Modell liefert, ist COM.
 
-Die COM-Brücke spart genau einen Schritt: den SAF-Import von Hand. Sie ist
-Bequemlichkeit, keine Voraussetzung. Wer ein zweites Bauwerk abgleichen will,
-braucht sie nicht.
+---
 
-### Der Abgleich, in drei Zeilen
+## Schritt 4 — zurück vergleichen
+
+In AxisVM die Spannungen je Lastfall ausgeben (Blätter `vm <Name>`), dann:
 
 ```
 node vergleich_werkzeug.mjs meine_ablage.json vergleich_werkzeug.json
 python3 vergleich_axisvm.py Export.xlsx vergleich_werkzeug.json
-python3 vergleich_axisvm.py Export.xlsx vergleich_werkzeug.json --stationen
 ```
 
-Die Zuordnung der Stäbe (Obergurt links, Vertikalblech, …), der Versatz
-zwischen den beiden Koordinatensystemen und die Zuordnung der Lastfälle findet
-das Werkzeug selbst; wo es rät, sagt es das, und mit
-`--lastfall "vm snow=sk"` lässt es sich setzen.
+Die Zuordnung der Stäbe, der Versatz zwischen den Koordinatensystemen und die
+Zuordnung der Lastfälle findet das Werkzeug selbst; wo es rät, sagt es das.

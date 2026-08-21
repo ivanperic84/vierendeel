@@ -429,10 +429,19 @@ export function lasten(m, bau, opt = {}) {
 
 const kopf = (namen) => namen.map((n) => ({ v: n, s: STIL.KOPF }));
 
-/** Auflagerbedingungen aus Endbedingung und Drehfeder. */
+/**
+ * Auflagerbedingungen aus Endbedingung und Drehfeder.
+ *
+ * EINHEIT DER DREHFEDER. Der Rechenkern führt sie in kNm/rad. Das SAF-Blatt
+ * will MNm/rad, die COM-Schnittstelle kNm/rad. Diese Funktion gibt deshalb
+ * BEIDE Werte aus und benennt sie - vorher stand hier nur der SAF-Wert unter
+ * dem Namen `cFiy`, und das JSON für die COM-Brücke wies ihn als kNm/rad aus.
+ * Wer danach gebaut hätte, bekäme eine tausendmal zu weiche Feder.
+ */
 function stuetzung(m, ende) {
   const c = ende === 'A' ? m.federn.cA : m.federn.cB;
   const starr = c >= 1e11;
+  const weich = c > 0 && !starr;
   return {
     // Ein Ende längs frei, sonst wäre der Träger in x zwangsweise gehalten.
     ux: ende === 'A' ? 'Rigid' : 'Free',
@@ -440,7 +449,8 @@ function stuetzung(m, ende) {
     fix: 'Rigid',                       // Gabellagerung: Torsion gehalten
     fiy: c > 0 ? (starr ? 'Rigid' : 'Flexible') : 'Free',
     fiz: 'Free',                        // Windbiegung bleibt gelenkig
-    cFiy: c > 0 && !starr ? r6(c / 1000) : null,   // kNm/rad -> MNm/rad
+    cFiy_MNm: weich ? r6(c / 1000) : null,   // für SAF
+    cFiy_kNm: weich ? r6(c) : null,          // für COM
   };
 }
 
@@ -504,7 +514,7 @@ export function safBlaetter(m, opt = {}) {
     ...bau.auflager.map((a) => {
       const b = stuetzung(m, a.ende);
       return [`AUFLAGER_${a.ende}`, 'Standard', 'In node', a.knoten,
-              b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz, b.cFiy];
+              b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz, b.cFiy_MNm];
     }),
   ];
 
@@ -780,7 +790,7 @@ export function stabmodellJson(m, opt = {}) {
     version: 1,
     erzeugt: new Date().toISOString().slice(0, 19),
     einheiten: { laenge: 'm', parameter: 'mm', kraft: 'kN', moment: 'kNm',
-                 drehfeder: 'kNm/rad' },
+                 drehfeder: 'kNm/rad', flaeche: 'm2', traegheit: 'm4' },
     achsen: 'x Jochachse, y Gleisrichtung, z lotrecht nach oben',
     tragwerk: {
       typ: m.typ ?? 'frei', L: r6(m.L), h: r6(m.h), b: r6(m.b),
@@ -932,7 +942,7 @@ export function zuordnungsblatt(m, dxf, opt = {}) {
     const k = dxf.bau.knoten.get(a.knoten);
     const b = stuetzung(m, a.ende);
     p(`Auflager ${a.ende}`, k.x, k.y, k.z, b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz,
-      b.cFiy === null ? '–' : b.cFiy * 1000);
+      b.cFiy_kNm === null ? '–' : b.cFiy_kNm);
   });
   p();
   n('φx gehalten ist die Gabellagerung, φz frei lässt die Windbiegung gelenkig. '
