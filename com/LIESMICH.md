@@ -69,3 +69,32 @@ getrennt und charakteristisch heraus.
 Material, Querschnitte, Knoten, Stäbe, Auflager, Lastfälle und Lasten, rechnet
 und schreibt die Ergebnisse zurück. Fehlt noch — dafür wird die Ausgabe aus
 Schritt 1 gebraucht.
+
+---
+
+## Die COM-Brücke ist NICHT der einzige Weg — und nicht der kürzeste
+
+Der Abgleich gegen AxisVM läuft heute vollständig **ohne** COM:
+
+```
+App  →  SAF-Mappe (Ausleiten → AxisVM)  →  Datei/Importieren/SAF
+     →  rechnen, Spannungen ausgeben
+     →  vergleich_axisvm.py
+```
+
+Die COM-Brücke spart genau einen Schritt: den SAF-Import von Hand. Sie ist
+Bequemlichkeit, keine Voraussetzung. Wer ein zweites Bauwerk abgleichen will,
+braucht sie nicht.
+
+### Der Abgleich, in drei Zeilen
+
+```
+node vergleich_werkzeug.mjs meine_ablage.json vergleich_werkzeug.json
+python3 vergleich_axisvm.py Export.xlsx vergleich_werkzeug.json
+python3 vergleich_axisvm.py Export.xlsx vergleich_werkzeug.json --stationen
+```
+
+Die Zuordnung der Stäbe (Obergurt links, Vertikalblech, …), der Versatz
+zwischen den beiden Koordinatensystemen und die Zuordnung der Lastfälle findet
+das Werkzeug selbst; wo es rät, sagt es das, und mit
+`--lastfall "vm snow=sk"` lässt es sich setzen.

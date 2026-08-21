@@ -967,3 +967,25 @@ Implementierungen gegeneinander halten. Der Vergleich braucht `node` und
 ```bash
 pip3 install openpyxl formulas
 ```
+
+## Abgleich gegen ein FEM-Modell
+
+Zwei Werkzeuge, beide ohne Projektzahlen:
+
+```bash
+node vergleich_werkzeug.mjs <ablage.json> vergleich_werkzeug.json
+python3 vergleich_axisvm.py <export.xlsx> vergleich_werkzeug.json
+```
+
+`vergleich_werkzeug.mjs` rechnet einen gespeicherten Eingabestand je
+**charakteristischem Einzellastfall** durch und schreibt Spannung je
+Gurtwinkel und Moment je Bindeblechebene, Station für Station.
+
+`vergleich_axisvm.py` liest die AxisVM-Ausgabe (Blätter `Knoten`, `Stäbe` und
+je Lastfall `vm <Name>`) und stellt beides gegenüber. Die Zuordnung der Stäbe,
+der Versatz der Koordinatensysteme und die Zuordnung der Lastfälle folgen aus
+der Geometrie bzw. den Namen — nichts davon ist einzugeben, und wo geraten
+wird, steht es im Kopf der Ausgabe.
+
+`--stationen` zeigt jede Station einzeln statt nur der Zusammenfassung,
+`--lastfall "vm snow=sk"` setzt eine Zuordnung von Hand.

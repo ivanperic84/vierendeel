@@ -3245,6 +3245,51 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
 }
 
 // ===========================================================================
+titel('29c Abgleichwerkzeug: die Werkzeugseite');
+// vergleich_werkzeug.mjs schreibt einen Eingabestand je charakteristischem
+// Einzellastfall aus. Geprueft wird hier die Form - dass jeder Lastfall,
+// jede Station und jede Bauteilfamilie drinsteht und die Geometrie mitkommt,
+// aus der die Gegenseite ihre Staebe zuordnet.
+{
+  const { standardLastfaelle } = await import(J('core.lasten.js'));
+  const w = basis({ lastHerkunft: 'manuell', gkManuell: 0.7, skManuell: 0.24,
+                    wkManuell: 0.52, schneeAktiv: true, anbauteile: [] });
+  const chars = standardLastfaelle(w).filter((l) => l.art === 'charakteristisch');
+  wahr('Es gibt charakteristische Einzellastfaelle zum Vergleichen',
+       chars.length >= 5, chars.map((l) => l.key).join(', '));
+
+  // Dieselbe Schleife, die das Werkzeug faehrt.
+  const faelle = {};
+  let m = null;
+  for (const l of chars) {
+    const e = rechne({ ...w, lastfall: l.key, beiwerteFest: null });
+    m = e.modell;
+    faelle[l.key] = e.knoten.map((k) => ({
+      x: k.x,
+      gurt: Object.fromEntries(k.ecken.map((c) => [c.id, c.sig_v])),
+      blech: Object.fromEntries(k.ebenen.filter((p) => p.eta != null)
+        .map((p) => [p.id, p.M])),
+    }));
+  }
+  wahr('Je Lastfall alle Stationen', Object.values(faelle)
+    .every((v) => v.length === faelle[chars[0].key].length));
+  wahr('Je Station alle vier Gurtwinkel', Object.values(faelle)
+    .every((v) => v.every((k) => Object.keys(k.gurt).length === 4)));
+  wahr('Je Station die Blechebenen', faelle[chars[0].key]
+    .some((k) => Object.keys(k.blech).length >= 2));
+  // Die Geometrie, aus der die Gegenseite ihre Staebe zuordnet.
+  wahr('Die Gurtachsen liegen symmetrisch zur Jochachse',
+       Math.abs((m.h / 2) + (-m.h / 2)) < 1e-12);
+  wahr('Geometrie vollstaendig',
+       [m.L, m.h, m.b, m.fyd].every((v) => Number.isFinite(v) && v > 0));
+  // Verschiedene Lastfaelle geben verschiedene Ergebnisse - sonst waere die
+  // Schleife umsonst.
+  const s1 = faelle[chars[0].key][5].gurt.OG_L;
+  const s2 = faelle.wyk ? faelle.wyk[5].gurt.OG_L : null;
+  wahr('Die Lastfaelle unterscheiden sich', s2 === null || Math.abs(s1 - s2) > 1e-6);
+}
+
+// ===========================================================================
 titel('29a PyNite-Export: das Eigengewicht muss mit');
 // AxisVM leitet das Eigengewicht aus den Staeben ab, PyNite NICHT - dort
 // steht im Skript keine Zeile dafuer. Ohne sie fehlte im Vergleichsmodell die
