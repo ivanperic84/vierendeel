@@ -160,6 +160,25 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const verlauf = hebelarmVerlauf(joch, inp.L, v.hT, phys.jd);
   const breite = breitenVerlauf(joch, inp.L, v.bT, phys.jbbOG, phys.jbbUG);
 
+  // HEBELARM DES EINSEITIGEN KRÄFTEPAARS, je Gurt.
+  // Ein nur an EINEM Gurt befestigtes Anbauteil leitet sein Torsionsmoment als
+  // Kräftepaar in z zwischen den beiden nebeneinanderstehenden Winkeln DIESES
+  // Gurtes ein (core.anbauteile.js). Der Hebelarm dafür ist der Abstand ihrer
+  // GURTKRÄFTE - dasselbe Mass, das die Massvariante überall sonst wählt, und
+  // nicht das Aussenmass jbb der Zeichnung. Beim Grundrissknick folgt er der
+  // örtlichen Breite, genau wie b(x).
+  const bFeldGurt = {
+    schwerpunkt: { OG: ha.bOG, UG: ha.bUG },
+    aussen: { OG: phys.jbbOG / U.m__mm, UG: phys.jbbUG / U.m__mm },
+    licht: { OG: ha.lichtOG / U.m__mm, UG: ha.lichtUG / U.m__mm },
+  }[variante];
+  const bAnGurt = (x, gurt) => {
+    const ort = breite.jbbAn(x);
+    const roh = gurt === 'OG' ? phys.jbbOG : phys.jbbUG;
+    const jetzt = gurt === 'OG' ? ort.og : ort.ug;
+    return Math.max(0.02, bFeldGurt[gurt] + (jetzt - roh) / U.m__mm);
+  };
+
   const char = charakteristischeLasten(inp, joch);
   // Baugruppen ZUERST in Einzellasten auflösen: je Modul und je freiem
   // Lastblock ein Eintrag mit eigenem Angriffspunkt. Erst danach kennt der
@@ -178,7 +197,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   // Charakteristische Einzellastfälle blenden das Joch oder die Anbauteile aus.
   const nurLast = inp.nurLast ?? lfAktiv?.nur ?? null;
   const lasten = bemessungslasten({ ...inp, ...char, beiwerte, nurLast },
-                                  anbauteile, verlauf.hAn);
+                                  anbauteile, verlauf.hAn, bAnGurt);
 
   const steif = biegesteifigkeitJoch(v.hT, profOG, profUG);
   // VERSCHIEBLICH ODER NICHT (core.auflager.js, MAST_UNVERSCHIEBLICH).
@@ -297,6 +316,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     char, ...lasten, ...reakt,
     steif, federn, ...auf, endbedingung: inp.endbedingung,
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
+    // Hebelarm des einseitigen Kräftepaars, je Gurt [m] - er folgt der
+    // Massvariante und steht deshalb neben h und b im Modell.
+    bGurt: bFeldGurt, bAnGurt,
     mastKopf: mastwindAn && (kopf.A.theta0 > 0 || kopf.B.theta0 > 0)
       ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast } : null,
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,

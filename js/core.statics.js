@@ -47,7 +47,7 @@ export const TORSIONSMODELLE = [
  * @param {object[]} anbauteile Anbauteile (siehe core.anbauteile.js)
  * @param {number} h Hebelarm Ober-/Untergurt [m]
  */
-export function bemessungslasten(i, anbauteile, h) {
+export function bemessungslasten(i, anbauteile, h, bGurt = null) {
   const q = i.gammaQ ?? 1;
   const b = i.beiwerte
         ?? { G: i.gammaG ?? 1, WindX: q, WindY: q, Schnee: q };
@@ -61,7 +61,7 @@ export function bemessungslasten(i, anbauteile, h) {
   const qd_s = i.schneeAktiv ? jochAn * b.Schnee * i.sk : 0;
   const wd = jochAn * (b.WindY ?? 0) * i.wk;
   const at = anbauteilLasten(nur === 'joch' ? [] : anbauteile,
-                             { ...i, beiwerte: b }, h);
+                             { ...i, beiwerte: b }, h, bGurt);
   return { qd_g, qd_s, qd: qd_g + qd_s, wd, beiwerte: b, nurLast: nur, ...at };
 }
 

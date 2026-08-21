@@ -931,12 +931,17 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
         rMinus.teile.reduce((s, t) => s + t.Fx, 0), -7 * 2, 1e-12, 'kN');
 
   // --- Örtliche Einleitung des Moments F_y · e_v --------------------------
+  // Der Hebelarm des einseitigen Kräftepaars ist der Abstand der GURTKRÄFTE,
+  // nicht das Aussenmass jbb der Zeichnung: früher stand hier jbb, über den
+  // Katalog gerechnet 29 bis 42 % zu viel und damit ein zu kleines
+  // Kräftepaar - auf der unsicheren Seite.
   const eins = { beiwerte: { G: 1, WindX: 1, WindY: 1, Schnee: 1 },
                  jbbOG: 400, jbbUG: 400 };
   const hArm = 0.5;
-  const lasten = (bef) => anbauteilLasten(
+  const bArm = { OG: 0.300, UG: 0.300 };
+  const lasten = (bef, b = bArm) => anbauteilLasten(
     auf([{ ...teil({ name: 'A', x: 10, Qy: 4, ev: 1.5 }), befestigung: bef }]),
-    eins, hArm);
+    eins, hArm, b);
 
   const durch = lasten('durchgehend');
   const einseitig = lasten('unten');
@@ -944,7 +949,22 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
   const T = 4 * (1.5 + hArm / 2);                      // F_y · e_v = 7 kNm
 
   pruef('4 Punkte: ΔF_y = T / h', durch.teile[0].dFy, T / hArm, 1e-12, 'kN');
-  pruef('2 Punkte: ΔF_z = T / jbb', einseitig.teile[0].dFz, T / 0.400, 1e-12, 'kN');
+  pruef('2 Punkte: ΔF_z = T / b', einseitig.teile[0].dFz, T / 0.300, 1e-12, 'kN');
+  pruef('Nicht mehr über das Aussenmass jbb',
+        einseitig.teile[0].dFz / (T / 0.400), 400 / 300, 1e-12, '–');
+  // Der Hebelarm darf auch als Funktion (x, Gurt) kommen - so weiss er von
+  // der Massvariante und vom Grundrissknick.
+  pruef('Der Hebelarm darf ortsabhängig sein',
+        lasten('unten', (x, g) => (g === 'UG' ? 0.25 : 0.40)).teile[0].dFz,
+        T / 0.25, 1e-12, 'kN');
+  // Der obere Anschluss zieht den Hebelarm des OBERgurts, der untere den des
+  // Untergurts - sonst hinge das Kräftepaar am falschen Gurtpaar.
+  pruef('Der obere Anschluss nimmt den Hebelarm des Obergurts',
+        lasten('oben', { OG: 0.20, UG: 0.90 }).teile[0].dFz
+        / lasten('oben', { OG: 0.40, UG: 0.90 }).teile[0].dFz, 2, 1e-12, '–');
+  pruef('Der untere den des Untergurts',
+        lasten('unten', { OG: 0.90, UG: 0.20 }).teile[0].dFz
+        / lasten('unten', { OG: 0.90, UG: 0.40 }).teile[0].dFz, 2, 1e-12, '–');
   wahr('4 Punkte belasten die Horizontalebenen',
        durch.lokal.every((l) => l.ebene === 'horizontal'));
   wahr('2 Punkte belasten die Vertikalebenen',
@@ -956,6 +976,38 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
         durch.lokal.reduce((s, l) => s + l.dF, 0), 0, 1e-12, 'kN');
   pruef('Anzahl Anschlusspunkte 4 bzw. 2',
         durch.teile[0].punkte.length - einseitig.teile[0].punkte.length, 2, 1e-12, 'Stk');
+
+  // Der Hebelarm folgt der MASSVARIANTE, quer durch den ganzen Rechenkern.
+  {
+    const haenge = { id: 'H', vorlage: 'direkt', name: 'Hängestütze', x: 6, raster: 0.4,
+      seite: 'rechts', befestigung: 'unten', aktiv: true, module: [],
+      lasten: [{ einwirkung: 'WindY', x: 0, y: 0, z: 1.6,
+                 Fx: 0, Fy: 1.5, Fz: 0, Mxx: 0, Myy: 0, Mzz: 0 }] };
+    const mv = (v) => rechne(basis({ massVariante: v, anbauteile: [haenge],
+      beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0, Leiterzug: 0 } }));
+    const sp = mv('schwerpunkt'), au = mv('aussen');
+    // Aussenmass = grösserer Hebelarm = kleineres Kräftepaar.
+    wahr('Der Hebelarm folgt der Massvariante',
+         Math.abs(sp.modell.teile[0].dFz) > Math.abs(au.modell.teile[0].dFz),
+         `Schwerpunkt ${sp.modell.teile[0].dFz.toFixed(2)} gegen Aussenmass `
+         + `${au.modell.teile[0].dFz.toFixed(2)} kN`);
+    // Genau T_d geteilt durch den Gurtabstand - je GURT, nicht im Mittel:
+    // die Hängestütze hängt am Untergurt. (Ein reiner Verhältnisvergleich
+    // ginge hier fehl: mit der Massvariante ändert sich auch h und damit der
+    // Hebelarm e_v des Torsionsmoments selbst.)
+    const Td = (m) => { const t = m.teile[0];
+      return t.Fy * t.ev + t.Fz * t.ex + t.Mxx; };
+    pruef('ΔF_z = T_d / b_UG, Schwerpunktsabstand',
+          sp.modell.teile[0].dFz, Td(sp.modell) / sp.modell.bGurt.UG, 1e-9, 'kN');
+    pruef('ΔF_z = T_d / b_UG, Aussenmass',
+          au.modell.teile[0].dFz, Td(au.modell) / au.modell.bGurt.UG, 1e-9, 'kN');
+    pruef('Aussenmass heisst genau jbb', au.modell.bGurt.UG,
+          au.modell.jbbUG / 1000, 1e-12, 'm');
+    wahr('Schwerpunktsabstand ist deutlich kleiner als jbb',
+         sp.modell.bGurt.UG < 0.9 * au.modell.bGurt.UG,
+         `${(1000 * sp.modell.bGurt.UG).toFixed(0)} gegen `
+         + `${(1000 * au.modell.bGurt.UG).toFixed(0)} mm`);
+  }
 
   // Das Kräftepaar kommt im Blechnachweis an
   const { ebenenQuerkraefte } = await import(J('core.querschnitt.js'));

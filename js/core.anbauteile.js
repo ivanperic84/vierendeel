@@ -157,8 +157,17 @@ export function anteil(a, bw, feld) {
  * @returns {{P:object[], H:object[], T:object[], N:object[], M:object[],
  *            Mz:object[], lokal:object[], teile:object[]}}
  */
-export function anbauteilLasten(teile, inp, hebelarm) {
+export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
   const hAn = typeof hebelarm === 'function' ? hebelarm : () => hebelarm;
+  // HEBELARM DES EINSEITIGEN KRÄFTEPAARS, je Gurt und je Stelle.
+  // Vorrang hat die übergebene Funktion (sie kennt die Massvariante und den
+  // Grundrissknick); ohne sie greift b aus den Eingabewerten, und erst
+  // zuletzt das Aussenmass jbb - siehe die Herleitung weiter unten.
+  const bAn = typeof bGurt === 'function'
+    ? bGurt
+    : (x, g) => (bGurt?.[g]
+        ?? inp?.[g === 'OG' ? 'bOG' : 'bUG']
+        ?? ((inp?.[g === 'OG' ? 'jbbOG' : 'jbbUG'] ?? 0) / 1000));
   const P = [];   // vertikale Einzellasten           {x, w}
   const H = [];   // horizontale Einzellasten (y)     {x, w}
   const T = [];   // Torsionsmomente (um x)           {x, w}
@@ -169,9 +178,6 @@ export function anbauteilLasten(teile, inp, hebelarm) {
   const ausgewertet = [];
 
   const bw = beiwerte(inp);
-  // Gurtbreiten für den Hebelarm des einseitigen Kräftepaars [m]
-  const jbbOG = (inp.jbbOG ?? 0) / 1000;
-  const jbbUG = (inp.jbbUG ?? 0) / 1000;
 
   (teile ?? []).filter((a) => a.aktiv !== false).forEach((a) => {
     const Fz = anteil(a, bw, 'Fz');
@@ -221,13 +227,28 @@ export function anbauteilLasten(teile, inp, hebelarm) {
     //                            Getragen von den HORIZONTALEBENEN.
     //
     //   oben/unten (2 Punkte)    Das Moment muss in EINER Gurtebene ankommen.
-    //                            Dort stehen die beiden Winkel im Abstand jbb
+    //                            Dort stehen die beiden Winkel im Abstand b
     //                            nebeneinander; ein Moment um die Jochachse
     //                            braucht dann ein Kräftepaar in z:
-    //                            ΔF_z = T_d / jbb.
+    //                            ΔF_z = T_d / b.
     //                            Getragen von den VERTIKALEBENEN.
     //
-    // Der schmalere Hebelarm ist der ungünstigere. Bei jbb < h ist die
+    // WELCHES b. Der Hebelarm ist der Abstand der beiden GURTKRÄFTE, also
+    // dasselbe Mass, das die Massvariante überall sonst wählt - nicht das
+    // Aussenmass jbb der Zeichnung. Früher stand hier jbb; über den Katalog
+    // gerechnet ist das 29 bis 42 % mehr als der Schwerpunktsabstand:
+    //
+    //      J70 1.34 · J90 1.42 · J100 1.29 · J120 1.34 · J130 1.36
+    //
+    // Das Kräftepaar fiel damit um denselben Betrag zu klein aus - auf der
+    // UNSICHEREN Seite, und ausgerechnet beim einseitigen Anschluss, der
+    // ohnehin der härtere ist. Die Korrektur steht auf mechanischer
+    // Begründung, nicht auf einer Messung: das geprüfte FEM-Modell enthält
+    // nur durchgehend befestigte Teile, und am verwandten Fall dort ist der
+    // Hebelarm rund 5 Prozentpunkte gegen 80 bis 230 % aus der
+    // Lasteinleitung auf EINE Station - er ist darunter nicht auflösbar.
+    //
+    // Der schmalere Hebelarm ist der ungünstigere. Bei b < h ist die
     // einseitige Befestigung deshalb die härtere Beanspruchung - und sie
     // konzentriert sich zudem auf einen einzigen Gurt.
     //
@@ -257,8 +278,8 @@ export function anbauteilLasten(teile, inp, hebelarm) {
         });
       } else {
         const gurt = anschlussGurt(a);
-        const jbb = (gurt === 'OG' ? jbbOG : jbbUG) || 0;
-        dFz = jbb > 0 ? Td / jbb : 0;
+        const bq = bAn(a.x, gurt) || 0;
+        dFz = bq > 0 ? Td / bq : 0;
         [x1, x2].forEach((x) => {
           lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'L', dF: +dFz / 2 });
           lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'R', dF: -dFz / 2 });

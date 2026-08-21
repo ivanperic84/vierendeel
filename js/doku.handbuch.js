@@ -962,10 +962,10 @@ und <b>das</b> hängt davon ab, an wie vielen Gurten das Teil hängt:</p>
 <table class="dt">
 <tr><th>Befestigung</th><th>Kräftepaar</th><th>getragen von</th></tr>
 <tr><td>durchgehend (4 Punkte)</td><td>ΔF_y = T_d / h</td><td>Horizontalebenen</td></tr>
-<tr><td>oben oder unten (2 Punkte)</td><td>ΔF_z = T_d / jbb</td><td>Vertikalebenen</td></tr>
+<tr><td>oben oder unten (2 Punkte)</td><td>ΔF_z = T_d / b</td><td>Vertikalebenen</td></tr>
 </table>
 
-${skizze('Links durchgehend: Hebelarm h. Rechts einseitig: nur noch die Gurtbreite jbb',
+${skizze('Links durchgehend: Hebelarm h. Rechts einseitig: nur noch der Gurtabstand b',
   '0 0 440 268', [
     // --- links: durchgehend, Längsansicht ---
     `<line class="b" x1="24" y1="56" x2="204" y2="56"/>`,
@@ -994,17 +994,40 @@ ${skizze('Links durchgehend: Hebelarm h. Rechts einseitig: nur noch die Gurtbrei
     knoten(344, 212, 4.4),
     pf(344, 212, 404, 212), txt(408, 216, 'F_y', 'acc', 'start'),
     pf(296, 142, 296, 112), pf(392, 150, 392, 194),
-    txt(344, 62, '&Delta;F_z = T_d / jbb', 'acc'),
-    txt(344, 80, 'gr&ouml;sser, weil jbb &lt; h', 'dim'),
+    txt(344, 62, '&Delta;F_z = T_d / b', 'acc'),
+    txt(344, 80, 'gr&ouml;sser, weil b &lt; h', 'dim'),
     pf(344, 176, 296, 176, 'm'), pf(344, 176, 392, 176, 'm'),
-    txt(292, 180, 'jbb', 'dim', 'end'),
+    txt(292, 180, 'b', 'dim', 'end'),
     txt(344, 244, 'nur am Untergurt &mdash; zwei Punkte', 'dim'),
     txt(344, 258, 'Querschnitt, Blick in Jochachse', 'dim'),
   ].join(''))}
 
-${q(`Der schmalere Hebelarm ist der ungünstigere. Da jbb (Gurtbreite) kleiner ist
-als h (Jochhöhe), ist die <b>einseitige</b> Befestigung die härtere
+${q(`Der schmalere Hebelarm ist der ungünstigere. Da b (Gurtabstand quer)
+kleiner ist als h (Jochhöhe), ist die <b>einseitige</b> Befestigung die härtere
 Beanspruchung – und sie konzentriert sich zudem auf einen einzigen Gurt.`)}
+
+<p><b>Welches b.</b> Der Hebelarm ist der Abstand der beiden <i>Gurtkräfte</i>,
+also dasselbe Mass, das die Massvariante überall sonst wählt – nicht das
+Aussenmass jbb der Zeichnung. Früher stand hier jbb; über den Katalog gerechnet
+ist das 29 bis 42 % mehr:</p>
+
+<table class="dt"><tr><th>Typ</th><th>J70</th><th>J90</th><th>J100</th><th>J120</th><th>J130</th></tr>
+<tr><td>jbb / b</td><td>1.34</td><td>1.42</td><td>1.29</td><td>1.34</td><td>1.36</td></tr></table>
+
+<p>Das Kräftepaar fiel damit um denselben Betrag zu klein aus – auf der
+<b>unsicheren</b> Seite, und ausgerechnet beim einseitigen Anschluss, der
+ohnehin der härtere ist. Mit einer Hängestütze in Feldmitte steigt die Spannung
+im Vertikalblech an der Anbaustelle um 26 bis 41 %; ob die Ausnutzung des Jochs
+mitgeht, hängt davon ab, ob die Anbaustelle die massgebende Station ist – beim
+J70 und J90 ja (η 0.77 → 0.99 bzw. 0.61 → 0.67), bei den grösseren Typen bleibt
+das Auflager massgebend.</p>
+
+${q(`Die Korrektur steht auf <b>mechanischer Begründung, nicht auf einer
+Messung</b>. Das geprüfte FEM-Modell enthält nur durchgehend befestigte Teile;
+am verwandten Entscheid dort (h gegen jd) macht der Hebelarm rund
+5 Prozentpunkte aus gegen 80 bis 230 % aus der Einleitung auf eine einzelne
+Station – er ist darunter nicht auflösbar. Gegen AxisVM verbessert die
+Korrektur die Übereinstimmung also nicht; sie stellt die Systematik her.`)}
 
 <h4>7.3 Verteilung auf die Blechstationen</h4>
 <p>Eine Kraft, die zwischen zwei Blechen eintritt, verteilt sich auf beide – nach
