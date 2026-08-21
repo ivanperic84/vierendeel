@@ -3138,6 +3138,81 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
 }
 
 // ===========================================================================
+titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
+// Die Schwerachsen SIND das Stabmodell - sie tragen feldweise dieselben
+// Kennwerte wie die Volumenkoerper. Der frueher eigene Schalter
+// "Stabmodell (ohne Koerper)" sagte nichts, was Gurtprofile und Bindebleche
+// nicht schon sagen; sein Platz gehoert jetzt der Auflagerdefinition.
+{
+  const R = await import(J('render.3d.js'));
+  const w = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.5,
+                    mastSteg: 'jochachse', mastAnschluss: 'kragarm',
+                    schraubenGrenze: false, kragA: 0.35, kragB: 0.75 });
+  const e = rechne(w);
+  const sz = R.erzeugeSzene(e.modell, e);
+
+  // --- Schwerachsen ---------------------------------------------------------
+  const gurt = sz.linien.filter((l) => l.gurt);
+  wahr('Die Gurtachsen sind feldweise aufgeteilt', gurt.length > 4 * 5,
+       `${gurt.length} Abschnitte bei 4 Gurten`);
+  wahr('Jeder Abschnitt hat genau zwei Punkte',
+       gurt.every((l) => l.punkte.length === 2));
+  wahr('Jeder Abschnitt traegt Kennwerte',
+       gurt.every((l) => l.werte && Number.isFinite(l.werte.eta)));
+  wahr('Verschiedene Felder tragen verschiedene Werte',
+       new Set(gurt.map((l) => l.werte.eta)).size > 3);
+  // Sie decken die ganze Gurtlaenge ab, ohne Luecke.
+  const einGurt = gurt.filter((l) => l.label === gurt[0].label)
+    .sort((a, b) => a.punkte[0][0] - b.punkte[0][0]);
+  pruef('Sie beginnen am Gurtanfang', einGurt[0].punkte[0][0], 0, 1e-9, 'm');
+  pruef('und enden am Gurtende',
+        einGurt[einGurt.length - 1].punkte[1][0], e.modell.L, 1e-9, 'm');
+  wahr('ohne Luecke dazwischen', einGurt.every((l, i) =>
+    i === 0 || Math.abs(l.punkte[0][0] - einGurt[i - 1].punkte[1][0]) < 1e-9));
+
+  // Die Blechachsen ebenso - sonst waere das Fachwerk halb eingefaerbt.
+  const bl = sz.linien.filter((l) => l.blechachse);
+  wahr('Auch die Blechachsen tragen Kennwerte', bl.length > 0
+       && bl.every((l) => l.werte !== undefined));
+  wahr('Es gibt keine Gruppe "stab" mehr',
+       !sz.linien.some((l) => l.gruppe === 'stab'));
+
+  // --- Auflagerebene --------------------------------------------------------
+  const auf = sz.linien.filter((l) => l.gruppe === 'auflager');
+  const mAuf = sz.marken.filter((k) => k.gruppe === 'auflager');
+  wahr('Es gibt eine Auflagerebene', auf.length > 0 && mAuf.length > 0);
+  // DIE MARKE SITZT AN DER MASTACHSE, nicht am Gurtende - frueher stand sie
+  // bei x = 0 und x = L und lag mit Kragarmen falsch.
+  const xs = mAuf.filter((k) => k.art === 'auflager').map((k) => k.p[0]).sort((a, b) => a - b);
+  pruef('Auflager A steht bei kragA', xs[0], 0.35, 1e-9, 'm');
+  pruef('Auflager B steht bei L − kragB', xs[1], e.modell.L - 0.75, 1e-9, 'm');
+  wahr('Der Mast wird als Stummel gezeichnet', auf.some((l) => l.mast));
+  wahr('Die Kragarme sind ausgewiesen', auf.filter((l) => l.kragarm).length === 2);
+  const txt = mAuf.filter((k) => k.art === 'auflagertext').map((k) => k.text).join(' | ');
+  wahr('Profil, Feder und Einspanngrad stehen dabei',
+       txt.includes('HEB 240') && txt.includes('c_φ') && txt.includes('Einspanngrad'),
+       txt);
+
+  // Ohne Kragarme sitzen die Auflager an den Gurtenden.
+  const ohne = rechne({ ...w, kragA: 0, kragB: 0 });
+  const xo = R.erzeugeSzene(ohne.modell, ohne).marken
+    .filter((k) => k.art === 'auflager').map((k) => k.p[0]).sort((a, b) => a - b);
+  pruef('Ohne Kragarm bei 0', xo[0], 0, 1e-9, 'm');
+  pruef('und bei L', xo[1], ohne.modell.L, 1e-9, 'm');
+  wahr('Ohne Kragarm keine Kragarmlinie',
+       !R.erzeugeSzene(ohne.modell, ohne).linien.some((l) => l.kragarm));
+
+  // Gelenkig gelagert: kein Mast, aber die Marke steht trotzdem.
+  const gel = rechne({ ...w, endbedingung: 'gelenkig' });
+  const sg = R.erzeugeSzene(gel.modell, gel);
+  wahr('Auch gelenkig gibt es die Auflagerebene',
+       sg.marken.some((k) => k.gruppe === 'auflager' && k.art === 'auflager'));
+  wahr('Dann steht c_φ = 0 dabei',
+       sg.marken.filter((k) => k.art === 'auflagertext')
+         .some((k) => k.text.includes('c_φ = 0')));
+}
+
+// ===========================================================================
 titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
 // Der Winkel hat seine Hauptachsen unter 45 Grad. Unter dem oertlichen
 // Rahmenmoment weicht er quer aus; die Bleche der ANDEREN Ebene halten

@@ -308,58 +308,126 @@ export function erzeugeSzene(m, erg) {
     }
   });
 
-  // --- Schwerachsen --------------------------------------------------------
-  // Beim verjüngten Untergurt ist die Schwerachse ein Polygonzug.
-  const achsStellen = m.verlauf?.aktiv
-    ? [...new Set([0, ...stationen.map((s) => s.x), m.L])].sort((a, b) => a - b)
-    : [0, m.L];
-  // GURTACHSEN. Sie sind die Stäbe des Stabmodells und werden deshalb
-  // AUSGEZOGEN gezeichnet, nicht strichpunktiert: eine Strichpunktlinie meint
-  // eine Symmetrie- oder Hilfsachse, hier steht aber ein tragendes Bauteil.
-  // Damit sie sich wie die Volumenkörper lesen lassen, tragen sie dieselben
-  // Kennwerte und werden im Plot in derselben Farbe eingefärbt.
+  // --- Schwerachsen: das Stabmodell, in der Farbe des Resultats -------------
+  // Sie sind die Stäbe des Rechenmodells und werden deshalb AUSGEZOGEN
+  // gezeichnet, nicht strichpunktiert: eine Strichpunktlinie meint eine
+  // Symmetrie- oder Hilfsachse, hier steht aber ein tragendes Bauteil.
+  //
+  // FELDWEISE, GENAU WIE DIE VOLUMENKÖRPER. Früher trug die ganze Gurtachse
+  // EINE Farbe - die der höchstbeanspruchten Station. Das war als Hinweis
+  // gedacht, gab aber ein falsches Bild: eine durchgehend rote Linie über ein
+  // Joch, das nur an einer Stelle rot ist. Jetzt bekommt jedes Feld die
+  // Kennwerte seines Feldes, dieselben, mit denen auch das Prisma eingefärbt
+  // wird. Ohne Körper gelesen ist das Bild damit dasselbe wie mit ihnen - und
+  // genau deshalb braucht es keinen eigenen «Stabmodell»-Schalter mehr:
+  // Gurtprofile und Bindebleche lassen sich einzeln ausblenden, übrig bleibt
+  // das Stabmodell.
+  const achsFelder = [];
+  for (let i = 0; i < stationen.length - 1; i++) {
+    achsFelder.push({ i, x0: stationen[i].x, x1: stationen[i + 1].x });
+  }
+  // Überstände bis zu den Gurtenden: sie tragen die Kennwerte der äussersten
+  // Station, denn ein eigenes Feld sind sie nicht.
+  if (stationen.length) {
+    if (stationen[0].x > 1e-9) achsFelder.unshift({ i: 0, x0: 0, x1: stationen[0].x });
+    const letzte = stationen[stationen.length - 1];
+    if (letzte.x < m.L - 1e-9) {
+      achsFelder.push({ i: stationen.length - 1, x0: letzte.x, x1: m.L });
+    }
+  }
+  if (!achsFelder.length) achsFelder.push({ i: 0, x0: 0, x1: m.L });
+
   qs.winkel.forEach((w) => {
     const s = w.schwerpunkt.y >= 0 ? +1 : -1;
-    // Kennwerte des zugehörigen Gurtes an der höchstbeanspruchten Station,
-    // damit die Achse im Plot dieselbe Farbe trägt wie der Körper.
-    let best = null;
-    stationen.forEach((st, i) => {
-      const kw = kennwerte(i, w.id);
-      if (kw && (best === null || (kw.eta ?? 0) > (best.eta ?? 0))) best = kw;
-    });
-    linien.push({
-      gruppe: 'achse', gurt: true, stark: true, werte: best,
-      punkte: achsStellen.map((x) => [x,
-        w.schwerpunkt.y * MM + s * breiteAus(w.gurt, x),
-        w.schwerpunkt.z * MM + versatz(w.gurt, x)]),
-      label: `Schwerachse ${w.id}`,
+    const pt = (x) => [x, w.schwerpunkt.y * MM + s * breiteAus(w.gurt, x),
+                       w.schwerpunkt.z * MM + versatz(w.gurt, x)];
+    achsFelder.forEach((f) => {
+      linien.push({
+        gruppe: 'achse', gurt: true, stark: true, station: f.i,
+        werte: kennwerte(f.i, w.id), punkte: [pt(f.x0), pt(f.x1)],
+        label: `Schwerachse ${w.id}`,
+      });
     });
   });
   linien.push({ gruppe: 'achse', stark: true, punkte: [[0, 0, 0], [m.L, 0, 0]],
                 label: 'Systemachse' });
 
-  // Stabmodell: die Bindebleche als Achsen, damit sich das Fachwerk auch ohne
-  // die Volumenkörper lesen lässt.
-  stationen.forEach((st) => {
+  // Die Bindebleche als Achsen - ebenfalls mit ihren eigenen Kennwerten, sonst
+  // wäre das Fachwerk halb eingefärbt und halb grau.
+  stationen.forEach((st, i) => {
     const aus = breiteAus('OG', st.x);
     const zU = zUnten + ugAnhebung(st.x);
     if (st.vertikal) {
-      [[yLinks - aus], [yRechts + aus]].forEach(([y]) => {
-        linien.push({ gruppe: 'stab', punkte: [[st.x, y, zU], [st.x, y, zOben]] });
+      [['V_L', yLinks - aus], ['V_R', yRechts + aus]].forEach(([id, y]) => {
+        linien.push({ gruppe: 'achse', blechachse: true, station: i,
+                      werte: kennwerte(i, id), label: `Blechachse ${id}`,
+                      punkte: [[st.x, y, zU], [st.x, y, zOben]] });
       });
     }
     if (st.horizontal) {
-      [zOben, zU].forEach((z) => {
-        linien.push({ gruppe: 'stab',
+      [['H_O', zOben], ['H_U', zU]].forEach(([id, z]) => {
+        linien.push({ gruppe: 'achse', blechachse: true, station: i,
+                      werte: kennwerte(i, id), label: `Blechachse ${id}`,
                       punkte: [[st.x, yLinks - aus, z], [st.x, yRechts + aus, z]] });
       });
     }
   });
 
-  // --- Auflager ------------------------------------------------------------
-  [0, m.L].forEach((x) => {
-    marken.push({ gruppe: 'marken', art: 'auflager', p: [x, 0, zu(x)],
-                  text: x === 0 ? 'A' : 'B' });
+  // --- Auflagerdefinition ---------------------------------------------------
+  // EIGENE EBENE, weil es eine eigene Frage ist. Die Auflagerbedingung war der
+  // grösste einzelne Fehler beim Nachbau eines geprüften FEM-Modells - eine
+  // geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um 5 %. Beides
+  // sieht man dem Ergebnis nicht an, wenn es nirgends steht. Hier steht es:
+  // wo das Auflager wirklich sitzt, wie steif es ist, worauf es steht.
+  //
+  // WO ES SITZT: nicht am Gurtende, sondern an der Mastachse. Bisher stand die
+  // Marke bei x = 0 und x = L - mit Kragarmen also am falschen Ort.
+  const xA = m.kragA ?? 0;
+  const xB = m.L - (m.kragB ?? 0);
+  const federn = m.federn ?? {};
+  const cText = (c) => (c >= 1e11 ? 'starr'
+    : !(c > 0) ? 'c_φ = 0' : `c_φ = ${Math.round(c)} kNm/rad`);
+
+  [['A', xA, federn.cA, m.kappaA, federn.mastA ?? federn.mast],
+   ['B', xB, federn.cB, m.kappaB, federn.mastB ?? federn.mast]].forEach(
+    ([name, x, cPhi, kappa, mast]) => {
+      const z0 = zu(x);
+      marken.push({ gruppe: 'auflager', art: 'auflager', p: [x, 0, z0], text: name });
+      // Der Mast als Stummel: seine wirkliche Breite, seine Stegrichtung, und
+      // unten der eingespannte Fuss. Gezeichnet wird nur ein Stück davon - die
+      // Aussage ist die Lagerung, nicht die Masthöhe.
+      const H = Math.min(mast?.H ?? 1.2, Math.max(0.8, (zOben - zUnten) * 2.5));
+      const halb = (mast ? (mast.stegrichtung?.achse === 'y'
+        ? mast.profil.b : mast.profil.h) : 160) / 2 * MM;
+      const zF = z0 - H;
+      [-halb, +halb].forEach((dy) => {
+        linien.push({ gruppe: 'auflager', mast: true,
+                      punkte: [[x, dy, z0], [x, dy, zF]] });
+      });
+      linien.push({ gruppe: 'auflager', mast: true,
+                    punkte: [[x, -halb, zF], [x, +halb, zF]] });
+      // Fussschraffur - der Mast ist am Fuss eingespannt.
+      for (let k = -2; k <= 2; k++) {
+        const y = (k / 2) * halb;
+        linien.push({ gruppe: 'auflager',
+                      punkte: [[x, y, zF], [x, y - 0.12 * halb, zF - 0.14 * H]] });
+      }
+      marken.push({ gruppe: 'auflager', art: 'auflagertext', p: [x, 0, zF],
+                    text: [
+                      mast ? `${mast.profil.name} · H ${mast.H.toFixed(2)} m` : null,
+                      cText(cPhi ?? 0),
+                      Number.isFinite(kappa)
+                        ? `Einspanngrad ${(100 * Math.max(0, Math.min(1, kappa))).toFixed(0)} %`
+                        : null,
+                    ].filter(Boolean).join(' · ') });
+    });
+
+  // Kragarme: die Strecke zwischen Gurtende und Auflager, damit sichtbar ist,
+  // dass die Stützweite kürzer ist als L.
+  [[0, xA], [xB, m.L]].forEach(([k0, k1]) => {
+    if (k1 - k0 < 1e-6) return;
+    linien.push({ gruppe: 'auflager', kragarm: true,
+                  punkte: [[k0, 0, zu(k0)], [k1, 0, zu(k1)]] });
   });
 
   // ==========================================================================
@@ -884,7 +952,7 @@ export class Modellansicht {
     this.projektion = 'perspektive';   // oder 'orthogonal'
     this.ebenen = { profil: true, blech: true, achse: true, last: true,
                     kraefte: false, masse: true, schnitt: true, raster: true,
-                    marken: true, stabmodell: false };
+                    marken: true, auflager: true };
     // Welche LASTARTEN gezeigt werden. Voreingestellt alle - wer eine
     // ausblendet, tut das absichtlich und soll das auch sehen.
     this.lastarten = Object.fromEntries(LASTARTEN.map((l) => [l.key, true]));
@@ -1410,8 +1478,6 @@ export class Modellansicht {
     // das, was den Bildlauf stocken liess.
     const liste = [];
     this.szene.flaechen.forEach((f) => {
-      // Stabmodell: nur Achsen und Lasten, keine Hüllkörper von Profil und Blech
-      if (this.ebenen.stabmodell && (f.gruppe === 'profil' || f.gruppe === 'blech')) return;
       if (!this.ebenen[f.gruppe]) return;
       if (!this._imFokus(f.xMitte)) return;
       const pts = f.punkte.map(proj);
@@ -1489,7 +1555,7 @@ export class Modellansicht {
 
     this._lastflaechen(c, proj, t);
     if (this.gruppen.resultate && this.ebenen.schnitt) this._schnittebene(c, proj, t);
-    if (this.gruppen.modell && (this.ebenen.achse || this.ebenen.stabmodell)) {
+    if (this.gruppen.modell && (this.ebenen.achse || this.ebenen.auflager)) {
       this._linien(c, proj, t);
     }
     this._vektoren(c, proj, t);
@@ -1675,20 +1741,29 @@ export class Modellansicht {
   _linien(c, proj, t) {
     c.strokeStyle = t.achse;
     this.szene.linien.forEach((l) => {
-      // Die Blechachsen gehören zum Stabmodell, die Schwerachsen zur Ebene 'achse'
-      if (l.gruppe === 'stab' && !this.ebenen.stabmodell) return;
-      if (l.gruppe === 'achse' && !this.ebenen.achse && !this.ebenen.stabmodell) return;
+      if (!this.ebenen[l.gruppe]) return;
+      // Beim Stationszoom bleibt eine Linie stehen, sobald IRGENDEIN Ende im
+      // Ausschnitt liegt - sonst verschwände die Systemachse, die von Ende zu
+      // Ende läuft und deren erster Punkt fast immer draussen liegt.
+      if (!l.punkte.some((q) => this._imFokus(q[0]))) return;
       const p = l.punkte.map(proj);
       if (p.some((q) => !q)) return;
-      const stab = l.gruppe === 'stab';
       const s = this._s;
-      // Gurtachsen sind Stäbe, keine Hilfslinien: ausgezogen, kräftig und im
-      // Plot in der Farbe ihres Gurtes - so liest sich das Stabmodell wie der
-      // Volumenkörper.
-      c.strokeStyle = l.gurt ? this._grundfarbe(l, t) : (stab ? t.blech : t.achse);
-      c.setLineDash(stab || l.stark ? [] : [7 * s, 3 * s, 2 * s, 3 * s]);
-      c.lineWidth = (l.gurt ? 2.2 : stab ? 1.6 : (l.stark ? 1.4 : 0.9)) * s;
-      c.globalAlpha = l.gurt ? 1 : (stab ? 0.95 : (l.stark ? 0.9 : 0.65));
+      // ACHSEN TRAGEN DIE FARBE DES RESULTATS - Gurt- wie Blechachsen, feldweise
+      // und mit denselben Kennwerten wie die Volumenkörper. Nur so ist das
+      // Bild ohne Körper dasselbe wie mit ihnen.
+      const traegt = l.gurt || l.blechachse;
+      if (l.gruppe === 'auflager') {
+        c.strokeStyle = l.kragarm ? t.acc : t.on2;
+        c.setLineDash(l.kragarm ? [6 * s, 4 * s] : []);
+        c.lineWidth = (l.mast ? 1.8 : 1.2) * s;
+        c.globalAlpha = l.kragarm ? 0.9 : 0.8;
+      } else {
+        c.strokeStyle = traegt ? this._grundfarbe(l, t) : t.achse;
+        c.setLineDash(traegt || l.stark ? [] : [7 * s, 3 * s, 2 * s, 3 * s]);
+        c.lineWidth = (l.gurt ? 2.2 : l.blechachse ? 1.6 : (l.stark ? 1.4 : 0.9)) * s;
+        c.globalAlpha = l.gurt ? 1 : (l.blechachse ? 0.95 : (l.stark ? 0.9 : 0.65));
+      }
       c.beginPath();
       p.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])));
       c.stroke();
@@ -1786,7 +1861,7 @@ export class Modellansicht {
       if (!p) return;
       // Auflager und Anbauteile stehen immer; sie sind wenige und tragen die
       // Orientierung im Bild.
-      const rang = mk.art === 'auflager' ? 1e9
+      const rang = mk.art === 'auflager' || mk.art === 'auflagertext' ? 1e9
         : mk.art === 'anbau' ? 1e8 + (mk.p[0] ?? 0)
         : mk.art === 'lastknoten' ? 1e7
         : (mk.eta ?? 0);
@@ -1797,12 +1872,24 @@ export class Modellansicht {
     let gesetzt = 0;
     sammlung.forEach(({ mk, p }) => {
       if (mk.art === 'auflager') {
-        c.fillStyle = t.dim;
+        c.fillStyle = t.on2;
         c.beginPath();
         c.moveTo(p[0], p[1]);
         c.lineTo(p[0] - 7 * s, p[1] + 12 * s); c.lineTo(p[0] + 7 * s, p[1] + 12 * s);
         c.closePath(); c.fill();
         c.fillText(mk.text ?? '', p[0] - 3 * s, p[1] + 26 * s);
+        return;
+      }
+      if (mk.art === 'auflagertext') {
+        // Die Lagerungsangaben unter dem Mastfuss. Mit Saum statt Kasten -
+        // ein Rahmen um eine Zeile wiegt schwerer als die Zeile selbst.
+        const b = this._textBreite(c, mk.text);
+        const bx = p[0] - b / 2, by = p[1] + 16 * s;
+        c.lineJoin = 'round';
+        c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
+        c.strokeText(mk.text, bx, by);
+        c.fillStyle = t.dim;
+        c.fillText(mk.text, bx, by);
         return;
       }
       if (mk.art === 'lastknoten') {

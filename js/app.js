@@ -1148,8 +1148,15 @@ function dialogTragwerkVorlage() {
 const WZ_MODELL = [
   { key: 'profil', icon: 'profil', text: 'Gurtprofile' },
   { key: 'blech', icon: 'blech', text: 'Bindebleche' },
-  { key: 'achse', icon: 'achse', text: 'Schwerachsen' },
-  { key: 'stabmodell', icon: 'stab', text: 'Stabmodell (ohne Körper)' },
+  // Die Schwerachsen SIND das Stabmodell: sie tragen feldweise dieselben
+  // Kennwerte wie die Volumenkörper und werden ebenso eingefärbt. Wer das
+  // Stabmodell allein sehen will, schaltet Gurtprofile und Bindebleche ab -
+  // ein eigener Schalter dafür sagte nichts, was diese beiden nicht schon
+  // sagen. Der Platz gehört jetzt der Auflagerdefinition, und die ist eine
+  // eigene Frage: sie war beim Nachbau eines geprüften FEM-Modells der
+  // grösste einzelne Fehler.
+  { key: 'achse', icon: 'achse', text: 'Schwerachsen (Stabmodell, eingefärbt)' },
+  { key: 'auflager', icon: 'stab', text: 'Auflager: Lage, Feder, Mast' },
   { key: 'masse', icon: 'mass', text: 'Bemassung' },
   { key: 'raster', icon: 'raster', text: 'Bodenraster' },
 ];
