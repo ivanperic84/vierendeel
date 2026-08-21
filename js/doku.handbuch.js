@@ -712,6 +712,41 @@ bei +10 bis +21 % liegt. Wer beide Gurte gleichzeitig auf der sicheren Seite
 haben will, wählt «einhüllend» – dessen Anteile ergänzen sich dann aber zu mehr
 als eins, das Blech bekommt also mehr als die Summe der Gurtmomente.</p>
 
+<h4>6.1.2 Eigenanteil der Gurte am globalen Moment</h4>
+<p>Der Rechenkern idealisiert das Joch als <b>Kräftepaar</b>: das globale
+Moment wird allein über die Normalkräfte der vier Winkel abgetragen. Das
+unterschlägt einen Term. Nach der Ebenbleibenshypothese trägt jeder Winkel das
+globale Moment auch über sein <b>eigenes</b> Trägheitsmoment mit:</p>
+
+${f(`I_ges = Σ ( A_i · e_i² ) + Σ I_i &nbsp;&nbsp;&nbsp;
+M_eigen,i = M_global · I_i / I_ges`)}
+
+<p>Der Anteil ist klein – beim nachgerechneten Signaljoch 1.0 % um die
+waagrechte und 1.5 % um die lotrechte Achse. Aber er läuft mit dem
+<b>globalen Moment</b> und nicht mit der Querkraft. In Feldmitte, wo die
+Querkraft und damit das örtliche Rahmenmoment gegen null gehen, ist er
+deshalb das <b>einzige</b> Moment im Gurt.</p>
+
+<p><b>Gemessen</b> am eingespannten Beispieljoch unter reiner Querlast,
+Grundrissmoment im Obergurtwinkel [kNm]:</p>
+
+<table class="dt">
+<tr><th>Station</th><th>4</th><th>8</th><th>12 (Feld)</th><th>20</th><th>24</th></tr>
+<tr><td>Stabwerk</td><td>0.328</td><td>0.288</td><td>0.197</td><td>0.285</td><td>0.386</td></tr>
+<tr><td>ohne den Term</td><td>0.291</td><td>0.167</td><td><b>0.056</b></td><td>0.167</td><td>0.291</td></tr>
+<tr><td>mit dem Term</td><td>0.364</td><td>0.283</td><td><b>0.195</b></td><td>0.283</td><td>0.364</td></tr>
+</table>
+
+<p>Über alle Stationen von <b>−43 %</b> auf <b>−4 %</b>, in Feldmitte von
+−72 % auf −1 %.</p>
+
+${q(`<b>Keine Abminderung auf den Anschnitt.</b> Der Eigenanteil folgt dem
+globalen Momentenverlauf und ist über eine Feldweite praktisch konstant –
+anders als das Rahmenmoment mit seinem Nulldurchgang in Feldmitte.
+<b>Die Normalkraft bleibt voll:</b> streng genommen trüge das Kräftepaar nur
+M·(1 − ΣI/I_ges), also 1 bis 1.5 % weniger. Das wird nicht abgezogen; die
+Summe liegt damit um diesen Betrag auf der sicheren Seite.`)}
+
 <h4>6.2 Steifer Knotenbereich – Abminderung am Anschnitt</h4>
 <p>Am Knoten überlappt das Bindeblech den Gurtwinkel und ist mit ihm
 verschweisst; über die Blechbreite b_Bl wirkt die Verbindung biegesteif.

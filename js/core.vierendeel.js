@@ -21,7 +21,8 @@ import { expandiereAnbauteile } from './data.anbauteile.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
          mastKoepfe } from './core.auflager.js';
-import { schnittAuswertung, ENDFELD_STATIONEN } from './core.querschnitt.js';
+import { schnittAuswertung, eigenanteil,
+         ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
          abstaendeFuer } from './data.tragjoche.js';
@@ -322,6 +323,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     knotenbereich: inp.knotenbereich ?? 'anschnitt',
     endfeldZuschlag: inp.endfeldZuschlag,
     schiefeBiegung: inp.schiefeBiegung !== false,
+
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
     profOG, profUG, stahl, joch,
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,
@@ -473,6 +475,8 @@ export function auswertungAn(x, m) {
 /** Vollständige Berechnung über alle Knoten. */
 export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
   const m = modell(inp, profOG, profUG, stahl, joch, massVariante);
+  // Eigenanteil der Gurte am globalen Moment - fuer Hinweise und Bericht.
+  m.eigenanteil = eigenanteil(m);
   const xs = knotenraster(m.L, m.a1, m.abstaende);
   const n = xs.length;
   const rows = xs.map((x, i) => knoten(x, m, i, n));

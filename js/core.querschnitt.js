@@ -454,6 +454,56 @@ export function ebenenQuerkraefte(sg, m, x = null) {
 }
 
 /**
+ * EIGENANTEIL DER GURTE AM GLOBALEN MOMENT.
+ *
+ * Der Rechenkern idealisiert das Joch als Kräftepaar: das globale Moment wird
+ * allein über die Normalkräfte der vier Winkel abgetragen, M_y/(2h) je Gurt.
+ * Das ist die Zwei-Gurt-Idealisierung, und sie unterschlägt einen Term.
+ *
+ * Nach der Ebenbleibenshypothese trägt jeder Winkel das globale Moment auch
+ * über sein EIGENES Trägheitsmoment mit:
+ *
+ *      I_ges = Σ ( A_i · e_i² )  +  Σ I_i          (Steiner + Eigenanteil)
+ *      M_eigen,i = M_global · I_i / I_ges
+ *
+ * Der Anteil ist klein - beim Signaljoch 1.0 % um die waagrechte und 1.5 % um
+ * die lotrechte Achse -, aber er läuft mit dem GLOBALEN Moment und nicht mit
+ * der Querkraft. In Feldmitte, wo die Querkraft und damit das örtliche
+ * Rahmenmoment gegen null gehen, ist er deshalb das EINZIGE Moment im Gurt.
+ *
+ * GEMESSEN am eingespannten Beispieljoch, reine Querlast, Feldmitte:
+ *
+ *      Rahmen (PyNite)   0.197 … 0.224 kNm je Obergurtwinkel
+ *      hergeleitet       177/(32 010 + 499) · 42 kNm = 0.229 kNm
+ *      Werkzeug bisher   0.056 kNm  (nur der Rest der Querkraft)
+ *
+ * Ohne den Term lag das Werkzeug in Feldmitte 72 % zu tief - auf der
+ * unsicheren Seite. Es ist derselbe Term, der die Horizontalbleche unter
+ * reiner Vertikallast trägt (siehe SCHIEFE_BIEGUNG, dort über I_yz).
+ *
+ * KEINE ABMINDERUNG AUF DEN ANSCHNITT: der Eigenanteil folgt dem globalen
+ * Momentenverlauf und ist über die Feldweite praktisch konstant, anders als
+ * das Rahmenmoment mit seinem Nulldurchgang in Feldmitte.
+ *
+ * @returns {{OG:{my:number, mz:number}, UG:{my:number, mz:number},
+ *            Iges_y:number, Iges_z:number}} Faktoren auf M_y bzw. M_z
+ */
+export function eigenanteil(m) {
+  const pO = m.profOG, pU = m.profUG;
+  const iy = (p) => (p.iy ** 2) * p.A;                    // [cm4]
+  const iz = (p) => ((p.iz ?? p.iy) ** 2) * p.A;
+  const eZ = (m.h / 2) * U.m__cm;                         // Hebel in z [cm]
+  const eY = (m.b / 2) * U.m__cm;                         // Hebel in y [cm]
+  const eigenY = 2 * iy(pO) + 2 * iy(pU);
+  const eigenZ = 2 * iz(pO) + 2 * iz(pU);
+  const Iges_y = 2 * pO.A * eZ ** 2 + 2 * pU.A * eZ ** 2 + eigenY;
+  const Iges_z = 2 * (pO.A + pU.A) * eY ** 2 + eigenZ;
+  const je = (p) => ({ my: Iges_y > 0 ? iy(p) / Iges_y : 0,
+                       mz: Iges_z > 0 ? iz(p) / Iges_z : 0 });
+  return { OG: je(pO), UG: je(pU), Iges_y, Iges_z, eigenY, eigenZ };
+}
+
+/**
  * Normalkräfte der vier Eckwinkel.
  *
  * Hauptbiegung M_y: Kräftepaar Obergurt/Untergurt im Abstand h. Die Gurtkraft
@@ -601,32 +651,45 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
   // Für Anzeige und Rückwärtsvergleich: der bisherige hälftige Wert.
   const My_Knoten = (q.vertikal.max / 2) * (aGurt / 2);
   const Mz_Knoten = (q.horizontal.max / 2) * (aGurt / 2);
+  // EIGENANTEIL AM GLOBALEN MOMENT (siehe eigenanteil()). Er folgt dem
+  // globalen Momentenverlauf, nicht der Querkraft, und bekommt deshalb keine
+  // Abminderung auf den Anschnitt.
+  const ea = eigenanteil(m);
+  const eaMy = { OG: Math.abs(sg.My ?? 0) * ea.OG.my,
+                 UG: Math.abs(sg.My ?? 0) * ea.UG.my };
+  const eaMz = { OG: Math.abs(sg.Mz ?? 0) * ea.OG.mz,
+                 UG: Math.abs(sg.Mz ?? 0) * ea.UG.mz };
   const My_lokal = My_Knoten * fMy;
   const Mz_lokal = Mz_Knoten * fMz;
-  const My_lokalG = { OG: My_KnotenG.OG * fMy, UG: My_KnotenG.UG * fMy };
+  const My_lokalG = { OG: My_KnotenG.OG * fMy + eaMy.OG,
+                      UG: My_KnotenG.UG * fMy + eaMy.UG };
+  const Mz_lokalG = { OG: Mz_Knoten * fMz + eaMz.OG,
+                      UG: Mz_Knoten * fMz + eaMz.UG };
 
   // --- Eckwinkel -----------------------------------------------------------
   const punkteModell = m.spannungsmodell === 'punkte';
   const ecken = eckNormalkraefte(sg, m).map((e) => {
     const p = e.gurt === 'OG' ? m.profOG : m.profUG;
     const myG = My_lokalG[e.gurt];
+    const mzG = Mz_lokalG[e.gurt];
     const sig_N = (Math.abs(e.N) * U.kN_cm2__N_mm2) / p.A;
     // Die beiden Anteile über W bleiben stehen: sie sind die verständliche
     // Zerlegung, die in Tabelle und Bericht gezeigt wird. Massgebend ist
     // je nach Modell ihre Summe oder die Randspannung an den Eckpunkten.
     const sig_My = (myG * U.kNm_cm3__N_mm2) / p.Wy;
-    const sig_Mz = (Mz_lokal * U.kNm_cm3__N_mm2) / p.Wz;
+    const sig_Mz = (mzG * U.kNm_cm3__N_mm2) / p.Wz;
     let sig_v = sig_N + sig_My + sig_Mz;
     let punkt = null;
     if (punkteModell) {
-      const r = randspannung(winkelwerteFuer(p), e.N, myG, Mz_lokal);
+      const r = randspannung(winkelwerteFuer(p), e.N, myG, mzG);
       sig_v = r.sig;
       punkt = r.punkt;
     }
     return {
       ...e, profil: p.name, A: p.A, Wy: p.Wy, Wz: p.Wz,
       art: e.N < 0 ? 'Druck' : 'Zug',
-      My_lokal: myG, Mz_lokal, gurtanteil: anteil[e.gurt],
+      My_lokal: myG, Mz_lokal: mzG, gurtanteil: anteil[e.gurt],
+      eigenMy: eaMy[e.gurt], eigenMz: eaMz[e.gurt],
       sig_N, sig_My, sig_Mz, sig_v, randpunkt: punkt,
       spannungsmodell: punkteModell ? 'punkte' : 'schenkel',
       eta: sig_v / m.fyd,
@@ -755,7 +818,8 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
     ? Math.max(...ebenen.filter((e) => e.eta !== null).map((e) => e.eta)) : 0;
 
   return {
-    q, My_lokal, Mz_lokal, My_Knoten, Mz_Knoten, My_KnotenG,
+    q, My_lokal, Mz_lokal, My_Knoten, Mz_Knoten, My_KnotenG, Mz_lokalG,
+    eigenanteil: ea, eigenMy: eaMy, eigenMz: eaMz,
     felder, aGurt, aBlech,
     anschnittMy: fMy, anschnittMz: fMz, ecken, ebenen,
     imEndfeld, endfeldFaktor: imEndfeld ? endfeldFaktor : 1,

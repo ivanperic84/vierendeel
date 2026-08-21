@@ -145,6 +145,19 @@ export function hinweise(m) {
     : 'Endfeldzuschlag auf die Bindebleche abgeschaltet: die örtliche '
       + 'Einleitung der Torsion in den Mast ist dann nicht erfasst.');
 
+  // EIGENANTEIL DER GURTE am globalen Moment.
+  if (m.eigenanteil) {
+    const e = m.eigenanteil;
+    h.push('Eigenanteil der Gurte ist erfasst: neben dem Kräftepaar trägt '
+      + 'jeder Winkel das globale Moment auch über sein eigenes '
+      + `Trägheitsmoment mit – zusammen ${(200 * (e.OG.my + e.UG.my)).toFixed(1)} % `
+      + `um die waagrechte und ${(200 * (e.OG.mz + e.UG.mz)).toFixed(1)} % um die `
+      + 'lotrechte Achse. Er folgt dem globalen Momentenverlauf und ist in '
+      + 'Feldmitte, wo die Querkraft null wird, das einzige Moment im Gurt. '
+      + 'Die Normalkraft wird dafür nicht vermindert – das liegt auf der '
+      + 'sicheren Seite.');
+  }
+
   // SCHIEFE BIEGUNG DER GURTWINKEL -> Moment in den Blechen der anderen Ebene.
   h.push(m.schiefeBiegung !== false
     ? 'Schiefe Biegung der Gurtwinkel ist erfasst: der Winkel weicht unter '

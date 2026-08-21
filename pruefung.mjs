@@ -3376,6 +3376,85 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
 }
 
 // ===========================================================================
+titel('29b Eigenanteil der Gurte am globalen Moment');
+// Die Zwei-Gurt-Idealisierung traegt das globale Moment allein ueber die
+// Normalkraefte ab. Nach der Ebenbleibenshypothese traegt jeder Winkel es
+// aber auch ueber sein EIGENES Traegheitsmoment mit - klein, aber es laeuft
+// mit dem GLOBALEN Moment und nicht mit der Querkraft. In Feldmitte, wo das
+// Rahmenmoment gegen null geht, ist es das einzige Moment im Gurt.
+{
+  const { eigenanteil } = await import(J('core.querschnitt.js'));
+  const P = getProfil('L 100x100x10'), Q = getProfil('L 80x80x8');
+  const m = { profOG: P, profUG: Q, h: 0.5492, b: 0.4508 };
+  const ea = eigenanteil(m);
+  const iy = (p) => p.iy ** 2 * p.A, iz = (p) => (p.iz ?? p.iy) ** 2 * p.A;
+
+  // I_ges = Steiner + Eigenanteil, in cm4
+  const eZ = 54.92 / 2, eY = 45.08 / 2;
+  pruef('I_ges um die waagrechte Achse', ea.Iges_y,
+        2 * P.A * eZ ** 2 + 2 * Q.A * eZ ** 2 + 2 * iy(P) + 2 * iy(Q), 1e-6, 'cm4');
+  pruef('I_ges um die lotrechte Achse', ea.Iges_z,
+        2 * (P.A + Q.A) * eY ** 2 + 2 * iz(P) + 2 * iz(Q), 1e-6, 'cm4');
+  pruef('Anteil des Obergurts an M_y', ea.OG.my, iy(P) / ea.Iges_y, 1e-12, '–');
+  pruef('Anteil des Untergurts an M_z', ea.UG.mz, iz(Q) / ea.Iges_z, 1e-12, '–');
+  wahr('Der steifere Gurt traegt mehr mit', ea.OG.my > ea.UG.my);
+  wahr('Zusammen sind es wenige Prozent',
+       2 * (ea.OG.my + ea.UG.my) < 0.05 && 2 * (ea.OG.mz + ea.UG.mz) < 0.05,
+       `${(200 * (ea.OG.my + ea.UG.my)).toFixed(1)} % / `
+       + `${(200 * (ea.OG.mz + ea.UG.mz)).toFixed(1)} %`);
+  // Gemessen am Rahmen: 177/(32010 + 499) · 42 kNm = 0.229 kNm je Obergurt
+  pruef('Trifft den gemessenen Rahmenwert', ea.OG.mz * 42, 0.229, 0.01, 'kNm');
+
+  // --- Im Rechenkern --------------------------------------------------------
+  // Reine Querlast: in Feldmitte geht die Querkraft gegen null, der
+  // Eigenanteil bleibt stehen.
+  const w = basis({ lastHerkunft: 'manuell', gkManuell: 0, skManuell: 0,
+                    wkManuell: 0.52, schneeAktiv: false, anbauteile: [],
+                    endbedingung: 'gelenkig',
+                    beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0, Leiterzug: 0 } });
+  const e = rechne(w);
+  const mitte = e.knoten[Math.floor(e.knoten.length / 2)];
+  const og = mitte.ecken.find((c) => c.id === 'OG_L');
+  wahr('In Feldmitte ist die Querkraft fast null', Math.abs(mitte.Vy) < 0.05,
+       `V_y = ${mitte.Vy.toFixed(4)} kN`);
+  wahr('Das Gurtmoment ist es NICHT', og.Mz_lokal > 0.02,
+       `M_z = ${og.Mz_lokal.toFixed(4)} kNm`);
+  pruef('Es ist genau der Eigenanteil', og.Mz_lokal, mitte.eigenMz.OG, 1e-9, 'kNm');
+  pruef('Und der folgt dem globalen Moment', mitte.eigenMz.OG,
+        Math.abs(mitte.Mz) * eigenanteil(e.modell).OG.mz, 1e-9, 'kNm');
+
+  // KEINE Anschnittabminderung: er laeuft mit dem globalen Verlauf.
+  const anschnitt = e.knoten[3];
+  const ogA = anschnitt.ecken.find((c) => c.id === 'OG_L');
+  pruef('Ohne Abminderung auf den Anschnitt',
+        ogA.Mz_lokal - anschnitt.Mz_Knoten * anschnitt.anschnittMz,
+        anschnitt.eigenMz.OG, 1e-9, 'kNm');
+
+  // Bei UNGLEICHEN Gurten bekommen sie verschiedene Anteile - vorher trugen
+  // alle vier Winkel dasselbe M_z. Bei gleichen Profilen bleibt es gleich.
+  const ug = mitte.ecken.find((c) => c.id === 'UG_L');
+  pruef('Gleiche Profile: gleicher Anteil', og.Mz_lokal, ug.Mz_lokal, 1e-12, 'kNm');
+  const un = rechne({ ...w, profOG: 'L 100x100x10', profUG: 'L 80x80x8' });
+  const m2 = un.knoten[Math.floor(un.knoten.length / 2)];
+  const o2 = m2.ecken.find((c) => c.id === 'OG_L');
+  const u2 = m2.ecken.find((c) => c.id === 'UG_L');
+  wahr('Ungleiche Gurte: der steifere traegt mehr mit',
+       o2.Mz_lokal > u2.Mz_lokal + 1e-6,
+       `${o2.Mz_lokal.toFixed(4)} gegen ${u2.Mz_lokal.toFixed(4)} kNm`);
+
+  // Ohne globales Moment kein Eigenanteil.
+  const leer = rechne({ ...w, wkManuell: 0 });
+  pruef('Ohne Last kein Eigenanteil',
+        leer.knoten[5].eigenMz.OG, 0, 1e-12, 'kNm');
+
+  const { hinweise: hw } = await import(J('core.checks.js'));
+  wahr('Der Term steht in den Hinweisen',
+       hw(e.modell).join(' | ').includes('Eigenanteil der Gurte'));
+  wahr('Das Modell weist die Anteile aus',
+       e.modell.eigenanteil && e.modell.eigenanteil.Iges_y > 0);
+}
+
+// ===========================================================================
 titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
 // Der Winkel hat seine Hauptachsen unter 45 Grad. Unter dem oertlichen
 // Rahmenmoment weicht er quer aus; die Bleche der ANDEREN Ebene halten
