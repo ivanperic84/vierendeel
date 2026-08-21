@@ -26,12 +26,25 @@ Das Skript startet AxisVM, legt ein **leeres** Modell an, liest die Namen der
 Objekte und Methoden aus und räumt wieder auf. Es öffnet, ändert und speichert
 keine Datei.
 
-Ergebnis: **`AxisVM_schnittstelle.txt`** neben dem Skript. Diese Datei
+Ergebnis: **`AxisVM_aufbau_bericht.txt`** neben dem Skript. Diese Datei
 zurückschicken — daraus entsteht die eigentliche Brücke.
 
-Falls nichts passiert: Windows blockiert PowerShell-Skripte standardmässig.
-Die `.cmd` umgeht das für diesen einen Aufruf (`-ExecutionPolicy Bypass`) und
-ändert nichts am Rechner.
+Windows blockiert PowerShell-Skripte standardmässig. Die `.cmd` umgeht das für
+diesen einen Aufruf (`-ExecutionPolicy Bypass`) und ändert nichts am Rechner;
+sie hebt ausserdem die Markierung «aus dem Internet» der Dateien daneben auf.
+
+### Wenn das Fenster sich sofort schliesst
+
+Sollte es doch einmal vorkommen — dann sind die beiden `.cmd` nicht im selben
+Ordner wie die `.ps1`. Dann von Hand, in einem **schon offenen** Fenster:
+
+```
+cd <Ordner>
+powershell -NoProfile -ExecutionPolicy Bypass -File AxisVM_aufbauen.ps1 -NurPruefen
+```
+
+So bleibt jede Meldung stehen. Der Verlauf steht zusätzlich in
+`AxisVM_aufbau_protokoll.txt`.
 
 ---
 

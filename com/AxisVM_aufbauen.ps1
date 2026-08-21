@@ -3,7 +3,7 @@
     ===========================================================================
     BAUT DAS TRAGJOCH IN AxisVM AUF - ueber die COM-Schnittstelle.
 
-    Gelesen wird die Datei aus «Ausleiten → JSON für die COM-Brücke»
+    Gelesen wird die Datei aus "Ausleiten -> JSON fuer die COM-Bruecke"
     (format: "tragjoch-stabmodell"). Geschrieben werden Material,
     Querschnitte, Knoten, Staebe, Auflager, Lastfaelle und Lasten. Gerechnet
     wird NICHT - das bleibt Ihre Entscheidung im Programm.
@@ -45,6 +45,31 @@ $bericht = Join-Path $PSScriptRoot 'AxisVM_aufbau_bericht.txt'
 $zeilen  = New-Object System.Collections.Generic.List[string]
 $gefunden = New-Object System.Collections.Generic.List[string]
 
+<#  LETZTES NETZ.
+    Reisst irgendwo etwas, das nicht vorgesehen war, so schliesst sich sonst
+    das Fenster, bevor man den Grund lesen kann. Diese Falle schreibt ihn in
+    den Bericht und haelt an.                                             #>
+trap {
+    $t = @(
+        ''
+        ('=' * 78)
+        'UNERWARTETER FEHLER - hier blieb es stehen:'
+        ('=' * 78)
+        "  $($_.Exception.Message)"
+        ''
+        "  Zeile:  $($_.InvocationInfo.ScriptLineNumber)"
+        "  Stelle: $($_.InvocationInfo.Line -replace '^\s+','')"
+        ''
+        $_.ScriptStackTrace
+    )
+    $t | ForEach-Object { Write-Host $_ }
+    try { ($zeilen + $t) | Set-Content -Path $bericht -Encoding UTF8
+          Write-Host ''; Write-Host "Bericht: $bericht"
+          Write-Host 'Diese Datei zurueckschicken.' } catch { }
+    Read-Host "`nWeiter mit Enter"
+    exit 9
+}
+
 function Schreib([string]$t) { Write-Host $t; $zeilen.Add($t) }
 function Abschnitt([string]$t) { Schreib ''; Schreib ('-' * 78); Schreib $t; Schreib ('-' * 78) }
 
@@ -76,7 +101,7 @@ function Versuche([string]$schritt, $kandidaten, [switch]$Leise) {
         } catch {
             if (-not $Leise) {
                 $m = $_.Exception.Message -replace "`r?`n", ' '
-                if ($m.Length -gt 90) { $m = $m.Substring(0, 90) + '…' }
+                if ($m.Length -gt 90) { $m = $m.Substring(0, 90) + '...' }
                 Schreib ("  {0,-34} {1}  ->  {2}" -f '', $k.name, $m)
             }
         }
@@ -110,7 +135,7 @@ if (-not $Json) {
     if ($kand.Count -eq 1) { $Json = $kand[0].FullName }
     elseif ($kand.Count -eq 0 -and -not $NurPruefen) {
         Beenden 1 ('Keine Modelldatei gefunden. Die JSON-Datei aus ' +
-                   '«Ausleiten → JSON für die COM-Brücke» neben dieses Skript legen.')
+                   '"Ausleiten -> JSON fuer die COM-Bruecke" neben dieses Skript legen.')
     } elseif (-not $NurPruefen) {
         Beenden 1 ("Mehrere JSON-Dateien daneben: $($kand.Name -join ', '). " +
                    'Mit -Json <datei> auswaehlen.')
@@ -124,8 +149,8 @@ if ($Json) {
     if ($d.format -ne 'tragjoch-stabmodell') {
         Beenden 1 "Die Datei hat das Format '$($d.format)', erwartet 'tragjoch-stabmodell'."
     }
-    Schreib ("  $($d.tragwerk.bezeichnung)  ·  $($d.knoten.Count) Knoten  ·  " +
-             "$($d.staebe.Count) Staebe  ·  $($d.querschnitte.Count) Querschnitte")
+    Schreib ("  $($d.tragwerk.bezeichnung)  -  $($d.knoten.Count) Knoten  -  " +
+             "$($d.staebe.Count) Staebe  -  $($d.querschnitte.Count) Querschnitte")
     Schreib ("  Einheiten: $($d.einheiten.laenge) / $($d.einheiten.kraft) / " +
              "$($d.einheiten.moment) / Drehfeder $($d.einheiten.drehfeder)")
 }
@@ -286,8 +311,8 @@ foreach ($a in $d.auflager) {
             $m.NodalSupports.Add($n, $rx, $ry, $rz, $mx, $my, $mz) } }
     )
     if (-not $r.ok) { Mitglieder 'NodalSupports' $m.NodalSupports; Beenden 7 'Auflager nicht anlegbar.' }
-    Schreib ("    $($a.ende): ux $($a.ux) · uy $($a.uy) · uz $($a.uz) · " +
-             "fix $($a.fix) · fiy $($a.fiy) c=$($a.cFiy_kNm) kNm/rad · fiz $($a.fiz)")
+    Schreib ("    $($a.ende): ux $($a.ux) - uy $($a.uy) - uz $($a.uz) - " +
+             "fix $($a.fix) - fiy $($a.fiy) c=$($a.cFiy_kNm) kNm/rad - fiz $($a.fiz)")
 }
 
 # --- 8 - Lastfaelle ----------------------------------------------------------
@@ -376,7 +401,7 @@ foreach ($q in $d.lasten.strecke) {
     }
     $nQ++; $erste = $false
 }
-Schreib "  $nP Punktlasten · $nM Punktmomente · $nQ Streckenlasten"
+Schreib "  $nP Punktlasten - $nM Punktmomente - $nQ Streckenlasten"
 
 # --- 10 - Sichern ------------------------------------------------------------
 Abschnitt '10 - Sichern'
@@ -393,7 +418,7 @@ Abschnitt 'Fertig'
 Schreib 'Das Modell steht. NICHT gerechnet - Lastkombinationen und Berechnung'
 Schreib 'bleiben Ihre Entscheidung im Programm.'
 Schreib ''
-Schreib 'Danach: Spannungen je Lastfall ausgeben (Blaetter «vm <Name>») und'
+Schreib 'Danach: Spannungen je Lastfall ausgeben (Blaetter "vm <Name>") und'
 Schreib '        python3 vergleich_axisvm.py <export.xlsx> vergleich_werkzeug.json'
 Schreib ''
 Schreib 'GEFUNDENE SCHREIBWEISEN - die traegt diese AxisVM-Fassung:'

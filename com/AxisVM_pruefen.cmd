@@ -1,9 +1,9 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem Startet AxisVM_pruefen.ps1 mit gelockerter Ausfuehrungsrichtlinie.
-rem Windows blockiert PowerShell-Skripte sonst standardmaessig; -ExecutionPolicy
-rem Bypass gilt NUR fuer diesen einen Aufruf und aendert nichts am Rechner.
+rem NUR ERKUNDEN - baut nichts, aendert nichts, speichert nichts.
 rem
-rem Doppelklick genuegt.
+rem Startet AxisVM, legt ein leeres Modell an, liest aus, welche COM-Objekte
+rem und Methoden DIESE Fassung anbietet, und raeumt wieder auf.
+rem Ergebnis: AxisVM_aufbau_bericht.txt daneben - diese Datei zurueckschicken.
 rem ---------------------------------------------------------------------------
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0AxisVM_pruefen.ps1"
+call "%~dp0AxisVM_aufbauen.cmd" -NurPruefen
