@@ -180,6 +180,43 @@ export function gurtanteile(m, art = 'gemessen') {
  * Das KNOTENMOMENT ist in beiden Fällen dasselbe; nur die Stelle, an der
  * nachgewiesen wird, ändert sich.
  */
+/**
+ * ENDFELDZUSCHLAG AUF DIE BINDEBLECHE.
+ *
+ * In den beiden Endfeldern geht die Torsion des Jochs über die Anschlussebenen
+ * in den Mast. Das ist eine ÖRTLICHE KRAFTEINLEITUNG, und ein Ersatzbalken
+ * kann sie nicht abbilden - er kennt nur den Rahmenanteil.
+ *
+ * GEMESSEN am Signaljoch (Wind quer, Moment im Vertikalblech, AxisVM gegen
+ * Werkzeug, von aussen nach innen):
+ *
+ *      Station      0.6 m   2.8 m   4.9 m   7.0 m
+ *      Verhältnis    2.71    1.72    1.43    0.96
+ *
+ * Der Überschuss klingt über rund drei Felder ab. Davon geht ein Teil auf das
+ * KNOTENMODELL: AxisVM rechnet Achse zu Achse, dieses Werkzeug weist am
+ * Anschnitt nach, und allein das trägt Faktor 1.3 bis 1.6. Bleibt für die
+ * Einleitung selbst rund 2.71/1.45 ≈ 1.9.
+ *
+ * NUR AUF DEN TORSIONSANTEIL. Der Überschuss stammt aus der Einleitung der
+ * TORSION in den Mast, nicht aus dem Rahmenanteil. Ein Joch ohne exzentrische
+ * Anbaulasten hat kaum Torsion - dort ist auch nichts zuzuschlagen. Angehoben
+ * wird deshalb nur der Anteil, der aus dem Torsionsschubfluss kommt:
+ *
+ *      M = M_Rahmen · ( 1 + (k_E − 1) · Anteil_Torsion / V_Ebene )
+ *
+ * >>> Angesetzt wird k_E = 2.0 auf die Bleche der beiden ÄUSSERSTEN Stationen
+ * je Ende. Das ist eine Festlegung des Nachweises, gestützt auf EIN Modell und
+ * EINE Lastanordnung - keine hergeleitete Grösse. Abschaltbar. <<<
+ *
+ * In Feldmitte stimmen Werkzeug, PyNite-Rahmen und AxisVM überein
+ * (0.26 / 0.23 / 0.10 kNm) - dort ist nichts zuzuschlagen.
+ */
+export const ENDFELD_ZUSCHLAG = 2.0;
+
+/** So viele Stationen je Jochende gelten als Endfeld. */
+export const ENDFELD_STATIONEN = 2;
+
 export const KNOTENBEREICHE = [
   { key: 'anschnitt',
     label: 'steif, Nachweis am Anschnitt (Nachweisgrundlage)' },
@@ -395,7 +432,8 @@ export function nachbarfeldweiten(m, x) {
  * @param {object} m  Modell
  * @param {object} bleche {vertikal, horizontal} Blechdaten an dieser Station
  */
-export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
+export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
+                                  imEndfeld = false) {
   const q = ebenenQuerkraefte(sg, m, x);
   const a1 = m.a1eff ?? m.a1;
 
@@ -447,6 +485,8 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
   // In der Vertikalebene stehen OG und UG nebeneinander und teilen die
   // Querkraft nach Steifigkeit; in der Horizontalebene sind es zwei gleiche
   // Gurte, dort bleibt es hälftig.
+  const endfeldFaktor = m.endfeldZuschlag === false
+    ? 1 : (Number.isFinite(m.endfeldZuschlag) ? m.endfeldZuschlag : ENDFELD_ZUSCHLAG);
   const anteil = gurtanteile(m, m.gurtaufteilung ?? 'gemessen');
   const My_KnotenG = { OG: q.vertikal.max * anteil.OG * (aGurt / 2),
                        UG: q.vertikal.max * anteil.UG * (aGurt / 2) };
@@ -507,7 +547,7 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
    * Schwerachse - im Überlappungsbereich ist es mit dem Gurt verschweisst und
    * wirkt dort biegesteif (siehe unten).
    */
-  const blechNachweis = (art, blech, V_Ebene, hebelarm) => {
+  const blechNachweis = (art, blech, V_Ebene, hebelarm, anteilTorsion = 0) => {
     if (!blech) return null;
     const breite = blech.breite;      // Abmessung entlang der Jochachse [mm]
     const dicke = blech.dicke;
@@ -536,7 +576,13 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
     const steif = Math.max(0, (hebelarm - Lc) / 2);              // [m] je Ende
     const faktor = steifeKnoten && hebelarm > 0
       ? Math.min(1, Lc / hebelarm) : 1;
-    const M = M_K * faktor;                                      // [kNm] am Anschnitt
+    // ENDFELD: örtliche Einleitung der TORSION in den Mast (siehe
+    // ENDFELD_ZUSCHLAG). Angehoben wird nur der Torsionsanteil, nicht der
+    // Rahmenanteil - und nur das Moment; die Querkraft folgt dem Rahmen.
+    const tAnteil = V_Ebene > 0
+      ? Math.max(0, Math.min(1, Math.abs(anteilTorsion) / V_Ebene)) : 0;
+    const zu = imEndfeld ? 1 + (endfeldFaktor - 1) * tAnteil : 1;
+    const M = M_K * faktor * zu;                                 // [kNm] am Anschnitt
 
     const W = (dicke * breite * breite) / RECHTECK.W_NENNER;     // [mm3]
     const A = dicke * breite;                                    // [mm2]
@@ -546,8 +592,11 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
     return {
       art, pos: blech.pos, breite, dicke, laenge: blech.laenge,
       V_Ebene, nachbarfelder, aBlech,
+      // M_Knoten bleibt der reine Rahmenwert - der Endfeldzuschlag steckt
+      // in M und wird daneben eigens ausgewiesen.
       M_Knoten: M_K, M, V, W, A, sig, tau, sig_v, eta: sig_v / m.fyd,
       hebelarm, lichteLaenge: Lc, steifeLaenge: steif, abminderung: faktor,
+      endfeld: imEndfeld, endfeldFaktor: zu, torsionsanteil: tAnteil,
     };
   };
 
@@ -555,7 +604,8 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
     const istVert = e.art === 'vertikal';
     const je = q.jeEbene[e.id];
     const blech = istVert ? bleche?.vertikal : bleche?.horizontal;
-    const nw = blechNachweis(e.art, blech, je.V_Ebene, istVert ? m.h : m.b);
+    const nw = blechNachweis(e.art, blech, je.V_Ebene, istVert ? m.h : m.b,
+                             je.anteilTorsion);
     return { ...e, ...je, ...(nw ?? { eta: null }), blechFehlt: !nw };
   });
 
@@ -567,6 +617,7 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
     q, My_lokal, Mz_lokal, My_Knoten, Mz_Knoten,
     felder, aGurt, aBlech,
     anschnittMy: fMy, anschnittMz: fMz, ecken, ebenen,
+    imEndfeld, endfeldFaktor: imEndfeld ? endfeldFaktor : 1,
     massgebendeEcke: ecken.reduce((a, b) => (b.eta > a.eta ? b : a)),
     massgebendeEbene: ebenen.filter((e) => e.eta !== null)
       .reduce((a, b) => (b.eta > a.eta ? b : a), { eta: -1 }),

@@ -781,6 +781,32 @@ Festlegung, nicht an einer Rechnung – deshalb steht er hier und nicht im
 Kleingedruckten. Am nachgerechneten Signaljoch trug allein diese Frage
 Faktor 1.3 bis 1.6 auf die Blechmomente.`)}
 
+<h4>6.2.2 Endfeldzuschlag – die örtliche Einleitung der Torsion</h4>
+<p>In den beiden Endfeldern geht die Torsion des Jochs über die Anschlussebenen
+in den Mast. Das ist eine <b>örtliche Krafteinleitung</b>, und ein Ersatzbalken
+kann sie nicht abbilden – er kennt nur den Rahmenanteil. Gemessen am
+Signaljoch, Moment im Vertikalblech unter Wind quer, Vergleichsmodell gegen
+Werkzeug, von aussen nach innen:</p>
+
+${f(`Station&nbsp;&nbsp;&nbsp; 0.6 m&nbsp;&nbsp; 2.8 m&nbsp;&nbsp; 4.9 m&nbsp;&nbsp; 7.0 m<br>
+Verhältnis&nbsp; 2.71&nbsp;&nbsp;&nbsp; 1.72&nbsp;&nbsp;&nbsp; 1.43&nbsp;&nbsp;&nbsp; 0.96`)}
+
+<p>Der Überschuss klingt über rund drei Felder ab. Davon geht Faktor 1.3 bis
+1.6 auf das <b>Knotenmodell</b> des Vergleichsmodells (Abschnitt 6.2.1);
+bleibt für die Einleitung selbst rund 1.9. Angesetzt wird</p>
+
+${f(`M = M_Rahmen · ( 1 + (k_E − 1) · Anteil_Torsion / V_Ebene )&nbsp;&nbsp;&nbsp; k_E = 2.0`)}
+
+<p>auf die Bleche der beiden äussersten Stationen je Ende. <b>Nur auf den
+Torsionsanteil</b> – daher stammt der Überschuss. Ein Joch ohne exzentrische
+Anbaulasten hat kaum Torsion und bleibt unberührt; nur das Moment wird
+angehoben, die Querkraft folgt dem Rahmen.</p>
+
+${q(`Eine Festlegung des Nachweises, gestützt auf <b>ein</b> Modell und
+<b>eine</b> Lastanordnung – keine hergeleitete Grösse. In Feldmitte stimmen
+Werkzeug, Rahmenmodell und Vergleichsmodell überein (0.26 / 0.23 / 0.10 kNm);
+dort ist nichts zuzuschlagen. Über den Optionswert 1.0 abschaltbar.`)}
+
 <h4>6.3 Nachweis des Bindeblechs</h4>
 <p>Am Rahmenknoten treffen die Gurtmomente der angrenzenden Felder zusammen; das
 Blech muss ihre Summe aufnehmen. Aus seinem eigenen Gleichgewicht – doppelte

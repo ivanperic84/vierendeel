@@ -22,7 +22,7 @@ import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
          mastNachweis, mastKopfdrehung,
          mastVerdrehung } from './core.auflager.js';
-import { schnittAuswertung } from './core.querschnitt.js';
+import { schnittAuswertung, ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
          abstaendeFuer } from './data.tragjoche.js';
@@ -293,6 +293,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     gurtaufteilung: inp.gurtaufteilung ?? 'gemessen',
     spannungsmodell: inp.spannungsmodell ?? 'schenkel',
     knotenbereich: inp.knotenbereich ?? 'anschnitt',
+    endfeldZuschlag: inp.endfeldZuschlag,
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
     profOG, profUG, stahl, joch,
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,
@@ -362,7 +363,9 @@ export function knoten(x, m, i, n) {
   const mx = hLokal === m.h && bLokal === m.b
     ? m : { ...m, h: hLokal, jd: jdLokal, b: bLokal,
             jbbOG: wLokal.og, jbbUG: wLokal.ug };
-  const a = schnittAuswertung(sg, mx, bleche, nachbarfelder, x);
+  // Endfeld: die beiden äussersten Stationen je Ende (core.querschnitt.js).
+  const imEndfeld = i < ENDFELD_STATIONEN || i >= n - ENDFELD_STATIONEN;
+  const a = schnittAuswertung(sg, mx, bleche, nachbarfelder, x, imEndfeld);
 
   const gurt = (g) => a.ecken.filter((e) => e.gurt === g)
     .reduce((p, c) => (c.eta > p.eta ? c : p));

@@ -186,7 +186,7 @@ const VORLAGE_AUS = [
   'typ', 'profOG', 'profUG', 'stahl', 'massVariante', 'blechQuelle',
   'endbedingung', 'mastProfil', 'mastSteg', 'wMast', 'wMastAusTabelle',
   'mastWindAufJoch', 'wMastQuer', 'kragA', 'kragB',
-  'torsionModell', 'torsionsverteilung', 'knotenbereich',
+  'torsionModell', 'torsionsverteilung', 'knotenbereich', 'endfeldZuschlag',
   'trasseRadius', 'flSpannweite',
   'anbauteile', 'eigeneVorlagen', 'generator',
   'lastHerkunft', 'windKlasse', 'schneeAktiv', 'schneeKlasse', 'gZusatz',

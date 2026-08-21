@@ -397,6 +397,26 @@ export const FELDER = [
            + 'Nachweisgrundlage. Der Unterschied beträgt 11 bis 15 % auf die '
            + 'Ausnutzung; das Knotenmoment selbst ist in beiden Fällen '
            + 'dasselbe.' },
+  // In den Endfeldern geht die Torsion über die Anschlussebenen in den Mast -
+  // eine örtliche Krafteinleitung, die der Ersatzbalken nicht führt.
+  { key: 'endfeldZuschlag', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
+    label: 'Endfeldzuschlag Bindebleche', sym: 'k_E', einheit: '–',
+    standard: 2.0, schritt: 0.1, min: 1,
+    hinweis: 'In den beiden Endfeldern geht die Torsion des Jochs über die '
+           + 'Anschlussebenen in den Mast. Diese örtliche Krafteinleitung '
+           + 'kann ein Ersatzbalken nicht abbilden – er kennt nur den '
+           + 'Rahmenanteil. Am nachgerechneten Signaljoch lag das Moment im '
+           + 'Vertikalblech an der äussersten Station um Faktor 2.7 über der '
+           + 'Rechnung, nach innen abklingend (1.7 · 1.4 · 1.0). Rund 1.45 '
+           + 'davon geht auf das Knotenmodell des Vergleichsmodells, bleibt '
+           + 'etwa 1.9 für die Einleitung. Angesetzt werden 2.0 auf die '
+           + 'Bleche der beiden äussersten Stationen je Ende – und zwar NUR '
+           + 'auf den Torsionsanteil ihrer Beanspruchung, denn daher stammt '
+           + 'der Überschuss. Ein Joch ohne exzentrische Anbaulasten hat kaum '
+           + 'Torsion und bleibt unberührt. In Feldmitte stimmen alle Modelle '
+           + 'überein – dort wird ohnehin nichts zugeschlagen. Eine '
+           + 'Festlegung des Nachweises, gestützt auf ein Modell; mit 1.0 '
+           + 'abgeschaltet.' },
   { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Spannung im Winkel',
     standard: 'schenkel', optionen: opt(SPANNUNGSMODELLE),

@@ -555,9 +555,15 @@ titel('12  Altbauweise – verjüngte Enden');
   // Hebelarm im Endbereich grösser ist
   const eNeu = rechne(basis({ typ: 'J100', L: 25, jd: 600, jbbOG: 600, jbbUG: 560,
                               profOG: 'L 100x100x10', profUG: 'L 80x80x8', a1: 0.75 }));
-  wahr('Verjüngtes Joch nicht günstiger als das durchgehende',
-       e.max.etaGesamt >= eNeu.max.etaGesamt - 1e-9,
-       `alt η = ${e.max.etaGesamt.toFixed(3)}, neu η = ${eNeu.max.etaGesamt.toFixed(3)}`);
+  // Verglichen wird die Ausnutzung der GURTE: darum geht es hier, der
+  // Hebelarm im Endbereich ist kleiner und die Gurtkräfte deshalb grösser.
+  // Über η_gesamt liefe der Vergleich an den Blechen, und die hängen am
+  // Endfeldzuschlag und an der Blechgrösse des jeweiligen Typs - das ist eine
+  // andere Frage.
+  const etaGurt = (r) => Math.max(...r.knoten.map((k) => k.etaL));
+  wahr('Verjüngtes Joch: die Gurte sind ungünstiger als beim durchgehenden',
+       etaGurt(e) >= etaGurt(eNeu) - 1e-9,
+       `alt η_L = ${etaGurt(e).toFixed(3)}, neu η_L = ${etaGurt(eNeu).toFixed(3)}`);
 
   // Alle sieben Typen rechnen über ihren ganzen Längenbereich
   let ok = true, meldung = '';
@@ -2152,10 +2158,23 @@ titel('19  AxisVM-Export (SAF)');
   pruef('F_z zeigt in SAF nach oben, also negativ', summe('G', 'Z'), -3, 1e-9, 'kN');
   pruef('F_y bleibt unverändert', summe('WindY', 'Y'), 4, 1e-9, 'kN');
   const je = (k) => l.strecke.filter((q) => q.lastfall === k);
-  wahr('Jede Laufmeterlast läuft auf allen vier Gurten',
-       je('G').length === je('WindY').length && je('G').length === je('Schnee').length,
-       `${je('G').length} Stäbe je Gruppe`);
-  pruef('Streckenlast je Gurt ist ein Viertel', je('G')[0].wert, -0.6 / 4, 1e-9, 'kN/m');
+  const gurteVon = (k) => new Set(je(k).map((q) => q.stab.split('_')[0]));
+  // Das EIGENGEWICHT schreibt der Export nicht mehr: das Rechenprogramm
+  // ermittelt es aus den Stäben. Nur ein Zuschlag geht hinaus.
+  wahr('Eigengewicht wird nicht als Streckenlast geschrieben',
+       je('G').length === 0, `${je('G').length} Einträge`);
+  // Schnee liegt oben, hälftig auf die beiden OBERGURTE.
+  pruef('Schnee auf zwei Gurte', gurteVon('Schnee').size, 2, 1e-12, 'Gurte');
+  wahr('Schnee nur auf den Obergurten',
+       [...gurteVon('Schnee')].every((g) => g.startsWith('OG')),
+       [...gurteVon('Schnee')].join(' '));
+  pruef('Schnee je Gurt die Hälfte', je('Schnee')[0].wert, -0.30 / 2, 1e-9, 'kN/m');
+  // Wind quer hälftig auf EINEN Ober- und EINEN Untergurt derselben Seite:
+  // die Resultierende liegt damit auf halber Höhe, es entsteht keine Torsion.
+  pruef('Wind auf zwei Gurte', gurteVon('WindY').size, 2, 1e-12, 'Gurte');
+  wahr('Wind auf je einen Ober- und Untergurt derselben Seite',
+       [...gurteVon('WindY')].sort().join(' ') === 'OGL UGL');
+  pruef('Wind je Gurt die Hälfte', je('WindY')[0].wert, 0.50 / 2, 1e-9, 'kN/m');
   wahr('Schnee wird nur bei eingeschaltetem Schnee ausgegeben',
        AX.lasten(modell({ ...eingabe, schneeAktiv: false }, deps.profOG, deps.profUG,
                         deps.stahl, deps.joch),
@@ -2934,6 +2953,68 @@ titel('28  Knotenbereich: steif oder Achse zu Achse');
   // Blechmomente; hier reicht die Richtung als Prüfung.
   wahr('Der Unterschied ist erheblich, nicht kosmetisch',
        b.max.etaGesamt / a.max.etaGesamt > 1.05);
+}
+
+// ===========================================================================
+titel('29  Endfeldzuschlag auf die Bindebleche');
+// In den Endfeldern geht die Torsion über die Anschlussebenen in den Mast.
+// Diese örtliche Einleitung führt der Ersatzbalken nicht; am Vergleichsmodell
+// lag das Blechmoment aussen um Faktor 2.7 höher, nach innen abklingend.
+{
+  const { ENDFELD_ZUSCHLAG, ENDFELD_STATIONEN } = await import(J('core.querschnitt.js'));
+  const j90 = T.getTragjoch('J90');
+  const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j90),
+               typ: 'J90', L: 15.5, schneeAktiv: false, anbauteile: [],
+               endbedingung: 'gelenkig', torsionModell: 'huellkurve' };
+  const mit = rechne(e0);
+  const ohne = rechne({ ...e0, endfeldZuschlag: 1 });
+
+  pruef('Vorgabe ist 2.0', ENDFELD_ZUSCHLAG, 2.0, 1e-12);
+  pruef('Zwei Stationen je Ende', ENDFELD_STATIONEN, 2, 1e-12);
+
+  const bl = (r, i) => r.knoten[i].ebenen.find((x) => x.art === 'vertikal');
+  const n = mit.knoten.length;
+  [0, 1, n - 2, n - 1].forEach((i) => {
+    wahr(`Station ${i} liegt im Endfeld`, mit.knoten[i].imEndfeld === true);
+  });
+  const innen = Math.floor(n / 2);
+  wahr('Feldmitte liegt nicht im Endfeld', mit.knoten[innen].imEndfeld === false);
+  pruef('In Feldmitte bleibt alles, wie es war',
+        bl(mit, innen).M, bl(ohne, innen).M, 1e-12, 'kNm');
+
+  // OHNE TORSION KEIN ZUSCHLAG. Dieses Joch trägt keine exzentrischen
+  // Anbaulasten; sein Torsionsanteil ist null, also ändert sich nichts.
+  pruef('Ohne Torsion greift der Zuschlag nicht',
+        bl(mit, 1).endfeldFaktor, 1, 1e-9);
+  pruef('… und das Moment bleibt', bl(mit, 1).M, bl(ohne, 1).M, 1e-12, 'kNm');
+
+  // MIT exzentrischer Anbaulast: dort wirkt er, und zwar anteilig.
+  const mitTorsion = { ...e0, torsionModell: 'verteilt',
+    anbauteile: [teil({ id: 'S', x: 7.75, befestigung: 'durchgehend',
+      lasten: [block({ einwirkung: 'WindY', x: 0, z: -1.5, Fy: 3 })] })] };
+  const t1 = rechne(mitTorsion);
+  const t0 = rechne({ ...mitTorsion, endfeldZuschlag: 1 });
+  const b1 = bl(t1, 1), b0 = bl(t0, 1);
+  wahr('Mit Torsion wird der Zuschlag wirksam', b1.endfeldFaktor > 1.05,
+       `Faktor ${b1.endfeldFaktor.toFixed(3)}, Torsionsanteil `
+       + `${(100 * b1.torsionsanteil).toFixed(0)} %`);
+  wahr('Er bleibt unter dem vollen Wert, solange nicht alles Torsion ist',
+       b1.endfeldFaktor <= ENDFELD_ZUSCHLAG + 1e-9);
+  pruef('Das Moment folgt genau dem Faktor', b1.M, b0.M * b1.endfeldFaktor, 1e-9, 'kNm');
+  // Die QUERKRAFT folgt dem Rahmen und wird nicht angehoben.
+  pruef('Die Blechquerkraft bleibt unberührt', b1.V, b0.V, 1e-12, 'kN');
+  pruef('M_Knoten bleibt der Rahmenwert', b1.M_Knoten, b0.M_Knoten, 1e-12, 'kNm');
+  // Auf η_gesamt muss sich das NICHT auswirken: massgebend kann eine Station
+  // in Feldmitte bleiben. Nachgewiesen wird die Wirkung dort, wo sie hingehört.
+  wahr('Die Ausnutzung des Endfeldblechs steigt',
+       t1.knoten[1].etaB > t0.knoten[1].etaB);
+  wahr('Und sie sinkt nirgends',
+       t1.knoten.every((k, i) => k.etaB >= t0.knoten[i].etaB - 1e-12));
+  const { hinweise: hw2 } = await import(J('core.checks.js'));
+  wahr('Der Zuschlag steht in den Hinweisen',
+       hw2(mit.modell).join(' | ').includes('äussersten Stationen'));
+  wahr('Abgeschaltet wird das ebenfalls vermerkt',
+       hw2(ohne.modell).join(' | ').includes('abgeschaltet'));
 }
 
 // ===========================================================================

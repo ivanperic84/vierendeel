@@ -134,6 +134,17 @@ export function hinweise(m) {
       + '15 % höher. Nachweisgrundlage ist der steife Knotenbereich.');
   }
 
+  const kE = m.endfeldZuschlag === false ? 1
+    : (Number.isFinite(m.endfeldZuschlag) ? m.endfeldZuschlag : 2.0);
+  h.push(kE > 1
+    ? `Bindebleche der beiden äussersten Stationen je Ende: Torsionsanteil `
+      + `mit Faktor ${kE.toFixed(1)} angesetzt. Dort geht die Torsion über `
+      + 'die Anschlussebenen in den Mast, und diese örtliche Einleitung führt '
+      + 'der Ersatzbalken nicht. Am Vergleichsmodell gemessen 2.7, nach innen '
+      + 'abklingend. Ohne Torsion bleibt der Zuschlag wirkungslos.'
+    : 'Endfeldzuschlag auf die Bindebleche abgeschaltet: die örtliche '
+      + 'Einleitung der Torsion in den Mast ist dann nicht erfasst.');
+
   // --- AUFLAGER: die Zahlen, an denen ein Eingabefehler auffällt ------------
   // Beim Nachbau eines geprüften FEM-Modells lagen genau hier die grössten
   // Fehler - eine geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um

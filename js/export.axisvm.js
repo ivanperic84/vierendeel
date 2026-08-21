@@ -346,18 +346,39 @@ export function lasten(m, bau) {
   const gurte = [];
   ['OG', 'UG'].forEach((g) => ['L', 'R'].forEach((se) => gurte.push(`${g}${se}`)));
 
-  // Laufmeterlasten des Jochs: gleichmässig auf die vier Gurte.
+  // LAUFMETERLASTEN DES JOCHS - wohin sie gehören.
+  //
+  // EIGENGEWICHT wird NICHT als Streckenlast geschrieben. Das Rechenprogramm
+  // ermittelt es aus den Stäben selbst (Querschnitt × Wichte); beides
+  // anzusetzen zählte es doppelt. Ausgegeben wird nur ein allfälliger
+  // ZUSCHLAG (gZusatz) - was an Anbauten pauschal dazugerechnet wird und in
+  // keinem Stab steckt.
+  //
+  // >>> Damit ist das Eigengewicht im Modell das des Modells, nicht das der
+  // Sortimentstabelle. Die beiden weichen ab: der parametrische Winkel wird
+  // ohne Ausrundungsradien gebaut und ist rund 2 % leichter, und die
+  // Anschlussbleche der Zeichnung stecken in keinem Stab. Wer die Tabelle
+  // treffen will, setzt die Differenz als Zuschlag an. <<<
+  //
+  // SCHNEE liegt oben: hälftig auf die beiden OBERGURTE.
+  // WIND quer greift an der ganzen Ansichtsfläche an: hälftig auf EINEN Ober-
+  // und EINEN Untergurt derselben Seite. Damit liegt die Resultierende auf
+  // halber Höhe, und es entsteht - wie im Rechenkern angenommen - KEINE
+  // Torsion aus der Laufmeterlast des Jochs.
+  const gZusatz = m.char?.herkunft?.gZusatz ?? 0;
   const verteilt = [
-    { gruppe: 'G', richtung: 'Z', wert: -(m.char?.gk ?? 0) },
-    { gruppe: 'WindY', richtung: 'Y', wert: +(m.char?.wk ?? 0) },
-    { gruppe: 'Schnee', richtung: 'Z', wert: -(m.schneeAktiv ? (m.char?.sk ?? 0) : 0) },
+    { gruppe: 'G', richtung: 'Z', wert: -gZusatz, auf: ['OGL', 'OGR', 'UGL', 'UGR'] },
+    { gruppe: 'WindY', richtung: 'Y', wert: +(m.char?.wk ?? 0), auf: ['OGL', 'UGL'] },
+    { gruppe: 'Schnee', richtung: 'Z',
+      wert: -(m.schneeAktiv ? (m.char?.sk ?? 0) : 0), auf: ['OGL', 'OGR'] },
   ];
   verteilt.forEach((v) => {
     if (!v.wert) return;
-    bau.staebe.filter((stab) => gurte.some((g) => stab.name.startsWith(`${g}_S`)))
+    const anteil = v.wert / v.auf.length;
+    bau.staebe.filter((stab) => v.auf.some((g) => stab.name.startsWith(`${g}_S`)))
       .forEach((stab, i) => {
         strecke.push({ name: `Q_${v.gruppe}_${i}`, stab: stab.name,
-                       richtung: v.richtung, wert: r6(v.wert / 4),
+                       richtung: v.richtung, wert: r6(anteil),
                        lastfall: v.gruppe });
       });
   });
