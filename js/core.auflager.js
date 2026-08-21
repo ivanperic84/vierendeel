@@ -106,6 +106,56 @@ export function biegesteifigkeitJoch(h, pOG, pUG) {
  * Am verjüngten Ende steht dem Stützmoment nur der kleine Hebelarm gegenüber,
  * dort ist die steifere Annahme die ungünstigere.
  */
+/**
+ * VERSCHIEBLICH ODER NICHT - DER GRÖSSTE EINZELNE FEHLER DIESER FEDER.
+ *
+ * c_φ = E·I/H ist die Drehsteifigkeit eines Kragmastes, dessen Kopf sich frei
+ * VERSCHIEBEN kann. Ein Joch steht aber auf ZWEI Masten und bindet ihre Köpfe
+ * zusammen. Unter symmetrischer Vertikallast entstehen an beiden Enden
+ * gleichsinnige Stützmomente; die Querkräfte der beiden Maste heben sich auf,
+ * und der Rahmen verschiebt sich NICHT. Dann gilt nicht der Kragmast, sondern
+ * der unverschiebliche Stab:
+ *
+ *      verschieblich      c = 1.0 · E·I/H
+ *      unverschieblich    c = 4.0 · E·I/H       (Lehrbuch, Drehwinkelverfahren)
+ *
+ * GEMESSEN an zwei ganz verschiedenen Rahmen (PyNite, beide Maste
+ * ausmodelliert, Füsse eingespannt, Joch an beiden Ebenen angeschlossen):
+ *
+ *   Signaljoch  18.935 m, HEB 260 / 7.8 m gegen HEM 240 / 12.0 m,
+ *               Anschluss mit den wirklichen Federn
+ *               θ = 272.5 µrad bei M = 3.28 kNm  ->  c = 12 030  =  3.11 · E·I/H
+ *   J90         15.5 m, zwei gleiche HEB 260 / 7.5 m
+ *               θ = 358.8 µrad bei M = 4.63 kNm  ->  c = 12 906  =  3.09 · E·I/H
+ *
+ * Zwei Spannweiten, zwei Mastpaare, gleiche und ungleiche Enden - und
+ * derselbe Faktor. Er liegt unter dem Lehrbuchwert 4.00, weil das Joch steif,
+ * aber nicht starr ist. Gerechnet wird mit dem gemessenen Wert.
+ *
+ * DAMIT ÜBERHOLT ist die frühere Kalibrierung des Anschlussfaktors (1.37 für
+ * den Punktanschluss, 1.45 über die Jochhöhe). Sie stammt aus einem Modell,
+ * dessen Jochende sich VERSCHIEBEN konnte; sie nannte für das J90 ein
+ * Feldmoment von 10.27 kNm, der Rahmen mit beiden Masten liefert 8.22 kNm.
+ * Für die Vertikallastfälle gilt jetzt der Rahmenwert; die Anschlussfaktoren
+ * wirken nur noch im verschieblichen Fall.
+ *
+ * WANN WELCHER
+ *   Vertikallasten (Eigengewicht, Schnee) und Wind in Gleisrichtung
+ *      -> symmetrische Stützmomente, kein Verschieben -> UNVERSCHIEBLICH
+ *   Wind in JOCHACHSE
+ *      -> beide Mastköpfe wollen in dieselbe Richtung, der Rahmen verschiebt
+ *         sich -> VERSCHIEBLICH, der Kragmast ist richtig
+ *
+ * WAS DAS ÄNDERT
+ * Bisher galt für beides der Kragmast. Für die Vertikallastfälle war die Feder
+ * damit rund dreimal zu weich: das vergrösserte das Feldmoment (sichere Seite)
+ * und VERKLEINERTE das Stützmoment - am verjüngten Jochende die unsichere.
+ *
+ * >>> Ein Rahmen, ein Steifigkeitsverhältnis. Der Lehrbuchwert 4.00 ist die
+ * obere Schranke, 3.11 die einzige Messung. <<<
+ */
+export const MAST_UNVERSCHIEBLICH = 3.10;
+
 export const MASTANSCHLUESSE = [
   { key: 'durchlaufend', faktor: 1.45,
     label: 'Mast durchlaufend, Anschluss über die Jochhöhe (c_φ = 1.45·E·I/H)' },
@@ -117,7 +167,7 @@ export const MASTANSCHLUESSE = [
  * Drehsteifigkeit eines Mastes am Jochanschluss.
  * @param {object} inp Eingabe (mastProfil, mastH, mastSteg, mastAnschluss)
  */
-export function mastSteifigkeit(inp, ende = 'A') {
+export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
   // Zwei Maste sind der Normalfall, nicht die Ausnahme: verschiedene Profile,
   // verschiedene Höhen (Gelände!), verschiedene Stegrichtungen. Fehlt die
   // zweite Angabe, gilt für beide Enden derselbe Mast.
@@ -135,9 +185,15 @@ export function mastSteifigkeit(inp, ende = 'A') {
   // bestimmt damit, wie der Mastkopf sich um die JOCHACHSE verdrehen kann.
   const Iq_cm4 = sr.achse === 'y' ? p.Iz : p.Iy;
   const Iq = Iq_cm4 * 1e-8;
+  // Verschieblich: der Anschlussfaktor greift, der Kopf kann ausweichen.
+  // Unverschieblich: das Joch hält die beiden Mastköpfe zusammen; dann regiert
+  // die Rahmenwirkung, nicht die Bauart des Anschlusses.
   return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, ende,
            anschluss: an.key, faktor: an.faktor,
-           cKragarm, cPhi: an.faktor * cKragarm,
+           cKragarm,
+           cVerschieblich: an.faktor * cKragarm,
+           cUnverschieblich: MAST_UNVERSCHIEBLICH * cKragarm,
+           cPhi: (verschieblich ? an.faktor : MAST_UNVERSCHIEBLICH) * cKragarm,
            Iq_cm4, Iq, cTorsion: (an.faktor * E_STAHL * Iq) / H };
 }
 
@@ -251,19 +307,22 @@ export function mastKopfdrehung(mast, wMast) {
  * Drehfedersteifigkeit beider Jochenden nach gewählter Endbedingung.
  * @returns {{cA:number, cB:number, mast:object|null, art:string}}
  */
-export function drehfedern(inp) {
+export function drehfedern(inp, verschieblich = false) {
   switch (inp.endbedingung) {
     case 'gelenkig': return { cA: 0, cB: 0, mast: null, art: 'gelenkig' };
     case 'voll':     return { cA: C_STARR, cB: C_STARR, mast: null, art: 'voll eingespannt' };
     case 'manuell':  return { cA: inp.cPhi, cB: inp.cPhi, mast: null, art: 'teilweise (manuell)' };
     case 'mast': {
-      const mastA = mastSteifigkeit(inp, 'A');
-      const mastB = mastSteifigkeit(inp, 'B');
+      const mastA = mastSteifigkeit(inp, 'A', verschieblich);
+      const mastB = mastSteifigkeit(inp, 'B', verschieblich);
       const zwei = inp.mastZwei === true;
       return { cA: mastA.cPhi, cB: mastB.cPhi,
                mast: mastA, mastA, mastB, zweiMaste: zwei,
+               verschieblich,
                art: `teilweise (Mast${zwei ? 'e' : ''}, `
-                  + `${mastA.faktor === 1 ? 'Kragarm' : 'durchlaufend'})` };
+                  + `${verschieblich
+                        ? (mastA.faktor === 1 ? 'Kragarm' : 'durchlaufend')
+                        : 'unverschieblich'})` };
     }
     default: throw new Error(`Unbekannte Endbedingung: ${inp.endbedingung}`);
   }

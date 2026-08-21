@@ -180,13 +180,18 @@ titel('2  Endeinspannung – Drehwinkelverfahren gegen geschlossene Lösung');
 }
 
 {
-  // Mast als Kragarm:  c = E·I/H. Die Voreinstellung ist der durchlaufende
-  // Mast, deshalb wird die Anschlussart hier ausdrücklich gesetzt.
+  // Der Lastfall hier ist vertikal, also UNVERSCHIEBLICH: das Joch hält die
+  // beiden Mastköpfe zusammen, und es gilt 3.10 · E·I/H statt des Kragmastes
+  // (core.auflager.js, MAST_UNVERSCHIEBLICH). Der Kragarmwert bleibt daneben
+  // ausgewiesen und gilt beim Wind in Jochachse.
   const w = basis({ endbedingung: 'mast', mastProfil: 'HEB 240',
                     mastH: 8, mastSteg: 'jochachse', mastAnschluss: 'kragarm' });
   const e = rechne(w);
   const p = e.modell.federn.mast;
-  pruef('Mast-Drehfeder c = E·I/H', p.cPhi, (E_STAHL * (11260 * 1e-8)) / 8, 1e-9, 'kNm/rad');
+  pruef('Kragmastwert c = E·I/H', p.cKragarm,
+        (E_STAHL * (11260 * 1e-8)) / 8, 1e-9, 'kNm/rad');
+  pruef('Vertikallast rechnet unverschieblich', p.cPhi, 3.10 * p.cKragarm,
+        1e-9, 'kNm/rad');
   const q = rechne({ ...w, mastSteg: 'quer' });
   pruef('Stegdrehung nutzt I_z', q.modell.federn.mast.I_cm4, 3923, 1e-12, 'cm4');
 }
@@ -1750,32 +1755,50 @@ titel('18c  Mastanschluss: Kragarm oder durchlaufend');
   const { getMastprofil } = await import(J('data.masten.js'));
 
   const mast = { mastProfil: 'HEB 260', mastH: 7.5, mastSteg: 'jochachse' };
+  // Ohne dritten Parameter gilt der UNVERSCHIEBLICHE Fall - das Joch hält die
+  // beiden Mastköpfe zusammen, und das ist der Regelfall (Vertikallasten).
   const krag = mastSteifigkeit({ ...mast, mastAnschluss: 'kragarm' });
   const durch = mastSteifigkeit({ ...mast, mastAnschluss: 'durchlaufend' });
+  const kragV = mastSteifigkeit({ ...mast, mastAnschluss: 'kragarm' }, 'A', true);
+  const durchV = mastSteifigkeit({ ...mast, mastAnschluss: 'durchlaufend' }, 'A', true);
 
   const p = getMastprofil('HEB 260');
-  pruef('Kragarm: c_φ = E·I/H', krag.cPhi, (E_STAHL * p.Iy * 1e-8) / 7.5, 1e-9, 'kNm/rad');
-  pruef('Durchlaufend: Faktor 1.45', durch.cPhi, 1.45 * krag.cPhi, 1e-12, 'kNm/rad');
+  pruef('Verschieblich, Kragarm: c_φ = E·I/H',
+        kragV.cPhi, (E_STAHL * p.Iy * 1e-8) / 7.5, 1e-9, 'kNm/rad');
+  pruef('Verschieblich, durchlaufend: Faktor 1.45',
+        durchV.cPhi, 1.45 * kragV.cPhi, 1e-12, 'kNm/rad');
   pruef('Der Kragarmwert bleibt in beiden Fällen ausgewiesen',
-        durch.cKragarm, krag.cPhi, 1e-12, 'kNm/rad');
+        durch.cKragarm, kragV.cPhi, 1e-12, 'kNm/rad');
   wahr('Ohne Angabe gilt der durchlaufende Mast',
-       mastSteifigkeit(mast).cPhi === durch.cPhi);
+       mastSteifigkeit(mast).cVerschieblich === durchV.cPhi);
   wahr('Beide Anschlussarten sind wählbar',
        MASTANSCHLUESSE.length === 2
        && MASTANSCHLUESSE.every((a) => a.key && a.label && a.faktor));
 
-  // An einem PyNite-Modell mit ausmodelliertem Mast gemessen: der Anschluss
-  // über die Jochhöhe wirkt wie rund 6074 kNm/rad (J90, 15.5 m, HEB 260).
-  wahr('Durchlaufend trifft die gemessene Steifigkeit',
-       Math.abs(durch.cPhi - 6074) / 6074 < 0.03,
-       `${durch.cPhi.toFixed(0)} gegen gemessene 6074 kNm/rad`);
+  // Der Anschlussfaktor wirkt nur noch im VERSCHIEBLICHEN Fall - dort gilt
+  // die alte Kalibrierung von 6074 kNm/rad (J90, 15.5 m, HEB 260) weiter.
+  wahr('Verschieblich: durchlaufend trifft die gemessene Steifigkeit',
+       Math.abs(durchV.cPhi - 6074) / 6074 < 0.03,
+       `${durchV.cPhi.toFixed(0)} gegen gemessene 6074 kNm/rad`);
+  // Unverschieblich regiert die Rahmenwirkung, nicht die Bauart des
+  // Anschlusses: das Joch hält die beiden Mastköpfe zusammen.
+  pruef('Unverschieblich ist 3.10 · E·I/H', durch.cPhi,
+        3.10 * durch.cKragarm, 1e-9, 'kNm/rad');
+  wahr('Unverschieblich hängt nicht mehr am Anschluss',
+       Math.abs(durch.cPhi - krag.cPhi) < 1e-9);
+  wahr('Unverschieblich ist deutlich steifer als der Kragmast',
+       durch.cPhi > 3 * krag.cKragarm);
 
   const f = (an) => drehfedern({ endbedingung: 'mast', ...mast, mastAnschluss: an });
   pruef('Beide Jochenden bekommen dieselbe Feder',
         f('durchlaufend').cA, f('durchlaufend').cB, 1e-12, 'kNm/rad');
-  wahr('Die Art nennt den Anschluss',
-       f('durchlaufend').art.includes('durchlaufend')
-       && f('kragarm').art.includes('Kragarm'));
+  const fv = (an) => drehfedern({ endbedingung: 'mast', ...mast,
+                                  mastAnschluss: an }, true);
+  wahr('Die Art nennt den Anschluss, wenn er wirkt',
+       fv('durchlaufend').art.includes('durchlaufend')
+       && fv('kragarm').art.includes('Kragarm'));
+  wahr('Sonst nennt sie den Rahmen',
+       f('durchlaufend').art.includes('unverschieblich'));
 
   // Wirkung auf die Momentenaufteilung des Beispieljochs
   const lauf = (an) => {
@@ -1788,14 +1811,16 @@ titel('18c  Mastanschluss: Kragarm oder durchlaufend');
     return { stuetz: Math.abs(Math.min(...My)), feld: Math.max(...My) };
   };
   const k = lauf('kragarm'), d = lauf('durchlaufend');
-  wahr('Steifer gerechnet wächst das Stützmoment und fällt das Feldmoment',
-       d.stuetz > k.stuetz && d.feld < k.feld,
-       `Stütze ${k.stuetz.toFixed(2)} -> ${d.stuetz.toFixed(2)}, `
-       + `Feld ${k.feld.toFixed(2)} -> ${d.feld.toFixed(2)} kNm`);
-  // Das Feldmoment ist der belastbare Massstab (siehe core.auflager.js):
-  // das PyNite-Modell mit ausmodelliertem Mast liefert 10.27 kNm.
-  wahr('Durchlaufend trifft das Feldmoment des Mastmodells (10.27 kNm)',
-       Math.abs(d.feld - 10.27) < 0.15, `${d.feld.toFixed(2)} kNm`);
+  // Unter Vertikallast verschiebt sich der Rahmen nicht - dann regiert die
+  // Rahmenwirkung, und die Bauart des Anschlusses fällt heraus.
+  wahr('Vertikallast: der Anschluss ändert nichts mehr',
+       Math.abs(d.feld - k.feld) < 1e-9 && Math.abs(d.stuetz - k.stuetz) < 1e-9,
+       `Feld ${k.feld.toFixed(2)} / ${d.feld.toFixed(2)} kNm`);
+  // Massstab ist der Rahmen mit BEIDEN Masten (PyNite, Füsse eingespannt,
+  // Joch an beiden Ebenen angeschlossen): Feldmoment 8.22 kNm. Das frühere
+  // Modell konnte sich verschieben und nannte 10.27 kNm.
+  wahr('Trifft das Feldmoment des Rahmens mit beiden Masten (8.22 kNm)',
+       Math.abs(d.feld - 8.22) < 0.35, `${d.feld.toFixed(2)} kNm`);
 }
 
 // ===========================================================================
@@ -2523,8 +2548,8 @@ titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
   pruef('Ende A unverändert', f2.cA, f1.cA, 1e-12, 'kNm/rad');
   const mB = mastSteifigkeit({ ...mastEin, mastZwei: true,
                                mastProfilB: 'HEM 240', mastHB: 12.0 }, 'B');
-  pruef('Ende B: EI/H des zweiten Mastes', f2.cB,
-        (210e6 * mB.I_cm4 * 1e-8) / 12.0, 1e-9, 'kNm/rad');
+  pruef('Ende B: Rahmenfeder des zweiten Mastes', f2.cB,
+        3.10 * (210e6 * mB.I_cm4 * 1e-8) / 12.0, 1e-9, 'kNm/rad');
   wahr('Ohne Schalter bleibt der zweite Mast wirkungslos',
        Math.abs(drehfedern({ ...mastEin, mastProfilB: 'HEM 240', mastHB: 12.0 }).cB
                 - f1.cB) < 1e-12);
@@ -2617,8 +2642,10 @@ titel('26  Wind auf den Mast verdreht das Jochende');
     await import(J('core.auflager.js'));
   const { hinweise } = await import(J('core.checks.js'));
 
+  // Der Mastwind ist der VERSCHIEBLICHE Fall: beide Köpfe wollen in dieselbe
+  // Richtung. Deshalb hier die Kragmastfeder (core.auflager.js).
   const mast = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
-                                 mastAnschluss: 'kragarm' }, 'A');
+                                 mastAnschluss: 'kragarm' }, 'A', true);
   const k = mastKopfdrehung(mast, 0.31);
   // Kragmast unter Gleichlast: Kopfverdrehung w·H³/(6·E·I)
   pruef('Kopfverdrehung des Kragmastes', k.theta0,
@@ -2633,7 +2660,7 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   // Durchlaufender Mast: steifere Feder, gleiche Kopfverdrehung -> grösseres
   // Moment. Bewusst auf der sicheren Seite (siehe core.auflager.js).
   const durch = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
-                                  mastAnschluss: 'durchlaufend' }, 'A');
+                                  mastAnschluss: 'durchlaufend' }, 'A', true);
   pruef('Durchlaufend: Moment im Verhältnis der Feder',
         mastKopfdrehung(durch, 0.31).M0 / k.M0, 1.45, 1e-9);
 
@@ -2681,9 +2708,9 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   // --- Wind in GLEISRICHTUNG: Torsion, aber nur bei UNGLEICHEN Masten -------
   const { mastVerdrehung } = await import(J('core.auflager.js'));
   const mA = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 7.8,
-                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A');
+                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A', true);
   const mB = mastSteifigkeit({ mastProfil: 'HEM 240', mastH: 12.0,
-                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A');
+                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A', true);
   // Die andere Achse trägt die Biegung in Gleisrichtung.
   pruef('Quer-Trägheitsmoment ist die andere Achse', mA.Iq_cm4, 5135, 1e-9);
   const dr = mastVerdrehung(mA, mB, 0.34);
@@ -2832,8 +2859,8 @@ titel('27  Kragarme: das Auflager steht nicht immer am Gurtende');
       mastAnschluss: 'durchlaufend', wMastAusTabelle: false, wMast: 0.31,
       beiwerteFest: { G: 1, WindX: 1, WindY: 0, Schnee: 0, Leiterzug: 0 },
     }).modell).join(' | ');
-  wahr('Die Feder aus dem Mast wird als untere Schranke benannt',
-       hMast.includes('untere Schranke'));
+  wahr('Der Rahmen und die gewählte Feder werden benannt',
+       hMast.includes('verschiebt sich') || hMast.includes('VERSCHIEBT sich'));
   wahr('Der Mastwind auf das Joch wird ausgewiesen',
        hMast.includes('verdreht das Jochende'));
   wahr('Die gewählte Gurtaufteilung steht im Klartext',

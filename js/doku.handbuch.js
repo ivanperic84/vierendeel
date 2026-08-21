@@ -328,6 +328,50 @@ ${f(`c_φ = E · I_Mast / H`)}
 <p>Massgebend ist die Biegung des Mastes <b>in der Jochachse</b> – der Mast muss
 sich quer zu den Gleisen verformen. Je nach Stegrichtung ist das I_y oder I_z.</p>
 
+<h4>4.1.1 Verschieblich oder nicht – der grösste Einzelfehler dieser Feder</h4>
+<p>Die Formel oben gilt für einen Kragmast, dessen Kopf sich frei
+<b>verschieben</b> kann. Ein Joch steht aber auf <b>zwei</b> Masten und bindet
+ihre Köpfe zusammen. Unter symmetrischer Vertikallast entstehen an beiden Enden
+gleichsinnige Stützmomente, die Querkräfte der beiden Maste heben sich auf –
+der Rahmen verschiebt sich <b>nicht</b>. Dann gilt nicht der Kragmast, sondern
+der unverschiebliche Stab:</p>
+
+${f(`verschieblich&nbsp;&nbsp;&nbsp;&nbsp; c = 1.0 · E·I/H<br>
+unverschieblich&nbsp;&nbsp; c = 4.0 · E·I/H&nbsp;&nbsp; (Drehwinkelverfahren)`)}
+
+<p>Nachgemessen an zwei ganz verschiedenen Rahmen – beide Maste ausmodelliert,
+Füsse eingespannt, Joch an beiden Ebenen angeschlossen:</p>
+
+${f(`Signaljoch 18.935 m, HEB 260/7.8 m gegen HEM 240/12.0 m&nbsp;&nbsp;
+c = 12 030 = <b>3.11</b> · E·I/H<br>
+J90 15.5 m, zwei gleiche HEB 260/7.5 m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+c = 12 906 = <b>3.09</b> · E·I/H`)}
+
+<p>Zwei Spannweiten, zwei Mastpaare, gleiche und ungleiche Enden – und derselbe
+Faktor. Er liegt unter dem Lehrbuchwert 4.00, weil das Joch steif, aber nicht
+starr ist. Gerechnet wird mit <b>3.10</b>.</p>
+
+<table><tr><th>Einwirkung</th><th>Rahmen</th><th>Feder</th></tr>
+<tr><td>Eigengewicht, Schnee, Wind in Gleisrichtung</td>
+    <td>gleichsinnige Stützmomente, kein Verschieben</td>
+    <td><b>3.10 · E·I/H</b></td></tr>
+<tr><td>Wind in Jochachse</td>
+    <td>beide Köpfe in dieselbe Richtung, der Rahmen verschiebt sich</td>
+    <td>Kragmast, Anschlussfaktor 1.00 / 1.45</td></tr></table>
+
+${q(`Bis hierher galt für beides der Kragmast. Für die Vertikallastfälle war die
+Feder damit rund dreimal zu weich: das vergrösserte das Feldmoment (sichere
+Seite) und <b>verkleinerte das Stützmoment</b> – am verjüngten Jochende die
+unsichere. Über den Katalog gerechnet steigt die Ausnutzung nur um 1 bis 5 %,
+das <b>Stützmoment aber um 25 bis 65 %</b>. Damit greift auch die Begrenzung
+durch die Gurtverbindung deutlich früher.`)}
+
+<p>Die frühere Kalibrierung des Anschlussfaktors (1.37 bzw. 1.45) ist damit für
+Vertikallasten <b>überholt</b>: sie stammt aus einem Modell, dessen Jochende
+sich verschieben konnte, und nannte für das J90 ein Feldmoment von 10.27 kNm –
+der Rahmen mit beiden Masten liefert 8.22 kNm. Im verschieblichen Fall gilt sie
+weiter.</p>
+
 <h4>4.2 Nur die vertikale Biegung wird eingespannt</h4>
 ${q(`Die Einspannung wirkt ausschliesslich auf M_y. Eine Einspannung gegen M_z
 würde die <b>Torsionssteifigkeit</b> des Mastes beanspruchen; bei offenen

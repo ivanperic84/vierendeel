@@ -144,10 +144,17 @@ export function hinweise(m) {
          ? ` / ${Math.abs(m.MB).toFixed(2)}` : '') + ' kNm.');
   }
   if (m.federn?.mast) {
-    h.push('Die Drehfeder aus dem Mast ist eine untere Schranke: gegen ein '
-      + 'geprüftes FEM-Modell kam sie rund zweieinhalbmal zu weich heraus. '
-      + 'Eine zu weiche Feder überschätzt das Feld- und UNTERSCHÄTZT das '
-      + 'Stützmoment – am verjüngten Jochende ist das die unsichere Seite.');
+    const ma = m.federn.mastA ?? m.federn.mast;
+    h.push(m.federn.verschieblich
+      ? 'Wind in Jochachse: beide Mastköpfe wollen in dieselbe Richtung, der '
+        + 'Rahmen VERSCHIEBT sich. Gerechnet wird deshalb mit dem Kragmast, '
+        + `c_φ = ${ma.cVerschieblich.toFixed(0)} kNm/rad.`
+      : 'Das Joch bindet die beiden Mastköpfe zusammen; unter dieser '
+        + 'Einwirkung sind die Stützmomente gleichsinnig und der Rahmen '
+        + 'verschiebt sich NICHT. Gerechnet wird mit der Rahmenfeder '
+        + `3.10·E·I/H = ${ma.cUnverschieblich.toFixed(0)} statt mit dem `
+        + `Kragmast (${ma.cKragarm.toFixed(0)} kNm/rad). An zwei Rahmen `
+        + 'gemessen, Lehrbuchwert wäre 4.00.');
   }
   if (m.federn?.grenze?.begrenzt) {
     h.push(`Drehfeder auf die Gurtverbindung begrenzt: c_φ von `

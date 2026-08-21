@@ -179,7 +179,14 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
                                   anbauteile, verlauf.hAn);
 
   const steif = biegesteifigkeitJoch(v.hT, profOG, profUG);
-  const federnRoh = drehfedern(inp);
+  // VERSCHIEBLICH ODER NICHT (core.auflager.js, MAST_UNVERSCHIEBLICH).
+  // Das Joch bindet die beiden Mastköpfe zusammen. Unter Vertikallast und
+  // Wind in Gleisrichtung sind die Stützmomente gleichsinnig, die Querkräfte
+  // der Maste heben sich auf, der Rahmen verschiebt sich nicht. Erst der Wind
+  // IN JOCHACHSE drückt beide Köpfe in dieselbe Richtung - dann verschiebt er
+  // sich, und der Kragmast ist die richtige Vorstellung.
+  const verschieblich = Math.abs(beiwerte.WindX ?? 0) > 0;
+  const federnRoh = drehfedern(inp, verschieblich);
 
   // GRENZLAST DER GURTVERBINDUNG
   // Das Stützmoment tritt als Kräftepaar zwischen Ober- und Untergurt-
