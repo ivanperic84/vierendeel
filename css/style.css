@@ -1013,6 +1013,9 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .ablage-name { flex: 1; min-width: 0; }
 .ablage-name b { font-weight: 500; }
 .ablage-meta { font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim); }
+/* Doppelter Lastfall: ein Hinweis, keine Warnung - er rechnet richtig,
+   nur eben zweimal dasselbe. */
+.ablage-meta.warnton { color: var(--warn); }
 
 /* --- Druck ---------------------------------------------------------------- */
 

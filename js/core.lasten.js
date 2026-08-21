@@ -350,7 +350,32 @@ export function lastfaelle(inp) {
     nachweis: l.nachweis !== false,
     beiwerte: { ...NULLBEIWERTE(), ...(l.beiwerte ?? {}) },
   }));
-  return [...std, ...eigen];
+  return markiereDoppelte([...std, ...eigen]);
+}
+
+/**
+ * DOPPELTE LASTFÄLLE KENNZEICHNEN.
+ *
+ * Ein von Hand angelegter Lastfall kann dieselben Beiwerte tragen wie ein
+ * vorgegebener - meist, weil er angelegt wurde, als es den vorgegebenen noch
+ * nicht gab. Er rechnet dann dasselbe zweimal: in der Umhüllenden fällt das
+ * nicht auf, in der Liste steht er doppelt und im Bericht auch.
+ *
+ * Das kommt nicht von ungefähr: mit den charakteristischen Einzellastfällen
+ * (Ständig, Anbauteile, Schnee, Wind y, Wind x) sind fünf Fälle dazugekommen,
+ * die man sich vorher von Hand anlegen musste.
+ *
+ * Gekennzeichnet, nicht entfernt. Was jemand eingegeben hat, verschwindet
+ * nicht von selbst - das Werkzeug sagt nur, dass es schon da ist.
+ */
+function markiereDoppelte(liste) {
+  const gesehen = new Map();
+  return liste.map((l) => {
+    const schluessel = JSON.stringify(l.beiwerte) + '|' + (l.nur ?? '');
+    const erster = gesehen.get(schluessel);
+    if (erster === undefined) { gesehen.set(schluessel, l); return l; }
+    return { ...l, doppeltZu: erster.key, doppeltBez: erster.bez };
+  });
 }
 
 /** Beiwerte eines Lastfalls; ohne Treffer der erste Nachweislastfall. */

@@ -1858,7 +1858,9 @@ export function kombiMatrixHtml(kombi, normensatz) {
       <td>LF${i + 1} · ${esc(k.bez)}
         ${k.istMassgebend ? '<br><b>massgebend</b>' : ''}
         ${k.angepasst ? '<br><span class="ablage-meta">angepasst</span>' : ''}
-        ${k.nachweis ? '' : '<br><span class="ablage-meta">charakteristisch</span>'}</td>
+        ${k.nachweis ? '' : '<br><span class="ablage-meta">charakteristisch</span>'}
+        ${k.doppeltZu ? `<br><span class="ablage-meta warnton"
+          >gleiche Beiwerte wie ${esc(k.doppeltBez)} – rechnet dasselbe zweimal</span>` : ''}</td>
       ${ein.map((e) => {
         const b = k.beiwerte[e.key] ?? 0;
         return `<td class="beiwert num${b ? '' : ' null'}${b < 0 ? ' minus' : ''}"

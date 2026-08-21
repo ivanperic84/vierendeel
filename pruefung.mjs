@@ -797,6 +797,34 @@ titel('15  Lastfälle');
   wahr('Q_z am Anbauteil hält die Gruppe Schnee aktiv',
        zaehl({ ...mitQz, anbauteileFlach: flachQz }, 'tragsicherheit') === 6);
 
+  // --- Doppelte Lastfälle werden gekennzeichnet -----------------------------
+  // Mit den charakteristischen Einzellastfaellen sind fuenf Faelle dazu-
+  // gekommen, die man sich vorher von Hand anlegen musste. Ein solcher
+  // Eigenlastfall rechnet dann dasselbe zweimal.
+  {
+    const mitEigen = { ...w, lastfaelleEigen: [
+      { bez: 'ständige schnee', beiwerte: { G: 1, Schnee: 1 } },
+      { bez: 'Wind y', beiwerte: { WindY: 1 } },
+    ] };
+    const alle = L.lastfaelle(mitEigen);
+    const wy = alle.find((x) => x.bez === 'Wind y');
+    const gs = alle.find((x) => x.bez === 'ständige schnee');
+    wahr('Der doppelte Eigenlastfall ist gekennzeichnet',
+         wy.doppeltZu === 'wyk', `doppelt zu «${wy.doppeltBez}»`);
+    wahr('Ein Eigenlastfall ohne Entsprechung nicht',
+         gs.doppeltZu === undefined);
+    wahr('Die vorgegebenen Lastfälle sind nie doppelt',
+         alle.filter((x) => !x.eigen).every((x) => x.doppeltZu === undefined));
+    // Gekennzeichnet, NICHT entfernt: was jemand eingegeben hat, verschwindet
+    // nicht von selbst.
+    pruef('Er bleibt in der Liste stehen', alle.length,
+          L.lastfaelle(w).length + 2, 1e-12, 'Stk');
+    // Ständig (Joch) und Anbauteile haben dieselben Beiwerte und sind trotzdem
+    // nicht doppelt - sie unterscheiden sich im Feld `nur`.
+    wahr('Ständig und Anbauteile gelten nicht als doppelt',
+         alle.find((x) => x.key === 'ak').doppeltZu === undefined);
+  }
+
   // --- Ständig und Anbauteile ergänzen sich zur vollen ständigen Last -------
   // Die beiden charakteristischen Lastfälle blenden einander aus. Zusammen
   // müssen sie genau das ergeben, was ein Lastfall mit G = 1 ohne Filter
