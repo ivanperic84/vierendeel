@@ -1160,7 +1160,7 @@ const WZ_MODELL = [
   // eigene Frage: sie war beim Nachbau eines geprüften FEM-Modells der
   // grösste einzelne Fehler.
   { key: 'achse', icon: 'achse', text: 'Schwerachsen (Stabmodell, eingefärbt)' },
-  { key: 'auflager', icon: 'stab', text: 'Auflager: Lage, Feder, Mast' },
+  { key: 'auflager', icon: 'auflager', text: 'Auflager: Lage, Feder, Mast' },
   { key: 'masse', icon: 'mass', text: 'Bemassung' },
   { key: 'raster', icon: 'raster', text: 'Bodenraster' },
 ];

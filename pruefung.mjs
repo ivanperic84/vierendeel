@@ -666,8 +666,10 @@ titel('14  Grundrissknick – Breite über die Länge');
   // Die lichte Weite am Auflager ist die Gabel für den Mast und muss über
   // ALLE Typen einer Bauweise gleich sein.
   const lichte = (j, g) => j[g].jba - 2 * j[g].ja;
-  const neu = T.tragjoche().filter((j) => j.bauweise !== 'alt');
-  const alt = T.tragjoche().filter((j) => j.bauweise === 'alt');
+  // Vergleichsmodelle (sortiment: false) bilden ein fremdes Bauwerk nach und
+  // halten die Regeln des Sortiments nicht ein.
+  const neu = T.sortimentstypen().filter((j) => j.bauweise !== 'alt');
+  const alt = T.sortimentstypen().filter((j) => j.bauweise === 'alt');
   wahr('Lichte Auflagerweite bei allen heutigen Typen 340 mm',
        neu.every((j) => lichte(j, 'og') === 340 && lichte(j, 'ug') === 340),
        `${neu.length} Typen`);
@@ -3293,10 +3295,16 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
   pruef('Auflager B steht bei L − kragB', xs[1], e.modell.L - 0.75, 1e-9, 'm');
   wahr('Der Mast wird als Stummel gezeichnet', auf.some((l) => l.mast));
   wahr('Die Kragarme sind ausgewiesen', auf.filter((l) => l.kragarm).length === 2);
-  const txt = mAuf.filter((k) => k.art === 'auflagertext').map((k) => k.text).join(' | ');
+  const txt = mAuf.filter((k) => k.art === 'auflagertext')
+    .map((k) => k.zeilen.join(' / ')).join(' | ');
   wahr('Profil, Feder und Einspanngrad stehen dabei',
-       txt.includes('HEB 240') && txt.includes('c_φ') && txt.includes('Einspanngrad'),
-       txt);
+       txt.includes('HEB 240') && txt.includes('c_φ') && txt.includes('κ'), txt);
+  // Zweizeilig: oben das Bauteil, unten die Lagerung.
+  wahr('Die Angabe steht zweizeilig',
+       mAuf.filter((k) => k.art === 'auflagertext').every((k) => k.zeilen.length === 2));
+  wahr('Keine Zeile ist länger als 30 Zeichen',
+       mAuf.filter((k) => k.art === 'auflagertext')
+         .every((k) => k.zeilen.every((z) => z.length <= 30)), txt);
 
   // Ohne Kragarme sitzen die Auflager an den Gurtenden.
   const ohne = rechne({ ...w, kragA: 0, kragB: 0 });
@@ -3312,9 +3320,9 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
   const sg = R.erzeugeSzene(gel.modell, gel);
   wahr('Auch gelenkig gibt es die Auflagerebene',
        sg.marken.some((k) => k.gruppe === 'auflager' && k.art === 'auflager'));
-  wahr('Dann steht c_φ = 0 dabei',
+  wahr('Dann steht «gelenkig» dabei',
        sg.marken.filter((k) => k.art === 'auflagertext')
-         .some((k) => k.text.includes('c_φ = 0')));
+         .some((k) => k.zeilen.join(' ').includes('gelenkig')));
 }
 
 // ===========================================================================

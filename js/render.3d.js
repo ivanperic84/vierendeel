@@ -385,8 +385,10 @@ export function erzeugeSzene(m, erg) {
   const xA = m.kragA ?? 0;
   const xB = m.L - (m.kragB ?? 0);
   const federn = m.federn ?? {};
-  const cText = (c) => (c >= 1e11 ? 'starr'
-    : !(c > 0) ? 'c_φ = 0' : `c_φ = ${Math.round(c)} kNm/rad`);
+  // Kurz halten: die Zeile steht im Bild, nicht in einer Tabelle. Die Einheit
+  // kNm/rad ist die einzige, die hier vorkommt, und κ steht im Handbuch.
+  const cText = (c) => (c >= 1e11 ? 'starr eingespannt'
+    : !(c > 0) ? 'gelenkig' : `c_φ ${Math.round(c)}`);
 
   [['A', xA, federn.cA, m.kappaA, federn.mastA ?? federn.mast],
    ['B', xB, federn.cB, m.kappaB, federn.mastB ?? federn.mast]].forEach(
@@ -412,14 +414,17 @@ export function erzeugeSzene(m, erg) {
         linien.push({ gruppe: 'auflager',
                       punkte: [[x, y, zF], [x, y - 0.12 * halb, zF - 0.14 * H]] });
       }
+      // ZWEIZEILIG UND KURZ. Als eine Zeile war die Angabe breiter als das
+      // halbe Bild und überdeckte das Joch: oben das Bauteil, unten die
+      // Lagerung, beides ohne ausgeschriebene Wörter.
       marken.push({ gruppe: 'auflager', art: 'auflagertext', p: [x, 0, zF],
-                    text: [
-                      mast ? `${mast.profil.name} · H ${mast.H.toFixed(2)} m` : null,
-                      cText(cPhi ?? 0),
-                      Number.isFinite(kappa)
-                        ? `Einspanngrad ${(100 * Math.max(0, Math.min(1, kappa))).toFixed(0)} %`
-                        : null,
-                    ].filter(Boolean).join(' · ') });
+                    zeilen: [
+                      mast ? `${mast.profil.name} · ${mast.H.toFixed(1)} m` : null,
+                      [cText(cPhi ?? 0),
+                       Number.isFinite(kappa)
+                         ? `κ ${(100 * Math.max(0, Math.min(1, kappa))).toFixed(0)} %`
+                         : null].filter(Boolean).join(' · '),
+                    ].filter(Boolean) });
     });
 
   // Kragarme: die Strecke zwischen Gurtende und Auflager, damit sichtbar ist,
@@ -1011,12 +1016,33 @@ export class Modellansicht {
     this.passeEin();
   }
 
-  /** Auf eine der vorgegebenen Blickrichtungen schwenken. */
+  /**
+   * Auf eine der vorgegebenen Blickrichtungen schwenken.
+   *
+   * WER DIE BLICKRICHTUNG WÄHLT, WILL DAS GANZE JOCH SEHEN. Bisher blieben
+   * Ausschnitt, Verschiebung und Zoom stehen: nach einem Stationszoom
+   * schwenkte die Kamera zwar, zeigte aber weiter dieselbe Handbreit Blech,
+   * jetzt von der Seite. Deshalb wird gleichzeitig auf das Gesamtmodell
+   * zurückgesetzt - Ziel in die Mitte, Verschiebung auf null, Ausschnitt weg
+   * und der Abstand so, dass die Hüllbox hineinpasst.
+   *
+   * `weich=false` ist der Weg von ansichtZuruecksetzen() selbst; dort wäre das
+   * eine Endlosschleife, und die Zentrierung ist ohnehin schon geschehen.
+   */
   blickrichtung(key, weich = true) {
     const a = ANSICHTEN.find((x) => x.key === key) ?? ANSICHTEN[0];
     this.ansichtKey = key;
     if (!weich) { this.kamera.az = a.az; this.kamera.el = a.el; this.zeichne(); return; }
-    this._animiereWinkel(a.az, a.el);
+    const g = this.szene?.grenzen;
+    if (g) {
+      this.kamera.ziel = [(g.xMin + g.xMax) / 2, 0, (g.zMin + g.zMax) / 2];
+      this.kamera.pan = [0, 0, 0];
+      this.fokus = null;
+      this.station = null;
+    }
+    // Der Abstand hängt an der Blickrichtung und wird deshalb mitgeführt.
+    // passeEin() zeichnet selbst, das genügt der Schleife.
+    this._animiereWinkel(a.az, a.el, 340, g ? () => this.passeEin() : null);
   }
 
   /**
@@ -1139,7 +1165,16 @@ export class Modellansicht {
     requestAnimationFrame(schritt);
   }
 
-  _animiereWinkel(az, el, ms = 340) {
+  /**
+   * Auf einen Blickwinkel schwenken.
+   *
+   * `beiJedemBild` läuft in JEDEM Zwischenbild mit, nicht erst am Ende: der
+   * nötige Kameraabstand hängt vom Blickwinkel ab (von der Seite braucht ein
+   * 20-Meter-Joch mehr Platz als über Eck), und wer ihn einmal vorher oder
+   * einmal nachher rechnet, bekommt entweder einen Sprung am Anfang oder
+   * einen am Ende.
+   */
+  _animiereWinkel(az, el, ms = 340, beiJedemBild = null) {
     const k = this.kamera;
     // kürzesten Weg über den Kreis nehmen
     let d = ((az - k.az + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
@@ -1149,6 +1184,7 @@ export class Modellansicht {
       const e = f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2;
       k.az = a0 + d * e;
       k.el = e0 + (el - e0) * e;
+      if (beiJedemBild) beiJedemBild();
       this.zeichne();
       if (f < 1) requestAnimationFrame(schritt);
     };
@@ -1881,15 +1917,19 @@ export class Modellansicht {
         return;
       }
       if (mk.art === 'auflagertext') {
-        // Die Lagerungsangaben unter dem Mastfuss. Mit Saum statt Kasten -
-        // ein Rahmen um eine Zeile wiegt schwerer als die Zeile selbst.
-        const b = this._textBreite(c, mk.text);
-        const bx = p[0] - b / 2, by = p[1] + 16 * s;
+        // Die Lagerungsangaben unter dem Mastfuss, eine Angabe je Zeile. Mit
+        // Saum statt Kasten - ein Rahmen um zwei Zeilen wiegt schwerer als
+        // die zwei Zeilen selbst.
         c.lineJoin = 'round';
-        c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
-        c.strokeText(mk.text, bx, by);
-        c.fillStyle = t.dim;
-        c.fillText(mk.text, bx, by);
+        (mk.zeilen ?? [mk.text]).forEach((txt, i) => {
+          if (!txt) return;
+          const b = this._textBreite(c, txt);
+          const bx = p[0] - b / 2, by = p[1] + (16 + i * 12) * s;
+          c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
+          c.strokeText(txt, bx, by);
+          c.fillStyle = t.dim;
+          c.fillText(txt, bx, by);
+        });
         return;
       }
       if (mk.art === 'lastknoten') {

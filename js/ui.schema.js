@@ -552,10 +552,17 @@ export function setzeTypOptionen() {
     text: `${j.typ} · jd ${j.jd}${j.voute ? `→${j.voute.endJd}` : ''} mm · ` +
           `${j.gewicht} kg/m${j.bleche ? '' : ' · ohne Bleche'}`,
   });
+  // Vergleichsmodelle (`sortiment: false`) bilden ein fremdes Bauwerk nach.
+  // Sie stehen zuunterst und sagen es im Klartext - wer sie wählt, rechnet
+  // kein Sortimentsjoch.
+  const vergleich = (j) => ({ ...zeile(j), text: `${zeile(j).text} · Vergleichsmodell` });
   const alle = tragjoche();
+  const srt = alle.filter((j) => j.sortiment !== false);
+  const vgl = alle.filter((j) => j.sortiment === false);
   f.optionen = [
-    ...alle.filter((j) => (j.bauweise ?? 'neu') !== 'alt').map(zeile),
-    ...alle.filter((j) => (j.bauweise ?? 'neu') === 'alt').map(zeile),
+    ...srt.filter((j) => (j.bauweise ?? 'neu') !== 'alt').map(zeile),
+    ...srt.filter((j) => (j.bauweise ?? 'neu') === 'alt').map(zeile),
+    ...vgl.map(vergleich),
     { wert: 'frei', text: 'frei definiert' },
   ];
   return f.optionen;

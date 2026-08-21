@@ -361,9 +361,24 @@ export function schwerpunktsabstaende(joch, profOG, profUG, breiteAus = 'jbb') {
  * @param {(name:string)=>object} profilNachName Zugriff auf die Profildatenbank
  * @returns {string[]} Liste der Beanstandungen (leer = alles stimmig)
  */
+/**
+ * Die Typen des SORTIMENTS - ohne Vergleichsmodelle.
+ * `sortiment: false` kennzeichnet einen Typ, der ein fremdes Bauwerk nachbildet
+ * und den Regeln des Sortiments nicht unterliegt.
+ */
+export function sortimentstypen() {
+  return db().typen.filter((j) => j.sortiment !== false);
+}
+
 export function pruefeDatenbank(profilNachName) {
   const fehler = [];
-  db().typen.forEach((j) => {
+  // NICHT-SORTIMENTSTYPEN BLEIBEN AUSSEN VOR.
+  // Ein Vergleichsmodell (`sortiment: false`) bildet ein fremdes Bauwerk nach
+  // und hält die Regeln des Sortiments naturgemäss nicht ein - es hat keine
+  // Auflagergabel von 340 mm lichter Weite und keine Zeichnungsnummer. Es
+  // gegen diese Regeln zu prüfen hiesse, eine Beanstandung zu erzeugen, die
+  // niemand beheben kann.
+  sortimentstypen().forEach((j) => {
     const p = (n) => {
       try { return profilNachName(n); } catch { return null; }
     };
