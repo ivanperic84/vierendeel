@@ -177,6 +177,10 @@ function neuRechnen(neuZeichnen = true) {
       const ek = ekVonWindklasse(werte.windKlasse);
       const w = mastWind(werte.mastProfil, ek, werte.mastSteg);
       if (Number.isFinite(w)) werte.wMast = w;
+      // Ein anderes Profil am Ende B faengt anderen Wind.
+      const wB = werte.mastZwei
+        ? mastWind(werte.mastProfilB, ek, werte.mastStegB) : null;
+      werte.wMastB = Number.isFinite(wB) ? wB : null;
     }
 
     const erg = berechne(werte, profOG, profUG, stahl, joch);

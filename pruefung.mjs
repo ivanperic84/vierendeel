@@ -1399,7 +1399,35 @@ titel('22b  Lastblöcke: Angriffspunkt, Kraft, Moment');
   pruef('Torsion aus F_y · e_v', r.teile.find((t) => t.einwirkung === 'WindY').Td,
         5 * 6 * 2.25, 1e-12, 'kNm');
   pruef('Torsion aus F_z · y', gTeil.Td, 2 * 4 * 0.3, 1e-12, 'kNm');
-  pruef('F_x am Hebelarm e_v gibt M_y', gTeil.Myd, 2 * 1 * 2.25, 1e-12, 'kNm');
+  // VORZEICHEN: e_v zaehlt nach unten, das Kraeftepaar r × F ist deshalb
+  // NEGATIV im Zaehlsinn des Feldmoments (My positiv = Obergurt Druck).
+  pruef('F_x am Hebelarm e_v gibt M_y', gTeil.Myd, -2 * 1 * 2.25, 1e-12, 'kNm');
+  // Gegenprobe am Gleichgewicht: gelenkiger Traeger, EIN eingepraegtes
+  // Moment C_y in Feldmitte. Der Verlauf muss -C_y/L als Steigung und +C_y
+  // als Sprung haben und an beiden Enden auf null zurueckkommen.
+  {
+    const ev = 1.5, Fx = 3, Lp = 20, C = -Fx * ev;
+    const t = { id: 'E', name: 'E', x: 10, raster: 0.4, befestigung: 'unten',
+      aktiv: true, seite: 'rechts', module: [],
+      lasten: [{ einwirkung: 'WindX', x: 0, y: 0, z: -(1.5 - 0.25),
+                 Fx, Fy: 0, Fz: 0, Mxx: 0, Myy: 0, Mzz: 0 }] };
+    const e = rechne(basis({ L: Lp, endbedingung: 'gelenkig', anbauteile: [t],
+      lastHerkunft: 'manuell', gkManuell: 0, wkManuell: 0, skManuell: 0,
+      schneeAktiv: false,
+      beiwerteFest: { G: 0, WindX: 1, WindY: 0, Schnee: 0, Leiterzug: 0 } }));
+    const bei = (x) => e.knoten.reduce((a, b) =>
+      (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a));
+    const ev2 = e.modell.teile[0].ev;
+    const C2 = -Fx * ev2;
+    pruef('Links vom Angriff: Steigung −C_y/L', bei(5).My,
+          (-C2 / Lp) * bei(5).x, 1e-9, 'kNm');
+    pruef('Rechts davon: Sprung +C_y', bei(15).My,
+          (-C2 / Lp) * bei(15).x + C2, 1e-9, 'kNm');
+    pruef('An den Enden zurueck auf null', bei(Lp).My, 0, 1e-9, 'kNm');
+    // Und die Last unter der Achse macht ein NEGATIVES Kraeftepaar: der
+    // Verlauf steigt links an, statt zu fallen.
+    wahr('Last unter der Achse: My steigt links an', bei(5).My > 0);
+  }
 
   // Eingeprägte Momente laufen in die richtigen Schnittgrössen
   const mAT = { id: 'M', name: 'M', x: 8, raster: 0.5, befestigung: 'unten',
@@ -2816,7 +2844,7 @@ titel('26  Wind auf den Mast verdreht das Jochende');
 // Ohne diesen Anteil fehlte dem Lastfall Wind in Jochachse am nachgerechneten
 // Signaljoch rund die Hälfte der Einwirkung.
 {
-  const { mastKopfdrehung, mastSteifigkeit, auflagermomente, E_STAHL: E } =
+  const { mastKoepfe, mastSteifigkeit, auflagermomente, E_STAHL: E } =
     await import(J('core.auflager.js'));
   const { hinweise } = await import(J('core.checks.js'));
 
@@ -2824,7 +2852,7 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   // Richtung. Deshalb hier die Kragmastfeder (core.auflager.js).
   const mast = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
                                  mastAnschluss: 'kragarm' }, 'A', true);
-  const k = mastKopfdrehung(mast, 0.31);
+  const k = mastKoepfe(mast, mast, { wMast: 0.31 }).A;
   // Kragmast unter Gleichlast: Kopfverdrehung w·H³/(6·E·I)
   pruef('Kopfverdrehung des Kragmastes', k.theta0,
         (0.31 * 9 ** 3) / (6 * E * mast.I), 1e-12);
@@ -2832,15 +2860,62 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   // die Standardlösung für den am Kopf drehfest gehaltenen Kragmast.
   pruef('Eingeleitetes Moment bei festgehaltenem Kopf', k.M0,
         (0.31 * 9 * 9) / 6, 1e-9);
-  wahr('Ohne Wind keine Verdrehung', mastKopfdrehung(mast, 0).theta0 === 0);
-  wahr('Ohne Mast keine Verdrehung', mastKopfdrehung(null, 0.31).theta0 === 0);
+  // Zwei GLEICHE Maste unter demselben Wind verschieben sich gleich - dann
+  // geht keine Kraft durch das Joch, und es bleibt beim reinen Windanteil.
+  pruef('Gleiche Maste: keine Längskraft', mastKoepfe(mast, mast, { wMast: 0.31 }).A.P,
+        0, 1e-9, 'kN');
+  wahr('Ohne Wind und ohne Längskraft keine Verdrehung',
+       mastKoepfe(mast, mast, {}).A.theta0 === 0);
+  wahr('Ohne Mast keine Verdrehung', mastKoepfe(null, null, { wMast: 0.31 }).A.theta0 === 0);
+
+  // --- DIE LÄNGSKRAFT DES JOCHS ---------------------------------------------
+  // Eine Anbaulast in Jochachse laeuft im Ersatzbalken als Normalkraft ins
+  // Auflager - in Wirklichkeit greift sie am MASTKOPF an, biegt den Mast und
+  // verdreht ihn. Am Signaljoch ist dieser Anteil sechsmal so gross wie der
+  // Mastwind.
+  {
+    const mA = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 7.8,
+      mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A', true);
+    const mB = mastSteifigkeit({ mastProfil: 'HEM 240', mastH: 12.0,
+      mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'B', true);
+    const r = mastKoepfe(mA, mB, { wMast: 0.33, wMastB: 0.31, Fx: 3 * 2.14 });
+    const kA = (3 * E * mA.I) / mA.H ** 3, kB = (3 * E * mB.I) / mB.H ** 3;
+    // Die Kraft teilt sich nach den KOPFSTEIFIGKEITEN, verschoben um den
+    // Mastwind: der weichere Mast wird vom steiferen gestuetzt.
+    pruef('Kraefte im Gleichgewicht', r.A.P + r.B.P, 3 * 2.14, 1e-9, 'kN');
+    // OHNE Mastwind teilt sie sich genau nach der Kopfsteifigkeit auf.
+    const nurKraft = mastKoepfe(mA, mB, { Fx: 3 * 2.14 });
+    pruef('Ohne Mastwind: Aufteilung genau nach der Kopfsteifigkeit',
+          nurKraft.A.P / (nurKraft.A.P + nurKraft.B.P), kA / (kA + kB), 1e-9, '–');
+    // MIT Mastwind verschiebt sie sich: der weichere Mast wird gestuetzt.
+    wahr('Der Mastwind verschiebt die Aufteilung zum steiferen Mast',
+         r.A.P / (r.A.P + r.B.P) > nurKraft.A.P / (nurKraft.A.P + nurKraft.B.P));
+    // Gegen den PyNite-Rahmen mit beiden ausmodellierten Masten.
+    pruef('Kopfkraft A trifft den Rahmen', r.A.P, 5.106, 0.02, 'kN');
+    pruef('Kopfkraft B trifft den Rahmen', r.B.P, 1.315, 0.02, 'kN');
+    pruef('Kopfweg ist bei beiden derselbe',
+          r.A.P / kA + (0.33 * mA.H ** 4) / (8 * E * mA.I), r.delta, 1e-9, 'm');
+    pruef('auch vom anderen Ende gerechnet',
+          r.B.P / kB + (0.31 * mB.H ** 4) / (8 * E * mB.I), r.delta, 1e-9, 'm');
+    // theta_P = P·H²/(2EI)
+    pruef('Verdrehung aus der Kopfkraft', r.A.thetaKraft,
+          (r.A.P * mA.H ** 2) / (2 * E * mA.I), 1e-12);
+    wahr('Sie ist deutlich groesser als die aus dem Mastwind',
+         r.A.thetaKraft > 5 * r.A.thetaWind,
+         `${(1000 * r.A.thetaKraft).toFixed(2)} gegen `
+         + `${(1000 * r.A.thetaWind).toFixed(2)} mrad`);
+    // Und daraus das Moment, gegen PyNite 21.5 / -16.3 kNm.
+    wahr('Das eingeleitete Moment liegt beim Rahmenwert',
+         Math.abs(r.A.M0 - 21.5) < 2.5 && Math.abs(r.B.M0 - 16.3) < 2.5,
+         `M0 = ${r.A.M0.toFixed(1)} / ${r.B.M0.toFixed(1)} kNm`);
+  }
 
   // Durchlaufender Mast: steifere Feder, gleiche Kopfverdrehung -> grösseres
   // Moment. Bewusst auf der sicheren Seite (siehe core.auflager.js).
   const durch = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
                                   mastAnschluss: 'durchlaufend' }, 'A', true);
   pruef('Durchlaufend: Moment im Verhältnis der Feder',
-        mastKopfdrehung(durch, 0.31).M0 / k.M0, 1.45, 1e-9);
+        mastKoepfe(durch, durch, { wMast: 0.31 }).A.M0 / k.M0, 1.45, 1e-9);
 
   // --- Wirkung im Drehwinkelverfahren ---------------------------------------
   const g = { L: 20, qd: 1, P: [], M: [], EI: 1e5, cA: 5000, cB: 5000 };
@@ -2904,7 +2979,7 @@ titel('26  Wind auf den Mast verdreht das Jochende');
        !SCH.FELDER.some((f) => f.key === 'wMastQuer'));
   const hz = hinweise(rz.modell).join(' | ');
   wahr('Der Hinweis sagt, dass nur der Wind in Jochachse erfasst ist',
-       hz.includes('Jochachse') && hz.includes('nicht angesetzt'));
+       hz.includes('Jochachse') && hz.includes('nicht angesetzt'), hz.slice(0, 80));
 
   // --- BEIDE WINDRICHTUNGEN, wie bei den Einwirkungen auf das Joch ----------
   // Der Wind bläst in + und in −. Beide Anteile hängen am VORZEICHENBEHAFTETEN
@@ -3049,8 +3124,10 @@ titel('27  Kragarme: das Auflager steht nicht immer am Gurtende');
     }).modell).join(' | ');
   wahr('Der Rahmen und die gewählte Feder werden benannt',
        hMast.includes('verschiebt sich') || hMast.includes('VERSCHIEBT sich'));
-  wahr('Der Mastwind auf das Joch wird ausgewiesen',
-       hMast.includes('verdreht das Jochende'));
+  wahr('Die Verdrehung der Mastköpfe wird ausgewiesen',
+       hMast.includes('Mastköpfe verdrehen sich')
+       && hMast.includes('Wind auf den Mast')
+       && hMast.includes('Längskraft des Jochs'));
   wahr('Die gewählte Gurtaufteilung steht im Klartext',
        hinweise(rechne({ ...sig, gurtaufteilung: 'gemessen' }).modell)
          .join(' | ').includes('gedämpft nach Steifigkeit'));

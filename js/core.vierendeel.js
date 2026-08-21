@@ -20,7 +20,7 @@ import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
 import { expandiereAnbauteile } from './data.anbauteile.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
-         mastKopfdrehung } from './core.auflager.js';
+         mastKoepfe } from './core.auflager.js';
 import { schnittAuswertung, ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
@@ -206,7 +206,11 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   // der Maste heben sich auf, der Rahmen verschiebt sich nicht. Erst der Wind
   // IN JOCHACHSE drückt beide Köpfe in dieselbe Richtung - dann verschiebt er
   // sich, und der Kragmast ist die richtige Vorstellung.
-  const verschieblich = Math.abs(beiwerte.WindX ?? 0) > 0;
+  // Auch eine Anbaulast in Jochachse schiebt beide Mastköpfe in dieselbe
+  // Richtung - nicht nur der Wind auf den Mast.
+  const nxGesamt = (lasten.N ?? []).reduce((s, n) => s + n.w, 0);
+  const verschieblich = Math.abs(beiwerte.WindX ?? 0) > 0
+                     || Math.abs(nxGesamt) > 1e-9;
   const federnRoh = drehfedern(inp, verschieblich);
 
   // GRENZLAST DER GURTVERBINDUNG
@@ -222,14 +226,23 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   // Jochende macht die Verdrehung mit (core.auflager.js, mastKopfdrehung).
   // Nur der Lastfall Wind in Jochachse trägt sie, deshalb der Beiwert WindX.
   // Ohne Mast als Auflager gibt es nichts zu verdrehen.
+  // Zwei Ursachen, ein gemeinsamer Kopfweg (core.auflager.js, mastKoepfe):
+  //   der Wind auf den Mast     - nur im Lastfall Wind in Jochachse, deshalb
+  //                               mit dem Beiwert bwX, und abschaltbar
+  //   die Längskraft des Jochs  - sie trägt die Beiwerte schon in sich und
+  //                               wirkt immer, wenn Maste da sind
   const mastwindAn = federnRoh.mast && inp.mastWindAufJoch !== false;
   const bwX = beiwerte.WindX ?? 0;
-  const kopf = mastwindAn
-    ? { A: mastKopfdrehung(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
-        B: mastKopfdrehung(federnRoh.mastB ?? federnRoh.mast, inp.wMast) }
-    : { A: { theta0: 0, M0: 0 }, B: { theta0: 0, M0: 0 } };
-  const theta0A = bwX * kopf.A.theta0;
-  const theta0B = bwX * kopf.B.theta0;
+  const kopf = federnRoh.mast
+    ? mastKoepfe(federnRoh.mastA ?? federnRoh.mast,
+                 federnRoh.mastB ?? federnRoh.mast,
+                 { wMast: mastwindAn ? bwX * (inp.wMast ?? 0) : 0,
+                   wMastB: mastwindAn
+                     ? bwX * (inp.wMastB ?? inp.wMast ?? 0) : 0,
+                   Fx: nxGesamt })
+    : { delta: 0, A: { theta0: 0, M0: 0 }, B: { theta0: 0, M0: 0 } };
+  const theta0A = kopf.A.theta0;
+  const theta0B = kopf.B.theta0;
 
 
   // KRAGARME: die Auflager müssen nicht an den Gurtenden stehen.
@@ -319,8 +332,10 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     // Hebelarm des einseitigen Kräftepaars, je Gurt [m] - er folgt der
     // Massvariante und steht deshalb neben h und b im Modell.
     bGurt: bFeldGurt, bAnGurt,
-    mastKopf: mastwindAn && (kopf.A.theta0 > 0 || kopf.B.theta0 > 0)
-      ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast } : null,
+    mastKopf: federnRoh.mast
+      && (Math.abs(kopf.A.theta0) > 0 || Math.abs(kopf.B.theta0) > 0)
+      ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast,
+          mastwindAn } : null,
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
     xNachweis: inp.xNachweis,
     schneeAktiv: inp.schneeAktiv === true,

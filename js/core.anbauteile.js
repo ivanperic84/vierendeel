@@ -209,8 +209,24 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
 
     // 3. Last in Jochachse: Normalkraft plus Moment aus dem Hebelarm; dazu
     //    ein eingeprägtes M_yy.
+    //
+    // VORZEICHEN. e_v zählt nach UNTEN positiv, F_x in Jochachse. Das
+    // Kräftepaar aus der Verschiebung des Angriffspunkts auf die Jochachse ist
+    //
+    //      C_y = r × F = (0, 0, −e_v) × (F_x, 0, 0) = (0, −e_v·F_x, 0)
+    //
+    // also NEGATIV, wenn die Last unter der Achse angreift - im selben
+    // Zählsinn wie das Feldmoment (My positiv = Obergurt Druck). Der
+    // Rechenkern führt eingeprägte Momente genau in diesem Sinn: `M.w` ist
+    // C_y, es erzeugt die Steigung −C_y/L und den Sprung +C_y.
+    //
+    // Bis hierher stand hier +F_x·e_v. Der Momentenverlauf lief damit
+    // spiegelverkehrt: die Sprünge an den Anbaustellen zeigten nach oben
+    // statt nach unten, und die Querkraft im Joch fiel doppelt so gross aus
+    // wie im Rahmenmodell (2.35 gegen 1.43 kN am Signaljoch). Solange der
+    // Lastfall Wind in Jochachse ohnehin viel zu klein war, fiel es nicht auf.
     if (Fx) N.push({ x: a.x, w: Fx, name: a.name });
-    const Myd = Fx * ev + Myy;
+    const Myd = -Fx * ev + Myy;
     if (Myd) M.push({ x: a.x, w: Myd, name: a.name });
     // 4. Eingeprägtes Moment im Grundriss
     if (Mzz) Mz.push({ x: a.x, w: Mzz, name: a.name });

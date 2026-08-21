@@ -185,7 +185,7 @@ export async function nachProjekt() {
 const VORLAGE_AUS = [
   'typ', 'profOG', 'profUG', 'stahl', 'massVariante', 'blechQuelle',
   'endbedingung', 'mastProfil', 'mastSteg', 'wMast', 'wMastAusTabelle',
-  'mastWindAufJoch', 'kragA', 'kragB',
+  'mastWindAufJoch', 'wMastB', 'kragA', 'kragB',
   'torsionModell', 'torsionsverteilung', 'knotenbereich', 'endfeldZuschlag', 'schiefeBiegung',
   'trasseRadius', 'flSpannweite',
   'anbauteile', 'eigeneVorlagen', 'generator',

@@ -198,30 +198,49 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
 }
 
 /**
- * VERDREHUNG DES MASTKOPFES AUS DEM WIND AUF DEN MAST.
+ * VERDREHUNG DER MASTKÖPFE - AUS MASTWIND UND AUS DER JOCHLÄNGSKRAFT.
  *
- * Der Wind quer zum Gleis - also IN DER JOCHACHSE - drückt gegen den Mast.
- * Der Mast biegt sich, sein Kopf verdreht sich, und weil das Jochende dort
- * angeschlossen ist, wird diese Verdrehung dem Joch AUFGEZWUNGEN. Das ist
- * keine Last auf dem Joch, sondern eine Auflagerverdrehung:
+ * Am Jochende wirkt statt M = −c·θ das Federgesetz M = −c·(θ − θ₀): θ₀ ist die
+ * Verdrehung, die der Mastkopf ohne das Joch machen würde, und sie wird dem
+ * Jochende AUFGEZWUNGEN. Zwei Ursachen bringen sie hervor.
+ *
+ * 1. DER WIND AUF DEN MAST, in der Jochachse.
  *
  *      Kragmast, Fuss eingespannt, Gleichlast w über die Höhe H
- *      -> Kopfverdrehung  θ₀ = w·H³ / (6·E·I)
+ *      -> θ_w = w·H³/(6·E·I)     δ_w = w·H⁴/(8·E·I)
  *
- * Am Jochende wirkt dann statt M = −c·θ das Federgesetz
+ * 2. DIE LÄNGSKRAFT DES JOCHS - der grössere Anteil, und lange übersehen.
  *
- *      M = −c·(θ − θ₀)
+ * Eine Anbaulast in Jochachse (F_x) läuft im Ersatzbalken als Normalkraft ins
+ * Auflager und ist dort zu Ende. In Wirklichkeit ist das Auflager ein
+ * MASTKOPF: die Kraft greift auf der Höhe H an, biegt den Mast und verdreht
+ * seinen Kopf - und diese Verdrehung geht als Zwang ins Joch zurück.
  *
- * Hält das Joch den Kopf vollständig (θ = 0), ist das eingeleitete Moment
- * M₀ = c·θ₀ = w·H²/6 - genau das Moment, das ein am Fuss eingespannter und
- * am Kopf drehfest gehaltener Mast unter Gleichlast am Kopf abgibt. Der
- * Ersatzbalken bekommt damit die richtige obere Schranke.
+ *      θ_P = P·H²/(2·E·I)
  *
- * WARUM DAS NÖTIG IST
- * Ohne diesen Anteil fehlt dem Lastfall Wind in Jochachse die grösste
- * Einwirkung. Am nachgerechneten Signaljoch trägt der Wind auf die beiden
- * Maste 6.10 kN gegenüber 6.42 kN auf den Anbauteilen - also die Hälfte der
- * gesamten Einwirkung. Das Werkzeug lag in diesem Lastfall rund 80 % zu tief.
+ * WIE SICH DIE KRAFT AUFTEILT. Das Joch ist in seiner Achse dehnstarr (beim
+ * Signaljoch 240-mal steifer als die beiden Mastköpfe zusammen), beide Köpfe
+ * haben deshalb DIESELBE Verschiebung δ. Mit der Kopfsteifigkeit des
+ * Kragmastes k = 3·E·I/H³:
+ *
+ *      δ = ( Σ k_i·δ_w,i + F_x ) / Σ k_i          P_i = k_i · (δ − δ_w,i)
+ *
+ * Die Aufteilung folgt also den Kopfsteifigkeiten, und der Mastwind
+ * verschiebt sie zusätzlich: der weichere Mast wird vom steiferen gestützt.
+ *
+ * GEMESSEN am Signaljoch (PyNite, beide Maste ausmodelliert, Wind längs):
+ *
+ *      Mast A HEB 260 / 7.80 m   k = 198   P = 5.10 kN   (PyNite 5.11)
+ *      Mast B HEM 240 / 12.00 m  k =  89   P = 1.32 kN   (PyNite 1.32)
+ *
+ *      θ_Wind    0.83 / 1.75 mrad
+ *      θ_Kraft   4.95 / 1.86 mrad       <- der Wind ist der kleinere Anteil
+ *
+ *      M ≈ c·θ   23.2 / 15.3 kNm        gegen PyNite 21.5 / 16.3
+ *
+ * Ohne den zweiten Anteil rechnete das Werkzeug 3.3 / 6.5 kNm - ein Sechstel
+ * bzw. ein Drittel. Der Lastfall Wind in Jochachse lag entsprechend 40 bis
+ * 55 % zu tief, auf der unsicheren Seite.
  *
  * GRENZE
  * Beim Anschluss 'durchlaufend' wird die Feder mit 1.45 angesetzt, θ₀ aber
@@ -229,22 +248,41 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
  * Mastes verdreht sich etwas weniger; das eingeleitete Moment fällt hier
  * also eher zu gross aus - auf der sicheren Seite.
  *
- * NICHT ENTHALTEN ist der Wind auf den Mast in GLEISRICHTUNG. Er verschiebt
- * die Mastköpfe quer und verdreht sie um die Jochachse; das Joch bekommt
- * daraus eine Auflagerverschiebung und eine Torsion, nicht eine Biegung.
- * Der Ersatzbalken hat für beides keine Entsprechung.
+ * NICHT ENTHALTEN ist der Wind auf den Mast in GLEISRICHTUNG (Handbuch 4.4).
  *
- * @param {object} mast Ergebnis aus mastSteifigkeit()
- * @param {number} wMast Windlast je Laufmeter Mast [kN/m], in der Jochachse
- * @returns {{theta0:number, M0:number, wMast:number}}
+ * @param {object} mastA Ergebnis aus mastSteifigkeit(), Ende A
+ * @param {object} mastB dito, Ende B (fehlt er, gilt A für beide)
+ * @param {object} lasten {wMast [kN/m], Fx [kN]} - beide bereits mit den
+ *        Beiwerten des Lastfalls
+ * @returns {{delta:number, A:object, B:object, wMast:number, Fx:number}}
  */
-export function mastKopfdrehung(mast, wMast) {
+export function mastKoepfe(mastA, mastB, { wMast = 0, wMastB = null, Fx = 0 } = {}) {
+  const leer = { theta0: 0, thetaWind: 0, thetaKraft: 0, P: 0, M0: 0 };
+  const A = mastA, B = mastB ?? mastA;
   const w = Number.isFinite(wMast) ? wMast : 0;
-  if (!mast || !(w > 0) || !(mast.I > 0) || !(mast.H > 0)) {
-    return { theta0: 0, M0: 0, wMast: 0 };
+  const F = Number.isFinite(Fx) ? Fx : 0;
+  if (!A || !(A.I > 0) || !(A.H > 0) || !B || !(B.I > 0) || !(B.H > 0)) {
+    return { delta: 0, A: leer, B: leer, wMast: 0, Fx: 0 };
   }
-  const theta0 = (w * mast.H ** 3) / (6 * E_STAHL * mast.I);
-  return { theta0, M0: mast.cPhi * theta0, wMast: w };
+  // Zwei verschiedene Maste fangen verschieden viel Wind: der Wert für Ende B
+  // darf abweichen, sonst gilt derselbe für beide.
+  const wB = Number.isFinite(wMastB) ? wMastB : w;
+  const je = (m, wi) => ({
+    I: m.I, H: m.H, cPhi: m.cPhi,
+    k: (3 * E_STAHL * m.I) / m.H ** 3,
+    dw: (wi * m.H ** 4) / (8 * E_STAHL * m.I),
+    tw: (wi * m.H ** 3) / (6 * E_STAHL * m.I),
+  });
+  const a = je(A, w), b = je(B, wB);
+  const K = a.k + b.k;
+  const delta = K > 0 ? (a.k * a.dw + b.k * b.dw + F) / K : 0;
+  const ende = (e) => {
+    const P = e.k * (delta - e.dw);
+    const thetaKraft = (P * e.H ** 2) / (2 * E_STAHL * e.I);
+    const theta0 = e.tw + thetaKraft;
+    return { P, thetaWind: e.tw, thetaKraft, theta0, M0: e.cPhi * theta0 };
+  };
+  return { delta, A: ende(a), B: ende(b), wMast: w, wMastB: wB, Fx: F };
 }
 
 /**

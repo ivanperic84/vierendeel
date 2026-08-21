@@ -207,15 +207,22 @@ export function hinweise(m) {
       + '11 % auf jedes globale Moment.');
   }
   if (m.mastKopf) {
-    h.push(`Wind auf den Mast verdreht das Jochende: θ₀ = `
-      + `${(1000 * m.mastKopf.A.theta0).toFixed(2)} mrad, eingeleitetes Moment `
-      + `bis ${m.mastKopf.A.M0.toFixed(2)} kNm je Ende. Erfasst ist nur der `
-      + 'Wind IN DER JOCHACHSE; die Verdrehung der Mastköpfe um die Jochachse '
-      + 'aus dem Wind in Gleisrichtung ist nicht angesetzt.');
+    const k = m.mastKopf;
+    const mr = (v) => (1000 * v).toFixed(2);
+    h.push('Die Mastköpfe verdrehen sich, und das Jochende macht es mit: θ₀ = '
+      + `${mr(k.A.theta0)} / ${mr(k.B.theta0)} mrad, eingeleitetes Moment bis `
+      + `${Math.max(Math.abs(k.A.M0), Math.abs(k.B.M0)).toFixed(2)} kNm. `
+      + `Davon aus dem Wind auf den Mast ${mr(k.A.thetaWind)} mrad, aus der `
+      + `Längskraft des Jochs ${mr(k.A.thetaKraft)} mrad `
+      + `(Kopfkraft ${k.A.P.toFixed(2)} / ${k.B.P.toFixed(2)} kN, `
+      + `Kopfweg ${(1000 * k.delta).toFixed(1)} mm). Erfasst ist der Wind IN `
+      + 'DER JOCHACHSE; die Verdrehung der Mastköpfe UM die Jochachse aus dem '
+      + 'Wind in Gleisrichtung ist nicht angesetzt.');
   } else if (m.federn?.mast) {
-    h.push('Mastwind wirkt nur auf den Mast, nicht auf das Joch. Am '
-      + 'nachgerechneten Signaljoch fehlte damit die Hälfte der Einwirkung '
-      + 'des Lastfalls Wind in Jochachse.');
+    h.push('Die Mastköpfe verdrehen sich unter dieser Einwirkung nicht: kein '
+      + 'Wind in Jochachse und keine Längskraft im Joch. Erfasst wäre der '
+      + 'Wind IN DER JOCHACHSE; die Verdrehung UM die Jochachse aus dem Wind '
+      + 'in Gleisrichtung ist nicht angesetzt.');
   }
   [m.profOG, m.profUG].forEach((p) => {
     if (p.hinweis) h.push(`${p.name}: ${p.hinweis}`);
