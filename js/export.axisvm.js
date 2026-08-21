@@ -341,7 +341,7 @@ export function stabmodell(m, opt = {}) {
  * und nur getrennte Lastfälle lassen sich hinterher Anteil für Anteil mit der
  * eigenen Rechnung vergleichen.
  */
-export function lasten(m, bau) {
+export function lasten(m, bau, opt = {}) {
   const punkt = [], moment = [], strecke = [];
   const gurte = [];
   ['OG', 'UG'].forEach((g) => ['L', 'R'].forEach((se) => gurte.push(`${g}${se}`)));
@@ -365,9 +365,17 @@ export function lasten(m, bau) {
   // und EINEN Untergurt derselben Seite. Damit liegt die Resultierende auf
   // halber Höhe, und es entsteht - wie im Rechenkern angenommen - KEINE
   // Torsion aus der Laufmeterlast des Jochs.
+  // WER DAS EIGENGEWICHT SELBST RECHNET, BEKOMMT NUR DEN ZUSCHLAG.
+  // AxisVM tut das (siehe oben), PyNite NICHT: dort steht im Skript keine
+  // Zeile, die es aus den Stäben ableitet, und ohne sie fehlte im Modell die
+  // grösste Einzellast. Der PyNite-Export setzt deshalb `eigengewicht: true`
+  // und bekommt die volle Laufmeterlast der Sortimentstabelle - was für ein
+  // VERGLEICHSMODELL ohnehin das Richtige ist: so wird die Modellbildung
+  // verglichen und nicht die Wichte.
   const gZusatz = m.char?.herkunft?.gZusatz ?? 0;
+  const gStrecke = opt.eigengewicht ? (m.char?.gk ?? 0) : gZusatz;
   const verteilt = [
-    { gruppe: 'G', richtung: 'Z', wert: -gZusatz, auf: ['OGL', 'OGR', 'UGL', 'UGR'] },
+    { gruppe: 'G', richtung: 'Z', wert: -gStrecke, auf: ['OGL', 'OGR', 'UGL', 'UGR'] },
     { gruppe: 'WindY', richtung: 'Y', wert: +(m.char?.wk ?? 0), auf: ['OGL', 'UGL'] },
     { gruppe: 'Schnee', richtung: 'Z',
       wert: -(m.schneeAktiv ? (m.char?.sk ?? 0) : 0), auf: ['OGL', 'OGR'] },

@@ -182,7 +182,11 @@ function qsName(st, bau, zeilen) {
 export function pyniteSkript(m, opt = {}) {
   const km = opt.knotenmodell ?? 'anschnitt';
   const bau = stabmodell(m, { knotenmodell: km, schottAusblenden: opt.schottAusblenden });
-  const l = lasten(m, bau);
+  // EIGENGEWICHT MUSS MIT. PyNite leitet es nicht aus den Stäben ab; ohne
+  // diese Zeile fehlte im Modell die grösste Einzellast (am Signaljoch
+  // 0.70 kN/m gegen 3 × 3.92 kN Anbaulast - das Feldmoment fiel um 45 % zu
+  // klein aus).
+  const l = lasten(m, bau, { eigengewicht: true });
   const schubweich = opt.schubweich !== false;
   const qs = querschnitte(bau, schubweich);
 

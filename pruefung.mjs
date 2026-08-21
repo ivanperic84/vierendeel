@@ -3245,6 +3245,56 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
 }
 
 // ===========================================================================
+titel('29a PyNite-Export: das Eigengewicht muss mit');
+// AxisVM leitet das Eigengewicht aus den Staeben ab, PyNite NICHT - dort
+// steht im Skript keine Zeile dafuer. Ohne sie fehlte im Vergleichsmodell die
+// groesste Einzellast, und das Feldmoment fiel 45 % zu klein aus.
+{
+  const { pyniteSkript } = await import(J('export.pynite.js'));
+  const { lasten } = await import(J('export.axisvm.js'));
+  const { modell } = await import(J('core.vierendeel.js'));
+  const w = basis({ lastHerkunft: 'manuell', gkManuell: 0.70, skManuell: 0.24,
+                    wkManuell: 0.52, schneeAktiv: true, gZusatz: 0.05,
+                    anbauteile: [] });
+  const m = modell(w, getProfil(w.profOG), getProfil(w.profUG),
+                   getStahl(w.stahl), T.getTragjoch(w.typ));
+  const t = pyniteSkript(m, { knotenmodell: 'anschnitt' });
+  const text = typeof t === 'string' ? t : t.text;
+  const zeilen = text.split('\n').filter((z) => z.includes("case='G'"));
+  wahr('Der Export schreibt Eigengewichtslasten', zeilen.length > 0,
+       `${zeilen.length} Zeilen`);
+  // Volle Laufmeterlast, hälftig... nein: viertelweise auf alle vier Gurte.
+  const erste = zeilen[0].match(/'FY', (-?[\d.]+),/);
+  pruef('Zusammen ergeben sie g_k', 4 * Math.abs(parseFloat(erste[1])),
+        m.char.gk, 1e-5, 'kN/m');
+
+  // Der AxisVM-Export laesst es weiterhin weg - dort rechnet das Programm
+  // selbst, und beides waere doppelt.
+  const bau = t.bau;
+  const ohne = lasten(m, bau);
+  const mit = lasten(m, bau, { eigengewicht: true });
+  // Jeder Gurtstab bekommt ein Viertel; die Summe ueber die vier Gurte ist
+  // die Laufmeterlast.
+  const gStrecke = (l) => {
+    const q = l.strecke.filter((x) => x.lastfall === 'G');
+    return q.length ? 4 * Math.abs(q[0].wert) : 0;
+  };
+  // Ohne Schalter bleibt nur ein allfaelliger Zuschlag - bei Lasten von Hand
+  // gibt es keinen, also gar keine Streckenlast. GENAU DAS war der Fehler:
+  // der PyNite-Export nahm die Regel des AxisVM-Exports mit, obwohl PyNite
+  // das Eigengewicht nicht selbst rechnet.
+  wahr('Ohne Schalter keine Eigengewichtslast',
+       ohne.strecke.filter((q) => q.lastfall === 'G').length === 0);
+  wahr('Mit Schalter die volle Laufmeterlast',
+       Math.abs(gStrecke(mit) - m.char.gk) < 1e-6, `${gStrecke(mit).toFixed(4)} kN/m`);
+  // Die Resultierende liegt auf der Jochachse: kein Torsionsmoment.
+  const je = new Set(mit.strecke.filter((q) => q.lastfall === 'G')
+    .map((q) => q.stab.slice(0, 3)));
+  wahr('Auf alle vier Gurte gleich verteilt', je.size === 4,
+       [...je].join(', '));
+}
+
+// ===========================================================================
 titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
 // Die Schwerachsen SIND das Stabmodell - sie tragen feldweise dieselben
 // Kennwerte wie die Volumenkoerper. Der frueher eigene Schalter
