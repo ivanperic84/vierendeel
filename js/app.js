@@ -34,7 +34,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
 import { ladeFlBauteile, flBauteile } from './data.fl.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher } from './data.paket.js';
-import { mastWind, mastWindQuer } from './data.masten.js';
+import { mastWind } from './data.masten.js';
 import { pwaEinrichten, kannInstallieren, installiere,
          alsProgramm } from './pwa.js';
 import * as store from './store.js';
@@ -177,8 +177,6 @@ function neuRechnen(neuZeichnen = true) {
       const ek = ekVonWindklasse(werte.windKlasse);
       const w = mastWind(werte.mastProfil, ek, werte.mastSteg);
       if (Number.isFinite(w)) werte.wMast = w;
-      const wq = mastWindQuer(werte.mastProfil, ek, werte.mastSteg);
-      if (Number.isFinite(wq)) werte.wMastQuer = wq;
     }
 
     const erg = berechne(werte, profOG, profUG, stahl, joch);

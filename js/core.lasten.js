@@ -129,7 +129,7 @@ export function charakteristischeLasten(inp, joch) {
 export const NORMENSAETZE = [
   {
     key: 'rte', label: 'RTE (Bahn)',
-    beiwerte: { gammaG: 1.30, gammaQ: 1.30, psi0: 0.50, psiGebrauch: 0.70 },
+    beiwerte: { gammaG: 1.30, gammaQ: 1.30, psi0: 0.50 },
     hinweis: 'Einheitlicher Beiwert 1.30 für ständige und veränderliche ' +
              'Einwirkungen, Begleiteinwirkung ψ₀ = 0.50. So gerechnet im ' +
              'geprüften Referenzprojekt (46 Kombinationen ausgezählt: auf ' +
@@ -138,7 +138,7 @@ export const NORMENSAETZE = [
   },
   {
     key: 'sia260', label: 'SIA 260',
-    beiwerte: { gammaG: 1.35, gammaQ: 1.50, psi0: 0.50, psiGebrauch: 0.70 },
+    beiwerte: { gammaG: 1.35, gammaQ: 1.50, psi0: 0.50 },
     hinweis: 'SIA 260 Gl. (16): γ_G = 1.35, γ_Q = 1.50, Begleiteinwirkung ψ₀ = 0.50.',
   },
 ];
@@ -210,8 +210,24 @@ export function vertikalVeraenderlich(inp) {
 /**
  * Die vorgegebenen Lastfälle.
  *
- *   LF ständig             charakteristisch, nur Eigengewicht
- *   LF ständig + Wind      charakteristisch, alle Beiwerte 1.00
+ * ZUOBERST DIE EINZELNEN LASTARTEN, CHARAKTERISTISCH
+ * Ständig, Anbauteile, Schnee, Wind y, Wind x - jede für sich, alle Beiwerte
+ * 1.00. Sie sind kein Nachweis, sondern der Massstab: nur an einer einzelnen
+ * Lastart lässt sich ablesen, ob das Werkzeug den Lastweg richtig führt, und
+ * nur so ist es gegen ein FEM-Modell vergleichbar, das seine Lastfälle
+ * ebenfalls einzeln ausweist. Der Vergleich mit dem geprüften Signaljoch ist
+ * genau so geführt worden.
+ *
+ * «Anbauteile» ist dabei kein eigener Beiwertsatz, sondern derselbe wie
+ * «Ständig», nur auf die Anbauteile beschränkt (`nur: 'anbauteile'`);
+ * «Ständig» selbst zeigt das Joch ohne sie. Zusammen ergeben die beiden die
+ * volle ständige Last.
+ *
+ *   LF Ständig             charakteristisch, Eigengewicht des Jochs
+ *   LF Anbauteile          charakteristisch, ständige Lasten der Anbauteile
+ *   LF Schnee              charakteristisch
+ *   LF Wind y / Wind x     charakteristisch
+ *   LF Ständig + Wind      charakteristisch, alles zusammen
  *   LF Wind y ±  leitend   γ_G · G ± γ_Q · Wind y + γ_Q · ψ₀ · Schnee
  *   LF Wind x ±  leitend   γ_G · G ± γ_Q · Wind x + γ_Q · ψ₀ · Schnee
  *   LF Schnee ±  leitend   γ_G · G ± γ_Q · ψ₀ · Wind y + γ_Q · Schnee
@@ -219,11 +235,11 @@ export function vertikalVeraenderlich(inp) {
  * Je Windrichtung stehen BEIDE Vorzeichen. Das ist der Zweck der Trennung:
  * welche Seite massgebend wird, hängt davon ab, wohin die ständigen
  * Horizontallasten (Umlenkkraft) zeigen - und das lässt sich nicht vorab
- * entscheiden.
+ * entscheiden. Bei den charakteristischen Einzellastfällen erübrigt sich das:
+ * wirkt nur eine Lastart, ist die Gegenrichtung ihr Spiegelbild.
  *
- * Die beiden charakteristischen Lastfälle sind KEIN Tragsicherheitsnachweis
- * (nachweis: false). Sie stehen für die Gebrauchstauglichkeit und für den
- * Vergleich; in Umhüllende und "massgebend" gehen sie nicht ein.
+ * Die charakteristischen Lastfälle sind KEIN Tragsicherheitsnachweis
+ * (nachweis: false). In Umhüllende und "massgebend" gehen sie nicht ein.
  */
 export function standardLastfaelle(inp) {
   const g = inp.gammaG ?? 1.35;
@@ -234,11 +250,23 @@ export function standardLastfaelle(inp) {
   const begleitS = s ? q * p : 0;
 
   const lf = [
-    { key: 'gk', bez: 'Ständig', art: 'charakteristisch', nachweis: false,
-      beiwerte: bw({ G: 1 }) },
+    { key: 'gk', bez: 'Ständig (Joch)', art: 'charakteristisch', nachweis: false,
+      nur: 'joch', beiwerte: bw({ G: 1 }) },
+    { key: 'ak', bez: 'Anbauteile ständig', art: 'charakteristisch',
+      nachweis: false, nur: 'anbauteile', beiwerte: bw({ G: 1 }) },
+  ];
+  if (s) {
+    lf.push({ key: 'sk', bez: 'Schnee', art: 'charakteristisch',
+              nachweis: false, beiwerte: bw({ Schnee: 1 }) });
+  }
+  lf.push(
+    { key: 'wyk', bez: 'Wind y (Gleisrichtung)', art: 'charakteristisch',
+      nachweis: false, leit: 'WindY', beiwerte: bw({ WindY: 1 }) },
+    { key: 'wxk', bez: 'Wind x (Jochachse)', art: 'charakteristisch',
+      nachweis: false, leit: 'WindX', beiwerte: bw({ WindX: 1 }) },
     { key: 'gwk', bez: 'Ständig + Wind', art: 'charakteristisch', nachweis: false,
       beiwerte: bw({ G: 1, WindX: 1, WindY: 1 }) },
-  ];
+  );
 
   // Wind leitend, je Richtung mit beiden Vorzeichen
   [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
@@ -265,46 +293,41 @@ export function standardLastfaelle(inp) {
   }
 
   // --- GEBRAUCHSTAUGLICHKEIT ------------------------------------------------
-  // Alle Beiwerte 1.0; die veränderlichen werden abgemindert. Zwei Stufen, so
-  // wie sie im geprüften Referenzprojekt stehen (46 Kombinationen, G-Reihe):
+  // NUR DIE SELTENE KOMBINATION: leitende Einwirkung 1.00, begleitende 0.50.
+  // Alle Beiwerte auf Gebrauchsniveau, ohne γ.
   //
-  //   selten    leitend 1.00, begleitend 0.50        (G140…G153)
-  //   häufig    leitend ψ = 0.70, begleitend 0.35    (G110…G123)
+  // Die HÄUFIGE Stufe (ψ = 0.70 mit 0.35 begleitend, im geprüften
+  // Referenzprojekt die Reihe G110…G123) ist bewusst NICHT geführt: sie
+  // verdoppelt die Zahl der Lastfälle, ohne einen Nachweis zu bedienen, den
+  // dieses Werkzeug führt. Wer sie braucht, ergänzt sie als eigenen Lastfall.
   //
-  // 0.35 ist dort nicht frei gewählt, sondern 0.70 · 0.50 - dieselbe
-  // Begleitregel wie in der Tragsicherheit, nur auf das abgeminderte Niveau.
-  //
-  // Diese Fälle sind KEIN Nachweis (nachweis: false): sie liefern die
-  // Schnittgrössen für Verformungsbetrachtungen. Der Nachweis der
+  // Auch die seltene Stufe ist KEIN Nachweis (nachweis: false): sie liefert
+  // die Schnittgrössen für Verformungsbetrachtungen. Der Nachweis der
   // Gebrauchstauglichkeit selbst - Durchbiegung, Verdrehung, Querverschiebung
   // der Mastköpfe - ist im Werkzeug NICHT geführt.
-  const pg = inp.psiGebrauch ?? 0.70;
-  [['selten', 1.00, 'selten'], ['haeufig', pg, 'häufig']].forEach(
-    ([stufe, faktor, text]) => {
-      [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
-        .forEach(([tag, gruppe, richtung]) => {
-          [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
-            lf.push({
-              key: `gt${stufe}W${tag}${suffix}`,
-              bez: `Gebrauchstauglichkeit ${text}: Wind ${zeichen}${richtung}`,
-              art: 'gebrauchstauglichkeit', nachweis: false,
-              leit: gruppe, vorzeichen: vz, stufe,
-              beiwerte: bw({ G: 1, [gruppe]: vz * faktor }),
-            });
-          });
+  [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
+    .forEach(([tag, gruppe, richtung]) => {
+      [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+        lf.push({
+          key: `gtseltenW${tag}${suffix}`,
+          bez: `Gebrauchstauglichkeit selten: Wind ${zeichen}${richtung}`,
+          art: 'gebrauchstauglichkeit', nachweis: false,
+          leit: gruppe, vorzeichen: vz, stufe: 'selten',
+          beiwerte: bw({ G: 1, [gruppe]: vz }),
         });
-      if (s) {
-        [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
-          lf.push({
-            key: `gt${stufe}S${suffix}`,
-            bez: `Gebrauchstauglichkeit ${text}: Schnee, Wind ${zeichen}y`,
-            art: 'gebrauchstauglichkeit', nachweis: false,
-            leit: 'Schnee', vorzeichen: vz, stufe,
-            beiwerte: bw({ G: 1, WindY: vz * faktor * p, Schnee: faktor }),
-          });
-        });
-      }
+      });
     });
+  if (s) {
+    [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+      lf.push({
+        key: `gtseltenS${suffix}`,
+        bez: `Gebrauchstauglichkeit selten: Schnee, Wind ${zeichen}y`,
+        art: 'gebrauchstauglichkeit', nachweis: false,
+        leit: 'Schnee', vorzeichen: vz, stufe: 'selten',
+        beiwerte: bw({ G: 1, WindY: vz * p, Schnee: 1 }),
+      });
+    });
+  }
   return lf;
 }
 
@@ -331,11 +354,14 @@ export function lastfaelle(inp) {
 }
 
 /** Beiwerte eines Lastfalls; ohne Treffer der erste Nachweislastfall. */
-export function beiwerteFuer(inp, key) {
+export function lastfallFuer(inp, key) {
   const alle = lastfaelle(inp);
-  const l = alle.find((x) => x.key === key)
-        ?? alle.find((x) => x.nachweis) ?? alle[0];
-  return { ...l.beiwerte };
+  return alle.find((x) => x.key === key)
+      ?? alle.find((x) => x.nachweis) ?? alle[0];
+}
+
+export function beiwerteFuer(inp, key) {
+  return { ...lastfallFuer(inp, key).beiwerte };
 }
 
 /**

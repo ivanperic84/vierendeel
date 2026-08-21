@@ -271,9 +271,25 @@ immer an, unabhängig von Wind und Schnee. Sie mit einem Windbeiwert zu belegen
 wäre falsch, und sie kehrt sich auch nicht mit dem Wind um.`)}
 
 <h4>3.4 Lastfälle</h4>
-<p>Vorgegeben sind acht Lastfälle: zwei charakteristische (nur zum Vergleich,
-kein Nachweis) und je Windrichtung sowie für Schnee ein leitender Fall mit
-beiden Vorzeichen.</p>
+<p><b>Zuoberst stehen die einzelnen Lastarten, jede für sich und
+charakteristisch</b> – Ständig, Anbauteile, Schnee, Wind y, Wind x, dazu alles
+zusammen. Alle Beiwerte 1.00. Sie sind kein Nachweis, sondern der Massstab: nur
+an einer einzelnen Lastart lässt sich ablesen, ob der Lastweg stimmt, und nur so
+ist die Rechnung gegen ein FEM-Modell zu halten, das seine Lastfälle ebenfalls
+einzeln ausweist.</p>
+
+<table><tr><th>Lastfall</th><th>zeigt</th></tr>
+<tr><td>Ständig (Joch)</td><td>Eigengewicht des Jochs, ohne Anbauteile</td></tr>
+<tr><td>Anbauteile ständig</td><td>nur die ständigen Lasten der Anbauteile</td></tr>
+<tr><td>Schnee · Wind y · Wind x</td><td>je eine Einwirkung allein</td></tr>
+<tr><td>Ständig + Wind</td><td>alles zusammen, ohne Beiwerte</td></tr></table>
+
+<p>Die ersten beiden ergänzen sich zur vollen ständigen Last; getrennt geführt,
+weil ihr Lastweg verschieden ist – die Laufmeterlast liegt auf den Gurten, die
+Anbauteillast hängt an vier Punkten und bringt Torsion mit.</p>
+
+<p>Darauf folgen die <b>Nachweislastfälle</b>: je Windrichtung sowie für Schnee
+ein leitender Fall mit beiden Vorzeichen.</p>
 
 ${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; γ_Q · ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
 γ_G · G &nbsp;±&nbsp; γ_Q · ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}
@@ -289,21 +305,19 @@ Nie 1.35 oder 1.50. <b>γ_Q 1.50 gegen 1.30 sind 15 % auf jede veränderliche
 Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.`)}
 
 <h4>3.5 Gebrauchstauglichkeit</h4>
-<p>Alle ständigen Beiwerte 1.0, die veränderlichen abgemindert. Zwei Stufen, so
-wie sie im Referenzprojekt stehen:</p>
+<p>Alle ständigen Beiwerte 1.0, die veränderlichen abgemindert. Geführt wird
+<b>nur die seltene Stufe</b>: leitende Einwirkung 1.00, begleitende 0.50.</p>
 
-<table><tr><th>Stufe</th><th>leitend</th><th>begleitend</th></tr>
-<tr><td>selten</td><td>1.00</td><td>0.50</td></tr>
-<tr><td>häufig</td><td>ψ = 0.70</td><td>0.35 = 0.70 · 0.50</td></tr></table>
+<p>Die <b>häufige</b> Stufe des Referenzprojekts (ψ = 0.70 leitend, 0.35 = 0.70 ·
+0.50 begleitend) ist bewusst weggelassen. Sie verdoppelt die Zahl der Lastfälle,
+ohne einen Nachweis zu bedienen, den dieses Werkzeug führt; wer sie braucht,
+ergänzt sie als eigenen Lastfall.</p>
 
-<p>0.35 ist dort nicht frei gewählt, sondern dieselbe Begleitregel wie in der
-Tragsicherheit, nur auf dem abgeminderten Niveau.</p>
-
-${q(`Diese Lastfälle sind <b>kein Nachweis</b>. Sie liefern die Schnittgrössen
-für Verformungsbetrachtungen – der Nachweis der Gebrauchstauglichkeit selbst
-(Durchbiegung, Verdrehung des Jochs, Querverschiebung der Mastköpfe und damit
-die Solllage des Fahrdrahts) ist im Werkzeug <b>nicht geführt</b>. Sie erscheinen
-deshalb nicht in η.`)}
+${q(`Auch die seltene Stufe ist <b>kein Nachweis</b>. Sie liefert die
+Schnittgrössen für Verformungsbetrachtungen – der Nachweis der
+Gebrauchstauglichkeit selbst (Durchbiegung, Verdrehung des Jochs,
+Querverschiebung der Mastköpfe und damit die Solllage des Fahrdrahts) ist im
+Werkzeug <b>nicht geführt</b>. Sie erscheint deshalb nicht in η.`)}
 
 <p class="hb-quelle">core.lasten.js · core.trasse.js</p>
 `,
@@ -425,51 +439,36 @@ beiden Maste 6.10 kN gegenüber 6.42 kN auf den Anbauteilen. Das Werkzeug lag in
 diesem Lastfall rund 80 % zu tief; mit dem Anteil trifft das Bindeblech den
 Vergleichswert auf 2 %, die Gurte bleiben 30 bis 45 % darunter.`)}
 
-<h4>4.4 Wind auf den Mast in Gleisrichtung – Torsion aus ungleichen Masten</h4>
+<h4>4.4 Wind auf den Mast in Gleisrichtung – nicht angesetzt</h4>
 <p>Dieser Wind biegt den Mast quer zur Jochachse. Am Jochende kommt zweierlei
-an, und nur eines davon richtet etwas an.</p>
+an, und <b>keines von beiden wird gerechnet</b>.</p>
 
-<p><b>Die Verschiebung des Auflagerpunktes nicht.</b> Im Grundriss ist das Joch
-an beiden Enden gelenkig gelagert und ohne Drehfeder – eine Einspannung dort
-würde die Torsionssteifigkeit des offenen Mastprofils beanspruchen, die zu
-gering ist (Abschnitt 4.2). Ein statisch bestimmt gelagerter Träger bekommt aus
-Auflagerverschiebungen keine Schnittgrössen, auch aus ungleichen nicht: das
-Joch dreht sich im Grundriss als Ganzes.</p>
+<p><b>Die Verschiebung des Auflagerpunktes richtet nichts an.</b> Im Grundriss
+ist das Joch an beiden Enden gelenkig gelagert und ohne Drehfeder – eine
+Einspannung dort würde die Torsionssteifigkeit des offenen Mastprofils
+beanspruchen, die zu gering ist (Abschnitt 4.2). Ein statisch bestimmt
+gelagerter Träger bekommt aus Auflagerverschiebungen keine Schnittgrössen, auch
+aus ungleichen nicht: das Joch dreht sich im Grundriss als Ganzes.</p>
 
-<p><b>Die Verdrehung des Mastkopfes um die Jochachse schon</b> – aber nur, wenn
-die beiden Enden sich <b>ungleich</b> verdrehen:</p>
+<p><b>Die Verdrehung des Mastkopfes um die Jochachse wäre eine Torsion</b> –
+aber nur, wenn die beiden Enden sich <b>ungleich</b> verdrehen, also nur bei
+zwei verschiedenen Masten:</p>
 
 ${f(`φ₀ = w_quer · H³ / (6 · E · I_quer)<br>
 T₀ = (φ₀B − φ₀A) / (1/c_T,A + 1/c_T,B)`)}
 
-<p>I_quer ist die <i>andere</i> Hauptachse als bei der vertikalen Einspannung.
-Gleiche Maste verdrehen sich gleich, das Joch dreht sich starr mit, T₀ = 0.
-Stehen die Enden auf verschiedenen Masten, wird es zwischen ihnen verwunden;
-T₀ läuft dann mit gleichem Betrag über die ganze Jochlänge – anders als die
-Torsion der Anbauteile, die sich vom Angriff aus auf beide Auflager
-verteilt.</p>
+${q(`<b>Dieser Term ist herausgenommen.</b> Er war hergeleitet, nicht geeicht,
+und gegen das eine verfügbare FEM-Modell hat er die Übereinstimmung deutlich
+verschlechtert: die Gurte unter Wind quer liefen von +52 auf +89 % hoch, ohne
+dass das Modell dort mehr Beanspruchung zeigt. Die Herleitung nimmt das Joch
+als torsionsstarr an – die obere Schranke – und legt die volle
+Differenzverdrehung auf die beiden Mastfedern. Das ist zu viel. Wer den Anteil
+führen will, setzt ihn als eigenes Torsionsmoment an einem Anbauteil an und
+hält das im Bericht fest.`)}
 
-${q(`Das Joch ist dabei als <b>torsionsstarr</b> angenommen: der Differenzwinkel
-geht ganz auf die beiden Mastfedern. Das ist die obere Schranke – ein
-nachgiebiges Joch nimmt weniger auf (am Signaljoch 2.32 gegen 2.04 kNm, also
-14 % mehr).`)}
-
-<p><b>Einordnung, ehrlich.</b> Der Term ist hergeleitet, nicht geeicht. Gegen
-das eine verfügbare FEM-Modell <b>verschlechtert</b> er die Übereinstimmung:
-das Verhältnis Vertikal- zu Horizontalblech wandert zwar in die richtige
-Richtung (0.24 → 0.41 gegen 0.75), aber beide Bleche steigen, und die Gurte
-laufen von +9…+23 % auf +48…+67 % hoch. Er liegt auf der sicheren Seite und
-wirkt nur, wenn zwei <i>verschiedene</i> Maste eingegeben sind – abschaltbar
-über denselben Schalter wie der Mastwind in Jochachse.</p>
-
-${q(`Der Schalter steht ab Werk auf <b>ein</b>, und das ist so entschieden, nicht
-übersehen: die Einwirkung ist wirklich vorhanden, sie wegzulassen wäre für die
-Vertikalbleche die unsichere Seite. Wer sie als Nebenrechnung führen will,
-schaltet sie ab und hält das im Bericht fest.`)}
-
-<p><b>Beide Windrichtungen.</b> Beide Anteile hängen am vorzeichenbehafteten
-Beiwert des Lastfalls und kehren mit ihm um, genau wie die Einwirkungen auf das
-Joch selbst. Der Mastwind in Jochachse wirkt <b>antimetrisch</b>: was das eine
+<p><b>Beide Windrichtungen.</b> Der verbleibende Mastwind in Jochachse hängt am
+vorzeichenbehafteten Beiwert des Lastfalls und kehrt mit ihm um, genau wie die
+Einwirkungen auf das Joch selbst. Er wirkt <b>antimetrisch</b>: was das eine
 Ende im Lastfall Wind +x bekommt, bekommt das andere bei Wind −x. Die Hüllkurve
 über die Lastfälle deckt damit beide Enden und beide Drehsinne ab.</p>
 

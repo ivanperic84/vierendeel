@@ -51,11 +51,18 @@ export function bemessungslasten(i, anbauteile, h) {
   const q = i.gammaQ ?? 1;
   const b = i.beiwerte
         ?? { G: i.gammaG ?? 1, WindX: q, WindY: q, Schnee: q };
-  const qd_g = b.G * i.gk;
-  const qd_s = i.schneeAktiv ? b.Schnee * i.sk : 0;
-  const wd = (b.WindY ?? 0) * i.wk;
-  const at = anbauteilLasten(anbauteile, { ...i, beiwerte: b }, h);
-  return { qd_g, qd_s, qd: qd_g + qd_s, wd, beiwerte: b, ...at };
+  // EINZELNE LASTART STATT ALLER: die charakteristischen Vergleichslastfälle
+  // zeigen entweder nur das Joch oder nur die Anbauteile (core.lasten.js,
+  // Feld `nur`). Die Beiwerte bleiben dieselben - es wird nur weggelassen,
+  // was nicht zur Lastart gehört.
+  const nur = i.nurLast ?? null;
+  const jochAn = nur !== 'anbauteile' ? 1 : 0;
+  const qd_g = jochAn * b.G * i.gk;
+  const qd_s = i.schneeAktiv ? jochAn * b.Schnee * i.sk : 0;
+  const wd = jochAn * (b.WindY ?? 0) * i.wk;
+  const at = anbauteilLasten(nur === 'joch' ? [] : anbauteile,
+                             { ...i, beiwerte: b }, h);
+  return { qd_g, qd_s, qd: qd_g + qd_s, wd, beiwerte: b, nurLast: nur, ...at };
 }
 
 /** Auflagerkräfte vertikal. Stützmomente erzeugen den Zusatzanteil (M_A-M_B)/L. */
@@ -96,17 +103,11 @@ function einzellastSchnitt(lasten, x, L) {
  *          und wer ihn bräuchte, bekommt ehrlich null statt einer Zahl, die
  *          nur so aussieht, als wüsste sie es.
  */
-export function torsion(x, { L, T, torsionModell, T0 = 0 }) {
-  // T0: Torsion aus dem Wind auf UNGLEICHE Maste in Gleisrichtung. Sie wird am
-  // einen Ende eingeleitet und am anderen abgegeben, läuft also über die ganze
-  // Jochlänge mit gleichem Betrag - anders als die Torsion aus den
-  // Anbauteilen, die sich vom Angriff aus auf beide Auflager verteilt.
-  // Siehe core.auflager.js, mastVerdrehung.
+export function torsion(x, { L, T, torsionModell }) {
   if (torsionModell === 'huellkurve') {
-    return { betrag: T.reduce((s, t) => s + Math.abs(t.w), 0) + Math.abs(T0),
-             vz: null };
+    return { betrag: T.reduce((s, t) => s + Math.abs(t.w), 0), vz: null };
   }
-  let Tx = T0;
+  let Tx = 0;
   T.forEach((t) => {
     Tx += x < t.x ? -(t.w * (L - t.x)) / L : (t.w * t.x) / L;
   });
@@ -201,8 +202,7 @@ function kragarmSchnitt(x, m, seite) {
   const Mz = (m.wd * l * l) / 2 + bieg(m.H) + teil(m.Mz).reduce((s, p) => s + p.w, 0) * vz;
   const Vy = -vz * (m.wd * l + kraft(m.H));
   // Torsion und Normalkraft laufen vom Angriff unmittelbar ins Auflager.
-  // T0 aus ungleichen Masten läuft dagegen durch das ganze Joch.
-  const Tx = teil(m.T).reduce((s, p) => s + p.w, 0) + (m.T0 ?? 0);
+  const Tx = teil(m.T).reduce((s, p) => s + p.w, 0);
   const Nx = Math.abs(teil(m.N).reduce((s, p) => s + p.w, 0));
   return { My, Mss: My, Vz, Mz, Vy, Tx: Math.abs(Tx), TxVz: Tx, Nx, kragarm: seite };
 }

@@ -192,27 +192,13 @@ export function hinweise(m) {
   if (m.mastKopf) {
     h.push(`Wind auf den Mast verdreht das Jochende: θ₀ = `
       + `${(1000 * m.mastKopf.A.theta0).toFixed(2)} mrad, eingeleitetes Moment `
-      + `bis ${m.mastKopf.A.M0.toFixed(2)} kNm je Ende. Der Mastwind in `
-      + 'GLEISRICHTUNG ist damit nicht erfasst.');
+      + `bis ${m.mastKopf.A.M0.toFixed(2)} kNm je Ende. Erfasst ist nur der `
+      + 'Wind IN DER JOCHACHSE; die Verdrehung der Mastköpfe um die Jochachse '
+      + 'aus dem Wind in Gleisrichtung ist nicht angesetzt.');
   } else if (m.federn?.mast) {
     h.push('Mastwind wirkt nur auf den Mast, nicht auf das Joch. Am '
       + 'nachgerechneten Signaljoch fehlte damit die Hälfte der Einwirkung '
       + 'des Lastfalls Wind in Jochachse.');
-  }
-  if (m.mastDrehung) {
-    const d = m.mastDrehung;
-    h.push(d.gleich
-      ? 'Wind auf den Mast in Gleisrichtung: beide Enden verdrehen sich gleich '
-        + `(${(1000 * d.phiA).toFixed(2)} mrad um die Jochachse), das Joch dreht `
-        + 'sich starr mit – daraus entsteht KEINE Torsion. Erst verschiedene '
-        + 'Maste an den beiden Enden verwinden es.'
-      : `Wind auf den Mast in Gleisrichtung: Kopfverdrehung um die Jochachse `
-        + `${(1000 * d.phiA).toFixed(2)} / ${(1000 * d.phiB).toFixed(2)} mrad, `
-        + `Differenz ergibt T₀ = ${Math.abs(d.T0).toFixed(2)} kNm Torsion über `
-        + 'die ganze Jochlänge. Das Joch ist dabei als torsionsstarr '
-        + 'angenommen – die obere Schranke. Der Term ist hergeleitet, nicht '
-        + 'geeicht: gegen das eine verfügbare FEM-Modell verschlechtert er die '
-        + 'Übereinstimmung, er liegt aber auf der sicheren Seite.');
   }
   [m.profOG, m.profUG].forEach((p) => {
     if (p.hinweis) h.push(`${p.name}: ${p.hinweis}`);

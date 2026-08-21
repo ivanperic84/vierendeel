@@ -195,35 +195,20 @@ export const FELDER = [
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
-  { key: 'wMastQuer', gruppe: 'aufl', typ: 'zahl',
-    label: 'Windlast auf Mast, Gleisrichtung',
-    sym: 'w_Mast,y', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
-    sichtbar: (w) => w.endbedingung === 'mast',
-    hinweis: 'Der Wind quer zur Jochachse biegt den Mast in Gleisrichtung. ' +
-             'Bei den HEB-Profilen ist er gleich gross wie der in Jochachse, ' +
-             'beim HEM 240 nicht.' },
-  // VORGABE 'ein' IST EINE ENTSCHEIDUNG DES AUFTRAGGEBERS, kein Versehen.
-  // Der Anteil in Jochachse verbessert die Übereinstimmung mit dem geprüften
-  // FEM-Modell deutlich; der Anteil in Gleisrichtung verschlechtert sie
-  // (Handbuch 4.4), liegt aber auf der sicheren Seite und wirkt ohnehin nur
-  // bei zwei verschiedenen Masten. Beides bleibt eingeschaltet - wer es
-  // anders will, schaltet hier ab und hält es im Bericht fest.
   { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
     label: 'Mastwind wirkt auf das Joch', standard: true,
     sichtbar: (w) => w.endbedingung === 'mast',
-    hinweis: 'IN JOCHACHSE: der Wind biegt den Mast, sein Kopf verdreht sich ' +
-             'um θ₀ = w·H³/(6·E·I), und weil das Jochende dort angeschlossen ' +
-             'ist, wird ihm diese Verdrehung aufgezwungen - das Joch wird in ' +
-             'Gegenkrümmung gebogen. Am nachgerechneten Signaljoch trug der ' +
-             'Mastwind rund die Hälfte der gesamten Einwirkung dieses ' +
-             'Lastfalls; ohne ihn lag das Werkzeug 80 % zu tief. ' +
-             'IN GLEISRICHTUNG: der Mastkopf verdreht sich um die Jochachse ' +
-             'und tordiert das Joch - aber nur, wenn die beiden Enden auf ' +
-             'VERSCHIEDENEN Masten stehen. Gleiche Maste verdrehen sich ' +
-             'gleich, das Joch dreht sich starr mit. Die Querverschiebung der ' +
-             'Mastköpfe richtet nichts an: im Grundriss ist das Joch statisch ' +
-             'bestimmt gelagert, und daraus folgen aus Auflagerverschiebungen ' +
-             'keine Schnittgrössen.' },
+    hinweis: 'Der Wind IN DER JOCHACHSE biegt den Mast, sein Kopf verdreht ' +
+             'sich um θ₀ = w·H³/(6·E·I), und weil das Jochende dort ' +
+             'angeschlossen ist, wird ihm diese Verdrehung aufgezwungen - ' +
+             'das Joch wird in Gegenkrümmung gebogen. Am nachgerechneten ' +
+             'Signaljoch trug der Mastwind rund die Hälfte der gesamten ' +
+             'Einwirkung dieses Lastfalls; ohne ihn lag das Werkzeug 80 % zu ' +
+             'tief. DER WIND IN GLEISRICHTUNG BLEIBT AUSSEN VOR: er ' +
+             'verschiebt die Mastköpfe (im Grundriss ist das Joch statisch ' +
+             'bestimmt gelagert, daraus folgt nichts) und verdreht sie um ' +
+             'die Jochachse. Der zweite Anteil wäre bei zwei VERSCHIEDENEN ' +
+             'Masten eine Torsion; er ist nicht angesetzt, siehe Handbuch.' },
 
   // --- Gurtprofile ---------------------------------------------------------
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',
@@ -338,21 +323,6 @@ export const FELDER = [
     standard: 0.50, schritt: 0.05, min: 0,
     hinweis: 'Gilt für Wind wie für Schnee, je nachdem welche Einwirkung ' +
              'begleitend wirkt.' },
-  { key: 'psiGebrauch', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
-    label: 'Beiwert Gebrauchstauglichkeit, häufig', sym: 'ψ', einheit: '–',
-    standard: 0.70, schritt: 0.05, min: 0,
-    hinweis: 'Die Gebrauchstauglichkeit wird in zwei Stufen geführt: SELTEN ' +
-             'mit dem vollen veränderlichen Wert, HÄUFIG mit diesem Beiwert. ' +
-             'Die Begleiteinwirkung bekommt zusätzlich ψ₀ – im ' +
-             'Referenzprojekt also 0.70 · 0.50 = 0.35. Alle ständigen ' +
-             'Beiwerte sind dabei 1.0. Diese Lastfälle liefern nur die ' +
-             'Schnittgrössen; der Nachweis der Verformungen ist im Werkzeug ' +
-             'NICHT geführt.' },
-  // Voreinstellung 'verteilt': die konstante Hüllkurve trägt das volle
-  // Torsionsmoment über die ganze Länge, auch hinter dem Anbauteil, wo real
-  // nur noch der Auflageranteil läuft. Der Vergleich mit AxisVM lag mit der
-  // Auflagerverteilung deutlich näher (rund 15 % an den massgebenden
-  // Horizontalblechen). Die Hüllkurve bleibt wählbar.
   { key: 'torsionModell', optionenDialog: true, gruppe: 'komb', typ: 'auswahl', label: 'Torsionsverlauf',
     standard: 'verteilt', optionen: opt(TORSIONSMODELLE) },
   { key: 'torsionsverteilung', optionenDialog: true, gruppe: 'komb', typ: 'auswahl',
@@ -513,8 +483,7 @@ export const OPTIONEN_ABSCHNITTE = [
                              'ebenenUeberlagerung', 'gurtaufteilung',
                              'spannungsmodell'] },
   { titel: 'Einwirkungen', keys: ['lastHerkunft'] },
-  { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0',
-                                 'psiGebrauch'] },
+  { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { titel: 'Widerstand', keys: ['gammaM0'] },
   { titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',

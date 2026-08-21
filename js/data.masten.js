@@ -63,22 +63,6 @@ export function mastWind(name, ek = 'EK2', steg = 'jochachse') {
   return w[richtung]?.[ek] ?? null;
 }
 
-/**
- * Windlast auf den Mast in GLEISRICHTUNG [kN/m] - die andere Richtung.
- *
- * Sie biegt den Mast quer zur Jochachse. Für das Joch heisst das: der Mastkopf
- * verdreht sich um die JOCHACHSE, und weil die beiden Enden verschieden steife
- * Maste haben können, wird das Joch dabei tordiert (core.auflager.js,
- * mastVerdrehung). Bei den HEB-Profilen sind beide Richtungen gleich, beim
- * HEM 240 nicht.
- */
-export function mastWindQuer(name, ek = 'EK2', steg = 'jochachse') {
-  const w = getMastprofil(name).wind;
-  if (!w) return null;
-  const richtung = steg === 'quer' ? 'quer' : 'laengs';
-  return w[richtung]?.[ek] ?? null;
-}
-
 export function getMastprofil(name) {
   const p = MASTPROFILE.find((x) => x.name === name);
   if (!p) throw new Error(`Unbekanntes Mastprofil: ${name}`);

@@ -728,12 +728,29 @@ titel('15  Lastfälle');
   const lf = L.lastfaelle(w);
   const holen = (k) => lf.find((x) => x.key === k);
 
-  // 2 charakteristische + 4 Wind (je Richtung ±) + 2 Schnee (Begleitwind ±)
+  // 4 Wind (je Richtung ±) + 2 Schnee (Begleitwind ±)
   const nw = lf.filter((x) => x.nachweis);
   pruef('Sechs Nachweislastfälle mit Schnee', nw.length, 6, 1e-12, 'Stk');
-  // dazu zwei Stufen Gebrauchstauglichkeit à (4 Wind + 2 Schnee)
-  pruef('Zwölf Lastfälle der Gebrauchstauglichkeit',
-        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 12, 1e-12, 'Stk');
+  // NUR die seltene Stufe: 4 Wind + 2 Schnee. Die häufige ist entfallen.
+  pruef('Sechs Lastfälle der Gebrauchstauglichkeit',
+        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 6, 1e-12, 'Stk');
+  wahr('Nur die seltene Stufe, keine häufige',
+       lf.filter((x) => x.art === 'gebrauchstauglichkeit')
+         .every((x) => x.stufe === 'selten'));
+
+  // ZUOBERST DIE EINZELNEN LASTARTEN, jede für sich und charakteristisch.
+  const chars = lf.filter((x) => x.art === 'charakteristisch');
+  wahr('Die charakteristischen Lastfälle stehen zuoberst',
+       lf.slice(0, chars.length).every((x) => x.art === 'charakteristisch'));
+  wahr('Ständig, Anbauteile, Schnee, Wind y, Wind x, Ständig + Wind',
+       chars.map((x) => x.key).join(',') === 'gk,ak,sk,wyk,wxk,gwk',
+       chars.map((x) => x.bez).join(' · '));
+  wahr('Jede Einzellastart trägt genau eine Gruppe',
+       ['sk', 'wyk', 'wxk'].every((k) => Object.values(holen(k).beiwerte)
+         .filter((v) => v !== 0).length === 1));
+  wahr('Ständig zeigt das Joch, Anbauteile die Anbauteile',
+       holen('gk').nur === 'joch' && holen('ak').nur === 'anbauteile'
+       && holen('gwk').nur === undefined);
   wahr('Gebrauchstauglichkeit ist kein Nachweis',
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
          .every((x) => x.nachweis === false && x.beiwerte.G === 1));
@@ -741,7 +758,7 @@ titel('15  Lastfälle');
        L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee',
        L.EINWIRKUNGEN.map((e) => e.label).join(' · '));
 
-  // Die beiden charakteristischen Lastfälle: alle Beiwerte 1.00 bzw. 0
+  // Die charakteristischen Lastfälle: alle Beiwerte 1.00 bzw. 0
   const gk = holen('gk'), gwk = holen('gwk');
   pruef('LF ständig: γ_G = 1.00', gk.beiwerte.G, 1, 1e-12, '–');
   pruef('LF ständig: Wind y = 0', gk.beiwerte.WindY, 0, 1e-12, '–');
@@ -771,12 +788,49 @@ titel('15  Lastfälle');
   const zaehl = (o, art) => L.lastfaelle(o).filter((x) => x.art === art).length;
   wahr('Ohne Schnee und ohne Q_z: vier Nachweislastfälle',
        zaehl(ohneSchnee, 'tragsicherheit') === 4
-       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 8);
+       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 4);
+  wahr('Ohne Schnee entfällt auch der charakteristische Schneelastfall',
+       !L.lastfaelle(ohneSchnee).some((x) => x.key === 'sk'));
   const mitQz = basis({ schneeAktiv: false,
                         anbauteile: [teil({ name: 'P', x: 10, Qz: 5 })] });
   const flachQz = A.expandiereAnbauteile(mitQz.anbauteile, {});
   wahr('Q_z am Anbauteil hält die Gruppe Schnee aktiv',
        zaehl({ ...mitQz, anbauteileFlach: flachQz }, 'tragsicherheit') === 6);
+
+  // --- Ständig und Anbauteile ergänzen sich zur vollen ständigen Last -------
+  // Die beiden charakteristischen Lastfälle blenden einander aus. Zusammen
+  // müssen sie genau das ergeben, was ein Lastfall mit G = 1 ohne Filter
+  // liefert - sonst geht auf dem Weg Last verloren oder wird doppelt gezählt.
+  {
+    const bw1 = { G: 1, WindX: 0, WindY: 0, Schnee: 0, Leiterzug: 0 };
+    const mitTeil = basis({ lastHerkunft: 'manuell', gkManuell: 2, wkManuell: 0,
+                            skManuell: 0, schneeAktiv: false,
+                            anbauteile: [teil({ name: 'P', x: 8, Pv: 6, ev: 1.2 })] });
+    const alles = rechne({ ...mitTeil, beiwerteFest: bw1 }).modell;
+    const joch  = rechne({ ...mitTeil, beiwerteFest: bw1, nurLast: 'joch' }).modell;
+    const anb   = rechne({ ...mitTeil, beiwerteFest: bw1, nurLast: 'anbauteile' }).modell;
+    pruef('Nur Joch: die Laufmeterlast bleibt', joch.qd, alles.qd, 1e-12, 'kN/m');
+    wahr('Nur Joch: keine Einzellasten', (joch.P ?? []).length === 0
+         && (joch.T ?? []).length === 0);
+    pruef('Nur Anbauteile: keine Laufmeterlast', anb.qd, 0, 1e-12, 'kN/m');
+    pruef('Nur Anbauteile: die Einzellasten bleiben',
+          (anb.P ?? []).reduce((a, x) => a + x.w, 0),
+          (alles.P ?? []).reduce((a, x) => a + x.w, 0), 1e-12, 'kN');
+    pruef('Joch + Anbauteile = alles (Auflagerkraft)', joch.RA + anb.RA,
+          alles.RA, 1e-9, 'kN');
+    const feldMy = (o) => {
+      const r = rechne({ ...mitTeil, beiwerteFest: bw1, ...o });
+      const mitte = r.knoten[Math.floor(r.knoten.length / 2)];
+      return mitte.My;
+    };
+    pruef('Joch + Anbauteile = alles (Feldmoment)',
+          feldMy({ nurLast: 'joch' }) + feldMy({ nurLast: 'anbauteile' }),
+          feldMy({}), 1e-6, 'kNm');
+    // Der Lastfall bringt den Filter selbst mit - ohne dass ihn jemand setzt.
+    wahr('Der Lastfall trägt den Filter selbst',
+         rechne({ ...mitTeil, lastfall: 'ak' }).modell.qd === 0
+         && rechne({ ...mitTeil, lastfall: 'gk' }).modell.qd === alles.qd);
+  }
 
   // Normensätze
   const rte = { ...w, ...L.NORMENSAETZE.find((n) => n.key === 'rte').beiwerte };
@@ -2749,41 +2803,28 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   const manuell = rechne({ ...e0, endbedingung: 'manuell', cPhi: 6000 });
   wahr('Ohne Mast kein Mastwind', manuell.modell.mastKopf === null);
 
-  // --- Wind in GLEISRICHTUNG: Torsion, aber nur bei UNGLEICHEN Masten -------
-  const { mastVerdrehung } = await import(J('core.auflager.js'));
-  const mA = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 7.8,
-                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A', true);
-  const mB = mastSteifigkeit({ mastProfil: 'HEM 240', mastH: 12.0,
-                               mastSteg: 'jochachse', mastAnschluss: 'kragarm' }, 'A', true);
-  // Die andere Achse trägt die Biegung in Gleisrichtung.
-  pruef('Quer-Trägheitsmoment ist die andere Achse', mA.Iq_cm4, 5135, 1e-9);
-  const dr = mastVerdrehung(mA, mB, 0.34);
-  pruef('Kopfverdrehung um die Jochachse', dr.phiA,
-        (0.34 * 7.8 ** 3) / (6 * E * mA.Iq), 1e-12);
-  wahr('Der weichere Mast verdreht sich mehr', Math.abs(dr.phiB) > Math.abs(dr.phiA));
-  // Reihenschaltung der beiden Federn, Joch torsionsstarr angenommen.
-  pruef('Torsion aus der Differenz', dr.T0,
-        (dr.phiB - dr.phiA) / (1 / mA.cTorsion + 1 / mB.cTorsion), 1e-12);
-  const gl = mastVerdrehung(mA, mA, 0.34);
-  wahr('Gleiche Maste geben keine Torsion', gl.T0 === 0 && gl.gleich === true);
-  wahr('Ohne Wind keine Torsion', mastVerdrehung(mA, mB, 0).T0 === 0);
-
-  // Im Werkzeug: T0 läuft über die GANZE Länge, anders als die Torsion der
-  // Anbauteile, die sich vom Angriff aus auf die Auflager verteilt.
+  // --- WIND IN GLEISRICHTUNG WIRKT NICHT AUF DAS JOCH -----------------------
+  // Er verschiebt die Mastköpfe (im Grundriss ist das Joch statisch bestimmt
+  // gelagert - daraus folgt nichts) und verdreht sie um die Jochachse. Der
+  // zweite Anteil wäre bei UNGLEICHEN Masten eine Torsion über die ganze
+  // Jochlänge. Er ist bewusst NICHT angesetzt: hergeleitet, nicht geeicht, und
+  // gegen das eine verfügbare FEM-Modell verschlechterte er die
+  // Übereinstimmung erheblich (Gurte unter Wind quer von +52 auf +89 %).
   const zwei = { ...e0, mastZwei: true, mastProfilB: 'HEM 240', mastHB: 12.0,
-                 mastStegB: 'jochachse', wMastQuer: 0.34,
+                 mastStegB: 'jochachse',
                  beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0, Leiterzug: 0 } };
   const rz = rechne(zwei);
   const re = rechne({ ...zwei, mastZwei: false });
-  wahr('Zwei verschiedene Maste erzeugen Torsion', Math.abs(rz.modell.T0) > 0.1);
-  pruef('Ein Masttyp: keine Torsion', re.modell.T0 ?? 0, 0, 1e-12);
-  wahr('Ohne Mastwind auf das Joch keine Torsion',
-       (rechne({ ...zwei, mastWindAufJoch: false }).modell.T0 ?? 0) === 0);
+  wahr('Ungleiche Maste erzeugen unter Wind y keine Torsion',
+       rz.knoten.every((k) => Math.abs(k.Tx) < 1e-12));
+  wahr('Gleiche Maste ebenso wenig',
+       re.knoten.every((k) => Math.abs(k.Tx) < 1e-12));
+  const SCH = await import(J('ui.schema.js'));
+  wahr('Es gibt keinen Eingabewert für den Mastwind in Gleisrichtung',
+       !SCH.FELDER.some((f) => f.key === 'wMastQuer'));
   const hz = hinweise(rz.modell).join(' | ');
-  wahr('Die Torsion aus ungleichen Masten wird ausgewiesen',
-       hz.includes('Gleisrichtung') && hz.includes('torsionsstarr'));
-  wahr('Bei gleichen Masten wird erklärt, warum nichts passiert',
-       hinweise(re.modell).join(' | ').includes('dreht sich starr mit'));
+  wahr('Der Hinweis sagt, dass nur der Wind in Jochachse erfasst ist',
+       hz.includes('Jochachse') && hz.includes('nicht angesetzt'));
 
   // --- BEIDE WINDRICHTUNGEN, wie bei den Einwirkungen auf das Joch ----------
   // Der Wind bläst in + und in −. Beide Anteile hängen am VORZEICHENBEHAFTETEN
@@ -2791,10 +2832,9 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   // Lastfälle deckt damit beide Enden und beide Drehsinne ab.
   const { standardLastfaelle } = await import(J('core.lasten.js'));
   const bd = { ...e0, mastZwei: true, mastProfilB: 'HEM 240', mastHB: 12.0,
-               mastStegB: 'jochachse', wMastQuer: 0.34, beiwerteFest: null };
+               mastStegB: 'jochachse', beiwerteFest: null };
   const lf = Object.fromEntries(standardLastfaelle(bd).filter((l) => l.nachweis)
     .map((l) => [l.key, rechne({ ...bd, beiwerteFest: l.beiwerte }).modell]));
-  pruef('Wind −y kehrt die Torsion um', lf.windYm.T0, -lf.windYp.T0, 1e-9);
   wahr('Wind ±x kehrt die Auflagerdrehung um',
        Math.sign(lf.windXp.theta0A) === -Math.sign(lf.windXm.theta0A)
        && Math.abs(lf.windXp.theta0A) > 0);

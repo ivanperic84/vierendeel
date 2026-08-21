@@ -15,13 +15,12 @@
 import { U, TOL } from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
-import { charakteristischeLasten, lastfallUebersicht, beiwerteFuer,
+import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile } from './data.anbauteile.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
-         mastNachweis, mastKopfdrehung,
-         mastVerdrehung } from './core.auflager.js';
+         mastNachweis, mastKopfdrehung } from './core.auflager.js';
 import { schnittAuswertung, ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
@@ -173,9 +172,12 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   // Der gewählte Lastfall liefert die Beiwerte je Einwirkungsgruppe.
   // beiwerteFest übergeht ihn - gebraucht für das Auflagerblatt, das die
   // Gruppen einzeln und ohne Beiwerte ausweist.
-  const beiwerte = inp.beiwerteFest
-    ?? beiwerteFuer({ ...inp, anbauteileFlach: anbauteile }, inp.lastfall);
-  const lasten = bemessungslasten({ ...inp, ...char, beiwerte },
+  const lfAktiv = inp.beiwerteFest
+    ? null : lastfallFuer({ ...inp, anbauteileFlach: anbauteile }, inp.lastfall);
+  const beiwerte = inp.beiwerteFest ?? { ...lfAktiv.beiwerte };
+  // Charakteristische Einzellastfälle blenden das Joch oder die Anbauteile aus.
+  const nurLast = inp.nurLast ?? lfAktiv?.nur ?? null;
+  const lasten = bemessungslasten({ ...inp, ...char, beiwerte, nurLast },
                                   anbauteile, verlauf.hAn);
 
   const steif = biegesteifigkeitJoch(v.hT, profOG, profUG);
@@ -210,13 +212,6 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const theta0A = bwX * kopf.A.theta0;
   const theta0B = bwX * kopf.B.theta0;
 
-  // WIND AUF DEN MAST IN GLEISRICHTUNG -> TORSION, aber nur bei UNGLEICHEN
-  // Masten. Gleiche Maste verdrehen sich gleich, das Joch dreht sich starr
-  // mit. Der Lastfall dazu ist Wind y.
-  const drehung = mastwindAn && federnRoh.mastA && federnRoh.mastB
-    ? mastVerdrehung(federnRoh.mastA, federnRoh.mastB, inp.wMastQuer)
-    : { phiA: 0, phiB: 0, T0: 0, gleich: true };
-  const T0 = (beiwerte.WindY ?? 0) * drehung.T0;
 
   // KRAGARME: die Auflager müssen nicht an den Gurtenden stehen.
   // L ist die Länge der Gurte (Mass der Zeichnung, daran hängt die
@@ -230,7 +225,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const fm = feldmodell({ L: inp.L, xA: kragA, xB: inp.L - kragB,
                           qd: lasten.qd, wd: lasten.wd, P: lasten.P, H: lasten.H,
                           T: lasten.T, M: lasten.M, Mz: lasten.Mz, N: lasten.N,
-                          T0, torsionModell: inp.torsionModell });
+                          torsionModell: inp.torsionModell });
   // Alles, was das Auflagerproblem betrifft, rechnet auf der STÜTZWEITE.
   const sp = fm
     ? { L: fm.Ls, P: fm.feld.P, M: fm.feld.M, MkA: fm.MkA, MkB: fm.MkB,
@@ -303,9 +298,6 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
     mastKopf: mastwindAn && (kopf.A.theta0 > 0 || kopf.B.theta0 > 0)
       ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast } : null,
-    mastDrehung: mastwindAn && drehung.phiA + drehung.phiB > 0
-      ? { ...drehung, T0, beiwert: beiwerte.WindY ?? 0 } : null,
-    T0,
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
     xNachweis: inp.xNachweis,
     schneeAktiv: inp.schneeAktiv === true,
