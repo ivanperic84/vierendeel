@@ -693,8 +693,17 @@ ${f(`α_Gurt = 0.5 + k · ( I_Gurt / ΣI − 0.5 ),&nbsp;&nbsp; k = 0.45`)}
 ${q(`Die Messmethode ist belegt: dasselbe Stabmodell mit <b>gleichen</b> Gurten
 liefert an jeder Station exakt 50.0 %. Aber es ist EIN Modell und EIN
 Steifigkeitsverhältnis – k ist gefittet, nicht hergeleitet. Und der Mittelwert
-verdeckt eine Spanne von 51 bis 73 %: an einzelnen Stationen liegt diese
+verdeckt eine Spanne von 51 bis 71 %: an einzelnen Stationen liegt diese
 Aufteilung für den einen oder anderen Gurt zu tief.`)}
+
+<p><b>Die Bleche werden dabei schubweich gerechnet.</b> Sie sind kurz und
+gedrungen und arbeiten in doppelter Krümmung; ihr Schubanteil
+φ = 12EI/(GA_sL²) beträgt 16 bis 45 %. Der PyNite-Export setzt dafür ein
+Ersatzträgheitsmoment I/(1+φ) ein, das die Steifigkeit in genau dieser
+Verformungsform trifft – PyNite selbst kennt nur Bernoulli-Stäbe. Ohne diese
+Korrektur wären die Bleche zu steif und die gemessene Aufteilung zu scharf:
+59.4 statt 58.8 %. Der Unterschied ist kleiner, als die Grössenordnung von φ
+befürchten lässt.</p>
 
 <p><b>Vorgabe ist «gemessen».</b> Das ist eine Entscheidung des Auftraggebers,
 und sie <b>senkt</b> die Bemessungswerte: bei Typen mit ungleichen Gurten um 4

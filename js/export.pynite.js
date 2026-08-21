@@ -66,11 +66,65 @@ const py = (v) => (Number.isFinite(v) ? Number(v.toPrecision(10)) : 0);
 const s = (v) => `'${String(v).replace(/'/g, "\\'")}'`;
 
 /**
+ * SCHUBWEICHE BINDEBLECHE.
+ *
+ * PyNite rechnet reine Bernoulli-Stäbe - ohne Schubverformung. Für schlanke
+ * Stäbe ist das richtig, für die Bindebleche nicht: sie sind kurz und
+ * gedrungen, und im Vierendeel arbeiten sie in DOPPELTER KRÜMMUNG. Genau in
+ * dieser Verformungsform ist der Schubanteil gross:
+ *
+ *      φ = 12·E·I / (G·A_s·L²)      A_s = 5/6·A beim Rechteck
+ *
+ *      Bl.160x10, L = 420 mm   ->  φ = 0.45   (45 % mehr Nachgiebigkeit)
+ *      Bl.110x10, L = 400 mm   ->  φ = 0.24
+ *      Bl.90x10,  L = 400 mm   ->  φ = 0.16
+ *
+ * Der Vergleichsexport von AxisVM weist für jeden Querschnitt A_y und A_z aus;
+ * dort ist die Schubverformung enthalten. Ohne sie ist das PyNite-Modell in
+ * den Blechen zu steif - und weil die Bleche im Rahmen ausgleichen, verzerrt
+ * das jede daran geeichte Grösse, allen voran die Aufteilung der
+ * Ebenenquerkraft auf die Gurte.
+ *
+ * ERSATZ: für einen Stab in doppelter Krümmung ist die Steifigkeit
+ * 12EI/(L³(1+φ)). Ein Bernoulli-Stab mit I_eff = I/(1+φ) hat GENAU diese
+ * Steifigkeit. Die reinen Drehsteifigkeiten (4EI/L, 2EI/L) trifft der Ersatz
+ * nicht exakt - für das Bindeblech ist die doppelte Krümmung aber die
+ * Arbeitsform, und die stimmt.
+ *
+ * Weil φ von der Stablänge abhängt, bekommt jede vorkommende Länge ihren
+ * eigenen Querschnitt (Name mit angehängtem _L###).
+ */
+const SCHUB_NU = 0.3;
+const SCHUB_KAPPA = 5 / 6;                     // Schubfläche des Rechtecks
+
+function blechlaengen(bau) {
+  const nach = new Map();                      // Querschnittsname -> Set Längen
+  const abst = (a, b) => Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  bau.staebe.forEach((st) => {
+    if (!String(st.qs).startsWith('BLECH')) return;
+    const a = bau.knoten.get(st.von), b = bau.knoten.get(st.bis);
+    if (!a || !b) return;
+    const l = abst(a, b);
+    if (!(l > 0)) return;
+    if (!nach.has(st.qs)) nach.set(st.qs, new Set());
+    nach.get(st.qs).add(Math.round(l * 1000) / 1000);
+  });
+  return nach;
+}
+
+/**
  * Querschnittszeilen für PyNite: Name, A, Iy, Iz, J in lokalen Achsen.
  * @param {object} bau Ergebnis von stabmodell()
+ * @param {boolean} schubweich Bindebleche mit Ersatzträgheitsmoment
  */
-function querschnitte(bau) {
+function querschnitte(bau, schubweich = true) {
   const zeilen = [];
+  const laengen = schubweich ? blechlaengen(bau) : new Map();
+  // Alles in SI: I in m⁴, A in m², L in m. E kürzt sich mit G/E heraus.
+  const phi = (I, A, L) => {
+    const GE = 1 / (2 * (1 + SCHUB_NU));       // G/E
+    return (12 * I) / (GE * SCHUB_KAPPA * A * L * L);
+  };
   bau.querschnitte.forEach((q) => {
     if (q.form === 'Angle') {
       // Gurt: unser I_y wirkt gegen die Vertikalbiegung, das ist PyNite Iz
@@ -79,16 +133,43 @@ function querschnitte(bau) {
     }
     const [a, b] = q.parameter;
     const r = rechteckWerte(a, b);
-    if (q.name.startsWith('BLECH_V')) {
-      zeilen.push({ name: q.name, A: r.A, Iy: r.schwach, Iz: r.stark, J: r.J });
-    } else if (q.name.startsWith('BLECH_H')) {
-      zeilen.push({ name: q.name, A: r.A, Iy: r.stark, Iz: r.schwach, J: r.J });
-    } else {
+    const blechV = q.name.startsWith('BLECH_V');
+    const blechH = q.name.startsWith('BLECH_H');
+    if (!blechV && !blechH) {
       // STARR und ARM sind quadratisch - die Drehlage spielt keine Rolle
       zeilen.push({ name: q.name, A: r.A, Iy: r.stark, Iz: r.stark, J: r.J });
+      return;
     }
+    const satz = laengen.get(q.name);
+    if (!satz || !satz.size) {
+      zeilen.push(blechV
+        ? { name: q.name, A: r.A, Iy: r.schwach, Iz: r.stark, J: r.J }
+        : { name: q.name, A: r.A, Iy: r.stark, Iz: r.schwach, J: r.J });
+      return;
+    }
+    [...satz].sort((x, y) => x - y).forEach((L) => {
+      const f = 1 + phi(r.stark, r.A, L);
+      const stark = r.stark / f;
+      const nam = satz.size > 1 || schubweich
+        ? `${q.name}_L${Math.round(L * 1000)}` : q.name;
+      zeilen.push(blechV
+        ? { name: nam, A: r.A, Iy: r.schwach, Iz: stark, J: r.J, quelle: q.name, L, phi: f - 1 }
+        : { name: nam, A: r.A, Iy: stark, Iz: r.schwach, J: r.J, quelle: q.name, L, phi: f - 1 });
+    });
   });
   return zeilen;
+}
+
+/** Welcher Querschnittsname gilt für diesen Stab? (Länge entscheidet.) */
+function qsName(st, bau, zeilen) {
+  if (!String(st.qs).startsWith('BLECH')) return st.qs;
+  const a = bau.knoten.get(st.von), b = bau.knoten.get(st.bis);
+  if (!a || !b) return st.qs;
+  const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  const treffer = zeilen.filter((z) => z.quelle === st.qs);
+  if (!treffer.length) return st.qs;
+  return treffer.reduce((best, z) =>
+    (Math.abs(z.L - L) < Math.abs(best.L - L) ? z : best)).name;
 }
 
 /**
@@ -102,14 +183,16 @@ export function pyniteSkript(m, opt = {}) {
   const km = opt.knotenmodell ?? 'anschnitt';
   const bau = stabmodell(m, { knotenmodell: km, schottAusblenden: opt.schottAusblenden });
   const l = lasten(m, bau);
-  const qs = querschnitte(bau);
+  const schubweich = opt.schubweich !== false;
+  const qs = querschnitte(bau, schubweich);
 
   // Achsentausch: unser (x, y, z) -> PyNite (X, Y, Z) = (x, z, y)
   const knotenZeilen = [...bau.knoten.values()].map(
     (k) => `M.add_node(${s(k.name)}, ${py(k.x)}, ${py(k.z)}, ${py(k.y)})`);
 
   const stabZeilen = bau.staebe.map(
-    (st) => `M.add_member(${s(st.name)}, ${s(st.von)}, ${s(st.bis)}, 'STAHL', ${s(st.qs)})`);
+    (st) => `M.add_member(${s(st.name)}, ${s(st.von)}, ${s(st.bis)}, 'STAHL', `
+          + `${s(qsName(st, bau, qs))})`);
 
   // Auflager. Unsere Freiheitsgrade in PyNite-Benennung:
   //   fix  (Torsion um die Jochachse)      -> RX

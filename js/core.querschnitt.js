@@ -80,25 +80,30 @@ export const GURTAUFTEILUNGEN = [
  *
  *      Verhältnis I_OG/I_UG = 2.45  ->  Anteil Obergurt
  *          hälftig                          50.0 %
- *          GEMESSEN   G 61.0 · Schnee 61.2 · Wind y 57.5 · Wind x 58.0 %
- *                     Mittel 59.4 %, Median 58, Spanne 51 … 73 %
+ *          GEMESSEN   G 60.3 · Schnee 60.7 · Wind y 56.7 · Wind x 57.4 %
+ *                     Mittel 58.8 %, Median 57, Spanne 51 … 71 %
  *          nach I                           71.1 %
  *
  * Der Rahmen gleicht also aus: Bleche und Knotennachgiebigkeit ziehen die
  * Aufteilung zur Hälfte zurück. Mit
  *
- *      Anteil = 0.5 + k · (I_Gurt/ΣI − 0.5),   k = 0.45
+ *      Anteil = 0.5 + k · (I_Gurt/ΣI − 0.5),   k = 0.42
  *
- * trifft man die Messung (0.5 + 0.45·0.211 = 0.595).
+ * trifft man die Messung (0.5 + 0.42·0.211 = 0.589).
  *
  * GEGENPROBE: dasselbe Modell mit GLEICHEN Gurten liefert an jeder Station
  * exakt 50.0 % - die Messmethode selbst ist damit bestätigt.
  *
- * KORREKTUR gegenüber der ersten Messung (die 57.4 % nannte): dort war im
- * Lastfall G das Vorzeichen der Anbauteillasten falsch gesetzt (F_z ist
- * positiv nach UNTEN), so dass sich Eigengewicht und Anbaulast teilweise
- * aufhoben. Schnee und Wind waren nicht betroffen; der Fehler verschob den
- * Mittelwert um zwei Prozentpunkte.
+ * ZWEI KORREKTUREN gegenüber der ersten Messung, die 57.4 % nannte:
+ *   1. Im Lastfall G war das Vorzeichen der Anbauteillasten falsch gesetzt
+ *      (F_z ist positiv nach UNTEN), so dass sich Eigengewicht und Anbaulast
+ *      teilweise aufhoben. Schnee und Wind waren nicht betroffen; der Fehler
+ *      verschob den Mittelwert um zwei Prozentpunkte nach unten.
+ *   2. Das Referenzmodell rechnete die Bindebleche SCHUBSTARR. Sie sind kurz
+ *      und gedrungen und arbeiten in doppelter Krümmung; ihr Schubanteil
+ *      beträgt 16 bis 45 % (siehe export.pynite.js). Schubweich gerechnet
+ *      gleichen sie stärker aus - der Mittelwert sinkt von 59.4 auf 58.8 %.
+ *      Deutlich weniger, als die Grössenordnung von φ befürchten liess.
  *
  * >>> EIN Modell, EIN Steifigkeitsverhältnis. k ist gefittet, nicht
  * hergeleitet - bei anderen Verhältnissen ist es unbelegt. Und der Mittelwert
@@ -107,7 +112,7 @@ export const GURTAUFTEILUNGEN = [
  * gleichzeitig auf der sicheren Seite haben will, nimmt 'huellend' -
  * dessen Anteile ergänzen sich dann aber zu mehr als eins. <<<
  */
-export const GURT_DAEMPFUNG = 0.45;
+export const GURT_DAEMPFUNG = 0.42;
 
 /**
  * Anteil eines Gurtes an der Querkraft seiner VERTIKALEBENE.
