@@ -57,3 +57,6 @@ node_modules/
 
 # Auswertung gegen das AxisVM-Modell (SBB-Projektmaterial)
 pruefung_axisvm/
+com/AxisVM_aufbau_bericht.txt
+com/AxisVM_aufbau_protokoll.txt
+com/*.json

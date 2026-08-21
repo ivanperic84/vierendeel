@@ -212,7 +212,38 @@ if ($NurPruefen) {
     # =======================================================================
     Abschnitt 'Verbund-Typen (Records) und Aufzaehlungen'
 
+    if (-not ('TlbHilfe0' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+public class TlbSenke : ITypeLibImporterNotifySink {
+    public void ReportEvent(ImporterEventKind k, int c, string m) { }
+    public Assembly ResolveRef(object tl) { return null; }
+}
+
+public class TlbHilfe0 {
+    // [MarshalAs(UnmanagedType.Interface)] ist der Punkt: ohne das nimmt
+    // .NET fuer "object" eine VARIANT an, und LoadTypeLibEx scheitert mit
+    // DISP_E_BADVARTYPE, obwohl der Aufruf selbst richtig ist.
+    [DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+    public static extern void LoadTypeLibEx(string datei, int art,
+        [MarshalAs(UnmanagedType.Interface)] out object tlb);
+
+    [DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+    public static extern void LoadTypeLib(string datei,
+        [MarshalAs(UnmanagedType.Interface)] out object tlb);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetLongPathName(string kurz, StringBuilder lang, int n);
+}
+'@
+    }
+
     $exe = $null
+    $ordner = $null
     $r = Versuche 'Programmdatei finden' @(
         @{ name = 'laufender Prozess'; tu = {
             $p = Get-Process -Name 'AxisVM*' -ErrorAction Stop |
@@ -226,35 +257,59 @@ if ($NurPruefen) {
     )
     if ($r.ok) { $exe = $r.wert; Schreib "  $exe" }
 
-    $asm = $null
-    if ($exe -and (Test-Path -LiteralPath $exe)) {
+    # --- Ordner von AxisVM ansehen ------------------------------------------
+    # Liegt dort schon eine fertige Interop-Baugruppe oder eine .tlb, so ist
+    # das der kuerzere Weg als das Uebersetzen zur Laufzeit.
+    if ($exe) {
+        $ordner = Split-Path -Parent $exe
         try {
-            if (-not ('TlbHilfe' -as [type])) {
-                Add-Type -TypeDefinition @'
-using System;
-using System.Reflection;
-using System.Runtime.InteropServices;
-public class TlbSenke : ITypeLibImporterNotifySink {
-    public void ReportEvent(ImporterEventKind k, int c, string m) { }
-    public Assembly ResolveRef(object tl) { return null; }
-}
-public class TlbHilfe {
-    [DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    public static extern void LoadTypeLibEx(string datei, int art, out object tlb);
-}
-'@
+            $lang = New-Object System.Text.StringBuilder 260
+            [void][TlbHilfe0]::GetLongPathName($ordner, $lang, 260)
+            if ($lang.Length -gt 0) { $ordner = $lang.ToString() }
+        } catch { }
+        Schreib "  Ordner: $ordner"
+        foreach ($muster in '*.tlb', 'Interop*.dll', 'AxisVM*.dll') {
+            $tr = Get-ChildItem -LiteralPath $ordner -Filter $muster -File -ErrorAction SilentlyContinue
+            foreach ($t in $tr) { Schreib ("      {0,-44} {1,10:N0} Byte" -f $t.Name, $t.Length) }
+        }
+    }
+
+    $asm = $null
+    if ($exe) {
+        <#  DIE TYPBIBLIOTHEK HOLEN.
+            Beim ersten Versuch stand hier nur "out object" - und .NET
+            marshallt das als VARIANT*, waehrend LoadTypeLibEx einen
+            Schnittstellenzeiger ITypeLib** zurueckgibt. Ergebnis:
+            DISP_E_BADVARTYPE, "Die angegebene OLE-Variante ist ungueltig".
+            Es fehlte allein [MarshalAs(UnmanagedType.Interface)].         #>
+        $quellen = @()
+        $quellen += @{ name = 'aus der Programmdatei'; pfad = $exe }
+        if ($ordner) {
+            Get-ChildItem -LiteralPath $ordner -Filter '*.tlb' -File -ErrorAction SilentlyContinue |
+                ForEach-Object { $quellen += @{ name = "aus $($_.Name)"; pfad = $_.FullName } }
+        }
+        # GetNewClosure() haelt $p fest. Ohne das sehen ALLE Bloecke den
+        # letzten Schleifenwert - PowerShell bindet Variablen, nicht Werte.
+        $kand = @()
+        foreach ($q in $quellen) {
+            $p = $q.pfad
+            $kand += @{ name = "LoadTypeLibEx $($q.name)"; tu = {
+                $t = $null; [TlbHilfe0]::LoadTypeLibEx($p, 2, [ref]$t); $t }.GetNewClosure() }
+            $kand += @{ name = "LoadTypeLib $($q.name)"; tu = {
+                $t = $null; [TlbHilfe0]::LoadTypeLib($p, [ref]$t); $t }.GetNewClosure() }
+        }
+        $rt = Versuche 'Typbibliothek lesen' $kand
+        if ($rt.ok -and $rt.wert) {
+            try {
+                $wandler = New-Object System.Runtime.InteropServices.TypeLibConverter
+                $asm = $wandler.ConvertTypeLibToAssembly(
+                    $rt.wert, 'Interop.AxisVM.dll', 0, (New-Object TlbSenke),
+                    $null, $null, 'AxisVM', $null)
+                Schreib "  Baugruppe erzeugt: $($asm.GetTypes().Count) Typen."
+                $gefunden.Add('Typbibliothek -> Interop-Baugruppe zur Laufzeit')
+            } catch {
+                Schreib "  Umwandlung fehlgeschlagen: $($_.Exception.Message)"
             }
-            $tlb = $null
-            [TlbHilfe]::LoadTypeLibEx($exe, 2, [ref]$tlb)   # 2 = REGKIND_NONE
-            Schreib '  Typbibliothek gelesen.'
-            $wandler = New-Object System.Runtime.InteropServices.TypeLibConverter
-            $asm = $wandler.ConvertTypeLibToAssembly(
-                $tlb, 'Interop.AxisVM.dll', 0, (New-Object TlbSenke),
-                $null, $null, 'AxisVM', $null)
-            Schreib "  Baugruppe erzeugt: $($asm.GetTypes().Count) Typen."
-            $gefunden.Add('Typbibliothek -> Interop-Baugruppe zur Laufzeit')
-        } catch {
-            Schreib "  Umwandlung fehlgeschlagen: $($_.Exception.Message)"
         }
     }
 
