@@ -806,6 +806,70 @@ ${q(`Eine Festlegung des Nachweises, gestützt auf <b>ein</b> Modell und
 Werkzeug, Rahmenmodell und Vergleichsmodell überein (0.26 / 0.23 / 0.10 kNm);
 dort ist nichts zuzuschlagen. Über den Optionswert 1.0 abschaltbar.`)}
 
+<h4>6.2.3 Schiefe Biegung der Gurtwinkel – der zweite Speiser der Bleche</h4>
+<p>Unter reiner Vertikallast rechnet der Rahmen für die <b>Horizontalbleche
+exakt null</b>: durch ihre Ebenen läuft keine vertikale Querkraft. Das geprüfte
+FEM-Modell zeigt dort aber Spannung, und zwar mit dem Verlauf der
+<b>Querkraftlinie</b> – am Auflager am grössten, in Feldmitte fast null.</p>
+
+<p>Die Ursache ist der Winkel selbst. Seine Hauptachsen liegen unter rund 45°
+zu den Schenkeln, also I_yz ≠ 0, und ein Moment um die schenkelparallele Achse
+krümmt ihn in <b>beide</b> Richtungen:</p>
+
+${f(`κ_z = ( M_z · I_y + M_y · I_yz ) / ( E · (I_y I_z − I_yz²) )`)}
+
+<p>Der Gurt will unter dem vertikalen Rahmenmoment seitlich ausweichen. Die
+beiden Gurte einer Horizontalebene sind Spiegelbilder, weichen also
+<b>gegeneinander</b> aus – und die Horizontalbleche halten dagegen. Umgekehrt
+genauso: unter Wind treibt M_z die Gurte vertikal, und die Vertikalbleche
+halten.</p>
+
+<p>Nach κ umgestellt verhält sich der Gurt quer zur Lastebene wie ein Balken
+mit der wirksamen Steifigkeit EI* und einem <i>eingeprägten</i> Moment:</p>
+
+${f(`EI* = E · (I_y I_z − I_yz²) / I_treib &nbsp;&nbsp;&nbsp;
+M_imp = − M_treib · I_yz / I_treib`)}
+
+<p>Das treibende Moment ist im Feld ein Sägezahn (null in Feldmitte, ±M_K am
+Knoten), die Krümmung daraus auch. Über ein Feld integriert, mit der Bedingung
+dass der Gurt im Mittel gerade bleibt, und mit dem Blech als Drehfeder zwischen
+zwei spiegelbildlich verdrehten Gurtenden:</p>
+
+${f(`β = I_p · a / ( 6 · L_c · I* )<br>
+M_Blech = 2 · |I_yz / I_treib| · M_treib,K · β / (1 + β)`)}
+
+<p>I_p ist das Trägheitsmoment des Blechs in seiner eigenen Ebene, L_c die
+lichte Länge, a die Feldweite. Beim L 100x100x10 mit einem 160 × 10er Blech
+sind das β = 0.82 und ein Faktor 0.53 auf das Gurtmoment.</p>
+
+${q(`<b>Dieses Moment kommt ohne Querkraft.</b> Die beiden Blechenden tragen es
+mit gleichem Betrag – konstantes Moment über die Länge. Deshalb erhöht es σ,
+aber nicht τ, und es wird weder auf den Anschnitt abgemindert (bei konstantem
+Moment ist der Anschnittwert der Knotenwert) noch vom Endfeldzuschlag erfasst
+(der gilt der Torsionseinleitung).`)}
+
+<p><b>Was es bringt</b>, gemessen am Signaljoch gegen AxisVM:</p>
+
+<table><tr><th>Lastfall</th><th>Blech</th><th>ohne</th><th>mit</th></tr>
+<tr><td>Eigengewicht</td><td>horizontal</td><td>−100 %</td><td><b>+12 %</b></td></tr>
+<tr><td>Anbaulast</td><td>horizontal</td><td>−100 %</td><td><b>+9 %</b></td></tr>
+<tr><td>Schnee</td><td>horizontal</td><td>−100 %</td><td><b>+20 %</b></td></tr>
+<tr><td>Wind quer</td><td>vertikal</td><td>−44 %</td><td><b>−25 %</b></td></tr>
+<tr><td>Wind quer</td><td>horizontal</td><td>+11 %</td><td>+19 %</td></tr></table>
+
+<p>Stelle für Stelle folgt der Verlauf jetzt der Querkraftlinie: über 25 der
+27 Stationen liegt das Horizontalblech unter Eigengewicht innerhalb ±25 %,
+in Feldmitte gehen beide Modelle gegen null.</p>
+
+${q(`<b>Voraussetzung</b> ist die spiegelsymmetrische Anordnung der vier
+Winkel – so ist jedes Tragjoch des Sortiments gebaut. Stünden sie parallel,
+wichen die Gurte gleichsinnig aus und die Bleche bekämen deutlich weniger.
+<b>Nicht angesetzt</b> ist das Rückstellmoment im Gurt selbst (rund 13 % seines
+örtlichen Rahmenmoments beim L 100x100x10): der Gurt wird von der Normalkraft
+bemessen, und der Term ginge in die beiden Spannungsmodelle verschieden ein.
+Hergeleitet, nicht gefittet – der einzige freie Punkt ist die Annahme, dass der
+Gurt im Mittel gerade bleibt. Abschaltbar unter Optionen.`)}
+
 <h4>6.3 Nachweis des Bindeblechs</h4>
 <p>Am Rahmenknoten treffen die Gurtmomente der angrenzenden Felder zusammen; das
 Blech muss ihre Summe aufnehmen. Aus seinem eigenen Gleichgewicht – doppelte

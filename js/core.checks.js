@@ -145,6 +145,18 @@ export function hinweise(m) {
     : 'Endfeldzuschlag auf die Bindebleche abgeschaltet: die örtliche '
       + 'Einleitung der Torsion in den Mast ist dann nicht erfasst.');
 
+  // SCHIEFE BIEGUNG DER GURTWINKEL -> Moment in den Blechen der anderen Ebene.
+  h.push(m.schiefeBiegung !== false
+    ? 'Schiefe Biegung der Gurtwinkel ist erfasst: der Winkel weicht unter '
+      + 'dem örtlichen Rahmenmoment quer aus (I_yz ≠ 0), die Bindebleche der '
+      + 'anderen Ebene halten dagegen. Das Moment ist über die Blechlänge '
+      + 'konstant und wird deshalb weder auf den Anschnitt abgemindert noch '
+      + 'vom Endfeldzuschlag erfasst. Vorausgesetzt ist die '
+      + 'spiegelsymmetrische Anordnung der vier Winkel.'
+    : 'Schiefe Biegung der Gurtwinkel abgeschaltet: die Horizontalbleche sind '
+      + 'unter reiner Vertikallast dann spannungsfrei. Am nachgerechneten '
+      + 'Signaljoch wies das FEM-Modell dort 11 N/mm² aus.');
+
   // --- AUFLAGER: die Zahlen, an denen ein Eingabefehler auffällt ------------
   // Beim Nachbau eines geprüften FEM-Modells lagen genau hier die grössten
   // Fehler - eine geschätzte Drehfeder um Faktor 3 daneben, die Stützweite um

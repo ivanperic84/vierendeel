@@ -387,6 +387,25 @@ export const FELDER = [
            + 'überein – dort wird ohnehin nichts zugeschlagen. Eine '
            + 'Festlegung des Nachweises, gestützt auf ein Modell; mit 1.0 '
            + 'abgeschaltet.' },
+  // SCHIEFE BIEGUNG DER GURTWINKEL (core.querschnitt.js, SCHIEFE_BIEGUNG).
+  // Der Winkel hat seine Hauptachsen unter 45 Grad; unter dem Rahmenmoment
+  // will er quer ausweichen, und die Bindebleche der anderen Ebene halten
+  // dagegen. Ohne diesen Term rechnet das Werkzeug fuer die Horizontalbleche
+  // unter reiner Vertikallast EXAKT NULL - das gepruefte FEM-Modell zeigt
+  // dort 11 N/mm². Hergeleitet, nicht gefittet; Vorgabe deshalb ein.
+  { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
+    label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,
+    hinweis: 'Ein Winkel hat seine Hauptachsen unter rund 45° zu den ' +
+             'Schenkeln. Unter dem örtlichen Rahmenmoment will er deshalb ' +
+             'quer zur Lastebene ausweichen; weil die beiden Gurte einer ' +
+             'Ebene Spiegelbilder sind, weichen sie gegeneinander aus, und ' +
+             'die Bindebleche der anderen Ebene halten dagegen. Ohne diesen ' +
+             'Anteil sind die Horizontalbleche unter reiner Vertikallast ' +
+             'spannungsfrei – das geprüfte FEM-Modell zeigt dort 11 N/mm². ' +
+             'Das Moment ist über die Blechlänge konstant: es erhöht σ, ' +
+             'nicht τ, und wird weder auf den Anschnitt abgemindert noch vom ' +
+             'Endfeldzuschlag erfasst. Voraussetzung ist die ' +
+             'spiegelsymmetrische Anordnung der vier Winkel.' },
   { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Spannung im Winkel',
     standard: 'schenkel', optionen: opt(SPANNUNGSMODELLE),
@@ -482,6 +501,8 @@ export const OPTIONEN_ABSCHNITTE = [
   { titel: 'Torsion und Aufteilung', keys: ['torsionModell', 'torsionsverteilung',
                              'ebenenUeberlagerung', 'gurtaufteilung',
                              'spannungsmodell'] },
+  { titel: 'Knoten und Bindebleche', keys: ['knotenbereich', 'endfeldZuschlag',
+                                            'schiefeBiegung'] },
   { titel: 'Einwirkungen', keys: ['lastHerkunft'] },
   { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
   { titel: 'Widerstand', keys: ['gammaM0'] },

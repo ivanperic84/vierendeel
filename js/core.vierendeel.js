@@ -289,6 +289,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     spannungsmodell: inp.spannungsmodell ?? 'schenkel',
     knotenbereich: inp.knotenbereich ?? 'anschnitt',
     endfeldZuschlag: inp.endfeldZuschlag,
+    schiefeBiegung: inp.schiefeBiegung !== false,
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
     profOG, profUG, stahl, joch,
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,

@@ -3064,7 +3064,11 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
        + `${(100 * b1.torsionsanteil).toFixed(0)} %`);
   wahr('Er bleibt unter dem vollen Wert, solange nicht alles Torsion ist',
        b1.endfeldFaktor <= ENDFELD_ZUSCHLAG + 1e-9);
-  pruef('Das Moment folgt genau dem Faktor', b1.M, b0.M * b1.endfeldFaktor, 1e-9, 'kNm');
+  // Der Zuschlag greift auf den RAHMENANTEIL; der Koppelterm aus der schiefen
+  // Biegung steht daneben und wird nicht angehoben.
+  pruef('Das Moment folgt genau dem Faktor',
+        b1.M - b1.M_kopp, (b0.M - b0.M_kopp) * b1.endfeldFaktor, 1e-9, 'kNm');
+  pruef('Der Koppelterm bleibt vom Endfeld unberührt', b1.M_kopp, b0.M_kopp, 1e-12, 'kNm');
   // Die QUERKRAFT folgt dem Rahmen und wird nicht angehoben.
   pruef('Die Blechquerkraft bleibt unberührt', b1.V, b0.V, 1e-12, 'kN');
   pruef('M_Knoten bleibt der Rahmenwert', b1.M_Knoten, b0.M_Knoten, 1e-12, 'kNm');
@@ -3079,6 +3083,111 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
        hw2(mit.modell).join(' | ').includes('äussersten Stationen'));
   wahr('Abgeschaltet wird das ebenfalls vermerkt',
        hw2(ohne.modell).join(' | ').includes('abgeschaltet'));
+}
+
+// ===========================================================================
+titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
+// Der Winkel hat seine Hauptachsen unter 45 Grad. Unter dem oertlichen
+// Rahmenmoment weicht er quer aus; die Bleche der ANDEREN Ebene halten
+// dagegen. Ohne diesen Term sind die Horizontalbleche unter reiner
+// Vertikallast spannungsfrei - das gepruefte FEM-Modell zeigt dort 11 N/mm2.
+{
+  const { koppelfaktor } = await import(J('core.querschnitt.js'));
+  const { winkelwerteFuer } = await import(J('core.winkel.js'));
+  const { hinweise } = await import(J('core.checks.js'));
+  const P = getProfil('L 100x100x10');
+  const blech = { breite: 160, dicke: 10, laenge: 420 };
+
+  // --- die Formel selbst ----------------------------------------------------
+  const kf = koppelfaktor(P, blech, 0.70, 0.42, 'z');
+  const w = winkelwerteFuer(P);
+  const D = w.Iy * w.Iz - w.Iyz * w.Iyz;
+  pruef('r = |I_yz| / I_treib', kf.r, Math.abs(w.Iyz) / w.Iz, 1e-12, '–');
+  pruef('I* = (I_y I_z − I_yz²) / I_treib', kf.Istern, D / w.Iz, 1e-9, 'mm4');
+  pruef('I_p ist das Blech in seiner eigenen Ebene', kf.Ip, (10 * 160 ** 3) / 12,
+        1e-9, 'mm4');
+  pruef('β = I_p · a / (6 · L_c · I*)', kf.beta,
+        (kf.Ip * 700) / (6 * 420 * kf.Istern), 1e-12, '–');
+  pruef('Faktor = 2 · r · β/(1+β)', kf.faktor,
+        2 * kf.r * (kf.beta / (1 + kf.beta)), 1e-12, '–');
+  // Gleichschenkliger Winkel: r = (I1 − I2)/(I1 + I2)
+  pruef('Beim gleichschenkligen Winkel ist r = (I1−I2)/(I1+I2)', kf.r,
+        (w.I1 - w.I2) / (w.I1 + w.I2), 1e-9, '–');
+
+  // Grenzfaelle: ein steiferes Blech behindert mehr, ein laengeres weniger.
+  const steifer = koppelfaktor(P, { ...blech, breite: 220 }, 0.70, 0.42, 'z');
+  const laenger = koppelfaktor(P, { ...blech, laenge: 700 }, 0.70, 0.70, 'z');
+  wahr('Ein steiferes Blech zieht mehr Moment an sich', steifer.faktor > kf.faktor);
+  wahr('Ein weicheres Blech weniger', laenger.faktor < kf.faktor);
+  wahr('Volle Behinderung bleibt die obere Schranke', kf.faktor < 2 * kf.r + 1e-12);
+  wahr('Ohne Blechangaben kein Koppelterm',
+       koppelfaktor(P, null, 0.7, 0.42, 'z') === null
+       && koppelfaktor(P, blech, 0, 0.42, 'z') === null);
+
+  // --- im Rechenkern --------------------------------------------------------
+  // Reine Vertikallast: die Horizontalbleche bekommen NUR aus diesem Term
+  // etwas - der Rahmen gibt ihnen null.
+  const v = basis({ lastHerkunft: 'manuell', gkManuell: 1.5, wkManuell: 0,
+                    skManuell: 0, schneeAktiv: false, anbauteile: [],
+                    beiwerteFest: { G: 1, WindX: 0, WindY: 0, Schnee: 0, Leiterzug: 0 } });
+  const mit = rechne(v);
+  const ohne = rechne({ ...v, schiefeBiegung: false });
+  const hor = (e) => e.knoten[1].ebenen.find((x) => x.art === 'horizontal');
+  const ver = (e) => e.knoten[1].ebenen.find((x) => x.art === 'vertikal');
+  pruef('Ohne den Term ist das Horizontalblech spannungsfrei',
+        hor(ohne).sig_v, 0, 1e-12, 'N/mm²');
+  wahr('Mit dem Term traegt es', hor(mit).sig_v > 1,
+       `σ_v = ${hor(mit).sig_v.toFixed(2)} N/mm²`);
+  pruef('Der Rahmenanteil bleibt null', hor(mit).M_Knoten, 0, 1e-12, 'kNm');
+  pruef('Das ganze Moment kommt aus der Kopplung', hor(mit).M, hor(mit).M_kopp,
+        1e-12, 'kNm');
+  // KEINE Querkraft: der Term ist ein konstantes Moment ueber die Blechlaenge.
+  pruef('Die Blechquerkraft bleibt unberuehrt', hor(mit).V, hor(ohne).V, 1e-12, 'kN');
+  pruef('Und damit auch τ', hor(mit).tau, hor(ohne).tau, 1e-12, 'N/mm²');
+  // Konstantes Moment heisst: keine Abminderung auf den Anschnitt. Geprueft
+  // an einem Joch mit UNGLEICHEN Gurten - sonst faellt eine Verwechslung von
+  // My_KnotenG (nach Steifigkeit geteilt) und My_Knoten (haelftig) nicht auf.
+  const ug = rechne({ ...v, profOG: 'L 100x100x10', profUG: 'L 80x80x8' });
+  const horU = ug.knoten[1].ebenen.find((x) => x.art === 'horizontal' && x.id === 'H_O');
+  wahr('Ungleiche Gurte: die Aufteilung ist nicht haelftig',
+       Math.abs(ug.knoten[1].My_KnotenG.OG - ug.knoten[1].My_Knoten) > 1e-6);
+  pruef('Der Koppelterm folgt der Formel', horU.M_kopp,
+        koppelfaktor(ug.modell.profOG, horU, ug.knoten[1].aGurt,
+                     horU.lichteLaenge, 'y').faktor
+        * Math.abs(ug.knoten[1].My_KnotenG.OG), 1e-9, 'kNm');
+  const horUnten = ug.knoten[1].ebenen.find((x) => x.id === 'H_U');
+  pruef('Das untere Blech folgt dem UNTERgurt', horUnten.M_kopp,
+        koppelfaktor(ug.modell.profUG, horUnten, ug.knoten[1].aGurt,
+                     horUnten.lichteLaenge, 'y').faktor
+        * Math.abs(ug.knoten[1].My_KnotenG.UG), 1e-9, 'kNm');
+  wahr('und ist damit ein anderer Wert', Math.abs(horUnten.M_kopp - horU.M_kopp) > 1e-9);
+
+  // Das Vertikalblech bekommt seinen Anteil aus dem GRUNDRISSmoment, also
+  // unter Wind - unter reiner Vertikallast nicht.
+  pruef('Vertikalblech ohne Grundrissmoment: kein Koppelterm',
+        ver(mit).M_kopp, 0, 1e-12, 'kNm');
+  const wind = rechne({ ...v, wkManuell: 2.0,
+                        beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0, Leiterzug: 0 } });
+  const windOhne = rechne({ ...v, wkManuell: 2.0, schiefeBiegung: false,
+                            beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0, Leiterzug: 0 } });
+  wahr('Unter Wind traegt das Vertikalblech den Koppelterm',
+       ver(wind).M_kopp > 0 && ver(wind).M > ver(windOhne).M);
+
+  // Ohne Torsion und ohne Wind bleibt die Ausnutzung des JOCHS unveraendert
+  // oder steigt - der Term nimmt nie etwas weg.
+  wahr('Der Term nimmt nie Beanspruchung weg',
+       mit.max.etaGesamt >= ohne.max.etaGesamt - 1e-12);
+
+  // --- Schalter und Hinweis -------------------------------------------------
+  wahr('Vorgabe ist eingeschaltet', standardwerte().schiefeBiegung === true);
+  wahr('Der Term steht in den Hinweisen',
+       hinweise(mit.modell).join(' | ').includes('Schiefe Biegung'));
+  wahr('Abgeschaltet wird das vermerkt',
+       hinweise(ohne.modell).join(' | ').includes('abgeschaltet'));
+  const SCH = await import(J('ui.schema.js'));
+  wahr('Der Schalter steht im Optionen-Dialog',
+       SCH.optionenFelder(standardwerte())
+         .some((a) => a.felder.some((f) => f.key === 'schiefeBiegung')));
 }
 
 // ===========================================================================

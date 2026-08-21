@@ -217,6 +217,87 @@ export const ENDFELD_ZUSCHLAG = 2.0;
 /** So viele Stationen je Jochende gelten als Endfeld. */
 export const ENDFELD_STATIONEN = 2;
 
+/**
+ * SCHIEFE BIEGUNG DER WINKELGURTE -> MOMENT IN DEN BINDEBLECHEN.
+ *
+ * DIE BEOBACHTUNG
+ * Unter reiner Vertikallast rechnet der Rahmen für die HORIZONTALBLECHE exakt
+ * null - sie liegen in den Ebenen, durch die keine vertikale Querkraft läuft.
+ * Das geprüfte FEM-Modell zeigt dort aber Spannung, und zwar mit dem Verlauf
+ * der QUERKRAFTLINIE (am Auflager am grössten, in Feldmitte fast null):
+ *
+ *      Eigengewicht, Horizontalblech   x=0.6: 10.4   x=9.1: 0.8   x=18.3: 11.2
+ *      Schnee,       Horizontalblech   x=0.6:  3.5   x=9.1: 0.4   x=18.3:  3.6
+ *
+ * Der Grundrissknick scheidet als Ursache aus: der ginge mit der GURTKRAFT,
+ * hätte also sein Maximum in Feldmitte.
+ *
+ * DIE URSACHE
+ * Ein Winkel hat seine Hauptachsen unter rund 45 Grad zu den Schenkeln, also
+ * I_yz ≠ 0. Ein Moment um die schenkelparallele Achse - und genau so entsteht
+ * es im Vierendeel-Rahmen - erzeugt deshalb Krümmung in BEIDE Richtungen:
+ *
+ *      κ_z = ( M_z · I_y + M_y · I_yz ) / ( E · (I_y I_z − I_yz²) )
+ *
+ * Der Gurt will unter dem vertikalen Rahmenmoment seitlich ausweichen. Die
+ * beiden Gurte einer Horizontalebene sind Spiegelbilder (I_yz mit
+ * entgegengesetztem Vorzeichen), sie weichen also GEGENEINANDER aus - und die
+ * Horizontalbleche halten dagegen. Dasselbe gilt spiegelbildlich für die
+ * Vertikalbleche unter Wind: dort treibt M_z den Gurt vertikal.
+ *
+ * DIE RECHNUNG
+ * Nach κ_z umgestellt verhält sich der Gurt quer zur Lastebene wie ein Balken
+ * mit der wirksamen Steifigkeit EI* und einem EINGEPRÄGTEN Moment M_imp:
+ *
+ *      EI* = E · (I_y I_z − I_yz²) / I_treib        M_imp = − M_treib · I_yz / I_treib
+ *
+ * I_treib ist das Trägheitsmoment um die Achse des treibenden Moments (I_y bei
+ * Vertikallast, I_z bei Wind). Ohne jede Behinderung bleibt M_imp im Blech
+ * hängen als nichts; bei voller Behinderung würde der Gurt das ganze M_imp
+ * tragen. Wirklich ist es dazwischen, und wieviel, entscheidet die
+ * Blechsteifigkeit.
+ *
+ * Im Feld ist das treibende Moment ein Sägezahn (null in Feldmitte, ±M_K am
+ * Knoten). Die daraus folgende Krümmung ist es auch. Über ein Feld integriert
+ * und mit der Bedingung, dass der Gurt im Mittel gerade bleibt, ergibt sich
+ * die Knotenverdrehung θ = C·a/6 mit C = (M_z,K − M_imp,K)/EI*.
+ *
+ * Das Blech verbindet zwei Gurte, die sich SPIEGELBILDLICH verdrehen (+θ und
+ * −θ). Nach dem Drehwinkelverfahren ohne Stabdrehung heisst das M = 2EI_p·θ/L_c
+ * an beiden Enden - konstantes Moment, KEINE Querkraft. Mit dem
+ * Knotengleichgewicht M_Blech = 2·M_z,K folgt
+ *
+ *      β = I_p · a / ( 6 · L_c · I* )
+ *      M_Blech = 2 · |I_yz/I_treib| · M_treib,K · β / (1 + β)
+ *
+ * I_p ist das Trägheitsmoment des Blechs in seiner eigenen Ebene
+ * (t·b³/12, dieselbe Richtung wie sein W), L_c die lichte Länge, a die
+ * Feldweite.
+ *
+ * WAS DARAUS FOLGT UND WAS NICHT
+ *   · Das Moment folgt dem treibenden Rahmenmoment, also der QUERKRAFTLINIE -
+ *     genau die Form, die das FEM-Modell zeigt.
+ *   · Es kommt OHNE Querkraft: konstantes Moment über die Blechlänge. Deshalb
+ *     wird τ nicht erhöht, und es gibt auch keine Abminderung auf den
+ *     Anschnitt - bei konstantem Moment ist der Anschnittwert der Knotenwert.
+ *   · Der Endfeldzuschlag greift nicht: der gilt der Torsionseinleitung.
+ *
+ * VORAUSSETZUNG: die vier Winkel stehen SPIEGELSYMMETRISCH (Rücken nach aussen
+ * oder alle nach innen, in beiden Achsen gespiegelt). So ist jedes Tragjoch des
+ * Sortiments gebaut. Stünden sie parallel, wichen die Gurte gleichsinnig aus
+ * und die Bleche bekämen deutlich weniger.
+ *
+ * NICHT ANGESETZT ist der Anteil, den das Rückstellmoment im GURT selbst
+ * ausmacht (M_z = |I_yz/I_y|·M_y·β/(1+β), beim L 100x100x10 rund 13 % des
+ * örtlichen Rahmenmoments). Der Gurt wird von der Normalkraft bemessen; dieser
+ * Term ginge zudem verschieden in die beiden Spannungsmodelle ein und wäre
+ * ohne eigene Eichung nicht zu belegen.
+ *
+ * >>> Hergeleitet, nicht gefittet. Der einzige freie Punkt ist die Annahme,
+ * dass der Gurt im Mittel gerade bleibt. Abschaltbar über `schiefeBiegung`. <<<
+ */
+export const SCHIEFE_BIEGUNG = true;
+
 export const KNOTENBEREICHE = [
   { key: 'anschnitt',
     label: 'steif, Nachweis am Anschnitt (Nachweisgrundlage)' },
@@ -425,6 +506,33 @@ export function nachbarfeldweiten(m, x) {
 }
 
 /**
+ * Blechmoment aus der schiefen Biegung eines Gurtwinkels (siehe SCHIEFE_BIEGUNG).
+ *
+ * @param {object} p        Gurtprofil (Winkel)
+ * @param {object} blech    Blechdaten {breite, dicke, laenge} [mm]
+ * @param {number} aGurt    Feldweite [m]
+ * @param {number} Lc_m     lichte Blechlänge [m]
+ * @param {string} achse    'y' = treibendes Moment um die schenkelparallele
+ *                          y-Achse (Vertikallast, hält das HORIZONTALblech
+ *                          dagegen), 'z' = umgekehrt
+ * @returns {{r:number, beta:number, faktor:number}|null}
+ *          faktor: M_Blech,Knoten = faktor · M_Gurt,Knoten
+ */
+export function koppelfaktor(p, blech, aGurt, Lc_m, achse) {
+  if (!p || !blech?.breite || !blech?.dicke) return null;
+  if (!(aGurt > 0) || !(Lc_m > 0)) return null;
+  const w = winkelwerteFuer(p);
+  const D = w.Iy * w.Iz - w.Iyz * w.Iyz;                 // [mm4]²
+  const Itreib = achse === 'z' ? w.Iz : w.Iy;            // [mm4]
+  if (!(D > 0) || !(Itreib > 0)) return null;
+  const r = Math.abs(w.Iyz) / Itreib;                    // volle Behinderung
+  const Istern = D / Itreib;                             // wirksames I quer [mm4]
+  const Ip = (blech.dicke * blech.breite ** 3) / 12;     // [mm4], in Blechebene
+  const beta = (Ip * (aGurt * U.m__mm)) / (6 * (Lc_m * U.m__mm) * Istern);
+  return { r, beta, Istern, Ip, faktor: 2 * r * (beta / (1 + beta)) };
+}
+
+/**
  * Vollständige Auswertung eines Schnitts: Kräfte und Spannungen für jeden
  * der vier Eckwinkel und jede der vier Bindeblechebenen.
  *
@@ -547,7 +655,9 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
    * Schwerachse - im Überlappungsbereich ist es mit dem Gurt verschweisst und
    * wirkt dort biegesteif (siehe unten).
    */
-  const blechNachweis = (art, blech, V_Ebene, hebelarm, anteilTorsion = 0) => {
+  const koppAn = m.schiefeBiegung !== false;
+  const blechNachweis = (art, blech, V_Ebene, hebelarm, anteilTorsion = 0,
+                         kopp = null) => {
     if (!blech) return null;
     const breite = blech.breite;      // Abmessung entlang der Jochachse [mm]
     const dicke = blech.dicke;
@@ -582,7 +692,23 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
     const tAnteil = V_Ebene > 0
       ? Math.max(0, Math.min(1, Math.abs(anteilTorsion) / V_Ebene)) : 0;
     const zu = imEndfeld ? 1 + (endfeldFaktor - 1) * tAnteil : 1;
-    const M = M_K * faktor * zu;                                 // [kNm] am Anschnitt
+
+    // SCHIEFE BIEGUNG DER GURTWINKEL (siehe SCHIEFE_BIEGUNG).
+    // Der Gurt will unter seinem Rahmenmoment quer ausweichen, das Blech hält
+    // dagegen. Massgebend ist das ungünstigere der beiden Blechenden - die
+    // zwei Gurte einer Ebene können verschiedene Profile haben.
+    // Das Moment ist über die Blechlänge KONSTANT: keine Querkraft, keine
+    // Abminderung auf den Anschnitt, kein Endfeldzuschlag.
+    let M_kopp = 0, koppel = null;
+    if (koppAn && kopp) {
+      kopp.treiber.forEach((t) => {
+        const kf = koppelfaktor(t.p, blech, aGurt, Lc, kopp.achse);
+        if (!kf) return;
+        const wert = kf.faktor * Math.abs(t.M);
+        if (wert > M_kopp) { M_kopp = wert; koppel = { ...kf, M: wert, profil: t.p.name }; }
+      });
+    }
+    const M = M_K * faktor * zu + M_kopp;                        // [kNm] am Anschnitt
 
     const W = (dicke * breite * breite) / RECHTECK.W_NENNER;     // [mm3]
     const A = dicke * breite;                                    // [mm2]
@@ -594,18 +720,33 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
       V_Ebene, nachbarfelder, aBlech,
       // M_Knoten bleibt der reine Rahmenwert - der Endfeldzuschlag steckt
       // in M und wird daneben eigens ausgewiesen.
-      M_Knoten: M_K, M, V, W, A, sig, tau, sig_v, eta: sig_v / m.fyd,
+      M_Knoten: M_K, M, M_kopp, koppel, V, W, A, sig, tau, sig_v,
+      eta: sig_v / m.fyd,
       hebelarm, lichteLaenge: Lc, steifeLaenge: steif, abminderung: faktor,
       endfeld: imEndfeld, endfeldFaktor: zu, torsionsanteil: tAnteil,
     };
   };
 
+  // WELCHES GURTMOMENT TREIBT WELCHES BLECH.
+  // Vertikalblech: es steht in der Vertikalebene und hält den Gurt gegen das
+  //   Ausweichen aus dem Grundrissmoment M_z - Treiber ist Mz_Knoten, und die
+  //   Ebene verbindet OG mit UG, also beide Profile.
+  // Horizontalblech: es liegt in der Horizontalebene, verbindet den linken mit
+  //   dem rechten Gurt DERSELBEN Höhe und hält gegen das Ausweichen aus dem
+  //   Vertikalmoment M_y - Treiber ist My_KnotenG des betreffenden Gurtes.
+  const koppVert = { achse: 'z', treiber: [{ p: m.profOG, M: Mz_Knoten },
+                                           { p: m.profUG, M: Mz_Knoten }] };
+  const koppHor = {
+    H_O: { achse: 'y', treiber: [{ p: m.profOG, M: My_KnotenG.OG }] },
+    H_U: { achse: 'y', treiber: [{ p: m.profUG, M: My_KnotenG.UG }] },
+  };
   const ebenen = EBENEN.map((e) => {
     const istVert = e.art === 'vertikal';
     const je = q.jeEbene[e.id];
     const blech = istVert ? bleche?.vertikal : bleche?.horizontal;
     const nw = blechNachweis(e.art, blech, je.V_Ebene, istVert ? m.h : m.b,
-                             je.anteilTorsion);
+                             je.anteilTorsion,
+                             istVert ? koppVert : koppHor[e.id]);
     return { ...e, ...je, ...(nw ?? { eta: null }), blechFehlt: !nw };
   });
 
@@ -614,7 +755,7 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null,
     ? Math.max(...ebenen.filter((e) => e.eta !== null).map((e) => e.eta)) : 0;
 
   return {
-    q, My_lokal, Mz_lokal, My_Knoten, Mz_Knoten,
+    q, My_lokal, Mz_lokal, My_Knoten, Mz_Knoten, My_KnotenG,
     felder, aGurt, aBlech,
     anschnittMy: fMy, anschnittMz: fMz, ecken, ebenen,
     imEndfeld, endfeldFaktor: imEndfeld ? endfeldFaktor : 1,
