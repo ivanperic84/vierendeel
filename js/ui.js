@@ -1307,7 +1307,7 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  */
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, hinweise = []) {
   const m = erg.modell, x = erg.extrem;
-  const e = erg.max.etaMitMast;
+  const e = erg.max.etaGesamt;
   const zustand = e > 1 || !urteil.alleOk ? 'nok' : 'ok';
 
   // Jede Kachel kennt die Stelle, an der ihr Wert auftritt - ein Klick fährt
@@ -1321,9 +1321,6 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
     kachel('η Bindeblech', f3(erg.max.etaB.etaB), 'massgebende Ebene',
            ampel(erg.max.etaB.etaB), bei(erg.max.etaB)),
   ];
-  if (erg.mast) {
-    kz.push(kachel('η Mast', f3(erg.mast.eta), m.federn.mast.profil.name, ampel(erg.mast.eta)));
-  }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
   // Profilen; als «Kennzahl» hatten sie hier nichts verloren.

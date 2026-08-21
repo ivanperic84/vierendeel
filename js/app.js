@@ -317,7 +317,7 @@ function aktualisiereModell(erg) {
 }
 
 function aktualisiereFuss(erg, urteil, joch) {
-  const e = erg.max.etaMitMast;
+  const e = erg.max.etaGesamt;
   const gut = e <= 1 && urteil.alleOk;
   const farbe = gut ? 'var(--ok)' : 'var(--fail)';
   ui.el('st-urteil').innerHTML =
@@ -1548,7 +1548,7 @@ function zeichneSchienen() {
   const stufe = (v) => (v > 1 ? 'nok' : v > 0.9 ? 'warn' : 'ok');
   // η gesamt zuoberst der Pillen, darunter die drei Einzelnachweise.
   const nw = e ? [
-    ['η', e.max.etaMitMast, 'Ausnutzung gesamt', true],
+    ['η', e.max.etaGesamt, 'Ausnutzung gesamt', true],
     ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`, false],
     ['UG', e.max.etaUG.ug.eta, `Untergurt ${e.modell.profUG.name}`, false],
     ['Bl', e.max.etaB.etaB, 'Bindeblech, massgebende Ebene', false],
@@ -1645,7 +1645,7 @@ function dialogSpeichern() {
       id: projekt.id ?? undefined, name: projekt.name, projekt: projekt.projekt,
       bemerkung: ui.el('d-bem').value, werte,
       kennwerte: letzte ? {
-        typ: werte.typ, L: werte.L, eta: letzte.erg.max.etaMitMast,
+        typ: werte.typ, L: werte.L, eta: letzte.erg.max.etaGesamt,
       } : null,
     });
     projekt.id = s.id;

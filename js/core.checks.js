@@ -163,6 +163,11 @@ export function hinweise(m) {
   }
   if (m.federn?.mast) {
     const ma = m.federn.mastA ?? m.federn.mast;
+    // Der Mast steht hier als AUFLAGER, nicht als nachzuweisendes Bauteil.
+    h.push('Der Mast ist Auflager, nicht Bauteil: nachgewiesen wird nur das '
+      + 'Joch. Sein Profil bestimmt die Drehfeder und den Mastwind auf das '
+      + 'Jochende; sein eigener Nachweis gehört in ein Rahmenmodell mit '
+      + 'beiden Masten, Fusspunkten und Gründung.');
     h.push(m.federn.verschieblich
       ? 'Wind in Jochachse: beide Mastköpfe wollen in dieselbe Richtung, der '
         + 'Rahmen VERSCHIEBT sich. Gerechnet wird deshalb mit dem Kragmast, '

@@ -20,7 +20,7 @@ import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
 import { expandiereAnbauteile } from './data.anbauteile.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
-         mastNachweis, mastKopfdrehung } from './core.auflager.js';
+         mastKopfdrehung } from './core.auflager.js';
 import { schnittAuswertung, ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
@@ -440,17 +440,17 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
   const rows = xs.map((x, i) => knoten(x, m, i, n));
   const argMax = (fn) => rows.reduce((b, r) => (fn(r) > fn(b) ? r : b), rows[0]);
 
-  const mast = m.federn.mast
-    ? mastNachweis(m.federn.mast, {
-        N: Math.max(m.RA, m.RB),
-        MJoch: Math.max(Math.abs(m.MA), Math.abs(m.MB)),
-        wMast: inp.wMast, H: inp.mastH, fyd: m.fyd,
-      })
-    : null;
-
+  // DER MAST WIRD NICHT NACHGEWIESEN.
+  // Dieses Werkzeug bemisst das JOCH. Der Mast steht hier nur als Auflager:
+  // seine Steifigkeit bestimmt die Drehfeder (core.auflager.js), und der Wind
+  // auf ihn zwingt dem Jochende eine Verdrehung auf. Sein eigener Nachweis
+  // gehört in ein Rahmenmodell, in dem beide Maste mit ihrer wirklichen Höhe,
+  // ihrem Fusspunkt und ihrer Gründung stehen - nicht in eine Nebenrechnung
+  // am Ersatzbalken. Bis es das gibt, wird er hier ehrlich gar nicht geführt
+  // statt halb.
   const etaGesamt = Math.max(...rows.map((r) => r.eta));
   return {
-    modell: m, knoten: rows, extrem: extremwerte(m), mast,
+    modell: m, knoten: rows, extrem: extremwerte(m),
     stationen: n,
     schnitt: auswertungAn(m.xNachweis ?? m.L / 2, m),
     max: {
@@ -460,8 +460,7 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
       etaB: argMax((r) => r.etaB),
       eta: argMax((r) => r.eta),
       etaGesamt,
-      etaMitMast: mast ? Math.max(etaGesamt, mast.eta) : etaGesamt,
-      alleOk: rows.every((r) => r.ok) && (!mast || mast.ok),
+      alleOk: rows.every((r) => r.ok),
     },
   };
 }
@@ -493,7 +492,7 @@ export function vergleichKombinationen(inp, profOG, profUG, stahl, joch) {
     ergebnisse[k.key] = e;
     return {
       ...k,
-      eta: e.max.etaMitMast,
+      eta: e.max.etaGesamt,
       etaOG: e.max.etaOG.og.eta, etaUG: e.max.etaUG.ug.eta, etaB: e.max.etaB.etaB,
       qd: e.modell.qd, wd: e.modell.wd,
       xMax: e.max.eta.x,
@@ -525,7 +524,7 @@ export function huellkurve(liste) {
     gueltig.reduce((a, e) => ((e.knoten[i]?.eta ?? -1) > (a?.eta ?? -1) ? e.knoten[i] : a),
                    erste.knoten[i]));
   const argMax = (fn) => knotenH.reduce((a, r) => (fn(r) > fn(a) ? r : a), knotenH[0]);
-  const etaGesamt = Math.max(...gueltig.map((e) => e.max.etaMitMast));
+  const etaGesamt = Math.max(...gueltig.map((e) => e.max.etaGesamt));
   return {
     ...erste,
     knoten: knotenH,
@@ -536,7 +535,7 @@ export function huellkurve(liste) {
       ...erste.max,
       etaOG: argMax((r) => r.og.eta), etaUG: argMax((r) => r.ug.eta),
       etaL: argMax((r) => r.etaL), etaB: argMax((r) => r.etaB),
-      eta: argMax((r) => r.eta), etaGesamt, etaMitMast: etaGesamt,
+      eta: argMax((r) => r.eta), etaGesamt,
       alleOk: gueltig.every((e) => e.max.alleOk),
     },
     istHuellkurve: true,

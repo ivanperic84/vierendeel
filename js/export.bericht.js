@@ -178,21 +178,19 @@ function blattZusammenfassung(erg, vergleich) {
      AMPEL(erg.max.etaB.etaB <= 1, erg.max.etaB.etaB <= 1 ? 'OK' : 'ÜBERSCHRITTEN')],
   ];
 
-  if (erg.mast) {
-    rows.push([T(`Mast ${m.federn.mast.profil.name}`), N3(erg.mast.eta), T('Fuss'),
-               AMPEL(erg.mast.ok, erg.mast.ok ? 'OK' : 'ÜBERSCHRITTEN')]);
+  // DER MAST IST HIER AUFLAGER, NICHT BAUTEIL. Er steht mit seinen
+  // Kenngrössen im Bericht, weil daran die Drehfeder hängt - aber ohne
+  // Nachweis: sein eigener gehört in ein Rahmenmodell.
+  if (m.federn?.mast) {
     rows.push([]);
-    rows.push([B('Mastnachweis')]);
+    rows.push([B('Auflager: Mast (nicht nachgewiesen)')]);
     rows.push([K('Grösse'), K('Wert'), K('Einheit')]);
     [['Profil', m.federn.mast.profil.name, '–'],
      ['Stegrichtung', m.federn.mast.stegrichtung.label, '–'],
+     ['Masthöhe H', m.federn.mast.H, 'm'],
      ['Drehfeder c_φ', m.federn.mast.cPhi, 'kNm/rad'],
-     ['Normalkraft N', erg.mast.N, 'kN'],
-     ['Moment aus Joch', erg.mast.MJoch, 'kNm'],
-     ['Moment aus Wind', erg.mast.M_wind, 'kNm'],
-     ['Fussmoment total', erg.mast.M_Fuss, 'kNm'],
-     ['σ_v', erg.mast.sig_v, 'N/mm²'],
-     ['η', erg.mast.eta, '–'],
+     ['Stützmoment aus dem Joch', Math.max(Math.abs(m.MA), Math.abs(m.MB)), 'kNm'],
+     ['Auflagerkraft', Math.max(m.RA, m.RB), 'kN'],
     ].forEach((r) => rows.push([T(r[0]), typeof r[1] === 'number' ? N3(r[1]) : T(r[1]), T(r[2])]));
   }
 

@@ -879,7 +879,7 @@ titel('15  Lastfälle');
   wahr('Charakteristisches η liegt unter dem Bemessungswert',
        etaChar < etaNw, `${etaChar.toFixed(3)} < ${etaNw.toFixed(3)}`);
   pruef('Umhüllende = grösstes η der Nachweislastfälle',
-        v.huellkurve.max.etaMitMast, etaNw, 1e-12, '–');
+        v.huellkurve.max.etaGesamt, etaNw, 1e-12, '–');
 }
 
 // ===========================================================================
@@ -2843,6 +2843,30 @@ titel('26  Wind auf den Mast verdreht das Jochende');
   wahr('Jedes Ende wird in einem der beiden Lastfälle ungünstig',
        Math.max(lf.windXp.MA, lf.windXm.MA) > Math.min(lf.windXp.MA, lf.windXm.MA)
        && Math.max(lf.windXp.MB, lf.windXm.MB) > Math.min(lf.windXp.MB, lf.windXm.MB));
+}
+
+// ===========================================================================
+titel('26b Der Mast ist Auflager, nicht Bauteil');
+// Nachgewiesen wird das Joch. Der Mast bestimmt die Drehfeder und den
+// Mastwind auf das Jochende - seine eigene Ausnutzung gehoert in ein
+// Rahmenmodell und wird hier gar nicht erst ausgewiesen.
+{
+  const AUF = await import(J('core.auflager.js'));
+  const { hinweise } = await import(J('core.checks.js'));
+  const w = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.5,
+                    mastSteg: 'jochachse', mastAnschluss: 'kragarm',
+                    wMastAusTabelle: false, wMast: 0.37 });
+  const e = rechne(w);
+  wahr('Kein Mastnachweis im Ergebnis', e.mast === undefined);
+  wahr('Keine Funktion mastNachweis mehr', AUF.mastNachweis === undefined);
+  wahr('η ist die Ausnutzung des Jochs', e.max.etaGesamt
+       === Math.max(...e.knoten.map((k) => k.eta)));
+  wahr('etaMitMast gibt es nicht mehr', e.max.etaMitMast === undefined);
+  // Die Feder und der Mastwind bleiben - daran haengt das Joch.
+  wahr('Die Drehfeder aus dem Mast steht weiterhin',
+       e.modell.federn.mast != null && e.modell.federn.cA > 0);
+  wahr('Der Hinweis sagt, dass der Mast nicht nachgewiesen wird',
+       hinweise(e.modell).join(' | ').includes('Auflager, nicht Bauteil'));
 }
 
 // ===========================================================================

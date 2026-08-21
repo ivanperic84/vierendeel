@@ -1037,11 +1037,23 @@ ${f(`σ = M_R / W &nbsp;&nbsp; mit W = t·b²/6<br>
 τ = 1.5 · V / A &nbsp;&nbsp; (parabolische Schubverteilung im Rechteck)<br>
 σ_v = √( σ² + 3τ² ) &nbsp;&nbsp; (von Mises)`)}
 
-<h4>8.3 Mast</h4>
-<p>Der Mast wird am Fuss nachgewiesen, Einspannung vorausgesetzt:</p>
+<h4>8.3 Mast – nicht nachgewiesen</h4>
+<p><b>Dieses Werkzeug bemisst das Joch.</b> Der Mast steht darin als
+<i>Auflager</i>: sein Profil und seine Höhe bestimmen die Drehfeder des
+Jochendes (Abschnitt 4.1), und der Wind auf ihn zwingt dem Jochende eine
+Verdrehung auf (Abschnitt 4.3). Eine Ausnutzung des Mastes wird
+<b>nicht</b> ausgewiesen und geht nicht in η ein.</p>
 
-${f(`M_Fuss = |M_Joch| + w_Mast · H² / 2<br>
-σ_v = N/A + M_Fuss/W`)}
+${q(`Früher stand hier eine Nebenrechnung am Kragmast,
+σ_v = N/A + (|M_Joch| + w·H²/2)/W. Sie ist entfernt. Ein Mast trägt zwei
+Joche, hat eine Gründung, eine wirkliche Höhe über seinem eigenen Fusspunkt
+und meist einen anderen Nachbarn am zweiten Ende – all das steht in keiner
+Eingabe dieses Werkzeugs. Eine Zahl, die so tut, als wäre der Mast geprüft,
+ist schlechter als keine.`)}
+
+<p>Der Nachweis der Maste gehört in ein <b>Rahmenmodell</b> mit beiden Masten.
+Das ist als Ausbaustufe vorgesehen; bis dahin sind die Mastkenngrössen im
+Bericht als Auflagerangaben geführt, ohne Ampel.</p>
 
 <h4>8.4 Querschnittsklassen</h4>
 <p>Jedes Bauteil wird einzeln nach EN 1993-1-1 klassifiziert, damit erkennbar

@@ -402,27 +402,3 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
   };
 }
 
-/**
- * Nachweis des Mastes am Fuss.
- *
- * Beansprucht wird der Mast durch
- *   - die Auflagerkraft des Jochs  N = R (Druck)
- *   - das eingeleitete Jochmoment  M_Joch = M_A (Stützmoment)
- *   - die Windlast auf den Mast selbst (Gleichlast w_Mast über die Höhe)
- * Der Fuss wird als voll eingespannt angenommen.
- *
- * @param {object} mast   Ergebnis aus mastSteifigkeit()
- * @param {object} o      {N, MJoch, wMast, H, fyd}
- */
-export function mastNachweis(mast, { N, MJoch, wMast, H, fyd }) {
-  const M_wind = (wMast * H * H) / 2;                 // Kragarm [kNm]
-  const M_Fuss = Math.abs(MJoch) + M_wind;
-  const sig_N = (N * 10) / mast.profil.A;             // kN/cm2 -> N/mm2
-  const sig_M = (M_Fuss * 1000) / mast.W_cm3;         // kNm/cm3 -> N/mm2
-  const sig_v = sig_N + sig_M;
-  return {
-    N, MJoch: Math.abs(MJoch), M_wind, M_Fuss,
-    W: mast.W_cm3, A: mast.profil.A,
-    sig_N, sig_M, sig_v, eta: sig_v / fyd, ok: sig_v / fyd <= 1,
-  };
-}
