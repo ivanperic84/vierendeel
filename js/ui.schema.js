@@ -179,6 +179,21 @@ export const FELDER = [
   { key: 'wMast', gruppe: 'aufl', typ: 'zahl', label: 'Windlast auf Mast',
     sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
     sichtbar: (w) => w.endbedingung === 'mast' },
+  // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
+  // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
+  // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
+  { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
+    label: 'Mastwind verdreht das Jochende', standard: true,
+    sichtbar: (w) => w.endbedingung === 'mast',
+    hinweis: 'Der Wind in der Jochachse biegt den Mast. Sein Kopf verdreht ' +
+             'sich um θ₀ = w·H³/(6·E·I), und weil das Jochende dort ' +
+             'angeschlossen ist, wird ihm diese Verdrehung aufgezwungen - ' +
+             'das Joch wird in Gegenkrümmung gebogen. Am nachgerechneten ' +
+             'Signaljoch trug der Mastwind rund die Hälfte der gesamten ' +
+             'Einwirkung dieses Lastfalls; ohne ihn lag das Werkzeug 80 % zu ' +
+             'tief. Der Wind auf den Mast in GLEISRICHTUNG ist damit nicht ' +
+             'erfasst - er verschiebt die Mastköpfe quer und verdreht sie um ' +
+             'die Jochachse, wofür der Ersatzbalken keine Entsprechung hat.' },
 
   // --- Gurtprofile ---------------------------------------------------------
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',

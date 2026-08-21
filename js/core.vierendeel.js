@@ -20,7 +20,7 @@ import { charakteristischeLasten, lastfallUebersicht, beiwerteFuer,
 import { expandiereAnbauteile } from './data.anbauteile.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
-         mastNachweis } from './core.auflager.js';
+         mastNachweis, mastKopfdrehung } from './core.auflager.js';
 import { schnittAuswertung } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
          hatGrundrissknick, bauweise, ausfuehrungFuer,
@@ -188,20 +188,34 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   // Feder ohnehin gegenstandslos.
   // 'voll eingespannt' bleibt ausgenommen: das ist eine bewusst gewählte
   // Idealisierung zum Vergleich, keine ausgeführte Verbindung.
+  // WIND AUF DEN MAST -> AUFGEZWUNGENE AUFLAGERVERDREHUNG
+  // Der Wind in der Jochachse biegt den Mast; sein Kopf verdreht sich, und das
+  // Jochende macht die Verdrehung mit (core.auflager.js, mastKopfdrehung).
+  // Nur der Lastfall Wind in Jochachse trägt sie, deshalb der Beiwert WindX.
+  // Ohne Mast als Auflager gibt es nichts zu verdrehen.
+  const mastwindAn = federnRoh.mast && inp.mastWindAufJoch !== false;
+  const bwX = beiwerte.WindX ?? 0;
+  const kopf = mastwindAn
+    ? { A: mastKopfdrehung(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
+        B: mastKopfdrehung(federnRoh.mastB ?? federnRoh.mast, inp.wMast) }
+    : { A: { theta0: 0, M0: 0 }, B: { theta0: 0, M0: 0 } };
+  const theta0A = bwX * kopf.A.theta0;
+  const theta0B = bwX * kopf.B.theta0;
+
   const grenzeAktiv = inp.schraubenGrenze !== false
     && inp.endbedingung !== 'voll'
     && federnRoh.cA + federnRoh.cB > 0 && inp.schraubenFgrenz > 0;
   const grenze = grenzeAktiv
     ? begrenzeFeder({ L: inp.L, qd: lasten.qd, P: lasten.P, M: lasten.M,
                       EI: steif.EI, cA: federnRoh.cA, cB: federnRoh.cB,
-                      h: v.hT, Fgrenz: inp.schraubenFgrenz })
+                      h: v.hT, Fgrenz: inp.schraubenFgrenz, theta0A, theta0B })
     : null;
   const federn = { ...federnRoh, roh: federnRoh, grenze,
                    ...(grenze ? { cA: grenze.cA, cB: grenze.cB } : {}) };
 
   const auf = auflagermomente({
     L: inp.L, qd: lasten.qd, P: lasten.P, M: lasten.M,
-    EI: steif.EI, cA: federn.cA, cB: federn.cB,
+    EI: steif.EI, cA: federn.cA, cB: federn.cB, theta0A, theta0B,
   });
   const reakt = auflagerkraefte({
     L: inp.L, qd: lasten.qd, P: lasten.P, M: lasten.M,
@@ -243,6 +257,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     eps: Math.sqrt(235 / stahl.fy),
     char, ...lasten, ...reakt,
     steif, federn, ...auf, endbedingung: inp.endbedingung,
+    mastKopf: mastwindAn && (kopf.A.theta0 > 0 || kopf.B.theta0 > 0)
+      ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast } : null,
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
     xNachweis: inp.xNachweis,
     schneeAktiv: inp.schneeAktiv === true,

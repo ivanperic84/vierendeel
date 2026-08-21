@@ -334,11 +334,45 @@ würde die <b>Torsionssteifigkeit</b> des Mastes beanspruchen; bei offenen
 H-Profilen ist diese so gering, dass das Joch für Wind sinnvollerweise gelenkig
 gelagert bleibt.`)}
 
-<h4>4.3 Auflagermomente</h4>
-<p>Aus dem Drehwinkelverfahren mit K = EI/L und den Volleinspannmomenten FEM:</p>
+<h4>4.3 Wind auf den Mast verdreht das Jochende</h4>
+<p>Der Wind in der Jochachse drückt nicht nur gegen das Joch, sondern auch
+gegen den <b>Mast</b>. Der Mast biegt sich, sein Kopf verdreht sich – und weil
+das Jochende dort angeschlossen ist, wird ihm diese Verdrehung
+<b>aufgezwungen</b>. Das ist keine Last auf dem Joch, sondern eine
+Auflagerverdrehung:</p>
 
-${f(`(4K + c_A) θ_A + 2K θ_B = −FEM_AB<br>
-2K θ_A + (4K + c_B) θ_B = −FEM_BA<br>
+${f(`θ₀ = w_Mast · H³ / (6 · E · I_Mast)`)}
+
+<p>Das Federgesetz am Jochende lautet damit nicht mehr M = −c·θ, sondern</p>
+
+${f(`M = −c · (θ − θ₀)`)}
+
+<p>Hält das Joch den Mastkopf vollständig fest (θ = 0), leitet der Mast
+M₀ = c·θ₀ = w·H²/6 ein – genau das Moment, das ein am Fuss eingespannter und am
+Kopf drehfest gehaltener Mast unter Gleichlast abgibt. Beide Enden verdrehen
+sich <b>gleichsinnig</b>; das Joch wird dadurch in Gegenkrümmung gebogen, das
+eine Stützmoment wächst, das andere fällt.</p>
+
+${q(`Ohne diesen Anteil fehlt dem Lastfall Wind in Jochachse die grössere
+Hälfte der Einwirkung. Im nachgerechneten Signaljoch trägt der Wind auf die
+beiden Maste 6.10 kN gegenüber 6.42 kN auf den Anbauteilen. Das Werkzeug lag in
+diesem Lastfall rund 80 % zu tief; mit dem Anteil trifft das Bindeblech den
+Vergleichswert auf 2 %, die Gurte bleiben 30 bis 45 % darunter.`)}
+
+<p><b>Nicht erfasst</b> ist der Wind auf den Mast in Gleisrichtung. Er
+verschiebt die Mastköpfe quer und verdreht sie um die Jochachse; das Joch
+bekäme daraus eine Auflagerverschiebung und eine Torsion, wofür der
+Ersatzbalken keine Entsprechung hat. Stehen die beiden Enden auf
+<b>verschieden steifen</b> Masten, verschieben sich die Köpfe zudem
+ungleich – auch das ist hier nicht abgebildet.</p>
+
+<h4>4.4 Auflagermomente</h4>
+<p>Aus dem Drehwinkelverfahren mit K = EI/L und den Volleinspannmomenten FEM;
+θ₀ ist die aufgezwungene Verdrehung des Auflagerpunktes (Abschnitt 4.3, ohne
+Mastwind null):</p>
+
+${f(`(4K + c_A) θ_A + 2K θ_B = −FEM_AB + c_A · θ₀A<br>
+2K θ_A + (4K + c_B) θ_B = −FEM_BA + c_B · θ₀B<br>
 M_AB = 2K (2θ_A + θ_B) + FEM_AB`)}
 
 <p>Die Biegesteifigkeit des gegliederten Jochs folgt der Zwei-Gurt-Idealisierung
@@ -347,7 +381,7 @@ wenige Prozent):</p>
 
 ${f(`I = h² · A_o · A_u / ( A_o + A_u )`)}
 
-<h4>4.4 Schnittgrössen</h4>
+<h4>4.5 Schnittgrössen</h4>
 ${f(`M_y(x) = M_Gelenkträger(x) − [ M_A·(1−x/L) + M_B·(x/L) ]<br>
 M_z(x) = w_d·x·(L−x)/2 + M_Einzellasten + eingeprägte M_zz<br>
 T(x), N(x) &nbsp;&nbsp; wahlweise Hüllkurve oder Auflagerverteilung`)}
@@ -358,7 +392,7 @@ Extremwerte werden nicht am Knotenraster abgelesen, sondern über eine eigene
 Kandidatenliste (Auflager, Lastangriffe, Nullstellen von V) gesucht – sie sind
 damit unabhängig von der Blechteilung.</p>
 
-<h4>4.5 Torsionsmodell</h4>
+<h4>4.6 Torsionsmodell</h4>
 <table class="dt">
 <tr><td>Hüllkurve</td><td>konstante Summe aller Torsionsmomente über die ganze
   Länge – konservativ, kein Abbau zu den Auflagern</td></tr>

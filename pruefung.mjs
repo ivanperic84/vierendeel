@@ -2601,6 +2601,78 @@ titel('25  Winkelspannung an den Querschnittspunkten');
 }
 
 // ===========================================================================
+titel('26  Wind auf den Mast verdreht das Jochende');
+// Der Wind in der Jochachse biegt den Mast. Sein Kopf verdreht sich, und weil
+// das Jochende dort angeschlossen ist, wird ihm die Verdrehung AUFGEZWUNGEN.
+// Ohne diesen Anteil fehlte dem Lastfall Wind in Jochachse am nachgerechneten
+// Signaljoch rund die Hälfte der Einwirkung.
+{
+  const { mastKopfdrehung, mastSteifigkeit, auflagermomente, E_STAHL: E } =
+    await import(J('core.auflager.js'));
+
+  const mast = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
+                                 mastAnschluss: 'kragarm' }, 'A');
+  const k = mastKopfdrehung(mast, 0.31);
+  // Kragmast unter Gleichlast: Kopfverdrehung w·H³/(6·E·I)
+  pruef('Kopfverdrehung des Kragmastes', k.theta0,
+        (0.31 * 9 ** 3) / (6 * E * mast.I), 1e-12);
+  // Hält das Joch den Kopf ganz fest, gibt der Mast M = w·H²/6 ab - das ist
+  // die Standardlösung für den am Kopf drehfest gehaltenen Kragmast.
+  pruef('Eingeleitetes Moment bei festgehaltenem Kopf', k.M0,
+        (0.31 * 9 * 9) / 6, 1e-9);
+  wahr('Ohne Wind keine Verdrehung', mastKopfdrehung(mast, 0).theta0 === 0);
+  wahr('Ohne Mast keine Verdrehung', mastKopfdrehung(null, 0.31).theta0 === 0);
+
+  // Durchlaufender Mast: steifere Feder, gleiche Kopfverdrehung -> grösseres
+  // Moment. Bewusst auf der sicheren Seite (siehe core.auflager.js).
+  const durch = mastSteifigkeit({ mastProfil: 'HEB 260', mastH: 9, mastSteg: 'jochachse',
+                                  mastAnschluss: 'durchlaufend' }, 'A');
+  pruef('Durchlaufend: Moment im Verhältnis der Feder',
+        mastKopfdrehung(durch, 0.31).M0 / k.M0, 1.45, 1e-9);
+
+  // --- Wirkung im Drehwinkelverfahren ---------------------------------------
+  const g = { L: 20, qd: 1, P: [], M: [], EI: 1e5, cA: 5000, cB: 5000 };
+  const ohne = auflagermomente(g);
+  const mit = auflagermomente({ ...g, theta0A: 1e-3, theta0B: 1e-3 });
+  pruef('Ohne Kopfverdrehung unverändert',
+        auflagermomente({ ...g, theta0A: 0, theta0B: 0 }).MA, ohne.MA, 1e-12);
+  // Gleichsinnige Verdrehung beider Enden ist eine ANTIMETRISCHE Einwirkung:
+  // das Joch wird in Gegenkrümmung gebogen, die Summe der Stützmomente bleibt.
+  pruef('Gleichsinnige Verdrehung ist antimetrisch',
+        mit.MA + mit.MB, ohne.MA + ohne.MB, 1e-9);
+  wahr('Ein Ende wird entlastet, das andere belastet',
+       mit.MA < ohne.MA && mit.MB > ohne.MB);
+  // Starres Joch: der Kopf wird ganz festgehalten, das volle c·θ₀ kommt an.
+  const starr = auflagermomente({ L: 20, qd: 0, P: [], M: [], EI: 1e12,
+                                  cA: 5000, cB: 5000, theta0A: 1e-3, theta0B: 1e-3 });
+  pruef('Starres Joch nimmt das volle c·θ₀ auf', Math.abs(starr.MA), 5, 1e-6);
+
+  // --- Wirkung im Nachweis --------------------------------------------------
+  const j90 = T.getTragjoch('J90');
+  const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j90),
+               typ: 'J90', L: 15.5, schneeAktiv: false, anbauteile: [],
+               endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 9,
+               mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
+               wMastAusTabelle: false, wMast: 0.4, schraubenGrenze: false,
+               torsionModell: 'huellkurve',
+               beiwerteFest: { G: 0, WindX: 1, WindY: 0, Schnee: 0, Leiterzug: 0 } };
+  const aus = rechne({ ...e0, mastWindAufJoch: false });
+  const an = rechne(e0);
+  wahr('Mastwind hebt den Lastfall Wind in Jochachse',
+       an.max.etaGesamt > aus.max.etaGesamt);
+  wahr('Der Mastwind steht im Modell', an.modell.mastKopf !== null
+       && aus.modell.mastKopf === null);
+  // Nur der Lastfall mit Wind in Jochachse trägt ihn.
+  const ohneBeiwert = { ...e0,
+    beiwerteFest: { G: 1, WindX: 0, WindY: 0, Schnee: 0, Leiterzug: 0 } };
+  pruef('Ohne Beiwert WindX keine Verdrehung',
+        rechne(ohneBeiwert).modell.theta0A ?? 0, 0, 1e-12);
+  // Ohne Mast als Auflager gibt es nichts zu verdrehen.
+  const manuell = rechne({ ...e0, endbedingung: 'manuell', cPhi: 6000 });
+  wahr('Ohne Mast kein Mastwind', manuell.modell.mastKopf === null);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

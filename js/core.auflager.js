@@ -137,6 +137,56 @@ export function mastSteifigkeit(inp, ende = 'A') {
 }
 
 /**
+ * VERDREHUNG DES MASTKOPFES AUS DEM WIND AUF DEN MAST.
+ *
+ * Der Wind quer zum Gleis - also IN DER JOCHACHSE - drückt gegen den Mast.
+ * Der Mast biegt sich, sein Kopf verdreht sich, und weil das Jochende dort
+ * angeschlossen ist, wird diese Verdrehung dem Joch AUFGEZWUNGEN. Das ist
+ * keine Last auf dem Joch, sondern eine Auflagerverdrehung:
+ *
+ *      Kragmast, Fuss eingespannt, Gleichlast w über die Höhe H
+ *      -> Kopfverdrehung  θ₀ = w·H³ / (6·E·I)
+ *
+ * Am Jochende wirkt dann statt M = −c·θ das Federgesetz
+ *
+ *      M = −c·(θ − θ₀)
+ *
+ * Hält das Joch den Kopf vollständig (θ = 0), ist das eingeleitete Moment
+ * M₀ = c·θ₀ = w·H²/6 - genau das Moment, das ein am Fuss eingespannter und
+ * am Kopf drehfest gehaltener Mast unter Gleichlast am Kopf abgibt. Der
+ * Ersatzbalken bekommt damit die richtige obere Schranke.
+ *
+ * WARUM DAS NÖTIG IST
+ * Ohne diesen Anteil fehlt dem Lastfall Wind in Jochachse die grösste
+ * Einwirkung. Am nachgerechneten Signaljoch trägt der Wind auf die beiden
+ * Maste 6.10 kN gegenüber 6.42 kN auf den Anbauteilen - also die Hälfte der
+ * gesamten Einwirkung. Das Werkzeug lag in diesem Lastfall rund 80 % zu tief.
+ *
+ * GRENZE
+ * Beim Anschluss 'durchlaufend' wird die Feder mit 1.45 angesetzt, θ₀ aber
+ * unverändert aus dem Kragmast genommen. Der Kopf eines durchlaufenden
+ * Mastes verdreht sich etwas weniger; das eingeleitete Moment fällt hier
+ * also eher zu gross aus - auf der sicheren Seite.
+ *
+ * NICHT ENTHALTEN ist der Wind auf den Mast in GLEISRICHTUNG. Er verschiebt
+ * die Mastköpfe quer und verdreht sie um die Jochachse; das Joch bekommt
+ * daraus eine Auflagerverschiebung und eine Torsion, nicht eine Biegung.
+ * Der Ersatzbalken hat für beides keine Entsprechung.
+ *
+ * @param {object} mast Ergebnis aus mastSteifigkeit()
+ * @param {number} wMast Windlast je Laufmeter Mast [kN/m], in der Jochachse
+ * @returns {{theta0:number, M0:number, wMast:number}}
+ */
+export function mastKopfdrehung(mast, wMast) {
+  const w = Number.isFinite(wMast) ? wMast : 0;
+  if (!mast || !(w > 0) || !(mast.I > 0) || !(mast.H > 0)) {
+    return { theta0: 0, M0: 0, wMast: 0 };
+  }
+  const theta0 = (w * mast.H ** 3) / (6 * E_STAHL * mast.I);
+  return { theta0, M0: mast.cPhi * theta0, wMast: w };
+}
+
+/**
  * Drehfedersteifigkeit beider Jochenden nach gewählter Endbedingung.
  * @returns {{cA:number, cB:number, mast:object|null, art:string}}
  */
@@ -220,10 +270,11 @@ function fem({ L, qd, P, M = [] }) {
  * @param {object} o {L, qd, P, M, EI, cA, cB, h, Fgrenz}
  * @returns {{cA, cB, MA, MB, FA, FB, begrenzt, durchgaenge}}
  */
-export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz }) {
+export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz,
+                                theta0A = 0, theta0B = 0 }) {
   const kraft = (Mst) => (h > 0 ? Math.abs(Mst) / h : 0);
   let a = cA, b = cB, durchgaenge = 0, begrenzt = false;
-  let auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b });
+  let auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B });
 
   if (!(Fgrenz > 0) || !(h > 0)) {
     return { cA: a, cB: b, MA: auf.MA, MB: auf.MB, FA: kraft(auf.MA),
@@ -237,13 +288,14 @@ export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz }) {
     if (FB > Fgrenz) b = Math.max(0, b * (Fgrenz / FB));
     begrenzt = true;
     durchgaenge = i + 1;
-    auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b });
+    auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B });
   }
   return { cA: a, cB: b, MA: auf.MA, MB: auf.MB,
            FA: kraft(auf.MA), FB: kraft(auf.MB), begrenzt, durchgaenge };
 }
 
-export function auflagermomente({ L, qd, P, M, EI, cA, cB }) {
+export function auflagermomente({ L, qd, P, M, EI, cA, cB,
+                                  theta0A = 0, theta0B = 0 }) {
   const F = fem({ L, qd, P, M });
   const K = EI / L;
 
@@ -251,8 +303,14 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB }) {
   const a21 = 2 * K, a22 = 4 * K + cB;
   const det = a11 * a22 - a12 * a21;
 
-  const thetaA = (-F.AB * a22 + F.BA * a12) / det;
-  const thetaB = (-F.BA * a11 + F.AB * a21) / det;
+  // Rechte Seite: FEM und, falls der Auflagerpunkt selbst verdreht ist
+  // (Wind auf den Mast, mastKopfdrehung), der Anteil c·θ₀ daraus.
+  //     M_AB = −c_A·(θ_A − θ₀A)  =>  (4K+c_A)θ_A + 2K θ_B = −FEM_AB + c_A θ₀A
+  const rA = -F.AB + cA * (theta0A ?? 0);
+  const rB = -F.BA + cB * (theta0B ?? 0);
+
+  const thetaA = (rA * a22 - rB * a12) / det;
+  const thetaB = (rB * a11 - rA * a21) / det;
 
   const M_AB = 2 * K * (2 * thetaA + thetaB) + F.AB;
   const M_BA = 2 * K * (2 * thetaB + thetaA) + F.BA;
@@ -263,11 +321,14 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB }) {
 
   const MAvoll = -F.AB;
   const MBvoll = +F.BA;
+  const M0A = cA * (theta0A ?? 0);
+  const M0B = cB * (theta0B ?? 0);
   return {
     MA, MB,
     kappaA: Math.abs(MAvoll) > 1e-12 ? MA / MAvoll : 0,
     kappaB: Math.abs(MBvoll) > 1e-12 ? MB / MBvoll : 0,
     thetaA, thetaB, MAvoll, MBvoll,
+    theta0A: theta0A ?? 0, theta0B: theta0B ?? 0, M0A, M0B,
   };
 }
 
