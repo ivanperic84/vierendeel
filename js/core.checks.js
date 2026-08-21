@@ -118,7 +118,7 @@ export function hinweise(m) {
            'GELENK ansetzen – der Anschluss ans Mast trägt kein Einspannmoment.');
   }
   if (m.profOG.name !== m.profUG.name) {
-    const art = m.gurtaufteilung ?? 'huellend';
+    const art = m.gurtaufteilung ?? 'gemessen';
     const wie = { huellend: 'je Gurt der ungünstigere Anteil (einhüllend)',
                   gemessen: 'gedämpft nach Steifigkeit, an PyNite geeicht',
                   steifigkeit: 'nach Biegesteifigkeit I/ΣI',

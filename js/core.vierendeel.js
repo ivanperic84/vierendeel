@@ -283,7 +283,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     torsionModell: inp.torsionModell,
     torsionsverteilung: inp.torsionsverteilung,
     ebenenUeberlagerung: inp.ebenenUeberlagerung ?? 'huellkurve',
-    gurtaufteilung: inp.gurtaufteilung ?? 'huellend',
+    gurtaufteilung: inp.gurtaufteilung ?? 'gemessen',
     spannungsmodell: inp.spannungsmodell ?? 'schenkel',
     anbauteile: inp.anbauteile, anbauteileFlach: anbauteile,
     profOG, profUG, stahl, joch,

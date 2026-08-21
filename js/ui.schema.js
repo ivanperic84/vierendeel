@@ -347,15 +347,23 @@ export const FELDER = [
   // Weg SENKT Bemessungswerte an der günstigeren Ebene und ist deshalb eine
   // bewusste Wahl, keine stille Voreinstellung.
   // Bei UNGLEICHEN Gurten teilt sich die Querkraft der Vertikalebene nach der
-  // Biegesteifigkeit. Vorgabe «einhüllend»: nie schlechter als das bisherige
-  // hälftige Verhalten, aber am steiferen Gurt richtig.
+  // Biegesteifigkeit. VORGABE «gemessen» - Entscheidung des Auftraggebers,
+  // getroffen nach zwei unabhängigen Messungen: den Gurtendmomenten aus einem
+  // PyNite-Stabmodell und dem stellenweisen Spannungsvergleich gegen ein
+  // AxisVM-Modell. Sie SENKT die Bemessungswerte gegenüber «einhüllend»,
+  // bei Typen mit ungleichen Gurten um bis zu 14 %.
   { key: 'gurtaufteilung', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Querkraft auf die Gurte einer Ebene',
-    standard: 'huellend', optionen: opt(GURTAUFTEILUNGEN),
+    standard: 'gemessen', optionen: opt(GURTAUFTEILUNGEN),
     hinweis: 'In einer Vertikalebene stehen Ober- und Untergurt nebeneinander, '
            + 'bei den meisten Typen mit verschiedenen Profilen. Im Rahmen zieht '
            + 'der steifere Gurt Moment an sich; hälftig gerechnet wird er '
            + 'unterschätzt – beim Vergleich mit einem Stabmodell um rund 30 %. '
+           + 'Die reine I-Aufteilung schiesst dafür über das Ziel hinaus; '
+           + 'gemessen wurden 57.5 bis 61.2 %, nicht 71 %. Die Vorgabe '
+           + '«gemessen» trifft das und ergänzt sich zu eins. «einhüllend» '
+           + 'gibt beiden Gurten mindestens die Hälfte – sicherer, aber die '
+           + 'Summe der Anteile ist dann grösser als eins. '
            + 'In den Horizontalebenen stehen zwei gleiche Gurte, dort ist die '
            + 'Einstellung ohne Wirkung.' },
   { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',

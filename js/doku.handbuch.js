@@ -599,10 +599,44 @@ Ebenenquerkraft erzeugt deshalb im Gurt eine <b>örtliche Biegung</b> mit
 Momentennullpunkt in Feldmitte.</p>
 
 <h4>6.1 Örtliches Gurtmoment</h4>
-${f(`M_Knoten = (V_Ebene / 2) · (a₁ / 2)`)}
+${f(`M_Knoten = V_Ebene · α_Gurt · (a₁ / 2)`)}
 
 <p>Die Ebenenquerkraft teilt sich auf die zwei Gurte der Ebene, der Hebelarm bis
-zum Nullpunkt ist die halbe Feldweite.</p>
+zum Nullpunkt ist die halbe Feldweite. In den <b>Horizontalebenen</b> stehen
+zwei gleiche Gurte nebeneinander, dort ist α = ½ und die Sache erledigt. In den
+<b>Vertikalebenen</b> stehen Ober- und Untergurt nebeneinander, bei den meisten
+Typen mit verschiedenen Profilen – und dort zieht der steifere Gurt Moment an
+sich.</p>
+
+<h4>6.1.1 Wie sich die Ebenenquerkraft auf die beiden Gurte teilt</h4>
+<p>Gemessen wurde es zweimal, unabhängig voneinander. Erstens direkt: in einem
+PyNite-Stabmodell des Signaljochs (I_OG/I_UG = 2.45) wurden die
+<b>Gurtendmomente</b> an jeder Station und je Lastfall abgelesen. Zweitens
+indirekt, über den stellenweisen Spannungsvergleich gegen ein AxisVM-Modell.</p>
+
+${f(`hälftig&nbsp;&nbsp; 50.0 %&nbsp;&nbsp;&nbsp;
+GEMESSEN&nbsp;&nbsp; 57.5 … 61.2 %, Mittel 59.4 %&nbsp;&nbsp;&nbsp;
+nach I&nbsp;&nbsp; 71.1 %`)}
+
+<p>Der Rahmen gleicht also aus: Bleche und Knotennachgiebigkeit ziehen die
+Aufteilung zur Hälfte zurück. Die reine I-Aufteilung schiesst über das Ziel
+hinaus. Gerechnet wird deshalb mit einer <b>gedämpften</b> Aufteilung</p>
+
+${f(`α_Gurt = 0.5 + k · ( I_Gurt / ΣI − 0.5 ),&nbsp;&nbsp; k = 0.45`)}
+
+${q(`Die Messmethode ist belegt: dasselbe Stabmodell mit <b>gleichen</b> Gurten
+liefert an jeder Station exakt 50.0 %. Aber es ist EIN Modell und EIN
+Steifigkeitsverhältnis – k ist gefittet, nicht hergeleitet. Und der Mittelwert
+verdeckt eine Spanne von 51 bis 73 %: an einzelnen Stationen liegt diese
+Aufteilung für den einen oder anderen Gurt zu tief.`)}
+
+<p><b>Vorgabe ist «gemessen».</b> Das ist eine Entscheidung des Auftraggebers,
+und sie <b>senkt</b> die Bemessungswerte: bei Typen mit ungleichen Gurten um 4
+bis 17 % gegenüber der Alternative «einhüllend». Dafür trifft sie im
+stellenweisen Vergleich die Vertikallastfälle auf −3 bis +6 %, wo «einhüllend»
+bei +10 bis +21 % liegt. Wer beide Gurte gleichzeitig auf der sicheren Seite
+haben will, wählt «einhüllend» – dessen Anteile ergänzen sich dann aber zu mehr
+als eins, das Blech bekommt also mehr als die Summe der Gurtmomente.</p>
 
 <h4>6.2 Steifer Knotenbereich – Abminderung am Anschnitt</h4>
 <p>Am Knoten überlappt das Bindeblech den Gurtwinkel und ist mit ihm

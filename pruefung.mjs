@@ -2594,8 +2594,14 @@ titel('25  Winkelspannung an den Querschnittspunkten');
   const b = rechne({ ...e0, spannungsmodell: 'punkte' });
   wahr('Vorgabe ist das schenkelparallele W',
        a.knoten[0].ecken[0].spannungsmodell === 'schenkel');
+  // Verglichen wird dort, wo die ÖRTLICHE BIEGUNG am grössten ist - nur dort
+  // wirkt der Hauptachsenfaktor. An der Station mit dem grössten η regiert je
+  // nach Gurtaufteilung die Normalkraft, und dann sind beide Modelle fast
+  // gleich; das taugt nicht als Unterscheidungsmerkmal.
+  const iBieg = a.knoten.reduce(
+    (best, k, i) => (Math.abs(k.og.sig_My) > Math.abs(a.knoten[best].og.sig_My) ? i : best), 0);
   wahr('Punktweise gibt ein anderes Ergebnis',
-       Math.abs(b.max.etaOG.og.eta - a.max.etaOG.og.eta) > 1e-3);
+       Math.abs(b.knoten[iBieg].og.sig_v / a.knoten[iBieg].og.sig_v - 1) > 0.05);
   wahr('Beide Modelle rechnen durch',
        Number.isFinite(a.max.etaGesamt) && Number.isFinite(b.max.etaGesamt));
 }

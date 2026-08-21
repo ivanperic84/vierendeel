@@ -48,19 +48,25 @@ import { winkelwerteFuer, randspannung } from './core.winkel.js';
  * L 80x80x8 unten, I-Verhältnis 2.45) zeigt es deutlich: hälftig gerechnet
  * wird der Obergurt um rund 30 % UNTERSCHÄTZT.
  *
- * Drei Wege:
- *   gleich        wie bisher, je die Hälfte
+ * Vier Wege:
+ *   gleich        wie früher, je die Hälfte
  *   steifigkeit   I_Gurt / ΣI - der Obergurt trifft damit auf wenige Prozent,
  *                 der Untergurt wird dafür bis 25 % zu klein
  *   huellend      je Gurt der ungünstigere der beiden - nie schlechter als
- *                 bisher und beim steiferen Gurt richtig
+ *                 hälftig und beim steiferen Gurt richtig, aber die Summe der
+ *                 Anteile ist grösser als eins
+ *   gemessen      VORGABE. Gedämpfte Steifigkeitsaufteilung, an einem
+ *                 Stabmodell gemessen (siehe GURT_DAEMPFUNG). Die Anteile
+ *                 ergänzen sich zu eins, und stellenweise gegen ein zweites
+ *                 Programm gehalten trifft sie die Vertikallastfälle auf
+ *                 −3 bis +6 %, wo 'huellend' bei +10 bis +21 % liegt.
  *
  * In den HORIZONTALEBENEN stehen zwei GLEICHE Gurte nebeneinander; dort ist
  * hälftig immer richtig und die Einstellung ohne Wirkung.
  */
 export const GURTAUFTEILUNGEN = [
-  { key: 'huellend', label: 'einhüllend – je Gurt der ungünstigere Anteil (Vorgabe)' },
-  { key: 'gemessen', label: 'gedämpft nach Steifigkeit – an PyNite gemessen, senkt den Untergurt' },
+  { key: 'gemessen', label: 'gedämpft nach Steifigkeit – an PyNite gemessen (Vorgabe)' },
+  { key: 'huellend', label: 'einhüllend – je Gurt der ungünstigere Anteil, hebt den Untergurt' },
   { key: 'steifigkeit', label: 'nach Biegesteifigkeit I/ΣI (ungedämpft)' },
   { key: 'gleich', label: 'hälftig (bisheriges Verhalten)' },
 ];
@@ -98,7 +104,8 @@ export const GURTAUFTEILUNGEN = [
  * hergeleitet - bei anderen Verhältnissen ist es unbelegt. Und der Mittelwert
  * verdeckt eine Spanne von 51 bis 73 %: an einzelnen Stationen liegt diese
  * Aufteilung für den einen oder den anderen Gurt zu tief. Wer beide Gurte
- * gleichzeitig auf der sicheren Seite haben will, nimmt 'huellend'. <<<
+ * gleichzeitig auf der sicheren Seite haben will, nimmt 'huellend' -
+ * dessen Anteile ergänzen sich dann aber zu mehr als eins. <<<
  */
 export const GURT_DAEMPFUNG = 0.45;
 
@@ -106,7 +113,7 @@ export const GURT_DAEMPFUNG = 0.45;
  * Anteil eines Gurtes an der Querkraft seiner VERTIKALEBENE.
  * @returns {{OG:number, UG:number}}
  */
-export function gurtanteile(m, art = 'huellend') {
+export function gurtanteile(m, art = 'gemessen') {
   if (art === 'gleich') return { OG: 0.5, UG: 0.5 };
   // Für die Rahmenbiegung in der Vertikalebene zählt das Trägheitsmoment um
   // die schenkelparallele Achse - dieselbe Achse, mit der auch der Nachweis
@@ -397,7 +404,7 @@ export function schnittAuswertung(sg, m, bleche, nachbarfelder = 2, x = null) {
   // In der Vertikalebene stehen OG und UG nebeneinander und teilen die
   // Querkraft nach Steifigkeit; in der Horizontalebene sind es zwei gleiche
   // Gurte, dort bleibt es hälftig.
-  const anteil = gurtanteile(m, m.gurtaufteilung ?? 'huellend');
+  const anteil = gurtanteile(m, m.gurtaufteilung ?? 'gemessen');
   const My_KnotenG = { OG: q.vertikal.max * anteil.OG * (aGurt / 2),
                        UG: q.vertikal.max * anteil.UG * (aGurt / 2) };
   // Für Anzeige und Rückwärtsvergleich: der bisherige hälftige Wert.
