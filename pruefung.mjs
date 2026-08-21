@@ -723,7 +723,14 @@ titel('15  Lastfälle');
   const holen = (k) => lf.find((x) => x.key === k);
 
   // 2 charakteristische + 4 Wind (je Richtung ±) + 2 Schnee (Begleitwind ±)
-  pruef('Acht Lastfälle mit Schnee', lf.length, 8, 1e-12, 'Stk');
+  const nw = lf.filter((x) => x.nachweis);
+  pruef('Sechs Nachweislastfälle mit Schnee', nw.length, 6, 1e-12, 'Stk');
+  // dazu zwei Stufen Gebrauchstauglichkeit à (4 Wind + 2 Schnee)
+  pruef('Zwölf Lastfälle der Gebrauchstauglichkeit',
+        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 12, 1e-12, 'Stk');
+  wahr('Gebrauchstauglichkeit ist kein Nachweis',
+       lf.filter((x) => x.art === 'gebrauchstauglichkeit')
+         .every((x) => x.nachweis === false && x.beiwerte.G === 1));
   wahr('Vier Gruppen: G, Wind x, Wind y, Schnee',
        L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee',
        L.EINWIRKUNGEN.map((e) => e.label).join(' · '));
@@ -755,13 +762,15 @@ titel('15  Lastfälle');
 
   // Ohne Schnee auf dem Joch, aber mit Q_z am Anbauteil bleibt die Gruppe aktiv
   const ohneSchnee = basis({ schneeAktiv: false, anbauteile: [] });
-  wahr('Ohne Schnee und ohne Q_z: sechs Lastfälle',
-       L.lastfaelle(ohneSchnee).length === 6);
+  const zaehl = (o, art) => L.lastfaelle(o).filter((x) => x.art === art).length;
+  wahr('Ohne Schnee und ohne Q_z: vier Nachweislastfälle',
+       zaehl(ohneSchnee, 'tragsicherheit') === 4
+       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 8);
   const mitQz = basis({ schneeAktiv: false,
                         anbauteile: [teil({ name: 'P', x: 10, Qz: 5 })] });
   const flachQz = A.expandiereAnbauteile(mitQz.anbauteile, {});
   wahr('Q_z am Anbauteil hält die Gruppe Schnee aktiv',
-       L.lastfaelle({ ...mitQz, anbauteileFlach: flachQz }).length === 8);
+       zaehl({ ...mitQz, anbauteileFlach: flachQz }, 'tragsicherheit') === 6);
 
   // Normensätze
   const rte = { ...w, ...L.NORMENSAETZE.find((n) => n.key === 'rte').beiwerte };
@@ -781,7 +790,8 @@ titel('15  Lastfälle');
         L.lastfaelle(ang).find((x) => x.key === 'windYp').beiwerte.G, 1.35, 1e-12, '–');
   const eig = { ...w, lastfaelleEigen: [{ key: 'e1', bez: 'Montage',
                                           beiwerte: { G: 1.1, WindY: -0.8, Schnee: 0 } }] };
-  pruef('Eigener Lastfall wird angehängt', L.lastfaelle(eig).length, 9, 1e-12, 'Stk');
+  pruef('Eigener Lastfall wird angehängt', L.lastfaelle(eig).length,
+        L.lastfaelle(w).length + 1, 1e-12, 'Stk');
   pruef('Negativer Beiwert bleibt erhalten',
         L.beiwerteFuer(eig, 'e1').WindY, -0.8, 1e-12, '–');
 
@@ -2299,7 +2309,9 @@ titel('21  Normalkraft in Jochachse');
   // dort an, wo das Teil steht.
   const t = teil({ id: 'ZUG', x: x0, befestigung: 'durchgehend',
     lasten: [block({ einwirkung: 'G', x: 0, Fx: zug })] });
-  const e0 = basis({ L, torsionModell: 'verteilt', anbauteile: [t] });
+  // γ hier ausdrücklich, damit die Zahlen nicht an der Vorgabe hängen.
+  const e0 = basis({ L, torsionModell: 'verteilt', anbauteile: [t],
+                     gammaG: 1.35, gammaQ: 1.5, psi0: 0.5 });
   const r = rechne(e0);
 
   // Aufteilung auf die Auflager wie bei der Torsion: links vom Angriff der
@@ -2386,7 +2398,8 @@ titel('22  Ausleger: Wind über die Fahrleitung');
 
   // Wirkung: der Hebelarm bleibt, die Kraft halbiert sich, also halbiert sich
   // auch ihr Torsionsanteil.
-  const e0 = basis({ L: 20, torsionModell: 'verteilt' });
+  const e0 = basis({ L: 20, torsionModell: 'verteilt',
+                     gammaG: 1.35, gammaQ: 1.5, psi0: 0.5 });
   const Tx = (extra) => rechne({ ...e0, anbauteile: bau(extra) }).extrem.TxMax;
   const ev = Math.abs(zAufbau) + rechne({ ...e0, anbauteile: bau({}) }).modell.h / 2;
   pruef('Torsion sinkt um F/2 · e_v · x/L',
@@ -2619,14 +2632,25 @@ titel('25  Winkelspannung an den Querschnittspunkten');
   const b = rechne({ ...e0, spannungsmodell: 'punkte' });
   wahr('Vorgabe ist das schenkelparallele W',
        a.knoten[0].ecken[0].spannungsmodell === 'schenkel');
-  // Verglichen wird dort, wo die ÖRTLICHE BIEGUNG am grössten ist - nur dort
-  // wirkt der Hauptachsenfaktor. An der Station mit dem grössten η regiert je
-  // nach Gurtaufteilung die Normalkraft, und dann sind beide Modelle fast
-  // gleich; das taugt nicht als Unterscheidungsmerkmal.
-  const iBieg = a.knoten.reduce(
-    (best, k, i) => (Math.abs(k.og.sig_My) > Math.abs(a.knoten[best].og.sig_My) ? i : best), 0);
-  wahr('Punktweise gibt ein anderes Ergebnis',
-       Math.abs(b.knoten[iBieg].og.sig_v / a.knoten[iBieg].og.sig_v - 1) > 0.05);
+  // Der Hauptachsenfaktor zeigt sich nur bei REINER schenkelparalleler
+  // Biegung. Kommt M_z dazu, ist die Summe der Beträge im Schenkelmodell eine
+  // obere Schranke, die kein einzelner Querschnittspunkt erreicht - dann kann
+  // die punktweise Auswertung sogar TIEFER liegen. Geprüft wird deshalb ein
+  // rein vertikaler Lastfall.
+  const nurG = { G: 1, WindX: 0, WindY: 0, Schnee: 0, Leiterzug: 0 };
+  const av = rechne({ ...e0, beiwerteFest: nurG });
+  const bv = rechne({ ...e0, beiwerteFest: nurG, spannungsmodell: 'punkte' });
+  const iBieg = av.knoten.reduce(
+    (best, k, i) => (Math.abs(k.og.sig_My) > Math.abs(av.knoten[best].og.sig_My) ? i : best), 0);
+  wahr('Ohne M_z bleibt reine schenkelparallele Biegung',
+       Math.abs(av.knoten[iBieg].og.sig_Mz) < 1e-9);
+  const faktor = bv.knoten[iBieg].og.sig_v / av.knoten[iBieg].og.sig_v;
+  wahr('Punktweise ist rund 30 % ungünstiger', faktor > 1.2 && faktor < 1.45,
+       `Faktor ${faktor.toFixed(3)}`);
+  // Mit M_z darf es auch andersherum ausgehen - das ist keine Unstimmigkeit,
+  // sondern die Folge der Betragsaddition im Schenkelmodell.
+  wahr('Mit M_z unterscheiden sich die Modelle ebenfalls',
+       Math.abs(b.knoten[iBieg].og.sig_v / a.knoten[iBieg].og.sig_v - 1) > 0.02);
   wahr('Beide Modelle rechnen durch',
        Number.isFinite(a.max.etaGesamt) && Number.isFinite(b.max.etaGesamt));
 }

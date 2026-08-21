@@ -190,7 +190,7 @@ const VORLAGE_AUS = [
   'trasseRadius', 'flSpannweite',
   'anbauteile', 'eigeneVorlagen', 'generator',
   'lastHerkunft', 'windKlasse', 'schneeAktiv', 'schneeKlasse', 'gZusatz',
-  'normensatz', 'gammaG', 'gammaQ', 'psi0', 'gammaM0',
+  'normensatz', 'gammaG', 'gammaQ', 'psi0', 'psiGebrauch', 'gammaM0',
   'lastfallAnpassung', 'lastfaelleEigen',
 ];
 

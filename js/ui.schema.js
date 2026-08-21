@@ -319,20 +319,34 @@ export const FELDER = [
     ausLast: true, sichtbar: (w) => w.schneeAktiv },
 
   // --- Beiwerte ------------------------------------------------------------
+  // VORGABE RTE, nicht SIA 260. Im geprüften Referenzprojekt sind alle
+  // 46 Kombinationen mit 1.30 gerechnet, nie mit 1.35/1.50. γ_Q 1.50 gegen
+  // 1.30 sind 15 % auf jede veränderliche Einwirkung - für ein Bahnwerkzeug
+  // ist der Bahnsatz die richtige Voreinstellung. SIA 260 bleibt wählbar.
   { key: 'normensatz', optionenDialog: true, gruppe: 'komb', typ: 'auswahl',
-    label: 'Normensatz der Beiwerte', standard: 'sia260',
+    label: 'Normensatz der Beiwerte', standard: 'rte',
     optionen: [...opt(NORMENSAETZE), { wert: 'frei', text: 'von Hand gesetzt' }],
-    hinweis: 'Setzt γ und ψ₀ auf den gewählten Satz. "Von Hand" lässt die Werte, ' +
+    hinweis: 'Setzt γ und ψ auf den gewählten Satz. "Von Hand" lässt die Werte, ' +
              'wie sie sind – dann gilt weder SIA 260 noch RTE.' },
   { key: 'gammaG', optionenDialog: true, gruppe: 'komb', typ: 'zahl', label: 'Lastbeiwert ständig',
-    sym: 'γ_G', einheit: '–', standard: 1.35, schritt: 0.05, min: 1 },
+    sym: 'γ_G', einheit: '–', standard: 1.30, schritt: 0.05, min: 1 },
   { key: 'gammaQ', optionenDialog: true, gruppe: 'komb', typ: 'zahl', label: 'Lastbeiwert veränderlich',
-    sym: 'γ_Q', einheit: '–', standard: 1.50, schritt: 0.05, min: 1 },
+    sym: 'γ_Q', einheit: '–', standard: 1.30, schritt: 0.05, min: 1 },
   { key: 'psi0', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
     label: 'Beiwert Begleiteinwirkung', sym: 'ψ₀', einheit: '–',
     standard: 0.50, schritt: 0.05, min: 0,
     hinweis: 'Gilt für Wind wie für Schnee, je nachdem welche Einwirkung ' +
              'begleitend wirkt.' },
+  { key: 'psiGebrauch', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
+    label: 'Beiwert Gebrauchstauglichkeit, häufig', sym: 'ψ', einheit: '–',
+    standard: 0.70, schritt: 0.05, min: 0,
+    hinweis: 'Die Gebrauchstauglichkeit wird in zwei Stufen geführt: SELTEN ' +
+             'mit dem vollen veränderlichen Wert, HÄUFIG mit diesem Beiwert. ' +
+             'Die Begleiteinwirkung bekommt zusätzlich ψ₀ – im ' +
+             'Referenzprojekt also 0.70 · 0.50 = 0.35. Alle ständigen ' +
+             'Beiwerte sind dabei 1.0. Diese Lastfälle liefern nur die ' +
+             'Schnittgrössen; der Nachweis der Verformungen ist im Werkzeug ' +
+             'NICHT geführt.' },
   // Voreinstellung 'verteilt': die konstante Hüllkurve trägt das volle
   // Torsionsmoment über die ganze Länge, auch hinter dem Anbauteil, wo real
   // nur noch der Auflageranteil läuft. Der Vergleich mit AxisVM lag mit der
@@ -462,7 +476,8 @@ export const OPTIONEN_ABSCHNITTE = [
                              'ebenenUeberlagerung', 'gurtaufteilung',
                              'spannungsmodell'] },
   { titel: 'Einwirkungen', keys: ['lastHerkunft'] },
-  { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
+  { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0',
+                                 'psiGebrauch'] },
   { titel: 'Widerstand', keys: ['gammaM0'] },
   { titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',

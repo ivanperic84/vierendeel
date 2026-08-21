@@ -278,10 +278,32 @@ beiden Vorzeichen.</p>
 ${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; γ_Q · ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
 γ_G · G &nbsp;±&nbsp; γ_Q · ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}
 
-<p>SIA 260: γ_G = 1.35, γ_Q = 1.50. RTE: einheitlich 1.30. ψ₀ = 0.50 ist eine
-Festlegung des Anwenders und in den Optionen änderbar. Eigene Lastfälle mit
-freien Beiwerten – auch negativen – sind jederzeit möglich; das Werkzeug weist
-abweichende Beiwerte als solche aus.</p>
+<p>SIA 260: γ_G = 1.35, γ_Q = 1.50. <b>RTE: einheitlich 1.30 – das ist die
+Vorgabe.</b> ψ₀ = 0.50. Eigene Lastfälle mit freien Beiwerten – auch negativen –
+sind jederzeit möglich; das Werkzeug weist abweichende Beiwerte als solche aus.</p>
+
+${q(`Die Vorgabe ist nicht SIA 260, sondern der Bahnsatz. Aus dem geprüften
+Referenzprojekt sind alle 46 Kombinationen ausgezählt: auf ständige Lastfälle
+kommen nur 1.0 und 1.30 vor, auf veränderliche 1.30 und 0.65 = 1.30 · 0.50.
+Nie 1.35 oder 1.50. <b>γ_Q 1.50 gegen 1.30 sind 15 % auf jede veränderliche
+Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.`)}
+
+<h4>3.5 Gebrauchstauglichkeit</h4>
+<p>Alle ständigen Beiwerte 1.0, die veränderlichen abgemindert. Zwei Stufen, so
+wie sie im Referenzprojekt stehen:</p>
+
+<table><tr><th>Stufe</th><th>leitend</th><th>begleitend</th></tr>
+<tr><td>selten</td><td>1.00</td><td>0.50</td></tr>
+<tr><td>häufig</td><td>ψ = 0.70</td><td>0.35 = 0.70 · 0.50</td></tr></table>
+
+<p>0.35 ist dort nicht frei gewählt, sondern dieselbe Begleitregel wie in der
+Tragsicherheit, nur auf dem abgeminderten Niveau.</p>
+
+${q(`Diese Lastfälle sind <b>kein Nachweis</b>. Sie liefern die Schnittgrössen
+für Verformungsbetrachtungen – der Nachweis der Gebrauchstauglichkeit selbst
+(Durchbiegung, Verdrehung des Jochs, Querverschiebung der Mastköpfe und damit
+die Solllage des Fahrdrahts) ist im Werkzeug <b>nicht geführt</b>. Sie erscheinen
+deshalb nicht in η.`)}
 
 <p class="hb-quelle">core.lasten.js · core.trasse.js</p>
 `,

@@ -128,15 +128,18 @@ export function charakteristischeLasten(inp, joch) {
  */
 export const NORMENSAETZE = [
   {
-    key: 'sia260', label: 'SIA 260',
-    beiwerte: { gammaG: 1.35, gammaQ: 1.50, psi0: 0.50 },
-    hinweis: 'SIA 260 Gl. (16): γ_G = 1.35, γ_Q = 1.50, Begleiteinwirkung ψ₀ = 0.50.',
+    key: 'rte', label: 'RTE (Bahn)',
+    beiwerte: { gammaG: 1.30, gammaQ: 1.30, psi0: 0.50, psiGebrauch: 0.70 },
+    hinweis: 'Einheitlicher Beiwert 1.30 für ständige und veränderliche ' +
+             'Einwirkungen, Begleiteinwirkung ψ₀ = 0.50. So gerechnet im ' +
+             'geprüften Referenzprojekt (46 Kombinationen ausgezählt: auf ' +
+             'ständige Lastfälle nur 1.0 und 1.30, auf veränderliche 1.30 ' +
+             'und 0.65 = 1.30·0.50).',
   },
   {
-    key: 'rte', label: 'RTE (Bahn)',
-    beiwerte: { gammaG: 1.30, gammaQ: 1.30, psi0: 0.50 },
-    hinweis: 'Einheitlicher Beiwert 1.30 für ständige und veränderliche ' +
-             'Einwirkungen, Begleiteinwirkung ψ₀ = 0.50.',
+    key: 'sia260', label: 'SIA 260',
+    beiwerte: { gammaG: 1.35, gammaQ: 1.50, psi0: 0.50, psiGebrauch: 0.70 },
+    hinweis: 'SIA 260 Gl. (16): γ_G = 1.35, γ_Q = 1.50, Begleiteinwirkung ψ₀ = 0.50.',
   },
 ];
 
@@ -260,6 +263,48 @@ export function standardLastfaelle(inp) {
       });
     });
   }
+
+  // --- GEBRAUCHSTAUGLICHKEIT ------------------------------------------------
+  // Alle Beiwerte 1.0; die veränderlichen werden abgemindert. Zwei Stufen, so
+  // wie sie im geprüften Referenzprojekt stehen (46 Kombinationen, G-Reihe):
+  //
+  //   selten    leitend 1.00, begleitend 0.50        (G140…G153)
+  //   häufig    leitend ψ = 0.70, begleitend 0.35    (G110…G123)
+  //
+  // 0.35 ist dort nicht frei gewählt, sondern 0.70 · 0.50 - dieselbe
+  // Begleitregel wie in der Tragsicherheit, nur auf das abgeminderte Niveau.
+  //
+  // Diese Fälle sind KEIN Nachweis (nachweis: false): sie liefern die
+  // Schnittgrössen für Verformungsbetrachtungen. Der Nachweis der
+  // Gebrauchstauglichkeit selbst - Durchbiegung, Verdrehung, Querverschiebung
+  // der Mastköpfe - ist im Werkzeug NICHT geführt.
+  const pg = inp.psiGebrauch ?? 0.70;
+  [['selten', 1.00, 'selten'], ['haeufig', pg, 'häufig']].forEach(
+    ([stufe, faktor, text]) => {
+      [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
+        .forEach(([tag, gruppe, richtung]) => {
+          [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+            lf.push({
+              key: `gt${stufe}W${tag}${suffix}`,
+              bez: `Gebrauchstauglichkeit ${text}: Wind ${zeichen}${richtung}`,
+              art: 'gebrauchstauglichkeit', nachweis: false,
+              leit: gruppe, vorzeichen: vz, stufe,
+              beiwerte: bw({ G: 1, [gruppe]: vz * faktor }),
+            });
+          });
+        });
+      if (s) {
+        [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+          lf.push({
+            key: `gt${stufe}S${suffix}`,
+            bez: `Gebrauchstauglichkeit ${text}: Schnee, Wind ${zeichen}y`,
+            art: 'gebrauchstauglichkeit', nachweis: false,
+            leit: 'Schnee', vorzeichen: vz, stufe,
+            beiwerte: bw({ G: 1, WindY: vz * faktor * p, Schnee: faktor }),
+          });
+        });
+      }
+    });
   return lf;
 }
 
