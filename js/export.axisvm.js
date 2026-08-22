@@ -194,6 +194,34 @@ const rechteck = (d) => ({ name: d.name, art: 'Parametric', form: 'Rectangle',
  *
  * zs steht in cm, t in mm - so, wie die Profiltabellen es führen.
  */
+/**
+ * STEIFE LÄNGE JE BLECHENDE [m] — von der Gurtachse bis zur Blechkante.
+ *
+ * Die Starrelemente sind bis an den Anfang des Blechs zu führen; erst dort
+ * beginnt der biegeweiche Teil. Wie weit das ist, steht im Schnitt C-C der
+ * Zeichnung 373.09.021:
+ *
+ *   Vertikalblech    100/10 × 320 = 500 − 2·90. Es stösst gegen die SPITZEN
+ *                    der stehenden Schenkel. Von der Gurtachse aus sind das
+ *                    aV − zsH  (für L90×90×9: 90 − 25.4 = 64.6 mm).
+ *
+ *   Horizontalblech  100/10 × 260 = lichte Weite. Es stösst gegen die
+ *                    INNENSEITE der stehenden Schenkel, von der Gurtachse
+ *                    aus also zsV.
+ *
+ * Bisher stand hier nichts: `blecheAnStation` führt `laenge: null`, damit
+ * war die lichte Länge gleich dem Hebelarm und die steife Länge null. Die
+ * Bleche liefen von Schwerachse zu Schwerachse, über ihre wirkliche Länge
+ * hinaus - und damit zu weich.
+ */
+function steifeLaenge(p, art) {
+  if (!p) return 0;
+  const zsH = (p.zsH ?? p.zs ?? 0) * 10;          // cm -> mm
+  const zsV = (p.zsV ?? p.zs ?? 0) * 10;
+  const aV = p.aV ?? p.a ?? 0;
+  return mm(Math.max(0, art === 'vertikal' ? aV - zsH : zsV));
+}
+
 function schenkelVersatz(p, ecke, ausr, tBlech = 0) {
   if (!p) return { dy: 0, dz: 0 };
   const zsV = (p.zsV ?? p.zs ?? 0) * 10;          // cm -> mm
@@ -311,7 +339,7 @@ export function stabmodell(m, opt = {}) {
   // jedem Gurtknoten führt ein kurzer steifer Stummel zur Blechachse - so
   // ist die Ausmitte im Modell sichtbar und geht auch nach PyNite mit,
   // wo Stabausmitten nicht zur Verfügung stehen.
-  const blechStab = (name, qsBlech, hebelarm, Lc, p1, p2, v1, v2) => {
+  const blechStab = (name, qsBlech, p1, p2, v1, v2, d1 = 0, d2 = 0) => {
     const rueck = (p, v, k) => {
       if (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)) return p;
       const n = s.kn(`${name}_v${k}`, p.x, p.y + v.dy, p.z + v.dz);
@@ -321,12 +349,18 @@ export function stabmodell(m, opt = {}) {
     p1 = rueck(p1, v1, 1);
     p2 = rueck(p2, v2, 2);
 
-    const d = km === 'anschnitt' && Lc > 0 ? Math.max(0, (hebelarm - Lc) / 2) : 0;
-    if (d < 1e-9) { s.stab(name, qsBlech, p1.name, p2.name); return; }
-    const t = (v, f) => ({ x: v.x + (p2.x - v.x) * f, y: v.y + (p2.y - v.y) * f,
-                           z: v.z + (p2.z - v.z) * f });
-    const f = d / hebelarm;
-    const a = t(p1, f), b = t(p1, 1 - f);
+    // Der Abstand der beiden Blechenden - nach dem Versatz gemessen, nicht
+    // aus dem Hebelarm des Nachweises übernommen.
+    const L = Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+    const [e1, e2] = km === 'anschnitt' ? [d1, d2] : [0, 0];
+    if (!(L > 0) || (e1 + e2) < 1e-9 || (e1 + e2) >= L) {
+      s.stab(name, qsBlech, p1.name, p2.name);
+      return;
+    }
+    const t = (f) => ({ x: p1.x + (p2.x - p1.x) * f,
+                        y: p1.y + (p2.y - p1.y) * f,
+                        z: p1.z + (p2.z - p1.z) * f });
+    const a = t(e1 / L), b = t(1 - e2 / L);
     const n1 = s.kn(`${name}_a`, a.x, a.y, a.z);
     const n2 = s.kn(`${name}_b`, b.x, b.y, b.z);
     s.stab(`${name}_1`, qsStarr, p1.name, n1);
@@ -359,21 +393,26 @@ export function stabmodell(m, opt = {}) {
     const hOGL = vz(eckeVon('OG_L'), tH), hOGR = vz(eckeVon('OG_R'), tH);
     const hUGL = vz(eckeVon('UG_L'), tH), hUGR = vz(eckeVon('UG_R'), tH);
 
+    // Steife Länge je Ende: bis an die Blechkante. Ober- und Untergurt
+    // können verschiedene Profile tragen, deshalb je Ende einzeln.
+    const sVO = steifeLaenge(m.profOG, 'vertikal');
+    const sVU = steifeLaenge(m.profUG, 'vertikal');
+    const sHO = steifeLaenge(m.profOG, 'horizontal');
+    const sHU = steifeLaenge(m.profUG, 'horizontal');
+
     if (station.vertikal) {
       const qs = s.qs(blechQuerschnitt(station.vertikal, 'vertikal'));
-      const Lc = station.vertikal.laenge ? mm(station.vertikal.laenge) : 0;
-      blechStab(`BV_L_${i}`, qs, station.h, Lc, ogl, ugl,
-                { dy: eOGL.dy, dz: 0 }, { dy: eUGL.dy, dz: 0 });
-      blechStab(`BV_R_${i}`, qs, station.h, Lc, ogr, ugr,
-                { dy: eOGR.dy, dz: 0 }, { dy: eUGR.dy, dz: 0 });
+      blechStab(`BV_L_${i}`, qs, ogl, ugl,
+                { dy: eOGL.dy, dz: 0 }, { dy: eUGL.dy, dz: 0 }, sVO, sVU);
+      blechStab(`BV_R_${i}`, qs, ogr, ugr,
+                { dy: eOGR.dy, dz: 0 }, { dy: eUGR.dy, dz: 0 }, sVO, sVU);
     }
     if (station.horizontal) {
       const qs = s.qs(blechQuerschnitt(station.horizontal, 'horizontal'));
-      const Lc = station.horizontal.laenge ? mm(station.horizontal.laenge) : 0;
-      blechStab(`BH_O_${i}`, qs, station.b, Lc, ogl, ogr,
-                { dy: 0, dz: hOGL.dz }, { dy: 0, dz: hOGR.dz });
-      blechStab(`BH_U_${i}`, qs, station.b, Lc, ugl, ugr,
-                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz });
+      blechStab(`BH_O_${i}`, qs, ogl, ogr,
+                { dy: 0, dz: hOGL.dz }, { dy: 0, dz: hOGR.dz }, sHO, sHO);
+      blechStab(`BH_U_${i}`, qs, ugl, ugr,
+                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz }, sHU, sHU);
     }
   });
 

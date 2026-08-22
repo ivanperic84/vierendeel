@@ -2431,6 +2431,41 @@ titel('19  AxisVM-Export (SAF)');
   wahr('Vorgabe nach Bauweise', AX.auflagerVorgabe({ bauweise: 'alt' }) === 'mitte'
        && AX.auflagerVorgabe({ bauweise: 'neu' }) === 'gurte');
 
+  // --- Starrelemente bis an die Blechkanten ---------------------------------
+  {
+    // Schnitt C-C 373.09.021: Vertikalblech 320 = 500 − 2·90, es stösst an
+    // die SPITZEN der stehenden Schenkel. Von der Gurtachse aus: aV − zsH.
+    // Horizontalblech 260 = lichte Weite, es stösst an deren INNENSEITE: zsV.
+    const teil = (b, anfang, endung) =>
+      b.staebe.find((x) => x.name === `${anfang}${endung}`);
+    const laengeVon = (b, st) => {
+      const a = b.knoten.get(st.von), e = b.knoten.get(st.bis);
+      return Math.hypot(e.x - a.x, e.y - a.y, e.z - a.z);
+    };
+    const bv = bauA.staebe.filter((x) => x.name.startsWith('BV_L_0'));
+    wahr('Vertikalblech ist in steif / weich / steif geteilt',
+         ['_1', '_2', '_3'].every((e) => bv.some((x) => x.name.endsWith(e))));
+    pruef('Steifes Stück am Obergurt ist aV − zsH',
+          laengeVon(bauA, teil(bauA, 'BV_L_0', '_1')),
+          (m.profOG.aV - m.profOG.zsH * 10) / 1000, 1e-9, 'm');
+    pruef('Steifes Stück am Untergurt ist aV − zsH',
+          laengeVon(bauA, teil(bauA, 'BV_L_0', '_3')),
+          (m.profUG.aV - m.profUG.zsH * 10) / 1000, 1e-9, 'm');
+    // Die Endstation trägt kein Horizontalblech - die erste ist Nummer 1.
+    pruef('Steifes Stück des Horizontalblechs ist zsV',
+          laengeVon(bauA, teil(bauA, 'BH_O_1', '_1')),
+          m.profOG.zsV * 10 / 1000, 1e-9, 'm');
+    wahr('Nur das mittlere Stück trägt den Blechquerschnitt',
+         teil(bauA, 'BV_L_0', '_2').qs.startsWith('BLECH_V')
+         && teil(bauA, 'BV_L_0', '_1').qs === 'STARR'
+         && teil(bauA, 'BV_L_0', '_3').qs === 'STARR');
+
+    // Das Modell 'schwerachsen' bleibt bewusst ohne - es ist der Vergleich
+    // gegen das, was AxisVM ohne Zutun rechnet.
+    wahr('Ohne Anschnitt keine Starrelemente im Blech',
+         !mitS.staebe.some((x) => /^BV_L_0_[13]$/.test(x.name)));
+  }
+
   // --- Anschluss der Hängestützen -------------------------------------------
   {
     const mitAnbau = (bef) => {
