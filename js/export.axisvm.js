@@ -280,12 +280,14 @@ export function stabmodell(m, opt = {}) {
     });
   }
 
-  // Geschnitten wird am Anschlusspunkt selbst. Früher stand hier das Raster
-  // mit zwei Schnitten je Bauteil - das gehörte zu den zwei Anschlussknoten,
-  // die es nicht mehr gibt.
+  // Geschnitten wird an beiden Anschlussreihen und dazwischen: der Gurt
+  // braucht dort Knoten, sonst hängen die Stummel im Leeren.
+  const imFeld = (x) => r6(Math.min(Math.max(x, 0), m.L));
   const anschlagX = new Set();
   (m.anbauteileFlach ?? []).forEach((a) => {
-    anschlagX.add(r6(Math.min(Math.max(a.x, 0), m.L)));
+    const r = (a.raster ?? 0) / 2;
+    anschlagX.add(imFeld(a.x));
+    if (r > 0) { anschlagX.add(imFeld(a.x - r)); anschlagX.add(imFeld(a.x + r)); }
   });
 
   const schnitte = new Set([0, r6(m.L)]);
@@ -495,7 +497,7 @@ export function stabmodell(m, opt = {}) {
   const gruppiert = new Map();
   (m.anbauteileFlach ?? []).forEach((a) => {
     const schluessel = [r6(a.x), r6(a.y ?? 0), r6(a.z ?? 0),
-                        a.befestigung].join('|');
+                        a.befestigung, a.raster ?? 0].join('|');
     const da = gruppiert.get(schluessel);
     if (da) { da.teile.push(a); return; }
     gruppiert.set(schluessel, { ...a, teile: [a] });
@@ -503,51 +505,72 @@ export function stabmodell(m, opt = {}) {
 
   const arme = [];
   [...gruppiert.values()].forEach((a, k) => {
-    const x = r6(a.x);
+    const x0 = imFeld(a.x);
+    const r = (a.raster ?? 0) / 2;
     const zOG = zOben;
     const zUG = zOben - (m.verlauf ? m.verlauf.hAn(a.x) : m.h);
-    const durch = a.befestigung === 'durchgehend';
-    const zAn = a.befestigung === 'oben' ? zOG : zUG;
+    const ebenen = a.befestigung === 'durchgehend' ? ['UG', 'OG']
+                 : a.befestigung === 'oben' ? ['OG'] : ['UG'];
+    const zVon = (g) => (g === 'OG' ? zOG : zUG);
 
     /*
      * ANSCHLUSS EINER HÄNGESTÜTZE.
      *
-     * Zwei Punkte (nur Ober- ODER Untergurt): Variante A. Der Anschluss ist
-     * biegesteif; die beiden Stummel laufen waagrecht nach ±y zu den Gurten,
-     * rechtwinklig zu den Gurtachsen.
+     * Ohne Raster: EINE Reihe, zwei Punkte (links und rechts). Der Anschluss
+     * ist biegesteif - Variante A.
      *
-     * Vier Punkte (Ober- UND Untergurt): der Stab läuft DURCH den Kasten.
-     * Zwei Reihen, und sie dürfen den Gurt nicht gegeneinander verspannen:
+     * Mit Raster: ZWEI Reihen längs der Jochachse, also VIER Punkte je Gurt-
+     * ebene. Bei `durchgehend` unten und oben je vier. Und die beiden Reihen
+     * dürfen den Gurt nicht zwischen sich einspannen:
      *
-     *     erste Reihe (am Anschlussgurt)   x  y  z
-     *     zweite Reihe                     x     z
+     *     erste Reihe    x  y  z
+     *     zweite Reihe      y  z          <- x frei, ein Langloch
      *
-     * Der Stummel der zweiten Reihe liegt in ±y - seine Achsrichtung IST
-     * die y-Richtung. Ein Gelenk in der Stabachse gibt also genau y frei
-     * und lässt x und z stehen. Deshalb laufen die Stummel waagrecht und
-     * nicht schräg: nur so fällt die freizugebende Richtung mit einer
-     * Stabachse zusammen.
+     * Wären beide Reihen in x gehalten, könnte sich der Gurt zwischen ihnen
+     * nicht mehr dehnen. Über die Rasterlänge ist das eine Zwängung mitten
+     * IM Gurt, und sie erzeugt Normalkräfte, die es nicht gibt.
+     *
+     * x ist die Jochachse und steht quer zu den Stummeln, die in ±y liegen.
+     * Freigegeben wird deshalb NICHT die Stabachse, sondern die Querrichtung
+     * des Stummels - in dessen lokalen Achsen die z-Richtung, denn lcsZ
+     * zeigt bei querliegenden Stäben auf [1,0,0]. Das Kürzel heisst hier
+     * `laengs` und meint immer die Jochachse; die Brücke setzt es um.
      */
-    const reihe = (z, name, gelenk) => {
-      const n = s.kn(name, x, 0, r6(z));
-      ['L', 'R'].forEach((seite) => {
-        const gurt = Math.abs(z - zOG) < 1e-9 ? 'OG' : 'UG';
-        s.stab(`${name}_${seite}`, qsStarr, n, gurtKnoten(gurt, seite, x),
-               gelenk ? { gelenkEnde: gelenk } : null);
+    const reihen = r > 0 ? [imFeld(a.x - r), imFeld(a.x + r)] : [x0];
+    const mitte = {};
+
+    ebenen.forEach((gurt) => {
+      const z = zVon(gurt);
+      // Knoten der Reihen auf der Jochachse und ihre Stummel zu den Gurten.
+      const knRe = reihen.map((xr, j) => {
+        const n = s.kn(`AT${k}_${gurt}_R${j + 1}`, xr, 0, r6(z));
+        ['L', 'R'].forEach((seite) => {
+          s.stab(`AT${k}_${gurt}_R${j + 1}${seite}`, qsStarr, n,
+                 gurtKnoten(gurt, seite, xr),
+                 j > 0 ? { gelenkEnde: 'laengs' } : null);
+        });
+        return { x: xr, n };
       });
-      return n;
-    };
 
-    const anErste = reihe(zAn, `AT${k}`, null);
-    const anZweite = durch
-      ? reihe(zAn === zUG ? zOG : zUG, `AT${k}_2`, 'axial')
-      : null;
+      // Der Anschlusskörper zwischen den Reihen, mit einem Knoten in der
+      // Mitte - dort hängt die Stütze.
+      const nm = s.kn(`AT${k}_${gurt}`, x0, 0, r6(z));
+      mitte[gurt] = nm;
+      knRe.forEach(({ x: xr, n }) => {
+        if (Math.abs(xr - x0) > 1e-9) s.stab(`AT${k}_${gurt}_B${xr}`, qsStarr, n, nm);
+      });
+    });
 
-    // Der durchgehende Stab. Bei vier Punkten läuft er durch beide Reihen,
-    // bei zweien beginnt er am Anschluss. Am Übergang STEIF - Variante A.
-    const last = s.kn(`AL${k}`, x, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
-    if (anZweite) s.stab(`ARM${k}_D`, qsArm, anZweite, anErste);
-    s.stab(`ARM${k}`, qsArm, anErste, last,
+    // Bei vier Punkten oben UND unten läuft der Stab durch den Kasten.
+    if (ebenen.length === 2) {
+      s.stab(`ARM${k}_D`, qsArm, mitte.OG, mitte.UG);
+    }
+
+    // Der durchgehende Stab zum Lastpunkt, am Übergang steif (Variante A).
+    const zAn = a.befestigung === 'oben' ? zOG : zUG;
+    const anker = a.befestigung === 'oben' ? mitte.OG : mitte.UG;
+    const last = s.kn(`AL${k}`, x0, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
+    s.stab(`ARM${k}`, qsArm, anker, last,
            opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk } : null);
     arme.push({ teil: a, knoten: last });
   });

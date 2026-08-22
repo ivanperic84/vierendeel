@@ -324,10 +324,19 @@ function GelenkSetzen($linie, [string]$wo, [string]$art) {
                    bleibt x/z gehalten und y frei, ohne Zwaengung im Gurt.
         Sonst gilt die Zeichenkette als Liste der Felder.                 #>
     $felder = switch ($art) {
-        'M'     { @('xx', 'yy', 'zz') }
-        'axial' { @('x') }
-        default { $art -split '[,\s]+' | Where-Object { $_ } }
+        'M'      { @('xx', 'yy', 'zz') }
+        'axial'  { @('x') }
+        'laengs' { @('z') }   # lcsZ der querliegenden Staebe zeigt auf [1,0,0]
+        default  { $art -split '[,\s]+' | Where-Object { $_ } }
     }
+    <#  'laengs' MEINT DIE JOCHACHSE, nicht die Stabachse.
+        Der Stummel liegt in +-y; freigegeben wird seine Querrichtung. Welche
+        der beiden lokalen Querachsen das ist, haengt daran, wie AxisVM die
+        lokalen Achsen legt - und genau das setzt diese Bruecke noch NICHT.
+        Solange das offen ist, wird lieber gar nichts freigegeben: ein zu
+        steifer Anschluss ist eine bekannte, benannte Abweichung, eine
+        Freigabe in der falschen Richtung ein stiller Fehler.             #>
+    if ($art -eq 'laengs' -and -not $script:lcsGesetzt) { return $false }
     $rel = NeuerSatz 'RReleases'
     $typ = $rel.GetType()
     $gesetzt = 0
@@ -464,7 +473,7 @@ if ($NurPruefen) {
             'RSpringParamIndexes','RStiffnesses','RNonLinearity','RResistances',
             'RLoadNodalForce','RLoadBeamConcentrated','RLoadBeamDistributed',
             'RLoadMemberConcentrated','RLoadMemberDistributed',
-            'RReleases','RRelease'
+            'RReleases','RRelease','RReferencePoint','RReferenceVector'
         )
         Schreib ''
         Schreib 'FELDER DER VERBUND-TYPEN:'
@@ -534,6 +543,10 @@ if ($NurPruefen) {
         Signaturen 'IAxisVMLine' 'DefineAsBeam'
         Signaturen 'IAxisVMNodalSupports' 'AddNodal'
         Signaturen 'IAxisVMLine' 'SetStartReleases'
+        # Fuer die lokalen Stabachsen - ohne sie ist keine Querfreigabe
+        # eindeutig zu setzen.
+        Signaturen 'IAxisVMReferences' 'Add'
+        Signaturen 'IAxisVMLine' 'SetGeomType'
 
         # --- Federsaetze ---------------------------------------------------
         # AddNodalGlobal_V153 nimmt RNodalSupportSpringParams, und darin
@@ -721,6 +734,7 @@ $geom = NeuerSatz 'RLineGeomData'
 $ecc  = NeuerSatz 'RPoint3d'
 $st = @{}; $laenge = @{}
 $erste = $true; $nG = 0; $nGnein = 0
+$lcsGesetzt = $false   # solange die lokalen Achsen ungesetzt bleiben
 foreach ($sb in $d.staebe) {
     $vk = $kn[$sb.von]; $bk = $kn[$sb.bis]; $iq = $qs[$sb.querschnitt]
     if (-not $vk -or -not $bk) { Beenden 6 "Stab $($sb.name): Knoten fehlt." }
@@ -753,9 +767,13 @@ foreach ($sb in $d.staebe) {
 if ($nG -gt 0) { Schreib "  $nG Gelenke gesetzt (zweite Anschlussreihe in y frei)" }
 if ($nGnein -gt 0) {
     Schreib ''
-    Schreib "  >>> WARNUNG: $nGnein Gelenke liessen sich NICHT setzen."
-    Schreib '  >>> Diese Anschluesse sind momenteneingespannt statt gelenkig.'
-    Schreib '  >>> Die Felder von RReleases stehen oben - bitte zurueckschicken.'
+    Schreib "  >>> WARNUNG: $nGnein Freigaben wurden NICHT gesetzt."
+    Schreib '  >>> Die zweite Anschlussreihe der Haengestuetzen haelt damit auch'
+    Schreib '  >>> die Jochachse - der Gurt ist zwischen den Reihen gezwaengt.'
+    Schreib '  >>> Grund: die lokalen Stabachsen werden noch nicht gesetzt, und'
+    Schreib '  >>> ohne sie waere die Freigaberichtung geraten. Lieber zu steif'
+    Schreib '  >>> und benannt als still falsch.'
+    Schreib '  >>> Dazu die Signaturen aus AxisVM_pruefen.cmd zurueckschicken.'
 }
 Schreib "  $($st.Count) Staebe"
 

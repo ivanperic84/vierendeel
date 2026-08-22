@@ -2468,41 +2468,56 @@ titel('19  AxisVM-Export (SAF)');
 
   // --- Anschluss der Hängestützen -------------------------------------------
   {
-    const mitAnbau = (bef) => {
+    const mitAnbau = (bef, raster) => {
       const mm = rechne({ ...basis({ typ: 'J90', L: 20 }),
-        anbauteile: [teil({ name: 'HS', x: 8, Gz: 12, Qy: 3,
-                            z: bef === 'oben' ? 0.8 : -1.5, befestigung: bef })],
+        anbauteile: [{ ...teil({ name: 'HS', x: 8, Gz: 12, Qy: 3,
+                                 z: bef === 'oben' ? 0.8 : -1.5 }),
+                       befestigung: bef, raster }],
       }).modell;
       return AX.stabmodell(mm, { knotenmodell: 'schwerachsen' });
     };
-    const stummel = (b) => b.staebe.filter((x) => /^AT\d/.test(x.name));
+    const stummel = (b, gurt) =>
+      b.staebe.filter((x) => new RegExp(`^AT\\d+_${gurt}_R\\d[LR]$`).test(x.name));
 
-    // Zwei Punkte: eine Reihe, waagrecht zu beiden Gurten, alles steif.
-    const zwei = mitAnbau('unten');
-    pruef('Zwei Punkte: zwei Stummel', stummel(zwei).length, 2, 1e-12, 'Stk');
-    wahr('Zwei Punkte: kein Gelenk - Variante A, biegesteif',
-         stummel(zwei).every((x) => !x.gelenkEnde && !x.gelenkAnfang));
-    wahr('Zwei Punkte: Stummel laufen rechtwinklig zur Gurtachse',
-         stummel(zwei).every((x) => {
-           const a = zwei.knoten.get(x.von), b = zwei.knoten.get(x.bis);
-           return Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.z - b.z) < 1e-9;
+    // Ohne Raster: eine Reihe, zwei Punkte, alles steif - Variante A.
+    const zwei = mitAnbau('unten', 0);
+    pruef('Zwei Punkte: eine Reihe zu je zwei Gurten',
+          stummel(zwei, 'UG').length, 2, 1e-12, 'Stk');
+    wahr('Zwei Punkte: biegesteif, kein Gelenk',
+         stummel(zwei, 'UG').every((x) => !x.gelenkEnde && !x.gelenkAnfang));
+
+    // Mit Raster: zwei Reihen längs der Jochachse, vier Punkte je Ebene.
+    const vier = mitAnbau('unten', 0.4);
+    pruef('Vier Punkte am Untergurt', stummel(vier, 'UG').length, 4, 1e-12, 'Stk');
+    wahr('Erste Reihe hält x y z',
+         stummel(vier, 'UG').filter((x) => /_R1[LR]$/.test(x.name))
+           .every((x) => !x.gelenkEnde));
+    wahr('Zweite Reihe gibt die Jochachse frei - y z bleiben',
+         stummel(vier, 'UG').filter((x) => /_R2[LR]$/.test(x.name))
+           .every((x) => x.gelenkEnde === 'laengs'));
+    wahr('Die Reihen liegen um das Raster auseinander',
+         (() => {
+           const xs = [...new Set(stummel(vier, 'UG')
+             .map((x) => vier.knoten.get(x.von).x))].sort((p, q) => p - q);
+           return xs.length === 2 && Math.abs(xs[1] - xs[0] - 0.4) < 1e-9;
+         })());
+    wahr('Die Stummel laufen rechtwinklig zur Gurtachse',
+         stummel(vier, 'UG').every((x) => {
+           const p = vier.knoten.get(x.von), q = vier.knoten.get(x.bis);
+           return Math.abs(p.x - q.x) < 1e-9 && Math.abs(p.z - q.z) < 1e-9;
          }));
 
-    // Vier Punkte: zwei Reihen, die zweite in y freigegeben.
-    const vier = mitAnbau('durchgehend');
-    pruef('Vier Punkte: vier Stummel', stummel(vier).length, 4, 1e-12, 'Stk');
-    const frei = stummel(vier).filter((x) => x.gelenkEnde === 'axial');
-    pruef('Vier Punkte: die zweite Reihe ist in y frei', frei.length, 2, 1e-12, 'Stk');
-    wahr('Vier Punkte: die freien Stummel liegen in ±y',
-         frei.every((x) => {
-           const a = vier.knoten.get(x.von), b = vier.knoten.get(x.bis);
-           return Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.z - b.z) < 1e-9
-               && Math.abs(a.y - b.y) > 1e-6;
-         }));
-    wahr('Vier Punkte: ein durchgehender Stab verbindet die Reihen',
-         vier.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
-    wahr('Vier Punkte: die Reihen liegen auf Ober- und Untergurthöhe',
-         new Set(stummel(vier).map((x) => vier.knoten.get(x.von).z)).size === 2);
+    // Durchgehend: dieselbe Regel oben wie unten, acht Punkte.
+    const durch = mitAnbau('durchgehend', 0.4);
+    pruef('Durchgehend: vier Punkte unten', stummel(durch, 'UG').length, 4, 1e-12, 'Stk');
+    pruef('Durchgehend: vier Punkte oben', stummel(durch, 'OG').length, 4, 1e-12, 'Stk');
+    wahr('Durchgehend: auch oben ist die zweite Reihe frei',
+         stummel(durch, 'OG').filter((x) => /_R2[LR]$/.test(x.name))
+           .every((x) => x.gelenkEnde === 'laengs'));
+    wahr('Durchgehend: ein Stab verbindet Ober- und Untergurt',
+         durch.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
+    wahr('Nur bei durchgehend läuft der Stab durch',
+         !vier.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
   }
 
   // --- Blechachsen liegen versetzt ------------------------------------------
