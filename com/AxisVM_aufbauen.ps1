@@ -92,10 +92,17 @@ function Beenden([int]$code, [string]$grund) {
 <#  Probiert mehrere Schreibweisen und nimmt die erste, die traegt.
     $kandidaten ist eine Liste aus @{ name = 'Beschriftung'; tu = { ... } }.
     Rueckgabe: der Wert des erfolgreichen Blocks, oder $null.            #>
-function Versuche([string]$schritt, $kandidaten, [switch]$Leise) {
+<#  -Positiv: AxisVM meldet Fehler NICHT als Ausnahme, sondern als
+    NEGATIVE ZAHL - die Referenz sagt "if successful the result is > 0".
+    Ohne diese Pruefung gilt ein errNotFound als Erfolg und wandert weiter:
+    beim ersten Aufbau kam so -102 als Materialnummer in alle 746 Staebe.  #>
+function Versuche([string]$schritt, $kandidaten, [switch]$Leise, [switch]$Positiv) {
     foreach ($k in $kandidaten) {
         try {
             $wert = & $k.tu
+            if ($Positiv -and (($null -eq $wert) -or ($wert -le 0))) {
+                throw "Rueckgabe $wert - AxisVM meldet so einen Fehler"
+            }
             if (-not $Leise) { Schreib ("  {0,-34} {1}" -f $schritt, $k.name) }
             $gefunden.Add("$schritt -> $($k.name)")
             return @{ ok = $true; wert = $wert; name = $k.name }
@@ -472,11 +479,18 @@ if ($NurPruefen) {
         Schreib '  Erwartet fuer L 100x100x10:  A = 0.00192 m2'
     }
 
+    Abschnitt 'Das war NUR die Erkundung'
+    Schreib 'Es wurde nichts gebaut - das Probemodell wird jetzt verworfen.'
+    Schreib ''
+    Schreib '  Zum Aufbauen des Tragjochs:   AxisVM_aufbauen.cmd'
+    Schreib ''
+    Schreib 'Diese Erkundung braucht es nur, wenn etwas nicht traegt: sie sagt'
+    Schreib 'dann, was diese AxisVM-Fassung wirklich anbietet.'
+
     try { $app.Models.Delete($idx) } catch { }
     try { $app.Quit() } catch { }
     $zeilen | Set-Content -Path $bericht -Encoding UTF8
     Write-Host ''; Write-Host "Bericht: $bericht"
-    Write-Host 'Diese Datei zurueckschicken.'
     Read-Host "`nWeiter mit Enter"
     exit 0
 }
@@ -503,12 +517,31 @@ try { $m.BeginUpdate() } catch { }
 # --- 3 - Material ------------------------------------------------------------
 Abschnitt '3 - Material'
 $stahl = $d.material.name
-$r = Versuche 'Material' @(
-    @{ name = "AddFromCatalog(ndcSwiss_SIA26x, '$stahl')";  tu = { $m.Materials.AddFromCatalog($ndcSchweiz, $stahl) } },
-    @{ name = "AddFromCatalog(ndcEuroCode, '$stahl')";      tu = { $m.Materials.AddFromCatalog($ndcEuroCode, $stahl) } }
-)
-if (-not $r.ok) { Mitglieder 'Materials' $m.Materials; Beenden 3 "Material $stahl nicht anlegbar." }
+<#  Welcher Katalog den Stahl unter welchem Namen fuehrt, ist nicht zu
+    erraten - beim ersten Aufbau lieferte (ndcSwiss_SIA26x, 'S235') den
+    Fehler -102. Also der Reihe nach, und der Wert wird nachgeprueft.     #>
+$ndcEuroGER = 8    # ENationalDesignCode.ndcEuroCode_GER
+$kand = @()
+$gesehen = New-Object System.Collections.Generic.HashSet[string]
+foreach ($nc in @(@{ n = 'ndcSwiss_SIA26x'; v = $ndcSchweiz },
+                  @{ n = 'ndcEuroCode';     v = $ndcEuroCode },
+                  @{ n = 'ndcEuroCode_GER'; v = $ndcEuroGER })) {
+    foreach ($nm in @($stahl, ($stahl -replace '^S\s*', 'S '), ($stahl -replace '\s+', ''))) {
+        $bez = "AddFromCatalog($($nc.n), '$nm')"
+        if (-not $gesehen.Add($bez)) { continue }
+        $v = $nc.v; $x = $nm
+        $kand += @{ name = $bez; tu = { $m.Materials.AddFromCatalog($v, $x) }.GetNewClosure() }
+    }
+}
+$r = Versuche 'Material' $kand -Positiv
+if (-not $r.ok) {
+    Mitglieder 'Materials' $m.Materials
+    Beenden 3 ("$stahl in keinem Katalog gefunden. AxisVM meldet das als " +
+               'negative Zahl, nicht als Fehler - deshalb faellt es sonst ' +
+               'erst beim Rechnen auf.')
+}
 $iMat = $r.wert
+try { Schreib "  Katalogname: $($m.Materials.Item($iMat).Name)" } catch { }
 Schreib "  $stahl als Nummer $iMat"
 
 # --- 4 - Querschnitte --------------------------------------------------------
@@ -529,7 +562,7 @@ foreach ($q in $d.querschnitte) {
         @{ name = 'CrossSections.AddRectangular(Name, h, b, cspOther)'; tu = {
             if ($q.form -ne 'Rectangle') { throw 'kein Rechteck' }
             $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } }
-    ) -Leise:($qs.Count -gt 0)
+    ) -Leise:($qs.Count -gt 0) -Positiv
     if (-not $r.ok) { Mitglieder 'CrossSections' $m.CrossSections; Beenden 4 "Querschnitt $($q.name) nicht anlegbar." }
     $qs[$q.name] = $r.wert
 }
@@ -560,7 +593,9 @@ if ($schief -gt 0) {
 Abschnitt '5 - Knoten'
 $kn = @{}
 foreach ($k in $d.knoten) {
-    $kn[$k.name] = $m.Nodes.Add($k.x, $k.y, $k.z)
+    $i = $m.Nodes.Add($k.x, $k.y, $k.z)
+    if ($i -le 0) { Beenden 5 "Knoten $($k.name) meldet $i." }
+    $kn[$k.name] = $i
 }
 Schreib "  $($kn.Count) Knoten"
 
@@ -582,9 +617,11 @@ foreach ($sb in $d.staebe) {
     $r = Versuche 'Stab' @(
         @{ name = 'Lines.Add(i, j, lgtStraightLine, RLineGeomData) + DefineAsBeam'; tu = {
             $li = $m.Lines.Add($vk, $bk, $lgtGerade, $geom)
-            [void]$m.Lines.Item($li).DefineAsBeam($iMat, $iq, $iq, $ecc, $ecc)
+            if ($li -le 0) { throw "Lines.Add meldet $li" }
+            $db = $m.Lines.Item($li).DefineAsBeam($iMat, $iq, $iq, $ecc, $ecc)
+            if ($db -le 0) { throw "DefineAsBeam meldet $db" }
             $li } }
-    ) -Leise:(-not $erste)
+    ) -Leise:(-not $erste) -Positiv
     if (-not $r.ok) {
         Mitglieder 'Lines' $m.Lines
         Beenden 6 "Stab $($sb.name) nicht anlegbar."
@@ -594,6 +631,20 @@ foreach ($sb in $d.staebe) {
     $erste = $false
 }
 Schreib "  $($st.Count) Staebe"
+
+<#  NACHGESEHEN. DefineAsBeam meldet einen Fehler als negative Zahl; das
+    faengt der Block oben ab. Bleibt die Frage, ob AxisVM die Linie danach
+    wirklich als Balken fuehrt - IsBeam sagt es. Eine Stichprobe genuegt,
+    746 Abfragen ueber COM waeren teuer erkauft.                          #>
+$namen = @($st.Keys)
+$stich = @($namen[0], $namen[[int]($namen.Count / 2)], $namen[-1])
+foreach ($nm in $stich) {
+    $ib = $null
+    try { $ib = $m.Lines.Item($st[$nm]).IsBeam } catch { }
+    if ($ib -ne 1) { Beenden 6 "Stab $nm ist kein Balken (IsBeam = $ib) - Material oder Querschnitt haben nicht gegriffen." }
+}
+Schreib "  Stichprobe IsBeam: $($stich -join ', ') - alle Balken."
+
 Schreib '  Die lokale z-Richtung (lcsZ) wird NICHT gesetzt - AxisVM waehlt sie'
 Schreib '  selbst. Fuer die Lasten ist das ohne Belang (global aufgebracht),'
 Schreib '  fuer das ABLESEN von My/Mz je Stab ist es zu pruefen.'
@@ -633,7 +684,7 @@ foreach ($a in $d.auflager) {
     $r = Versuche "Auflager $($a.ende)" @(
         @{ name = 'NodalSupports.AddNodalGlobal(RStiffnesses, RNonLinearity, RResistances, Knoten)'; tu = {
             $m.NodalSupports.AddNodalGlobal($stf, $nl, $ws, $n) } }
-    )
+    ) -Positiv
     if (-not $r.ok) { Mitglieder 'NodalSupports' $m.NodalSupports; Beenden 7 "Auflager $($a.ende) nicht anlegbar." }
     Schreib ("    {0} an Knoten {1}:  x {2:N0}  y {3:N0}  z {4:N0}  xx {5:N0}  yy {6:N1}  zz {7:N0}" -f
              $a.ende, $n, $stf.x, $stf.y, $stf.z, $stf.xx, $stf.yy, $stf.zz)
@@ -649,7 +700,7 @@ $lf = @{}
 foreach ($f in $d.lastfaelle) {
     $r = Versuche "Lastfall $($f.key)" @(
         @{ name = 'LoadCases.Add(Name, lctStandard)'; tu = { $m.LoadCases.Add($f.label, $lctNormal) } }
-    ) -Leise:($lf.Count -gt 0)
+    ) -Leise:($lf.Count -gt 0) -Positiv
     if (-not $r.ok) { Mitglieder 'LoadCases' $m.LoadCases; Beenden 8 "Lastfall $($f.label) nicht anlegbar." }
     $lf[$f.key] = $r.wert
 }
@@ -676,7 +727,7 @@ foreach ($p in $d.lasten.punkt) {
     switch ($p.richtung) { 'X' { $r.Fx = $p.wert } 'Y' { $r.Fy = $p.wert } 'Z' { $r.Fz = $p.wert } }
     $e = Versuche 'Punktlast' @(
         @{ name = 'Loads.AddNodalForce(RLoadNodalForce)'; tu = { $m.Loads.AddNodalForce($r) } }
-    ) -Leise:($nP -gt 0)
+    ) -Leise:($nP -gt 0) -Positiv
     if (-not $e.ok) { Mitglieder 'Loads' $m.Loads; Beenden 9 'Punktlast nicht setzbar.' }
     $nP++
 }
@@ -693,7 +744,7 @@ foreach ($p in $d.lasten.moment) {
     switch ($p.richtung) { 'X' { $r.Mx = $p.wert } 'Y' { $r.My = $p.wert } 'Z' { $r.Mz = $p.wert } }
     $e = Versuche 'Punktmoment' @(
         @{ name = 'Loads.AddNodalForce(RLoadNodalForce), M-Anteil'; tu = { $m.Loads.AddNodalForce($r) } }
-    ) -Leise:($nM -gt 0)
+    ) -Leise:($nM -gt 0) -Positiv
     if (-not $e.ok) { Beenden 9 'Punktmoment nicht setzbar.' }
     $nM++
 }
@@ -719,7 +770,7 @@ foreach ($p in $d.lasten.strecke) {
     $r.Trapezoid = $lbFalsch
     $e = Versuche 'Streckenlast' @(
         @{ name = 'Loads.AddBeamDistributed(RLoadBeamDistributed)'; tu = { $m.Loads.AddBeamDistributed($r) } }
-    ) -Leise:($nQ -gt 0)
+    ) -Leise:($nQ -gt 0) -Positiv
     if (-not $e.ok) { Beenden 9 'Streckenlast nicht setzbar.' }
     $nQ++
 }
