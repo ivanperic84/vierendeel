@@ -428,6 +428,15 @@ if ($Json) {
     if ($d.format -ne 'tragjoch-stabmodell') {
         Beenden 1 "Die Datei hat das Format '$($d.format)', erwartet 'tragjoch-stabmodell'."
     }
+    if ($d.tragwerk.verschoben -and $d.tragwerk.verschoben.Count -gt 0) {
+        Schreib "  $($d.tragwerk.verschoben.Count) Schnitte wurden zusammengelegt:"
+        foreach ($v in $d.tragwerk.verschoben) {
+            Schreib ("      x {0,8:N3} -> {1,8:N3}   {2,6:+0.0;-0.0} mm" -f
+                     $v.von, $v.nach, $v.betrag_mm)
+        }
+        Schreib '  So entstehen im Gurt keine Millimeterstuecke mit dem'
+        Schreib '  Ersatzquerschnitt - die verdaeben sonst die Kondition.'
+    }
     Schreib ("  $($d.tragwerk.bezeichnung)  -  $($d.knoten.Count) Knoten  -  " +
              "$($d.staebe.Count) Staebe  -  $($d.querschnitte.Count) Querschnitte")
     Schreib ("  Einheiten: $($d.einheiten.laenge) / $($d.einheiten.kraft) / " +

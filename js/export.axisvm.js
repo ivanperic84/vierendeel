@@ -90,6 +90,62 @@ const STARR = { name: 'STARR', h: 500, b: 500 };
 /** Rechteck-Ersatzquerschnitt des Anbauteil-Arms: steif, ohne Eigengewicht. */
 const ARM = { name: 'ARM', h: 300, b: 300 };
 
+/**
+ * KLEINSTER SINNVOLLER SCHNITTABSTAND IM GURT [m].
+ *
+ * Zwei Schnitte 10 mm auseinander erzeugen ein 10-mm-Gurtstück mit dem
+ * 500 × 500 mm starken Ersatzquerschnitt. Ein solches Element ist um
+ * Grössenordnungen steifer als seine Nachbarn und verdirbt die Kondition
+ * der Steifigkeitsmatrix - der Löser rechnet es, aber ungenau.
+ *
+ * 25 mm ist die Grenze, unterhalb derer zwei Schnitte dasselbe meinen.
+ * Sie liegt bewusst unter der kleinsten wirklichen Blechbreite (90 mm) und
+ * über den Versatzstummeln der Bleche (9.6…23 mm), die absichtlich kurz
+ * sind und nicht angetastet werden.
+ */
+const MIN_SCHNITT = 0.025;
+
+/**
+ * LEGT ZU ENGE SCHNITTE ZUSAMMEN.
+ *
+ * Nicht jeder Schnitt wiegt gleich viel. Stationen, Blechkanten und die
+ * Jochenden bestimmen das Tragwerk - sie bleiben, wo sie sind. Die Reihen
+ * eines Anbauteils dürfen dagegen ein paar Millimeter wandern; wo sie einem
+ * wichtigen Schnitt zu nahe kommen, rücken sie auf ihn.
+ *
+ * `beweglich` wird IN DER ÜBERGEBENEN REIHENFOLGE abgearbeitet, nicht nach
+ * Lage sortiert: wer zuerst kommt, bleibt stehen, und die späteren rasten
+ * auf ihn ein. Deshalb gehört die Mitte eines Anbauteils an den Anfang und
+ * seine Reihen dahinter - sonst überlebt die erste Reihe und das Bauteil
+ * wandert um das halbe Raster.
+ *
+ * @param {Iterable<number>} fest    Schnitte, die bleiben müssen
+ * @param {Iterable<number>} beweglich Schnitte, nach Wichtigkeit geordnet
+ * @param {number} mindest           kleinster Abstand [m]
+ * @returns {{xs:number[], verschoben:Array}}
+ */
+export function schnitteZusammenlegen(fest, beweglich, mindest = MIN_SCHNITT) {
+  const xs = [...new Set([...fest].map(r6))].sort((a, b) => a - b);
+  const verschoben = [];
+
+  [...new Set([...beweglich].map(r6))].forEach((x) => {
+    let naechster = null, abstand = Infinity;
+    xs.forEach((v) => {
+      const dd = Math.abs(v - x);
+      if (dd < abstand) { abstand = dd; naechster = v; }
+    });
+    if (abstand < 1e-9) return;                    // liegt schon dort
+    if (abstand < mindest) {
+      verschoben.push({ von: x, nach: naechster, betrag: naechster - x });
+      return;
+    }
+    xs.push(x);
+    xs.sort((a, b) => a - b);
+  });
+
+  return { xs, verschoben };
+}
+
 const mm = (v) => v / 1000;
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
@@ -279,24 +335,38 @@ export function stabmodell(m, opt = {}) {
   // Geschnitten wird an beiden Anschlussreihen und dazwischen: der Gurt
   // braucht dort Knoten, sonst hängen die Stummel im Leeren.
   const imFeld = (x) => r6(Math.min(Math.max(x, 0), m.L));
-  const anschlagX = new Set();
-  (m.anbauteileFlach ?? []).forEach((a) => {
-    const r = (a.raster ?? 0) / 2;
-    anschlagX.add(imFeld(a.x));
-    if (r > 0) { anschlagX.add(imFeld(a.x - r)); anschlagX.add(imFeld(a.x + r)); }
-  });
 
-  const schnitte = new Set([0, r6(m.L)]);
+  // FEST: was das Tragwerk bestimmt - Enden, Stationen, Blechkanten.
+  const fest = new Set([0, r6(m.L)]);
   st.forEach((station) => {
-    schnitte.add(r6(station.x));
+    fest.add(r6(station.x));
     const d = steifBis.get(station.x);
     if (d) {
-      schnitte.add(r6(Math.max(0, station.x - d)));
-      schnitte.add(r6(Math.min(m.L, station.x + d)));
+      fest.add(r6(Math.max(0, station.x - d)));
+      fest.add(r6(Math.min(m.L, station.x + d)));
     }
   });
-  anschlagX.forEach((x) => schnitte.add(x));
-  const xs = [...schnitte].sort((a, b) => a - b);
+
+  // BEWEGLICH, nach Wichtigkeit: erst alle Anbauteilmitten, dann die Reihen.
+  const beweglich = [];
+  (m.anbauteileFlach ?? []).forEach((a) => beweglich.push(imFeld(a.x)));
+  (m.anbauteileFlach ?? []).forEach((a) => {
+    const r = (a.raster ?? 0) / 2;
+    if (r > 0) { beweglich.push(imFeld(a.x - r)); beweglich.push(imFeld(a.x + r)); }
+  });
+
+  const { xs, verschoben } = schnitteZusammenlegen(fest, beweglich);
+
+  /** Auf den nächsten wirklich vorhandenen Schnitt. */
+  const aufSchnitt = (x) => {
+    const z = imFeld(x);
+    let treffer = z, abstand = Infinity;
+    xs.forEach((v) => {
+      const d = Math.abs(v - z);
+      if (d < abstand) { abstand = d; treffer = v; }
+    });
+    return abstand <= MIN_SCHNITT ? treffer : z;
+  };
 
   /** Liegt x innerhalb eines steifen Knotenbereichs? */
   const imKnoten = (x) => st.some((station) => {
@@ -507,7 +577,7 @@ export function stabmodell(m, opt = {}) {
 
   const arme = [];
   [...gruppiert.values()].forEach((a, k) => {
-    const x0 = imFeld(a.x);
+    const x0 = aufSchnitt(a.x);
     const r = (a.raster ?? 0) / 2;
     const zOG = zOben;
     const zUG = zOben - (m.verlauf ? m.verlauf.hAn(a.x) : m.h);
@@ -544,7 +614,12 @@ export function stabmodell(m, opt = {}) {
      * der Stummel keine Längskraft überträgt. Wirkung gleich, Richtung
      * eindeutig - eine Freigabe in der Stabachse ist überall dieselbe.
      */
-    const reihen = r > 0 ? [imFeld(a.x - r), imFeld(a.x + r)] : [x0];
+    // Rasten beide Reihen auf dieselbe Stelle ein - bei einem Raster von
+    // 20 mm ist das so -, dann sind es keine zwei Reihen mehr, sondern ein
+    // Anschluss. Dann gilt Variante A, biegesteif.
+    const reihen = [...new Set(r > 0
+      ? [aufSchnitt(a.x - r), aufSchnitt(a.x + r)]
+      : [x0])];
     const mitte = {};
 
     ebenen.forEach((gurt) => {
@@ -586,7 +661,7 @@ export function stabmodell(m, opt = {}) {
     arme.push({ teil: a, knoten: last });
   });
 
-  return { ...s, auflager, arme, knotenmodell: km, zOben,
+  return { ...s, auflager, arme, knotenmodell: km, zOben, verschoben,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -1067,6 +1142,11 @@ export function stabmodellJson(m, opt = {}) {
       knotenmodell: bau.knotenmodell,
       auflagermodell: bau.auflager[0]?.modell ?? null,
       bauweise: m.bauweise ?? 'neu',
+      // Schnitte, die zusammengelegt wurden, damit im Gurt keine
+      // Millimeterstücke entstehen. Nachvollziehbar statt stillschweigend.
+      verschoben: (bau.verschoben ?? []).map((v) => ({
+        von: r6(v.von), nach: r6(v.nach), betrag_mm: r6(v.betrag * 1000),
+      })),
       bezeichnung: `Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
     },
     material: { name: stahl, art: 'Steel', rho: 7850, E: 210000, G: 81000,

@@ -2476,6 +2476,49 @@ titel('19  AxisVM-Export (SAF)');
          !mitS.staebe.some((x) => /^BV_L_0_[13]$/.test(x.name)));
   }
 
+  // --- Zu enge Schnitte zusammenlegen ---------------------------------------
+  {
+    const f = AX.schnitteZusammenlegen;
+    // Die Mitte bleibt stehen, die Reihen rasten auf sie ein.
+    const r1 = f([0, 6.25, 6.35, 20], [6.30, 6.29, 6.31]);
+    wahr('Die Mitte überlebt, die Reihen rasten ein',
+         r1.xs.includes(6.3) && !r1.xs.includes(6.29) && !r1.xs.includes(6.31));
+    pruef('Zwei Verschiebungen vermerkt', r1.verschoben.length, 2, 1e-12, 'Stk');
+    pruef('Betrag der Verschiebung', Math.abs(r1.verschoben[0].betrag), 0.01, 1e-9, 'm');
+
+    // Feste Schnitte bleiben, auch wenn sie eng liegen.
+    const r2 = f([1.000, 1.010], []);
+    pruef('Feste Schnitte werden nicht angetastet', r2.xs.length, 2, 1e-12, 'Stk');
+
+    // Weit genug entfernt: der bewegliche bleibt eigenständig.
+    const r3 = f([0, 20], [10]);
+    wahr('Genug Abstand, kein Einrasten',
+         r3.xs.includes(10) && r3.verschoben.length === 0);
+
+    // Ein bewegliches rastet auf ein festes ein, nicht umgekehrt.
+    const r4 = f([5.000], [5.010]);
+    wahr('Der bewegliche rastet auf den festen',
+         r4.xs.length === 1 && r4.xs[0] === 5 && r4.verschoben[0].nach === 5);
+  }
+
+  // Am ganzen Modell: keine zu kurzen Gurtstücke mehr.
+  {
+    const mitTeil = rechne({ ...basis({ typ: 'J90', L: 20 }),
+      anbauteile: [{ ...teil({ name: 'HS', x: 6.3, Gz: 12 }),
+                     befestigung: 'durchgehend', raster: 0.02 }],
+    }).modell;
+    const b = AX.stabmodell(mitTeil, { knotenmodell: 'anschnitt' });
+    const gx = [...new Set([...b.knoten.values()]
+      .filter((k) => k.name.startsWith('OGL_')).map((k) => k.x))].sort((p, q) => p - q);
+    const eng = gx.filter((x, i) => i > 0 && x - gx[i - 1] < 0.025 - 1e-9);
+    wahr('Keine Gurtschnitte enger als 25 mm', eng.length === 0);
+    wahr('Das enge Raster wird zu einer Reihe',
+         b.staebe.filter((x) => /^AT\d+_UG_R\d[LR]$/.test(x.name)).length === 2);
+    wahr('Und damit biegesteif - kein zweiter Ast',
+         !b.staebe.some((x) => /^AT\d+_UG_B2$/.test(x.name)));
+    wahr('Die Verschiebung wird vermerkt', b.verschoben.length > 0);
+  }
+
   // --- Anschluss der Hängestützen -------------------------------------------
   {
     const mitAnbau = (bef, raster) => {
