@@ -852,6 +852,97 @@ Schreib '  Die lokale z-Richtung (lcsZ) wird NICHT gesetzt - AxisVM waehlt sie'
 Schreib '  selbst. Fuer die Lasten ist das ohne Belang (global aufgebracht),'
 Schreib '  fuer das ABLESEN von My/Mz je Stab ist es zu pruefen.'
 
+# --- 6b - Lokale Stabachsen --------------------------------------------------
+Abschnitt '6b - Lokale Stabachsen'
+<#  WARUM DAS SEIN MUSS.
+    AxisVM legt ohne Referenz die lokale z-Achse in die VERTIKALEBENE. Fuer
+    die Gurte trifft das unsere Vorgabe [0,0,1]. Fuer die BLECHE nicht: ihr
+    Rechteck muss mit der Breite in die Jochachse stehen, also z nach
+    [1,0,0]. Stuende ein 160x10-Blech hochkant, laege seine Biegesteifigkeit
+    um (160/10)^2 daneben - das Modell rechnete klaglos Unsinn.
+
+    WIE OHNE SIGNATUR. Die Typbibliothek ist geladen, also wird die Signatur
+    GELESEN statt geraten: unter den Add-Methoden von IAxisVMReferences wird
+    die gesucht, deren Parameter sich aus einem Vektor fuellen lassen -
+    Namen wie x/y/z, dazu ein Name und Aufzaehlungen. Was genommen wurde,
+    steht im Bericht.                                                     #>
+Signaturen 'IAxisVMReferences' ''
+
+$refs = @{}
+$refFehler = 0
+
+function ReferenzFuer($vx, $vy, $vz) {
+    $schluessel = "$vx|$vy|$vz"
+    if ($refs.ContainsKey($schluessel)) { return $refs[$schluessel] }
+
+    $t = $script:typen | Where-Object { $_.Name -eq 'IAxisVMReferences' } | Select-Object -First 1
+    if (-not $t) { return $null }
+
+    # Einfache Signaturen zuerst: wenige Parameter, keine Verbund-Typen.
+    $mths = $t.GetMethods() |
+            Where-Object { $_.Name -like 'Add*' } |
+            Sort-Object { $_.GetParameters().Count }
+
+    $kand = @()
+    foreach ($mth in $mths) {
+        $ps = $mth.GetParameters()
+        $schwer = $ps | Where-Object {
+            $n = $_.ParameterType.Name.TrimEnd('&')
+            $n -notin 'String', 'Double', 'Int32', 'Single' -and
+            -not (($script:typen | Where-Object { $_.Name -eq $n }).IsEnum)
+        }
+        if ($schwer) { continue }
+
+        $arg = @()
+        foreach ($p in $ps) {
+            $n = $p.Name
+            $arg += switch -Regex ($n) {
+                '^(x|X|vx|dx)$'      { $vx; break }
+                '^(y|Y|vy|dy)$'      { $vy; break }
+                '^(z|Z|vz|dz)$'      { $vz; break }
+                '^(name|Name)$'      { "LCS_${vx}_${vy}_${vz}"; break }
+                default {
+                    if ($p.ParameterType.Name -eq 'String') { "LCS_${vx}_${vy}_${vz}" } else { 0 }
+                }
+            }
+        }
+        # Der Aufruf laeuft ueber InvokeMember: an einem COM-Objekt gibt es
+        # kein MethodInfo, das man mit .Invoke() bedienen koennte.
+        $bez = "$($mth.Name)($(($ps | ForEach-Object { $_.Name }) -join ', '))"
+        $a = [object[]]$arg
+        $nm = $mth.Name
+        $kand += @{ name = $bez; tu = {
+            $obj = $script:m.References
+            $obj.GetType().InvokeMember($nm,
+                [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $a)
+        }.GetNewClosure() }
+    }
+    if (-not $kand.Count) { return $null }
+
+    $r = Versuche "Referenz [$vx $vy $vz]" $kand -Positiv
+    $refs[$schluessel] = if ($r.ok) { $r.wert } else { $null }
+    if (-not $r.ok) { Mitglieder 'MODELL.References' $script:m.References }
+    return $refs[$schluessel]
+}
+
+$nRef = 0
+foreach ($sb in $d.staebe) {
+    $li = $st[$sb.name]
+    if (-not $li -or -not $sb.lcsZ) { continue }
+    $v = $sb.lcsZ
+    $ref = ReferenzFuer $v[0] $v[1] $v[2]
+    if (-not $ref) { $refFehler++; continue }
+    try { $m.Lines.Item($li).Reference = $ref; $nRef++ } catch { $refFehler++ }
+}
+Schreib "  $nRef Staeben eine Referenz zugewiesen, $($refs.Count) Richtungen"
+if ($refFehler -gt 0) {
+    Schreib ''
+    Schreib "  >>> WARNUNG: bei $refFehler Staeben blieb die Achse ungesetzt."
+    Schreib '  >>> Die Bindebleche stehen dann hochkant statt flach, und ihre'
+    Schreib '  >>> Biegesteifigkeit liegt um (Breite/Dicke)^2 daneben.'
+    Schreib '  >>> NICHT rechnen; die Signaturen oben zurueckschicken.'
+}
+
 # --- 7 - Auflager ------------------------------------------------------------
 Abschnitt '7 - Auflager'
 <#  AddNodalGlobal nimmt FEDERZAHLEN unmittelbar - RStiffnesses mit x, y, z,
