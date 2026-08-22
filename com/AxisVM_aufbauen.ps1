@@ -8,20 +8,21 @@
     Querschnitte, Knoten, Staebe, Auflager, Lastfaelle und Lasten. Gerechnet
     wird NICHT - das bleibt Ihre Entscheidung im Programm.
 
-    WARUM DIESES SKRIPT SICH SELBST FINDET
-    Die Namen der COM-Methoden verschieben sich zwischen den AxisVM-Fassungen:
-    was in der einen `Lines.Add` heisst, heisst in der naechsten anders oder
-    nimmt andere Argumente. Ein Skript, das eine Schreibweise fest annimmt,
-    scheitert mitten im Aufbau und laesst ein halbes Modell zurueck.
+    GEGEN EINE VERMESSENE SCHNITTSTELLE, NICHT GEGEN EINE VERMUTETE
+    Zwei Laeufe auf AxisVM 18 r1m De (2026-08-21/22) haben ergeben, was diese
+    Fassung wirklich anbietet. Daraus stammt jede Methode und jede Konstante
+    hier - AddL nimmt METER, das Auflager nimmt FEDERZAHLEN, der Verbund-Typ
+    geht SPAET GEBUNDEN durch. Nichts davon ist geraten.
 
-    Dieses Skript probiert deshalb je Schritt MEHRERE bekannte Schreibweisen
-    durch, merkt sich die erste, die traegt, und schreibt am Ende einen
-    Bericht. Findet es fuer einen Schritt gar nichts, listet es auf, was das
-    betreffende Objekt WIRKLICH anbietet, und haelt an - statt weiterzubauen.
+    Was NICHT durch Ausprobieren zu klaeren war, wird zurueckgemessen: eine
+    Einheitenverwechslung bei den Querschnitten wirft keinen Fehler, sie
+    liefert still einen tausendfach falschen Querschnitt. Deshalb liest
+    Schritt 4 die Flaeche zurueck und haelt an, wenn sie nicht passt.
 
-    >>> Es ist gegen keine laufende AxisVM-Fassung erprobt. Der erste Lauf ist
-    >>> deshalb zugleich der Versuch: er baut das Modell, oder er sagt genau,
-    >>> woran es liegt. Den Bericht zurueckschicken. <<<
+    Wo es doch Spielraum gibt, probiert das Skript je Schritt mehrere
+    Schreibweisen durch und merkt sich die erste, die traegt. Findet es fuer
+    einen Schritt gar nichts, listet es auf, was das Objekt WIRKLICH
+    anbietet, und haelt an - statt ein halbes Modell zurueckzulassen.
 
     AUFRUF
         Doppelklick auf AxisVM_aufbauen.cmd
@@ -100,9 +101,12 @@ function Versuche([string]$schritt, $kandidaten, [switch]$Leise) {
             return @{ ok = $true; wert = $wert; name = $k.name }
         } catch {
             if (-not $Leise) {
-                $m = $_.Exception.Message -replace "`r?`n", ' '
-                if ($m.Length -gt 90) { $m = $m.Substring(0, 90) + '...' }
-                Schreib ("  {0,-34} {1}  ->  {2}" -f '', $k.name, $m)
+                # NICHT $m nennen: das ist im ganzen Skript das Modell.
+                # Die Bloecke sehen zwar ihren eigenen Gueltigkeitsbereich,
+                # aber beim Lesen stolpert man darueber.
+                $grund = $_.Exception.Message -replace "`r?`n", ' '
+                if ($grund.Length -gt 90) { $grund = $grund.Substring(0, 90) + '...' }
+                Schreib ("  {0,-34} {1}  ->  {2}" -f '', $k.name, $grund)
             }
         }
     }
@@ -127,6 +131,138 @@ function Mitglieder([string]$titel, $obj) {
 Schreib "AxisVM COM-Aufbau  -  $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
 Schreib ('=' * 78)
 Schreib "PowerShell $($PSVersionTable.PSVersion)  -  $(if ([Environment]::Is64BitProcess) {'64'} else {'32'})-bit"
+
+
+<#  DIE TYPBIBLIOTHEK.
+    AxisVM nimmt die wichtigen Angaben nicht als einzelne Zahlen, sondern als
+    Verbund: Lines.Add(i, j, art, RLineGeomData), AddNodalForce(
+    RLoadNodalForce), AddNodalGlobal(RStiffnesses, ...). PowerShell kennt
+    diese Typen nicht - sie stehen in der Typbibliothek, die in der
+    Programmdatei von AxisVM steckt.
+
+    .NET wandelt eine Typbibliothek zur Laufzeit in eine Baugruppe - dasselbe,
+    was tlbimp.exe tut, nur ohne SDK. Gemessen am 2026-08-22: 1643 Typen, und
+    die so angelegten Verbund-Typen gehen SPAET GEBUNDEN durch. Frueh binden
+    muss man also nicht.
+
+    Rueckgabe: die Typen der Baugruppe, oder $null.                        #>
+function TypbibliothekLaden {
+if (-not ('TlbHilfe0' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+public class TlbSenke : ITypeLibImporterNotifySink {
+public void ReportEvent(ImporterEventKind k, int c, string m) { }
+public Assembly ResolveRef(object tl) { return null; }
+}
+
+public class TlbHilfe0 {
+// [MarshalAs(UnmanagedType.Interface)] ist der Punkt: ohne das nimmt
+// .NET fuer "object" eine VARIANT an, und LoadTypeLibEx scheitert mit
+// DISP_E_BADVARTYPE, obwohl der Aufruf selbst richtig ist.
+[DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+public static extern void LoadTypeLibEx(string datei, int art,
+    [MarshalAs(UnmanagedType.Interface)] out object tlb);
+
+[DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+public static extern void LoadTypeLib(string datei,
+    [MarshalAs(UnmanagedType.Interface)] out object tlb);
+
+[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+public static extern int GetLongPathName(string kurz, StringBuilder lang, int n);
+}
+'@
+}
+
+$exe = $null
+$ordner = $null
+$r = Versuche 'Programmdatei finden' @(
+    @{ name = 'laufender Prozess'; tu = {
+        $p = Get-Process -Name 'AxisVM*' -ErrorAction Stop |
+             Where-Object { $_.Path } | Select-Object -First 1
+        if (-not $p) { throw 'kein Prozess mit Pfad' }
+        $p.Path } },
+    @{ name = 'Registry ProgID -> LocalServer32'; tu = {
+        $c = (Get-ItemProperty 'HKLM:\SOFTWARE\Classes\AxisVM.AxisVMApplication\CLSID' -ErrorAction Stop).'(default)'
+        $s = (Get-ItemProperty "HKLM:\SOFTWARE\Classes\CLSID\$c\LocalServer32" -ErrorAction Stop).'(default)'
+        ($s -replace '^"([^"]+)".*$', '$1') -replace '\s+/.*$', '' } }
+)
+if ($r.ok) { $exe = $r.wert; Schreib "  $exe" }
+
+# --- Ordner von AxisVM ansehen ------------------------------------------
+# Liegt dort schon eine fertige Interop-Baugruppe oder eine .tlb, so ist
+# das der kuerzere Weg als das Uebersetzen zur Laufzeit.
+if ($exe) {
+    $ordner = Split-Path -Parent $exe
+    try {
+        $lang = New-Object System.Text.StringBuilder 260
+        [void][TlbHilfe0]::GetLongPathName($ordner, $lang, 260)
+        if ($lang.Length -gt 0) { $ordner = $lang.ToString() }
+    } catch { }
+    Schreib "  Ordner: $ordner"
+    foreach ($muster in '*.tlb', 'Interop*.dll', 'AxisVM*.dll') {
+        $tr = Get-ChildItem -LiteralPath $ordner -Filter $muster -File -ErrorAction SilentlyContinue
+        foreach ($t in $tr) { Schreib ("      {0,-44} {1,10:N0} Byte" -f $t.Name, $t.Length) }
+    }
+}
+
+$asm = $null
+if ($exe) {
+    <#  DIE TYPBIBLIOTHEK HOLEN.
+        Beim ersten Versuch stand hier nur "out object" - und .NET
+        marshallt das als VARIANT*, waehrend LoadTypeLibEx einen
+        Schnittstellenzeiger ITypeLib** zurueckgibt. Ergebnis:
+        DISP_E_BADVARTYPE, "Die angegebene OLE-Variante ist ungueltig".
+        Es fehlte allein [MarshalAs(UnmanagedType.Interface)].         #>
+    $quellen = @()
+    $quellen += @{ name = 'aus der Programmdatei'; pfad = $exe }
+    if ($ordner) {
+        Get-ChildItem -LiteralPath $ordner -Filter '*.tlb' -File -ErrorAction SilentlyContinue |
+            ForEach-Object { $quellen += @{ name = "aus $($_.Name)"; pfad = $_.FullName } }
+    }
+    # GetNewClosure() haelt $p fest. Ohne das sehen ALLE Bloecke den
+    # letzten Schleifenwert - PowerShell bindet Variablen, nicht Werte.
+    $kand = @()
+    foreach ($q in $quellen) {
+        $p = $q.pfad
+        $kand += @{ name = "LoadTypeLibEx $($q.name)"; tu = {
+            $t = $null; [TlbHilfe0]::LoadTypeLibEx($p, 2, [ref]$t); $t }.GetNewClosure() }
+        $kand += @{ name = "LoadTypeLib $($q.name)"; tu = {
+            $t = $null; [TlbHilfe0]::LoadTypeLib($p, [ref]$t); $t }.GetNewClosure() }
+    }
+    $rt = Versuche 'Typbibliothek lesen' $kand
+    if ($rt.ok -and $rt.wert) {
+        try {
+            $wandler = New-Object System.Runtime.InteropServices.TypeLibConverter
+            $asm = $wandler.ConvertTypeLibToAssembly(
+                $rt.wert, 'Interop.AxisVM.dll', 0, (New-Object TlbSenke),
+                $null, $null, 'AxisVM', $null)
+            Schreib "  Baugruppe erzeugt: $($asm.GetTypes().Count) Typen."
+            $gefunden.Add('Typbibliothek -> Interop-Baugruppe zur Laufzeit')
+        } catch {
+            Schreib "  Umwandlung fehlgeschlagen: $($_.Exception.Message)"
+        }
+    }
+}
+
+    if (-not $asm) { return $null }
+    try { return $asm.GetTypes() }
+    catch [Reflection.ReflectionTypeLoadException] {
+        return ($_.Exception.Types | Where-Object { $_ })
+    }
+}
+
+<#  Einen Verbund-Typ anlegen. PowerShell setzt Felder auf einem so
+    erzeugten Wert unmittelbar - $r.Fx = 1.0 wirkt.                       #>
+function NeuerSatz([string]$name) {
+    $t = $script:typen | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+    if (-not $t) { Beenden 11 "Verbund-Typ $name fehlt in der Typbibliothek." }
+    [Activator]::CreateInstance($t)
+}
+
 
 # --- Modelldatei -------------------------------------------------------------
 if (-not $Json) {
@@ -187,6 +323,14 @@ $idx = $r.wert
 $m = $app.Models.Item($idx)
 Schreib "  Modell $idx"
 
+# --- Typbibliothek -----------------------------------------------------------
+Abschnitt 'Typbibliothek'
+$typen = TypbibliothekLaden
+if (-not $typen) {
+    Beenden 11 ('Die Typbibliothek liess sich nicht lesen. Ohne sie sind ' +
+                'Staebe, Auflager und Lasten nicht zu setzen.')
+}
+
 if ($NurPruefen) {
     Abschnitt 'Nur erkundet - was das Modell anbietet'
     Mitglieder 'MODELL' $m
@@ -212,112 +356,7 @@ if ($NurPruefen) {
     # =======================================================================
     Abschnitt 'Verbund-Typen (Records) und Aufzaehlungen'
 
-    if (-not ('TlbHilfe0' -as [type])) {
-        Add-Type -TypeDefinition @'
-using System;
-using System.Text;
-using System.Reflection;
-using System.Runtime.InteropServices;
-
-public class TlbSenke : ITypeLibImporterNotifySink {
-    public void ReportEvent(ImporterEventKind k, int c, string m) { }
-    public Assembly ResolveRef(object tl) { return null; }
-}
-
-public class TlbHilfe0 {
-    // [MarshalAs(UnmanagedType.Interface)] ist der Punkt: ohne das nimmt
-    // .NET fuer "object" eine VARIANT an, und LoadTypeLibEx scheitert mit
-    // DISP_E_BADVARTYPE, obwohl der Aufruf selbst richtig ist.
-    [DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    public static extern void LoadTypeLibEx(string datei, int art,
-        [MarshalAs(UnmanagedType.Interface)] out object tlb);
-
-    [DllImport("oleaut32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    public static extern void LoadTypeLib(string datei,
-        [MarshalAs(UnmanagedType.Interface)] out object tlb);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    public static extern int GetLongPathName(string kurz, StringBuilder lang, int n);
-}
-'@
-    }
-
-    $exe = $null
-    $ordner = $null
-    $r = Versuche 'Programmdatei finden' @(
-        @{ name = 'laufender Prozess'; tu = {
-            $p = Get-Process -Name 'AxisVM*' -ErrorAction Stop |
-                 Where-Object { $_.Path } | Select-Object -First 1
-            if (-not $p) { throw 'kein Prozess mit Pfad' }
-            $p.Path } },
-        @{ name = 'Registry ProgID -> LocalServer32'; tu = {
-            $c = (Get-ItemProperty 'HKLM:\SOFTWARE\Classes\AxisVM.AxisVMApplication\CLSID' -ErrorAction Stop).'(default)'
-            $s = (Get-ItemProperty "HKLM:\SOFTWARE\Classes\CLSID\$c\LocalServer32" -ErrorAction Stop).'(default)'
-            ($s -replace '^"([^"]+)".*$', '$1') -replace '\s+/.*$', '' } }
-    )
-    if ($r.ok) { $exe = $r.wert; Schreib "  $exe" }
-
-    # --- Ordner von AxisVM ansehen ------------------------------------------
-    # Liegt dort schon eine fertige Interop-Baugruppe oder eine .tlb, so ist
-    # das der kuerzere Weg als das Uebersetzen zur Laufzeit.
-    if ($exe) {
-        $ordner = Split-Path -Parent $exe
-        try {
-            $lang = New-Object System.Text.StringBuilder 260
-            [void][TlbHilfe0]::GetLongPathName($ordner, $lang, 260)
-            if ($lang.Length -gt 0) { $ordner = $lang.ToString() }
-        } catch { }
-        Schreib "  Ordner: $ordner"
-        foreach ($muster in '*.tlb', 'Interop*.dll', 'AxisVM*.dll') {
-            $tr = Get-ChildItem -LiteralPath $ordner -Filter $muster -File -ErrorAction SilentlyContinue
-            foreach ($t in $tr) { Schreib ("      {0,-44} {1,10:N0} Byte" -f $t.Name, $t.Length) }
-        }
-    }
-
-    $asm = $null
-    if ($exe) {
-        <#  DIE TYPBIBLIOTHEK HOLEN.
-            Beim ersten Versuch stand hier nur "out object" - und .NET
-            marshallt das als VARIANT*, waehrend LoadTypeLibEx einen
-            Schnittstellenzeiger ITypeLib** zurueckgibt. Ergebnis:
-            DISP_E_BADVARTYPE, "Die angegebene OLE-Variante ist ungueltig".
-            Es fehlte allein [MarshalAs(UnmanagedType.Interface)].         #>
-        $quellen = @()
-        $quellen += @{ name = 'aus der Programmdatei'; pfad = $exe }
-        if ($ordner) {
-            Get-ChildItem -LiteralPath $ordner -Filter '*.tlb' -File -ErrorAction SilentlyContinue |
-                ForEach-Object { $quellen += @{ name = "aus $($_.Name)"; pfad = $_.FullName } }
-        }
-        # GetNewClosure() haelt $p fest. Ohne das sehen ALLE Bloecke den
-        # letzten Schleifenwert - PowerShell bindet Variablen, nicht Werte.
-        $kand = @()
-        foreach ($q in $quellen) {
-            $p = $q.pfad
-            $kand += @{ name = "LoadTypeLibEx $($q.name)"; tu = {
-                $t = $null; [TlbHilfe0]::LoadTypeLibEx($p, 2, [ref]$t); $t }.GetNewClosure() }
-            $kand += @{ name = "LoadTypeLib $($q.name)"; tu = {
-                $t = $null; [TlbHilfe0]::LoadTypeLib($p, [ref]$t); $t }.GetNewClosure() }
-        }
-        $rt = Versuche 'Typbibliothek lesen' $kand
-        if ($rt.ok -and $rt.wert) {
-            try {
-                $wandler = New-Object System.Runtime.InteropServices.TypeLibConverter
-                $asm = $wandler.ConvertTypeLibToAssembly(
-                    $rt.wert, 'Interop.AxisVM.dll', 0, (New-Object TlbSenke),
-                    $null, $null, 'AxisVM', $null)
-                Schreib "  Baugruppe erzeugt: $($asm.GetTypes().Count) Typen."
-                $gefunden.Add('Typbibliothek -> Interop-Baugruppe zur Laufzeit')
-            } catch {
-                Schreib "  Umwandlung fehlgeschlagen: $($_.Exception.Message)"
-            }
-        }
-    }
-
-    if ($asm) {
-        $typen = @()
-        try { $typen = $asm.GetTypes() }
-        catch [Reflection.ReflectionTypeLoadException] { $typen = $_.Exception.Types | Where-Object { $_ } }
-
+    if ($typen) {
         # --- die Verbund-Typen, auf die es ankommt --------------------------
         $wichtig = @(
             'RPoint3d','RLineGeomData','RNodalSupportSpringParams',
@@ -431,10 +470,6 @@ public class TlbHilfe0 {
             } catch { Schreib "  $($v.n): $($_.Exception.Message)" }
         }
         Schreib '  Erwartet fuer L 100x100x10:  A = 0.00192 m2'
-    } else {
-        Schreib ''
-        Schreib '  OHNE die Typbibliothek geht es nicht weiter - Lines, Auflager'
-        Schreib '  und saemtliche Lasten nehmen Verbund-Typen.'
     }
 
     try { $app.Models.Delete($idx) } catch { }
@@ -447,230 +482,259 @@ public class TlbHilfe0 {
 }
 
 
-<#  STAND DES BAUWEGS.
-    Der Bericht vom 2026-08-21 (AxisVM 18 r1m De) zeigt: Material, Quer-
-    schnitte, Knoten und Lastfaelle nehmen einfache Zahlen und tragen. Staebe,
-    Auflager und SAEMTLICHE Lasten nehmen dagegen Verbund-Typen -
-    Lines.Add(i, j, ELineGeomType, RLineGeomData), AddNodalGlobal_V153(
-    RNodalSupportSpringParams, int), AddBeamDistributed(RLoadBeamDistributed).
-    Die braucht es frueh gebunden, ueber die Typbibliothek.
+<#  KONSTANTEN DER SCHNITTSTELLE.
+    Alle am 2026-08-22 aus der Typbibliothek von AxisVM 18 r1m De gelesen,
+    keine davon geraten. Sie stehen hier beisammen, damit eine andere
+    Fassung an EINER Stelle nachgezogen wird.                              #>
+$lgtGerade   = 0    # ELineGeomType.lgtStraightLine
+$cspAnderes  = 0    # ECrossSectionProcess.cspOther
+$cspGewalzt  = 1    # ECrossSectionProcess.cspRolled
+$ndcSchweiz  = 7    # ENationalDesignCode.ndcSwiss_SIA26x
+$ndcEuroCode = 2    # ENationalDesignCode.ndcEuroCode
+$lctNormal   = 0    # ELoadCaseType.lctStandard
+$sysGlobal   = 0    # ESystem.sysGlobal
+$brdtLaenge  = 0    # EBeamRibDistributionType.brdtLength
+$lnlLinear   = 0    # ELineNonLinearity.lnlTensionAndCompression
+$lbFalsch    = 0    # ELongBoolean.lbFalse
 
-    Bauen wir trotzdem los, so stehen nach kurzer Zeit 607 Knoten in einem
-    Modell, das bei Schritt 6 abbricht und nichts traegt. Deshalb der Riegel:
-    erst messen, dann bauen.                                               #>
-if (-not $NurPruefen) {
-    Beenden 10 ('Der Bauweg ist noch nicht anschlussfaehig. Staebe, Auflager ' +
-                'und Lasten nehmen Verbund-Typen, die erst ueber die Typ- ' +
-                'bibliothek angelegt werden muessen. Bitte AxisVM_pruefen.cmd ' +
-                'laufen lassen und den Bericht zurueckschicken.')
-}
+# Waehrend des Aufbaus zeichnet AxisVM sonst jeden Knoten einzeln neu.
+try { $m.BeginUpdate() } catch { }
 
 # --- 3 - Material ------------------------------------------------------------
 Abschnitt '3 - Material'
 $stahl = $d.material.name
 $r = Versuche 'Material' @(
-    @{ name = "Materials.AddFromCatalog(1, '$stahl')"; tu = { $m.Materials.AddFromCatalog(1, $stahl) } },
-    @{ name = "Materials.AddFromCatalog(0, '$stahl')"; tu = { $m.Materials.AddFromCatalog(0, $stahl) } },
-    @{ name = "Materials.AddFromCatalog('$stahl')";    tu = { $m.Materials.AddFromCatalog($stahl) } },
-    @{ name = 'Materials.Add(...) von Hand';           tu = {
-        $m.Materials.Add($stahl, 1, $d.material.E * 1000, $d.material.nu,
-                         $d.material.alpha, $d.material.rho * 9.81 / 1000) } }
+    @{ name = "AddFromCatalog(ndcSwiss_SIA26x, '$stahl')";  tu = { $m.Materials.AddFromCatalog($ndcSchweiz, $stahl) } },
+    @{ name = "AddFromCatalog(ndcEuroCode, '$stahl')";      tu = { $m.Materials.AddFromCatalog($ndcEuroCode, $stahl) } }
 )
-if (-not $r.ok) { Mitglieder 'Materials' $m.Materials; Beenden 3 'Kein Material anlegbar.' }
+if (-not $r.ok) { Mitglieder 'Materials' $m.Materials; Beenden 3 "Material $stahl nicht anlegbar." }
 $iMat = $r.wert
+Schreib "  $stahl als Nummer $iMat"
 
 # --- 4 - Querschnitte --------------------------------------------------------
 Abschnitt '4 - Querschnitte'
-# Bevorzugt werden die AUSGERECHNETEN Werte (A, I_y, I_z, I_t in m2 bzw. m4):
-# sie sind eindeutig, waehrend die parametrischen Formen je Fassung anders
-# heissen und anders herum orientiert sind.
+<#  EINHEIT: METER. Gemessen, nicht angenommen - AddL(100, ...) liefert
+    Ax = 1900 m2, AddL(0.1, ...) liefert 0.0019 m2. Eine falsche Einheit
+    wirft hier KEINEN Fehler, sie liefert still einen tausendfach falschen
+    Querschnitt. Deshalb wird unten die Flaeche zurueckgelesen.            #>
+$mm = 0.001
 $qs = @{}
 foreach ($q in $d.querschnitte) {
-    $A  = $q.A;  $Iy = $q.Iy;  $Iz = $q.Iz;  $It = $q.It
-    if ($null -eq $A) {
-        # Rechteck ohne Tabellenwerte: aus den Parametern rechnen [mm -> m]
-        $h = $q.parameter[0] / 1000.0; $b = $q.parameter[1] / 1000.0
-        $A = $h * $b
-        $Iy = $b * [Math]::Pow($h, 3) / 12.0
-        $Iz = $h * [Math]::Pow($b, 3) / 12.0
-        $lang = [Math]::Max($h, $b); $kurz = [Math]::Min($h, $b)
-        $It = $lang * [Math]::Pow($kurz, 3) / 3.0
-    }
+    $p = $q.parameter
     $r = Versuche "QS $($q.name)" @(
-        @{ name = 'CrossSections.AddCustom(Name,A,Ay,Az,Ix,Iy,Iz,...)'; tu = {
-            $m.CrossSections.AddCustom($q.name, $A, $A, $A, $It, $Iy, $Iz, 0, 0, 0, 0) } },
-        @{ name = 'CrossSections.AddCustom(Name,A,Ix,Iy,Iz)'; tu = {
-            $m.CrossSections.AddCustom($q.name, $A, $It, $Iy, $Iz) } },
-        @{ name = 'CrossSections.Add(Name,A,Ix,Iy,Iz)'; tu = {
-            $m.CrossSections.Add($q.name, $A, $It, $Iy, $Iz) } }
+        @{ name = 'CrossSections.AddL(Name, a, b, tw, tf, r1, r2, cspRolled)'; tu = {
+            if ($q.form -ne 'Angle') { throw 'kein Winkel' }
+            $m.CrossSections.AddL($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                  $p[2] * $mm, $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } },
+        @{ name = 'CrossSections.AddRectangular(Name, h, b, cspOther)'; tu = {
+            if ($q.form -ne 'Rectangle') { throw 'kein Rechteck' }
+            $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } }
     ) -Leise:($qs.Count -gt 0)
     if (-not $r.ok) { Mitglieder 'CrossSections' $m.CrossSections; Beenden 4 "Querschnitt $($q.name) nicht anlegbar." }
     $qs[$q.name] = $r.wert
 }
 Schreib "  $($qs.Count) Querschnitte"
 
+<#  ZURUECKGELESEN. Der einzige Weg, eine Einheitenverwechslung zu bemerken:
+    AxisVM rechnet die Flaeche aus der Geometrie neu; sie muss zu der aus dem
+    Profiltabellenwert passen. Ein Rest von ein bis zwei Prozent ist normal -
+    die Ausrundungen r1/r2 stehen in unserer Datei auf null, in der Tabelle
+    aber nicht.                                                            #>
+$schief = 0
+foreach ($q in $d.querschnitte) {
+    if ($null -eq $q.A) { continue }
+    $ist = $null
+    try { $ist = $m.CrossSections.Item($qs[$q.name]).Ax } catch { continue }
+    if (-not $ist) { continue }
+    $ab = ($ist - $q.A) / $q.A * 100
+    Schreib ("    {0,-16} A = {1,10:N6} m2   Tabelle {2,10:N6}   {3,6:+0.0;-0.0} %" -f
+             $q.name, $ist, $q.A, $ab)
+    if ([Math]::Abs($ab) -gt 5) { $schief++ }
+}
+if ($schief -gt 0) {
+    Beenden 4 ("$schief Querschnitte weichen um mehr als 5 % von der Tabelle ab. " +
+               'Das deutet auf eine Einheitenverwechslung - nicht weiterbauen.')
+}
+
 # --- 5 - Knoten --------------------------------------------------------------
 Abschnitt '5 - Knoten'
 $kn = @{}
-$erste = $true
 foreach ($k in $d.knoten) {
-    $r = Versuche "Knoten" @(
-        @{ name = 'Nodes.Add(x,y,z)'; tu = { $m.Nodes.Add($k.x, $k.y, $k.z) } },
-        @{ name = 'Nodes.AddWithDOF(x,y,z,dof)'; tu = { $m.Nodes.AddWithDOF($k.x, $k.y, $k.z, 63) } }
-    ) -Leise:(-not $erste)
-    if (-not $r.ok) { Mitglieder 'Nodes' $m.Nodes; Beenden 5 'Knoten nicht anlegbar.' }
-    $kn[$k.name] = $r.wert
-    $erste = $false
+    $kn[$k.name] = $m.Nodes.Add($k.x, $k.y, $k.z)
 }
 Schreib "  $($kn.Count) Knoten"
 
 # --- 6 - Staebe --------------------------------------------------------------
 Abschnitt '6 - Staebe'
-$erste = $true; $nStab = 0
-foreach ($s in $d.staebe) {
-    $a = $kn[$s.von]; $b = $kn[$s.bis]; $q = $qs[$s.querschnitt]
-    if (-not $a -or -not $b) { Beenden 6 "Stab $($s.name): Knoten fehlt." }
-    $r = Versuche "Stab" @(
-        @{ name = 'Lines.Add + DefineAsBeam'; tu = {
-            $li = $m.Lines.Add($a, $b, 0, 0)
-            $m.Lines.Item($li).DefineAsBeam($iMat, $q, $q, 0, 0)
-            $li } },
-        @{ name = 'Members.AddBeam(n1,n2,mat,qs)'; tu = { $m.Members.AddBeam($a, $b, $iMat, $q) } },
-        @{ name = 'Members.Add(n1,n2,mat,qs)';     tu = { $m.Members.Add($a, $b, $iMat, $q) } },
-        @{ name = 'Lines.Add(n1,n2,mat,qs)';       tu = { $m.Lines.Add($a, $b, $iMat, $q) } }
+<#  Zwei Schritte: Lines.Add legt die LINIE, DefineAsBeam macht daraus einen
+    Balken mit Material und Querschnitt. Beide nehmen Verbund-Typen -
+    RLineGeomData (fuer die Gerade leer) und zweimal RPoint3d fuer die
+    Ausmitte an den Enden (hier null: unsere Knoten liegen bereits auf den
+    Schwerelinien).                                                        #>
+$geom = NeuerSatz 'RLineGeomData'
+$ecc  = NeuerSatz 'RPoint3d'
+$st = @{}; $laenge = @{}
+$erste = $true
+foreach ($sb in $d.staebe) {
+    $vk = $kn[$sb.von]; $bk = $kn[$sb.bis]; $iq = $qs[$sb.querschnitt]
+    if (-not $vk -or -not $bk) { Beenden 6 "Stab $($sb.name): Knoten fehlt." }
+    if (-not $iq) { Beenden 6 "Stab $($sb.name): Querschnitt $($sb.querschnitt) fehlt." }
+    $r = Versuche 'Stab' @(
+        @{ name = 'Lines.Add(i, j, lgtStraightLine, RLineGeomData) + DefineAsBeam'; tu = {
+            $li = $m.Lines.Add($vk, $bk, $lgtGerade, $geom)
+            [void]$m.Lines.Item($li).DefineAsBeam($iMat, $iq, $iq, $ecc, $ecc)
+            $li } }
     ) -Leise:(-not $erste)
     if (-not $r.ok) {
         Mitglieder 'Lines' $m.Lines
-        try { Mitglieder 'Members' $m.Members } catch { }
-        Beenden 6 "Stab $($s.name) nicht anlegbar."
+        Beenden 6 "Stab $($sb.name) nicht anlegbar."
     }
-    $nStab++; $erste = $false
+    $st[$sb.name] = $r.wert
+    try { $laenge[$sb.name] = $m.Lines.Item($r.wert).Length } catch { $laenge[$sb.name] = 0 }
+    $erste = $false
 }
-Schreib "  $nStab Staebe"
+Schreib "  $($st.Count) Staebe"
+Schreib '  Die lokale z-Richtung (lcsZ) wird NICHT gesetzt - AxisVM waehlt sie'
+Schreib '  selbst. Fuer die Lasten ist das ohne Belang (global aufgebracht),'
+Schreib '  fuer das ABLESEN von My/Mz je Stab ist es zu pruefen.'
 
 # --- 7 - Auflager ------------------------------------------------------------
 Abschnitt '7 - Auflager'
-# Der Rechenkern haelt beide Enden quer und lotrecht, die Torsion ebenfalls
-# (Gabellagerung). Die Vertikalbiegung laeuft ueber eine DREHFEDER; im
-# Grundriss bleibt es gelenkig. Ein Ende ist laengs frei.
+<#  AddNodalGlobal nimmt FEDERZAHLEN unmittelbar - RStiffnesses mit x, y, z,
+    xx, yy, zz. Der andere Weg, AddNodalGlobal_V153, verlangt den Index eines
+    BENANNTEN Federsatzes; auf dieser Anlage heissen die deutsch ("Starr -
+    Verschiebung"), auf einer englischen anders. Der Weg ueber die Zahlen ist
+    davon unabhaengig - und unsere Drehfeder mit 12452 kNm/rad geht ohnehin
+    nur so hinein.
+
+    Einheiten wie im ganzen Modell: kN/m fuer die Verschiebung, kNm/rad fuer
+    die Verdrehung.                                                        #>
 $STARR = 1e10
 foreach ($a in $d.auflager) {
     $n = $kn[$a.knoten]
     if (-not $n) { Schreib "  Auflagerknoten $($a.knoten) fehlt - uebersprungen"; continue }
-    $wert = { param($f, $c)
-        switch ($f) { 'Rigid' { $STARR } 'Free' { 0 } 'Flexible' { $c } default { 0 } } }
-    $rx = & $wert $a.ux 0;  $ry = & $wert $a.uy 0;  $rz = & $wert $a.uz 0
-    $mx = & $wert $a.fix 0
-    $my = & $wert $a.fiy ([double]$a.cFiy_kNm)      # kNm/rad
-    $mz = & $wert $a.fiz 0
+    $zahl = { param($art, $c)
+        switch ($art) { 'Rigid' { $STARR } 'Free' { 0.0 } 'Flexible' { [double]$c } default { 0.0 } } }
+
+    $stf = NeuerSatz 'RStiffnesses'
+    $stf.x  = & $zahl $a.ux  0
+    $stf.y  = & $zahl $a.uy  0
+    $stf.z  = & $zahl $a.uz  0
+    $stf.xx = & $zahl $a.fix 0
+    $stf.yy = & $zahl $a.fiy $a.cFiy_kNm
+    $stf.zz = & $zahl $a.fiz 0
+
+    # Linear in beide Richtungen, ohne Widerstandsgrenze.
+    $nl = NeuerSatz 'RNonLinearity'
+    foreach ($f in 'x','y','z','xx','yy','zz') { $nl.$f = $lnlLinear }
+    $ws = NeuerSatz 'RResistances'
+    foreach ($f in 'x','y','z','xx','yy','zz') { $ws.$f = 0.0 }
+
     $r = Versuche "Auflager $($a.ende)" @(
-        @{ name = 'NodalSupports.AddNodalGlobal(rx,ry,rz,mx,my,mz,node)'; tu = {
-            $m.NodalSupports.AddNodalGlobal($rx, $ry, $rz, $mx, $my, $mz, $n) } },
-        @{ name = 'NodalSupports.AddGlobal(...)'; tu = {
-            $m.NodalSupports.AddGlobal($rx, $ry, $rz, $mx, $my, $mz, $n) } },
-        @{ name = 'NodalSupports.Add(node, rx..mz)'; tu = {
-            $m.NodalSupports.Add($n, $rx, $ry, $rz, $mx, $my, $mz) } }
+        @{ name = 'NodalSupports.AddNodalGlobal(RStiffnesses, RNonLinearity, RResistances, Knoten)'; tu = {
+            $m.NodalSupports.AddNodalGlobal($stf, $nl, $ws, $n) } }
     )
-    if (-not $r.ok) { Mitglieder 'NodalSupports' $m.NodalSupports; Beenden 7 'Auflager nicht anlegbar.' }
-    Schreib ("    $($a.ende): ux $($a.ux) - uy $($a.uy) - uz $($a.uz) - " +
-             "fix $($a.fix) - fiy $($a.fiy) c=$($a.cFiy_kNm) kNm/rad - fiz $($a.fiz)")
+    if (-not $r.ok) { Mitglieder 'NodalSupports' $m.NodalSupports; Beenden 7 "Auflager $($a.ende) nicht anlegbar." }
+    Schreib ("    {0} an Knoten {1}:  x {2:N0}  y {3:N0}  z {4:N0}  xx {5:N0}  yy {6:N1}  zz {7:N0}" -f
+             $a.ende, $n, $stf.x, $stf.y, $stf.z, $stf.xx, $stf.yy, $stf.zz)
 }
 
 # --- 8 - Lastfaelle ----------------------------------------------------------
 Abschnitt '8 - Lastfaelle'
-# Je Einwirkungsgruppe ein Lastfall, CHARAKTERISTISCH. Kombiniert wird in
-# AxisVM - nur so bleibt ablesbar, welcher Anteil woher kommt.
+<#  Je Einwirkungsgruppe ein Lastfall, CHARAKTERISTISCH. Kombiniert wird in
+    AxisVM - nur so bleibt ablesbar, welcher Anteil woher kommt. Alle als
+    lctStandard: Schnee und Wind als eigene Typen anzulegen wuerde AxisVM
+    dazu bringen, selbst Faelle zu erzeugen.                               #>
 $lf = @{}
 foreach ($f in $d.lastfaelle) {
     $r = Versuche "Lastfall $($f.key)" @(
-        @{ name = 'LoadCases.Add(name, 0)'; tu = { $m.LoadCases.Add($f.label, 0) } },
-        @{ name = 'LoadCases.Add(name)';    tu = { $m.LoadCases.Add($f.label) } },
-        @{ name = 'LoadCases.AddCase(name, 0)'; tu = { $m.LoadCases.AddCase($f.label, 0) } }
+        @{ name = 'LoadCases.Add(Name, lctStandard)'; tu = { $m.LoadCases.Add($f.label, $lctNormal) } }
     ) -Leise:($lf.Count -gt 0)
-    if (-not $r.ok) { Mitglieder 'LoadCases' $m.LoadCases; Beenden 8 'Lastfall nicht anlegbar.' }
+    if (-not $r.ok) { Mitglieder 'LoadCases' $m.LoadCases; Beenden 8 "Lastfall $($f.label) nicht anlegbar." }
     $lf[$f.key] = $r.wert
 }
 Schreib "  $($lf.Count) Lastfaelle: $($lf.Keys -join ', ')"
 
 # --- 9 - Lasten --------------------------------------------------------------
 Abschnitt '9 - Lasten'
-# Achsen: x Jochachse, y Gleisrichtung, z lotrecht nach OBEN. Die Werte im
-# JSON sind bereits in diesem System - hier wird nichts mehr gedreht.
-$nP = 0; $erste = $true
+<#  Achsen: x Jochachse, y Gleisrichtung, z lotrecht nach OBEN. Die Werte im
+    JSON stehen bereits in diesem System - hier wird nichts mehr gedreht.
+    Alles global aufgebracht (sysGlobal), damit die lokale Stabdrehung ohne
+    Einfluss bleibt.                                                       #>
+$nP = 0; $nM = 0; $nQ = 0
+
 foreach ($p in $d.lasten.punkt) {
-    $n = $kn[$p.knoten]; if (-not $n) { continue }
-    $fx = 0.0; $fy = 0.0; $fz = 0.0
-    switch ($p.richtung) { 'X' { $fx = $p.wert } 'Y' { $fy = $p.wert } 'Z' { $fz = $p.wert } }
-    $r = Versuche 'Punktlast' @(
-        @{ name = 'ConcentratedLoads.AddNodalForce(node,Fx..Mz,lc)'; tu = {
-            $m.ConcentratedLoads.AddNodalForce($n, $fx, $fy, $fz, 0, 0, 0, $lf[$p.lastfall]) } },
-        @{ name = 'NodalLoads.Add(node,Fx..Mz,lc)'; tu = {
-            $m.NodalLoads.Add($n, $fx, $fy, $fz, 0, 0, 0, $lf[$p.lastfall]) } },
-        @{ name = 'Loads.AddNodalForce(...)'; tu = {
-            $m.Loads.AddNodalForce($n, $fx, $fy, $fz, 0, 0, 0, $lf[$p.lastfall]) } }
-    ) -Leise:(-not $erste)
-    if (-not $r.ok) {
-        try { Mitglieder 'ConcentratedLoads' $m.ConcentratedLoads } catch { }
-        try { Mitglieder 'Loads' $m.Loads } catch { }
-        Beenden 9 'Punktlast nicht anlegbar.'
-    }
-    $nP++; $erste = $false
+    $n = $kn[$p.knoten]
+    if (-not $n) { Schreib "  Punktlast an unbekanntem Knoten $($p.knoten)"; continue }
+    if ($null -eq $lf[$p.lastfall]) { Beenden 9 "Lastfall $($p.lastfall) gibt es nicht." }
+    $r = NeuerSatz 'RLoadNodalForce'
+    $r.LoadCaseId = $lf[$p.lastfall]
+    $r.NodeId = $n
+    $r.Fx = 0.0; $r.Fy = 0.0; $r.Fz = 0.0
+    $r.Mx = 0.0; $r.My = 0.0; $r.Mz = 0.0
+    $r.ReferenceId = 0
+    switch ($p.richtung) { 'X' { $r.Fx = $p.wert } 'Y' { $r.Fy = $p.wert } 'Z' { $r.Fz = $p.wert } }
+    $e = Versuche 'Punktlast' @(
+        @{ name = 'Loads.AddNodalForce(RLoadNodalForce)'; tu = { $m.Loads.AddNodalForce($r) } }
+    ) -Leise:($nP -gt 0)
+    if (-not $e.ok) { Mitglieder 'Loads' $m.Loads; Beenden 9 'Punktlast nicht setzbar.' }
+    $nP++
 }
 
-$nM = 0; $erste = $true
 foreach ($p in $d.lasten.moment) {
-    $n = $kn[$p.knoten]; if (-not $n) { continue }
-    $mx = 0.0; $my = 0.0; $mz = 0.0
-    switch ($p.richtung) { 'Mx' { $mx = $p.wert } 'My' { $my = $p.wert } 'Mz' { $mz = $p.wert } }
-    $r = Versuche 'Punktmoment' @(
-        @{ name = 'ConcentratedLoads.AddNodalForce(node,0,0,0,Mx,My,Mz,lc)'; tu = {
-            $m.ConcentratedLoads.AddNodalForce($n, 0, 0, 0, $mx, $my, $mz, $lf[$p.lastfall]) } },
-        @{ name = 'NodalLoads.Add(node,0,0,0,Mx,My,Mz,lc)'; tu = {
-            $m.NodalLoads.Add($n, 0, 0, 0, $mx, $my, $mz, $lf[$p.lastfall]) } }
-    ) -Leise:(-not $erste)
-    if (-not $r.ok) { Beenden 9 'Punktmoment nicht anlegbar.' }
-    $nM++; $erste = $false
+    $n = $kn[$p.knoten]
+    if (-not $n) { continue }
+    $r = NeuerSatz 'RLoadNodalForce'
+    $r.LoadCaseId = $lf[$p.lastfall]
+    $r.NodeId = $n
+    $r.Fx = 0.0; $r.Fy = 0.0; $r.Fz = 0.0
+    $r.Mx = 0.0; $r.My = 0.0; $r.Mz = 0.0
+    $r.ReferenceId = 0
+    switch ($p.richtung) { 'X' { $r.Mx = $p.wert } 'Y' { $r.My = $p.wert } 'Z' { $r.Mz = $p.wert } }
+    $e = Versuche 'Punktmoment' @(
+        @{ name = 'Loads.AddNodalForce(RLoadNodalForce), M-Anteil'; tu = { $m.Loads.AddNodalForce($r) } }
+    ) -Leise:($nM -gt 0)
+    if (-not $e.ok) { Beenden 9 'Punktmoment nicht setzbar.' }
+    $nM++
 }
 
-# Streckenlasten liegen auf STAEBEN. Die Stabnummer ist die Reihenfolge des
-# Aufbaus - deshalb wird sie beim Bauen mitgefuehrt.
-$stabNr = @{}
-$i = 1
-foreach ($s in $d.staebe) { $stabNr[$s.name] = $i; $i++ }
-
-$nQ = 0; $erste = $true
-foreach ($q in $d.lasten.strecke) {
-    $sn = $stabNr[$q.stab]; if (-not $sn) { continue }
-    # Richtung im globalen System: 1=X, 2=Y, 3=Z (je Fassung verschieden -
-    # deshalb mehrere Versuche)
-    $ri = switch ($q.richtung) { 'X' { 1 } 'Y' { 2 } 'Z' { 3 } default { 3 } }
-    $w = [double]$q.wert
-    $r = Versuche 'Streckenlast' @(
-        @{ name = 'MemberLoads.AddDistributed(mem,dir,q1,q2,lc)'; tu = {
-            $m.MemberLoads.AddDistributed($sn, $ri, $w, $w, $lf[$q.lastfall]) } },
-        @{ name = 'LineLoads.AddBeamDistributed(...)'; tu = {
-            $m.LineLoads.AddBeamDistributed($sn, $ri, $w, $w, $lf[$q.lastfall]) } },
-        @{ name = 'Loads.AddBeamDistributed(...)'; tu = {
-            $m.Loads.AddBeamDistributed($sn, $ri, $w, $w, $lf[$q.lastfall]) } }
-    ) -Leise:(-not $erste)
-    if (-not $r.ok) {
-        foreach ($n in 'MemberLoads','LineLoads','Loads') {
-            $t = $null; try { $t = $m.$n } catch { }
-            if ($t) { Mitglieder $n $t }
-        }
-        Beenden 9 'Streckenlast nicht anlegbar.'
+foreach ($p in $d.lasten.strecke) {
+    $li = $st[$p.stab]
+    if (-not $li) { Schreib "  Streckenlast auf unbekanntem Stab $($p.stab)"; continue }
+    if ($null -eq $lf[$p.lastfall]) { Beenden 9 "Lastfall $($p.lastfall) gibt es nicht." }
+    $L = $laenge[$p.stab]
+    $r = NeuerSatz 'RLoadBeamDistributed'
+    $r.LoadCaseId = $lf[$p.lastfall]
+    $r.LineId = $li
+    foreach ($f in 'qx1','qy1','qz1','mx1','my1','mz1','qx2','qy2','qz2','mx2','my2','mz2') { $r.$f = 0.0 }
+    switch ($p.richtung) {
+        'X' { $r.qx1 = $p.wert; $r.qx2 = $p.wert }
+        'Y' { $r.qy1 = $p.wert; $r.qy2 = $p.wert }
+        'Z' { $r.qz1 = $p.wert; $r.qz2 = $p.wert }
     }
-    $nQ++; $erste = $false
+    $r.SystemGLR = $sysGlobal
+    $r.Position1 = 0.0
+    $r.Position2 = $L
+    $r.DistributionType = $brdtLaenge
+    $r.Trapezoid = $lbFalsch
+    $e = Versuche 'Streckenlast' @(
+        @{ name = 'Loads.AddBeamDistributed(RLoadBeamDistributed)'; tu = { $m.Loads.AddBeamDistributed($r) } }
+    ) -Leise:($nQ -gt 0)
+    if (-not $e.ok) { Beenden 9 'Streckenlast nicht setzbar.' }
+    $nQ++
 }
-Schreib "  $nP Punktlasten - $nM Punktmomente - $nQ Streckenlasten"
+Schreib "  $nP Punktlasten, $nM Punktmomente, $nQ Streckenlasten"
+Schreib '  Eigengewicht ist NICHT gesetzt - AxisVM rechnet es selbst aus dem'
+Schreib '  Material. In der Datei steht es deshalb auch nicht.'
+
+try { $m.EndUpdate() } catch { }
+try { $m.FitInView() } catch { }
 
 # --- 10 - Sichern ------------------------------------------------------------
 Abschnitt '10 - Sichern'
 $axs = [IO.Path]::ChangeExtension($Json, '.axs')
 $r = Versuche 'Speichern' @(
-    @{ name = 'SaveAs(datei)';        tu = { $m.SaveAs($axs) } },
-    @{ name = 'SaveToFile(datei, 0)'; tu = { $m.SaveToFile($axs, 0) } },
-    @{ name = 'Save(datei)';          tu = { $m.Save($axs) } }
+    @{ name = 'SaveToFile(datei, lbFalse)'; tu = { $m.SaveToFile($axs, $lbFalsch) } }
 )
 if ($r.ok) { Schreib "  $axs" }
 else { Schreib '  nicht gespeichert - das Modell steht offen in AxisVM.' }
