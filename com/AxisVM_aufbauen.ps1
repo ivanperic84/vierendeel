@@ -347,10 +347,16 @@ function GelenkSetzen($linie, [string]$wo, [string]$art) {
         Schreib '  RRelease oder EReleaseType fehlt in der Typbibliothek.'
         return $false
     }
-    $nFrei  = [Enum]::GetNames($tArt) | Where-Object { $_ -match 'Free$' }  | Select-Object -First 1
+    <#  DER FREIE WERT HEISST rtHinged, NICHT rtFree.
+        Gemessen am 2026-08-22: EReleaseType fuehrt rtRigid, rtHinged,
+        rtSemiRigid, rtPlastic, rtPushover. 'Hinged' ist das Gelenk - fuer
+        eine Verschiebung heisst das: frei. Die Suche nimmt beide
+        Schreibweisen, damit sie auch auf einer anderen Fassung traegt.   #>
+    $nFrei  = [Enum]::GetNames($tArt) |
+              Where-Object { $_ -match 'Hinged$|Free$|Released$' } | Select-Object -First 1
     $nStarr = [Enum]::GetNames($tArt) | Where-Object { $_ -match 'Rigid$' } | Select-Object -First 1
     if (-not $nFrei -or -not $nStarr) {
-        Schreib "  EReleaseType kennt kein Free/Rigid - vorhanden: $([Enum]::GetNames($tArt) -join ', ')"
+        Schreib "  EReleaseType kennt kein Gelenk/Starr - vorhanden: $([Enum]::GetNames($tArt) -join ', ')"
         return $false
     }
     $fArt = $tRel.GetField('ReleaseType')
@@ -366,6 +372,7 @@ function GelenkSetzen($linie, [string]$wo, [string]$art) {
     }
     $frei = & $mach $nFrei
     $starr = & $mach $nStarr
+    $script:nFreiName = $nFrei
 
     $rel = NeuerSatz 'RReleases'
     $gesetzt = 0
@@ -784,7 +791,7 @@ foreach ($sb in $d.staebe) {
     }
     $erste = $false
 }
-if ($nG -gt 0) { Schreib "  $nG Freigaben gesetzt (zweiter Ast ohne Laengskraft)" }
+if ($nG -gt 0) { Schreib "  $nG Freigaben gesetzt als $nFreiName (zweiter Ast ohne Laengskraft)" }
 if ($nGnein -gt 0) {
     Schreib ''
     Schreib "  >>> WARNUNG: $nGnein Freigaben wurden NICHT gesetzt."
