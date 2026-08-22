@@ -195,24 +195,20 @@ const rechteck = (d) => ({ name: d.name, art: 'Parametric', form: 'Rectangle',
  * zs steht in cm, t in mm - so, wie die Profiltabellen es führen.
  */
 /**
- * STEIFE LÄNGE JE BLECHENDE [m] — von der Gurtachse bis zur Blechkante.
+ * STEIFE LÄNGE JE BLECHENDE [m], NUR ALS RÜCKFALL.
  *
- * Die Starrelemente sind bis an den Anfang des Blechs zu führen; erst dort
- * beginnt der biegeweiche Teil. Wie weit das ist, steht im Schnitt C-C der
- * Zeichnung 373.09.021:
+ * Die Starrelemente laufen bis an die Blechkante; dort beginnt der weiche
+ * Teil, und seine Länge ist die BLECHLÄNGE AUS DEM SORTIMENT
+ * (`bleche.vertikal[].laenge`, für das Signaljoch 420 mm). Diese Angabe hat
+ * Vorrang - die Blecheinteilung wird nicht nachgerechnet, sondern übernommen.
  *
- *   Vertikalblech    100/10 × 320 = 500 − 2·90. Es stösst gegen die SPITZEN
- *                    der stehenden Schenkel. Von der Gurtachse aus sind das
- *                    aV − zsH  (für L90×90×9: 90 − 25.4 = 64.6 mm).
+ * Nur wenn ein Typ keine Länge führt, wird sie aus dem Profil abgeleitet.
+ * Schnitt C-C der Zeichnung 373.09.021 gibt dafür die Regel:
  *
- *   Horizontalblech  100/10 × 260 = lichte Weite. Es stösst gegen die
- *                    INNENSEITE der stehenden Schenkel, von der Gurtachse
- *                    aus also zsV.
- *
- * Bisher stand hier nichts: `blecheAnStation` führt `laenge: null`, damit
- * war die lichte Länge gleich dem Hebelarm und die steife Länge null. Die
- * Bleche liefen von Schwerachse zu Schwerachse, über ihre wirkliche Länge
- * hinaus - und damit zu weich.
+ *   Vertikalblech    stösst gegen die SPITZEN der stehenden Schenkel
+ *                    → von der Gurtachse aus  aV − zsH
+ *   Horizontalblech  stösst gegen deren INNENSEITE
+ *                    → von der Gurtachse aus  zsV
  */
 function steifeLaenge(p, art) {
   if (!p) return 0;
@@ -341,7 +337,7 @@ export function stabmodell(m, opt = {}) {
   // jedem Gurtknoten führt ein kurzer steifer Stummel zur Blechachse - so
   // ist die Ausmitte im Modell sichtbar und geht auch nach PyNite mit,
   // wo Stabausmitten nicht zur Verfügung stehen.
-  const blechStab = (name, qsBlech, p1, p2, v1, v2, d1 = 0, d2 = 0) => {
+  const blechStab = (name, qsBlech, p1, p2, v1, v2, laenge = 0, d1 = 0, d2 = 0) => {
     const rueck = (p, v, k) => {
       if (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)) return p;
       const n = s.kn(`${name}_v${k}`, p.x, p.y + v.dy, p.z + v.dz);
@@ -354,7 +350,11 @@ export function stabmodell(m, opt = {}) {
     // Der Abstand der beiden Blechenden - nach dem Versatz gemessen, nicht
     // aus dem Hebelarm des Nachweises übernommen.
     const L = Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
-    const [e1, e2] = km === 'anschnitt' ? [d1, d2] : [0, 0];
+    // Die Blechlänge aus dem Sortiment hat Vorrang; sie legt beide steifen
+    // Stücke symmetrisch fest. Fehlt sie, greift die Ableitung je Ende.
+    const ausDaten = laenge > 0 ? Math.max(0, (L - mm(laenge)) / 2) : null;
+    const [e1, e2] = km !== 'anschnitt' ? [0, 0]
+                   : ausDaten !== null ? [ausDaten, ausDaten] : [d1, d2];
     if (!(L > 0) || (e1 + e2) < 1e-9 || (e1 + e2) >= L) {
       s.stab(name, qsBlech, p1.name, p2.name);
       return;
@@ -404,17 +404,19 @@ export function stabmodell(m, opt = {}) {
 
     if (station.vertikal) {
       const qs = s.qs(blechQuerschnitt(station.vertikal, 'vertikal'));
+      const lV = station.vertikal.laenge ?? 0;
       blechStab(`BV_L_${i}`, qs, ogl, ugl,
-                { dy: eOGL.dy, dz: 0 }, { dy: eUGL.dy, dz: 0 }, sVO, sVU);
+                { dy: eOGL.dy, dz: 0 }, { dy: eUGL.dy, dz: 0 }, lV, sVO, sVU);
       blechStab(`BV_R_${i}`, qs, ogr, ugr,
-                { dy: eOGR.dy, dz: 0 }, { dy: eUGR.dy, dz: 0 }, sVO, sVU);
+                { dy: eOGR.dy, dz: 0 }, { dy: eUGR.dy, dz: 0 }, lV, sVO, sVU);
     }
     if (station.horizontal) {
       const qs = s.qs(blechQuerschnitt(station.horizontal, 'horizontal'));
+      const lH = station.horizontal.laenge ?? 0;
       blechStab(`BH_O_${i}`, qs, ogl, ogr,
-                { dy: 0, dz: hOGL.dz }, { dy: 0, dz: hOGR.dz }, sHO, sHO);
+                { dy: 0, dz: hOGL.dz }, { dy: 0, dz: hOGR.dz }, lH, sHO, sHO);
       blechStab(`BH_U_${i}`, qs, ugl, ugr,
-                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz }, sHU, sHU);
+                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz }, lH, sHU, sHU);
     }
   });
 

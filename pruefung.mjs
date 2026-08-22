@@ -2445,12 +2445,22 @@ titel('19  AxisVM-Export (SAF)');
     const bv = bauA.staebe.filter((x) => x.name.startsWith('BV_L_0'));
     wahr('Vertikalblech ist in steif / weich / steif geteilt',
          ['_1', '_2', '_3'].every((e) => bv.some((x) => x.name.endsWith(e))));
-    pruef('Steifes Stück am Obergurt ist aV − zsH',
+    // MASSGEBEND IST DIE BLECHLÄNGE AUS DEM SORTIMENT, nicht eine Ableitung:
+    // die Blecheinteilung wird übernommen, nicht nachgerechnet.
+    const lV = bauA.staebe.length && m.stationsListe[0].vertikal.laenge;
+    pruef('Weicher Teil ist die Blechlänge aus dem Sortiment',
+          laengeVon(bauA, teil(bauA, 'BV_L_0', '_2')), lV / 1000, 1e-9, 'm');
+    pruef('Steifes Stück ist (Hebelarm − Blechlänge)/2',
           laengeVon(bauA, teil(bauA, 'BV_L_0', '_1')),
-          (m.profOG.aV - m.profOG.zsH * 10) / 1000, 1e-9, 'm');
-    pruef('Steifes Stück am Untergurt ist aV − zsH',
-          laengeVon(bauA, teil(bauA, 'BV_L_0', '_3')),
-          (m.profUG.aV - m.profUG.zsH * 10) / 1000, 1e-9, 'm');
+          (m.stationsListe[0].h - lV / 1000) / 2, 1e-9, 'm');
+    wahr('Beide Enden gleich lang',
+         Math.abs(laengeVon(bauA, teil(bauA, 'BV_L_0', '_1'))
+                - laengeVon(bauA, teil(bauA, 'BV_L_0', '_3'))) < 1e-12);
+    // Für J90 fällt die Ableitung aus dem Profil auf denselben Wert:
+    // 320 = 500 − 2·90, also aV − zsH. Das ist die Probe aufs Exempel.
+    pruef('Ableitung aV − zsH trifft dasselbe',
+          laengeVon(bauA, teil(bauA, 'BV_L_0', '_1')),
+          (m.profOG.aV - m.profOG.zsH * 10) / 1000, 1e-6, 'm');
     // Die Endstation trägt kein Horizontalblech - die erste ist Nummer 1.
     pruef('Steifes Stück des Horizontalblechs ist zsV',
           laengeVon(bauA, teil(bauA, 'BH_O_1', '_1')),

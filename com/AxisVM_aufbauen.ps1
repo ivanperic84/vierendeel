@@ -777,18 +777,38 @@ if ($nGnein -gt 0) {
 }
 Schreib "  $($st.Count) Staebe"
 
-<#  NACHGESEHEN. DefineAsBeam meldet einen Fehler als negative Zahl; das
-    faengt der Block oben ab. Bleibt die Frage, ob AxisVM die Linie danach
-    wirklich als Balken fuehrt - IsBeam sagt es. Eine Stichprobe genuegt,
-    746 Abfragen ueber COM waeren teuer erkauft.                          #>
+<#  NACHGESEHEN - aber am richtigen Merkmal.
+    Der erste Versuch fragte IsBeam ab und blieb an BV_R_23_3 haengen. Zu
+    Unrecht: IsBeam/IsColumn/IsOtherType teilen die Staebe nach ihrer LAGE
+    ein, nicht nach ihrem Elementtyp. Ein senkrechter Stab - und das sind
+    alle Vertikalbleche - ist fuer AxisVM eine Stuetze, kein Balken.
+
+    Gefragt ist der ELEMENTTYP: hat DefineAsBeam ueberhaupt ein Stabelement
+    erzeugt, oder liegt dort nur eine Linie? Das sagt LineType. Der Wert
+    kommt aus der Typbibliothek, nicht aus einer Annahme.                 #>
+$ltBalken = $null
+$tLT = $typen | Where-Object { $_.Name -eq 'ELineType' } | Select-Object -First 1
+if ($tLT) {
+    $nm = [Enum]::GetNames($tLT) | Where-Object { $_ -match 'Beam$' } | Select-Object -First 1
+    if ($nm) { $ltBalken = [int]([Enum]::Parse($tLT, $nm)) ; Schreib "  Elementtyp Balken: $nm = $ltBalken" }
+}
 $namen = @($st.Keys)
 $stich = @($namen[0], $namen[[int]($namen.Count / 2)], $namen[-1])
 foreach ($nm in $stich) {
-    $ib = $null
-    try { $ib = $m.Lines.Item($st[$nm]).IsBeam } catch { }
-    if ($ib -ne 1) { Beenden 6 "Stab $nm ist kein Balken (IsBeam = $ib) - Material oder Querschnitt haben nicht gegriffen." }
+    $li = $null; try { $li = $m.Lines.Item($st[$nm]) } catch { }
+    if (-not $li) { Beenden 6 "Stab $nm ist nicht lesbar." }
+    $lt = $null; try { $lt = [int]$li.LineType } catch { }
+    $lage = @()
+    foreach ($f in 'IsBeam', 'IsColumn', 'IsOtherType') {
+        $w = $null; try { $w = $li.$f } catch { }
+        if ($w -eq 1) { $lage += $f }
+    }
+    Schreib ("    {0,-16} LineType {1}   Lage: {2}" -f $nm, $lt, ($lage -join ', '))
+    if ($null -ne $ltBalken -and $lt -ne $ltBalken) {
+        Beenden 6 ("Stab $nm traegt kein Stabelement (LineType $lt statt " +
+                   "$ltBalken) - Material oder Querschnitt haben nicht gegriffen.")
+    }
 }
-Schreib "  Stichprobe IsBeam: $($stich -join ', ') - alle Balken."
 
 Schreib '  Die lokale z-Richtung (lcsZ) wird NICHT gesetzt - AxisVM waehlt sie'
 Schreib '  selbst. Fuer die Lasten ist das ohne Belang (global aufgebracht),'
