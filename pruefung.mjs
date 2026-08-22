@@ -2292,8 +2292,14 @@ titel('19  AxisVM-Export (SAF)');
   pruef('Gurtabstand am Auflager folgt dem Grundrissknick',
         Math.max(...gurtKn.map((k) => k.y)) - Math.min(...gurtKn.map((k) => k.y)),
         m.breite.bAn(0), 1e-9, 'm');
-  wahr('Blechachsen liegen weiter aussen als die Gurtachsen',
-       Math.max(...kn.map((k) => k.y)) > Math.max(...gurtKn.map((k) => k.y)) + 1e-6);
+  // Bei der Regelbauart LA_SI zeigt der liegende Schenkel nach AUSSEN und
+  // zieht den Schwerpunkt mit. Die stehenden Schenkel - und damit die
+  // Vertikalbleche - liegen dadurch INNEN von der Gurtachse; die liegenden
+  // Schenkel mit den Horizontalblechen liegen aussen.
+  wahr('Blechachsen sind in z weiter aussen als die Gurtachsen',
+       Math.max(...kn.map((k) => k.z)) > Math.max(...gurtKn.map((k) => k.z)) + 1e-6);
+  wahr('Blechachsen sind in y nicht weiter aussen',
+       Math.max(...kn.map((k) => k.y)) <= Math.max(...gurtKn.map((k) => k.y)) + 1e-9);
   pruef('Gurtabstand lotrecht ist die Jochhöhe',
         Math.max(...kn.filter((k) => k.name.startsWith('OG')).map((k) => k.z))
         - Math.max(...kn.filter((k) => k.name.startsWith('UG')).map((k) => k.z)),
@@ -2431,10 +2437,37 @@ titel('19  AxisVM-Export (SAF)');
   const versatzStaebe = mitS.staebe.filter((st) => /_e[12]$/.test(st.name));
   wahr('Bindebleche sind quer versetzt angeschlossen', versatzStaebe.length > 0);
   {
-    const bv = mitS.staebe.find((st) => st.name.startsWith('BV_L_') && /_v1$/.test(st.bis));
-    const k = bv ? mitS.knoten.get(bv.bis) : null;
-    wahr('Vertikalblech nach aussen versetzt, Höhe unverändert',
-         !!k && k.y < -m.b / 2 + 1e-9 && Math.abs(k.z - (m.h / 2)) < 1e-9);
+    // Gemessen wird am STUMMEL: von der Gurtachse zur Blechachse. Gegen
+    // m.b/2 zu prüfen ginge fehl - die Breite läuft mit x (Grundrissknick).
+    const versatzAn = (bau, anfang) => {
+      const st = bau.staebe.find((x) => x.name.startsWith(anfang) && /_e1$/.test(x.name));
+      if (!st) return null;
+      const g = bau.knoten.get(st.von), bl = bau.knoten.get(st.bis);
+      return { dy: bl.y - g.y, dz: bl.z - g.z };
+    };
+    const v = versatzAn(mitS, 'BV_L_');
+    const h = versatzAn(mitS, 'BH_O_');
+    pruef('Vertikalblech: Versatz (zsV − t/2) nach innen',
+          v ? v.dy : NaN, (m.profOG.zsV * 10 - m.profOG.t / 2) / 1000, 1e-9, 'm');
+    wahr('Vertikalblech: keine Höhenänderung', !!v && Math.abs(v.dz) < 1e-12);
+    pruef('Horizontalblech: Versatz (zsH − t/2) nach aussen',
+          h ? h.dz : NaN, (m.profOG.zsH * 10 - m.profOG.t / 2) / 1000, 1e-9, 'm');
+    wahr('Horizontalblech: keine Breitenänderung', !!h && Math.abs(h.dy) < 1e-12);
+
+    // Andere Einbaulage, andere Richtung - der Grund, warum ey/ez aus
+    // geometry.js kommen und nicht hier noch einmal stehen. Und zwar jede
+    // Richtung für sich: das Vertikalblech sitzt am STEHENDEN Schenkel,
+    // dessen Dicke aber in Richtung des LIEGENDEN misst - dy folgt deshalb
+    // `lg`, dz folgt `st`.
+    const mitLage = (k) => AX.stabmodell({ ...m, ausrOG: k, ausrUG: k },
+                                         { knotenmodell: 'schwerachsen' });
+    const vLI = versatzAn(mitLage('LI_SI'), 'BV_L_');
+    wahr('liegend innen kehrt den Versatz in y um', !!vLI && v.dy * vLI.dy < 0);
+    const hSA = versatzAn(mitLage('LA_SA'), 'BH_O_');
+    wahr('stehend aussen kehrt den Versatz in z um', !!hSA && h.dz * hSA.dz < 0);
+    const vSA = versatzAn(mitLage('LA_SA'), 'BV_L_');
+    wahr('stehend aussen lässt den Versatz in y unberührt',
+         !!vSA && Math.abs(vSA.dy - v.dy) < 1e-12);
   }
   wahr('Nur die Ausgabe ist geschaltet',
        ausS.schottAusblenden === true && mitS.schottAusblenden === false);

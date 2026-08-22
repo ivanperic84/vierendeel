@@ -41,6 +41,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
@@ -175,21 +176,32 @@ const rechteck = (d) => ({ name: d.name, art: 'Parametric', form: 'Rectangle',
  * es liegt am Schenkel. Die vier Gurtachsen bilden im Schnitt ein Rechteck,
  * die Blechachsen tun das nicht.
  *
- * Der Winkel hat seinen Schwerpunkt im Abstand zs von der Ferse; die Ferse
- * zeigt nach aussen. Die Mittelebene des Schenkels liegt also um (zs − t/2)
- * NACH AUSSEN, in beiden Richtungen getrennt:
+ * DIE RICHTUNG HÄNGT AN DER EINBAULAGE. Bei der Regelbauart `LA_SI` zeigt
+ * der liegende Schenkel nach aussen und zieht den Schwerpunkt mit; die
+ * stehenden Schenkel liegen dadurch INNEN von der Gurtachse. Bei `LA_SA`
+ * ist es umgekehrt. Deshalb kommen ey/ez aus geometry.js - dort steht die
+ * Konvention, und sie soll nur an einer Stelle stehen:
  *
- *      zsV  entlang y  (der Schenkel, der in der y-Ebene steht)
- *      zsH  entlang z  (der Schenkel, der in der z-Ebene liegt)
+ *     ey = ecke.sy · ausr.lg     Richtung des liegenden Schenkels
+ *     ez = ecke.sz · ausr.st     Richtung des stehenden Schenkels
  *
- * zs steht in cm, t in mm - beides so, wie die Profiltabellen es führen.
+ * Der Schenkel liegt ab der Ferse, der Schwerpunkt im Abstand zs davon.
+ * Die Mittelebene des Schenkels ist also um (zs − t/2) GEGEN die
+ * Schenkelrichtung versetzt:
+ *
+ *     Δy = −ey · (zsV − t/2)     Mittelebene des stehenden Schenkels
+ *     Δz = −ez · (zsH − t/2)     Mittelebene des liegenden Schenkels
+ *
+ * zs steht in cm, t in mm - so, wie die Profiltabellen es führen.
  */
-function schenkelVersatz(p) {
-  if (!p) return { y: 0, z: 0 };
+function schenkelVersatz(p, ecke, ausr) {
+  if (!p) return { dy: 0, dz: 0 };
   const zsV = (p.zsV ?? p.zs ?? 0) * 10;          // cm -> mm
   const zsH = (p.zsH ?? p.zs ?? 0) * 10;
   const t = p.t ?? 0;
-  return { y: mm(Math.max(0, zsV - t / 2)), z: mm(Math.max(0, zsH - t / 2)) };
+  const ey = ecke.sy * ausr.lg;
+  const ez = ecke.sz * ausr.st;
+  return { dy: mm(-ey * (zsV - t / 2)), dz: mm(-ez * (zsH - t / 2)) };
 }
 
 /**
@@ -208,6 +220,12 @@ export function stabmodell(m, opt = {}) {
   const qsUG = s.qs(gurtQuerschnitt(m.profUG, 'UG'));
   const qsStarr = s.qs(rechteck(STARR));
   const qsArm = s.qs(rechteck(ARM));
+
+  // Einbaulage der Winkel - sie entscheidet, nach welcher Seite die
+  // Blechachsen von den Gurtachsen abweichen.
+  const ausrOG = getAusrichtung(m.ausrOG ?? 'LA_SI');
+  const ausrUG = getAusrichtung(m.ausrUG ?? 'LA_SI');
+  const eckeVon = (id) => ECKEN.find((e) => e.id === id);
 
   // --- Schnitte entlang der Gurte -------------------------------------------
   // Ein Gurt wird an jeder Station geteilt, im Knotenmodell 'anschnitt'
@@ -313,25 +331,33 @@ export function stabmodell(m, opt = {}) {
     const ogl = p('OG', 'L'), ogr = p('OG', 'R');
     const ugl = p('UG', 'L'), ugr = p('UG', 'R');
 
-    // Versatz nach aussen, je Gurt und je Richtung. Das vertikale Blech
-    // steht in der y-Ebene und wird in y versetzt, das horizontale in z.
-    const vO = schenkelVersatz(m.profOG), vU = schenkelVersatz(m.profUG);
+    // Der Versatz je Ecke, aus der Einbaulage. Das vertikale Blech sitzt am
+    // STEHENDEN Schenkel und wird in y versetzt, das horizontale am
+    // LIEGENDEN und in z - je Ecke mit eigenem Vorzeichen.
+    const vz = (ecke) => {
+      const istOG = ecke.gurt === 'OG';
+      const v = schenkelVersatz(istOG ? m.profOG : m.profUG, ecke,
+                                istOG ? ausrOG : ausrUG);
+      return v;
+    };
+    const eOGL = vz(eckeVon('OG_L')), eOGR = vz(eckeVon('OG_R'));
+    const eUGL = vz(eckeVon('UG_L')), eUGR = vz(eckeVon('UG_R'));
 
     if (station.vertikal) {
       const qs = s.qs(blechQuerschnitt(station.vertikal, 'vertikal'));
       const Lc = station.vertikal.laenge ? mm(station.vertikal.laenge) : 0;
       blechStab(`BV_L_${i}`, qs, station.h, Lc, ogl, ugl,
-                { dy: -vO.y, dz: 0 }, { dy: -vU.y, dz: 0 });
+                { dy: eOGL.dy, dz: 0 }, { dy: eUGL.dy, dz: 0 });
       blechStab(`BV_R_${i}`, qs, station.h, Lc, ogr, ugr,
-                { dy: +vO.y, dz: 0 }, { dy: +vU.y, dz: 0 });
+                { dy: eOGR.dy, dz: 0 }, { dy: eUGR.dy, dz: 0 });
     }
     if (station.horizontal) {
       const qs = s.qs(blechQuerschnitt(station.horizontal, 'horizontal'));
       const Lc = station.horizontal.laenge ? mm(station.horizontal.laenge) : 0;
       blechStab(`BH_O_${i}`, qs, station.b, Lc, ogl, ogr,
-                { dy: 0, dz: +vO.z }, { dy: 0, dz: +vO.z });
+                { dy: 0, dz: eOGL.dz }, { dy: 0, dz: eOGR.dz });
       blechStab(`BH_U_${i}`, qs, station.b, Lc, ugl, ugr,
-                { dy: 0, dz: -vU.z }, { dy: 0, dz: -vU.z });
+                { dy: 0, dz: eUGL.dz }, { dy: 0, dz: eUGR.dz });
     }
   });
 
@@ -439,11 +465,21 @@ export function stabmodell(m, opt = {}) {
       s.stab(`AT${k}_${gurt}${seite}`, qsStarr, an, gurtKnoten(gurt, seite, x));
     }));
 
-    // Der durchgehende Stab zum Lastpunkt. Am Übergang GELENKIG: die
-    // Hängestütze ist angehängt, nicht eingespannt - sie trägt Kraft in den
-    // Träger, kein Moment.
+    // Der durchgehende Stab zum Lastpunkt.
+    //
+    // NOCH OHNE GELENK - und das ist Absicht. Ein einzelner Stab, an EINEM
+    // Knoten angeschlossen und dort momentenfrei, ist ein Pendel: er dreht
+    // frei um den Anschluss. Das ist keine Lagerung, das ist eine
+    // Kinematik, und der Löser bleibt daran stehen.
+    //
+    // Vorher hielt das V aus zwei Armen die Verdrehung; mit einem
+    // durchgehenden Stab muss die Einspannung woanders herkommen. Welche
+    // Drehachse freigegeben wird und welche nicht, ist am Anschlussdetail
+    // zu entscheiden - bis dahin bleibt der Übergang steif, denn ein zu
+    // steifes Modell rechnet, ein bewegliches nicht.
     const last = s.kn(`AL${k}`, x, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
-    s.stab(`ARM${k}`, qsArm, an, last, { gelenkAnfang: 'M' });
+    s.stab(`ARM${k}`, qsArm, an, last,
+           opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk } : null);
     arme.push({ teil: a, knoten: last });
   });
 
