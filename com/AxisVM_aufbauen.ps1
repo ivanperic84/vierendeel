@@ -316,46 +316,67 @@ function Signaturen([string]$schnittstelle, [string]$beginntMit) {
 
     Rueckgabe: $true, wenn das Gelenk sitzt.                              #>
 function GelenkSetzen($linie, [string]$wo, [string]$art) {
-    <#  Welche Freiheitsgrade freigegeben werden:
-          'M'      alle drei Momente - der Stab haengt, er klemmt nicht
-          'axial'  die Stabachse (lokal x) - der Stummel uebertraegt dann
-                   nichts in seiner Laengsrichtung. Die Stummel der zweiten
-                   Reihe liegen in +-y, ihre Achse IST die y-Richtung: so
-                   bleibt x/z gehalten und y frei, ohne Zwaengung im Gurt.
-        Sonst gilt die Zeichenkette als Liste der Felder.                 #>
+    <#  WELCHE FREIHEITSGRADE:
+          'M'      alle drei Momente
+          'axial'  die STABACHSE, lokal x. Damit uebertraegt der Stab keine
+                   Laengskraft. Beim Anschluss der Haengestuetzen sitzt die
+                   Freigabe deshalb im Ast des Anschlusskoerpers und nicht
+                   im Querstummel: der Ast liegt in der Jochachse, eine
+                   Freigabe in der Stabachse ist dort eindeutig.
+        Sonst gilt die Zeichenkette als Liste der Felder.
+
+        AUFBAU VON RReleases. Es ist VERSCHACHTELT: die sechs Felder x, y, z,
+        xx, yy, zz sind je ein RRelease mit einem Feld ReleaseType. Ein
+        blosser Aufzaehlungswert genuegt nicht - so stand es hier zuerst.
+        Gesehen im quelloffenen GrasshopperToAxisVM von InterCAD, das den
+        Aufbau zeigt; uebernommen ist davon nichts als die Kenntnis, WIE die
+        Schnittstelle aussieht.
+
+        Gesetzt werden ALLE sechs Felder: die freien auf rtFree, die
+        uebrigen ausdruecklich auf rtRigid. Ein nicht gesetztes Feld traegt
+        den Nullwert der Struktur, und was der bedeutet, ist nicht gesagt. #>
     $felder = switch ($art) {
         'M'      { @('xx', 'yy', 'zz') }
         'axial'  { @('x') }
-        'laengs' { @('z') }   # lcsZ der querliegenden Staebe zeigt auf [1,0,0]
         default  { $art -split '[,\s]+' | Where-Object { $_ } }
     }
-    <#  'laengs' MEINT DIE JOCHACHSE, nicht die Stabachse.
-        Der Stummel liegt in +-y; freigegeben wird seine Querrichtung. Welche
-        der beiden lokalen Querachsen das ist, haengt daran, wie AxisVM die
-        lokalen Achsen legt - und genau das setzt diese Bruecke noch NICHT.
-        Solange das offen ist, wird lieber gar nichts freigegeben: ein zu
-        steifer Anschluss ist eine bekannte, benannte Abweichung, eine
-        Freigabe in der falschen Richtung ein stiller Fehler.             #>
-    if ($art -eq 'laengs' -and -not $script:lcsGesetzt) { return $false }
+
+    $tRel = $script:typen | Where-Object { $_.Name -eq 'RRelease' } | Select-Object -First 1
+    $tArt = $script:typen | Where-Object { $_.Name -eq 'EReleaseType' } | Select-Object -First 1
+    if (-not $tRel -or -not $tArt) {
+        Schreib '  RRelease oder EReleaseType fehlt in der Typbibliothek.'
+        return $false
+    }
+    $nFrei  = [Enum]::GetNames($tArt) | Where-Object { $_ -match 'Free$' }  | Select-Object -First 1
+    $nStarr = [Enum]::GetNames($tArt) | Where-Object { $_ -match 'Rigid$' } | Select-Object -First 1
+    if (-not $nFrei -or -not $nStarr) {
+        Schreib "  EReleaseType kennt kein Free/Rigid - vorhanden: $([Enum]::GetNames($tArt) -join ', ')"
+        return $false
+    }
+    $fArt = $tRel.GetField('ReleaseType')
+    if (-not $fArt) {
+        Schreib "  RRelease hat kein Feld ReleaseType - vorhanden: $(($tRel.GetFields() | ForEach-Object { $_.Name }) -join ', ')"
+        return $false
+    }
+    $mach = {
+        param($name)
+        $r = [Activator]::CreateInstance($tRel)
+        $fArt.SetValue($r, [Enum]::Parse($tArt, $name))
+        $r
+    }
+    $frei = & $mach $nFrei
+    $starr = & $mach $nStarr
+
     $rel = NeuerSatz 'RReleases'
-    $typ = $rel.GetType()
     $gesetzt = 0
-    foreach ($f in $typ.GetFields([Reflection.BindingFlags]'Public,Instance')) {
-        if ($f.Name -notin $felder) { continue }
-        $ft = $f.FieldType
-        if ($ft.IsEnum) {
-            $frei = [Enum]::GetNames($ft) | Where-Object { $_ -match 'Free$|Free_' } |
-                    Select-Object -First 1
-            if (-not $frei) { continue }
-            $f.SetValue($rel, [Enum]::Parse($ft, $frei))
-        } else {
-            $f.SetValue($rel, 0)          # Feder mit Steifigkeit null
-        }
-        $gesetzt++
+    foreach ($f in $rel.GetType().GetFields([Reflection.BindingFlags]'Public,Instance')) {
+        if ($f.Name -notin 'x', 'y', 'z', 'xx', 'yy', 'zz') { continue }
+        if ($f.Name -in $felder) { $f.SetValue($rel, $frei); $gesetzt++ }
+        else { $f.SetValue($rel, $starr) }
     }
     if ($gesetzt -lt $felder.Count) {
         Schreib "  RReleases: nur $gesetzt von $($felder.Count) Feldern gesetzt - vorhanden:"
-        foreach ($f in $typ.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+        foreach ($f in $rel.GetType().GetFields([Reflection.BindingFlags]'Public,Instance')) {
             Schreib ("      {0,-16} {1}" -f $f.Name, $f.FieldType.Name)
         }
         return $false
@@ -734,7 +755,6 @@ $geom = NeuerSatz 'RLineGeomData'
 $ecc  = NeuerSatz 'RPoint3d'
 $st = @{}; $laenge = @{}
 $erste = $true; $nG = 0; $nGnein = 0
-$lcsGesetzt = $false   # solange die lokalen Achsen ungesetzt bleiben
 foreach ($sb in $d.staebe) {
     $vk = $kn[$sb.von]; $bk = $kn[$sb.bis]; $iq = $qs[$sb.querschnitt]
     if (-not $vk -or -not $bk) { Beenden 6 "Stab $($sb.name): Knoten fehlt." }
@@ -764,16 +784,13 @@ foreach ($sb in $d.staebe) {
     }
     $erste = $false
 }
-if ($nG -gt 0) { Schreib "  $nG Gelenke gesetzt (zweite Anschlussreihe in y frei)" }
+if ($nG -gt 0) { Schreib "  $nG Freigaben gesetzt (zweiter Ast ohne Laengskraft)" }
 if ($nGnein -gt 0) {
     Schreib ''
     Schreib "  >>> WARNUNG: $nGnein Freigaben wurden NICHT gesetzt."
     Schreib '  >>> Die zweite Anschlussreihe der Haengestuetzen haelt damit auch'
     Schreib '  >>> die Jochachse - der Gurt ist zwischen den Reihen gezwaengt.'
-    Schreib '  >>> Grund: die lokalen Stabachsen werden noch nicht gesetzt, und'
-    Schreib '  >>> ohne sie waere die Freigaberichtung geraten. Lieber zu steif'
-    Schreib '  >>> und benannt als still falsch.'
-    Schreib '  >>> Dazu die Signaturen aus AxisVM_pruefen.cmd zurueckschicken.'
+    Schreib '  >>> Der Grund steht oben; bitte den Bericht zurueckschicken.'
 }
 Schreib "  $($st.Count) Staebe"
 

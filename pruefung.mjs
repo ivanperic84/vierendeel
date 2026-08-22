@@ -2499,12 +2499,23 @@ titel('19  AxisVM-Export (SAF)');
     // Mit Raster: zwei Reihen längs der Jochachse, vier Punkte je Ebene.
     const vier = mitAnbau('unten', 0.4);
     pruef('Vier Punkte am Untergurt', stummel(vier, 'UG').length, 4, 1e-12, 'Stk');
-    wahr('Erste Reihe hält x y z',
-         stummel(vier, 'UG').filter((x) => /_R1[LR]$/.test(x.name))
-           .every((x) => !x.gelenkEnde));
-    wahr('Zweite Reihe gibt die Jochachse frei - y z bleiben',
-         stummel(vier, 'UG').filter((x) => /_R2[LR]$/.test(x.name))
-           .every((x) => x.gelenkEnde === 'laengs'));
+    wahr('Die Stummel selbst sind alle steif',
+         stummel(vier, 'UG').every((x) => !x.gelenkEnde && !x.gelenkAnfang));
+    // Die Freigabe sitzt im Anschlusskörper: sein Ast zur zweiten Reihe
+    // überträgt keine Längskraft. Damit ist am Knoten der zweiten Reihe
+    // auch die Stummelkraft in x null - Wirkung gleich, Richtung eindeutig.
+    const aeste = (b) => b.staebe.filter((x) => /^AT\d+_UG_B\d$/.test(x.name));
+    pruef('Zwei Äste zu den Reihen', aeste(vier).length, 2, 1e-12, 'Stk');
+    wahr('Der Ast zur ersten Reihe ist steif',
+         aeste(vier).find((x) => x.name.endsWith('B1')).gelenkEnde === undefined);
+    wahr('Der Ast zur zweiten Reihe gibt die Stabachse frei',
+         aeste(vier).find((x) => x.name.endsWith('B2')).gelenkEnde === 'axial');
+    wahr('Die Äste liegen in der Jochachse',
+         aeste(vier).every((x) => {
+           const p = vier.knoten.get(x.von), q = vier.knoten.get(x.bis);
+           return Math.abs(p.y - q.y) < 1e-9 && Math.abs(p.z - q.z) < 1e-9
+               && Math.abs(p.x - q.x) > 1e-6;
+         }));
     wahr('Die Reihen liegen um das Raster auseinander',
          (() => {
            const xs = [...new Set(stummel(vier, 'UG')
@@ -2521,9 +2532,9 @@ titel('19  AxisVM-Export (SAF)');
     const durch = mitAnbau('durchgehend', 0.4);
     pruef('Durchgehend: vier Punkte unten', stummel(durch, 'UG').length, 4, 1e-12, 'Stk');
     pruef('Durchgehend: vier Punkte oben', stummel(durch, 'OG').length, 4, 1e-12, 'Stk');
-    wahr('Durchgehend: auch oben ist die zweite Reihe frei',
-         stummel(durch, 'OG').filter((x) => /_R2[LR]$/.test(x.name))
-           .every((x) => x.gelenkEnde === 'laengs'));
+    wahr('Durchgehend: auch oben gibt der zweite Ast die Stabachse frei',
+         durch.staebe.some((x) => /^AT\d+_OG_B2$/.test(x.name)
+                               && x.gelenkEnde === 'axial'));
     wahr('Durchgehend: ein Stab verbindet Ober- und Untergurt',
          durch.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
     wahr('Nur bei durchgehend läuft der Stab durch',

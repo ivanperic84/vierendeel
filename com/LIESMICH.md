@@ -154,6 +154,34 @@ Typbibliothek. Findet der Katalog den Stahl nicht, schreibt das Skript die
 Signatur mit Namen in den Bericht, und der Stahl lässt sich von Hand setzen,
 ohne die Referenz aufzuschlagen.
 
+### Woher die Kenntnis der Schnittstelle stammt
+
+Die COM-Referenz von AxisVM ist ein PDF über 10 MB, und die Wissensdatenbank
+führt unter «API» zwei Artikel. Ergiebiger sind die **quelloffenen Projekte
+von InterCAD selbst** — sie bauen Modelle über dieselbe Schnittstelle:
+
+| Projekt | Sprache | Lizenz | was es zeigt |
+|---|---|---|---|
+| [pyaxisvm](https://github.com/AxisVM/pyaxisvm) | Python | MIT | Anbindung über `comtypes`, Typbibliothek automatisch |
+| [GrasshopperToAxisVM](https://github.com/AxisVM/GrasshopperToAxisVM) | C# | GPL-3 | Knoten, Linien, `DefineAsBeam`, **Aufbau von `RReleases`** |
+| [DynamoToAxisVM](https://github.com/AxisVM/DynamoToAxisVM) | C# | GPL-3 | Lastfälle, Punktlasten, `AddNodalGlobal` |
+
+Aus den beiden C#-Projekten ist **kein Code übernommen** — sie sind GPL, diese
+Anwendung ist es nicht. Übernommen ist allein die Kenntnis, wie die
+Schnittstelle aussieht; das ist keine Schöpfungshöhe, sondern eine Tatsache
+über fremde Software.
+
+Der entscheidende Fund dort: **`RReleases` ist verschachtelt.** Die sechs
+Felder `x, y, z, xx, yy, zz` sind je ein `RRelease` mit einem Feld
+`ReleaseType` — nicht der blosse Aufzählungswert, wie hier zuerst angenommen.
+Gesetzt werden alle sechs: die freien auf `rtFree`, die übrigen ausdrücklich
+auf `rtRigid`. Ein nicht gesetztes Feld trüge den Nullwert der Struktur, und
+was der bedeutet, ist nirgends gesagt.
+
+Beide Projekte bestätigen ausserdem die Lasten und die Auflager Zeile für
+Zeile — `AddNodalForce(RLoadNodalForce)` mit `ReferenceId = 0`, und
+`AddNodalGlobal(RStiffnesses, RNonLinearity, RResistances, Knoten)`.
+
 ### Falls PowerShell doch nicht mag: PyAxisVM
 
 AxisVM pflegt eine quelloffene Python-Anbindung — [AxisVM/pyaxisvm]

@@ -532,11 +532,17 @@ export function stabmodell(m, opt = {}) {
      * nicht mehr dehnen. Über die Rasterlänge ist das eine Zwängung mitten
      * IM Gurt, und sie erzeugt Normalkräfte, die es nicht gibt.
      *
-     * x ist die Jochachse und steht quer zu den Stummeln, die in ±y liegen.
-     * Freigegeben wird deshalb NICHT die Stabachse, sondern die Querrichtung
-     * des Stummels - in dessen lokalen Achsen die z-Richtung, denn lcsZ
-     * zeigt bei querliegenden Stäben auf [1,0,0]. Das Kürzel heisst hier
-     * `laengs` und meint immer die Jochachse; die Brücke setzt es um.
+     * WO DIE FREIGABE SITZT. Nicht im Stummel: der liegt in ±y, und «x frei»
+     * wäre dort eine QUERrichtung. Welche der beiden lokalen Querachsen das
+     * ist, hinge daran, wie AxisVM die lokalen Achsen legt - eine Freigabe
+     * auf Verdacht.
+     *
+     * Stattdessen bekommt der Anschlusskörper zwischen Mitte und zweiter
+     * Reihe eine Freigabe IN SEINER ACHSE, und die ist die Jochachse. Am
+     * Knoten der zweiten Reihe hängen dann nur noch dieser Körper (ohne
+     * Längskraft) und ihr Stummel; aus dem Gleichgewicht in x folgt, dass
+     * der Stummel keine Längskraft überträgt. Wirkung gleich, Richtung
+     * eindeutig - eine Freigabe in der Stabachse ist überall dieselbe.
      */
     const reihen = r > 0 ? [imFeld(a.x - r), imFeld(a.x + r)] : [x0];
     const mitte = {};
@@ -548,8 +554,7 @@ export function stabmodell(m, opt = {}) {
         const n = s.kn(`AT${k}_${gurt}_R${j + 1}`, xr, 0, r6(z));
         ['L', 'R'].forEach((seite) => {
           s.stab(`AT${k}_${gurt}_R${j + 1}${seite}`, qsStarr, n,
-                 gurtKnoten(gurt, seite, xr),
-                 j > 0 ? { gelenkEnde: 'laengs' } : null);
+                 gurtKnoten(gurt, seite, xr));
         });
         return { x: xr, n };
       });
@@ -558,8 +563,12 @@ export function stabmodell(m, opt = {}) {
       // Mitte - dort hängt die Stütze.
       const nm = s.kn(`AT${k}_${gurt}`, x0, 0, r6(z));
       mitte[gurt] = nm;
-      knRe.forEach(({ x: xr, n }) => {
-        if (Math.abs(xr - x0) > 1e-9) s.stab(`AT${k}_${gurt}_B${xr}`, qsStarr, n, nm);
+      knRe.forEach(({ x: xr, n }, j) => {
+        if (Math.abs(xr - x0) < 1e-9) return;
+        // Der Ast zur ZWEITEN Reihe überträgt keine Längskraft: das ist die
+        // Freigabe von x, in der Stabachse und damit eindeutig.
+        s.stab(`AT${k}_${gurt}_B${j + 1}`, qsStarr, nm, n,
+               j > 0 ? { gelenkEnde: 'axial' } : null);
       });
     });
 
