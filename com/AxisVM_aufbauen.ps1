@@ -101,7 +101,8 @@ function Versuche([string]$schritt, $kandidaten, [switch]$Leise, [switch]$Positi
         try {
             $wert = & $k.tu
             if ($Positiv -and (($null -eq $wert) -or ($wert -le 0))) {
-                throw "Rueckgabe $wert - AxisVM meldet so einen Fehler"
+                $wie = FehlerName $wert
+                throw ("Rueckgabe $wert" + $(if ($wie) { " = $wie" } else { ' - AxisVM meldet so einen Fehler' }))
             }
             if (-not $Leise) { Schreib ("  {0,-34} {1}" -f $schritt, $k.name) }
             $gefunden.Add("$schritt -> $($k.name)")
@@ -259,6 +260,47 @@ if ($exe) {
     try { return $asm.GetTypes() }
     catch [Reflection.ReflectionTypeLoadException] {
         return ($_.Exception.Types | Where-Object { $_ })
+    }
+}
+
+<#  WAS BEDEUTET -102?
+    AxisVM meldet Fehler als negative Zahl. Welche Zahl was heisst, steht
+    NICHT in der Anleitung im Netz - aber in der Typbibliothek, die wir
+    ohnehin geladen haben. Also nachschlagen statt eine Liste von Hand
+    pflegen: sie ist immer die der laufenden Fassung.                     #>
+function FehlerName($code) {
+    if (($null -eq $code) -or ($code -gt 0)) { return $null }
+    $treffer = @()
+    foreach ($t in $script:typen) {
+        if (-not $t.IsEnum) { continue }
+        foreach ($n in [Enum]::GetNames($t)) {
+            if ([int]([Enum]::Parse($t, $n)) -eq [int]$code) {
+                $treffer += "$($t.Name).$n"
+            }
+        }
+    }
+    if ($treffer.Count -eq 0) { return $null }
+    return ($treffer -join ', ')
+}
+
+<#  DIE PARAMETERNAMEN.
+    Get-Member zeigt an einem COM-Objekt nur die TYPEN: AddSteel_EuroCode
+    (string, string, string, uint, uint, double, double, ...) - vierzehn
+    namenlose Zahlen. Die Interop-Baugruppe kennt dagegen die NAMEN aus der
+    Typbibliothek. Damit ist ablesbar, was an welche Stelle gehoert, ohne
+    die Referenz aufzuschlagen.                                           #>
+function Signaturen([string]$schnittstelle, [string]$beginntMit) {
+    $t = $script:typen | Where-Object { $_.Name -eq $schnittstelle } | Select-Object -First 1
+    if (-not $t) { Schreib "  $schnittstelle gibt es nicht in der Baugruppe."; return }
+    Schreib ''
+    Schreib "SIGNATUREN VON $schnittstelle (mit Parameternamen):"
+    foreach ($mth in ($t.GetMethods() | Where-Object { $_.Name -like "$beginntMit*" } | Sort-Object Name)) {
+        $ps = $mth.GetParameters() | ForEach-Object {
+            "$($_.ParameterType.Name.TrimEnd('&')) $($_.Name)"
+        }
+        Schreib "  $($mth.Name)("
+        foreach ($p in $ps) { Schreib "      $p" }
+        Schreib '  )'
     }
 }
 
@@ -430,6 +472,15 @@ if ($NurPruefen) {
             catch { Schreib "  Lines.Item nicht lesbar: $($_.Exception.Message)" }
         }
 
+        # --- Signaturen mit Parameternamen ---------------------------------
+        Abschnitt 'Signaturen mit Parameternamen'
+        Schreib 'Get-Member zeigt am COM-Objekt nur die Typen. Die Baugruppe kennt'
+        Schreib 'die Namen - hier die Stellen, an denen das den Unterschied macht.'
+        Signaturen 'IAxisVMMaterials' 'AddSteel'
+        Signaturen 'IAxisVMCrossSections' 'AddL'
+        Signaturen 'IAxisVMLine' 'DefineAsBeam'
+        Signaturen 'IAxisVMNodalSupports' 'AddNodal'
+
         # --- Federsaetze ---------------------------------------------------
         # AddNodalGlobal_V153 nimmt RNodalSupportSpringParams, und darin
         # stehen INDIZES benannter Federsaetze - keine Federzahlen:
@@ -535,7 +586,11 @@ foreach ($nc in @(@{ n = 'ndcSwiss_SIA26x'; v = $ndcSchweiz },
 }
 $r = Versuche 'Material' $kand -Positiv
 if (-not $r.ok) {
-    Mitglieder 'Materials' $m.Materials
+    Signaturen 'IAxisVMMaterials' 'AddSteel'
+    Schreib ''
+    Schreib 'Damit laesst sich der Stahl von Hand setzen - unsere Datei fuehrt:'
+    Schreib ("  E $($d.material.E) N/mm2, G $($d.material.G), nu $($d.material.nu), " +
+             "alpha $($d.material.alpha), rho $($d.material.rho) kg/m3, fy $($d.material.fy)")
     Beenden 3 ("$stahl in keinem Katalog gefunden. AxisVM meldet das als " +
                'negative Zahl, nicht als Fehler - deshalb faellt es sonst ' +
                'erst beim Rechnen auf.')

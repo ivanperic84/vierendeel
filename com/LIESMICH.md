@@ -130,6 +130,30 @@ Die lokale z-Richtung der Stäbe (`lcsZ`) wird nicht gesetzt; AxisVM wählt sie
 selbst. Für die Lasten ist das ohne Belang — sie werden global aufgebracht.
 Für das **Ablesen** von `My`/`Mz` je Stab ist es zu prüfen.
 
+### Warum das Skript nachschlägt statt Fehler abzufangen
+
+AxisVM meldet Fehler **nicht als Ausnahme**, sondern als negative Zahl. Beim
+ersten Aufbau lief alles durch — und lieferte `S235 als Nummer -102`. Die
+COM-Referenz sagt *„if successful the result is > 0"*; `-102` ist ein
+Fehlercode, und er wanderte als Materialnummer in alle 746 Stäbe.
+
+Was welche Zahl bedeutet, steht in keiner Anleitung im Netz. Es steht aber in
+der **Typbibliothek**, die das Skript ohnehin lädt. Also wird dort
+nachgeschlagen, statt eine Liste von Hand zu pflegen — sie stimmt damit
+immer zur laufenden Fassung:
+
+```
+Material   AddFromCatalog(ndcSwiss_SIA26x, 'S235')  ->  Rueckgabe -102 = errNotFound
+Material   AddFromCatalog(ndcEuroCode, 'S235')
+```
+
+Dasselbe gilt für die **Parameternamen**. `Get-Member` zeigt am COM-Objekt nur
+Typen — `AddSteel_EuroCode(string, string, string, uint, uint, double, double,
+…)`, vierzehn namenlose Zahlen. Die Interop-Baugruppe kennt die Namen aus der
+Typbibliothek. Findet der Katalog den Stahl nicht, schreibt das Skript die
+Signatur mit Namen in den Bericht, und der Stahl lässt sich von Hand setzen,
+ohne die Referenz aufzuschlagen.
+
 ### Falls PowerShell doch nicht mag: PyAxisVM
 
 AxisVM pflegt eine quelloffene Python-Anbindung — [AxisVM/pyaxisvm]
