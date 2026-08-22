@@ -124,11 +124,38 @@ Ein bis zwei Prozent Rest sind richtig so — die Ausrundungen `r1`/`r2` stehen
 in unserer Datei auf null, in der Profiltabelle nicht. Weicht ein Querschnitt
 um mehr als 5 % ab, hält das Skript an.
 
-### Offen
+### Lokale Stabachsen
 
-Die lokale z-Richtung der Stäbe (`lcsZ`) wird nicht gesetzt; AxisVM wählt sie
-selbst. Für die Lasten ist das ohne Belang — sie werden global aufgebracht.
-Für das **Ablesen** von `My`/`Mz` je Stab ist es zu prüfen.
+Ohne Referenz legt AxisVM die lokale z-Achse in die **Vertikalebene**. Für die
+Gurte trifft das unsere Vorgabe `[0,0,1]`. Für die **Bindebleche** nicht: deren
+Rechteck muss mit der Breite in der Jochachse liegen, also `z` nach `[1,0,0]`.
+Stünde ein 160 × 10 mm Blech hochkant, läge seine Biegesteifigkeit um
+(160/10)² ≈ 256-fach daneben — und das Modell rechnete klaglos Unsinn.
+
+`References` trägt genau **eine** Add-Methode, und die nimmt einen Verbund-Typ:
+
+```
+Add(RReference Item)
+```
+
+Weil meine erste Fassung nur Methoden mit einfachen Parametern in Betracht zog,
+fand sie keine — 0 von 942 Stäben bekamen eine Achse. Der Bericht sagte das
+deutlich, statt still weiterzurechnen.
+
+Wie `RReference` innen aussieht, wird jetzt **gelesen** statt geraten:
+`SatzAufbau` klappt den Typ mitsamt Untersätzen und Aufzählungsnamen im Bericht
+aus, `SatzSetzen` schreibt über Reflexion hinein. Das ist nötig, weil
+`$r.Point1.x = 1` bei einem Wertetyp ins Leere läuft — PowerShell holt sich eine
+Kopie. Gefüllt wird nach Bedeutung: das Aufzählungsfeld auf die Vektor-Art, die
+erste Dreiergruppe `x`/`y`/`z` auf die Richtung.
+
+Geprüft wurde vorher, dass **kein** Stab parallel zu seiner Referenz steht — das
+kleinste Kreuzprodukt über alle 942 liegt bei 1,0. Die Richtung ist also überall
+eindeutig.
+
+Nach dem Zuweisen liest das Skript an vier Stäben zurück, was wirklich drinsteht.
+Eine COM-Eigenschaft kann eine Zuweisung klaglos schlucken und doch bei 0
+bleiben; gesetzt heisst nicht angekommen.
 
 ### Warum das Skript nachschlägt statt Fehler abzufangen
 

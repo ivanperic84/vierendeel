@@ -406,6 +406,61 @@ function NeuerSatz([string]$name) {
     [Activator]::CreateInstance($t)
 }
 
+<#  AUFBAU EINES VERBUND-TYPS ZEIGEN. Geschachtelte Saetze werden mit
+    ausgeklappt, Aufzaehlungen mit ihren Namen.                           #>
+function SatzAufbauT([Type]$t, [int]$tiefe) {
+    $ein = '  ' + ('    ' * $tiefe)
+    foreach ($f in $t.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+        $ft = $f.FieldType
+        Schreib ("$ein{0,-22} {1}" -f $f.Name, $ft.Name)
+        if ($ft.IsEnum) {
+            Schreib ("$ein    = " + (([Enum]::GetNames($ft)) -join ', '))
+        } elseif ($ft.IsValueType -and -not $ft.IsPrimitive -and $tiefe -lt 3) {
+            SatzAufbauT $ft ($tiefe + 1)
+        }
+    }
+}
+function SatzAufbau([string]$name) {
+    $t = $script:typen | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+    if (-not $t) { Schreib "  Verbund-Typ $name fehlt in der Baugruppe."; return }
+    Schreib ''
+    Schreib "AUFBAU VON ${name}:"
+    SatzAufbauT $t 0
+}
+
+<#  EIN FELD TIEF IM SATZ SETZEN.  $r.Point1.x = 1 geht NICHT: PowerShell
+    holt sich bei einem Wertetyp eine Kopie, und die Zuweisung landet ins
+    Leere. Deshalb ueber Reflexion, und der geaenderte Untersatz wird
+    wieder in den Obersatz zurueckgeschrieben.                            #>
+function SatzSetzen($satz, [string[]]$pfad, $wert) {
+    if ($null -eq $satz) { return $null }   # ein frueherer Schritt ist schiefgegangen
+    $f = $satz.GetType().GetField($pfad[0], [Reflection.BindingFlags]'Public,Instance')
+    if (-not $f) { return $null }
+    if ($pfad.Count -eq 1) {
+        $w = if ($f.FieldType.IsEnum) { [Enum]::Parse($f.FieldType, $wert) }
+             else { [Convert]::ChangeType($wert, $f.FieldType) }
+        $f.SetValue($satz, $w)
+    } else {
+        $unter = SatzSetzen ($f.GetValue($satz)) ($pfad[1..($pfad.Count - 1)]) $wert
+        if ($null -eq $unter) { return $null }
+        $f.SetValue($satz, $unter)
+    }
+    return $satz
+}
+
+<#  Alle Pfade zu Gleitkommafeldern sammeln, auch in Untersaetzen.        #>
+function ZahlPfade([Type]$t, [string[]]$pfad, [int]$tiefe, $aus) {
+    foreach ($f in $t.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+        $p = @($pfad) + $f.Name
+        $ft = $f.FieldType
+        if (($ft -eq [double]) -or ($ft -eq [single])) { [void]$aus.Add(@($p)) }
+        elseif ($ft.IsValueType -and -not $ft.IsPrimitive -and -not $ft.IsEnum -and $tiefe -lt 3) {
+            ZahlPfade $ft $p ($tiefe + 1) $aus
+        }
+    }
+}
+
+
 
 # --- Modelldatei -------------------------------------------------------------
 if (-not $Json) {
@@ -596,8 +651,9 @@ if ($NurPruefen) {
             Gebraucht wird deshalb: wie legt man eine Referenz an, und wie
             haengt man sie an eine Linie.                                 #>
         Signaturen 'IAxisVMReferences' ''
-        Signaturen 'IAxisVMLine' 'Reference'
-        Signaturen 'IAxisVMLines' 'BulkGetAttr'
+        Signaturen 'IAxisVMLine'  '*Ref'
+        Signaturen 'IAxisVMLines' '*Ref'
+        SatzAufbau 'RReference'
 
         # --- Federsaetze ---------------------------------------------------
         # AddNodalGlobal_V153 nimmt RNodalSupportSpringParams, und darin
@@ -857,9 +913,7 @@ foreach ($nm in $stich) {
     }
 }
 
-Schreib '  Die lokale z-Richtung (lcsZ) wird NICHT gesetzt - AxisVM waehlt sie'
-Schreib '  selbst. Fuer die Lasten ist das ohne Belang (global aufgebracht),'
-Schreib '  fuer das ABLESEN von My/Mz je Stab ist es zu pruefen.'
+Schreib '  Die lokale z-Richtung (lcsZ) setzt der naechste Abschnitt.'
 
 # --- 6b - Lokale Stabachsen --------------------------------------------------
 Abschnitt '6b - Lokale Stabachsen'
@@ -870,86 +924,177 @@ Abschnitt '6b - Lokale Stabachsen'
     [1,0,0]. Stuende ein 160x10-Blech hochkant, laege seine Biegesteifigkeit
     um (160/10)^2 daneben - das Modell rechnete klaglos Unsinn.
 
-    WIE OHNE SIGNATUR. Die Typbibliothek ist geladen, also wird die Signatur
-    GELESEN statt geraten: unter den Add-Methoden von IAxisVMReferences wird
-    die gesucht, deren Parameter sich aus einem Vektor fuellen lassen -
-    Namen wie x/y/z, dazu ein Name und Aufzaehlungen. Was genommen wurde,
-    steht im Bericht.                                                     #>
+    DER WEG. Vermessen am 22.08.: References kennt genau EINE Add-Methode,
+    und die nimmt einen Verbund-Typ:  Add(RReference Item).  Wie RReference
+    innen aussieht, wird wieder GELESEN statt geraten - Felder, Typen und
+    bei Aufzaehlungen die Namen stehen unten im Bericht. Gefuellt wird
+    danach nach Bedeutung: das Aufzaehlungsfeld auf die Vektor-Art, die
+    erste Gruppe aus x/y/z auf die Richtung.
+
+    Sollte RReference die Richtung als ZWEI Punkte fuehren statt als einen
+    Vektor, trifft die erste Gruppe den Anfangspunkt und der Endpunkt
+    bleibt im Ursprung. Die Achse steht dann trotzdem richtig, nur zeigt
+    sie in die Gegenrichtung - fuer die Steifigkeit ohne Belang, beim
+    Vorzeichen von My beim Ablesen zu beachten.
+
+    Keiner der 942 Staebe steht parallel zu seiner Referenz (geprueft, das
+    kleinste Kreuzprodukt liegt bei 1.0) - die Richtung ist also ueberall
+    eindeutig.                                                            #>
 Signaturen 'IAxisVMReferences' ''
+<#  Auch gleich zeigen, WOHIN die fertige Referenz gehoert. Der Filter
+    '*Ref' wird zu '*Ref*', es kommt also alles mit Ref im Namen. Das
+    steht auch dann im Bericht, wenn das Zuweisen unten glueckt; misslingt
+    es, spart die Liste einen ganzen Durchlauf.                        #>
+Signaturen 'IAxisVMLine'  '*Ref'
+Signaturen 'IAxisVMLines' '*Ref'
+SatzAufbau 'RReference'
+
+$tRef = $script:typen | Where-Object { $_.Name -eq 'RReference' } | Select-Object -First 1
+
+<#  Die erste Dreiergruppe x/y/z im Satz suchen - das ist der Ort fuer die
+    Richtung. Zusammengehoerig heisst: gleicher Obersatz.                 #>
+$koord = $null
+$artFeld = $null
+$artWert = $null
+$namensFeld = $null
+if ($tRef) {
+    $alle = New-Object System.Collections.ArrayList
+    ZahlPfade $tRef @() 0 $alle
+    $gruppen = @{}
+    $folge = @()
+    foreach ($p in $alle) {
+        $blatt = $p[$p.Count - 1]
+        if ($blatt -notmatch '^[xyz]$') { continue }
+        $eltern = if ($p.Count -gt 1) { ($p[0..($p.Count - 2)]) -join '.' } else { '' }
+        if (-not $gruppen.ContainsKey($eltern)) { $gruppen[$eltern] = @{}; $folge += $eltern }
+        $gruppen[$eltern][$blatt.ToLower()] = @($p)
+    }
+    foreach ($g in $folge) {
+        $h = $gruppen[$g]
+        if ($h.ContainsKey('x') -and $h.ContainsKey('y') -and $h.ContainsKey('z')) {
+            $koord = $h
+            Schreib "  Richtung geht nach: $(if ($g) { $g } else { '(oberste Ebene)' }).x/y/z"
+            break
+        }
+    }
+    foreach ($f in $tRef.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+        if ($f.FieldType.IsEnum -and -not $artFeld) {
+            $namen = [Enum]::GetNames($f.FieldType)
+            $treffer = $namen | Where-Object { $_ -match 'Vector|Vekt' } | Select-Object -First 1
+            if (-not $treffer) { $treffer = $namen | Where-Object { $_ -match 'Point|Punkt' } | Select-Object -First 1 }
+            if ($treffer) {
+                $artFeld = $f.Name; $artWert = $treffer
+                Schreib "  Art der Referenz: $($f.Name) = $treffer"
+            }
+        }
+        if (($f.FieldType -eq [string]) -and -not $namensFeld) { $namensFeld = $f.Name }
+    }
+}
+if (-not $koord) {
+    Schreib '  >>> In RReference sitzt keine Gruppe x/y/z. Der Aufbau steht oben.'
+}
 
 $refs = @{}
 $refFehler = 0
 
 function ReferenzFuer($vx, $vy, $vz) {
     $schluessel = "$vx|$vy|$vz"
-    if ($refs.ContainsKey($schluessel)) { return $refs[$schluessel] }
+    if ($script:refs.ContainsKey($schluessel)) { return $script:refs[$schluessel] }
+    if (-not $script:koord) { $script:refs[$schluessel] = $null; return $null }
 
-    $t = $script:typen | Where-Object { $_.Name -eq 'IAxisVMReferences' } | Select-Object -First 1
-    if (-not $t) { return $null }
-
-    # Einfache Signaturen zuerst: wenige Parameter, keine Verbund-Typen.
-    $mths = $t.GetMethods() |
-            Where-Object { $_.Name -like 'Add*' } |
-            Sort-Object { $_.GetParameters().Count }
-
-    $kand = @()
-    foreach ($mth in $mths) {
-        $ps = $mth.GetParameters()
-        $schwer = $ps | Where-Object {
-            $n = $_.ParameterType.Name.TrimEnd('&')
-            $n -notin 'String', 'Double', 'Int32', 'Single' -and
-            -not (($script:typen | Where-Object { $_.Name -eq $n }).IsEnum)
-        }
-        if ($schwer) { continue }
-
-        $arg = @()
-        foreach ($p in $ps) {
-            $n = $p.Name
-            $arg += switch -Regex ($n) {
-                '^(x|X|vx|dx)$'      { $vx; break }
-                '^(y|Y|vy|dy)$'      { $vy; break }
-                '^(z|Z|vz|dz)$'      { $vz; break }
-                '^(name|Name)$'      { "LCS_${vx}_${vy}_${vz}"; break }
-                default {
-                    if ($p.ParameterType.Name -eq 'String') { "LCS_${vx}_${vy}_${vz}" } else { 0 }
-                }
-            }
-        }
-        # Der Aufruf laeuft ueber InvokeMember: an einem COM-Objekt gibt es
-        # kein MethodInfo, das man mit .Invoke() bedienen koennte.
-        $bez = "$($mth.Name)($(($ps | ForEach-Object { $_.Name }) -join ', '))"
-        $a = [object[]]$arg
-        $nm = $mth.Name
-        $kand += @{ name = $bez; tu = {
-            $obj = $script:m.References
-            $obj.GetType().InvokeMember($nm,
-                [Reflection.BindingFlags]::InvokeMethod, $null, $obj, $a)
-        }.GetNewClosure() }
+    $satz = NeuerSatz 'RReference'
+    if ($script:artFeld)    { $satz = SatzSetzen $satz @($script:artFeld) $script:artWert }
+    if ($script:namensFeld) { $satz = SatzSetzen $satz @($script:namensFeld) "LCS_${vx}_${vy}_${vz}" }
+    $satz = SatzSetzen $satz $script:koord['x'] ([double]$vx)
+    $satz = SatzSetzen $satz $script:koord['y'] ([double]$vy)
+    $satz = SatzSetzen $satz $script:koord['z'] ([double]$vz)
+    if ($null -eq $satz) {
+        Schreib '  >>> RReference liess sich nicht fuellen.'
+        $script:refs[$schluessel] = $null
+        return $null
     }
-    if (-not $kand.Count) { return $null }
 
-    $r = Versuche "Referenz [$vx $vy $vz]" $kand -Positiv
-    $refs[$schluessel] = if ($r.ok) { $r.wert } else { $null }
-    if (-not $r.ok) { Mitglieder 'MODELL.References' $script:m.References }
-    return $refs[$schluessel]
+    $s = $satz
+    $r = Versuche "Referenz [$vx $vy $vz]" @(
+        @{ name = 'References.Add(RReference)'; tu = { $script:m.References.Add($s) }.GetNewClosure() }
+    ) -Positiv
+    $script:refs[$schluessel] = if ($r.ok) { $r.wert } else { $null }
+    return $script:refs[$schluessel]
+}
+
+<#  ZUWEISEN AN DEN STAB. Wie die Referenz an die Linie kommt, ist nicht
+    vermessen - es gibt mehrere Schreibweisen im Umlauf. Der erste Stab
+    probiert sie durch, der Rest nimmt die, die getragen hat. Traegt keine,
+    stehen die Mitglieder von IAxisVMLine im Bericht.                     #>
+$zuweisung = $null
+function AchseZuweisen([int]$li, [int]$ref) {
+    if ($script:zuweisung) {
+        # Der Block ist eine ZUWEISUNG - er liefert nichts zurueck. Wer
+        # hier sein Ergebnis auswertet, bekommt $null und haelt einen
+        # geglueckten Schritt fuer einen Fehler.
+        try { & $script:zuweisung $li $ref; return $true } catch { return $false }
+    }
+    $wege = @(
+        @{ name = 'Lines.Item(i).Reference = n';      tu = { param($l, $r) $script:m.Lines.Item($l).Reference = $r } },
+        @{ name = 'Lines.Item(i).ReferenceIndex = n'; tu = { param($l, $r) $script:m.Lines.Item($l).ReferenceIndex = $r } },
+        @{ name = 'Lines.Item(i).SetReference(n)';    tu = { param($l, $r) [void]$script:m.Lines.Item($l).SetReference($r) } },
+        @{ name = 'Members.Item(i).Reference = n';    tu = { param($l, $r) $script:m.Members.Item($l).Reference = $r } }
+    )
+    foreach ($w in $wege) {
+        try {
+            & $w.tu $li $ref
+            Schreib ("  {0,-34} {1}" -f 'Achse an den Stab', $w.name)
+            $script:zuweisung = $w.tu
+            $script:gefunden.Add("Achse an den Stab -> $($w.name)")
+            return $true
+        } catch { }
+    }
+    Schreib '  >>> Keine der vier Schreibweisen hat die Referenz angenommen.'
+    Signaturen 'IAxisVMLine' ''
+    return $false
 }
 
 $nRef = 0
+$proben = @()
 foreach ($sb in $d.staebe) {
     $li = $st[$sb.name]
     if (-not $li -or -not $sb.lcsZ) { continue }
     $v = $sb.lcsZ
     $ref = ReferenzFuer $v[0] $v[1] $v[2]
     if (-not $ref) { $refFehler++; continue }
-    try { $m.Lines.Item($li).Reference = $ref; $nRef++ } catch { $refFehler++ }
+    if (AchseZuweisen $li $ref) {
+        $nRef++
+        if ($proben.Count -lt 4) { $proben += @{ name = $sb.name; li = $li; ref = $ref; v = $v } }
+    } else {
+        # Traegt keine Schreibweise, tragen sie alle nicht - weiterlaufen
+        # hiesse 941 gleiche Fehlschlaege in den Bericht schreiben.
+        $refFehler = @($d.staebe).Count - $nRef
+        break
+    }
 }
 Schreib "  $nRef Staeben eine Referenz zugewiesen, $($refs.Count) Richtungen"
+
+<#  NACHMESSEN. Gesetzt heisst nicht angekommen: eine COM-Eigenschaft kann
+    eine Zuweisung klaglos schlucken und doch bei 0 bleiben. Deshalb wird
+    an vier Staeben zurueckgelesen, was jetzt wirklich drinsteht.         #>
+if ($proben.Count -gt 0) {
+    foreach ($pb in $proben) {
+        # try als Ausdruck ($x = try {...}) kann erst PowerShell 7 -
+        # auf 5.1 ist das ein Syntaxfehler.
+        $ist = '(nicht lesbar)'
+        try { $ist = $m.Lines.Item($pb.li).Reference } catch { }
+        Schreib ("    {0,-16} Referenz gesetzt {1}  gelesen {2}   z nach [{3}]" -f
+                 $pb.name, $pb.ref, $ist, ($pb.v -join ' '))
+    }
+    Schreib '  Steht dort 0 oder (nicht lesbar), ist die Achse NICHT angekommen -'
+    Schreib '  dann die Liste IAxisVMLine oben zurueckschicken.'
+}
 if ($refFehler -gt 0) {
     Schreib ''
     Schreib "  >>> WARNUNG: bei $refFehler Staeben blieb die Achse ungesetzt."
     Schreib '  >>> Die Bindebleche stehen dann hochkant statt flach, und ihre'
     Schreib '  >>> Biegesteifigkeit liegt um (Breite/Dicke)^2 daneben.'
-    Schreib '  >>> NICHT rechnen; die Signaturen oben zurueckschicken.'
+    Schreib '  >>> NICHT rechnen; den Aufbau von RReference oben zurueckschicken.'
 }
 
 # --- 7 - Auflager ------------------------------------------------------------
