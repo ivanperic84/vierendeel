@@ -611,7 +611,7 @@ titel('13  Blecheinteilung nach Mass-Tabelle und Gabel am Jochende');
   wahr('J80 16.00 m: Raster symmetrisch',
        xs.every((x, i) => Math.abs(x - (16.0 - xs[xs.length - 1 - i])) < 1e-9));
 
-  // Gegenprobe mit den Stückzahlen der Konstruktionszeichnung 373.08.021:
+  // Gegenprobe mit den Stückzahlen der Werkstattzeichnung:
   // je Ebene hat die Vertikalebene genau zwei Bleche mehr - die an den Enden.
   const zaehle = (L, ebene) => {
     const A = T.abstaendeFuer(j80, L);
@@ -2433,7 +2433,7 @@ titel('19  AxisVM-Export (SAF)');
 
   // --- Starrelemente bis an die Blechkanten ---------------------------------
   {
-    // Schnitt C-C 373.09.021: Vertikalblech 320 = 500 − 2·90, es stösst an
+    // Schnitt C-C: Vertikalblech 320 = 500 − 2·90, es stösst an
     // die SPITZEN der stehenden Schenkel. Von der Gurtachse aus: aV − zsH.
     // Horizontalblech 260 = lichte Weite, es stösst an deren INNENSEITE: zsV.
     const teil = (b, anfang, endung) =>
@@ -2604,7 +2604,7 @@ titel('19  AxisVM-Export (SAF)');
           v ? v.dy : NaN, (m.profOG.zsV * 10 - m.profOG.t / 2) / 1000, 1e-9, 'm');
     wahr('Vertikalblech: keine Höhenänderung', !!v && Math.abs(v.dz) < 1e-12);
     // Das Horizontalblech liegt an der Innenseite des liegenden Schenkels
-    // (Schnitt C-C, 373.09.021), nicht in dessen Flucht: die Mittelebene
+    // (Schnitt C-C), nicht in dessen Flucht: die Mittelebene
     // rückt um (t_Schenkel + t_Blech)/2 nach innen. Für L90×90×9 mit 10 mm
     // Blech sind das 9.5 mm - die «10 mm» der Werkstattregel.
     // Nicht den Stummel erwischen: BH_O_0_e1 trägt STARR, nicht das Blech.

@@ -259,7 +259,7 @@ const rechteck = (d) => ({ name: d.name, art: 'Parametric', form: 'Rectangle',
  * Vorrang - die Blecheinteilung wird nicht nachgerechnet, sondern übernommen.
  *
  * Nur wenn ein Typ keine Länge führt, wird sie aus dem Profil abgeleitet.
- * Schnitt C-C der Zeichnung 373.09.021 gibt dafür die Regel:
+ * Schnitt C-C der Werkstattzeichnung gibt dafür die Regel:
  *
  *   Vertikalblech    stösst gegen die SPITZEN der stehenden Schenkel
  *                    → von der Gurtachse aus  aV − zsH
@@ -283,7 +283,7 @@ function schenkelVersatz(p, ecke, ausr, tBlech = 0) {
   const ez = ecke.sz * ausr.st;
 
   // DAS HORIZONTALBLECH LIEGT AN, NICHT IN DER FLUCHT.
-  // Schnitt C-C der Konstruktionszeichnung 373.09.021: das Vertikalblech
+  // Schnitt C-C der Werkstattzeichnung: das Vertikalblech
   // steht in der Flucht der stehenden Schenkel (100/10 × 320 = lichte Höhe
   // 500 − 2·90), das Horizontalblech (100/10 × 260) liegt dagegen an der
   // INNENSEITE der liegenden Schenkel - damit es sich schweissen lässt.

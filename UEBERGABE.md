@@ -88,7 +88,8 @@ Nummer, kann ein Fehlercode sein.
 
 Vier Beobachtungen, vier Korrekturen:
 
-1. **Die Blechachsen liegen versetzt.** Nach Zeichnung 373.09.011_d stehen die
+1. **Die Blechachsen liegen versetzt.** Nach dem Detailschnitt der
+   Werkstattzeichnung stehen die
    **stehenden** Bleche in der Flucht der Schenkel der L-Profile, die
    **liegenden** zusätzlich 10 mm nach innen, damit sie sich schweissen lassen.
    Gebaut in `schenkelVersatz` (`js/export.axisvm.js`); die Vorzeichen kommen
@@ -851,7 +852,8 @@ Dazu die Regeln aus der Durchsicht des Modells (22. August), im Wortlaut:
 
 > **Die stehenden Bleche sind in der Flucht der Schenkel der L-Profile. Die
 > liegenden sind theoretisch noch 10 mm nach innen versetzt, um sie besser
-> schweissen zu können.** (Detailschnitt 373.09.011_d)
+> schweissen zu können.** (Detailschnitt der Werkstattzeichnung; die Nummer
+> steht im Projektmaterial, das ausserhalb der Ablage liegt)
 
 > **Bei Hängestützen, die nur an zwei Punkten gehalten werden** am Unter- oder
 > Obergurt, **nach Variante A ausbilden** (biegesteif um y).
@@ -932,8 +934,8 @@ Joch ist zum Ausprobieren gedacht, bevor der Ernstfall läuft.
 
 Das Handbuch ist neu gesetzt und trägt jetzt beides: die **Überlagerung je
 Blechebene** (5.3, mit der Warnung, dass beide Anteile das Vorzeichen tragen
-müssen) und die **Fahrleitung als Auflager** (7.5). Auf SBB-Bezüge geprüft:
-keine.
+müssen) und die **Fahrleitung als Auflager** (7.5). Auf Betreiberbezüge
+geprüft: keine.
 
 ---
 
@@ -970,7 +972,7 @@ Ablage liegt. Die Trennung ist sauber und muss sauber bleiben:
   `com/AxisVM_aufbau_bericht.txt`.
 
 Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
-öffentlich; das SBB-Material darf nie hinein.**
+öffentlich; das Projektmaterial des Betreibers darf nie hinein.**
 
 ### Was vorhanden sein muss
 

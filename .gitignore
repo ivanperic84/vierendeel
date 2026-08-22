@@ -55,7 +55,7 @@ __pycache__/
 *.pyc
 node_modules/
 
-# Auswertung gegen das AxisVM-Modell (SBB-Projektmaterial)
+# Auswertung gegen das AxisVM-Modell (Projektmaterial des Betreibers)
 pruefung_axisvm/
 com/AxisVM_aufbau_bericht.txt
 com/AxisVM_aufbau_protokoll.txt
