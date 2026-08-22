@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 666 Kontrollen bestanden, 0 gefallen · Bundle 845 kB (674 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA)
+**Stand:** 934 Kontrollen bestanden, 0 gefallen · Bundle 945 kB (760 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA) · COM-Brücke zu AxisVM gebaut
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 666 Kontrollen
+node pruefung.mjs           # Prüfstand, 934 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,183 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### AxisVM über COM — die Brücke steht (21./22. August)
+
+Der SAF-Weg ist verlassen. Gebaut wird jetzt **unmittelbar über COM**:
+`com/AxisVM_aufbauen.ps1` liest die JSON-Ausleitung und baut daraus das ganze
+Modell. Gemessen am 22.08. um 22:04 auf dem Arbeitsrechner:
+
+```
+827 Knoten · 942 Stäbe · 14 Querschnitte · 8 Auflager
+4 Lastfälle · 377 Lasten · 6 Freigaben  ->  .axs gespeichert
+```
+
+Danach `SaveToFile` — **gerechnet wird nicht**. Lastkombinationen und
+Berechnung bleiben die Entscheidung des Auftraggebers im Programm.
+
+#### Die Schnittstelle wird vermessen, nicht geraten
+
+Das ist die Lehre des ersten Abends. Die COM-Referenz von AxisVM ist ein PDF
+über 10 MB, die Namen verschieben sich zwischen den Fassungen, und ein blind
+geschriebenes Skript scheitert erst mitten im Modellaufbau — nach einer halben
+Stunde Bauzeit. Deshalb drei Vorkehrungen:
+
+* **Die Typbibliothek wird zur Laufzeit gelesen.** `LoadTypeLibEx` aus der
+  laufenden Programmdatei, dann `TypeLibConverter.ConvertTypeLibToAssembly` —
+  1643 Typen, ohne SDK und ohne `tlbimp`. Erst dadurch kennt das Skript die
+  **Parameternamen**: `Get-Member` zeigt an einem COM-Objekt nur die Typen,
+  also vierzehn namenlose Zahlen.
+* **`Versuche`** probiert mehrere Schreibweisen durch und schreibt in den
+  Bericht, welche getragen hat. Am Schluss steht die Liste aller gefundenen
+  Schreibweisen — das ist die Vermessung, die beim nächsten Mal gilt.
+* **`AxisVM_pruefen.cmd`** baut nichts, sondern listet nur Signaturen. Zwei
+  Minuten, und die offene Frage ist beantwortet, ohne ein Modell anzufassen.
+
+Was die Fassung 18 r1m tatsächlich trägt, steht in `com/LIESMICH.md`. Das
+Wichtigste:
+
+| | |
+|---|---|
+| Material | `AddFromCatalog(ndcEuroCode, 'S 235')` — **mit Leerzeichen** |
+| Querschnitt | `AddL(Name, a, b, tw, tf, r1, r2, cspRolled)`, Masse in **Metern** |
+| Stab | `Lines.Add(i, j, lgtStraightLine, RLineGeomData)` + `DefineAsBeam` |
+| Auflager | `AddNodalGlobal(RStiffnesses, RNonLinearity, RResistances, Knoten)` |
+| Gelenk | `SetStartReleases(RReleases)` — **verschachtelt**, jedes Feld ein `RRelease` mit `.ReleaseType` |
+| Referenz | `References.Add(RReference Item)` — genau eine Methode, Verbund-Typ |
+
+#### AxisVM meldet Fehler als negative Zahl, nicht als Ausnahme
+
+Beim ersten Aufbau lief alles durch — und lieferte `S235 als Nummer -102`. Das
+ist `EGeneralError.errNotFound`, und es wanderte als Materialnummer in alle 746
+Stäbe. Die COM-Referenz sagt *„if successful the result is > 0"*.
+
+Seither prüft der Schalter `-Positiv` jeden Add-Schritt, und `FehlerName`
+durchsucht alle Aufzählungen der Typbibliothek nach dem negativen Wert. Der
+Bericht sagt dann nicht „Fehler", sondern `-102 = EGeneralError.errNotFound`.
+
+**Regel:** bei COM nie den Rückgabewert übergehen. Was aussieht wie eine
+Nummer, kann ein Fehlercode sein.
+
+#### Die Geometrie nach Ihrer Durchsicht am halbfertigen Modell
+
+Vier Beobachtungen, vier Korrekturen:
+
+1. **Die Blechachsen liegen versetzt.** Nach Zeichnung 373.09.011_d stehen die
+   **stehenden** Bleche in der Flucht der Schenkel der L-Profile, die
+   **liegenden** zusätzlich 10 mm nach innen, damit sie sich schweissen lassen.
+   Gebaut in `schenkelVersatz` (`js/export.axisvm.js`); die Vorzeichen kommen
+   aus `AUSRICHTUNGEN` in `geometry.js` und nicht aus einer Annahme — meine
+   erste Fassung hatte y verkehrt herum, was Ihnen an der Skizze aufgefallen
+   ist, bevor es ins Modell ging.
+2. **Die Auflager am Jochende.** Die Aussteifung über Kreuz verfälscht die
+   Reaktionen, wenn in einem Punkt gelagert wird. Gebaut sind jetzt **drei**
+   Modelle, wählbar im Ausleitungsdialog, Vorgabe nach Bauweise:
+   `gurte` (Untergurte x/y/z, Obergurte x/y — kein Kräftepaar, für die neuen
+   Joche), `mitte` (Gurtebene vorn und hinten, Gelenk um y — Altbauweise) und
+   `punkt` (ein Punkt je Ende mit Drehfeder, für den Abgleich mit dem
+   Ersatzbalken).
+3. **Die Hängestütze war doppelt geführt.** Jetzt ein durchgehender Stab, der
+   Anschluss rechtwinklig zu den Gurtachsen, der Übergang gelenkig.
+4. **Die Starrelemente enden zu früh.** Sie laufen jetzt bis an die Blechkanten.
+
+#### Der Anschluss der Hängestütze im Einzelnen
+
+Das ist die Stelle, an der das System zweimal zum Mechanismus geworden ist —
+beide Male von Ihnen am Modell gesehen, nicht von mir gerechnet.
+
+* **Zwei Punkte** (nur Ober- oder nur Untergurt): Variante A, biegesteif um y.
+* **Vier Punkte** (oben und unten je zwei Reihen längs der Jochachse): die
+  **erste Reihe x/y/z**, die **zweite y/z**. Die zweite Reihe ist längs frei,
+  sonst zwängt der Anschluss im Gurt.
+
+Die Freigabe sitzt deshalb im **Ast des Anschlusskörpers** und nicht im
+Querstummel: der Ast liegt in der Jochachse, dort ist „lokal x" eindeutig. Im
+Querstummel wäre dieselbe Freigabe eine andere Richtung — und ein Gelenk um
+alle drei Momente an einem einzelnen Knoten macht aus der Stütze ein Pendel.
+
+#### Zu enge Schnitte werden zusammengelegt
+
+Sie haben zwei Linien dicht nebeneinander gesehen. Ursache: die beiden Reihen
+eines Anbauteils liegen 20 mm auseinander, und dazwischen entstand ein
+Gurtstück von 10 mm mit dem Ersatzquerschnitt. So etwas verdirbt die Kondition
+der Steifigkeitsmatrix, ohne dass die Rechnung abbricht.
+
+`schnitteZusammenlegen` trennt jetzt **feste** Schnitte (Enden, Stationen,
+Blechkanten — die sind Geometrie und dürfen nicht wandern) von **beweglichen**
+(Anbauteilpositionen). Bewegliche Schnitte näher als 25 mm rasten auf ihren
+Nachbarn ein:
+
+```
+x  6.290 ->  6.300  +10.0 mm      x  6.310 ->  6.300  -10.0 mm
+x 11.390 -> 11.400  +10.0 mm      x 11.410 -> 11.400  -10.0 mm
+x 15.490 -> 15.500  +10.0 mm      x 15.510 -> 15.500  -10.0 mm
+```
+
+Rasten beide Reihen auf denselben Punkt, wird aus dem Anschluss **eine** starre
+Verbindung nach Variante A — ohne zweiten Ast und ohne Längsfreigabe. Das
+kürzeste Gurtstück misst jetzt 30 statt 10 mm, das Modell 942 statt 990 Stäbe.
+Die Verschiebungen stehen in `tragwerk.verschoben` und werden im Bericht
+aufgeführt; sie bleiben nachvollziehbar.
+
+**Das ist keine Anpassung der Blecheinteilung** — verschoben werden nur
+Anbauteilpositionen, und zwar um 10 mm. Die Jochgeometrie bleibt unangetastet.
+
+#### Offen: die lokalen Stabachsen
+
+Der **einzige** noch nicht getragene Schritt. Ohne Referenz legt AxisVM die
+lokale z-Achse in die Vertikalebene. Für die Gurte trifft das unsere Vorgabe
+`[0,0,1]`; für die Bindebleche nicht — deren Rechteck muss mit der Breite in
+der Jochachse liegen, also `z` nach `[1,0,0]`. Stünde ein 160 × 10 mm Blech
+hochkant, läge seine Biegesteifigkeit um (160/10)² ≈ **256-fach** daneben, und
+das Modell rechnete klaglos Unsinn.
+
+Der Lauf vom 22.08. hat die Antwort geliefert: `References` trägt genau **eine**
+Add-Methode, und die nimmt einen Verbund-Typ. Meine erste Fassung suchte nur
+Methoden mit einfachen Parametern und fand deshalb keine — 0 von 942 Stäben
+bekamen eine Achse. Der Bericht sagte das als Warnung, statt still weiterzubauen.
+
+Seither wird der Aufbau von `RReference` **gelesen**: `SatzAufbau` klappt den
+Typ mitsamt Untersätzen und Aufzählungsnamen im Bericht aus, `SatzSetzen`
+schreibt über Reflexion hinein. Letzteres ist nötig, weil `$r.Point1.x = 1` bei
+einem Wertetyp ins Leere läuft — PowerShell holt sich eine Kopie.
+
+Geprüft ist, dass **kein** Stab parallel zu seiner Referenz steht: das kleinste
+Kreuzprodukt über alle 942 liegt bei 1,0. Nach dem Zuweisen liest das Skript an
+vier Stäben zurück, was wirklich drinsteht — eine COM-Eigenschaft kann eine
+Zuweisung klaglos schlucken und doch bei 0 bleiben.
+
+**Der nächste Lauf entscheidet das.** Er ist vorbereitet; das Modell-JSON ist
+unverändert, nur die `.ps1` ist neu.
+
+#### Wo ich mich geirrt habe
+
+Der Vollständigkeit halber, weil es dasselbe Muster ist:
+
+| Irrtum | Wahrheit |
+|---|---|
+| `IsBeam` prüft den Elementtyp | Es prüft die **Lage**; ein senkrechtes Blech ist eine Stütze. Richtig ist `LineType == ltBeam` |
+| Das freie Gelenk heisst `rtFree` | Es heisst **`rtHinged`** — `rtFree` gibt es nicht |
+| `RReleases` ist eine flache Aufzählung | Es ist **verschachtelt**: jedes Feld ein `RRelease` mit `.ReleaseType` |
+| Die Blechlänge lässt sich herleiten | Sie steht im **Sortiment** (`blechAnStation`, J90: 320 mm). Sie selbst herzuleiten war ein Verstoss gegen die stehende Vorgabe |
+
+Jedes Mal hat der Bericht den Irrtum **gezeigt**, statt still etwas Falsches zu
+bauen. Das ist der Grund, warum jeder Durchlauf etwas gebracht hat — und der
+Grund, den Aufwand für die Selbstauskunft weiter zu treiben statt Fehler
+abzufangen.
+
+#### Nebenher entstanden
+
+* **`ausleiten.mjs`** (Ablagewurzel) — schreibt das COM-JSON ohne Browser:
+  `node ausleiten.mjs <ablage.json> <ziel.json> [auflagermodell]`. Damit lässt
+  sich die Ausleitung aus einem Skript heraus erneuern.
+* **`vergleich_werkzeug.mjs`** — der Abgleich gegen ein FEM-Modell ist jetzt
+  ein Werkzeug und kein Wegwerfskript.
+* Der Prüfstand ist von 881 auf **934 Kontrollen** gewachsen.
+
+---
+
+## Sitzung vom 20. August
 
 ### PyNite-Messung der Gurtendmomente — die I-Aufteilung war zu scharf
 
@@ -221,7 +398,14 @@ Manifest-Zeile, `js/pwa.js` erkennt daran, dass es still zu bleiben hat.
 Ordner wird abgelegt, wie er ist; `start_url` und `scope` sind relativ und
 tragen deshalb auch einen Unterpfad.
 
-### COM-Brücke zu AxisVM — halb gebaut
+### COM-Brücke zu AxisVM — halb gebaut (überholt)
+
+> Die Notiz unten hält den Stand vom 20. August fest. Was daraus geworden
+> ist, steht oben unter *„AxisVM über COM — die Brücke steht"*. Insbesondere
+> gibt es `AxisVM_pruefen.ps1` nicht mehr: das Vermessen steckt in
+> `AxisVM_aufbauen.ps1 -NurPruefen`, und `AxisVM_pruefen.cmd` ruft nur noch
+> dorthin. Dass die alte `.cmd` auf ein gelöschtes Skript zeigte, war der
+> Grund, weshalb sich das Fenster sofort wieder schloss.
 
 Die Lizenzfrage, an der der SAF-Weg gescheitert ist, stellt sich hier nicht:
 der Auftraggeber nutzt die COM-Schnittstelle bereits mit anderer Software.
@@ -250,7 +434,7 @@ Gebaut:
 aufbaut. Es braucht die Ausgabe aus Schritt 1; ohne sie wären die Methodennamen
 geraten.
 
-### Vorzeichenrichtige Überlagerung je Blechebene — gebaut### Vorzeichenrichtige Überlagerung je Blechebene — gebaut
+### Vorzeichenrichtige Überlagerung je Blechebene — gebaut
 
 Neue Option `ebenenUeberlagerung` (Optionen → Torsion), **Vorgabe bleibt die
 Hüllkurve**. Vorzeichenrichtig gerechnet unterscheiden sich Ober- und
@@ -663,6 +847,27 @@ Bezeichnungen angeschrieben, themenfolgend gefärbt.
 
 Beides ist mehrfach bestätigt worden und gilt weiter.
 
+Dazu die Regeln aus der Durchsicht des Modells (22. August), im Wortlaut:
+
+> **Die stehenden Bleche sind in der Flucht der Schenkel der L-Profile. Die
+> liegenden sind theoretisch noch 10 mm nach innen versetzt, um sie besser
+> schweissen zu können.** (Detailschnitt 373.09.011_d)
+
+> **Bei Hängestützen, die nur an zwei Punkten gehalten werden** am Unter- oder
+> Obergurt, **nach Variante A ausbilden** (biegesteif um y).
+
+> **Bei vier Punkten** im Ober- und Untergurt ist **die erste Reihe x y z und
+> die zweite y z gehalten. So entsteht keine Zwängung innerhalb des Gurts.**
+> Das gilt für Untergurt und Obergurt gleichermassen.
+
+> **Die Starrelemente sind bis zum Anfang / Ende der Bleche zu führen.**
+
+Zur Norm: **Eurocode für Material und Querschnitte ist gesetzt** — diese Norm
+wird in der Schweiz ohnehin in ein bis zwei Jahren übernommen.
+
+Der Auftraggeber ist zugleich derjenige, der die Prüfregeln nach dem Stand der
+Technik festlegt.
+
 ---
 
 ## Bereit für Push und Versand
@@ -670,7 +875,7 @@ Beides ist mehrfach bestätigt worden und gilt weiter.
 **Ablage** — `git init` ist gelaufen, ein Stand ist eingecheckt, **kein Remote,
 kein Push**. Das bleibt Ihre Entscheidung.
 
-52 Dateien, geprüft auf Betreiberbezüge: **keine**. Draussen bleiben über
+58 Dateien, geprüft auf Betreiberbezüge: **keine**. Draussen bleiben über
 `.gitignore`:
 
 | | |
@@ -713,16 +918,97 @@ so im README.
 
 ```
 Versand/
-  vierendeel_tool_ohne_daten.html   681 kB   Doppelklick, keine Installation
-  Tragjoch_Datenpaket_2026-08-20.json 137 kB 14 Typen, 14 Vorlagen, 60 Bauteile
-  Tragjoch_Handbuch.html            108 kB   mit den neuen Abschnitten 5.3 und 7.5
-  LIESMICH.txt                               Inbetriebnahme in drei Schritten
+  index.html                          681 kB  Doppelklick, keine Installation
+  Tragjoch_Datenpaket_2026-08-21.json 140 kB  14 Typen, 14 Vorlagen, 60 Bauteile
+  Tragjoch_Handbuch.html              108 kB  mit den Abschnitten 5.3 und 7.5
+  LIESMICH.txt                                Inbetriebnahme in drei Schritten
+  AxisVM_Signaljoch_COM.json          290 kB  das Modell für die COM-Brücke
+  Beispiel_Signaljoch_AxisVM.json       6 kB  kleines Joch zum Ausprobieren
+  LIESMICH_Beispiel_Signaljoch.md              dazu die Erklärung
 ```
+
+Die beiden letzten Dateien sind für die COM-Brücke hinzugekommen: das kleine
+Joch ist zum Ausprobieren gedacht, bevor der Ernstfall läuft.
 
 Das Handbuch ist neu gesetzt und trägt jetzt beides: die **Überlagerung je
 Blechebene** (5.3, mit der Warnung, dass beide Anteile das Vorzeichen tragen
 müssen) und die **Fahrleitung als Auflager** (7.5). Auf SBB-Bezüge geprüft:
 keine.
+
+---
+
+## Fortsetzung auf einem Windows-Rechner mit AxisVM
+
+Bisher lief die Arbeit auf einem Mac, und jede Erkenntnis über die
+COM-Schnittstelle kostete einen Botengang: Skript schreiben, hinüberkopieren,
+laufen lassen, Bericht zurückholen. **Ein Befund pro Durchlauf.**
+
+Auf einem Rechner mit AxisVM entfällt das. Der Gewinn liegt fast ganz in den
+zwei Phasen, die noch kommen:
+
+| Phase | heute | dort |
+|---|---|---|
+| **Lokale Stabachsen** abschliessen | ein bis zwei Durchläufe | Minuten |
+| **Ergebnisse zurücklesen** — die Ergebnisschnittstelle ist noch **gar nicht** vermessen, das ist derselbe Suchvorgang wie beim Aufbau | mehrere Durchläufe | ein Nachmittag |
+| **Kalibrieren** von `GURT_DAEMPFUNG`, `MAST_UNVERSCHIEBLICH`, `ENDFELD_ZUSCHLAG` gegen das neue Modell — ändern, rechnen, vergleichen, von vorn | mühsam | die Schleife läuft örtlich |
+
+Nichts bringt es dagegen für die Ingenieurentscheide — Blecheinteilung,
+Auflagermodell, Anschlussregeln. Die kommen aus den Plänen und aus dem Urteil
+des Auftraggebers, und daran ändert der Rechner nichts. Ebenso wenig für das
+Rechnen selbst: Lastkombinationen und Startknopf bleiben dessen Entscheidung.
+
+### Was der Ordner mitbringt
+
+Der Projektordner wird als **Kopie** übernommen. Damit kommt `.git` mit — die
+Geschichte bleibt erhalten — und ebenso das Projektmaterial, das ausserhalb der
+Ablage liegt. Die Trennung ist sauber und muss sauber bleiben:
+
+* **58 Dateien** sind verfolgt und für die öffentliche Ablage bestimmt.
+* Draussen bleiben über `.gitignore`: `Grundlagen/`, `data/`, `pruefung_axisvm/`,
+  `Versand/`, die `.axs`/`.axe`/PDF, die Excel-Dateien,
+  `Vergleich_AxisVM_Signaljoch.md`, `com/AxisVM_Signaljoch_COM.json` und
+  `com/AxisVM_aufbau_bericht.txt`.
+
+Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
+öffentlich; das SBB-Material darf nie hinein.**
+
+### Was vorhanden sein muss
+
+| | wofür |
+|---|---|
+| **Node** | `pruefung.mjs` (934 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
+| **Git** | die Geschichte fortschreiben |
+| PowerShell 5.1 | ist auf jedem Windows, vermessen |
+| AxisVM | vermessen an Fassung 18 r1m (X8) |
+
+Ein AxisVM-Platz sollte auch mal zehnmal hintereinander geöffnet werden dürfen —
+beim Vermessen einer Schnittstelle ist das der Normalfall.
+
+`pruefung.mjs` **braucht** die drei `data/*.json`. Liegen sie nicht daneben,
+laufen die Kontrollen nicht.
+
+### Das Erste, was dort zu tun ist
+
+1. `node pruefung.mjs` — 934 bestanden, 0 gefallen. Zeigt, dass die Kopie
+   vollständig ist und die Datenbanken daneben liegen.
+2. `python3 build_html.py` — bündelt neu; die eigenständige Datei veraltet
+   sonst still.
+3. `com\AxisVM_pruefen.cmd` — vermisst die Schnittstelle, ohne ein Modell
+   anzufassen. Zeigt zugleich, dass COM auf diesem Rechner erreichbar ist.
+4. `com\AxisVM_aufbauen.cmd` — baut das Modell. Danach im Bericht den Abschnitt
+   **6b** lesen: dort steht, ob die lokalen Achsen sitzen.
+
+### Was eine neue Sitzung wissen muss
+
+Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
+
+* **dieses Blatt** — Stand, Entscheide und ihre Begründung,
+* **`com/LIESMICH.md`** — die vermessene Schnittstelle im Einzelnen,
+* **`README.md`** — die fachliche Beschreibung,
+* das **Handbuch in der Anwendung** — die Herleitung des Rechenwegs,
+* und die Kommentare im Quelltext, die absichtlich das *Warum* tragen und nicht
+  das *Was*.
 
 ---
 
@@ -733,7 +1019,11 @@ keine.
 | **Sammelaktionen** in der Anbauteil-Übersicht („alle Teile dieser Vorlage bearbeiten", z. B. bei allen Hängestützen auf einmal den Winkel setzen) | aus dem angenommenen Vorschlag noch nicht gebaut |
 | **Angepasstes Joch als eigenen Typ speichern** | offen |
 | **Excel-Generator** (`generate_vierendeel_L_SZS_C5.py`, `js/export.xlsx.js`) | nicht mit dem aktuellen Kern synchron |
-| **AxisVM-Export** | gebaut (`js/export.axisvm.js`, SAF). Der Import in AxisVM ist noch nie gelaufen — siehe unten |
+| **AxisVM über COM** | Modell wird vollständig aufgebaut und gespeichert. Offen: die lokalen Stabachsen (Abschnitt 6b), nächster Lauf vorbereitet |
+| **Ergebnisse zurücklesen** | noch **gar nicht** vermessen — derselbe Suchvorgang wie beim Aufbau. Danach `vergleich_werkzeug.mjs` / `vergleich_axisvm.py` |
+| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` 0,42 · `MAST_UNVERSCHIEBLICH` 3,10 · `ENDFELD_ZUSCHLAG` 2,0 — gegen das neue AxisVM-Modell noch nicht kalibriert |
+| **Raster 20 mm bei den Anbauteilen** | ob der Wert so gewollt ist, ist offen. Die zwei Reihen liegen dadurch 20 mm auseinander; siehe *Zu enge Schnitte* |
+| **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
 
@@ -770,7 +1060,11 @@ FEM überein; die zweite wird überschätzt. **Der vorzeichenrichtige Weg ist
 inzwischen gebaut** (Option `ebenenUeberlagerung`, siehe oben) — die Hüllkurve
 bleibt die Vorgabe.
 
-### Stand des AxisVM-Exports
+### Stand des AxisVM-Exports über SAF (überholt)
+
+> Der SAF-Weg ist vom COM-Weg abgelöst worden; die Notiz bleibt stehen, weil
+> die Überlegungen zum Knotenmodell weiter gelten. Der Import über SAF ist nie
+> gelaufen und muss es auch nicht mehr.
 
 Gebaut ist der **Einwegpfad**: das Werkzeug schreibt eine SAF-Mappe
 (Structural Analysis Format, offen und von AxisVM lesbar), AxisVM rechnet, die
@@ -811,7 +1105,45 @@ beider Rechnungen je Station.
 
 ---
 
-## Zwei Lehren aus dieser Sitzung
+## Lehren aus dieser Sitzung
+
+### Ein Schreibfehler leert die Datei, bevor er auffliegt
+
+`open(pfad, 'w')` **kürzt die Datei auf null**, und zwar bevor der erste Byte
+geschrieben wird. Läuft danach der Encoding-Schritt auf einen Fehler — ein
+Sonderzeichen in einer Datei, die reines ASCII sein muss — bleibt eine Datei
+von 0 Byte zurück. So ist `com/AxisVM_aufbauen.ps1` einmal vollständig
+verschwunden; wiederhergestellt wurde sie aus der Ablage.
+
+**Regel:** Text erst kodieren, dann in eine Nebendatei schreiben, dann
+`os.replace`. Das Hilfsskript macht es seither so — und hat den Fehler danach
+noch zweimal abgefangen:
+
+```python
+def schreibe(pfad, text):
+    text.encode('ascii')                  # scheitert VOR dem Schreiben
+    open(pfad + '.neu', 'w', encoding='ascii', newline='').write(text)
+    os.replace(pfad + '.neu', pfad)       # unteilbar
+```
+
+Zusammen mit der Lehre über `str.replace` weiter unten ergibt das dieselbe
+Regel in zwei Fassungen: **erst prüfen, dann schreiben — nie umgekehrt.**
+
+### PowerShell bindet Variablen, nicht Werte
+
+Eine Liste von Kandidatenblöcken, in einer Schleife gefüllt, sah am Ende alle
+denselben letzten Wert — jeder Block greift auf *die Variable* zu, nicht auf
+ihren damaligen Inhalt. Alle Versuche liefen deshalb mit den Parametern des
+letzten Kandidaten. Behoben mit `.GetNewClosure()` an jedem Block.
+
+Verwandt: bei einem Wertetyp (Verbund/`struct`) liefert `$satz.Feld` eine
+**Kopie**. `$r.Point1.x = 1` läuft ins Leere, ohne zu klagen. Deshalb schreibt
+`SatzSetzen` über Reflexion und legt den geänderten Untersatz wieder in den
+Obersatz zurück.
+
+---
+
+## Zwei Lehren aus der Sitzung vom 20. August
 
 ### Das Bundle verträgt weniger als die Modulversion
 
