@@ -294,6 +294,11 @@ function Signaturen([string]$schnittstelle, [string]$beginntMit) {
     if (-not $t) { Schreib "  $schnittstelle gibt es nicht in der Baugruppe."; return }
     Schreib ''
     Schreib "SIGNATUREN VON $schnittstelle (mit Parameternamen):"
+    foreach ($pr in ($t.GetProperties() | Where-Object { $_.Name -like "$beginntMit*" } | Sort-Object Name)) {
+        $ps = $pr.GetIndexParameters() | ForEach-Object { "$($_.ParameterType.Name) $($_.Name)" }
+        Schreib ("  [Eigenschaft] {0} : {1}{2}" -f $pr.Name, $pr.PropertyType.Name,
+                 $(if ($ps) { " [$($ps -join ', ')]" } else { '' }))
+    }
     foreach ($mth in ($t.GetMethods() | Where-Object { $_.Name -like "$beginntMit*" } | Sort-Object Name)) {
         $ps = $mth.GetParameters() | ForEach-Object {
             "$($_.ParameterType.Name.TrimEnd('&')) $($_.Name)"
@@ -501,7 +506,8 @@ if ($NurPruefen) {
             'RSpringParamIndexes','RStiffnesses','RNonLinearity','RResistances',
             'RLoadNodalForce','RLoadBeamConcentrated','RLoadBeamDistributed',
             'RLoadMemberConcentrated','RLoadMemberDistributed',
-            'RReleases','RRelease','RReferencePoint','RReferenceVector'
+            'RReleases','RRelease','RReferencePoint','RReferenceVector',
+            'RLineAttr','RLineAttr_V161','RLineData'
         )
         Schreib ''
         Schreib 'FELDER DER VERBUND-TYPEN:'
@@ -571,10 +577,18 @@ if ($NurPruefen) {
         Signaturen 'IAxisVMLine' 'DefineAsBeam'
         Signaturen 'IAxisVMNodalSupports' 'AddNodal'
         Signaturen 'IAxisVMLine' 'SetStartReleases'
-        # Fuer die lokalen Stabachsen - ohne sie ist keine Querfreigabe
-        # eindeutig zu setzen.
-        Signaturen 'IAxisVMReferences' 'Add'
-        Signaturen 'IAxisVMLine' 'SetGeomType'
+        <#  DIE LOKALEN STABACHSEN.
+            AxisVM legt ohne Referenz die lokale z-Achse in die Vertikal-
+            ebene. Fuer die Gurte trifft das unsere Vorgabe [0,0,1]; fuer
+            die BLECHE nicht: deren Rechteck muss mit der Breite in die
+            Jochachse stehen, also z nach [1,0,0]. Steht es falsch herum,
+            ist die Biegesteifigkeit um (160/10)^2 daneben.
+
+            Gebraucht wird deshalb: wie legt man eine Referenz an, und wie
+            haengt man sie an eine Linie.                                 #>
+        Signaturen 'IAxisVMReferences' ''
+        Signaturen 'IAxisVMLine' 'Reference'
+        Signaturen 'IAxisVMLines' 'BulkGetAttr'
 
         # --- Federsaetze ---------------------------------------------------
         # AddNodalGlobal_V153 nimmt RNodalSupportSpringParams, und darin
