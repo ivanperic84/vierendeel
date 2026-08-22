@@ -53,6 +53,29 @@ export const KNOTENMODELLE = [
 ];
 
 /**
+ * WÄHLBARE AUFLAGERMODELLE.
+ *
+ * Das Jochende ist die Stelle, an der sich Rechenkern und Bauwerk am
+ * deutlichsten unterscheiden. Der Rechenkern führt einen Ersatzbalken mit
+ * Drehfeder am Ende - ein Punkt, eine Feder. Das Bauwerk liegt auf.
+ *
+ * Beides ist richtig, für verschiedene Zwecke: `punkt` bildet den Rechenkern
+ * nach und ist die Vergleichsbasis der Kalibrierung; `gurte` und `mitte`
+ * bilden das Bauwerk nach. Deshalb umschaltbar statt entschieden.
+ */
+export const AUFLAGERMODELLE = [
+  { key: 'gurte',
+    label: 'Gurte einzeln: Untergurte x/y/z, Obergurte x/y (kein Kräftepaar)' },
+  { key: 'mitte',
+    label: 'Mitte der Gurtebenen vorn und hinten, x/y/z, Gelenk um y (Altbauweise)' },
+  { key: 'punkt',
+    label: 'Ein Punkt je Ende mit Drehfeder (Abgleich mit dem Ersatzbalken)' },
+];
+
+/** Vorgabe nach Bauweise: die Altbauweise ist zu flach für ein Kräftepaar. */
+export const auflagerVorgabe = (m) => ((m?.bauweise ?? 'neu') === 'alt' ? 'mitte' : 'gurte');
+
+/**
  * Querschnitt des steifen Ersatzstabs.
  *
  * Ein Rechteck von 500 × 500 mm ist gegenüber Gurt und Blech um Grössen-
@@ -102,9 +125,9 @@ function sammler() {
       return name;
     },
 
-    stab(name, qs, von, bis) {
+    stab(name, qs, von, bis, opt = null) {
       if (von === bis) return null;         // entartet: kommt bei L_c = h vor
-      staebe.push({ name, qs, von, bis });
+      staebe.push({ name, qs, von, bis, ...(opt ?? {}) });
       return name;
     },
 
@@ -146,6 +169,30 @@ const rechteck = (d) => ({ name: d.name, art: 'Parametric', form: 'Rectangle',
                            parameter: [d.h, d.b] });
 
 /**
+ * VERSATZ VON DER GURTACHSE ZUR MITTELEBENE DES SCHENKELS [m].
+ *
+ * Ein Bindeblech liegt nicht auf der Verbindungslinie der Gurtschwerpunkte -
+ * es liegt am Schenkel. Die vier Gurtachsen bilden im Schnitt ein Rechteck,
+ * die Blechachsen tun das nicht.
+ *
+ * Der Winkel hat seinen Schwerpunkt im Abstand zs von der Ferse; die Ferse
+ * zeigt nach aussen. Die Mittelebene des Schenkels liegt also um (zs − t/2)
+ * NACH AUSSEN, in beiden Richtungen getrennt:
+ *
+ *      zsV  entlang y  (der Schenkel, der in der y-Ebene steht)
+ *      zsH  entlang z  (der Schenkel, der in der z-Ebene liegt)
+ *
+ * zs steht in cm, t in mm - beides so, wie die Profiltabellen es führen.
+ */
+function schenkelVersatz(p) {
+  if (!p) return { y: 0, z: 0 };
+  const zsV = (p.zsV ?? p.zs ?? 0) * 10;          // cm -> mm
+  const zsH = (p.zsH ?? p.zs ?? 0) * 10;
+  const t = p.t ?? 0;
+  return { y: mm(Math.max(0, zsV - t / 2)), z: mm(Math.max(0, zsH - t / 2)) };
+}
+
+/**
  * Baut das Stabmodell.
  *
  * @param {object} m       Modell aus core.vierendeel.modell()
@@ -175,11 +222,12 @@ export function stabmodell(m, opt = {}) {
     });
   }
 
+  // Geschnitten wird am Anschlusspunkt selbst. Früher stand hier das Raster
+  // mit zwei Schnitten je Bauteil - das gehörte zu den zwei Anschlussknoten,
+  // die es nicht mehr gibt.
   const anschlagX = new Set();
   (m.anbauteileFlach ?? []).forEach((a) => {
-    const r = (a.raster ?? 0) / 2;
-    anschlagX.add(r6(Math.min(Math.max(a.x - r, 0), m.L)));
-    anschlagX.add(r6(Math.min(Math.max(a.x + r, 0), m.L)));
+    anschlagX.add(r6(Math.min(Math.max(a.x, 0), m.L)));
   });
 
   const schnitte = new Set([0, r6(m.L)]);
@@ -225,7 +273,24 @@ export function stabmodell(m, opt = {}) {
   // Ein Blech läuft von Gurtachse zu Gurtachse. Im Knotenmodell 'anschnitt'
   // sind die äusseren (h − L_c)/2 je Ende steif; dazwischen liegt das Blech
   // mit seinem wirklichen Rechteckquerschnitt.
-  const blechStab = (name, qsBlech, hebelarm, Lc, p1, p2) => {
+  //
+  // p1/p2 sind die GURTKNOTEN. Das Blech liegt aber nicht auf deren
+  // Verbindungslinie, sondern in der Mittelebene der Schenkel - quer dazu
+  // versetzt (siehe schenkelVersatz). Der Versatz steht senkrecht auf der
+  // Blechspannweite; die Länge des Blechs ändert sich dadurch nicht. Von
+  // jedem Gurtknoten führt ein kurzer steifer Stummel zur Blechachse - so
+  // ist die Ausmitte im Modell sichtbar und geht auch nach PyNite mit,
+  // wo Stabausmitten nicht zur Verfügung stehen.
+  const blechStab = (name, qsBlech, hebelarm, Lc, p1, p2, v1, v2) => {
+    const rueck = (p, v, k) => {
+      if (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)) return p;
+      const n = s.kn(`${name}_v${k}`, p.x, p.y + v.dy, p.z + v.dz);
+      s.stab(`${name}_e${k}`, qsStarr, p.name, n);
+      return { name: n, ...s.knoten.get(n) };
+    };
+    p1 = rueck(p1, v1, 1);
+    p2 = rueck(p2, v2, 2);
+
     const d = km === 'anschnitt' && Lc > 0 ? Math.max(0, (hebelarm - Lc) / 2) : 0;
     if (d < 1e-9) { s.stab(name, qsBlech, p1.name, p2.name); return; }
     const t = (v, f) => ({ x: v.x + (p2.x - v.x) * f, y: v.y + (p2.y - v.y) * f,
@@ -248,37 +313,93 @@ export function stabmodell(m, opt = {}) {
     const ogl = p('OG', 'L'), ogr = p('OG', 'R');
     const ugl = p('UG', 'L'), ugr = p('UG', 'R');
 
+    // Versatz nach aussen, je Gurt und je Richtung. Das vertikale Blech
+    // steht in der y-Ebene und wird in y versetzt, das horizontale in z.
+    const vO = schenkelVersatz(m.profOG), vU = schenkelVersatz(m.profUG);
+
     if (station.vertikal) {
       const qs = s.qs(blechQuerschnitt(station.vertikal, 'vertikal'));
       const Lc = station.vertikal.laenge ? mm(station.vertikal.laenge) : 0;
-      blechStab(`BV_L_${i}`, qs, station.h, Lc, ogl, ugl);
-      blechStab(`BV_R_${i}`, qs, station.h, Lc, ogr, ugr);
+      blechStab(`BV_L_${i}`, qs, station.h, Lc, ogl, ugl,
+                { dy: -vO.y, dz: 0 }, { dy: -vU.y, dz: 0 });
+      blechStab(`BV_R_${i}`, qs, station.h, Lc, ogr, ugr,
+                { dy: +vO.y, dz: 0 }, { dy: +vU.y, dz: 0 });
     }
     if (station.horizontal) {
       const qs = s.qs(blechQuerschnitt(station.horizontal, 'horizontal'));
       const Lc = station.horizontal.laenge ? mm(station.horizontal.laenge) : 0;
-      blechStab(`BH_O_${i}`, qs, station.b, Lc, ogl, ogr);
-      blechStab(`BH_U_${i}`, qs, station.b, Lc, ugl, ugr);
+      blechStab(`BH_O_${i}`, qs, station.b, Lc, ogl, ogr,
+                { dy: 0, dz: +vO.z }, { dy: 0, dz: +vO.z });
+      blechStab(`BH_U_${i}`, qs, station.b, Lc, ugl, ugr,
+                { dy: 0, dz: -vU.z }, { dy: 0, dz: -vU.z });
     }
   });
 
-  // --- Endschott und Auflagerknoten -----------------------------------------
-  // Gabellagerung: die vier Gurtenden sind über ein steifes Schott mit einem
-  // Punkt auf der Jochachse verbunden. Dort hängt das Auflager - so ist die
-  // Verdrehung um die Jochachse gehalten, wie es der Rechenkern annimmt.
+  // --- Auflager --------------------------------------------------------------
+  // Drei Modelle, weil das Jochende die Stelle ist, an der Rechenkern und
+  // Bauwerk am weitesten auseinanderliegen.
   //
-  // Das Endschott ist ein TRAGENDES BAUTEIL und bleibt immer im Modell. Der
-  // Schalter `schottAusblenden` betrifft nur die Ausgabe: seine Stäbe werden
-  // dann nicht in die Resultattabellen geschrieben. Sie tragen weiter mit.
-  const auflager = ['A', 'B'].map((ende, k) => {
+  //   gurte  Die vier Gurte einzeln gehalten: Untergurte x/y/z, Obergurte
+  //          nur x/y. Ohne lotrechten Halt am Obergurt entsteht kein
+  //          Kräftepaar - das Ende bleibt biegeweich, so wie es aufliegt.
+  //          Keine Gelenke nötig: die Gurte haben Abstand und sind einzeln
+  //          gehalten.
+  //
+  //   mitte  Für die Altbauweise. Dort stehen Ober- und Untergurt so eng,
+  //          dass ein Kräftepaar über diesen kurzen Hebel das Ergebnis
+  //          verfälschte. Gehalten wird deshalb auf halber Höhe in den
+  //          beiden Gurtebenen vorn und hinten, x/y/z, mit Gelenk um y.
+  //
+  //   punkt  Ein Punkt je Ende auf der Jochachse, über ein steifes Schott
+  //          an die vier Gurte gehängt, mit der Drehfeder des Mastkopfes.
+  //          Das ist der Ersatzbalken des Rechenkerns - die Vergleichsbasis
+  //          der Kalibrierung, nicht das Bauwerk.
+  const am = opt.auflagerModell ?? auflagerVorgabe(m);
+  const auflager = [];
+  ['A', 'B'].forEach((ende, k) => {
     const x = k === 0 ? 0 : r6(m.L);
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
-    const mitte = s.kn(`AUF_${ende}`, x, 0, zOben - h / 2);
+    const laengs = ende === 'A' ? 'Rigid' : 'Free';   // ein Ende längs frei
+    const halt = (knoten, uz, fiy, c) => auflager.push({
+      ende, x, modell: am, knoten,
+      ux: laengs, uy: 'Rigid', uz,
+      fix: 'Free', fiy, fiz: 'Free', feder: c ?? null,
+    });
+
+    if (am === 'punkt') {
+      const mitte = s.kn(`AUF_${ende}`, x, 0, zOben - h / 2);
+      ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
+        s.stab(`SCHOTT_${ende}_${gurt}${seite}`, qsStarr,
+               mitte, gurtKnoten(gurt, seite, x));
+      }));
+      // Gabellagerung: Torsion gehalten, Vertikalbiegung über die Drehfeder.
+      auflager.push({ ende, x, modell: am, knoten: mitte,
+                      ux: laengs, uy: 'Rigid', uz: 'Rigid',
+                      fix: 'Rigid', fiy: 'Feder', fiz: 'Free', feder: 'cFiy' });
+      return;
+    }
+
+    if (am === 'mitte') {
+      ['L', 'R'].forEach((seite) => {
+        const bAn = m.breite ? m.breite.bAn(x) : m.b;
+        const y = (seite === 'L' ? -1 : +1) * (bAn / 2);
+        const n = s.kn(`AUF_${ende}_${seite}`, x, y, zOben - h / 2);
+        ['OG', 'UG'].forEach((gurt) => {
+          s.stab(`SCHOTT_${ende}_${seite}${gurt}`, qsStarr,
+                 n, gurtKnoten(gurt, seite, x));
+        });
+        // Gelenk um y: der kurze Hebel zwischen den Gurten darf keine
+        // Einspannung vortäuschen.
+        halt(n, 'Rigid', 'Free', null);
+      });
+      return;
+    }
+
+    // am === 'gurte'
     ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
-      s.stab(`SCHOTT_${ende}_${gurt}${seite}`, qsStarr,
-             mitte, gurtKnoten(gurt, seite, x));
+      halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'Free',
+           'Free', null);
     }));
-    return { ende, knoten: mitte, punkte: [mitte], x };
   });
 
   // --- Anbauteile als steife Arme -------------------------------------------
@@ -293,7 +414,7 @@ export function stabmodell(m, opt = {}) {
   const gruppiert = new Map();
   (m.anbauteileFlach ?? []).forEach((a) => {
     const schluessel = [r6(a.x), r6(a.y ?? 0), r6(a.z ?? 0),
-                        a.befestigung, a.raster ?? 0].join('|');
+                        a.befestigung].join('|');
     const da = gruppiert.get(schluessel);
     if (da) { da.teile.push(a); return; }
     gruppiert.set(schluessel, { ...a, teile: [a] });
@@ -301,28 +422,28 @@ export function stabmodell(m, opt = {}) {
 
   const arme = [];
   [...gruppiert.values()].forEach((a, k) => {
-    const r = (a.raster ?? 0) / 2;
-    const x1 = r6(Math.min(Math.max(a.x - r, 0), m.L));
-    const x2 = r6(Math.min(Math.max(a.x + r, 0), m.L));
     const gurte = a.befestigung === 'durchgehend' ? ['OG', 'UG']
                 : a.befestigung === 'oben' ? ['OG'] : ['UG'];
     const zAn = zOben - (a.befestigung === 'oben'
       ? 0 : (m.verlauf ? m.verlauf.hAn(a.x) : m.h));
+    const x = r6(a.x);
 
-    // Anschlusspunkte auf der Jochachse, steif an die Gurte gehängt
-    const anschluss = [x1, x2].filter((x, i, arr) => arr.indexOf(x) === i)
-      .map((x, j) => {
-        const n = s.kn(`AT${k}_${j}`, x, 0, zAn);
-        gurte.forEach((gurt) => ['L', 'R'].forEach((seite) => {
-          s.stab(`AT${k}_${j}_${gurt}${seite}`, qsStarr, n,
-                 gurtKnoten(gurt, seite, x));
-        }));
-        return n;
-      });
+    // EIN Anschlussknoten auf der Jochachse. Vorher lagen hier zwei, um das
+    // Raster abzubilden - im Modell wurden daraus doppelte Linien und ein V
+    // aus zwei Armen. Ein durchgehender Stab bildet die Hängestütze näher ab.
+    const an = s.kn(`AT${k}`, x, 0, r6(zAn));
 
-    // Lastpunkt: y quer zum Gleis, z ab der Schwerachse des Anschlussgurtes
-    const last = s.kn(`AL${k}`, r6(a.x), r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
-    anschluss.forEach((n, j) => s.stab(`ARM${k}_${j}`, qsArm, n, last));
+    // Die Verbindung läuft RECHTWINKLIG zu den Gurtachsen: bei festem x,
+    // in der Querschnittsebene.
+    gurte.forEach((gurt) => ['L', 'R'].forEach((seite) => {
+      s.stab(`AT${k}_${gurt}${seite}`, qsStarr, an, gurtKnoten(gurt, seite, x));
+    }));
+
+    // Der durchgehende Stab zum Lastpunkt. Am Übergang GELENKIG: die
+    // Hängestütze ist angehängt, nicht eingespannt - sie trägt Kraft in den
+    // Träger, kein Moment.
+    const last = s.kn(`AL${k}`, x, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
+    s.stab(`ARM${k}`, qsArm, an, last, { gelenkAnfang: 'M' });
     arme.push({ teil: a, knoten: last });
   });
 
@@ -438,19 +559,29 @@ const kopf = (namen) => namen.map((n) => ({ v: n, s: STIL.KOPF }));
  * dem Namen `cFiy`, und das JSON für die COM-Brücke wies ihn als kNm/rad aus.
  * Wer danach gebaut hätte, bekäme eine tausendmal zu weiche Feder.
  */
-function stuetzung(m, ende) {
+function stuetzung(m, lager) {
+  const ende = lager.ende ?? lager;
   const c = ende === 'A' ? m.federn.cA : m.federn.cB;
   const starr = c >= 1e11;
   const weich = c > 0 && !starr;
-  return {
-    // Ein Ende längs frei, sonst wäre der Träger in x zwangsweise gehalten.
+
+  // Die Freiheitsgrade legt das Auflagermodell fest (stabmodell); hier wird
+  // nur noch 'Feder' aufgelöst. Ohne Modellangabe - etwa aus dem SAF-Blatt,
+  // das nur den Ersatzbalken kennt - gilt die alte Gabellagerung.
+  const roh = lager.ux ? lager : {
     ux: ende === 'A' ? 'Rigid' : 'Free',
-    uy: 'Rigid', uz: 'Rigid',
-    fix: 'Rigid',                       // Gabellagerung: Torsion gehalten
-    fiy: c > 0 ? (starr ? 'Rigid' : 'Flexible') : 'Free',
-    fiz: 'Free',                        // Windbiegung bleibt gelenkig
-    cFiy_MNm: weich ? r6(c / 1000) : null,   // für SAF
-    cFiy_kNm: weich ? r6(c) : null,          // für COM
+    uy: 'Rigid', uz: 'Rigid', fix: 'Rigid',
+    fiy: c > 0 ? 'Feder' : 'Free', fiz: 'Free', feder: 'cFiy',
+  };
+  const fiy = roh.fiy !== 'Feder' ? roh.fiy
+            : (c > 0 ? (starr ? 'Rigid' : 'Flexible') : 'Free');
+  const hatFeder = roh.fiy === 'Feder' && weich;
+
+  return {
+    ux: roh.ux, uy: roh.uy, uz: roh.uz,
+    fix: roh.fix, fiy, fiz: roh.fiz,
+    cFiy_MNm: hatFeder ? r6(c / 1000) : null,   // für SAF
+    cFiy_kNm: hatFeder ? r6(c) : null,          // für COM
   };
 }
 
@@ -795,6 +926,8 @@ export function stabmodellJson(m, opt = {}) {
     tragwerk: {
       typ: m.typ ?? 'frei', L: r6(m.L), h: r6(m.h), b: r6(m.b),
       knotenmodell: bau.knotenmodell,
+      auflagermodell: bau.auflager[0]?.modell ?? null,
+      bauweise: m.bauweise ?? 'neu',
       bezeichnung: `Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
     },
     material: { name: stahl, art: 'Steel', rho: 7850, E: 210000, G: 81000,
@@ -805,9 +938,19 @@ export function stabmodellJson(m, opt = {}) {
       A: q.A ?? null, Iy: q.Iy ?? null, Iz: q.Iz ?? null, It: q.It ?? null,
     })),
     knoten: [...bau.knoten.values()],
-    staebe: bau.staebe.map((s) => ({ name: s.name, von: s.von, bis: s.bis,
-                                     querschnitt: s.qs, lcsZ: lcs(s) })),
-    auflager: bau.auflager.map((a) => ({ ...a, ...stuetzung(m, a.ende) })),
+    staebe: bau.staebe.map((s) => ({
+      name: s.name, von: s.von, bis: s.bis, querschnitt: s.qs, lcsZ: lcs(s),
+      // 'M': alle drei Momente frei - die Hängestütze hängt, sie klemmt nicht.
+      gelenkAnfang: s.gelenkAnfang ?? null,
+      gelenkEnde: s.gelenkEnde ?? null,
+    })),
+    // Ein Eintrag JE GEHALTENEM KNOTEN. Bei 'punkt' ist das einer je Ende,
+    // bei 'mitte' zwei, bei 'gurte' vier - die Brücke läuft unverändert
+    // darüber, sie sieht nur mehr Zeilen.
+    auflager: bau.auflager.map((a) => ({
+      ende: a.ende, knoten: a.knoten, x: a.x, modell: a.modell,
+      ...stuetzung(m, a),
+    })),
     lastfaelle: EINWIRKUNGEN.map((e) => ({ key: e.key, label: e.label,
                                            art: e.key === 'G' ? 'Others' : 'Others' })),
     lasten: l,

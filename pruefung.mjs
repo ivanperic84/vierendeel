@@ -2286,9 +2286,14 @@ titel('19  AxisVM-Export (SAF)');
     return Math.max(...p.map((k) => k.y)) - Math.min(...p.map((k) => k.y));
   };
   pruef('Gurtabstand in Feldmitte ist das Rechenmass', yBei(10), m.b, 1e-9, 'm');
+  // Nur die GURTknoten: die Blechachsen liegen seit dem Schenkelversatz
+  // weiter aussen, und das ist gewollt - sie bilden kein Rechteck mehr.
+  const gurtKn = kn.filter((k) => /^(OG|UG)[LR]_/.test(k.name));
   pruef('Gurtabstand am Auflager folgt dem Grundrissknick',
-        Math.max(...kn.map((k) => k.y)) - Math.min(...kn.map((k) => k.y)),
+        Math.max(...gurtKn.map((k) => k.y)) - Math.min(...gurtKn.map((k) => k.y)),
         m.breite.bAn(0), 1e-9, 'm');
+  wahr('Blechachsen liegen weiter aussen als die Gurtachsen',
+       Math.max(...kn.map((k) => k.y)) > Math.max(...gurtKn.map((k) => k.y)) + 1e-6);
   pruef('Gurtabstand lotrecht ist die Jochhöhe',
         Math.max(...kn.filter((k) => k.name.startsWith('OG')).map((k) => k.z))
         - Math.max(...kn.filter((k) => k.name.startsWith('UG')).map((k) => k.z)),
@@ -2375,8 +2380,9 @@ titel('19  AxisVM-Export (SAF)');
        auf.rows.slice(1).every((r) => r[7] === 'Rigid' && r[9] === 'Free'));
 
   // --- Endschott: tragend, nur die Ausgabe ist schaltbar --------------------
-  const mitS = AX.stabmodell(m, { knotenmodell: 'schwerachsen' });
-  const ausS = AX.stabmodell(m, { knotenmodell: 'schwerachsen', schottAusblenden: true });
+  const PKT = { knotenmodell: 'schwerachsen', auflagerModell: 'punkt' };
+  const mitS = AX.stabmodell(m, PKT);
+  const ausS = AX.stabmodell(m, { ...PKT, schottAusblenden: true });
   const schottStaebe = (b) => b.staebe.filter((st) => st.name.startsWith('SCHOTT_')).length;
   pruef('Das Schott steht in beiden Fällen im Modell',
         schottStaebe(ausS), schottStaebe(mitS), 1e-12, 'Stk');
@@ -2384,8 +2390,52 @@ titel('19  AxisVM-Export (SAF)');
   pruef('Gleich viele Stäbe insgesamt',
         ausS.staebe.length, mitS.staebe.length, 1e-12, 'Stk');
   wahr('Ein Auflagerknoten je Ende, auf der Jochachse',
-       mitS.auflager.every((a) => a.punkte.length === 1
-         && Math.abs(mitS.knoten.get(a.knoten).y) < 1e-9));
+       mitS.auflager.length === 2
+         && mitS.auflager.every((a) => Math.abs(mitS.knoten.get(a.knoten).y) < 1e-9));
+
+  // --- Die drei Auflagermodelle ---------------------------------------------
+  const gurteM = AX.stabmodell(m, { knotenmodell: 'schwerachsen', auflagerModell: 'gurte' });
+  pruef('Variante gurte: vier gehaltene Knoten je Ende',
+        gurteM.auflager.length, 8, 1e-12, 'Stk');
+  wahr('Variante gurte: nur die Untergurte lotrecht gehalten',
+       gurteM.auflager.filter((a) => a.uz === 'Rigid').length === 4
+       && gurteM.auflager.every((a) => (a.uz === 'Rigid') === a.knoten.startsWith('UG')));
+  wahr('Variante gurte: alle in y gehalten, keine Drehfeder',
+       gurteM.auflager.every((a) => a.uy === 'Rigid' && a.fiy === 'Free'));
+  wahr('Variante gurte: ein Ende längs frei',
+       gurteM.auflager.filter((a) => a.ux === 'Free').length === 4);
+  wahr('Variante gurte: kein Schott',
+       schottStaebe(gurteM) === 0);
+
+  const mitteM = AX.stabmodell(m, { knotenmodell: 'schwerachsen', auflagerModell: 'mitte' });
+  pruef('Variante mitte: zwei gehaltene Knoten je Ende',
+        mitteM.auflager.length, 4, 1e-12, 'Stk');
+  wahr('Variante mitte: auf halber Höhe in den Gurtebenen',
+       mitteM.auflager.every((a) => {
+         const k = mitteM.knoten.get(a.knoten);
+         // Die Breite läuft mit x - am Auflager gilt das Mass des Knicks.
+         const b = m.breite ? m.breite.bAn(a.x) : m.b;
+         const h = m.verlauf ? m.verlauf.hAn(a.x) : m.h;
+         return Math.abs(Math.abs(k.y) - b / 2) < 1e-9
+             && Math.abs(k.z - (m.h / 2 - h / 2)) < 1e-9
+             && a.uz === 'Rigid';
+       }));
+  wahr('Variante mitte: Gelenk um y', mitteM.auflager.every((a) => a.fiy === 'Free'));
+
+  wahr('Vorgabe nach Bauweise', AX.auflagerVorgabe({ bauweise: 'alt' }) === 'mitte'
+       && AX.auflagerVorgabe({ bauweise: 'neu' }) === 'gurte');
+
+  // --- Blechachsen liegen versetzt ------------------------------------------
+  // Die vier Gurtachsen bilden im Schnitt ein Rechteck, die Blechachsen nicht:
+  // ein Blech liegt am Schenkel, nicht auf der Verbindungslinie der Schwerpunkte.
+  const versatzStaebe = mitS.staebe.filter((st) => /_e[12]$/.test(st.name));
+  wahr('Bindebleche sind quer versetzt angeschlossen', versatzStaebe.length > 0);
+  {
+    const bv = mitS.staebe.find((st) => st.name.startsWith('BV_L_') && /_v1$/.test(st.bis));
+    const k = bv ? mitS.knoten.get(bv.bis) : null;
+    wahr('Vertikalblech nach aussen versetzt, Höhe unverändert',
+         !!k && k.y < -m.b / 2 + 1e-9 && Math.abs(k.z - (m.h / 2)) < 1e-9);
+  }
   wahr('Nur die Ausgabe ist geschaltet',
        ausS.schottAusblenden === true && mitS.schottAusblenden === false);
 
@@ -2438,7 +2488,7 @@ titel('20  PyNite-Ausleitung');
   });
   const m = modell(e, getProfil(e.profOG), getProfil(e.profUG),
                    getStahl(e.stahl), T.getTragjoch('J90'));
-  const r = PY.pyniteSkript(m, { knotenmodell: 'anschnitt' });
+  const r = PY.pyniteSkript(m, { knotenmodell: 'anschnitt', auflagerModell: 'punkt' });
 
   wahr('Skript importiert PyNite mit Rückfall auf die alte Schreibweise',
        r.text.includes('from Pynite import FEModel3D')

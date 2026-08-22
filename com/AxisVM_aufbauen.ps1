@@ -304,6 +304,46 @@ function Signaturen([string]$schnittstelle, [string]$beginntMit) {
     }
 }
 
+<#  GELENK AN EINEM STABENDE.
+    Die Haengestuetze haengt, sie klemmt nicht - am Uebergang zum Joch darf
+    kein Moment laufen. AxisVM setzt das ueber SetStartReleases(RReleases).
+
+    Wie RReleases im Innern aussieht, ist NICHT vermessen. Statt es
+    anzunehmen, wird der Typ zur Laufzeit gelesen: die Drehfelder heissen
+    xx, yy, zz, und ihr "frei"-Wert ist der Aufzaehlungswert, dessen Name
+    auf Free endet. Findet sich das nicht, sagt die Funktion es - und der
+    Bericht nennt die Felder, statt still eine Einspannung zu bauen.
+
+    Rueckgabe: $true, wenn das Gelenk sitzt.                              #>
+function GelenkSetzen($linie, [string]$wo) {
+    $rel = NeuerSatz 'RReleases'
+    $typ = $rel.GetType()
+    $gesetzt = 0
+    foreach ($f in $typ.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+        if ($f.Name -notin 'xx', 'yy', 'zz') { continue }
+        $ft = $f.FieldType
+        if ($ft.IsEnum) {
+            $frei = [Enum]::GetNames($ft) | Where-Object { $_ -match 'Free$|Free_' } |
+                    Select-Object -First 1
+            if (-not $frei) { continue }
+            $f.SetValue($rel, [Enum]::Parse($ft, $frei))
+        } else {
+            $f.SetValue($rel, 0)          # Feder mit Steifigkeit null
+        }
+        $gesetzt++
+    }
+    if ($gesetzt -lt 3) {
+        Schreib "  RReleases: nur $gesetzt von 3 Drehfeldern gesetzt - Felder:"
+        foreach ($f in $typ.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+            Schreib ("      {0,-16} {1}" -f $f.Name, $f.FieldType.Name)
+        }
+        return $false
+    }
+    $r = if ($wo -eq 'Anfang') { $linie.SetStartReleases($rel) }
+         else { $linie.SetEndReleases($rel) }
+    return ($r -gt 0)
+}
+
 <#  Einen Verbund-Typ anlegen. PowerShell setzt Felder auf einem so
     erzeugten Wert unmittelbar - $r.Fx = 1.0 wirkt.                       #>
 function NeuerSatz([string]$name) {
@@ -411,7 +451,8 @@ if ($NurPruefen) {
             'RPoint3d','RLineGeomData','RNodalSupportSpringParams',
             'RSpringParamIndexes','RStiffnesses','RNonLinearity','RResistances',
             'RLoadNodalForce','RLoadBeamConcentrated','RLoadBeamDistributed',
-            'RLoadMemberConcentrated','RLoadMemberDistributed'
+            'RLoadMemberConcentrated','RLoadMemberDistributed',
+            'RReleases','RRelease'
         )
         Schreib ''
         Schreib 'FELDER DER VERBUND-TYPEN:'
@@ -480,6 +521,7 @@ if ($NurPruefen) {
         Signaturen 'IAxisVMCrossSections' 'AddL'
         Signaturen 'IAxisVMLine' 'DefineAsBeam'
         Signaturen 'IAxisVMNodalSupports' 'AddNodal'
+        Signaturen 'IAxisVMLine' 'SetStartReleases'
 
         # --- Federsaetze ---------------------------------------------------
         # AddNodalGlobal_V153 nimmt RNodalSupportSpringParams, und darin
@@ -574,9 +616,11 @@ $stahl = $d.material.name
 $ndcEuroGER = 8    # ENationalDesignCode.ndcEuroCode_GER
 $kand = @()
 $gesehen = New-Object System.Collections.Generic.HashSet[string]
-foreach ($nc in @(@{ n = 'ndcSwiss_SIA26x'; v = $ndcSchweiz },
-                  @{ n = 'ndcEuroCode';     v = $ndcEuroCode },
-                  @{ n = 'ndcEuroCode_GER'; v = $ndcEuroGER })) {
+# EuroCode zuerst: der SIA-Katalog fuehrt S235 nicht (errNotFound), und
+# die Norm wird in der Schweiz ohnehin uebernommen.
+foreach ($nc in @(@{ n = 'ndcEuroCode';     v = $ndcEuroCode },
+                  @{ n = 'ndcEuroCode_GER'; v = $ndcEuroGER },
+                  @{ n = 'ndcSwiss_SIA26x'; v = $ndcSchweiz })) {
     foreach ($nm in @($stahl, ($stahl -replace '^S\s*', 'S '), ($stahl -replace '\s+', ''))) {
         $bez = "AddFromCatalog($($nc.n), '$nm')"
         if (-not $gesehen.Add($bez)) { continue }
@@ -664,7 +708,7 @@ Abschnitt '6 - Staebe'
 $geom = NeuerSatz 'RLineGeomData'
 $ecc  = NeuerSatz 'RPoint3d'
 $st = @{}; $laenge = @{}
-$erste = $true
+$erste = $true; $nG = 0; $nGnein = 0
 foreach ($sb in $d.staebe) {
     $vk = $kn[$sb.von]; $bk = $kn[$sb.bis]; $iq = $qs[$sb.querschnitt]
     if (-not $vk -or -not $bk) { Beenden 6 "Stab $($sb.name): Knoten fehlt." }
@@ -683,7 +727,23 @@ foreach ($sb in $d.staebe) {
     }
     $st[$sb.name] = $r.wert
     try { $laenge[$sb.name] = $m.Lines.Item($r.wert).Length } catch { $laenge[$sb.name] = 0 }
+    if ($sb.gelenkAnfang -or $sb.gelenkEnde) {
+        $li = $m.Lines.Item($r.wert)
+        if ($sb.gelenkAnfang) {
+            if (GelenkSetzen $li 'Anfang') { $nG++ } else { $nGnein++ }
+        }
+        if ($sb.gelenkEnde) {
+            if (GelenkSetzen $li 'Ende') { $nG++ } else { $nGnein++ }
+        }
+    }
     $erste = $false
+}
+if ($nG -gt 0) { Schreib "  $nG Gelenke gesetzt (Haengestuetzen haengen, sie klemmen nicht)" }
+if ($nGnein -gt 0) {
+    Schreib ''
+    Schreib "  >>> WARNUNG: $nGnein Gelenke liessen sich NICHT setzen."
+    Schreib '  >>> Diese Anschluesse sind momenteneingespannt statt gelenkig.'
+    Schreib '  >>> Die Felder von RReleases stehen oben - bitte zurueckschicken.'
 }
 Schreib "  $($st.Count) Staebe"
 

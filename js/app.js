@@ -20,7 +20,7 @@ import { erzeugeSzene, Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
-         KNOTENMODELLE } from './export.axisvm.js';
+         KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
@@ -1697,6 +1697,14 @@ function dialogAxisvm() {
       <input type="radio" name="km" value="${k.key}"${i === 0 ? ' checked' : ''}>
       <span>${esc(k.label)}</span>
     </label>`).join('');
+  // Die Vorgabe hängt an der Bauweise: die Altbauweise ist zu flach, als
+  // dass ein Kräftepaar aus Ober- und Untergurt das Ende halten dürfte.
+  const vorgabe = auflagerVorgabe(letzte.erg.modell);
+  const lager = AUFLAGERMODELLE.map((k) => `
+    <label class="schalter">
+      <input type="radio" name="am" value="${k.key}"${k.key === vorgabe ? ' checked' : ''}>
+      <span>${esc(k.label)}</span>
+    </label>`).join('');
   const d = dialog('AxisVM-Ausleitung', `
     <p>Schreibt das Stabmodell aus: vier Gurte, die Bindebleche jeder Station,
        die Gabellagerung und die Anbauteile am wirklichen Angriffspunkt. Die
@@ -1716,6 +1724,7 @@ function dialogAxisvm() {
         <span>PyNite-Skript (.py) — freie Gegenrechnung, läuft ohne AxisVM</span></label>
     </div>
     <div class="feld"><label>Knotenmodell</label>${wahl}</div>
+    <div class="feld"><label>Auflagermodell</label>${lager}</div>
     <div class="feld"><label>Ausgabe</label>
       <label class="schalter"><input type="checkbox" name="schott">
         <span>Endschott aus den Resultattabellen ausblenden — es bleibt
@@ -1731,16 +1740,19 @@ function dialogAxisvm() {
     const km = d.node.querySelector('input[name="km"]:checked').value;
     const fmt = d.node.querySelector('input[name="fmt"]:checked').value;
     const aus = d.node.querySelector('input[name="schott"]').checked;
+    const am = d.node.querySelector('input[name="am"]:checked').value;
     d.zu();
-    axisvmKlick(km, fmt, aus);
+    axisvmKlick(km, fmt, aus, am);
   };
 }
 
-function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false) {
+function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
+                    auflagerModell = null) {
   const m = letzte.erg.modell;
   const deps = { berechne, modell, profOG: m.profOG, profUG: m.profUG,
                  stahl: m.stahl, joch: m.joch };
-  const o = { knotenmodell, schottAusblenden };
+  const o = { knotenmodell, schottAusblenden,
+              auflagerModell: auflagerModell ?? auflagerVorgabe(m) };
   if (format === 'json') return exportiereJson(werte, deps, o);
   if (format === 'dxf') return exportiereDxf(werte, deps, o);
   if (format === 'pynite') return exportierePynite(werte, deps, o);
