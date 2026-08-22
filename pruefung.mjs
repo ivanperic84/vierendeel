@@ -2431,6 +2431,45 @@ titel('19  AxisVM-Export (SAF)');
   wahr('Vorgabe nach Bauweise', AX.auflagerVorgabe({ bauweise: 'alt' }) === 'mitte'
        && AX.auflagerVorgabe({ bauweise: 'neu' }) === 'gurte');
 
+  // --- Anschluss der Hängestützen -------------------------------------------
+  {
+    const mitAnbau = (bef) => {
+      const mm = rechne({ ...basis({ typ: 'J90', L: 20 }),
+        anbauteile: [teil({ name: 'HS', x: 8, Gz: 12, Qy: 3,
+                            z: bef === 'oben' ? 0.8 : -1.5, befestigung: bef })],
+      }).modell;
+      return AX.stabmodell(mm, { knotenmodell: 'schwerachsen' });
+    };
+    const stummel = (b) => b.staebe.filter((x) => /^AT\d/.test(x.name));
+
+    // Zwei Punkte: eine Reihe, waagrecht zu beiden Gurten, alles steif.
+    const zwei = mitAnbau('unten');
+    pruef('Zwei Punkte: zwei Stummel', stummel(zwei).length, 2, 1e-12, 'Stk');
+    wahr('Zwei Punkte: kein Gelenk - Variante A, biegesteif',
+         stummel(zwei).every((x) => !x.gelenkEnde && !x.gelenkAnfang));
+    wahr('Zwei Punkte: Stummel laufen rechtwinklig zur Gurtachse',
+         stummel(zwei).every((x) => {
+           const a = zwei.knoten.get(x.von), b = zwei.knoten.get(x.bis);
+           return Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.z - b.z) < 1e-9;
+         }));
+
+    // Vier Punkte: zwei Reihen, die zweite in y freigegeben.
+    const vier = mitAnbau('durchgehend');
+    pruef('Vier Punkte: vier Stummel', stummel(vier).length, 4, 1e-12, 'Stk');
+    const frei = stummel(vier).filter((x) => x.gelenkEnde === 'axial');
+    pruef('Vier Punkte: die zweite Reihe ist in y frei', frei.length, 2, 1e-12, 'Stk');
+    wahr('Vier Punkte: die freien Stummel liegen in ±y',
+         frei.every((x) => {
+           const a = vier.knoten.get(x.von), b = vier.knoten.get(x.bis);
+           return Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.z - b.z) < 1e-9
+               && Math.abs(a.y - b.y) > 1e-6;
+         }));
+    wahr('Vier Punkte: ein durchgehender Stab verbindet die Reihen',
+         vier.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
+    wahr('Vier Punkte: die Reihen liegen auf Ober- und Untergurthöhe',
+         new Set(stummel(vier).map((x) => vier.knoten.get(x.von).z)).size === 2);
+  }
+
   // --- Blechachsen liegen versetzt ------------------------------------------
   // Die vier Gurtachsen bilden im Schnitt ein Rechteck, die Blechachsen nicht:
   // ein Blech liegt am Schenkel, nicht auf der Verbindungslinie der Schwerpunkte.
@@ -2450,8 +2489,20 @@ titel('19  AxisVM-Export (SAF)');
     pruef('Vertikalblech: Versatz (zsV − t/2) nach innen',
           v ? v.dy : NaN, (m.profOG.zsV * 10 - m.profOG.t / 2) / 1000, 1e-9, 'm');
     wahr('Vertikalblech: keine Höhenänderung', !!v && Math.abs(v.dz) < 1e-12);
-    pruef('Horizontalblech: Versatz (zsH − t/2) nach aussen',
-          h ? h.dz : NaN, (m.profOG.zsH * 10 - m.profOG.t / 2) / 1000, 1e-9, 'm');
+    // Das Horizontalblech liegt an der Innenseite des liegenden Schenkels
+    // (Schnitt C-C, 373.09.021), nicht in dessen Flucht: die Mittelebene
+    // rückt um (t_Schenkel + t_Blech)/2 nach innen. Für L90×90×9 mit 10 mm
+    // Blech sind das 9.5 mm - die «10 mm» der Werkstattregel.
+    // Nicht den Stummel erwischen: BH_O_0_e1 trägt STARR, nicht das Blech.
+    const tH = mitS.querschnitte.get(
+      mitS.staebe.find((x) => x.name.startsWith('BH_O_')
+                           && x.qs.startsWith('BLECH_H')).qs).parameter[1];
+    pruef('Horizontalblech: Flucht minus (t_Schenkel + t_Blech)/2',
+          h ? h.dz : NaN,
+          (m.profOG.zsH * 10 - m.profOG.t / 2 - (m.profOG.t + tH) / 2) / 1000,
+          1e-9, 'm');
+    pruef('Das Anliegen macht rund 10 mm aus',
+          (m.profOG.t + tH) / 2, 9.5, 0.6, 'mm');
     wahr('Horizontalblech: keine Breitenänderung', !!h && Math.abs(h.dy) < 1e-12);
 
     // Andere Einbaulage, andere Richtung - der Grund, warum ey/ez aus

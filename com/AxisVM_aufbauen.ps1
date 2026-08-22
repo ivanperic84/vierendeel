@@ -315,12 +315,24 @@ function Signaturen([string]$schnittstelle, [string]$beginntMit) {
     Bericht nennt die Felder, statt still eine Einspannung zu bauen.
 
     Rueckgabe: $true, wenn das Gelenk sitzt.                              #>
-function GelenkSetzen($linie, [string]$wo) {
+function GelenkSetzen($linie, [string]$wo, [string]$art) {
+    <#  Welche Freiheitsgrade freigegeben werden:
+          'M'      alle drei Momente - der Stab haengt, er klemmt nicht
+          'axial'  die Stabachse (lokal x) - der Stummel uebertraegt dann
+                   nichts in seiner Laengsrichtung. Die Stummel der zweiten
+                   Reihe liegen in +-y, ihre Achse IST die y-Richtung: so
+                   bleibt x/z gehalten und y frei, ohne Zwaengung im Gurt.
+        Sonst gilt die Zeichenkette als Liste der Felder.                 #>
+    $felder = switch ($art) {
+        'M'     { @('xx', 'yy', 'zz') }
+        'axial' { @('x') }
+        default { $art -split '[,\s]+' | Where-Object { $_ } }
+    }
     $rel = NeuerSatz 'RReleases'
     $typ = $rel.GetType()
     $gesetzt = 0
     foreach ($f in $typ.GetFields([Reflection.BindingFlags]'Public,Instance')) {
-        if ($f.Name -notin 'xx', 'yy', 'zz') { continue }
+        if ($f.Name -notin $felder) { continue }
         $ft = $f.FieldType
         if ($ft.IsEnum) {
             $frei = [Enum]::GetNames($ft) | Where-Object { $_ -match 'Free$|Free_' } |
@@ -332,8 +344,8 @@ function GelenkSetzen($linie, [string]$wo) {
         }
         $gesetzt++
     }
-    if ($gesetzt -lt 3) {
-        Schreib "  RReleases: nur $gesetzt von 3 Drehfeldern gesetzt - Felder:"
+    if ($gesetzt -lt $felder.Count) {
+        Schreib "  RReleases: nur $gesetzt von $($felder.Count) Feldern gesetzt - vorhanden:"
         foreach ($f in $typ.GetFields([Reflection.BindingFlags]'Public,Instance')) {
             Schreib ("      {0,-16} {1}" -f $f.Name, $f.FieldType.Name)
         }
@@ -730,15 +742,15 @@ foreach ($sb in $d.staebe) {
     if ($sb.gelenkAnfang -or $sb.gelenkEnde) {
         $li = $m.Lines.Item($r.wert)
         if ($sb.gelenkAnfang) {
-            if (GelenkSetzen $li 'Anfang') { $nG++ } else { $nGnein++ }
+            if (GelenkSetzen $li 'Anfang' $sb.gelenkAnfang) { $nG++ } else { $nGnein++ }
         }
         if ($sb.gelenkEnde) {
-            if (GelenkSetzen $li 'Ende') { $nG++ } else { $nGnein++ }
+            if (GelenkSetzen $li 'Ende' $sb.gelenkEnde) { $nG++ } else { $nGnein++ }
         }
     }
     $erste = $false
 }
-if ($nG -gt 0) { Schreib "  $nG Gelenke gesetzt (Haengestuetzen haengen, sie klemmen nicht)" }
+if ($nG -gt 0) { Schreib "  $nG Gelenke gesetzt (zweite Anschlussreihe in y frei)" }
 if ($nGnein -gt 0) {
     Schreib ''
     Schreib "  >>> WARNUNG: $nGnein Gelenke liessen sich NICHT setzen."

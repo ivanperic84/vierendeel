@@ -194,14 +194,26 @@ const rechteck = (d) => ({ name: d.name, art: 'Parametric', form: 'Rectangle',
  *
  * zs steht in cm, t in mm - so, wie die Profiltabellen es führen.
  */
-function schenkelVersatz(p, ecke, ausr) {
+function schenkelVersatz(p, ecke, ausr, tBlech = 0) {
   if (!p) return { dy: 0, dz: 0 };
   const zsV = (p.zsV ?? p.zs ?? 0) * 10;          // cm -> mm
   const zsH = (p.zsH ?? p.zs ?? 0) * 10;
   const t = p.t ?? 0;
   const ey = ecke.sy * ausr.lg;
   const ez = ecke.sz * ausr.st;
-  return { dy: mm(-ey * (zsV - t / 2)), dz: mm(-ez * (zsH - t / 2)) };
+
+  // DAS HORIZONTALBLECH LIEGT AN, NICHT IN DER FLUCHT.
+  // Schnitt C-C der Konstruktionszeichnung 373.09.021: das Vertikalblech
+  // steht in der Flucht der stehenden Schenkel (100/10 × 320 = lichte Höhe
+  // 500 − 2·90), das Horizontalblech (100/10 × 260) liegt dagegen an der
+  // INNENSEITE der liegenden Schenkel - damit es sich schweissen lässt.
+  // Seine Mittelebene rückt dadurch um (t_Schenkel + t_Blech)/2 nach innen,
+  // für L90×90×9 mit 10 mm Blech also 9.5 mm.
+  const anliegend = tBlech > 0 ? (t + tBlech) / 2 : 0;
+  return {
+    dy: mm(-ey * (zsV - t / 2)),
+    dz: mm(-ez * (zsH - t / 2) + ecke.sz * -anliegend),
+  };
 }
 
 /**
@@ -334,14 +346,18 @@ export function stabmodell(m, opt = {}) {
     // Der Versatz je Ecke, aus der Einbaulage. Das vertikale Blech sitzt am
     // STEHENDEN Schenkel und wird in y versetzt, das horizontale am
     // LIEGENDEN und in z - je Ecke mit eigenem Vorzeichen.
-    const vz = (ecke) => {
+    const vz = (ecke, tBl = 0) => {
       const istOG = ecke.gurt === 'OG';
-      const v = schenkelVersatz(istOG ? m.profOG : m.profUG, ecke,
-                                istOG ? ausrOG : ausrUG);
-      return v;
+      return schenkelVersatz(istOG ? m.profOG : m.profUG, ecke,
+                             istOG ? ausrOG : ausrUG, tBl);
     };
+    // Nur das HORIZONTALblech liegt an - deshalb bekommt allein dort die
+    // Blechdicke einen Einfluss auf die Lage.
+    const tH = station.horizontal?.dicke ?? 0;
     const eOGL = vz(eckeVon('OG_L')), eOGR = vz(eckeVon('OG_R'));
     const eUGL = vz(eckeVon('UG_L')), eUGR = vz(eckeVon('UG_R'));
+    const hOGL = vz(eckeVon('OG_L'), tH), hOGR = vz(eckeVon('OG_R'), tH);
+    const hUGL = vz(eckeVon('UG_L'), tH), hUGR = vz(eckeVon('UG_R'), tH);
 
     if (station.vertikal) {
       const qs = s.qs(blechQuerschnitt(station.vertikal, 'vertikal'));
@@ -355,9 +371,9 @@ export function stabmodell(m, opt = {}) {
       const qs = s.qs(blechQuerschnitt(station.horizontal, 'horizontal'));
       const Lc = station.horizontal.laenge ? mm(station.horizontal.laenge) : 0;
       blechStab(`BH_O_${i}`, qs, station.b, Lc, ogl, ogr,
-                { dy: 0, dz: eOGL.dz }, { dy: 0, dz: eOGR.dz });
+                { dy: 0, dz: hOGL.dz }, { dy: 0, dz: hOGR.dz });
       blechStab(`BH_U_${i}`, qs, station.b, Lc, ugl, ugr,
-                { dy: 0, dz: eUGL.dz }, { dy: 0, dz: eUGR.dz });
+                { dy: 0, dz: hUGL.dz }, { dy: 0, dz: hUGR.dz });
     }
   });
 
@@ -448,37 +464,51 @@ export function stabmodell(m, opt = {}) {
 
   const arme = [];
   [...gruppiert.values()].forEach((a, k) => {
-    const gurte = a.befestigung === 'durchgehend' ? ['OG', 'UG']
-                : a.befestigung === 'oben' ? ['OG'] : ['UG'];
-    const zAn = zOben - (a.befestigung === 'oben'
-      ? 0 : (m.verlauf ? m.verlauf.hAn(a.x) : m.h));
     const x = r6(a.x);
+    const zOG = zOben;
+    const zUG = zOben - (m.verlauf ? m.verlauf.hAn(a.x) : m.h);
+    const durch = a.befestigung === 'durchgehend';
+    const zAn = a.befestigung === 'oben' ? zOG : zUG;
 
-    // EIN Anschlussknoten auf der Jochachse. Vorher lagen hier zwei, um das
-    // Raster abzubilden - im Modell wurden daraus doppelte Linien und ein V
-    // aus zwei Armen. Ein durchgehender Stab bildet die Hängestütze näher ab.
-    const an = s.kn(`AT${k}`, x, 0, r6(zAn));
+    /*
+     * ANSCHLUSS EINER HÄNGESTÜTZE.
+     *
+     * Zwei Punkte (nur Ober- ODER Untergurt): Variante A. Der Anschluss ist
+     * biegesteif; die beiden Stummel laufen waagrecht nach ±y zu den Gurten,
+     * rechtwinklig zu den Gurtachsen.
+     *
+     * Vier Punkte (Ober- UND Untergurt): der Stab läuft DURCH den Kasten.
+     * Zwei Reihen, und sie dürfen den Gurt nicht gegeneinander verspannen:
+     *
+     *     erste Reihe (am Anschlussgurt)   x  y  z
+     *     zweite Reihe                     x     z
+     *
+     * Der Stummel der zweiten Reihe liegt in ±y - seine Achsrichtung IST
+     * die y-Richtung. Ein Gelenk in der Stabachse gibt also genau y frei
+     * und lässt x und z stehen. Deshalb laufen die Stummel waagrecht und
+     * nicht schräg: nur so fällt die freizugebende Richtung mit einer
+     * Stabachse zusammen.
+     */
+    const reihe = (z, name, gelenk) => {
+      const n = s.kn(name, x, 0, r6(z));
+      ['L', 'R'].forEach((seite) => {
+        const gurt = Math.abs(z - zOG) < 1e-9 ? 'OG' : 'UG';
+        s.stab(`${name}_${seite}`, qsStarr, n, gurtKnoten(gurt, seite, x),
+               gelenk ? { gelenkEnde: gelenk } : null);
+      });
+      return n;
+    };
 
-    // Die Verbindung läuft RECHTWINKLIG zu den Gurtachsen: bei festem x,
-    // in der Querschnittsebene.
-    gurte.forEach((gurt) => ['L', 'R'].forEach((seite) => {
-      s.stab(`AT${k}_${gurt}${seite}`, qsStarr, an, gurtKnoten(gurt, seite, x));
-    }));
+    const anErste = reihe(zAn, `AT${k}`, null);
+    const anZweite = durch
+      ? reihe(zAn === zUG ? zOG : zUG, `AT${k}_2`, 'axial')
+      : null;
 
-    // Der durchgehende Stab zum Lastpunkt.
-    //
-    // NOCH OHNE GELENK - und das ist Absicht. Ein einzelner Stab, an EINEM
-    // Knoten angeschlossen und dort momentenfrei, ist ein Pendel: er dreht
-    // frei um den Anschluss. Das ist keine Lagerung, das ist eine
-    // Kinematik, und der Löser bleibt daran stehen.
-    //
-    // Vorher hielt das V aus zwei Armen die Verdrehung; mit einem
-    // durchgehenden Stab muss die Einspannung woanders herkommen. Welche
-    // Drehachse freigegeben wird und welche nicht, ist am Anschlussdetail
-    // zu entscheiden - bis dahin bleibt der Übergang steif, denn ein zu
-    // steifes Modell rechnet, ein bewegliches nicht.
+    // Der durchgehende Stab. Bei vier Punkten läuft er durch beide Reihen,
+    // bei zweien beginnt er am Anschluss. Am Übergang STEIF - Variante A.
     const last = s.kn(`AL${k}`, x, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
-    s.stab(`ARM${k}`, qsArm, an, last,
+    if (anZweite) s.stab(`ARM${k}_D`, qsArm, anZweite, anErste);
+    s.stab(`ARM${k}`, qsArm, anErste, last,
            opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk } : null);
     arme.push({ teil: a, knoten: last });
   });
