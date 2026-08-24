@@ -13,10 +13,32 @@
   "background_color": "#0e0f11",
   "theme_color": "#0e0f11",
   "categories": ["productivity", "utilities", "engineering"],
+  "launch_handler": { "client_mode": "focus-existing" },
+  "handle_links": "preferred",
   "icons": [
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Neues Tragjoch", "short_name": "Neu", "url": "./?los=neu",
+      "description": "Mit den Standardwerten anfangen",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Projektablage", "short_name": "Ablage", "url": "./?los=ablage",
+      "description": "Gespeicherte Tragwerke und Vorlagen öffnen",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Handbuch", "short_name": "Handbuch", "url": "./?los=handbuch",
+      "description": "Herleitung des Rechenwegs",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "file_handlers": [
+    {
+      "action": "./",
+      "name": "Tragjoch-Datei",
+      "accept": { "application/json": [".json"] },
+      "launch_type": "single-client",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

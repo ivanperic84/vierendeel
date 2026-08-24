@@ -1127,6 +1127,57 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   .topbar { padding-top: env(safe-area-inset-top, 0px); }
 }
 
+/* Fensterknöpfe IM Dokument (display_override: window-controls-overlay).
+   Minimieren, Maximieren und Schliessen liegen dann über der Seite - und
+   zwar genau dort, wo die Kopfwerkzeuge stehen. env(titlebar-area-*) sagt,
+   welcher Streifen frei ist: x und width auf Windows für die Knöpfe rechts,
+   auf macOS für die Ampel links. Ohne diesen Block ist der Installiereknopf
+   im eigenen Fenster nicht mehr erreichbar.
+
+   Gezogen wird das Fenster an der Kopfleiste; alles Anklickbare darin wird
+   ausgenommen, sonst verschiebt ein Klick auf den Projektknopf das Fenster,
+   statt die Schublade zu öffnen. */
+@media (display-mode: window-controls-overlay) {
+  .app {
+    grid-template-rows: max(env(titlebar-area-height, 0px), var(--m-kopfhoehe))
+                        1fr var(--m-fusshoehe);
+  }
+  .topbar {
+    padding-left: calc(10px + env(titlebar-area-x, 0px));
+    padding-right: calc(10px + 100vw - env(titlebar-area-width, 100vw)
+                             - env(titlebar-area-x, 0px));
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+  .topbar button, .topbar .tb-mitte, .topbar #kopf-werkzeuge {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}
+
+/* Eine Datei schwebt über dem Fenster (dateiEmpfang in js/pwa.js). Nur ein
+   Rahmen: WAS mit ihr geschieht, wird danach gefragt - eine Ablage einzulesen
+   oder die Datenbasis zu tauschen passiert nicht im Vorbeigehen. */
+body.datei-ueber::after {
+  content: 'Datei loslassen';
+  position: fixed; inset: 8px; z-index: 90; pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 26px;
+  border: 2px dashed var(--acc); border-radius: var(--m-r2);
+  background: var(--acc-s);
+  font-family: var(--f-mono); font-size: 12px; letter-spacing: .04em;
+  color: var(--acc);
+}
+
+/* Die Zeichenfläche nimmt jetzt auch Tastendrücke entgegen (Pfeile, +/-, 0)
+   und ist dafür anwählbar. Der Fokusrahmen soll aber nur erscheinen, wenn
+   wirklich mit der Tastatur navigiert wird - nach einem Klick ins Modell
+   wäre er nur ein Kasten um das Bild. */
+#canvas3d:focus { outline: none; }
+#canvas3d:focus-visible {
+  outline: 2px solid var(--acc); outline-offset: -2px;
+}
+
 /* Langer Hilfetext an einem Eingabefeld: erster Satz sichtbar, Rest auf Klick.
    Ohne das stünden unter manchem Feld sechs Zeilen Fliesstext und die nächste
    Eingabe rutschte aus dem Bild. Siehe hinweisHtml in ui.js. */

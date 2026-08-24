@@ -1193,97 +1193,195 @@ export class Modellansicht {
 
   // --- Eingabe -------------------------------------------------------------
   /**
-   * Maus und Trackpad.
-   *   linke Taste            drehen   (mit Umschalt: in 15°-Schritten)
-   *   rechte/mittlere Taste  schieben – verschiebt Auge und Ziel im Raum
-   *   Alt + linke Taste      schieben (für Geräte ohne rechte Taste)
-   *   Rad                    zoomen
-   *   Doppelklick            das getroffene Bauteil in die Bildmitte holen
+   * MAUS, TRACKPAD, FINGER UND TASTATUR - alle über dieselbe Zeigerliste.
+   *
+   *   Maus      linke Taste           drehen (mit Umschalt in 15°-Schritten)
+   *             rechte/mittlere Taste schieben
+   *             Alt + linke Taste     schieben (Geräte ohne rechte Taste)
+   *             Rad                   zoomen, auf den Zeiger zu
+   *             Rad quer / Trackpad   schieben
+   *             Doppelklick           das getroffene Bauteil heranholen
+   *
+   *   Finger    ein Finger            drehen
+   *             zwei Finger           kneifen zoomt, wischen schiebt
+   *             Doppeltipp            das getroffene Bauteil heranholen
+   *
+   *   Tastatur  Pfeile                drehen, mit Umschalt schieben
+   *             + / -                 zoomen
+   *             0                     ganzes Joch
+   *
+   * DREI ENTSCHEIDUNGEN, DIE DAS VERHALTEN PRÄGEN
    *
    * Gedreht wird immer um die Bildmitte. Ein Drehpunkt daneben ist mit einer
    * achszentrierten Projektion nicht vereinbar - und wäre auch unpraktisch:
-   * man will um das drehen, was man ansieht.
+   * man will um das drehen, was man ansieht. Wer etwas anderes in der Mitte
+   * haben will, holt es mit einem Doppelklick dorthin.
+   *
+   * Gezoomt wird dagegen NICHT auf die Mitte, sondern auf den Zeiger bzw. auf
+   * die Mitte zwischen den Fingern (siehe _zoome). Sonst kommt einem beim
+   * Heranfahren die Bildmitte entgegen und nicht die Stelle, die man ansehen
+   * wollte - und das bei jedem Radschritt aufs Neue.
+   *
+   * ALLE ZEIGER LIEGEN IN EINER MAP.
+   * Ein einzelnes «ziehen»-Objekt reicht für die Maus, aber nicht für zwei
+   * Finger: dort braucht es beide Punkte gleichzeitig, und beide bewegen
+   * sich. Hebt einer ab, wird die Geste NEU ANGESETZT statt fortgeführt -
+   * sonst springt das Bild um den halben Fingerabstand.
    */
   _verdrahte() {
     const c = this.cv;
-    let ziehen = null;
     c.style.touchAction = 'none';
+    // Ohne Fokus bekommt eine Zeichenfläche keine Tastendrücke.
+    if (!c.hasAttribute('tabindex')) c.tabIndex = 0;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    /** Aufliegende Zeiger: id -> Punkt in Gerätepixeln. */
+    const zeiger = new Map();
+    /** Laufende Geste, null wenn nichts aufliegt. */
+    let griff = null;
+    /** Doppeltipp-Erkennung - für Finger gibt es kein «dblclick». */
+    let tippZeit = 0, tippOrt = null;
 
     const schiebemodus = (e) => e.button === 1 || e.button === 2 || e.altKey ||
                                 this.werkzeug === 'schieben';
 
+    /** Weite und Mitte zwischen den ersten zwei Zeigern, in Gerätepixeln. */
+    const spanne = () => {
+      const [a, b] = [...zeiger.values()];
+      if (!a || !b) return null;
+      return { weite: Math.hypot(b[0] - a[0], b[1] - a[1]),
+               mitte: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
+    };
+
     c.addEventListener('pointerdown', (e) => {
-      c.setPointerCapture(e.pointerId);
-      const schieben = schiebemodus(e);
-      ziehen = { x: e.clientX, y: e.clientY, schieben, bewegt: false,
-                 az0: this.kamera.az, el0: this.kamera.el,
-                 startX: e.clientX, startY: e.clientY };
-      c.style.cursor = schieben ? 'grabbing' : 'move';
+      // Kann fehlschlagen, wenn der Zeiger schon wieder weg ist - dann
+      // laeuft die Geste eben ohne Fang weiter, statt hier abzubrechen.
+      try { c.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
+      c.focus?.({ preventScroll: true });
+      zeiger.set(e.pointerId, this._geraetePunkt(e));
+      if (zeiger.size === 1) {
+        griff = { art: schiebemodus(e) ? 'schieben' : 'drehen',
+                  bewegt: false, start: [e.clientX, e.clientY] };
+        c.style.cursor = griff.art === 'schieben' ? 'grabbing' : 'move';
+      } else if (zeiger.size === 2) {
+        // Der zweite Finger beendet das Drehen; was bis hierher gedreht
+        // wurde, bleibt stehen.
+        griff = { art: 'kneifen', bewegt: true, ...spanne() };
+        c.style.cursor = '';
+      } else {
+        griff = null;                    // drei Finger: lieber nichts als Unfug
+      }
     });
 
     c.addEventListener('pointermove', (e) => {
-      if (!ziehen) return;
-      const dpr = this.cv.width / (c.getBoundingClientRect().width || 1);
-      const dx = e.clientX - ziehen.x, dy = e.clientY - ziehen.y;
-      if (Math.abs(e.clientX - ziehen.startX) + Math.abs(e.clientY - ziehen.startY) > 3) {
-        ziehen.bewegt = true;
-      }
-      ziehen.x = e.clientX; ziehen.y = e.clientY;
-      if (ziehen.schieben) {
-        // Im RAUM schieben: Auge und Ziel wandern gemeinsam quer zur
-        // Blickrichtung. Die Projektion bleibt achszentriert, das Modell
-        // verzieht sich auch aus der Nähe nicht.
-        const { rechts, hoch } = this._basis();
-        const w = this._weltProPixel() * dpr;
-        this.kamera.pan = add(this.kamera.pan,
-          add(skal(rechts, -dx * w), skal(hoch, dy * w)));
-      } else {
-        // Empfindlichkeit auf die Fenstergrösse bezogen: eine volle Breite
-        // entspricht etwa einer halben Umdrehung, unabhängig vom Bildschirm.
-        const s = Math.PI / Math.max(320, c.getBoundingClientRect().width);
-        this.kamera.az -= dx * s;
-        this.kamera.el = Math.max(-1.45, Math.min(1.45, this.kamera.el + dy * s));
-        if (e.shiftKey) {
-          const r = Math.PI / 12;                       // 15°
-          this.kamera.az = Math.round(this.kamera.az / r) * r;
-          this.kamera.el = Math.round(this.kamera.el / r) * r;
+      if (!zeiger.has(e.pointerId) || !griff) return;
+      const vorher = zeiger.get(e.pointerId);
+      const jetzt = this._geraetePunkt(e);
+      zeiger.set(e.pointerId, jetzt);
+
+      if (griff.art === 'kneifen') {
+        const s = spanne();
+        if (!s) return;
+        // ERST SCHIEBEN, DANN ZOOMEN. Nach dem Schieben liegt unter der
+        // Fingermitte genau der Punkt, der dort liegen bleiben soll - und
+        // um den dreht sich das Kneifen.
+        this._schiebe(s.mitte[0] - griff.mitte[0], s.mitte[1] - griff.mitte[1]);
+        // Unter etwa einem Zentimeter Fingerabstand wird das Verhältnis der
+        // beiden Weiten wild; dann bleibt es beim Schieben.
+        if (griff.weite > 24 && s.weite > 24) {
+          this._zoome(griff.weite / s.weite, s.mitte[0], s.mitte[1]);
         }
-        this.ansichtKey = null;
+        griff.weite = s.weite;
+        griff.mitte = s.mitte;
+        this.zeichne();
+        return;
       }
+
+      if (Math.abs(e.clientX - griff.start[0]) +
+          Math.abs(e.clientY - griff.start[1]) > 3) griff.bewegt = true;
+      const dx = jetzt[0] - vorher[0], dy = jetzt[1] - vorher[1];
+      if (griff.art === 'schieben') this._schiebe(dx, dy);
+      else this._drehe(dx, dy, e.shiftKey);
       this.zeichne();
     });
 
-    const ende = (e) => {
-      c.style.cursor = '';
-      if (ziehen && !ziehen.bewegt) this._klick(e);
-      ziehen = null;
-    };
-    c.addEventListener('pointerup', ende);
-    c.addEventListener('pointercancel', () => { c.style.cursor = ''; ziehen = null; });
+    const beiHoch = (e) => {
+      const ruhig = griff && griff.art !== 'kneifen' &&
+                    zeiger.size === 1 && !griff.bewegt;
+      zeiger.delete(e.pointerId);
+      try { c.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
 
-    c.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      const tr = this._treffer(e);
-      if (tr) this.holeInDieMitte(tr.mitte);
-    });
+      if (ruhig) {
+        // Doppeltipp/Doppelklick hier statt über «dblclick»: das Ereignis
+        // gibt es für Finger nicht verlässlich, und zwei Wege für dieselbe
+        // Geste hiessen zwei Verhalten.
+        const t = performance.now();
+        const nah = tippOrt &&
+          Math.hypot(e.clientX - tippOrt[0], e.clientY - tippOrt[1]) < 26;
+        if (nah && t - tippZeit < 340) {
+          tippZeit = 0; tippOrt = null;
+          const tr = this._treffer(e);
+          if (tr) this.holeInDieMitte(tr.mitte);
+        } else {
+          tippZeit = t; tippOrt = [e.clientX, e.clientY];
+          this._klick(e);
+        }
+      }
+
+      if (zeiger.size === 1 && griff?.art === 'kneifen') {
+        griff = { art: 'drehen', bewegt: true, start: [e.clientX, e.clientY] };
+      } else if (zeiger.size === 0) {
+        c.style.cursor = '';
+        griff = null;
+      }
+    };
+    c.addEventListener('pointerup', beiHoch);
+    c.addEventListener('pointercancel', beiHoch);
+
+    /*
+     * Radschritte kommen je nach Gerät in Pixeln, Zeilen oder Seiten. Ohne
+     * Umrechnung zoomt eine Maus, die Zeilen meldet (deltaY = 3), praktisch
+     * nicht: der Faktor wäre 1.0036 je Rasterschritt.
+     */
+    const inPixel = (wert, modus) => modus === 1 ? wert * 16
+      : modus === 2 ? wert * (this.cv.clientHeight || 600) : wert;
 
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
-      // Zwei-Finger-Wischen auf dem Trackpad schiebt, Kneifen zoomt.
-      if (e.ctrlKey || Math.abs(e.deltaY) > Math.abs(e.deltaX) * 2) {
-        this.kamera.dist *= Math.exp(e.deltaY * 0.0012);
-        this.kamera.dist = Math.max(0.4, Math.min(400, this.kamera.dist));
-        this._selbstGezoomt = true;
+      const dy = inPixel(e.deltaY, e.deltaMode);
+      const dx = inPixel(e.deltaX, e.deltaMode);
+      const [px, py] = this._geraetePunkt(e);
+      // Zwei-Finger-Wischen auf dem Trackpad schiebt, Kneifen zoomt - das
+      // meldet der Browser als Rad mit gedrückter Strg-Taste.
+      if (e.ctrlKey || Math.abs(dy) > Math.abs(dx) * 2) {
+        this._zoome(Math.exp(dy * 0.0012), px, py);
       } else {
-        const dpr = this.cv.width / (this.cv.getBoundingClientRect().width || 1);
-        const { rechts, hoch } = this._basis();
-        const w = this._weltProPixel() * dpr;
-        this.kamera.pan = add(this.kamera.pan,
-          add(skal(rechts, e.deltaX * w), skal(hoch, -e.deltaY * w)));
+        const s = this._dpr();
+        this._schiebe(-dx * s, -dy * s);
       }
       this.zeichne();
     }, { passive: false });
+
+    c.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const w = 40;                          // Gerätepixel je Tastendruck
+      const p = { ArrowLeft: [-w, 0], ArrowRight: [w, 0],
+                  ArrowUp: [0, -w], ArrowDown: [0, w] }[e.key];
+      if (p) {
+        // Umschalt schiebt. Bei der Maus rastet Umschalt das Drehen - hier
+        // gäbe es nichts zu rasten, die Tastatur dreht ohnehin in Schritten.
+        if (e.shiftKey) this._schiebe(p[0], p[1]);
+        else this._drehe(p[0] * 0.6, p[1] * 0.6);
+        this.zeichne();
+      } else if (e.key === '+' || e.key === '=') {
+        this._zoome(0.85); this.zeichne();
+      } else if (e.key === '-' || e.key === '_') {
+        this._zoome(1 / 0.85); this.zeichne();
+      } else if (e.key === '0') {
+        this.ganzesJoch();
+      } else return;
+      e.preventDefault();
+    });
   }
 
   /**
@@ -1375,6 +1473,96 @@ export class Modellansicht {
   _weltProPixel() {
     const h = Math.max(1, this.cv.height);
     return (2 * Math.tan(this.kamera.fov / 2) * this.kamera.dist) / h;
+  }
+
+  /** Gerätepixel je CSS-Pixel der Zeichenfläche. */
+  _dpr() {
+    return this.cv.width / (this.cv.getBoundingClientRect().width || 1);
+  }
+
+  /**
+   * Quer zur Blickrichtung schieben, dx/dy in GERÄTEPIXELN.
+   *
+   * Verschoben wird im RAUM: Auge und Blickziel wandern gemeinsam. Die
+   * Projektion bleibt achszentriert, das Modell verzieht sich auch aus der
+   * Nähe nicht. Die Richtung ist die der Hand - das Bild folgt dem Finger.
+   */
+  _schiebe(dx, dy) {
+    const { rechts, hoch } = this._basis();
+    const w = this._weltProPixel();
+    this.kamera.pan = add(this.kamera.pan,
+      add(skal(rechts, -dx * w), skal(hoch, dy * w)));
+  }
+
+  /**
+   * Um die Bildmitte drehen, dx/dy in GERÄTEPIXELN.
+   *
+   * Die Empfindlichkeit ist auf die Fensterbreite bezogen: eine volle Breite
+   * entspricht etwa einer halben Umdrehung - auf dem Telefon wie auf dem
+   * grossen Bildschirm dieselbe Handbewegung für denselben Winkel.
+   */
+  _drehe(dx, dy, raster = false) {
+    const breite = this.cv.getBoundingClientRect().width || 1;
+    const s = Math.PI / Math.max(320, breite) / this._dpr();
+    const k = this.kamera;
+    k.az -= dx * s;
+    k.el = Math.max(-1.45, Math.min(1.45, k.el + dy * s));
+    if (raster) {
+      const r = Math.PI / 12;                                        // 15°
+      k.az = Math.round(k.az / r) * r;
+      k.el = Math.round(k.el / r) * r;
+    }
+    this.ansichtKey = null;
+  }
+
+  /**
+   * Wie nah und wie weit darf die Kamera?
+   *
+   * Nicht fest, sondern am Modell gemessen. Feste Schranken (früher 0.4 bis
+   * 400) passen entweder zum 6-Meter-Joch oder zum 20-Meter-Joch, nie zu
+   * beiden: beim einen kommt man nicht heran, beim anderen verliert man es
+   * aus dem Bild.
+   */
+  _abstandsgrenzen() {
+    const g = this.szene?.grenzen;
+    if (!g) return [0.4, 400];
+    const d = Math.hypot(g.xMax - g.xMin, g.yMax - g.yMin, g.zMax - g.zMin);
+    return [Math.max(0.12, d * 0.015), Math.max(8, d * 8)];
+  }
+
+  /**
+   * Abstand ändern und dabei den Weltpunkt unter (px,py) festhalten -
+   * «auf den Zeiger zoomen». Ohne Punkt wird auf die Bildmitte gezoomt.
+   *
+   * WARUM NICHT AUF DIE MITTE
+   * Wer eine Ecke des Jochs ansehen will, zoomt heran und muss anschliessend
+   * nachschieben, weil ihm die Mitte entgegengekommen ist statt der Ecke.
+   * Bei jedem Radschritt aufs Neue.
+   *
+   * WIE ES GEHT
+   * Der Bildpunkt (px,py) liegt vom Mittelpunkt aus bei rechts·ex·w und
+   * hoch·(-ey)·w, wobei w das Weltmass je Pixel in der Zielebene ist. Mit dem
+   * Abstand skaliert auch w. Damit derselbe Weltpunkt wieder unter (px,py)
+   * liegt, wandert das Blickziel um die DIFFERENZ der beiden Weltmasse.
+   *
+   * Festgehalten wird dabei der Punkt in der ZIELEBENE. Für alles davor und
+   * dahinter bleibt eine Restbewegung - die lässt sich perspektivisch nicht
+   * vermeiden, denn dort hat jede Tiefe ihren eigenen Massstab.
+   */
+  _zoome(faktor, px = null, py = null) {
+    const k = this.kamera;
+    const [min, max] = this._abstandsgrenzen();
+    const neu = Math.max(min, Math.min(max, k.dist * faktor));
+    const f = neu / k.dist;              // was von faktor wirklich ankommt
+    if (f === 1) return;                 // an der Schranke: auch nicht schieben
+    if (px !== null && py !== null) {
+      const { rechts, hoch } = this._basis();
+      const w = this._weltProPixel() * (1 - f);
+      const ex = px - this.cv.width / 2, ey = py - this.cv.height / 2;
+      k.pan = add(k.pan, add(skal(rechts, ex * w), skal(hoch, -ey * w)));
+    }
+    k.dist = neu;
+    this._selbstGezoomt = true;
   }
 
   _projektor() {

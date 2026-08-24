@@ -3,14 +3,22 @@
  * ---------------------------------------------------------------------------
  * INSTALLIERBAR UND OHNE NETZ LAUFFÄHIG.
  *
- * Drei Dinge macht diese Datei, mehr nicht:
+ * Was diese Datei macht, und mehr nicht:
  *
  *   1. den Dienstarbeiter (sw.js) anmelden, der die Anwendung ablegt und
  *      offline wieder ausliefert,
  *   2. die Aufforderung des Browsers zum Installieren aufheben, bis der
  *      Benutzer im Werkzeugkasten darauf drückt,
  *   3. melden, wenn eine neue Fassung bereitliegt - und erst neu laden,
- *      wenn er zustimmt.
+ *      wenn er zustimmt,
+ *   4. Dateien annehmen, die vom Betriebssystem oder aus einem anderen
+ *      Fenster kommen (dateiEmpfang),
+ *   5. den Wunsch aus der Sprungliste ausreichen (startWunsch) und den
+ *      Netzzustand melden (netzZustand).
+ *
+ * Die Punkte 4 und 5 sind der Grund, warum sich das Installieren überhaupt
+ * lohnt: erst damit verhält sich die Anwendung wie ein Programm und nicht
+ * wie eine Seite in einem eigenen Fenster.
  *
  * ZUM DRITTEN PUNKT, DENN ER IST DER HEIKLE
  * Ein Rechenwerkzeug darf nicht mitten in einer Eingabe unter der Hand
@@ -191,4 +199,126 @@ export function pwaEinrichten(opt = {}) {
       });
     } catch { /* kein Dienstarbeiter - die Anwendung läuft trotzdem */ }
   });
+}
+
+// --- Dateien annehmen -------------------------------------------------------
+
+/**
+ * DATEIEN, DIE VON AUSSEN KOMMEN - über zwei Wege, ein Rückruf.
+ *
+ * 1. VOM BETRIEBSSYSTEM. Die installierte Anwendung ist im Manifest als
+ *    Bearbeiter für .json eingetragen (file_handlers). Wer eine Ablage- oder
+ *    Datenpaketdatei im Dateimanager mit «Öffnen mit» an Tragjoch gibt,
+ *    landet hier. Der Browser fragt bei der Installation um Erlaubnis; ohne
+ *    sie passiert schlicht nichts.
+ *
+ * 2. AUF DAS FENSTER GEZOGEN. Das geht auch im Reiter, ohne Installation,
+ *    und ist der übliche Weg, wenn beide Fenster ohnehin offen sind.
+ *
+ * WARUM ÜBERHAUPT
+ * Ohne das führt jeder Weg über den Umweg «Dialog öffnen, Datei suchen,
+ * bestätigen». Die Datei liegt aber schon vor einem.
+ *
+ * NICHTS WIRD DABEI GESENDET. Gelesen wird örtlich; was die Datei enthält,
+ * entscheidet der Rückruf.
+ *
+ * @param {(datei:File)=>void} nimm bekommt jede angebotene Datei
+ */
+export function dateiEmpfang(nimm) {
+  if (typeof window === 'undefined' || typeof nimm !== 'function') return;
+
+  // --- 1. Betriebssystem ---
+  // Nicht jeder Browser kennt launchQueue; wo es fehlt, bleibt Weg 2.
+  try {
+    window.launchQueue?.setConsumer(async (p) => {
+      for (const griff of p?.files ?? []) {
+        try { nimm(await griff.getFile()); } catch { /* kein Zugriff */ }
+      }
+    });
+  } catch { /* Fassung ohne launchQueue */ }
+
+  // --- 2. Auf das Fenster gezogen ---
+  // Nur echte DATEIEN. Das Ziehen einer Anbauteil-Vorlage aus der Seitenleiste
+  // auf das Modell trägt einen eigenen Typ und darf hier nicht hängenbleiben
+  // (siehe verdrahteAblegen in app.js).
+  const istDatei = (e) => !!e.dataTransfer &&
+    Array.from(e.dataTransfer.types ?? []).includes('Files');
+
+  let tiefe = 0;                   // Zähler statt Schalter: dragleave kommt
+                                   // auch beim Wechsel zwischen Kindknoten.
+  const markiere = (an) => document.body.classList.toggle('datei-ueber', an);
+
+  window.addEventListener('dragenter', (e) => {
+    if (!istDatei(e)) return;
+    tiefe += 1;
+    markiere(true);
+  });
+  window.addEventListener('dragover', (e) => {
+    if (!istDatei(e)) return;
+    // Ohne preventDefault öffnet der Browser die Datei selbst und die
+    // Anwendung ist weg - mitsamt der nicht gesicherten Eingabe.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  window.addEventListener('dragleave', (e) => {
+    if (!istDatei(e)) return;
+    tiefe = Math.max(0, tiefe - 1);
+    if (!tiefe) markiere(false);
+  });
+  window.addEventListener('drop', (e) => {
+    if (!istDatei(e)) return;
+    e.preventDefault();
+    tiefe = 0;
+    markiere(false);
+    const d = e.dataTransfer.files?.[0];
+    if (d) nimm(d);
+  });
+}
+
+// --- Sprungliste ------------------------------------------------------------
+
+/**
+ * Womit soll begonnen werden?
+ *
+ * Die Einträge der Sprungliste (shortcuts im Manifest) rufen dieselbe Seite
+ * mit ?los=… auf. Der Wunsch wird hier AUSGELESEN UND AUS DER ADRESSE
+ * ENTFERNT: bliebe er stehen, führte jedes Neuladen wieder in denselben
+ * Dialog, und das Lesezeichen auf «Handbuch» wäre keines auf die Anwendung.
+ *
+ * @returns {string|null} 'neu', 'ablage', 'handbuch' - oder null
+ */
+export function startWunsch() {
+  if (typeof location === 'undefined') return null;
+  const p = new URLSearchParams(location.search);
+  const w = p.get('los');
+  if (!w) return null;
+  try {
+    p.delete('los');
+    const rest = p.toString();
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '')
+                                 + location.hash);
+  } catch { /* ohne History-API bleibt der Zusatz stehen */ }
+  return w;
+}
+
+// --- Netz -------------------------------------------------------------------
+
+/**
+ * Meldet, ob eine Verbindung besteht, und ruft bei jedem Wechsel zurück.
+ *
+ * Ohne Netz rechnet die Anwendung unverändert weiter - sie tut es ohnehin
+ * vollständig im Browser. Sichtbar sein soll es trotzdem: wer offline ist,
+ * bekommt keine neue Fassung, und diese eine Erwartung soll nicht ins Leere
+ * laufen.
+ *
+ * @param {(offline:boolean)=>void} [beiWechselNetz]
+ * @returns {boolean} ob JETZT offline
+ */
+export function netzZustand(beiWechselNetz) {
+  if (typeof navigator === 'undefined') return false;
+  if (typeof beiWechselNetz === 'function') {
+    window.addEventListener('online', () => beiWechselNetz(false));
+    window.addEventListener('offline', () => beiWechselNetz(true));
+  }
+  return navigator.onLine === false;
 }

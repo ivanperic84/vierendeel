@@ -12,7 +12,7 @@
  * ============================================================================
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -3905,6 +3905,267 @@ titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
   wahr('Der Schalter steht im Optionen-Dialog',
        SCH.optionenFelder(standardwerte())
          .some((a) => a.felder.some((f) => f.key === 'schiefeBiegung')));
+}
+
+// ===========================================================================
+titel('27  Navigation im Modell: schieben, drehen, auf den Zeiger zoomen');
+
+{
+  const R = await import(J('render.3d.js'));
+
+  /**
+   * Eine Ansicht OHNE Zeichenfläche. Geprüft wird die Kamerarechnung, nicht
+   * das Malen: alles unten läuft über _projektor(), also über genau die
+   * Abbildung, mit der auch gezeichnet wird. Ein falsches Vorzeichen fiele
+   * hier auf und nicht erst am Bildschirm.
+   */
+  const ansicht = (grenzen, dist = 10) => {
+    const a = Object.create(R.Modellansicht.prototype);
+    a.cv = { width: 800, height: 600, clientHeight: 600,
+             getBoundingClientRect: () => ({ width: 800, height: 600,
+                                             left: 0, top: 0 }) };
+    a.kamera = { az: -0.62, el: 0.42, dist, ziel: [4, 0, 0.6],
+                 fov: 0.60, pan: [0, 0, 0] };
+    a.projektion = 'perspektive';
+    a.szene = { grenzen };
+    a.zeichne = () => {};
+    return a;
+  };
+  const JOCH = { xMin: 0, xMax: 20, yMin: -0.5, yMax: 0.5, zMin: 0, zMax: 1.2 };
+
+  // --- Auf den Zeiger zoomen ------------------------------------------------
+  // Der Punkt unter dem Zeiger muss unter dem Zeiger BLEIBEN. Genau das ist
+  // der Unterschied zum Zoomen auf die Bildmitte, und genau daran merkt man
+  // ein falsches Vorzeichen.
+  {
+    const a = ansicht(JOCH);
+    const { rechts, hoch } = a._basis();
+    const ziel = a._blickziel();
+    const w = a._weltProPixel();
+    const px = 640, py = 180;                      // irgendwo abseits der Mitte
+    const ex = px - 400, ey = py - 300;
+    const P = ziel.map((v, i) => v + rechts[i] * ex * w - hoch[i] * ey * w);
+
+    const vor = a._projektor()(P);
+    pruef('Der Prüfpunkt liegt anfangs unter dem Zeiger (x)', vor[0], px, 1e-6, 'px');
+    pruef('... und in y', vor[1], py, 1e-6, 'px');
+
+    a._zoome(0.5, px, py);
+    pruef('Der Abstand halbiert sich', a.kamera.dist, 5, 1e-9, 'm');
+    const nach = a._projektor()(P);
+    pruef('Nach dem Zoomen liegt er immer noch dort (x)', nach[0], px, 1e-6, 'px');
+    pruef('... und in y', nach[1], py, 1e-6, 'px');
+
+    // Und zurück: zweimal zoomen mit Kehrwert führt an denselben Ort.
+    a._zoome(2, px, py);
+    pruef('Hin und zurück ergibt denselben Abstand', a.kamera.dist, 10, 1e-9, 'm');
+    const zurueck = a._projektor()(P);
+    pruef('... und denselben Bildpunkt', zurueck[0], px, 1e-6, 'px');
+  }
+
+  // Ohne Zeigerpunkt bleibt die Bildmitte stehen - das ist der Weg der
+  // Tastatur (+/-), und dort gibt es keinen Zeiger.
+  {
+    const a = ansicht(JOCH);
+    a._zoome(0.5);
+    wahr('Ohne Zeigerpunkt wird nicht verschoben',
+         a.kamera.pan.every((v) => v === 0));
+    pruef('Der Abstand ändert sich trotzdem', a.kamera.dist, 5, 1e-9, 'm');
+  }
+
+  // --- Schranken am Modell, nicht fest --------------------------------------
+  {
+    const gross = ansicht(JOCH);
+    const klein = ansicht({ xMin: 0, xMax: 6, yMin: -0.4, yMax: 0.4,
+                            zMin: 0, zMax: 0.9 });
+    const [minG, maxG] = gross._abstandsgrenzen();
+    const [minK, maxK] = klein._abstandsgrenzen();
+    wahr('Das lange Joch darf näher heran und weiter weg',
+         minG > minK && maxG > maxK,
+         `20 m: ${minG.toFixed(2)}…${maxG.toFixed(0)} m · ` +
+         `6 m: ${minK.toFixed(2)}…${maxK.toFixed(0)} m`);
+    wahr('Ohne Szene bleibt es bei den festen Schranken',
+         (() => { const a = ansicht(JOCH); a.szene = null;
+                  const [u, o] = a._abstandsgrenzen();
+                  return u === 0.4 && o === 400; })());
+
+    const a = ansicht(JOCH, 100);
+    a._zoome(1e-9, 640, 180);
+    pruef('Näher als die untere Schranke geht es nicht',
+          a.kamera.dist, minG, 1e-12, 'm');
+
+    // An der Schranke darf auch nicht mehr mitgeschoben werden - sonst
+    // wandert das Modell aus dem Bild, während der Abstand längst steht.
+    const b = ansicht(JOCH, minG);
+    b._zoome(0.5, 640, 180);
+    wahr('An der Schranke bleibt die Verschiebung stehen',
+         b.kamera.pan.every((v) => v === 0));
+  }
+
+  // --- Schieben: das Bild folgt der Hand ------------------------------------
+  {
+    const a = ansicht(JOCH);
+    const Q = a._blickziel();
+    const s0 = a._projektor()(Q);
+    a._schiebe(100, 40);
+    const s1 = a._projektor()(Q);
+    pruef('100 Pixel nach rechts gezogen wandert das Modell 100 nach rechts',
+          s1[0] - s0[0], 100, 1e-6, 'px');
+    pruef('40 nach unten gezogen wandert es 40 nach unten',
+          s1[1] - s0[1], 40, 1e-6, 'px');
+  }
+
+  // Aus der Nähe schiebt derselbe Pixelweg WENIGER Weltmass - sonst schösse
+  // ein herangezoomtes Modell beim ersten Zug aus dem Bild.
+  {
+    const fern = ansicht(JOCH, 20), nah = ansicht(JOCH, 2);
+    fern._schiebe(100, 0); nah._schiebe(100, 0);
+    const wegF = Math.hypot(...fern.kamera.pan);
+    const wegN = Math.hypot(...nah.kamera.pan);
+    pruef('Der Weg ist dem Abstand verhältnisgleich', wegF / wegN, 10, 1e-9, '-');
+  }
+
+  // --- Drehen ---------------------------------------------------------------
+  {
+    const a = ansicht(JOCH);
+    const az0 = a.kamera.az;
+    a._drehe(80, 0);
+    wahr('Nach rechts gezogen dreht sich die Ansicht', a.kamera.az < az0);
+    wahr('Die feste Blickrichtung gilt danach nicht mehr', a.ansichtKey === null);
+
+    // Volle Fensterbreite ~ halbe Umdrehung. Die Breite ist hier gleich der
+    // Gerätepixelbreite (dpr = 1), also 800.
+    const b = ansicht(JOCH);
+    const azB = b.kamera.az;
+    b._drehe(800, 0);
+    pruef('Eine volle Breite dreht um eine halbe Umdrehung',
+          b.kamera.az - azB, -Math.PI, 1e-9, 'rad');
+
+    const c = ansicht(JOCH);
+    c._drehe(37, 11, true);
+    const r = Math.PI / 12;
+    wahr('Umschalt rastet auf 15 Grad',
+         Math.abs(c.kamera.az / r - Math.round(c.kamera.az / r)) < 1e-9 &&
+         Math.abs(c.kamera.el / r - Math.round(c.kamera.el / r)) < 1e-9,
+         `az = ${(c.kamera.az * 180 / Math.PI).toFixed(1)}°, ` +
+         `el = ${(c.kamera.el * 180 / Math.PI).toFixed(1)}°`);
+
+    const d = ansicht(JOCH);
+    d._drehe(0, 1e6);
+    pruef('Über den Pol hinaus geht es nicht', d.kamera.el, 1.45, 1e-12, 'rad');
+    d._drehe(0, -1e6);
+    pruef('Und darunter auch nicht', d.kamera.el, -1.45, 1e-12, 'rad');
+  }
+
+  // --- Finger ---------------------------------------------------------------
+  // Zwei Finger sind der einzige Weg, auf einem Tablett zu zoomen. Geprüft
+  // wird die Quelle: ohne die Zeigerliste gäbe es nur einen Finger, und der
+  // dreht.
+  {
+    const q = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    wahr('Alle aufliegenden Zeiger werden geführt',
+         q.includes('const zeiger = new Map()'));
+    wahr('Zwei Finger kneifen und wischen', q.includes("art: 'kneifen'"));
+    wahr('Hebt einer ab, wird neu angesetzt statt gesprungen',
+         /zeiger\.size === 1 && griff\?\.art === 'kneifen'/.test(q));
+    wahr('Der Doppeltipp kommt ohne dblclick aus',
+         !q.includes("addEventListener('dblclick'") && q.includes('tippZeit'));
+    wahr('Radschritte in Zeilen und Seiten werden umgerechnet',
+         q.includes('inPixel') && q.includes('modus === 1'));
+    wahr('Die Zeichenfläche nimmt Tastendrücke entgegen',
+         q.includes('c.tabIndex = 0') && q.includes("addEventListener('keydown'"));
+  }
+}
+
+// ===========================================================================
+titel('28  Installierbare Fassung: Manifest, Dienstarbeiter, Dateien');
+
+{
+  const M = JSON.parse(readFileSync(join(HIER, 'manifest.webmanifest'), 'utf8'));
+
+  wahr('Startort und Geltungsbereich liegen im eigenen Verzeichnis',
+       M.start_url === './' && M.scope === './');
+  wahr('Ein zweiter Aufruf holt das offene Fenster nach vorn',
+       M.launch_handler?.client_mode === 'focus-existing');
+
+  // Dateien annehmen. Der Browser fragt bei der Installation um Erlaubnis;
+  // ohne den Eintrag käme die Frage gar nicht erst.
+  const fh = (M.file_handlers ?? [])[0];
+  wahr('JSON-Dateien werden angenommen',
+       (fh?.accept?.['application/json'] ?? []).includes('.json'));
+  wahr('Der Bearbeiter zeigt auf den Startort', fh?.action === './');
+  wahr('Eine zweite Datei landet im selben Fenster',
+       fh?.launch_type === 'single-client');
+
+  const kurz = M.shortcuts ?? [];
+  wahr('Die Sprungliste hat Einträge', kurz.length >= 3, `${kurz.length} Stück`);
+  const wuensche = kurz.map((s) => new URL(s.url, 'https://x/').searchParams.get('los'));
+  wahr('Jeder Eintrag trägt seinen Wunsch in der Adresse',
+       wuensche.every(Boolean) && new Set(wuensche).size === wuensche.length,
+       wuensche.join(', '));
+
+  // --- Dienstarbeiter -------------------------------------------------------
+  const sw = readFileSync(join(HIER, 'sw.js'), 'utf8');
+  const module = readdirSync(join(HIER, 'js')).filter((n) => n.endsWith('.js'));
+  wahr('Der Dienstarbeiter führt JEDES Modul aus js/',
+       module.every((n) => sw.includes(`'js/${n}'`)), `${module.length} Module`);
+  wahr('Manifest und Stylesheet liegen mit in der Ablage',
+       sw.includes("'manifest.webmanifest'") && sw.includes("'css/style.css'"));
+  wahr('Er liefert sich selbst nie aus der Ablage',
+       sw.includes("endsWith('/sw.js')"));
+  wahr('Er übernimmt erst auf Zuruf', sw.includes("=== 'uebernehmen'"));
+  // OHNE data/: die drei Datenbanken sind keine Startvoraussetzung, sie
+  // können als Datenpaket im Browser hinterlegt sein.
+  wahr('Die Datenbanken stehen NICHT in der Ablageliste',
+       !/'data\//.test(sw.slice(sw.indexOf('const SCHALE'),
+                               sw.indexOf('Ende erzeugter Block'))));
+
+  // --- Modul ----------------------------------------------------------------
+  const P = await import(J('pwa.js'));
+  wahr('pwa.js nimmt Dateien entgegen', typeof P.dateiEmpfang === 'function');
+  wahr('... reicht den Wunsch aus der Sprungliste', typeof P.startWunsch === 'function');
+  wahr('... und meldet den Netzzustand', typeof P.netzZustand === 'function');
+  wahr('Ohne Adresse gibt es keinen Wunsch', P.startWunsch() === null);
+  wahr('Ohne Browser bricht der Netzzustand nicht ab', P.netzZustand() === false);
+
+  const pq = readFileSync(join(HIER, 'js', 'pwa.js'), 'utf8');
+  wahr('Nur echte Dateien werden hereingelassen',
+       pq.includes("includes('Files')"));
+  wahr('Der Browser darf die Datei nicht selbst öffnen',
+       pq.includes('e.preventDefault()'));
+
+  // --- Anwendung ------------------------------------------------------------
+  const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Die Anwendung nimmt Dateien entgegen',
+       aq.includes('dateiEmpfang(dateiAnnehmen)'));
+  // Fehlt die Datenbasis, steigt start() aus. Der Empfang muss VORHER stehen -
+  // sonst liesse sich das Datenpaket gerade dann nicht hineinziehen, wenn es
+  // gebraucht wird.
+  wahr('Und zwar bevor sie mangels Datenbasis aussteigt',
+       aq.indexOf('dateiEmpfang(dateiAnnehmen)') < aq.indexOf('dialogDaten(true)'));
+  wahr('Alle drei Dateiarten werden unterschieden',
+       ['PAKET_FORMAT', 'tragjoch-ablage', 'tragjoch-stabmodell']
+         .every((s) => aq.includes(s)));
+  wahr('Eingelesen wird nie ungefragt',
+       aq.includes("dialog('Ablage einlesen'") &&
+       aq.includes("dialog('Datenpaket laden'"));
+  wahr('Der Wunsch aus der Sprungliste wird ausgeführt',
+       aq.includes('switch (startWunsch())'));
+  wahr('Auch der Fussknopf eines Dialogs schliesst ihn',
+       aq.includes("querySelectorAll('[data-zu]')"));
+
+  // --- Darstellung ----------------------------------------------------------
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Der Streifen der Fensterknöpfe wird freigehalten',
+       css.includes('titlebar-area-x') && css.includes('titlebar-area-width'));
+  wahr('Die Kopfleiste zieht das Fenster, ihre Knöpfe nicht',
+       css.includes('app-region: drag') && css.includes('app-region: no-drag'));
+  wahr('Eine hereingezogene Datei wird angezeigt',
+       css.includes('body.datei-ueber'));
+
+  const html = readFileSync(join(HIER, 'index.html'), 'utf8');
+  wahr('Die Modulfassung verweist auf das Manifest',
+       html.includes('rel="manifest"'));
 }
 
 // ===========================================================================

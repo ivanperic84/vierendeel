@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 945 Kontrollen bestanden, 0 gefallen · Bundle 979 kB · Ablage-Format v2 · installierbar (PWA) · **COM-Brücke vollständig: Modell, lokale Achsen, Starrkörper, Linkelemente**
+**Stand:** 1002 Kontrollen bestanden, 0 gefallen · Bundle 1009 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 934 Kontrollen
+node pruefung.mjs           # Prüfstand, 1002 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,129 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Navigation im Modell und die installierte Fassung (24. August)
+
+Zwei Dinge, die nichts mit der Statik zu tun haben und trotzdem darüber
+entscheiden, ob mit dem Werkzeug gearbeitet wird: wie man sich im Modell
+bewegt, und ob es sich auf einem Gerät installieren lässt.
+
+#### Auf einem Tablett liess sich nicht zoomen
+
+Die Ansicht kannte **einen** Zeiger. Ein Finger drehte — und das war alles.
+Kein Kneifen, kein Zweifingerwischen; auf einem Tablett gab es schlicht keinen
+Weg, näher heranzukommen. Am Schreibtisch fiel das nie auf, weil dort das Rad
+zoomt.
+
+Jetzt liegen alle aufliegenden Zeiger in einer `Map`, und die Geste ergibt
+sich aus ihrer Anzahl:
+
+| | |
+|---|---|
+| ein Finger / linke Taste | drehen (mit Umschalt in 15°-Schritten) |
+| zwei Finger | **kneifen zoomt, wischen schiebt** |
+| rechte oder mittlere Taste, Alt + links | schieben |
+| Rad | zoomen; quer und auf dem Trackpad schieben |
+| Doppelklick / **Doppeltipp** | das getroffene Bauteil in die Mitte holen |
+| Pfeile, `+`/`−`, `0` | drehen bzw. schieben, zoomen, ganzes Joch |
+
+Drei Dinge, die dabei zu bedenken waren:
+
+* **Hebt beim Kneifen ein Finger ab, wird die Geste neu angesetzt.** Führte
+  man sie fort, spränge das Bild um den halben Fingerabstand — der
+  verbliebene Finger liegt ja nicht dort, wo die Mitte war.
+* **`dblclick` gibt es für Finger nicht verlässlich.** Der Doppeltipp wird
+  deshalb selbst erkannt, und zwar für Maus und Finger über denselben Weg.
+  Zwei Wege für dieselbe Geste hiessen zwei Verhalten.
+* **`setPointerCapture` kann werfen**, wenn der Zeiger schon wieder weg ist.
+  Ohne Fang weiterlaufen ist besser als mitten in der Geste abzubrechen.
+
+#### Gezoomt wird auf den Zeiger, nicht auf die Mitte
+
+Bisher kam einem beim Heranfahren die Bildmitte entgegen. Wer eine Ecke des
+Jochs ansehen wollte, musste nach **jedem** Radschritt nachschieben.
+
+`_zoome(faktor, px, py)` hält den Weltpunkt unter dem Zeiger fest. Der
+Bildpunkt liegt von der Mitte aus bei `rechts·ex·w` und `hoch·(−ey)·w`, wobei
+`w` das Weltmass je Pixel in der Zielebene ist; mit dem Abstand skaliert auch
+`w`. Damit derselbe Weltpunkt wieder unter dem Zeiger liegt, wandert das
+Blickziel um die **Differenz** der beiden Weltmasse — `w·(1−f)`.
+
+Festgehalten wird der Punkt in der **Zielebene**. Davor und dahinter bleibt
+eine Restbewegung; perspektivisch lässt sich das nicht vermeiden, weil dort
+jede Tiefe ihren eigenen Massstab hat.
+
+Der Prüfstand rechnet das nicht nach, sondern **projiziert**: derselbe
+`_projektor()`, mit dem auch gezeichnet wird, muss den Punkt nach dem Zoomen
+wieder auf dieselben Bildkoordinaten legen. Stimmt auf 10⁻⁶ Pixel, hin und
+zurück.
+
+#### Zwei stille Fehler nebenbei
+
+* **Radschritte im Zeilenmodus wirkten fast nicht.** Firefox und viele Mäuse
+  melden `deltaMode = 1` und `deltaY = 3`. Der Faktor `exp(3·0.0012)` ist
+  1.0036 — man dreht und dreht und nichts geschieht. Jetzt werden Zeilen und
+  Seiten in Pixel umgerechnet.
+* **Die Zoomschranken waren fest** (0.4 bis 400 m). Sie passen entweder zum
+  6-Meter-Joch oder zum 20-Meter-Joch, nie zu beiden. Jetzt an der Diagonale
+  der Hüllbox gemessen.
+
+#### Die installierte Fassung war eine Seite im eigenen Fenster
+
+Dienstarbeiter, Manifest und der Installierknopf standen. Was fehlte, waren
+die Funktionen, für die sich das Installieren überhaupt lohnt.
+
+**Dateien öffnen.** Das Manifest trägt `file_handlers`; die installierte
+Anwendung erscheint im *Öffnen mit* des Dateimanagers. Der Browser fragt bei
+der Installation um Erlaubnis — ohne sie kommt die Frage gar nicht erst, und
+zur Standard-Anwendung für `.json` wird sie nie von selbst. Derselbe Rückruf
+nimmt Dateien an, die man **auf das Fenster zieht**; das geht auch im Reiter
+und ohne Installation.
+
+Was hereinkommt, wird an seinem Kopf erkannt und *dann* gefragt:
+
+| Kennung | Antwort |
+|---|---|
+| `format: tragjoch-daten` | Datenpaket laden — Anzahl je Teil und Stand vorgelegt |
+| `art: tragjoch-ablage` | Ablage einlesen — Anzahl Tragwerke und Vorlagen vorgelegt |
+| `format: tragjoch-stabmodell` | «Das ist eine Ausleitung» — sie führt hinaus, nicht herein |
+| alles andere | benannt, nicht verschluckt |
+
+**Gefragt wird immer.** Eine Ablage einzulesen legt Einträge an, ein
+Datenpaket tauscht die ganze Datenbasis; beides darf nicht dadurch geschehen,
+dass jemand danebengreift.
+
+Der Empfang wird **vor** der Datenprüfung in `start()` eingerichtet. Fehlt die
+Datenbasis, steigt `start()` aus — und genau dann ist das Hineinziehen des
+Datenpakets der Weg, der gebraucht wird. Der Prüfstand hält die Reihenfolge
+fest.
+
+**Sprungliste.** `shortcuts` im Manifest rufen dieselbe Seite mit `?los=neu`,
+`?los=ablage`, `?los=handbuch`. `startWunsch()` liest den Wunsch aus und
+**entfernt ihn aus der Adresse** — bliebe er stehen, führte jedes Neuladen
+wieder in denselben Dialog, und ein Lesezeichen auf «Handbuch» wäre keines auf
+die Anwendung.
+
+**Ein echter Fehler:** `window-controls-overlay` stand im `display_override`,
+aber das Stylesheet hielt den Streifen der Fensterknöpfe nicht frei. Im
+eigenen Fenster lagen Minimieren, Maximieren und Schliessen genau über
+`#kopf-werkzeuge` — der Installierknopf war nicht mehr erreichbar.
+`env(titlebar-area-x/width/height)` räumt den Streifen; die Kopfleiste zieht
+das Fenster (`app-region: drag`), alles Anklickbare darin ist ausgenommen.
+
+**Und ein alter, der beim Bauen der neuen Dialoge auffiel:** `dialog()` band
+nur den **ersten** `[data-zu]` — und das ist immer das Kreuz in der Kopfzeile.
+Jedes «Abbrechen» im Fuss war seit jeher tot. Jetzt `querySelectorAll`.
+
+Dazu eine Kleinigkeit, die man vermisst, sobald man sie kennt: die Fusszeile
+schreibt `· ohne Netz`, wenn keine Verbindung besteht. Gerechnet wird
+unverändert weiter — es geschieht ohnehin alles im Browser —, aber eine neue
+Fassung kommt dann eben nicht.
+
+Prüfstand: Abschnitte 27 und 28, **57 neue Kontrollen** (Zoom hin und zurück
+über den Projektor, Schranken am Modell, Schieben verhältnisgleich zum
+Abstand, Rasten auf 15°, Polbegrenzung, Manifest, Ablageliste des
+Dienstarbeiters, Reihenfolge in `start()`).
 
 ### Der erste Lauf auf dem Windows-Rechner (23. August)
 
@@ -1347,7 +1470,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (934 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1002 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

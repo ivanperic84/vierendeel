@@ -33,10 +33,10 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          baugruppeSumme } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile } from './data.fl.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
-         speicherLeeren, ausSpeicher } from './data.paket.js';
+         speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
-import { pwaEinrichten, kannInstallieren, installiere,
-         alsProgramm } from './pwa.js';
+import { pwaEinrichten, kannInstallieren, installiere, alsProgramm,
+         dateiEmpfang, startWunsch, netzZustand } from './pwa.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 
@@ -1626,7 +1626,9 @@ function dialog(titel, koerper, knoepfe, klasse = '') {
     <div class="dialog-fuss">${knoepfe}</div>
   </div></div>`;
   const zu = () => { n.innerHTML = ''; document.body.classList.remove('druck-handbuch'); };
-  n.querySelector('[data-zu]').onclick = zu;
+  // ALLE, nicht nur den ersten: der erste ist immer das Kreuz in der
+  // Kopfzeile, und ein «Abbrechen» im Fuss blieb bisher ohne Wirkung.
+  n.querySelectorAll('[data-zu]').forEach((b) => { b.onclick = zu; });
   n.querySelector('.scrim').onclick = (e) => { if (e.target.classList.contains('scrim')) zu(); };
   return { node: n, zu };
 }
@@ -1774,6 +1776,98 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
   if (format === 'dxf') return exportiereDxf(werte, deps, o);
   if (format === 'pynite') return exportierePynite(werte, deps, o);
   return exportiereAxisvm(werte, deps, o);
+}
+
+/**
+ * EINE DATEI, DIE VON AUSSEN KOMMT - auf das Fenster gezogen oder vom
+ * Betriebssystem gereicht (siehe dateiEmpfang in js/pwa.js).
+ *
+ * Die Anwendung schreibt drei Arten von JSON, und alle drei tragen ihre Art
+ * im Kopf. Statt zu fragen, was da vorliegt, wird nachgesehen.
+ *
+ * GEFRAGT WIRD TROTZDEM IMMER - und zwar, ob es hinein soll. Eine Ablage
+ * einzulesen legt Einträge an, ein Datenpaket tauscht die ganze Datenbasis.
+ * Beides darf nicht dadurch geschehen, dass jemand danebengreift.
+ */
+async function dateiAnnehmen(datei) {
+  let text = null;
+  try { text = await datei.text(); }
+  catch (e) { alert(`Datei nicht lesbar: ${e.message}`); return; }
+
+  let obj = null;
+  try { obj = JSON.parse(text); } catch { /* wird gleich gemeldet */ }
+
+  const gross = datei.size < 1024 ? `${datei.size} Byte`
+                                  : `${(datei.size / 1024).toFixed(0)} kB`;
+  const kopf = `<p class="notiz">${esc(datei.name)} · ${gross}</p>`;
+  const zu = '<button class="btn" data-zu>Schliessen</button>';
+
+  if (!obj || typeof obj !== 'object') {
+    dialog('Datei nicht verwendbar', kopf +
+      '<p>Das ist kein lesbares JSON. Erwartet wird eine Ablagedatei oder ein '
+      + 'Datenpaket aus dieser Anwendung.</p>', zu);
+    return;
+  }
+
+  // --- Datenpaket: die Datenbasis ---
+  if (obj.format === PAKET_FORMAT) {
+    const p = pruefePaket(obj);
+    if (!p.ok) {
+      dialog('Datenpaket nicht verwendbar',
+             kopf + `<p>${esc(p.fehler.join(' '))}</p>`, zu);
+      return;
+    }
+    const d = dialog('Datenpaket laden', kopf +
+      `<p>Enthalten: ${p.teile.map((x) => `<b>${x.anzahl}</b> ${esc(x.einheit)}`)
+         .join(' · ')}${obj.stand ? ` · Stand ${esc(obj.stand)}` : ''}.</p>` +
+      '<p class="notiz">Das Paket ersetzt die hinterlegte Datenbasis. Es wird '
+      + 'allein in diesem Browser gespeichert und nirgends hingeschickt; die '
+      + 'Anwendung startet danach neu.</p>',
+      '<button class="btn btn-acc" data-ok>Laden</button>'
+      + '<button class="btn" data-zu>Abbrechen</button>');
+    d.node.querySelector('[data-ok]').onclick = () => {
+      paketAnwenden(obj);
+      d.zu();
+      location.reload();
+    };
+    return;
+  }
+
+  // --- Ablage: gespeicherte Tragwerke ---
+  if (obj.art === 'tragjoch-ablage' || Array.isArray(obj.eintraege)) {
+    const n = (obj.eintraege ?? []).length;
+    const v = (obj.vorlagen ?? []).length;
+    const d = dialog('Ablage einlesen', kopf +
+      `<p>Enthalten: <b>${n}</b> Tragwerk${n === 1 ? '' : 'e'}`
+      + `${v ? ` und <b>${v}</b> Vorlage${v === 1 ? '' : 'n'}` : ''}.</p>`
+      + '<p class="notiz">Bestehende Einträge bleiben stehen. Gleiche Namen '
+      + 'erzeugen neue Einträge, damit nichts unbemerkt überschrieben wird.</p>',
+      '<button class="btn btn-acc" data-ok>Übernehmen</button>'
+      + '<button class="btn" data-zu>Abbrechen</button>');
+    d.node.querySelector('[data-ok]').onclick = async () => {
+      try {
+        const anzahl = await store.ausJson(text);
+        d.zu();
+        schubladeOffen = false;
+        schubladeUmschalten();          // zeigt, was angekommen ist
+        alert(`${anzahl} Eintrag/Einträge übernommen.`);
+      } catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
+    };
+    return;
+  }
+
+  // --- Stabmodell: geht hinaus, nicht herein ---
+  if (obj.format === 'tragjoch-stabmodell') {
+    dialog('Das ist eine Ausleitung', kopf +
+      '<p>Die Datei beschreibt ein fertiges Stabmodell für die COM-Brücke nach '
+      + 'AxisVM. Sie führt aus dieser Anwendung hinaus, nicht in sie hinein: '
+      + 'eingelesen wird sie von <code>com/AxisVM_aufbauen.ps1</code>.</p>', zu);
+    return;
+  }
+
+  dialog('Datei nicht erkannt', kopf +
+    '<p>Weder eine Ablage (<code>art: tragjoch-ablage</code>) noch ein '
+    + 'Datenpaket (<code>format: tragjoch-daten</code>).</p>', zu);
 }
 
 /**
@@ -1927,6 +2021,10 @@ export async function start() {
   // baueKopf() stehen, damit der Knopf beim ersten Zeichnen schon da sein
   // kann; erscheint das Angebot später, wird der Kopf neu gebaut.
   pwaEinrichten({ beiWechsel: () => { if (werte) baueKopf(); } });
+  // Dateien von aussen annehmen. BEWUSST VOR der Datenprüfung darunter: fehlt
+  // die Datenbasis, ist das Hineinziehen des Datenpakets genau der Weg, der
+  // dann gebraucht wird - und der Ausstieg unten käme ihm sonst zuvor.
+  dateiEmpfang(dateiAnnehmen);
   // Daten kommen entweder mit der Datei (eingebettet bzw. nachgeladen) oder
   // aus einem örtlich geladenen Datenpaket. Fehlt beides, ist das kein
   // Fehler, sondern der Normalfall der datenfreien Ausgabe.
@@ -1945,8 +2043,13 @@ export async function start() {
   ui.el('st-db').textContent = ui.datenbankText(stand, dbFehler);
   // Als eigenes Fenster gestartet fehlt die Adressleiste - dann ist in der
   // Fusszeile das Einzige, woran sich die Herkunft noch ablesen lässt.
-  ui.el('st-version').textContent =
-    `Tragjoch ${VERSION}` + (alsProgramm() ? ' · installiert' : '');
+  const zeigeFuss = () => {
+    ui.el('st-version').textContent = `Tragjoch ${VERSION}`
+      + (alsProgramm() ? ' · installiert' : '')
+      + (netzZustand() ? ' · ohne Netz' : '');
+  };
+  netzZustand(zeigeFuss);          // meldet künftige Wechsel
+  zeigeFuss();
 
   ansicht = new Modellansicht(ui.el('canvas3d'), {
     beiAuswahl: (st) => {
@@ -1997,6 +2100,16 @@ export async function start() {
   neuRechnen();
   requestAnimationFrame(() => ansicht.passeGroesseAn());
   new ResizeObserver(() => ansicht.passeGroesseAn()).observe(ui.el('viewer'));
+
+  // Sprungliste der installierten Anwendung (shortcuts im Manifest). Zuletzt,
+  // damit der gewünschte Dialog über einem fertigen Arbeitsblatt steht und
+  // nicht über einem halben.
+  switch (startWunsch()) {
+    case 'neu': zuruecksetzen(); break;
+    case 'ablage': schubladeUmschalten(); break;
+    case 'handbuch': dialogHandbuch(); break;
+    default: break;
+  }
 }
 
 if (typeof document !== 'undefined') {

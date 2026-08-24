@@ -518,6 +518,31 @@ nicht**, sonst würde das Anwenden das Bauteil umbauen. Ein gespeichertes Joch
 wird *geladen* und ersetzt den Stand; eine Vorlage wird *angewendet* und legt
 sich darauf.
 
+**Sich im Modell bewegen.** Maus, Trackpad, Finger und Tastatur führen
+dieselben vier Bewegungen aus:
+
+| | drehen | schieben | zoomen | heranholen |
+|---|---|---|---|---|
+| **Maus** | linke Taste | rechte oder mittlere Taste, Alt + links | Rad | Doppelklick |
+| **Trackpad** | ziehen | zwei Finger wischen | kneifen | Doppeltipp |
+| **Finger** | ein Finger | zwei Finger wischen | zwei Finger kneifen | Doppeltipp |
+| **Tastatur** | Pfeile | Umschalt + Pfeile | `+` / `−` | `0` = ganzes Joch |
+
+Zwei Feinheiten, die man nicht sieht, aber merkt:
+
+* **Gedreht wird um die Bildmitte, gezoomt auf den Zeiger.** Um die Mitte zu
+  drehen ist die einzige Möglichkeit, die zu einer achszentrierten Projektion
+  passt — und die vernünftige dazu: man dreht um das, was man ansieht. Beim
+  Zoomen wäre dieselbe Regel eine Plage, denn dann käme einem die Mitte
+  entgegen statt der Ecke, die man ansehen wollte. Der Punkt unter dem Zeiger
+  bleibt deshalb stehen.
+* **Umschalt rastet das Drehen** auf 15°-Schritte — für eine saubere
+  Seitenansicht, ohne den Knopf dafür zu suchen.
+
+Ein **Doppelklick auf ein Bauteil** holt es in die Bildmitte und macht es damit
+zum Drehpunkt. Ein einfacher Klick wählt aus: eine Station im Joch oder ein
+Anbauteil, dessen Karte sich dann öffnet.
+
 **Werkzeuge der Modellansicht**, nach Art geordnet und offen sichtbar:
 
 | Gruppe | Inhalt |
@@ -773,9 +798,9 @@ Drei Dateien tragen das:
 
 | Datei | Zweck |
 |---|---|
-| `manifest.webmanifest` | Name, Farben, Symbole, Startadresse |
+| `manifest.webmanifest` | Name, Farben, Symbole, Startadresse, Sprungliste, Dateiannahme |
 | `sw.js` | Dienstarbeiter: legt die Anwendung ab und liefert sie offline aus |
-| `js/pwa.js` | Anmeldung, Installationsknopf, Meldung «neue Fassung» |
+| `js/pwa.js` | Anmeldung, Installationsknopf, Fassungsmeldung, Dateiannahme, Netzzustand |
 
 **Installieren.** Sobald der Browser es anbietet, erscheint im Werkzeugkasten
 oben rechts ein Knopf «Auf diesem Gerät installieren». Danach läuft das
@@ -784,11 +809,36 @@ dann `· installiert`. Auf iOS gibt es keinen Knopf — dort geht es über
 *Teilen → Zum Home-Bildschirm*.
 
 **Was abgelegt wird.** Alles, was zum Starten nötig ist: `index.html`, das
-Stylesheet, sämtliche Module aus `js/`, die drei `data/*.json` und die Symbole
-— beim Schreiben dieser Zeilen 44 Dateien. Die Liste erzeugt `build_html.py`
+Stylesheet, sämtliche Module aus `js/` und die Symbole — beim Schreiben dieser
+Zeilen 43 Dateien. Die drei `data/*.json` stehen bewusst **nicht** in der
+Liste: sie sind keine Startvoraussetzung, denn die Datenbasis kann auch als
+Datenpaket im Browser hinterlegt sein. Liegen sie doch daneben, nimmt der
+Dienstarbeiter sie beim ersten Gebrauch von selbst auf. Die Liste erzeugt `build_html.py`
 selbst und trägt sie zusammen mit einem Kurzabdruck über den Inhalt in `sw.js`
 ein. Deshalb gilt: **nach jeder Änderung `python3 build_html.py` laufen
 lassen**, sonst liefert der Dienstarbeiter den alten Stand aus.
+
+**Dateien öffnen.** Eine Ablage- oder Datenpaketdatei lässt sich **auf das
+Fenster ziehen** — das geht auch im Reiter, ohne Installation. Die installierte
+Fassung steht zusätzlich im *Öffnen mit* des Dateimanagers; der Browser fragt
+bei der Installation, ob sie `.json`-Dateien annehmen darf, und zur
+Standard-Anwendung dafür wird sie nie von selbst.
+
+Erkannt wird die Datei an ihrem Kopf, und **gefragt wird immer**: eine Ablage
+einzulesen legt Einträge an, ein Datenpaket tauscht die ganze Datenbasis.
+
+| Kennung | was geschieht |
+|---|---|
+| `format: tragjoch-daten` | Datenpaket laden, mit Anzahl je Teil und Stand |
+| `art: tragjoch-ablage` | Ablage einlesen, mit Anzahl Tragwerke und Vorlagen |
+| `format: tragjoch-stabmodell` | Hinweis, dass diese Datei hinaus- und nicht hereinführt |
+
+**Sprungliste.** Ein Rechtsklick auf das Programmsymbol führt unmittelbar zu
+*Neues Tragjoch*, *Projektablage* oder *Handbuch*.
+
+**Ohne Netz.** Die Fusszeile schreibt `· ohne Netz`, sobald die Verbindung
+fehlt. Gerechnet wird unverändert weiter — das geschieht ohnehin vollständig
+im Browser —, aber eine neue Fassung kommt dann eben nicht.
 
 **Neue Fassung.** Eine geänderte Fassung wird nicht unter der Hand
 eingewechselt — ein Rechenstand darf sich nicht mitten in einer Eingabe
@@ -861,7 +911,7 @@ js/
   data.anbauteile.js     Zugriff auf die Anbauteil-Vorlagen  reine Daten
   data.fl.js             Zugriff auf die FL-Lasttabelle      reine Daten
   data.paket.js          Datenpaket laden, sichern, hinterlegen
-  pwa.js                 Dienstarbeiter anmelden, installieren, Fassung melden
+  pwa.js                 Dienstarbeiter, Installation, Dateiannahme, Netzzustand
   render.skizzen.js      Kraftbilder zu den Kurven der Verläufe
   core.constants.js      normative Grenzwerte, Einheiten
   core.lasten.js         Herkunft und Kategorien der Einwirkungen
