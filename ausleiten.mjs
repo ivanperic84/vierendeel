@@ -26,16 +26,21 @@ const AX = await import(J('export.axisvm.js'));
 
 T.setzeDatenbank(JSON.parse(readFileSync('data/tragjoche.json', 'utf8')));
 A.setzeAnbauteilDB(JSON.parse(readFileSync('data/anbauteile.json', 'utf8')));
-try {
-  const FL = await import(J('data.fl_bauteile.js'));
-  FL.setzeFlBauteilDB?.(JSON.parse(readFileSync('data/fl_bauteile.json', 'utf8')));
-} catch { }
+// Das Modul heisst data.fl.js und seine Funktion setzeFlDB - beides stand
+// hier falsch, und ein try/catch schluckte den Fehler. Folge: die
+// Bauteil-Datenbank kam nie an, und jedes Anbauteil, das seine Lasten aus
+// ihr zieht, wog null. Am Signaljoch fiel das nicht auf, weil dessen
+// Signale ihre Lasten unmittelbar mitbringen. Also ohne Netz laden - fehlt
+// die Datei, soll es scheitern und nicht still falsch rechnen.
+const FL = await import(J('data.fl.js'));
+FL.setzeFlDB(JSON.parse(readFileSync('data/fl_bauteile.json', 'utf8')));
 
 const ablage = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 const w = ablage.eintraege[0].werte;
 const m = V.modell(w, P.getProfil(w.profOG), P.getProfil(w.profUG),
                    S.getStahl(w.stahl), T.getTragjoch(w.typ));
 const d = AX.stabmodellJson(m, { knotenmodell: 'anschnitt',
+                                 eingabe: w,
                                  auflagerModell: process.argv[4] ?? undefined });
 writeFileSync(process.argv[3], JSON.stringify(d, null, 1));
 console.log(`${ablage.eintraege[0].name}`);
