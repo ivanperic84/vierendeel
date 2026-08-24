@@ -263,6 +263,18 @@ if ($exe) {
     }
 }
 
+<#  EINEN AUFZAEHLUNGSWERT NACHSCHLAGEN.
+    Dieselbe Ueberlegung wie bei FehlerName: was ein Name bedeutet, steht in
+    der Typbibliothek, die ohnehin geladen ist. Raten waere hier besonders
+    teuer - ein falscher Kombinationstyp wirft keinen Fehler, er legt die
+    Kombination nur in die falsche Familie.                                #>
+function Aufzaehlung([string]$typ, [string]$name) {
+    $t = $script:typen | Where-Object { $_.Name -eq $typ } | Select-Object -First 1
+    if (-not $t) { return $null }
+    if ([Enum]::GetNames($t) -notcontains $name) { return $null }
+    return [int]([Enum]::Parse($t, $name))
+}
+
 <#  WAS BEDEUTET -102?
     AxisVM meldet Fehler als negative Zahl. Welche Zahl was heisst, steht
     NICHT in der Anleitung im Netz - aber in der Typbibliothek, die wir
@@ -775,6 +787,59 @@ $iMat = $r.wert
 try { Schreib "  Katalogname: $($m.Materials.Item($iMat).Name)" } catch { }
 Schreib "  $stahl als Nummer $iMat"
 
+<#  DAS STEIFE MATERIAL fuer die Gurtabschnitte im Knotenbereich.
+    Vorgabe des Auftraggebers: diese Abschnitte tragen den QUERSCHNITT IHRES
+    GURTES, und die Steifigkeit wird im Hintergrund hochgedreht. Dann
+    stimmen Eigengewicht und Darstellung - ein Ersatzrechteck von 500x500
+    woege das Fuenfzigfache und staende als Klotz in der Ansicht.
+
+    NICHT ueber StiffnessReduction: gemessen am 24.08. nimmt AxisVM dort
+    keinen Wert ueber 1 an - gesetzt 1000, gelesen 1, ohne Fehlermeldung.
+    Es ist eine Reduktion, keine Steigerung.
+
+    Also ein eigenes Material: gleiche Dichte, gleiche Festigkeit, nur der
+    E-Modul vervielfacht. Die Kennwerte werden vom KATALOGMATERIAL gelesen
+    statt aus unserer Datei umgerechnet - damit stellt sich die Frage der
+    Einheit gar nicht erst (gemessen: Ex = 2.1e8, das sind kN/m2).        #>
+$iMatSteif = 0
+$brauchtSteif = @($d.staebe | Where-Object { $_.steifesMaterial }).Count
+if ($brauchtSteif -gt 0 -and $d.materialSteif) {
+    $mo = $null; try { $mo = $m.Materials.Item($iMat) } catch { }
+    $lies = {
+        param($feld, $ersatz)
+        $v = $null; try { $v = $mo.$feld } catch { }
+        if ($null -ne $v -and [double]$v -ne 0) { [double]$v } else { [double]$ersatz }
+    }
+    $fk  = [double]$d.materialSteif.faktor
+    $ex  = (& $lies 'Ex' 2.1e8) * $fk
+    $nu  = & $lies 'Nux' 0.3
+    $al  = & $lies 'Alfax' 1.2e-5
+    $rho = & $lies 'Rho' 7850
+    $fy  = & $lies 'Fy' 235000
+    $fu  = & $lies 'Fu' 360000
+    $nameS = [string]$d.materialSteif.name
+    try {
+        $iMatSteif = $m.Materials.AddSteel_EuroCode('EuroCode', $stahl, $nameS,
+            0x999999, 0x666666, $ex, $ex, $ex, $nu, $nu, $nu, $al, $al, $al,
+            $rho, $fy, $fu, $fy, $fu)
+    } catch {
+        Schreib "  >>> AddSteel_EuroCode: $($_.Exception.Message -replace "`r?`n", ' ')"
+        $iMatSteif = 0
+    }
+    if ($iMatSteif -gt 0) {
+        Schreib ("  {0,-34} AddSteel_EuroCode(E x {1})" -f 'Steifes Material', $fk)
+        Schreib ("    $nameS als Nummer $iMatSteif - E {0:N0} kN/m2, rho {1} kg/m3 wie der Stahl" -f $ex, $rho)
+        $gefunden.Add("Steifes Material -> Materials.AddSteel_EuroCode(...)")
+    } else {
+        $wie = FehlerName $iMatSteif
+        Schreib ''
+        Schreib "  >>> WARNUNG: das steife Material kam nicht zustande$(if ($wie) { " ($wie)" })."
+        Schreib "  >>> Die $brauchtSteif Gurtabschnitte im Knotenbereich bekommen dann den"
+        Schreib '  >>> gewoehnlichen Stahl und sind NICHT steif - das Joch rechnet zu weich.'
+        Signaturen 'IAxisVMMaterials' 'AddSteel'
+    }
+}
+
 # --- 4 - Querschnitte --------------------------------------------------------
 Abschnitt '4 - Querschnitte'
 <#  EINHEIT: METER. Gemessen, nicht angenommen - AddL(100, ...) liefert
@@ -830,6 +895,69 @@ foreach ($k in $d.knoten) {
 }
 Schreib "  $($kn.Count) Knoten"
 
+<#  WIE EIN STUMMEL GEBAUT WIRD.
+    Vorgabe des Auftraggebers: die Starrelemente sind in AxisVM auch als
+    solche zu modellieren und nicht als dicke Staebe mit steifem
+    Ersatzquerschnitt. AxisVM haelt dafuer zwei Bauteile bereit, und das
+    Gelenk entscheidet, welches:
+
+      ohne Gelenk   Starrkoerper - RigidBodies.Add(Int32[] LineIds) haelt
+                    alle sechs Freiheitsgrade und kennt keine Freigabe
+      mit Gelenk    Linkelement - LinkElements.AddNN(RNNLinkElementRec)
+                    traegt die Steifigkeit je Richtung; genau das braucht
+                    der Ast zur zweiten Reihe, der laengs frei sein muss
+
+    Die Ausleitung schreibt die Art als Feld 'art' mit. Fehlt sie - bei
+    Dateien aus einer aelteren Fassung -, wird sie am Ersatzquerschnitt und
+    am Gelenk erkannt. So laeuft auch eine alte Datei durch.              #>
+function StabArt($sb) {
+    if ($sb.art) { return [string]$sb.art }
+    if ($sb.querschnitt -ne 'STARR') { return 'stab' }
+    if ($sb.gelenkAnfang -or $sb.gelenkEnde) { return 'link' }
+    return 'starr'
+}
+
+<#  EIN LINKELEMENT AUS EINER BESTEHENDEN LINIE.
+    Vermessen am 23.08.: AddNN nimmt den Satz spaet gebunden, die Linie muss
+    vorher liegen (Feld LineId), und DefineAsBeam braucht sie nicht. Die
+    Kraftuebertragung steht in Stiffnesses - gehalten mit derselben Zahl wie
+    die starren Auflager, frei mit null.
+
+    Der Aufruf geht UNMITTELBAR, nicht ueber "Versuche": ein Verbund-Typ,
+    der durch fremde Gueltigkeitsbereiche gereicht wird, kommt am
+    COM-Marshaller nicht mehr als Satz an (DISP_E_BADVARTYPE).            #>
+function LinkSetzen([int]$li, $sb, [int]$master) {
+    $rec = NeuerSatz 'RNNLinkElementRec'
+    $rec = SatzSetzen $rec @('LineId') $li
+    $rec = SatzSetzen $rec @('SystemGLR') 'sysGlobal'
+    $rec = SatzSetzen $rec @('MasterPoint') $master
+    # Lage der Verbindung auf halber Laenge (Weisung). Im Dialog von AxisVM
+    # ist das "Lage der Verbindung"; ohne Angabe stuende sie auf 0, also am
+    # Anfangsknoten.
+    $rec = SatzSetzen $rec @('Position') 0.5
+    foreach ($f in 'x', 'y', 'z', 'xx', 'yy', 'zz') {
+        $wie = if ($sb.kraftuebertragung) { [string]$sb.kraftuebertragung.$f }
+               else {
+                   # Rueckfall: 'axial' loest die Laengskraft, 'M' die Momente.
+                   $g = if ($sb.gelenkAnfang) { $sb.gelenkAnfang } else { $sb.gelenkEnde }
+                   if (($g -eq 'axial' -and $f -eq 'x') -or
+                       ($g -eq 'M' -and $f -match '^(xx|yy|zz)$')) { 'Free' } else { 'Rigid' }
+               }
+        $rec = SatzSetzen $rec @('Stiffnesses', $f) $(if ($wie -eq 'Free') { 0.0 } else { $script:STARR_FEDER })
+        $rec = SatzSetzen $rec @('NonLinearity', $f) 'lnlTensionAndCompression'
+        $rec = SatzSetzen $rec @('Resistances', $f) 0.0
+    }
+    if ($null -eq $rec) { return 0 }
+    try { return $script:m.LinkElements.AddNN($rec) }
+    catch {
+        Schreib "  >>> LinkElements.AddNN: $($_.Exception.Message -replace "`r?`n", ' ')"
+        return 0
+    }
+}
+
+# Gehalten heisst hier dieselbe Zahl wie bei den starren Auflagern.
+$STARR_FEDER = 1e10
+
 # --- 6 - Staebe --------------------------------------------------------------
 Abschnitt '6 - Staebe'
 <#  Zwei Schritte: Lines.Add legt die LINIE, DefineAsBeam macht daraus einen
@@ -839,18 +967,32 @@ Abschnitt '6 - Staebe'
     Schwerelinien).                                                        #>
 $geom = NeuerSatz 'RLineGeomData'
 $ecc  = NeuerSatz 'RPoint3d'
-$st = @{}; $laenge = @{}
+$st = @{}; $laenge = @{}; $artVon = @{}
 $erste = $true; $nG = 0; $nGnein = 0
+$nStab = 0; $nLink = 0; $nLinkNein = 0
+$starrLinien = New-Object System.Collections.Generic.List[int]
 foreach ($sb in $d.staebe) {
     $vk = $kn[$sb.von]; $bk = $kn[$sb.bis]; $iq = $qs[$sb.querschnitt]
     if (-not $vk -or -not $bk) { Beenden 6 "Stab $($sb.name): Knoten fehlt." }
-    if (-not $iq) { Beenden 6 "Stab $($sb.name): Querschnitt $($sb.querschnitt) fehlt." }
+    $art = StabArt $sb
+    if ($art -eq 'stab' -and -not $iq) {
+        Beenden 6 "Stab $($sb.name): Querschnitt $($sb.querschnitt) fehlt."
+    }
+
+    # Die LINIE braucht jeder der drei Wege - der Starrkoerper nimmt ihre
+    # Nummer, das Linkelement traegt sie im Satz, der Balken wird auf ihr
+    # definiert.
+    # Der steife Gurtabschnitt traegt seinen eigenen Querschnitt, aber das
+    # hochgedrehte Material - siehe Abschnitt 3.
+    $matL = if ($sb.steifesMaterial -and $iMatSteif -gt 0) { $iMatSteif } else { $iMat }
     $r = Versuche 'Stab' @(
         @{ name = 'Lines.Add(i, j, lgtStraightLine, RLineGeomData) + DefineAsBeam'; tu = {
             $li = $m.Lines.Add($vk, $bk, $lgtGerade, $geom)
             if ($li -le 0) { throw "Lines.Add meldet $li" }
-            $db = $m.Lines.Item($li).DefineAsBeam($iMat, $iq, $iq, $ecc, $ecc)
-            if ($db -le 0) { throw "DefineAsBeam meldet $db" }
+            if ($art -eq 'stab') {
+                $db = $m.Lines.Item($li).DefineAsBeam($matL, $iq, $iq, $ecc, $ecc)
+                if ($db -le 0) { throw "DefineAsBeam meldet $db" }
+            }
             $li } }
     ) -Leise:(-not $erste) -Positiv
     if (-not $r.ok) {
@@ -858,62 +1000,77 @@ foreach ($sb in $d.staebe) {
         Beenden 6 "Stab $($sb.name) nicht anlegbar."
     }
     $st[$sb.name] = $r.wert
+    $artVon[$sb.name] = $art
     try { $laenge[$sb.name] = $m.Lines.Item($r.wert).Length } catch { $laenge[$sb.name] = 0 }
-    if ($sb.gelenkAnfang -or $sb.gelenkEnde) {
-        $li = $m.Lines.Item($r.wert)
-        if ($sb.gelenkAnfang) {
-            if (GelenkSetzen $li 'Anfang' $sb.gelenkAnfang) { $nG++ } else { $nGnein++ }
-        }
-        if ($sb.gelenkEnde) {
-            if (GelenkSetzen $li 'Ende' $sb.gelenkEnde) { $nG++ } else { $nGnein++ }
+
+    if ($art -eq 'starr') {
+        [void]$starrLinien.Add([int]$r.wert)
+    } elseif ($art -eq 'link') {
+        if ((LinkSetzen ([int]$r.wert) $sb ([int]$vk)) -gt 0) { $nLink++ } else { $nLinkNein++ }
+    } else {
+        $nStab++
+        # Gewoehnliche Stabendgelenke gibt es nur noch am wirklichen Stab -
+        # beim Linkelement steckt dieselbe Aussage in der Steifigkeit.
+        if ($sb.gelenkAnfang -or $sb.gelenkEnde) {
+            $li = $m.Lines.Item($r.wert)
+            if ($sb.gelenkAnfang) {
+                if (GelenkSetzen $li 'Anfang' $sb.gelenkAnfang) { $nG++ } else { $nGnein++ }
+            }
+            if ($sb.gelenkEnde) {
+                if (GelenkSetzen $li 'Ende' $sb.gelenkEnde) { $nG++ } else { $nGnein++ }
+            }
         }
     }
     $erste = $false
 }
-if ($nG -gt 0) { Schreib "  $nG Freigaben gesetzt als $nFreiName (zweiter Ast ohne Laengskraft)" }
-if ($nGnein -gt 0) {
+Schreib "  $nStab Staebe, $($starrLinien.Count) Starrelemente, $nLink Verbindungselemente"
+
+<#  STARRKOERPER AUS DEN GESAMMELTEN LINIEN.
+    Je Stummel ein eigener Koerper - das ist die unmittelbare Entsprechung
+    des bisherigen steifen Stabes. Alle in EINEN zu legen wuerde das halbe
+    Joch starr machen.                                                    #>
+$nStarr = 0; $nStarrNein = 0
+foreach ($sl in $starrLinien) {
+    $ids = [int[]]@($sl)
+    try { $nr = $m.RigidBodies.Add($ids) } catch {
+        $nr = 0
+        if ($nStarrNein -eq 0) {
+            Schreib "  >>> RigidBodies.Add: $($_.Exception.Message -replace "`r?`n", ' ')"
+        }
+    }
+    if ($nr -gt 0) { $nStarr++ } else { $nStarrNein++ }
+}
+if ($nStarr -gt 0) {
+    Schreib ("  {0,-34} RigidBodies.Add(Int32[] LineIds)" -f 'Starrkoerper')
+    $gefunden.Add('Starrkoerper -> RigidBodies.Add(Int32[] LineIds)')
+}
+if ($nLink -gt 0) {
+    Schreib ("  {0,-34} LinkElements.AddNN(RNNLinkElementRec)" -f 'Verbindungselement')
+    $gefunden.Add('Verbindungselement -> LinkElements.AddNN(RNNLinkElementRec)')
+}
+if ($nStarrNein -gt 0 -or $nLinkNein -gt 0) {
     Schreib ''
-    Schreib "  >>> WARNUNG: $nGnein Freigaben wurden NICHT gesetzt."
-    Schreib '  >>> Die zweite Anschlussreihe der Haengestuetzen haelt damit auch'
-    Schreib '  >>> die Jochachse - der Gurt ist zwischen den Reihen gezwaengt.'
-    Schreib '  >>> Der Grund steht oben; bitte den Bericht zurueckschicken.'
+    Schreib "  >>> WARNUNG: $nStarrNein Starrkoerper und $nLinkNein Verbindungselemente"
+    Schreib '  >>> wurden NICHT angelegt. Die betroffenen Linien stehen dann ohne'
+    Schreib '  >>> Eigenschaft im Modell - sie tragen nichts. NICHT rechnen.'
 }
-Schreib "  $($st.Count) Staebe"
+if ($nG -gt 0) { Schreib "  $nG Freigaben gesetzt als $nFreiName (zweiter Ast ohne Laengskraft)" }
 
-<#  NACHGESEHEN - aber am richtigen Merkmal.
-    Der erste Versuch fragte IsBeam ab und blieb an BV_R_23_3 haengen. Zu
-    Unrecht: IsBeam/IsColumn/IsOtherType teilen die Staebe nach ihrer LAGE
-    ein, nicht nach ihrem Elementtyp. Ein senkrechter Stab - und das sind
-    alle Vertikalbleche - ist fuer AxisVM eine Stuetze, kein Balken.
-
-    Gefragt ist der ELEMENTTYP: hat DefineAsBeam ueberhaupt ein Stabelement
-    erzeugt, oder liegt dort nur eine Linie? Das sagt LineType. Der Wert
-    kommt aus der Typbibliothek, nicht aus einer Annahme.                 #>
-$ltBalken = $null
-$tLT = $typen | Where-Object { $_.Name -eq 'ELineType' } | Select-Object -First 1
-if ($tLT) {
-    $nm = [Enum]::GetNames($tLT) | Where-Object { $_ -match 'Beam$' } | Select-Object -First 1
-    if ($nm) { $ltBalken = [int]([Enum]::Parse($tLT, $nm)) ; Schreib "  Elementtyp Balken: $nm = $ltBalken" }
-}
-$namen = @($st.Keys)
-$stich = @($namen[0], $namen[[int]($namen.Count / 2)], $namen[-1])
-foreach ($nm in $stich) {
-    $li = $null; try { $li = $m.Lines.Item($st[$nm]) } catch { }
-    if (-not $li) { Beenden 6 "Stab $nm ist nicht lesbar." }
-    $lt = $null; try { $lt = [int]$li.LineType } catch { }
-    $lage = @()
-    foreach ($f in 'IsBeam', 'IsColumn', 'IsOtherType') {
-        $w = $null; try { $w = $li.$f } catch { }
-        if ($w -eq 1) { $lage += $f }
-    }
-    Schreib ("    {0,-16} LineType {1}   Lage: {2}" -f $nm, $lt, ($lage -join ', '))
-    if ($null -ne $ltBalken -and $lt -ne $ltBalken) {
-        Beenden 6 ("Stab $nm traegt kein Stabelement (LineType $lt statt " +
-                   "$ltBalken) - Material oder Querschnitt haben nicht gegriffen.")
+<#  ZWEI-PUNKT-ANSCHLUESSE.
+    Die Verbindungselemente uebertragen sonst nur Kraefte. Haengt ein Anbauteil an
+    nur ZWEI Punkten - eine Reihe, eine Ebene -, liegen beide auf einer
+    Geraden in Gleisrichtung, und um diese Gerade hielte ihn nichts mehr.
+    Dort haelt das Link deshalb zusaetzlich das Moment um y (Weisung). Der
+    Bericht fuehrt diese Stellen auf: es ist die einzige, an der ein Link
+    mehr als Kraefte uebertraegt.                                        #>
+$zp = @($d.tragwerk.zweiPunktAnschluss)
+if ($zp.Count -gt 0) {
+    Schreib ''
+    Schreib "  $($zp.Count) Anbauteile haengen an zwei Punkten - ihre Links halten M_y:"
+    foreach ($q in $zp) {
+        Schreib ("      {0,-22} x = {1,8:N3} m   Ebene {2}" -f $q.name, $q.x, $q.ebene)
     }
 }
-
-Schreib '  Die lokale z-Richtung (lcsZ) setzt der naechste Abschnitt.'
 
 # --- 6b - Lokale Stabachsen --------------------------------------------------
 Abschnitt '6b - Lokale Stabachsen'
@@ -951,32 +1108,26 @@ SatzAufbau 'RReference'
 
 $tRef = $script:typen | Where-Object { $_.Name -eq 'RReference' } | Select-Object -First 1
 
-<#  Die erste Dreiergruppe x/y/z im Satz suchen - das ist der Ort fuer die
-    Richtung. Zusammengehoerig heisst: gleicher Obersatz.                 #>
+<#  DIE KOORDINATENGRUPPE MUSS ZUR ART PASSEN.
+    Der Lauf vom 23.08. hat den Aufbau von RReference gelesen, und er
+    entscheidet die Frage: unter ReferenceData liegen FUENF Zweige
+    nebeneinander - Point, Vector, Axis, Plane, Beta - und AxisVM sieht nur
+    den an, auf den ReferenceType zeigt. Die erste x/y/z-Gruppe im Satz
+    gehoert aber zu Point, waehrend die Art auf rtVector stand. Die Richtung
+    landete damit in einem Zweig, den niemand liest, und der gelesene stand
+    auf null.
+
+    Deshalb jetzt: erst die Art bestimmen, dann NUR in ihrem Zweig suchen.
+    Ein Vektor wird durch zwei Punkte gefuehrt (P1 -> P2) - die erste Gruppe
+    ist der Anfang und kommt auf den Ursprung, die zweite traegt die
+    Richtung. Findet sich nur eine Gruppe (so bei Point), traegt sie die
+    Richtung selbst.                                                      #>
 $koord = $null
+$koord0 = $null
 $artFeld = $null
 $artWert = $null
 $namensFeld = $null
 if ($tRef) {
-    $alle = New-Object System.Collections.ArrayList
-    ZahlPfade $tRef @() 0 $alle
-    $gruppen = @{}
-    $folge = @()
-    foreach ($p in $alle) {
-        $blatt = $p[$p.Count - 1]
-        if ($blatt -notmatch '^[xyz]$') { continue }
-        $eltern = if ($p.Count -gt 1) { ($p[0..($p.Count - 2)]) -join '.' } else { '' }
-        if (-not $gruppen.ContainsKey($eltern)) { $gruppen[$eltern] = @{}; $folge += $eltern }
-        $gruppen[$eltern][$blatt.ToLower()] = @($p)
-    }
-    foreach ($g in $folge) {
-        $h = $gruppen[$g]
-        if ($h.ContainsKey('x') -and $h.ContainsKey('y') -and $h.ContainsKey('z')) {
-            $koord = $h
-            Schreib "  Richtung geht nach: $(if ($g) { $g } else { '(oberste Ebene)' }).x/y/z"
-            break
-        }
-    }
     foreach ($f in $tRef.GetFields([Reflection.BindingFlags]'Public,Instance')) {
         if ($f.FieldType.IsEnum -and -not $artFeld) {
             $namen = [Enum]::GetNames($f.FieldType)
@@ -988,6 +1139,44 @@ if ($tRef) {
             }
         }
         if (($f.FieldType -eq [string]) -and -not $namensFeld) { $namensFeld = $f.Name }
+    }
+
+    $alle = New-Object System.Collections.ArrayList
+    ZahlPfade $tRef @() 0 $alle
+    $gruppen = @{}
+    $folge = @()
+    foreach ($p in $alle) {
+        $blatt = $p[$p.Count - 1]
+        if ($blatt -notmatch '^[xyz]$') { continue }
+        $eltern = if ($p.Count -gt 1) { ($p[0..($p.Count - 2)]) -join '.' } else { '' }
+        if (-not $gruppen.ContainsKey($eltern)) { $gruppen[$eltern] = @{}; $folge += $eltern }
+        $gruppen[$eltern][$blatt.ToLower()] = @($p)
+    }
+    $voll = @()
+    foreach ($g in $folge) {
+        $h = $gruppen[$g]
+        if ($h.ContainsKey('x') -and $h.ContainsKey('y') -and $h.ContainsKey('z')) {
+            $voll += @{ pfad = $g; felder = $h }
+        }
+    }
+    # 'rtVector' -> Zweig 'Vector'. Das Praefix der Aufzaehlung faellt weg.
+    $kern = if ($artWert) { $artWert -replace '^rt', '' } else { '' }
+    $imZweig = @()
+    if ($kern) { $imZweig = @($voll | Where-Object { $_.pfad -match "(^|\.)$kern(\.|$)" }) }
+    if ($imZweig.Count -eq 0) {
+        $imZweig = @($voll)
+        if ($voll.Count -gt 0 -and $kern) {
+            Schreib "  >>> Kein Zweig '$kern' im Satz - genommen wird die erste Gruppe."
+        }
+    }
+    if ($imZweig.Count -ge 2) {
+        $koord0 = $imZweig[0].felder
+        $koord  = $imZweig[1].felder
+        Schreib "  Anfang auf den Ursprung: $($imZweig[0].pfad).x/y/z"
+        Schreib "  Richtung geht nach:      $($imZweig[1].pfad).x/y/z"
+    } elseif ($imZweig.Count -eq 1) {
+        $koord = $imZweig[0].felder
+        Schreib "  Richtung geht nach: $($imZweig[0].pfad).x/y/z"
     }
 }
 if (-not $koord) {
@@ -1005,6 +1194,9 @@ function ReferenzFuer($vx, $vy, $vz) {
     $satz = NeuerSatz 'RReference'
     if ($script:artFeld)    { $satz = SatzSetzen $satz @($script:artFeld) $script:artWert }
     if ($script:namensFeld) { $satz = SatzSetzen $satz @($script:namensFeld) "LCS_${vx}_${vy}_${vz}" }
+    if ($script:koord0) {
+        foreach ($a in 'x','y','z') { $satz = SatzSetzen $satz $script:koord0[$a] 0.0 }
+    }
     $satz = SatzSetzen $satz $script:koord['x'] ([double]$vx)
     $satz = SatzSetzen $satz $script:koord['y'] ([double]$vy)
     $satz = SatzSetzen $satz $script:koord['z'] ([double]$vz)
@@ -1014,10 +1206,46 @@ function ReferenzFuer($vx, $vy, $vz) {
         return $null
     }
 
-    $s = $satz
-    $r = Versuche "Referenz [$vx $vy $vz]" @(
-        @{ name = 'References.Add(RReference)'; tu = { $script:m.References.Add($s) }.GetNewClosure() }
-    ) -Positiv
+    <#  $script: GILT IM CLOSURE NICHT MEHR.
+        GetNewClosure() legt ein neues dynamisches Modul an. Darin zeigt
+        $script: auf DESSEN Modulscope und nicht mehr auf dieses Skript -
+        $script:m war deshalb leer, und .References lief auf einem Null.
+        Der erste Lauf meldete "Methode fuer einen Ausdruck, der den NULL
+        hat" und setzte 0 von 942 Achsen; das Objekt fehlte, nicht das
+        Argument.
+
+        Der Block OHNE Closure ist deshalb der erste Weg - genau das
+        Muster, das bei den Auflagern traegt: $m findet er ueber den
+        Skriptbereich, $s ueber die Aufrufkette. Die Closure-Fassung mit
+        lokal gebundenem $mm bleibt als zweiter Weg stehen.               #>
+    <#  UNMITTELBAR AUFRUFEN, NICHT UEBER "Versuche".
+        Hier gibt es nur EINE Schreibweise - Add(RReference) -, also ist
+        nichts durchzuprobieren. Der Umweg kostete sogar: derselbe Satz,
+        der auf Skriptebene mit Rueckgabe 1 durchgeht, scheiterte ueber
+        den Kandidatenblock mit DISP_E_BADVARTYPE. Ein Verbund-Typ, der
+        durch fremde Gueltigkeitsbereiche gereicht wird, kommt am
+        COM-Marshaller nicht mehr als Satz an. Also direkt.               #>
+    $mod = $script:m
+    $nummer = 0
+    try {
+        $nummer = $mod.References.Add($satz)
+    } catch {
+        Schreib "  >>> References.Add: $($_.Exception.Message -replace "`r?`n", ' ')"
+        Schreib "  >>> Satztyp: $(if ($null -eq $satz) { '(null)' } else { $satz.GetType().FullName })"
+        $nummer = 0
+    }
+    if ($nummer -le 0) {
+        $wie = FehlerName $nummer
+        Schreib ("  {0,-34} Rueckgabe {1}{2}" -f 'Referenz nicht angelegt', $nummer,
+                 $(if ($wie) { " = $wie" } else { '' }))
+        $script:refs[$schluessel] = $null
+        return $null
+    }
+    if ($script:refs.Count -eq 0) {
+        Schreib ("  {0,-34} References.Add(RReference)" -f 'Referenz')
+        $script:gefunden.Add('Referenz -> References.Add(RReference)')
+    }
+    $r = @{ ok = $true; wert = $nummer }
     $script:refs[$schluessel] = if ($r.ok) { $r.wert } else { $null }
     return $script:refs[$schluessel]
 }
@@ -1223,11 +1451,99 @@ foreach ($p in $d.lasten.strecke) {
     $nQ++
 }
 Schreib "  $nP Punktlasten, $nM Punktmomente, $nQ Streckenlasten"
-Schreib '  Eigengewicht ist NICHT gesetzt - AxisVM rechnet es selbst aus dem'
-Schreib '  Material. In der Datei steht es deshalb auch nicht.'
+<#  EIGENGEWICHT DER STAEBE als Last (Weisung).
+    AddBeamSelfWeight(LineId, LoadCaseId) je Stab, in den Lastfall der
+    staendigen Einwirkung. Ein Starrkoerper bekommt keins: er ist kein
+    Stabelement, und sein Ersatzquerschnitt waere ohnehin frei erfunden.
+    Das Eigengewicht der Gurte im Knotenbereich kommt dagegen mit - sie
+    tragen den Querschnitt ihres Gurtes und dessen Dichte.               #>
+$nEg = 0; $nEgNein = 0
+$lfG = $lf['G']
+if ($lfG) {
+    foreach ($sb in $d.staebe) {
+        if ((StabArt $sb) -ne 'stab') { continue }
+        $li = $st[$sb.name]
+        if (-not $li) { continue }
+        $ok = $false
+        try { $ok = ($m.Loads.AddBeamSelfWeight($li, $lfG) -gt 0) } catch { }
+        if ($ok) { $nEg++ } else { $nEgNein++ }
+    }
+    Schreib ("  {0,-34} Loads.AddBeamSelfWeight(LineId, LoadCaseId)" -f 'Eigengewicht')
+    Schreib "    $nEg Staebe im Lastfall '$($d.lastfaelle[0].label)'"
+    if ($nEgNein -gt 0) {
+        Schreib ''
+        Schreib "  >>> WARNUNG: bei $nEgNein Staeben blieb das Eigengewicht ungesetzt."
+        Schreib '  >>> Das Joch rechnet dann zu leicht.'
+    } else {
+        $gefunden.Add('Eigengewicht -> Loads.AddBeamSelfWeight(LineId, LoadCaseId)')
+    }
+} else {
+    Schreib '  >>> Kein staendiger Lastfall - Eigengewicht nicht gesetzt.'
+}
 
 try { $m.EndUpdate() } catch { }
 try { $m.FitInView() } catch { }
+
+# --- 9b - Lastkombinationen --------------------------------------------------
+Abschnitt '9b - Lastkombinationen'
+<#  DIE KOMBINATIONEN DER ANWENDUNG (Weisung), damit AxisVM dieselben rechnet
+    und nicht eigene erzeugt. Vermessen am 24.08.:
+
+        LoadCombinations.Add(Name, ECombinationType, Double[], Int32[])
+
+    Faktoren und Lastfall-Nummern als zwei gleich lange Felder. Gruppen mit
+    Beiwert null stehen gar nicht erst drin - ein Faktor 0 waere eine Zeile
+    ohne Wirkung.
+
+    Die Art entscheidet den Typ: was die Anwendung als Tragsicherheit fuehrt,
+    kommt als ULS herein, die Gebrauchstauglichkeit als SLS. Die
+    charakteristischen Einzelfaelle sind KEIN Nachweis - sie liefern die
+    Anteile zum Ablesen und laufen deshalb ebenfalls als SLS.             #>
+$komb = @($d.kombinationen)
+if ($komb.Count -eq 0) {
+    Schreib '  Die Datei fuehrt keine Kombinationen - keine angelegt.'
+    Schreib '  (Aeltere Ausleitung: dann in AxisVM selbst kombinieren.)'
+} else {
+    $ctULS = Aufzaehlung 'ECombinationType' 'ctULS'
+    $ctSLS = Aufzaehlung 'ECombinationType' 'ctSLSChar'
+    if ($null -eq $ctULS) { $ctULS = 0 }
+    if ($null -eq $ctSLS) { $ctSLS = 0 }
+    $nK = 0; $nKnein = 0
+    foreach ($kb in $komb) {
+        $fk = @(); $ids = @()
+        foreach ($an in $kb.anteile) {
+            $nr = $lf[$an.lastfall]
+            if (-not $nr) { continue }
+            $fk += [double]$an.faktor
+            $ids += [int]$nr
+        }
+        if ($ids.Count -eq 0) { continue }
+        $typ = if ($kb.art -eq 'tragsicherheit') { $ctULS } else { $ctSLS }
+        $nr = 0
+        try { $nr = $m.LoadCombinations.Add([string]$kb.bez, $typ, [double[]]$fk, [int[]]$ids) }
+        catch {
+            if ($nKnein -eq 0) {
+                Schreib "  >>> LoadCombinations.Add: $($_.Exception.Message -replace "`r?`n", ' ')"
+            }
+            $nr = 0
+        }
+        if ($nr -gt 0) { $nK++ } else { $nKnein++ }
+    }
+    if ($nK -gt 0) {
+        Schreib ("  {0,-34} LoadCombinations.Add(Name, Typ, Faktoren, LastfallIds)" -f 'Kombination')
+        $gefunden.Add('Kombination -> LoadCombinations.Add(Name, Typ, Faktoren, LastfallIds)')
+    }
+    $istK = -1; try { $istK = [int]$m.LoadCombinations.Count } catch { }
+    Schreib "    $nK Kombinationen angelegt, $istK im Modell"
+    foreach ($kb in $komb) {
+        $tx = ($kb.anteile | ForEach-Object { "{0} {1:N2}" -f $_.lastfall, $_.faktor }) -join '  '
+        Schreib ("      {0,-46} {1}" -f $kb.bez, $tx)
+    }
+    if ($nKnein -gt 0) {
+        Schreib ''
+        Schreib "  >>> WARNUNG: $nKnein Kombinationen kamen nicht zustande."
+    }
+}
 
 # --- 10 - Sichern ------------------------------------------------------------
 Abschnitt '10 - Sichern'
