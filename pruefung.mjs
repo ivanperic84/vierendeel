@@ -17,7 +17,11 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
-const J = (n) => join(HIER, 'js', n);
+// Als URL, nicht als Pfad: unter Windows ist "C:\...\js\x.js" für import()
+// kein gültiges Schema (ERR_UNSUPPORTED_ESM_URL_SCHEME). Unter macOS ging
+// der blosse Pfad zufällig durch. Dieselbe Schreibweise wie in
+// ausleiten.mjs und vergleich_werkzeug.mjs.
+const J = (n) => new URL(`./js/${n}`, import.meta.url).href;
 
 const T = await import(J('data.tragjoche.js'));
 T.setzeDatenbank(JSON.parse(readFileSync(join(HIER, 'data', 'tragjoche.json'), 'utf8')));
@@ -2544,15 +2548,58 @@ titel('19  AxisVM-Export (SAF)');
     pruef('Vier Punkte am Untergurt', stummel(vier, 'UG').length, 4, 1e-12, 'Stk');
     wahr('Die Stummel selbst sind alle steif',
          stummel(vier, 'UG').every((x) => !x.gelenkEnde && !x.gelenkAnfang));
-    // Die Freigabe sitzt im Anschlusskörper: sein Ast zur zweiten Reihe
-    // überträgt keine Längskraft. Damit ist am Knoten der zweiten Reihe
-    // auch die Stummelkraft in x null - Wirkung gleich, Richtung eindeutig.
+    // Die Freigabe sitzt im vertikalen LINKELEMENT des Übergangs Gurt ->
+    // Anbauteil: die zweite Reihe gibt die Längskraft frei, sonst zwängt
+    // der Anschluss im Gurt. Die Äste selbst sind überall steif.
     const aeste = (b) => b.staebe.filter((x) => /^AT\d+_UG_B\d$/.test(x.name));
     pruef('Zwei Äste zu den Reihen', aeste(vier).length, 2, 1e-12, 'Stk');
-    wahr('Der Ast zur ersten Reihe ist steif',
-         aeste(vier).find((x) => x.name.endsWith('B1')).gelenkEnde === undefined);
-    wahr('Der Ast zur zweiten Reihe gibt die Stabachse frei',
-         aeste(vier).find((x) => x.name.endsWith('B2')).gelenkEnde === 'axial');
+    wahr('Die Äste sind alle steif',
+         aeste(vier).every((x) => !x.gelenkEnde && !x.gelenkAnfang));
+
+    const links = (b, gurt) =>
+      b.staebe.filter((x) => new RegExp(`^AT\\d+_${gurt}_R\\d[LR]_V$`).test(x.name));
+    const linkLage = (b, x) => {
+      const p = b.knoten.get(x.von), q = b.knoten.get(x.bis);
+      return { dx: q.x - p.x, dy: q.y - p.y, dz: q.z - p.z };
+    };
+    pruef('Vier Übergangs-Links am Untergurt', links(vier, 'UG').length, 4, 1e-12, 'Stk');
+    wahr('Die Links stehen senkrecht',
+         links(vier, 'UG').every((x) => {
+           const l = linkLage(vier, x);
+           return Math.abs(l.dx) < 1e-9 && Math.abs(l.dy) < 1e-9;
+         }));
+    wahr('Die Links sind 10 cm lang und zeigen am Untergurt nach unten',
+         links(vier, 'UG').every((x) => Math.abs(linkLage(vier, x).dz + 0.10) < 1e-9));
+    wahr('Die erste Reihe hält die Längskraft',
+         links(vier, 'UG').filter((x) => /R1[LR]_V$/.test(x.name))
+           .every((x) => x.kraft.x === 'Rigid'));
+    wahr('Die zweite Reihe gibt die Längskraft frei',
+         links(vier, 'UG').filter((x) => /R2[LR]_V$/.test(x.name))
+           .every((x) => x.kraft.x === 'Free' && x.kraft.y === 'Rigid'
+                      && x.kraft.z === 'Rigid'));
+    // Der Zweck des Linkelements: es überträgt KRÄFTE, keine Momente.
+    wahr('Bei vier Punkten überträgt kein Link ein Moment',
+         links(vier, 'UG').every((x) =>
+           ['xx', 'yy', 'zz'].every((f) => x.kraft[f] === 'Free')));
+    wahr('Bei zwei Punkten hält das Link die drei Kräfte',
+         links(zwei, 'UG').length === 2
+         && links(zwei, 'UG').every((x) =>
+              ['x', 'y', 'z'].every((f) => x.kraft[f] === 'Rigid')));
+    // Zwei Punkte liegen auf einer Geraden in Gleisrichtung - um sie hielte
+    // sonst nichts. Deshalb dort M_y, und NUR dort.
+    wahr('Bei zwei Punkten hält das Link zusätzlich M_y',
+         links(zwei, 'UG').every((x) => x.kraft.yy === 'Rigid'
+                                     && x.kraft.xx === 'Free'
+                                     && x.kraft.zz === 'Free'));
+    wahr('Bei vier Punkten hält es M_y nicht',
+         links(vier, 'UG').every((x) => x.kraft.yy === 'Free'));
+
+    // Das Anbauteil selbst ist ein Starrkörper - ohne Gelenk.
+    const arm = (b) => b.staebe.find((x) => /^ARM\d+$/.test(x.name));
+    wahr('Die Hängestütze ist als Starrkörper geführt',
+         arm(vier).starrRolle === 'anbauteil'
+         && !arm(vier).gelenkAnfang && !arm(vier).gelenkEnde);
+
     wahr('Die Äste liegen in der Jochachse',
          aeste(vier).every((x) => {
            const p = vier.knoten.get(x.von), q = vier.knoten.get(x.bis);
@@ -2575,11 +2622,19 @@ titel('19  AxisVM-Export (SAF)');
     const durch = mitAnbau('durchgehend', 0.4);
     pruef('Durchgehend: vier Punkte unten', stummel(durch, 'UG').length, 4, 1e-12, 'Stk');
     pruef('Durchgehend: vier Punkte oben', stummel(durch, 'OG').length, 4, 1e-12, 'Stk');
-    wahr('Durchgehend: auch oben gibt der zweite Ast die Stabachse frei',
-         durch.staebe.some((x) => /^AT\d+_OG_B2$/.test(x.name)
-                               && x.gelenkEnde === 'axial'));
+    wahr('Durchgehend: auch oben gibt die zweite Reihe die Längskraft frei',
+         durch.staebe.some((x) => /^AT\d+_OG_R2[LR]_V$/.test(x.name)
+                               && x.kraft.x === 'Free'));
+    wahr('Durchgehend: am Obergurt zeigt das Link nach oben',
+         durch.staebe.filter((x) => /^AT\d+_OG_R\d[LR]_V$/.test(x.name))
+           .every((x) => {
+             const p = durch.knoten.get(x.von), q = durch.knoten.get(x.bis);
+             return Math.abs(q.z - p.z - 0.10) < 1e-9;
+           }));
     wahr('Durchgehend: ein Stab verbindet Ober- und Untergurt',
          durch.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
+    wahr('Durchgehend: auch der Stab durch den Kasten ist ein Starrkörper',
+         durch.staebe.find((x) => /^ARM\d+_D$/.test(x.name)).starrRolle === 'anbauteil');
     wahr('Nur bei durchgehend läuft der Stab durch',
          !vier.staebe.some((x) => /^ARM\d+_D$/.test(x.name)));
   }
