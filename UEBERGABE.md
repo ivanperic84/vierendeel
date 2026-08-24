@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 934 Kontrollen bestanden, 0 gefallen · Bundle 945 kB (760 kB ohne Daten) · Ablage-Format v2 · installierbar (PWA) · COM-Brücke zu AxisVM gebaut
+**Stand:** 945 Kontrollen bestanden, 0 gefallen · Bundle 979 kB · Ablage-Format v2 · installierbar (PWA) · **COM-Brücke vollständig: Modell, lokale Achsen, Starrkörper, Linkelemente**
 
 ---
 
@@ -26,6 +26,366 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Der erste Lauf auf dem Windows-Rechner (23. August)
+
+AxisVM steht jetzt neben der Anwendung, und der Botengang entfällt. Was
+vorher je einen Durchlauf gekostet hätte, war an einem Nachmittag zu klären.
+
+#### Die lokalen Stabachsen sitzen — 942 von 942
+
+Der letzte offene Punkt des Aufbaus. Zurückgelesen an vier Stäben: gesetzt 1,
+gelesen 1. **Drei Fehler lagen übereinander**, jeder hat den nächsten verdeckt:
+
+| Irrtum | Wahrheit |
+|---|---|
+| `$script:m` gilt auch im Closure | `GetNewClosure()` legt ein **neues dynamisches Modul** an; darin zeigt `$script:` auf dessen Modulscope. Das Modell war leer, nicht das Argument — daher «Methode für einen Ausdruck, der den NULL hat» |
+| Die erste x/y/z-Gruppe im Satz trägt die Richtung | Sie gehört zu `Point`, gesetzt war aber `rtVector`. Unter `ReferenceData` liegen **fünf Zweige nebeneinander**, und AxisVM liest nur den, auf den `ReferenceType` zeigt. Jetzt `Vector.P1` → Ursprung, `Vector.P2` → Richtung |
+| Ein Verbund-Typ verträgt den Umweg über `Versuche` | Derselbe Satz, der auf Skriptebene mit Rückgabe 1 durchgeht, scheiterte über den Kandidatenblock mit `DISP_E_BADVARTYPE`. Durch fremde Gültigkeitsbereiche gereicht, kommt er am Marshaller nicht mehr als Satz an |
+
+**Regel:** wo es ohnehin nur eine Schreibweise gibt, ist Durchprobieren nicht
+bloss überflüssig, sondern schädlich. Der Aufruf geht unmittelbar.
+
+Die Schnittstelle wurde dabei erst am **Prüfstand** geklärt und nicht am
+942-Stab-Modell: ein Probemodell mit zwei Knoten und einer Linie beantwortet
+dieselbe Frage in dreissig Sekunden.
+
+#### Die Vertikalbleche stehen lotrecht
+
+Am halbfertigen Modell gesehen: die Bleche standen 4 mm aus dem Lot. Ursache
+ist `schenkelVersatz` — die Blechachse sitzt je Gurt um `zs_V − t/2` neben
+dessen Schwerachse, und Ober- und Untergurt tragen verschiedene Profile.
+
+Vorgabe des Auftraggebers, im Wortlaut:
+
+> **Die vertikalen Bleche sind nicht ganz lotrecht. Dies sollte aber auf jeden
+> Fall sein — das heisst, die unteren Gurte sind entsprechend in der
+> y-Richtung auszurichten, dass die Schenkel ausgerichtet sind mit denen von
+> den Obergurten.**
+
+Gebaut in `gurtKnoten` (`js/export.axisvm.js`): die Untergurte rücken um
+`dy_OG − dy_UG` — am Signaljoch 4.6 mm. Alle 58 Vertikalbleche laufen jetzt
+lotrecht.
+
+**Der Rechenkern bleibt unangetastet.** Auf Nachfrage entschieden: die
+Ausrichtung betrifft allein den Aufbau im AxisVM-Modell, `hebelarme()` rechnet
+weiter mit einem gemeinsamen b.
+
+#### Starrelemente als das, was sie sind
+
+Vorgabe des Auftraggebers:
+
+> **Die Starrelemente sind auch als solche in AxisVM zu modellieren.** In den
+> Optionen der App anpassbar, falls man dicke Stäbe mit Qualität starr
+> anwenden will. **Bei den gelenkigen Anschlüssen die Linkelemente einsetzen,
+> bei denen kann man die Kraftübertragung einstellen.**
+
+Vermessen und gebaut:
+
+| | |
+|---|---|
+| ohne Gelenk | `RigidBodies.Add(Int32[] LineIds)` — nimmt Linien-Nummern; die Linie braucht kein `DefineAsBeam` |
+| mit Gelenk | `LinkElements.AddNN(RNNLinkElementRec)` — Linie muss vorher liegen (`LineId`), Kraftübertragung je Richtung in `Stiffnesses` |
+
+**Nicht jeder steife Stab wird ein Starrkörper.** Das war der Befund, der den
+ersten Versuch zum Abbruch brachte: 224 der 700 STARR-Stäbe sind
+Gurtabschnitte im Knotenbereich, und auf ihnen liegen **168 der 344
+Streckenlasten**. Ein Starrkörper kann keine tragen.
+
+Entschieden (Weisung) und in `starrArt` gebaut:
+
+| Rolle | Anzahl | wird |
+|---|---|---|
+| `verbindung` — Stummel Gurtachse → Blechachse, Anbauteil-Anschluss | 244 | Starrkörper bzw. Linkelement |
+| `blechende` — steifer Teil des Blechs im Knotenbereich | 232 | ebenso |
+| `gurtabschnitt` — steifer Teil des **Gurtes** | 224 | bleibt Stab: er ist Teil des Bauteils und trägt Last |
+
+**Offen, auf Wunsch später:** auch die Gurtabschnitte als Starrkörper, mit
+Umlegung ihrer Streckenlasten auf die Nachbarstäbe oder in Knotenlasten. Die
+Umlegung wäre selbst eine Modellannahme und ist deshalb nicht gebaut.
+
+Neue Option im Ausleitungsdialog: **Starrelemente** — «als Starrkörper und
+Linkelemente» (Vorgabe) oder «als steife Stäbe» (die frühere Bauweise).
+
+#### Zählen ist die falsche Kontrolle
+
+476 angelegte Starrkörper ergeben **118** im Modell — und dieselben 118 auch
+bei 700 angelegten. AxisVM legt zusammen, was sich einen Knoten teilt, und
+das ist richtig so. Weil die Gurtabschnitte Stäbe bleiben, kann die
+Verschmelzung eine Station nicht über ihre Grenze hinaus starr machen.
+
+Gefragt wird deshalb je Linie nach `RigidBodyId`: **476 angelegt, 0 ohne
+Körper.**
+
+#### Die Bauteile stehen, wie sie gebaut werden (24. August)
+
+Vier Weisungen aus der Durchsicht am Modell, alle umgesetzt:
+
+**Bleche um 90° um die lokale x-Achse gedreht.** Bestätigt am Modell. Gedreht
+wird über das Kreuzprodukt aus Stabrichtung und bisheriger z-Richtung, nicht
+über eine Fallunterscheidung — für ein stehendes Blech wandert z damit von der
+Jochachse in die Gleisrichtung, für ein liegendes in die Lotrechte.
+
+**Die vier Gurtwinkel stehen spiegelbildlich.** Nach dem Schnitt A-A des
+Sortiments: liegender Schenkel aussen, stehender innen, in jeder Ecke anders
+herum. Ein L lässt sich in AxisVM nicht spiegeln — beim gleichschenkligen
+Winkel ist das Spiegelbild aber eine Drehung um 90°, und die steuert die
+Referenzrichtung:
+
+| Schenkel zeigen nach | Drehung | Referenz |
+|---|---|---|
+| +y, +z | 0° | `[0, 0, 1]` |
+| −y, +z | 90° | `[0,−1, 0]` |
+| −y, −z | 180° | `[0, 0,−1]` |
+| +y, −z | 270° | `[0, 1, 0]` |
+
+Wohin die Schenkel einer Ecke zeigen, sagt die Einbaulage: der liegende nach
+`ecke.sy · lg`, der stehende nach `ecke.sz · st`. Damit folgt die Lage der
+Eingabe und ist nicht fest verdrahtet.
+
+**Die steifen Gurtabschnitte tragen den Querschnitt ihres Gurtes.** Weisung:
+gleiche Querschnitte, Steifigkeit im Hintergrund hochdrehen — dann stimmen
+Eigengewicht und Darstellung. Ein Ersatzrechteck von 500 × 500 mm wöge das
+Fünfzigfache und stünde als Klotz in der Ansicht.
+
+Hochgedreht wird über ein eigenes **Material** mit tausendfachem E-Modul und
+unveränderter Dichte. **Nicht** über `StiffnessReduction`: gemessen nimmt
+AxisVM dort keinen Wert über 1 an — gesetzt 1000, gelesen 1, ohne
+Fehlermeldung. Es ist eine Reduktion, keine Steigerung. Die Kennwerte kommen
+vom Katalogmaterial statt aus unserer Datei, damit sich die Frage der Einheit
+gar nicht stellt (gemessen: `Ex = 2.1e8`, also kN/m²).
+
+**Anbauteile gehören nicht in den steifen Knotenbereich.** Was dort zu liegen
+käme, wird herausgeschoben und mit **10 cm Abstand** zum angrenzenden starren
+Gurt gesetzt. Geschoben wird die Mitte der Baugruppe, die Reihen folgen ihr im
+Raster — sie einzeln zu schieben risse das Raster auseinander. Am Signaljoch
+betrifft das sechs Teile (150 mm und 70 mm); die Verschiebungen stehen als
+`tragwerk.ausKnoten` in der Ausleitung.
+
+**Der Übergang Gurt → Anbauteil läuft über ein vertikales Linkelement** von
+10 cm, am Obergurt nach oben, am Untergurt nach unten angesetzt. Der
+Anschlusskörper ist ein Starrkörper und sitzt um diese Länge neben der
+Gurtebene; der Lastpunkt bleibt, wo er ist.
+
+**Die Freigabe der zweiten Reihe ist damit ins Link gewandert.** Sie stand
+vorher im Ast des Anschlusskörpers, weil dort «lokal x» eindeutig war. Das
+Link stellt seine Kraftübertragung global (`sysGlobal`) — «x» ist die
+Jochachse, ebenso eindeutig, aber ohne den Umweg.
+
+#### Nach der zweiten Durchsicht am Modell
+
+**Das Link überträgt Kräfte, keine Momente.** Weisung im Wortlaut: *«so
+eingeben, dass nur die Kräfte in x y z und nicht die Momente übertragen
+werden, was der Sinn ist, warum wir die Linkelemente eingesetzt haben.»*
+Also `K_X`, `K_Y`, `K_Z` gehalten, `K_XX`, `K_YY`, `K_ZZ` frei — und in der
+zweiten Reihe zusätzlich die Längskraft frei.
+
+**Das Anbauteil selbst ist ein Starrkörper**, nicht nur sein Anschlusskörper.
+Es trägt keine Streckenlast — seine Lasten sitzen als Punktlasten am
+Lastknoten —, also geht dabei nichts verloren. Ist ein Gelenk gesetzt, bleibt
+es ein Stab: ein Starrkörper kennt keine Freigabe.
+
+**Die steifen Gurtabschnitte standen verdreht.** `lcs()` erkannte den Gurt am
+Querschnittsnamen, und der heisst beim steifen Abschnitt noch `STARR` — der
+Tausch gegen `GURT_OG`/`GURT_UG` geschieht erst danach in `gurtSteif()`.
+Jetzt zählt die **Rolle**, nicht der Name; die Knotenklötze stehen wie ihre
+Gurte.
+
+#### Ein Anschluss, der einen Freiheitsgrad offen lässt
+
+Zwei Vorgaben treffen sich hier: Links ohne Momente, und Anschlüsse mit zwei
+Punkten. Hängt ein Anbauteil an **einer Reihe in einer Ebene**, liegen seine
+beiden Punkte auf einer Geraden in Gleisrichtung — und um diese Gerade hält
+ihn nichts. Eine Drehung dorthin bewegt keinen der Punkte, weckt also keine
+Kraft: der Starrkörper kippt.
+
+AxisVM meldet das erst beim Rechnen, als singuläre Matrix. Deshalb sagt es die
+Brücke vorher: `tragwerk.pendelnd` führt die betroffenen Teile, und der
+Bericht nennt sie mit Ort und Ebene.
+
+**Am Signaljoch tritt der Fall nicht auf** — alle drei Anbauteile sind
+durchgehend befestigt und hängen an vier Punkten in zwei Höhen; das Kräftepaar
+zwischen Ober- und Untergurt hält die Drehung. Bei einem einseitig
+befestigten Teil mit nur einer Reihe wäre zu entscheiden: das Moment um die
+Querachse doch halten, oder den Anschluss auf zwei Reihen führen.
+
+Prüfstand: zwölf neue Kontrollen, **943 bestanden**.
+
+#### Ein Prüfjoch mit gemischten Anbauteilen
+
+Zum Prüfen der Modellierungseinstellungen gebaut: **J90 über 24 m**,
+Trasseeradius **600 m** (also mit Ablenkkräften), zwei **gleiche**
+Anschlussmaste HEB 260 / 8.5 m, und drei verschiedene Baugruppen —
+Jochaufsatz einfach, Hängestütze mit NT-Ausleger, Leiter am Joch.
+
+```
+540 Stäbe · 575 Starrelemente (135 Körper) · 36 Linkelemente
+1151 Referenzen · 18 Punkt- und 206 Streckenlasten  ->  Pruefjoch_COM.axs
+```
+
+Die drei Baugruppen zerfallen in **fünf Angriffspunkte** — der Jochaufsatz
+trägt seinen Zusatzleiter eine Ebene höher, die Hängestütze ihren Ausleger
+tiefer. Drei davon tragen eine **Ablenkkraft in der Jochachse** (zusammen
+2.81 kN), und zwar genau die drei mit einem Drahtwerk. Fünf Teile sind aus
+Knotenbereichen herausgerückt (je 140 mm).
+
+Weil alle drei Baugruppen ein Raster über 25 mm haben, entstehen hier echte
+**zwei Reihen** je Ebene — anders als am Signaljoch, wo das Raster von 20 mm
+zusammenfällt. Damit ist auch die Längsfreigabe der zweiten Reihe im Modell
+wirksam, und `pendelnd` bleibt leer.
+
+**Die Lage der Verbindung** steht bei allen Linkelementen auf **0.5**
+(Weisung); ohne Angabe stünde sie auf 0, also am Anfangsknoten.
+
+#### Die ständige Last ist dreigeteilt
+
+Weisung: im AxisVM-Modell zu trennen nach Joch, Anbauteilen und
+Ablenkkräften. Im Rechenkern bleibt «G» **eine** Einwirkungsgruppe — geteilt
+wird nur in der Ausleitung:
+
+| Lastfall | trägt |
+|---|---|
+| `G` · Ständig · Joch | Eigengewicht der Stäbe, Zuschlag |
+| `G_Anbau` · Ständig · Anbauteile | Gewicht der Baugruppen |
+| `G_Ablenk` · Ständig · Ablenkkräfte | Z·c/R an den Drahtwerken |
+
+Erkannt wird die Ablenkkraft an ihrer **Richtung**: sie ist die einzige
+ständige Last in der Jochachse. Die Kombinationen setzen alle drei mit
+demselben Beiwert an — zusammen sind sie das G des Rechenkerns.
+
+Die Trennung gilt **nur für die COM-Ausleitung** (`gTrennen`). Die SAF-Mappe
+und die DXF-Zuordnung schreiben ihre Lastfallliste selbst; dort verwiese eine
+Last sonst auf einen Fall, den es nicht gibt — der Prüfstand hat genau das
+sofort gemeldet.
+
+#### Die Sprache folgt AxisVM
+
+Was dort im Dialog «Verbindungselement» heisst, heisst jetzt auch bei uns so —
+in der Oberfläche und im Bericht der Brücke. Die COM-Namen (`LinkElements`)
+bleiben unverändert; sie sind keine Beschriftung, sondern die Schnittstelle.
+
+Der Ausleitungsdialog nennt ausserdem, was seit der COM-Brücke mitgeht:
+Eigengewicht der Stäbe als Last, die Lastkombinationen dieser Anwendung, und
+die dreigeteilte ständige Last.
+
+#### Eigengewicht, Kombinationen, Schnee
+
+**Das Eigengewicht der Stäbe steht jetzt als Last im Modell** (Weisung) —
+`Loads.AddBeamSelfWeight(LineId, LoadCaseId)` je Stab, im ständigen Lastfall.
+Starrkörper bekommen keins: sie sind keine Stabelemente, und ihr
+Ersatzquerschnitt wäre frei erfunden. Die steifen Gurtabschnitte dagegen
+tragen mit — sie führen den Querschnitt ihres Gurtes und dessen Dichte.
+
+**Die Kombinationen kommen aus der Anwendung**, nicht aus AxisVM:
+
+```
+LoadCombinations.Add(Name, ECombinationType, Double[] Faktoren, Int32[] Ids)
+```
+
+Ein Lastfall der Anwendung ist ein Satz Beiwerte über den vier
+Einwirkungsgruppen — genau die Form, die diese Methode erwartet. Gruppen mit
+Beiwert null bleiben draussen. Die Art entscheidet den Typ: Tragsicherheit als
+ULS, Gebrauchstauglichkeit und die charakteristischen Einzelfälle als SLS. Am
+Prüfjoch sind es **18 angelegt, 18 im Modell**.
+
+Der Kombinationstyp wird **nachgeschlagen, nicht gesetzt**: neu `Aufzaehlung`,
+dieselbe Überlegung wie bei `FehlerName`. Ein falscher Typ wirft keinen
+Fehler — er legt die Kombination nur in die falsche Familie.
+
+**Schnee stand auf aus.** `schneeAktiv` ist in `standardwerte()` false; im
+Prüfjoch war er deshalb leer. Eingeschaltet trägt er 208 Streckenlasten.
+
+#### Die Fahrleitung als Auflager — nachgemessen
+
+Weisung: bei Wind y stützt die Fahrleitung den Ausleger, die halbe Windlast
+geht auf die Hängestütze; für die ständigen Lasten gilt das **nicht**, aus
+ihnen folgt über den Abstand ein Moment.
+
+Genau das leistet `windAufTraeger()` schon, und am Modell ist es jetzt
+sichtbar. Der Ausleger sitzt 1.20 m seitlich:
+
+| Punkt | y | trägt |
+|---|---|---|
+| Ausleger | **1.20 m** | ständig G_z −2.200 und G_x 1.833 (Ablenkung), Wind x |
+| Windanteil | **0.00** (Stützenachse) | nur Wind y **0.275 kN** = die Hälfte von 0.55 |
+
+Die ständigen Lasten behalten ihren Abstand und damit ihr Moment; nur der
+halbe Wind rückt auf die Achse, die andere Hälfte verlässt das Joch. Die Höhe
+bleibt bei beiden gleich — der Hebelarm zur Jochachse ändert sich nicht.
+
+**Ein Modul führt `y` und `z`**, nicht `ev`/`ex`. Letzteres ist die alte
+Sprache der Vorlagen und wird in `neuesAnbauteil()` umgesetzt; wer `ex` von
+aussen setzt, setzt ins Leere.
+
+#### Zwei Punkte brauchen das Moment um y
+
+Weisung: *«Es gibt Befestigungen, die nur über zwei Punkte angeschlossen
+werden, am Ober- oder am Untergurt je nachdem. Bei diesen müssen die
+Linkelemente ein Moment um die y-Achse aufnehmen können.»*
+
+Genau der Fall, den die Brücke zuvor als offenen Freiheitsgrad gemeldet hat —
+jetzt ist er konstruktiv gelöst statt nur angezeigt. Hängt ein Teil an einer
+Reihe in einer Ebene, hält sein Link zusätzlich `K_YY`; bei vier Punkten
+bleibt es bei den drei Kräften. Der Bericht führt die Stellen auf: es ist die
+einzige, an der ein Link mehr als Kräfte überträgt.
+
+#### Ein Alttyp zum Gegenlesen
+
+Neben dem J90 über 24 m ist dasselbe mit **J100-alt über 20 m** gebaut. Die
+Altbauweise schlägt an zwei Stellen durch, beide ohne Zutun:
+
+| | J90 (neu) | J100-alt |
+|---|---|---|
+| Auflagermodell | `gurte`, 8 Knoten | **`mitte`, 4 Knoten** |
+| Endbedingung | Einspannung ins Mast | **gelenkig** |
+| Stäbe / Starrelemente | 544 / 578 | 472 / 482 |
+
+Beim Aufbau des Prüfjochs ist mir dabei ein eigener Fehler unterlaufen: das
+Testskript setzte `endbedingung` **nach** `typUebernehmen()` und überschrieb
+damit die Vorgabe. Beim Alttyp ist `gelenkig` keine Voreinstellung, sondern
+eine stehende Vorgabe — sie darf nicht von aussen überschrieben werden.
+
+#### `ausleiten.mjs` liess die Bauteil-Datenbank fallen
+
+Beim Bau des Prüfjochs kam es heraus: das Skript lud `data.fl_bauteile.js`
+und rief `setzeFlBauteilDB` — beides gibt es nicht. Das Modul heisst
+`data.fl.js`, die Funktion `setzeFlDB`. Ein `try/catch` schluckte den Fehler,
+und die Bauteil-Datenbank kam **nie** an.
+
+Folge: jedes Anbauteil, das seine Lasten aus dieser Datenbank zieht, wog
+**null**. Das Prüfjoch kam zuerst mit *0 Punktlasten* heraus, nach der
+Korrektur mit 18.
+
+Am Signaljoch fiel es nie auf, weil dessen Signale ihre Lasten unmittelbar
+mitbringen (`vorlage: 'direkt'`); seine Ausleitung ist vor und nach der
+Korrektur dieselbe. Geladen wird jetzt **ohne Netz** — fehlt die Datei, soll
+es scheitern statt still falsch zu rechnen.
+
+**Regel:** ein `try/catch` um das Laden von Grundlagen verbirgt genau den
+Fehler, der am teuersten ist.
+
+#### Der Lauf am Signaljoch
+
+```
+464 Stäbe · 482 Starrelemente (119 Körper) · 12 Linkelemente
+958 Referenzen in 5 Richtungen · 8 Auflager · 4 Lastfälle
+9 Punkt- und 348 Streckenlasten   ->  AxisVM_Signaljoch_COM.axs
+```
+
+Angelegt und zurückgelesen stimmen überein: 12 Links angelegt, 12 im Modell;
+482 Starrelemente, **0 ohne Körper**.
+
+#### Node fehlte auf dem Rechner
+
+`pruefung.mjs` und `ausleiten.mjs` liefen nicht. Node 24.19.0 ist über
+`winget --scope user` installiert — **ohne Administratorrechte**.
+
+Dabei kam ein Portabilitätsfehler ans Licht: `pruefung.mjs` gab `import()`
+einen **Windows-Pfad**, und ein solcher ist kein gültiges URL-Schema
+(`ERR_UNSUPPORTED_ESM_URL_SCHEME`). Unter macOS ging der blosse Pfad zufällig
+durch. Jetzt `new URL(...).href` wie in `ausleiten.mjs` und
+`vergleich_werkzeug.mjs`.
+
 
 ### AxisVM über COM — die Brücke steht (21./22. August)
 

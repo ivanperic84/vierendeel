@@ -109,6 +109,50 @@ Installation heisst der Satz «Weich - Verdrehung». Der Bauweg umgeht das —
 benannte Sätze und damit ohne Sprachabhängigkeit. Die Drehfeder mit
 12 452 kNm/rad geht ohnehin nur so hinein.
 
+
+Der Lauf vom 23. August hat die letzten drei Fragen beantwortet — Achsen,
+Starrkörper, Linkelemente:
+
+| Frage | gemessen |
+|---|---|
+| Wie kommt die Referenz an den Stab? | `Lines.Item(i).Reference = n` — ein schlichtes Int32 |
+| Wie sieht `RReference` innen aus? | `ReferenceType` (rtPoint/rtVector/rtAxis/rtPlane/rtBeta/rtNone) und `ReferenceData` mit **fünf Zweigen nebeneinander**. Gelesen wird nur der, auf den `ReferenceType` zeigt |
+| Starrelemente? | `RigidBodies.Add(Int32[] LineIds)` — nimmt **Linien-Nummern**; die Linie bleibt stehen, sie braucht kein `DefineAsBeam` |
+| Gelenkige Anschlüsse? | `LinkElements.AddNN(RNNLinkElementRec)`. Die Linie muss vorher liegen (Feld `LineId`), die Kraftübertragung steht je Richtung in `Stiffnesses` |
+| Steifigkeit eines Stabes hochdrehen? | **Nicht** über `StiffnessReduction_A/_I` — gesetzt 1000, gelesen 1, ohne Fehlermeldung. Es ist eine Reduktion. Stattdessen ein eigenes Material über `Materials.AddSteel_EuroCode(...)` |
+| Welche Einheit haben die Materialkennwerte? | `Ex = 2.1e8`, also **kN/m²**. Gelesen wird das Katalogmaterial und mit dem Faktor neu angelegt — dann stellt sich die Frage gar nicht |
+
+### Ein Verbund-Typ verträgt keinen Umweg
+
+Derselbe `RReference`, der auf Skriptebene mit Rückgabe 1 durchgeht,
+scheiterte über einen Kandidatenblock von `Versuche` mit
+`DISP_E_BADVARTYPE`. Wird ein Verbund-Typ durch fremde Gültigkeitsbereiche
+gereicht, kommt er am COM-Marshaller nicht mehr als Satz an.
+
+**Regel:** Sätze unmittelbar übergeben. Wo es ohnehin nur eine Schreibweise
+gibt — `References.Add`, `AddNN`, `RigidBodies.Add` —, ist das Durchprobieren
+sinnlos und schädlich zugleich.
+
+Dazu die zweite Hälfte derselben Lehre: `GetNewClosure()` legt ein **neues
+dynamisches Modul** an. Darin zeigt `$script:` auf dessen Modulscope, nicht
+mehr auf das Skript — `$script:m` war leer, und `.References` lief auf einem
+Null. Lokale Variablen werden dagegen mitkopiert.
+
+### Starrkörper werden zusammengelegt
+
+Die Zahl der Körper hängt nicht daran, wie viele angelegt wurden, sondern
+daran, wie viele zusammenhängende Gruppen entstehen: 700 einzeln angelegte
+Stummel ergaben **118**, und 476 ebenfalls 118. AxisVM legt Starrkörper, die
+sich einen Knoten teilen, zu einem zusammen. Das ist richtig so: was am selben
+Knoten hängt, ist ohnehin starr verbunden.
+
+Die Anzahl taugt deshalb nicht als Kontrolle. Gefragt wird stattdessen je
+Linie nach `RigidBodyId` — trägt jede einen Körper? Am Signaljoch: 476
+angelegt, **0 ohne Körper**.
+
+Weil die **Gurtabschnitte Stäbe bleiben**, kann die Verschmelzung eine
+Station nicht über ihre Grenze hinaus starr machen.
+
 ### Was sich nicht durch Ausprobieren klären lässt
 
 Eine falsche Einheit bei den Querschnitten **wirft keinen Fehler**. Sie
