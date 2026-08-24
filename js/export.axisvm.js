@@ -42,7 +42,7 @@
  */
 
 import { ECKEN, getAusrichtung } from './geometry.js';
-import { EINWIRKUNGEN } from './core.lasten.js';
+import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -104,6 +104,30 @@ const ARM = { name: 'ARM', h: 300, b: 300 };
  * sind und nicht angetastet werden.
  */
 const MIN_SCHNITT = 0.025;
+
+// Länge des vertikalen Linkelements zwischen Gurt und Anbauteil (Weisung:
+// rund 10 cm). Am Obergurt nach oben, am Untergurt nach unten angesetzt.
+const LINK_LAENGE = 0.10;
+
+/*
+ * DIE STÄNDIGE LAST WIRD AUFGETEILT (Weisung).
+ *
+ * Im Rechenkern ist «G» EINE Einwirkungsgruppe - daran ändert sich nichts.
+ * Für das AxisVM-Modell wird sie aber in drei Lastfälle zerlegt, damit
+ * hinterher ablesbar bleibt, welcher Anteil woher kommt. Dieselbe Gliederung
+ * führt auch das geprüfte Vergleichsmodell (self weight / added weight).
+ *
+ * Die Kombinationen setzen alle drei mit demselben Beiwert an - zusammen
+ * sind sie das G des Rechenkerns.
+ */
+const G_JOCH = 'G';
+const G_ANBAU = 'G_Anbau';
+const G_ABLENK = 'G_Ablenk';
+const G_TEILE = [
+  { key: G_JOCH,   label: 'Ständig · Joch' },
+  { key: G_ANBAU,  label: 'Ständig · Anbauteile' },
+  { key: G_ABLENK, label: 'Ständig · Ablenkkräfte' },
+];
 
 /**
  * LEGT ZU ENGE SCHNITTE ZUSAMMEN.
@@ -347,12 +371,52 @@ export function stabmodell(m, opt = {}) {
     }
   });
 
+  /*
+   * EIN ANBAUTEIL GEHÖRT NICHT IN DEN STEIFEN KNOTENBEREICH.
+   *
+   * Weisung: was dort zu liegen käme, wird herausgeschoben und mit 10 cm
+   * Abstand zum angrenzenden starren Gurt gesetzt. Sonst hängt die Last am
+   * steifen Bereich, das anschliessende Feld bleibt ungeprüft, und der
+   * Anschluss lässt sich am Bauteil auch nicht ausführen.
+   *
+   * Geschoben wird die MITTE der Baugruppe; die Reihen folgen ihr im
+   * Raster. Sie einzeln zu schieben risse das Raster auseinander.
+   */
+  const ABSTAND_KNOTEN = 0.10;
+  const ausKnoten = (x) => {
+    let z = imFeld(x);
+    // Zwei Runden: der Schritt aus dem einen Knoten kann in den nächsten
+    // führen, wenn zwei Stationen dicht beieinanderstehen.
+    for (let runde = 0; runde < 2; runde++) {
+      let bewegt = false;
+      st.forEach((station) => {
+        const d = steifBis.get(station.x);
+        if (!d) return;
+        const rand = d + ABSTAND_KNOTEN;
+        if (Math.abs(z - station.x) >= rand - 1e-9) return;
+        z = z >= station.x ? station.x + rand : station.x - rand;
+        bewegt = true;
+      });
+      if (!bewegt) break;
+    }
+    return imFeld(r6(z));
+  };
+  const ausKnotenVermerk = [];
+  (m.anbauteileFlach ?? []).forEach((a) => {
+    const neu = ausKnoten(a.x);
+    if (Math.abs(neu - imFeld(a.x)) > 1e-9) {
+      ausKnotenVermerk.push({ von: imFeld(a.x), nach: neu,
+                              betrag: neu - imFeld(a.x) });
+    }
+  });
+
   // BEWEGLICH, nach Wichtigkeit: erst alle Anbauteilmitten, dann die Reihen.
   const beweglich = [];
-  (m.anbauteileFlach ?? []).forEach((a) => beweglich.push(imFeld(a.x)));
+  (m.anbauteileFlach ?? []).forEach((a) => beweglich.push(ausKnoten(a.x)));
   (m.anbauteileFlach ?? []).forEach((a) => {
     const r = (a.raster ?? 0) / 2;
-    if (r > 0) { beweglich.push(imFeld(a.x - r)); beweglich.push(imFeld(a.x + r)); }
+    const x0 = ausKnoten(a.x);
+    if (r > 0) { beweglich.push(imFeld(x0 - r)); beweglich.push(imFeld(x0 + r)); }
   });
 
   const { xs, verschoben } = schnitteZusammenlegen(fest, beweglich);
@@ -377,11 +441,29 @@ export function stabmodell(m, opt = {}) {
   // --- Gurte ----------------------------------------------------------------
   // Höhe und Breite laufen mit x: verjüngte Enden heben den Untergurt an,
   // der Grundrissknick zieht die Seiten zusammen.
+  // DIE UNTERGURTE STEHEN AUF DER SCHENKELFLUCHT DER OBERGURTE.
+  // Vorgabe des Auftraggebers: die Vertikalbleche sind lotrecht. Sie liegen
+  // in der Flucht der stehenden Schenkel, und die sitzt je Gurt um
+  // zs_V − t/2 neben dessen Schwerachse. Tragen Ober- und Untergurt
+  // verschiedene Profile, laufen die beiden Fluchten auseinander - am
+  // Signaljoch 4 mm - und das Blech steht schief. Deshalb rücken die
+  // UNTERGURTE in y auf die Flucht der Obergurte.
+  //
+  // Das betrifft allein den Aufbau des Stabmodells. Der Nachweis rechnet
+  // unverändert mit einem gemeinsamen Hebelarm b; so entschieden.
+  const ugVersatz = { L: 0, R: 0 };
+  ['L', 'R'].forEach((seite) => {
+    const dyOG = schenkelVersatz(m.profOG, eckeVon(`OG_${seite}`), ausrOG).dy;
+    const dyUG = schenkelVersatz(m.profUG, eckeVon(`UG_${seite}`), ausrUG).dy;
+    ugVersatz[seite] = r6(dyOG - dyUG);
+  });
+
   const gurtKnoten = (gurt, seite, x) => {
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
     const b = m.breite ? m.breite.bAn(x) : m.b;
     const z = gurt === 'OG' ? zOben : zOben - h;
-    const y = (seite === 'L' ? -1 : +1) * (b / 2);
+    const y = r6((seite === 'L' ? -1 : +1) * (b / 2)
+                 + (gurt === 'UG' ? ugVersatz[seite] : 0));
     return s.kn(`${gurt}${seite}_${x.toFixed(3)}`, x, y, z);
   };
 
@@ -390,8 +472,13 @@ export function stabmodell(m, opt = {}) {
       const a = gurtKnoten(gurt, seite, xs[i]);
       const b = gurtKnoten(gurt, seite, xs[i + 1]);
       const mitte = (xs[i] + xs[i + 1]) / 2;
-      const qs = imKnoten(mitte) ? qsStarr : (gurt === 'OG' ? qsOG : qsUG);
-      s.stab(`${gurt}${seite}_S${i}`, qs, a, b);
+      const steif = imKnoten(mitte);
+      const qs = steif ? qsStarr : (gurt === 'OG' ? qsOG : qsUG);
+      // Der steife Abschnitt ist TEIL DES GURTES, keine Verbindung: er trägt
+      // sein Eigengewicht und die Streckenlasten seines Feldes. Deshalb
+      // bleibt er auch in AxisVM ein Stab (siehe starrArt).
+      s.stab(`${gurt}${seite}_S${i}`, qs, a, b,
+             steif ? { starrRolle: 'gurtabschnitt' } : null);
     }
   }));
 
@@ -411,7 +498,7 @@ export function stabmodell(m, opt = {}) {
     const rueck = (p, v, k) => {
       if (!v || (Math.abs(v.dy) < 1e-9 && Math.abs(v.dz) < 1e-9)) return p;
       const n = s.kn(`${name}_v${k}`, p.x, p.y + v.dy, p.z + v.dz);
-      s.stab(`${name}_e${k}`, qsStarr, p.name, n);
+      s.stab(`${name}_e${k}`, qsStarr, p.name, n, { starrRolle: 'verbindung' });
       return { name: n, ...s.knoten.get(n) };
     };
     p1 = rueck(p1, v1, 1);
@@ -435,9 +522,9 @@ export function stabmodell(m, opt = {}) {
     const a = t(e1 / L), b = t(1 - e2 / L);
     const n1 = s.kn(`${name}_a`, a.x, a.y, a.z);
     const n2 = s.kn(`${name}_b`, b.x, b.y, b.z);
-    s.stab(`${name}_1`, qsStarr, p1.name, n1);
+    s.stab(`${name}_1`, qsStarr, p1.name, n1, { starrRolle: 'blechende' });
     s.stab(`${name}_2`, qsBlech, n1, n2);
-    s.stab(`${name}_3`, qsStarr, n2, p2.name);
+    s.stab(`${name}_3`, qsStarr, n2, p2.name, { starrRolle: 'blechende' });
   };
 
   st.forEach((station, i) => {
@@ -576,8 +663,14 @@ export function stabmodell(m, opt = {}) {
   });
 
   const arme = [];
+  // Welche Anschlüsse an nur zwei Punkten hängen und deshalb im Link ein
+  // Moment um y halten. Wird im Bericht der Brücke aufgeführt - es ist die
+  // einzige Stelle, an der ein Link mehr als Kräfte überträgt.
+  const zweiPunktAnschluss = [];
   [...gruppiert.values()].forEach((a, k) => {
-    const x0 = aufSchnitt(a.x);
+    // Dieselbe Verschiebung wie oben bei den Schnitten - sie ist
+    // deterministisch, beide Stellen kommen auf denselben Wert.
+    const x0 = aufSchnitt(ausKnoten(a.x));
     const r = (a.raster ?? 0) / 2;
     const zOG = zOben;
     const zUG = zOben - (m.verlauf ? m.verlauf.hAn(a.x) : m.h);
@@ -618,50 +711,103 @@ export function stabmodell(m, opt = {}) {
     // 20 mm ist das so -, dann sind es keine zwei Reihen mehr, sondern ein
     // Anschluss. Dann gilt Variante A, biegesteif.
     const reihen = [...new Set(r > 0
-      ? [aufSchnitt(a.x - r), aufSchnitt(a.x + r)]
+      ? [aufSchnitt(ausKnoten(a.x) - r), aufSchnitt(ausKnoten(a.x) + r)]
       : [x0])];
     const mitte = {};
+    // Zwei Punkte heisst: eine Reihe in einer Ebene. Dann trägt das Link
+    // das Moment um y - siehe unten.
+    const zweiPunkt = ebenen.length === 1 && reihen.length === 1;
 
     ebenen.forEach((gurt) => {
       const z = zVon(gurt);
-      // Knoten der Reihen auf der Jochachse und ihre Stummel zu den Gurten.
+      // DER ÜBERGANG GURT -> ANBAUTEIL LÄUFT ÜBER EIN VERTIKALES
+      // LINKELEMENT (Weisung): am Obergurt nach oben, am Untergurt nach
+      // unten angesetzt, rund 10 cm lang. Der Anschlusskörper selbst ist
+      // ein Starrkörper und sitzt damit um diese Länge neben der
+      // Gurtebene; der Lastpunkt bleibt, wo er ist.
+      const vz = gurt === 'OG' ? +1 : -1;
+      const zK = r6(z + vz * LINK_LAENGE);
+
+      // Knoten der Reihen auf der Jochachse, dorthin die starren Äste.
       const knRe = reihen.map((xr, j) => {
-        const n = s.kn(`AT${k}_${gurt}_R${j + 1}`, xr, 0, r6(z));
+        const n = s.kn(`AT${k}_${gurt}_R${j + 1}`, xr, 0, zK);
         ['L', 'R'].forEach((seite) => {
-          s.stab(`AT${k}_${gurt}_R${j + 1}${seite}`, qsStarr, n,
-                 gurtKnoten(gurt, seite, xr));
+          const gk = gurtKnoten(gurt, seite, xr);
+          const g = s.knoten.get(gk);
+          // Das Link steht senkrecht über bzw. unter dem Gurtknoten -
+          // gleiches x, gleiches y, nur z versetzt.
+          const nv = s.kn(`AT${k}_${gurt}_R${j + 1}${seite}_v`, g.x, g.y, zK);
+          /*
+           * WAS DAS LINK ÜBERTRÄGT.
+           *
+           * Zwei Punkte (eine Reihe): alles - das ist Variante A,
+           * biegesteif. Vier Punkte: die ZWEITE Reihe gibt die Längskraft
+           * frei, sonst zwängt der Anschluss im Gurt.
+           *
+           * Die Freigabe sitzt jetzt im Link und wird global gestellt
+           * (`sysGlobal`), «x» ist damit die Jochachse - so eindeutig wie
+           * vorher die Stabachse des Astes, aber ohne den Umweg.
+           */
+          const laengsFrei = reihen.length > 1 && j > 0;
+          /*
+           * NUR KRÄFTE, KEINE MOMENTE (Weisung) - das ist der Zweck des
+           * Linkelements: der Anschluss überträgt x, y, z und lässt die
+           * Momente frei. Die zweite Reihe gibt zusätzlich die Längskraft
+           * frei, sonst zwängt sie im Gurt.
+           *
+           * EINE AUSNAHME, und sie ist zwingend: hängt das Teil an nur ZWEI
+           * Punkten - eine Reihe, eine Ebene, wie es am Ober- oder
+           * Untergurt allein vorkommt -, dann liegen beide Punkte auf einer
+           * Geraden in Gleisrichtung. Um genau diese Gerade hielte ihn
+           * nichts mehr: eine Drehung dorthin bewegt keinen der Punkte und
+           * weckt also keine Kraft. Deshalb nimmt das Link dort das Moment
+           * um y auf (Weisung).
+           */
+          s.stab(`AT${k}_${gurt}_R${j + 1}${seite}_V`, qsStarr, gk, nv, {
+            starrRolle: 'uebergang',
+            kraft: { x: laengsFrei ? 'Free' : 'Rigid', y: 'Rigid', z: 'Rigid',
+                     xx: 'Free', yy: zweiPunkt ? 'Rigid' : 'Free', zz: 'Free' },
+          });
+          s.stab(`AT${k}_${gurt}_R${j + 1}${seite}`, qsStarr, nv, n,
+                 { starrRolle: 'verbindung' });
         });
         return { x: xr, n };
       });
 
       // Der Anschlusskörper zwischen den Reihen, mit einem Knoten in der
       // Mitte - dort hängt die Stütze.
-      const nm = s.kn(`AT${k}_${gurt}`, x0, 0, r6(z));
+      const nm = s.kn(`AT${k}_${gurt}`, x0, 0, zK);
       mitte[gurt] = nm;
       knRe.forEach(({ x: xr, n }, j) => {
         if (Math.abs(xr - x0) < 1e-9) return;
-        // Der Ast zur ZWEITEN Reihe überträgt keine Längskraft: das ist die
-        // Freigabe von x, in der Stabachse und damit eindeutig.
         s.stab(`AT${k}_${gurt}_B${j + 1}`, qsStarr, nm, n,
-               j > 0 ? { gelenkEnde: 'axial' } : null);
+               { starrRolle: 'verbindung' });
       });
     });
 
     // Bei vier Punkten oben UND unten läuft der Stab durch den Kasten.
     if (ebenen.length === 2) {
-      s.stab(`ARM${k}_D`, qsArm, mitte.OG, mitte.UG);
+      s.stab(`ARM${k}_D`, qsArm, mitte.OG, mitte.UG, { starrRolle: 'anbauteil' });
     }
 
-    // Der durchgehende Stab zum Lastpunkt, am Übergang steif (Variante A).
+    // DAS ANBAUTEIL SELBST IST EIN STARRKÖRPER (Weisung). Es trägt keine
+    // Streckenlast - seine Lasten sitzen als Punktlasten am Lastknoten -,
+    // also geht dabei nichts verloren. Ist ein Gelenk gesetzt, bleibt es
+    // ein Stab: ein Starrkörper kennt keine Freigabe.
     const zAn = a.befestigung === 'oben' ? zOG : zUG;
     const anker = a.befestigung === 'oben' ? mitte.OG : mitte.UG;
     const last = s.kn(`AL${k}`, x0, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
     s.stab(`ARM${k}`, qsArm, anker, last,
-           opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk } : null);
+           opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
+                           : { starrRolle: 'anbauteil' });
+    if (zweiPunkt) {
+      zweiPunktAnschluss.push({ name: a.name ?? `AT${k}`, x: x0, ebene: ebenen[0] });
+    }
     arme.push({ teil: a, knoten: last });
   });
 
   return { ...s, auflager, arme, knotenmodell: km, zOben, verschoben,
+           ausKnotenVermerk, zweiPunktAnschluss,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -677,6 +823,10 @@ export function stabmodell(m, opt = {}) {
  * eigenen Rechnung vergleichen.
  */
 export function lasten(m, bau, opt = {}) {
+  // Die Untergruppen der ständigen Last führt nur die COM-Ausleitung. Die
+  // SAF-Mappe und die DXF-Zuordnung schreiben ihre Lastfallliste selbst;
+  // dort verwiese eine Last sonst auf einen Fall, den es nicht gibt.
+  const gTrennen = opt.gTrennen === true;
   const punkt = [], moment = [], strecke = [];
   const gurte = [];
   ['OG', 'UG'].forEach((g) => ['L', 'R'].forEach((se) => gurte.push(`${g}${se}`)));
@@ -743,14 +893,21 @@ export function lasten(m, bau, opt = {}) {
       ];
       paare.forEach(([richtung, wert]) => {
         if (!wert) return;
-        punkt.push({ name: `F${k}_${e.key}_${richtung}`, knoten: arm.knoten,
-                     richtung, wert: r6(wert), lastfall: e.key });
+        // Unter G wird getrennt: was in der JOCHACHSE zieht, ist die
+        // Ablenkkraft aus dem Kurvenzug (Z·c/R an den Drahtwerken) - sie
+        // ist die einzige ständige Last in dieser Richtung. Alles übrige
+        // ist das Gewicht des Anbauteils.
+        const fall = (!gTrennen || e.key !== 'G') ? e.key
+                   : richtung === 'X' ? G_ABLENK : G_ANBAU;
+        punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: arm.knoten,
+                     richtung, wert: r6(wert), lastfall: fall });
       });
       const mom = [['Mx', kr.Mxx ?? 0], ['My', kr.Myy ?? 0], ['Mz', kr.Mzz ?? 0]];
       mom.forEach(([richtung, wert]) => {
         if (!wert) return;
-        moment.push({ name: `M${k}_${e.key}_${richtung}`, knoten: arm.knoten,
-                      richtung, wert: r6(wert), lastfall: e.key });
+        const fallM = (gTrennen && e.key === 'G') ? G_ANBAU : e.key;
+        moment.push({ name: `M${k}_${fallM}_${richtung}`, knoten: arm.knoten,
+                      richtung, wert: r6(wert), lastfall: fallM });
       });
     });
   });
@@ -1116,10 +1273,104 @@ export function exportiereAxisvm(inp, deps, opt = {}) {
  * ACHSEN wie im Werkzeug: x Jochachse, y Gleisrichtung, z lotrecht nach oben.
  * KRÄFTE in kN, Momente in kNm, Längen in m (Querschnittsparameter in mm).
  */
+/**
+ * Wie ein steifer Stummel in AxisVM zu bauen ist.
+ *
+ * Vorgabe des Auftraggebers: die Starrelemente sind in AxisVM auch als
+ * solche zu modellieren, nicht als dicke Stäbe mit steifem Ersatzquerschnitt.
+ * AxisVM kennt dafür zwei Bauteile, und die Wahl zwischen ihnen entscheidet
+ * das Gelenk:
+ *
+ *   ohne Gelenk    Starrkörper (`RigidBodies`) - hält alle sechs
+ *                  Freiheitsgrade seiner Knoten, kennt keine Freigabe
+ *   mit Gelenk     Linkelement (`LinkElements.AddNN`) - dort lässt sich die
+ *                  Kraftübertragung je Richtung einstellen; genau das
+ *                  braucht der Ast zur zweiten Reihe, der längs frei ist
+ *
+ * `starrModell: 'staebe'` schaltet auf die frühere Bauweise zurück - dicke
+ * Stäbe mit Ersatzquerschnitt und gewöhnlichen Stabendgelenken.
+ *
+ * NICHT jeder steife Stab wird ein Starrkörper. Entschieden ist (Weisung):
+ *
+ *   `verbindung`     Stummel von der Gurtachse zur Blechachse, Anschluss
+ *                    eines Anbauteils          -> Starrkörper bzw. Link
+ *   `blechende`      der steife Teil des Blechs im Knotenbereich  -> ebenso
+ *   `gurtabschnitt`  der steife Teil des GURTES im Knotenbereich  -> bleibt
+ *                    Stab. Er trägt Streckenlasten - am Signaljoch 168 von
+ *                    344 -, und ein Starrkörper kann keine tragen.
+ *
+ * OFFEN, auf Wunsch später: auch die Gurtabschnitte als Starrkörper, mit
+ * Umlegung ihrer Streckenlasten auf die Nachbarstäbe oder in Knotenlasten.
+ * Die Umlegung wäre selbst eine Modellannahme und ist deshalb nicht gebaut.
+ *
+ * @returns {object} Zusatzfelder für den Stab im JSON
+ */
+const STARR_ALS_KOERPER = ['verbindung', 'blechende'];
+
+/**
+ * Der steife Gurtabschnitt trägt den QUERSCHNITT SEINES GURTES.
+ *
+ * Vorgabe des Auftraggebers: die steifen Abschnitte der Ober- und Untergurte
+ * sind mit den gleichen Querschnitten zu führen und die Steifigkeit im
+ * Hintergrund hochzudrehen. Dann stimmen Eigengewicht und Darstellung - ein
+ * Ersatzrechteck von 500 × 500 mm wöge das Fünfzigfache und stünde als Klotz
+ * in der Ansicht.
+ *
+ * Hochgedreht wird über ein eigenes MATERIAL mit vielfachem E-Modul und
+ * unveränderter Dichte: die Masse bleibt damit die des wirklichen Winkels,
+ * die Steifigkeit wird beliebig gross. Angelegt wird es in der COM-Brücke.
+ *
+ * Nur für die AxisVM-Ausleitung. `stabmodell()` behält den steifen
+ * Ersatzquerschnitt - PyNite und SAF rechnen unverändert weiter.
+ */
+const STEIF_FAKTOR = 1000;
+
+function gurtSteif(s, starrModell) {
+  if (s.starrRolle !== 'gurtabschnitt' || starrModell === 'staebe') {
+    return { querschnitt: s.qs };
+  }
+  const gurt = s.name.startsWith('OG') ? 'OG' : 'UG';
+  return { querschnitt: `GURT_${gurt}`, steifesMaterial: true };
+}
+
+function starrArt(s, starrModell) {
+  if (starrModell === 'staebe') return { art: 'stab' };
+  // Das Anbauteil ist ein Starrkörper, gleich welchen Ersatzquerschnitt es
+  // trägt. Nur mit Gelenk bleibt es ein Stab.
+  if (s.starrRolle === 'anbauteil') {
+    return (s.gelenkAnfang || s.gelenkEnde) ? { art: 'stab' } : { art: 'starr' };
+  }
+  if (s.qs !== STARR.name) return { art: 'stab' };
+  // Der Übergang Gurt -> Anbauteil ist immer ein Link: er trägt seine
+  // Kraftübertragung schon fertig bei sich.
+  if (s.starrRolle === 'uebergang') {
+    return { art: 'link', kraftuebertragung: s.kraft };
+  }
+  if (!STARR_ALS_KOERPER.includes(s.starrRolle)) return { art: 'stab' };
+
+  const g = s.gelenkAnfang ?? s.gelenkEnde ?? null;
+  if (!g) return { art: 'starr' };
+
+  // Gehalten ist alles ausser dem, was das Gelenk freigibt. 'axial' löst die
+  // Längskraft, 'M' die drei Momente.
+  const frei = g === 'axial' ? ['x'] : g === 'M' ? ['xx', 'yy', 'zz'] : [];
+  const k = {};
+  ['x', 'y', 'z', 'xx', 'yy', 'zz'].forEach((f) => {
+    k[f] = frei.includes(f) ? 'Free' : 'Rigid';
+  });
+  return { art: 'link', kraftuebertragung: k };
+}
+
 export function stabmodellJson(m, opt = {}) {
   const bau = stabmodell(m, opt);
-  const l = lasten(m, bau);
+  const l = lasten(m, bau, { gTrennen: true });
   const stahl = m.stahl.name;
+  const starrModell = opt.starrModell ?? 'koerper';
+  // Für die Drehlage der Gurtwinkel, siehe lcs(). Dieselben Werte wie in
+  // stabmodell(), dort aber ausserhalb der Reichweite dieser Funktion.
+  const ausrOG = getAusrichtung(m.ausrOG ?? 'LA_SI');
+  const ausrUG = getAusrichtung(m.ausrUG ?? 'LA_SI');
+  const eckeVon = (id) => ECKEN.find((e) => e.id === id);
 
   // Lokale z-Richtung je Stab: dieselbe Regel wie im SAF-Blatt. Sie entscheidet,
   // wie herum ein Blechrechteck steht - die Breite muss in die Jochachse.
@@ -1127,7 +1378,59 @@ export function stabmodellJson(m, opt = {}) {
     const a = bau.knoten.get(stab.von), b = bau.knoten.get(stab.bis);
     const laengs = Math.abs(b.x - a.x) >= Math.max(Math.abs(b.y - a.y),
                                                    Math.abs(b.z - a.z));
-    return laengs ? [0, 0, 1] : [1, 0, 0];
+    const z = laengs ? [0, 0, 1] : [1, 0, 0];
+
+    // DIE VIER WINKEL STEHEN SPIEGELBILDLICH (Schnitt A-A des Sortiments).
+    // Liegender Schenkel nach aussen, stehender nach innen - in jeder Ecke
+    // also anders herum. Ein L-Profil lässt sich in AxisVM nicht spiegeln,
+    // aber beim gleichschenkligen Winkel ist das Spiegelbild eine Drehung
+    // um 90° um die Stabachse, und die steuert die Referenzrichtung.
+    //
+    // Ausgangslage ist die, die AxisVM einem AddL ohne Zutun gibt: Ferse
+    // unten, Schenkel nach +y und +z. Von dort gedreht:
+    //
+    //   Schenkel (+y,+z)   0°    z bleibt [0, 0, 1]
+    //   Schenkel (−y,+z)  90°    z nach   [0,−1, 0]
+    //   Schenkel (−y,−z) 180°    z nach   [0, 0,−1]
+    //   Schenkel (+y,−z) 270°    z nach   [0, 1, 0]
+    //
+    // Wohin die Schenkel einer Ecke zeigen, sagt die Einbaulage: der
+    // liegende nach `ecke.sy · lg`, der stehende nach `ecke.sz · st`.
+    // Auch der STEIFE Abschnitt im Knoten gehört dazu: er trägt denselben
+    // Winkel und muss gleich herum stehen. Sein Querschnitt heisst hier
+    // noch STARR - ersetzt wird er erst in gurtSteif() -, deshalb zählt
+    // die Rolle und nicht der Querschnittsname.
+    const gurt = (stab.qs === 'GURT_OG' || stab.qs === 'GURT_UG'
+                  || stab.starrRolle === 'gurtabschnitt')
+                 ? (stab.name.startsWith('OG') ? 'OG' : 'UG') : null;
+    if (gurt) {
+      const seite = stab.name.startsWith(`${gurt}L`) ? 'L' : 'R';
+      const ecke = eckeVon(`${gurt}_${seite}`);
+      const ausr = gurt === 'OG' ? ausrOG : ausrUG;
+      const dy = ecke.sy * ausr.lg;
+      const dz = ecke.sz * ausr.st;
+      if (dy > 0 && dz > 0) return [0, 0, 1];
+      if (dy < 0 && dz > 0) return [0, -1, 0];
+      if (dy < 0 && dz < 0) return [0, 0, -1];
+      return [0, 1, 0];
+    }
+    if (!stab.qs.startsWith('BLECH')) return z;
+
+    // DIE BLECHE STEHEN UM 90° GEDREHT (Weisung, am Modell gesehen).
+    // Gedreht wird um die LOKALE x-Achse, also um die Stabachse selbst: die
+    // neue z-Richtung ist das Kreuzprodukt aus Stabrichtung und bisheriger
+    // z-Richtung. Für ein stehendes Blech wandert z damit von der Jochachse
+    // in die Gleisrichtung, für ein liegendes von der Jochachse in die
+    // Lotrechte.
+    const d = [b.x - a.x, b.y - a.y, b.z - a.z];
+    const n = Math.hypot(...d) || 1;
+    const e = d.map((v) => v / n);
+    const kreuz = [e[1] * z[2] - e[2] * z[1],
+                   e[2] * z[0] - e[0] * z[2],
+                   e[0] * z[1] - e[1] * z[0]];
+    // Auf die Achsenrichtung runden: die Stäbe laufen achsparallel, und ein
+    // Rest von 1e-16 im Vektor macht die Ausleitung nur unleserlich.
+    return kreuz.map((v) => (Math.abs(v) < 1e-9 ? 0 : Math.sign(v)));
   };
 
   return {
@@ -1147,10 +1450,24 @@ export function stabmodellJson(m, opt = {}) {
       verschoben: (bau.verschoben ?? []).map((v) => ({
         von: r6(v.von), nach: r6(v.nach), betrag_mm: r6(v.betrag * 1000),
       })),
+      // Anbauteile, die aus einem steifen Knotenbereich herausgeschoben
+      // wurden - sie stehen jetzt 10 cm neben dem starren Gurt.
+      ausKnoten: (bau.ausKnotenVermerk ?? []).map((v) => ({
+        von: r6(v.von), nach: r6(v.nach), betrag_mm: r6(v.betrag * 1000),
+      })),
+      // Anbauteile an zwei Punkten: dort hält das Link zusätzlich das
+      // Moment um y - siehe `zweiPunktAnschluss` in stabmodell().
+      zweiPunktAnschluss: (bau.zweiPunktAnschluss ?? []).map((v) => ({
+        name: v.name, x: r6(v.x), ebene: v.ebene,
+      })),
       bezeichnung: `Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
     },
     material: { name: stahl, art: 'Steel', rho: 7850, E: 210000, G: 81000,
                 nu: 0.3, alpha: 0.000012, fy: m.stahl.fy ?? null },
+    // Für die steifen Gurtabschnitte: gleicher Stahl, gleiche Dichte, nur
+    // der E-Modul vervielfacht. Die Brücke legt es an, sobald ein Stab
+    // `steifesMaterial` trägt.
+    materialSteif: { name: `${stahl} steif`, faktor: STEIF_FAKTOR },
     querschnitte: [...bau.querschnitte.values()].map((q) => ({
       name: q.name, form: q.form, parameter: q.parameter,
       profil: q.profil ?? null,
@@ -1158,10 +1475,12 @@ export function stabmodellJson(m, opt = {}) {
     })),
     knoten: [...bau.knoten.values()],
     staebe: bau.staebe.map((s) => ({
-      name: s.name, von: s.von, bis: s.bis, querschnitt: s.qs, lcsZ: lcs(s),
+      name: s.name, von: s.von, bis: s.bis, ...gurtSteif(s, starrModell),
+      lcsZ: lcs(s),
       // 'M': alle drei Momente frei - die Hängestütze hängt, sie klemmt nicht.
       gelenkAnfang: s.gelenkAnfang ?? null,
       gelenkEnde: s.gelenkEnde ?? null,
+      ...starrArt(s, starrModell),
     })),
     // Ein Eintrag JE GEHALTENEM KNOTEN. Bei 'punkt' ist das einer je Ende,
     // bei 'mitte' zwei, bei 'gurte' vier - die Brücke läuft unverändert
@@ -1170,8 +1489,39 @@ export function stabmodellJson(m, opt = {}) {
       ende: a.ende, knoten: a.knoten, x: a.x, modell: a.modell,
       ...stuetzung(m, a),
     })),
-    lastfaelle: EINWIRKUNGEN.map((e) => ({ key: e.key, label: e.label,
-                                           art: e.key === 'G' ? 'Others' : 'Others' })),
+    lastfaelle: [
+      ...G_TEILE.map((g) => ({ key: g.key, label: g.label, art: 'Others' })),
+      ...EINWIRKUNGEN.filter((e) => e.key !== 'G')
+        .map((e) => ({ key: e.key, label: e.label, art: 'Others' })),
+    ],
+    /*
+     * DIE KOMBINATIONEN DER ANWENDUNG, damit AxisVM dieselben rechnet.
+     *
+     * Ein Lastfall der Anwendung ist ein Satz Beiwerte über den vier
+     * Einwirkungsgruppen - genau die Form, die `LoadCombinations.Add` als
+     * Faktorenliste erwartet. Gruppen mit Beiwert null bleiben draussen;
+     * ein Faktor 0 wäre für AxisVM eine Zeile ohne Wirkung.
+     *
+     * `nachweis: false` trägt die Gebrauchstauglichkeit: sie liefert
+     * Schnittgrössen für Verformungen, führt aber keinen Nachweis. Die
+     * Unterscheidung wandert als Art mit, damit sie in AxisVM als SLS statt
+     * ULS ankommt.
+     */
+    kombinationen: (opt.eingabe ? lastfaelle(opt.eingabe) : []).map((l) => ({
+      key: l.key,
+      bez: l.bez,
+      art: l.art,
+      nachweis: l.nachweis !== false,
+      anteile: EINWIRKUNGEN
+        .flatMap((e) => {
+          const f = r6(l.beiwerte?.[e.key] ?? 0);
+          // Das eine G des Rechenkerns wirkt auf alle drei Untergruppen.
+          return e.key === 'G'
+            ? G_TEILE.map((g) => ({ lastfall: g.key, faktor: f }))
+            : [{ lastfall: e.key, faktor: f }];
+        })
+        .filter((a) => Math.abs(a.faktor) > 1e-9),
+    })).filter((l) => l.anteile.length > 0),
     lasten: l,
   };
 }
@@ -1180,6 +1530,9 @@ export function stabmodellJson(m, opt = {}) {
 export function exportiereJson(inp, deps, opt = {}) {
   const { modell, profOG, profUG, stahl, joch } = deps;
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
+  // Die Eingabe mitgeben: aus ihr entstehen die Lastkombinationen. Das
+  // Modell selbst führt sie nicht mit.
+  opt = { ...opt, eingabe: inp };
   const d = stabmodellJson(m, opt);
   const km = opt.knotenmodell ?? 'anschnitt';
   const name = `AxisVM_${inp.typ ?? 'frei'}_L${Number(inp.L).toFixed(1)}m_${km}.json`;

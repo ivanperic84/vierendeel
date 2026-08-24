@@ -1709,7 +1709,13 @@ function dialogAxisvm() {
     <p>Schreibt das Stabmodell aus: vier Gurte, die Bindebleche jeder Station,
        die Gabellagerung und die Anbauteile am wirklichen Angriffspunkt. Die
        Lasten laufen <b>je Einwirkungsgruppe getrennt und charakteristisch</b>
-       — kombiniert wird in AxisVM.</p>
+       heraus; die ständige Last dabei nochmals geteilt in <b>Joch,
+       Anbauteile und Ablenkkräfte</b>.</p>
+    <p class="notiz">Über die COM-Brücke kommen ausserdem mit: das
+       <b>Eigengewicht der Stäbe</b> als Last im ständigen Lastfall und die
+       <b>Lastkombinationen dieser Anwendung</b> — AxisVM erzeugt also keine
+       eigenen. Gerechnet wird nicht; der Startknopf bleibt Ihre
+       Entscheidung.</p>
     <div class="feld"><label>Format</label>
       <label class="schalter"><input type="radio" name="fmt" value="json" checked>
         <span>JSON für die COM-Brücke — vollständig, ohne Zusatzmodul.
@@ -1725,6 +1731,16 @@ function dialogAxisvm() {
     </div>
     <div class="feld"><label>Knotenmodell</label>${wahl}</div>
     <div class="feld"><label>Auflagermodell</label>${lager}</div>
+    <div class="feld"><label>Starrelemente</label>
+      <label class="schalter"><input type="radio" name="starr" value="koerper" checked>
+        <span>als Starrkörper und Verbindungselemente — so, wie AxisVM sie
+              führt. Der Übergang Gurt → Anbauteil wird ein
+              Verbindungselement; dort lässt sich die Kraftübertragung je
+              Richtung einstellen</span></label>
+      <label class="schalter"><input type="radio" name="starr" value="staebe">
+        <span>als steife Stäbe — dicker Ersatzquerschnitt mit der Güte des
+              Tragwerks, gewöhnliche Stabendgelenke</span></label>
+    </div>
     <div class="feld"><label>Ausgabe</label>
       <label class="schalter"><input type="checkbox" name="schott">
         <span>Endschott aus den Resultattabellen ausblenden — es bleibt
@@ -1741,17 +1757,18 @@ function dialogAxisvm() {
     const fmt = d.node.querySelector('input[name="fmt"]:checked').value;
     const aus = d.node.querySelector('input[name="schott"]').checked;
     const am = d.node.querySelector('input[name="am"]:checked').value;
+    const sm = d.node.querySelector('input[name="starr"]:checked').value;
     d.zu();
-    axisvmKlick(km, fmt, aus, am);
+    axisvmKlick(km, fmt, aus, am, sm);
   };
 }
 
 function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
-                    auflagerModell = null) {
+                    auflagerModell = null, starrModell = 'koerper') {
   const m = letzte.erg.modell;
   const deps = { berechne, modell, profOG: m.profOG, profUG: m.profUG,
                  stahl: m.stahl, joch: m.joch };
-  const o = { knotenmodell, schottAusblenden,
+  const o = { knotenmodell, schottAusblenden, starrModell,
               auflagerModell: auflagerModell ?? auflagerVorgabe(m) };
   if (format === 'json') return exportiereJson(werte, deps, o);
   if (format === 'dxf') return exportiereDxf(werte, deps, o);
