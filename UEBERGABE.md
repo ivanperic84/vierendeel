@@ -1234,8 +1234,17 @@ Technik festlegt.
 
 ## Bereit für Push und Versand
 
-**Ablage** — `git init` ist gelaufen, ein Stand ist eingecheckt, **kein Remote,
-kein Push**. Das bleibt Ihre Entscheidung.
+**Ablage** — die Ablage liegt seit dem 24. August auf GitHub, **öffentlich**,
+auf Weisung des Auftraggebers. Vorher lag dort eine hochgeladene, gebündelte
+Fassung (`index.html` als umbenanntes `vierendeel_tool_ohne_daten.html`, dazu
+das Handbuch) mit eigener, unverwandter Geschichte; sie ist beim Push
+überschrieben worden — ebenfalls auf Weisung. Der alte Stand liegt örtlich im
+Zweig `github-stand-vor-push`, beide Dateien sind aus der Anwendung
+reproduzierbar.
+
+Ausgeliefert wird damit jetzt die **Modulversion**: `index.html` lädt `js/`
+und `css/` nach. `data/` bleibt draussen, die Anwendung fragt also beim Start
+nach dem Datenpaket — der Weg ist durchgespielt (siehe unten).
 
 58 Dateien, geprüft auf Betreiberbezüge: **keine**. Draussen bleiben über
 `.gitignore`:
