@@ -1433,8 +1433,32 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <td class="num ${ampel(e.eta)}">${f3(e.eta)}</td>
     </tr>`;
 
-  node.innerHTML = `
-    ${abschnitt('Lage des Schnitts', `Feld ${sn.feld + 1} von ${sn.anzahlSchnitte}`)}
+  /*
+   * DER STEUERBLOCK BLEIBT STEHEN.
+   *
+   * Jede Bedienung hier rechnet neu, und das Rechnen zeichnet dieses Blatt
+   * neu - der Knoten, den man gerade bedient, wurde dabei unter der Hand
+   * ersetzt. An der Auswahlliste sah man das im Edge als Aufblinken; am
+   * Schieber riss es den Zug ab, sobald die erste Rechnung durch war.
+   *
+   * Deshalb zwei Teile: oben die Bedienung, die stehen bleibt, unten die
+   * Zahlen, die sich bei jeder Rechnung erneuern. Neu gebaut wird die
+   * Bedienung nur, wenn sich ihre STRUKTUR ändert - die Zahl der Felder
+   * (Schieberende) oder die Liste der Orientierungen. Dieselbe Regel wie bei
+   * der Eingabemaske (maskenSignatur) und beim Lastfall-Wähler.
+   */
+  const erklaerungHtml = () => `
+      <p class="notiz" style="margin-top:0">${esc(oBeschr)}</p>
+      <p class="notiz">Der Schnitt liegt immer <b>mittig zwischen zwei Bindeblechen</b>
+        (hier ${f2(sn.feldVon)} … ${f2(sn.feldBis)} m). Nur dort schneidet man die Gurte
+        im Feld und nicht durch einen Rahmenknoten – erst so lassen sich die
+        Schnittkräfte je Gurt eindeutig angeben. Massgebendes Blech an der Station
+        x = ${f2(sn.stationX)} m · Bleche
+        ${m.blechQuelle === 'datenbank' ? 'aus Typendatenbank' : 'manuell'}.</p>`;
+
+  const steuerHtml = `
+    ${abschnitt('Lage des Schnitts',
+      `<span id="schnitt-feldmeta">Feld ${sn.feld + 1} von ${sn.anzahlSchnitte}</span>`)}
     <label class="schalter schnitt-an"><input type="checkbox" id="schnitt-aktiv"
       ${aktiv ? 'checked' : ''}><span>Schnitt im Modell zeigen</span></label>
     <div class="schnitt-steuer">
@@ -1442,21 +1466,16 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <input type="range" id="schnitt-schieber" min="0" max="${sn.anzahlSchnitte - 1}"
              step="1" value="${sn.feld}">
       <button class="btn btn-mini" data-schnitt="+1" title="ein Feld nach rechts">▶</button>
-      <span class="viewer-marke">x = ${f2(sn.x)} m</span>
+      <span class="viewer-marke" id="schnitt-x">x = ${f2(sn.x)} m</span>
     </div>
     <div class="feld"><label for="schnitt-orient">Orientierung im Modell</label>
       <select id="schnitt-orient">${SCHNITT_ORIENTIERUNGEN.map((o) =>
         `<option value="${esc(o.key)}"${o.key === orient ? ' selected' : ''}
           >${esc(o.label)}</option>`).join('')}</select></div>
-    ${klapp('schnitt-erklaerung', 'Warum hier geschnitten wird', `
-      <p class="notiz" style="margin-top:0">${esc(oBeschr)}</p>
-      <p class="notiz">Der Schnitt liegt immer <b>mittig zwischen zwei Bindeblechen</b>
-        (hier ${f2(sn.feldVon)} … ${f2(sn.feldBis)} m). Nur dort schneidet man die Gurte
-        im Feld und nicht durch einen Rahmenknoten – erst so lassen sich die
-        Schnittkräfte je Gurt eindeutig angeben. Massgebendes Blech an der Station
-        x = ${f2(sn.stationX)} m · Bleche
-        ${m.blechQuelle === 'datenbank' ? 'aus Typendatenbank' : 'manuell'}.</p>`)}
+    ${klapp('schnitt-erklaerung', 'Warum hier geschnitten wird',
+      `<div id="schnitt-erklaerung-text">${erklaerungHtml()}</div>`)}`;
 
+  const zahlenHtml = `
     <div class="kennzahlen">
       ${kachel('M_y,ed', f2(sn.My), 'kNm')}
       ${kachel('V_z,ed', f2(sn.Vz), 'kN')}
@@ -1513,19 +1532,50 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       `max η ${f3(Math.max(...(sn.nachbarn?.links?.ebenen ?? sn.ebenen)
         .filter((e) => !e.blechFehlt).map((e) => e.eta)))}`, true)}`;
 
-  // Schnitt verschieben: Schieber und die beiden Pfeile
-  const s = node.querySelector('#schnitt-schieber');
-  if (s && beiSchnitt) {
-    s.addEventListener('input', () => beiSchnitt(+s.value));
-    node.querySelectorAll('[data-schnitt]').forEach((b) => {
-      b.addEventListener('click', () =>
-        beiSchnitt(Math.max(0, Math.min(+s.max, +s.value + (+b.dataset.schnitt)))));
-    });
+  const sig = JSON.stringify([sn.anzahlSchnitte,
+                              SCHNITT_ORIENTIERUNGEN.map((o) => o.key)]);
+  let st = node.querySelector('#schnitt-steuerung');
+
+  if (!st || st.dataset.sig !== sig) {
+    node.innerHTML =
+      `<div id="schnitt-steuerung">${steuerHtml}</div>
+       <div id="schnitt-zahlen">${zahlenHtml}</div>`;
+    st = node.querySelector('#schnitt-steuerung');
+    st.dataset.sig = sig;
+
+    // Verdrahtet wird nur beim Aufbau - die Knoten bleiben ja jetzt stehen.
+    const s = st.querySelector('#schnitt-schieber');
+    if (s && beiSchnitt) {
+      s.addEventListener('input', () => beiSchnitt(+s.value));
+      st.querySelectorAll('[data-schnitt]').forEach((b) => {
+        b.addEventListener('click', () =>
+          beiSchnitt(Math.max(0, Math.min(+s.max, +s.value + (+b.dataset.schnitt)))));
+      });
+    }
+    const o = st.querySelector('#schnitt-orient');
+    if (o && beiOrientierung) o.addEventListener('change', () => beiOrientierung(o.value));
+    const a = st.querySelector('#schnitt-aktiv');
+    if (a && beiAktiv) a.addEventListener('change', () => beiAktiv(a.checked));
+  } else {
+    node.querySelector('#schnitt-zahlen').innerHTML = zahlenHtml;
+
+    // Nachziehen, was sich an der stehenden Bedienung geändert hat. Nur bei
+    // Abweichung: einem Feld seinen eigenen Wert zurückzuschreiben setzt in
+    // manchen Browsern den Textcursor an den Anfang.
+    const setze = (wahl, feld, wert) => {
+      const e = st.querySelector(wahl);
+      if (e && e[feld] !== wert) e[feld] = wert;
+    };
+    setze('#schnitt-feldmeta', 'textContent',
+          `Feld ${sn.feld + 1} von ${sn.anzahlSchnitte}`);
+    setze('#schnitt-aktiv', 'checked', aktiv);
+    setze('#schnitt-schieber', 'value', String(sn.feld));
+    setze('#schnitt-x', 'textContent', `x = ${f2(sn.x)} m`);
+    setze('#schnitt-orient', 'value', orient);
+    const erk = st.querySelector('#schnitt-erklaerung-text');
+    if (erk) erk.innerHTML = erklaerungHtml();
   }
-  const o = node.querySelector('#schnitt-orient');
-  if (o && beiOrientierung) o.addEventListener('change', () => beiOrientierung(o.value));
-  const a = node.querySelector('#schnitt-aktiv');
-  if (a && beiAktiv) a.addEventListener('change', () => beiAktiv(a.checked));
+
   verdrahteKlapp(node);
 }
 

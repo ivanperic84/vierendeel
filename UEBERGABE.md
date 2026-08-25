@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1002 Kontrollen bestanden, 0 gefallen · Bundle 1009 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern**
+**Stand:** 1075 Kontrollen bestanden, 0 gefallen · Bundle 1013 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1002 Kontrollen
+node pruefung.mjs           # Prüfstand, 1075 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,97 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Der Schnitt im Modell und die angeschriebenen Werte (24. August)
+
+Beim Durchgehen der beiden Werkzeuge kamen zwei Fehler heraus und zwei
+Fragen, die der Auftraggeber entscheiden muss.
+
+#### Der Längsschnitt zeigte sieben von dreiunddreissig Blechen
+
+Der Nachweisschnitt kennt drei Orientierungen. **Quer** liegt an einer Stelle;
+ihn heranzuholen und das Joch dafür auf drei Felder aufzutrennen ist genau
+richtig. **Vertikal** und **horizontal** dagegen legen die Bleche *einer*
+Ebene über die ganze Spannweite frei — sie sind da, damit sich deren
+Schnittkräfte nebeneinander ablesen lassen.
+
+`zeigeSchnitt()` schnitt aber in allen drei Fällen auf ±2.13 m zu. Gemessen am
+Regeljoch: der Längsschnitt beschriftet **33 Bleche**, im Fenster lagen
+**sieben**. Die Schnittebene selbst ist vom Ausschnitt ausgenommen und lief
+deshalb sichtbar über das abgeschnittene Modell hinaus ins Leere.
+
+Jetzt entscheidet die Orientierung: quer wird herangefahren, längs zeigt das
+ganze Joch — und zwar von der Seite bzw. von oben, denn nur so stehen die
+Bleche flächig im Bild und ihre Beschriftungen in einer Reihe. Der
+Orientierungswechsel richtet die Ansicht mit aus; bisher blieb schlicht
+stehen, was vorher da war.
+
+**Nur einmal, nicht bei jedem Klick.** Der Feldschieber ruft bei jedem Schritt
+in `zeigeSchnitt()` herein. Beim Längsschnitt ändert er aber nur die Stelle
+der Auswertung, nicht das Bild — bedingungslos geschwenkt hätte es einem die
+Ansicht bei jedem Klick zurückgerissen.
+
+#### Aus 118 wurde am Bildrand ein lesbares 18
+
+`_werte` setzte die Zahl an den Schwerpunkt der projizierten Fläche, ohne zu
+prüfen, ob sie noch aufs Bild passt. Am Rand schnitt der Canvas sie ab. Eine
+halbe Zahl ist schlimmer als keine: das Bauteil dazu liegt ohnehin halb
+draussen. `_imBild()` misst jetzt dasselbe Rechteck, das `_beschriftung()`
+zeichnet, und lässt weg, was nicht ganz hineinpasst.
+
+Dabei fiel ein zweites Sieb auf: `_werte` prüfte den Ausschnitt nach
+`punkte[0][0]`, während die Flächen zuvor nach `f.xMitte` gesiebt wurden. Der
+erste Eckpunkt eines Gurtstücks liegt bis zu einer halben Feldweite neben
+seiner Mitte — am Rand des Ausschnitts fielen dadurch Zahlen von Bauteilen
+weg, die sehr wohl im Bild standen.
+
+#### Vier Zeichengänge, vier eigene Freihaltelisten
+
+`V V_L = 1.8 kN` legte sich im Längsschnitt quer über genau die Blechzeile,
+die man dort lesen will. Grund: `_marken` und `_masse` teilen sich eine
+Freihalteliste (`this._belegt`) und weichen einander aus — die
+Pfeilbeschriftungen (`_vektoren`) und die angeschriebenen Werte (`_werte`)
+führten dagegen je eine **eigene**. Jeder wich nur sich selbst aus und schrieb
+den anderen quer darüber.
+
+Die Rangfolge hat der Auftraggeber festgelegt: **Bemassung und Marken
+gewinnen, Pfeile und Werte weichen aus.**
+
+Ausweichen kann aber nur, wer *nach* dem anderen zeichnet — und die Pfeiltexte
+kamen bisher zuerst. Deshalb zeichnet `_vektoren` jetzt nur noch die **Pfeile**
+und legt seine Texte beiseite; Marken und Bemassung belegen unterdessen ihre
+Plätze, und ein neuer Gang `_texte()` setzt zum Schluss, was frei geblieben
+ist:
+
+| Rang | Gang | warum dort |
+|---|---|---|
+| 1 | Bemassung | anklickbar, führt in ihr Eingabefeld |
+| 2 | Marken | Auflager, Anbauteile, Blechspannungen |
+| 3 | Pfeiltexte | die Grösse einer Last |
+| 4 | Werte | stehen ohnehin schon als Farbe am Bauteil |
+
+Der **Abstand der Werte unter sich** bleibt dabei unverändert (das gewohnte
+Raster von 42 × 13 px) — geändert hat sich nur, dass sie den anderen dreien
+ausweichen.
+
+#### Eine Frage bleibt offen
+
+**Wie dicht dürfen die angeschriebenen Werte stehen?** `_werte` setzt höchstens
+60 Zahlen mit festem Raster, unabhängig von der Zoomstufe. `_markenBudget()`
+gibt es bereits und rechnet genau das aus dem Massstab aus — es wird hier
+nicht benutzt.
+
+#### Und ein Fehler, den erst die Reparatur erzeugte
+
+`zeigeSchnitt()` ändert beim Längsschnitt die Blickrichtung, läuft aber **nach**
+`neuRechnen()` — und dort ist die Werkzeugleiste bereits gezeichnet. Im
+Blick-Feld leuchtete deshalb noch die vorige Richtung: die Kamera stand
+richtig, die Anzeige log. `zeigeSchnittImModell()` zieht die Leiste nach.
+
+Prüfstand: Abschnitt 29, **24 neue Kontrollen** (Ausdehnung der Schnittebene je
+Orientierung, Blechmarken über die Länge, Entscheidung in `zeigeSchnitt`, kein
+zweiter Schwenk, Randprüfung der Beschriftung, Reihenfolge der Zeichengänge,
+Ausweichen gegen einen belegten Platz).
 
 ### Navigation im Modell und die installierte Fassung (24. August)
 
@@ -62,6 +153,190 @@ Drei Dinge, die dabei zu bedenken waren:
   Zwei Wege für dieselbe Geste hiessen zwei Verhalten.
 * **`setPointerCapture` kann werfen**, wenn der Zeiger schon wieder weg ist.
   Ohne Fang weiterlaufen ist besser als mitten in der Geste abzubrechen.
+
+#### Bewegung: nichts springt
+
+Auf Wunsch des Auftraggebers fährt jetzt jeder Zustandswechsel, den man sonst
+nur als «vorher / nachher» sähe:
+
+| | vorher | jetzt |
+|---|---|---|
+| Dialog | erschien und verschwand schlagartig | fährt auf und zu; das Wegräumen wartet auf die Bewegung |
+| Bannerschublade | fuhr auf, war aber plötzlich weg | fährt auch zu |
+| Reiter | der Unterstrich sprang von durchsichtig auf Farbe | läuft mit |
+| Nachweispillen | Farbstreifen sprang | läuft in 0.22 s |
+| Fassungsbalken | stand plötzlich da | fährt von unten herein |
+
+**Zwei Grenzen, die dabei gelten und im Stylesheet stehen:**
+
+* **Zahlen werden nicht gefahren.** Ein η, das von 0.58 auf 1.33 hochzählt,
+  zeigt unterwegs Werte, die nie gerechnet wurden — in einem Nachweiswerkzeug
+  ist das keine Zierde, sondern eine Falschaussage. Bewegt wird die **Farbe**
+  und die **Lage** einer Anzeige, nie ihre Ziffer.
+* **Das Arbeitsblatt wird nicht überblendet.** Auswertung und Maske bauen sich
+  bei jedem Rechnen neu auf, und gerechnet wird beim Ziehen eines Schiebers
+  sechzigmal in der Sekunde. Eine Überblendung darüber wäre Schmieren, nicht
+  Führen.
+
+**`prefers-reduced-motion` wird geachtet** — abgeschaltet wird aber auf einen
+Wimpernschlag (0.01 ms) und nicht auf null: bei `0s` fällt in manchen Browsern
+`transitionend` aus, und daran hängt `weich()` beim Ein- und Ausklappen der
+Bereiche. Der Bereich bliebe sonst in der Klasse `animiert` stehen.
+
+**Eine Dauer an zwei Orten** — im Skript (`DIALOG_ZU_MS`, `SCHUBLADE_ZU_MS`)
+und im Stylesheet. Laufen sie auseinander, räumt das Skript zu früh weg (es
+springt doch) oder zu spät (es hängt). Der Prüfstand liest beide Zahlen aus
+den Dateien und vergleicht sie: 140 ms und 160 ms.
+
+Am laufenden Programm nachgemessen: Dialog auf, Dialog zu, weggeräumt; ein
+zweiter Dialog, der 40 ms nach dem Schliessen des ersten aufgeht, wird vom
+nachlaufenden Zeitgeber **nicht** mitgerissen; Schublade auf, zu, verborgen;
+Escape räumt über denselben Weg auf.
+
+Prüfstand: Abschnitt 31, **22 neue Kontrollen**.
+
+#### Der Lastfall-Wähler baute sich beim Wählen selbst neu
+
+Im Edge blinkte die Auswahlliste beim Anklicken auf. Der Grund ist kein
+Darstellungsfehler des Browsers, sondern ein Kreis in der Verdrahtung:
+
+```
+onchange  →  neuRechnen()  →  zeichneEinwirkungswahl()  →  n.innerHTML = …
+```
+
+Der `<select>`-Knoten wurde also zerstört und neu erzeugt — mitten in die
+eben erst geschlossene Liste hinein. Im Chrome fällt das kaum auf, im Edge
+blendet die Liste beim Schliessen nach, und der Knotentausch wird als
+Aufblinken sichtbar.
+
+Dieselbe Regel, die für die Eingabemaske längst gilt (`maskenSignatur`: solange
+sich die Struktur nicht ändert, bleiben die Felder stehen), gilt jetzt auch
+hier. Die Struktur ist die Liste der Lastfälle; ändert sie sich nicht, wird nur
+der gewählte Punkt nachgezogen. Nachgemessen über vier Wechsel: **kein
+Knotentausch**. Und die Liste bleibt trotzdem lebendig — Schnee ein: 14 → 19
+Lastfälle, Schnee aus: wieder 14.
+
+Dazu eine Kleinigkeit im Stylesheet: der Grund eines Feldes wechselte beim
+Fokussieren hart um eine Stufe, weil nur die Randfarbe geführt wurde. Jetzt
+läuft beides über denselben Übergang.
+
+**Und dieselbe Ursache auf dem Schnittblatt.** Dort war es die Auswahlliste
+*Orientierung im Modell* — und der Feldschieber gleich mit: `zeichneSchnitt()`
+baute das ganze Blatt neu, also auch den Knoten, den man gerade bediente. An
+der Liste blinkte es, am Schieber riss der Zug ab, sobald die erste Rechnung
+durch war.
+
+Das Blatt ist jetzt zweigeteilt: oben `#schnitt-steuerung`, das **stehen
+bleibt**, unten `#schnitt-zahlen`, das sich bei jeder Rechnung erneuert. Neu
+gebaut wird die Bedienung nur bei geänderter Struktur — andere Feldzahl
+(Schieberende) oder andere Orientierungsliste. Verdrahtet wird dabei nur
+einmal; sonst hingen nach zehn Rechnungen zehn Zuhörer am selben Schieber.
+
+Nachgemessen: Orientierung dreimal wechseln, Schieber dreimal bewegen —
+**derselbe Knoten** durchweg, und die Anschriften ziehen nach («Feld 15 von
+28», «x = 10.35 m»). Jochlänge 20 → 12 m: Feldzahl 28 → 16, Schieberende
+27 → 15, Bedienung **neu gebaut**.
+
+#### Die Karte fuhr auf dem Layout statt auf dem Compositor
+
+Die verschiebbare Legende setzte bei **jeder** Zeigerbewegung `left` und
+`top`. Zwei Dinge daran kosten:
+
+* `left/top` heisst Layout — der Browser rechnet neu, wo alles liegt, für
+  einen Kasten, der sich nur verschiebt. Ein `transform` ist Sache des
+  Compositors und kostet keins.
+* Ein Zeiger schickt mehr Ereignisse, als der Bildschirm Bilder zeigt. Jedes
+  sofort auszuführen heisst, mehrfach für dasselbe Bild zu arbeiten.
+
+Jetzt fährt die Karte über `translate3d`, und geschrieben wird **höchstens
+einmal je Bild**; festgeschrieben wird `left/top` erst beim Loslassen, denn
+die gemerkte Lage muss ohne Versatz gelten. Nachgemessen mit 24 Bewegungen in
+einem Bild: **null** Schreibvorgänge während der Ereignisse, danach ein
+einziges `translate3d(−120px, −48px, 0)`.
+
+Dabei mit herausgefallen: ein blosser Klick auf den Griff löste die Karte aus
+der Ecke, ohne dass man sie bewegt hatte. Jetzt zählt sie erst ab zwei Pixeln
+Weg als verschoben. Und abgebrochene Zeiger (`pointercancel`) räumen mit auf.
+
+**Die Schublade** fährt länger und weicher — 0.3 s statt 0.2 s, ein grösserer
+Weg und eine Kurve, die sanft ausbremst statt am Ende noch Tempo zu haben.
+
+#### Die Hauptschalter waren Zierrat
+
+«Lasten aus» liess die Wind- und Schneeflächen stehen. Der Grund reicht
+weiter: nach den drei Hauptschaltern der Werkzeuggruppen fragten nur einzelne
+Zeichengänge — die Kraftpfeile und ein Teil der Marken. Die **Volumenkörper**
+und die **Lastflächen** taten es nicht. Mit allen drei Schaltern aus stand das
+Joch samt Wind- und Schneefläche unverändert im Bild.
+
+Statt die eine gemeldete Stelle zu flicken, hängt jede Ebene jetzt an einer
+Tabelle (`HAUPTSCHALTER`) und einer Prüfung (`_ebeneAn`) — an einer Stelle
+statt an sieben:
+
+| Gruppe | Ebenen |
+|---|---|
+| Modell | Gurtprofile, Bindebleche, Schwerachsen, Auflager, Bemassung, Bodenraster |
+| Lasten | Lastflächen, Lastpfeile, Lastwürfel der Anbauteile |
+| Resultate | Schnittkräfte, Schnittebene |
+
+Was dort nicht steht (`marken`, `anbau`), hat keinen Hauptschalter über sich
+und folgt allein seinem Einzelschalter — wie bisher.
+
+Nachgemessen am Anteil bemalter Bildpunkte: 93 ‰ mit allem, 76 ‰ ohne Modell,
+68 ‰ ohne Lasten, 84 ‰ ohne Resultate — und **0 ‰ mit allen dreien aus**. Der
+Einzelschalter behält dabei das letzte Wort in die andere Richtung: was er
+ausschaltet, bleibt aus, auch wenn die Gruppe an ist.
+
+
+**Und die Anbauteile bleiben dabei stehen.** Sie lagen bisher mit in der Ebene
+`last` und verschwanden mit ihr — wer die Lasten global abstellte, um das Joch
+zu sehen, verlor damit auch den *Weg*, auf dem die Last hereinkommt: Ständer,
+Ausleger, Traverse. Die sind aber Tragwerk, keine Last.
+
+Der Körper hat deshalb eine eigene Ebene `anbau` in der Gruppe **Modell**, mit
+eigenem Schalter. In der Ebene `last` bleibt nur, was die Last selbst
+darstellt:
+
+| bleibt bei «Lasten aus» | geht mit |
+|---|---|
+| Ständer, Ausleger, Traverse, Anschlüsse (180 Flächen) | Würfel am Angriffspunkt (48 Flächen) |
+| Positionsnummer A1, A2, … | Lastknoten-Marke, Kraftpfeile, Lastflächen |
+
+Nachgemessen mit vier Baugruppen am Joch: 147 ‰ bemalt mit allem, 105 ‰ ohne
+Lasten, 100 ‰ ohne Lasten *und* ohne Anbauteile.
+
+Eine Falle steckt darin, und der Prüfstand ist zuerst hineingelaufen: eine
+Ebene, die in `HAUPTSCHALTER` steht, aber keinen Anfangswert in `this.ebenen`
+hat, ist von Anfang an unsichtbar — `_ebeneAn` liest `undefined` und antwortet
+nein. Eine Kontrolle vergleicht die beiden Listen jetzt.
+
+Prüfstand: Abschnitt 30, **23 neue Kontrollen**.
+
+#### Das Drehen war spiegelverkehrt — auf einer Achse
+
+Beim Drehen folgte das Modell der Hand nur **senkrecht**. Waagrecht lief es
+ihr entgegen: `az -= dx` dreht die *Kamera* in die Zugrichtung, und damit das
+Modell dagegen. Dass die beiden Achsen sich widersprachen, ist das, was sich
+spiegelverkehrt anfühlt — eine Diagonalbewegung kippte das Modell in eine
+Richtung, die mit keiner der beiden zu tun hatte.
+
+Nachgerechnet über `_projektor()` am zugewandten Punkt `Ziel + vor·r`, also an
+genau der Stelle, die man beim Ziehen anfasst:
+
+| gezogen | Bildpunkt vorher | nachher |
+|---|---|---|
+| 60 px nach rechts | **−88 px** (entgegen) | **+88 px** (folgt) |
+| 60 px nach unten | +96 px (folgt) | +96 px (folgt) |
+
+Ein Vorzeichen, `az += dx * s`. Am laufenden Modell nachgemessen: ein Zug von
+160 px nach rechts verschiebt den Helligkeitsschwerpunkt um 194 Gerätepixel
+nach rechts.
+
+**Warum das so lange durchging:** die Prüfung dazu lautete «nach rechts
+gezogen dreht sich die Ansicht» und sah nur, *dass* sich `az` ändert — nicht,
+*wohin* sich das Bild bewegt. Sie steht jetzt am Projektor und prüft alle vier
+Zugrichtungen einzeln, dazu die gleiche Empfindlichkeit beider Achsen
+(88 px waagrecht gegen 96 px senkrecht).
 
 #### Gezoomt wird auf den Zeiger, nicht auf die Mitte
 
@@ -1470,7 +1745,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1002 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1075 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

@@ -386,6 +386,13 @@ function aendern(key, wert) {
     station = null;
   }
   neuRechnen();
+  // Die Orientierung entscheidet, WAS man sehen muss: der Querschnitt liegt an
+  // einer Stelle, der Laengsschnitt laeuft ueber die ganze Spannweite. Ohne
+  // das hier blieb nach dem Umschalten der Ausschnitt der vorigen Orientierung
+  // stehen - beim Laengsschnitt sieben Bleche von dreiunddreissig.
+  if (key === 'schnittOrientierung' && werte.schnittAktiv) {
+    zeigeSchnittImModell();
+  }
 }
 
 function setzeAnbauteile(liste) {
@@ -585,13 +592,26 @@ function dialogLastfall(key) {
 function schnittUmschalten(an) {
   werte = { ...werte, schnittAktiv: an };
   neuRechnen();
-  if (an) ansicht.zeigeSchnitt(schnittBreite());
+  if (an) zeigeSchnittImModell();
   else { station = null; ansicht.station = null; ansicht.ganzesJoch(); }
 }
 
 /** Ausschnitt um den Schnitt: drei Felder nach links und rechts. */
 const schnittBreite = () =>
   Math.max(1.6, (letzte?.erg.modell.a1eff ?? 0.75) * 3);
+
+/**
+ * Den Schnitt im Modell zeigen und die Werkzeugleiste nachziehen.
+ *
+ * zeigeSchnitt() kann die Blickrichtung aendern - beim Laengsschnitt tut es
+ * das - laeuft aber NACH neuRechnen(), und dort ist die Leiste bereits
+ * gezeichnet worden. Ohne das Nachziehen leuchtete im Blick-Feld noch die
+ * vorige Richtung: die Kamera stand richtig, die Anzeige log.
+ */
+function zeigeSchnittImModell() {
+  ansicht.zeigeSchnitt(schnittBreite());
+  if (ui.el('ebenen-tools')?.children.length) zeichneModellWerkzeuge();
+}
 
 // --- Anbauteile: Vorlagen, Lage, Generator ----------------------------------
 
@@ -893,7 +913,7 @@ function waehleSchnittfeld(feld) {
   werte = { ...werte, xNachweis: z.x };
   station = null;
   neuRechnen();
-  if (werte.schnittAktiv) ansicht.zeigeSchnitt(schnittBreite());
+  if (werte.schnittAktiv) zeigeSchnittImModell();
 }
 
 /** Aus der Ergebnisliste auf eine Stelle springen und dort heranzoomen. */
@@ -963,24 +983,40 @@ function aktualisiereProjektKnopf() {
  */
 let schubladeOffen = false;
 
+/** Dauer der Schliessbewegung der Schublade - dieselbe Zahl im Stylesheet. */
+const SCHUBLADE_ZU_MS = 220;
+
+/**
+ * Schublade zufahren lassen und erst danach verbergen.
+ * Sofort auf hidden gesetzt verschwände sie schlagartig - aufgefahren ist sie
+ * seit jeher gefahren, zugefahren war sie einfach weg.
+ */
+function schubladeZufahren() {
+  const n = ui.el('bannerschublade');
+  ui.el('btn-projekt').classList.remove('offen');
+  if (n.hidden) return;
+  n.classList.add('zu');
+  setTimeout(() => {
+    // Nur verbergen, wenn sie in der Zwischenzeit nicht wieder aufging.
+    if (!schubladeOffen) { n.hidden = true; n.classList.remove('zu'); }
+  }, SCHUBLADE_ZU_MS);
+}
+
 function schubladeUmschalten() {
   schubladeOffen = !schubladeOffen;
   if (schubladeOffen) zeichneSchublade();
-  else {
-    ui.el('bannerschublade').hidden = true;
-    ui.el('btn-projekt').classList.remove('offen');
-  }
+  else schubladeZufahren();
 }
 
 function schubladeSchliessen() {
   if (!schubladeOffen) return;
   schubladeOffen = false;
-  ui.el('bannerschublade').hidden = true;
-  ui.el('btn-projekt').classList.remove('offen');
+  schubladeZufahren();
 }
 
 async function zeichneSchublade() {
   const n = ui.el('bannerschublade');
+  n.classList.remove('zu');      // falls sie noch am Zufahren war
   n.hidden = false;
   ui.el('btn-projekt').classList.add('offen');
   n.innerHTML = '<p class="notiz">Ablage wird gelesen …</p>';
@@ -1152,6 +1188,12 @@ function dialogTragwerkVorlage() {
 const WZ_MODELL = [
   { key: 'profil', icon: 'profil', text: 'Gurtprofile' },
   { key: 'blech', icon: 'blech', text: 'Bindebleche' },
+  // Anbauteile stehen bei den Bauteilen, nicht bei den Lasten: sie SIND
+  // Tragwerk - der Weg, auf dem die Last ans Joch kommt. Wer die Lasten
+  // global abstellt, um das Joch zu sehen, will diesen Weg behalten. Was zur
+  // Last gehoert - der Wuerfel am Angriffspunkt und die Pfeile - bleibt
+  // drueben und geht mit ihr.
+  { key: 'anbau', icon: 'anbau', text: 'Anbauteile: Ständer, Ausleger, Traverse' },
   // Die Schwerachsen SIND das Stabmodell: sie tragen feldweise dieselben
   // Kennwerte wie die Volumenkörper und werden ebenso eingefärbt. Wer das
   // Stabmodell allein sehen will, schaltet Gurtprofile und Bindebleche ab -
@@ -1317,10 +1359,30 @@ function zeichneEinwirkungswahl() {
        `<option value="${esc(o.wert)}"${o.wert === jetzt ? ' selected' : ''}
          >${esc(o.text)}</option>`).join('')}</select>`;
 
+  // NICHT NEU BAUEN, WENN DIESELBE LISTE DASTEHT.
+  //
+  // Der Weg war ein Kreis: die Auswahl löst onchange aus, onchange rechnet,
+  // und das Rechnen ruft hierher zurück - mitten in die eben erst
+  // geschlossene Liste hinein. Der <select>-Knoten verschwand und ein neuer
+  // erschien; im Edge sieht man das als AUFBLINKEN, weil dessen Liste beim
+  // Schliessen noch nachblendet.
+  //
+  // Dieselbe Regel gilt schon für die Eingabemaske (siehe maskenSignatur):
+  // solange sich die Struktur nicht ändert, bleiben die Felder stehen. Hier
+  // ist die Struktur die Liste der Lastfälle - ändert sie sich nicht, wird
+  // nur der gewählte Punkt nachgezogen.
+  const sig = JSON.stringify(lf);
+  const steht = ui.el('wahl-einwirkung');
+  if (steht && steht.dataset.sig === sig) {
+    if (steht.value !== anzeigeKombi) steht.value = anzeigeKombi;
+    return;
+  }
+
   // Nur noch der Lastfall: die aufgetragene Grösse steht jetzt bei den
   // Werkzeugen unter «Resultate», wo sie neben den übrigen Darstellungsfragen
   // hingehört.
   n.innerHTML = wahl('wahl-einwirkung', 'Lastfall', lf, anzeigeKombi);
+  ui.el('wahl-einwirkung').dataset.sig = sig;
 
   ui.el('wahl-einwirkung').onchange = (e) => {
     anzeigeKombi = e.target.value;
@@ -1344,26 +1406,69 @@ function verdrahteLegendeZiehen(n) {
   griff.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    griff.setPointerCapture(e.pointerId);
+    try { griff.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
     const buehne = ui.el('viewer').getBoundingClientRect();
     const kasten = n.getBoundingClientRect();
     const dx = e.clientX - kasten.left, dy = e.clientY - kasten.top;
+    // Lage, von der aus verschoben wird. Ab hier bewegt nur noch der VERSATZ.
+    const start = { links: kasten.left - buehne.left, oben: kasten.top - buehne.top };
+    let ziel = { ...start };
+    let angefordert = 0;
+    let bewegt = false;
+    n.classList.add('zieht');
+
+    /*
+     * WARUM VERSATZ UND NICHT left/top.
+     *
+     * left/top zu setzen heisst, den Browser bei jeder Zeigerbewegung neu
+     * rechnen zu lassen, wo alles liegt - für einen Kasten, der sich nur
+     * verschiebt. Ein transform ist dagegen Sache des Compositors und kostet
+     * kein Layout. Festgeschrieben wird erst am Schluss, denn die gemerkte
+     * Lage muss ohne Versatz gelten.
+     *
+     * UND HÖCHSTENS EIN SCHREIBEN JE BILD. Ein Zeiger schickt mehr
+     * Ereignisse, als der Bildschirm Bilder zeigt; jedes davon sofort
+     * auszuführen heisst, mehrfach für dasselbe Bild zu arbeiten. Genau das
+     * ruckelt.
+     */
+    const male = () => {
+      angefordert = 0;
+      n.style.transform =
+        `translate3d(${ziel.links - start.links}px, ${ziel.oben - start.oben}px, 0)`;
+    };
     const bewegen = (ev) => {
-      const links = Math.max(4, Math.min(buehne.width - kasten.width - 4,
-                                         ev.clientX - buehne.left - dx));
-      const oben = Math.max(4, Math.min(buehne.height - kasten.height - 4,
-                                        ev.clientY - buehne.top - dy));
-      legendeLage = { links, oben };
-      n.classList.add('gezogen');
-      n.style.left = `${links}px`;
-      n.style.top = `${oben}px`;
+      ziel = {
+        links: Math.max(4, Math.min(buehne.width - kasten.width - 4,
+                                    ev.clientX - buehne.left - dx)),
+        oben: Math.max(4, Math.min(buehne.height - kasten.height - 4,
+                                   ev.clientY - buehne.top - dy)),
+      };
+      // Erst wenn wirklich gezogen wurde, gilt die Legende als verschoben -
+      // ein blosser Klick auf den Griff soll sie nicht aus der Ecke lösen.
+      if (!bewegt && (Math.abs(ziel.links - start.links) > 2 ||
+                      Math.abs(ziel.oben - start.oben) > 2)) {
+        bewegt = true;
+        n.classList.add('gezogen');
+        n.style.left = `${start.links}px`;
+        n.style.top = `${start.oben}px`;
+      }
+      if (bewegt && !angefordert) angefordert = requestAnimationFrame(male);
     };
     const ende = () => {
+      if (angefordert) { cancelAnimationFrame(angefordert); angefordert = 0; }
       griff.removeEventListener('pointermove', bewegen);
       griff.removeEventListener('pointerup', ende);
+      griff.removeEventListener('pointercancel', ende);
+      n.classList.remove('zieht');
+      n.style.transform = '';
+      if (!bewegt) return;
+      legendeLage = ziel;
+      n.style.left = `${ziel.links}px`;
+      n.style.top = `${ziel.oben}px`;
     };
     griff.addEventListener('pointermove', bewegen);
     griff.addEventListener('pointerup', ende);
+    griff.addEventListener('pointercancel', ende);
   });
   griff.addEventListener('dblclick', () => {
     legendeLage = null;
@@ -1557,12 +1662,13 @@ function zeichneSchienen() {
   if (!r) return;
   const e = letzte?.anzeige;
   const stufe = (v) => (v > 1 ? 'nok' : v > 0.9 ? 'warn' : 'ok');
-  // η gesamt zuoberst der Pillen, darunter die drei Einzelnachweise.
+  // Die drei Einzelnachweise. η gesamt stand hier zuoberst und ist weg: es
+  // sagt nichts, was diese drei nicht schon sagen - es IST das grösste von
+  // ihnen -, und in der Fusszeile steht es ohnehin mitsamt Urteil.
   const nw = e ? [
-    ['η', e.max.etaGesamt, 'Ausnutzung gesamt', true],
-    ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`, false],
-    ['UG', e.max.etaUG.ug.eta, `Untergurt ${e.modell.profUG.name}`, false],
-    ['Bl', e.max.etaB.etaB, 'Bindeblech, massgebende Ebene', false],
+    ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`],
+    ['UG', e.max.etaUG.ug.eta, `Untergurt ${e.modell.profUG.name}`],
+    ['Bl', e.max.etaB.etaB, 'Bindeblech, massgebende Ebene'],
   ] : [];
 
   // Die Reiter stehen oben, die Nachweise darunter: oben sucht man den Weg
@@ -1573,8 +1679,8 @@ function zeichneSchienen() {
     ui.AUSWERTUNG_TABS
       .map((t) => knopf(t.id, t.icon, `${t.titel} öffnen`, t.id === tabAuswertung)).join('') +
     (e ? '<div class="schiene-trenner"></div>' +
-         `<div class="schiene-nw">${nw.map(([k, v, titel, gross]) =>
-           `<div class="${stufe(v)}${gross ? ' gesamt' : ''}"
+         `<div class="schiene-nw">${nw.map(([k, v, titel]) =>
+           `<div class="${stufe(v)}"
                  title="${esc(titel)}: η = ${v.toFixed(3)}">
               <span class="senkrecht"><i>${k}</i><b>${v.toFixed(2)}</b></span>
             </div>`).join('')}</div>` : '');
@@ -1617,15 +1723,38 @@ function verdrahteAblegen() {
 
 // --- Ablage -----------------------------------------------------------------
 
+/**
+ * Laufende Nummer des offenen Dialogs.
+ *
+ * Gebraucht, weil das Wegräumen jetzt erst NACH der Schliessbewegung
+ * geschieht: öffnet in der Zwischenzeit ein anderer Dialog, darf der
+ * nachlaufende Zeitgeber ihn nicht mitnehmen. Er räumt nur weg, was er
+ * selbst aufgemacht hat.
+ */
+let dialogLauf = 0;
+/** Dauer der Schliessbewegung - dieselbe Zahl steht im Stylesheet. */
+const DIALOG_ZU_MS = 140;
+
 function dialog(titel, koerper, knoepfe, klasse = '') {
   const n = ui.el('ueberlagerung');
+  const meins = ++dialogLauf;
+  n.classList.remove('zu');
   n.innerHTML = `<div class="scrim"><div class="dialog${klasse ? ' ' + klasse : ''}">
     <div class="dialog-kopf"><h2>${esc(titel)}</h2>
       <button class="btn btn-mini" data-zu>Schliessen</button></div>
     <div class="dialog-koerper">${koerper}</div>
     <div class="dialog-fuss">${knoepfe}</div>
   </div></div>`;
-  const zu = () => { n.innerHTML = ''; document.body.classList.remove('druck-handbuch'); };
+  const zu = () => {
+    if (dialogLauf !== meins) return;      // längst ein anderer da
+    n.classList.add('zu');
+    document.body.classList.remove('druck-handbuch');
+    setTimeout(() => {
+      if (dialogLauf !== meins) return;
+      n.innerHTML = '';
+      n.classList.remove('zu');
+    }, DIALOG_ZU_MS);
+  };
   // ALLE, nicht nur den ersten: der erste ist immer das Kreuz in der
   // Kopfzeile, und ein «Abbrechen» im Fuss blieb bisher ohne Wirkung.
   n.querySelectorAll('[data-zu]').forEach((b) => { b.onclick = zu; });

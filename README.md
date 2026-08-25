@@ -528,6 +528,10 @@ dieselben vier Bewegungen aus:
 | **Finger** | ein Finger | zwei Finger wischen | zwei Finger kneifen | Doppeltipp |
 | **Tastatur** | Pfeile | Umschalt + Pfeile | `+` / `−` | `0` = ganzes Joch |
 
+Das Modell **folgt dabei der Hand**: wer die zugewandte Seite nach rechts
+zieht, sieht sie nach rechts wandern — wie beim Drehen eines Werkstücks, das
+man in der Hand hält. Auf beiden Achsen gleich.
+
 Zwei Feinheiten, die man nicht sieht, aber merkt:
 
 * **Gedreht wird um die Bildmitte, gezoomt auf den Zeiger.** Um die Mitte zu
@@ -548,9 +552,22 @@ Anbauteil, dessen Karte sich dann öffnet.
 | Gruppe | Inhalt |
 |---|---|
 | Blick | Isometrie, Längs, Quer, Draufsicht |
-| Modell | Gurtprofile, Bindebleche, Schwerachsen, Stabmodell, Bemassung, Bodenraster |
+| Modell | Gurtprofile, Bindebleche, **Anbauteile**, Schwerachsen, Auflager, Bemassung, Bodenraster |
 | Lasten | Lasten überhaupt · Ständige · Leiterzugkräfte · Wind x · Wind y · Schnee |
 | Resultate | Schnittkräfte, Schnittebene, aufgetragene Grösse (η, σ_v, σ, M, V, Positionen, Bauteile) |
+
+**Der Nachweisschnitt hat drei Orientierungen**, und sie zeigen Verschiedenes:
+
+| | was sie freilegt | wie das Modell dazu steht |
+|---|---|---|
+| **quer** | den Querschnitt an der Nachweisstelle | herangefahren, auf drei Felder aufgetrennt |
+| **vertikal** | die stehenden Bindebleche über die ganze Länge | ganzes Joch, von der Seite |
+| **horizontal** | die liegenden Bindebleche des Obergurts | ganzes Joch, von oben |
+
+Die beiden Längsschnitte ändern die **Rechnung nicht**. Sie beschriften jedes
+Blech ihrer Ebene mit σ_v und η, damit sich die Werte über die Spannweite
+nebeneinander lesen lassen — deshalb steht dort das ganze Joch im Bild und
+nicht ein Ausschnitt.
 
 Die **Lastarten** sind nicht dasselbe wie die Einwirkungsgruppen der Rechnung:
 die Umlenkkraft läuft rechnerisch in der Gruppe `G`, ist beim Betrachten aber
@@ -559,8 +576,17 @@ Art hat ihre Farbe, sodass im Bild ablesbar ist, woher eine Kraft kommt.
 
 Jede der drei Gruppen **Modell / Lasten / Resultate** hat in ihrer Kopfzeile
 einen **Hauptschalter**. Ausgeschaltet verschwindet die ganze Gruppe aus dem
-Bild, ihre Einzelschalter bleiben aber ausgegraut stehen — man sieht, dass sie
-da sind und gerade nicht gelten, statt sie zu suchen.
+Bild — bei *Lasten* also auch die Wind- und Schneeflächen, nicht nur die
+Pfeile —, ihre Einzelschalter bleiben aber ausgegraut stehen: man sieht, dass
+sie da sind und gerade nicht gelten, statt sie zu suchen. Umgekehrt behält der
+Einzelschalter das letzte Wort: was er ausschaltet, bleibt aus, auch wenn die
+Gruppe an ist.
+
+**Die Anbauteile stehen bei den Bauteilen, nicht bei den Lasten.** Ständer,
+Ausleger und Traverse sind Tragwerk — der Weg, auf dem die Last ans Joch
+kommt. Wer die Lasten abstellt, um das Joch zu betrachten, behält sie deshalb.
+Was zur Last gehört — der Würfel am Angriffspunkt, die Kraftpfeile, die Wind-
+und Schneeflächen — geht mit den Lasten.
 
 **Die Layersteuerung folgt dem Lastfall.** Ein Lastfall, dessen Beiwert für eine
 Einwirkung 0 ist, zeigt von dieser Einwirkung nichts. Einen Schalter anbieten zu

@@ -4026,11 +4026,43 @@ titel('27  Navigation im Modell: schieben, drehen, auf den Zeiger zoomen');
   }
 
   // --- Drehen ---------------------------------------------------------------
+  // DAS MODELL FOLGT DER HAND, auf BEIDEN Achsen. Geprüft wird das nicht am
+  // Winkel, sondern am Bild: wohin wandert der Punkt, den man beim Ziehen
+  // anfasst - der zugewandte, Ziel + vor·r?
+  //
+  // Eine Bedingung über az allein taugt dafür nicht: sie sagt nur, dass sich
+  // etwas ändert, nicht wohin es sich bewegt. Genau darum blieb jahrelang
+  // unbemerkt, dass waagrecht der Hand ENTGEGENlief, während senkrecht ihr
+  // folgte - das Drehen war spiegelverkehrt.
   {
+    const zugewandt = (a, r = 3) => {
+      const { vor } = a._basis();
+      return a._blickziel().map((v, i) => v + vor[i] * r);
+    };
+    const zug = (dx, dy) => {
+      const a = ansicht(JOCH);
+      const P = zugewandt(a);
+      const s0 = a._projektor()(P);
+      a._drehe(dx, dy);
+      const s1 = a._projektor()(P);
+      return [s1[0] - s0[0], s1[1] - s0[1]];
+    };
+    wahr('Nach rechts gezogen wandert die zugewandte Seite nach rechts',
+         zug(60, 0)[0] > 20, `${zug(60, 0)[0].toFixed(0)} px`);
+    wahr('Nach links gezogen nach links',
+         zug(-60, 0)[0] < -20, `${zug(-60, 0)[0].toFixed(0)} px`);
+    wahr('Nach unten gezogen nach unten',
+         zug(0, 60)[1] > 20, `${zug(0, 60)[1].toFixed(0)} px`);
+    wahr('Nach oben gezogen nach oben',
+         zug(0, -60)[1] < -20, `${zug(0, -60)[1].toFixed(0)} px`);
+    // Gleich empfindlich - sonst fasst sich das Drehen schief an.
+    const wg = Math.abs(zug(60, 0)[0]), sk = Math.abs(zug(0, 60)[1]);
+    wahr('Beide Achsen sprechen gleich stark an',
+         Math.min(wg, sk) / Math.max(wg, sk) > 0.8,
+         `${wg.toFixed(0)} px waagrecht gegen ${sk.toFixed(0)} px senkrecht`);
+
     const a = ansicht(JOCH);
-    const az0 = a.kamera.az;
     a._drehe(80, 0);
-    wahr('Nach rechts gezogen dreht sich die Ansicht', a.kamera.az < az0);
     wahr('Die feste Blickrichtung gilt danach nicht mehr', a.ansichtKey === null);
 
     // Volle Fensterbreite ~ halbe Umdrehung. Die Breite ist hier gleich der
@@ -4039,7 +4071,7 @@ titel('27  Navigation im Modell: schieben, drehen, auf den Zeiger zoomen');
     const azB = b.kamera.az;
     b._drehe(800, 0);
     pruef('Eine volle Breite dreht um eine halbe Umdrehung',
-          b.kamera.az - azB, -Math.PI, 1e-9, 'rad');
+          b.kamera.az - azB, Math.PI, 1e-9, 'rad');
 
     const c = ansicht(JOCH);
     c._drehe(37, 11, true);
@@ -4166,6 +4198,418 @@ titel('28  Installierbare Fassung: Manifest, Dienstarbeiter, Dateien');
   const html = readFileSync(join(HIER, 'index.html'), 'utf8');
   wahr('Die Modulfassung verweist auf das Manifest',
        html.includes('rel="manifest"'));
+}
+
+// ===========================================================================
+titel('29  Schnitt im Modell und angeschriebene Werte');
+
+{
+  const R = await import(J('render.3d.js'));
+
+  const mitSchnitt = (orient) => {
+    const w = { ...standardwerte(), schnittAktiv: true, schnittOrientierung: orient };
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    return { e, sz: R.erzeugeSzene(e.modell, e) };
+  };
+
+  // --- Was der Längsschnitt überhaupt hergibt -------------------------------
+  // Er legt die Bleche EINER Ebene über die ganze Spannweite frei; das ist
+  // sein Zweck. Der Querschnitt dagegen liegt an einer Stelle.
+  {
+    const q = mitSchnitt('quer');
+    const v = mitSchnitt('vertikal');
+    const h = mitSchnitt('horizontal');
+    const marken = (o) => (o.sz.marken ?? []).filter((m) => m.art === 'spannung');
+    const xVon = (o) => Math.min(...o.sz.schnitt.poly.map((p) => p[0]));
+    const xBis = (o) => Math.max(...o.sz.schnitt.poly.map((p) => p[0]));
+
+    wahr('Der Querschnitt liegt an einer einzigen Stelle',
+         xVon(q) === xBis(q), `x = ${xVon(q).toFixed(2)} m`);
+    wahr('Der Längsschnitt läuft über die ganze Spannweite',
+         xVon(v) === 0 && Math.abs(xBis(v) - q.e.modell.L) < 1e-9,
+         `${xVon(v).toFixed(2)} … ${xBis(v).toFixed(2)} m`);
+    wahr('Beide Längsrichtungen beschriften jedes Blech ihrer Ebene',
+         marken(v).length > 25 && marken(h).length > 25,
+         `vertikal ${marken(v).length} · horizontal ${marken(h).length}`);
+    wahr('Der Querschnitt tut das nicht - dort steht die Auswertung daneben',
+         marken(q).length < marken(v).length / 4,
+         `quer ${marken(q).length}`);
+
+    // DIE ZAHL, DIE DEN FEHLER BENANNTE: auf drei Felder zugeschnitten sah
+    // man sieben von dreiunddreissig Blechen. Der Ausschnitt darf sich beim
+    // Längsschnitt deshalb nicht auf den Nachweisschnitt legen.
+    const xN = v.sz.xNachweis;
+    const halb = Math.max(1.6, (v.e.modell.a1eff ?? 0.75) * 3);
+    const imFenster = marken(v)
+      .filter((m) => m.p[0] >= xN - halb && m.p[0] <= xN + halb).length;
+    wahr('Ein Ausschnitt von drei Feldern verdeckte die meisten davon',
+         imFenster < marken(v).length / 3,
+         `${imFenster} von ${marken(v).length} lägen im Fenster ±${halb.toFixed(2)} m`);
+  }
+
+  // --- Und was zeigeSchnitt daraus macht ------------------------------------
+  // Geprüft wird die ENTSCHEIDUNG, nicht die Animation: die Kamerafahrten
+  // brauchen requestAnimationFrame und gehören nicht in den Prüfstand.
+  {
+    const stand = (orient) => {
+      const { sz } = mitSchnitt(orient);
+      const a = Object.create(R.Modellansicht.prototype);
+      a.szene = sz;
+      a.ebenen = { kraefte: false, schnitt: false };
+      a.kamera = { az: 0, el: 0, dist: 10, ziel: [0, 0, 0], fov: 0.6, pan: [0, 0, 0] };
+      a.fokus = { von: 1, bis: 2 };            // Rest eines früheren Zooms
+      a.station = 7;
+      const ruf = [];
+      a.zoomAuf = (x, st, breite) => { ruf.push(['zoomAuf', x, breite]);
+                                       a.fokus = { von: x - breite, bis: x + breite }; };
+      a.blickrichtung = (k) => { ruf.push(['blick', k]); a.fokus = null;
+                                 a.station = null; a.ansichtKey = k; };
+      a.zeigeSchnitt(2.13);
+      return { a, ruf };
+    };
+
+    const q = stand('quer');
+    wahr('Schnitt zeigen schaltet Kräfte und Ebene ein',
+         q.a.ebenen.kraefte === true && q.a.ebenen.schnitt === true);
+    wahr('Quer wird herangefahren und aufgetrennt',
+         q.ruf[0][0] === 'zoomAuf' && q.a.fokus !== null,
+         `Fenster ${q.a.fokus.von.toFixed(2)} … ${q.a.fokus.bis.toFixed(2)} m`);
+
+    const v = stand('vertikal');
+    wahr('Vertikal zeigt das GANZE Joch', v.a.fokus === null);
+    wahr('... und zwar von der Seite', v.ruf[0][0] === 'blick' && v.ruf[0][1] === 'laengs');
+    wahr('Eine hervorgehobene Station wird dabei aufgehoben', v.a.station === null);
+
+    const h = stand('horizontal');
+    wahr('Horizontal zeigt das ganze Joch von oben',
+         h.a.fokus === null && h.ruf[0][1] === 'oben');
+
+    // Der Feldschieber ruft bei jedem Schritt herein. Beim Längsschnitt
+    // ändert er nur die Stelle der Auswertung - das Bild steht schon richtig,
+    // und ein zweiter Schwenk risse es dem Betrachter unter der Hand weg.
+    v.a.zeigeSchnitt(2.13);
+    wahr('Ein zweiter Aufruf schwenkt nicht noch einmal',
+         v.ruf.length === 1, `${v.ruf.length} Kamerafahrt(en)`);
+    // Hat er sich hingegen etwas herangeholt, wird wieder eingerichtet.
+    v.a.fokus = { von: 9, bis: 12 };
+    v.a.zeigeSchnitt(2.13);
+    wahr('Nach einem Zoom auf eine Stelle schon', v.ruf.length === 2);
+  }
+
+  // --- Werte anschreiben: nichts halb Geschriebenes -------------------------
+  // Eine am Bildrand abgeschnittene 118 liest sich als 18. Eine halbe Zahl
+  // ist schlimmer als keine.
+  {
+    const a = Object.create(R.Modellansicht.prototype);
+    a.cv = { width: 800, height: 600 };
+    a._s = 1;
+    a.schriftLast = 10;
+    a._breiten = new Map();
+    const c = { font: '10px x', measureText: (s) => ({ width: s.length * 6 }) };
+
+    wahr('Mitten im Bild wird angeschrieben', a._imBild(c, '118', 400, 300));
+    wahr('Am linken Rand nicht mehr', !a._imBild(c, '118', 1, 300));
+    wahr('Am rechten Rand auch nicht', !a._imBild(c, '118', 790, 300));
+    wahr('Und oben und unten ebenso wenig',
+         !a._imBild(c, '118', 400, 4) && !a._imBild(c, '118', 400, 599));
+    // Eine kurze Zahl passt noch, wo eine lange nicht mehr passt.
+    wahr('Der Platzbedarf richtet sich nach der Zahl',
+         a._imBild(c, '1', 770, 300) && !a._imBild(c, '130.25', 770, 300));
+  }
+
+  // --- Die Rangfolge der Beschriftungen -------------------------------------
+  // Vier Zeichengaenge schreiben ins Bild. Bemassung und Marken gewinnen,
+  // Pfeiltexte und Werte weichen aus - so hat es der Auftraggeber festgelegt.
+  // Frueher fuehrte jeder Gang eine eigene Freihalteliste und schrieb den
+  // anderen quer darueber.
+  {
+    const q = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    // Die Reihenfolge im Bildaufbau IST die Rangfolge: wer zuerst zeichnet,
+    // belegt zuerst. Steht _texte nicht hinter _marken und _masse, kann es
+    // ihnen gar nicht ausweichen.
+    const i = (s) => q.indexOf(s, q.indexOf('_lastflaechen(c, proj, t)'));
+    wahr('Die Pfeile werden vor den Marken gezeichnet',
+         i('this._vektoren(c, proj, t)') < i('this._marken(c, proj, t)'));
+    wahr('Die freien Texte kommen NACH Marken und Bemassung',
+         i('this._texte(c, t)') > i('this._marken(c, proj, t)') &&
+         i('this._texte(c, t)') > i('this._masse(c, proj, t)'));
+    wahr('Die Pfeilbeschriftung zeichnet nicht mehr selbst',
+         q.includes('this._pfeiltexte.push('));
+
+    // Und die Wirkung: ein belegter Platz nimmt Pfeiltext wie Wert auf.
+    const bau = () => {
+      const a = Object.create(R.Modellansicht.prototype);
+      a.cv = { width: 800, height: 600 };
+      a._s = 1; a.schriftLast = 10; a._breiten = new Map();
+      a._font = () => '10px mono';
+      a._belegt = [];
+      a.gruppen = { resultate: false };
+      a.werteAnschreiben = false;
+      a.gezeichnet = [];
+      a._beschriftung = (c, t, text) => a.gezeichnet.push(text);
+      a._pfeiltexte = [{ text: 'F_z = 1.30 kN', x: 400, y: 300, farbe: '#fff' },
+                       { text: 'F_y = 0.91 kN', x: 400, y: 340, farbe: '#fff' }];
+      return a;
+    };
+    const c2 = { font: '10px mono', measureText: (s) => ({ width: s.length * 6 }) };
+
+    const frei = bau();
+    frei._texte(c2, {});
+    pruef('Auf freiem Grund stehen beide Pfeiltexte',
+          frei.gezeichnet.length, 2, 1e-12, 'Stk');
+
+    const eng = bau();
+    // Dort, wo der erste Pfeiltext hinwollte, steht schon eine Masszahl.
+    eng._belegt.push({ x: 395, y: 290, w: 60, h: 14 });
+    eng._texte(c2, {});
+    wahr('Wo eine Masszahl steht, weicht der Pfeiltext',
+         eng.gezeichnet.length === 1 && eng.gezeichnet[0] === 'F_y = 0.91 kN',
+         eng.gezeichnet.join(' | '));
+    pruef('Der gesetzte Text belegt seinerseits einen Platz',
+          eng._belegt.length, 2, 1e-12, 'Eintraege');
+  }
+}
+
+// ===========================================================================
+titel('30  Hauptschalter der Werkzeuggruppen');
+
+{
+  const R = await import(J('render.3d.js'));
+
+  const sicht = (ebenen, gruppen) => {
+    const a = Object.create(R.Modellansicht.prototype);
+    a.ebenen = { profil: true, blech: true, anbau: true, achse: true,
+                 last: true, kraefte: true, masse: true, schnitt: true,
+                 raster: true, marken: true, auflager: true, ...ebenen };
+    a.gruppen = { modell: true, lasten: true, resultate: true, ...gruppen };
+    return a;
+  };
+
+  // Aus heisst AUS: der Hauptschalter nimmt die ganze Gruppe aus dem Bild.
+  // Vorher fragten nur die Pfeile danach - die Volumenkoerper und die
+  // Lastflaechen nicht. «Lasten aus» liess Wind und Schnee stehen.
+  {
+    const a = sicht({}, { lasten: false });
+    wahr('Lasten aus nimmt die Lastebene mit', !a._ebeneAn('last'));
+    wahr('... laesst das Joch aber stehen',
+         a._ebeneAn('profil') && a._ebeneAn('blech'));
+    wahr('... und die Resultate auch', a._ebeneAn('kraefte'));
+  }
+  {
+    const a = sicht({}, { modell: false });
+    wahr('Modell aus nimmt Gurte, Bleche, Achsen und Bemassung mit',
+         ['profil', 'blech', 'achse', 'auflager', 'masse', 'raster']
+           .every((k) => !a._ebeneAn(k)));
+    wahr('... laesst die Lasten stehen', a._ebeneAn('last'));
+  }
+  {
+    const a = sicht({}, { resultate: false });
+    wahr('Resultate aus nimmt Schnittkraefte und Schnittebene mit',
+         !a._ebeneAn('kraefte') && !a._ebeneAn('schnitt'));
+    wahr('... laesst Joch und Lasten stehen',
+         a._ebeneAn('profil') && a._ebeneAn('last'));
+  }
+  {
+    const a = sicht({}, { modell: false, lasten: false, resultate: false });
+    wahr('Alle drei aus laesst nichts uebrig',
+         ['profil', 'blech', 'achse', 'auflager', 'masse', 'raster',
+          'last', 'kraefte', 'schnitt'].every((k) => !a._ebeneAn(k)));
+  }
+
+  // Der Einzelschalter behaelt das letzte Wort in die andere Richtung.
+  wahr('Ein ausgeschalteter Einzelschalter bleibt aus, auch wenn die Gruppe an ist',
+       !sicht({ blech: false }, {})._ebeneAn('blech'));
+  // Und was keinen Hauptschalter ueber sich hat, folgt nur sich selbst.
+  wahr('Ebenen ohne Gruppe folgen allein ihrem Einzelschalter',
+       sicht({}, { modell: false, lasten: false, resultate: false })
+         ._ebeneAn('marken'));
+
+  // Damit die Tabelle ueberhaupt greift, muessen die Lastflaechen der Szene
+  // die Gruppe 'last' tragen - sonst zielte der Schalter ins Leere.
+  {
+    const w = standardwerte();
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    const sz = R.erzeugeSzene(e.modell, e);
+    const fl = sz.lastflaechen ?? [];
+    wahr('Es gibt Lastflaechen', fl.length > 0, `${fl.length} Stueck`);
+    wahr('Und alle tragen die Gruppe der Lasten',
+         fl.every((f) => f.gruppe === 'last'),
+         [...new Set(fl.map((f) => f.lastart))].join(', '));
+  }
+
+  // --- Anbauteile sind Tragwerk, nicht Last --------------------------------
+  // Wer die Lasten global abstellt, um das Joch zu sehen, will den WEG
+  // behalten, auf dem die Last hereinkommt: Staender, Ausleger, Traverse.
+  // Nur was die Last selbst darstellt, geht mit ihr.
+  {
+    const teile = ['ja-einfach', 'hs-nt-ausleger', 'leiter-traverse']
+      .map((id, i) => A.neuesAnbauteil(id, 5 + i * 5));
+    const w = { ...standardwerte(), anbauteile: teile };
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    const sz = R.erzeugeSzene(e.modell, e);
+
+    const at = (sz.flaechen ?? []).filter((f) => f.anbauteil);
+    const koerper = at.filter((f) => !f.punkt);
+    const punkte = at.filter((f) => f.punkt);
+    wahr('Die Baugruppen stehen im Modell', koerper.length > 50 && punkte.length > 0,
+         `${koerper.length} Koerper- und ${punkte.length} Angriffspunktflaechen`);
+    wahr('Der KOERPER liegt in der eigenen Ebene anbau',
+         koerper.every((f) => f.gruppe === 'anbau'));
+    wahr('Der Wuerfel am Angriffspunkt bleibt bei den Lasten',
+         punkte.every((f) => f.gruppe === 'last'));
+
+    const mk = (art) => (sz.marken ?? []).filter((m) => m.art === art);
+    wahr('Die Positionsnummer gehoert zum Bauteil',
+         mk('anbau').length > 0 && mk('anbau').every((m) => m.gruppe === 'anbau'),
+         `${mk('anbau').length} Nummern`);
+    wahr('Der Lastknoten gehoert zur Last',
+         mk('lastknoten').length > 0 &&
+         mk('lastknoten').every((m) => m.gruppe === 'last'),
+         `${mk('lastknoten').length} Knoten`);
+
+    // Und die Wirkung am Schalter
+    const a1 = sicht({}, { lasten: false });
+    wahr('Lasten aus laesst die Anbauteile stehen', a1._ebeneAn('anbau'));
+    wahr('... nimmt aber ihre Lastdarstellung mit', !a1._ebeneAn('last'));
+    const a2 = sicht({}, { modell: false });
+    wahr('Modell aus nimmt sie mit - sie sind Tragwerk', !a2._ebeneAn('anbau'));
+    wahr('Sie lassen sich auch einzeln abschalten',
+         !sicht({ anbau: false }, {})._ebeneAn('anbau'));
+
+    const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    const wz = aq.slice(aq.indexOf('const WZ_MODELL'), aq.indexOf('const WZ_LASTEN'));
+    wahr('Der Schalter steht in der Gruppe Modell', wz.includes("key: 'anbau'"));
+  }
+
+  // --- Die drei Listen muessen zusammenpassen ------------------------------
+  // Eine Ebene, die in HAUPTSCHALTER steht, aber keinen Anfangswert in
+  // this.ebenen hat, ist von Anfang an unsichtbar - _ebeneAn liest undefined
+  // und antwortet nein. Genau daran ist die Prüfung oben zuerst gescheitert,
+  // wenn auch nur in ihrem eigenen Nachbau. Also beide Listen vergleichen.
+  {
+    const q = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    const ausBlock = (von, bis) => {
+      const a = q.indexOf(von);
+      const s = q.slice(a, q.indexOf(bis, a));
+      return new Set([...s.matchAll(/(\w+):\s*['a-z]/g)].map((m) => m[1]));
+    };
+    const haupt = ausBlock('const HAUPTSCHALTER = {', '};');
+    const vorgabe = ausBlock('this.ebenen = {', '};');
+    const fehlt = [...haupt].filter((k) => !vorgabe.has(k));
+    wahr('Jede Ebene mit Hauptschalter hat auch einen Anfangswert',
+         fehlt.length === 0, fehlt.length ? `fehlt: ${fehlt.join(', ')}` :
+         `${haupt.size} Ebenen unter drei Gruppen`);
+  }
+}
+
+// ===========================================================================
+titel('31  Bewegung: nichts springt');
+
+{
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+
+  // --- Wer keine Bewegung will, bekommt keine ------------------------------
+  wahr('Das Stylesheet achtet auf «Bewegung reduzieren»',
+       css.includes('prefers-reduced-motion: reduce'));
+  // Und zwar auf einen Wimpernschlag, NICHT auf null: bei 0s faellt in
+  // manchen Browsern das Ereignis transitionend aus, an dem weich() in
+  // app.js haengt - der Bereich bliebe dann in der Klasse «animiert» stehen.
+  const block = css.slice(css.indexOf('prefers-reduced-motion'));
+  wahr('Abgeschaltet wird auf .01ms, nicht auf null',
+       block.includes('transition-duration: .01ms') &&
+       block.includes('animation-duration: .01ms'));
+
+  // --- Dialoge: erst fahren, dann wegraeumen -------------------------------
+  wahr('Der Dialog wird erst nach der Schliessbewegung geleert',
+       aq.includes('DIALOG_ZU_MS') && /setTimeout\([\s\S]{0,200}innerHTML = ''/.test(aq));
+  wahr('Ein zweiter Dialog wird dabei nicht mitgerissen',
+       aq.includes('dialogLauf !== meins'));
+
+  // Die Dauer steht an zwei Orten - im Skript und im Stylesheet. Laufen sie
+  // auseinander, raeumt das Skript zu frueh weg (Sprung) oder zu spaet
+  // (Hänger). Also vergleichen.
+  const ms = (re, txt, f = 1) => {
+    const m = txt.match(re);
+    return m ? Math.round(parseFloat(m[1]) * f) : null;
+  };
+  const jsDialog = ms(/DIALOG_ZU_MS = (\d+)/, aq);
+  const cssDialog = ms(/animation: dialog-zu \.(\d+)s/, css, 10);
+  pruef('Dialog: Skript und Stylesheet nennen dieselbe Dauer',
+        jsDialog, cssDialog, 1e-9, 'ms');
+
+  const jsSchub = ms(/SCHUBLADE_ZU_MS = (\d+)/, aq);
+  const cssSchub = ms(/animation: schublade-zu \.(\d+)s/, css, 10);
+  pruef('Schublade: dieselbe Dauer an beiden Orten',
+        jsSchub, cssSchub, 1e-9, 'ms');
+
+  wahr('Die Schublade faehrt auch zu, nicht nur auf',
+       css.includes('@keyframes schublade-zu') &&
+       aq.includes('function schubladeZufahren'));
+  wahr('Ein Wiederaufmachen bricht das Zufahren ab',
+       aq.includes("n.classList.remove('zu');      // falls sie noch am Zufahren war"));
+
+  // --- Was NICHT gefahren werden darf --------------------------------------
+  // Ein η, das von 0.58 auf 1.33 hochzaehlt, zeigt unterwegs Werte, die nie
+  // gerechnet wurden. Bewegt wird die Farbe, nie die Ziffer.
+  const pille = css.slice(css.indexOf('.schiene-nw b, .schiene-nw i'));
+  wahr('An den Nachweispillen laeuft nur die Farbe',
+       /\.schiene-nw b, \.schiene-nw i \{ transition: color/.test(pille));
+  wahr('Der Vermerk dazu steht im Stylesheet',
+       css.includes('ZAHLEN WERDEN NICHT GEFAHREN'));
+
+  // --- Der Unterstrich der Reiter ------------------------------------------
+  wahr('Der Reiter-Unterstrich laeuft mit',
+       /\.tab \{ transition:[^}]*border-bottom-color/.test(css));
+
+  // --- Das Schnittblatt: Bedienung bleibt, Zahlen erneuern sich ------------
+  // Dieselbe Ursache wie beim Lastfall-Waehler: die Bedienung rechnet, das
+  // Rechnen zeichnet das Blatt neu, und der bediente Knoten war weg. Am
+  // Schieber riss das den Zug ab, an der Auswahlliste blinkte es.
+  {
+    const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    const f = uq.slice(uq.indexOf('export function zeichneSchnitt'));
+    const ende = f.indexOf('export function', 20);
+    const fn = ende > 0 ? f.slice(0, ende) : f;
+    wahr('Das Blatt ist in Bedienung und Zahlen geteilt',
+         fn.includes('id="schnitt-steuerung"') && fn.includes('id="schnitt-zahlen"'));
+    wahr('Neu gebaut wird die Bedienung nur bei geaenderter Struktur',
+         fn.includes("st.dataset.sig !== sig"));
+    wahr('Die Struktur ist Feldzahl und Orientierungsliste',
+         /const sig = JSON\.stringify\(\[sn\.anzahlSchnitte/.test(fn));
+    // Verdrahtet wird nur beim Aufbau - sonst haengen nach zehn Rechnungen
+    // zehn Zuhoerer am selben Schieber.
+    const zweig = fn.slice(fn.indexOf('if (!st ||'), fn.indexOf('} else {'));
+    wahr('Verdrahtet wird nur beim Aufbau',
+         zweig.includes("addEventListener('change'") &&
+         zweig.includes("addEventListener('input'"));
+    wahr('Sonst werden nur die Werte nachgezogen',
+         fn.includes("setze('#schnitt-orient', 'value', orient)"));
+  }
+
+  // --- Die verschiebbare Karte --------------------------------------------
+  // Waehrend der Fahrt Versatz statt left/top, und hoechstens ein Schreiben
+  // je Bild. Beides zusammen ist der Unterschied zwischen Ziehen und Ruckeln.
+  {
+    const zieh = aq.slice(aq.indexOf('function verdrahteLegendeZiehen'),
+                          aq.indexOf('/** Gemerkte Lage der Legende'));
+    wahr('Gezogen wird ueber den Versatz', zieh.includes('translate3d('));
+    wahr('Geschrieben wird hoechstens einmal je Bild',
+         zieh.includes('requestAnimationFrame(male)') &&
+         zieh.includes('if (angefordert)'));
+    wahr('Festgeschrieben wird erst am Schluss',
+         zieh.indexOf('translate3d(') < zieh.lastIndexOf('n.style.left ='));
+    wahr('Ein blosser Klick loest die Karte nicht aus der Ecke',
+         zieh.includes('if (!bewegt) return;'));
+    wahr('Abgebrochene Zeiger raeumen mit auf',
+         zieh.includes("'pointercancel', ende"));
+    wahr('Die Ankuendigung an den Compositor gilt nur waehrend der Fahrt',
+         css.includes('.legende.zieht') && css.includes('will-change: transform') &&
+         zieh.includes("n.classList.remove('zieht')"));
+  }
 }
 
 // ===========================================================================

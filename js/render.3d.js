@@ -499,7 +499,14 @@ export function erzeugeSzene(m, erg) {
     const gurte = bef === 'durchgehend' ? ['OG', 'UG'] : bef === 'oben' ? ['OG'] : ['UG'];
     const fb = farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
     const teilKey = `AT${k}`;
-    const opt = (label) => ({ gruppe: 'last', teil: teilKey, farbeBauteil: fb,
+    // ANBAUTEILE SIND TRAGWERK, NICHT LAST.
+    // Sie lagen bisher in der Ebene 'last' und verschwanden mit ihr. Wer die
+    // Lasten global abstellte, um das Joch zu sehen, verlor damit auch den
+    // Weg, auf dem die Last hereinkommt - Staender, Ausleger, Traverse. Der
+    // KOERPER gehoert deshalb in die eigene Ebene 'anbau' (Gruppe Modell);
+    // in der Ebene 'last' bleibt nur, was die Last selbst darstellt: der
+    // Wuerfel am Angriffspunkt, seine Marke und die Kraftpfeile.
+    const opt = (label) => ({ gruppe: 'anbau', teil: teilKey, farbeBauteil: fb,
                               werte: null, label: `${a.name} · ${label}`,
                               anbauteil: a });
 
@@ -559,7 +566,7 @@ export function erzeugeSzene(m, erg) {
     // eine Zahl, die man nicht liest. Der volle Name kommt, sobald das Teil
     // angeklickt ist (siehe textLang in _marken).
     marken.push({
-      gruppe: 'last', art: 'anbau', teil: teilKey,
+      gruppe: 'anbau', art: 'anbau', teil: teilKey,
       p: [a.x, 0, zMax],
       text: `A${k + 1}`,
       textLang: `A${k + 1} · ${kurzName(a.name)}`,
@@ -583,7 +590,7 @@ export function erzeugeSzene(m, erg) {
       // sichtbar bleibt, wenn der Ständer davorliegt.
       flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
         { ...opt(`${kurz} · Angriffspunkt x ${t.x.toFixed(2)} · y ${yAn.toFixed(2)} · z ${(t.z ?? 0).toFixed(2)} m`),
-          punkt: true }));
+          gruppe: 'last', punkt: true }));
       marken.push({
         gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
         text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
@@ -911,6 +918,31 @@ export const ANSICHTEN = [
  * ausgewiesene Querkraft, das Bindeblech keine Normalkraft. Wo der Wert fehlt,
  * bleibt das Bauteil neutral grau - es wird nichts dazuerfunden.
  */
+/**
+ * ZU WELCHEM HAUPTSCHALTER GEHÖRT EINE EBENE?
+ *
+ * Die drei Gruppen der Werkzeugleiste tragen je einen Schalter, der die ganze
+ * Gruppe aus dem Bild nimmt. Danach gefragt hatten bisher aber nur einzelne
+ * Zeichengänge - die Pfeile und ein Teil der Marken. Die VOLUMENKÖRPER und
+ * die LASTFLÄCHEN taten es nicht:
+ *
+ *   «Lasten aus»  liess die Wind- und Schneeflächen stehen,
+ *   «Modell aus»  liess das ganze Joch stehen.
+ *
+ * Mit allen drei Schaltern aus sah das Bild fast unverändert aus - die
+ * Hauptschalter wirkten wie Zierrat. Ab hier hängt jede Ebene an ihrer
+ * Gruppe, und zwar an einer Stelle statt an sieben.
+ *
+ * Was hier nicht steht, hat keinen Hauptschalter über sich (etwa 'marken',
+ * 'anbau') und bleibt allein von seinem Einzelschalter abhängig.
+ */
+const HAUPTSCHALTER = {
+  profil: 'modell', blech: 'modell', anbau: 'modell', achse: 'modell',
+  auflager: 'modell', masse: 'modell', raster: 'modell',
+  last: 'lasten',
+  kraefte: 'resultate', schnitt: 'resultate',
+};
+
 export const PLOTS = [
   { key: 'eta',   label: 'Ausnutzung η',           kurz: 'η',    feld: 'eta',
     einheit: '–', fest: 1.25, nk: 2,
@@ -955,9 +987,9 @@ export class Modellansicht {
     this.kamera = { az: -0.62, el: 0.42, dist: 1, ziel: [0, 0, 0], fov: 0.60,
                     pan: [0, 0, 0] };
     this.projektion = 'perspektive';   // oder 'orthogonal'
-    this.ebenen = { profil: true, blech: true, achse: true, last: true,
-                    kraefte: false, masse: true, schnitt: true, raster: true,
-                    marken: true, auflager: true };
+    this.ebenen = { profil: true, blech: true, anbau: true, achse: true,
+                    last: true, kraefte: false, masse: true, schnitt: true,
+                    raster: true, marken: true, auflager: true };
     // Welche LASTARTEN gezeigt werden. Voreingestellt alle - wer eine
     // ausblendet, tut das absichtlich und soll das auch sehen.
     this.lastarten = Object.fromEntries(LASTARTEN.map((l) => [l.key, true]));
@@ -993,6 +1025,7 @@ export class Modellansicht {
     this.fokus = null;        // {von, bis} - blendet alles ausserhalb aus
     this._massTreffer = [];
     this._belegt = [];
+    this._pfeiltexte = [];     // Beschriftungen der Kraftpfeile, siehe _texte
     this._s = 1;              // Gerätepixel je CSS-Pixel, in _male() gesetzt
     this._breiten = new Map(); // Gedächtnis für measureText
     this._angefordert = 0;     // laufende Anforderung eines Bildes
@@ -1101,7 +1134,34 @@ export class Modellansicht {
     if (x === undefined) return;
     this.ebenen.kraefte = true;
     this.ebenen.schnitt = true;
-    this.zoomAuf(x, null, halbeBreite);
+
+    // DER AUSSCHNITT RICHTET SICH NACH DER ORIENTIERUNG.
+    //
+    // Der Querschnitt liegt an EINER Stelle; ihn heranzuholen und das Joch
+    // dafuer auf drei Felder aufzutrennen ist genau richtig.
+    //
+    // Ein Laengsschnitt dagegen legt die Bleche EINER Ebene ueber die ganze
+    // Spannweite frei - er ist da, damit sich ihre Schnittkraefte
+    // nebeneinander ablesen lassen. Auf drei Felder zugeschnitten sah man
+    // sieben von dreiunddreissig Blechen, und die Schnittebene lief sichtbar
+    // ueber das abgeschnittene Modell hinaus ins Leere: sie ist vom
+    // Ausschnitt ausgenommen, das Modell nicht.
+    const orient = this.szene?.schnitt?.orientierung ?? 'quer';
+    if (orient === 'quer') { this.zoomAuf(x, null, halbeBreite); return; }
+
+    // Und zwar von der Seite bzw. von oben: nur so stehen die Bleche der
+    // geschnittenen Ebene flaechig im Bild und ihre Beschriftungen in einer
+    // Reihe.
+    //
+    // NUR EINRICHTEN, WAS NICHT SCHON EINGERICHTET IST. Der Feldschieber ruft
+    // hier bei JEDEM Schritt herein, und beim Laengsschnitt aendert er nur die
+    // Stelle der Auswertung, nicht das Bild. Bedingungslos geschwenkt riss es
+    // einem die Ansicht bei jedem Klick zurueck - wer sich eine Stelle
+    // herangeholt hat, verloere sie sofort wieder.
+    const blick = orient === 'vertikal' ? 'laengs' : 'oben';
+    if (this.fokus === null && this.ansichtKey === blick) return;
+    this.station = null;
+    this.blickrichtung(blick);
   }
 
   ganzesJoch() {
@@ -1136,6 +1196,7 @@ export class Modellansicht {
     this.detail = b.teil;
     this.auswahlTeil = b.teil;      // schaltet die Bemassung dieses Teils ein
     this.ebenen.masse = true;
+    this.ebenen.anbau = true;       // sonst zeigte der Blick auf ein Teil nichts
     this.ebenen.last = true;
     this.station = null;
     this.kamera.pan = [0, 0, 0];
@@ -1497,6 +1558,17 @@ export class Modellansicht {
   /**
    * Um die Bildmitte drehen, dx/dy in GERÄTEPIXELN.
    *
+   * DAS MODELL FOLGT DER HAND, auf beiden Achsen. Wer die zugewandte Seite
+   * nach rechts zieht, sieht sie nach rechts wandern - wie beim Drehen eines
+   * Werkstücks, das man in der Hand hält.
+   *
+   * Das war lange nur senkrecht so. Waagrecht lief die Ansicht der Hand
+   * ENTGEGEN: `az -= dx` dreht die Kamera in die Zugrichtung, und damit das
+   * Modell dagegen. Dass beide Achsen sich widersprachen, machte das Drehen
+   * spiegelverkehrt. Nachgerechnet über _projektor() am zugewandten Punkt
+   * Ziel + vor·r: 60 Pixel nach rechts gezogen wanderte er 88 Pixel nach
+   * links.
+   *
    * Die Empfindlichkeit ist auf die Fensterbreite bezogen: eine volle Breite
    * entspricht etwa einer halben Umdrehung - auf dem Telefon wie auf dem
    * grossen Bildschirm dieselbe Handbewegung für denselben Winkel.
@@ -1505,7 +1577,7 @@ export class Modellansicht {
     const breite = this.cv.getBoundingClientRect().width || 1;
     const s = Math.PI / Math.max(320, breite) / this._dpr();
     const k = this.kamera;
-    k.az -= dx * s;
+    k.az += dx * s;
     k.el = Math.max(-1.45, Math.min(1.45, k.el + dy * s));
     if (raster) {
       const r = Math.PI / 12;                                        // 15°
@@ -1691,7 +1763,7 @@ export class Modellansicht {
     const proj = this._projektor();
     const licht = norm([0.45, 0.75, 0.9]);
 
-    if (this.ebenen.raster) this._raster(c, proj, t);
+    if (this._ebeneAn('raster')) this._raster(c, proj, t);
 
     // Flächen sammeln, projizieren, nach Tiefe sortieren.
     //
@@ -1702,7 +1774,7 @@ export class Modellansicht {
     // das, was den Bildlauf stocken liess.
     const liste = [];
     this.szene.flaechen.forEach((f) => {
-      if (!this.ebenen[f.gruppe]) return;
+      if (!this._ebeneAn(f.gruppe)) return;
       if (!this._imFokus(f.xMitte)) return;
       const pts = f.punkte.map(proj);
       if (pts.some((p) => !p)) return;
@@ -1745,7 +1817,7 @@ export class Modellansicht {
       // Anschlussteil. Er bleibt deshalb immer deutlich durchsichtiger als
       // der Rest - auch dann, wenn die Darstellung sonst undurchsichtig ist.
       const durch = f.punkt ? Math.max(klarAT, 0.62)
-                  : f.gruppe === 'last' ? klarAT : klar;
+                  : (f.gruppe === 'anbau' || f.gruppe === 'last') ? klarAT : klar;
       let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
       c.beginPath();
       f._2d.forEach((p, i) => {
@@ -1778,14 +1850,19 @@ export class Modellansicht {
     c.globalAlpha = 1;
 
     this._lastflaechen(c, proj, t);
-    if (this.gruppen.resultate && this.ebenen.schnitt) this._schnittebene(c, proj, t);
-    if (this.gruppen.modell && (this.ebenen.achse || this.ebenen.auflager)) {
+    if (this._ebeneAn('schnitt')) this._schnittebene(c, proj, t);
+    if (this._ebeneAn('achse') || this._ebeneAn('auflager')) {
       this._linien(c, proj, t);
     }
+    // ZUERST DIE PFEILE, DANN DIE MARKEN UND MASSE, ZULETZT DIE FREIEN TEXTE.
+    // _vektoren zeichnet hier nur die Pfeile und legt seine Beschriftungen
+    // beiseite; Marken und Bemassung belegen unterdessen ihre Plaetze, und
+    // _texte setzt zum Schluss, was noch frei geblieben ist. Die Rangfolge
+    // steht dort.
     this._vektoren(c, proj, t);
-    if (this.gruppen.resultate && this.werteAnschreiben) this._werte(c, proj, t);
     if (this.ebenen.marken) this._marken(c, proj, t);
-    if (this.gruppen.modell && this.ebenen.masse) this._masse(c, proj, t);
+    if (this._ebeneAn('masse')) this._masse(c, proj, t);
+    this._texte(c, t);
     this._achsenkreuz(c, t);
   }
 
@@ -1797,14 +1874,18 @@ export class Modellansicht {
    * ausgedünnt: es werden nur so viele Zahlen gesetzt, wie auf dem Bild Platz
    * haben, und zwar die grössten zuerst.
    */
-  _werte(c, proj, t) {
+  _werte(c, t) {
     const p = PLOTS.find((x) => x.key === this.modus);
     if (!p) return;
     const kandidaten = [];
+    // DIE LISTE IST BEREITS AUF DEN AUSSCHNITT GESIEBT - und zwar nach
+    // f.xMitte. Hier noch einmal nach punkte[0][0] zu sieben war ein zweites,
+    // strengeres Mass: der erste Eckpunkt eines Gurtstuecks liegt bis zu einer
+    // halben Feldweite neben seiner Mitte, und am Rand des Ausschnitts fielen
+    // dadurch Zahlen von Bauteilen weg, die sehr wohl im Bild stehen.
     (this._letzteFlaechen ?? []).forEach((f) => {
       const v = f.werte?.[p.feld];
       if (!Number.isFinite(v) || !f._2d?.length) return;
-      if (!this._imFokus(f.punkte?.[0]?.[0])) return;
       const mx = f._2d.reduce((s, q) => s + q[0], 0) / f._2d.length;
       const my = f._2d.reduce((s, q) => s + q[1], 0) / f._2d.length;
       kandidaten.push({ v, x: mx, y: my, betrag: Math.abs(v) });
@@ -1815,14 +1896,42 @@ export class Modellansicht {
     const belegt = [];
     let gesetzt = 0;
     const grenze = 60;
+    const s = this._s;
+    const hoehe = this.schriftLast * s;
     for (const k of kandidaten) {
       if (gesetzt >= grenze) break;
+      // Unter sich halten die Zahlen ihren gewohnten Abstand - ein Raster,
+      // kein Rechteck: sie sollen nicht Schulter an Schulter stehen.
       if (belegt.some((b) => Math.abs(b.x - k.x) < 42 * this._s &&
                              Math.abs(b.y - k.y) < 13 * this._s)) continue;
+      const text = k.v.toFixed(p.nk);
+      // NUR GANZ ODER GAR NICHT. Am Bildrand schnitt der Canvas die Zahl ab,
+      // und aus 118 wurde ein lesbares, aber falsches 18. Eine halbe Zahl ist
+      // schlimmer als keine - das Bauteil dazu liegt ohnehin halb draussen.
+      if (!this._imBild(c, text, k.x, k.y)) continue;
+      // Und gegenueber Bemassung, Marken und Pfeiltexten weicht die Zahl aus:
+      // sie steht als Farbe ohnehin schon am Bauteil.
+      const w = this._textBreite(c, text) + 7 * s;
+      const x = k.x - 3 * s, y = k.y - hoehe + 2 * s, h = hoehe + 3 * s;
+      if (!this._frei(x, y, w, h)) continue;
+      this._belegt.push({ x, y, w, h });
       belegt.push(k);
       gesetzt++;
-      this._beschriftung(c, t, k.v.toFixed(p.nk), k.x, k.y);
+      this._beschriftung(c, t, text, k.x, k.y);
     }
+  }
+
+  /**
+   * Passt diese Beschriftung noch vollstaendig auf die Zeichenflaeche?
+   * Die Masse sind dieselben wie in _beschriftung - dort wird der Saum
+   * gezeichnet, hier wird er gemessen.
+   */
+  _imBild(c, text, x, y) {
+    const s = this._s;
+    const hoehe = this.schriftLast * s;
+    const b = this._textBreite(c, text) + 7 * s;
+    return x - 3 * s >= 0 && x - 3 * s + b <= this.cv.width
+        && y - hoehe + 2 * s >= 0 && y + 3 * s <= this.cv.height;
   }
 
   /**
@@ -1867,7 +1976,7 @@ export class Modellansicht {
     // Farbe zog den Blick von den Gurten weg und liess das Bild bei zwanzig
     // Teilen bunt aussehen; ein einziger stiller Ton lässt das Joch vorn.
     // Ausgenommen bleibt der Plot «Positionen» - dort IST die Farbe die Aussage.
-    if (f.gruppe === 'last') return t.dim;
+    if (f.gruppe === 'anbau' || f.gruppe === 'last') return t.dim;
     return f.gruppe === 'blech' ? t.blech : t.stahl;
   }
 
@@ -1916,7 +2025,7 @@ export class Modellansicht {
    * sichtbar, dass die Last über die ganze Länge steht.
    */
   _lastflaechen(c, proj, t) {
-    if (!this.ebenen.last) return;
+    if (!this._ebeneAn('last')) return;
     (this.szene.lastflaechen ?? []).forEach((fl) => {
       if (!this._lastartAn(fl.lastart)) return;
       const p = fl.punkte.map(proj);
@@ -1930,6 +2039,16 @@ export class Modellansicht {
       c.lineWidth = 0.8 * this._s; c.stroke();
       c.globalAlpha = 1;
     });
+  }
+
+  /**
+   * Ist diese Ebene sichtbar? Einzelschalter UND Hauptschalter ihrer Gruppe.
+   * Siehe HAUPTSCHALTER.
+   */
+  _ebeneAn(key) {
+    if (!this.ebenen[key]) return false;
+    const g = HAUPTSCHALTER[key];
+    return !g || this.gruppen[g] !== false;
   }
 
   /** Ist diese Lastart eingeschaltet? Ohne Angabe immer. */
@@ -1965,7 +2084,7 @@ export class Modellansicht {
   _linien(c, proj, t) {
     c.strokeStyle = t.achse;
     this.szene.linien.forEach((l) => {
-      if (!this.ebenen[l.gruppe]) return;
+      if (!this._ebeneAn(l.gruppe)) return;
       // Beim Stationszoom bleibt eine Linie stehen, sobald IRGENDEIN Ende im
       // Ausschnitt liegt - sonst verschwände die Systemachse, die von Ende zu
       // Ende läuft und deren erster Punkt fast immer draussen liegt.
@@ -1999,23 +2118,14 @@ export class Modellansicht {
   _vektoren(c, proj, t) {
     const s = this._s;
     c.font = this._font(this.schriftLast);
-    // AUSDÜNNEN DER PFEILBESCHRIFTUNG.
-    // Der Pfeil selbst wird immer gezeichnet - er ist die Aussage. Sein Text
-    // aber nur, wenn dort noch Platz ist: sonst standen bei mehreren Lastarten
-    // am selben Punkt drei Zahlen übereinander und keine war lesbar.
-    const belegt = [];
-    const platzFrei = (x, y, w) => {
-      const h = this.schriftLast * s + 4 * s;
-      const kollision = belegt.some(
-        (r) => x < r.x + r.w && x + w > r.x && y - h < r.y + r.h && y > r.y);
-      if (kollision) return false;
-      belegt.push({ x, y: y - h, w, h });
-      return true;
-    };
+    // DER PFEIL WIRD IMMER GEZEICHNET - er ist die Aussage. Sein TEXT wandert
+    // dagegen auf die Warteliste und wird erst in _texte gesetzt, nach
+    // Bemassung und Marken. Frueher schrieb er sofort und damit quer ueber
+    // beide; im Laengsschnitt legte sich «V V_L = 1.8 kN» ueber genau die
+    // Blechzeile, die man dort lesen will.
+    this._pfeiltexte = [];
     (this.szene.vektoren ?? []).forEach((v) => {
-      if (!this.ebenen[v.gruppe]) return;
-      if (v.gruppe === 'last' && !this.gruppen.lasten) return;
-      if (v.gruppe === 'kraefte' && !this.gruppen.resultate) return;
+      if (!this._ebeneAn(v.gruppe)) return;
       if (!this._lastartAn(v.lastart)) return;
       if (!this._imFokus(v.p[0])) return;
       const a = proj(v.p), b = proj(add(v.p, v.v));
@@ -2037,13 +2147,43 @@ export class Modellansicht {
       c.lineTo(b[0] - ux * kopf + uy * kopf * 0.45, b[1] - uy * kopf - ux * kopf * 0.45);
       c.closePath(); c.fill();
       if (v.text) {
-        // Beschriftungen bekommen eine gedeckte Unterlage - auf dem
-        // durchscheinenden Modell wären sie sonst schwer zu lesen.
-        const tx = b[0] + ux * 8 * s + 3 * s, ty = b[1] + uy * 8 * s + 4 * s;
-        const tw = this._textBreite(c, v.text) + 8 * s;
-        if (platzFrei(tx, ty, tw)) this._beschriftung(c, t, v.text, tx, ty, farbe);
+        this._pfeiltexte.push({ text: v.text, farbe,
+                                x: b[0] + ux * 8 * s + 3 * s,
+                                y: b[1] + uy * 8 * s + 4 * s });
       }
     });
+  }
+
+  /**
+   * DIE FREI GESETZTEN BESCHRIFTUNGEN, ZULETZT UND IN EINER RANGFOLGE.
+   *
+   * Vier Zeichengaenge schreiben ins Bild. Frueher fuehrte jeder seine EIGENE
+   * Freihalteliste: jeder wich nur sich selbst aus und schrieb den anderen
+   * quer darueber.
+   *
+   * DIE RANGFOLGE, wie sie der Auftraggeber festgelegt hat:
+   *   1. Bemassung   - sie ist anklickbar und fuehrt in ihr Eingabefeld
+   *   2. Marken      - Auflager, Anbauteile, Blechspannungen
+   *   3. Pfeiltexte  - die Groesse einer Last
+   *   4. Werte       - sie stehen ohnehin schon als Farbe am Bauteil
+   *
+   * Die ersten beiden haben gezeichnet und belegt, bevor dies hier laeuft
+   * (siehe _belegt in _male). Hier kommt nur noch, was frei geblieben ist.
+   */
+  _texte(c, t) {
+    const s = this._s;
+    c.font = this._font(this.schriftLast);
+    const hoehe = this.schriftLast * s;
+    (this._pfeiltexte ?? []).forEach((p) => {
+      // Dasselbe Rechteck, das _beschriftung gleich malt - gemessen wird, was
+      // gezeichnet wird, und nicht etwas Aehnliches daneben.
+      const w = this._textBreite(c, p.text) + 7 * s;
+      const x = p.x - 3 * s, y = p.y - hoehe + 2 * s, h = hoehe + 3 * s;
+      if (!this._frei(x, y, w, h)) return;
+      this._belegt.push({ x, y, w, h });
+      this._beschriftung(c, t, p.text, p.x, p.y, p.farbe);
+    });
+    if (this.gruppen.resultate && this.werteAnschreiben) this._werte(c, t);
   }
 
   /** Text mit Unterlage, damit er auf jedem Untergrund lesbar bleibt. */
@@ -2078,8 +2218,7 @@ export class Modellansicht {
     const budget = this._markenBudget();
     const sammlung = [];
     this.szene.marken.forEach((mk) => {
-      if (mk.gruppe && !this.ebenen[mk.gruppe]) return;
-      if (mk.gruppe === 'last' && !this.gruppen.lasten) return;
+      if (mk.gruppe && !this._ebeneAn(mk.gruppe)) return;
       if (!this._imFokus(mk.p[0])) return;
       const p = proj(mk.p);
       if (!p) return;
