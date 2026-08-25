@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1075 Kontrollen bestanden, 0 gefallen · Bundle 1013 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern**
+**Stand:** 1083 Kontrollen bestanden, 0 gefallen · Bundle 1013 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1075 Kontrollen
+node pruefung.mjs           # Prüfstand, 1083 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -236,6 +236,69 @@ Nachgemessen: Orientierung dreimal wechseln, Schieber dreimal bewegen —
 **derselbe Knoten** durchweg, und die Anschriften ziehen nach («Feld 15 von
 28», «x = 10.35 m»). Jochlänge 20 → 12 m: Feldzahl 28 → 16, Schieberende
 27 → 15, Bedienung **neu gebaut**.
+
+#### Das Modell flackerte bei jedem Schritt der Bereichsfahrt
+
+Beim Ein- und Ausfahren eines Bereichs meldet der Grössenwächter zwölfmal eine
+neue Breite. `cv.width` zu setzen **leert die Zeichenfläche** — das ist so
+festgelegt —, und gezeichnet wurde erst im *nächsten* Bild, weil `zeichne()`
+über `requestAnimationFrame` sammelt. Dazwischen lag also jedes Mal ein fertig
+zusammengesetztes Bild mit leerem Grund. Gemessen: **12 Grössenwechsel, 12
+leere Bilder**.
+
+Der Grössenwächter läuft nach dem Layout und **vor** dem Zusammensetzen des
+Bildes. Dort sofort zu zeichnen heisst deshalb: in demselben Bild, in dem die
+Fläche geleert wurde, steht sie auch wieder voll. Danach: **0 leere Bilder**.
+
+#### Und es zoomte, statt sich nur zu verschieben
+
+Jeder Grössenschritt rief `passeEin()`, und das rechnet den Kameraabstand aus
+dem Seitenverhältnis. Der Massstab hängt aber allein an der **Höhe** der
+Fläche (`f = (h/2)/tan(fov/2)`); wird nur die Breite schmaler, bleibt das Joch
+gleich gross und man sieht seitlich weniger davon. Genau das wollte der
+Auftraggeber. Eingepasst wird jetzt nur beim ersten Mal, wenn die Fläche noch
+die Grösse aus dem Stylesheet trägt.
+
+Nachgemessen: Fläche 1412 → 2776 Gerätepixel breit, die senkrechte Ausdehnung
+des Jochs bleibt bei **555 px**. Nebenbei behält damit auch eine selbst
+gewählte Ansicht ihren Ausschnitt, wenn man das Fenster grösser zieht.
+
+#### Weich wird es erst, wenn während der Fahrt weniger gezeichnet wird
+
+Die Fahrt selbst ist flüssig — das Zeichnen ist es nicht. Gemessen an
+derselben Bewegung:
+
+| | Bildfolge |
+|---|---|
+| mit Modell | 67 ms je Bild (≈15/s), lange Aufgaben von 50–60 ms |
+| ohne Modell (alle drei Gruppen aus) | 16.7 ms (60/s), keine lange Aufgabe |
+
+Ein volles Bild kostet 50 bis 60 ms — 1568 Körper, jeder gefüllt und
+umrandet — und zwar unabhängig von der Flächengrösse. Zwölf davon machen aus
+einer Bewegung von 300 ms eine Folge von vier Standbildern.
+
+**Während einer Folge von Grössenschritten wird deshalb sparsam gezeichnet:**
+keine Körper, keine Beschriftungen. Die **Schwerachsen** tragen feldweise
+dieselben Kennwerte und dieselbe Einfärbung (so ist es in `_linien` von
+Anfang an angelegt) — das Bild sagt dasselbe, nur ohne Volumen. Für die Dauer
+der Fahrt werden sie auch dann gezeichnet, wenn ihr Einzelschalter aus ist;
+der **Hauptschalter** der Gruppe gilt weiter.
+
+Erkannt wird die Folge an den Abständen: ein einzelner Schritt — der erste
+Aufbau, ein einmaliger Griff an den Fensterrand — bekommt das volle Bild.
+Folgt Schritt auf Schritt, läuft eine Bewegung. Steht sie, kommt das volle
+Bild 110 ms später nach.
+
+Gemessen an derselben Bewegung: **Median 67 ms → 16.8 ms**, sparsames Bild
+rund 5 ms statt 50–60. Die Bildpunkte in der Mittelzeile gehen während der
+Fahrt von 243 auf 177 zurück (Achsen statt Körper) und stehen danach wieder
+bei 243.
+
+Die Kurve der Bereichsfahrt ist zugleich weicher geworden: 0.3 s statt 0.24 s
+und `cubic-bezier(.22,1,.3,1)` — sie nimmt früh Fahrt auf und läuft lange
+sanft aus, statt erst spät zu bremsen.
+
+Prüfstand: Abschnitt 31 um **8 Kontrollen** gewachsen.
 
 #### Die Karte fuhr auf dem Layout statt auf dem Compositor
 
@@ -1745,7 +1808,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1075 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1083 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

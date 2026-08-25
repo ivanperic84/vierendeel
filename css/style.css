@@ -121,7 +121,11 @@ body {
 .ws.zu-links.zu-rechts { grid-template-columns: var(--m-schiene) var(--m-splitBreite) 1fr var(--m-splitBreite) var(--m-schiene); }
 /* Beim Klicken weich fahren, beim Ziehen nicht: eine Übergangszeit am
    Mauszeiger fühlt sich wie Verzögerung an. */
-.ws.animiert { transition: grid-template-columns .24s cubic-bezier(.4,0,.2,1); }
+/* Ein wenig länger und mit einer Kurve, die früh Fahrt aufnimmt und lange
+   sanft ausläuft. Die alte (.4,0,.2,1) bremste erst spät und wirkte deshalb
+   am Ende abgehackt - gerade dort, wo sich die Zeichenfläche zum letzten Mal
+   neu bemisst. */
+.ws.animiert { transition: grid-template-columns .3s cubic-bezier(.22,1,.3,1); }
 
 .panel {
   background: var(--s1); display: flex; flex-direction: column;

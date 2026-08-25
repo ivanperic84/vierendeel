@@ -4590,6 +4590,46 @@ titel('31  Bewegung: nichts springt');
          fn.includes("setze('#schnitt-orient', 'value', orient)"));
   }
 
+  // --- Die Fahrt der Bereiche ----------------------------------------------
+  // Zwei Fehler steckten darin: die Flaeche blitzte leer durch, und das
+  // Modell zoomte, statt sich nur zu verschieben.
+  {
+    const rq = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    const fn = rq.slice(rq.indexOf('  passeGroesseAn() {'));
+    const ende = fn.indexOf(String.fromCharCode(10) + '  }');
+    const gr = fn.slice(0, ende);
+
+    // cv.width zu setzen leert die Flaeche. Wird erst im naechsten Bild
+    // gezeichnet, liegt dazwischen ein fertiges Bild mit leerem Grund -
+    // gemessen: 12 Groessenwechsel, 12 leere Bilder.
+    wahr('Nach der neuen Groesse wird SOFORT gezeichnet',
+         gr.includes('cancelAnimationFrame(this._angefordert)') &&
+         gr.trimEnd().endsWith('this._male();'));
+    // Und nicht mehr eingepasst: der Massstab haengt allein an der Hoehe,
+    // eine schmalere Flaeche gibt also weniger frei, statt zu zoomen.
+    wahr('Eingepasst wird nur beim ersten Mal',
+         gr.includes('this._ersteGroesse !== false') &&
+         // Nur der Aufruf zaehlt, nicht das Wort im Kommentar daneben.
+         (gr.match(/this\.passeEin\(\);/g) || []).length === 1);
+    wahr('Eine Folge von Schritten wird erkannt',
+         gr.includes('this.sparsam = jetzt - (this._letzteGroesse'));
+    wahr('Und das volle Bild kommt danach nach',
+         gr.includes('this.sparsam = false;') && gr.includes('this.zeichne();'));
+
+    // Sparsam heisst: keine Koerper, keine Beschriftungen - die Achsen
+    // tragen dieselben Kennwerte und dieselbe Einfaerbung.
+    wahr('Sparsam werden die Koerper weggelassen',
+         rq.includes('if (!this.sparsam) this.szene.flaechen.forEach('));
+    wahr('... und die Beschriftungen auch',
+         /if \(!this\.sparsam\) \{[\s\S]{0,220}this\._texte\(c, t\);/.test(rq));
+    wahr('Die Achsen vertreten sie fuer die Dauer der Fahrt',
+         rq.includes("if (this.sparsam || this._ebeneAn('achse')"));
+    // Der HAUPTSCHALTER gilt aber weiter - sonst erschiene ein abgeschaltetes
+    // Modell waehrend der Fahrt wieder.
+    wahr('Der Hauptschalter gilt auch im sparsamen Bild',
+         rq.includes('if (this.sparsam) { if (!this.gruppen.modell) return; }'));
+  }
+
   // --- Die verschiebbare Karte --------------------------------------------
   // Waehrend der Fahrt Versatz statt left/top, und hoechstens ein Schreiben
   // je Bild. Beides zusammen ist der Unterschied zwischen Ziehen und Ruckeln.

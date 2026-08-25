@@ -1029,6 +1029,10 @@ export class Modellansicht {
     this._s = 1;              // Gerätepixel je CSS-Pixel, in _male() gesetzt
     this._breiten = new Map(); // Gedächtnis für measureText
     this._angefordert = 0;     // laufende Anforderung eines Bildes
+    this._ersteGroesse = true;  // siehe passeGroesseAn
+    // Zeichnet gerade nur das Nötige, weil sich die Grösse laufend ändert.
+    this.sparsam = false;
+    this._nachZeichnen = 0;
     this._verdrahte();
   }
 
@@ -1772,8 +1776,22 @@ export class Modellansicht {
     // von jeder eine Kopie anzulegen hiess, sechzigmal in der Sekunde ein paar
     // tausend Objekte zu erzeugen und wieder wegzuräumen - beim Zoomen genau
     // das, was den Bildlauf stocken liess.
+    /*
+     * WÄHREND EINER FAHRT WIRD SPARSAM GEZEICHNET.
+     *
+     * Ein volles Bild kostet gemessene 50 bis 60 ms - die 1568 Körper eines
+     * Jochs, jeder gefüllt und umrandet. Beim Ein- und Ausfahren eines
+     * Bereichs meldet der Grössenwächter zwölfmal eine neue Breite; zwölf
+     * volle Bilder machen aus einer Bewegung von 300 ms eine Folge von vier
+     * Standbildern. Gemessen: 67 ms je Bild mit Modell, 16.7 ms ohne.
+     *
+     * Weggelassen werden deshalb die KÖRPER, nicht das Modell: die
+     * Schwerachsen tragen feldweise dieselben Kennwerte und dieselbe
+     * Einfärbung (siehe _linien), das Bild sagt also dasselbe, nur ohne
+     * Volumen. Sobald die Fahrt steht, kommt das volle Bild von selbst.
+     */
     const liste = [];
-    this.szene.flaechen.forEach((f) => {
+    if (!this.sparsam) this.szene.flaechen.forEach((f) => {
       if (!this._ebeneAn(f.gruppe)) return;
       if (!this._imFokus(f.xMitte)) return;
       const pts = f.punkte.map(proj);
@@ -1851,7 +1869,10 @@ export class Modellansicht {
 
     this._lastflaechen(c, proj, t);
     if (this._ebeneAn('schnitt')) this._schnittebene(c, proj, t);
-    if (this._ebeneAn('achse') || this._ebeneAn('auflager')) {
+    // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
+    // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
+    // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.
+    if (this.sparsam || this._ebeneAn('achse') || this._ebeneAn('auflager')) {
       this._linien(c, proj, t);
     }
     // ZUERST DIE PFEILE, DANN DIE MARKEN UND MASSE, ZULETZT DIE FREIEN TEXTE.
@@ -1860,9 +1881,13 @@ export class Modellansicht {
     // _texte setzt zum Schluss, was noch frei geblieben ist. Die Rangfolge
     // steht dort.
     this._vektoren(c, proj, t);
-    if (this.ebenen.marken) this._marken(c, proj, t);
-    if (this._ebeneAn('masse')) this._masse(c, proj, t);
-    this._texte(c, t);
+    // Beschriftungen sind während der Fahrt nicht lesbar und kosten Messungen
+    // von Textbreiten - sie bleiben weg, bis das Bild wieder steht.
+    if (!this.sparsam) {
+      if (this.ebenen.marken) this._marken(c, proj, t);
+      if (this._ebeneAn('masse')) this._masse(c, proj, t);
+      this._texte(c, t);
+    }
     this._achsenkreuz(c, t);
   }
 
@@ -2084,7 +2109,10 @@ export class Modellansicht {
   _linien(c, proj, t) {
     c.strokeStyle = t.achse;
     this.szene.linien.forEach((l) => {
-      if (!this._ebeneAn(l.gruppe)) return;
+      // Im sparsamen Bild vertreten die Achsen die Körper; dann gilt ihr
+      // Einzelschalter nicht - der HAUPTSCHALTER der Gruppe aber sehr wohl.
+      if (this.sparsam) { if (!this.gruppen.modell) return; }
+      else if (!this._ebeneAn(l.gruppe)) return;
       // Beim Stationszoom bleibt eine Linie stehen, sobald IRGENDEIN Ende im
       // Ausschnitt liegt - sonst verschwände die Systemachse, die von Ende zu
       // Ende läuft und deren erster Punkt fast immer draussen liegt.
@@ -2434,10 +2462,75 @@ export class Modellansicht {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.round(r.width * dpr));
     const h = Math.max(1, Math.round(r.height * dpr));
-    const geaendert = this.cv.width !== w || this.cv.height !== h;
-    if (geaendert) { this.cv.width = w; this.cv.height = h; }
-    if (geaendert && !this._selbstGezoomt) this.passeEin();
-    else this.zeichne();
+    if (this.cv.width === w && this.cv.height === h) { this.zeichne(); return; }
+
+    /*
+     * EINE NEUE GRÖSSE LEERT DIE ZEICHENFLÄCHE.
+     *
+     * cv.width zu setzen wirft den Bildinhalt weg - das ist so festgelegt und
+     * lässt sich nicht umgehen. Gezeichnet wurde bisher erst im NÄCHSTEN Bild
+     * (zeichne() sammelt über requestAnimationFrame). Dazwischen lag also ein
+     * fertig zusammengesetztes Bild mit leerer Fläche.
+     *
+     * Beim Ein- und Ausfahren eines Bereichs meldet der Grössenwächter das
+     * zwölfmal in Folge - und zwölfmal blitzte der leere Grund durch. Genau
+     * das war das Flackern; gemessen: 12 Grössenwechsel, 12 leere Bilder.
+     *
+     * Der Grössenwächter läuft nach dem Layout und VOR dem Zusammensetzen des
+     * Bildes. Hier sofort zu zeichnen heisst deshalb: im selben Bild, in dem
+     * die Fläche geleert wurde, steht sie auch wieder voll.
+     */
+    this.cv.width = w;
+    this.cv.height = h;
+
+    /*
+     * UND ES WIRD NICHT NEU EINGEPASST.
+     *
+     * Bisher rief jeder Grössenschritt passeEin(), und das rechnet den
+     * Kameraabstand aus dem Seitenverhältnis - das Modell zoomte also während
+     * der Fahrt, statt nur mehr oder weniger vom Bild freizugeben. Der
+     * Massstab hängt allein an der HÖHE der Fläche (f = (h/2)/tan(fov/2));
+     * wird nur die Breite schmaler, bleibt das Joch gleich gross und man sieht
+     * seitlich weniger davon. Das ist das Verhalten, das man erwartet - und
+     * nebenbei behält eine selbst gewählte Ansicht ihren Ausschnitt, wenn man
+     * das Fenster grösser zieht.
+     *
+     * Eingepasst wird nur beim ERSTEN Mal: da hat die Fläche noch die Grösse
+     * aus dem Stylesheet und nicht die, die sie im Fenster wirklich hat.
+     */
+    if (this._ersteGroesse !== false) {
+      this._ersteGroesse = false;
+      this.passeEin();
+    }
+
+    /*
+     * KOMMEN DIE SCHRITTE IN FOLGE, WIRD SPARSAM GEZEICHNET.
+     *
+     * Eine EINZELNE neue Grösse - der erste Aufbau, ein einmaliger Griff an
+     * den Fensterrand - bekommt das volle Bild; dort wartet niemand auf 60
+     * Bilder je Sekunde. Folgt aber Schritt auf Schritt, läuft eine Bewegung,
+     * und dann zählt die Bildfolge mehr als das Volumen (siehe _male).
+     *
+     * Steht die Bewegung, kommt das volle Bild nach. Der Zeitgeber wird bei
+     * jedem Schritt neu gestellt und feuert deshalb genau einmal, am Ende.
+     */
+    const jetzt = performance.now();
+    this.sparsam = jetzt - (this._letzteGroesse ?? -1e9) < 250;
+    this._letzteGroesse = jetzt;
+
+    clearTimeout(this._nachZeichnen);
+    this._nachZeichnen = setTimeout(() => {
+      this._nachZeichnen = 0;
+      if (!this.sparsam) return;
+      this.sparsam = false;
+      this.zeichne();
+    }, 110);
+
+    if (this._angefordert) {
+      cancelAnimationFrame(this._angefordert);
+      this._angefordert = 0;
+    }
+    this._male();
   }
 }
 

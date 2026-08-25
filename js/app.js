@@ -1609,7 +1609,11 @@ function baueLayout() {
     const g = ui.el(id);
     g.title = 'Ziehen zum Verbreitern, klicken zum Ein- und Ausklappen';
     g.addEventListener('pointerdown', (e) => {
-      g.setPointerCapture(e.pointerId);
+      // Kann werfen, wenn der Zeiger schon wieder weg ist. Ungesichert riss
+      // es den ganzen Griff ab: die Zuhoerer fuer Bewegen und Loslassen
+      // kamen dann gar nicht mehr, und der Bereich liess sich weder ziehen
+      // noch einklappen.
+      try { g.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
       const start = e.clientX;
       const a0 = seite === 'links' ? links : rechts;
       let bewegt = false;
