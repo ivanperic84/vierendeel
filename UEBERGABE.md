@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1151 Kontrollen bestanden, 0 gefallen · Bundle 1065 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1167 Kontrollen bestanden, 0 gefallen · Bundle 1068 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1151 Kontrollen
+node pruefung.mjs           # Prüfstand, 1167 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -66,19 +66,54 @@ Baugruppen ihre Vorlage weiter finden.
 | Modul | x | e_v |
 |---|---|---|
 | Hängestütze od. Hängerohr | 0 | 1.35 m |
-| Ausleger Typ Rohr | **1.50 m** | 1.20 m |
-| N-FL Kettenwerk | **3.00 m** | 1.50 m |
+| Ausleger Typ Rohr | **1.50 m** | 2.70 m |
+| N-FL Kettenwerk | **3.00 m** | 2.70 m |
 
-Das e_v der Hängestütze ist nicht gewählt, sondern übernommen: **alle vier**
-Hängestützen-Vorlagen der Datenbank führen 1.35 m für dieses Bauteil.
+### Wo ein Mass hinzeigt: Schwerpunkt, nicht Ende
 
-**Eine Stelle bleibt zu bestätigen.** Der Rohrausleger greift bei e_v = 1.20 m
-an, die Hängestütze bei 1.35 m — der Ausleger sitzt also *über* dem
-Angriffspunkt seines eigenen Trägers, und die Kette läuft im Bild 15 cm
-zurück nach oben, bevor sie ausschert. Rechnerisch ist das ohne Folge (alle
-Glieder sind Starrkörper, am Joch kommt dieselbe Resultante an), aber die
-beiden Masse stammen aus der Zeit, als der Rohrausleger noch direkt am Joch
-hing. Ob e_v für Ausleger und Kettenwerk so bleibt, ist noch zu sagen.
+**Weisung, im Wortlaut:**
+
+> Der Endpunkt der Hängestütze und der Ausleger markiert den **Schwerpunkt
+> (halbe Länge)**, da werden die Lasten angesetzt — ausser die Ausnahme für
+> den Wind in Längsrichtung für die Ausleger, wie schon definiert. So wird
+> zum Beispiel die Hängestütze auf −1.5 m in z definiert und der Ausleger
+> kommt dann auf z −3.0 m und 1.5 m in x; der Angriffspunkt der Leiter ist
+> somit z −3.0 m und 3.0 m in x.
+
+Damit ist die Frage aus dem letzten Abschnitt beantwortet, und zwar aus den
+Daten selbst: die Lasttabelle führt für die Hängestütze **`L,rep = 2.7 m`**.
+Schwerpunkt also 1.35 m — genau das e_v, das alle vier Hängestützen-Vorlagen
+tragen — und **Ende bei 2.70 m**. Dort hängt der Ausleger.
+
+```
+Träger      e_v = L/2         seine eigene Last greift auf halber Länge an
+  └ Aufbau  e_v = 2 · e_v,Träger      er sitzt am ENDE des Trägers
+      x = L_Arm/2                     und greift selbst auf halber Länge an
+      └ Drahtwerk  x = 2 · x_Aufbau   am ENDE des Kragarms
+```
+
+Der NT-Ausleger erfüllte das schon (1.35 → 2.70, x 1.2 → 2.4). Beim
+Rohrausleger standen noch 1.20 und 1.50 aus der Zeit, als er unmittelbar am
+Joch hing — er sass damit *über* dem Angriffspunkt seines eigenen Trägers.
+Korrigiert auf 2.70 m.
+
+Der Prüfstand rechnet die Regel jetzt gegen `L,rep` aus der Lasttabelle nach,
+damit Vorlage und Lastwerte nicht auseinanderlaufen.
+
+### Ein Modulfeld zeigte vor und nach der Rechnung Verschiedenes
+
+Zwei Stellen schreiben in dieselben Felder: der **Aufbau** der Karte und das
+**Auffrischen** bei jeder Rechnung. Sie waren sich uneinig — der Aufbau setzte
+`?? 0`, das Auffrischen machte aus einem fehlenden Wert ein leeres Feld. Ein
+Modul ohne eigenes `x` zeigte deshalb erst «0» und war nach der ersten
+Rechnung leer. In der Vorlage steht `x` gar nicht, also traf es **jede
+Hängestütze** — genau so im Bild des Auftraggebers zu sehen.
+
+Die Vorgabe je Feld steht jetzt an einer Stelle (`MODUL_VORGABE`), und alle
+drei Wege lesen sie: Aufbau, Auffrischen und der Rückweg beim Tippen. Ein
+geleertes Lagefeld legt seither **0** ab statt `null`. Leer bleibt nur, wo
+leer etwas *bedeutet*: beim Ablenkwinkel heisst es «aus Radius und
+Spannweite».
 
 **Drei Dinge folgten daraus, und alle drei waren nötig.**
 
@@ -2017,7 +2052,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1151 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1167 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

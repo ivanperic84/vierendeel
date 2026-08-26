@@ -241,7 +241,9 @@ export function aktualisiereMaske(container, werte, extras = {}) {
       try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
       d.querySelectorAll('.mod').forEach((inp) => {
         if (inp === aktiv || inp.tagName === 'SELECT') return;
-        const v = m[inp.dataset.mk];
+        // Dieselbe Vorgabe wie beim Aufbau der Karte - sonst zeigt das Feld
+        // vor der ersten Rechnung etwas anderes als danach.
+        const v = modWert(m, inp.dataset.mk);
         const soll = v === null || v === undefined ? '' : String(v);
         if (inp.value !== soll) inp.value = soll;
       });
@@ -754,26 +756,26 @@ function modulListeHtml(a, i, werte) {
       </div>` : ''}
       <div class="sec-klein">Angriffspunkt</div>
       <div class="at-gitter">
-        ${modFeld(i, k, 'x', 'x', m.x ?? 0, 'm', 0.1)}
-        ${modFeld(i, k, 'y', 'y', m.y ?? 0, 'm', 0.1)}
-        ${modFeld(i, k, 'z', 'z', m.z ?? 0, 'm', 0.05)}
-        ${modFeld(i, k, 'anzahl', 'Anzahl', m.anzahl ?? 1, '–', 1)}
+        ${modFeld(i, k, 'x', 'x', modWert(m, 'x'), 'm', 0.1)}
+        ${modFeld(i, k, 'y', 'y', modWert(m, 'y'), 'm', 0.1)}
+        ${modFeld(i, k, 'z', 'z', modWert(m, 'z'), 'm', 0.05)}
+        ${modFeld(i, k, 'anzahl', 'Anzahl', modWert(m, 'anzahl'), '–', 1)}
       </div>
       ${drahtwerk ? `<div class="sec-klein">Ablenkung</div>
       <div class="at-gitter">
-        ${modFeld(i, k, 'winkel', 'Winkel α', m.winkel ?? '', '°', 0.01,
+        ${modFeld(i, k, 'winkel', 'Winkel α', modWert(m, 'winkel'), '°', 0.01,
                   `aus R/L_FL: ${f3(alphaAuto)}°`)}
         <span class="at-feld lesbar"><span>Spannweite <i>m</i></span>
           <b>${f2(m.laenge ?? trasse.spannweite ?? 0)}</b>
           <small class="hinweis">global, Gruppe «Trasse»</small></span>
       </div>` : streckenlast ? `<div class="at-gitter">
-        ${modFeld(i, k, 'laenge', 'Länge', m.laenge ?? 1, 'm', 0.1)}
+        ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
       ${b?.freieFlaeche ? `<div class="sec-klein">Angriffsfläche</div>
       <div class="at-gitter">
-        ${modFeld(i, k, 'eigengewicht', 'Eigengew.', m.eigengewicht ?? 0, 'kN', 0.1)}
-        ${modFeld(i, k, 'aQuer', 'A quer', m.aQuer ?? 0, 'm²', 0.05)}
-        ${modFeld(i, k, 'aLaengs', 'A längs', m.aLaengs ?? 0, 'm²', 0.05)}
+        ${modFeld(i, k, 'eigengewicht', 'Eigengew.', modWert(m, 'eigengewicht'), 'kN', 0.1)}
+        ${modFeld(i, k, 'aQuer', 'A quer', modWert(m, 'aQuer'), 'm²', 0.05)}
+        ${modFeld(i, k, 'aLaengs', 'A längs', modWert(m, 'aLaengs'), 'm²', 0.05)}
         ${modWahl(i, k, 'cw', 'Profilbeiwert', m.cw ?? 1.4,
                   PROFILBEIWERTE.map((p) => ({ key: p.c, label: p.label })))}
       </div>` : ''}
@@ -907,6 +909,32 @@ function modWahl(i, k, feld, label, wert, optionen) {
         ${String(o.key) === String(wert) ? ' selected' : ''}>${esc(o.label)}</option>`)
         .join('')}</select>
   </label>`;
+}
+
+/*
+ * WAS EIN MODULFELD ZEIGT, WENN NICHTS GESETZT IST.
+ *
+ * Zwei Stellen schreiben in dieselben Felder: der AUFBAU der Karte
+ * (modulListeHtml) und das AUFFRISCHEN bei jeder Rechnung
+ * (aktualisiereMaske). Sie waren sich uneinig - der Aufbau setzte `?? 0`,
+ * das Auffrischen machte aus null und undefined ein leeres Feld. Ein Modul
+ * ohne eigenes x zeigte deshalb erst «0» und war nach der ersten Rechnung
+ * leer. In der Vorlage steht x gar nicht, also traf das jede Hängestütze.
+ *
+ * `undefined` heisst hier: leer lassen, denn leer BEDEUTET dort etwas -
+ * beim Winkel «aus Radius und Spannweite rechnen». Bei einer Lage bedeutet
+ * leer nichts; dort gehört eine Null hin.
+ */
+const MODUL_VORGABE = {
+  x: 0, y: 0, z: 0, anzahl: 1, laenge: 1,
+  eigengewicht: 0, aQuer: 0, aLaengs: 0, cw: 1.4,
+  winkel: undefined,
+};
+
+/** Wert eines Modulfelds für die Anzeige - mit der Vorgabe von oben. */
+function modWert(m, feld) {
+  const v = m?.[feld];
+  return v === null || v === undefined ? MODUL_VORGABE[feld] : v;
 }
 
 function modFeld(i, k, feld, label, wert, einheit, schritt, hinweis = '') {
@@ -1304,10 +1332,15 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     inp.addEventListener(ev, () => {
       const zahl = inp.type === 'number' || inp.dataset.mk === 'cw';
       // Leerer Winkel heisst NICHT null Grad, sondern «aus Radius und
-      // Spannweite». Das Feld muss deshalb leer bleiben dürfen.
+      // Spannweite». Nur dort darf leer bestehen bleiben (MODUL_VORGABE);
+      // eine geleerte LAGE ist eine Null und wird auch so abgelegt - sonst
+      // steht in der Baugruppe ein null, das die Karte gleich wieder als
+      // leeres Feld zeigt.
       const leer = inp.value.trim() === '';
+      const vorgabe = MODUL_VORGABE[inp.dataset.mk];
       const wert = !zahl ? inp.value
-        : leer ? null : (parseFloat(inp.value) || 0);
+        : leer ? (vorgabe === undefined ? null : vorgabe)
+        : (parseFloat(inp.value) || 0);
       setzeModul(+inp.dataset.idx, +inp.dataset.mod, inp.dataset.mk, wert);
     });
   });

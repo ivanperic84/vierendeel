@@ -4845,6 +4845,69 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
     });
   }
 
+  // --- Ein Mass zeigt auf den SCHWERPUNKT, das naechste Glied ans ENDE -----
+  /*
+   * WEISUNG: der eingetragene Angriffspunkt eines Traegers oder Aufbaus ist
+   * sein Schwerpunkt, also die halbe Laenge - dort greifen seine Lasten an.
+   * Das naechste Glied der Kette sitzt am ENDE, beim doppelten Versatz.
+   *
+   * Das ist keine Erfindung: die Lasttabelle fuehrt fuer die Haengestuetze
+   * "L,rep = 2.7 m". Schwerpunkt 1.35, Ende 2.70 - und genau dort haengt in
+   * beiden Kragarm-Vorlagen der Ausleger. Geprueft wird gegen DIESE Zahl,
+   * damit Vorlage und Lasttabelle nicht auseinanderlaufen.
+   */
+  {
+    const hs = FL.getFlBauteil('anbauteil-haengestuetze-od-haengerohr');
+    const m = /L,rep\s*=\s*([\d.]+)\s*m/.exec(hs.bemerkung ?? '');
+    wahr('Die Lasttabelle nennt die Laenge der Haengestuetze',
+         !!m, hs.bemerkung ?? '(keine Bemerkung)');
+    const LRep = m ? parseFloat(m[1]) : null;
+
+    ['hs-nt-ausleger', 'ausleger-rohr'].forEach((id) => {
+      const mod = A.getVorlage(id).module;
+      const nach = (r) => mod.find((x) => {
+        try { return FL.getFlBauteil(x.bauteil).rolle === r; } catch { return false; }
+      });
+      const tr = nach('traeger'), au = nach('aufbau'), dr = nach('drahtwerk');
+
+      if (LRep !== null) {
+        pruef(`${id}: die Stuetze greift auf halber Laenge an`,
+              tr.ev, LRep / 2, 1e-9, 'm');
+      }
+      pruef(`${id}: der Ausleger haengt am ENDE der Stuetze`,
+            au.ev, 2 * tr.ev, 1e-9, 'm');
+      pruef(`${id}: das Kettenwerk haengt auf derselben Hoehe`,
+            dr.ev, au.ev, 1e-9, 'm');
+      pruef(`${id}: und am ENDE des Kragarms`,
+            dr.x, 2 * au.x, 1e-9, 'm');
+      wahr(`${id}: die Stuetze selbst steht nicht aus`,
+           (tr.x ?? 0) === 0, `x = ${tr.x ?? 0}`);
+    });
+  }
+
+  // --- Ein Feld zeigt vor und nach der Rechnung dasselbe -------------------
+  /*
+   * Zwei Stellen schreiben in die Modulfelder: der Aufbau der Karte und das
+   * Auffrischen bei jeder Rechnung. Sie waren sich uneinig - der Aufbau
+   * setzte `?? 0`, das Auffrischen machte aus einem fehlenden Wert ein leeres
+   * Feld. Ein Modul ohne eigenes x zeigte deshalb erst «0» und war nach der
+   * ersten Rechnung leer; in der Vorlage steht x gar nicht, also traf es
+   * jede Haengestuetze.
+   */
+  {
+    const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Vorgabe je Modulfeld steht an EINER Stelle',
+         uq.includes('const MODUL_VORGABE = {'));
+    wahr('Der Aufbau der Karte liest sie', /modFeld\(i, k, 'x', 'x', modWert\(m, 'x'\)/.test(uq));
+    wahr('Das Auffrischen liest dieselbe', /const v = modWert\(m, inp\.dataset\.mk\)/.test(uq));
+    wahr('Und der Rueckweg legt sie ab statt null',
+         uq.includes('leer ? (vorgabe === undefined ? null : vorgabe)'));
+    // Leer BEDEUTET nur beim Winkel etwas - dort heisst es «aus R und L_FL».
+    const tab = /const MODUL_VORGABE = \{([\s\S]*?)\};/.exec(uq)[1];
+    wahr('Leer bleibt nur der Winkel', /winkel: undefined/.test(tab)
+         && (tab.match(/undefined/g) || []).length === 1, tab.replace(/\s+/g, ' ').trim());
+  }
+
   // --- Der Kragarm laedt das Joch an SEINER WURZEL ------------------------
   /*
    * Ein NT-Ausleger steht in Jochachse aus. Das Joch beruehrt er dort NICHT -

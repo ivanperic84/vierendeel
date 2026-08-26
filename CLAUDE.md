@@ -44,7 +44,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 1151 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 1167 Kontrollen - muss gruen bleiben
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```
