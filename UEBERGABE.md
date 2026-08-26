@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1167 Kontrollen bestanden, 0 gefallen · Bundle 1068 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1179 Kontrollen bestanden, 0 gefallen · Bundle 1071 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1167 Kontrollen
+node pruefung.mjs           # Prüfstand, 1179 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -99,6 +99,47 @@ Korrigiert auf 2.70 m.
 
 Der Prüfstand rechnet die Regel jetzt gegen `L,rep` aus der Lasttabelle nach,
 damit Vorlage und Lastwerte nicht auseinanderlaufen.
+
+### Die Vorlagendatei spricht jetzt das Achsensystem von AxisVM
+
+Bis Fassung 2.3 stand in `data/anbauteile.json` ein Abstand **zur Jochachse,
+positiv nach unten** (`e_v`). Eingabekarte, Ausleitung und AxisVM zählen z
+**nach oben**. Dieselbe Höhe stand damit an drei Stellen mit zwei Vorzeichen,
+und ein Jochaufsatz las sich in der Datei als `ev: -1.0`, obwohl er nach oben
+ragt:
+
+| | Hängestütze | Jochaufsatz |
+|---|---|---|
+| Datei bis 2.3 | `ev: 1.35` | `ev: -1.0` |
+| Datei ab 2.4, Karte, Ausleitung, AxisVM | `z: -1.35` | `z: 1.0` |
+
+Aus dieser Familie stammen beide teuren Fehler dieser Sitzung: der
+Jochaufsatz, der in der Ausleitung eine ganze Jochhöhe zu tief sass, und der
+Ausleger auf halber statt ganzer Stützenhöhe.
+
+**Gelesen wird die alte Schreibweise weiter** — Datenpakete von früher müssen
+sich öffnen lassen. Die Umsetzung steht an einer Stelle (`zVon`/`yVon` in
+`data.anbauteile.js`) statt wie bisher an fünf.
+
+*Beweis, dass sich nichts bewegt:* alle 14 Vorlagen wurden im selben Lauf
+zweimal durchgerechnet — einmal aus der alten Datei, einmal aus der neuen —
+und auf η, sämtliche Schnittgrössen, jeden aufgelösten Angriffspunkt, jeden
+Knoten des Stabmodells und jede ausgeleitete Last verglichen. Null Differenz.
+
+### Den Kragarm spiegeln, die Leiter mitziehen
+
+Ein Ausleger steht nach der einen oder der anderen Seite aus, und das wechselt
+von Joch zu Joch. Von Hand wären es zwei Vorzeichen — und das zweite, die
+Leiter am *Ende* des Arms, vergisst man.
+
+Am Ausleger steht deshalb ein Knopf **`x ⇄`**. Er spiegelt an der Achse der
+Hängestütze: diesen Ausleger und alles, was auf derselben Seite **weiter
+aussen** sitzt. Ein zweiter Ausleger nach der anderen Seite bleibt, wo er ist;
+einer weiter innen ebenso. Geändert wird nur das Vorzeichen von x — Höhe,
+Lasten und Rolle bleiben.
+
+Der Knopf erscheint nur an einem Modul der Rolle *Aufbau*, das wirklich
+aussteht (x ≠ 0).
 
 ### Ein Modulfeld zeigte vor und nach der Rechnung Verschiedenes
 
@@ -2052,7 +2093,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1167 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1179 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

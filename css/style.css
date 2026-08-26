@@ -472,7 +472,13 @@ input[type=range].rng {
 .kette-an { color: var(--xdim); }
 .kette-an b { color: var(--dim); font-weight: 500; }
 .kette-warn { color: var(--warn); cursor: help; }
-.modul-kopf select { font-size: 11px; padding: 3px 5px; }
+.modul-kopf select { font-size: 11px; padding: 3px 5px; min-width: 0; }
+/* Der Spiegelknopf steht neben der Bauteilwahl und darf nicht umbrechen -
+   «x ⇄» auf zwei Zeilen liest sich wie zwei Knöpfe. */
+.modul-kopf [data-mod-spiegeln] {
+  white-space: nowrap; flex: none; padding: 3px 7px;
+  font-family: var(--f-mono); letter-spacing: .05em;
+}
 .modul-lasten {
   display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;
   font-family: var(--f-mono); font-size: 10px; color: var(--dim);

@@ -4869,20 +4869,105 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
         try { return FL.getFlBauteil(x.bauteil).rolle === r; } catch { return false; }
       });
       const tr = nach('traeger'), au = nach('aufbau'), dr = nach('drahtwerk');
+      // Die Vorlagendatei spricht seit Fassung 2.4 das Achsensystem der
+      // Ausleitung: z nach OBEN. Eine haengende Stuetze hat also z < 0, und
+      // die Laenge ist der Betrag.
+      const tief = (m) => Math.abs(m.z ?? -(m.ev ?? 0));
 
       if (LRep !== null) {
         pruef(`${id}: die Stuetze greift auf halber Laenge an`,
-              tr.ev, LRep / 2, 1e-9, 'm');
+              tief(tr), LRep / 2, 1e-9, 'm');
       }
       pruef(`${id}: der Ausleger haengt am ENDE der Stuetze`,
-            au.ev, 2 * tr.ev, 1e-9, 'm');
+            tief(au), 2 * tief(tr), 1e-9, 'm');
       pruef(`${id}: das Kettenwerk haengt auf derselben Hoehe`,
-            dr.ev, au.ev, 1e-9, 'm');
+            tief(dr), tief(au), 1e-9, 'm');
       pruef(`${id}: und am ENDE des Kragarms`,
             dr.x, 2 * au.x, 1e-9, 'm');
       wahr(`${id}: die Stuetze selbst steht nicht aus`,
            (tr.x ?? 0) === 0, `x = ${tr.x ?? 0}`);
     });
+  }
+
+  // --- Die Vorlagendatei spricht das Achsensystem der Ausleitung ----------
+  /*
+   * Bis Fassung 2.3 stand dort ein Abstand ZUR JOCHACHSE, positiv NACH
+   * UNTEN, waehrend Eingabekarte, Ausleitung und AxisVM z nach OBEN zaehlen.
+   * Ein Jochaufsatz las sich in der Datei als ev -1.0, obwohl er nach oben
+   * ragt. Gelesen wird die alte Schreibweise weiter - Datenpakete von
+   * frueher muessen sich oeffnen lassen.
+   */
+  {
+    const roh = JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8'));
+    const altReste = roh.vorlagen.flatMap((v) => [v, ...(v.module ?? [])])
+      .filter((o) => 'ev' in o || 'ex' in o);
+    wahr('Keine Vorlage schreibt mehr ev/ex', altReste.length === 0,
+         altReste.map((o) => o.id ?? o.bauteil).join(', '));
+    wahr('Haengendes hat z < 0',
+         roh.vorlagen.find((v) => v.id === 'hs-nur').module[0].z < 0);
+    wahr('Aufgesetztes hat z > 0',
+         roh.vorlagen.find((v) => v.id === 'ja-alt').module[0].z > 0);
+
+    // Und die Altschreibweise kommt weiterhin an derselben Stelle heraus.
+    const altModul = A.normalisiereAnbauteil(
+      { id: 'X', x: 0, module: [{ bauteil: 'anbauteil-haengestuetze-od-haengerohr',
+                                  anzahl: 1, ev: 1.35, ex: 0.2 }] });
+    pruef('Altes ev wird weiter gelesen', altModul.module[0].z, -1.35, 1e-12, 'm');
+    pruef('Altes ex ebenso', altModul.module[0].y, 0.2, 1e-12, 'm');
+  }
+
+  // --- Den Kragarm spiegeln, die Leiter mitziehen -------------------------
+  /*
+   * Ein Ausleger steht nach der einen oder der anderen Seite aus, und das
+   * wechselt von Joch zu Joch. Von Hand waeren es zwei Vorzeichen - und das
+   * zweite (die Leiter am ENDE des Arms) vergisst man.
+   *
+   * Geprueft wird die REGEL: gespiegelt wird der Ausleger und alles, was auf
+   * derselben Seite weiter aussen sitzt; was innen oder auf der anderen
+   * Seite steht, bleibt. Und die Lasten bleiben dieselben - der Spiegel
+   * aendert die Seite, nicht die Groesse.
+   */
+  {
+    const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Der Ausleger hat einen Spiegelknopf', uq.includes('data-mod-spiegeln'));
+    wahr('Nur der Ausleger, und nur wenn er wirklich aussteht',
+         /b\?\.rolle === 'aufbau' && Math\.abs\(m\.x \?\? 0\) > 1e-9/.test(uq));
+    wahr('Gespiegelt wird auf derselben Seite nach aussen',
+         /Math\.sign\(mx\) === seite && Math\.abs\(mx\) >= weite/.test(uq));
+
+    // Dieselbe Regel hier nachgebildet und an den Daten gemessen.
+    const spiegle = (module, mod) => {
+      const m2 = module.map((x) => ({ ...x }));
+      const x0 = m2[mod]?.x ?? 0;
+      if (!x0) return m2;
+      const seite = Math.sign(x0), weite = Math.abs(x0) - 1e-9;
+      m2.forEach((m) => {
+        const mx = m.x ?? 0;
+        if (Math.sign(mx) === seite && Math.abs(mx) >= weite) m.x = -mx;
+      });
+      return m2;
+    };
+    const at = A.neuesAnbauteil('hs-nt-ausleger', 10);
+    const iAufbau = at.module.findIndex((m) => {
+      try { return FL.getFlBauteil(m.bauteil).rolle === 'aufbau'; } catch { return false; }
+    });
+    const gespiegelt = { ...at, module: spiegle(at.module, iAufbau) };
+    pruef('Der Ausleger wechselt die Seite',
+          gespiegelt.module[iAufbau].x, -at.module[iAufbau].x, 1e-12, 'm');
+    const iDraht = at.module.findIndex((m) => {
+      try { return FL.getFlBauteil(m.bauteil).rolle === 'drahtwerk'; } catch { return false; }
+    });
+    pruef('Und die Leiter am Ende des Arms zieht mit',
+          gespiegelt.module[iDraht].x, -at.module[iDraht].x, 1e-12, 'm');
+    pruef('Die Stuetze bleibt, wo sie ist', gespiegelt.module[0].x ?? 0, 0, 1e-12, 'm');
+
+    // Die Lasten bleiben - nur die Seite aendert sich.
+    const summe = (a) => A.expandiereAnbauteile([a], { ek: 'EK2', R: 3e5, spannweite: 50 })
+      .reduce((s, p) => s + Object.values(p.kraefte)
+        .reduce((q, k) => q + Math.abs(k.Fz ?? 0) + Math.abs(k.Fy ?? 0)
+                            + Math.abs(k.Fx ?? 0), 0), 0);
+    pruef('Der Spiegel aendert die Seite, nicht die Groesse',
+          summe(gespiegelt), summe(at), 1e-9, 'kN');
   }
 
   // --- Ein Feld zeigt vor und nach der Rechnung dasselbe -------------------

@@ -135,18 +135,35 @@ const gruppeOderG = (k) =>
  *   Gz, Gx, Gy, eigengewicht -> Gruppe G
  *   Qx -> Wind x     Qy -> Wind y     Qz -> Schnee
  */
+/*
+ * ALTSCHREIBWEISE e_v / e_x.
+ *
+ * Bis Fassung 2.3 stand in der Vorlagendatei ein Abstand ZUR JOCHACHSE,
+ * positiv NACH UNTEN. Alles andere im Werkzeug - Eingabekarte, Ausleitung,
+ * AxisVM - zählt z nach OBEN. Dieselbe Höhe stand damit an drei Stellen mit
+ * zwei Vorzeichen, und ein Jochaufsatz las sich in der Datei als `ev: -1.0`,
+ * obwohl er nach oben ragt. Aus dieser Familie stammen zwei Fehler, die
+ * teuer waren: der Jochaufsatz, der in der Ausleitung eine ganze Jochhöhe zu
+ * tief sass, und ein Ausleger auf halber statt ganzer Stützenhöhe.
+ *
+ * Die Datei spricht seit Fassung 2.4 dieselbe Sprache wie AxisVM: z nach
+ * oben, y in Gleisrichtung. Gelesen wird die alte Schreibweise weiter -
+ * Datenpakete von früher müssen sich öffnen lassen.
+ */
+const zVon = (o) => o?.z ?? -(o?.ev ?? 0);
+const yVon = (o) => o?.y ?? o?.ex ?? 0;
+
 export function normalisiereAnbauteil(a) {
   const t = { ...a };
   t.module = (a.module ?? []).map((m) => {
     const n = { ...m };
-    if (n.z === undefined) n.z = -(n.ev ?? 0);
-    if (n.y === undefined) n.y = n.ex ?? 0;
+    n.z = zVon(n); n.y = yVon(n);
     delete n.ev; delete n.ex;
     return n;
   });
 
   if (!Array.isArray(t.lasten)) {
-    const z = -(a.ev ?? 0), y = a.ex ?? 0;
+    const z = zVon(a), y = yVon(a);
     const bloecke = [];
     const setze = (gruppe, o) => {
       if (Object.values(o).every((v) => !v)) return;
@@ -162,7 +179,10 @@ export function normalisiereAnbauteil(a) {
     t.lasten = a.lasten.map((l) => neuerLastblock(gruppeOderG(l.einwirkung), l));
   }
 
-  ['eigengewicht', 'Gz', 'Gx', 'Gy', 'Qx', 'Qy', 'Qz', 'ev', 'ex']
+  // z und y stehen nur als Saat für den ersten Lastblock in der Vorlage; an
+  // der Baugruppe selbst haben sie nichts verloren - dort trägt jedes Modul
+  // und jeder Lastblock seinen eigenen Angriffspunkt.
+  ['eigengewicht', 'Gz', 'Gx', 'Gy', 'Qx', 'Qy', 'Qz', 'ev', 'ex', 'z', 'y']
     .forEach((k) => delete t[k]);
   return t;
 }
@@ -198,7 +218,7 @@ export function neuesAnbauteil(vorlageId, x = 0) {
     name: v.name,
     x,
     raster: v.raster,
-    befestigung: v.befestigung ?? ((v.ev ?? 0) >= 0 ? 'unten' : 'oben'),
+    befestigung: v.befestigung ?? (zVon(v) <= 0 ? 'unten' : 'oben'),
     // Module der Baugruppe, jedes auf seiner eigenen Höhe
     module: (v.module ?? []).map((m) => ({ ...m })),
     ...(v.windAufTraeger ? { windAufTraeger: true,
@@ -213,7 +233,7 @@ export function neuesAnbauteil(vorlageId, x = 0) {
   }
   const t = normalisiereAnbauteil({
     ...roh,
-    ev: v.ev ?? 0, ex: v.ex ?? 0,
+    z: zVon(v), y: yVon(v),
     eigengewicht: v.eigengewicht ?? 0,
     Gz: v.lasten?.Gz ?? 0, Qz: v.lasten?.Qz ?? 0,
     Qx: v.lasten?.Qx ?? 0, Qy: v.lasten?.Qy ?? 0,
@@ -222,7 +242,7 @@ export function neuesAnbauteil(vorlageId, x = 0) {
   // bekommt einen leeren Lastblock auf der vorgesehenen Höhe - sonst stünde
   // eine Karte ohne jedes Feld da und man wüsste nicht, wo anfangen.
   if (!t.module.length && !t.lasten.length) {
-    t.lasten = [neuerLastblock('G', { z: -(v.ev ?? 0), y: v.ex ?? 0 })];
+    t.lasten = [neuerLastblock('G', { z: zVon(v), y: yVon(v) })];
   }
   return t;
 }

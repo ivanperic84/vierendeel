@@ -742,6 +742,13 @@ function modulListeHtml(a, i, werte) {
       <div class="modul-kopf">
         <select class="mod" data-mk="bauteil" data-idx="${i}" data-mod="${k}"
           >${auswahl(m.bauteil)}</select>
+        ${b?.rolle === 'aufbau' && Math.abs(m.x ?? 0) > 1e-9 ? `
+        <button class="btn btn-mini" type="button"
+                data-mod-spiegeln="${k}" data-idx="${i}"
+                title="Kragarm an der Achse der Hängestütze spiegeln – dieser
+Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
+Ändert nur das Vorzeichen von x; Höhe und Lasten bleiben."
+          >x ⇄</button>` : ''}
         <button class="loeschen" data-mod-weg="${k}" data-idx="${i}"
                 title="Modul entfernen">×</button>
       </div>
@@ -1327,6 +1334,41 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     l[idx] = { ...l[idx], module: m };
     onAnbau(l);
   };
+  /*
+   * KRAGARM SPIEGELN.
+   *
+   * Ein Ausleger steht nach der einen oder der anderen Seite aus, und beim
+   * Aufnehmen einer Anlage wechselt das von Joch zu Joch. Von Hand hiesse
+   * das: zwei Vorzeichen umsetzen und keines vergessen - denn die Leiter am
+   * ENDE des Arms muss mit.
+   *
+   * Gespiegelt wird deshalb dieser Ausleger UND alles, was auf derselben
+   * Seite weiter aussen sitzt. Ein zweiter Ausleger nach der anderen Seite
+   * bleibt, wo er ist; einer, der weiter innen sitzt, ebenso.
+   *
+   * Nur das Vorzeichen von x. Höhe, Lasten und Rolle bleiben - die Achse der
+   * Hängestütze ist der Spiegel.
+   */
+  container.querySelectorAll('[data-mod-spiegeln]').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = +b.dataset.idx, mod = +b.dataset.modSpiegeln;
+      const l = liste();
+      const a = l[idx];
+      if (!a) return;
+      const module = (a.module ?? []).map((x) => ({ ...x }));
+      const x0 = module[mod]?.x ?? 0;
+      if (!x0) return;
+      const seite = Math.sign(x0), weite = Math.abs(x0) - 1e-9;
+      module.forEach((m) => {
+        const mx = m.x ?? 0;
+        if (Math.sign(mx) === seite && Math.abs(mx) >= weite) m.x = -mx;
+      });
+      l[idx] = { ...a, module };
+      onAnbau(l);
+    });
+  });
+
   container.querySelectorAll('.mod').forEach((inp) => {
     const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
     inp.addEventListener(ev, () => {
