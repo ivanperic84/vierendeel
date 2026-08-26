@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1183 Kontrollen bestanden, 0 gefallen · Bundle 1073 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1207 Kontrollen bestanden, 0 gefallen · Bundle 1078 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1183 Kontrollen
+node pruefung.mjs           # Prüfstand, 1207 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -99,6 +99,94 @@ Korrigiert auf 2.70 m.
 
 Der Prüfstand rechnet die Regel jetzt gegen `L,rep` aus der Lasttabelle nach,
 damit Vorlage und Lastwerte nicht auseinanderlaufen.
+
+### Die Auflager: was eingegeben wird, was es bewirkt, was ankam
+
+Systematisch durchgegangen. Erst die Eingaben und ihre Wirkung:
+
+| Eingabe | wirkt auf | Wirkung |
+|---|---|---|
+| `endbedingung` | c_A, c_B | gelenkig 0 · voll 10¹² · manuell c_φ · Mast E·I/H × Faktor |
+| `mastProfil`, `mastH`, `mastSteg` | c | I_y oder I_z, je Stegrichtung |
+| `mastAnschluss` | Faktor 1.00 / 1.45 | **nur im verschieblichen Fall** |
+| `mastZwei`, `…B` | c je Ende | zwei verschiedene Maste sind der Normalfall |
+| `schraubenGrenze`, `F_Grenz` | senkt c iterativ | bis F = M/h ≤ F_Grenz |
+| `wMast`, `mastWindAufJoch` | θ₀ | aufgezwungene Kopfverdrehung |
+| `kragA`, `kragB` | Stützweite, M_k | Kragarmmoment wirkt unmittelbar am Knoten |
+
+Drei Dinge daran sind nicht offensichtlich und stehen jetzt in den
+Hinweistexten:
+
+**Verschieblich oder nicht entscheidet der LASTFALL, nicht der Benutzer.**
+Vertikallasten und Wind in Gleisrichtung → das Joch hält die beiden Mastköpfe
+zusammen, Rahmenwert **3.10**·E·I/H. Wind in Jochachse oder eine Längskraft →
+beide Köpfe wollen in dieselbe Richtung, Kragmast, **1.00 oder 1.45**. Der
+Eingabewert *Anschluss ans Joch* wirkt damit nur im zweiten Fall. Sein
+Hinweistext nannte bisher «Faktor 2» — den gibt es nicht mehr.
+
+**Eingespannt wird nur die Vertikalbiegung.** M_z bleibt immer gelenkig; eine
+Einspannung dagegen liefe über die Torsionssteifigkeit des Mastes, und die ist
+bei offenen Profilen zu gering.
+
+**Die wirksame Feder hängt am Lastfall.** Am nachgerechneten Beispiel (J90,
+20 m, HEB 260 / 7.5 m):
+
+```
+gk       8011      wyk     12951      windXm    1901   kNm/rad
+```
+
+Faktor 7 zwischen den Enden, weil die Schraubengrenze in den meisten Fällen
+greift. Die Feder ist damit keine Eigenschaft des Bauwerks allein.
+
+### Die teilweise Einspannung stand nicht im AxisVM-Modell
+
+Und das ist der Befund, der zählt. Der Rechenkern lagert das Jochende über
+eine Drehfeder. Im ausgeleiteten Stabmodell gab es die **nur** im
+Auflagermodell `punkt` — und das ist ausdrücklich der Ersatzbalken, die
+Vergleichsbasis der Kalibrierung, nicht das Bauwerk.
+
+Im Modell `gurte`, der **Vorgabe für die neue Bauweise**, war der Obergurt
+lotrecht *frei*. Das ist ein Gelenk. Gemessen am selben Beispiel:
+
+| | Anwendung | ausgeleitetes Modell |
+|---|---|---|
+| M_A (Bemessungskombination) | **10.78 kNm** | **0** |
+
+**Übersetzung.** Eine Endverdrehung θ hebt den Obergurt gegenüber dem
+Untergurt um θ·h. Hält je Obergurtknoten eine Feder k, ist die Kraft k·θ·h und
+das Moment beider zusammen 2·k·h²·θ. Gleichgesetzt mit c_φ·θ:
+
+```
+k = c_φ / (2 h²)          je Obergurtknoten [kN/m]
+```
+
+Dieselbe Zwei-Gurt-Vorstellung, auf der `biegesteifigkeitJoch` und das
+Kräftepaar der Anbauteile stehen. Der Prüfstand misst die Übersetzung und den
+Rückweg (2·k·h² = c_φ), dazu die Grenzfälle: gelenkig → Obergurt frei, voll →
+Obergurt starr.
+
+Beim Modell `mitte` bleibt es beim Gelenk: die beiden Halterungen sitzen auf
+halber Höhe, ein Kräftepaar über diesen kurzen Hebel wäre irreführend. Das
+Modell ist für die Altbauweise, und dort setzt die Anwendung das Endlager
+ohnehin gelenkig.
+
+Das Stabmodell ist **eins** und trägt die Feder der Bemessungskombination.
+Wer einen anderen Lastfall untersuchen will, stellt ihn vor dem Ausleiten ein.
+Die Modelldatei trägt dafür das neue Merkmal `gurtfeder`; fehlt es, sagt die
+COM-Brücke laut, dass das Jochende gelenkig ankommt.
+
+### Zwei Nebenbefunde in derselben Ecke
+
+**Das SAF-Blatt ignorierte das Auflagermodell.** Es rief `stuetzung(m, a.ende)`
+— also nur den *Buchstaben* des Endes. Damit war `lager.ux` undefiniert und
+jedes Lager fiel in die Ersatz-Gabellagerung: volle Haltung in allen
+Richtungen plus Drehfeder. Bei vier Gurtknoten je Ende wurde daraus ein
+**vierfach eingespanntes** Jochende.
+
+**`axisvmMappe` reichte die Einstellungen nicht durch.** `auflagerModell` und
+`starrModell` fielen unterwegs weg; der Dialog bot sie an, die SAF-Ausleitung
+nahm dann doch die Vorgabe. Der Datei sah man es nicht an, weil die
+Knotennamen aus demselben Aufbau stammen.
 
 ### Ein Lastschalter formte die Geometrie um
 
@@ -2128,7 +2216,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1183 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1207 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

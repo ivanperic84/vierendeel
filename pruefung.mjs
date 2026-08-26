@@ -2395,9 +2395,46 @@ titel('19  AxisVM-Export (SAF)');
        qs.rows.some((r) => r[0] === 'GURT_OG' && r[3] === 'Angle')
        && qs.rows.some((r) => String(r[0]).startsWith('BLECH_') && r[3] === 'Rectangle'));
 
+  /*
+   * DAS SAF-BLATT SPIEGELT DAS GEWAEHLTE AUFLAGERMODELL.
+   *
+   * Hier stand `stuetzung(m, a.ende)` - also nur der BUCHSTABE des Endes.
+   * `lager.ux` war damit undefiniert, und jedes Lager fiel in die
+   * Ersatz-Gabellagerung: volle Haltung in allen Richtungen plus Drehfeder.
+   * Bei vier Gurtknoten je Ende wurde daraus ein VIERFACH eingespanntes
+   * Jochende. Die alte Pruefung mass genau diesen Fehler und nannte ihn
+   * richtig - sie las Spalte 7 und 9 und fand ueberall 'Rigid'/'Free'.
+   */
   const auf = blaetter.find((b) => b.name === 'StructuralPointSupport');
-  wahr('Gabellagerung: Torsion gehalten, Windbiegung gelenkig',
-       auf.rows.slice(1).every((r) => r[7] === 'Rigid' && r[9] === 'Free'));
+  const spalten = auf.rows[0].map((z) => z.v ?? z);
+  const sp = (name) => spalten.indexOf(name);
+  const lagerZeilen = auf.rows.slice(1);
+  wahr('Ein Lager je gehaltenem Knoten des Auflagermodells',
+       lagerZeilen.length === 8, `${lagerZeilen.length} Zeilen`);   // 4 Gurte * 2 Enden
+  wahr('Windbiegung bleibt gelenkig',
+       lagerZeilen.every((r) => r[sp('fiz')] === 'Free'));
+  wahr('Am Gurtmodell haelt keine Drehfeder - das Ende haengt an vier Punkten',
+       lagerZeilen.every((r) => r[sp('fix')] === 'Free' && r[sp('fiy')] === 'Free'));
+
+  // Die TEILWEISE EINSPANNUNG steht dort als lotrechte Feder am Obergurt.
+  const og = lagerZeilen.filter((r) => String(r[3]).startsWith('OG'));
+  const ug = lagerZeilen.filter((r) => String(r[3]).startsWith('UG'));
+  pruef('Vier Obergurt- und vier Untergurtknoten', og.length, ug.length, 1e-12, 'Stk');
+  wahr('Der Untergurt haelt lotrecht starr',
+       ug.every((r) => r[sp('uz')] === 'Rigid'));
+  // Ohne Einspannung (Vorgabe der Pruefvorrichtung) bleibt der Obergurt frei -
+  // das ist das Gelenk, und es soll auch als solches dastehen.
+  wahr('Ohne Einspannung ist der Obergurt lotrecht frei',
+       og.every((r) => r[sp('uz')] === 'Free'),
+       og.map((r) => r[sp('uz')]).join(' '));
+
+  // Und die Gabellagerung gibt es weiterhin - im Ersatzbalken.
+  const pktBl = AX.axisvmMappe(eingabe, deps,
+    { knotenmodell: 'anschnitt', auflagerModell: 'punkt' }).blaetter;
+  const aufP = pktBl.find((b) => b.name === 'StructuralPointSupport').rows.slice(1);
+  wahr('Der Ersatzbalken traegt die Gabellagerung',
+       aufP.length === 2 && aufP.every((r) => r[7] === 'Rigid' && r[9] === 'Free'),
+       `${aufP.length} Zeilen`);
 
   // --- Endschott: tragend, nur die Ausgabe ist schaltbar --------------------
   const PKT = { knotenmodell: 'schwerachsen', auflagerModell: 'punkt' };
@@ -5254,6 +5291,127 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
     wahr('Die Ausleitung ebenso', xq.includes('anbauKette(a.teile ?? [a]'));
     wahr('Und niemand zeichnet mehr einen geraden Staender daneben',
          !rq.includes('opt(`Ständer '));
+  }
+}
+
+// ===========================================================================
+titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
+/*
+ * Der Rechenkern lagert das Jochende ueber eine DREHFEDER c_phi. Das
+ * ausgeleitete Stabmodell hat dafuer nur im Auflagermodell 'punkt' einen Ort
+ * - dort haengt das Ende ueber ein Schott an EINEM Knoten. Im Modell 'gurte',
+ * der Vorgabe fuer die neue Bauweise, sind die vier Gurte einzeln gehalten,
+ * und der Obergurt war lotrecht FREI. Das ist ein Gelenk: das ausgeleitete
+ * Modell war am Ende immer gelenkig, ganz gleich was die Anwendung gerechnet
+ * hatte.
+ *
+ * UEBERSETZUNG. Eine Endverdrehung theta hebt den Obergurt gegenueber dem
+ * Untergurt um theta*h. Haelt je Obergurtknoten eine Feder k, ist die Kraft
+ * k*theta*h und das Moment beider zusammen 2*k*h^2*theta:
+ *
+ *      k = c_phi / (2 h^2)
+ *
+ * Dieselbe Zwei-Gurt-Vorstellung, auf der biegesteifigkeitJoch und das
+ * Kraeftepaar der Anbauteile stehen.
+ */
+{
+  const AX = await import(J('export.axisvm.js'));
+  const AU = await import(J('core.auflager.js'));
+
+  const bau = (extra) => {
+    const w = { ...standardwerte(), typ: 'J90', L: 20, ...extra };
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    return { w, m: e.modell };
+  };
+  const lager = (m, w, am) => AX.stabmodellJson(m, { eingabe: w, auflagerModell: am })
+    .auflager.filter((a) => a.ende === 'A');
+
+  // --- Mit Mast: die Feder muss ankommen ----------------------------------
+  {
+    const { w, m } = bau({ endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5 });
+    const c = m.federn.cA;
+    wahr('Die Anwendung rechnet eine teilweise Einspannung', c > 0 && c < 1e11,
+         `c = ${c.toFixed(0)} kNm/rad`);
+
+    const g = lager(m, w, 'gurte');
+    const og = g.filter((a) => a.knoten.startsWith('OG'));
+    const ug = g.filter((a) => a.knoten.startsWith('UG'));
+    pruef('Vier Gurte je Ende', g.length, 4, 1e-12, 'Stk');
+    wahr('Der Untergurt haelt lotrecht starr', ug.every((a) => a.uz === 'Rigid'));
+    wahr('Der Obergurt traegt jetzt eine Feder',
+         og.every((a) => a.uz === 'Flexible' && a.cUz_kNm > 0),
+         og.map((a) => `${a.uz} ${a.cUz_kNm}`).join(' | '));
+
+    // Die Uebersetzung, an der Zahl gemessen - und zurueck.
+    const h = m.h;
+    pruef('k = c_phi / (2 h^2)', og[0].cUz_kNm, c / (2 * h * h), 1e-6, 'kN/m');
+    pruef('Und zurueck: 2 k h^2 = c_phi',
+          2 * og[0].cUz_kNm * h * h, c, 1e-6, 'kNm/rad');
+    wahr('Beide Obergurtknoten tragen dieselbe Feder',
+         Math.abs(og[0].cUz_kNm - og[1].cUz_kNm) < 1e-9);
+
+    // Der Ersatzbalken traegt sie weiterhin als DREHfeder - unveraendert.
+    const pk = lager(m, w, 'punkt');
+    pruef('Im Ersatzbalken bleibt es eine Drehfeder', pk.length, 1, 1e-12, 'Stk');
+    pruef('Mit genau dem Wert des Rechenkerns', pk[0].cFiy_kNm, c, 1e-6, 'kNm/rad');
+    wahr('Und dort traegt der Obergurt keine eigene Feder', !pk[0].cUz_kNm);
+  }
+
+  // --- Die Grenzfaelle: gelenkig bleibt gelenkig, voll wird starr ---------
+  {
+    const gelenk = bau({ endbedingung: 'gelenkig' });
+    const og = lager(gelenk.m, gelenk.w, 'gurte').filter((a) => a.knoten.startsWith('OG'));
+    wahr('Gelenkig: der Obergurt bleibt lotrecht frei',
+         og.every((a) => a.uz === 'Free' && !a.cUz_kNm), og.map((a) => a.uz).join(' '));
+
+    const voll = bau({ endbedingung: 'voll' });
+    const ogV = lager(voll.m, voll.w, 'gurte').filter((a) => a.knoten.startsWith('OG'));
+    wahr('Voll eingespannt: der Obergurt wird starr gehalten',
+         ogV.every((a) => a.uz === 'Rigid' && !a.cUz_kNm), ogV.map((a) => a.uz).join(' '));
+  }
+
+  // --- Die Bruecke muss die Feder auch anlegen ----------------------------
+  {
+    const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+    wahr('Die Bruecke liest die Gurtfeder', PS1.includes('$zahl $a.uz  $a.cUz_kNm'));
+    wahr('Und die Modelldatei sagt, dass sie eine hat',
+         AX.MERKMALE.includes('gurtfeder'));
+    wahr('Die Bruecke erwartet genau dieses Merkmal', PS1.includes("'gurtfeder'   = ("));
+  }
+
+  // --- Was die Feder wert ist: sie haengt am LASTFALL ---------------------
+  /*
+   * Die Verbindung Joch-Mast traegt nur bis zur Grenzlast ihrer Schrauben;
+   * die Feder wird deshalb je Lastfall herabgesetzt (begrenzeFeder). Sie ist
+   * damit KEINE Eigenschaft des Bauwerks allein. Das ausgeleitete Modell
+   * traegt die Feder der BEMESSUNGSKOMBINATION - eine Zahl, ein Modell.
+   * Diese Pruefung haelt fest, dass die Spanne wirklich gross ist, damit die
+   * Wahl nicht als Kleinigkeit durchgeht.
+   */
+  {
+    const basisW = { ...standardwerte(), typ: 'J90', L: 20,
+                     endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5,
+                     anbauteile: [A.neuesAnbauteil('hs-nt-ausleger', 10)] };
+    const cVon = (lf) => {
+      const e = berechne({ ...basisW, lastfall: lf }, getProfil(basisW.profOG),
+                         getProfil(basisW.profUG), getStahl(basisW.stahl),
+                         T.getTragjoch(basisW.typ));
+      return e.modell.federn.cA;
+    };
+    const werte = ['gk', 'wyk', 'windXm'].map(cVon);
+    wahr('Die wirksame Feder haengt am Lastfall',
+         Math.max(...werte) / Math.min(...werte) > 2,
+         werte.map((v) => v.toFixed(0)).join(' / ') + ' kNm/rad');
+
+    // Und die geometrische Feder kennt zwei Werte - je nachdem, ob sich der
+    // Rahmen verschieben kann.
+    const st = AU.mastSteifigkeit(basisW, 'A', false);
+    pruef('Unverschieblich ist die Feder 3.10 mal die des Kragmastes',
+          st.cUnverschieblich / st.cKragarm, AU.MAST_UNVERSCHIEBLICH, 1e-12, '-');
+    wahr('Und der Anschlussfaktor greift nur im verschieblichen Fall',
+         AU.mastSteifigkeit(basisW, 'A', true).cPhi
+           === AU.mastSteifigkeit(basisW, 'A', true).cVerschieblich);
   }
 }
 

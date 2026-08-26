@@ -67,10 +67,27 @@ export const KNOTENMODELLE = [
  * Beides ist richtig, für verschiedene Zwecke: `punkt` bildet den Rechenkern
  * nach und ist die Vergleichsbasis der Kalibrierung; `gurte` und `mitte`
  * bilden das Bauwerk nach. Deshalb umschaltbar statt entschieden.
+ *
+ * WO DIE TEILWEISE EINSPANNUNG STEHT. Im Ersatzbalken als Drehfeder um y. Am
+ * Gurtmodell gibt es dafür keinen Punkt - dort tritt das Stützmoment als
+ * Kräftepaar zwischen den Gurten ein, und die Feder steht LOTRECHT am
+ * Obergurt: k = c_phi/(2h²). Beim Modell `mitte` gibt es weder das eine noch
+ * das andere: die beiden Halterungen sitzen auf halber Höhe mit einem Gelenk
+ * um y, ein Kräftepaar über diesen kurzen Hebel wäre irreführend. Das Modell
+ * ist für die ALTBAUWEISE gedacht, und dort setzt die Anwendung das Endlager
+ * ohnehin gelenkig (ui.schema.js, typUebernehmen).
+ *
+ * WELCHE FEDER. Die Verbindung Joch-Mast trägt nur bis zur Grenzlast ihrer
+ * Schrauben; die Anwendung setzt die Feder deshalb je Lastfall herab
+ * (core.auflager.js, begrenzeFeder) - beim nachgemessenen Beispiel zwischen
+ * 1901 und 12951 kNm/rad. Das Stabmodell ist EINS und trägt die Feder der
+ * BEMESSUNGSKOMBINATION. Wer einen anderen Lastfall untersuchen will, stellt
+ * ihn vor dem Ausleiten ein.
  */
 export const AUFLAGERMODELLE = [
   { key: 'gurte',
-    label: 'Gurte einzeln: Untergurte x/y/z, Obergurte x/y (kein Kräftepaar)' },
+    label: 'Gurte einzeln: Untergurte x/y/z, Obergurte x/y + Drehfeder als '
+         + 'lotrechte Gurtfeder' },
   { key: 'mitte',
     label: 'Mitte der Gurtebenen vorn und hinten, x/y/z, Gelenk um y (Altbauweise)' },
   { key: 'punkt',
@@ -97,8 +114,12 @@ const STARR = { name: 'STARR', h: 500, b: 500 };
  * `anbau-kette`  Anbauteile stehen in einer Kette (Traeger -> Aufbau ->
  *                Drahtwerk). Fehlt das Merkmal, stammt die Datei aus einer
  *                Fassung, die jedes Teil einzeln ans Joch gehangt hat.
+ * `gurtfeder`    Die teilweise Einspannung steht als lotrechte Feder am
+ *                Obergurt (k = c_phi/(2h^2)). Fehlt sie, ist das Jochende im
+ *                ausgeleiteten Modell GELENKIG - ganz gleich, was die
+ *                Anwendung gerechnet hat.
  */
-export const MERKMALE = ['anbau-kette'];
+export const MERKMALE = ['anbau-kette', 'gurtfeder'];
 
 /** Rechteck-Ersatzquerschnitt des Anbauteil-Arms: steif, ohne Eigengewicht. */
 const ARM = { name: 'ARM', h: 300, b: 300 };
@@ -616,7 +637,10 @@ export function stabmodell(m, opt = {}) {
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
     const laengs = ende === 'A' ? 'Rigid' : 'Free';   // ein Ende längs frei
     const halt = (knoten, uz, fiy, c) => auflager.push({
-      ende, x, modell: am, knoten,
+      // h wird mitgeführt, weil die TEILWEISE EINSPANNUNG hier nicht als
+      // Drehfeder ankommt, sondern als Kräftepaar zwischen den Gurten - und
+      // dessen Hebelarm ist genau diese Jochhöhe (siehe stuetzung).
+      ende, x, h: r6(h), modell: am, knoten,
       ux: laengs, uy: 'Rigid', uz,
       fix: 'Free', fiy, fiz: 'Free', feder: c ?? null,
     });
@@ -650,9 +674,33 @@ export function stabmodell(m, opt = {}) {
       return;
     }
 
-    // am === 'gurte'
+    /*
+     * am === 'gurte' - UND HIER STEHT DIE TEILWEISE EINSPANNUNG.
+     *
+     * Der Rechenkern lagert das Jochende über eine DREHFEDER c_phi. An diesem
+     * Modell gibt es aber keinen Punkt, an dem sich eine Drehfeder anbringen
+     * liesse: gehalten sind die vier Gurte einzeln. Genau so ist es auch am
+     * Bauwerk - das Stützmoment tritt als KRÄFTEPAAR zwischen Ober- und
+     * Untergurtanschluss in den Mast, dasselbe Bild, mit dem der Rechenkern
+     * die Verbindung gegen die Schraubengrenze prüft.
+     *
+     * Bis hierher blieb der Obergurt lotrecht FREI. Das ist ein Gelenk - das
+     * ausgeleitete Modell war am Ende immer gelenkig, ganz gleich was die
+     * Anwendung gerechnet hatte. Beim nachgemessenen Beispiel standen dort
+     * 10.78 kNm gegen null.
+     *
+     * ÜBERSETZUNG. Eine Endverdrehung theta hebt den Obergurt gegenüber dem
+     * Untergurt um theta*h. Hält je Obergurtknoten eine Feder k, ist die
+     * Kraft k*theta*h und das Moment beider zusammen 2*k*h^2*theta. Gleich-
+     * gesetzt mit c_phi*theta:
+     *
+     *      k = c_phi / (2 h^2)          je Obergurtknoten [kN/m]
+     *
+     * Dieselbe Zwei-Gurt-Vorstellung, auf der auch biegesteifigkeitJoch und
+     * das Kräftepaar der Anbauteile stehen.
+     */
     ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
-      halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'Free',
+      halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'FederZ',
            'Free', null);
     }));
   });
@@ -1022,6 +1070,22 @@ function stuetzung(m, lager) {
   const starr = c >= 1e11;
   const weich = c > 0 && !starr;
 
+  /*
+   * DIE DREHFEDER ALS GURTFEDER.
+   *
+   * Wo das Ende an vier Gurten hängt, gibt es keinen Punkt für eine
+   * Drehfeder. Das Stützmoment tritt dort als Kräftepaar zwischen Ober- und
+   * Untergurt ein - und eine Endverdrehung theta hebt den Obergurt um
+   * theta*h. Mit je einer Feder k an den beiden Obergurtknoten:
+   *
+   *      M = 2 * k * h^2 * theta  =!=  c_phi * theta   ->   k = c_phi/(2h^2)
+   *
+   * Ohne Jochhöhe (ein Lager ohne h, etwa aus einem alten Aufruf) bleibt es
+   * beim Gelenk - lieber sichtbar weich als still falsch steif.
+   */
+  const h = lager.h ?? 0;
+  const kUz = weich && h > 0 ? c / (2 * h * h) : null;
+
   // Die Freiheitsgrade legt das Auflagermodell fest (stabmodell); hier wird
   // nur noch 'Feder' aufgelöst. Ohne Modellangabe - etwa aus dem SAF-Blatt,
   // das nur den Ersatzbalken kennt - gilt die alte Gabellagerung.
@@ -1034,11 +1098,19 @@ function stuetzung(m, lager) {
             : (c > 0 ? (starr ? 'Rigid' : 'Flexible') : 'Free');
   const hatFeder = roh.fiy === 'Feder' && weich;
 
+  // Der Obergurt: frei bei c = 0, starr bei voller Einspannung, sonst Feder.
+  const uz = roh.uz !== 'FederZ' ? roh.uz
+           : starr ? 'Rigid'
+           : kUz !== null ? 'Flexible' : 'Free';
+  const hatGurtfeder = roh.uz === 'FederZ' && uz === 'Flexible';
+
   return {
-    ux: roh.ux, uy: roh.uy, uz: roh.uz,
+    ux: roh.ux, uy: roh.uy, uz,
     fix: roh.fix, fiy, fiz: roh.fiz,
     cFiy_MNm: hatFeder ? r6(c / 1000) : null,   // für SAF
     cFiy_kNm: hatFeder ? r6(c) : null,          // für COM
+    cUz_MN: hatGurtfeder ? r6(kUz / 1000) : null,
+    cUz_kNm: hatGurtfeder ? r6(kUz) : null,
   };
 }
 
@@ -1096,13 +1168,24 @@ export function safBlaetter(m, opt = {}) {
     }),
   ];
 
+  /*
+   * HIER STAND `stuetzung(m, a.ende)` - also nur der BUCHSTABE des Endes.
+   * Damit war `lager.ux` undefiniert, und jedes Lager fiel in die
+   * Ersatz-Gabellagerung: volle Haltung in allen Richtungen plus Drehfeder.
+   * Bei vier Gurtknoten je Ende wurde daraus ein VIERFACH eingespanntes
+   * Jochende - das ausgeleitete SAF-Modell hatte mit dem gewählten
+   * Auflagermodell nichts mehr zu tun.
+   */
   const lager = [
     kopf(['Name', 'Type', 'Boundary condition', 'Node', 'ux', 'uy', 'uz',
-          'fix', 'fiy', 'fiz', 'Stiffness Fiy [MNm/rad]']),
-    ...bau.auflager.map((a) => {
-      const b = stuetzung(m, a.ende);
-      return [`AUFLAGER_${a.ende}`, 'Standard', 'In node', a.knoten,
-              b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz, b.cFiy_MNm];
+          'fix', 'fiy', 'fiz', 'Stiffness Fiy [MNm/rad]',
+          'Stiffness uz [MN/m]']),
+    ...bau.auflager.map((a, i) => {
+      const b = stuetzung(m, a);
+      return [`AUFLAGER_${a.ende}${bau.auflager.filter((z) => z.ende === a.ende).length > 1
+                ? `_${i + 1}` : ''}`,
+              'Standard', 'In node', a.knoten,
+              b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz, b.cFiy_MNm, b.cUz_MN];
     }),
   ];
 
@@ -1303,7 +1386,15 @@ export function axisvmMappe(inp, deps, opt = {}) {
   });
 
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
-  const { blaetter, bau } = safBlaetter(m, { knotenmodell: km, schottAusblenden: opt.schottAusblenden });
+  /*
+   * ALLE Einstellungen weiterreichen, nicht nur zwei.
+   *
+   * Hier standen `knotenmodell` und `schottAusblenden`; `auflagerModell` und
+   * `starrModell` fielen unterwegs weg. Der Dialog bot sie an, die
+   * SAF-Ausleitung nahm dann doch die Vorgabe - und niemand sah es der Datei
+   * an, weil die Knotennamen aus demselben Aufbau stammen.
+   */
+  const { blaetter, bau } = safBlaetter(m, { ...opt, knotenmodell: km });
 
   return {
     blaetter: [anleitungsblatt(m, { knotenmodell: km }), ...blaetter,

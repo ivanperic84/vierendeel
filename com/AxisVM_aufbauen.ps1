@@ -514,6 +514,10 @@ if ($Json) {
         'anbau-kette' = ('Anbauteile in einer Kette (Traeger -> Aufbau -> ' +
                          'Drahtwerk). Fehlt es, haengt im Modell jedes Teil ' +
                          'EINZELN am Joch.')
+        'gurtfeder'   = ('Die teilweise Einspannung steht als lotrechte Feder ' +
+                         'am Obergurt (k = c_phi/(2h^2)). Fehlt es, ist das ' +
+                         'Jochende im Modell GELENKIG - ganz gleich was die ' +
+                         'Anwendung gerechnet hat.')
     }
     $hat = @()
     if ($d.PSObject.Properties.Name -contains 'merkmale' -and $d.merkmale) {
@@ -1699,10 +1703,23 @@ foreach ($a in $d.auflager) {
     $zahl = { param($art, $c)
         switch ($art) { 'Rigid' { $STARR } 'Free' { 0.0 } 'Flexible' { [double]$c } default { 0.0 } } }
 
+    <#  ZWEI FEDERN, ZWEI ORTE.
+
+        Am Ersatzbalken (Auflagermodell 'punkt') sitzt die teilweise
+        Einspannung als DREHFEDER yy. Haengt das Ende dagegen an den vier
+        Gurten, gibt es keinen Punkt fuer eine Drehfeder: das Stuetzmoment
+        tritt dort als Kraeftepaar zwischen Ober- und Untergurt ein, und die
+        Einspannung steht als LOTRECHTE Feder am Obergurt.
+
+             k = c_phi / (2 h^2)        je Obergurtknoten [kN/m]
+
+        Bis hierher wurde z immer als Rigid/Free gelesen und cUz_kNm
+        verworfen - das ausgeleitete Modell war am Ende gelenkig, ganz gleich
+        was die Anwendung gerechnet hatte.                                #>
     $stf = NeuerSatz 'RStiffnesses'
     $stf.x  = & $zahl $a.ux  0
     $stf.y  = & $zahl $a.uy  0
-    $stf.z  = & $zahl $a.uz  0
+    $stf.z  = & $zahl $a.uz  $a.cUz_kNm
     $stf.xx = & $zahl $a.fix 0
     $stf.yy = & $zahl $a.fiy $a.cFiy_kNm
     $stf.zz = & $zahl $a.fiz 0
@@ -1718,8 +1735,10 @@ foreach ($a in $d.auflager) {
             $m.NodalSupports.AddNodalGlobal($stf, $nl, $ws, $n) } }
     ) -Positiv
     if (-not $r.ok) { Mitglieder 'NodalSupports' $m.NodalSupports; Beenden 7 "Auflager $($a.ende) nicht anlegbar." }
-    Schreib ("    {0} an Knoten {1}:  x {2:N0}  y {3:N0}  z {4:N0}  xx {5:N0}  yy {6:N1}  zz {7:N0}" -f
-             $a.ende, $n, $stf.x, $stf.y, $stf.z, $stf.xx, $stf.yy, $stf.zz)
+    Schreib ("    {0} an {1,-14} x {2,12:N0}  y {3,12:N0}  z {4,12:N0}" -f
+             $a.ende, $a.knoten, $stf.x, $stf.y, $stf.z)
+    Schreib ("      {0,-16}  xx {1,11:N0}  yy {2,12:N1}  zz {3,11:N0}" -f
+             '', $stf.xx, $stf.yy, $stf.zz)
 }
 
 # --- 8 - Lastfaelle ----------------------------------------------------------

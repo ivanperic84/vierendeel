@@ -167,10 +167,14 @@ export const FELDER = [
     sichtbar: (w) => w.endbedingung === 'mast',
     hinweis: 'Läuft der Mast über die Anschlussebene hinaus und ist das Joch ' +
              'über seine ganze Höhe angeschlossen, ist die Einspannung ' +
-             'steifer als beim Kragarm. Der Faktor 2 ist an einem AxisVM-' +
-             'Modell kalibriert, nicht hergeleitet — die weichere ' +
-             'Annahme vergrössert das Feldmoment, die steifere das ' +
-             'Stützmoment.' },
+             'steifer als beim Kragarm: 1.45·E·I/H statt 1.00·E·I/H, an einem ' +
+             'Stabwerksmodell kalibriert und nicht hergeleitet. ' +
+             'WIRKT NUR IM VERSCHIEBLICHEN FALL — also bei Wind in Jochachse ' +
+             'und bei Längskräften aus Anbauteilen. Für Vertikallasten und ' +
+             'Wind in Gleisrichtung hält das Joch die beiden Mastköpfe ' +
+             'zusammen; dann gilt der gemessene Rahmenwert 3.10·E·I/H, ' +
+             'unabhängig von dieser Wahl. Die weichere Annahme vergrössert ' +
+             'das Feldmoment, die steifere das Stützmoment.' },
   { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
     label: 'Einspannung durch die Gurtverbindung begrenzen', standard: true,
     sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
