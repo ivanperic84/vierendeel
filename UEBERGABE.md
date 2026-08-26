@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1207 Kontrollen bestanden, 0 gefallen · Bundle 1078 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1219 Kontrollen bestanden, 0 gefallen · Bundle 1085 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1207 Kontrollen
+node pruefung.mjs           # Prüfstand, 1219 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -174,6 +174,45 @@ Das Stabmodell ist **eins** und trägt die Feder der Bemessungskombination.
 Wer einen anderen Lastfall untersuchen will, stellt ihn vor dem Ausleiten ein.
 Die Modelldatei trägt dafür das neue Merkmal `gurtfeder`; fehlt es, sagt die
 COM-Brücke laut, dass das Jochende gelenkig ankommt.
+
+### Die geometrische Feder ins Modell, die Schraubengrenze als Nachweis
+
+**Entscheid des Auftraggebers**, auf die offene Frage hin. Umgesetzt:
+
+*Ins Stabmodell* geht `federn.roh` — E·I/H mal Rahmenfaktor, die Steifigkeit
+des **Bauwerks**, unabhängig vom Lastfall. Vorher wäre es die je Lastfall auf
+die Schraubengrenze herabgesetzte gewesen; ein Stabmodell gibt es aber nur
+eines, und es hätte die Feder eines einzelnen Lastfalls getragen. Die Datei
+sagt es jetzt selbst (`tragwerk.federArt`), und die COM-Brücke schreibt beide
+Werte in den Bericht.
+
+*Als Nachweis* rechnet die Anwendung ein **zweites Mal** mit der ungebremsten
+Feder und weist den Gurtanschluss aus:
+
+```
+Prüfung A1   Gurtanschluss am Mast – Kräftepaar M/h aus der geometrischen Feder
+             M_St 16.75 kNm / h 0.449 m  →  F = 37.28 kN  gegen  24 kN   η 1.55
+```
+
+Das Ergebnis geht **nicht** in die Schnittgrössen des Jochs ein — dort gilt
+weiterhin die begrenzte Feder, wie bisher. A1 beantwortet die Frage, die das
+ausgeleitete Modell stellt: es trägt die steifere Feder, also auch deren
+Stützmoment.
+
+Am nachgerechneten Beispiel ist der Anschluss damit **um 55 % überschritten**.
+Das stand vorher nirgends: die Begrenzung hatte es per Konstruktion
+eingehalten, und man sah nie, was die Verbindung mit der wirklichen
+Maststeifigkeit zu tragen hätte.
+
+`voll eingespannt` bleibt aussen vor — eine Idealisierung zum Vergleich, keine
+ausgeführte Verbindung. Dieselbe Ausnahme gilt schon für die Begrenzung.
+
+### Die Konstruktionsprüfungen stehen jetzt da
+
+Das Urteil sagte «1 Prüfung(en) verletzt» und liess den Benutzer damit stehen —
+*welche* stand nur in der Excel-Ausleitung. In der Übersicht steht jetzt eine
+aufklappbare Liste, Verletztes zuoberst; sie öffnet sich von selbst, wenn
+etwas verletzt ist.
 
 ### Zwei Nebenbefunde in derselben Ecke
 
@@ -2216,7 +2255,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1207 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1219 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

@@ -515,9 +515,10 @@ if ($Json) {
                          'Drahtwerk). Fehlt es, haengt im Modell jedes Teil ' +
                          'EINZELN am Joch.')
         'gurtfeder'   = ('Die teilweise Einspannung steht als lotrechte Feder ' +
-                         'am Obergurt (k = c_phi/(2h^2)). Fehlt es, ist das ' +
-                         'Jochende im Modell GELENKIG - ganz gleich was die ' +
-                         'Anwendung gerechnet hat.')
+                         'am Obergurt (k = c_phi/(2h^2)), und zwar mit der ' +
+                         'GEOMETRISCHEN Steifigkeit des Mastes. Fehlt es, ist ' +
+                         'das Jochende im Modell GELENKIG - ganz gleich was ' +
+                         'die Anwendung gerechnet hat.')
     }
     $hat = @()
     if ($d.PSObject.Properties.Name -contains 'merkmale' -and $d.merkmale) {
@@ -553,6 +554,17 @@ if ($Json) {
              "$($d.staebe.Count) Staebe  -  $($d.querschnitte.Count) Querschnitte")
     Schreib ("  Einheiten: $($d.einheiten.laenge) / $($d.einheiten.kraft) / " +
              "$($d.einheiten.moment) / Drehfeder $($d.einheiten.drehfeder)")
+    if ($d.tragwerk.federArt) {
+        Schreib ("  Endeinspannung: $($d.tragwerk.federArt), " +
+                 "c_phi = $($d.tragwerk.federGeometrisch_kNm) kNm/rad")
+        if ($null -ne $d.tragwerk.federBegrenzt_kNm) {
+            Schreib ("    Die Anwendung rechnet ihre eigenen Schnittgroessen mit " +
+                     "$($d.tragwerk.federBegrenzt_kNm) kNm/rad -")
+            Schreib '    auf die Grenzlast der Gurtverbindung herabgesetzt. Dieses'
+            Schreib '    Modell traegt die STEIFERE, geometrische Feder; der'
+            Schreib '    Gurtanschluss ist in der Anwendung eigens nachgewiesen.'
+        }
+    }
 }
 
 # --- 1 - Anwendung -----------------------------------------------------------

@@ -5330,9 +5330,14 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
   // --- Mit Mast: die Feder muss ankommen ----------------------------------
   {
     const { w, m } = bau({ endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5 });
-    const c = m.federn.cA;
+    /*
+     * AUSGELEITET WIRD DIE GEOMETRISCHE FEDER (Weisung), nicht die je
+     * Lastfall auf die Schraubengrenze herabgesetzte. Ein Stabmodell gibt es
+     * nur eines; es truege sonst die Feder eines einzelnen Lastfalls.
+     */
+    const c = m.federn.roh.cA;
     wahr('Die Anwendung rechnet eine teilweise Einspannung', c > 0 && c < 1e11,
-         `c = ${c.toFixed(0)} kNm/rad`);
+         `c_geo = ${c.toFixed(0)} kNm/rad`);
 
     const g = lager(m, w, 'gurte');
     const og = g.filter((a) => a.knoten.startsWith('OG'));
@@ -5354,8 +5359,17 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     // Der Ersatzbalken traegt sie weiterhin als DREHfeder - unveraendert.
     const pk = lager(m, w, 'punkt');
     pruef('Im Ersatzbalken bleibt es eine Drehfeder', pk.length, 1, 1e-12, 'Stk');
-    pruef('Mit genau dem Wert des Rechenkerns', pk[0].cFiy_kNm, c, 1e-6, 'kNm/rad');
+    pruef('Mit der geometrischen Feder des Bauwerks', pk[0].cFiy_kNm, c, 1e-6, 'kNm/rad');
     wahr('Und dort traegt der Obergurt keine eigene Feder', !pk[0].cUz_kNm);
+
+    // Und ausdruecklich NICHT die begrenzte - sonst haenge das Modell am
+    // Lastfall, den man beim Ausleiten zufaellig eingestellt hatte.
+    wahr('Die begrenzte Feder ist eine andere Zahl',
+         Math.abs(m.federn.cA - c) > 1,
+         `begrenzt ${m.federn.cA.toFixed(0)} gegen geometrisch ${c.toFixed(0)}`);
+    wahr('Ausgeleitet wird die geometrische',
+         Math.abs(pk[0].cFiy_kNm - c) < 1e-6
+         && Math.abs(pk[0].cFiy_kNm - m.federn.cA) > 1);
   }
 
   // --- Die Grenzfaelle: gelenkig bleibt gelenkig, voll wird starr ---------
@@ -5369,6 +5383,37 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     const ogV = lager(voll.m, voll.w, 'gurte').filter((a) => a.knoten.startsWith('OG'));
     wahr('Voll eingespannt: der Obergurt wird starr gehalten',
          ogV.every((a) => a.uz === 'Rigid' && !a.cUz_kNm), ogV.map((a) => a.uz).join(' '));
+  }
+
+  // --- Die Schraubengrenze als EIGENER Nachweis ---------------------------
+  /*
+   * Weisung: die geometrische Feder ins Modell, die Schraubengrenze separat
+   * nachweisen. Bis dahin lebte die Grenze nur INNERHALB der Feder - sie war
+   * per Konstruktion eingehalten, und man sah nie, wieviel die Verbindung mit
+   * der wirklichen Steifigkeit des Mastes zu tragen haette. Genau das ist die
+   * Frage, die das ausgeleitete Stabmodell stellt.
+   */
+  {
+    const { m } = bau({ endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5,
+                        schraubenFgrenz: 24 });
+    const ga = m.gurtanschluss;
+    wahr('Der Gurtanschluss wird eigens gerechnet', !!ga);
+    pruef('Aus der GEOMETRISCHEN Feder', ga.cA, m.federn.roh.cA, 1e-9, 'kNm/rad');
+    pruef('Kraefte paar M/h', ga.FA, Math.abs(ga.MA) / ga.h, 1e-9, 'kN');
+    pruef('Massgebend ist das groessere Ende', ga.F,
+          Math.max(ga.FA, ga.FB), 1e-12, 'kN');
+    pruef('eta = F / F_Grenz', ga.eta, ga.F / 24, 1e-9, '-');
+    const CH = await import(J('core.checks.js'));
+    const a1 = CH.konstruktionsChecks(m).find((c) => c.id === 'A1');
+    wahr('Er steht als Pruefung A1 in der Liste', !!a1, a1 ? a1.text : '(fehlt)');
+    pruef('Sie nennt die Kraft', a1.vorhanden, ga.F, 1e-9, 'kN');
+    pruef('Und die Grenzlast', a1.erforderlich, 24, 1e-12, 'kN');
+    wahr('Und sagt, ob es reicht', a1.ok === (ga.F <= 24 * (1 + 1e-9)),
+         `F = ${ga.F.toFixed(2)} kN gegen 24 kN`);
+
+    // Voll eingespannt ist eine Idealisierung, keine Verbindung - dort nicht.
+    const voll = bau({ endbedingung: 'voll', schraubenFgrenz: 24 });
+    wahr('Bei voller Einspannung wird nichts nachgewiesen', !voll.m.gurtanschluss);
   }
 
   // --- Die Bruecke muss die Feder auch anlegen ----------------------------

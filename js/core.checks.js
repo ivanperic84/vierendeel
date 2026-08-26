@@ -65,6 +65,30 @@ export function konstruktionsChecks(m) {
     });
   });
 
+  /*
+   * DER GURTANSCHLUSS AM MAST.
+   *
+   * Weisung: die geometrische Feder geht ins Modell, die Schraubengrenze wird
+   * SEPARAT nachgewiesen. Bis dahin lebte die Grenze nur innerhalb der Feder -
+   * sie war per Konstruktion eingehalten, und man sah nie, wieviel die
+   * Verbindung mit der wirklichen Steifigkeit des Mastes zu tragen hätte.
+   *
+   * Genau das ist die Frage, die das ausgeleitete Stabmodell stellt: es trägt
+   * die geometrische Feder, also auch deren Stützmoment. Gerechnet wird der
+   * Wert in core.vierendeel.js (gurtanschluss), hier steht nur der Nachweis.
+   */
+  const ga = m.gurtanschluss;
+  if (ga && ga.Fgrenz > 0) {
+    checks.push({
+      id: 'A1',
+      text: `Gurtanschluss am Mast – Kräftepaar M/h aus der geometrischen Feder`,
+      vorhanden: ga.F, erforderlich: ga.Fgrenz, einheit: 'kN', richtung: '<=',
+      ok: ga.ok === true,
+      status: `M_St ${Math.max(Math.abs(ga.MA), Math.abs(ga.MB)).toFixed(2)} kNm `
+            + `/ h ${ga.h.toFixed(3)} m · η ${ga.eta.toFixed(2)}`,
+    });
+  }
+
   // --- Plausibilität --------------------------------------------------------
   // Die Befestigungspunkte liegen bei x ± raster/2 und müssen auf dem Joch liegen
   const aktive = (m.anbauteile ?? []).filter((a) => a.aktiv !== false);
@@ -207,7 +231,10 @@ export function hinweise(m) {
   if (m.federn?.grenze?.begrenzt) {
     h.push(`Drehfeder auf die Gurtverbindung begrenzt: c_φ von `
       + `${m.federn.roh.cA.toFixed(0)} auf ${m.federn.cA.toFixed(0)} kNm/rad `
-      + `herabgesetzt, Gurtkraft ${m.federn.grenze.FA.toFixed(1)} kN.`);
+      + `herabgesetzt, Gurtkraft ${m.federn.grenze.FA.toFixed(1)} kN. `
+      + 'Das gilt für die Schnittgrössen des Jochs. Ins AxisVM-Modell geht die '
+      + 'GEOMETRISCHE Feder; der Gurtanschluss ist dort separat nachzuweisen '
+      + '(Prüfung A1).');
   }
   if (m.kragA > 0 || m.kragB > 0) {
     h.push(`Auflager innerhalb der Gurtenden: Stützweite `
@@ -293,6 +320,11 @@ export function urteilKonstruktion(checks) {
   return {
     alleOk: harte.every((c) => c.ok),
     anzahlVerletzt: harte.filter((c) => !c.ok).length,
+    // Das Urteil sagte bisher nur, DASS eine Prüfung verletzt ist - welche,
+    // stand nur in der Excel-Ausleitung. Wer «1 Prüfung(en) verletzt» liest,
+    // will sie sehen können.
+    checks,
+    verletzt: harte.filter((c) => !c.ok),
   };
 }
 

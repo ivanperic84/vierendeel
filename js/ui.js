@@ -1467,6 +1467,40 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  * Übersicht: Urteil, Kennzahlen und die Liste der höchstbeanspruchten Stellen.
  * Ein Klick auf eine Zeile zoomt im 3D-Modell auf diese Stelle.
  */
+/**
+ * DIE KONSTRUKTIONSPRÜFUNGEN, sichtbar.
+ *
+ * Das Urteil sagte «1 Prüfung(en) verletzt» und liess den Benutzer damit
+ * stehen: welche es war, stand nur in der Excel-Ausleitung. Seit der
+ * Gurtanschluss am Mast als eigener Nachweis geführt wird (Prüfung A1), ist
+ * das eine Zahl, die man sehen und einordnen können muss.
+ *
+ * Verletzte stehen oben - wer hierher kommt, sucht sie.
+ */
+function pruefungenHtml(urteil) {
+  const alle = urteil?.checks ?? [];
+  if (!alle.length) return '';
+  const geordnet = [...alle].sort((a, b) => (a.ok === b.ok ? 0 : a.ok ? 1 : -1));
+  const zeile = (c) => `
+    <tr class="${c.ok ? '' : (c.warnungNichtFehler ? 'warnton' : 'nok')}">
+      <td>${esc(c.id)}</td>
+      <td>${esc(c.text)}${c.status
+        ? `<br><span class="ablage-meta">${esc(c.status)}</span>` : ''}</td>
+      <td class="num">${f2(c.vorhanden)}</td>
+      <td class="num">${esc(c.richtung ?? '')} ${f2(c.erforderlich)}</td>
+      <td class="num">${esc(c.einheit ?? '')}</td>
+      <td class="num">${c.ok ? '✓' : (c.warnungNichtFehler ? '!' : '✗')}</td>
+    </tr>`;
+  const offen = urteil.verletzt?.length ?? 0;
+  return klapp('uebersicht-pruefungen', 'Konstruktionsprüfungen', `
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>#</th><th>Prüfung</th><th class="num">vorhanden</th>
+        <th class="num">verlangt</th><th class="num">Einheit</th>
+        <th class="num"></th></tr></thead>
+      <tbody>${geordnet.map(zeile).join('')}</tbody></table></div>`,
+    offen ? `${offen} verletzt` : `${alle.length} erfüllt`, offen > 0);
+}
+
 /** Rückruf für die Sortimentssuche; app.js setzt ihn beim Start. */
 let beiSortiment = null;
 export function setzeSortimentSuche(fn) { beiSortiment = fn; }
@@ -1528,6 +1562,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
         `<div class="hinweisliste">${hinweise.map((h) =>
           `<p class="notiz">${esc(h)}</p>`).join('')}</div>`,
         hinweise.length === 1 ? '1 Hinweis' : `${hinweise.length} Hinweise`) : ''}
+    ${pruefungenHtml(urteil)}
     ${abschnitt('Nachweise')}
     <div class="kennzahlen">${kz.join('')}</div>
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',

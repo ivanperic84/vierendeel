@@ -278,6 +278,48 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const federn = { ...federnRoh, roh: federnRoh, grenze,
                    ...(grenze ? { cA: grenze.cA, cB: grenze.cB } : {}) };
 
+  /*
+   * DER GURTANSCHLUSS ALS EIGENER NACHWEIS.
+   *
+   * Weisung des Auftraggebers: die GEOMETRISCHE Feder geht ins Modell, die
+   * Schraubengrenze wird SEPARAT nachgewiesen.
+   *
+   * Bisher lebte die Grenze nur INNERHALB der Feder: begrenzeFeder setzte
+   * c so weit herab, bis die Gurtkraft passte, und damit war sie per
+   * Konstruktion eingehalten - man sah nie, wieviel die Verbindung mit der
+   * wirklichen Steifigkeit des Mastes zu tragen hätte. Genau das ist die
+   * Frage, die das ausgeleitete Stabmodell stellt: es trägt die geometrische
+   * Feder, also auch deren Stützmoment.
+   *
+   * Gerechnet wird deshalb ein ZWEITES Mal, mit der ungebremsten Feder. Das
+   * Ergebnis geht nicht in die Schnittgrössen des Jochs ein - es ist der
+   * Nachweis der Verbindung, und nur dieser.
+   *
+   * 'voll eingespannt' bleibt aussen vor: das ist eine Idealisierung zum
+   * Vergleich, keine ausgeführte Verbindung - dieselbe Ausnahme, die schon
+   * für die Begrenzung gilt.
+   */
+  const gurtanschluss = (() => {
+    const c = federnRoh.cA + federnRoh.cB;
+    if (!(c > 0) || inp.endbedingung === 'voll' || !(v.hT > 0)) return null;
+    const geo = auflagermomente({
+      L: sp.L, qd: lasten.qd, P: sp.P, M: sp.M, EI: steif.EI,
+      cA: federnRoh.cA, cB: federnRoh.cB, theta0A, theta0B,
+      MkA: sp.MkA, MkB: sp.MkB,
+    });
+    const kraft = (Mst) => Math.abs(Mst) / v.hT;
+    const Fgrenz = inp.schraubenFgrenz ?? 0;
+    const FA = kraft(geo.MA), FB = kraft(geo.MB);
+    return {
+      cA: federnRoh.cA, cB: federnRoh.cB,
+      MA: geo.MA, MB: geo.MB, h: v.hT,
+      FA, FB, F: Math.max(FA, FB), Fgrenz,
+      // Ohne Grenzwert gibt es nichts nachzuweisen - dann steht nur die Kraft.
+      ok: Fgrenz > 0 ? Math.max(FA, FB) <= Fgrenz * (1 + 1e-9) : null,
+      eta: Fgrenz > 0 ? Math.max(FA, FB) / Fgrenz : null,
+    };
+  })();
+
   const auf = auflagermomente({
     L: sp.L, qd: lasten.qd, P: sp.P, M: sp.M,
     EI: steif.EI, cA: federn.cA, cB: federn.cB, theta0A, theta0B,
@@ -329,7 +371,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,
     eps: Math.sqrt(235 / stahl.fy),
     char, ...lasten, ...reakt,
-    steif, federn, ...auf, endbedingung: inp.endbedingung,
+    steif, federn, gurtanschluss, ...auf, endbedingung: inp.endbedingung,
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
     // Hebelarm des einseitigen Kräftepaars, je Gurt [m] - er folgt der
     // Massvariante und steht deshalb neben h und b im Modell.

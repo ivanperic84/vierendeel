@@ -77,12 +77,16 @@ export const KNOTENMODELLE = [
  * ist für die ALTBAUWEISE gedacht, und dort setzt die Anwendung das Endlager
  * ohnehin gelenkig (ui.schema.js, typUebernehmen).
  *
- * WELCHE FEDER. Die Verbindung Joch-Mast trägt nur bis zur Grenzlast ihrer
- * Schrauben; die Anwendung setzt die Feder deshalb je Lastfall herab
- * (core.auflager.js, begrenzeFeder) - beim nachgemessenen Beispiel zwischen
- * 1901 und 12951 kNm/rad. Das Stabmodell ist EINS und trägt die Feder der
- * BEMESSUNGSKOMBINATION. Wer einen anderen Lastfall untersuchen will, stellt
- * ihn vor dem Ausleiten ein.
+ * WELCHE FEDER: DIE GEOMETRISCHE (Weisung des Auftraggebers).
+ *
+ * Die Anwendung setzt die Feder je Lastfall herab, bis die Gurtverbindung ihre
+ * Grenzlast einhält - beim nachgemessenen Beispiel zwischen 1901 und 12951
+ * kNm/rad. Ein Stabmodell gibt es aber nur EINES; es trüge sonst die Feder
+ * eines einzelnen Lastfalls und wäre für jeden anderen falsch.
+ *
+ * Ausgeleitet wird deshalb die Steifigkeit des BAUWERKS: E·I/H mal
+ * Rahmenfaktor, unabhängig vom Lastfall. Was die Schrauben davon tragen, ist
+ * ein eigener Nachweis in der Anwendung (Prüfung A1, Gurtanschluss am Mast).
  */
 export const AUFLAGERMODELLE = [
   { key: 'gurte',
@@ -1066,7 +1070,18 @@ const kopf = (namen) => namen.map((n) => ({ v: n, s: STIL.KOPF }));
  */
 function stuetzung(m, lager) {
   const ende = lager.ende ?? lager;
-  const c = ende === 'A' ? m.federn.cA : m.federn.cB;
+  /*
+   * DIE GEOMETRISCHE FEDER, NICHT DIE BEGRENZTE (Weisung).
+   *
+   * Die Anwendung setzt die Feder je Lastfall herab, bis die Gurtverbindung
+   * ihre Grenzlast einhält - am nachgemessenen Beispiel zwischen 1901 und
+   * 12951 kNm/rad. Damit wäre das Stabmodell lastfallabhängig, obwohl es nur
+   * eines gibt. Ausgeleitet wird deshalb die Steifigkeit des BAUWERKS: E·I/H
+   * mal Rahmenfaktor. Was die Schrauben davon tragen, ist ein eigener
+   * Nachweis (core.checks.js, Prüfung A1).
+   */
+  const c = ende === 'A' ? (m.federn.roh?.cA ?? m.federn.cA)
+                         : (m.federn.roh?.cB ?? m.federn.cB);
   const starr = c >= 1e11;
   const weich = c > 0 && !starr;
 
@@ -1636,6 +1651,14 @@ export function stabmodellJson(m, opt = {}) {
       typ: m.typ ?? 'frei', L: r6(m.L), h: r6(m.h), b: r6(m.b),
       knotenmodell: bau.knotenmodell,
       auflagermodell: bau.auflager[0]?.modell ?? null,
+      // Welche Drehfeder das Modell trägt. Die Anwendung kennt zwei: die
+      // geometrische des Mastes und die je Lastfall auf die Schraubengrenze
+      // herabgesetzte. Ausgeleitet wird die geometrische - der Gurtanschluss
+      // ist ein eigener Nachweis (Prüfung A1). Steht hier, damit die Datei es
+      // selbst sagt und nicht nachgeschlagen werden muss.
+      federArt: 'geometrisch',
+      federGeometrisch_kNm: r6(m.federn.roh?.cA ?? m.federn.cA),
+      federBegrenzt_kNm: m.federn.grenze ? r6(m.federn.cA) : null,
       bauweise: m.bauweise ?? 'neu',
       // Schnitte, die zusammengelegt wurden, damit im Gurt keine
       // Millimeterstücke entstehen. Nachvollziehbar statt stillschweigend.
