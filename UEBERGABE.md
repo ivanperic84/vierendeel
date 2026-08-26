@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1139 Kontrollen bestanden, 0 gefallen · Bundle 1065 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1151 Kontrollen bestanden, 0 gefallen · Bundle 1065 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1139 Kontrollen
+node pruefung.mjs           # Prüfstand, 1151 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -49,6 +49,36 @@ führt jetzt
 
 dazu `windAufTraeger: true, windAnteil: 50`. Der Umlagerungsschalter war
 bisher standardmässig aus; für diese Vorlage ist er jetzt an.
+
+**Der Rohrausleger ist derselbe Fall** — nachgereichte Weisung:
+
+> Der Rohrausleger wird **wie der NT-Ausleger an der Hängestütze befestigt**
+> und stützt das Kettenwerk. Hierarchisch aufbaubar wie beim NT-Ausleger.
+> **1.5 m und 3.0 m.**
+
+Die Vorlage `ausleger-rohr` hatte gar keine Hängestütze: der Ausleger hing
+unmittelbar am Joch, an zwei Punkten (`befestigung: unten`). Sie ist jetzt wie
+die übrigen Hängestützen-Vorlagen gebaut — Träger, Aufbau, Drahtwerk,
+`durchgehend` über vier Punkte, Farbe *hängend*, Name **Hängestütze mit
+Rohrausleger**. Die Kennung `ausleger-rohr` bleibt, damit bestehende
+Baugruppen ihre Vorlage weiter finden.
+
+| Modul | x | e_v |
+|---|---|---|
+| Hängestütze od. Hängerohr | 0 | 1.35 m |
+| Ausleger Typ Rohr | **1.50 m** | 1.20 m |
+| N-FL Kettenwerk | **3.00 m** | 1.50 m |
+
+Das e_v der Hängestütze ist nicht gewählt, sondern übernommen: **alle vier**
+Hängestützen-Vorlagen der Datenbank führen 1.35 m für dieses Bauteil.
+
+**Eine Stelle bleibt zu bestätigen.** Der Rohrausleger greift bei e_v = 1.20 m
+an, die Hängestütze bei 1.35 m — der Ausleger sitzt also *über* dem
+Angriffspunkt seines eigenen Trägers, und die Kette läuft im Bild 15 cm
+zurück nach oben, bevor sie ausschert. Rechnerisch ist das ohne Folge (alle
+Glieder sind Starrkörper, am Joch kommt dieselbe Resultante an), aber die
+beiden Masse stammen aus der Zeit, als der Rohrausleger noch direkt am Joch
+hing. Ob e_v für Ausleger und Kettenwerk so bleibt, ist noch zu sagen.
 
 **Drei Dinge folgten daraus, und alle drei waren nötig.**
 
@@ -1987,7 +2017,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1139 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1151 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

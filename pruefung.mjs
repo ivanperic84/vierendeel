@@ -4797,6 +4797,54 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
     pruef('Ein einzelnes Teil ergibt ein Glied', arme.length, 1, 1e-12, 'Stk');
   }
 
+  // --- Beide Ausleger sind Kragarme, und beide haengen an der Stuetze ------
+  /*
+   * WEISUNG DES AUFTRAGGEBERS. Der NT-Ausleger steht 1.2 m aus, sein
+   * Kettenwerk haengt am Ende bei 2.4 m; beim Rohrausleger sind es 1.5 m und
+   * 3.0 m. Beide sind an einer HAENGESTUETZE befestigt und stuetzen das
+   * Kettenwerk - hierarchisch gleich aufgebaut.
+   *
+   * Geprueft wird die VORLAGE, nicht eine Zahl im Code: die Daten sind
+   * massgebend, und eine Vorlage, die den Traeger verliert oder den Versatz,
+   * faellt hier auf.
+   */
+  {
+    const kragarme = [
+      { id: 'hs-nt-ausleger', aufbau: 1.2, draht: 2.4 },
+      { id: 'ausleger-rohr', aufbau: 1.5, draht: 3.0 },
+    ];
+    kragarme.forEach((k) => {
+      const at = A.neuesAnbauteil(k.id, 10);
+      const flach = A.expandiereAnbauteile([at], { ek: 'EK2', R: 3e5, spannweite: 50 });
+      const rollen = flach.map((x) => x.rolle);
+      const je = (r) => flach.filter((x) => x.rolle === r && x.art !== 'windversatz')[0];
+
+      wahr(`${k.id}: haengt an einer Haengestuetze`,
+           rollen.includes('traeger'), rollen.join(' -> '));
+      pruef(`${k.id}: der Ausleger steht aus`,
+            je('aufbau').x - je('traeger').x, k.aufbau, 1e-9, 'm');
+      pruef(`${k.id}: das Kettenwerk haengt am Ende`,
+            je('drahtwerk').x - je('traeger').x, k.draht, 1e-9, 'm');
+      wahr(`${k.id}: die halbe Windlast geht auf den Anschluss zurueck`,
+           at.windAufTraeger === true && at.windAnteil === 50);
+
+      // Und daraus wird eine REIHE: jedes Glied haengt am vorigen.
+      const w = { ...standardwerte(), anbauteile: [at] };
+      const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                         getStahl(w.stahl), T.getTragjoch(w.typ));
+      const b = AX.stabmodell(e.modell, { knotenmodell: 'anschnitt', eingabe: w });
+      const arme = b.staebe.filter((s) => /^ARM\d+_\d+$/.test(s.name));
+      wahr(`${k.id}: die Kette ist eine Reihe`,
+           arme.every((s, i) => i === 0 || s.von === arme[i - 1].bis),
+           arme.map((s) => s.name).join(' '));
+      // Der aeusserste Punkt ist das Kettenwerk - nicht der Hilfspunkt des
+      // Windversatzes, der auf der Achse der Stuetze sitzt.
+      const letzte = b.knoten.get(arme[arme.length - 1].bis);
+      pruef(`${k.id}: das aeusserste Glied endet am Kettenwerk`,
+            letzte.x - b.knoten.get(arme[0].von).x, k.draht, 1e-9, 'm');
+    });
+  }
+
   // --- Der Kragarm laedt das Joch an SEINER WURZEL ------------------------
   /*
    * Ein NT-Ausleger steht in Jochachse aus. Das Joch beruehrt er dort NICHT -
