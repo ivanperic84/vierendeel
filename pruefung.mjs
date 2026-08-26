@@ -2327,8 +2327,18 @@ titel('19  AxisVM-Export (SAF)');
          const a = bauA.knoten.get(s.von), b = bauA.knoten.get(s.bis);
          return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) > 1e-9;
        }));
-  wahr('Ein Anbauteil ergibt EINEN Arm, auch bei mehreren Lastblöcken',
-       bauA.arme.length === 1, `${bauA.arme.length} Arm(e)`);
+  // MEHRERE LASTBLOECKE AN DERSELBEN STELLE ERGEBEN KEINEN ZWEITEN ARM.
+  // Sonst stuenden steife Arme nebeneinander und versteiften die oertliche
+  // Einleitung kuenstlich. Seit die Baugruppe eine KETTE bildet (Abschnitt
+  // 32), fuehrt arme EINEN Eintrag je Teil - aber alle Teile an derselben
+  // Stelle zeigen auf DENSELBEN Knoten, und ein Stab entsteht nur dort, wo
+  // sich der Punkt vom Vorgaenger unterscheidet.
+  wahr('Mehrere Lastblöcke an derselben Stelle teilen sich einen Knoten',
+       new Set(bauA.arme.map((x) => x.knoten)).size === 1,
+       `${bauA.arme.length} Lastblöcke auf ` +
+       `${new Set(bauA.arme.map((x) => x.knoten)).size} Knoten`);
+  wahr('Und ergeben genau einen Arm',
+       bauA.staebe.filter((s) => /^ARM\d+_\d+$/.test(s.name)).length === 1);
 
   // --- Lasten --------------------------------------------------------------
   const l = AX.lasten(m, bauA);
@@ -2594,11 +2604,33 @@ titel('19  AxisVM-Export (SAF)');
     wahr('Bei vier Punkten hält es M_y nicht',
          links(vier, 'UG').every((x) => x.kraft.yy === 'Free'));
 
-    // Das Anbauteil selbst ist ein Starrkörper - ohne Gelenk.
-    const arm = (b) => b.staebe.find((x) => /^ARM\d+$/.test(x.name));
-    wahr('Die Hängestütze ist als Starrkörper geführt',
-         arm(vier).starrRolle === 'anbauteil'
-         && !arm(vier).gelenkAnfang && !arm(vier).gelenkEnde);
+    // Die Arme heissen jetzt ARM{Baugruppe}_{Glied}: eine Baugruppe bildet
+    // eine KETTE und nicht mehr einen einzelnen Arm (Abschnitt 32).
+    const arm = (b) => b.staebe.filter((x) => /^ARM\d+_\d+$/.test(x.name));
+
+    // DIESE VORRICHTUNG HAT KEINEN HOEHENVERSATZ: die Hilfsfunktion teil()
+    // fuehrt kein z, der Lastpunkt liegt also AUF der Anschlussebene. Dann
+    // gibt es nichts zu ueberbruecken - und vor allem keinen Stab der Laenge
+    // null, wie ihn der Aufbau hier frueher erzeugte.
+    wahr('Ohne Hoehenversatz entsteht kein Arm',
+         arm(vier).length === 0, `${arm(vier).length} Glieder`);
+    wahr('Und damit auch kein Stab der Laenge null',
+         vier.staebe.every((x) => {
+           const p = vier.knoten.get(x.von), q = vier.knoten.get(x.bis);
+           return Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) > 1e-9;
+         }));
+
+    // Mit Versatz ist der Arm da - und ein Starrkoerper ohne Gelenk.
+    {
+      const mm = rechne({ ...basis({ typ: 'J90', L: 20 }),
+        anbauteile: [A.neuesAnbauteil('hs-nur', 8)],
+      }).modell;
+      const b = AX.stabmodell(mm, { knotenmodell: 'schwerachsen' });
+      wahr('Mit Hoehenversatz ist die Hängestütze als Starrkörper geführt',
+           arm(b).length > 0 && arm(b).every((x) => x.starrRolle === 'anbauteil'
+             && !x.gelenkAnfang && !x.gelenkEnde),
+           `${arm(b).length} Glieder`);
+    }
 
     wahr('Die Äste liegen in der Jochachse',
          aeste(vier).every((x) => {
@@ -2845,7 +2877,9 @@ titel('22  Ausleger: Wind über die Fahrleitung');
     .filter((x) => x.rolle === rolle)
     .reduce((s, x) => s + (x.kraefte?.[gruppe]?.[feld] ?? 0), 0);
 
-  const aus = A.expandiereAnbauteile(bau({}), trasse);
+  // Die Vorlage fuehrt windAufTraeger seit dem Kragarm-Entscheid selbst.
+  // Der Vergleichsfall muss ihn deshalb ausdruecklich abschalten.
+  const aus = A.expandiereAnbauteile(bau({ windAufTraeger: false }), trasse);
   const halb = A.expandiereAnbauteile(
     bau({ windAufTraeger: true, windAnteil: 50 }), trasse);
   const ganz = A.expandiereAnbauteile(
@@ -2879,19 +2913,47 @@ titel('22  Ausleger: Wind über die Fahrleitung');
   wahr('Nichts wandert auf die Höhe des Trägers',
        Math.abs(halb.filter((x) => Math.abs(x.z - zTraeger) < 1e-9)
          .reduce((s, x) => s + (x.kraefte?.WindY?.Fy ?? 0), 0) - wTraeger) < 1e-12);
+  const tr = aus.find((y) => y.rolle === 'traeger');
   wahr('Der Eintrag rückt in y auf die Achse des Trägers',
-       rest.every((x) => Math.abs(x.y - (aus.find((y) => y.rolle === 'traeger').y)) < 1e-12));
+       rest.every((x) => Math.abs(x.y - tr.y) < 1e-12));
+  // UND IN JOCHACHSE. Der NT ist ein Kragarm: sein Angriffspunkt liegt 1.2 m
+  // versetzt. Bliebe der Anteil dort stehen, käme genau die Hälfte, die über
+  // die Stütze ins Joch geht, an der falschen Station an.
+  wahr('Und in Jochachse auf den Anschlusspunkt Ausleger/Stütze',
+       rest.every((x) => Math.abs(x.x - tr.x) < 1e-12),
+       `${rest.map((x) => x.x.toFixed(2)).join(' ')} gegen ${tr.x.toFixed(2)}`);
+  wahr('Der Ausleger selbst steht wirklich aussen',
+       Math.abs(aus.find((x) => x.rolle === 'aufbau').x - tr.x) > 1,
+       `${(aus.find((x) => x.rolle === 'aufbau').x - tr.x).toFixed(2)} m`);
 
   // Wirkung: der Hebelarm bleibt, die Kraft halbiert sich, also halbiert sich
   // auch ihr Torsionsanteil.
   const e0 = basis({ L: 20, torsionModell: 'verteilt',
                      gammaG: 1.35, gammaQ: 1.5, psi0: 0.5 });
   const Tx = (extra) => rechne({ ...e0, anbauteile: bau(extra) }).extrem.TxMax;
-  const ev = Math.abs(zAufbau) + rechne({ ...e0, anbauteile: bau({}) }).modell.h / 2;
-  pruef('Torsion sinkt um F/2 · e_v · x/L',
-        Tx({}) - Tx({ windAufTraeger: true, windAnteil: 50 }),
-        (wAufbau / 2) * 1.5 * ev * 0.5, 1e-6, 'kNm');
-  pruef('Ohne Schalter unverändert', Tx({ windAnteil: 50 }), Tx({}), 1e-12, 'kNm');
+  const ohne = { windAufTraeger: false };
+  const ev = Math.abs(zAufbau)
+    + rechne({ ...e0, anbauteile: bau(ohne) }).modell.h / 2;
+  /*
+   * WIRKUNG AUF DIE TORSION - und warum sie so einfach bleibt.
+   *
+   * Man koennte meinen, die beiden Anteile haetten verschiedene Stationen:
+   * der Auslegerwind greift 1.2 m ausserhalb an, der zurueckgesetzte Anteil
+   * am Anschluss. Fuer das JOCH ist das aber dieselbe Stelle - der Kragarm
+   * traegt seine Last an seiner Wurzel ein (siehe Abschnitt 32). Der
+   * Verteilungsfaktor ist deshalb fuer beide gleich, und es bleibt bei der
+   * halben Kraft am selben Hebelarm.
+   *
+   * Der Faktor ist der groessere der beiden Auflageranteile: ein Moment T bei
+   * x teilt sich in T(L-x)/L und Tx/L.
+   */
+  const L0 = 20;
+  const anteilT = (x) => Math.max(x, L0 - x) / L0;
+  pruef('Torsion sinkt um die halbe Kraft am selben Hebelarm',
+        Tx(ohne) - Tx({ windAufTraeger: true, windAnteil: 50 }),
+        1.5 * ev * (wAufbau / 2) * anteilT(tr.x), 1e-3, 'kNm');
+  pruef('Ohne Schalter unverändert', Tx({ ...ohne, windAnteil: 50 }), Tx(ohne),
+        1e-12, 'kNm');
 }
 
 titel('23  Vorzeichenrichtige Überlagerung je Blechebene');
@@ -4649,6 +4711,315 @@ titel('31  Bewegung: nichts springt');
     wahr('Die Ankuendigung an den Compositor gilt nur waehrend der Fahrt',
          css.includes('.legende.zieht') && css.includes('will-change: transform') &&
          zieh.includes("n.classList.remove('zieht')"));
+  }
+}
+
+// ===========================================================================
+titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Ausleger');
+
+{
+  const AX = await import(J('export.axisvm.js'));
+
+  const bau = (vorlage, x = 10) => {
+    const w = { ...standardwerte(), anbauteile: [A.neuesAnbauteil(vorlage, x)] };
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    const b = AX.stabmodell(e.modell, { knotenmodell: 'anschnitt', eingabe: w });
+    return { b, arme: b.staebe.filter((s) => /^ARM\d+_\d+$/.test(s.name)) };
+  };
+
+  // --- Die Rollen sagen, was auf was sitzt ---------------------------------
+  {
+    const at = A.neuesAnbauteil('hs-nt-ausleger', 10);
+    const flach = A.expandiereAnbauteile([at], { ek: 'EK2' });
+    const rollen = flach.map((f) => f.rolle);
+    wahr('Die Vorlage nennt Traeger, Aufbau und Drahtwerk',
+         rollen.includes('traeger') && rollen.includes('aufbau') &&
+         rollen.includes('drahtwerk'), rollen.join(' -> '));
+    wahr('Alle Teile gehoeren derselben Baugruppe',
+         new Set(flach.map((f) => f.baugruppe)).size === 1);
+  }
+
+  // --- Und daraus wird eine Kette, kein Stern ------------------------------
+  // Vorher gruppierte die Ausleitung nach KOORDINATEN. Module derselben
+  // Baugruppe auf verschiedenen Hoehen fielen damit auseinander, und jedes
+  // Stueck hing einzeln am Joch - im AxisVM deutlich zu sehen.
+  {
+    /*
+     * DER NT-AUSLEGER IST EIN KRAGARM (Weisung des Auftraggebers):
+     * sein Angriffspunkt liegt 1.2 m in Jochachse versetzt, das Kettenwerk
+     * haengt am Ende bei 2.4 m. Die halbe Windlast in Gleisrichtung geht auf
+     * den Anschlusspunkt Ausleger/Stuetze zurueck, der Rest ins Kettenwerk.
+     * Die Kette hat deshalb VIER Glieder, und die letzten beiden liegen
+     * waagrecht.
+     */
+    const { b, arme } = bau('hs-nt-ausleger');
+    const kn = (n) => b.knoten.get(n);
+    pruef('Vier Glieder: Stuetze, Anschluss, Kragarm, Kettenwerk',
+          arme.length, 4, 1e-12, 'Stk');
+
+    wahr('Das erste Glied haengt am Gurtanschluss', /^AT\d+_(OG|UG)$/.test(arme[0].von),
+         arme[0].von);
+    wahr('Jedes weitere haengt am vorigen - eine Reihe, kein Stern',
+         arme.every((s, i) => i === 0 || s.von === arme[i - 1].bis),
+         arme.map((s) => `${s.von}->${s.bis}`).join(' '));
+    wahr('Kein Glied hat Laenge null',
+         arme.every((s) => {
+           const p = kn(s.von), q = kn(s.bis);
+           return Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) > 1e-9;
+         }));
+
+    // Der Kragarm steht in JOCHACHSE aus - das ist der ganze Punkt.
+    const spitze = kn(arme[3].bis), wurzel = kn(arme[1].bis);
+    pruef('Das Kettenwerk haengt 2.40 m ausserhalb', spitze.x - wurzel.x,
+          2.4, 1e-9, 'm');
+    pruef('Der Ausleger selbst greift auf halbem Weg an',
+          kn(arme[2].bis).x - wurzel.x, 1.2, 1e-9, 'm');
+    wahr('Und die beiden liegen auf gleicher Hoehe',
+         Math.abs(spitze.z - wurzel.z) < 1e-9);
+
+    pruef('Vier Lastpunkte: drei Teile plus der Windanteil',
+          b.arme.length, 4, 1e-12, 'Stk');
+  }
+
+  // --- Der Jochaufsatz sitzt OBEN, die Kette laeuft hinauf -----------------
+  {
+    const { b, arme } = bau('ja-einfach');
+    const kn = (n) => b.knoten.get(n);
+    wahr('Beim Aufsatz steigt die Kette',
+         arme.every((s) => kn(s.bis).z > kn(s.von).z),
+         arme.map((s) => kn(s.bis).z.toFixed(2)).join(' -> '));
+  }
+
+  // --- Wo die Daten keine Kette nennen, wird keine erfunden ---------------
+  {
+    const { arme } = bau('leiter-traverse');
+    pruef('Ein einzelnes Teil ergibt ein Glied', arme.length, 1, 1e-12, 'Stk');
+  }
+
+  // --- Der Kragarm laedt das Joch an SEINER WURZEL ------------------------
+  /*
+   * Ein NT-Ausleger steht in Jochachse aus. Das Joch beruehrt er dort NICHT -
+   * getragen wird er von der Haengestuetze, und die haengt ueber ihren Raster
+   * an EINER Station. Die Last kommt also an der Station an, und der Versatz
+   * erscheint als Kraeftepaar C_y = d * F_z.
+   *
+   * DIE PROBE IST DAS GLEICHGEWICHT: dieselbe Last, einmal ueber den Kragarm
+   * und einmal unmittelbar auf dem Joch an der versetzten Stelle, muss
+   * DIESELBEN Auflagerkraefte ergeben - eine Resultante ist eine Resultante.
+   * Ohne das Kraeftepaar unterscheiden sie sich um F*d/L; mit falschem
+   * Vorzeichen um das Doppelte davon. Die Probe legt es also eindeutig fest.
+   */
+  {
+    const L = 20, X0 = 8, D = 2.4, FZ = 3;
+    const probe = (x, dx) => ({
+      id: 'P', name: 'Probe', x, raster: 0.4, befestigung: 'unten', aktiv: true,
+      module: [],
+      lasten: [{ einwirkung: 'G', x: dx, y: 0, z: -1, Fz: FZ, aktiv: true }],
+    });
+    const rechneAt = (at) => {
+      const w = { ...standardwerte(), typ: 'J90', L, anbauteile: [at] };
+      return berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                      getStahl(w.stahl), T.getTragjoch(w.typ));
+    };
+    const kragarm = rechneAt(probe(X0, D));
+    const direkt = rechneAt(probe(X0 + D, 0));
+    const ohne = rechneAt(probe(X0, 0));
+
+    pruef('Kragarm und Direktlast geben dieselbe Auflagerkraft',
+          kragarm.modell.RA, direkt.modell.RA, 1e-9, 'kN');
+    // Und die Probe wuerde ein fehlendes oder falsches Kraeftepaar finden:
+    pruef('Ohne Kraeftepaar waere es F*d/L daneben',
+          ohne.modell.RA - kragarm.modell.RA, FZ * 1.3 * D / L, 1e-9, 'kN');
+    // OERTLICH ist es NICHT dasselbe - genau deshalb wurde es geaendert.
+    wahr('Oertlich unterscheiden sie sich sehr wohl',
+         Math.abs(kragarm.extrem.MyMax - direkt.extrem.MyMax) > 1,
+         `${kragarm.extrem.MyMax.toFixed(2)} gegen ${direkt.extrem.MyMax.toFixed(2)} kNm`);
+
+    // Die Last tritt am ANSCHLUSS ein, nicht am Ende des Arms.
+    const lasten = A.expandiereAnbauteile([probe(X0, D)], { ek: 'EK2' });
+    wahr('Das Teil selbst greift aussen an',
+         Math.abs(lasten[0].x - (X0 + D)) < 1e-9, `x = ${lasten[0].x}`);
+    wahr('Und weiss, wo seine Baugruppe haengt',
+         Math.abs(lasten[0].stationX - X0) < 1e-9, `stationX = ${lasten[0].stationX}`);
+  }
+
+  // --- Bild, Kern und Ausleitung meinen dieselbe Hoehe --------------------
+  /*
+   * z zaehlt ab der SCHWERACHSE DES GURTES, an dem das Teil abgegriffen wird
+   * (anschlussGurt): was nach oben ragt, ab Obergurt, was haengt, ab
+   * Untergurt. Die Ausleitung nahm dafuer bei 'durchgehend' IMMER den
+   * Untergurt - ein Jochaufsatz sass darin um die ganze Jochhoehe zu tief.
+   * Fuer die vertikale Last folgenlos, fuer die waagrechte nicht: ihr
+   * Hebelarm zur Jochachse und damit die Torsion war um F_y * h daneben.
+   *
+   * Geprueft wird ueber die GANZE Vorlagendatenbank, nicht an einem Beispiel:
+   * so faellt auch eine kuenftige Vorlage auf, deren Teile nach beiden Seiten
+   * zeigen - fuer die haette die Kette zwei Wurzeln.
+   */
+  {
+    const kern = await import(J('core.anbauteile.js'));
+    let geprueft = 0, schief = [];
+    A.vorlagen().forEach((v) => {
+      const w = { ...standardwerte(), anbauteile: [A.neuesAnbauteil(v.id, 10)] };
+      const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                         getStahl(w.stahl), T.getTragjoch(w.typ));
+      const b = AX.stabmodell(e.modell, { knotenmodell: 'anschnitt', eingabe: w });
+      const jochachse = b.zOben - e.modell.h / 2;
+      b.arme.forEach(({ teil, knoten }) => {
+        const soll = jochachse - kern.hebelarmZuAchse(teil, e.modell.h);
+        const ist = b.knoten.get(knoten).z;
+        geprueft++;
+        if (Math.abs(ist - soll) > 1e-9) {
+          schief.push(`${v.id}/${teil.bauteilName ?? teil.name}: ` +
+                      `${ist.toFixed(4)} statt ${soll.toFixed(4)}`);
+        }
+      });
+    });
+    wahr(`Jeder Lastpunkt sitzt auf der Hoehe, die der Kern rechnet (${geprueft})`,
+         schief.length === 0, schief.slice(0, 3).join(' | '));
+  }
+
+  // --- Die Datei sagt, was sie kann ---------------------------------------
+  /*
+   * Die Formatnummer sagt, wie gelesen wird - nicht, was drinsteht. Ein
+   * Modell aus einer aelteren Fassung liest sich tadellos und baut sich
+   * klaglos auf; dass die Anbauteile darin einzeln am Joch hingen, sah man
+   * erst im fertigen Modell - nach Aufbau, Rechnung und Auslesen. Deshalb
+   * traegt die Datei ihre Merkmale bei sich, und die Bruecke sagt laut,
+   * wenn eines fehlt.
+   */
+  {
+    const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+    const w = { ...standardwerte(), anbauteile: [A.neuesAnbauteil('hs-nt-ausleger', 10)] };
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    const j = AX.stabmodellJson(e.modell, { eingabe: w });
+    wahr('Die Modelldatei nennt ihre Merkmale', Array.isArray(j.merkmale),
+         JSON.stringify(j.merkmale));
+    wahr('Darunter die Anbauteil-Kette', (j.merkmale ?? []).includes('anbau-kette'));
+    wahr('Die Bruecke erwartet genau dieses Merkmal',
+         PS1.includes("'anbau-kette' = ("));
+    wahr('Und meldet laut, wenn es fehlt',
+         PS1.includes('AELTEREN FASSUNG DES WERKZEUGS'));
+    wahr('Ohne den Aufbau abzubrechen - was gebaut wird, entscheidet der Nutzer',
+         !/fehlt\.Count -gt 0[\s\S]{0,900}?Beenden/.test(PS1));
+  }
+
+  // --- Die Lasten wandern dabei nicht --------------------------------------
+  // Nur der WEG der Last aendert sich, nicht ihr Angriffspunkt und nicht ihr
+  // Betrag. Alle Glieder sind Starrkoerper; am Gurt kommt dieselbe Resultante
+  // an wie zuvor.
+  {
+    const w = { ...standardwerte(), anbauteile: [A.neuesAnbauteil('hs-nt-ausleger', 10)] };
+    const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch(w.typ));
+    const b = AX.stabmodell(e.modell, { knotenmodell: 'anschnitt', eingabe: w });
+    const l = AX.lasten(e.modell, b);
+    const summe = (r) => l.punkt.filter((p) => p.richtung === r)
+      .reduce((s, p) => s + p.wert, 0);
+    const ausTeilen = (feld, vz) => (e.modell.anbauteileFlach ?? [])
+      .reduce((s, t) => s + Object.values(t.kraefte ?? {})
+        .reduce((q, k) => q + vz * (k[feld] ?? 0), 0), 0);
+    pruef('Summe F_z bleibt die der Bauteile', summe('Z'), ausTeilen('Fz', -1), 1e-9, 'kN');
+    pruef('Summe F_y ebenso', summe('Y'), ausTeilen('Fy', +1), 1e-9, 'kN');
+    wahr('Jede Last haengt an einem Knoten der Baugruppe',
+         l.punkt.filter((p) => /^AL/.test(p.knoten)).length > 0 &&
+         l.punkt.every((p) => b.knoten.has(p.knoten)));
+  }
+}
+
+// ===========================================================================
+titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
+/*
+ * Diese Pruefungen halten Eigenschaften der OBERFLAECHE fest, die sich beim
+ * Bauen eines Jochs mit fuenf Baugruppen als Maengel gezeigt haben. Sie lesen
+ * die Quelle - eine Zeichenflaeche und ein Rasterumbruch lassen sich ohne
+ * Browser nicht messen, die REGEL dahinter aber sehr wohl.
+ */
+{
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const rq = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const kq = readFileSync(join(HIER, 'js', 'core.anbauteile.js'), 'utf8');
+  const xq = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+
+  // --- Der Name der Baugruppe verschwand -----------------------------------
+  // «Leiter-Traverse am Joch» und «Lampe LED» standen beide als «L..» da.
+  {
+    const raster = css.match(/\.at-zeile\s*\{[^}]*grid-template-columns:\s*([^;]+);/);
+    wahr('Die Anbauteil-Zeile gibt dem Namen eine Untergrenze',
+         !!raster && /minmax\(\s*\d+px/.test(raster[1]), raster && raster[1].trim());
+    wahr('Und die Kraeftezeile ist das, was gekuerzt wird',
+         /\.at-kraft\s*\{[^}]*text-overflow:\s*ellipsis/.test(css));
+    wahr('Kraefte heissen F_x, F_y, F_z - x ist in derselben Zeile die Station',
+         uq.includes("['F_x', su.Gx + su.Qx]"));
+  }
+
+  // --- Die Modellspalte fiel auf 92 px ------------------------------------
+  {
+    wahr('Es gibt eine Mindestbreite fuer die Modellspalte',
+         /const MODELL_MIN = \d+/.test(aq),
+         (aq.match(/const MODELL_MIN = \d+/) || [''])[0]);
+    wahr('Die Startbreiten richten sich nach dem Fenster',
+         aq.includes('platzFuerSchubladen()') && aq.includes('clientWidth'));
+    wahr('Der Zug am Splitter ist nicht mehr fest auf 640 begrenzt',
+         !/Math\.min\(640, a0 \+ d\)/.test(aq));
+    wahr('Wird das Fenster schmaler, geben die Schubladen nach',
+         /addEventListener\('resize'/.test(aq));
+    wahr('Eingeklappte Seiten bleiben dabei eingeklappt',
+         /if \(!zuSeite\.links\) setzeSeite/.test(aq));
+  }
+
+  // --- Nach dem Ein- und Ausfahren lief das Joch aus dem Bild --------------
+  {
+    wahr('Am Ende der Fahrt wird nachgefahren',
+         aq.includes('passeEinWennAbgeschnitten()'));
+    wahr('Aber nur heraus, nie heran',
+         /noetig <= this\.kamera\.dist \+ 1e-6\) return false/.test(rq));
+    wahr('Und nie in einen selbst gewaehlten Ausschnitt hinein',
+         /if \(this\.fokus \|\| this\.station !== null\) return false/.test(rq));
+  }
+
+  // --- Elf Kraftbeschriftungen ueber dem Joch -----------------------------
+  {
+    wahr('Auch die Pfeiltexte haben ein Budget',
+         /_markenBudget\(\)[\s\S]{0,200}_pfeiltexte/.test(rq));
+    wahr('Sortiert nach Betrag, Angewaehltes zuerst',
+         /sort\(\(a, b\) => \(b\.rang \?\? 0\) - \(a\.rang \?\? 0\)\)/.test(rq));
+  }
+
+  // --- Die Gleiszuordnung setzte nur der Generator ------------------------
+  wahr('Die Karte hat ein Feld fuer das Gleis', uq.includes("atFeld(i, 'gleis'"));
+
+  // --- Bei eta > 1 fehlte der Weg zum naechsten Typ -----------------------
+  {
+    wahr('Es gibt eine Sortimentssuche', aq.includes('function dialogSortiment'));
+    wahr('Sie erscheint nur, wenn der Nachweis nicht erfuellt ist',
+         /e > 1 && beiSortiment/.test(uq));
+    wahr('Der Typ wechselt nicht von selbst',
+         aq.includes('DER TYP WECHSELT NICHT VON SELBST'));
+    wahr('Was nicht gerechnet werden kann, steht mit Grund da',
+         aq.includes("block('Nicht gerechnet', geht)"));
+  }
+
+  // --- Rolle und Traeger standen nirgends ---------------------------------
+  {
+    wahr('Die Karte nennt die Rolle jedes Moduls', uq.includes('ROLLE_TEXT'));
+    wahr('Und woran es haengt', uq.includes('haengtAn'));
+    wahr('Und warnt, wenn zwei Teile auf demselben Punkt sitzen',
+         uq.includes('kette-warn'));
+  }
+
+  // --- Bild und Ausleitung bauen dieselbe Kette ---------------------------
+  {
+    wahr('Die Kette steht an EINER Stelle im Rechenkern',
+         kq.includes('export function anbauKette'));
+    wahr('Die Modellansicht liest sie von dort', rq.includes('anbauKette(meine,'));
+    wahr('Die Ausleitung ebenso', xq.includes('anbauKette(a.teile ?? [a]'));
+    wahr('Und niemand zeichnet mehr einen geraden Staender daneben',
+         !rq.includes('opt(`Ständer '));
   }
 }
 

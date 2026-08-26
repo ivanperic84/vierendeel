@@ -18,6 +18,11 @@ data/*.json
 Grundlagen/
 *.axs
 *.axe
+# AxisVM legt neben dem Modell noch Beiwerk ab: Ergebnisdatei und ein
+# Revisionsverzeichnis. Beides gehört zum Projekt des Betreibers.
+*.cfd
+*.axr
+com/Revisions/
 *.pdf
 *.docx
 *.xlsx

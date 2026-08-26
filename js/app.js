@@ -26,7 +26,7 @@ import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
          setzeGrenzen, FELDER } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
-         FARBEN as farben } from './design.js';
+         MASS, FARBEN as farben } from './design.js';
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, erzeugeGleislasten, neuesModul,
@@ -403,6 +403,97 @@ function setzeAnbauteile(liste) {
 function dialogKlassen() {
   if (!letzte) return;
   dialog('Querschnittsklassen – Herleitung', ui.klassenTabelle(letzte.kl), '');
+}
+
+/**
+ * SORTIMENT DURCHRECHNEN - und was jetzt?
+ *
+ * Das Werkzeug sagte bisher klar, DASS es nicht hält und welche Stelle
+ * massgebend ist. Die nächste Frage stellt sich von selbst und blieb offen:
+ * welcher Typ hält denn? Das ist keine Kunst, nur Fleissarbeit - genau das,
+ * was ein Rechner besser kann als ein Mensch mit einer Auswahlliste.
+ *
+ * ZWEI REGELN, die hier bindend sind:
+ *
+ *   1. DER TYP WECHSELT NICHT VON SELBST. Gerechnet wird auf Kopien; die
+ *      Auswahl bleibt die Entscheidung des Benutzers. Ein Werkzeug, das den
+ *      Nachweis dadurch erfüllt, dass es das Tragwerk austauscht, ist kein
+ *      Nachweiswerkzeug.
+ *
+ *   2. WAS NICHT GEHT, WIRD GESAGT. Nicht jeder Typ trägt jede Länge - das
+ *      Sortiment gibt je Typ einen Längenbereich vor. Solche Zeilen fallen
+ *      nicht weg, sie stehen mit ihrem Grund da.
+ *
+ * Alles Übrige bleibt, wie es eingegeben wurde: Profile, Bleche und Masse
+ * kommen beim Typwechsel aus der Datenbank (typUebernehmen), die Lasten und
+ * die Anbauteile bleiben unangetastet.
+ */
+function dialogSortiment() {
+  if (!letzte) return;
+  const stahl = getStahl(werte.stahl);
+  const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
+  const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
+  const f3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : '–');
+
+  const zeilen = tragjoche().map((j) => {
+    const b = laengenbereich(j);
+    if (werte.L < b.min - 1e-9 || werte.L > b.max + 1e-9) {
+      return { typ: j.typ, name: j.typ, eta: null,
+               grund: `Länge ${f2(werte.L)} m ausserhalb ${f2(b.min)} … ${f2(b.max)} m` };
+    }
+    try {
+      const w = typUebernehmen({ ...werte }, j);
+      const e = berechne(w, getProfil(w.profOG), getProfil(w.profUG), stahl, j);
+      return { typ: j.typ, name: j.typ, eta: e.max.etaGesamt,
+               masse: `${f0(w.jd)} × ${f0(w.jbbOG)} mm`,
+               profil: w.profOG, gewicht: j.gewicht ?? null };
+    } catch (f) {
+      return { typ: j.typ, name: j.typ, eta: null, grund: String(f.message ?? f) };
+    }
+  });
+
+  // Nach Ausnutzung, aber die Tragfähigen zuerst - gesucht ist der kleinste,
+  // der noch hält, und der steht damit zuoberst unter den grünen.
+  const traegt = zeilen.filter((z) => z.eta !== null && z.eta <= 1)
+    .sort((a, b) => b.eta - a.eta);
+  const zuKlein = zeilen.filter((z) => z.eta !== null && z.eta > 1)
+    .sort((a, b) => a.eta - b.eta);
+  const geht = zeilen.filter((z) => z.eta === null);
+
+  const zeile = (z) => `
+    <tr class="${z.eta === null ? '' : z.eta <= 1 ? 'klick' : 'klick nok'}"
+        ${z.eta === null ? '' : `data-typ="${esc(z.typ)}"`}>
+      <td><b>${esc(z.name)}</b>${z.typ === werte.typ
+        ? ' <span class="ablage-meta">gewählt</span>' : ''}</td>
+      <td class="num">${z.eta === null ? '–' : f3(z.eta)}</td>
+      <td>${z.eta === null ? esc(z.grund)
+        : `${esc(z.masse)} · ${esc(z.profil)}${
+            z.gewicht ? ` · ${f0(z.gewicht)} kg/m` : ''}`}</td>
+    </tr>`;
+
+  const block = (titel, liste) => (liste.length ? `
+    ${abschnitt(titel, `${liste.length} Typ${liste.length === 1 ? '' : 'en'}`)}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Typ</th><th class="num">η</th><th>Masse · Gurtprofil</th></tr></thead>
+      <tbody>${liste.map(zeile).join('')}</tbody></table></div>` : '');
+
+  dialog('Sortiment durchrechnen',
+    `<p class="notiz" style="margin-top:0">Dieselbe Geometrie, dieselben Lasten,
+       dieselben Anbauteile – nur der Tragjoch-Typ wechselt. Profile, Bleche und
+       Masse kommen dabei aus der Typendatenbank.
+       <b>Der gewählte Typ ändert sich nicht von selbst:</b> eine Zeile
+       anklicken übernimmt ihn.</p>
+     ${block('Trägt', traegt)}
+     ${block('Zu klein', zuKlein)}
+     ${block('Nicht gerechnet', geht)}`,
+    '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
+
+  ui.el('ueberlagerung').querySelectorAll('[data-typ]').forEach((tr) => {
+    tr.addEventListener('click', () => {
+      ui.el('ueberlagerung').querySelector('[data-zu]')?.click();
+      aendern('typ', tr.dataset.typ);
+    });
+  });
 }
 
 /**
@@ -1558,10 +1649,47 @@ const SCHIENE = 42;
 /** Ist eine Seite eingeklappt? */
 const zuSeite = { links: false, rechts: false };
 
+/**
+ * Was die Modellspalte mindestens braucht [px].
+ *
+ * Die beiden Werkzeugleisten im Modellfenster sind zusammen rund 150 px
+ * breit; darunter liegen sie übereinander und über dem Joch. Auf einem
+ * 900-px-Fenster blieben der Mitte bei festen 386 + 380 px genau 92 px - eine
+ * Spalte, in der man nichts mehr erkennt und die man auch nicht aufziehen
+ * kann, ohne eine Schublade zu opfern.
+ */
+const MODELL_MIN = 320;
+
+/** Breite eines Splitters [px] - dieselbe Marke, aus der die CSS sie bezieht. */
+const SPLIT_PX = MASS.splitBreite;
+
 function baueLayout() {
   const ws = ui.el('ws');
-  const setze = (name, px) => document.documentElement.style.setProperty(name, px + 'px');
+  /*
+   * AM ARBEITSBLATT SELBST, NICHT AN DER WURZEL.
+   *
+   * .ws setzt --sp-links / --sp-rechts als Vorgabe auf sich selbst (siehe
+   * style.css) - eine eigene Festlegung am Element gewinnt gegen die geerbte
+   * von :root. Solange das Skript dieselben 386/380 px schrieb, fiel das nie
+   * auf; sobald es andere Breiten berechnet, wurden sie stillschweigend
+   * verworfen. Am Element geschrieben, wirken sie.
+   */
+  const setze = (name, px) => ws.style.setProperty(name, px + 'px');
+
+  /** Wieviel Platz die Schubladen zusammen höchstens einnehmen dürfen. */
+  const platzFuerSchubladen = () =>
+    Math.max(2 * SCHIENE,
+             document.documentElement.clientWidth - 2 * SPLIT_PX - MODELL_MIN);
+
   let links = 386, rechts = 380;
+  // Auf schmalen Fenstern beide Schubladen im Verhältnis zurücknehmen, statt
+  // der Mitte zu lassen, was übrig bleibt.
+  const frei = platzFuerSchubladen();
+  if (links + rechts > frei) {
+    const f = frei / (links + rechts);
+    links = Math.max(SCHIENE, Math.round(links * f));
+    rechts = Math.max(SCHIENE, Math.round(rechts * f));
+  }
   setze('--sp-links', links); setze('--sp-rechts', rechts);
 
   // Zuletzt offene Breite je Seite, damit das Einklappen umkehrbar bleibt
@@ -1587,6 +1715,10 @@ function baueLayout() {
       ws.classList.remove('animiert');
       ws.removeEventListener('transitionend', fertig);
       ansicht?.passeGroesseAn();
+      // Steht die Fahrt, darf die Ansicht nachgeben: sonst bleibt das Joch
+      // links und rechts abgeschnitten, weil der Massstab nur an der Höhe
+      // hängt. Nur herausfahren, nie heran - siehe passeEinWennAbgeschnitten.
+      ansicht?.passeEinWennAbgeschnitten();
     };
     ws.addEventListener('transitionend', fertig);
     setTimeout(fertig, 400);           // falls der Übergang ausbleibt
@@ -1620,7 +1752,15 @@ function baueLayout() {
       const bewegen = (ev) => {
         const d = (ev.clientX - start) * (seite === 'links' ? 1 : -1);
         if (Math.abs(ev.clientX - start) > 3) bewegt = true;
-        if (bewegt) setzeSeite(seite, Math.max(SCHIENE, Math.min(640, a0 + d)));
+        // Obergrenze ist nicht mehr eine feste Zahl, sondern das, was der
+        // Mitte bleiben muss. Zwei Schubladen zu je 640 px passten auf kein
+        // Fenster unter 1600 px, ohne das Modell zu erdrücken.
+        if (bewegt) {
+          const andere = seite === 'links' ? rechts : links;
+          const grenze = Math.max(SCHIENE,
+            Math.min(640, platzFuerSchubladen() - andere));
+          setzeSeite(seite, Math.max(SCHIENE, Math.min(grenze, a0 + d)));
+        }
       };
       const ende = () => {
         g.removeEventListener('pointermove', bewegen);
@@ -1634,6 +1774,23 @@ function baueLayout() {
   };
   zieher('split-links', 'links');
   zieher('split-rechts', 'rechts');
+
+  /*
+   * WIRD DAS FENSTER SCHMALER, GEBEN DIE SCHUBLADEN NACH.
+   *
+   * Sonst schrumpft nur die Mitte gegen null - und der Weg zurück führt über
+   * zwei Züge am Splitter, die man erst finden muss. Eingeklappte Seiten
+   * bleiben eingeklappt: das war eine Entscheidung des Benutzers.
+   */
+  window.addEventListener('resize', () => {
+    const platz = platzFuerSchubladen();
+    const offen = (zuSeite.links ? 0 : links) + (zuSeite.rechts ? 0 : rechts);
+    if (offen <= platz) return;
+    const f = platz / offen;
+    if (!zuSeite.links) setzeSeite('links', Math.max(SCHIENE, Math.round(links * f)));
+    if (!zuSeite.rechts) setzeSeite('rechts', Math.max(SCHIENE, Math.round(rechts * f)));
+  });
+
   zeichneSchienen();
 }
 
@@ -2194,6 +2351,9 @@ export async function start() {
   });
 
   ui.setzeDiagrammBuehne(zeigeDiagrammGross);
+  // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht
+  // erfüllt ist - dort, wo die Frage «und welcher Typ dann?» aufkommt.
+  ui.setzeSortimentSuche(dialogSortiment);
   ui.setzeAnbauHandler({
     wahl: (id, x) => dialogAnbauteilLage(id, x),
     weg: vorlageEntfernen,

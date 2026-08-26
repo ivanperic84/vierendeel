@@ -375,9 +375,16 @@ input[type=range].rng {
   margin: 4px 0 8px;
 }
 .at-karte.aus { opacity: .5; }
+/* DER NAME GEWINNT.
+   Vorher: 1fr für den Namen, `auto` für Station und Kräfte. `auto` gibt nicht
+   nach, also schrumpfte der Name - bei 386 px Schubladenbreite auf rund vier
+   Zeichen. «Leiter-Traverse am Joch» und «Lampe LED» standen beide als «L..»
+   da, und zwei Baugruppen liessen sich in der Liste nicht unterscheiden.
+   Jetzt hat der Name eine Untergrenze, und die Kräftezeile ist das, was als
+   erstes gekürzt wird - sie steht vollständig im Titel der Zeile. */
 .at-zeile {
   display: grid; align-items: center; gap: 7px; cursor: pointer;
-  grid-template-columns: 9px 26px 1fr auto auto;
+  grid-template-columns: 9px 26px minmax(84px, 1fr) auto minmax(0, auto);
   padding: 5px 84px 5px 7px; border-radius: var(--m-r1);
 }
 .at-zeile:hover { background: var(--s2); }
@@ -391,6 +398,7 @@ input[type=range].rng {
 .at-x, .at-kraft {
   font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); white-space: nowrap;
 }
+.at-kraft { overflow: hidden; text-overflow: ellipsis; }
 .at-tasten {
   position: absolute; top: 3px; right: 5px;
   display: flex; align-items: center; gap: 3px;
@@ -443,6 +451,27 @@ input[type=range].rng {
   background: var(--s1); padding: 6px 7px;
 }
 .modul-kopf { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+
+/* --- Die Kette, in der Karte lesbar --------------------------------------
+   Was auf was sitzt, entsteht aus den ROLLEN der Bauteile - und die standen
+   in der Eingabe nirgends. Wer die Höhen von Hand setzt, sah deshalb nicht,
+   dass der Ausleger an der Hängestütze hängt, und merkte auch nicht, wenn er
+   beide auf denselben Punkt legte. */
+.modul-kette {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  margin: 0 0 6px; font-size: 9.5px;
+}
+.rollen-marke {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 999px;
+  border: 1px solid var(--ol); color: var(--dim); background: var(--s2);
+}
+.rollen-marke.r-traeger   { border-color: var(--acc); color: var(--acc); }
+.rollen-marke.r-aufbau    { border-color: var(--warn); color: var(--warn); }
+.rollen-marke.r-drahtwerk { border-color: var(--ok); color: var(--ok); }
+.kette-an { color: var(--xdim); }
+.kette-an b { color: var(--dim); font-weight: 500; }
+.kette-warn { color: var(--warn); cursor: help; }
 .modul-kopf select { font-size: 11px; padding: 3px 5px; }
 .modul-lasten {
   display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;
@@ -772,6 +801,9 @@ button.wz-haupt:hover { color: var(--on); }
 .urteil.nok  { background: var(--fail-s); color: var(--fail); border-color: var(--fail); }
 .urteil.warn { background: var(--warn-s); color: var(--warn); border-color: var(--warn); }
 .urteil-zahl { font-family: var(--f-mono); font-size: 21px; font-weight: 600; }
+/* Der Knopf zur Sortimentssuche steht rechts im Urteil - er ist die
+   Antwort auf «und was jetzt», nicht Teil der Aussage selbst. */
+.urteil .btn-mini { margin-left: auto; align-self: center; }
 
 .kennzahlen { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; }
 .kz {

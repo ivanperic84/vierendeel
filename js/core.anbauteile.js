@@ -134,6 +134,113 @@ export function hebelarmZuAchse(a, h) {
 }
 
 /**
+ * KETTENRANG: was sitzt auf was.
+ *
+ * Die Rolle eines Bauteils (data/fl_bauteile.json) sagt schon, wo es in der
+ * Baugruppe steht. Mehr braucht es nicht:
+ *
+ *   traeger    hängt am Joch          — Hängestütze, Jochaufsatz
+ *   aufbau     sitzt auf dem Träger   — Ausleger, Leiter-Traverse
+ *   drahtwerk  hängt am Aufbau        — Kettenwerk, Zusatzleiter
+ *
+ * Ohne Rolle bleibt ein Teil auf Stufe 0, also unmittelbar am Joch. Wo die
+ * Daten keine Kette nennen, wird auch keine erfunden.
+ */
+export const KETTENRANG = { traeger: 0, aufbau: 1, drahtwerk: 2 };
+
+/**
+ * DIE KETTE EINER BAUGRUPPE.
+ *
+ * Warum an dieser Stelle: das Bild und die Ausleitung müssen dieselbe Kette
+ * zeigen. Solange jede Seite ihre eigene baute, sah man im Werkzeug einen
+ * geraden Ständer, während im AxisVM jedes Teil einzeln am Joch hing - und
+ * genau das ist wochenlang niemandem aufgefallen. Eine Quelle, zwei Leser.
+ *
+ * KRAGARME. Ein NT-Ausleger steht in JOCHACHSE aus: sein Angriffspunkt liegt
+ * um 1.2 m versetzt, das Kettenwerk hängt am Ende bei 2.4 m. Der Versatz
+ * eines Teils gegenüber der Station SEINER BAUGRUPPE ist deshalb Teil der
+ * Kette und nicht bloss eine andere Station am Joch.
+ *
+ * FÄLLT EIN PUNKT MIT SEINEM TRÄGER ZUSAMMEN, entsteht KEIN Glied der Länge
+ * null; das Teil hängt dann am selben Punkt. Zwei Teile am selben Punkt
+ * teilen sich einen Knoten - sonst stünden zwei steife Arme nebeneinander
+ * und versteiften die örtliche Einleitung künstlich.
+ *
+ * @param {object[]} teile aufgelöste Teile EINER Baugruppe
+ * @param {object} o {x0, zAn} Anschlusspunkt am Joch: Station und Ebene
+ * @returns {{wurzel, glieder, belegung}}
+ *   wurzel    {x, y, z, nr:null} der Anschluss am Joch
+ *   glieder   [{von, bis, rang, teil}] je NEUEM Punkt ein steifes Glied
+ *   belegung  [{teil, punkt}] wo jedes Teil seine Last einträgt
+ */
+export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
+  const r6 = (v) => Math.round(v * 1e6) / 1e6;
+  const gleich = (a, b) => Math.abs(a - b) < 1e-9;
+
+  const stufen = new Map();
+  (teile ?? []).forEach((teil) => {
+    const rg = KETTENRANG[teil.rolle] ?? 0;
+    if (!stufen.has(rg)) stufen.set(rg, []);
+    stufen.get(rg).push(teil);
+  });
+
+  const wurzel = { x: r6(x0), y: 0, z: r6(zAn), nr: null };
+  const punkte = new Map();
+  const glieder = [];
+  const belegung = [];
+  let traeger = wurzel;
+  let nr = 0;
+
+  [...stufen.keys()].sort((p, q) => p - q).forEach((rg) => {
+    /*
+     * INNERHALB EINER STUFE WIRD NACH AUSSEN GEREIHT.
+     *
+     * Beim NT-Ausleger stehen auf der Stufe «aufbau» zwei Punkte: der
+     * Anschluss Ausleger/Stütze, auf den die halbe Windlast zurückgesetzt
+     * wird, und der Angriffspunkt des Kragarms 1.2 m weiter aussen. Sie
+     * liegen hintereinander auf demselben Bauteil, und das Kettenwerk hängt
+     * am ÄUSSERSTEN. Ohne Ordnung entschied die Reihenfolge in der Liste -
+     * und die ist zufällig; das Kettenwerk hing am Anschlusspunkt statt am
+     * Ende des Arms.
+     *
+     * GRENZE: zwei WIRKLICH nebeneinanderstehende Teile derselben Stufe -
+     * zwei Ausleger an einer Stütze - würden hier als Reihe gezeichnet statt
+     * als Gabel. Solange alle Glieder Starrkörper sind, ändert das an den
+     * Kräften nichts (dieselbe Resultante am Anschluss); mit einem Gelenk
+     * täte es das. In den Vorlagen kommt keine Gabel vor.
+     */
+    const abstand = (teil) => {
+      const dx = (teil.x ?? 0) - (teil.stationX ?? teil.x ?? 0);
+      return Math.hypot(x0 + dx - traeger.x, (teil.y ?? 0) - traeger.y,
+                        zAn + (teil.z ?? 0) - traeger.z);
+    };
+    [...stufen.get(rg)].sort((p, q) => abstand(p) - abstand(q)).forEach((teil) => {
+      // Versatz gegenüber der Station der Baugruppe, nicht die Station selbst:
+      // die Wurzel darf aus einem steifen Knotenbereich gerückt worden sein,
+      // die Kette hängt trotzdem massgenau daran.
+      const dx = (teil.x ?? 0) - (teil.stationX ?? teil.x ?? 0);
+      const p0 = { x: r6(x0 + dx), y: r6(teil.y ?? 0), z: r6(zAn + (teil.z ?? 0)) };
+      const schluessel = `${p0.x}|${p0.y}|${p0.z}`;
+      let punkt = punkte.get(schluessel);
+      if (!punkt) {
+        if (gleich(p0.x, traeger.x) && gleich(p0.y, traeger.y)
+            && gleich(p0.z, traeger.z)) {
+          punkt = traeger;                       // sitzt auf seinem Träger
+        } else {
+          punkt = { ...p0, nr: nr++ };
+          glieder.push({ von: traeger, bis: punkt, rang: rg, teil });
+        }
+        punkte.set(schluessel, punkt);
+      }
+      belegung.push({ teil, punkt });
+      traeger = punkt;                  // das nächste Teil hängt an diesem
+    });
+  });
+
+  return { wurzel, glieder, belegung };
+}
+
+/**
  * Bemessungswert eines Lastanteils: Summe über alle Einwirkungsgruppen.
  * @param {object} a  aufgelöstes Anbauteil mit a.kraefte
  * @param {object} bw Beiwerte je Gruppe
@@ -186,16 +293,41 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
     const Mxx = anteil(a, bw, 'Mxx');
     const Myy = anteil(a, bw, 'Myy');
     const Mzz = anteil(a, bw, 'Mzz');
+    /*
+     * WO DIE LAST INS JOCH EINTRITT - und wo sie angreift.
+     *
+     * Bis auf den Kragarm ist das dieselbe Stelle. Der NT-Ausleger steht in
+     * JOCHACHSE aus: sein Angriffspunkt liegt 1.2 m neben der Station der
+     * Baugruppe, das Kettenwerk hängt am Ende bei 2.4 m. Das Joch berührt er
+     * dort NICHT - getragen wird er von der Hängestütze, und die ist über
+     * ihren Raster an EINER Station angeschlagen.
+     *
+     * Die Last kommt also an der Station an, und der Versatz erscheint als
+     * KRÄFTEPAAR - dasselbe, was der Hebelarm e_v für die Längslast tut:
+     *
+     *      C = r × F      mit  r = (d, e_x, −e_v)
+     *      C_y = −e_v·F_x + d·F_z      Biegung um y
+     *      C_z =            d·F_y      Biegung im Grundriss
+     *
+     * Bis hierher wurde die Last an ihrer eigenen Station aufs Joch gesetzt.
+     * Global ist das fast dasselbe (gleiche Resultante, gleiches Moment um
+     * jeden Punkt ausserhalb der Strecke); ÖRTLICH ist es das nicht: das
+     * Kräftepaar tritt über den Anschlussraster ein und belastet die beiden
+     * Bindebleche dort. Beim NT-Ausleger sind das 3.84 kNm über 0.40 m.
+     */
+    const xs = a.stationX ?? a.x;          // wo das Teil am Joch hängt
+    const dx = (a.x ?? 0) - xs;            // Ausladung des Kragarms
+
     // Hebelarm zur JOCHACHSE. z zählt ab der Anschlussebene, das
     // Torsionsmoment ab der Jochachse - dazwischen liegt h/2.
-    const h = hAn(a.x);
+    const h = hAn(xs);
     const ev = hebelarmZuAchse(a, h);
     const ex = a.y ?? a.ex ?? 0;
     const raster = a.raster ?? 0.4;
 
     // Die beiden Befestigungsstellen entlang der Jochachse
-    const x1 = a.x - raster / 2;
-    const x2 = a.x + raster / 2;
+    const x1 = xs - raster / 2;
+    const x2 = xs + raster / 2;
 
     // 1. Vertikale Last hälftig auf beide Stellen
     if (Fz) { P.push({ x: x1, w: Fz / 2, name: a.name }); P.push({ x: x2, w: Fz / 2, name: a.name }); }
@@ -225,11 +357,13 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
     // statt nach unten, und die Querkraft im Joch fiel doppelt so gross aus
     // wie im Rahmenmodell (2.35 gegen 1.43 kN am Signaljoch). Solange der
     // Lastfall Wind in Jochachse ohnehin viel zu klein war, fiel es nicht auf.
-    if (Fx) N.push({ x: a.x, w: Fx, name: a.name });
-    const Myd = -Fx * ev + Myy;
-    if (Myd) M.push({ x: a.x, w: Myd, name: a.name });
-    // 4. Eingeprägtes Moment im Grundriss
-    if (Mzz) Mz.push({ x: a.x, w: Mzz, name: a.name });
+    if (Fx) N.push({ x: xs, w: Fx, name: a.name });
+    const Myd = -Fx * ev + Fz * dx + Myy;
+    if (Myd) M.push({ x: xs, w: Myd, name: a.name });
+    // 4. Moment im Grundriss: der eingeprägte Anteil plus das Kräftepaar aus
+    //    der Ausladung des Kragarms.
+    const Mzd = Fy * dx + Mzz;
+    if (Mzd) Mz.push({ x: xs, w: Mzd, name: a.name });
 
     // ------------------------------------------------------------------
     // LOKALE EINLEITUNG DER MOMENTE
@@ -294,7 +428,7 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
         });
       } else {
         const gurt = anschlussGurt(a);
-        const bq = bAn(a.x, gurt) || 0;
+        const bq = bAn(xs, gurt) || 0;
         dFz = bq > 0 ? Td / bq : 0;
         [x1, x2].forEach((x) => {
           lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'L', dF: +dFz / 2 });

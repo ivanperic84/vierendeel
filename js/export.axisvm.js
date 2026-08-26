@@ -43,6 +43,10 @@
 
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
+// Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
+// Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
+// Bild und ausgeleitetes Modell einmal auseinanderliefen.
+import { anbauKette, anschlussGurt } from './core.anbauteile.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -86,6 +90,15 @@ export const auflagerVorgabe = (m) => ((m?.bauweise ?? 'neu') === 'alt' ? 'mitte
  * bleibt dasselbe.
  */
 const STARR = { name: 'STARR', h: 500, b: 500 };
+
+/**
+ * Merkmale des Aufbaus, die man der Datei nicht ansieht.
+ *
+ * `anbau-kette`  Anbauteile stehen in einer Kette (Traeger -> Aufbau ->
+ *                Drahtwerk). Fehlt das Merkmal, stammt die Datei aus einer
+ *                Fassung, die jedes Teil einzeln ans Joch gehangt hat.
+ */
+export const MERKMALE = ['anbau-kette'];
 
 /** Rechteck-Ersatzquerschnitt des Anbauteil-Arms: steif, ohne Eigengewicht. */
 const ARM = { name: 'ARM', h: 300, b: 300 };
@@ -653,10 +666,22 @@ export function stabmodell(m, opt = {}) {
   // Stelle über dieselbe Befestigung eintritt, gehört an EINEN Arm. Sonst
   // stünden mehrere steife Arme nebeneinander und würden die örtliche
   // Einleitung künstlich versteifen.
+  /*
+   * GRUPPIERT WIRD NACH BAUGRUPPE, NICHT NACH KOORDINATEN.
+   *
+   * Vorher war der Schluessel [x, y, z, Befestigung, Raster]. Damit fielen
+   * Module DERSELBEN Baugruppe auseinander, sobald sie auf verschiedenen
+   * Hoehen sitzen - und genau das ist der Normalfall: die Haengestuetze auf
+   * -1.35 m, der Ausleger darunter auf -2.70 m. Jedes Stueck bekam seinen
+   * eigenen Arm vom Gurt herunter, und im Modell hing alles EINZELN am Joch
+   * statt in einer Kette. So war es auch im AxisVM zu sehen.
+   *
+   * Die Baugruppe haelt zusammen, was zusammengehoert; welches Teil auf
+   * welchem sitzt, sagen die Rollen (siehe unten).
+   */
   const gruppiert = new Map();
   (m.anbauteileFlach ?? []).forEach((a) => {
-    const schluessel = [r6(a.x), r6(a.y ?? 0), r6(a.z ?? 0),
-                        a.befestigung, a.raster ?? 0].join('|');
+    const schluessel = a.baugruppe ?? a.id;
     const da = gruppiert.get(schluessel);
     if (da) { da.teile.push(a); return; }
     gruppiert.set(schluessel, { ...a, teile: [a] });
@@ -790,20 +815,81 @@ export function stabmodell(m, opt = {}) {
       s.stab(`ARM${k}_D`, qsArm, mitte.OG, mitte.UG, { starrRolle: 'anbauteil' });
     }
 
-    // DAS ANBAUTEIL SELBST IST EIN STARRKÖRPER (Weisung). Es trägt keine
-    // Streckenlast - seine Lasten sitzen als Punktlasten am Lastknoten -,
-    // also geht dabei nichts verloren. Ist ein Gelenk gesetzt, bleibt es
-    // ein Stab: ein Starrkörper kennt keine Freigabe.
-    const zAn = a.befestigung === 'oben' ? zOG : zUG;
-    const anker = a.befestigung === 'oben' ? mitte.OG : mitte.UG;
-    const last = s.kn(`AL${k}`, x0, r6(a.y ?? 0), r6(zAn + (a.z ?? 0)));
-    s.stab(`ARM${k}`, qsArm, anker, last,
-           opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
-                           : { starrRolle: 'anbauteil' });
+    /*
+     * DIE KETTE, NICHT DER STERN.
+     *
+     * Der Ausleger sitzt auf der Haengestuetze, das Kettenwerk am Ausleger -
+     * so ist es gebaut, und so gehoert es ins Modell. Die Vorlage sagt es
+     * ueber die ROLLE ihrer Module:
+     *
+     *     traeger    die Haengestuetze am Joch
+     *     aufbau     was auf ihr sitzt (Ausleger)
+     *     drahtwerk  was der Aufbau traegt (Kettenwerk, Leiter)
+     *
+     * Jede Stufe haengt an der vorigen; mehrere Teile DERSELBEN Stufe haengen
+     * nebeneinander an derselben Vorgaengerstufe (zwei Ausleger an einer
+     * Stuetze sind eine Gabel, keine Reihe).
+     *
+     * OHNE ROLLE bleibt ein Teil auf Stufe 0, also unmittelbar am Anschluss.
+     * Wo die Daten keine Kette nennen, wird auch keine erfunden.
+     *
+     * FAELLT EIN PUNKT MIT SEINEM VORGAENGER ZUSAMMEN - Ausleger und
+     * Kettenwerk liegen beide auf -2.70 m -, entsteht KEIN Stab der Laenge
+     * null; das Teil haengt dann am selben Knoten. Seine Lasten greifen
+     * ohnehin dort an.
+     *
+     * DAS ANBAUTEIL SELBST IST EIN STARRKOERPER (Weisung). Es traegt keine
+     * Streckenlast - seine Lasten sitzen als Punktlasten am Lastknoten -,
+     * also geht dabei nichts verloren. Ist ein Gelenk gesetzt, bleibt es ein
+     * Stab: ein Starrkoerper kennt keine Freigabe.
+     */
+    /*
+     * VON WELCHEM GURT DIE HOEHE ZAEHLT.
+     *
+     * Bisher stand hier: bei 'durchgehend' vom UNTERGURT. Das war falsch. Der
+     * Rechenkern misst z dort, wo man es am Bauteil abgreift (anschlussGurt in
+     * core.anbauteile.js): was nach oben ragt, am Obergurt, was haengt, am
+     * Untergurt. Ein Jochaufsatz sass in der Ausleitung deshalb um die ganze
+     * Jochhoehe zu tief - beim J90 gemessene 0.449 m. Fuer die vertikale Last
+     * bleibt das folgenlos, fuer die WAAGRECHTE nicht: ihr Hebelarm zur
+     * Jochachse und damit die Torsion war um F_y * h daneben.
+     *
+     * Die Ebene folgt dem TRAEGER der Baugruppe - dem Teil, das wirklich am
+     * Joch haengt. Dass alle Teile einer Baugruppe zur selben Seite zeigen,
+     * prueft der Pruefstand ueber die ganze Vorlagendatenbank.
+     */
+    const traegerTeil = (a.teile ?? [a]).find((x) => (x.rolle ?? '') === 'traeger')
+                     ?? (a.teile ?? [a])[0] ?? a;
+    const anGurt = anschlussGurt({ befestigung: a.befestigung, z: traegerTeil.z ?? 0 });
+    const zAn = anGurt === 'OG' ? zOG : zUG;
+    const anker = anGurt === 'OG' ? mitte.OG : mitte.UG;
+
+    /*
+     * DIE KETTE KOMMT AUS DEM RECHENKERN (anbauKette in core.anbauteile.js).
+     *
+     * Dort steht auch, was die Modellansicht zeichnet. Zwei getrennte
+     * Fassungen waren der Grund, warum das Bild einen geraden Staender zeigte,
+     * waehrend im AxisVM jedes Teil einzeln am Joch hing.
+     *
+     * x0 ist die Wurzel: die Station der Baugruppe, gegebenenfalls aus einem
+     * steifen Knotenbereich gerueckt. Der Versatz eines Kragarms haengt
+     * massgenau daran, nicht an der urspruenglichen Station.
+     */
+    const kette = anbauKette(a.teile ?? [a], { x0, zAn });
+    const knotenVon = new Map([[kette.wurzel, anker]]);
+    kette.glieder.forEach((g) => {
+      const kn = s.kn(`AL${k}_${g.bis.nr}`, r6(g.bis.x), r6(g.bis.y), r6(g.bis.z));
+      knotenVon.set(g.bis, kn);
+      s.stab(`ARM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
+             opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
+                             : { starrRolle: 'anbauteil' });
+    });
+    kette.belegung.forEach(({ teil, punkt }) =>
+      arme.push({ teil, knoten: knotenVon.get(punkt) }));
+
     if (zweiPunkt) {
       zweiPunktAnschluss.push({ name: a.name ?? `AT${k}`, x: x0, ebene: ebenen[0] });
     }
-    arme.push({ teil: a, knoten: last });
   });
 
   return { ...s, auflager, arme, knotenmodell: km, zOben, verschoben,
@@ -1436,6 +1522,21 @@ export function stabmodellJson(m, opt = {}) {
   return {
     format: 'tragjoch-stabmodell',
     version: 1,
+    /*
+     * WAS DIESE DATEI KANN.
+     *
+     * Die Formatnummer sagt, wie die Datei GELESEN wird - sie sagt nicht,
+     * was drinsteht. Ein Modell aus einer alten Fassung des Werkzeugs liest
+     * sich tadellos und baut sich klaglos auf; dass die Anbauteile darin
+     * einzeln am Joch hangen statt in einer Kette, sieht man erst im
+     * fertigen Modell. Genau das ist einmal passiert.
+     *
+     * Deshalb tragt die Datei ihre Merkmale bei sich, und die Brucke sagt
+     * laut, wenn eines fehlt, das sie erwartet. Ein neuer Eintrag kommt
+     * hinzu, sobald sich am AUFBAU etwas andert, das man der Datei sonst
+     * nicht ansieht.
+     */
+    merkmale: MERKMALE,
     erzeugt: new Date().toISOString().slice(0, 19),
     einheiten: { laenge: 'm', parameter: 'mm', kraft: 'kN', moment: 'kNm',
                  drehfeder: 'kNm/rad', flaeche: 'm2', traegheit: 'm4' },

@@ -37,7 +37,7 @@
 
 import { querschnitt } from './geometry.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
-import { anschlussGurt } from './core.anbauteile.js';
+import { anschlussGurt, anbauKette } from './core.anbauteile.js';
 
 const MM = 1 / 1000;
 
@@ -547,17 +547,43 @@ export function erzeugeSzene(m, erg) {
     const zAbVon = (t) => (anschlussGurt({ befestigung: bef, z: t?.z ?? 0 }) === 'OG'
       ? zOG : zUG);
 
-    // Der Ständer reicht bis zum entferntesten Teil - er ist das, woran alles
-    // hängt, und muss deshalb über die ganze Spanne der Teile gehen.
-    const zWerte = meine.map((t) => zAbVon(t) + (t.z ?? 0));
-    const zMin = Math.min(zOG, zUG, ...zWerte);
-    const zMax = Math.max(zOG, zUG, ...zWerte);
-    if (zMax - zMin > 1e-6) {
-      flaechen.push(...stab([a.x, 0, zMin], [a.x, 0, zMax], 0.045,
-        opt(`Ständer ${((zMax - zMin)).toFixed(2)} m`)));
-    }
+    /*
+     * DIE KETTE, GLIED FÜR GLIED.
+     *
+     * Hier stand EIN Ständer von zMin bis zMax - ein gerader Strich, der von
+     * einer Hängestütze mit Ausleger dasselbe zeigte wie von drei Teilen
+     * nebeneinander. Genau deshalb blieb unbemerkt, dass die Ausleitung die
+     * Teile einzeln ans Joch hängte: das Bild konnte den Unterschied gar
+     * nicht darstellen.
+     *
+     * Gezeichnet wird jetzt, was ausgeleitet wird - dieselbe Funktion
+     * (anbauKette in core.anbauteile.js). Ein KRAGARM steht damit auch als
+     * Kragarm da: der NT-Ausleger reicht in Jochachse aus, und das Kettenwerk
+     * hängt an seinem Ende.
+     */
+    const traegerTeil = meine.find((x) => (x.rolle ?? '') === 'traeger') ?? meine[0];
+    const anGurt = anschlussGurt({ befestigung: bef, z: traegerTeil?.z ?? 0 });
+    const kette = anbauKette(meine, { x0: a.x, zAn: anGurt === 'OG' ? zOG : zUG });
+
+    kette.glieder.forEach((g) => {
+      const laenge = Math.hypot(g.bis.x - g.von.x, g.bis.y - g.von.y,
+                                g.bis.z - g.von.z);
+      // Der Träger trägt alles, was danach kommt - er darf dicker sein.
+      flaechen.push(...stab([g.von.x, g.von.y, g.von.z],
+                            [g.bis.x, g.bis.y, g.bis.z],
+                            g.rang === 0 ? 0.045 : 0.038,
+                            opt(`${g.teil.bauteilName ?? g.teil.name} · ${laenge.toFixed(2)} m`)));
+    });
+
+    // Spanne der Baugruppe - für den Blick auf ein einzelnes Teil. Bei einem
+    // Kragarm reicht das Raster als Mass nicht mehr aus.
+    const pkt = [kette.wurzel, ...kette.glieder.map((g) => g.bis)];
+    const zMin = Math.min(zOG, zUG, ...pkt.map((q) => q.z));
+    const zMax = Math.max(zOG, zUG, ...pkt.map((q) => q.z));
+    const xMin = Math.min(a.x - r, ...pkt.map((q) => q.x));
+    const xMax = Math.max(a.x + r, ...pkt.map((q) => q.x));
     detailBereiche.push({ teil: teilKey, id: a.id, index: k, name: a.name,
-                          x: a.x, r, zMin, zMax });
+                          x: a.x, r, zMin, zMax, xMin, xMax });
 
     // KURZBENENNUNG der Baugruppe am oberen Ende des Ständers - nur die
     // Positionsnummer. Sie genügt, um ein Teil im Plan wiederzufinden, und
@@ -579,12 +605,10 @@ export function erzeugeSzene(m, erg) {
       const yAn = t.y ?? 0;
       const pAn = [t.x, yAn, zAn];
       const kurz = t.bauteilName ?? t.name.split(' · ').slice(-1)[0];
-      // Ausleger vom Ständer zum Angriffspunkt. Auch bei y = 0 gezeichnet,
-      // wenn das Teil in x versetzt sitzt.
-      if (Math.abs(yAn) > 1e-6 || Math.abs(t.x - a.x) > 1e-6) {
-        flaechen.push(...stab([a.x, 0, zAn], pAn, 0.032,
-          opt(`${kurz} · Ausleger`)));
-      }
+      // Der Weg vom Anschluss zum Angriffspunkt ist oben als KETTE gezeichnet
+      // (anbauKette). Hier stand dafür ein Stummel vom senkrechten Ständer
+      // aus - er ginge quer durch die Kette hindurch und behauptete einen
+      // zweiten, anderen Kraftweg.
       // KNOTEN am Angriffspunkt: hier greift die Last an, und hier setzen die
       // Kraftpfeile an. Er wird als eigene Marke geführt, damit er auch dann
       // sichtbar bleibt, wenn der Ständer davorliegt.
@@ -627,7 +651,7 @@ export function erzeugeSzene(m, erg) {
       if (Math.abs(t.z ?? 0) > 1e-6) {
         masse.push({
           feld: 'anbauteile', tab: 'anbau', achse: 'z', zu: teilKey,
-          p0: [a.x, yAn, zAbVon(t)], p1: [a.x, yAn, zAn],
+          p0: [t.x, yAn, zAbVon(t)], p1: [t.x, yAn, zAn],
           ab: [1, 0, 0], d: 0.30 + j * 0.16,
           // Die Bemassung sagt das MASS. Der Name steht als Marke am Teil
           // selbst - ihn hier zu wiederholen kostet die dreifache Breite und
@@ -640,7 +664,7 @@ export function erzeugeSzene(m, erg) {
       if (Math.abs(yAn) > 1e-6) {
         masse.push({
           feld: 'anbauteile', tab: 'anbau', achse: 'y', zu: teilKey,
-          p0: [a.x, 0, zAn], p1: [a.x, yAn, zAn],
+          p0: [t.x, 0, zAn], p1: [t.x, yAn, zAn],
           ab: [0, 0, 1], d: 0.18,
           text: `y = ${yAn.toFixed(2)} m`,
         });
@@ -1087,9 +1111,10 @@ export class Modellansicht {
    * Statt einer Faustformel wird die Box tatsächlich projiziert - sonst füllt
    * ein langes, flaches Joch das Bild nur zu einem Bruchteil.
    */
-  passeEin(rand = 0.86) {
+  /** Kameraabstand, bei dem alles ins Bild passt - ohne ihn zu setzen. */
+  _noetigerAbstand(rand = 0.86) {
     const g = this.szene?.grenzen;
-    if (!g) return;
+    if (!g) return null;
     const von = this.fokus ? this.fokus.von : g.xMin;
     const bis = this.fokus ? this.fokus.bis : g.xMax;
     const ecken = [];
@@ -1104,10 +1129,43 @@ export class Modellansicht {
       halbH = Math.max(halbH, Math.abs(punkt(d, hoch)));
     });
     const seit = this.cv.width / Math.max(1, this.cv.height);
-    const t = Math.tan(this.kamera.fov / 2);
-    const noetig = Math.max(halbH / t, halbB / (t * seit));
-    this.kamera.dist = Math.max(0.6, noetig / rand);
+    const tn = Math.tan(this.kamera.fov / 2);
+    return Math.max(0.6, Math.max(halbH / tn, halbB / (tn * seit)) / rand);
+  }
+
+  passeEin(rand = 0.86) {
+    const d = this._noetigerAbstand(rand);
+    if (d === null) return;
+    this.kamera.dist = d;
     this.zeichne();
+  }
+
+  /**
+   * NACH EINER BEWEGUNG WIEDER INS BILD HOLEN - aber nur, wenn nötig.
+   *
+   * Der Massstab hängt allein an der HÖHE der Fläche. Fährt eine Schublade
+   * auf, wird die Fläche nur SCHMALER: das Joch bleibt gleich gross und läuft
+   * links und rechts aus dem Bild. Während der Fahrt ist genau das richtig -
+   * ein mitlaufender Zoom war das Flackern, das abgestellt wurde. Am ENDE der
+   * Fahrt ist es ein einzelnes Ereignis, und dort darf die Ansicht nachgeben.
+   *
+   * ZWEI GRENZEN, damit daraus kein Zoom von selbst wird:
+   *   - Es wird nur HERAUSgefahren, nie heran. Ein grösseres Fenster zeigt
+   *     also mehr Umgebung, statt das Joch aufzublasen.
+   *   - Ein selbst gewählter Ausschnitt bleibt unangetastet: wer auf ein Teil
+   *     gezoomt oder das Modell verschoben hat, hat das so gemeint.
+   *
+   * @returns {boolean} ob nachgefahren wurde
+   */
+  passeEinWennAbgeschnitten(rand = 0.94) {
+    if (this.fokus || this.station !== null) return false;
+    const p = this.kamera.pan ?? [0, 0, 0];
+    if (Math.hypot(p[0], p[1], p[2]) > 1e-6) return false;
+    const noetig = this._noetigerAbstand(rand);
+    if (noetig === null || noetig <= this.kamera.dist + 1e-6) return false;
+    this.kamera.dist = noetig;
+    this.zeichne();
+    return true;
   }
 
   /** Auf eine Stelle x fahren und heranzoomen. */
@@ -1206,9 +1264,13 @@ export class Modellansicht {
     this.kamera.pan = [0, 0, 0];
     // In x nur die nähere Umgebung: das Teil und ein paar Felder daneben.
     const g = this.szene.grenzen;
-    const halb = Math.max(1.2, b.r * 6);
-    this.fokus = { von: Math.max(g.xMin, b.x - halb),
-                   bis: Math.min(g.xMax, b.x + halb) };
+    // Ein Kragarm reicht ueber das Raster hinaus - sonst schnitte der Blick
+    // genau das Teil ab, das man ansehen wollte.
+    const spanne = Math.max((b.xMax ?? b.x) - (b.xMin ?? b.x), 0);
+    const halb = Math.max(1.2, b.r * 6, spanne * 0.9);
+    const mitte = ((b.xMin ?? b.x) + (b.xMax ?? b.x)) / 2;
+    this.fokus = { von: Math.max(g.xMin, mitte - halb),
+                   bis: Math.min(g.xMax, mitte + halb) };
     // In z die ganze Spanne der Baugruppe, damit kein Teil abgeschnitten wird.
     const zM = (b.zMin + b.zMax) / 2;
     const hoehe = Math.max(b.zMax - b.zMin, 0.6);
@@ -2175,7 +2237,15 @@ export class Modellansicht {
       c.lineTo(b[0] - ux * kopf + uy * kopf * 0.45, b[1] - uy * kopf - ux * kopf * 0.45);
       c.closePath(); c.fill();
       if (v.text) {
+        // BETRAG MITFUEHREN. In _texte entscheidet er die Rangfolge: bei
+        // vielen Baugruppen kommt nicht mehr jede Beschriftung ins Bild, und
+        // dann soll die groesste Kraft dastehen, nicht die zufaellig erste.
+        // Angewaehltes gewinnt: wer eine Baugruppe angeklickt hat, will IHRE
+        // Zahlen lesen.
+        const betrag = Math.abs(parseFloat(String(v.text).replace(/^[^=]*=\s*/, '')));
         this._pfeiltexte.push({ text: v.text, farbe,
+                                rang: (v.teil && v.teil === this.auswahlTeil ? 1e6 : 0)
+                                      + (Number.isFinite(betrag) ? betrag : 0),
                                 x: b[0] + ux * 8 * s + 3 * s,
                                 y: b[1] + uy * 8 * s + 4 * s });
       }
@@ -2202,15 +2272,31 @@ export class Modellansicht {
     const s = this._s;
     c.font = this._font(this.schriftLast);
     const hoehe = this.schriftLast * s;
-    (this._pfeiltexte ?? []).forEach((p) => {
-      // Dasselbe Rechteck, das _beschriftung gleich malt - gemessen wird, was
-      // gezeichnet wird, und nicht etwas Aehnliches daneben.
-      const w = this._textBreite(c, p.text) + 7 * s;
-      const x = p.x - 3 * s, y = p.y - hoehe + 2 * s, h = hoehe + 3 * s;
-      if (!this._frei(x, y, w, h)) return;
-      this._belegt.push({ x, y, w, h });
-      this._beschriftung(c, t, p.text, p.x, p.y, p.farbe);
-    });
+    /*
+     * AUCH DIE PFEILTEXTE HABEN EIN BUDGET.
+     *
+     * Die Marken haben eines (_markenBudget), die Kraftbeschriftungen hatten
+     * keines: gezeichnet wurde jede, die noch irgendwo freien Platz fand. Bei
+     * fuenf Baugruppen standen elf Zahlen ueber dem Joch, und welche davon
+     * wegblieb, entschied die Reihenfolge im Feld.
+     *
+     * Jetzt entscheidet der BETRAG - und, wenn eine Baugruppe angewaehlt ist,
+     * deren Zugehoerigkeit. Beim Heranzoomen waechst das Budget von selbst,
+     * die uebrigen kommen also wieder.
+     */
+    const budget = Math.max(3, Math.round(this._markenBudget() * 1.2));
+    [...(this._pfeiltexte ?? [])]
+      .sort((a, b) => (b.rang ?? 0) - (a.rang ?? 0))
+      .slice(0, budget)
+      .forEach((p) => {
+        // Dasselbe Rechteck, das _beschriftung gleich malt - gemessen wird, was
+        // gezeichnet wird, und nicht etwas Aehnliches daneben.
+        const w = this._textBreite(c, p.text) + 7 * s;
+        const x = p.x - 3 * s, y = p.y - hoehe + 2 * s, h = hoehe + 3 * s;
+        if (!this._frei(x, y, w, h)) return;
+        this._belegt.push({ x, y, w, h });
+        this._beschriftung(c, t, p.text, p.x, p.y, p.farbe);
+      });
     if (this.gruppen.resultate && this.werteAnschreiben) this._werte(c, t);
   }
 

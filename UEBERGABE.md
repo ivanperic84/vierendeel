@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1083 Kontrollen bestanden, 0 gefallen · Bundle 1013 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern**
+**Stand:** 1139 Kontrollen bestanden, 0 gefallen · Bundle 1065 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1083 Kontrollen
+node pruefung.mjs           # Prüfstand, 1139 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,185 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Der NT-Ausleger ist ein Kragarm (26. August)
+
+**Weisung des Auftraggebers, im Wortlaut:**
+
+> **Der NT ist ein Kragarm**, das heisst dieser hat min. einen Angriffspunkt,
+> der **1.2 m in x-Richtung versetzt** ist. Das Kettenwerk ist dann am Ende des
+> Kragarms **2.4 m** gehängt. Daher soll die **Windlast zu 50 % auf den
+> Anschlusspunkt Ausleger/Hängestütze** gehen und der Rest geht quasi in das
+> Kettenwerk.
+
+Damit ist die offene Frage nach dem Versatz beantwortet: er steht **in
+Jochachse** (Modul-`x`), nicht in Gleisrichtung. Die Vorlage `hs-nt-ausleger`
+führt jetzt
+
+| Modul | x | e_v |
+|---|---|---|
+| Hängestütze od. Hängerohr | 0 | 1.35 m |
+| Ausleger Typ NT | **1.20 m** | 2.70 m |
+| R-FL Kettenwerk | **2.40 m** | 2.70 m |
+
+dazu `windAufTraeger: true, windAnteil: 50`. Der Umlagerungsschalter war
+bisher standardmässig aus; für diese Vorlage ist er jetzt an.
+
+**Drei Dinge folgten daraus, und alle drei waren nötig.**
+
+**1. Der Windanteil ging an die falsche Stelle.** `windAufTraeger` setzte die
+verbleibende Hälfte bisher nur **in y** auf die Achse des Trägers zurück — das
+genügte, solange jedes Teil auf der Jochachse sass. Beim Kragarm blieb sie
+1.2 m draussen stehen. Jetzt rückt sie auf den Anschlusspunkt in **beiden**
+waagrechten Richtungen.
+
+**2. Der Kragarm lädt das Joch an seiner WURZEL.** Das Joch berührt er
+draussen nicht — getragen wird er von der Hängestütze, und die hängt über
+ihren Raster an *einer* Station. Die Last kommt dort an, und der Versatz
+erscheint als Kräftepaar:
+
+```
+C = r × F      mit  r = (d, e_x, −e_v)
+C_y = −e_v·F_x + d·F_z        Biegung um y
+C_z =            d·F_y        Biegung im Grundriss
+```
+
+Bis dahin wurde die Last an ihrer eigenen Station aufs Joch gesetzt. Global
+ist das fast dasselbe; **örtlich** nicht: das Kräftepaar tritt über den
+Anschlussraster ein und belastet die beiden Bindebleche dort — beim
+NT-Ausleger 3.84 kNm über 0.40 m.
+
+*Die Probe ist das Gleichgewicht*: dieselbe Last, einmal über den Kragarm und
+einmal unmittelbar auf dem Joch an der versetzten Stelle, muss dieselbe
+Auflagerkraft ergeben. Ohne Kräftepaar unterscheiden sie sich um F·d/L, mit
+falschem Vorzeichen um das Doppelte — das legt das Vorzeichen eindeutig fest,
+und der Prüfstand hält es fest.
+
+**3. Die Ausleitung verschluckte den Versatz.** Sie setzte alle Kettenknoten
+auf die Station der Baugruppe. Ein Kragarm wäre im AxisVM als senkrechte
+Gerade angekommen.
+
+### Bild und Ausleitung bauen jetzt dieselbe Kette
+
+Die Kette stand zweimal im Code — einmal in der Ausleitung, einmal gar nicht:
+die Modellansicht zeichnete **einen** Ständer von der obersten zur untersten
+Stelle. Ein gerader Strich zeigt von einer Hängestütze mit Ausleger dasselbe
+wie von drei Teilen nebeneinander, und genau deshalb blieb wochenlang
+unbemerkt, dass im AxisVM alles einzeln am Joch hing: *das Bild konnte den
+Unterschied nicht darstellen.*
+
+`anbauKette()` steht jetzt in `js/core.anbauteile.js` und wird von beiden
+gelesen. Innerhalb einer Stufe wird nach aussen gereiht — beim NT stehen dort
+zwei Punkte (Anschluss Ausleger/Stütze und Angriffspunkt des Kragarms), und
+das Kettenwerk hängt am äusseren.
+
+### Ein aufgesetztes Teil sass in der Ausleitung eine Jochhöhe zu tief
+
+Bei `durchgehend` nahm die Ausleitung **immer** den Untergurt als Bezugsebene.
+Der Rechenkern misst z dort, wo man es am Bauteil abgreift (`anschlussGurt`):
+was nach oben ragt, ab Obergurt. Ein Jochaufsatz sass im ausgeleiteten Modell
+deshalb um die ganze Jochhöhe zu tief — beim J90 gemessene **0.449 m**. Für
+die vertikale Last folgenlos, für die waagrechte nicht: ihr Hebelarm zur
+Jochachse und damit die Torsion war um F_y·h daneben.
+
+Der Prüfstand vergleicht das jetzt über die **ganze Vorlagendatenbank** (24
+Lastpunkte): jeder ausgeleitete Lastpunkt muss auf der Höhe sitzen, die der
+Kern rechnet.
+
+### Neun Verbesserungen aus einer Sitzung als Nutzer
+
+Ein Joch mit fünf Baugruppen von Hand aufgebaut und dabei mitgeschrieben.
+Alles Folgende ist umgesetzt und in Abschnitt 33 des Prüfstands festgehalten.
+
+| Was | Vorher | Jetzt |
+|---|---|---|
+| Kette im Bild | ein gerader Ständer | ein Glied je Kettenstufe |
+| Rolle und Träger | standen nirgends | Plakette und «hängt an …» in der Karte, Warnung bei gleichem Punkt |
+| Name der Baugruppe | auf ~4 Zeichen gekürzt («L..») | Untergrenze 84 px; die Kräftezeile weicht |
+| Kraftspalte | `x · y · z` neben der Station `x` | `F_x · F_y · F_z` |
+| Modellspalte | fiel bei 886 px auf 92 px | Mindestbreite 320 px, Startbreiten aus der Fensterbreite |
+| Splitter | fest auf 640 px je Seite | begrenzt durch das, was der Mitte bleiben muss |
+| Fenster verkleinern | nur die Mitte schrumpfte | die Schubladen geben nach |
+| Ansicht nach dem Ein-/Ausfahren | Joch lief aus dem Bild | fährt am Ende der Bewegung heraus (nie heran) |
+| Kraftbeschriftungen | jede, die Platz fand | Budget wie bei den Marken, nach Betrag |
+| Gleiszuordnung | nur aus dem Lastgenerator | Feld in der Karte |
+| η > 1 | «und welcher Typ dann?» | Sortiment durchrechnen (der Typ wechselt **nicht** von selbst) |
+
+Eine Stolperstelle beim Einbauen, weil sie nicht offensichtlich ist:
+`--sp-links` / `--sp-rechts` werden in `style.css` **auf `.ws` selbst**
+vorbelegt. Eine eigene Festlegung am Element gewinnt gegen die geerbte von
+`:root` — solange das Skript dieselben 386/380 px schrieb, fiel das nie auf.
+Die Breiten werden jetzt am Arbeitsblatt gesetzt.
+
+
+### Anbauteile hingen einzeln am Joch statt in einer Kette (26. August)
+
+Am gerechneten Modell im AxisVM gesehen: statt **Joch → Hängestütze →
+Ausleger → Kettenwerk** hing jedes Stück einzeln senkrecht am Joch. Aus der
+ausgeleiteten Datei:
+
+```
+ARM0  AT0_UG (z −0.33) → AL0 (z −1.58)
+ARM3  AT3_UG (z −0.33) → AL3 (z +1.78)     Jochaufsatz
+ARM4  AT4_UG (z −0.33) → AL4 (z +3.78)     sein Zusatzleiter — auch direkt am Joch
+```
+
+`ARM4` hätte an `ARM3` hängen müssen.
+
+**Der Grund** stand in der Gruppierung: die Ausleitung fasste die aufgelösten
+Teile nach **Koordinaten** zusammen (`[x, y, z, Befestigung, Raster]`). Module
+*derselben* Baugruppe auf verschiedenen Höhen fielen damit auseinander — und
+das ist der Normalfall: die Hängestütze auf −1.35 m, der Ausleger darunter auf
+−2.70 m. Jedes bekam seinen eigenen Arm vom Gurt herunter.
+
+**Die Vorlage sagt die Kette bereits** — über die Rolle ihrer Module:
+
+| Modul | Rolle | z |
+|---|---|---|
+| Hängestütze | `traeger` | −1.35 m |
+| Ausleger Typ NT | `aufbau` | −2.70 m |
+| R-FL Kettenwerk | `drahtwerk` | −2.70 m |
+
+Gruppiert wird jetzt nach **Baugruppe**, und die Rollen bilden die Stufen:
+jede Stufe hängt an der vorigen. Mehrere Teile derselben Stufe hängen
+nebeneinander an derselben Vorgängerstufe — zwei Ausleger an einer Stütze sind
+eine Gabel, keine Reihe. Wer keine Rolle trägt, bleibt auf Stufe 0, unmittelbar
+am Anschluss: wo die Daten keine Kette nennen, wird keine erfunden.
+
+Nachher, dieselbe Baugruppe:
+
+```
+AT0_UG (Untergurt)
+  └ ARM0_0 → AL0_0  (z −1.57)   Hängestütze
+       └ ARM0_1 → AL0_1  (z −2.92)   Ausleger
+                    └ Kettenwerk am selben Knoten
+```
+
+**Zwei Feinheiten, beide teuer, wenn man sie übersieht:**
+
+* **Fällt ein Punkt mit seinem Vorgänger zusammen** — Ausleger und Kettenwerk
+  liegen beide auf −2.70 m —, entsteht **kein** Stab der Länge null; das Teil
+  hängt am selben Knoten. Seine Lasten greifen ohnehin dort an.
+* **Je Punkt ein Knoten, nicht je Teil.** Ein Anbauteil steht in
+  `anbauteileFlach` je Modul *und* je Lastblock einmal. Beim ersten Anlauf
+  bekam jeder Lastblock seinen eigenen Arm — zwei steife Arme nebeneinander,
+  die die örtliche Einleitung künstlich versteift hätten. Der Prüfstand hat
+  das gefangen; genau dafür stand die Regel dort.
+
+**Die Ergebnisse ändern sich dadurch nicht.** Alle Glieder sind Starrkörper am
+selben Anschlusskörper, und ein starrer Stern überträgt dieselbe Resultante wie
+eine starre Kette. Nachgemessen: Summe F_z −2.70 kN und F_y 1.25 kN, in beiden
+Fassungen genau die Werte der Bauteile. Erst wenn ein Gelenk gesetzt wird
+(`anbauGelenk`) oder wenn man die Armkräfte selbst liest, macht die Kette einen
+Unterschied — dann aber einen grossen.
+
+**Dabei mit herausgefallen:** die alte Fassung erzeugte einen **Stab der Länge
+null**, wenn der Lastpunkt auf der Anschlussebene lag. Die Prüfung dazu stand
+in einem anderen Abschnitt mit anderer Vorrichtung und hat ihn nie gesehen.
+
+Prüfstand: Abschnitt 32, **14 neue Kontrollen** (Rollen der Vorlage, Kette
+statt Stern, Aufsatz steigt, Einzelteil bleibt einzeln, kein Glied der Länge
+null, Lastsummen unverändert).
 
 ### Der Schnitt im Modell und die angeschriebenen Werte (24. August)
 
@@ -1808,7 +1987,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1083 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1139 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

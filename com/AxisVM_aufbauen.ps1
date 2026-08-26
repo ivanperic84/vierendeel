@@ -38,6 +38,9 @@
 param(
     [string]$Json,
     [switch]$NurPruefen,
+    [switch]$Auslesen,
+    [string]$Zuordnung,
+    [string]$Ziel,
     [switch]$Unsichtbar
 )
 
@@ -479,10 +482,10 @@ if (-not $Json) {
     $kand = Get-ChildItem -Path $PSScriptRoot -Filter '*.json' -File |
             Where-Object { $_.Name -notlike '*bericht*' }
     if ($kand.Count -eq 1) { $Json = $kand[0].FullName }
-    elseif ($kand.Count -eq 0 -and -not $NurPruefen) {
+    elseif ($kand.Count -eq 0 -and -not $NurPruefen -and -not $Auslesen) {
         Beenden 1 ('Keine Modelldatei gefunden. Die JSON-Datei aus ' +
                    '"Ausleiten -> JSON fuer die COM-Bruecke" neben dieses Skript legen.')
-    } elseif (-not $NurPruefen) {
+    } elseif (-not $NurPruefen -and -not $Auslesen) {
         Beenden 1 ("Mehrere JSON-Dateien daneben: $($kand.Name -join ', '). " +
                    'Mit -Json <datei> auswaehlen.')
     }
@@ -494,6 +497,44 @@ if ($Json) {
     $d = Get-Content -Path $Json -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($d.format -ne 'tragjoch-stabmodell') {
         Beenden 1 "Die Datei hat das Format '$($d.format)', erwartet 'tragjoch-stabmodell'."
+    }
+
+    <#  IST DIE DATEI AUF DEM STAND DES SKRIPTS?
+
+        Die Formatnummer sagt, wie gelesen wird - nicht, was drinsteht. Eine
+        Modelldatei aus einer aelteren Fassung des Werkzeugs liest sich
+        tadellos und baut sich klaglos auf; dass die Anbauteile darin einzeln
+        am Joch hangen statt in einer Kette, sieht man erst im fertigen
+        Modell. Genau so ist einmal ein ganzer Durchlauf verloren gegangen -
+        gerechnet, ausgelesen, und erst dann fiel es auf.
+
+        Abgebrochen wird NICHT: was aufgebaut wird, bleibt die Entscheidung
+        des Auftraggebers. Aber es steht laut da, oben und unten im Bericht.  #>
+    $erwarteteMerkmale = @{
+        'anbau-kette' = ('Anbauteile in einer Kette (Traeger -> Aufbau -> ' +
+                         'Drahtwerk). Fehlt es, haengt im Modell jedes Teil ' +
+                         'EINZELN am Joch.')
+    }
+    $hat = @()
+    if ($d.PSObject.Properties.Name -contains 'merkmale' -and $d.merkmale) {
+        $hat = @($d.merkmale)
+    }
+    $fehlt = @($erwarteteMerkmale.Keys | Where-Object { $hat -notcontains $_ })
+    if ($fehlt.Count -gt 0) {
+        Schreib ''
+        Schreib ('!' * 74)
+        Schreib 'DIESE MODELLDATEI STAMMT AUS EINER AELTEREN FASSUNG DES WERKZEUGS.'
+        foreach ($f in $fehlt) {
+            Schreib "  fehlendes Merkmal: $f"
+            Schreib "      $($erwarteteMerkmale[$f])"
+        }
+        Schreib ''
+        Schreib '  Neu ausleiten: im Werkzeug die Seite neu laden (Strg+Umschalt+R),'
+        Schreib '  dann "Ausleiten -> JSON fuer die COM-Bruecke". Aufgebaut wird'
+        Schreib '  trotzdem - was gebaut wird, entscheiden Sie.'
+        Schreib ('!' * 74)
+        Schreib ''
+        $script:alteDatei = $fehlt
     }
     if ($d.tragwerk.verschoben -and $d.tragwerk.verschoben.Count -gt 0) {
         Schreib "  $($d.tragwerk.verschoben.Count) Schnitte wurden zusammengelegt:"
@@ -533,11 +574,27 @@ foreach ($p in @(@{n='Visible'; v=$(if ($Unsichtbar) {0} else {1})},
 
 # --- 2 - Modell --------------------------------------------------------------
 Abschnitt '2 - Modell anlegen'
-$r = Versuche 'Modell anlegen' @(
-    @{ name = 'Models.New()';        tu = { $app.Models.New() } },
-    @{ name = 'Models.Add()';        tu = { $app.Models.Add() } }
-)
-if (-not $r.ok) { Mitglieder 'Models' $app.Models; Beenden 2 'Kein Modell anlegbar.' }
+<#  BEIM AUSLESEN WIRD NICHTS ANGELEGT.
+    Das gerechnete Modell steht bereits offen; ein neues waere leer, und
+    leere Ergebnisse sehen aus wie Nullen.                                 #>
+if ($Auslesen) {
+    $r = Versuche 'Offenes Modell nehmen' @(
+        @{ name = 'Models.ActiveIndex'; tu = { [int]$app.Models.ActiveIndex } },
+        @{ name = 'Models.CurrentIndex'; tu = { [int]$app.Models.CurrentIndex } },
+        @{ name = 'Models.Item(1)'; tu = { if ([int]$app.Models.Count -ge 1) { 1 } else { 0 } } }
+    ) -Positiv
+    if (-not $r.ok) {
+        Mitglieder 'Models' $app.Models
+        Beenden 2 ('Kein offenes Modell. AxisVM mit dem gerechneten Modell ' +
+                   'offen lassen und erneut starten.')
+    }
+} else {
+    $r = Versuche 'Modell anlegen' @(
+        @{ name = 'Models.New()';        tu = { $app.Models.New() } },
+        @{ name = 'Models.Add()';        tu = { $app.Models.Add() } }
+    )
+    if (-not $r.ok) { Mitglieder 'Models' $app.Models; Beenden 2 'Kein Modell anlegbar.' }
+}
 $idx = $r.wert
 $m = $app.Models.Item($idx)
 Schreib "  Modell $idx"
@@ -549,6 +606,196 @@ if (-not $typen) {
     Beenden 11 ('Die Typbibliothek liess sich nicht lesen. Ohne sie sind ' +
                 'Staebe, Auflager und Lasten nicht zu setzen.')
 }
+
+# =============================================================================
+# ZURUECKLESEN - die Schnittgroessen aus dem gerechneten Modell.
+#
+# WOZU
+# Die Anwendung rechnet einen ERSATZBALKEN mit geschlossenen Formeln, AxisVM
+# ein STABWERK. Wo die Formeln danebenliegen, sagt nur der Vergleich - und
+# der brauchte bisher einen Excel-Export von Hand und ein Skript, das die
+# Staebe aus der Geometrie erraten musste. Hier kommen die Zahlen unmittelbar
+# aus dem Modell, und die Zuordnung steht fest (AxisVM_zuordnung.json).
+#
+# GERECHNET WIRD AUCH HIER NICHT.
+# Ob und womit gerechnet wird, bleibt die Entscheidung des Auftraggebers im
+# Programm. Dieses Skript sieht nach, OB Ergebnisse da sind (GetResultsValid),
+# und sagt andernfalls, was zu tun ist.
+#
+# WAS VERMESSEN IST (2026-08-26, Bericht der Erkundung)
+#   Results.Forces.AllLineForcesByLoadCaseId(int[], RLineForceValues[], double[])
+#   RLineForceValues: lfvLineType lfvNx lfvVy lfvVz lfvTx lfvMy lfvMz lfvMyD
+#   Results.GetResultsValid(EAnalysisType, int, ELongBoolean)
+#   Results.ResultCaseOfLoadCase(EAnalysisType, int)
+#   EAnalysisType.atLinearStatic = 0
+# =============================================================================
+if ($Auslesen) {
+    Abschnitt 'Zurueckleisen - Schnittgroessen aus dem Modell'
+
+    # --- Die Zuordnung ------------------------------------------------------
+    $zuDatei = if ($Zuordnung) { $Zuordnung }
+               else { Join-Path $PSScriptRoot 'AxisVM_zuordnung.json' }
+    if (-not (Test-Path -LiteralPath $zuDatei)) {
+        Beenden 20 ("Es fehlt $zuDatei. Sie entsteht beim Aufbau " +
+                    '(AxisVM_aufbauen.cmd) und sagt, welche Linie welcher Stab ist.')
+    }
+    $zu = Get-Content -LiteralPath $zuDatei -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($zu.format -ne 'tragjoch-axisvm-zuordnung') {
+        Beenden 20 "Die Zuordnung hat das Format '$($zu.format)'."
+    }
+    $stabVon = @{}          # LinienNummer -> Stabname
+    foreach ($n in $zu.staebe.PSObject.Properties.Name) {
+        $stabVon[[int]$zu.staebe.$n.id] = $n
+    }
+    Schreib "  Zuordnung: $zuDatei"
+    Schreib ("    {0}  -  {1} Staebe, {2} Lastfaelle" -f
+             $zu.tragwerk, $stabVon.Count, @($zu.lastfaelle.PSObject.Properties).Count)
+
+    # --- Wurde gerechnet? ---------------------------------------------------
+    # Zuerst diese Frage. Ohne Ergebnisse liefern die Leseaufrufe Nullen, und
+    # Nullen sehen aus wie ein Ergebnis.
+    $atLinear = Aufzaehlung 'EAnalysisType' 'atLinearStatic'
+    if ($null -eq $atLinear) { $atLinear = 0 }
+    $res = $null
+    try { $res = $m.Results } catch { }
+    if (-not $res) { Beenden 21 'MODELL.Results ist nicht erreichbar.' }
+
+    $anzFaelle = -1
+    try { $anzFaelle = [int]$res.ResultCaseCount($atLinear) } catch { }
+    Schreib "  Ergebnisfaelle (linear statisch): $anzFaelle"
+    if ($anzFaelle -le 0) {
+        Beenden 22 ('Es liegen keine Ergebnisse vor. In AxisVM rechnen lassen ' +
+                    '(Linear statisch), dann dieses Skript erneut starten. ' +
+                    'Gerechnet wird hier bewusst nicht.')
+    }
+
+    # --- Je Lastfall lesen --------------------------------------------------
+    <#  WIE DER FALL GEWAEHLT WIRD - VERMESSEN, NICHT GERATEN.
+
+        AllLineForcesByLoadCaseId nimmt KEINE Lastfallnummer; sie haengt am
+        Zustand des Ergebniszweigs. Daneben gibt es aber die Get-Variante mit
+        ausgeschriebenen Parametern:
+
+            GetAllLineForcesByLoadCaseId(int, int, EAnalysisType,
+                int[] SectionCounts, RLineForceValues[] Forces, double[] PosX)
+
+        Die ist zustandsfrei und deshalb der Weg. Die zustandsbehaftete
+        Fassung bleibt als Rueckfall stehen, falls eine andere AxisVM-Fassung
+        die Get-Variante nicht fuehrt.
+
+        UND DIE ERSTE RUECKGABE SIND NICHT DIE LINIENNUMMERN.
+        Sie heisst SectionCounts: wie viele Schnitte auf jede Linie entfallen.
+        Die Werte kommen also in Modellreihenfolge, und erst das Aufsummieren
+        der Zaehler sagt, welcher Wert zu welcher Linie gehoert. Als
+        Liniennummern gelesen ergaebe das stillen Unsinn - genau der Grund,
+        warum in diesem Projekt die Schnittstelle vermessen wird.          #>
+    $faelle = [ordered]@{}
+    $wegName = $null
+    $nGelesen = 0
+
+    foreach ($schl in $zu.lastfaelle.PSObject.Properties.Name) {
+        $lfNr = [int]$zu.lastfaelle.$schl
+        $rc = $lfNr
+        try { $rc = [int]$res.ResultCaseOfLoadCase($atLinear, $lfNr) } catch { }
+
+        $wege = @(
+            @{ name = 'GetAllLineForcesByLoadCaseId(Lastfall, Stufe, atLinearStatic)'; tu = {
+                $sc = $null; $fo = $null; $px = $null
+                $n = $m.Results.Forces.GetAllLineForcesByLoadCaseId(
+                        $lfNr, 1, $atLinear, [ref]$sc, [ref]$fo, [ref]$px)
+                if ($n -le 0) { throw "meldet $n" }
+                @{ n = $n; zaehler = $sc; werte = $fo; lagen = $px } } },
+            @{ name = 'Ergebniszweig setzen, dann AllLineForcesByLoadCaseId'; tu = {
+                $m.Results.Forces.AnalysisType = $atLinear
+                try { $res.ResultCase = $rc } catch { }
+                $sc = $null; $fo = $null; $px = $null
+                $n = $m.Results.Forces.AllLineForcesByLoadCaseId([ref]$sc, [ref]$fo, [ref]$px)
+                if ($n -le 0) { throw "meldet $n" }
+                @{ n = $n; zaehler = $sc; werte = $fo; lagen = $px } } }
+        )
+        $r = Versuche "Schnittgroessen $schl" $wege -Leise:($null -ne $wegName)
+        if (-not $r.ok) {
+            Schreib "  >>> $schl : nicht lesbar."
+            continue
+        }
+        if (-not $wegName) {
+            $wegName = $r.name
+            $gefunden.Add("Schnittgroessen -> $($r.name)")
+        }
+
+        <#  IN EINE LISTE JE STAB UMLEGEN.
+
+            SectionCounts hat EINEN Eintrag je Linie, in Modellreihenfolge;
+            Forces und PosX haben zusammen so viele Eintraege, wie die Zaehler
+            in Summe ergeben. Die Linie ergibt sich also aus der Stelle im
+            Zaehlerfeld, nicht aus einem mitgelieferten Schluessel.        #>
+        $w = $r.wert
+        $liste = New-Object System.Collections.Generic.List[object]
+        $i = 0
+        for ($k = 0; $k -lt $w.zaehler.Count; $k++) {
+            $li = $k + 1                        # Linien sind 1-basiert
+            $anz = [int]$w.zaehler[$k]
+            $nm = $stabVon[$li]
+            if (-not $nm) { $i += $anz; continue }   # nicht unser Stab
+            for ($s = 0; $s -lt $anz; $s++, $i++) {
+            $v = $w.werte[$i]
+            $liste.Add([ordered]@{
+                stab = $nm
+                x    = [math]::Round([double]$w.lagen[$i], 6)
+                Nx   = [math]::Round([double]$v.lfvNx, 6)
+                Vy   = [math]::Round([double]$v.lfvVy, 6)
+                Vz   = [math]::Round([double]$v.lfvVz, 6)
+                Tx   = [math]::Round([double]$v.lfvTx, 6)
+                My   = [math]::Round([double]$v.lfvMy, 6)
+                Mz   = [math]::Round([double]$v.lfvMz, 6)
+            })
+            }
+        }
+        $faelle[$schl] = [ordered]@{
+            nummer = $lfNr
+            name   = [string]$zu.lastfallNamen.$schl
+            schnitte = $liste
+        }
+        $nGelesen++
+        Schreib ("    {0,-14} {1,5} Schnitte" -f $schl, $liste.Count)
+    }
+
+    if ($nGelesen -eq 0) {
+        Mitglieder 'MODELL.Results' $res
+        Mitglieder 'MODELL.Results.Forces' $m.Results.Forces
+        Beenden 23 'Kein einziger Lastfall war lesbar - siehe die Auflistung oben.'
+    }
+
+    # --- Schreiben ----------------------------------------------------------
+    $zielDatei = if ($Ziel) { $Ziel }
+                 else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
+    $aus = [ordered]@{
+        format   = 'tragjoch-axisvm-ergebnisse'
+        version  = 1
+        erzeugt  = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
+        tragwerk = [string]$zu.tragwerk
+        quelle   = [string]$zu.quelle
+        weg      = [string]$wegName
+        einheiten = $zu.einheiten
+        faelle   = $faelle
+    }
+    $txt = $aus | ConvertTo-Json -Depth 8 -Compress
+    [IO.File]::WriteAllText($zielDatei, $txt, (New-Object Text.UTF8Encoding $false))
+
+    Abschnitt 'Fertig'
+    Schreib "  $zielDatei"
+    Schreib "  $nGelesen Lastfaelle gelesen ueber: $wegName"
+    Schreib ''
+    Schreib 'Weiter mit dem Abgleich:'
+    Schreib '    node vergleich_werkzeug.mjs <ablage.json> vergleich_werkzeug.json'
+    Schreib '    python3 vergleich_com.py AxisVM_ergebnisse.json vergleich_werkzeug.json'
+
+    $zeilen | Set-Content -Path $bericht -Encoding UTF8
+    Write-Host ''; Write-Host "Bericht: $bericht"
+    Write-Host "Ergebnisse: $zielDatei"
+    exit 0
+}
+
 
 if ($NurPruefen) {
     Abschnitt 'Nur erkundet - was das Modell anbietet'
@@ -714,6 +961,115 @@ if ($NurPruefen) {
             } catch { Schreib "  $($v.n): $($_.Exception.Message)" }
         }
         Schreib '  Erwartet fuer L 100x100x10:  A = 0.00192 m2'
+
+        <#  DIE ERGEBNISSEITE.
+
+            Aufbauen kann die Bruecke. Zurueckgelesen wurde bisher ueber den
+            Umweg eines Excel-Exports von Hand (vergleich_axisvm.py). Damit
+            der Abgleich ueber ein ganzes Sortiment laufen kann, muessen die
+            Schnittgroessen unmittelbar aus dem Modell kommen.
+
+            Was dafuer gebraucht wird, steht hier zur Vermessung an - und
+            zwar VOR der ersten Zeile Lesecode, denn Raten kostet einen
+            ganzen Durchlauf:
+
+              - wie heisst der Ergebniszweig, und was haengt darunter,
+              - wie waehlt man Lastfall bzw. Kombination aus,
+              - unter welchem Namen kommen die Stabschnittgroessen,
+              - welche Aufzaehlung benennt N, Vy, Vz, T, My, Mz,
+              - und woran erkennt man, DASS gerechnet wurde.
+
+            Gerechnet wird auch hier nicht. Es wird nur nachgesehen, was das
+            Objekt anbietet.                                              #>
+        Abschnitt 'Probe: die Ergebnisseite'
+
+        foreach ($zweig in 'Results','Calculation') {
+            $o = $null
+            try { $o = $m.$zweig } catch { Schreib "  MODELL.$zweig nicht lesbar" }
+            if ($o) { Mitglieder "MODELL.$zweig" $o }
+        }
+
+        # Was unter Results haengt. Die Namen sind geraten - genau deshalb
+        # steht hinter jedem, ob es ihn gibt.
+        $unter = @('Displacements','Forces','Stresses','LineForces','BeamForces',
+                   'RibForces','TrussForces','SurfaceForces','SpringForces',
+                   'NodalSupportForces','LinkForces','Reactions','Envelopes',
+                   'Critical','Eigenvalues','LoadCases','LoadCombinations',
+                   'AnalysisType','LoadCaseId','LoadCombinationId','LoadLevelOrTime',
+                   'ResultType','MinMaxType','DisplayShape')
+        try {
+            $res = $m.Results
+            Schreib ''
+            Schreib 'WAS UNTER RESULTS HAENGT:'
+            foreach ($u in $unter) {
+                $w = $null; $art = 'fehlt'
+                try { $w = $res.$u } catch { }
+                if ($null -ne $w) {
+                    $art = if ($w -is [ValueType] -or $w -is [string]) { "= $w" }
+                           else { $w.GetType().Name }
+                }
+                Schreib ("      {0,-22} {1}" -f $u, $art)
+            }
+            # Und was die vielversprechenden Unterobjekte selbst anbieten.
+            foreach ($u in 'Displacements','Forces','Stresses','LineForces','BeamForces') {
+                $w = $null; try { $w = $res.$u } catch { }
+                if ($w) { Mitglieder "MODELL.Results.$u" $w }
+            }
+        } catch { Schreib "  MODELL.Results nicht lesbar: $($_.Exception.Message)" }
+
+        # --- Signaturen mit Parameternamen ---------------------------------
+        # Am COM-Objekt sieht man nur die Typen; die Baugruppe kennt die Namen.
+        foreach ($paar in @(
+            # Die Parameternamen entscheiden, WIE der Lastfall gewaehlt wird:
+            # All...ByLoadCaseId nimmt laut Get-Member keine Nummer, also muss
+            # sie anderswo stehen. Ohne die Namen ist das geraten.
+            @('IAxisVMForces', 'GetAllLineForces'),
+            @('IAxisVMForces', 'GetAllLinkElementForces'),
+            @('IAxisVMForces', 'GetAllNodalSupportForces'),
+            @('IAxisVMStresses', 'GetAllLineStresses'),
+            @('IAxisVMForces', 'AllLineForces'),
+            @('IAxisVMResults', 'LoadCase'),
+            @('IAxisVMResults', 'ResultCase'),
+            @('IAxisVMResults', 'GetResultsValid'),
+            @('IAxisVMResults', 'GetSectionCoordinates'),
+            @('IAxisVMLoadCases', ''),
+            @('IAxisVMLoadCombinations', ''))) {
+            Signaturen $paar[0] $paar[1]
+        }
+        # ANMERKUNG: Get-Member auf MODELL.LoadCases blieb haengen - der
+        # Vorgang stand mit eingefrorener CPU. Die Signaturen oben kommen aus
+        # der Baugruppe und brauchen keinen COM-Aufruf; sie sagen dasselbe,
+        # ohne das Risiko.
+
+        # --- Die Verbund-Typen der Ergebnisse -------------------------------
+        if ($typen) {
+            Schreib ''
+            Schreib 'VERBUND-TYPEN DER ERGEBNISSE (nach Namen gesucht):'
+            $treffer = $typen | Where-Object {
+                $_.IsValueType -and $_.Name -match '^R.*(Force|Stress|Displacement|Result)'
+            } | Sort-Object Name | Select-Object -First 24
+            if (-not $treffer) { Schreib '  keiner gefunden' }
+            foreach ($t in $treffer) {
+                Schreib "  $($t.Name)"
+                foreach ($f in $t.GetFields([Reflection.BindingFlags]'Public,Instance')) {
+                    Schreib ("      {0,-26} {1}" -f $f.Name, $f.FieldType.Name)
+                }
+            }
+
+            Schreib ''
+            Schreib 'AUFZAEHLUNGEN DER ERGEBNISSE:'
+            $auf = $typen | Where-Object {
+                $_.IsEnum -and $_.Name -match 'Result|Force|Stress|Analysis|MinMax|Envelope'
+            } | Sort-Object Name | Select-Object -First 16
+            if (-not $auf) { Schreib '  keine gefunden' }
+            foreach ($t in $auf) {
+                Schreib "  $($t.Name)"
+                foreach ($n in [Enum]::GetNames($t)) {
+                    Schreib ("      {0,-34} {1}" -f $n, [int][Enum]::Parse($t, $n))
+                }
+            }
+        }
+
     }
 
     Abschnitt 'Das war NUR die Erkundung'
@@ -1372,13 +1728,14 @@ Abschnitt '8 - Lastfaelle'
     AxisVM - nur so bleibt ablesbar, welcher Anteil woher kommt. Alle als
     lctStandard: Schnee und Wind als eigene Typen anzulegen wuerde AxisVM
     dazu bringen, selbst Faelle zu erzeugen.                               #>
-$lf = @{}
+$lf = @{}; $lfName = @{}; $kbId = @{}
 foreach ($f in $d.lastfaelle) {
     $r = Versuche "Lastfall $($f.key)" @(
         @{ name = 'LoadCases.Add(Name, lctStandard)'; tu = { $m.LoadCases.Add($f.label, $lctNormal) } }
     ) -Leise:($lf.Count -gt 0) -Positiv
     if (-not $r.ok) { Mitglieder 'LoadCases' $m.LoadCases; Beenden 8 "Lastfall $($f.label) nicht anlegbar." }
     $lf[$f.key] = $r.wert
+    $lfName[$f.key] = $f.label
 }
 Schreib "  $($lf.Count) Lastfaelle: $($lf.Keys -join ', ')"
 
@@ -1527,7 +1884,7 @@ if ($komb.Count -eq 0) {
             }
             $nr = 0
         }
-        if ($nr -gt 0) { $nK++ } else { $nKnein++ }
+        if ($nr -gt 0) { $nK++; $kbId[[string]$kb.bez] = [int]$nr } else { $nKnein++ }
     }
     if ($nK -gt 0) {
         Schreib ("  {0,-34} LoadCombinations.Add(Name, Typ, Faktoren, LastfallIds)" -f 'Kombination')
@@ -1543,6 +1900,50 @@ if ($komb.Count -eq 0) {
         Schreib ''
         Schreib "  >>> WARNUNG: $nKnein Kombinationen kamen nicht zustande."
     }
+}
+
+# --- 9c - Zuordnung sichern --------------------------------------------------
+<#  WER SPAETER ZURUECKLIEST, BRAUCHT DIE NUMMERN.
+
+    Der Aufbau weiss, welche Linie zu welchem Stab gehoert - er hat sie eben
+    angelegt ($st, $kn, $lf). Diese Kenntnis ging bisher mit dem Skript
+    unter, und der Abgleich musste sie aus der GEOMETRIE erraten (siehe
+    vergleich_axisvm.py: Gurte laufen in Jochachse, Bleche stehen quer).
+
+    Das ging fuer ein Joch. Ueber ein Sortiment ist es eine Fehlerquelle,
+    die sich vermeiden laesst: hier wird die Zuordnung aufgeschrieben.
+
+    OHNE BOM. Set-Content -Encoding UTF8 setzt in PowerShell 5.1 eine
+    Bytefolge an den Anfang, ueber die sowohl JSON.parse als auch
+    json.load stolpern.                                                   #>
+Abschnitt '9c - Zuordnung fuer das Zurueckleisen'
+$zuDatei = Join-Path $PSScriptRoot 'AxisVM_zuordnung.json'
+try {
+    $staebeZu = [ordered]@{}
+    foreach ($n in ($st.Keys | Sort-Object)) {
+        $staebeZu[$n] = [ordered]@{ id = $st[$n]; art = $artVon[$n] }
+    }
+    $zu = [ordered]@{
+        format   = 'tragjoch-axisvm-zuordnung'
+        version  = 1
+        erzeugt  = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
+        quelle   = [IO.Path]::GetFileName($Json)
+        tragwerk = [string]$d.tragwerk.bezeichnung
+        einheiten = $d.einheiten
+        knoten   = $kn
+        staebe   = $staebeZu
+        lastfaelle = $lf
+        lastfallNamen = $lfName
+        kombinationen = $kbId
+    }
+    $txt = $zu | ConvertTo-Json -Depth 6
+    [IO.File]::WriteAllText($zuDatei, $txt, (New-Object Text.UTF8Encoding $false))
+    Schreib "  $zuDatei"
+    Schreib ("    {0} Knoten, {1} Staebe, {2} Lastfaelle, {3} Kombinationen" -f
+             $kn.Count, $staebeZu.Count, $lf.Count, $kbId.Count)
+} catch {
+    Schreib "  >>> WARNUNG: Zuordnung nicht geschrieben: $($_.Exception.Message)"
+    Schreib '      Ohne sie muss das Zurueckleisen die Staebe raten.'
 }
 
 # --- 10 - Sichern ------------------------------------------------------------
@@ -1563,6 +1964,15 @@ Schreib '        python3 vergleich_axisvm.py <export.xlsx> vergleich_werkzeug.js
 Schreib ''
 Schreib 'GEFUNDENE SCHREIBWEISEN - die traegt diese AxisVM-Fassung:'
 $gefunden | Select-Object -Unique | ForEach-Object { Schreib "  $_" }
+
+if ($script:alteDatei) {
+    Schreib ''
+    Schreib ('!' * 74)
+    Schreib 'ACHTUNG: die Modelldatei war aelter als dieses Skript -'
+    Schreib "         fehlende Merkmale: $($script:alteDatei -join ', ')"
+    Schreib '         Das Modell steht, aber nicht so, wie das Werkzeug es heute baut.'
+    Schreib ('!' * 74)
+}
 
 $zeilen | Set-Content -Path $bericht -Encoding UTF8
 Write-Host ''

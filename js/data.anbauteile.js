@@ -323,7 +323,13 @@ export function windAufTraeger(teile, a) {
     k.WindY.Fy = fy * anteil;
     zusatz.push({
       ...x, kraefte: k,
-      y: traeger.y, ex: traeger.ex,          // in y auf den Träger gerückt
+      // AUF DEN ANSCHLUSSPUNKT AUSLEGER/TRÄGER, in beiden waagrechten
+      // Richtungen. Bis hierher wurde nur y gerückt - das genügte, solange
+      // jedes Teil auf der Jochachse sass. Der NT-Ausleger ist aber ein
+      // KRAGARM IN JOCHACHSE: sein Angriffspunkt liegt um 1.2 m versetzt.
+      // Bliebe der Anteil dort stehen, käme genau die Hälfte, die über die
+      // Stütze ins Joch geht, an der falschen Stelle an.
+      x: traeger.x, y: traeger.y, ex: traeger.ex,
       // z und ev bleiben: die Höhe des Auslegers ändert sich nicht.
       id: `${x.id}~w`, art: 'windversatz', modulIndex: null, lastIndex: null,
       name: `${x.name} · Wind über ${traeger.bauteilName ?? 'Träger'}`,
@@ -347,7 +353,10 @@ export function expandiereAnbauteile(liste, o = {}) {
   (liste ?? []).forEach((roh) => {
     if (roh.aktiv === false) return;
     const a = normalisiereAnbauteil(roh);
-    const gemein = { baugruppe: a.id, x: a.x, raster: a.raster,
+    // stationX ist die Stelle, an der die BAUGRUPPE am Joch hängt; x eines
+    // Teils kann davon abweichen (Kragarm). Beide werden gebraucht: die
+    // Station für den Anschluss, x für den Angriffspunkt.
+    const gemein = { baugruppe: a.id, x: a.x, stationX: a.x, raster: a.raster,
                      befestigung: a.befestigung, aktiv: true, vorlage: a.vorlage };
     // Erst die Anteile DIESER Baugruppe sammeln: die Umverteilung des Windes
     // braucht sie vollständig nebeneinander, um den Träger zu finden.

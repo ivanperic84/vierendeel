@@ -10,11 +10,11 @@
 import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
-         normalisiereAnbauteil, neuerLastblock,
+         normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast,
          PROFILBEIWERTE } from './data.fl.js';
-import { befestigungsArt } from './core.anbauteile.js';
+import { befestigungsArt, anbauKette } from './core.anbauteile.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
@@ -539,14 +539,19 @@ function anbauteileHtml(g, werte) {
   const zeile = ({ a, i }) => {
     const offen = klappOffen(`at-${a.id}`);
     const su = baugruppeSumme(a, trasse);
-    const kraft = [['x', su.Gx + su.Qx], ['y', su.Gy + su.Qy], ['z', su.Gz + su.Qz]]
+    // F_x, nicht x: links in derselben Zeile steht die STATION x, und zwei
+    // Bedeutungen für denselben Buchstaben in einer Zeile liest niemand
+    // richtig.
+    const kraft = [['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy],
+                   ['F_z', su.Gz + su.Qz]]
       .filter(([, v]) => Math.abs(v) > 0.005)
       .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
     const suchtext = `${a.name} ${a.vorlage ?? ''} ${a.x}`.toLowerCase();
     return `<div class="at-karte${a.aktiv === false ? ' aus' : ''}${offen ? ' offen' : ''}"
          data-idx="${i}" data-suche="${esc(suchtext)}">
       <div class="at-zeile" data-at-oeffnen="${i}"
-           title="${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
+           title="${esc(a.name)} · x = ${f2(a.x)} m · ${esc(kraft)} kN
+${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
         <span class="kachel-punkt" style="background:${ANBAU_FARBE[farbschluessel(a)] ?? 'var(--dim)'}"></span>
         <span class="at-pos">A${i + 1}</span>
         <span class="at-name">${esc(a.name)}</span>
@@ -572,6 +577,11 @@ function anbauteileHtml(g, werte) {
           ${atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
                    BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])}
           ${atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)}
+          ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
+                   'Nach welchem Gleis die Baugruppe gruppiert wird. '
+                   + '0 = ohne Zuordnung. Der Lastgenerator setzt die Nummer '
+                   + 'selbst; von Hand eingesetzte Teile blieben bisher '
+                   + 'dauerhaft ohne, weil das Feld fehlte.')}
         </div>
         ${modulListeHtml(a, i, werte)}
         ${windVersatzHtml(a, i)}
@@ -634,6 +644,68 @@ const ekVonWerten = (w) =>
  * kommen aus der Tabelle und nicht aus der Eingabe. Zur Eingabe bleiben Lage,
  * Anzahl, Länge und die Exzentrizitäten, genau wie besprochen.
  */
+/**
+ * WAS SITZT AUF WAS - für die Karte lesbar gemacht.
+ *
+ * Die Kette entsteht aus den ROLLEN der Bauteile, und die stehen nirgends in
+ * der Eingabe. Wer die Höhen von Hand setzt, sieht deshalb nicht, dass der
+ * Ausleger an der Hängestütze hängt - und merkt auch nicht, wenn er ihn mit
+ * gleicher Höhe UND gleichem Versatz auf denselben Punkt setzt und die Kette
+ * damit lautlos in sich zusammenfällt.
+ *
+ * @returns {Map} modulIndex -> {rolle, haengtAn, zusammenMit}
+ */
+function ketteJeModul(a, werte) {
+  const info = new Map();
+  let flach = [];
+  try {
+    flach = expandiereAnbauteile([{ ...a, aktiv: true, lasten: [] }], trasseVon(werte));
+  } catch { return info; }
+  const kette = anbauKette(flach, { x0: a.x ?? 0, zAn: 0 });
+
+  const gliedNach = new Map();          // Punkt -> das Glied, das ihn schuf
+  kette.glieder.forEach((g) => gliedNach.set(g.bis, g));
+  const nameVon = (teil) => teil?.bauteilName ?? teil?.name ?? null;
+
+  // Wer teilt sich einen Punkt? Das ist der Fall, in dem die Kette einfällt.
+  const amPunkt = new Map();
+  kette.belegung.forEach(({ teil, punkt }) => {
+    if (teil.modulIndex == null) return;
+    if (!amPunkt.has(punkt)) amPunkt.set(punkt, []);
+    amPunkt.get(punkt).push(teil);
+  });
+
+  kette.belegung.forEach(({ teil, punkt }) => {
+    if (teil.modulIndex == null) return;
+    /*
+     * ÜBER HILFSPUNKTE HINWEG BENENNEN.
+     *
+     * Zwischen Stütze und Ausleger liegt der Punkt, auf den die halbe
+     * Windlast zurückgesetzt wird (art 'windversatz'). Er ist ein wirklicher
+     * Ort - der Anschluss Ausleger/Stütze -, aber kein BAUTEIL. Stünde er in
+     * der Karte, hiesse es beim Ausleger «hängt an Ausleger Typ NT», weil der
+     * Hilfspunkt den Namen seines Ursprungs trägt.
+     */
+    let g = gliedNach.get(punkt);
+    let traegerGlied = g ? gliedNach.get(g.von) : null;
+    while (traegerGlied && traegerGlied.teil?.art === 'windversatz') {
+      traegerGlied = gliedNach.get(traegerGlied.von);
+    }
+    info.set(teil.modulIndex, {
+      rolle: teil.rolle ?? null,
+      haengtAn: traegerGlied ? nameVon(traegerGlied.teil) : 'Joch',
+      zusammenMit: (amPunkt.get(punkt) ?? [])
+        .filter((x) => x !== teil).map(nameVon).filter(Boolean),
+    });
+  });
+  return info;
+}
+
+/** Anzeigename einer Rolle. Die Ids sind englisch-knapp, die Karte nicht. */
+const ROLLE_TEXT = {
+  traeger: 'Träger', aufbau: 'Aufbau', drahtwerk: 'Drahtwerk',
+};
+
 function modulListeHtml(a, i, werte) {
   const module = a.module ?? [];
   const trasse = trasseVon(werte);
@@ -651,9 +723,12 @@ function modulListeHtml(a, i, werte) {
            gruppe('drahtwerk', 'Drahtwerke');
   };
 
+  const kette = ketteJeModul(a, werte);
+
   const zeilen = module.map((m, k) => {
     let b = null;
     try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
+    const kt = kette.get(k);
     const l = baugruppeSumme({ ...a, module: [m], lasten: [] }, trasse);
     const streckenlast = b && istStreckenlast(b);
     const drahtwerk = b?.rolle === 'drahtwerk';
@@ -668,6 +743,15 @@ function modulListeHtml(a, i, werte) {
         <button class="loeschen" data-mod-weg="${k}" data-idx="${i}"
                 title="Modul entfernen">×</button>
       </div>
+      ${kt ? `<div class="modul-kette">
+        ${kt.rolle ? `<span class="rollen-marke r-${esc(kt.rolle)}"
+            title="Rolle aus der Lasttabelle – sie bestimmt, was auf was sitzt"
+            >${esc(ROLLE_TEXT[kt.rolle] ?? kt.rolle)}</span>` : ''}
+        <span class="kette-an">hängt an <b>${esc(kt.haengtAn ?? 'Joch')}</b></span>
+        ${kt.zusammenMit.length ? `<span class="kette-warn"
+            title="Gleicher Angriffspunkt: im Stabmodell teilen sich beide einen Knoten, die Kette hat hier kein Glied. Das ist zulässig – nur beabsichtigt sollte es sein."
+            >am selben Punkt wie ${esc(kt.zusammenMit.join(', '))}</span>` : ''}
+      </div>` : ''}
       <div class="sec-klein">Angriffspunkt</div>
       <div class="at-gitter">
         ${modFeld(i, k, 'x', 'x', m.x ?? 0, 'm', 0.1)}
@@ -1019,8 +1103,9 @@ function atSchieber(i, k, label, wert, einheit, schritt, min, max) {
   </label>`;
 }
 
-function atFeld(i, k, label, wert, einheit, schritt) {
-  return `<label class="at-feld" data-feldname="${k}">
+function atFeld(i, k, label, wert, einheit, schritt, titel = '') {
+  return `<label class="at-feld" data-feldname="${k}"${
+      titel ? ` title="${esc(titel)}"` : ''}>
     <span>${esc(label)} <i>${esc(einheit)}</i></span>
     <input class="at" data-k="${k}" data-idx="${i}" type="number"
            step="${schritt}" value="${wert ?? 0}">
@@ -1305,6 +1390,10 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  * Übersicht: Urteil, Kennzahlen und die Liste der höchstbeanspruchten Stellen.
  * Ein Klick auf eine Zeile zoomt im 3D-Modell auf diese Stelle.
  */
+/** Rückruf für die Sortimentssuche; app.js setzt ihn beim Start. */
+let beiSortiment = null;
+export function setzeSortimentSuche(fn) { beiSortiment = fn; }
+
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, hinweise = []) {
   const m = erg.modell, x = erg.extrem;
   const e = erg.max.etaGesamt;
@@ -1353,6 +1442,10 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
       <span class="urteil-zahl">η ${f3(e)}</span>
       <span>${e <= 1 ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt'}${
         urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}</span>
+      ${e > 1 && beiSortiment ? `<button class="btn btn-mini" data-sortiment
+         type="button" title="Alle Typen des Sortiments mit dieser Geometrie und
+diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
+         >Sortiment durchrechnen</button>` : ''}
     </div>
     ${hinweise.length ? klapp('uebersicht-hinweise', 'Hinweise zur Gültigkeit',
         `<div class="hinweisliste">${hinweise.map((h) =>
@@ -1388,6 +1481,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
       beiSprung(st, xk);
     });
   });
+  const so = node.querySelector('[data-sortiment]');
+  if (so && beiSortiment) so.addEventListener('click', () => beiSortiment());
   verdrahteKlapp(node);
 }
 
