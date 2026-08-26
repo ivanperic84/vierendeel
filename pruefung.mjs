@@ -4719,6 +4719,7 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
 
 {
   const AX = await import(J('export.axisvm.js'));
+  const kern = await import(J('core.anbauteile.js'));
 
   const bau = (vorlage, x = 10) => {
     const w = { ...standardwerte(), anbauteile: [A.neuesAnbauteil(vorlage, x)] };
@@ -4796,6 +4797,43 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
     const { arme } = bau('leiter-traverse');
     pruef('Ein einzelnes Teil ergibt ein Glied', arme.length, 1, 1e-12, 'Stk');
   }
+
+  // --- Ein Lastschalter formt keine Geometrie -----------------------------
+  /*
+   * Die Kette verbindet LASTPUNKTE, und ein Lastpunkt liegt im SCHWERPUNKT
+   * seines Bauteils - nicht an dessen Ende. Zwischen Haengestuetze (-1.35 m)
+   * und Ausleger (-2.70 m, 1.5 m aussen) lief deshalb eine Diagonale quer
+   * durch den Raum, wo in Wirklichkeit die Stuetze senkrecht hinunterlaeuft
+   * und der Ausleger dort waagrecht ansetzt.
+   *
+   * Aufgefallen ist es an einem Schalter, der damit nichts zu tun hat: bei
+   * eingeschaltetem «Fahrleitung als Auflager» entsteht ein Hilfspunkt auf
+   * der Stuetzenachse, und der lag zufaellig im Knick. Die Kette sah richtig
+   * aus - und fiel in sich zusammen, sobald man den Schalter loeste.
+   */
+  ['hs-nt-ausleger', 'ausleger-rohr'].forEach((id) => {
+    const kette = (an) => {
+      const at = { ...A.neuesAnbauteil(id, 10), windAufTraeger: an };
+      const flach = A.expandiereAnbauteile([at], { ek: 'EK2', R: 3e5, spannweite: 50 });
+      const k = kern.anbauKette(flach, { x0: 10, zAn: 0 });
+      return k.glieder.map((g) => `${g.von.x},${g.von.y},${g.von.z}`
+                                + ` -> ${g.bis.x},${g.bis.y},${g.bis.z}`).join(' | ');
+    };
+    const ein = kette(true), aus = kette(false);
+    wahr(`${id}: der Lastschalter formt die Kette nicht um`, ein === aus,
+         ein === aus ? `${ein.split('|').length} Glieder` : `EIN ${ein}   AUS ${aus}`);
+    // DIE EIGENSCHAFT, die den Knick ausmacht: jedes Glied laeuft entlang
+    // EINER Achse. Eine Diagonale aendert zwei Koordinaten gleichzeitig -
+    // genau das war der falsche Weg quer durch den Raum.
+    const at = { ...A.neuesAnbauteil(id, 10), windAufTraeger: false };
+    const flach = A.expandiereAnbauteile([at], { ek: 'EK2', R: 3e5, spannweite: 50 });
+    const k = kern.anbauKette(flach, { x0: 10, zAn: 0 });
+    const schraeg = k.glieder.filter((g) =>
+      [g.bis.x - g.von.x, g.bis.y - g.von.y, g.bis.z - g.von.z]
+        .filter((d) => Math.abs(d) > 1e-9).length > 1);
+    wahr(`${id}: jedes Glied laeuft entlang einer Achse`, schraeg.length === 0,
+         schraeg.map((g) => `(${g.von.x},${g.von.z})->(${g.bis.x},${g.bis.z})`).join(' '));
+  });
 
   // --- Beide Ausleger sind Kragarme, und beide haengen an der Stuetze ------
   /*

@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1179 Kontrollen bestanden, 0 gefallen · Bundle 1071 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1183 Kontrollen bestanden, 0 gefallen · Bundle 1073 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1179 Kontrollen
+node pruefung.mjs           # Prüfstand, 1183 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -99,6 +99,41 @@ Korrigiert auf 2.70 m.
 
 Der Prüfstand rechnet die Regel jetzt gegen `L,rep` aus der Lasttabelle nach,
 damit Vorlage und Lastwerte nicht auseinanderlaufen.
+
+### Ein Lastschalter formte die Geometrie um
+
+Gemeldet am Bild: mit ausgeschaltetem «Fahrleitung als Auflager» sah die
+Baugruppe anders aus. Sie tat es auch — und der Grund war grundsätzlich.
+
+Die Kette verband **Lastpunkte**, und ein Lastpunkt liegt im *Schwerpunkt*
+seines Bauteils, nicht an dessen Ende. Zwischen Hängestütze (−1.35 m) und
+Ausleger (−2.70 m, 1.5 m aussen) lief deshalb eine **Diagonale quer durch den
+Raum**, wo in Wirklichkeit die Stütze senkrecht bis −2.70 m hinunterläuft und
+der Ausleger dort waagrecht ansetzt.
+
+Sichtbar wurde es an einem Schalter, der damit nichts zu tun hat: bei
+eingeschaltetem Lasteintrag entsteht ein Hilfspunkt auf der Stützenachse, und
+der lag **zufällig genau im Knick**. Die Kette sah richtig aus — und fiel in
+sich zusammen, sobald man den Schalter löste.
+
+```
+vorher, Schalter AUS      jetzt, in beiden Stellungen
+ (0, −1.35)                (0, −1.35)
+      ╲                         │
+       ╲                   (0, −2.70)
+        ╲                       └────── (1.5, −2.70) ── (3.0, −2.70)
+     (1.5, −2.70) ── (3.0, −2.70)
+```
+
+Der Knick ist **gerechnet, nicht geraten**: er ist die Projektion des nächsten
+Punktes auf die Achse des tragenden Glieds. Keine Annahme über Bauteillängen —
+die Höhe des nächsten Punktes steht in den Daten. Liegt der nächste Punkt
+schon auf dieser Achse (Jochaufsatz und Traverse übereinander), entsteht kein
+Knick.
+
+Der Prüfstand hält beides fest: dass die Kette in beiden Schalterstellungen
+dieselbe ist, und dass **jedes Glied entlang einer Achse läuft** — eine
+Diagonale ändert zwei Koordinaten gleichzeitig.
 
 ### Die Vorlagendatei spricht jetzt das Achsensystem von AxisVM
 
@@ -2093,7 +2128,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1179 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1183 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

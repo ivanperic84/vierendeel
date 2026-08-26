@@ -189,7 +189,44 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
   const glieder = [];
   const belegung = [];
   let traeger = wurzel;
+  let richtung = null;      // Richtung des Glieds, das gerade trägt
   let nr = 0;
+
+  /*
+   * DER KNICK.
+   *
+   * Die Kette verbindet LASTPUNKTE, und ein Lastpunkt liegt im SCHWERPUNKT
+   * seines Bauteils - nicht an dessen Ende. Zwischen der Hängestütze
+   * (Schwerpunkt −1.35 m) und dem Ausleger (−2.70 m, 1.5 m aussen) läuft
+   * deshalb sonst eine Diagonale quer durch den Raum, wo in Wirklichkeit
+   * die Stütze senkrecht bis −2.70 m hinunterläuft und der Ausleger dort
+   * waagrecht ansetzt.
+   *
+   * Aufgefallen ist es an einem Schalter, der damit nichts zu tun hat: bei
+   * eingeschaltetem «Fahrleitung als Auflager» entsteht ein Hilfspunkt auf
+   * der Stützenachse, und der lag zufällig genau im Knick. Die Kette sah
+   * richtig aus - und fiel in sich zusammen, sobald man den Schalter löste.
+   * Ein Schalter über die Lastverteilung darf die Geometrie nicht formen.
+   *
+   * GERECHNET, NICHT GERATEN: der Knick ist die Projektion des nächsten
+   * Punktes auf die ACHSE des tragenden Glieds. Er braucht keine Annahme
+   * über Bauteillängen - die Höhe des nächsten Punktes steht in den Daten.
+   * Liegt der nächste Punkt schon auf dieser Achse (Jochaufsatz und Traverse
+   * übereinander), entsteht kein Knick.
+   */
+  const knickPunkt = (a, d, p) => {
+    if (!d) return null;                       // erstes Glied ab dem Joch
+    const t = (p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z;
+    if (t <= 1e-9) return null;                // der Weg führt nicht weiter
+    const q = { x: r6(a.x + t * d.x), y: r6(a.y + t * d.y), z: r6(a.z + t * d.z) };
+    const wie = (o) => gleich(q.x, o.x) && gleich(q.y, o.y) && gleich(q.z, o.z);
+    return wie(a) || wie(p) ? null : q;        // kein Umweg um nichts
+  };
+  const richtungVon = (a, b) => {
+    const v = [b.x - a.x, b.y - a.y, b.z - a.z];
+    const n = Math.hypot(...v);
+    return n < 1e-9 ? null : { x: v[0] / n, y: v[1] / n, z: v[2] / n };
+  };
 
   [...stufen.keys()].sort((p, q) => p - q).forEach((rg) => {
     /*
@@ -227,8 +264,22 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
             && gleich(p0.z, traeger.z)) {
           punkt = traeger;                       // sitzt auf seinem Träger
         } else {
+          // Erst dem tragenden Glied bis zu seinem Ende folgen, dann abbiegen.
+          const knick = knickPunkt(traeger, richtung, p0);
+          if (knick) {
+            const kSchluessel = `${knick.x}|${knick.y}|${knick.z}`;
+            let kp = punkte.get(kSchluessel);
+            if (!kp) {
+              kp = { ...knick, nr: nr++, knick: true };
+              glieder.push({ von: traeger, bis: kp, rang: rg, teil });
+              punkte.set(kSchluessel, kp);
+            }
+            richtung = richtungVon(traeger, kp) ?? richtung;
+            traeger = kp;
+          }
           punkt = { ...p0, nr: nr++ };
           glieder.push({ von: traeger, bis: punkt, rang: rg, teil });
+          richtung = richtungVon(traeger, punkt) ?? richtung;
         }
         punkte.set(schluessel, punkt);
       }

@@ -1100,16 +1100,18 @@ function windVersatzHtml(a, i) {
       ${atFeld(i, 'windAnteil', 'in den Träger', p, '%', 5)}
       <span class="at-feld lesbar"><span>Fahrleitung trägt <i>%</i></span>
         <b>${f0(100 - p)}</b></span>
-      <span class="at-feld lesbar"><span>Eintrag bei z <i>m</i></span>
-        <b>unverändert</b></span>
+      <span class="at-feld lesbar"><span>Eintrag <i>–</i></span>
+        <b>Anschluss</b><small class="hinweis">Ausleger/Stütze</small></span>
     </div>` : ''}
     ${hinweisHtml(`windv-${a.id}`, 'Das äussere Ende des Auslegers hält die '
       + 'Fahrleitung, und die ist durch den Leiterzug seitlich gespannt - sie '
       + 'wirkt dort als Auflager. Der Wind auf den Ausleger verteilt sich '
       + 'damit auf zwei Auflager: die eine Hälfte nimmt die Fahrleitung auf '
       + 'und trägt sie längs zu den Nachbaraufhängungen ab, die andere geht '
-      + 'in den Träger. Nur dieser Anteil kommt am Joch an, und zwar auf der '
-      + 'Achse des Trägers - der Abstand in y ändert sich, die Höhe z nicht. '
+      + 'in den Träger. Nur dieser Anteil kommt am Joch an, und zwar am '
+      + 'ANSCHLUSSPUNKT Ausleger/Stütze: auf der Achse des Trägers, auf der '
+      + 'Höhe des Auslegers. Bei einem Kragarm rückt er damit auch in '
+      + 'Jochachse zurück - beim NT um 1.2 m. '
       + 'Eigengewicht, Schnee, Wind in x und die Drahtwerke bleiben '
       + 'unangetastet; deren Windlast ist über L_FL bereits der Anteil dieser '
       + 'Aufhängung. Die Hälfte ist eine zulässige Modellannahme, kein '
