@@ -5326,6 +5326,8 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
   };
   const lager = (m, w, am) => AX.stabmodellJson(m, { eingabe: w, auflagerModell: am })
     .auflager.filter((a) => a.ende === 'A');
+  const lager2 = (m, w, am) => AX.stabmodellJson(m, { eingabe: w, auflagerModell: am })
+    .auflager;
 
   // --- Mit Mast: die Feder muss ankommen ----------------------------------
   {
@@ -5339,22 +5341,28 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('Die Anwendung rechnet eine teilweise Einspannung', c > 0 && c < 1e11,
          `c_geo = ${c.toFixed(0)} kNm/rad`);
 
+    /*
+     * DAS GURTMODELL TRAEGT SIE NICHT - und das ist kein Versaeumnis,
+     * sondern ein Messergebnis. In AxisVM 18 r1k nachgerechnet (J90 ueber
+     * 20 m, Schnee 1.0 kN/m, c_phi = 12951 kNm/rad):
+     *
+     *                        Ende A     Feldmitte    Ende B
+     *   gurte ohne Feder     -42.58       26.30       +2.85   kNm
+     *   gurte mit Gurtfeder  -42.65       26.30       +2.80
+     *   punkt, Drehfeder     -16.70       28.28      -16.71
+     *   Anwendung            22.12        27.88       22.12
+     *
+     * Eine Feder, die 0.07 von 42 kNm bewegt, sieht aus wie eine
+     * Uebertragung und ist keine. Sie steht deshalb nicht im Modell.
+     */
     const g = lager(m, w, 'gurte');
     const og = g.filter((a) => a.knoten.startsWith('OG'));
     const ug = g.filter((a) => a.knoten.startsWith('UG'));
     pruef('Vier Gurte je Ende', g.length, 4, 1e-12, 'Stk');
     wahr('Der Untergurt haelt lotrecht starr', ug.every((a) => a.uz === 'Rigid'));
-    wahr('Der Obergurt traegt jetzt eine Feder',
-         og.every((a) => a.uz === 'Flexible' && a.cUz_kNm > 0),
-         og.map((a) => `${a.uz} ${a.cUz_kNm}`).join(' | '));
-
-    // Die Uebersetzung, an der Zahl gemessen - und zurueck.
-    const h = m.h;
-    pruef('k = c_phi / (2 h^2)', og[0].cUz_kNm, c / (2 * h * h), 1e-6, 'kN/m');
-    pruef('Und zurueck: 2 k h^2 = c_phi',
-          2 * og[0].cUz_kNm * h * h, c, 1e-6, 'kNm/rad');
-    wahr('Beide Obergurtknoten tragen dieselbe Feder',
-         Math.abs(og[0].cUz_kNm - og[1].cUz_kNm) < 1e-9);
+    wahr('Der Obergurt bleibt lotrecht frei - keine Scheinuebertragung',
+         og.every((a) => a.uz === 'Free' && !a.cUz_kNm),
+         og.map((a) => `${a.uz} ${a.cUz_kNm ?? '-'}`).join(' | '));
 
     // Der Ersatzbalken traegt sie weiterhin als DREHfeder - unveraendert.
     const pk = lager(m, w, 'punkt');
@@ -5372,17 +5380,26 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          && Math.abs(pk[0].cFiy_kNm - m.federn.cA) > 1);
   }
 
-  // --- Die Grenzfaelle: gelenkig bleibt gelenkig, voll wird starr ---------
+  // --- Das Gurtmodell haengt an einem zweiten Befund ----------------------
+  /*
+   * Beim Nachrechnen kam heraus, dass dieses Modell an den beiden Enden
+   * VERSCHIEDEN ist: am Ende A sind alle vier Gurtknoten in x gehalten, am
+   * Ende B keiner ("ein Ende laengs frei"). Eine Verdrehung um y verschiebt
+   * Ober- und Untergurt aber gegenlaeufig in x - vier Festhaltungen sperren
+   * sie damit weitgehend. Unter symmetrischer Last steht Ende A mit
+   * -42.6 kNm nahezu eingespannt da, Ende B mit +2.9 kNm nahezu gelenkig.
+   *
+   * Das ist eine Frage an den Auftraggeber. Die Pruefung haelt den Zustand
+   * fest, damit die Ungleichheit nicht unbemerkt verschwindet oder wandert.
+   */
   {
-    const gelenk = bau({ endbedingung: 'gelenkig' });
-    const og = lager(gelenk.m, gelenk.w, 'gurte').filter((a) => a.knoten.startsWith('OG'));
-    wahr('Gelenkig: der Obergurt bleibt lotrecht frei',
-         og.every((a) => a.uz === 'Free' && !a.cUz_kNm), og.map((a) => a.uz).join(' '));
-
-    const voll = bau({ endbedingung: 'voll' });
-    const ogV = lager(voll.m, voll.w, 'gurte').filter((a) => a.knoten.startsWith('OG'));
-    wahr('Voll eingespannt: der Obergurt wird starr gehalten',
-         ogV.every((a) => a.uz === 'Rigid' && !a.cUz_kNm), ogV.map((a) => a.uz).join(' '));
+    const { w, m } = bau({ endbedingung: 'gelenkig' });
+    const g = lager2(m, w, 'gurte');
+    const a = g.filter((x) => x.ende === 'A'), b = g.filter((x) => x.ende === 'B');
+    wahr('Ende A ist in Jochachse gehalten', a.every((x) => x.ux === 'Rigid'),
+         a.map((x) => x.ux).join(' '));
+    wahr('Ende B ist in Jochachse frei', b.every((x) => x.ux === 'Free'),
+         b.map((x) => x.ux).join(' '));
   }
 
   // --- Die Schraubengrenze als EIGENER Nachweis ---------------------------
@@ -5416,13 +5433,28 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('Bei voller Einspannung wird nichts nachgewiesen', !voll.m.gurtanschluss);
   }
 
-  // --- Die Bruecke muss die Feder auch anlegen ----------------------------
+  // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
-    wahr('Die Bruecke liest die Gurtfeder', PS1.includes('$zahl $a.uz  $a.cUz_kNm'));
-    wahr('Und die Modelldatei sagt, dass sie eine hat',
-         AX.MERKMALE.includes('gurtfeder'));
-    wahr('Die Bruecke erwartet genau dieses Merkmal', PS1.includes("'gurtfeder'   = ("));
+    // Die Feder steht am Ersatzbalken als DREHfeder; die Bruecke muss sie
+    // setzen koennen. Der lotrechte Federweg bleibt vorbereitet - er kostet
+    // nichts und waere sonst beim naechsten Anlauf wieder zu bauen.
+    wahr('Die Bruecke setzt die Drehfeder', PS1.includes('$zahl $a.fiy $a.cFiy_kNm'));
+    wahr('Und kann eine lotrechte Feder setzen', PS1.includes('$zahl $a.uz  $a.cUz_kNm'));
+    // GERECHNET WIRD NUR AUF WEISUNG.
+    wahr('Rechnen ist ein eigener Schalter', /\[switch\]\$Rechnen/.test(PS1));
+    wahr('Ohne ihn bleibt es beim Hinweis',
+         PS1.includes("Schreib 'Das Modell steht. NICHT gerechnet"));
+    wahr('Gerechnet wird linear statisch, ohne Rueckfrage',
+         PS1.includes('Calculation.LinearAnalysis($cui)'));
+    // Und im SELBEN Lauf gelesen - eine neue Instanz kennt keine Ergebnisse.
+    wahr('Auslesen ist eine Funktion, aus beiden Wegen erreichbar',
+         PS1.includes('function Lies-Schnittgroessen'));
+    wahr('Nach dem Rechnen wird im selben Lauf gelesen',
+         PS1.includes('$nGel = Lies-Schnittgroessen $m $Ziel'));
+    // Der Satz muss vorher dastehen - sonst stirbt der Prozess.
+    wahr('Der Ergebnissatz wird vorbereitet',
+         PS1.includes("NeuerSatz 'RLineForceValues'"));
   }
 
   // --- Was die Feder wert ist: sie haengt am LASTFALL ---------------------

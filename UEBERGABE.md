@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1219 Kontrollen bestanden, 0 gefallen · Bundle 1085 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1221 Kontrollen bestanden, 0 gefallen · Bundle 1085 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1219 Kontrollen
+node pruefung.mjs           # Prüfstand, 1221 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -174,6 +174,79 @@ Das Stabmodell ist **eins** und trägt die Feder der Bemessungskombination.
 Wer einen anderen Lastfall untersuchen will, stellt ihn vor dem Ausleiten ein.
 Die Modelldatei trägt dafür das neue Merkmal `gurtfeder`; fehlt es, sagt die
 COM-Brücke laut, dass das Jochende gelenkig ankommt.
+
+### Selbst gebaut, selbst gerechnet — und die eigene Änderung widerlegt
+
+Auf Weisung: Modell in AxisVM aufbauen und nachprüfen. Dafür wurde die
+stehende Regel «gerechnet wird nicht» geöffnet — als **ausdrücklicher
+Schalter** `-Rechnen`, nicht als Vorgabe. Ohne ihn ändert sich nichts.
+
+**Drei Modelle gebaut, gerechnet und ausgelesen** (AxisVM 18 r1k, J90 über
+20 m, Schnee 1.0 kN/m als ausdrücklich ausgeleitete Streckenlast,
+c_φ = 12951 kNm/rad). Momente aus dem Kräftepaar der Gurte, M = h·N:
+
+| Modell | Ende A | Feldmitte | Ende B |
+|---|---|---|---|
+| `gurte` **ohne** Feder | −42.58 | 26.30 | +2.85 |
+| `gurte` **mit** Gurtfeder k = c/(2h²) | −42.65 | 26.30 | +2.80 |
+| `punkt`, Drehfeder | −16.70 | 28.28 | −16.71 |
+| Anwendung (Ersatzbalken) | 22.12 | 27.88 | 22.12 |
+
+**Die Gurtfeder bewegte 0.07 kNm von 42. Sie ist zurückgenommen.** Der
+Gedanke stimmt für sich — eine Endverdrehung θ hebt den Obergurt um θ·h,
+also k = c_φ/(2h²) —, trägt hier aber nicht: der lotrechte Halt sitzt am
+**Untergurt**, nicht auf der Jochachse. Die Endscheibe dreht sich um den
+Untergurt, die Jochachse hebt sich dabei mit; ein anderes System als der
+Ersatzbalken, dessen Feder am Auflagerpunkt der Achse sitzt. Eine Feder, die
+nichts bewegt, ist schlimmer als keine — sie sieht aus wie eine Übertragung.
+
+**`punkt` dagegen trägt sie, nachgemessen:** Feldmoment 28.28 gegen 27.88 kNm
+der Anwendung (**+1.4 %**), und über das Gleichgewicht
+M_A = 50.00 − 28.28 = 21.72 gegen 22.12 (**−1.8 %**). Wer eine teilweise
+Einspannung im Stabmodell braucht, nimmt dieses Auflagermodell.
+
+### Der schwerere Befund: das Gurtmodell ist an den Enden ungleich
+
+Beim Nachrechnen kam etwas heraus, das mit der Feder nichts zu tun hat und
+schon vorher da war. Unter **symmetrischer** Last steht
+
+```
+Ende A   −42.6 kNm   nahezu eingespannt
+Ende B    +2.9 kNm   nahezu gelenkig
+```
+
+Der Grund: am Ende A sind alle vier Gurtknoten in Jochachse gehalten, am Ende
+B keiner («ein Ende längs frei»). Eine Verdrehung um y verschiebt Ober- und
+Untergurt aber **gegenläufig in x** — vier Festhaltungen sperren sie damit
+weitgehend. Der Vermerk im Code («ohne lotrechten Halt am Obergurt entsteht
+kein Kräftepaar, das Ende bleibt biegeweich») trifft nur auf Ende B zu.
+
+**Das ist eine Frage an den Auftraggeber** und nicht nebenbei zu entscheiden.
+Der Prüfstand hält den Zustand fest, damit die Ungleichheit nicht unbemerkt
+wandert.
+
+### Was die COM-Brücke dabei gelernt hat
+
+**Rechnen, nur auf Weisung.** `-Rechnen` ruft
+`Calculation.LinearAnalysis(cuiNoUserInteractionWithAutoCorrectNoShow)` und
+prüft danach, ob wirklich Ergebnisse vorliegen — eine Rückgabe allein ist
+keines.
+
+**Im selben Lauf lesen.** Jeder Aufruf von `New-Object -ComObject` bringt eine
+**eigene** AxisVM-Instanz hervor. Rechnet man in einem Lauf und liest im
+nächsten, sitzt das Auslesen an einer anderen Instanz: die kennt die
+gespeicherte Datei, also die Geometrie, aber keine Ergebnisse. Genau so ist es
+passiert — 904 Stäbe gefunden, 0 Ergebnisfälle. Das Auslesen ist jetzt eine
+Funktion und aus beiden Wegen erreichbar.
+
+**Der Ergebnissatz muss vorher dastehen.** PowerShell kann für einen
+Verbund-Rückgabeparameter keine Instanz erzeugen: `[ref]$null` auf ein
+`RLineForceValues` endet in einer NullReferenceException, und beim Feldweg
+(SAFEARRAY) **stirbt der Prozess** — beides gemessen. Mit einem vorher
+angelegten Satz (`NeuerSatz`, derselbe Helfer wie beim Aufbau) geht es.
+Gelesen wird deshalb Stab für Stab statt in einem Feld: langsamer (rund vier
+Minuten für 904 Stäbe), dafür belastbar. Diese Lesewege waren nie zuvor mit
+echten Ergebnissen gelaufen.
 
 ### Die geometrische Feder ins Modell, die Schraubengrenze als Nachweis
 
@@ -2255,7 +2328,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1219 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1221 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

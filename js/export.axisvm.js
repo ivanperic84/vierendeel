@@ -68,14 +68,12 @@ export const KNOTENMODELLE = [
  * nach und ist die Vergleichsbasis der Kalibrierung; `gurte` und `mitte`
  * bilden das Bauwerk nach. Deshalb umschaltbar statt entschieden.
  *
- * WO DIE TEILWEISE EINSPANNUNG STEHT. Im Ersatzbalken als Drehfeder um y. Am
- * Gurtmodell gibt es dafür keinen Punkt - dort tritt das Stützmoment als
- * Kräftepaar zwischen den Gurten ein, und die Feder steht LOTRECHT am
- * Obergurt: k = c_phi/(2h²). Beim Modell `mitte` gibt es weder das eine noch
- * das andere: die beiden Halterungen sitzen auf halber Höhe mit einem Gelenk
- * um y, ein Kräftepaar über diesen kurzen Hebel wäre irreführend. Das Modell
- * ist für die ALTBAUWEISE gedacht, und dort setzt die Anwendung das Endlager
- * ohnehin gelenkig (ui.schema.js, typUebernehmen).
+ * WO DIE TEILWEISE EINSPANNUNG STEHT: NUR IM ERSATZBALKEN (`punkt`), als
+ * Drehfeder um y. Dort ist sie in AxisVM nachgemessen - Feldmoment 28.28
+ * gegen 27.88 kNm der Anwendung. Die Modelle `gurte` und `mitte` tragen sie
+ * NICHT; ein Versuch, sie dort als lotrechte Gurtfeder unterzubringen, hat
+ * am gerechneten Modell 0.07 kNm von 42 bewegt (siehe stabmodell). Wer eine
+ * teilweise Einspannung im Stabmodell braucht, nimmt `punkt`.
  *
  * WELCHE FEDER: DIE GEOMETRISCHE (Weisung des Auftraggebers).
  *
@@ -90,8 +88,7 @@ export const KNOTENMODELLE = [
  */
 export const AUFLAGERMODELLE = [
   { key: 'gurte',
-    label: 'Gurte einzeln: Untergurte x/y/z, Obergurte x/y + Drehfeder als '
-         + 'lotrechte Gurtfeder' },
+    label: 'Gurte einzeln: Untergurte x/y/z, Obergurte x/y (ohne Einspannung)' },
   { key: 'mitte',
     label: 'Mitte der Gurtebenen vorn und hinten, x/y/z, Gelenk um y (Altbauweise)' },
   { key: 'punkt',
@@ -118,12 +115,8 @@ const STARR = { name: 'STARR', h: 500, b: 500 };
  * `anbau-kette`  Anbauteile stehen in einer Kette (Traeger -> Aufbau ->
  *                Drahtwerk). Fehlt das Merkmal, stammt die Datei aus einer
  *                Fassung, die jedes Teil einzeln ans Joch gehangt hat.
- * `gurtfeder`    Die teilweise Einspannung steht als lotrechte Feder am
- *                Obergurt (k = c_phi/(2h^2)). Fehlt sie, ist das Jochende im
- *                ausgeleiteten Modell GELENKIG - ganz gleich, was die
- *                Anwendung gerechnet hat.
  */
-export const MERKMALE = ['anbau-kette', 'gurtfeder'];
+export const MERKMALE = ['anbau-kette'];
 
 /** Rechteck-Ersatzquerschnitt des Anbauteil-Arms: steif, ohne Eigengewicht. */
 const ARM = { name: 'ARM', h: 300, b: 300 };
@@ -679,32 +672,46 @@ export function stabmodell(m, opt = {}) {
     }
 
     /*
-     * am === 'gurte' - UND HIER STEHT DIE TEILWEISE EINSPANNUNG.
+     * am === 'gurte'
      *
-     * Der Rechenkern lagert das Jochende über eine DREHFEDER c_phi. An diesem
-     * Modell gibt es aber keinen Punkt, an dem sich eine Drehfeder anbringen
-     * liesse: gehalten sind die vier Gurte einzeln. Genau so ist es auch am
-     * Bauwerk - das Stützmoment tritt als KRÄFTEPAAR zwischen Ober- und
-     * Untergurtanschluss in den Mast, dasselbe Bild, mit dem der Rechenkern
-     * die Verbindung gegen die Schraubengrenze prüft.
+     * HIER STAND EINE GURTFEDER, UND SIE IST WIEDER WEG. Nachgerechnet in
+     * AxisVM (18 r1k, J90 über 20 m, Schnee 1.0 kN/m, c_phi = 12951 kNm/rad):
      *
-     * Bis hierher blieb der Obergurt lotrecht FREI. Das ist ein Gelenk - das
-     * ausgeleitete Modell war am Ende immer gelenkig, ganz gleich was die
-     * Anwendung gerechnet hatte. Beim nachgemessenen Beispiel standen dort
-     * 10.78 kNm gegen null.
+     *                        Ende A     Feldmitte    Ende B
+     *   gurte ohne Feder     -42.58       26.30       +2.85   kNm
+     *   gurte mit Gurtfeder  -42.65       26.30       +2.80
+     *   punkt, Drehfeder     -16.70       28.28      -16.71
+     *   Anwendung            22.12        27.88       22.12
      *
-     * ÜBERSETZUNG. Eine Endverdrehung theta hebt den Obergurt gegenüber dem
-     * Untergurt um theta*h. Hält je Obergurtknoten eine Feder k, ist die
-     * Kraft k*theta*h und das Moment beider zusammen 2*k*h^2*theta. Gleich-
-     * gesetzt mit c_phi*theta:
+     * Die Feder änderte 0.07 kNm von 42 - sie tat nichts. Der Gedanke
+     * dahinter (Endverdrehung hebt den Obergurt um theta*h, also
+     * k = c_phi/(2h²)) stimmt für sich, trägt hier aber nicht: der lotrechte
+     * Halt sitzt am UNTERGURT, nicht auf der Jochachse. Die Endscheibe dreht
+     * sich deshalb um den Untergurt, und die Jochachse hebt sich dabei mit -
+     * ein ganz anderes System als der Ersatzbalken, dessen Feder am
+     * Auflagerpunkt der Achse sitzt.
      *
-     *      k = c_phi / (2 h^2)          je Obergurtknoten [kN/m]
+     * DIE MESSUNG HAT NOCH ETWAS ANDERES GEZEIGT, und das ist der schwerere
+     * Befund: dieses Modell ist an den beiden Enden VERSCHIEDEN. Am Ende A
+     * sind alle vier Gurtknoten in x gehalten, am Ende B keiner ("ein Ende
+     * längs frei"). Eine Verdrehung um y verschiebt Ober- und Untergurt aber
+     * GEGENLÄUFIG in x - vier Festhaltungen sperren sie damit weitgehend.
+     * Ende A steht mit -42.6 kNm nahezu eingespannt da, Ende B mit +2.9 kNm
+     * nahezu gelenkig, unter symmetrischer Last. Der Vermerk oben («das Ende
+     * bleibt biegeweich») trifft nur auf Ende B zu.
      *
-     * Dieselbe Zwei-Gurt-Vorstellung, auf der auch biegesteifigkeitJoch und
-     * das Kräftepaar der Anbauteile stehen.
+     * Das ist eine Frage an den Auftraggeber und keine, die sich hier
+     * nebenbei entscheiden lässt. Bis dahin bleibt das Modell, wie es war -
+     * eine Feder, die nichts tut, wäre schlimmer als keine: sie sähe aus wie
+     * eine Übertragung.
+     *
+     * WER TEILWEISE EINSPANNUNG BRAUCHT, nimmt `punkt`. Dort ist sie
+     * nachgemessen: Feldmoment 28.28 gegen 27.88 kNm der Anwendung (+1.4 %),
+     * und über das Gleichgewicht M_A = 50.00 - 28.28 = 21.72 gegen 22.12
+     * (-1.8 %).
      */
     ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
-      halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'FederZ',
+      halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'Free',
            'Free', null);
     }));
   });

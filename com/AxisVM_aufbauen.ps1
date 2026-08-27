@@ -39,6 +39,7 @@ param(
     [string]$Json,
     [switch]$NurPruefen,
     [switch]$Auslesen,
+    [switch]$Rechnen,
     [string]$Zuordnung,
     [string]$Ziel,
     [switch]$Unsichtbar
@@ -514,11 +515,6 @@ if ($Json) {
         'anbau-kette' = ('Anbauteile in einer Kette (Traeger -> Aufbau -> ' +
                          'Drahtwerk). Fehlt es, haengt im Modell jedes Teil ' +
                          'EINZELN am Joch.')
-        'gurtfeder'   = ('Die teilweise Einspannung steht als lotrechte Feder ' +
-                         'am Obergurt (k = c_phi/(2h^2)), und zwar mit der ' +
-                         'GEOMETRISCHEN Steifigkeit des Mastes. Fehlt es, ist ' +
-                         'das Jochende im Modell GELENKIG - ganz gleich was ' +
-                         'die Anwendung gerechnet hat.')
     }
     $hat = @()
     if ($d.PSObject.Properties.Name -contains 'merkmale' -and $d.merkmale) {
@@ -645,7 +641,20 @@ if (-not $typen) {
 #   Results.ResultCaseOfLoadCase(EAnalysisType, int)
 #   EAnalysisType.atLinearStatic = 0
 # =============================================================================
-if ($Auslesen) {
+<#  DAS ZURUECKLESEN ALS FUNKTION.
+
+    Gebraucht wird es an ZWEI Stellen: allein (-Auslesen, an einem Modell,
+    das der Auftraggeber selbst gerechnet hat) und unmittelbar nach einer
+    Berechnung im selben Lauf (-Rechnen -Ziel ...).
+
+    Warum das zweite noetig ist: jeder Aufruf von
+    New-Object -ComObject 'AxisVM.AxisVMApplication' bringt eine EIGENE
+    Instanz hervor. Rechnet man in einem Lauf und liest im naechsten, sitzt
+    das Auslesen an einer anderen Instanz - die kennt die gespeicherte
+    Datei, also die Geometrie, aber keine Ergebnisse. Genau so ist es
+    passiert: 904 Staebe gefunden, 0 Ergebnisfaelle.  #>
+function Lies-Schnittgroessen {
+    param($m, $zielDatei)
     Abschnitt 'Zurueckleisen - Schnittgroessen aus dem Modell'
 
     # --- Die Zuordnung ------------------------------------------------------
@@ -714,20 +723,51 @@ if ($Auslesen) {
         $rc = $lfNr
         try { $rc = [int]$res.ResultCaseOfLoadCase($atLinear, $lfNr) } catch { }
 
+        <#  DER SATZ MUSS VORHER DASTEHEN.
+
+            PowerShell kann fuer einen VERBUND-Rueckgabeparameter keine
+            Instanz erzeugen: [ref]$null auf ein RLineForceValues endet in
+            einer NullReferenceException, und beim Feldweg (SAFEARRAY) stirbt
+            im schlimmsten Fall der ganze Prozess - gemessen, beides.
+
+            Mit einem vorher angelegten Satz (NeuerSatz, derselbe Helfer wie
+            beim Aufbau) geht es. Gelesen wird deshalb STAB FUER STAB und
+            Schnitt fuer Schnitt statt in einem Feld. Das ist langsamer und
+            dafuer belastbar - und es sind ohnehin nur die Staebe, die in der
+            Zuordnung stehen.                                             #>
         $wege = @(
-            @{ name = 'GetAllLineForcesByLoadCaseId(Lastfall, Stufe, atLinearStatic)'; tu = {
-                $sc = $null; $fo = $null; $px = $null
-                $n = $m.Results.Forces.GetAllLineForcesByLoadCaseId(
-                        $lfNr, 1, $atLinear, [ref]$sc, [ref]$fo, [ref]$px)
-                if ($n -le 0) { throw "meldet $n" }
-                @{ n = $n; zaehler = $sc; werte = $fo; lagen = $px } } },
-            @{ name = 'Ergebniszweig setzen, dann AllLineForcesByLoadCaseId'; tu = {
+            @{ name = 'GetLineForceByLoadCaseId je Stab und Schnitt, Satz vorbereitet'; tu = {
+                $liste = New-Object System.Collections.Generic.List[object]
+                foreach ($li in ($stabVon.Keys | Sort-Object)) {
+                    $nm = $stabVon[$li]
+                    for ($si = 1; $si -le 2; $si++) {
+                        $v = NeuerSatz 'RLineForceValues'
+                        $x = 0.0; $txt = ''
+                        $ok = $m.Results.Forces.GetLineForceByLoadCaseId(
+                                 $li, $si, $lfNr, 1, $atLinear, [ref]$v, [ref]$x, [ref]$txt)
+                        if ($ok -le 0) { continue }
+                        $liste.Add(@{ stab = $nm; x = $x; v = $v })
+                    }
+                }
+                if ($liste.Count -eq 0) { throw 'kein einziger Schnitt lesbar' }
+                @{ n = $liste.Count; einzeln = $liste } } },
+            @{ name = 'LineForceByLoadCaseId ueber den eingestellten Zweig'; tu = {
                 $m.Results.Forces.AnalysisType = $atLinear
                 try { $res.ResultCase = $rc } catch { }
-                $sc = $null; $fo = $null; $px = $null
-                $n = $m.Results.Forces.AllLineForcesByLoadCaseId([ref]$sc, [ref]$fo, [ref]$px)
-                if ($n -le 0) { throw "meldet $n" }
-                @{ n = $n; zaehler = $sc; werte = $fo; lagen = $px } } }
+                $liste = New-Object System.Collections.Generic.List[object]
+                foreach ($li in ($stabVon.Keys | Sort-Object)) {
+                    $nm = $stabVon[$li]
+                    for ($si = 1; $si -le 2; $si++) {
+                        $v = NeuerSatz 'RLineForceValues'
+                        $x = 0.0; $txt = ''
+                        $ok = $m.Results.Forces.LineForceByLoadCaseId(
+                                 $li, $si, [ref]$v, [ref]$x, [ref]$txt)
+                        if ($ok -le 0) { continue }
+                        $liste.Add(@{ stab = $nm; x = $x; v = $v })
+                    }
+                }
+                if ($liste.Count -eq 0) { throw 'kein einziger Schnitt lesbar' }
+                @{ n = $liste.Count; einzeln = $liste } } }
         )
         $r = Versuche "Schnittgroessen $schl" $wege -Leise:($null -ne $wegName)
         if (-not $r.ok) {
@@ -739,25 +779,13 @@ if ($Auslesen) {
             $gefunden.Add("Schnittgroessen -> $($r.name)")
         }
 
-        <#  IN EINE LISTE JE STAB UMLEGEN.
-
-            SectionCounts hat EINEN Eintrag je Linie, in Modellreihenfolge;
-            Forces und PosX haben zusammen so viele Eintraege, wie die Zaehler
-            in Summe ergeben. Die Linie ergibt sich also aus der Stelle im
-            Zaehlerfeld, nicht aus einem mitgelieferten Schluessel.        #>
-        $w = $r.wert
+        # Stab fuer Stab gelesen - der Name steht schon dran.
         $liste = New-Object System.Collections.Generic.List[object]
-        $i = 0
-        for ($k = 0; $k -lt $w.zaehler.Count; $k++) {
-            $li = $k + 1                        # Linien sind 1-basiert
-            $anz = [int]$w.zaehler[$k]
-            $nm = $stabVon[$li]
-            if (-not $nm) { $i += $anz; continue }   # nicht unser Stab
-            for ($s = 0; $s -lt $anz; $s++, $i++) {
-            $v = $w.werte[$i]
+        foreach ($e in $r.wert.einzeln) {
+            $v = $e.v
             $liste.Add([ordered]@{
-                stab = $nm
-                x    = [math]::Round([double]$w.lagen[$i], 6)
+                stab = $e.stab
+                x    = [math]::Round([double]$e.x, 6)
                 Nx   = [math]::Round([double]$v.lfvNx, 6)
                 Vy   = [math]::Round([double]$v.lfvVy, 6)
                 Vz   = [math]::Round([double]$v.lfvVz, 6)
@@ -765,7 +793,6 @@ if ($Auslesen) {
                 My   = [math]::Round([double]$v.lfvMy, 6)
                 Mz   = [math]::Round([double]$v.lfvMz, 6)
             })
-            }
         }
         $faelle[$schl] = [ordered]@{
             nummer = $lfNr
@@ -783,8 +810,6 @@ if ($Auslesen) {
     }
 
     # --- Schreiben ----------------------------------------------------------
-    $zielDatei = if ($Ziel) { $Ziel }
-                 else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
     $aus = [ordered]@{
         format   = 'tragjoch-axisvm-ergebnisse'
         version  = 1
@@ -798,17 +823,19 @@ if ($Auslesen) {
     $txt = $aus | ConvertTo-Json -Depth 8 -Compress
     [IO.File]::WriteAllText($zielDatei, $txt, (New-Object Text.UTF8Encoding $false))
 
-    Abschnitt 'Fertig'
-    Schreib "  $zielDatei"
-    Schreib "  $nGelesen Lastfaelle gelesen ueber: $wegName"
-    Schreib ''
-    Schreib 'Weiter mit dem Abgleich:'
-    Schreib '    node vergleich_werkzeug.mjs <ablage.json> vergleich_werkzeug.json'
-    Schreib '    python3 vergleich_com.py AxisVM_ergebnisse.json vergleich_werkzeug.json'
+    return $nGelesen
+}
 
+if ($Auslesen) {
+    $zielA = if ($Ziel) { $Ziel }
+             else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
+    $n = Lies-Schnittgroessen $m $zielA
+    Abschnitt 'Fertig'
+    Schreib "  $zielA"
+    Schreib "  $n Lastfaelle gelesen"
     $zeilen | Set-Content -Path $bericht -Encoding UTF8
     Write-Host ''; Write-Host "Bericht: $bericht"
-    Write-Host "Ergebnisse: $zielDatei"
+    Write-Host "Ergebnisse: $zielA"
     exit 0
 }
 
@@ -1986,9 +2013,68 @@ $r = Versuche 'Speichern' @(
 if ($r.ok) { Schreib "  $axs" }
 else { Schreib '  nicht gespeichert - das Modell steht offen in AxisVM.' }
 
+<#  =========================================================================
+    RECHNEN - NUR AUF AUSDRUECKLICHE WEISUNG.
+
+    Die stehende Regel dieses Werkzeugs lautet: gerechnet wird nicht.
+    Lastkombinationen und Berechnung bleiben die Entscheidung des
+    Auftraggebers im Programm - ein Modell, das klaglos Unsinn rechnet, ist
+    schlimmer als eines, das dasteht und wartet.
+
+    Der Schalter -Rechnen hebt das fuer EINEN Lauf auf. Ohne ihn aendert sich
+    nichts; mit ihm wird linear statisch gerechnet, damit sich das Modell
+    unmittelbar gegen die Anwendung halten laesst.
+
+    VERMESSEN, NICHT GERATEN (Bericht der Erkundung, AxisVM 18 r1k):
+      Calculation.LinearAnalysis (ECalculationUserInteraction)
+      ECalculationUserInteraction.cuiNoUserInteractionWithAutoCorrectNoShow = 3
+      Results.GetResultsValid (EAnalysisType, int, ELongBoolean)
+      EAnalysisType.atLinearStatic = 0
+    ========================================================================= #>
+if ($Rechnen) {
+    Abschnitt '10 - Linear statisch rechnen (auf Weisung)'
+    $cui = Aufzaehlung 'ECalculationUserInteraction' 'cuiNoUserInteractionWithAutoCorrectNoShow'
+    if ($null -eq $cui) { $cui = 3 }
+    $atLin = Aufzaehlung 'EAnalysisType' 'atLinearStatic'
+    if ($null -eq $atLin) { $atLin = 0 }
+
+    $r = Versuche 'Berechnung' @(
+        @{ name = 'Calculation.LinearAnalysis(cuiNoUserInteractionWithAutoCorrectNoShow)'
+           tu = { $m.Calculation.LinearAnalysis($cui) } }
+    )
+    if (-not $r.ok) {
+        Mitglieder 'MODELL.Calculation' $m.Calculation
+        Beenden 30 'Die Berechnung liess sich nicht anstossen.'
+    }
+    Schreib "  Rueckgabe: $($r.wert)"
+
+    # Und nachsehen, ob wirklich etwas herausgekommen ist. Eine Rueckgabe
+    # allein ist noch kein Ergebnis.
+    $anz = -1
+    try { $anz = [int]$m.Results.ResultCaseCount($atLin) } catch { }
+    Schreib "  Ergebnisfaelle (linear statisch): $anz"
+    if ($anz -le 0) {
+        Beenden 31 ('Gerechnet, aber es liegen keine Ergebnisse vor. ' +
+                    'Der Bericht oben sagt, wo es stehenblieb.')
+    }
+    $gefunden.Add('Rechnen -> Calculation.LinearAnalysis(ECalculationUserInteraction)')
+
+    # IM SELBEN LAUF LESEN. Eine neue Instanz kennt nur die gespeicherte
+    # Datei - Geometrie ja, Ergebnisse nein.
+    if ($Ziel) {
+        $nGel = Lies-Schnittgroessen $m $Ziel
+        Schreib "  $nGel Lastfaelle nach $Ziel geschrieben."
+    }
+}
+
 Abschnitt 'Fertig'
-Schreib 'Das Modell steht. NICHT gerechnet - Lastkombinationen und Berechnung'
-Schreib 'bleiben Ihre Entscheidung im Programm.'
+if ($Rechnen) {
+    Schreib 'Das Modell steht und ist linear statisch gerechnet - auf Weisung.'
+    Schreib 'Zum Auslesen: AxisVM_auslesen.cmd bei offenem Modell.'
+} else {
+    Schreib 'Das Modell steht. NICHT gerechnet - Lastkombinationen und Berechnung'
+    Schreib 'bleiben Ihre Entscheidung im Programm.'
+}
 Schreib ''
 Schreib 'Danach: Spannungen je Lastfall ausgeben (Blaetter "vm <Name>") und'
 Schreib '        python3 vergleich_axisvm.py <export.xlsx> vergleich_werkzeug.json'
