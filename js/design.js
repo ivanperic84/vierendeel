@@ -140,6 +140,8 @@ export const ICONS = {
   // Vier Ecken nach aussen: «ins grosse Fenster ziehen»
   aufziehen: 'M3 8V3h5M17 12v5h-5M3 3l6 6M17 17l-6-6',
   raster: 'M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3zM11 11h6v6h-6z',
+  // Ein Blatt mit einem Riss darauf: die hinterlegte Zeichnung.
+  zeichnung: 'M3 3h14v14H3zM3 13l4-4 3 3 4-5 3 4',
   achsen: 'M4 16V4M4 16h12M4 16l4-4M4 16l-1-1',
   schnitt: 'M10 2v16M6 6l8 8M14 6l-8 8',
   ansichtReset: 'M10 3a7 7 0 107 7M10 3v4M10 3h4',

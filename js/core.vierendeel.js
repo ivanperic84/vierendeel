@@ -12,12 +12,13 @@
  * ---------------------------------------------------------------------------
  */
 
-import { U, TOL } from './core.constants.js';
+import { U, TOL, massketteLesen } from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
+import { mastWind } from './data.masten.js';
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
-import { expandiereAnbauteile } from './data.anbauteile.js';
+import { expandiereAnbauteile, amMast, ortVon } from './data.anbauteile.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
          mastKoepfe } from './core.auflager.js';
@@ -185,7 +186,23 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   // Lastblock ein Eintrag mit eigenem Angriffspunkt. Erst danach kennt der
   // Rechenkern nur noch Einzellasten - und erst danach ist bekannt, ob
   // überhaupt veränderliche Vertikallasten vorkommen.
-  const anbauteile = expandiereAnbauteile(inp.anbauteile, {
+  /*
+   * WAS AM MASTEN HÄNGT, GEHÖRT NICHT IN DEN ERSATZBALKEN.
+   *
+   * Der Rechenkern führt EINEN Balken - das Joch. Eine Traverse auf halber
+   * Masthöhe belastet den Masten, nicht das Joch; was davon im Joch ankommt,
+   * läuft über die Verdrehung des Mastkopfes und ist im Ersatzbalken nicht
+   * darstellbar. Sie hier trotzdem als Jochlast anzusetzen, wäre still
+   * falsch: die Last sässe auf dem falschen Bauteil, mit dem falschen
+   * Hebelarm.
+   *
+   * Die Teile am Masten werden deshalb HERAUSGENOMMEN und getrennt geführt.
+   * Wirksam sind sie im Stabmodell mit Auflagermodell «Mast» - dort steht
+   * der Mast, an den sie gehören. Der Hinweis in core.checks.js sagt es.
+   */
+  const amJoch = (inp.anbauteile ?? []).filter((a) => !amMast(a));
+  const amMasten = (inp.anbauteile ?? []).filter((a) => amMast(a));
+  const anbauteile = expandiereAnbauteile(amJoch, {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
   });
@@ -244,6 +261,51 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     : { delta: 0, A: { theta0: 0, M0: 0 }, B: { theta0: 0, M0: 0 } };
   const theta0A = kopf.A.theta0;
   const theta0B = kopf.B.theta0;
+
+  /*
+   * WIND AUF DEN MAST - KEINE OPTION (Weisung, 27. August).
+   *
+   * Steht der Mast im Stabmodell, ist er ein Teil des Tragwerks und wird
+   * belastet wie das Joch. Nicht «wirkt er auf das Joch?» - er trägt seine
+   * Last selbst, und was davon im Joch ankommt, rechnet das Modell aus.
+   *
+   * BEIDE RICHTUNGEN, und beide stehen in derselben Tabellenzeile. `wMast`
+   * ist der Wert QUER ZUM GLEIS, also in der Jochachse - dieselbe Zahl, die
+   * der Ersatzbalken für seine aufgezwungene Verdrehung benutzt. Die
+   * Gleisrichtung ist die andere Spalte; abgefragt wird sie, indem die
+   * Stegrichtung umgedreht wird (siehe mastWind: sie tauscht genau diese
+   * beiden Spalten). Beim HEM 240 macht das einen Unterschied, bei den
+   * übrigen Profilen nicht.
+   *
+   * Nur für das Stabmodell. Der Ersatzbalken kennt keinen Mast, auf den
+   * etwas drücken könnte - dort bleibt es bei der aufgezwungenen Verdrehung,
+   * und die ist seit dem 27. August im Startwert AUS.
+   */
+  const mastLast = federnRoh.mast ? (() => {
+    const ek = ekVonWindklasse(inp.windKlasse);
+    // BEIDE WERTE AUS DERSELBEN QUELLE. Die Jochachse aus der Tabelle zu
+    // holen statt aus `inp.wMast` ist kein Umweg, sondern der Unterschied
+    // zwischen «stimmt, wenn der Aufrufer es vorher nachgeführt hat» und
+    // «stimmt». Von Hand gesetzt wird nur übernommen, was ausdrücklich von
+    // Hand gesetzt ist (wMastAusTabelle === false).
+    const vonHand = inp.wMastAusTabelle === false;
+    const je = (mast, wManuell) => {
+      const eigen = mast.stegrichtung.key;
+      const gegen = eigen === 'quer' ? 'jochachse' : 'quer';
+      const wJoch = mastWind(mast.profil.name, ek, eigen);
+      const wGleis = mastWind(mast.profil.name, ek, gegen);
+      const x = vonHand ? (wManuell ?? 0)
+              : (Number.isFinite(wJoch) ? wJoch : (wManuell ?? 0));
+      return {
+        profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand,
+        x: Math.abs(x),
+        y: Number.isFinite(wGleis) ? Math.abs(wGleis) : null,
+      };
+    };
+    return { ek,
+             A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
+             B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };
+  })() : null;
 
 
   // KRAGARME: die Auflager müssen nicht an den Gurtenden stehen.
@@ -307,7 +369,11 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
       cA: federnRoh.cA, cB: federnRoh.cB, theta0A, theta0B,
       MkA: sp.MkA, MkB: sp.MkB,
     });
-    const kraft = (Mst) => Math.abs(Mst) / v.hT;
+    // JE GURT, NICHT JE GURTEBENE (Weisung, 27. August). Jede Ebene hängt an
+    // ZWEI Gurten; die Grenzlast ist die eines Anschlusses. Dieselbe
+    // Definition wie in begrenzeFeder - sonst wiesen die beiden Wege
+    // verschiedene Kräfte für dieselbe Verbindung aus.
+    const kraft = (Mst) => Math.abs(Mst) / (2 * v.hT);
     const Fgrenz = inp.schraubenFgrenz ?? 0;
     const FA = kraft(geo.MA), FB = kraft(geo.MB);
     return {
@@ -380,6 +446,22 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
       && (Math.abs(kopf.A.theta0) > 0 || Math.abs(kopf.B.theta0) > 0)
       ? { ...kopf, theta0A, theta0B, beiwert: bwX, wMast: inp.wMast,
           mastwindAn } : null,
+    // Wo das Tragwerk steht. Geht in keine Rechnung ein, aber in jede
+    // Ausleitung: ein Projekt hat viele Joche, und ohne Verortung heissen
+    // sie alle gleich.
+    linie: inp.linie ?? '', km: inp.km ?? '', ortschaft: inp.ortschaft ?? '',
+    // Die Masskette der Zeichnung, gelesen: die Ansicht zeichnet daraus
+    // Fanglinien, die Eingabe faengt darauf.
+    masskette: massketteLesen(inp.masskette, inp.L).werte,
+    mastLast,
+    // Die Baugruppen am Masten - ausgerechnet wie die am Joch, nur eben
+    // nicht in den Ersatzbalken eingerechnet. Das Stabmodell mit Mast baut
+    // sie auf, mit denselben Lasten und derselben Kette.
+    anbauMast: amMasten.map((a) => ({ ...a, ort: ortVon(a) })),
+    anbauMastFlach: expandiereAnbauteile(amMasten, {
+      ek: ekVonWindklasse(inp.windKlasse),
+      R: inp.trasseRadius, spannweite: inp.flSpannweite,
+    }),
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
     xNachweis: inp.xNachweis,
     schneeAktiv: inp.schneeAktiv === true,

@@ -923,6 +923,22 @@ export function erzeugeSzene(m, erg) {
 // --- Ansicht ----------------------------------------------------------------
 
 /** Vorgegebene Blickrichtungen. az/el beschreiben die Lage der Kamera. */
+/**
+ * Ist dieser Farbwert dunkel?
+ *
+ * Gebraucht für die hinterlegte Zeichnung: auf dunklem Grund wird sie
+ * umgekehrt. Gerechnet wird die wahrgenommene Helligkeit - Grün wiegt
+ * schwerer als Rot, Blau am wenigsten. Was sich nicht als #rrggbb lesen
+ * lässt, gilt als dunkel: die Anwendung ist es im Regelfall.
+ */
+function dunkel(farbe) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(farbe ?? '').trim());
+  if (!m) return true;
+  const v = parseInt(m[1], 16);
+  const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+}
+
 export const ANSICHTEN = [
   { key: 'iso',    label: 'Isometrie',    az: -0.62,           el: 0.42 },
   { key: 'laengs', label: 'Längsansicht', az: Math.PI / 2,     el: 0 },
@@ -1013,7 +1029,24 @@ export class Modellansicht {
     this.projektion = 'perspektive';   // oder 'orthogonal'
     this.ebenen = { profil: true, blech: true, anbau: true, achse: true,
                     last: true, kraefte: false, masse: true, schnitt: true,
-                    raster: true, marken: true, auflager: true };
+                    raster: true, marken: true, auflager: true, zeichnung: true };
+    /*
+     * DIE HINTERLEGTE ZEICHNUNG.
+     *
+     * `{ bild, breite, hoehe, kalibrierung }` - das Bild als ImageBitmap, die
+     * Kalibrierung aus bild.zeichnung.js. Fehlt eines von beiden, wird nichts
+     * gezeichnet: ein unkalibriertes Bild hätte keine Lage im Raum.
+     */
+    this.zeichnung = null;
+    /*
+     * DIE MASSKETTE DER ZEICHNUNG, in Metern ab dem linken Jochende. Sie
+     * kommt aus der Eingabe, nicht aus dem Bild - sie gilt auch ohne
+     * hinterlegte Zeichnung, und ohne sie ist die Zeichnung nur ein Bild.
+     */
+    this.masskette = [];
+    // Deckkraft der Zeichnung. 0.45 ist der Wert, bei dem beides zugleich
+    // lesbar bleibt - das Modell davor und die Linien dahinter.
+    this.zeichnungDeckkraft = 0.45;
     // Welche LASTARTEN gezeigt werden. Voreingestellt alle - wer eine
     // ausblendet, tut das absichtlich und soll das auch sehen.
     this.lastarten = Object.fromEntries(LASTARTEN.map((l) => [l.key, true]));
@@ -1546,6 +1579,28 @@ export class Modellansicht {
   _klick(e) {
     if (!this.szene) return;
     const [px, py] = this._geraetePunkt(e);
+    /*
+     * WIRD GERADE KALIBRIERT, GEHÖRT DER KLICK DER ZEICHNUNG.
+     *
+     * Vor allem anderen: während des Einmessens will man einen Punkt auf dem
+     * BILD treffen, nicht ein Bauteil davor. Sonst führe die Ansicht beim
+     * ersten Klick auf eine Station und die Zeichnung stünde weiter schief.
+     */
+    if (this.beiZeichnungsklick) {
+      const t = this.zeichnungTreffer(px, py);
+      if (t) { this.beiZeichnungsklick(t, [px, py]); return; }
+    }
+    /*
+     * WIRD GERADE EIN BAUTEIL GESETZT, GEHÖRT DER KLICK DER STELLE.
+     *
+     * Nicht dem Bauteil, das dort schon steht: wer setzt, zielt auf einen
+     * ORT. Sonst wählte der erste Klick ein vorhandenes Teil aus, statt das
+     * neue zu setzen.
+     */
+    if (this.beiStelle) {
+      const w = this.weltTreffer(px, py);
+      if (w) { this.beiStelle(w); return; }
+    }
     const mt = this._massTreffer.find(
       (t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
     if (mt) { this.opt.beiMass?.(mt.feld, mt.tab); return; }
@@ -1737,6 +1792,170 @@ export class Modellansicht {
     };
   }
 
+  /**
+   * DIE HINTERLEGTE ZEICHNUNG, NUR IN DER LÄNGSANSICHT.
+   *
+   * Ein Querprofil ist ein flaches Bild in der x-z-Ebene. In der Isometrie
+   * stünde es schief im Raum und würde mehr behaupten, als es weiss; in der
+   * Draufsicht wäre es eine Kante. Gezeichnet wird es deshalb nur dort, wo
+   * seine Ebene parallel zum Bildschirm liegt - und `ansichtKey` sagt das
+   * verlässlich, weil es beim freien Drehen auf null fällt.
+   *
+   * Die beiden gegenüberliegenden Ecken werden durch dieselbe Projektion
+   * geschickt wie jeder Bauteilpunkt. Damit sitzt das Bild bei jedem Zoom und
+   * jeder Fahrt an derselben Stelle wie das Modell - genau das ist der Zweck.
+   */
+  _zeichnungMalen(c, proj, t) {
+    const z = this.zeichnung;
+    if (!z || !z.bild || !z.kalibrierung) return;
+    if (!this._ebeneAn('zeichnung') || this.ansichtKey !== 'laengs') return;
+    const k = z.kalibrierung;
+    const ecke = (px, py) => proj([k.x0 + k.s * px, 0, k.z0 - k.s * py]);
+    const a = ecke(0, 0), b = ecke(z.breite, z.hoehe);
+    if (!a || !b) return;
+    const x = Math.min(a[0], b[0]), y = Math.min(a[1], b[1]);
+    const w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
+    // Ein Bild ohne Ausdehnung ist keines - und drawImage mit 0 wirft.
+    if (!(w > 0.5) || !(h > 0.5)) return;
+    /*
+     * AUF DUNKLEM GRUND WIRD DIE ZEICHNUNG UMGEKEHRT.
+     *
+     * Ein Querprofil ist schwarz auf weiss, die Modellansicht weiss auf fast
+     * schwarz. Unverändert daruntergelegt wäre das Blatt eine helle Fläche,
+     * auf der das Modell verschwindet - und je durchsichtiger man es stellt,
+     * desto weniger sieht man VON DER ZEICHNUNG, während die Fläche bleibt.
+     *
+     * Umgekehrt gelegt fügt sie sich ein: dunkler Grund, helle Linien, wie
+     * alles andere im Bild. Entschieden wird das an der Helligkeit des
+     * Hintergrunds, nicht über einen weiteren Schalter - im hellen Aussehen
+     * bleibt die Zeichnung, wie sie ist.
+     */
+    c.save();
+    c.globalAlpha = Math.max(0, Math.min(1, this.zeichnungDeckkraft));
+    c.imageSmoothingQuality = 'high';
+    if (dunkel(t?.viewerBg) && 'filter' in c) c.filter = 'invert(1)';
+    try { c.drawImage(z.bild, x, y, w, h); } catch { /* Bild noch nicht da */ }
+    c.restore();
+  }
+
+  /**
+   * DIE MASSKETTE ALS FANGLINIEN.
+   *
+   * Über dem Joch steht auf jedem Querprofil eine Kette von Massen ab dem
+   * linken Jochende - die Stellen, an denen wirklich etwas hängt. Einmal
+   * abgeschrieben, stehen sie hier als lotrechte Linien: man sieht, wohin ein
+   * Bauteil gehört, und die Eingabe fängt darauf (ui.js).
+   *
+   * In der LäNGSANSICHT, wie die Zeichnung: dort ist eine Linie bei x eine
+   * Lotrechte im Bild. In der Isometrie wäre sie eine Gerade quer durch den
+   * Raum und sähe nach etwas aus, das sie nicht ist.
+   */
+  _massketteMalen(c, proj, t) {
+    const kette = this.masskette;
+    if (!Array.isArray(kette) || !kette.length) return;
+    if (!this._ebeneAn('zeichnung') || this.ansichtKey !== 'laengs') return;
+    const s = this._s;
+    /*
+     * WIE WEIT DIE LINIE REICHT.
+     *
+     * Über die Grenzen der Szene hinaus, aber nicht ins Uferlose: sie soll
+     * an Joch UND Anbauteilen vorbeilaufen, damit man beides an ihr abliest.
+     * Ein halber Meter Zugabe genügt - eine Linie, die halb aus dem Bild
+     * ragt, sagt nicht mehr als eine, die anstösst.
+     */
+    const g = this.szene?.grenzen;
+    const zOben = (g ? g.zMax : 0.5) + 0.5;
+    const zUnten = (g ? g.zMin : -3) - 0.5;
+    c.save();
+    c.strokeStyle = t.acc ?? '#4aa3df';
+    c.globalAlpha = 0.5;
+    c.lineWidth = 1 * s;
+    c.setLineDash([4 * s, 4 * s]);
+    c.font = `${7.5 * s}px ${t.mono ?? 'monospace'}`;
+    c.fillStyle = t.acc ?? '#4aa3df';
+    c.textAlign = 'center';
+    kette.forEach((x) => {
+      const a = proj([x, 0, zOben]), b = proj([x, 0, zUnten]);
+      if (!a || !b) return;
+      c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+      // Die Zahl in Zentimetern - so steht sie auf der Zeichnung.
+      c.globalAlpha = 0.85;
+      c.fillText(String(Math.round(x * 100)), a[0], a[1] + 10 * s);
+      c.globalAlpha = 0.5;
+    });
+    c.restore();
+  }
+
+  /**
+   * BILDSCHIRMPUNKT -> STELLE IM TRAGWERK.
+   *
+   * Die Umkehrung der Projektion, aber nur für die Ebene y = 0 - die Ebene,
+   * in der Joch und Masten stehen und in der ein Querprofil gezeichnet ist.
+   * Ohne diese Einschränkung wäre ein Bildschirmpunkt kein Punkt, sondern ein
+   * Strahl: in der Tiefe läge unendlich viel hintereinander.
+   *
+   * Gerechnet wird als Strahl vom Auge durch den Bildpunkt, geschnitten mit
+   * der Ebene - das gilt in JEDER Ansicht, auch in der Isometrie, und nicht
+   * nur dort, wo die Ebene zufällig parallel zum Bildschirm liegt.
+   *
+   * @returns {{x:number, z:number}|null} null, wenn der Strahl die Ebene
+   *          nicht trifft (Blick genau entlang der Ebene).
+   */
+  weltTreffer(sx, sy) {
+    const auge = this._kameraPos();
+    const { vor, rechts, hoch } = this._basis();
+    const w = this.cv.width, h = this.cv.height;
+    let dir;
+    if (this.projektion === 'orthogonal') {
+      // Kein Fluchtpunkt: alle Strahlen laufen parallel zur Blickrichtung,
+      // der Bildpunkt verschiebt nur ihren Ursprung.
+      const wpp = this._weltProPixel();
+      const o = [
+        auge[0] + (sx - w / 2) * wpp * rechts[0] - (sy - h / 2) * wpp * hoch[0],
+        auge[1] + (sx - w / 2) * wpp * rechts[1] - (sy - h / 2) * wpp * hoch[1],
+        auge[2] + (sx - w / 2) * wpp * rechts[2] - (sy - h / 2) * wpp * hoch[2],
+      ];
+      dir = [-vor[0], -vor[1], -vor[2]];
+      const t = Math.abs(dir[1]) < 1e-9 ? null : -o[1] / dir[1];
+      if (t === null) return null;
+      return { x: o[0] + t * dir[0], z: o[2] + t * dir[2] };
+    }
+    const f = (h / 2) / Math.tan(this.kamera.fov / 2);
+    // Der Strahl durch den Bildpunkt, in Weltkoordinaten.
+    const a = (sx - w / 2) / f, b = -(sy - h / 2) / f;
+    dir = [
+      -vor[0] + a * rechts[0] + b * hoch[0],
+      -vor[1] + a * rechts[1] + b * hoch[1],
+      -vor[2] + a * rechts[2] + b * hoch[2],
+    ];
+    if (Math.abs(dir[1]) < 1e-9) return null;
+    const t = -auge[1] / dir[1];
+    if (!(t > 0)) return null;              // hinter dem Auge
+    return { x: auge[0] + t * dir[0], z: auge[2] + t * dir[2] };
+  }
+
+  /**
+   * Bildschirmpunkt -> Punkt auf der hinterlegten Zeichnung.
+   *
+   * Gebraucht beim Kalibrieren: der Klick kommt in Bildschirmpunkten, gemeint
+   * ist die Stelle IM BILD. Solange das Bild noch nicht kalibriert ist, gibt
+   * es keine Umrechnung über die Welt - gerechnet wird deshalb über das
+   * Rechteck, in dem es gerade liegt.
+   */
+  zeichnungTreffer(sx, sy) {
+    const z = this.zeichnung;
+    if (!z || !z.bild || !z.kalibrierung) return null;
+    const proj = this._projektor();
+    const k = z.kalibrierung;
+    const ecke = (px, py) => proj([k.x0 + k.s * px, 0, k.z0 - k.s * py]);
+    const a = ecke(0, 0), b = ecke(z.breite, z.hoehe);
+    if (!a || !b) return null;
+    const x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]);
+    const w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
+    if (!(w > 0) || !(h > 0)) return null;
+    return { px: ((sx - x0) / w) * z.breite, py: ((sy - y0) / h) * z.hoehe };
+  }
+
   _sichtbareFlaechen() {
     return this._letzteFlaechen ?? [];
   }
@@ -1828,6 +2047,11 @@ export class Modellansicht {
 
     const proj = this._projektor();
     const licht = norm([0.45, 0.75, 0.9]);
+
+    // GANZ NACH HINTEN: die Zeichnung liegt unter allem, auch unter dem
+    // Raster. Sie ist der Grund, auf dem das Modell steht.
+    this._zeichnungMalen(c, proj, t);
+    this._massketteMalen(c, proj, t);
 
     if (this._ebeneAn('raster')) this._raster(c, proj, t);
 

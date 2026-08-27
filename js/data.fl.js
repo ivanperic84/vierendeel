@@ -56,6 +56,26 @@ export function flBauteile(rolle = null) {
   return rolle ? alle.filter((b) => b.rolle === rolle) : alle;
 }
 
+/**
+ * IST DIESES DRAHTWERK EIN KETTENWERK?
+ *
+ * Ein Kettenwerk ist Tragseil UND Fahrdraht - beides zusammen, in einem
+ * Bauteil. Ein einzelner Leiter ist eines von beiden. Die Tabelle sagt es im
+ * Namen: «Ts: StCu 50 / Fd: Cu 107» gegen «StCu 50» oder «Cu 95».
+ *
+ * Gebraucht wird die Unterscheidung am Masten (Weisung, 27. August): dort
+ * hängt ein Kettenwerk nicht unmittelbar, sondern auf einem Ausleger —
+ * unmittelbar hängen nur einzelne Leiter, Zusatzleiter über eine Traverse.
+ *
+ * Am Namen und nicht an einer Liste: kommt ein neues Kettenwerk in die
+ * Tabelle, trägt es dieselbe Schreibweise und ist ohne Zutun erkannt.
+ */
+export function istKettenwerk(b) {
+  if (!b || b.gruppe !== 'drahtwerk') return false;
+  const t = `${b.id ?? ''} ${b.name ?? ''}`.toLowerCase();
+  return t.includes('ts:') && t.includes('fd:');
+}
+
 export function getFlBauteil(id) {
   const b = db().bauteile.find((x) => x.id === id);
   if (!b) throw new Error(`Unbekanntes Fahrleitungsbauteil: ${id}`);

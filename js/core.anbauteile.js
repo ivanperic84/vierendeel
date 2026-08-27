@@ -590,3 +590,192 @@ export function eigengewichtAnbauteile(teile) {
   return (teile ?? []).filter((a) => a.aktiv !== false)
     .reduce((s, a) => s + (a.kraefte?.G?.Fz ?? 0), 0);
 }
+
+/**
+ * DIE BINDEBLECHE ALS SPERRSTELLEN.
+ *
+ * Weisung des Auftraggebers: Hängestützen und Jochaufsätze dürfen sich nicht
+ * mit den Verbindungsblechen berühren — sie sind automatisch nebenan zu
+ * schieben.
+ *
+ * Betroffen sind genau die TRÄGER. Das steht wieder in den Daten und nicht in
+ * einer Liste im Code: `rolle: 'traeger'` tragen die drei Jochaufsätze und die
+ * Hängestütze — eben das, was am Joch angeschlagen wird. Ein Drahtwerk hängt
+ * an einem Aufbau und berührt das Joch nie.
+ *
+ * Zurückgegeben werden die Sperrbereiche in METERN, wie sie auf der Jochachse
+ * liegen. Die Blechbreite steht in der Stationsliste in Millimetern.
+ *
+ * @param {object} m Modell mit stationsListe
+ * @param {number} luft Zuschlag je Seite [m]
+ */
+export function blechSperren(m, luft = 0) {
+  return (m?.stationsListe ?? []).map((s) => {
+    // Waagrecht sperrt das Blech, das IN der Jochachse steht - das
+    // vertikale. Das horizontale liegt quer und kommt der Klemme nicht in
+    // die Quere.
+    const b = ((s.vertikal?.breite ?? 0) / 1000) / 2 + luft;
+    return b > 0 ? { von: s.x - b, bis: s.x + b } : null;
+  }).filter(Boolean);
+}
+
+/**
+ * DIE NÄCHSTE FREIE LAGE FÜR EINEN TRÄGER.
+ *
+ * Ein Träger ist mit ZWEI Klemmen angeschlagen, im Abstand `raster`. Beide
+ * müssen an einem Blech vorbei. Verboten ist eine Lage x also, wenn
+ * x − raster/2 ODER x + raster/2 in einem Blech liegt — die Sperrbereiche
+ * werden dafür um beide Halbraster verschoben und zusammengelegt.
+ *
+ * Verschoben wird zur NÄHEREN Kante: das Bauteil soll dort bleiben, wo es
+ * hingehört, und nur so weit weichen, wie es muss. Findet sich in beide
+ * Richtungen nichts innerhalb des Jochs, bleibt der Wert stehen — lieber
+ * sichtbar falsch als still an einer anderen Stelle (Prüfung P8 sagt es
+ * dann).
+ *
+ * @returns {{x:number, verschoben:boolean}}
+ */
+export function freieLageAmJoch(x, raster, m, luft = 0) {
+  const r = Math.max(0, raster ?? 0) / 2;
+  const sperren = blechSperren(m, luft);
+  if (!sperren.length || !Number.isFinite(x)) return { x, verschoben: false };
+  // Beide Klemmen: der Sperrbereich einer Klemme wird zum Sperrbereich der
+  // LAGE, um das Halbraster in die Gegenrichtung verschoben.
+  const roh = [];
+  sperren.forEach((s) => {
+    roh.push({ von: s.von - r, bis: s.bis - r });
+    roh.push({ von: s.von + r, bis: s.bis + r });
+  });
+  roh.sort((a, b) => a.von - b.von);
+  const zu = [];
+  roh.forEach((s) => {
+    const letzt = zu[zu.length - 1];
+    if (letzt && s.von <= letzt.bis + 1e-9) letzt.bis = Math.max(letzt.bis, s.bis);
+    else zu.push({ ...s });
+  });
+  const treffer = zu.find((s) => x > s.von + 1e-9 && x < s.bis - 1e-9);
+  if (!treffer) return { x, verschoben: false };
+  /*
+   * AUF MILLIMETER, UND ZWAR VOM BLECH WEG.
+   *
+   * Genau auf die Kante darf es nicht - «berühren» ist verboten. Und
+   * 4.559900000000001 ist keine Zahl, die man in eine Zeichnung schreibt.
+   * Gerundet wird deshalb auf Millimeter, aber nach AUSSEN und um EINEN
+   * Millimeter weiter: nach innen gerundet stünde das Bauteil wieder auf dem
+   * Blech, und genau auf die Kante gerundet berührte es sie - was
+   * ausdrücklich verboten ist. Ein Millimeter ist wenig genug, um nicht zu
+   * stören, und mehr als null.
+   */
+  const mm = 1000;
+  const links = Math.floor(treffer.von * mm - 1) / mm;
+  const rechts = Math.ceil(treffer.bis * mm + 1) / mm;
+  const L = m?.L ?? Infinity;
+  const gehtL = links >= 0, gehtR = rechts <= L;
+  if (!gehtL && !gehtR) return { x, verschoben: false };
+  if (!gehtL) return { x: rechts, verschoben: true };
+  if (!gehtR) return { x: links, verschoben: true };
+  return { x: (x - links <= rechts - x) ? links : rechts, verschoben: true };
+}
+
+/** Trägt diese Baugruppe einen Träger? Nur dann gilt die Blechregel. */
+export function hatTraeger(module, rolleVon) {
+  return (module ?? []).some((mo) => {
+    if (!mo?.bauteil) return false;
+    try { return rolleVon(mo.bauteil) === 'traeger'; } catch { return false; }
+  });
+}
+
+/**
+ * DAS RASTER WEITEN, STATT DAS BAUTEIL ZU SCHIEBEN.
+ *
+ * Weisung des Auftraggebers, 27. August: «Die Joche sind fix, die Anbauteile
+ * werden drum herum angebracht. Im Normalfall stehen die Klemmen 0.40 m, aber
+ * sollten diese im Bereich der Knoten zu liegen kommen, dann ist der Abstand
+ * entsprechend zu vergrössern.»
+ *
+ * Das ist die bessere Abhilfe, und sie ist auch die gebaute: die Stütze bleibt,
+ * wo sie hingehört, und ihre beiden Klemmen greifen weiter aussen am Gurt an —
+ * sie ÜBERSPANNEN das Blech, statt darauf zu sitzen. Verschoben wird erst,
+ * wenn sich kein Raster findet.
+ *
+ * DIE SUCHE IST EXAKT, NICHT TASTEND. Eine Klemme bei x − r/2 fällt genau
+ * dann in ein Blech [von, bis], wenn r in [2(x − bis), 2(x − von)] liegt; für
+ * die andere Klemme spiegelbildlich. Aus den Blechen werden so verbotene
+ * RASTERWERTE, und gesucht ist der kleinste erlaubte ab dem Normalmass.
+ *
+ * WIE WEIT DIE SUCHE REICHEN MUSS, sagt die Geometrie: bei einer Teilung a
+ * und einer Blechbreite b sperrt jede Klemme 2b von je 2a, beide zusammen
+ * also höchstens 4b von 2a. Bei 0.75 m Teilung und 100 mm Blech sind das
+ * 0.40 von 1.50 — in jedem Abschnitt von 0.40 m liegt ein freier Wert.
+ * Gesucht wird deshalb bis Normalmass + 0.40 m; findet sich dort nichts,
+ * bleibt es beim Normalmass, und die Lage weicht aus.
+ *
+ * @returns {{raster:number, geweitet:boolean}}
+ */
+export function freiesRasterAmJoch(x, raster, m, mehr = 0.40) {
+  const r0 = Math.max(0, raster ?? 0);
+  const sperren = blechSperren(m);
+  if (!sperren.length || !Number.isFinite(x)) return { raster: r0, geweitet: false };
+
+  const roh = [];
+  sperren.forEach((s) => {
+    roh.push({ von: 2 * (x - s.bis), bis: 2 * (x - s.von) });
+    roh.push({ von: 2 * (s.von - x), bis: 2 * (s.bis - x) });
+  });
+  roh.sort((a, b) => a.von - b.von);
+  const zu = [];
+  roh.forEach((s) => {
+    const letzt = zu[zu.length - 1];
+    if (letzt && s.von <= letzt.bis + 1e-9) letzt.bis = Math.max(letzt.bis, s.bis);
+    else zu.push({ ...s });
+  });
+
+  /*
+   * BEIDE KLEMMEN MÜSSEN AUF DEM JOCH BLEIBEN.
+   *
+   * Am echten Querprofil aufgefallen: ein Mass 16 cm vor dem Jochende. Dort
+   * läge die geweitete Klemme JENSEITS des Jochs - ein Anschluss an nichts.
+   * Die Weitung ist dort keine Abhilfe; die Lage muss weichen.
+   */
+  const L = m?.L;
+  const passt = (r) => !(L > 0)
+    || (x - r / 2 >= -1e-9 && x + r / 2 <= L + 1e-9);
+
+  // Auf Millimeter nach OBEN: nach unten gerundet läge die Klemme wieder im
+  // Blech, und genau auf die Kante gerundet berührte sie es.
+  const mm = 1000;
+  let r = r0;
+  for (let i = 0; i < zu.length + 2; i++) {
+    if (!passt(r)) break;
+    const treffer = zu.find((s) => r > s.von - 1e-9 && r < s.bis + 1e-9);
+    if (!treffer) return { raster: r, geweitet: r > r0 + 1e-9 };
+    r = Math.ceil((treffer.bis + 0.0005) * mm) / mm;
+    if (r > r0 + mehr + 1e-9) break;
+  }
+  return { raster: r0, geweitet: false };
+}
+
+/**
+ * DIE LAGE EINES TRÄGERS, FERTIG ANGEPASST.
+ *
+ * Die Weisung nennt zwei Abhilfen und ihre Reihenfolge: «die Joche sind fix,
+ * die Anbauteile werden drum herum angebracht», und wenn die Klemmen in den
+ * Knotenbereich fielen, «ist der Abstand entsprechend zu vergrössern».
+ *
+ *   1. RASTER WEITEN, Lage bleibt.  Das ist die gebaute Abhilfe: die Stütze
+ *      bleibt, wo sie hingehört, ihre Klemmen überspannen das Blech.
+ *   2. Erst wenn das nicht geht - weil eine Klemme sonst über das Jochende
+ *      hinausragte -, WEICHT DIE LAGE aus. Der Fahrdraht darf das: 10 bis
+ *      20 cm laufen unter die Modellunschärfe (Auftraggeber).
+ *
+ * @returns {{x:number, raster:number, geweitet:boolean, verschoben:boolean}}
+ */
+export function passeTraegerAn(x, raster, m) {
+  const r = freiesRasterAmJoch(x, raster, m);
+  if (r.geweitet) {
+    return { x, raster: r.raster, geweitet: true, verschoben: false };
+  }
+  // Sitzt es schon frei, bleibt alles - freieLageAmJoch sagt es.
+  const l = freieLageAmJoch(x, raster, m);
+  return { x: l.x, raster, geweitet: false, verschoben: l.verschoben };
+}

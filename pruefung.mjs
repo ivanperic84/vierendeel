@@ -17,6 +17,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
+const NL = String.fromCharCode(10);
+
 // Als URL, nicht als Pfad: unter Windows ist "C:\...\js\x.js" für import()
 // kein gültiges Schema (ERR_UNSUPPORTED_ESM_URL_SCHEME). Unter macOS ging
 // der blosse Pfad zufällig durch. Dieselbe Schreibweise wie in
@@ -32,7 +34,8 @@ const { torsionsSchubfluss } = await import(J('core.querschnitt.js'));
 const { schnittgroessen, knotenraster, pruefeAbstaende } = await import(J('core.statics.js'));
 const { auflagermomente, biegesteifigkeitJoch, E_STAHL } = await import(J('core.auflager.js'));
 const { klassifiziereWinkel, klasseAuskragend } = await import(J('core.klassen.js'));
-const { standardwerte, typUebernehmen } = await import(J('ui.schema.js'));
+const { standardwerte, typUebernehmen, FELDER } = await import(J('ui.schema.js'));
+const { verortung, verortungKurz } = await import(J('core.constants.js'));
 const A = await import(J('data.anbauteile.js'));
 A.setzeAnbauteilDB(JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8')));
 const FL = await import(J('data.fl.js'));
@@ -1851,7 +1854,38 @@ titel('18e  Grenzlast der Gurtverbindung');
     beiwerteFest: { G: 1, WindX: 0, WindY: 0, Schnee: 0 }, ...zus });
 
   const ohne = rechne(e({ schraubenGrenze: false })).modell;
-  const mit = rechne(e({ schraubenFgrenz: 24 })).modell;
+  // Startwert ist AUS (Weisung): die geometrische Feder gilt, die
+  // Schraubengrenze ist ein eigener Nachweis. Wer die Begrenzung prueft,
+  // schaltet sie ausdruecklich ein.
+  const mit = rechne(e({ schraubenGrenze: true, schraubenFgrenz: 24 })).modell;
+
+  /*
+   * JE GURT, NICHT JE GURTEBENE (Weisung, 27. August), und die Begrenzung
+   * steht im STARTWERT AUS.
+   *
+   * Zuvor galt F = M/h, also die ganze Ebenenkraft an einem Anschluss - das
+   * Doppelte des Richtigen. Und der Startwert stand auf EIN, womit die
+   * Anwendung zweierlei zugleich sagte: der Rechenkern setzte die Feder
+   * herab, DAMIT die Grenze eingehalten ist, und Pruefung A1 wies zugleich
+   * die Kraft aus der ungebremsten Feder als ueberschritten aus.
+   */
+  {
+    const f = FELDER.find((x) => x.key === 'schraubenGrenze');
+    wahr('Die Begrenzung ist im Startwert aus', f.standard === false,
+         String(f.standard));
+    wahr('Und standardwerte() traegt sie so',
+         standardwerte().schraubenGrenze === false);
+    // Die Grenzlast bleibt sichtbar, auch ohne Begrenzung - sie wird ja
+    // weiterhin nachgewiesen (A1).
+    const fg = FELDER.find((x) => x.key === 'schraubenFgrenz');
+    wahr('Die Grenzlast bleibt eingebbar, auch ohne Begrenzung',
+         fg.sichtbar({ endbedingung: 'mast', schraubenGrenze: false }) === true);
+    // Beide Wege muessen dieselbe Kraft meinen.
+    const mG = rechne(e({ schraubenGrenze: true, schraubenFgrenz: 8 })).modell;
+    pruef('Begrenzung und Nachweis rechnen dieselbe Kraft',
+          mG.federn.grenze.FA, Math.abs(mG.federn.grenze.MA) / (2 * mG.h),
+          1e-9, 'kN');
+  }
 
   wahr('Ohne Begrenzung bleibt die geometrische Feder stehen',
        ohne.federn.grenze === null
@@ -1863,24 +1897,25 @@ titel('18e  Grenzlast der Gurtverbindung');
        `F = ${mit.federn.grenze.FA.toFixed(1)} kN`);
 
   // Eine Grenze unterhalb der vorhandenen Kraft setzt die Feder herab
-  const eng = rechne(e({ schraubenFgrenz: 8 })).modell;
+  const eng = rechne(e({ schraubenGrenze: true, schraubenFgrenz: 8 })).modell;
   wahr('Eine Grenze von 8 kN setzt die Feder herab',
        eng.federn.grenze.begrenzt && eng.federn.cA < eng.federn.roh.cA,
        `${eng.federn.roh.cA.toFixed(0)} -> ${eng.federn.cA.toFixed(0)} kNm/rad`);
   pruef('Die Gurtkraft trifft dann die Grenzlast', eng.federn.grenze.FA, 8, 1e-3, 'kN');
-  pruef('Stützmoment = F_Grenz · h', Math.abs(eng.MA), 8 * eng.h, 1e-3, 'kNm');
+  // JE GURT: die Ebenenkraft ist das Doppelte, also M = F_Grenz · 2h.
+  pruef('Stützmoment = F_Grenz · 2h', Math.abs(eng.MA), 8 * 2 * eng.h, 1e-3, 'kNm');
   wahr('Wenige Durchgänge genügen', eng.federn.grenze.durchgaenge <= 30,
        `${eng.federn.grenze.durchgaenge} Durchgänge`);
 
   // Eine hohe Grenzlast greift nicht ein
-  const hoch = rechne(e({ schraubenFgrenz: 1000 })).modell;
+  const hoch = rechne(e({ schraubenGrenze: true, schraubenFgrenz: 1000 })).modell;
   pruef('Hohe Grenzlast lässt die Feder unberührt', hoch.federn.cA,
         hoch.federn.roh.cA, 1e-9, 'kNm/rad');
   wahr('… und meldet keine Begrenzung', !hoch.federn.grenze.begrenzt);
 
   // Kleinere Grenzlast -> weichere Feder -> grösseres Feldmoment
-  const klein = rechne(e({ schraubenFgrenz: 6 }));
-  const gross = rechne(e({ schraubenFgrenz: 10 }));
+  const klein = rechne(e({ schraubenGrenze: true, schraubenFgrenz: 6 }));
+  const gross = rechne(e({ schraubenGrenze: true, schraubenFgrenz: 10 }));
   const feld = (r) => Math.max(...r.knoten.map((k) => k.My));
   wahr('Kleinere Grenzlast gibt weichere Feder und mehr Feldmoment',
        klein.modell.federn.cA < gross.modell.federn.cA
@@ -1889,13 +1924,16 @@ titel('18e  Grenzlast der Gurtverbindung');
        + `Feld ${feld(klein).toFixed(2)} > ${feld(gross).toFixed(2)} kNm`);
 
   // Volle Einspannung bleibt die gewählte Idealisierung
-  const voll = rechne(e({ endbedingung: 'voll', schraubenFgrenz: 24 })).modell;
+  const voll = rechne(e({ endbedingung: 'voll', schraubenGrenze: true,
+                         schraubenFgrenz: 24 })).modell;
   wahr('Volle Einspannung wird nicht begrenzt', voll.federn.grenze === null);
 
   // Die Funktion selbst, ohne Modelldrumherum
   const b = begrenzeFeder({ L: 16, qd: 1, P: [], M: [], EI: 65000,
                             cA: 1e6, cB: 1e6, h: 0.45, Fgrenz: 20 });
-  pruef('Direkt gerufen: F trifft die Grenze', b.FA, 20, 1e-4, 'kN');
+  // Die Skalierung ist eine Naeherung von unten; ein Rest von gut einem
+  // Zehntausendstel bleibt und ist die Sache selbst, kein Fehler.
+  pruef('Direkt gerufen: F trifft die Grenze', b.FA, 20, 2e-4, 'kN');
   wahr('Ohne Grenzlast passiert nichts',
        begrenzeFeder({ L: 16, qd: 1, P: [], M: [], EI: 65000, cA: 500,
                        cB: 500, h: 0.45, Fgrenz: 0 }).begrenzt === false);
@@ -2459,8 +2497,9 @@ titel('19  AxisVM-Export (SAF)');
        && gurteM.auflager.every((a) => (a.uz === 'Rigid') === a.knoten.startsWith('UG')));
   wahr('Variante gurte: alle in y gehalten, keine Drehfeder',
        gurteM.auflager.every((a) => a.uy === 'Rigid' && a.fiy === 'Free'));
-  wahr('Variante gurte: ein Ende längs frei',
-       gurteM.auflager.filter((a) => a.ux === 'Free').length === 4);
+  wahr('Variante gurte: genau ein Knoten haelt in Jochachse',
+       gurteM.auflager.filter((a) => a.ux === 'Rigid').length === 1,
+       gurteM.auflager.filter((a) => a.ux === 'Rigid').map((a) => a.knoten).join(' '));
   wahr('Variante gurte: kein Schott',
        schottStaebe(gurteM) === 0);
 
@@ -2792,6 +2831,26 @@ titel('19  AxisVM-Export (SAF)');
     .forEach((t) => wahr(`Zuordnungsblatt nennt ${t}`, flach.includes(t)));
   wahr('Zuordnungsblatt führt jeden Lastfall der Punktlasten',
        dxf.lasten.punkt.every((q) => flach.includes(q.name)));
+
+  /*
+   * DAS BLATT MUSS DAS MODELL BESCHREIBEN, DAS DANEBEN LIEGT.
+   *
+   * Es rief `stuetzung(m, a.ende)` - nur den Buchstaben. Damit fiel jedes
+   * Lager in die Vorgabe (Gabellagerung mit Drehfeder), waehrend die
+   * DXF-Datei das Gurtmodell trug: acht Zeilen, alle falsch beschrieben.
+   */
+  wahr('Zuordnungsblatt nennt eine Zeile je Auflagerknoten',
+       dxf.bau.auflager.every((a) => flach.includes(a.knoten)),
+       dxf.bau.auflager.map((a) => a.knoten).join(' '));
+  wahr('Und nennt das Auflagermodell im Titel',
+       flach.includes(`Modell ${dxf.bau.auflager[0].modell}`));
+  {
+    // Genau ein 'Rigid' in der Spalte ux - im Blatt wie im Modell.
+    const zeilen = zu.rows.filter((r) => String(r[0]?.v ?? r[0]).startsWith('Auflager '));
+    const uxSpalte = zeilen.map((r) => r[4]);
+    wahr('Und haelt genau einen Knoten in Jochachse',
+         uxSpalte.filter((v) => v === 'Rigid').length === 1, uxSpalte.join(' '));
+  }
 }
 
 // ===========================================================================
@@ -2824,6 +2883,53 @@ titel('20  PyNite-Ausleitung');
   wahr('Keine unberechneten Zahlen im Skript', !/NaN|undefined|Infinity/.test(r.text));
   wahr('Ein Lastfall je Einwirkungsgruppe mit Beiwert 1',
        r.faelle.every((f) => r.text.includes(`M.add_load_combo('${f}', {'${f}': 1.0})`)));
+
+  /*
+   * DAS LAGER, NICHT DER ENDBUCHSTABE.
+   *
+   * Hier stand in `pyniteSkript` eine ZWEITE, selbstgebaute Lagerungsregel:
+   * jedes Auflager bekam y/z/Torsion gehalten und die Drehfeder dazu -
+   * gleich, welches Auflagermodell `stabmodell` gebaut hatte. Beim
+   * Gurtmodell waren das acht voll gehaltene Knoten samt acht Federn,
+   * obwohl dort nur die Untergurte lotrecht halten und keine Feder
+   * vorkommt. PyNite rechnete damit ein anderes Tragwerk als AxisVM aus
+   * derselben Ausleitung.
+   */
+  {
+    const g = PY.pyniteSkript(m, { knotenmodell: 'anschnitt', auflagerModell: 'gurte' });
+    const zeilen = g.text.split(NL).filter((z) => z.startsWith('M.def_support('));
+    pruef('Gurtmodell: acht Auflagerzeilen', zeilen.length, 8, 1e-12, 'Stk');
+    // Reihenfolge DX, DY, DZ, RX, RY, RZ - PyNites Y ist unser z.
+    const feld = (z, i) => z.slice('M.def_support('.length).split(',')[i].trim();
+    const dx = zeilen.filter((z) => feld(z, 1) === 'True');
+    wahr('Gurtmodell: genau ein Halt in Jochachse (DX)', dx.length === 1,
+         zeilen.map((z) => feld(z, 1)).join(' '));
+    const dy = zeilen.filter((z) => feld(z, 2) === 'True');
+    wahr('Gurtmodell: vier lotrechte Halte (DY = unser uz), an den Untergurten',
+         dy.length === 4 && dy.every((z) => z.includes("'UG")),
+         String(dy.length));
+    wahr('Gurtmodell: alle in Gleisrichtung gehalten (DZ = unser uy)',
+         zeilen.every((z) => feld(z, 3) === 'True'));
+    wahr('Gurtmodell: keine Drehfeder', !g.text.includes('def_support_spring'));
+    // Ohne Einspannung gibt es auch im Ersatzbalken keine Feder ...
+    const p2 = PY.pyniteSkript(m, { knotenmodell: 'anschnitt', auflagerModell: 'punkt' });
+    wahr('Gelenkiger Ersatzbalken: auch dort keine Feder',
+         !p2.text.includes('def_support_spring'));
+    // ... mit teilweiser Einspannung dagegen eine je Ende.
+    const eT = { ...e, endbedingung: 'manuell', cPhi: 12951, schraubenGrenze: false };
+    const mT = modell(eT, getProfil(eT.profOG), getProfil(eT.profUG),
+                      getStahl(eT.stahl), T.getTragjoch('J90'));
+    const p3 = PY.pyniteSkript(mT, { knotenmodell: 'anschnitt', auflagerModell: 'punkt' });
+    pruef('Teilweise eingespannt: zwei Drehfedern',
+          (p3.text.match(/def_support_spring/g) || []).length, 2, 1e-12, 'Stk');
+    wahr('Und zwar die geometrische, in kNm/rad',
+         p3.text.includes('12951'), p3.text.split(NL)
+           .filter((z) => z.includes('def_support_spring')).join(' | '));
+    // Das Gurtmodell kann sie nicht tragen - und traegt sie auch nicht.
+    const g3 = PY.pyniteSkript(mT, { knotenmodell: 'anschnitt', auflagerModell: 'gurte' });
+    wahr('Das Gurtmodell bleibt auch dann ohne Feder',
+         !g3.text.includes('def_support_spring'));
+  }
 
   // Achsentausch: unser Z wird PyNites Y
   const knoten = r.text.split('\n').filter((z) => z.startsWith('M.add_node('));
@@ -3345,6 +3451,11 @@ titel('26  Wind auf den Mast verdreht das Jochende');
                endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 9,
                mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
                wMastAusTabelle: false, wMast: 0.4, schraubenGrenze: false,
+               // Startwert ist AUS (Weisung): sobald der Mast im Stabmodell
+               // steht, traegt er den Wind selbst, und die aufgezwungene
+               // Verdrehung waere ein zweiter Ansatz derselben Last. Wer sie
+               // prueft, schaltet sie ausdruecklich ein.
+               mastWindAufJoch: true,
                torsionModell: 'huellkurve',
                beiwerteFest: { G: 0, WindX: 1, WindY: 0, Schnee: 0, Leiterzug: 0 } };
   const aus = rechne({ ...e0, mastWindAufJoch: false });
@@ -3524,6 +3635,7 @@ titel('27  Kragarme: das Auflager steht nicht immer am Gurtende');
   const hMast = hinweise(rechne({ ...sig, endbedingung: 'mast',
       mastProfil: 'HEB 260', mastH: 7.8, mastSteg: 'jochachse',
       mastAnschluss: 'durchlaufend', wMastAusTabelle: false, wMast: 0.31,
+      mastWindAufJoch: true,
       beiwerteFest: { G: 1, WindX: 1, WindY: 0, Schnee: 0, Leiterzug: 0 },
     }).modell).join(' | ');
   wahr('Der Rahmen und die gewählte Feder werden benannt',
@@ -5331,7 +5443,11 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
 
   // --- Mit Mast: die Feder muss ankommen ----------------------------------
   {
-    const { w, m } = bau({ endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5 });
+    // Die Begrenzung steht im Startwert auf AUS (Weisung). Hier ausdruecklich
+    // EIN, denn genau darum geht es: ausgeleitet wird trotzdem die
+    // geometrische Feder, und die beiden Zahlen muessen sich unterscheiden.
+    const { w, m } = bau({ endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5,
+                           schraubenGrenze: true, schraubenFgrenz: 8 });
     /*
      * AUSGELEITET WIRD DIE GEOMETRISCHE FEDER (Weisung), nicht die je
      * Lastfall auf die Schraubengrenze herabgesetzte. Ein Stabmodell gibt es
@@ -5372,6 +5488,8 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
 
     // Und ausdruecklich NICHT die begrenzte - sonst haenge das Modell am
     // Lastfall, den man beim Ausleiten zufaellig eingestellt hatte.
+    // Die Begrenzung steht im Startwert auf AUS - hier ausdruecklich ein,
+    // sonst gibt es keine zweite Zahl zu vergleichen.
     wahr('Die begrenzte Feder ist eine andere Zahl',
          Math.abs(m.federn.cA - c) > 1,
          `begrenzt ${m.federn.cA.toFixed(0)} gegen geometrisch ${c.toFixed(0)}`);
@@ -5380,26 +5498,42 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          && Math.abs(pk[0].cFiy_kNm - m.federn.cA) > 1);
   }
 
-  // --- Das Gurtmodell haengt an einem zweiten Befund ----------------------
+  // --- GENAU EIN LAENGSHALT, IN JEDEM AUFLAGERMODELL ----------------------
   /*
-   * Beim Nachrechnen kam heraus, dass dieses Modell an den beiden Enden
-   * VERSCHIEDEN ist: am Ende A sind alle vier Gurtknoten in x gehalten, am
-   * Ende B keiner ("ein Ende laengs frei"). Eine Verdrehung um y verschiebt
-   * Ober- und Untergurt aber gegenlaeufig in x - vier Festhaltungen sperren
-   * sie damit weitgehend. Unter symmetrischer Last steht Ende A mit
-   * -42.6 kNm nahezu eingespannt da, Ende B mit +2.9 kNm nahezu gelenkig.
+   * Beim Nachrechnen kam heraus, dass das Gurtmodell an den beiden Enden
+   * VERSCHIEDEN dastand: am Ende A waren alle vier Gurtknoten in x gehalten,
+   * am Ende B keiner. Eine Verdrehung um y verschiebt Ober- und Untergurt
+   * aber gegenlaeufig in x - vier Festhaltungen sperrten sie damit
+   * weitgehend, und Ende A war unter symmetrischer Last mit -42.6 kNm nahezu
+   * eingespannt, Ende B mit +2.9 kNm nahezu gelenkig.
    *
-   * Das ist eine Frage an den Auftraggeber. Die Pruefung haelt den Zustand
-   * fest, damit die Ungleichheit nicht unbemerkt verschwindet oder wandert.
+   * Weisung: nur EIN Knoten haelt in x. Mehr verlangt das Gleichgewicht in
+   * Jochrichtung nicht, und jeder weitere Halt ist ein Zwang - zwei auf
+   * verschiedener Hoehe sperren die Drehung um y, zwei auf verschiedener
+   * Seite die um z.
    */
   {
     const { w, m } = bau({ endbedingung: 'gelenkig' });
+    ['gurte', 'mitte', 'punkt'].forEach((modell) => {
+      const g = lager2(m, w, modell);
+      const fest = g.filter((x) => x.ux === 'Rigid');
+      wahr(`Modell ${modell}: genau ein Laengshalt`, fest.length === 1,
+           `${fest.length} von ${g.length}: ${fest.map((x) => x.knoten).join(' ')}`);
+      wahr(`Modell ${modell}: und er sitzt am Ende A`,
+           fest[0]?.ende === 'A', String(fest[0]?.ende));
+    });
+    // Am Gurtmodell ist es der Untergurt: dort sitzt auch der lotrechte Halt,
+    // eine Laengskraft tritt also nicht ueber einen sonst freien Gurt ein.
     const g = lager2(m, w, 'gurte');
-    const a = g.filter((x) => x.ende === 'A'), b = g.filter((x) => x.ende === 'B');
-    wahr('Ende A ist in Jochachse gehalten', a.every((x) => x.ux === 'Rigid'),
-         a.map((x) => x.ux).join(' '));
-    wahr('Ende B ist in Jochachse frei', b.every((x) => x.ux === 'Free'),
-         b.map((x) => x.ux).join(' '));
+    const fest = g.find((x) => x.ux === 'Rigid');
+    wahr('Und im Gurtmodell am Untergurt', fest.knoten.startsWith('UG'),
+         fest.knoten);
+    wahr('Der gehaltene Knoten traegt auch die Vertikalkraft',
+         fest.uz === 'Rigid', fest.uz);
+    // Kein Ende ist damit eingespannt - keine Drehfeder, kein Kraeftepaar.
+    wahr('Das Gurtmodell spannt kein Ende ein',
+         g.every((x) => x.fiy === 'Free')
+         && g.filter((x) => x.uz === 'Rigid').length === 4);
   }
 
   // --- Die Schraubengrenze als EIGENER Nachweis ---------------------------
@@ -5416,7 +5550,9 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     const ga = m.gurtanschluss;
     wahr('Der Gurtanschluss wird eigens gerechnet', !!ga);
     pruef('Aus der GEOMETRISCHEN Feder', ga.cA, m.federn.roh.cA, 1e-9, 'kNm/rad');
-    pruef('Kraefte paar M/h', ga.FA, Math.abs(ga.MA) / ga.h, 1e-9, 'kN');
+    // JE GURT (Weisung): jede Gurtebene haengt an ZWEI Gurten.
+    pruef('Kraeftepaar M/(2h), je Gurt', ga.FA,
+          Math.abs(ga.MA) / (2 * ga.h), 1e-9, 'kN');
     pruef('Massgebend ist das groessere Ende', ga.F,
           Math.max(ga.FA, ga.FB), 1e-12, 'kN');
     pruef('eta = F / F_Grenz', ga.eta, ga.F / 24, 1e-9, '-');
@@ -5489,6 +5625,1242 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('Und der Anschlussfaktor greift nur im verschieblichen Fall',
          AU.mastSteifigkeit(basisW, 'A', true).cPhi
            === AU.mastSteifigkeit(basisW, 'A', true).cVerschieblich);
+  }
+}
+
+titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 27. August:
+ *   je Gurtebene ein Starrkoerper ueber die beiden Gurte, von dort ein
+ *   Linkelement an den Mast - Kraefte starr, Momente frei -, und der Mast
+ *   bis zum Fundament, dort starr eingespannt.
+ *
+ * Damit entsteht das Kraeftepaar, das im Ersatzbalken die Drehfeder
+ * vertritt, aus der Biegung des Mastes zwischen Ober- und Untergurthoehe.
+ */
+{
+  const AXM = await import(J('export.axisvm.js'));
+  const wM = basis({
+    // EINE Last, ein Wert: 1.0 kN/m lotrecht. Damit ist q L^2/8 = 50 kNm,
+    // und jede Abweichung im Modell faellt sofort auf. Genau so ist in
+    // AxisVM gerechnet worden.
+    lastHerkunft: 'manuell', gkManuell: 0, wkManuell: 0, skManuell: 1.0,
+    schneeAktiv: true,
+    lastfall: 'Schnee', beiwerteFest: { G: 0, WindX: 0, WindY: 0, Schnee: 1 },
+    endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+    mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
+    mastWindAufJoch: false, schraubenGrenze: false,
+  });
+  const mM = modell(wM, getProfil(wM.profOG), getProfil(wM.profUG),
+                    getStahl(wM.stahl), T.getTragjoch('J90'));
+  const j = AXM.stabmodellJson(mM, { knotenmodell: 'anschnitt', auflagerModell: 'mast' });
+  const stabVon = (n) => j.staebe.find((x) => x.name === n);
+  const knotenVon = (n) => j.knoten.find((x) => x.name === n);
+
+  // --- Der Mast selbst ----------------------------------------------------
+  pruef('Zwei Auflager, eines je Mastfuss', j.auflager.length, 2, 1e-12, 'Stk');
+  wahr('Beide Fuesse voll eingespannt',
+       j.auflager.every((a) => ['ux', 'uy', 'uz', 'fix', 'fiy', 'fiz']
+         .every((f) => a[f] === 'Rigid')),
+       j.auflager.map((a) => `${a.knoten}:${a.fiy}`).join(' '));
+  wahr('Und sie sitzen am Mastfuss, nicht am Joch',
+       j.auflager.every((a) => a.knoten.endsWith('_F')));
+  // Die Hoehe H misst der Rechenkern bis zur JOCHACHSE - dort steht im
+  // Ersatzbalken die Drehfeder. Der Mastfuss liegt also H unter der Achse.
+  const oben = knotenVon('MAST_A_OG').z, unten = knotenVon('MAST_A_UG').z;
+  pruef('Die Jochhoehe steht zwischen den beiden Anschluessen',
+        oben - unten, mM.h, 1e-6, 'm');
+  pruef('Der Mastfuss liegt H unter der Jochachse',
+        (oben + unten) / 2 - knotenVon('MAST_A_F').z, 7.0, 1e-6, 'm');
+
+  // --- Anschluss je Gurtebene ---------------------------------------------
+  ['A', 'B'].forEach((e) => ['OG', 'UG'].forEach((g) => {
+    const k = stabVon(`STARR_${e}_${g}L`), r = stabVon(`STARR_${e}_${g}R`);
+    wahr(`Ende ${e}, ${g}: zwei Starrkoerper auf einen Anschlusspunkt`,
+         k && r && k.art === 'starr' && r.art === 'starr'
+         && k.bis === `ANS_${e}_${g}` && r.bis === `ANS_${e}_${g}`);
+    const l = stabVon(`LINK_${e}_${g}`);
+    wahr(`Ende ${e}, ${g}: von dort ein Linkelement an den Mast`,
+         l && l.art === 'link' && l.bis === `MAST_${e}_${g}`);
+    wahr(`Ende ${e}, ${g}: Kraefte starr, Momente frei`,
+         ['x', 'y', 'z'].every((f) => l.kraftuebertragung[f] === 'Rigid')
+         && ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'),
+         JSON.stringify(l.kraftuebertragung));
+  }));
+  // Ein Linkelement braucht eine LINIE, und eine Linie braucht Laenge.
+  // Verschoben wird deshalb der Anschlusspunkt nach innen, nicht die
+  // Mastachse nach aussen: die Stuetzweite bleibt die des Rechenkerns.
+  pruef('Der Anschlusspunkt sitzt 10 cm einwaerts',
+        knotenVon('ANS_A_OG').x - knotenVon('MAST_A_OG').x, 0.10, 1e-9, 'm');
+  pruef('Am anderen Ende ebenso, spiegelbildlich',
+        knotenVon('MAST_B_OG').x - knotenVon('ANS_B_OG').x, 0.10, 1e-9, 'm');
+  wahr('Und er liegt auf der Jochachse',
+       Math.abs(knotenVon('ANS_A_OG').y) < 1e-9);
+  pruef('Die Mastachse steht in der Jochendebene',
+        knotenVon('MAST_A_OG').x, 0, 1e-9, 'm');
+  pruef('Und am anderen Ende auf der Stuetzweite',
+        knotenVon('MAST_B_OG').x, 20, 1e-9, 'm');
+
+  // --- Der Querschnitt: R folgt aus der Flaeche ---------------------------
+  const qs = j.querschnitte.find((q) => q.name.startsWith('MAST_'));
+  wahr('Der Mast traegt ein I-Profil', qs && qs.form === 'I', qs && qs.form);
+  wahr('Und nennt sein Profil', qs.profil === 'HEB 240', qs.profil);
+  {
+    // A = 2*b*tf + (h-2tf)*tw + (4-pi)*R^2 - mit dem ausgeleiteten R muss
+    // die Flaeche die der Tabelle sein. Sonst meldet die Bruecke sie zurueck.
+    const [h, b, tw, tf, R] = qs.parameter;
+    const A = (2 * b * tf + (h - 2 * tf) * tw + (4 - Math.PI) * R * R) / 1e6;
+    // 1e-7 statt 1e-9: R geht auf sechs Nachkommastellen gerundet in die
+    // Datei, das schlaegt mit 1.7e-11 m2 auf die Flaeche durch.
+    pruef('Der Ausrundungsradius trifft die Tabellenflaeche', A, qs.A, 1e-7, 'm2');
+    pruef('Und liegt beim HEB 240 auf dem Normwert 21 mm', R, 21, 0.05, 'mm');
+  }
+
+  // --- Die Drehlage folgt der Stegrichtung --------------------------------
+  wahr('Steg in Jochachse: Profilhoehe in die Jochachse',
+       JSON.stringify(stabVon('MAST_A_S2').lcsZ) === '[1,0,0]',
+       JSON.stringify(stabVon('MAST_A_S2').lcsZ));
+  {
+    const wQ = { ...wM, mastSteg: 'quer' };
+    const mQ = modell(wQ, getProfil(wQ.profOG), getProfil(wQ.profUG),
+                      getStahl(wQ.stahl), T.getTragjoch('J90'));
+    const jQ = AXM.stabmodellJson(mQ, { knotenmodell: 'anschnitt', auflagerModell: 'mast' });
+    wahr('Steg gedreht: Profilhoehe in die Gleisrichtung',
+         JSON.stringify(jQ.staebe.find((x) => x.name === 'MAST_A_S2').lcsZ) === '[0,1,0]');
+  }
+
+  // --- Ohne Mast kein Mastmodell -----------------------------------------
+  {
+    const wG = basis({ endbedingung: 'gelenkig' });
+    const mG = modell(wG, getProfil(wG.profOG), getProfil(wG.profUG),
+                      getStahl(wG.stahl), T.getTragjoch('J90'));
+    let meldung = '';
+    try { AXM.stabmodellJson(mG, { auflagerModell: 'mast' }); }
+    catch (f) { meldung = f.message; }
+    wahr('Ohne Mast sagt die Ausleitung, was fehlt',
+         meldung.includes('Mast') && meldung.includes('Endauflager'), meldung);
+  }
+  wahr('Und der Dialog bietet das Modell nur mit Mast an',
+       AXM.AUFLAGERMODELLE.find((a) => a.key === 'mast').braucht === 'mast');
+
+  /*
+   * DIE MESSUNG AM GEBAUTEN MODELL, HIER FESTGEHALTEN.
+   *
+   * AxisVM 18 r1k, 27.08.: Feldmoment 27.60 kNm gegen 29.51 kNm der
+   * Anwendung. Aus dem Feldmoment rueckgerechnet ergibt das eine wirksame
+   * Drehfeder von 3.98*E*I/H - der Lehrbuchwert 4.00 des unverschieblichen
+   * Rahmens auf ein halbes Prozent. Damit steht dieser Aufbau gegen die
+   * Theorie: Geometrie, Querschnitt, Anschluss und Einspannung stimmen.
+   *
+   * Der Rechenkern rechnet mit 3.10 - 22 % weicher. Offene Frage an den
+   * Auftraggeber, keine Aenderung. Diese Kontrolle haelt die Rechnung fest,
+   * damit die Zahl nicht unbemerkt wandert.
+   */
+  {
+    const EIH = E_STAHL * mM.federn.mastA.I / mM.federn.mastA.H;
+    pruef('E*I/H des HEB 240 auf 7.00 m', EIH, 3378, 1e-3, 'kNm/rad');
+    pruef('Der Rechenkern nimmt davon das 3.10-fache',
+          mM.federn.roh.cA / EIH, 3.10, 1e-9, '-');
+    const feldBei = (c) => {
+      const r = auflagermomente({ L: mM.L, qd: mM.qd, P: [], M: [],
+                                  EI: mM.steif.EI, cA: c, cB: c,
+                                  theta0A: 0, theta0B: 0, MkA: 0, MkB: 0 });
+      return (mM.qd * mM.L * mM.L) / 8 - Math.abs(r.MA);
+    };
+    pruef('Damit rechnet die Anwendung 29.51 kNm im Feld',
+          feldBei(mM.federn.roh.cA), 29.51, 5e-4, 'kNm');
+    // Gemessen wurden 27.60 - welche Feder erklaert das?
+    let lo = 100, hi = 1e7;
+    for (let i = 0; i < 200; i++) {
+      const mid = Math.sqrt(lo * hi);
+      if (feldBei(mid) > 27.60) lo = mid; else hi = mid;
+    }
+    const cEff = Math.sqrt(lo * hi);
+    pruef('Gemessene 27.60 kNm bedeuten 3.98 mal E*I/H', cEff / EIH, 3.98, 2e-3, '-');
+    wahr('Also der Lehrbuchwert des unverschieblichen Rahmens',
+         Math.abs(cEff / EIH - 4.00) < 0.03, (cEff / EIH).toFixed(3));
+  }
+}
+
+titel('36  Der Weg von der Ausleitung in AxisVM');
+
+/*
+ * DER AUFBAU SOLL OHNE AUFRAEUMEN GEHEN.
+ *
+ * Bisher galt in der Bruecke "die einzige *.json daneben". Das ging genau
+ * EINMAL gut: der Aufbau legt selbst AxisVM_zuordnung.json daneben, das
+ * Auslesen dazu seine Ergebnisdatei. Ab dem zweiten Lauf lagen mehrere da
+ * und das Skript hielt an - wer bauen wollte, musste vorher loeschen.
+ */
+{
+  const CMD = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.cmd'), 'utf8');
+  const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+
+  wahr('Die Bruecke erkennt eine Modelldatei am Format',
+       /IstModelldatei/.test(PS1)
+       && /tragjoch-stabmodell/.test(PS1.slice(PS1.indexOf('function IstModelldatei'),
+                                               PS1.indexOf('function IstModelldatei') + 900)));
+  wahr('Und liest dafuer nur den Dateianfang',
+       /OpenRead/.test(PS1) && /byte\[\] 800/.test(PS1));
+  wahr('Von mehreren nimmt sie die juengste',
+       /Sort-Object LastWriteTime -Descending/.test(PS1));
+  wahr('Und sagt, welche sie uebergangen hat',
+       /Modelldateien daneben/.test(PS1));
+  wahr('Die eigene Zuordnungsdatei traegt ein anderes Format',
+       /format\s*=\s*'tragjoch-axisvm-zuordnung'/.test(PS1));
+
+  /*
+   * ALLES, WAS ZU EINEM MODELL GEHOERT, LIEGT BEIM MODELL.
+   *
+   * Bericht, Zuordnung und Ergebnisse standen frueher immer neben dem
+   * SKRIPT. Das geht fuer ein Tragwerk; bei mehreren Projekten mit je
+   * mehreren Jochen ueberschreibt sich dort alles gegenseitig.
+   */
+  wahr('Die Nebendateien heissen wie die Modelldatei',
+       /function NebenDatei/.test(PS1));
+  ['_bericht.txt', '_zuordnung.json', '_ergebnisse.json'].forEach((a) => {
+    wahr(`Und dazu gehoert ${a}`, PS1.includes(`NebenDatei $Json '${a}'`));
+  });
+  wahr('Das Modell selbst liegt ohnehin dort',
+       /ChangeExtension\(\$Json, '\.axs'\)/.test(PS1));
+  wahr('Die Startdatei nennt keinen festen Berichtspfad mehr',
+       !/AxisVM_aufbau_bericht\.txt/.test(CMD));
+  wahr('Und reicht weitere Schalter mit durch',
+       /:sammeln/.test(CMD) && /set "ARGS=%ARGS% %1"/.test(CMD));
+  wahr('Auslesen ruft mit denselben Argumenten auf',
+       readFileSync(join(HIER, 'com', 'AxisVM_auslesen.cmd'), 'utf8')
+         .includes('AxisVM_aufbauen.cmd" %* -Auslesen'));
+
+  /*
+   * STAPEL: JE MODELL EIN AxisVM-MODELL (Weisung).
+   *
+   * Ein Projekt hat eine Reihe von Tragwerken. Jedes wird EINZELN in ein
+   * eigenes AxisVM-Modell gebaut und liegt als eigene .axs neben seiner
+   * Ausleitung - nicht alle zusammen in eine Datei.
+   */
+  wahr('Ein Ordner laesst sich uebergeben', /\[string\]\$Ordner,/.test(PS1));
+  wahr('Und ein hineingezogener Ordner wird dazu',
+       CMD.includes('set "ARGS=-Ordner') && CMD.includes('%ERSTES%'),
+       CMD.split(NL).filter((z) => z.includes('-Ordner')).join(' | '));
+  wahr('Gebaut wird je Datei ein eigener Lauf',
+       /\$PSCommandPath/.test(PS1) && /'-Stapel'/.test(PS1));
+  // Kein Read-Host mehr im Klartext - es steckt jetzt hinter `Warte`,
+  // und die prueft den Schalter.
+  wahr('Im Stapel wartet niemand auf Enter',
+       /function Warte/.test(PS1)
+       && PS1.split('Read-Host').length === 2
+       && /if \(-not \$Stapel\) \{ Read-Host/.test(PS1),
+       `${PS1.split('Read-Host').length - 1} Read-Host`);
+  wahr('Der Sammelbericht liegt im Ordner',
+       /Join-Path \$Ordner 'AxisVM_stapel_bericht\.txt'/.test(PS1));
+  wahr('Und nennt jede Datei mit Erfolg oder Fehlschlag',
+       /FEHLGESCHLAGEN/.test(PS1) && /gebaut  ->/.test(PS1));
+
+  // Ziehen statt kopieren: Windows uebergibt den Pfad als erstes Argument.
+  wahr('Die Startdatei nimmt eine hineingezogene Datei entgegen',
+       /set "ARGS=-Json/.test(CMD) && /ERSTES/.test(CMD));
+  wahr('Ein Schalter bleibt ein Schalter',
+       /if "%ERSTES:~0,1%"=="-" goto :starten/.test(CMD));
+  // Der Browser nennt eine zweite Ausleitung "... (1).json"; eine Klammer
+  // im Pfad wuerde einen Klammerblock der Eingabeaufforderung schliessen.
+  wahr('Und tut das ohne Klammerbloecke',
+       !/if defined ERSTES \(/.test(CMD) && /goto :starten/.test(CMD));
+}
+
+{
+  // DER NAME MUSS SAGEN, WAS DRIN STEHT: Knoten- und Auflagermodell aendern
+  // das Tragwerk. Unter demselben Namen legte der Browser die zweite
+  // Ausleitung als "... (1).json" ab - und die Bruecke nimmt die juengste.
+  const AXN = await import(J('export.axisvm.js'));
+  const wN = basis({ endbedingung: 'gelenkig' });
+  const mN = modell(wN, getProfil(wN.profOG), getProfil(wN.profUG),
+                    getStahl(wN.stahl), T.getTragjoch('J90'));
+  const namen = new Set();
+  let heruntergeladen = null;
+  /*
+   * ATTRAPPEN FUER DEN DOWNLOAD - UND SIE WERDEN ZURUECKGEGEBEN.
+   *
+   * `delete globalThis.URL` nahm nicht die Attrappe weg, sondern das
+   * eingebaute URL von Node: alles danach lief auf einen ReferenceError.
+   * Gemerkt und wiederhergestellt statt geloescht.
+   */
+  const echt = { Blob: globalThis.Blob, URL: globalThis.URL,
+                 document: globalThis.document };
+  globalThis.Blob = class { constructor(t) { this.t = t; } };
+  globalThis.URL = { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} };
+  globalThis.document = { createElement: () => ({ click() { heruntergeladen = this.download; } }) };
+  ['gurte', 'punkt', 'mitte'].forEach((am) => ['anschnitt', 'schwerachsen'].forEach((km) => {
+    const r = AXN.exportiereJson(wN, { modell,
+      profOG: getProfil(wN.profOG), profUG: getProfil(wN.profUG),
+      stahl: getStahl(wN.stahl), joch: T.getTragjoch('J90') },
+      { knotenmodell: km, auflagerModell: am });
+    namen.add(r.name);
+    wahr(`Der Name nennt ${km} und ${am}`,
+         r.name.includes(km) && r.name.endsWith(`_${am}.json`), r.name);
+  }));
+  pruef('Sechs Einstellungen, sechs verschiedene Namen', namen.size, 6, 1e-12, 'Stk');
+
+  /*
+   * DIE VERORTUNG STEHT IM NAMEN, IN DER BEZEICHNUNG UND IM MODELL.
+   *
+   * Ein Projekt hat eine Reihe von Tragwerken; ohne Verortung heissen sie
+   * alle "J90, 20.00 m". Rechnerisch aendert sie nichts - deshalb wird hier
+   * geprueft, dass sie ueberall ankommt UND dass sie nichts verschiebt.
+   */
+  {
+    const wV = basis({ endbedingung: 'gelenkig',
+                       linie: '999', km: '012.345', ortschaft: 'Beispielort' });
+    const mV = modell(wV, getProfil(wV.profOG), getProfil(wV.profUG),
+                      getStahl(wV.stahl), T.getTragjoch('J90'));
+    pruef('Die Verortung aendert das Feldmoment nicht', mV.MA, mN.MA, 1e-12, 'kNm');
+    wahr('Das Modell traegt sie mit',
+         mV.linie === '999' && mV.km === '012.345' && mV.ortschaft === 'Beispielort');
+    // REIHENFOLGE LINIE - ORT - KM (Weisung): vom Groben zum Feinen.
+    wahr('Als Zeile gelesen: Linie, Ort, KM',
+         verortung(mV) === 'Linie 999 · Beispielort · KM 012.345',
+         verortung(mV));
+    wahr('Leere Angaben fallen weg',
+         verortung({ linie: '', km: '012.345', ortschaft: '' }) === 'KM 012.345');
+    wahr('Ohne Angabe bleibt die Zeile leer', verortung({}) === '');
+    const jV = AXN.stabmodellJson(mV, { knotenmodell: 'anschnitt' });
+    wahr('Die Ausleitung nennt sie einzeln',
+         jV.tragwerk.linie === '999' && jV.tragwerk.km === '012.345'
+         && jV.tragwerk.ortschaft === 'Beispielort');
+    wahr('Und in der Bezeichnung', jV.tragwerk.bezeichnung.includes('KM 012.345'),
+         jV.tragwerk.bezeichnung);
+    const rV = AXN.exportiereJson(wV, { modell,
+      profOG: getProfil(wV.profOG), profUG: getProfil(wV.profUG),
+      stahl: getStahl(wV.stahl), joch: T.getTragjoch('J90') },
+      { knotenmodell: 'anschnitt', auflagerModell: 'punkt' });
+    wahr('Der Dateiname traegt sie vorne, in derselben Reihenfolge',
+         rV.name.startsWith('AxisVM_L999_Beispielort_KM012.345_'), rV.name);
+    // Sonderzeichen und Leerzeichen taugen nicht in einen Dateinamen.
+    wahr('Und vertraegt Leerzeichen im Ortsnamen',
+         verortungKurz({ ortschaft: 'Bahnhof Nord' }) === 'Bahnhof-Nord',
+         verortungKurz({ ortschaft: 'Bahnhof Nord' }));
+    wahr('Ebenso einen Schraegstrich',
+         !verortungKurz({ ortschaft: 'A/B' }).includes('/'),
+         verortungKurz({ ortschaft: 'A/B' }));
+  }
+
+  /*
+   * DER MASTWIND AUF DAS JOCH IST AUS (Weisung, 27. August).
+   *
+   * Der Ersatzbalken kann ihn nur als AUFGEZWUNGENE Auflagerverdrehung
+   * fassen - eine Ersatzgroesse fuer etwas, das im Stabmodell schlicht eine
+   * Last auf dem Masten ist. Steht der Mast im Modell, traegt er sie selbst;
+   * die Ersatzgroesse waere dann ein zweiter Ansatz derselben Last.
+   */
+  {
+    const f = FELDER.find((x) => x.key === 'mastWindAufJoch');
+    wahr('Der Startwert des Mastwind-Schalters ist aus', f.standard === false,
+         String(f.standard));
+    wahr('Und standardwerte() traegt ihn so',
+         standardwerte().mastWindAufJoch === false);
+    // Ohne ihn gibt es keine aufgezwungene Verdrehung - aber der Mast bleibt
+    // Auflager, seine Drehfeder wirkt weiter.
+    const wA = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+                       mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
+                       wMastAusTabelle: false, wMast: 0.4,
+                       beiwerteFest: { G: 0, WindX: 1, WindY: 0, Schnee: 0 } });
+    const mAus = modell(wA, getProfil(wA.profOG), getProfil(wA.profUG),
+                        getStahl(wA.stahl), T.getTragjoch('J90'));
+    const mAn = modell({ ...wA, mastWindAufJoch: true },
+                       getProfil(wA.profOG), getProfil(wA.profUG),
+                       getStahl(wA.stahl), T.getTragjoch('J90'));
+    wahr('Aus heisst: keine aufgezwungene Verdrehung',
+         Math.abs(mAus.theta0A) < 1e-12 && Math.abs(mAn.theta0A) > 0,
+         `${mAus.theta0A} gegen ${mAn.theta0A}`);
+    wahr('Die Drehfeder des Mastes wirkt trotzdem',
+         mAus.federn.roh.cA > 0);
+  }
+
+  /*
+   * DER WIND AUF DEN MAST IST KEINE OPTION (Weisung, 27. August).
+   *
+   * Steht der Mast im Stabmodell, ist er Teil des Tragwerks und wird belastet
+   * wie das Joch - in beiden Richtungen, jede in ihrem Lastfall. Beide Werte
+   * kommen aus derselben Tabellenzeile; die Stegrichtung entscheidet nur,
+   * welche Spalte quer und welche laengs ist.
+   */
+  {
+    const bauM = (profil, steg = 'jochachse') => {
+      const w = basis({ endbedingung: 'mast', mastProfil: profil, mastH: 7.0,
+                        mastSteg: steg, mastAnschluss: 'durchlaufend' });
+      return modell(w, getProfil(w.profOG), getProfil(w.profUG),
+                    getStahl(w.stahl), T.getTragjoch('J90'));
+    };
+    const mH = bauM('HEB 240');
+    pruef('HEB 240 faengt in beiden Richtungen gleich viel',
+          mH.mastLast.A.x, mH.mastLast.A.y, 1e-12, 'kN/m');
+    // Das HEM 240 ist das einzige Profil der Tabelle, das nicht quadratisch
+    // ist - an ihm faellt eine vertauschte Spalte ueberhaupt auf.
+    const mM = bauM('HEM 240');
+    pruef('HEM 240 quer zum Gleis', mM.mastLast.A.x, 0.38, 1e-9, 'kN/m');
+    pruef('HEM 240 in Gleisrichtung', mM.mastLast.A.y, 0.42, 1e-9, 'kN/m');
+    // Steg gedreht heisst: die beiden Spalten tauschen.
+    const mQ = bauM('HEM 240', 'quer');
+    pruef('Steg gedreht tauscht die beiden Spalten', mQ.mastLast.A.x, 0.42, 1e-9, 'kN/m');
+    pruef('Und die andere ebenso', mQ.mastLast.A.y, 0.38, 1e-9, 'kN/m');
+
+    // Im Modell steht die Last auf JEDEM Maststab, je Richtung ein Lastfall.
+    const jM = AXN.stabmodellJson(mM, { knotenmodell: 'anschnitt', auflagerModell: 'mast' });
+    const qM = jM.lasten.strecke.filter((q) => q.stab.startsWith('MAST_'));
+    pruef('Vier Maststaebe, je zwei Richtungen', qM.length, 8, 1e-12, 'Stk');
+    wahr('Jochachse im Lastfall WindX',
+         qM.filter((q) => q.lastfall === 'WindX')
+           .every((q) => q.richtung === 'X' && Math.abs(q.wert - 0.38) < 1e-9));
+    wahr('Gleisrichtung im Lastfall WindY',
+         qM.filter((q) => q.lastfall === 'WindY')
+           .every((q) => q.richtung === 'Y' && Math.abs(q.wert - 0.42) < 1e-9));
+    // Ohne Mast im Modell gibt es nichts zu belasten.
+    const jP = AXN.stabmodellJson(mM, { knotenmodell: 'anschnitt', auflagerModell: 'punkt' });
+    wahr('Ohne Mast im Modell keine Maststreckenlast',
+         jP.lasten.strecke.every((q) => !q.stab.startsWith('MAST_')));
+  }
+  void heruntergeladen;
+  globalThis.Blob = echt.Blob; globalThis.URL = echt.URL;
+  globalThis.document = echt.document;
+}
+
+titel('37  Anbauteile am Masten');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 27. August: am Masten sollen sich Anbauteile
+ * und Leiter ansetzen lassen - ausser Jochaufsatz und Haengestuetze.
+ *
+ * Die Ausnahme steht nicht als Verbotsliste im Code, sie steht in den Daten:
+ * die Bauteiltabelle fuehrt drei Rollen, und `traeger` tragen genau die
+ * Jochaufsaetze und die Haengestuetze. Ein Traeger IST das, was auf dem Joch
+ * sitzt oder daran haengt.
+ */
+{
+  const AXA = await import(J('export.axisvm.js'));
+  const DA = await import(J('data.anbauteile.js'));
+  const { konstruktionsChecks } = await import(J('core.checks.js'));
+
+  // Die Regel gegen die Datenbank gelesen, nicht gegen eine Liste im Code.
+  {
+    const traeger = FL.flBauteile().filter((b) => b.rolle === 'traeger');
+    wahr('Traeger sind genau Jochaufsaetze und Haengestuetzen',
+         traeger.length > 0
+         && traeger.every((b) => /jochaufsatz|haengestuetze|haengerohr/.test(b.id)),
+         traeger.map((b) => b.id).join(' '));
+    // Traverse, Ausleger, Lampe: Aufbau, also am Masten zulaessig.
+    ['anbauteil-leiter-traverse', 'anbauteil-ausleger-typ-rohr',
+     'anbauteil-lampe-led'].forEach((id) => {
+      wahr(`${id} ist kein Traeger`,
+           FL.getFlBauteil(id).rolle !== 'traeger', FL.getFlBauteil(id).rolle);
+    });
+  }
+
+  const vorl = DA.getVorlage('leiter-traverse');
+  const bauTeil = (o) => ({
+    id: o.id, name: o.name, vorlage: 'leiter-traverse',
+    x: o.x ?? 0, raster: vorl.raster ?? 0.4, befestigung: vorl.befestigung,
+    module: JSON.parse(JSON.stringify(vorl.module)), aktiv: true, ...o });
+
+  const wM = basis({
+    endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+    mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
+    anbauteile: [
+      bauTeil({ id: 'T1', name: 'am Joch', x: 6 }),
+      bauTeil({ id: 'M1', name: 'am Mast A', ort: 'mastA', hMast: 5.0 }),
+      bauTeil({ id: 'M2', name: 'am Mast B', ort: 'mastB', hMast: 4.0 }),
+      bauTeil({ id: 'M3', name: 'in der Luft', ort: 'mastA', hMast: 99 }),
+    ] });
+  const mM = modell(wM, getProfil(wM.profOG), getProfil(wM.profUG),
+                    getStahl(wM.stahl), T.getTragjoch('J90'));
+
+  // --- Der Ersatzbalken kennt nur das Joch --------------------------------
+  wahr('Am Joch gerechnet wird nur, was am Joch haengt',
+       (mM.anbauteileFlach ?? []).every((t) => !DA.amMast(t)));
+  pruef('Drei Baugruppen stehen an den Masten', mM.anbauMast.length, 3, 1e-12, 'Stk');
+  {
+    // Ein Teil an den Masten zu haengen darf das Joch NICHT belasten.
+    const wOhne = { ...wM, anbauteile: wM.anbauteile.filter((a) => !a.ort) };
+    const mOhne = modell(wOhne, getProfil(wM.profOG), getProfil(wM.profUG),
+                         getStahl(wM.stahl), T.getTragjoch('J90'));
+    pruef('Sie aendern das Stuetzmoment des Jochs nicht', mM.MA, mOhne.MA, 1e-12, 'kNm');
+  }
+
+  // --- Im Stabmodell mit Mast stehen sie ----------------------------------
+  const jM = AXA.stabmodellJson(mM, { knotenmodell: 'anschnitt',
+                                      auflagerModell: 'mast', eingabe: wM });
+  const knV = new Map(jM.knoten.map((k) => [k.name, k]));
+  // Der Mast wird dort geteilt, wo etwas an ihm haengt: Fuss, Anbauhoehe,
+  // Untergurt, Obergurt - also drei Stuecke statt zwei.
+  const stA = jM.staebe.filter((x) => /^MAST_A_S/.test(x.name));
+  pruef('Der Mast A ist an der Anbauhoehe geteilt', stA.length, 3, 1e-12, 'Stk');
+  pruef('Und der Knoten liegt auf der eingegebenen Hoehe',
+        knV.get('MAST_A_H1').z - knV.get('MAST_A_F').z, 5.0, 1e-9, 'm');
+  wahr('Die Kette haengt am Mastknoten',
+       jM.staebe.some((x) => x.name.startsWith('ARMM') && x.von === 'MAST_A_H1'));
+  // Gespiegelt am Ende B: aussen liegt dort in -x.
+  {
+    const b = jM.staebe.find((x) => x.name.startsWith('ARMM') && x.von === 'MAST_B_H1');
+    wahr('Am Ende B haengt sie am dortigen Mastknoten', !!b);
+    wahr('Und die Mastachse steht auf der Stuetzweite',
+         Math.abs(knV.get('MAST_B_H1').x - 20) < 1e-9);
+  }
+  // Die Lasten sitzen an den Knoten der Kette, nicht am Joch.
+  {
+    const amMastKn = new Set(jM.knoten.filter((k) => k.name.startsWith('AM')).map((k) => k.name));
+    const lp = jM.lasten.punkt.filter((q) => amMastKn.has(q.knoten));
+    wahr('Am Masten stehen Lasten', lp.length > 0, `${lp.length} Punktlasten`);
+    wahr('Und zwar in mehreren Lastfaellen',
+         new Set(lp.map((q) => q.lastfall)).size > 1,
+         [...new Set(lp.map((q) => q.lastfall))].join(' '));
+  }
+  // Eine Hoehe ausserhalb des Mastes wird NICHT gebaut - und gesagt.
+  {
+    const aus = jM.tragwerk.anbauMastAus;
+    pruef('Ein Teil in der Luft wird nicht gebaut', aus.length, 1, 1e-12, 'Stk');
+    wahr('Und im Modell benannt', aus[0].name === 'in der Luft'
+         && aus[0].hMast === 99 && aus[0].mastH === 7, JSON.stringify(aus[0]));
+  }
+  // Ohne Mast im Modell gibt es nichts anzuhaengen.
+  {
+    const jP = AXA.stabmodellJson(mM, { knotenmodell: 'anschnitt',
+                                        auflagerModell: 'punkt', eingabe: wM });
+    wahr('Ohne Mast im Modell keine Kette am Masten',
+         jP.staebe.every((x) => !x.name.startsWith('ARMM')));
+  }
+
+  // --- Kein Traeger am Masten (Pruefung P6) -------------------------------
+  {
+    const ohne = konstruktionsChecks(mM).find((c) => c.id === 'P6');
+    wahr('P6 steht in der Liste, sobald etwas am Masten haengt', !!ohne);
+    wahr('Und ist erfuellt, solange kein Traeger dabei ist', ohne.ok === true,
+         ohne.status);
+    // Eine Haengestuetze am Masten muss auffallen.
+    const hs = DA.getVorlage('hs-nur');
+    const wHS = { ...wM, anbauteile: [{ id: 'X', name: 'HS am Mast',
+      vorlage: 'hs-nur', x: 0, raster: hs.raster ?? 0.4,
+      befestigung: hs.befestigung, ort: 'mastA', hMast: 5,
+      module: JSON.parse(JSON.stringify(hs.module)), aktiv: true }] };
+    const mHS = modell(wHS, getProfil(wM.profOG), getProfil(wM.profUG),
+                       getStahl(wM.stahl), T.getTragjoch('J90'));
+    const p6 = konstruktionsChecks(mHS).find((c) => c.id === 'P6');
+    wahr('Eine Haengestuetze am Masten faellt auf', p6.ok === false, p6.status);
+    wahr('Und wird beim Namen genannt',
+         /Hängestütze|Haengerohr|Hängerohr/.test(p6.status), p6.status);
+  }
+
+  /*
+   * AM MASTEN HAENGT KEIN KETTENWERK UNMITTELBAR (Weisung, 27. August).
+   *
+   * "Die Kettenwerke werden nicht direkt am Masten gehaengt, ausser wenn sie
+   * abgefangen werden, sondern auf Ausleger. Am Masten werden nur einzelne
+   * Leiter gehaengt oder, falls es Zusatzleiter sind, ueber eine Traverse."
+   *
+   * Ein Kettenwerk ist Tragseil UND Fahrdraht - die Bauteiltabelle sagt es
+   * im Namen, nicht eine Liste im Code.
+   */
+  {
+    const kw = FL.flBauteile().filter((b) => FL.istKettenwerk(b));
+    const einzeln = FL.flBauteile()
+      .filter((b) => b.gruppe === 'drahtwerk' && !FL.istKettenwerk(b));
+    pruef('Vier Kettenwerke in der Tabelle', kw.length, 4, 1e-12, 'Stk');
+    wahr('Jedes traegt Tragseil und Fahrdraht',
+         kw.every((b) => /ts:/i.test(b.name) && /fd:/i.test(b.name)),
+         kw.map((b) => b.name).join(' | '));
+    pruef('Acht einzelne Leiter daneben', einzeln.length, 8, 1e-12, 'Stk');
+    wahr('Und keiner davon traegt beides',
+         einzeln.every((b) => !(/ts:/i.test(b.name) && /fd:/i.test(b.name))));
+
+    // Ein Kettenwerk unmittelbar am Masten: die Vorlage leiter-nfl bringt
+    // ein Drahtwerk ohne Aufbau mit.
+    const anMast = (vorlage, id) => {
+      const v = DA.getVorlage(vorlage);
+      const w = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+        mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
+        anbauteile: [{ id, name: id, vorlage, x: 0, raster: v.raster ?? 0.4,
+                       befestigung: v.befestigung, ort: 'mastA', hMast: 5,
+                       module: JSON.parse(JSON.stringify(v.module)), aktiv: true }] });
+      return konstruktionsChecks(
+        modell(w, getProfil(w.profOG), getProfil(w.profUG),
+               getStahl(w.stahl), T.getTragjoch('J90'))).find((c) => c.id === 'P7');
+    };
+    // Der NT-Ausleger bringt einen Aufbau mit - dort ist das Kettenwerk richtig.
+    const mitAusleger = anMast('hs-nt-ausleger', 'MITAUS');
+    wahr('Mit Ausleger ist das Kettenwerk am Masten in Ordnung',
+         mitAusleger.ok === true, mitAusleger.status);
+    /*
+     * EIN EINZELNER LEITER DARF UNMITTELBAR HAENGEN - aber «Leiter N-FL» ist
+     * keiner. Die Vorlage traegt drahtwerk-n-fl-ts-stcu-50-fd-cu-107, also
+     * Tragseil UND Fahrdraht: ein Kettenwerk. Der Rueckleiter (leiter-rl,
+     * Cu 95) ist der einzelne Leiter - und der darf.
+     */
+    const rueckleiter = anMast('leiter-rl', 'RUECKLEITER');
+    wahr('Ein einzelner Leiter darf unmittelbar haengen',
+         rueckleiter.ok === true, rueckleiter.status);
+    const nfl2 = anMast('leiter-nfl', 'NFL');
+    wahr('Ein Kettenwerk ohne Ausleger faellt auf',
+         nfl2.ok === false && /Kettenwerk/.test(nfl2.status), nfl2.status);
+    // Und die Traverse mit Zusatzleiter ebenso - sie IST der Aufbau.
+    const traverse = anMast('leiter-traverse', 'TRAVERSE');
+    wahr('Zusatzleiter ueber eine Traverse ebenso',
+         traverse.ok === true, traverse.status);
+    // Die Ausnahme ist noch nicht gebaut - deshalb Hinweis, nicht Fehler.
+    wahr('P7 ist ein Hinweis, kein Fehler',
+         traverse.warnungNichtFehler === true);
+  }
+}
+
+titel('38  Hinterlegte Querprofil-Zeichnung');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 27. August: die Zeichnung transparent hinter das
+ * Modell legen, um Bauteile zuzuordnen und Laengen abzugreifen, ohne im
+ * PDF-Reader zu messen.
+ *
+ * "Die QP-Zeichnungen sind immer orthogonal, eine Ausrichtung ist daher nicht
+ * notwendig. Es ist nur die Ansicht auf das Tragwerk vorhanden, xz-Ebene."
+ *
+ * Damit bleiben drei Unbekannte - Massstab und Lage in x und z -, und zwei
+ * Punkte mit bekannten Modellkoordinaten bestimmen alle drei. Gerechnet wird
+ * das hier; das Bild selbst braucht einen Browser und steht nicht im
+ * Pruefstand.
+ */
+{
+  const BZ = await import(J('bild.zeichnung.js'));
+
+  // --- Waagrechter Bezug: die beiden Jochenden ---------------------------
+  {
+    // 800 Bildpunkte entsprechen 20 m: 0.025 m je Punkt.
+    const p1 = { px: 200, py: 300 }, p2 = { px: 1000, py: 300 };
+    const w1 = { x: 0, z: 0 }, w2 = { x: 20, z: 0 };
+    const k = BZ.kalibriere(p1, p2, w1, w2);
+    pruef('Massstab aus der Jochlaenge', k.s, 0.025, 1e-12, 'm/Punkt');
+    // Die geklickten Punkte muessen genau auf ihre Modellpunkte fallen.
+    const a = BZ.bildNachWelt(k, p1.px, p1.py);
+    const b = BZ.bildNachWelt(k, p2.px, p2.py);
+    pruef('Der erste Klick trifft x = 0', a.x, 0, 1e-9, 'm');
+    pruef('Der zweite Klick trifft x = L', b.x, 20, 1e-9, 'm');
+    wahr('Und beide liegen auf der Jochachse',
+         Math.abs(a.z) < 1e-9 && Math.abs(b.z) < 1e-9);
+    // Hin und zurueck.
+    const r = BZ.weltNachBild(k, 12.5, -3);
+    const h = BZ.bildNachWelt(k, r.px, r.py);
+    pruef('Hin und zurueck: x', h.x, 12.5, 1e-9, 'm');
+    pruef('Hin und zurueck: z', h.z, -3, 1e-9, 'm');
+    // z zeigt im Bild nach unten, im Modell nach oben.
+    wahr('Tiefer im Bild heisst tiefer im Modell',
+         BZ.bildNachWelt(k, 200, 500).z < BZ.bildNachWelt(k, 200, 300).z);
+  }
+
+  // --- Lotrechter Bezug: der Mast ----------------------------------------
+  {
+    // 280 Punkte entsprechen 7.00 m: 0.025 m je Punkt, dasselbe Bild.
+    const k = BZ.kalibriere({ px: 200, py: 580 }, { px: 200, py: 300 },
+                            { x: 0, z: -7 }, { x: 0, z: 0 });
+    pruef('Massstab aus der Masthoehe', k.s, 0.025, 1e-12, 'm/Punkt');
+    pruef('Der Fusspunkt liegt auf -H', BZ.bildNachWelt(k, 200, 580).z, -7, 1e-9, 'm');
+    wahr('Der Kopfpunkt auf der Jochachse',
+         Math.abs(BZ.bildNachWelt(k, 200, 300).z) < 1e-9);
+  }
+
+  /*
+   * DER MASSSTAB KOMMT AUS DER LAENGEREN RICHTUNG.
+   *
+   * Klickt man die beiden Jochenden, liegen sie waagrecht weit auseinander
+   * und lotrecht fast uebereinander. Naehme man die lotrechte Differenz,
+   * stuende im Nenner fast nur das Klickrauschen - ein Punkt daneben ergaebe
+   * einen wilden Massstab.
+   */
+  {
+    const genau = BZ.kalibriere({ px: 200, py: 300 }, { px: 1000, py: 300 },
+                                { x: 0, z: 0 }, { x: 20, z: 0 });
+    const schief = BZ.kalibriere({ px: 200, py: 300 }, { px: 1000, py: 304 },
+                                 { x: 0, z: 0 }, { x: 20, z: 0 });
+    pruef('Vier Punkte schief aendern den Massstab nicht',
+          schief.s, genau.s, 1e-12, 'm/Punkt');
+    // Die Lage mittelt den schiefen Klick heraus: 2 Punkte statt 4.
+    pruef('Und die Hoehe nur um die Haelfte des Fehlers',
+          (schief.z0 - genau.z0) / genau.s, 2, 1e-9, 'Punkte');
+  }
+
+  // --- Was keine Kalibrierung ergibt -------------------------------------
+  wahr('Zwei gleiche Punkte ergeben keine Kalibrierung',
+       BZ.kalibriere({ px: 5, py: 5 }, { px: 5, py: 5 },
+                     { x: 0, z: 0 }, { x: 20, z: 0 }) === null);
+  wahr('Ein fehlender Punkt ebenso',
+       BZ.kalibriere(null, { px: 5, py: 5 }, { x: 0, z: 0 }, { x: 1, z: 0 }) === null);
+  wahr('Ohne Kalibrierung gibt es keinen Rahmen',
+       BZ.bildRahmen(null, 100, 50) === null
+       && BZ.bildNachWelt(null, 1, 1) === null);
+
+  // --- Der Rahmen, den die Ansicht zeichnet ------------------------------
+  {
+    const k = BZ.kalibriere({ px: 0, py: 0 }, { px: 400, py: 0 },
+                            { x: 0, z: 0 }, { x: 10, z: 0 });
+    const r = BZ.bildRahmen(k, 400, 200);
+    pruef('Rahmen links', r.xVon, 0, 1e-9, 'm');
+    pruef('Rahmen rechts', r.xBis, 10, 1e-9, 'm');
+    wahr('Rahmen oben auf der Jochachse', Math.abs(r.zBis) < 1e-9);
+    pruef('Rahmen unten', r.zVon, -5, 1e-9, 'm');
+  }
+
+  // --- Das Bild aus einem Einfuege- oder Ziehereignis ---------------------
+  {
+    const evMit = { clipboardData: { files: [{ type: 'image/png' }], items: [] } };
+    wahr('Ein eingefuegtes Bild wird gefunden', !!BZ.bildAusEreignis(evMit));
+    const evText = { clipboardData: { files: [{ type: 'text/plain' }], items: [] } };
+    wahr('Text nicht', BZ.bildAusEreignis(evText) === null);
+    // Der Bildschirmausschnitt kommt als item, nicht als file.
+    const datei = { type: 'image/png' };
+    const evItem = { clipboardData: { files: [],
+      items: [{ kind: 'file', type: 'image/png', getAsFile: () => datei }] } };
+    wahr('Ein Bildschirmausschnitt ebenso', BZ.bildAusEreignis(evItem) === datei);
+    wahr('Ohne Zwischenablage nichts', BZ.bildAusEreignis({}) === null);
+    // Ziehen liefert dataTransfer statt clipboardData - derselbe Weg.
+    wahr('Und eine hineingezogene Datei ebenso',
+         !!BZ.bildAusEreignis({ dataTransfer: { files: [{ type: 'image/jpeg' }] } }));
+  }
+
+  // --- Die beiden Bezugsmasse --------------------------------------------
+  {
+    const wB = basis({ L: 24 });
+    const mB = modell(wB, getProfil(wB.profOG), getProfil(wB.profUG),
+                      getStahl(wB.stahl), T.getTragjoch('J90'));
+    const j = BZ.bezugPunkte('joch', mB);
+    pruef('Der Jochbezug spannt ueber die ganze Laenge', j[1].x - j[0].x, 24, 1e-9, 'm');
+    wahr('Beide Punkte auf der Jochachse', j[0].z === 0 && j[1].z === 0);
+    wahr('Ohne Mast gibt es keinen Mastbezug', BZ.bezugPunkte('mast', mB) === null);
+    const wM = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+                       mastSteg: 'jochachse', mastAnschluss: 'durchlaufend' });
+    const mM = modell(wM, getProfil(wM.profOG), getProfil(wM.profUG),
+                      getStahl(wM.stahl), T.getTragjoch('J90'));
+    const mb = BZ.bezugPunkte('mast', mM);
+    pruef('Mit Mast reicht der Bezug ueber die Masthoehe',
+          mb[1].z - mb[0].z, 7, 1e-9, 'm');
+    wahr('Und beide stehen am linken Masten', mb[0].x === 0 && mb[1].x === 0);
+    wahr('Jeder Punkt sagt, was anzuklicken ist',
+         [...j, ...mb].every((x) => typeof x.text === 'string' && x.text.length > 10));
+  }
+
+  /*
+   * DAS PAKET: ZIP MIT BILDERN DANEBEN (Weisung).
+   *
+   * Die hinterlegten Zeichnungen gehoeren beim Ausleiten als eigene Dateien
+   * in den Ablageordner, nicht als Base64 in die JSON. Geschrieben wird mit
+   * demselben ZIP-Schreiber, den die .xlsx schon benutzt - ein zweiter waere
+   * einer zu viel.
+   */
+  {
+    const XL = await import(J('export.xlsx.js'));
+    const bild = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 250, 0, 77]);
+    const paket = XL.zip([
+      { name: 'ablage.json', inhalt: '{"art":"tragjoch-ablage"}' },
+      { name: 'zeichnungen/TJ-1.jpg', inhalt: bild },
+    ]);
+    wahr('Ein Paket beginnt mit PK', paket[0] === 0x50 && paket[1] === 0x4b);
+    const zurueck = XL.entpacke(paket);
+    pruef('Zwei Dateien im Paket', zurueck.length, 2, 1e-12, 'Stk');
+    wahr('Die JSON kommt unveraendert zurueck',
+         new TextDecoder().decode(zurueck[0].inhalt) === '{"art":"tragjoch-ablage"}');
+    wahr('Und das Bild Byte fuer Byte',
+         zurueck[1].name === 'zeichnungen/TJ-1.jpg'
+         && zurueck[1].inhalt.length === bild.length
+         && [...zurueck[1].inhalt].every((b, i) => b === bild[i]));
+    // Ein leeres Bild darf nicht durchrutschen.
+    const leer = XL.entpacke(XL.zip([{ name: 'a', inhalt: new Uint8Array(0) }]));
+    pruef('Auch eine leere Datei bleibt eine Datei', leer.length, 1, 1e-12, 'Stk');
+    // Etwas, das keine ZIP ist, sagt es.
+    let meldung = '';
+    try { XL.entpacke(new Uint8Array([1, 2, 3, 4])); } catch (f) { meldung = f.message; }
+    wahr('Etwas anderes wird abgewiesen', meldung.includes('Paket'), meldung);
+  }
+
+  /*
+   * DIE MASSKETTE DER ZEICHNUNG (Weisung, 27. August: "die masskette ist
+   * immer vorhanden, bau die fanglinien ein").
+   *
+   * Ueber dem Joch steht auf jedem Querprofil eine Kette von Massen in
+   * Zentimetern ab dem linken Jochende - die Stellen, an denen wirklich
+   * etwas haengt. Einmal abgeschrieben, faengt die Eingabe darauf.
+   */
+  {
+    const { massketteLesen, fangeAufMasskette } = await import(J('core.constants.js'));
+    // Die Kette des Schulungsbeispiels: J60 E ueber 12 m.
+    const r = massketteLesen('0 15 209 474 735 885 983 1185 1200', 12);
+    pruef('Neun Masse gelesen', r.werte.length, 9, 1e-12, 'Stk');
+    pruef('In Metern, aufsteigend', r.werte[2], 2.09, 1e-12, 'm');
+    pruef('Und das letzte ist die Jochlaenge', r.werte[8], 12, 1e-12, 'm');
+    wahr('Ohne Beanstandung', r.hinweis === null);
+    // Grosszuegig gelesen: abgeschrieben wird von Hand.
+    wahr('Komma, Strichpunkt, Zeilenumbruch trennen ebenso',
+         massketteLesen(`15; 209${NL}474,  735`, 0).werte.join(' ')
+           === '0.15 2.09 4.74 7.35',
+         massketteLesen(`15; 209${NL}474,  735`, 0).werte.join(' '));
+    wahr('Doppelte Masse zaehlen einmal',
+         massketteLesen('15 15 209', 0).werte.length === 2);
+    /*
+     * OHNE KETTE MUSS ALLES WEITERGEHEN.
+     *
+     * Sie steht NICHT auf jedem Blatt (Auftraggeber, 27.08. - zunaechst
+     * anders gesagt und gleich darauf berichtigt). Sie ist damit eine
+     * Beigabe, kein Weg: wo sie fehlt, wird auf der Zeichnung gemessen, und
+     * nichts darf deshalb anhalten oder sich beschweren.
+     */
+    wahr('Leere Kette bleibt leer', massketteLesen('', 12).werte.length === 0);
+    wahr('Und beanstandet nichts', massketteLesen('', 12).hinweis === null);
+    wahr('Auch Leerzeichen allein nicht',
+         massketteLesen('   ', 12).werte.length === 0
+         && massketteLesen('   ', 12).hinweis === null);
+    wahr('Und undefiniert ebenso',
+         massketteLesen(undefined, 12).werte.length === 0);
+
+    /*
+     * DAS LETZTE MASS IST DIE GEGENPROBE. Stimmt es nicht mit der Jochlaenge,
+     * ist entweder die Kette aus einer anderen Zeichnung, die Laenge falsch
+     * eingestellt, oder es wurden Millimeter abgeschrieben.
+     */
+    const falsch = massketteLesen('0 15 1200', 20);
+    wahr('Eine unpassende Kette faellt auf', !!falsch.hinweis, falsch.hinweis ?? '');
+    wahr('Und der Hinweis nennt beide Zahlen',
+         falsch.hinweis.includes('12.00') && falsch.hinweis.includes('20.00'));
+
+    // --- Fangen ----------------------------------------------------------
+    const k = r.werte;
+    pruef('2.07 faengt auf 2.09', fangeAufMasskette(2.07, k), 2.09, 1e-12, 'm');
+    pruef('7.30 faengt auf 7.35', fangeAufMasskette(7.30, k), 7.35, 1e-12, 'm');
+    pruef('Wer trifft, bleibt', fangeAufMasskette(4.74, k), 4.74, 1e-12, 'm');
+    pruef('Wer weit daneben liegt, behaelt seinen Wert',
+          fangeAufMasskette(3.40, k), 3.40, 1e-12, 'm');
+    /*
+     * DIE GRENZE IST NIE GROESSER ALS DIE HALBE LUECKE. 11.85 und 12.00
+     * liegen 15 cm auseinander; mit der festen Grenze von 20 cm wuerde das
+     * eine das andere ueberdecken, und ein Klick dazwischen faende die
+     * falsche Stelle.
+     */
+    pruef('Zwischen zwei engen Massen gewinnt das naehere',
+          fangeAufMasskette(11.92, k), 11.85, 1e-12, 'm');
+    pruef('Und knapp darueber das andere',
+          fangeAufMasskette(11.94, k), 12, 1e-12, 'm');
+    wahr('Ohne Kette faengt nichts', fangeAufMasskette(2.07, []) === 2.07);
+
+    // --- Das Modell traegt sie mit ---------------------------------------
+    const wK = basis({ L: 12, masskette: '0 15 209 474 735 885 983 1185 1200' });
+    const mK = modell(wK, getProfil(wK.profOG), getProfil(wK.profUG),
+                      getStahl(wK.stahl), T.getTragjoch('J90'));
+    pruef('Das Modell fuehrt die gelesene Kette', mK.masskette.length, 9, 1e-12, 'Stk');
+    // Rechnerisch aendert sie nichts - sie ist eine Anschrift, keine Aussage.
+    const wO = basis({ L: 12 });
+    const mO = modell(wO, getProfil(wO.profOG), getProfil(wO.profUG),
+                      getStahl(wO.stahl), T.getTragjoch('J90'));
+    pruef('Und aendert am Feldmoment nichts', mK.MA, mO.MA, 1e-12, 'kNm');
+    // Ohne Eintrag fuehrt das Modell eine leere Kette - kein null, kein
+    // Sonderfall, den die Ansicht auseinanderhalten muesste.
+    wahr('Ohne Eintrag eine leere Kette',
+         Array.isArray(mO.masskette) && mO.masskette.length === 0);
+    // Und ein Anbauteil behaelt dann jeden Wert, auf drei Stellen genau.
+    wahr('Und die Lage bleibt, wie sie eingestellt wurde',
+         fangeAufMasskette(7.123, mO.masskette) === 7.123);
+  }
+
+  // Verkleinert und als JPEG - die Zahlen stehen an einer Stelle.
+  pruef('Verkleinert auf 2000 Punkte Breite', BZ.MAX_BREITE, 2000, 1e-12, 'Punkte');
+  wahr('Und als JPEG mit fester Guete', BZ.GUETE > 0.7 && BZ.GUETE < 0.95,
+       String(BZ.GUETE));
+}
+
+titel('39  Traeger neben den Bindeblechen');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 27. August: "die haengestuetze und jochaufsaetze
+ * duerfen sich nicht mit den verbindungsblechen beruehren. diese sind
+ * automatisch nebenan zu schieben." Dazu: "x auch auf 10 cm runden".
+ *
+ * Betroffen sind genau die TRAEGER - und das steht wieder in den Daten:
+ * `rolle: 'traeger'` tragen die drei Jochaufsaetze und die Haengestuetze,
+ * eben das, was am Joch angeschlagen wird. Ein Drahtwerk haengt an einem
+ * Aufbau und beruehrt das Joch nie.
+ */
+{
+  const CA = await import(J('core.anbauteile.js'));
+  const { konstruktionsChecks: chk } = await import(J('core.checks.js'));
+
+  const wB = basis({ typ: 'J90', L: 20, anbauteile: [] });
+  const mB = modell(wB, getProfil(wB.profOG), getProfil(wB.profUG),
+                    getStahl(wB.stahl), T.getTragjoch('J90'));
+
+  // --- Die Sperrbereiche kommen aus der Stationsliste --------------------
+  const sperren = CA.blechSperren(mB);
+  wahr('Je Station ein Sperrbereich',
+       sperren.length === mB.stationsListe.length, `${sperren.length}`);
+  {
+    const s0 = sperren[0], st0 = mB.stationsListe[0];
+    // Die Blechbreite steht in Millimetern, der Sperrbereich in Metern.
+    pruef('Und er ist so breit wie das Blech',
+          s0.bis - s0.von, st0.vertikal.breite / 1000, 1e-9, 'm');
+    pruef('Mittig auf der Station', (s0.von + s0.bis) / 2, st0.x, 1e-9, 'm');
+  }
+  wahr('Luft vergroessert ihn beidseitig',
+       Math.abs((CA.blechSperren(mB, 0.05)[0].bis - CA.blechSperren(mB, 0.05)[0].von)
+                - (sperren[0].bis - sperren[0].von) - 0.10) < 1e-9);
+
+  // --- Freischieben ------------------------------------------------------
+  {
+    const st = mB.stationsListe[5];          // eine Station in der Jochmitte
+    const b = st.vertikal.breite / 1000;
+    // EINE Klemme genau auf dem Blech: raster 0 heisst, beide fallen zusammen.
+    const r0 = CA.freieLageAmJoch(st.x, 0, mB);
+    wahr('Genau auf dem Blech wird verschoben', r0.verschoben);
+    // Knapp daneben, nicht auf die Kante - und auf Millimeter, damit die Zahl
+    // in eine Zeichnung passt. Gerundet wird nach AUSSEN: nach innen stuende
+    // das Bauteil wieder auf dem Blech.
+    wahr('Und zwar knapp daneben, nicht auf die Kante',
+         Math.abs(r0.x - st.x) > b / 2,
+         `${(r0.x - st.x).toFixed(4)} m gegen halbe Blechbreite ${(b / 2).toFixed(4)}`);
+    wahr('Auf ganze Millimeter',
+         Math.abs(r0.x * 1000 - Math.round(r0.x * 1000)) < 1e-6, String(r0.x));
+    wahr('Mindestens einen Millimeter, nicht auf die Kante',
+         Math.abs(r0.x - st.x) >= b / 2 + 0.001 - 1e-9,
+         String(Math.abs(r0.x - st.x)));
+    wahr('Und nicht weiter als noetig',
+         Math.abs(r0.x - st.x) < b / 2 + 0.0021, String(Math.abs(r0.x - st.x)));
+    // Daneben bleibt daneben.
+    const frei = st.x + 0.30;
+    pruef('Wer frei steht, bleibt stehen', CA.freieLageAmJoch(frei, 0, mB).x,
+          frei, 1e-12, 'm');
+    wahr('Und meldet keine Verschiebung', !CA.freieLageAmJoch(frei, 0, mB).verschoben);
+  }
+
+  /*
+   * ZWEI KLEMMEN, NICHT EINE. Ein Traeger haengt im Abstand `raster`; beide
+   * Klemmen muessen an einem Blech vorbei. Mit raster = Stationsabstand
+   * saessen beide zugleich auf je einem Blech - dann muss die Lage weichen,
+   * obwohl ihre MITTE frei liegt.
+   */
+  {
+    const a1 = mB.stationsListe[1].x - mB.stationsListe[0].x;
+    const mitte = (mB.stationsListe[4].x + mB.stationsListe[5].x) / 2;
+    // Die Mitte zwischen zwei Stationen ist fuer sich frei ...
+    wahr('Die Mitte zwischen zwei Blechen ist frei',
+         !CA.freieLageAmJoch(mitte, 0, mB).verschoben);
+    // ... aber mit einem Raster von einem Stationsabstand sitzen beide
+    // Klemmen auf den Nachbarblechen.
+    const r = CA.freieLageAmJoch(mitte, a1, mB);
+    wahr('Mit dem Raster eines Feldes weicht sie trotzdem', r.verschoben,
+         `${mitte.toFixed(3)} -> ${r.x.toFixed(3)}`);
+  }
+
+  /*
+   * ERST WEITEN, DANN WEICHEN (Weisung, 27. August).
+   *
+   * "Die Joche sind fix, die Anbauteile werden drum herum angebracht. Im
+   * Normalfall stehen die Klemmen 0.40 m, aber sollten diese im Bereich der
+   * Knoten zu liegen kommen, dann ist der Abstand entsprechend zu
+   * vergroessern."
+   *
+   * Die Weitung ist die gebaute Abhilfe: die Stuetze bleibt, wo sie
+   * hingehoert, und ihre Klemmen ueberspannen das Blech.
+   */
+  {
+    const st = mB.stationsListe[6];
+    // Eine Lage, bei der die linke Klemme auf dem Blech sitzt.
+    const x = st.x + 0.20;
+    const an = CA.passeTraegerAn(x, 0.40, mB);
+    wahr('Statt zu verschieben wird geweitet', an.geweitet && !an.verschoben,
+         JSON.stringify(an));
+    pruef('Die Lage bleibt, wo sie ist', an.x, x, 1e-12, 'm');
+    wahr('Und das Raster wird groesser', an.raster > 0.40, String(an.raster));
+    wahr('Auf ganze Millimeter', Math.abs(an.raster * 1000 - Math.round(an.raster * 1000)) < 1e-6);
+    // Beide Klemmen sind danach frei.
+    const sperren = CA.blechSperren(mB);
+    const frei = (p2) => !sperren.some((sp) => p2 > sp.von - 1e-9 && p2 < sp.bis + 1e-9);
+    wahr('Beide Klemmen liegen danach frei',
+         frei(an.x - an.raster / 2) && frei(an.x + an.raster / 2),
+         `${(an.x - an.raster / 2).toFixed(3)} / ${(an.x + an.raster / 2).toFixed(3)}`);
+    // Wer schon frei sitzt, bleibt unangetastet.
+    const ohne = CA.passeTraegerAn(st.x, 0.40, mB);
+    wahr('Wer frei sitzt, behaelt Lage und Raster',
+         !ohne.geweitet && !ohne.verschoben && ohne.raster === 0.40);
+  }
+
+  /*
+   * BEIDE KLEMMEN MUESSEN AUF DEM JOCH BLEIBEN.
+   *
+   * Am wirklichen Querprofil aufgefallen: ein Mass 16 cm vor dem Jochende.
+   * Dort laege die geweitete Klemme JENSEITS des Jochs - ein Anschluss an
+   * nichts. Die Weitung ist dort keine Abhilfe.
+   */
+  {
+    const nahEnde = mB.L - 0.16;
+    const r = CA.freiesRasterAmJoch(nahEnde, 0.40, mB);
+    wahr('So nah am Ende wird nicht geweitet', !r.geweitet,
+         `${nahEnde.toFixed(2)} m -> Raster ${r.raster}`);
+    // Und am Jochanfang ebenso.
+    wahr('Am Jochanfang ebensowenig',
+         !CA.freiesRasterAmJoch(0.16, 0.40, mB).geweitet);
+  }
+
+  // Ohne Bleche gibt es nichts auszuweichen.
+  wahr('Ohne Stationsliste bleibt alles, wie es ist',
+       CA.freieLageAmJoch(3.3, 0.4, {}).x === 3.3);
+
+  // --- Wer ist ein Traeger? ----------------------------------------------
+  {
+    const rolle = (id) => FL.getFlBauteil(id).rolle;
+    const DA = await import(J('data.anbauteile.js'));
+    const hs = DA.getVorlage('hs-nur'), ja = DA.getVorlage('ja-einfach');
+    const tr = DA.getVorlage('leiter-traverse'), rl = DA.getVorlage('leiter-rl');
+    wahr('Die Haengestuetze ist ein Traeger', CA.hatTraeger(hs.module, rolle));
+    wahr('Der Jochaufsatz ebenso', CA.hatTraeger(ja.module, rolle));
+    wahr('Die Traverse nicht', !CA.hatTraeger(tr.module, rolle));
+    wahr('Der Rueckleiter nicht', !CA.hatTraeger(rl.module, rolle));
+    wahr('Ohne Module nichts', !CA.hatTraeger(undefined, rolle));
+  }
+
+  // --- Pruefung P8 -------------------------------------------------------
+  {
+    const st = mB.stationsListe[6];
+    const hs = (await import(J('data.anbauteile.js'))).getVorlage('hs-nur');
+    const teil = (x) => ({ id: 'HS', name: 'Haengestuetze', vorlage: 'hs-nur',
+      x, raster: 0, befestigung: hs.befestigung, aktiv: true,
+      module: JSON.parse(JSON.stringify(hs.module)) });
+    const bau = (x) => {
+      const w = basis({ typ: 'J90', L: 20, anbauteile: [teil(x)] });
+      return modell(w, getProfil(w.profOG), getProfil(w.profUG),
+                    getStahl(w.stahl), T.getTragjoch('J90'));
+    };
+    const drauf = chk(bau(st.x)).find((c) => c.id === 'P8');
+    wahr('P8 faengt eine Klemme auf dem Blech', drauf && drauf.ok === false,
+         drauf?.status);
+    wahr('Und nennt Name und Stelle',
+         /Haengestuetze|Hängestütze/.test(drauf.status)
+         && drauf.status.includes(st.x.toFixed(2)), drauf.status);
+    const frei = chk(bau(st.x + 0.30)).find((c) => c.id === 'P8');
+    wahr('Daneben ist sie erfuellt', frei.ok === true, frei.status);
+    // Ohne Traeger am Joch gibt es nichts zu pruefen - dann steht P8 nicht da.
+    const ohne = chk(mB).find((c) => c.id === 'P8');
+    wahr('Ohne Traeger steht P8 gar nicht in der Liste', ohne === undefined);
+  }
+}
+
+titel('40  Masten und Joch in der Zeichnung erkennen');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 27. August: eine automatische Erkennung von
+ * Masten und Jochen, und die Zeichnung danach selbst ausrichten.
+ *
+ * SIE SCHLAEGT VOR, SIE ENTSCHEIDET NICHT. Eine Zeichnung ist kein Datensatz:
+ * was darauf steht, steht dort fuer einen Menschen. Jede Erkennung ist eine
+ * Vermutung, und eine Vermutung, die sich als Messung ausgibt, waere
+ * schlimmer als gar keine. Das Ergebnis traegt sein Zutrauen bei sich, und
+ * die zwei Klicks bleiben erreichbar.
+ *
+ * GEPRUEFT WIRD AUF NACHGEBAUTEN BLAETTERN. Ein Bild braucht einen Browser;
+ * die Geometrie nicht. Die Erkennung rechnet deshalb auf einer MASKE, und
+ * die laesst sich hier Pixel fuer Pixel hinlegen - mit allem, was auf einem
+ * Querprofil sonst noch steht und die Sache stoeren koennte.
+ */
+{
+  const EK = await import(J('bild.erkennung.js'));
+
+  /** Ein nachgebautes Querprofil: Blatt, Masskette, Joch, Masten, Gleise. */
+  const blatt = (o = {}) => {
+    const B = o.breite ?? 1200, H = o.hoehe ?? 800;
+    const m = new Uint8Array(B * H);
+    const setz = (x, y) => { if (x >= 0 && x < B && y >= 0 && y < H) m[y * B + x] = 1; };
+    const waag = (y, x0, x1, d = 1) => {
+      for (let x = x0; x <= x1; x++) for (let k = 0; k < d; k++) setz(x, y + k);
+    };
+    const senk = (x, y0, y1, d = 1) => {
+      for (let y = y0; y <= y1; y++) for (let k = 0; k < d; k++) setz(x + k, y);
+    };
+    // Der Blattrahmen - er laeuft ueber die ganze Hoehe und Breite und ist
+    // damit der gefaehrlichste Mitbewerber, fuer den Masten wie fuer das Joch.
+    if (o.rahmen !== false) {
+      waag(6, 6, B - 7); waag(H - 7, 6, B - 7);
+      senk(6, 6, H - 7); senk(B - 7, 6, H - 7);
+    }
+    // Masskette: eine lange duenne Waagrechte mit Teilstrichen, ueber dem Joch.
+    if (o.kette !== false) {
+      waag(70, 200, 1000);
+      [200, 260, 420, 560, 700, 830, 940, 1000].forEach((x) => senk(x, 62, 78));
+    }
+    // Das Joch: zwei Gurte mit Fuellstaeben dazwischen.
+    const jochOben = o.jochOben ?? 180, jochUnten = o.jochUnten ?? 194;
+    const xL = o.xL ?? 200, xR = o.xR ?? 1000;
+    waag(jochOben, xL, xR, 3); waag(jochUnten, xL, xR, 3);
+    for (let x = xL; x <= xR; x += 40) senk(x, jochOben, jochUnten + 3, 2);
+    /*
+     * Zwei Masten, verschieden lang - das ist der Normalfall. Sie koennen
+     * aber UEBER das Joch hinauslaufen (`ueberstand`): oben traegt dann jeder
+     * eine Traverse mit einem Einzelleiter. Das ist kein Sonderfall, es steht
+     * so auf den Blaettern - und es hat die erste Fassung der Erkennung zu
+     * Fall gebracht, die den Mastkopf fuer die Jochachse hielt.
+     */
+    const ue = o.ueberstand ?? 0;
+    senk(xL, jochOben - 2 - ue, o.fussL ?? 640, 6);
+    senk(xR, jochOben - 2 - ue, o.fussR ?? 610, 5);
+    if (ue > 0) {
+      waag(jochOben - ue + 6, xL, xL + 70, 3);
+      waag(jochOben - ue + 4, xR - 70, xR, 3);
+    }
+    // Eine Masskette kann auch ZWISCHEN Mastkopf und Joch stehen. Dann hilft
+    // kein Fenster mehr - nur noch, dass ein Joch mehr Tinte traegt.
+    if (o.ketteTief) {
+      const y = jochOben - Math.round(ue / 2);
+      waag(y, xL, xR);
+      [xL, 380, 520, 660, 800, xR].forEach((x) => senk(x, y - 8, y + 8));
+    }
+    // Lichtraumprofile: grosse Kaesten, deren Seiten senkrecht sind.
+    for (let i = 0; i < 3; i++) {
+      const x0 = 300 + i * 220, x1 = x0 + 170, y0 = 300, y1 = 560;
+      waag(y0, x0, x1); waag(y1, x0, x1); senk(x0, y0, y1); senk(x1, y0, y1);
+    }
+    // Terrainlinie, strichpunktiert, und das Schriftfeld.
+    for (let x = 60; x < B - 60; x += 12) waag(600, x, x + 7);
+    waag(700, 60, B - 60); waag(760, 60, B - 60);
+    return { m, B, H, xL, xR, achse: (jochOben + jochUnten + 3) / 2 };
+  };
+
+  // --- Der Normalfall ----------------------------------------------------
+  {
+    const b = blatt();
+    const r = EK.erkenneTragwerk(b.m, b.B, b.H);
+    wahr('Das Tragwerk wird gefunden', !!r);
+    pruef('Der linke Mast sitzt auf seiner Achse', r.p1.px, b.xL + 2.5, 0.6, 'Punkte');
+    pruef('Der rechte ebenso', r.p2.px, b.xR + 2, 0.6, 'Punkte');
+    // Die Achse liegt ZWISCHEN den Gurten, nicht auf einem davon.
+    pruef('Die Jochachse liegt zwischen den Gurten', r.p1.py, b.achse, 0.02, 'Punkte');
+    wahr('Und beide Punkte auf derselben Hoehe', r.p1.py === r.p2.py);
+    wahr('Mit vollem Zutrauen', r.guete > 0.9, r.guete.toFixed(2));
+  }
+
+  /*
+   * DER BLATTRAHMEN IST KEIN MAST - und keine Jochachse.
+   *
+   * Er laeuft ueber die ganze Blatthoehe und schlaegt jeden Masten an Laenge;
+   * seine obere Kante laeuft ueber die ganze Breite und schlaegt jeden Gurt
+   * an Tinte. Beides ist gemessen worden, und beides ging zuerst schief:
+   * die Erkennung fand die Blattkante statt des Jochs.
+   *
+   * Zwei Regeln halten ihn draussen: der aeusserste Rand zaehlt nicht mit,
+   * und das Joch wird am MASTKOPF gesucht statt auf dem ganzen Blatt.
+   */
+  {
+    const mit = EK.erkenneTragwerk(...(() => { const b = blatt(); return [b.m, b.B, b.H]; })());
+    const b2 = blatt({ rahmen: false });
+    const ohne = EK.erkenneTragwerk(b2.m, b2.B, b2.H);
+    wahr('Mit Rahmen und ohne dasselbe Ergebnis',
+         Math.abs(mit.p1.px - ohne.p1.px) < 0.01
+         && Math.abs(mit.p1.py - ohne.p1.py) < 0.01,
+         `${mit.p1.px}/${mit.p1.py} gegen ${ohne.p1.px}/${ohne.p1.py}`);
+    pruef('Und die Achse trifft die Jochmitte', ohne.p1.py, b2.achse, 0.02, 'Punkte');
+  }
+
+  // Die Masskette liegt darueber und ist ebenfalls eine lange Waagrechte -
+  // sie darf die Jochachse nicht an sich ziehen.
+  {
+    const b = blatt(), o = blatt({ kette: false });
+    const rm = EK.erkenneTragwerk(b.m, b.B, b.H);
+    const ro = EK.erkenneTragwerk(o.m, o.B, o.H);
+    wahr('Die Masskette zieht die Achse nicht an sich',
+         Math.abs(rm.p1.py - ro.p1.py) < 0.01, `${rm.p1.py} gegen ${ro.p1.py}`);
+  }
+
+  /*
+   * DER MAST LAEUFT UEBER DAS JOCH HINAUS.
+   *
+   * Gemessen an einem Querprofil J70 E / 15 m auf DP26 und DPM24: beide
+   * Masten ragen ueber das Joch und tragen oben je eine Traverse mit einem
+   * 95Cu. Die erste Fassung ankerte am MASTKOPF - und fand die Traverse:
+   * Jochachse 103 statt 282, Zutrauen 0.10. Sie hat den Vorschlag damit
+   * immerhin verworfen statt ihn zu behaupten, geholfen hat sie nicht.
+   *
+   * Der Anker ist jetzt die ganze Mastlaenge, und gewaehlt wird das
+   * tintenreichste durchlaufende Band darin.
+   */
+  {
+    const b = blatt({ ueberstand: 190 });
+    const r = EK.erkenneTragwerk(b.m, b.B, b.H);
+    wahr('Ein Mast darf ueber das Joch hinausragen', !!r);
+    pruef('Die Traverse ist nicht die Jochachse', r.p1.py, b.achse, 0.5, 'Punkte');
+    wahr('Und das Zutrauen bleibt voll', r.guete > 0.9, r.guete.toFixed(2));
+  }
+
+  /*
+   * DIE MASSKETTE ZWISCHEN MASTKOPF UND JOCH.
+   *
+   * Steht sie dort, liegt sie MITTEN im Suchbereich, und sie fuellt den
+   * Streifen so ganz wie ein Gurt. Dass sie trotzdem verliert, liegt allein
+   * am Band: ein Joch sind zwei Gurte mit Fuellstaeben, eine Masskette ist
+   * ein Strich.
+   */
+  {
+    const o = blatt({ ueberstand: 190 });
+    const k = blatt({ ueberstand: 190, ketteTief: true });
+    const ro = EK.erkenneTragwerk(o.m, o.B, o.H);
+    const rk = EK.erkenneTragwerk(k.m, k.B, k.H);
+    wahr('Eine Masskette im Suchbereich zieht die Achse nicht an sich',
+         Math.abs(rk.p1.py - ro.p1.py) < 0.01, `${rk.p1.py} gegen ${ro.p1.py}`);
+  }
+
+  // --- Was NICHT erkannt werden darf --------------------------------------
+  {
+    const leer = new Uint8Array(400 * 300);
+    wahr('Ein leeres Blatt ergibt nichts',
+         EK.erkenneTragwerk(leer, 400, 300) === null);
+    // Nur ein Mast: kein Joch.
+    const eins = new Uint8Array(400 * 300);
+    for (let y = 40; y < 260; y++) for (let d = 0; d < 4; d++) eins[y * 400 + 200 + d] = 1;
+    wahr('Ein einzelner Mast ergibt nichts',
+         EK.erkenneTragwerk(eins, 400, 300) === null);
+    // Zwei Masten zu nah beieinander: das waere kein Joch.
+    const nah = new Uint8Array(400 * 300);
+    [200, 230].forEach((x) => {
+      for (let y = 40; y < 260; y++) for (let d = 0; d < 4; d++) nah[y * 400 + x + d] = 1;
+    });
+    wahr('Zwei Masten dicht nebeneinander ebenso',
+         EK.erkenneTragwerk(nah, 400, 300) === null);
+  }
+
+  /*
+   * DAS ZUTRAUEN MUSS SINKEN, wenn die Sache nicht eindeutig ist.
+   *
+   * Steht ein dritter, ebenso langer senkrechter Strich auf dem Blatt - ein
+   * Signalmast, ein Kandelaber, ein angeschnittenes Nachbartragwerk -, dann
+   * ist nicht mehr klar, welche zwei gemeint sind. Genau dann soll die
+   * Erkennung nicht behaupten, sie wisse es.
+   */
+  {
+    const b = blatt();
+    const r1 = EK.erkenneTragwerk(b.m, b.B, b.H);
+    const d = blatt();
+    for (let y = 178; y < 640; y++) {
+      for (let k = 0; k < 6; k++) d.m[y * d.B + 600 + k] = 1;
+    }
+    const r2 = EK.erkenneTragwerk(d.m, d.B, d.H);
+    wahr('Ein dritter langer Strich senkt das Zutrauen',
+         r2 && r2.guete < r1.guete, `${r1.guete.toFixed(2)} -> ${r2?.guete.toFixed(2)}`);
+  }
+
+  // --- Rot ist dunkel -----------------------------------------------------
+  /*
+   * Auf einem Querprofil ist das NEUE rot gezeichnet - und der Mast, den man
+   * sucht, ist oft genau das. Reines Rot hat eine wahrgenommene Helligkeit
+   * von 76: deutlich unter der Schwelle, obwohl sein Rotkanal voll
+   * ausgesteuert ist. Wer nur den Rotkanal prueft, saehe es als hell.
+   */
+  {
+    const px = (r, g, bl, a = 255) => [r, g, bl, a];
+    const daten = new Uint8ClampedArray([
+      ...px(0, 0, 0), ...px(255, 0, 0), ...px(255, 255, 255),
+      ...px(200, 200, 200), ...px(0, 0, 255), ...px(255, 255, 255, 0),
+    ]);
+    const maske = EK.maskeAusBild(daten, 6, 1);
+    wahr('Schwarz ist dunkel', maske[0] === 1);
+    wahr('Rot auch', maske[1] === 1);
+    wahr('Weiss nicht', maske[2] === 0);
+    wahr('Helles Grau nicht', maske[3] === 0);
+    wahr('Blau schon', maske[4] === 1);
+    wahr('Durchsichtiges gilt als hell', maske[5] === 0);
   }
 }
 

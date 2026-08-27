@@ -43,6 +43,7 @@
 
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
+import { verortung, verortungKurz } from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
@@ -87,10 +88,14 @@ export const KNOTENMODELLE = [
  * ein eigener Nachweis in der Anwendung (Prüfung A1, Gurtanschluss am Mast).
  */
 export const AUFLAGERMODELLE = [
+  { key: 'mast',
+    label: 'Mast im Modell: Starrkörper je Gurtebene, Linkelement zum Mast '
+         + '(Kräfte starr, Momente frei), Fundament eingespannt',
+    braucht: 'mast' },
   { key: 'gurte',
-    label: 'Gurte einzeln: Untergurte x/y/z, Obergurte x/y (ohne Einspannung)' },
+    label: 'Gurte einzeln: Untergurte y/z, Obergurte nur y (ohne Einspannung)' },
   { key: 'mitte',
-    label: 'Mitte der Gurtebenen vorn und hinten, x/y/z, Gelenk um y (Altbauweise)' },
+    label: 'Mitte der Gurtebenen vorn und hinten, y/z, Gelenk um y (Altbauweise)' },
   { key: 'punkt',
     label: 'Ein Punkt je Ende mit Drehfeder (Abgleich mit dem Ersatzbalken)' },
 ];
@@ -264,6 +269,37 @@ function gurtQuerschnitt(p, gurt) {
     Iz: (p.iz * p.iz * p.A) / 1e8,
     // St-Venant des offenen Winkels: I_t = Σ b·t³/3
     It: ((p.aH + p.aV) * p.t ** 3) / 3 / 1e12,
+  };
+}
+
+/**
+ * Querschnittsdefinition eines Mastprofils (HEB/HEM).
+ *
+ * DER AUSRUNDUNGSRADIUS STEHT NICHT IN DER TABELLE - ER FOLGT AUS IHR.
+ *
+ * AxisVM legt das I-Profil parametrisch an (`CrossSections.AddI`, vermessen
+ * am 27.08.: Name, h, b, tw, tf, R, Process). Die Profiltabelle dieses
+ * Werkzeugs führt R nicht, wohl aber die FLÄCHE - und die Fläche bestimmt R
+ * eindeutig:
+ *
+ *     A = 2·b·tf + (h - 2·tf)·tw + (4 - π)·R²
+ *
+ * Nach R aufgelöst ergibt das für HEB 200/220/240/260 und HEM 240 der Reihe
+ * nach 18.1, 17.9, 21.0, 23.9, 21.0 mm - genau die Radien der Norm. Gerechnet
+ * wird mit dem unrunden Wert, damit die Fläche im Modell die Zahl der Tabelle
+ * trifft: die Brücke liest sie zurück und hält an, wenn sie abweicht.
+ */
+function mastQuerschnitt(p) {
+  const rest = p.A * 100 - 2 * p.b * p.tf - (p.h - 2 * p.tf) * p.tw;
+  const R = rest > 0 ? Math.sqrt(rest / (4 - Math.PI)) : 0;
+  return {
+    name: `MAST_${p.name.replace(/\s+/g, '')}`, art: 'Parametric', form: 'I',
+    parameter: [p.h, p.b, p.tw, p.tf, r6(R)],
+    profil: p.name,
+    A: p.A / 1e4,                                   // cm2 -> m2
+    Iy: p.Iy / 1e8,                                 // cm4 -> m4
+    Iz: p.Iz / 1e8,
+    It: p.It / 1e8,
   };
 }
 
@@ -612,8 +648,8 @@ export function stabmodell(m, opt = {}) {
   // Drei Modelle, weil das Jochende die Stelle ist, an der Rechenkern und
   // Bauwerk am weitesten auseinanderliegen.
   //
-  //   gurte  Die vier Gurte einzeln gehalten: Untergurte x/y/z, Obergurte
-  //          nur x/y. Ohne lotrechten Halt am Obergurt entsteht kein
+  //   gurte  Die vier Gurte einzeln gehalten: Untergurte y/z, Obergurte
+  //          nur y. Ohne lotrechten Halt am Obergurt entsteht kein
   //          Kräftepaar - das Ende bleibt biegeweich, so wie es aufliegt.
   //          Keine Gelenke nötig: die Gurte haben Abstand und sind einzeln
   //          gehalten.
@@ -621,7 +657,7 @@ export function stabmodell(m, opt = {}) {
   //   mitte  Für die Altbauweise. Dort stehen Ober- und Untergurt so eng,
   //          dass ein Kräftepaar über diesen kurzen Hebel das Ergebnis
   //          verfälschte. Gehalten wird deshalb auf halber Höhe in den
-  //          beiden Gurtebenen vorn und hinten, x/y/z, mit Gelenk um y.
+  //          beiden Gurtebenen vorn und hinten, y/z, mit Gelenk um y.
   //
   //   punkt  Ein Punkt je Ende auf der Jochachse, über ein steifes Schott
   //          an die vier Gurte gehängt, mit der Drehfeder des Mastkopfes.
@@ -629,16 +665,41 @@ export function stabmodell(m, opt = {}) {
   //          der Kalibrierung, nicht das Bauwerk.
   const am = opt.auflagerModell ?? auflagerVorgabe(m);
   const auflager = [];
+  // Baugruppen, deren Masthöhe ausserhalb des Mastes liegt - sie werden
+  // NICHT gebaut, und das Modell soll es sagen statt sie stillschweigend
+  // wegzulassen.
+  const anbauMastAus = [];
+  // Fundamenthöhe je Ende: die Anbauhöhen zählen von dort.
+  const mastFuss = {};
+  /*
+   * GENAU EIN KNOTEN HÄLT DAS JOCH IN SEINER ACHSE (Weisung).
+   *
+   * Mehr verlangt das Gleichgewicht in Jochrichtung nicht, und jeder weitere
+   * Längshalt ist ein Zwang: zwei Knoten auf verschiedener HÖHE sperren die
+   * Verdrehung um y, zwei auf verschiedener SEITE die um z. Genau daran ist
+   * das Gurtmodell aufgefallen - vier gehaltene Gurtknoten am Ende A ergaben
+   * unter symmetrischer Last -42.6 kNm, am freien Ende B +2.9 kNm: eine
+   * Einspannung, die niemand eingestellt hatte.
+   *
+   * Als Ganzes verdreht sich das Joch trotzdem nicht. Die Torsion hängt an
+   * den `uy` eines Endes, die Drehung um z an den `uy` beider Enden, die um y
+   * an den `uz` beider Enden. Der Längshalt trägt zu keiner davon bei - er
+   * hält nur die Verschiebung in x, und dafür reicht einer.
+   *
+   * Der Anker sitzt am Ende A. Welcher Knoten es dort ist, ändert am System
+   * nichts; gewählt ist der Untergurt, weil dort auch der lotrechte Halt
+   * sitzt und eine Längskraft so nicht über einen freien Gurt eintritt.
+   */
+  let laengsAnker = null;
   ['A', 'B'].forEach((ende, k) => {
     const x = k === 0 ? 0 : r6(m.L);
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
-    const laengs = ende === 'A' ? 'Rigid' : 'Free';   // ein Ende längs frei
     const halt = (knoten, uz, fiy, c) => auflager.push({
       // h wird mitgeführt, weil die TEILWEISE EINSPANNUNG hier nicht als
       // Drehfeder ankommt, sondern als Kräftepaar zwischen den Gurten - und
       // dessen Hebelarm ist genau diese Jochhöhe (siehe stuetzung).
       ende, x, h: r6(h), modell: am, knoten,
-      ux: laengs, uy: 'Rigid', uz,
+      ux: knoten === laengsAnker ? 'Rigid' : 'Free', uy: 'Rigid', uz,
       fix: 'Free', fiy, fiz: 'Free', feder: c ?? null,
     });
 
@@ -649,8 +710,9 @@ export function stabmodell(m, opt = {}) {
                mitte, gurtKnoten(gurt, seite, x));
       }));
       // Gabellagerung: Torsion gehalten, Vertikalbiegung über die Drehfeder.
+      if (ende === 'A') laengsAnker = mitte;
       auflager.push({ ende, x, modell: am, knoten: mitte,
-                      ux: laengs, uy: 'Rigid', uz: 'Rigid',
+                      ux: mitte === laengsAnker ? 'Rigid' : 'Free', uy: 'Rigid', uz: 'Rigid',
                       fix: 'Rigid', fiy: 'Feder', fiz: 'Free', feder: 'cFiy' });
       return;
     }
@@ -666,8 +728,144 @@ export function stabmodell(m, opt = {}) {
         });
         // Gelenk um y: der kurze Hebel zwischen den Gurten darf keine
         // Einspannung vortäuschen.
+        if (ende === 'A' && seite === 'L') laengsAnker = n;
         halt(n, 'Rigid', 'Free', null);
       });
+      return;
+    }
+
+    if (am === 'mast') {
+      /*
+       * DER MAST STEHT IM MODELL (Weisung).
+       *
+       * Bis hierher endete das Joch an einem Lager - einem Punkt mit
+       * Drehfeder oder vier gehaltenen Gurtknoten. Die Feder war eine Zahl
+       * aus E·I/H; wo sie herkam, sah man dem Modell nicht an. Hier steht
+       * statt ihrer der Mast selbst, und die Steifigkeit entsteht, wo sie
+       * hingehört.
+       *
+       * AUFBAU JE ENDE
+       *   Mastachse in der Jochendebene (x = 0 bzw. x = L), y = 0.
+       *   Knoten auf Höhe Obergurt, Untergurt und Fundament.
+       *   Je Gurtebene: ein STARRKÖRPER über die beiden Gurte auf einen
+       *   Anschlusspunkt, von dort ein LINKELEMENT an den Mast.
+       *
+       * WAS DAS LINKELEMENT ÜBERTRÄGT (Weisung): Kräfte starr, Momente frei.
+       * Zwei solche Anschlüsse im Abstand der Jochhöhe ergeben das
+       * Kräftepaar, das im Ersatzbalken die Drehfeder vertritt - nur dass
+       * es hier aus der Biegung des Mastes zwischen den beiden Höhen folgt.
+       *
+       * WARUM DER ANSCHLUSSPUNKT 10 cm EINWÄRTS SITZT. Ein Linkelement
+       * braucht in AxisVM eine LINIE, und eine Linie braucht Länge; läge der
+       * Anschlusspunkt auf der Mastachse, wäre sie null. Verschoben wird
+       * deshalb der Anschlusspunkt nach INNEN, nicht die Mastachse nach
+       * aussen - die Stützweite bleibt damit die des Rechenkerns. 10 cm ist
+       * dasselbe Mass, das der Auftraggeber schon für die Linkelemente der
+       * Anbauteile gesetzt hat.
+       *
+       * NACHGEMESSEN (AxisVM 18 r1k, 27.08.). J90 über 20 m, Schnee
+       * 1.0 kN/m, HEB 240 mit H = 7.00 m, Steg in Jochachse:
+       *
+       *   Feldmoment im Modell        27.60 kNm
+       *   Feldmoment der Anwendung    29.51 kNm  (c_φ = 3.10·E·I/H)
+       *
+       * Aus dem Feldmoment rückgerechnet beträgt die wirksame Drehfeder des
+       * gebauten Mastes 13 456 kNm/rad, also 3.98·E·I/H. Das ist der
+       * Lehrbuchwert 4.00 des unverschieblichen Rahmens auf ein halbes
+       * Prozent - und damit ist dieser Aufbau gegen die Theorie belegt:
+       * Geometrie, Querschnitt, Anschluss und Einspannung stimmen.
+       *
+       * >>> Der Rechenkern rechnet mit 3.10, also 22 % weicher. Das ist kein
+       * Fehler dieses Modells, sondern die offene Frage, wie fest das
+       * Fundament wirklich hält: 4.00 gilt für die volle Einspannung, die
+       * hier Weisung ist. Am Feldmoment macht es -6.5 %, am Stützmoment
+       * +9.3 %. Entscheidung des Auftraggebers. <<<
+       *
+       * DER LÄNGSANKER GILT HIER NICHT. Oben hält genau ein Knoten das Joch
+       * in seiner Achse, damit kein Zwang entsteht. Hier halten beide
+       * Fundamente - aber über die Biegung zweier Maste, also weich. Das ist
+       * das wirkliche Tragwerk und kein Zwang: dehnt sich das Joch, geben
+       * die Mastköpfe nach.
+       */
+      const md = ende === 'A' ? (m.federn?.mastA ?? m.federn?.mast)
+                              : (m.federn?.mastB ?? m.federn?.mast);
+      if (!md) {
+        throw new Error('Das Auflagermodell «Mast» braucht einen Mast. '
+          + 'Unter Endauflager «teilweise eingespannt (Mast)» wählen.');
+      }
+      const qsMast = s.qs(mastQuerschnitt(md.profil));
+      // Der Mastkopf sitzt auf der JOCHACHSE: dort misst der Rechenkern
+      // seine Höhe H, und dort greift im Ersatzbalken die Drehfeder an.
+      const zUnten = r6(zOben - h);
+      const kOG = s.kn(`MAST_${ende}_OG`, x, 0, zOben);
+      const kUG = s.kn(`MAST_${ende}_UG`, x, 0, zUnten);
+      const zFuss = r6(zOben - h / 2 - md.H);
+      mastFuss[ende] = zFuss;
+      const kFuss = s.kn(`MAST_${ende}_F`, x, 0, zFuss);
+      /*
+       * DIE DREHLAGE DES PROFILS FOLGT DER STEGRICHTUNG.
+       *
+       * AxisVM legt das I-Profil mit der Höhe h in der lokalen z-Richtung
+       * an. Der Stab steht lotrecht, also ist die lokale y-Achse waagrecht.
+       *   lcsZ = [1,0,0]  -> h in der Jochachse, starke Achse quer
+       *                      («Steg in Jochachse»)
+       *   lcsZ = [0,1,0]  -> h in Gleisrichtung, schwache Achse quer
+       * Dieselbe Unterscheidung, die `mastSteifigkeit` über I_y bzw. I_z
+       * trifft - hier als Geometrie statt als Zahl.
+       */
+      const lcsMast = md.stegrichtung.achse === 'y' ? [1, 0, 0] : [0, 1, 0];
+
+      /*
+       * DER MAST WIRD DORT GETEILT, WO ETWAS AN IHM HÄNGT.
+       *
+       * Ein Anbauteil braucht einen Knoten auf der Mastachse; ein Stab, der
+       * vom Fundament bis zum Untergurt durchläuft, hat dort keinen. Also
+       * werden die Anbauhöhen in die Knotenliste des Mastes aufgenommen und
+       * der Mast stückweise gebaut - dieselbe Rechnung, nur mit mehr
+       * Stützstellen.
+       *
+       * Ausserhalb der Mastlänge liegende Höhen fallen weg; sie wären ein
+       * Anbauteil in der Luft. Der Bericht sagt es über `anbauMastAus`.
+       */
+      const mastKn = new Map([[r6(zFuss), kFuss], [zUnten, kUG], [zOben, kOG]]);
+      const ausserhalb = [];
+      (m.anbauMast ?? []).forEach((a) => {
+        if ((a.ort === 'mastB' ? 'B' : 'A') !== ende) return;
+        const zA = r6(zFuss + (a.hMast ?? 0));
+        if (zA < zFuss - 1e-9 || zA > zOben + 1e-9) {
+          ausserhalb.push({ name: a.name ?? a.id, ende, hMast: a.hMast ?? 0,
+                            H: md.H });
+          return;
+        }
+        if (!mastKn.has(zA)) {
+          mastKn.set(zA, s.kn(`MAST_${ende}_H${mastKn.size - 2}`, x, 0, zA));
+        }
+      });
+      anbauMastAus.push(...ausserhalb);
+      const zStufen = [...mastKn.keys()].sort((p1, p2) => p1 - p2);
+      for (let i = 0; i < zStufen.length - 1; i++) {
+        s.stab(`MAST_${ende}_S${i + 1}`, qsMast,
+               mastKn.get(zStufen[i]), mastKn.get(zStufen[i + 1]),
+               { lcsZ: lcsMast });
+      }
+
+      const einwaerts = ende === 'A' ? LINK_LAENGE : -LINK_LAENGE;
+      [['OG', kOG, zOben], ['UG', kUG, zUnten]].forEach(([gurt, kMast, zG]) => {
+        const ans = s.kn(`ANS_${ende}_${gurt}`, r6(x + einwaerts), 0, zG);
+        ['L', 'R'].forEach((seite) => {
+          s.stab(`STARR_${ende}_${gurt}${seite}`, qsStarr,
+                 gurtKnoten(gurt, seite, x), ans, { starrRolle: 'verbindung' });
+        });
+        s.stab(`LINK_${ende}_${gurt}`, qsStarr, ans, kMast,
+               { starrRolle: 'uebergang',
+                 kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+                          xx: 'Free', yy: 'Free', zz: 'Free' } });
+      });
+
+      // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
+      auflager.push({ ende, x, h: r6(h), modell: am, knoten: kFuss,
+                      ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                      fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid', feder: null });
       return;
     }
 
@@ -691,25 +889,30 @@ export function stabmodell(m, opt = {}) {
      * ein ganz anderes System als der Ersatzbalken, dessen Feder am
      * Auflagerpunkt der Achse sitzt.
      *
-     * DIE MESSUNG HAT NOCH ETWAS ANDERES GEZEIGT, und das ist der schwerere
-     * Befund: dieses Modell ist an den beiden Enden VERSCHIEDEN. Am Ende A
-     * sind alle vier Gurtknoten in x gehalten, am Ende B keiner ("ein Ende
-     * längs frei"). Eine Verdrehung um y verschiebt Ober- und Untergurt aber
-     * GEGENLÄUFIG in x - vier Festhaltungen sperren sie damit weitgehend.
-     * Ende A steht mit -42.6 kNm nahezu eingespannt da, Ende B mit +2.9 kNm
-     * nahezu gelenkig, unter symmetrischer Last. Der Vermerk oben («das Ende
-     * bleibt biegeweich») trifft nur auf Ende B zu.
-     *
-     * Das ist eine Frage an den Auftraggeber und keine, die sich hier
-     * nebenbei entscheiden lässt. Bis dahin bleibt das Modell, wie es war -
-     * eine Feder, die nichts tut, wäre schlimmer als keine: sie sähe aus wie
-     * eine Übertragung.
+     * DIE MESSUNG HAT NOCH ETWAS ANDERES GEZEIGT, und das war der schwerere
+     * Befund: das Modell stand an den beiden Enden VERSCHIEDEN da. Am Ende A
+     * waren alle vier Gurtknoten in x gehalten, am Ende B keiner. Eine
+     * Verdrehung um y verschiebt Ober- und Untergurt aber GEGENLÄUFIG in x -
+     * vier Festhaltungen sperrten sie damit weitgehend, und Ende A war unter
+     * symmetrischer Last nahezu eingespannt, ohne dass das jemand eingestellt
+     * hätte. Das ist behoben: nur noch EIN Knoten hält in x (siehe
+     * `laengsAnker` oben), und das Ende ist wieder so weich, wie der Vermerk
+     * es beschreibt.
      *
      * WER TEILWEISE EINSPANNUNG BRAUCHT, nimmt `punkt`. Dort ist sie
      * nachgemessen: Feldmoment 28.28 gegen 27.88 kNm der Anwendung (+1.4 %),
      * und über das Gleichgewicht M_A = 50.00 - 28.28 = 21.72 gegen 22.12
-     * (-1.8 %).
+     * (-1.8 %). Das Gurtmodell kann sie nicht tragen und soll es auch nicht:
+     * es zeigt die LASTEINLEITUNG in die vier Gurte, nicht den Rahmen.
+     *
+     * WENN DER MAST INS MODELL KOMMT, wird dieses Ende der Ort dafür. Dann
+     * tritt an die Stelle der Punktlager je GURTEBENE ein Starrkörper über
+     * die beiden Gurtknoten und ein Linkelement zum Mast - zwei Anschlüsse
+     * im Abstand der Jochhöhe. Das Kräftepaar, das die Drehfeder heute
+     * ersetzt, entsteht dort von selbst, und die Steifigkeit stammt aus dem
+     * Mast statt aus einer Zahl. Bis dahin bleibt es bei den Punktlagern.
      */
+    if (ende === 'A') laengsAnker = gurtKnoten('UG', 'L', x);
     ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
       halt(gurtKnoten(gurt, seite, x), gurt === 'UG' ? 'Rigid' : 'Free',
            'Free', null);
@@ -951,8 +1154,66 @@ export function stabmodell(m, opt = {}) {
     }
   });
 
+  /*
+   * ANBAUTEILE AM MASTEN (Weisung, 27. August).
+   *
+   * Dieselbe Kette wie am Joch - Träger, Aufbau, Drahtwerk -, nur mit einer
+   * anderen Wurzel: einem Knoten auf der Mastachse statt einem Punkt am
+   * Jochende. Gebaut wird sie mit demselben `anbauKette` aus dem Rechenkern;
+   * eine zweite Fassung war schon einmal der Grund, warum Bild und Modell
+   * verschiedene Tragwerke zeigten.
+   *
+   * DIE WURZEL IST DER MASTKNOTEN SELBST. Am Joch hängt die Baugruppe an
+   * einem Anschlusskasten über zwei Reihen; am Masten gibt es nichts
+   * dergleichen - das Teil ist an den Masten geschraubt, und das ist EINE
+   * Stelle. Deshalb kein Kasten, kein Raster, keine zweite Reihe.
+   *
+   * GESPIEGELT AM ENDE B. Die Teile tragen ihre Ausladung in +x, weil sie am
+   * Joch nach aussen zeigen. Am Mast B liegt «aussen» in -x; die Kette wird
+   * deshalb dort an der Mastachse gespiegelt. Sonst stünde jede Traverse am
+   * falschen Ende über dem Gleis.
+   *
+   * OHNE MAST IM MODELL passiert hier nichts: die anderen Auflagermodelle
+   * enden am Lager, es gibt keinen Masten zum Anhängen. Der Rechenkern hat
+   * die Teile ohnehin herausgenommen (core.vierendeel.js), und die Prüfung
+   * sagt es.
+   */
+  if (am === 'mast') {
+    // Gruppiert wie am Joch: die Baugruppe haelt zusammen, was zusammengehoert.
+    const mastGruppen = new Map();
+    (m.anbauMastFlach ?? []).forEach((t) => {
+      const schluessel = t.baugruppe ?? t.id;
+      const da = mastGruppen.get(schluessel);
+      if (da) { da.teile.push(t); return; }
+      mastGruppen.set(schluessel, { ...t, teile: [t] });
+    });
+    [...mastGruppen.values()].forEach((a, k) => {
+      const ende = a.ort === 'mastB' ? 'B' : 'A';
+      const xM = ende === 'A' ? 0 : r6(m.L);
+      const spiegel = ende === 'A' ? +1 : -1;
+      const wurzelKn = [...s.knoten.entries()].find(([nm, kn]) =>
+        nm.startsWith(`MAST_${ende}_`)
+        && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
+      if (!wurzelKn) return;               // ausserhalb - schon vermerkt
+      // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
+      const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0 });
+      const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
+      kette.glieder.forEach((g) => {
+        const kn = s.kn(`AM${k}_${g.bis.nr}`,
+                        r6(xM + spiegel * g.bis.x), r6(g.bis.y),
+                        r6(wurzelKn[1].z + g.bis.z));
+        knotenVon.set(g.bis, kn);
+        s.stab(`ARMM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
+               opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
+                               : { starrRolle: 'anbauteil' });
+      });
+      kette.belegung.forEach(({ teil, punkt }) =>
+        arme.push({ teil, knoten: knotenVon.get(punkt) }));
+    });
+  }
+
   return { ...s, auflager, arme, knotenmodell: km, zOben, verschoben,
-           ausKnotenVermerk, zweiPunktAnschluss,
+           ausKnotenVermerk, zweiPunktAnschluss, anbauMastAus,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -1021,6 +1282,33 @@ export function lasten(m, bau, opt = {}) {
       });
   });
 
+  /*
+   * DER WIND AUF DEN MAST IST KEINE OPTION (Weisung).
+   *
+   * Steht der Mast im Modell, ist er ein Teil des Tragwerks und wird belastet
+   * wie das Joch - in BEIDEN Richtungen, jede in ihrem Lastfall. Fehlte die
+   * Last, wäre der Mast ein Bauteil, das nur hält und nie drückt, und das
+   * Modell sähe vollständig aus, während es die halbe Einwirkung nicht kennt.
+   *
+   * Es gibt nichts zu belasten, solange kein Mast im Modell steht: die
+   * anderen Auflagermodelle enden am Lager. Dort trägt der Ersatzbalken die
+   * Wirkung weiterhin als aufgezwungene Auflagerverdrehung - wenn sie
+   * eingeschaltet ist.
+   */
+  const mastStaebe = bau.staebe.filter((st) => /^MAST_[AB]_/.test(st.name));
+  if (mastStaebe.length && m.mastLast) {
+    mastStaebe.forEach((st) => {
+      const ende = st.name[5];                       // MAST_A_... / MAST_B_...
+      const w = m.mastLast[ende];
+      if (!w) return;
+      [['WindX', 'X', w.x], ['WindY', 'Y', w.y]].forEach(([gruppe, richtung, wert]) => {
+        if (!(wert > 0)) return;
+        strecke.push({ name: `Q_${gruppe}_${st.name}`, stab: st.name,
+                       richtung, wert: r6(wert), lastfall: gruppe });
+      });
+    });
+  }
+
   // Anbauteile: Kraft und Moment am wirklichen Angriffspunkt.
   bau.arme.forEach((arm, k) => {
     EINWIRKUNGEN.forEach((e) => {
@@ -1075,7 +1363,7 @@ const kopf = (namen) => namen.map((n) => ({ v: n, s: STIL.KOPF }));
  * dem Namen `cFiy`, und das JSON für die COM-Brücke wies ihn als kNm/rad aus.
  * Wer danach gebaut hätte, bekäme eine tausendmal zu weiche Feder.
  */
-function stuetzung(m, lager) {
+export function stuetzung(m, lager) {
   const ende = lager.ende ?? lager;
   /*
    * DIE GEOMETRISCHE FEDER, NICHT DIE BEGRENZTE (Weisung).
@@ -1419,6 +1707,9 @@ export function axisvmMappe(inp, deps, opt = {}) {
   const { blaetter, bau } = safBlaetter(m, { ...opt, knotenmodell: km });
 
   return {
+    // Das Modell wandert mit: der Dateiname nennt das Auflagermodell, und
+    // dessen Vorgabe haengt an der Bauweise (siehe auflagerVorgabe).
+    modell: m,
     blaetter: [anleitungsblatt(m, { knotenmodell: km }), ...blaetter,
                vergleichsblatt(m, proGruppe, { knotenmodell: km })],
     kennzahlen: {
@@ -1434,9 +1725,8 @@ export function axisvmMappe(inp, deps, opt = {}) {
  * Berichtsmodul: die DOM-Schicht soll den XLSX-Schreiber nicht kennen.
  */
 export function exportiereAxisvm(inp, deps, opt = {}) {
-  const { blaetter, kennzahlen } = axisvmMappe(inp, deps, opt);
-  const km = opt.knotenmodell ?? 'anschnitt';
-  const name = `AxisVM_${inp.typ ?? 'frei'}_L${Number(inp.L).toFixed(1)}m_${km}.xlsx`;
+  const { blaetter, kennzahlen, modell: m } = axisvmMappe(inp, deps, opt);
+  const name = dateiname(inp, opt, m, 'xlsx');
   herunterladen(arbeitsmappe(blaetter), name);
   return { name, kennzahlen };
 }
@@ -1574,6 +1864,9 @@ export function stabmodellJson(m, opt = {}) {
   // Lokale z-Richtung je Stab: dieselbe Regel wie im SAF-Blatt. Sie entscheidet,
   // wie herum ein Blechrechteck steht - die Breite muss in die Jochachse.
   const lcs = (stab) => {
+    // Wer seine Drehlage selbst mitbringt, behaelt sie - der Mast tut das,
+    // seine Stegrichtung steht in der Eingabe und nicht in dieser Regel.
+    if (stab.lcsZ) return stab.lcsZ;
     const a = bau.knoten.get(stab.von), b = bau.knoten.get(stab.bis);
     const laengs = Math.abs(b.x - a.x) >= Math.max(Math.abs(b.y - a.y),
                                                    Math.abs(b.z - a.z));
@@ -1682,7 +1975,22 @@ export function stabmodellJson(m, opt = {}) {
       zweiPunktAnschluss: (bau.zweiPunktAnschluss ?? []).map((v) => ({
         name: v.name, x: r6(v.x), ebene: v.ebene,
       })),
-      bezeichnung: `Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
+      /*
+       * NICHT GEBAUTE BAUGRUPPEN AM MASTEN.
+       *
+       * Eine Anbauhöhe ausserhalb des Mastes ist ein Teil in der Luft. Es
+       * wird nicht gebaut - und das steht hier, statt still zu fehlen. Die
+       * Brücke liest es und sagt es im Bericht.
+       */
+      anbauMastAus: (bau.anbauMastAus ?? []).map((v) => ({
+        name: v.name, ende: v.ende, hMast: r6(v.hMast), mastH: r6(v.H),
+      })),
+      // WO DAS TRAGWERK STEHT. Eigene Felder, damit sie maschinell lesbar
+      // bleiben, und zusaetzlich in der Bezeichnung - die traegt der Bericht
+      // der Bruecke als Kopfzeile, und dort will man sie lesen koennen.
+      linie: m.linie ?? '', km: m.km ?? '', ortschaft: m.ortschaft ?? '',
+      bezeichnung: [`Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
+                    verortung(m)].filter(Boolean).join(' — '),
     },
     material: { name: stahl, art: 'Steel', rho: 7850, E: 210000, G: 81000,
                 nu: 0.3, alpha: 0.000012, fy: m.stahl.fy ?? null },
@@ -1749,6 +2057,27 @@ export function stabmodellJson(m, opt = {}) {
 }
 
 /** Baut das JSON und lädt es herunter. */
+/**
+ * Dateiname einer Ausleitung.
+ *
+ * DER NAME MUSS SAGEN, WAS DRIN STEHT. Knotenmodell und Auflagermodell
+ * ändern das Tragwerk, nicht nur eine Einstellung - zwei Ausleitungen
+ * desselben Jochs sind verschiedene Modelle. Standen sie unter demselben
+ * Namen, legte der Browser die zweite als «… (1).json» ab, und welche
+ * welche war, wusste hinterher niemand mehr. Die COM-Brücke nimmt die
+ * jüngste Modelldatei; damit das eine verlässliche Regel ist, muss der Name
+ * die Unterscheidung tragen.
+ */
+function dateiname(inp, opt, m, endung) {
+  const km = opt.knotenmodell ?? 'anschnitt';
+  const am = opt.auflagerModell ?? auflagerVorgabe(m);
+  // Die Verortung zuerst: so stehen die Tragwerke eines Projekts im Ordner
+  // beieinander, statt sich nach dem Jochtyp zu sortieren.
+  const wo = verortungKurz(inp);
+  return `AxisVM${wo ? `_${wo}` : ''}_${inp.typ ?? 'frei'}`
+       + `_L${Number(inp.L).toFixed(1)}m_${km}_${am}.${endung}`;
+}
+
 export function exportiereJson(inp, deps, opt = {}) {
   const { modell, profOG, profUG, stahl, joch } = deps;
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
@@ -1756,8 +2085,7 @@ export function exportiereJson(inp, deps, opt = {}) {
   // Modell selbst führt sie nicht mit.
   opt = { ...opt, eingabe: inp };
   const d = stabmodellJson(m, opt);
-  const km = opt.knotenmodell ?? 'anschnitt';
-  const name = `AxisVM_${inp.typ ?? 'frei'}_L${Number(inp.L).toFixed(1)}m_${km}.json`;
+  const name = dateiname(inp, opt, m, 'json');
   const blob = new Blob([JSON.stringify(d, null, 1)],
                         { type: 'application/json' });
   const a = document.createElement('a');
@@ -1872,18 +2200,28 @@ export function zuordnungsblatt(m, dxf, opt = {}) {
     + 'Eigengewicht abschalten. Wer echte Starrelemente bevorzugt, ersetzt sie.');
   p();
 
-  t('2 · Auflager (Ebene AUFLAGER, zwei Punkte)');
+  /*
+   * DIE FREIHEITSGRADE DES MODELLS, NICHT DIE DER GABELLAGERUNG.
+   *
+   * Hier stand `stuetzung(m, a.ende)` - also nur der BUCHSTABE. Damit war
+   * `lager.ux` undefiniert, jedes Lager fiel in die Vorgabe, und das Blatt
+   * beschrieb den Ersatzbalken, während die DXF-Datei daneben das
+   * Gurtmodell trug. Dieselbe Verwechslung wie im SAF-Blatt (siehe dort).
+   */
+  t(`2 · Auflager (Ebene AUFLAGER, ${dxf.bau.auflager.length} Punkte, `
+    + `Modell ${dxf.bau.auflager[0]?.modell ?? '?'})`);
   p(...kopf(['Punkt', 'X [m]', 'Y [m]', 'Z [m]', 'ux', 'uy', 'uz', 'φx', 'φy', 'φz',
              'c_φy [kNm/rad]']));
   dxf.bau.auflager.forEach((a) => {
     const k = dxf.bau.knoten.get(a.knoten);
-    const b = stuetzung(m, a.ende);
-    p(`Auflager ${a.ende}`, k.x, k.y, k.z, b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz,
+    const b = stuetzung(m, a);
+    p(`Auflager ${a.ende} (${a.knoten})`, k.x, k.y, k.z,
+      b.ux, b.uy, b.uz, b.fix, b.fiy, b.fiz,
       b.cFiy_kNm === null ? '–' : b.cFiy_kNm);
   });
   p();
   n('φx gehalten ist die Gabellagerung, φz frei lässt die Windbiegung gelenkig. '
-    + 'Ein Ende ist längs verschieblich.');
+    + 'In Jochachse hält GENAU EIN Knoten - jeder weitere wäre ein Zwang.');
   p();
 
   t('3 · Streckenlasten auf den Gurtebenen');
@@ -1928,13 +2266,16 @@ export function exportiereDxf(inp, deps, opt = {}) {
   const { berechne, modell, profOG, profUG, stahl, joch } = deps;
   const km = opt.knotenmodell ?? 'anschnitt';
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
-  const dxf = dxfText(m, { knotenmodell: km, schottAusblenden: opt.schottAusblenden });
+  // Alle Angaben weiterreichen: `auflagerModell` und `starrModell` fielen
+  // hier unterwegs weg, und die DXF-Datei trug dann ein anderes Modell als
+  // der Dialog angeboten hatte - dieselbe Lücke wie einst in `axisvmMappe`.
+  const dxf = dxfText(m, { ...opt, knotenmodell: km });
 
-  const basis = `AxisVM_${inp.typ ?? 'frei'}_L${Number(inp.L).toFixed(1)}m_${km}`;
+  const basis = dateiname(inp, opt, m, '').slice(0, -1);   // ohne Punkt
   herunterladen(dxf.text, `${basis}.dxf`, 'application/dxf');
 
   // Begleitmappe: dieselben Blätter wie beim SAF-Weg, ohne die SAF-Tabellen
-  const { blaetter } = axisvmMappe(inp, deps, { knotenmodell: km, schottAusblenden: opt.schottAusblenden });
+  const { blaetter } = axisvmMappe(inp, deps, { ...opt, knotenmodell: km });
   const behalten = ['Anleitung', 'Vergleich'];
   const mappe = [zuordnungsblatt(m, dxf, { knotenmodell: km }),
                  ...blaetter.filter((b) => behalten.includes(b.name))];

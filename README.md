@@ -691,6 +691,32 @@ Momente und damit über den ganzen Vergleich:
 Für einen Vergleich sind **beide** zu rechnen: erst ihre Differenz trennt die
 Frage des Knotenmodells von der Frage des Rechenwegs.
 
+**Das Auflagermodell ebenso.** Das Jochende ist die Stelle, an der sich
+Rechenkern und Bauwerk am deutlichsten unterscheiden:
+
+| Wahl | Modell | wofür |
+|---|---|---|
+| `punkt` | ein Punkt je Ende auf der Jochachse, über ein steifes Schott an die vier Gurte gehängt, mit der Drehfeder des Mastkopfes | der **Ersatzbalken** des Rechenkerns — die Vergleichsbasis, und das einzige der drei Modelle, das die teilweise Einspannung trägt |
+| `gurte` | die vier Gurte einzeln gehalten: Untergurte y/z, Obergurte nur y | die **Lasteinleitung** in die vier Gurte. Gelenkig — eine Einspannung kann es nicht tragen |
+| `mitte` | auf halber Höhe in den Gurtebenen vorn und hinten, mit Gelenk um y | die **Altbauweise**, wo Ober- und Untergurt zu eng stehen für ein Kräftepaar |
+| `mast` | der **Mast selbst** bis zum Fundament, dort eingespannt; je Gurtebene ein Starrkörper über die beiden Gurte und von dort ein Linkelement an den Mast | das **Bauwerk**. Die Einspannung ist keine Zahl mehr, sondern folgt aus der Biegung des Mastes zwischen Ober- und Untergurthöhe |
+
+**Genau ein Knoten hält in Jochachse.** Mehr verlangt das Gleichgewicht in
+Jochrichtung nicht, und jeder weitere Längshalt ist ein Zwang: zwei Knoten auf
+verschiedener Höhe sperren die Verdrehung um y, zwei auf verschiedener Seite
+die um z. Am Gurtmodell ist das gemessen worden — vier gehaltene Gurtknoten am
+Ende A ergaben unter symmetrischer Last −42.7 kNm gegen +2.8 kNm am Ende B,
+eine Einspannung, die niemand eingestellt hatte. Im Mastmodell entfällt die
+Regel: dort halten beide Fundamente, aber über die Biegung zweier Maste, und
+das ist das wirkliche Tragwerk.
+
+**Das Linkelement zum Mast überträgt Kräfte starr und lässt Momente frei**
+(Weisung). Zwei solche Anschlüsse im Abstand der Jochhöhe ergeben das
+Kräftepaar, das im Ersatzbalken die Drehfeder vertritt. Der Anschlusspunkt
+sitzt 10 cm **einwärts** — ein Linkelement braucht in AxisVM eine Linie, und
+eine Linie braucht Länge; verschoben wird deshalb der Anschlusspunkt und nicht
+die Mastachse, damit die Stützweite die des Rechenkerns bleibt.
+
 **Was beim Import zu prüfen bleibt** (steht auch im Blatt `Anleitung`): die
 Ausrundungsradien der Winkel sind mit 0 angesetzt, weil die Profiltabellen sie
 nicht führen — die Fläche fällt dadurch rund 2 % kleiner aus. Die Stäbe `STARR`
@@ -714,6 +740,35 @@ Tragjoch-App          →  Modell als JSON  →  PowerShell  →  AxisVM (COM)
 
 PowerShell statt Python: auf jedem Windows vorhanden, kann COM von Haus aus,
 braucht keine Installation.
+
+**Der Weg dorthin — ohne Aufräumen.** Die Modelldatei lässt sich auf
+`com\AxisVM_aufbauen.cmd` **ziehen**; sie muss nicht in den Ordner kopiert
+werden. Ohne Angabe gilt die **jüngste** Modelldatei daneben — erkannt wird
+sie am Inhalt (`format: "tragjoch-stabmodell"`), nicht an der Anzahl der
+`*.json` im Ordner. Wird ein ganzer **Ordner** gezogen, baut das Skript jede
+Modelldatei darin, **je Modell ein eigenes AxisVM-Modell**.
+
+**Alles zu einem Modell liegt beim Modell** — der Ordner `com/` bleibt das
+Werkzeug, nicht das Archiv:
+
+```
+<modell>.json            die Ausleitung
+<modell>.axs             das AxisVM-Modell
+<modell>_zuordnung.json  welche Linie welcher Stab ist
+<modell>_bericht.txt     was gebaut wurde und was nicht
+<modell>_ergebnisse.json die Schnittgroessen (beim Auslesen)
+```
+
+Der Dateiname der Ausleitung trägt die **Verortung** vorne, dann Jochtyp,
+Länge, Knoten- und Auflagermodell:
+
+```
+AxisVM_L000_Bahnhof-Nord_KM012.345_J90_L20.0m_anschnitt_gurte.json
+```
+
+So stehen die Tragwerke eines Projekts im Ordner beieinander, und man sieht
+der Datei an, welches Bauwerk und welches Modell sie ist, bevor man sie
+öffnet.
 
 Der Ausleitungsdialog kennt dafür das Format **«JSON für die COM-Brücke»**
 (`format: "tragjoch-stabmodell"`, `version: 1`) — dasselbe Stabmodell wie SAF
@@ -1028,7 +1083,7 @@ Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf.
 node pruefung.mjs
 ```
 
-Prüfstand über den Rechenkern: 1221 Kontrollen, ohne Browser und ohne Bündeln.
+Prüfstand über den Rechenkern: 1476 Kontrollen, ohne Browser und ohne Bündeln.
 Nach jedem Eingriff in `core.*.js` laufen lassen.
 
 ```bash

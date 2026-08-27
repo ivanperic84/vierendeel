@@ -13,6 +13,9 @@
 import { U } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
+import { getFlBauteil, istKettenwerk } from './data.fl.js';
+import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
+import { amMast } from './data.anbauteile.js';
 
 const pruef = (id, text, vorhanden, erforderlich, einheit, richtung, okText, nokText) => {
   const ok = richtung === '<=' ? vorhanden <= erforderlich + 1e-9
@@ -104,6 +107,128 @@ export function konstruktionsChecks(m) {
     status: ausserhalb.length === 0 && xMin >= 0
       ? 'OK' : `AUSSERHALB: ${ausserhalb.map((l) => l.name).join(', ') || 'x < 0'}`,
   });
+
+  /*
+   * AM MASTEN GIBT ES KEINEN TRÄGER (Weisung: kein Jochaufsatz, keine
+   * Hängestütze).
+   *
+   * Die Regel steht nicht als Verbotsliste im Code, sie steht in den Daten:
+   * die Bauteiltabelle führt drei Rollen, und `traeger` tragen genau die
+   * Jochaufsätze und die Hängestütze. Ein Träger IST das, was auf dem Joch
+   * sitzt oder daran hängt. Kommt einmal ein neuer hinzu, gilt die Regel
+   * für ihn ohne Zutun.
+   *
+   * Die Bedienoberfläche bietet solche Vorlagen am Masten gar nicht erst an;
+   * diese Prüfung fängt, was auf anderem Weg hereinkommt - eine eingelesene
+   * Datei, eine umgestellte Baugruppe.
+   */
+  const mastTeile = m.anbauMastFlach ?? [];
+  if (mastTeile.length) {
+    const traeger = mastTeile.filter((t) => (t.rolle ?? '') === 'traeger');
+    const namen = [...new Set(traeger.map((t) => t.name ?? t.bauteil))];
+    checks.push({
+      id: 'P6',
+      text: `Am Masten kein Träger – ${mastTeile.length} Teile an den Masten`,
+      vorhanden: traeger.length, erforderlich: 0, einheit: 'Stk', richtung: '=',
+      ok: traeger.length === 0,
+      status: traeger.length === 0
+        ? 'OK' : `Jochaufsatz/Hängestütze am Masten: ${namen.join(', ')}`,
+    });
+  }
+
+  /*
+   * AM MASTEN HÄNGT KEIN KETTENWERK UNMITTELBAR (Weisung, 27. August).
+   *
+   * «Die Kettenwerke werden nicht direkt am Masten gehängt, ausser wenn sie
+   * abgefangen werden, sondern auf Ausleger. Am Masten werden nur einzelne
+   * Leiter gehängt oder, falls es Zusatzleiter sind, über eine Traverse.»
+   *
+   * Ein Kettenwerk ist Tragseil UND Fahrdraht; die Bauteiltabelle sagt es im
+   * Namen (data.fl.js, istKettenwerk). Zwischen ihm und dem Masten gehört
+   * ein AUFBAU — der Ausleger. Fehlt er, hängt das Kettenwerk an der
+   * Mastachse, und das gibt es so nicht.
+   *
+   * DIE AUSNAHME IST NOCH NICHT GEBAUT: ein abgefangenes Kettenwerk darf
+   * unmittelbar an den Masten. Solange die Abfangung nicht modelliert ist,
+   * bleibt dieser Fall ein Hinweis und kein Fehler — deshalb
+   * `warnungNichtFehler`.
+   */
+  const mastGruppen = new Map();
+  (m.anbauMastFlach ?? []).forEach((t) => {
+    const k = t.baugruppe ?? t.id;
+    if (!mastGruppen.has(k)) mastGruppen.set(k, []);
+    mastGruppen.get(k).push(t);
+  });
+  const ohneAusleger = [...mastGruppen.values()].filter((teile) => {
+    const kw = teile.filter((t) => {
+      let b = null;
+      try { b = t.bauteil ? getFlBauteil(t.bauteil) : null; } catch { b = null; }
+      return istKettenwerk(b);
+    });
+    if (!kw.length) return false;
+    return !teile.some((t) => (t.rolle ?? '') === 'aufbau');
+  });
+  if (mastGruppen.size) {
+    checks.push({
+      id: 'P7',
+      text: 'Am Masten kein Kettenwerk ohne Ausleger',
+      vorhanden: ohneAusleger.length, erforderlich: 0, einheit: 'Stk',
+      richtung: '=',
+      ok: ohneAusleger.length === 0,
+      status: ohneAusleger.length === 0
+        ? 'OK'
+        : `Kettenwerk unmittelbar am Masten: `
+          + `${ohneAusleger.map((t) => t[0].name ?? t[0].baugruppe).join(', ')} `
+          + `– auf einen Ausleger setzen (abgefangen ist noch nicht modelliert)`,
+      warnungNichtFehler: true,
+    });
+  }
+
+  /*
+   * TRÄGER UND BINDEBLECH BERÜHREN SICH NICHT (Weisung, 27. August).
+   *
+   * «Die Hängestütze und Jochaufsätze dürfen sich nicht mit den
+   * Verbindungsblechen berühren. Diese sind automatisch nebenan zu
+   * schieben.»
+   *
+   * ABGEHOLFEN WIRD IN ZWEI STUFEN, und die Reihenfolge nennt die Weisung
+   * selbst: «die Joche sind fix, die Anbauteile werden drum herum
+   * angebracht» - erst wird der KLEMMENABSTAND geweitet, damit die Stütze
+   * bleibt, wo sie hingehört, und ihre Klemmen das Blech überspannen. Erst
+   * wenn das nicht geht, weicht die Lage aus.
+   *
+   * Geschieht in der Eingabe (ui.js) und beim Setzen (app.js) - hier
+   * steht der Nachweis. Er fängt, was auf anderem Weg hereinkommt: eine
+   * eingelesene Datei, eine geänderte Blecheinteilung, ein Joch, dessen
+   * Länge nachträglich verstellt wurde. Bei allen dreien wandern die Bleche
+   * unter dem Bauteil weg, ohne dass jemand die Lage angefasst hätte.
+   */
+  const traegerTeile = (m.anbauteile ?? []).filter((a) => {
+    if (a.aktiv === false || amMast(a)) return false;
+    return hatTraeger(a.module, (id) => getFlBauteil(id).rolle);
+  });
+  if (traegerTeile.length) {
+    const sitzt = traegerTeile.filter((a) =>
+      freieLageAmJoch(a.x, a.raster, m).verschoben);
+    // Ein geweitetes Raster ist keine Beanstandung, sondern die Abhilfe -
+    // es steht aber im Status, damit man sieht, dass es nicht das Normalmass
+    // ist.
+    const geweitet = traegerTeile.filter((a) => (a.raster ?? 0) > 0.4 + 1e-9);
+    checks.push({
+      id: 'P8',
+      text: `Träger neben den Bindeblechen – ${traegerTeile.length} geprüft`,
+      vorhanden: sitzt.length, erforderlich: 0, einheit: 'Stk', richtung: '=',
+      ok: sitzt.length === 0,
+      status: sitzt.length === 0
+        ? (geweitet.length
+            ? `OK – ${geweitet.length} mit geweitetem Klemmenabstand: `
+              + geweitet.map((a) =>
+                  `${a.name ?? a.id} ${(a.raster * 1000).toFixed(0)} mm`).join(', ')
+            : 'OK')
+        : `Klemme auf einem Blech: ${sitzt.map((a) =>
+            `${a.name ?? a.id} bei ${Number(a.x).toFixed(2)} m`).join(', ')}`,
+    });
+  }
 
   const n = m.L / m.a1;
   checks.push({

@@ -10,6 +10,7 @@
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { FELDER, GRUPPEN, sichtbareFelder } from './ui.schema.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
+import { verortung, verortungKurz } from './core.constants.js';
 
 const K = (t) => ({ v: t, s: STIL.KOPF });
 const B = (t) => ({ v: t, s: STIL.BLOCK });
@@ -21,8 +22,12 @@ const AMPEL = (ok, t) => ({ v: t, s: ok ? STIL.OK : STIL.NOK });
 
 /** Blatt 1: Eingabewerte, so wie sie in der Maske stehen. */
 function blattEingabe(werte, erg) {
+  const wo = verortung(werte);
   const rows = [
     [{ v: 'Tragjoch – Eingabewerte', s: STIL.TITEL }],
+    // Wo das Tragwerk steht, gleich unter den Titel: ein Projekt hat viele
+    // Joche, und das Blatt wird ausgedruckt und weitergereicht.
+    ...(wo ? [[{ v: wo, s: STIL.NOTIZ }]] : []),
     [{ v: 'Erzeugt aus dem HTML-Tool. Werte, keine Formeln.', s: STIL.NOTIZ }],
     [],
   ];
@@ -234,7 +239,9 @@ export function exportiere(werte, erg, checks, hinw, warn, vergleich) {
     blattZusammenfassung(erg, vergleich),
     blattProfile(erg.modell),
   ];
-  const name = `Tragjoch_${erg.modell.typ ?? 'frei'}_L${erg.modell.L.toFixed(1)}m.xlsx`;
+  const wo = verortungKurz(werte);
+  const name = `Tragjoch${wo ? `_${wo}` : ''}`
+             + `_${erg.modell.typ ?? 'frei'}_L${erg.modell.L.toFixed(1)}m.xlsx`;
   herunterladen(arbeitsmappe(blaetter), name);
   return name;
 }

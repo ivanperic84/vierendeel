@@ -22,6 +22,14 @@ import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
+import { verortung, fangeAufMasskette } from './core.constants.js';
+import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
+// STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
+// und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
+// zur Laufzeit nachladen liessen.
+import { verkleinere, bildAusEreignis, kalibriere,
+         bezugPunkte } from './bild.zeichnung.js';
+import { erkenneTragwerk } from './bild.erkennung.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
          setzeGrenzen, FELDER } from './ui.schema.js';
@@ -31,7 +39,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, erzeugeGleislasten, neuesModul,
          baugruppeSumme } from './data.anbauteile.js';
-import { ladeFlBauteile, flBauteile } from './data.fl.js';
+import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
@@ -264,9 +272,13 @@ function zeichneBuehne() {
   ui.el('modell-info').textContent = 'Diagramm · Eingabe ändern zeichnet mit';
 }
 
+// Die Verortung zuerst: sie unterscheidet die Tragwerke eines Projekts,
+// der Jochtyp tut das nicht. Fehlt sie, faellt sie weg.
 const modellInfoText = () => (letzte
-  ? `${letzte.anzeige.modell.typ ?? 'frei'} · ` +
-    `${letzte.anzeige.modell.L.toFixed(2)} m · ${letzte.anzeige.stationen} Stationen`
+  ? [verortung(letzte.anzeige.modell),
+     `${letzte.anzeige.modell.typ ?? 'frei'} · `
+     + `${letzte.anzeige.modell.L.toFixed(2)} m · ${letzte.anzeige.stationen} Stationen`]
+    .filter(Boolean).join(' · ')
   : '');
 
 function zeichneAuswertung() {
@@ -315,6 +327,11 @@ function aktualisiereModell(erg) {
   ui.el('pos-station').textContent =
     `Feld ${erg.schnitt.feld + 1}/${erg.schnitt.anzahlSchnitte}` +
     ` · massgebendes Blech bei ${erg.schnitt.stationX.toFixed(2)} m`;
+  // Die Masskette der Zeichnung: die Ansicht zeichnet daraus Fanglinien.
+  ansicht.masskette = erg.modell.masskette ?? [];
+  // Und die Maske braucht das gerechnete Modell, um einen Träger an den
+  // Bindeblechen vorbeizuschieben - dort stehen Lage und Breite der Bleche.
+  ui.setzeModellFuerLage(erg.modell);
   ui.el('modell-info').textContent = modellInfoText();
   // Ein vergrössertes Diagramm bleibt live und zeichnet mit
   if (buehne) zeichneBuehne();
@@ -704,6 +721,436 @@ function zeigeSchnittImModell() {
   if (ui.el('ebenen-tools')?.children.length) zeichneModellWerkzeuge();
 }
 
+// --- Hinterlegte Querprofil-Zeichnung ---------------------------------------
+
+/*
+ * DIE ZEICHNUNG HINTER DAS MODELL.
+ *
+ * Wer ein Tragwerk aufnimmt, hat die Zeichnung offen und die Anwendung
+ * daneben: jede Länge wird im PDF-Reader gemessen und hier eingetippt. Das
+ * Bild in derselben Ansicht nimmt den Umweg heraus.
+ *
+ * DER WEG HINEIN IST DAS EINFÜGEN. Bildschirmausschnitt machen, ins Modell
+ * klicken, Strg+V - fertig. Eine Datei hineinziehen geht ebenso; nach dem
+ * Einlesen ist beides dasselbe Bild.
+ *
+ * ZUERST LIEGT ES GROB DA. Ein frisch eingefügtes Bild hat keine Lage im
+ * Raum, und ein Bild ohne Lage kann man auch nicht anklicken, um ihm eine zu
+ * geben. Es bekommt deshalb sofort eine VORLÄUFIGE: auf die Jochlänge
+ * gestreckt, mittig. Von dort setzen es zwei Klicks genau.
+ */
+let kalibrierung = null;      // { bezug, welt: [], punkte: [], schritt }
+/*
+ * Was die Erkennung gefunden hat, solange es noch nicht bestaetigt ist.
+ *
+ * DIE ZAHL IST DER ABSTAND ZUM DRITTEN: um wieviel kuerzer der naechste
+ * senkrechte Strich ist als der kuerzere der beiden Masten. Ein Viertel
+ * genuegt, und das ist gemessen, nicht geraten - auf einem Querprofil sind
+ * die naechstlaengsten Senkrechten die Lichtraumprofile, und die kamen im
+ * nachgebauten Blatt auf 260 von 432 Punkten, also 40 % kuerzer.
+ *
+ * Darunter ist die Sache nicht eindeutig: ein dritter ebenso langer Strich -
+ * ein Signalmast, ein angeschnittenes Nachbartragwerk - koennte gemeint
+ * sein. Dann sind zwei Klicks ehrlicher als ein Vorschlag, den man erst
+ * pruefen muesste. (Am Gegenbeispiel gemessen: 0.06.)
+ */
+const ERKENNUNG_GRENZE = 0.25;
+let erkannt = null;           // { guete } - Vorschlag, noch nicht bestaetigt
+
+/** Vorläufige Lage: das Bild auf die Jochlänge gestreckt, um das Joch herum. */
+function vorlaeufigeLage(m, breite, hoehe) {
+  const L = m?.L > 0 ? m.L : 20;
+  /*
+   * AN EINEM WIRKLICHEN QUERPROFIL ABGESCHAUT.
+   *
+   * Ein A4-Blatt zeigt nicht das Joch, sondern die Szene: Masten, Gleise,
+   * Lichtraumprofile, Schriftfeld und Legende. Das Joch nimmt darauf grob
+   * die halbe Blattbreite ein - streckte man das ganze Bild auf die
+   * Jochlänge, läge es winzig in der Mitte.
+   *
+   * Und es sitzt OBEN, nicht mittig: gemessen rund ein Fünftel unter der
+   * Blattkante. Beides ist nur die Ausgangslage für die zwei Klicks - aber
+   * eine, bei der man das Joch gleich sieht, statt es erst suchen zu müssen.
+   */
+  const s = (2 * L) / breite;
+  return { s, x0: -L / 2, z0: (hoehe * s) * 0.22 };
+}
+
+async function zeichnungEinlegen(blob, name = 'Zeichnung') {
+  try {
+    const roh = await verkleinere(blob);
+    const bild = await createImageBitmap(new Blob([roh.daten], { type: roh.art }));
+    const alt = ansicht.zeichnung?.kalibrierung ?? null;
+    ansicht.zeichnung = {
+      bild, breite: roh.breite, hoehe: roh.hoehe, daten: roh.daten,
+      art: roh.art, name,
+      // Eine bestehende Kalibrierung bleibt nur stehen, wenn das neue Bild
+      // dieselbe Grösse hat - sonst sässe sie auf einem anderen Ausschnitt.
+      kalibrierung: alt && ansicht.zeichnung
+        && ansicht.zeichnung.breite === roh.breite ? alt
+        : vorlaeufigeLage(letzte?.erg?.modell, roh.breite, roh.hoehe),
+      vorlaeufig: true,
+    };
+    ansicht.ebenen.zeichnung = true;
+    // Die Zeichnung gilt nur in der Laengsansicht - also gleich dorthin.
+    ansicht.blickrichtung('laengs');
+    zeichneModellWerkzeuge();
+    ansicht.zeichne();
+    /*
+     * SELBST EINMESSEN, WENN DAS TRAGWERK ZU ERKENNEN IST.
+     *
+     * Die Masten sind die längsten Senkrechten des Blattes, das Joch liegt
+     * auf ihnen - daraus ergeben sich genau die beiden Punkte, die das
+     * Einmessen braucht.
+     *
+     * >>> VORGELEGT, NICHT ÜBERNOMMEN. <<< Der Balken sagt, dass gerechnet
+     * und nicht gemessen wurde, und die zwei Klicks stehen einen Knopfdruck
+     * entfernt. Eine Vermutung, die sich als Messung ausgibt, wäre schlimmer
+     * als gar keine.
+     */
+    erkannt = null;
+    const t = roh.maske
+      ? erkenneTragwerk(roh.maske, roh.breite, roh.hoehe) : null;
+    const welt = bezugPunkte('joch', letzte?.erg?.modell);
+    const k = t && welt && t.guete >= ERKENNUNG_GRENZE
+      ? kalibriere(t.p1, t.p2, welt[0], welt[1]) : null;
+    if (k) {
+      ansicht.zeichnung.kalibrierung = k;
+      ansicht.zeichnung.vorlaeufig = false;
+      ansicht.zeichne();
+      erkannt = { guete: t.guete };
+      zeichneBalken();
+      await zeichnungSichernFallsMoeglich();
+      return;
+    }
+    await zeichnungSichernFallsMoeglich();
+    kalibrierenStarten('joch');
+  } catch (f) {
+    // Kein eigener Meldeweg: die Modellüberschrift ist die Stelle, auf
+    // die man ohnehin schaut, und sie steht beim nächsten Rechnen wieder
+    // richtig.
+    ui.el('modell-info').textContent =
+      `Das Bild liess sich nicht einlesen: ${f.message}`;
+  }
+}
+
+/** In die Ablage, sobald das Tragwerk eine Id hat. */
+async function zeichnungSichernFallsMoeglich() {
+  const z = ansicht.zeichnung;
+  if (!z || !projekt.id) return;
+  await store.zeichnungSichern(projekt.id, {
+    daten: z.daten, breite: z.breite, hoehe: z.hoehe, art: z.art,
+    name: z.name, kalibrierung: z.kalibrierung,
+  }).catch(() => {});
+}
+
+/** Zeichnung eines geladenen Tragwerks holen. */
+async function zeichnungHolen(id) {
+  const s = await store.zeichnungLaden(id).catch(() => null);
+  if (!s) { ansicht.zeichnung = null; return; }
+  const bild = await createImageBitmap(new Blob([s.daten], { type: s.art }))
+    .catch(() => null);
+  if (!bild) { ansicht.zeichnung = null; return; }
+  ansicht.zeichnung = { bild, breite: s.breite, hoehe: s.hoehe, daten: s.daten,
+                        art: s.art, name: s.name, kalibrierung: s.kalibrierung,
+                        vorlaeufig: !s.kalibrierung };
+}
+
+/**
+ * KALIBRIEREN: zwei Klicks auf ein bekanntes Mass.
+ *
+ * Die Modellpunkte stehen schon in der Eingabe - Jochlänge oder Masthöhe.
+ * Eingetippt werden muss nichts; man klickt, was man ohnehin weiss.
+ */
+function kalibrierenStarten(bezugKey) {
+  const welt = bezugPunkte(bezugKey, letzte?.erg?.modell);
+  if (!welt || !ansicht.zeichnung) { kalibrierenEnde(); return; }
+  kalibrierung = { bezug: bezugKey, welt, punkte: [] };
+  ansicht.beiZeichnungsklick = (t) => kalibrierKlick(t);
+  zeichneBalken();
+}
+
+function kalibrierenEnde() {
+  kalibrierung = null;
+  erkannt = null;
+  ansicht.beiZeichnungsklick = null;
+  zeichneBalken();
+  ansicht.zeichne();
+}
+
+async function kalibrierKlick(t) {
+  if (!kalibrierung) return;
+  kalibrierung.punkte.push(t);
+  if (kalibrierung.punkte.length < 2) { zeichneBalken(); return; }
+  const [p1, p2] = kalibrierung.punkte;
+  const [w1, w2] = kalibrierung.welt;
+  const k = kalibriere(p1, p2, w1, w2);
+  if (k && ansicht.zeichnung) {
+    ansicht.zeichnung.kalibrierung = k;
+    ansicht.zeichnung.vorlaeufig = false;
+    await zeichnungSichernFallsMoeglich();
+  }
+  kalibrierenEnde();
+}
+
+// --- Bauteil setzen: erst wohin, dann was -----------------------------------
+
+/*
+ * ZWEI KLICKS STATT EINER LISTE UND EINES FORMULARS.
+ *
+ * Bisher hiess ein Bauteil einsetzen: Reiter wechseln, in vierzehn gleich
+ * aussehenden Kacheln die richtige finden, im Dialog eine Zahl eintippen, die
+ * man vorher auf der Zeichnung gemessen hat. Drei Schritte, von denen keiner
+ * mit dem Tragwerk zu tun hat.
+ *
+ * Jetzt: ins Modell klicken, WOHIN es gehoert - dann erscheint, WAS dort sein
+ * kann. Die Stelle sagt die Lage, und sie sagt auch schon, was in Frage
+ * kommt: am Masten gibt es keinen Jochaufsatz.
+ *
+ * Liegt eine Zeichnung dahinter, klickt man auf das Bauteil in der Zeichnung -
+ * und genau dorthin kommt es. Das ist der Grund, warum die Zeichnung
+ * ueberhaupt hinter dem Modell liegt.
+ */
+let setzen = null;          // { stelle } waehrend der Auswahl
+
+function setzenStarten() {
+  if (kalibrierung) kalibrierenEnde();
+  setzen = { stelle: null };
+  ansicht.beiStelle = (w) => stelleGewaehlt(w);
+  ui.el('canvas3d').style.cursor = 'crosshair';
+  zeichneBalken();
+}
+
+function setzenEnde() {
+  setzen = null;
+  ansicht.beiStelle = null;
+  ui.el('canvas3d')?.style.removeProperty('cursor');
+  zeichneBalken();
+}
+
+/**
+ * WO IM TRAGWERK LIEGT DIESER PUNKT?
+ *
+ * Entschieden wird an der Stelle, an der ein Bauteil ANGESCHLOSSEN wird -
+ * darauf zielt man. Am Joch ist das die Jochachse ueber ihre ganze Laenge, am
+ * Masten die Mastachse unterhalb des Jochs.
+ *
+ * Die Fangbereiche sind bewusst grosszuegig: ein halber Meter neben der
+ * Jochachse ist immer noch eindeutig gemeint, und wer daneben klickt, bekommt
+ * eine Meldung statt eines Bauteils an falscher Stelle.
+ */
+function stelleAus(w) {
+  const m = letzte?.erg?.modell;
+  if (!m || !w) return null;
+  const L = m.L, h = m.h ?? 0.4;
+  if (w.x >= -0.3 && w.x <= L + 0.3 && Math.abs(w.z) <= h / 2 + 0.6) {
+    // Am Joch faengt die Lage auf der Masskette, falls eine eingetragen ist.
+    const x = fangeAufMasskette(Math.max(0, Math.min(L, w.x)), m.masskette ?? []);
+    return { ort: 'joch', x: Math.round(x * 1000) / 1000 };
+  }
+  // Am Masten nur, wenn einer im Modell steht - sonst gibt es dort nichts,
+  // woran etwas haengen koennte.
+  const H = m.federn?.mastA?.H ?? m.federn?.mast?.H ?? 0;
+  if (H > 0 && w.z < -(h / 2)) {
+    const nahA = Math.abs(w.x) <= 0.8;
+    const nahB = Math.abs(w.x - L) <= 0.8;
+    if (nahA || nahB) {
+      // AUF DEN SCHRITT DES REGLERS GERUNDET (5 cm). Sonst zeigt die Karte
+      // eine andere Zahl an, als der Klick gesetzt hat - der Regler rastet
+      // auf seinen Schritt, und der Anwender sieht 5.20, wo 5.15 steht.
+      const hM = Math.max(0, Math.min(H, w.z + H));
+      return { ort: nahA ? 'mastA' : 'mastB', hMast: Math.round(hM * 20) / 20 };
+    }
+  }
+  return null;
+}
+
+function stelleGewaehlt(w) {
+  const st = stelleAus(w);
+  if (!st) {
+    // WO MAN GELANDET IST, statt nur «daneben». Wer zwei Meter neben dem
+    // Joch klickt, sieht am Wert, in welche Richtung er zielen muss - und
+    // ob überhaupt das Modell gemeint ist oder eine leere Stelle im Raum.
+    setzen = { stelle: null, daneben: w };
+    zeichneBalken();
+    return;
+  }
+  setzen = { stelle: st };
+  zeichneBalken();
+}
+
+/**
+ * WAS AN DIESER STELLE SEIN KANN.
+ *
+ * Am Masten gibt es keinen TRAEGER - ein Traeger ist das, was auf dem Joch
+ * sitzt oder daran haengt, und genau vier Bauteile tragen diese Rolle: die
+ * drei Jochaufsaetze und die Haengestuetze (siehe P6). Die Regel steht in den
+ * Daten; hier wird sie nur vorwaerts angewandt statt nur pruefend.
+ *
+ * SORTIERT NACH ROLLE. Was traegt, steht vorn - man baut von unten nach oben.
+ * Innerhalb der Rolle bleibt die Reihenfolge der Datenbank; sie ist die des
+ * Sortiments.
+ */
+function vorlagenFuer(ort) {
+  const rolleVon = (v) => {
+    const ids = (v.module ?? []).map((x) => x.bauteil).filter(Boolean);
+    for (const id of ids) {
+      try { if (getFlBauteil(id).rolle === 'traeger') return 'traeger'; } catch { /* unbekannt */ }
+    }
+    for (const id of ids) {
+      try { if (getFlBauteil(id).rolle === 'aufbau') return 'aufbau'; } catch { /* unbekannt */ }
+    }
+    return 'drahtwerk';
+  };
+  const rang = { traeger: 0, aufbau: 1, drahtwerk: 2 };
+  return vorlagen()
+    .map((v) => ({ v, rolle: rolleVon(v) }))
+    .filter((e) => ort === 'joch' || e.rolle !== 'traeger')
+    .sort((a, b) => rang[a.rolle] - rang[b.rolle]);
+}
+
+/** Das gewaehlte Bauteil an die gemerkte Stelle setzen. */
+function setzeVorlageAnStelle(vorlageId) {
+  const st = setzen?.stelle;
+  if (!st) return;
+  const roh = st.ort === 'joch'
+    ? neuesAnbauteil(vorlageId, st.x)
+    : { ...neuesAnbauteil(vorlageId, 0), ort: st.ort, hMast: st.hMast };
+  // Erst jetzt ist das Raster der Vorlage bekannt - und damit, wo die
+  // beiden Klemmen sitzen. Ein Traeger weicht den Blechen aus.
+  const t = st.ort === 'joch'
+        && hatTraeger(roh.module, (id) => getFlBauteil(id).rolle)
+    ? (() => {
+        const an = passeTraegerAn(roh.x, roh.raster, letzte?.erg?.modell);
+        return { ...roh, x: an.x, raster: an.raster };
+      })()
+    : roh;
+  setzenEnde();
+  tabEingabe = 'anbau';
+  setzeAnbauteile([...(werte.anbauteile ?? []), t]);
+  if (st.ort === 'joch') ansicht.zoomAuf(t.x, null, Math.max(2, werte.L / 8));
+}
+
+/**
+ * Der Balken ueber dem Modell: was jetzt anzuklicken ist.
+ *
+ * Er traegt zweierlei - das Einmessen der Zeichnung und das Setzen eines
+ * Bauteils -, und immer nur eines davon. Er sagt IMMER genau einen naechsten
+ * Schritt; eine Anleitung mit zwei Punkten liest man beim Zielen nicht mehr.
+ */
+function zeichneBalken() {
+  const n = ui.el('viewer-balken');
+  if (!n) return;
+  const canvas = ui.el('canvas3d');
+  if (kalibrierung && ansicht.zeichnung) {
+    const i = kalibrierung.punkte.length;
+    const w = kalibrierung.welt[i];
+    n.hidden = false;
+    n.innerHTML = `<span>Zeichnung einmessen — <b>${esc(w.text)}</b> anklicken`
+      + ` (${i + 1}/2)</span>`
+      + '<button class="btn btn-mini" data-kalib-bezug>anderes Mass</button>'
+      + '<button class="btn btn-mini" data-kalib-ab>Abbrechen</button>';
+    if (canvas) canvas.style.cursor = 'crosshair';
+    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde();
+    n.querySelector('[data-kalib-bezug]').onclick = () =>
+      kalibrierenStarten(kalibrierung.bezug === 'joch' ? 'mast' : 'joch');
+    return;
+  }
+  /*
+   * DER VORSCHLAG DER ERKENNUNG - zum Bestätigen oder Verwerfen.
+   *
+   * Er steht über dem Modell, weil man dort SIEHT, ob er stimmt: liegt die
+   * Zeichnung über dem Joch, ist die Sache erledigt; liegt sie daneben, sagt
+   * ein Knopf es weiter.
+   */
+  if (erkannt && ansicht.zeichnung) {
+    n.hidden = false;
+    /*
+     * DIE ZAHL BRAUCHT IHREN NAMEN.
+     *
+     * «Zutrauen 39 %» las sich, als sei die Erkennung unsicher - dabei ist 39
+     * der ABSTAND ZUM DRITTEN: der nächstlängste senkrechte Strich auf dem
+     * Blatt ist um so viel kürzer als der kürzere Mast. Das ist ein
+     * deutliches Ergebnis, und die Anschrift muss das sagen, statt Zweifel
+     * zu säen, die nicht bestehen.
+     */
+    n.innerHTML = '<span>Zeichnung selbst eingemessen — die beiden Masten '
+      + 'heben sich ab (nächster Strich '
+      + `${Math.round(erkannt.guete * 100)} % kürzer). <b>Sitzt sie?</b></span>`
+      + '<button class="btn btn-mini" data-erk-ok>passt</button>'
+      + '<button class="btn btn-mini" data-erk-hand>von Hand einmessen</button>';
+    n.querySelector('[data-erk-ok]').onclick = () => { erkannt = null; zeichneBalken(); };
+    n.querySelector('[data-erk-hand]').onclick = () => {
+      erkannt = null; kalibrierenStarten('joch');
+    };
+    return;
+  }
+  if (setzen) {
+    const st = setzen.stelle;
+    if (!st) {
+      n.hidden = false;
+      const d = setzen.daneben;
+      n.innerHTML = `<span>${d
+        ? `Dort ist <b>x = ${d.x.toFixed(2)} m</b>, <b>z = ${d.z.toFixed(2)} m</b>`
+          + ' — auf das Joch oder einen Masten klicken'
+        : 'Bauteil setzen — <b>ins Modell klicken</b>, wohin es gehört'}</span>`
+        + '<button class="btn btn-mini" data-setz-ab>Abbrechen</button>';
+      n.querySelector('[data-setz-ab]').onclick = () => setzenEnde();
+      return;
+    }
+    const wo = st.ort === 'joch'
+      ? `am Joch bei <b>x = ${st.x.toFixed(2)} m</b>`
+      : `am <b>Mast Ende ${st.ort === 'mastA' ? 'A' : 'B'}</b>, `
+        + `<b>${st.hMast.toFixed(2)} m</b> über Fundament`;
+    const liste = vorlagenFuer(st.ort).map(({ v, rolle }) =>
+      `<button class="btn btn-mini" data-setz-vorlage="${esc(v.id)}"
+         title="${esc(rolle)}">${esc(v.name)}</button>`).join('');
+    n.hidden = false;
+    n.innerHTML = `<span>Was kommt ${wo}?</span><span class="balken-wahl">${liste}</span>`
+      + '<button class="btn btn-mini" data-setz-neu>andere Stelle</button>'
+      + '<button class="btn btn-mini" data-setz-ab>Abbrechen</button>';
+    n.querySelectorAll('[data-setz-vorlage]').forEach((b) => {
+      b.onclick = () => setzeVorlageAnStelle(b.dataset.setzVorlage);
+    });
+    n.querySelector('[data-setz-neu]').onclick = () => {
+      setzen = { stelle: null }; zeichneBalken();
+    };
+    n.querySelector('[data-setz-ab]').onclick = () => setzenEnde();
+    return;
+  }
+  n.hidden = true; n.innerHTML = '';
+  if (canvas) canvas.style.removeProperty('cursor');
+}
+
+/**
+ * EINFÜGEN UND HINEINZIEHEN.
+ *
+ * Das Einfügen hängt am Fenster, nicht am Modell: ein Canvas nimmt keinen
+ * Tastaturfokus, und wer Strg+V drückt, hat gerade den Ausschnitt gemacht
+ * und nicht erst irgendwohin geklickt. Wird in einem Eingabefeld eingefügt,
+ * bleibt es dort - sonst risse die Zeichnung jeden Text an sich.
+ */
+function verdrahteZeichnung() {
+  const inFeld = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+    || el.isContentEditable);
+  window.addEventListener('paste', async (ev) => {
+    if (inFeld(document.activeElement)) return;
+    const blob = bildAusEreignis(ev);
+    if (!blob) return;
+    ev.preventDefault();
+    await zeichnungEinlegen(blob, 'eingefügt');
+  });
+  const v = ui.el('viewer');
+  if (!v) return;
+  v.addEventListener('dragover', (ev) => { ev.preventDefault(); });
+  v.addEventListener('drop', async (ev) => {
+    const blob = bildAusEreignis(ev);
+    if (!blob) return;
+    ev.preventDefault();
+    await zeichnungEinlegen(blob, blob.name ?? 'Datei');
+  });
+}
+
 // --- Anbauteile: Vorlagen, Lage, Generator ----------------------------------
 
 /**
@@ -1032,7 +1479,12 @@ function baueKopf() {
       : '') +
     iconKnopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen') +
     iconKnopf('btn-export', 'export', 'Excel-Ausleitung (.xlsx)') +
-    iconKnopf('btn-axisvm', 'schnitt', 'AxisVM-Ausleitung (SAF)') +
+    // BESCHRIFTET UND HERVORGEHOBEN. Der Weg nach AxisVM ist der meist
+    // begangene dieser Anwendung; als eines von sieben gleich aussehenden
+    // Symbolen war er nicht zu finden.
+    `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
+       title="Modell nach AxisVM ausleiten — COM-Brücke, SAF, DXF oder PyNite"
+       aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>` +
     iconKnopf('btn-drucken', 'drucken', 'Drucken / PDF') +
     iconKnopf('btn-daten', 'speichern', 'Datenbasis: Paket laden oder sichern') +
     iconKnopf('btn-optionen', 'optionen', 'Optionen und Darstellung');
@@ -1191,7 +1643,10 @@ async function zeichneSchublade() {
     station = null;
     aktualisiereProjektKnopf();
     schubladeSchliessen();
+    // Die hinterlegte Zeichnung gehört zum Tragwerk und kommt mit ihm.
+    await zeichnungHolen(s.id);
     neuRechnen();
+    zeichneModellWerkzeuge();
     ansicht.ganzesJoch();
   });
   auf('[data-kopie]', async (b) => {
@@ -1224,15 +1679,37 @@ async function zeichneSchublade() {
     await store.vorlageLoeschen(b.dataset.vorlageWeg);
     zeichneSchublade();
   });
+  /*
+   * AUSGELEITET WIRD EIN PAKET, NICHT NUR EINE JSON (Weisung).
+   *
+   * Die hinterlegten Zeichnungen sind Bilder; sie gehören als eigene Dateien
+   * in den Ablageordner, nicht als Zahlenkolonne in die JSON. Das Paket ist
+   * ein ZIP mit `ablage.json` und einem Ordner `zeichnungen/`.
+   */
   auf('[data-export]', async () => {
-    store.dateiSpeichern(await store.alsJson(),
-      `Tragjoch-Ablage-${new Date().toISOString().slice(0, 10)}.json`);
+    const tag = new Date().toISOString().slice(0, 10);
+    store.dateiSpeichern(await store.alsPaket(),
+      `Tragjoch-Ablage-${tag}.zip`, 'application/zip');
   });
+  /*
+   * EINGELESEN WIRD BEIDES. Pakete dieser Fassung UND die reinen JSON der
+   * früheren - wer eine alte Sicherung liegen hat, soll sie nicht verlieren.
+   * Unterschieden wird an den ersten zwei Zeichen: eine ZIP beginnt mit PK.
+   */
   auf('[data-import]', async () => {
     try {
-      const anzahl = await store.ausJson(await store.dateiLesen());
-      zeichneSchublade();
-      alert(`${anzahl} Eintrag/Einträge übernommen.`);
+      const roh = await store.dateiLesenRoh();
+      const ist = roh.length > 1 && roh[0] === 0x50 && roh[1] === 0x4b;
+      if (ist) {
+        const r = await store.ausPaket(roh);
+        zeichneSchublade();
+        alert(`${r.eintraege} Eintrag/Einträge übernommen`
+            + `${r.bilder ? `, dazu ${r.bilder} Zeichnung(en)` : ''}.`);
+      } else {
+        const anzahl = await store.ausJson(new TextDecoder().decode(roh));
+        zeichneSchublade();
+        alert(`${anzahl} Eintrag/Einträge übernommen.`);
+      }
     } catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
   });
 }
@@ -1296,6 +1773,15 @@ const WZ_MODELL = [
   { key: 'auflager', icon: 'auflager', text: 'Auflager: Lage, Feder, Mast' },
   { key: 'masse', icon: 'mass', text: 'Bemassung' },
   { key: 'raster', icon: 'raster', text: 'Bodenraster' },
+  /*
+   * DIE HINTERLEGTE ZEICHNUNG steht bei den BAUTEILEN, nicht bei den
+   * Resultaten: sie zeigt dasselbe Tragwerk, nur gezeichnet statt gerechnet.
+   * Ohne eingelegtes Bild bleibt der Schalter stehen und ausgegraut - so
+   * sieht man, dass es ihn gibt, und wo das Bild hinkäme.
+   */
+  { key: 'zeichnung', icon: 'zeichnung',
+    text: 'Hinterlegte Querprofil-Zeichnung (nur in der Längsansicht)',
+    nurMitZeichnung: true },
 ];
 
 const WZ_LASTEN = [
@@ -1312,7 +1798,13 @@ function baueModellWerkzeuge() {
   // zurücksetzen» und «Ganzes Joch» führte zweimal zum selben Bild. Der
   // Schnitt-Zoom sitzt jetzt im Auswertungsreiter «Schnitt», wo er hingehört.
   ui.el('ansicht-tools').innerHTML =
-    iconKnopf('v-ganz', 'zoom', 'Ganzes Joch zeigen, Ansicht zurücksetzen');
+    iconKnopf('v-ganz', 'zoom', 'Ganzes Joch zeigen, Ansicht zurücksetzen')
+    // ZWEI KLICKS STATT LISTE UND FORMULAR: erst wohin, dann was. Der Knopf
+    // steht bei der Ansicht, weil dort geklickt wird - nicht im Reiter
+    // Anbauteile, wo man ihn erst suchen muesste.
+    + iconKnopf('v-setzen', 'anbau',
+                'Bauteil setzen — ins Modell klicken, wohin es gehört');
+  ui.el('v-setzen').onclick = () => (setzen ? setzenEnde() : setzenStarten());
   ui.el('v-ganz').onclick = () => {
     station = null; ansicht.station = null;
     ansicht.ansichtZuruecksetzen(); zeichneAuswertung();
@@ -1346,6 +1838,15 @@ function lastartenVorhanden() {
 }
 
 /** Die vier Werkzeuggruppen zeichnen und verdrahten. */
+/**
+ * Gibt es etwas auf der Zeichnungsebene?
+ *
+ * Bild ODER Masskette: die Kette gilt auch ohne Bild - sie steht in der
+ * Eingabe, nicht im Bild -, und ihre Fanglinien gehören auf dieselbe Ebene.
+ */
+const zeichnungDa = () => Boolean(ansicht.zeichnung
+  || (ansicht.masskette && ansicht.masskette.length));
+
 function zeichneModellWerkzeuge() {
   const n = ui.el('ebenen-tools');
   if (!n) return;
@@ -1377,7 +1878,13 @@ function zeichneModellWerkzeuge() {
                                 a.key === ansicht.ansichtKey)).join('')
     }</div></div>` +
     gruppe('modell', 'Modell', gM, WZ_MODELL.map((s) =>
-      schalter(`wz-m-${s.key}`, s.icon, s.text, ansicht.ebenen[s.key], !gM)).join('')) +
+      schalter(`wz-m-${s.key}`, s.icon,
+               s.nurMitZeichnung && !zeichnungDa()
+                 ? `${s.text} — noch kein Bild eingefügt (Strg+V im Modell) `
+                   + 'und keine Masskette'
+                 : s.text,
+               ansicht.ebenen[s.key],
+               !gM || (s.nurMitZeichnung && !zeichnungDa()))).join('')) +
     gruppe('lasten', 'Lasten', gL, WZ_LASTEN.map((s) => {
       const fehlt = !s.haupt && !da[s.key];
       return schalter(`wz-l-${s.key}`, s.icon,
@@ -1952,6 +2459,9 @@ function dialogSpeichern() {
       } : null,
     });
     projekt.id = s.id;
+    // Erst jetzt hat das Tragwerk eine Id - und erst jetzt kann eine vorher
+    // eingefügte Zeichnung zu ihm gelegt werden.
+    await zeichnungSichernFallsMoeglich();
     aktualisiereProjektKnopf();
     speichern();
     d.zu();
@@ -1965,8 +2475,13 @@ function neuesTragjoch() {
   werte = frisch();
   projekt = { id: null, name: 'Neues Tragjoch', projekt: projekt.projekt };
   station = null;
+  // Die Zeichnung des vorigen Tragwerks geht mit ihm - sie zeigte ein
+  // anderes Bauwerk und wäre hinter dem neuen schlicht falsch.
+  ansicht.zeichnung = null;
+  kalibrierenEnde();
   aktualisiereProjektKnopf();
   neuRechnen();
+  zeichneModellWerkzeuge();
   ansicht.ganzesJoch();
 }
 
@@ -1992,11 +2507,19 @@ function dialogAxisvm() {
   // Die Vorgabe hängt an der Bauweise: die Altbauweise ist zu flach, als
   // dass ein Kräftepaar aus Ober- und Untergurt das Ende halten dürfte.
   const vorgabe = auflagerVorgabe(letzte.erg.modell);
-  const lager = AUFLAGERMODELLE.map((k) => `
-    <label class="schalter">
-      <input type="radio" name="am" value="${k.key}"${k.key === vorgabe ? ' checked' : ''}>
-      <span>${esc(k.label)}</span>
-    </label>`).join('');
+  // Das Mastmodell baut den Mast wirklich auf - ohne Mast in der Eingabe
+  // gibt es nichts zu bauen. Ausgegraut statt versteckt: so ist zu sehen,
+  // dass es das Modell gibt und woran es haengt.
+  const hatMast = !!letzte.erg.modell.federn?.mast;
+  const lager = AUFLAGERMODELLE.map((k) => {
+    const geht = k.braucht !== 'mast' || hatMast;
+    return `
+    <label class="schalter${geht ? '' : ' aus'}">
+      <input type="radio" name="am" value="${k.key}"${k.key === vorgabe ? ' checked' : ''}${geht ? '' : ' disabled'}>
+      <span>${esc(k.label)}${geht ? ''
+        : ' — braucht Endauflager «teilweise eingespannt (Mast)»'}</span>
+    </label>`;
+  }).join('');
   const d = dialog('AxisVM-Ausleitung', `
     <p>Schreibt das Stabmodell aus: vier Gurte, die Bindebleche jeder Station,
        die Gabellagerung und die Anbauteile am wirklichen Angriffspunkt. Die
@@ -2022,7 +2545,11 @@ function dialogAxisvm() {
         <span>PyNite-Skript (.py) — freie Gegenrechnung, läuft ohne AxisVM</span></label>
     </div>
     <div class="feld"><label>Knotenmodell</label>${wahl}</div>
-    <div class="feld"><label>Auflagermodell</label>${lager}</div>
+    <div class="feld"><label>Auflagermodell</label>${lager}
+      <p class="notiz">In Jochachse hält <b>genau ein Knoten</b> — mehr verlangt
+         das Gleichgewicht nicht, und jeder weitere wäre ein Zwang. Nur im
+         Mastmodell halten beide Fundamente, dort aber über die Biegung der
+         Maste.</p></div>
     <div class="feld"><label>Starrelemente</label>
       <label class="schalter"><input type="radio" name="starr" value="koerper" checked>
         <span>als Starrkörper und Verbindungselemente — so, wie AxisVM sie
@@ -2389,6 +2916,7 @@ export async function start() {
   });
   baueLayout();
   baueModellWerkzeuge();
+  verdrahteZeichnung();
   verdrahteAblegen();
   neuRechnen();
   requestAnimationFrame(() => ansicht.passeGroesseAn());

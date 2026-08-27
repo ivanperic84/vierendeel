@@ -16,9 +16,27 @@
  * ---------------------------------------------------------------------------
  */
 
+import { zip, entpacke } from './export.xlsx.js';
+
 const DB_NAME = 'tragjoch';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SPEICHER = 'projekte';
+
+/**
+ * DIE HINTERLEGTEN ZEICHNUNGEN, IN EIGENEM SPEICHER.
+ *
+ * Ein Bildschirmausschnitt einer Querprofil-Zeichnung ist auch verkleinert
+ * und als JPEG noch gross gegen einen Eingabestand. Läge er im Eintrag,
+ * brächte jedes Auflisten der Ablage sämtliche Bilder mit - und die Liste
+ * wird bei jedem Öffnen der Schublade geholt.
+ *
+ * Deshalb ein eigener Speicher, gelesen nur, wenn das Tragwerk geladen wird.
+ * Der Schlüssel ist die Eintrags-Id: ein Tragwerk, eine Zeichnung.
+ *
+ * IndexedDB ist der richtige Ort dafür - sie nimmt Binärdaten unmittelbar
+ * und kennt die enge Schranke nicht, an der localStorage scheitern würde.
+ */
+const ZEICHNUNGEN = 'zeichnungen';
 /**
  * VORLAGEN GANZER TRAGWERKE.
  *
@@ -50,6 +68,9 @@ function oeffne() {
       if (!db.objectStoreNames.contains(VORLAGEN)) {
         const st = db.createObjectStore(VORLAGEN, { keyPath: 'id' });
         st.createIndex('geaendert', 'geaendert');
+      }
+      if (!db.objectStoreNames.contains(ZEICHNUNGEN)) {
+        db.createObjectStore(ZEICHNUNGEN, { keyPath: 'id' });
       }
     };
     anf.onsuccess = () => fertig(anf.result);
@@ -109,6 +130,9 @@ export async function laden(id) {
 
 export async function loeschen(id) {
   await tx('readwrite', (st) => st.delete(id));
+  // Die Zeichnung gehört zum Tragwerk und geht mit ihm. Sonst bliebe sie als
+  // Waise im Speicher liegen - unsichtbar, aber nicht klein.
+  await zeichnungLoeschen(id).catch(() => {});
 }
 
 /** Eintrag duplizieren. */
@@ -267,6 +291,120 @@ export async function ausJson(text) {
   return n;
 }
 
+// --- Hinterlegte Zeichnungen ------------------------------------------------
+
+/**
+ * Zeichnung eines Tragwerks sichern.
+ *
+ * @param {string} id Id des Ablageeintrags
+ * @param {{daten:Uint8Array, breite:number, hoehe:number, art:string,
+ *          kalibrierung:object|null, name:string}} z
+ */
+export async function zeichnungSichern(id, z) {
+  if (!id) throw new Error('Zeichnung ohne Tragwerk: keine Id.');
+  const satz = {
+    id,
+    daten: z.daten, breite: z.breite, hoehe: z.hoehe,
+    art: z.art ?? 'image/jpeg',
+    name: z.name ?? 'Zeichnung',
+    kalibrierung: z.kalibrierung ?? null,
+    geaendert: new Date().toISOString(),
+  };
+  await tx('readwrite', (st) => st.put(satz), ZEICHNUNGEN);
+  return satz;
+}
+
+/** Zeichnung eines Tragwerks. Gibt null, wenn keine hinterlegt ist. */
+export async function zeichnungLaden(id) {
+  if (!id) return null;
+  return (await tx('readonly', (st) => st.get(id), ZEICHNUNGEN)) ?? null;
+}
+
+export async function zeichnungLoeschen(id) {
+  if (!id) return;
+  await tx('readwrite', (st) => st.delete(id), ZEICHNUNGEN);
+}
+
+/** Alle Zeichnungen - gebraucht beim Ausleiten des ganzen Projekts. */
+export async function zeichnungenAlle() {
+  return (await tx('readonly', (st) => st.getAll(), ZEICHNUNGEN)) ?? [];
+}
+
+// --- Das ganze Projekt als Paket --------------------------------------------
+
+/*
+ * WARUM EIN PAKET UND NICHT NUR EINE JSON.
+ *
+ * Die hinterlegten Zeichnungen sind Bilder. In eine JSON passen sie nur als
+ * Base64 - ein Drittel grösser, unlesbar, und niemand kommt an das Bild
+ * heran, ohne die Datei zu zerlegen. Weisung des Auftraggebers: die JPEG
+ * gehören beim Ausleiten in den Ablageordner.
+ *
+ * Also ein ZIP: die Ablage als `ablage.json`, daneben ein Ordner
+ * `zeichnungen/` mit einer Datei je Tragwerk, benannt nach seiner Id. Wer nur
+ * ein Bild braucht, holt es mit dem Dateimanager heraus.
+ *
+ * Der ZIP-Schreiber steht schon im Werkzeug - eine .xlsx IST ein ZIP.
+ */
+export async function alsPaket() {
+  const eintraege = await liste();
+  const bilder = await zeichnungenAlle();
+  const beiId = new Map(eintraege.map((e) => [e.id, e]));
+  const dateien = [];
+  const verzeichnis = [];
+  for (const b of bilder) {
+    // Ein Bild ohne Tragwerk ist eine Waise - es kommt nicht mit.
+    if (!beiId.has(b.id)) continue;
+    const datei = `zeichnungen/${b.id}.jpg`;
+    dateien.push({ name: datei, inhalt: b.daten });
+    verzeichnis.push({ id: b.id, datei, breite: b.breite, hoehe: b.hoehe,
+                       name: b.name ?? '', kalibrierung: b.kalibrierung ?? null });
+  }
+  const json = JSON.stringify({
+    art: 'tragjoch-ablage', version: 3,
+    erzeugt: new Date().toISOString(),
+    eintraege,
+    vorlagen: await vorlagenListe().catch(() => []),
+    zeichnungen: verzeichnis,
+  }, null, 2);
+  dateien.unshift({ name: 'ablage.json', inhalt: json });
+  return zip(dateien);
+}
+
+/**
+ * Paket einlesen. Die Bilder finden über das Verzeichnis zu ihren Tragwerken
+ * zurück - die Ids sind beim Einlesen neu, also wird umgeschlüsselt.
+ */
+export async function ausPaket(daten) {
+  const dateien = entpacke(daten);
+  const jsonDatei = dateien.find((f) => f.name === 'ablage.json');
+  if (!jsonDatei) throw new Error('Im Paket fehlt ablage.json.');
+  const d = JSON.parse(new TextDecoder().decode(jsonDatei.inhalt));
+  const inhalt = new Map(dateien.map((f) => [f.name, f.inhalt]));
+  const verzeichnis = new Map((d.zeichnungen ?? []).map((z) => [z.id, z]));
+  let n = 0, bilder = 0;
+  for (const e of (d.eintraege ?? [])) {
+    if (!e || !e.werte) continue;
+    const alteId = e.id;
+    const neu = await sichern({ ...e, id: undefined });
+    n++;
+    const z = verzeichnis.get(alteId);
+    const roh = z ? inhalt.get(z.datei) : null;
+    if (!roh) continue;
+    await zeichnungSichern(neu.id, {
+      daten: new Uint8Array(roh), breite: z.breite, hoehe: z.hoehe,
+      art: 'image/jpeg', name: z.name, kalibrierung: z.kalibrierung,
+    });
+    bilder++;
+  }
+  for (const v of (Array.isArray(d.vorlagen) ? d.vorlagen : [])) {
+    if (!v || !v.werte) continue;
+    await vorlageSichern({ ...v, id: undefined });
+    n++;
+  }
+  return { eintraege: n, bilder };
+}
+
 // --- Datei-Hilfen -----------------------------------------------------------
 
 export function dateiSpeichern(text, name, typ = 'application/json') {
@@ -275,6 +413,28 @@ export function dateiSpeichern(text, name, typ = 'application/json') {
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/**
+ * Datei roh einlesen - als Bytes.
+ *
+ * Ein Paket ist ein ZIP, eine alte Sicherung eine JSON. Wer als Text liest,
+ * hat die ZIP schon zerstört, bevor er sie ansieht: der Dekoder ersetzt
+ * jedes Byte, das kein gültiges UTF-8 ist. Gelesen wird deshalb roh, und
+ * unterschieden wird an den ersten zwei Zeichen (PK).
+ */
+export function dateiLesenRoh() {
+  return new Promise((fertig, fehler) => {
+    const i = document.createElement('input');
+    i.type = 'file'; i.accept = 'application/zip,.zip,application/json,.json';
+    i.onchange = async () => {
+      const f = i.files?.[0];
+      if (!f) { fehler(new Error('Keine Datei gewählt.')); return; }
+      try { fertig(new Uint8Array(await f.arrayBuffer())); }
+      catch (e) { fehler(e); }
+    };
+    i.click();
+  });
 }
 
 export function dateiLesen() {

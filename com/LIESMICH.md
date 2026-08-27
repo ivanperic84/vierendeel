@@ -78,6 +78,62 @@ getrennt und charakteristisch heraus.
 
 ## Schritt 3 — Modell aufbauen
 
+**Ohne Aufräumen.** Die Modelldatei wird am **Inhalt** erkannt
+(`format = 'tragjoch-stabmodell'`), nicht an der Anzahl der `*.json` im
+Ordner — die Zuordnung und die Ergebnisdateien fallen damit von selbst weg.
+Liegen mehrere Modelldateien da, gilt die **jüngste**; welche genommen und
+welche übergangen wurde, steht im Bericht.
+
+**Ziehen statt kopieren.** Die Datei lässt sich auf `AxisVM_aufbauen.cmd`
+ziehen — dann muss sie gar nicht erst in diesen Ordner. Windows übergibt den
+Pfad als erstes Argument; die `.cmd` macht daraus `-Json <pfad>` und reicht
+weitere Schalter mit durch.
+
+**Alles zu einem Modell liegt beim Modell:**
+
+```
+<modell>.json            die Ausleitung
+<modell>.axs             das AxisVM-Modell
+<modell>_zuordnung.json  welche Linie welcher Stab ist
+<modell>_bericht.txt     was gebaut wurde und was nicht
+<modell>_ergebnisse.json die Schnittgroessen (beim Auslesen)
+```
+
+**Ein ganzer Projektordner auf einmal.** Wird statt einer Datei ein **Ordner**
+gezogen, baut das Skript jede Modelldatei darin — **je Modell ein eigenes
+AxisVM-Modell** und eine eigene `.axs` daneben. Umgesetzt als ein Lauf je
+Datei: das Skript ruft sich selbst mit `-Stapel` auf, wartet dann nicht auf
+Enter und schliesst AxisVM nach dem Speichern. Der Sammelbericht
+(`AxisVM_stapel_bericht.txt`) liegt im Ordner und nennt je Datei Erfolg oder
+Fehlschlag; ein Fehlschlag hält den Stapel nicht an.
+
+**`Quit()` schliesst AxisVM nicht.** Zweimal gemessen, beide Male blieben
+die Instanzen stehen — `Quit()` allein, und auch `AskCloseAll = 0` plus
+`Models.Delete` davor. AxisVM schliesst sich über die **Verweiszählung**:
+
+| Eigenschaft | im Stapel | sonst |
+|---|---|---|
+| `CloseOnLastReleased` | **1** | 0 |
+| `AskCloseOnLastReleased` | 0 | 0 |
+| `AskCloseAll` | 0 | 1 |
+
+Danach `ReleaseComObject` in der Schleife bis auf null, `GC::Collect` — und
+das Fenster geht. Ausserhalb des Stapels bleibt es offen; dort soll ja
+weitergearbeitet werden. Ob es geglückt ist, zählt der **Elternlauf** am Ende
+des Stapels: im Lauf selbst ist die eigene Instanz noch am Beenden, wenn der
+Bericht geschrieben wird.
+
+Warum ein eigener Prozess je Modell und keine Schleife: der Aufbau läuft
+linear von oben nach unten und trägt Zustand in Skriptvariablen. Eine
+Schleife müsste zwischen zwei Modellen jede davon von Hand zurücksetzen — ein
+einziges Vergessen würde still das zweite Modell mit Resten des ersten bauen.
+
+Früher hiessen Bericht, Zuordnung und Ergebnisse immer gleich und lagen neben
+dem Skript. Das geht für ein Tragwerk; bei mehreren Projekten mit je mehreren
+Jochen überschreibt sich dort alles. Dieser Ordner bleibt damit **das
+Werkzeug, nicht das Archiv**.
+
+
 > Doppelklick auf **`AxisVM_aufbauen.cmd`**
 
 Liegt genau eine `*.json` daneben, wird sie genommen; sonst mit
@@ -121,6 +177,25 @@ Starrkörper, Linkelemente:
 | Gelenkige Anschlüsse? | `LinkElements.AddNN(RNNLinkElementRec)`. Die Linie muss vorher liegen (Feld `LineId`), die Kraftübertragung steht je Richtung in `Stiffnesses` |
 | Steifigkeit eines Stabes hochdrehen? | **Nicht** über `StiffnessReduction_A/_I` — gesetzt 1000, gelesen 1, ohne Fehlermeldung. Es ist eine Reduktion. Stattdessen ein eigenes Material über `Materials.AddSteel_EuroCode(...)` |
 | Welche Einheit haben die Materialkennwerte? | `Ex = 2.1e8`, also **kN/m²**. Gelesen wird das Katalogmaterial und mit dem Faktor neu angelegt — dann stellt sich die Frage gar nicht |
+
+Der Lauf vom **27. August** hat eine einzige Frage gestellt, weil der Mast ins
+Modell kam:
+
+| Frage | gemessen |
+|---|---|
+| Wie legt man ein I-Profil an? | `CrossSections.AddI(Name, h, b, tw, tf, R, Process)` — dieselbe Bauart wie `AddL`, also in **Metern**. Daneben stehen `AddAsymmetricI`, `AddBox`, `AddC`, `AddIFB`, `AddIHaunched` und `AddFromCatalog` |
+
+Der **Ausrundungsradius R** steht in keiner Profiltabelle dieses Werkzeugs —
+er folgt aber eindeutig aus der Fläche:
+
+```
+A = 2·b·tf + (h − 2·tf)·tw + (4 − π)·R²
+```
+
+Nach R aufgelöst ergibt das für HEB 200/220/240/260 und HEM 240 der Reihe nach
+**18.1, 17.9, 21.0, 23.9, 21.0 mm** — genau die Radien der Norm. Ausgeleitet
+wird der unrunde Wert, damit die Rückmessung der Fläche (Schritt 4) auf die
+Zahl der Tabelle trifft statt auf die zwei Prozent, die beim Winkel bleiben.
 
 ### Ein Verbund-Typ verträgt keinen Umweg
 

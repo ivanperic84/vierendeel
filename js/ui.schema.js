@@ -35,6 +35,7 @@ import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
 const opt = (arr, k = 'key', l = 'label') => arr.map((x) => ({ wert: x[k], text: x[l] }));
 
 export const GRUPPEN = [
+  { id: 'ort',   titel: 'Verortung' },
   { id: 'typ',   titel: 'Tragjoch-Typ und Rechenmasse' },
   { id: 'geo',   titel: 'Systemgeometrie' },
   { id: 'aufl',  titel: 'Auflager / Mast' },
@@ -65,6 +66,36 @@ export const SCHNITT_ORIENTIERUNGEN = [
 ];
 
 export const FELDER = [
+  /*
+   * WO DAS TRAGWERK STEHT.
+   *
+   * Rechnerisch bedeutungslos, für die Ablage entscheidend: ein Projekt hat
+   * eine Reihe von Tragwerken, und ohne Verortung heissen sie alle «J90,
+   * 20.00 m». Die drei Angaben wandern in die Überschrift, in den Bericht,
+   * in die AxisVM-Ausleitung und in den DATEINAMEN - dort tragen sie am
+   * meisten, weil die COM-Brücke die jüngste Modelldatei nimmt und man ihr
+   * ansehen können muss, welches Tragwerk sie ist.
+   *
+   * TEXT, NICHT ZAHL. Die Liniennummer führt führende Nullen, die
+   * KM-Angabe drei Nachkommastellen und einen Punkt als Trenner — als Zahl
+   * gerechnet wäre aus «012.345» still «12.345» geworden.
+   */
+  {
+    key: 'linie', gruppe: 'ort', typ: 'text', label: 'Liniennummer',
+    standard: '', platzhalter: 'z. B. 600', laenge: 12,
+    hinweis: 'Nummer der Strecke. Geht in keine Rechnung ein.',
+  },
+  {
+    key: 'ortschaft', gruppe: 'ort', typ: 'text', label: 'Ortschaft',
+    standard: '', platzhalter: 'z. B. Bahnhof Nord', laenge: 28,
+    hinweis: 'Klartext zum Wiederfinden — Ortsname, Bahnhof, Abschnitt.',
+  },
+  {
+    key: 'km', gruppe: 'ort', typ: 'text', label: 'KM-Position',
+    standard: '', platzhalter: 'z. B. 012.345', laenge: 14,
+    hinweis: 'Streckenkilometer des Standorts, wie im Querprofil geschrieben.',
+  },
+
   // --- Typ und Rechenmasse -------------------------------------------------
   {
     key: 'typ', gruppe: 'typ', typ: 'auswahl', label: 'Tragjoch-Typ',
@@ -89,6 +120,28 @@ export const FELDER = [
   // a₁ ist NICHT die Regelteilung, sondern das Endfeld am Auflager (750 mm
   // nach Zeichnung). Wo eine Mass-Tabelle vorliegt, kommt die Teilung dazwischen
   // aus ihr und wird nicht gerechnet.
+  /*
+   * DIE MASSKETTE DER ZEICHNUNG.
+   *
+   * Über dem Joch steht auf jedem Querprofil eine Kette von Massen in
+   * Zentimetern ab dem linken Jochende. Das sind die Stellen, an denen
+   * wirklich etwas hängt - genau die Zahl, die jede Baugruppe als Lage x
+   * braucht. Einmal abgeschrieben, fängt die Eingabe danach darauf.
+   *
+   * Als TEXT, nicht als Zahlenliste: abgeschrieben wird von Hand, und eine
+   * Zeile «15 209 474 735» tippt sich schneller als sieben Felder. Gelesen
+   * wird grosszügig (core.constants.js, massketteLesen).
+   */
+  {
+    key: 'masskette', gruppe: 'geo', typ: 'text',
+    label: 'Masskette der Zeichnung', einheit: 'cm', standard: '',
+    platzhalter: 'z. B. 15 209 474 735 885 983 1185 1200', laenge: 120,
+    hinweis: 'Die Masse über dem Joch, in Zentimetern ab dem linken Jochende — '
+           + 'falls die Zeichnung sie führt. Dann fängt die Lage der Anbauteile '
+           + 'darauf, und im Modell stehen sie als Fanglinien. Das letzte Mass '
+           + 'muss die Jochlänge sein; das ist die Gegenprobe. Leer lassen, wo '
+           + 'keine Kette steht — dann wird auf der Zeichnung gemessen.',
+  },
   { key: 'a1', gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
     sym: 'a₁', einheit: 'm', standard: 0.75, min: 0.3, max: 1.5, schritt: 0.05,
     ausDB: true,
@@ -175,8 +228,22 @@ export const FELDER = [
              'zusammen; dann gilt der gemessene Rahmenwert 3.10·E·I/H, ' +
              'unabhängig von dieser Wahl. Die weichere Annahme vergrössert ' +
              'das Feldmoment, die steifere das Stützmoment.' },
+  /*
+   * STARTWERT AUS (Weisung, 27. August).
+   *
+   * Sonst sagt die Anwendung zweierlei zugleich: der Rechenkern setzt die
+   * Feder herab, DAMIT die Verbindung ihre Grenzlast einhält - und Prüfung
+   * A1 weist gleichzeitig die Kraft aus der UNGEBREMSTEN Feder nach und
+   * meldet sie als überschritten. Beides aus demselben Lauf, und beides
+   * angeblich wahr.
+   *
+   * Entschieden ist: die geometrische Feder gilt, die Schraubengrenze ist
+   * ein eigener Nachweis (A1). Die Begrenzung bleibt als Schalter erhalten -
+   * wer die weichere Annahme rechnen will, schaltet sie ein und weiss dann,
+   * dass A1 sich auf ein anderes System bezieht.
+   */
   { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
-    label: 'Einspannung durch die Gurtverbindung begrenzen', standard: true,
+    label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
     sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
     hinweis: 'Das Stützmoment tritt als Kräftepaar zwischen Ober- und ' +
              'Untergurtanschluss in den Mast. Die Drehfeder wird iterativ ' +
@@ -185,9 +252,10 @@ export const FELDER = [
   { key: 'schraubenFgrenz', gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,
-    sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung)
-      && w.schraubenGrenze !== false,
-    hinweis: 'Horizontalkraft je Gurtanschluss. Voreingestellt 24 kN.' },
+    sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
+    hinweis: 'Horizontalkraft JE GURT - jede Gurtebene hängt an zwei Gurten, '
+           + 'die Ebenenkraft ist also das Doppelte. Voreingestellt 24 kN. '
+           + 'Nachgewiesen wird sie in Prüfung A1, auch ohne die Begrenzung.' },
   { key: 'wMastAusTabelle', gruppe: 'aufl', typ: 'schalter',
     label: 'Windlast auf Mast aus der Lasttabelle', standard: true,
     sichtbar: (w) => w.endbedingung === 'mast',
@@ -199,8 +267,20 @@ export const FELDER = [
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
+  /*
+   * STARTWERT AUS (Weisung, 27. August).
+   *
+   * Der Ersatzbalken kann den Mastwind nur als AUFGEZWUNGENE
+   * Auflagerverdrehung fassen - eine Ersatzgrösse für etwas, das im
+   * Stabmodell schlicht eine Last auf dem Masten ist. Sobald der Mast im
+   * Modell steht (Auflagermodell «Mast»), trägt er sie selbst, und die
+   * Ersatzgrösse würde sie ein zweites Mal ansetzen.
+   *
+   * Deshalb aus, bis sie ausdrücklich gewollt ist. Wer ohne Mast im Modell
+   * rechnet und den Anteil trotzdem braucht, schaltet sie ein.
+   */
   { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
-    label: 'Mastwind wirkt auf das Joch', standard: true,
+    label: 'Mastwind wirkt auf das Joch', standard: false,
     sichtbar: (w) => w.endbedingung === 'mast',
     hinweis: 'Der Wind IN DER JOCHACHSE biegt den Mast, sein Kopf verdreht ' +
              'sich um θ₀ = w·H³/(6·E·I), und weil das Jochende dort ' +

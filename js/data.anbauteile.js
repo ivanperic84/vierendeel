@@ -153,8 +153,50 @@ const gruppeOderG = (k) =>
 const zVon = (o) => o?.z ?? -(o?.ev ?? 0);
 const yVon = (o) => o?.y ?? o?.ex ?? 0;
 
+/**
+ * WO EINE BAUGRUPPE STEHT.
+ *
+ * Bis hierher gab es nur einen Ort: das Joch, und `x` sagte, wo darauf. Ein
+ * Fahrleitungstragwerk besteht aber aus Joch UND Masten, und am Masten
+ * hängen Traversen, Lampen, Leiter - Teile, die es bisher nur am Joch geben
+ * konnte.
+ *
+ * Am Masten zählt statt `x` die HÖHE ÜBER FUNDAMENT (`hMast`). Das ist die
+ * Angabe, die auf der Baustelle und in der Zeichnung steht, und sie lässt
+ * sich gegen die Mastlänge prüfen.
+ */
+export const ANBAU_ORTE = [
+  { key: 'joch',  label: 'am Joch' },
+  { key: 'mastA', label: 'am Mast Ende A' },
+  { key: 'mastB', label: 'am Mast Ende B' },
+];
+
+export const ortVon = (a) => (a?.ort === 'mastA' || a?.ort === 'mastB'
+  ? a.ort : 'joch');
+export const amMast = (a) => ortVon(a) !== 'joch';
+
+/**
+ * AM MASTEN GIBT ES KEINEN TRÄGER (Weisung: kein Jochaufsatz, keine
+ * Hängestütze).
+ *
+ * Das steht nicht als Verbotsliste im Code, es steht in den Daten. Die
+ * Bauteiltabelle führt drei Rollen - `traeger`, `aufbau`, `drahtwerk` -, und
+ * `traeger` tragen genau vier Bauteile: die drei Jochaufsätze und die
+ * Hängestütze. Ein Träger IST das, was auf dem Joch sitzt oder daran hängt.
+ *
+ * Am Masten beginnt die Kette am Masten selbst; das erste Teil ist ein
+ * Aufbau (Traverse, Ausleger, Lampe) oder ein Drahtwerk. Kommt einmal ein
+ * neuer Träger in die Tabelle, gilt die Regel für ihn ohne Zutun.
+ */
+export const traegerImTeil = (teile) =>
+  (teile ?? []).find((t) => (t.rolle ?? '') === 'traeger') ?? null;
+
 export function normalisiereAnbauteil(a) {
   const t = { ...a };
+  // Der Ort gehört zur Baugruppe, nicht zu ihren Teilen: eine Traverse am
+  // Masten ist dasselbe Bauteil wie eine am Joch, sie steht nur woanders.
+  t.ort = ortVon(a);
+  t.hMast = Number.isFinite(a?.hMast) ? a.hMast : 0;
   t.module = (a.module ?? []).map((m) => {
     const n = { ...m };
     n.z = zVon(n); n.y = yVon(n);
@@ -376,8 +418,12 @@ export function expandiereAnbauteile(liste, o = {}) {
     // stationX ist die Stelle, an der die BAUGRUPPE am Joch hängt; x eines
     // Teils kann davon abweichen (Kragarm). Beide werden gebraucht: die
     // Station für den Anschluss, x für den Angriffspunkt.
+    // Der ORT wandert mit: ohne ihn wuesste die Ausleitung hinterher nicht
+    // mehr, ob ein Teil am Joch oder am Masten sitzt - und `x` bedeutet an
+    // den beiden Orten Verschiedenes.
     const gemein = { baugruppe: a.id, x: a.x, stationX: a.x, raster: a.raster,
-                     befestigung: a.befestigung, aktiv: true, vorlage: a.vorlage };
+                     befestigung: a.befestigung, aktiv: true, vorlage: a.vorlage,
+                     ort: a.ort, hMast: a.hMast };
     // Erst die Anteile DIESER Baugruppe sammeln: die Umverteilung des Windes
     // braucht sie vollständig nebeneinander, um den Träger zu finden.
     const teile = [];

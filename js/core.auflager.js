@@ -374,7 +374,11 @@ function fem({ L, qd, P, M = [] }) {
  */
 export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz,
                                 theta0A = 0, theta0B = 0, MkA = 0, MkB = 0 }) {
-  const kraft = (Mst) => (h > 0 ? Math.abs(Mst) / h : 0);
+  // JE GURT, NICHT JE GURTEBENE (Weisung). Das Kräftepaar trägt jede Ebene
+  // mit ZWEI Gurten; die Grenzlast ist die eines Anschlusses, also der
+  // halben Ebenenkraft. Zuvor stand hier M/h - das Doppelte, und damit ein
+  // Nachweis, der bei jedem zweiten Joch grundlos anschlug.
+  const kraft = (Mst) => (h > 0 ? Math.abs(Mst) / (2 * h) : 0);
   let a = cA, b = cB, durchgaenge = 0, begrenzt = false;
   let auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B, MkA, MkB });
 

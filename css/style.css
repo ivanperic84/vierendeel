@@ -90,6 +90,13 @@ body {
 }
 .btn-icon:hover { background: var(--s3); color: var(--on); }
 .btn-icon.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+/* Ein Symbolknopf, der seinen Namen tragen darf: der Weg nach AxisVM ist
+   der meist begangene und war als eines von sieben gleichen Symbolen
+   nicht zu finden. */
+.btn-icon-text { width: auto; gap: 6px; padding: 0 10px; font-size: 12px;
+  font-weight: 600; font-family: var(--f-ui); letter-spacing: .02em; }
+.btn-icon-acc { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+.btn-icon-acc:hover { background: var(--acc); color: var(--s1); }
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
@@ -282,6 +289,9 @@ input:disabled, select:disabled {
 
 .schalter { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on2); }
 .schalter input { width: auto; }
+/* Ein Modell, das die Eingabe noch nicht hergibt: sichtbar, aber nicht
+   waehlbar - so ist zu sehen, dass es existiert. */
+.schalter.aus { opacity: .5; }
 .hinweis { font-size: 10.5px; color: var(--xdim); line-height: 1.45; }
 
 /* --- Lasttabelle ---------------------------------------------------------- */
@@ -581,6 +591,22 @@ input[type=range].rng {
   gap: 4px;
 }
 /* Auswahl der dargestellten Einwirkung, oben mittig */
+/* Der Handlungsbalken sitzt ueber dem Modell, weil dort geklickt wird -
+   und er faellt auf, weil er eine Handlung verlangt. */
+.viewer-balken {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; align-items: center; z-index: 6;
+  background: var(--acc-s); border: 1px solid var(--acc); color: var(--on);
+  border-radius: var(--m-r1); padding: 6px 10px; font-size: 12px;
+  max-width: calc(100% - 40px);
+}
+.viewer-balken b { color: var(--acc); }
+.viewer-balken .btn { padding: 3px 8px; }
+/* Die Vorlagenwahl im Balken: sie kann laenger werden als das Fenster,
+   also umbrechen statt hinauslaufen. */
+.viewer-balken .balken-wahl { display: flex; flex-wrap: wrap; gap: 3px;
+  max-width: 46vw; }
+
 .viewer-oben {
   position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 3px; align-items: center; flex-wrap: wrap;

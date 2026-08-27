@@ -46,8 +46,19 @@ function u32(v) {
   return new Uint8Array([v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff]);
 }
 
-/** ZIP mit Methode 0 (gespeichert). */
-function zip(dateien) {
+/**
+ * ZIP mit Methode 0 (gespeichert).
+ *
+ * Ausgeführt, weil nicht nur die Arbeitsmappe eine Sammlung von Dateien ist:
+ * das Ausleiten der ganzen Ablage trägt die hinterlegten Zeichnungen mit, und
+ * die gehören als eigene Bilddateien daneben, nicht als Zahlenkolonne in eine
+ * JSON. Ein zweiter ZIP-Schreiber dafür wäre einer zu viel.
+ *
+ * Ohne Verdichtung: JPEG und XLSX-Inhalte sind entweder schon verdichtet oder
+ * klein, und ein Deflate-Schreiber wäre erheblich mehr Code als der ganze
+ * Rest hier.
+ */
+export function zip(dateien) {
   const lokal = [], zentral = [];
   let offset = 0;
   const d = new Date();
@@ -186,6 +197,41 @@ function blattXml(rows, breiten) {
  * @param {{name:string, rows:Array, breiten?:number[]}[]} blaetter
  * @returns {Uint8Array}
  */
+/**
+ * ZIP lesen - nur Methode 0, also genau das, was `zip` schreibt.
+ *
+ * Gelesen wird über die LOKALEN KÖPFE, nicht über das zentrale Verzeichnis:
+ * beide stehen in unseren Dateien, und der lokale Kopf trägt alles, was
+ * gebraucht wird. Eine fremde ZIP mit Verdichtung fällt dabei auf - ihre
+ * Methode ist nicht 0 -, und dann sagt es die Meldung, statt Unsinn zu
+ * liefern.
+ *
+ * @param {Uint8Array} daten
+ * @returns {Array<{name:string, inhalt:Uint8Array}>}
+ */
+export function entpacke(daten) {
+  const dv = new DataView(daten.buffer, daten.byteOffset, daten.byteLength);
+  const dec = new TextDecoder();
+  const aus = [];
+  let i = 0;
+  while (i + 30 <= daten.length && dv.getUint32(i, true) === 0x04034b50) {
+    const methode = dv.getUint16(i + 8, true);
+    const laenge = dv.getUint32(i + 18, true);
+    const nLen = dv.getUint16(i + 26, true);
+    const eLen = dv.getUint16(i + 28, true);
+    const name = dec.decode(daten.subarray(i + 30, i + 30 + nLen));
+    const von = i + 30 + nLen + eLen;
+    if (methode !== 0) {
+      throw new Error(`«in ${name}» ist verdichtet - diese Datei stammt nicht `
+                    + 'aus dieser Anwendung.');
+    }
+    aus.push({ name, inhalt: daten.subarray(von, von + laenge) });
+    i = von + laenge;
+  }
+  if (!aus.length) throw new Error('Die Datei ist kein Paket dieser Anwendung.');
+  return aus;
+}
+
 export function arbeitsmappe(blaetter) {
   const dateien = [
     {

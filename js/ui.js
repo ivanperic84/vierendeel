@@ -11,14 +11,32 @@ import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
-         modulWinkel } from './data.anbauteile.js';
+         modulWinkel, ANBAU_ORTE, ortVon } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast,
          PROFILBEIWERTE } from './data.fl.js';
-import { befestigungsArt, anbauKette } from './core.anbauteile.js';
+import { befestigungsArt, anbauKette, passeTraegerAn,
+         hatTraeger } from './core.anbauteile.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
+import { massketteLesen, fangeAufMasskette } from './core.constants.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
 import { skizzeFuer } from './render.skizzen.js';
+
+/*
+ * DAS GERECHNETE MODELL, für die Lage eines Anbauteils.
+ *
+ * Die Maske arbeitet sonst nur mit den EINGABEWERTEN - das genügt für alles,
+ * was sie zeigt. Wo aber ein Träger den Bindeblechen ausweichen soll, braucht
+ * sie deren Lage und Breite, und die stehen erst im gerechneten Modell
+ * (`stationsListe`). Es aus den Eingabewerten neu abzuleiten hiesse, die
+ * Blecheinteilung ein zweites Mal zu rechnen - und zwei Rechnungen für
+ * dieselbe Sache laufen früher oder später auseinander.
+ *
+ * Gesetzt wird es bei jedem Durchgang von aussen; fehlt es, wird nur nicht
+ * freigeschoben.
+ */
+let modellFuerLage = null;
+export function setzeModellFuerLage(m) { modellFuerLage = m ?? null; }
 
 export const el = (id) => document.getElementById(id);
 
@@ -78,7 +96,10 @@ const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
  * Das Symbol steht in der eingeklappten Schiene.
  */
 export const EINGABE_TABS = [
-  { id: 'system', titel: 'System', icon: 'system', gruppen: ['typ', 'geo', 'aufl'] },
+  // Die Verortung steht zuoberst: sie sagt, WELCHES Tragwerk das ist -
+  // eine Frage, die vor allen Rechenmassen kommt.
+  { id: 'system', titel: 'System', icon: 'system',
+    gruppen: ['ort', 'typ', 'geo', 'aufl'] },
   // Die Stückliste gehört zu den Profilen: sie sagt, was aus der gewählten
   // Profil- und Blechwahl an Stahl herauskommt. Als eigener Auswertungsreiter
   // stand sie weit weg von der Entscheidung, die sie beeinflusst.
@@ -134,8 +155,14 @@ export function maskenSignatur(werte, tab) {
       // Die Befestigungsart gehört dazu: sie ändert den Erklärtext am Feld.
       // Ebenso die Rolle der Module (Drahtwerk zeigt den Winkel statt der
       // Länge) und die Einwirkungsgruppe je Lastblock.
+      // DER STANDORT GEHÖRT DAZU. Er entscheidet, WELCHE Felder die Karte
+      // zeigt - am Joch die Lage x mit Befestigung und Raster, am Masten die
+      // Höhe über Fundament. Ohne ihn in der Signatur blieb die Karte beim
+      // Umschalten stehen: der Wert war gesetzt, die Maske zeigte weiter die
+      // Jochfelder.
       ? (werte.anbauteile ?? []).map(
           (a) => `${a.id}:${a.aktiv !== false}:${befestigungsArt(a)}:` +
+                 `${ortVon(a)}:` +
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(','))
@@ -451,6 +478,13 @@ function feldHtml(f, wert, werte) {
   } else if (f.typ === 'schalter') {
     inp = `<label class="schalter"><input type="checkbox" id="${id}" data-feld="${f.key}"
              ${wert ? 'checked' : ''}${dis}><span>aktiv</span></label>`;
+  } else if (f.typ === 'text') {
+    // Klartext, keine Zahl: die Liniennummer führt führende Nullen, die
+    // KM-Angabe einen Punkt als Trenner. Als Zahlenfeld wäre aus «012.345»
+    // still «12.345» geworden.
+    inp = `<input type="text" id="${id}" data-feld="${f.key}"
+             value="${esc(wert ?? '')}" placeholder="${esc(f.platzhalter ?? '')}"
+             ${f.laenge ? `maxlength="${f.laenge}"` : ''}${dis}>`;
   } else if (f.typ === 'schieber') {
     inp = `<div class="zahlfeld">
              <input class="rng" type="range" data-feld="${f.key}"
@@ -575,10 +609,21 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
         </div>
         ${anbauteilSkizze(a, werte)}
         <div class="at-gitter">
-          ${atSchieber(i, 'x', 'Lage x', a.x, 'm', 0.05, 0, werte.L ?? 20)}
-          ${atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
-                   BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])}
-          ${atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)}
+          ${atWahl(i, 'ort', 'Standort', ortVon(a), ANBAU_ORTE,
+                   'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
+                   + 'Was am Masten hängt, geht NICHT in den Ersatzbalken ein — '
+                   + 'es steht nur im Stabmodell mit Auflagermodell «Mast».')}
+          ${ortVon(a) === 'joch'
+            ? atSchieber(i, 'x', 'Lage x', a.x, 'm', 0.1, 0, werte.L ?? 20)
+            : atSchieber(i, 'hMast', 'Höhe über Fundament', a.hMast ?? 0, 'm',
+                         0.05, 0, werte.mastH ?? 12)}
+          ${ortVon(a) === 'joch'
+            ? atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
+                     BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])
+            : ''}
+          ${ortVon(a) === 'joch'
+            ? atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)
+            : ''}
           ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
                    'Nach welchem Gleis die Baugruppe gruppiert wird. '
                    + '0 = ohne Zuordnung. Der Lastgenerator setzt die Nummer '
@@ -1314,9 +1359,39 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       const karte = inp.closest('.at-karte');
       const idx = +karte.dataset.idx;
       const l = liste();
-      l[idx][inp.dataset.k] = inp.type === 'checkbox' ? inp.checked
+      let v = inp.type === 'checkbox' ? inp.checked
         : inp.type === 'number' || inp.type === 'range'
           ? (parseFloat(inp.value) || 0) : inp.value;
+      /*
+       * DIE LAGE AM JOCH: RUNDEN, FANGEN, FREISCHIEBEN - in dieser Folge.
+       *
+       * 10 cm (Weisung): niemand baut auf den Millimeter, und eine Lage von
+       * 4.947 m täuscht eine Genauigkeit vor, die es nicht gibt.
+       *
+       * Die MASSKETTE sticht das Runden aus - 2.09 steht so auf der
+       * Zeichnung, und dort sitzt das Bauteil.
+       *
+       * Zuletzt weicht ein TRÄGER den Bindeblechen aus (Weisung: Hängestützen
+       * und Jochaufsätze dürfen sich nicht mit den Verbindungsblechen
+       * berühren). Das ist keine Vorliebe, sondern eine Unmöglichkeit: die
+       * Klemme kann dort nicht sitzen. Deshalb zuletzt und ohne Widerrede.
+       */
+      if (inp.dataset.k === 'x') {
+        v = Math.round(v * 10) / 10;
+        v = fangeAufMasskette(v, massketteLesen(werte.masskette, werte.L).werte);
+        // Das Teil aus DIESER Liste, nicht aus einem Helfer der Maske:
+        // `teilVon` gehoert zu aktualisiereMaske und gibt es hier nicht.
+        const teil = l[idx];
+        if (modellFuerLage && teil
+            && hatTraeger(teil.module, (id) => getFlBauteil(id).rolle)) {
+          const an = passeTraegerAn(v, teil.raster, modellFuerLage);
+          v = an.x;
+          // Wird das Raster geweitet, wandert es mit in die Baugruppe -
+          // sonst stünde in der Karte ein Wert, mit dem nicht gerechnet wird.
+          if (an.geweitet) l[idx] = { ...l[idx], raster: an.raster };
+        }
+      }
+      l[idx][inp.dataset.k] = v;
       onAnbau(l);
     });
   });

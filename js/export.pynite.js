@@ -46,7 +46,7 @@
  */
 
 import { EINWIRKUNGEN } from './core.lasten.js';
-import { stabmodell, lasten } from './export.axisvm.js';
+import { stabmodell, lasten, stuetzung } from './export.axisvm.js';
 import { herunterladen } from './export.xlsx.js';
 
 /** Rechteck: starke und schwache Achse sowie St-Venant (dünnes Rechteck). */
@@ -204,14 +204,29 @@ export function pyniteSkript(m, opt = {}) {
   //   fiy  (Vertikalbiegung)               -> RZ   (Achse = Gleisrichtung)
   //   fiz  (Windbiegung im Grundriss)      -> RY   (Achse = Lotrechte)
   const lagerZeilen = [];
+  /*
+   * DIE FREIHEITSGRADE DES MODELLS, NICHT EIGENE.
+   *
+   * Hier stand eine zweite, selbstgebaute Lagerungsregel: jedes Auflager
+   * bekam y/z/Torsion gehalten und die Drehfeder dazu - gleich, welches
+   * Auflagermodell `stabmodell` gerade gebaut hatte. Beim Gurtmodell hiess
+   * das acht voll gehaltene Knoten samt acht Federn, obwohl dort nur die
+   * Untergurte lotrecht halten und keine Feder vorkommt. Dieselbe
+   * Verwechslung wie im SAF- und im DXF-Blatt: gefragt werden muss das
+   * LAGER, nicht sein Endbuchstabe.
+   */
   bau.auflager.forEach((a) => {
-    const c = a.ende === 'A' ? m.federn.cA : m.federn.cB;
-    const starr = c >= 1e11;
-    const dx = a.ende === 'A';                       // ein Ende längs frei
-    lagerZeilen.push(`M.def_support(${s(a.knoten)}, ${dx ? 'True' : 'False'}, `
-      + `True, True, True, False, ${starr ? 'True' : 'False'})`);
-    if (c > 0 && !starr) {
-      lagerZeilen.push(`M.def_support_spring(${s(a.knoten)}, 'RZ', ${py(c)})`);
+    const b = stuetzung(m, a);
+    const j = (v) => (v === 'Free' ? 'False' : 'True');
+    // Reihenfolge in PyNite: DX, DY, DZ, RX, RY, RZ - und PyNites Y ist
+    // unser z, PyNites Z unser y. Der Tausch gilt fuer die Halte genauso wie
+    // fuer die Koordinaten oben.
+    lagerZeilen.push(`M.def_support(${s(a.knoten)}, ${j(b.ux)}, `
+      + `${j(b.uz)}, ${j(b.uy)}, ${j(b.fix)}, ${j(b.fiz)}, ${j(b.fiy)})`);
+    // 'Flexible' heisst: gehalten über eine Feder, nicht starr. PyNite
+    // braucht dazu beides - den Halt und die Federzahl.
+    if (b.fiy === 'Flexible' && b.cFiy_kNm) {
+      lagerZeilen.push(`M.def_support_spring(${s(a.knoten)}, 'RZ', ${py(b.cFiy_kNm)})`);
     }
   });
 

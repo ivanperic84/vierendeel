@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1221 Kontrollen bestanden, 0 gefallen · Bundle 1085 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm**
+**Stand:** 1476 Kontrollen bestanden, 0 gefallen · Bundle 1200 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm** · **Mast im AxisVM-Modell mit Anbauteilen** · **Zeichnung hinterlegbar, Tragwerk selbst erkannt**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1221 Kontrollen
+node pruefung.mjs           # Prüfstand, 1476 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,716 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Der Weg von der Ausleitung in AxisVM (27. August)
+
+Die Brücke verlangte vor jedem Bau ein Aufräumen: erst die neue JSON in
+`com/` kopieren, dann die alte löschen. Der Grund stand im Skript selbst —
+es nahm **«die einzige `*.json` daneben»**, legte beim Bauen aber selbst
+`AxisVM_zuordnung.json` dorthin. Ab dem zweiten Lauf lagen also immer zwei
+da, und es hielt an. Kein Schutz, eine Hürde.
+
+**Drei Dinge sind jetzt anders:**
+
+1. **Die Datei wird am Inhalt erkannt.** Nur `format = 'tragjoch-stabmodell'`
+   zählt; die Zuordnung und die Ergebnisdateien fallen von selbst weg.
+   Gelesen werden dafür 800 Byte, nicht die ganze Datei.
+2. **Von mehreren gilt die jüngste** — man leitet aus und baut, das ist die
+   Reihenfolge. Welche genommen wurde und welche übergangen, steht im
+   Bericht.
+3. **Die Datei lässt sich auf `AxisVM_aufbauen.cmd` ziehen.** Dann muss sie
+   gar nicht erst in den Ordner. Weitere Schalter kommen mit — daran hängt
+   `AxisVM_auslesen.cmd`, das die Datei als `<datei> -Auslesen` weiterreicht.
+
+**Und alles, was zu einem Modell gehört, liegt beim Modell.** Bericht,
+Zuordnung und Ergebnisse hiessen früher immer gleich und lagen neben dem
+Skript; bei mehreren Projekten mit je mehreren Jochen überschreibt sich dort
+alles. Jetzt heissen sie wie die Modelldatei und liegen in deren Ordner:
+
+```
+<modell>.json            die Ausleitung
+<modell>.axs             das AxisVM-Modell
+<modell>_zuordnung.json  welche Linie welcher Stab ist
+<modell>_bericht.txt     was gebaut wurde und was nicht
+<modell>_ergebnisse.json die Schnittgroessen (beim Auslesen)
+```
+
+Damit bleibt `com/` das, was es sein soll: **das Werkzeug, nicht das Archiv.**
+
+### Masten und Joch selbst erkennen (27. August)
+
+**Weisung:** eine automatische Erkennung von Masten und Jochen, und die
+Zeichnung danach selbst ausrichten.
+
+> **Sie schlägt vor, sie entscheidet nicht.** Eine Zeichnung ist kein
+> Datensatz: was darauf steht, steht dort für einen Menschen. Jede Erkennung
+> ist eine Vermutung, und eine Vermutung, die sich als Messung ausgibt, wäre
+> schlimmer als gar keine. Das Ergebnis wird **vorgelegt** — der Balken sagt,
+> dass gerechnet und nicht gemessen wurde, und die zwei Klicks stehen einen
+> Knopfdruck entfernt.
+
+**Woran man ein Tragwerk erkennt.** Die Masten sind die **längsten
+Senkrechten** des Blattes: sie laufen vom Joch bis zum Fundament, über die
+halbe Blatthöhe. Nichts sonst auf einem Querprofil ist so lang und so
+senkrecht — ein Lichtraumprofil ist rund, eine Bemassungslinie kurz, ein
+Schriftfeld flach. Zwischen ihnen liegt das Joch.
+
+Damit sind genau die beiden Punkte gefunden, die das Einmessen braucht: die
+Mastachsen auf Höhe der Jochachse, also x = 0 und x = L.
+
+**Drei Störenfriede, drei Regeln — alle drei gemessen, nicht vermutet:**
+
+* **Der Blattrahmen ist kein Mast.** Er läuft über die ganze Höhe und schlägt
+  jeden Masten an Länge. Der äusserste Rand zählt deshalb nicht mit, und was
+  nur einen Strich breit ist, ist kein Profil.
+* **Die obere Rahmenkante ist keine Jochachse.** Sie läuft über die ganze
+  Breite und schlägt jeden Gurt an Tinte — der erste Versuch fand die
+  Blattkante. Gesucht wird deshalb nur **auf der Länge der Masten**: was
+  über ihren Köpfen oder unter ihren Füssen durchläuft, gehört nicht zum
+  Tragwerk. Das nimmt zugleich das Schriftfeld unten heraus.
+* **Die Masskette darüber zieht die Achse nicht an sich** — der Prüfstand
+  vergleicht ein Blatt mit und ohne Kette und verlangt dasselbe Ergebnis.
+
+> **Der Mastkopf war der falsche Anker.** Die erste Fassung suchte das Joch in
+> einem Fenster um den Mastkopf — «das Joch sitzt auf den Masten». Dann kam
+> ein Querprofil *J70 E / 15 m auf DP26/12.5 und DPM24/12.5*, dessen Masten
+> **über das Joch hinauslaufen**: oben trägt jeder eine Traverse mit einem
+> 95Cu. Die Erkennung fand die Traverse — Jochachse **103 statt 282**,
+> Zutrauen 0.10. Verworfen hat sie den Vorschlag damit richtigerweise selbst;
+> geholfen hat sie nicht.
+>
+> Gewertet wird jetzt nicht mehr die stärkste ZEILE in einem Fenster, sondern
+> das **tintenreichste durchlaufende BAND** auf der ganzen Mastlänge. Das ist
+> das eigentliche Merkmal: eine Traverse spannt ein Zehntel des Streifens
+> zwischen den Masten, ein Lichtraumprofil ein Viertel, eine Terrainlinie gut
+> die Hälfte — nur das Joch spannt ihn ganz, und zwar zweimal, mit Füllstäben
+> dazwischen. Am selben Blatt danach: **281.6 gegen 282**, Zutrauen 1.0.
+>
+> Das trägt auch den Fall, den kein Fenster mehr auffangen könnte: eine
+> **Masskette zwischen Mastkopf und Joch**. Sie füllt den Streifen so ganz
+> wie ein Gurt und verliert trotzdem — ein Joch ist zwei Gurte, eine
+> Masskette ein Strich.
+
+**Die Achse liegt zwischen den Gurten, nicht auf einem.** Vom stärksten Strich
+aus wächst ein Band nach oben und unten, solange noch Tinte da ist; die
+Füllstäbe halten es zusammen. Mit einer Schwelle von 12 % blieb es am
+Obergurt hängen — die Stäbe tragen nur rund 5 % der Tinte eines Gurtes. Bei
+3 % trifft es die Mitte: am nachgebauten Joch **188.07 gegen 188.5**.
+
+**Rot ist dunkel.** Auf einem Querprofil ist das Neue rot gezeichnet, und der
+Mast ist oft genau das. Reines Rot hat eine wahrgenommene Helligkeit von 76 —
+deutlich unter der Schwelle, obwohl sein Rotkanal voll ausgesteuert ist. Wer
+nur den Rotkanal prüfte, sähe es als hell.
+
+**Die Schranke ist der Abstand zum Dritten:** um wieviel kürzer der
+nächstlängste Senkrechte ist als der kürzere Mast. Ein Viertel genügt, und das
+ist gemessen: auf einem Blatt sind die nächstlängsten Senkrechten die
+Lichtraumprofile, und die kamen auf 260 von 432 Punkten — 40 % kürzer. Ein
+dritter, ebenso langer Strich drückt den Wert auf 0.06, und dann sind zwei
+Klicks ehrlicher.
+
+> **Die Zahl brauchte ihren Namen.** Der Balken sagte zuerst «Zutrauen 39 %» —
+> das las sich wie Unsicherheit, wo ein deutliches Ergebnis stand. Jetzt
+> steht dort, was die Zahl bedeutet: «die beiden Masten heben sich ab
+> (nächster Strich 39 % kürzer)».
+
+Gerechnet wird auf einer **Maske**, nicht auf Farben — damit ist die Erkennung
+im Prüfstand nachrechenbar, ohne Browser und ohne Bild. Die Maske fällt beim
+Verkleinern ohnehin ab; sie aus dem JPEG zu lesen wäre sogar schlechter,
+dessen Artefakte an den Linienrändern sind genau das, was eine Schwelle nicht
+braucht.
+
+### Die Querprofil-Zeichnung hinter dem Modell (27. August)
+
+**Weisung:** die Zeichnung transparent hinterlegen, um Bauteile und Masten
+zuzuordnen und Längen abzugreifen, ohne im PDF-Reader zu messen. In der
+Ablage, verkleinert als JPEG; beim Projektexport die Bilder in den
+Ablageordner.
+
+**Kein Fremdcode.** Die Modellansicht ist ein 2D-Canvas mit eigener
+Projektion — ein Bild lässt sich mit `drawImage` und einer Matrix
+hineinzeichnen, also liegt es in **derselben Ebene wie das Modell**: gleicher
+Zoom, gleiche Fahrt, gleicher Klick. Ein PDF wäre eine DOM-Ebene dahinter,
+die nichts davon mitmacht, und es zu rastern hiesse, einen PDF-Leser
+einzubacken.
+
+**Der Weg hinein ist das Einfügen.** Bildschirmausschnitt, ins Modell,
+Strg+V. Eine Datei hineinziehen geht ebenso; nach dem Einlesen ist beides
+dasselbe Bild. Verkleinert auf 2000 Punkte Breite, als JPEG mit Güte 0.82 —
+aus drei Megabyte werden rund zweihundert Kilobyte, und beim Klicken merkt
+man keinen Unterschied.
+
+**Zuerst liegt es grob da.** Ein frisch eingefügtes Bild hat keine Lage im
+Raum — und ein Bild ohne Lage kann man auch nicht anklicken, um ihm eine zu
+geben. Es bekommt deshalb sofort eine vorläufige, auf die Jochlänge
+gestreckt. Von dort setzen es **zwei Klicks** genau:
+
+```
+Klick auf das linke Jochende    ->  x = 0,  z = Jochachse
+Klick auf das rechte Jochende   ->  x = L,  z = Jochachse
+```
+
+Daraus folgen Massstab **und** Lage in einem. Eingetippt wird nichts: die
+Jochlänge steht schon in der Eingabe. Wahlweise dieselben zwei Klicks am
+Masten (Fuss und Kopf, Mass ist die Masthöhe).
+
+> **Der Massstab kommt aus der längeren Richtung.** Klickt man die beiden
+> Jochenden, liegen sie waagrecht weit auseinander und lotrecht fast
+> übereinander; nähme man die lotrechte Differenz, stünde im Nenner fast nur
+> das Klickrauschen. Vier Punkte schief ändern so am Massstab nichts und an
+> der Höhe nur die Hälfte des Fehlers — beide Klicks tragen zur Lage bei.
+
+**Nur in der Längsansicht.** Ein Querprofil ist ein flaches Bild in der
+x-z-Ebene; in der Isometrie stünde es schief im Raum, in der Draufsicht wäre
+es eine Kante. Die Ebene hat einen eigenen Schalter in der Modellgruppe, der
+ohne Bild ausgegraut stehenbleibt — so sieht man, dass es ihn gibt.
+
+> **Zur Benennung:** die *Querprofil*-Zeichnung ist in den Achsen dieser
+> Anwendung die **Längsansicht** — Blick entlang des Gleises, man sieht
+> Jochlänge x und Höhe z. Der Knopf «Que» zeigt den Jochquerschnitt, also die
+> vier Winkel.
+
+**In IndexedDB, in eigenem Speicher.** Die Ablage ist ohnehin IndexedDB — sie
+nimmt Binärdaten unmittelbar und kennt die enge Schranke nicht, an der
+localStorage scheitern würde. Eigener Speicher, weil das Auflisten der
+Ablage sonst sämtliche Bilder mitbrächte; gelesen wird nur beim Laden des
+Tragwerks. Mit dem Tragwerk gelöscht wird sie auch.
+
+**Das Ausleiten ist jetzt ein Paket.** Ein ZIP mit `ablage.json` und einem
+Ordner `zeichnungen/`, eine Datei je Tragwerk. Geschrieben mit dem
+ZIP-Schreiber, der ohnehin im Werkzeug steht — eine `.xlsx` **ist** ein ZIP.
+Dazu ein Leser für gespeicherte Einträge; Sicherungen der früheren Fassung
+(reine JSON) werden weiterhin gelesen, unterschieden an den ersten zwei
+Zeichen.
+
+### Träger neben den Bindeblechen, Lage auf 10 cm (27. August)
+
+**Weisung:** «Die Hängestütze und Jochaufsätze dürfen sich nicht mit den
+Verbindungsblechen berühren. Diese sind automatisch nebenan zu schieben.»
+Dazu: «x auch auf 10 cm runden.»
+
+Betroffen sind wieder genau die **Träger**, und wieder steht das in den Daten:
+`rolle: 'traeger'` tragen die drei Jochaufsätze und die Hängestütze — eben
+das, was am Joch angeschlagen wird. Ein Drahtwerk hängt an einem Aufbau und
+berührt das Joch nie.
+
+**Die Lage wird in drei Schritten gesetzt**, und die Reihenfolge ist die
+Aussage:
+
+```
+1. auf 10 cm runden      niemand baut auf den Millimeter
+2. auf die Masskette     falls eine da ist - 2.09 steht so auf der Zeichnung
+3. am Blech vorbei       keine Vorliebe, sondern eine Unmoeglichkeit
+```
+
+**Zwei Klemmen, nicht eine.** Ein Träger hängt im Abstand `raster`; beide
+Klemmen müssen an einem Blech vorbei. Deshalb ist eine Lage nicht schon
+deshalb verboten, weil ein Blech darunter liegt — die Baugruppe darf es
+**überspannen**. Im Browser nachgemessen, Station bei 4.40 m, Blech 80 mm,
+Raster 400 mm:
+
+```
+x = 4.40  ->  4.40     Klemmen bei 4.20 und 4.60, beide frei
+x = 4.60  ->  4.559    linke Klemme saesse auf dem Blech
+x = 7.137 ->  7.1      gerundet
+```
+
+**Erst weiten, dann weichen** — die Weisung nennt die Reihenfolge selbst:
+«die Joche sind fix, die Anbauteile werden drum herum angebracht», und wenn
+die Klemmen in den Knotenbereich fielen, «ist der Abstand entsprechend zu
+vergrössern».
+
+1. **Klemmenabstand weiten, Lage bleibt.** Das ist die gebaute Abhilfe: die
+   Stütze bleibt, wo sie hingehört, ihre Klemmen überspannen das Blech.
+2. Erst wenn das nicht geht, **weicht die Lage** aus. Der Fahrdraht darf das:
+   10 bis 20 cm laufen unter die Modellunschärfe (Auftraggeber).
+
+Die Suche nach dem Raster ist **exakt, nicht tastend**: eine Klemme bei
+x − r/2 fällt genau dann in ein Blech [von, bis], wenn r in
+[2(x − bis), 2(x − von)] liegt. Aus den Blechen werden so verbotene
+RASTERWERTE, und gesucht ist der kleinste erlaubte ab 0.40 m.
+
+Wie weit die Suche reichen muss, sagt die Geometrie: bei Teilung a und
+Blechbreite b sperrt jede Klemme 2b von je 2a, beide zusammen höchstens 4b
+von 2a — bei 0.75 m und 100 mm also 0.40 von 1.50. In jedem Abschnitt von
+0.40 m liegt ein freier Wert. Gesucht wird bis 0.40 + 0.40 m.
+
+**Beide Klemmen müssen auf dem Joch bleiben.** Am wirklichen Querprofil
+aufgefallen: ein Mass 16 cm vor dem Jochende — dort läge die geweitete Klemme
+jenseits des Jochs, ein Anschluss an nichts. Die Weitung ist dort keine
+Abhilfe, und ein Träger mit 0.40 m Klemmenabstand kann dort überhaupt nicht
+sitzen; das meldet schon Prüfung P1.
+
+Wird verschoben, dann zur näheren Kante, auf ganze Millimeter und **einen
+Millimeter darüber hinaus**: genau auf die Kante gerundet würde das Bauteil
+sie berühren, und nach innen gerundet stünde es wieder auf dem Blech.
+
+Verschoben wird in der Eingabe und beim Setzen; **Prüfung P8** ist der
+Nachweis. Sie fängt, was auf anderem Weg hereinkommt — eine eingelesene
+Datei, eine geänderte Blecheinteilung, ein nachträglich verstelltes Joch. Bei
+allen dreien wandern die Bleche unter dem Bauteil weg, ohne dass jemand die
+Lage angefasst hätte.
+
+> **Zwei Fehler, die erst der Browser gefunden hat.** Der Prüfstand war grün,
+> und die Anwendung tat trotzdem nichts:
+>
+> * Der Handler rief `teilVon` — einen Helfer, der zu einer *anderen*
+>   Funktion der Maske gehört. Jeder Tastendruck warf still einen
+>   ReferenceError, und der Wert wurde nie gespeichert.
+> * Und die Zeile, die das gerechnete Modell an die Maske reicht, war in die
+>   falsche Funktion geraten: der Einfügeanker kam zweimal vor, und die
+>   erste Fundstelle war die Diagrammbühne. Dieselbe Verwechslung hatte
+>   vorher schon die **Masskette** nie ankommen lassen.
+>
+> Beides ist nur im laufenden Programm sichtbar. Was in Modulen richtig
+> aussieht, läuft nicht zwangsläufig — dieselbe Lehre wie beim Bündeln.
+
+### Bauteil setzen: erst wohin, dann was (27. August)
+
+**Weisung:** nicht auf das Herauslesen von Text aus der Zeichnung
+konzentrieren, sondern auf das **Einsetzen der Bauteile an Joch oder Masten** —
+so einfach und selbstverständlich wie möglich.
+
+Bisher hiess ein Bauteil einsetzen: Reiter wechseln, in vierzehn gleich
+aussehenden Kacheln die richtige finden, im Dialog eine Zahl eintippen, die
+man vorher auf der Zeichnung gemessen hat. Drei Schritte, von denen keiner
+mit dem Tragwerk zu tun hat.
+
+Jetzt sind es **zwei Klicks**: ins Modell, wohin es gehört — dann erscheint,
+was dort sein kann.
+
+```
+Knopf "Bauteil setzen" -> ins Modell klicken
+   am Joch      ->  "Was kommt am Joch bei x = 4.95 m?"      14 Vorlagen
+   am Masten    ->  "Was kommt am Mast Ende A, 5.15 m
+                     ueber Fundament?"                        6 Vorlagen
+```
+
+**Die Stelle sagt schon, was in Frage kommt.** Am Masten gibt es keinen
+Träger — die vier Hängestützen und Jochaufsätze fallen weg, übrig bleiben
+Traverse, Lampe, die drei Leiter und «Frei definiert». Das ist dieselbe
+Regel wie Prüfung P6, nur **vorwärts angewandt** statt nur prüfend.
+
+**Sortiert nach Rolle:** was trägt, steht vorn — man baut von unten nach
+oben. Die Kette Stütze → Ausleger → Kettenwerk baut sich ohnehin selbst: die
+Vorlagen tragen sie in sich.
+
+**Am Joch fängt die Lage auf der Masskette**, wenn eine eingetragen ist —
+sonst gilt der geklickte Wert.
+
+#### Die Umkehrung der Projektion
+
+Damit ein Klick eine Stelle wird, braucht die Ansicht den Weg zurück:
+Bildschirmpunkt → Punkt im Tragwerk. Gerechnet als **Strahl vom Auge durch
+den Bildpunkt, geschnitten mit der Ebene y = 0** — der Ebene, in der Joch und
+Masten stehen. Ohne diese Einschränkung wäre ein Bildschirmpunkt kein Punkt,
+sondern ein Strahl; in der Tiefe läge unendlich viel hintereinander.
+
+Der Strahlenschnitt gilt in **jeder** Ansicht, auch in der Isometrie — nicht
+nur dort, wo die Ebene zufällig parallel zum Bildschirm liegt. Im Browser
+nachgemessen: waagrechte Bildmitte → x = 10.00 m bei einem Joch von 20 m,
+Viertelpunkte → 3.02 und 16.98 m.
+
+**Wer daneben klickt, erfährt wohin.** Der Balken sagt dann nicht «daneben»,
+sondern «dort ist x = –0.94 m, z = –2.35 m» — man sieht, in welche Richtung
+zu zielen ist, und ob überhaupt das Modell gemeint war.
+
+### Die Masskette der Zeichnung als Fanglinien (27. August)
+
+Am Schulungsbeispiel gesehen: über dem Joch steht auf **jedem** Querprofil
+eine Kette von Massen in Zentimetern ab dem linken Jochende —
+
+```
+0 · 15 · 209 · 474 · 735 · 885 · 983 · 1185 · 1200
+```
+
+Das sind die Stellen, an denen wirklich etwas hängt — genau die Zahl, die
+jede Baugruppe als Lage `x` braucht.
+
+> **Sie ist NICHT auf jedem Blatt vorhanden** (Auftraggeber, 27. August — er
+> hatte es zunächst anders gesagt und gleich darauf berichtigt). Die Kette ist
+> deshalb eine **Beigabe, kein Weg**: wo sie steht, spart sie das Abgreifen;
+> wo sie fehlt, muss auf der Zeichnung gemessen werden. Alles hier
+> Beschriebene ist optional — ohne Eintrag gibt es keine Fanglinien, kein
+> Fangen und keine Beanstandung.
+
+Wo sie steht, wird sie nicht abgegriffen, sondern **abgeschrieben**, einmal,
+als Zeile in ein Feld der Systemgeometrie. Danach
+
+* stehen die Masse im Modell als **lotrechte Fanglinien** mit ihrer Zahl in
+  Zentimetern, in der Längsansicht wie die Zeichnung,
+* und die **Lage eines Anbauteils fängt darauf**: wer 2.07 einstellt, bekommt
+  2.09, weil dort das Bauteil sitzt.
+
+**Die Grenze ist nie grösser als die halbe Lücke zum Nachbarn.** 11.85 und
+12.00 liegen 15 cm auseinander; mit einer festen Grenze von 20 cm würde das
+eine das andere überdecken, und ein Wert dazwischen fände die falsche Stelle.
+Nachgerechnet: 11.92 → 11.85, 11.94 → 12.00.
+
+**Das letzte Mass ist die Gegenprobe.** Es muss die Jochlänge sein. Stimmt es
+nicht, ist entweder die Kette aus einer anderen Zeichnung, die Länge falsch
+eingestellt, oder es wurden Millimeter abgeschrieben — alle drei würden sonst
+still danebenliegen. Der Hinweis nennt beide Zahlen.
+
+Gelesen wird grosszügig: getrennt wird an allem, was keine Zahl ist —
+Leerzeichen, Komma, Strichpunkt, Zeilenumbruch. Abgeschrieben wird von Hand.
+
+Rechnerisch ändert die Kette nichts; der Prüfstand hält das fest.
+
+### Zwei Befunde aus einem wirklichen Querprofil (27. August)
+
+Der Auftraggeber hat ein Schulungsbeispiel gezeigt. Zwei Dinge, die ich am
+selbstgebauten Prüfbild nicht sehen konnte:
+
+**Die Zeichnung wird auf dunklem Grund umgekehrt.** Ein Querprofil ist schwarz
+auf weiss, die Modellansicht weiss auf fast schwarz (`#090a0d`). Unverändert
+daruntergelegt wäre das Blatt eine **helle Fläche**, auf der das Modell
+verschwindet — und je durchsichtiger man es stellt, desto weniger sieht man
+VON DER ZEICHNUNG, während die Fläche bleibt. Umgekehrt gelegt fügt sie sich
+ein: dunkler Grund, helle Linien. Entschieden an der Helligkeit des
+Hintergrunds, nicht über einen weiteren Schalter.
+
+**Die vorläufige Lage war zweimal geraten und zweimal daneben.** Ein A4-Blatt
+zeigt nicht das Joch, sondern die Szene: Masten, Gleise, Lichtraumprofile,
+Schriftfeld, Legende. Das Joch nimmt grob die **halbe** Blattbreite ein und
+sitzt rund ein **Fünftel** unter der Blattkante — nicht die ganze Breite und
+nicht auf einem Drittel.
+
+### Am Masten hängt kein Kettenwerk unmittelbar (27. August)
+
+**Weisung:** «Die Kettenwerke werden nicht direkt am Masten gehängt, ausser
+wenn sie abgefangen werden, sondern auf Ausleger. Am Masten werden nur
+einzelne Leiter gehängt oder, falls es Zusatzleiter sind, über eine
+Traverse.»
+
+Auch das steht in den Daten: ein **Kettenwerk** ist Tragseil UND Fahrdraht,
+und die Bauteiltabelle sagt es im Namen — «Ts: StCu 50 / Fd: Cu 107» gegen
+«StCu 50» oder «Cu 95». Vier Kettenwerke, acht einzelne Leiter:
+
+| | |
+|---|---|
+| Kettenwerk | N-FL Ts/Fd (×1, ×2, Cu 150), R-FL Ts/Fd |
+| einzelner Leiter | N-FL StCu 50, N-FL Cu 107, R-FL StCu 92, R-FL Cu 107, Cu 95 (×1…×4) |
+
+Zwischen einem Kettenwerk und dem Masten gehört ein **Aufbau** — der
+Ausleger. Fehlt er, meldet es Prüfung **P7**.
+
+> **Der Prüfstand hat mich dabei korrigiert.** Ich hielt die Vorlage «Leiter
+> N-FL» für einen einzelnen Leiter und schrieb eine Kontrolle, die das
+> behauptete. Sie fiel: die Vorlage trägt `drahtwerk-n-fl-ts-stcu-50-fd-cu-107`,
+> also Tragseil und Fahrdraht — ein Kettenwerk. Der einzelne Leiter ist der
+> Rückleiter (Cu 95).
+
+**Die Ausnahme ist noch nicht gebaut.** Ein abgefangenes Kettenwerk darf
+unmittelbar an den Masten; solange die Abfangung nicht modelliert ist, bleibt
+P7 ein **Hinweis** und kein Fehler.
+
+### Was noch kommt — Vorgaben des Auftraggebers, festgehalten
+
+Vom 27. August, noch nicht gebaut:
+
+**Abfangjoche in die Bibliothek.** Danach muss sich ein Leiter als
+**abgefangen** modellieren lassen: dann geht die gesamte Leiterzugkraft in
+das Abfangjoch, oder zum Teil unmittelbar an den Masten.
+
+**Druckstützen und Zuganker.** Sie kommen mit der Abfangung dazu:
+
+| | |
+|---|---|
+| Neigung | **55° bis 65°**, bezogen auf die Terrainkante |
+| Abstand Mastachse – Ankerfundament | **4.5 m** im Normalfall |
+
+**PDF-Import der Querprofilzeichnung.** Die Zeichnung transparent hinter die
+Modellansicht legen, um Bauteile und Masten zuzuordnen und Längen abzugreifen,
+ohne im PDF-Reader zu messen. Der Vorschlag dazu steht in der Antwort vom
+27. August; entschieden ist er noch nicht.
+
+### Anbauteile am Masten (27. August)
+
+**Weisung:** am Masten sollen sich Anbauteile und Leiter ansetzen lassen —
+ausser Jochaufsatz und Hängestütze.
+
+Eine Baugruppe hat jetzt einen **Standort**: am Joch, am Mast Ende A oder am
+Mast Ende B. Am Joch zählt die Lage `x`, am Masten die **Höhe über
+Fundament** — die Angabe, die auf der Zeichnung steht und sich gegen die
+Mastlänge prüfen lässt. Befestigung und Raster entfallen dort: das Teil ist
+an EINER Stelle angeschraubt, es gibt keinen Ober- und Untergurt.
+
+**Die Ausnahme steht in den Daten, nicht als Verbotsliste im Code.** Die
+Bauteiltabelle führt drei Rollen — `traeger`, `aufbau`, `drahtwerk` —, und
+`traeger` tragen genau vier Bauteile: die drei Jochaufsätze und die
+Hängestütze. Ein Träger **ist** das, was auf dem Joch sitzt oder daran hängt;
+am Masten beginnt die Kette am Masten selbst. Kommt einmal ein neuer Träger
+in die Tabelle, gilt die Regel für ihn ohne Zutun. Prüfung **P6** fängt, was
+auf anderem Weg hereinkommt.
+
+**Was am Masten hängt, geht nicht in den Ersatzbalken.** Der Rechenkern führt
+einen Balken — das Joch. Eine Traverse auf halber Masthöhe belastet den
+Masten; was davon im Joch ankommt, läuft über die Verdrehung des Mastkopfes
+und ist im Ersatzbalken nicht darstellbar. Sie dort als Jochlast anzusetzen
+wäre still falsch: die Last sässe auf dem falschen Bauteil, mit dem falschen
+Hebelarm. Der Prüfstand hält fest, dass das Stützmoment des Jochs sich nicht
+ändert, wenn man ein Teil an den Masten hängt.
+
+**Im Stabmodell mit Mast stehen sie.** Der Mast wird dort **geteilt**, wo
+etwas an ihm hängt — aus zwei Stücken werden drei —, und die Kette
+(Träger → Aufbau → Drahtwerk) hängt am Mastknoten. Gebaut wird sie mit
+demselben `anbauKette` aus dem Rechenkern; zwei Fassungen waren schon einmal
+der Grund, warum Bild und Modell verschiedene Tragwerke zeigten. Am Ende B
+wird an der Mastachse **gespiegelt**: die Teile tragen ihre Ausladung in +x,
+weil sie am Joch nach aussen zeigen, und aussen liegt dort in −x.
+
+Eine Höhe ausserhalb des Mastes ist ein Teil in der Luft. Es wird **nicht**
+gebaut — und das steht in der Ausleitung (`anbauMastAus`), statt still zu
+fehlen.
+
+### Die Grenzlast der Gurtverbindung gilt je Gurt (27. August)
+
+Nachgefragt und entschieden. Zwei Dinge waren daran falsch:
+
+**F = M/h war das Doppelte.** Jede Gurtebene hängt an ZWEI Gurten; die
+Grenzlast ist die eines Anschlusses, also der halben Ebenenkraft. Jetzt
+`F = M/(2h)` — in `begrenzeFeder` wie im Nachweis A1, denn zwei Wege, die
+verschiedene Kräfte für dieselbe Verbindung ausweisen, sind schlimmer als
+einer, der irrt.
+
+**Und die Anwendung sagte zweierlei zugleich.** Gemessen am J90/20 m,
+HEB 240, F_Grenz 24 kN, mit dem alten Startwert:
+
+```
+Feder geometrisch    10472 kNm/rad
+Feder im Nachweis     3140 kNm/rad   <- herabgesetzt
+M_A des Nachweises    10.78 kNm  ->  F = 24.00 kN   genau die Grenze
+Pruefung A1 meldete   20.49 kNm  ->  F = 45.60 kN   eta 1.90  VERLETZT
+```
+
+Der Rechenkern setzte die Feder herab, DAMIT die Verbindung ihre Grenzlast
+einhält — und A1 wies gleichzeitig die Kraft aus der ungebremsten Feder als
+überschritten aus. Beides aus demselben Lauf, und beides angeblich wahr.
+
+Entschieden ist: **die geometrische Feder gilt, die Schraubengrenze ist ein
+eigener Nachweis.** Der Schalter «Einspannung durch die Gurtverbindung
+begrenzen» steht im **Startwert auf AUS**. Er bleibt erhalten — wer die
+weichere Annahme rechnen will, schaltet ihn ein und weiss dann, dass A1 sich
+auf ein anderes System bezieht.
+
+### Der Mast trägt seinen Wind selbst (27. August)
+
+**Weisung: der Wind auf den Mast ist keine Option.** Steht der Mast im
+Stabmodell, ist er ein Teil des Tragwerks und wird belastet wie das Joch —
+nicht «wirkt er auf das Joch?», sondern: er trägt seine Last, und was davon im
+Joch ankommt, rechnet das Modell aus.
+
+Damit stehen auf jedem Maststab zwei Streckenlasten, je eine Richtung in
+ihrem Lastfall. Beide Werte stammen aus **derselben Tabellenzeile**; die
+Stegrichtung entscheidet nur, welche Spalte quer und welche längs ist:
+
+| HEM 240, EK 2 | Steg in Jochachse | Steg gedreht |
+|---|---|---|
+| quer zum Gleis (`WindX`) | 0.38 kN/m | 0.42 kN/m |
+| in Gleisrichtung (`WindY`) | 0.42 kN/m | 0.38 kN/m |
+
+Beim HEM 240 fällt der Unterschied auf — es ist das einzige Profil der
+Tabelle, das nicht quadratisch ist. Die übrigen fangen in beiden Richtungen
+gleich viel.
+
+Gelesen wird **beides aus der Tabelle**, nicht nur die Gleisrichtung. `wMast`
+im Eingabestand ist zwar der Wert quer zum Gleis, wird aber erst von der
+Bedienoberfläche nachgeführt; das Modell selbst zu fragen ist der Unterschied
+zwischen «stimmt, wenn der Aufrufer es vorher getan hat» und «stimmt». Von
+Hand gesetzt gilt nur, was ausdrücklich von Hand gesetzt ist.
+
+**Und der Schalter «Mastwind wirkt auf das Joch» steht im Startwert auf AUS.**
+Der Ersatzbalken kann den Mastwind nur als aufgezwungene Auflagerverdrehung
+fassen — eine Ersatzgrösse für etwas, das im Stabmodell schlicht eine Last
+auf dem Masten ist. Beides zusammen wäre derselbe Wind zweimal.
+
+### Ein ganzer Projektordner auf einmal (27. August)
+
+**Weisung: je Modell ein AxisVM-Modell.** Nicht alle Tragwerke eines Projekts
+in eine Datei, sondern jedes einzeln in ein eigenes Modell und eine eigene
+`.axs` neben seiner Ausleitung.
+
+Einen **Ordner** auf `AxisVM_aufbauen.cmd` ziehen genügt. Erkannt wird er an
+`%ERSTES%\*` — ein blosses `exist` unterscheidet Datei und Ordner nicht.
+
+Umgesetzt als **ein Lauf je Datei**: das Skript ruft sich selbst auf. Nicht
+der schnellste Weg, aber der einzige belastbare — der Aufbau läuft linear von
+oben nach unten und trägt Zustand in Skriptvariablen. Ihn in eine Schleife zu
+legen hiesse, zwischen zwei Modellen jede dieser Variablen von Hand
+zurückzusetzen; ein einziges Vergessen würde still das zweite Modell mit
+Resten des ersten bauen. Ein eigener Prozess je Modell kennt das Problem
+nicht.
+
+Jeder Lauf trägt `-Stapel`: **kein «Weiter mit Enter»**, und AxisVM wird nach
+dem Speichern **geschlossen**. Sonst stünden am Ende zwanzig Fenster offen.
+Ausserhalb des Stapels bleibt AxisVM offen — dort will man ja weiterarbeiten.
+
+Der **Sammelbericht** liegt im Ordner (`AxisVM_stapel_bericht.txt`) und nennt
+je Datei Erfolg oder Fehlschlag; die Einzelberichte liegen bei ihren Modellen.
+Ein fehlgeschlagenes Modell hält den Stapel nicht an — es wird gezählt, und am
+Ende steht, wie viele von wie vielen standen.
+
+> **`Quit()` schliesst AxisVM nicht.** Zweimal gemessen, beide Male blieben
+> die Instanzen stehen:
+>
+> ```
+> Quit() allein                          -> 2 von 2 offen
+> AskCloseAll=0, Models.Delete, Quit()   -> 2 von 2 offen
+> ```
+>
+> AxisVM schliesst sich über die **Verweiszählung**: `CloseOnLastReleased = 1`
+> und `AskCloseOnLastReleased = 0`, dann geht das Fenster, sobald der letzte
+> COM-Verweis fallengelassen ist — `ReleaseComObject` in der Schleife, dann
+> `GC::Collect`. Ausserhalb des Stapels bleibt die Eigenschaft auf 0: dort
+> soll das Modell ja offen bleiben.
+>
+> Die Kontrolle «ist wirklich zu?» sass zuerst im einzelnen Lauf und meldete
+> prompt einen Fehlalarm — dort ist die eigene Instanz noch am Beenden, wenn
+> der Bericht geschrieben wird. Gezählt wird jetzt am **Ende des Stapels**.
+
+### Die Verortung: Linie, Ort, KM (27. August)
+
+Ein Projekt hat eine Reihe von Tragwerken — ohne Verortung heissen sie alle
+«J90, 20.00 m». Drei neue Eingabefelder zuoberst im Reiter *System*:
+**Liniennummer**, **Ortschaft**, **KM-Position** — in dieser Reihenfolge
+(Weisung): vom Groben zum Feinen. Die Linie sagt, wo im Netz; der Ort, wo an
+der Linie; der Kilometer, wo genau. Sie gehen in keine Rechnung
+ein (der Prüfstand hält das fest) und erscheinen in
+
+* der Modellüberschrift und damit im Ausdruck,
+* dem Excel-Bericht (Kopfzeile und Dateiname),
+* der AxisVM-Ausleitung — als eigene Felder **und** in der `bezeichnung`,
+  die der Bericht der Brücke als Kopfzeile trägt,
+* dem **Dateinamen**, und zwar **vorne**:
+  `AxisVM_L000_Bahnhof-Nord_KM012.345_J90_L20.0m_anschnitt_gurte.json`
+
+So stehen die Tragwerke eines Projekts im Ordner beieinander, statt sich nach
+dem Jochtyp zu sortieren — und man sieht der Datei an, welches Bauwerk sie
+ist, bevor man sie öffnet.
+
+> **Text, nicht Zahl.** Die Liniennummer führt führende Nullen, die KM-Angabe
+> drei Nachkommastellen mit Punkt. Als Zahlenfeld wäre aus «012.345» still
+> «12.345» geworden. Dafür gibt es jetzt die Feldart `text`.
+
+Der Dateiname nennt ausserdem **Knoten- und Auflagermodell** — die ändern das
+Tragwerk, nicht nur eine Einstellung. Unter demselben Namen legte der Browser
+die zweite Ausleitung als «… (1).json» ab, und die Brücke nimmt die jüngste.
+
+### Der Mast steht im Modell (27. August)
+
+**Weisung:** je Gurtebene ein Starrkörper über die beiden Gurte, von dort ein
+Linkelement an den Mast — **Kräfte starr, Momente frei** —, und der Mast bis
+zum Fundament, dort **starr eingespannt**.
+
+Damit gibt es ein viertes Auflagermodell, `mast`. Die teilweise Einspannung
+ist darin keine Zahl mehr: sie folgt aus der Biegung des Mastes zwischen
+Ober- und Untergurthöhe.
+
+```
+je Jochende:
+    Mastachse in der Jochendebene (x = 0 bzw. x = L), y = 0
+    Knoten auf Hoehe Obergurt, Untergurt und Fundament
+    je Gurtebene:  Starrkoerper OGL + OGR  ->  Anschlusspunkt
+                   Linkelement  Anschlusspunkt -> Mast
+    Auflager am Mastfuss: alle sechs Freiheitsgrade gehalten
+```
+
+**Warum der Anschlusspunkt 10 cm einwärts sitzt.** Ein Linkelement braucht in
+AxisVM eine Linie, und eine Linie braucht Länge; läge der Anschlusspunkt auf
+der Mastachse, wäre sie null. Verschoben wird deshalb der **Anschlusspunkt
+nach innen**, nicht die Mastachse nach aussen — die Stützweite bleibt damit
+die des Rechenkerns. 10 cm ist dasselbe Mass, das schon für die Linkelemente
+der Anbauteile gilt.
+
+**Der Längsanker gilt hier nicht.** In den drei anderen Modellen hält genau
+ein Knoten das Joch in seiner Achse. Hier halten beide Fundamente — aber über
+die Biegung zweier Maste, also weich. Das ist das wirkliche Tragwerk und kein
+Zwang: dehnt sich das Joch, geben die Mastköpfe nach.
+
+#### Das Modell steht gegen die Theorie — und die Anwendung daneben
+
+Gebaut, gerechnet und ausgelesen (AxisVM 18 r1k). J90 über 20 m, Schnee
+1.0 kN/m, HEB 240 mit H = 7.00 m, Steg in Jochachse:
+
+| | Feldmoment |
+|---|---|
+| Modell mit Mast | **27.60 kNm** |
+| Anwendung (c_φ = 3.10·E·I/H) | 29.51 kNm |
+
+Aus dem Feldmoment rückgerechnet beträgt die wirksame Drehfeder des gebauten
+Mastes **13 456 kNm/rad = 3.98·E·I/H**. Das ist der **Lehrbuchwert 4.00** des
+unverschieblichen Rahmens auf ein halbes Prozent genau. Damit ist dieser
+Aufbau gegen die Theorie belegt: Geometrie, Querschnitt, Anschluss und
+Einspannung stimmen.
+
+> **Offen, und Entscheidung des Auftraggebers:** der Rechenkern rechnet mit
+> **3.10**, also 22 % weicher. Am Feldmoment macht das −6.5 %, am
+> Stützmoment +9.3 %. Der Wert 4.00 gilt für die **volle** Einspannung des
+> Fundaments — die hier Weisung ist. Wieviel das Fundament wirklich hält, ist
+> die eigentliche Frage dahinter. Der Vermerk in `core.auflager.js` sagt es
+> seit je: «Der Lehrbuchwert 4.00 ist die obere Schranke, 3.11 die einzige
+> Messung.» Jetzt gibt es eine zweite.
+
+**Was die Brücke dazu lernen musste:** ein I-Profil legt AxisVM mit
+`CrossSections.AddI(Name, h, b, tw, tf, R, Process)` an — vermessen, nicht
+geraten. Der Ausrundungsradius R steht in keiner Profiltabelle des Werkzeugs,
+folgt aber eindeutig aus der Fläche; für HEB 200/220/240/260 und HEM 240
+ergibt das 18.1, 17.9, 21.0, 23.9, 21.0 mm — genau die Radien der Norm.
+
+**Noch nicht im Modell:** der **Wind auf den Mast**. Der Rechenkern setzt ihn
+als aufgezwungene Auflagerverdrehung an (`mastKopfdrehung`); im Modell müsste
+er als Streckenlast auf den Maststäben stehen. Das ist eine Lastdefinition und
+damit vorher zu fragen — die Zahl (`wMast`, kN/m) liegt bereit.
+
+### Ein Längshalt statt vier — und die Ungleichheit ist weg (27. August)
+
+Der offene Befund der letzten Sitzung ist entschieden. **Weisung: nur ein
+Knoten hält in Jochachse.** Mehr verlangt das Gleichgewicht in Jochrichtung
+nicht, und jeder weitere Halt ist ein Zwang — zwei auf verschiedener Höhe
+sperren die Drehung um y, zwei auf verschiedener Seite die um z.
+
+Gemessen in AxisVM, beide Läufe am selben Modell (J90 über 20 m, Schnee
+1.0 kN/m, c_φ = 12 951 kNm/rad), Momente aus dem Kräftepaar der Gurte:
+
+| Gurtmodell | Ende A | Feldmitte | Ende B |
+|---|---|---|---|
+| vier Längshalte (vorher) | −42.68 | 26.33 | +2.78 |
+| **ein Längshalt (jetzt)** | **+3.69** | **49.11** | **+3.69** |
+
+Symmetrisch, und mit 49.11 gegen 50.00 kNm des gelenkigen Balkens
+(−1.8 %) ist das Ende jetzt wirklich biegeweich — genau das, was der Vermerk
+im Code seit je behauptet hatte. Gegengeprüft über das Gesamtmoment:
+Kräftepaar 49.11 plus örtliche Gurtbiegung −0.02 = 49.09 gegen q L²/8 = 50.
+
+Die Regel gilt für **alle drei** Auflagermodelle. Bei `mitte` hielten zwei
+Knoten je Ende in x, was die Drehung um z zweifach sperrt; bei `punkt` war es
+ohnehin schon einer.
+
+> **Beim Aufsummieren aufpassen.** Die vier Gurte tragen das Kräftepaar zu
+> zweit je Ebene. Der Hebel greift an der SUMME beider Gurte einer Ebene an,
+> nicht an ihrem Mittel — mit dem Mittel kommt genau die Hälfte heraus, und
+> 24.55 statt 49.11 sieht plausibel genug aus, um unbemerkt zu bleiben. Die
+> Kontrolle dagegen ist das Gleichgewicht gegen q L²/8.
+
+### Drei Ausleitungen, die das Auflagermodell übergingen
+
+Beim Gegenlesen kamen drei Stellen derselben Bauart heraus — gefragt wurde
+nach dem ENDBUCHSTABEN, nicht nach dem Lager:
+
+* **PyNite** hatte eine zweite, selbstgebaute Lagerungsregel: jeder
+  Auflagerknoten y/z/Torsion gehalten plus Drehfeder, gleich welches Modell
+  `stabmodell` gebaut hatte. Beim Gurtmodell waren das acht voll gehaltene
+  Knoten samt acht Federn statt vier Untergurthalten ohne Feder — PyNite
+  rechnete ein anderes Tragwerk als AxisVM aus derselben Ausleitung. Dabei
+  fiel auch der Achsentausch auf: PyNites Y ist unser z.
+* **Das DXF-Begleitblatt** rief `stuetzung(m, a.ende)` und beschrieb deshalb
+  den Ersatzbalken, während die DXF-Datei daneben das Gurtmodell trug — acht
+  Zeilen, alle falsch benannt und alle «Auflager A».
+* **Der DXF-Weg** liess `auflagerModell` und `starrModell` unterwegs fallen,
+  dieselbe Lücke, die einst `axisvmMappe` hatte.
+
+Alle drei behoben und mit Kontrollen belegt.
 
 ### Der NT-Ausleger ist ein Kragarm (26. August)
 
@@ -2328,7 +3038,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1221 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1476 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |

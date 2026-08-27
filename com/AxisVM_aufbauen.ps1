@@ -30,13 +30,17 @@
         powershell -ExecutionPolicy Bypass -File AxisVM_aufbauen.ps1 -Json modell.json
 
     SCHALTER
-        -Json <datei>   die Modelldatei; ohne Angabe die einzige *.json daneben
+        -Json <datei>   die Modelldatei; ohne Angabe die juengste daneben
+        -Ordner <pfad>  alle Modelldateien eines Ordners nacheinander bauen
+        -Stapel         nicht am Ende warten, AxisVM danach schliessen
         -NurPruefen     nichts bauen, nur die Schnittstelle erkunden
         -Unsichtbar     AxisVM im Hintergrund halten
     ===========================================================================
 #>
 param(
     [string]$Json,
+    [string]$Ordner,
+    [switch]$Stapel,
     [switch]$NurPruefen,
     [switch]$Auslesen,
     [switch]$Rechnen,
@@ -46,6 +50,21 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+<#  ALLES, WAS ZU EINEM MODELL GEHOERT, LIEGT BEIM MODELL.
+
+    Frueher schrieb dieses Skript Bericht, Zuordnung und Ergebnisse immer
+    NEBEN SICH SELBST. Das geht fuer ein Tragwerk. Wer mehrere Projekte mit
+    je mehreren Jochen fuehrt, bekommt damit einen Ordner, in dem sich alles
+    gegenseitig ueberschreibt - und muss die Dateien nach jedem Lauf
+    wegtragen, um sie auseinanderzuhalten.
+
+    Jetzt heissen die Ausgaben wie die Modelldatei und liegen in DEREN
+    Ordner. Das .axs tat das schon immer (ChangeExtension); der Rest zieht
+    nach. Ein Projektordner traegt damit seine eigenen Ergebnisse, und dieser
+    Ordner hier bleibt das, was er sein soll: das Werkzeug.
+
+    Bis die Modelldatei bekannt ist, gilt der Platz daneben - ein Fehler noch
+    davor muss ja auch irgendwo stehen.                                   #>
 $bericht = Join-Path $PSScriptRoot 'AxisVM_aufbau_bericht.txt'
 $zeilen  = New-Object System.Collections.Generic.List[string]
 $gefunden = New-Object System.Collections.Generic.List[string]
@@ -71,8 +90,16 @@ trap {
     try { ($zeilen + $t) | Set-Content -Path $bericht -Encoding UTF8
           Write-Host ''; Write-Host "Bericht: $bericht"
           Write-Host 'Diese Datei zurueckschicken.' } catch { }
-    Read-Host "`nWeiter mit Enter"
+    Warte
     exit 9
+}
+
+<#  IM STAPEL WARTET NIEMAND.
+    Das "Weiter mit Enter" am Ende ist da, damit das Fenster nicht
+    verschwindet, bevor man die Meldung gelesen hat. Laufen zwanzig Modelle
+    hintereinander, steht genau dieses Warten zwanzigmal im Weg.          #>
+function Warte([string]$t = "`nWeiter mit Enter") {
+    if (-not $Stapel) { Read-Host $t }
 }
 
 function Schreib([string]$t) { Write-Host $t; $zeilen.Add($t) }
@@ -89,7 +116,7 @@ function Beenden([int]$code, [string]$grund) {
     Write-Host ''
     Write-Host "Bericht: $bericht"
     Write-Host 'Diese Datei zurueckschicken.'
-    Read-Host "`nWeiter mit Enter"
+    Warte
     exit $code
 }
 
@@ -478,22 +505,152 @@ function ZahlPfade([Type]$t, [string[]]$pfad, [int]$tiefe, $aus) {
 
 
 
-# --- Modelldatei -------------------------------------------------------------
-if (-not $Json) {
-    $kand = Get-ChildItem -Path $PSScriptRoot -Filter '*.json' -File |
-            Where-Object { $_.Name -notlike '*bericht*' }
-    if ($kand.Count -eq 1) { $Json = $kand[0].FullName }
-    elseif ($kand.Count -eq 0 -and -not $NurPruefen -and -not $Auslesen) {
-        Beenden 1 ('Keine Modelldatei gefunden. Die JSON-Datei aus ' +
-                   '"Ausleiten -> JSON fuer die COM-Bruecke" neben dieses Skript legen.')
-    } elseif (-not $NurPruefen -and -not $Auslesen) {
-        Beenden 1 ("Mehrere JSON-Dateien daneben: $($kand.Name -join ', '). " +
-                   'Mit -Json <datei> auswaehlen.')
+<#  IST DAS EINE MODELLDATEI?
+    Entschieden wird am INHALT, nicht am Namen. Gelesen wird nur der Anfang:
+    das Feld steht in der zweiten Zeile, und eine Modelldatei kann mehrere
+    Megabyte gross sein - die alle zu zerlegen, nur um eine auszuwaehlen,
+    waere Verschwendung.                                                  #>
+function IstModelldatei([string]$datei) {
+    try {
+        $f = [System.IO.File]::OpenRead($datei)
+        try {
+            $puffer = New-Object byte[] 800
+            $n = $f.Read($puffer, 0, $puffer.Length)
+            $kopf = [System.Text.Encoding]::UTF8.GetString($puffer, 0, $n)
+        } finally { $f.Dispose() }
+        return $kopf -match '"format"\s*:\s*"tragjoch-stabmodell"'
+    } catch { return $false }
+}
+
+<#  EIN ORDNER STATT EINER DATEI - JE MODELL EIN AxisVM-MODELL (Weisung).
+
+    Ein Projekt hat eine Reihe von Tragwerken. Gebaut wird jedes EINZELN in
+    ein eigenes AxisVM-Modell, das als eigene .axs neben seiner Ausleitung
+    liegt - nicht alle zusammen in eine Datei.
+
+    Umgesetzt als ein Lauf JE DATEI: dieses Skript ruft sich selbst auf. Das
+    ist nicht der schnellste Weg, aber der einzige belastbare - der Aufbau
+    laeuft linear von oben nach unten und traegt Zustand in Skriptvariablen.
+    Ihn in eine Schleife zu legen hiesse, zwischen zwei Modellen jede dieser
+    Variablen von Hand zurueckzusetzen; ein einziges Vergessen wuerde still
+    das zweite Modell mit Resten des ersten bauen. Ein eigener Prozess je
+    Modell kennt das Problem nicht.
+
+    Jeder Lauf traegt -Stapel: er wartet nicht auf Enter und schliesst
+    AxisVM, wenn er fertig ist. Sonst stuenden am Ende zwanzig Fenster offen.
+
+    Der Sammelbericht liegt im ORDNER, die Einzelberichte bei ihren Modellen. #>
+if ($Ordner) {
+    if (-not (Test-Path -LiteralPath $Ordner -PathType Container)) {
+        Beenden 1 "Der Ordner gibt es nicht: $Ordner"
     }
+    $bericht = Join-Path $Ordner 'AxisVM_stapel_bericht.txt'
+    $dateien = @(Get-ChildItem -LiteralPath $Ordner -Filter '*.json' -File |
+                 Sort-Object Name |
+                 Where-Object { IstModelldatei $_.FullName })
+    Abschnitt "Stapel - alle Modelldateien in $Ordner"
+    if ($dateien.Count -eq 0) {
+        Beenden 1 ("In $Ordner steht keine Modelldatei. Erwartet werden " +
+                   'Dateien aus "Ausleiten -> JSON fuer die COM-Bruecke".')
+    }
+    Schreib "  $($dateien.Count) Modelldateien - je Modell ein AxisVM-Modell."
+    Schreib ''
+    $fehler = 0
+    $nr = 0
+    foreach ($f in $dateien) {
+        $nr++
+        Schreib ("[{0}/{1}] {2}" -f $nr, $dateien.Count, $f.Name)
+        $eigen = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath,
+                   '-Json', $f.FullName, '-Stapel')
+        if ($Unsichtbar) { $eigen += '-Unsichtbar' }
+        if ($Rechnen)    { $eigen += '-Rechnen' }
+        & powershell @eigen | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Schreib "        gebaut  ->  $([IO.Path]::ChangeExtension($f.FullName, '.axs'))"
+        } else {
+            $fehler++
+            Schreib "        FEHLGESCHLAGEN (Rueckgabe $LASTEXITCODE)"
+            Schreib "        Grund: $([IO.Path]::GetFileNameWithoutExtension($f.Name))_bericht.txt"
+        }
+    }
+    Abschnitt 'Stapel fertig'
+    Schreib "  $($dateien.Count - $fehler) von $($dateien.Count) gebaut."
+    if ($fehler) { Schreib "  $fehler fehlgeschlagen - siehe die Einzelberichte." }
+    <#  NACHSEHEN STATT HOFFEN. Jeder Lauf schliesst sein AxisVM selbst; ob
+        das geglueckt ist, laesst sich erst HIER sagen - im Lauf selbst ist
+        die eigene Instanz noch am Beenden, wenn der Bericht geschrieben
+        wird, und die Zaehlung meldete prompt einen Fehlalarm.            #>
+    Start-Sleep -Seconds 4
+    $offen = @(Get-Process -Name 'AxisVM*' -ErrorAction SilentlyContinue)
+    if ($offen.Count -gt 0) {
+        Schreib ''
+        Schreib "  Hinweis: $($offen.Count) AxisVM-Instanz(en) sind noch offen."
+        Schreib '  Die Modelle liegen als .axs vor; die Fenster von Hand schliessen.'
+    } else {
+        Schreib '  Keine AxisVM-Instanz mehr offen.'
+    }
+    $zeilen | Set-Content -Path $bericht -Encoding UTF8
+    Write-Host ''; Write-Host "Sammelbericht: $bericht"
+    Warte
+    exit $(if ($fehler) { 1 } else { 0 })
+}
+
+# --- Modelldatei -------------------------------------------------------------
+<#  WELCHE DATEI IST GEMEINT?
+
+    Frueher galt "die einzige *.json daneben". Das ging genau EINMAL gut: der
+    Aufbau legt selbst AxisVM_zuordnung.json daneben, dazu kommen die
+    Ergebnisdateien des Auslesens. Ab dem zweiten Lauf lagen also immer
+    mehrere da, und das Skript hielt an - wer bauen wollte, musste erst
+    aufraeumen. Das war kein Schutz, das war eine Huerde.
+
+    Jetzt entscheidet der INHALT: nur Dateien mit
+    format = 'tragjoch-stabmodell' zaehlen ueberhaupt. Von denen gilt die
+    JUENGSTE - man leitet aus und baut, das ist die Reihenfolge. Welche das
+    war und welche uebergangen wurden, steht im Bericht: still die falsche
+    zu nehmen waere schlimmer als anzuhalten.
+
+    Ohne Kopieren geht es auch: die Datei laesst sich auf
+    AxisVM_aufbauen.cmd ZIEHEN.                                           #>
+if (-not $Json) {
+    $alle = @(Get-ChildItem -Path $PSScriptRoot -Filter '*.json' -File |
+              Sort-Object LastWriteTime -Descending)
+    $kand = @($alle | Where-Object { IstModelldatei $_.FullName })
+    if ($kand.Count -ge 1) {
+        $Json = $kand[0].FullName
+        if ($kand.Count -gt 1) {
+            Schreib ("  $($kand.Count) Modelldateien daneben - genommen wird die " +
+                     'juengste.')
+            foreach ($k in $kand) {
+                Schreib ("    {0} {1,-46} {2:yyyy-MM-dd HH:mm}" -f
+                         $(if ($k.FullName -eq $Json) { '->' } else { '  ' }),
+                         $k.Name, $k.LastWriteTime)
+            }
+        }
+    } elseif (-not $NurPruefen -and -not $Auslesen) {
+        $andere = @($alle | Where-Object { $_.Name -notlike '*bericht*' })
+        $zusatz = if ($andere.Count) {
+            " Daneben liegen zwar $($andere.Count) JSON-Dateien, aber keine " +
+            "davon ist eine Modelldatei: $($andere.Name -join ', ')."
+        } else { '' }
+        Beenden 1 ('Keine Modelldatei gefunden. Die JSON-Datei aus ' +
+                   '"Ausleiten -> JSON fuer die COM-Bruecke" neben dieses Skript ' +
+                   'legen - oder sie einfach auf AxisVM_aufbauen.cmd ziehen.' + $zusatz)
+    }
+}
+
+<#  Namen der Nebendateien aus dem Modellnamen. Ein Modell, ein Satz
+    Dateien: <modell>.axs, <modell>_zuordnung.json, <modell>_bericht.txt,
+    <modell>_ergebnisse.json.                                             #>
+function NebenDatei([string]$json, [string]$anhang) {
+    $ordner = Split-Path -Parent $json
+    $stamm  = [IO.Path]::GetFileNameWithoutExtension($json)
+    return Join-Path $ordner ($stamm + $anhang)
 }
 
 $d = $null
 if ($Json) {
+    $bericht = NebenDatei $Json '_bericht.txt'
     Schreib "Modelldatei: $Json"
     $d = Get-Content -Path $Json -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($d.format -ne 'tragjoch-stabmodell') {
@@ -578,9 +735,27 @@ Schreib '  erreichbar.'
 foreach ($n in 'Version','BuildNumber','CodeVersion','FullVersionString') {
     try { Schreib ("  {0,-20} {1}" -f $n, $app.$n) } catch { }
 }
+<#  WER DAS FENSTER SCHLIESST - UND WER NICHT.
+
+    Im Regelfall bleibt AxisVM offen: das Modell steht, und der Auftraggeber
+    arbeitet darin weiter. Deshalb CloseOnLastReleased = 0 - AxisVM soll das
+    Fenster NICHT wegnehmen, nur weil das Skript seine COM-Verweise loslaesst.
+
+    Im STAPEL ist genau das verkehrt. Zwanzig Modelle hiessen zwanzig Fenster.
+    Zweimal gemessen, beide Male blieben die Instanzen stehen:
+
+      Quit() allein                          -> 2 von 2 offen
+      AskCloseAll=0, Models.Delete, Quit()   -> 2 von 2 offen
+
+    Quit() ist nicht der Weg. AxisVM schliesst sich ueber die
+    Verweiszaehlung: CloseOnLastReleased = 1 und AskCloseOnLastReleased = 0,
+    dann geht das Fenster, sobald der letzte COM-Verweis fallengelassen ist.
+    Genau das tut der Stapel am Ende.                                     #>
 foreach ($p in @(@{n='Visible'; v=$(if ($Unsichtbar) {0} else {1})},
-                 @{n='AskCloseAll'; v=1}, @{n='AskSaveOnLastReleased'; v=0},
-                 @{n='AskCloseOnLastReleased'; v=0}, @{n='CloseOnLastReleased'; v=0})) {
+                 @{n='AskCloseAll'; v=$(if ($Stapel) {0} else {1})},
+                 @{n='AskSaveOnLastReleased'; v=0},
+                 @{n='AskCloseOnLastReleased'; v=0},
+                 @{n='CloseOnLastReleased'; v=$(if ($Stapel) {1} else {0})})) {
     try { $app.($p.n) = $p.v } catch { }
 }
 
@@ -659,6 +834,7 @@ function Lies-Schnittgroessen {
 
     # --- Die Zuordnung ------------------------------------------------------
     $zuDatei = if ($Zuordnung) { $Zuordnung }
+               elseif ($Json) { NebenDatei $Json '_zuordnung.json' }
                else { Join-Path $PSScriptRoot 'AxisVM_zuordnung.json' }
     if (-not (Test-Path -LiteralPath $zuDatei)) {
         Beenden 20 ("Es fehlt $zuDatei. Sie entsteht beim Aufbau " +
@@ -828,6 +1004,7 @@ function Lies-Schnittgroessen {
 
 if ($Auslesen) {
     $zielA = if ($Ziel) { $Ziel }
+             elseif ($Json) { NebenDatei $Json '_ergebnisse.json' }
              else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
     $n = Lies-Schnittgroessen $m $zielA
     Abschnitt 'Fertig'
@@ -940,6 +1117,10 @@ if ($NurPruefen) {
         Schreib 'die Namen - hier die Stellen, an denen das den Unterschied macht.'
         Signaturen 'IAxisVMMaterials' 'AddSteel'
         Signaturen 'IAxisVMCrossSections' 'AddL'
+        # Der Mast ist ein I-Profil. Welche Add-Methode es dafuer gibt,
+        # wird gemessen und nicht geraten - AddL und AddRectangular sind
+        # die einzigen, die bisher belegt waren.
+        Signaturen 'IAxisVMCrossSections' 'Add'
         Signaturen 'IAxisVMLine' 'DefineAsBeam'
         Signaturen 'IAxisVMNodalSupports' 'AddNodal'
         Signaturen 'IAxisVMLine' 'SetStartReleases'
@@ -1127,7 +1308,7 @@ if ($NurPruefen) {
     try { $app.Quit() } catch { }
     $zeilen | Set-Content -Path $bericht -Encoding UTF8
     Write-Host ''; Write-Host "Bericht: $bericht"
-    Read-Host "`nWeiter mit Enter"
+    Warte
     exit 0
 }
 
@@ -1256,7 +1437,18 @@ foreach ($q in $d.querschnitte) {
                                   $p[2] * $mm, $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } },
         @{ name = 'CrossSections.AddRectangular(Name, h, b, cspOther)'; tu = {
             if ($q.form -ne 'Rectangle') { throw 'kein Rechteck' }
-            $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } }
+            $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } },
+        <#  DER MAST IST EIN I-PROFIL.
+            AddI(Name, h, b, tw, tf, R, Process) - vermessen am 27.08. an
+            derselben Fassung wie AddL. Der Ausrundungsradius R kommt aus der
+            Ausleitung: er steht in keiner Profiltabelle des Werkzeugs, folgt
+            aber eindeutig aus der Flaeche (siehe mastQuerschnitt). Deshalb
+            trifft die Rueckmessung unten hier auf ein sauberes Ergebnis und
+            nicht auf die zwei Prozent, die beim Winkel bleiben.        #>
+        @{ name = 'CrossSections.AddI(Name, h, b, tw, tf, R, cspRolled)'; tu = {
+            if ($q.form -ne 'I') { throw 'kein I-Profil' }
+            $m.CrossSections.AddI($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                  $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } }
     ) -Leise:($qs.Count -gt 0) -Positiv
     if (-not $r.ok) { Mitglieder 'CrossSections' $m.CrossSections; Beenden 4 "Querschnitt $($q.name) nicht anlegbar." }
     $qs[$q.name] = $r.wert
@@ -1975,7 +2167,7 @@ if ($komb.Count -eq 0) {
     Bytefolge an den Anfang, ueber die sowohl JSON.parse als auch
     json.load stolpern.                                                   #>
 Abschnitt '9c - Zuordnung fuer das Zurueckleisen'
-$zuDatei = Join-Path $PSScriptRoot 'AxisVM_zuordnung.json'
+$zuDatei = NebenDatei $Json '_zuordnung.json'
 try {
     $staebeZu = [ordered]@{}
     foreach ($n in ($st.Keys | Sort-Object)) {
@@ -2091,7 +2283,28 @@ if ($script:alteDatei) {
     Schreib ('!' * 74)
 }
 
+<#  IM STAPEL WIRD GESCHLOSSEN. Das Modell liegt als .axs auf der Platte;
+    zwanzig offene Fenster helfen niemandem. Ausserhalb des Stapels bleibt
+    AxisVM offen - dort will man ja weiterarbeiten.                       #>
+if ($Stapel) {
+    Schreib ''
+    Schreib 'Stapelbetrieb: AxisVM wird geschlossen, das Modell liegt als .axs vor.'
+    # Erst das Modell weg, dann das Programm - dieselbe Reihenfolge wie am
+    # Ende der Erkundung. Quit() allein liess die Instanz stehen.
+    # Erst das Modell weg, dann die Verweise los - mit CloseOnLastReleased = 1
+    # schliesst AxisVM daraufhin selbst. Quit() steht nur noch als Rueckfall
+    # dahinter; es hat in zwei Messungen nichts bewirkt.
+    try { $app.Models.Delete($idx) } catch { }
+    try { $app.Quit() } catch { }
+    foreach ($o in @($m, $app)) {
+        try { while ([Runtime.InteropServices.Marshal]::ReleaseComObject($o) -gt 0) { } }
+        catch { }
+    }
+    $m = $null; $app = $null
+    [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+}
+
 $zeilen | Set-Content -Path $bericht -Encoding UTF8
 Write-Host ''
 Write-Host "Bericht: $bericht"
-Read-Host "`nWeiter mit Enter"
+Warte
