@@ -590,16 +590,27 @@ input[type=range].rng {
   position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column;
   gap: 4px;
 }
-/* Auswahl der dargestellten Einwirkung, oben mittig */
-/* Der Handlungsbalken sitzt ueber dem Modell, weil dort geklickt wird -
-   und er faellt auf, weil er eine Handlung verlangt. */
+/* Oben mittig, gestapelt: die Auswahl der dargestellten Einwirkung, darunter
+   der Handlungsbalken. Er steht ueber dem Modell, weil dort geklickt wird.
+   Der Streifen selbst faengt keine Klicks ab - darunter liegt das Modell,
+   und dorthin zielt man ja gerade. Nur seine Kinder nehmen sie an. */
+.viewer-kopf {
+  position: absolute; top: 10px; left: 0; right: 0; z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none;
+}
+.viewer-kopf > * { pointer-events: auto; }
+
 .viewer-balken {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 8px; align-items: center; z-index: 6;
+  display: flex; gap: 8px; align-items: center;
   background: var(--acc-s); border: 1px solid var(--acc); color: var(--on);
   border-radius: var(--m-r1); padding: 6px 10px; font-size: 12px;
   max-width: calc(100% - 40px);
 }
+/* OHNE DIESE ZEILE STAND ER IMMER DA. `display:flex` aus dem Stylesheet
+   schlaegt das `display:none`, das der Browser einem `hidden` mitgibt - der
+   leere Balken blieb als Farbfleck ueber dem Modell stehen. */
+.viewer-balken[hidden] { display: none; }
 .viewer-balken b { color: var(--acc); }
 .viewer-balken .btn { padding: 3px 8px; }
 /* Die Vorlagenwahl im Balken: sie kann laenger werden als das Fenster,
@@ -608,12 +619,13 @@ input[type=range].rng {
   max-width: 46vw; }
 
 .viewer-oben {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 3px; align-items: center; flex-wrap: wrap;
   max-width: calc(100% - 96px); justify-content: center;
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
   padding: 3px 4px;
 }
+/* Vor dem ersten Rechengang ist sie leer - dann waere sie ein leerer Kasten. */
+.viewer-oben:empty { display: none; }
 .viewer-oben label {
   font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); padding: 0 3px;

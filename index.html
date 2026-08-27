@@ -68,11 +68,16 @@
         <div class="viewer-buehne" id="diagramm-buehne" hidden></div>
         <div class="viewer-tools" id="ansicht-tools"></div>
         <div class="viewer-tools-r" id="ebenen-tools"></div>
-        <div class="viewer-oben" id="einwirkung-wahl"></div>
-        <!-- Handlungsbalken ueber dem Modell: sagt, was jetzt anzuklicken
-             ist - beim Einmessen der Zeichnung wie beim Setzen eines
-             Bauteils. Steht dort, wo geklickt wird. -->
-        <div class="viewer-balken" id="viewer-balken" hidden></div>
+        <!-- Kopfzeile der Ansicht: der Lastfall, darunter der Handlungsbalken.
+             Beide sassen auf top:10px und lagen damit uebereinander. Gestapelt
+             statt gestellt, weil die Lastfallzeile umbrechen kann - ein fester
+             Abstand waere dann wieder falsch. -->
+        <div class="viewer-kopf">
+          <div class="viewer-oben" id="einwirkung-wahl"></div>
+          <!-- Handlungsbalken: sagt, was jetzt anzuklicken ist - beim
+               Einmessen der Zeichnung wie beim Setzen eines Bauteils. -->
+          <div class="viewer-balken" id="viewer-balken" hidden></div>
+        </div>
         <div class="viewer-pop" id="viewer-pop" hidden></div>
         <div class="legende" id="legende"></div>
         <div class="viewer-fuss">
