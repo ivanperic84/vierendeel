@@ -1348,6 +1348,155 @@ ${q(`Wenn eine Zahl nicht nachvollziehbar ist, ist das ein Fehler des Werkzeugs
 und kein Anlass, ihr zu glauben.`)}
 `,
 },
+// ===========================================================================
+{
+  id: 'axisvm',
+  titel: '12 · Ausleitung nach AxisVM',
+  html: `
+<p>Die Anwendung rechnet den Ersatzbalken selbst. Für den Nachweis am
+Stabwerk – und für alles, was über den Ersatzbalken hinausgeht – leitet sie
+ein <b>Stabmodell</b> aus: Knoten, Stäbe, Querschnitte, Lasten und Auflager.
+Vier Wege führen hinaus, alle aus derselben Quelle
+(<code>js/export.axisvm.js</code>):</p>
+
+<ol class="hb-liste">
+<li><b>COM-Brücke</b> – ein Skript baut das Modell in einer laufenden
+AxisVM-Sitzung auf und speichert es. Der genaueste Weg, weil er die
+Schnittstelle selbst bedient.</li>
+<li><b>JSON</b> – dieselbe Beschreibung als Datei, lesbar und ablegbar.</li>
+<li><b>SAF</b> – gebaut, aber vom COM-Weg überholt; der Import ist nie
+gelaufen.</li>
+<li><b>DXF</b> und <b>PyNite</b> – für die Zeichnung und für eine
+unabhängige Nachrechnung.</li>
+</ol>
+
+${q(`Gerechnet wird nicht. Lastkombinationen und Berechnung bleiben die
+Entscheidung des Benutzers im Programm – die Brücke baut auf und hört auf.`)}
+
+<h4>Vier Auflagermodelle</h4>
+<p>Wie das Joch gelagert wird, ist die Frage, die beim Nachbau eines
+geprüften Modells am teuersten war. Sie steht deshalb als eigene Wahl da:</p>
+<ol class="hb-liste">
+<li><b>punkt</b> – ein Knoten je Ende auf der Jochachse, mit der Drehfeder
+c_φ. Das ist der Ersatzbalken, eins zu eins.</li>
+<li><b>mitte</b> – wie punkt, aber über starre Arme an die Gurte gehängt.</li>
+<li><b>gurte</b> – die vier Gurtknoten je Ende einzeln gehalten.</li>
+<li><b>mast</b> – der Mast steht im Modell, bis zum Fundament. Keine Feder:
+die Nachgiebigkeit ergibt sich aus seiner Biegung.</li>
+</ol>
+
+<h4>Der Anschluss Joch → Mast</h4>
+<p>Er wird <b>je Gurtebene einzeln</b> gebaut, oben und unten gleich. Die
+beiden Gurtknoten einer Ebene liegen bei y = ±b/2; sie laufen über zwei
+<b>Starrstäbe</b> auf einen Sammelknoten zusammen, der auf der Jochachse
+liegt und 0.10 m nach innen versetzt ist. Von dort führt <b>ein
+Linkelement</b> zum Mastknoten.</p>
+
+${skizze('Draufsicht auf eine Gurtebene: zwei Gurtknoten, ein Sammelknoten, ein Link.',
+  '0 0 700 200', `
+  <line class="d" x1="60" y1="100" x2="660" y2="100"/>
+  <text class="dim" x="640" y="94">Jochachse (y = 0)</text>
+  <!-- Gurte -->
+  <line class="b" x1="180" y1="45" x2="660" y2="45"/>
+  <line class="b" x1="180" y1="155" x2="660" y2="155"/>
+  <text class="dim" x="600" y="38">Gurt links</text>
+  <text class="dim" x="600" y="172">Gurt rechts</text>
+  <!-- Starrstaebe -->
+  <line class="hl" x1="180" y1="45" x2="260" y2="100" stroke-width="2.4"/>
+  <line class="hl" x1="180" y1="155" x2="260" y2="100" stroke-width="2.4"/>
+  <text class="dim" x="196" y="72">starr</text>
+  <text class="dim" x="196" y="140">starr</text>
+  <!-- Link -->
+  ${pf(260, 100, 130, 100, 'k')}
+  <text class="acc" x="150" y="122">Link</text>
+  <!-- Knoten -->
+  <circle class="kn" cx="180" cy="45" r="4.5"/>
+  <circle class="kn" cx="180" cy="155" r="4.5"/>
+  <circle class="kn" cx="260" cy="100" r="5.5"/>
+  <circle class="kn" cx="130" cy="100" r="5.5"/>
+  <text x="150" y="36">Mast</text>
+  <text class="dim" x="272" y="96">Sammelknoten</text>
+  ${mass(130, 178, 260, 178, '0.10 m')}
+  ${mass(168, 45, 168, 155, 'b')}
+`)}
+
+<p>Das Linkelement überträgt <b>Kräfte starr, Momente frei</b>. Der Anschluss
+gibt also kein Moment weiter – und trotzdem ist das Joch teilweise
+eingespannt. Das Einspannmoment entsteht <b>geometrisch</b>: verdreht sich
+das Jochende, zieht der eine Gurt und drückt der andere. Die beiden Kräfte
+stehen im Abstand h und bilden ein Kräftepaar.</p>
+
+${skizze('Ansicht: zwei Gurtebenen, zwei Links, ein Mast. Das Stützmoment ist das Kräftepaar M = F · h.',
+  '0 0 700 300', `
+  <!-- Mast -->
+  <line class="b" x1="150" y1="30" x2="150" y2="250" stroke-width="7"/>
+  <text class="dim" x="112" y="26">Mastkopf</text>
+  <!-- Fundament -->
+  <line class="hl" x1="105" y1="250" x2="195" y2="250" stroke-width="2"/>
+  ${[0, 1, 2, 3, 4].map((i) => `<line class="hl" x1="${110 + i * 20}" y1="250"
+     x2="${102 + i * 20}" y2="266"/>`).join('')}
+  <text class="dim" x="200" y="264">voll eingespannt</text>
+  <!-- Joch -->
+  <line class="b" x1="230" y1="90" x2="660" y2="90"/>
+  <line class="b" x1="230" y1="150" x2="660" y2="150"/>
+  ${[0, 1, 2, 3, 4, 5].map((i) => `<line class="hl" x1="${250 + i * 70}" y1="90"
+     x2="${250 + i * 70}" y2="150" stroke-width="1.6"/>`).join('')}
+  <text class="dim" x="600" y="82">Obergurt</text>
+  <text class="dim" x="600" y="168">Untergurt</text>
+  <!-- Links -->
+  ${pf(230, 90, 155, 90, 'k')}
+  ${pf(230, 150, 155, 150, 'k')}
+  <circle class="kn" cx="150" cy="90" r="4.5"/>
+  <circle class="kn" cx="150" cy="150" r="4.5"/>
+  <circle class="kn" cx="230" cy="90" r="4.5"/>
+  <circle class="kn" cx="230" cy="150" r="4.5"/>
+  <text class="acc" x="166" y="82">Link OG</text>
+  <text class="acc" x="166" y="168">Link UG</text>
+  <!-- Kraeftepaar -->
+  ${pf(300, 70, 380, 70, 'k')}
+  ${pf(380, 170, 300, 170, 'k')}
+  <text class="acc" x="390" y="74">F</text>
+  <text class="acc" x="276" y="174">F</text>
+  ${mass(268, 90, 268, 150, 'h')}
+  <!-- Masthoehe -->
+  ${mass(120, 150, 120, 250, 'H')}
+  <text class="dim" x="60" y="196">Fuss bis</text>
+  <text class="dim" x="60" y="208">Jochachse</text>
+`)}
+
+<p>Der Mast selbst ist ein Stab mit dem wirklichen I-Querschnitt. Seine
+Drehlage folgt der <b>Stegrichtung</b>: liegt der Steg in der Jochachse, steht
+die Profilhöhe quer zum Gleis und damit die starke Achse dort, wo der Wind auf
+das Joch drückt. Gedreht ist es umgekehrt. Am Fuss ist er in allen sechs
+Freiheitsgraden gehalten.</p>
+
+<p>Der Stab wird dort <b>geteilt</b>, wo etwas an ihm hängt: jede Anbauhöhe
+bekommt einen Knoten, ebenso die beiden Gurtebenen und – bei angegebener
+Gesamtlänge – der Mastkopf über dem Joch. Eine Anbauhöhe ausserhalb des
+Mastes wird nicht gebaut; sie steht im Bericht, statt still zu fehlen.</p>
+
+<h4>Warum dieser Aufbau belegt ist</h4>
+<p>Am nachgerechneten Modell (J90 über 20 m, HEB 260, H = 7.5 m) ergibt das
+Feldmoment, auf die Drehfeder zurückgerechnet, <b>3.98 · E·I/H</b>. Der
+Lehrbuchwert des unverschieblichen Rahmens ist <b>4.00</b> – eine Abweichung
+von einem halben Prozent. Geometrie, Querschnitt, Anschluss und Einspannung
+stimmen also zusammen.</p>
+
+${q(`Der Rechenkern setzt 3.10 · E·I/H an, also 22 % weicher. Das ist kein
+Fehler dieses Modells, sondern die offene Frage, wie fest das Fundament
+wirklich hält. Am Feldmoment macht es −6.5 %, am Stützmoment +9.3 %.`)}
+
+<h4>Was die Brücke nicht tut</h4>
+<ol class="hb-liste">
+<li>Sie <b>rechnet nicht</b>. Lastkombinationen und Berechnung bleiben im
+Programm.</li>
+<li>Sie <b>liest keine Ergebnisse zurück</b>. Die Schnittstelle dafür ist
+vermessen, aber nicht gebaut.</li>
+<li>Sie meldet jeden Schritt, den sie nicht ausführen konnte – lieber eine
+laute Warnung im Bericht als ein Modell, das klaglos Unsinn rechnet.</li>
+</ol>
+`,
+},
 ];
 
 /** Das ganze Handbuch als HTML, mit Inhaltsverzeichnis. */

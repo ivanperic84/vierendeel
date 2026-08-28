@@ -38,6 +38,7 @@
 import { querschnitt } from './geometry.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette } from './core.anbauteile.js';
+import { ortVon, amMast } from './data.anbauteile.js';
 
 const MM = 1 / 1000;
 
@@ -438,6 +439,16 @@ export function erzeugeSzene(m, erg) {
    * Einpassen halb ausserhalb.
    */
   let mastFussZ = Infinity;
+  let mastKopfZ = -Infinity;
+  /*
+   * WO DIE MASTEN STEHEN - fuer die Baugruppen, die an ihnen haengen.
+   *
+   * Eine Baugruppe am Masten misst ihre Hoehe AB FUNDAMENT, nicht ab Joch.
+   * Die Zeichenschleife weiter unten braucht dafuer den Fusspunkt je Ende;
+   * ohne ihn zeichnete sie das Teil an die Jochachse - dorthin, wo es
+   * gerade nicht sitzt.
+   */
+  const mastGeo = {};
 
   [['A', xA, federn.cA, m.kappaA, federn.mastA ?? federn.mast],
    ['B', xB, federn.cB, m.kappaB, federn.mastB ?? federn.mast]].forEach(
@@ -459,30 +470,64 @@ export function erzeugeSzene(m, erg) {
        */
       const H = mast?.H > 0 ? mast.H : Math.max(0.8, (zOben - zUnten) * 2.5);
       const zF = z0 - H;
+      /*
+       * WIE HOCH DER MAST REICHT.
+       *
+       * Mindestens einen halben Meter ueber den Obergurt - das ist die
+       * stehende Vorgabe, und «ueber den Obergurt» meint die Oberkante des
+       * Profils, nicht die Jochachse.
+       *
+       * Ist eine GESAMTLAENGE angegeben, gilt sie: der lange Mast mit
+       * Zusatzleitern ragt weit ueber das Joch, und oben sitzen die
+       * Traversen. Die kuerzere der beiden Angaben gewinnt nie - eine
+       * Laenge, die unter dem Mindestueberstand bliebe, waere keine
+       * Zeichnung, sondern ein Tippfehler.
+       */
+      const zKopf = Math.max(qs.huelle.z1 * MM + MAST_UEBERSTAND,
+                             zF + (mast?.laenge > 0 ? mast.laenge : 0));
+      mastGeo[name] = { x, zF, zKopf, H, koerper: Boolean(mast?.profil) };
       if (mast?.profil) {
         mastFussZ = Math.min(mastFussZ, zF);
+        mastKopfZ = Math.max(mastKopfZ, zKopf);
         const poly = iProfilPoly(mast.profil, mast.stegrichtung?.achse ?? 'y');
-        flaechen.push(...prismaZ(poly, x, zF, z0, {
-          gruppe: 'auflager', teil: `MAST_${name}`,
+        /*
+         * DIE MASTEN SIND EINE EIGENE EBENE (Weisung, 28. August: «beim
+         * Layer Modell die Masten auch aufnehmen»).
+         *
+         * Sie lagen in der Ebene `auflager` - dort, wo Auflagerdreieck,
+         * Feder und Kragarmmarke stehen. Solange der Mast eine
+         * Randbedingung war, stimmte das. Er ist seither ein BAUTEIL: er
+         * traegt Wind, er traegt Anbauteile, er wird ausgeleitet. Und weil
+         * er hoch ist, verdeckt er in der Laengsansicht das halbe Joch -
+         * man muss ihn allein wegnehmen koennen, ohne die Lagerung zu
+         * verlieren.
+         */
+        flaechen.push(...prismaZ(poly, x, zF, zKopf, {
+          gruppe: 'mast', teil: `MAST_${name}`,
           label: `Mast ${name} · ${mast.profil.name} · ${mast.H.toFixed(2)} m`,
         }));
       }
       const halb = (mast ? (mast.stegrichtung?.achse === 'y'
         ? mast.profil.b : mast.profil.h) : 160) / 2 * MM;
+      // Die ANDERE Halbbreite - in Jochachse. Der Wind quer zum Gleis drueckt
+      // gegen diese Flanke, und sein Pfeil hat davor zu stehen.
+      mastGeo[name].halbY = halb;
+      mastGeo[name].halbX = (mast ? (mast.stegrichtung?.achse === 'y'
+        ? mast.profil.h : mast.profil.b) : 160) / 2 * MM;
       // Ohne Mast bleibt der Stummel aus zwei Strichen: dort gibt es keinen
       // Koerper, sondern nur die Aussage «hier wird gelagert».
       if (!mast?.profil) {
         [-halb, +halb].forEach((dy) => {
-          linien.push({ gruppe: 'auflager', mast: true,
+          linien.push({ gruppe: 'mast', mast: true,
                         punkte: [[x, dy, z0], [x, dy, zF]] });
         });
-        linien.push({ gruppe: 'auflager', mast: true,
+        linien.push({ gruppe: 'mast', mast: true,
                       punkte: [[x, -halb, zF], [x, +halb, zF]] });
       }
       // Fussschraffur - der Mast ist am Fuss eingespannt.
       for (let k = -2; k <= 2; k++) {
         const y = (k / 2) * halb;
-        linien.push({ gruppe: 'auflager',
+        linien.push({ gruppe: 'mast',
                       punkte: [[x, y, zF], [x, y - 0.12 * halb, zF - 0.14 * H]] });
       }
       /*
@@ -498,6 +543,41 @@ export function erzeugeSzene(m, erg) {
        */
       marken.push({ gruppe: 'auflager', art: 'auflager',
                     p: [x, 0, mast?.profil ? zF : z0], text: name });
+      /*
+       * DIE MASTEN VERMASSEN (Weisung), ab JOCH UNTERKANTE.
+       *
+       * Das ist genau die Strecke, die als Masthöhe H eingegeben wird - «Fuss
+       * bis Jochachse», und die Jochachse ist in dieser Szene die Untergurt-
+       * ebene. Das Mass zeigt also die eingetippte Zahl und nicht eine, die
+       * man erst umrechnen muss.
+       *
+       * Ist eine Gesamtlänge angegeben, steht sie daneben: so ist es auf dem
+       * Querprofil angeschrieben - «DP26 / 12.5 m» und ha = 8.31 zugleich.
+       */
+      if (mast?.profil) {
+        /*
+         * NACH AUSSEN VERSETZT, in der JOCHACHSE - nicht quer.
+         *
+         * Angesehen wird der Mast in der Längsansicht; ein Versatz quer läge
+         * dort genau hinter ihm und wäre unsichtbar. Ende A weicht nach
+         * links aus, Ende B nach rechts: beide ins Freie neben dem Joch,
+         * wo sonst nichts steht.
+         */
+        const seite = name === 'A' ? -1 : +1;
+        masse.push({
+          feld: name === 'A' ? 'mastH' : 'mastHB', tab: 'aufl', achse: 'z',
+          p0: [x, 0, zF], p1: [x, 0, z0], ab: [seite, 0, 0], d: 0.75,
+          text: `H${name === 'B' ? '_B' : ''} = ${mast.H.toFixed(2)} m`,
+        });
+        if (mast.ueberstand > 0) {
+          masse.push({
+            feld: name === 'A' ? 'mastLaenge' : 'mastLaengeB', tab: 'aufl',
+            achse: 'z',
+            p0: [x, 0, zF], p1: [x, 0, zKopf], ab: [seite, 0, 0], d: 1.45,
+            text: `L_M = ${mast.laenge.toFixed(2)} m`,
+          });
+        }
+      }
       // ZWEIZEILIG UND KURZ. Als eine Zeile war die Angabe breiter als das
       // halbe Bild und überdeckte das Joch: oben das Bauteil, unten die
       // Lagerung, beides ohne ausgeschriebene Wörter.
@@ -548,11 +628,31 @@ export function erzeugeSzene(m, erg) {
   const teile = (m.teile ?? []).filter((t) => t.aktiv !== false);
   // Massstab der Pfeile über ALLE Einzelanteile, nicht über die Summen: sonst
   // würde ein grosser Gesamtwert alle Einzelpfeile zu Strichen schrumpfen.
-  const maxKraft = Math.max(1e-6, ...teile.flatMap(
-    (a) => Object.values(a.proGruppe ?? {}).flatMap(
+  // Auch die Teile am Masten zaehlen mit: waeren sie nicht dabei und truege
+  // eines von ihnen die groesste Kraft, ragte sein Pfeil aus dem Bild.
+  const maxKraft = Math.max(1e-6, ...[...teile, ...(m.anbauMastFlach ?? [])]
+    .flatMap((a) => Object.values(a.proGruppe ?? {}).flatMap(
       (k) => [Math.abs(k.Fx), Math.abs(k.Fy), Math.abs(k.Fz)])));
   const pfeilRef = Math.max(0.45, (zOben - zUnten) * 1.15);
-  const pfeilLaenge = (kraft) => (Math.abs(kraft) / maxKraft) * pfeilRef;
+  /*
+   * JEDER PFEIL BLEIBT SICHTBAR (Weisung, 28. August: «die Lastvektoren
+   * werden nicht angezeigt»).
+   *
+   * Sie WAREN da - nur zu kurz zum Sehen. Die Laenge ist auf die groesste
+   * Kraft im Modell bezogen, und am Masten haengen kleine Teile: ein
+   * Rueckleiter mit 0.30 kN neben einem Kettenwerk mit 5 kN ergibt einen
+   * Pfeil von wenigen Zentimetern - im Bild ein Punkt. Eine Last, die
+   * gerechnet wird und nicht zu sehen ist, ist schlimmer als keine
+   * Darstellung: man haelt die Stelle fuer unbelastet.
+   *
+   * MINDESTLAENGE statt anderer Skala. Eine Wurzel- oder Logarithmusskala
+   * haette jeden Pfeil verzerrt; so bleibt der Vergleich der grossen Pfeile
+   * untereinander massstaeblich, und nur die kleinsten wachsen auf ein Mass,
+   * das man noch sieht. Die Zahl steht ohnehin daneben.
+   */
+  const PFEIL_MIN = 0.22;
+  const pfeilLaenge = (kraft) => Math.max(PFEIL_MIN,
+    Math.abs(kraft) / maxKraft) * pfeilRef;
 
   // Schwerachsen der Gurte: z je Gurt, y je Winkel (links/rechts).
   const zsOG = (qs.byId.OG_L.schwerpunkt.z + qs.byId.OG_R.schwerpunkt.z) / 2 * MM;
@@ -571,11 +671,128 @@ export function erzeugeSzene(m, erg) {
     if (!nachGruppe.has(s)) nachGruppe.set(s, []);
     nachGruppe.get(s).push(t);
   });
+  /*
+   * DIE TEILE AM MASTEN LIEGEN IN EINER EIGENEN LISTE.
+   *
+   * Sie gehen nicht in den Ersatzbalken ein und stehen deshalb nicht in
+   * `m.teile`. Wer sie hier vergisst, zeichnet die Baugruppe trotzdem - nur
+   * ohne ihre Teile, an der Stelle x der Baugruppe. Und x ist am Masten
+   * IMMER null. Genau so sass der Rueckleiter am Mast auf 7 m Hoehe im Bild
+   * am linken Jochende: die Schleife kannte nur das Joch.
+   */
+  const nachGruppeMast = new Map();
+  (m.anbauMastFlach ?? []).filter((t) => t.aktiv !== false).forEach((t) => {
+    const s = t.baugruppe ?? t.id;
+    if (!nachGruppeMast.has(s)) nachGruppeMast.set(s, []);
+    nachGruppeMast.get(s).push(t);
+  });
 
   /** Umriss der Anbauteile für den Einzelheitsblick. */
   const detailBereiche = [];
 
-  (m.anbauteile ?? []).filter((a) => a.aktiv !== false).forEach((a, k) => {
+  /*
+   * EINE BAUGRUPPE AM MASTEN.
+   *
+   * >>> IHR NULLPUNKT IST DER MASTFUSS, NICHT DAS JOCH. <<<
+   *
+   * Am Joch sagt `x`, wo die Baugruppe sitzt, und `z` misst ab der
+   * Schwerachse des Gurtes, an dem sie haengt. Am Masten gilt beides nicht:
+   * dort steht `hMast` - die Hoehe UEBER FUNDAMENT, die Angabe, die in der
+   * Zeichnung und auf der Baustelle steht -, und `z` eines Teils misst ab
+   * dem Anschlusspunkt auf der Mastachse.
+   *
+   * X IST GLOBAL, AN BEIDEN ENDEN (Weisung, 28. August). Hier stand eine
+   * Spiegelung am Ende B - «der Arm weist ins Feld hinein». Sie gab dem Feld
+   * `x` eine zweite Bedeutung: dieselbe Zahl zeigte am Mast A nach rechts
+   * und am Mast B nach links. Gezeichnet wird dieselbe Kette wie in der
+   * Ausleitung; wuerde hier anders gerechnet als dort, sagte das Bild etwas
+   * anderes als das Modell.
+   */
+  const zeichneAmMast = (a, k, ort) => {
+    const ende = ort === 'mastB' ? 'B' : 'A';
+    const g = mastGeo[ende];
+    if (!g) return;
+    const meine = nachGruppeMast.get(a.id) ?? [];
+    const fb = farbeFuer(`anbau|${a.vorlage ?? a.name}`, a.name, 'anbau');
+    const teilKey = `AT${k}`;
+    const zWurzel = g.zF + (a.hMast ?? 0);
+    const opt = (label) => ({ gruppe: 'anbau', teil: teilKey, farbeBauteil: fb,
+                              werte: null, label: `${a.name} · ${label}`,
+                              anbauteil: a });
+    // Vom Mast in die Welt: x global wie am Joch, z ab dem Anschluss.
+    const welt = (p) => [g.x + (p.x ?? 0), p.y ?? 0, zWurzel + (p.z ?? 0)];
+
+    // Der Anschluss an der Mastachse - das Gegenstueck zu den vier
+    // Anschlusspunkten am Joch. Am Masten ist es einer.
+    flaechen.push(...quader([g.x, 0, zWurzel], [0.09, 0.09, 0.09],
+      opt(`Anschluss am Mast ${ende} · ${(a.hMast ?? 0).toFixed(2)} m über Fundament`)));
+
+    const kette = anbauKette(meine, { x0: 0, zAn: 0 });
+    kette.glieder.forEach((gl) => {
+      const p1 = welt(gl.von), p2 = welt(gl.bis);
+      const laenge = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);
+      flaechen.push(...stab(p1, p2, gl.rang === 0 ? 0.045 : 0.038,
+        opt(`${gl.teil.bauteilName ?? gl.teil.name} · ${laenge.toFixed(2)} m`)));
+    });
+
+    const punkte = [kette.wurzel, ...kette.glieder.map((gl) => gl.bis)].map(welt);
+    const zMin = Math.min(zWurzel, ...punkte.map((q) => q[2]));
+    const zMax = Math.max(zWurzel, ...punkte.map((q) => q[2]));
+    const xMin = Math.min(g.x - 0.3, ...punkte.map((q) => q[0]));
+    const xMax = Math.max(g.x + 0.3, ...punkte.map((q) => q[0]));
+    detailBereiche.push({ teil: teilKey, id: a.id, index: k, name: a.name,
+                          x: g.x, r: 0.3, zMin, zMax, xMin, xMax });
+
+    marken.push({
+      gruppe: 'anbau', art: 'anbau', teil: teilKey,
+      p: [g.x, 0, zMax],
+      text: `A${k + 1}`,
+      textLang: `A${k + 1} · ${kurzName(a.name)}`,
+      titel: `${a.name} · Mast ${ende}, ${(a.hMast ?? 0).toFixed(2)} m über Fundament`,
+      farbe: fb,
+    });
+
+    // Angriffspunkte und Kraftpfeile - je Teil an SEINEM Kettenpunkt, nicht
+    // an der Wurzel: ein Ausleger traegt am Ende, nicht am Mast.
+    kette.belegung.forEach(({ teil: t, punkt }) => {
+      const pAn = welt(punkt);
+      const kurz = t.bauteilName ?? t.name.split(' · ').slice(-1)[0];
+      flaechen.push(...quader(pAn, [0.07, 0.07, 0.07],
+        { ...opt(`${kurz} · Angriffspunkt ${(zWurzel + (t.z ?? 0) - g.zF).toFixed(2)} m über Fundament`),
+          gruppe: 'last', punkt: true }));
+      marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
+                    text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
+                    titel: `${t.name} · Angriffspunkt` });
+      Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
+        [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
+         { k: kr.Fy, ri: [0, 1, 0], nm: 'F_y', bez: 'Gleisrichtung' },
+         { k: kr.Fx, ri: [1, 0, 0], nm: 'F_x', bez: 'Jochachse' }].forEach((pf) => {
+          if (!pf.k) return;
+          const istZug = gruppe === 'G' && pf.nm === 'F_x' && t.rolle === 'drahtwerk';
+          const art = istZug ? 'leiterzug' : LASTART_VON_GRUPPE[gruppe] ?? 'staendig';
+          vektoren.push({
+            gruppe: 'last', art: 'last', lastart: art, p: pAn, teil: teilKey,
+            v: skal(pf.ri, Math.sign(pf.k) * pfeilLaenge(pf.k)),
+            text: `${pf.nm} = ${Math.abs(pf.k).toFixed(2)} kN`,
+            titel: `${t.name} · ${LASTARTEN.find((l) => l.key === art).label} · ${pf.bez}`,
+          });
+        });
+      });
+    });
+  };
+
+  /*
+   * DER ZAEHLER LAEUFT UEBER DIE GANZE LISTE, nicht ueber die aktiven.
+   *
+   * Die Marke heisst `A{k+1}`, die Karte in der Schublade `A{i+1}` - und
+   * `zeigeAnbauteil` sucht den Bereich ueber genau diese Nummer. Solange
+   * hier vorher gefiltert wurde, stimmten beide nur so lange ueberein, wie
+   * kein Teil abgeschaltet war: ein ausgeschaltetes Teil verschob jede
+   * folgende Nummer um eins, und der Klick auf A7 oeffnete A8.
+   */
+  (m.anbauteile ?? []).forEach((a, k) => {
+    if (a.aktiv === false) return;
+    if (amMast(a)) { zeichneAmMast(a, k, ortVon(a)); return; }
     const meine = nachGruppe.get(a.id) ?? [];
     const r = (a.raster ?? 0.4) / 2;
     const bef = meine[0]?.befestigung
@@ -594,24 +811,58 @@ export function erzeugeSzene(m, erg) {
                               werte: null, label: `${a.name} · ${label}`,
                               anbauteil: a });
 
+    /*
+     * DIE KLEMMEN SITZEN AN DEN RASTERENDEN, NICHT IN DER MITTE.
+     *
+     * >>> Weisung, 28. August: «man kann die Anbindung der Bauteile über
+     * unter, ober oder beide Gurte vornehmen. Wenn der Raster noch eingegeben
+     * ist, dann verdoppeln sich die Anschlusspunkte.» <<<
+     *
+     * Genau so rechnet der Kern: das Moment tritt an ZWEI Stationen ein,
+     * x₁ = x − raster/2 und x₂ = x + raster/2, und dort bildet es das
+     * Kräftepaar (core.anbauteile.js, `zufuegen` und der Torsionsblock).
+     *
+     * Gezeichnet stand hier EIN Würfel je Winkel, in der Mitte. Die Anzahl
+     * stimmte damit zufällig — vier bei durchgehender, zwei bei einseitiger
+     * Befestigung —, die STELLEN aber nicht, und die Zahl bedeutete etwas
+     * anderes als im Kern: dort zählt Station × Gurtebene, im Bild zählte
+     * Gurtebene × Winkel. Zwei Bedeutungen für dieselbe Vier.
+     *
+     * Jetzt zeigt das Bild die Klemmen, die es wirklich gibt:
+     *
+     *     einseitig      1 Gurt  × 2 Winkel × 2 Stationen = 4
+     *     durchgehend    2 Gurte × 2 Winkel × 2 Stationen = 8
+     *
+     * Ohne Raster fallen die beiden Stationen zusammen, und es sind halb so
+     * viele — auch das sieht man dann.
+     */
+    const stationen = r > 1e-6 ? [a.x - r, a.x + r] : [a.x];
     gurte.forEach((g) => {
-      const zG = zGurt(g, a.x);
       const yL = ysWinkel(`${g}_L`, g, a.x);
       const yR = ysWinkel(`${g}_R`, g, a.x);
       const bez = g === 'OG' ? 'Obergurt' : 'Untergurt';
-      // Auflagerung ENTLANG jedes Winkels über die Länge "raster"
       [['links', yL], ['rechts', yR]].forEach(([seite, y]) => {
-        flaechen.push(...stab([a.x - r, y, zGurt(g, a.x - r)],
-                              [a.x + r, y, zGurt(g, a.x + r)], 0.032,
-                              opt(`Anschluss ${bez} ${seite}`)));
-        // Anschlusspunkt selbst, auf der Schwerachse des Winkels
-        flaechen.push(...quader([a.x, y, zG], [0.06, 0.06, 0.06],
-          opt(`Anschlusspunkt ${bez} ${seite} · x = ${a.x.toFixed(2)} m`)));
+        // Die Schiene ENTLANG des Winkels über die Länge «raster» - sie
+        // verbindet die beiden Klemmen und trägt zwischen ihnen nichts ein.
+        if (r > 1e-6) {
+          flaechen.push(...stab([a.x - r, y, zGurt(g, a.x - r)],
+                                [a.x + r, y, zGurt(g, a.x + r)], 0.032,
+                                opt(`Anschlussschiene ${bez} ${seite}`)));
+        }
+        stationen.forEach((xs) => {
+          flaechen.push(...quader([xs, ysWinkel(`${g}_${seite === 'links' ? 'L' : 'R'}`, g, xs),
+                                   zGurt(g, xs)], [0.06, 0.06, 0.06],
+            opt(`Klemme ${bez} ${seite} · x = ${xs.toFixed(2)} m`)));
+        });
       });
       // Querriegel zwischen den beiden Winkeln - hierüber verteilt sich die
-      // Kraft des Vertikalelements auf die zwei Anschlusspunkte des Gurtes.
-      flaechen.push(...stab([a.x, yL, zG], [a.x, yR, zG], 0.034,
-                            opt(`Querriegel ${bez}`)));
+      // Kraft des Vertikalelements auf die Klemmen des Gurtes. Je Station
+      // einer: dort sitzt das Kräftepaar, nicht dazwischen.
+      stationen.forEach((xs) => {
+        flaechen.push(...stab([xs, ysWinkel(`${g}_L`, g, xs), zGurt(g, xs)],
+                              [xs, ysWinkel(`${g}_R`, g, xs), zGurt(g, xs)], 0.034,
+                              opt(`Querriegel ${bez} · x = ${xs.toFixed(2)} m`)));
+      });
     });
 
     // Vertikalelement. Bei durchgehender Befestigung läuft es über die ganze
@@ -755,14 +1006,22 @@ export function erzeugeSzene(m, erg) {
       }
     });
 
-    // Anschlussraster - das Mass, das die Lasteinleitung bestimmt.
+    /*
+     * Anschlussraster - das Mass, das die Lasteinleitung bestimmt.
+     *
+     * Es NENNT jetzt, was es bewirkt: zwei Stationen statt einer, und damit
+     * doppelt so viele Klemmen. Ohne diese Zahl sah man zwar die Wuerfel,
+     * musste sie aber zaehlen, um die Regel zu erkennen.
+     */
     const gRef = gurte[0];
+    const klemmen = gurte.length * 2 * stationen.length;
     masse.push({
       feld: 'anbauteile', tab: 'anbau', achse: 'x', zu: teilKey,
       p0: [a.x - r, ysWinkel(`${gRef}_R`, gRef, a.x), zGurt(gRef, a.x - r)],
       p1: [a.x + r, ysWinkel(`${gRef}_R`, gRef, a.x), zGurt(gRef, a.x + r)],
       ab: [0, 1, 0], d: 0.22,
-      text: `Raster ${((a.raster ?? 0.4) * 1000).toFixed(0)} mm`,
+      text: `Raster ${((a.raster ?? 0.4) * 1000).toFixed(0)} mm · ${
+        klemmen} Klemmen`,
     });
     masse.push({
       feld: 'anbauteile', tab: 'anbau', achse: 'x', zu: teilKey,
@@ -828,6 +1087,65 @@ export function erzeugeSzene(m, erg) {
     });
   }
 
+  /*
+   * WIND AUF DIE MASTEN - wie beim Joch (Weisung, 28. August).
+   *
+   * Der Mast trug seine Windlast bisher nur in der Ausleitung: dort steht sie
+   * seit dem 27. August als Streckenlast an jedem Maststab, in BEIDEN
+   * Richtungen. Im Bild war davon nichts zu sehen. Ein Mast, der nur haelt
+   * und nie gedrueckt wird, sieht vollstaendig aus und ist es nicht - und
+   * gerade die Windrichtung quer zum Gleis ist die, ueber die das Joch mit
+   * dem Masten redet.
+   *
+   * ZWEI RICHTUNGEN, ZWEI LASTARTEN. `x` ist die Jochachse (Wind quer),
+   * `y` die Gleisrichtung. Sie stehen auf getrennten Ebenen und lassen sich
+   * einzeln ausblenden - so wie am Joch.
+   *
+   * Gezeichnet werden die BEMESSUNGSWERTE (`xd`, `yd`), denn daneben stehen
+   * die Bemessungspfeile des Jochs. Ein negativer Beiwert dreht den Pfeil um;
+   * genau das soll man sehen.
+   */
+  ['A', 'B'].forEach((ende) => {
+    const g = mastGeo[ende];
+    const w = m.mastLast?.[ende];
+    if (!g || !g.koerper || !w) return;
+    const hoehe = g.zKopf - g.zF;
+    if (!(hoehe > 0)) return;
+    const n = Math.max(4, Math.min(16, Math.round(hoehe / 1.1)));
+
+    [{ wert: w.xd ?? 0, achse: 0, halb: g.halbX, nm: 'w_M,x',
+       lastart: 'windX', bez: 'Jochachse' },
+     { wert: w.yd ?? 0, achse: 1, halb: g.halbY, nm: 'w_M,y',
+       lastart: 'windY', bez: 'Gleisrichtung' }].forEach((teil) => {
+      if (Math.abs(teil.wert) < 1e-9) return;
+      const vz = Math.sign(teil.wert);
+      // Der Wind steht auf der Seite, von der er kommt - sonst laegen die
+      // Pfeile im Profil.
+      const kante = -vz * teil.halb;
+      const aus = kante - vz * 0.42;
+      const pkt = (a, z) => (teil.achse === 0 ? [g.x + a, 0, z] : [g.x, a, z]);
+      for (let i = 0; i <= n; i++) {
+        const z = g.zF + (i * hoehe) / n;
+        vektoren.push({
+          gruppe: 'last', art: 'wind', lastart: teil.lastart,
+          teil: `MAST_${ende}`, p: pkt(aus, z),
+          v: teil.achse === 0 ? [vz * 0.34, 0, 0] : [0, vz * 0.34, 0],
+          schlank: true,
+          text: i === Math.round(n / 2)
+            ? `${teil.nm} = ${teil.wert.toFixed(2)} kN/m` : '',
+          titel: `Wind auf Mast ${ende} · ${teil.bez}`,
+        });
+      }
+      lastflaechen.push({
+        gruppe: 'last', art: 'wind', lastart: teil.lastart,
+        punkte: [pkt(aus, g.zF), pkt(aus, g.zKopf),
+                 pkt(kante, g.zKopf), pkt(kante, g.zF)],
+        titel: `Wind auf Mast ${ende} · ${teil.bez} · `
+             + `${teil.nm} = ${teil.wert.toFixed(2)} kN/m`,
+      });
+    });
+  });
+
   // ==========================================================================
   //  NACHWEISSCHNITT: Ebene, Vermassung, Schnittkräfte
   // ==========================================================================
@@ -881,11 +1199,22 @@ export function erzeugeSzene(m, erg) {
     });
   }
 
-  // Die Jochlänge ist das einzige Mass, das immer steht - alles Übrige ist an
-  // der Schnittebene aufgehängt und erscheint mit ihr.
+  /*
+   * Die Jochlänge ist das einzige Mass, das immer steht - alles Übrige ist an
+   * der Schnittebene aufgehängt und erscheint mit ihr.
+   *
+   * SIE HÄNGT TIEF (Weisung: rund vier Meter). Dicht unter dem Untergurt lag
+   * sie zwischen den Mastfüssen und deren Angaben; vier Meter tiefer läuft
+   * sie frei durch, und dazwischen ist Platz für die Masthöhen.
+   *
+   * Ohne Masten gibt es dort unten nichts, wozu sie gehören könnte - dann
+   * bleibt sie dicht am Joch, statt im Leeren zu schweben.
+   */
+  const massTief = Number.isFinite(mastFussZ) ? 4.0 : 0.95;
   masse.push({
     feld: 'L', tab: 'geo', achse: 'x',
-    p0: [0, 0, zUnten - 0.95], p1: [m.L, 0, zUnten - 0.95], ab: [0, 0, -1], d: 0,
+    p0: [0, 0, zUnten - massTief], p1: [m.L, 0, zUnten - massTief],
+    ab: [0, 0, -1], d: 0,
     text: `L = ${m.L.toFixed(2)} m`,
   });
   if (schnittAktiv) {
@@ -997,7 +1326,7 @@ export function erzeugeSzene(m, erg) {
     legende: [...bauteile.values()],
     grenzen: { xMin: 0, xMax: m.L, yMin: qs.huelle.y0 * MM, yMax: qs.huelle.y1 * MM,
                zMin: Math.min(qs.huelle.z0 * MM, zUnten, mastFussZ, ...zAT),
-               zMax: Math.max(qs.huelle.z1 * MM, ...zAT) },
+               zMax: Math.max(qs.huelle.z1 * MM, mastKopfZ, ...zAT) },
     stationen: stationen.map((s) => s.x),
     xNachweis: xN, schnittAktiv,
     anbauteile: detailBereiche,
@@ -1067,12 +1396,68 @@ export const ANSICHTEN = [
  * Der Pruefstand rechnet den Mindestwert aus dem Stylesheet nach, damit eine
  * hoehere Leiste nicht wieder still darueberwaechst.
  */
+/*
+ * Wie weit ein Mast ueber den Obergurt hinausragt [m].
+ *
+ * Weisung des Auftraggebers: immer einen halben Meter. Auf jedem Querprofil
+ * laeuft der Mast ueber das Joch hinaus - er traegt dort Traversen und
+ * Einzelleiter -, und wer eine Zeichnung dahinterlegt, will beide Masten zur
+ * Deckung bringen. Ein Mast, der an der Jochachse aufhoert, passt dann nie.
+ *
+ * Die Masthoehe H bleibt davon unberuehrt: sie ist als FUSS BIS JOCHACHSE
+ * definiert (ui.schema.js) und geht so in die Drehfeder ein. Der Ueberstand
+ * waechst nach OBEN, der Fuss bleibt, wo er ist - dort sitzt das Lager.
+ */
+/**
+ * IN WELCHER REIHENFOLGE DIE KENNZAHLEN GESETZT WERDEN.
+ *
+ * Ausserhalb der Klasse, weil sie sich nur so prüfen lässt - und weil genau
+ * diese Reihenfolge der Grund war, aus dem die Endfelder unbeschriftet
+ * blieben. Der Zeichengang selbst braucht einen Canvas; diese Ordnung
+ * braucht nur Zahlen.
+ *
+ * REIHUM ÜBER DIE SPALTEN. Die Liste kommt nach Betrag geordnet herein; sie
+ * wird in Spalten geteilt, und aus jeder Spalte kommt der grösste, dann der
+ * zweitgrösste, und so weiter. Jeder Bereich bekommt dadurch Zahlen, und
+ * innerhalb eines Bereichs steht die massgebende zuerst.
+ *
+ * Der grösste Wert des ganzen Bildes bleibt in jedem Fall beschriftet: seine
+ * Spalte kommt in der ersten Runde dran.
+ *
+ * @param {{x:number, betrag:number}[]} kandidaten
+ * @param {number} spalten wieviele Bereiche über die Bildbreite
+ */
+export function beschriftungsReihenfolge(kandidaten, spalten = 14) {
+  const liste = [...kandidaten].sort((a, b) => b.betrag - a.betrag);
+  if (liste.length < 2) return liste;
+  const xs = liste.map((k) => k.x);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const breite = Math.max(1e-9, x1 - x0);
+  const spalte = new Map();
+  liste.forEach((k) => {
+    const i = Math.min(spalten - 1,
+                       Math.floor(((k.x - x0) / breite) * spalten));
+    if (!spalte.has(i)) spalte.set(i, []);
+    spalte.get(i).push(k);              // schon nach Betrag geordnet
+  });
+  const reihen = [...spalte.keys()].sort((a, b) => a - b).map((i) => spalte.get(i));
+  const raus = [];
+  for (let r = 0; raus.length < liste.length; r++) {
+    let etwas = false;
+    reihen.forEach((sp) => { if (sp[r]) { raus.push(sp[r]); etwas = true; } });
+    if (!etwas) break;
+  }
+  return raus;
+}
+
+const MAST_UEBERSTAND = 0.5;
+
 const ACHSENKREUZ_ARM = 30;
 const ACHSENKREUZ_HOCH = 92;
 
 const HAUPTSCHALTER = {
   profil: 'modell', blech: 'modell', anbau: 'modell', achse: 'modell',
-  auflager: 'modell', masse: 'modell', raster: 'modell',
+  auflager: 'modell', mast: 'modell', masse: 'modell', raster: 'modell',
   // Die eingefuegte Zeichnung und ihre Masskette haengen an einer eigenen
   // Gruppe: sie kommen von aussen, nicht aus der Rechnung. Vorher stand die
   // Zeichnung ueberhaupt an keinem Hauptschalter - «Modell aus» liess sie
@@ -1129,6 +1514,10 @@ export class Modellansicht {
     this.ebenen = { profil: true, blech: true, anbau: true, achse: true,
                     last: true, kraefte: false, masse: true, schnitt: true,
                     raster: true, marken: true, auflager: true,
+                    // Der Mast ist ein Bauteil, kein Auflagerzeichen - er
+                    // laesst sich einzeln wegnehmen, ohne die Lagerung zu
+                    // verlieren.
+                    mast: true,
                     // Die Zeichnung und die Masskette sind zwei Ebenen: die
                     // eine kommt aus einem Blatt, die andere aus der Eingabe.
                     // Vorher hing die Masskette am Schalter der Zeichnung -
@@ -1148,6 +1537,15 @@ export class Modellansicht {
      * hinterlegte Zeichnung, und ohne sie ist die Zeichnung nur ein Bild.
      */
     this.masskette = [];
+    /*
+     * FADENKREUZ UND GESETZTE PUNKTE beim Einmessen der Zeichnung.
+     *
+     * `_fadenkreuz` ist die Zeigerspur in Geraetepunkten, `kalibrierPunkte`
+     * sind die bereits angeklickten Stellen. Beides lebt nur, solange
+     * eingemessen wird.
+     */
+    this._fadenkreuz = null;
+    this.kalibrierPunkte = [];
     // Deckkraft der Zeichnung. 0.45 ist der Wert, bei dem beides zugleich
     // lesbar bleibt - das Modell davor und die Linien dahinter.
     this.zeichnungDeckkraft = 0.45;
@@ -1538,6 +1936,17 @@ export class Modellansicht {
     });
 
     c.addEventListener('pointermove', (e) => {
+      /*
+       * DIE ZEIGERSPUR LAEUFT IMMER MIT - vor der Griffabfrage.
+       *
+       * Darunter stand `if (!griff) return`, also erfuhr die Ansicht von einer
+       * Bewegung nur, solange gezogen wurde. Fuer das Fadenkreuz beim
+       * Einmessen ist aber genau die Bewegung OHNE Knopfdruck gefragt.
+       */
+      if (this.beiZeichnungsklick) {
+        this._fadenkreuz = this._geraetePunkt(e);
+        this.zeichne();
+      }
       if (!zeiger.has(e.pointerId) || !griff) return;
       const vorher = zeiger.get(e.pointerId);
       const jetzt = this._geraetePunkt(e);
@@ -1601,6 +2010,11 @@ export class Modellansicht {
     };
     c.addEventListener('pointerup', beiHoch);
     c.addEventListener('pointercancel', beiHoch);
+    // Verlaesst der Zeiger die Flaeche, gehoert das Fadenkreuz weg - sonst
+    // bliebe es an der letzten Stelle stehen und zeigte auf nichts.
+    c.addEventListener('pointerleave', () => {
+      if (this._fadenkreuz) { this._fadenkreuz = null; this.zeichne(); }
+    });
 
     /*
      * Radschritte kommen je nach Gerät in Pixeln, Zeilen oder Seiten. Ohne
@@ -1709,6 +2123,22 @@ export class Modellansicht {
       (t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
     if (mt) { this.opt.beiMass?.(mt.feld, mt.tab); return; }
     const tr = this._treffer(e);
+    /*
+     * DER MAST IST ANKLICKBAR (Weisung).
+     *
+     * Er steht seit kurzem als Koerper da - und was man sieht, will man auch
+     * anfassen. Ein Klick fuehrt zu seiner Eingabe: Ende A auf die Masthoehe,
+     * Ende B auf die des zweiten Mastes, sofern es einen gibt.
+     *
+     * Ueber `beiMast`, nicht ueber `beiAuswahl`: die Mastflaechen tragen
+     * keine Station, und der Sprung soll in die AUFLAGER-Gruppe fuehren,
+     * nicht an eine Stelle des Jochs.
+     */
+    const mastTeil = tr?.flaeche.teil;
+    if (typeof mastTeil === 'string' && mastTeil.startsWith('MAST_')) {
+      this.opt.beiMast?.(mastTeil.slice(5));
+      return;
+    }
     // Anbauteil anklicken heisst: dieses Teil ist jetzt das aktive, und nur
     // seine Bemassung wird gezeigt. Ein Klick daneben hebt die Auswahl auf.
     const teil = tr?.flaeche.anbauteil ? tr.flaeche.teil : null;
@@ -2005,6 +2435,20 @@ export class Modellansicht {
    * @returns {{x:number, z:number}|null} null, wenn der Strahl die Ebene
    *          nicht trifft (Blick genau entlang der Ebene).
    */
+  /**
+   * Stelle im Tragwerk unter einem Maus- oder Zeigerereignis.
+   *
+   * Fuer das Ablegen: ein `drop` traegt clientX/clientY wie jeder Zeiger,
+   * und was dort liegt, soll dieselbe Stelle sein, die ein Klick treffen
+   * wuerde. Vorher wurde beim Ablegen nur der waagrechte Anteil der Breite
+   * genommen - damit landete alles am Joch, auch was auf einem Masten lag.
+   */
+  weltAusZeiger(e) {
+    if (!this.szene) return null;
+    const [px, py] = this._geraetePunkt(e);
+    return this.weltTreffer(px, py);
+  }
+
   weltTreffer(sx, sy) {
     const auge = this._kameraPos();
     const { vor, rechts, hoch } = this._basis();
@@ -2279,6 +2723,51 @@ export class Modellansicht {
       this._texte(c, t);
     }
     this._achsenkreuz(c, t);
+    // GANZ ZULETZT: das Fadenkreuz liegt ueber allem, auch ueber den Marken -
+    // man zielt damit, und was man anzielt, darf es nicht verdecken.
+    this._fadenkreuzMalen(c, t);
+  }
+
+  /**
+   * DAS FADENKREUZ BEIM EINMESSEN.
+   *
+   * Zwei Linien quer durch das ganze Bild, waagrecht und lotrecht. Der Sinn
+   * ist nicht der Zeiger - den sieht man ohnehin -, sondern das ABGREIFEN:
+   * die Linie laeuft bis zum Bildrand und laesst sich damit an einer Kante
+   * der Zeichnung ausrichten, die weit weg vom Zielpunkt liegt. Ein Jochende
+   * trifft man so auf den Strich, statt es zu schaetzen.
+   *
+   * DER ERSTE PUNKT BLEIBT STEHEN. Beim zweiten Klick will man sehen, wo der
+   * erste gelandet ist - sonst misst man gegen eine Erinnerung.
+   */
+  _fadenkreuzMalen(c, t) {
+    if (!this.beiZeichnungsklick) return;
+    const s = this._s;
+    c.save();
+    (this.kalibrierPunkte ?? []).forEach((p, i) => {
+      c.strokeStyle = t.acc ?? '#4aa3df';
+      c.lineWidth = 1.6 * s;
+      const r = 7 * s;
+      c.beginPath();
+      c.moveTo(p[0] - r, p[1]); c.lineTo(p[0] + r, p[1]);
+      c.moveTo(p[0], p[1] - r); c.lineTo(p[0], p[1] + r);
+      c.stroke();
+      c.fillStyle = t.acc ?? '#4aa3df';
+      c.font = this._font();
+      c.fillText(String(i + 1), p[0] + r + 3 * s, p[1] - 3 * s);
+    });
+    const f = this._fadenkreuz;
+    if (f) {
+      c.strokeStyle = t.acc ?? '#4aa3df';
+      c.globalAlpha = 0.55;
+      c.lineWidth = 1 * s;
+      c.setLineDash([6 * s, 4 * s]);
+      c.beginPath();
+      c.moveTo(0, f[1]); c.lineTo(this.cv.width, f[1]);
+      c.moveTo(f[0], 0); c.lineTo(f[0], this.cv.height);
+      c.stroke();
+    }
+    c.restore();
   }
 
   /**
@@ -2305,8 +2794,34 @@ export class Modellansicht {
       const my = f._2d.reduce((s, q) => s + q[1], 0) / f._2d.length;
       kandidaten.push({ v, x: mx, y: my, betrag: Math.abs(v) });
     });
-    // Grösste zuerst: wenn ausgedünnt wird, bleiben die massgebenden stehen.
-    kandidaten.sort((a, b) => b.betrag - a.betrag);
+    /*
+     * >>> DIE ENDFELDER BLIEBEN LEER (Weisung, 28. August: «das Endfeld auf
+     * einer Seite weist keine Resultate auf in der App»). <<<
+     *
+     * NACHGEMESSEN: der Rechenkern liefert an beiden Enden Werte, und jede
+     * Blechfläche trägt ihren Kennwert. Es fehlten nur die ZAHLEN - und zwar
+     * aus dieser Ausdünnung hier.
+     *
+     * Sie sortierte streng nach Betrag und setzte die sechzig grössten. Bei
+     * einem J70 über 15 m stehen rund 160 Kandidaten im Bild; die grossen
+     * liegen in Feldmitte, die kleinen am Auflager. Also fielen die
+     * AUFLAGERBEREICHE zuerst weg - und weil die Lasten selten genau
+     * symmetrisch sind, oft nur auf einer Seite. Genau das war zu sehen.
+     *
+     * Die Farbe war die ganze Zeit da; es fehlte die Zahl. Ein Bild, das
+     * einen Bereich unbeschriftet lässt, liest sich aber wie «hier ist
+     * nichts gerechnet».
+     *
+     * JETZT REIHUM ÜBER DAS BILD. Die Kandidaten werden in Spalten geteilt;
+     * aus jeder Spalte kommt der grösste, dann der zweitgrösste, und so
+     * weiter. Damit bekommt jeder Bereich Zahlen, und innerhalb eines
+     * Bereichs steht die massgebende zuerst - der grösste Wert des Bildes
+     * bleibt in jedem Fall beschriftet, denn seine Spalte kommt in der
+     * ersten Runde dran.
+     */
+    const geordnet = beschriftungsReihenfolge(kandidaten);
+    kandidaten.length = 0;
+    kandidaten.push(...geordnet);
     c.font = this._font(this.schriftLast);
     const belegt = [];
     let gesetzt = 0;
@@ -2400,7 +2915,7 @@ export class Modellansicht {
      * NACHWEISGRUPPEN in core.checks.js). Ein stiller Ton sagt das.
      */
     if (f.gruppe === 'anbau' || f.gruppe === 'last'
-        || f.gruppe === 'auflager') return t.dim;
+        || f.gruppe === 'auflager' || f.gruppe === 'mast') return t.dim;
     return f.gruppe === 'blech' ? t.blech : t.stahl;
   }
 
@@ -2523,7 +3038,7 @@ export class Modellansicht {
       // und mit denselben Kennwerten wie die Volumenkörper. Nur so ist das
       // Bild ohne Körper dasselbe wie mit ihnen.
       const traegt = l.gurt || l.blechachse;
-      if (l.gruppe === 'auflager') {
+      if (l.gruppe === 'auflager' || l.gruppe === 'mast') {
         c.strokeStyle = l.kragarm ? t.acc : t.on2;
         c.setLineDash(l.kragarm ? [6 * s, 4 * s] : []);
         c.lineWidth = (l.mast ? 1.8 : 1.2) * s;

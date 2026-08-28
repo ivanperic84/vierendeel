@@ -19,6 +19,7 @@ import { mastWind } from './data.masten.js';
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile, amMast, ortVon } from './data.anbauteile.js';
+import { mastNachweise } from './core.mast.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
          mastKoepfe } from './core.auflager.js';
@@ -296,10 +297,24 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
       const wGleis = mastWind(mast.profil.name, ek, gegen);
       const x = vonHand ? (wManuell ?? 0)
               : (Number.isFinite(wJoch) ? wJoch : (wManuell ?? 0));
+      const xk = Math.abs(x);
+      const yk = Number.isFinite(wGleis) ? Math.abs(wGleis) : null;
       return {
         profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand,
-        x: Math.abs(x),
-        y: Number.isFinite(wGleis) ? Math.abs(wGleis) : null,
+        x: xk, y: yk,
+        /*
+         * BEMESSUNGSWERTE DANEBEN, nicht anstelle.
+         *
+         * Die Ausleitung braucht die CHARAKTERISTISCHEN Werte - dort steht
+         * jede Einwirkung in ihrem eigenen Lastfall, und kombiniert wird im
+         * Programm. Das BILD braucht die Bemessungswerte, sonst stuenden am
+         * Masten charakteristische Pfeile neben den Bemessungspfeilen des
+         * Jochs, in einem Bild, ohne Kennzeichen. Das Vorzeichen kommt vom
+         * Beiwert mit: ein negativer dreht den Pfeil, und genau das soll man
+         * sehen.
+         */
+        xd: bwX * xk,
+        yd: yk === null ? null : (beiwerte.WindY ?? 0) * yk,
       };
     };
     return { ek,
@@ -436,6 +451,10 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     profOG, profUG, stahl, joch,
     fyd: stahl.fy / inp.gammaM0, gammaM0: inp.gammaM0,
     eps: Math.sqrt(235 / stahl.fy),
+    // Die Beiwerte des gewaehlten Lastfalls. Der Mastnachweis braucht sie:
+    // Eigengewicht des Mastes und Anbaulasten muessen dieselbe Behandlung
+    // erfahren wie alles andere im Bild.
+    beiwerte,
     char, ...lasten, ...reakt,
     steif, federn, gurtanschluss, ...auf, endbedingung: inp.endbedingung,
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
@@ -458,9 +477,28 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     // nicht in den Ersatzbalken eingerechnet. Das Stabmodell mit Mast baut
     // sie auf, mit denselben Lasten und derselben Kette.
     anbauMast: amMasten.map((a) => ({ ...a, ort: ortVon(a) })),
+    /*
+     * MIT DENSELBEN BEIWERTEN WIE AM JOCH.
+     *
+     * Die Teile am Masten gehen nicht in den Ersatzbalken ein - gezeichnet
+     * und ausgeleitet werden sie trotzdem, und dort stehen ihre Pfeile neben
+     * denen am Joch. Ohne Beiwerte staenden charakteristische neben
+     * Bemessungswerten, in einem Bild, ohne Kennzeichen. `proGruppe` traegt
+     * deshalb hier dieselbe Multiplikation, die `anbauteilLasten` am Joch
+     * vornimmt.
+     */
     anbauMastFlach: expandiereAnbauteile(amMasten, {
       ek: ekVonWindklasse(inp.windKlasse),
       R: inp.trasseRadius, spannweite: inp.flSpannweite,
+      }).map((t) => {
+      const proGruppe = {};
+      Object.entries(t.kraefte ?? {}).forEach(([g, k]) => {
+        const b = beiwerte[g] ?? 0;
+        proGruppe[g] = { Fx: b * (k.Fx ?? 0), Fy: b * (k.Fy ?? 0),
+                         Fz: b * (k.Fz ?? 0), Mxx: b * (k.Mxx ?? 0),
+                         Myy: b * (k.Myy ?? 0), Mzz: b * (k.Mzz ?? 0) };
+      });
+      return { ...t, proGruppe };
     }),
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
     xNachweis: inp.xNachweis,
@@ -608,18 +646,25 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
   const rows = xs.map((x, i) => knoten(x, m, i, n));
   const argMax = (fn) => rows.reduce((b, r) => (fn(r) > fn(b) ? r : b), rows[0]);
 
-  // DER MAST WIRD NICHT NACHGEWIESEN.
-  // Dieses Werkzeug bemisst das JOCH. Der Mast steht hier nur als Auflager:
-  // seine Steifigkeit bestimmt die Drehfeder (core.auflager.js), und der Wind
-  // auf ihn zwingt dem Jochende eine Verdrehung auf. Sein eigener Nachweis
-  // gehört in ein Rahmenmodell, in dem beide Maste mit ihrer wirklichen Höhe,
-  // ihrem Fusspunkt und ihrer Gründung stehen - nicht in eine Nebenrechnung
-  // am Ersatzbalken. Bis es das gibt, wird er hier ehrlich gar nicht geführt
-  // statt halb.
+  /*
+   * DER MAST WIRD NACHGEWIESEN - seit dem 28. August.
+   *
+   * Hier stand bis dahin das Gegenteil: «Sein eigener Nachweis gehört in ein
+   * Rahmenmodell ... Bis es das gibt, wird er hier ehrlich gar nicht geführt
+   * statt halb.» Der Auftraggeber hat auf Nachfrage anders entschieden - der
+   * Querschnittsnachweis aus den Schnittgrössen des Ersatzbalkens, jetzt,
+   * statt zu warten, bis die Ergebnisse aus AxisVM zurückgelesen werden.
+   *
+   * DIE EHRLICHKEIT BLEIBT, sie wandert nur an die richtige Stelle: was der
+   * Nachweis nicht enthält - die STABILITÄT - steht in der Nachweisgruppe
+   * (core.checks.js) und in der Auswertung, nicht in einem Kommentar, den
+   * niemand liest.
+   */
   const etaGesamt = Math.max(...rows.map((r) => r.eta));
   return {
     modell: m, knoten: rows, extrem: extremwerte(m),
     stationen: n,
+    mast: mastNachweise(m, { plastisch: inp.mastPlastisch === true }),
     schnitt: auswertungAn(m.xNachweis ?? m.L / 2, m),
     max: {
       etaOG: argMax((r) => r.og.eta),

@@ -255,14 +255,74 @@ function sammler() {
   };
 }
 
+/**
+ * DER AUSRUNDUNGSRADIUS DES WINKELS - aus der Fläche, wie beim Mastprofil.
+ *
+ * >>> Weisung, 28. August: «Die L-Profile sind ohne Rundungen im AxisVM-Modell.
+ * Es sollten die LNP-Profile gemäss Norm sein, EN-Standard.» <<<
+ *
+ * Bis dahin standen r₁ und r₂ auf NULL — mit dem Vermerk, die Radien stünden
+ * in den Profiltabellen dieses Werkzeugs nicht. Der Winkel war damit ein
+ * scharfkantiges Polygon, und seine Fläche rund zwei Prozent zu klein.
+ *
+ * Für einen gleichschenkligen Winkel nach EN 10056-1 gilt
+ *
+ *      A = t·(2a − t) + (1 − π/4)·(r₁² − 2·r₂²),     r₂ = r₁/2
+ *        = t·(2a − t) + 0.1073·r₁²
+ *
+ * Nachgerechnet mit den Normradien trifft das die Tabellenflächen: L 90×90×9
+ * → 15.52 gegen 15.5 cm², L 100×100×10 → 19.16 gegen 19.2, L 80×80×8 → 12.27
+ * gegen 12.3. Umgekehrt aufgelöst liefert die Fläche also r₁.
+ *
+ * >>> DAS IST NICHT DER NORMRADIUS, SONDERN DER, DER DIE FLÄCHE TRIFFT. <<<
+ * Der Beiwert 0.1073 ist klein; die auf 0.1 cm² gerundete Tabellenfläche
+ * lässt r₁ um gut einen Millimeter schwanken. Für das Modell zählt die
+ * FLÄCHE, und die trifft er — für die Zeichnung genügt er. Wer den
+ * Normradius will, trägt ihn in die Profiltabelle ein (`r1`, `r2`); dann
+ * gilt er, und diese Rückrechnung tritt zurück.
+ *
+ * Der bessere Weg bliebe das BIBLIOTHEKSPROFIL von AxisVM — dann stimmen
+ * Fläche, Trägheitsmomente und Ausrundung ohne eine Zahl von uns. Die
+ * COM-Brücke versucht ihn zuerst; ob AxisVM ihn über COM anbietet, ist noch
+ * nicht vermessen.
+ */
+const WINKEL_BEIWERT = 1 - Math.PI / 4;      // 0.2146
+
+export function winkelRadien(p) {
+  if (Number.isFinite(p?.r1)) {
+    return { r1: p.r1, r2: p.r2 ?? p.r1 / 2, quelle: 'tabelle' };
+  }
+  const A = p.A * 100;                        // cm² -> mm²
+  const rest = A - p.t * (p.aH + p.aV - p.t);
+  // r2 = r1/2  ->  r1² − 2·r2² = r1²/2
+  const r1 = rest > 0 ? Math.sqrt(rest / (WINKEL_BEIWERT / 2)) : 0;
+  /*
+   * REST <= 0 HEISST: DIE TABELLENFLÄCHE ENTHÄLT KEINE AUSRUNDUNG.
+   *
+   * Beim ungleichschenkligen L 130x80x12 ist A genau t·(aH+aV−t) — die
+   * Fläche der beiden Rechtecke, ohne Kehle. Dann gibt es nichts
+   * zurückzurechnen, und r bleibt null: der Winkel wird scharfkantig
+   * gezeichnet. Das ist ehrlich — die Daten geben es nicht her — und es
+   * steht als `quelle: 'keine'` in der Ausleitung, damit es im Bericht
+   * auffällt statt still zu bleiben.
+   */
+  if (!(r1 > 0)) return { r1: 0, r2: 0, quelle: 'keine' };
+  return { r1: Math.round(r1 * 100) / 100, r2: Math.round(r1 * 50) / 100,
+           quelle: 'flaeche' };
+}
+
 /** Querschnittsdefinition eines Gurtwinkels. */
 function gurtQuerschnitt(p, gurt) {
+  const r = winkelRadien(p);
   return {
     name: `GURT_${gurt}`, art: 'Parametric', form: 'Angle',
-    // Angle: H; B; t; R; R1 - die Ausrundungsradien der Norm stehen in den
-    // Profiltabellen dieses Werkzeugs nicht und werden zu 0 gesetzt. Die
-    // Fläche fällt dadurch rund 2 % kleiner aus als beim Bibliotheksprofil.
-    parameter: [p.aH, p.aV, p.t, 0, 0],
+    // AddL(Name, a, b, tw, tf, r1, r2, cspRolled) - vermessen. r1/r2 folgen
+    // aus der Flaeche (siehe winkelRadien); sie standen hier auf null.
+    parameter: [p.aH, p.aV, p.t, r.r1, r.r2],
+    radienQuelle: r.quelle,
+    // Der Katalogname, unter dem AxisVM das Normprofil fuehrt - die Bruecke
+    // versucht ihn vor dem parametrischen Weg.
+    katalog: { norm: 'EN 10056-1', bezeichnung: p.name },
     profil: p.name,
     A: p.A / 1e4,                                   // cm2 -> m2
     Iy: (p.iy * p.iy * p.A) / 1e8,                  // cm4 -> m4
@@ -790,8 +850,11 @@ export function stabmodell(m, opt = {}) {
       const md = ende === 'A' ? (m.federn?.mastA ?? m.federn?.mast)
                               : (m.federn?.mastB ?? m.federn?.mast);
       if (!md) {
+        // Seit dem 28. August steht der Mast unter «Masten» und nicht mehr
+        // in der Endauflagerwahl - die Meldung muss dorthin zeigen, wo der
+        // Schalter jetzt ist.
         throw new Error('Das Auflagermodell «Mast» braucht einen Mast. '
-          + 'Unter Endauflager «teilweise eingespannt (Mast)» wählen.');
+          + 'Unter «Masten» den Schalter «Masten im Modell» einschalten.');
       }
       const qsMast = s.qs(mastQuerschnitt(md.profil));
       // Der Mastkopf sitzt auf der JOCHACHSE: dort misst der Rechenkern
@@ -826,13 +889,26 @@ export function stabmodell(m, opt = {}) {
        *
        * Ausserhalb der Mastlänge liegende Höhen fallen weg; sie wären ein
        * Anbauteil in der Luft. Der Bericht sagt es über `anbauMastAus`.
+       *
+       * DER LANGE MAST RAGT ÜBER DAS JOCH. Ist eine Gesamtlänge angegeben,
+       * läuft der Mast über den Obergurt hinaus weiter - oben sitzen die
+       * Traversen mit den Zusatzleitern. Ohne diesen Kragarm fiele genau das
+       * heraus, was der Auftraggeber ansetzen will: bis hierher endete der
+       * Mast am Obergurt, und alles darüber landete in `anbauMastAus`.
+       *
+       * Der Kragarm bekommt einen eigenen Kopfknoten; die Drehfeder des
+       * Jochanschlusses bleibt unberührt, sie rechnet weiter mit H.
        */
+      const zKopf = md.ueberstand > 0 ? r6(zFuss + md.laenge) : zOben;
       const mastKn = new Map([[r6(zFuss), kFuss], [zUnten, kUG], [zOben, kOG]]);
+      if (zKopf > zOben + 1e-9) {
+        mastKn.set(zKopf, s.kn(`MAST_${ende}_KOPF`, x, 0, zKopf));
+      }
       const ausserhalb = [];
       (m.anbauMast ?? []).forEach((a) => {
         if ((a.ort === 'mastB' ? 'B' : 'A') !== ende) return;
         const zA = r6(zFuss + (a.hMast ?? 0));
-        if (zA < zFuss - 1e-9 || zA > zOben + 1e-9) {
+        if (zA < zFuss - 1e-9 || zA > zKopf + 1e-9) {
           ausserhalb.push({ name: a.name ?? a.id, ende, hMast: a.hMast ?? 0,
                             H: md.H });
           return;
@@ -1168,10 +1244,16 @@ export function stabmodell(m, opt = {}) {
    * dergleichen - das Teil ist an den Masten geschraubt, und das ist EINE
    * Stelle. Deshalb kein Kasten, kein Raster, keine zweite Reihe.
    *
-   * GESPIEGELT AM ENDE B. Die Teile tragen ihre Ausladung in +x, weil sie am
-   * Joch nach aussen zeigen. Am Mast B liegt «aussen» in -x; die Kette wird
-   * deshalb dort an der Mastachse gespiegelt. Sonst stünde jede Traverse am
-   * falschen Ende über dem Gleis.
+   * >>> X IST GLOBAL, AN BEIDEN ENDEN (Weisung, 28. August): «beim Eingeben
+   * von x sich an die globale Ausrichtung des Achsensystems halten, das gilt
+   * für alle Eingaben bei allen Bauteilen». <<<
+   *
+   * Hier wurde am Ende B an der Mastachse GESPIEGELT - mit der Begründung,
+   * die Teile trügen ihre Ausladung «nach aussen» und aussen liege dort in
+   * −x. Das ist eine zweite Bedeutung für dasselbe Feld: dieselbe Zahl
+   * zeigte am einen Ende nach rechts und am anderen nach links, und wer
+   * beide Enden nebeneinander eingibt, muss im Kopf umdrehen. Am Joch war x
+   * immer global; jetzt ist es das überall.
    *
    * OHNE MAST IM MODELL passiert hier nichts: die anderen Auflagermodelle
    * enden am Lager, es gibt keinen Masten zum Anhängen. Der Rechenkern hat
@@ -1190,7 +1272,6 @@ export function stabmodell(m, opt = {}) {
     [...mastGruppen.values()].forEach((a, k) => {
       const ende = a.ort === 'mastB' ? 'B' : 'A';
       const xM = ende === 'A' ? 0 : r6(m.L);
-      const spiegel = ende === 'A' ? +1 : -1;
       const wurzelKn = [...s.knoten.entries()].find(([nm, kn]) =>
         nm.startsWith(`MAST_${ende}_`)
         && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
@@ -1200,7 +1281,7 @@ export function stabmodell(m, opt = {}) {
       const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
       kette.glieder.forEach((g) => {
         const kn = s.kn(`AM${k}_${g.bis.nr}`,
-                        r6(xM + spiegel * g.bis.x), r6(g.bis.y),
+                        r6(xM + g.bis.x), r6(g.bis.y),
                         r6(wurzelKn[1].z + g.bis.z));
         knotenVon.set(g.bis, kn);
         s.stab(`ARMM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
@@ -2001,6 +2082,10 @@ export function stabmodellJson(m, opt = {}) {
     querschnitte: [...bau.querschnitte.values()].map((q) => ({
       name: q.name, form: q.form, parameter: q.parameter,
       profil: q.profil ?? null,
+      // Der Katalogname des Normprofils - die Bruecke versucht ihn vor dem
+      // parametrischen Weg. Fehlt er, bleibt es beim parametrischen.
+      katalog: q.katalog ?? null,
+      radienQuelle: q.radienQuelle ?? null,
       A: q.A ?? null, Iy: q.Iy ?? null, Iz: q.Iz ?? null, It: q.It ?? null,
     })),
     knoten: [...bau.knoten.values()],

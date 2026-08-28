@@ -29,7 +29,7 @@
 /* eslint-env serviceworker */
 
 // === von build_html.py erzeugt - nicht von Hand ändern ======================
-const VERSION = 'f27394b43ba9';
+const VERSION = '9639f14f5ad7';
 const SCHALE = [
   './',
   'index.html',
@@ -44,6 +44,7 @@ const SCHALE = [
   'js/core.constants.js',
   'js/core.klassen.js',
   'js/core.lasten.js',
+  'js/core.mast.js',
   'js/core.querschnitt.js',
   'js/core.statics.js',
   'js/core.trasse.js',
@@ -57,6 +58,7 @@ const SCHALE = [
   'js/data.tragjoche.js',
   'js/design.js',
   'js/doku.handbuch.js',
+  'js/doku.optionsskizzen.js',
   'js/export.axisvm.js',
   'js/export.bericht.js',
   'js/export.pynite.js',
@@ -70,6 +72,7 @@ const SCHALE = [
   'js/store.js',
   'js/ui.js',
   'js/ui.schema.js',
+  'js/verlauf.js',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-32.png',

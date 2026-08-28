@@ -6,7 +6,7 @@ gedacht; die fachliche Beschreibung steht im [README](README.md), die Herleitung
 des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 `js/doku.handbuch.js`).
 
-**Stand:** 1539 Kontrollen bestanden, 0 gefallen · Bundle 1226 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm** · **Mast im AxisVM-Modell mit Anbauteilen** · **Zeichnung hinterlegbar, Tragwerk selbst erkannt**
+**Stand:** 1670 Kontrollen bestanden, 0 gefallen · Bundle 1275 kB · Ablage-Format v2 · COM-Brücke vollständig (Modell, lokale Achsen, Starrkörper, Linkelemente) · **installierbar mit Dateiannahme und Sprungliste** · **Modellnavigation mit Fingern** · **NT-Ausleger als Kragarm** · **Mast im AxisVM-Modell mit Anbauteilen** · **Zeichnung hinterlegbar, Tragwerk selbst erkannt**
 
 ---
 
@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1539 Kontrollen
+node pruefung.mjs           # Prüfstand, 1670 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -488,6 +488,351 @@ weil sie am Joch nach aussen zeigen, und aussen liegt dort in −x.
 Eine Höhe ausserhalb des Mastes ist ein Teil in der Luft. Es wird **nicht**
 gebaut — und das steht in der Ausleitung (`anbauMastAus`), statt still zu
 fehlen.
+
+#### Nachtrag 28. August: das Bild zeigte sie am Joch
+
+**Weisung:** «Beim Anhängen der Bauteile an Masten ist die Abhängigkeit (Lage
+des Mittelpunkts) nicht vom Joch, sondern vom Mastfusspunkt abhängig.»
+
+Die Ausleitung rechnete von Anfang an so — `zFuss + hMast`. Die **Ansicht**
+tat es nicht: ihre Zeichenschleife lief über `m.anbauteile`, die rohe Liste
+mit Joch- und Mastteilen zusammen, und behandelte jeden Eintrag als Jochteil.
+Ein Teil am Masten hat aber `x = 0`, immer. Es stand damit am linken
+Jochende, mit vier Anschlusspunkten an Ober- und Untergurt, die es dort nie
+hatte — und ohne seine eigenen Teile, denn die liegen in `anbauMastFlach`
+und nicht in `m.teile`.
+
+**Ein Nullpunkt je Ort, an allen drei Stellen derselbe.** `hMast` misst ab
+Fundament, `z` eines Moduls ab dem Anschlusspunkt auf der Mastachse. Das gilt
+jetzt in der Ausleitung, im Bild und auf der Eingabekarte: die Karte trägt
+für ein Mastteil eine eigene **Skizze** (Mast mit Fundament, Höhe über
+Fundament, z ab Anschluss) statt der Jochskizze mit «Lage in Jochachse
+0 … L», und die Zeile in der Liste zeigt `MB 7.00 m` statt `0.00 m`.
+
+Nebenbei gefunden: die Marke im Modell hiess `A{k+1}` über die **gefilterte**
+Liste, die Karte `A{i+1}` über die ganze. Ein ausgeschaltetes Teil verschob
+jede folgende Nummer um eins — der Klick auf A3 öffnete A4.
+
+### Bauteile setzen: erst wählen, dann zielen (28. August)
+
+**Weisung:** «das absetzen der einzelnen Bauteile [ist] etwas fummelig»; das
+Auswahlfenster «weniger transparent»; bei der Auswahl «auf die Sidebar
+beziehen, da sind diese schon enthalten»; und «die getätigten Eingaben
+Bauteilgruppen auswählen oder auch per Drag and Drop ablegen».
+
+* **Die Reihenfolge ist jetzt frei.** Wer die Stelle zuerst weiss, klickt sie
+  an und wählt aus dem Balken. Wer das Bauteil zuerst weiss, zieht es hinein
+  oder klickt seine Kachel — dann ist es **vorgewählt**, und ein Klick setzt
+  es ohne Zwischenmenü. Die Vorwahl überlebt einen Fehlklick.
+* **Abgelegt wird, wo der Zeiger ist.** Vorher wurde aus dem waagrechten
+  Anteil der Fensterbreite eine Station geschätzt — das traf nur bei
+  frontaler Ansicht, und einen Masten konnte es grundsätzlich nicht treffen.
+  Jetzt geht derselbe Strahl durch das Bild wie beim Klicken
+  (`weltAusZeiger`).
+* **Was schon dasteht, steht zur Wahl.** Eine eigene Spalte «Schon im
+  Modell» neben Träger/Aufbau/Drahtwerk. Kopiert wird die **Baugruppe**,
+  nicht ihre Vorlage: der zweite Rückleiter ist derselbe wie der erste,
+  samt jeder von Hand geänderten Zahl. Gleiche Baugruppen sind zu einem
+  Knopf zusammengefasst (`3×`), sonst wäre die Spalte eine zweite Liste.
+* **Nach dem Setzen geht die Karte auf.** Quer über ein perspektivisches
+  Bild trifft man keine Station auf den Zentimeter — und muss es nicht, wenn
+  die Zahl gleich danach im Feld steht.
+* **Die Trägerregel gilt auch beim Ziehen.** Die Knopfspalten fragen sie
+  vorher ab; beim Ablegen gibt es keine Spalte. Ohne Sperre landete eine
+  Hängestütze am Masten — lautlos, denn gezeichnet wird sie ja. Jetzt sagt
+  der Balken, warum nicht.
+* **Der Balken deckt.** `var(--acc-s)` allein ist durchscheinend; über einer
+  eingelegten Zeichnung liefen Bemassungslinien durch die Beschriftung. Der
+  Farbton liegt jetzt auf einer deckenden Fläche.
+
+Der Dialog «Lage in Jochachse», der nach dem Klick auf eine Kachel kam, ist
+entfallen: er konnte grundsätzlich nur ans Joch setzen.
+
+### Das leere Endfeld: die Beschriftung, nicht die Rechnung (28. August)
+
+**Befund des Auftraggebers:** «Das Endfeld auf einer Seite weist keine
+Resultate auf in der App.»
+
+**Nachgemessen an seiner Ausleitung** (J70, 15 m, Mast HEM 240, sechs
+Baugruppen am Joch zwischen 4.1 und 12.2 m): der Rechenkern liefert an
+**beiden** Enden Werte, jede Blechfläche trägt ihren Kennwert, und die Farbe
+war die ganze Zeit da. Es fehlten die **Zahlen**.
+
+**Die Ursache** war die Ausdünnung der Beschriftung. Sie sortierte streng nach
+Betrag und setzte die sechzig grössten. Die grossen Werte liegen dort, wo die
+Lasten hängen; die kleinen am Auflager. Am nachgestellten Fall beschriftete
+die alte Ordnung nur den Bereich **x = 0.00 … 3.79 m** — der ganze Rest des
+Jochs blieb ohne Zahl. Und weil die Lasten selten symmetrisch liegen, trifft
+es meist **eine** Seite.
+
+**Jetzt reihum über die Bildbreite.** Die Kandidaten werden in vierzehn
+Spalten geteilt; aus jeder kommt der grösste, dann der zweitgrösste, und so
+weiter. Am selben Fall reicht die Beschriftung nun von **0.38 bis 14.63 m**.
+Der Sinn der alten Ordnung bleibt: der grösste Wert des Bildes steht in der
+ersten Runde, denn seine Spalte kommt gleich dran.
+
+Die Reihenfolge steht als eigene, prüfbare Funktion
+(`beschriftungsReihenfolge` in render.3d.js) — sie war der Grund, und sie
+lässt sich ohne Canvas messen.
+
+**Die einzige Stelle ohne Kennwert** ist das **Endblech** bei x = 0 und x = L:
+dort gibt es keine Horizontalbleche, nur die beiden Vertikalbleche. Das ist an
+beiden Enden gleich und richtig.
+
+### Masten und Auflagerung sind zwei Fragen (28. August)
+
+**Weisung:** «hier nicht abhängig machen, ob Mast im Modell aufgeführt wird
+oder nicht. Die Haupttragwerke sollten global gesteuert werden. Später wird
+man auch Einzelmasten und Masten mit Tragausleger übergreifend eingeben
+können. Zudem noch Zuganker oder Druckstützen am Masten.»
+
+Bis dahin entschied die Auswahl **«Endauflager»** beides zugleich: *wie* das
+Joch gelagert ist **und** *ob* es überhaupt einen Masten gibt. Wer gelenkig
+rechnen wollte, verlor den Masten aus Bild, Ausleitung, Wind und Nachweis; wer
+den Masten sehen wollte, musste seine Steifigkeit ansetzen.
+
+| Angabe | Was sie entscheidet | Wo sie steht |
+|---|---|---|
+| `mastVorhanden` | ob ein Mast dasteht — Bauteil, Bild, Ausleitung, Wind, Nachweis | Gruppe **Masten** |
+| `endbedingung` | woher die Drehfeder des Jochendes kommt | Gruppe **Auflagerung des Jochs** |
+
+**Die Prüfung, die zählt:** ein Mast im Modell darf die **Jochrechnung** nicht
+anfassen, solange die Endbedingung ihn nicht als Feder verlangt. Nachgemessen
+für gelenkig, voll und manuell — η bleibt auf die zwölfte Stelle gleich,
+während Bild, Wind und Mastnachweis dazukommen.
+
+**«Steifigkeit aus Mast» ohne Masten** rechnet gelenkig — und sagt es: die
+Bezeichnung der Feder heisst «gelenkig (kein Mast im Modell)», und ein Hinweis
+steht in der Liste. Still eine Feder aus einem Bauteil zu bilden, das nicht
+dasteht, wäre die schlimmere Antwort; still gelenkig zu rechnen aber auch.
+
+**Alte Dateien rechnen unverändert.** Fehlt `mastVorhanden`, gilt der frühere
+Zusammenhang: es gab einen Masten genau dann, wenn die Endbedingung ihn
+verlangte (`mastImModell` in core.auflager.js).
+
+**Die Gruppe «Masten»** nimmt alles auf, was zum Masten gehört — Vorhandensein,
+Profil, Höhe, Länge, Stegrichtung, zweiter Mast, Wind, plastischer Nachweis.
+Bei der Auflagerung bleibt, was Auflagerung ist: Endbedingung, c_φ, Kragarme,
+Anschluss ans Joch. Dort wächst später weiter, was der Auftraggeber genannt
+hat: **Einzelmasten und Masten mit Tragausleger** als eigene Tragwerksart,
+dazu **Zuganker und Druckstützen**.
+
+### Was ein Leiter an dieser Stelle abgibt (28. August)
+
+**Weisung, mit Rückfrage entschieden:** «Bei den Leitern eine Auswahl
+einfügen, ob Ständige / Veränderliche / Ständige + Veränderliche wirkt. Es
+kann sein, dass der Leiter nur abgezogen wird (bei Fahrdraht der Fall), oder
+dass bei der Befestigung am Joch nur das Tragseil eine Ablenkkraft hat und der
+Fahrdraht nicht, da dieser Anteil in die Drückstütze geht. Die ständigen aber
+beide zum Tragseil gehen.»
+
+> **Die Achse ist nicht «ständig / veränderlich».** Gewicht **und**
+> Ablenkkraft sind beide ständig (Gruppe G). Der genannte Fall trennt sie
+> trotzdem: das Gewicht kommt am Joch an, die Ablenkung des Fahrdrahts nicht.
+> Eine Wahl mit zwei Stellungen träfe ihn also gar nicht.
+
+Getrennt wird nach dem, was wirklich verschiedene Wege geht — **drei Haken je
+Drahtwerk**, alle voreingestellt an:
+
+| | |
+|---|---|
+| **Gewicht** | Eigengewicht des Leiters |
+| **Ablenkung** | Kurvenzugkraft Z·c/R — abwählen, wenn sie anderswo hingeht (Drückstütze, Spurhaltertraverse) |
+| **Wind/Schnee** | veränderliche Anteile |
+
+Nur **Drahtwerke** führen die Wahl: ein Träger hat keine Ablenkkraft, und wer
+sein Gewicht nicht will, schaltet das Modul ab. Fehlt die Angabe, wirkt alles
+— alte Baugruppen rechnen unverändert weiter.
+
+Dazu ein Feld **«Kettenwerk»** (Name/Nummer) als Klammer über Tragseil und
+Fahrdraht. Es geht in **keine** Rechnung ein; es hält zusammen, was
+zusammengehört. Der **Havariefall** — Bruch eines Leiters oder eines ganzen
+Kettenwerks, als aussergewöhnliche Einwirkung mit ständigen Lasten
+charakteristisch und dem Leiterzug bei −20 °C — wählt später darüber aus. Das
+ist noch nicht gebaut; die Klammer ist die Vorbereitung darauf.
+
+### Der Mast wird nachgewiesen (28. August)
+
+**Nachfrage des Auftraggebers:** «Wie erfolgt die Auswertung, wenn die Masten
+modelliert sind? Muss man dies einstellen, oder ist das noch nicht vorhanden?
+Gut wäre es, wenn man die Spannung und die Kräfte am Masten sinngemäss gleich
+wie beim Joch auswerten könnte und in der Sidebar einen zusätzlichen Button
+für die Ausnutzung aufnimmt.»
+
+**Antwort war: nicht vorhanden.** Die Nachweisgruppe «Mast» stand mit
+`vorhanden: false`, und im Rechenkern stand der Satz «Sein eigener Nachweis
+gehört in ein Rahmenmodell … Bis es das gibt, wird er hier ehrlich gar nicht
+geführt statt halb.»
+
+**Entschieden auf Rückfrage:** Querschnittsnachweis, elastisch, mit
+**optional plastischem Widerstand**; Schnittgrössen **aus dem Ersatzbalken,
+jetzt** — nicht erst nach dem Zurücklesen aus AxisVM. Neu:
+`js/core.mast.js`.
+
+**Was eingeht:** Auflagerreaktion des Jochs, Einspannmoment, Jochtorsion,
+Wind auf den Masten über seine **ganze Länge** (der Überstand trägt mit — bei
+12.5 m über 8 m Anschlusshöhe macht er mehr als die Hälfte des Fussmoments
+aus), Anbauteile am Masten **mit ihren Ausladungen**, und das Eigengewicht des
+Mastes, das im Ersatzbalken nie vorkam.
+
+**Die Längskraft F_x teilt sich nach k = 3EI/H³** auf die beiden Maste — die
+Regel, die der Auftraggeber schon früher festgelegt hatte. Das Auflagerblatt
+weist sie weiterhin nur als Summe aus; für den Mastnachweis genügte das
+nicht, denn sie steht am Fuss mit dem Hebelarm H.
+
+**W_pl kommt aus der Geometrie**, nicht aus dem Gedächtnis. Die
+Mastprofiltabelle führt nur elastische Werte; eine Zahl aus dem Kopf in eine
+Nachweistabelle zu schreiben verstiesse gegen «massgebend sind die Daten».
+Gerechnet wird das idealisierte I-Profil ohne Ausrundung — das
+**unterschätzt** den Tabellenwert um zwei bis vier Prozent und liegt damit auf
+der sicheren Seite. Trägt die Tabelle einmal eigene `Wply`/`Wplz`, gelten
+diese. **Plastisch gilt nur bei Klasse 1 oder 2**; das ist EN 1993-1-1 und
+keine Wahl, und der Nachweis sagt es, wenn der Schalter ins Leere greift.
+
+**Die Zahl bleibt getrennt, das Urteil nicht.** η in der Kopfzeile ist
+weiterhin die Ausnutzung des **Jochs** — eine gemeinsame Zahl sagte nicht
+mehr, was sie ausnutzt. Aber «Tragsicherheit erfüllt» darf nicht
+danebenstehen, wenn ein geführter Nachweis überschritten ist: bei η_Mast > 1
+steht dort «Joch erfüllt — MAST NICHT (η 1.145)», und die Zeile ist rot.
+
+**Nicht enthalten: die Stabilität.** Kein Biegeknicken, kein
+Biegedrillknicken. Das ist ein Bauteilnachweis nach EN 1993-1-1, 6.3, und er
+braucht eine Festlegung der **Knicklänge** — Sache des Auftraggebers. Bei
+einem schlanken Kragmast kann er massgebend werden. Das steht in der
+Nachweisgruppe, im Mastblatt und im Reiter «Nachweise», nicht in einem
+Kommentar. Ebensowenig geht die **Torsion** in η ein; sie ist ausgewiesen,
+weil der Fundamentplaner sie braucht.
+
+**Ein Nachtrag für bestehende Stände:** wer ein Tragwerk geöffnet hat, das
+gespeichert wurde, als es die Gruppe noch nicht gab, findet `mast: false` in
+der Datei — der Nachweis ist dann einmal im Reiter «Nachweise»
+einzuschalten. Neue Tragwerke führen ihn ab Werk.
+
+### Klemmen: Gurtebene mal Raster (28. August)
+
+**Nachfrage des Auftraggebers:** «man kann die Anbindung der Bauteile über
+unter, ober oder beide Gurte vornehmen. Wenn der Raster noch eingegeben ist,
+dann verdoppeln sich die Anschlusspunkte. Kannst du das so überprüfen?»
+
+Nachgerechnet — und er hat recht. Der Kern führt das Moment an **zwei
+Stationen** ein, x₁ = x − Raster/2 und x₂ = x + Raster/2; dort bildet es das
+Kräftepaar. In jeder Gurtebene stehen ausserdem zwei Winkel nebeneinander:
+
+| Befestigung | Gurtebenen | Winkel | Stationen | Klemmen |
+|---|---|---|---|---|
+| einseitig | 1 | 2 | 2 | **4** |
+| durchgehend | 2 | 2 | 2 | **8** |
+
+**Das Bild zeigte etwas anderes:** einen Würfel je (Gurtebene × Winkel), in
+der **Mitte**. Die Anzahl stimmte dadurch zufällig — vier bzw. zwei —, die
+Stellen aber nicht, und die Vier bedeutete etwas anderes als die Vier im Kern
+(dort Station × Gurtebene). Zwei Bedeutungen für dieselbe Zahl, in einem
+Werkzeug, das die Lasteinleitung nachweist.
+
+Jetzt stehen die Klemmen dort, wo der Kern rechnet, die Querriegel je
+Station, und die Rastermasslinie nennt die Zahl («Raster 400 mm · 8
+Klemmen»). Die Auswahl heisst nicht mehr «(4 Punkte)», sondern
+«(2 Gurtebenen)» — die Zahl war eine Ebenenzahl, keine Stückzahl.
+
+### Wind auf die Masten steht im Bild (28. August)
+
+**Weisung:** «den Wind auf den Masten darstellen wie beim Joch.»
+
+Die Last gab es seit dem 27. August — in der **Ausleitung**, als Streckenlast
+an jedem Maststab, in beiden Richtungen. Im **Bild** war davon nichts zu
+sehen. Ein Mast, der nur hält und nie gedrückt wird, sieht vollständig aus
+und ist es nicht; und gerade der Wind quer zum Gleis ist die Richtung, über
+die Joch und Mast miteinander reden.
+
+Gezeichnet wird wie am Joch: eine Pfeilreihe über die ganze Masthöhe, dazu
+die durchscheinende Fläche zwischen Lastordinate und Profil. **Zwei
+Richtungen, zwei Lastarten** — `w_M,x` in der Jochachse liegt auf `windX`,
+`w_M,y` in Gleisrichtung auf `windY`; einzeln ausblendbar. Der Pfeil steht
+auf der Seite, von der der Wind kommt, und ein negativer Beiwert dreht ihn
+um.
+
+**Bemessungswerte, nicht charakteristische.** `mastLast` führt beide: die
+Ausleitung braucht die charakteristischen (dort steht jede Einwirkung in
+ihrem eigenen Lastfall), das Bild die Bemessungswerte — sonst stünden am
+Masten charakteristische Pfeile neben den Bemessungspfeilen des Jochs, in
+einem Bild, ohne Kennzeichen.
+
+### Ablenkwinkel: Radius oder Grad (28. August)
+
+**Weisung:** «bei der Eingabe von Radius und Spannweite die Grad angeben,
+zudem die Möglichkeit geben, die Ablenkung des Winkels anzugeben ohne
+Radiuseingabe für die globale.»
+
+Gerechnet wird mit dem **Winkel**; der Radius ist nur ein Weg, an ihn zu
+kommen. Auf manchem Querprofil steht kein Radius, sondern eine Ablenkung —
+sie über einen Ersatzradius einzugeben hiesse, rückwärts zu rechnen und dabei
+eine Zahl zu erfinden, die niemand angegeben hat.
+
+**Drei Stufen, von innen nach aussen:** der Winkel am **Modul**, der Winkel
+an der **Trasse**, dann Radius und Spannweite. Die neue Weiche
+«Ablenkung der Fahrleitung» blendet den Radius aus, sobald der Winkel gilt;
+der Winkel am einzelnen Drahtwerk schlägt beide weiterhin.
+
+**Die Spannweite bleibt in beiden Fällen sichtbar.** Sie ist nicht nur
+Rechenweg zum Winkel, sondern Einflusslänge für Eigengewicht und Wind auf das
+Drahtwerk.
+
+**Der Grad steht am Feld.** Eine `notiz` — gerechnet, immer offen, in
+Akzentfarbe, im Unterschied zum aufklappbaren Hinweistext — nennt an Radius,
+Winkel und Spannweite dieselbe Zahl: `α = −4.525° bei L_FL = 30.00 m ·
+Umlenkung in −x`, am Winkelfeld umgekehrt der zugehörige Bogen. Wer den
+Winkel nicht sieht, gibt zwei Zahlen ein und erfährt die dritte erst am
+Ergebnis — und ein Vorzeichenfehler im Radius fällt dort nicht mehr auf,
+sondern nur noch an einer Umlenkkraft, die in die falsche Richtung zeigt.
+`notiz` ist ein neuer Feldzusatz im Schema und wird in `aktualisiereMaske`
+mitgeführt; stehengeblieben wäre sie schlimmer als keine.
+
+### Was am 28. August noch dazukam
+
+**Weisungen des Auftraggebers, der Reihe nach:**
+
+* **x ist global, an beiden Enden.** «Beim Eingeben von x sich an die globale
+  Ausrichtung des Achsensystems halten, das gilt für alle Eingaben bei allen
+  Bauteilen.» Am Mast B wurde bisher an der Mastachse **gespiegelt** — mit der
+  Begründung, die Teile trügen ihre Ausladung «nach aussen». Damit hatte
+  dasselbe Feld zwei Bedeutungen: x = +1.5 zeigte am Mast A nach rechts und am
+  Mast B nach links. Die Spiegelung ist raus, in Bild **und** Ausleitung.
+* **Masten als Startwert.** `endbedingung` steht neu auf `mast`. `gelenkig`
+  war der vorsichtige Wert aus der Zeit, als der Mast nur eine Randbedingung
+  war; er ist seither Teil des Tragwerks. Eine Prüfung im Prüfstand, die ein
+  Gleichgewichtsargument am Einfeldträger führt, setzt jetzt ausdrücklich
+  `gelenkig` — die Randbedingung gehört dorthin und nicht in die
+  Voreinstellung.
+* **Radius und Winkel nebeneinander**, statt einer Auswahl davor. Wer den
+  Radius eintippt, sieht den Winkel; wer den Winkel eintippt, den Radius.
+  **Geführt wird nur eine Zahl: der Radius.** Der Winkel wird aus ihm gezeigt
+  (neues Schemafeld `wertAus`) und beim Tippen zurückgeschrieben. Zwei
+  gespeicherte Zahlen für dieselbe Grösse liefen sonst auseinander —
+  spätestens beim Öffnen einer älteren Datei, in der nur der Radius steht;
+  dann zeigte das eine Feld 300 km Bogen und das andere −4.5°, und beide sähen
+  richtig aus. Bei sehr grossen Bögen ist die Rückrechnung unscharf
+  (dR/dα = R/α); auf die Umlenkkraft wirkt sich das nicht aus, und der
+  Prüfstand misst genau das.
+* **Die Masten sind eine eigene Ebene** im Modell-Menü. Sie lagen bei
+  `auflager` — dort, wo Auflagerdreieck, Feder und Kragarmmarke stehen. Der
+  Mast ist aber ein Bauteil, und weil er hoch ist, verdeckt er in der
+  Längsansicht das halbe Joch: man muss ihn allein wegnehmen können, ohne die
+  Lagerung zu verlieren.
+* **Jeder Lastpfeil bleibt sichtbar.** «Auch hier werden die Lastvektoren
+  nicht angezeigt.» Sie *waren* da — nur zu kurz zum Sehen: die Länge ist auf
+  die grösste Kraft im Modell bezogen, und ein Rückleiter mit 0.30 kN neben
+  einem Kettenwerk mit 5 kN ergab einen Pfeil von wenigen Zentimetern. Eine
+  Last, die gerechnet wird und nicht zu sehen ist, ist schlimmer als keine
+  Darstellung: man hält die Stelle für unbelastet. Jetzt gilt eine
+  Mindestlänge von 22 % der Bezugslänge; die grossen Pfeile bleiben
+  untereinander massstäblich.
+* **Die zwei Handlungsknöpfe nur mit Symbolen** — sie nahmen die halbe Breite
+  des Modellfensters ein, und dort liegt bei eingelegter Zeichnung das
+  Tragwerk.
+* **Die Infoboxen zu Schnitt und Feld dezent** — Text auf dem Verlauf statt
+  zwei gerahmter Kästen; beim Überfahren treten sie hervor.
+* **«Leiter-Traverse» statt «Leiter-Traverse am Joch»**, und ihre Länge als
+  Lastwert auf 1.00 m (war 1.50 m).
 
 ### Die Grenzlast der Gurtverbindung gilt je Gurt (27. August)
 
@@ -3038,7 +3383,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 
 | | wofür |
 |---|---|
-| **Node** | `pruefung.mjs` (1539 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
+| **Node** | `pruefung.mjs` (1670 Kontrollen), `ausleiten.mjs`, `vergleich_werkzeug.mjs` |
 | **Python 3** | `serve.py`, `build_html.py`, `vergleich_axisvm.py` |
 | **Git** | die Geschichte fortschreiben |
 | PowerShell 5.1 | ist auf jedem Windows, vermessen |
@@ -3082,12 +3427,29 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Angepasstes Joch als eigenen Typ speichern** | offen |
 | **Excel-Generator** (`generate_vierendeel_L_SZS_C5.py`, `js/export.xlsx.js`) | nicht mit dem aktuellen Kern synchron |
 | **AxisVM über COM** | Modell wird vollständig aufgebaut und gespeichert. Offen: die lokalen Stabachsen (Abschnitt 6b), nächster Lauf vorbereitet |
-| **Ergebnisse zurücklesen** | noch **gar nicht** vermessen — derselbe Suchvorgang wie beim Aufbau. Danach `vergleich_werkzeug.mjs` / `vergleich_axisvm.py` |
-| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` 0,42 · `MAST_UNVERSCHIEBLICH` 3,10 · `ENDFELD_ZUSCHLAG` 2,0 — gegen das neue AxisVM-Modell noch nicht kalibriert |
+| **Ergebnisse zurücklesen** | Schnittstelle **vermessen**, aber nicht gebaut (`Results.NodalSupportForces`, `GetAllNodalSupportForces`, `Reactions`, `LineForces`). Ziel steht fest: Anzeige in der Anwendung mit Schalter *Vordimensionierung / FEM* — siehe *Der Weg dorthin* |
+| **Prüffähiger Nachweisbericht** | pendent. Excel, Druckansicht und Handbuch decken es nicht — siehe *Pendent: der prüffähige Nachweisbericht* |
+| **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
+| **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
+| **Einzelmast, Tragausleger, Zuganker** | Die Gruppe «Masten» ist seit dem 28. August angelegt und entkoppelt. Was fehlt: die Tragwerksart (Joch / Einzelmast / Mast mit Tragausleger) als übergreifende Wahl, und Zuganker bzw. Druckstützen als Tragglieder am Masten — sie ändern die Statik des Mastes, sind also keine Anbauteile |
+| **Stabilitaet des Mastes** | Der Querschnittsnachweis steht seit dem 28. August (`core.mast.js`); Biegeknicken und Biegedrillknicken nach EN 1993-1-1, 6.3 fehlen. Sie brauchen eine Festlegung der **Knicklänge** — Kragmast β = 2.0, oder hält das Joch den Kopf? Ohne diese Zahl nicht führbar |
+| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` 0,42 · `MAST_UNVERSCHIEBLICH` 3,10 · `ENDFELD_ZUSCHLAG` 2,0 — gegen das neue AxisVM-Modell noch nicht kalibriert. Für `MAST_UNVERSCHIEBLICH` liegt eine **gemessene** Zahl vor: 3,98·E·I/H am wirklichen Masten gegen die angesetzten 3,10. Entscheid steht aus |
 | **Raster 20 mm bei den Anbauteilen** | ob der Wert so gewollt ist, ist offen. Die zwei Reihen liegen dadurch 20 mm auseinander; siehe *Zu enge Schnitte* |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
+
+### Entschieden — nicht wieder aufmachen
+
+Zwei Fragen, die mehrfach gestellt wurden und die der Auftraggeber am
+28. August entschieden hat. Beide Entscheide bedeuten: **so lassen, wie es
+ist.**
+
+| Frage | Entscheid |
+|---|---|
+| Soll die Mastwahl beide Namen zeigen, «DP26 (HEB 260)»? | **Nein — der Profilname genügt.** Die Zuordnung DP↔HEB ist über zwei unabhängige Spalten belegt (Eigengewicht und Windlasten, DP20/22/24/26 und DPM24), aber sie gehört nicht in den Wähler. Wer nach DP sucht, findet die Zuordnung im Bauteilsatz |
+| Soll `DP18` in `data.masten.js` aufgenommen werden? | **Noch nicht.** Das Profil steht in `fl_bauteile.json` (0,512 kN/m = HEB 180), das zugehörige HEB 180 fehlt in `data.masten.js`. Das ist kein Versehen und wird nicht ergänzt, bis der Auftraggeber es verlangt |
+
 
 ### Warum Ober- und Unterblech in der Hüllkurve dasselbe η haben
 
@@ -3164,6 +3526,62 @@ Schwerachsen und liefert systematisch andere Momente. Bleche zunächst als Stäb
 mit Rechteckquerschnitt (direkte Entsprechung zum heutigen Nachweis), Lasten je
 Einwirkungsgruppe **getrennt** ausgeben, dazu ein Vergleichsblatt M_y / V_z / T
 beider Rechnungen je Station.
+
+### Der Weg dorthin: zwei Rechenwege, eine Anwendung
+
+**Richtungsentscheid des Auftraggebers, 28. August.** Werden die Ergebnisse
+aus AxisVM zurückgelesen, sollen sie **in der Anwendung dargestellt** werden,
+und ein Schalter trennt die beiden Herkünfte:
+
+| Stellung | Woher die Schnittgrössen kommen |
+|---|---|
+| **Vereinfachte Vordimensionierung** | der Ersatzbalken dieser Anwendung, wie heute |
+| **Berechnet mit FEM (AxisVM)** | zurückgelesen aus dem gerechneten Stabmodell |
+
+Damit hat das Werkzeug eine zweite Rolle: nicht mehr nur rechnen, sondern
+auch **anzeigen und nachweisen, was ein anderes Programm gerechnet hat**. Die
+Nachweisformeln bleiben dieselben; nur die Schnittgrössen wechseln die
+Quelle.
+
+**Drei Dinge sind vor dem Bauen zu entscheiden — sie hängen alle an derselben
+Gefahr: dass eine Zahl aussieht, als käme sie von woanders her.**
+
+1. **Jede angezeigte Grösse muss ihre Herkunft mitführen**, nicht nur der
+   Schalter oben. Ein η aus dem Ersatzbalken neben einem M_y aus AxisVM wäre
+   die schlimmste Mischung, die dieses Werkzeug erzeugen kann — sie sähe aus
+   wie ein Ergebnis und wäre eine Collage. Die Herkunft gehört an den Wert,
+   nicht an die Ansicht.
+2. **Der zurückgelesene Stand muss zum Modell passen.** Ändert jemand die
+   Jochlänge, nachdem AxisVM gerechnet hat, sind die Ergebnisse verwaist. Das
+   Modell braucht einen Fingerabdruck (Geometrie, Lasten, Lastfälle), der mit
+   den Ergebnissen zurückkommt und beim Laden verglichen wird. Passt er
+   nicht, gilt der FEM-Stand als ungültig — angezeigt, aber nicht verwendet.
+3. **Fehlt ein Ergebnis, wird nicht ersatzweise gerechnet.** Sonst stünde
+   unter «FEM» stillschweigend der Ersatzbalken. Dieselbe Regel wie bei den
+   nicht geführten Nachweisen: lieber eine Lücke, die man sieht, als eine
+   Zahl, die eine andere vortäuscht.
+
+**Was dafür noch fehlt:** das Zurücklesen selbst. `Results.NodalSupportForces`,
+`GetAllNodalSupportForces`, `Reactions` und `LineForces` sind in
+`AxisVM_aufbauen.ps1` **vermessen**, aber nicht gebaut. Das braucht einen Lauf
+an einer lizenzierten AxisVM-Sitzung — dort werden die Signaturen abgenommen,
+nicht geraten.
+
+### Pendent: der prüffähige Nachweisbericht
+
+Ebenfalls festgehalten am 28. August. Heute gibt es drei Ausgaben, aber keinen
+Bericht, den man einer Prüfstelle vorlegt:
+
+* die **Excel-Ausleitung** — Zwischenwerte je Station, für die Nachrechnung
+* die **gedruckte Übersicht** — der Stand auf einer Seite
+* das **Handbuch** — Herleitung und Modellgrenzen, ohne Projektbezug
+
+Ein prüffähiger Bericht müsste beides verbinden: System, Einwirkungen,
+Lastfälle, Schnittgrössen, Nachweise mit Formel und Zwischenwert — und, das
+ist der Teil, der schon steht, die ausdrückliche Angabe, **welche Nachweise
+geführt wurden und welche nicht** (`NACHWEISGRUPPEN` in `core.checks.js`).
+Mit dem Schalter oben kommt eine zweite Angabe dazu: **womit** gerechnet
+wurde.
 
 ---
 

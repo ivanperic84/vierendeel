@@ -36,7 +36,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { getFlBauteil, flLastwerte, leiterzug,
+import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche } from './data.fl.js';
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
@@ -309,9 +309,28 @@ export function neuesAnbauteil(vorlageId, x = 0) {
  * ---------------------------------------------------------------------------
  */
 
-/** Ein leeres Modul für die Baugruppe. */
+/** Wie lang ein Streckenteil ohne eigene Angabe gerechnet wird [m]. */
+export const LAENGE_STANDARD = 1.0;
+
+/**
+ * Ein leeres Modul für die Baugruppe.
+ *
+ * STRECKENTEILE BEKOMMEN IHRE LÄNGE MIT (Weisung: Startwert 1.00 m).
+ *
+ * Wer eine Auslegerkonsole einsetzt, sah bisher ein leeres Längenfeld - und
+ * gerechnet wurde trotzdem, nämlich mit einem Meter aus dem stillen Rückfall
+ * in `expandiereAnbauteile`. Die Zahl war also immer da, nur nicht zu sehen;
+ * und ein leeres Feld liest sich wie «noch nicht angegeben», nicht wie
+ * «einen Meter». Jetzt steht sie im Feld, wo man sie ändern kann.
+ *
+ * Teile mit fertiger Einzellast (kN) haben keine Länge - dort wäre die Zahl
+ * eine Behauptung ohne Wirkung.
+ */
 export function neuesModul(bauteilId, z = -1.5) {
-  return { bauteil: bauteilId, anzahl: 1, laenge: null, winkel: null,
+  let strecke = false;
+  try { strecke = istStreckenlast(getFlBauteil(bauteilId)); } catch { /* unbekannt */ }
+  return { bauteil: bauteilId, anzahl: 1,
+           laenge: strecke ? LAENGE_STANDARD : null, winkel: null,
            y: 0, z };
 }
 
@@ -435,8 +454,14 @@ export function expandiereAnbauteile(liste, o = {}) {
       try { b = getFlBauteil(m.bauteil); } catch { return; }
       // Drahtwerke werden über die Spannweite der Fahrleitung gerechnet,
       // alle übrigen Streckenteile über ihre eigene Länge.
+      /*
+       * Der Rueckfall bleibt - alte Baugruppen fuehren `laenge: null` -, aber
+       * er nennt jetzt dieselbe Zahl, die ein neues Modul mitbringt. Zwei
+       * Stellen mit demselben Wert, und eine davon still, waeren eine
+       * Falle: aendert man die eine, rechnet die andere weiter wie frueher.
+       */
       const laenge = b.rolle === 'drahtwerk'
-        ? (m.laenge ?? spannweite) : (m.laenge ?? 1);
+        ? (m.laenge ?? spannweite) : (m.laenge ?? LAENGE_STANDARD);
       const n = m.anzahl ?? 1;
       // Freies Bauteil: nicht aus der Tabelle, sondern über die Angriffsfläche.
       const w = b.freieFlaeche
@@ -455,12 +480,42 @@ export function expandiereAnbauteile(liste, o = {}) {
         Gx = u.U; alpha = u.alpha;
       }
 
+      /*
+       * WAS EIN LEITER AN DIESER STELLE ABGIBT - und was nicht.
+       *
+       * >>> WEISUNG DES AUFTRAGGEBERS, 28. August. <<<
+       * «Es kann sein, dass der Leiter nur abgezogen wird (bei Fahrdraht der
+       * Fall), oder dass bei der Befestigung am Joch nur das Tragseil eine
+       * Ablenkkraft hat und der Fahrdraht nicht, da dieser Anteil in die
+       * Drückstütze geht. Die ständigen aber beide zum Tragseil gehen und von
+       * der Befestigung am Joch getragen.»
+       *
+       * >>> DIE ACHSE IST NICHT «STÄNDIG / VERÄNDERLICH». <<<
+       * Gewicht UND Ablenkkraft sind beide ständig (Gruppe G). Der genannte
+       * Fall trennt sie trotzdem: das Gewicht kommt an, die Ablenkung nicht.
+       * Eine Wahl mit den Stellungen «ständig / veränderlich» träfe ihn also
+       * gar nicht. Getrennt wird deshalb nach dem, was wirklich verschiedene
+       * Wege geht:
+       *
+       *      wirktG        Eigengewicht des Leiters
+       *      wirktAblenk   Ablenkkraft aus dem Kurvenzug (Z·c/R)
+       *      wirktQ        Wind und Schnee auf den Leiter
+       *
+       * Fehlt die Angabe, wirkt alles - alte Baugruppen rechnen unverändert
+       * weiter. Nur DRAHTWERKE führen die Wahl; bei einem Träger oder Aufbau
+       * gibt es keine Ablenkkraft, und wer sein Gewicht nicht will, schaltet
+       * das Modul ab.
+       */
+      const drahtwerk = b.rolle === 'drahtwerk';
+      const wirkt = (k) => !drahtwerk || m[k] !== false;
       const kraefte = leereKraefte();
-      kraefte.G.Fz = w.Gz;
-      kraefte.G.Fx = Gx;
-      kraefte.WindX.Fx = w.Qx;
-      kraefte.WindY.Fy = w.Qy;
-      kraefte.Schnee.Fz = m.Qz ?? 0;
+      if (wirkt('wirktG')) kraefte.G.Fz = w.Gz;
+      if (wirkt('wirktAblenk')) kraefte.G.Fx = Gx;
+      if (wirkt('wirktQ')) {
+        kraefte.WindX.Fx = w.Qx;
+        kraefte.WindY.Fy = w.Qy;
+        kraefte.Schnee.Fz = m.Qz ?? 0;
+      }
 
       const z = m.z ?? 0, y = m.y ?? 0;
       teile.push({
@@ -470,6 +525,15 @@ export function expandiereAnbauteile(liste, o = {}) {
         name: `${a.name} · ${b.name}`,
         x: a.x + (m.x ?? 0), y, z, ev: -z, ex: y,
         anzahl: n, laenge, alpha, einheit: b.einheit,
+        // Welche Anteile hier wirklich ankommen - die Ausleitung und die
+        // Darstellung sollen es benennen koennen, nicht nur die Summe sehen.
+        wirkung: drahtwerk
+          ? { G: wirkt('wirktG'), ablenk: wirkt('wirktAblenk'),
+              Q: wirkt('wirktQ') } : null,
+        // Die Klammer ueber Tragseil und Fahrdraht. Sie geht in keine
+        // Rechnung ein - noch nicht: der Havariefall (Bruch eines
+        // Kettenwerks) waehlt spaeter darueber aus.
+        kettenwerk: m.kettenwerk ?? null,
         kraefte,
       });
     });

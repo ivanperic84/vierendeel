@@ -8,11 +8,12 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
+import { optionsSkizze } from './doku.optionsskizzen.js';
 import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
-         modulWinkel, ANBAU_ORTE, ortVon } from './data.anbauteile.js';
+         modulWinkel, ANBAU_ORTE, ortVon, amMast } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast,
          PROFILBEIWERTE } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn,
@@ -97,10 +98,20 @@ const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
  * Das Symbol steht in der eingeklappten Schiene.
  */
 export const EINGABE_TABS = [
-  // Die Verortung steht zuoberst: sie sagt, WELCHES Tragwerk das ist -
-  // eine Frage, die vor allen Rechenmassen kommt.
+  // Die Verortung ist HERAUSGENOMMEN: sie steht in der Bannerschublade beim
+  // Projekt. Sie geht in keine Rechnung ein und kostete hier die obersten
+  // drei Zeilen, durch die man bei jeder Massaenderung hindurchscrollt.
+  /*
+   * DIE MASTEN STEHEN NEBEN DER AUFLAGERUNG, nicht darin (Weisung,
+   * 28. August: «die Haupttragwerke sollten global gesteuert werden»).
+   *
+   * Sie sind ein eigenes Haupttragwerk - und dort wächst später weiter, was
+   * dazugehört: Einzelmasten, Masten mit Tragausleger, Zuganker,
+   * Druckstützen. Im Reiter «System» bleiben sie beisammen mit dem Joch;
+   * einen eigenen Reiter bekommen sie erst, wenn sie einen füllen.
+   */
   { id: 'system', titel: 'System', icon: 'system',
-    gruppen: ['ort', 'typ', 'geo', 'aufl'] },
+    gruppen: ['typ', 'geo', 'aufl', 'mast'] },
   // Die Stückliste gehört zu den Profilen: sie sagt, was aus der gewählten
   // Profil- und Blechwahl an Stahl herauskommt. Als eigener Auswertungsreiter
   // stand sie weit weg von der Entscheidung, die sie beeinflusst.
@@ -186,7 +197,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     const knopf = felder.some((f) => f.ausDB) ? bearbeitenKnopf(werte)
                 : felder.some((f) => f.ausLast) ? lastenKnopf(werte) : '';
     return abschnitt(g.titel, knopf) +
-           felder.map((f) => feldHtml(f, werte[f.key], werte)).join('') + zusatz;
+           felder.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('') + zusatz;
   }).join('');
 
   container.querySelectorAll('[data-feld]').forEach((inp) => {
@@ -231,7 +242,7 @@ export function aktualisiereMaske(container, werte, extras = {}) {
     if (inp === aktiv) return;
     const f = FELDER.find((x) => x.key === inp.dataset.feld);
     if (!f) return;
-    const v = werte[f.key];
+    const v = feldWert(f, werte);
     if (f.typ === 'schalter') { inp.checked = Boolean(v); return; }
     // Der Schieberbereich folgt dem Sortiment des gewählten Typs
     if (inp.type === 'range' || f.typ === 'schieber') {
@@ -240,6 +251,35 @@ export function aktualisiereMaske(container, werte, extras = {}) {
     }
     if (String(inp.value) !== String(v)) inp.value = v;
   });
+  /*
+   * DIE NOTIZ WIRD MITGEFUEHRT.
+   *
+   * Sie ist eine gerechnete Groesse zu dem, was gerade eingetippt ist - der
+   * Ablenkwinkel zu Radius und Spannweite. Bliebe sie stehen, waere sie
+   * schlimmer als keine: sie zeigte den Winkel des VORIGEN Radius, und man
+   * traute ihr, weil sie gerade neben dem Feld steht.
+   *
+   * Die Maske wird nur bei geaenderter SIGNATUR neu gebaut; eine andere Zahl
+   * im selben Feld aendert sie nicht. Also hier.
+   */
+  container.querySelectorAll('.feld').forEach((n) => {
+    const inp = n.querySelector('[data-feld]');
+    const f = inp ? FELDER.find((x) => x.key === inp.dataset.feld) : null;
+    if (!f || typeof f.notiz !== 'function') return;
+    const soll = f.notiz(werte);
+    let alt = n.querySelector('.feld-notiz');
+    if (!soll) { alt?.remove(); return; }
+    if (!alt) {
+      alt = document.createElement('small');
+      alt.className = 'feld-notiz';
+      // Vor den Hinweistext, so wie beim Aufbau der Maske - die Notiz gehoert
+      // an das Feld, der Hinweis darunter.
+      const hin = n.querySelector('.hinweis, details');
+      if (hin) n.insertBefore(alt, hin); else n.appendChild(alt);
+    }
+    if (alt.textContent !== soll) alt.textContent = soll;
+  });
+
   const teilVon = (i) => {
     const roh = (werte.anbauteile ?? [])[i];
     return roh ? normalisiereAnbauteil(roh) : null;
@@ -269,6 +309,11 @@ export function aktualisiereMaske(container, werte, extras = {}) {
       try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
       d.querySelectorAll('.mod').forEach((inp) => {
         if (inp === aktiv || inp.tagName === 'SELECT') return;
+        // Die Wirkungshaken: fehlt die Angabe, wirkt der Anteil.
+        if (inp.type === 'checkbox') {
+          inp.checked = m[inp.dataset.mk] !== false;
+          return;
+        }
         // Dieselbe Vorgabe wie beim Aufbau der Karte - sonst zeigt das Feld
         // vor der ersten Rechnung etwas anderes als danach.
         const v = modWert(m, inp.dataset.mk);
@@ -461,6 +506,24 @@ export function hinweisHtml(schluessel, text) {
     <small class="hinweis">${esc(rest)}</small></details>`;
 }
 
+/*
+ * ABGELEITETE FELDER.
+ *
+ * Manche Felder zeigen nicht ihren eigenen gespeicherten Wert, sondern einen,
+ * der aus anderen folgt - der Ablenkwinkel aus Radius und Spannweite. Sie
+ * SIND trotzdem Eingabefelder: wer hineintippt, schreibt die Groesse, aus der
+ * sie folgen (die Kopplung steht in app.js).
+ *
+ * >>> WARUM NICHT IM ZUSTAND FUEHREN. <<<
+ * Zwei Zahlen fuer dieselbe Groesse laufen frueher oder spaeter auseinander -
+ * spaetestens beim Oeffnen einer aelteren Datei, in der nur eine von beiden
+ * steht. Dann zeigt das eine Feld einen Bogen von 300 km und das andere
+ * −4.5 Grad, und beide sehen richtig aus. Gerechnet wird mit EINER Zahl; die
+ * andere wird gezeigt.
+ */
+const feldWert = (f, werte) =>
+  (typeof f.wertAus === 'function' ? f.wertAus(werte) : werte[f.key]);
+
 function feldHtml(f, wert, werte) {
   const id = `feld-${f.key}`;
   // Zwei Sperren: Katalogmasse (bearbeiten) und Tabellenlasten (lastenBearbeiten).
@@ -500,9 +563,28 @@ function feldHtml(f, wert, werte) {
              ${f.min !== undefined ? `min="${f.min}"` : ''}${dis}>
            <span class="einheit">${esc(f.einheit ?? '')}</span></div>`;
   }
+  /*
+   * DIE SKIZZE ZUR GEWAEHLTEN STELLUNG steht ZWISCHEN Feld und Hinweistext.
+   *
+   * Dort, weil sie den Text ersetzen soll und nicht ergaenzen: wer das Bild
+   * sieht, klappt den Text gar nicht erst auf. Manche Einstellungen sind
+   * reine Geometrie - wo geschnitten wird, wie der Mast ans Joch kommt, wohin
+   * der Steg zeigt -, und eine Lage im Raum liest man nicht, man sieht sie.
+   */
+  /*
+   * DIE NOTIZ steht unmittelbar unter dem Feld und IMMER offen.
+   *
+   * Sie ist kein Hinweistext, den man aufklappt, sondern eine gerechnete
+   * Groesse zu dem, was gerade eingetippt ist - der Ablenkwinkel zu Radius
+   * und Spannweite etwa. Eingeklappt waere sie nutzlos: man liest sie
+   * waehrend der Eingabe oder gar nicht.
+   */
+  const notiz = typeof f.notiz === 'function' ? f.notiz(werte) : null;
+  const notizHtml = notiz
+    ? `<small class="feld-notiz">${esc(notiz)}</small>` : '';
   return `<div class="feld${gesperrt ? ' gesperrt' : ''}">
     <label for="${id}">${esc(f.label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
-    ${inp}${hinweis}</div>`;
+    ${inp}${optionsSkizze(f.key, wert)}${notizHtml}${hinweis}</div>`;
 }
 
 // --- Anbauteile -------------------------------------------------------------
@@ -514,14 +596,26 @@ const ANBAU_FARBE = {
 };
 
 /**
- * Wo das Teil am Joch angeschlagen ist. Bestimmt die Darstellung im Modell:
- * durchgehende Teile bekommen ein Vertikalelement über die ganze Jochhöhe und
- * damit vier Anschlusspunkte, einseitige nur zwei.
+ * Wo das Teil am Joch angeschlagen ist.
+ *
+ * >>> DIE ZAHL IN DER ANSCHRIFT IST DIE ZAHL DER GURTEBENEN, nicht die der
+ * Klemmen. <<<
+ *
+ * Hier stand «2 Punkte» und «4 Punkte». Das las sich wie eine Stückzahl und
+ * war eine Ebenenzahl: der Raster verdoppelt jede davon, denn das Moment
+ * tritt an ZWEI Stationen ein (x ∓ raster/2), und in jeder Gurtebene stehen
+ * zwei Winkel nebeneinander. Wirklich geschraubt wird also an
+ *
+ *      einseitig     1 Gurt  × 2 Winkel × 2 Stationen = 4 Klemmen
+ *      durchgehend   2 Gurte × 2 Winkel × 2 Stationen = 8 Klemmen
+ *
+ * Das Modell zeichnet sie seit dem 28. August so und schreibt die Zahl an
+ * die Rastermasslinie.
  */
 const BEFESTIGUNGEN = [
-  { key: 'unten', label: 'am Untergurt (2 Punkte)' },
-  { key: 'oben', label: 'am Obergurt (2 Punkte)' },
-  { key: 'durchgehend', label: 'durchgehend Ober- und Untergurt (4 Punkte)' },
+  { key: 'unten', label: 'am Untergurt (1 Gurtebene)' },
+  { key: 'oben', label: 'am Obergurt (1 Gurtebene)' },
+  { key: 'durchgehend', label: 'durchgehend Ober- und Untergurt (2 Gurtebenen)' },
 ];
 
 /** Was die Befestigungsart rechnerisch bedeutet – als Hinweis am Feld. */
@@ -583,16 +677,28 @@ function anbauteileHtml(g, werte) {
                    ['F_z', su.Gz + su.Qz]]
       .filter(([, v]) => Math.abs(v) > 0.005)
       .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
-    const suchtext = `${a.name} ${a.vorlage ?? ''} ${a.x}`.toLowerCase();
+    // WAS IN DER ZEILE STEHT, MUSS AM ORT GEMESSEN SEIN. `x` ist am Masten
+    // immer null; die Zeile behauptete damit, jedes Mastteil sitze am
+    // Jochanfang.
+    const amMasten = amMast(a);
+    const mEnde = ortVon(a) === 'mastB' ? 'B' : 'A';
+    const lage = amMasten
+      ? `M${mEnde} ${f2(a.hMast ?? 0)} m` : `${f2(a.x)} m`;
+    const lageLang = amMasten
+      ? `Mast Ende ${mEnde} · ${f2(a.hMast ?? 0)} m über Fundament`
+      : `x = ${f2(a.x)} m`;
+    const suchtext = `${a.name} ${a.vorlage ?? ''} ${amMasten
+      ? `mast ${mEnde} ${a.hMast ?? 0}` : a.x}`.toLowerCase();
     return `<div class="at-karte${a.aktiv === false ? ' aus' : ''}${offen ? ' offen' : ''}"
          data-idx="${i}" data-suche="${esc(suchtext)}">
-      <div class="at-zeile" data-at-oeffnen="${i}"
-           title="${esc(a.name)} · x = ${f2(a.x)} m · ${esc(kraft)} kN
-${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
+      <div class="at-zeile" data-at-oeffnen="${i}" draggable="true"
+           data-at-ziehen="${esc(a.id)}"
+           title="${esc(a.name)} · ${esc(lageLang)} · ${esc(kraft)} kN
+${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt eine Kopie ab">
         <span class="kachel-punkt" style="background:${ANBAU_FARBE[farbschluessel(a)] ?? 'var(--dim)'}"></span>
         <span class="at-pos">A${i + 1}</span>
         <span class="at-name">${esc(a.name)}</span>
-        <span class="at-x">${f2(a.x)} m</span>
+        <span class="at-x">${esc(lage)}</span>
         <span class="at-kraft">${esc(kraft)} kN</span>
       </div>
       <span class="at-tasten">
@@ -608,7 +714,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
         <div class="at-kopf">
           <input class="at breit" data-k="name" type="text" value="${esc(a.name)}">
         </div>
-        ${anbauteilSkizze(a, werte)}
+        ${anbauteilSkizzeFuer(a, werte)}
         <div class="at-gitter">
           ${atWahl(i, 'ort', 'Standort', ortVon(a), ANBAU_ORTE,
                    'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
@@ -617,7 +723,12 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
           ${ortVon(a) === 'joch'
             ? atSchieber(i, 'x', 'Lage x', a.x, 'm', 0.1, 0, werte.L ?? 20)
             : atSchieber(i, 'hMast', 'Höhe über Fundament', a.hMast ?? 0, 'm',
-                         0.05, 0, werte.mastH ?? 12)}
+                         // Bis zum MASTKOPF, nicht bis zur Jochachse: ein
+                         // langer Mast traegt oben Traversen mit
+                         // Zusatzleitern, und der Regler muss dorthin reichen.
+                         0.05, 0, Math.max(werte.mastH ?? 12,
+                                           werte.mastLaenge ?? 0,
+                                           werte.mastLaengeB ?? 0))}
           ${ortVon(a) === 'joch'
             ? atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
                      BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])
@@ -660,16 +771,27 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'}">
       <div class="kacheln">${kacheln}</div>
       ${klapp('anbau-achsen', 'Befestigung und Achsen', `
         <p class="hinweis" style="margin:0">
-          Die Befestigung sitzt auf den Schwerachsen der Gurte, über die Länge
-          «Raster» in Jochachse. Durchgehende Teile sind an Ober- UND Untergurt
-          angeschlagen und leiten die Kraft in vier Punkte; einseitige nur in
-          zwei.</p>
+          Die Befestigung sitzt auf den Schwerachsen der Gurte. Zwei Angaben
+          bestimmen zusammen, wo geschraubt wird: die <b>Gurtebene</b> —
+          Obergurt, Untergurt oder beide — und der <b>Raster</b>. Der Raster
+          setzt die Klemmen auf zwei Stationen, x ∓ Raster/2; dort tritt auch
+          das Moment ein. In jeder Gurtebene stehen dabei zwei Winkel
+          nebeneinander. Einseitig sind das 1 × 2 × 2 = <b>4 Klemmen</b>,
+          durchgehend 2 × 2 × 2 = <b>8</b>. Das Modell zeichnet sie einzeln
+          und schreibt die Zahl an die Rastermasslinie.</p>
         <p class="hinweis" style="margin:6px 0 0">
           Achsen: <b>x</b> Jochachse · <b>y</b> Gleisrichtung ·
           <b>z</b> lotrecht, positiv nach oben, <b>0 auf der Schwerachse des
           Gurtes</b>, an dem das Teil angeschlagen ist. Eine Hängestütze von
           1.35 m misst also z = −1.35 m ab Untergurt. Für die Torsion rechnet
-          der Kern den Hebelarm zur Jochachse dazu (h/2).</p>`)}`,
+          der Kern den Hebelarm zur Jochachse dazu (h/2).</p>
+        <p class="hinweis" style="margin:6px 0 0">
+          <b>Am Masten gilt ein anderer Nullpunkt.</b> Dort steht statt der
+          Lage x die <b>Höhe über Fundament</b>, und x, y, z eines Teils
+          zählen ab dem Anschlusspunkt auf der Mastachse — nicht ab dem Joch.
+          Ein Rückleiter 0.35 m unter dem Anschluss auf 7.00 m Höhe steht
+          also als h = 7.00 und z = −0.35. <b>x</b> weist dabei ins Feld
+          hinein, an beiden Enden.</p>`)}`,
       `${vorlagen().length} Vorlagen`) +
     // Das Suchfeld filtert im Browser, ohne die Maske neu zu bauen - sonst
     // verlöre das Feld bei jedem Tastendruck den Fokus.
@@ -709,7 +831,11 @@ function ketteJeModul(a, werte) {
   try {
     flach = expandiereAnbauteile([{ ...a, aktiv: true, lasten: [] }], trasseVon(werte));
   } catch { return info; }
-  const kette = anbauKette(flach, { x0: a.x ?? 0, zAn: 0 });
+  const kette = anbauKette(flach, { x0: amMast(a) ? 0 : (a.x ?? 0), zAn: 0 });
+  // Woran das erste Teil haengt. Am Masten ist es der Mast, nicht das Joch -
+  // die Kette beginnt dort, wo `hMast` sie ansetzt.
+  const wurzelName = amMast(a)
+    ? `Mast ${ortVon(a) === 'mastB' ? 'B' : 'A'}` : 'Joch';
 
   const gliedNach = new Map();          // Punkt -> das Glied, das ihn schuf
   kette.glieder.forEach((g) => gliedNach.set(g.bis, g));
@@ -741,7 +867,7 @@ function ketteJeModul(a, werte) {
     }
     info.set(teil.modulIndex, {
       rolle: teil.rolle ?? null,
-      haengtAn: traegerGlied ? nameVon(traegerGlied.teil) : 'Joch',
+      haengtAn: traegerGlied ? nameVon(traegerGlied.teil) : wurzelName,
       zusammenMit: (amPunkt.get(punkt) ?? [])
         .filter((x) => x !== teil).map(nameVon).filter(Boolean),
     });
@@ -753,6 +879,21 @@ function ketteJeModul(a, werte) {
 const ROLLE_TEXT = {
   traeger: 'Träger', aufbau: 'Aufbau', drahtwerk: 'Drahtwerk',
 };
+
+/**
+ * WORAUF x, y UND z EINES TEILS BEZOGEN SIND.
+ *
+ * Am Joch die Schwerachse des Anschlussgurtes, am Masten der Anschlusspunkt
+ * auf der Mastachse - also die Höhe `hMast` über Fundament. Dieselbe Zeile
+ * steht über den Modulen und über den Lastblöcken; sie beantwortet die Frage,
+ * die man sich sonst am falschen Bild beantwortet.
+ */
+function bezugsHinweis(a) {
+  return amMast(a)
+    ? `<span class="sec-r">ab Anschluss am Mast ${
+        ortVon(a) === 'mastB' ? 'B' : 'A'}</span>`
+    : '<span class="sec-r">ab Schwerachse des Anschlussgurtes</span>';
+}
 
 function modulListeHtml(a, i, werte) {
   const module = a.module ?? [];
@@ -807,7 +948,7 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
             title="Gleicher Angriffspunkt: im Stabmodell teilen sich beide einen Knoten, die Kette hat hier kein Glied. Das ist zulässig – nur beabsichtigt sollte es sein."
             >am selben Punkt wie ${esc(kt.zusammenMit.join(', '))}</span>` : ''}
       </div>` : ''}
-      <div class="sec-klein">Angriffspunkt</div>
+      <div class="sec-klein">Angriffspunkt${bezugsHinweis(a)}</div>
       <div class="at-gitter">
         ${modFeld(i, k, 'x', 'x', modWert(m, 'x'), 'm', 0.1)}
         ${modFeld(i, k, 'y', 'y', modWert(m, 'y'), 'm', 0.1)}
@@ -821,7 +962,8 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
         <span class="at-feld lesbar"><span>Spannweite <i>m</i></span>
           <b>${f2(m.laenge ?? trasse.spannweite ?? 0)}</b>
           <small class="hinweis">global, Gruppe «Trasse»</small></span>
-      </div>` : streckenlast ? `<div class="at-gitter">
+      </div>
+      ${wirkungHtml(i, k, m)}` : streckenlast ? `<div class="at-gitter">
         ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
       ${b?.freieFlaeche ? `<div class="sec-klein">Angriffsfläche</div>
@@ -892,7 +1034,7 @@ function lastblockListeHtml(a, i) {
         <button class="loeschen" data-last-weg="${k}" data-idx="${i}"
                 title="Last entfernen">×</button>
       </div>
-      <div class="sec-klein">Angriffspunkt</div>
+      <div class="sec-klein">Angriffspunkt${bezugsHinweis(a)}</div>
       <div class="at-gitter">
         ${lastFeld(i, k, 'x', 'x', l.x, 'm', 0.1)}
         ${lastFeld(i, k, 'y', 'y', l.y, 'm', 0.1)}
@@ -1001,6 +1143,58 @@ function modFeld(i, k, feld, label, wert, einheit, schritt, hinweis = '') {
   </label>`;
 }
 
+/**
+ * WAS EIN LEITER AN DIESER STELLE ABGIBT.
+ *
+ * >>> Weisung, 28. August: «Es kann sein, dass der Leiter nur abgezogen wird
+ * (bei Fahrdraht der Fall), oder dass bei der Befestigung am Joch nur das
+ * Tragseil eine Ablenkkraft hat und der Fahrdraht nicht, da dieser Anteil in
+ * die Drückstütze geht. Die ständigen aber beide zum Tragseil gehen.» <<<
+ *
+ * DIE ACHSE IST NICHT «STÄNDIG / VERÄNDERLICH». Gewicht und Ablenkkraft sind
+ * beide ständig; der genannte Fall trennt sie trotzdem. Getrennt wird deshalb
+ * nach dem, was verschiedene Wege geht — und das sind drei Dinge.
+ *
+ * Nur bei DRAHTWERKEN. Ein Träger hat keine Ablenkkraft, und wer sein Gewicht
+ * nicht will, schaltet das Modul ab.
+ */
+const WIRKUNGEN = [
+  { key: 'wirktG', label: 'Gewicht',
+    titel: 'Eigengewicht des Leiters — ständig, Gruppe G' },
+  { key: 'wirktAblenk', label: 'Ablenkung',
+    titel: 'Ablenkkraft aus dem Kurvenzug (Z·c/R) — ebenfalls ständig. '
+         + 'Abwählen, wenn dieser Anteil anderswo hingeht: beim Fahrdraht '
+         + 'am Joch in die Drückstütze, am Ausleger in die Spurhaltertraverse.' },
+  { key: 'wirktQ', label: 'Wind/Schnee',
+    titel: 'Wind auf den Leiter und Schnee — veränderlich' },
+];
+
+function wirkungHtml(i, k, m) {
+  return `<div class="sec-klein">Wirkt hier<span class="sec-r">${
+      esc(m.kettenwerk ? `Kettenwerk ${m.kettenwerk}` : 'ohne Kettenwerk')
+    }</span></div>
+    <div class="wirkung">
+      ${WIRKUNGEN.map((x) => `<label class="schalter" title="${esc(x.titel)}">
+        <input class="mod" data-mk="${x.key}" data-idx="${i}" data-mod="${k}"
+               type="checkbox" ${m[x.key] === false ? '' : 'checked'}>
+        <span>${esc(x.label)}</span></label>`).join('')}
+      <label class="at-feld kette-feld" data-feldname="kettenwerk">
+        <span>Kettenwerk</span>
+        <input class="mod" data-mk="kettenwerk" data-idx="${i}" data-mod="${k}"
+               type="text" value="${esc(m.kettenwerk ?? '')}"
+               placeholder="z. B. KW1">
+      </label>
+    </div>
+    ${hinweisHtml(`wirk-${i}-${k}`,
+      'Gewicht und Ablenkung sind BEIDE ständig – sie gehen trotzdem oft '
+      + 'verschiedene Wege: das Gewicht beider Leiter hängt am Tragseil und '
+      + 'kommt am Joch an, die Ablenkung des Fahrdrahts dagegen in der '
+      + 'Drückstütze. Das Kettenwerk ist die Klammer über Tragseil und '
+      + 'Fahrdraht; es geht in keine Rechnung ein, sondern hält zusammen, was '
+      + 'zusammengehört – der Havariefall (Bruch eines Kettenwerks) wählt '
+      + 'später darüber aus.')}`;
+}
+
 /** Zahlenfeld eines freien Lastblocks. */
 function lastFeld(i, k, feld, label, wert, einheit, schritt) {
   return `<label class="at-feld" data-feldname="${feld}">
@@ -1029,6 +1223,97 @@ function lastWahl(i, k, feld, wert, optionen) {
  * Jochhöhe; massstäblich wäre entweder das Joch ein Strich oder die Stütze
  * aus dem Bild.
  */
+/**
+ * Massskizze einer Baugruppe AM MASTEN.
+ *
+ * >>> DER NULLPUNKT IST DER MASTFUSS. <<<
+ *
+ * Die Skizze des Jochs zeigte hier zwei Gurte und «Lage in Jochachse 0 … L» -
+ * ein Bild, das für ein Teil am Masten jede Zahl falsch benennt: `x` ist am
+ * Masten immer null, und `z` misst nicht ab einer Gurtschwerachse, sondern
+ * ab dem Anschlusspunkt auf der Mastachse. Wer nach diesem Bild eingibt,
+ * setzt den Rückleiter ans Joch statt auf 7 m Masthöhe.
+ *
+ * Links der Anschluss mit z und y, rechts der ganze Mast mit der Höhe über
+ * Fundament. Schematisch wie am Joch: massstäblich wäre der Mast ein Strich
+ * und das Teil unsichtbar.
+ */
+function anbauteilSkizzeMast(a, werte) {
+  const ende = ortVon(a) === 'mastB' ? 'B' : 'A';
+  const hMast = a.hMast ?? 0;
+  const hoch = Math.max(werte.mastH ?? 12, werte.mastLaenge ?? 0,
+                        werte.mastLaengeB ?? 0, hMast, 1);
+  const punkte = [...(a.module ?? []), ...(a.lasten ?? [])];
+  const zWahl = punkte.length
+    ? punkte.reduce((s, p) => (Math.abs(p.z ?? 0) > Math.abs(s) ? (p.z ?? 0) : s), 0)
+    : 0;
+  const yWahl = punkte.reduce((s, p) => (Math.abs(p.y ?? 0) > Math.abs(s) ? (p.y ?? 0) : s), 0);
+
+  // --- Anschluss links -----------------------------------------------------
+  const cx = 58, cyAn = 66, yKopf = 22, yFuss = 132, halb = 5;
+  const anY = zWahl >= 0 ? Math.max(30, cyAn - 30) : Math.min(120, cyAn + 30);
+  const anX = cx + 40 + Math.max(-22, Math.min(22, yWahl * 34));
+
+  const schraffur = (x0) => [0, 1, 2, 3, 4].map((i) =>
+    `<line class="sk-steg" x1="${x0 - 12 + i * 6}" y1="${yFuss}"
+       x2="${x0 - 16 + i * 6}" y2="${yFuss + 8}"/>`).join('');
+
+  const zMass = zWahl ? `
+    <g class="sk-mass" data-zu="z">
+      <line x1="${anX + 16}" y1="${cyAn}" x2="${anX + 16}" y2="${anY}"/>
+      <text x="${anX + 20}" y="${(cyAn + anY) / 2 + 3}">z ${zWahl.toFixed(2)}</text>
+    </g>` : '';
+  const yMass = yWahl ? `
+    <g class="sk-mass" data-zu="y">
+      <line x1="${cx}" y1="${anY - 12}" x2="${anX}" y2="${anY - 12}"/>
+      <text x="${(cx + anX) / 2}" y="${anY - 16}" text-anchor="middle">y ${yWahl.toFixed(2)}</text>
+    </g>` : '';
+
+  const kraft = (feld, x1, y1, dx, dy, txt) => `
+    <g class="sk-kraft" data-zu="${feld}">
+      <line x1="${x1}" y1="${y1}" x2="${x1 + dx}" y2="${y1 + dy}"/>
+      <polygon points="${x1 + dx},${y1 + dy} ${x1 + dx - dy * 0.18 - dx * 0.22},${y1 + dy + dx * 0.18 - dy * 0.22} ${x1 + dx + dy * 0.18 - dx * 0.22},${y1 + dy - dx * 0.18 - dy * 0.22}"/>
+      <text x="${x1 + dx + 4}" y="${y1 + dy + (dy ? 10 : -4)}">${esc(txt)}</text>
+    </g>`;
+
+  // --- Ganzer Mast rechts --------------------------------------------------
+  const mx = 232;
+  const py = yFuss - Math.max(0, Math.min(1, hMast / hoch)) * (yFuss - yKopf);
+
+  return `<svg class="at-skizze" viewBox="0 0 300 165" role="img"
+     aria-label="Massskizze am Masten">
+    <!-- Anschluss -->
+    <text class="sk-titel" x="8" y="12">Anschluss am Mast ${ende}</text>
+    <line class="sk-gurt" x1="${cx - halb}" y1="${yKopf}" x2="${cx - halb}" y2="${yFuss}"/>
+    <line class="sk-gurt" x1="${cx + halb}" y1="${yKopf}" x2="${cx + halb}" y2="${yFuss}"/>
+    <line class="sk-steg" x1="${cx - 14}" y1="${yFuss}" x2="${cx + 14}" y2="${yFuss}"/>
+    ${schraffur(cx)}
+    <line class="sk-an" x1="${cx - halb - 4}" y1="${cyAn}" x2="${cx + halb + 4}" y2="${cyAn}"/>
+    <g class="sk-teil">
+      <line x1="${cx}" y1="${cyAn}" x2="${anX}" y2="${cyAn}"/>
+      <line x1="${anX}" y1="${cyAn}" x2="${anX}" y2="${anY}"/>
+      <circle cx="${anX}" cy="${anY}" r="2.6"/>
+    </g>
+    ${zMass}${yMass}
+    ${kraft('Fy', anX, anY, 20, 0, 'F_y')}
+    ${kraft('Fz', anX, anY, 0, 14, 'F_z')}
+
+    <!-- Ganzer Mast -->
+    <text class="sk-titel" x="186" y="12">Lage am Masten</text>
+    <line class="sk-gurt" x1="${mx - halb}" y1="${yKopf}" x2="${mx - halb}" y2="${yFuss}"/>
+    <line class="sk-gurt" x1="${mx + halb}" y1="${yKopf}" x2="${mx + halb}" y2="${yFuss}"/>
+    <line class="sk-steg" x1="${mx - 14}" y1="${yFuss}" x2="${mx + 14}" y2="${yFuss}"/>
+    ${schraffur(mx)}
+    <g class="sk-teil"><line x1="${mx - 12}" y1="${py}" x2="${mx + 12}" y2="${py}"/>
+      <circle cx="${mx + 12}" cy="${py}" r="2.6"/></g>
+    <g class="sk-mass" data-zu="hMast">
+      <line x1="${mx - 24}" y1="${yFuss}" x2="${mx - 24}" y2="${py}"/>
+      <text x="${mx - 28}" y="${(yFuss + py) / 2 + 3}" text-anchor="end">h ${hMast.toFixed(2)} m</text>
+    </g>
+    <text class="sk-notiz" x="186" y="152">ab Fundament · 0 … ${hoch.toFixed(1)} m</text>
+  </svg>`;
+}
+
 function anbauteilSkizze(a, werte) {
   const bef = befestigungsArt(a);
   // Der tiefste bzw. höchste Angriffspunkt der Baugruppe steht stellvertretend
@@ -1117,6 +1402,18 @@ function anbauteilSkizze(a, werte) {
     </g>
     <text class="sk-notiz" x="186" y="140">0 … ${L.toFixed(1)} m</text>
   </svg>`;
+}
+
+/**
+ * Die Skizze zur Baugruppe - je nach Ort die des Jochs oder die des Mastes.
+ *
+ * Exportiert, damit der Pruefstand denselben Weg geht wie die Karte. Wuerde
+ * er die beiden Zeichner einzeln aufrufen, pruefte er nicht, ob die WEICHE
+ * stimmt - und die ist der Punkt: ein Mastteil, das die Jochskizze bekommt,
+ * beschriftet jede Zahl falsch.
+ */
+export function anbauteilSkizzeFuer(a, werte) {
+  return amMast(a) ? anbauteilSkizzeMast(a, werte) : anbauteilSkizze(a, werte);
 }
 
 /** Rolle eines Moduls aus der Lasttabelle; null, wenn unbekannt. */
@@ -1295,6 +1592,22 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       e.dataTransfer.effectAllowed = 'copy';
     });
   });
+  /*
+   * EINE VORHANDENE BAUGRUPPE INS MODELL ZIEHEN (Weisung: «oder auch per
+   * drag and drop ablegen»).
+   *
+   * Eigener Datentyp, nicht derselbe wie bei den Vorlagen: was hier gezogen
+   * wird, ist keine Vorlage, sondern eine BAUGRUPPE mit allen Zahlen, die von
+   * Hand daran geaendert wurden. Ueber denselben Typ zu gehen hiesse, beim
+   * Ablegen wieder die Vorlage zu bauen - und genau die Aenderungen zu
+   * verlieren, wegen derer man kopiert.
+   */
+  container.querySelectorAll('[data-at-ziehen]').forEach((z) => {
+    z.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/tragjoch-baugruppe', z.dataset.atZiehen);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+  });
   container.querySelectorAll('[data-vorlage-weg]').forEach((b) => {
     b.addEventListener('click', () => beiVorlageWeg?.(b.dataset.vorlageWeg));
   });
@@ -1448,8 +1761,15 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
 
   container.querySelectorAll('.mod').forEach((inp) => {
-    const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
+    const ev = inp.tagName === 'SELECT' || inp.type === 'checkbox'
+      ? 'change' : 'input';
     inp.addEventListener(ev, () => {
+      // Die drei Wirkungshaken sind Ja/Nein - weder Zahl noch Text.
+      if (inp.type === 'checkbox') {
+        setzeModul(+inp.dataset.idx, +inp.dataset.mod, inp.dataset.mk,
+                   inp.checked);
+        return;
+      }
       const zahl = inp.type === 'number' || inp.dataset.mk === 'cw';
       // Leerer Winkel heisst NICHT null Grad, sondern «aus Radius und
       // Spannweite». Nur dort darf leer bestehen bleiben (MODUL_VORGABE);
@@ -1628,7 +1948,35 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    */
   const gefuehrt = urteil.tragwerkGefuehrt !== false;
   const offeneNw = urteil.nichtGefuehrt?.length ?? 0;
-  const zustand = !gefuehrt ? 'warn' : (e > 1 || !urteil.alleOk ? 'nok' : 'ok');
+  /*
+   * DIE FARBE FOLGT DER TRAGSICHERHEIT, nicht jeder Konstruktionsregel.
+   *
+   * Weisung: «hier sollte alles grün sein, die Verletzung ist nicht so
+   * relevant». Vorher machte JEDE verletzte Prüfung das Urteil rot - eine
+   * Klemme zehn Zentimeter neben ihrem Platz sah aus wie ein überschrittener
+   * Nachweis. Wer das ein paarmal sieht, liest die Farbe nicht mehr.
+   *
+   * Rot bleibt, was rot gehört: η > 1, und eine verletzte Prüfung, die η
+   * selbst hinfällig macht - die Querschnittsklasse. Alles andere steht
+   * weiterhin in der Zeile («1 Prüfung(en) verletzt») und in der Liste
+   * darunter, die sich von selbst aufklappt und ihre Zeile rot führt.
+   * Gemeldet wird also gleich viel, geschrien wird weniger.
+   */
+  /*
+   * DER MAST ZAEHLT MIT - seit dem 28. August.
+   *
+   * >>> Die ZAHL bleibt die des Jochs; das URTEIL nicht. <<<
+   * η ist die Ausnutzung des Jochquerschnitts, und das soll sie bleiben -
+   * eine gemeinsame Zahl aus Joch und Mast sagte nicht mehr, WAS sie
+   * ausnutzt. «Tragsicherheit erfüllt» darf aber nicht danebenstehen, wenn
+   * ein GEFUEHRTER Nachweis überschritten ist. Der Mast steht deshalb in der
+   * Farbe und in der Zeile, nicht in der Zahl.
+   */
+  const mastEta = (erg.mast && urteil.nachweise?.mast !== false)
+    ? erg.mast.eta : null;
+  const mastUeber = mastEta !== null && mastEta > 1;
+  const zustand = !gefuehrt ? 'warn'
+    : (e > 1 || mastUeber || urteil.bindendVerletzt === true ? 'nok' : 'ok');
 
   // Jede Kachel kennt die Stelle, an der ihr Wert auftritt - ein Klick fährt
   // das Modell dorthin.
@@ -1641,6 +1989,25 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
     kachel('η Bindeblech', f3(erg.max.etaB.etaB), 'massgebende Ebene',
            ampel(erg.max.etaB.etaB), bei(erg.max.etaB)),
   ];
+  /*
+   * DER MAST BEKOMMT SEINE EIGENE KACHEL (Weisung, 28. August: «in der
+   * Sidebar einen zusätzlichen Button für die Ausnutzung aufnehmen»).
+   *
+   * >>> SIE STEHT NEBEN DEN JOCHKACHELN, NICHT DARIN. <<<
+   * η des Jochs bleibt η des Jochs; der Mast ist ein anderes Bauteil mit
+   * einem anderen Nachweis. Sie zusammenzuziehen hiesse, eine Zahl zu
+   * bilden, die nirgends mehr sagt, WAS sie ausnutzt.
+   *
+   * Nur wenn der Nachweis auch geführt wird: die Gruppe lässt sich
+   * abschalten, und dann hat hier keine Zahl zu stehen.
+   */
+  if (erg.mast && urteil.nachweise?.mast !== false) {
+    const mn = erg.mast[erg.mast.massgebendesEnde] ?? erg.mast.A;
+    kz.push(kachel('η Mast', f3(erg.mast.eta),
+      `${mn.profil.name} · Ende ${erg.mast.massgebendesEnde} · `
+      + `${mn.plastischWirksam ? 'plastisch' : 'elastisch'}`,
+      ampel(erg.mast.eta)));
+  }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
   // Profilen; als «Kennzahl» hatten sie hier nichts verloren.
@@ -1673,7 +2040,11 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
       <span class="urteil-zahl">η ${f3(e)}</span>
       <span>${!gefuehrt
         ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
-        : (e <= 1 ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt')}${
+        : (e <= 1
+            ? (mastUeber
+                ? `Joch erfüllt — MAST NICHT (η ${f3(mastEta)})`
+                : 'Tragsicherheit erfüllt')
+            : 'Tragsicherheit NICHT erfüllt')}${
         urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}${
         offeneNw ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
       ${e > 1 && beiSortiment ? `<button class="btn btn-mini" data-sortiment
@@ -2107,8 +2478,93 @@ export function zeichneAuflager(node, blatt, erg) {
         gewählten Normensatzes sind bewusst nicht angewendet, damit die Gruppen
         einzeln kombinierbar bleiben.</p>
       <p class="notiz">Nicht enthalten: Eigengewicht und Windlast der Maste
-        selbst, sowie die Gebrauchstauglichkeitsnachweise.</p>`)}`;
+        selbst, sowie die Gebrauchstauglichkeitsnachweise. <b>Beides steht im
+        Mastnachweis darunter</b> – dort mit den Beiwerten des gewählten
+        Lastfalls.</p>`)}
+    ${mastblattHtml(erg)}`;
   verdrahteKlapp(node);
+}
+
+/**
+ * DER MAST, STATION FÜR STATION.
+ *
+ * >>> Weisung, 28. August: «gut wäre es, wenn man die Spannung und die Kräfte
+ * am Masten sinngemäss gleich wie beim Joch auswerten könnte». <<<
+ *
+ * Die Kachel oben nennt das Maximum; hier steht, WO es auftritt und woraus es
+ * sich zusammensetzt. Stationen sind der Fuss, jede Anbaustelle, der
+ * Jochanschluss und der Kopf — dort, wo sich die Schnittgrössen sprunghaft
+ * ändern, und nur dort.
+ *
+ * ANDERE WERTE ALS IM BLATT DARÜBER: das Auflagerblatt ist charakteristisch
+ * und gruppenweise, damit der Fundamentplaner selbst kombinieren kann. Der
+ * Nachweis braucht Bemessungswerte des gewählten Lastfalls. Die Zeile darunter
+ * sagt es, damit niemand die beiden Tabellen nebeneinanderlegt und sich
+ * wundert.
+ */
+function mastblattHtml(erg) {
+  const mn = erg?.mast;
+  if (!mn) return '';
+  const ende = (n) => {
+    if (!n) return '';
+    const kl = n.klasse;
+    const zeile = (st) => `
+      <tr class="${st.z === n.massgebend.z ? 'aktiv' : ''}">
+        <td class="num">${f2(st.z)}</td>
+        <td class="num">${f2(st.N)}</td>
+        <td class="num">${f2(st.Vq)}</td>
+        <td class="num">${f2(st.Vl)}</td>
+        <td class="num">${f2(st.Mq)}</td>
+        <td class="num">${f2(st.Ml)}</td>
+        <td class="num">${f3(st.Mt)}</td>
+        <td class="num">${f0(st.sig)}</td>
+        <td class="num ${st.eta > 1 ? 'fail' : ''}">${f3(st.eta)}</td>
+      </tr>`;
+    return `${abschnitt(`Mast ${n.ende} · ${n.profil.name}`,
+        `η ${f3(n.eta)} bei ${f2(n.massgebend.z)} m`)}
+      <div class="tabellenrahmen"><table class="dt">
+        <thead><tr>
+          <th class="num">z [m]</th><th class="num">N [kN]</th>
+          <th class="num">V_q [kN]</th><th class="num">V_l [kN]</th>
+          <th class="num">M_q [kNm]</th><th class="num">M_l [kNm]</th>
+          <th class="num">M_t [kNm]</th>
+          <th class="num">σ [N/mm²]</th><th class="num">η</th>
+        </tr></thead>
+        <tbody>${[...n.stationen].reverse().map(zeile).join('')}</tbody>
+      </table></div>
+      <p class="notiz" style="margin:4px 0 0">
+        Querschnittsklasse <b>${kl.klasse}</b> (Flansch c/t ${f1(kl.flansch.ct)},
+        Steg ${f1(kl.steg.ct)}) · Widerstand ${n.plastischWirksam
+          ? `<b>plastisch</b>, W_pl aus der Profilgeometrie (${f0(n.Wq)} / ${f0(n.Wl)} cm³)`
+          : `elastisch, W_el (${f0(n.Wq)} / ${f0(n.Wl)} cm³)`}${
+        n.plastischGewuenscht && !n.plastischWirksam
+          ? ` — <b>plastisch verlangt, aber Klasse ${kl.klasse}</b>: dort ist die
+              Fliessgelenkschnittgrösse nicht erreichbar` : ''} ·
+        Anteil an F_x nach k = 3EI/H³: <b>${f0(n.anteilFx * 100)} %</b></p>`;
+  };
+  return `${abschnitt('Mast', 'Bemessungswerte des gewählten Lastfalls')}
+    ${ende(mn.A)}${ende(mn.B)}
+    ${klapp('mast-hinweis', 'Achsen und was der Nachweis nicht enthält', `
+      <p class="notiz" style="margin-top:0">
+        <b>z</b> zählt ab Fundament. <b>q</b> ist die Ebene der Jochachse
+        (Wind quer, Umlenkkraft, Einspannmoment des Jochs), <b>l</b> die Ebene
+        der Gleisrichtung (Wind auf das Joch). Welche davon die starke Achse
+        trifft, entscheidet die Stegrichtung.</p>
+      <p class="notiz">Enthalten sind: Auflagerreaktion des Jochs,
+        Einspannmoment, Jochtorsion, Wind auf den Masten über seine ganze
+        Länge, Anbauteile am Masten mit ihren Ausladungen und das Eigengewicht
+        des Mastes. Die Längskraft F_x des Jochs teilt sich nach der
+        Steifigkeit k = 3EI/H³ auf die beiden Maste.</p>
+      <p class="notiz"><b>NICHT enthalten: die Stabilität.</b> Kein
+        Biegeknicken, kein Biegedrillknicken — das ist ein Bauteilnachweis
+        nach EN 1993-1-1, 6.3, und er braucht eine Festlegung der Knicklänge.
+        Bei einem schlanken Kragmast kann er massgebend werden.</p>
+      <p class="notiz">Die <b>Torsion M_t</b> steht in der Tabelle, geht aber
+        nicht in η ein: Wölbkrafttorsion am offenen I-Profil ist ein eigenes
+        Kapitel. Sie ist ausgewiesen, weil der Fundamentplaner sie braucht.</p>
+      <p class="notiz">Die Werte sind <b>Bemessungswerte</b> des gewählten
+        Lastfalls — anders als das Auflagerblatt darüber, das charakteristisch
+        und gruppenweise ausweist.</p>`)}`;
 }
 
 /**
@@ -2203,7 +2659,7 @@ export function optionenHtml(werte, thema = null) {
   const titelZeigen = teile.length > 1;
   return teile.map((a) =>
     (titelZeigen ? abschnitt(a.titel) : '')
-    + a.felder.map((f) => feldHtml(f, werte[f.key], werte)).join('')
+    + a.felder.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
   ).join('');
 }
 
@@ -2231,6 +2687,24 @@ export function nachweiseHtml(werte) {
       ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
         + 'enthalten — separat zu führen.</p>'}
     </div>`).join('');
+}
+
+/**
+ * DIE VERORTUNG - wo das Tragwerk steht.
+ *
+ * Sie stand zuoberst in der Eingabe, vor allen Rechenmassen. Das war richtig
+ * gemeint («welches Tragwerk ist das?») und doch am falschen Platz: sie geht
+ * in keine Rechnung ein, kostete aber die obersten drei Zeilen des Reiters,
+ * durch die man bei jeder Massaenderung hindurchscrollt.
+ *
+ * Sie gehoert zum PROJEKT, nicht zum Rechenmodell - und damit in die
+ * Bannerschublade, wo Projekte, Joche und Vorlagen liegen. Dort steht sie
+ * neben dem Namen, unter dem das Tragwerk abgelegt wird, und das ist genau
+ * der Zusammenhang, in dem man sie ausfuellt.
+ */
+export function verortungHtml(werte) {
+  return sichtbareFelder('ort', werte)
+    .map((f) => feldHtml(f, feldWert(f, werte), werte)).join('');
 }
 
 /** Die Reiterleiste des Optionen-Dialogs. */

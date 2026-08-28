@@ -1431,6 +1431,20 @@ $qs = @{}
 foreach ($q in $d.querschnitte) {
     $p = $q.parameter
     $r = Versuche "QS $($q.name)" @(
+        <#  DAS BIBLIOTHEKSPROFIL ZUERST (Weisung, 28.08.: "es sollten die LNP
+            Profile gemaess Norm sein, EN Standard").
+            Findet AxisVM das Profil in seinem Katalog, stimmen Flaeche,
+            Traegheitsmomente UND Ausrundung, ohne dass wir eine Zahl liefern.
+            Ob es das ueber COM anbietet, ist NICHT vermessen - deshalb steht
+            es hier als Versuch: geht es, sagt es der Bericht; geht es nicht,
+            faellt der naechste Kandidat ein, und der Bericht sagt auch das.
+            Geraten wird nichts: der Rueckfall ist der vermessene Weg.     #>
+        @{ name = 'CrossSections.AddFromCatalog(Katalog, Bezeichnung)'; tu = {
+            if (-not $q.katalog) { throw 'kein Katalogname' }
+            $m.CrossSections.AddFromCatalog($q.katalog.norm, $q.katalog.bezeichnung) } },
+        @{ name = 'CrossSections.AddSectionFromCatalog(Katalog, Bezeichnung)'; tu = {
+            if (-not $q.katalog) { throw 'kein Katalogname' }
+            $m.CrossSections.AddSectionFromCatalog($q.katalog.norm, $q.katalog.bezeichnung) } },
         @{ name = 'CrossSections.AddL(Name, a, b, tw, tf, r1, r2, cspRolled)'; tu = {
             if ($q.form -ne 'Angle') { throw 'kein Winkel' }
             $m.CrossSections.AddL($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
@@ -1457,9 +1471,13 @@ Schreib "  $($qs.Count) Querschnitte"
 
 <#  ZURUECKGELESEN. Der einzige Weg, eine Einheitenverwechslung zu bemerken:
     AxisVM rechnet die Flaeche aus der Geometrie neu; sie muss zu der aus dem
-    Profiltabellenwert passen. Ein Rest von ein bis zwei Prozent ist normal -
-    die Ausrundungen r1/r2 stehen in unserer Datei auf null, in der Tabelle
-    aber nicht.                                                            #>
+    Profiltabellenwert passen.
+
+    SEIT DEM 28.08. MUSS SIE GENAU PASSEN. Die Ausrundungen r1/r2 standen in
+    unserer Datei auf null - daher die frueher hingenommenen ein bis zwei
+    Prozent. Sie folgen jetzt aus der Flaeche (winkelRadien in
+    export.axisvm.js), und damit ist eine Abweichung wieder ein Befund und
+    keine Erwartung.                                                       #>
 $schief = 0
 foreach ($q in $d.querschnitte) {
     if ($null -eq $q.A) { continue }

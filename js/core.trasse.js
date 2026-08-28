@@ -99,6 +99,30 @@ export function umlenkkraft({ Z, L, R, winkel = null, anteil = 1 }) {
   };
 }
 
+/**
+ * RADIUS AUS ABLENKWINKEL [m] - die Umkehrung von `ablenkwinkel`.
+ *
+ * >>> WOFUER (Weisung, 28. August): «anstatt einer Auswahl der Ablenkung der
+ * Fahrleitung direkt das Feld mit dem Winkel angeben; je nachdem, was zuerst
+ * eingegeben wird, wird der andere Wert wiedergegeben.» <<<
+ *
+ * Auf dem Querprofil steht oft kein Radius, sondern eine Ablenkung. Sie ueber
+ * einen Ersatzradius einzugeben hiesse, rueckwaerts zu rechnen und dabei eine
+ * Zahl zu erfinden, die niemand angegeben hat. Also steht der Winkel als
+ * eigenes Feld da und schreibt den Radius - diese Funktion ist der Weg
+ * dorthin.
+ *
+ * DIE RECHENGROESSE BLEIBT DER RADIUS. Nachgefuehrt wird immer nur das
+ * andere Feld, und nur beim Tippen; sonst schriebe sich die eingetippte Zahl
+ * bei jedem Rechenlauf unter der Hand um.
+ */
+export function radiusAusWinkel(L, gradWinkel) {
+  if (!(L > 0) || !Number.isFinite(gradWinkel) || gradWinkel === 0) return null;
+  const s = Math.sin((gradWinkel * Math.PI) / 180 / 2);
+  if (Math.abs(s) < 1e-12) return null;
+  return L / (2 * s);
+}
+
 /** Liegt praktisch ein gerades Gleis vor? */
 export const istGerade = (R) =>
   !Number.isFinite(R) || R === 0 || Math.abs(R) >= R_GERADE;

@@ -28,18 +28,83 @@ import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
          SPANNUNGSMODELLE, KNOTENBEREICHE } from './core.querschnitt.js';
 import { TORSIONSMODELLE } from './core.statics.js';
 
-import { ENDBEDINGUNGEN, MASTANSCHLUESSE } from './core.auflager.js';
+import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
+         mastImModell } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE } from './core.lasten.js';
+import { ablenkwinkel, istGerade, radiusAusWinkel,
+         R_GERADE } from './core.trasse.js';
 
 const opt = (arr, k = 'key', l = 'label') => arr.map((x) => ({ wert: x[k], text: x[l] }));
+
+/**
+ * Steht ein Mast im Modell? Dieselbe Antwort wie im Rechenkern - die Maske
+ * darf ein Feld nicht zeigen, das die Rechnung nicht kennt (und umgekehrt).
+ */
+const mastDa = (w) => mastImModell(w);
+
+/**
+ * DER GRAD AM FELD (Weisung: "bei der Eingabe von Radius und Spannweite die
+ * Grad angeben").
+ *
+ * Radius und Spannweite sind Eingaben, der Winkel ist das, was daraus wird.
+ * Wer ihn nicht sieht, gibt zwei Zahlen ein und erfaehrt die dritte erst am
+ * Ergebnis - und ein Vorzeichenfehler im Radius faellt dort nicht mehr auf,
+ * sondern nur noch an einer Umlenkkraft, die in die falsche Richtung zeigt.
+ *
+ * >>> GERECHNET WIRD AUS R UND L, auch wenn der Winkel danebensteht. <<<
+ * Die Notiz nennt deshalb die Zahl, die der Kern nimmt - nicht die gerundete
+ * aus dem Winkelfeld.
+ */
+function winkelNotiz(w) {
+  const L = w?.flSpannweite ?? 0;
+  const R = w?.trasseRadius;
+  if (istGerade(R)) return 'gerades Gleis – keine Umlenkkraft';
+  const a = (ablenkwinkel(L, R) * 180) / Math.PI;
+  if (!a) return null;
+  return `α = ${a.toFixed(3)}° bei L_FL = ${L.toFixed(2)} m · Umlenkung in `
+       + `${a > 0 ? '+x' : '−x'}`;
+}
+
+/**
+ * Am Winkelfeld umgekehrt: welchem Bogen der gezeigte Winkel entspricht.
+ *
+ * Gerechnet aus DEMSELBEN abgeleiteten Wert, den das Feld zeigt - nicht aus
+ * einem gespeicherten `trasseWinkel`. Sonst nennt die Notiz einen anderen
+ * Bogen als das Feld darueber.
+ */
+function radiusNotiz(w) {
+  const L = w?.flSpannweite ?? 0;
+  if (istGerade(w?.trasseRadius)) return 'gerades Gleis – keine Umlenkkraft';
+  const a = (ablenkwinkel(L, w?.trasseRadius) * 180) / Math.PI;
+  if (!a) return 'gerades Gleis – keine Umlenkkraft';
+  const R = radiusAusWinkel(L, a);
+  if (R === null) return null;
+  return `entspricht R = ${Math.abs(R) >= R_GERADE ? 'gerade'
+            : `${R.toFixed(0)} m`} bei L_FL = ${L.toFixed(2)} m`;
+}
 
 export const GRUPPEN = [
   { id: 'ort',   titel: 'Verortung' },
   { id: 'typ',   titel: 'Tragjoch-Typ und Rechenmasse' },
   { id: 'geo',   titel: 'Systemgeometrie' },
-  { id: 'aufl',  titel: 'Auflager / Mast' },
+  { id: 'aufl',  titel: 'Auflagerung des Jochs' },
+  /*
+   * DIE MASTEN SIND EIN EIGENES HAUPTTRAGWERK (Weisung, 28. August: «die
+   * Haupttragwerke sollten global gesteuert werden»).
+   *
+   * Sie standen in der Gruppe «Auflager / Mast» - und die Auswahl
+   * «Endauflager» entschied zugleich, ob es sie überhaupt gibt. Zwei Fragen
+   * in einem Feld: WIE das Joch gelagert ist, und OB ein Mast dasteht. Wer
+   * gelenkig rechnen wollte, verlor den Masten aus Bild, Ausleitung und
+   * Nachweis.
+   *
+   * Hier wächst später weiter, was zum Masten gehört: Einzelmasten und
+   * Masten mit Tragausleger als eigene Tragwerksart, dazu Zuganker und
+   * Druckstützen. Die Gruppe ist dafür angelegt.
+   */
+  { id: 'mast',  titel: 'Masten' },
   { id: 'prof',  titel: 'Gurtprofile' },
   { id: 'blech', titel: 'Bindebleche' },
   // Ohne eigene Eingabefelder: die Stückliste wird als Ergebnisstück
@@ -180,8 +245,19 @@ export const FELDER = [
     label: 'Geführte Nachweise', standard: nachweiseStandard() },
 
   // --- Auflager ------------------------------------------------------------
+  /*
+   * MIT MASTEN, VON ANFANG AN (Weisung, 28. August: «als Startwert bei den
+   * Jochen mit Masten modelliert»).
+   *
+   * `gelenkig` war der vorsichtige Startwert aus der Zeit, als der Mast nur
+   * eine Randbedingung war. Er ist seither Teil des Tragwerks: er steht als
+   * Koerper im Bild, als Stab in der Ausleitung, er traegt Wind und
+   * Anbauteile. Ein Tragjoch ohne Masten zu eroeffnen hiess, jedes Mal mit
+   * einem Modell zu beginnen, das es so nicht gibt - und die
+   * Einspannwirkung stillschweigend auf null zu setzen.
+   */
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
-    standard: 'gelenkig', optionen: opt(ENDBEDINGUNGEN),
+    standard: 'mast', optionen: opt(ENDBEDINGUNGEN),
     hinweis: 'Wirkt nur auf die Vertikalbiegung; für Wind bleiben die Enden gelenkig.' },
   { key: 'cPhi', gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
@@ -198,35 +274,111 @@ export const FELDER = [
              '11 % auf jedes globale Moment.' },
   { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
     sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0 },
-  { key: 'mastProfil', gruppe: 'aufl', typ: 'auswahl', label: 'Mastprofil',
+  /*
+   * OB EIN MAST DASTEHT - die eine Frage, die vorher in der Endauflagerwahl
+   * mitentschieden wurde.
+   *
+   * Er wirkt dann als Bauteil: im Bild, in der Ausleitung, im Nachweis, und
+   * er trägt Wind und Anbauteile. OB seine Steifigkeit auch die Drehfeder
+   * des Jochendes liefert, ist die andere Frage - sie steht bei der
+   * Auflagerung.
+   *
+   * ALTE DATEIEN: fehlt die Angabe, gilt der frühere Zusammenhang (Mast
+   * genau dann, wenn die Endbedingung ihn verlangte). Siehe `mastImModell`
+   * in core.auflager.js.
+   */
+  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
+    label: 'Masten im Modell', standard: true,
+    hinweis: 'Steht der Mast im Modell, ist er ein Bauteil: er wird '
+           + 'gezeichnet, ausgeleitet und nachgewiesen, er trägt Wind und '
+           + 'Anbauteile. Das ist unabhängig davon, ob seine Steifigkeit die '
+           + 'Drehfeder des Jochendes liefert – das steht bei der '
+           + 'Auflagerung.' },
+  { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: 'Mastprofil',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
-    sichtbar: (w) => w.endbedingung === 'mast' },
-  { key: 'mastH', gruppe: 'aufl', typ: 'zahl', label: 'Masthöhe (Fuss bis Jochachse)',
-    sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.25, min: 0.5,
-    sichtbar: (w) => w.endbedingung === 'mast' },
-  { key: 'mastSteg', gruppe: 'aufl', typ: 'auswahl', label: 'Stegrichtung Mast',
+    sichtbar: (w) => mastDa(w) },
+  /*
+   * MIT SCHIEBER (Weisung, 28. August). Masthöhe und Mastlänge sind die
+   * beiden Zahlen, die man beim Einpassen einer Zeichnung nachzieht, bis
+   * Modell und Bild zur Deckung kommen - und dafür ist ein Regler das
+   * Werkzeug, nicht ein Zahlenfeld, in das man tippt und wieder tippt.
+   */
+  { key: 'mastH', gruppe: 'mast', typ: 'schieber',
+    label: 'Masthöhe (Fuss bis Jochachse)',
+    sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, min: 2, max: 20,
+    sichtbar: (w) => mastDa(w) },
+  /*
+   * DER LANGE MAST MIT ZUSATZLEITERN.
+   *
+   * Auf dem Querprofil steht beides: die Gesamtlänge («DP26 / 12.5 m») und
+   * die Anschlusshöhe («ha = 8.31»). Gefragt wird deshalb nach der LÄNGE,
+   * nicht nach einem Überstand - so steht es auf dem Blatt, und der Überstand
+   * ergibt sich als Länge − H.
+   *
+   * Oben trägt der Mast dann Traversen mit Einzelleitern; genau die liessen
+   * sich bisher nicht ansetzen, weil der Mast an der Jochachse endete und ein
+   * Bauteil darüber aus dem Modell fiel.
+   *
+   * 0 heisst «nicht angegeben»: dann ragt der Mast den halben Meter über den
+   * Obergurt, den die stehende Vorgabe verlangt, und nicht weiter.
+   */
+  { key: 'mastLaenge', gruppe: 'mast', typ: 'schieber',
+    label: 'Mastlänge gesamt (Fuss bis Kopf)',
+    sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Wie auf dem Querprofil angeschrieben, z. B. «DP26 / 12.5 m». '
+           + 'Der Überstand über die Jochachse ist Länge − Masthöhe; dort '
+           + 'lassen sich Traversen und Zusatzleiter ansetzen. '
+           + '0 = nicht angegeben, dann endet der Mast knapp über dem Obergurt.' },
+  { key: 'mastSteg', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
-    sichtbar: (w) => w.endbedingung === 'mast' },
+    sichtbar: (w) => mastDa(w) },
   // ZWEI MASTE.
   // Die beiden Enden eines Jochs stehen selten auf demselben Mast: das Gelände
   // fällt, die Profile unterscheiden sich, und damit auch die Einspannung.
   // Bisher galt eine Drehfeder für beide Enden - beim Vergleichsmodell
   // (HEB 260 gegen HEM 240, 9.0 gegen 13.0 m) waren das rund 10 % Unterschied.
-  { key: 'mastZwei', gruppe: 'aufl', typ: 'schalter',
+  { key: 'mastZwei', gruppe: 'mast', typ: 'schalter',
     label: 'Zweiter Mast am Ende B abweichend', standard: false,
-    sichtbar: (w) => w.endbedingung === 'mast' },
-  { key: 'mastProfilB', gruppe: 'aufl', typ: 'auswahl', label: 'Mastprofil Ende B',
+    sichtbar: (w) => mastDa(w) },
+  { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', label: 'Mastprofil Ende B',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
-    sichtbar: (w) => w.endbedingung === 'mast' && w.mastZwei },
-  { key: 'mastHB', gruppe: 'aufl', typ: 'zahl', label: 'Masthöhe Ende B',
-    sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.25, min: 0.5,
-    sichtbar: (w) => w.endbedingung === 'mast' && w.mastZwei },
-  { key: 'mastStegB', gruppe: 'aufl', typ: 'auswahl', label: 'Stegrichtung Ende B',
+    sichtbar: (w) => mastDa(w) && w.mastZwei },
+  { key: 'mastHB', gruppe: 'mast', typ: 'schieber', label: 'Masthöhe Ende B',
+    sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.05, min: 2, max: 20,
+    sichtbar: (w) => mastDa(w) && w.mastZwei },
+  { key: 'mastLaengeB', gruppe: 'mast', typ: 'schieber', label: 'Mastlänge Ende B',
+    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25,
+    sichtbar: (w) => mastDa(w) && w.mastZwei },
+  { key: 'mastStegB', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Ende B',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
-    sichtbar: (w) => w.endbedingung === 'mast' && w.mastZwei },
+    sichtbar: (w) => mastDa(w) && w.mastZwei },
+  /*
+   * PLASTISCHER WIDERSTAND FUeR DEN MASTEN (Weisung, 28. August: «1, aber
+   * auch plastischen Widerstand optional auswählbar machen»).
+   *
+   * Wirksam nur bei Querschnittsklasse 1 oder 2 — das ist EN 1993-1-1 und
+   * keine Wahl. Der Nachweis sagt es, wenn der Schalter ins Leere greift.
+   * W_pl wird aus der Profilgeometrie gerechnet, ohne Ausrundung, also auf
+   * der sicheren Seite (core.mast.js).
+   */
+  { key: 'mastPlastisch', gruppe: 'mast', typ: 'schalter',
+    label: 'Mast plastisch nachweisen', standard: false,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Statt der elastischen Widerstandsmomente W_el die plastischen ' +
+             'W_pl. Gilt nur bei Querschnittsklasse 1 oder 2; sonst bleibt ' +
+             'es elastisch, und der Nachweis sagt es. Gerechnet wird in ' +
+             'beiden Fällen die lineare Interaktion N/N_Rd + M_q/M_q,Rd + ' +
+             'M_l/M_l,Rd – konservativ gegenüber EN 1993-1-1, 6.2.9, und ' +
+             'ohne Beiwerte, die niemand festgelegt hat.' },
+  /*
+   * DER ANSCHLUSS GEHOERT ZUR AUFLAGERUNG, nicht zum Masten: er sagt, wie
+   * das JOCHENDE gehalten wird. Sichtbar ist er trotzdem nur mit Masten -
+   * ohne einen gibt es nichts, woran das Joch durchlaufen könnte.
+   */
   { key: 'mastAnschluss', gruppe: 'aufl', typ: 'auswahl', label: 'Anschluss ans Joch',
     standard: 'durchlaufend', optionen: opt(MASTANSCHLUESSE),
-    sichtbar: (w) => w.endbedingung === 'mast',
+    sichtbar: (w) => mastDa(w) && w.endbedingung === 'mast',
     hinweis: 'Läuft der Mast über die Anschlussebene hinaus und ist das Joch ' +
              'über seine ganze Höhe angeschlossen, ist die Einspannung ' +
              'steifer als beim Kragarm: 1.45·E·I/H statt 1.00·E·I/H, an einem ' +
@@ -265,14 +417,14 @@ export const FELDER = [
     hinweis: 'Horizontalkraft JE GURT - jede Gurtebene hängt an zwei Gurten, '
            + 'die Ebenenkraft ist also das Doppelte. Voreingestellt 24 kN. '
            + 'Nachgewiesen wird sie in Prüfung A1, auch ohne die Begrenzung.' },
-  { key: 'wMastAusTabelle', gruppe: 'aufl', typ: 'schalter',
+  { key: 'wMastAusTabelle', gruppe: 'mast', typ: 'schalter',
     label: 'Windlast auf Mast aus der Lasttabelle', standard: true,
-    sichtbar: (w) => w.endbedingung === 'mast',
+    sichtbar: (w) => mastDa(w),
     hinweis: 'Wert je Profil und Einwirkungsklasse aus der Lasttabelle. ' +
              'Ausgeschaltet gilt der Wert von Hand.' },
-  { key: 'wMast', gruppe: 'aufl', typ: 'zahl', label: 'Windlast auf Mast',
+  { key: 'wMast', gruppe: 'mast', typ: 'zahl', label: 'Windlast auf Mast',
     sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
-    sichtbar: (w) => w.endbedingung === 'mast' },
+    sichtbar: (w) => mastDa(w) },
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
@@ -288,9 +440,9 @@ export const FELDER = [
    * Deshalb aus, bis sie ausdrücklich gewollt ist. Wer ohne Mast im Modell
    * rechnet und den Anteil trotzdem braucht, schaltet sie ein.
    */
-  { key: 'mastWindAufJoch', gruppe: 'aufl', typ: 'schalter',
+  { key: 'mastWindAufJoch', gruppe: 'mast', typ: 'schalter',
     label: 'Mastwind wirkt auf das Joch', standard: false,
-    sichtbar: (w) => w.endbedingung === 'mast',
+    sichtbar: (w) => mastDa(w),
     hinweis: 'Der Wind IN DER JOCHACHSE biegt den Mast, sein Kopf verdreht ' +
              'sich um θ₀ = w·H³/(6·E·I), und weil das Jochende dort ' +
              'angeschlossen ist, wird ihm diese Verdrehung aufgezwungen - ' +
@@ -340,19 +492,80 @@ export const FELDER = [
   // --- Trasse und Fahrleitung ---------------------------------------------
   // Aus Radius und Spannweite folgt der Ablenkwinkel der Fahrleitung und
   // daraus die Umlenkkraft aus dem Leiterzug (siehe core.trasse.js).
-  { key: 'trasseRadius', gruppe: 'trasse', typ: 'zahl', label: 'Radius der Trasse',
-    sym: 'R', einheit: 'm', standard: 300000, schritt: 50,
-    hinweis: 'Vorzeichenbehaftet: R > 0 lenkt die Fahrleitung in +x, R < 0 in ' +
-             '−x. Damit steht die Bogenseite in der Geometrie und nicht in ' +
-             'einem Schalter. Sehr grosse Beträge bedeuten gerades Gleis. ' +
-             'Aus R und der Spannweite folgt der Ablenkwinkel; am einzelnen ' +
-             'Drahtwerk lässt er sich überschreiben.' },
+  /*
+   * ZWEI FELDER, EINE GRÖSSE (Weisung, 28. August: «anstatt einer Auswahl der
+   * Ablenkung der Fahrleitung direkt das Feld mit dem Winkel angeben; je
+   * nachdem, was zuerst eingegeben wird, wird der andere Wert
+   * wiedergegeben»).
+   *
+   * Radius und Winkel stehen nebeneinander und halten einander nach — die
+   * Kopplung steht in app.js. Auf manchem Querprofil steht kein Radius,
+   * sondern eine Ablenkung; sie über einen Ersatzradius einzugeben hiesse,
+   * rückwärts zu rechnen und dabei eine Zahl zu erfinden, die niemand
+   * angegeben hat.
+   *
+   * Vorher stand eine Auswahl davor — «woher kommt der Ablenkwinkel». Eine
+   * Frage, die man beantworten musste, bevor man das Feld benutzen durfte,
+   * und deren Antwort man wieder umstellen musste, sobald die nächste
+   * Zeichnung es anders angab.
+   *
+   * Die SPANNWEITE gehört zu beiden: sie ist Rechenweg zum Winkel und
+   * zugleich Einflusslänge für Eigengewicht und Wind auf das Drahtwerk.
+   */
+  /*
+   * DIE SPANNWEITE STEHT ZUERST (Weisung, 28. August: «bei Trasse und
+   * Fahrleitung die Spannweite als erstes nehmen»).
+   *
+   * Sie ist die Angabe, die IMMER von Hand kommt - und beide Felder darunter
+   * hängen an ihr: aus Radius und Spannweite folgt der Winkel, aus Winkel und
+   * Spannweite der Radius. Sie hinter die beiden zu stellen hiess, die
+   * Rechnung von unten nach oben zu lesen.
+   */
   { key: 'flSpannweite', gruppe: 'trasse', typ: 'zahl',
     label: 'Spannweite der Fahrleitung', sym: 'L_FL', einheit: 'm',
     standard: 50, schritt: 1, min: 1,
+    notiz: (w) => winkelNotiz(w),
     hinweis: 'Abstand zwischen zwei Aufhängungen der Fahrleitung – nicht der ' +
              'Jochabstand. Gilt auch als Einflusslänge für Eigengewicht und ' +
              'Wind auf das Drahtwerk.' },
+
+  { key: 'trasseRadius', gruppe: 'trasse', typ: 'zahl', label: 'Radius der Trasse',
+    sym: 'R', einheit: 'm', standard: 300000, schritt: 50,
+    notiz: (w) => winkelNotiz(w),
+    hinweis: 'Vorzeichenbehaftet: R > 0 lenkt die Fahrleitung in +x, R < 0 in ' +
+             '−x. Damit steht die Bogenseite in der Geometrie und nicht in ' +
+             'einem Schalter. Sehr grosse Beträge bedeuten gerades Gleis. ' +
+             'Der Ablenkwinkel daneben wird mitgeführt; wer ihn eintippt, ' +
+             'schreibt umgekehrt diesen Radius.' },
+  /*
+   * DER WINKEL WIRD GEZEIGT, NICHT GESPEICHERT (`wertAus`).
+   *
+   * Er folgt aus Radius und Spannweite — zwei Zahlen für dieselbe Grösse
+   * liefen sonst früher oder später auseinander, spätestens beim Öffnen einer
+   * älteren Datei, in der nur der Radius steht. Dann zeigte das eine Feld
+   * einen Bogen von 300 km und das andere −4.5°, und beide sähen richtig aus.
+   *
+   * Eingabe bleibt er trotzdem: wer hineintippt, schreibt den Radius daneben
+   * (die Kopplung steht in app.js).
+   */
+  { key: 'trasseWinkel', gruppe: 'trasse', typ: 'zahl',
+    label: 'Ablenkwinkel', sym: 'α', einheit: '°', standard: 0, schritt: 0.01,
+    // Drei Nachkommastellen - dieselbe Genauigkeit, mit der die Notiz den
+    // Winkel nennt. Feiner waere Schein: der Radius wird auf den Zentimeter
+    // gerundet, und das ist auf der dritten Stelle noch nicht zu sehen.
+    wertAus: (w) => (istGerade(w.trasseRadius) ? 0
+      : Math.round(((ablenkwinkel(w.flSpannweite ?? 0, w.trasseRadius) * 180)
+                    / Math.PI) * 1e3) / 1e3),
+    notiz: (w) => radiusNotiz(w),
+    hinweis: 'Der Knick der Fahrleitung an einer Aufhängung, ' +
+             'vorzeichenbehaftet: α > 0 lenkt in +x, α < 0 in −x. Die ' +
+             'Umlenkkraft ist U = 2·Z·sin(α/2) je Drahtwerk. Eingetippt ' +
+             'schreibt er den Radius daneben; gerechnet wird mit diesem. ' +
+             'Bei sehr grossen Bögen ist die Rückrechnung unscharf – ' +
+             'dR/dα = R/α, bei 1200 m und 1.4° sind das 0.4 m auf die ' +
+             'letzte gezeigte Stelle. Auf die Umlenkkraft wirkt sich das ' +
+             'nicht aus. Am einzelnen Drahtwerk lässt sich der Winkel ' +
+             'überschreiben.' },
 
   // --- Anbauteile ----------------------------------------------------------
   { key: 'anbauteile', gruppe: 'anbau', typ: 'anbauteile', label: 'Anbauteile',

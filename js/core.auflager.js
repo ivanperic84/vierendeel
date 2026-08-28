@@ -175,6 +175,18 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
   const p = getMastprofil(zwei ? (inp.mastProfilB ?? inp.mastProfil) : inp.mastProfil);
   const sr = getStegrichtung(zwei ? (inp.mastStegB ?? inp.mastSteg) : inp.mastSteg);
   const H = zwei ? (inp.mastHB ?? inp.mastH) : inp.mastH;
+  /*
+   * DIE GESAMTLAENGE traegt nur die Geometrie, nicht die Steifigkeit.
+   *
+   * In die Drehfeder geht H ein - Fuss bis Jochachse -, denn das ist die
+   * Laenge, ueber die sich der Mast unter dem Jochanschluss verbiegt. Was
+   * darueber hinausragt, ist ein Kragarm mit eigenen Lasten; er macht die
+   * Einspannung des Jochs nicht weicher. `laenge` steht deshalb daneben und
+   * nicht an der Stelle von H.
+   */
+  const laenge = zwei ? (inp.mastLaengeB || inp.mastLaenge || 0)
+                      : (inp.mastLaenge || 0);
+  const ueberstand = Math.max(0, laenge - H);
   const I_cm4 = sr.achse === 'y' ? p.Iy : p.Iz;
   const W_cm3 = sr.achse === 'y' ? p.Wy : p.Wz;
   const I = I_cm4 * 1e-8;                       // cm4 -> m4
@@ -185,16 +197,19 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
   // bestimmt damit, wie der Mastkopf sich um die JOCHACHSE verdrehen kann.
   const Iq_cm4 = sr.achse === 'y' ? p.Iz : p.Iy;
   const Iq = Iq_cm4 * 1e-8;
+  // Das Widerstandsmoment der ANDEREN Achse - gebraucht fuer den
+  // Mastnachweis: die Biegung in Gleisrichtung geht ueber diese Achse.
+  const Wq_cm3 = sr.achse === 'y' ? p.Wz : p.Wy;
   // Verschieblich: der Anschlussfaktor greift, der Kopf kann ausweichen.
   // Unverschieblich: das Joch hält die beiden Mastköpfe zusammen; dann regiert
   // die Rahmenwirkung, nicht die Bauart des Anschlusses.
-  return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, ende,
+  return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, laenge, ueberstand, ende,
            anschluss: an.key, faktor: an.faktor,
            cKragarm,
            cVerschieblich: an.faktor * cKragarm,
            cUnverschieblich: MAST_UNVERSCHIEBLICH * cKragarm,
            cPhi: (verschieblich ? an.faktor : MAST_UNVERSCHIEBLICH) * cKragarm,
-           Iq_cm4, Iq };
+           Iq_cm4, Iq, Wq_cm3 };
 }
 
 /**
@@ -286,21 +301,70 @@ export function mastKoepfe(mastA, mastB, { wMast = 0, wMastB = null, Fx = 0 } = 
 }
 
 /**
+ * STEHT EIN MAST IM MODELL?
+ *
+ * >>> WEISUNG DES AUFTRAGGEBERS, 28. August: «hier nicht abhängig machen, ob
+ * Mast im Modell aufgeführt wird oder nicht. Die Haupttragwerke sollten
+ * global gesteuert werden.» <<<
+ *
+ * Bis dahin waren zwei Fragen eine: die Auswahl «Endauflager» entschied
+ * zugleich, WIE das Joch gelagert ist UND OB es überhaupt einen Masten gibt.
+ * Wer gelenkig rechnen wollte, verlor damit den Masten aus dem Modell — samt
+ * seinem Wind, seinen Anbauteilen, seinem Nachweis und seiner Ausleitung.
+ * Und wer den Masten sehen wollte, musste seine Steifigkeit ansetzen.
+ *
+ * Es sind zwei Fragen:
+ *   `mastVorhanden`   ob er dasteht — Bauteil, Bild, Ausleitung, Nachweis
+ *   `endbedingung`    woher die Drehfeder des Jochendes kommt
+ *
+ * ALTE DATEIEN RECHNEN UNVERÄNDERT. Fehlt `mastVorhanden`, gilt der frühere
+ * Zusammenhang: es gab einen Masten genau dann, wenn die Endbedingung ihn
+ * verlangte. Ohne diesen Rückfall bekäme jedes gespeicherte Tragwerk mit
+ * gelenkigem Auflager still einen Masten dazu.
+ */
+export const mastImModell = (inp) =>
+  (typeof inp?.mastVorhanden === 'boolean'
+    ? inp.mastVorhanden : inp?.endbedingung === 'mast');
+
+/**
  * Drehfedersteifigkeit beider Jochenden nach gewählter Endbedingung.
+ *
+ * Die MASTGEOMETRIE wird davon unabhängig geführt: sie steht im Ergebnis,
+ * sobald ein Mast angegeben ist, auch wenn die Feder aus einer anderen
+ * Quelle kommt.
+ *
  * @returns {{cA:number, cB:number, mast:object|null, art:string}}
  */
 export function drehfedern(inp, verschieblich = false) {
+  const da = mastImModell(inp);
+  const mastA = da ? mastSteifigkeit(inp, 'A', verschieblich) : null;
+  const mastB = da ? mastSteifigkeit(inp, 'B', verschieblich) : null;
+  const zwei = inp.mastZwei === true;
+  // Die Geometrie hängt an `mastVorhanden`, nicht an der Endbedingung.
+  const geo = da
+    ? { mast: mastA, mastA, mastB, zweiMaste: zwei, verschieblich }
+    : { mast: null };
+
   switch (inp.endbedingung) {
-    case 'gelenkig': return { cA: 0, cB: 0, mast: null, art: 'gelenkig' };
-    case 'voll':     return { cA: C_STARR, cB: C_STARR, mast: null, art: 'voll eingespannt' };
-    case 'manuell':  return { cA: inp.cPhi, cB: inp.cPhi, mast: null, art: 'teilweise (manuell)' };
+    case 'gelenkig': return { cA: 0, cB: 0, ...geo, art: 'gelenkig' };
+    case 'voll':     return { cA: C_STARR, cB: C_STARR, ...geo,
+                              art: 'voll eingespannt' };
+    case 'manuell':  return { cA: inp.cPhi, cB: inp.cPhi, ...geo,
+                              art: 'teilweise (manuell)' };
     case 'mast': {
-      const mastA = mastSteifigkeit(inp, 'A', verschieblich);
-      const mastB = mastSteifigkeit(inp, 'B', verschieblich);
-      const zwei = inp.mastZwei === true;
-      return { cA: mastA.cPhi, cB: mastB.cPhi,
-               mast: mastA, mastA, mastB, zweiMaste: zwei,
-               verschieblich,
+      /*
+       * OHNE MASTEN GIBT ES KEINE STEIFIGKEIT AUS DEM MASTEN.
+       *
+       * Dann wird gelenkig gerechnet - und zwar laut: die Bezeichnung sagt
+       * es, und `hinweise()` schreibt es in die Liste. Still eine Feder aus
+       * einem Bauteil zu bilden, das nicht dasteht, wäre die schlimmere
+       * Antwort.
+       */
+      if (!da) {
+        return { cA: 0, cB: 0, ...geo,
+                 art: 'gelenkig (kein Mast im Modell)', mastFehlt: true };
+      }
+      return { cA: mastA.cPhi, cB: mastB.cPhi, ...geo,
                art: `teilweise (Mast${zwei ? 'e' : ''}, `
                   + `${verschieblich
                         ? (mastA.faktor === 1 ? 'Kragarm' : 'durchlaufend')

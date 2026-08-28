@@ -63,5 +63,8 @@ node_modules/
 # Auswertung gegen das AxisVM-Modell (Projektmaterial des Betreibers)
 pruefung_axisvm/
 com/AxisVM_aufbau_bericht.txt
+# Die COM-Bruecke legt ihren Bericht unter dem Namen des Tragwerks ab -
+# und der traegt Verortung und Jochtyp. Beides bleibt draussen.
+com/AxisVM_*_bericht.txt
 com/AxisVM_aufbau_protokoll.txt
 com/*.json

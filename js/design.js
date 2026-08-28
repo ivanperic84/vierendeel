@@ -156,6 +156,8 @@ export const ICONS = {
   lastpfeil: 'M10 3v11M6 10l4 4 4-4M3 17h14',       // Last nach unten
   uebersicht: 'M3 16V8M8 16V4M13 16v-6M18 16v-9',   // Balken
   auflager: 'M10 3v9M4 17l6-5 6 5M3 17h14',         // Auflagerdreieck
+  // Der Mast: Stiel mit Fundament und dem Joch, das oben ansetzt.
+  mast: 'M9 3v14M11 3v14M5 17h10M4 19l2-2M8 19l2-2M12 19l2-2M11 6h6',
   stueck: 'M4 5h12M4 10h12M4 15h12M2 5v.01M2 10v.01M2 15v.01',
   // --- Werkzeuge der Modellansicht -----------------------------------------
   wuerfel: 'M10 2l7 4v8l-7 4-7-4V6zM10 10l7-4M10 10v8M10 10L3 6',

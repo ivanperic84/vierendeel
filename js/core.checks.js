@@ -94,9 +94,23 @@ export const NACHWEISGRUPPEN = [
   { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: false, standard: false,
     was: 'Gesamtstab und Einzelwinkel — in diesem Werkzeug nicht enthalten, '
        + 'separat zu führen' },
-  { key: 'mast', titel: 'Mast', vorhanden: false, standard: false,
-    was: 'Der Mast steht als Drehfeder und als Modellgeometrie — '
-       + 'ein Tragfähigkeitsnachweis ist das nicht' },
+  /*
+   * SEIT DEM 28. AUGUST VORHANDEN (Weisung, auf ausdrückliche Nachfrage).
+   *
+   * Bis dahin stand hier «nicht vorhanden» — der Mast war Drehfeder und
+   * Modellgeometrie, mehr nicht. Jetzt wird er nachgewiesen: Querschnitt
+   * elastisch, plastischer Widerstand auf Wunsch, Schnittgrössen aus dem
+   * Ersatzbalken (core.mast.js).
+   *
+   * WAS ER NICHT ENTHÄLT, steht in `was` und im Nachweisreiter: die
+   * STABILITÄT. Biegeknicken und Biegedrillknicken brauchen eine Festlegung
+   * der Knicklänge; sie ist Sache des Auftraggebers. Bei einem schlanken
+   * Kragmast kann sie massgebend werden.
+   */
+  { key: 'mast', titel: 'Mast', vorhanden: true, standard: true,
+    was: 'Querschnitt am Mastfuss und an jeder Anbaustelle — σ aus N, M_quer '
+       + 'und M_längs. OHNE Stabilität: Biegeknicken und Biegedrillknicken '
+       + 'sind gesondert zu führen' },
 ];
 
 /** Voreinstellung je Gruppe. */
@@ -135,6 +149,20 @@ export function konstruktionsChecks(m) {
       status: `Klasse ${t.klasse}`,
       klasse: t.klasse,
       warnungNichtFehler: t.klasse === 3,
+      /*
+       * BINDEND FÜR DAS URTEIL.
+       *
+       * Die Querschnittsklasse entscheidet, ob elastisch gerechnet werden
+       * DARF. Klasse 4 heisst: der Querschnitt beult, bevor er fliesst - dann
+       * ist η selbst nicht mehr zulässig, nicht bloss knapp. Ein grünes
+       * Urteil neben einer Klasse 4 wäre die eine Zeile, die wirklich in die
+       * Irre führt.
+       *
+       * Alle übrigen Prüfungen sind KONSTRUKTIONSREGELN: sie sagen, dass am
+       * Bauteil etwas nicht stimmt, nicht dass die Rechnung ungültig ist. Sie
+       * werden gemeldet, aber sie färben das Urteil nicht mehr rot.
+       */
+      urteilBindend: true,
     });
   });
 
@@ -470,6 +498,19 @@ export function hinweise(m) {
       + 'innen, ist das unter «Kragarm» einzugeben – 5 % Stützweite sind rund '
       + '11 % auf jedes globale Moment.');
   }
+  /*
+   * «STEIFIGKEIT AUS MAST» GEWAEHLT, ABER KEINER DA.
+   *
+   * Seit dem 28. August sind das zwei Angaben. Wer die Endbedingung auf
+   * «Mast» stellt und die Masten abschaltet, rechnet gelenkig - und das darf
+   * nicht still geschehen: es ist der Unterschied zwischen einem
+   * eingespannten und einem frei aufliegenden Joch.
+   */
+  if (m.federn?.mastFehlt) {
+    h.push('Endauflager «Steifigkeit aus Mast» gewählt, aber es steht kein '
+      + 'Mast im Modell – gerechnet wird GELENKIG. Entweder die Masten unter '
+      + '«Masten» einschalten oder eine andere Endbedingung wählen.');
+  }
   if (m.mastKopf) {
     const k = m.mastKopf;
     const mr = (v) => (1000 * v).toFixed(2);
@@ -569,6 +610,13 @@ export function urteilKonstruktion(checks, nachweise) {
     verletzt: harte.filter((c) => !c.ok),
     nachweise: nw,
     nichtGefuehrt,
+    /*
+     * Verletzt UND bindend: nur dann ist η selbst hinfällig. Die Trennung
+     * kam auf Weisung - «hier sollte alles grün sein, die Verletzung ist
+     * nicht so relevant». Sie ist es für die Konstruktionsregeln; für die
+     * Querschnittsklasse ist sie es nicht.
+     */
+    bindendVerletzt: harte.some((c) => !c.ok && c.urteilBindend === true),
     // Trägt das Joch selbst keinen Nachweis mehr, ist η keine Aussage über
     // die Tragsicherheit mehr - und darf auch nicht als eine auftreten.
     tragwerkGefuehrt: nw.jochtragwerk === true,

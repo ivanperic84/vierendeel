@@ -301,6 +301,28 @@ input:disabled, select:disabled {
    waehlbar - so ist zu sehen, dass es existiert. */
 .schalter.aus { opacity: .5; }
 .hinweis { font-size: 10.5px; color: var(--xdim); line-height: 1.45; }
+/*
+ * DIE NOTIZ AM FELD - eine gerechnete Groesse zu dem, was gerade dasteht
+ * (der Ablenkwinkel zu Radius und Spannweite). Sie steht IMMER offen, im
+ * Unterschied zum Hinweistext, der aufgeklappt wird: man liest sie waehrend
+ * der Eingabe oder gar nicht. Akzentfarbe, damit sie sich vom erklaerenden
+ * Text unterscheidet - sie erklaert nicht, sie rechnet mit.
+ */
+/* Die drei Wirkungshaken eines Leiters plus das Kettenwerksfeld: eine Zeile,
+   die umbricht. Sie stehen dicht beieinander, weil sie zusammen EINE Frage
+   beantworten - was von diesem Leiter hier ankommt. */
+.wirkung {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  margin: 2px 0 4px;
+}
+.wirkung .schalter { font-size: 10.5px; }
+.wirkung .kette-feld { flex: 0 0 auto; width: 110px; }
+.wirkung .kette-feld input { font-size: 11px; }
+
+.feld-notiz {
+  font-family: var(--f-mono); font-size: 10px; color: var(--acc);
+  line-height: 1.4; opacity: .85;
+}
 
 /* --- Lasttabelle ---------------------------------------------------------- */
 
@@ -623,17 +645,35 @@ input[type=range].rng {
    * Ansichtsbreite: der Knopf reichte bis 93, die Zeile begann bei 48.
    * Gebraucht werden 93 links und 76 rechts; 100 gleichmaessig haelt die
    * Zeile dabei mittig.
+   *
+   * DER RAND GEHOERT DER ZEILE, NICHT DEM STREIFEN. Am Streifen sperrte er
+   * auch den Handlungsbalken aus, der eine Reihe TIEFER steht und an den
+   * Nachbarn laengst vorbei ist: bei 250 px Ansichtsbreite blieben ihm 50 px,
+   * und die geordnete Vorlagenwahl fiel darin auf null zusammen. Er steht
+   * deshalb als max-width an der Lastfallzeile.
    */
-  padding: 0 100px;
   pointer-events: none;
 }
 .viewer-kopf > * { pointer-events: auto; }
 
+/*
+ * ER MUSS DECKEN (Weisung: «das modalfenster etwas weniger transparent
+ * machen, da nicht gut lesbar wegen ueberlagerung»).
+ *
+ * `var(--acc-s)` allein ist ein durchscheinender Akzent - ueber dem leeren
+ * Modell las er sich gut, ueber einer eingelegten Hintergrundzeichnung nicht
+ * mehr: Bemassungslinien und Bauteilnamen liefen durch die Knopfbeschriftung
+ * hindurch. Der Farbton bleibt, er liegt jetzt nur auf einer DECKENDEN
+ * Flaeche: der Verlauf legt `--acc-s` ueber `--s2`, statt ueber das, was
+ * zufaellig dahinter steht.
+ */
 .viewer-balken {
   display: flex; gap: 8px; align-items: center;
-  background: var(--acc-s); border: 1px solid var(--acc); color: var(--on);
+  background: linear-gradient(var(--acc-s), var(--acc-s)), var(--s2);
+  border: 1px solid var(--acc); color: var(--on);
   border-radius: var(--m-r1); padding: 6px 10px; font-size: 12px;
-  max-width: 100%;
+  max-width: calc(100% - 20px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .38);
 }
 /* OHNE DIESE ZEILE STAND ER IMMER DA. `display:flex` aus dem Stylesheet
    schlaegt das `display:none`, das der Browser einem `hidden` mitgibt - der
@@ -641,14 +681,45 @@ input[type=range].rng {
 .viewer-balken[hidden] { display: none; }
 .viewer-balken b { color: var(--acc); }
 .viewer-balken .btn { padding: 3px 8px; }
-/* Die Vorlagenwahl im Balken: sie kann laenger werden als das Fenster,
-   also umbrechen statt hinauslaufen. */
-.viewer-balken .balken-wahl { display: flex; flex-wrap: wrap; gap: 3px;
-  max-width: 46vw; }
+/* Die Vorlagenwahl im Balken: eine Spalte je Rolle, darin gleich breite
+   Knoepfe untereinander. Als einzelner Fluss verschieden breiter Knoepfe war
+   die Ordnung zwar da, aber nicht zu sehen. */
+/* Drei Spalten nebeneinander - zusammen rund 480 px. Passen sie nicht, wird
+   UMGEBROCHEN und nicht waagrecht gescrollt: ein seitlicher Balken ist der
+   unauffaelligste Weg, etwas zu verstecken. Nach unten begrenzt und dort
+   scrollbar, damit die Liste das Modell nie ganz zudeckt. */
+.viewer-balken .balken-wahl {
+  display: flex; align-items: flex-start; flex-wrap: wrap;
+  gap: 6px 14px; max-height: 46vh; overflow-y: auto; overflow-x: hidden;
+}
+/*
+ * DIE SPALTE MISST SICH AM LAENGSTEN NAMEN.
+ *
+ * `min-width: 0` stand hier zuerst - die Gewohnheit aus Flex-Layouts, wo es
+ * ein Ueberlaufen verhindert. Hier tat es das Gegenteil: die Spalte fiel auf
+ * NULL zusammen, die Knoepfe darin auf 18 px, und der Balken stand leer da.
+ * `max-content` laesst sie so breit werden, wie der laengste Name es
+ * verlangt; das Umbrechen uebernimmt der Balken mit seinem `overflow`.
+ */
+.wahl-spalte {
+  display: flex; flex-direction: column; gap: 3px;
+  flex: 0 0 auto; width: max-content;
+}
+.wahl-spalte .btn-mini {
+  justify-content: flex-start; text-align: left; width: 100%;
+  white-space: nowrap;
+}
+.wahl-t {
+  font-family: var(--f-mono); font-size: 8px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--dim); padding: 0 2px 2px;
+  border-bottom: 1px solid var(--ol); margin-bottom: 3px;
+}
 
 .viewer-oben {
   display: flex; gap: 3px; align-items: center; flex-wrap: wrap;
-  max-width: 100%; justify-content: center;
+  /* 100 px je Seite frei fuer den Handlungsknopf links und die
+     Ebenenspalte rechts - beide stehen auf derselben Hoehe. */
+  max-width: calc(100% - 200px); justify-content: center;
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
   padding: 3px 4px;
 }
@@ -761,10 +832,24 @@ button.wz-haupt:hover { color: var(--on); }
 .viewer-fuss #ansicht-tools-u { display: flex; gap: 4px; flex: none; }
 .viewer-fuss .pos { flex: 1; display: flex; align-items: center; gap: 9px; }
 .viewer-fuss input[type=range] { flex: 1; accent-color: var(--acc); background: none; border: none; padding: 0; }
+/*
+ * DEZENT (Weisung, 28. August: «die Infoboxen zum Schnitt und Feld beim
+ * 3D-Fenster dezent ausführen»).
+ *
+ * Sie standen als zwei gerahmte Kästen mit eigener Fläche am unteren Rand -
+ * zwei Auskünfte, die man nur nachschlägt, in der Aufmachung von etwas, das
+ * man anklickt. Jetzt bloss Text auf dem Verlauf, der ohnehin dort liegt;
+ * beim Überfahren treten sie hervor, damit sie lesbar bleiben, wenn das
+ * Modell dahinter hell ist.
+ */
 .viewer-marke {
-  font-family: var(--f-mono); font-size: 11px; color: var(--on);
-  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
-  padding: 3px 8px; white-space: nowrap;
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
+  background: none; border: 1px solid transparent; border-radius: var(--m-r1);
+  padding: 3px 6px; white-space: nowrap;
+  transition: color .12s, background .12s, border-color .12s;
+}
+.viewer-fuss:hover .viewer-marke {
+  color: var(--on2); background: var(--s2); border-color: var(--ol);
 }
 /* Die Legende ist VERSCHIEBBAR. In der Betriebsart «Positionen» wird sie so
    lang, dass sie sonst die Werkzeugleiste verdeckt - und sie hat keinen festen
@@ -1139,11 +1224,26 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .hb-skizze text.dim { fill: var(--dim); font-size: 10px; }
 .hb-skizze text.acc { fill: var(--acc); font-size: 10.5px; }
 
+/* Die Optionsskizze am Eingabefeld: schmaler als im Handbuch, ohne Bildunterschrift
+   (die Beschriftung steht am Feld) und mit etwas Luft zum Hinweistext darunter. */
+.opt-skizze { margin: 6px 0 4px; }
+.opt-skizze svg { max-height: 150px; }
+
 .hb-liste { margin: 4px 0 10px; padding-left: 18px; }
 .hb-liste li { font-size: 12px; line-height: 1.6; color: var(--on2); margin-bottom: 5px; }
 /* Richtung einer Vereinfachung: auf der sicheren Seite oder nicht. */
 .hb-sicher { color: var(--ok); white-space: nowrap; }
 .hb-neutral { color: var(--warn); }
+
+/* Drei Spalten statt zwei: die Verortung kam dazu. Sie ist die schmalste -
+   drei kurze Felder -, die Ablage bekommt den meisten Platz. */
+.bs-drei { grid-template-columns: minmax(200px, 0.8fr) 1.4fr 1fr; }
+.bs-jetzt { margin-bottom: 8px; }
+.bs-jetzt-name {
+  display: flex; gap: 6px; align-items: center; font-size: 12px;
+  color: var(--on2); background: var(--s2); border: 1px solid var(--ol);
+  border-radius: var(--m-r1); padding: 6px 9px;
+}
 
 .ablage-gruppe { margin-bottom: 14px; }
 .ablage-zeile {
