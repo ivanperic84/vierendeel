@@ -4702,9 +4702,18 @@ titel('30  Hauptschalter der Werkzeuggruppen');
   // wenn auch nur in ihrem eigenen Nachbau. Also beide Listen vergleichen.
   {
     const q = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    /*
+     * KOMMENTARE ZUERST WEG.
+     *
+     * Gelesen wird mit einem Muster «Wort: kleinbuchstabe» - und genau so
+     * sieht ein deutscher Satz aus. Ein Kommentar mit «Gruppe: sie kommen
+     * von aussen» erzeugte prompt eine Ebene namens `Gruppe`, die es nie
+     * gab, und der Pruefstand meldete einen Fehler in seiner eigenen
+     * Messung. Prosa ist kein Quelltext.
+     */
     const ausBlock = (von, bis) => {
       const a = q.indexOf(von);
-      const s = q.slice(a, q.indexOf(bis, a));
+      const s = q.slice(a, q.indexOf(bis, a)).replace(/\/\/.*/g, '');
       return new Set([...s.matchAll(/(\w+):\s*['a-z]/g)].map((m) => m[1]));
     };
     const haupt = ausBlock('const HAUPTSCHALTER = {', '};');
@@ -4712,8 +4721,48 @@ titel('30  Hauptschalter der Werkzeuggruppen');
     const fehlt = [...haupt].filter((k) => !vorgabe.has(k));
     wahr('Jede Ebene mit Hauptschalter hat auch einen Anfangswert',
          fehlt.length === 0, fehlt.length ? `fehlt: ${fehlt.join(', ')}` :
-         `${haupt.size} Ebenen unter drei Gruppen`);
+         `${haupt.size} Ebenen unter vier Gruppen`);
   }
+
+  /*
+   * DAS ACHSENKREUZ MUSS UEBER DER FUSSLEISTE BLEIBEN.
+   *
+   * Gemeldet vom Auftraggeber: die Systemachsen werden verdeckt. Ursache war
+   * eine Aenderung an ganz anderer Stelle - der Knopf "Ganzes Joch zeigen"
+   * wanderte in die Fussleiste, und die wuchs damit von 36 auf 46 px. Der
+   * Ursprung des Kreuzes stand bei genau 46 px ueber dem Rand, also auf ihrer
+   * Oberkante; jeder nach unten zeigende Arm lag darunter.
+   *
+   * Zwei Zahlen in zwei Dateien, die zusammengehoeren und nichts voneinander
+   * wissen. Also hier nachgerechnet: die Leistenhoehe aus dem Stylesheet
+   * (Rand + Knopf + Rand) gegen die Konstante im Zeichner.
+   */
+  {
+    const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    const r3d = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    const zahl = (quelle, muster) => {
+      const m = quelle.match(muster);
+      return m ? parseFloat(m[1]) : NaN;
+    };
+    const fussRand = zahl(css, /\.viewer-fuss\s*\{[^}]*padding:\s*(\d+)px/);
+    const knopf = zahl(css, /\.btn-icon\s*\{[^}]*height:\s*(\d+)px/);
+    const arm = zahl(r3d, /const ACHSENKREUZ_ARM = (\d+);/);
+    const hoch = zahl(r3d, /const ACHSENKREUZ_HOCH = (\d+);/);
+    wahr('Die Masse lassen sich alle vier lesen',
+         [fussRand, knopf, arm, hoch].every(Number.isFinite),
+         `Rand ${fussRand}, Knopf ${knopf}, Arm ${arm}, Hoehe ${hoch}`);
+    // Die Leiste: Rand oben + Knopf + Rand unten.
+    const leiste = 2 * fussRand + knopf;
+    pruef('Die Fussleiste ist so hoch wie gemessen', leiste, 46, 1e-9, 'px');
+    // Darunter darf nichts vom Kreuz liegen: Ursprung + Arm + eine Zeile.
+    const noetig = leiste + arm + 12;
+    wahr('Das Achsenkreuz steht hoch genug ueber der Fussleiste',
+         hoch >= noetig, `${hoch} px gegen mindestens ${noetig} px`);
+    // Und nicht so hoch, dass es im Bild schwebt - eine Armlaenge Luft genuegt.
+    wahr('Aber nicht unnoetig weit oben', hoch <= noetig + arm,
+         `${hoch} px gegen hoechstens ${noetig + arm} px`);
+  }
+
 }
 
 // ===========================================================================
@@ -5545,8 +5594,13 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
    * Frage, die das ausgeleitete Stabmodell stellt.
    */
   {
+    /*
+     * MIT EINGESCHALTETEM AUFLAGERNACHWEIS. Er ist seit der Weisung ab Werk
+     * aus; ohne das Einschalten stuende A1 gar nicht in der Liste, und genau
+     * daran ist dieser Abschnitt beim Umbau aufgelaufen.
+     */
     const { m } = bau({ endbedingung: 'mast', mastProfil: 'HEB 260', mastH: 7.5,
-                        schraubenFgrenz: 24 });
+                        schraubenFgrenz: 24, nachweise: { auflagerJoch: true } });
     const ga = m.gurtanschluss;
     wahr('Der Gurtanschluss wird eigens gerechnet', !!ga);
     pruef('Aus der GEOMETRISCHEN Feder', ga.cA, m.federn.roh.cA, 1e-9, 'kNm/rad');
@@ -6639,6 +6693,68 @@ titel('39  Traeger neben den Bindeblechen');
     const ohne = chk(mB).find((c) => c.id === 'P8');
     wahr('Ohne Traeger steht P8 gar nicht in der Liste', ohne === undefined);
   }
+
+  /*
+   * P1 UND DIE BAUTEILE AM MASTEN - ein selbst eingebauter Fehlalarm.
+   *
+   * P1 prueft, ob die Befestigungspunkte auf dem Joch liegen: x +- raster/2
+   * zwischen 0 und L. Mit den Anbauteilen AM MASTEN (dieselbe Sitzung) kam
+   * ein Fall dazu, den die Pruefung nicht kannte: ein Teil am Masten wird
+   * ueber seine HOEHE angesetzt, sein x steht auf 0 und bedeutet nichts.
+   *
+   * Ergebnis im laufenden Programm: ein Rueckleiter auf einer Traverse am
+   * Mast A meldete "AUSSERHALB: Leiter-Traverse am Joch" - weil die halbe
+   * Klemmweite von 0.60 m links von x = 0 zu liegen kam. Das Joch war in
+   * Ordnung, die Meldung nicht.
+   *
+   * P6, P7 und P8 klammern die Masten laengst aus. P1 nicht - bis jetzt.
+   */
+  {
+    const hs = (await import(J('data.anbauteile.js'))).getVorlage('hs-nur');
+    const teil = (o) => ({ id: 'X', name: o.name ?? 'Teil', vorlage: 'hs-nur',
+      x: o.x ?? 5, raster: o.raster ?? 0.4, ort: o.ort, hMast: o.hMast,
+      befestigung: hs.befestigung, aktiv: true,
+      module: JSON.parse(JSON.stringify(hs.module)) });
+    const p1 = (teile) => {
+      const w = basis({ typ: 'J90', L: 20, endbedingung: 'mast',
+                        mastProfil: 'HEB 260', mastH: 7.5, anbauteile: teile });
+      const m = modell(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch('J90'));
+      return chk(m).find((c) => c.id === 'P1');
+    };
+
+    // Der gemeldete Fall, nachgestellt: x = 0, raster 0.60, am Mast A.
+    const amMast = p1([teil({ name: 'Leiter-Traverse', ort: 'mastA',
+                              x: 0, raster: 0.6, hMast: 6 })]);
+    wahr('Ein Bauteil am Masten faellt nicht bei P1 durch',
+         amMast.ok === true, amMast.status);
+    wahr('Und es wird bei P1 gar nicht mitgezaehlt',
+         amMast.text.includes('der 0 Anbauteile'), amMast.text);
+
+    // Am Joch gilt die Regel unveraendert.
+    wahr('Am Joch bleibt P1 erfuellt', p1([teil({ x: 5 })]).ok === true);
+    {
+      const raus = p1([teil({ name: 'zu weit rechts', x: 19.9 })]);
+      wahr('Ueber das rechte Ende hinaus faellt es durch', raus.ok === false);
+      pruef('Und die Zahl zeigt den rechten Rand', raus.vorhanden, 20.1, 1e-9, 'm');
+      wahr('Gegen die Jochlaenge', raus.erforderlich === 20 && raus.richtung === '<=');
+    }
+    /*
+     * DIE ZAHL MUSS DIE VERLETZUNG ZEIGEN. Links hinaus stand vorher
+     * "10.11 <= 20.00" mit einem Kreuz daneben - der groesste RECHTE Rand,
+     * waehrend links etwas fehlte. Die Zeile erklaerte gar nichts.
+     */
+    {
+      const links = p1([teil({ name: 'zu weit links', x: 0.1 }), teil({ x: 10 })]);
+      wahr('Links hinaus faellt es durch', links.ok === false, links.status);
+      pruef('Und die Zahl zeigt den linken Rand', links.vorhanden, -0.1, 1e-9, 'm');
+      wahr('Gegen null', links.erforderlich === 0 && links.richtung === '>=');
+      wahr('Der Name steht in der Meldung', links.status.includes('zu weit links'),
+           links.status);
+    }
+    // Ohne Anbauteile gibt es nichts zu pruefen - und keinen Fehlalarm.
+    wahr('Ohne Anbauteile ist P1 erfuellt', p1([]).ok === true);
+  }
 }
 
 titel('40  Masten und Joch in der Zeichnung erkennen');
@@ -6861,6 +6977,177 @@ titel('40  Masten und Joch in der Zeichnung erkennen');
     wahr('Helles Grau nicht', maske[3] === 0);
     wahr('Blau schon', maske[4] === 1);
     wahr('Durchsichtiges gilt als hell', maske[5] === 0);
+  }
+}
+
+titel('41  Welche Nachweise gefuehrt werden');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 27. August: waehlen koennen, welche Nachweise
+ * gefuehrt werden - Jochtragwerk, Auflager Joch, Knicken Joch, Mast.
+ *
+ * BEIM NACHSEHEN KAM EIN BEFUND HERAUS, DER DIE AUFGABE VERAENDERT HAT:
+ * von den vier genannten gibt es zwei gar nicht. core.vierendeel.js sagt es
+ * seit jeher selbst - "KEIN Knicknachweis, bewusst nicht enthalten" -, und
+ * ein Mastnachweis existiert ebenso wenig; der Mast ist eine Drehfeder und
+ * seit kurzem Geometrie in der Ausleitung.
+ *
+ * Entschieden hat der Auftraggeber: beide erscheinen, unschaltbar, als NICHT
+ * GEFUEHRT. Und ein abgeschalteter Nachweis wird nicht gefuehrt und nie als
+ * erfuellt gezaehlt.
+ *
+ * >>> DAS IST DIE EIGENTLICHE GEFAHR AN DIESER WEISUNG. <<<
+ * Ein abgeschalteter Nachweis, der einfach aus der Liste faellt, sieht aus
+ * wie ein bestandener. Die Kontrollen unten halten genau das fest.
+ */
+{
+  const CH = await import(J('core.checks.js'));
+
+  // --- Die Gruppen -------------------------------------------------------
+  {
+    const g = CH.NACHWEISGRUPPEN.map((x) => x.key);
+    wahr('Vier Gruppen, in der Reihenfolge der Weisung',
+         g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast', g.join(','));
+    const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
+    wahr('Zwei davon gibt es', da.join(',') === 'jochtragwerk,auflagerJoch', da.join(','));
+    wahr('Knicken ist nicht enthalten',
+         CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').vorhanden === false);
+    wahr('Der Mast ebenso',
+         CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').vorhanden === false);
+  }
+
+  // Voreingestellt gefuehrt wird, was da ist.
+  {
+    /*
+     * WEISUNG, nachgereicht: der Auflagernachweis bleibt ab Werk AUS.
+     * «Vorhanden» und «voreingestellt gefuehrt» sind seither zwei Angaben -
+     * vorher fielen sie zusammen, und genau das ging nicht mehr.
+     */
+    const st = CH.nachweiseStandard();
+    wahr('Voreingestellt gefuehrt ist nur das Jochtragwerk',
+         st.jochtragwerk === true && st.auflagerJoch === false
+         && st.knickenJoch === false && st.mast === false, JSON.stringify(st));
+    wahr('Das Auflager ist vorhanden, aber nicht voreingestellt',
+         CH.NACHWEISGRUPPEN.find((g) => g.key === 'auflagerJoch').vorhanden === true);
+  }
+
+  /*
+   * WAS ES NICHT GIBT, WIRD NICHT GEFUEHRT - auch wenn es in einer alten
+   * Datei auf true steht. Eine Ablage aus einer spaeteren Fassung, in der es
+   * den Knicknachweis gaebe, darf hier nicht behaupten, er sei gefuehrt.
+   */
+  {
+    const a = CH.nachweiseAuswahl({ knickenJoch: true, mast: true });
+    wahr('Ein gespeichertes true macht keinen Nachweis',
+         a.knickenJoch === false && a.mast === false, JSON.stringify(a));
+    wahr('Ohne Angabe gilt die Voreinstellung der Gruppe',
+         CH.nachweiseAuswahl(undefined).jochtragwerk === true
+         && CH.nachweiseAuswahl(undefined).auflagerJoch === false);
+    wahr('Ausgeschaltet bleibt ausgeschaltet',
+         CH.nachweiseAuswahl({ jochtragwerk: false }).jochtragwerk === false);
+    // Wer ihn einschaltet, bekommt ihn - die Voreinstellung ist keine Sperre.
+    wahr('Eingeschaltet wird er gefuehrt',
+         CH.nachweiseAuswahl({ auflagerJoch: true }).auflagerJoch === true);
+  }
+
+  // --- Welche Pruefung zu welcher Gruppe gehoert -------------------------
+  {
+    const gv = (id) => CH.gruppeVon({ id });
+    wahr('Q1 gehoert zum Jochtragwerk', gv('Q1') === 'jochtragwerk');
+    wahr('Q12 auch', gv('Q12') === 'jochtragwerk');
+    wahr('A1 zum Auflager', gv('A1') === 'auflagerJoch');
+    // Die Plausibilitaetspruefungen sind Konstruktionsregeln, keine
+    // Tragsicherheit - sie gehoeren zu keiner Gruppe und bleiben immer.
+    ['P1', 'P2', 'P3', 'P6', 'P7', 'P8'].forEach((id) =>
+      wahr(`${id} gehoert zu keiner Gruppe`, gv(id) === null));
+  }
+
+  // --- Abschalten laesst die Pruefungen verschwinden ---------------------
+  {
+    const mach = (nw) => {
+      const w = basis({ typ: 'J90', L: 20, endbedingung: 'mast',
+                        mastProfil: 'HEB 260', mastH: 7.5, schraubenFgrenz: 24,
+                        nachweise: nw });
+      const m = modell(w, getProfil(w.profOG), getProfil(w.profUG),
+                       getStahl(w.stahl), T.getTragjoch('J90'));
+      return CH.konstruktionsChecks(m);
+    };
+    const alle = mach(undefined);
+    const zaehl = (cs, re) => cs.filter((c) => re.test(c.id)).length;
+    wahr('Voreingestellt stehen Querschnittspruefungen da', zaehl(alle, /^Q\d+$/) > 0,
+         `${zaehl(alle, /^Q\d+$/)} Stueck`);
+    wahr('Der Gurtanschluss A1 aber nicht - er ist ab Werk aus',
+         zaehl(alle, /^A1$/) === 0);
+    wahr('Eingeschaltet steht er da',
+         zaehl(mach({ auflagerJoch: true }), /^A1$/) === 1);
+
+    const ohneJoch = mach({ jochtragwerk: false, auflagerJoch: true });
+    wahr('Ohne Jochtragwerk keine Querschnittspruefung', zaehl(ohneJoch, /^Q\d+$/) === 0);
+    wahr('A1 steht trotzdem noch da', zaehl(ohneJoch, /^A1$/) === 1);
+    wahr('Und die Plausibilitaet bleibt', zaehl(ohneJoch, /^P\d+$/) > 0);
+
+    const ohneAufl = mach({ auflagerJoch: false });
+    // (Dasselbe wie die Voreinstellung - hier ausdruecklich geschrieben.)
+    wahr('Ohne Auflager kein A1', zaehl(ohneAufl, /^A1$/) === 0);
+    wahr('Die Querschnitte bleiben', zaehl(ohneAufl, /^Q\d+$/) > 0);
+  }
+
+  // --- Das Urteil verschweigt nichts -------------------------------------
+  {
+    const u = (nw, checks = []) => CH.urteilKonstruktion(checks, nw);
+    const std = u(undefined);
+    wahr('Voreingestellt sind DREI Nachweise nicht gefuehrt',
+         std.nichtGefuehrt.length === 3,
+         std.nichtGefuehrt.map((g) => `${g.titel} (${g.grund})`).join(', '));
+    /*
+     * DER GRUND MUSS STIMMEN. «Abgewaehlt» stand hier zuerst - es behauptet,
+     * der Benutzer habe entschieden. Beim Auflagernachweis stimmt das nicht:
+     * der ist ab Werk aus. «Ausgeschaltet» sagt, was der Fall ist, ohne zu
+     * sagen, wer es war.
+     */
+    wahr('Das Auflager ist ausgeschaltet, nicht fehlend',
+         std.nichtGefuehrt.find((g) => g.key === 'auflagerJoch').grund === 'ausgeschaltet');
+    wahr('Knicken und Mast sind nicht enthalten',
+         std.nichtGefuehrt.filter((g) => g.grund === 'nicht enthalten')
+           .map((g) => g.key).join(',') === 'knickenJoch,mast');
+    wahr('Das Jochtragwerk gilt als gefuehrt', std.tragwerkGefuehrt === true);
+
+    const ab = u({ jochtragwerk: false });
+    wahr('Ausgeschaltet wird als solches genannt',
+         ab.nichtGefuehrt.find((g) => g.key === 'jochtragwerk')?.grund === 'ausgeschaltet');
+    wahr('Und das Urteil weiss, dass eta keines mehr ist',
+         ab.tragwerkGefuehrt === false);
+    wahr('Dann sind alle vier nicht gefuehrt', ab.nichtGefuehrt.length === 4);
+
+    /*
+     * DER GEFAEHRLICHE FALL, ausgeschrieben.
+     *
+     * Eine VERLETZTE Pruefung, deren Gruppe abgeschaltet wird: sie faellt aus
+     * der Liste, und alleOk steht auf true. Das ist fuer sich richtig - die
+     * Liste sagt ueber das, was gefuehrt wurde, die Wahrheit. Allein waere es
+     * gefaehrlich. Deshalb MUSS nichtGefuehrt die Gruppe nennen.
+     */
+    const kaputt = [{ id: 'A1', ok: false, text: 'Gurtanschluss' }];
+    const mitA1 = u(undefined, kaputt);
+    wahr('Gefuehrt und verletzt: das Urteil faellt', mitA1.alleOk === false);
+    const ohneA1 = u({ auflagerJoch: false }, []);
+    wahr('Abgeschaltet: die Liste ist sauber', ohneA1.alleOk === true);
+    wahr('ABER die Gruppe steht als nicht gefuehrt da',
+         ohneA1.nichtGefuehrt.some((g) => g.key === 'auflagerJoch'
+                                       && g.grund === 'ausgeschaltet'));
+  }
+
+  // --- Der Reiter im Optionen-Dialog -------------------------------------
+  {
+    const SCH = await import(J('ui.schema.js'));
+    const themen = SCH.optionenThemen(basis()).map((t) => t.key);
+    wahr('Der Optionen-Dialog hat einen Reiter Nachweise',
+         themen.includes('nachweise'), themen.join(', '));
+    wahr('Und die Nachweise stehen in keinem Feld-Abschnitt',
+         SCH.optionenFelder(basis(), 'nachweise').length === 0);
+    wahr('Die Voreinstellung steht in den Standardwerten',
+         standardwerte().nachweise?.jochtragwerk === true
+         && standardwerte().nachweise?.auflagerJoch === false);
   }
 }
 

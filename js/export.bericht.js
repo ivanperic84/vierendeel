@@ -93,12 +93,29 @@ function blattEingabe(werte, erg) {
 }
 
 /** Blatt 2: konstruktive Nachweise. */
-function blattChecks(checks, hinw, warn) {
+function blattChecks(checks, hinw, warn, urteil) {
   const rows = [
     [{ v: 'Konstruktive Bedingungen SZS C5 und Querschnittsklasse', s: STIL.TITEL }],
     [],
-    [K('Nr.'), K('Bedingung'), K('vorhanden'), K('erforderlich'), K('Einheit'), K('Status')],
   ];
+  /*
+   * DIE NICHT GEFÜHRTEN NACHWEISE STEHEN ZUOBERST.
+   *
+   * Wer die Ausleitung weiterreicht, liest zuerst die Prüfungen und sieht
+   * lauter Haken. Was NICHT geprüft wurde, muss deshalb davor stehen und
+   * nicht in einer Fussnote - ein fehlender Nachweis sieht sonst aus wie ein
+   * bestandener.
+   */
+  const offen = urteil?.nichtGefuehrt ?? [];
+  if (offen.length) {
+    rows.push([{ v: 'NICHT GEFÜHRTE NACHWEISE', s: STIL.NOK }]);
+    offen.forEach((g) => rows.push(
+      [{ v: `${g.titel} — ${g.grund}`, s: STIL.NOK }, { v: g.was, s: STIL.NOTIZ }]));
+    rows.push([{ v: 'Diese Nachweise sind separat zu führen. Ein nicht '
+                  + 'geführter Nachweis zählt nicht als erfüllt.', s: STIL.NOTIZ }], []);
+  }
+  rows.push(
+    [K('Nr.'), K('Bedingung'), K('vorhanden'), K('erforderlich'), K('Einheit'), K('Status')]);
   checks.forEach((c) => {
     rows.push([T(c.id), T(c.text), N2(c.vorhanden), N2(c.erforderlich),
                T(c.einheit), AMPEL(c.ok, c.status)]);
@@ -231,10 +248,10 @@ function blattProfile(m) {
 }
 
 /** Alles zusammen und herunterladen. */
-export function exportiere(werte, erg, checks, hinw, warn, vergleich) {
+export function exportiere(werte, erg, checks, hinw, warn, vergleich, urteil) {
   const blaetter = [
     blattEingabe(werte, erg),
-    blattChecks(checks, hinw, warn),
+    blattChecks(checks, hinw, warn, urteil),
     blattBerechnung(erg),
     blattZusammenfassung(erg, vergleich),
     blattProfile(erg.modell),

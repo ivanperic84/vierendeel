@@ -211,7 +211,7 @@ function neuRechnen(neuZeichnen = true) {
     // in der Excel-Ausleitung erhalten.
     const flucht = fluchtChecks(erg.modell);
     const hinw = hinweise(erg.modell);
-    const urteil = urteilKonstruktion(checks);
+    const urteil = urteilKonstruktion(checks, werte.nachweise);
     const kl = klassifizierung(erg.modell);
 
     // Für Modell und Auswertung gilt die gewählte Anzeigequelle
@@ -585,17 +585,48 @@ function dialogHandbuch() {
  * Der Dialog bleibt offen, während gerechnet wird - so sieht man die Wirkung
  * einer Änderung sofort in der Auswertung.
  */
+/**
+ * Welcher Reiter der Optionen zuletzt offen stand.
+ *
+ * Er ueberlebt das Schliessen des Dialogs: wer an den Lastbeiwerten arbeitet,
+ * schliesst, rechnet, schaut nach - und will nicht jedes Mal wieder
+ * hinklicken.
+ */
+let optThema = 'modell';
+
 function dialogOptionen() {
-  const d = dialog('Optionen', `<div id="opt-koerper">${ui.optionenHtml(werte)}</div>`,
+  const koerper = () =>
+    ui.optionenReiterHtml(werte, optThema)
+    + `<div id="opt-koerper">${ui.optionenHtml(werte, optThema)}</div>`;
+  const d = dialog('Optionen', `<div id="opt-rahmen">${koerper()}</div>`,
     `<button class="btn" data-thema>${thema === 'dunkel' ? 'Helle' : 'Dunkle'} Darstellung</button>
      <button class="btn btn-fail" data-reset>Eingaben zurücksetzen</button>
      <button class="btn" data-zu>Fertig</button>`);
-  const verdrahte = () => ui.verdrahteOptionen(ui.el('opt-koerper'), werte, (k, v) => {
-    aendern(k, v);
-    // Maske neu aufbauen, damit abhängige Felder mitgehen
-    ui.el('opt-koerper').innerHTML = ui.optionenHtml(werte);
-    verdrahte();
-  });
+
+  // Der Reiter faellt beim Neuaufbau nicht heraus: gezeichnet wird IMMER der
+  // ganze Rahmen samt Leiste, und optThema sagt, welcher offen ist. Nur den
+  // Koerper zu tauschen haette die Leiste stehen lassen - und mit ihr die
+  // Hervorhebung des vorigen Reiters.
+  const verdrahte = () => {
+    const rahmen = ui.el('opt-rahmen');
+    rahmen.querySelectorAll('[data-opt-thema]').forEach((b) => {
+      b.onclick = () => { optThema = b.dataset.optThema; neu(); };
+    });
+    ui.verdrahteOptionen(ui.el('opt-koerper'), werte, (k, v) => {
+      aendern(k, v);
+      neu();                    // abhaengige Felder gehen mit
+    });
+    // Die Nachweisschalter tragen keinen Feldschluessel: sie sitzen zusammen
+    // in EINEM Wert. Einzeln geschrieben ginge die uebrige Auswahl verloren.
+    rahmen.querySelectorAll('[data-nachweis]').forEach((inp) => {
+      inp.onchange = () => {
+        aendern('nachweise', { ...(werte.nachweise ?? {}),
+                               [inp.dataset.nachweis]: inp.checked });
+        neu();
+      };
+    });
+  };
+  const neu = () => { ui.el('opt-rahmen').innerHTML = koerper(); verdrahte(); };
   verdrahte();
   d.node.querySelector('[data-thema]').onclick = () => { d.zu(); themaWechseln(); };
   d.node.querySelector('[data-reset]').onclick = () => { d.zu(); zuruecksetzen(); };
@@ -918,6 +949,8 @@ function setzenStarten() {
   setzen = { stelle: null };
   ansicht.beiStelle = (w) => stelleGewaehlt(w);
   ui.el('canvas3d').style.cursor = 'crosshair';
+  // Der Knopf sagt jetzt «Abbrechen» - er muss deshalb mitgezeichnet werden.
+  baueModellWerkzeuge();
   zeichneBalken();
 }
 
@@ -925,6 +958,7 @@ function setzenEnde() {
   setzen = null;
   ansicht.beiStelle = null;
   ui.el('canvas3d')?.style.removeProperty('cursor');
+  baueModellWerkzeuge();
   zeichneBalken();
 }
 
@@ -1471,6 +1505,14 @@ function baueKopf() {
   // gewandert - sie gehören zum Projekt, nicht zum Werkzeugkasten, und dort
   // stehen sie gemeinsam mit den Vorlagen.
   n.innerHTML =
+    // GANZ LINKS, VOR ALLEM ANDEREN (Weisung). Beschriftet und hervorgehoben
+    // war er schon; als eines von sieben gleich aussehenden Symbolen war er
+    // vorher gar nicht zu finden. Der meistbegangene Weg dieser Anwendung
+    // steht jetzt an erster Stelle - auch vor dem Installieren-Knopf, der
+    // ohnehin nur zeitweise da ist und ihn sonst verschieben würde.
+    `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
+       title="Modell nach AxisVM ausleiten — COM-Brücke, SAF, DXF oder PyNite"
+       aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>` +
     // Der Installieren-Knopf steht nur da, solange der Browser ihn anbietet:
     // nicht angemeldet, schon installiert oder abgelehnt - dann fehlt er.
     (kannInstallieren()
@@ -1479,12 +1521,6 @@ function baueKopf() {
       : '') +
     iconKnopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen') +
     iconKnopf('btn-export', 'export', 'Excel-Ausleitung (.xlsx)') +
-    // BESCHRIFTET UND HERVORGEHOBEN. Der Weg nach AxisVM ist der meist
-    // begangene dieser Anwendung; als eines von sieben gleich aussehenden
-    // Symbolen war er nicht zu finden.
-    `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
-       title="Modell nach AxisVM ausleiten — COM-Brücke, SAF, DXF oder PyNite"
-       aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>` +
     iconKnopf('btn-drucken', 'drucken', 'Drucken / PDF') +
     iconKnopf('btn-daten', 'speichern', 'Datenbasis: Paket laden oder sichern') +
     iconKnopf('btn-optionen', 'optionen', 'Optionen und Darstellung');
@@ -1773,15 +1809,30 @@ const WZ_MODELL = [
   { key: 'auflager', icon: 'auflager', text: 'Auflager: Lage, Feder, Mast' },
   { key: 'masse', icon: 'mass', text: 'Bemassung' },
   { key: 'raster', icon: 'raster', text: 'Bodenraster' },
-  /*
-   * DIE HINTERLEGTE ZEICHNUNG steht bei den BAUTEILEN, nicht bei den
-   * Resultaten: sie zeigt dasselbe Tragwerk, nur gezeichnet statt gerechnet.
-   * Ohne eingelegtes Bild bleibt der Schalter stehen und ausgegraut - so
-   * sieht man, dass es ihn gibt, und wo das Bild hinkäme.
-   */
+];
+
+/*
+ * DIE EINGEFÜGTE ZEICHNUNG BEKOMMT EINE EIGENE GRUPPE (Weisung).
+ *
+ * Sie stand als neunter Schalter zwischen den Bauteilen - dort, wo Gurte,
+ * Bleche und Auflager liegen. Sie ist aber nichts davon: sie ist eine
+ * FREMDE Vorlage, die hinter dem Modell liegt, und sie kommt nicht aus der
+ * Rechnung, sondern aus einem Blatt. Eine eigene Gruppe sagt das, und der
+ * Hauptschalter darüber legt beides zugleich weg.
+ *
+ * Und die Masskette bekommt endlich ihren eigenen Schalter. Sie hing bisher
+ * am Schalter der Zeichnung mit - wer das Bild wegnahm, verlor die
+ * Fanglinien, obwohl die aus der Eingabe stammen und ohne Bild bestehen.
+ */
+const WZ_ZEICHNUNG = [
   { key: 'zeichnung', icon: 'zeichnung',
-    text: 'Hinterlegte Querprofil-Zeichnung (nur in der Längsansicht)',
-    nurMitZeichnung: true },
+    text: 'Eingefügte Querprofil-Zeichnung (nur in der Längsansicht)',
+    fehlt: () => !ansicht.zeichnung,
+    fehltText: 'noch kein Bild eingefügt — Strg+V im Modell' },
+  { key: 'masskette', icon: 'mass',
+    text: 'Masskette als Fanglinien (nur in der Längsansicht)',
+    fehlt: () => !(ansicht.masskette && ansicht.masskette.length),
+    fehltText: 'keine Masskette eingetragen' },
 ];
 
 const WZ_LASTEN = [
@@ -1797,13 +1848,33 @@ function baueModellWerkzeuge() {
   // Ein Knopf für «alles zeigen»: die frühere Trennung in «Ansicht
   // zurücksetzen» und «Ganzes Joch» führte zweimal zum selben Bild. Der
   // Schnitt-Zoom sitzt jetzt im Auswertungsreiter «Schnitt», wo er hingehört.
+  /*
+   * HANDLUNG UND SCHALTER SEHEN VERSCHIEDEN AUS (Weisung).
+   *
+   * «Bauteil setzen» stand als eines von zwei gleich aussehenden Symbolen
+   * neben dem Zoom und sah damit aus wie die Ebenenschalter drüben: etwas,
+   * das man an- und ausknipst. Es ist aber eine HANDLUNG - man startet sie,
+   * zielt, wählt, und sie ist vorbei.
+   *
+   * Beschriftet und in der Akzentfarbe, wie der AxisVM-Knopf im Banner: die
+   * Anwendung hat damit zwei Formen, eine für Schalter und eine für Wege,
+   * die man geht. Läuft die Handlung, steht der Knopf auf «Abbrechen» - er
+   * sagt dann, was der nächste Klick tut, statt was er einmal getan hat.
+   */
+  // Unten links, in der Fussleiste - dort, wo auch die Stelle steht, an der
+  // man gerade ist. Zuruecksetzen gehoert zum Navigieren, nicht zum Bauen.
+  ui.el('ansicht-tools-u').innerHTML =
+    iconKnopf('v-ganz', 'zoom', 'Ganzes Joch zeigen, Ansicht zurücksetzen');
+  // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
+  // die man im Modell beginnt, steht auf derselben Zeile wie die eine
+  // Auswahl, die man darueber trifft.
   ui.el('ansicht-tools').innerHTML =
-    iconKnopf('v-ganz', 'zoom', 'Ganzes Joch zeigen, Ansicht zurücksetzen')
-    // ZWEI KLICKS STATT LISTE UND FORMULAR: erst wohin, dann was. Der Knopf
-    // steht bei der Ansicht, weil dort geklickt wird - nicht im Reiter
-    // Anbauteile, wo man ihn erst suchen muesste.
-    + iconKnopf('v-setzen', 'anbau',
-                'Bauteil setzen — ins Modell klicken, wohin es gehört');
+    `<button class="btn-icon btn-icon-text btn-icon-acc v-handlung${
+         setzen ? ' laeuft' : ''}" id="v-setzen" type="button"
+       title="${setzen ? 'Setzen abbrechen'
+                       : 'Bauteil setzen — ins Modell klicken, wohin es gehört'}"
+       aria-pressed="${Boolean(setzen)}">${icon('anbau')}<span>${
+         setzen ? 'Abbrechen' : 'Bauteil'}</span></button>`;
   ui.el('v-setzen').onclick = () => (setzen ? setzenEnde() : setzenStarten());
   ui.el('v-ganz').onclick = () => {
     station = null; ansicht.station = null;
@@ -1837,16 +1908,15 @@ function lastartenVorhanden() {
   };
 }
 
-/** Die vier Werkzeuggruppen zeichnen und verdrahten. */
 /**
- * Gibt es etwas auf der Zeichnungsebene?
+ * Die Werkzeuggruppen zeichnen und verdrahten: Blick, Modell, Zeichnung,
+ * Lasten, Resultate.
  *
- * Bild ODER Masskette: die Kette gilt auch ohne Bild - sie steht in der
- * Eingabe, nicht im Bild -, und ihre Fanglinien gehören auf dieselbe Ebene.
+ * Bild und Masskette fragen einzeln nach, ob es sie gibt - die Kette steht in
+ * der Eingabe, das Bild kommt von aussen, und das eine kann ohne das andere
+ * da sein. Vorher lief beides über eine gemeinsame Abfrage, und der Schalter
+ * war schon offen, wenn nur eines von beiden vorlag.
  */
-const zeichnungDa = () => Boolean(ansicht.zeichnung
-  || (ansicht.masskette && ansicht.masskette.length));
-
 function zeichneModellWerkzeuge() {
   const n = ui.el('ebenen-tools');
   if (!n) return;
@@ -1870,7 +1940,7 @@ function zeichneModellWerkzeuge() {
        <div class="wz-knoepfe">${inhalt}</div></div>`;
 
   const gM = ansicht.gruppen.modell, gL = ansicht.gruppen.lasten,
-        gR = ansicht.gruppen.resultate;
+        gR = ansicht.gruppen.resultate, gZ = ansicht.gruppen.zeichnung;
 
   n.innerHTML =
     `<div class="wz-gruppe"><div class="wz-t">Blick</div><div class="wz-knoepfe">${
@@ -1878,13 +1948,14 @@ function zeichneModellWerkzeuge() {
                                 a.key === ansicht.ansichtKey)).join('')
     }</div></div>` +
     gruppe('modell', 'Modell', gM, WZ_MODELL.map((s) =>
-      schalter(`wz-m-${s.key}`, s.icon,
-               s.nurMitZeichnung && !zeichnungDa()
-                 ? `${s.text} — noch kein Bild eingefügt (Strg+V im Modell) `
-                   + 'und keine Masskette'
-                 : s.text,
-               ansicht.ebenen[s.key],
-               !gM || (s.nurMitZeichnung && !zeichnungDa()))).join('')) +
+      schalter(`wz-m-${s.key}`, s.icon, s.text,
+               ansicht.ebenen[s.key], !gM)).join('')) +
+    gruppe('zeichnung', 'Zeichnung', gZ, WZ_ZEICHNUNG.map((s) => {
+      const weg = s.fehlt();
+      return schalter(`wz-z-${s.key}`, s.icon,
+                      weg ? `${s.text} — ${s.fehltText}` : s.text,
+                      ansicht.ebenen[s.key], !gZ || weg);
+    }).join('')) +
     gruppe('lasten', 'Lasten', gL, WZ_LASTEN.map((s) => {
       const fehlt = !s.haupt && !da[s.key];
       return schalter(`wz-l-${s.key}`, s.icon,
@@ -1901,7 +1972,7 @@ function zeichneModellWerkzeuge() {
                             mo.label, mo.key === ansicht.modus, !gR)).join(''));
 
   const nach = () => { ansicht.zeichne(); zeichneModellWerkzeuge(); };
-  ['modell', 'lasten', 'resultate'].forEach((g) => {
+  ['modell', 'zeichnung', 'lasten', 'resultate'].forEach((g) => {
     ui.el(`wz-g-${g}`).onclick = () => {
       ansicht.gruppen[g] = !ansicht.gruppen[g]; nach();
     };
@@ -1913,6 +1984,11 @@ function zeichneModellWerkzeuge() {
   });
   WZ_MODELL.forEach((s) => {
     ui.el(`wz-m-${s.key}`).onclick = () => {
+      ansicht.ebenen[s.key] = !ansicht.ebenen[s.key]; nach();
+    };
+  });
+  WZ_ZEICHNUNG.forEach((s) => {
+    ui.el(`wz-z-${s.key}`).onclick = () => {
       ansicht.ebenen[s.key] = !ansicht.ebenen[s.key]; nach();
     };
   });
@@ -2487,7 +2563,8 @@ function neuesTragjoch() {
 
 function exportKlick() {
   if (!letzte) return;
-  exportiere(werte, letzte.erg, letzte.checks, letzte.hinw, letzte.warn, letzte.vergleich);
+  exportiere(werte, letzte.erg, letzte.checks, letzte.hinw, letzte.warn,
+             letzte.vergleich, letzte.urteil);
 }
 
 /**

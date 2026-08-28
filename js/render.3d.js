@@ -961,7 +961,7 @@ export const ANSICHTEN = [
 /**
  * ZU WELCHEM HAUPTSCHALTER GEHÖRT EINE EBENE?
  *
- * Die drei Gruppen der Werkzeugleiste tragen je einen Schalter, der die ganze
+ * Die Gruppen der Werkzeugleiste tragen je einen Schalter, der die ganze
  * Gruppe aus dem Bild nimmt. Danach gefragt hatten bisher aber nur einzelne
  * Zeichengänge - die Pfeile und ein Teil der Marken. Die VOLUMENKÖRPER und
  * die LASTFLÄCHEN taten es nicht:
@@ -976,9 +976,24 @@ export const ANSICHTEN = [
  * Was hier nicht steht, hat keinen Hauptschalter über sich (etwa 'marken',
  * 'anbau') und bleibt allein von seinem Einzelschalter abhängig.
  */
+/*
+ * Achsenkreuz: Armlaenge und Abstand vom unteren Rand [CSS-Punkte].
+ *
+ * ACHSENKREUZ_HOCH muss ueber der Fussleiste bleiben - siehe _achsenkreuz.
+ * Der Pruefstand rechnet den Mindestwert aus dem Stylesheet nach, damit eine
+ * hoehere Leiste nicht wieder still darueberwaechst.
+ */
+const ACHSENKREUZ_ARM = 30;
+const ACHSENKREUZ_HOCH = 92;
+
 const HAUPTSCHALTER = {
   profil: 'modell', blech: 'modell', anbau: 'modell', achse: 'modell',
   auflager: 'modell', masse: 'modell', raster: 'modell',
+  // Die eingefuegte Zeichnung und ihre Masskette haengen an einer eigenen
+  // Gruppe: sie kommen von aussen, nicht aus der Rechnung. Vorher stand die
+  // Zeichnung ueberhaupt an keinem Hauptschalter - «Modell aus» liess sie
+  // stehen, obwohl sie in der Modellgruppe angeboten wurde.
+  zeichnung: 'zeichnung', masskette: 'zeichnung',
   last: 'lasten',
   kraefte: 'resultate', schnitt: 'resultate',
 };
@@ -1029,7 +1044,12 @@ export class Modellansicht {
     this.projektion = 'perspektive';   // oder 'orthogonal'
     this.ebenen = { profil: true, blech: true, anbau: true, achse: true,
                     last: true, kraefte: false, masse: true, schnitt: true,
-                    raster: true, marken: true, auflager: true, zeichnung: true };
+                    raster: true, marken: true, auflager: true,
+                    // Die Zeichnung und die Masskette sind zwei Ebenen: die
+                    // eine kommt aus einem Blatt, die andere aus der Eingabe.
+                    // Vorher hing die Masskette am Schalter der Zeichnung -
+                    // wer das Bild wegnahm, verlor die Fanglinien mit.
+                    zeichnung: true, masskette: true };
     /*
      * DIE HINTERLEGTE ZEICHNUNG.
      *
@@ -1053,7 +1073,7 @@ export class Modellansicht {
     // HAUPTSCHALTER der drei Werkzeuggruppen. Aus heisst: die ganze Gruppe
     // verschwindet aus dem Bild, ihre Einzelschalter bleiben aber stehen und
     // werden nur ausgegraut - man sieht so, was man gerade nicht sieht.
-    this.gruppen = { modell: true, lasten: true, resultate: true };
+    this.gruppen = { modell: true, zeichnung: true, lasten: true, resultate: true };
     // Werte der aufgetragenen Grösse direkt ans Bauteil schreiben.
     this.werteAnschreiben = false;
     // Durchsichtigkeit der Volumenkörper (0 = deckend, 0.9 = fast klar). Bei
@@ -1853,7 +1873,7 @@ export class Modellansicht {
   _massketteMalen(c, proj, t) {
     const kette = this.masskette;
     if (!Array.isArray(kette) || !kette.length) return;
-    if (!this._ebeneAn('zeichnung') || this.ansichtKey !== 'laengs') return;
+    if (!this._ebeneAn('masskette') || this.ansichtKey !== 'laengs') return;
     const s = this._s;
     /*
      * WIE WEIT DIE LINIE REICHT.
@@ -2744,11 +2764,24 @@ export class Modellansicht {
     });
   }
 
-  /** Achsenkreuz unten links. */
+  /**
+   * Achsenkreuz unten links.
+   *
+   * WIE HOCH ES SITZT - und warum das eine gerechnete Zahl ist.
+   *
+   * Unten laeuft die Fussleiste ueber die ganze Breite. Sie ist gewachsen,
+   * seit der Knopf «Ganzes Joch zeigen» darin steht: 8 px Rand + 30 px Knopf
+   * + 8 px Rand = 46 px, gemessen im Programm. Der Ursprung sass bei genau
+   * 46 px - also auf ihrer Oberkante -, und jeder nach unten zeigende Arm
+   * samt Beschriftung verschwand darunter.
+   *
+   * Gebraucht wird die Leistenhoehe plus die Armlaenge plus die Zeile
+   * darunter: 46 + 30 + 12 = 88. Mit 92 bleibt etwas Luft.
+   */
   _achsenkreuz(c, t) {
     const { rechts, hoch, vor } = this._basis();
     const s = this._s;
-    const o = [54 * s, this.cv.height - 46 * s], l = 30 * s;
+    const o = [54 * s, this.cv.height - ACHSENKREUZ_HOCH * s], l = ACHSENKREUZ_ARM * s;
     const achsen = [
       { v: [1, 0, 0], n: 'x', f: t.acc },
       { v: [0, 1, 0], n: 'y', f: t.ok },

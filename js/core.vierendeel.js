@@ -464,6 +464,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     }),
     ausrOG: inp.ausrOG, ausrUG: inp.ausrUG, typ: inp.typ,
     xNachweis: inp.xNachweis,
+    // Welche Nachweise gefuehrt werden - core.checks.js liest es hier ab.
+    nachweise: inp.nachweise,
     schneeAktiv: inp.schneeAktiv === true,
     schnittAktiv: inp.schnittAktiv === true,
     schnittOrientierung: inp.schnittOrientierung ?? 'quer',

@@ -7,7 +7,8 @@
  * ---------------------------------------------------------------------------
  */
 
-import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder,
+import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
+import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
@@ -1552,6 +1553,41 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  *
  * Verletzte stehen oben - wer hierher kommt, sucht sie.
  */
+/**
+ * DIE NICHT GEFÜHRTEN NACHWEISE, ausdrücklich benannt.
+ *
+ * Ein abgeschalteter Nachweis, der einfach aus der Liste verschwindet, sieht
+ * aus wie ein bestandener. Er steht deshalb hier - mit dem Unterschied, ob
+ * der Benutzer ihn abgewählt hat oder ob das Werkzeug ihn gar nicht führt.
+ */
+function nichtGefuehrtHtml(urteil) {
+  const liste = urteil?.nichtGefuehrt ?? [];
+  if (!liste.length) return '';
+  /*
+   * EINGEKLAPPT (Weisung), NICHT WEG.
+   *
+   * Fuenf Zeilen Erklaerung standen dauerhaft im Auswertungsfeld und sagten
+   * bei jedem Tragwerk dasselbe - der Knicknachweis fehlt heute so wie
+   * gestern. Als Balken war das kein Hinweis mehr, sondern Tapete.
+   *
+   * Weg darf er trotzdem nicht: die Zahl bleibt im Urteil («2 Nachweis(e)
+   * nicht geführt»), die Namen stehen in der Kopfzeile des Abschnitts, und
+   * ein Klick zeigt, warum. Das ist die Form, in der die Uebersicht auch die
+   * Hinweise und die Konstruktionspruefungen fuehrt.
+   *
+   * UNTER DEN KACHELN (Weisung), nicht unter dem Urteil. Dort steht, was
+   * geführt WIRD - η Obergurt, Untergurt, Bindeblech. Was nicht geführt
+   * wird, gehört daneben und nicht an den Anfang: die Reihe liest sich dann
+   * als ein Gedanke, und die Lücke steht dort, wo man die Nachweise sucht.
+   */
+  const namen = liste.map((g) => g.titel).join(', ');
+  return klapp('uebersicht-nichtgefuehrt', 'Nicht geführte Nachweise',
+    `<div class="nichtgefuehrt">
+      ${liste.map((g) => `<p class="notiz"><b>${esc(g.titel)}</b>
+        <span class="ablage-meta">· ${esc(g.grund)}</span><br>${esc(g.was)}</p>`).join('')}
+    </div>`, namen, false);
+}
+
 function pruefungenHtml(urteil) {
   const alle = urteil?.checks ?? [];
   if (!alle.length) return '';
@@ -1583,7 +1619,16 @@ export function setzeSortimentSuche(fn) { beiSortiment = fn; }
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, hinweise = []) {
   const m = erg.modell, x = erg.extrem;
   const e = erg.max.etaGesamt;
-  const zustand = e > 1 || !urteil.alleOk ? 'nok' : 'ok';
+  /*
+   * OHNE DEN TRAGWERKSNACHWEIS IST η KEIN URTEIL MEHR.
+   *
+   * Die Zahl steht weiterhin da - sie ist gerechnet und richtig -, aber
+   * «Tragsicherheit erfüllt» darf nicht danebenstehen, wenn der Nachweis, der
+   * das entscheidet, gar nicht geführt wird. Dann sagt die Zeile genau das.
+   */
+  const gefuehrt = urteil.tragwerkGefuehrt !== false;
+  const offeneNw = urteil.nichtGefuehrt?.length ?? 0;
+  const zustand = !gefuehrt ? 'warn' : (e > 1 || !urteil.alleOk ? 'nok' : 'ok');
 
   // Jede Kachel kennt die Stelle, an der ihr Wert auftritt - ein Klick fährt
   // das Modell dorthin.
@@ -1626,8 +1671,11 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
   node.innerHTML = `
     <div class="urteil ${zustand}">
       <span class="urteil-zahl">η ${f3(e)}</span>
-      <span>${e <= 1 ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt'}${
-        urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}</span>
+      <span>${!gefuehrt
+        ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
+        : (e <= 1 ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt')}${
+        urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}${
+        offeneNw ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
       ${e > 1 && beiSortiment ? `<button class="btn btn-mini" data-sortiment
          type="button" title="Alle Typen des Sortiments mit dieser Geometrie und
 diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
@@ -1640,6 +1688,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${pruefungenHtml(urteil)}
     ${abschnitt('Nachweise')}
     <div class="kennzahlen">${kz.join('')}</div>
+    ${nichtGefuehrtHtml(urteil)}
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
             `max M_y ${f2(x.MyMax)} kNm`)}
@@ -2145,10 +2194,50 @@ export function stuecklisteHtml(erg) {
  * nicht zum Bauteil gehören. Sie stehen bewusst nicht in der Eingabe, damit
  * die Sidebar auf Geometrie, Profile, Anbauteile und Lasten beschränkt bleibt.
  */
-export function optionenHtml(werte) {
-  return optionenFelder(werte).map((a) =>
-    abschnitt(a.titel) + a.felder.map((f) => feldHtml(f, werte[f.key], werte)).join('')
+export function optionenHtml(werte, thema = null) {
+  if (thema === 'nachweise') return nachweiseHtml(werte);
+  const teile = optionenFelder(werte, thema);
+  // Ein einzelner Abschnitt im Reiter braucht seine Ueberschrift nicht: der
+  // Reiter traegt sie bereits, und zweimal dasselbe Wort untereinander liest
+  // sich wie ein Fehler.
+  const titelZeigen = teile.length > 1;
+  return teile.map((a) =>
+    (titelZeigen ? abschnitt(a.titel) : '')
+    + a.felder.map((f) => feldHtml(f, werte[f.key], werte)).join('')
   ).join('');
+}
+
+/**
+ * DER REITER «NACHWEISE»: was gefuehrt wird und was nicht.
+ *
+ * Zwei der vier Gruppen sind im Werkzeug nicht enthalten - Knicken und Mast.
+ * Sie stehen trotzdem da, und zwar unschaltbar: ein Schalter waere die
+ * Behauptung, der Nachweis sei vorhanden und nur gerade aus. Stattdessen
+ * steht neben ihnen, warum es sie nicht gibt.
+ */
+export function nachweiseHtml(werte) {
+  const nw = nachweiseAuswahl(werte.nachweise);
+  return `<p class="notiz">Ein nicht geführter Nachweis zählt <b>nie als
+    erfüllt</b>. Er wird im Urteil, im Bericht und in der Ausleitung
+    ausdrücklich als nicht geführt genannt.</p>`
+    + NACHWEISGRUPPEN.map((g) => `
+    <div class="nw-wahl${g.vorhanden ? '' : ' fehlt'}">
+      <label>
+        <input type="checkbox" data-nachweis="${esc(g.key)}"
+          ${nw[g.key] ? 'checked' : ''}${g.vorhanden ? '' : ' disabled'}>
+        <span class="nw-titel">${esc(g.titel)}</span>
+      </label>
+      <p class="notiz">${esc(g.was)}</p>
+      ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
+        + 'enthalten — separat zu führen.</p>'}
+    </div>`).join('');
+}
+
+/** Die Reiterleiste des Optionen-Dialogs. */
+export function optionenReiterHtml(werte, jetzt) {
+  return `<div class="tabs tabs-dialog">${optionenThemen(werte).map((t) =>
+    `<button class="tab${t.key === jetzt ? ' on' : ''}" type="button"
+       data-opt-thema="${esc(t.key)}">${esc(t.titel)}</button>`).join('')}</div>`;
 }
 
 /** Ereignisse des Optionen-Dialogs verdrahten. */

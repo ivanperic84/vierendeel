@@ -52,8 +52,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir(WURZEL)
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("127.0.0.1", PORT), Handler) as httpd:
+    # MEHRFAEDIG, SONST STEHT DER MODULBAUM.
+    #
+    # TCPServer bedient eine Anfrage nach der anderen. Ein ES-Modulbaum fragt
+    # aber zwanzig Dateien auf einmal an, und der Browser haelt die
+    # Verbindungen offen: gemessen blieben zwanzig Anfragen ohne Antwort
+    # stehen, die Seite kam nie ueber readyState "interactive" hinaus und
+    # stand ohne Gestaltung da - die Farbtokens setzt erst das Skript.
+    # Bisher ging es gut; das war Glueck, nicht Bauart.
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.daemon_threads = True
+    with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler) as httpd:
         print(f"Server läuft:  http://localhost:{PORT}/index.html")
         print(f"Wurzel:        {WURZEL}")
         httpd.serve_forever()

@@ -49,6 +49,76 @@ export function blechExtremwerte(m) {
  * Die Klassifizierung wird je Bauteil einzeln ausgewiesen, damit erkennbar
  * bleibt, welches Teil die Klasse bestimmt.
  */
+/**
+ * WELCHE NACHWEISE DIESES WERKZEUG FÜHRT — und welche nicht.
+ *
+ * Weisung des Auftraggebers: der Benutzer soll wählen können, welche
+ * Nachweise geführt werden. Beim Nachsehen kam ein Befund heraus, der die
+ * Aufgabe verändert hat: von den vier genannten gibt es zwei gar nicht.
+ *
+ *   Knicken       core.vierendeel.js sagt es seit jeher selbst - «KEIN
+ *                 Knicknachweis, bewusst nicht enthalten, separat zu führen».
+ *   Mast          der Mast steht als Drehfeder c_phi im Modell und seit
+ *                 kurzem als Geometrie in der AxisVM-Ausleitung. Ein
+ *                 Tragfähigkeitsnachweis ist das nicht.
+ *
+ * Einen Schalter für einen Nachweis zu bauen, den es nicht gibt, wäre
+ * schlimmer als kein Schalter: er behauptet, der Nachweis sei vorhanden und
+ * nur gerade aus. Sie stehen deshalb mit `vorhanden: false` in der Liste und
+ * lassen sich nicht einschalten - sichtbar, benannt, und ausdrücklich NICHT
+ * GEFÜHRT.
+ *
+ * >>> EIN NICHT GEFÜHRTER NACHWEIS ZÄHLT NIE ALS ERFÜLLT. <<<
+ *
+ * Das ist die ganze Schwierigkeit an dieser Weisung. Ein abgeschalteter
+ * Nachweis, der stillschweigend aus der Liste verschwindet, sieht aus wie
+ * ein bestandener. Er wird deshalb überall mitgeführt - im Urteil, im
+ * Bericht, in der Ausleitung - und zwar als das, was er ist.
+ */
+export const NACHWEISGRUPPEN = [
+  { key: 'jochtragwerk', titel: 'Jochtragwerk', vorhanden: true, standard: true,
+    was: 'Gurte und Bindebleche über die Spannweite, mit Querschnittsklassen',
+    // Die Querschnittsklassen gehören zum Tragwerksnachweis: sie entscheiden,
+    // ob elastisch gerechnet werden darf.
+    gilt: (c) => /^Q\d+$/.test(c.id) },
+  /*
+   * VOREINGESTELLT AUS (Weisung des Auftraggebers).
+   *
+   * Der Gurtanschluss ist vorhanden und rechnet - aber er wird nur geführt,
+   * wenn man ihn einschaltet. «Vorhanden» und «voreingestellt geführt» sind
+   * deshalb zwei verschiedene Angaben; vorher fielen sie zusammen.
+   */
+  { key: 'auflagerJoch', titel: 'Auflager Joch', vorhanden: true, standard: false,
+    was: 'Gurtanschluss am Mast — Kräftepaar M/h gegen die Schraubengrenze',
+    gilt: (c) => c.id === 'A1' },
+  { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: false, standard: false,
+    was: 'Gesamtstab und Einzelwinkel — in diesem Werkzeug nicht enthalten, '
+       + 'separat zu führen' },
+  { key: 'mast', titel: 'Mast', vorhanden: false, standard: false,
+    was: 'Der Mast steht als Drehfeder und als Modellgeometrie — '
+       + 'ein Tragfähigkeitsnachweis ist das nicht' },
+];
+
+/** Voreinstellung je Gruppe. */
+export const nachweiseStandard = () => Object.fromEntries(
+  NACHWEISGRUPPEN.map((g) => [g.key, g.vorhanden && g.standard]));
+
+/**
+ * Die gültige Auswahl: was es nicht gibt, wird nicht geführt - auch wenn es
+ * in einer alten Datei auf `true` steht. Fehlt die Angabe, gilt die
+ * Voreinstellung der Gruppe, nicht «an».
+ */
+export function nachweiseAuswahl(gewaehlt) {
+  const w = gewaehlt ?? {};
+  return Object.fromEntries(NACHWEISGRUPPEN.map((g) =>
+    [g.key, g.vorhanden && (w[g.key] ?? g.standard) === true]));
+}
+
+/** Zu welcher Gruppe eine Prüfung gehört - oder null, wenn zu keiner. */
+export function gruppeVon(check) {
+  return NACHWEISGRUPPEN.find((g) => g.gilt && g.gilt(check))?.key ?? null;
+}
+
 export function konstruktionsChecks(m) {
   const kl = klassifizierung(m);
   const checks = [];
@@ -93,19 +163,38 @@ export function konstruktionsChecks(m) {
   }
 
   // --- Plausibilität --------------------------------------------------------
-  // Die Befestigungspunkte liegen bei x ± raster/2 und müssen auf dem Joch liegen
-  const aktive = (m.anbauteile ?? []).filter((a) => a.aktiv !== false);
+  /*
+   * Die Befestigungspunkte liegen bei x ± raster/2 und müssen auf dem Joch
+   * liegen.
+   *
+   * NUR WAS AM JOCH HÄNGT. Ein Bauteil am Masten wird über seine Höhe
+   * angesetzt, nicht über x; sein x steht auf 0 und ist bedeutungslos. Vor
+   * dieser Zeile fiel jedes Teil am Masten hier durch - ein Rückleiter auf
+   * einer Traverse meldete «AUSSERHALB», weil seine halbe Klemmweite links
+   * von x = 0 zu liegen kam. Falscher Alarm, entstanden mit den Anbauteilen
+   * am Masten; P6, P7 und P8 klammern sie längst aus, P1 nicht.
+   */
+  const aktive = (m.anbauteile ?? [])
+    .filter((a) => a.aktiv !== false && !amMast(a));
   const rand = (a) => [a.x - (a.raster ?? 0.4) / 2, a.x + (a.raster ?? 0.4) / 2];
   const xMax = aktive.length ? Math.max(...aktive.map((a) => rand(a)[1])) : 0;
   const xMin = aktive.length ? Math.min(...aktive.map((a) => rand(a)[0])) : 0;
   const ausserhalb = aktive.filter((a) => rand(a)[0] < 0 || rand(a)[1] > m.L);
+  /*
+   * DIE ZAHL MUSS DIE VERLETZUNG ZEIGEN. Ragt ein Punkt links über das Joch
+   * hinaus, sagt der grösste rechte Rand nichts - die Zeile las sich dann als
+   * «10.11 <= 20.00 ✗» und erklärte gar nichts.
+   */
+  const linksRaus = xMin < 0;
   checks.push({
     id: 'P1',
     text: `Befestigungspunkte der ${aktive.length} Anbauteile auf dem Joch`,
-    vorhanden: xMax, erforderlich: m.L, einheit: 'm', richtung: '<=',
-    ok: ausserhalb.length === 0 && xMin >= 0,
-    status: ausserhalb.length === 0 && xMin >= 0
-      ? 'OK' : `AUSSERHALB: ${ausserhalb.map((l) => l.name).join(', ') || 'x < 0'}`,
+    vorhanden: linksRaus ? xMin : xMax,
+    erforderlich: linksRaus ? 0 : m.L,
+    einheit: 'm', richtung: linksRaus ? '>=' : '<=',
+    ok: ausserhalb.length === 0,
+    status: ausserhalb.length === 0
+      ? 'OK' : `AUSSERHALB: ${ausserhalb.map((l) => l.name).join(', ')}`,
   });
 
   /*
@@ -242,7 +331,17 @@ export function konstruktionsChecks(m) {
   checks.push(pruef('P3', 'Lage des Nachweisschnitts:  0 ≤ x_N ≤ L',
     m.xNachweis ?? 0, m.L, 'm', '<=', 'OK', 'AUSSERHALB'));
 
-  return checks;
+  /*
+   * Was nicht geführt wird, steht auch nicht in der Liste - aber es
+   * verschwindet nicht: urteilKonstruktion nennt die Gruppe ausdrücklich als
+   * nicht geführt. Die Plausibilitätsprüfungen P* gehören zu keiner Gruppe
+   * und bleiben immer; sie sind Konstruktionsregeln, keine Tragsicherheit.
+   */
+  const nw = nachweiseAuswahl(m.nachweise);
+  return checks.filter((c) => {
+    const g = gruppeVon(c);
+    return g === null || nw[g];
+  });
 }
 
 /** Geometrische Verträglichkeit der Bindeblechflucht. */
@@ -440,8 +539,26 @@ export function hinweise(m) {
 }
 
 /** Sammelurteil über alle Prüfungen. */
-export function urteilKonstruktion(checks) {
+export function urteilKonstruktion(checks, nachweise) {
   const harte = checks.filter((c) => !c.warnungNichtFehler);
+  const nw = nachweiseAuswahl(nachweise);
+  /*
+   * Die nicht geführten Nachweise gehören ins Urteil, nicht in eine Fussnote.
+   * «Tragsicherheit erfüllt» neben einem stillschweigend fehlenden Nachweis
+   * wäre die gefährlichste Zeile, die diese Anwendung schreiben könnte -
+   * deshalb steht die Zahl daneben und die Namen darunter.
+   */
+  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => !nw[g.key])
+    .map((g) => ({ key: g.key, titel: g.titel, was: g.was,
+                   /*
+                    * Der Unterschied zählt: AUSGESCHALTET ist eine
+                    * Einstellung, die man umlegen kann, NICHT ENTHALTEN ist
+                    * eine Grenze des Werkzeugs. «Abgewählt» stand hier
+                    * zuerst - es behauptet aber, der Benutzer habe
+                    * entschieden, und das stimmt beim Auflagernachweis
+                    * nicht: der ist ab Werk aus.
+                    */
+                   grund: g.vorhanden ? 'ausgeschaltet' : 'nicht enthalten' }));
   return {
     alleOk: harte.every((c) => c.ok),
     anzahlVerletzt: harte.filter((c) => !c.ok).length,
@@ -450,6 +567,11 @@ export function urteilKonstruktion(checks) {
     // will sie sehen können.
     checks,
     verletzt: harte.filter((c) => !c.ok),
+    nachweise: nw,
+    nichtGefuehrt,
+    // Trägt das Joch selbst keinen Nachweis mehr, ist η keine Aussage über
+    // die Tragsicherheit mehr - und darf auch nicht als eine auftreten.
+    tragwerkGefuehrt: nw.jochtragwerk === true,
   };
 }
 

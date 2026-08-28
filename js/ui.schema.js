@@ -29,6 +29,7 @@ import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
 import { TORSIONSMODELLE } from './core.statics.js';
 
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE } from './core.auflager.js';
+import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE } from './core.lasten.js';
 
@@ -169,6 +170,14 @@ export const FELDER = [
   { key: 'schnittOrientierung', gruppe: 'geo', typ: 'auswahl', versteckt: true,
     label: 'Orientierung der Schnittebene', standard: 'quer',
     optionen: opt(SCHNITT_ORIENTIERUNGEN) },
+  /*
+   * WELCHE NACHWEISE GEFÜHRT WERDEN. Die Gruppen und ihre Bedeutung stehen in
+   * core.checks.js (NACHWEISGRUPPEN); hier steht nur der gespeicherte Wert.
+   * Eine eigene Feldart braucht er nicht - der Reiter «Nachweise» zeichnet
+   * seine Schalter selbst, weil neben jedem noch stehen muss, WAS er führt.
+   */
+  { key: 'nachweise', gruppe: 'geo', typ: 'satz', versteckt: true,
+    label: 'Geführte Nachweise', standard: nachweiseStandard() },
 
   // --- Auflager ------------------------------------------------------------
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
@@ -579,28 +588,64 @@ export function sichtbareFelder(gruppe, werte) {
                            && (!f.sichtbar || f.sichtbar(werte)));
 }
 
+/**
+ * REITER DES OPTIONEN-DIALOGS.
+ *
+ * Sechzehn Einstellungen in sieben Abschnitten standen als eine Rolle
+ * untereinander; wer die Teilsicherheitsbeiwerte suchte, scrollte an der
+ * Torsionsverteilung vorbei. Geordnet wird nach der FRAGE, die man mitbringt:
+ * wie wird gerechnet, was wirkt, was hält dagegen, wie sieht es aus.
+ *
+ * Die Abschnitte bleiben - sie tragen die feinere Gliederung innerhalb eines
+ * Reiters. Ein Reiter mit nur einem Abschnitt zeigt dessen Titel nicht noch
+ * einmal; das waere die Ueberschrift ueber sich selbst.
+ */
+export const OPTIONEN_THEMEN = [
+  { key: 'modell', titel: 'Rechenmodell' },
+  { key: 'einwirkung', titel: 'Einwirkungen' },
+  { key: 'widerstand', titel: 'Widerstand' },
+  // EIGENER REITER, keine Feldliste: neben jedem Schalter muss stehen, WAS er
+  // fuehrt und - wo er nicht schaltbar ist - warum nicht. Das traegt keine
+  // Feldart.
+  { key: 'nachweise', titel: 'Nachweise', eigen: true },
+  { key: 'ansicht', titel: 'Darstellung' },
+];
+
 /** Felder des Optionen-Dialogs, nach Abschnitten geordnet. */
 export const OPTIONEN_ABSCHNITTE = [
-  { titel: 'Rechenmodell', keys: ['massVariante', 'blechQuelle', 'ausrOG', 'ausrUG'] },
-  { titel: 'Torsion und Aufteilung', keys: ['torsionModell', 'torsionsverteilung',
-                             'ebenenUeberlagerung', 'gurtaufteilung',
-                             'spannungsmodell'] },
-  { titel: 'Knoten und Bindebleche', keys: ['knotenbereich', 'endfeldZuschlag',
-                                            'schiefeBiegung'] },
-  { titel: 'Einwirkungen', keys: ['lastHerkunft'] },
-  { titel: 'Lastbeiwerte', keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
-  { titel: 'Widerstand', keys: ['gammaM0'] },
-  { titel: 'Modellansicht',
+  { thema: 'modell', titel: 'Rechenmodell',
+    keys: ['massVariante', 'blechQuelle', 'ausrOG', 'ausrUG'] },
+  { thema: 'modell', titel: 'Torsion und Aufteilung',
+    keys: ['torsionModell', 'torsionsverteilung',
+           'ebenenUeberlagerung', 'gurtaufteilung', 'spannungsmodell'] },
+  { thema: 'modell', titel: 'Knoten und Bindebleche',
+    keys: ['knotenbereich', 'endfeldZuschlag', 'schiefeBiegung'] },
+  { thema: 'einwirkung', titel: 'Einwirkungen', keys: ['lastHerkunft'] },
+  { thema: 'einwirkung', titel: 'Lastbeiwerte',
+    keys: ['normensatz', 'gammaG', 'gammaQ', 'psi0'] },
+  { thema: 'widerstand', titel: 'Widerstand', keys: ['gammaM0'] },
+  { thema: 'ansicht', titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',
            'modellSchriftLast', 'modellSchriftMass'] },
 ];
 
-export function optionenFelder(werte) {
-  return OPTIONEN_ABSCHNITTE.map((a) => ({
-    titel: a.titel,
-    felder: a.keys.map((k) => FELDER.find((f) => f.key === k))
-      .filter((f) => f && (!f.sichtbar || f.sichtbar(werte))),
-  })).filter((a) => a.felder.length);
+/**
+ * Die Abschnitte eines Reiters, mit ihren sichtbaren Feldern.
+ * Ohne `thema` kommen alle - so bleibt der Aufruf ohne Reiter gueltig.
+ */
+export function optionenFelder(werte, thema = null) {
+  return OPTIONEN_ABSCHNITTE
+    .filter((a) => !thema || a.thema === thema)
+    .map((a) => ({
+      titel: a.titel,
+      felder: a.keys.map((k) => FELDER.find((f) => f.key === k))
+        .filter((f) => f && (!f.sichtbar || f.sichtbar(werte))),
+    })).filter((a) => a.felder.length);
+}
+
+/** Reiter, die tatsaechlich etwas zu zeigen haben. */
+export function optionenThemen(werte) {
+  return OPTIONEN_THEMEN.filter((t) => t.eigen || optionenFelder(werte, t.key).length);
 }
 
 /** Übernimmt einen Katalogtyp in die Eingabewerte. */
