@@ -1083,7 +1083,7 @@ Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf.
 node pruefung.mjs
 ```
 
-Prüfstand über den Rechenkern: 1531 Kontrollen, ohne Browser und ohne Bündeln.
+Prüfstand über den Rechenkern: 1539 Kontrollen, ohne Browser und ohne Bündeln.
 Nach jedem Eingriff in `core.*.js` laufen lassen.
 
 ```bash

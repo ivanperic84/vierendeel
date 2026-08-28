@@ -3902,7 +3902,64 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
   const xs = mAuf.filter((k) => k.art === 'auflager').map((k) => k.p[0]).sort((a, b) => a - b);
   pruef('Auflager A steht bei kragA', xs[0], 0.35, 1e-9, 'm');
   pruef('Auflager B steht bei L − kragB', xs[1], e.modell.L - 0.75, 1e-9, 'm');
-  wahr('Der Mast wird als Stummel gezeichnet', auf.some((l) => l.mast));
+  /*
+   * DER MAST IST EIN KOERPER, KEIN STUMMEL (Weisung).
+   *
+   * Er stand als zwei Striche da, auf ein Stueck gekuerzt - "die Aussage ist
+   * die Lagerung, nicht die Masthoehe". Das galt, solange der Mast nur eine
+   * Randbedingung war. Er ist seither Teil des Tragwerks: er steht als Stab
+   * im ausgeleiteten Modell, und man haengt Anbauteile an ihn, die ueber ihre
+   * HOEHE sitzen. Wer die Hoehe nicht sieht, kann sie nicht treffen.
+   */
+  const mastF = sz.flaechen.filter((f) => /^MAST_/.test(f.teil ?? ''));
+  wahr('Der Mast wird als Koerper gezeichnet', mastF.length > 0,
+       `${mastF.length} Flaechen`);
+  wahr('Und zwar an beiden Enden',
+       new Set(mastF.map((f) => f.teil)).size === 2,
+       [...new Set(mastF.map((f) => f.teil))].join(', '));
+  // Zwoelf Ecken: zwei Flansche und der Steg. Also 12 Mantelflaechen und
+  // zwei Deckel je Mast.
+  wahr('Als I-Querschnitt mit zwoelf Ecken',
+       mastF.filter((f) => f.teil === 'MAST_A').length === 14,
+       `${mastF.filter((f) => f.teil === 'MAST_A').length} Flaechen`);
+  {
+    // Ueber die GANZE Hoehe: von der Jochachse bis zum Fuss.
+    const zs = mastF.filter((f) => f.teil === 'MAST_A').flatMap((f) => f.punkte.map((p) => p[2]));
+    const H = e.modell.federn.mastA?.H ?? e.modell.federn.mast?.H;
+    pruef('Ueber die ganze Masthoehe', Math.max(...zs) - Math.min(...zs), H, 1e-9, 'm');
+    // Der wirkliche Querschnitt, nicht ein Kasten: die y-Ausdehnung ist bei
+    // "Steg in Jochachse" die Flanschbreite b.
+    const ys = mastF.filter((f) => f.teil === 'MAST_A').flatMap((f) => f.punkte.map((p) => p[1]));
+    const prof = e.modell.federn.mastA?.profil ?? e.modell.federn.mast?.profil;
+    pruef('Mit der Flanschbreite quer zur Jochachse',
+          Math.max(...ys) - Math.min(...ys), prof.b / 1000, 1e-9, 'm');
+    const xs2 = mastF.filter((f) => f.teil === 'MAST_A').flatMap((f) => f.punkte.map((p) => p[0]));
+    pruef('Und der Profilhoehe in der Jochachse',
+          Math.max(...xs2) - Math.min(...xs2), prof.h / 1000, 1e-9, 'm');
+  }
+  /*
+   * DAS LAGER SITZT AM MASTFUSS (Weisung).
+   *
+   * Dort steht das Fundament. An der Jochachse sitzt kein Lager, sondern der
+   * ANSCHLUSS - die Drehfeder c_phi, die die Nachgiebigkeit des Mastes
+   * zusammenfasst. Die Marke an der Jochachse las sich wie ein Auflager.
+   */
+  {
+    const H = e.modell.federn.mastA?.H ?? e.modell.federn.mast?.H;
+    const a = mAuf.find((k) => k.art === 'auflager' && Math.abs(k.p[0] - 0.35) < 1e-9);
+    wahr('Die Auflagermarke sitzt am Mastfuss, nicht an der Jochachse',
+         a.p[2] < -H * 0.9, `z = ${a.p[2].toFixed(2)} m bei H = ${H} m`);
+  }
+  // Das Bild reicht bis dorthin - sonst stuende der Mast beim Einpassen
+  // halb ausserhalb.
+  {
+    const H = e.modell.federn.mastA?.H ?? e.modell.federn.mast?.H;
+    wahr('Und die Bildgrenzen reichen bis zum Fuss', sz.grenzen.zMin <= -H * 0.9,
+         `zMin = ${sz.grenzen.zMin.toFixed(2)} m`);
+  }
+  // Die Fussschraffur bleibt: sie sagt, dass dort eingespannt ist.
+  wahr('Die Fussschraffur steht weiterhin da',
+       auf.filter((l) => !l.kragarm && !l.mast).length >= 10);
   wahr('Die Kragarme sind ausgewiesen', auf.filter((l) => l.kragarm).length === 2);
   const txt = mAuf.filter((k) => k.art === 'auflagertext')
     .map((k) => k.zeilen.join(' / ')).join(' | ');

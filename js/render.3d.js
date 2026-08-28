@@ -154,6 +154,47 @@ function platte(x, breite, achse, lage, von, bis, opt, neigung = 0) {
                 -h * neigung, +h * neigung);
 }
 
+/**
+ * Prisma aus einem Querschnittspolygon [[x,y],…] (mm) zwischen z0 und z1 (m).
+ *
+ * Das Gegenstück zu `prisma`, das in x auszieht. Ein Mast steht lotrecht;
+ * ohne diesen Baustein liesse er sich nur als Kasten andeuten, und ein Kasten
+ * ist kein HEB.
+ */
+function prismaZ(poly, cx, z0, z1, opt) {
+  const flaechen = [];
+  const n = poly.length;
+  const P = (p, z) => [cx + p[0] * MM, p[1] * MM, z];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    flaechen.push({ punkte: [P(poly[i], z0), P(poly[j], z0),
+                             P(poly[j], z1), P(poly[i], z1)],
+                    xMitte: cx, ...opt });
+  }
+  flaechen.push({ punkte: poly.map((p) => P(p, z0)), xMitte: cx, ...opt });
+  flaechen.push({ punkte: poly.map((p) => P(p, z1)), xMitte: cx, ...opt });
+  return flaechen;
+}
+
+/**
+ * Der I-Querschnitt eines Mastes als Polygon [[x,y],…] in Millimetern.
+ *
+ * Zwölf Ecken: zwei Flansche und der Steg dazwischen. Die STEGRICHTUNG
+ * entscheidet, wie er im Raum liegt - «Steg in Jochachse» heisst, dass die
+ * Profilhöhe h in der Jochachse (x) steht und die Flanschbreite b quer dazu.
+ * Gedreht ist es umgekehrt. Genau das unterscheidet die starke von der
+ * schwachen Achse quer zum Gleis, und man soll es dem Bild ansehen.
+ */
+function iProfilPoly({ h, b, tw, tf }, achse) {
+  const u = h / 2, v = b / 2, w = tw / 2;
+  const uv = [
+    [-u, -v], [-u, +v], [-u + tf, +v], [-u + tf, +w],
+    [+u - tf, +w], [+u - tf, +v], [+u, +v], [+u, -v],
+    [+u - tf, -v], [+u - tf, -w], [-u + tf, -w], [-u + tf, -v],
+  ];
+  return achse === 'y' ? uv : uv.map(([a, c]) => [c, a]);
+}
+
 /** Achsparalleler Quader um einen Mittelpunkt, Kantenlängen in m. */
 function quader(mitte, [dx, dy, dz], opt) {
   const [cx, cy, cz] = mitte;
@@ -390,30 +431,73 @@ export function erzeugeSzene(m, erg) {
   const cText = (c) => (c >= 1e11 ? 'starr eingespannt'
     : !(c > 0) ? 'gelenkig' : `c_φ ${Math.round(c)}`);
 
+  /*
+   * WIE TIEF DAS BILD REICHT. Steht ein Mast im Modell, gehoert er ganz
+   * hinein - er wird ueber seine Hoehe bemasst, und Anbauteile am Masten
+   * sitzen auf dieser Hoehe. Ohne ihn in den Grenzen bliebe er beim
+   * Einpassen halb ausserhalb.
+   */
+  let mastFussZ = Infinity;
+
   [['A', xA, federn.cA, m.kappaA, federn.mastA ?? federn.mast],
    ['B', xB, federn.cB, m.kappaB, federn.mastB ?? federn.mast]].forEach(
     ([name, x, cPhi, kappa, mast]) => {
       const z0 = zu(x);
-      marken.push({ gruppe: 'auflager', art: 'auflager', p: [x, 0, z0], text: name });
-      // Der Mast als Stummel: seine wirkliche Breite, seine Stegrichtung, und
-      // unten der eingespannte Fuss. Gezeichnet wird nur ein Stück davon - die
-      // Aussage ist die Lagerung, nicht die Masthöhe.
-      const H = Math.min(mast?.H ?? 1.2, Math.max(0.8, (zOben - zUnten) * 2.5));
+      /*
+       * DER MAST ALS KOERPER, UEBER SEINE GANZE HOEHE (Weisung).
+       *
+       * Er stand bisher als zwei Striche da, auf einen Stummel gekuerzt -
+       * «die Aussage ist die Lagerung, nicht die Masthoehe». Das galt,
+       * solange der Mast nur eine Randbedingung war. Er ist seither Teil des
+       * Tragwerks: er steht als Stab im ausgeleiteten Modell, und man haengt
+       * Anbauteile an ihn, die ueber ihre HOEHE am Masten sitzen. Wer die
+       * Hoehe nicht sieht, kann sie nicht treffen.
+       *
+       * Gezeichnet wird der wirkliche Querschnitt in der wirklichen
+       * Stegrichtung - ein HEB 260 quer sieht anders aus als laengs, und
+       * genau das entscheidet ueber die starke Achse.
+       */
+      const H = mast?.H > 0 ? mast.H : Math.max(0.8, (zOben - zUnten) * 2.5);
+      const zF = z0 - H;
+      if (mast?.profil) {
+        mastFussZ = Math.min(mastFussZ, zF);
+        const poly = iProfilPoly(mast.profil, mast.stegrichtung?.achse ?? 'y');
+        flaechen.push(...prismaZ(poly, x, zF, z0, {
+          gruppe: 'auflager', teil: `MAST_${name}`,
+          label: `Mast ${name} · ${mast.profil.name} · ${mast.H.toFixed(2)} m`,
+        }));
+      }
       const halb = (mast ? (mast.stegrichtung?.achse === 'y'
         ? mast.profil.b : mast.profil.h) : 160) / 2 * MM;
-      const zF = z0 - H;
-      [-halb, +halb].forEach((dy) => {
+      // Ohne Mast bleibt der Stummel aus zwei Strichen: dort gibt es keinen
+      // Koerper, sondern nur die Aussage «hier wird gelagert».
+      if (!mast?.profil) {
+        [-halb, +halb].forEach((dy) => {
+          linien.push({ gruppe: 'auflager', mast: true,
+                        punkte: [[x, dy, z0], [x, dy, zF]] });
+        });
         linien.push({ gruppe: 'auflager', mast: true,
-                      punkte: [[x, dy, z0], [x, dy, zF]] });
-      });
-      linien.push({ gruppe: 'auflager', mast: true,
-                    punkte: [[x, -halb, zF], [x, +halb, zF]] });
+                      punkte: [[x, -halb, zF], [x, +halb, zF]] });
+      }
       // Fussschraffur - der Mast ist am Fuss eingespannt.
       for (let k = -2; k <= 2; k++) {
         const y = (k / 2) * halb;
         linien.push({ gruppe: 'auflager',
                       punkte: [[x, y, zF], [x, y - 0.12 * halb, zF - 0.14 * H]] });
       }
+      /*
+       * DAS LAGER SITZT AM MASTFUSS (Weisung), nicht an der Jochachse.
+       *
+       * Dort steht das Fundament, und dort ist eingespannt. An der Jochachse
+       * sitzt kein Lager, sondern der ANSCHLUSS ans Joch - die Drehfeder
+       * c_phi, die die Nachgiebigkeit des Mastes zusammenfasst. Die Marke an
+       * der Jochachse las sich wie ein Auflager und war damit die Aussage,
+       * die beim Nachbau eines geprueften FEM-Modells am teuersten war.
+       *
+       * Ohne Mast gibt es keinen Fuss - dann bleibt die Marke am Joch.
+       */
+      marken.push({ gruppe: 'auflager', art: 'auflager',
+                    p: [x, 0, mast?.profil ? zF : z0], text: name });
       // ZWEIZEILIG UND KURZ. Als eine Zeile war die Angabe breiter als das
       // halbe Bild und überdeckte das Joch: oben das Bauteil, unten die
       // Lagerung, beides ohne ausgeschriebene Wörter.
@@ -912,7 +996,7 @@ export function erzeugeSzene(m, erg) {
     flaechen, linien, marken, masse, vektoren, schnitt, lastflaechen, bereiche,
     legende: [...bauteile.values()],
     grenzen: { xMin: 0, xMax: m.L, yMin: qs.huelle.y0 * MM, yMax: qs.huelle.y1 * MM,
-               zMin: Math.min(qs.huelle.z0 * MM, zUnten, ...zAT),
+               zMin: Math.min(qs.huelle.z0 * MM, zUnten, mastFussZ, ...zAT),
                zMax: Math.max(qs.huelle.z1 * MM, ...zAT) },
     stationen: stationen.map((s) => s.x),
     xNachweis: xN, schnittAktiv,
@@ -2307,7 +2391,16 @@ export class Modellansicht {
     // Farbe zog den Blick von den Gurten weg und liess das Bild bei zwanzig
     // Teilen bunt aussehen; ein einziger stiller Ton lässt das Joch vorn.
     // Ausgenommen bleibt der Plot «Positionen» - dort IST die Farbe die Aussage.
-    if (f.gruppe === 'anbau' || f.gruppe === 'last') return t.dim;
+    /*
+     * DER MAST TRAEGT KEINEN NACHWEIS - und darf auch nicht so aussehen.
+     *
+     * In der Farbe der Gurte stuende er da wie ein nachgewiesenes Bauteil.
+     * Er ist aber, genau wie die Anbauteile, der Weg der Last und nicht ihr
+     * Gegenstand: das Werkzeug fuehrt keinen Mastnachweis (siehe
+     * NACHWEISGRUPPEN in core.checks.js). Ein stiller Ton sagt das.
+     */
+    if (f.gruppe === 'anbau' || f.gruppe === 'last'
+        || f.gruppe === 'auflager') return t.dim;
     return f.gruppe === 'blech' ? t.blech : t.stahl;
   }
 
