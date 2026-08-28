@@ -3433,11 +3433,174 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
 | **Einzelmast, Tragausleger, Zuganker** | Die Gruppe «Masten» ist seit dem 28. August angelegt und entkoppelt. Was fehlt: die Tragwerksart (Joch / Einzelmast / Mast mit Tragausleger) als übergreifende Wahl, und Zuganker bzw. Druckstützen als Tragglieder am Masten — sie ändern die Statik des Mastes, sind also keine Anbauteile |
 | **Stabilitaet des Mastes** | Der Querschnittsnachweis steht seit dem 28. August (`core.mast.js`); Biegeknicken und Biegedrillknicken nach EN 1993-1-1, 6.3 fehlen. Sie brauchen eine Festlegung der **Knicklänge** — Kragmast β = 2.0, oder hält das Joch den Kopf? Ohne diese Zahl nicht führbar |
-| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` 0,42 · `MAST_UNVERSCHIEBLICH` 3,10 · `ENDFELD_ZUSCHLAG` 2,0 — gegen das neue AxisVM-Modell noch nicht kalibriert. Für `MAST_UNVERSCHIEBLICH` liegt eine **gemessene** Zahl vor: 3,98·E·I/H am wirklichen Masten gegen die angesetzten 3,10. Entscheid steht aus |
+| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. Ergebnis: k = 0,449 gegen angesetzte 0,42 (haelt, Entscheid ob nachziehen), k_E = 0,48 gegen angesetzte 2,0 (der Zuschlag greift an der falschen Stelle). `MAST_UNVERSCHIEBLICH` 3,10 bleibt offen: gemessen 3,98·E·I/H am wirklichen Masten. Alle drei Entscheide stehen aus — am Rechenkern ist nichts geaendert |
 | **Raster 20 mm bei den Anbauteilen** | ob der Wert so gewollt ist, ist offen. Die zwei Reihen liegen dadurch 20 mm auseinander; siehe *Zu enge Schnitte* |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
+
+## Die Kalibrierung der beiden gefitteten Kennwerte (29. August)
+
+`GURT_DAEMPFUNG` 0,42 und `ENDFELD_ZUSCHLAG` 2,0 standen auf **einer**
+Messung an **einem** Modell mit **einer** Lastanordnung. Beide sind jetzt
+über das Sortiment und über fünf Lastanordnungen vermessen —
+`kalibrieren.mjs`, 80 PyNite-Läufe, Ergebnisse in
+`kalibrierung_daempfung.txt` und `kalibrierung_endfeld.txt`.
+
+**Am Rechenkern ist nichts geändert.** Beide Zahlen stehen unverändert; sie
+sind nachweisrelevant und bleiben die Entscheidung des Auftraggebers.
+
+### Warum nur vier Typen gemessen werden
+
+Die Dämpfung wirkt nur, wo Ober- und Untergurt verschieden sind. Das
+Sortiment führt genau drei solche Verhältnisse:
+
+| Typ | OG / UG | I_OG/I_UG | Rolle |
+|---|---|---|---|
+| J60 · J70 · J80 · J90 | gleich | 1,00 | k ohne Wirkung → **Gegenprobe** |
+| J120 | L120 / L100 | 2,04 | Fit |
+| J100 | L100 / L80 | 2,46 | der alte Messfall |
+| J130 | L130 / L120x80 | 4,15 | bis dahin unbelegt |
+
+Ein Fit über Verhältnisse, die im Sortiment nicht vorkommen, wäre Zierde.
+
+### Die Gegenprobe hat die erste Messmethode verworfen
+
+Bei gleichen Gurten muss jede richtige Methode 50,0 % liefern. Der erste
+Anlauf las den Obergurtanteil unmittelbar ab und fiel durch — und legte dabei
+**zwei echte Effekte** frei, die keine Steifigkeitseffekte sind:
+
+* **Endfeld.** An den zwei äussersten Feldern zieht das Auflager die
+  Aufteilung auf 46 / 52 %, obwohl beide Gurte gleich sind.
+* **Angriffsort.** Eine Hängestütze hängt am **Untergurt**; ihre Windlast
+  läuft dort ein, wo sie angreift, nicht nach Steifigkeit: 43 statt 50 %.
+  Ohne Anbauteile verschwindet der Effekt restlos — dann steht dort exakt
+  50,0 %.
+
+Die Formel `Anteil = 0,5 + k·(I/ΣI − 0,5)` kennt beides nicht. Wer sie in k
+hineinmittelt, misst das Falsche — und genau das ist der alten Messung
+passiert, die deshalb 58,8 % fand.
+
+**Gemessen wird deshalb die Differenz.** Jeder Fall läuft zweimal: einmal mit
+den wirklichen Gurten, einmal mit dem Obergurtprofil auf beiden Lagen, bei
+gleicher Länge, gleicher Blecheinteilung, gleichen Lasten.
+
+```
+k = (Anteil_wirklich − Anteil_gleich) / (I_OG/ΣI − 0,5)
+```
+
+Jede Störung, die in beiden Läufen gleich wirkt, fällt heraus. Zwei weitere
+Fallen, beide von der Gegenprobe gefunden und beide im Werkzeug dokumentiert:
+die Schwelle muss sich auf den grössten Wert des **ganzen Laufs** beziehen
+(sonst bleibt Querwind ohne hängende Last mit 0,03 kN drin und reisst den Fit
+auf k = −1,29), und die Querkraft ist als **Mittel beider Stabenden**
+abzulesen (am Stabanfang schlägt die aufliegende Schneelast voll durch).
+
+### GURT_DAEMPFUNG — die 0,42 hält
+
+Gegenprobe bestanden: 636 Messstellen, grösste Abweichung von 50,0 %
+**1,47 Pp** über die Querkraft, **1,68 Pp** über das Moment. Ganz auf 50,0
+kommt sie nicht und soll es nicht: der Schnee liegt physisch auf dem
+Obergurt, ein Rest von rund 1,5 Pp gehört dorthin.
+
+| Typ | I_OG/I_UG | k über das **Moment** | k über die Querkraft | n |
+|---|---|---|---|---|
+| J120 | 2,04 | **0,436** (0,31…0,50) | 0,177 | 25 |
+| J100 | 2,46 | **0,446** (0,37…0,60) | 0,244 | 28 |
+| J130 | 4,15 | **0,465** (−0,15…0,55) | 0,225 | 25 |
+| **über alle** | | **0,449** | 0,217 | 78 |
+
+**k wandert nicht:** über das Moment 0,436 → 0,465 zwischen den äussersten
+Verhältnissen, Unterschied 0,029. Die lineare Form der Formel bewährt sich —
+auch beim J130, dessen Verhältnis 4,15 vorher unbelegt war.
+
+Dass die zwei Messwege auseinanderlaufen, ist erklärt: die Querkraft im Gurt
+nimmt die unmittelbar aufliegende Last mit, das Endmoment nicht. **Massgebend
+ist das Moment**, denn daraus kommt die Spannung des Nachweises.
+
+> Entscheid offen: 0,42 belassen oder auf 0,45 nachziehen. Der Unterschied
+> beträgt am J100 rund 0,4 Prozentpunkte im Gurtanteil — messbar, aber ohne
+> Folge für eine Bemessung.
+
+### ENDFELD_ZUSCHLAG — der Wert steht an der falschen Stelle
+
+Der Vergleich läuft gegen ein PyNite-Modell mit **demselben Knotenmodell**,
+das der Nachweis benutzt (`anschnitt`). Damit fällt die Vermischung weg, die
+die alte Messung belastete: dort steckten im Faktor 2,71 noch 1,3 bis 1,6 aus
+dem Unterschied Achse-zu-Achse gegen Anschnitt. Was hier übrig bleibt, **ist**
+die örtliche Einleitung. Verglichen wird gegen das Werkzeug mit
+abgeschaltetem Zuschlag.
+
+| Fall | Verhältnis FEM / Werkzeug im Endfeld |
+|---|---|
+| Vertikallast **in der Jochachse** (`mitte`) | **1,00** (0,84…1,23) |
+| Vertikallast **einseitig** | 1,10 |
+| Vertikallast **quer versetzt** (`exzentrisch`) | **1,34** (0,94…2,04) |
+| Schnee | 0,80…1,04 |
+| **Querwind — hier greift der Zuschlag** | **k_E = 0,48** (0,41…0,64, 24 Fälle) |
+
+Zwei Aussagen, beide unangenehm:
+
+1. **Wo der Zuschlag greift, wird er nicht gebraucht.** Bei Querwind ist der
+   Torsionsanteil 100 %, der Zuschlag also voll wirksam — gemessen nötig
+   wären 0,48, angesetzt sind 2,0. Das Werkzeug ist dort ohnehin schon
+   konservativ, weil es die Bredt-Torsion als Hüllkurve auf alle vier Ebenen
+   legt; der Zuschlag vervierfacht.
+
+2. **Wo er gebraucht würde, greift er nicht.** Bei Vertikallast ist der
+   Torsionsanteil null, der Zuschlag damit wirkungslos — und genau dort
+   steht das Verhältnis bis 2,04.
+
+Der zweite Punkt hat eine benennbare Ursache, siehe unten. Ohne sie steht das
+Verhältnis bei Vertikallast in der Jochachse auf **1,00** — der Ersatzbalken
+trifft das Endfeld dann genau, und es ist nichts zuzuschlagen.
+
+> Entscheid offen. Belassen heisst: auf der sicheren Seite, aber um Faktor 4.
+> Nachziehen heisst: die Frage beantworten, ob der Zuschlag am Torsionsanteil
+> hängen soll — die Messung sagt eher nein.
+
+### Nebenbefund: Querversatz erzeugt keine Torsion
+
+Aufgefallen bei der Anordnung `exzentrisch`, belegt im kontrollierten
+Versuch: J90, 14 m, 6 kN auf y = 1,2 m. Erwartet wären 7,2 kNm Torsion,
+gerechnet werden **0,00** — auf jedem Weg, den die Eingabe kennt (y am Modul,
+an der Baugruppe, am Lastblock). Torsion aus **waagrechter** Last (F_y·e_v)
+entsteht dagegen richtig; deshalb fällt es bei Wind nicht auf.
+
+Die Stelle steht offen da. In `anbauteilLasten` (core.anbauteile.js):
+
+```js
+const ex = a.y ?? a.ex ?? 0;     // greift auf die BAUGRUPPE
+const Td = Fy * ev + Fz * ex + Mxx;
+```
+
+`normalisiereAnbauteil` schreibt das y aber in die **Module und Lastblöcke**,
+nicht an die Baugruppe. Eingabefelder für y gibt es an beiden Stellen.
+
+Der Endfeldlauf zeigt die Folge unmittelbar: dieselbe Last, nur quer versetzt,
+und das Werkzeug rechnet **identisch** (`exzentrisch` = `mitte`), während das
+FEM bis zum Doppelten liefert — 1,00 gegen 1,34 im Mittel, 1,23 gegen 2,04 am
+J90.
+
+> **Nachweisrelevant, deshalb nicht selbst entschieden.** Ist es ein Versehen,
+> oder ist es die Festlegung, dass Vertikallasten in der Jochachse angesetzt
+> werden? Vom Entscheid hängt auch der Endfeldzuschlag ab: wird die Torsion
+> aus Querversatz gebildet, greift der Zuschlag dort erstmals — und dann ist
+> neu zu messen, ob 2,0 an dieser Stelle passt.
+
+### Das Werkzeug
+
+```bash
+node kalibrieren.mjs                  # beide Kennwerte, rund 80 Läufe
+node kalibrieren.mjs --nur daempfung
+node kalibrieren.mjs --nur endfeld
+node kalibrieren.mjs --schnell        # ein Fall je Gruppe, zum Probieren
+```
+
+Gerechnete Läufe werden wiederverwendet; `KALIB_NEU=1` erzwingt neu. Die
+Rohläufe liegen ausserhalb der Ablage (`KALIB_ORDNER`), hier bleiben nur die
+Messtabellen. Die Gegenprobe steht am Anfang und sagt laut, wenn sie fällt —
+ohne sie wären beide Fehlmessungen unentdeckt geblieben.
 
 ### Entschieden — nicht wieder aufmachen
 

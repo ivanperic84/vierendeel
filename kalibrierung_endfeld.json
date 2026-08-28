@@ -1,0 +1,674 @@
+[
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.23183718499102,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 1.0238476958024694,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.6092835679333257,
+  "min": 0.5159816984061472,
+  "max": 0.706551999264516,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 2.038168410756759,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 1.0238527661375663,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.6092762694333256,
+  "min": 0.515974250687115,
+  "max": 0.7065491395521286,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.4342122767179586,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 1.0238374759082896,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 14,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.6429577322981349,
+  "min": 0.3921868201157055,
+  "max": 0.8949520246063505,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.1571487636466204,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 1.0360248741791473,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.5012448635442428,
+  "min": 0.4123581445990343,
+  "max": 0.5926558566778631,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.6339753723771269,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 1.036026134560741,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.5011951606166918,
+  "min": 0.4123154205640215,
+  "max": 0.5926003316296125,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.2749963431953337,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 1.0359992911144578,
+  "n": 8
+ },
+ {
+  "typ": "J90",
+  "L": 23.5,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.5836850530164097,
+  "min": 0.3013527374527445,
+  "max": 0.8815293721928071,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.9880715532005253,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8879699234144754,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.44794639544592096,
+  "min": 0.3483369764485349,
+  "max": 0.5504684682486402,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.286587335497722,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8879699234144754,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.44794599695421833,
+  "min": 0.3483369764485349,
+  "max": 0.5504684682486402,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.0857631336168037,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8879670298466782,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 15.5,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.4949206451222925,
+  "min": 0.3134317886881528,
+  "max": 0.6802283212141659,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.9506297029083779,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8953200649839608,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.41378985764637977,
+  "min": 0.30914272968532897,
+  "max": 0.5199003534234689,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.1130615262013752,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8953208721044562,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.4137629866166223,
+  "min": 0.30912711352427125,
+  "max": 0.5198599247252118,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.0044748442367781,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8953189786708406,
+  "n": 8
+ },
+ {
+  "typ": "J120",
+  "L": 27.5,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.4434621605580822,
+  "min": 0.2628068385237816,
+  "max": 0.6328345210468721,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.017886963050609,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8771164590553449,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.4678194280619437,
+  "min": 0.3223160239930646,
+  "max": 0.6185011333072211,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.4758026452251123,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8771188254710851,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.46781263067298334,
+  "min": 0.32231096334539266,
+  "max": 0.6184925991769722,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.1622252119774423,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8771229778609688,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 14,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.5099206034690626,
+  "min": 0.29579419040604005,
+  "max": 0.7383448859175913,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.963856493393184,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8871590942631924,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.4385956478902267,
+  "min": 0.2912904017659128,
+  "max": 0.5883074368680375,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.2110962044743312,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8871446107728769,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.4385320151000741,
+  "min": 0.2912575251429703,
+  "max": 0.5882024384034151,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.042609813413818,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8871494386029819,
+  "n": 8
+ },
+ {
+  "typ": "J100",
+  "L": 25,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.4620984881387893,
+  "min": 0.24619991412527875,
+  "max": 0.7052894144633101,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.8617487375495733,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.7996165095874518,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.46237116551319274,
+  "min": 0.3150908162677776,
+  "max": 0.6135328212969172,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 1.0366403233899124,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.7996193093891208,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.4624050275789277,
+  "min": 0.3151559087101963,
+  "max": 0.6135108958188833,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.9264383035639083,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.7996334100404299,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 17.5,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.48692902699745116,
+  "min": 0.25041451400864323,
+  "max": 0.7353462129656904,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "mitte",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.8438653113731371,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "mitte",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8095321774960426,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "mitte",
+  "einwirkung": "WindY",
+  "kE": 0.43339262191671113,
+  "min": 0.26988348521024474,
+  "max": 0.5991087356093242,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "exzentrisch",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.9400596838370336,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "exzentrisch",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.8095005643565161,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "exzentrisch",
+  "einwirkung": "WindY",
+  "kE": 0.4332701039550304,
+  "min": 0.2699887180582785,
+  "max": 0.5986097682226738,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "einseitig",
+  "einwirkung": "G",
+  "kE": null,
+  "verhOhneTorsion": 0.8796150349665768,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "einseitig",
+  "einwirkung": "Schnee",
+  "kE": null,
+  "verhOhneTorsion": 0.809495211567901,
+  "n": 8
+ },
+ {
+  "typ": "J130",
+  "L": 31,
+  "anordnung": "einseitig",
+  "einwirkung": "WindY",
+  "kE": 0.4507036652873262,
+  "min": 0.19764324698229152,
+  "max": 0.722194229732331,
+  "n": 8
+ }
+]

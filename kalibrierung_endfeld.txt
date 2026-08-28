@@ -1,0 +1,928 @@
+KALIBRIERUNG DER GEFITTETEN KENNWERTE
+Arbeitsordner: C:\Users\ivan_\AppData\Local\Temp\claude\kalibrierung
+
+============================================================================================================
+ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
+============================================================================================================
+
+--- J90 L=14 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.275    0.356        1.29            0 %       ja
+           0.00 m      0.275    0.356        1.29            0 %       ja
+           0.00 m      0.275    0.358        1.30            0 %       ja
+           0.00 m      0.275    0.358        1.30            0 %       ja
+           0.75 m      0.491    0.572        1.16            0 %       ja
+           0.75 m      0.491    0.572        1.16            0 %       ja
+           0.75 m      0.491    0.576        1.17            0 %       ja
+           0.75 m      0.491    0.576        1.17            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.23.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=14 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.02.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=14 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.269    0.139        0.52          100 %       ja
+           0.00 m      0.269    0.139        0.52          100 %       ja
+           0.00 m      0.269    0.147        0.55          100 %       ja
+           0.00 m      0.269    0.147        0.55          100 %       ja
+           0.75 m      0.350    0.233        0.67          100 %       ja
+           0.75 m      0.350    0.233        0.67          100 %       ja
+           0.75 m      0.350    0.247        0.71          100 %       ja
+           0.75 m      0.350    0.247        0.71          100 %       ja
+     -> k_E = 0.61   (0.52 … 0.71, n=8)   heute 2.0
+
+--- J90 L=14 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.275    0.575        2.09            0 %       ja
+           0.00 m      0.275    0.575        2.09            0 %       ja
+           0.00 m      0.275    0.591        2.15            0 %       ja
+           0.00 m      0.275    0.591        2.15            0 %       ja
+           0.75 m      0.491    0.948        1.93            0 %       ja
+           0.75 m      0.491    0.948        1.93            0 %       ja
+           0.75 m      0.491    0.975        1.98            0 %       ja
+           0.75 m      0.491    0.975        1.98            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 2.04.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=14 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.02.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=14 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.269    0.139        0.52          100 %       ja
+           0.00 m      0.269    0.139        0.52          100 %       ja
+           0.00 m      0.269    0.147        0.55          100 %       ja
+           0.00 m      0.269    0.147        0.55          100 %       ja
+           0.75 m      0.350    0.233        0.67          100 %       ja
+           0.75 m      0.350    0.233        0.67          100 %       ja
+           0.75 m      0.350    0.247        0.71          100 %       ja
+           0.75 m      0.350    0.247        0.71          100 %       ja
+     -> k_E = 0.61   (0.52 … 0.71, n=8)   heute 2.0
+
+--- J90 L=14 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.275    0.470        1.71            0 %       ja
+           0.00 m      0.275    0.470        1.71            0 %       ja
+           0.00 m      0.275    0.357        1.30            0 %       ja
+           0.00 m      0.275    0.357        1.30            0 %       ja
+           0.75 m      0.491    0.768        1.56            0 %       ja
+           0.75 m      0.491    0.768        1.56            0 %       ja
+           0.75 m      0.491    0.573        1.17            0 %       ja
+           0.75 m      0.491    0.573        1.17            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.43.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=14 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.00 m      0.126    0.137        1.08            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+           0.75 m      0.225    0.218        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.02.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=14 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.518    0.411        0.79          100 %       ja
+           0.00 m      0.518    0.411        0.79          100 %       ja
+           0.00 m      0.313    0.123        0.39          100 %       ja
+           0.00 m      0.313    0.123        0.39          100 %       ja
+           0.75 m      0.759    0.680        0.89          100 %       ja
+           0.75 m      0.759    0.680        0.89          100 %       ja
+           0.75 m      0.422    0.207        0.49          100 %       ja
+           0.75 m      0.422    0.207        0.49          100 %       ja
+     -> k_E = 0.64   (0.39 … 0.89, n=8)   heute 2.0
+
+--- J90 L=23.5 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.462    0.569        1.23            0 %       ja
+           0.00 m      0.462    0.569        1.23            0 %       ja
+           0.00 m      0.462    0.568        1.23            0 %       ja
+           0.00 m      0.462    0.568        1.23            0 %       ja
+           0.75 m      0.865    0.936        1.08            0 %       ja
+           0.75 m      0.865    0.936        1.08            0 %       ja
+           0.75 m      0.865    0.938        1.08            0 %       ja
+           0.75 m      0.865    0.938        1.08            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.16.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=23.5 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=23.5 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.351    0.150        0.43          100 %       ja
+           0.00 m      0.351    0.150        0.43          100 %       ja
+           0.00 m      0.351    0.145        0.41          100 %       ja
+           0.00 m      0.351    0.145        0.41          100 %       ja
+           0.75 m      0.432    0.247        0.57          100 %       ja
+           0.75 m      0.432    0.247        0.57          100 %       ja
+           0.75 m      0.432    0.256        0.59          100 %       ja
+           0.75 m      0.432    0.256        0.59          100 %       ja
+     -> k_E = 0.50   (0.41 … 0.59, n=8)   heute 2.0
+
+--- J90 L=23.5 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.462    0.804        1.74            0 %       ja
+           0.00 m      0.462    0.804        1.74            0 %       ja
+           0.00 m      0.462    0.793        1.72            0 %       ja
+           0.00 m      0.462    0.793        1.72            0 %       ja
+           0.75 m      0.865    1.323        1.53            0 %       ja
+           0.75 m      0.865    1.323        1.53            0 %       ja
+           0.75 m      0.865    1.340        1.55            0 %       ja
+           0.75 m      0.865    1.340        1.55            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.63.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=23.5 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=23.5 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.351    0.150        0.43          100 %       ja
+           0.00 m      0.351    0.150        0.43          100 %       ja
+           0.00 m      0.351    0.145        0.41          100 %       ja
+           0.00 m      0.351    0.145        0.41          100 %       ja
+           0.75 m      0.432    0.247        0.57          100 %       ja
+           0.75 m      0.432    0.247        0.57          100 %       ja
+           0.75 m      0.432    0.256        0.59          100 %       ja
+           0.75 m      0.432    0.256        0.59          100 %       ja
+     -> k_E = 0.50   (0.41 … 0.59, n=8)   heute 2.0
+
+--- J90 L=23.5 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.462    0.683        1.48            0 %       ja
+           0.00 m      0.462    0.683        1.48            0 %       ja
+           0.00 m      0.462    0.568        1.23            0 %       ja
+           0.00 m      0.462    0.568        1.23            0 %       ja
+           0.75 m      0.865    0.935        1.08            0 %       ja
+           0.75 m      0.865    0.935        1.08            0 %       ja
+           0.75 m      0.865    1.133        1.31            0 %       ja
+           0.75 m      0.865    1.133        1.31            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.27.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=23.5 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.00 m      0.212    0.234        1.10            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+           0.75 m      0.397    0.384        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J90 L=23.5 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.601    0.447        0.74          100 %       ja
+           0.00 m      0.601    0.447        0.74          100 %       ja
+           0.00 m      0.395    0.119        0.30          100 %       ja
+           0.00 m      0.395    0.119        0.30          100 %       ja
+           0.75 m      0.505    0.205        0.41          100 %       ja
+           0.75 m      0.505    0.205        0.41          100 %       ja
+           0.75 m      0.842    0.742        0.88          100 %       ja
+           0.75 m      0.842    0.742        0.88          100 %       ja
+     -> k_E = 0.58   (0.30 … 0.88, n=8)   heute 2.0
+
+--- J120 L=15.5 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.679    0.695        1.02            0 %       ja
+           0.00 m      0.679    0.695        1.02            0 %       ja
+           0.00 m      0.679    0.698        1.03            0 %       ja
+           0.00 m      0.679    0.698        1.03            0 %       ja
+           0.75 m      1.227    1.164        0.95            0 %       ja
+           0.75 m      1.227    1.164        0.95            0 %       ja
+           0.75 m      1.227    1.169        0.95            0 %       ja
+           0.75 m      1.227    1.169        0.95            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.99.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=15.5 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=15.5 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.530    0.185        0.35          100 %       ja
+           0.00 m      0.530    0.185        0.35          100 %       ja
+           0.00 m      0.530    0.192        0.36          100 %       ja
+           0.00 m      0.530    0.192        0.36          100 %       ja
+           0.75 m      0.627    0.333        0.53          100 %       ja
+           0.75 m      0.627    0.333        0.53          100 %       ja
+           0.75 m      0.627    0.345        0.55          100 %       ja
+           0.75 m      0.627    0.345        0.55          100 %       ja
+     -> k_E = 0.45   (0.35 … 0.55, n=8)   heute 2.0
+
+--- J120 L=15.5 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.679    0.895        1.32            0 %       ja
+           0.00 m      0.679    0.895        1.32            0 %       ja
+           0.00 m      0.679    0.909        1.34            0 %       ja
+           0.00 m      0.679    0.909        1.34            0 %       ja
+           0.75 m      1.227    1.516        1.24            0 %       ja
+           0.75 m      1.227    1.516        1.24            0 %       ja
+           0.75 m      1.227    1.541        1.26            0 %       ja
+           0.75 m      1.227    1.541        1.26            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.29.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=15.5 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=15.5 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.530    0.185        0.35          100 %       ja
+           0.00 m      0.530    0.185        0.35          100 %       ja
+           0.00 m      0.530    0.192        0.36          100 %       ja
+           0.00 m      0.530    0.192        0.36          100 %       ja
+           0.75 m      0.627    0.333        0.53          100 %       ja
+           0.75 m      0.627    0.333        0.53          100 %       ja
+           0.75 m      0.627    0.345        0.55          100 %       ja
+           0.75 m      0.627    0.345        0.55          100 %       ja
+     -> k_E = 0.45   (0.35 … 0.55, n=8)   heute 2.0
+
+--- J120 L=15.5 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.679    0.831        1.22            0 %       ja
+           0.00 m      0.679    0.831        1.22            0 %       ja
+           0.00 m      0.679    0.697        1.03            0 %       ja
+           0.00 m      0.679    0.697        1.03            0 %       ja
+           0.75 m      1.227    1.404        1.14            0 %       ja
+           0.75 m      1.227    1.404        1.14            0 %       ja
+           0.75 m      1.227    1.166        0.95            0 %       ja
+           0.75 m      1.227    1.166        0.95            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.09.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=15.5 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.00 m      0.267    0.244        0.91            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+           0.75 m      0.482    0.416        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=15.5 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.908    0.477        0.53          100 %       ja
+           0.00 m      0.908    0.477        0.53          100 %       ja
+           0.00 m      0.597    0.187        0.31          100 %       ja
+           0.00 m      0.597    0.187        0.31          100 %       ja
+           0.75 m      1.221    0.831        0.68          100 %       ja
+           0.75 m      1.221    0.831        0.68          100 %       ja
+           0.75 m      0.732    0.337        0.46          100 %       ja
+           0.75 m      0.732    0.337        0.46          100 %       ja
+     -> k_E = 0.49   (0.31 … 0.68, n=8)   heute 2.0
+
+--- J120 L=27.5 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.205    1.200        1.00            0 %       ja
+           0.00 m      1.205    1.200        1.00            0 %       ja
+           0.00 m      1.205    1.202        1.00            0 %       ja
+           0.00 m      1.205    1.202        1.00            0 %       ja
+           0.75 m      2.279    2.061        0.90            0 %       ja
+           0.75 m      2.279    2.061        0.90            0 %       ja
+           0.75 m      2.279    2.064        0.91            0 %       ja
+           0.75 m      2.279    2.064        0.91            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.95.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=27.5 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.90.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=27.5 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.768    0.238        0.31          100 %       ja
+           0.00 m      0.768    0.238        0.31          100 %       ja
+           0.00 m      0.768    0.242        0.31          100 %       ja
+           0.00 m      0.768    0.242        0.31          100 %       ja
+           0.75 m      0.866    0.443        0.51          100 %       ja
+           0.75 m      0.866    0.443        0.51          100 %       ja
+           0.75 m      0.866    0.450        0.52          100 %       ja
+           0.75 m      0.866    0.450        0.52          100 %       ja
+     -> k_E = 0.41   (0.31 … 0.52, n=8)   heute 2.0
+
+--- J120 L=27.5 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.205    1.399        1.16            0 %       ja
+           0.00 m      1.205    1.399        1.16            0 %       ja
+           0.00 m      1.205    1.408        1.17            0 %       ja
+           0.00 m      1.205    1.408        1.17            0 %       ja
+           0.75 m      2.279    2.412        1.06            0 %       ja
+           0.75 m      2.279    2.412        1.06            0 %       ja
+           0.75 m      2.279    2.427        1.06            0 %       ja
+           0.75 m      2.279    2.427        1.06            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.11.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=27.5 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.90.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=27.5 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.768    0.238        0.31          100 %       ja
+           0.00 m      0.768    0.238        0.31          100 %       ja
+           0.00 m      0.768    0.242        0.31          100 %       ja
+           0.00 m      0.768    0.242        0.31          100 %       ja
+           0.75 m      0.866    0.443        0.51          100 %       ja
+           0.75 m      0.866    0.443        0.51          100 %       ja
+           0.75 m      0.866    0.450        0.52          100 %       ja
+           0.75 m      0.866    0.450        0.52          100 %       ja
+     -> k_E = 0.41   (0.31 … 0.52, n=8)   heute 2.0
+
+--- J120 L=27.5 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.205    1.333        1.11            0 %       ja
+           0.00 m      1.205    1.333        1.11            0 %       ja
+           0.00 m      1.205    1.202        1.00            0 %       ja
+           0.00 m      1.205    1.202        1.00            0 %       ja
+           0.75 m      2.279    2.298        1.01            0 %       ja
+           0.75 m      2.279    2.298        1.01            0 %       ja
+           0.75 m      2.279    2.065        0.91            0 %       ja
+           0.75 m      2.279    2.065        0.91            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.00.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=27.5 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.00 m      0.474    0.442        0.93            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+           0.75 m      0.895    0.768        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.90.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J120 L=27.5 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.146    0.520        0.45          100 %       ja
+           0.00 m      1.146    0.520        0.45          100 %       ja
+           0.00 m      0.835    0.219        0.26          100 %       ja
+           0.00 m      0.835    0.219        0.26          100 %       ja
+           0.75 m      1.459    0.924        0.63          100 %       ja
+           0.75 m      1.459    0.924        0.63          100 %       ja
+           0.75 m      0.971    0.412        0.42          100 %       ja
+           0.75 m      0.971    0.412        0.42          100 %       ja
+     -> k_E = 0.44   (0.26 … 0.63, n=8)   heute 2.0
+
+--- J100 L=14 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.510    0.527        1.03            0 %       ja
+           0.00 m      0.510    0.527        1.03            0 %       ja
+           0.00 m      0.510    0.530        1.04            0 %       ja
+           0.00 m      0.510    0.530        1.04            0 %       ja
+           0.75 m      0.911    0.909        1.00            0 %       ja
+           0.75 m      0.911    0.909        1.00            0 %       ja
+           0.75 m      0.911    0.915        1.00            0 %       ja
+           0.75 m      0.911    0.915        1.00            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.02.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=14 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=14 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.593    0.191        0.32          100 %       ja
+           0.00 m      0.593    0.191        0.32          100 %       ja
+           0.00 m      0.593    0.199        0.34          100 %       ja
+           0.00 m      0.593    0.199        0.34          100 %       ja
+           0.75 m      0.703    0.418        0.59          100 %       ja
+           0.75 m      0.703    0.418        0.59          100 %       ja
+           0.75 m      0.703    0.435        0.62          100 %       ja
+           0.75 m      0.703    0.435        0.62          100 %       ja
+     -> k_E = 0.47   (0.32 … 0.62, n=8)   heute 2.0
+
+--- J100 L=14 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.510    0.743        1.46            0 %       ja
+           0.00 m      0.510    0.743        1.46            0 %       ja
+           0.00 m      0.510    0.760        1.49            0 %       ja
+           0.00 m      0.510    0.760        1.49            0 %       ja
+           0.75 m      0.911    1.331        1.46            0 %       ja
+           0.75 m      0.911    1.331        1.46            0 %       ja
+           0.75 m      0.911    1.364        1.50            0 %       ja
+           0.75 m      0.911    1.364        1.50            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.48.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=14 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=14 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.593    0.191        0.32          100 %       ja
+           0.00 m      0.593    0.191        0.32          100 %       ja
+           0.00 m      0.593    0.199        0.34          100 %       ja
+           0.00 m      0.593    0.199        0.34          100 %       ja
+           0.75 m      0.703    0.418        0.59          100 %       ja
+           0.75 m      0.703    0.418        0.59          100 %       ja
+           0.75 m      0.703    0.435        0.62          100 %       ja
+           0.75 m      0.703    0.435        0.62          100 %       ja
+     -> k_E = 0.47   (0.32 … 0.62, n=8)   heute 2.0
+
+--- J100 L=14 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.510    0.674        1.32            0 %       ja
+           0.00 m      0.510    0.674        1.32            0 %       ja
+           0.00 m      0.510    0.528        1.03            0 %       ja
+           0.00 m      0.510    0.528        1.03            0 %       ja
+           0.75 m      0.911    1.179        1.29            0 %       ja
+           0.75 m      0.911    1.179        1.29            0 %       ja
+           0.75 m      0.911    0.911        1.00            0 %       ja
+           0.75 m      0.911    0.911        1.00            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.16.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=14 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.00 m      0.224    0.203        0.90            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+           0.75 m      0.400    0.340        0.85            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=14 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.041    0.500        0.48          100 %       ja
+           0.00 m      1.041    0.500        0.48          100 %       ja
+           0.00 m      0.672    0.199        0.30          100 %       ja
+           0.00 m      0.672    0.199        0.30          100 %       ja
+           0.75 m      1.398    1.032        0.74          100 %       ja
+           0.75 m      1.398    1.032        0.74          100 %       ja
+           0.75 m      0.826    0.434        0.53          100 %       ja
+           0.75 m      0.826    0.434        0.53          100 %       ja
+     -> k_E = 0.51   (0.30 … 0.74, n=8)   heute 2.0
+
+--- J100 L=25 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.911    0.903        0.99            0 %       ja
+           0.00 m      0.911    0.903        0.99            0 %       ja
+           0.00 m      0.911    0.905        0.99            0 %       ja
+           0.00 m      0.911    0.905        0.99            0 %       ja
+           0.75 m      1.713    1.601        0.93            0 %       ja
+           0.75 m      1.713    1.601        0.93            0 %       ja
+           0.75 m      1.713    1.604        0.94            0 %       ja
+           0.75 m      1.713    1.604        0.94            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.96.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=25 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=25 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.852    0.248        0.29          100 %       ja
+           0.00 m      0.852    0.248        0.29          100 %       ja
+           0.00 m      0.852    0.253        0.30          100 %       ja
+           0.00 m      0.852    0.253        0.30          100 %       ja
+           0.75 m      0.962    0.556        0.58          100 %       ja
+           0.75 m      0.962    0.556        0.58          100 %       ja
+           0.75 m      0.962    0.566        0.59          100 %       ja
+           0.75 m      0.962    0.566        0.59          100 %       ja
+     -> k_E = 0.44   (0.29 … 0.59, n=8)   heute 2.0
+
+--- J100 L=25 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.911    1.120        1.23            0 %       ja
+           0.00 m      0.911    1.120        1.23            0 %       ja
+           0.00 m      0.911    1.130        1.24            0 %       ja
+           0.00 m      0.911    1.130        1.24            0 %       ja
+           0.75 m      1.713    2.025        1.18            0 %       ja
+           0.75 m      1.713    2.025        1.18            0 %       ja
+           0.75 m      1.713    2.044        1.19            0 %       ja
+           0.75 m      1.713    2.044        1.19            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.21.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=25 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=25 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.852    0.248        0.29          100 %       ja
+           0.00 m      0.852    0.248        0.29          100 %       ja
+           0.00 m      0.852    0.253        0.30          100 %       ja
+           0.00 m      0.852    0.253        0.30          100 %       ja
+           0.75 m      0.962    0.556        0.58          100 %       ja
+           0.75 m      0.962    0.556        0.58          100 %       ja
+           0.75 m      0.962    0.566        0.59          100 %       ja
+           0.75 m      0.962    0.566        0.59          100 %       ja
+     -> k_E = 0.44   (0.29 … 0.59, n=8)   heute 2.0
+
+--- J100 L=25 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.911    1.049        1.15            0 %       ja
+           0.00 m      0.911    1.049        1.15            0 %       ja
+           0.00 m      0.911    0.904        0.99            0 %       ja
+           0.00 m      0.911    0.904        0.99            0 %       ja
+           0.75 m      1.713    1.870        1.09            0 %       ja
+           0.75 m      1.713    1.870        1.09            0 %       ja
+           0.75 m      1.713    1.603        0.94            0 %       ja
+           0.75 m      1.713    1.603        0.94            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=25 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.00 m      0.400    0.368        0.92            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+           0.75 m      0.752    0.643        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J100 L=25 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.299    0.547        0.42          100 %       ja
+           0.00 m      1.299    0.547        0.42          100 %       ja
+           0.00 m      0.931    0.229        0.25          100 %       ja
+           0.00 m      0.931    0.229        0.25          100 %       ja
+           0.75 m      1.657    1.169        0.71          100 %       ja
+           0.75 m      1.657    1.169        0.71          100 %       ja
+           0.75 m      1.085    0.516        0.48          100 %       ja
+           0.75 m      1.085    0.516        0.48          100 %       ja
+     -> k_E = 0.46   (0.25 … 0.71, n=8)   heute 2.0
+
+--- J130 L=17.5 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.173    1.047        0.89            0 %       ja
+           0.00 m      1.173    1.047        0.89            0 %       ja
+           0.00 m      1.173    1.050        0.89            0 %       ja
+           0.00 m      1.173    1.050        0.89            0 %       ja
+           0.75 m      2.146    1.783        0.83            0 %       ja
+           0.75 m      2.146    1.783        0.83            0 %       ja
+           0.75 m      2.146    1.778        0.83            0 %       ja
+           0.75 m      2.146    1.778        0.83            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.86.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=17.5 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.80.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=17.5 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.507    0.160        0.32          100 %       ja
+           0.00 m      0.507    0.160        0.32          100 %       ja
+           0.00 m      0.507    0.167        0.33          100 %       ja
+           0.00 m      0.507    0.167        0.33          100 %       ja
+           0.75 m      0.639    0.392        0.61          100 %       ja
+           0.75 m      0.639    0.392        0.61          100 %       ja
+           0.75 m      0.639    0.378        0.59          100 %       ja
+           0.75 m      0.639    0.378        0.59          100 %       ja
+     -> k_E = 0.46   (0.32 … 0.61, n=8)   heute 2.0
+
+--- J130 L=17.5 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.173    1.235        1.05            0 %       ja
+           0.00 m      1.173    1.235        1.05            0 %       ja
+           0.00 m      1.173    1.249        1.06            0 %       ja
+           0.00 m      1.173    1.249        1.06            0 %       ja
+           0.75 m      2.146    2.190        1.02            0 %       ja
+           0.75 m      2.146    2.190        1.02            0 %       ja
+           0.75 m      2.146    2.163        1.01            0 %       ja
+           0.75 m      2.146    2.163        1.01            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=17.5 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.80.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=17.5 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.507    0.160        0.32          100 %       ja
+           0.00 m      0.507    0.160        0.32          100 %       ja
+           0.00 m      0.507    0.167        0.33          100 %       ja
+           0.00 m      0.507    0.167        0.33          100 %       ja
+           0.75 m      0.639    0.392        0.61          100 %       ja
+           0.75 m      0.639    0.392        0.61          100 %       ja
+           0.75 m      0.639    0.378        0.59          100 %       ja
+           0.75 m      0.639    0.378        0.59          100 %       ja
+     -> k_E = 0.46   (0.32 … 0.61, n=8)   heute 2.0
+
+--- J130 L=17.5 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.173    1.204        1.03            0 %       ja
+           0.00 m      1.173    1.204        1.03            0 %       ja
+           0.00 m      1.173    1.046        0.89            0 %       ja
+           0.00 m      1.173    1.046        0.89            0 %       ja
+           0.75 m      2.146    1.777        0.83            0 %       ja
+           0.75 m      2.146    1.777        0.83            0 %       ja
+           0.75 m      2.146    2.059        0.96            0 %       ja
+           0.75 m      2.146    2.059        0.96            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.93.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=17.5 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.00 m      0.423    0.354        0.84            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+           0.75 m      0.773    0.590        0.76            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.80.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=17.5 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.894    0.448        0.50          100 %       ja
+           0.00 m      0.894    0.448        0.50          100 %       ja
+           0.00 m      0.575    0.144        0.25          100 %       ja
+           0.00 m      0.575    0.144        0.25          100 %       ja
+           0.75 m      0.754    0.347        0.46          100 %       ja
+           0.75 m      0.754    0.347        0.46          100 %       ja
+           0.75 m      1.290    0.949        0.74          100 %       ja
+           0.75 m      1.290    0.949        0.74          100 %       ja
+     -> k_E = 0.49   (0.25 … 0.74, n=8)   heute 2.0
+
+--- J130 L=31 mitte · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      2.078    1.834        0.88            0 %       ja
+           0.00 m      2.078    1.834        0.88            0 %       ja
+           0.00 m      2.078    1.833        0.88            0 %       ja
+           0.00 m      2.078    1.833        0.88            0 %       ja
+           0.75 m      3.956    3.188        0.81            0 %       ja
+           0.75 m      3.956    3.188        0.81            0 %       ja
+           0.75 m      3.956    3.185        0.81            0 %       ja
+           0.75 m      3.956    3.185        0.81            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.84.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=31 mitte · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.81.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=31 mitte · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.722    0.200        0.28          100 %       ja
+           0.00 m      0.722    0.200        0.28          100 %       ja
+           0.00 m      0.722    0.195        0.27          100 %       ja
+           0.00 m      0.722    0.195        0.27          100 %       ja
+           0.75 m      0.854    0.511        0.60          100 %       ja
+           0.75 m      0.854    0.511        0.60          100 %       ja
+           0.75 m      0.854    0.502        0.59          100 %       ja
+           0.75 m      0.854    0.502        0.59          100 %       ja
+     -> k_E = 0.43   (0.27 … 0.60, n=8)   heute 2.0
+
+--- J130 L=31 exzentrisch · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      2.078    2.030        0.98            0 %       ja
+           0.00 m      2.078    2.030        0.98            0 %       ja
+           0.00 m      2.078    2.022        0.97            0 %       ja
+           0.00 m      2.078    2.022        0.97            0 %       ja
+           0.75 m      3.956    3.589        0.91            0 %       ja
+           0.75 m      3.956    3.589        0.91            0 %       ja
+           0.75 m      3.956    3.573        0.90            0 %       ja
+           0.75 m      3.956    3.573        0.90            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.94.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=31 exzentrisch · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.637        0.85            0 %       ja
+           0.00 m      0.749    0.637        0.85            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.81.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=31 exzentrisch · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.722    0.199        0.28          100 %       ja
+           0.00 m      0.722    0.199        0.28          100 %       ja
+           0.00 m      0.722    0.195        0.27          100 %       ja
+           0.00 m      0.722    0.195        0.27          100 %       ja
+           0.75 m      0.854    0.511        0.60          100 %       ja
+           0.75 m      0.854    0.511        0.60          100 %       ja
+           0.75 m      0.854    0.502        0.59          100 %       ja
+           0.75 m      0.854    0.502        0.59          100 %       ja
+     -> k_E = 0.43   (0.27 … 0.60, n=8)   heute 2.0
+
+--- J130 L=31 einseitig · G
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      2.078    1.987        0.96            0 %       ja
+           0.00 m      2.078    1.987        0.96            0 %       ja
+           0.00 m      2.078    1.834        0.88            0 %       ja
+           0.00 m      2.078    1.834        0.88            0 %       ja
+           0.75 m      3.956    3.461        0.87            0 %       ja
+           0.75 m      3.956    3.461        0.87            0 %       ja
+           0.75 m      3.956    3.187        0.81            0 %       ja
+           0.75 m      3.956    3.187        0.81            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=31 einseitig · Schnee
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.00 m      0.749    0.636        0.85            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+           0.75 m      1.425    1.096        0.77            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.81.
+        Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
+
+--- J130 L=31 einseitig · WindY
+     Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
+           0.00 m      1.110    0.491        0.44          100 %       ja
+           0.00 m      1.110    0.491        0.44          100 %       ja
+           0.00 m      0.791    0.156        0.20          100 %       ja
+           0.00 m      0.791    0.156        0.20          100 %       ja
+           0.75 m      1.506    1.087        0.72          100 %       ja
+           0.75 m      1.506    1.087        0.72          100 %       ja
+           0.75 m      0.969    0.427        0.44          100 %       ja
+           0.75 m      0.969    0.427        0.44          100 %       ja
+     -> k_E = 0.45   (0.20 … 0.72, n=8)   heute 2.0
+
+------------------------------------------------------------------------------------------------------------
+ENDFELD_ZUSCHLAG   gemessen k_E = 0.48   (0.41 … 0.64 ueber 24 Faelle)   heute angesetzt 2
+OHNE TORSION im Endfeld: Verhaeltnis FEM/Werkzeug = 1.03 (0.80 … 2.04, 48 Faelle).
+   Der Zuschlag greift dort nicht, weil er am Torsionsanteil haengt.
+   Weicht diese Zahl deutlich von 1 ab, ist die FORM zu pruefen,
+   nicht die Groesse von k_E.
+Messwerte: kalibrierung_endfeld.json (72 Zeilen)
+
+Messwerte: kalibrierung_messwerte.json (0 Zeilen)

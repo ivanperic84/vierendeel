@@ -1,0 +1,141 @@
+KALIBRIERUNG DER GEFITTETEN KENNWERTE
+Arbeitsordner: C:\Users\ivan_\AppData\Local\Temp\claude\kalibrierung
+
+============================================================================================================
+GURT_DAEMPFUNG  -  gemessen als DIFFERENZ gegen denselben Träger mit gleichen Gurten
+============================================================================================================
+
+--- J90  (L 90x90x9 / L 90x90x9, I_OG/I_UG = 1.00, nach I = 50.0 %, mit k=0.42 = 50.0 %)  [Gegenprobe]
+    L=14   leer        G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=28
+    L=14   leer        Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=24
+    L=14   mitte       G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=32
+    L=14   mitte       WindY    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  46.4 %   n=32
+    L=14   mitte       Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.8 %   n=20
+    L=14   exzentrisch G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=23
+    L=14   exzentrisch WindY    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  46.4 %   n=32
+    L=14   exzentrisch Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.8 %   n=16
+    L=14   einseitig   G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=26
+    L=14   einseitig   WindY    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  48.0 %   n=36
+    L=14   einseitig   Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.7 %   n=20
+    L=14   einseitig   WindX    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  39.1 %   n=3
+    L=14   feldrand    G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=26
+    L=14   feldrand    Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=20
+    L=23.5 leer        G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=48
+    L=23.5 leer        Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=44
+    L=23.5 mitte       G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=56
+    L=23.5 mitte       WindY    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  44.3 %   n=56
+    L=23.5 mitte       Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=40
+    L=23.5 exzentrisch G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=44
+    L=23.5 exzentrisch WindY    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  44.3 %   n=56
+    L=23.5 exzentrisch Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=36
+    L=23.5 einseitig   G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=48
+    L=23.5 einseitig   WindY    dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  46.8 %   n=60
+    L=23.5 einseitig   Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  49.9 %   n=36
+    L=23.5 feldrand    G        dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=48
+    L=23.5 feldrand    Schnee   dV   0.00 Pp -> k    —     dM   0.00 Pp -> k    —     Ref  50.0 %   n=40
+
+--- J120  (L 120x120x12 / L 100x100x10, I_OG/I_UG = 2.04, nach I = 67.1 %, mit k=0.42 = 57.2 %)  [Fit]
+    L=15.5 leer        G        dV   2.32 Pp -> k  0.135   dM   8.03 Pp -> k  0.469   Ref  50.1 %   n=32
+    L=15.5 leer        Schnee   dV   2.27 Pp -> k  0.132   dM   7.47 Pp -> k  0.436   Ref  50.3 %   n=24
+    L=15.5 mitte       G        dV   2.46 Pp -> k  0.144   dM   8.18 Pp -> k  0.477   Ref  50.1 %   n=36
+    L=15.5 mitte       WindY    dV   4.65 Pp -> k  0.272   dM   5.61 Pp -> k  0.327   Ref  44.3 %   n=36
+    L=15.5 mitte       Schnee   dV   2.27 Pp -> k  0.133   dM   7.47 Pp -> k  0.436   Ref  50.3 %   n=24
+    L=15.5 exzentrisch G        dV   2.70 Pp -> k  0.158   dM   7.72 Pp -> k  0.451   Ref  50.0 %   n=30
+    L=15.5 exzentrisch WindY    dV   4.65 Pp -> k  0.272   dM   5.61 Pp -> k  0.327   Ref  44.3 %   n=36
+    L=15.5 exzentrisch Schnee   dV   2.28 Pp -> k  0.133   dM   7.15 Pp -> k  0.417   Ref  50.4 %   n=20
+    L=15.5 einseitig   G        dV   2.84 Pp -> k  0.166   dM   8.56 Pp -> k  0.500   Ref  50.1 %   n=32
+    L=15.5 einseitig   WindY    dV   4.16 Pp -> k  0.243   dM   5.33 Pp -> k  0.311   Ref  47.2 %   n=40
+    L=15.5 einseitig   Schnee   dV   2.83 Pp -> k  0.165   dM   7.65 Pp -> k  0.447   Ref  50.6 %   n=20
+    L=15.5 feldrand    G        dV   2.49 Pp -> k  0.145   dM   7.92 Pp -> k  0.462   Ref  50.1 %   n=30
+    L=15.5 feldrand    Schnee   dV   2.42 Pp -> k  0.141   dM   7.41 Pp -> k  0.433   Ref  50.6 %   n=24
+    L=27.5 leer        G        dV   2.42 Pp -> k  0.141   dM   8.09 Pp -> k  0.472   Ref  50.0 %   n=56
+    L=27.5 leer        Schnee   dV   2.43 Pp -> k  0.142   dM   7.78 Pp -> k  0.454   Ref  50.1 %   n=48
+    L=27.5 mitte       G        dV   2.42 Pp -> k  0.141   dM   8.17 Pp -> k  0.477   Ref  50.0 %   n=60
+    L=27.5 mitte       Schnee   dV   2.46 Pp -> k  0.143   dM   7.61 Pp -> k  0.444   Ref  50.1 %   n=44
+    L=27.5 mitte       WindY    dV   7.15 Pp -> k  0.418   dM   7.79 Pp -> k  0.455   Ref  38.6 %   n=32
+    L=27.5 exzentrisch G        dV   2.51 Pp -> k  0.146   dM   8.01 Pp -> k  0.468   Ref  50.0 %   n=56
+    L=27.5 exzentrisch Schnee   dV   2.46 Pp -> k  0.144   dM   7.41 Pp -> k  0.433   Ref  50.1 %   n=40
+    L=27.5 einseitig   G        dV   2.71 Pp -> k  0.158   dM   8.50 Pp -> k  0.496   Ref  50.0 %   n=62
+    L=27.5 einseitig   WindY    dV   4.87 Pp -> k  0.284   dM   5.47 Pp -> k  0.319   Ref  44.9 %   n=14
+    L=27.5 einseitig   Schnee   dV   2.77 Pp -> k  0.162   dM   7.81 Pp -> k  0.456   Ref  50.2 %   n=44
+    L=27.5 feldrand    G        dV   2.52 Pp -> k  0.147   dM   8.22 Pp -> k  0.480   Ref  50.0 %   n=56
+    L=27.5 feldrand    Schnee   dV   2.55 Pp -> k  0.149   dM   7.69 Pp -> k  0.449   Ref  50.2 %   n=44
+
+--- J100  (L 100x100x10 / L 80x80x8, I_OG/I_UG = 2.46, nach I = 71.1 %, mit k=0.42 = 58.9 %)  [Fit]
+    L=14   leer        G        dV   4.64 Pp -> k  0.219   dM   9.67 Pp -> k  0.458   Ref  50.0 %   n=28
+    L=14   leer        Schnee   dV   4.61 Pp -> k  0.218   dM   9.31 Pp -> k  0.441   Ref  50.2 %   n=24
+    L=14   mitte       G        dV   4.70 Pp -> k  0.223   dM   9.80 Pp -> k  0.464   Ref  50.0 %   n=32
+    L=14   mitte       WindY    dV   6.41 Pp -> k  0.303   dM   7.84 Pp -> k  0.371   Ref  46.3 %   n=32
+    L=14   mitte       Schnee   dV   4.67 Pp -> k  0.221   dM   8.99 Pp -> k  0.425   Ref  50.2 %   n=20
+    L=14   exzentrisch G        dV   5.09 Pp -> k  0.241   dM   9.16 Pp -> k  0.433   Ref  49.9 %   n=25
+    L=14   exzentrisch WindY    dV   6.41 Pp -> k  0.303   dM   7.84 Pp -> k  0.371   Ref  46.3 %   n=32
+    L=14   exzentrisch Schnee   dV   4.74 Pp -> k  0.224   dM   8.66 Pp -> k  0.410   Ref  50.3 %   n=16
+    L=14   einseitig   G        dV   4.85 Pp -> k  0.230   dM  10.56 Pp -> k  0.500   Ref  50.0 %   n=26
+    L=14   einseitig   WindY    dV   5.70 Pp -> k  0.270   dM   7.88 Pp -> k  0.373   Ref  48.1 %   n=36
+    L=14   einseitig   Schnee   dV   5.12 Pp -> k  0.242   dM  10.15 Pp -> k  0.481   Ref  50.0 %   n=20
+    L=14   einseitig   WindX    dV   8.60 Pp -> k  0.407   dM  12.60 Pp -> k  0.597   Ref  34.6 %   n=3
+    L=14   feldrand    G        dV   5.39 Pp -> k  0.255   dM  10.05 Pp -> k  0.476   Ref  50.0 %   n=26
+    L=14   feldrand    Schnee   dV   5.50 Pp -> k  0.260   dM   9.38 Pp -> k  0.444   Ref  50.3 %   n=20
+    L=25   leer        G        dV   4.49 Pp -> k  0.213   dM   9.57 Pp -> k  0.453   Ref  50.0 %   n=52
+    L=25   leer        Schnee   dV   4.55 Pp -> k  0.215   dM   9.22 Pp -> k  0.436   Ref  50.1 %   n=44
+    L=25   mitte       G        dV   4.46 Pp -> k  0.211   dM   9.77 Pp -> k  0.462   Ref  50.0 %   n=60
+    L=25   mitte       WindY    dV   7.88 Pp -> k  0.373   dM   8.64 Pp -> k  0.409   Ref  42.5 %   n=60
+    L=25   mitte       Schnee   dV   4.55 Pp -> k  0.215   dM   9.22 Pp -> k  0.436   Ref  50.1 %   n=44
+    L=25   exzentrisch G        dV   4.54 Pp -> k  0.215   dM   9.30 Pp -> k  0.440   Ref  50.0 %   n=50
+    L=25   exzentrisch WindY    dV   7.88 Pp -> k  0.373   dM   8.64 Pp -> k  0.409   Ref  42.5 %   n=60
+    L=25   exzentrisch Schnee   dV   4.61 Pp -> k  0.218   dM   9.03 Pp -> k  0.428   Ref  50.1 %   n=40
+    L=25   einseitig   G        dV   4.84 Pp -> k  0.229   dM  10.47 Pp -> k  0.496   Ref  50.0 %   n=56
+    L=25   einseitig   WindY    dV   7.92 Pp -> k  0.375   dM  10.07 Pp -> k  0.477   Ref  46.0 %   n=16
+    L=25   einseitig   Schnee   dV   4.89 Pp -> k  0.231   dM   9.57 Pp -> k  0.453   Ref  50.0 %   n=42
+    L=25   einseitig   WindX    dV  -1.57 Pp -> k -0.074   dM   9.02 Pp -> k  0.427   Ref  43.5 %   n=2
+    L=25   feldrand    G        dV   4.49 Pp -> k  0.212   dM   9.76 Pp -> k  0.462   Ref  50.0 %   n=52
+    L=25   feldrand    Schnee   dV   4.53 Pp -> k  0.215   dM   9.35 Pp -> k  0.443   Ref  50.1 %   n=44
+
+--- J130  (L 130x130x12 / L 120x80x12, I_OG/I_UG = 4.15, nach I = 80.6 %, mit k=0.42 = 62.8 %)  [Fit]
+    L=17.5 leer        G        dV   6.52 Pp -> k  0.213   dM  15.26 Pp -> k  0.499   Ref  50.0 %   n=36
+    L=17.5 leer        Schnee   dV   6.53 Pp -> k  0.213   dM  14.43 Pp -> k  0.472   Ref  50.2 %   n=28
+    L=17.5 mitte       G        dV   6.68 Pp -> k  0.218   dM  15.47 Pp -> k  0.506   Ref  50.0 %   n=40
+    L=17.5 mitte       WindY    dV  11.47 Pp -> k  0.375   dM  13.10 Pp -> k  0.428   Ref  42.3 %   n=40
+    L=17.5 mitte       Schnee   dV   6.58 Pp -> k  0.215   dM  13.97 Pp -> k  0.457   Ref  50.2 %   n=24
+    L=17.5 exzentrisch G        dV   6.81 Pp -> k  0.222   dM  14.93 Pp -> k  0.488   Ref  50.0 %   n=34
+    L=17.5 exzentrisch WindY    dV  11.47 Pp -> k  0.375   dM  13.10 Pp -> k  0.428   Ref  42.3 %   n=40
+    L=17.5 exzentrisch Schnee   dV   6.58 Pp -> k  0.215   dM  13.97 Pp -> k  0.457   Ref  50.2 %   n=24
+    L=17.5 einseitig   G        dV   7.21 Pp -> k  0.236   dM  16.61 Pp -> k  0.543   Ref  50.0 %   n=36
+    L=17.5 einseitig   WindY    dV  10.15 Pp -> k  0.332   dM  14.93 Pp -> k  0.488   Ref  46.5 %   n=8
+    L=17.5 einseitig   Schnee   dV   7.43 Pp -> k  0.243   dM  15.24 Pp -> k  0.498   Ref  50.0 %   n=24
+    L=17.5 feldrand    G        dV   6.56 Pp -> k  0.215   dM  15.25 Pp -> k  0.499   Ref  50.0 %   n=34
+    L=17.5 feldrand    Schnee   dV   6.66 Pp -> k  0.218   dM  13.92 Pp -> k  0.455   Ref  50.5 %   n=24
+    L=31   leer        G        dV   5.95 Pp -> k  0.195   dM  15.81 Pp -> k  0.517   Ref  50.0 %   n=68
+    L=31   leer        Schnee   dV   6.13 Pp -> k  0.200   dM  14.96 Pp -> k  0.489   Ref  50.1 %   n=52
+    L=31   mitte       G        dV   5.92 Pp -> k  0.194   dM  15.92 Pp -> k  0.520   Ref  50.0 %   n=72
+    L=31   mitte       Schnee   dV   6.13 Pp -> k  0.200   dM  14.96 Pp -> k  0.489   Ref  50.1 %   n=52
+    L=31   exzentrisch G        dV   6.03 Pp -> k  0.197   dM  15.74 Pp -> k  0.515   Ref  50.0 %   n=68
+    L=31   exzentrisch Schnee   dV   6.19 Pp -> k  0.202   dM  14.70 Pp -> k  0.481   Ref  50.1 %   n=48
+    L=31   einseitig   G        dV   6.50 Pp -> k  0.213   dM  16.68 Pp -> k  0.545   Ref  50.0 %   n=74
+    L=31   einseitig   WindY    dV  11.97 Pp -> k  0.391   dM  14.28 Pp -> k  0.467   Ref  43.6 %   n=18
+    L=31   einseitig   Schnee   dV   6.79 Pp -> k  0.222   dM  15.42 Pp -> k  0.504   Ref  50.0 %   n=50
+    L=31   einseitig   WindX    dV  -1.98 Pp -> k -0.065   dM  -4.45 Pp -> k -0.145   Ref  46.6 %   n=2
+    L=31   feldrand    G        dV   5.97 Pp -> k  0.195   dM  16.06 Pp -> k  0.525   Ref  50.0 %   n=68
+    L=31   feldrand    Schnee   dV   6.16 Pp -> k  0.201   dM  15.15 Pp -> k  0.495   Ref  50.2 %   n=52
+
+------------------------------------------------------------------------------------------------------------
+GEGENPROBE  gleiche Gurte ohne Anbauteile, 636 Messstellen: groesste Abweichung von 50.0 %
+            ueber die Querkraft 1.47 Pp   ueber das Moment 1.68 Pp
+  bestanden - die Messmethode trifft den Steifigkeitsanteil.
+
+------------------------------------------------------------------------------------------------------------
+AUSWERTUNG   k aus   Anteil = 0.5 + k · (I_OG/ΣI − 0.5)
+------------------------------------------------------------------------------------------------------------
+Typ      I_OG/I_UG    k(V) Mittel   Spanne k(V)      k(M) Mittel   Spanne k(M)    n   heute
+J120         2.04         0.177   0.13 … 0.42           0.436   0.31 … 0.50      25    0.42
+J100         2.46         0.244   -0.07 … 0.41          0.446   0.37 … 0.60      28    0.42
+J130         4.15         0.225   -0.06 … 0.39          0.465   -0.15 … 0.55     25    0.42
+
+ÜBER ALLE FÄLLE   k(V) = 0.217   k(M) = 0.449   (heute angesetzt: 0.42)
+WANDERT k MIT DEM STEIFIGKEITSVERHÄLTNIS?
+   ueber die Querkraft    J120 (2.04) k=0.177  ->  J130 (4.15) k=0.225   Unterschied 0.049   << haelt
+   ueber das Moment       J120 (2.04) k=0.436  ->  J130 (4.15) k=0.465   Unterschied 0.029   << haelt
+   Wandert k, ist nicht die Zahl das Problem, sondern die lineare
+   Form der Formel - sie kennt nur I/ΣI und sonst nichts.
+
+Messwerte: kalibrierung_messwerte.json (105 Zeilen)
