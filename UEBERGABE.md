@@ -3432,8 +3432,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
 | **Einzelmast, Tragausleger, Zuganker** | Die Gruppe «Masten» ist seit dem 28. August angelegt und entkoppelt. Was fehlt: die Tragwerksart (Joch / Einzelmast / Mast mit Tragausleger) als übergreifende Wahl, und Zuganker bzw. Druckstützen als Tragglieder am Masten — sie ändern die Statik des Mastes, sind also keine Anbauteile |
-| **Stabilitaet des Mastes** | Der Querschnittsnachweis steht seit dem 28. August (`core.mast.js`); Biegeknicken und Biegedrillknicken nach EN 1993-1-1, 6.3 fehlen. Sie brauchen eine Festlegung der **Knicklänge** — Kragmast β = 2.0, oder hält das Joch den Kopf? Ohne diese Zahl nicht führbar |
-| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). `ENDFELD_ZUSCHLAG` am 31. August auf **0,48** nachgezogen (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. Offen bleibt allein `MAST_UNVERSCHIEBLICH` 3,10: gemessen 3,98·E·I/H am wirklichen Masten, Entscheid steht aus |
+| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. Offen bleibt allein `MAST_UNVERSCHIEBLICH` 3,10: gemessen 3,98·E·I/H am wirklichen Masten, Entscheid steht aus |
 | **Raster 20 mm bei den Anbauteilen** | ob der Wert so gewollt ist, ist offen. Die zwei Reihen liegen dadurch 20 mm auseinander; siehe *Zu enge Schnitte* |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
@@ -3554,8 +3553,9 @@ kleinem Anteil verstärkt der Quotient jede Abweichung ins Masslose — mit eine
 Schwelle von 5 % lieferten dieselben Messungen Werte von +1,18 bis −1,03. Das
 ist Arithmetik, keine Physik.
 
-> **Entschieden am 31. August: auf 0,48 nachgezogen.** Angesetzt ist der
-> Mittelwert der Messung. An den Stellen am oberen Rand der Spanne liegt das
+> **Entschieden am 31. August: auf 0,50 gesetzt.** Gemessen sind 0,48; die
+> zweite Nachkommastelle wäre bei einer Streuung von 0,41 bis 0,64
+> Scheingenauigkeit, und die Rundung geht zur sicheren Seite. An den Stellen am oberen Rand der Spanne liegt das
 > Werkzeug damit knapp *unter* dem FEM; wer die Messung nirgends
 > unterschreiten will, stellt im Optionsdialog **0,65** ein — das Feld nimmt
 > jetzt Werte unter 1 an, 1,0 schaltet die Sache ab.
@@ -3615,6 +3615,7 @@ ist.**
 | Frage | Entscheid |
 |---|---|
 | Soll die Mastwahl beide Namen zeigen, «DP26 (HEB 260)»? | **Nein — der Profilname genügt.** Die Zuordnung DP↔HEB ist über zwei unabhängige Spalten belegt (Eigengewicht und Windlasten, DP20/22/24/26 und DPM24), aber sie gehört nicht in den Wähler. Wer nach DP sucht, findet die Zuordnung im Bauteilsatz |
+| Soll die **Stabilität des Mastes** (Biegeknicken, Biegedrillknicken) geführt werden? | **Nein, bis auf weiteres nicht.** Entscheid vom 31. August: Knicken ist beim Masten wegen der verhältnismässig kleinen Lasten nie massgebend. Der Querschnittsnachweis in `core.mast.js` bleibt und genügt. Die Frage nach der Knicklänge erübrigt sich damit |
 | Soll `DP18` in `data.masten.js` aufgenommen werden? | **Noch nicht.** Das Profil steht in `fl_bauteile.json` (0,512 kN/m = HEB 180), das zugehörige HEB 180 fehlt in `data.masten.js`. Das ist kein Versehen und wird nicht ergänzt, bis der Auftraggeber es verlangt |
 
 

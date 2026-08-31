@@ -254,15 +254,22 @@ export function gurtanteile(m, art = 'gemessen') {
  * verstärkt der Quotient jede Abweichung ins Masslose (mit 5 % Schwelle
  * streuten dieselben Messungen von +1.18 bis −1.03).
  *
- * >>> ANGESETZT WIRD DER MITTELWERT 0.48. Die Messung streut von 0.41 bis
- * 0.64: an den Stellen am oberen Rand liegt das Werkzeug damit knapp UNTER
- * dem FEM. Wer die Messung nirgends unterschreiten will, nimmt 0.65 - der
- * Wert ist im Optionsdialog frei einstellbar, 1.0 schaltet die Sache ab. <<<
+ * >>> ANGESETZT WIRD 0.50. Gemessen sind 0.48 im Mittel, und die zweite
+ * Nachkommastelle waere Scheingenauigkeit: die Messung selbst streut von 0.41
+ * bis 0.64, also um ein Vielfaches der Rundung. Eine glatte Zahl sagt
+ * ehrlicher, wie genau die Sache bekannt ist - und die Herleitung steht
+ * daneben, was Nachvollziehbarkeit ausmacht, nicht die Stellenzahl.
+ *
+ * Die Rundung geht zur SICHEREN Seite: 0.50 liefert mehr Moment als die
+ * gemessenen 0.48. An den Stellen am oberen Rand der Spanne liegt das
+ * Werkzeug trotzdem knapp unter dem FEM; wer die Messung nirgends
+ * unterschreiten will, stellt 0.65 ein. Der Wert ist im Optionsdialog frei
+ * einstellbar, 1.0 schaltet die Sache ab. <<<
  *
  * In Feldmitte stimmen Werkzeug, PyNite-Rahmen und AxisVM überein
  * (0.26 / 0.23 / 0.10 kNm) - dort ändert sich ohnehin nichts.
  */
-export const ENDFELD_ZUSCHLAG = 0.48;
+export const ENDFELD_ZUSCHLAG = 0.50;
 
 /** So viele Stationen je Jochende gelten als Endfeld. */
 export const ENDFELD_STATIONEN = 2;

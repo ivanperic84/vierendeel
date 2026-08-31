@@ -3735,7 +3735,7 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
   // Knotenmodell: 0.48 im Mittel, Spanne 0.41 bis 0.64. Unter 1 heisst,
   // dass der Ersatzbalken das Endfeld ueberschaetzt statt unterschaetzt -
   // die Huellkurve ueber alle vier Ebenen traegt dort rund Faktor zwei.
-  pruef('Vorgabe ist der gemessene Mittelwert', ENDFELD_ZUSCHLAG, 0.48, 1e-12);
+  pruef('Vorgabe ist der gerundete Messwert', ENDFELD_ZUSCHLAG, 0.50, 1e-12);
   wahr('… und liegt in der gemessenen Spanne',
        ENDFELD_ZUSCHLAG >= 0.41 && ENDFELD_ZUSCHLAG <= 0.65);
   pruef('Zwei Stationen je Ende', ENDFELD_STATIONEN, 2, 1e-12);

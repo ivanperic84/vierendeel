@@ -677,15 +677,16 @@ export const FELDER = [
   // eine örtliche Krafteinleitung, die der Ersatzbalken nicht führt.
   { key: 'endfeldZuschlag', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
     label: 'Endfeldzuschlag Bindebleche', sym: 'k_E', einheit: '–',
-    standard: 0.48, schritt: 0.01, min: 0,
+    standard: 0.50, schritt: 0.01, min: 0,
     hinweis: 'In den beiden Endfeldern geht die Torsion des Jochs über die '
            + 'Anschlussebenen in den Mast – eine örtliche Krafteinleitung, '
            + 'die ein Ersatzbalken nicht führt. Gegen ein Rahmenmodell mit '
            + 'demselben Knotenmodell gemessen (31. August, 24 Fälle) zeigt '
            + 'sich das Gegenteil der früheren Annahme: das Werkzeug '
            + 'überschätzt dort, weil es die Torsion als Hüllkurve auf alle '
-           + 'vier Ebenen legt. Nötig sind k_E = 0.48 (Spanne 0.41 bis '
-           + '0.64), angesetzt waren 2.0. Der Faktor wirkt NUR auf den '
+           + 'vier Ebenen legt. Gemessen sind k_E = 0.48 (Spanne 0.41 bis '
+           + '0.64), angesetzt 0.50 – die zweite Stelle wäre bei dieser '
+           + 'Streuung Scheingenauigkeit. Der Faktor wirkt NUR auf den '
            + 'Torsionsanteil und nur auf die Bleche der beiden äussersten '
            + 'Stationen je Ende; 1.0 schaltet ihn ab, 0.65 unterschreitet '
            + 'die Messung nirgends.' },
