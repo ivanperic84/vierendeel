@@ -431,6 +431,34 @@ export function hinweise(m) {
     : 'Endfeldzuschlag auf die Bindebleche abgeschaltet: die Bleche der '
       + 'äussersten Stationen werden wie alle anderen gerechnet.');
 
+  /*
+   * ZU ENGES KLEMMENRASTER.
+   *
+   * Ein Anbauteil haengt ueber ZWEI Klemmreihen im Abstand `raster` am Joch.
+   * Das Sortiment fuehrt durchweg 400 mm (die Leiter-Traverse 600). Ein Wert
+   * weit darunter ist erfahrungsgemaess ein Vertipper - in einer Ausleitung
+   * standen 20 statt 200 mm, und die beiden Reihen lagen so eng, dass
+   * dazwischen ein Gurtstueck von 10 mm entstand. Ein solcher Stab neben
+   * 400-mm-Staeben verdirbt die Kondition der Steifigkeitsmatrix, ohne dass
+   * die Rechnung abbricht.
+   *
+   * GESPERRT wird es nicht: Ausnahmen kommen vor, und der Ausleiter legt
+   * Reihen unter 25 mm ohnehin zu einem Anschluss zusammen. Gemeldet wird es
+   * trotzdem, damit ein Vertipper nicht still durchlaeuft.
+   */
+  const engesRaster = (m.anbauteile ?? []).filter(
+    (a) => a.aktiv !== false && Number.isFinite(a.raster)
+        && a.raster > 0 && a.raster < 0.10);
+  if (engesRaster.length) {
+    h.push('Klemmenraster ungewöhnlich eng: '
+      + engesRaster.map((a) => `${a.name ?? a.id} ${(a.raster * 1000).toFixed(0)} mm`)
+          .join(', ')
+      + '. Das Sortiment führt 400 mm (Leiter-Traverse 600). Bei unter 25 mm '
+      + 'legt die Ausleitung die beiden Klemmreihen zu einem Anschluss '
+      + 'zusammen; die Rechnung im Werkzeug nimmt den Wert, wie er dasteht. '
+      + 'Ist es Absicht, kann der Hinweis stehen bleiben.');
+  }
+
   // EIGENANTEIL DER GURTE am globalen Moment.
   if (m.eigenanteil) {
     const e = m.eigenanteil;

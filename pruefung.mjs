@@ -3806,6 +3806,34 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
 }
 
 // ===========================================================================
+titel('29b Zu enges Klemmenraster wird gemeldet');
+// Ein Anbauteil haengt ueber zwei Klemmreihen im Abstand `raster`. Das
+// Sortiment fuehrt 400 mm; in einer Ausleitung standen 20 mm - ein Vertipper,
+// der ein Gurtstueck von 10 mm erzeugte. Gesperrt wird nichts (Ausnahmen
+// kommen vor), aber still durchlaufen soll es auch nicht.
+{
+  const { hinweise: hw3 } = await import(J('core.checks.js'));
+  const j90b = T.getTragjoch('J90');
+  const grund = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j90b),
+                  typ: 'J90', L: 15.5, schneeAktiv: false,
+                  endbedingung: 'gelenkig' };
+  const mitEng = rechne({ ...grund,
+    anbauteile: [teil({ id: 'E', x: 7.75, raster: 0.02, befestigung: 'durchgehend',
+      lasten: [block({ einwirkung: 'G', x: 0, z: -1.5, Fz: 2 })] })] });
+  const mitNorm = rechne({ ...grund,
+    anbauteile: [teil({ id: 'N', x: 7.75, raster: 0.40, befestigung: 'durchgehend',
+      lasten: [block({ einwirkung: 'G', x: 0, z: -1.5, Fz: 2 })] })] });
+  wahr('20 mm Raster wird gemeldet',
+       hw3(mitEng.modell).join(' | ').includes('Klemmenraster ungewöhnlich eng'));
+  wahr('… mit dem Mass im Klartext',
+       hw3(mitEng.modell).join(' | ').includes('20 mm'));
+  wahr('400 mm gibt keinen Hinweis',
+       !hw3(mitNorm.modell).join(' | ').includes('Klemmenraster ungewöhnlich eng'));
+  // GESPERRT wird nichts - die Rechnung laeuft mit dem Wert, wie er dasteht.
+  wahr('Gerechnet wird trotzdem', Number.isFinite(mitEng.max.etaGesamt));
+}
+
+// ===========================================================================
 titel('29c Abgleichwerkzeug: die Werkzeugseite');
 // vergleich_werkzeug.mjs schreibt einen Eingabestand je charakteristischem
 // Einzellastfall aus. Geprueft wird hier die Form - dass jeder Lastfall,
