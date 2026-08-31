@@ -14,6 +14,7 @@ import { U } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG } from './core.querschnitt.js';
+import { MAST_UNVERSCHIEBLICH } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
 import { amMast } from './data.anbauteile.js';
@@ -514,7 +515,7 @@ export function hinweise(m) {
       : 'Das Joch bindet die beiden Mastköpfe zusammen; unter dieser '
         + 'Einwirkung sind die Stützmomente gleichsinnig und der Rahmen '
         + 'verschiebt sich NICHT. Gerechnet wird mit der Rahmenfeder '
-        + `3.10·E·I/H = ${ma.cUnverschieblich.toFixed(0)} statt mit dem `
+        + `${MAST_UNVERSCHIEBLICH.toFixed(2)}·E·I/H = ${ma.cUnverschieblich.toFixed(0)} statt mit dem `
         + `Kragmast (${ma.cKragarm.toFixed(0)} kNm/rad). An zwei Rahmen `
         + 'gemessen, Lehrbuchwert wäre 4.00.');
   }

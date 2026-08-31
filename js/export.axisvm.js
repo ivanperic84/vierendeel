@@ -827,7 +827,7 @@ export function stabmodell(m, opt = {}) {
        * 1.0 kN/m, HEB 240 mit H = 7.00 m, Steg in Jochachse:
        *
        *   Feldmoment im Modell        27.60 kNm
-       *   Feldmoment der Anwendung    29.51 kNm  (c_φ = 3.10·E·I/H)
+       *   Feldmoment der Anwendung    27.57 kNm  (c_φ = 4.00·E·I/H)
        *
        * Aus dem Feldmoment rückgerechnet beträgt die wirksame Drehfeder des
        * gebauten Mastes 13 456 kNm/rad, also 3.98·E·I/H. Das ist der
@@ -835,11 +835,12 @@ export function stabmodell(m, opt = {}) {
        * Prozent - und damit ist dieser Aufbau gegen die Theorie belegt:
        * Geometrie, Querschnitt, Anschluss und Einspannung stimmen.
        *
-       * >>> Der Rechenkern rechnet mit 3.10, also 22 % weicher. Das ist kein
-       * Fehler dieses Modells, sondern die offene Frage, wie fest das
-       * Fundament wirklich hält: 4.00 gilt für die volle Einspannung, die
-       * hier Weisung ist. Am Feldmoment macht es -6.5 %, am Stützmoment
-       * +9.3 %. Entscheidung des Auftraggebers. <<<
+       * >>> Der Rechenkern rechnete lange mit 3.10 - dem Wert zweier
+       * PyNite-Rahmen. Seit dem 31. August steht er auf 4.00: Entscheid des
+       * Auftraggebers zugunsten des geprueften Programms und der
+       * Uebereinstimmung mit der Fachliteratur. Die Anwendung trifft die
+       * Messung damit auf ein Promille. Voraussetzung bleibt die volle
+       * Einspannung des Fundaments, die hier Weisung ist. <<<
        *
        * DER LÄNGSANKER GILT HIER NICHT. Oben hält genau ein Knoten das Joch
        * in seiner Achse, damit kein Zwang entsteht. Hier halten beide

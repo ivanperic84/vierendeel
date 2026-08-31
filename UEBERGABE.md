@@ -1014,13 +1014,20 @@ unverschieblichen Rahmens auf ein halbes Prozent genau. Damit ist dieser
 Aufbau gegen die Theorie belegt: Geometrie, Querschnitt, Anschluss und
 Einspannung stimmen.
 
-> **Offen, und Entscheidung des Auftraggebers:** der Rechenkern rechnet mit
-> **3.10**, also 22 % weicher. Am Feldmoment macht das −6.5 %, am
-> Stützmoment +9.3 %. Der Wert 4.00 gilt für die **volle** Einspannung des
-> Fundaments — die hier Weisung ist. Wieviel das Fundament wirklich hält, ist
-> die eigentliche Frage dahinter. Der Vermerk in `core.auflager.js` sagt es
-> seit je: «Der Lehrbuchwert 4.00 ist die obere Schranke, 3.11 die einzige
-> Messung.» Jetzt gibt es eine zweite.
+> **Entschieden am 31. August: der Rechenkern nimmt 4,00.** Damit rechnet die
+> Anwendung **27,57 kNm** im Feld gegen die gemessenen 27,60 — eine
+> Übereinstimmung auf ein Promille, wo vorher 6,5 % Abstand lagen.
+>
+> Begründung des Auftraggebers: AxisVM ist das geprüfte Programm, und dass
+> sein Wert den Lehrbuchwert des unverschieblichen Rahmens trifft, wiegt für
+> die Nachvollziehbarkeit schwerer als eine Zahl aus einem einzelnen Modell.
+> Voraussetzung bleibt die **volle Einspannung** des Fundaments — die hier
+> Weisung ist.
+>
+> Die beiden PyNite-Messungen (3,09 und 3,11) bleiben als Tatsache stehen.
+> Warum die Programme auseinanderlaufen, ist **nicht geklärt**: es sind nicht
+> dieselben Messgrössen — die eine liest die Drehung am Knoten ab, die andere
+> schliesst aus dem Feldmoment zurück und hängt an der ganzen Modellkette.
 
 **Was die Brücke dazu lernen musste:** ein I-Profil legt AxisVM mit
 `CrossSections.AddI(Name, h, b, tw, tf, R, Process)` an — vermessen, nicht
@@ -3432,7 +3439,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
 | **Einzelmast, Tragausleger, Zuganker** | Die Gruppe «Masten» ist seit dem 28. August angelegt und entkoppelt. Was fehlt: die Tragwerksart (Joch / Einzelmast / Mast mit Tragausleger) als übergreifende Wahl, und Zuganker bzw. Druckstützen als Tragglieder am Masten — sie ändern die Statik des Mastes, sind also keine Anbauteile |
-| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. Offen bleibt allein `MAST_UNVERSCHIEBLICH`. Hier stehen **zwei Messungen gegeneinander**: PyNite liefert an zwei verschiedenen Rahmen 3,09 und 3,11 (daher die angesetzten 3,10), ein AxisVM-Modell mit ausmodelliertem Mast liefert rückgerechnet 3,98 — den Lehrbuchwert der vollen Einspannung. Der Unterschied beträgt 22 %, am Stützmoment 9 %. Entscheid steht aus |
+| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. `MAST_UNVERSCHIEBLICH` steht seit dem 31. August auf **4,00** (vorher 3,10) — siehe *Die Drehfeder des Mastes*. Damit sind alle drei Kennwerte entschieden |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |

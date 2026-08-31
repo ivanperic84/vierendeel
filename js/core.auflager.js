@@ -151,10 +151,34 @@ export function biegesteifigkeitJoch(h, pOG, pUG) {
  * damit rund dreimal zu weich: das vergrösserte das Feldmoment (sichere Seite)
  * und VERKLEINERTE das Stützmoment - am verjüngten Jochende die unsichere.
  *
- * >>> Ein Rahmen, ein Steifigkeitsverhältnis. Der Lehrbuchwert 4.00 ist die
- * obere Schranke, 3.11 die einzige Messung. <<<
+ * ENTSCHIEDEN AM 31. AUGUST - 4.00 STATT 3.10
+ *
+ * Es kam eine zweite Messung dazu, aus einem anderen Programm und mit einer
+ * anderen Messgrösse. AxisVM 18, J90 über 20 m, HEB 240 mit H = 7.00 m, Mast
+ * ausmodelliert und Fuss eingespannt; aus dem FELDMOMENT zurückgerechnet
+ * ergibt sich c = 13 456 kNm/rad = 3.98·E·I/H - der Lehrbuchwert 4.00 auf ein
+ * halbes Prozent.
+ *
+ *      PyNite, Drehung direkt gemessen (θ bei M)      3.09 · 3.11
+ *      AxisVM, aus dem Feldmoment zurückgerechnet     3.98
+ *      Lehrbuch, volle Einspannung                    4.00
+ *
+ * WARUM DIE BEIDEN AUSEINANDERLAUFEN, IST NICHT GEKLÄRT. Es sind nicht
+ * dieselben Grössen: die eine Messung liest die Drehung am Knoten ab, die
+ * andere schliesst aus dem Feldmoment auf die Feder zurück und hängt damit
+ * an der ganzen Modellkette. Das bleibt offen und soll offen heissen.
+ *
+ * >>> ANGESETZT WIRD 4.00. Entscheid des Auftraggebers: AxisVM ist das
+ * geprüfte Programm, und dass sein Wert den Lehrbuchwert des unverschieblichen
+ * Rahmens trifft, ist für die Nachvollziehbarkeit mehr wert als eine dritte
+ * Zahl, die nur aus einem Modell stammt. Voraussetzung ist die VOLLE
+ * Einspannung des Fundaments - die hier Weisung ist.
+ *
+ * Was das ändert: die Feder wird 29 % steifer. Am Feldmoment rund −6 %, am
+ * Stützmoment rund +9 % - und das Stützmoment ist am verjüngten Jochende das
+ * massgebende. Die Änderung geht dort also zur sicheren Seite. <<<
  */
-export const MAST_UNVERSCHIEBLICH = 3.10;
+export const MAST_UNVERSCHIEBLICH = 4.00;
 
 export const MASTANSCHLUESSE = [
   { key: 'durchlaufend', faktor: 1.45,

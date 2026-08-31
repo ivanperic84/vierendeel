@@ -32,7 +32,8 @@ const { getProfil, getStahl, PROFILE } = await import(J('data.profiles.js'));
 const { berechne, modell, auswertungAn } = await import(J('core.vierendeel.js'));
 const { torsionsSchubfluss } = await import(J('core.querschnitt.js'));
 const { schnittgroessen, knotenraster, pruefeAbstaende } = await import(J('core.statics.js'));
-const { auflagermomente, biegesteifigkeitJoch, E_STAHL } = await import(J('core.auflager.js'));
+const { auflagermomente, biegesteifigkeitJoch, E_STAHL,
+        MAST_UNVERSCHIEBLICH } = await import(J('core.auflager.js'));
 const { klassifiziereWinkel, klasseAuskragend } = await import(J('core.klassen.js'));
 const { standardwerte, typUebernehmen, FELDER } = await import(J('ui.schema.js'));
 const { verortung, verortungKurz } = await import(J('core.constants.js'));
@@ -188,7 +189,7 @@ titel('2  Endeinspannung – Drehwinkelverfahren gegen geschlossene Lösung');
 
 {
   // Der Lastfall hier ist vertikal, also UNVERSCHIEBLICH: das Joch hält die
-  // beiden Mastköpfe zusammen, und es gilt 3.10 · E·I/H statt des Kragmastes
+  // beiden Mastköpfe zusammen, und es gilt 4.00 · E·I/H statt des Kragmastes
   // (core.auflager.js, MAST_UNVERSCHIEBLICH). Der Kragarmwert bleibt daneben
   // ausgewiesen und gilt beim Wind in Jochachse.
   const w = basis({ endbedingung: 'mast', mastProfil: 'HEB 240',
@@ -197,8 +198,8 @@ titel('2  Endeinspannung – Drehwinkelverfahren gegen geschlossene Lösung');
   const p = e.modell.federn.mast;
   pruef('Kragmastwert c = E·I/H', p.cKragarm,
         (E_STAHL * (11260 * 1e-8)) / 8, 1e-9, 'kNm/rad');
-  pruef('Vertikallast rechnet unverschieblich', p.cPhi, 3.10 * p.cKragarm,
-        1e-9, 'kNm/rad');
+  pruef('Vertikallast rechnet unverschieblich', p.cPhi,
+        MAST_UNVERSCHIEBLICH * p.cKragarm, 1e-9, 'kNm/rad');
   const q = rechne({ ...w, mastSteg: 'quer' });
   pruef('Stegdrehung nutzt I_z', q.modell.federn.mast.I_cm4, 3923, 1e-12, 'cm4');
 }
@@ -2007,8 +2008,8 @@ titel('18c  Mastanschluss: Kragarm oder durchlaufend');
        `${durchV.cPhi.toFixed(0)} gegen gemessene 6074 kNm/rad`);
   // Unverschieblich regiert die Rahmenwirkung, nicht die Bauart des
   // Anschlusses: das Joch hält die beiden Mastköpfe zusammen.
-  pruef('Unverschieblich ist 3.10 · E·I/H', durch.cPhi,
-        3.10 * durch.cKragarm, 1e-9, 'kNm/rad');
+  pruef('Unverschieblich ist 4.00 · E·I/H', durch.cPhi,
+        MAST_UNVERSCHIEBLICH * durch.cKragarm, 1e-9, 'kNm/rad');
   wahr('Unverschieblich hängt nicht mehr am Anschluss',
        Math.abs(durch.cPhi - krag.cPhi) < 1e-9);
   wahr('Unverschieblich ist deutlich steifer als der Kragmast',
@@ -3264,7 +3265,8 @@ titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
   const mB = mastSteifigkeit({ ...mastEin, mastZwei: true,
                                mastProfilB: 'HEM 240', mastHB: 12.0 }, 'B');
   pruef('Ende B: Rahmenfeder des zweiten Mastes', f2.cB,
-        3.10 * (210e6 * mB.I_cm4 * 1e-8) / 12.0, 1e-9, 'kNm/rad');
+        MAST_UNVERSCHIEBLICH * (210e6 * mB.I_cm4 * 1e-8) / 12.0,
+        1e-9, 'kNm/rad');
   wahr('Ohne Schalter bleibt der zweite Mast wirkungslos',
        Math.abs(drehfedern({ ...mastEin, mastProfilB: 'HEM 240', mastHB: 12.0 }).cB
                 - f1.cB) < 1e-12);
@@ -6047,23 +6049,28 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
    * Rahmens auf ein halbes Prozent. Damit steht dieser Aufbau gegen die
    * Theorie: Geometrie, Querschnitt, Anschluss und Einspannung stimmen.
    *
-   * Der Rechenkern rechnet mit 3.10 - 22 % weicher. Offene Frage an den
-   * Auftraggeber, keine Aenderung. Diese Kontrolle haelt die Rechnung fest,
-   * damit die Zahl nicht unbemerkt wandert.
+   * ENTSCHIEDEN AM 31. AUGUST: der Rechenkern nimmt jetzt 4.00 statt 3.10.
+   * Damit rechnet die Anwendung 27.57 kNm gegen die gemessenen 27.60 - eine
+   * Uebereinstimmung auf ein Promille. Diese Kontrolle haelt beides fest:
+   * dass der Rechenkern den Lehrbuchwert ansetzt und dass die Messung selbst
+   * darauf fuehrt.
    */
   {
     const EIH = E_STAHL * mM.federn.mastA.I / mM.federn.mastA.H;
     pruef('E*I/H des HEB 240 auf 7.00 m', EIH, 3378, 1e-3, 'kNm/rad');
-    pruef('Der Rechenkern nimmt davon das 3.10-fache',
-          mM.federn.roh.cA / EIH, 3.10, 1e-9, '-');
+    pruef('Der Rechenkern nimmt davon das 4.00-fache',
+          mM.federn.roh.cA / EIH, MAST_UNVERSCHIEBLICH, 1e-9, '-');
     const feldBei = (c) => {
       const r = auflagermomente({ L: mM.L, qd: mM.qd, P: [], M: [],
                                   EI: mM.steif.EI, cA: c, cB: c,
                                   theta0A: 0, theta0B: 0, MkA: 0, MkB: 0 });
       return (mM.qd * mM.L * mM.L) / 8 - Math.abs(r.MA);
     };
-    pruef('Damit rechnet die Anwendung 29.51 kNm im Feld',
-          feldBei(mM.federn.roh.cA), 29.51, 5e-4, 'kNm');
+    pruef('Damit rechnet die Anwendung 27.57 kNm im Feld',
+          feldBei(mM.federn.roh.cA), 27.5697, 1e-3, 'kNm');
+    // Das ist der eigentliche Gewinn des Entscheids: gemessen 27.60.
+    wahr('… und trifft die Messung auf ein Promille',
+         Math.abs(feldBei(mM.federn.roh.cA) - 27.60) / 27.60 < 2e-3);
     // Gemessen wurden 27.60 - welche Feder erklaert das?
     let lo = 100, hi = 1e7;
     for (let i = 0; i < 200; i++) {

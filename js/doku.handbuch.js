@@ -384,13 +384,26 @@ J90 15.5 m, zwei gleiche HEB 260/7.5 m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 c = 12 906 = <b>3.09</b> · E·I/H`)}
 
 <p>Zwei Spannweiten, zwei Mastpaare, gleiche und ungleiche Enden – und derselbe
-Faktor. Er liegt unter dem Lehrbuchwert 4.00, weil das Joch steif, aber nicht
-starr ist. Gerechnet wird mit <b>3.10</b>.</p>
+Faktor. Er liegt unter dem Lehrbuchwert 4.00.</p>
+
+<p>Eine zweite Messung an einem <b>anderen Programm</b> sagt etwas anderes: aus
+dem Feldmoment eines AxisVM-Modells mit ausmodelliertem Mast zurückgerechnet
+ergeben sich <b>3.98 · E·I/H</b> – der Lehrbuchwert auf ein halbes Prozent. Es
+sind nicht dieselben Messgrössen: die eine liest die Drehung am Knoten ab, die
+andere schliesst aus dem Feldmoment zurück. Warum sie auseinanderlaufen, ist
+nicht geklärt.</p>
+
+${q(`Gerechnet wird seit dem 31. August mit <b>4.00</b>. Entscheid des
+Auftraggebers: AxisVM ist das geprüfte Programm, und dass sein Wert den
+Lehrbuchwert des unverschieblichen Rahmens trifft, wiegt für die
+Nachvollziehbarkeit schwerer als eine Zahl aus einem einzelnen Modell.
+Voraussetzung ist die volle Einspannung des Fundaments – die hier Weisung ist.
+Die Anwendung rechnet damit 27.57 kNm im Feld gegen die gemessenen 27.60.`)}
 
 <table><tr><th>Einwirkung</th><th>Rahmen</th><th>Feder</th></tr>
 <tr><td>Eigengewicht, Schnee, Wind in Gleisrichtung</td>
     <td>gleichsinnige Stützmomente, kein Verschieben</td>
-    <td><b>3.10 · E·I/H</b></td></tr>
+    <td><b>4.00 · E·I/H</b></td></tr>
 <tr><td>Wind in Jochachse</td>
     <td>beide Köpfe in dieselbe Richtung, der Rahmen verschiebt sich</td>
     <td>Kragmast, Anschlussfaktor 1.00 / 1.45</td></tr></table>
@@ -1495,9 +1508,10 @@ Lehrbuchwert des unverschieblichen Rahmens ist <b>4.00</b> – eine Abweichung
 von einem halben Prozent. Geometrie, Querschnitt, Anschluss und Einspannung
 stimmen also zusammen.</p>
 
-${q(`Der Rechenkern setzt 3.10 · E·I/H an, also 22 % weicher. Das ist kein
-Fehler dieses Modells, sondern die offene Frage, wie fest das Fundament
-wirklich hält. Am Feldmoment macht es −6.5 %, am Stützmoment +9.3 %.`)}
+${q(`Der Rechenkern setzt seit dem 31. August ebenfalls 4.00 · E·I/H an; die
+Anwendung rechnet damit 27.57 kNm im Feld gegen die gemessenen 27.60 – eine
+Übereinstimmung auf ein Promille. Voraussetzung bleibt die volle Einspannung
+des Fundaments.`)}
 
 <h4>Was die Brücke nicht tut</h4>
 <ol class="hb-liste">

@@ -386,7 +386,7 @@ export const FELDER = [
              'WIRKT NUR IM VERSCHIEBLICHEN FALL — also bei Wind in Jochachse ' +
              'und bei Längskräften aus Anbauteilen. Für Vertikallasten und ' +
              'Wind in Gleisrichtung hält das Joch die beiden Mastköpfe ' +
-             'zusammen; dann gilt der gemessene Rahmenwert 3.10·E·I/H, ' +
+             'zusammen; dann gilt der Rahmenwert 4.00·E·I/H, ' +
              'unabhängig von dieser Wahl. Die weichere Annahme vergrössert ' +
              'das Feldmoment, die steifere das Stützmoment.' },
   /*
