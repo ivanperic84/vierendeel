@@ -5,7 +5,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.23183718499102,
+  "verhOhneTorsion": 1.0331775030048516,
   "n": 8
  },
  {
@@ -33,7 +33,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 2.038168410756759,
+  "verhOhneTorsion": 1.0316886203319555,
   "n": 8
  },
  {
@@ -61,7 +61,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.4342122767179586,
+  "verhOhneTorsion": 1.031427599270907,
   "n": 8
  },
  {
@@ -89,7 +89,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.1571487636466204,
+  "verhOhneTorsion": 1.0407028112805534,
   "n": 8
  },
  {
@@ -117,7 +117,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.6339753723771269,
+  "verhOhneTorsion": 1.041713189899893,
   "n": 8
  },
  {
@@ -145,7 +145,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.2749963431953337,
+  "verhOhneTorsion": 1.0398469693397785,
   "n": 8
  },
  {
@@ -173,7 +173,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.9880715532005253,
+  "verhOhneTorsion": 0.8917396600407315,
   "n": 8
  },
  {
@@ -201,7 +201,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.286587335497722,
+  "verhOhneTorsion": 0.8189521149851575,
   "n": 8
  },
  {
@@ -229,7 +229,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.0857631336168037,
+  "verhOhneTorsion": 0.8913224359118781,
   "n": 8
  },
  {
@@ -257,7 +257,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.9506297029083779,
+  "verhOhneTorsion": 0.8972383964718564,
   "n": 8
  },
  {
@@ -285,7 +285,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.1130615262013752,
+  "verhOhneTorsion": 0.8462724206934321,
   "n": 8
  },
  {
@@ -313,7 +313,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.0044748442367781,
+  "verhOhneTorsion": 0.897134048875889,
   "n": 8
  },
  {
@@ -341,7 +341,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.017886963050609,
+  "verhOhneTorsion": 0.8770615239101603,
   "n": 8
  },
  {
@@ -369,7 +369,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.4758026452251123,
+  "verhOhneTorsion": 0.7838091187445972,
   "n": 8
  },
  {
@@ -397,7 +397,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.1622252119774423,
+  "verhOhneTorsion": 0.8767769337592685,
   "n": 8
  },
  {
@@ -425,7 +425,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.963856493393184,
+  "verhOhneTorsion": 0.8862460674093775,
   "n": 8
  },
  {
@@ -453,7 +453,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.2110962044743312,
+  "verhOhneTorsion": 0.8168367307277427,
   "n": 8
  },
  {
@@ -481,7 +481,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.042609813413818,
+  "verhOhneTorsion": 0.8861353833771637,
   "n": 8
  },
  {
@@ -509,7 +509,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.8617487375495733,
+  "verhOhneTorsion": 0.7988687422403342,
   "n": 8
  },
  {
@@ -537,7 +537,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 1.0366403233899124,
+  "verhOhneTorsion": 0.7583927667526638,
   "n": 8
  },
  {
@@ -565,7 +565,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.9264383035639083,
+  "verhOhneTorsion": 0.7995133865047567,
   "n": 8
  },
  {
@@ -593,7 +593,7 @@
   "anordnung": "mitte",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.8438653113731371,
+  "verhOhneTorsion": 0.8086472751975217,
   "n": 8
  },
  {
@@ -621,7 +621,7 @@
   "anordnung": "exzentrisch",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.9400596838370336,
+  "verhOhneTorsion": 0.7812603721417486,
   "n": 8
  },
  {
@@ -649,7 +649,7 @@
   "anordnung": "einseitig",
   "einwirkung": "G",
   "kE": null,
-  "verhOhneTorsion": 0.8796150349665768,
+  "verhOhneTorsion": 0.8088513995826606,
   "n": 8
  },
  {

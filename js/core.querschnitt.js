@@ -105,14 +105,41 @@ export const GURTAUFTEILUNGEN = [
  *      gleichen sie stärker aus - der Mittelwert sinkt von 59.4 auf 58.8 %.
  *      Deutlich weniger, als die Grössenordnung von φ befürchten liess.
  *
- * >>> EIN Modell, EIN Steifigkeitsverhältnis. k ist gefittet, nicht
- * hergeleitet - bei anderen Verhältnissen ist es unbelegt. Und der Mittelwert
- * verdeckt eine Spanne von 51 bis 73 %: an einzelnen Stationen liegt diese
- * Aufteilung für den einen oder den anderen Gurt zu tief. Wer beide Gurte
- * gleichzeitig auf der sicheren Seite haben will, nimmt 'huellend' -
- * dessen Anteile ergänzen sich dann aber zu mehr als eins. <<<
+ * NACHGEMESSEN AM 29. AUGUST - k = 0.45 STATT 0.42
+ *
+ * Die obige Zahl stand auf EINEM Modell mit EINEM Steifigkeitsverhältnis.
+ * `kalibrieren.mjs` hat sie über das ganze Sortiment gefahren: 80 Läufe, vier
+ * Verhältnisse, zwei Bauarten, fünf Lastanordnungen.
+ *
+ *      I_OG/I_UG    1.00      2.04      2.46      4.15
+ *      k              —       0.436     0.446     0.465
+ *
+ * Gemessen wird die DIFFERENZ gegen denselben Träger mit gleichen Gurten -
+ * nur so bleibt der reine Steifigkeitseffekt übrig. Der erste Anlauf las den
+ * Anteil unmittelbar ab und fing sich zwei Störungen ein, die keine
+ * Steifigkeitseffekte sind: die Auflagernähe (46/52 % an den äussersten zwei
+ * Feldern, bei GLEICHEN Gurten) und den Angriffsort der Last (eine
+ * Hängestütze hängt am Untergurt; ihre Windlast läuft dort ein, wo sie
+ * angreift - 43 statt 50 %). Genau daran ist die alte Messung mit 58.8 %
+ * vorbeigelaufen.
+ *
+ * Massgebend ist das ENDMOMENT, nicht die Querkraft: die Querkraft im Gurt
+ * nimmt die unmittelbar aufliegende Last mit (Schnee liegt auf dem
+ * Obergurt), das Moment nicht - und aus dem Moment kommt die Spannung.
+ * Über die Querkraft gemessen ergäbe sich 0.22.
+ *
+ * >>> k WANDERT NICHT: 0.436 beim Verhältnis 2.04 gegen 0.465 bei 4.15,
+ * Unterschied 0.029. Die lineare Form der Formel ist damit belegt, auch für
+ * das J130, dessen 4.15 vorher unberührt war. Gegenprobe bestanden: 636
+ * Messstellen mit gleichen Gurten, grösste Abweichung von 50.0 % nur 1.7
+ * Prozentpunkte - und der Rest gehört dorthin, weil der Schnee auf dem
+ * Obergurt liegt.
+ *
+ * Der Mittelwert verdeckt weiterhin eine Spanne über die Stationen. Wer
+ * beide Gurte gleichzeitig auf der sicheren Seite haben will, nimmt
+ * 'huellend' - dessen Anteile ergänzen sich dann aber zu mehr als eins. <<<
  */
-export const GURT_DAEMPFUNG = 0.42;
+export const GURT_DAEMPFUNG = 0.45;
 
 /**
  * Anteil eines Gurtes an der Querkraft seiner VERTIKALEBENE.

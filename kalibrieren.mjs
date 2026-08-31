@@ -122,19 +122,18 @@ const TYPEN = [
  *   einseitig    zwei Lasten auf einer Jochhälfte - unsymmetrische Querkraft.
  *   feldrand     Last dicht am Auflager statt in Feldmitte.
  *
- * >>> ZU 'exzentrisch': der Querversatz kommt im Rechenkern NICHT als
- * Torsion an. Gemessen am J90, 14 m, mit 6 kN auf y = 1.2 m: erwartet wären
- * 7.2 kNm, gerechnet werden 0.00 - und zwar auf jedem Weg, den die Eingabe
- * kennt (y am Modul, y an der Baugruppe, y am Lastblock). Die Ursache liegt
- * sichtbar in `anbauteilLasten`: dort steht  ex = a.y ?? a.ex ?? 0  und
- * greift damit auf die BAUGRUPPE, während `normalisiereAnbauteil` das y in
- * die Module und Lastblöcke schreibt. Torsion aus WAAGRECHTER Last (Fy·e_v)
- * entsteht dagegen richtig - deshalb fällt es bei Wind nicht auf.
+ * ZU 'exzentrisch' - eine Fehldiagnose, die hier stehen bleibt, weil sie
+ * lehrreich war: der Querversatz schien im Rechenkern keine Torsion zu
+ * erzeugen. Der Verdacht fiel auf `ex = a.y ?? a.ex ?? 0` in
+ * `anbauteilLasten`. Er war falsch. Nachgemessen am J90 mit 0.65 kN auf
+ * y = 1.2 m liefert der Kern 0.78 kNm - genau Kraft mal Hebel.
  *
- * Ob das ein Versehen ist oder eine Festlegung (Vertikallasten immer in der
- * Jochachse), ist NICHT hier zu entscheiden - es ist nachweisrelevant. Bis
- * zur Klärung ist 'exzentrisch' rechnerisch dasselbe wie 'mitte'; die
- * Anordnung bleibt in der Liste, damit der Fall wiederholbar ist. <<<
+ * Der Fehler lag im VERGLEICH: der charakteristische Lastfall 'gk' trägt
+ * `nur: 'joch'` und blendet sämtliche Anbaulasten aus (sie stehen in 'ak'),
+ * während PyNite alles rechnet, was im Modell steht. Verglichen wurden also
+ * zwei verschiedene Tragwerke. Deshalb setzt der Endfeldteil die Beiwerte
+ * jetzt unmittelbar (`beiwerteFest`) statt einen benannten Lastfall zu
+ * nehmen - siehe den Block dort.
  */
 const ANORDNUNGEN = ['leer', 'mitte', 'exzentrisch', 'einseitig', 'feldrand'];
 
@@ -574,16 +573,31 @@ if (!NUR || NUR === 'endfeld') {
   console.log('='.repeat(108));
   console.log('');
 
-  // Die PyNite-Lastfaelle heissen wie die Einwirkungen; die Lastfaelle des
-  // Werkzeugs heissen anders. Zugeordnet wird ueber die Beiwerte: gesucht ist
-  // der charakteristische Lastfall, in dem genau diese eine Einwirkung steht.
-  function werkzeugLastfall(faelle, einwirkung) {
-    return faelle.find((l) => {
-      const b = l.beiwerte ?? {};
-      const eins = Object.entries(b).filter(([, v]) => Math.abs(v) > 1e-9);
-      return eins.length === 1 && eins[0][0] === einwirkung;
-    });
-  }
+  /*
+   * DIE LASTFÄLLE MÜSSEN DASSELBE ENTHALTEN - SONST MISST MAN NICHTS.
+   *
+   * Der erste Anlauf hat den PyNite-Lastfall 'G' gegen den charakteristischen
+   * Lastfall 'gk' des Werkzeugs gestellt. Das war falsch: 'gk' trägt
+   * `nur: 'joch'` und blendet SÄMTLICHE Anbaulasten aus, während PyNite alles
+   * rechnet, was im Modell steht. Die ständigen Lasten der Anbauteile stehen
+   * im Werkzeug in einem eigenen Lastfall 'ak'.
+   *
+   * Was dabei herauskam, sah nach einem Fehler im Rechenkern aus - eine quer
+   * versetzte Last schien keine Torsion zu erzeugen. In Wahrheit war sie im
+   * Vergleich gar nicht dabei. `anbauteilLasten` bildet die Torsion aus
+   * Querversatz richtig; nachgemessen am J90 mit 0.65 kN auf y = 1.2 m sind
+   * es 0.78 kNm, genau Kraft mal Hebel.
+   *
+   * Statt eines benannten Lastfalls werden deshalb die Beiwerte unmittelbar
+   * gesetzt. `beiwerteFest` übergeht die Lastfallwahl, und damit entfällt
+   * auch das Ausblenden - Joch UND Anbauteile, genau wie im FEM.
+   */
+  const BEIWERTE = {
+    G: { G: 1, WindX: 0, WindY: 0, Schnee: 0 },
+    Schnee: { G: 0, WindX: 0, WindY: 0, Schnee: 1 },
+    WindY: { G: 0, WindX: 0, WindY: 1, Schnee: 0 },
+    WindX: { G: 0, WindX: 1, WindY: 0, Schnee: 0 },
+  };
 
   const endErg = [];
 
@@ -607,7 +621,6 @@ if (!NUR || NUR === 'endfeld') {
         }
         const orte = stabOrte(lauf.bau);
         const w = eingabe(typ, L, anordnung);
-        const lfListe = LA.standardLastfaelle(w).filter((l) => l.art === 'charakteristisch');
 
         // --- FEM: Blechmoment am Anschnitt, je Ort und Ebene ---------------
         // Vertikalblech biegt um seine starke Achse = lokal z, das
@@ -627,12 +640,10 @@ if (!NUR || NUR === 'endfeld') {
         }
 
         for (const einwirkung of ['G', 'Schnee', 'WindY']) {
-          const lf = werkzeugLastfall(lfListe, einwirkung);
-          if (!lf) continue;
           // Werkzeug OHNE Zuschlag - sonst wird gegen den erhoehten Wert
           // gemessen und der Faktor faellt um sich selbst zu klein aus.
           const e = V.berechne(
-            { ...w, lastfall: lf.key, beiwerteFest: null, endfeldZuschlag: false },
+            { ...w, beiwerteFest: BEIWERTE[einwirkung], endfeldZuschlag: false },
             P.getProfil(w.profOG), P.getProfil(w.profUG),
             P.getStahl(w.stahl), joch);
 
@@ -670,7 +681,18 @@ if (!NUR || NUR === 'endfeld') {
               + `${(z.endfeld ? '  ja' : '  —').padStart(9)}`);
           });
           // k_E aus  Verhaeltnis = 1 + (k_E − 1) · Torsionsanteil
-          const imEnd = vert.filter((z) => z.endfeld && z.tAnteil > 0.05);
+          /*
+           * NUR WO DIE TORSION DAS BILD BESTIMMT.
+           *
+           * k_E = 1 + (Verhältnis − 1)/Torsionsanteil ist ein Quotient mit
+           * dem Anteil im Nenner. Bei kleinem Anteil verstärkt er jede
+           * Abweichung ins Masslose: dieselben Messungen lieferten mit der
+           * Schwelle 0.05 Werte von +1.18 bis −1.03, allein weil der Anteil
+           * bei Eigengewicht auf wenige Prozent fällt. Das ist Arithmetik,
+           * keine Physik. Gemessen wird deshalb dort, wo die Torsion
+           * überwiegt - bei Querwind ist sie es zu 100 %.
+           */
+          const imEnd = vert.filter((z) => z.endfeld && z.tAnteil > 0.50);
           if (imEnd.length) {
             const kE = imEnd.map((z) => 1 + (z.verh - 1) / z.tAnteil);
             const s = statistik(kE);

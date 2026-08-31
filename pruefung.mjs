@@ -3182,7 +3182,7 @@ titel('23  Vorzeichenrichtige Überlagerung je Blechebene');
 titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
 {
   const { hebelarme } = await import(J('core.vierendeel.js'));
-  const { gurtanteile } = await import(J('core.querschnitt.js'));
+  const { gurtanteile, GURT_DAEMPFUNG } = await import(J('core.querschnitt.js'));
   const { mastSteifigkeit, drehfedern } = await import(J('core.auflager.js'));
 
   // --- 1 · Einbaulage des stehenden Schenkels -------------------------------
@@ -3221,10 +3221,15 @@ titel('24  Ungleiche Gurte: Hebelarm, Aufteilung, zwei Maste');
   pruef('gemessen: Anteile ergänzen sich zu eins', ge.OG + ge.UG, 1, 1e-12);
   wahr('gemessen liegt zwischen hälftig und I-Anteil',
        ge.OG > 0.5 && ge.OG < st.OG);
-  // Am Signaljoch (I_OG/I_UG = 2.45) hat PyNite mit SCHUBWEICHEN Blechen
-  // 56.7 … 60.7 % gemessen, Mittel 58.8 %. Gegenprobe mit gleichen Gurten:
-  // exakt 50.0 %.
-  pruef('gemessen trifft die Messung am Signaljoch', ge.OG, 0.589, 5e-3);
+  // Nachgemessen am 29. August ueber das ganze Sortiment (kalibrieren.mjs,
+  // 80 Laeufe): k = 0.45 aus der DIFFERENZ gegen denselben Traeger mit
+  // gleichen Gurten. Beim Verhaeltnis 2.46 ergibt das 0.5 + 0.45*0.211.
+  pruef('gemessen trifft die Kalibrierung', ge.OG, 0.5 + 0.45 * (st.OG - 0.5), 1e-9);
+  // k WANDERT NICHT: gemessen 0.436 bei I_OG/I_UG = 2.04 gegen 0.465 bei
+  // 4.15. Die angesetzte Zahl muss zwischen den beiden liegen, sonst ist sie
+  // nicht mehr das Mittel der Messung.
+  wahr('k liegt zwischen den gemessenen Randwerten',
+       GURT_DAEMPFUNG >= 0.436 && GURT_DAEMPFUNG <= 0.465);
   wahr('einhüllend ist nie kleiner als hälftig', hu.OG >= 0.5 && hu.UG >= 0.5);
   const gleich = gurtanteile({ profOG: pOG, profUG: pOG }, 'steifigkeit');
   pruef('Gleiche Gurte: wieder hälftig', gleich.OG, 0.5, 1e-12);

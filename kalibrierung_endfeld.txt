@@ -1,5 +1,5 @@
 KALIBRIERUNG DER GEFITTETEN KENNWERTE
-Arbeitsordner: C:\Users\ivan_\AppData\Local\Temp\claude\kalibrierung
+Arbeitsordner: C:/Users/ivan_/AppData/Local/Temp/claude/kalibrierung
 
 ============================================================================================================
 ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
@@ -7,15 +7,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J90 L=14 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.275    0.356        1.29            0 %       ja
-           0.00 m      0.275    0.356        1.29            0 %       ja
-           0.00 m      0.275    0.358        1.30            0 %       ja
-           0.00 m      0.275    0.358        1.30            0 %       ja
-           0.75 m      0.491    0.572        1.16            0 %       ja
-           0.75 m      0.491    0.572        1.16            0 %       ja
-           0.75 m      0.491    0.576        1.17            0 %       ja
-           0.75 m      0.491    0.576        1.17            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.23.
+           0.00 m      0.325    0.356        1.09            0 %       ja
+           0.00 m      0.325    0.356        1.09            0 %       ja
+           0.00 m      0.325    0.358        1.10            0 %       ja
+           0.00 m      0.325    0.358        1.10            0 %       ja
+           0.75 m      0.592    0.572        0.97            0 %       ja
+           0.75 m      0.592    0.572        0.97            0 %       ja
+           0.75 m      0.591    0.576        0.97            0 %       ja
+           0.75 m      0.591    0.576        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.03.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J90 L=14 mitte · Schnee
@@ -45,15 +45,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J90 L=14 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.275    0.575        2.09            0 %       ja
-           0.00 m      0.275    0.575        2.09            0 %       ja
-           0.00 m      0.275    0.591        2.15            0 %       ja
-           0.00 m      0.275    0.591        2.15            0 %       ja
-           0.75 m      0.491    0.948        1.93            0 %       ja
-           0.75 m      0.491    0.948        1.93            0 %       ja
-           0.75 m      0.491    0.975        1.98            0 %       ja
-           0.75 m      0.491    0.975        1.98            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 2.04.
+           0.00 m      0.546    0.575        1.05           32 %       ja
+           0.00 m      0.546    0.575        1.05           32 %       ja
+           0.00 m      0.546    0.591        1.08           32 %       ja
+           0.00 m      0.546    0.591        1.08           32 %       ja
+           0.75 m      0.966    0.948        0.98           34 %       ja
+           0.75 m      0.966    0.948        0.98           34 %       ja
+           0.75 m      0.966    0.975        1.01           34 %       ja
+           0.75 m      0.966    0.975        1.01           34 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.03.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J90 L=14 exzentrisch · Schnee
@@ -83,15 +83,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J90 L=14 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.275    0.470        1.71            0 %       ja
-           0.00 m      0.275    0.470        1.71            0 %       ja
-           0.00 m      0.275    0.357        1.30            0 %       ja
-           0.00 m      0.275    0.357        1.30            0 %       ja
-           0.75 m      0.491    0.768        1.56            0 %       ja
-           0.75 m      0.491    0.768        1.56            0 %       ja
-           0.75 m      0.491    0.573        1.17            0 %       ja
-           0.75 m      0.491    0.573        1.17            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.43.
+           0.00 m      0.410    0.470        1.15            0 %       ja
+           0.00 m      0.410    0.470        1.15            0 %       ja
+           0.00 m      0.340    0.357        1.05            0 %       ja
+           0.00 m      0.340    0.357        1.05            0 %       ja
+           0.75 m      0.762    0.768        1.01            0 %       ja
+           0.75 m      0.762    0.768        1.01            0 %       ja
+           0.75 m      0.621    0.573        0.92            0 %       ja
+           0.75 m      0.621    0.573        0.92            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.03.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J90 L=14 einseitig · Schnee
@@ -121,15 +121,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J90 L=23.5 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.462    0.569        1.23            0 %       ja
-           0.00 m      0.462    0.569        1.23            0 %       ja
-           0.00 m      0.462    0.568        1.23            0 %       ja
-           0.00 m      0.462    0.568        1.23            0 %       ja
-           0.75 m      0.865    0.936        1.08            0 %       ja
-           0.75 m      0.865    0.936        1.08            0 %       ja
-           0.75 m      0.865    0.938        1.08            0 %       ja
-           0.75 m      0.865    0.938        1.08            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.16.
+           0.00 m      0.512    0.569        1.11            0 %       ja
+           0.00 m      0.512    0.569        1.11            0 %       ja
+           0.00 m      0.512    0.568        1.11            0 %       ja
+           0.00 m      0.512    0.568        1.11            0 %       ja
+           0.75 m      0.965    0.936        0.97            0 %       ja
+           0.75 m      0.965    0.936        0.97            0 %       ja
+           0.75 m      0.965    0.938        0.97            0 %       ja
+           0.75 m      0.965    0.938        0.97            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J90 L=23.5 mitte · Schnee
@@ -159,15 +159,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J90 L=23.5 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.462    0.804        1.74            0 %       ja
-           0.00 m      0.462    0.804        1.74            0 %       ja
-           0.00 m      0.462    0.793        1.72            0 %       ja
-           0.00 m      0.462    0.793        1.72            0 %       ja
-           0.75 m      0.865    1.323        1.53            0 %       ja
-           0.75 m      0.865    1.323        1.53            0 %       ja
-           0.75 m      0.865    1.340        1.55            0 %       ja
-           0.75 m      0.865    1.340        1.55            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.63.
+           0.00 m      0.733    0.804        1.10           23 %       ja
+           0.00 m      0.733    0.804        1.10           23 %       ja
+           0.00 m      0.733    0.793        1.08           23 %       ja
+           0.00 m      0.733    0.793        1.08           23 %       ja
+           0.75 m      1.340    1.323        0.99           24 %       ja
+           0.75 m      1.340    1.323        0.99           24 %       ja
+           0.75 m      1.340    1.340        1.00           24 %       ja
+           0.75 m      1.340    1.340        1.00           24 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J90 L=23.5 exzentrisch · Schnee
@@ -197,15 +197,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J90 L=23.5 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.462    0.683        1.48            0 %       ja
-           0.00 m      0.462    0.683        1.48            0 %       ja
-           0.00 m      0.462    0.568        1.23            0 %       ja
-           0.00 m      0.462    0.568        1.23            0 %       ja
-           0.75 m      0.865    0.935        1.08            0 %       ja
-           0.75 m      0.865    0.935        1.08            0 %       ja
-           0.75 m      0.865    1.133        1.31            0 %       ja
-           0.75 m      0.865    1.133        1.31            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.27.
+           0.00 m      0.597    0.683        1.14            0 %       ja
+           0.00 m      0.597    0.683        1.14            0 %       ja
+           0.00 m      0.527    0.568        1.08            0 %       ja
+           0.00 m      0.527    0.568        1.08            0 %       ja
+           0.75 m      0.995    0.935        0.94            0 %       ja
+           0.75 m      0.995    0.935        0.94            0 %       ja
+           0.75 m      1.135    1.133        1.00            0 %       ja
+           0.75 m      1.135    1.133        1.00            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J90 L=23.5 einseitig · Schnee
@@ -235,15 +235,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J120 L=15.5 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.679    0.695        1.02            0 %       ja
-           0.00 m      0.679    0.695        1.02            0 %       ja
-           0.00 m      0.679    0.698        1.03            0 %       ja
-           0.00 m      0.679    0.698        1.03            0 %       ja
-           0.75 m      1.227    1.164        0.95            0 %       ja
-           0.75 m      1.227    1.164        0.95            0 %       ja
-           0.75 m      1.227    1.169        0.95            0 %       ja
-           0.75 m      1.227    1.169        0.95            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.99.
+           0.00 m      0.749    0.695        0.93            0 %       ja
+           0.00 m      0.749    0.695        0.93            0 %       ja
+           0.00 m      0.749    0.698        0.93            0 %       ja
+           0.00 m      0.749    0.698        0.93            0 %       ja
+           0.75 m      1.367    1.164        0.85            0 %       ja
+           0.75 m      1.367    1.164        0.85            0 %       ja
+           0.75 m      1.367    1.169        0.86            0 %       ja
+           0.75 m      1.367    1.169        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J120 L=15.5 mitte · Schnee
@@ -273,15 +273,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J120 L=15.5 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.679    0.895        1.32            0 %       ja
-           0.00 m      0.679    0.895        1.32            0 %       ja
-           0.00 m      0.679    0.909        1.34            0 %       ja
-           0.00 m      0.679    0.909        1.34            0 %       ja
-           0.75 m      1.227    1.516        1.24            0 %       ja
-           0.75 m      1.227    1.516        1.24            0 %       ja
-           0.75 m      1.227    1.541        1.26            0 %       ja
-           0.75 m      1.227    1.541        1.26            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.29.
+           0.00 m      1.079    0.895        0.83           22 %       ja
+           0.00 m      1.079    0.895        0.83           22 %       ja
+           0.00 m      1.079    0.909        0.84           22 %       ja
+           0.00 m      1.079    0.909        0.84           22 %       ja
+           0.75 m      1.905    1.516        0.80           23 %       ja
+           0.75 m      1.905    1.516        0.80           23 %       ja
+           0.75 m      1.905    1.541        0.81           23 %       ja
+           0.75 m      1.905    1.541        0.81           23 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.82.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J120 L=15.5 exzentrisch · Schnee
@@ -311,15 +311,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J120 L=15.5 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.679    0.831        1.22            0 %       ja
-           0.00 m      0.679    0.831        1.22            0 %       ja
-           0.00 m      0.679    0.697        1.03            0 %       ja
-           0.00 m      0.679    0.697        1.03            0 %       ja
-           0.75 m      1.227    1.404        1.14            0 %       ja
-           0.75 m      1.227    1.404        1.14            0 %       ja
-           0.75 m      1.227    1.166        0.95            0 %       ja
-           0.75 m      1.227    1.166        0.95            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.09.
+           0.00 m      0.868    0.831        0.96            0 %       ja
+           0.00 m      0.868    0.831        0.96            0 %       ja
+           0.00 m      0.770    0.697        0.90            0 %       ja
+           0.00 m      0.770    0.697        0.90            0 %       ja
+           0.75 m      1.604    1.404        0.88            0 %       ja
+           0.75 m      1.604    1.404        0.88            0 %       ja
+           0.75 m      1.409    1.166        0.83            0 %       ja
+           0.75 m      1.409    1.166        0.83            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J120 L=15.5 einseitig · Schnee
@@ -349,15 +349,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J120 L=27.5 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      1.205    1.200        1.00            0 %       ja
-           0.00 m      1.205    1.200        1.00            0 %       ja
-           0.00 m      1.205    1.202        1.00            0 %       ja
-           0.00 m      1.205    1.202        1.00            0 %       ja
-           0.75 m      2.279    2.061        0.90            0 %       ja
-           0.75 m      2.279    2.061        0.90            0 %       ja
-           0.75 m      2.279    2.064        0.91            0 %       ja
-           0.75 m      2.279    2.064        0.91            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.95.
+           0.00 m      1.275    1.200        0.94            0 %       ja
+           0.00 m      1.275    1.200        0.94            0 %       ja
+           0.00 m      1.275    1.202        0.94            0 %       ja
+           0.00 m      1.275    1.202        0.94            0 %       ja
+           0.75 m      2.419    2.061        0.85            0 %       ja
+           0.75 m      2.419    2.061        0.85            0 %       ja
+           0.75 m      2.419    2.064        0.85            0 %       ja
+           0.75 m      2.419    2.064        0.85            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.90.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J120 L=27.5 mitte · Schnee
@@ -387,15 +387,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J120 L=27.5 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      1.205    1.399        1.16            0 %       ja
-           0.00 m      1.205    1.399        1.16            0 %       ja
-           0.00 m      1.205    1.408        1.17            0 %       ja
-           0.00 m      1.205    1.408        1.17            0 %       ja
-           0.75 m      2.279    2.412        1.06            0 %       ja
-           0.75 m      2.279    2.412        1.06            0 %       ja
-           0.75 m      2.279    2.427        1.06            0 %       ja
-           0.75 m      2.279    2.427        1.06            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.11.
+           0.00 m      1.605    1.399        0.87           14 %       ja
+           0.00 m      1.605    1.399        0.87           14 %       ja
+           0.00 m      1.605    1.408        0.88           14 %       ja
+           0.00 m      1.605    1.408        0.88           14 %       ja
+           0.75 m      2.957    2.412        0.82           15 %       ja
+           0.75 m      2.957    2.412        0.82           15 %       ja
+           0.75 m      2.957    2.427        0.82           15 %       ja
+           0.75 m      2.957    2.427        0.82           15 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.85.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J120 L=27.5 exzentrisch · Schnee
@@ -425,15 +425,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J120 L=27.5 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      1.205    1.333        1.11            0 %       ja
-           0.00 m      1.205    1.333        1.11            0 %       ja
-           0.00 m      1.205    1.202        1.00            0 %       ja
-           0.00 m      1.205    1.202        1.00            0 %       ja
-           0.75 m      2.279    2.298        1.01            0 %       ja
-           0.75 m      2.279    2.298        1.01            0 %       ja
-           0.75 m      2.279    2.065        0.91            0 %       ja
-           0.75 m      2.279    2.065        0.91            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.00.
+           0.00 m      1.394    1.333        0.96            0 %       ja
+           0.00 m      1.394    1.333        0.96            0 %       ja
+           0.00 m      1.296    1.202        0.93            0 %       ja
+           0.00 m      1.296    1.202        0.93            0 %       ja
+           0.75 m      2.656    2.298        0.87            0 %       ja
+           0.75 m      2.656    2.298        0.87            0 %       ja
+           0.75 m      2.461    2.065        0.84            0 %       ja
+           0.75 m      2.461    2.065        0.84            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.90.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J120 L=27.5 einseitig · Schnee
@@ -463,15 +463,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J100 L=14 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.510    0.527        1.03            0 %       ja
-           0.00 m      0.510    0.527        1.03            0 %       ja
-           0.00 m      0.510    0.530        1.04            0 %       ja
-           0.00 m      0.510    0.530        1.04            0 %       ja
-           0.75 m      0.911    0.909        1.00            0 %       ja
-           0.75 m      0.911    0.909        1.00            0 %       ja
-           0.75 m      0.911    0.915        1.00            0 %       ja
-           0.75 m      0.911    0.915        1.00            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.02.
+           0.00 m      0.588    0.527        0.90            0 %       ja
+           0.00 m      0.588    0.527        0.90            0 %       ja
+           0.00 m      0.588    0.530        0.90            0 %       ja
+           0.00 m      0.588    0.530        0.90            0 %       ja
+           0.75 m      1.066    0.909        0.85            0 %       ja
+           0.75 m      1.066    0.909        0.85            0 %       ja
+           0.75 m      1.066    0.915        0.86            0 %       ja
+           0.75 m      1.066    0.915        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J100 L=14 mitte · Schnee
@@ -501,15 +501,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J100 L=14 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.510    0.743        1.46            0 %       ja
-           0.00 m      0.510    0.743        1.46            0 %       ja
-           0.00 m      0.510    0.760        1.49            0 %       ja
-           0.00 m      0.510    0.760        1.49            0 %       ja
-           0.75 m      0.911    1.331        1.46            0 %       ja
-           0.75 m      0.911    1.331        1.46            0 %       ja
-           0.75 m      0.911    1.364        1.50            0 %       ja
-           0.75 m      0.911    1.364        1.50            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.48.
+           0.00 m      0.975    0.743        0.76           29 %       ja
+           0.00 m      0.975    0.743        0.76           29 %       ja
+           0.00 m      0.975    0.760        0.78           29 %       ja
+           0.00 m      0.975    0.760        0.78           29 %       ja
+           0.75 m      1.691    1.331        0.79           31 %       ja
+           0.75 m      1.691    1.331        0.79           31 %       ja
+           0.75 m      1.691    1.364        0.81           31 %       ja
+           0.75 m      1.691    1.364        0.81           31 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.78.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J100 L=14 exzentrisch · Schnee
@@ -539,15 +539,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J100 L=14 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.510    0.674        1.32            0 %       ja
-           0.00 m      0.510    0.674        1.32            0 %       ja
-           0.00 m      0.510    0.528        1.03            0 %       ja
-           0.00 m      0.510    0.528        1.03            0 %       ja
-           0.75 m      0.911    1.179        1.29            0 %       ja
-           0.75 m      0.911    1.179        1.29            0 %       ja
-           0.75 m      0.911    0.911        1.00            0 %       ja
-           0.75 m      0.911    0.911        1.00            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.16.
+           0.00 m      0.719    0.674        0.94            0 %       ja
+           0.00 m      0.719    0.674        0.94            0 %       ja
+           0.00 m      0.611    0.528        0.86            0 %       ja
+           0.00 m      0.611    0.528        0.86            0 %       ja
+           0.75 m      1.329    1.179        0.89            0 %       ja
+           0.75 m      1.329    1.179        0.89            0 %       ja
+           0.75 m      1.112    0.911        0.82            0 %       ja
+           0.75 m      1.112    0.911        0.82            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J100 L=14 einseitig · Schnee
@@ -577,15 +577,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J100 L=25 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.911    0.903        0.99            0 %       ja
-           0.00 m      0.911    0.903        0.99            0 %       ja
-           0.00 m      0.911    0.905        0.99            0 %       ja
-           0.00 m      0.911    0.905        0.99            0 %       ja
-           0.75 m      1.713    1.601        0.93            0 %       ja
-           0.75 m      1.713    1.601        0.93            0 %       ja
-           0.75 m      1.713    1.604        0.94            0 %       ja
-           0.75 m      1.713    1.604        0.94            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.96.
+           0.00 m      0.989    0.903        0.91            0 %       ja
+           0.00 m      0.989    0.903        0.91            0 %       ja
+           0.00 m      0.989    0.905        0.92            0 %       ja
+           0.00 m      0.989    0.905        0.92            0 %       ja
+           0.75 m      1.868    1.601        0.86            0 %       ja
+           0.75 m      1.868    1.601        0.86            0 %       ja
+           0.75 m      1.868    1.604        0.86            0 %       ja
+           0.75 m      1.868    1.604        0.86            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J100 L=25 mitte · Schnee
@@ -615,15 +615,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J100 L=25 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.911    1.120        1.23            0 %       ja
-           0.00 m      0.911    1.120        1.23            0 %       ja
-           0.00 m      0.911    1.130        1.24            0 %       ja
-           0.00 m      0.911    1.130        1.24            0 %       ja
-           0.75 m      1.713    2.025        1.18            0 %       ja
-           0.75 m      1.713    2.025        1.18            0 %       ja
-           0.75 m      1.713    2.044        1.19            0 %       ja
-           0.75 m      1.713    2.044        1.19            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.21.
+           0.00 m      1.376    1.120        0.81           19 %       ja
+           0.00 m      1.376    1.120        0.81           19 %       ja
+           0.00 m      1.376    1.130        0.82           19 %       ja
+           0.00 m      1.376    1.130        0.82           19 %       ja
+           0.75 m      2.493    2.025        0.81           20 %       ja
+           0.75 m      2.493    2.025        0.81           20 %       ja
+           0.75 m      2.493    2.044        0.82           20 %       ja
+           0.75 m      2.493    2.044        0.82           20 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.82.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J100 L=25 exzentrisch · Schnee
@@ -653,15 +653,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J100 L=25 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      0.911    1.049        1.15            0 %       ja
-           0.00 m      0.911    1.049        1.15            0 %       ja
-           0.00 m      0.911    0.904        0.99            0 %       ja
-           0.00 m      0.911    0.904        0.99            0 %       ja
-           0.75 m      1.713    1.870        1.09            0 %       ja
-           0.75 m      1.713    1.870        1.09            0 %       ja
-           0.75 m      1.713    1.603        0.94            0 %       ja
-           0.75 m      1.713    1.603        0.94            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+           0.00 m      1.120    1.049        0.94            0 %       ja
+           0.00 m      1.120    1.049        0.94            0 %       ja
+           0.00 m      1.012    0.904        0.89            0 %       ja
+           0.00 m      1.012    0.904        0.89            0 %       ja
+           0.75 m      2.131    1.870        0.88            0 %       ja
+           0.75 m      2.131    1.870        0.88            0 %       ja
+           0.75 m      1.914    1.603        0.84            0 %       ja
+           0.75 m      1.914    1.603        0.84            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.89.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J100 L=25 einseitig · Schnee
@@ -691,15 +691,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J130 L=17.5 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      1.173    1.047        0.89            0 %       ja
-           0.00 m      1.173    1.047        0.89            0 %       ja
-           0.00 m      1.173    1.050        0.89            0 %       ja
-           0.00 m      1.173    1.050        0.89            0 %       ja
-           0.75 m      2.146    1.783        0.83            0 %       ja
-           0.75 m      2.146    1.783        0.83            0 %       ja
-           0.75 m      2.146    1.778        0.83            0 %       ja
-           0.75 m      2.146    1.778        0.83            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.86.
+           0.00 m      1.262    1.047        0.83            0 %       ja
+           0.00 m      1.262    1.047        0.83            0 %       ja
+           0.00 m      1.262    1.050        0.83            0 %       ja
+           0.00 m      1.262    1.050        0.83            0 %       ja
+           0.75 m      2.322    1.783        0.77            0 %       ja
+           0.75 m      2.322    1.783        0.77            0 %       ja
+           0.75 m      2.322    1.778        0.77            0 %       ja
+           0.75 m      2.322    1.778        0.77            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.80.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J130 L=17.5 mitte · Schnee
@@ -729,15 +729,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J130 L=17.5 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      1.173    1.235        1.05            0 %       ja
-           0.00 m      1.173    1.235        1.05            0 %       ja
-           0.00 m      1.173    1.249        1.06            0 %       ja
-           0.00 m      1.173    1.249        1.06            0 %       ja
-           0.75 m      2.146    2.190        1.02            0 %       ja
-           0.75 m      2.146    2.190        1.02            0 %       ja
-           0.75 m      2.146    2.163        1.01            0 %       ja
-           0.75 m      2.146    2.163        1.01            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 1.04.
+           0.00 m      1.609    1.235        0.77           17 %       ja
+           0.00 m      1.609    1.235        0.77           17 %       ja
+           0.00 m      1.609    1.249        0.78           17 %       ja
+           0.00 m      1.609    1.249        0.78           17 %       ja
+           0.75 m      2.923    2.190        0.75           18 %       ja
+           0.75 m      2.923    2.190        0.75           18 %       ja
+           0.75 m      2.924    2.163        0.74           18 %       ja
+           0.75 m      2.924    2.163        0.74           18 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.76.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J130 L=17.5 exzentrisch · Schnee
@@ -767,15 +767,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J130 L=17.5 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      1.173    1.204        1.03            0 %       ja
-           0.00 m      1.173    1.204        1.03            0 %       ja
-           0.00 m      1.173    1.046        0.89            0 %       ja
-           0.00 m      1.173    1.046        0.89            0 %       ja
-           0.75 m      2.146    1.777        0.83            0 %       ja
-           0.75 m      2.146    1.777        0.83            0 %       ja
-           0.75 m      2.146    2.059        0.96            0 %       ja
-           0.75 m      2.146    2.059        0.96            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.93.
+           0.00 m      1.412    1.204        0.85            0 %       ja
+           0.00 m      1.412    1.204        0.85            0 %       ja
+           0.00 m      1.288    1.046        0.81            0 %       ja
+           0.00 m      1.288    1.046        0.81            0 %       ja
+           0.75 m      2.375    1.777        0.75            0 %       ja
+           0.75 m      2.375    1.777        0.75            0 %       ja
+           0.75 m      2.623    2.059        0.79            0 %       ja
+           0.75 m      2.623    2.059        0.79            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.80.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J130 L=17.5 einseitig · Schnee
@@ -805,15 +805,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J130 L=31 mitte · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      2.078    1.834        0.88            0 %       ja
-           0.00 m      2.078    1.834        0.88            0 %       ja
-           0.00 m      2.078    1.833        0.88            0 %       ja
-           0.00 m      2.078    1.833        0.88            0 %       ja
-           0.75 m      3.956    3.188        0.81            0 %       ja
-           0.75 m      3.956    3.188        0.81            0 %       ja
-           0.75 m      3.956    3.185        0.81            0 %       ja
-           0.75 m      3.956    3.185        0.81            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.84.
+           0.00 m      2.167    1.834        0.85            0 %       ja
+           0.00 m      2.167    1.834        0.85            0 %       ja
+           0.00 m      2.167    1.833        0.85            0 %       ja
+           0.00 m      2.167    1.833        0.85            0 %       ja
+           0.75 m      4.133    3.188        0.77            0 %       ja
+           0.75 m      4.133    3.188        0.77            0 %       ja
+           0.75 m      4.132    3.185        0.77            0 %       ja
+           0.75 m      4.132    3.185        0.77            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.81.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J130 L=31 mitte · Schnee
@@ -843,15 +843,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J130 L=31 exzentrisch · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      2.078    2.030        0.98            0 %       ja
-           0.00 m      2.078    2.030        0.98            0 %       ja
-           0.00 m      2.078    2.022        0.97            0 %       ja
-           0.00 m      2.078    2.022        0.97            0 %       ja
-           0.75 m      3.956    3.589        0.91            0 %       ja
-           0.75 m      3.956    3.589        0.91            0 %       ja
-           0.75 m      3.956    3.573        0.90            0 %       ja
-           0.75 m      3.956    3.573        0.90            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.94.
+           0.00 m      2.514    2.030        0.81           11 %       ja
+           0.00 m      2.514    2.030        0.81           11 %       ja
+           0.00 m      2.514    2.022        0.80           11 %       ja
+           0.00 m      2.514    2.022        0.80           11 %       ja
+           0.75 m      4.734    3.589        0.76           11 %       ja
+           0.75 m      4.734    3.589        0.76           11 %       ja
+           0.75 m      4.734    3.573        0.75           11 %       ja
+           0.75 m      4.734    3.573        0.75           11 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.78.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J130 L=31 exzentrisch · Schnee
@@ -881,15 +881,15 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 --- J130 L=31 einseitig · G
      Abstand vom Ende   Werkzeug     FEM   Verhaeltnis  Torsionsanteil  Endfeld
-           0.00 m      2.078    1.987        0.96            0 %       ja
-           0.00 m      2.078    1.987        0.96            0 %       ja
-           0.00 m      2.078    1.834        0.88            0 %       ja
-           0.00 m      2.078    1.834        0.88            0 %       ja
-           0.75 m      3.956    3.461        0.87            0 %       ja
-           0.75 m      3.956    3.461        0.87            0 %       ja
-           0.75 m      3.956    3.187        0.81            0 %       ja
-           0.75 m      3.956    3.187        0.81            0 %       ja
-     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.88.
+           0.00 m      2.317    1.987        0.86            0 %       ja
+           0.00 m      2.317    1.987        0.86            0 %       ja
+           0.00 m      2.193    1.834        0.84            0 %       ja
+           0.00 m      2.193    1.834        0.84            0 %       ja
+           0.75 m      4.433    3.461        0.78            0 %       ja
+           0.75 m      4.433    3.461        0.78            0 %       ja
+           0.75 m      4.185    3.187        0.76            0 %       ja
+           0.75 m      4.185    3.187        0.76            0 %       ja
+     -> kein Torsionsanteil im Endfeld; das Verhaeltnis dort betraegt 0.81.
         Liegt es ueber 1, greift der Zuschlag in seiner heutigen Form NICHT - er haengt am Torsionsanteil.
 
 --- J130 L=31 einseitig · Schnee
@@ -919,10 +919,9 @@ ENDFELD_ZUSCHLAG  -  Blechmoment FEM / Werkzeug, von aussen nach innen
 
 ------------------------------------------------------------------------------------------------------------
 ENDFELD_ZUSCHLAG   gemessen k_E = 0.48   (0.41 … 0.64 ueber 24 Faelle)   heute angesetzt 2
-OHNE TORSION im Endfeld: Verhaeltnis FEM/Werkzeug = 1.03 (0.80 … 2.04, 48 Faelle).
+OHNE TORSION im Endfeld: Verhaeltnis FEM/Werkzeug = 0.90 (0.76 … 1.04, 48 Faelle).
    Der Zuschlag greift dort nicht, weil er am Torsionsanteil haengt.
    Weicht diese Zahl deutlich von 1 ab, ist die FORM zu pruefen,
    nicht die Groesse von k_E.
 Messwerte: kalibrierung_endfeld.json (72 Zeilen)
 
-Messwerte: kalibrierung_messwerte.json (0 Zeilen)
