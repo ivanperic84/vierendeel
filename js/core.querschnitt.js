@@ -232,14 +232,37 @@ export function gurtanteile(m, art = 'gemessen') {
  *
  *      M = M_Rahmen · ( 1 + (k_E − 1) · Anteil_Torsion / V_Ebene )
  *
- * >>> Angesetzt wird k_E = 2.0 auf die Bleche der beiden ÄUSSERSTEN Stationen
- * je Ende. Das ist eine Festlegung des Nachweises, gestützt auf EIN Modell und
- * EINE Lastanordnung - keine hergeleitete Grösse. Abschaltbar. <<<
+ * NACHGEMESSEN AM 31. AUGUST - k_E = 0.48 STATT 2.0, ALSO EINE ABMINDERUNG
+ *
+ * Die obigen 2.0 stammen aus einem Vergleich, in dem zwei Dinge vermischt
+ * waren: die Einleitung selbst und der Unterschied Achse-zu-Achse gegen
+ * Anschnitt. `kalibrieren.mjs` misst gegen ein PyNite-Modell mit DEMSELBEN
+ * Knotenmodell, das der Nachweis benutzt - damit fällt die Vermischung weg,
+ * und es braucht keine Division durch 1.45 mehr.
+ *
+ *      Querwind, Torsionsanteil 100 %      k_E = 0.48   (0.41 … 0.64, 24 Fälle)
+ *      Vertikallast, alle Anordnungen      Verhältnis 0.90 (0.76 … 1.04)
+ *
+ * Der Ersatzbalken UNTERSCHÄTZT das Endfeld also nicht - er überschätzt es.
+ * Der Grund steht schon weiter oben: `schnittAuswertung` legt die
+ * Bredt-Torsion als Hüllkurve auf ALLE VIER Ebenen, jede bekommt die
+ * ungünstigste. Wo Torsion das Bild bestimmt, ist das rund Faktor zwei; ein
+ * Zuschlag von 2.0 darüber ergab in der Summe das Vierfache.
+ *
+ * Gemessen wird nur, wo der Torsionsanteil über 50 % liegt. k_E folgt aus
+ * k_E = 1 + (Verhältnis − 1)/Anteil und hat den Anteil im Nenner; darunter
+ * verstärkt der Quotient jede Abweichung ins Masslose (mit 5 % Schwelle
+ * streuten dieselben Messungen von +1.18 bis −1.03).
+ *
+ * >>> ANGESETZT WIRD DER MITTELWERT 0.48. Die Messung streut von 0.41 bis
+ * 0.64: an den Stellen am oberen Rand liegt das Werkzeug damit knapp UNTER
+ * dem FEM. Wer die Messung nirgends unterschreiten will, nimmt 0.65 - der
+ * Wert ist im Optionsdialog frei einstellbar, 1.0 schaltet die Sache ab. <<<
  *
  * In Feldmitte stimmen Werkzeug, PyNite-Rahmen und AxisVM überein
- * (0.26 / 0.23 / 0.10 kNm) - dort ist nichts zuzuschlagen.
+ * (0.26 / 0.23 / 0.10 kNm) - dort ändert sich ohnehin nichts.
  */
-export const ENDFELD_ZUSCHLAG = 2.0;
+export const ENDFELD_ZUSCHLAG = 0.48;
 
 /** So viele Stationen je Jochende gelten als Endfeld. */
 export const ENDFELD_STATIONEN = 2;

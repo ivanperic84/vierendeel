@@ -3731,7 +3731,13 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
   const mit = rechne(e0);
   const ohne = rechne({ ...e0, endfeldZuschlag: 1 });
 
-  pruef('Vorgabe ist 2.0', ENDFELD_ZUSCHLAG, 2.0, 1e-12);
+  // Nachgemessen am 31. August gegen ein Rahmenmodell mit demselben
+  // Knotenmodell: 0.48 im Mittel, Spanne 0.41 bis 0.64. Unter 1 heisst,
+  // dass der Ersatzbalken das Endfeld ueberschaetzt statt unterschaetzt -
+  // die Huellkurve ueber alle vier Ebenen traegt dort rund Faktor zwei.
+  pruef('Vorgabe ist der gemessene Mittelwert', ENDFELD_ZUSCHLAG, 0.48, 1e-12);
+  wahr('… und liegt in der gemessenen Spanne',
+       ENDFELD_ZUSCHLAG >= 0.41 && ENDFELD_ZUSCHLAG <= 0.65);
   pruef('Zwei Stationen je Ende', ENDFELD_STATIONEN, 2, 1e-12);
 
   const bl = (r, i) => r.knoten[i].ebenen.find((x) => x.art === 'vertikal');
@@ -3757,11 +3763,18 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
   const t1 = rechne(mitTorsion);
   const t0 = rechne({ ...mitTorsion, endfeldZuschlag: 1 });
   const b1 = bl(t1, 1), b0 = bl(t0, 1);
-  wahr('Mit Torsion wird der Zuschlag wirksam', b1.endfeldFaktor > 1.05,
+  // Der Faktor weicht von 1 ab, sobald Torsion im Spiel ist - seit der
+  // Kalibrierung nach UNTEN, weil k_E kleiner als 1 ist. Geprueft wird die
+  // Abweichung, nicht ihre Richtung: die haengt am eingestellten k_E.
+  wahr('Mit Torsion wird der Faktor wirksam',
+       Math.abs(b1.endfeldFaktor - 1) > 0.05,
        `Faktor ${b1.endfeldFaktor.toFixed(3)}, Torsionsanteil `
        + `${(100 * b1.torsionsanteil).toFixed(0)} %`);
-  wahr('Er bleibt unter dem vollen Wert, solange nicht alles Torsion ist',
-       b1.endfeldFaktor <= ENDFELD_ZUSCHLAG + 1e-9);
+  // Solange nicht alles Torsion ist, bleibt er zwischen 1 und dem vollen
+  // Wert - bei k_E unter 1 ist das die obere, nicht die untere Schranke.
+  wahr('Er bleibt zwischen 1 und dem vollen Wert',
+       b1.endfeldFaktor >= Math.min(1, ENDFELD_ZUSCHLAG) - 1e-9
+       && b1.endfeldFaktor <= Math.max(1, ENDFELD_ZUSCHLAG) + 1e-9);
   // Der Zuschlag greift auf den RAHMENANTEIL; der Koppelterm aus der schiefen
   // Biegung steht daneben und wird nicht angehoben.
   pruef('Das Moment folgt genau dem Faktor',
@@ -3772,13 +3785,22 @@ titel('29  Endfeldzuschlag auf die Bindebleche');
   pruef('M_Knoten bleibt der Rahmenwert', b1.M_Knoten, b0.M_Knoten, 1e-12, 'kNm');
   // Auf η_gesamt muss sich das NICHT auswirken: massgebend kann eine Station
   // in Feldmitte bleiben. Nachgewiesen wird die Wirkung dort, wo sie hingehört.
-  wahr('Die Ausnutzung des Endfeldblechs steigt',
-       t1.knoten[1].etaB > t0.knoten[1].etaB);
-  wahr('Und sie sinkt nirgends',
-       t1.knoten.every((k, i) => k.etaB >= t0.knoten[i].etaB - 1e-12));
+  // Die Richtung haengt an k_E: ueber 1 hebt der Faktor die Ausnutzung des
+  // Endfeldblechs, unter 1 senkt er sie. Geprueft wird, dass er ueberhaupt
+  // wirkt - und dass er NUR im Endfeld wirkt.
+  wahr('Die Ausnutzung des Endfeldblechs aendert sich',
+       Math.abs(t1.knoten[1].etaB - t0.knoten[1].etaB) > 1e-9);
+  wahr('… und zwar in die Richtung, die k_E vorgibt',
+       (ENDFELD_ZUSCHLAG > 1) === (t1.knoten[1].etaB > t0.knoten[1].etaB));
+  const innenK = Math.floor(t1.knoten.length / 2);
+  pruef('In Feldmitte bleibt die Ausnutzung unberuehrt',
+        t1.knoten[innenK].etaB, t0.knoten[innenK].etaB, 1e-12);
   const { hinweise: hw2 } = await import(J('core.checks.js'));
-  wahr('Der Zuschlag steht in den Hinweisen',
+  wahr('Der Faktor steht in den Hinweisen',
        hw2(mit.modell).join(' | ').includes('äussersten Stationen'));
+  wahr('… und sagt, dass er abmindert, wenn k_E unter 1 liegt',
+       ENDFELD_ZUSCHLAG >= 1
+       || hw2(mit.modell).join(' | ').includes('abgemindert'));
   wahr('Abgeschaltet wird das ebenfalls vermerkt',
        hw2(ohne.modell).join(' | ').includes('abgeschaltet'));
 }

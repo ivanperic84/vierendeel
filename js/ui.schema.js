@@ -677,22 +677,18 @@ export const FELDER = [
   // eine örtliche Krafteinleitung, die der Ersatzbalken nicht führt.
   { key: 'endfeldZuschlag', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
     label: 'Endfeldzuschlag Bindebleche', sym: 'k_E', einheit: '–',
-    standard: 2.0, schritt: 0.1, min: 1,
+    standard: 0.48, schritt: 0.01, min: 0,
     hinweis: 'In den beiden Endfeldern geht die Torsion des Jochs über die '
-           + 'Anschlussebenen in den Mast. Diese örtliche Krafteinleitung '
-           + 'kann ein Ersatzbalken nicht abbilden – er kennt nur den '
-           + 'Rahmenanteil. Am nachgerechneten Signaljoch lag das Moment im '
-           + 'Vertikalblech an der äussersten Station um Faktor 2.7 über der '
-           + 'Rechnung, nach innen abklingend (1.7 · 1.4 · 1.0). Rund 1.45 '
-           + 'davon geht auf das Knotenmodell des Vergleichsmodells, bleibt '
-           + 'etwa 1.9 für die Einleitung. Angesetzt werden 2.0 auf die '
-           + 'Bleche der beiden äussersten Stationen je Ende – und zwar NUR '
-           + 'auf den Torsionsanteil ihrer Beanspruchung, denn daher stammt '
-           + 'der Überschuss. Ein Joch ohne exzentrische Anbaulasten hat kaum '
-           + 'Torsion und bleibt unberührt. In Feldmitte stimmen alle Modelle '
-           + 'überein – dort wird ohnehin nichts zugeschlagen. Eine '
-           + 'Festlegung des Nachweises, gestützt auf ein Modell; mit 1.0 '
-           + 'abgeschaltet.' },
+           + 'Anschlussebenen in den Mast – eine örtliche Krafteinleitung, '
+           + 'die ein Ersatzbalken nicht führt. Gegen ein Rahmenmodell mit '
+           + 'demselben Knotenmodell gemessen (31. August, 24 Fälle) zeigt '
+           + 'sich das Gegenteil der früheren Annahme: das Werkzeug '
+           + 'überschätzt dort, weil es die Torsion als Hüllkurve auf alle '
+           + 'vier Ebenen legt. Nötig sind k_E = 0.48 (Spanne 0.41 bis '
+           + '0.64), angesetzt waren 2.0. Der Faktor wirkt NUR auf den '
+           + 'Torsionsanteil und nur auf die Bleche der beiden äussersten '
+           + 'Stationen je Ende; 1.0 schaltet ihn ab, 0.65 unterschreitet '
+           + 'die Messung nirgends.' },
   // SCHIEFE BIEGUNG DER GURTWINKEL (core.querschnitt.js, SCHIEFE_BIEGUNG).
   // Der Winkel hat seine Hauptachsen unter 45 Grad; unter dem Rahmenmoment
   // will er quer ausweichen, und die Bindebleche der anderen Ebene halten

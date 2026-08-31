@@ -13,6 +13,7 @@
 import { U } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
+import { ENDFELD_ZUSCHLAG } from './core.querschnitt.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
 import { amMast } from './data.anbauteile.js';
@@ -410,16 +411,25 @@ export function hinweise(m) {
       + '15 % höher. Nachweisgrundlage ist der steife Knotenbereich.');
   }
 
+  // Der Faktor kann seit der Kalibrierung UNTER 1 liegen: gegen ein
+  // Rahmenmodell mit demselben Knotenmodell gemessen ueberschaetzt der
+  // Ersatzbalken das Endfeld, statt es zu unterschaetzen. Der Hinweis muss
+  // deshalb beide Richtungen benennen koennen.
   const kE = m.endfeldZuschlag === false ? 1
-    : (Number.isFinite(m.endfeldZuschlag) ? m.endfeldZuschlag : 2.0);
-  h.push(kE > 1
+    : (Number.isFinite(m.endfeldZuschlag) ? m.endfeldZuschlag : ENDFELD_ZUSCHLAG);
+  h.push(Math.abs(kE - 1) > 1e-9
     ? `Bindebleche der beiden äussersten Stationen je Ende: Torsionsanteil `
-      + `mit Faktor ${kE.toFixed(1)} angesetzt. Dort geht die Torsion über `
-      + 'die Anschlussebenen in den Mast, und diese örtliche Einleitung führt '
-      + 'der Ersatzbalken nicht. Am Vergleichsmodell gemessen 2.7, nach innen '
-      + 'abklingend. Ohne Torsion bleibt der Zuschlag wirkungslos.'
-    : 'Endfeldzuschlag auf die Bindebleche abgeschaltet: die örtliche '
-      + 'Einleitung der Torsion in den Mast ist dann nicht erfasst.');
+      + `mit Faktor ${kE.toFixed(2)} angesetzt`
+      + (kE < 1
+        ? ' – also abgemindert. Gegen ein Rahmenmodell mit demselben '
+          + 'Knotenmodell gemessen (0.48, Spanne 0.41 bis 0.64) überschätzt '
+          + 'der Ersatzbalken dort, weil er die Torsion als Hüllkurve auf '
+          + 'alle vier Ebenen legt.'
+        : '. Dort geht die Torsion über die Anschlussebenen in den Mast, und '
+          + 'diese örtliche Einleitung führt der Ersatzbalken nicht.')
+      + ' Ohne Torsion bleibt der Faktor wirkungslos.'
+    : 'Endfeldzuschlag auf die Bindebleche abgeschaltet: die Bleche der '
+      + 'äussersten Stationen werden wie alle anderen gerechnet.');
 
   // EIGENANTEIL DER GURTE am globalen Moment.
   if (m.eigenanteil) {
