@@ -2014,10 +2014,31 @@ async function zeichneSchublade() {
   } catch (e) { fehler = e.message; }
   if (!schubladeOffen) return;
 
-  const meta = (e) => [e.kennwerte?.typ, e.kennwerte?.L ? `${e.kennwerte.L.toFixed(2)} m` : '',
-                       e.kennwerte?.eta ? `η ${e.kennwerte.eta.toFixed(3)}` : '',
-                       new Date(e.geaendert).toLocaleDateString('de-CH')]
-    .filter(Boolean).join(' · ');
+  /*
+   * WORAN MAN EIN TRAGWERK WIEDERERKENNT.
+   *
+   * Die Zeile trug Typ, Laenge, Ausnutzung und Datum. Das beschreibt die
+   * RECHNUNG; gesucht wird aber nach dem ORT. Ein J90 ueber 15.5 m gibt es
+   * dutzendfach, den Kilometer 16.661 auf Linie 600 genau einmal.
+   *
+   * Voran stehen deshalb Linie und Kilometer, dann die Ortschaft, danach
+   * erst die Rechenwerte. Sie kommen aus den Eingabewerten des Eintrags -
+   * `liste()` liefert sie ohnehin mit, es braucht keinen zweiten Zugriff.
+   */
+  const ort = (e) => {
+    const w = e.werte ?? {};
+    const km = String(w.km ?? '').trim();
+    return [String(w.linie ?? '').trim(),
+            km ? `km ${km}` : '',
+            String(w.ortschaft ?? '').trim()].filter(Boolean).join(' · ');
+  };
+  const rechnung = (e) => [
+    e.kennwerte?.typ,
+    e.kennwerte?.L ? `${e.kennwerte.L.toFixed(2)} m` : '',
+    e.kennwerte?.eta ? `η ${e.kennwerte.eta.toFixed(3)}` : '',
+    new Date(e.geaendert).toLocaleDateString('de-CH'),
+  ].filter(Boolean).join(' · ');
+  const meta = (e) => [ort(e), rechnung(e)].filter(Boolean).join('  |  ');
 
   const projekteHtml = fehler
     ? `<div class="fehlerbox">Ablage nicht verfügbar: ${esc(fehler)}</div>`
@@ -2151,9 +2172,29 @@ async function zeichneSchublade() {
    * ein ZIP mit `ablage.json` und einem Ordner `zeichnungen/`.
    */
   auf('[data-export]', async () => {
-    const tag = new Date().toISOString().slice(0, 10);
-    store.dateiSpeichern(await store.alsPaket(),
-      `Tragjoch-Ablage-${tag}.zip`, 'application/zip');
+    /*
+     * AUSGEWAEHLT WIRD, WAS HINAUSGEHT.
+     *
+     * Bisher ging immer alles: wer zwei Tragwerke schicken wollte, schickte
+     * die ganze Ablage mit jedem hinterlegten Bild. Die Bilder machen den
+     * Grossteil der Datei aus.
+     */
+    const wahlId = (k) => `pk-${k}`;
+    const d = dialog('Ablage ausleiten',
+      `<p class="notiz">Was in das Paket soll. Die Zeichnungen machen den
+         Grossteil der Dateigrösse aus.</p>
+       ${store.PAKETTEILE.map((t) => `
+         <label class="feld-kurz"><input type="checkbox" id="${wahlId(t.key)}" checked>
+           <span>${esc(t.label)}</span></label>`).join('')}`,
+      '<button class="btn btn-acc" data-ok>Ausleiten</button>');
+    d.node.querySelector('[data-ok]').onclick = async () => {
+      const wahl = {};
+      store.PAKETTEILE.forEach((t) => { wahl[t.key] = ui.el(wahlId(t.key)).checked; });
+      d.zu();
+      const tag = new Date().toISOString().slice(0, 10);
+      store.dateiSpeichern(await store.alsPaket(wahl),
+        `Tragjoch-Ablage-${tag}.zip`, 'application/zip');
+    };
   });
   /*
    * EINGELESEN WIRD BEIDES. Pakete dieser Fassung UND die reinen JSON der
@@ -2165,10 +2206,37 @@ async function zeichneSchublade() {
       const roh = await store.dateiLesenRoh();
       const ist = roh.length > 1 && roh[0] === 0x50 && roh[1] === 0x4b;
       if (ist) {
-        const r = await store.ausPaket(roh);
-        zeichneSchublade();
-        alert(`${r.eintraege} Eintrag/Einträge übernommen`
-            + `${r.bilder ? `, dazu ${r.bilder} Zeichnung(en)` : ''}.`);
+        /*
+         * ERST ZEIGEN, DANN SCHREIBEN.
+         *
+         * Der Import schrieb sofort. Man sah erst hinterher, was hereinkam,
+         * und ein zweites Einlesen derselben Datei legte alles ein zweites
+         * Mal an. Jetzt steht die Uebersicht vorweg, samt Warnung, welche
+         * Namen es im selben Projekt schon gibt.
+         */
+        const i = await store.paketInhalt(roh);
+        const zeile = (k, n) => (n ? `<tr><td>${esc(k)}</td><td>${n}</td></tr>` : '');
+        const warnung = i.doppelt.length
+          ? `<div class="hinweisbox">Schon vorhanden, wird ein zweites Mal
+               angelegt: ${esc(i.doppelt.slice(0, 6).join(', '))}${
+               i.doppelt.length > 6 ? ` und ${i.doppelt.length - 6} weitere` : ''}.</div>`
+          : '';
+        const d = dialog('Paket einlesen',
+          `<table class="dt">${zeile('Tragwerke', i.eintraege)}
+             ${zeile('Vorlagen', i.vorlagen)}
+             ${zeile('Zeichnungen', i.zeichnungen)}</table>
+           ${i.erzeugt ? `<p class="notiz">Erzeugt am
+             ${new Date(i.erzeugt).toLocaleDateString('de-CH')}.</p>` : ''}
+           ${warnung}
+           <p class="notiz">Eingelesen wird zusätzlich; nichts wird ersetzt.</p>`,
+          '<button class="btn btn-acc" data-ok>Einlesen</button>');
+        d.node.querySelector('[data-ok]').onclick = async () => {
+          d.zu();
+          const r = await store.ausPaket(roh);
+          zeichneSchublade();
+          alert(`${r.eintraege} Eintrag/Einträge übernommen`
+              + `${r.bilder ? `, dazu ${r.bilder} Zeichnung(en)` : ''}.`);
+        };
       } else {
         const anzahl = await store.ausJson(new TextDecoder().decode(roh));
         zeichneSchublade();

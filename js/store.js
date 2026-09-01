@@ -48,6 +48,68 @@ const ZEICHNUNGEN = 'zeichnungen';
  */
 const VORLAGEN = 'tragwerkvorlagen';
 
+/*
+ * ERSATZSPEICHER OHNE INDEXEDDB.
+ *
+ * Im privaten Fenster, in engen WebViews und bei abgeschalteten Website-Daten
+ * gibt es keine IndexedDB. Bisher scheiterte dann jeder Zugriff auf die
+ * Ablage mit «IndexedDB steht nicht zur Verfuegung» - und weil das erst beim
+ * Speichern auffiel, war die Arbeit bereits getan.
+ *
+ * Der Ersatz haelt dieselben drei Speicher als ein JSON in localStorage und
+ * bedient die vier Operationen, die dieses Modul braucht: put, get, getAll,
+ * delete. Ein Index wird nirgends benutzt, deshalb steht hier keiner.
+ *
+ * WAS ER NICHT KANN: Zeichnungen. Sie sind Binaerdaten, localStorage nimmt
+ * nur Zeichenketten, und ein Bildschirmausschnitt in Base64 fuellt die
+ * 5-MB-Schranke im Alleingang. Der Ersatz weist sie deshalb ab und sagt es,
+ * statt still ein halbes Tragwerk abzulegen.
+ */
+const ERSATZ_KEY = 'tragjoch-ablage-ersatz';
+let ersatzDaten = null;
+
+function ersatzLaden() {
+  if (ersatzDaten) return ersatzDaten;
+  try {
+    ersatzDaten = JSON.parse(localStorage.getItem(ERSATZ_KEY) ?? '{}') || {};
+  } catch { ersatzDaten = {}; }
+  return ersatzDaten;
+}
+
+function ersatzSchreiben() {
+  try {
+    localStorage.setItem(ERSATZ_KEY, JSON.stringify(ersatzDaten));
+  } catch (e) {
+    throw new Error('Der Ersatzspeicher ist voll. Ohne IndexedDB fasst die '
+                  + 'Ablage nur wenige Tragwerke; den Stand als Datei ausleiten.');
+  }
+}
+
+/** Bedient put/get/getAll/delete auf einem Abschnitt des Ersatzspeichers. */
+function ersatzStore(speicher) {
+  const d = ersatzLaden();
+  if (!d[speicher]) d[speicher] = {};
+  const teil = d[speicher];
+  return {
+    put(satz) {
+      if (speicher === ZEICHNUNGEN) {
+        throw new Error('Ohne IndexedDB lassen sich keine Zeichnungen '
+                      + 'hinterlegen. Das Tragwerk selbst wird gespeichert.');
+      }
+      teil[satz.id] = satz;
+      ersatzSchreiben();
+      return satz;
+    },
+    get(id) { return teil[id]; },
+    getAll() { return Object.values(teil); },
+    delete(id) { delete teil[id]; ersatzSchreiben(); },
+  };
+}
+
+/** Steht IndexedDB zur Verfuegung? Erst nach dem ersten Zugriff belastbar. */
+let ohneIdb = false;
+export const ersatzspeicherAktiv = () => ohneIdb;
+
 let dbP = null;
 
 function oeffne() {
@@ -80,7 +142,18 @@ function oeffne() {
 }
 
 async function tx(modus, fn, speicher = SPEICHER) {
-  const db = await oeffne();
+  // OHNE INDEXEDDB DER ERSATZ. Geprueft wird beim ersten Zugriff, nicht beim
+  // Laden des Moduls: in manchen Umgebungen steht das Objekt da und wirft
+  // erst beim Oeffnen.
+  if (ohneIdb) return fn(ersatzStore(speicher));
+  let db;
+  try {
+    db = await oeffne();
+  } catch (e) {
+    ohneIdb = true;
+    dbP = null;
+    return fn(ersatzStore(speicher));
+  }
   return new Promise((fertig, fehler) => {
     const t = db.transaction(speicher, modus);
     const st = t.objectStore(speicher);
@@ -262,7 +335,7 @@ export async function alsJson() {
     art: 'tragjoch-ablage', version: 2,
     erzeugt: new Date().toISOString(),
     eintraege: await liste(),
-    vorlagen: await vorlagenListe().catch(() => []),
+    vorlagen: will('vorlagen') ? await vorlagenListe().catch(() => []) : [],
   }, null, 2);
 }
 
@@ -284,7 +357,7 @@ export async function ausJson(text) {
     n++;
   }
   // Tragwerkvorlagen einer Datei aus Fassung 2 kommen mit.
-  for (const v of (Array.isArray(d.vorlagen) ? d.vorlagen : [])) {
+  for (const v of (will('vorlagen') && Array.isArray(d.vorlagen) ? d.vorlagen : [])) {
     if (!v || !v.werte) continue;
     await vorlageSichern({ ...v, id: undefined });
     n++;
@@ -347,9 +420,31 @@ export async function zeichnungenAlle() {
  *
  * Der ZIP-Schreiber steht schon im Werkzeug - eine .xlsx IST ein ZIP.
  */
-export async function alsPaket() {
-  const eintraege = await liste();
-  const bilder = await zeichnungenAlle();
+/**
+ * WAS EIN PAKET ENTHALTEN KANN.
+ *
+ * Bis zum 1. September ging immer alles hinaus. Wer einem Kollegen zwei
+ * Tragwerke schicken wollte, schickte die ganze Ablage mit jedem Bild darin.
+ */
+export const PAKETTEILE = [
+  { key: 'eintraege', label: 'Tragwerke' },
+  { key: 'vorlagen', label: 'Vorlagen' },
+  { key: 'zeichnungen', label: 'Hinterlegte Zeichnungen' },
+];
+
+/**
+ * Paket schreiben.
+ * @param {object} wahl {eintraege, vorlagen, zeichnungen} - fehlt sie, geht
+ *        alles hinaus wie bisher.
+ * @param {string[]} ids nur diese Tragwerke; leer oder fehlend heisst alle.
+ */
+export async function alsPaket(wahl = null, ids = null) {
+  const will = (k) => !wahl || wahl[k] !== false;
+  const alle = await liste();
+  const eintraege = will('eintraege')
+    ? (Array.isArray(ids) && ids.length ? alle.filter((e) => ids.includes(e.id)) : alle)
+    : [];
+  const bilder = will('zeichnungen') ? await zeichnungenAlle() : [];
   const beiId = new Map(eintraege.map((e) => [e.id, e]));
   const dateien = [];
   const verzeichnis = [];
@@ -373,10 +468,47 @@ export async function alsPaket() {
 }
 
 /**
+ * WAS IN EINER DATEI STEHT, BEVOR SIE GESCHRIEBEN WIRD.
+ *
+ * Der Import schrieb bisher sofort. Man sah erst hinterher, was hereinkam,
+ * und ein zweites Einlesen derselben Datei legte alles ein zweites Mal an.
+ * `paketInhalt` liest nur und meldet, was drin ist und was mit dem
+ * kollidiert, was schon da liegt.
+ *
+ * KOLLISION heisst hier: gleicher Name im gleichen Projekt. Die Ids taugen
+ * dafür nicht, denn sie werden beim Einlesen ohnehin neu vergeben; für den
+ * Anwender ist ein zweites «Joch Nord» im selben Projekt der Konflikt.
+ */
+export async function paketInhalt(daten) {
+  const dateien = entpacke(daten);
+  const jsonDatei = dateien.find((f) => f.name === 'ablage.json');
+  if (!jsonDatei) throw new Error('Im Paket fehlt ablage.json.');
+  const d = JSON.parse(new TextDecoder().decode(jsonDatei.inhalt));
+  const eintraege = (d.eintraege ?? []).filter((e) => e && e.werte);
+  const vorlagen = (Array.isArray(d.vorlagen) ? d.vorlagen : []).filter((v) => v && v.werte);
+  const bilder = (d.zeichnungen ?? []).length;
+
+  const schluessel = (e) => `${(e.projekt ?? '').trim()}|${(e.name ?? '').trim()}`;
+  const vorhanden = new Set((await liste()).map(schluessel));
+  const doppelt = eintraege.filter((e) => vorhanden.has(schluessel(e)));
+
+  return {
+    erzeugt: d.erzeugt ?? null,
+    version: d.version ?? null,
+    eintraege: eintraege.length,
+    vorlagen: vorlagen.length,
+    zeichnungen: bilder,
+    doppelt: doppelt.map((e) => `${e.projekt ? e.projekt + ' · ' : ''}${e.name}`),
+  };
+}
+
+/**
  * Paket einlesen. Die Bilder finden über das Verzeichnis zu ihren Tragwerken
  * zurück - die Ids sind beim Einlesen neu, also wird umgeschlüsselt.
+ * @param {object} wahl {eintraege, vorlagen, zeichnungen}; fehlt sie, kommt alles.
  */
-export async function ausPaket(daten) {
+export async function ausPaket(daten, wahl = null) {
+  const will = (k) => !wahl || wahl[k] !== false;
   const dateien = entpacke(daten);
   const jsonDatei = dateien.find((f) => f.name === 'ablage.json');
   if (!jsonDatei) throw new Error('Im Paket fehlt ablage.json.');
@@ -384,12 +516,12 @@ export async function ausPaket(daten) {
   const inhalt = new Map(dateien.map((f) => [f.name, f.inhalt]));
   const verzeichnis = new Map((d.zeichnungen ?? []).map((z) => [z.id, z]));
   let n = 0, bilder = 0;
-  for (const e of (d.eintraege ?? [])) {
+  for (const e of (will('eintraege') ? (d.eintraege ?? []) : [])) {
     if (!e || !e.werte) continue;
     const alteId = e.id;
     const neu = await sichern({ ...e, id: undefined });
     n++;
-    const z = verzeichnis.get(alteId);
+    const z = will('zeichnungen') ? verzeichnis.get(alteId) : null;
     const roh = z ? inhalt.get(z.datei) : null;
     if (!roh) continue;
     await zeichnungSichern(neu.id, {

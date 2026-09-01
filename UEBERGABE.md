@@ -3430,7 +3430,6 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 
 | Punkt | Stand |
 |---|---|
-| **Ablage nach BlockCalc-Vorbild** | Übernommen ist der sichtbare Speicherzustand (1. September). Offen: fachliche Spalten in der Ablageliste (Projekt, KM, Mast-Nr.), selektiver Export/Import mit Vorschau und Kollisionswarnung, localStorage-Fallback ohne IndexedDB — siehe *Was von BlockCalc übernommen wird* |
 | **Sammelaktionen** in der Anbauteil-Übersicht („alle Teile dieser Vorlage bearbeiten", z. B. bei allen Hängestützen auf einmal den Winkel setzen) | aus dem angenommenen Vorschlag noch nicht gebaut |
 | **Angepasstes Joch als eigenen Typ speichern** | offen |
 | **Excel-Generator** (`generate_vierendeel_L_SZS_C5.py`, `js/export.xlsx.js`) | nicht mit dem aktuellen Kern synchron |
@@ -3699,11 +3698,31 @@ sie ein DOM brauchen.
 gebündelt wird, und nennt dabei den Dateinamen. Gegenprobe gefahren: ein
 absichtlich eingebauter Fehler stoppt den Bündler.
 
-### Offen aus dieser Analyse
+### Umgesetzt am 1. September
 
-* Ablageliste mit fachlichen Spalten (Projekt, KM, Mast-Nr., Datum)
-* Selektiver Export/Import mit Vorschau und Kollisionswarnung
-* localStorage-Fallback, wenn IndexedDB fehlt
+**Fachliche Merkmale in der Ablageliste.** Die Zeile trug Typ, Länge,
+Ausnutzung und Datum, also die Rechnung. Gesucht wird aber nach dem Ort: ein
+J90 über 15.5 m gibt es dutzendfach, den Kilometer 16.661 auf Linie 600 genau
+einmal. Voran stehen jetzt Linie, Kilometer und Ortschaft, danach die
+Rechenwerte. Sie kommen aus den Eingabewerten des Eintrags, den `liste()`
+ohnehin mitliefert.
+
+**Auswahl beim Ausleiten, Vorschau beim Einlesen.** Bisher ging immer alles
+hinaus: wer zwei Tragwerke schicken wollte, schickte die ganze Ablage samt
+jedem Bild. `alsPaket(wahl, ids)` nimmt jetzt eine Auswahl aus `PAKETTEILE`.
+Umgekehrt schrieb der Import sofort; man sah erst hinterher, was hereinkam,
+und ein zweites Einlesen derselben Datei legte alles ein zweites Mal an.
+`paketInhalt()` liest nur und meldet Anzahl, Erzeugungsdatum und Kollisionen.
+Als Kollision gilt gleicher Name im gleichen Projekt, nicht die Id: die wird
+beim Einlesen ohnehin neu vergeben.
+
+**Ersatzspeicher ohne IndexedDB.** Im privaten Fenster und in engen WebViews
+scheiterte bisher jeder Zugriff auf die Ablage, und weil das erst beim
+Speichern auffiel, war die Arbeit getan. Der Ersatz hält dieselben Speicher
+als ein JSON in localStorage und bedient put, get, getAll und delete; ein
+Index wird nirgends gebraucht. Was er nicht kann, sagt er: Zeichnungen sind
+Binärdaten, und ein Bildschirmausschnitt in Base64 füllt die 5-MB-Schranke im
+Alleingang. Sie werden abgewiesen, das Tragwerk selbst wird gespeichert.
 
 ### Entschieden — nicht wieder aufmachen
 

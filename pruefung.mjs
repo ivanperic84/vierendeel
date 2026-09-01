@@ -9453,6 +9453,45 @@ titel('53  Die Beschriftung laesst kein Endfeld leer');
 }
 
 // ===========================================================================
+titel('54  Projektsteuerung: Auswahl, Vorschau, Ersatzspeicher');
+// Drei Ergaenzungen nach dem Vorbild von BlockCalc. Der Pruefstand hat kein
+// IndexedDB und kein localStorage; geprueft wird deshalb, was OHNE Browser
+// pruefbar ist: die Form der Ausleitung, die Auswahl und die Vorschau.
+{
+  const ST = await import(J('store.js'));
+
+  wahr('Es gibt eine Liste der Paketteile', Array.isArray(ST.PAKETTEILE));
+  wahr('Sie nennt Tragwerke, Vorlagen und Zeichnungen',
+       ['eintraege', 'vorlagen', 'zeichnungen']
+         .every((k) => ST.PAKETTEILE.some((t) => t.key === k)),
+       ST.PAKETTEILE.map((t) => t.key).join(' '));
+  wahr('Jedes Teil traegt eine Beschriftung',
+       ST.PAKETTEILE.every((t) => typeof t.label === 'string' && t.label.length > 2));
+
+  // DIE VORSCHAU IST EINE EIGENE FUNKTION, nicht ein Nebenprodukt des
+  // Einlesens: sie darf nichts schreiben.
+  wahr('paketInhalt steht bereit', typeof ST.paketInhalt === 'function');
+  // Function.length zaehlt nur Parameter VOR dem ersten mit Standardwert;
+  // bei (wahl = null) ist sie null und taugt als Pruefung nichts. Geprueft
+  // wird deshalb am Quelltext, dass die Auswahl in der Signatur steht.
+  {
+    const quelle = readFileSync(new URL('./js/store.js', import.meta.url), 'utf8');
+    wahr('alsPaket nimmt eine Auswahl entgegen',
+         quelle.includes('export async function alsPaket(wahl'));
+    wahr('ausPaket nimmt eine Auswahl entgegen',
+         quelle.includes('export async function ausPaket(daten, wahl'));
+  }
+
+  // ERSATZSPEICHER. Ohne IndexedDB faellt die Ablage auf localStorage
+  // zurueck, statt mit einer Ausnahme abzubrechen. Im Pruefstand gibt es
+  // beides nicht - geprueft wird, dass die Auskunft da ist.
+  wahr('Die Ablage sagt, ob sie im Ersatz laeuft',
+       typeof ST.ersatzspeicherAktiv === 'function');
+  wahr('Ohne Zugriff meldet sie zunaechst kein Ersatzverfahren',
+       ST.ersatzspeicherAktiv() === false);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
