@@ -9855,6 +9855,65 @@ titel('59  Bewegung: eine Vorgabe fuer die ganze Anwendung');
 }
 
 // ===========================================================================
+titel('60  Die Hoehe des Optionsdialogs wandert');
+// Frage des Auftraggebers: funktioniert die Animation beim Umschalten der
+// Themenbereiche? Sie tat es NICHT, und der Grund ist lehrreich.
+{
+  const aq60 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css60 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
+
+  /*
+   * WARUM CSS ALLEIN NICHT REICHT.
+   *
+   * `transition: height` braucht einen Startwert; eine Hoehe aus dem Inhalt
+   * hat keinen. Auch mit `height: auto` und `interpolate-size` sprang sie -
+   * nachgemessen von 308 auf 794 px, und vierzehn Bilder hintereinander
+   * zeigten bereits den Endwert. Der Grund ist der harte Austausch: der ganze
+   * Rahmen wird durch innerHTML ersetzt, und der Browser sieht keinen
+   * Zwischenzustand.
+   */
+  wahr('Der Reiterwechsel laesst die Hoehe wandern',
+       aq60.includes('const hoeheWandern'));
+  wahr('… und der Reiterknopf benutzt sie',
+       aq60.includes('hoeheWandern(neu)'));
+
+  const ab = aq60.indexOf('const hoeheWandern');
+  const koerper = aq60.slice(ab, aq60.indexOf('const neu =', ab));
+  /*
+   * ZWISCHEN DEN BEIDEN MESSUNGEN LIEGT DER TAUSCH.
+   *
+   * Nicht der erste `tauschen()` im Text zaehlt - das ist der Notausstieg
+   * fuer Browser ohne animate(). Geprueft wird der Abschnitt ZWISCHEN den
+   * beiden Messungen; dort muss er stehen.
+   */
+  {
+    const iVon = koerper.indexOf('const von');
+    const iBis = koerper.indexOf('const bis');
+    wahr('Beide Messungen stehen in dieser Reihenfolge', iVon > 0 && iVon < iBis);
+    wahr('Und dazwischen wird getauscht',
+         koerper.slice(iVon, iBis).includes('tauschen()'));
+  }
+  wahr('Ohne Aenderung keine Bewegung',
+       koerper.includes('Math.abs(bis - von) < 1'));
+  // DIE DAUER KOMMT AUS DER VORGABE, nicht aus einer eigenen Zahl - sonst
+  // liefe sie an der globalen Bewegungsvorgabe vorbei.
+  wahr('Die Dauer kommt aus dem Token',
+       koerper.includes("getPropertyValue('--t-ruhig')"));
+  wahr('Und die Kurve ist die der Anwendung',
+       koerper.includes('cubic-bezier(.22, 1, .3, 1)'));
+  // KEINE FESTE HOEHE BLEIBT STEHEN: animate() faellt von selbst zurueck,
+  // eine gesetzte Stilangabe taete das nicht.
+  wahr('Es bleibt keine feste Hoehe stehen',
+       !koerper.includes('style.height ='));
+
+  // Die CSS-Seite bleibt, wie sie war: oben verankert, Hoehe nach Inhalt.
+  const abD = css60.indexOf('.dialog-reiter {');
+  const blockD = abD > 0 ? css60.slice(abD, css60.indexOf('}', abD)) : '';
+  wahr('Der Dialog bleibt oben verankert', blockD.includes('align-self: flex-start'));
+  wahr('Und seine Hoehe folgt dem Inhalt', blockD.includes('height: auto'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

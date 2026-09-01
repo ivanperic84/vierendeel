@@ -756,7 +756,10 @@ function dialogOptionen() {
   const verdrahte = () => {
     const rahmen = ui.el('opt-rahmen');
     rahmen.querySelectorAll('[data-opt-thema]').forEach((b) => {
-      b.onclick = () => { optThema = b.dataset.optThema; neu(); };
+      b.onclick = () => {
+        optThema = b.dataset.optThema;
+        hoeheWandern(neu);
+      };
     });
     ui.verdrahteOptionen(ui.el('opt-koerper'), werte, (k, v, zwischenstand) => {
       aendern(k, v);
@@ -830,6 +833,37 @@ function dialogOptionen() {
    * Die Auswahl (selectionStart/End) kommt mit, sonst springt die Marke bei
    * jeder Ziffer ans Ende und ein Einfuegen in der Mitte ist unmoeglich.
    */
+  /*
+   * DIE HOEHE WANDERT, STATT ZU SPRINGEN.
+   *
+   * Der Versuch, das allein mit CSS zu loesen, ist gescheitert, und der Grund
+   * ist lehrreich: `transition: height` braucht einen Startwert, den es bei
+   * einer Hoehe aus dem Inhalt nicht gibt. Auch mit `height: auto` und
+   * `interpolate-size` sprang sie - nachgemessen von 308 auf 794 px, und
+   * vierzehn Bilder hintereinander zeigten bereits den Endwert. Der Grund ist
+   * der harte Austausch: der ganze Rahmen wird ersetzt, und der Browser sieht
+   * keinen Zwischenzustand.
+   *
+   * Also von Hand, in der ueblichen Folge: alte Hoehe festhalten, tauschen,
+   * neue Hoehe messen, dann von der einen zur anderen laufen lassen und am
+   * Ende wieder freigeben. Die Freigabe ist wichtig - bliebe eine feste Hoehe
+   * stehen, wuerde der naechste Inhalt abgeschnitten.
+   */
+  const hoeheWandern = (tauschen) => {
+    const k = d.node.querySelector('.dialog');
+    if (!k || typeof k.animate !== 'function') { tauschen(); return; }
+    const von = k.getBoundingClientRect().height;
+    tauschen();
+    const bis = k.getBoundingClientRect().height;
+    if (Math.abs(bis - von) < 1) return;
+    // Die Dauer folgt der Vorgabe der Anwendung; ausgelesen statt geraten,
+    // damit «Bewegung reduzieren» auch hier gilt.
+    const stil = getComputedStyle(document.documentElement);
+    const ms = (parseFloat(stil.getPropertyValue('--t-ruhig')) || 0.3) * 1000;
+    k.animate([{ height: `${von}px` }, { height: `${bis}px` }],
+              { duration: ms, easing: 'cubic-bezier(.22, 1, .3, 1)' });
+  };
+
   const neu = () => {
     const vorher = document.activeElement;
     const merk = vorher && vorher.dataset && vorher.dataset.feld

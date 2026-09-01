@@ -1192,8 +1192,15 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .dialog-reiter {
   align-self: flex-start;
   max-height: calc(100vh - 48px);
-  /* Die Hoehe folgt dem Inhalt und aendert sich beim Reiterwechsel; ohne
-     Uebergang springt der untere Rand. Mit interpolate-size laeuft er. */
+  /* HOEHE AUSDRUECKLICH AUF auto.
+
+     Ohne diese Zeile gibt es nichts zu animieren: eine Eigenschaft, die
+     nirgends deklariert ist, hat keinen Startwert, und der Uebergang faellt
+     aus. Nachgemessen sprang die Hoehe beim Reiterwechsel in einem Schritt
+     von 308 auf 794 px - zwoelf Bilder hintereinander zeigten bereits den
+     Endwert. interpolate-size erlaubt den Uebergang zu auto, verlangt aber,
+     dass auto auch dasteht. */
+  height: auto;
   transition: height var(--t-ruhig);
 }
 
