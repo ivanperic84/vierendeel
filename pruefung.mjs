@@ -9914,6 +9914,76 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 61: die Skala umfasst nur, was zu sehen ist - und die Legende
+// sagt es auch. Weisung vom 1. September, nachdem der zweite Teil fehlte.
+{
+  const aq61 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const r61 = readFileSync(new URL('./js/render.3d.js', import.meta.url), 'utf8');
+  const idx61 = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const css61 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
+
+  /*
+   * DIE KOERPER FOLGTEN DER SICHTBARKEIT SCHON, DIE LEGENDE NICHT.
+   *
+   * Nachgemessen mit ausgeblendetem Masten: die Koerper zeigten die Spanne
+   * bis 1.12 kNm, die Legende behauptete weiter 69.28 - denn das Umschalten
+   * einer Ebene rief `zeichne()`, aber nicht `zeichneLegende()`.
+   */
+  {
+    const ab = aq61.indexOf('const nach = () => {');
+    const koerper = ab > 0 ? aq61.slice(ab, aq61.indexOf('};', ab)) : '';
+    wahr('Das Umschalten einer Ebene zeichnet neu',
+         koerper.includes('ansicht.zeichne()'));
+    wahr('… und die Legende gleich mit', koerper.includes('zeichneLegende()'));
+  }
+  wahr('Die Skala zaehlt nur eingeschaltete Ebenen',
+       r61.includes('_bereichSichtbar(feld)')
+       && r61.includes('if (f.gruppe && !this._ebeneAn(f.gruppe)) return;'));
+
+  // DER TITEL GEHOERT ZUM BAUTEIL. Ist der Mast aus, stand sein Profil
+  // sonst ueber leerem Grund.
+  wahr('Der Masttitel traegt seine Ebene',
+       r61.includes("tab: 'system', gruppe: 'mast'"));
+  wahr('… und ausgeblendete Titel entfallen',
+       r61.includes('if (bt.gruppe && !this._ebeneAn(bt.gruppe)) return;'));
+  /*
+   * DER JOCHTITEL NICHT: er benennt das TRAGWERK, nicht die Gurte. Mit
+   * gruppe: 'gurt' verschwand er beim ersten Versuch ganz - den Schluessel
+   * gibt es nicht, er heisst 'profil', und _ebeneAn meldete false.
+   */
+  {
+    const ab = r61.indexOf("text: `${m.typ ?? 'frei'}");
+    const koerper = ab > 0 ? r61.slice(ab, r61.indexOf('});', ab)) : '';
+    wahr('Der Jochtitel bleibt ungebunden',
+         koerper.length > 0 && !koerper.includes('gruppe:'));
+  }
+
+  // NUR DER RAHMEN LEUCHTET AUF, nicht die Schrift (Weisung): man faehrt
+  // beim Drehen vielmal unbewusst darueber.
+  {
+    const ab = r61.indexOf('const warm = this._titelUnterZeiger === bt;');
+    const koerper = ab > 0 ? r61.slice(ab, ab + 600) : '';
+    wahr('Der Rahmen folgt dem Zeiger', koerper.includes('warm ? t.acc'));
+    wahr('… die Schrift aber nicht',
+         koerper.includes('c.fillStyle = t.on2 ?? t.on;')
+         && !koerper.includes('warm ? t.acc : (t.on2'));
+    wahr('… und der Grund behaelt seine Deckung',
+         koerper.includes('c.globalAlpha = 0.72;'));
+  }
+
+  // DIE BEIDEN KOPFLEISTEN SIND WEG (Weisung) - damit stehen die Reiter
+  // beider Seitenspalten auf gleicher Hoehe. Nachgemessen: 46 px und 46 px.
+  wahr('Keine Kopfleiste mehr im Rumpf', !idx61.includes('panel-kopf'));
+  wahr('… und keine Regel dafuer im Stil', !css61.includes('.panel-kopf'));
+  wahr('… und niemand schreibt mehr hinein',
+       !aq61.includes("el('modell-info')") && !aq61.includes('modellInfoText'));
+  // Der Fehlerfall beim Bildeinlesen braucht dafuer einen anderen Weg.
+  wahr('Der Handlungsbalken traegt jetzt die Meldung',
+       aq61.includes('function meldeImBalken')
+       && aq61.includes('meldeImBalken(`Das Bild'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

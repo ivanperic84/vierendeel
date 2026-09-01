@@ -247,10 +247,6 @@ body {
 .split:hover::after { background: var(--acc); height: 56px; }
 .split.zu::after { background: var(--acc); height: 20px; }
 
-.panel-kopf {
-  display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px 0 12px;
-  border-bottom: 1px solid var(--ol); flex-shrink: 0;
-}
 .panel-titel {
   font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--dim); flex: 1;

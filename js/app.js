@@ -22,7 +22,7 @@ import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
-import { verortung, fangeAufMasskette } from './core.constants.js';
+import { fangeAufMasskette } from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
@@ -354,7 +354,6 @@ function zeichneBuehne() {
                   ebene: 'Ebenenquerkräfte', ausnutzung: 'Ausnutzung' };
   if (!buehne || !letzte) {
     n.hidden = true; n.innerHTML = '';
-    ui.el('modell-info').textContent = modellInfoText();
     return;
   }
   // Breite aus dem Fenster ableiten, damit das SVG die Fläche wirklich nutzt
@@ -366,17 +365,7 @@ function zeichneBuehne() {
       <button class="btn btn-mini" data-zurueck>Zurück zum Modell</button>
     </div><div class="buehne-koerper">${dia[buehne] ?? ''}</div>`;
   n.querySelector('[data-zurueck]').onclick = () => { buehne = null; zeichneBuehne(); };
-  ui.el('modell-info').textContent = 'Diagramm · Eingabe ändern zeichnet mit';
 }
-
-// Die Verortung zuerst: sie unterscheidet die Tragwerke eines Projekts,
-// der Jochtyp tut das nicht. Fehlt sie, faellt sie weg.
-const modellInfoText = () => (letzte
-  ? [verortung(letzte.anzeige.modell),
-     `${letzte.anzeige.modell.typ ?? 'frei'} · `
-     + `${letzte.anzeige.modell.L.toFixed(2)} m · ${letzte.anzeige.stationen} Stationen`]
-    .filter(Boolean).join(' · ')
-  : '');
 
 function zeichneAuswertung() {
   if (!letzte) return;
@@ -439,7 +428,6 @@ function aktualisiereModell(erg) {
   // Und die Maske braucht das gerechnete Modell, um einen Träger an den
   // Bindeblechen vorbeizuschieben - dort stehen Lage und Breite der Bleche.
   ui.setzeModellFuerLage(erg.modell);
-  ui.el('modell-info').textContent = modellInfoText();
   // Ein vergrössertes Diagramm bleibt live und zeichnet mit
   if (buehne) zeichneBuehne();
 }
@@ -1133,11 +1121,11 @@ async function zeichnungEinlegen(blob, name = 'Zeichnung') {
     await zeichnungSichernFallsMoeglich();
     kalibrierenStarten('joch');
   } catch (f) {
-    // Kein eigener Meldeweg: die Modellüberschrift ist die Stelle, auf
-    // die man ohnehin schaut, und sie steht beim nächsten Rechnen wieder
-    // richtig.
-    ui.el('modell-info').textContent =
-      `Das Bild liess sich nicht einlesen: ${f.message}`;
+    // Der Handlungsbalken ueber dem Modell: dort steht ohnehin, was als
+    // Naechstes zu tun ist, und dorthin schaut man beim Einlegen eines
+    // Bildes. Die Modellueberschrift, die das frueher trug, gibt es nicht
+    // mehr.
+    meldeImBalken(`Das Bild liess sich nicht einlesen: ${f.message}`);
   }
 }
 
@@ -1555,6 +1543,22 @@ function setzeVorwahlAnStelle() {
  * Bauteils -, und immer nur eines davon. Er sagt IMMER genau einen naechsten
  * Schritt; eine Anleitung mit zwei Punkten liest man beim Zielen nicht mehr.
  */
+/**
+ * Eine Meldung in den Handlungsbalken, bis man sie wegklickt.
+ *
+ * Sie belegt dieselbe Zeile wie der naechste Schritt - das ist gewollt: es
+ * gibt nur eine Stelle ueber dem Modell, auf die man schaut, und zwei
+ * konkurrierende Meldewege waeren einer zu viel.
+ */
+function meldeImBalken(text) {
+  const n = ui.el('viewer-balken');
+  if (!n) return;
+  n.hidden = false;
+  n.innerHTML = `<span>${esc(text)}</span>`
+    + '<button class="btn btn-mini" data-meldung-zu>Schliessen</button>';
+  n.querySelector('[data-meldung-zu]').onclick = () => zeichneBalken();
+}
+
 function zeichneBalken() {
   const n = ui.el('viewer-balken');
   if (!n) return;
@@ -2746,7 +2750,18 @@ function zeichneModellWerkzeuge() {
       MODI.map((mo) => text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
                             mo.label, mo.key === ansicht.modus, !gR)).join(''));
 
-  const nach = () => { ansicht.zeichne(); zeichneModellWerkzeuge(); };
+  /*
+   * DIE LEGENDE GEHOERT ZUM BILD (Weisung, 1. September).
+   *
+   * Wer den Masten ausblendet, aendert die Skala: seine Momente sind um
+   * Groessenordnungen groesser als die der Bindebleche, und ohne ihn wird
+   * aus 69 kNm eine Spanne bis 1.1. Die Koerper folgten dem schon
+   * (_bereichSichtbar), die Legende nicht - sie wurde beim Umschalten einer
+   * Ebene gar nicht neu gezeichnet und behauptete weiter den alten Endwert.
+   */
+  const nach = () => {
+    ansicht.zeichne(); zeichneLegende(); zeichneModellWerkzeuge();
+  };
   ['modell', 'zeichnung', 'lasten', 'resultate'].forEach((g) => {
     ui.el(`wz-g-${g}`).onclick = () => {
       ansicht.gruppen[g] = !ansicht.gruppen[g]; nach();

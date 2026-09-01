@@ -1439,7 +1439,9 @@ export function erzeugeSzene(m, erg) {
         p: [g.x, 0, g.zKopf + 0.55],
         text: `${md.profil.name} · ${lang.toFixed(2)} m`,
         feld: name === 'B' && m.mastZwei ? 'mastProfilB' : 'mastProfil',
-        tab: 'system',
+        // Der Titel gehoert zum Bauteil: ist der Mast ausgeblendet, steht
+        // sonst sein Profil ueber leerem Grund.
+        tab: 'system', gruppe: 'mast',
       });
     });
   }
@@ -3619,6 +3621,7 @@ export class Modellansicht {
     c.font = this._font(this.schriftMass + 1);
     (this.szene.bauteiltitel ?? []).forEach((bt) => {
       if (bt.gruppe && !this._ebeneAn(bt.gruppe)) return;
+      if (bt.gruppe && !this._ebeneAn(bt.gruppe)) return;
       if (!this._imFokus(bt.p[0])) return;
       const p = proj(bt.p);
       if (!p) return;
@@ -3644,21 +3647,25 @@ export class Modellansicht {
        * UNTER DEM ZEIGER LEUCHTET DER RAHMEN AUF (Weisung).
        *
        * Der Titel ist anklickbar, sieht aber aus wie eine Beschriftung. Ohne
-       * Rueckmeldung probiert man es nicht - deshalb Rahmen und Schrift in
-       * der Akzentfarbe, sobald der Zeiger darueber steht, und ein
-       * deckenderer Grund.
+       * Rueckmeldung probiert man es nicht.
+       *
+       * NUR DER RAHMEN, NICHT DIE SCHRIFT (Weisung, 1. September). Man faehrt
+       * beim Drehen des Modells vielmal unbewusst darueber; wenn dabei der
+       * ganze Text die Farbe wechselt, springt es jedesmal ins Auge. Ein
+       * Rahmen in der Akzentfarbe sagt dasselbe und bleibt still - der Text
+       * behaelt seine Farbe, der Grund seine Deckung.
        */
       const warm = this._titelUnterZeiger === bt;
       c.fillStyle = t.viewerBg;
-      c.globalAlpha = warm ? 0.92 : 0.72;
+      c.globalAlpha = 0.72;
       c.beginPath();
       c.roundRect(bx, by, bw, bh, 3 * s);
       c.fill();
       c.globalAlpha = 1;
       c.strokeStyle = warm ? t.acc : (t.ol2 ?? t.dim);
-      c.lineWidth = (warm ? 1.6 : 1) * s;
+      c.lineWidth = (warm ? 1.3 : 1) * s;
       c.stroke();
-      c.fillStyle = warm ? t.acc : (t.on2 ?? t.on);
+      c.fillStyle = t.on2 ?? t.on;
       c.textAlign = 'center';
       c.fillText(bt.text, bx + bw / 2, by + bh - 6 * s);
       c.textAlign = 'left';
