@@ -745,9 +745,11 @@ function dialogOptionen() {
     rahmen.querySelectorAll('[data-opt-thema]').forEach((b) => {
       b.onclick = () => { optThema = b.dataset.optThema; neu(); };
     });
-    ui.verdrahteOptionen(ui.el('opt-koerper'), werte, (k, v) => {
+    ui.verdrahteOptionen(ui.el('opt-koerper'), werte, (k, v, zwischenstand) => {
       aendern(k, v);
-      neu();                    // abhaengige Felder gehen mit
+      // Abhaengige Felder gehen mit - aber erst, wenn die Eingabe steht.
+      // Waehrend des Tippens bliebe sonst keine mehrstellige Zahl stehen.
+      if (!zwischenstand) neu();
     });
     // Die Nachweisschalter tragen keinen Feldschluessel: sie sitzen zusammen
     // in EINEM Wert. Einzeln geschrieben ginge die uebrige Auswahl verloren.
@@ -759,7 +761,54 @@ function dialogOptionen() {
       };
     });
   };
-  const neu = () => { ui.el('opt-rahmen').innerHTML = koerper(); verdrahte(); };
+  /*
+   * DER FOKUS UEBERLEBT DEN NEUAUFBAU.
+   *
+   * Ein Zahlenfeld meldet jede Taste (`input`), und jede Meldung baute den
+   * ganzen Rahmen neu. Danach war das Feld ein ANDERES DOM-Element: der
+   * Fokus lag nirgends, die Schreibmarke war fort, und es liess sich immer
+   * nur eine Ziffer eintippen, dann musste man neu hineinklicken.
+   *
+   * Neu gebaut werden muss trotzdem, denn abhaengige Felder gehen mit. Also
+   * wird gemerkt, wo der Zeiger stand, und danach dorthin zurueckgesetzt.
+   * Die Auswahl (selectionStart/End) kommt mit, sonst springt die Marke bei
+   * jeder Ziffer ans Ende und ein Einfuegen in der Mitte ist unmoeglich.
+   */
+  const neu = () => {
+    const vorher = document.activeElement;
+    const merk = vorher && vorher.dataset && vorher.dataset.feld
+      ? { feld: vorher.dataset.feld, text: vorher.value,
+          von: vorher.selectionStart, bis: vorher.selectionEnd }
+      : null;
+    ui.el('opt-rahmen').innerHTML = koerper();
+    verdrahte();
+    if (!merk) return;
+    const wieder = ui.el('opt-rahmen')
+      .querySelector(`[data-feld="${merk.feld}"]`);
+    if (!wieder) return;
+    /*
+     * DER GETIPPTE TEXT UEBERLEBT AUCH.
+     *
+     * Der Fokus allein genuegte nicht. Das neu gebaute Feld traegt den
+     * GEPARSTEN Wert aus `werte`, nicht den getippten Text - und wer «1.25»
+     * eingibt, tippt zwischendurch «1.», was als Zahl 1 ist. Das Feld sprang
+     * auf «1» zurueck, die naechste Ziffer machte «12» daraus, und am Ende
+     * stand «25». Genau die Beobachtung des Auftraggebers: es gehen nur
+     * einzelne Ziffern.
+     *
+     * Solange der Zeiger im Feld steht, gilt deshalb der getippte Text.
+     */
+    if (merk.text !== undefined && wieder.value !== merk.text) {
+      wieder.value = merk.text;
+    }
+    wieder.focus();
+    // Nur Textfelder kennen eine Schreibmarke; ein Auswahlfeld wirft hier.
+    try {
+      if (merk.von !== null && merk.von !== undefined) {
+        wieder.setSelectionRange(merk.von, merk.bis);
+      }
+    } catch { /* Feldart ohne Schreibmarke */ }
+  };
   verdrahte();
   d.node.querySelector('[data-thema]').onclick = () => { d.zu(); themaWechseln(); };
   d.node.querySelector('[data-reset]').onclick = () => { d.zu(); zuruecksetzen(); };

@@ -2720,14 +2720,38 @@ export function verdrahteOptionen(container, werte, onChange) {
     const key = inp.dataset.feld;
     const feld = FELDER.find((f) => f.key === key);
     const ev = inp.tagName === 'SELECT' || inp.type === 'checkbox' ? 'change' : 'input';
-    inp.addEventListener(ev, () => {
-      let v;
+    const lies = () => {
       if (feld.typ === 'zahl' || feld.typ === 'schieber') {
-        v = parseFloat(inp.value); if (!Number.isFinite(v)) return;
-      } else if (feld.typ === 'schalter') v = inp.checked;
-      else v = inp.value;
-      onChange(key, v);
+        const v = parseFloat(inp.value);
+        return Number.isFinite(v) ? v : undefined;
+      }
+      if (feld.typ === 'schalter') return inp.checked;
+      return inp.value;
+    };
+    /*
+     * WAEHREND DES TIPPENS WIRD GERECHNET, NICHT NEU GEZEICHNET.
+     *
+     * Ein Zahlenfeld meldet jede Taste, und der Aufrufer baute daraufhin
+     * seine Maske neu. Das Feld war danach ein anderes DOM-Element mit dem
+     * GEPARSTEN Wert darin - wer «1.25» eingab, tippte zwischendurch «1.»,
+     * und weil `input[type=number].value` bei ungueltigem Inhalt einen
+     * LEEREN String liefert, war der Text nicht einmal zu retten. Ergebnis:
+     * es liessen sich nur einzelne Ziffern eingeben.
+     *
+     * Der zweite Parameter sagt deshalb, ob die Meldung ein Zwischenstand
+     * ist. Der Aufrufer rechnet dann mit, laesst die Maske aber stehen; erst
+     * beim Verlassen des Feldes (`change`) wird neu gezeichnet.
+     */
+    inp.addEventListener(ev, () => {
+      const v = lies();
+      if (v !== undefined) onChange(key, v, ev === 'input');
     });
+    if (ev === 'input') {
+      inp.addEventListener('change', () => {
+        const v = lies();
+        if (v !== undefined) onChange(key, v, false);
+      });
+    }
   });
 }
 

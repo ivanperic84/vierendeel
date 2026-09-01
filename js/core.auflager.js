@@ -532,3 +532,78 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
   };
 }
 
+/**
+ * WO DIE MASTACHSE STEHT, UND WIE WEIT SIE NACH INNEN DARF.
+ *
+ * Der Mast steht nicht zwingend am Gurtende. Rueckt er nach innen, liegen
+ * die Anschlusspunkte nicht mehr an der Stirn, sondern auf den Gurten; das
+ * Joch kragt darueber hinaus. `kragA` und `kragB` fuehren dieses Mass seit
+ * je, der Ersatzbalken rechnet damit - die Ausleitung setzte den Mast aber
+ * bis zum 1. September starr auf x = 0 und x = L.
+ *
+ * DIE GRENZE IST BERUEHRUNG, GEMESSEN AM FLANSCHRAND (Weisung): der Mast
+ * darf so weit nach innen, bis sein Flansch am Bindeblech anliegt. Kein
+ * Mindestabstand, kein Spiel - anliegend ist zulaessig, ueberschneidend
+ * nicht.
+ *
+ * Massgebend ist die Ausdehnung des Mastes IN DER JOCHACHSE. Sie haengt an
+ * der Stegrichtung: steht der Steg in Jochachse, ist es die Profilhoehe h,
+ * sonst die Flanschbreite b. Beim HEB 260 ist beides gleich, beim HEM 240
+ * nicht.
+ */
+
+/** Mastangaben des Endes, oder null ohne Mast. */
+function mastVon(m, ende) {
+  const f = m?.federn ?? {};
+  return (ende === 'B' ? (f.mastB ?? f.mast) : (f.mastA ?? f.mast)) ?? null;
+}
+
+/** Ausdehnung des Mastes in Jochachse [m]. */
+export function mastTiefe(m, ende = 'A') {
+  const md = mastVon(m, ende);
+  if (!md?.profil) return 0;
+  const p = md.profil;
+  return ((md.stegrichtung?.achse === 'y' ? p.h : p.b) ?? 0) / 1000;
+}
+
+/** Lage der Mastachse [m] - am Gurtende, oder um den Kragarm nach innen. */
+export function mastAchse(m, ende = 'A') {
+  const L = m?.L ?? 0;
+  return ende === 'A' ? Math.max(0, m?.kragA ?? 0)
+                      : L - Math.max(0, m?.kragB ?? 0);
+}
+
+/**
+ * Freiraum der Mastachse zwischen Jochende und erstem Bindeblech.
+ *
+ * @returns {null|{achse, tiefe, grenze, blech, frei, ueberschnitt}}
+ *   grenze       weiteste zulaessige Lage der Achse [m]
+ *   blech        Kante des ersten stoerenden Blechs [m], oder null
+ *   frei         Weg, der noch bleibt [m]; negativ heisst Ueberschneidung
+ *   ueberschnitt true, wenn der Flansch im Blech steht
+ */
+export function mastFreiraum(m, ende = 'A', sperren = null) {
+  const md = mastVon(m, ende);
+  if (!md?.profil) return null;
+  const halb = mastTiefe(m, ende) / 2;
+  const achse = mastAchse(m, ende);
+  const innen = ende === 'A' ? +1 : -1;          // Richtung nach Feldmitte
+  // Bleche in Jochachse, ohne Zugabe: anliegend ist zulaessig.
+  const liste = sperren ?? (m.stationsListe ?? []).map((s) => {
+    const b = ((s.vertikal?.breite ?? 0) / 1000) / 2;
+    return b > 0 ? { von: s.x - b, bis: s.x + b } : null;
+  }).filter(Boolean);
+
+  // Das erste Blech, auf das der Mast trifft, wenn er nach innen wandert.
+  const kanten = liste
+    .map((s) => (innen > 0 ? s.von : s.bis))
+    .filter((k) => (innen > 0 ? k >= -1e-9 : k <= m.L + 1e-9));
+  if (!kanten.length) return { achse, tiefe: halb * 2, grenze: null,
+                               blech: null, frei: Infinity, ueberschnitt: false };
+  // Nach innen: die kleinste Kante rechts der Stirn; nach aussen umgekehrt.
+  const blech = innen > 0 ? Math.min(...kanten) : Math.max(...kanten);
+  const grenze = blech - innen * halb;
+  const frei = innen > 0 ? grenze - achse : achse - grenze;
+  return { achse, tiefe: halb * 2, grenze, blech, frei,
+           ueberschnitt: frei < -1e-9 };
+}
