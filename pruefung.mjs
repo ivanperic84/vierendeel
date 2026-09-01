@@ -9507,6 +9507,73 @@ titel('54  Projektsteuerung: Auswahl, Vorschau, Ersatzspeicher');
 }
 
 // ===========================================================================
+titel('55  Der Mast darf nach innen ruecken');
+// Weisung: das Auflager kann INNERHALB des Endfelds liegen. Rueckt der Mast
+// nach innen, sitzen die Anschlusspunkte auf den Gurten statt an der Stirn,
+// und das Joch kragt darueber hinaus. Grenze ist BERUEHRUNG, gemessen am
+// FLANSCHRAND - anliegend zulaessig, ueberschneidend nicht.
+{
+  const AU = await import(J('core.auflager.js'));
+  const AXM = await import(J('export.axisvm.js'));
+  const j90m = T.getTragjoch('J90');
+  const mach = (kragA) => rechne({
+    ...basis(), ...typUebernehmen({ ...standardwerte() }, j90m),
+    typ: 'J90', L: 15.5, kragA, kragB: 0, anbauteile: [],
+    mastVorhanden: true, endbedingung: 'mast',
+    mastProfil: 'HEB 260', mastH: 7.5,
+  }).modell;
+
+  const m0 = mach(0);
+  const m4 = mach(0.4);
+
+  // --- Geometrie ---------------------------------------------------------
+  pruef('Ohne Kragarm steht der Mast an der Stirn', AU.mastAchse(m0, 'A'), 0, 1e-12, 'm');
+  pruef('Mit Kragarm rueckt er nach innen', AU.mastAchse(m4, 'A'), 0.4, 1e-12, 'm');
+  // HEB 260 ist quadratisch: 260 mm in jeder Drehlage.
+  pruef('Tiefe in Jochachse aus dem Profil', AU.mastTiefe(m4, 'A'), 0.26, 1e-9, 'm');
+
+  const fr = AU.mastFreiraum(m4, 'A');
+  // Erstes Bindeblech bei a1 = 0.75 m, 100 mm breit -> Kante bei 0.70 m.
+  pruef('Kante des ersten Blechs', fr.blech, 0.70, 1e-9, 'm');
+  // Grenze = Blechkante minus halbe Masttiefe: anliegend, kein Spiel.
+  pruef('Grenze ist Beruehrung am Flanschrand', fr.grenze, 0.70 - 0.13, 1e-9, 'm');
+  pruef('Und es bleibt der Rest bis dorthin', fr.frei, 0.17, 1e-9, 'm');
+  wahr('Kein Ueberschnitt bei 0.40 m', fr.ueberschnitt === false);
+  wahr('Ueberschnitt bei 0.70 m',
+       AU.mastFreiraum(mach(0.7), 'A').ueberschnitt === true);
+  // ANLIEGEND IST ZULAESSIG - das ist der Kern der Weisung.
+  wahr('Genau anliegend ist noch zulaessig',
+       AU.mastFreiraum(mach(0.57), 'A').ueberschnitt === false);
+
+  // --- Pruefung P9 -------------------------------------------------------
+  const CH9 = await import(J('core.checks.js'));
+  const p9 = (mm) => CH9.konstruktionsChecks(mm).find((c) => c.id === 'P9A');
+  wahr('P9 meldet den freien Weg', /noch 170 mm/.test(p9(m4).status), p9(m4).status);
+  wahr('P9 ist erfuellt, solange nichts ueberschneidet', p9(m4).ok === true);
+  wahr('P9 faellt beim Ueberschnitt', p9(mach(0.7)).ok === false);
+  wahr('… und sagt, wie weit er im Blech steht',
+       /130 mm im Bindeblech/.test(p9(mach(0.7)).status), p9(mach(0.7)).status);
+
+  // --- Ausleitung --------------------------------------------------------
+  // DAS EIGENTLICHE ZIEL: Ersatzbalken und FEM-Modell muessen dasselbe
+  // Tragwerk beschreiben. Bis zum 1. September setzte die Ausleitung den
+  // Mast starr auf x = 0 und x = L, gleich was die Kragarmangabe sagte.
+  const bau = AXM.stabmodell(m4, { knotenmodell: 'anschnitt' });
+  const aufA = bau.auflager.filter((a) => a.ende === 'A');
+  wahr('Das Auflager sitzt an der Mastachse',
+       aufA.every((a) => Math.abs(a.x - 0.4) < 1e-9),
+       [...new Set(aufA.map((a) => a.x))].join(' '));
+  // Ohne Knoten dort haetten die Starrkoerper im Nichts gehangen.
+  const knotenDort = [...bau.knoten.values()]
+    .filter((k) => Math.abs(k.x - 0.4) < 1e-6 && /^(OG|UG)[LR]_/.test(k.name));
+  pruef('Vier Gurtknoten an der Mastachse', knotenDort.length, 4, 1e-12, 'Stk');
+  // Und der Gurt ist dort geteilt, nicht durchlaufend.
+  const geteilt = bau.staebe.filter((st) => /^OGL_S/.test(st.name))
+    .filter((st) => Math.abs(bau.knoten.get(st.bis).x - 0.4) < 1e-6);
+  wahr('Der Gurtstab endet an der Mastachse', geteilt.length === 1);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

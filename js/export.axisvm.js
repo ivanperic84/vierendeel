@@ -48,6 +48,7 @@ import { verortung, verortungKurz } from './core.constants.js';
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
+import { mastAchse } from './core.auflager.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -502,6 +503,23 @@ export function stabmodell(m, opt = {}) {
 
   // FEST: was das Tragwerk bestimmt - Enden, Stationen, Blechkanten.
   const fest = new Set([0, r6(m.L)]);
+  /*
+   * DIE MASTACHSE IST EIN FESTER SCHNITT.
+   *
+   * Der Mast steht nicht zwingend am Gurtende. Rueckt er nach innen, liegen
+   * die Anschlusspunkte auf den GURTEN, und das Joch kragt darueber hinaus;
+   * das Auflager darf dabei INNERHALB des Endfelds liegen. Ohne Knoten an
+   * dieser Stelle haengten die Starrkoerper zwischen zwei Gurtstaeben.
+   *
+   * `kragA` und `kragB` fuehren das Mass seit je, und der Ersatzbalken
+   * rechnet damit. Die Ausleitung setzte den Mast bis zum 1. September
+   * trotzdem starr auf x = 0 und x = L - Ersatzbalken und FEM-Modell
+   * beschrieben also zwei verschiedene Tragwerke.
+   */
+  ['A', 'B'].forEach((ende) => {
+    const xm = r6(mastAchse(m, ende));
+    if (xm > 1e-9 && xm < m.L - 1e-9) fest.add(xm);
+  });
   st.forEach((station) => {
     fest.add(r6(station.x));
     const d = steifBis.get(station.x);
@@ -765,7 +783,8 @@ export function stabmodell(m, opt = {}) {
    */
   let laengsAnker = null;
   ['A', 'B'].forEach((ende, k) => {
-    const x = k === 0 ? 0 : r6(m.L);
+    // Das Auflager sitzt dort, wo der Mast steht - bei jedem Auflagermodell.
+    const x = r6(mastAchse(m, ende));
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
     const halt = (knoten, uz, fiy, c) => auflager.push({
       // h wird mitgeführt, weil die TEILWEISE EINSPANNUNG hier nicht als

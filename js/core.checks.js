@@ -14,7 +14,7 @@ import { U } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG } from './core.querschnitt.js';
-import { MAST_UNVERSCHIEBLICH } from './core.auflager.js';
+import { MAST_UNVERSCHIEBLICH, mastFreiraum } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
 import { amMast } from './data.anbauteile.js';
@@ -322,6 +322,34 @@ export function konstruktionsChecks(m) {
    * Länge nachträglich verstellt wurde. Bei allen dreien wandern die Bleche
    * unter dem Bauteil weg, ohne dass jemand die Lage angefasst hätte.
    */
+  /*
+   * P9 - DER MAST MUSS AN DEN BINDEBLECHEN VORBEI.
+   *
+   * Das Auflager darf innerhalb des Endfelds liegen: rueckt der Mast nach
+   * innen, sitzen die Anschlusspunkte auf den Gurten statt an der Stirn.
+   * Die Grenze ist BERUEHRUNG, gemessen am Flanschrand (Weisung) - anliegend
+   * ist zulaessig, ueberschneidend nicht.
+   *
+   * Massgebend ist die Ausdehnung des Mastes IN JOCHACHSE; sie haengt an der
+   * Stegrichtung. Beim HEB 260 ist sie in beiden Lagen gleich, beim HEM 240
+   * nicht.
+   */
+  ['A', 'B'].forEach((ende) => {
+    const fr = mastFreiraum(m, ende);
+    if (!fr || fr.grenze === null) return;
+    checks.push(pruef(
+      `P9${ende}`,
+      `Mast ${ende} neben den Bindeblechen`,
+      Math.round(fr.achse * 1000) / 1000,
+      Math.round(fr.grenze * 1000) / 1000,
+      'm',
+      ende === 'A' ? '<=' : '>=',
+      fr.frei > 0.001
+        ? `OK, noch ${(fr.frei * 1000).toFixed(0)} mm bis zum Blech`
+        : 'OK, Flansch liegt am Blech an',
+      `Mast steht ${Math.abs(fr.frei * 1000).toFixed(0)} mm im Bindeblech`));
+  });
+
   const traegerTeile = (m.anbauteile ?? []).filter((a) => {
     if (a.aktiv === false || amMast(a)) return false;
     return hatTraeger(a.module, (id) => getFlBauteil(id).rolle);
