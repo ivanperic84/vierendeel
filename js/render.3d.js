@@ -226,6 +226,18 @@ export function erzeugeSzene(m, erg) {
   const linien = [];
   const marken = [];
   const masse = [];        // klickbare Bemassungen
+  /*
+   * BAUTEILTITEL: was hier steht, und wie lang es ist.
+   *
+   * Der Fensterkopf trug die Zeile «J90 · 15.00 m · 21 Stationen» ueber dem
+   * Bild. Sie gehoert aber ans BAUTEIL, nicht an den Rahmen: wer den Masten
+   * ansieht, will dessen Profil lesen, und wer das Joch ansieht, dessen Typ.
+   * Am Rahmen steht beides nebeneinander und keines dort, wo es gilt.
+   *
+   * Sie tragen `feld` und fuehren angeklickt in die Eingabe - derselbe Weg,
+   * den die Masszahlen schon gehen.
+   */
+  const bauteiltitel = [];
   const vektoren = [];     // Kraftpfeile
 
   const stationen = m.stationsListe ?? [];
@@ -1391,6 +1403,35 @@ export function erzeugeSzene(m, erg) {
     });
   }
 
+  /*
+   * DER JOCHTITEL steht ueber der Mitte des Obergurts, der MASTTITEL ueber
+   * dem jeweiligen Kopf. Beide eine halbe Bauhoehe hoeher, damit sie nicht
+   * auf dem Bauteil kleben.
+   */
+  {
+    const zOK = qs.huelle.z1 * MM;
+    bauteiltitel.push({
+      p: [m.L / 2, 0, zOK + 0.45],
+      text: `${m.typ ?? 'frei'} · ${m.L.toFixed(2)} m`,
+      feld: 'typ', tab: 'system',
+    });
+    ['A', 'B'].forEach((name) => {
+      const g = mastGeo[name];
+      if (!g?.koerper) return;
+      const md = name === 'B' ? (federn.mastB ?? federn.mast) : (federn.mastA ?? federn.mast);
+      if (!md?.profil) return;
+      // Die LAENGE, nicht die Hoehe: angeschrieben ist auf dem Querprofil die
+      // Gesamtlaenge. Ohne Angabe steht die Hoehe bis zur Jochachse.
+      const lang = md.laenge > 0 ? md.laenge : md.H;
+      bauteiltitel.push({
+        p: [g.x, 0, g.zKopf + 0.3],
+        text: `${md.profil.name} · ${lang.toFixed(2)} m`,
+        feld: name === 'B' && m.mastZwei ? 'mastProfilB' : 'mastProfil',
+        tab: 'system',
+      });
+    });
+  }
+
   // Grösster Betrag je auftragbarer Grösse - die Skala der Einfärbung.
   const bereiche = {};
   PLOTS.forEach((p) => {
@@ -1407,7 +1448,8 @@ export function erzeugeSzene(m, erg) {
   // Einpassen halb ausserhalb des Bildes.
   const zAT = detailBereiche.flatMap((d) => [d.zMin, d.zMax]);
   return {
-    flaechen, linien, marken, masse, vektoren, schnitt, lastflaechen, bereiche,
+    flaechen, linien, marken, masse, bauteiltitel, vektoren, schnitt,
+    lastflaechen, bereiche,
     legende: [...bauteile.values()],
     grenzen: { xMin: 0, xMax: m.L, yMin: qs.huelle.y0 * MM, yMax: qs.huelle.y1 * MM,
                zMin: Math.min(qs.huelle.z0 * MM, zUnten, mastFussZ, ...zAT),
@@ -2829,6 +2871,7 @@ export class Modellansicht {
     if (!this.sparsam) {
       if (this.ebenen.marken) this._marken(c, proj, t);
       if (this._ebeneAn('masse')) this._masse(c, proj, t);
+      this._bauteiltitel(c, proj, t);
       this._texte(c, t);
     }
     this._achsenkreuz(c, t);
@@ -3513,6 +3556,47 @@ export class Modellansicht {
 
       this._massTreffer.push({ x: bx, y: by, w: bw, h: bh,
                                feld: mz.feld, tab: mz.tab });
+    });
+  }
+
+  /**
+   * DIE BAUTEILTITEL: Jochtyp und Mastprofil, ueber ihrem Bauteil.
+   *
+   * Sie sind anklickbar und fuehren in ihr Eingabefeld - derselbe Weg wie bei
+   * den Masszahlen, und derselbe Trefferspeicher. Gezeichnet werden sie NACH
+   * den Massen, damit sie im Zweifel obenauf liegen: eine Masszahl findet man
+   * an ihrer Linie wieder, ein freier Titel nicht.
+   *
+   * Sie stehen nur, wenn das Bauteil selbst zu sehen ist. Ein Mastname ueber
+   * einem ausgeblendeten Masten waere eine Behauptung ueber nichts.
+   */
+  _bauteiltitel(c, proj, t) {
+    const s = this._s;
+    if (!this._ebeneAn('masse')) return;
+    c.font = this._font(this.schriftMass + 1);
+    (this.szene.bauteiltitel ?? []).forEach((bt) => {
+      if (bt.gruppe && !this._ebeneAn(bt.gruppe)) return;
+      if (!this._imFokus(bt.p[0])) return;
+      const p = proj(bt.p);
+      if (!p) return;
+      const bw = this._textBreite(c, bt.text) + 12 * s;
+      const bh = (this.schriftMass + 1) * s + 8 * s;
+      const bx = p[0] - bw / 2, by = p[1] - bh;
+      c.fillStyle = t.viewerBg;
+      c.globalAlpha = 0.72;
+      c.beginPath();
+      c.roundRect(bx, by, bw, bh, 3 * s);
+      c.fill();
+      c.globalAlpha = 1;
+      c.strokeStyle = t.ol2 ?? t.dim;
+      c.lineWidth = 1 * s;
+      c.stroke();
+      c.fillStyle = t.on2 ?? t.on;
+      c.textAlign = 'center';
+      c.fillText(bt.text, p[0], by + bh - 6 * s);
+      c.textAlign = 'left';
+      this._massTreffer.push({ x: bx, y: by, w: bw, h: bh,
+                               feld: bt.feld, tab: bt.tab });
     });
   }
 
