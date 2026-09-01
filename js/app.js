@@ -421,9 +421,13 @@ function aktualisiereModell(erg) {
   // Der Nachweisschnitt wird in der Auswertung eingestellt, nicht hier.
   ui.el('pos-marke').textContent =
     `Schnitt x = ${erg.schnitt.x.toFixed(2)} m`;
+  // DIE EINWIRKUNGSKLASSE GEHOERT INS BILD (Weisung).
+  // Sie entscheidet ueber Wind auf Joch und Mast und steht sonst nur in der
+  // Eingabe; im Modell sieht man ihr Ergebnis, nicht ihren Namen.
   ui.el('pos-station').textContent =
     `Feld ${erg.schnitt.feld + 1}/${erg.schnitt.anzahlSchnitte}` +
-    ` · massgebendes Blech bei ${erg.schnitt.stationX.toFixed(2)} m`;
+    ` · massgebendes Blech bei ${erg.schnitt.stationX.toFixed(2)} m` +
+    ` · ${ekVonWindklasse(werte.windKlasse)}`;
   // Die Masskette der Zeichnung: die Ansicht zeichnet daraus Fanglinien.
   ansicht.masskette = erg.modell.masskette ?? [];
   // Und die Maske braucht das gerechnete Modell, um einen Träger an den

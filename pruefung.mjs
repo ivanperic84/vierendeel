@@ -3089,7 +3089,10 @@ titel('22  Ausleger: Wind über die Fahrleitung');
 
   // Wirkung: der Hebelarm bleibt, die Kraft halbiert sich, also halbiert sich
   // auch ihr Torsionsanteil.
-  const e0 = basis({ L: 20, torsionModell: 'verteilt',
+  // DIESELBE EINWIRKUNGSKLASSE WIE OBEN. `trasse` traegt EK2, und die
+  // Sollwerte werden daraus gerechnet; der Eingabestand muss ihr folgen.
+  // Solange der Startwert ebenfalls EK2 war, fiel das nicht auf.
+  const e0 = basis({ L: 20, torsionModell: 'verteilt', windKlasse: '1.1',
                      gammaG: 1.35, gammaQ: 1.5, psi0: 0.5 });
   const Tx = (extra) => rechne({ ...e0, anbauteile: bau(extra) }).extrem.TxMax;
   const ohne = { windAufTraeger: false };
@@ -3341,8 +3344,15 @@ titel('25  Winkelspannung an den Querschnittspunkten');
 
   // Im Rechenkern: Vorgabe bleibt das schenkelparallele W.
   const j130 = T.getTragjoch('J130');
+    // EK2 AUSDRUECKLICH. Die Aussage weiter unten, dass sich die beiden
+  // Spannungsmodelle mit M_z um mehr als zwei Prozent unterscheiden, haengt
+  // an der Groesse des Windmoments: gemessen 3.05 % unter EK2, aber nur
+  // 0.45 % unter EK1. Der Abschnitt prueft das Spannungsmodell, nicht die
+  // Einwirkungsklasse; also wird sie festgehalten. Solange der Startwert
+  // ebenfalls EK2 war, fiel das nicht auf.
   const e0 = { ...basis(), ...typUebernehmen({ ...standardwerte() }, j130),
                typ: 'J130', L: 27, schneeAktiv: false, anbauteile: [],
+               windKlasse: '1.1',
                endbedingung: 'gelenkig', torsionModell: 'huellkurve' };
   const a = rechne(e0);
   const b = rechne({ ...e0, spannungsmodell: 'punkte' });
@@ -6299,8 +6309,13 @@ titel('36  Der Weg von der Ausleitung in AxisVM');
    */
   {
     const bauM = (profil, steg = 'jochachse') => {
+      // DIE EINWIRKUNGSKLASSE WIRD GENANNT, nicht geerbt. Die Zahlen unten
+      // sind die EK2-Spalte der Lasttabelle; als der Startwert am
+      // 1. September auf EK1 wechselte, fielen sie, ohne dass am Geprueften
+      // etwas falsch war.
       const w = basis({ endbedingung: 'mast', mastProfil: profil, mastH: 7.0,
-                        mastSteg: steg, mastAnschluss: 'durchlaufend' });
+                        mastSteg: steg, mastAnschluss: 'durchlaufend',
+                        windKlasse: '1.1' });
       return modell(w, getProfil(w.profOG), getProfil(w.profUG),
                     getStahl(w.stahl), T.getTragjoch('J90'));
     };

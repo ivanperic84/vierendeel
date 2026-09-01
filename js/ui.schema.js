@@ -504,7 +504,7 @@ export const FELDER = [
    */
   { key: 'flSpannweite', gruppe: 'trasse', typ: 'zahl',
     label: 'Spannweite der Fahrleitung', sym: 'L_FL', einheit: 'm',
-    standard: 50, schritt: 1, min: 1,
+    standard: 40, schritt: 1, min: 1,
     notiz: (w) => winkelNotiz(w),
     hinweis: 'Abstand zweier Aufhängungen der Fahrleitung, nicht der '
            + 'Jochabstand. Einflusslänge für Eigengewicht und Wind am Drahtwerk.'},
@@ -555,7 +555,7 @@ export const FELDER = [
   { key: 'lastHerkunft', optionenDialog: true, gruppe: 'ein', typ: 'auswahl', label: 'Herkunft der Lasten',
     standard: 'tabelle', optionen: opt(LASTHERKUNFT) },
   { key: 'windKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Windbelastung',
-    standard: '1.1', optionen: opt(WIND_KLASSEN),
+    standard: '0.9', optionen: opt(WIND_KLASSEN),
     sichtbar: (w) => w.lastHerkunft === 'tabelle',
     hinweis: 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
            + 'der Einordnung.'},
