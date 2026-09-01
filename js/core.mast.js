@@ -250,13 +250,48 @@ export function mastLasten(m, ende = 'A') {
  * Ausgewiesen wird an jeder Station der Wert UNMITTELBAR DARUNTER: dort ist
  * er der grössere, und dort wird nachgewiesen.
  */
+/**
+ * Abstand der Zwischenstellen am Masten [m].
+ *
+ * Nur fuer die Darstellung (Weisung, 1. September: rund einen halben Meter):
+ * an einem 9 m langen Mast ergibt das 18 Abschnitte. Genug fuer einen
+ * lesbaren Verlauf, und wenig genug, dass die Zeichnung nicht aus lauter
+ * Kanten besteht.
+ *
+ * Fuer den NACHWEIS aendert der Wert nichts: Fuss, Jochachse, Kopf und jede
+ * Anbauhoehe stehen ohnehin in der Liste, und dazwischen laufen N, V und M
+ * stetig - eine Zwischenstelle kann die massgebende Station bestaetigen,
+ * nie unterbieten.
+ */
+export const MAST_SCHRITT = 0.5;
+
 export function mastSchnitt(m, ende = 'A') {
   const g = mastLasten(m, ende);
   if (!g) return null;
   const { H, zKopf, gd, wQuer, wLaengs, lasten } = g;
 
+  /*
+   * WO GERECHNET WIRD.
+   *
+   * Zwingend sind Fuss, Jochachse, Kopf und jede Anbauhoehe - dort springt
+   * etwas. Fuer den NACHWEIS genuegt das: die groesste Ausnutzung liegt an
+   * einer dieser Stellen, denn zwischen ihnen laufen N, V und M stetig.
+   *
+   * Fuer die DARSTELLUNG genuegt es nicht (Weisung, 1. September: sichtbar
+   * machen, wie die Ausnutzung zum Fuss hin waechst und bei Teileinspannung
+   * zum Joch hin wieder zunimmt). Ein Mast mit drei Stationen ergibt drei
+   * Farbstufen, und der Verlauf dazwischen bleibt Behauptung.
+   *
+   * Deshalb Zwischenstellen alle MAST_SCHRITT Meter. Sie kosten nichts - die
+   * Schnittgroessen folgen einer geschlossenen Formel - und sie aendern am
+   * Nachweis nichts: eine zusaetzliche Stelle kann die massgebende nur
+   * bestaetigen, nie unterbieten.
+   */
   const stellen = new Set([0, H, zKopf]);
   lasten.forEach((l) => { if (l.z >= 0 && l.z <= zKopf + 1e-9) stellen.add(l.z); });
+  for (let z = MAST_SCHRITT; z < zKopf - 1e-9; z += MAST_SCHRITT) {
+    stellen.add(Math.round(z * 1e6) / 1e6);
+  }
   const zs = [...stellen].filter((z) => z >= -1e-9 && z <= zKopf + 1e-9)
     .sort((a, b) => a - b);
 

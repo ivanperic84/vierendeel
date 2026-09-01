@@ -1152,8 +1152,20 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
          Number.isFinite(aus.bereiche[p.feld]) && aus.bereiche[p.feld] >= 0,
          `max = ${aus.bereiche[p.feld].toFixed(2)} ${p.einheit}`);
   });
-  pruef('η-Bereich = grösstes η des Modells',
-        aus.bereiche.eta, e.max.eta.eta, 1e-9, '–');
+  /*
+   * DER BEREICH UMFASST DEN MASTEN MIT.
+   *
+   * Bis zum 1. September war er das groesste η des JOCHS, denn nur Gurte und
+   * Bleche trugen Kennwerte. Seither faerbt sich auch der Mast ein, und sein
+   * η ist am Fuss regelmaessig das groessere - fuer die Skala zaehlt, was
+   * gezeichnet wird.
+   */
+  const etaJoch = e.max.eta.eta;
+  const etaMast = e.mast?.eta ?? 0;
+  pruef('η-Bereich = grösstes η des ganzen Bildes',
+        aus.bereiche.eta, Math.max(etaJoch, etaMast), 1e-9, '–');
+  wahr('… und der Mast bringt hier das groessere ein',
+       etaMast > etaJoch, `Mast ${etaMast.toFixed(3)} gegen Joch ${etaJoch.toFixed(3)}`);
 }
 
 // ===========================================================================
@@ -4016,11 +4028,19 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
   wahr('Und zwar an beiden Enden',
        new Set(mastF.map((f) => f.teil)).size === 2,
        [...new Set(mastF.map((f) => f.teil))].join(', '));
-  // Zwoelf Ecken: zwei Flansche und der Steg. Also 12 Mantelflaechen und
-  // zwei Deckel je Mast.
-  wahr('Als I-Querschnitt mit zwoelf Ecken',
-       mastF.filter((f) => f.teil === 'MAST_A').length === 14,
-       `${mastF.filter((f) => f.teil === 'MAST_A').length} Flaechen`);
+  /*
+   * ZWOELF ECKEN, JE ABSCHNITT.
+   *
+   * Zwei Flansche und der Steg ergeben zwoelf Mantelflaechen und zwei Deckel,
+   * also 14 je Prisma. Seit dem 1. September ist der Mast nicht mehr EIN
+   * Prisma, sondern eine Folge von Abschnitten - jeder mit seiner Ausnutzung.
+   * Geprueft wird deshalb die FORM (ein Vielfaches von 14) statt der Zahl.
+   */
+  {
+    const n = mastF.filter((f) => f.teil === 'MAST_A').length;
+    wahr('Als I-Querschnitt mit zwoelf Ecken', n % 14 === 0, `${n} Flaechen`);
+    wahr('In mehreren Abschnitten uebereinander', n > 14, `${n / 14} Abschnitte`);
+  }
   {
     /*
      * VOM FUSS BIS UEBER DEN OBERGURT.
@@ -9472,8 +9492,15 @@ titel('53  Die Beschriftung laesst kein Endfeld leer');
    * bei knappem Platz uebrig bleibt.
    */
   {
+    /*
+     * NUR DAS JOCH. Der Befund betraf die Beschriftung der BLECHE: sie brach
+     * mitten im Feld ab. Seit dem 1. September traegt auch der Mast seine
+     * Ausnutzung, und seine Abschnitte liegen an den Mastachsen, also an den
+     * Enden - mit ihnen deckte die Betragsordnung die Enden scheinbar wieder
+     * ab, und die Pruefung mass ihren eigenen Gegenstand nicht mehr.
+     */
     const kand = sz.flaechen
-      .filter((f) => Number.isFinite(f.werte?.eta))
+      .filter((f) => Number.isFinite(f.werte?.eta) && !/^MAST_/.test(f.teil ?? ''))
       .map((f) => ({ v: f.werte.eta,
                      x: f.punkte.reduce((s2, q) => s2 + q[0], 0) / f.punkte.length,
                      betrag: Math.abs(f.werte.eta) }));

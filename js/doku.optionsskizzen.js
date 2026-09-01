@@ -169,7 +169,7 @@ const mastSteg = (wert) => {
     <path class="kf" d="M266 ${cy}L276 ${cy - 4.5}L276 ${cy + 4.5}z"/>
     <text class="acc" x="338" y="${cy + 4}">Wind quer</text>
     <text class="dim" x="${cx}" y="146" text-anchor="middle">${
-      inJochachse ? 'Steg quer zum Gleis, h waagrecht · starke Achse (Normalfall)'
+      inJochachse ? 'Steg quer zum Gleis, h waagrecht · starke Achse'
                   : 'Steg längs zum Gleis, b waagrecht · schwache Achse'}</text>
   `);
 };

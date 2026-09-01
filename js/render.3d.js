@@ -517,12 +517,80 @@ export function erzeugeSzene(m, erg) {
          * zumal sie ueber die starke Achse entscheidet.
          */
         const stegText = mast.stegrichtung?.achse === 'y'
-          ? 'Steg in Jochachse' : 'Steg 90° gedreht';
-        flaechen.push(...prismaZ(poly, x, zF, zKopf, {
-          gruppe: 'mast', teil: `MAST_${name}`,
-          label: `Mast ${name} · ${mast.profil.name} · ${stegText}`
-               + ` · ${mast.H.toFixed(2)} m`,
-        }));
+          ? 'Steg quer zum Gleis' : 'Steg längs zum Gleis';
+        const grund = `Mast ${name} · ${mast.profil.name} · ${stegText}`;
+        /*
+         * DER MAST TRAEGT SEINE AUSNUTZUNG (Weisung, 1. September).
+         *
+         * Er stand als EIN Koerper da, einfarbig, waehrend jedes Blech und
+         * jeder Gurt seinen Kennwert zeigte. Dabei ist gerade am Masten der
+         * VERLAUF die Auskunft: die Ausnutzung waechst zum Fuss hin, und bei
+         * teilweiser Einspannung nimmt sie zum Joch hin wieder zu.
+         *
+         * Gezeichnet wird deshalb je Abschnitt zwischen zwei Stationen ein
+         * eigenes Prisma. Massgebend ist der UNGUENSTIGERE der beiden
+         * Endwerte - ein Abschnitt, der nur seinen unteren Wert zeigte, faerbte
+         * die Stelle unter einer Einzellast zu guenstig ein.
+         */
+        const nw = erg?.mast?.[name];
+        const st = nw?.stationen ?? [];
+        if (st.length >= 2) {
+          for (let i = 0; i < st.length - 1; i++) {
+            const u = st[i], o = st[i + 1];
+            const zu2 = zF + u.z, zo2 = zF + o.z;
+            if (!(zo2 > zu2 + 1e-9)) continue;
+            const arg = (f) => Math.max(Math.abs(u[f] ?? 0), Math.abs(o[f] ?? 0));
+            const schlimmer = u.eta >= o.eta ? u : o;
+            flaechen.push(...prismaZ(poly, x, zu2, zo2, {
+              gruppe: 'mast', teil: `MAST_${name}`,
+              /*
+               * ALLE PLOTGROESSEN, AUCH AM MASTEN (Weisung, 1. September).
+               *
+               * Moment und Querkraft sind am Masten um Groessenordnungen
+               * groesser als im Blech - 50 kNm am Fuss gegen 0.8 kNm im
+               * Bindeblech. Beide teilen sich die Skala, der Momentenplot des
+               * JOCHS wird dadurch flau. Das ist der Preis, und er ist
+               * bewusst bezahlt: gefragt war der Verlauf am Masten.
+               */
+              werte: {
+                eta: schlimmer.eta,
+                sig_v: schlimmer.sig,
+                sig: Math.abs(schlimmer.sigN ?? 0),
+                N: schlimmer.N,
+                M: Math.max(arg('Mq'), arg('Ml')),
+                V: Math.max(arg('Vq'), arg('Vl')),
+              },
+              label: `${grund} · ${u.z.toFixed(2)} bis ${o.z.toFixed(2)} m`
+                   + ` über Fuss · η ${schlimmer.eta.toFixed(3)}`,
+            }));
+          }
+          /*
+           * DER MAST REICHT WEITER ALS DER NACHWEIS.
+           *
+           * Der Nachweis endet am Mastkopf, wie ihn die LAENGENANGABE
+           * bestimmt. Die Zeichnung fuehrt ihn mindestens einen halben Meter
+           * ueber den Obergurt (stehende Vorgabe) - ohne Laengenangabe ist
+           * das hoeher als die Jochachse, an der die Stationen aufhoeren.
+           *
+           * Ohne dieses Stueck endete der gezeichnete Mast an der letzten
+           * Station: der Kopf lag 0.25 m UNTER dem Obergurt statt 0.50 m
+           * darueber, und der Ueberstand mit seinen Traversen fehlte im Bild.
+           */
+          const zLetzt = zF + st[st.length - 1].z;
+          if (zKopf > zLetzt + 1e-9) {
+            flaechen.push(...prismaZ(poly, x, zLetzt, zKopf, {
+              gruppe: 'mast', teil: `MAST_${name}`,
+              label: `${grund} · Überstand über den Nachweis`,
+            }));
+          }
+        } else {
+          // Ohne Nachweis bleibt er ein Koerper ohne Kennwert - neutral
+          // eingefaerbt statt mit einer erfundenen Zahl.
+          flaechen.push(...prismaZ(poly, x, zF, zKopf, {
+            gruppe: 'mast', teil: `MAST_${name}`,
+            label: `${grund} · ${mast.H.toFixed(2)} m`,
+          }));
+        }
       }
       const halb = (mast ? (mast.stegrichtung?.achse === 'y'
         ? mast.profil.b : mast.profil.h) : 160) / 2 * MM;

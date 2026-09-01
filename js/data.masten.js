@@ -61,7 +61,7 @@ export const STEGRICHTUNGEN = [
   // «in Jochachse» und «um 90 Grad gedreht» sagen nichts darüber, wie der Mast
   // zum Gleis steht. Die Schlüssel bleiben, damit gespeicherte Stände gelten.
   { key: 'jochachse',
-    label: 'Steg quer zum Gleis, starke Achse quer (Normalfall)', achse: 'y' },
+    label: 'Steg quer zum Gleis, starke Achse quer', achse: 'y' },
   { key: 'quer',
     label: 'Steg längs zum Gleis, schwache Achse quer', achse: 'z' },
 ];
