@@ -57,8 +57,13 @@ export const MASTPROFILE = [
  *   - Steg 90 Grad dazu  -> Biegung um die SCHWACHE Achse -> I_z
  */
 export const STEGRICHTUNGEN = [
-  { key: 'jochachse', label: 'Steg in Jochachse (starke Achse quer)', achse: 'y' },
-  { key: 'quer',      label: 'Steg um 90° gedreht (schwache Achse quer)', achse: 'z' },
+  // Benannt nach dem GLEIS, nicht nach der Jochachse (Weisung, 1. September):
+  // «in Jochachse» und «um 90 Grad gedreht» sagen nichts darüber, wie der Mast
+  // zum Gleis steht. Die Schlüssel bleiben, damit gespeicherte Stände gelten.
+  { key: 'jochachse',
+    label: 'Steg quer zum Gleis, starke Achse quer (Normalfall)', achse: 'y' },
+  { key: 'quer',
+    label: 'Steg längs zum Gleis, schwache Achse quer', achse: 'z' },
 ];
 
 /**

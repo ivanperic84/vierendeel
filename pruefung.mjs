@@ -7897,6 +7897,49 @@ titel('44  Skizzen an den Eingabefeldern');
   });
 
   /*
+   * DIE STEGSKIZZE MUSS ZEIGEN, WAS SIE BEHAUPTET.
+   *
+   * Gemeldet am 1. September: die beiden Bilder waren vertauscht. «Steg in
+   * Jochachse» zeichnete einen SENKRECHTEN Steg - also quer zur Jochachse,
+   * das Gegenteil des Namens -, und die waagrechte Ausdehnung kam aus den
+   * Flanschen, stand aber als Profilhoehe h angeschrieben.
+   *
+   * Geprueft wird deshalb die GEOMETRIE, nicht die Beschriftung: Die
+   * Profilhoehe misst entlang des Stegs, also muss der Steg in beiden
+   * Stellungen gleich lang sein, und bei «quer zum Gleis» muss er in der
+   * Jochachse liegen - im Bild waagrecht.
+   */
+  {
+    const masse = (wert) => {
+      const html = OS.optionsSkizze('mastSteg', wert);
+      const rechtecke = [...html.matchAll(
+        /<rect class="st" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+        .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
+      const steg = rechtecke.find((r) => r.b === 10 || r.h === 10);
+      return {
+        anzahl: rechtecke.length,
+        stegWaagrecht: steg.b > steg.h,
+        stegLaenge: Math.max(steg.b, steg.h),
+        inJochachse: Math.max(...rechtecke.map((r) => r.x + r.b))
+                   - Math.min(...rechtecke.map((r) => r.x)),
+      };
+    };
+    const q = masse('jochachse'), l = masse('quer');
+    pruef('Drei Rechtecke je Stellung: Steg und zwei Flansche', q.anzahl, 3, 1e-12, 'Stk');
+    wahr('Quer zum Gleis liegt der Steg IN der Jochachse', q.stegWaagrecht === true);
+    wahr('Laengs zum Gleis steht er quer dazu', l.stegWaagrecht === false);
+    // Die Probe: h misst entlang des Stegs, also in beiden Faellen gleich.
+    pruef('Der Steg ist in beiden Stellungen gleich lang',
+          q.stegLaenge, l.stegLaenge, 1e-12, 'px');
+    // Und quer zum Gleis misst die Jochachse die PROFILHOEHE, nicht die
+    // Flanschbreite - genau der Fehler, der gemeldet wurde.
+    pruef('Quer zum Gleis misst die Jochachse die Profilhoehe',
+          q.inJochachse, q.stegLaenge, 1e-12, 'px');
+    wahr('Laengs zum Gleis misst sie weniger, naemlich die Flanschbreite',
+         l.inJochachse < l.stegLaenge, `${l.inJochachse} < ${l.stegLaenge}`);
+  }
+
+  /*
    * SIE MUSS AUCH MITGEFUEHRT WERDEN.
    *
    * Dass die Stellungen verschieden AUSSEHEN, genuegt nicht - sie muessen

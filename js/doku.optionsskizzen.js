@@ -125,36 +125,52 @@ const mastAnschluss = (wert) => {
 /*
  * DIE STEGRICHTUNG: welche Achse quer zum Gleis steht.
  *
- * Gezeichnet in der DRAUFSICHT, denn genau dort sieht man es: das I-Profil
- * einmal mit der Profilhöhe in der Jochachse, einmal um 90 Grad gedreht. Was
- * quer zum Gleis wirkt - der Wind auf das Joch - trifft im einen Fall die
- * starke, im anderen die schwache Achse.
+ * Gezeichnet in der DRAUFSICHT. Die Jochachse laeuft waagrecht durchs Bild;
+ * sie steht quer zum Gleis, denn das Joch spannt ueber die Gleise. Der Wind,
+ * der das Joch trifft, kommt aus Gleisrichtung und drueckt laengs der
+ * Jochachse gegen den Mast.
+ *
+ * WAS FALSCH WAR (1. September). Der Fall «Steg in Jochachse» zeichnete
+ * einen SENKRECHTEN Steg, also einen Steg quer zur Jochachse - das Gegenteil
+ * seines Namens. Und weil die waagrechte Ausdehnung dabei aus den Flanschen
+ * kam, war sie die Flanschbreite b, stand aber als Profilhoehe h
+ * angeschrieben. Beide Bilder waren vertauscht und in sich widerspruechlich.
+ *
+ * SO IST ES RICHTIG. Die Profilhoehe h misst ENTLANG DES STEGS, die
+ * Flanschbreite b quer dazu. Liegt der Steg in der Jochachse, misst h
+ * waagrecht; die Biegung in dieser Ebene laeuft dann ueber die starke Achse.
+ * Das ist der Normalfall: der Steg bildet die Normale zum Gleis.
  */
 const mastSteg = (wert) => {
-  const jochachse = wert !== 'quer';
+  const inJochachse = wert !== 'quer';
   const cx = 210, cy = 78;
-  // Halbe Profilmasse im Bild: h in der einen, b in der anderen Richtung.
-  const hu = 34, bv = 30, tf = 7, tw = 5;
-  const I = jochachse
-    ? `<rect class="st" x="${cx - hu}" y="${cy - bv}" width="${2 * hu}" height="${tf}"/>
-       <rect class="st" x="${cx - hu}" y="${cy + bv - tf}" width="${2 * hu}" height="${tf}"/>
-       <rect class="st" x="${cx - tw}" y="${cy - bv}" width="${2 * tw}" height="${2 * bv}"/>`
-    : `<rect class="st" x="${cx - bv}" y="${cy - hu}" width="${tf}" height="${2 * hu}"/>
-       <rect class="st" x="${cx + bv - tf}" y="${cy - hu}" width="${tf}" height="${2 * hu}"/>
-       <rect class="st" x="${cx - bv}" y="${cy - tw}" width="${2 * bv}" height="${2 * tw}"/>`;
+  // Profilmasse im Bild: h entlang des Stegs, b quer dazu.
+  const h = 68, b = 60, tf = 7, tw = 10;
+  const r = (x, y, w, hh) =>
+    `<rect class="st" x="${x}" y="${y}" width="${w}" height="${hh}"/>`;
+  const I = inJochachse
+    // Steg WAAGRECHT, also in der Jochachse. Die Flansche stehen senkrecht
+    // an seinen Enden; h misst damit waagrecht.
+    ? r(cx - h / 2, cy - tw / 2, h, tw)
+      + r(cx - h / 2, cy - b / 2, tf, b)
+      + r(cx + h / 2 - tf, cy - b / 2, tf, b)
+    // Steg SENKRECHT, also laengs zum Gleis. Waagrecht misst jetzt b.
+    : r(cx - tw / 2, cy - h / 2, tw, h)
+      + r(cx - b / 2, cy - h / 2, b, tf)
+      + r(cx - b / 2, cy + h / 2 - tf, b, tf);
   return skizze(
-    jochachse ? 'Steg in der Jochachse, starke Achse quer zum Gleis'
-              : 'Steg gedreht, schwache Achse quer zum Gleis',
+    inJochachse ? 'Steg quer zum Gleis, starke Achse quer zum Gleis'
+                : 'Steg laengs zum Gleis, schwache Achse quer zum Gleis',
     '0 0 520 160', `
     <line class="d" x1="40" y1="${cy}" x2="480" y2="${cy}"/>
-    <text class="dim" x="46" y="${cy - 8}">Jochachse – quer zum Gleis</text>
+    <text class="dim" x="46" y="${cy - 8}">Jochachse · quer zum Gleis</text>
     ${I}
     <line class="k" x1="330" y1="${cy}" x2="266" y2="${cy}" stroke-width="2.2"/>
     <path class="kf" d="M266 ${cy}L276 ${cy - 4.5}L276 ${cy + 4.5}z"/>
     <text class="acc" x="338" y="${cy + 4}">Wind quer</text>
     <text class="dim" x="${cx}" y="146" text-anchor="middle">${
-      jochachse ? 'Profilhöhe h in der Jochachse → starke Achse'
-                : 'Profilhöhe h in Gleisrichtung → schwache Achse'}</text>
+      inJochachse ? 'Steg quer zum Gleis, h waagrecht · starke Achse (Normalfall)'
+                  : 'Steg längs zum Gleis, b waagrecht · schwache Achse'}</text>
   `);
 };
 
