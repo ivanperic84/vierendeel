@@ -383,17 +383,25 @@ export const FELDER = [
    * wer die weichere Annahme rechnen will, schaltet sie ein und weiss dann,
    * dass A1 sich auf ein anderes System bezieht.
    */
-  { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
-    label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
-    sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
-    hinweis: 'Die Drehfeder wird iterativ herabgesetzt, bis die Grenzlast der '
-           + 'Gurtschrauben eingehalten ist.'},
+  /*
+   * DIE GRENZLAST STEHT VOR DEM SCHALTER (Weisung, 1. September).
+   *
+   * Sie stand darunter und las sich dadurch als dessen Unterpunkt: bei
+   * ausgeschalteter Begrenzung sah sie aus wie ein Feld ohne Wirkung. Sie hat
+   * aber eine, unabhaengig vom Schalter - Pruefung A1 weist die Kraft im
+   * Gurtanschluss gegen sie nach, und ohne Wert (0) entfaellt dieser Nachweis
+   * stillschweigend.
+   *
+   * Ausgeblendet gehoert sie deshalb NICHT; sie gehoert nur nicht unter den
+   * Schalter. Der begrenzt die Feder, sie ist die Grenze selbst.
+   */
   { key: 'schraubenFgrenz', gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,
     sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
-    hinweis: 'Horizontalkraft je Gurt; die Ebenenkraft ist das Doppelte. Prüfung '
-           + 'A1 führt sie auch ohne Begrenzung.'},
+    hinweis: 'Grenzwert für Prüfung A1, Gurtanschluss am Mast. Gilt auch ohne '
+           + 'die Begrenzung darunter. Horizontalkraft JE GURT, die '
+           + 'Ebenenkraft ist das Doppelte.'},
   /*
    * DER MASTWIND IST KEINE OPTION (Weisung, 31. August).
    *
@@ -408,6 +416,11 @@ export const FELDER = [
    * Jochlasten -, damit man sieht, womit gerechnet wird; der Knopf «Werte
    * bearbeiten» entsperrt sie fuer den Ausnahmefall.
    */
+  { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
+    label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
+    sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
+    hinweis: 'Die Drehfeder wird iterativ herabgesetzt, bis die Grenzlast der '
+           + 'Gurtschrauben eingehalten ist.'},
   { key: 'wMast', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
     sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
     ausLast: true,
