@@ -4591,8 +4591,11 @@ titel('28  Installierbare Fassung: Manifest, Dienstarbeiter, Dateien');
   // Fehlt die Datenbasis, steigt start() aus. Der Empfang muss VORHER stehen -
   // sonst liesse sich das Datenpaket gerade dann nicht hineinziehen, wenn es
   // gebraucht wird.
+  // Der Aufruf heisst seit dem 1. September nur noch dialogDaten() - das
+  // Verwalten der Datenbasis steht unter Optionen, hier bleibt der Start
+  // ohne Daten.
   wahr('Und zwar bevor sie mangels Datenbasis aussteigt',
-       aq.indexOf('dateiEmpfang(dateiAnnehmen)') < aq.indexOf('dialogDaten(true)'));
+       aq.indexOf('dateiEmpfang(dateiAnnehmen)') < aq.indexOf('dialogDaten();'));
   wahr('Alle drei Dateiarten werden unterschieden',
        ['PAKET_FORMAT', 'tragjoch-ablage', 'tragjoch-stabmodell']
          .every((s) => aq.includes(s)));

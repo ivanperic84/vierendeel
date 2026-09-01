@@ -761,6 +761,49 @@ function dialogOptionen() {
       // Waehrend des Tippens bliebe sonst keine mehrstellige Zahl stehen.
       if (!zwischenstand) neu();
     });
+    /*
+     * DER REITER «DATENBASIS» wird hier verdrahtet, nicht in ui.js: dort ist
+     * die Form zu Hause, hier die Handlung. Dateien lesen, das Paket
+     * anwenden und die Anwendung neu starten gehoert in die Anwendung.
+     */
+    const stand = (text, schlecht = false) => {
+      const n = ui.el('d-paket-stand');
+      if (!n) return;
+      n.textContent = text;
+      n.style.color = schlecht ? 'var(--fail, #c00)' : '';
+    };
+    const datei = rahmen.querySelector('#d-paket');
+    if (datei) datei.onchange = async (ev) => {
+      const f = ev.target.files?.[0];
+      if (!f) return;
+      try {
+        const obj = JSON.parse(await f.text());
+        const p = pruefePaket(obj);
+        if (!p.ok) { stand(p.fehler.join(' '), true); return; }
+        paketAnwenden(obj);
+        stand(`Geladen: ${p.teile.map((x) => `${x.anzahl} ${x.einheit}`).join(' · ')}`
+              + ' — die Anwendung wird neu gestartet.');
+        setTimeout(() => location.reload(), 900);
+      } catch (fehler) {
+        stand(`Datei nicht lesbar: ${fehler.message}`, true);
+      }
+    };
+    const sichern = rahmen.querySelector('[data-daten-sichern]');
+    if (sichern) sichern.onclick = () => {
+      try {
+        const paket = paketAus(projekt.projekt || '');
+        store.dateiSpeichern(JSON.stringify(paket, null, 1),
+                             `Tragjoch_Datenpaket_${paket.stand}.json`);
+      } catch (fehler) {
+        stand(`Nichts zu sichern: ${fehler.message}`, true);
+      }
+    };
+    const leeren = rahmen.querySelector('[data-daten-leeren]');
+    if (leeren) leeren.onclick = () => {
+      speicherLeeren();
+      stand('Hinterlegtes Paket gelöscht, beim nächsten Start ist es weg.');
+    };
+
     // Die Nachweisschalter tragen keinen Feldschluessel: sie sitzen zusammen
     // in EINEM Wert. Einzeln geschrieben ginge die uebrige Auswahl verloren.
     rahmen.querySelectorAll('[data-nachweis]').forEach((inp) => {
@@ -1965,7 +2008,11 @@ function baueKopf() {
     iconKnopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen') +
     iconKnopf('btn-export', 'export', 'Excel-Ausleitung (.xlsx)') +
     iconKnopf('btn-drucken', 'drucken', 'Drucken / PDF') +
-    iconKnopf('btn-daten', 'speichern', 'Datenbasis: Paket laden oder sichern') +
+    // SPEICHERN, nicht Datenbasis (Weisung, 1. September): das Zeichen war
+    // eine Diskette und stand fuer den Austausch der Typendatenbank. Wer
+    // in einer Anwendung auf eine Diskette drueckt, will sein Modell
+    // sichern. Die Datenbasis steht jetzt unter Optionen.
+    iconKnopf('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern') +
     iconKnopf('btn-optionen', 'optionen', 'Optionen und Darstellung');
 
   if (kannInstallieren()) ui.el('btn-install').onclick = () => installiere();
@@ -1975,7 +2022,7 @@ function baueKopf() {
   ui.el('btn-export').onclick = exportKlick;
   ui.el('btn-axisvm').onclick = dialogAxisvm;
   ui.el('btn-drucken').onclick = () => window.print();
-  ui.el('btn-daten').onclick = () => dialogDaten(false);
+  ui.el('btn-speichern').onclick = () => dialogSpeichern();
   ui.el('btn-optionen').onclick = dialogOptionen;
   /*
    * DER BEZUGSPUNKT WIRD NUR EINMAL GESETZT.
@@ -3487,24 +3534,24 @@ async function dateiAnnehmen(datei) {
  *
  * @param {boolean} erforderlich true, wenn ohne Daten nichts geht
  */
-function dialogDaten(erforderlich = false) {
-  const vorhanden = ausSpeicher();
-  const d = dialog(erforderlich ? 'Datenpaket laden' : 'Datenbasis', `
-    ${erforderlich ? `<p><b>Diese Ausgabe enthält keine Daten.</b> Sie braucht ein
-       Datenpaket mit den Jochtypen, den Anbauteil-Vorlagen und der
-       Lasttabelle. Es wird nur in diesem Browser gespeichert und nirgends
-       hingeschickt.</p>` : `<p>Die Jochtypen, die Anbauteil-Vorlagen und die
-       Lasttabelle liegen als <b>Datenpaket</b> vor. Es lässt sich austauschen
-       oder sichern; gespeichert wird es allein in diesem Browser.</p>`}
+/*
+ * NUR NOCH DER PFLICHTFALL.
+ *
+ * Der Dialog trug zwei Faelle: das Verwalten der Datenbasis (Kopfknopf) und
+ * den Start ohne Daten. Ersteres steht seit dem 1. September unter Optionen;
+ * hier bleibt der Fall, in dem noch gar nichts geht - da ist der
+ * Optionsdialog kein Weg, denn die Anwendung ist noch nicht aufgebaut.
+ */
+function dialogDaten() {
+  const d = dialog('Datenpaket laden', `
+    <p><b>Diese Ausgabe enthält keine Daten.</b> Sie braucht ein Datenpaket
+       mit den Jochtypen, den Anbauteil-Vorlagen und der Lasttabelle. Es wird
+       nur in diesem Browser gespeichert und nirgends hingeschickt.</p>
     <div class="feld"><label for="d-paket">Datenpaket (.json)</label>
       <input id="d-paket" type="file" accept=".json,application/json"></div>
-    <p class="notiz" id="d-paket-stand">${vorhanden
-      ? `Hinterlegt: ${esc(vorhanden.bezeichnung ?? 'ohne Bezeichnung')}`
-        + `${vorhanden.stand ? ` · Stand ${esc(vorhanden.stand)}` : ''}`
-      : 'Zurzeit ist kein Paket im Browser hinterlegt.'}</p>`,
-    `<button class="btn" data-sichern>Aktuelle Daten sichern</button>
-     ${vorhanden ? '<button class="btn btn-fail" data-leeren>Hinterlegtes löschen</button>' : ''}
-     <button class="btn" data-zu>${erforderlich ? 'Abbrechen' : 'Fertig'}</button>`);
+    <p class="notiz" id="d-paket-stand">Zurzeit ist kein Paket im Browser
+       hinterlegt.</p>`,
+    '<button class="btn" data-zu>Abbrechen</button>');
 
   const melde = (text, schlecht = false) => {
     const n = d.node.querySelector('#d-paket-stand');
@@ -3526,26 +3573,6 @@ function dialogDaten(erforderlich = false) {
     } catch (e) {
       melde(`Datei nicht lesbar: ${e.message}`, true);
     }
-  };
-
-  d.node.querySelector('[data-sichern]').onclick = () => {
-    try {
-      const paket = paketAus(projekt.projekt || '');
-      const blob = new Blob([JSON.stringify(paket, null, 1)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `Tragjoch_Datenpaket_${paket.stand}.json`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    } catch (e) {
-      melde(`Nichts zu sichern: ${e.message}`, true);
-    }
-  };
-
-  const leeren = d.node.querySelector('[data-leeren]');
-  if (leeren) leeren.onclick = () => {
-    speicherLeeren();
-    melde('Hinterlegtes Paket gelöscht, beim nächsten Start ist es weg.');
   };
 }
 
@@ -3638,7 +3665,7 @@ export async function start() {
   // Fehler, sondern der Normalfall der datenfreien Ausgabe.
   const daten = await datenBereitstellen([ladeDatenbank, ladeAnbauteile, ladeFlBauteile]);
   if (daten.quelle === 'keine') {
-    dialogDaten(true);
+    dialogDaten();
     return;
   }
   setzeTypOptionen();

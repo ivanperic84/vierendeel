@@ -20,6 +20,7 @@ import { befestigungsArt, anbauKette, passeTraegerAn,
          hatTraeger } from './core.anbauteile.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette } from './core.constants.js';
+import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
 import { skizzeFuer } from './render.skizzen.js';
@@ -2679,6 +2680,7 @@ export function stuecklisteHtml(erg) {
  */
 export function optionenHtml(werte, thema = null) {
   if (thema === 'nachweise') return nachweiseHtml(werte);
+  if (thema === 'daten') return datenbasisHtml();
   const teile = optionenFelder(werte, thema);
   // Ein einzelner Abschnitt im Reiter braucht seine Ueberschrift nicht: der
   // Reiter traegt sie bereits, und zweimal dasselbe Wort untereinander liest
@@ -2688,6 +2690,33 @@ export function optionenHtml(werte, thema = null) {
     (titelZeigen ? abschnitt(a.titel) : '')
     + a.felder.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
   ).join('');
+}
+
+/**
+ * DER REITER «DATENBASIS».
+ *
+ * Jochtypen, Anbauteil-Vorlagen und Lasttabelle liegen als Paket im Browser.
+ * Der Reiter sagt, was hinterlegt ist, und laesst es austauschen oder
+ * sichern. Verdrahtet wird er im Optionsdialog - hier steht nur die Form,
+ * denn ui.js kennt weder Dateien noch den Neustart.
+ */
+export function datenbasisHtml() {
+  const v = ausSpeicher();
+  return `
+    <p class="notiz">Jochtypen, Anbauteil-Vorlagen und Lasttabelle liegen als
+      Datenpaket vor. Es lässt sich austauschen oder sichern; gespeichert wird
+      es allein in diesem Browser und nirgends hingeschickt.</p>
+    <div class="feld"><label for="d-paket">Datenpaket (.json)</label>
+      <input id="d-paket" type="file" accept=".json,application/json"></div>
+    <p class="notiz" id="d-paket-stand">${v
+      ? `Hinterlegt: ${esc(v.bezeichnung ?? 'ohne Bezeichnung')}`
+        + `${v.stand ? ` · Stand ${esc(v.stand)}` : ''}`
+      : 'Zurzeit ist kein Paket im Browser hinterlegt.'}</p>
+    <div class="opt-knoepfe">
+      <button class="btn" type="button" data-daten-sichern>Aktuelle Daten sichern</button>
+      ${v ? '<button class="btn btn-fail" type="button" data-daten-leeren>'
+          + 'Hinterlegtes löschen</button>' : ''}
+    </div>`;
 }
 
 /**

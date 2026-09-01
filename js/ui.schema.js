@@ -762,6 +762,15 @@ export const OPTIONEN_THEMEN = [
   // Feldart.
   { key: 'nachweise', titel: 'Nachweise', eigen: true },
   { key: 'ansicht', titel: 'Darstellung' },
+  /*
+   * DIE DATENBASIS GEHOERT HIERHER (Weisung, 1. September).
+   *
+   * Sie sass auf einem eigenen Knopf in der Kopfleiste, neben Ausleiten und
+   * Drucken - also dort, wo die Handgriffe des Arbeitens stehen. Jochtypen
+   * und Lasttabelle wechselt man aber nicht beim Rechnen, sondern einmal;
+   * das ist eine Einstellung und keine Handlung.
+   */
+  { key: 'daten', titel: 'Datenbasis', eigen: true },
 ];
 
 /** Felder des Optionen-Dialogs, nach Abschnitten geordnet. */
