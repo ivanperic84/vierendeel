@@ -816,10 +816,20 @@ export function typUebernehmen(werte, joch) {
 /** Füllt die Typ-Auswahlliste, sobald die Typendatenbank geladen ist. */
 export function setzeTypOptionen() {
   const f = feld('typ');
+  /*
+   * DAS EIGENGEWICHT STEHT NICHT IM NAMEN (Weisung, 1. September).
+   *
+   * Es traegt nichts zur Unterscheidung bei: gewaehlt wird nach Typ und
+   * Bauhoehe, und was das Joch wiegt, rechnet die Anwendung ohnehin aus der
+   * Tabelle. Im Wahlfeld war es eine dritte Zahl, die niemand liest.
+   *
+   * Der Vermerk «ohne Bleche» bleibt: er sagt, dass ein Blechnachweis mit
+   * diesem Typ nicht zu fuehren ist, und das muss man vor der Wahl wissen.
+   */
   const zeile = (j) => ({
     wert: j.typ,
-    text: `${j.typ} · jd ${j.jd}${j.voute ? `→${j.voute.endJd}` : ''} mm · ` +
-          `${j.gewicht} kg/m${j.bleche ? '' : ' · ohne Bleche'}`,
+    text: `${j.typ} · jd ${j.jd}${j.voute ? `→${j.voute.endJd}` : ''} mm`
+        + `${j.bleche ? '' : ' · ohne Bleche'}`,
   });
   // Vergleichsmodelle (`sortiment: false`) bilden ein fremdes Bauwerk nach.
   // Sie stehen zuunterst und sagen es im Klartext - wer sie wählt, rechnet
