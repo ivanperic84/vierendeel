@@ -9723,6 +9723,40 @@ titel('56  Die Farbskala folgt den sichtbaren Ebenen');
 }
 
 // ===========================================================================
+titel('57  Tastenkuerzel lassen sich abschalten');
+// Weisung: die erweiterten Kuerzel unter Optionen deaktivierbar machen.
+// Gemeint sind die EINZELNEN Tasten; Escape und Strg+Z bleiben immer.
+{
+  const SCH57 = await import(J('ui.schema.js'));
+  const f57 = SCH57.FELDER.find((x) => x.key === 'tastenkuerzel');
+  wahr('Es gibt den Schalter', !!f57);
+  wahr('Er steht im Optionsdialog', f57.optionenDialog === true);
+  wahr('Und im Startwert EIN', f57.standard === true);
+  wahr('standardwerte() traegt ihn so', SCH57.standardwerte().tastenkuerzel === true);
+  wahr('Er steht unter Darstellung',
+       SCH57.OPTIONEN_ABSCHNITTE.some((a) => a.thema === 'ansicht'
+                                          && a.keys.includes('tastenkuerzel')));
+
+  /*
+   * DIE VIER SPERREN, am Quelltext festgehalten - ausfuehren laesst sich der
+   * Handler ohne DOM nicht.
+   */
+  const aq57 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const ab = aq57.indexOf('function tastendruck');
+  const bis = aq57.indexOf('function dialogTasten');
+  const koerper = aq57.slice(ab, bis > ab ? bis : undefined);
+  wahr('Sperre 1: jedes Eingabefeld', koerper.includes('imFeld'));
+  wahr('Sperre 2: offener Dialog', koerper.includes("querySelector('.dialog')"));
+  wahr('Sperre 3: Sondertasten', koerper.includes('e.altKey'));
+  wahr('Sperre 4: der Schalter', koerper.includes("tastenkuerzel === false"));
+  // ESCAPE UND STRG+Z STEHEN VOR ALLEN SPERREN - sie duerfen nie ausfallen.
+  wahr('Escape wird vor den Sperren behandelt',
+       koerper.indexOf("'Escape'") < koerper.indexOf('imFeld'));
+  wahr('Strg+Z ebenso',
+       koerper.indexOf('e.ctrlKey || e.metaKey') < koerper.indexOf("tastenkuerzel === false"));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

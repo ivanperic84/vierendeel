@@ -2131,8 +2131,19 @@ function tastendruck(e) {
     if (e.shiftKey) wiederherstellen(); else rueckgaengig();
     return;
   }
-  // OHNE Steuertaste: jedes Eingabefeld ist tabu, auch Zahl und Auswahl.
-  if (imFeld || e.altKey) return;
+  /*
+   * VIER SPERREN GEGEN UNGEWOLLTES AUSLOESEN.
+   *
+   * 1. JEDES EINGABEFELD. Nicht nur Textfelder: auch Zahl, Auswahl und
+   *    Dateifeld. Wer in einem Zahlenfeld eine 1 tippt, meint die Ziffer.
+   * 2. JEDER OFFENE DIALOG. Dort sucht man Felder und Knoepfe; ein «o», das
+   *    hinter dem Dialog noch ein Fenster oeffnet, waere nicht zu erklaeren.
+   * 3. JEDE SONDERTASTE. Alt und AltGr gehoeren dem Betriebssystem und den
+   *    Sonderzeichen der Tastatur.
+   * 4. DER SCHALTER unter Optionen, fuer alle, denen das zu viel ist.
+   */
+  if (imFeld || e.altKey || document.querySelector('.dialog')) return;
+  if (werte?.tastenkuerzel === false) return;
 
   if (e.key >= '1' && e.key <= '7') { e.preventDefault(); plotNummer(+e.key); return; }
   const t = TASTEN.find((x) => x.tun && x.taste === e.key.toLowerCase());

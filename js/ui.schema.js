@@ -694,6 +694,22 @@ export const FELDER = [
     sichtbar: (w) => w.projektion !== 'orthogonal',
     hinweis: 'Kleiner Winkel gibt ein ruhiges Bild und weniger Verzerrung am '
            + 'Rand.'},
+  /*
+   * DIE ERWEITERTEN KUERZEL LASSEN SICH ABSCHALTEN (Weisung, 1. September).
+   *
+   * Gemeint sind die EINZELNEN Tasten - q, l, i, d, 0, 1 bis 7, p, o, h. Sie
+   * wirken ohne Steuertaste und damit dort, wo sonst geschrieben wird; wer
+   * viel mit der Tastatur arbeitet, will das vielleicht nicht.
+   *
+   * Escape und Strg+Z bleiben IMMER. Sie sind keine Erweiterung, sondern das,
+   * was jede Anwendung kann, und ihr Verlust waere ein Verlust.
+   */
+  { key: 'tastenkuerzel', gruppe: 'ansicht', optionenDialog: true,
+    typ: 'schalter', label: 'Tastenkürzel für Ansicht und Fenster',
+    standard: true,
+    hinweis: 'Einzelne Tasten wie q, 1 oder h. Sie wirken nie in einem '
+           + 'Eingabefeld und nie bei offenem Dialog. «?» zeigt die '
+           + 'Übersicht. Escape und Strg+Z bleiben immer.' },
   { key: 'modellTransparenz', optionenDialog: true, gruppe: 'ansicht',
     typ: 'schieber', label: 'Transparenz der Körper', einheit: '%',
     standard: 50, min: 0, max: 90, schritt: 5,
@@ -789,6 +805,7 @@ export const OPTIONEN_ABSCHNITTE = [
   { thema: 'ansicht', titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',
            'modellSchriftLast', 'modellSchriftMass'] },
+  { thema: 'ansicht', titel: 'Bedienung', keys: ['tastenkuerzel'] },
 ];
 
 /**
