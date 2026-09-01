@@ -417,14 +417,27 @@ export const FELDER = [
     hinweis: 'Horizontalkraft JE GURT - jede Gurtebene hängt an zwei Gurten, '
            + 'die Ebenenkraft ist also das Doppelte. Voreingestellt 24 kN. '
            + 'Nachgewiesen wird sie in Prüfung A1, auch ohne die Begrenzung.' },
-  { key: 'wMastAusTabelle', gruppe: 'mast', typ: 'schalter',
-    label: 'Windlast auf Mast aus der Lasttabelle', standard: true,
-    sichtbar: (w) => mastDa(w),
-    hinweis: 'Wert je Profil und Einwirkungsklasse aus der Lasttabelle. ' +
-             'Ausgeschaltet gilt der Wert von Hand.' },
-  { key: 'wMast', gruppe: 'mast', typ: 'zahl', label: 'Windlast auf Mast',
+  /*
+   * DER MASTWIND IST KEINE OPTION (Weisung, 31. August).
+   *
+   * Hier stand ein Schalter «Windlast auf Mast aus der Lasttabelle». Er
+   * konnte ausgeschaltet werden, und dann rechnete ein Mast im Modell mit
+   * einem Wert von Hand - oder mit dem Startwert 0.37, was bei einem HEB 260
+   * unter EK3 um ein Drittel danebenliegt. Steht ein Mast da, faengt er Wind;
+   * das ist keine Einstellung, sondern eine Tatsache.
+   *
+   * Die Last folgt deshalb IMMER der Tabelle (Profil, Einwirkungsklasse,
+   * Stegrichtung). Sie steht gesperrt im Feld - genau wie die drei
+   * Jochlasten -, damit man sieht, womit gerechnet wird; der Knopf «Werte
+   * bearbeiten» entsperrt sie fuer den Ausnahmefall.
+   */
+  { key: 'wMast', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
     sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
-    sichtbar: (w) => mastDa(w) },
+    ausLast: true,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Je Profil, Einwirkungsklasse und Stegrichtung aus der '
+           + 'Lasttabelle. Steht ein Mast im Modell, wird sie immer '
+           + 'angesetzt. Der Knopf «Werte bearbeiten» gibt das Feld frei.' },
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
@@ -440,7 +453,7 @@ export const FELDER = [
    * Deshalb aus, bis sie ausdrücklich gewollt ist. Wer ohne Mast im Modell
    * rechnet und den Anteil trotzdem braucht, schaltet sie ein.
    */
-  { key: 'mastWindAufJoch', gruppe: 'mast', typ: 'schalter',
+  { key: 'mastWindAufJoch', gruppe: 'ein', typ: 'schalter',
     label: 'Mastwind wirkt auf das Joch', standard: false,
     sichtbar: (w) => mastDa(w),
     hinweis: 'Der Wind IN DER JOCHACHSE biegt den Mast, sein Kopf verdreht ' +
@@ -530,11 +543,12 @@ export const FELDER = [
              'Wind auf das Drahtwerk.' },
 
   { key: 'trasseRadius', gruppe: 'trasse', typ: 'zahl', label: 'Radius der Trasse',
-    sym: 'R', einheit: 'm', standard: 300000, schritt: 50,
+    sym: 'R', einheit: 'm', standard: 0, schritt: 50,
     notiz: (w) => winkelNotiz(w),
     hinweis: 'Vorzeichenbehaftet: R > 0 lenkt die Fahrleitung in +x, R < 0 in ' +
              '−x. Damit steht die Bogenseite in der Geometrie und nicht in ' +
-             'einem Schalter. Sehr grosse Beträge bedeuten gerades Gleis. ' +
+             'einem Schalter. NULL heisst gerades Gleis, ebenso sehr ' +
+             'grosse Beträge. ' +
              'Der Ablenkwinkel daneben wird mitgeführt; wer ihn eintippt, ' +
              'schreibt umgekehrt diesen Radius.' },
   /*

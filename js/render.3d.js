@@ -502,9 +502,26 @@ export function erzeugeSzene(m, erg) {
          * man muss ihn allein wegnehmen koennen, ohne die Lagerung zu
          * verlieren.
          */
+        /*
+         * DIE STEGRICHTUNG GEHOERT INS LABEL.
+         *
+         * Gezeichnet wird die wirkliche I-Form in der wirklichen Drehlage -
+         * daran ist nichts falsch. Nur sieht man es bei den HEB-Profilen
+         * NICHT: HEB 200 bis 260 sind quadratisch (h = b), die Silhouette
+         * bleibt beim Drehen dieselbe, und nur die Einbuchtungen zwischen den
+         * Flanschen wandern - je nach Blickrichtung unsichtbar. Vier der
+         * fuenf Mastprofile sind so; einzig der HEM 240 (270/248) zeigt es.
+         *
+         * Der Eindruck «die Zeichnung passt sich nicht an» kommt daher. Was
+         * hilft, ist nicht mehr Geometrie, sondern die Angabe im Klartext -
+         * zumal sie ueber die starke Achse entscheidet.
+         */
+        const stegText = mast.stegrichtung?.achse === 'y'
+          ? 'Steg in Jochachse' : 'Steg 90° gedreht';
         flaechen.push(...prismaZ(poly, x, zF, zKopf, {
           gruppe: 'mast', teil: `MAST_${name}`,
-          label: `Mast ${name} · ${mast.profil.name} · ${mast.H.toFixed(2)} m`,
+          label: `Mast ${name} · ${mast.profil.name} · ${stegText}`
+               + ` · ${mast.H.toFixed(2)} m`,
         }));
       }
       const halb = (mast ? (mast.stegrichtung?.achse === 'y'

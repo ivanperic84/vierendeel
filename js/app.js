@@ -214,7 +214,11 @@ function neuRechnen(neuZeichnen = true) {
     // von Hand gesetzt ist.
     // Sie haengt am MASTEN, nicht an der Endbedingung: seit dem 28. August
     // sind das zwei Angaben (mastImModell in core.auflager.js).
-    if (mastImModell(werte) && werte.wMastAusTabelle !== false) {
+    // Steht ein Mast im Modell, faengt er Wind - das ist keine Einstellung.
+    // Nachgefuehrt wird, solange die Lastwerte nicht von Hand freigegeben
+    // sind; dann gilt, was dort steht (dasselbe Verhalten wie bei g_k, w_k
+    // und s_k des Jochs).
+    if (mastImModell(werte) && werte.lastenBearbeiten !== true) {
       const ek = ekVonWindklasse(werte.windKlasse);
       const w = mastWind(werte.mastProfil, ek, werte.mastSteg);
       if (Number.isFinite(w)) werte.wMast = w;
@@ -464,7 +468,11 @@ function aendern(key, wert) {
     // Auf den Zentimeter: bei 50 m Spannweite verschoebe ein Dezimeter den
     // zurueckgerechneten Winkel schon in der dritten Stelle, und das Feld
     // spraenge unter der Hand.
-    werte = { ...werte, trasseRadius: R === null ? R_GERADE * 3
+    // NULL HEISST GERADE. Der Winkel 0 hatte hier einen Radius von 900 km
+    // eingetragen - rechnerisch dasselbe, aber im Feld steht dann eine Zahl,
+    // die niemand eingegeben hat und die wie ein Messwert aussieht.
+    // `istGerade` behandelt 0 seit je als gerades Gleis.
+    werte = { ...werte, trasseRadius: R === null ? 0
                                                  : Math.round(R * 100) / 100 };
   }
   neuRechnen();

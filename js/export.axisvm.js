@@ -100,8 +100,21 @@ export const AUFLAGERMODELLE = [
     label: 'Ein Punkt je Ende mit Drehfeder (Abgleich mit dem Ersatzbalken)' },
 ];
 
-/** Vorgabe nach Bauweise: die Altbauweise ist zu flach für ein Kräftepaar. */
-export const auflagerVorgabe = (m) => ((m?.bauweise ?? 'neu') === 'alt' ? 'mitte' : 'gurte');
+/**
+ * VORGABE DES AUFLAGERMODELLS.
+ *
+ * Steht ein Mast im Modell, wird er auch ausgeleitet - alles andere hiesse,
+ * ihn zweimal zu erfassen: einmal als Drehfeder im Ersatzbalken und einmal
+ * gar nicht im FEM. Bis zum 31. August war 'gurte' die Vorgabe, und wer den
+ * Mast im Modell haben wollte, musste ihn im Dialog eigens waehlen.
+ *
+ * Ohne Mast bleibt es bei der Bauweise: die Altbauweise ist zu flach fuer ein
+ * Kraeftepaar ueber die Jochhoehe, dort liegt das Lager in der Ebenenmitte.
+ */
+export const auflagerVorgabe = (m) => {
+  if (m?.federn?.mast || m?.federn?.mastA) return 'mast';
+  return (m?.bauweise ?? 'neu') === 'alt' ? 'mitte' : 'gurte';
+};
 
 /**
  * Querschnitt des steifen Ersatzstabs.

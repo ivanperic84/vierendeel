@@ -2320,8 +2320,18 @@ titel('19  AxisVM-Export (SAF)');
                  stahl: getStahl(eingabe.stahl), joch: T.getTragjoch('J90') };
   const m = modell(eingabe, deps.profOG, deps.profUG, deps.stahl, deps.joch);
 
-  const bauA = AX.stabmodell(m, { knotenmodell: 'anschnitt' });
-  const bauS = AX.stabmodell(m, { knotenmodell: 'schwerachsen' });
+  /*
+   * DAS AUFLAGERMODELL WIRD HIER BENANNT, NICHT GEERBT.
+   *
+   * Diese Pruefungen gelten dem GURTmodell - vier Punkte je Ende, keine
+   * Drehfeder. Sie standen ohne Angabe da und lebten von der Vorgabe; als
+   * die am 31. August auf 'mast' wechselte (Mast im Modell wird auch
+   * ausgeleitet), fielen sie, ohne dass am Geprueften etwas falsch war.
+   * Eine Pruefung, die ein bestimmtes Modell meint, hat es zu nennen.
+   */
+  const GURTE = { auflagerModell: 'gurte' };
+  const bauA = AX.stabmodell(m, { knotenmodell: 'anschnitt', ...GURTE });
+  const bauS = AX.stabmodell(m, { knotenmodell: 'schwerachsen', ...GURTE });
 
   // --- Geometrie -----------------------------------------------------------
   const kn = [...bauA.knoten.values()];
@@ -2414,7 +2424,9 @@ titel('19  AxisVM-Export (SAF)');
                  bauA).strecke.every((q) => q.lastfall !== 'Schnee'));
 
   // --- Blätter -------------------------------------------------------------
-  const { blaetter } = AX.axisvmMappe(eingabe, deps, { knotenmodell: 'anschnitt' });
+  // Auch hier das Gurtmodell benennen - die Lagerpruefungen unten meinen es.
+  const { blaetter } = AX.axisvmMappe(eingabe, deps,
+                                      { knotenmodell: 'anschnitt', auflagerModell: 'gurte' });
   const namen = blaetter.map((b) => b.name);
   ['StructuralMaterial', 'StructuralCrossSection', 'StructuralPointConnection',
    'StructuralCurveMember', 'StructuralPointSupport', 'StructuralLoadCase',
@@ -2816,7 +2828,7 @@ titel('19  AxisVM-Export (SAF)');
        (skript({}).match(/'SCHOTT_/g) ?? []).length);
 
   // --- DXF: Ausweichweg ohne SAF-Lizenz ------------------------------------
-  const dxf = AX.dxfText(m, { knotenmodell: 'anschnitt' });
+  const dxf = AX.dxfText(m, { knotenmodell: 'anschnitt', auflagerModell: 'gurte' });
   const zeilen = dxf.text.split('\n');
   wahr('DXF beginnt mit SECTION und endet mit EOF',
        zeilen[0] === '0' && zeilen[1] === 'SECTION'
@@ -8430,6 +8442,7 @@ titel('47  Radius und Winkel halten einander nach');
   // --- Die Felder ----------------------------------------------------------
   {
     const feld = (k) => FELDER.find((f) => f.key === k);
+    const feld2 = (k) => FELDER.find((f) => f.key === k);   // darf fehlen
     const sicht = (f, w) => (typeof f.sichtbar === 'function' ? f.sichtbar(w) : true);
     const w = { ...standardwerte(), trasseRadius: -380, flSpannweite: 30,
                 trasseWinkel: -4.525 };
@@ -9229,6 +9242,7 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
   // --- Die Maske folgt derselben Antwort ----------------------------------
   {
     const feld = (k) => FELDER.find((f) => f.key === k);
+    const feld2 = (k) => FELDER.find((f) => f.key === k);   // darf fehlen
     const sicht = (f, w) => (typeof f.sichtbar === 'function' ? f.sichtbar(w) : true);
     const an = { ...standardwerte(), endbedingung: 'gelenkig', mastVorhanden: true };
     const aus = { ...standardwerte(), endbedingung: 'mast', mastVorhanden: false };
@@ -9241,8 +9255,22 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
            sicht(feld(k), an));
       wahr(`${k}: unsichtbar ohne Masten, auch bei "aus Mast"`,
            !sicht(feld(k), aus));
+    });
+    // Das BAUTEIL steht bei den Masten, die LAST bei den Einwirkungen.
+    // Beides haengt am selben Schalter, aber es sind zwei Fragen: welcher
+    // Mast dasteht, und was auf ihn drueckt.
+    ['mastProfil', 'mastH', 'mastLaenge', 'mastSteg'].forEach((k) => {
       wahr(`${k}: steht in der Gruppe der Masten`, feld(k).gruppe === 'mast');
     });
+    ['wMast', 'mastWindAufJoch'].forEach((k) => {
+      wahr(`${k}: steht bei den Einwirkungen`, feld(k).gruppe === 'ein');
+    });
+    // KEINE OPTION MEHR: der Schalter, der den Tabellenwert abwaehlen liess,
+    // ist weg. Steht ein Mast im Modell, faengt er Wind.
+    wahr('Der Schalter "aus der Lasttabelle" ist entfallen',
+         !feld2('wMastAusTabelle'));
+    wahr('Die Mastwindlast steht gesperrt wie die Jochlasten',
+         feld('wMast').ausLast === true);
     // Die Auflagerung behaelt, was Auflagerung ist.
     ['endbedingung', 'cPhi', 'kragA', 'kragB', 'mastAnschluss']
       .forEach((k) => wahr(`${k}: bleibt bei der Auflagerung`,
@@ -9252,6 +9280,34 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
     wahr('Die Gruppe steht im Reiter System',
          U.EINGABE_TABS.find((t) => t.id === 'system').gruppen.includes('mast'));
   }
+}
+
+// ===========================================================================
+titel('52b Steht ein Mast im Modell, wird er auch ausgeleitet');
+// Bis zum 31. August war 'gurte' die Vorgabe des AxisVM-Dialogs, gleich ob
+// ein Mast dastand oder nicht. Wer ihn im FEM haben wollte, musste ihn eigens
+// waehlen - und wer es vergass, rechnete ihn im Ersatzbalken als Drehfeder
+// und im FEM gar nicht.
+{
+  const AXV = await import(J('export.axisvm.js'));
+  const j90v = T.getTragjoch('J90');
+  const mitMast = rechne({ ...basis(), ...typUebernehmen({ ...standardwerte() }, j90v),
+    typ: 'J90', L: 15.5, mastVorhanden: true, endbedingung: 'mast',
+    mastProfil: 'HEB 260', mastH: 7.5 }).modell;
+  const ohneMast = rechne({ ...basis(), ...typUebernehmen({ ...standardwerte() }, j90v),
+    typ: 'J90', L: 15.5, mastVorhanden: false, endbedingung: 'gelenkig' }).modell;
+  wahr('Mit Mast ist die Vorgabe das Mastmodell',
+       AXV.auflagerVorgabe(mitMast) === 'mast', AXV.auflagerVorgabe(mitMast));
+  wahr('Ohne Mast bleibt es bei der Bauweise',
+       AXV.auflagerVorgabe(ohneMast) === 'gurte', AXV.auflagerVorgabe(ohneMast));
+  // Die Altbauweise ist zu flach fuer ein Kraeftepaar - das galt vorher und gilt weiter.
+  wahr('Altbauweise ohne Mast lagert in der Ebenenmitte',
+       AXV.auflagerVorgabe({ ...ohneMast, bauweise: 'alt' }) === 'mitte');
+  // Und die Wahl im Dialog sticht die Vorgabe weiterhin.
+  const gewaehlt = AXV.stabmodell(mitMast, { knotenmodell: 'anschnitt',
+                                             auflagerModell: 'gurte' });
+  wahr('Eine ausdrueckliche Wahl sticht die Vorgabe',
+       gewaehlt.auflager.every((a) => a.modell === 'gurte'));
 }
 
 // ===========================================================================
