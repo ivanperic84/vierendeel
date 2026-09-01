@@ -35,8 +35,8 @@ const C_STARR = 1e12;
 
 export const ENDBEDINGUNGEN = [
   { key: 'gelenkig', label: 'gelenkig (c_φ = 0)' },
-  { key: 'mast',     label: 'teilweise – Steifigkeit aus Mast' },
-  { key: 'manuell',  label: 'teilweise – c_φ manuell' },
+  { key: 'mast',     label: 'teilweise. Steifigkeit aus Mast' },
+  { key: 'manuell',  label: 'teilweise. C_φ manuell' },
   { key: 'voll',     label: 'voll eingespannt (c_φ = ∞)' },
 ];
 

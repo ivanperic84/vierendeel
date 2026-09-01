@@ -197,7 +197,7 @@ function speichern() {
     entwurfTs = Date.now();
     localStorage.setItem(SPEICHER,
       JSON.stringify({ werte, projekt, thema, ts: entwurfTs }));
-  } catch { /* Ablage nicht verfügbar – kein Grund abzubrechen */ }
+  } catch { /* Ablage nicht verfügbar, kein Grund abzubrechen */ }
 }
 
 const jochVonTyp = () =>
@@ -552,7 +552,7 @@ function setzeAnbauteile(liste) {
 
 function dialogKlassen() {
   if (!letzte) return;
-  dialog('Querschnittsklassen – Herleitung', ui.klassenTabelle(letzte.kl), '');
+  dialog('Querschnittsklassen, Herleitung', ui.klassenTabelle(letzte.kl), '');
 }
 
 /**
@@ -629,7 +629,7 @@ function dialogSortiment() {
 
   dialog('Sortiment durchrechnen',
     `<p class="notiz" style="margin-top:0">Dieselbe Geometrie, dieselben Lasten,
-       dieselben Anbauteile – nur der Tragjoch-Typ wechselt. Profile, Bleche und
+       dieselben Anbauteile, nur der Tragjoch-Typ wechselt. Profile, Bleche und
        Masse kommen dabei aus der Typendatenbank.
        <b>Der gewählte Typ ändert sich nicht von selbst:</b> eine Zeile
        anklicken übernimmt ihn.</p>
@@ -660,7 +660,7 @@ function dialogSortiment() {
 const farbtokens = (thema) => farben[thema] ?? farben.hell;
 
 function dialogHandbuch() {
-  const d = dialog('Handbuch – Herleitung und Modellgrenzen', handbuchHtml(),
+  const d = dialog('Handbuch, Herleitung und Modellgrenzen', handbuchHtml(),
     '<button class="btn" data-datei>Als Datei sichern</button>' +
     '<button class="btn" data-drucken>Drucken / PDF</button>' +
     '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
@@ -1286,7 +1286,7 @@ function setzeBaugruppeAnStelle(roh) {
    */
   if (st.ort !== 'joch' && traegerDrin(roh)) {
     setzen = { stelle: null, vorwahl: null,
-               hinweis: `«${roh.name}» hängt an einem Träger — am Masten gibt`
+               hinweis: `«${roh.name}» hängt an einem Träger, am Masten gibt`
                         + ' es keinen. Ans Joch damit, oder abbrechen.' };
     zeichneBalken();
     return;
@@ -1452,7 +1452,7 @@ function zeichneBalken() {
      * deutliches Ergebnis, und die Anschrift muss das sagen, statt Zweifel
      * zu säen, die nicht bestehen.
      */
-    n.innerHTML = '<span>Zeichnung selbst eingemessen — die beiden Masten '
+    n.innerHTML = '<span>Zeichnung selbst eingemessen, die beiden Masten '
       + 'heben sich ab (nächster Strich '
       + `${Math.round(erkannt.guete * 100)} % kürzer). <b>Sitzt sie?</b></span>`
       + '<button class="btn btn-mini" data-erk-ok>passt</button>'
@@ -1832,7 +1832,7 @@ function dialogGenerator() {
          x = ${r.gleisX.map((x) => x.toFixed(2)).join(' · ')} m.` +
         (r.ausserhalb ? `<br><b>${r.ausserhalb}</b> Gleis(e) lägen ausserhalb des
          Jochs (0 … ${werte.L.toFixed(2)} m) und werden ausgelassen.` : '')
-      : 'Keine Gleislage innerhalb des Jochs – Abstand oder Anzahl anpassen.';
+      : 'Keine Gleislage innerhalb des Jochs, Abstand oder Anzahl anpassen.';
   };
 
   d.node.querySelectorAll('input').forEach((i) => {
@@ -1887,7 +1887,7 @@ function baueKopf() {
     // steht jetzt an erster Stelle - auch vor dem Installieren-Knopf, der
     // ohnehin nur zeitweise da ist und ihn sonst verschieben würde.
     `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
-       title="Modell nach AxisVM ausleiten — COM-Brücke, SAF, DXF oder PyNite"
+       title="Modell nach AxisVM ausleiten, COM-Brücke, SAF, DXF oder PyNite"
        aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>` +
     // Der Installieren-Knopf steht nur da, solange der Browser ihn anbietet:
     // nicht angemeldet, schon installiert oder abgelehnt - dann fehlt er.
@@ -1942,7 +1942,7 @@ function aktualisiereProjektKnopf() {
   b.title = 'Projektablage und Vorlagen öffnen'
     + (zeit ? `\nArbeitsstand gesichert ${zeit} (bei jeder Eingabe)` : '')
     + (ungesichert
-        ? `\nIn der Ablage steht noch der Stand von zuletzt – hier speichern`
+        ? `\nIn der Ablage steht noch der Stand von zuletzt, hier speichern`
         : (projekt.id ? '\nMit der Ablage übereinstimmend'
                       : '\nNoch nicht in der Ablage'));
 }
@@ -2025,7 +2025,7 @@ async function zeichneSchublade() {
         <div class="ablage-gruppe">
           <div class="sec">${esc(g.projekt)}
             <button class="btn btn-mini sec-btn" data-projekt-um="${esc(g.projekt)}"
-                    title="Projekt umbenennen – alle ${g.eintraege.length} Einträge">${icon('bearbeiten', 11)}</button>
+                    title="Projekt umbenennen, alle ${g.eintraege.length} Einträge">${icon('bearbeiten', 11)}</button>
             <span class="sec-r">${g.eintraege.length}</span></div>
           ${g.eintraege.map((e) => `
             <div class="ablage-zeile${e.id === projekt.id ? ' aktiv' : ''}" data-id="${e.id}">
@@ -2059,7 +2059,7 @@ async function zeichneSchublade() {
     </div>
     <div class="bs-spalten bs-drei">
       <div>
-        ${abschnitt('Dieses Tragwerk', 'wo es steht — geht in keine Rechnung ein')}
+        ${abschnitt('Dieses Tragwerk', 'wo es steht. Geht in keine Rechnung ein')}
         <div class="bs-jetzt">
           <div class="bs-jetzt-name">${icon('projekte', 13)}
             <span>${esc(projekt.projekt || 'Ohne Projekt')}</span>
@@ -2067,7 +2067,7 @@ async function zeichneSchublade() {
         </div>
         <div id="bs-verortung">${ui.verortungHtml(werte)}</div>
         <p class="notiz">Linie, Ortschaft und Kilometer stehen im Dateinamen der
-          AxisVM-Ausleitung und in der Kopfzeile des Berichts — in dieser
+          AxisVM-Ausleitung und in der Kopfzeile des Berichts, in dieser
           Reihenfolge.</p>
       </div>
       <div>${abschnitt('Projekte und gespeicherte Joche',
@@ -2081,7 +2081,7 @@ async function zeichneSchublade() {
         ${vorlagenHtml}
         <p class="notiz" style="margin-top:8px">Eine Vorlage bringt Typ, Profile,
           Trasse, Anbauteile und Lastfälle mit. Die <b>Jochlänge</b> bleibt, wie
-          sie ist – sonst würde das Anwenden das Bauteil umbauen.</p>
+          sie ist, sonst würde das Anwenden das Bauteil umbauen.</p>
       </div>
     </div>`;
 
@@ -2187,7 +2187,7 @@ function dialogTragwerkVorlage() {
       <input id="tv-bem" type="text" placeholder="wofür diese Vorlage gedacht ist"></div>
     <p class="notiz">Übernommen werden Typ, Profile, Stahlgüte, Auflager, Trasse,
       Anbauteile, Einwirkungen und Lastfälle. <b>Nicht</b> übernommen werden
-      Jochlänge, Nachweisstelle und der Projektbezug – eine Vorlage beschreibt
+      Jochlänge, Nachweisstelle und der Projektbezug. Eine Vorlage beschreibt
       die Art des Tragwerks, nicht das einzelne Stück.</p>`,
     '<button class="btn btn-acc" data-ok>Sichern</button>');
   d.node.querySelector('[data-ok]').onclick = async () => {
@@ -2260,7 +2260,7 @@ const WZ_ZEICHNUNG = [
   { key: 'zeichnung', icon: 'zeichnung',
     text: 'Eingefügte Querprofil-Zeichnung (nur in der Längsansicht)',
     fehlt: () => !ansicht.zeichnung,
-    fehltText: 'noch kein Bild eingefügt — Strg+V im Modell' },
+    fehltText: 'noch kein Bild eingefügt, Strg+V im Modell' },
   { key: 'masskette', icon: 'mass',
     text: 'Masskette als Fanglinien (nur in der Längsansicht)',
     fehlt: () => !(ansicht.masskette && ansicht.masskette.length),
@@ -2314,7 +2314,7 @@ function baueModellWerkzeuge() {
     `<button class="btn-icon btn-icon-acc v-handlung${
          setzen ? ' laeuft' : ''}" id="v-setzen" type="button"
        title="${setzen ? 'Setzen abbrechen'
-                       : 'Bauteil setzen — ins Modell klicken, wohin es gehört'}"
+                       : 'Bauteil setzen, ins Modell klicken, wohin es gehört'}"
        aria-label="${setzen ? 'Setzen abbrechen' : 'Bauteil setzen'}"
        aria-pressed="${Boolean(setzen)}">${icon('anbau')}</button>`
     /*
@@ -2327,7 +2327,7 @@ function baueModellWerkzeuge() {
          zeichnungMenue || kalibrierung ? ' laeuft' : ''}" id="v-zeichnung"
        type="button" title="${ansicht.zeichnung
          ? 'Zeichnung: neu einmessen, ersetzen oder entfernen'
-         : 'Querprofil-Zeichnung einlegen — auch mit Strg+V oder Hineinziehen'}"
+         : 'Querprofil-Zeichnung einlegen, auch mit Strg+V oder Hineinziehen'}"
        aria-label="Querprofil-Zeichnung"
        aria-pressed="${Boolean(zeichnungMenue)}">${icon('zeichnung')}</button>`;
   ui.el('v-setzen').onclick = () => (setzen ? setzenEnde() : setzenStarten());
@@ -3100,16 +3100,16 @@ function dialogAxisvm() {
        Entscheidung.</p>
     <div class="feld"><label>Format</label>
       <label class="schalter"><input type="radio" name="fmt" value="json" checked>
-        <span>JSON für die COM-Brücke — vollständig, ohne Zusatzmodul.
+        <span>JSON für die COM-Brücke, vollständig, ohne Zusatzmodul.
               Datei neben <code>com/AxisVM_aufbauen.cmd</code> legen</span></label>
       <label class="schalter"><input type="radio" name="fmt" value="saf">
-        <span>SAF-Mappe (.xlsx) — vollständig, braucht aber das SAF-Interface
+        <span>SAF-Mappe (.xlsx), vollständig, braucht aber das SAF-Interface
               in AxisVM (kostenpflichtiges Modul)</span></label>
       <label class="schalter"><input type="radio" name="fmt" value="dxf">
-        <span>DXF + Zuordnungsmappe — nur die Geometrie; Querschnitte,
+        <span>DXF + Zuordnungsmappe, nur die Geometrie; Querschnitte,
               Auflager und Lasten von Hand</span></label>
       <label class="schalter"><input type="radio" name="fmt" value="pynite">
-        <span>PyNite-Skript (.py) — freie Gegenrechnung, läuft ohne AxisVM</span></label>
+        <span>PyNite-Skript (.py), freie Gegenrechnung, läuft ohne AxisVM</span></label>
     </div>
     <div class="feld"><label>Knotenmodell</label>${wahl}</div>
     <div class="feld"><label>Auflagermodell</label>${lager}
@@ -3119,17 +3119,17 @@ function dialogAxisvm() {
          Maste.</p></div>
     <div class="feld"><label>Starrelemente</label>
       <label class="schalter"><input type="radio" name="starr" value="koerper" checked>
-        <span>als Starrkörper und Verbindungselemente — so, wie AxisVM sie
+        <span>als Starrkörper und Verbindungselemente, so, wie AxisVM sie
               führt. Der Übergang Gurt → Anbauteil wird ein
               Verbindungselement; dort lässt sich die Kraftübertragung je
               Richtung einstellen</span></label>
       <label class="schalter"><input type="radio" name="starr" value="staebe">
-        <span>als steife Stäbe — dicker Ersatzquerschnitt mit der Güte des
+        <span>als steife Stäbe, dicker Ersatzquerschnitt mit der Güte des
               Tragwerks, gewöhnliche Stabendgelenke</span></label>
     </div>
     <div class="feld"><label>Ausgabe</label>
       <label class="schalter"><input type="checkbox" name="schott">
-        <span>Endschott aus den Resultattabellen ausblenden — es bleibt
+        <span>Endschott aus den Resultattabellen ausblenden, es bleibt
               tragendes Bauteil im Modell</span></label>
     </div>
     <p class="notiz">Für einen Vergleich beide Modelle rechnen: erst ihre
@@ -3321,7 +3321,7 @@ function dialogDaten(erforderlich = false) {
   const leeren = d.node.querySelector('[data-leeren]');
   if (leeren) leeren.onclick = () => {
     speicherLeeren();
-    melde('Hinterlegtes Paket gelöscht — beim nächsten Start ist es weg.');
+    melde('Hinterlegtes Paket gelöscht, beim nächsten Start ist es weg.');
   };
 }
 

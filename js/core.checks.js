@@ -91,10 +91,10 @@ export const NACHWEISGRUPPEN = [
    * deshalb zwei verschiedene Angaben; vorher fielen sie zusammen.
    */
   { key: 'auflagerJoch', titel: 'Auflager Joch', vorhanden: true, standard: false,
-    was: 'Gurtanschluss am Mast — Kräftepaar M/h gegen die Schraubengrenze',
+    was: 'Gurtanschluss am Mast, Kräftepaar M/h gegen die Schraubengrenze',
     gilt: (c) => c.id === 'A1' },
   { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: false, standard: false,
-    was: 'Gesamtstab und Einzelwinkel — in diesem Werkzeug nicht enthalten, '
+    was: 'Gesamtstab und Einzelwinkel, in diesem Werkzeug nicht enthalten, '
        + 'separat zu führen' },
   /*
    * SEIT DEM 28. AUGUST VORHANDEN (Weisung, auf ausdrückliche Nachfrage).
@@ -184,7 +184,7 @@ export function konstruktionsChecks(m) {
   if (ga && ga.Fgrenz > 0) {
     checks.push({
       id: 'A1',
-      text: `Gurtanschluss am Mast – Kräftepaar M/h aus der geometrischen Feder`,
+      text: `Gurtanschluss am Mast, Kräftepaar M/h aus der geometrischen Feder`,
       vorhanden: ga.F, erforderlich: ga.Fgrenz, einheit: 'kN', richtung: '<=',
       ok: ga.ok === true,
       status: `M_St ${Math.max(Math.abs(ga.MA), Math.abs(ga.MB)).toFixed(2)} kNm `
@@ -388,12 +388,12 @@ export function hinweise(m) {
   if (kl.klasse4.length) {
     h.push(`Klasse 4 bei ${kl.klasse4.map((t) => t.bauteil).join(', ')}: gerechnet ` +
            'wird mit dem Bruttoquerschnitt, nicht dem wirksamen nach ' +
-           'EN 1993-1-5 – unsichere Seite.');
+           'EN 1993-1-5, unsichere Seite.');
   }
   // Altbauweise: der Anschluss ans Mast trägt kein Einspannmoment.
   if (m.bauweise === 'alt' && m.endbedingung !== 'gelenkig') {
     h.push('Altbauweise eingespannt gerechnet. Vorgabe: bei alten Jochen ' +
-           'GELENK ansetzen – der Anschluss ans Mast trägt kein Einspannmoment.');
+           'GELENK ansetzen, der Anschluss ans Mast trägt kein Einspannmoment.');
   }
   if (m.profOG.name !== m.profUG.name) {
     const art = m.gurtaufteilung ?? 'gemessen';
@@ -465,11 +465,11 @@ export function hinweise(m) {
     const e = m.eigenanteil;
     h.push('Eigenanteil der Gurte ist erfasst: neben dem Kräftepaar trägt '
       + 'jeder Winkel das globale Moment auch über sein eigenes '
-      + `Trägheitsmoment mit – zusammen ${(200 * (e.OG.my + e.UG.my)).toFixed(1)} % `
+      + `Trägheitsmoment mit, zusammen ${(200 * (e.OG.my + e.UG.my)).toFixed(1)} % `
       + `um die waagrechte und ${(200 * (e.OG.mz + e.UG.mz)).toFixed(1)} % um die `
       + 'lotrechte Achse. Er folgt dem globalen Momentenverlauf und ist in '
       + 'Feldmitte, wo die Querkraft null wird, das einzige Moment im Gurt. '
-      + 'Die Normalkraft wird dafür nicht vermindert – das liegt auf der '
+      + 'Die Normalkraft wird dafür nicht vermindert, das liegt auf der '
       + 'sicheren Seite.');
   }
 
@@ -534,7 +534,7 @@ export function hinweise(m) {
       + 'Blecheinteilung hängt an der Gurtlänge und bleibt unberührt.');
   } else if (m.endbedingung !== 'gelenkig') {
     h.push('Auflager an den Gurtenden, keine Kragarme. Steht der Mast weiter '
-      + 'innen, ist das unter «Kragarm» einzugeben – 5 % Stützweite sind rund '
+      + 'innen, ist das unter «Kragarm» einzugeben. 5 % Stützweite sind rund '
       + '11 % auf jedes globale Moment.');
   }
   /*
@@ -547,7 +547,7 @@ export function hinweise(m) {
    */
   if (m.federn?.mastFehlt) {
     h.push('Endauflager «Steifigkeit aus Mast» gewählt, aber es steht kein '
-      + 'Mast im Modell – gerechnet wird GELENKIG. Entweder die Masten unter '
+      + 'Mast im Modell, gerechnet wird GELENKIG. Entweder die Masten unter '
       + '«Masten» einschalten oder eine andere Endbedingung wählen.');
   }
   if (m.mastKopf) {
@@ -594,7 +594,7 @@ export function hinweise(m) {
   h.push(m.torsionsverteilung === 'schubfluss'
     ? 'Torsion als umlaufender Schubfluss q = T/(2·b·h) auf alle vier Ebenen, ' +
       'mit der Querkraft überlagert.'
-    : 'Torsion allein den Vertikalebenen zugewiesen (V_T = T/b) – doppelt so ' +
+    : 'Torsion allein den Vertikalebenen zugewiesen (V_T = T/b), doppelt so ' +
       'gross wie der Schubflussanteil.');
   if (m.verlauf?.aktiv) {
     const v = m.verlauf.voute;
@@ -603,7 +603,7 @@ export function hinweise(m) {
            `${(m.verlauf.hMin * 1000).toFixed(0)} mm. Bei eingespannten Enden ist ` +
            'der Endbereich gesondert zu betrachten.');
     h.push('EI für Drehfeder und Auflagermoment mit dem Feldquerschnitt ' +
-           'gerechnet – sichere Seite für das Feldmoment.');
+           'gerechnet, sichere Seite für das Feldmoment.');
   }
   if (m.ausfuehrung) {
     h.push(`Blechstaffelung nach Ausführung ${m.ausfuehrung.bez} ` +
@@ -612,9 +612,9 @@ export function hinweise(m) {
   }
   if (m.dbBleche && !m.joch.staffelung_geprueft) {
     h.push(`Blechstaffelung ${m.joch.typ} aus den Stückzahlen abgeleitet, nicht ` +
-           'abgelesen – gegen das Schemablatt zu prüfen.');
+           'abgelesen, gegen das Schemablatt zu prüfen.');
   }
-  h.push('Kein Knicknachweis – Gesamtstab und Einzelwinkel separat nachzuweisen.');
+  h.push('Kein Knicknachweis, Gesamtstab und Einzelwinkel separat nachzuweisen.');
   return h;
 }
 

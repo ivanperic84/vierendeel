@@ -545,6 +545,37 @@ damit unabhängig von der Blechteilung.</p>
 <tr><td>Auflagerverteilung</td><td>Aufteilung auf die Gabellager, genauer</td></tr>
 </table>
 
+<h4>4.9 Geometrie des Mastes</h4>
+<table class="dt">
+<tr><td>Masthöhe H</td><td>Fuss bis Jochachse. Nur diese Länge geht in die
+  Drehfeder ein: über sie verbiegt sich der Mast unter dem Jochanschluss.</td></tr>
+<tr><td>Mastlänge L_M</td><td>Fuss bis Kopf, wie auf dem Querprofil
+  angeschrieben («DP26 / 12.5 m»). Der Überstand über die Jochachse ist
+  L_M − H.</td></tr>
+<tr><td>Stegrichtung</td><td>entscheidet, welche Achse quer zum Gleis
+  trägt: Steg in Jochachse I_y, Steg gedreht I_z.</td></tr>
+</table>
+
+<p><b>Der Mast steht immer über den Obergurt hinaus.</b> Das ist Vorgabe des
+Auftraggebers und auf jedem Querprofil so gezeichnet. Ohne Längenangabe setzt
+das Werkzeug den Mindestüberstand von 0.50 m über die Oberkante des
+Obergurtprofils an, nicht über die Jochachse.</p>
+
+<p>Gefragt wird nach der <b>Länge</b>, nicht nach dem Überstand, weil das
+Querprofil beides führt: die Gesamtlänge und die Anschlusshöhe. Der Überstand
+ergibt sich daraus und muss nicht abgelesen werden.</p>
+
+<p>Auf einem langen Mast sitzen oben Traversen mit Zusatzleitern. Damit sie
+sich ansetzen lassen, reicht der Anbaubereich bis zum Mastkopf, nicht nur bis
+zur Jochachse. Ohne Längenangabe endet er bei H: dort ragt der Mast nur den
+Mindestüberstand hinaus, und darauf sitzt nichts.</p>
+
+<p><b>Der Überstand trägt keine Einspannung.</b> Er ist ein Kragarm mit
+eigenen Lasten und macht die Drehfeder des Jochendes nicht weicher; in c_φ
+steht deshalb H und nicht L_M.</p>
+
+<p class="hb-quelle">core.auflager.js · data.masten.js · render.3d.js</p>
+
 <p class="hb-quelle">core.statics.js · core.auflager.js</p>
 `,
 },

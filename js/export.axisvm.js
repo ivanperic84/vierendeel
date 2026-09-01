@@ -1730,17 +1730,17 @@ export function anleitungsblatt(m, opt = {}) {
   t('Einlesen');
   p('1', 'AxisVM: Datei / Importieren / SAF, diese Mappe wählen.');
   p('2', 'Die Lastfälle G, WindX, WindY, Schnee sind CHARAKTERISTISCH und');
-  p('', 'einzeln. Kombinationen in AxisVM anlegen — Wind je mit + und −.');
+  p('', 'einzeln. Kombinationen in AxisVM anlegen, Wind je mit + und −.');
   p('3', 'Rechnen, dann Stabschnittgrössen je Lastfall in das Blatt');
   p('', '«Vergleich» eintragen oder als Tabelle exportieren.');
   p();
 
   t('Was beim Import zu prüfen ist');
-  n('Ausrundungsradien der Winkel sind mit 0 angesetzt — die Profiltabellen '
+  n('Ausrundungsradien der Winkel sind mit 0 angesetzt, die Profiltabellen '
     + 'dieses Werkzeugs führen sie nicht. Die Fläche fällt dadurch rund 2 % '
     + 'kleiner aus. Für einen genauen Vergleich die Gurte in AxisVM durch die '
     + 'Bibliotheksprofile ersetzen.');
-  n('Die Stäbe «STARR» und «ARM» sind Rechtecke 500 bzw. 300 mm — steife '
+  n('Die Stäbe «STARR» und «ARM» sind Rechtecke 500 bzw. 300 mm, steife '
     + 'Ersatzstäbe, keine echten Starrelemente. Ihr Eigengewicht ist in AxisVM '
     + 'abzuschalten, sonst rechnet es mit.');
   n('Die Drehrichtung der Blechquerschnitte (Breite quer zur Jochachse) ist am '
@@ -2282,7 +2282,7 @@ export function zuordnungsblatt(m, dxf, opt = {}) {
   p('Einheit', 'Meter', 'Achsen', 'X Jochachse · Y Gleisrichtung · Z nach oben');
   p();
   n('DXF trägt nur Geometrie. Jeder Querschnitt liegt auf einer eigenen Ebene: '
-    + 'Ebene auswählen, Querschnitt zuweisen — das erledigt alle Stäbe darauf '
+    + 'Ebene auswählen, Querschnitt zuweisen. Das erledigt alle Stäbe darauf '
     + 'in einem Zug.');
   p();
 
@@ -2351,7 +2351,7 @@ export function zuordnungsblatt(m, dxf, opt = {}) {
   });
   p();
   n('Kräfte in kN, Momente in kNm. Vier Lastfälle anlegen: G ständig, '
-    + 'WindX, WindY, Schnee veränderlich — charakteristisch, nicht kombiniert.');
+    + 'WindX, WindY, Schnee veränderlich. Charakteristisch, nicht kombiniert.');
 
   return { name: 'Zuordnung', rows,
            breiten: [18, 22, 12, 16, 10, 10, 10, 10, 10, 10, 14] };

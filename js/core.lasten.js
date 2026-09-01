@@ -54,9 +54,9 @@ import { U } from './core.constants.js';
  * verwendet die Laufmeterlast aus der Sortimentstabelle.
  */
 export const WIND_KLASSEN = [
-  { key: '0.9', ek: 'EK1', qp: 0.90, label: 'EK1 – Referenz-Staudruck 0.90 kN/m²' },
-  { key: '1.1', ek: 'EK2', qp: 1.10, label: 'EK2 – Referenz-Staudruck 1.10 kN/m²' },
-  { key: '1.3', ek: 'EK3', qp: 1.30, label: 'EK3 – Referenz-Staudruck 1.30 kN/m²' },
+  { key: '0.9', ek: 'EK1', qp: 0.90, label: 'EK1. Referenz-Staudruck 0.90 kN/m²' },
+  { key: '1.1', ek: 'EK2', qp: 1.10, label: 'EK2. Referenz-Staudruck 1.10 kN/m²' },
+  { key: '1.3', ek: 'EK3', qp: 1.30, label: 'EK3. Referenz-Staudruck 1.30 kN/m²' },
 ];
 
 /** Schneestufen der Zeichnung. sk = Referenz-Schneelast [kN/m2]. */

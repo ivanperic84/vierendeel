@@ -60,7 +60,7 @@ const mastDa = (w) => mastImModell(w);
 function winkelNotiz(w) {
   const L = w?.flSpannweite ?? 0;
   const R = w?.trasseRadius;
-  if (istGerade(R)) return 'gerades Gleis – keine Umlenkkraft';
+  if (istGerade(R)) return 'gerades Gleis, keine Umlenkkraft';
   const a = (ablenkwinkel(L, R) * 180) / Math.PI;
   if (!a) return null;
   return `α = ${a.toFixed(3)}° bei L_FL = ${L.toFixed(2)} m · Umlenkung in `
@@ -76,9 +76,9 @@ function winkelNotiz(w) {
  */
 function radiusNotiz(w) {
   const L = w?.flSpannweite ?? 0;
-  if (istGerade(w?.trasseRadius)) return 'gerades Gleis – keine Umlenkkraft';
+  if (istGerade(w?.trasseRadius)) return 'gerades Gleis, keine Umlenkkraft';
   const a = (ablenkwinkel(L, w?.trasseRadius) * 180) / Math.PI;
-  if (!a) return 'gerades Gleis – keine Umlenkkraft';
+  if (!a) return 'gerades Gleis, keine Umlenkkraft';
   const R = radiusAusWinkel(L, a);
   if (R === null) return null;
   return `entspricht R = ${Math.abs(R) >= R_GERADE ? 'gerade'
@@ -154,20 +154,19 @@ export const FELDER = [
   {
     key: 'ortschaft', gruppe: 'ort', typ: 'text', label: 'Ortschaft',
     standard: '', platzhalter: 'z. B. Bahnhof Nord', laenge: 28,
-    hinweis: 'Klartext zum Wiederfinden — Ortsname, Bahnhof, Abschnitt.',
+    hinweis: 'Klartext zum Wiederfinden: Ortsname, Bahnhof, Abschnitt.',
   },
   {
     key: 'km', gruppe: 'ort', typ: 'text', label: 'KM-Position',
     standard: '', platzhalter: 'z. B. 012.345', laenge: 14,
-    hinweis: 'Streckenkilometer des Standorts, wie im Querprofil geschrieben.',
+    hinweis: 'Streckenkilometer wie im Querprofil.',
   },
 
   // --- Typ und Rechenmasse -------------------------------------------------
   {
     key: 'typ', gruppe: 'typ', typ: 'auswahl', label: 'Tragjoch-Typ',
     standard: 'J90', optionen: [],
-    hinweis: 'Setzt Profile, Masse, Teilung, Bindebleche und Tabellenlasten aus ' +
-             'data/tragjoche.json.',
+    hinweis: 'Setzt Profile, Masse, Teilung, Bindebleche und Tabellenlasten.',
   },
   {
     key: 'massVariante', optionenDialog: true, gruppe: 'typ', typ: 'auswahl', label: 'Hebelarme aus',
@@ -202,17 +201,15 @@ export const FELDER = [
     key: 'masskette', gruppe: 'geo', typ: 'text',
     label: 'Masskette der Zeichnung', einheit: 'cm', standard: '',
     platzhalter: 'z. B. 15 209 474 735 885 983 1185 1200', laenge: 120,
-    hinweis: 'Die Masse über dem Joch, in Zentimetern ab dem linken Jochende — '
-           + 'falls die Zeichnung sie führt. Dann fängt die Lage der Anbauteile '
-           + 'darauf, und im Modell stehen sie als Fanglinien. Das letzte Mass '
-           + 'muss die Jochlänge sein; das ist die Gegenprobe. Leer lassen, wo '
-           + 'keine Kette steht — dann wird auf der Zeichnung gemessen.',
+    hinweis: 'Masse über dem Joch in cm ab linkem Jochende, wie auf der '
+           + 'Zeichnung. Letztes Mass gleich Jochlänge. Leer lassen, wo keine '
+           + 'Kette angeschrieben ist.',
   },
   { key: 'a1', gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
     sym: 'a₁', einheit: 'm', standard: 0.75, min: 0.3, max: 1.5, schritt: 0.05,
     ausDB: true,
-    hinweis: 'Abstand vom Jochende zum ersten Bindeblech. Die Teilung dazwischen ' +
-             'stammt bei Katalogtypen aus der Mass-Tabelle der Zeichnung.' },
+    hinweis: 'Abstand Jochende bis erstes Bindeblech. Teilung dazwischen aus der '
+           + 'Mass-Tabelle des Typs.'},
   // Bei verjüngten Enden und Grundrissknick sind das die Masse IM FELD; die
   // Werte am Jochende ergeben sich daraus über Voute und Knick.
   { key: 'jd', gruppe: 'geo', typ: 'zahl', label: 'Gesamthöhe im Feld (Aussenmass)',
@@ -258,7 +255,8 @@ export const FELDER = [
    */
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
     standard: 'mast', optionen: opt(ENDBEDINGUNGEN),
-    hinweis: 'Wirkt nur auf die Vertikalbiegung; für Wind bleiben die Enden gelenkig.' },
+    hinweis: 'Wirkt auf die Vertikalbiegung; für Wind bleiben die Enden '
+           + 'gelenkig.'},
   { key: 'cPhi', gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
     sichtbar: (w) => w.endbedingung === 'manuell' },
@@ -267,11 +265,8 @@ export const FELDER = [
   // Stützweite ist L − kragA − kragB.
   { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
     sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
-    hinweis: 'Abstand der Mastachse vom Gurtende. L ist die Länge der Gurte; ' +
-             'steht das Auflager weiter innen, ragt das Joch als Kragarm ' +
-             'darüber hinaus. Am nachgerechneten Signaljoch waren das 0.33 ' +
-             'und 0.735 m auf 20 m Gurtlänge - 5.3 % Stützweite und rund ' +
-             '11 % auf jedes globale Moment.' },
+    hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
+           + 'kragB; darüber hinaus wirkt das Joch als Kragarm.'},
   { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
     sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0 },
   /*
@@ -289,11 +284,9 @@ export const FELDER = [
    */
   { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
     label: 'Masten im Modell', standard: true,
-    hinweis: 'Steht der Mast im Modell, ist er ein Bauteil: er wird '
-           + 'gezeichnet, ausgeleitet und nachgewiesen, er trägt Wind und '
-           + 'Anbauteile. Das ist unabhängig davon, ob seine Steifigkeit die '
-           + 'Drehfeder des Jochendes liefert – das steht bei der '
-           + 'Auflagerung.' },
+    hinweis: 'Der Mast wird gezeichnet, ausgeleitet und nachgewiesen und trägt '
+           + 'Wind und Anbauteile. Ob seine Steifigkeit die Drehfeder liefert, '
+           + 'steht bei der Auflagerung.'},
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: 'Mastprofil',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
     sichtbar: (w) => mastDa(w) },
@@ -326,10 +319,8 @@ export const FELDER = [
     label: 'Mastlänge gesamt (Fuss bis Kopf)',
     sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Wie auf dem Querprofil angeschrieben, z. B. «DP26 / 12.5 m». '
-           + 'Der Überstand über die Jochachse ist Länge − Masthöhe; dort '
-           + 'lassen sich Traversen und Zusatzleiter ansetzen. '
-           + '0 = nicht angegeben, dann endet der Mast knapp über dem Obergurt.' },
+    hinweis: 'Gesamtlänge wie angeschrieben. Der Mast steht immer über den '
+           + 'Obergurt hinaus, ohne Angabe 0.5 m. Handbuch.'},
   { key: 'mastSteg', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
     sichtbar: (w) => mastDa(w) },
@@ -365,12 +356,8 @@ export const FELDER = [
   { key: 'mastPlastisch', gruppe: 'mast', typ: 'schalter',
     label: 'Mast plastisch nachweisen', standard: false,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Statt der elastischen Widerstandsmomente W_el die plastischen ' +
-             'W_pl. Gilt nur bei Querschnittsklasse 1 oder 2; sonst bleibt ' +
-             'es elastisch, und der Nachweis sagt es. Gerechnet wird in ' +
-             'beiden Fällen die lineare Interaktion N/N_Rd + M_q/M_q,Rd + ' +
-             'M_l/M_l,Rd – konservativ gegenüber EN 1993-1-1, 6.2.9, und ' +
-             'ohne Beiwerte, die niemand festgelegt hat.' },
+    hinweis: 'W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2. Interaktion '
+           + 'linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.'},
   /*
    * DER ANSCHLUSS GEHOERT ZUR AUFLAGERUNG, nicht zum Masten: er sagt, wie
    * das JOCHENDE gehalten wird. Sichtbar ist er trotzdem nur mit Masten -
@@ -379,16 +366,9 @@ export const FELDER = [
   { key: 'mastAnschluss', gruppe: 'aufl', typ: 'auswahl', label: 'Anschluss ans Joch',
     standard: 'durchlaufend', optionen: opt(MASTANSCHLUESSE),
     sichtbar: (w) => mastDa(w) && w.endbedingung === 'mast',
-    hinweis: 'Läuft der Mast über die Anschlussebene hinaus und ist das Joch ' +
-             'über seine ganze Höhe angeschlossen, ist die Einspannung ' +
-             'steifer als beim Kragarm: 1.45·E·I/H statt 1.00·E·I/H, an einem ' +
-             'Stabwerksmodell kalibriert und nicht hergeleitet. ' +
-             'WIRKT NUR IM VERSCHIEBLICHEN FALL — also bei Wind in Jochachse ' +
-             'und bei Längskräften aus Anbauteilen. Für Vertikallasten und ' +
-             'Wind in Gleisrichtung hält das Joch die beiden Mastköpfe ' +
-             'zusammen; dann gilt der Rahmenwert 4.00·E·I/H, ' +
-             'unabhängig von dieser Wahl. Die weichere Annahme vergrössert ' +
-             'das Feldmoment, die steifere das Stützmoment.' },
+    hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
+           + 'Längskräften. Für Vertikallast und Wind in Gleisrichtung gilt der '
+           + 'Rahmenwert 4.00·E·I/H.'},
   /*
    * STARTWERT AUS (Weisung, 27. August).
    *
@@ -406,17 +386,14 @@ export const FELDER = [
   { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
     label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
     sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
-    hinweis: 'Das Stützmoment tritt als Kräftepaar zwischen Ober- und ' +
-             'Untergurtanschluss in den Mast. Die Drehfeder wird iterativ ' +
-             'herabgesetzt, bis die Grenzlast der Schrauben eingehalten ist — ' +
-             'so wie es im FEM-Modell von Hand gemacht wird.' },
+    hinweis: 'Die Drehfeder wird iterativ herabgesetzt, bis die Grenzlast der '
+           + 'Gurtschrauben eingehalten ist.'},
   { key: 'schraubenFgrenz', gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,
     sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
-    hinweis: 'Horizontalkraft JE GURT - jede Gurtebene hängt an zwei Gurten, '
-           + 'die Ebenenkraft ist also das Doppelte. Voreingestellt 24 kN. '
-           + 'Nachgewiesen wird sie in Prüfung A1, auch ohne die Begrenzung.' },
+    hinweis: 'Horizontalkraft je Gurt; die Ebenenkraft ist das Doppelte. Prüfung '
+           + 'A1 führt sie auch ohne Begrenzung.'},
   /*
    * DER MASTWIND IST KEINE OPTION (Weisung, 31. August).
    *
@@ -435,9 +412,8 @@ export const FELDER = [
     sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
     ausLast: true,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Je Profil, Einwirkungsklasse und Stegrichtung aus der '
-           + 'Lasttabelle. Steht ein Mast im Modell, wird sie immer '
-           + 'angesetzt. Der Knopf «Werte bearbeiten» gibt das Feld frei.' },
+    hinweis: 'Aus der Lasttabelle je Profil, Einwirkungsklasse und Stegrichtung. '
+           + '«Werte bearbeiten» gibt das Feld frei.'},
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
@@ -456,17 +432,9 @@ export const FELDER = [
   { key: 'mastWindAufJoch', gruppe: 'ein', typ: 'schalter',
     label: 'Mastwind wirkt auf das Joch', standard: false,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Der Wind IN DER JOCHACHSE biegt den Mast, sein Kopf verdreht ' +
-             'sich um θ₀ = w·H³/(6·E·I), und weil das Jochende dort ' +
-             'angeschlossen ist, wird ihm diese Verdrehung aufgezwungen - ' +
-             'das Joch wird in Gegenkrümmung gebogen. Am nachgerechneten ' +
-             'Signaljoch trug der Mastwind rund die Hälfte der gesamten ' +
-             'Einwirkung dieses Lastfalls; ohne ihn lag das Werkzeug 80 % zu ' +
-             'tief. DER WIND IN GLEISRICHTUNG BLEIBT AUSSEN VOR: er ' +
-             'verschiebt die Mastköpfe (im Grundriss ist das Joch statisch ' +
-             'bestimmt gelagert, daraus folgt nichts) und verdreht sie um ' +
-             'die Jochachse. Der zweite Anteil wäre bei zwei VERSCHIEDENEN ' +
-             'Masten eine Torsion; er ist nicht angesetzt, siehe Handbuch.' },
+    hinweis: 'Wind in Jochachse verdreht den Mastkopf um θ₀ = w·H³/(6·E·I). Die '
+           + 'Verdrehung wird dem Jochende aufgezwungen. Wind in Gleisrichtung '
+           + 'bleibt aussen vor. Handbuch.'},
 
   // --- Gurtprofile ---------------------------------------------------------
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',
@@ -485,7 +453,7 @@ export const FELDER = [
   // --- Bindebleche (jetzt bei den Profilen) --------------------------------
   { key: 'blechQuelle', optionenDialog: true, gruppe: 'blech', typ: 'auswahl', label: 'Herkunft',
     standard: 'datenbank', optionen: opt(BLECHQUELLEN),
-    hinweis: 'Die Datenbank kennt die gestaffelten Blechbreiten je Station.' },
+    hinweis: 'Die Datenbank führt die gestaffelten Blechbreiten je Station.'},
   { key: 'endblechWieZwischen', gruppe: 'blech', typ: 'schalter',
     label: 'Endblech wie Zwischenblech', standard: true,
     sichtbar: (w) => w.blechQuelle === 'manuell' },
@@ -538,19 +506,15 @@ export const FELDER = [
     label: 'Spannweite der Fahrleitung', sym: 'L_FL', einheit: 'm',
     standard: 50, schritt: 1, min: 1,
     notiz: (w) => winkelNotiz(w),
-    hinweis: 'Abstand zwischen zwei Aufhängungen der Fahrleitung – nicht der ' +
-             'Jochabstand. Gilt auch als Einflusslänge für Eigengewicht und ' +
-             'Wind auf das Drahtwerk.' },
+    hinweis: 'Abstand zweier Aufhängungen der Fahrleitung, nicht der '
+           + 'Jochabstand. Einflusslänge für Eigengewicht und Wind am Drahtwerk.'},
 
   { key: 'trasseRadius', gruppe: 'trasse', typ: 'zahl', label: 'Radius der Trasse',
     sym: 'R', einheit: 'm', standard: 0, schritt: 50,
     notiz: (w) => winkelNotiz(w),
-    hinweis: 'Vorzeichenbehaftet: R > 0 lenkt die Fahrleitung in +x, R < 0 in ' +
-             '−x. Damit steht die Bogenseite in der Geometrie und nicht in ' +
-             'einem Schalter. NULL heisst gerades Gleis, ebenso sehr ' +
-             'grosse Beträge. ' +
-             'Der Ablenkwinkel daneben wird mitgeführt; wer ihn eintippt, ' +
-             'schreibt umgekehrt diesen Radius.' },
+    hinweis: 'Vorzeichenbehaftet: R > 0 lenkt in +x, R < 0 in −x. Null oder sehr '
+           + 'grosse Beträge bedeuten gerades Gleis. Der Ablenkwinkel daneben '
+           + 'wird mitgeführt.'},
   /*
    * DER WINKEL WIRD GEZEIGT, NICHT GESPEICHERT (`wertAus`).
    *
@@ -571,15 +535,9 @@ export const FELDER = [
       : Math.round(((ablenkwinkel(w.flSpannweite ?? 0, w.trasseRadius) * 180)
                     / Math.PI) * 1e3) / 1e3),
     notiz: (w) => radiusNotiz(w),
-    hinweis: 'Der Knick der Fahrleitung an einer Aufhängung, ' +
-             'vorzeichenbehaftet: α > 0 lenkt in +x, α < 0 in −x. Die ' +
-             'Umlenkkraft ist U = 2·Z·sin(α/2) je Drahtwerk. Eingetippt ' +
-             'schreibt er den Radius daneben; gerechnet wird mit diesem. ' +
-             'Bei sehr grossen Bögen ist die Rückrechnung unscharf – ' +
-             'dR/dα = R/α, bei 1200 m und 1.4° sind das 0.4 m auf die ' +
-             'letzte gezeigte Stelle. Auf die Umlenkkraft wirkt sich das ' +
-             'nicht aus. Am einzelnen Drahtwerk lässt sich der Winkel ' +
-             'überschreiben.' },
+    hinweis: 'Knick der Fahrleitung je Aufhängung, vorzeichenbehaftet. '
+           + 'Umlenkkraft U = 2·Z·sin(α/2) je Drahtwerk. Schreibt den Radius '
+           + 'daneben; am Drahtwerk überschreibbar.'},
 
   // --- Anbauteile ----------------------------------------------------------
   { key: 'anbauteile', gruppe: 'anbau', typ: 'anbauteile', label: 'Anbauteile',
@@ -599,8 +557,8 @@ export const FELDER = [
   { key: 'windKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Windbelastung',
     standard: '1.1', optionen: opt(WIND_KLASSEN),
     sichtbar: (w) => w.lastHerkunft === 'tabelle',
-    hinweis: 'Die Tabelle liefert die fertige Laufmeterlast auf das Joch; der ' +
-             'Staudruck dient nur der Einordnung.' },
+    hinweis: 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
+           + 'der Einordnung.'},
   { key: 'schneeAktiv', gruppe: 'ein', typ: 'schalter', label: 'Schnee ansetzen',
     standard: false },
   { key: 'schneeKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Schneelast',
@@ -616,7 +574,7 @@ export const FELDER = [
   { key: 'gkManuell', gruppe: 'ein', typ: 'zahl', label: 'Ständige Last',
     sym: 'g_k', einheit: 'kN/m', standard: 0.6, schritt: 0.05, min: 0,
     ausLast: true,
-    hinweis: 'Eigengewicht des Jochs nach Sortimentstabelle plus Zuschlag.' },
+    hinweis: 'Eigengewicht nach Sortimentstabelle plus Zuschlag.'},
   { key: 'wkManuell', gruppe: 'ein', typ: 'zahl', label: 'Windlast',
     sym: 'w_k', einheit: 'kN/m', standard: 0.52, schritt: 0.05, min: 0,
     ausLast: true },
@@ -632,8 +590,8 @@ export const FELDER = [
   { key: 'normensatz', optionenDialog: true, gruppe: 'komb', typ: 'auswahl',
     label: 'Normensatz der Beiwerte', standard: 'rte',
     optionen: [...opt(NORMENSAETZE), { wert: 'frei', text: 'von Hand gesetzt' }],
-    hinweis: 'Setzt γ und ψ auf den gewählten Satz. "Von Hand" lässt die Werte, ' +
-             'wie sie sind – dann gilt weder SIA 260 noch RTE.' },
+    hinweis: 'Setzt γ und ψ auf den gewählten Satz. «Von Hand» lässt die Werte '
+           + 'unverändert.'},
   { key: 'gammaG', optionenDialog: true, gruppe: 'komb', typ: 'zahl', label: 'Lastbeiwert ständig',
     sym: 'γ_G', einheit: '–', standard: 1.30, schritt: 0.05, min: 1 },
   { key: 'gammaQ', optionenDialog: true, gruppe: 'komb', typ: 'zahl', label: 'Lastbeiwert veränderlich',
@@ -641,8 +599,7 @@ export const FELDER = [
   { key: 'psi0', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
     label: 'Beiwert Begleiteinwirkung', sym: 'ψ₀', einheit: '–',
     standard: 0.50, schritt: 0.05, min: 0,
-    hinweis: 'Gilt für Wind wie für Schnee, je nachdem welche Einwirkung ' +
-             'begleitend wirkt.' },
+    hinweis: 'Gilt für Wind wie für Schnee, je nach begleitender Einwirkung.'},
   { key: 'torsionModell', optionenDialog: true, gruppe: 'komb', typ: 'auswahl', label: 'Torsionsverlauf',
     standard: 'verteilt', optionen: opt(TORSIONSMODELLE) },
   { key: 'torsionsverteilung', optionenDialog: true, gruppe: 'komb', typ: 'auswahl',
@@ -660,50 +617,27 @@ export const FELDER = [
   { key: 'gurtaufteilung', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Querkraft auf die Gurte einer Ebene',
     standard: 'gemessen', optionen: opt(GURTAUFTEILUNGEN),
-    hinweis: 'In einer Vertikalebene stehen Ober- und Untergurt nebeneinander, '
-           + 'bei den meisten Typen mit verschiedenen Profilen. Im Rahmen zieht '
-           + 'der steifere Gurt Moment an sich; hälftig gerechnet wird er '
-           + 'unterschätzt – beim Vergleich mit einem Stabmodell um rund 30 %. '
-           + 'Die reine I-Aufteilung schiesst dafür über das Ziel hinaus; '
-           + 'gemessen wurden 57.5 bis 61.2 %, nicht 71 %. Die Vorgabe '
-           + '«gemessen» trifft das und ergänzt sich zu eins. «einhüllend» '
-           + 'gibt beiden Gurten mindestens die Hälfte – sicherer, aber die '
-           + 'Summe der Anteile ist dann grösser als eins. '
-           + 'In den Horizontalebenen stehen zwei gleiche Gurte, dort ist die '
-           + 'Einstellung ohne Wirkung.' },
+    hinweis: 'Aufteilung der Ebenenquerkraft auf Ober- und Untergurt bei '
+           + 'ungleichen Profilen. Vorgabe «gemessen», k = 0.45. In den '
+           + 'Horizontalebenen ohne Wirkung. Handbuch.'},
   // FESTGELEGT: der Knotenbereich ist steif, nachgewiesen wird am Anschnitt.
   // Die zweite Einstellung ist keine Alternative für den Nachweis, sondern
   // ein Vergleichsmodus gegen Prüfmodelle, die Achse zu Achse rechnen.
   { key: 'knotenbereich', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Knotenbereich Gurt/Blech',
     standard: 'anschnitt', optionen: opt(KNOTENBEREICHE),
-    hinweis: 'Am Knoten überlappt das Bindeblech den Gurtwinkel und ist mit '
-           + 'ihm verschweisst; dieser Bereich gilt als BIEGESTEIF. '
-           + 'Nachgewiesen wird deshalb am ANSCHNITT – im Gurt '
-           + 'M·(a₁−b_Bl)/a₁, im Blech M·L_c/h. So ist der Nachweis dieses '
-           + 'Werkzeugs festgelegt. Die zweite Einstellung rechnet Achse zu '
-           + 'Achse, wie ein Stabwerksprogramm ohne Zutun, und dient nur dem '
-           + 'Vergleich mit einem Prüfmodell – sie ist keine '
-           + 'Nachweisgrundlage. Der Unterschied beträgt 11 bis 15 % auf die '
-           + 'Ausnutzung; das Knotenmoment selbst ist in beiden Fällen '
-           + 'dasselbe.' },
+    hinweis: 'Nachweis am Anschnitt des steifen Knotenbereichs. «Schwerachsen» '
+           + 'dient dem Vergleich mit einem Prüfmodell, nicht dem Nachweis. '
+           + 'Unterschied 11 bis 15 % auf η.'},
   // In den Endfeldern geht die Torsion über die Anschlussebenen in den Mast -
   // eine örtliche Krafteinleitung, die der Ersatzbalken nicht führt.
   { key: 'endfeldZuschlag', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
     label: 'Endfeldzuschlag Bindebleche', sym: 'k_E', einheit: '–',
     standard: 0.50, schritt: 0.01, min: 0,
-    hinweis: 'In den beiden Endfeldern geht die Torsion des Jochs über die '
-           + 'Anschlussebenen in den Mast – eine örtliche Krafteinleitung, '
-           + 'die ein Ersatzbalken nicht führt. Gegen ein Rahmenmodell mit '
-           + 'demselben Knotenmodell gemessen (31. August, 24 Fälle) zeigt '
-           + 'sich das Gegenteil der früheren Annahme: das Werkzeug '
-           + 'überschätzt dort, weil es die Torsion als Hüllkurve auf alle '
-           + 'vier Ebenen legt. Gemessen sind k_E = 0.48 (Spanne 0.41 bis '
-           + '0.64), angesetzt 0.50 – die zweite Stelle wäre bei dieser '
-           + 'Streuung Scheingenauigkeit. Der Faktor wirkt NUR auf den '
-           + 'Torsionsanteil und nur auf die Bleche der beiden äussersten '
-           + 'Stationen je Ende; 1.0 schaltet ihn ab, 0.65 unterschreitet '
-           + 'die Messung nirgends.' },
+    hinweis: 'Faktor auf den Torsionsanteil der Bindebleche an den zwei '
+           + 'äussersten Stationen je Ende. Gemessen 0.48 (Spanne 0.41 bis '
+           + '0.64), angesetzt 0.50; 1.0 schaltet ab. Herleitung im Handbuch, '
+           + '6.2.2.'},
   // SCHIEFE BIEGUNG DER GURTWINKEL (core.querschnitt.js, SCHIEFE_BIEGUNG).
   // Der Winkel hat seine Hauptachsen unter 45 Grad; unter dem Rahmenmoment
   // will er quer ausweichen, und die Bindebleche der anderen Ebene halten
@@ -712,39 +646,21 @@ export const FELDER = [
   // dort 11 N/mm². Hergeleitet, nicht gefittet; Vorgabe deshalb ein.
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,
-    hinweis: 'Ein Winkel hat seine Hauptachsen unter rund 45° zu den ' +
-             'Schenkeln. Unter dem örtlichen Rahmenmoment will er deshalb ' +
-             'quer zur Lastebene ausweichen; weil die beiden Gurte einer ' +
-             'Ebene Spiegelbilder sind, weichen sie gegeneinander aus, und ' +
-             'die Bindebleche der anderen Ebene halten dagegen. Ohne diesen ' +
-             'Anteil sind die Horizontalbleche unter reiner Vertikallast ' +
-             'spannungsfrei – das geprüfte FEM-Modell zeigt dort 11 N/mm². ' +
-             'Das Moment ist über die Blechlänge konstant: es erhöht σ, ' +
-             'nicht τ, und wird weder auf den Anschnitt abgemindert noch vom ' +
-             'Endfeldzuschlag erfasst. Voraussetzung ist die ' +
-             'spiegelsymmetrische Anordnung der vier Winkel.' },
+    hinweis: 'Zusatzmoment in den Bindeblechen aus dem Querausweichen der '
+           + 'Winkelgurte (Hauptachsen unter 45°). Erhöht σ, nicht τ. Setzt '
+           + 'spiegelsymmetrische Anordnung voraus. Handbuch, 6.2.3.'},
   { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Spannung im Winkel',
     standard: 'schenkel', optionen: opt(SPANNUNGSMODELLE),
-    hinweis: 'Ein Winkel hat seine Hauptachsen unter 45°; die wirkliche '
-           + 'Randspannung bei schenkelparalleler Biegung ist rund 30 % '
-           + 'grösser als M/W. Die punktweise Ermittlung ist die richtige – '
-           + 'sie allein verschlechtert aber den Abgleich mit einem '
-           + 'Stabmodell, weil das örtliche Gurtmoment des Ersatzbalkens '
-           + 'seinerseits zu gross ist und sich die beiden Fehler heute '
-           + 'teilweise aufheben. Deshalb bleibt W schenkelparallel die '
-           + 'Vorgabe, bis das Momentenmodell nachgeführt ist.' },
+    hinweis: 'Vorgabe ist W schenkelparallel. Die punktweise Auswertung der '
+           + 'Eckpunkte ist genauer, verschlechtert aber heute den Abgleich '
+           + 'gegen das Stabmodell. Handbuch.'},
   { key: 'ebenenUeberlagerung', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Überlagerung je Blechebene',
     standard: 'huellkurve', optionen: opt(EBENEN_UEBERLAGERUNG),
-    hinweis: 'Der Schubfluss aus Torsion läuft um: er addiert sich auf der '
-           + 'Ebene, zu der die Last exzentrisch sitzt, und zieht auf der '
-           + 'gegenüberliegenden ab. Vorzeichenrichtig gerechnet unterscheiden '
-           + 'sich Ober- und Unterblech wie im FEM; die Hüllkurve gibt beiden '
-           + 'den ungünstigeren Wert. Der örtliche Anteil aus der '
-           + 'Lasteinleitung bleibt in beiden Fällen additiv. Ohne Drehsinn '
-           + 'keine Vorzeichen: mit dem Torsionsverlauf «Hüllkurve» fällt die '
-           + 'Einstellung auf die Hüllkurve zurück.' },
+    hinweis: 'Torsionsschubfluss vorzeichenrichtig je Blechebene statt '
+           + 'einhüllend. Braucht den Torsionsverlauf «verteilt», sonst ohne '
+           + 'Wirkung. Vorgabe bleibt die Hüllkurve.'},
 
   // Eigene und angepasste Lastfälle. Werden über die Lastfallmatrix gepflegt,
   // nicht über ein Eingabefeld.
@@ -758,18 +674,18 @@ export const FELDER = [
     label: 'Projektion', standard: 'perspektive',
     optionen: [{ wert: 'perspektive', text: 'perspektivisch' },
                { wert: 'orthogonal', text: 'orthogonal (verzerrungsfrei)' }],
-    hinweis: 'Orthogonal hält parallele Kanten parallel und Längen über die ' +
-             'Tiefe vergleichbar – zum Ablesen eines Trägers meist die ' +
-             'ehrlichere Darstellung.' },
+    hinweis: 'Orthogonal hält parallele Kanten parallel und Längen über die '
+           + 'Tiefe vergleichbar.'},
   { key: 'blickwinkel', optionenDialog: true, gruppe: 'ansicht', typ: 'schieber',
     label: 'Blickwinkel', einheit: '°', standard: 34, min: 12, max: 70, schritt: 2,
     sichtbar: (w) => w.projektion !== 'orthogonal',
-    hinweis: 'Kleiner Winkel = ruhiges Bild, weniger Verzerrung am Bildrand.' },
+    hinweis: 'Kleiner Winkel gibt ein ruhiges Bild und weniger Verzerrung am '
+           + 'Rand.'},
   { key: 'modellTransparenz', optionenDialog: true, gruppe: 'ansicht',
     typ: 'schieber', label: 'Transparenz der Körper', einheit: '%',
     standard: 50, min: 0, max: 90, schritt: 5,
-    hinweis: 'Durchscheinende Profile und Bleche lassen die Schwerachsen und ' +
-             'die dahinterliegenden Bauteile sichtbar.' },
+    hinweis: 'Durchscheinende Profile geben Schwerachsen und dahinterliegende '
+           + 'Bauteile frei.'},
   // Drei Schriftgrössen, weil sie verschiedenen Zwecken dienen: die
   // Beschriftung der Bauteile will man beim Lesen des Modells gross, die
   // Bemassung beim Betrachten der Form, die Lastangaben beim Prüfen der

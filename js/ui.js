@@ -427,7 +427,7 @@ export function blechUebersichtHtml(erg) {
       <thead><tr><th>Ebene</th><th>Pos</th><th class="num">b×t×L [mm]</th>
         <th class="num">Stk</th></tr></thead>
       <tbody>${zeilen}</tbody></table></div>
-    <p class="notiz">Am Jochende steht nur ein stehendes Blech – dort bildet das
+    <p class="notiz">Am Jochende steht nur ein stehendes Blech, dort bildet das
       Joch eine <b>Gabel</b> für die Montage am Mast.</p>`;
 
   return klapp('blech-uebersicht', 'Blecheinteilung und Bindebleche', inhalt,
@@ -453,7 +453,7 @@ function bearbeitenKnopf(werte) {
   return `<button class="btn btn-mini${werte.bearbeiten ? ' btn-acc' : ''}"
     data-bearbeiten type="button"
     title="${werte.bearbeiten
-      ? 'Datenbankwerte sind entsperrt – erneut klicken, um sie zu schützen'
+      ? 'Datenbankwerte sind entsperrt, erneut klicken, um sie zu schützen'
       : 'Datenbankwerte von Hand überschreiben'}">
     ${werte.bearbeiten ? 'sperren' : 'Werte bearbeiten'}</button>`;
 }
@@ -642,7 +642,7 @@ function anbauteileHtml(g, werte) {
       </button>
       <button class="kachel-stift" data-vorlage-bearb="${esc(v.id)}"
         title="${v.eigen ? 'Vorlage bearbeiten'
-          : 'Anpassen – legt eine eigene Kopie an, der Katalog bleibt unverändert'}"
+          : 'Anpassen, legt eine eigene Kopie an, der Katalog bleibt unverändert'}"
         >${icon('optionen', 11)}</button>
       ${v.eigen ? `<button class="kachel-weg" data-vorlage-weg="${esc(v.id)}"
         title="Eigene Vorlage entfernen">×</button>` : ''}
@@ -773,7 +773,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         <p class="hinweis" style="margin:0">
           Die Befestigung sitzt auf den Schwerachsen der Gurte. Zwei Angaben
           bestimmen zusammen, wo geschraubt wird: die <b>Gurtebene</b> —
-          Obergurt, Untergurt oder beide — und der <b>Raster</b>. Der Raster
+          Obergurt, Untergurt oder beide. Und der <b>Raster</b>. Der Raster
           setzt die Klemmen auf zwei Stationen, x ∓ Raster/2; dort tritt auch
           das Moment ein. In jeder Gurtebene stehen dabei zwei Winkel
           nebeneinander. Einseitig sind das 1 × 2 × 2 = <b>4 Klemmen</b>,
@@ -788,7 +788,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         <p class="hinweis" style="margin:6px 0 0">
           <b>Am Masten gilt ein anderer Nullpunkt.</b> Dort steht statt der
           Lage x die <b>Höhe über Fundament</b>, und x, y, z eines Teils
-          zählen ab dem Anschlusspunkt auf der Mastachse — nicht ab dem Joch.
+          zählen ab dem Anschlusspunkt auf der Mastachse, nicht ab dem Joch.
           Ein Rückleiter 0.35 m unter dem Anschluss auf 7.00 m Höhe steht
           also als h = 7.00 und z = −0.35. <b>x</b> weist dabei ins Feld
           hinein, an beiden Enden.</p>`)}`,
@@ -932,7 +932,7 @@ function modulListeHtml(a, i, werte) {
         ${b?.rolle === 'aufbau' && Math.abs(m.x ?? 0) > 1e-9 ? `
         <button class="btn btn-mini" type="button"
                 data-mod-spiegeln="${k}" data-idx="${i}"
-                title="Kragarm an der Achse der Hängestütze spiegeln – dieser
+                title="Kragarm an der Achse der Hängestütze spiegeln, dieser
 Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
 Ändert nur das Vorzeichen von x; Höhe und Lasten bleiben."
           >x ⇄</button>` : ''}
@@ -941,11 +941,11 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
       </div>
       ${kt ? `<div class="modul-kette">
         ${kt.rolle ? `<span class="rollen-marke r-${esc(kt.rolle)}"
-            title="Rolle aus der Lasttabelle – sie bestimmt, was auf was sitzt"
+            title="Rolle aus der Lasttabelle, sie bestimmt, was auf was sitzt"
             >${esc(ROLLE_TEXT[kt.rolle] ?? kt.rolle)}</span>` : ''}
         <span class="kette-an">hängt an <b>${esc(kt.haengtAn ?? 'Joch')}</b></span>
         ${kt.zusammenMit.length ? `<span class="kette-warn"
-            title="Gleicher Angriffspunkt: im Stabmodell teilen sich beide einen Knoten, die Kette hat hier kein Glied. Das ist zulässig – nur beabsichtigt sollte es sein."
+            title="Gleicher Angriffspunkt: im Stabmodell teilen sich beide einen Knoten, die Kette hat hier kein Glied. Das ist zulässig, nur beabsichtigt sollte es sein."
             >am selben Punkt wie ${esc(kt.zusammenMit.join(', '))}</span>` : ''}
       </div>` : ''}
       <div class="sec-klein">Angriffspunkt${bezugsHinweis(a)}</div>
@@ -1160,13 +1160,13 @@ function modFeld(i, k, feld, label, wert, einheit, schritt, hinweis = '') {
  */
 const WIRKUNGEN = [
   { key: 'wirktG', label: 'Gewicht',
-    titel: 'Eigengewicht des Leiters — ständig, Gruppe G' },
+    titel: 'Eigengewicht des Leiters, ständig, Gruppe G' },
   { key: 'wirktAblenk', label: 'Ablenkung',
-    titel: 'Ablenkkraft aus dem Kurvenzug (Z·c/R) — ebenfalls ständig. '
+    titel: 'Ablenkkraft aus dem Kurvenzug (Z·c/R), ebenfalls ständig. '
          + 'Abwählen, wenn dieser Anteil anderswo hingeht: beim Fahrdraht '
          + 'am Joch in die Drückstütze, am Ausleger in die Spurhaltertraverse.' },
   { key: 'wirktQ', label: 'Wind/Schnee',
-    titel: 'Wind auf den Leiter und Schnee — veränderlich' },
+    titel: 'Wind auf den Leiter und Schnee, veränderlich' },
 ];
 
 function wirkungHtml(i, k, m) {
@@ -1186,12 +1186,12 @@ function wirkungHtml(i, k, m) {
       </label>
     </div>
     ${hinweisHtml(`wirk-${i}-${k}`,
-      'Gewicht und Ablenkung sind BEIDE ständig – sie gehen trotzdem oft '
+      'Gewicht und Ablenkung sind BEIDE ständig, sie gehen trotzdem oft '
       + 'verschiedene Wege: das Gewicht beider Leiter hängt am Tragseil und '
       + 'kommt am Joch an, die Ablenkung des Fahrdrahts dagegen in der '
       + 'Drückstütze. Das Kettenwerk ist die Klammer über Tragseil und '
       + 'Fahrdraht; es geht in keine Rechnung ein, sondern hält zusammen, was '
-      + 'zusammengehört – der Havariefall (Bruch eines Kettenwerks) wählt '
+      + 'zusammengehört, der Havariefall (Bruch eines Kettenwerks) wählt '
       + 'später darüber aus.')}`;
 }
 
@@ -2042,7 +2042,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
         ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
         : (e <= 1
             ? (mastUeber
-                ? `Joch erfüllt — MAST NICHT (η ${f3(mastEta)})`
+                ? `Joch erfüllt, MAST NICHT (η ${f3(mastEta)})`
                 : 'Tragsicherheit erfüllt')
             : 'Tragsicherheit NICHT erfüllt')}${
         urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}${
@@ -2153,7 +2153,7 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <p class="notiz" style="margin-top:0">${esc(oBeschr)}</p>
       <p class="notiz">Der Schnitt liegt immer <b>mittig zwischen zwei Bindeblechen</b>
         (hier ${f2(sn.feldVon)} … ${f2(sn.feldBis)} m). Nur dort schneidet man die Gurte
-        im Feld und nicht durch einen Rahmenknoten – erst so lassen sich die
+        im Feld und nicht durch einen Rahmenknoten, erst so lassen sich die
         Schnittkräfte je Gurt eindeutig angeben. Massgebendes Blech an der Station
         x = ${f2(sn.stationX)} m · Bleche
         ${m.blechQuelle === 'datenbank' ? 'aus Typendatenbank' : 'manuell'}.</p>`;
@@ -2461,17 +2461,17 @@ export function zeichneAuflager(node, blatt, erg) {
     ${tabelle('B', `Auflager B (x = ${f2(m.L)} m)`)}
     ${klapp('auflager-hinweis', 'Achsen, Vorzeichen und was nicht enthalten ist', `
       <p class="notiz" style="margin-top:0">
-        <b>F_z</b> vertikal, positiv nach unten – negative Werte sind
+        <b>F_z</b> vertikal, positiv nach unten. Negative Werte sind
         <b>abhebend</b>. <b>F_y</b> längs zum Gleis, aus Wind auf Joch und
         Anbauteile. <b>M_y</b> Moment quer zum Gleis aus der Einspannung des
         Jochendes. <b>M_x</b> Moment längs zum Gleis, also die Torsion des Jochs.</p>
       <p class="notiz"><b>F_x = ${f2(blatt.total.Fx)} kN</b> wirkt IN der Jochachse
         (Umlenkkraft aus dem Leiterzug und Wind quer zum Gleis). Wie sie sich auf
-        die beiden Maste verteilt, hängt von deren Steifigkeit ab – das ist hier
+        die beiden Maste verteilt, hängt von deren Steifigkeit ab. Das ist hier
         nicht modelliert, deshalb steht nur die Summe da.</p>
       <p class="notiz">Der Wind ist in zwei Gruppen geführt: <b>Wind x</b> in
         Jochachse und <b>Wind y</b> in Gleisrichtung. Das sind zwei
-        WINDRICHTUNGEN, keine gleichzeitigen Einwirkungen – sie sind einzeln
+        WINDRICHTUNGEN, keine gleichzeitigen Einwirkungen. Sie sind einzeln
         anzusetzen, und zwar mit beiden Vorzeichen. Die ständigen Anteile
         behalten ihre Wirkrichtung.</p>
       <p class="notiz">Die Werte sind <b>charakteristisch</b>. Die Beiwerte des
@@ -2556,14 +2556,14 @@ function mastblattHtml(erg) {
         des Mastes. Die Längskraft F_x des Jochs teilt sich nach der
         Steifigkeit k = 3EI/H³ auf die beiden Maste.</p>
       <p class="notiz"><b>NICHT enthalten: die Stabilität.</b> Kein
-        Biegeknicken, kein Biegedrillknicken — das ist ein Bauteilnachweis
+        Biegeknicken, kein Biegedrillknicken. Das ist ein Bauteilnachweis
         nach EN 1993-1-1, 6.3, und er braucht eine Festlegung der Knicklänge.
         Bei einem schlanken Kragmast kann er massgebend werden.</p>
       <p class="notiz">Die <b>Torsion M_t</b> steht in der Tabelle, geht aber
         nicht in η ein: Wölbkrafttorsion am offenen I-Profil ist ein eigenes
         Kapitel. Sie ist ausgewiesen, weil der Fundamentplaner sie braucht.</p>
       <p class="notiz">Die Werte sind <b>Bemessungswerte</b> des gewählten
-        Lastfalls — anders als das Auflagerblatt darüber, das charakteristisch
+        Lastfalls, anders als das Auflagerblatt darüber, das charakteristisch
         und gruppenweise ausweist.</p>`)}`;
 }
 
@@ -2638,7 +2638,7 @@ export function stuecklisteHtml(erg) {
     <div class="infobox" style="margin:0">
       Nur Gurtwinkel und Bindebleche sind erfasst. Der Tabellenwert der
       Sortimentszeichnung enthält zusätzlich Stosslaschen, Anschlusswinkel und
-      Verschraubung – eine Unterschreitung von rund 10 bis 20 % ist deshalb zu
+      Verschraubung, eine Unterschreitung von rund 10 bis 20 % ist deshalb zu
       erwarten. <b>Nur Information, kein Nachweis.</b>
       ${m.char?.herkunft?.eigengewicht
         ? `<br>In der Rechnung angesetzt: ${esc(m.char.herkunft.eigengewicht)}.` : ''}
@@ -2685,7 +2685,7 @@ export function nachweiseHtml(werte) {
       </label>
       <p class="notiz">${esc(g.was)}</p>
       ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
-        + 'enthalten — separat zu führen.</p>'}
+        + 'enthalten, separat zu führen.</p>'}
     </div>`).join('');
 }
 

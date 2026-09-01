@@ -65,8 +65,8 @@ import { winkelwerteFuer, randspannung } from './core.winkel.js';
  * hälftig immer richtig und die Einstellung ohne Wirkung.
  */
 export const GURTAUFTEILUNGEN = [
-  { key: 'gemessen', label: 'gedämpft nach Steifigkeit – an PyNite gemessen (Vorgabe)' },
-  { key: 'huellend', label: 'einhüllend – je Gurt der ungünstigere Anteil, hebt den Untergurt' },
+  { key: 'gemessen', label: 'gedämpft nach Steifigkeit. An PyNite gemessen (Vorgabe)' },
+  { key: 'huellend', label: 'einhüllend. Je Gurt der ungünstigere Anteil, hebt den Untergurt' },
   { key: 'steifigkeit', label: 'nach Biegesteifigkeit I/ΣI (ungedämpft)' },
   { key: 'gleich', label: 'hälftig (bisheriges Verhalten)' },
 ];
@@ -359,12 +359,12 @@ export const KNOTENBEREICHE = [
   { key: 'anschnitt',
     label: 'steif, Nachweis am Anschnitt (Nachweisgrundlage)' },
   { key: 'schwerachsen',
-    label: 'Achse zu Achse – nur zum Vergleich mit Prüfmodellen' },
+    label: 'Achse zu Achse, nur zum Vergleich mit Prüfmodellen' },
 ];
 
 export const SPANNUNGSMODELLE = [
   { key: 'schenkel', label: 'über W schenkelparallel (Vorgabe, an AxisVM abgeglichen)' },
-  { key: 'punkte', label: 'an den Querschnittspunkten – schiefe Biegung, Faktor ≈ 1.30' },
+  { key: 'punkte', label: 'an den Querschnittspunkten. Schiefe Biegung, Faktor ≈ 1.30' },
 ];
 
 export const TORSIONSVERTEILUNGEN = [
@@ -382,9 +382,9 @@ export const ECKEN = [
 
 export const EBENEN_UEBERLAGERUNG = [
   { key: 'huellkurve',
-    label: 'Hüllkurve – jede Ebene mit dem ungünstigsten Wert' },
+    label: 'Hüllkurve, jede Ebene mit dem ungünstigsten Wert' },
   { key: 'vorzeichen',
-    label: 'vorzeichenrichtig – Schubfluss addiert auf einer Seite, zieht auf der anderen ab' },
+    label: 'vorzeichenrichtig, Schubfluss addiert auf einer Seite, zieht auf der anderen ab' },
 ];
 
 /**
