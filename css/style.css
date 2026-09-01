@@ -1136,18 +1136,25 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    Ein Fliesstext mit Formeln braucht Zeilenlänge und ein Verzeichnis, das
    mitläuft - sonst weiss man nach dem dritten Abschnitt nicht mehr, wo man
    ist. Deshalb ein breiter Dialog mit fester Randspalte. */
-/* DIALOG MIT REITERN: FESTE HOEHE, DAMIT ER NICHT SPRINGT.
+/* DIALOG MIT REITERN: OBEN VERANKERT, HOEHE NACH INHALT.
 
    Der Scrim zentriert seinen Dialog. Solange dessen Inhalt gleich hoch
    bleibt, ist das richtig; wechselt aber der Reiter, aendert sich die Hoehe,
-   und weil die Mitte festliegt, wandern Ober- UND Unterkante. Der Dialog
+   und weil die MITTE festliegt, wandern Ober- UND Unterkante. Der Dialog
    springt unter dem Zeiger weg, und der Knopf, den man gerade treffen
    wollte, ist woanders.
 
-   Eine feste Hoehe nimmt dem die Grundlage: der Rahmen steht, der Koerper
-   scrollt. min() haelt ihn auf kleinen Fenstern trotzdem im Bild. */
-.dialog-reiter { height: min(78vh, 720px); }
-.dialog-reiter .dialog-koerper { flex: 1; }
+   Der erste Versuch gab ihm eine feste Hoehe. Das stand still, liess aber im
+   duennsten Reiter die halbe Flaeche leer. Besser ist die Verankerung OBEN
+   (Weisung, 1. September): die Oberkante bleibt, wo sie ist, und der Dialog
+   waechst allein nach unten. Er ist dann so hoch wie sein Inhalt, und was
+   sich bewegt, ist nur die Unterkante - dort, wo man gerade nicht hinsieht.
+
+   Die Hoehenschranke bleibt: 24 px Scrim-Rand oben und unten. */
+.dialog-reiter {
+  align-self: flex-start;
+  max-height: calc(100vh - 48px);
+}
 
 .dialog-breit { width: min(1080px, 100%); max-height: 90vh; }
 /* Bewusst ohne scroll-behavior: smooth. Ein Sprung im Inhaltsverzeichnis soll
