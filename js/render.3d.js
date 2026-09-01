@@ -2982,7 +2982,7 @@ export class Modellansicht {
       // Fehlt der Wert an diesem Bauteil, bleibt es neutral - lieber eine
       // Lücke als eine Farbe, die eine Grösse vortäuscht.
       if (!Number.isFinite(v)) return t.xdim;
-      const max = p.fest ?? (this.szene?.bereiche?.[p.feld] || 1);
+      const max = p.fest ?? (this._bereichSichtbar(p.feld) || 1);
       return etaFarbe((Math.abs(v) / (max || 1)) * (p.fest ?? 1.25));
     }
     if (this.modus === 'positionen' && f.farbeBauteil) return f.farbeBauteil;
@@ -3004,11 +3004,46 @@ export class Modellansicht {
     return f.gruppe === 'blech' ? t.blech : t.stahl;
   }
 
+  /*
+   * DIE SKALA UMFASST NUR, WAS ZU SEHEN IST (Weisung, 1. September).
+   *
+   * `szene.bereiche` haelt das Maximum ueber ALLE Flaechen, auch ueber
+   * abgeschaltete Ebenen. Seit der Mast seine Kennwerte traegt, ist das ein
+   * Problem: seine Momente sind um Groessenordnungen groesser als die der
+   * Bindebleche - 50 kNm gegen 0.8 -, und solange er die Skala bestimmt,
+   * liegt das ganze Joch am unteren Ende und zeigt keinen Verlauf mehr.
+   *
+   * Wer den Masten ausblendet, will genau das loswerden. Also folgt die
+   * Skala den EINGESCHALTETEN Ebenen. Findet sich dort nichts, gilt wieder
+   * das Maximum der Szene - eine Skala von null waere schlimmer als eine zu
+   * weite.
+   *
+   * GEZAEHLT WIRD EINMAL JE ZUSTAND. Der Schluessel aus Modus und Ebenen
+   * haelt das Ergebnis fest; ohne ihn liefe die Schleife bei jedem Bild neu,
+   * und beim Drehen sind das sechzig Bilder in der Sekunde.
+   */
+  _bereichSichtbar(feld) {
+    const schluessel = feld + '|' + JSON.stringify(this.ebenen)
+                     + '|' + JSON.stringify(this.gruppen);
+    if (this._bereichCache?.schluessel === schluessel) {
+      return this._bereichCache.wert;
+    }
+    let max = 0;
+    (this.szene?.flaechen ?? []).forEach((f) => {
+      if (f.gruppe && !this._ebeneAn(f.gruppe)) return;
+      const v = f.werte?.[feld];
+      if (Number.isFinite(v)) max = Math.max(max, Math.abs(v));
+    });
+    if (!max) max = this.szene?.bereiche?.[feld] ?? 0;
+    this._bereichCache = { schluessel, wert: max };
+    return max;
+  }
+
   /** Skala der aktuellen Einfärbung, für die Legende. */
   plotSkala() {
     const p = PLOTS.find((x) => x.key === this.modus);
     if (!p) return null;
-    const max = p.fest ?? (this.szene?.bereiche?.[p.feld] ?? 0);
+    const max = p.fest ?? this._bereichSichtbar(p.feld);
     return { ...p, max };
   }
 

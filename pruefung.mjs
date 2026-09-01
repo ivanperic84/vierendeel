@@ -9667,6 +9667,59 @@ titel('55  Der Mast darf nach innen ruecken');
 }
 
 // ===========================================================================
+titel('56  Die Farbskala folgt den sichtbaren Ebenen');
+// Weisung: die Skala auf die dargestellten Bauteile begrenzen. Die Masten
+// tragen meist die groesste Einwirkung; blendet man sie aus, soll der
+// Verlauf im Joch wieder auflesbar sein.
+{
+  const R56 = await import(J('render.3d.js'));
+  const j56 = T.getTragjoch('J90');
+  const e56 = rechne({
+    ...basis(), ...typUebernehmen({ ...standardwerte() }, j56),
+    typ: 'J90', L: 15.5, mastVorhanden: true, endbedingung: 'mast',
+    mastProfil: 'HEB 260', mastH: 7.5, mastLaenge: 9,
+  });
+  const sz56 = R56.erzeugeSzene(e56.modell, e56);
+
+  // Ohne Browser gibt es keine Ansicht; die Methode wird deshalb an einem
+  // Traeger mit den paar Feldern aufgerufen, die sie liest.
+  const traeger = {
+    szene: sz56,
+    ebenen: { profil: true, blech: true, mast: true, anbau: true },
+    gruppen: {},
+    _ebeneAn: R56.Modellansicht.prototype._ebeneAn,
+    _bereichSichtbar: R56.Modellansicht.prototype._bereichSichtbar,
+  };
+  const bereich = (feld) => traeger._bereichSichtbar(feld);
+
+  const mitMast = bereich('M');
+  traeger._bereichCache = null;
+  traeger.ebenen.mast = false;
+  const ohneMast = bereich('M');
+
+  wahr('Mit Masten regiert sein Moment die Skala', mitMast > 10,
+       `${mitMast.toFixed(1)} kNm`);
+  wahr('Ohne Masten bleibt das Joch unter sich', ohneMast < 5,
+       `${ohneMast.toFixed(2)} kNm`);
+  wahr('Der Unterschied ist erheblich, nicht kosmetisch',
+       mitMast / ohneMast > 5, `Faktor ${(mitMast / ohneMast).toFixed(0)}`);
+
+  // DER CACHE DARF NICHT LUEGEN. Er haengt am Zustand der Ebenen; wer ihn
+  // nicht mitfuehrt, zeigt nach dem Umschalten die alte Skala.
+  traeger.ebenen.mast = true;
+  const wieder = bereich('M');
+  pruef('Wieder eingeschaltet gilt wieder die grosse Skala',
+        wieder, mitMast, 1e-9, 'kNm');
+
+  // OHNE SICHTBARE WERTE keine Skala von null: dann gilt der Bereich der
+  // ganzen Szene, denn eine Skala von null faerbte alles gleich.
+  traeger._bereichCache = null;
+  traeger.ebenen = { profil: false, blech: false, mast: false, anbau: false };
+  pruef('Ohne sichtbare Fläche gilt der Bereich der Szene',
+        bereich('M'), sz56.bereiche.M, 1e-9, 'kNm');
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

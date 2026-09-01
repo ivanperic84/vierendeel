@@ -2009,6 +2009,103 @@ function aktualisiereProjektKnopf() {
 /** Zeichnet nur den Knopf neu - nach jeder Aenderung des Speicherzustands. */
 function zeigeSpeicherstand() { aktualisiereProjektKnopf(); }
 
+/*
+ * TASTENKUERZEL.
+ *
+ * Sie stehen in EINER Tabelle, nicht verstreut im Ereignishandler: nur so
+ * lassen sie sich anzeigen, pruefen und ergaenzen, ohne dass eine Belegung
+ * doppelt vergeben wird.
+ *
+ * ZWEI REGELN, DIE JEDE BELEGUNG BINDEN:
+ *
+ * 1. WER TIPPT, TIPPT. In einem Textfeld gehoert jede Taste dem Feld. Ein
+ *    Kuerzel, das dort zuschlaegt, ist die unangenehmste Art hilfreich zu
+ *    sein. Zahlen- und Auswahlfelder sind ausgenommen, aber nur fuer die
+ *    Kuerzel MIT Steuertaste - ein blosses «q» im Zahlenfeld bleibt Text.
+ *
+ * 2. NICHTS OHNE RUECKWEG. Kein Kuerzel loescht, ueberschreibt oder leitet
+ *    aus; sie waehlen Ansichten, oeffnen Fenster und schalten Ebenen. Was
+ *    Folgen hat, verlangt weiterhin einen Klick.
+ */
+const TASTEN = [
+  { taste: '?', text: 'Diese Übersicht', tun: () => dialogTasten() },
+  { taste: 'Esc', text: 'Abbrechen, Dialog schliessen', still: true },
+  { taste: 'Strg Z', text: 'Rückgängig', still: true },
+  { taste: 'Strg ⇧ Z', text: 'Wiederherstellen', still: true },
+
+  { gruppe: 'Blick' },
+  { taste: 'q', text: 'Querschnitt', tun: () => blickAuf('quer') },
+  { taste: 'l', text: 'Längsschnitt', tun: () => blickAuf('laengs') },
+  { taste: 'i', text: 'Isometrie', tun: () => blickAuf('iso') },
+  { taste: 'd', text: 'Draufsicht', tun: () => blickAuf('oben') },
+  { taste: '0', text: 'Ansicht zurücksetzen',
+    tun: () => { ansicht.passeEin(); ansicht.zeichne(); } },
+
+  { gruppe: 'Aufgetragene Grösse' },
+  // Die Reihenfolge ist die von MODI, nicht eine eigene: sonst liefe die
+  // Nummer der Taste der Reihenfolge der Knopfleiste davon.
+  { taste: '1 … 7', text: 'η · σ_v · σ · M · V · Positionen · neutral',
+    still: true },
+
+  { gruppe: 'Fenster' },
+  { taste: 'p', text: 'Projektablage', tun: () => schubladeUmschalten() },
+  { taste: 'o', text: 'Optionen', tun: () => dialogOptionen() },
+  { taste: 'h', text: 'Handbuch', tun: () => dialogHandbuch() },
+];
+
+/** Blickrichtung setzen, wenn es sie gibt. */
+function blickAuf(key) {
+  if (!ANSICHTEN.some((a) => a.key === key)) return;
+  ansicht.blickrichtung(key);
+  zeichneModellWerkzeuge();
+}
+
+/** Die aufgetragene Groesse ueber ihre Nummer waehlen. */
+function plotNummer(n) {
+  const mo = MODI[n - 1];
+  if (!mo) return;
+  ansicht.modus = mo.key;
+  ansicht.zeichne(); zeichneLegende(); zeichneModellWerkzeuge();
+}
+
+function tastendruck(e) {
+  if (e.key === 'Escape') { abbrechen(); return; }
+
+  const z = e.target;
+  const imFeld = z && (z.tagName === 'INPUT' || z.tagName === 'SELECT'
+                    || z.tagName === 'TEXTAREA' || z.isContentEditable);
+  const tippt = z && ((z.tagName === 'INPUT' && z.type === 'text')
+                   || z.tagName === 'TEXTAREA' || z.isContentEditable);
+
+  // MIT Steuertaste: nur echtes Tippen ist geschuetzt.
+  if (e.ctrlKey || e.metaKey) {
+    if (tippt || e.key.toLowerCase() !== 'z') return;
+    e.preventDefault();
+    if (e.shiftKey) wiederherstellen(); else rueckgaengig();
+    return;
+  }
+  // OHNE Steuertaste: jedes Eingabefeld ist tabu, auch Zahl und Auswahl.
+  if (imFeld || e.altKey) return;
+
+  if (e.key >= '1' && e.key <= '7') { e.preventDefault(); plotNummer(+e.key); return; }
+  const t = TASTEN.find((x) => x.tun && x.taste === e.key.toLowerCase());
+  if (!t) return;
+  e.preventDefault();
+  t.tun();
+}
+
+/** Die Uebersicht der Kuerzel. */
+function dialogTasten() {
+  const zeilen = TASTEN.map((t) => (t.gruppe
+    ? `<tr><td colspan="2" class="tasten-gruppe">${esc(t.gruppe)}</td></tr>`
+    : `<tr><td><kbd>${esc(t.taste)}</kbd></td><td>${esc(t.text)}</td></tr>`)).join('');
+  dialog('Tastenkürzel',
+    `<table class="dt tasten">${zeilen}</table>
+     <p class="notiz">Kürzel wirken nicht, während in einem Eingabefeld
+       geschrieben wird. Keines von ihnen verändert das Tragwerk.</p>`,
+    '<button class="btn" data-zu>Schliessen</button>');
+}
+
 // --- Bannerschublade --------------------------------------------------------
 
 /**
@@ -3622,23 +3719,7 @@ export async function start() {
     if (e.target.closest('#bannerschublade') || e.target.closest('#btn-projekt')) return;
     schubladeSchliessen();
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { abbrechen(); return; }
-    /*
-     * STRG+Z UND STRG+UMSCHALT+Z.
-     *
-     * NICHT, waehrend in einem Textfeld getippt wird: dort gehoert das
-     * Rueckgaengig dem Feld, und ihm den Griff wegzunehmen waere die
-     * unangenehmste Art, hilfreich zu sein. Zahl- und Auswahlfelder
-     * ausgenommen - die haben kein eigenes Rueckgaengig, das etwas taugt.
-     */
-    const z = e.target;
-    const tippt = z && ((z.tagName === 'INPUT' && z.type === 'text')
-                     || z.tagName === 'TEXTAREA' || z.isContentEditable);
-    if (tippt || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
-    e.preventDefault();
-    if (e.shiftKey) wiederherstellen(); else rueckgaengig();
-  });
+  document.addEventListener('keydown', tastendruck);
   baueLayout();
   baueModellWerkzeuge();
   verdrahteZeichnung();
