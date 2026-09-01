@@ -1592,3 +1592,18 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
   margin-left: 5px;
   line-height: 1;
 }
+
+/* DIE EINWIRKUNGSKLASSE HAELT SICH RECHTS.
+   Sie gehoert nicht zum Schnitt, sondern gilt fuer das ganze Tragwerk;
+   `margin-left:auto` schiebt sie in der Flexzeile ans Ende.
+
+   Dazu muss die Zeile aber schrumpfen koennen. Ohne das Folgende lief sie
+   bei schmalem Modellfenster ueber den rechten Rand hinaus: die Marken
+   behielten ihre natuerliche Breite, und `auto` findet keinen Platz, den es
+   verteilen koennte. Die lange Feldangabe kuerzt jetzt mit Auslassung, die
+   kurze EK bleibt ungekuerzt stehen. */
+.viewer-fuss .viewer-marke { min-width: 0; }
+.viewer-fuss #pos-station {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.viewer-ek { margin-left: auto; flex: none; text-align: right; }
