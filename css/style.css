@@ -272,9 +272,22 @@ body {
 /* Im Dialog sitzt die Leiste oben und bleibt beim Blaettern stehen. Die
    Reiter tragen dort Woerter statt Symbole - sie duerfen sich nach ihrer
    Laenge teilen, nicht in gleiche Sechstel. */
+/* DIE REITERLEISTE DECKT DEN INNENABSTAND MIT AB.
+
+   Sie klebt beim Scrollen bei top: 0 des Koerpers. Darueber lagen aber
+   dessen 12 px Innenabstand, und in diesem Streifen lief der Inhalt sichtbar
+   durch - ein Spalt, in dem eine halbe Zeile des vorigen Feldes stand.
+
+   Die Leiste wird deshalb ueber die Abstaende hinausgezogen und holt sie sich
+   als eigenes Polster zurueck. Damit reicht ihr Hintergrund bis an die Kante
+   des Koerpers, und es bleibt nichts uebrig, wodurch man sehen koennte. */
 .tabs-dialog {
-  position: sticky; top: 0; z-index: 2; background: var(--s1);
-  margin: -2px 0 10px; gap: 2px;
+  /* top: -12px, nicht 0. Der Scrollbereich beginnt an der Padding-Kante des
+     Koerpers; bei top: 0 klebte die Leiste 12 px darunter, und in diesem
+     Streifen lief der Inhalt sichtbar durch. Ihr eigenes Polster von 12 px
+     setzt die Reiter danach wieder an die richtige Stelle. */
+  position: sticky; top: -12px; z-index: 2; background: var(--s1);
+  margin: -12px -14px 10px; padding: 12px 14px 0; gap: 2px;
 }
 .tabs-dialog .tab { flex: 0 1 auto; padding: 0 12px; height: 32px; }
 

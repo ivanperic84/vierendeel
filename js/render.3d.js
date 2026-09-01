@@ -1409,9 +1409,20 @@ export function erzeugeSzene(m, erg) {
    * auf dem Bauteil kleben.
    */
   {
+    /*
+     * ABSTAND ZUM BAUTEIL (Weisung, 1. September: weiter nach oben, damit der
+     * Text das Modell nicht verdeckt).
+     *
+     * Der Jochtitel stand eine halbe Bauhoehe ueber dem Obergurt und lag
+     * damit noch im Bereich der Lastpfeile. Der zweite Versuch schob ihn
+     * anderthalb Meter hinauf - dort geriet er unter die Werkzeugleiste, denn
+     * die Einpassung kennt zwar die Bildgrenzen, nicht aber die Leisten, die
+     * darueberliegen. Knapp ein Meter ist der Ausgleich: ueber den Pfeilen,
+     * unter der Leiste.
+     */
     const zOK = qs.huelle.z1 * MM;
     bauteiltitel.push({
-      p: [m.L / 2, 0, zOK + 0.45],
+      p: [m.L / 2, 0, zOK + 0.95],
       text: `${m.typ ?? 'frei'} · ${m.L.toFixed(2)} m`,
       feld: 'typ', tab: 'system',
     });
@@ -1424,7 +1435,8 @@ export function erzeugeSzene(m, erg) {
       // Gesamtlaenge. Ohne Angabe steht die Hoehe bis zur Jochachse.
       const lang = md.laenge > 0 ? md.laenge : md.H;
       bauteiltitel.push({
-        p: [g.x, 0, g.zKopf + 0.3],
+        // Der Mastkopf traegt oben Traversen; der Titel muss darueber hinaus.
+        p: [g.x, 0, g.zKopf + 0.55],
         text: `${md.profil.name} · ${lang.toFixed(2)} m`,
         feld: name === 'B' && m.mastZwei ? 'mastProfilB' : 'mastProfil',
         tab: 'system',
@@ -1447,13 +1459,22 @@ export function erzeugeSzene(m, erg) {
   // über den Obergurt hinaus, und ohne ihn in den Grenzen bliebe er beim
   // Einpassen halb ausserhalb des Bildes.
   const zAT = detailBereiche.flatMap((d) => [d.zMin, d.zMax]);
+  /*
+   * DIE BAUTEILTITEL GEHOEREN IN DIE GRENZEN.
+   *
+   * Sie stehen ueber ihrem Bauteil, also ueber allem anderen. Ohne sie in den
+   * Grenzen passte die Ansicht nur das Tragwerk ein - die Titel lagen dann
+   * ausserhalb und verschwanden hinter der Werkzeugleiste. Genau das war beim
+   * ersten Versuch zu sehen, nachdem sie hoeher gerueckt waren.
+   */
+  const zTitel = bauteiltitel.map((b) => b.p[2]);
   return {
     flaechen, linien, marken, masse, bauteiltitel, vektoren, schnitt,
     lastflaechen, bereiche,
     legende: [...bauteile.values()],
     grenzen: { xMin: 0, xMax: m.L, yMin: qs.huelle.y0 * MM, yMax: qs.huelle.y1 * MM,
                zMin: Math.min(qs.huelle.z0 * MM, zUnten, mastFussZ, ...zAT),
-               zMax: Math.max(qs.huelle.z1 * MM, mastKopfZ, ...zAT) },
+               zMax: Math.max(qs.huelle.z1 * MM, mastKopfZ, ...zAT, ...zTitel) },
     stationen: stationen.map((s) => s.x),
     xNachweis: xN, schnittAktiv,
     anbauteile: detailBereiche,
@@ -1710,6 +1731,8 @@ export class Modellansicht {
     this.station = null;      // hervorgehobene Station (null = alle zeigen)
     this.fokus = null;        // {von, bis} - blendet alles ausserhalb aus
     this._massTreffer = [];
+    this._titelTreffer = [];   // Bauteiltitel, fuer die Hervorhebung
+    this._titelUnterZeiger = null;
     this._belegt = [];
     this._pfeiltexte = [];     // Beschriftungen der Kraftpfeile, siehe _texte
     this._s = 1;              // Gerätepixel je CSS-Pixel, in _male() gesetzt
@@ -2073,6 +2096,25 @@ export class Modellansicht {
       if (this.beiZeichnungsklick) {
         this._fadenkreuz = this._geraetePunkt(e);
         this.zeichne();
+      }
+      /*
+       * WELCHER BAUTEILTITEL UNTER DEM ZEIGER LIEGT.
+       *
+       * Er ist anklickbar, sieht aber aus wie eine Beschriftung; ohne
+       * Rueckmeldung probiert es niemand. Neu gezeichnet wird nur, wenn sich
+       * die Antwort AENDERT - sonst liefe bei jeder Mausbewegung ein Bild,
+       * und das sind auf einem grossen Modell sechzig in der Sekunde.
+       */
+      {
+        const [zx, zy] = this._geraetePunkt(e);
+        const treffer = (this._titelTreffer ?? []).find(
+          (h) => zx >= h.x && zx <= h.x + h.w && zy >= h.y && zy <= h.y + h.h);
+        const jetzt = treffer ? treffer.bt : null;
+        if (jetzt !== this._titelUnterZeiger) {
+          this._titelUnterZeiger = jetzt;
+          this.cv.style.cursor = jetzt ? 'pointer' : '';
+          this.zeichne();
+        }
       }
       if (!zeiger.has(e.pointerId) || !griff) return;
       const vorher = zeiger.get(e.pointerId);
@@ -2739,6 +2781,7 @@ export class Modellansicht {
     c.fillStyle = t.viewerBg;
     c.fillRect(0, 0, w, h);
     this._massTreffer = [];
+    this._titelTreffer = [];
     // Belegte Bildstellen dieses Bildes. Bemassung und Anschriften teilen sie
     // sich, damit eine Masszahl nicht unter einem Bauteilnamen verschwindet.
     this._belegt = [];
@@ -3581,22 +3624,47 @@ export class Modellansicht {
       if (!p) return;
       const bw = this._textBreite(c, bt.text) + 12 * s;
       const bh = (this.schriftMass + 1) * s + 8 * s;
-      const bx = p[0] - bw / 2, by = p[1] - bh;
+      /*
+       * DER KASTEN BLEIBT IM BILD.
+       *
+       * Die Masten stehen an den Enden des Jochs, ihre Titel also am Rand -
+       * mittig ueber dem Kopf gezeichnet ragte die halbe Beschriftung
+       * hinaus, und «HEB 260 · 12.50 m» wurde zu «12.50 m». Oben nehmen die
+       * Werkzeugleisten Platz weg, die das Bild nicht kennt; deshalb dort ein
+       * groesserer Rand.
+       *
+       * Geklemmt wird nur der KASTEN, nicht der Bezugspunkt: der Titel
+       * wandert an den Rand, bleibt aber ueber seinem Bauteil erkennbar.
+       */
+      const randX = 6 * s, randO = 46 * s;
+      const bx = Math.max(randX,
+        Math.min(p[0] - bw / 2, this.cv.width - bw - randX));
+      const by = Math.max(randO, p[1] - bh);
+      /*
+       * UNTER DEM ZEIGER LEUCHTET DER RAHMEN AUF (Weisung).
+       *
+       * Der Titel ist anklickbar, sieht aber aus wie eine Beschriftung. Ohne
+       * Rueckmeldung probiert man es nicht - deshalb Rahmen und Schrift in
+       * der Akzentfarbe, sobald der Zeiger darueber steht, und ein
+       * deckenderer Grund.
+       */
+      const warm = this._titelUnterZeiger === bt;
       c.fillStyle = t.viewerBg;
-      c.globalAlpha = 0.72;
+      c.globalAlpha = warm ? 0.92 : 0.72;
       c.beginPath();
       c.roundRect(bx, by, bw, bh, 3 * s);
       c.fill();
       c.globalAlpha = 1;
-      c.strokeStyle = t.ol2 ?? t.dim;
-      c.lineWidth = 1 * s;
+      c.strokeStyle = warm ? t.acc : (t.ol2 ?? t.dim);
+      c.lineWidth = (warm ? 1.6 : 1) * s;
       c.stroke();
-      c.fillStyle = t.on2 ?? t.on;
+      c.fillStyle = warm ? t.acc : (t.on2 ?? t.on);
       c.textAlign = 'center';
-      c.fillText(bt.text, p[0], by + bh - 6 * s);
+      c.fillText(bt.text, bx + bw / 2, by + bh - 6 * s);
       c.textAlign = 'left';
       this._massTreffer.push({ x: bx, y: by, w: bw, h: bh,
                                feld: bt.feld, tab: bt.tab });
+      this._titelTreffer.push({ x: bx, y: by, w: bw, h: bh, bt });
     });
   }
 
