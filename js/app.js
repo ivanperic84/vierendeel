@@ -741,10 +741,13 @@ function dialogOptionen() {
   const koerper = () =>
     ui.optionenReiterHtml(werte, optThema)
     + `<div id="opt-koerper">${ui.optionenHtml(werte, optThema)}</div>`;
+  // FESTE HOEHE (Weisung, 1. September): sechs Reiter mit sehr verschieden
+  // viel Inhalt, und der Scrim zentriert. Ohne feste Hoehe sprang das Fenster
+  // bei jedem Reiterwechsel.
   const d = dialog('Optionen', `<div id="opt-rahmen">${koerper()}</div>`,
     `<button class="btn" data-thema>${thema === 'dunkel' ? 'Helle' : 'Dunkle'} Darstellung</button>
      <button class="btn btn-fail" data-reset>Eingaben zurücksetzen</button>
-     <button class="btn" data-zu>Fertig</button>`);
+     <button class="btn" data-zu>Fertig</button>`, 'dialog-reiter');
 
   // Der Reiter faellt beim Neuaufbau nicht heraus: gezeichnet wird IMMER der
   // ganze Rahmen samt Leiste, und optThema sagt, welcher offen ist. Nur den
