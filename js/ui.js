@@ -8,7 +8,7 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
-import { optionsSkizze } from './doku.optionsskizzen.js';
+import { optionsSkizze, SKIZZEN_FELDER } from './doku.optionsskizzen.js';
 import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
@@ -262,6 +262,33 @@ export function aktualisiereMaske(container, werte, extras = {}) {
    * Die Maske wird nur bei geaenderter SIGNATUR neu gebaut; eine andere Zahl
    * im selben Feld aendert sie nicht. Also hier.
    */
+  /*
+   * DIE SKIZZE WIRD EBENSO MITGEFUEHRT.
+   *
+   * Sie zeigt die Stellung des Feldes, nicht seine Beschriftung: bei der
+   * Stegrichtung steht das I-Profil einmal hochkant und einmal gedreht. Die
+   * Maske wird aber nur bei geaenderter SIGNATUR neu gebaut, und ein anderer
+   * WERT im selben Feld aendert sie nicht - die Skizze blieb deshalb stehen,
+   * wie sie beim Aufbau der Maske war. Man schaltete um, die Auswahl folgte,
+   * das Bild nicht.
+   */
+  container.querySelectorAll('.feld').forEach((n) => {
+    const inp = n.querySelector('[data-feld]');
+    if (!inp || !SKIZZEN_FELDER.includes(inp.dataset.feld)) return;
+    const soll = optionsSkizze(inp.dataset.feld, feldWert(
+      FELDER.find((x) => x.key === inp.dataset.feld) ?? {}, werte));
+    const alt = n.querySelector('.opt-skizze');
+    if (!soll) { alt?.remove(); return; }
+    if (!alt) { inp.insertAdjacentHTML('afterend', soll); return; }
+    // Nur austauschen, wenn sich wirklich etwas geaendert hat: ein
+    // unnoetiges Ersetzen laesst die Skizze bei jeder Eingabe flackern.
+    const neu = document.createElement('div');
+    neu.innerHTML = soll;
+    if (neu.firstElementChild.innerHTML !== alt.innerHTML) {
+      alt.replaceWith(neu.firstElementChild);
+    }
+  });
+
   container.querySelectorAll('.feld').forEach((n) => {
     const inp = n.querySelector('[data-feld]');
     const f = inp ? FELDER.find((x) => x.key === inp.dataset.feld) : null;

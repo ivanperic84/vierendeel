@@ -7897,6 +7897,29 @@ titel('44  Skizzen an den Eingabefeldern');
   });
 
   /*
+   * SIE MUSS AUCH MITGEFUEHRT WERDEN.
+   *
+   * Dass die Stellungen verschieden AUSSEHEN, genuegt nicht - sie muessen
+   * beim Umschalten auch ausgetauscht werden. Am 1. September gemeldet: die
+   * Skizze zur Stegrichtung blieb stehen, wenn man auf «Steg gedreht» ging.
+   * Grund: die Maske wird nur bei geaenderter SIGNATUR neu gebaut, und ein
+   * anderer WERT im selben Feld aendert sie nicht.
+   *
+   * Ohne DOM laesst sich das hier nicht ausfuehren; geprueft wird deshalb am
+   * Quelltext, dass `aktualisiereMaske` die Skizze ueberhaupt anfasst.
+   */
+  {
+    const quelle = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
+    const ab = quelle.indexOf('export function aktualisiereMaske');
+    const bis = quelle.indexOf('export function', ab + 10);
+    const koerper = quelle.slice(ab, bis > 0 ? bis : undefined);
+    wahr('aktualisiereMaske fuehrt die Skizze mit',
+         koerper.includes('optionsSkizze') && koerper.includes('SKIZZEN_FELDER'));
+    wahr('… und tauscht sie nur bei wirklicher Aenderung',
+         koerper.includes('replaceWith'));
+  }
+
+  /*
    * DER RAHMEN MUSS DEN INHALT FASSEN.
    *
    * Beim ersten Wurf stand die zweite Masslinie bei y = 192 in einem viewBox
