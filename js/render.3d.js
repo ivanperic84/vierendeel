@@ -2650,7 +2650,31 @@ export class Modellansicht {
    * Stocken zu geraten. Stattdessen wird höchstens ein Bild je Bildwechsel
    * gemalt - alle Anforderungen dazwischen fallen zusammen.
    */
-  zeichne() {
+  /*
+   * ZEICHNEN, UND ZWAR VOLL - AUSSER WAEHREND EINER BEWEGUNG.
+   *
+   * `sparsam` laesst die Volumenkoerper weg und behaelt nur die Schwerachsen;
+   * waehrend man am Fensterrand zieht, zaehlt die Bildfolge mehr als das
+   * Volumen. Gesetzt wird das Kennzeichen in `passeGroesseAn`, und ein
+   * Zeitgeber nimmt es 110 ms spaeter zurueck.
+   *
+   * >>> DER FEHLER, gemeldet am 1. September: «nach dem Deaktivieren des
+   * Masten wird beim Joch nicht der Koerper geplottet, sondern nur die
+   * Schwerelinien.»
+   *
+   * Ein Klick auf einen Ebenenschalter baut die Werkzeugleiste neu, das
+   * aendert die Groesse der Zeichenflaeche, und der ResizeObserver meldet
+   * eine Groessenaenderung - manchmal zwei innerhalb der 250 ms, die als
+   * Bewegung gelten. Das folgende `zeichne()` des Schalters traf dann auf
+   * ein gesetztes `sparsam` und zeichnete ohne Koerper. Zurueckgestellt
+   * wurde es erst bei der naechsten Groessenaenderung, also womoeglich nie.
+   *
+   * Ein Zeichnen, das NICHT aus der Bewegung kommt, ist deshalb immer voll.
+   * Wer sparsam will, sagt es ausdruecklich - das tut allein
+   * `passeGroesseAn`.
+   */
+  zeichne({ sparsam = false } = {}) {
+    if (!sparsam) this.sparsam = false;
     if (this._angefordert) return;
     this._angefordert = requestAnimationFrame(() => {
       this._angefordert = 0;
@@ -3594,7 +3618,7 @@ export class Modellansicht {
       this._nachZeichnen = 0;
       if (!this.sparsam) return;
       this.sparsam = false;
-      this.zeichne();
+      this.zeichne();          // voll, das ist der Sinn des Nachzeichnens
     }, 110);
 
     if (this._angefordert) {

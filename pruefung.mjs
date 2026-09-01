@@ -9757,6 +9757,46 @@ titel('57  Tastenkuerzel lassen sich abschalten');
 }
 
 // ===========================================================================
+titel('58  Der Sparmodus haelt nicht laenger als seine Bewegung');
+// Gemeldet am 1. September: nach dem Deaktivieren des Masten zeigte das Joch
+// nur noch die Schwerelinien, keinen Koerper mehr.
+//
+// URSACHE: `sparsam` laesst die Volumenflaechen weg und behaelt die Achsen -
+// waehrend man am Fensterrand zieht, zaehlt die Bildfolge mehr als das
+// Volumen. Ein Klick auf einen Ebenenschalter baut aber die Werkzeugleiste
+// neu, das aendert die Groesse der Zeichenflaeche, und der ResizeObserver
+// meldet eine Aenderung. Das folgende zeichne() traf auf ein gesetztes
+// `sparsam` und liess die Koerper weg - bis zur naechsten Groessenaenderung,
+// also womoeglich nie.
+{
+  const R58 = await import(J('render.3d.js'));
+  const q58 = readFileSync(new URL('./js/render.3d.js', import.meta.url), 'utf8');
+
+  // Die Flaechen haengen am Kennzeichen - das ist die Stelle, an der sich der
+  // Fehler zeigte.
+  wahr('Ohne sparsam keine Volumenflaechen',
+       q58.includes('if (!this.sparsam) this.szene.flaechen.forEach'));
+
+  // UND ZEICHNEN SETZT ES ZURUECK, ausser man verlangt es ausdruecklich.
+  const ab = q58.indexOf('  zeichne({ sparsam = false } = {}) {');
+  wahr('zeichne() nimmt die Sparsamkeit als Angabe', ab > 0);
+  const koerper58 = q58.slice(ab, q58.indexOf('zeichneJetzt', ab));
+  wahr('… und setzt sie sonst zurueck',
+       koerper58.includes('if (!sparsam) this.sparsam = false;'));
+
+  // Die Groessenaenderung behaelt ihren Weg: sie ruft _male() unmittelbar und
+  // wird von der Aenderung an zeichne() nicht beruehrt. Gesucht wird die
+  // DEFINITION, nicht die erste Erwaehnung des Namens.
+  const abG = q58.indexOf('  passeGroesseAn(');
+  wahr('Es gibt passeGroesseAn', abG > 0);
+  const koerperG = q58.slice(abG);
+  wahr('Die Groessenaenderung malt unmittelbar', koerperG.includes('this._male();'));
+  wahr('Sie setzt das Kennzeichen selbst',
+       koerperG.includes('this.sparsam = jetzt - '));
+  wahr('Und stellt danach voll nach', koerperG.includes('this.sparsam = false;'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
