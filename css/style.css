@@ -4,7 +4,45 @@
    (uebertrageTokens). Hier stehen nur Struktur und Komponenten.
    ========================================================================== */
 
+/* --- BEWEGUNG: EINE VORGABE FUER DIE GANZE ANWENDUNG ----------------------
+
+   Bis zum 1. September stand in zwanzig Regeln eine eigene Zahl: .12s, .14s,
+   .15s, .18s, .2s, .22s, .3s. Keine davon war falsch, aber zusammen ergaben
+   sie kein Verhalten, sondern zwanzig. Wo zwei Dinge nebeneinander umspringen,
+   faellt genau das auf - es wirkt abgehackt.
+
+   Drei Dauern reichen, und sie sind nach dem WEG bemessen, den etwas
+   zuruecklegt:
+
+     schnell   Farbe, Rahmen, Deckkraft - das Element bleibt, wo es ist
+     mittel    Zustandswechsel, die man ablesen soll
+     ruhig     Lage und Groesse: dort will das Auge folgen koennen
+
+   Die Kurve ist fuer alle dieselbe. Sie beginnt zuegig und laeuft weich aus -
+   so wirkt eine Bewegung entschlossen und trotzdem nicht ruckartig.
+
+   interpolate-size erlaubt den Uebergang auf `auto`. Ohne diese Zeile
+   springt jede Hoehe, die dem Inhalt folgt; Browser, die es nicht kennen,
+   verhalten sich wie bisher. */
+:root {
+  --t-kurve: cubic-bezier(.22, 1, .3, 1);
+  /* DAUER UND KURVE IN EINEM TOKEN.
+
+     Der erste Versuch setzte die Kurve auf `*`. Das wirkte nicht: die
+     Kurzform `transition: background .12s` schreibt ALLE Untereigenschaften,
+     also auch die Kurve, und setzt sie dabei auf `ease` zurueck. Gemessen am
+     Knopf stand dort weiter `ease, ease, ease`.
+
+     Traegt das Token beides, steht die Kurve in jeder Kurzform, die es
+     benutzt - ohne dass eine Regel sie nennen muss. */
+  --t-schnell: .12s var(--t-kurve);
+  --t-mittel: .2s var(--t-kurve);
+  --t-ruhig: .3s var(--t-kurve);
+  interpolate-size: allow-keywords;
+}
+
 * { box-sizing: border-box; }
+
 
 html, body { height: 100%; }
 
@@ -86,7 +124,7 @@ body {
   width: 30px; height: 30px; padding: 0; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--m-r1); background: var(--s2); border: 1px solid var(--ol);
-  color: var(--dim); cursor: pointer; transition: background .12s, color .12s;
+  color: var(--dim); cursor: pointer; transition: background var(--t-schnell), color var(--t-schnell);
 }
 .btn-icon:hover { background: var(--s3); color: var(--on); }
 .btn-icon.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
@@ -103,7 +141,7 @@ body {
   font-family: var(--f-ui); font-size: 12px; font-weight: 500;
   padding: 6px 11px; border-radius: var(--m-r1);
   background: var(--s2); border: 1px solid var(--ol); color: var(--on2);
-  transition: background .12s, color .12s, border-color .12s;
+  transition: background var(--t-schnell), color var(--t-schnell), border-color var(--t-schnell);
 }
 .btn:hover { background: var(--s3); color: var(--on); }
 .btn-acc { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
@@ -132,7 +170,7 @@ body {
    sanft ausläuft. Die alte (.4,0,.2,1) bremste erst spät und wirkte deshalb
    am Ende abgehackt - gerade dort, wo sich die Zeichenfläche zum letzten Mal
    neu bemisst. */
-.ws.animiert { transition: grid-template-columns .3s cubic-bezier(.22,1,.3,1); }
+.ws.animiert { transition: grid-template-columns var(--t-ruhig); }
 
 .panel {
   background: var(--s1); display: flex; flex-direction: column;
@@ -204,7 +242,7 @@ body {
 }
 .split::after {
   content: ''; width: 4px; height: 40px; border-radius: 3px; background: var(--ol2);
-  transition: background .12s, height .12s;
+  transition: background var(--t-schnell), height var(--t-schnell);
 }
 .split:hover::after { background: var(--acc); height: 56px; }
 .split.zu::after { background: var(--acc); height: 20px; }
@@ -227,7 +265,7 @@ body {
   flex: 1; height: 36px; background: none; border: none; cursor: pointer;
   color: var(--dim); font-family: var(--f-mono); font-size: 10px;
   letter-spacing: .1em; text-transform: uppercase;
-  border-bottom: 2px solid transparent; transition: color .12s;
+  border-bottom: 2px solid transparent; transition: color var(--t-schnell);
 }
 .tab:hover { color: var(--on2); }
 .tab.on { color: var(--acc); border-bottom-color: var(--acc); }
@@ -272,7 +310,7 @@ input[type=number], input[type=text], input[type=search], select, textarea {
   /* Auch der Grund wird weich gewechselt. Nur die Randfarbe zu führen liess
      beim Anklicken den Hintergrund springen - ein harter Wechsel um eine
      Stufe, der wie ein Aufblitzen aussah. */
-  transition: border-color .12s, background-color .12s;
+  transition: border-color var(--t-schnell), background-color var(--t-schnell);
 }
 select { font-family: var(--f-ui); }
 input:focus, select:focus, textarea:focus {
@@ -389,7 +427,7 @@ input[type=range].rng {
   width: 100%; height: 100%;
   padding: 7px 8px; cursor: grab;
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
-  color: var(--on2); transition: border-color .12s, background .12s;
+  color: var(--on2); transition: border-color var(--t-schnell), background var(--t-schnell);
 }
 .kachel:hover { border-color: var(--acc); background: var(--s3); color: var(--on); }
 .kachel:active { cursor: grabbing; }
@@ -750,7 +788,7 @@ input[type=range].rng {
 .viewer-tools-r { align-items: flex-end; gap: 7px; }
 .wz-gruppe {
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
-  padding: 4px 5px 5px; opacity: .82; transition: opacity .15s;
+  padding: 4px 5px 5px; opacity: .82; transition: opacity var(--t-schnell);
 }
 .wz-gruppe:hover { opacity: 1; }
 .wz-t {
@@ -846,7 +884,7 @@ button.wz-haupt:hover { color: var(--on); }
   font-family: var(--f-mono); font-size: 10px; color: var(--dim);
   background: none; border: 1px solid transparent; border-radius: var(--m-r1);
   padding: 3px 6px; white-space: nowrap;
-  transition: color .12s, background .12s, border-color .12s;
+  transition: color var(--t-schnell), background var(--t-schnell), border-color var(--t-schnell);
 }
 .viewer-fuss:hover .viewer-marke {
   color: var(--on2); background: var(--s2); border-color: var(--ol);
@@ -921,7 +959,7 @@ button.wz-haupt:hover { color: var(--on); }
   content: ''; width: 0; height: 0; flex-shrink: 0;
   border-left: 4px solid var(--dim);
   border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
-  transition: transform .12s;
+  transition: transform var(--t-schnell);
 }
 .klapp[open] > summary::before { transform: rotate(90deg); }
 .klapp > summary:hover { background: var(--s3); }
@@ -1154,6 +1192,9 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .dialog-reiter {
   align-self: flex-start;
   max-height: calc(100vh - 48px);
+  /* Die Hoehe folgt dem Inhalt und aendert sich beim Reiterwechsel; ohne
+     Uebergang springt der untere Rand. Mit interpolate-size laeuft er. */
+  transition: height var(--t-ruhig);
 }
 
 .dialog-breit { width: min(1080px, 100%); max-height: 90vh; }
@@ -1466,7 +1507,7 @@ body.datei-ueber::after {
 /* --- Diagramme: anklicken und Kraftbild ----------------------------------- */
 
 /* Das ganze Diagramm ist der Knopf ins Modellfenster. */
-.dia { cursor: zoom-in; border-radius: var(--m-r1); transition: background .12s; }
+.dia { cursor: zoom-in; border-radius: var(--m-r1); transition: background var(--t-schnell); }
 .dia:hover { background: var(--s2); }
 
 /* Legendeneintrag mit Kraftbild: Trefferfläche und Hinweis, dass es geht. */
@@ -1557,17 +1598,17 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 
 /* --- Reiter ---------------------------------------------------------------
    Der Unterstrich sprang von durchsichtig auf Farbe; jetzt läuft er mit. */
-.tab { transition: color .12s, border-bottom-color .16s, background .12s; }
-.schiene-knopf { transition: background .14s, color .14s, border-color .14s; }
+.tab { transition: color var(--t-schnell), border-bottom-color var(--t-mittel), background var(--t-schnell); }
+.schiene-knopf { transition: background var(--t-schnell), color var(--t-schnell), border-color var(--t-schnell); }
 
 /* --- Nachweispillen -------------------------------------------------------
    Die ZIFFER wechselt hart, das ist Absicht (siehe oben). Der Farbstreifen
    an der Kante darf laufen: er sagt gut/eng/verletzt, und dieser Wechsel ist
    das, was man aus dem Augenwinkel mitbekommen soll. */
 .schiene-nw > div {
-  transition: border-left-color .22s, background .22s, flex-grow .22s;
+  transition: border-left-color var(--t-ruhig), background var(--t-ruhig), flex-grow var(--t-ruhig);
 }
-.schiene-nw b, .schiene-nw i { transition: color .22s; }
+.schiene-nw b, .schiene-nw i { transition: color var(--t-ruhig); }
 
 /* --- Fassungsbalken (PWA) -------------------------------------------------
    Er erscheint ungefragt, also soll er hereinfahren und nicht dastehen. */
@@ -1579,11 +1620,11 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 
 /* --- Kennzahlen und Urteil ------------------------------------------------
    Wieder: die Zahl steht sofort, ihr Grund und ihre Farbe fahren nach. */
-.kachel, .urteil { transition: background .2s, border-color .2s, color .2s; }
+.kachel, .urteil { transition: background var(--t-mittel), border-color var(--t-mittel), color var(--t-mittel); }
 
 /* --- Werkzeuge im Modellfenster ------------------------------------------- */
-.wz-s { transition: background .14s, color .14s, border-color .14s, opacity .14s; }
-.viewer-tools, .viewer-tools-r, .viewer-oben { transition: opacity .18s; }
+.wz-s { transition: background var(--t-schnell), color var(--t-schnell), border-color var(--t-schnell), opacity var(--t-schnell); }
+.viewer-tools, .viewer-tools-r, .viewer-oben { transition: opacity var(--t-mittel); }
 
 /* --- Wer keine Bewegung will, bekommt keine ------------------------------
    Das Betriebssystem weiss es besser als wir: wer «Bewegung reduzieren»

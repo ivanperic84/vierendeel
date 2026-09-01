@@ -9797,6 +9797,64 @@ titel('58  Der Sparmodus haelt nicht laenger als seine Bewegung');
 }
 
 // ===========================================================================
+titel('59  Bewegung: eine Vorgabe fuer die ganze Anwendung');
+// Weisung: die Animation nicht so abgehackt, und das soll global gelten.
+//
+// Vorher stand in zwanzig Regeln eine eigene Zahl - .12s, .14s, .15s, .18s,
+// .2s, .22s, .3s. Keine war falsch, aber zusammen ergaben sie kein
+// Verhalten, sondern zwanzig.
+{
+  const css59 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
+
+  // --- Die Tokens gibt es --------------------------------------------------
+  ['--t-schnell', '--t-mittel', '--t-ruhig', '--t-kurve'].forEach((k) => {
+    wahr(`Es gibt ${k}`, css59.includes(`${k}:`));
+  });
+
+  /*
+   * DIE KURVE STECKT IM TOKEN, nicht in einer eigenen Regel.
+   *
+   * Der erste Versuch setzte sie auf den Sternwaehler. Das wirkte nicht: die
+   * Kurzform «transition: background .12s» schreibt ALLE Untereigenschaften,
+   * also auch die Kurve, und setzt sie dabei auf «ease» zurueck. Am Knopf
+   * stand danach weiter «ease, ease, ease».
+   */
+  ['--t-schnell', '--t-mittel', '--t-ruhig'].forEach((k) => {
+    const zeile = css59.split('\n').find((z) => z.trim().startsWith(`${k}:`)) ?? '';
+    wahr(`${k} traegt die Kurve mit`, zeile.includes('var(--t-kurve)'), zeile.trim());
+  });
+
+  // --- Keine verstreuten Zahlen mehr ---------------------------------------
+  // OHNE KOMMENTARE. Der Text ueber den Tokens nennt die Kurzform als
+  // Beispiel; eine Pruefung, die den eigenen Erklaertext mitliest, findet
+  // Fehler, wo keine sind.
+  const ohneKommentar = css59.replace(/[/][*][\s\S]*?[*][/]/g, '');
+  const zeilen59 = ohneKommentar.split('\n').filter((z) => z.includes('transition:'));
+  const ohneToken = zeilen59.filter((z) => !z.includes('var(--t-'));
+  wahr('Jede Uebergangsregel benutzt ein Token', ohneToken.length === 0,
+       ohneToken.slice(0, 2).map((z) => z.trim().slice(0, 60)).join(' | ') || 'alle');
+  wahr('Und es sind nicht nur zwei', zeilen59.length > 15,
+       `${zeilen59.length} Regeln`);
+
+  // --- Wer keine Bewegung will, bekommt keine ------------------------------
+  // Die Vorgabe des Betriebssystems sticht alles. Sie war schon da und darf
+  // durch die Tokens nicht verlorengehen.
+  wahr('prefers-reduced-motion bleibt beruecksichtigt',
+       css59.includes('prefers-reduced-motion'));
+  wahr('… und schaltet auf einen Wimpernschlag, nicht auf null',
+       css59.includes('transition-duration: .01ms !important'));
+
+  // --- Der Dialog bewegt seine Hoehe ---------------------------------------
+  wahr('interpolate-size erlaubt den Uebergang auf auto',
+       css59.includes('interpolate-size: allow-keywords'));
+  const abD = css59.indexOf('.dialog-reiter {');
+  const blockD = abD > 0 ? css59.slice(abD, css59.indexOf('}', abD)) : '';
+  wahr('Der Reiterdialog bewegt seine Hoehe',
+       blockD.includes('transition: height'), blockD.trim().slice(0, 70));
+  wahr('… und bleibt oben verankert', blockD.includes('align-self: flex-start'));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
