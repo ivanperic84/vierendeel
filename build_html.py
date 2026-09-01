@@ -129,6 +129,43 @@ def umschreiben(name, text):
             f"/* ===== {name} ===== */\n{text}\n{rueck}\n}})();\n")
 
 
+def pruefe_module(dateien):
+    """Jede Moduldatei EINZELN und ALS MODUL parsen lassen.
+
+    Teuer gelernt am 1. September: `node --check datei.js` prueft im
+    Skriptmodus und liess einen mehrzeiligen String in einfachen
+    Anfuehrungszeichen durchgehen. Dieselbe Datei mit der Endung `.mjs`
+    geprueft fiel sofort durch. Im Browser war die Anwendung tot.
+
+    Der Bundle-Check unten faengt so etwas zwar auch - aber erst beim
+    Buendeln, und er sagt nur, dass IRGENDWO im zusammengesetzten Skript
+    etwas klemmt. Hier steht der Dateiname.
+
+    Und es gibt Module, die sonst NIEMAND prueft: `app.js` und `ui.js`
+    brauchen ein DOM, der Pruefstand laedt sie deshalb nie.
+    """
+    node = shutil.which("node")
+    if not node:
+        return
+    for datei in dateien:
+        text = datei.read_text(encoding="utf-8")
+        with tempfile.NamedTemporaryFile("w", suffix=".mjs", delete=False,
+                                         encoding="utf-8") as f:
+            f.write(text)
+            pfad = f.name
+        try:
+            e = subprocess.run([node, "--check", pfad],
+                               capture_output=True, text=True)
+            if e.returncode:
+                zeilen = (e.stderr or "").strip().splitlines()
+                # Der Pfad der Nebendatei sagt niemandem etwas - der Modulname schon.
+                zeilen = [z.replace(pfad, datei.name) for z in zeilen]
+                raise SystemExit(f"{datei.name} ist als Modul nicht lesbar:\n  "
+                                 + "\n  ".join(zeilen[:12]))
+        finally:
+            os.unlink(pfad)
+
+
 def pruefe_syntax(js):
     """Das gebündelte Skript durch node --check schicken, falls vorhanden."""
     node = shutil.which("node")
@@ -218,6 +255,9 @@ def main(ohne_daten=False):
     ohne Zahlen des Betreibers weitergegeben werden kann; die Anwendung fragt
     dann beim Start nach einem Datenpaket (js/data.paket.js).
     """
+    # ZUERST jede Datei einzeln als Modul parsen lassen - mit Dateinamen in
+    # der Meldung. Erst danach zusammensetzen.
+    pruefe_module(sorted(JS.glob("*.js")))
     module = {p.name: p.read_text(encoding="utf-8") for p in sorted(JS.glob("*.js"))}
     if EINSTIEG not in module:
         raise SystemExit(f"Einstiegsmodul {EINSTIEG} fehlt in {JS}")

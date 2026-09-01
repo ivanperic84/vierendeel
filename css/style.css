@@ -1579,3 +1579,16 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
     scroll-behavior: auto !important;
   }
 }
+
+/* UNGESICHERTE AENDERUNGEN - ein Punkt am Projektknopf.
+   Uebernommen aus BlockCalc (_updateDirtyUI). Er meldet NICHT, dass etwas
+   verlorengeht: der Arbeitsstand liegt bei jeder Eingabe im Browser. Er sagt,
+   dass die ABLAGE noch den Stand von zuletzt traegt. Deshalb dezent in der
+   Akzentfarbe und nicht als Warnung. */
+.ungesichert {
+  color: var(--acc-s);
+  font-style: normal;
+  font-weight: 700;
+  margin-left: 5px;
+  line-height: 1;
+}

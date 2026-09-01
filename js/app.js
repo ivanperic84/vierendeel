@@ -135,9 +135,68 @@ function laden() {
   }
 }
 
+/*
+ * SICHTBARER SPEICHERZUSTAND (uebernommen aus BlockCalc, 1. September).
+ *
+ * Die Frage des Auftraggebers - «mir ist nicht klar wie gespeichert wird,
+ * schon bei der Eingabe oder muss man auf den Knopf druecken?» - ist keine
+ * Wissensluecke, sondern ein Mangel der Oberflaeche. Beides stimmt naemlich:
+ *
+ *   ENTWURF   `speichern()` legt bei JEDER Eingabe den Arbeitsstand ab. Er
+ *             ueberlebt das Schliessen des Reiters, ist aber EIN Stand und
+ *             ueberschreibt sich fortlaufend.
+ *   ABLAGE    Ein benannter Eintrag entsteht erst auf Knopfdruck.
+ *
+ * Sichtbar war davon nichts. BlockCalc loest es mit drei Zeilen Zustand
+ * (_savedSnap / _dirty / _updateDirtyUI): der Knopf traegt eine Markierung,
+ * sobald der Stand vom zuletzt gesicherten abweicht, und sein Titel sagt,
+ * was ein Druck bewirken wuerde. Genau das steht hier.
+ *
+ * Die Signatur laesst aus, was den INHALT nicht beruehrt - Bearbeiten-Sperren
+ * und die Wahl des Ansichtsfensters gehoeren nicht dazu. Sonst meldete das
+ * blosse Aufklappen eines Feldes eine ungesicherte Aenderung.
+ */
+const FLUECHTIG = ['bearbeiten', 'lastenBearbeiten', 'schnittAktiv',
+                   'schnittOrientierung', 'schnittIndex'];
+
+function standSignatur() {
+  const w = { ...werte };
+  FLUECHTIG.forEach((k) => delete w[k]);
+  try { return JSON.stringify(w); } catch { return null; }
+}
+
+let gesicherteSignatur = null;
+let ungesichert = false;
+
+/** Der jetzige Stand gilt als gesichert - nach Sichern, Laden oder Neubeginn. */
+function markiereGesichert() {
+  gesicherteSignatur = standSignatur();
+  ungesichert = false;
+  zeigeSpeicherstand();
+}
+
+/** Nach jeder Aenderung: weicht der Stand vom zuletzt gesicherten ab? */
+function pruefeUngesichert() {
+  if (gesicherteSignatur === null) return;
+  const jetzt = standSignatur() !== gesicherteSignatur;
+  if (jetzt !== ungesichert) { ungesichert = jetzt; zeigeSpeicherstand(); }
+}
+
+/** Zeitpunkt des letzten Entwurfs, kurz - im Titel des Knopfes. */
+function entwurfZeit() {
+  if (!entwurfTs) return null;
+  const d = new Date(entwurfTs);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Zeitpunkt des zuletzt abgelegten Entwurfs. */
+let entwurfTs = null;
+
 function speichern() {
   try {
-    localStorage.setItem(SPEICHER, JSON.stringify({ werte, projekt, thema }));
+    entwurfTs = Date.now();
+    localStorage.setItem(SPEICHER,
+      JSON.stringify({ werte, projekt, thema, ts: entwurfTs }));
   } catch { /* Ablage nicht verfügbar – kein Grund abzubrechen */ }
 }
 
@@ -275,6 +334,7 @@ function neuRechnen(neuZeichnen = true) {
     console.error(e);
   }
   speichern();
+  pruefeUngesichert();
 }
 
 /**
@@ -1858,16 +1918,37 @@ function baueKopf() {
   ui.el('btn-drucken').onclick = () => window.print();
   ui.el('btn-daten').onclick = () => dialogDaten(false);
   ui.el('btn-optionen').onclick = dialogOptionen;
-  aktualisiereProjektKnopf();
+  /*
+   * DER BEZUGSPUNKT WIRD NUR EINMAL GESETZT.
+   *
+   * `baueKopf` laeuft bei JEDER Aenderung - es zeichnet den Kopf neu. Stuende
+   * `markiereGesichert()` unbedingt hier, setzte sich die Signatur bei jeder
+   * Eingabe auf den eben getippten Stand, und nichts waere je ungesichert.
+   * Beim ersten Durchgang ist sie null; nur dann greift die Zeile.
+   */
+  if (gesicherteSignatur === null) markiereGesichert();
+  else zeigeSpeicherstand();
 }
 
 function aktualisiereProjektKnopf() {
   const b = ui.el('btn-projekt');
+  if (!b) return;
   b.innerHTML =
     `${icon('projekte', 14)} <span>${esc(projekt.projekt || 'Ohne Projekt')}</span>` +
-    ` · <b>${esc(projekt.name)}</b> ${icon('rechts', 12)}`;
-  b.title = 'Projektablage und Vorlagen öffnen';
+    ` · <b>${esc(projekt.name)}</b>${ungesichert ? '<i class="ungesichert" title="noch nicht in der Ablage">•</i>' : ''}`
+    + ` ${icon('rechts', 12)}`;
+  const zeit = entwurfZeit();
+  // Der Titel sagt BEIDES: dass nichts verlorengeht, und was der Ablage fehlt.
+  b.title = 'Projektablage und Vorlagen öffnen'
+    + (zeit ? `\nArbeitsstand gesichert ${zeit} (bei jeder Eingabe)` : '')
+    + (ungesichert
+        ? `\nIn der Ablage steht noch der Stand von zuletzt – hier speichern`
+        : (projekt.id ? '\nMit der Ablage übereinstimmend'
+                      : '\nNoch nicht in der Ablage'));
 }
+
+/** Zeichnet nur den Knopf neu - nach jeder Aenderung des Speicherzustands. */
+function zeigeSpeicherstand() { aktualisiereProjektKnopf(); }
 
 // --- Bannerschublade --------------------------------------------------------
 
@@ -2023,7 +2104,8 @@ async function zeichneSchublade() {
     werte.anbauteile = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
     projekt = { id: s.id, name: s.name, projekt: s.projekt };
     station = null;
-    aktualisiereProjektKnopf();
+    // Frisch geladen heisst: der Stand entspricht der Ablage.
+    markiereGesichert();
     schubladeSchliessen();
     // Die hinterlegte Zeichnung gehört zum Tragwerk und kommt mit ihm.
     await zeichnungHolen(s.id);
@@ -2944,8 +3026,8 @@ function dialogSpeichern() {
     // Erst jetzt hat das Tragwerk eine Id - und erst jetzt kann eine vorher
     // eingefügte Zeichnung zu ihm gelegt werden.
     await zeichnungSichernFallsMoeglich();
-    aktualisiereProjektKnopf();
     speichern();
+    markiereGesichert();
     d.zu();
   };
   d.node.querySelector('[data-ok]').onclick = () => sichere(false);
@@ -2961,8 +3043,10 @@ function neuesTragjoch() {
   // anderes Bauwerk und wäre hinter dem neuen schlicht falsch.
   ansicht.zeichnung = null;
   kalibrierenEnde();
-  aktualisiereProjektKnopf();
   neuRechnen();
+  // Ein frisch begonnenes Tragwerk hat nichts Ungesichertes - es ist nur
+  // noch nicht in der Ablage, und das sagt der Titel des Knopfes.
+  markiereGesichert();
   zeichneModellWerkzeuge();
   ansicht.ganzesJoch();
 }

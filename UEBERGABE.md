@@ -3430,6 +3430,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 
 | Punkt | Stand |
 |---|---|
+| **Ablage nach BlockCalc-Vorbild** | Übernommen ist der sichtbare Speicherzustand (1. September). Offen: fachliche Spalten in der Ablageliste (Projekt, KM, Mast-Nr.), selektiver Export/Import mit Vorschau und Kollisionswarnung, localStorage-Fallback ohne IndexedDB — siehe *Was von BlockCalc übernommen wird* |
 | **Sammelaktionen** in der Anbauteil-Übersicht („alle Teile dieser Vorlage bearbeiten", z. B. bei allen Hängestützen auf einmal den Winkel setzen) | aus dem angenommenen Vorschlag noch nicht gebaut |
 | **Angepasstes Joch als eigenen Typ speichern** | offen |
 | **Excel-Generator** (`generate_vierendeel_L_SZS_C5.py`, `js/export.xlsx.js`) | nicht mit dem aktuellen Kern synchron |
@@ -3611,6 +3612,98 @@ Gerechnete Läufe werden wiederverwendet; `KALIB_NEU=1` erzwingt neu. Die
 Rohläufe liegen ausserhalb der Ablage (`KALIB_ORDNER`), hier bleiben nur die
 Messtabellen. Die Gegenprobe steht am Anfang und sagt laut, wenn sie fällt —
 ohne sie wären beide Fehlmessungen unentdeckt geblieben.
+
+## Was von BlockCalc übernommen wird (1. September)
+
+Der Auftraggeber betreibt ein zweites Werkzeug für Blockfundamente nach
+SIA 267 und fand dessen Projektablage **aufgeräumter**. Der Eindruck stimmt,
+und er lässt sich benennen.
+
+### Was dort besser gelöst ist
+
+**Eine Speicherebene statt drei.** BlockCalc führt einen einzigen
+Key-Value-Store (IndexedDB, ein Objektspeicher `kv`), der beim Start
+vollständig in den Arbeitsspeicher geladen wird; danach ist jeder Zugriff
+synchron. Alles liegt darin — Einträge unter `proj_*`, Vorlagen, Einstellungen,
+Entwurf. Hier verteilt sich dasselbe auf localStorage (Sitzung) und mehrere
+IndexedDB-Speicher mit asynchronem Zugriff.
+
+**Das Projekt ist kein Objekt, sondern ein Feld.** Es gibt keine
+Projektverwaltung; `p_name` steht am Eintrag, und die Projektliste wird aus den
+vorhandenen Einträgen zusammengesetzt. Kein Anlegen, kein Aufräumen verwaister
+Projekte. Unsere Ablage kennt mit `nachProjekt()` und `projektUmbenennen()`
+bereits dasselbe Prinzip.
+
+**Der Speicherzustand ist sichtbar** (`_markSaved` / `_checkDirty` /
+`_updateDirtyUI`): der Knopf trägt eine Markierung, sobald der Stand vom
+zuletzt gesicherten abweicht, und sein Titel sagt, was ein Druck bewirken
+würde. Dazu ein Auto-Entwurf (`bc_draft`) mit Zeitstempel, der einen Absturz
+überlebt, aber vom bewussten Speichern getrennt bleibt.
+
+**Der Datenaustausch ist auswählbar** (`_EXCHANGE_PARTS`): man hakt an, was
+hinaus soll; der Import zeigt erst eine Übersicht des Dateiinhalts samt
+Kollisionswarnung und schreibt erst nach Bestätigung.
+
+**Und ein Fallback:** fehlt IndexedDB (privates Fenster, enge WebViews), wandert
+der ganze Store als ein JSON-Eintrag in localStorage.
+
+### Was NICHT übernommen wird
+
+BlockCalc ist **eine Datei** mit 1,1 MB Inline-Skript. Für die Bedienung
+aufgeräumt, für die Pflege nicht. Dieses Werkzeug ist in 37 Module getrennt und
+hat einen Prüfstand mit über 2000 Kontrollen — genau deshalb liessen sich in
+dieser Woche zwei Kennwerte messen, nachziehen und die Änderung an einer Stelle
+durchschlagen. Das wird nicht eingetauscht.
+
+### Gebaut: der sichtbare Speicherzustand
+
+Die Frage «wird schon bei der Eingabe gespeichert oder muss man drücken?» war
+keine Wissenslücke, sondern ein Mangel der Oberfläche. **Beides stimmt:**
+
+| | |
+|---|---|
+| **Arbeitsstand** | bei jeder Eingabe, ein Stand, überschreibt sich (localStorage) |
+| **Ablage** | benannter Eintrag, erst auf Knopfdruck (IndexedDB) |
+
+Sichtbar war davon nichts. Jetzt trägt der Projektknopf einen Punkt, sobald der
+Stand von dem abweicht, was zuletzt gesichert oder geladen wurde, und sein
+Titel nennt drei Dinge:
+
+```
+Projektablage und Vorlagen öffnen
+Arbeitsstand gesichert 07:45 (bei jeder Eingabe)
+In der Ablage steht noch der Stand von zuletzt – hier speichern
+```
+
+Der Vergleich läuft über eine Signatur der Eingabewerte, aus der die flüchtigen
+Felder ausgenommen sind (Bearbeiten-Sperren, Schnittfenster) — sonst meldete
+das blosse Aufklappen eines Feldes eine ungesicherte Änderung.
+
+**Eine Falle dabei:** `baueKopf()` läuft bei *jeder* Änderung. Stünde der
+Bezugspunkt unbedingt dort, setzte er sich bei jeder Eingabe auf den eben
+getippten Stand, und nichts wäre je ungesichert. Er wird deshalb nur gesetzt,
+solange die Signatur noch `null` ist — sowie nach Sichern, Laden und Neubeginn.
+
+### Nebenfund: `node --check` prüft zu schwach
+
+Beim Einbau entstand ein mehrzeiliger String in einfachen Anführungszeichen.
+`node --check js/app.js` sagte **Syntax in Ordnung**; dieselbe Datei mit der
+Endung `.mjs` geprüft fiel sofort durch. Im Browser war die Anwendung tot —
+eine leere Seite und eine Meldung ohne Datei und Zeile.
+
+Zwei Lücken kamen zusammen: die Endung entschied über den Prüfmodus, und
+**`app.js` und `ui.js` prüft sonst niemand** — der Prüfstand lädt sie nie, weil
+sie ein DOM brauchen.
+
+`build_html.py` prüft deshalb jetzt **jede Moduldatei einzeln als Modul**, bevor
+gebündelt wird, und nennt dabei den Dateinamen. Gegenprobe gefahren: ein
+absichtlich eingebauter Fehler stoppt den Bündler.
+
+### Offen aus dieser Analyse
+
+* Ablageliste mit fachlichen Spalten (Projekt, KM, Mast-Nr., Datum)
+* Selektiver Export/Import mit Vorschau und Kollisionswarnung
+* localStorage-Fallback, wenn IndexedDB fehlt
 
 ### Entschieden — nicht wieder aufmachen
 
