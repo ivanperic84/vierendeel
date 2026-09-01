@@ -3439,7 +3439,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
 | **Einzelmast, Tragausleger, Zuganker** | Die Gruppe «Masten» ist seit dem 28. August angelegt und entkoppelt. Was fehlt: die Tragwerksart (Joch / Einzelmast / Mast mit Tragausleger) als übergreifende Wahl, und Zuganker bzw. Druckstützen als Tragglieder am Masten — sie ändern die Statik des Mastes, sind also keine Anbauteile |
-| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. `MAST_UNVERSCHIEBLICH` steht seit dem 31. August auf **4,00** (vorher 3,10) — siehe *Die Drehfeder des Mastes*. Damit sind alle drei Kennwerte entschieden |
+| **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). Am 1. September kam ein vierter dazu: `SCHIEFE_DAEMPFUNG` = **0,70** (509 Messstellen, Gegenprobe 0,994) — siehe *SCHIEFE_DAEMPFUNG*. `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. `MAST_UNVERSCHIEBLICH` steht seit dem 31. August auf **4,00** (vorher 3,10) — siehe *Die Drehfeder des Mastes*. Damit sind alle drei Kennwerte entschieden |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
@@ -3571,6 +3571,69 @@ ist Arithmetik, keine Physik.
 > `kE > 1` aus und verstummte beim Abmindern; der Prüfstand prüfte, dass die
 > Ausnutzung *steigt*; und das Eingabefeld stand auf `min: 1` und hätte 0,48
 > gar nicht angenommen. Handbuchkapitel 6.2.2 ist neu geschrieben.
+
+### SCHIEFE_DAEMPFUNG — 0,70 gemessen, weil die Herleitung voll ansetzt
+
+Nachfrage des Auftraggebers am 1. September: *«Warum wurde dies eingebaut? Bei
+welchen Vergleichen zu AxisVM oder PyNite hat dies aufgezeigt? Ich würde es
+rausnehmen oder sicher deaktiviert lassen als Startwert. Ich will nicht zu
+konservativ werden. Wir waren bei den letzten paar Vergleichen rund 10 bis
+15 Prozent über dem Wert aus AxisVM.»*
+
+**Warum der Term drin ist.** Ohne ihn rechnet das Werkzeug für die
+Horizontalbleche unter reiner Vertikallast **exakt null** — durch deren Ebenen
+läuft keine vertikale Querkraft. Das geprüfte FEM zeigt dort rund 11 N/mm²,
+mit dem Verlauf der Querkraftlinie. Abschalten ist also keine Abstufung,
+sondern ein Loch; bei Querwind auf die Vertikalbleche liegt das Werkzeug schon
+*mit* dem Term 25 % **unter** AxisVM, ohne ihn 44 %.
+
+**Was die Herleitung offenlässt.** Sie setzt die *volle* Behinderung an — der
+Gurt bleibe im Mittel gerade. Das ist ihr einziger freier Punkt, und er fällt
+zugunsten der Sicherheit aus.
+
+**Der Messweg.** Ein Stabmodell mit I_y und I_z in den *Schenkelachsen* kann
+den Vorgang nicht zeigen: beide Richtungen sind darin entkoppelt, I_yz kommt
+nicht vor. Mit den **Hauptachsen** und 45° Drehung zeigt PyNite ihn exakt. Am
+Kragarm nachgerechnet lag die Querverschiebung bei 0,5885 — genau |I_yz|/I_z —
+und die Vertikalverschiebung traf auf alle Stellen den Wert mit I\*. Also je
+Fall zwei Läufe, Gurte schenkelparallel und gedreht; die Differenz ist der
+reine Effekt.
+
+| | |
+|---|---|
+| Messstellen | **509**, vier Typen, je zwei Blecheinteilungen, drei Lastanordnungen |
+| Mittelwert | **k_S = 0,705** |
+| Spanne | 0,52 … 0,96 (5- und 95-Prozent-Punkt) |
+| nach Typ | 0,56 (J90) · 0,65 (J120) · 0,73 (J100) · 0,82 (J130) |
+
+Gemessen wird nur unter **Vertikallast**. Dort trägt das Horizontalblech ohne
+den Zusatz fast nichts — der Ausgangswert liegt im Mittel bei 11 % der
+Differenz. Unter Wind ist es umgekehrt: die Vertikalbleche tragen Torsion, der
+Zusatz ist ein Aufschlag darauf, und die Differenz misst vor allem, wie die
+gedrehten Gurte die Torsion anders verteilen — dort streute k_S von −0,28 bis
+1,29 statt eng um 0,70.
+
+Ein Faktor auf β statt auf das Moment wurde mitgerechnet und **verworfen**:
+die Streuung bleibt damit grösser (24 statt 22 %), die Systematik lässt sich
+so also nicht erklären.
+
+> **Entschieden am 1. September: k_S = 0,70.** Die Gegenprobe nach dem Einbau
+> liefert 0,994 — das Werkzeug liegt jetzt auf der Messung. Am J90 über 15 m
+> fällt die Ausnutzung des Bindeblechs von 0,432 auf **0,415**; ohne den Term
+> wären es 0,380.
+
+**Offen, und das ist wichtig.** Der Vergleich am Signaljoch gegen AxisVM
+(Handbuch 6.2.3) fand das Werkzeug *mit* dem vollen Term nur 9 bis 20 % zu
+hoch. Diese Messung sagt, der Term allein sei 30 % zu gross. **Beides zusammen
+geht nicht auf.** Der Unterschied liegt vermutlich darin, dass das Stabmodell
+die Gurte auf ihren Schwerachsen führt, während der Winkel wirklich mit
+*einem* Schenkel am Blech hängt. Wer es genau wissen will, misst denselben
+Fall in AxisVM nach — die Messoption dafür steht im PyNite-Export
+(`gurteSchief`), sie ändert die Ausleitung nicht.
+
+Die 10 bis 15 %, die der Auftraggeber gegenüber AxisVM misst, sind mit
+k_S = 0,70 **nicht vollständig erklärt**: am gemessenen Fall bringt der Faktor
+knapp 4 % auf die Gesamtausnutzung. Wo der Rest herkommt, ist ungeklärt.
 
 ### Eine Fehldiagnose und was sie gelehrt hat
 

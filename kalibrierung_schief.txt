@@ -1,0 +1,50 @@
+KALIBRIERUNG DER GEFITTETEN KENNWERTE
+Arbeitsordner: C:\Users\ivan_\AppData\Local\Temp\vierendeel_kalibrierung
+
+
+============================================================================================================
+SCHIEFE BIEGUNG DER GURTWINKEL  ->  k_S
+============================================================================================================
+FEM    = Differenz der beiden PyNite-Laeufe (gedreht - schenkelparallel)
+Formel = Differenz des Werkzeugs (schiefeBiegung an - aus)
+k_S    = FEM / Formel        <1 heisst: die Formel ueberschaetzt
+
+  J90 L=14 mitte: 10 Messstellen
+  J90 L=14 exzentrisch: 0 Messstellen
+  J90 L=14 einseitig: 9 Messstellen
+  J90 L=23.5 mitte: 30 Messstellen
+  J90 L=23.5 exzentrisch: 10 Messstellen
+  J90 L=23.5 einseitig: 28 Messstellen
+  J120 L=15.5 mitte: 10 Messstellen
+  J120 L=15.5 exzentrisch: 0 Messstellen
+  J120 L=15.5 einseitig: 9 Messstellen
+  J120 L=27.5 mitte: 32 Messstellen
+  J120 L=27.5 exzentrisch: 10 Messstellen
+  J120 L=27.5 einseitig: 31 Messstellen
+  J100 L=14 mitte: 10 Messstellen
+  J100 L=14 exzentrisch: 0 Messstellen
+  J100 L=14 einseitig: 9 Messstellen
+  J100 L=25 mitte: 30 Messstellen
+  J100 L=25 exzentrisch: 10 Messstellen
+  J100 L=25 einseitig: 30 Messstellen
+  J130 L=17.5 mitte: 16 Messstellen
+  J130 L=17.5 exzentrisch: 2 Messstellen
+  J130 L=17.5 einseitig: 15 Messstellen
+  J130 L=31 mitte: 40 Messstellen
+  J130 L=31 exzentrisch: 14 Messstellen
+  J130 L=31 einseitig: 40 Messstellen
+
+------------------------------------------------------------------------------------------------------------
+ALLE                               k_S = 0.994   (0.047 bis 1.734, 395 Stellen)
+  Lastfall G                       k_S = 1.003   (0.047 bis 1.734, 257 Stellen)
+  Lastfall Schnee                  k_S = 0.977   (0.722 bis 1.335, 138 Stellen)
+  J90                              k_S = 0.799   (0.315 bis 0.958, 87 Stellen)
+  J120                             k_S = 0.914   (0.455 bis 1.220, 92 Stellen)
+  J100                             k_S = 1.018   (0.071 bis 1.318, 89 Stellen)
+  J130                             k_S = 1.168   (0.047 bis 1.734, 127 Stellen)
+------------------------------------------------------------------------------------------------------------
+Angesetzt ist k_S = 0.70.
+GEGENPROBE: das Verhaeltnis soll damit bei 1.00 liegen - gemessen 0.994.
+Die reine Herleitung braeuchte k_S = 0.696 (zurueckgerechnet).
+Messwerte: kalibrierung_schief.json (395 Zeilen)
+

@@ -46,6 +46,9 @@
  */
 
 import { EINWIRKUNGEN } from './core.lasten.js';
+import { winkelwerteFuer } from './core.winkel.js';
+import { getProfil } from './data.profiles.js';
+import { ECKEN } from './geometry.js';
 import { stabmodell, lasten, stuetzung } from './export.axisvm.js';
 import { herunterladen } from './export.xlsx.js';
 
@@ -117,7 +120,36 @@ function blechlaengen(bau) {
  * @param {object} bau Ergebnis von stabmodell()
  * @param {boolean} schubweich Bindebleche mit Ersatzträgheitsmoment
  */
-function querschnitte(bau, schubweich = true) {
+/*
+ * MESSOPTION: DIE GURTE IN IHREN HAUPTACHSEN, UM 45 GRAD GEDREHT.
+ *
+ * Ein Stabmodell mit Iy und Iz in den SCHENKELACHSEN kann die schiefe
+ * Biegung des Winkels gar nicht zeigen: die beiden Richtungen sind darin
+ * entkoppelt, I_yz kommt nicht vor, und das Horizontalblech bekommt unter
+ * Vertikallast exakt null. Genau das ist der Grund, warum der Zusatzterm
+ * (SCHIEFE_BIEGUNG in core.querschnitt.js) hergeleitet werden musste.
+ *
+ * PyNite kann es doch - nicht ueber I_yz, sondern GEOMETRISCH: der Stab
+ * bekommt seine HAUPTTRAEGHEITSMOMENTE und wird um seine Laengsachse
+ * gedreht. Beim gleichschenkligen Winkel liegen die Hauptachsen unter 45
+ * Grad zu den Schenkeln.
+ *
+ * Am Kragarm nachgerechnet (L 100x100x10, Endmoment um die schenkelparallele
+ * Achse):
+ *
+ *      Drehung   quer / vertikal      analytisch |I_yz| / I_z = 0.5885
+ *          0     0.0000
+ *        +45     0.5885
+ *        -45     0.5885 (Vorzeichen gekehrt)
+ *
+ * und die Vertikalverschiebung traf auf alle Stellen den Wert mit
+ * I* = D/I_z. PyNite bildet den Vorgang also exakt ab.
+ *
+ * DIESE OPTION DIENT DER MESSUNG, nicht dem Nachweis. Der Ausleitung fuer
+ * den Auftraggeber bleibt sie fern: dort stehen die Gurte schenkelparallel,
+ * wie in jedem Pruefmodell.
+ */
+function querschnitte(bau, schubweich = true, gurteSchief = false) {
   const zeilen = [];
   const laengen = schubweich ? blechlaengen(bau) : new Map();
   // Alles in SI: I in m⁴, A in m², L in m. E kürzt sich mit G/E heraus.
@@ -127,6 +159,15 @@ function querschnitte(bau, schubweich = true) {
   };
   bau.querschnitte.forEach((q) => {
     if (q.form === 'Angle') {
+      if (gurteSchief) {
+        // Hauptachsen statt Schenkelachsen. Die Zuordnung ist am Kragarm
+        // geprueft: mit (I1, I2) und 45 Grad ergibt sich I* und der
+        // Querverschiebungsanteil analytisch richtig.
+        const w = winkelwerteFuer(getProfil(q.profil));
+        zeilen.push({ name: q.name, A: q.A,
+                      Iy: w.I1 / 1e12, Iz: w.I2 / 1e12, J: q.It });
+        return;
+      }
       // Gurt: unser I_y wirkt gegen die Vertikalbiegung, das ist PyNite Iz
       zeilen.push({ name: q.name, A: q.A, Iy: q.Iz, Iz: q.Iy, J: q.It });
       return;
@@ -189,15 +230,47 @@ export function pyniteSkript(m, opt = {}) {
   // klein aus).
   const l = lasten(m, bau, { eigengewicht: true });
   const schubweich = opt.schubweich !== false;
-  const qs = querschnitte(bau, schubweich);
+  const gurteSchief = opt.gurteSchief === true;
+  const qs = querschnitte(bau, schubweich, gurteSchief);
 
   // Achsentausch: unser (x, y, z) -> PyNite (X, Y, Z) = (x, z, y)
   const knotenZeilen = [...bau.knoten.values()].map(
     (k) => `M.add_node(${s(k.name)}, ${py(k.x)}, ${py(k.z)}, ${py(k.y)})`);
 
-  const stabZeilen = bau.staebe.map(
-    (st) => `M.add_member(${s(st.name)}, ${s(st.von)}, ${s(st.bis)}, 'STAHL', `
-          + `${s(qsName(st, bau, qs))})`);
+  /*
+   * WELCHE DREHRICHTUNG BEKOMMT WELCHE ECKE?
+   *
+   * Die vier Winkel stehen spiegelsymmetrisch. Die Ferse zeigt in Richtung
+   * (sy, sz) der Ecke, die Symmetrieachse - und damit die starke Hauptachse -
+   * liegt auf deren Winkelhalbierender. Das Vorzeichen der Drehung folgt
+   * deshalb dem PRODUKT sy*sz:
+   *
+   *      OG_L (-1,+1) -> -45      OG_R (+1,+1) -> +45
+   *      UG_L (-1,-1) -> +45      UG_R (+1,-1) -> -45
+   *
+   * Die beiden Gurte einer Ebene drehen also GEGENEINANDER - das ist die
+   * Voraussetzung des ganzen Ansatzes. Ein gemeinsamer Vorzeichenwechsel
+   * aller vier spiegelt nur das Ausweichen und aendert am Blechmoment
+   * nichts; das Muster zaehlt, nicht der absolute Bezug.
+   */
+  const drehung = (st) => {
+    if (!gurteSchief) return 0;
+    const t = /^(OG|UG)(L|R)_S/.exec(String(st.name));
+    if (!t) return 0;
+    // Nur der wirkliche Winkel dreht sich; die steifen Knotenabschnitte
+    // sind quadratisch, dort waere die Drehlage ohne Wirkung.
+    const q = qs.find((z) => z.name === qsName(st, bau, qs));
+    if (!q || !String(q.name).startsWith('GURT_')) return 0;
+    const e = ECKEN.find((x) => x.id === `${t[1]}_${t[2]}`);
+    return e ? 45 * e.sy * e.sz : 0;
+  };
+
+  const stabZeilen = bau.staebe.map((st) => {
+    const rot = drehung(st);
+    return `M.add_member(${s(st.name)}, ${s(st.von)}, ${s(st.bis)}, 'STAHL', `
+         + `${s(qsName(st, bau, qs))}`
+         + (rot ? `, rotation=${py(rot)}` : '') + ')';
+  });
 
   // Auflager. Unsere Freiheitsgrade in PyNite-Benennung:
   //   fix  (Torsion um die Jochachse)      -> RX

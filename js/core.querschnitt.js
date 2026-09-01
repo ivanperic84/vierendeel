@@ -355,6 +355,50 @@ export const ENDFELD_STATIONEN = 2;
  */
 export const SCHIEFE_BIEGUNG = true;
 
+/**
+ * ABMINDERUNG DER HERGELEITETEN FORMEL AUF DIE MESSUNG.
+ *
+ * Die Herleitung oben setzt die VOLLE Behinderung an: sie nimmt an, der Gurt
+ * bleibe im Mittel gerade. Das ist ihr einziger freier Punkt, und er faellt
+ * zugunsten der Sicherheit aus - gemessen ueberschaetzt sie den Zusatz.
+ *
+ * WIE GEMESSEN WURDE (kalibrieren.mjs --nur schief)
+ *
+ * Ein Stabmodell mit Iy und Iz in den SCHENKELACHSEN kann den Vorgang gar
+ * nicht zeigen; die Richtungen sind darin entkoppelt. Mit den HAUPTACHSEN
+ * und 45 Grad Drehung zeigt PyNite ihn exakt - am Kragarm nachgerechnet
+ * traf die Querverschiebung |I_yz|/I_z = 0.5885 und die Vertikalverschiebung
+ * den Wert mit I* auf alle Stellen. Je Fall zwei Laeufe, die Differenz ist
+ * der reine Effekt; dieselbe Differenz bildet das Werkzeug mit dem Term an
+ * und aus.
+ *
+ *      509 Messstellen, 4 Typen, je 2 Blecheinteilungen, 3 Lastanordnungen
+ *
+ *      k_S = 0.705      Mittel
+ *            0.52 ... 0.96     (5- und 95-Prozent-Punkt)
+ *            0.56 (J90)  0.65 (J120)  0.73 (J100)  0.82 (J130)
+ *
+ * GEMESSEN WIRD NUR UNTER VERTIKALLAST. Dort traegt das Horizontalblech ohne
+ * den Zusatz fast nichts, und die Differenz IST der Zusatz. Unter Wind ist es
+ * umgekehrt: die Vertikalbleche tragen Torsion, der Zusatz ist ein Aufschlag
+ * darauf, und die Differenz misst vor allem, wie die gedrehten Gurte die
+ * Torsion anders verteilen - k_S streute dort von -0.28 bis 1.29 statt eng um
+ * 0.7. Solche Stellen fallen heraus.
+ *
+ * WARUM EIN FAKTOR AUF DAS MOMENT und nicht auf beta: beide Wege wurden
+ * gerechnet. Ueber beta bleibt die Streuung groesser (24 gegen 22 Prozent),
+ * die Systematik laesst sich damit also nicht erklaeren.
+ *
+ * >>> OFFEN: Der frueherer Vergleich am Signaljoch gegen AxisVM (Handbuch
+ * 6.2.3) fand das Werkzeug MIT dem Term nur 9 bis 20 Prozent zu hoch. Diese
+ * Messung sagt, der Term allein sei 30 Prozent zu gross. Beides zusammen
+ * geht nicht auf. Der Unterschied liegt vermutlich darin, dass das
+ * Stabmodell die Gurte auf ihren Schwerachsen fuehrt, waehrend der Winkel
+ * wirklich mit EINEM Schenkel am Blech haengt. Wer es genau wissen will,
+ * misst denselben Fall in AxisVM nach. <<<
+ */
+export const SCHIEFE_DAEMPFUNG = 0.70;
+
 export const KNOTENBEREICHE = [
   { key: 'anschnitt',
     label: 'steif, Nachweis am Anschnitt (Nachweisgrundlage)' },
@@ -636,7 +680,9 @@ export function koppelfaktor(p, blech, aGurt, Lc_m, achse) {
   const Istern = D / Itreib;                             // wirksames I quer [mm4]
   const Ip = (blech.dicke * blech.breite ** 3) / 12;     // [mm4], in Blechebene
   const beta = (Ip * (aGurt * U.m__mm)) / (6 * (Lc_m * U.m__mm) * Istern);
-  return { r, beta, Istern, Ip, faktor: 2 * r * (beta / (1 + beta)) };
+  // SCHIEFE_DAEMPFUNG bringt die hergeleitete Formel auf die Messung.
+  return { r, beta, Istern, Ip,
+           faktor: SCHIEFE_DAEMPFUNG * 2 * r * (beta / (1 + beta)) };
 }
 
 /**

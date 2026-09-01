@@ -4227,7 +4227,7 @@ titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
 // dagegen. Ohne diesen Term sind die Horizontalbleche unter reiner
 // Vertikallast spannungsfrei - das gepruefte FEM-Modell zeigt dort 11 N/mm2.
 {
-  const { koppelfaktor } = await import(J('core.querschnitt.js'));
+  const { koppelfaktor, SCHIEFE_DAEMPFUNG } = await import(J('core.querschnitt.js'));
   const { winkelwerteFuer } = await import(J('core.winkel.js'));
   const { hinweise } = await import(J('core.checks.js'));
   const P = getProfil('L 100x100x10');
@@ -4243,8 +4243,18 @@ titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
         1e-9, 'mm4');
   pruef('β = I_p · a / (6 · L_c · I*)', kf.beta,
         (kf.Ip * 700) / (6 * 420 * kf.Istern), 1e-12, '–');
-  pruef('Faktor = 2 · r · β/(1+β)', kf.faktor,
-        2 * kf.r * (kf.beta / (1 + kf.beta)), 1e-12, '–');
+  /*
+   * DIE HERGELEITETE FORMEL, ABGEMINDERT AUF DIE MESSUNG.
+   *
+   * Die Herleitung setzt die volle Behinderung an - der Gurt bleibe im
+   * Mittel gerade. Ueber 509 Messstellen an vier Typen liegt sie damit im
+   * Mittel 30 Prozent zu hoch (kalibrieren.mjs --nur schief).
+   */
+  pruef('Faktor = k_S · 2 · r · β/(1+β)', kf.faktor,
+        SCHIEFE_DAEMPFUNG * 2 * kf.r * (kf.beta / (1 + kf.beta)), 1e-12, '–');
+  wahr('Die Abminderung steht zwischen 0 und 1',
+       SCHIEFE_DAEMPFUNG > 0 && SCHIEFE_DAEMPFUNG <= 1);
+  pruef('… und ist der gemessene Wert', SCHIEFE_DAEMPFUNG, 0.70, 1e-12, '–');
   // Gleichschenkliger Winkel: r = (I1 − I2)/(I1 + I2)
   pruef('Beim gleichschenkligen Winkel ist r = (I1−I2)/(I1+I2)', kf.r,
         (w.I1 - w.I2) / (w.I1 + w.I2), 1e-9, '–');
@@ -4254,7 +4264,8 @@ titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
   const laenger = koppelfaktor(P, { ...blech, laenge: 700 }, 0.70, 0.70, 'z');
   wahr('Ein steiferes Blech zieht mehr Moment an sich', steifer.faktor > kf.faktor);
   wahr('Ein weicheres Blech weniger', laenger.faktor < kf.faktor);
-  wahr('Volle Behinderung bleibt die obere Schranke', kf.faktor < 2 * kf.r + 1e-12);
+  wahr('Volle Behinderung bleibt die obere Schranke',
+       kf.faktor < SCHIEFE_DAEMPFUNG * 2 * kf.r + 1e-12);
   wahr('Ohne Blechangaben kein Koppelterm',
        koppelfaktor(P, null, 0.7, 0.42, 'z') === null
        && koppelfaktor(P, blech, 0, 0.42, 'z') === null);
@@ -9981,6 +9992,69 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   wahr('Der Handlungsbalken traegt jetzt die Meldung',
        aq61.includes('function meldeImBalken')
        && aq61.includes('meldeImBalken(`Das Bild'));
+}
+
+// ===========================================================================
+// PRUEFUNG 62: die Messoption fuer die schiefe Biegung im PyNite-Export.
+// Sie dient der Kalibrierung und darf die Ausleitung NICHT anfassen.
+{
+  const { pyniteSkript } = await import(J('export.pynite.js'));
+  const { winkelwerteFuer } = await import(J('core.winkel.js'));
+  const m62 = modell(
+    { ...standardwerte(), typ: 'J90', L: 15, mastVorhanden: false },
+    getProfil(T.getTragjoch('J90').og.profil),
+    getProfil(T.getTragjoch('J90').ug.profil),
+    getStahl('S235'), T.getTragjoch('J90'));
+
+  const normal = pyniteSkript(m62, { knotenmodell: 'anschnitt' }).text;
+  const schief = pyniteSkript(m62, { knotenmodell: 'anschnitt',
+                                     gurteSchief: true }).text;
+
+  /*
+   * OHNE DIE OPTION AENDERT SICH NICHTS.
+   *
+   * Das ist die wichtigste der Kontrollen: was der Auftraggeber ausleitet,
+   * fuehrt die Gurte schenkelparallel, wie jedes Pruefmodell.
+   */
+  wahr('Der normale Export dreht keinen Stab', !normal.includes('rotation='));
+
+  // MIT DER OPTION DREHEN GENAU DIE GURTE - und zwar gegeneinander.
+  const drehungen = [...schief.matchAll(
+    /add_member\('((?:OG|UG)(?:L|R))_S\d+'[^)]*rotation=(-?[\d.]+)/g)]
+    .map((t) => ({ ecke: t[1], rot: Number(t[2]) }));
+  wahr('Mit der Option drehen sich Gurtstaebe', drehungen.length > 0);
+  wahr('… und zwar um 45 Grad', drehungen.every((d) => Math.abs(d.rot) === 45));
+  const je = (e) => drehungen.filter((d) => d.ecke === e).map((d) => d.rot);
+  const einheitlich = (e) => je(e).length > 0 && new Set(je(e)).size === 1;
+  wahr('Jede Ecke dreht einheitlich',
+       ['OGL', 'OGR', 'UGL', 'UGR'].every(einheitlich));
+  /*
+   * DAS MUSTER IST DIE SACHE. Die beiden Gurte einer Ebene muessen
+   * GEGENEINANDER drehen - stuenden sie gleichsinnig, wichen sie gemeinsam
+   * aus und die Bleche bekaemen fast nichts. Genau darauf beruht der ganze
+   * Ansatz (SCHIEFE_BIEGUNG in core.querschnitt.js).
+   */
+  wahr('Die Gurte einer Horizontalebene drehen gegeneinander',
+       je('OGL')[0] === -je('OGR')[0] && je('UGL')[0] === -je('UGR')[0]);
+  wahr('… und die einer Vertikalebene ebenso',
+       je('OGL')[0] === -je('UGL')[0] && je('OGR')[0] === -je('UGR')[0]);
+
+  // DER QUERSCHNITT WECHSELT AUF DIE HAUPTACHSEN. Ohne das waere die
+  // Drehung wirkungslos: ein Querschnitt mit Iy = Iz ist drehsymmetrisch.
+  {
+    const wOG = winkelwerteFuer(getProfil(T.getTragjoch('J90').og.profil));
+    const zeile = /add_section\('GURT_OG', ([^)]*)\)/.exec(schief);
+    wahr('Der Gurtquerschnitt steht in Hauptachsen', !!zeile
+      && Math.abs(Number(zeile[1].split(',')[1]) - wOG.I1 / 1e12)
+         < wOG.I1 / 1e12 * 1e-9);
+    const zeileN = /add_section\('GURT_OG', ([^)]*)\)/.exec(normal);
+    wahr('… und im normalen Export schenkelparallel', !!zeileN
+      && Math.abs(Number(zeileN[1].split(',')[1]) - wOG.Iz / 1e12)
+         < wOG.Iz / 1e12 * 1e-9);
+    // Beim gleichschenkligen Winkel sind Iy und Iz gleich - erst die
+    // Hauptachsen unterscheiden sich, und zwar deutlich.
+    wahr('Die Hauptachsen unterscheiden sich wirklich', wOG.I1 > 3 * wOG.I2);
+  }
 }
 
 // ===========================================================================

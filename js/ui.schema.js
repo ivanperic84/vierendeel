@@ -660,7 +660,8 @@ export const FELDER = [
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,
     hinweis: 'Zusatzmoment in den Bindeblechen aus dem Querausweichen der '
-           + 'Winkelgurte (Hauptachsen unter 45°). Erhöht σ, nicht τ. Setzt '
+           + 'Winkelgurte (Hauptachsen unter 45°). Erhöht σ, nicht τ. Mit '
+           + 'Faktor 0.70 aus 509 Messstellen angesetzt. Setzt '
            + 'spiegelsymmetrische Anordnung voraus. Handbuch, 6.2.3.'},
   { key: 'spannungsmodell', optionenDialog: true, gruppe: 'komb',
     typ: 'auswahl', label: 'Spannung im Winkel',

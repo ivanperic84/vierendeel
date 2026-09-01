@@ -934,13 +934,61 @@ M_Blech = 2 · |I_yz / I_treib| · M_treib,K · β / (1 + β)`)}
 lichte Länge, a die Feldweite. Beim L 100x100x10 mit einem 160 × 10er Blech
 sind das β = 0.82 und ein Faktor 0.53 auf das Gurtmoment.</p>
 
+<h5>Die Abminderung k_S = 0.70 – gemessen, nicht geschätzt</h5>
+
+<p>Die Herleitung setzt die <b>volle</b> Behinderung an: sie nimmt an, der Gurt
+bleibe im Mittel gerade. Das ist ihr einziger freier Punkt, und er fällt
+zugunsten der Sicherheit aus. Wieviel, lässt sich messen.</p>
+
+<p>Ein Stabmodell mit I_y und I_z in den <i>Schenkelachsen</i> kann den Vorgang
+gar nicht zeigen – die beiden Richtungen sind darin entkoppelt, I_yz kommt
+nicht vor. Mit den <b>Hauptachsen</b> und 45° Drehung zeigt PyNite ihn exakt.
+Am Kragarm nachgerechnet:</p>
+
+<table><tr><th>Drehung</th><th>quer / vertikal</th><th>erwartet</th></tr>
+<tr><td>0°</td><td>0.0000</td><td>entkoppelt</td></tr>
+<tr><td>+45°</td><td><b>0.5885</b></td><td>|I_yz| / I_z = 0.5885</td></tr>
+<tr><td>−45°</td><td>0.5885 (Vorzeichen gekehrt)</td><td>gespiegelt</td></tr></table>
+
+<p>Die Vertikalverschiebung traf dabei auf alle Stellen den Wert mit I*. Damit
+lässt sich je Fall <b>zweimal</b> rechnen – Gurte schenkelparallel und Gurte
+gedreht –, und die Differenz ist der reine Effekt: alles, was in beiden Läufen
+gleich wirkt, fällt heraus. Dieselbe Differenz bildet das Werkzeug, indem der
+Term an- und abgeschaltet wird.</p>
+
+${q(`<b>509 Messstellen</b>, vier Typen, je zwei Blecheinteilungen, drei
+Lastanordnungen:<br><br>
+k_S = <b>0.705</b> im Mittel, 0.52 bis 0.96 zwischen dem 5- und dem
+95-Prozent-Punkt.<br>
+Nach Typ: 0.56 (J90) · 0.65 (J120) · 0.73 (J100) · 0.82 (J130).<br><br>
+Angesetzt ist <b>0.70</b>. Ein Faktor auf β statt auf das Moment wurde
+mitgerechnet und verworfen – die Streuung bleibt damit grösser (24 statt
+22 %), die Systematik lässt sich so also nicht erklären.`)}
+
+<p><b>Gemessen wird nur unter Vertikallast.</b> Dort trägt das Horizontalblech
+ohne den Zusatz fast nichts – der Ausgangswert liegt im Mittel bei 11 % der
+Differenz –, und die Differenz <i>ist</i> der Zusatz. Unter Wind ist es
+umgekehrt: die Vertikalbleche tragen Torsion, der Zusatz ist ein Aufschlag
+darauf, und die Differenz misst vor allem, wie die gedrehten Gurte die Torsion
+anders verteilen. Dort streute k_S von −0.28 bis 1.29 statt eng um 0.70. Solche
+Stellen fallen heraus: der Ansatz gilt für beide Richtungen, <i>messbar</i> ist
+er nur dort, wo er das Bild bestimmt.</p>
+
+${q(`<b>Offen.</b> Der Vergleich am Signaljoch weiter unten fand das Werkzeug
+<i>mit</i> dem Term nur 9 bis 20 % über AxisVM. Diese Messung sagt, der Term
+allein sei 30 % zu gross. Beides zusammen geht nicht auf. Der Unterschied liegt
+vermutlich darin, dass das Stabmodell die Gurte auf ihren Schwerachsen führt,
+während der Winkel wirklich mit <b>einem</b> Schenkel am Blech hängt. Wer es
+genau wissen will, misst denselben Fall in AxisVM nach.`)}
+
 ${q(`<b>Dieses Moment kommt ohne Querkraft.</b> Die beiden Blechenden tragen es
 mit gleichem Betrag – konstantes Moment über die Länge. Deshalb erhöht es σ,
 aber nicht τ, und es wird weder auf den Anschnitt abgemindert (bei konstantem
 Moment ist der Anschnittwert der Knotenwert) noch vom Endfeldzuschlag erfasst
 (der gilt der Torsionseinleitung).`)}
 
-<p><b>Was es bringt</b>, gemessen am Signaljoch gegen AxisVM:</p>
+<p><b>Was es bringt</b>, gemessen am Signaljoch gegen AxisVM – noch
+<i>ohne</i> die Abminderung k_S, also mit dem vollen hergeleiteten Term:</p>
 
 <table><tr><th>Lastfall</th><th>Blech</th><th>ohne</th><th>mit</th></tr>
 <tr><td>Eigengewicht</td><td>horizontal</td><td>−100 %</td><td><b>+12 %</b></td></tr>
@@ -952,6 +1000,12 @@ Moment ist der Anschnittwert der Knotenwert) noch vom Endfeldzuschlag erfasst
 <p>Stelle für Stelle folgt der Verlauf jetzt der Querkraftlinie: über 25 der
 27 Stationen liegt das Horizontalblech unter Eigengewicht innerhalb ±25 %,
 in Feldmitte gehen beide Modelle gegen null.</p>
+
+<p>Mit k_S = 0.70 fällt der Zusatz um ein Drittel; an einem J90 über 15 m
+sinkt die Ausnutzung des Bindeblechs von 0.432 auf 0.415 (ohne den Term wären
+es 0.380). Ob die Zeilen der Tabelle damit auf null oder darunter rutschen,
+ist <b>nicht nachgemessen</b> – dazu müsste derselbe Fall erneut in AxisVM
+gerechnet werden.</p>
 
 ${q(`<b>Voraussetzung</b> ist die spiegelsymmetrische Anordnung der vier
 Winkel – so ist jedes Tragjoch des Sortiments gebaut. Stünden sie parallel,

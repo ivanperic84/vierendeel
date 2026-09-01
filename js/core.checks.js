@@ -13,7 +13,7 @@
 import { U } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
-import { ENDFELD_ZUSCHLAG } from './core.querschnitt.js';
+import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
 import { MAST_UNVERSCHIEBLICH, mastFreiraum } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
@@ -507,8 +507,11 @@ export function hinweise(m) {
       + 'dem örtlichen Rahmenmoment quer aus (I_yz ≠ 0), die Bindebleche der '
       + 'anderen Ebene halten dagegen. Das Moment ist über die Blechlänge '
       + 'konstant und wird deshalb weder auf den Anschnitt abgemindert noch '
-      + 'vom Endfeldzuschlag erfasst. Vorausgesetzt ist die '
-      + 'spiegelsymmetrische Anordnung der vier Winkel.'
+      + 'vom Endfeldzuschlag erfasst. Angesetzt mit Faktor '
+      + `${SCHIEFE_DAEMPFUNG.toFixed(2)} – die hergeleitete Formel setzt die `
+      + 'volle Behinderung an und liegt über 509 Messstellen im Mittel 30 % '
+      + 'darüber. Vorausgesetzt ist die spiegelsymmetrische Anordnung der '
+      + 'vier Winkel.'
     : 'Schiefe Biegung der Gurtwinkel abgeschaltet: die Horizontalbleche sind '
       + 'unter reiner Vertikallast dann spannungsfrei. Am nachgerechneten '
       + 'Signaljoch wies das FEM-Modell dort 11 N/mm² aus.');

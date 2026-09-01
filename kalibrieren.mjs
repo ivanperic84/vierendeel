@@ -13,6 +13,7 @@
  *     node kalibrieren.mjs                  alles
  *     node kalibrieren.mjs --nur daempfung  nur k
  *     node kalibrieren.mjs --nur endfeld    nur k_E
+ *     node kalibrieren.mjs --nur schief     nur k_S (schiefe Biegung)
  *     node kalibrieren.mjs --schnell        ein Fall je Gruppe (Probelauf)
  *
  * WARUM GEMESSEN WIRD, WAS SICH ÄNDERT - NICHT, WAS DASTEHT
@@ -216,7 +217,7 @@ function csv(pfad) {
   });
 }
 
-function rechne(name, w) {
+function rechne(name, w, femOpt = {}) {
   const ordner = join(ARBEIT, name);
   mkdirSync(ordner, { recursive: true });
   const staebe = join(ordner, 'pynite_staebe.csv');
@@ -224,7 +225,7 @@ function rechne(name, w) {
   // kommt die Zuordnung Stab -> Ort, ohne die sich keine Tabelle einer
   // Station zuweisen laesst. Es kostet nichts, PyNite laeuft deswegen nicht.
   const m = modellVon(w);
-  const skript = PY.pyniteSkript(m, { knotenmodell: 'anschnitt' });
+  const skript = PY.pyniteSkript(m, { knotenmodell: 'anschnitt', ...femOpt });
   if (!existsSync(staebe) || process.env.KALIB_NEU === '1') {
     writeFileSync(join(ordner, 'lauf.py'), skript.text);
     execFileSync(PYTHON, ['lauf.py'], {
@@ -738,6 +739,211 @@ if (!NUR || NUR === 'endfeld') {
     }
     writeFileSync('kalibrierung_endfeld.json', JSON.stringify(endErg, null, 1));
     console.log(`Messwerte: kalibrierung_endfeld.json (${endErg.length} Zeilen)`);
+  }
+  console.log('');
+}
+
+/* ===========================================================================
+ * 5 · SCHIEFE BIEGUNG DER GURTWINKEL  ->  k_S
+ *
+ * Der Ansatz (SCHIEFE_BIEGUNG in core.querschnitt.js) ist hergeleitet, nicht
+ * gefittet - und lag am Signaljoch durchgehend 9 bis 20 Prozent ueber AxisVM.
+ * Der einzige freie Punkt der Herleitung ist die Annahme, dass der Gurt im
+ * Mittel gerade bleibt; sie setzt die volle Behinderung an. Gemessen wird
+ * deshalb, um wieviel.
+ *
+ * WIE GEMESSEN WIRD
+ *
+ * Ein Stabmodell mit Iy und Iz in den Schenkelachsen kann den Vorgang nicht
+ * zeigen - die Richtungen sind darin entkoppelt. Mit den HAUPTACHSEN und
+ * einer Drehung um 45 Grad zeigt PyNite ihn exakt (am Kragarm nachgerechnet,
+ * siehe export.pynite.js). Also zwei Laeufe je Fall:
+ *
+ *     N   Gurte schenkelparallel   -> Horizontalblech unter Vertikallast = 0
+ *     S   Gurte gedreht            -> der Zusatz steht darin
+ *
+ * Die DIFFERENZ ist der reine Effekt; alles, was in beiden Laeufen gleich
+ * wirkt, faellt heraus. Dieselbe Differenz bildet das Werkzeug mit
+ * schiefeBiegung an/aus. Ihr Verhaeltnis ist k_S.
+ *
+ * GEMESSEN WIRD JEWEILS AN DER EBENE, DIE NICHT DIREKT BELASTET IST:
+ * unter Vertikallast das HORIZONTALblech, unter Wind das VERTIKALblech.
+ * Dort ist der Wert des N-Laufs nahe null, und die Differenz haengt nicht
+ * an einer grossen Zahl, von der sie sich abzieht.
+ * =========================================================================== */
+if (NUR === 'schief') {
+  console.log('\n' + '='.repeat(108));
+  console.log('SCHIEFE BIEGUNG DER GURTWINKEL  ->  k_S');
+  console.log('='.repeat(108));
+  console.log('FEM    = Differenz der beiden PyNite-Laeufe (gedreht - schenkelparallel)');
+  console.log('Formel = Differenz des Werkzeugs (schiefeBiegung an - aus)');
+  console.log('k_S    = FEM / Formel        <1 heisst: die Formel ueberschaetzt\n');
+
+  const BEIW = {
+    G: { G: 1, WindX: 0, WindY: 0, Schnee: 0 },
+    Schnee: { G: 0, WindX: 0, WindY: 0, Schnee: 1 },
+    WindY: { G: 0, WindX: 0, WindY: 1, Schnee: 0 },
+  };
+  // Unter Vertikallast haelt das Horizontalblech dagegen, unter Wind in
+  // Gleisrichtung das Vertikalblech.
+  const GEGENEBENE = { G: 'horizontal', Schnee: 'horizontal', WindY: 'vertikal' };
+
+  const schiefErg = [];
+
+  // Blechmomente eines Laufs, je Lastfall/Ebene/Ort.
+  const blechMomente = (lauf) => {
+    const orte = stabOrte(lauf.bau);
+    const karte = new Map();
+    for (const st of lauf.staebe) {
+      const t = /^B(V|H)_([LROU])_/.exec(String(st.Stab));
+      if (!t || String(st.Querschnitt).startsWith('STARR')) continue;
+      const art = t[1] === 'V' ? 'vertikal' : 'horizontal';
+      const M = art === 'vertikal'
+        ? Math.max(Math.abs(st.Mz_i), Math.abs(st.Mz_j))
+        : Math.max(Math.abs(st.My_i), Math.abs(st.My_j));
+      const x = orte.get(st.Stab);
+      if (x === undefined) continue;
+      const k = `${st.Lastfall}|${art}|${x.toFixed(3)}`;
+      karte.set(k, Math.max(karte.get(k) ?? 0, M));
+    }
+    return karte;
+  };
+
+  for (const { typ } of TYPEN) {
+    const joch = T.getTragjoch(typ);
+    const laengen = laengenFuer(joch);
+    const anordnungen = SCHNELL ? ['mitte'] : ['mitte', 'exzentrisch', 'einseitig'];
+
+    for (const L of laengen) {
+      for (const anordnung of anordnungen) {
+        const w = eingabe(typ, L, anordnung);
+        let laufN, laufS;
+        try {
+          laufN = rechne(`schief_${typ}_L${L}_${anordnung}_N`, w);
+          laufS = rechne(`schief_${typ}_L${L}_${anordnung}_S`, w, { gurteSchief: true });
+        } catch (e) {
+          console.log(`  ${typ} L=${L} ${anordnung}: FEHLER ${String(e.message).slice(0, 70)}`);
+          continue;
+        }
+        const mN = blechMomente(laufN), mS = blechMomente(laufS);
+
+        for (const einwirkung of ['G', 'Schnee', 'WindY']) {
+          const gegen = GEGENEBENE[einwirkung];
+          // Werkzeug zweimal: mit und ohne den Zusatzterm. Der
+          // Endfeldzuschlag bleibt aus - er gehoert der Torsion und wuerde
+          // sich hier nur ueberlagern.
+          const gem = (an) => V.berechne(
+            { ...w, beiwerteFest: BEIW[einwirkung], endfeldZuschlag: false,
+              schiefeBiegung: an },
+            P.getProfil(w.profOG), P.getProfil(w.profUG),
+            P.getStahl(w.stahl), joch);
+          const eMit = gem(true), eOhne = gem(false);
+
+          const holM = (erg, x, art) => {
+            const kn = erg.knoten.find((k) => Math.abs(k.x - x) < 1e-6);
+            const eb = kn?.ebenen?.find((z) => z.art === art);
+            return eb?.M ?? null;
+          };
+          // Die beiden Grossen der Formel, je Stelle. Streut k_S mit ihnen,
+          // ist die FORM zu pruefen und nicht der Betrag.
+          const holKopp = (erg, x, art) => {
+            const kn = erg.knoten.find((k) => Math.abs(k.x - x) < 1e-6);
+            return kn?.ebenen?.find((z) => z.art === art)?.koppel ?? null;
+          };
+
+          for (const kn of eMit.knoten) {
+            const schl = `${einwirkung}|${gegen}|${kn.x.toFixed(3)}`;
+            const femN = mN.get(schl), femS = mS.get(schl);
+            if (femN === undefined || femS === undefined) continue;
+            const dFem = femS - femN;
+            const mit = holM(eMit, kn.x, gegen), ohne = holM(eOhne, kn.x, gegen);
+            if (mit === null || ohne === null) continue;
+            const dForm = mit - ohne;
+            /*
+             * NUR WO DER ZUSATZ DAS BILD BESTIMMT.
+             *
+             * In Feldmitte geht das treibende Rahmenmoment gegen null, und
+             * mit ihm der Zusatz. Ein Quotient aus zwei kleinen Zahlen sagt
+             * dort nichts - er streut ins Masslose. Gemessen wird, wo der
+             * Zusatz mindestens 0.05 kNm ausmacht.
+             */
+            if (!(dForm > 0.05)) continue;
+            /*
+             * UND NUR, WO DER AUSGANGSWERT NICHT SCHON ALLES BESTIMMT.
+             *
+             * Unter Vertikallast bekommt das Horizontalblech ohne den Zusatz
+             * fast nichts - nachgemessen liegt femN im Mittel bei 11 Prozent
+             * der Differenz, und was gemessen wird, ist der Zusatz selbst.
+             *
+             * UNTER WIND IST ES UMGEKEHRT. Die Vertikalbleche tragen dort
+             * TORSION, und zwar reichlich: femN erreicht das 9-fache der
+             * Differenz, im Extrem das 700-fache. Der Zusatz ist dann ein
+             * Aufschlag auf eine grosse Zahl, und die Differenz zweier
+             * Laeufe misst vor allem, wie die gedrehten Gurte die Torsion
+             * anders verteilen. Genau das zeigten die ersten Zahlen: k_S
+             * streute von -0.28 bis 1.29, waehrend die Vertikallastfaelle
+             * eng bei 0.66 bis 0.68 lagen.
+             *
+             * Solche Stellen fallen heraus. Der Ansatz gilt fuer beide
+             * Richtungen; MESSBAR ist er nur dort, wo er das Bild bestimmt.
+             */
+            if (!(femN < 0.5 * dFem)) continue;
+            const kp = holKopp(eMit, kn.x, gegen);
+            schiefErg.push({
+              typ, L, anordnung, einwirkung, ebene: gegen, x: kn.x,
+              femN, femS, dFem, mit, ohne, dForm,
+              beta: kp?.beta ?? null, r: kp?.r ?? null,
+              faktor: kp?.faktor ?? null,
+              kS: dFem / dForm,
+            });
+          }
+        }
+        const n = schiefErg.filter((z) => z.typ === typ && z.L === L
+                                       && z.anordnung === anordnung).length;
+        console.log(`  ${typ} L=${L} ${anordnung}: ${n} Messstellen`);
+      }
+    }
+  }
+
+  if (schiefErg.length) {
+    console.log('\n' + '-'.repeat(108));
+    const zeige = (titel, satz) => {
+      if (!satz.length) return;
+      const st = statistik(satz.map((z) => z.kS));
+      console.log(`${titel.padEnd(34)} k_S = ${st.mittel.toFixed(3)}`
+        + `   (${st.min.toFixed(3)} bis ${st.max.toFixed(3)}, ${st.n} Stellen)`);
+    };
+    zeige('ALLE', schiefErg);
+    for (const e of ['G', 'Schnee', 'WindY']) {
+      zeige(`  Lastfall ${e}`, schiefErg.filter((z) => z.einwirkung === e));
+    }
+    for (const { typ } of TYPEN) {
+      zeige(`  ${typ}`, schiefErg.filter((z) => z.typ === typ));
+    }
+    console.log('-'.repeat(108));
+    /*
+     * GEMESSEN WIRD GEGEN DAS WERKZEUG, WIE ES HEUTE RECHNET.
+     *
+     * Steht die Abminderung schon darin, misst der Lauf die GEGENPROBE: das
+     * Verhaeltnis muss dann gegen 1 gehen. Der Rohwert - was die reine
+     * Herleitung braeuchte - ergibt sich daraus, indem die Abminderung
+     * zurueckgerechnet wird; sie geht linear in den Formelwert ein.
+     */
+    const stG = statistik(schiefErg.map((z) => z.kS));
+    const roh = stG.mittel * QS.SCHIEFE_DAEMPFUNG;
+    console.log(`Angesetzt ist k_S = ${QS.SCHIEFE_DAEMPFUNG.toFixed(2)}.`);
+    if (QS.SCHIEFE_DAEMPFUNG < 1) {
+      console.log(`GEGENPROBE: das Verhaeltnis soll damit bei 1.00 liegen`
+        + ` - gemessen ${stG.mittel.toFixed(3)}.`);
+      console.log(`Die reine Herleitung braeuchte k_S = ${roh.toFixed(3)}`
+        + ` (zurueckgerechnet).`);
+    } else {
+      console.log('k_S < 1 heisst: die hergeleitete Formel liegt ueber der Messung.');
+    }
+    writeFileSync('kalibrierung_schief.json', JSON.stringify(schiefErg, null, 1));
+    console.log(`Messwerte: kalibrierung_schief.json (${schiefErg.length} Zeilen)`);
+  } else {
+    console.log('Keine Messstelle gefunden - siehe Schwelle im Quelltext.');
   }
   console.log('');
 }
