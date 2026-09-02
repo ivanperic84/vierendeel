@@ -450,9 +450,24 @@ export function hinweise(m) {
    */
   if ((m.tragwerkeAufBlatt ?? 1) > 1) {
     h.push(`${m.tragwerkeAufBlatt} Tragwerke auf diesem Querprofil — `
-      + 'nachgewiesen ist nur das in der Liste angeklickte. Ein Mast, den '
-      + 'sich zwei Tragwerke teilen, wird noch nicht gekoppelt: seine '
-      + 'Reaktionen aus dem anderen Tragwerk fehlen.');
+      + 'nachgewiesen ist nur das in der Liste angeklickte.');
+  }
+  /*
+   * DER GETEILTE MAST WIRD BEIM NAMEN GENANNT.
+   *
+   * «Ein Mast, den sich zwei Tragwerke teilen, wird noch nicht gekoppelt»
+   * war eine Moeglichkeit; jetzt ist es eine Stelle. Wer die Lagen
+   * eingetragen hat, bekommt die Zahl - und sieht, welcher Mast gemeint
+   * ist. Er traegt von beiden Seiten; gerechnet ist eine.
+   */
+  const gm = m.geteilteMasten ?? [];
+  if (gm.length) {
+    h.push(`${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
+      + ` an einer Stelle, an der zwei Tragwerke zusammentreffen (x₀ = `
+      + `${gm.map((p) => p.x.toFixed(2)).join(', ')} m). `
+      + 'Er trägt von beiden Seiten; gerechnet ist bisher eine. Auch die '
+      + 'Rahmenwirkung fehlt: sein Kopf ist in Wirklichkeit nicht '
+      + 'unverschieblich, sondern gibt Last ans Nachbartragwerk weiter.');
   }
 
   /*

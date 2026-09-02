@@ -70,6 +70,21 @@ export const TRAGWERKSARTEN = [
     kurz: 'Kragarm im Fundament, ohne Träger' },
   { key: 'tragausleger', label: 'Mast mit Tragausleger', traeger: true, masten: 1,
     kurz: 'Auskragender Stab am Masten' },
+  /*
+   * DAS ABFANGJOCH nimmt die LEITERZUGKRAEFTE auf, nicht das Gewicht der
+   * Fahrleitung. Nach den Werkstattzeichnungen (Typ A, 0161.1080.0051) ist
+   * es ein zweigurtiger Traeger: zwei UPE mit Sprossen im 500er-Raster,
+   * A160 gerade, A200 und A240 mit geknickten Enden.
+   *
+   *     A160   UPE 160   jt 5.5 - 12.5 m   43 kg/m
+   *     A200   UPE 200   jt 6.0 - 17.0 m   58 kg/m
+   *     A240   UPE 240   jt 8.0 - 19.5 m   85 kg/m
+   *
+   * ZWEI Gurte, nicht vier - der Vierendeel-Kern traegt hier so wenig wie
+   * beim Tragausleger.
+   */
+  { key: 'abfangjoch', label: 'Abfangjoch', traeger: true, masten: 2,
+    kurz: 'Zwei UPE-Gurte, nimmt Leiterzug auf' },
 ];
 
 /**
@@ -233,11 +248,76 @@ export function tragwerkName(t) {
     .filter(Boolean).join(' · ');
 }
 
+/**
+ * DIE LAGE AUF DEM QUERPROFIL [m] — quer zum Gleis, in der Jochachse.
+ *
+ * Weisung vom 2. September: «man müsste also eine x-Koordinate eingeben
+ * können für die einzelnen Masten».
+ *
+ * Sie leistet dreierlei auf einmal, und darum ist sie die richtige Grösse:
+ *
+ *   ORDNUNG    Die Liste zeigt die Tragwerke, wie sie auf dem Blatt stehen —
+ *              von links nach rechts. Vorher zählte eine Einfügereihenfolge
+ *              (`pos`), die nichts bedeutete.
+ *   BILD       Eine gemeinsame Achse für alles, was auf dem Querprofil
+ *              steht. Ohne sie wüsste die Ansicht nicht, wo das zweite
+ *              Tragwerk hingehört.
+ *   KOPPLUNG   Zwei Tragwerke, deren Masten an DERSELBEN Stelle stehen,
+ *              teilen sich einen. Das ist der Zwischenmast der Jochreihe —
+ *              erkennbar an einer Zahl statt an einer Absichtserklärung.
+ *
+ * Bezug ist der Nullpunkt des Querprofils; wo er liegt, entscheidet die
+ * Zeichnung. Für ein einzelnes Tragwerk ist er gleichgültig, erst das
+ * zweite gibt ihm Sinn.
+ */
+export const lageVon = (t) => Number(t?.xLage) || 0;
+
+/**
+ * Die Masten eines Tragwerks mit ihrer Lage auf dem Querprofil.
+ *
+ * Ein Joch hat zwei — bei `xLage` und `xLage + L`. Ein Einzelmast oder ein
+ * Mast mit Tragausleger hat einen.
+ */
+export function mastLagen(t) {
+  const x0 = lageVon(t);
+  const art = tragwerksart(t);
+  if (art.masten >= 2) return [x0, x0 + (Number(t?.L) || 0)];
+  return [x0];
+}
+
 /** Alle Tragwerke in der Reihenfolge des Blattes, das aktive markiert. */
 export function tragwerkeSortiert(w) {
   return tragwerkeVon(w)
     .map((t, i) => ({ ...t, aktiv: i === 0, pos: t.pos ?? i }))
-    .sort((a, b) => a.pos - b.pos);
+    /*
+     * NACH DER LAGE, DANN NACH DER EINFUEGEREIHENFOLGE.
+     *
+     * Solange niemand eine Lage eingetragen hat, stehen alle auf null - dann
+     * entscheidet `pos`, und die Liste bleibt in der Reihenfolge, in der sie
+     * entstanden ist. Sonst spraenge sie beim Anlegen jedes Tragwerks.
+     */
+    .sort((a, b) => (lageVon(a) - lageVon(b)) || (a.pos - b.pos));
+}
+
+/**
+ * Masten, die sich zwei Tragwerke teilen.
+ *
+ * Gleiche Stelle heisst: naeher als 10 cm beieinander. Zwei Masten, die auf
+ * dem Querprofil einen Dezimeter auseinanderstehen, gibt es nicht — das
+ * waere ein Eingabefehler und kein Tragwerk.
+ *
+ * @returns {Array<{x:number, ids:string[]}>}
+ */
+export function geteilteMasten(w, tol = 0.1) {
+  const punkte = [];
+  tragwerkeSortiert(w).forEach((t) => {
+    mastLagen(t).forEach((x) => {
+      const treffer = punkte.find((p) => Math.abs(p.x - x) <= tol);
+      if (treffer) { if (!treffer.ids.includes(t.id)) treffer.ids.push(t.id); }
+      else punkte.push({ x, ids: [t.id] });
+    });
+  });
+  return punkte.filter((p) => p.ids.length > 1);
 }
 
 /**

@@ -690,6 +690,21 @@ export const FELDER = [
            + 'angeklickten; Verortung, Trasse, Zonen und Lastfälle gelten '
            + 'dem ganzen Blatt.' },
 
+  /*
+   * DIE LAGE ORDNET DIE LISTE UND FINDET DEN GETEILTEN MASTEN.
+   *
+   * Sie steht unmittelbar unter der Liste, weil sie zu ihr gehoert: wer
+   * umschaltet, sieht sofort, wo das angeklickte Tragwerk steht. Als Feld
+   * in der Systemgeometrie waere sie eine Laenge unter Laengen - und die
+   * Frage, die sie beantwortet, ist keine Abmessung, sondern ein Ort.
+   */
+  { key: 'xLage', gruppe: 'art', typ: 'zahl', label: 'Lage auf dem Querprofil',
+    sym: 'x₀', standard: 0, schritt: 0.1, einheit: 'm',
+    hinweis: 'Quer zum Gleis, in der Jochachse, ab dem Nullpunkt der '
+           + 'Zeichnung. Ordnet die Tragwerke auf dem Blatt. Stehen zwei '
+           + 'Masten an derselben Stelle, teilen sich zwei Tragwerke einen '
+           + 'Masten — bei einem Joch liegt der zweite bei x₀ + jt.' },
+
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,
     hinweis: 'Zusatzmoment in den Bindeblechen aus dem Querausweichen der '

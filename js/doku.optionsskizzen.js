@@ -246,8 +246,32 @@ const bauformTragausleger = () => `
     <line class="b" x1="${x}" y1="56" x2="${x}" y2="68" stroke-width="1.6"/>
     <circle cx="${x}" cy="70" r="2.6" class="kn"/>`).join('')}`;
 
+/*
+ * DAS ABFANGJOCH IST FLACH - und das ist der Unterschied, den man sieht.
+ *
+ * Das Tragjoch traegt Gewicht und hat dafuer Bauhoehe; das Abfangjoch nimmt
+ * die LEITERZUGKRAEFTE auf, liegt waagrecht und ist im Querprofil nur eine
+ * flache Doppellinie. Nach den Werkstattzeichnungen (Typ A) sind das zwei
+ * UPE-Gurte mit Sprossen im 500er-Raster.
+ *
+ * Der waagrechte Pfeil sagt, wozu es da ist. Ohne ihn waere die Karte vom
+ * Tragjoch nur durch die Bauhoehe zu unterscheiden - zu wenig fuer eine
+ * Entscheidung, die den ganzen Nachweis bestimmt.
+ */
+const bauformAbfangjoch = () => `
+  ${TERRAIN}${fundament(40)}${fundament(160)}
+  <line class="b" x1="40" y1="116" x2="40" y2="40"/>
+  <line class="b" x1="160" y1="116" x2="160" y2="40"/>
+  <line class="b" x1="40" y1="48" x2="160" y2="48"/>
+  <line class="b" x1="40" y1="58" x2="160" y2="58"/>
+  ${[64, 88, 112, 136].map((x) =>
+      `<line class="b" x1="${x}" y1="48" x2="${x}" y2="58" stroke-width="1.4"/>`).join('')}
+  <line class="k" x1="72" y1="80" x2="128" y2="80" stroke-width="1.8"/>
+  <path class="kf" d="M128 80L118 75.5L118 84.5z"/>`;
+
 const BAUFORMEN = {
   joch: bauformJoch,
+  abfangjoch: bauformAbfangjoch,
   einzelmast: bauformEinzelmast,
   tragausleger: bauformTragausleger,
 };

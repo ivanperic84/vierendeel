@@ -12,7 +12,8 @@
  * ---------------------------------------------------------------------------
  */
 
-import { U, TOL, massketteLesen, tragwerksart } from './core.constants.js';
+import { U, TOL, massketteLesen, tragwerksart, geteilteMasten }
+  from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
 import { mastWind } from './data.masten.js';
@@ -288,6 +289,7 @@ export function modellEinzelmast(inp, stahl) {
   return {
     tragwerksart: 'einzelmast',
     tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
+    geteilteMasten: geteilteMasten(inp),
     stahl, beiwerte,
     federn: federnRoh,
     mastLast: mastWindSatz(inp, federnRoh, beiwerte, bwX),
@@ -569,6 +571,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      */
     tragwerksart: inp.tragwerksart,
     tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
+    // Masten, die sich zwei Tragwerke teilen - der Zwischenmast einer
+    // Jochreihe. Der Hinweis nennt die Stelle, nicht nur die Moeglichkeit.
+    geteilteMasten: geteilteMasten(inp),
     L: inp.L, h: v.hT, b: v.bT, a1: inp.a1,
     abstaende: abst,
     teilungQuelle: abst ? 'masstabelle' : 'gleichmaessig',

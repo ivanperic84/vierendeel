@@ -10,8 +10,8 @@
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
-import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName }
-  from './core.constants.js';
+import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
+         lageVon } from './core.constants.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -638,7 +638,18 @@ function feldHtml(f, wert, werte) {
             <figure class="hb-skizze">${bauformSkizze(art.key)}</figure>
             <span class="tw-text">
               <span class="tw-name">${esc(tragwerkName(t))}</span>
-              <span class="tw-art">${esc(art.label)}</span>
+              <span class="tw-art">${esc(art.label)}${
+                /*
+                 * DIE LAGE STEHT AN DER KACHEL, nicht nur im Feld darunter.
+                 *
+                 * Die Liste soll die Anordnung auf dem Blatt zeigen; dazu
+                 * gehoert die Zahl, nach der sie sortiert ist. Ohne sie
+                 * stuenden drei Kacheln in einer Reihenfolge, die man nicht
+                 * nachvollziehen kann. Bei EINEM Tragwerk faellt sie weg -
+                 * dort ordnet sie nichts.
+                 */
+                liste.length > 1
+                  ? ` · x₀ = ${lageVon(t).toFixed(2)} m` : ''}</span>
             </span>
           </button>
           ${liste.length > 1 ? `<button type="button" class="tw-weg"

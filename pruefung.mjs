@@ -10185,7 +10185,11 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   const { BAUFORMEN_KEYS, bauformSkizze } =
     await import(J('doku.optionsskizzen.js'));
 
-  wahr('Drei Tragwerksarten', TRAGWERKSARTEN.length === 3);
+  // Vier seit dem 2. September: das Abfangjoch kam dazu (Typ A, zwei
+  // UPE-Gurte mit Sprossen - nicht der vierteilige Vierendeel).
+  wahr('Vier Tragwerksarten', TRAGWERKSARTEN.length === 4);
+  wahr('Das Abfangjoch hat zwei Masten',
+       TRAGWERKSARTEN.find((a) => a.key === 'abfangjoch')?.masten === 2);
   /*
    * ALTE DATEIEN RECHNEN UNVERAENDERT. Fehlt die Angabe, ist es ein
    * Tragjoch - das war bis zum 2. September der einzige Fall. Dasselbe
@@ -10548,6 +10552,121 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     } catch (e) { fehler = e.message; }
     wahr('Ein Einzelmast ohne Masten meldet sich',
          /Mastprofil/.test(fehler ?? ''));
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 67: die Lage auf dem Querprofil. Weisung vom 2. September: «man
+// muesste also eine x-Koordinate eingeben koennen fuer die einzelnen Masten».
+{
+  const C = await import(J('core.constants.js'));
+  const { bauformSkizze, BAUFORMEN_KEYS } = await import(J('doku.optionsskizzen.js'));
+
+  // EIN JOCH HAT ZWEI MASTEN - bei x0 und x0 + jt.
+  wahr('Das Joch stellt zwei Masten',
+       C.mastLagen({ tragwerksart: 'joch', xLage: 4, L: 12 }).join(',') === '4,16');
+  wahr('Der Einzelmast einen',
+       C.mastLagen({ tragwerksart: 'einzelmast', xLage: 7 }).join(',') === '7');
+  wahr('Der Tragausleger auch einen',
+       C.mastLagen({ tragwerksart: 'tragausleger', xLage: 7, L: 9 }).join(',') === '7');
+  wahr('Das Abfangjoch zwei',
+       C.mastLagen({ tragwerksart: 'abfangjoch', xLage: 0, L: 15 }).join(',') === '0,15');
+
+  /*
+   * DIE LISTE FOLGT DER ANORDNUNG, nicht der Einfuegereihenfolge.
+   *
+   * Vorher zaehlte `pos` - eine Zahl, die nichts bedeutete. Wer drei
+   * Tragwerke auf einem Blatt hat, sucht sie dort, wo sie stehen.
+   */
+  {
+    let w = { typ: 'J90', L: 12, xLage: 20 };
+    w = C.tragwerkHinzu(w, 'einzelmast', { xLage: 5 });
+    w = C.tragwerkHinzu(w, 'einzelmast', { xLage: 40 });
+    const x = C.tragwerkeSortiert(w).map((t) => C.lageVon(t));
+    wahr('Nach der Lage geordnet', x.join(',') === '5,20,40');
+  }
+  /*
+   * OHNE EINGETRAGENE LAGE BLEIBT DIE REIHENFOLGE STEHEN.
+   *
+   * Alle auf null heisst: `pos` entscheidet. Sonst spraenge die Liste bei
+   * jedem neuen Tragwerk, und man klickte dem eigenen Zeiger hinterher.
+   */
+  {
+    let w = { typ: 'J90', L: 12 };
+    w = C.tragwerkHinzu(w, 'einzelmast');
+    w = C.tragwerkHinzu(w, 'tragausleger');
+    const ids = C.tragwerkeSortiert(w).map((t) => t.id).join(',');
+    wahr('Ohne Lage bleibt die Einfuegereihenfolge', ids === 'T1,T2,T3');
+  }
+
+  /*
+   * DER GETEILTE MAST - der eigentliche Grund fuer die Lage.
+   *
+   * Zwei Joche in einer Reihe teilen sich den Zwischenmasten. Er ist an
+   * einer ZAHL erkennbar, nicht an einer Absichtserklaerung: gleiche Stelle
+   * heisst naeher als zehn Zentimeter beieinander.
+   */
+  {
+    let w = { typ: 'J90', L: 12, xLage: 0 };
+    w = C.tragwerkHinzu(w, 'joch', { L: 10, xLage: 12 });
+    const g = C.geteilteMasten(w);
+    wahr('Die Jochreihe teilt einen Masten', g.length === 1);
+    wahr('… und zwar bei x0 = 12', Math.abs(g[0].x - 12) < 1e-9);
+    wahr('… zwischen beiden Jochen',
+         g[0].ids.length === 2 && g[0].ids.includes('T1') && g[0].ids.includes('T2'));
+  }
+  {
+    // Fuenf Zentimeter Versatz sind ein Eingabefehler, kein zweiter Mast.
+    let w = { typ: 'J90', L: 12, xLage: 0 };
+    w = C.tragwerkHinzu(w, 'joch', { L: 10, xLage: 12.05 });
+    wahr('Fuenf Zentimeter gelten als dieselbe Stelle',
+         C.geteilteMasten(w).length === 1);
+    let w2 = { typ: 'J90', L: 12, xLage: 0 };
+    w2 = C.tragwerkHinzu(w2, 'joch', { L: 10, xLage: 14 });
+    wahr('Zwei Meter nicht', C.geteilteMasten(w2).length === 0);
+  }
+  // Zwei Einzelmasten weit auseinander teilen sich nichts.
+  {
+    let w = { tragwerksart: 'einzelmast', xLage: 0 };
+    w = C.tragwerkHinzu(w, 'einzelmast', { xLage: 9 });
+    wahr('Getrennte Masten teilen sich nichts', C.geteilteMasten(w).length === 0);
+  }
+
+  // DAS ABFANGJOCH IST GEZEICHNET - und flach, im Unterschied zum Tragjoch.
+  wahr('Auch das Abfangjoch hat sein Bild',
+       BAUFORMEN_KEYS.includes('abfangjoch')
+       && bauformSkizze('abfangjoch').includes('<svg'));
+  {
+    // Zwei Gurte dicht beieinander statt zweier Ebenen mit Bauhoehe: die
+    // beiden waagrechten Linien liegen naeher zusammen als beim Tragjoch.
+    // NUR BAUTEILLINIEN (class="b"). Die Terrainlinie laeuft ueber die ganze
+    // Breite und zaehlte beim ersten Anlauf als dritter Gurt mit.
+    const hoehen = (key) => [...bauformSkizze(key).matchAll(
+      /<line class="b"[^>]*x1="(\d+)"[^>]*y1="(\d+)"[^>]*x2="(\d+)"[^>]*y2="(\d+)"/g)]
+      .map((t) => ({ x1: +t[1], y1: +t[2], x2: +t[3], y2: +t[4] }))
+      .filter((l) => l.y1 === l.y2 && Math.abs(l.x1 - l.x2) > 80)
+      .map((l) => l.y1).sort((a, b) => a - b);
+    const abf = hoehen('abfangjoch'), joch = hoehen('joch');
+    wahr('Beide zeigen zwei Gurte', abf.length === 2 && joch.length === 2);
+    wahr('Das Abfangjoch ist flacher als das Tragjoch',
+         (abf[1] - abf[0]) < (joch[1] - joch[0]));
+  }
+
+  /*
+   * DER HINWEIS NENNT DIE STELLE, nicht die Moeglichkeit.
+   *
+   * «Ein Mast, den sich zwei Tragwerke teilen, wird noch nicht gekoppelt»
+   * war wahr und nutzlos. Wer die Lagen eingetragen hat, bekommt die Zahl.
+   */
+  {
+    const { hinweise } = await import(J('core.checks.js'));
+    const h = hinweise({ tragwerkeAufBlatt: 2,
+                         geteilteMasten: [{ x: 12, ids: ['T1', 'T2'] }],
+                         tragwerksart: 'einzelmast' });
+    wahr('Der geteilte Mast steht mit seiner Lage da',
+         h.some((t) => /x₀ = 12\.00 m/.test(t)));
+    wahr('… und die fehlende Rahmenwirkung dazu',
+         h.some((t) => /Rahmenwirkung/.test(t)));
   }
 }
 
