@@ -9,14 +9,16 @@
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbankStand, laengenbereich } from './data.tragjoche.js';
-import { berechne, modell, vergleichMassvarianten, vergleichKombinationen,
+import { berechne, modell, modellEinzelmast,
+         vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion,
          klassifizierung } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { diagramme } from './render.charts.js';
-import { erzeugeSzene, Modellansicht, ANSICHTEN, MODI,
+import { erzeugeSzene, szeneVerschieben, szenenVereinen,
+         Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
@@ -24,7 +26,8 @@ import { exportiereAxisvm, exportiereDxf, exportiereJson,
 import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
          tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
-         MASTFELDER, setzeMastAngabe, rechensatz }
+         MASTFELDER, setzeMastAngabe, rechensatz,
+         tragwerkeSortiert, tragwerkSatz, lageVon }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -478,8 +481,62 @@ function uebernehmeAnsichtsoptionen() {
   ansicht.schriftMass = werte.modellSchriftMass ?? ansicht.schrift;
 }
 
+/*
+ * DIE SZENE EINES NICHT AKTIVEN TRAGWERKS.
+ *
+ * Es wird nur GEZEICHNET, nicht gerechnet: sein Modell reicht fuer die
+ * Geometrie, und ein zweiter voller Nachweis je Tragwerk kostete bei jedem
+ * Tastendruck. Ohne Ergebnis bleiben seine Bauteile in der Grundfarbe - was
+ * genau richtig ist, denn ausgewertet ist es nicht.
+ *
+ * Faellt der Aufbau, faellt nur DIESES Tragwerk weg: ein unvollstaendiger
+ * Nachbar darf nicht das Bild des aktiven verhindern.
+ */
+function szeneVonNebenan(t) {
+  try {
+    const satz = tragwerkSatz(werte, t.id);
+    if (tragwerksart(satz).key === 'einzelmast') {
+      return erzeugeSzene(modellEinzelmast(satz, getStahl(satz.stahl)), null);
+    }
+    const j = getTragjoch(satz.typ);
+    return erzeugeSzene(modell(satz, getProfil(satz.profOG),
+                               getProfil(satz.profUG),
+                               getStahl(satz.stahl), j), null);
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Die Szene des ganzen Querprofils.
+ *
+ * Das aktive Tragwerk kommt mit seinem Ergebnis - eingefaerbt, vermasst, mit
+ * Lasten. Die uebrigen kommen als Umriss dazu, an ihrer Lage x0. Sie tragen
+ * `passiv` und ihre Tragwerks-Id: daran haengt die gedaempfte Darstellung
+ * und der Klick, der sie aktiv macht.
+ *
+ * DIE LAGE IST DER VERSATZ. Jede Einzelszene laeuft von 0 bis L; x0 schiebt
+ * sie an ihren Platz auf dem Blatt.
+ */
+function blattSzene(erg) {
+  const aktivId = werte.twId ?? 'T1';
+  const alle = tragwerkeSortiert(werte);
+  const eigen = erzeugeSzene(erg.modell, erg);
+  if (alle.length < 2) return eigen;
+  const teile = alle.map((t) => {
+    const dx = lageVon(t);
+    if (t.id === aktivId) {
+      return szeneVerschieben({ ...eigen, aktiv: true }, dx,
+                              { twId: t.id, aktiv: true });
+    }
+    const sz = szeneVonNebenan(t);
+    return sz ? szeneVerschieben(sz, dx, { twId: t.id, passiv: true }) : null;
+  });
+  return szenenVereinen(teile);
+}
+
 function aktualisiereModell(erg) {
-  const szene = erzeugeSzene(erg.modell, erg);
+  const szene = blattSzene(erg);
   uebernehmeAnsichtsoptionen();
   ansicht.station = station;
   ansicht.setzeSzene(szene);
@@ -3953,6 +4010,14 @@ export async function start() {
      * dessen Hoehe ist die richtige Stelle.
      */
     beiMast: (ende) => zeigeFeld(ende === 'B' && werte.mastZwei ? 'mastHB' : 'mastH'),
+    /*
+     * EIN KLICK INS BILD SCHALTET DAS TRAGWERK UM (Weisung, 2. September).
+     *
+     * Derselbe Weg wie die Kachel in der Liste - `aendern` traegt Speichern,
+     * Rechnen und Zeichnen. Zwei Wege zu derselben Sache waeren einer, der
+     * vergessen wird.
+     */
+    beiTragwerk: (id) => aendern('tragwerkAktiv', id),
     beiAnbauteil: (i) => zeigeAnbauteil(i),
   });
 

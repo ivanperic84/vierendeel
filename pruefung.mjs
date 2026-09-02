@@ -10814,6 +10814,84 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 69: das ganze Querprofil in einem Bild. Weisung vom 2. September:
+// «man laesst die Tragwerke im 3d angezeigt passiv und man kann dann
+// draufdruecken um auf diese aktiv umzuschalten».
+{
+  const R = await import(J('render.3d.js'));
+
+  const szene = () => ({
+    flaechen: [{ punkte: [[0, 0, 0], [4, 0, 0], [4, 1, 0]], xMitte: 2,
+                 gruppe: 'profil' }],
+    linien: [{ punkte: [[0, 0, 0], [4, 0, 0]] }],
+    marken: [{ p: [2, 0, 1], text: 'M' }],
+    masse: [{ p0: [0, 0, 0], p1: [4, 0, 0], text: '4 m' }],
+    bauteiltitel: [{ p: [2, 0, 2], text: 'J90' }],
+    vektoren: [{ p: [2, 0, 1], v: [0, 0, -1], text: 'F' }],
+    lastflaechen: [{ punkte: [[0, 0, 1], [4, 0, 1]] }],
+    schnitt: { x: 2, poly: [[2, 0, 0], [2, 1, 0]] },
+    stationen: [0, 2, 4],
+    legende: [{ key: 'gurt', label: 'Gurt' }],
+    bereiche: { eta: 0.5 },
+    grenzen: { xMin: 0, xMax: 4, yMin: 0, yMax: 1, zMin: 0, zMax: 2 },
+  });
+
+  /*
+   * VERSCHOBEN WIRD GENAU EINE ACHSE.
+   *
+   * Alles, was eine x-Koordinate traegt, bekommt dx dazu. `v` ist eine
+   * RICHTUNG, kein Ort - ein verschobener Kraftpfeil zeigte sonst woandershin.
+   */
+  {
+    const v = R.szeneVerschieben(szene(), 10, { twId: 'T2', passiv: true });
+    pruef('Die Flaeche wandert', v.flaechen[0].punkte[0][0], 10, 1e-12, 'm');
+    pruef('… und ihre Mitte mit', v.flaechen[0].xMitte, 12, 1e-12, 'm');
+    pruef('Die Linie wandert', v.linien[0].punkte[1][0], 14, 1e-12, 'm');
+    pruef('Die Marke wandert', v.marken[0].p[0], 12, 1e-12, 'm');
+    pruef('Die Masslinie wandert', v.masse[0].p1[0], 14, 1e-12, 'm');
+    pruef('Der Bauteiltitel wandert', v.bauteiltitel[0].p[0], 12, 1e-12, 'm');
+    pruef('Der Vektor wandert an seinem Ort', v.vektoren[0].p[0], 12, 1e-12, 'm');
+    wahr('… aber seine RICHTUNG bleibt',
+         v.vektoren[0].v.join(',') === '0,0,-1');
+    pruef('Die Station wandert', v.stationen[2], 14, 1e-12, 'm');
+    pruef('Die Grenzen wandern', v.grenzen.xMin, 10, 1e-12, 'm');
+    pruef('… beide', v.grenzen.xMax, 14, 1e-12, 'm');
+    wahr('Quer und hoch bleibt alles stehen',
+         v.grenzen.yMax === 1 && v.grenzen.zMax === 2
+         && v.flaechen[0].punkte[2][1] === 1);
+    // DIE KENNZEICHNUNG WANDERT IN JEDEN TEIL - daran haengt Farbe und Klick.
+    wahr('Jeder Teil weiss, zu wem er gehoert',
+         v.flaechen[0].twId === 'T2' && v.flaechen[0].passiv === true
+         && v.marken[0].twId === 'T2' && v.vektoren[0].passiv === true);
+  }
+
+  /*
+   * VEREINEN: die Grenzen umschliessen alles, die Legende steht einmal da.
+   *
+   * DER SCHNITT GEHOERT DEM AKTIVEN. Zwei Nachweisschnitte in einem Bild
+   * waeren zwei Antworten auf eine Frage.
+   */
+  {
+    const a = { ...R.szeneVerschieben(szene(), 0, { twId: 'T1', passiv: true }) };
+    const b = { ...R.szeneVerschieben(szene(), 10, { twId: 'T2' }), aktiv: true };
+    b.schnitt = { x: 12, poly: [] };
+    const g = R.szenenVereinen([a, b]);
+    pruef('Die Grenzen umschliessen beide', g.grenzen.xMin, 0, 1e-12, 'm');
+    pruef('… bis zum Ende', g.grenzen.xMax, 14, 1e-12, 'm');
+    wahr('Die Flaechen sind zusammengelegt', g.flaechen.length === 2);
+    wahr('Die Legende steht einmal da', g.legende.length === 1);
+    wahr('Der Schnitt ist der des aktiven', g.schnitt.x === 12);
+    wahr('Und die Stationen sind alle da', g.stationen.length === 6);
+  }
+  {
+    // Ein einzelnes Tragwerk bleibt, wie es ist - kein Umweg ohne Not.
+    const eine = szene();
+    wahr('Eine Szene bleibt sie selbst', R.szenenVereinen([eine]) === eine);
+    wahr('Nichts ergibt nichts', R.szenenVereinen([null, null]) === null);
+  }
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

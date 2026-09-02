@@ -253,6 +253,102 @@ function szeneOhneBild(m) {
   };
 }
 
+/* ===========================================================================
+ * DAS GANZE BLATT IN EINEM BILD
+ *
+ * Weisung vom 2. September: «man laesst die Tragwerke im 3d angezeigt passiv
+ * und man kann dann draufdruecken um auf diese aktiv umzuschalten».
+ *
+ * `erzeugeSzene` baut EIN Tragwerk, mit x von 0 bis L. Mehrere nebeneinander
+ * heisst: jede Szene um ihre Lage x0 verschieben und die Listen vereinen.
+ * Das ist billiger und sicherer, als den Aufbau selbst mehrmals durch das
+ * Blatt zu fuehren - er kennt hundert Stellen, an denen x vorkommt, und
+ * jede einzelne muesste den Versatz mitnehmen.
+ *
+ * VERSCHOBEN WIRD GENAU EINE ACHSE. Alles, was eine x-Koordinate traegt,
+ * bekommt dx dazu: Punkte [x,y,z], Punktlisten, Masslinien, Vektoren,
+ * Grenzen, Stationen. Was keine hat, bleibt.
+ * =========================================================================== */
+
+/** Ein Punkt [x,y,z] um dx verschoben. */
+const pVersch = (p, dx) => (Array.isArray(p) ? [p[0] + dx, p[1], p[2]] : p);
+
+/** Ein Szenenteil (Flaeche, Linie, Marke, ...) um dx verschoben. */
+function teilVersch(t, dx, zusatz) {
+  const o = { ...t, ...zusatz };
+  if (Array.isArray(t.punkte)) o.punkte = t.punkte.map((p) => pVersch(p, dx));
+  if (Array.isArray(t.p)) o.p = pVersch(t.p, dx);
+  if (Array.isArray(t.p0)) o.p0 = pVersch(t.p0, dx);
+  if (Array.isArray(t.p1)) o.p1 = pVersch(t.p1, dx);
+  if (Array.isArray(t.poly)) o.poly = t.poly.map((p) => pVersch(p, dx));
+  if (Number.isFinite(t.xMitte)) o.xMitte = t.xMitte + dx;
+  if (Number.isFinite(t.x)) o.x = t.x + dx;
+  // `v` ist eine RICHTUNG, kein Ort - sie wird nicht verschoben.
+  return o;
+}
+
+/**
+ * Eine Szene um dx verschieben und ihre Teile kennzeichnen.
+ *
+ * `zusatz` wandert in jeden Teil: dort steht, zu welchem Tragwerk er gehoert
+ * und ob es das aktive ist. Daran haengen die Einfaerbung und der Klick.
+ */
+export function szeneVerschieben(sz, dx, zusatz = {}) {
+  if (!sz) return sz;
+  const l = (a) => (a ?? []).map((t) => teilVersch(t, dx, zusatz));
+  const g = sz.grenzen ?? {};
+  return {
+    ...sz,
+    flaechen: l(sz.flaechen), linien: l(sz.linien), marken: l(sz.marken),
+    masse: l(sz.masse), bauteiltitel: l(sz.bauteiltitel),
+    vektoren: l(sz.vektoren), lastflaechen: l(sz.lastflaechen),
+    schnitt: sz.schnitt ? teilVersch(sz.schnitt, dx, {}) : null,
+    stationen: (sz.stationen ?? []).map((x) => x + dx),
+    grenzen: { ...g, xMin: (g.xMin ?? 0) + dx, xMax: (g.xMax ?? 0) + dx },
+  };
+}
+
+/**
+ * Mehrere Szenen zu einer vereinen.
+ *
+ * Die Grenzen umschliessen alles; die Legende wird nach ihrem Schluessel
+ * zusammengefasst, damit ein Bauteil, das in zwei Tragwerken vorkommt, nicht
+ * zweimal in der Liste steht.
+ *
+ * DER SCHNITT GEHOERT DEM AKTIVEN. Zwei Nachweisschnitte in einem Bild waeren
+ * zwei Antworten auf eine Frage - gezeigt wird der des Tragwerks, das gerade
+ * gerechnet ist.
+ */
+export function szenenVereinen(teile) {
+  const da = teile.filter(Boolean);
+  if (!da.length) return null;
+  if (da.length === 1) return da[0];
+  const sammle = (k) => da.flatMap((s) => s[k] ?? []);
+  const gz = da.map((s) => s.grenzen ?? {});
+  const min = (k) => Math.min(...gz.map((g) => g[k]).filter(Number.isFinite));
+  const max = (k) => Math.max(...gz.map((g) => g[k]).filter(Number.isFinite));
+  const legende = new Map();
+  da.forEach((s) => (s.legende ?? []).forEach((e) => {
+    if (!legende.has(e.key ?? e.label)) legende.set(e.key ?? e.label, e);
+  }));
+  const bereiche = {};
+  da.forEach((s) => Object.entries(s.bereiche ?? {}).forEach(([k, v]) => {
+    bereiche[k] = Math.max(bereiche[k] ?? 0, v);
+  }));
+  return {
+    flaechen: sammle('flaechen'), linien: sammle('linien'),
+    marken: sammle('marken'), masse: sammle('masse'),
+    bauteiltitel: sammle('bauteiltitel'), vektoren: sammle('vektoren'),
+    lastflaechen: sammle('lastflaechen'),
+    schnitt: da.find((s) => s.aktiv)?.schnitt ?? da[0].schnitt ?? null,
+    stationen: sammle('stationen'),
+    legende: [...legende.values()], bereiche,
+    grenzen: { xMin: min('xMin'), xMax: max('xMax'),
+               yMin: min('yMin'), yMax: max('yMax'),
+               zMin: min('zMin'), zMax: max('zMax') },
+  };
+}
+
 export function erzeugeSzene(m, erg) {
   if (m?.tragwerksart === 'einzelmast') return szeneOhneBild(m);
   const qs = querschnitt(m);
@@ -2329,6 +2425,23 @@ export class Modellansicht {
     if (mt) { this.opt.beiMass?.(mt.feld, mt.tab); return; }
     const tr = this._treffer(e);
     /*
+     * EIN KLICK AUF EIN NICHT AKTIVES TRAGWERK MACHT ES AKTIV (Weisung,
+     * 2. September).
+     *
+     * Er steht VOR allen anderen Treffern: solange ein Tragwerk nicht das
+     * gerechnete ist, gibt es an ihm nichts zu bemassen und nichts
+     * auszuwerten. Die einzige sinnvolle Antwort auf einen Klick ist, es zum
+     * gerechneten zu machen.
+     *
+     * Gepruef wird die getroffene FLAECHE, nicht eine umschliessende Box:
+     * zwei Tragwerke koennen sich im Bild ueberlappen, und dann meint der
+     * Klick das, worauf der Zeiger wirklich steht.
+     */
+    if (tr?.flaeche.passiv && tr.flaeche.twId && this.opt.beiTragwerk) {
+      this.opt.beiTragwerk(tr.flaeche.twId);
+      return;
+    }
+    /*
      * DER MAST IST ANKLICKBAR (Weisung).
      *
      * Er steht seit kurzem als Koerper da - und was man sieht, will man auch
@@ -2898,7 +3011,10 @@ export class Modellansicht {
       // Körper deckt er den Gurt darunter zu und liest sich wie ein
       // Anschlussteil. Er bleibt deshalb immer deutlich durchsichtiger als
       // der Rest - auch dann, wenn die Darstellung sonst undurchsichtig ist.
-      const durch = f.punkt ? Math.max(klarAT, 0.62)
+      // Passiv heisst: sichtbar, aber im Hintergrund. Es soll den Blick auf
+      // das gerechnete Tragwerk nicht streitig machen.
+      const durch = f.passiv ? Math.max(klar, 0.72)
+                  : f.punkt ? Math.max(klarAT, 0.62)
                   : (f.gruppe === 'anbau' || f.gruppe === 'last') ? klarAT : klar;
       let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
       c.beginPath();
@@ -3122,6 +3238,15 @@ export class Modellansicht {
   }
 
   _grundfarbe(f, t) {
+    /*
+     * EIN NICHT AKTIVES TRAGWERK WIRD NICHT EINGEFAERBT.
+     *
+     * Es ist nicht gerechnet - eine Farbe aus der Ausnutzungsskala waere
+     * dort eine Behauptung. Es steht als Umriss da, damit man sieht, WO es
+     * steht und dass es dazugehoert; alles Weitere sagt es, sobald man es
+     * anklickt.
+     */
+    if (f.passiv) return t.xdim ?? t.dim;
     const p = PLOTS.find((x) => x.key === this.modus);
     if (p && f.werte) {
       const v = f.werte[p.feld];
