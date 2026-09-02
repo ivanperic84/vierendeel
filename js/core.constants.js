@@ -562,6 +562,40 @@ export function setzeMastAngabe(w, ende, flachKey, wert) {
 }
 
 /**
+ * WO ZWEI JOCHENDEN ZU NAH BEIEINANDERSTEHEN.
+ *
+ * Die stehenden Endbleche sitzen am Jochende - erste und letzte Station
+ * liegen bei x = 0 und x = L. Treffen zwei Joche an einem Zwischenmasten
+ * zusammen, fallen sie auf DENSELBEN Punkt: in AxisVM zwei Bleche im selben
+ * Ort, mit Knoten, die aufeinanderliegen, ohne verbunden zu sein.
+ *
+ * Weisung vom 2. September: mindestens 5 cm von der Mastachse, also 10 cm
+ * zwischen den beiden Blechachsen. Die Ausleitung rueckt automatisch nach
+ * (lagenEntflechten in export.axisvm.js) - hier steht, WO es noetig ist,
+ * damit es auch in der Auswertung erscheint und nicht erst in der Datei.
+ *
+ * @returns {Array<{links:string, rechts:string, x:number, luecke:number}>}
+ */
+export function engeJochenden(w, soll = 0.10) {
+  const alle = tragwerkeSortiert(w);
+  const eng = [];
+  for (let i = 1; i < alle.length; i++) {
+    const a = alle[i - 1], b = alle[i];
+    // Nur wo ein Mast geteilt wird, treffen Endbleche aufeinander.
+    const gemeinsam = mastLagen(a).some(
+      (x) => mastLagen(b).some((y) => Math.abs(x - y) <= 0.1));
+    if (!gemeinsam) continue;
+    const ende = lageVon(a) + (Number(a.L) || 0);
+    const anfang = lageVon(b);
+    const luecke = anfang - ende;
+    if (luecke < soll - 1e-9) {
+      eng.push({ links: a.id, rechts: b.id, x: ende, luecke });
+    }
+  }
+  return eng;
+}
+
+/**
  * Masten, die sich zwei Tragwerke teilen.
  *
  * Gleiche Stelle heisst: naeher als 10 cm beieinander. Zwei Masten, die auf

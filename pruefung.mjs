@@ -7325,22 +7325,19 @@ titel('41  Welche Nachweise gefuehrt werden');
     // Der Mast seit dem 28. August schon - und sein `was` sagt, was FEHLT.
     wahr('Der Mast ist enthalten',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').vorhanden === true);
-    wahr('Und nennt die Stabilitaet als nicht enthalten',
-         /Stabilit/.test(CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').was),
-         CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').was);
-  }
-
-  // Voreingestellt gefuehrt wird, was da ist.
-  {
     /*
-     * WEISUNG, nachgereicht: der Auflagernachweis bleibt ab Werk AUS.
-     * «Vorhanden» und «voreingestellt gefuehrt» sind seither zwei Angaben -
-     * vorher fielen sie zusammen, und genau das ging nicht mehr.
+     * SEIT DEM 2. SEPTEMBER MIT STABILITAET.
+     *
+     * Hier stand, `was` muesse die Stabilitaet als NICHT enthalten nennen.
+     * Das Biegeknicken wird jetzt gefuehrt (EN 1993-1-1, 6.3.3); was aussen
+     * vor bleibt, ist das Biegedrillknicken - und auch das steht dort, statt
+     * still angenommen zu werden.
      */
-    const st = CH.nachweiseStandard();
-    wahr('Voreingestellt gefuehrt sind Jochtragwerk und Mast',
-         st.jochtragwerk === true && st.auflagerJoch === false
-         && st.knickenJoch === false && st.mast === true, JSON.stringify(st));
+    wahr('Das Biegeknicken ist enthalten',
+         /Biegeknicken/.test(CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').was));
+    wahr('… und das Biegedrillknicken ausdruecklich nicht',
+         /Biegedrillknicken bleibt aussen vor/
+           .test(CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').was));
     wahr('Das Auflager ist vorhanden, aber nicht voreingestellt',
          CH.NACHWEISGRUPPEN.find((g) => g.key === 'auflagerJoch').vorhanden === true);
   }
@@ -11141,7 +11138,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * ganz, und man sah es der Datei nicht an.
      */
     pruef('Das Stabmodell beginnt beim ersten Masten', Math.min(...xs), 0, 1e-6, 'm');
-    pruef('… und endet beim letzten', Math.max(...xs), 35, 1e-6, 'm');
+    /*
+     * 35.10, NICHT 35.00 - das Entflechten rueckt das zweite Joch um zehn
+     * Zentimeter. Die Endbleche zweier Joche duerfen einander nicht
+     * beruehren (Weisung), und die Jochlaenge steht fest; also wandert die
+     * Lage. Genau das ist die gemeldete Modellunschaerfe.
+     */
+    pruef('… und endet beim letzten', Math.max(...xs), 35.1, 1e-6, 'm');
 
     /*
      * >>> DER GETEILTE MAST IST EINER. <<<
@@ -11234,6 +11237,183 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          (bau.blatt?.widerspruch?.length ?? 0) === 0);
     const fuesse = [...bau.knoten.keys()].filter((n) => /^MAST_.*_F$/.test(n));
     wahr('… und weiterhin drei Masten', fuesse.length === 3);
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 73: die Endbleche zweier Joche duerfen einander nicht beruehren.
+// Weisung vom 2. September: min. 5 cm zur Mastachse, also 10 cm zwischen den
+// beiden Blechachsen.
+{
+  const AX73 = await import(J('export.axisvm.js'));
+  const C73 = await import(J('core.constants.js'));
+  const V73 = await import(J('core.vierendeel.js'));
+
+  /*
+   * >>> WARUM DAS NICHT KOSMETIK IST. <<<
+   *
+   * Die Endbleche sitzen am Jochende - erste und letzte Station liegen bei
+   * x = 0 und x = L. Treffen zwei Joche an einem Zwischenmasten zusammen,
+   * fallen beide auf DENSELBEN Punkt: in AxisVM zwei Bleche im selben Ort,
+   * mit Knoten, die aufeinanderliegen, ohne verbunden zu sein.
+   */
+  {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false },
+                           T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    w = C73.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20 });
+    const eng = C73.engeJochenden(w);
+    wahr('Zwei Joche Stoss an Stoss werden erkannt', eng.length === 1);
+    pruef('… und die Luecke ist null', eng[0].luecke, 0, 1e-9, 'm');
+
+    const deps = { modellVon: (satz) => V73.modell(satz,
+      getProfil(satz.profOG), getProfil(satz.profUG),
+      getStahl(satz.stahl), T.getTragjoch(satz.typ)) };
+    const bau = AX73.stabmodellBlatt(w, deps, { knotenmodell: 'anschnitt' });
+
+    // DIE AUSLEITUNG RUECKT NACH - und sagt es.
+    wahr('Die Ausleitung entflicht', bau.blatt.entflochten.length === 1);
+    pruef('… um die fehlenden 10 cm', bau.blatt.entflochten[0].dx, 0.10, 1e-9, 'm');
+    wahr('… und nennt den Grund', /Endbleche/.test(bau.blatt.entflochten[0].wegen));
+
+    /*
+     * DER GETEILTE MAST STEHT MITTIG. Fuenf Zentimeter von jedem Blech -
+     * er kann nicht an beiden Enden zugleich sein.
+     */
+    const fuss = [...bau.knoten.entries()]
+      .filter(([n]) => /^MAST_.*_F$/.test(n)).map(([, k]) => k.x).sort((a, b) => a - b);
+    wahr('Drei Masten', fuss.length === 3);
+    pruef('Der Zwischenmast steht mittig', fuss[1], 20.05, 1e-6, 'm');
+    pruef('… fuenf Zentimeter vom linken Blech', fuss[1] - 20, 0.05, 1e-6, 'm');
+    pruef('… und fuenf vom rechten', 20.10 - fuss[1], 0.05, 1e-6, 'm');
+    wahr('Und kein Knoten steht doppelt',
+         (bau.blatt.widerspruch?.length ?? 0) === 0);
+  }
+
+  // WER GENUG ABSTAND HAT, WIRD NICHT ANGEFASST.
+  {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false },
+                           T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    w = C73.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20.5 });
+    wahr('Ein halber Meter Luft genuegt', C73.engeJochenden(w).length === 0);
+  }
+
+  // UND DIE AUSWERTUNG SAGT ES, nicht erst die Datei.
+  {
+    const { hinweise } = await import(J('core.checks.js'));
+    const h = hinweise({ engeJochenden: [{ links: 'T1', rechts: 'T2', x: 20, luecke: 0 }],
+                         tragwerksart: 'einzelmast' });
+    wahr('Die Modellunschaerfe steht in den Hinweisen',
+         h.some((t) => /Jochenden/.test(t) && /Modell weicht|weicht damit/.test(t)));
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 74: Biegeknicken des Mastes, EN 1993-1-1, 6.3. Weisung vom
+// 2. September: «nimm noch die stabilitätsnachweis mit ein in die app».
+{
+  const M74 = await import(J('core.mast.js'));
+  const V74 = await import(J('core.vierendeel.js'));
+  const MP = await import(J('data.masten.js'));
+
+  const mast = (o = {}) => {
+    const w = { ...standardwerte(), tragwerksart: 'einzelmast',
+                mastVorhanden: true, mastProfil: 'HEB 260',
+                mastH: 9, mastLaenge: 12, anbauteile: [],
+                beiwerteFest: { G: 1, WindX: 1.5, WindY: 0, Schnee: 0 }, ...o };
+    const e = V74.berechneEinzelmast(w, getStahl('S235'));
+    return { e, s: M74.mastSchnitt(e.modell, 'A'), m: e.modell };
+  };
+
+  /*
+   * DIE EULERLAST GEGEN DIE HANDRECHNUNG.
+   *
+   * N_cr = pi^2 EI / L_cr^2. Beim HEB 260 (I_z = 5135 cm^4) mit L_cr = 24 m
+   * sind das rund 185 kN - eine Zahl, die sich in einer Minute nachrechnen
+   * laesst, und genau darum steht sie hier.
+   */
+  {
+    const { s, m } = mast();
+    const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
+    const p = MP.MASTPROFILE.find((x) => x.name === 'HEB 260');
+    pruef('L_cr = beta · Gesamtlaenge', k.Lcr, 24, 1e-9, 'm');
+    const NcrSoll = (Math.PI ** 2 * 210000 * (p.Iz * 1e4)) / ((24000) ** 2) / 1000;
+    pruef('N_cr um die schwache Achse', k.NcrZ, NcrSoll, 1e-6, 'kN');
+    pruef('N_Rk = A · f_y', k.NRk, (p.A * 100 * 235) / 1000, 1e-9, 'kN');
+    pruef('lambda_quer = sqrt(N_Rk / N_cr)', k.lamZ,
+          Math.sqrt(k.NRk / k.NcrZ), 1e-12, '–');
+  }
+
+  /*
+   * DIE KNICKLINIE FOLGT DER GEOMETRIE, nicht einer Annahme.
+   *
+   * EN 1993-1-1, Tabelle 6.2: gewalzte I-Profile mit h/b <= 1.2 bekommen
+   * y-y die Linie b und z-z die Linie c. Die Mastprofile des Sortiments
+   * liegen zwischen 1.00 und 1.09 - also durchweg b/c.
+   */
+  {
+    const { s, m } = mast();
+    const k = M74.mastStabilitaet(s, m, {});
+    wahr('HEB 260: Linie b um y, c um z',
+         k.knicklinie.y === 'b' && k.knicklinie.z === 'c');
+    pruef('… mit alpha 0.34 und 0.49', k.alphaY, 0.34, 1e-12, '–');
+    pruef('…', k.alphaZ, 0.49, 1e-12, '–');
+    // chi nach 6.3.1.2, gegen die geschlossene Formel.
+    const phi = 0.5 * (1 + k.alphaZ * (k.lamZ - 0.2) + k.lamZ ** 2);
+    pruef('chi_z nach 6.3.1.2', k.chiZ,
+          1 / (phi + Math.sqrt(phi ** 2 - k.lamZ ** 2)), 1e-12, '–');
+    wahr('chi liegt zwischen 0 und 1', k.chiZ > 0 && k.chiZ <= 1);
+    wahr('Die schwache Achse knickt eher', k.chiZ < k.chiY);
+  }
+
+  // EIN LAENGERER MAST KNICKT FRUEHER - die Richtung muss stimmen.
+  {
+    const kurz = M74.mastStabilitaet(mast({ mastLaenge: 8 }).s,
+                                     mast({ mastLaenge: 8 }).m, {});
+    const lang = M74.mastStabilitaet(mast({ mastLaenge: 16 }).s,
+                                     mast({ mastLaenge: 16 }).m, {});
+    wahr('Der laengere Mast hat das kleinere chi', lang.chiZ < kurz.chiZ);
+    wahr('… und die groessere Schlankheit', lang.lamZ > kurz.lamZ);
+  }
+  // UND EIN GROESSERER BEIWERT WIRKT WIE EIN LAENGERER MAST.
+  {
+    const { s, m } = mast();
+    const a = M74.mastStabilitaet(s, m, { beta: 1.0 });
+    const b = M74.mastStabilitaet(s, m, { beta: 2.0 });
+    pruef('Doppelter Beiwert, doppelte Knicklaenge', b.Lcr, 2 * a.Lcr, 1e-9, 'm');
+    wahr('… und kleineres chi', b.chiZ < a.chiZ);
+  }
+
+  /*
+   * >>> UND ER IST NICHT NEBENSAECHLICH. <<<
+   *
+   * Am 31. August hiess es, das Knicken sei «nie massgebend auf grund der
+   * verhältnissmässig kleinen lasten». Gemessen am HEB 260 ueber 12 m mit
+   * beta = 2.0 liegt es bei 0.1465 gegen 0.1360 aus dem Querschnitt - also
+   * KNAPP DARUEBER. Die Normalkraft ist zwar klein (11 kN Eigengewicht),
+   * aber chi_z faellt bei einer Schlankheit von 3.88 auf 0.059, und der
+   * Momentenanteil wird mit k_yy = 0.93 hochgesetzt.
+   *
+   * Die Vermutung war also gut begruendet und trotzdem knapp daneben -
+   * genau dafuer rechnet man es aus.
+   */
+  {
+    const { e } = mast();
+    wahr('Der Nachweis wird gefuehrt', Number.isFinite(e.mast.etaStabil));
+    wahr('… und liegt in derselben Groessenordnung',
+         e.mast.etaStabil > e.mast.eta * 0.5
+         && e.mast.etaStabil < e.mast.eta * 2);
+    // Das URTEIL zaehlt beides, die Farbskala nur den Querschnitt.
+    wahr('etaNachweis ist das groessere der beiden',
+         e.mast.etaNachweis === Math.max(e.mast.eta, e.mast.etaStabil));
+  }
+
+  // OHNE MASTLAENGE GILT DIE HOEHE - dann endet der Mast am Anschluss.
+  {
+    const { s, m } = mast({ mastLaenge: 0 });
+    const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
+    pruef('Ohne Gesamtlaenge zaehlt H', k.Lcr, 2 * 9, 1e-9, 'm');
   }
 }
 

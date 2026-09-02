@@ -603,6 +603,71 @@ function stabmodellEinzelmast(m, opt = {}) {
  * =========================================================================== */
 
 /**
+ * MINDESTABSTAND EINES STEHENDEN ENDBLECHS ZUR MASTACHSE [m].
+ *
+ * Weisung vom 2. September: «die stehenden endbleche sollten einen abstand
+ * von min. 5 cm zur mastachse hin haben so das es dann insgesamt 10 cm
+ * abstand sind von achse stehendes blech der beiden angrenzenden joche.»
+ *
+ * >>> WARUM DAS NICHT KOSMETIK IST. <<<
+ *
+ * Die Endbleche sitzen am Jochende - erste und letzte Station liegen bei
+ * x = 0 und x = L. Treffen zwei Joche an einem Zwischenmasten zusammen,
+ * fallen beide Endbleche auf DENSELBEN Punkt. AxisVM bekommt dann zwei
+ * Bleche im selben Ort, mit Knoten, die aufeinanderliegen, ohne verbunden zu
+ * sein - je nach Vernetzung ein Fehler oder, schlimmer, ein Modell, das
+ * klaglos rechnet und dabei zwei Bauteile durcheinanderschiebt.
+ */
+export const BLECH_MASTABSTAND = 0.05;
+
+/**
+ * Die Tragwerke so auseinanderrücken, dass die Endbleche Luft haben.
+ *
+ * >>> UND DAS IST EINE MODELLUNSCHÄRFE, KEINE KORREKTUR. <<<
+ *
+ * Die Jochlängen stehen fest - sie kommen aus dem Sortiment und werden
+ * nicht angetastet (stehende Vorgabe). Also rückt das rechte Tragwerk um
+ * die fehlende Strecke nach rechts, und der geteilte Mast um die Hälfte
+ * davon: er steht dann mittig zwischen den beiden Blechen, fünf Zentimeter
+ * von jedem. Die starren Anschlüsse (LINK/STARR) überbrücken den Rest -
+ * dafür gibt es sie.
+ *
+ * Das Modell weicht damit von der Eingabe ab, und zwar sichtbar: was
+ * verschoben wurde und um wieviel, steht im Bericht. Ein stilles Rücken
+ * wäre die schlechtere Antwort - wer die Lage auf den Zentimeter eingegeben
+ * hat, muss erfahren, dass sie nicht mehr gilt.
+ *
+ * @returns {Map<string, {dx:number, mastDx:number, wegen:string}>}
+ */
+export function lagenEntflechten(alle, mastenJe) {
+  const versatz = new Map();
+  const soll = 2 * BLECH_MASTABSTAND;
+  let nach = 0;                       // was die bisherigen schon geschoben haben
+  for (let i = 1; i < alle.length; i++) {
+    const links = alle[i - 1], rechts = alle[i];
+    versatz.set(rechts.id, { dx: nach, mastDx: 0, wegen: null });
+    // Nur wo sich zwei Tragwerke einen Masten teilen, treffen Endbleche
+    // aufeinander. Stehen sie für sich, gibt es nichts zu entflechten.
+    const geteilt = (mastenJe.get(links.id) ?? []).some(([, m]) => m
+      && (mastenJe.get(rechts.id) ?? []).some(([, n]) => n && n.id === m.id));
+    if (!geteilt) continue;
+    const ende = lageVon(links) + (versatz.get(links.id)?.dx ?? 0)
+               + (Number(links.L) || 0);
+    const anfang = lageVon(rechts) + nach;
+    const luecke = anfang - ende;
+    if (luecke >= soll - 1e-9) continue;
+    const fehlt = soll - luecke;
+    nach += fehlt;
+    versatz.set(rechts.id, {
+      dx: nach, mastDx: fehlt / 2,
+      wegen: `Endbleche standen ${(luecke * 100).toFixed(1)} cm auseinander, `
+           + `nötig sind ${(soll * 100).toFixed(0)} cm`,
+    });
+  }
+  return versatz;
+}
+
+/**
  * Der Höhenversatz eines Tragwerks, damit geteilte Masten aufeinandertreffen.
  *
  * Er folgt aus dem ersten Masten, den es mit einem schon gesetzten Tragwerk
@@ -643,11 +708,21 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     return [t.id, [['A', a], ['B', b]]];
   }));
 
+  /*
+   * ERST ENTFLECHTEN, DANN BAUEN.
+   *
+   * Zwei Joche, die an einem Zwischenmasten zusammentreffen, haben ihre
+   * Endbleche am selben Punkt. Sie bekommen zehn Zentimeter Luft - fuenf je
+   * Seite der Mastachse -, und was dabei verschoben wurde, steht im Bericht.
+   */
+  const entflochten = lagenEntflechten(alle, mastenJe);
+
   const gesetzt = [];
   const teile = [];
   const uebersprungen = [];
   alle.forEach((t) => {
     const dz = hoehenversatz(t, gesetzt, mastenJe);
+    const ent = entflochten.get(t.id) ?? { dx: 0, mastDx: 0, wegen: null };
     let m;
     try {
       m = deps.modellVon(tragwerkSatz(werte, t.id));
@@ -692,7 +767,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
      */
     const bau = stabmodell(m, { ...opt, praefix: `${t.id}_`,
                                mastNamen, anschlussNamen });
-    teile.push({ id: t.id, bau, m, dz, x0: lageVon(t) });
+    teile.push({ id: t.id, bau, m, dz, x0: lageVon(t) + ent.dx, ent });
     gesetzt.push({ t, dz });
   });
 
@@ -712,10 +787,40 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
   const streckenlasten = [];
   const widerspruch = [];
 
-  teile.forEach(({ bau, dz, x0 }) => {
-    const schieb = (k) => ({ ...k, x: r6(k.x + x0), z: r6(k.z + dz) });
+  /*
+   * >>> DER GETEILTE MAST STEHT MITTIG ZWISCHEN DEN BEIDEN BLECHEN. <<<
+   *
+   * Das Entflechten rueckt die Joche auseinander - damit liegen ihre
+   * Anschlusspunkte zehn Zentimeter auseinander, und der Mast kann nicht
+   * mehr an beiden sein. Er gehoert in die Mitte: fuenf Zentimeter von
+   * jedem Blech, so wie es die Weisung sagt.
+   *
+   * Seine Knoten werden deshalb NICHT mit dem Tragwerk verschoben, sondern
+   * auf ihre eigene Sollage. Ohne das stuende derselbe Mast zweimal da, und
+   * der Widerspruchszaehler haette es gemeldet.
+   */
+  const mastSoll = new Map();
+  teile.forEach(({ bau, x0 }) => {
     bau.knoten.forEach((k, name) => {
-      const neu = schieb(k);
+      const t = /^MAST_([^_]+)_/.exec(name);
+      if (!t) return;
+      const x = r6(k.x + x0);
+      const da = mastSoll.get(t[1]);
+      // Mittelwert ueber alle Tragwerke, die an ihm haengen.
+      mastSoll.set(t[1], da ? { summe: da.summe + x, n: da.n + 1 }
+                            : { summe: x, n: 1 });
+    });
+  });
+
+  teile.forEach(({ bau, dz, x0 }) => {
+    const schieb = (k, name) => {
+      const t = /^MAST_([^_]+)_/.exec(name);
+      const soll = t && mastSoll.get(t[1]);
+      const x = soll ? r6(soll.summe / soll.n) : r6(k.x + x0);
+      return { ...k, x, z: r6(k.z + dz) };
+    };
+    bau.knoten.forEach((k, name) => {
+      const neu = schieb(k, name);
       const da = knoten.get(name);
       if (!da) { knoten.set(name, neu); return; }
       if (Math.abs(da.x - neu.x) > 1e-6 || Math.abs(da.y - neu.y) > 1e-6
@@ -781,8 +886,19 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     zweiPunktAnschluss: teile.flatMap((x) => x.bau.zweiPunktAnschluss ?? []),
     schottAusblenden: opt.schottAusblenden === true,
     // Nur für den Bericht: woraus das Modell besteht, und was daran klemmt.
-    blatt: { tragwerke: teile.map((x) => ({ id: x.id, x0: x.x0, dz: x.dz })),
-             uebersprungen, widerspruch },
+    blatt: {
+      tragwerke: teile.map((x) => ({ id: x.id, x0: x.x0, dz: x.dz })),
+      uebersprungen, widerspruch,
+      /*
+       * WAS VERSCHOBEN WURDE, UND WARUM.
+       *
+       * Der Bericht nennt es; ein stilles Ruecken waere die schlechtere
+       * Antwort - wer die Lage auf den Zentimeter eingegeben hat, muss
+       * erfahren, dass sie nicht mehr gilt.
+       */
+      entflochten: teile.filter((x) => x.ent?.wegen).map((x) => ({
+        id: x.id, dx: x.ent.dx, mastDx: x.ent.mastDx, wegen: x.ent.wegen })),
+    },
   };
 }
 

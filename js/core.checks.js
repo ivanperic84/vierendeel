@@ -109,10 +109,23 @@ export const NACHWEISGRUPPEN = [
    * der Knicklänge; sie ist Sache des Auftraggebers. Bei einem schlanken
    * Kragmast kann sie massgebend werden.
    */
+  /*
+   * SEIT DEM 2. SEPTEMBER MIT STABILITAET (Weisung: «nimm noch die
+   * stabilitätsnachweis mit ein in die app, damit der hinweis nicht mehr
+   * erscheint»).
+   *
+   * Hier stand «OHNE Stabilität ... gesondert zu führen». Das Biegeknicken
+   * wird jetzt gefuehrt - Knicklaenge als Eingabe, Vorgabe der Kragarm mit
+   * beta = 2.0. Was weiterhin aussen vor bleibt, ist das
+   * BIEGEDRILLKNICKEN: der Mast ist ein eingespannter Stiel ohne freie
+   * Druckgurtlaenge im Sinne von 6.3.2, chi_LT = 1.0. Das steht da, damit
+   * es nachgeprueft werden kann, statt still angenommen zu werden.
+   */
   { key: 'mast', titel: 'Mast', vorhanden: true, standard: true,
     was: 'Querschnitt am Mastfuss und an jeder Anbaustelle — σ aus N, M_quer '
-       + 'und M_längs. OHNE Stabilität: Biegeknicken und Biegedrillknicken '
-       + 'sind gesondert zu führen' },
+       + 'und M_längs — sowie Biegeknicken nach EN 1993-1-1, 6.3.3. '
+       + 'Biegedrillknicken bleibt aussen vor (χ_LT = 1.0, eingespannter '
+       + 'Stiel)' },
 ];
 
 /** Voreinstellung je Gruppe. */
@@ -473,6 +486,26 @@ export function hinweise(m) {
    * eingetragen hat, bekommt die Zahl - und sieht, welcher Mast gemeint
    * ist. Er traegt von beiden Seiten; gerechnet ist eine.
    */
+  /*
+   * ZWEI JOCHENDEN AN EINEM MASTEN BRAUCHEN LUFT.
+   *
+   * Die stehenden Endbleche sitzen am Jochende; treffen zwei Joche
+   * zusammen, fallen sie auf denselben Punkt. Die Ausleitung rueckt
+   * automatisch nach - fuenf Zentimeter je Seite der Mastachse -, und genau
+   * das ist eine MODELLUNSCHAERFE: das ausgeleitete Modell steht dann
+   * anders als die Eingabe. Wer die Lage auf den Zentimeter eingegeben hat,
+   * muss davon erfahren, bevor er die Datei rechnet.
+   */
+  const ej = m.engeJochenden ?? [];
+  if (ej.length) {
+    h.push(`${ej.length === 1 ? 'Zwei Jochenden treffen' : `${ej.length}× treffen Jochenden`}`
+      + ` an einem Masten fast ohne Abstand zusammen (`
+      + `${ej.map((e) => `x = ${e.x.toFixed(2)} m: ${(e.luecke * 100).toFixed(1)} cm`).join(', ')}`
+      + '). Die Ausleitung rückt sie auf 10 cm auseinander — 5 cm je Seite '
+      + 'der Mastachse — und verschiebt den Masten in die Mitte. Das '
+      + 'ausgeleitete Modell weicht damit von der Eingabe ab.');
+  }
+
   const gm = m.geteilteMasten ?? [];
   if (gm.length) {
     h.push(`${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
@@ -500,9 +533,14 @@ export function hinweise(m) {
         + 'jetzt am Masten — ein Einzelmast hat kein Joch, an dem etwas '
         + 'stehen könnte. Ihre Höhe über Fundament ist zu prüfen.');
     }
-    h.push('Nachgewiesen ist der Querschnitt über die Masthöhe, nicht die '
-      + 'Stabilität: kein Biegeknicken, kein Biegedrillknicken. Bei einem '
-      + 'schlanken Kragmast kann sie massgebend werden.');
+    /*
+     * DER HINWEIS IST WEG, WEIL DER NACHWEIS DA IST.
+     *
+     * Hier stand bis zum 2. September «nicht die Stabilität: kein
+     * Biegeknicken, kein Biegedrillknicken». Das Biegeknicken wird jetzt
+     * gefuehrt; was bleibt, ist das Biegedrillknicken - und das steht in der
+     * Nachweisgruppe, nicht als Warnung ueber dem ganzen Ergebnis.
+     */
     return h;
   }
 

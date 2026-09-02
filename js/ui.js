@@ -2216,8 +2216,15 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    * ein GEFUEHRTER Nachweis überschritten ist. Der Mast steht deshalb in der
    * Farbe und in der Zeile, nicht in der Zahl.
    */
+  /*
+   * FUER DAS URTEIL ZAEHLT DER NACHWEIS, nicht der Querschnitt allein.
+   *
+   * Seit dem 2. September wird auch die Stabilitaet gefuehrt. `eta` bleibt
+   * der Querschnitt - daran haengen Farbskala und Verlauf -, aber ob das
+   * Bauteil haelt, entscheidet der groessere der beiden Werte.
+   */
   const mastEta = (erg.mast && urteil.nachweise?.mast !== false)
-    ? erg.mast.eta : null;
+    ? (erg.mast.etaNachweis ?? erg.mast.eta) : null;
   const mastUeber = mastEta !== null && mastEta > 1;
   const zustand = !gefuehrt ? 'warn'
     : (e > 1 || mastUeber || urteil.bindendVerletzt === true ? 'nok' : 'ok');
@@ -2247,10 +2254,14 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    */
   if (erg.mast && urteil.nachweise?.mast !== false) {
     const mn = erg.mast[erg.mast.massgebendesEnde] ?? erg.mast.A;
-    kz.push(kachel('η Mast', f3(erg.mast.eta),
-      `${mn.profil.name} · Ende ${erg.mast.massgebendesEnde} · `
-      + `${mn.plastischWirksam ? 'plastisch' : 'elastisch'}`,
-      ampel(erg.mast.eta)));
+    const eN = erg.mast.etaNachweis ?? erg.mast.eta;
+    // Die Kachel nennt, WAS massgebend ist - Querschnitt oder Knicken. Ohne
+    // das stuende dort eine Zahl, deren Herkunft man raten muesste.
+    const wodurch = (erg.mast.etaStabil ?? 0) > erg.mast.eta
+      ? 'Knicken' : (mn.plastischWirksam ? 'plastisch' : 'elastisch');
+    kz.push(kachel('η Mast', f3(eN),
+      `${mn.profil.name} · Ende ${erg.mast.massgebendesEnde} · ${wodurch}`,
+      ampel(eN)));
   }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den

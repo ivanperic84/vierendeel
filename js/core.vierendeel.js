@@ -12,7 +12,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { U, TOL, massketteLesen, tragwerksart, geteilteMasten }
+import { U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
   from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
@@ -346,7 +346,8 @@ export function modellEinzelmast(inp, stahl) {
  */
 export function berechneEinzelmast(inp, stahl) {
   const m = modellEinzelmast(inp, stahl);
-  const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true });
+  const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true,
+                                  knickBeiwert: inp.knickBeiwert });
   const eta = mast?.eta ?? 0;
   return {
     modell: m, knoten: [], extrem: null,
@@ -607,6 +608,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     // Masten, die sich zwei Tragwerke teilen - der Zwischenmast einer
     // Jochreihe. Der Hinweis nennt die Stelle, nicht nur die Moeglichkeit.
     geteilteMasten: geteilteMasten(inp),
+    // Wo zwei Jochenden zu nah beieinanderstehen - die Ausleitung rueckt
+    // dort automatisch nach, und das ist eine Modellunschaerfe.
+    engeJochenden: engeJochenden(inp),
     L: inp.L, h: v.hT, b: v.bT, a1: inp.a1,
     abstaende: abst,
     teilungQuelle: abst ? 'masstabelle' : 'gleichmaessig',
@@ -860,7 +864,8 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
   return {
     modell: m, knoten: rows, extrem: extremwerte(m),
     stationen: n,
-    mast: mastNachweise(m, { plastisch: inp.mastPlastisch === true }),
+    mast: mastNachweise(m, { plastisch: inp.mastPlastisch === true,
+                                  knickBeiwert: inp.knickBeiwert }),
     schnitt: auswertungAn(m.xNachweis ?? m.L / 2, m),
     max: {
       etaOG: argMax((r) => r.og.eta),

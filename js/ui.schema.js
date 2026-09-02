@@ -705,6 +705,22 @@ export const FELDER = [
            + 'Masten an derselben Stelle, teilen sich zwei Tragwerke einen '
            + 'Masten — bei einem Joch liegt der zweite bei x₀ + jt.' },
 
+  /*
+   * DIE KNICKLAENGE IST EINE FESTLEGUNG UEBER DAS TRAGWERK.
+   *
+   * Ein Fahrleitungsmast ist ein Kragarm - unten eingespannt, oben frei -,
+   * und dafuer gibt der Eulerfall 1 beta = 2.0. Wer den Mastkopf gehalten
+   * weiss, setzt weniger an. Das darf ein Werkzeug nicht selbst entscheiden,
+   * aber es kann die uebliche Annahme vorschlagen.
+   */
+  { key: 'knickBeiwert', optionenDialog: true, gruppe: 'komb', typ: 'zahl',
+    label: 'Knicklängenbeiwert Mast', sym: 'β', standard: 2.0,
+    schritt: 0.1, min: 0.5, max: 4,
+    hinweis: 'L_cr = β · Mastlänge. Vorgabe 2.0 — Kragarm, unten '
+           + 'eingespannt, oben frei. Gerechnet wird mit der GESAMTLÄNGE, '
+           + 'nicht mit der Höhe bis zur Jochachse: über dem Anschluss läuft '
+           + 'der Mast weiter, und dieser Teil knickt mit.' },
+
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,
     hinweis: 'Zusatzmoment in den Bindeblechen aus dem Querausweichen der '

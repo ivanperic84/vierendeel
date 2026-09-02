@@ -237,6 +237,16 @@ export function mastLasten(m, ende = 'A') {
 
   return { H, zKopf, gd, wQuer, wLaengs, lasten, anteilFx: anteil,
            profil: md.profil, stegrichtung: md.stegrichtung,
+           /*
+            * DIE GESAMTLAENGE WANDERT MIT.
+            *
+            * Sie fehlte hier, und der Stabilitaetsnachweis rechnete
+            * deshalb mit H - der Hoehe bis zur Jochachse. Ueber dem
+            * Anschluss laeuft der Mast aber weiter, und dieser Teil knickt
+            * mit: an einem 12-m-Masten mit H = 9 waere die Knicklaenge um
+            * sechs Meter zu kurz gewesen, und chi entsprechend zu gross.
+            */
+           laenge: md.laenge, ueberstand: md.ueberstand,
            I: md.I, Iq: md.Iq, W: md.W_cm3, Wq: md.Wq_cm3 };
 }
 
@@ -348,6 +358,146 @@ export function mastSchnitt(m, ende = 'A') {
  * >>> PLASTISCH NUR BEI KLASSE 1 ODER 2. <<< Sonst gilt elastisch, und das
  * Ergebnis sagt es (`plastischWirksam: false`).
  */
+/* ===========================================================================
+ * BIEGEKNICKEN DES MASTES — EN 1993-1-1, 6.3
+ *
+ * Weisung vom 2. September: «nimm noch die stabilitätsnachweis mit ein in die
+ * app, damit der hinweis nicht mehr erscheint.»
+ *
+ * Bis dahin stand der Nachweis ausdrücklich NICHT geführt da — mit dem
+ * Vermerk, die Knicklänge sei eine Festlegung des Auftraggebers. Sie ist es
+ * weiterhin; sie steht jetzt als Zahl im Optionsdialog statt als Lücke im
+ * Nachweis.
+ *
+ * ================== DIE KNICKLÄNGE ========================================
+ *
+ * Ein Fahrleitungsmast ist ein Kragarm: unten im Fundament eingespannt, oben
+ * frei. Der Eulerfall 1 gibt β = 2.0, und das ist die Vorgabe. Wer den
+ * Mastkopf gehalten weiss — durch ein Joch, das sich nicht verschieben kann —
+ * setzt weniger an; das ist eine Entscheidung über das Tragwerk und keine,
+ * die ein Werkzeug treffen darf.
+ *
+ * >>> DIE JOCHACHSE IST NICHT DER KOPF. <<<
+ *
+ * Gerechnet wird mit der GESAMTLÄNGE, nicht mit H. Über dem Jochanschluss
+ * läuft der Mast weiter, und dieser Teil knickt mit. H ist der Hebel der
+ * Drehfeder, L_M die Länge des Stabes.
+ *
+ * ================== DIE KNICKLINIE ========================================
+ *
+ * EN 1993-1-1, Tabelle 6.2, gewalzte I-Profile bis S460:
+ *
+ *     h/b > 1.2, t_f ≤ 40    y–y: a (α 0.21)    z–z: b (α 0.34)
+ *     h/b ≤ 1.2, t_f ≤ 100   y–y: b (α 0.34)    z–z: c (α 0.49)
+ *
+ * Die Mastprofile des Sortiments sind quadratnahe HEB und ein HEM — h/b liegt
+ * zwischen 1.00 und 1.09, also gilt durchweg b/c. Gerechnet wird trotzdem aus
+ * der Geometrie: ein schlankeres Profil in der Tabelle bekäme sonst still die
+ * falsche Linie.
+ *
+ * ================== DIE INTERAKTION =======================================
+ *
+ * Nach 6.3.3, Gleichung 6.61/6.62, mit den Interaktionsbeiwerten k nach
+ * Anhang B. Für den Kragmast mit Kopflast ist C_m = 0.9 (Tabelle B.3,
+ * Kragarm); die Beiwerte werden daraus gerechnet, nicht geraten.
+ *
+ * BIEGEDRILLKNICKEN BLEIBT AUSSEN VOR, und zwar begründet: der Mast ist ein
+ * Kragarm mit Momenten um BEIDE Achsen und ohne freie Druckgurtlänge im
+ * Sinne von 6.3.2 — χ_LT = 1.0. Bei einem Träger unter Querlast wäre das
+ * falsch, bei einem eingespannten Stiel ist es die übliche Annahme. Sie steht
+ * im Nachweis, damit sie nachgeprüft werden kann.
+ * =========================================================================== */
+
+/** Abminderungsbeiwert χ nach EN 1993-1-1, 6.3.1.2. */
+function chiVon(lambdaQuer, alpha) {
+  if (!(lambdaQuer > 0.2)) return 1;            // kein Knicknachweis nötig
+  const phi = 0.5 * (1 + alpha * (lambdaQuer - 0.2) + lambdaQuer ** 2);
+  const chi = 1 / (phi + Math.sqrt(Math.max(0, phi ** 2 - lambdaQuer ** 2)));
+  return Math.min(1, chi);
+}
+
+/**
+ * Stabilitätsnachweis eines Mastes.
+ *
+ * @param {object} s   Ergebnis von mastSchnitt()
+ * @param {object} m   Modell (Stahl, Beiwerte)
+ * @param {object} o   { beta, gammaM1 }
+ */
+export function mastStabilitaet(s, m, o = {}) {
+  const p = s?.profil;
+  if (!p) return null;
+  const fy = m.stahl?.fy ?? 235;
+  const gammaM1 = o.gammaM1 ?? m.gammaM1 ?? m.gammaM0 ?? 1.0;
+  const beta = Number.isFinite(o.beta) ? o.beta : 2.0;
+  /*
+   * DIE GESAMTLÄNGE, NICHT H — siehe oben. Fehlt sie, gilt H: dann endet der
+   * Mast am Jochanschluss, und das ist dieselbe Länge.
+   */
+  const L = (s.laenge > 0 ? s.laenge : s.H) || 0;
+  const Lcr = beta * L;
+  if (!(Lcr > 0)) return null;
+
+  const E = 210000;                                  // N/mm²
+  const A = p.A * 100;                               // cm² -> mm²
+  const NRk = (A * fy) / 1000;                       // kN
+  // Trägheitsmomente in mm⁴, Knicklänge in mm.
+  const Ncr = (achse) => (Math.PI ** 2 * E * (p[achse] * 1e4))
+                       / ((Lcr * 1000) ** 2) / 1000;  // kN
+
+  // Knicklinie aus der Geometrie (Tabelle 6.2).
+  const schlank = p.h / p.b > 1.2 && p.tf <= 40;
+  const alphaY = schlank ? 0.21 : 0.34;
+  const alphaZ = schlank ? 0.34 : 0.49;
+
+  const NcrY = Ncr('Iy'), NcrZ = Ncr('Iz');
+  const lamY = Math.sqrt(NRk / NcrY), lamZ = Math.sqrt(NRk / NcrZ);
+  const chiY = chiVon(lamY, alphaY), chiZ = chiVon(lamZ, alphaZ);
+
+  // Massgebend ist die Stelle mit der grössten Ausnutzung - beim Kragmast
+  // der Fuss, aber ein Anbauteil weiter oben kann es verschieben.
+  const NEd = Math.max(...s.stationen.map((st) => Math.abs(st.N)));
+  const MqEd = Math.max(...s.stationen.map((st) => Math.abs(st.Mq)));
+  const MlEd = Math.max(...s.stationen.map((st) => Math.abs(st.Ml)));
+
+  // Momentenwiderstände [kNm] - elastisch, wie der Querschnittsnachweis.
+  const stegQuer = s.stegrichtung?.achse === 'y';
+  const Wq = stegQuer ? p.Wy : p.Wz;                  // Ebene «quer»
+  const Wl = stegQuer ? p.Wz : p.Wy;
+  const MRq = (Wq * 1000 * fy) / 1e6;                // cm³ -> kNm
+  const MRl = (Wl * 1000 * fy) / 1e6;
+
+  /*
+   * INTERAKTIONSBEIWERTE, Anhang B, Tabelle B.1 (Querschnitt Klasse 1/2 wie
+   * Klasse 3 behandelt - konservativ und ohne Sonderfall).
+   *
+   * C_m = 0.9 für den Kragarm mit Kopflast (Tabelle B.3). Der Beiwert bleibt
+   * innerhalb seiner Schranken; ohne die Deckelung liefe er bei kleiner
+   * Normalkraft gegen sich selbst.
+   */
+  const Cm = 0.9;
+  const nY = NEd / ((chiY * NRk) / gammaM1);
+  const nZ = NEd / ((chiZ * NRk) / gammaM1);
+  const kyy = Math.min(Cm * (1 + 0.6 * lamY * nY), Cm * 1.6);
+  const kzz = Math.min(Cm * (1 + 0.6 * lamZ * nZ), Cm * 1.6);
+  // Die Nebenachse trägt 60 % der Hauptachsenwirkung (B.1, k_yz = 0.6·k_zz).
+  const etaQ = nY + kyy * (MqEd / (MRq / gammaM1))
+             + 0.6 * kzz * (MlEd / (MRl / gammaM1));
+  const etaL = nZ + 0.6 * kyy * (MqEd / (MRq / gammaM1))
+             + kzz * (MlEd / (MRl / gammaM1));
+
+  return {
+    beta, Lcr, gammaM1,
+    NEd, MqEd, MlEd, NRk, MRq, MRl,
+    NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ, kyy, kzz, Cm,
+    knicklinie: { y: schlank ? 'a' : 'b', z: schlank ? 'b' : 'c' },
+    eta: Math.max(etaQ, etaL),
+    etaQuer: etaQ, etaLaengs: etaL,
+    massgebend: etaQ >= etaL ? 'quer' : 'längs',
+    // Unter dieser Schlankheit verlangt die Norm keinen Knicknachweis.
+    ohneNachweis: lamY <= 0.2 && lamZ <= 0.2,
+  };
+}
+
 export function mastNachweis(m, ende = 'A', o = {}) {
   const s = mastSchnitt(m, ende);
   if (!s) return null;
@@ -379,10 +529,37 @@ export function mastNachweis(m, ende = 'A', o = {}) {
 
   const massgebend = stationen.reduce((a, b) => (b.eta > a.eta ? b : a),
                                       stationen[0]);
+  /*
+   * DIE STABILITAET GEHOERT ZUM NACHWEIS, nicht in eine Fussnote.
+   *
+   * Bis zum 2. September stand sie ausdruecklich NICHT gefuehrt da - mit der
+   * Begruendung, bei den kleinen Normalkraeften eines Fahrleitungsmastes sei
+   * sie ohnehin nicht massgebend.
+   *
+   * >>> GEMESSEN IST SIE ES KNAPP DOCH. <<<
+   *
+   * Am HEB 260 ueber 12 m mit beta = 2.0: eta 0.1465 gegen 0.1360 aus dem
+   * Querschnitt. Die Normalkraft ist klein (11 kN Eigengewicht), aber chi_z
+   * faellt bei einer Schlankheit von 3.88 auf 0.059, und der Momentenanteil
+   * wird mit k_yy = 0.93 hochgesetzt. Die Vermutung war gut begruendet und
+   * trotzdem knapp daneben - genau dafuer rechnet man es aus.
+   */
+  const stabil = mastStabilitaet(s, m, {
+    beta: o.knickBeiwert, gammaM1: o.gammaM1 });
   return {
     ende, ...s, stationen, massgebend, eta: massgebend.eta,
     fy, fyd, A, Wq, Wl, klasse: kl, plastisch: plWerte,
     plastischGewuenscht: gewuenschtPlastisch, plastischWirksam,
+    stabil,
+    /*
+     * DAS URTEIL ZAEHLT BEIDES.
+     *
+     * Ein Querschnitt, der haelt, waehrend der Stab knickt, ist nicht
+     * nachgewiesen. `eta` bleibt der Querschnitt - daran haengen die
+     * Spannungsplots -, aber wer nach dem Nachweis fragt, bekommt das
+     * groessere der beiden.
+     */
+    etaMitStabilitaet: Math.max(massgebend.eta, stabil?.eta ?? 0),
   };
 }
 
@@ -401,7 +578,21 @@ export function mastNachweise(m, o = {}) {
   const beide = [A, B].filter(Boolean);
   return {
     A, B,
+    /*
+     * `eta` BLEIBT DER QUERSCHNITT - und zwar mit Absicht.
+     *
+     * Daran haengen die Farbskala und der Verlauf ueber die Hoehe; die
+     * Stabilitaet hat keinen Verlauf, sie gilt dem ganzen Stab. Beim ersten
+     * Anlauf trug `eta` beides, und zwei Kontrollen fielen sofort: die
+     * Farbskala zeigte einen Wert, den kein Punkt im Bild erreicht, und der
+     * plastische Widerstand senkte das eta nicht mehr, weil die Stabilitaet
+     * davon nichts weiss.
+     *
+     * Wer nach dem NACHWEIS fragt, nimmt `etaNachweis`.
+     */
     eta: Math.max(...beide.map((x) => x.eta)),
+    etaStabil: Math.max(...beide.map((x) => x.stabil?.eta ?? 0)),
+    etaNachweis: Math.max(...beide.map((x) => x.etaMitStabilitaet ?? x.eta)),
     massgebendesEnde: beide.reduce((a, b) => (b.eta > a.eta ? b : a)).ende,
   };
 }
