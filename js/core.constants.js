@@ -72,7 +72,7 @@ export const TRAGWERKSARTEN = [
     kurz: 'Auskragender Stab am Masten' },
   /*
    * DAS ABFANGJOCH nimmt die LEITERZUGKRAEFTE auf, nicht das Gewicht der
-   * Fahrleitung. Nach den Werkstattzeichnungen (Typ A, 0161.1080.0051) ist
+   * Fahrleitung. Nach den Werkstattzeichnungen des Sortiments (Typ A) ist
    * es ein zweigurtiger Traeger: zwei UPE mit Sprossen im 500er-Raster,
    * A160 gerade, A200 und A240 mit geknickten Enden.
    *
