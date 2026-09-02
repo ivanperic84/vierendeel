@@ -194,8 +194,20 @@ export function mastLasten(m, ende = 'A') {
   const anteil = kSum > 0 ? (seite === 'A' ? kA : kB) / kSum : 0.5;
   const Fx = (m.N ?? []).reduce((a, n) => a + n.w, 0) * anteil;
 
+  /*
+   * `zAnschluss` IST NICHT DASSELBE WIE `z`.
+   *
+   * `z` sagt, wo die Last ANGREIFT - beim Fahrdraht einer Haengestuetze
+   * anderthalb Meter unter ihrer Befestigung. `zAnschluss` sagt, wo sie in
+   * den MASTEN eintritt: an der Befestigung. Dazwischen laeuft sie durch das
+   * Anbauteil, nicht durch den Masten.
+   *
+   * Fuer die Knicklaenge zaehlt der Eintritt: oberhalb davon drueckt nichts
+   * mehr. Mit `z` gerechnet fiele sie zu kurz aus - und das waere die
+   * unsichere Seite (gemessen: 11.3 statt 14.0 m).
+   */
   const lasten = [{
-    art: 'joch', name: `Joch, Anschluss Ende ${seite}`, z: H,
+    art: 'joch', name: `Joch, Anschluss Ende ${seite}`, z: H, zAnschluss: H,
     Fz, Fx, Fy, Mq, Ml, ex: 0, ey: 0,
   }];
 
@@ -230,6 +242,7 @@ export function mastLasten(m, ende = 'A') {
     if (!k.Fx && !k.Fy && !k.Fz && !k.Myy && !k.Mzz) return;
     lasten.push({
       art: 'anbau', name: t.name, z: (t.hMast ?? 0) + (t.z ?? 0),
+      zAnschluss: t.hMast ?? 0,
       Fz: k.Fz, Fx: k.Fx, Fy: k.Fy, Mq: k.Myy, Ml: k.Mzz,
       ex: t.x ?? 0, ey: t.y ?? 0,
     });
@@ -434,7 +447,63 @@ export function mastStabilitaet(s, m, o = {}) {
    * Mast am Jochanschluss, und das ist dieselbe Länge.
    */
   const L = (s.laenge > 0 ? s.laenge : s.H) || 0;
-  const Lcr = beta * L;
+
+  /*
+   * ============ DIE KNICKLÄNGE ENDET AN DER KRAFTEINLEITUNG ==============
+   *
+   * Weisung vom 2. September, auf Nachfrage entschieden: «die angriffshöhe
+   * der Normalkraft müsste noch berücksichtigt werden» — nach der
+   * Angriffshöhe abstufen.
+   *
+   * Bis dahin stand hier L_cr = β · L über die GANZE Länge, mit dem
+   * Fusswert der Normalkraft. Das ist sicher und bei einem Masten mit
+   * Überstand deutlich zu sicher: über dem Jochanschluss trägt der Mast
+   * nichts als sein eigenes Gewicht, und was dort nicht drückt, kann dort
+   * auch nicht ausknicken.
+   *
+   * >>> UND DAS IST KEINE NÄHERUNG. <<<
+   *
+   * Ein Kragstab der Länge L mit einer Druckkraft in der Höhe a < L knickt
+   * mit N_cr = π²·E·I/(2a)². Das Stück oberhalb a trägt keine
+   * destabilisierende Kraft; es fährt mit, ohne am Eigenwertproblem
+   * teilzunehmen. Die massgebende Länge ist a, nicht L.
+   *
+   * a ist die HÖCHSTE Stelle, an der noch eine Vertikallast eingeleitet
+   * wird — der Jochanschluss, oder eine Traverse darüber. Gibt es keine
+   * (ein Mast, der nur sein Eigengewicht trägt), bleibt es bei der ganzen
+   * Länge: dann drückt oben tatsächlich noch etwas.
+   *
+   * Gemessen am HEB 260, 12.5 m lang, Anschluss auf 8.31 m:
+   *
+   *     L_cr = 2 · 12.50 = 25.00 m    χ_z 0.055
+   *     L_cr = 2 ·  8.31 = 16.62 m    χ_z 0.116     >>> Faktor 2 <<<
+   *
+   * DIE MOMENTE BLEIBEN, WIE SIE SIND: für sie gilt weiter der grösste Wert
+   * über die ganze Höhe, also der Fusswert. Nur die Knicklänge wird kürzer,
+   * nicht die Einwirkung.
+   *
+   * DER ÜBERSTAND bekommt keinen eigenen Nachweis. Er trägt oberhalb a nur
+   * sein Eigengewicht — bei einem HEB 260 über vier Meter sind das 0.4 kN
+   * gegen eine Grenzlast von über 2700 — und sein Moment ist der kleinste
+   * Teil des ohnehin angesetzten Fussmoments. Ein Nachweis, dessen Ergebnis
+   * feststeht, ist keiner.
+   */
+  const mitFz = (s.lasten ?? []).filter((l) => Math.abs(l.Fz) > 1e-9);
+  /*
+   * DER EINTRITT IN DEN MASTEN, nicht der Angriffspunkt der Last.
+   *
+   * Am Pruefstand gemessen: eine Haengestuetze auf 7.00 m traegt ihren
+   * Fahrdraht 1.35 m tiefer. Nimmt man den Angriffspunkt, endet die
+   * Knicklaenge bei 5.65 statt bei 7.00 m - 11.3 statt 14.0 m, und das ist
+   * die UNSICHERE Seite. In den Masten kommt die Kraft an der Befestigung,
+   * und bis dorthin drueckt sie.
+   */
+  const zLast = mitFz.length
+    ? Math.max(...mitFz.map((l) => l.zAnschluss ?? l.z)) : 0;
+  // Ohne eingeleitete Last gilt die ganze Länge - dann drückt oben wirklich
+  // noch etwas. Und eine Last am Fuss verkürzt nichts auf null.
+  const zN = zLast > 0.5 ? Math.min(zLast, L) : L;
+  const Lcr = beta * zN;
   if (!(Lcr > 0)) return null;
 
   const E = 210000;                                  // N/mm²
@@ -518,7 +587,7 @@ export function mastStabilitaet(s, m, o = {}) {
               + kzz * (MzEd / (MRz / gammaM1));
 
   return {
-    beta, Lcr, gammaM1,
+    beta, Lcr, gammaM1, zN, L,
     NEd, MqEd, MlEd, MyEd, MzEd, NRk, MRq, MRl, MRy, MRz,
     NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ, kyy, kzz, Cm,
     knicklinie: { y: schlank ? 'a' : 'b', z: schlank ? 'b' : 'c' },

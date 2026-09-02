@@ -11473,6 +11473,38 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          Math.abs(kD.MRz - kD.MRq) < 1e-9 && Math.abs(kG.MRy - kG.MRq) < 1e-9);
   }
 
+  /*
+   * >>> DIE KNICKLAENGE ENDET AN DER KRAFTEINLEITUNG. <<<
+   *
+   * Weisung vom 2. September, auf Nachfrage entschieden: nach der
+   * Angriffshoehe abstufen. Ein Kragstab der Laenge L mit einer Druckkraft
+   * in der Hoehe a < L knickt mit N_cr = pi^2 EI/(2a)^2 - das Stueck
+   * darueber traegt keine destabilisierende Kraft und faehrt nur mit.
+   *
+   * Gemessen wird an einem Masten mit Anbauteil auf 7.00 m: die Last kommt
+   * dort herein, der Mast ist 12 m lang, und die Knicklaenge ist 2 mal 7,
+   * nicht 2 mal 12.
+   */
+  {
+    const teil = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
+                   hMast: 7 };
+    const { s, m } = mast({ anbauteile: [teil] });
+    const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
+    pruef('Die Last kommt auf 7.00 m herein', k.zN, 7, 1e-9, 'm');
+    pruef('… und die Knicklaenge endet dort', k.Lcr, 14, 1e-9, 'm');
+    pruef('Die Gesamtlaenge steht daneben', k.L, 12, 1e-9, 'm');
+
+    // OHNE EINGELEITETE LAST bleibt es bei der ganzen Laenge - dann drueckt
+    // oben wirklich noch etwas.
+    const ohne = mast();
+    const kO = M74.mastStabilitaet(ohne.s, ohne.m, { beta: 2.0 });
+    pruef('Ohne Krafteinleitung gilt die ganze Laenge', kO.Lcr, 24, 1e-9, 'm');
+
+    // UND DIE ABSTUFUNG WIRKT IN DIE RICHTIGE RICHTUNG: kuerzere
+    // Knicklaenge, groesseres chi.
+    wahr('Die kuerzere Knicklaenge gibt das groessere chi', k.chiZ > kO.chiZ);
+  }
+
   // OHNE MASTLAENGE GILT DIE HOEHE - dann endet der Mast am Anschluss.
   {
     const { s, m } = mast({ mastLaenge: 0 });
