@@ -8,8 +8,10 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
-import { optionsSkizze, SKIZZEN_FELDER } from './doku.optionsskizzen.js';
-import { GRUPPEN, FELDER, sichtbareFelder, optionenFelder, optionenThemen,
+import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
+  from './doku.optionsskizzen.js';
+import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
+         optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
@@ -112,7 +114,9 @@ export const EINGABE_TABS = [
    * einen eigenen Reiter bekommen sie erst, wenn sie einen füllen.
    */
   { id: 'system', titel: 'System', icon: 'system',
-    gruppen: ['typ', 'geo', 'aufl', 'mast'] },
+    // Die Tragwerksart zuerst: sie entscheidet, welche der folgenden Gruppen
+    // ueberhaupt erscheinen.
+    gruppen: ['art', 'typ', 'geo', 'aufl', 'mast'] },
   // Die Stückliste gehört zu den Profilen: sie sagt, was aus der gewählten
   // Profil- und Blechwahl an Stahl herauskommt. Als eigener Auswertungsreiter
   // stand sie weit weg von der Entscheidung, die sie beeinflusst.
@@ -160,8 +164,22 @@ export function zeichneTabs(node, tabs, aktiv, beiWahl) {
  */
 let aktuelleWerte = null;
 
-export function maskenSignatur(werte, tab) {
+/**
+ * DIE GRUPPEN EINES REITERS, gefiltert nach der Tragwerksart.
+ *
+ * EINE Quelle fuer die Signatur UND fuer die Zeichnung. Zwei getrennte
+ * Listen waren genau der Fehler, an dem die Bauformwahl zuerst scheiterte:
+ * gezeichnet wurde gefiltert, die Signatur zaehlte ungefiltert - sie blieb
+ * beim Umschalten gleich, die Maske wurde nicht neu gebaut, und die
+ * angeklickte Karte sprang zurueck. Der Wert war laengst gesetzt.
+ */
+export function gruppenFuer(tab, werte) {
   const gruppen = EINGABE_TABS.find((t) => t.id === tab)?.gruppen ?? [];
+  return gruppen.filter((gid) => gruppeGilt(gid, werte));
+}
+
+export function maskenSignatur(werte, tab) {
+  const gruppen = gruppenFuer(tab, werte);
   return JSON.stringify([
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
     gruppen.map((gid) => (gid === 'anbau'
@@ -185,7 +203,15 @@ export function maskenSignatur(werte, tab) {
 
 export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = {}) {
   aktuelleWerte = werte;
-  const gruppen = EINGABE_TABS.find((t) => t.id === tab)?.gruppen ?? [];
+  /*
+   * WAS NICHT GILT, VERSCHWINDET (Weisung, 1. September: «wenn nicht aktiv
+   * Eingabe ausblenden, sonst verwirrend»).
+   *
+   * Beim Einzelmast gibt es keinen Traeger - also auch keinen Jochtyp, keine
+   * Gurtprofile, keine Bindebleche, keine Auflagerung eines Jochs. Grau
+   * dastehende Felder wuerden behaupten, es gaebe dort etwas zu entscheiden.
+   */
+  const gruppen = gruppenFuer(tab, werte);
   container.innerHTML = gruppen.map((gid) => {
     const g = GRUPPEN.find((x) => x.id === gid);
     if (!g) return '';
@@ -215,6 +241,10 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
       else v = inp.value;
       onChange(key, v);
     });
+  });
+  container.querySelectorAll('[data-bauform]').forEach((b) => {
+    b.addEventListener('click', () =>
+      onChange(b.dataset.feldBauform, b.dataset.bauform));
   });
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
     b.addEventListener('click', () =>
@@ -561,7 +591,32 @@ function feldHtml(f, wert, werte) {
   const dis = gesperrt ? ' disabled' : '';
   let inp;
 
-  if (f.typ === 'auswahl') {
+  if (f.typ === 'bauform') {
+    /*
+     * DREI KARTEN NEBENEINANDER, nicht drei Woerter in einem Menue.
+     *
+     * Ein Menue verlangt, dass man die Bauformen schon kennt; die Karte
+     * zeigt sie. Sie sind KNOEPFE, keine Auswahlliste - so bleibt jede
+     * Bauform mit einem Klick erreichbar, und die getroffene Wahl steht
+     * sichtbar da, statt hinter einem zugeklappten Feld.
+     *
+     * `data-feld` traegt hier nicht das Eingabefeld, sondern der Knopf: die
+     * Verdrahtung unten liest `data-bauform` und meldet den Wert.
+     */
+    inp = `<div class="bauformen" role="radiogroup" aria-label="${esc(f.label)}">`
+      + f.optionen.map((o) => {
+        const an = String(o.wert) === String(wert);
+        return `<button type="button" class="bauform${an ? ' an' : ''}"
+                  data-bauform="${esc(o.wert)}" data-feld-bauform="${f.key}"
+                  role="radio" aria-checked="${an}"${dis}>
+                  <figure class="hb-skizze">${bauformSkizze(o.wert)}</figure>
+                  <span class="bauform-text">
+                    <span class="bauform-name">${esc(o.text)}</span>
+                    ${o.kurz ? `<span class="bauform-kurz">${esc(o.kurz)}</span>` : ''}
+                  </span>
+                </button>`;
+      }).join('') + '</div>';
+  } else if (f.typ === 'auswahl') {
     const opts = f.optionen.length
       ? f.optionen.map((o) =>
           `<option value="${esc(o.wert)}"${String(o.wert) === String(wert) ? ' selected' : ''}>${esc(o.text)}</option>`).join('')

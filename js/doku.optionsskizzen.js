@@ -174,6 +174,72 @@ const mastSteg = (wert) => {
   `);
 };
 
+/*
+ * DIE DREI BAUFORMEN - HIER IST DAS BILD DIE FRAGE SELBST.
+ *
+ * Der Grundsatz oben («die Skizze zeigt die gewaehlte Stellung, nicht den
+ * Schalter») gilt fuer einen SCHALTER: dort kennt man beide Stellungen und
+ * muss sie nicht sehen. Eine BAUFORM kennt man nicht, bevor man sie gesehen
+ * hat - der Vergleich ist der eigentliche Vorgang. Deshalb stehen die drei
+ * hier nebeneinander, und nach der Wahl bleibt die gewaehlte gross, die
+ * anderen klein daneben.
+ *
+ * Gezeichnet wird in einem gemeinsamen Rahmen 0 0 200 132, damit die drei
+ * Karten dieselbe Grundlinie und denselben Massstab haben. Ein Mast, der in
+ * einer Karte hoeher steht als in der naechsten, liesse einen Unterschied
+ * vermuten, den es nicht gibt.
+ */
+const BAUFORM_RAHMEN = '0 0 200 132';
+const TERRAIN = '<line class="hl" x1="8" y1="116" x2="192" y2="116"/>';
+const fundament = (x) => `<rect class="st2" x="${x - 10}" y="116" width="20" height="10"/>`;
+
+const bauformJoch = () => `
+  ${TERRAIN}${fundament(40)}${fundament(160)}
+  <line class="b" x1="40" y1="116" x2="40" y2="44"/>
+  <line class="b" x1="160" y1="116" x2="160" y2="44"/>
+  <line class="b" x1="40" y1="44" x2="160" y2="44"/>
+  <line class="b" x1="40" y1="62" x2="160" y2="62"/>
+  ${[64, 88, 112, 136].map((x) =>
+      `<line class="b" x1="${x}" y1="44" x2="${x}" y2="62" stroke-width="1.6"/>`).join('')}
+  <text class="dim" x="100" y="36" text-anchor="middle">Träger</text>`;
+
+const bauformEinzelmast = () => `
+  ${TERRAIN}${fundament(70)}
+  <line class="b" x1="70" y1="116" x2="70" y2="34"/>
+  <line class="b" x1="70" y1="48" x2="150" y2="48"/>
+  <line class="b" x1="150" y1="48" x2="150" y2="60" stroke-width="1.6"/>
+  <circle cx="150" cy="62" r="2.6" class="kn"/>
+  <text class="dim" x="112" y="42" text-anchor="middle">Ausleger</text>`;
+
+const bauformTragausleger = () => `
+  ${TERRAIN}${fundament(50)}
+  <line class="b" x1="50" y1="116" x2="50" y2="30"/>
+  <line class="b" x1="50" y1="40" x2="168" y2="40"/>
+  <line class="b" x1="50" y1="86" x2="168" y2="40"/>
+  <line class="b" x1="90" y1="40" x2="74" y2="70" stroke-width="1.6"/>
+  <line class="b" x1="130" y1="40" x2="122" y2="55" stroke-width="1.6"/>
+  <text class="dim" x="118" y="32" text-anchor="middle">Tragausleger</text>`;
+
+const BAUFORMEN = {
+  joch: bauformJoch,
+  einzelmast: bauformEinzelmast,
+  tragausleger: bauformTragausleger,
+};
+
+/**
+ * Die Strichskizze einer Bauform - nur der SVG-Inhalt, ohne Rahmen.
+ *
+ * Die Kartenwahl setzt ihren eigenen Rahmen darum: sie zeigt DREI davon,
+ * und jede braucht ihre Beschriftung und ihren Zustand.
+ */
+export function bauformSkizze(key) {
+  const f = BAUFORMEN[key];
+  return f ? `<svg viewBox="${BAUFORM_RAHMEN}" aria-hidden="true">${f()}</svg>` : '';
+}
+
+/** Fuer den Pruefstand: welche Bauformen gezeichnet sind. */
+export const BAUFORMEN_KEYS = Object.keys(BAUFORMEN);
+
 /** Welche Felder eine Skizze führen. */
 const SKIZZEN = {
   knotenbereich,

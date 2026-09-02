@@ -19,6 +19,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { TRAGWERKSARTEN, tragwerksart } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
@@ -86,10 +87,24 @@ function radiusNotiz(w) {
 }
 
 export const GRUPPEN = [
+  /*
+   * DIE TRAGWERKSART STEHT VOR ALLEM ANDEREN.
+   *
+   * Sie entscheidet, welche Gruppen darunter ueberhaupt eine Frage stellen:
+   * ohne Traeger gibt es keinen Jochtyp, keine Gurtprofile, keine
+   * Bindebleche und keine Auflagerung eines Jochs. Erst die Art, dann was
+   * von ihr abhaengt - alles andere hiesse, nach Massen eines Bauteils zu
+   * fragen, das es vielleicht gar nicht gibt.
+   *
+   * `arten` sagt, bei welchen Arten eine Gruppe erscheint. Fehlt die Angabe,
+   * gilt sie fuer alle.
+   */
+  { id: 'art',   titel: 'Tragwerksart' },
   { id: 'ort',   titel: 'Verortung' },
-  { id: 'typ',   titel: 'Tragjoch-Typ und Rechenmasse' },
-  { id: 'geo',   titel: 'Systemgeometrie' },
-  { id: 'aufl',  titel: 'Auflagerung des Jochs' },
+  { id: 'typ',   titel: 'Tragjoch-Typ und Rechenmasse',
+    arten: ['joch', 'tragausleger'] },
+  { id: 'geo',   titel: 'Systemgeometrie', arten: ['joch', 'tragausleger'] },
+  { id: 'aufl',  titel: 'Auflagerung des Jochs', arten: ['joch'] },
   /*
    * DIE MASTEN SIND EIN EIGENES HAUPTTRAGWERK (Weisung, 28. August: «die
    * Haupttragwerke sollten global gesteuert werden»).
@@ -105,11 +120,12 @@ export const GRUPPEN = [
    * Druckstützen. Die Gruppe ist dafür angelegt.
    */
   { id: 'mast',  titel: 'Masten' },
-  { id: 'prof',  titel: 'Gurtprofile' },
-  { id: 'blech', titel: 'Bindebleche' },
+  { id: 'prof',  titel: 'Gurtprofile', arten: ['joch', 'tragausleger'] },
+  { id: 'blech', titel: 'Bindebleche', arten: ['joch', 'tragausleger'] },
   // Ohne eigene Eingabefelder: die Stückliste wird als Ergebnisstück
   // eingehängt (siehe extras in app.js).
-  { id: 'stueck', titel: 'Stückliste und Eigengewicht' },
+  { id: 'stueck', titel: 'Stückliste und Eigengewicht',
+    arten: ['joch', 'tragausleger'] },
   { id: 'trasse', titel: 'Trasse und Fahrleitung' },
   { id: 'anbau', titel: 'Anbauteile' },
   { id: 'ein',   titel: 'Verteilte Einwirkungen' },
@@ -657,6 +673,22 @@ export const FELDER = [
   // dagegen. Ohne diesen Term rechnet das Werkzeug fuer die Horizontalbleche
   // unter reiner Vertikallast EXAKT NULL - das gepruefte FEM-Modell zeigt
   // dort 11 N/mm². Hergeleitet, nicht gefittet; Vorgabe deshalb ein.
+  /*
+   * DIE WAHL IST SELBST DAS BILD.
+   *
+   * Ein Auswahlmenue mit drei Woertern verlangt, dass man die drei Bauformen
+   * schon kennt. Drei Strichskizzen nebeneinander verlangen nichts - man
+   * sieht, was man baut. Nach der Wahl bleibt die gewaehlte gross stehen,
+   * die anderen klein daneben: das Bild ist dann Rueckmeldung statt Frage.
+   */
+  { key: 'tragwerksart', gruppe: 'art', typ: 'bauform',
+    label: 'Tragwerksart', standard: 'joch',
+    optionen: TRAGWERKSARTEN.map((a) => ({ wert: a.key, text: a.label,
+                                           kurz: a.kurz })),
+    hinweis: 'Bestimmt den Lastweg und damit, welche Eingaben folgen. '
+           + 'Ohne Träger entfallen Jochtyp, Gurtprofile, Bindebleche und '
+           + 'die Auflagerung des Jochs.' },
+
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,
     hinweis: 'Zusatzmoment in den Bindeblechen aus dem Querausweichen der '
@@ -753,6 +785,18 @@ export function feld(key) {
  * Felder mit optionenDialog stehen im Optionen-Dialog des Banners und werden
  * hier ausgelassen, damit die Eingabe schlank bleibt.
  */
+/**
+ * Erscheint diese Gruppe bei der gewaehlten Tragwerksart?
+ *
+ * Ohne `arten` gilt sie fuer alle - das ist der Regelfall und bleibt
+ * unausgesprochen. Genannt wird nur, was an eine Art gebunden ist.
+ */
+export function gruppeGilt(gid, werte) {
+  const g = GRUPPEN.find((x) => x.id === gid);
+  if (!g?.arten) return true;
+  return g.arten.includes(tragwerksart(werte).key);
+}
+
 export function sichtbareFelder(gruppe, werte) {
   return FELDER.filter((f) => f.gruppe === gruppe && !f.optionenDialog && !f.versteckt
                            && (!f.sichtbar || f.sichtbar(werte)));

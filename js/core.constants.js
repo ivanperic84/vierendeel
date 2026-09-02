@@ -41,6 +41,54 @@ export const RECHTECK = {
 export const TOL = 1e-7;
 
 /**
+ * DIE TRAGWERKSART — die erste Entscheidung, weil sie alle anderen bestimmt.
+ *
+ * Weisung des Auftraggebers vom 28. August: «die Haupttragwerke sollten global
+ * gesteuert werden. Später wird man auch Einzelmasten und Masten mit
+ * Tragausleger übergreifend eingeben können.»
+ *
+ * Was die Arten unterscheidet, ist nicht die Ausstattung, sondern der
+ * LASTWEG:
+ *
+ *   joch          Zwei Masten, ein gegliederter Träger dazwischen. Die Last
+ *                 läuft über den Träger auf beide Masten.
+ *   einzelmast    Ein Kragarm im Fundament. Die Last hängt unmittelbar am
+ *                 Masten; es gibt keinen Träger, also auch keine Gurte,
+ *                 Bindebleche und keine Auflagerung eines Jochs.
+ *   tragausleger  Ein Mast mit auskragendem gegliedertem Stab. Nach den
+ *                 Werkstattzeichnungen (Sortiment Tragausleger UPE 140) sind
+ *                 das ZWEI U-Profile mit Flachlaschen, nicht vier Winkel —
+ *                 der Vierendeel-Kern trägt dort nicht unverändert.
+ *
+ * `traeger` sagt, ob ein gegliederter Träger dazugehört. Daran hängt die
+ * halbe Eingabemaske, und es ist die Frage, die der Kern wirklich stellt.
+ */
+export const TRAGWERKSARTEN = [
+  { key: 'joch', label: 'Tragjoch', traeger: true, masten: 2,
+    kurz: 'Zwei Masten, Träger dazwischen' },
+  { key: 'einzelmast', label: 'Einzelmast', traeger: false, masten: 1,
+    kurz: 'Kragarm im Fundament, ohne Träger' },
+  { key: 'tragausleger', label: 'Mast mit Tragausleger', traeger: true, masten: 1,
+    kurz: 'Auskragender Stab am Masten' },
+];
+
+/**
+ * Die Art eines Eingabesatzes.
+ *
+ * ALTE DATEIEN RECHNEN UNVERÄNDERT: fehlt die Angabe, ist es ein Tragjoch —
+ * das war bis zum 2. September der einzige Fall. Dasselbe Vorgehen wie bei
+ * `mastVorhanden` (siehe UEBERGABE.md, «Masten und Auflagerung sind zwei
+ * Fragen»).
+ */
+export function tragwerksart(w) {
+  const k = w?.tragwerksart;
+  return TRAGWERKSARTEN.find((a) => a.key === k) ?? TRAGWERKSARTEN[0];
+}
+
+/** Gehört zu dieser Art ein gegliederter Träger? */
+export const hatTraeger = (w) => tragwerksart(w).traeger;
+
+/**
  * Die Verortung als eine Zeile — leer, wenn nichts eingetragen ist.
  *
  * Eine Stelle, viele Leser: Überschrift, Bericht, Excel, AxisVM-Bezeichnung

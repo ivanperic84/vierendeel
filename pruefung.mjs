@@ -10175,6 +10175,86 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 64: die Tragwerksart als Weiche. Weisung vom 28. August («die
+// Haupttragwerke sollten global gesteuert werden»), gebaut am 2. September.
+{
+  const { TRAGWERKSARTEN, tragwerksart: art64, hatTraeger } =
+    await import(J('core.constants.js'));
+  const { GRUPPEN: G64, gruppeGilt } = await import(J('ui.schema.js'));
+  const UI64 = await import(J('ui.js'));
+  const { BAUFORMEN_KEYS, bauformSkizze } =
+    await import(J('doku.optionsskizzen.js'));
+
+  wahr('Drei Tragwerksarten', TRAGWERKSARTEN.length === 3);
+  /*
+   * ALTE DATEIEN RECHNEN UNVERAENDERT. Fehlt die Angabe, ist es ein
+   * Tragjoch - das war bis zum 2. September der einzige Fall. Dasselbe
+   * Vorgehen wie bei `mastVorhanden`.
+   */
+  wahr('Ohne Angabe gilt das Tragjoch', art64({}).key === 'joch');
+  wahr('… auch bei unbekanntem Wert', art64({ tragwerksart: 'quatsch' }).key === 'joch');
+  wahr('Der Einzelmast hat keinen Traeger',
+       hatTraeger({ tragwerksart: 'einzelmast' }) === false);
+  wahr('Joch und Tragausleger haben einen',
+       hatTraeger({ tragwerksart: 'joch' })
+       && hatTraeger({ tragwerksart: 'tragausleger' }));
+
+  // JEDE ART HAT IHR BILD. Eine Karte ohne Skizze waere ein leeres Feld,
+  // und die Wahl haengt genau an diesem Bild.
+  wahr('Jede Art ist gezeichnet',
+       TRAGWERKSARTEN.every((a) => BAUFORMEN_KEYS.includes(a.key)));
+  wahr('… und die Skizze traegt wirklich etwas',
+       TRAGWERKSARTEN.every((a) => bauformSkizze(a.key).includes('<svg')));
+
+  /*
+   * WAS NICHT GILT, VERSCHWINDET. Beim Einzelmast gibt es keinen Traeger -
+   * also keinen Jochtyp, keine Gurtprofile, keine Bindebleche, keine
+   * Auflagerung eines Jochs.
+   */
+  const em = { tragwerksart: 'einzelmast' };
+  const jo = { tragwerksart: 'joch' };
+  ['typ', 'geo', 'aufl', 'prof', 'blech', 'stueck'].forEach((gid) => {
+    wahr(`Gruppe ${gid} entfaellt beim Einzelmast`, gruppeGilt(gid, em) === false);
+    wahr(`… und gilt beim Joch`, gruppeGilt(gid, jo) === true);
+  });
+  // Die Masten und die Lasten gelten immer - sie sind bei jeder Art da.
+  ['art', 'mast', 'trasse', 'anbau', 'ein', 'komb'].forEach((gid) => {
+    wahr(`Gruppe ${gid} gilt bei jeder Art`,
+         gruppeGilt(gid, em) && gruppeGilt(gid, jo));
+  });
+
+  /*
+   * EINE QUELLE FUER SIGNATUR UND ZEICHNUNG.
+   *
+   * Zwei getrennte Listen waren der Fehler, an dem die Bauformwahl zuerst
+   * scheiterte: gezeichnet wurde gefiltert, die Signatur zaehlte
+   * ungefiltert - sie blieb beim Umschalten gleich, die Maske wurde nicht
+   * neu gebaut, und die angeklickte Karte sprang zurueck.
+   */
+  wahr('Der Systemreiter zeigt beim Joch mehr Gruppen als beim Einzelmast',
+       UI64.gruppenFuer('system', jo).length
+       > UI64.gruppenFuer('system', em).length);
+  wahr('Und die Signatur unterscheidet die Arten',
+       UI64.maskenSignatur(jo, 'system') !== UI64.maskenSignatur(em, 'system'));
+
+  // WAS NICHT GERECHNET WIRD, STEHT DA. Der Kern kennt bis auf weiteres nur
+  // das Tragjoch; still weiterzurechnen waere die schlimmste Antwort.
+  {
+    const { hinweise } = await import(J('core.checks.js'));
+    const mJ = modell({ ...standardwerte(), typ: 'J90', L: 15 },
+      getProfil(T.getTragjoch('J90').og.profil),
+      getProfil(T.getTragjoch('J90').ug.profil),
+      getStahl('S235'), T.getTragjoch('J90'));
+    const hJ = hinweise(mJ);
+    const hE = hinweise({ ...mJ, tragwerksart: 'einzelmast' });
+    wahr('Beim Joch kein solcher Hinweis',
+         !hJ.some((t) => /gerechnet wird weiterhin/.test(t)));
+    wahr('Bei einer anderen Art steht er, und ganz oben',
+         /gerechnet wird weiterhin/.test(hE[0] ?? ''));
+  }
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

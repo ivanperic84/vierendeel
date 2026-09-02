@@ -1310,6 +1310,30 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .hb-skizze text.dim { fill: var(--dim); font-size: 10px; }
 .hb-skizze text.acc { fill: var(--acc); font-size: 10.5px; }
 
+/* --- Bauformwahl ----------------------------------------------------------
+   ZEILEN, NICHT KACHELN. Drei Kacheln nebeneinander waeren in einer 240 px
+   breiten Seitenspalte je 75 px breit - zu wenig fuer eine Strichskizze, die
+   etwas zeigen soll. Untereinander mit der Skizze links bleibt jede Bauform
+   erkennbar, und die Wahl kostet drei Zeilen statt eines halben Bildschirms.
+   Sie wird einmal getroffen; sie darf nicht dauerhaft den Platz der Masse
+   einnehmen. */
+.bauformen { display: flex; flex-direction: column; gap: 4px; }
+.bauform {
+  display: grid; grid-template-columns: 84px 1fr; gap: 9px; align-items: center;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 5px 8px 5px 5px; cursor: pointer; text-align: left;
+  color: var(--dim); font-family: inherit;
+  transition: border-color var(--t-schnell), background var(--t-schnell);
+}
+.bauform:hover { border-color: var(--ol2); }
+.bauform.an { border-color: var(--acc); background: var(--acc-s); }
+.bauform figure { margin: 0; }
+.bauform svg { width: 100%; height: auto; display: block; }
+.bauform-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.bauform-name { font-size: 11px; font-weight: 500; color: var(--on2); }
+.bauform.an .bauform-name { color: var(--acc); }
+.bauform-kurz { font-size: 9.5px; line-height: 1.35; color: var(--dim); }
+
 /* Die Optionsskizze am Eingabefeld: schmaler als im Handbuch, ohne Bildunterschrift
    (die Beschriftung steht am Feld) und mit etwas Luft zum Hinweistext darunter. */
 .opt-skizze { margin: 6px 0 4px; }

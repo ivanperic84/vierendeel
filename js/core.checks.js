@@ -10,7 +10,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { U } from './core.constants.js';
+import { U, tragwerksart } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
@@ -412,6 +412,26 @@ export function fluchtChecks(m) {
 export function hinweise(m) {
   const h = [];
   const kl = klassifizierung(m);
+
+  /*
+   * DIE TRAGWERKSART, DIE (NOCH) NICHT GERECHNET WIRD.
+   *
+   * Die Wahl steht seit dem 2. September in der Maske und blendet aus, was
+   * nicht dazugehoert. Der RECHENKERN kennt bis auf weiteres nur das
+   * Tragjoch. Ein Werkzeug, das dann still die Jochrechnung weiterfuehrt,
+   * waere die schlimmste Antwort: die Eingabe sagt Einzelmast, die Zahl
+   * meint ein Joch, und man sieht es der Zahl nicht an.
+   *
+   * Der Hinweis steht deshalb GANZ OBEN in der Liste - vor allen anderen,
+   * weil er alle anderen entwertet.
+   */
+  const art = tragwerksart(m);
+  if (art.key !== 'joch') {
+    h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `
+      + 'das Tragjoch. Der Rechenkern für diese Art ist noch nicht gebaut; '
+      + 'alle folgenden Zahlen gelten dem Joch und nicht dem gewählten '
+      + 'Tragwerk.');
+  }
 
   if (kl.klasse4.length) {
     h.push(`Klasse 4 bei ${kl.klasse4.map((t) => t.bauteil).join(', ')}: gerechnet ` +
