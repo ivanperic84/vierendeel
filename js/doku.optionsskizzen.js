@@ -200,25 +200,51 @@ const bauformJoch = () => `
   <line class="b" x1="40" y1="44" x2="160" y2="44"/>
   <line class="b" x1="40" y1="62" x2="160" y2="62"/>
   ${[64, 88, 112, 136].map((x) =>
-      `<line class="b" x1="${x}" y1="44" x2="${x}" y2="62" stroke-width="1.6"/>`).join('')}
-  <text class="dim" x="100" y="36" text-anchor="middle">Träger</text>`;
+      `<line class="b" x1="${x}" y1="44" x2="${x}" y2="62" stroke-width="1.6"/>`).join('')}`;
 
+/*
+ * DER MAST STEHT RECHTS, DER AUSLEGER KRAGT NACH LINKS.
+ *
+ * So steht es auf dem Querprofil: der Mast neben dem Gleis, das Tragwerk
+ * darueber. Beide Mastkarten folgen dieser Lage - spiegelverkehrt
+ * nebeneinander waeren sie schwer zu vergleichen, und das Querprofil ist die
+ * Zeichnung, die der Anwender ohnehin vor sich hat.
+ */
 const bauformEinzelmast = () => `
-  ${TERRAIN}${fundament(70)}
-  <line class="b" x1="70" y1="116" x2="70" y2="34"/>
-  <line class="b" x1="70" y1="48" x2="150" y2="48"/>
-  <line class="b" x1="150" y1="48" x2="150" y2="60" stroke-width="1.6"/>
-  <circle cx="150" cy="62" r="2.6" class="kn"/>
-  <text class="dim" x="112" y="42" text-anchor="middle">Ausleger</text>`;
+  ${TERRAIN}${fundament(150)}
+  <line class="b" x1="150" y1="116" x2="150" y2="34"/>
+  <line class="b" x1="150" y1="48" x2="70" y2="48"/>
+  <line class="b" x1="70" y1="48" x2="70" y2="60" stroke-width="1.6"/>
+  <circle cx="70" cy="62" r="2.6" class="kn"/>`;
 
+/*
+ * DER TRAGAUSLEGER IST OBEN ABGESPANNT, NICHT UNTEN ABGESTREBT.
+ *
+ * Hier stand zuerst ein Dreieck mit einer Strebe von unten - das Gegenteil
+ * der Wirklichkeit. Das Querprofil zeigt es: der Mast ragt ueber den
+ * Ausleger hinaus, und vom KOPF laeuft eine flache Schraege herunter ans
+ * freie Ende. Der Ausleger haengt daran, er stuetzt sich nicht ab.
+ *
+ * Das ist kein Zeichenfehler, sondern ein statischer: die Schraege ist ein
+ * ZUGband. Eine Strebe von unten waere ein Druckstab und braeuchte einen
+ * Knicknachweis, den es hier nicht gibt.
+ *
+ * Zwei Haengepunkte unter dem Ausleger, weil er mehrere Gleise ueberspannt -
+ * genau das unterscheidet ihn vom kurzen Ausleger des Einzelmastes.
+ *
+ * OHNE BESCHRIFTUNG IN DER SKIZZE. Sie stand zuerst darin und wiederholte
+ * nur den Namen, der auf der Karte danebensteht - beim Tragausleger lag sie
+ * ausserdem quer ueber dem Zugband. Ein Wort, das man schon gelesen hat, ist
+ * in einer 84 px breiten Skizze teurer Platz.
+ */
 const bauformTragausleger = () => `
-  ${TERRAIN}${fundament(50)}
-  <line class="b" x1="50" y1="116" x2="50" y2="30"/>
-  <line class="b" x1="50" y1="40" x2="168" y2="40"/>
-  <line class="b" x1="50" y1="86" x2="168" y2="40"/>
-  <line class="b" x1="90" y1="40" x2="74" y2="70" stroke-width="1.6"/>
-  <line class="b" x1="130" y1="40" x2="122" y2="55" stroke-width="1.6"/>
-  <text class="dim" x="118" y="32" text-anchor="middle">Tragausleger</text>`;
+  ${TERRAIN}${fundament(160)}
+  <line class="b" x1="160" y1="116" x2="160" y2="26"/>
+  <line class="b" x1="160" y1="56" x2="46" y2="56"/>
+  <line class="b" x1="160" y1="29" x2="49" y2="54" stroke-width="1.8"/>
+  ${[70, 108].map((x) => `
+    <line class="b" x1="${x}" y1="56" x2="${x}" y2="68" stroke-width="1.6"/>
+    <circle cx="${x}" cy="70" r="2.6" class="kn"/>`).join('')}`;
 
 const BAUFORMEN = {
   joch: bauformJoch,

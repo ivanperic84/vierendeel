@@ -10207,6 +10207,58 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
        TRAGWERKSARTEN.every((a) => bauformSkizze(a.key).includes('<svg')));
 
   /*
+   * DER TRAGAUSLEGER IST OBEN ABGESPANNT, NICHT UNTEN ABGESTREBT.
+   *
+   * Hier stand zuerst ein Dreieck mit einer Strebe von unten - das Gegenteil
+   * dessen, was das Querprofil zeigt. Es ist kein Zeichenfehler, sondern ein
+   * statischer: die Schraege ist ein ZUGband vom Mastkopf ans freie Ende.
+   * Eine Strebe von unten waere ein Druckstab und braeuchte einen
+   * Knicknachweis, den es hier nicht gibt.
+   *
+   * Geprueft wird an den Koordinaten: der Mast steht rechts (grosses x), der
+   * Ausleger kragt nach links. Das Band muss am Mast OBEN beginnen (kleines
+   * y) und links TIEFER ankommen.
+   */
+  {
+    const svg = bauformSkizze('tragausleger');
+    const linien = [...svg.matchAll(
+      /<line[^>]*x1="(\d+)"[^>]*y1="(\d+)"[^>]*x2="(\d+)"[^>]*y2="(\d+)"/g)]
+      .map((t) => ({ x1: +t[1], y1: +t[2], x2: +t[3], y2: +t[4] }));
+    // Schraege Linien mit nennenswerter Laenge - das Band ist die einzige.
+    const schraeg = linien.filter((l) => l.y1 !== l.y2 && l.x1 !== l.x2
+                                      && Math.abs(l.x1 - l.x2) > 40);
+    wahr('Genau ein Zugband in der Skizze', schraeg.length === 1);
+    const b = schraeg[0];
+    if (b) {
+      const amMast = b.x1 > b.x2 ? { x: b.x1, y: b.y1 } : { x: b.x2, y: b.y2 };
+      const amEnde = b.x1 > b.x2 ? { x: b.x2, y: b.y2 } : { x: b.x1, y: b.y1 };
+      wahr('Es beginnt am Masten, also rechts', amMast.x > 140);
+      wahr('… oben am Kopf', amMast.y < 40);
+      wahr('… und kommt am freien Ende tiefer an', amEnde.y > amMast.y);
+    }
+    // Der Mast ragt UEBER den Ausleger hinaus - sonst gaebe es keinen Punkt,
+    // an dem das Band ansetzen koennte.
+    const mast = linien.find((l) => l.x1 === l.x2 && Math.abs(l.y1 - l.y2) > 60);
+    const ausleger = linien.find((l) => l.y1 === l.y2 && Math.abs(l.x1 - l.x2) > 80);
+    wahr('Der Mast ragt ueber den Ausleger hinaus',
+         !!mast && !!ausleger && Math.min(mast.y1, mast.y2) < ausleger.y1 - 15);
+  }
+
+  // BEIDE MASTKARTEN STEHEN GLEICH HERUM: Mast rechts, Ausleger nach links,
+  // wie auf dem Querprofil. Spiegelverkehrt waeren sie schwer zu vergleichen.
+  {
+    const mastX = (key) => {
+      const l = [...bauformSkizze(key).matchAll(
+        /<line[^>]*x1="(\d+)"[^>]*y1="(\d+)"[^>]*x2="(\d+)"[^>]*y2="(\d+)"/g)]
+        .map((t) => ({ x1: +t[1], y1: +t[2], x2: +t[3], y2: +t[4] }))
+        .find((z) => z.x1 === z.x2 && Math.abs(z.y1 - z.y2) > 60);
+      return l ? l.x1 : null;
+    };
+    wahr('Der Mast steht bei beiden Arten rechts',
+         mastX('einzelmast') > 100 && mastX('tragausleger') > 100);
+  }
+
+  /*
    * WAS NICHT GILT, VERSCHWINDET. Beim Einzelmast gibt es keinen Traeger -
    * also keinen Jochtyp, keine Gurtprofile, keine Bindebleche, keine
    * Auflagerung eines Jochs.
