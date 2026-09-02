@@ -277,6 +277,9 @@ function neuRechnen(neuZeichnen = true) {
             blech: ui.blechUebersichtHtml(letzte.erg),
             stueck: ui.stuecklisteHtml(letzte.anzeige),
           } : {}),
+          // Die Masten stehen bei JEDER Tragwerksart - sie sind das
+          // Grundelement, nicht ein Zubehoer des Jochs.
+          mast: ui.mastenUebersichtHtml(werte),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);

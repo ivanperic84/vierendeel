@@ -1310,6 +1310,23 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .hb-skizze text.dim { fill: var(--dim); font-size: 10px; }
 .hb-skizze text.acc { fill: var(--acc); font-size: 10.5px; }
 
+/* --- Mastenuebersicht -----------------------------------------------------
+   Eine Zeile je Mast des aktiven Tragwerks. Der geteilte traegt seine zweite
+   Zugehoerigkeit sichtbar - eine Aenderung, die woanders wirkt, ohne dass man
+   es sieht, ist die unangenehmste Art von Verhalten. */
+.masten-uebersicht { margin: 2px 0 8px; }
+.mast-zeile {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 3px 8px; border-left: 2px solid var(--ol);
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--dim);
+}
+.mast-zeile.geteilt { border-left-color: var(--acc); }
+.mast-ende { color: var(--on2); font-weight: 500; }
+.mast-prof { color: var(--on2); }
+.mast-teilt { color: var(--acc); }
+.mast-warn { font-size: 10px; line-height: 1.45; color: var(--dim);
+  margin: 4px 0 0; padding-left: 10px; }
+
 /* --- Tragwerksliste -------------------------------------------------------
    Eine Zeile je Tragwerk auf dem Querprofil, das aktive hervorgehoben. Der
    Aufbau folgt der Anbauteilliste im Nachbarreiter - dasselbe Muster fuer

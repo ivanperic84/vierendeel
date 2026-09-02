@@ -11,7 +11,7 @@ import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
-         lageVon } from './core.constants.js';
+         lageVon, tragwerkeVon, mastenFuer } from './core.constants.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -193,8 +193,14 @@ export function maskenSignatur(werte, tab) {
      * setzte den Wert, und die Liste zeigte weiter einen Eintrag. Derselbe
      * Fehler wie beim Standort der Anbauteile, zwei Wochen frueher.
      */
+    /*
+     * DIE LAGE GEHOERT DAZU. Sie steht an der Kachel und ordnet die Liste -
+     * ohne sie in der Signatur zeigte die Kachel nach dem Verschieben
+     * weiter die alte Zahl, waehrend das Feld darunter schon die neue trug.
+     */
     tragwerkeSortiert(werte).map(
-      (t) => `${t.id}:${tragwerksart(t).key}:${t.aktiv ? 1 : 0}:${tragwerkName(t)}`),
+      (t) => `${t.id}:${tragwerksart(t).key}:${t.aktiv ? 1 : 0}:${tragwerkName(t)}`
+           + `:${lageVon(t)}`),
     gruppen.map((gid) => (gid === 'anbau'
       // Die Befestigungsart gehört dazu: sie ändert den Erklärtext am Feld.
       // Ebenso die Rolle der Module (Drahtwerk zeigt den Winkel statt der
@@ -2088,6 +2094,47 @@ function pruefungenHtml(urteil) {
 /** Rückruf für die Sortimentssuche; app.js setzt ihn beim Start. */
 let beiSortiment = null;
 export function setzeSortimentSuche(fn) { beiSortiment = fn; }
+
+/**
+ * DIE MASTEN DES AKTIVEN TRAGWERKS - und wer sonst noch an ihnen haengt.
+ *
+ * Seit dem Mastenumbau ist der Mast das Grundelement: ein Mast, den sich
+ * zwei Tragwerke teilen, ist EINER. Das ist der Gewinn und die Falle
+ * zugleich - wer sein Profil aendert, aendert es fuer beide.
+ *
+ * >>> ALSO MUSS ES DASTEHEN. <<<
+ *
+ * Eine Aenderung, die woanders wirkt, ohne dass man es sieht, ist die
+ * unangenehmste Art von Verhalten. Die Zeile «traegt auch J90 - 20.00 m»
+ * kostet nichts und beantwortet die Frage, bevor sie entsteht.
+ */
+export function mastenUebersichtHtml(werte) {
+  const t = tragwerkeVon(werte)[0];
+  const [a, b] = mastenFuer(werte, t);
+  const alleTw = tragwerkeSortiert(werte);
+  if (!a && !b) return '';
+  const zeile = (m, ende) => {
+    if (!m) return '';
+    // Wer sonst noch an diesem Masten haengt - ohne das aktive Tragwerk.
+    const andere = (m.traegt ?? []).filter((id) => id !== t.id)
+      .map((id) => alleTw.find((x) => x.id === id))
+      .filter(Boolean);
+    return `<div class="mast-zeile${andere.length ? ' geteilt' : ''}">
+      <span class="mast-ende">${ende}</span>
+      <span class="mast-lage">x₀ ${m.x.toFixed(2)} m</span>
+      <span class="mast-prof">${esc(m.profil ?? '–')}</span>
+      ${andere.length
+        ? `<span class="mast-teilt">trägt auch ${
+            andere.map((x) => esc(tragwerkName(x))).join(', ')}</span>`
+        : ''}
+    </div>`;
+  };
+  return `<div class="masten-uebersicht">${zeile(a, 'A')}${zeile(b, 'B')}
+    ${(a?.traegt?.length ?? 0) > 1 || (b?.traegt?.length ?? 0) > 1
+      ? '<p class="mast-warn">Ein geteilter Mast gehört beiden Tragwerken — '
+        + 'was hier geändert wird, gilt auch drüben.</p>' : ''}
+  </div>`;
+}
 
 /**
  * AUSWERTUNG EINES EINZELMASTEN.

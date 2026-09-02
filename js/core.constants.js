@@ -358,18 +358,14 @@ function mastAus(t, ende, x) {
  * Angaben der Tragwerke aufgebaut — Masten an derselben Stelle verschmelzen
  * dabei zu einem.
  */
-export function mastenVon(w, tol = 0.1) {
-  /*
-   * EINE LISTE OHNE PROFILE IST KEINE LISTE.
-   *
-   * Sie kann aus einem fruehen Stand stammen oder aus einem Schreibfehler.
-   * Statt sie mitzuschleppen, wird sie verworfen und aus den Tragwerken neu
-   * aufgebaut - dort stehen die Angaben ohnehin noch. Selbstheilung ist
-   * hier richtig: die Liste ist eine ABLEITUNG, kein Original.
-   */
-  const gueltig = Array.isArray(w?.masten) && w.masten.length
-    && w.masten.every((m) => String(m?.profil ?? '').trim());
-  if (gueltig) return w.masten;
+/**
+ * Die Masten, wie sie sich aus den Tragwerken ergeben.
+ *
+ * Lage und Zugehoerigkeit stehen hier NICHT zur Wahl: sie folgen aus dem
+ * Tragwerk. Was ein Mast an eigenen Angaben traegt - Profil, Hoehe, Laenge,
+ * Stegrichtung -, kommt beim Nachfuehren aus der gespeicherten Liste dazu.
+ */
+function mastenAbgeleitet(w, tol) {
   const liste = [];
   tragwerkeSortiert(w).forEach((t) => {
     if (t.mastVorhanden === false) return;
@@ -397,7 +393,7 @@ export function mastenVon(w, tol = 0.1) {
         /*
          * ZWEI TRAGWERKE, EIN MAST. Der zuerst gefundene gilt; der zweite
          * Satz Angaben faellt weg. Das ist die richtige Seite des
-         * Zweifels — zwei Masten an einer Stelle sind mit Sicherheit
+         * Zweifels - zwei Masten an einer Stelle sind mit Sicherheit
          * derselbe, und welche Angabe genauer ist, weiss niemand.
          */
         if (!da.traegt.includes(t.id)) da.traegt.push(t.id);
@@ -408,6 +404,42 @@ export function mastenVon(w, tol = 0.1) {
     });
   });
   return liste;
+}
+
+/**
+ * Die Masten des Blattes.
+ *
+ * >>> DIE LISTE WIRD NACHGEFUEHRT, NICHT FESTGESCHRIEBEN. <<<
+ *
+ * Sie ist eine ABLEITUNG aus den Tragwerken - wer die Lage eines Tragwerks
+ * verschiebt oder ein Joch verlaengert, verschiebt damit seine Masten. Eine
+ * einmal gespeicherte Liste veraltet dabei still: beim ersten Anlauf fehlte
+ * nach dem Verschieben eines Jochs sein zweiter Mast in der Uebersicht, und
+ * die Kachel zeigte weiter die alte Lage.
+ *
+ * Genommen wird deshalb immer die abgeleitete Liste; was der Anwender an
+ * einem Masten EINGESTELLT hat - Profil, Hoehe, Laenge, Steg -, wandert aus
+ * der gespeicherten Liste hinein. Zugeordnet ueber die Id, ersatzweise ueber
+ * die Lage.
+ */
+export function mastenVon(w, tol = 0.1) {
+  const soll = mastenAbgeleitet(w, tol);
+  const alt = Array.isArray(w?.masten) ? w.masten : null;
+  if (!alt || !alt.length) return soll;
+  return soll.map((m) => {
+    const q = alt.find((a) => a.id === m.id)
+           ?? alt.find((a) => Math.abs((a.x ?? NaN) - m.x) <= tol);
+    if (!q) return m;
+    const o = { ...m };
+    MASTFELDER.forEach((f) => {
+      // Ein leeres Profil ist keine Angabe - siehe setzeMastAngabe.
+      const v = q[f.am];
+      if (v === undefined || v === null) return;
+      if (f.am === 'profil' && !String(v).trim()) return;
+      o[f.am] = v;
+    });
+    return o;
+  });
 }
 
 /** Ein Mast nach seiner Id. */

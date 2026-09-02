@@ -10771,6 +10771,39 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          m.length === 3 && m.every((x) => x.profil));
   }
 
+  /*
+   * DIE LISTE WIRD NACHGEFUEHRT, NICHT FESTGESCHRIEBEN.
+   *
+   * Sie ist eine ABLEITUNG: wer ein Tragwerk verschiebt oder ein Joch
+   * verlaengert, verschiebt seine Masten mit. Eine einmal gespeicherte Liste
+   * veraltet dabei still - beim ersten Anlauf fehlte nach dem Verschieben
+   * eines Jochs sein zweiter Mast, und die Kachel zeigte die alte Lage.
+   */
+  {
+    let w = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 240', mastH: 8 };
+    w = { ...w, masten: C.mastenVon(w) };
+    wahr('Ein Joch stellt zwei Masten', C.mastenVon(w).length === 2);
+    // Jetzt verschieben - die Lagen muessen mitgehen.
+    const v = { ...w, xLage: 20 };
+    const lagen = C.mastenVon(v).map((m) => m.x).join(',');
+    wahr('Verschieben fuehrt die Lagen nach', lagen === '20,40');
+    // Und verlaengern.
+    const l = { ...w, L: 25 };
+    wahr('Verlaengern ebenso',
+         C.mastenVon(l).map((m) => m.x).join(',') === '0,25');
+  }
+  {
+    // WAS EINGESTELLT WURDE, BLEIBT. Nachgefuehrt werden Lage und
+    // Zugehoerigkeit; Profil und Hoehe gehoeren dem Masten.
+    let w = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 240', mastH: 8 };
+    w = { ...w, masten: C.mastenVon(w) };
+    w = C.setzeMastAngabe(w, 'B', 'mastProfilB', 'HEM 240');
+    const v = { ...w, xLage: 7 };
+    const mB = C.mastenVon(v)[1];
+    wahr('Das eingestellte Profil ueberlebt das Verschieben',
+         mB.profil === 'HEM 240' && Math.abs(mB.x - 27) < 1e-9);
+  }
+
   // RECHENSATZ: was der Kern bekommt. Ohne Liste aendert sich nichts -
   // alte Dateien laufen unveraendert.
   {
