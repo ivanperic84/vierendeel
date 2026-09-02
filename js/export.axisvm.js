@@ -44,7 +44,7 @@
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
 import { verortung, verortungKurz, tragwerksart,
-         tragwerkeSortiert, tragwerkSatz, mastenFuer, lageVon,
+         tragwerkeSortiert, sichtbareTragwerke, tragwerkSatz, mastenFuer, lageVon,
          anzahlTragwerke, anschlusshoehe }
   from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
@@ -698,10 +698,34 @@ function hoehenversatz(t, gesetzt, mastenJe) {
  * @param {object} opt   wie bei stabmodell(), zusätzlich nichts
  */
 export function stabmodellBlatt(werte, deps, opt = {}) {
-  const alle = tragwerkeSortiert(werte);
+  /*
+   * AUSGEBLENDETE TRAGWERKE STEHEN NICHT IN DER DATEI.
+   *
+   * «Ausgeblendet» heisst nicht «durchsichtig», sondern «nicht da» - sonst
+   * blendet man einen Abschnitt aus und findet ihn im ausgeleiteten Modell
+   * wieder. Der Bericht nennt sie (siehe `blatt.versteckt` unten), damit
+   * niemand vor einer Datei steht, in der ein Joch fehlt, ohne zu wissen
+   * warum.
+   */
+  const alle = sichtbareTragwerke(werte);
+  const ausgeblendet = tragwerkeSortiert(werte).filter(
+    (t) => !alle.some((x) => x.id === t.id));
   if (alle.length < 2) {
-    // Ein Tragwerk: der bisherige Weg, ohne Umweg und ohne neue Namen.
-    return stabmodell(deps.modellVon(tragwerkSatz(werte, alle[0]?.id)), opt);
+    /*
+     * Ein Tragwerk: der bisherige Weg, ohne Umweg und ohne neue Namen.
+     *
+     * >>> AUSSER DER VERMERK, WER FEHLT. <<<
+     *
+     * Genau hier ist er am wichtigsten: bleibt von einer Jochreihe ein
+     * einziges sichtbares Tragwerk uebrig, sieht die Datei aus wie die eines
+     * Blattes, auf dem nie mehr stand. Ohne den Vermerk waere sie von einer
+     * vollstaendigen nicht zu unterscheiden.
+     */
+    const eins = stabmodell(deps.modellVon(tragwerkSatz(werte, alle[0]?.id)), opt);
+    return ausgeblendet.length
+      ? { ...eins, blatt: { ...(eins.blatt ?? {}),
+                            versteckt: ausgeblendet.map((t) => t.id) } }
+      : eins;
   }
   const mastenJe = new Map(alle.map((t) => {
     const [a, b] = mastenFuer(werte, t);
@@ -909,6 +933,14 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     blatt: {
       tragwerke: teile.map((x) => ({ id: x.id, x0: x.x0, dz: x.dz })),
       uebersprungen, widerspruch,
+      /*
+       * WER FEHLT, WEIL ER AUSGEBLENDET IST.
+       *
+       * Ein leeres Feld waere hier gefaehrlicher als ein volles: eine Datei,
+       * in der ein Joch fehlt, sieht aus wie eine vollstaendige. Der Bericht
+       * sagt, dass es Absicht war.
+       */
+      versteckt: ausgeblendet.map((t) => t.id),
       /*
        * WAS VERSCHOBEN WURDE, UND WARUM.
        *

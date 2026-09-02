@@ -3807,6 +3807,16 @@ export class Modellansicht {
     const hoehe = this.schriftMass * s + 5 * s;
     c.font = this._font(this.schriftMass);
     (this.szene.masse ?? []).forEach((mz) => {
+      /*
+       * EINE BEMASSUNG AM NICHT GERECHNETEN TRAGWERK FAELLT WEG.
+       *
+       * Anders als der Titel: eine Masszahl ist kein Name, sondern eine
+       * Angabe, und sie ist ANKLICKBAR - sie fuehrt auf ihr Eingabefeld.
+       * Vom fremden Tragwerk aus fuehrte sie an die falsche Stelle. Und
+       * gedaempft naehme sie nur Platz weg: was man an einem Nachbarn
+       * ablesen will, ist wo er steht, nicht wie breit sein Endfeld ist.
+       */
+      if (mz.passiv) return;
       // Bemassungen eines Anbauteils stehen nur, wenn es angeklickt ist.
       if (mz.zu && mz.zu !== 'schnitt' && mz.zu !== this.auswahlTeil) return;
       const mitteX = (mz.p0[0] + mz.p1[0]) / 2;
@@ -3924,6 +3934,37 @@ export class Modellansicht {
        * behaelt seine Farbe, der Grund seine Deckung.
        */
       const warm = this._titelUnterZeiger === bt;
+      /*
+       * >>> WAS NICHT GERECHNET WIRD, REDET LEISER. <<<
+       *
+       * Weisung vom 2. September: «beim anklicken eines tragwerks beim
+       * inaktiven die texte entweder ganz schwach darstellen oder komplett
+       * ausbilden um einen besseren fokus auf die eingabe zu haben.»
+       *
+       * Auf einer Jochreihe standen die Titel aller Tragwerke gleich laut
+       * nebeneinander - «J90 · 20.00 m» dreimal, «HEB 240 · 7.50 m» viermal,
+       * jeder in seinem Kasten. Welcher davon zu dem gehoert, dessen Zahlen
+       * rechts stehen, war nicht zu sehen.
+       *
+       * GEDAEMPFT, NICHT WEG. Ein Titel, der ganz verschwindet, nimmt die
+       * Orientierung mit: man saehe zwar, WO ein Nachbar steht, aber nicht
+       * mehr, WAS er ist - und genau das braucht man, um ihn anzuklicken.
+       * Ohne Kasten und in der Randfarbe steht er da wie eine Anschrift auf
+       * dem Plan, nicht wie eine Angabe zum Nachweis.
+       */
+      if (bt.passiv) {
+        c.globalAlpha = 0.45;
+        c.fillStyle = t.dim;
+        c.textAlign = 'center';
+        c.fillText(bt.text, bx + bw / 2, by + bh - 6 * s);
+        c.textAlign = 'left';
+        c.globalAlpha = 1;
+        // NICHT ANKLICKBAR. Der Titel fuehrt auf ein Eingabefeld des
+        // gerechneten Tragwerks; von einem fremden aus waere das ein Sprung
+        // an die falsche Stelle. Der Klick auf das Bauteil selbst schaltet
+        // ohnehin um.
+        return;
+      }
       c.fillStyle = t.viewerBg;
       c.globalAlpha = 0.72;
       c.beginPath();

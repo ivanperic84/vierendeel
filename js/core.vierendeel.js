@@ -12,7 +12,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
+import { anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
   from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
@@ -320,7 +320,10 @@ export function modellEinzelmast(inp, stahl) {
 
   return {
     tragwerksart: 'einzelmast',
-    tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
+    // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
+    // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
+    // mitzaehlen.
+    tragwerkeAufBlatt: anzahlSichtbar(inp),
     geteilteMasten: geteilteMasten(inp),
     qsErsatz,
     stahl, beiwerte,
@@ -617,7 +620,10 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * diese beiden fehlten.
      */
     tragwerksart: inp.tragwerksart,
-    tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
+    // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
+    // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
+    // mitzaehlen.
+    tragwerkeAufBlatt: anzahlSichtbar(inp),
     // Masten, die sich zwei Tragwerke teilen - der Zwischenmast einer
     // Jochreihe. Der Hinweis nennt die Stelle, nicht nur die Moeglichkeit.
     geteilteMasten: geteilteMasten(inp),

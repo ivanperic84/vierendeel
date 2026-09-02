@@ -27,6 +27,96 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Leiste wird ein Aufriss (2. September)
+
+Weisung: «Die masten in der tragwerkdarstellung klarer ausbilden, nicht als
+stummel.» Sie standen als neun Pixel langer Strich unter der Achse — ein
+Teilungsstrich auf einem Massstab, kein Bauteil.
+
+Jetzt: **Schaft** vom Joch herunter, **Fundamentklötzchen** unten,
+**Geländelinie** darunter. Die Leiste liest sich damit als kleiner Aufriss
+des Querprofils — Joche oben, Masten darunter, Boden zuunterst. Der
+**geteilte Mast** hat ein breiteres Fundament: er trägt zwei Tragwerke, und
+das ist der Unterschied, den man in einer Reihe sofort sehen will.
+
+### Am Masten ziehen ändert den Abstand (2. September)
+
+Weisung: «wie kann ich nachträglich die mastabstände bzw. jochlängen
+anpassen?» Man konnte es — über das Feld «Jochlänge jt» drei Abschnitte
+tiefer. Nur ist der Mastabstand dort keine Frage nach einem *Abstand*,
+sondern nach einer Bauteillänge.
+
+Jetzt am Masten selbst:
+
+| gezogener Mast | was sich ändert |
+|---|---|
+| Ende A eines Jochs | die **Lage** des Tragwerks, es wandert ganz |
+| Ende B eines Jochs | seine **Länge**, das andere Ende bleibt |
+| ein **geteilter** Mast | beides: das linke Joch wird länger, das rechte wandert mit |
+
+Der letzte Fall ist der einer Jochreihe an ihrem Zwischenmasten. Im Browser
+nachgemessen: den geteilten Masten nach rechts gezogen → T1 von 20.00 auf
+**24.85 m**, T2 von x₀ 20.00 auf **24.85** bei unveränderter eigener Länge.
+
+Die Länge bleibt im Sortiment: gezogen wird nur innerhalb des Bereichs, den
+der Jochtyp führt.
+
+### Zwei Joche dürfen sich berühren, nicht durchdringen (2. September)
+
+Weisung: «das überschneiden der joche sollte nicht möglich sein.»
+
+**Berühren schon** — das *ist* die Jochreihe, und genau diese Stelle muss
+erreichbar bleiben. Verboten ist das Stück davor. `freieLage` schiebt auf die
+nächstgelegene erlaubte Stelle statt abzuweisen: wer ein Joch an seinen
+Nachbarn heranzieht, meint «bis dorthin». Es gilt für das Ziehen *und* für
+das Zahlenfeld — zwei Wege zur selben Angabe mit zwei verschiedenen Regeln
+wären eine Einladung, den ungeschützten zu nehmen.
+
+### Was nicht gerechnet wird, redet leiser (2. September)
+
+Weisung: «beim anklicken eines tragwerks beim inaktiven die texte entweder
+ganz schwach darstellen oder komplett ausbilden.»
+
+Auf einer Jochreihe standen die Titel aller Tragwerke gleich laut
+nebeneinander. **Gedämpft, nicht weg:** ein Titel, der ganz verschwindet,
+nimmt die Orientierung mit — man sähe zwar, *wo* ein Nachbar steht, aber
+nicht mehr, *was* er ist, und genau das braucht man, um ihn anzuklicken.
+Ohne Kasten und in der Randfarbe steht er da wie eine Anschrift auf dem Plan.
+
+Die **Bemassungen** eines nicht gerechneten Tragwerks fallen dagegen ganz
+weg: eine Masszahl ist kein Name, sondern eine Angabe — und sie ist
+anklickbar, führt also auf ein Eingabefeld, das dem Nachbarn gar nicht
+gehört.
+
+### Ein Tragwerk beiseitelegen (2. September)
+
+Weisung: «wie könnte man einzelne tragabschnitte komplett ausblenden im
+modell / Anbauteile / nachweis?»
+
+**Ausgeblendet heisst: es ist nicht da.** Nicht durchsichtig, nicht grau —
+weg aus Bild, Bauteilliste, Ausleitung und Nachweis. Sonst blendet man einen
+Abschnitt aus und findet seine Zahlen weiter in der Auswertung.
+
+Im **Datensatz** bleibt es. Das ist der Unterschied zum Entfernen: die
+Eingaben stehen weiter da. Auf einem langen Querprofil arbeitet man so an
+einem Abschnitt, ohne die anderen zu verlieren.
+
+Drei Regeln, die daran hängen:
+
+* Das **gerechnete** Tragwerk lässt sich nicht ausblenden — man sähe eine
+  Auswertung ohne ihren Gegenstand. Wer es ausblendet, schaltet damit auf das
+  nächste sichtbare um.
+* Ein **geteilter Mast** verschwindet nicht: der Nachbar bringt ihn ebenfalls
+  mit. Nur der eigene Mast des ausgeblendeten Tragwerks fällt weg.
+* Die **Ausleitung nennt, wer fehlt** (`blatt.versteckt`) — und zwar gerade
+  auch dann, wenn nur noch ein Tragwerk übrig ist: eine solche Datei sieht
+  sonst aus wie die eines Blattes, auf dem nie mehr stand.
+
+In der Leiste bleibt es als **gestrichelter Umriss** an seiner Stelle stehen.
+Ganz zu verschwinden wäre die falsche Antwort — dann wüsste niemand mehr, wie
+man es zurückholt. Ein Klick holt es zurück und macht es zum gerechneten.
+
+
 ### Ein Bauteil am Masten gehört dem Masten (2. September)
 
 Weisung: «das bauteil am geteilten masten beheben».

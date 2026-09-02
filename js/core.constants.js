@@ -160,6 +160,13 @@ export function tragwerkeVon(w) {
 /** Wieviele Tragwerke stehen auf dem Blatt? */
 export const anzahlTragwerke = (w) => 1 + (w?.weitere?.length ?? 0);
 
+/*
+ * Wieviele davon ZAEHLEN. Der Hinweis «2 Tragwerke auf diesem Querprofil»
+ * meint die, die gerechnet und ausgeleitet werden - ein beiseitegelegtes
+ * gehoert nicht dazu, sonst zaehlte die Meldung etwas, das nicht dasteht.
+ */
+export const anzahlSichtbar = (w) => sichtbareTragwerke(w).length;
+
 /**
  * DIE FELDER, DIE DEM BLATT GEHÖREN — nicht dem einzelnen Tragwerk.
  *
@@ -351,6 +358,73 @@ export function tragwerkBeiX(w, x, tol = 0.3) {
   }) ?? null;
 }
 
+/**
+ * DIE AUSDEHNUNG EINES TRAGWERKS AUF DEM BLATT: [von, bis].
+ *
+ * Ein Einzelmast ist ein Punkt - er bekommt keine Ausdehnung, sondern nur
+ * seine Stelle. Zwei Masten an derselben Stelle waeren ein Eingabefehler,
+ * kein Ueberschneiden.
+ */
+export function bereichVon(t, x0 = null) {
+  const a = x0 === null ? lageVon(t) : x0;
+  const L = tragwerksart(t).masten >= 2 ? (Number(t?.L) || 0) : 0;
+  return [a, a + L];
+}
+
+/**
+ * >>> ZWEI JOCHE DUERFEN SICH NICHT UEBERSCHNEIDEN. <<<
+ *
+ * Weisung vom 2. September: «das überschneiden der joche sollte nicht
+ * möglich sein.»
+ *
+ * BERUEHREN SCHON - das ist die Jochreihe: das rechte Joch beginnt genau
+ * dort, wo das linke endet, und beide stehen auf demselben Zwischenmasten.
+ * Genau diese Stelle ist der Regelfall und muss erreichbar bleiben.
+ * Verboten ist das Stueck DAVOR: ein Joch, das in seinen Nachbarn
+ * hineinragt, beschreibt kein Tragwerk, sondern zwei, die einander
+ * durchdringen - und die Ausleitung baute daraus ein Modell, das AxisVM
+ * klaglos rechnet.
+ *
+ * Geschoben wird auf die naechstgelegene erlaubte Stelle, nicht abgewiesen:
+ * wer ein Joch an seinen Nachbarn heranzieht, meint «bis dorthin».
+ *
+ * @returns {{x:number, geklemmt:boolean}}
+ */
+export function freieLage(w, id, x) {
+  const alle = tragwerkeSortiert(w);
+  const t = alle.find((y) => y.id === id);
+  if (!t) return { x, geklemmt: false };
+  const [, bis] = bereichVon(t, x);
+  const L = bis - x;
+  let unten = -Infinity, oben = Infinity;
+  alle.forEach((y) => {
+    if (y.id === id) return;
+    const [a, b] = bereichVon(y);
+    // Wer LINKS von mir steht, begrenzt mich nach unten; wer rechts steht,
+    // nach oben. Massgebend ist, wo er JETZT steht - nicht, wo er einmal
+    // stand.
+    if (b <= x + 1e-9) unten = Math.max(unten, b);
+    else if (a >= x + L - 1e-9) oben = Math.min(oben, a - L);
+    else {
+      /*
+       * SCHON MITTENDRIN. Dann entscheidet die naehere Seite: wer von links
+       * kommt, wird links abgesetzt, wer von rechts kommt, rechts. Ohne
+       * diesen Fall bliebe ein Joch, das man zu weit gezogen hat, im
+       * Nachbarn stecken.
+       */
+      const nachLinks = a - L, nachRechts = b;
+      if (Math.abs(x - nachLinks) <= Math.abs(x - nachRechts)) {
+        oben = Math.min(oben, nachLinks);
+      } else {
+        unten = Math.max(unten, nachRechts);
+      }
+    }
+  });
+  const neu = Math.min(Math.max(x, unten), oben);
+  return { x: Number.isFinite(neu) ? neu : x,
+           geklemmt: Math.abs(neu - x) > 1e-9 };
+}
+
 /** Und zurueck - fuer alles, was eine Bauteillage im Blatt anzeigen will. */
 export const lokalNachBlatt = (t, x) => x + lageVon(t);
 
@@ -365,6 +439,45 @@ export function mastLagen(t) {
   const art = tragwerksart(t);
   if (art.masten >= 2) return [x0, x0 + (Number(t?.L) || 0)];
   return [x0];
+}
+
+/*
+ * ===========================================================================
+ * EIN TRAGWERK GANZ AUSBLENDEN
+ *
+ * Weisung vom 2. September: «wie könnte man einzelne tragabschnitte
+ * komplett ausblenden im modell / Anbauteile / nachweis?»
+ *
+ * >>> AUSGEBLENDET HEISST: ES IST NICHT DA. <<<
+ *
+ * Nicht «durchsichtig gezeichnet» und nicht «grau». Ein Abschnitt, den man
+ * ausblendet, soll aus dem Bild verschwinden, aus der Bauteilliste, aus der
+ * Ausleitung und aus dem Nachweis - sonst blendet man ihn aus und findet
+ * seine Zahlen trotzdem in der Auswertung wieder.
+ *
+ * Er bleibt im DATENSATZ. Das ist der Unterschied zum Entfernen: die
+ * Eingaben stehen weiter da und kommen unveraendert zurueck. Auf einem
+ * langen Querprofil arbeitet man so an einem Abschnitt, ohne die anderen
+ * zu verlieren.
+ *
+ * >>> ZWEI DINGE, DIE ES NICHT TUT. <<<
+ *
+ * Das GERECHNETE Tragwerk laesst sich nicht ausblenden - man saehe dann
+ * eine Auswertung ohne ihren Gegenstand. Wer es ausblendet, schaltet damit
+ * auf das naechste sichtbare um (app.js).
+ *
+ * Und ein GETEILTER MAST verschwindet nicht, solange das Nachbartragwerk
+ * ihn braucht: er gehoert beiden. `mastenAbgeleitet` ueberspringt nur das
+ * ausgeblendete Tragwerk, nicht die Masten der uebrigen.
+ * ===========================================================================
+ */
+
+/** Ist dieses Tragwerk ausgeblendet? */
+export const versteckt = (t) => t?.ausgeblendet === true;
+
+/** Die Tragwerke, die zaehlen - Bild, Ausleitung und Nachweis sehen nur die. */
+export function sichtbareTragwerke(w) {
+  return tragwerkeSortiert(w).filter((t) => !versteckt(t));
 }
 
 /** Alle Tragwerke in der Reihenfolge des Blattes, das aktive markiert. */
@@ -463,6 +576,10 @@ function mastAus(t, ende, x) {
 function mastenAbgeleitet(w, tol) {
   const liste = [];
   tragwerkeSortiert(w).forEach((t) => {
+    // Ein ausgeblendetes Tragwerk bringt keine Masten mit. Einen GETEILTEN
+    // verliert das Blatt dadurch nicht - der Nachbar bringt ihn ebenfalls,
+    // und dort steht er weiter.
+    if (versteckt(t)) return;
     if (t.mastVorhanden === false) return;
     const lagen = mastLagen(t);
     /*
@@ -887,7 +1004,9 @@ export function setzeMastAngabe(w, ziel, flachKey, wert) {
  * @returns {Array<{links:string, rechts:string, x:number, luecke:number}>}
  */
 export function engeJochenden(w, soll = 0.10) {
-  const alle = tragwerkeSortiert(w);
+  // Nur was im Modell steht, kann sich beruehren. Ein ausgeblendetes
+  // Tragwerk ist nicht da - es traegt auch keine Endbleche bei.
+  const alle = sichtbareTragwerke(w);
   const eng = [];
   for (let i = 1; i < alle.length; i++) {
     const a = alle[i - 1], b = alle[i];

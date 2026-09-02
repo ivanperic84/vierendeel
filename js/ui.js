@@ -12,7 +12,8 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
-         gewaehlterMast } from './core.constants.js';
+         gewaehlterMast, versteckt } from './core.constants.js';
+import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -290,6 +291,9 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
   });
   container.querySelectorAll('[data-tw-mast]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkMasten', b.dataset.twMast));
+  });
+  container.querySelectorAll('[data-tw-aus]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkAus', b.dataset.twAus));
   });
   verdrahteLeiste(container, werte, onChange);
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
@@ -687,14 +691,130 @@ const feldWert = (f, werte) =>
  */
 const QP_SCHWELLE = 3;
 
+/**
+ * WAS EIN MAST IST - Ende A, Ende B, oder beides zugleich.
+ *
+ * `alsA` nennt das Tragwerk, dessen linkes Ende er ist; `alsB` das, dessen
+ * rechtes. Ein geteilter Mast hat beides, und dann haengt an ihm die Laenge
+ * des einen und die Lage des anderen.
+ *
+ * @returns {{x:number, alsA:object|null, alsB:object|null}|null}
+ */
+export function mastRollen(werte, mastId) {
+  const m = mastenVon(werte).find((x) => x.id === mastId);
+  if (!m) return null;
+  let alsA = null, alsB = null;
+  tragwerkeSortiert(werte).forEach((t) => {
+    const [a, b] = mastenFuer(werte, t);
+    if (a && a.id === mastId) alsA = { t, x0: lageVon(t) };
+    if (b && b.id === mastId) alsB = { t, x0: lageVon(t) };
+  });
+  return { x: m.x, alsA, alsB };
+}
+
+/**
+ * Wohin ein gezogener Mast darf.
+ *
+ * Nach unten die Laenge, die der Jochtyp mindestens fuehrt, nach oben die
+ * groesste - und dazu der Nachbar auf der anderen Seite: ein Zwischenmast,
+ * ueber sein Nachbarjoch hinausgezogen, brauchte eine negative Laenge.
+ */
+export function mastGrenzen(rollen, x) {
+  let unten = -Infinity, oben = Infinity;
+  if (rollen.alsB) {
+    const b = laengenbereich(getTragjoch(rollen.alsB.t.typ));
+    unten = Math.max(unten, rollen.alsB.x0 + b.min);
+    oben = Math.min(oben, rollen.alsB.x0 + b.max);
+  }
+  if (rollen.alsA && rollen.alsA.t) {
+    // Das Tragwerk rechts wandert mit; sein rechtes Ende darf nicht in
+    // seinen eigenen Nachbarn laufen. Das faengt `freieLage` beim Ablegen -
+    // hier genuegt die Laengengrenze des eigenen Typs.
+    const b = laengenbereich(getTragjoch(rollen.alsA.t.typ));
+    const rechtesEnde = rollen.alsA.x0 + (Number(rollen.alsA.t.L) || 0);
+    oben = Math.min(oben, rechtesEnde - b.min);
+    unten = Math.max(unten, rechtesEnde - b.max);
+  }
+  return Math.min(Math.max(x, unten), oben);
+}
+
 export function verdrahteLeiste(container, werte, onChange) {
   const leiste = container.querySelector('.qp-leiste');
   if (!leiste) return;
   const von = Number(leiste.dataset.qpVon), bis = Number(leiste.dataset.qpBis);
   const spur = leiste.querySelector('.qp-spur');
 
+  /*
+   * >>> AM MASTEN ZIEHEN AENDERT DEN ABSTAND. <<<
+   *
+   * Weisung vom 2. September: «wie kann ich nachträglich die mastabstände
+   * bzw. jochlängen anpassen?»
+   *
+   * Man konnte es: das Feld «Jochlänge jt» in der Systemgeometrie. Nur ist
+   * der Mastabstand dort keine Frage nach einem ABSTAND, sondern nach einer
+   * Bauteillaenge - und wer zwei Masten vor sich sieht, will den Abstand
+   * zwischen ihnen anfassen, nicht ein Feld drei Abschnitte tiefer suchen.
+   *
+   * WELCHER MAST WAS AENDERT:
+   *
+   *   Ende A eines Jochs   die LAGE des ganzen Tragwerks (es wandert mit)
+   *   Ende B eines Jochs   seine LAENGE (das andere Ende bleibt stehen)
+   *   ein GETEILTER Mast   beides zugleich: das linke Joch wird laenger
+   *                        oder kuerzer, das rechte wandert mit. Das ist
+   *                        genau das, was eine Jochreihe an ihrem
+   *                        Zwischenmasten tut.
+   *
+   * DIE LAENGE BLEIBT IM SORTIMENT. Ein Tragjoch gibt es nicht in jeder
+   * Laenge; gezogen wird nur innerhalb des Bereichs, den der Typ fuehrt
+   * (stehende Vorgabe: massgebend sind die Daten). Am Ende rastet die
+   * Eingabe ohnehin auf die naechste gefuehrte Laenge.
+   */
   container.querySelectorAll('[data-qp-mast]').forEach((b) => {
-    b.addEventListener('click', () => onChange('mastAktiv', b.dataset.qpMast));
+    const mastId = b.dataset.qpMast;
+    let zug = null;
+    b.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const rollen = mastRollen(werte, mastId);
+      if (!rollen) return;
+      try { b.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
+      zug = { startX: e.clientX, x0: rollen.x, rollen, bewegt: false };
+    });
+    b.addEventListener('pointermove', (e) => {
+      if (!zug) return;
+      const dpx = e.clientX - zug.startX;
+      if (!zug.bewegt && Math.abs(dpx) < QP_SCHWELLE) return;
+      zug.bewegt = true;
+      const breite = spur.getBoundingClientRect().width || 1;
+      const roh = zug.x0 + (dpx / breite) * (bis - von);
+      zug.x = mastGrenzen(zug.rollen, Math.round(roh * 20) / 20);
+      b.style.left = `${((zug.x - von) / (bis - von) * 100).toFixed(3)}%`;
+      b.classList.add('zieht');
+      const feld = b.querySelector('.qp-mast-x');
+      if (feld) feld.textContent = zug.x.toFixed(2);
+      let marke = leiste.querySelector('.qp-zug');
+      if (!marke) {
+        marke = document.createElement('span');
+        marke.className = 'qp-zug';
+        spur.appendChild(marke);
+      }
+      marke.textContent = zug.rollen.alsB
+        ? `Jochlänge ${(zug.x - zug.rollen.alsB.x0).toFixed(2)} m`
+        : `x₀ = ${zug.x.toFixed(2)} m`;
+    });
+    const ende = (e) => {
+      if (!zug) return;
+      const fertig = zug;
+      zug = null;
+      try { b.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
+      if (!fertig.bewegt || fertig.x === undefined
+          || Math.abs(fertig.x - fertig.x0) < 1e-9) {
+        onChange('mastAktiv', mastId);
+        return;
+      }
+      onChange('mastStelle', { mastId, x: fertig.x });
+    };
+    b.addEventListener('pointerup', ende);
+    b.addEventListener('pointercancel', ende);
   });
 
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
@@ -703,7 +823,7 @@ export function verdrahteLeiste(container, werte, onChange) {
     b.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       const t = tragwerkeSortiert(werte).find((x) => x.id === id);
-      if (!t) return;
+      if (!t || versteckt(t)) return;      // ausgeblendet: nur einblenden
       try { b.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
       zug = { startX: e.clientX, x0: lageVon(t), bewegt: false };
     });
@@ -754,6 +874,10 @@ export function verdrahteLeiste(container, werte, onChange) {
     };
     b.addEventListener('pointerup', ende);
     b.addEventListener('pointercancel', ende);
+    // Ein ausgeblendetes Tragwerk kennt nur eine Geste: zurueckholen.
+    if (b.dataset.qpZeigen) {
+      b.addEventListener('click', () => onChange('tragwerkZeigen', id));
+    }
   });
 
   /*
@@ -843,48 +967,79 @@ export function querprofilLeisteHtml(werte, zieht = null) {
     // waere sein Balken ein Strich, den man nicht trifft.
     const breit = Math.max(qpPct(x0 + L, von, bis) - links, 4);
     const an = t.id === aktivId;
+    /*
+     * EIN AUSGEBLENDETES TRAGWERK BLEIBT ALS UMRISS STEHEN.
+     *
+     * Ganz zu verschwinden waere die falsche Antwort: dann wuesste niemand
+     * mehr, dass es da ist, und schon gar nicht, wie man es zurueckholt.
+     * Als gestrichelter Umriss steht es an seiner Stelle und sagt beides -
+     * dass es zum Blatt gehoert und dass es gerade nicht zaehlt. Ein Klick
+     * holt es zurueck.
+     */
+    const aus = versteckt(t);
     return `<button type="button" class="qp-tw${an ? ' an' : ''}${
-        zieht && zieht.id === t.id ? ' zieht' : ''}"
-        data-qp-tw="${esc(t.id)}" style="left:${links.toFixed(3)}%;
+        aus ? ' aus' : ''}${zieht && zieht.id === t.id ? ' zieht' : ''}"
+        data-qp-tw="${esc(t.id)}"${aus ? ' data-qp-zeigen="1"' : ''}
+        style="left:${links.toFixed(3)}%;
         width:${breit.toFixed(3)}%"
         title="${esc(`${tragwerkName(t)} — ${art.label}, x₀ = ${x0.toFixed(2)} m`
-          + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen')
-          + ' · ziehen verschiebt')}"
+          + (aus ? ' · ausgeblendet — anklicken blendet es wieder ein'
+             : an ? ' · wird gerechnet'
+             : ' · anklicken, um es zu rechnen')
+          + (aus ? '' : ' · ziehen verschiebt'))}"
         aria-pressed="${an}">
         <span class="qp-tw-art">${esc(art.kuerzel)}</span>
         <span class="qp-tw-name">${esc(tragwerkName(t))}</span>
       </button>`;
   }).join('');
 
+  /*
+   * >>> EIN MAST IST KEIN STUMMEL. <<<
+   *
+   * Weisung vom 2. September: «Die masten in der tragwerkdarstellung klarer
+   * ausbilden, nicht als stummel.»
+   *
+   * Sie standen als neun Pixel langer Strich unter der Achse - ein
+   * Teilungsstrich auf einem Massstab, kein Bauteil. Jetzt stehen sie, wie
+   * sie stehen: ein Schaft vom Joch herunter, ein Fundamentkloetzchen unten,
+   * und darunter die Gelaendelinie. Die Leiste liest sich damit als kleiner
+   * AUFRISS des Querprofils - Joche oben, Masten darunter, Boden zuunterst -
+   * und nicht mehr als abstrakte Achse mit Marken.
+   *
+   * DER GETEILTE MAST ist breiter im Fundament: er traegt zwei Tragwerke,
+   * und das ist der Unterschied, den man in einer Reihe sofort sehen will.
+   */
   const marken = masten.map((m, i) => {
     const an = m.id === gewMast?.id;
     const geteilt = (m.traegt ?? []).length > 1;
+    const x = (zieht && zieht.mastId === m.id) ? zieht.x : m.x;
     return `<button type="button" class="qp-mast${an ? ' an' : ''}${
         geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
-        style="left:${qpPct(m.x, von, bis).toFixed(3)}%"
-        title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m — ${
+        style="left:${qpPct(x, von, bis).toFixed(3)}%"
+        title="${esc(`M${i + 1} bei x = ${x.toFixed(2)} m — ${
           m.profil ?? 'ohne Profil'}`
-          + (geteilt ? ' · von zwei Tragwerken geteilt' : ''))}"
-        aria-pressed="${an}"><span class="qp-mast-nr">M${i + 1}</span></button>`;
+          + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
+          + ' · ziehen ändert den Mastabstand')}"
+        aria-pressed="${an}">
+        <span class="qp-mast-schaft"></span>
+        <span class="qp-mast-fuss"></span>
+        <span class="qp-mast-x">${x.toFixed(Math.abs(x % 1) > 1e-9 ? 2 : 0)}</span>
+      </button>`;
   }).join('');
 
   /*
-   * DIE SKALA NENNT DIE MASTSTELLEN - mehr nicht.
-   *
-   * Ein Raster alle fuenf Meter waere Zahlensalat auf 240 Punkten Breite.
-   * Gebraucht werden die Stellen, an denen etwas steht.
+   * DIE ZAHL WAEHREND DES ZUGS nennt, WAS sich gerade aendert - die Lage
+   * eines Tragwerks oder den Abstand zweier Masten. Zwei verschiedene
+   * Gesten, zwei verschiedene Antworten; «x₀ = ...» ueber einem gezogenen
+   * Masten waere die falsche.
    */
-  const zahlen = masten.map((m) =>
-    `<span class="qp-zahl" style="left:${qpPct(m.x, von, bis).toFixed(3)}%"
-       >${m.x.toFixed(Math.abs(m.x % 1) > 1e-9 ? 2 : 0)}</span>`).join('');
-
   const gezogen = zieht
-    ? `<span class="qp-zug">x₀ = ${zieht.x.toFixed(2)} m</span>` : '';
+    ? `<span class="qp-zug">${esc(zieht.text
+        ?? `x₀ = ${zieht.x.toFixed(2)} m`)}</span>` : '';
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
       <div class="qp-spur">${balken}${gezogen}</div>
-      <div class="qp-achse">${marken}</div>
-      <div class="qp-skala">${zahlen}</div>
+      <div class="qp-achse">${marken}<span class="qp-boden"></span></div>
     </div>`;
 }
 
@@ -939,6 +1094,22 @@ function feldHtml(f, wert, werte) {
                : 'Masten ausschalten — das Tragwerk steht dann ohne')}"
              aria-pressed="${aktiv.mastVorhanden !== false}">${
              icon('mast', 13)} Masten</button>` : '')
+      /*
+       * AUSBLENDEN, NICHT ENTFERNEN - zwei verschiedene Absichten.
+       *
+       * Entfernen wirft die Eingaben weg. Ausblenden legt den Abschnitt
+       * beiseite: er bleibt im Datensatz, verschwindet aber aus Bild,
+       * Bauteilliste, Ausleitung und Nachweis. Auf einem langen Querprofil
+       * arbeitet man so an einem Abschnitt, ohne die anderen zu verlieren.
+       *
+       * Nur wenn noch ein sichtbares uebrig bleibt: ein Blatt ohne
+       * gerechnetes Tragwerk waere eine Auswertung ohne Gegenstand.
+       */
+      + (alle.filter((t) => !versteckt(t)).length > 1
+        ? `<button type="button" class="btn btn-mini"
+             data-tw-aus="${esc(aktiv.id)}"
+             title="Beiseitelegen — bleibt gespeichert, zählt aber nicht mehr"
+             >${icon('auge', 13)} ausblenden</button>` : '')
       + (alle.length > 1
         ? `<button type="button" class="btn btn-mini btn-fail"
              data-tw-weg="${esc(aktiv.id)}"

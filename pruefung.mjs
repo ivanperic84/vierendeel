@@ -9996,8 +9996,14 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   // NUR DER RAHMEN LEUCHTET AUF, nicht die Schrift (Weisung): man faehrt
   // beim Drehen vielmal unbewusst darueber.
   {
+    /*
+     * DAS FENSTER WURDE GROESSER, weil der Rumpf es wurde: seit dem
+     * 2. September steht davor der Zweig fuer die passiven Titel (sie
+     * werden gedaempft gezeichnet und sind nicht anklickbar). Die Aussage
+     * bleibt dieselbe - nur der Rahmen leuchtet auf, nicht die Schrift.
+     */
     const ab = r61.indexOf('const warm = this._titelUnterZeiger === bt;');
-    const koerper = ab > 0 ? r61.slice(ab, ab + 600) : '';
+    const koerper = ab > 0 ? r61.slice(ab, ab + 2600) : '';
     wahr('Der Rahmen folgt dem Zeiger', koerper.includes('warm ? t.acc'));
     wahr('… die Schrift aber nicht',
          koerper.includes('c.fillStyle = t.on2 ?? t.on;')
@@ -11770,6 +11776,68 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          !(w2.weitere ?? []).some(
            (t) => (t.anbauteile ?? []).some((a) => a.ort === 'mastA'
                                                || a.ort === 'mastB')));
+  }
+
+  /*
+   * >>> ZWEI JOCHE DUERFEN SICH BERUEHREN, NICHT DURCHDRINGEN. <<<
+   *
+   * Weisung vom 2. September: «das überschneiden der joche sollte nicht
+   * möglich sein.» Beruehren SCHON - das ist die Jochreihe, und genau diese
+   * Stelle muss erreichbar bleiben.
+   */
+  {
+    const w = reihe();                    // T1: 0..20, T2: L 15 bei 20
+    const f = (x) => C75.freieLage(w, 'T2', x);
+    pruef('Rechts daneben bleibt, wo es ist', f(25).x, 25, 1e-9, 'm');
+    pruef('Genau anschliessend ist erlaubt', f(20).x, 20, 1e-9, 'm');
+    wahr('… und gilt nicht als geklemmt', f(20).geklemmt === false);
+    pruef('Einen Meter hinein wird zurueckgeschoben', f(19).x, 20, 1e-9, 'm');
+    wahr('… und sagt es', f(19).geklemmt === true);
+    // Von links kommend wird links abgesetzt: das rechte Ende trifft dann
+    // das linke Ende des Nachbarn.
+    pruef('Von links kommend links anschliessend', f(0).x, -15, 1e-9, 'm');
+    pruef('Der Bereich eines Jochs ist [x0, x0+L]',
+          C75.bereichVon(C75.tragwerkeSortiert(w)[0])[1], 20, 1e-9, 'm');
+  }
+
+  /*
+   * >>> EIN TRAGWERK BEISEITELEGEN. <<<
+   *
+   * Weisung: «wie könnte man einzelne tragabschnitte komplett ausblenden im
+   * modell / Anbauteile / nachweis?» Ausgeblendet heisst NICHT DA - sonst
+   * blendet man einen Abschnitt aus und findet seine Zahlen weiter in der
+   * Auswertung.
+   */
+  {
+    const AX = await import(J('export.axisvm.js'));
+    const V = await import(J('core.vierendeel.js'));
+    // Ein vollstaendiger Satz - die Ausleitung braucht Profile und Stahl,
+    // `reihe()` traegt nur die Geometrie.
+    let w = C75.tragwerkHinzu(
+      { ...standardwerte(), typ: 'J90', L: 20, xLage: 0,
+        endbedingung: 'mast', mastVorhanden: true, anbauteile: [] },
+      'joch', { L: 15, xLage: 20, anbauteile: [] });
+    wahr('Zunaechst sind beide sichtbar', C75.sichtbareTragwerke(w).length === 2);
+    // Das nicht aktive ausblenden.
+    const anderes = C75.tragwerkeVon(w).find((t) => t.id !== (w.twId ?? 'T1'));
+    let w2 = C75.tauscheAktives(w, anderes.id);
+    w2 = { ...w2, ausgeblendet: true };
+    w2 = C75.tauscheAktives(w2, w.twId ?? 'T1');
+    wahr('Danach zaehlt eines', C75.anzahlSichtbar(w2) === 1);
+    wahr('… im Datensatz stehen aber weiter zwei',
+         C75.anzahlTragwerke(w2) === 2);
+    wahr('Seine Masten bringt es nicht mehr mit',
+         C75.mastenVon(w2).length < C75.mastenVon(w).length);
+
+    // UND DIE AUSLEITUNG LAESST ES WEG - nennt es aber im Bericht.
+    const deps = { modellVon: (satz) => V.modell(satz,
+      getProfil(satz.profOG), getProfil(satz.profUG), getStahl(satz.stahl),
+      T.getTragjoch(satz.typ)) };
+    const bau = AX.stabmodellBlatt(w2, deps, { knotenmodell: 'anschnitt' });
+    const fuesse = [...bau.knoten.keys()].filter((n) => /^MAST_.*_F$/.test(n));
+    wahr('Das ausgeblendete steht nicht in der Datei', fuesse.length === 2);
+    wahr('… und der Bericht sagt, dass es Absicht war',
+         (bau.blatt?.versteckt ?? []).includes(anderes.id));
   }
 
   /*

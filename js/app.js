@@ -30,7 +30,7 @@ import { verortung, fangeAufMasskette,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
-         anbauteileFuer, setzeAnbauteileAn }
+         anbauteileFuer, setzeAnbauteileAn, freieLage, versteckt }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -523,7 +523,14 @@ function szeneVonNebenan(t) {
  */
 function blattSzene(erg) {
   const aktivId = werte.twId ?? 'T1';
-  const alle = tragwerkeSortiert(werte);
+  /*
+   * AUSGEBLENDETE TRAGWERKE STEHEN NICHT IM BILD.
+   *
+   * Das gerechnete ist immer dabei - es laesst sich gar nicht ausblenden
+   * (siehe `tragwerkAus`), und ohne seine Szene gaebe es nichts zu zeigen.
+   */
+  const alle = tragwerkeSortiert(werte)
+    .filter((t) => !versteckt(t) || t.id === aktivId);
   const eigen = erzeugeSzene(erg.modell, erg);
   if (alle.length < 2) return eigen;
   const teile = alle.map((t) => {
@@ -725,7 +732,80 @@ function aendern(key, wert) {
    */
   if (key === 'tragwerkLage') {
     if ((werte.twId ?? 'T1') !== wert.id) werte = tauscheAktives(werte, wert.id);
-    werte = { ...werte, xLage: wert.x };
+    /*
+     * ZWEI JOCHE DUERFEN SICH BERUEHREN, NICHT DURCHDRINGEN (Weisung).
+     * `freieLage` schiebt auf die naechstgelegene erlaubte Stelle - wer ein
+     * Joch an seinen Nachbarn heranzieht, meint «bis dorthin».
+     */
+    const frei = freieLage(werte, wert.id, wert.x);
+    werte = { ...werte, xLage: frei.x };
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  /*
+   * >>> EIN GEZOGENER MAST. <<<
+   *
+   * Weisung vom 2. September: «wie kann ich nachträglich die mastabstände
+   * bzw. jochlängen anpassen?» - jetzt am Masten selbst.
+   *
+   * Er kann zwei Rollen zugleich haben. Am Zwischenmasten einer Jochreihe
+   * ist er das RECHTE Ende des linken Jochs und das LINKE des rechten:
+   * ziehen heisst dann, das linke zu verlaengern und das rechte mitwandern
+   * zu lassen. Beides zusammen, sonst klafft eine Luecke oder die Joche
+   * ueberschneiden sich.
+   *
+   * DIE REIHENFOLGE ZAEHLT: erst die Laenge des linken, dann die Lage des
+   * rechten. Umgekehrt stuende das rechte kurz im linken drin, und
+   * `freieLage` schoebe es wieder weg.
+   */
+  if (key === 'mastStelle') {
+    const r = ui.mastRollen(werte, wert.mastId);
+    if (!r) return;
+    const setzeAn = (id, feld, v) => {
+      if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
+      werte = { ...werte, [feld]: v };
+    };
+    if (r.alsB) setzeAn(r.alsB.t.id, 'L', Math.max(0, wert.x - r.alsB.x0));
+    if (r.alsA) {
+      // Das rechte Tragwerk behaelt seine Laenge und wandert mit.
+      setzeAn(r.alsA.t.id, 'xLage', wert.x);
+    }
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  /*
+   * >>> EIN TRAGWERK BEISEITELEGEN. <<<
+   *
+   * Weisung vom 2. September: «wie könnte man einzelne tragabschnitte
+   * komplett ausblenden im modell / Anbauteile / nachweis?»
+   *
+   * Ausblenden ist nicht Entfernen: die Eingaben bleiben stehen und kommen
+   * unveraendert zurueck. Weg ist es aus Bild, Bauteilliste, Ausleitung und
+   * Nachweis - «ausgeblendet» heisst «nicht da», sonst findet man seine
+   * Zahlen weiter in der Auswertung.
+   *
+   * DAS GERECHNETE LAESST SICH NICHT AUSBLENDEN, ohne dass ein anderes an
+   * seine Stelle tritt: eine Auswertung ohne ihren Gegenstand waere eine
+   * leere Seite mit einer Zahl darauf. Deshalb wird zuerst umgeschaltet.
+   */
+  if (key === 'tragwerkAus') {
+    const sichtbar = tragwerkeSortiert(werte).filter((t) => !versteckt(t));
+    if (sichtbar.length < 2) return;
+    if ((werte.twId ?? 'T1') !== wert) werte = tauscheAktives(werte, wert);
+    werte = { ...werte, ausgeblendet: true };
+    const naechstes = sichtbar.find((t) => t.id !== wert);
+    if (naechstes) werte = tauscheAktives(werte, naechstes.id);
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  // Und zurueckholen: ein Klick auf den Umriss in der Leiste. Er macht es
+  // gleich zum gerechneten - wer es zurueckholt, will daran arbeiten.
+  if (key === 'tragwerkZeigen') {
+    if ((werte.twId ?? 'T1') !== wert) werte = tauscheAktives(werte, wert);
+    werte = { ...werte, ausgeblendet: false };
     mastNachfuehren();
     neuRechnen();
     return;
@@ -771,6 +851,20 @@ function aendern(key, wert) {
     // Sperren heisst: zurück auf die Sortimentstabelle.
     werte = { ...werte, lastenBearbeiten: wert,
               lastHerkunft: wert ? 'manuell' : 'tabelle' };
+    neuRechnen();
+    return;
+  }
+  /*
+   * AUCH DAS ZAHLENFELD DARF NICHT IN DEN NACHBARN SCHIEBEN.
+   *
+   * Sonst haette man zwei Wege zur selben Angabe mit zwei verschiedenen
+   * Regeln - der eine schuetzt, der andere nicht -, und der ungeschuetzte
+   * ist der, den man beim genauen Arbeiten benutzt.
+   */
+  if (key === 'xLage') {
+    const frei = freieLage(werte, werte.twId ?? 'T1', Number(wert) || 0);
+    werte = { ...werte, xLage: frei.x };
+    mastNachfuehren();
     neuRechnen();
     return;
   }

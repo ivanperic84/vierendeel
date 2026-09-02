@@ -1403,36 +1403,52 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   font-family: var(--f-mono); font-size: 10px; color: var(--acc);
 }
 
-/* Die Achse: eine Linie, auf der die Masten stehen. */
-.qp-achse {
-  position: relative; height: 16px;
-  border-top: 1px solid var(--ol);
+/* DIE ACHSE IST EIN KLEINER AUFRISS, keine Skala mit Marken.
+
+   Die Masten standen als neun Pixel langer Strich da - ein Teilungsstrich,
+   kein Bauteil (Weisung: «nicht als stummel»). Jetzt: Schaft vom Joch
+   herunter, Fundamentkloetzchen unten, Gelaendelinie darunter. Die Leiste
+   liest sich damit als Aufriss des Querprofils - Joche oben, Masten
+   darunter, Boden zuunterst. */
+.qp-achse { position: relative; height: 36px; }
+.qp-boden {
+  position: absolute; left: 0; right: 0; bottom: 13px; height: 1px;
+  background: var(--ol);
 }
 .qp-mast {
-  position: absolute; top: 0; transform: translateX(-50%);
-  width: 20px; height: 15px; padding: 0;
-  background: none; border: none; cursor: pointer;
+  position: absolute; top: 0; bottom: 0; width: 30px;
+  transform: translateX(-50%); padding: 0;
+  background: none; border: none; cursor: grab;
   font-family: var(--f-mono); font-size: 8.5px; color: var(--dim);
   line-height: 1;
 }
-/* Der Strich IST der Mast - die Nummer steht darunter. */
-.qp-mast::before {
-  content: ''; position: absolute; left: 50%; top: -4px;
-  width: 2px; height: 9px; margin-left: -1px;
-  background: var(--dim); border-radius: 1px;
+.qp-mast.zieht { cursor: grabbing; }
+/* Der Schaft - vom oberen Rand bis auf das Fundament. */
+.qp-mast-schaft {
+  position: absolute; left: 50%; top: 0; bottom: 18px; width: 2px;
+  margin-left: -1px; background: var(--dim); border-radius: 1px;
 }
-.qp-mast:hover::before { background: var(--on2); }
-.qp-mast.an::before { background: var(--acc); width: 3px; margin-left: -1.5px; }
+/* Das Fundament sitzt auf dem Boden, halb darin - wie im Aufriss. */
+.qp-mast-fuss {
+  position: absolute; left: 50%; bottom: 10px; width: 9px; height: 7px;
+  margin-left: -4.5px; background: var(--dim); border-radius: 1px;
+}
+.qp-mast-x {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  white-space: nowrap;
+}
+.qp-mast:hover .qp-mast-schaft, .qp-mast:hover .qp-mast-fuss {
+  background: var(--on2);
+}
+.qp-mast:hover { color: var(--on2); }
 .qp-mast.an { color: var(--acc); }
-/* Ein geteilter Mast traegt zwei Tragwerke - er ist laenger gezeichnet. */
-.qp-mast.geteilt::before { top: -6px; height: 13px; }
-.qp-mast-nr { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); }
-
-.qp-skala { position: relative; height: 11px; }
-.qp-zahl {
-  position: absolute; transform: translateX(-50%);
-  font-family: var(--f-mono); font-size: 8.5px; color: var(--dim);
+.qp-mast.an .qp-mast-schaft {
+  background: var(--acc); width: 3px; margin-left: -1.5px;
 }
+.qp-mast.an .qp-mast-fuss { background: var(--acc); }
+/* DER GETEILTE MAST traegt zwei Tragwerke - sein Fundament ist breiter.
+   Das ist der Unterschied, den man in einer Reihe sofort sehen will. */
+.qp-mast.geteilt .qp-mast-fuss { width: 15px; margin-left: -7.5px; height: 8px; }
 
 /* Die Handlungen am Gewaehlten - eine Zeile, keine Knopfwand. */
 .qp-tun { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
@@ -1866,3 +1882,13 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .viewer-ek { margin-left: auto; flex: none; text-align: right; }
+
+/* Ein ausgeblendetes Tragwerk steht als gestrichelter Umriss an seiner
+   Stelle - es gehoert zum Blatt, zaehlt aber gerade nicht. Ganz zu
+   verschwinden waere die falsche Antwort: dann wuesste niemand mehr, wie
+   man es zurueckholt. */
+.qp-tw.aus {
+  background: none; border-style: dashed; opacity: .55; cursor: pointer;
+}
+.qp-tw.aus .qp-tw-name, .qp-tw.aus .qp-tw-art { color: var(--dim); }
+.qp-tw.aus:hover { opacity: .85; border-color: var(--acc); }

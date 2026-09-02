@@ -158,6 +158,9 @@ export const ICONS = {
   auflager: 'M10 3v9M4 17l6-5 6 5M3 17h14',         // Auflagerdreieck
   // Der Mast: Stiel mit Fundament und dem Joch, das oben ansetzt.
   mast: 'M9 3v14M11 3v14M5 17h10M4 19l2-2M8 19l2-2M12 19l2-2M11 6h6',
+  // Ein durchgestrichenes Auge: beiseitegelegt, nicht geloescht.
+  auge: 'M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5M8.5 10a1.5 1.5 0 103 0'
+      + 'a1.5 1.5 0 10-3 0M3 3l14 14',
   stueck: 'M4 5h12M4 10h12M4 15h12M2 5v.01M2 10v.01M2 15v.01',
   // --- Werkzeuge der Modellansicht -----------------------------------------
   wuerfel: 'M10 2l7 4v8l-7 4-7-4V6zM10 10l7-4M10 10v8M10 10L3 6',
