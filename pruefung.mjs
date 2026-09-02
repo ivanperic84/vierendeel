@@ -11841,6 +11841,49 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE MASKENSIGNATUR DARF NICHT AN EINEM SCHIEBER HAENGEN. <<<
+   *
+   * Sie entscheidet, ob die Maske NEU GEBAUT wird - und ein Neubau ersetzt
+   * jedes Eingabefeld, auch das, das man gerade in der Hand hat.
+   *
+   * Gemeldet am 2. September: «der schieber hackt ab nach dem ersten
+   * raster». Ursache: in der Signatur standen der NAME des Tragwerks
+   * («J90 · 20.00 m»), seine LAGE und die Stellen der Masten. Alle drei
+   * haengen an der Jochlaenge. Jeder Rasterschritt baute die Maske neu, der
+   * Schieber unter dem Finger verschwand, der Zug brach ab. Dasselbe galt
+   * fuer das Zahlenfeld der Lage: jeder Tastendruck nahm ihm den Fokus.
+   *
+   * Diese Kontrolle haelt die Trennung fest: was sich beim Ziehen aendert,
+   * gehoert in die Nachfuehrung, nicht in die Signatur.
+   */
+  {
+    const UI75 = await import(J('ui.js'));
+    const w = typUebernehmen({ ...standardwerte(), typ: 'J90' },
+                             T.getTragjoch('J90'));
+    const sig = (o) => UI75.maskenSignatur({ ...w, ...o }, 'system');
+    wahr('Die Jochlaenge baut die Maske nicht neu',
+         sig({ L: 20 }) === sig({ L: 20.5 }));
+    wahr('Die Lage auch nicht',
+         sig({ xLage: 0 }) === sig({ xLage: 3.25 }));
+    wahr('Ein anderes Mastprofil auch nicht',
+         sig({ mastProfil: 'HEB 240' }) === sig({ mastProfil: 'HEB 260' }));
+
+    /*
+     * WAS DIE MASKE SEHR WOHL NEU BAUEN MUSS: alles, was aendert, WELCHE
+     * Felder dastehen. Ohne diese Gegenprobe waere die Kontrolle darueber
+     * mit einer Signatur erfuellt, die sich nie aendert.
+     */
+    const zwei = C75.tragwerkHinzu(w, 'einzelmast', {});
+    wahr('Ein zweites Tragwerk baut sie neu',
+         UI75.maskenSignatur(zwei, 'system') !== sig({}));
+    wahr('Ein ausgeblendetes Tragwerk ebenso',
+         UI75.maskenSignatur({ ...zwei, ausgeblendet: true }, 'system')
+           !== UI75.maskenSignatur(zwei, 'system'));
+    wahr('Und die Masten ein- oder auszuschalten ebenso',
+         sig({ mastVorhanden: false }) !== sig({ mastVorhanden: true }));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

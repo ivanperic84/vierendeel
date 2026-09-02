@@ -187,33 +187,32 @@ export function maskenSignatur(werte, tab) {
   return JSON.stringify([
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
     /*
-     * DIE TRAGWERKSLISTE GEHOERT IN DIE SIGNATUR.
+     * >>> DIE SIGNATUR ENTHAELT NUR, WAS DIE STRUKTUR AENDERT. <<<
      *
-     * Sie ist kein Eingabefeld, sondern der Rahmen um alle: ein Tragwerk
-     * mehr aendert die Liste, ein anderes aktives aendert JEDES Feld
-     * darunter. Ohne sie blieb die Maske stehen - der Klick auf «+ Mast»
-     * setzte den Wert, und die Liste zeigte weiter einen Eintrag. Derselbe
-     * Fehler wie beim Standort der Anbauteile, zwei Wochen frueher.
-     */
-    /*
-     * DIE LAGE GEHOERT DAZU. Sie steht an der Kachel und ordnet die Liste -
-     * ohne sie in der Signatur zeigte die Kachel nach dem Verschieben
-     * weiter die alte Zahl, waehrend das Feld darunter schon die neue trug.
+     * Sie entscheidet, ob die Maske NEU GEBAUT wird. Ein Neubau ersetzt
+     * jedes Eingabefeld - und damit auch das, das man gerade in der Hand
+     * hat.
+     *
+     * GENAU DAS IST PASSIERT. Hier standen der NAME des Tragwerks («J90 ·
+     * 20.00 m»), seine LAGE und die Liste der Masten mit ihren Stellen.
+     * Alle drei haengen an der Jochlaenge. Wer den Schieber «Jochlänge»
+     * zog, baute damit bei JEDEM Rasterschritt die ganze Maske neu, der
+     * Schieber unter dem Finger verschwand, und das Ziehen brach ab.
+     * Gemeldet am 2. September: «der schieber hackt ab nach dem ersten
+     * raster». Dasselbe galt fuer das Zahlenfeld der Lage: jeder Tastendruck
+     * nahm ihm den Fokus.
+     *
+     * Was hier bleibt, ist die STRUKTUR: wieviele Tragwerke, welcher Art,
+     * welches gerechnet wird, welche ausgeblendet sind. Davon haengt ab,
+     * WELCHE Felder dastehen.
+     *
+     * Was sich staendig aendert - Name, Laenge, Lage, Mastprofil - wird
+     * NACHGEFUEHRT statt neu gebaut (siehe `zeichneLeisteNeu` in
+     * aktualisiereMaske). Dieselbe Trennung wie bei jedem Zahlenfeld.
      */
     tragwerkeSortiert(werte).map(
-      (t) => `${t.id}:${tragwerksart(t).key}:${t.aktiv ? 1 : 0}:${tragwerkName(t)}`
-           + `:${lageVon(t)}:${t.mastVorhanden === false ? 0 : 1}`),
-    /*
-     * DIE MASTKACHELN GEHOEREN GENAUSO DAZU.
-     *
-     * Sie sind kein Eingabefeld, sondern eine zweite Liste - und sie zeigt
-     * Profil und Lage jedes Mastes an. Ohne sie in der Signatur bliebe die
-     * angeklickte Kachel stehen, waehrend die Felder darunter schon dem
-     * neuen Masten gelten: derselbe Fehler wie bei der Tragwerksliste, nur
-     * eine Reihe tiefer.
-     */
-    mastenVon(werte).map((m) => `${m.id}:${m.x}:${m.profil ?? ''}`
-      + `:${m.id === gewaehlterMast(werte)?.id ? 1 : 0}`),
+      (t) => `${t.id}:${tragwerksart(t).key}:${t.aktiv ? 1 : 0}`
+           + `:${versteckt(t) ? 1 : 0}:${t.mastVorhanden === false ? 0 : 1}`),
     gruppen.map((gid) => (gid === 'anbau'
       // Die Befestigungsart gehört dazu: sie ändert den Erklärtext am Feld.
       // Ebenso die Rolle der Module (Drahtwerk zeigt den Winkel statt der
@@ -278,24 +277,15 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     b.addEventListener('click', () =>
       onChange(b.dataset.feldBauform, b.dataset.bauform));
   });
-  // Die Liste meldet drei verschiedene Absichten. Sie laufen ueber denselben
-  // Weg wie jede andere Eingabe, damit Speichern und Rechnen daran haengen.
-  container.querySelectorAll('[data-tw-aktiv]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkAktiv', b.dataset.twAktiv));
-  });
-  container.querySelectorAll('[data-tw-weg]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkWeg', b.dataset.twWeg));
-  });
-  container.querySelectorAll('[data-tw-neu]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
-  });
-  container.querySelectorAll('[data-tw-mast]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkMasten', b.dataset.twMast));
-  });
-  container.querySelectorAll('[data-tw-aus]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkAus', b.dataset.twAus));
-  });
-  verdrahteLeiste(container, werte, onChange);
+  /*
+   * DAS TRAGWERKFELD WIRD EIGEN VERDRAHTET - es wird zweimal aufgebaut.
+   *
+   * Einmal hier beim Bau der Maske, und einmal beim Nachfuehren, wenn sich
+   * Laenge oder Lage geaendert haben (leisteNachfuehren). Der Rueckruf wird
+   * dafuer gemerkt.
+   */
+  leisteAendern = onChange;
+  verdrahteTragwerkfeld(container, werte, onChange);
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
     b.addEventListener('click', () =>
       onChange('bearbeiten', !(aktuelleWerte ?? werte).bearbeiten));
@@ -318,6 +308,19 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
  */
 export function aktualisiereMaske(container, werte, extras = {}) {
   aktuelleWerte = werte;
+  /*
+   * DIE QUERPROFIL-LEISTE WIRD NACHGEFUEHRT.
+   *
+   * Sie zeigt Laenge, Lage und Mastprofile - lauter Zahlen, die sich beim
+   * Ziehen eines Schiebers fortwaehrend aendern. Sie dafuer in die Signatur
+   * zu setzen hiesse, die ganze Maske mitzuziehen (siehe dort). Also wird
+   * hier nur SIE neu gezeichnet, samt ihrer Verdrahtung.
+   *
+   * WAEHREND EINES ZUGS AN DER LEISTE SELBST passiert das nicht: Balken und
+   * Masten melden erst beim Loslassen. Ein Neuzeichnen mittendrin naehme
+   * dem Zeiger sein Element - derselbe Fehler eine Ebene tiefer.
+   */
+  leisteNachfuehren(container, werte);
   const aktiv = document.activeElement;
   container.querySelectorAll('[data-feld]').forEach((inp) => {
     if (inp === aktiv) return;
@@ -924,6 +927,111 @@ function mastenNotizHtml(werte) {
     </p>`;
 }
 
+/**
+ * Die Knoepfe und Gesten des Tragwerkfeldes.
+ *
+ * Sie melden ueber denselben Weg wie jede andere Eingabe (`onChange`), damit
+ * Speichern, Rechnen und Zeichnen daran haengen bleiben.
+ */
+function verdrahteTragwerkfeld(container, werte, onChange) {
+  container.querySelectorAll('[data-tw-aktiv]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkAktiv', b.dataset.twAktiv));
+  });
+  container.querySelectorAll('[data-tw-weg]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkWeg', b.dataset.twWeg));
+  });
+  container.querySelectorAll('[data-tw-neu]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
+  });
+  container.querySelectorAll('[data-tw-mast]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkMasten', b.dataset.twMast));
+  });
+  container.querySelectorAll('[data-tw-aus]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkAus', b.dataset.twAus));
+  });
+  verdrahteLeiste(container, werte, onChange);
+}
+
+/**
+ * DAS FELD «TRAGWERKE»: die Leiste, die Handlungszeile, die Mastnotiz.
+ *
+ * Eigene Funktion, weil es zweimal gebraucht wird - beim Aufbau der
+ * Maske und beim Nachfuehren. Ohne diese Trennung stand die Leiste in
+ * der Maskensignatur, und jeder Rasterschritt des Laengenschiebers baute
+ * die ganze Maske neu.
+ */
+function tragwerkfeldHtml(werte) {
+  const alle = tragwerkeSortiert(werte);
+  const aktiv = alle.find((t) => t.id === (werte.twId ?? 'T1')) ?? alle[0];
+  const art = tragwerksart(aktiv);
+return querprofilLeisteHtml(werte)
+    + '<div class="qp-tun">'
+    /*
+     * EIN MENUE STATT VIER KNOEPFEN. Die vier Bauformen standen als vier
+     * gleich aussehende Knoepfe da und nahmen zwei Zeilen ein - obwohl man
+     * sie selten braucht und nie zwei davon zugleich.
+     */
+    + '<span class="qp-tun-neu"><button type="button" class="btn btn-mini"'
+    + ' data-qp-neu-auf>+ Tragwerk</button>'
+    + '<span class="qp-neu-liste" hidden>'
+    + TRAGWERKSARTEN.map((x) =>
+        `<button type="button" class="btn btn-mini" data-tw-neu="${esc(x.key)}"
+           title="${esc(x.kurz)}">${esc(x.label)}</button>`).join('')
+    + '</span></span>'
+    + (art.traeger
+      ? `<button type="button" class="btn btn-mini${
+           aktiv.mastVorhanden === false ? '' : ' an'}"
+           data-tw-mast="${esc(aktiv.id)}"
+           title="${esc(aktiv.mastVorhanden === false
+             ? 'Masten einschalten — sie werden gezeichnet, ausgeleitet und '
+               + 'nachgewiesen'
+             : 'Masten ausschalten — das Tragwerk steht dann ohne')}"
+           aria-pressed="${aktiv.mastVorhanden !== false}">${
+           icon('mast', 13)} Masten</button>` : '')
+    /*
+     * AUSBLENDEN, NICHT ENTFERNEN - zwei verschiedene Absichten.
+     *
+     * Entfernen wirft die Eingaben weg. Ausblenden legt den Abschnitt
+     * beiseite: er bleibt im Datensatz, verschwindet aber aus Bild,
+     * Bauteilliste, Ausleitung und Nachweis. Auf einem langen Querprofil
+     * arbeitet man so an einem Abschnitt, ohne die anderen zu verlieren.
+     *
+     * Nur wenn noch ein sichtbares uebrig bleibt: ein Blatt ohne
+     * gerechnetes Tragwerk waere eine Auswertung ohne Gegenstand.
+     */
+    + (alle.filter((t) => !versteckt(t)).length > 1
+      ? `<button type="button" class="btn btn-mini"
+           data-tw-aus="${esc(aktiv.id)}"
+           title="Beiseitelegen — bleibt gespeichert, zählt aber nicht mehr"
+           >${icon('auge', 13)} ausblenden</button>` : '')
+    + (alle.length > 1
+      ? `<button type="button" class="btn btn-mini btn-fail"
+           data-tw-weg="${esc(aktiv.id)}"
+           title="${esc(`${tragwerkName(aktiv)} vom Blatt nehmen`)}"
+           >\u00d7 entfernen</button>` : '')
+    + '</div>'
+    + mastenNotizHtml(werte);
+}
+
+/**
+ * Die Leiste im Feld «Tragwerke» neu zeichnen und wieder verdrahten.
+ *
+ * Der Rueckruf kommt aus `zeichneMaske`; er wird hier gemerkt, weil
+ * `aktualisiereMaske` ihn nicht bekommt - sie fuehrt Werte nach und kennt
+ * keinen Aenderungsweg.
+ */
+let leisteAendern = null;
+
+function leisteNachfuehren(container, werte) {
+  const feld = container.querySelector('[data-tragwerkfeld]');
+  if (!feld || !leisteAendern) return;
+  // Wird gerade an der Leiste gezogen, bleibt sie stehen - sonst naehme das
+  // Neuzeichnen dem Zeiger sein Element.
+  if (feld.querySelector('.zieht')) return;
+  feld.innerHTML = tragwerkfeldHtml(werte);
+  verdrahteTragwerkfeld(container, werte, leisteAendern);
+}
+
 /** Blattkoordinate -> Prozent der Leistenbreite. */
 const qpPct = (x, von, bis) => ((x - von) / Math.max(1e-9, bis - von)) * 100;
 
@@ -1053,70 +1161,7 @@ function feldHtml(f, wert, werte) {
   let inp;
 
   if (f.typ === 'tragwerke') {
-    /*
-     * DIE LEISTE, UND DARUNTER EINE ZEILE HANDLUNGEN.
-     *
-     * Bis zum 2. September standen hier vier Bedienelemente uebereinander
-     * (Tragwerkskacheln, Mastkacheln, vier Hinzufuege-Knoepfe, Zahlenfeld) -
-     * siehe querprofilLeisteHtml. Jetzt: ein Bild, das die Anordnung ZEIGT,
-     * und eine Zeile mit dem, was man am Gewaehlten tun kann.
-     *
-     * DIE HANDLUNGEN GELTEN DEM GEWAEHLTEN, nicht allen. «Masten» und
-     * «entfernen» beziehen sich auf das Tragwerk, das gerade gerechnet wird
-     * - dasselbe, das in der Leiste hervorgehoben ist und dessen Felder
-     * darunter stehen. Ein Knopf, der auf etwas wirkt, das man nicht sieht,
-     * ist ein Knopf, den man nicht drueckt.
-     */
-    const alle = tragwerkeSortiert(werte);
-    const aktiv = alle.find((t) => t.id === (werte.twId ?? 'T1')) ?? alle[0];
-    const art = tragwerksart(aktiv);
-    inp = querprofilLeisteHtml(werte)
-      + '<div class="qp-tun">'
-      /*
-       * EIN MENUE STATT VIER KNOEPFEN. Die vier Bauformen standen als vier
-       * gleich aussehende Knoepfe da und nahmen zwei Zeilen ein - obwohl man
-       * sie selten braucht und nie zwei davon zugleich.
-       */
-      + '<span class="qp-tun-neu"><button type="button" class="btn btn-mini"'
-      + ' data-qp-neu-auf>+ Tragwerk</button>'
-      + '<span class="qp-neu-liste" hidden>'
-      + TRAGWERKSARTEN.map((x) =>
-          `<button type="button" class="btn btn-mini" data-tw-neu="${esc(x.key)}"
-             title="${esc(x.kurz)}">${esc(x.label)}</button>`).join('')
-      + '</span></span>'
-      + (art.traeger
-        ? `<button type="button" class="btn btn-mini${
-             aktiv.mastVorhanden === false ? '' : ' an'}"
-             data-tw-mast="${esc(aktiv.id)}"
-             title="${esc(aktiv.mastVorhanden === false
-               ? 'Masten einschalten — sie werden gezeichnet, ausgeleitet und '
-                 + 'nachgewiesen'
-               : 'Masten ausschalten — das Tragwerk steht dann ohne')}"
-             aria-pressed="${aktiv.mastVorhanden !== false}">${
-             icon('mast', 13)} Masten</button>` : '')
-      /*
-       * AUSBLENDEN, NICHT ENTFERNEN - zwei verschiedene Absichten.
-       *
-       * Entfernen wirft die Eingaben weg. Ausblenden legt den Abschnitt
-       * beiseite: er bleibt im Datensatz, verschwindet aber aus Bild,
-       * Bauteilliste, Ausleitung und Nachweis. Auf einem langen Querprofil
-       * arbeitet man so an einem Abschnitt, ohne die anderen zu verlieren.
-       *
-       * Nur wenn noch ein sichtbares uebrig bleibt: ein Blatt ohne
-       * gerechnetes Tragwerk waere eine Auswertung ohne Gegenstand.
-       */
-      + (alle.filter((t) => !versteckt(t)).length > 1
-        ? `<button type="button" class="btn btn-mini"
-             data-tw-aus="${esc(aktiv.id)}"
-             title="Beiseitelegen — bleibt gespeichert, zählt aber nicht mehr"
-             >${icon('auge', 13)} ausblenden</button>` : '')
-      + (alle.length > 1
-        ? `<button type="button" class="btn btn-mini btn-fail"
-             data-tw-weg="${esc(aktiv.id)}"
-             title="${esc(`${tragwerkName(aktiv)} vom Blatt nehmen`)}"
-             >\u00d7 entfernen</button>` : '')
-      + '</div>'
-      + mastenNotizHtml(werte);
+    inp = tragwerkfeldHtml(werte);
   } else if (f.typ === 'bauform') {
     /*
      * DREI KARTEN NEBENEINANDER, nicht drei Woerter in einem Menue.
@@ -1191,7 +1236,16 @@ function feldHtml(f, wert, werte) {
   const notiz = typeof f.notiz === 'function' ? f.notiz(werte) : null;
   const notizHtml = notiz
     ? `<small class="feld-notiz">${esc(notiz)}</small>` : '';
-  return `<div class="feld${gesperrt ? ' gesperrt' : ''}">
+  /*
+   * DAS TRAGWERKFELD TRAEGT EINE MARKE.
+   *
+   * Es ist das einzige, dessen INHALT nachgefuehrt wird statt seines Werts -
+   * die Leiste zeigt Laengen, Lagen und Profile, und die aendern sich beim
+   * Ziehen eines Schiebers fortwaehrend. `leisteNachfuehren` findet es
+   * daran wieder.
+   */
+  const marke = f.typ === 'tragwerke' ? ' data-tragwerkfeld' : '';
+  return `<div class="feld${gesperrt ? ' gesperrt' : ''}"${marke}>
     <label for="${id}">${esc(f.label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
     ${inp}${optionsSkizze(f.key, wert)}${notizHtml}${hinweis}</div>`;
 }
