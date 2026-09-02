@@ -10721,6 +10721,32 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          C.mastenVon(w).every((m) => m.traegt.length === 1));
   }
 
+  /*
+   * >>> DIE ANSCHLUSSHOEHE GEHOERT NICHT DEM MASTEN. <<<
+   *
+   * Weisung vom 2. September auf Nachfrage: zwei Joche koennen am selben
+   * Masten VERSCHIEDEN HOCH anschliessen. H beschreibt dann die VERBINDUNG
+   * Tragwerk-Mast; am Masten abgelegt gewaenne eines der beiden Joche, und
+   * das andere rechnete still mit einer fremden Hoehe. Die Drehfeder haengt
+   * daran - es waere ein Fehler, den man dem Ergebnis nicht ansieht.
+   */
+  {
+    let w = { typ: 'J90', L: 12, xLage: 0, mastProfil: 'HEB 260',
+              mastH: 8, mastLaenge: 12, mastSteg: 'quer' };
+    w = C.tragwerkHinzu(w, 'joch', { L: 10, xLage: 12, mastH: 8.5 });
+    w = { ...w, masten: C.mastenVon(w) };
+    wahr('Der Mast traegt keine Anschlusshoehe',
+         C.mastenVon(w).every((m) => m.H === undefined));
+    const t1 = C.tragwerkeVon(w).find((t) => t.id === 'T1');
+    const t2 = C.tragwerkeVon(w).find((t) => t.id === 'T2');
+    wahr('Jedes Tragwerk behaelt seine eigene',
+         C.mastenProjizieren({ ...t1 }, w, t1).mastH === 8
+         && C.mastenProjizieren({ ...t2 }, w, t2).mastH === 8.5);
+    // Was dem MASTEN gehoert, bleibt geteilt.
+    wahr('Das Profil kommt weiterhin vom Masten',
+         C.mastenProjizieren({ ...t1 }, w, t1).mastProfilB === 'HEB 260');
+  }
+
   // DER KERN SIEHT DIE ANGABEN FLACH - so wie immer.
   {
     const w = reihe();

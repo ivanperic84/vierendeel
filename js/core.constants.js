@@ -332,9 +332,22 @@ export function tragwerkeSortiert(w) {
  * =========================================================================== */
 
 /** Die Angaben, die ein Mast trägt — flach im Satz, benannt in der Liste. */
+/*
+ * >>> DIE ANSCHLUSSHOEHE GEHOERT NICHT DEM MASTEN. <<<
+ *
+ * Sie stand hier, und das war falsch. Weisung vom 2. September auf Nachfrage:
+ * zwei Joche koennen am selben Masten VERSCHIEDEN HOCH anschliessen - etwa
+ * wenn die Gleise auf verschiedenen Koten liegen. H beschreibt dann die
+ * VERBINDUNG Tragwerk-Mast, nicht den Masten; am Masten abgelegt gewaenne
+ * eines der beiden Joche, und das andere rechnete still mit einer fremden
+ * Hoehe. Die Drehfeder haengt daran (mastSteifigkeit), also waere es ein
+ * Fehler, den man dem Ergebnis nicht ansieht.
+ *
+ * Am MASTEN bleibt, was ihm allein gehoert: Profil, Gesamtlaenge,
+ * Stegrichtung, Lage, Windlast. Die Anschlusshoehe bleibt beim TRAGWERK.
+ */
 export const MASTFELDER = [
   { flach: 'mastProfil', flachB: 'mastProfilB', am: 'profil' },
-  { flach: 'mastH', flachB: 'mastHB', am: 'H' },
   { flach: 'mastLaenge', flachB: 'mastLaengeB', am: 'laenge' },
   { flach: 'mastSteg', flachB: 'mastStegB', am: 'steg' },
   { flach: 'wMast', flachB: 'wMastB', am: 'wMast' },
