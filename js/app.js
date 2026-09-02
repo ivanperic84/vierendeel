@@ -23,7 +23,8 @@ import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
-         tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart }
+         tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
+         MASTFELDER, setzeMastAngabe, rechensatz }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -317,7 +318,8 @@ function neuRechnen(neuZeichnen = true) {
       werte.wMastB = Number.isFinite(wB) ? wB : null;
     }
 
-    const erg = berechne(werte, profOG, profUG, stahl, joch);
+    // Der Kern bekommt die Mastangaben aus der Liste, nicht aus dem Satz.
+    const erg = berechne(rechensatz(werte), profOG, profUG, stahl, joch);
 
     /*
      * WAS KEIN JOCH HAT, BEKOMMT KEINE JOCHAUSWERTUNG.
@@ -577,6 +579,23 @@ function aendern(key, wert) {
   }
   if (key === 'tragwerkWeg') {
     werte = tragwerkWeg(werte, wert);
+    neuRechnen();
+    return;
+  }
+  /*
+   * EINE MASTANGABE GEHOERT DEM MASTEN, NICHT DEM TRAGWERK.
+   *
+   * Das ist der Gewinn des Umbaus und seine Falle zugleich: wer das Profil
+   * des Zwischenmastes aendert, aendert es fuer BEIDE Tragwerke, die daran
+   * haengen. Genau so soll es sein - es ist ein Mast.
+   *
+   * Geschrieben wird in die Liste, danach zurueckprojiziert: die Maske liest
+   * weiterhin `werte.mastProfil`, und der Kern auch.
+   */
+  if (MASTFELDER.some((f) => f.flach === key || f.flachB === key)) {
+    const ende = MASTFELDER.some((f) => f.flachB === key) ? 'B' : 'A';
+    werte = setzeMastAngabe(werte, ende, key, wert);
+    werte = rechensatz(werte);
     neuRechnen();
     return;
   }

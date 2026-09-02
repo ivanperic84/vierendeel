@@ -299,6 +299,192 @@ export function tragwerkeSortiert(w) {
     .sort((a, b) => (lageVon(a) - lageVon(b)) || (a.pos - b.pos));
 }
 
+/* ===========================================================================
+ * DER MAST IST DAS GRUNDELEMENT
+ *
+ * Weisung vom 2. September: «Die Tragwerke würde ich noch verallgemeinern auf
+ * Mast / Tragausleger. Ein Mast kann zum Beispiel ein Joch und einen
+ * Tragausleger stützen.»
+ *
+ * BIS HIERHIN BRACHTE JEDES TRAGWERK SEINE MASTEN MIT. Ein Mast, an dem zwei
+ * Tragwerke hängen, gab es dann zweimal — jeden mit der halben Last, und die
+ * Zusammengehörigkeit war über die Koordinate GERATEN (geteilteMasten, mit
+ * einer Toleranz von zehn Zentimetern). Als Verweis ist sie eindeutig, und
+ * erst dann bekommt der Mast beide Lastanteile. Joch UND Tragausleger am
+ * selben Masten wird überhaupt erst möglich.
+ *
+ * ================== WIE DER RECHENKERN DAVON UNBERUEHRT BLEIBT ============
+ *
+ * `mastSteifigkeit` liest `inp.mastProfil`, `inp.mastH`, `inp.mastLaenge`,
+ * `inp.mastSteg` und ihre B-Varianten — flach, wie eh und je. Genau so
+ * bekommt er sie weiterhin: die Angaben des Mastes werden beim Lesen in den
+ * Satz PROJIZIERT (mastenProjizieren), und beim Ändern wieder in die Liste
+ * zurückgeschrieben. Derselbe Weg wie beim aktiven Tragwerk, aus demselben
+ * Grund: was hundertfach gelesen wird, soll nicht hundertfach umgeschrieben
+ * werden müssen.
+ *
+ * ================== DIE MIGRATION IST DIE EIGENTLICHE ARBEIT ==============
+ *
+ * Alte Dateien haben die Mastangaben flach je Tragwerk. Daraus entsteht die
+ * Liste — und dabei VERSCHMELZEN Masten an derselben Stelle zu einem. Was
+ * vorher eine Vermutung war, wird beim Einlesen einmal entschieden und steht
+ * danach als Verweis da.
+ * =========================================================================== */
+
+/** Die Angaben, die ein Mast trägt — flach im Satz, benannt in der Liste. */
+export const MASTFELDER = [
+  { flach: 'mastProfil', flachB: 'mastProfilB', am: 'profil' },
+  { flach: 'mastH', flachB: 'mastHB', am: 'H' },
+  { flach: 'mastLaenge', flachB: 'mastLaengeB', am: 'laenge' },
+  { flach: 'mastSteg', flachB: 'mastStegB', am: 'steg' },
+  { flach: 'wMast', flachB: 'wMastB', am: 'wMast' },
+];
+
+/** Ein Mast aus den flachen Feldern eines Satzes, Ende A oder B. */
+function mastAus(t, ende, x) {
+  const zwei = ende === 'B' && t?.mastZwei === true;
+  const o = { x };
+  MASTFELDER.forEach((f) => {
+    const v = zwei ? (t?.[f.flachB] ?? t?.[f.flach]) : t?.[f.flach];
+    if (v !== undefined) o[f.am] = v;
+  });
+  return o;
+}
+
+/**
+ * Die Masten des Blattes, mit ihrer Lage.
+ *
+ * Steht die Liste schon da, gilt sie. Sonst wird sie aus den flachen
+ * Angaben der Tragwerke aufgebaut — Masten an derselben Stelle verschmelzen
+ * dabei zu einem.
+ */
+export function mastenVon(w, tol = 0.1) {
+  /*
+   * EINE LISTE OHNE PROFILE IST KEINE LISTE.
+   *
+   * Sie kann aus einem fruehen Stand stammen oder aus einem Schreibfehler.
+   * Statt sie mitzuschleppen, wird sie verworfen und aus den Tragwerken neu
+   * aufgebaut - dort stehen die Angaben ohnehin noch. Selbstheilung ist
+   * hier richtig: die Liste ist eine ABLEITUNG, kein Original.
+   */
+  const gueltig = Array.isArray(w?.masten) && w.masten.length
+    && w.masten.every((m) => String(m?.profil ?? '').trim());
+  if (gueltig) return w.masten;
+  const liste = [];
+  tragwerkeSortiert(w).forEach((t) => {
+    if (t.mastVorhanden === false) return;
+    const lagen = mastLagen(t);
+    /*
+     * >>> GEKOPPELT WIRD NUR, WER EINE LAGE TRAEGT. <<<
+     *
+     * Der Standardwert von x0 ist null. Ohne diese Regel stuenden ALLE
+     * Tragwerke, an denen niemand die Lage eingetragen hat, bei null - und
+     * ihre Masten verschmelzen zu einem einzigen. Genau das ist beim ersten
+     * Lauf passiert: drei unabhaengige Tragwerke teilten sich einen Masten,
+     * das Profil sprang beim Aendern auf einen fremden Wert, und der Kern
+     * bekam ein leeres Profil.
+     *
+     * Eine FEHLENDE Angabe darf nichts koppeln. Wer zwei Tragwerke
+     * zusammenhaengen will, sagt wo - dann steht die Zahl da, und dann gilt
+     * sie. Ein ausdrueckliches x0 = 0 auf beiden Seiten koppelt sehr wohl.
+     */
+    const traegtLage = t.xLage !== undefined && t.xLage !== null;
+    lagen.forEach((x, i) => {
+      const ende = i === 0 ? 'A' : 'B';
+      const da = traegtLage
+        ? liste.find((m) => m.mitLage && Math.abs(m.x - x) <= tol) : null;
+      if (da) {
+        /*
+         * ZWEI TRAGWERKE, EIN MAST. Der zuerst gefundene gilt; der zweite
+         * Satz Angaben faellt weg. Das ist die richtige Seite des
+         * Zweifels — zwei Masten an einer Stelle sind mit Sicherheit
+         * derselbe, und welche Angabe genauer ist, weiss niemand.
+         */
+        if (!da.traegt.includes(t.id)) da.traegt.push(t.id);
+        return;
+      }
+      liste.push({ id: `M${liste.length + 1}`, traegt: [t.id],
+                   mitLage: traegtLage, ...mastAus(t, ende, x) });
+    });
+  });
+  return liste;
+}
+
+/** Ein Mast nach seiner Id. */
+export const mastNach = (w, id) => mastenVon(w).find((m) => m.id === id) ?? null;
+
+/**
+ * Die Masten EINES Tragwerks, in der Reihenfolge A, B.
+ *
+ * Verweist das Tragwerk auf Ids, gelten sie. Sonst entscheidet die Lage —
+ * so liest sich eine Datei ohne Verweise genauso wie eine mit.
+ */
+export function mastenFuer(w, t, tol = 0.1) {
+  const alle = mastenVon(w);
+  const nach = (id, x) => (id && alle.find((m) => m.id === id))
+    || alle.find((m) => Math.abs(m.x - x) <= tol) || null;
+  const lagen = mastLagen(t);
+  const a = nach(t?.mastA, lagen[0]);
+  const b = lagen.length > 1 ? nach(t?.mastB, lagen[1]) : null;
+  return [a, b];
+}
+
+/**
+ * Die Mastangaben eines Tragwerks in seinen Satz schreiben.
+ *
+ * Damit sieht der Rechenkern, was er immer gesehen hat: mastProfil, mastH,
+ * mastLaenge, mastSteg — und für das zweite Ende dieselben mit B.
+ */
+export function mastenProjizieren(satz, w, t) {
+  const [a, b] = mastenFuer(w, t);
+  if (!a) return satz;
+  MASTFELDER.forEach((f) => {
+    if (a[f.am] !== undefined) satz[f.flach] = a[f.am];
+  });
+  if (b) {
+    /*
+     * ZWEI MASTEN HEISST `mastZwei`. Der Kern kennt das Feld seit dem
+     * 28. August: ohne es faellt er auf den Masten A zurueck, und ein
+     * verschiedenes Profil am anderen Ende bliebe wirkungslos.
+     */
+    satz.mastZwei = true;
+    MASTFELDER.forEach((f) => {
+      if (b[f.am] !== undefined) satz[f.flachB] = b[f.am];
+    });
+  }
+  return satz;
+}
+
+/**
+ * Eine Mastangabe ändern — sie gilt dem MASTEN, nicht dem Tragwerk.
+ *
+ * Das ist der Gewinn und die Falle zugleich: wer das Profil des
+ * Zwischenmastes ändert, ändert es für BEIDE Tragwerke, die daran hängen.
+ * Genau so soll es sein — es ist ein Mast. Die Liste zeigt deshalb an, wer
+ * alles daran hängt.
+ */
+export function setzeMastAngabe(w, ende, flachKey, wert) {
+  const feld = MASTFELDER.find((f) => f.flach === flachKey || f.flachB === flachKey);
+  if (!feld) return w;
+  /*
+   * EIN LEERES PROFIL IST KEINE ANGABE.
+   *
+   * Ein Auswahlfeld, dessen Wert nicht in der Liste steht, meldet einen
+   * leeren String. Blind uebernommen steht danach ein Mast ohne Profil in
+   * der Liste, und der Kern bricht mit «Unbekanntes Mastprofil: » ab - eine
+   * Meldung, die nicht sagt, wo der leere Wert herkam. Genau so ist es beim
+   * ersten Lauf passiert.
+   */
+  if (feld.am === 'profil' && !String(wert ?? '').trim()) return w;
+  const t = tragwerkeVon(w)[0];
+  const [a, b] = mastenFuer(w, t);
+  const ziel = (ende === 'B' ? b : a) ?? a;
+  if (!ziel) return w;
+  const masten = mastenVon(w).map(
+    (m) => (m.id === ziel.id ? { ...m, [feld.am]: wert } : m));
+  return { ...w, masten };
+}
+
 /**
  * Masten, die sich zwei Tragwerke teilen.
  *
@@ -308,16 +494,19 @@ export function tragwerkeSortiert(w) {
  *
  * @returns {Array<{x:number, ids:string[]}>}
  */
-export function geteilteMasten(w, tol = 0.1) {
-  const punkte = [];
-  tragwerkeSortiert(w).forEach((t) => {
-    mastLagen(t).forEach((x) => {
-      const treffer = punkte.find((p) => Math.abs(p.x - x) <= tol);
-      if (treffer) { if (!treffer.ids.includes(t.id)) treffer.ids.push(t.id); }
-      else punkte.push({ x, ids: [t.id] });
-    });
-  });
-  return punkte.filter((p) => p.ids.length > 1);
+export function geteilteMasten(w) {
+  /*
+   * AUS DER LISTE, NICHT AUS DEM ABSTAND.
+   *
+   * Bis zum Mastenumbau wurde hier verglichen: naeher als zehn Zentimeter
+   * galt als derselbe Mast. Das war eine Vermutung, und sie musste bei
+   * jedem Aufruf neu angestellt werden. Jetzt steht es in der Liste - ein
+   * Mast weiss, wer an ihm haengt. Die Vermutung ist an EINE Stelle
+   * gewandert: in die Migration, wo sie einmal entschieden wird.
+   */
+  return mastenVon(w)
+    .filter((m) => (m.traegt?.length ?? 0) > 1)
+    .map((m) => ({ x: m.x, ids: [...m.traegt], id: m.id }));
 }
 
 /**
@@ -392,7 +581,20 @@ export function tragwerkSatz(w, id = null) {
   const t = (id && alle.find((x) => x.id === id)) || alle[0];
   const satz = { ...blattAngaben(w), ...t };
   delete satz.weitere;
-  return satz;
+  // Der Kern liest die Mastangaben flach - er bekommt sie flach.
+  return mastenProjizieren(satz, w, t);
+}
+
+/**
+ * Der Eingabesatz, wie ihn der Rechenkern sehen soll.
+ *
+ * Heute unterscheidet er sich vom Satz selbst nur in den Mastangaben; sie
+ * kommen aus der Liste und ueberschreiben, was flach dasteht. Steht keine
+ * Liste da, aendert sich nichts - alte Dateien laufen unveraendert.
+ */
+export function rechensatz(w) {
+  const t = tragwerkeVon(w)[0];
+  return mastenProjizieren({ ...w }, w, t);
 }
 
 /**

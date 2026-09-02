@@ -10671,6 +10671,116 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 68: der Mast ist das Grundelement. Weisung vom 2. September: «Ein
+// Mast kann zum Beispiel ein Joch und einen Tragausleger stuetzen.»
+{
+  const C = await import(J('core.constants.js'));
+  const reihe = () => {
+    let w = { typ: 'J90', L: 12, xLage: 0, mastProfil: 'HEB 260',
+              mastH: 8, mastLaenge: 12, mastSteg: 'quer' };
+    return C.tragwerkHinzu(w, 'joch', { L: 10, xLage: 12, mastProfil: 'HEB 240' });
+  };
+
+  /*
+   * DIE MIGRATION VERSCHMILZT DEN ZWISCHENMASTEN.
+   *
+   * Alte Dateien tragen die Mastangaben flach je Tragwerk; ein Mast, an dem
+   * zwei Joche haengen, stand darin zweimal. Beim Einlesen wird daraus
+   * einer - und was vorher bei jedem Aufruf neu vermutet wurde, steht
+   * seither als Verweis da.
+   */
+  {
+    const w = reihe();
+    const m = C.mastenVon(w);
+    wahr('Aus zwei Jochen werden drei Masten', m.length === 3);
+    const mitte = m.find((x) => Math.abs(x.x - 12) < 1e-9);
+    wahr('Der mittlere traegt beide',
+         mitte?.traegt.length === 2 && mitte.traegt.includes('T1')
+         && mitte.traegt.includes('T2'));
+    wahr('Und die aeusseren je eines',
+         m.filter((x) => x.traegt.length === 1).length === 2);
+  }
+
+  /*
+   * >>> GEKOPPELT WIRD NUR, WER EINE LAGE TRAEGT. <<<
+   *
+   * Der Standardwert von x0 ist null. Ohne diese Regel stehen ALLE
+   * Tragwerke, an denen niemand die Lage eingetragen hat, bei null - und
+   * ihre Masten verschmelzen zu einem einzigen. Genau das ist beim ersten
+   * Lauf passiert: drei unabhaengige Tragwerke teilten sich einen Masten,
+   * das Profil sprang beim Aendern auf einen fremden Wert, und der Kern
+   * bekam ein leeres Profil. Eine FEHLENDE Angabe darf nichts koppeln.
+   */
+  {
+    let w = { typ: 'J90', L: 12, mastProfil: 'HEB 260', mastH: 8 };
+    w = C.tragwerkHinzu(w, 'einzelmast');
+    w = C.tragwerkHinzu(w, 'einzelmast');
+    wahr('Ohne Lage teilt sich niemand einen Masten',
+         C.geteilteMasten(w).length === 0);
+    wahr('… und jeder hat seinen eigenen',
+         C.mastenVon(w).every((m) => m.traegt.length === 1));
+  }
+
+  // DER KERN SIEHT DIE ANGABEN FLACH - so wie immer.
+  {
+    const w = reihe();
+    const t2 = C.tragwerkeVon(w).find((t) => t.id === 'T2');
+    const satz = C.mastenProjizieren({}, w, t2);
+    wahr('Mast A projiziert', satz.mastProfil === 'HEB 260');
+    wahr('Mast B projiziert', satz.mastProfilB === 'HEB 240');
+    wahr('… und mastZwei ist gesetzt', satz.mastZwei === true);
+  }
+
+  /*
+   * DER GEWINN: EINE AENDERUNG WIRKT AUF BEIDE.
+   *
+   * Wer das Profil des Zwischenmastes aendert, aendert es fuer BEIDE
+   * Tragwerke, die daran haengen. Genau so soll es sein - es ist ein Mast.
+   */
+  {
+    let w = reihe();
+    w = { ...w, masten: C.mastenVon(w) };
+    w = C.setzeMastAngabe(w, 'A', 'mastProfil', 'HEM 240');
+    const mitte = C.mastenVon(w).find((m) => Math.abs(m.x - 12) < 1e-9);
+    wahr('Der Zwischenmast hat das neue Profil', mitte.profil === 'HEM 240');
+    const t1 = C.tragwerkeVon(w).find((t) => t.id === 'T1');
+    const s1 = C.mastenProjizieren({}, w, t1);
+    wahr('Das Nachbartragwerk sieht es an seinem Ende B',
+         s1.mastProfilB === 'HEM 240');
+    wahr('… und sein eigenes Ende A bleibt', s1.mastProfil === 'HEB 260');
+  }
+
+  /*
+   * EIN LEERES PROFIL IST KEINE ANGABE - und eine Liste ohne Profile keine
+   * Liste. Ein Auswahlfeld, dessen Wert nicht in der Liste steht, meldet
+   * einen leeren String; blind uebernommen brach der Kern mit «Unbekanntes
+   * Mastprofil: » ab, ohne zu sagen, woher der leere Wert kam.
+   */
+  {
+    let w = reihe();
+    w = { ...w, masten: C.mastenVon(w) };
+    const vorher = C.mastenVon(w)[0].profil;
+    const nachher = C.mastenVon(C.setzeMastAngabe(w, 'A', 'mastProfil', ''))[0].profil;
+    wahr('Ein leeres Profil wird abgewiesen', nachher === vorher);
+  }
+  {
+    // Selbstheilung: die Liste ist eine ABLEITUNG, kein Original.
+    const w = { ...reihe(), masten: [{ id: 'M1', x: 0, profil: '', traegt: ['T1'] }] };
+    const m = C.mastenVon(w);
+    wahr('Eine profillose Liste wird verworfen und neu gebaut',
+         m.length === 3 && m.every((x) => x.profil));
+  }
+
+  // RECHENSATZ: was der Kern bekommt. Ohne Liste aendert sich nichts -
+  // alte Dateien laufen unveraendert.
+  {
+    const ohne = { typ: 'J90', L: 12, mastProfil: 'HEB 220', mastH: 8 };
+    wahr('Ohne Mastenliste bleibt der Satz, wie er ist',
+         C.rechensatz(ohne).mastProfil === 'HEB 220');
+  }
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
