@@ -10068,7 +10068,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   const css63 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
 
   wahr('Der Kopf holt die Verortung aus der einen Stelle',
-       /import \{[^}]*\bverortung\b[^}]*\} from '\.\/core\.constants\.js'/
+       /import \{[^}]*\bverortung\b[^}]*\}\s*from '\.\/core\.constants\.js'/
          .test(aq63));
 
   {
@@ -10303,6 +10303,136 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          !hJ.some((t) => /gerechnet wird weiterhin/.test(t)));
     wahr('Bei einer anderen Art steht er, und ganz oben',
          /gerechnet wird weiterhin/.test(hE[0] ?? ''));
+    /*
+     * UND DAS MODELL REICHT DIE ANGABEN WIRKLICH DURCH.
+     *
+     * Der erste Anlauf hatte den Hinweis gebaut und im Pruefstand gruen
+     * dastehen - dort wurde `tragwerksart` von Hand ins Modell gesetzt. In
+     * der Anwendung erschien er NIE: `modell()` zaehlt seine Felder einzeln
+     * auf, und diese beiden fehlten. Ein Sicherungshinweis, der nicht
+     * ausloest, ist schlimmer als keiner.
+     */
+    const mA = modell({ ...standardwerte(), typ: 'J90', L: 15,
+                        tragwerksart: 'einzelmast',
+                        weitere: [{ id: 'T2' }, { id: 'T3' }] },
+      getProfil(T.getTragjoch('J90').og.profil),
+      getProfil(T.getTragjoch('J90').ug.profil),
+      getStahl('S235'), T.getTragjoch('J90'));
+    wahr('Das Modell traegt die Tragwerksart', mA.tragwerksart === 'einzelmast');
+    wahr('… und die Anzahl auf dem Blatt', mA.tragwerkeAufBlatt === 3);
+    const hM = hinweise(mA);
+    wahr('Beide Hinweise stehen dann in der Liste',
+         hM.some((x) => /gerechnet wird weiterhin/.test(x))
+         && hM.some((x) => /3 Tragwerke auf diesem Querprofil/.test(x)));
+    wahr('Bei einem Tragwerk kein Anzahl-Hinweis',
+         !hinweises1().some((x) => /Tragwerke auf diesem Querprofil/.test(x)));
+    function hinweises1() {
+      return hinweise(modell({ ...standardwerte(), typ: 'J90', L: 15 },
+        getProfil(T.getTragjoch('J90').og.profil),
+        getProfil(T.getTragjoch('J90').ug.profil),
+        getStahl('S235'), T.getTragjoch('J90')));
+    }
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 65: das Querprofil traegt mehrere Tragwerke. Weisung vom
+// 2. September, auf Rueckfrage bestaetigt: Jochreihen haben gemeinsame
+// Zwischenmasten.
+{
+  const C = await import(J('core.constants.js'));
+  const UI = await import(J('ui.js'));
+
+  const blatt = () => ({ typ: 'J90', L: 15, linie: '600', km: '016.661',
+                         trasseRadius: 700, mastProfil: 'HEB 260' });
+
+  // ALTE DATEIEN SIND EIN QUERPROFIL MIT EINEM TRAGWERK.
+  wahr('Ohne Liste steht genau ein Tragwerk da', C.anzahlTragwerke({}) === 1);
+  wahr('… und es ist ein Joch', C.tragwerksart(C.tragwerkSatz({})).key === 'joch');
+
+  // DIE BLATTANGABEN GELTEN ALLEN. Ein Querprofil hat EINEN Radius.
+  {
+    const w = C.tragwerkHinzu(blatt(), 'einzelmast', { mastProfil: 'DP26' });
+    const alle = C.tragwerkeVon(w);
+    wahr('Zwei Tragwerke auf dem Blatt', alle.length === 2);
+    wahr('Beide erben Linie und Kilometer',
+         alle.every((t) => t.linie === '600' && t.km === '016.661'));
+    wahr('… und den Radius', alle.every((t) => t.trasseRadius === 700));
+    wahr('Die Blattangaben stehen nicht im Tragwerksteil',
+         !('linie' in C.tragwerkTeil(w)) && !('trasseRadius' in C.tragwerkTeil(w)));
+  }
+
+  /*
+   * ERSETZEN, NICHT UEBERLAGERN - der Fehler, der beim ersten Anlauf
+   * durchging.
+   *
+   * `{ ...w, ...gewaehltes }` sieht richtig aus und ist es nicht: was im
+   * gewaehlten Tragwerk FEHLT, bleibt vom bisherigen stehen. Das Joch trug
+   * danach die Tragwerksart des Einzelmastes, weil der alte Satz das Feld
+   * gar nicht kannte. Zwei Tragwerke vermischt, und dem Ergebnis sieht man
+   * es nicht an.
+   */
+  {
+    let w = C.tragwerkHinzu(blatt(), 'einzelmast', { mastProfil: 'DP26' });
+    wahr('Das neue Tragwerk ist gleich das aktive',
+         C.tragwerksart(w).key === 'einzelmast' && w.mastProfil === 'DP26');
+    w = C.tauscheAktives(w, 'T1');
+    wahr('Zurueck beim Joch: die Art stimmt', C.tragwerksart(w).key === 'joch');
+    wahr('… und seine eigenen Werte auch',
+         w.typ === 'J90' && w.L === 15 && w.mastProfil === 'HEB 260');
+    w = C.tauscheAktives(w, 'T2');
+    wahr('Und der Mast hat seine behalten',
+         C.tragwerksart(w).key === 'einzelmast' && w.mastProfil === 'DP26');
+    w = C.tauscheAktives(w, 'T1');
+    wahr('Hin und her aendert nichts',
+         C.tragwerksart(w).key === 'joch' && w.mastProfil === 'HEB 260');
+  }
+
+  // DIE REIHENFOLGE AUF DEM BLATT BLEIBT. Sonst spraenge das angeklickte
+  // Tragwerk beim Anklicken an eine andere Stelle.
+  {
+    let w = C.tragwerkHinzu(blatt(), 'einzelmast');
+    w = C.tragwerkHinzu(w, 'tragausleger');
+    const vorher = C.tragwerkeSortiert(w).map((t) => t.id).join(',');
+    w = C.tauscheAktives(w, 'T1');
+    const nachher = C.tragwerkeSortiert(w).map((t) => t.id).join(',');
+    wahr('Umschalten sortiert die Liste nicht um', vorher === nachher);
+    wahr('Genau eines ist aktiv',
+         C.tragwerkeSortiert(w).filter((t) => t.aktiv).length === 1);
+  }
+
+  // DAS LETZTE LAESST SICH NICHT ENTFERNEN: ein Querprofil ohne Tragwerk ist
+  // kein Zustand, in den man geraten koennen soll.
+  {
+    let w = C.tragwerkHinzu(blatt(), 'einzelmast');
+    w = C.tragwerkWeg(w, 'T1');
+    wahr('Ein Tragwerk laesst sich wegnehmen', C.anzahlTragwerke(w) === 1);
+    wahr('Das letzte nicht', C.anzahlTragwerke(C.tragwerkWeg(w, w.twId)) === 1);
+  }
+
+  // DER NAME KOMMT VON DEN BAUTEILEN, nicht von einer Nummer.
+  wahr('Ein Joch heisst nach Typ und Laenge',
+       C.tragwerkName({ typ: 'J90', L: 15 }) === 'J90 · 15.00 m');
+  wahr('Ein Mast nach Profil und Laenge',
+       C.tragwerkName({ tragwerksart: 'einzelmast', mastProfil: 'DP26',
+                        mastLaenge: 12 }) === 'DP26 · 12.00 m');
+
+  /*
+   * DIE LISTE GEHOERT IN DIE MASKENSIGNATUR.
+   *
+   * Ohne sie blieb die Maske stehen: der Klick auf «+ Mast» setzte den Wert,
+   * und die Liste zeigte weiter einen Eintrag. Derselbe Fehler wie beim
+   * Standort der Anbauteile, zwei Wochen frueher - und beim Umschalten der
+   * Tragwerksart, eine Stunde frueher.
+   */
+  {
+    const w1 = blatt();
+    const w2 = C.tragwerkHinzu(w1, 'einzelmast');
+    wahr('Ein Tragwerk mehr aendert die Signatur',
+         UI.maskenSignatur(w1, 'system') !== UI.maskenSignatur(w2, 'system'));
+    const w3 = C.tauscheAktives(w2, 'T1');
+    wahr('… und ein anderes aktives ebenso',
+         UI.maskenSignatur(w2, 'system') !== UI.maskenSignatur(w3, 'system'));
   }
 }
 

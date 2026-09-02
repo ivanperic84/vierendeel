@@ -22,7 +22,9 @@ import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
-import { verortung, fangeAufMasskette } from './core.constants.js';
+import { verortung, fangeAufMasskette,
+         tauscheAktives, tragwerkHinzu, tragwerkWeg }
+  from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
@@ -468,6 +470,29 @@ function aktualisiereFuss(erg, urteil, joch) {
 // --- Ereignisse -------------------------------------------------------------
 
 function aendern(key, wert) {
+  /*
+   * DIE TRAGWERKSLISTE MELDET DREI ABSICHTEN.
+   *
+   * Sie sehen aus wie Eingaben und sind es nicht: sie tauschen den ganzen
+   * Eingabesatz aus, statt ein Feld darin zu setzen. Sie laufen trotzdem
+   * ueber diesen Weg, damit Speichern, Rechnen und Zeichnen daran haengen
+   * bleiben - ein zweiter Weg waere ein zweiter, der vergessen wird.
+   */
+  if (key === 'tragwerkAktiv') {
+    werte = tauscheAktives(werte, wert);
+    neuRechnen();
+    return;
+  }
+  if (key === 'tragwerkNeu') {
+    werte = tragwerkHinzu(werte, wert);
+    neuRechnen();
+    return;
+  }
+  if (key === 'tragwerkWeg') {
+    werte = tragwerkWeg(werte, wert);
+    neuRechnen();
+    return;
+  }
   if (key === 'bearbeiten') {
     werte = { ...werte, bearbeiten: wert };
     neuRechnen();

@@ -10,6 +10,8 @@
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
+import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName }
+  from './core.constants.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -182,6 +184,17 @@ export function maskenSignatur(werte, tab) {
   const gruppen = gruppenFuer(tab, werte);
   return JSON.stringify([
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
+    /*
+     * DIE TRAGWERKSLISTE GEHOERT IN DIE SIGNATUR.
+     *
+     * Sie ist kein Eingabefeld, sondern der Rahmen um alle: ein Tragwerk
+     * mehr aendert die Liste, ein anderes aktives aendert JEDES Feld
+     * darunter. Ohne sie blieb die Maske stehen - der Klick auf «+ Mast»
+     * setzte den Wert, und die Liste zeigte weiter einen Eintrag. Derselbe
+     * Fehler wie beim Standort der Anbauteile, zwei Wochen frueher.
+     */
+    tragwerkeSortiert(werte).map(
+      (t) => `${t.id}:${tragwerksart(t).key}:${t.aktiv ? 1 : 0}:${tragwerkName(t)}`),
     gruppen.map((gid) => (gid === 'anbau'
       // Die Befestigungsart gehört dazu: sie ändert den Erklärtext am Feld.
       // Ebenso die Rolle der Module (Drahtwerk zeigt den Winkel statt der
@@ -245,6 +258,17 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
   container.querySelectorAll('[data-bauform]').forEach((b) => {
     b.addEventListener('click', () =>
       onChange(b.dataset.feldBauform, b.dataset.bauform));
+  });
+  // Die Liste meldet drei verschiedene Absichten. Sie laufen ueber denselben
+  // Weg wie jede andere Eingabe, damit Speichern und Rechnen daran haengen.
+  container.querySelectorAll('[data-tw-aktiv]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkAktiv', b.dataset.twAktiv));
+  });
+  container.querySelectorAll('[data-tw-weg]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkWeg', b.dataset.twWeg));
+  });
+  container.querySelectorAll('[data-tw-neu]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
   });
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
     b.addEventListener('click', () =>
@@ -591,7 +615,42 @@ function feldHtml(f, wert, werte) {
   const dis = gesperrt ? ' disabled' : '';
   let inp;
 
-  if (f.typ === 'bauform') {
+  if (f.typ === 'tragwerke') {
+    /*
+     * DIE TRAGWERKE DES QUERPROFILS, als Liste.
+     *
+     * Bis zum 2. September stand hier eine Wahl aus drei Bauformen - sie
+     * behauptete, die Datei SEI ein Einzelmast. Auf einem Querprofil stehen
+     * aber zwei Masten oder eine ganze Jochreihe; eine Datei kann dann nicht
+     * EINE Art haben. Die Art gehoert ans einzelne Tragwerk.
+     *
+     * Das Muster ist dasselbe wie bei den Anbauteilen: eine Liste, ein
+     * aktiver Eintrag, ein Knopf zum Hinzufuegen. Der Anwender kennt es
+     * damit schon aus dem Nachbarreiter.
+     */
+    const liste = tragwerkeSortiert(werte);
+    inp = `<div class="tw-liste">`
+      + liste.map((t) => {
+        const art = tragwerksart(t);
+        return `<div class="tw-zeile${t.aktiv ? ' an' : ''}">
+          <button type="button" class="tw-wahl" data-tw-aktiv="${esc(t.id)}"
+                  title="${esc(art.label)} bearbeiten">
+            <figure class="hb-skizze">${bauformSkizze(art.key)}</figure>
+            <span class="tw-text">
+              <span class="tw-name">${esc(tragwerkName(t))}</span>
+              <span class="tw-art">${esc(art.label)}</span>
+            </span>
+          </button>
+          ${liste.length > 1 ? `<button type="button" class="tw-weg"
+                 data-tw-weg="${esc(t.id)}" title="Vom Blatt nehmen">×</button>` : ''}
+        </div>`;
+      }).join('')
+      + `<div class="tw-neu">`
+      + TRAGWERKSARTEN.map((a) =>
+          `<button type="button" class="btn btn-mini" data-tw-neu="${esc(a.key)}"
+             title="${esc(a.kurz)}">+ ${esc(a.label)}</button>`).join('')
+      + `</div></div>`;
+  } else if (f.typ === 'bauform') {
     /*
      * DREI KARTEN NEBENEINANDER, nicht drei Woerter in einem Menue.
      *

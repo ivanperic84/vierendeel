@@ -432,6 +432,21 @@ export function hinweise(m) {
       + 'alle folgenden Zahlen gelten dem Joch und nicht dem gewählten '
       + 'Tragwerk.');
   }
+  /*
+   * NUR DAS AKTIVE TRAGWERK IST GERECHNET.
+   *
+   * Auf einem Querprofil können mehrere stehen; die Liste zeigt sie alle,
+   * der Nachweis gilt einem. Wer die Zahlen für das ganze Blatt hält, hält
+   * sie für mehr, als sie sind — und beim geteilten Zwischenmast einer
+   * Jochreihe wäre das die gefährliche Art von falsch: er trägt von beiden
+   * Seiten, gerechnet ist bisher eine.
+   */
+  if ((m.tragwerkeAufBlatt ?? 1) > 1) {
+    h.push(`${m.tragwerkeAufBlatt} Tragwerke auf diesem Querprofil — `
+      + 'nachgewiesen ist nur das in der Liste angeklickte. Ein Mast, den '
+      + 'sich zwei Tragwerke teilen, wird noch nicht gekoppelt: seine '
+      + 'Reaktionen aus dem anderen Tragwerk fehlen.');
+  }
 
   if (kl.klasse4.length) {
     h.push(`Klasse 4 bei ${kl.klasse4.map((t) => t.bauteil).join(', ')}: gerechnet ` +

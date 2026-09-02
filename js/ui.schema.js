@@ -99,7 +99,7 @@ export const GRUPPEN = [
    * `arten` sagt, bei welchen Arten eine Gruppe erscheint. Fehlt die Angabe,
    * gilt sie fuer alle.
    */
-  { id: 'art',   titel: 'Tragwerksart' },
+  { id: 'art',   titel: 'Tragwerke' },
   { id: 'ort',   titel: 'Verortung' },
   { id: 'typ',   titel: 'Tragjoch-Typ und Rechenmasse',
     arten: ['joch', 'tragausleger'] },
@@ -681,13 +681,14 @@ export const FELDER = [
    * sieht, was man baut. Nach der Wahl bleibt die gewaehlte gross stehen,
    * die anderen klein daneben: das Bild ist dann Rueckmeldung statt Frage.
    */
-  { key: 'tragwerksart', gruppe: 'art', typ: 'bauform',
-    label: 'Tragwerksart', standard: 'joch',
+  { key: 'tragwerksart', gruppe: 'art', typ: 'tragwerke',
+    label: 'Tragwerke auf diesem Querprofil', standard: 'joch',
     optionen: TRAGWERKSARTEN.map((a) => ({ wert: a.key, text: a.label,
                                            kurz: a.kurz })),
-    hinweis: 'Bestimmt den Lastweg und damit, welche Eingaben folgen. '
-           + 'Ohne Träger entfallen Jochtyp, Gurtprofile, Bindebleche und '
-           + 'die Auflagerung des Jochs.' },
+    hinweis: 'Ein Querprofil kann mehrere Tragwerke tragen — zwei Masten '
+           + 'oder eine Jochreihe. Die Eingaben darunter gelten dem '
+           + 'angeklickten; Verortung, Trasse, Zonen und Lastfälle gelten '
+           + 'dem ganzen Blatt.' },
 
   { key: 'schiefeBiegung', optionenDialog: true, gruppe: 'komb', typ: 'schalter',
     label: 'Schiefe Biegung der Gurtwinkel auf die Bindebleche', standard: true,

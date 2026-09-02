@@ -422,6 +422,18 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const abst = abstaendeFuer(joch, inp.L);
 
   const basis = {
+    /*
+     * DIE TRAGWERKSART UND DIE ANZAHL AUF DEM BLATT.
+     *
+     * Der Kern rechnet bis auf weiteres nur das Tragjoch, und nur das
+     * AKTIVE Tragwerk. Beides muessen die Hinweise sagen koennen - und dazu
+     * muessen sie es wissen. Der erste Anlauf hatte den Hinweis gebaut, aber
+     * nicht durchgereicht: er stand im Pruefstand gruen da und erschien in
+     * der Anwendung nie, weil `modell` seine Felder einzeln aufzaehlt und
+     * diese beiden fehlten.
+     */
+    tragwerksart: inp.tragwerksart,
+    tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
     L: inp.L, h: v.hT, b: v.bT, a1: inp.a1,
     abstaende: abst,
     teilungQuelle: abst ? 'masstabelle' : 'gleichmaessig',
