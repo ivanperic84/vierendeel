@@ -28,7 +28,8 @@ import { verortung, fangeAufMasskette,
          tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
          MASTFELDER, setzeMastAngabe, rechensatz,
          tragwerkeSortiert, tragwerkSatz, lageVon,
-         tragwerkeVon, mastenFuer }
+         tragwerkeVon, mastenFuer,
+         blattNachLokal, lokalNachBlatt, tragwerkBeiX }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -1653,17 +1654,33 @@ function stelleAus(w) {
   const m = letzte?.erg?.modell;
   if (!m || !w) return null;
   const L = m.L, h = m.h ?? 0.4;
-  if (w.x >= -0.3 && w.x <= L + 0.3 && Math.abs(w.z) <= h / 2 + 0.6) {
-    // Am Joch faengt die Lage auf der Masskette, falls eine eingetragen ist.
-    const x = fangeAufMasskette(Math.max(0, Math.min(L, w.x)), m.masskette ?? []);
+  /*
+   * >>> ERST INS TRAGWERK RECHNEN, DANN VERGLEICHEN. <<<
+   *
+   * `w.x` kommt aus der Ansicht und ist eine BLATTKOORDINATE - die Szene
+   * zeigt jedes Tragwerk an seiner Lage. Die Bauteillage zaehlt dagegen ab
+   * dem linken Ende des Tragwerks. Hier wurde beides gleichgesetzt, und bei
+   * einer Jochreihe landete das Bauteil damit am falschen Joch (siehe
+   * blattNachLokal in core.constants.js).
+   *
+   * DIE MASSKETTE FAENGT IM BLATT. Sie beschreibt die Zeichnung, gilt dem
+   * ganzen Querprofil und wird auch dort gezeichnet; gefangen wird deshalb
+   * in Blattkoordinaten, und erst das Ergebnis wandert ins Tragwerk.
+   */
+  const t = tragwerkeVon(werte)[0];
+  const xl = blattNachLokal(t, w.x);
+  if (xl >= -0.3 && xl <= L + 0.3 && Math.abs(w.z) <= h / 2 + 0.6) {
+    const xb = fangeAufMasskette(
+      lokalNachBlatt(t, Math.max(0, Math.min(L, xl))), m.masskette ?? []);
+    const x = Math.max(0, Math.min(L, blattNachLokal(t, xb)));
     return { ort: 'joch', x: Math.round(x * 1000) / 1000 };
   }
   // Am Masten nur, wenn einer im Modell steht - sonst gibt es dort nichts,
   // woran etwas haengen koennte.
   const mA = m.federn?.mastA ?? m.federn?.mast;
   const mB = m.federn?.mastB ?? m.federn?.mast;
-  const nahA = Math.abs(w.x) <= 0.8;
-  const nahB = Math.abs(w.x - L) <= 0.8;
+  const nahA = Math.abs(xl) <= 0.8;
+  const nahB = Math.abs(xl - L) <= 0.8;
   const md = nahA ? mA : mB;
   const H = md?.H ?? 0;
   /*
@@ -1686,7 +1703,33 @@ function stelleAus(w) {
 }
 
 function stelleGewaehlt(w) {
-  const st = stelleAus(w);
+  let st = stelleAus(w);
+  /*
+   * >>> WER AUF EIN ANDERES JOCH ZEIGT, MEINT DIESES JOCH. <<<
+   *
+   * Weisung vom 2. September: «Die eingabe der bauteile auf die tragwerke
+   * funktioniert nicht ganz.»
+   *
+   * Auf dem Blatt stehen alle Tragwerke, und man zielt auf eines davon.
+   * Gerechnet wird immer nur EINES - das angeklickte in der Liste -, und
+   * ein Bauteil gehoert dem Tragwerk, an dem es haengt. Bisher hiess das:
+   * erst in der Liste umschalten, dann setzen. Wer es vergass, bekam
+   * «daneben», obwohl der Zeiger mitten auf einem Joch stand.
+   *
+   * Jetzt schaltet der Klick selbst um. Das ist derselbe Weg, den ein Klick
+   * ausserhalb des Setzens schon geht (beiTragwerk) - und dieselbe Antwort
+   * auf dieselbe Geste.
+   *
+   * NEU GERECHNET WIRD DABEI SOFORT: `stelleAus` liest das gerechnete
+   * Modell (Laenge, Masthoehen), und das ist nach dem Wechsel ein anderes.
+   */
+  if (!st) {
+    const ziel = tragwerkBeiX(werte, w.x);
+    if (ziel && ziel.id !== (werte.twId ?? 'T1')) {
+      aendern('tragwerkAktiv', ziel.id);
+      st = stelleAus(w);
+    }
+  }
   if (!st) {
     // WO MAN GELANDET IST, statt nur «daneben». Wer zwei Meter neben dem
     // Joch klickt, sieht am Wert, in welche Richtung er zielen muss - und

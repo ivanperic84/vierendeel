@@ -11445,6 +11445,34 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          e.mast.etaNachweis === Math.max(e.mast.eta, e.mast.etaStabil));
   }
 
+  /*
+   * >>> DER GEDREHTE STEG. Ein Befund vom 2. September, unsichere Seite. <<<
+   *
+   * Gerechnet wurde in BAUACHSEN - «quer» und «laengs» - und 6.61/6.62 der
+   * Reihe nach daraufgelegt. Steht der Steg quer zum Gleis, ist das
+   * dasselbe: die starke Achse nimmt das Quermoment. Beim GEDREHTEN Steg
+   * nimmt es die schwache - der Widerstand W wurde getauscht, chi und k
+   * nicht. 6.61 stand mit chi_y (0.166) neben einem Moment um die schwache
+   * Achse und kam auf eta 0.443 statt 0.532: 20 % zu klein.
+   *
+   * EN 1993-1-1, 6.3.3 kennt nur Profilachsen. Also erst drehen, dann
+   * einsetzen - und die Kontrolle haelt fest, dass der gedrehte Steg NICHT
+   * guenstiger dasteht als der ungedrehte.
+   */
+  {
+    const gerade = mast({ mastSteg: 'jochachse' });
+    const gedreht = mast({ mastSteg: 'quer' });
+    const kG = M74.mastStabilitaet(gerade.s, gerade.m, { beta: 2.0 });
+    const kD = M74.mastStabilitaet(gedreht.s, gedreht.m, { beta: 2.0 });
+    wahr('Der gedrehte Steg wird nicht guenstiger', kD.eta >= kG.eta - 1e-9);
+    // Und die Momente stehen in den Profilachsen, nicht in den Bauachsen.
+    wahr('Beim gedrehten Steg traegt die schwache Achse das Quermoment',
+         Math.abs(kD.MzEd - kD.MqEd) < 1e-9
+         && Math.abs(kG.MyEd - kG.MqEd) < 1e-9);
+    wahr('Der Widerstand folgt derselben Zuordnung',
+         Math.abs(kD.MRz - kD.MRq) < 1e-9 && Math.abs(kG.MRy - kG.MRq) < 1e-9);
+  }
+
   // OHNE MASTLAENGE GILT DIE HOEHE - dann endet der Mast am Anschluss.
   {
     const { s, m } = mast({ mastLaenge: 0 });
@@ -11571,6 +11599,41 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Ein verschobener Mast behaelt sein Profil ueber die Nummer',
          C75.mastenVon(w3).find((m) => Math.abs(m.x - 36) < 0.01)?.profil
            === 'HEM 240');
+  }
+
+  /*
+   * >>> DER KLICK INS BLATT UND DIE LAGE IM TRAGWERK. <<<
+   *
+   * Am 2. September im Browser gemessen und als Fehler bestaetigt: aktiv war
+   * das rechte Joch (x0 = 20), geklickt wurde auf das LINKE bei x 1.54 -
+   * abgelegt wurde das Bauteil am RECHTEN bei dessen Ortskoordinate 1.54,
+   * also auf dem Blatt bei 21.54. Zwanzig Meter neben der Stelle, auf die
+   * gezeigt wurde. Umgekehrt liess sich auf dem rechten Joch nichts
+   * absetzen: dort liegen die Blattkoordinaten 20 bis 40, geprueft wurde
+   * gegen 0 bis L.
+   *
+   * Die Ansicht spricht BLATTKOORDINATEN, die Bauteillage zaehlt ab dem
+   * linken Ende ihres Tragwerks. Solange nur eines dastand, war das
+   * dasselbe.
+   */
+  {
+    const w = reihe();                       // T1 bei 0 (L 20), T2 bei 20 (L 15)
+    const [links, rechts] = C75.tragwerkeSortiert(w);
+    pruef('Blatt 1.54 ist am linken Joch die 1.54',
+          C75.blattNachLokal(links, 1.54), 1.54, 1e-12, 'm');
+    pruef('… und am rechten waere es -18.46',
+          C75.blattNachLokal(rechts, 1.54), -18.46, 1e-12, 'm');
+    pruef('Hin und zurueck ist dasselbe',
+          C75.lokalNachBlatt(rechts, C75.blattNachLokal(rechts, 27)), 27,
+          1e-12, 'm');
+
+    // WELCHES TRAGWERK STEHT DORT? Ohne diese Frage bekam man «daneben»,
+    // waehrend der Zeiger mitten auf einem Joch stand.
+    wahr('Bei x = 5 steht das linke', C75.tragwerkBeiX(w, 5)?.id === links.id);
+    wahr('Bei x = 30 steht das rechte', C75.tragwerkBeiX(w, 30)?.id === rechts.id);
+    wahr('Bei x = 60 steht keines', C75.tragwerkBeiX(w, 60) === null);
+    // An der Fuge treffen sich beide - dann gilt das erste von links.
+    wahr('An der Fuge gilt das linke', C75.tragwerkBeiX(w, 20)?.id === links.id);
   }
 
   /*

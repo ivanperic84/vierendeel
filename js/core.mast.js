@@ -459,12 +459,35 @@ export function mastStabilitaet(s, m, o = {}) {
   const MqEd = Math.max(...s.stationen.map((st) => Math.abs(st.Mq)));
   const MlEd = Math.max(...s.stationen.map((st) => Math.abs(st.Ml)));
 
-  // Momentenwiderstände [kNm] - elastisch, wie der Querschnittsnachweis.
+  /*
+   * >>> ERST IN DIE PROFILACHSEN, DANN IN DIE GLEICHUNG. <<<
+   *
+   * Hier wurde in BAUACHSEN gerechnet - «quer» und «laengs» - und die
+   * beiden Gleichungen 6.61/6.62 der Reihe nach darauf gelegt. Solange der
+   * Steg quer zum Gleis steht, ist das dasselbe: die starke Achse y nimmt
+   * das Quermoment, die Zuordnung ist die Identitaet.
+   *
+   * BEI GEDREHTEM STEG NICHT. Dann nimmt die SCHWACHE Achse das
+   * Quermoment - der Widerstand W wurde richtig getauscht, chi und k aber
+   * nicht. Gleichung 6.61 stand damit mit chi_y (starke Achse, chi 0.166)
+   * neben einem Moment um die schwache. Am HEB 260 ueber 12 m, N 11 kN,
+   * M_quer 40 kNm, M_laengs 8 kNm gemessen:
+   *
+   *     gerechnet   eta 0.443
+   *     richtig     eta 0.532        >>> 20 % zu klein, unsichere Seite <<<
+   *
+   * EN 1993-1-1, 6.3.3 kennt nur die Profilachsen: 6.61 traegt chi_y mit
+   * M_y, 6.62 chi_z mit M_z. Also werden die Momente zuerst dorthin
+   * gedreht, und die Gleichungen stehen danach so da wie in der Norm.
+   */
   const stegQuer = s.stegrichtung?.achse === 'y';
-  const Wq = stegQuer ? p.Wy : p.Wz;                  // Ebene «quer»
-  const Wl = stegQuer ? p.Wz : p.Wy;
-  const MRq = (Wq * 1000 * fy) / 1e6;                // cm³ -> kNm
-  const MRl = (Wl * 1000 * fy) / 1e6;
+  const MyEd = stegQuer ? MqEd : MlEd;              // um die starke Achse
+  const MzEd = stegQuer ? MlEd : MqEd;              // um die schwache
+  const MRy = (p.Wy * 1000 * fy) / 1e6;             // cm³ -> kNm
+  const MRz = (p.Wz * 1000 * fy) / 1e6;
+  // Dieselben Widerstaende, in Bauachsen benannt - fuer den Bericht.
+  const MRq = stegQuer ? MRy : MRz;
+  const MRl = stegQuer ? MRz : MRy;
 
   /*
    * INTERAKTIONSBEIWERTE, Anhang B, Tabelle B.1 (Querschnitt Klasse 1/2 wie
@@ -473,6 +496,15 @@ export function mastStabilitaet(s, m, o = {}) {
    * C_m = 0.9 für den Kragarm mit Kopflast (Tabelle B.3). Der Beiwert bleibt
    * innerhalb seiner Schranken; ohne die Deckelung liefe er bei kleiner
    * Normalkraft gegen sich selbst.
+   *
+   * >>> HIER STECKT DAS MOMENT ZWEITER ORDNUNG. <<<
+   *
+   * Das Ersatzstabverfahren rechnet nicht am verformten System; es faengt
+   * die Zusatzmomente aus der Auslenkung in chi und in den Beiwerten k_ij
+   * ein. Ein gesondert angesetztes N mal delta waere eine ZWEITE Erfassung
+   * derselben Wirkung. Wer sie ausgerechnet sehen will, braucht eine
+   * Rechnung nach Theorie II. Ordnung - und die gehoert ins Statikprogramm,
+   * nicht hierher.
    */
   const Cm = 0.9;
   const nY = NEd / ((chiY * NRk) / gammaM1);
@@ -480,19 +512,22 @@ export function mastStabilitaet(s, m, o = {}) {
   const kyy = Math.min(Cm * (1 + 0.6 * lamY * nY), Cm * 1.6);
   const kzz = Math.min(Cm * (1 + 0.6 * lamZ * nZ), Cm * 1.6);
   // Die Nebenachse trägt 60 % der Hauptachsenwirkung (B.1, k_yz = 0.6·k_zz).
-  const etaQ = nY + kyy * (MqEd / (MRq / gammaM1))
-             + 0.6 * kzz * (MlEd / (MRl / gammaM1));
-  const etaL = nZ + 0.6 * kyy * (MqEd / (MRq / gammaM1))
-             + kzz * (MlEd / (MRl / gammaM1));
+  const eta61 = nY + kyy * (MyEd / (MRy / gammaM1))
+              + 0.6 * kzz * (MzEd / (MRz / gammaM1));
+  const eta62 = nZ + 0.6 * kyy * (MyEd / (MRy / gammaM1))
+              + kzz * (MzEd / (MRz / gammaM1));
 
   return {
     beta, Lcr, gammaM1,
-    NEd, MqEd, MlEd, NRk, MRq, MRl,
+    NEd, MqEd, MlEd, MyEd, MzEd, NRk, MRq, MRl, MRy, MRz,
     NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ, kyy, kzz, Cm,
     knicklinie: { y: schlank ? 'a' : 'b', z: schlank ? 'b' : 'c' },
-    eta: Math.max(etaQ, etaL),
-    etaQuer: etaQ, etaLaengs: etaL,
-    massgebend: etaQ >= etaL ? 'quer' : 'längs',
+    eta: Math.max(eta61, eta62),
+    eta61, eta62,
+    // Die Namen bleiben - der Bericht liest sie. Sie benennen jetzt die
+    // GLEICHUNG, nicht die Bauachse: 6.61 gehoert zur starken Achse.
+    etaQuer: eta61, etaLaengs: eta62,
+    massgebend: eta61 >= eta62 ? 'starke Achse (6.61)' : 'schwache Achse (6.62)',
     // Unter dieser Schlankheit verlangt die Norm keinen Knicknachweis.
     ohneNachweis: lamY <= 0.2 && lamZ <= 0.2,
   };

@@ -289,6 +289,54 @@ export function tragwerkName(t) {
 export const lageVon = (t) => Number(t?.xLage) || 0;
 
 /**
+ * >>> BLATTKOORDINATE -> KOORDINATE IM TRAGWERK. <<<
+ *
+ * Weisung vom 2. September: «Die eingabe der bauteile auf die tragwerke
+ * funktioniert nicht ganz.» Sie tat es nicht, und zwar so:
+ *
+ * Die Ansicht zeigt ALLE Tragwerke des Blattes, jedes an seiner Lage - das
+ * zweite Joch einer Reihe steht bei x 20 bis 40. Ein Klick dorthin liefert
+ * eine BLATTKOORDINATE. Die Bauteillage eines Tragwerks zaehlt aber ab
+ * seinem eigenen linken Ende, von 0 bis L.
+ *
+ * Beides wurde gleichgesetzt. Gemessen im Browser: aktiv war das rechte Joch
+ * (x0 = 20), geklickt wurde auf das LINKE bei x 1.54 - abgelegt wurde das
+ * Bauteil am rechten bei seiner Ortskoordinate 1.54, also auf dem Blatt bei
+ * 21.54. Zwanzig Meter neben der Stelle, auf die man gezeigt hat. Und
+ * umgekehrt liess sich auf dem rechten Joch ueberhaupt nichts absetzen: dort
+ * liegen die Blattkoordinaten 20 bis 40, und geprueft wurde gegen 0 bis L.
+ *
+ * Solange nur EIN Tragwerk auf dem Blatt stand, war x0 = 0 und die
+ * Gleichsetzung richtig. Erst die Jochreihe trennt die beiden Zahlen.
+ */
+export const blattNachLokal = (t, x) => x - lageVon(t);
+
+/**
+ * WELCHES TRAGWERK STEHT AN DIESER STELLE DES BLATTES?
+ *
+ * Gebraucht beim Setzen: wer im Bild auf ein Joch zeigt, meint DIESES Joch -
+ * auch wenn gerade das daneben gerechnet wird. Ohne diese Frage bekam er
+ * «auf das Joch oder einen Masten klicken», waehrend der Zeiger mitten auf
+ * einem Joch stand.
+ *
+ * Die Toleranz ist die halbe Blechbreite plus etwas Luft; sie faengt den
+ * Klick knapp neben dem Ende. Ueberlappen sich zwei Bereiche - zwei
+ * Tragwerke, die sich einen Masten teilen -, gilt das erste von links. Wer
+ * genau auf die Fuge zielt, meint keines von beiden im Besonderen.
+ */
+export function tragwerkBeiX(w, x, tol = 0.3) {
+  if (!Number.isFinite(x)) return null;
+  return tragwerkeSortiert(w).find((t) => {
+    const a = lageVon(t);
+    const b = a + (tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0);
+    return x >= a - tol && x <= b + tol;
+  }) ?? null;
+}
+
+/** Und zurueck - fuer alles, was eine Bauteillage im Blatt anzeigen will. */
+export const lokalNachBlatt = (t, x) => x + lageVon(t);
+
+/**
  * Die Masten eines Tragwerks mit ihrer Lage auf dem Querprofil.
  *
  * Ein Joch hat zwei — bei `xLage` und `xLage + L`. Ein Einzelmast oder ein
