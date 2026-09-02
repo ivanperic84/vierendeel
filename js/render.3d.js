@@ -270,6 +270,15 @@ export function szeneVerschieben(sz, dx, zusatz = {}) {
     masse: l(sz.masse), bauteiltitel: l(sz.bauteiltitel),
     vektoren: l(sz.vektoren), lastflaechen: l(sz.lastflaechen),
     schnitt: sz.schnitt ? teilVersch(sz.schnitt, dx, {}) : null,
+    /*
+     * DER NACHWEISSCHNITT IST EINE x-KOORDINATE.
+     *
+     * Er wurde beim ersten Anlauf vergessen: der Knopf «auf den
+     * Nachweisschnitt» fuhr dann auf x = 0.38, waehrend das Tragwerk bei 20
+     * bis 40 stand. Kein Fehler, keine Meldung - die Kamera fuhr nur an eine
+     * Stelle, an der nichts ist.
+     */
+    xNachweis: Number.isFinite(sz.xNachweis) ? sz.xNachweis + dx : sz.xNachweis,
     stationen: (sz.stationen ?? []).map((x) => x + dx),
     grenzen: { ...g, xMin: (g.xMin ?? 0) + dx, xMax: (g.xMax ?? 0) + dx },
   };
@@ -308,6 +317,9 @@ export function szenenVereinen(teile) {
     bauteiltitel: sammle('bauteiltitel'), vektoren: sammle('vektoren'),
     lastflaechen: sammle('lastflaechen'),
     schnitt: da.find((s) => s.aktiv)?.schnitt ?? da[0].schnitt ?? null,
+    // Wie der Schnitt gehoert auch seine Stelle dem aktiven Tragwerk.
+    xNachweis: (da.find((s) => s.aktiv) ?? da[0]).xNachweis,
+    schnittAktiv: (da.find((s) => s.aktiv) ?? da[0]).schnittAktiv,
     stationen: sammle('stationen'),
     legende: [...legende.values()], bereiche,
     grenzen: { xMin: min('xMin'), xMax: max('xMax'),

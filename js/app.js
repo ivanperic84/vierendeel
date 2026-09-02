@@ -2859,8 +2859,30 @@ function baueModellWerkzeuge() {
    */
   // Unten links, in der Fussleiste - dort, wo auch die Stelle steht, an der
   // man gerade ist. Zuruecksetzen gehoert zum Navigieren, nicht zum Bauen.
+  /*
+   * NAVIGATION UNTEN LINKS (Weisung, 2. September).
+   *
+   * Drei Handlungen, die man beim Arbeiten am Bild immer wieder braucht -
+   * und die man sonst mit Rad und Ziehen zusammensuchen muss:
+   *
+   *   ganz     alles zeigen, was auf dem Blatt steht. Seit mehrere
+   *            Tragwerke nebeneinanderstehen ist das nicht mehr dasselbe
+   *            wie «ein Joch zeigen» - deshalb heisst es jetzt anders.
+   *   teil     nur das gerechnete Tragwerk. Bei einer Jochreihe steht man
+   *            sonst vor drei Jochen und sucht das, dessen Zahlen rechts
+   *            stehen.
+   *   schnitt  auf den Nachweisschnitt. Die Stelle, an der die Auswertung
+   *            gerade rechnet - der haeufigste Grund, ueberhaupt
+   *            heranzufahren.
+   *
+   * Sie stehen UNTEN LINKS, weil dort schon der erste stand und weil oben
+   * rechts die Blickrichtungen sitzen: das eine ist «wohin schaue ich», das
+   * andere «worauf».
+   */
   ui.el('ansicht-tools-u').innerHTML =
-    iconKnopf('v-ganz', 'zoom', 'Ganzes Joch zeigen, Ansicht zurücksetzen');
+    iconKnopf('v-ganz', 'zoom', 'Ganzes Querprofil zeigen')
+    + iconKnopf('v-teil', 'aufziehen', 'Nur das gerechnete Tragwerk zeigen')
+    + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
   // Auswahl, die man darueber trifft.
@@ -2900,6 +2922,26 @@ function baueModellWerkzeuge() {
     station = null; ansicht.station = null;
     ansicht.ansichtZuruecksetzen(); zeichneAuswertung();
   };
+  /*
+   * NUR DAS GERECHNETE TRAGWERK.
+   *
+   * Sein Bereich steht fest: von seiner Lage bis Lage plus Laenge. Ein
+   * Einzelmast hat keine Laenge - dort waere der Ausschnitt null breit und
+   * die Kamera fuehre ins Unendliche. Zwei Meter sind das Mindestmass; sie
+   * zeigen den Masten mit etwas Luft daneben.
+   */
+  ui.el('v-teil').onclick = () => {
+    const t = tragwerkeSortiert(werte).find((x) => x.aktiv)
+           ?? tragwerkeSortiert(werte)[0];
+    if (!t) return;
+    const x0 = lageVon(t);
+    const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
+    const halb = Math.max(1, L / 2);
+    station = null; ansicht.station = null;
+    ansicht.zoomAuf(x0 + L / 2, null, halb);
+  };
+  // Der Nachweisschnitt: die Stelle, an der die Auswertung gerade rechnet.
+  ui.el('v-schnitt').onclick = () => ansicht.zeigeSchnitt(2.5);
   zeichneModellWerkzeuge();
   zeichneLegende();
 }

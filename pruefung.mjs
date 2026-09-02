@@ -10830,7 +10830,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     vektoren: [{ p: [2, 0, 1], v: [0, 0, -1], text: 'F' }],
     lastflaechen: [{ punkte: [[0, 0, 1], [4, 0, 1]] }],
     schnitt: { x: 2, poly: [[2, 0, 0], [2, 1, 0]] },
-    stationen: [0, 2, 4],
+    stationen: [0, 2, 4], xNachweis: 2, schnittAktiv: true,
     legende: [{ key: 'gurt', label: 'Gurt' }],
     bereiche: { eta: 0.5 },
     grenzen: { xMin: 0, xMax: 4, yMin: 0, yMax: 1, zMin: 0, zMax: 2 },
@@ -10854,6 +10854,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('… aber seine RICHTUNG bleibt',
          v.vektoren[0].v.join(',') === '0,0,-1');
     pruef('Die Station wandert', v.stationen[2], 14, 1e-12, 'm');
+    /*
+     * DER NACHWEISSCHNITT IST EINE x-KOORDINATE - und wurde beim ersten
+     * Anlauf vergessen. Der Knopf «auf den Nachweisschnitt» fuhr dann auf
+     * x = 0.38, waehrend das Tragwerk bei 20 bis 40 stand. Kein Fehler,
+     * keine Meldung - die Kamera fuhr nur an eine Stelle, an der nichts ist.
+     */
+    pruef('Und der Nachweisschnitt auch', v.xNachweis, 12, 1e-12, 'm');
     pruef('Die Grenzen wandern', v.grenzen.xMin, 10, 1e-12, 'm');
     pruef('… beide', v.grenzen.xMax, 14, 1e-12, 'm');
     wahr('Quer und hoch bleibt alles stehen',
@@ -10881,6 +10888,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Flaechen sind zusammengelegt', g.flaechen.length === 2);
     wahr('Die Legende steht einmal da', g.legende.length === 1);
     wahr('Der Schnitt ist der des aktiven', g.schnitt.x === 12);
+    wahr('… und seine Stelle ebenso', g.xNachweis === 12);
     wahr('Und die Stationen sind alle da', g.stationen.length === 6);
   }
   {
