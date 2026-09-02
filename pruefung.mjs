@@ -11884,6 +11884,91 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DER MAST HEISST UEBERALL GLEICH. <<<
+   *
+   * Weisung vom 2. September: «ich bin der meinung das wir masten klar
+   * definiert haben sollten und nicht als auflager a und b, das führt zu
+   * verwirrung bei einer jochreihe.»
+   *
+   * Zu Recht: «Ende B» benennt das ENDE DES JOCHS, nicht den Masten. Der
+   * Zwischenmast einer Reihe ist das Ende B des linken Jochs UND das Ende A
+   * des rechten - ein Bauteil mit zwei Namen. Sein Name kommt jetzt aus der
+   * Reihenfolge auf dem Blatt und gilt von beiden Seiten.
+   */
+  {
+    const w = reihe();                     // T1 bei 0, T2 bei 20 (aktiv)
+    const [links, rechts] = C75.tragwerkeSortiert(w);
+    pruef('Drei Masten', C75.mastenVon(w).length, 3, 1e-9, 'Stueck');
+    wahr('Von links gezaehlt heissen sie M1, M2, M3',
+         C75.mastenVon(w).map((m) => C75.mastName(w, m)).join(',') === 'M1,M2,M3');
+
+    // DIE PROBE: derselbe Mast, von beiden Jochen aus.
+    wahr('Das Ende B des linken Jochs ist M2',
+         C75.mastNameAmEnde(w, links, 'B') === 'M2');
+    wahr('… und das Ende A des rechten ebenfalls',
+         C75.mastNameAmEnde(w, rechts, 'A') === 'M2');
+    wahr('Die aeusseren heissen M1 und M3',
+         C75.mastNameAmEnde(w, links, 'A') === 'M1'
+         && C75.mastNameAmEnde(w, rechts, 'B') === 'M3');
+
+    // Und der Name wandert in den Rechensatz - das Bild kennt den
+    // Blattzusammenhang nicht und bekommt ihn von dort.
+    const satz = C75.tragwerkSatz(w, rechts.id);
+    wahr('Der Satz traegt die Namen mit',
+         satz.mastNameA === 'M2' && satz.mastNameB === 'M3');
+  }
+
+  /*
+   * EINE BESCHRIFTUNG DARF RECHNEN - und muss dann mitlaufen.
+   *
+   * `label` als Funktion macht aus «Anschlusshöhe Ende B» ein
+   * «Anschlusshöhe Ende B · Mast M2». Der Preis: sie haengt an Werten, die
+   * NICHT in der Maskensignatur stehen (sie zogen sonst den Schieber mit).
+   * Gemessen am 2. September stand deshalb «Mast M1» ueber einem Feld, das
+   * M2 meinte, bis `aktualisiereMaske` sie mitfuehrte.
+   */
+  {
+    const mitFn = FELDER.filter((f) => typeof f.label === 'function');
+    wahr('Es gibt gerechnete Beschriftungen', mitFn.length >= 3);
+    const w = reihe();
+    wahr('Sie geben Text, keinen Code',
+         mitFn.every((f) => typeof f.label(w) === 'string' && f.label(w).length));
+    // DIE NACHFUEHRUNG MUSS ES TUN. Ohne sie bliebe der alte Text stehen.
+    const r = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
+    wahr('aktualisiereMaske fuehrt sie nach',
+         r.includes("typeof f?.label !== 'function'"));
+  }
+
+  /*
+   * ZIEHEN RASTET GROB, DAS FELD BLEIBT FEIN.
+   *
+   * Weisung vom 2. September: «die masten beim verschieben per drag and drop
+   * auf halbe meter rastern ansonsten das eingabefeld nutzen. das gleiche
+   * für die schieber.»
+   *
+   * Fuenf Zentimeter waren die falsche Zahl fuer eine Ziehgeste: auf 240
+   * Punkten Breite und vierzig Metern Blatt ist ein Bildpunkt rund siebzehn
+   * Zentimeter, das Raster lag also unter der Aufloesung der Geste.
+   */
+  {
+    pruef('Das Ziehraster ist ein halber Meter', C75.ZUG_RASTER, 0.5, 1e-12, 'm');
+    pruef('20.17 rastet auf 20.00', C75.aufRaster(20.17), 20, 1e-12, 'm');
+    pruef('20.30 rastet auf 20.50', C75.aufRaster(20.30), 20.5, 1e-12, 'm');
+    pruef('Auch nach unten', C75.aufRaster(-3.4), -3.5, 1e-12, 'm');
+
+    // DAS FELD BLEIBT FEIN. Zwei Schrittweiten an einem Wert: der Schieber
+    // rastet grob, das Zahlenfeld daneben auf den Zentimeter.
+    const grob = FELDER.filter((f) => f.zugSchritt);
+    wahr('Es gibt Felder mit grober Ziehstufe', grob.length >= 4);
+    wahr('Sie rasten am Schieber auf den halben Meter',
+         grob.every((f) => f.zugSchritt === 0.5));
+    wahr('… und im Feld feiner',
+         grob.every((f) => f.schritt < f.zugSchritt));
+    wahr('Die Jochlaenge ist darunter',
+         grob.some((f) => f.key === 'L'));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

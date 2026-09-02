@@ -327,7 +327,7 @@ export function modellEinzelmast(inp, stahl) {
     geteilteMasten: geteilteMasten(inp),
     qsErsatz,
     stahl, beiwerte,
-    federn: federnRoh,
+    federn: { ...federnRoh, namen: { A: inp.mastNameA || 'M1', B: '' } },
     mastLast: mastWindSatz(inp, federnRoh, beiwerte, bwX),
     anbauMast: amMasten.map((a) => ({ ...a, ort: 'mastA' })),
     anbauMastFlach: flach,
@@ -539,7 +539,15 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
                       h: v.hT, Fgrenz: inp.schraubenFgrenz, theta0A, theta0B,
                       MkA: sp.MkA, MkB: sp.MkB })
     : null;
+  /*
+   * DIE MASTNAMEN GEHEN INS MODELL.
+   *
+   * Bild und Auswertung nennen den Masten beim Namen («M2») statt beim
+   * Jochende («Ende B»). Auf einer Jochreihe ist das der Unterschied
+   * zwischen einem Bauteil mit einem Namen und einem mit zweien.
+   */
   const federn = { ...federnRoh, roh: federnRoh, grenze,
+    namen: { A: inp.mastNameA || 'M1', B: inp.mastNameB || '' },
                    ...(grenze ? { cA: grenze.cA, cB: grenze.cB } : {}) };
 
   /*

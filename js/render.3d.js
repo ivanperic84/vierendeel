@@ -1580,10 +1580,20 @@ export function erzeugeSzene(m, erg) {
       // Die LAENGE, nicht die Hoehe: angeschrieben ist auf dem Querprofil die
       // Gesamtlaenge. Ohne Angabe steht die Hoehe bis zur Jochachse.
       const lang = md.laenge > 0 ? md.laenge : md.H;
+      /*
+       * DER TITEL NENNT DEN MASTEN, nicht das Jochende.
+       *
+       * «HEB 240 · 7.50 m» stand an beiden Enden gleich da; auf einer
+       * Jochreihe standen vier solche Anschriften nebeneinander, und welche
+       * zu welchem Masten gehoerte, sagte keine. Mit «M2» davor ist jeder
+       * Mast ueber das ganze Blatt eindeutig - der Zwischenmast heisst von
+       * beiden Jochen aus gleich.
+       */
+      const mName = federn.namen?.[name] ?? '';
       bauteiltitel.push({
         // Der Mastkopf traegt oben Traversen; der Titel muss darueber hinaus.
         p: [g.x, 0, g.zKopf + 0.55],
-        text: `${md.profil.name} · ${lang.toFixed(2)} m`,
+        text: `${mName ? `${mName} · ` : ''}${md.profil.name} · ${lang.toFixed(2)} m`,
         feld: name === 'B' && m.mastZwei ? 'mastProfilB' : 'mastProfil',
         // Der Titel gehoert zum Bauteil: ist der Mast ausgeblendet, steht
         // sonst sein Profil ueber leerem Grund.
@@ -2199,7 +2209,47 @@ export class Modellansicht {
     c.style.touchAction = 'none';
     // Ohne Fokus bekommt eine Zeichenfläche keine Tastendrücke.
     if (!c.hasAttribute('tabindex')) c.tabIndex = 0;
-    c.addEventListener('contextmenu', (e) => e.preventDefault());
+    /*
+     * >>> RECHTSKLICK: WAS HIER ZU TUN IST. <<<
+     *
+     * Weisung vom 2. September: «ausblenden mit rechtsklick ermöglichen im
+     * 3d sowie in der sidebar. man könnte sonst einige nützliche kontext
+     * optionen unter rechtsklick aufführen.»
+     *
+     * Das Eigenmenue des Browsers war hier schon unterdrueckt - es bot
+     * «Bild speichern unter», und das ist auf einer Zeichenflaeche keine
+     * sinnvolle Antwort. Jetzt steht an seiner Stelle, was an DIESER Stelle
+     * zu tun ist.
+     *
+     * DAS MENUE KENNT DEN GEGENSTAND, NICHT DIE ANWENDUNG. Es meldet nur,
+     * WORAUF geklickt wurde - Tragwerk, Mast, Anbauteil oder leerer Grund -,
+     * und app.js entscheidet, was dort angeboten wird. Die Ansicht weiss
+     * nichts von Ausblenden und Bauteillisten, und das soll so bleiben.
+     */
+    c.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (!this.opt.beiKontext) return;
+      const [px, py] = this._geraetePunkt(e);
+      const tr = this._treffer(e);
+      const f = tr?.flaeche;
+      const teil = typeof f?.teil === 'string' ? f.teil : '';
+      const was = teil.startsWith('MAST_') ? 'mast'
+        : f?.anbauteil ? 'anbauteil'
+        : f ? 'tragwerk' : 'grund';
+      this.opt.beiKontext({
+        was,
+        // Welches Tragwerk: die Flaeche traegt es seit der Blattszene. Fehlt
+        // es, ist es das gerechnete - dann steht nur eines da.
+        twId: f?.twId ?? null,
+        mastEnde: was === 'mast' ? teil.slice(5) : null,
+        anbauteil: was === 'anbauteil'
+          ? (this.szene?.anbauteile ?? []).find((d) => d.teil === teil)?.index
+          : null,
+        welt: this.weltTreffer(px, py),
+        // Bildschirmpunkt in CSS-Pixeln - dort erscheint das Menue.
+        bei: [e.clientX, e.clientY],
+      });
+    });
 
     /** Aufliegende Zeiger: id -> Punkt in Gerätepixeln. */
     const zeiger = new Map();

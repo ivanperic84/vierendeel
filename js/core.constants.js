@@ -526,6 +526,30 @@ export function tragwerkeSortiert(w) {
  * danach als Verweis da.
  * =========================================================================== */
 
+/**
+ * >>> DAS RASTER BEIM ZIEHEN: EIN HALBER METER. <<<
+ *
+ * Weisung vom 2. September: «die masten beim verschieben per drag and drop
+ * auf halbe meter rastern ansonsten das eingabefeld nutzen. das gleiche für
+ * die schieber.»
+ *
+ * Fuenf Zentimeter waren die falsche Zahl fuer eine ZIEHGESTE. Auf einer
+ * Leiste von 240 Punkten Breite und vierzig Metern Blatt ist ein Bildpunkt
+ * rund siebzehn Zentimeter - das Raster lag also unter der Aufloesung der
+ * Geste, und heraus kamen Zahlen wie 20.15, die niemand gemeint hat. Beim
+ * Schieber dasselbe: er hat ein paar hundert Pixel fuer zwanzig Meter.
+ *
+ * Ein halber Meter ist die Groessenordnung, in der man ein Joch VERSCHIEBT.
+ * Wer den Zentimeter braucht, tippt ihn - das Zahlenfeld daneben behaelt
+ * seine feine Schrittweite. Zwei Werkzeuge, zwei Genauigkeiten, und jedes
+ * ist fuer das gut, wozu man es nimmt.
+ */
+export const ZUG_RASTER = 0.5;
+
+/** Eine Laenge auf das Ziehraster bringen. */
+export const aufRaster = (x, raster = ZUG_RASTER) =>
+  Math.round(x / raster) * raster;
+
 /** Die Angaben, die ein Mast trägt — flach im Satz, benannt in der Liste. */
 /*
  * >>> DIE ANSCHLUSSHOEHE GEHOERT NICHT DEM MASTEN. <<<
@@ -726,6 +750,51 @@ export function gewaehlterMast(w) {
   return (t ? mastenFuer(w, t)[0] : null) ?? alle[0];
 }
 
+/* ===========================================================================
+ * DER MAST HAT EINEN NAMEN
+ *
+ * Weisung vom 2. September: «ich bin der meinung das wir masten klar
+ * definiert haben sollten und nicht als auflager a und b, das führt zu
+ * verwirrung bei einer jochreihe.»
+ *
+ * >>> UND ZWAR ZU RECHT. <<<
+ *
+ * «Ende A» und «Ende B» benennen nicht den MASTEN, sondern das ENDE DES
+ * JOCHS, an dem er steht. Bei einem einzelnen Joch faellt das nicht auf -
+ * zwei Enden, zwei Masten, die Zuordnung ist eindeutig. Auf einer Jochreihe
+ * faellt es sofort auf: der Zwischenmast ist das Ende B des linken Jochs UND
+ * das Ende A des rechten. Ein Bauteil, EIN Bauteil, mit zwei Namen, je
+ * nachdem welches Joch man gerade angeklickt hat.
+ *
+ * Der Name kommt aus der Reihenfolge auf dem Blatt: M1 ganz links, dann M2,
+ * M3. Er ist damit EINDEUTIG UEBER DAS GANZE BLATT - der Zwischenmast heisst
+ * von beiden Seiten M2.
+ *
+ * >>> «ENDE A» BLEIBT, WO ES WIRKLICH DAS ENDE MEINT. <<<
+ *
+ * Die Anschlusshoehe, der Kragarm, die Auflagerreaktion - das sind Groessen
+ * des JOCHENDES, nicht des Mastes. Zwei Joche koennen am selben Masten
+ * verschieden hoch anschliessen (siehe anschlusshoehe). Dort waere es
+ * falsch, vom Masten zu sprechen. Die Beschriftung nennt deshalb beides:
+ * «Ende B · Mast M2» - was gemeint ist, und woran es steht.
+ * =========================================================================== */
+
+/** Der Name eines Mastes: M1, M2, ... nach seiner Stelle von links. */
+export function mastName(w, m) {
+  if (!m) return '';
+  const i = mastenVon(w).findIndex((x) => x.id === m.id);
+  return i < 0 ? (m.id ?? '') : `M${i + 1}`;
+}
+
+/**
+ * Der Name des Mastes an einem Jochende - «M2», oder leer, wenn dort keiner
+ * steht.
+ */
+export function mastNameAmEnde(w, t, ende = 'A') {
+  const [a, b] = mastenFuer(w, t ?? tragwerkeVon(w)[0]);
+  return mastName(w, ende === 'B' ? b : a);
+}
+
 /** Ein Mast nach seiner Id. */
 export const mastNach = (w, id) => mastenVon(w).find((m) => m.id === id) ?? null;
 
@@ -911,6 +980,16 @@ export function setzeAnbauteileAn(w, liste) {
  */
 export function mastenProjizieren(satz, w, t) {
   const [a, b] = mastenFuer(w, t);
+  /*
+   * DIE NAMEN GEHEN MIT.
+   *
+   * Der Rechenkern bekommt einen Satz OHNE Blattzusammenhang - er kann die
+   * Masten also nicht selbst durchzaehlen. Das Bild und die Auswertung
+   * wollen sie aber beim Namen nennen («M2» statt «Ende B»). Also wandern
+   * die Namen mit den uebrigen Mastangaben in den Satz.
+   */
+  satz.mastNameA = mastName(w, a);
+  satz.mastNameB = mastName(w, b);
   if (!a) return satz;
   MASTFELDER.forEach((f) => {
     if (a[f.am] !== undefined) satz[f.flach] = a[f.am];

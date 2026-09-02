@@ -1892,3 +1892,27 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 }
 .qp-tw.aus .qp-tw-name, .qp-tw.aus .qp-tw-art { color: var(--dim); }
 .qp-tw.aus:hover { opacity: .85; border-color: var(--acc); }
+
+/* --- Kontextmenue ---------------------------------------------------------
+   Was an DIESER Stelle zu tun ist. Es sitzt am Koerper, nicht im Modell -
+   sonst schnitte es der Rahmen der Zeichenflaeche ab. */
+.kontext {
+  position: fixed; z-index: 200; min-width: 168px;
+  display: flex; flex-direction: column; padding: 4px;
+  background: var(--s1); border: 1px solid var(--ol2);
+  border-radius: var(--m-r1); box-shadow: 0 8px 26px rgba(0,0,0,.5);
+  font-size: 11px;
+}
+.kontext hr {
+  border: none; border-top: 1px solid var(--ol); margin: 3px 2px;
+}
+.kontext-p {
+  background: none; border: none; border-radius: var(--m-r1);
+  padding: 5px 8px; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--on2);
+  white-space: nowrap;
+}
+.kontext-p:hover { background: var(--acc-s); color: var(--acc); }
+/* Was nicht rueckgaengig aussieht, sieht auch nicht so aus. */
+.kontext-p.warn { color: var(--dim); }
+.kontext-p.warn:hover { background: none; color: var(--fail); }

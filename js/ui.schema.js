@@ -20,7 +20,7 @@
  */
 
 import { TRAGWERKSARTEN, tragwerksart,
-         gewaehlterMast } from './core.constants.js';
+         gewaehlterMast, mastName, mastNameAmEnde } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
@@ -220,8 +220,13 @@ export const FELDER = [
     // variiert wird. Der Schieber ist auf den Sortimentsbereich des Typs
     // begrenzt, damit man nicht unbemerkt aus dem Katalog läuft.
     key: 'L', gruppe: 'geo', typ: 'schieber', label: 'Jochlänge', sym: 'jt',
-    einheit: 'm', standard: 20.0, min: 8, max: 34.5, schritt: 0.5,
-    hinweis: 'Schieberbereich = Sortiment des gewählten Typs.',
+    einheit: 'm', standard: 20.0, min: 8, max: 34.5,
+    // Der SCHIEBER rastet auf den halben Meter, das FELD auf den
+    // Zentimeter (Weisung, 2. September). Ziehen ist die grobe Geste,
+    // Tippen die genaue.
+    schritt: 0.05, zugSchritt: 0.5,
+    hinweis: 'Schieberbereich = Sortiment des gewählten Typs. Der Schieber '
+           + 'rastet auf den halben Meter; genauer geht es im Feld daneben.',
   },
   // a₁ ist NICHT die Regelteilung, sondern das Endfeld am Auflager (750 mm
   // nach Zeichnung). Wo eine Mass-Tabelle vorliegt, kommt die Teilung dazwischen
@@ -337,7 +342,7 @@ export const FELDER = [
     hinweis: 'Der Mast wird gezeichnet, ausgeleitet und nachgewiesen und trägt '
            + 'Wind und Anbauteile. Ob seine Steifigkeit die Drehfeder liefert, '
            + 'steht bei der Auflagerung.'},
-  { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: 'Mastprofil',
+  { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),
     sichtbar: (w) => mastDa(w) },
@@ -348,8 +353,8 @@ export const FELDER = [
    * Werkzeug, nicht ein Zahlenfeld, in das man tippt und wieder tippt.
    */
   { key: 'mastH', gruppe: 'mast', typ: 'schieber',
-    label: 'Anschlusshöhe (Fuss bis Jochachse)',
-    sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, min: 2, max: 20,
+    label: (w) => `Anschlusshöhe Ende A · Mast ${mastNameAmEnde(w, null, 'A')}`,
+    sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
     sichtbar: (w) => mastDa(w) },
   /*
    * DER LANGE MAST MIT ZUSATZLEITERN.
@@ -368,7 +373,7 @@ export const FELDER = [
    */
   { key: 'mastLaenge', gruppe: 'mast', typ: 'schieber',
     label: 'Mastlänge gesamt (Fuss bis Kopf)',
-    sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25,
+    sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 25,
     wertAus: amMast('laenge', 'mastLaenge'),
     sichtbar: (w) => mastDa(w),
     hinweis: 'Gesamtlänge wie angeschrieben. Der Mast steht immer über den '
@@ -404,18 +409,19 @@ export const FELDER = [
     label: 'Mastprofil Ende B',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name') },
   { key: 'mastHZwei', gruppe: 'mast', typ: 'schalter',
-    label: 'Anschlusshöhe am Ende B abweichend', standard: false,
+    label: (w) => `Anschlusshöhe am Ende B (Mast ${mastNameAmEnde(w, null, 'B')}) abweichend`,
+    standard: false,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2,
     hinweis: 'Nur die Höhe, an der das Joch anschliesst. Das Profil des '
            + 'zweiten Mastes steht an seiner Kachel.' },
   { key: 'mastHB', gruppe: 'mast', typ: 'schieber',
-    label: 'Anschlusshöhe Ende B',
-    sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.05, min: 2, max: 20,
+    label: (w) => `Anschlusshöhe Ende B · Mast ${mastNameAmEnde(w, null, 'B')}`,
+    sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2
                   && (w.mastHZwei ?? w.mastZwei) },
   { key: 'mastLaengeB', gruppe: 'mast', typ: 'schieber', versteckt: true,
     label: 'Mastlänge Ende B',
-    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25 },
+    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 25 },
   { key: 'mastStegB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Stegrichtung Ende B',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN) },

@@ -30,7 +30,8 @@ import { verortung, fangeAufMasskette,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
-         anbauteileFuer, setzeAnbauteileAn, freieLage, versteckt }
+         anbauteileFuer, setzeAnbauteileAn, freieLage, versteckt,
+         mastenVon, mastName, tragwerkName }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -635,6 +636,23 @@ function aktualisiereFuss(erg, urteil, joch) {
 
 // --- Ereignisse -------------------------------------------------------------
 
+function mastNachfuehrenGlobal() {
+  const t = tragwerkeVon(werte)[0];
+  const meine = mastenFuer(werte, t).filter(Boolean).map((m) => m.id);
+  if (werte.mastAktiv && !meine.includes(werte.mastAktiv)) {
+    werte = { ...werte, mastAktiv: meine[0] ?? undefined };
+  }
+  /*
+   * UND DIE BAUTEILE AN DEN MASTEN KOMMEN MIT.
+   *
+   * Ein weggelegtes Tragwerk traegt sie nicht (tragwerkTeil raeumt sie
+   * weg) - das neu angewaehlte bekommt sie deshalb hier. Ohne diese
+   * Zeile stuende die Traverse des Zwischenmasten nach dem Umschalten
+   * nicht mehr in der Liste, obwohl sie am Masten haengt.
+   */
+  werte = { ...werte, anbauteile: anbauteileFuer(werte, tragwerkeVon(werte)[0]) };
+}
+
 function aendern(key, wert) {
   /*
    * DIE TRAGWERKSLISTE MELDET DREI ABSICHTEN.
@@ -659,22 +677,10 @@ function aendern(key, wert) {
    * Mast gehoert beiden, und welches Joch gerechnet wird, ist eine andere
    * Frage als welcher Mast gerade in den Feldern steht.
    */
-  const mastNachfuehren = () => {
-    const t = tragwerkeVon(werte)[0];
-    const meine = mastenFuer(werte, t).filter(Boolean).map((m) => m.id);
-    if (werte.mastAktiv && !meine.includes(werte.mastAktiv)) {
-      werte = { ...werte, mastAktiv: meine[0] ?? undefined };
-    }
-    /*
-     * UND DIE BAUTEILE AN DEN MASTEN KOMMEN MIT.
-     *
-     * Ein weggelegtes Tragwerk traegt sie nicht (tragwerkTeil raeumt sie
-     * weg) - das neu angewaehlte bekommt sie deshalb hier. Ohne diese
-     * Zeile stuende die Traverse des Zwischenmasten nach dem Umschalten
-     * nicht mehr in der Liste, obwohl sie am Masten haengt.
-     */
-    werte = { ...werte, anbauteile: anbauteileFuer(werte, tragwerkeVon(werte)[0]) };
-  };
+  // Der Nachlauf nach einem Tragwerkswechsel steht als eigene Funktion da:
+  // das Kontextmenue braucht ihn ebenfalls, und zwei Kopien waeren zwei
+  // Gelegenheiten, eine zu vergessen.
+  const mastNachfuehren = mastNachfuehrenGlobal;
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
     mastNachfuehren();
@@ -790,6 +796,18 @@ function aendern(key, wert) {
    * seine Stelle tritt: eine Auswertung ohne ihren Gegenstand waere eine
    * leere Seite mit einer Zahl darauf. Deshalb wird zuerst umgeschaltet.
    */
+  /*
+   * DER RECHTSKLICK IN DER LEISTE laeuft ueber denselben Weg wie jede andere
+   * Absicht - er oeffnet nur ein Menue und aendert selbst nichts.
+   */
+  if (key === 'kontextTragwerk') {
+    kontextZeigen(wert.bei, kontextTragwerk(wert.id));
+    return;
+  }
+  if (key === 'kontextMast') {
+    kontextZeigen(wert.bei, kontextMast(wert.id, werte.twId ?? 'T1'));
+    return;
+  }
   if (key === 'tragwerkAus') {
     const sichtbar = tragwerkeSortiert(werte).filter((t) => !versteckt(t));
     if (sichtbar.length < 2) return;
@@ -2435,6 +2453,8 @@ function zeigeAnbauteil(i) {
  * Auswahl, zuletzt das vergrösserte Diagramm. Jeder Druck einen Schritt.
  */
 function abbrechen() {
+  // Das Kontextmenue geht zuerst: es liegt ueber allem anderen.
+  if (kontextMenue) { kontextSchliessen(); return; }
   /*
    * ESC BEENDET DAS SCHIEBEN, ohne es zurueckzunehmen.
    *
@@ -3940,6 +3960,273 @@ let dialogLauf = 0;
 /** Dauer der Schliessbewegung - dieselbe Zahl steht im Stylesheet. */
 const DIALOG_ZU_MS = 140;
 
+/* ===========================================================================
+ * DAS KONTEXTMENUE
+ *
+ * Weisung vom 2. September: «ausblenden mit rechtsklick ermöglichen im 3d
+ * sowie in der sidebar. man könnte sonst einige nützliche kontext optionen
+ * unter rechtsklick aufführen.»
+ *
+ * >>> WAS HINEINGEHOERT, UND WAS NICHT. <<<
+ *
+ * Ein Kontextmenue ist kein zweites Hauptmenue. Hinein gehoert, was sich auf
+ * DAS GEKLICKTE bezieht und sonst einen Umweg braucht:
+ *
+ *   TRAGWERK    rechnen · nur dieses zeigen · ausblenden · zoomen · entfernen
+ *   MAST        Profil bearbeiten · Masten dieses Tragwerks aus · zoomen
+ *   ANBAUTEIL   bearbeiten · ab-/anschalten · entfernen · zoomen
+ *   GRUND       ganzes Blatt · nur das gerechnete · Nachweisschnitt ·
+ *               Bauteil setzen · Zeichnung verschieben
+ *
+ * NICHT hinein gehoert, was die Werkzeugleiste schon zeigt und nichts mit
+ * der Stelle zu tun hat - Blickrichtung, Lastfall, Ebenen. Ein Menue, das
+ * ueberall dasselbe anbietet, ist keines.
+ *
+ * «NUR DIESES ZEIGEN» ist der Eintrag, der die Arbeit an einer langen Reihe
+ * wirklich aendert: er blendet alle anderen aus, statt sie einzeln
+ * wegzuklicken. Das Gegenstueck «alle zeigen» steht daneben, sobald etwas
+ * ausgeblendet ist - ein Zustand, aus dem man nicht mehr herausfindet, waere
+ * schlimmer als keiner.
+ * =========================================================================== */
+
+/** Das offene Menue, damit ein zweiter Klick es schliesst. */
+let kontextMenue = null;
+
+function kontextSchliessen() {
+  kontextMenue?.remove();
+  kontextMenue = null;
+}
+
+/**
+ * Ein Menue an einer Bildschirmstelle.
+ *
+ * @param {[number,number]} bei   Punkt in CSS-Pixeln
+ * @param {Array} punkte          {text, tun, warn} - null trennt Gruppen
+ */
+function kontextZeigen(bei, punkte) {
+  kontextSchliessen();
+  const echte = punkte.filter(Boolean);
+  if (!echte.length) return;
+  const n = document.createElement('div');
+  n.className = 'kontext';
+  n.innerHTML = echte.map((p, i) => (p === '-'
+    ? '<hr>'
+    : `<button type="button" class="kontext-p${p.warn ? ' warn' : ''}"
+         data-k="${i}">${esc(p.text)}</button>`)).join('');
+  document.body.appendChild(n);
+  kontextMenue = n;
+  /*
+   * DAS MENUE BLEIBT IM FENSTER.
+   *
+   * Am rechten oder unteren Rand aufgeklappt ragte es sonst hinaus, und die
+   * unteren Eintraege waeren nicht erreichbar - gerade dort, wo die
+   * gefaehrlichen stehen.
+   */
+  const r = n.getBoundingClientRect();
+  const x = Math.min(bei[0], window.innerWidth - r.width - 8);
+  const y = Math.min(bei[1], window.innerHeight - r.height - 8);
+  n.style.left = `${Math.max(4, x)}px`;
+  n.style.top = `${Math.max(4, y)}px`;
+  n.querySelectorAll('[data-k]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const p = echte[+b.dataset.k];
+      kontextSchliessen();
+      p?.tun?.();
+    });
+  });
+  // Ein Klick daneben, ein Rollen oder Esc schliesst es. `capture`, damit
+  // der Klick nicht zuerst im Modell landet.
+  const zu = () => { kontextSchliessen(); ab(); };
+  const ab = () => {
+    document.removeEventListener('pointerdown', zu, true);
+    window.removeEventListener('wheel', zu, true);
+    window.removeEventListener('blur', zu);
+  };
+  setTimeout(() => {
+    document.addEventListener('pointerdown', zu, true);
+    window.addEventListener('wheel', zu, true);
+    window.addEventListener('blur', zu);
+  }, 0);
+}
+
+/** Die Einträge zu einem Tragwerk - im Modell wie in der Leiste dieselben. */
+function kontextTragwerk(id) {
+  const alle = tragwerkeSortiert(werte);
+  const t = alle.find((x) => x.id === id);
+  if (!t) return [];
+  const sichtbar = alle.filter((x) => !versteckt(x));
+  const aktiv = (werte.twId ?? 'T1') === id;
+  const p = [];
+  if (!aktiv && !versteckt(t)) {
+    p.push({ text: `${tragwerkName(t)} rechnen`,
+             tun: () => aendern('tragwerkAktiv', id) });
+  }
+  if (versteckt(t)) {
+    p.push({ text: 'Wieder einblenden', tun: () => aendern('tragwerkZeigen', id) });
+  } else if (sichtbar.length > 1) {
+    p.push({ text: 'Nur dieses zeigen', tun: () => nurDiesesZeigen(id) });
+    p.push({ text: 'Ausblenden', tun: () => aendern('tragwerkAus', id) });
+  }
+  if (alle.some(versteckt)) {
+    p.push({ text: 'Alle wieder einblenden', tun: () => alleZeigen() });
+  }
+  p.push('-');
+  p.push({ text: 'Auf dieses zoomen', tun: () => zoomAufTragwerk(id) });
+  if (alle.length > 1) {
+    p.push({ text: 'Vom Blatt nehmen', warn: true,
+             tun: () => aendern('tragwerkWeg', id) });
+  }
+  return p;
+}
+
+/**
+ * NUR EINES ZEIGEN - alle anderen beiseite.
+ *
+ * Auf einem Querprofil mit sechs Abschnitten ist das der Griff, den man
+ * staendig braucht und der sonst fuenf einzelne Klicks kostet. Das
+ * angeklickte wird dabei zum gerechneten: wer es allein sehen will, will
+ * daran arbeiten.
+ */
+function nurDiesesZeigen(id) {
+  handlung('Nur dieses zeigen', () => {
+    if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
+    werte = { ...werte, ausgeblendet: false,
+              weitere: (werte.weitere ?? []).map(
+                (t) => ({ ...t, ausgeblendet: true })) };
+    mastNachfuehrenGlobal();
+    neuRechnen();
+  });
+}
+
+/** Und alles wieder her. */
+function alleZeigen() {
+  handlung('Alle einblenden', () => {
+    werte = { ...werte, ausgeblendet: false,
+              weitere: (werte.weitere ?? []).map(
+                (t) => ({ ...t, ausgeblendet: false })) };
+    neuRechnen();
+  });
+}
+
+/** Die Einträge zu einem Masten. */
+function kontextMast(mastId, twId) {
+  const m = mastenVon(werte).find((x) => x.id === mastId);
+  if (!m) return [];
+  const t = tragwerkeSortiert(werte).find((x) => x.id === twId)
+         ?? tragwerkeVon(werte)[0];
+  const p = [
+    { text: `${mastName(werte, m)} bearbeiten`, tun: () => {
+      aendern('mastAktiv', mastId);
+      zeigeFeld('mastProfil');
+    } },
+    { text: 'Auf den Masten zoomen',
+      tun: () => { station = null; ansicht.station = null;
+                   ansicht.zoomAuf(m.x, null, 2); } },
+  ];
+  /*
+   * DIE MASTEN EINES TRAGWERKS AB- ODER ANSCHALTEN - nur dort, wo es einen
+   * Traeger gibt. Beim Einzelmasten waere «Masten ausschalten» der Auftrag,
+   * das Tragwerk abzuschaffen.
+   */
+  if (t && tragwerksart(t).traeger) {
+    p.push('-');
+    p.push({ text: t.mastVorhanden === false
+      ? `Masten von ${tragwerkName(t)} einschalten`
+      : `Masten von ${tragwerkName(t)} ausschalten`,
+      tun: () => aendern('tragwerkMasten', t.id) });
+  }
+  return p;
+}
+
+/** Die Einträge zu einem Anbauteil. */
+function kontextAnbauteil(i) {
+  const a = (werte.anbauteile ?? [])[i];
+  if (!a) return [];
+  return [
+    { text: `${a.name ?? 'Bauteil'} bearbeiten`, tun: () => zeigeAnbauteil(i) },
+    { text: 'Auf das Bauteil zoomen', tun: () => ansicht.zeigeAnbauteil(i) },
+    '-',
+    /*
+     * ABSCHALTEN IST NICHT ENTFERNEN - dieselbe Trennung wie beim Tragwerk.
+     * Ein abgeschaltetes Bauteil bleibt in der Liste und zaehlt nicht mit;
+     * ein entferntes ist weg.
+     */
+    { text: a.aktiv === false ? 'Wieder mitrechnen' : 'Nicht mitrechnen',
+      tun: () => setzeAnbauteile((werte.anbauteile ?? []).map(
+        (x, j) => (j === i ? { ...x, aktiv: x.aktiv === false } : x))) },
+    { text: 'Entfernen', warn: true,
+      tun: () => setzeAnbauteile((werte.anbauteile ?? []).filter((_, j) => j !== i)) },
+  ];
+}
+
+/**
+ * Die Einträge auf leerem Grund.
+ *
+ * Hier steht, was das BILD betrifft und was man sonst unten links oder in
+ * der Werkzeugleiste sucht. Kein zweites Hauptmenue - nur die drei Fahrten,
+ * die man staendig braucht, und die beiden Handlungen, die im Modell
+ * beginnen.
+ */
+function kontextGrund() {
+  const p = [
+    { text: 'Ganzes Querprofil zeigen',
+      tun: () => { station = null; ansicht.station = null;
+                   ansicht.ansichtZuruecksetzen(); zeichneAuswertung(); } },
+    { text: 'Nur das gerechnete Tragwerk',
+      tun: () => zoomAufTragwerk(werte.twId ?? 'T1') },
+  ];
+  if (letzte?.erg?.schnitt) {
+    p.push({ text: 'Auf den Nachweisschnitt', tun: () => ansicht.zeigeSchnitt(2.5) });
+  }
+  p.push('-');
+  p.push({ text: setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
+           tun: () => (setzen ? setzenEnde() : setzenStarten()) });
+  if (ansicht.zeichnung?.kalibrierung) {
+    p.push({ text: 'Zeichnung verschieben', tun: () => bildSchiebenStarten() });
+  }
+  if (tragwerkeSortiert(werte).some(versteckt)) {
+    p.push('-');
+    p.push({ text: 'Alle Tragwerke einblenden', tun: () => alleZeigen() });
+  }
+  return p;
+}
+
+/**
+ * Der Rechtsklick im Modell.
+ *
+ * Die Ansicht meldet nur, WORAUF geklickt wurde; was dort angeboten wird,
+ * entscheidet sich hier. So bleibt die Zeichenflaeche frei von Wissen ueber
+ * Ausblenden und Bauteillisten.
+ */
+function kontextImModell(k) {
+  const twId = k.twId ?? werte.twId ?? 'T1';
+  let punkte;
+  if (k.was === 'mast') {
+    // Das Ende gehoert dem Tragwerk, an dem der Mast gezeichnet wurde.
+    const t = tragwerkeSortiert(werte).find((x) => x.id === twId);
+    const [a, b] = t ? mastenFuer(werte, t) : [null, null];
+    const m = k.mastEnde === 'B' ? b : a;
+    punkte = m ? kontextMast(m.id, twId) : [];
+  } else if (k.was === 'anbauteil' && k.anbauteil !== null) {
+    punkte = kontextAnbauteil(k.anbauteil);
+  } else if (k.was === 'tragwerk') {
+    punkte = kontextTragwerk(twId);
+  } else {
+    punkte = kontextGrund();
+  }
+  kontextZeigen(k.bei, punkte);
+}
+
+/** Auf ein Tragwerk fahren - dieselbe Rechnung wie der Knopf «Teilübersicht». */
+function zoomAufTragwerk(id) {
+  const t = tragwerkeSortiert(werte).find((x) => x.id === id);
+  if (!t) return;
+  const x0 = lageVon(t);
+  const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
+  station = null; ansicht.station = null;
+  ansicht.zoomAuf(x0 + L / 2, null, Math.max(1, L / 2));
+}
+
 function dialog(titel, koerper, knoepfe, klasse = '') {
   const n = ui.el('ueberlagerung');
   const meins = ++dialogLauf;
@@ -4466,6 +4753,7 @@ export async function start() {
      * und genau waehrend des Ziehens will man sie lesen.
      */
     beiZeichnungVerschoben: () => { if (bildSchieben) zeichneBalken(); },
+    beiKontext: (k) => kontextImModell(k),
   });
 
   ui.setzeDiagrammBuehne(zeigeDiagrammGross);

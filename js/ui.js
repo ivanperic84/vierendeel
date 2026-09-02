@@ -12,7 +12,8 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
-         gewaehlterMast, versteckt } from './core.constants.js';
+         gewaehlterMast, versteckt,
+         aufRaster, mastNameAmEnde } from './core.constants.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
@@ -321,6 +322,28 @@ export function aktualisiereMaske(container, werte, extras = {}) {
    * dem Zeiger sein Element - derselbe Fehler eine Ebene tiefer.
    */
   leisteNachfuehren(container, werte);
+  /*
+   * >>> EINE BESCHRIFTUNG, DIE RECHNET, MUSS MITLAUFEN. <<<
+   *
+   * «Anschlusshöhe Ende A · Mast M2» haengt daran, welches Tragwerk gerechnet
+   * wird und wo es steht - lauter Dinge, die NICHT mehr in der
+   * Maskensignatur stehen (sie zogen sonst den Schieber mit, siehe dort).
+   * Ohne diese Zeile blieb die Beschriftung stehen: gemessen am
+   * 2. September stand «Mast M1» ueber einem Feld, das M2 meinte.
+   *
+   * Nur die gerechneten Beschriftungen - die festen anzufassen hiesse, bei
+   * jedem Tastendruck jeden Text im Formular neu zu setzen.
+   */
+  container.querySelectorAll('[data-feld]').forEach((inp) => {
+    const f = FELDER.find((x) => x.key === inp.dataset.feld);
+    if (typeof f?.label !== 'function') return;
+    const l = inp.closest('.feld')?.querySelector('label');
+    if (!l) return;
+    const neu = f.label(werte) + (f.sym ? ` ${f.sym}` : '');
+    if (l.innerText.replace(/\s+/g, ' ').trim() !== neu) {
+      l.innerHTML = `${esc(f.label(werte))}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}`;
+    }
+  });
   const aktiv = document.activeElement;
   container.querySelectorAll('[data-feld]').forEach((inp) => {
     if (inp === aktiv) return;
@@ -789,7 +812,7 @@ export function verdrahteLeiste(container, werte, onChange) {
       zug.bewegt = true;
       const breite = spur.getBoundingClientRect().width || 1;
       const roh = zug.x0 + (dpx / breite) * (bis - von);
-      zug.x = mastGrenzen(zug.rollen, Math.round(roh * 20) / 20);
+      zug.x = mastGrenzen(zug.rollen, aufRaster(roh));
       b.style.left = `${((zug.x - von) / (bis - von) * 100).toFixed(3)}%`;
       b.classList.add('zieht');
       const feld = b.querySelector('.qp-mast-x');
@@ -818,6 +841,11 @@ export function verdrahteLeiste(container, werte, onChange) {
     };
     b.addEventListener('pointerup', ende);
     b.addEventListener('pointercancel', ende);
+    // Rechtsklick auf die Mastmarke - dieselben Eintraege wie im Modell.
+    b.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      onChange('kontextMast', { id: mastId, bei: [e.clientX, e.clientY] });
+    });
   });
 
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
@@ -840,7 +868,7 @@ export function verdrahteLeiste(container, werte, onChange) {
       // Schieber. Ein Pixel sind auf 240 Punkten und vierzig Metern rund
       // siebzehn Zentimeter; ohne Raster staende dort 20.1734.
       const roh = zug.x0 + (dpx / breite) * (bis - von);
-      zug.x = Math.round(roh * 20) / 20;
+      zug.x = aufRaster(roh);
       /*
        * >>> NUR DEN BALKEN SCHIEBEN, DIE LEISTE NICHT NEU BAUEN. <<<
        *
@@ -881,6 +909,18 @@ export function verdrahteLeiste(container, werte, onChange) {
     if (b.dataset.qpZeigen) {
       b.addEventListener('click', () => onChange('tragwerkZeigen', id));
     }
+    /*
+     * RECHTSKLICK AUF DEN BALKEN - dieselben Eintraege wie im Modell.
+     *
+     * Weisung vom 2. September: «ausblenden mit rechtsklick ermöglichen im
+     * 3d sowie in der sidebar». Dieselbe Geste am selben Gegenstand bietet
+     * dasselbe an, gleichgueltig ob man ihn im Bild oder in der Leiste
+     * anfasst - alles andere waere zweierlei Bedienung fuer eine Sache.
+     */
+    b.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      onChange('kontextTragwerk', { id, bei: [e.clientX, e.clientY] });
+    });
   });
 
   /*
@@ -1153,6 +1193,18 @@ export function querprofilLeisteHtml(werte, zieht = null) {
 
 function feldHtml(f, wert, werte) {
   const id = `feld-${f.key}`;
+  /*
+   * EINE BESCHRIFTUNG DARF DEN MASTEN NENNEN.
+   *
+   * «Anschlusshöhe Ende B» sagt nicht, WELCHER Mast das ist - auf einer
+   * Jochreihe traegt der Zwischenmast diesen Namen von der einen Seite
+   * und «Ende A» von der anderen. Ein `label` als Funktion bekommt die
+   * Werte und macht «Ende B · Mast M2» daraus: was gemeint ist, und
+   * woran es steht.
+   *
+   * Ganz oben, weil auch die Vorlesehilfe der Bauformwahl sie braucht.
+   */
+  const label = typeof f.label === 'function' ? f.label(werte) : f.label;
   // Zwei Sperren: Katalogmasse (bearbeiten) und Tabellenlasten (lastenBearbeiten).
   const gesperrt = (f.ausDB && !werte.bearbeiten) ||
                    (f.ausLast && !werte.lastenBearbeiten);
@@ -1174,7 +1226,7 @@ function feldHtml(f, wert, werte) {
      * `data-feld` traegt hier nicht das Eingabefeld, sondern der Knopf: die
      * Verdrahtung unten liest `data-bauform` und meldet den Wert.
      */
-    inp = `<div class="bauformen" role="radiogroup" aria-label="${esc(f.label)}">`
+    inp = `<div class="bauformen" role="radiogroup" aria-label="${esc(label)}">`
       + f.optionen.map((o) => {
         const an = String(o.wert) === String(wert);
         return `<button type="button" class="bauform${an ? ' an' : ''}"
@@ -1204,9 +1256,21 @@ function feldHtml(f, wert, werte) {
              value="${esc(wert ?? '')}" placeholder="${esc(f.platzhalter ?? '')}"
              ${f.laenge ? `maxlength="${f.laenge}"` : ''}${dis}>`;
   } else if (f.typ === 'schieber') {
+    /*
+     * ZWEI SCHRITTWEITEN AN EINEM WERT.
+     *
+     * Der SCHIEBER rastet grob (`zugSchritt`, ein halber Meter bei allen
+     * Laengen und Hoehen) - er ist eine Ziehgeste, und fuenf Zentimeter
+     * liegen dort unter der Aufloesung des Fingers. Das ZAHLENFELD daneben
+     * behaelt die feine Schrittweite: wer den Zentimeter braucht, tippt ihn.
+     *
+     * Ohne `zugSchritt` bleibt es beim Alten - nicht jede Groesse hat eine
+     * grobe Stufe, die Sinn ergibt (das Endfeld am Auflager misst 0.75 m).
+     */
+    const rngSchritt = f.zugSchritt ?? f.schritt;
     inp = `<div class="zahlfeld">
              <input class="rng" type="range" data-feld="${f.key}"
-               min="${f.min}" max="${f.max}" step="${f.schritt}" value="${wert}"${dis}>
+               min="${f.min}" max="${f.max}" step="${rngSchritt}" value="${wert}"${dis}>
              <input type="number" id="${id}" data-feld="${f.key}" class="kurz"
                value="${wert}" step="${f.schritt}" min="${f.min}" max="${f.max}"${dis}>
              <span class="einheit">${esc(f.einheit ?? '')}</span></div>
@@ -1245,12 +1309,40 @@ function feldHtml(f, wert, werte) {
    * daran wieder.
    */
   const marke = f.typ === 'tragwerke' ? ' data-tragwerkfeld' : '';
+  /*
+   * EINE BESCHRIFTUNG DARF DEN MASTEN NENNEN.
+   *
+   * «Anschlusshöhe Ende B» sagt nicht, WELCHER Mast das ist - auf einer
+   * Jochreihe traegt der Zwischenmast diesen Namen von der einen Seite und
+   * «Ende A» von der anderen. Ein `label` als Funktion bekommt die Werte und
+   * kann «Ende B · Mast M2» daraus machen: was gemeint ist, und woran es
+   * steht.
+   */
   return `<div class="feld${gesperrt ? ' gesperrt' : ''}"${marke}>
-    <label for="${id}">${esc(f.label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
+    <label for="${id}">${esc(label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
     ${inp}${optionsSkizze(f.key, wert)}${notizHtml}${hinweis}</div>`;
 }
 
 // --- Anbauteile -------------------------------------------------------------
+
+/**
+ * DIE STANDORTE, mit dem NAMEN des Mastes statt «Ende A».
+ *
+ * In den Daten heissen sie «am Mast Ende A» und «am Mast Ende B» - das
+ * benennt das Jochende, nicht den Masten. Wer auf einer Jochreihe ein
+ * Bauteil an den Zwischenmasten haengt, liest je nach angeklicktem Joch
+ * einmal «Ende A» und einmal «Ende B» fuer dieselbe Stelle.
+ *
+ * Hier bekommen sie den Namen, unter dem der Mast ueberall sonst steht.
+ */
+function anbauOrte(werte) {
+  const t = tragwerkeVon(werte)[0];
+  return ANBAU_ORTE.map((o) => {
+    if (o.key === 'joch') return o;
+    const n = mastNameAmEnde(werte, t, o.key === 'mastB' ? 'B' : 'A');
+    return n ? { ...o, label: `am Masten ${n}` } : o;
+  });
+}
 
 /** Farbmarke je Vorlagenart, passend zur 3D-Darstellung. */
 const ANBAU_FARBE = {
@@ -1379,7 +1471,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         </div>
         ${anbauteilSkizzeFuer(a, werte)}
         <div class="at-gitter">
-          ${atWahl(i, 'ort', 'Standort', ortVon(a), ANBAU_ORTE,
+          ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte),
                    'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
                    + 'Was am Masten hängt, geht NICHT in den Ersatzbalken ein — '
                    + 'es steht nur im Stabmodell mit Auflagermodell «Mast».')}
@@ -2783,7 +2875,14 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
     const wodurch = (erg.mast.etaStabil ?? 0) > erg.mast.eta
       ? 'Knicken' : (mn.plastischWirksam ? 'plastisch' : 'elastisch');
     kz.push(kachel('η Mast', f3(eN),
-      `${mn.profil.name} · Ende ${erg.mast.massgebendesEnde} · ${wodurch}`,
+      /*
+       * DER MASTNAME STATT DES JOCHENDES (Weisung, 2. September). «Ende B»
+       * sagt nicht, WELCHER Mast das ist - auf einer Jochreihe traegt der
+       * Zwischenmast diesen Namen von der einen Seite und «Ende A» von der
+       * anderen. `M2` gilt von beiden.
+       */
+      `${mn.profil.name} · Mast ${erg.modell.federn?.namen?.[
+          erg.mast.massgebendesEnde] ?? erg.mast.massgebendesEnde} · ${wodurch}`,
       ampel(eN)));
   }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
