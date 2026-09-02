@@ -10941,6 +10941,64 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 70: eine Handlung, die nicht geht, sagt es.
+{
+  const aq70 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+
+  /*
+   * DAS SCHWEIGEN IST SCHLIMMER ALS DER FEHLER.
+   *
+   * Gemessen am 2. September: der Excel-Knopf am Einzelmasten brach mit
+   * «Cannot read properties of undefined (reading herkunft)» ab - und zwar
+   * lautlos. Keine Datei, keine Meldung, keine rote Zeile. Der Fehler landete
+   * in window.onerror und starb dort. Wer auf «Ausleiten» drueckt und nichts
+   * bekommt, sucht die Datei im Download-Ordner, im Papierkorb, in den
+   * Einstellungen - und rechnet zuletzt damit, dass das Programm es gar nicht
+   * versucht hat.
+   */
+  wahr('Es gibt eine Klammer fuer Handlungen',
+       aq70.includes('function handlung(was, fn)'));
+  {
+    const ab = aq70.indexOf('function handlung(was, fn)');
+    const koerper = aq70.slice(ab, aq70.indexOf('\n}', ab));
+    wahr('Sie faengt den Bruch', koerper.includes('catch'));
+    wahr('… meldet ihn im Handlungsbalken', koerper.includes('meldeImBalken'));
+    wahr('… und schreibt ihn ganz in die Konsole',
+         koerper.includes('console.error'));
+  }
+
+  // JEDER AUSLEITWEG LAEUFT DURCH SIE. Einer, der es nicht taete, waere
+  // genau der, der wieder schweigt.
+  wahr('Die Excel-Ausleitung ist umklammert',
+       /handlung\('Excel-Ausleitung'/.test(aq70));
+  wahr('Die AxisVM-Wege sind es auch',
+       /return handlung\(name, \(\) => \{/.test(aq70));
+  wahr('… und zwar alle vier',
+       /json: 'COM-Ausleitung'/.test(aq70) && /dxf: 'DXF-Ausleitung'/.test(aq70)
+       && /pynite: 'PyNite-Ausleitung'/.test(aq70) && /'SAF-Ausleitung'/.test(aq70));
+  wahr('Auch das Drucken', /handlung\('Drucken'/.test(aq70));
+
+  /*
+   * UND EIN DURCHGANG, DER DAS MELDET.
+   *
+   * Der Pruefstand prueft Bausteine; er kennt keinen Durchgang durch alle
+   * Wege. Waehrend hier 2290 Kontrollen gruen standen, tat der Excel-Knopf
+   * am Einzelmasten nichts. `durchlauf.mjs` geht die Wege ab und schreibt
+   * auf, was bricht.
+   */
+  {
+    const d = readFileSync(new URL('./durchlauf.mjs', import.meta.url), 'utf8');
+    wahr('Der Durchlauf kennt alle drei Faelle',
+         /\['Joch', joch\]/.test(d) && /\['Einzelmast', einzelmast\]/.test(d)
+         && /\['Jochreihe', reihe\]/.test(d));
+    wahr('… und prueft die Ausleitung auf das ganze Blatt',
+         d.includes('Deckt die Ausleitung das ganze Blatt ab'));
+    wahr('… und repariert nichts', d.includes('repariert nichts')
+         || d.includes('REPARIERT NICHTS'));
+  }
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

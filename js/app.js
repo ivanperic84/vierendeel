@@ -2274,7 +2274,7 @@ function baueKopf() {
   ui.el('btn-handbuch').onclick = dialogHandbuch;
   ui.el('btn-export').onclick = exportKlick;
   ui.el('btn-axisvm').onclick = dialogAxisvm;
-  ui.el('btn-drucken').onclick = () => window.print();
+  ui.el('btn-drucken').onclick = () => handlung('Drucken', () => window.print());
   ui.el('btn-speichern').onclick = () => dialogSpeichern();
   ui.el('btn-optionen').onclick = dialogOptionen;
   /*
@@ -3680,10 +3680,41 @@ function neuesTragjoch() {
   ansicht.ganzesJoch();
 }
 
+/* ===========================================================================
+ * EINE HANDLUNG, DIE NICHT GEHT, SAGT ES.
+ *
+ * Gemessen am 2. September: der Excel-Knopf am Einzelmasten brach mit
+ * «Cannot read properties of undefined (reading herkunft)» ab - und zwar
+ * lautlos. Keine Datei, keine Meldung, keine rote Zeile. Der Fehler landete
+ * in window.onerror und starb dort. Dasselbe beim Ausleiten nach AxisVM.
+ *
+ * >>> DAS SCHWEIGEN IST SCHLIMMER ALS DER FEHLER. <<<
+ *
+ * Wer auf «Ausleiten» drueckt und nichts bekommt, sucht die Datei im
+ * Download-Ordner, im Papierkorb, in den Einstellungen - und rechnet zuletzt
+ * damit, dass das Programm es gar nicht versucht hat. Ein Statikprogramm,
+ * dessen Knopf wortlos nichts tut, ist gefaehrlicher als eines, das
+ * abbricht: der stille Fehlschlag sieht aus wie Erfolg.
+ *
+ * Gemeldet wird im Handlungsbalken ueber dem Modell - die eine Stelle, auf
+ * die man dort ohnehin schaut. Der ganze Fehler geht zusaetzlich in die
+ * Konsole; die Meldung im Balken bleibt kurz genug, um gelesen zu werden.
+ * =========================================================================== */
+function handlung(was, fn) {
+  try {
+    return fn();
+  } catch (e) {
+    meldeImBalken(`${was} nicht möglich: ${e.message}`);
+    console.error(`${was}:`, e);
+    return null;
+  }
+}
+
 function exportKlick() {
   if (!letzte) return;
-  exportiere(werte, letzte.erg, letzte.checks, letzte.hinw, letzte.warn,
-             letzte.vergleich, letzte.urteil);
+  handlung('Excel-Ausleitung', () =>
+    exportiere(werte, letzte.erg, letzte.checks, letzte.hinw, letzte.warn,
+               letzte.vergleich, letzte.urteil));
 }
 
 /**
@@ -3785,10 +3816,15 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
                  stahl: m.stahl, joch: m.joch };
   const o = { knotenmodell, schottAusblenden, starrModell,
               auflagerModell: auflagerModell ?? auflagerVorgabe(m) };
-  if (format === 'json') return exportiereJson(werte, deps, o);
-  if (format === 'dxf') return exportiereDxf(werte, deps, o);
-  if (format === 'pynite') return exportierePynite(werte, deps, o);
-  return exportiereAxisvm(werte, deps, o);
+  // Alle vier Wege durch dieselbe Klammer: was hier bricht, bricht sichtbar.
+  const name = { json: 'COM-Ausleitung', dxf: 'DXF-Ausleitung',
+                 pynite: 'PyNite-Ausleitung' }[format] ?? 'SAF-Ausleitung';
+  return handlung(name, () => {
+    if (format === 'json') return exportiereJson(werte, deps, o);
+    if (format === 'dxf') return exportiereDxf(werte, deps, o);
+    if (format === 'pynite') return exportierePynite(werte, deps, o);
+    return exportiereAxisvm(werte, deps, o);
+  });
 }
 
 /**

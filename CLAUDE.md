@@ -44,13 +44,20 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 1670 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 2300 Kontrollen - muss gruen bleiben
+node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```
 
 Nach **jeder** Änderung an `js/` oder `css/` neu bündeln — die eigenständige
-Datei veraltet sonst still. `pruefung.mjs` braucht die drei `data/*.json`
+Datei veraltet sonst still.
+
+Der Prüfstand prüft **Bausteine**, `durchlauf.mjs` einen **Durchgang**:
+Eingabe, Rechnung, Szene, Ausleitung, Bericht — für Joch, Einzelmast und
+Jochreihe. Nach einem Umbau an Datenstruktur oder Rechenweg beides laufen
+lassen; am 2. September standen 2290 Kontrollen grün, während der
+Excel-Knopf am Einzelmasten wortlos nichts tat. `pruefung.mjs` braucht die drei `data/*.json`
 daneben; ohne sie laufen die Kontrollen nicht.
 
 Was in Modulen läuft, läuft nicht zwangsläufig gebündelt. Der Bündler prüft
