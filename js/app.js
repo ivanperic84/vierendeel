@@ -29,7 +29,8 @@ import { verortung, fangeAufMasskette,
          MASTFELDER, setzeMastAngabe, rechensatz,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
-         blattNachLokal, lokalNachBlatt, tragwerkBeiX }
+         blattNachLokal, lokalNachBlatt, tragwerkBeiX,
+         anbauteileFuer, setzeAnbauteileAn }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -657,6 +658,15 @@ function aendern(key, wert) {
     if (werte.mastAktiv && !meine.includes(werte.mastAktiv)) {
       werte = { ...werte, mastAktiv: meine[0] ?? undefined };
     }
+    /*
+     * UND DIE BAUTEILE AN DEN MASTEN KOMMEN MIT.
+     *
+     * Ein weggelegtes Tragwerk traegt sie nicht (tragwerkTeil raeumt sie
+     * weg) - das neu angewaehlte bekommt sie deshalb hier. Ohne diese
+     * Zeile stuende die Traverse des Zwischenmasten nach dem Umschalten
+     * nicht mehr in der Liste, obwohl sie am Masten haengt.
+     */
+    werte = { ...werte, anbauteile: anbauteileFuer(werte, tragwerkeVon(werte)[0]) };
   };
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
@@ -841,7 +851,15 @@ function aendern(key, wert) {
 }
 
 function setzeAnbauteile(liste) {
-  werte = { ...werte, anbauteile: liste };
+  /*
+   * WAS AM MASTEN HAENGT, WIRD AM MASTEN ABGELEGT.
+   *
+   * `setzeAnbauteileAn` teilt die Liste auf - Jochteile ans Tragwerk,
+   * Mastteile an ihren Masten - und gibt die fertige Projektion zurueck.
+   * Die Maske liest sie unmittelbar; ein zweiter Schritt, den man vergessen
+   * koennte, entfaellt.
+   */
+  werte = setzeAnbauteileAn(werte, liste);
   neuRechnen();
 }
 

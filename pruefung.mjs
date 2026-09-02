@@ -11669,6 +11669,110 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> EIN BAUTEIL AM GETEILTEN MASTEN GEHOERT BEIDEN. <<<
+   *
+   * Weisung vom 2. September: «das bauteil am geteilten masten beheben».
+   *
+   * Der Befund: Anbauteile standen je Tragwerk. Am Joch richtig - am MASTEN
+   * nicht, denn den mittleren Masten einer Jochreihe teilen sich zwei.
+   * Eine Traverse an ihm war vom Nachbarn aus unsichtbar, und wurde der
+   * Nachbar gerechnet, fehlte ihre Last: der Mast traegt sie, gleichgueltig
+   * welches Joch man gerade nachweist.
+   */
+  {
+    const V75 = await import(J('core.vierendeel.js'));
+    const AX75 = await import(J('export.axisvm.js'));
+    const bauReihe = () => {
+      let w = { ...standardwerte(), typ: 'J90', L: 20, xLage: 0,
+                endbedingung: 'mast', mastVorhanden: true, anbauteile: [] };
+      return C75.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20, anbauteile: [] });
+    };
+    const trav = (o = {}) => ({ ...A.neuesAnbauteil('hs-fahrdraht', 0),
+                                name: 'Traverse', ort: 'mastA', hMast: 6.5,
+                                ...o });
+
+    let w = bauReihe();                      // aktiv ist T2, sein Ende A = M2
+    const geteilt = C75.mastenVon(w).find((m) => (m.traegt ?? []).length > 1);
+    wahr('Der mittlere Mast ist geteilt', Boolean(geteilt));
+
+    w = C75.setzeAnbauteileAn(w, [...(w.anbauteile ?? []), trav()]);
+    wahr('Das Bauteil liegt am Masten, nicht am Tragwerk',
+         (w.mastAnbauteile ?? []).some((a) => a.mastId === geteilt.id));
+    wahr('… und nicht mehr in der Tragwerksliste',
+         !(w.anbauteile ?? []).some((a) => a.name === 'Traverse'
+           && a.ort === undefined));
+
+    // VOM AKTIVEN aus haengt es am Ende A, VOM NACHBARN aus am Ende B -
+    // derselbe Mast, von zwei Seiten gesehen.
+    const meins = (sw) => (sw.anbauteile ?? []).find((a) => a.name === 'Traverse');
+    wahr('Vom aktiven Tragwerk aus haengt es am Ende A',
+         meins(w)?.ort === 'mastA');
+    const anderes = C75.tragwerkeVon(w).find((t) => t.id !== (w.twId ?? 'T1'));
+    let w2 = C75.tauscheAktives(w, anderes.id);
+    w2 = { ...w2, anbauteile: C75.anbauteileFuer(w2, C75.tragwerkeVon(w2)[0]) };
+    wahr('Vom Nachbarn aus am Ende B', meins(w2)?.ort === 'mastB');
+
+    // DIE LAST IST IN BEIDEN RECHNUNGEN.
+    const bauen = (sw) => V75.modell(C75.rechensatz(sw),
+      getProfil(sw.profOG), getProfil(sw.profUG), getStahl(sw.stahl),
+      T.getTragjoch(sw.typ));
+    wahr('Das aktive Tragwerk rechnet es mit',
+         (bauen(w).anbauMastFlach ?? []).length > 0);
+    wahr('Der Nachbar auch',
+         (bauen(w2).anbauMastFlach ?? []).length > 0);
+
+    /*
+     * >>> UND DIE AUSLEITUNG HAENGT ES EINMAL AN. <<<
+     *
+     * Dort stehen beide Tragwerke in EINEM Modell, und der Zwischenmast ist
+     * EIN Mast. Ohne Sperre gemessen: vier Arm-Staebe und zehn Punktlasten
+     * statt zwei und fuenf - die Traverse zweimal am selben Masten, mit
+     * doppelter Last, und man saehe es der Datei nicht an.
+     */
+    const deps = { modellVon: (satz) => V75.modell(satz,
+      getProfil(satz.profOG), getProfil(satz.profUG), getStahl(satz.stahl),
+      T.getTragjoch(satz.typ)) };
+    const bau = AX75.stabmodellBlatt(w, deps, { knotenmodell: 'anschnitt' });
+    pruef('Ein Anschlusspunkt je Bauteil, nicht zwei',
+          (bau.arme ?? []).length, 2, 1e-9, 'Stueck');
+    wahr('Die Arm-Staebe stehen einmal da',
+         bau.staebe.filter((x) => /ARMM/.test(x.name)).length === 2);
+
+    // AM NICHT GETEILTEN MASTEN aendert sich nichts - dort gibt es keinen
+    // Nachbarn, der mitsehen koennte.
+    {
+      let e = { ...standardwerte(), typ: 'J90', L: 20, xLage: 0,
+                endbedingung: 'mast', mastVorhanden: true, anbauteile: [] };
+      e = C75.setzeAnbauteileAn(e, [trav()]);
+      wahr('Auch der einzelne Mast traegt sein Bauteil',
+           (e.anbauteile ?? []).some((a) => a.name === 'Traverse'));
+    }
+
+    /*
+     * ALTE DATEIEN: das Bauteil steckt noch im Tragwerk, mit `ort` und ohne
+     * Mast-Id. Es wird gefunden, ohne dass jemand die Datei umschreibt.
+     */
+    {
+      const alt = bauReihe();
+      alt.anbauteile = [trav()];
+      delete alt.mastAnbauteile;
+      const gefunden = C75.mastAnbauVon(alt);
+      wahr('Ein eingebettetes Mastteil wird gefunden', gefunden.length === 1);
+      wahr('… und dem richtigen Masten zugeordnet',
+           gefunden[0].mastId === C75.mastenFuer(alt,
+             C75.tragwerkeVon(alt)[0])[0].id);
+    }
+
+    // EIN WEGGELEGTES TRAGWERK TRAEGT KEINE KOPIE. Sonst stuende sie beim
+    // naechsten Umschalten als eigene Angabe wieder da und bekaeme nicht
+    // mehr mit, was am Masten geschieht.
+    wahr('Das weggelegte Tragwerk traegt keine Mastteile',
+         !(w2.weitere ?? []).some(
+           (t) => (t.anbauteile ?? []).some((a) => a.ort === 'mastA'
+                                               || a.ort === 'mastB')));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

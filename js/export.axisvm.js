@@ -720,12 +720,27 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
   const gesetzt = [];
   const teile = [];
   const uebersprungen = [];
+  /*
+   * >>> EIN GETEILTER MAST TRAEGT SEINE BAUTEILE EINMAL. <<<
+   *
+   * Fuer den Nachweis gehoert eine Traverse am Zwischenmasten in BEIDE
+   * Rechnungen: der Mast traegt sie, gleichgueltig welches Joch gerade
+   * drankommt. Hier stehen aber beide Tragwerke in EINEM Modell, und der
+   * Zwischenmast ist EIN Mast - haengte jedes Tragwerk seine Sicht daran,
+   * stuende die Traverse zweimal da, mit doppelter Last. Man saehe es der
+   * Datei nicht an.
+   *
+   * Deshalb ein Vermerk, welche Masten schon bedient sind. Das erste
+   * Tragwerk von links nimmt sie mit; die weiteren lassen sie aus.
+   */
+  const mastAnbauVergeben = new Set();
   alle.forEach((t) => {
     const dz = hoehenversatz(t, gesetzt, mastenJe);
     const ent = entflochten.get(t.id) ?? { dx: 0, mastDx: 0, wegen: null };
     let m;
     try {
-      m = deps.modellVon(tragwerkSatz(werte, t.id));
+      m = deps.modellVon(tragwerkSatz(werte, t.id,
+        { mastAnbauAus: mastAnbauVergeben }));
     } catch (e) {
       /*
        * EIN TRAGWERK, DAS NICHT BAUT, FEHLT LAUT.
@@ -738,6 +753,11 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
       return;
     }
     const [a, b] = mastenJe.get(t.id) ?? [];
+    // Ab jetzt sind diese Masten bedient - das naechste Tragwerk laesst
+    // ihre Bauteile aus.
+    [a?.[1]?.id, b?.[1]?.id].forEach((id) => {
+      if (id) mastAnbauVergeben.add(id);
+    });
     const mastNamen = { A: a?.[1]?.id ?? `${t.id}A`, B: b?.[1]?.id ?? `${t.id}B` };
     /*
      * DIE ANSCHLUSSHOEHE STEHT IM NAMEN - in Millimetern ueber der

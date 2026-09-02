@@ -27,6 +27,57 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Ein Bauteil am Masten gehört dem Masten (2. September)
+
+Weisung: «das bauteil am geteilten masten beheben».
+
+Anbauteile standen je **Tragwerk**. Am Joch ist das richtig — ein Bauteil auf
+dem Joch gehört diesem Joch. Am **Masten** nicht: den mittleren Masten einer
+Jochreihe teilen sich zwei Tragwerke. Eine Traverse an ihm war vom Nachbarn
+aus unsichtbar, und — schwerer — wurde der Nachbar gerechnet, fehlte ihre
+Last. Der Mast trägt sie, gleichgültig welches Joch man gerade nachweist.
+
+Dieselbe Sache, die den Masten selbst betraf, eine Ebene tiefer. Der Weg ist
+deshalb derselbe:
+
+* **Ableiten statt festschreiben.** `mastAnbauVon` liest die Blattliste
+  `mastAnbauteile` *und* holt nach, was in alten Dateien noch in den
+  Tragwerken steckt (`ort: 'mastA'|'mastB'`). Gespeicherte Dateien öffnen
+  unverändert und wandern beim ersten Schreiben von selbst hinüber.
+* **Projizieren statt umschreiben.** `anbauteileFuer` gibt einem Tragwerk,
+  was es sieht: seine Jochteile plus alles an seinen beiden Masten, mit `ort`
+  auf das jeweilige Ende gesetzt. Der Rechenkern liest weiter
+  `inp.anbauteile` und merkt von alldem nichts.
+* **`tragwerkTeil` räumt auf.** Ein weggelegtes Tragwerk trägt keine
+  Mastteile mehr — sonst stünde die Projektion beim nächsten Umschalten als
+  eigene Angabe wieder da, als Kopie, die nicht mehr mitbekommt, was am
+  Masten geschieht.
+
+#### Und die Last wird nicht zweimal gezählt
+
+Für den **Nachweis** gehört das Bauteil in *beide* Rechnungen. Für die
+**Ausleitung** nicht: dort stehen beide Tragwerke in *einem* Modell, und der
+Zwischenmast ist *ein* Mast. `stabmodellBlatt` führt deshalb einen Vermerk
+mit, welche Masten schon bedient sind; das erste Tragwerk von links nimmt
+ihre Bauteile mit, die weiteren lassen sie aus.
+
+Gemessen, mit und ohne diese Sperre:
+
+```
+ohne   4 Arm-Stäbe, 10 Punktlasten     ← die Traverse zweimal am selben Masten
+mit    2 Arm-Stäbe,  5 Punktlasten
+```
+
+Man hätte es der Datei nicht angesehen.
+
+#### Der Hinweis sagt jetzt genauer, was fehlt
+
+Er lautete «Er trägt von beiden Seiten; gerechnet ist bisher eine». Das
+stimmt so nicht mehr: die Anbauteile trägt er in beiden Rechnungen. Was
+fehlt, ist die **Jochreaktion** der Nachbarseite — und die Rahmenwirkung.
+Genau das steht jetzt da.
+
+
 ### Die Querprofil-Leiste (2. September)
 
 Weisung: «kann man aus diesen eingaben nicht etwas interaktiveres machen? es

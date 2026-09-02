@@ -205,6 +205,12 @@ export const BLATT_FELDER = [
    * ist - Bedienzustand des Blattes, wie `masskette`.
    */
   'masten', 'mastAktiv',
+  /*
+   * UND DIE BAUTEILE AN DEN MASTEN AUS DEMSELBEN GRUND: ein Mast, den sich
+   * zwei Tragwerke teilen, kann keinem von beiden gehoeren - und was an ihm
+   * haengt, auch nicht.
+   */
+  'mastAnbauteile',
 ];
 
 /** Nur die Blattangaben aus einem Eingabesatz. */
@@ -224,6 +230,18 @@ export function tragwerkTeil(w) {
   const o = { ...w };
   delete o.weitere;
   BLATT_FELDER.forEach((k) => { delete o[k]; });
+  /*
+   * >>> DIE MASTTEILE BLEIBEN NICHT AM TRAGWERK HAENGEN. <<<
+   *
+   * `w.anbauteile` traegt die PROJEKTION - Jochteile plus alles an den
+   * beiden Masten. Wird das Tragwerk weggelegt, ginge die Projektion mit
+   * und stuende beim naechsten Umschalten als eigene Angabe wieder da: eine
+   * Kopie, die nicht mehr mitbekommt, was am Masten geschieht. Das
+   * Tragwerk behaelt, was ihm gehoert.
+   */
+  if (Array.isArray(o.anbauteile)) {
+    o.anbauteile = o.anbauteile.filter((x) => !istMastteil(x));
+  }
   return o;
 }
 
@@ -651,6 +669,123 @@ export function mastenFuer(w, t, tol = 0.1) {
   return [a, b];
 }
 
+/* ===========================================================================
+ * EIN BAUTEIL AM MASTEN GEHOERT DEM MASTEN
+ *
+ * Weisung vom 2. September: «das bauteil am geteilten masten beheben».
+ *
+ * >>> DER BEFUND. <<<
+ *
+ * Anbauteile standen je TRAGWERK. Am Joch ist das richtig - ein Bauteil auf
+ * dem Joch gehoert diesem Joch. Am MASTEN nicht: den mittleren Masten einer
+ * Jochreihe teilen sich zwei Tragwerke. Eine Traverse an ihm war deshalb
+ * vom Nachbarn aus unsichtbar, und schlimmer: wurde der Nachbar gerechnet,
+ * fehlte ihre Last - obwohl sie am selben Masten haengt und der Mast sie
+ * traegt, gleichgueltig welches Joch man gerade nachweist.
+ *
+ * Dieselbe Sache, die den Masten selbst betraf, eine Ebene tiefer: seit dem
+ * Mastenumbau ist der Mast das Grundelement, und was an ihm haengt, gehoert
+ * ihm.
+ *
+ * ================== DER WEG IST DERSELBE WIE BEI DEN MASTEN ===============
+ *
+ * ABLEITEN statt festschreiben. `mastAnbauVon` liest die Blattliste UND
+ * holt nach, was in alten Dateien noch in den Tragwerken steckt - dort mit
+ * `ort: 'mastA'|'mastB'`. Eine gespeicherte Datei oeffnet damit unveraendert
+ * und wandert beim ersten Schreiben von selbst hinueber.
+ *
+ * PROJIZIEREN statt umschreiben. `anbauteileFuer` gibt einem Tragwerk, was
+ * es sieht: seine Jochteile plus alles an seinen beiden Masten, mit `ort`
+ * auf das jeweilige Ende gesetzt. Der Rechenkern liest weiter
+ * `inp.anbauteile` und merkt von alldem nichts.
+ *
+ * ================== UND DIE LAST WIRD NICHT ZWEIMAL GEZAEHLT ==============
+ *
+ * Fuer den NACHWEIS gehoert das Bauteil in BEIDE Rechnungen: der Mast
+ * traegt es, egal welches Joch gerade drankommt. Fuer die AUSLEITUNG nicht -
+ * dort stehen beide Tragwerke in EINEM Modell, und der geteilte Mast ist
+ * EIN Mast. `tragwerkSatz` nimmt deshalb eine Liste bereits vergebener
+ * Masten entgegen; `stabmodellBlatt` fuehrt sie mit.
+ * =========================================================================== */
+
+/*
+ * Dieselbe Regel wie `ortVon` in data.anbauteile.js - hier noch einmal, weil
+ * core.constants.js keine Datenmodule laedt und diese eine Zeile keinen
+ * Import wert ist.
+ */
+const istMastteil = (a) => a?.ort === 'mastA' || a?.ort === 'mastB';
+
+/**
+ * Alle Anbauteile an Masten, jedes mit dem Masten, an dem es haengt.
+ *
+ * Blattliste zuerst; was in den Tragwerken noch steckt, kommt dazu, sofern
+ * es dort nicht schon steht. Die Id entscheidet - so kann dieselbe Sache
+ * nicht zweimal auftauchen, waehrend eine Datei zwischen den beiden
+ * Ablageformen steht.
+ */
+export function mastAnbauVon(w) {
+  const alle = (Array.isArray(w?.mastAnbauteile) ? w.mastAnbauteile : [])
+    .filter((a) => a && a.mastId);
+  const da = new Set(alle.map((a) => a.id));
+  const raus = [...alle];
+  tragwerkeVon(w).forEach((t) => {
+    const [a, b] = mastenFuer(w, t);
+    (t.anbauteile ?? []).forEach((x) => {
+      if (!istMastteil(x) || da.has(x.id)) return;
+      const m = x.ort === 'mastB' ? b : a;
+      if (!m) return;
+      raus.push({ ...x, mastId: m.id });
+      da.add(x.id);
+    });
+  });
+  return raus;
+}
+
+/**
+ * Was ein Tragwerk sieht: seine Jochteile plus alles an seinen Masten.
+ *
+ * @param {object} w
+ * @param {object} t          Tragwerk
+ * @param {Set<string>} [aus] Masten, deren Teile ausgelassen werden
+ */
+export function anbauteileFuer(w, t, aus = null) {
+  const [a, b] = mastenFuer(w, t);
+  const joch = (t?.anbauteile ?? []).filter((x) => !istMastteil(x));
+  const mast = mastAnbauVon(w).flatMap((x) => {
+    if (aus && aus.has(x.mastId)) return [];
+    if (a && x.mastId === a.id) return [{ ...x, ort: 'mastA' }];
+    if (b && x.mastId === b.id) return [{ ...x, ort: 'mastB' }];
+    return [];
+  });
+  return [...joch, ...mast];
+}
+
+/**
+ * Eine geaenderte Liste zurueckschreiben.
+ *
+ * Jochteile bleiben beim Tragwerk, Mastteile wandern an ihren Masten. Was an
+ * FREMDEN Masten haengt, wird nicht angetastet - die Liste, die hereinkommt,
+ * beschreibt nur, was dieses Tragwerk sieht.
+ *
+ * Zurueck kommt der Satz mit der fertigen PROJEKTION in `anbauteile`: die
+ * Maske liest sie unmittelbar, und ein zweiter Schritt, den man vergessen
+ * koennte, entfaellt.
+ */
+export function setzeAnbauteileAn(w, liste) {
+  const t = tragwerkeVon(w)[0];
+  const [a, b] = mastenFuer(w, t);
+  const joch = (liste ?? []).filter((x) => !istMastteil(x));
+  const meine = (liste ?? []).filter(istMastteil).map((x) => {
+    const m = x.ort === 'mastB' ? b : a;
+    return { ...x, mastId: m?.id ?? x.mastId };
+  }).filter((x) => x.mastId);
+  const meineIds = new Set([a?.id, b?.id].filter(Boolean));
+  const fremd = mastAnbauVon(w).filter((x) => !meineIds.has(x.mastId));
+  const neu = { ...w, anbauteile: joch,
+                mastAnbauteile: [...fremd, ...meine] };
+  return { ...neu, anbauteile: anbauteileFuer(neu, tragwerkeVon(neu)[0]) };
+}
+
 /**
  * Die Mastangaben eines Tragwerks in seinen Satz schreiben.
  *
@@ -861,11 +996,22 @@ export function tragwerkWeg(w, id) {
  * Der Kern rechnet weiterhin EIN Tragwerk. Er muss von der Liste nichts
  * wissen; er bekommt ein flaches Objekt, genau wie bisher.
  */
-export function tragwerkSatz(w, id = null) {
+export function tragwerkSatz(w, id = null, opt = {}) {
   const alle = tragwerkeVon(w);
   const t = (id && alle.find((x) => x.id === id)) || alle[0];
   const satz = { ...blattAngaben(w), ...t };
   delete satz.weitere;
+  delete satz.mastAnbauteile;
+  /*
+   * DIE BAUTEILE AN DEN MASTEN KOMMEN VOM MASTEN.
+   *
+   * `opt.mastAnbauAus` laesst die aus, deren Mast schon von einem anderen
+   * Tragwerk bedient wurde. Gebraucht wird das nur bei der Ausleitung des
+   * ganzen Blattes: dort stehen beide Tragwerke in EINEM Modell, und der
+   * geteilte Mast ist ein Mast - seine Traverse darf nicht zweimal
+   * dranhaengen. Im Nachweis dagegen gehoert sie in BEIDE Rechnungen.
+   */
+  satz.anbauteile = anbauteileFuer(w, t, opt.mastAnbauAus ?? null);
   // Der Kern liest die Mastangaben flach - er bekommt sie flach.
   return mastenProjizieren(satz, w, t);
 }
@@ -879,7 +1025,8 @@ export function tragwerkSatz(w, id = null) {
  */
 export function rechensatz(w) {
   const t = tragwerkeVon(w)[0];
-  return mastenProjizieren({ ...w }, w, t);
+  const satz = { ...w, anbauteile: anbauteileFuer(w, t) };
+  return mastenProjizieren(satz, w, t);
 }
 
 /**

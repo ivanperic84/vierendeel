@@ -484,7 +484,12 @@ export function hinweise(m) {
    * «Ein Mast, den sich zwei Tragwerke teilen, wird noch nicht gekoppelt»
    * war eine Moeglichkeit; jetzt ist es eine Stelle. Wer die Lagen
    * eingetragen hat, bekommt die Zahl - und sieht, welcher Mast gemeint
-   * ist. Er traegt von beiden Seiten; gerechnet ist eine.
+   * ist.
+   *
+   * SEIT DEM 2. SEPTEMBER TRAEGT ER SEINE ANBAUTEILE IN BEIDEN RECHNUNGEN -
+   * sie gehoeren dem Masten, nicht dem Tragwerk (mastAnbauVon in
+   * core.constants.js). Was fehlt, ist die JOCHREAKTION der anderen Seite;
+   * der Hinweis nennt deshalb genau die, statt pauschal «eine Seite».
    */
   /*
    * ZWEI JOCHENDEN AN EINEM MASTEN BRAUCHEN LUFT.
@@ -511,7 +516,8 @@ export function hinweise(m) {
     h.push(`${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
       + ` an einer Stelle, an der zwei Tragwerke zusammentreffen (x₀ = `
       + `${gm.map((p) => p.x.toFixed(2)).join(', ')} m). `
-      + 'Er trägt von beiden Seiten; gerechnet ist bisher eine. Auch die '
+      + 'Seine Anbauteile trägt er in beiden Rechnungen — die JOCHREAKTION '
+      + 'der Nachbarseite jedoch nicht: gerechnet ist eine. Auch die '
       + 'Rahmenwirkung fehlt: sein Kopf ist in Wirklichkeit nicht '
       + 'unverschieblich, sondern gibt Last ans Nachbartragwerk weiter.');
   }
