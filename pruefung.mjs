@@ -10742,9 +10742,27 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Jedes Tragwerk behaelt seine eigene',
          C.mastenProjizieren({ ...t1 }, w, t1).mastH === 8
          && C.mastenProjizieren({ ...t2 }, w, t2).mastH === 8.5);
-    // Was dem MASTEN gehoert, bleibt geteilt.
-    wahr('Das Profil kommt weiterhin vom Masten',
-         C.mastenProjizieren({ ...t1 }, w, t1).mastProfilB === 'HEB 260');
+    /*
+     * WAS DEM MASTEN GEHOERT, BLEIBT GETEILT - und `mastZwei` bedeutet
+     * «Ende B WEICHT AB», nicht «es gibt zwei». Sind beide Masten gleich,
+     * wird das Feld nicht gesetzt und `mastProfilB` bleibt weg; sonst wuerde
+     * der Standardwert von `mastHB` ploetzlich wirksam.
+     */
+    wahr('Bei gleichen Masten kein mastZwei',
+         C.mastenProjizieren({ ...t1 }, w, t1).mastZwei !== true);
+    wahr('… und das Profil kommt vom Masten',
+         C.mastenProjizieren({ ...t1 }, w, t1).mastProfil === 'HEB 260');
+  }
+  {
+    // Unterscheiden sie sich, wird es gesetzt - und beide Profile stehen da.
+    let v = { typ: 'J90', L: 12, xLage: 0, mastProfil: 'HEB 260', mastH: 8 };
+    v = C.tragwerkHinzu(v, 'joch', { L: 10, xLage: 12 });
+    v = { ...v, masten: C.mastenVon(v) };
+    v = C.setzeMastAngabe(v, 'B', 'mastProfilB', 'HEM 240');
+    const t = C.tragwerkeVon(v)[0];
+    const satz = C.mastenProjizieren({ ...t }, v, t);
+    wahr('Bei verschiedenen Masten schon',
+         satz.mastZwei === true && satz.mastProfilB === 'HEM 240');
   }
 
   // DER KERN SIEHT DIE ANGABEN FLACH - so wie immer.
@@ -11089,6 +11107,133 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const py = PY.pyniteSkript(e71.modell, { knotenmodell: 'anschnitt' });
     wahr('Ein PyNite-Skript entsteht', py.text.includes('add_member'));
     wahr('… mit dem Masten darin', /MAST_A_S1/.test(py.text));
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 72: das ganze Querprofil in EIN Stabmodell. Weisung vom
+// 2. September: «die jochreihe müsste zwingend zusammen modelliert werden
+// -> Rahmenwirkung».
+{
+  const AX72 = await import(J('export.axisvm.js'));
+  const V72 = await import(J('core.vierendeel.js'));
+  const C72 = await import(J('core.constants.js'));
+
+  const reihe = () => {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false },
+                           T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    return C72.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20 });
+  };
+  const deps72 = { modellVon: (satz) => V72.modell(satz,
+    getProfil(satz.profOG), getProfil(satz.profUG),
+    getStahl(satz.stahl), T.getTragjoch(satz.typ)) };
+
+  {
+    const w = reihe();
+    const bau = AX72.stabmodellBlatt(w, deps72, { knotenmodell: 'anschnitt' });
+    const xs = [...bau.knoten.values()].map((k) => k.x);
+    /*
+     * DAS MODELL UMFASST DAS GANZE BLATT.
+     *
+     * Vorher reichte es von 0 bis 15 - das aktive Tragwerk allein, in seinen
+     * OERTLICHEN Koordinaten, als staende es bei null. Das erste Joch fehlte
+     * ganz, und man sah es der Datei nicht an.
+     */
+    pruef('Das Stabmodell beginnt beim ersten Masten', Math.min(...xs), 0, 1e-6, 'm');
+    pruef('… und endet beim letzten', Math.max(...xs), 35, 1e-6, 'm');
+
+    /*
+     * >>> DER GETEILTE MAST IST EINER. <<<
+     *
+     * Nicht durch Kopplung, sondern durch den NAMEN: heissen die Mastknoten
+     * nach dem MASTEN (MAST_M2_F) statt nach dem Jochende (MAST_A_F), findet
+     * das zweite Joch den Masten des ersten wieder. Ein Stab, zwei
+     * Anschluesse, EIN Fundament.
+     */
+    const fuesse = [...bau.knoten.keys()].filter((n) => /^MAST_.*_F$/.test(n));
+    wahr('Drei Masten fuer zwei Joche', fuesse.length === 3);
+    wahr('… und ein Fundament je Mast', bau.auflager.length === 3);
+    wahr('Keine widerspruechlichen Knoten',
+         (bau.blatt?.widerspruch?.length ?? 0) === 0);
+
+    // DIE TRAGWERKE BLEIBEN UNTERSCHEIDBAR: ein Praefix je Tragwerk, die
+    // Masten davon ausgenommen - sie gehoeren dem Blatt.
+    const namen = [...bau.knoten.keys()];
+    wahr('Jedes Tragwerk traegt sein Praefix',
+         namen.some((n) => n.startsWith('T1_')) && namen.some((n) => n.startsWith('T2_')));
+    wahr('Die Masten tragen keines',
+         namen.filter((n) => /^MAST_/.test(n)).length > 0);
+
+    /*
+     * DIE LASTEN WERDEN JE TRAGWERK GEHOLT UND VEREINT.
+     *
+     * `lasten(m, bau)` braucht beides - das Modell fuer die Groessen, das
+     * Stabmodell fuer die Knotennamen. Ohne Anbauteil traegt ein Joch keine
+     * Punktlasten (das Eigengewicht rechnet AxisVM aus den Staeben), also
+     * wird hier eines gesetzt.
+     */
+    wahr('Die Lastlisten stehen bereit',
+         bau.lasten && Array.isArray(bau.lasten.punkt)
+         && Array.isArray(bau.lasten.strecke));
+  }
+  {
+    const A72 = await import(J('data.anbauteile.js'));
+    let w = reihe();
+    w = { ...w, anbauteile: [{ ...A72.neuesAnbauteil('hs-fahrdraht', 8),
+                               name: 'FL' }] };
+    const bau = AX72.stabmodellBlatt(w, deps72, { knotenmodell: 'anschnitt' });
+    wahr('Mit Anbauteil tragen beide Tragwerke Lasten bei',
+         bau.lasten.punkt.length > 0);
+    /*
+     * JEDE LAST ZEIGT AUF EINEN KNOTEN IHRES TRAGWERKS.
+     *
+     * Das Anbauteil steht an EINEM Tragwerk - Lasten von beiden zu erwarten
+     * waere falsch. Was zaehlt: der Knoten traegt das Praefix, unter dem er
+     * auch im Modell steht. Ohne das zeigte die Last ins Leere, und AxisVM
+     * bekaeme eine Kraft ohne Angriffspunkt.
+     */
+    const namen = new Set(bau.knoten.keys());
+    wahr('Jede Last zeigt auf einen vorhandenen Knoten',
+         bau.lasten.punkt.every((l) => namen.has(String(l.knoten ?? l.node))));
+    wahr('… und der traegt ein Tragwerkspraefix',
+         bau.lasten.punkt.every((l) => /^T\d+_/.test(String(l.knoten ?? l.node))));
+  }
+
+  /*
+   * EIN EINZELNES TRAGWERK GEHT DEN ALTEN WEG.
+   *
+   * Kein Umweg ohne Not: die Namen bleiben, wie sie waren (MAST_A_*), und
+   * eine Datei von gestern sieht aus wie eine von heute.
+   */
+  {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false },
+                           T.getTragjoch('J90'));
+    w.L = 20; w.mastVorhanden = true;
+    const bau = AX72.stabmodellBlatt(w, deps72, { knotenmodell: 'anschnitt' });
+    const namen = [...bau.knoten.keys()];
+    wahr('Ein Tragwerk: keine Praefixe', !namen.some((n) => /^T\d+_/.test(n)));
+    wahr('… und die Masten heissen A und B',
+         namen.some((n) => n === 'MAST_A_F') && namen.some((n) => n === 'MAST_B_F'));
+  }
+
+  /*
+   * DER HOEHENVERSATZ GLEICHT VERSCHIEDENE ANSCHLUSSHOEHEN AUS.
+   *
+   * Schliesst das zweite Joch 50 cm hoeher an denselben Masten an, liegt
+   * seine Achse 50 cm hoeher - und sein Mastfuss trotzdem auf derselben
+   * Kote. Sonst stuende derselbe Mast zweimal da, gegeneinander versetzt.
+   */
+  {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false },
+                           T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true; w.mastH = 8;
+    w = C72.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20, mastH: 8.5 });
+    const bau = AX72.stabmodellBlatt(w, deps72, { knotenmodell: 'anschnitt' });
+    wahr('Auch bei verschiedenen Anschlusshoehen kein Widerspruch',
+         (bau.blatt?.widerspruch?.length ?? 0) === 0);
+    const fuesse = [...bau.knoten.keys()].filter((n) => /^MAST_.*_F$/.test(n));
+    wahr('… und weiterhin drei Masten', fuesse.length === 3);
   }
 }
 

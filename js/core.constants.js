@@ -459,6 +459,25 @@ export function mastenVon(w, tol = 0.1) {
 export const mastNach = (w, id) => mastenVon(w).find((m) => m.id === id) ?? null;
 
 /**
+ * DIE ANSCHLUSSHOEHE EINES TRAGWERKS AN SEINEM MASTEN [m].
+ *
+ * Dieselbe Regel wie in `mastSteifigkeit`: `mastHB` gilt nur, wenn ein
+ * ZWEITER Mast eingeschaltet ist. Sonst gilt fuer beide Enden dieselbe
+ * Hoehe - `mastHB` traegt dann einen Standardwert, der nie gemeint war.
+ *
+ * Sie steht hier, weil sie an zwei Stellen gebraucht wird: im Rechenkern
+ * fuer die Drehfeder, in der Ausleitung fuer den Hoehenversatz der
+ * Tragwerke. Beim ersten Anlauf war sie dort nachgebaut - und der Nachbau
+ * uebersah `mastZwei`. Der Versatz kam damit auf 1.00 m statt 0.50, und
+ * derselbe Mast stand zweimal da, einen Meter gegeneinander versetzt.
+ */
+export function anschlusshoehe(t, ende = 'A') {
+  const zwei = ende === 'B' && t?.mastZwei === true;
+  const h = zwei ? (t?.mastHB ?? t?.mastH) : t?.mastH;
+  return Number(h) || 0;
+}
+
+/**
  * Die Masten EINES Tragwerks, in der Reihenfolge A, B.
  *
  * Verweist das Tragwerk auf Ids, gelten sie. Sonst entscheidet die Lage —
@@ -488,14 +507,26 @@ export function mastenProjizieren(satz, w, t) {
   });
   if (b) {
     /*
-     * ZWEI MASTEN HEISST `mastZwei`. Der Kern kennt das Feld seit dem
-     * 28. August: ohne es faellt er auf den Masten A zurueck, und ein
-     * verschiedenes Profil am anderen Ende bliebe wirkungslos.
+     * >>> `mastZwei` HEISST «ENDE B WEICHT AB», nicht «es gibt zwei». <<<
+     *
+     * Ein Joch hat immer zwei Masten - das Feld blind zu setzen war ein
+     * Fehler, und ein teurer: `mastHB` traegt einen Standardwert (7.50 m),
+     * der nur gilt, wenn der Anwender das Haekchen setzt. Ploetzlich
+     * wirksam, sass der Mastfuss des einen Jochs einen halben Meter ueber
+     * dem des anderen - und im Blattmodell stand derselbe Mast zweimal.
+     *
+     * Gesetzt wird es deshalb nur, wenn die beiden Masten sich WIRKLICH
+     * unterscheiden - oder wenn der Anwender es selbst gesetzt hat.
      */
-    satz.mastZwei = true;
-    MASTFELDER.forEach((f) => {
-      if (b[f.am] !== undefined) satz[f.flachB] = b[f.am];
-    });
+    const abweichend = MASTFELDER.some(
+      (f) => a[f.am] !== undefined && b[f.am] !== undefined
+             && a[f.am] !== b[f.am]);
+    if (abweichend || satz.mastZwei === true) {
+      satz.mastZwei = true;
+      MASTFELDER.forEach((f) => {
+        if (b[f.am] !== undefined) satz[f.flachB] = b[f.am];
+      });
+    }
   }
   return satz;
 }

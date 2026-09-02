@@ -49,7 +49,8 @@ import { EINWIRKUNGEN } from './core.lasten.js';
 import { winkelwerteFuer } from './core.winkel.js';
 import { getProfil } from './data.profiles.js';
 import { ECKEN } from './geometry.js';
-import { stabmodell, lasten, stuetzung } from './export.axisvm.js';
+import { stabmodell, lasten, stuetzung, blattWennMehrere }
+  from './export.axisvm.js';
 import { herunterladen } from './export.xlsx.js';
 
 /** Rechteck: starke und schwache Achse sowie St-Venant (dünnes Rechteck). */
@@ -222,8 +223,17 @@ function qsName(st, bau, zeilen) {
  */
 export function pyniteSkript(m, opt = {}) {
   const km = opt.knotenmodell ?? 'anschnitt';
-  const bau = stabmodell(m, { knotenmodell: km, schottAusblenden: opt.schottAusblenden,
-                             auflagerModell: opt.auflagerModell });
+  /*
+   * EIN FERTIGES MODELL HAT VORRANG - siehe export.axisvm.js.
+   *
+   * Steht mehr als ein Tragwerk auf dem Blatt, baut `stabmodellBlatt` sie
+   * alle in EIN Modell, mit verschmolzenen Masten. Ohne diesen Vorrang
+   * rechnete PyNite nur das aktive Tragwerk, unverschieblich gelagert - und
+   * die Rahmenwirkung der Reihe fehlte.
+   */
+  const bau = opt.bau ?? stabmodell(m, {
+    knotenmodell: km, schottAusblenden: opt.schottAusblenden,
+    auflagerModell: opt.auflagerModell });
   // EIGENGEWICHT MUSS MIT. PyNite leitet es nicht aus den Stäben ab; ohne
   // diese Zeile fehlte im Modell die grösste Einzellast (am Signaljoch
   // 0.70 kN/m gegen 3 × 3.92 kN Anbaulast - das Feldmoment fiel um 45 % zu
@@ -499,7 +509,9 @@ export function exportierePynite(inp, deps, opt = {}) {
   const { modell, profOG, profUG, stahl, joch } = deps;
   const km = opt.knotenmodell ?? 'anschnitt';
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
-  const r = pyniteSkript(m, { knotenmodell: km, schottAusblenden: opt.schottAusblenden });
+  const r = pyniteSkript(m, { knotenmodell: km,
+                             schottAusblenden: opt.schottAusblenden,
+                             bau: blattWennMehrere(inp, deps, { knotenmodell: km }) });
   const name = pyniteName(inp, km);
   herunterladen(r.text, name, 'text/x-python');
   return { name, staebe: r.bau.staebe.length, faelle: r.faelle };

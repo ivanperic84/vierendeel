@@ -3812,8 +3812,18 @@ function dialogAxisvm() {
 function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
                     auflagerModell = null, starrModell = 'koerper') {
   const m = letzte.erg.modell;
+  /*
+   * `modellVon` BAUT EIN BELIEBIGES TRAGWERK DES BLATTES.
+   *
+   * Die Ausleitung braucht es, seit sie bei einer Jochreihe ALLE Tragwerke
+   * zusammen modelliert (Weisung: Rahmenwirkung). Ohne diesen Zugang koennte
+   * sie nur das aktive bauen - und genau das war der Befund des Durchlaufs.
+   */
   const deps = { berechne, modell, profOG: m.profOG, profUG: m.profUG,
-                 stahl: m.stahl, joch: m.joch };
+                 stahl: m.stahl, joch: m.joch,
+                 modellVon: (satz) => modell({ ...satz, beiwerteFest: null },
+                   getProfil(satz.profOG), getProfil(satz.profUG),
+                   getStahl(satz.stahl), getTragjoch(satz.typ)) };
   const o = { knotenmodell, schottAusblenden, starrModell,
               auflagerModell: auflagerModell ?? auflagerVorgabe(m) };
   // Alle vier Wege durch dieselbe Klammer: was hier bricht, bricht sichtbar.

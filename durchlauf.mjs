@@ -166,12 +166,36 @@ console.log('\n=== Deckt die Ausleitung das ganze Blatt ab? ===');
   const w = C.rechensatz(w0);
   const m = V.modell(w, P.getProfil(w.profOG), P.getProfil(w.profUG),
                      P.getStahl(w.stahl), T.getTragjoch(w.typ));
-  const bau2 = AX.stabmodell(m, { knotenmodell: 'anschnitt' });
+  /*
+   * DER BLATTWEG, nicht der Einzelweg.
+   *
+   * `stabmodell` baut EIN Tragwerk. Seit dem 2. September gibt es
+   * `stabmodellBlatt`, das alle Tragwerke des Querprofils zusammenfuehrt und
+   * die geteilten Masten verschmelzen laesst. Geprueft wird der Weg, den die
+   * Ausleitung wirklich geht.
+   */
+  const deps = { modellVon: (satz) => V.modell(satz,
+    P.getProfil(satz.profOG), P.getProfil(satz.profUG),
+    P.getStahl(satz.stahl), T.getTragjoch(satz.typ)) };
+  const bau2 = AX.stabmodellBlatt(w0, deps, { knotenmodell: 'anschnitt' });
   const xs = [...bau2.knoten.values()].map((k) => k.x);
   const masten = C.mastenVon(w0).map((x) => x.x);
   const soll = [Math.min(...masten), Math.max(...masten)];
   const ist = [Math.min(...xs), Math.max(...xs)];
   console.log(`  Masten auf dem Blatt : x = ${masten.map((x) => x.toFixed(1)).join(', ')}`);
+  const fuesse = [...bau2.knoten.keys()].filter((n) => /^MAST_.*_F$/.test(n));
+  console.log(`  Mastfuesse im Modell : ${fuesse.length} (${fuesse.join(', ')})`);
+  console.log(`  Auflager             : ${bau2.auflager.length}`);
+  if (fuesse.length !== masten.length) {
+    befunde.push({ fall: 'Jochreihe', weg: 'Ausleitung',
+      text: `${fuesse.length} Mastfuesse fuer ${masten.length} Masten - `
+          + `der geteilte Mast ist nicht verschmolzen` });
+  }
+  if (bau2.blatt?.widerspruch?.length) {
+    befunde.push({ fall: 'Jochreihe', weg: 'Ausleitung',
+      text: `${bau2.blatt.widerspruch.length} Knoten mit widerspruechlichen `
+          + `Koordinaten` });
+  }
   console.log(`  Stabmodell umfasst   : x von ${ist[0].toFixed(2)} bis ${ist[1].toFixed(2)} m`);
   console.log(`  Erwartet             : x von ${soll[0].toFixed(2)} bis ${soll[1].toFixed(2)} m`);
   if (Math.abs(ist[1] - soll[1]) > 0.5 || Math.abs(ist[0] - soll[0]) > 0.5) {

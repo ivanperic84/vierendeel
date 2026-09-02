@@ -43,7 +43,10 @@
 
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
-import { verortung, verortungKurz, tragwerksart } from './core.constants.js';
+import { verortung, verortungKurz, tragwerksart,
+         tragwerkeSortiert, tragwerkSatz, mastenFuer, lageVon,
+         anzahlTragwerke, anschlusshoehe }
+  from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
@@ -232,7 +235,20 @@ const r6 = (v) => Math.round(v * 1e6) / 1e6;
  * Ein Knoten wird über seinen Namen wiederverwendet; zweimal derselbe Name
  * mit anderen Koordinaten ist ein Fehler im Aufbau und wirft.
  */
-function sammler() {
+function sammler(praefixStart = '') {
+  /*
+   * DAS PRAEFIX TRENNT DIE TRAGWERKE - die Masten ausgenommen.
+   *
+   * Gurtknoten heissen nach ihrer oertlichen Lage (OGL_0.000). Auf einem
+   * Blatt mit zwei Jochen gibt es die zweimal, an verschiedenen Orten, und
+   * der Sammler wirft. Ein Praefix je Tragwerk trennt sie.
+   *
+   * Was mit MAST_ beginnt, bleibt ausgenommen - und das ist der Kern der
+   * Sache: die Masten SOLLEN verschmelzen. Alles andere gehoert einem
+   * Tragwerk, ein Mast gehoert dem Blatt.
+   */
+  let praefix = praefixStart;
+  const voll = (name) => (String(name).startsWith('MAST_') ? name : praefix + name);
   const knoten = new Map();
   const staebe = [];
   const querschnitte = new Map();
@@ -243,7 +259,8 @@ function sammler() {
   return {
     knoten, staebe, querschnitte, punktlasten, punktmomente, streckenlasten,
 
-    kn(name, x, y, z) {
+    kn(rohName, x, y, z) {
+      const name = voll(rohName);
       const alt = knoten.get(name);
       const neu = { name, x: r6(x), y: r6(y), z: r6(z) };
       if (alt) {
@@ -256,16 +273,27 @@ function sammler() {
       return name;
     },
 
-    stab(name, qs, von, bis, opt = null) {
+    stab(rohName, qs, von, bis, opt = null) {
       if (von === bis) return null;         // entartet: kommt bei L_c = h vor
+      const name = voll(rohName);
       staebe.push({ name, qs, von, bis, ...(opt ?? {}) });
       return name;
     },
 
     qs(def) {
-      if (!querschnitte.has(def.name)) querschnitte.set(def.name, def);
-      return def.name;
+      /*
+       * AUCH DIE QUERSCHNITTE. Zwei Joche mit VERSCHIEDENEN Gurtprofilen
+       * traegen sonst denselben Namen GURT_OG - der erste gewaenne, und das
+       * zweite Joch rechnete mit fremden Profilen. Das Mastprofil traegt
+       * seinen Namen schon in sich (MAST_HEB260) und bleibt geteilt.
+       */
+      const name = voll(def.name);
+      if (!querschnitte.has(name)) querschnitte.set(name, { ...def, name });
+      return name;
     },
+
+    /** Das Praefix wechseln - je Tragwerk auf dem Blatt. */
+    setzePraefix(p) { praefix = p ?? ''; },
   };
 }
 
@@ -539,14 +567,260 @@ function stabmodellEinzelmast(m, opt = {}) {
 
   return { ...s, auflager, arme: [], knotenmodell: opt.knotenmodell ?? 'anschnitt',
            zOben: 0, verschoben: [], ausKnotenVermerk: [],
-           zweiPunktAnschluss: false, anbauMastAus,
+           zweiPunktAnschluss: [], anbauMastAus,
            schottAusblenden: opt.schottAusblenden === true };
+}
+
+/* ===========================================================================
+ * DAS GANZE QUERPROFIL IN EIN STABMODELL
+ *
+ * Weisung vom 2. September: «die jochreihe müsste zwingend zusammen
+ * modelliert werden -> Rahmenwirkung».
+ *
+ * Sie hat recht, und der Grund ist der Zwischenmast. Getrennt ausgeleitet
+ * ist jedes Joch unverschieblich gelagert, und der Mast trägt von einer
+ * Seite. Wirklich verschiebt eine Horizontallast am linken Joch seinen Kopf,
+ * und das rechte Joch nimmt einen Teil auf.
+ *
+ * ================== WIE DIE MASTEN VERSCHMELZEN ==========================
+ *
+ * Nicht durch Kopplung, sondern durch den NAMEN. Der Sammler gibt bei
+ * gleichem Namen und gleichen Koordinaten denselben Knoten zurück; heissen
+ * die Mastknoten nach dem MASTEN (MAST_M2_F) statt nach dem Jochende
+ * (MAST_A_F), findet das zweite Joch den Masten des ersten wieder und hängt
+ * sich an. Ein Stab, zwei Anschlüsse, ein Fundament.
+ *
+ * DAMIT DAS AUFGEHT, MÜSSEN DIE KOORDINATEN EXAKT STIMMEN:
+ *
+ *   in x   der Versatz ist x0 des Tragwerks. Ein Joch von 0 bis L, das bei
+ *          x0 = 20 steht, hat seinen Endmasten bei 20 + L - genau dort, wo
+ *          der Nachbar bei x0 = 20 + L seinen Anfangsmasten hat.
+ *   in z   der Versatz gleicht verschiedene ANSCHLUSSHÖHEN aus. Schliesst
+ *          das zweite Joch 50 cm höher an, liegt seine Achse 50 cm höher -
+ *          und sein Mastfuss trotzdem auf derselben Kote wie der des ersten.
+ *          Sonst stünde derselbe Mast zweimal da, 50 cm gegeneinander
+ *          versetzt, und der Sammler würfe.
+ * =========================================================================== */
+
+/**
+ * Der Höhenversatz eines Tragwerks, damit geteilte Masten aufeinandertreffen.
+ *
+ * Er folgt aus dem ersten Masten, den es mit einem schon gesetzten Tragwerk
+ * teilt: dessen Fuss liegt bei −H(dort), unserer bei −H(hier); die Differenz
+ * ist der Versatz. Ohne gemeinsamen Masten bleibt er null — dann steht das
+ * Tragwerk für sich, und seine eigene Achse ist die Bezugshöhe.
+ */
+function hoehenversatz(t, gesetzt, mastenJe) {
+  const meine = mastenJe.get(t.id) ?? [];
+  for (const [ende, mast] of meine) {
+    if (!mast) continue;
+    for (const g of gesetzt) {
+      const dort = (mastenJe.get(g.t.id) ?? [])
+        .find(([, mm]) => mm && mm.id === mast.id);
+      if (!dort) continue;
+      // EINE Regel, nicht zwei: `mastHB` gilt nur mit `mastZwei`.
+      return g.dz + (anschlusshoehe(t, ende) - anschlusshoehe(g.t, dort[0]));
+    }
+  }
+  return 0;
+}
+
+/**
+ * Das Stabmodell des ganzen Blattes.
+ *
+ * @param {object} werte Eingabesatz mit allen Tragwerken
+ * @param {object} deps  { modell, getProfil, getStahl, getTragjoch }
+ * @param {object} opt   wie bei stabmodell(), zusätzlich nichts
+ */
+export function stabmodellBlatt(werte, deps, opt = {}) {
+  const alle = tragwerkeSortiert(werte);
+  if (alle.length < 2) {
+    // Ein Tragwerk: der bisherige Weg, ohne Umweg und ohne neue Namen.
+    return stabmodell(deps.modellVon(tragwerkSatz(werte, alle[0]?.id)), opt);
+  }
+  const mastenJe = new Map(alle.map((t) => {
+    const [a, b] = mastenFuer(werte, t);
+    return [t.id, [['A', a], ['B', b]]];
+  }));
+
+  const gesetzt = [];
+  const teile = [];
+  const uebersprungen = [];
+  alle.forEach((t) => {
+    const dz = hoehenversatz(t, gesetzt, mastenJe);
+    let m;
+    try {
+      m = deps.modellVon(tragwerkSatz(werte, t.id));
+    } catch (e) {
+      /*
+       * EIN TRAGWERK, DAS NICHT BAUT, FEHLT LAUT.
+       *
+       * Es still wegzulassen hiesse, eine Datei auszuliefern, in der ein
+       * Joch fehlt - und niemand saehe es. Der Vermerk wandert in den
+       * Bericht.
+       */
+      uebersprungen.push({ id: t.id, grund: e.message });
+      return;
+    }
+    const [a, b] = mastenJe.get(t.id) ?? [];
+    const mastNamen = { A: a?.[1]?.id ?? `${t.id}A`, B: b?.[1]?.id ?? `${t.id}B` };
+    /*
+     * DIE ANSCHLUSSHOEHE STEHT IM NAMEN - in Millimetern ueber der
+     * Blattnull. Zwei Joche, die gleich hoch anschliessen, bekommen
+     * denselben Namen und verschmelzen; zwei, die es nicht tun, bleiben
+     * getrennt. Die Zahl statt eines Zaehlers, damit dasselbe Blatt zweimal
+     * ausgeleitet dieselben Namen ergibt.
+     */
+    const kenn = Math.round(dz * 1000);
+    const anschlussNamen = { A: `${mastNamen.A}k${kenn}`,
+                             B: `${mastNamen.B}k${kenn}` };
+    /*
+     * >>> ERST BAUEN, DANN SCHIEBEN. <<<
+     *
+     * Der erste Anlauf legte den Versatz in den Sammler - eine Stelle statt
+     * hundert. Er ging schief: nicht jeder Aufruf uebergibt oertliche
+     * Koordinaten. Die Blechknoten werden aus SCHON GESETZTEN Knoten
+     * abgeleitet (blechStab, `p.x`), und die trugen den Versatz bereits.
+     * Er wurde damit ein zweites und drittes Mal addiert - gemessen lagen
+     * Blechknoten eines Jochs bei x = 40 und 60, waehrend es von 20 bis 35
+     * reicht.
+     *
+     * Also wie bei der Ansicht: das Tragwerk wird oertlich gebaut, von 0 bis
+     * L, und die fertige Liste danach verschoben. Was gebaut wird, weiss
+     * dann nichts von seiner Lage auf dem Blatt - und kann sie auch nicht
+     * doppelt anwenden.
+     */
+    const bau = stabmodell(m, { ...opt, praefix: `${t.id}_`,
+                               mastNamen, anschlussNamen });
+    teile.push({ id: t.id, bau, m, dz, x0: lageVon(t) });
+    gesetzt.push({ t, dz });
+  });
+
+  /* -------------------------------------------------------------------
+   * VEREINEN - und dabei die geteilten Masten VERSCHMELZEN.
+   *
+   * Zwei Tragwerke, die sich einen Masten teilen, haben ihn beide gebaut,
+   * unter demselben Namen (MAST_M2_F). Beim Vereinen zaehlt der erste; der
+   * zweite muss an derselben Stelle stehen, sonst stimmt etwas nicht - und
+   * dann wird es gemeldet statt stillschweigend uebergangen.
+   * ------------------------------------------------------------------- */
+  const knoten = new Map();
+  const staebe = [];
+  const querschnitte = new Map();
+  const punktlasten = [];
+  const punktmomente = [];
+  const streckenlasten = [];
+  const widerspruch = [];
+
+  teile.forEach(({ bau, dz, x0 }) => {
+    const schieb = (k) => ({ ...k, x: r6(k.x + x0), z: r6(k.z + dz) });
+    bau.knoten.forEach((k, name) => {
+      const neu = schieb(k);
+      const da = knoten.get(name);
+      if (!da) { knoten.set(name, neu); return; }
+      if (Math.abs(da.x - neu.x) > 1e-6 || Math.abs(da.y - neu.y) > 1e-6
+          || Math.abs(da.z - neu.z) > 1e-6) {
+        widerspruch.push({ knoten: name,
+          a: [da.x, da.y, da.z], b: [neu.x, neu.y, neu.z] });
+      }
+    });
+    bau.staebe.forEach((st) => staebe.push(st));
+    bau.querschnitte.forEach((q, name) => {
+      if (!querschnitte.has(name)) querschnitte.set(name, q);
+    });
+    // Lasten tragen ihre Orte in den Knotennamen, nicht in Koordinaten.
+    (bau.punktlasten ?? []).forEach((l) => punktlasten.push(l));
+    (bau.punktmomente ?? []).forEach((l) => punktmomente.push(l));
+    (bau.streckenlasten ?? []).forEach((l) => streckenlasten.push(l));
+  });
+
+  /*
+   * DIE LASTEN GEHOEREN ZU IHREM TRAGWERK - und werden dort geholt.
+   *
+   * `lasten(m, bau)` liest das Modell UND das Stabmodell: es braucht die
+   * Knotennamen, an denen eine Last angreift. Beides gibt es nur je
+   * Tragwerk, also wird je Tragwerk geholt und danach vereint. Die
+   * Knotennamen tragen das Praefix und bleiben damit eindeutig.
+   */
+  const lastTeile = teile.map(({ bau, m }) => lasten(m, bau, opt));
+  const alleLasten = {
+    punkt: lastTeile.flatMap((l) => l.punkt),
+    moment: lastTeile.flatMap((l) => l.moment),
+    strecke: lastTeile.flatMap((l) => l.strecke),
+  };
+
+  const erstes = teile[0]?.bau ?? {};
+  return {
+    knoten, staebe, querschnitte, punktlasten, punktmomente, streckenlasten,
+    lasten: alleLasten,
+    /*
+     * EIN FUNDAMENT JE MAST, nicht je Tragwerk.
+     *
+     * Beide Joche melden ihre zwei Auflager; am geteilten Masten waeren das
+     * zwei Einspannungen an EINEM Knoten. Zweimal dieselbe Festlegung ist in
+     * AxisVM zwar harmlos, aber sie behauptet zwei Fundamente, wo eines
+     * steht - und wer die Datei liest, muss raten, ob das Absicht war.
+     */
+    auflager: teile.flatMap((x) => x.bau.auflager ?? [])
+      .filter((a, i, alle) => alle.findIndex((b) => b.knoten === a.knoten) === i),
+    arme: teile.flatMap((x) => x.bau.arme ?? []),
+    ausKnotenVermerk: teile.flatMap((x) => x.bau.ausKnotenVermerk ?? []),
+    anbauMastAus: teile.flatMap((x) => x.bau.anbauMastAus ?? []),
+    verschoben: teile.flatMap((x) => x.bau.verschoben ?? []),
+    knotenmodell: erstes.knotenmodell ?? (opt.knotenmodell ?? 'anschnitt'),
+    zOben: erstes.zOben ?? 0,
+    /*
+     * EINE LISTE, KEIN JA/NEIN.
+     *
+     * `zweiPunktAnschluss` sammelt die Anbauteile, die an zwei Punkten
+     * haengen - der COM-Weg laeuft darueber. Beim ersten Anlauf stand hier
+     * `?? false`, und die Ausleitung brach mit «(bau.zweiPunktAnschluss ??
+     * []).map is not a function» ab. Sichtbar immerhin, dank der Klammer um
+     * die Ausleitwege.
+     */
+    zweiPunktAnschluss: teile.flatMap((x) => x.bau.zweiPunktAnschluss ?? []),
+    schottAusblenden: opt.schottAusblenden === true,
+    // Nur für den Bericht: woraus das Modell besteht, und was daran klemmt.
+    blatt: { tragwerke: teile.map((x) => ({ id: x.id, x0: x.x0, dz: x.dz })),
+             uebersprungen, widerspruch },
+  };
 }
 
 export function stabmodell(m, opt = {}) {
   if (tragwerksart(m).key === 'einzelmast') return stabmodellEinzelmast(m, opt);
   const km = opt.knotenmodell ?? 'anschnitt';
-  const s = sammler();
+  const s = opt.sammler ?? sammler(opt.praefix ?? '');
+  /*
+   * WIE DIE MASTKNOTEN HEISSEN - und warum das der ganze Trick ist.
+   *
+   * Sie hiessen MAST_A_* und MAST_B_*, nach dem ENDE des Jochs. Auf einem
+   * Blatt mit zwei Jochen kollidiert das: beide haetten ein MAST_A_F, an
+   * verschiedenen Orten, und der Sammler wirft.
+   *
+   * Bekommen sie stattdessen den Namen des MASTEN (MAST_M2_F), verschmelzen
+   * sie von selbst: der Sammler gibt bei gleichem Namen UND gleichen
+   * Koordinaten denselben Knoten zurueck. Aus zwei Jochen, die sich einen
+   * Masten teilen, wird damit ein Stab mit zwei Anschluessen - ohne dass
+   * irgendwo eine Kopplung stehen muesste.
+   *
+   * Ohne Angabe bleibt es bei A und B: ein einzelnes Tragwerk leitet aus
+   * wie bisher.
+   */
+  const mn = (ende) => opt.mastNamen?.[ende] ?? ende;
+  /*
+   * DER ANSCHLUSSKNOTEN GEHOERT DEM TRAGWERK, DER MASTSTAB DEM BLATT.
+   *
+   * Fuss, Kopf und die Stuecke dazwischen sind EIN Mast - sie verschmelzen
+   * ueber den Namen. Die Knoten, an denen ein Joch andockt (OG/UG), liegen
+   * dagegen auf SEINER Anschlusshoehe. Schliessen zwei Joche verschieden
+   * hoch an, koennen sie gar nicht zusammenfallen; unter demselben Namen
+   * gaebe das einen Widerspruch, den der Aufbau meldet - gemessen 0.2246
+   * gegen 0.7246 m.
+   *
+   * Bei GLEICHER Hoehe traegt `anschlussNamen` denselben Wert wie
+   * `mastNamen`, und die beiden Anschluesse verschmelzen wie zuvor.
+   */
+  const an = (ende) => opt.anschlussNamen?.[ende] ?? mn(ende);
   const st = m.stationsListe;
   const zOben = m.h / 2;
 
@@ -970,11 +1244,11 @@ export function stabmodell(m, opt = {}) {
       // Der Mastkopf sitzt auf der JOCHACHSE: dort misst der Rechenkern
       // seine Höhe H, und dort greift im Ersatzbalken die Drehfeder an.
       const zUnten = r6(zOben - h);
-      const kOG = s.kn(`MAST_${ende}_OG`, x, 0, zOben);
-      const kUG = s.kn(`MAST_${ende}_UG`, x, 0, zUnten);
+      const kOG = s.kn(`MAST_${an(ende)}_OG`, x, 0, zOben);
+      const kUG = s.kn(`MAST_${an(ende)}_UG`, x, 0, zUnten);
       const zFuss = r6(zOben - h / 2 - md.H);
       mastFuss[ende] = zFuss;
-      const kFuss = s.kn(`MAST_${ende}_F`, x, 0, zFuss);
+      const kFuss = s.kn(`MAST_${mn(ende)}_F`, x, 0, zFuss);
       /*
        * DIE DREHLAGE DES PROFILS FOLGT DER STEGRICHTUNG.
        *
@@ -1012,7 +1286,7 @@ export function stabmodell(m, opt = {}) {
       const zKopf = md.ueberstand > 0 ? r6(zFuss + md.laenge) : zOben;
       const mastKn = new Map([[r6(zFuss), kFuss], [zUnten, kUG], [zOben, kOG]]);
       if (zKopf > zOben + 1e-9) {
-        mastKn.set(zKopf, s.kn(`MAST_${ende}_KOPF`, x, 0, zKopf));
+        mastKn.set(zKopf, s.kn(`MAST_${mn(ende)}_KOPF`, x, 0, zKopf));
       }
       const ausserhalb = [];
       (m.anbauMast ?? []).forEach((a) => {
@@ -1024,25 +1298,25 @@ export function stabmodell(m, opt = {}) {
           return;
         }
         if (!mastKn.has(zA)) {
-          mastKn.set(zA, s.kn(`MAST_${ende}_H${mastKn.size - 2}`, x, 0, zA));
+          mastKn.set(zA, s.kn(`MAST_${mn(ende)}_H${mastKn.size - 2}`, x, 0, zA));
         }
       });
       anbauMastAus.push(...ausserhalb);
       const zStufen = [...mastKn.keys()].sort((p1, p2) => p1 - p2);
       for (let i = 0; i < zStufen.length - 1; i++) {
-        s.stab(`MAST_${ende}_S${i + 1}`, qsMast,
+        s.stab(`MAST_${mn(ende)}_S${i + 1}`, qsMast,
                mastKn.get(zStufen[i]), mastKn.get(zStufen[i + 1]),
                { lcsZ: lcsMast });
       }
 
       const einwaerts = ende === 'A' ? LINK_LAENGE : -LINK_LAENGE;
       [['OG', kOG, zOben], ['UG', kUG, zUnten]].forEach(([gurt, kMast, zG]) => {
-        const ans = s.kn(`ANS_${ende}_${gurt}`, r6(x + einwaerts), 0, zG);
+        const ans = s.kn(`ANS_${an(ende)}_${gurt}`, r6(x + einwaerts), 0, zG);
         ['L', 'R'].forEach((seite) => {
-          s.stab(`STARR_${ende}_${gurt}${seite}`, qsStarr,
+          s.stab(`STARR_${an(ende)}_${gurt}${seite}`, qsStarr,
                  gurtKnoten(gurt, seite, x), ans, { starrRolle: 'verbindung' });
         });
-        s.stab(`LINK_${ende}_${gurt}`, qsStarr, ans, kMast,
+        s.stab(`LINK_${an(ende)}_${gurt}`, qsStarr, ans, kMast,
                { starrRolle: 'uebergang',
                  kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
                           xx: 'Free', yy: 'Free', zz: 'Free' } });
@@ -1383,7 +1657,7 @@ export function stabmodell(m, opt = {}) {
       const ende = a.ort === 'mastB' ? 'B' : 'A';
       const xM = ende === 'A' ? 0 : r6(m.L);
       const wurzelKn = [...s.knoten.entries()].find(([nm, kn]) =>
-        nm.startsWith(`MAST_${ende}_`)
+        nm.startsWith(`MAST_${mn(ende)}_`)
         && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
       if (!wurzelKn) return;               // ausserhalb - schon vermerkt
       // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
@@ -1486,7 +1760,9 @@ export function lasten(m, bau, opt = {}) {
    * Wirkung weiterhin als aufgezwungene Auflagerverdrehung - wenn sie
    * eingeschaltet ist.
    */
-  const mastStaebe = bau.staebe.filter((st) => /^MAST_[AB]_/.test(st.name));
+  // Beliebige Mastnamen: MAST_A_*, MAST_B_* und seit dem Blattumbau
+  // MAST_<Mast-Id>_*.
+  const mastStaebe = bau.staebe.filter((st) => /^MAST_[^_]+_/.test(st.name));
   if (mastStaebe.length && m.mastLast) {
     mastStaebe.forEach((st) => {
       const ende = st.name[5];                       // MAST_A_... / MAST_B_...
@@ -1623,8 +1899,16 @@ export function stuetzung(m, lager) {
  * @returns {{name:string, rows:Array, breiten?:number[]}[]}
  */
 export function safBlaetter(m, opt = {}) {
-  const bau = stabmodell(m, opt);
-  const l = lasten(m, bau);
+  /*
+   * EIN FERTIGES MODELL HAT VORRANG.
+   *
+   * Steht auf dem Blatt mehr als ein Tragwerk, baut `stabmodellBlatt`
+   * sie alle in EIN Modell - mit verschmolzenen Masten. Dieser Weg
+   * bekommt es dann fertig gereicht, statt selbst zu bauen und dabei
+   * nur das aktive Tragwerk zu sehen.
+   */
+  const bau = opt.bau ?? stabmodell(m, opt);
+  const l = opt.bau?.lasten ?? lasten(m, bau);
   const stahl = m.stahl.name;
 
   const material = [
@@ -1895,7 +2179,16 @@ export function axisvmMappe(inp, deps, opt = {}) {
    * SAF-Ausleitung nahm dann doch die Vorgabe - und niemand sah es der Datei
    * an, weil die Knotennamen aus demselben Aufbau stammen.
    */
-  const { blaetter, bau } = safBlaetter(m, { ...opt, knotenmodell: km });
+  /*
+   * STEHT MEHR ALS EIN TRAGWERK AUF DEM BLATT, WIRD ES ZUSAMMEN AUSGELEITET.
+   *
+   * Weisung vom 2. September: «die jochreihe müsste zwingend zusammen
+   * modelliert werden -> Rahmenwirkung». Getrennt ausgeleitet ist jedes Joch
+   * unverschieblich gelagert, und der Zwischenmast trägt von einer Seite.
+   */
+  const blattBau = blattWennMehrere(inp, deps, { ...opt, knotenmodell: km });
+  const { blaetter, bau } = safBlaetter(m, { ...opt, knotenmodell: km,
+                                             bau: blattBau });
 
   return {
     // Das Modell wandert mit: der Dateiname nennt das Auflagermodell, und
@@ -2042,8 +2335,16 @@ function starrArt(s, starrModell) {
 }
 
 export function stabmodellJson(m, opt = {}) {
-  const bau = stabmodell(m, opt);
-  const l = lasten(m, bau, { gTrennen: true });
+  /*
+   * EIN FERTIGES MODELL HAT VORRANG.
+   *
+   * Steht auf dem Blatt mehr als ein Tragwerk, baut `stabmodellBlatt`
+   * sie alle in EIN Modell - mit verschmolzenen Masten. Dieser Weg
+   * bekommt es dann fertig gereicht, statt selbst zu bauen und dabei
+   * nur das aktive Tragwerk zu sehen.
+   */
+  const bau = opt.bau ?? stabmodell(m, opt);
+  const l = opt.bau?.lasten ?? lasten(m, bau, { gTrennen: true });
   const stahl = m.stahl.name;
   const starrModell = opt.starrModell ?? 'koerper';
   // Für die Drehlage der Gurtwinkel, siehe lcs(). Dieselben Werte wie in
@@ -2273,12 +2574,24 @@ function dateiname(inp, opt, m, endung) {
        + `_L${Number(inp.L).toFixed(1)}m_${km}_${am}.${endung}`;
 }
 
+/**
+ * Das Blattmodell, sofern mehr als ein Tragwerk daraufsteht.
+ *
+ * Sonst `null` - dann baut der Ausleitweg wie bisher selbst, aus dem einen
+ * Modell. Eine Stelle fuer alle vier Wege: einer, der sie nicht benutzte,
+ * waere genau der, der wieder nur das aktive Tragwerk ausleitet.
+ */
+export function blattWennMehrere(inp, deps, opt = {}) {
+  if (anzahlTragwerke(inp) < 2 || !deps?.modellVon) return null;
+  return stabmodellBlatt(inp, deps, opt);
+}
+
 export function exportiereJson(inp, deps, opt = {}) {
   const { modell, profOG, profUG, stahl, joch } = deps;
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
   // Die Eingabe mitgeben: aus ihr entstehen die Lastkombinationen. Das
   // Modell selbst führt sie nicht mit.
-  opt = { ...opt, eingabe: inp };
+  opt = { ...opt, eingabe: inp, bau: blattWennMehrere(inp, deps, opt) };
   const d = stabmodellJson(m, opt);
   const name = dateiname(inp, opt, m, 'json');
   const blob = new Blob([JSON.stringify(d, null, 1)],
@@ -2323,8 +2636,16 @@ const g = (code, wert) => `${code}\n${wert}\n`;
 const ebene = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_').toUpperCase();
 
 export function dxfText(m, opt = {}) {
-  const bau = stabmodell(m, opt);
-  const l = lasten(m, bau);
+  /*
+   * EIN FERTIGES MODELL HAT VORRANG.
+   *
+   * Steht auf dem Blatt mehr als ein Tragwerk, baut `stabmodellBlatt`
+   * sie alle in EIN Modell - mit verschmolzenen Masten. Dieser Weg
+   * bekommt es dann fertig gereicht, statt selbst zu bauen und dabei
+   * nur das aktive Tragwerk zu sehen.
+   */
+  const bau = opt.bau ?? stabmodell(m, opt);
+  const l = opt.bau?.lasten ?? lasten(m, bau);
 
   // Ebenen: je Querschnitt eine, dazu Auflager und Lastpunkte
   const ebenen = new Set(bau.staebe.map((s) => ebene(s.qs)));
@@ -2464,7 +2785,8 @@ export function exportiereDxf(inp, deps, opt = {}) {
   // Alle Angaben weiterreichen: `auflagerModell` und `starrModell` fielen
   // hier unterwegs weg, und die DXF-Datei trug dann ein anderes Modell als
   // der Dialog angeboten hatte - dieselbe Lücke wie einst in `axisvmMappe`.
-  const dxf = dxfText(m, { ...opt, knotenmodell: km });
+  const dxf = dxfText(m, { ...opt, knotenmodell: km,
+                          bau: blattWennMehrere(inp, deps, { ...opt, knotenmodell: km }) });
 
   const basis = dateiname(inp, opt, m, '').slice(0, -1);   // ohne Punkt
   herunterladen(dxf.text, `${basis}.dxf`, 'application/dxf');
