@@ -12,7 +12,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { U, TOL, massketteLesen } from './core.constants.js';
+import { U, TOL, massketteLesen, tragwerksart } from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
 import { mastWind } from './data.masten.js';
@@ -149,6 +149,179 @@ function breitenVerlauf(joch, L, bFeld, jbbOG, jbbUG) {
 }
 
 /** Baut aus den rohen Eingabewerten das vollständige Rechenmodell. */
+/**
+ * WIND AUF DIE MASTEN, als eigener Satz.
+ *
+ * Herausgeloest, weil ihn jetzt ZWEI Wege brauchen: das Joch mit seinen
+ * beiden Masten und der Einzelmast, der ohne Joch auskommt. Zweimal
+ * dieselbe Tabelle abzufragen waeren zwei Gelegenheiten, sie verschieden
+ * abzufragen.
+ *
+ * @param {object} inp      Eingabesatz
+ * @param {object} federnRoh Ergebnis von drehfedern()
+ * @param {object} beiwerte  Teilsicherheits- und Kombinationsbeiwerte
+ * @param {number} bwX       Beiwert des Lastfalls Wind in Jochachse
+ */
+function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
+  if (!federnRoh.mast) return null;
+
+  const ek = ekVonWindklasse(inp.windKlasse);
+  // BEIDE WERTE AUS DERSELBEN QUELLE. Die Jochachse aus der Tabelle zu
+  // holen statt aus `inp.wMast` ist kein Umweg, sondern der Unterschied
+  // zwischen «stimmt, wenn der Aufrufer es vorher nachgeführt hat» und
+  // «stimmt». Von Hand gesetzt wird nur übernommen, was ausdrücklich von
+  // Hand gesetzt ist (wMastAusTabelle === false).
+  const vonHand = inp.wMastAusTabelle === false;
+  const je = (mast, wManuell) => {
+    const eigen = mast.stegrichtung.key;
+    const gegen = eigen === 'quer' ? 'jochachse' : 'quer';
+    const wJoch = mastWind(mast.profil.name, ek, eigen);
+    const wGleis = mastWind(mast.profil.name, ek, gegen);
+    const x = vonHand ? (wManuell ?? 0)
+            : (Number.isFinite(wJoch) ? wJoch : (wManuell ?? 0));
+    const xk = Math.abs(x);
+    const yk = Number.isFinite(wGleis) ? Math.abs(wGleis) : null;
+    return {
+      profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand,
+      x: xk, y: yk,
+      /*
+       * BEMESSUNGSWERTE DANEBEN, nicht anstelle.
+       *
+       * Die Ausleitung braucht die CHARAKTERISTISCHEN Werte - dort steht
+       * jede Einwirkung in ihrem eigenen Lastfall, und kombiniert wird im
+       * Programm. Das BILD braucht die Bemessungswerte, sonst stuenden am
+       * Masten charakteristische Pfeile neben den Bemessungspfeilen des
+       * Jochs, in einem Bild, ohne Kennzeichen. Das Vorzeichen kommt vom
+       * Beiwert mit: ein negativer dreht den Pfeil, und genau das soll man
+       * sehen.
+       */
+      xd: bwX * xk,
+      yd: yk === null ? null : (beiwerte.WindY ?? 0) * yk,
+    };
+  };
+  return { ek,
+           A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
+           B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };
+  return { ek,
+           A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
+           B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };
+}
+
+/* ===========================================================================
+ * DER EINZELMAST — ein Kragarm, sonst nichts.
+ *
+ * Er ist KEIN Sonderfall des Jochs mit der Länge null. Ein Joch der Länge
+ * null hat immer noch vier Gurte, Bindebleche und zwei Auflager; ein
+ * Einzelmast hat einen Stab und ein Fundament. Der gemeinsame Weg wäre eine
+ * Reihe von Ausnahmen, und jede davon eine Stelle, an der eine Jochgrösse
+ * durchrutscht, die es nicht gibt.
+ *
+ * >>> GERECHNET WIRD MIT DENSELBEN BAUSTEINEN. <<<
+ *
+ * Der Mastnachweis (core.mast.js) war von Anfang an ein Kragarm: Fuss
+ * eingespannt, Eigengewicht, Wind, Anbauteile mit ihren wahren Hebelarmen —
+ * und obendrauf, was das Joch abgibt. Beim Einzelmast fällt genau dieser
+ * letzte Anteil weg. Es wird also nichts neu gerechnet, es wird weniger
+ * aufgelegt.
+ *
+ * WAS DAS MODELL DESHALB MITBRINGEN MUSS: die Mastdaten (`federn`), den
+ * Mastwind (`mastLast`), die Anbauteile am Masten (`anbauMastFlach`) und die
+ * Beiwerte. Die Jochgrössen — RA, MA, wd, H, T, N — stehen auf null; sie
+ * fehlen nicht, sie sind null, und `mastLasten` addiert sie ohne Sonderfall.
+ * =========================================================================== */
+export function modellEinzelmast(inp, stahl) {
+  /*
+   * DIESELBE LASTFALLWAHL WIE BEIM JOCH.
+   *
+   * `beiwerteFest` uebergeht sie - das braucht das Auflagerblatt und die
+   * Kalibrierung, die einzelne Einwirkungen ohne Beiwerte rechnen. Sonst
+   * bestimmt der gewaehlte Lastfall die Beiwerte je Gruppe, genau wie im
+   * Jochweg.
+   */
+  const anbauFuerLf = expandiereAnbauteile(
+    (inp.anbauteile ?? []).filter((a) => a.aktiv !== false),
+    { ek: ekVonWindklasse(inp.windKlasse),
+      R: inp.trasseRadius, spannweite: inp.flSpannweite });
+  const lfAktiv = inp.beiwerteFest
+    ? null : lastfallFuer({ ...inp, anbauteileFlach: anbauFuerLf }, inp.lastfall);
+  const beiwerte = inp.beiwerteFest ?? { ...lfAktiv.beiwerte };
+  /*
+   * VERSCHIEBLICH, IMMER.
+   *
+   * Beim Joch entscheidet die Frage, ob sich die beiden Mastkoepfe
+   * gegeneinander abstuetzen. Ein Einzelmast hat niemanden, an dem er sich
+   * halten koennte - er ist ein Kragarm, und zwar in jedem Lastfall.
+   */
+  const federnRoh = drehfedern(inp, true);
+  if (!federnRoh.mast && !federnRoh.mastA) {
+    throw new Error('Einzelmast ohne Masten: bitte ein Mastprofil wählen.');
+  }
+  const bwX = beiwerte.WindX ?? 0;
+
+  /*
+   * ALLE ANBAUTEILE HÄNGEN AM MASTEN — es gibt nichts anderes.
+   *
+   * Ein Teil, das am Joch stünde, hinge in der Luft. Statt es stillschweigend
+   * fallen zu lassen, wird es dem Masten zugeschlagen und die Sache
+   * angeschrieben (`anbauUmgesetzt`): der Hinweis sagt, wieviele es waren.
+   * Wer vom Joch auf den Einzelmast umschaltet, verliert so keine Last —
+   * er sieht, dass sie umgezogen ist.
+   */
+  const alle = (inp.anbauteile ?? []).filter((a) => a.aktiv !== false);
+  const amJoch = alle.filter((a) => ortVon(a) === 'joch');
+  const amMasten = alle.map((a) => ({ ...a, ort: 'mastA' }));
+
+  const flach = expandiereAnbauteile(amMasten, {
+    ek: ekVonWindklasse(inp.windKlasse),
+    R: inp.trasseRadius, spannweite: inp.flSpannweite,
+  }).map((t) => {
+    const proGruppe = {};
+    Object.entries(t.kraefte ?? {}).forEach(([g, k]) => {
+      const b = beiwerte[g] ?? 0;
+      proGruppe[g] = { Fx: b * (k.Fx ?? 0), Fy: b * (k.Fy ?? 0),
+                       Fz: b * (k.Fz ?? 0), Mxx: b * (k.Mxx ?? 0),
+                       Myy: b * (k.Myy ?? 0), Mzz: b * (k.Mzz ?? 0) };
+    });
+    return { ...t, proGruppe };
+  });
+
+  return {
+    tragwerksart: 'einzelmast',
+    tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
+    stahl, beiwerte,
+    federn: federnRoh,
+    mastLast: mastWindSatz(inp, federnRoh, beiwerte, bwX),
+    anbauMast: amMasten.map((a) => ({ ...a, ort: 'mastA' })),
+    anbauMastFlach: flach,
+    anbauUmgesetzt: amJoch.length,
+    // DIE JOCHGRÖSSEN STEHEN AUF NULL, nicht auf undefined: `mastLasten`
+    // addiert sie, und `undefined` würde daraus NaN machen.
+    L: 0, RA: 0, RB: 0, MA: 0, MB: 0, wd: 0, H: [], T: [], N: [],
+    // Für Bild und Ausleitung: es gibt genau einen Masten, Ende A.
+    endbedingung: 'gelenkig', kragA: 0, kragB: 0,
+  };
+}
+
+/**
+ * Nachweis eines Einzelmasten.
+ *
+ * Die Rückgabe hat DIESELBE FORM wie beim Joch — mit leerer Knotenliste.
+ * Die Auswertung fragt nach `knoten`, `max` und `mast`; was es nicht gibt,
+ * ist leer und nicht undefined, damit keine Anzeige auf halbem Weg abbricht.
+ */
+export function berechneEinzelmast(inp, stahl) {
+  const m = modellEinzelmast(inp, stahl);
+  const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true });
+  const eta = mast?.eta ?? 0;
+  return {
+    modell: m, knoten: [], extrem: null,
+    max: { etaGesamt: eta, etaL: 0, etaB: 0 },
+    mast,
+    // Kein Joch, also auch kein Gurt-, Blech- oder Auflagernachweis.
+    auflager: null, vergleich: null,
+  };
+}
+
 export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
   const variante = massVariante ?? inp.massVariante;
 
@@ -282,45 +455,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
    * etwas drücken könnte - dort bleibt es bei der aufgezwungenen Verdrehung,
    * und die ist seit dem 27. August im Startwert AUS.
    */
-  const mastLast = federnRoh.mast ? (() => {
-    const ek = ekVonWindklasse(inp.windKlasse);
-    // BEIDE WERTE AUS DERSELBEN QUELLE. Die Jochachse aus der Tabelle zu
-    // holen statt aus `inp.wMast` ist kein Umweg, sondern der Unterschied
-    // zwischen «stimmt, wenn der Aufrufer es vorher nachgeführt hat» und
-    // «stimmt». Von Hand gesetzt wird nur übernommen, was ausdrücklich von
-    // Hand gesetzt ist (wMastAusTabelle === false).
-    const vonHand = inp.wMastAusTabelle === false;
-    const je = (mast, wManuell) => {
-      const eigen = mast.stegrichtung.key;
-      const gegen = eigen === 'quer' ? 'jochachse' : 'quer';
-      const wJoch = mastWind(mast.profil.name, ek, eigen);
-      const wGleis = mastWind(mast.profil.name, ek, gegen);
-      const x = vonHand ? (wManuell ?? 0)
-              : (Number.isFinite(wJoch) ? wJoch : (wManuell ?? 0));
-      const xk = Math.abs(x);
-      const yk = Number.isFinite(wGleis) ? Math.abs(wGleis) : null;
-      return {
-        profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand,
-        x: xk, y: yk,
-        /*
-         * BEMESSUNGSWERTE DANEBEN, nicht anstelle.
-         *
-         * Die Ausleitung braucht die CHARAKTERISTISCHEN Werte - dort steht
-         * jede Einwirkung in ihrem eigenen Lastfall, und kombiniert wird im
-         * Programm. Das BILD braucht die Bemessungswerte, sonst stuenden am
-         * Masten charakteristische Pfeile neben den Bemessungspfeilen des
-         * Jochs, in einem Bild, ohne Kennzeichen. Das Vorzeichen kommt vom
-         * Beiwert mit: ein negativer dreht den Pfeil, und genau das soll man
-         * sehen.
-         */
-        xd: bwX * xk,
-        yd: yk === null ? null : (beiwerte.WindY ?? 0) * yk,
-      };
-    };
-    return { ek,
-             A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
-             B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };
-  })() : null;
+  const mastLast = mastWindSatz(inp, federnRoh, beiwerte, bwX);
 
 
   // KRAGARME: die Auflager müssen nicht an den Gurtenden stehen.
@@ -650,6 +785,17 @@ export function auswertungAn(x, m) {
 
 /** Vollständige Berechnung über alle Knoten. */
 export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
+  /*
+   * DIE WEICHE STEHT GANZ VORN.
+   *
+   * Ein Einzelmast hat kein Joch - also auch keinen Jochtyp, keine Profile
+   * und keine Massvariante. Sie hier noch entgegenzunehmen und erst spaeter
+   * zu ignorieren waere die unehrlichere Loesung: der Aufrufer duerfte
+   * glauben, sie waeren gebraucht worden.
+   */
+  if (tragwerksart(inp).key === 'einzelmast') {
+    return berechneEinzelmast(inp, stahl);
+  }
   const m = modell(inp, profOG, profUG, stahl, joch, massVariante);
   // Eigenanteil der Gurte am globalen Moment - fuer Hinweise und Bericht.
   m.eigenanteil = eigenanteil(m);

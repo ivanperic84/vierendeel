@@ -10298,10 +10298,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       getProfil(T.getTragjoch('J90').ug.profil),
       getStahl('S235'), T.getTragjoch('J90'));
     const hJ = hinweise(mJ);
-    const hE = hinweise({ ...mJ, tragwerksart: 'einzelmast' });
+    /*
+     * SEIT DEM 2. SEPTEMBER RECHNET DER EINZELMAST.
+     *
+     * Der Hinweis «gerechnet wird weiterhin das Tragjoch» gilt deshalb nur
+     * noch dem TRAGAUSLEGER - er ist nach den Werkstattzeichnungen ein
+     * gegliederter Stab aus zwei UPE, und der Vierendeel-Kern traegt dort
+     * nicht unveraendert. Beim Einzelmast waere der Hinweis jetzt falsch.
+     */
+    const hE = hinweise({ ...mJ, tragwerksart: 'tragausleger' });
     wahr('Beim Joch kein solcher Hinweis',
          !hJ.some((t) => /gerechnet wird weiterhin/.test(t)));
-    wahr('Bei einer anderen Art steht er, und ganz oben',
+    wahr('Beim Tragausleger steht er, und ganz oben',
          /gerechnet wird weiterhin/.test(hE[0] ?? ''));
     /*
      * UND DAS MODELL REICHT DIE ANGABEN WIRKLICH DURCH.
@@ -10313,12 +10321,12 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * ausloest, ist schlimmer als keiner.
      */
     const mA = modell({ ...standardwerte(), typ: 'J90', L: 15,
-                        tragwerksart: 'einzelmast',
+                        tragwerksart: 'tragausleger',
                         weitere: [{ id: 'T2' }, { id: 'T3' }] },
       getProfil(T.getTragjoch('J90').og.profil),
       getProfil(T.getTragjoch('J90').ug.profil),
       getStahl('S235'), T.getTragjoch('J90'));
-    wahr('Das Modell traegt die Tragwerksart', mA.tragwerksart === 'einzelmast');
+    wahr('Das Modell traegt die Tragwerksart', mA.tragwerksart === 'tragausleger');
     wahr('… und die Anzahl auf dem Blatt', mA.tragwerkeAufBlatt === 3);
     const hM = hinweise(mA);
     wahr('Beide Hinweise stehen dann in der Liste',
@@ -10433,6 +10441,113 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const w3 = C.tauscheAktives(w2, 'T1');
     wahr('… und ein anderes aktives ebenso',
          UI.maskenSignatur(w2, 'system') !== UI.maskenSignatur(w3, 'system'));
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 66: der Einzelmast rechnet. Weisung vom 2. September: «Einzelmast
+// zuerst, ganz fertig.»
+{
+  const { berechneEinzelmast, modellEinzelmast, berechne } =
+    await import(J('core.vierendeel.js'));
+
+  const basis = { ...standardwerte(), tragwerksart: 'einzelmast',
+                  mastVorhanden: true, mastProfil: 'HEB 260',
+                  mastH: 9, mastLaenge: 12, windKlasse: 'EK2', anbauteile: [] };
+  const mitBw = (bw) => berechneEinzelmast({ ...basis, beiwerteFest: bw },
+                                           getStahl('S235'));
+
+  /*
+   * DIE GLEICHLAST AM KRAGARM - die Kontrolle, die alles andere traegt.
+   *
+   * Wind ueber die Masthoehe ist eine Gleichlast; am eingespannten Fuss gilt
+   * V = q·H und M = q·H²/2, also M = V·H/2. Stimmt dieses Verhaeltnis, sind
+   * Lastansatz, Hebelarm und Integration zusammen richtig - und zwar ohne
+   * dass eine Zahl von aussen dazukaeme.
+   */
+  {
+    const e = mitBw({ G: 1, WindX: 1.5, WindY: 0, Schnee: 0 });
+    const fuss = e.mast.A.stationen[0];
+    wahr('Wind quer erzeugt Querkraft am Fuss', fuss.Vq > 0.1);
+    pruef('M_q = V_q · H/2 am Kragarm', fuss.Mq, fuss.Vq * 12 / 2, 1e-9, 'kNm');
+    wahr('… und in Gleisrichtung nichts', Math.abs(fuss.Vl) < 1e-9);
+  }
+  {
+    const e = mitBw({ G: 1, WindX: 0, WindY: 1.5, Schnee: 0 });
+    const fuss = e.mast.A.stationen[0];
+    wahr('Wind laengs erzeugt Querkraft in Gleisrichtung', fuss.Vl > 0.1);
+    pruef('… mit demselben Hebelarm', fuss.Ml, fuss.Vl * 12 / 2, 1e-9, 'kNm');
+  }
+  /*
+   * DIE SCHWACHE ACHSE IST DIE UNGUENSTIGERE. Steg quer zum Gleis heisst:
+   * starke Achse quer, schwache in Gleisrichtung. Derselbe Wind muss dort
+   * mehr ausmachen - sonst waeren die Achsen vertauscht, und das faellt
+   * einem Ergebnis sonst nicht an.
+   */
+  {
+    const quer = mitBw({ G: 1, WindX: 1.5, WindY: 0, Schnee: 0 });
+    const laengs = mitBw({ G: 1, WindX: 0, WindY: 1.5, Schnee: 0 });
+    wahr('Wind auf die schwache Achse ist unguenstiger',
+         laengs.max.etaGesamt > quer.max.etaGesamt);
+  }
+
+  // NUR EIGENGEWICHT: eine Normalkraft, sonst nichts. HEB 260 mit 93 kg/m
+  // ueber 12 m sind rund 11 kN.
+  {
+    const e = mitBw({ G: 1, WindX: 0, WindY: 0, Schnee: 0 });
+    const fuss = e.mast.A.stationen[0];
+    wahr('Eigengewicht steht als Normalkraft am Fuss',
+         fuss.N > 9 && fuss.N < 13);
+    wahr('… und erzeugt kein Moment',
+         Math.abs(fuss.Mq) < 1e-9 && Math.abs(fuss.Ml) < 1e-9);
+  }
+
+  /*
+   * DAS ERGEBNIS HAT DIESELBE FORM WIE BEIM JOCH - mit leeren Stellen statt
+   * fehlenden. Die Auswertung fragt nach `knoten`, `max` und `mast`; was es
+   * nicht gibt, ist leer und nicht undefined, damit keine Anzeige auf halbem
+   * Weg abbricht.
+   */
+  {
+    const e = mitBw({ G: 1, WindX: 1.5, WindY: 0, Schnee: 0 });
+    wahr('Keine Knoten, aber eine Liste', Array.isArray(e.knoten) && !e.knoten.length);
+    wahr('Ein Gesamt-eta gibt es', Number.isFinite(e.max.etaGesamt));
+    wahr('Es ist das des Mastes', e.max.etaGesamt === e.mast.eta);
+    wahr('Kein Auflagerblatt', e.auflager === null);
+  }
+
+  // KEIN JOCH IM MODELL: die Jochgroessen stehen auf NULL, nicht auf
+  // undefined - `mastLasten` addiert sie, und undefined machte daraus NaN.
+  {
+    const m = modellEinzelmast(basis, getStahl('S235'));
+    wahr('Die Jochreaktionen sind null',
+         m.RA === 0 && m.MA === 0 && m.wd === 0);
+    wahr('… und die Lastlisten leer',
+         m.H.length === 0 && m.T.length === 0 && m.N.length === 0);
+    wahr('Der Mast steht im Modell', Boolean(m.federn?.mastA ?? m.federn?.mast));
+  }
+
+  /*
+   * BERECHNE() FINDET DEN WEG SELBST. Der Aufrufer uebergibt weiterhin
+   * Profile und Tragjoch - sie werden beim Einzelmast nicht gebraucht, und
+   * genau das darf nicht dazu fuehren, dass er etwas anderes rechnet.
+   */
+  {
+    const j = T.getTragjoch('J90');
+    const e = berechne({ ...basis, beiwerteFest: { G: 1, WindX: 1.5, WindY: 0, Schnee: 0 } },
+      getProfil(j.og.profil), getProfil(j.ug.profil), getStahl('S235'), j);
+    wahr('berechne() verzweigt auf den Einzelmast',
+         e.knoten.length === 0 && Boolean(e.mast));
+  }
+
+  // OHNE MASTPROFIL GEHT ES NICHT - und das wird gesagt, nicht geraten.
+  {
+    let fehler = null;
+    try {
+      modellEinzelmast({ ...basis, mastVorhanden: false }, getStahl('S235'));
+    } catch (e) { fehler = e.message; }
+    wahr('Ein Einzelmast ohne Masten meldet sich',
+         /Mastprofil/.test(fehler ?? ''));
   }
 }
 

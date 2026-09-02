@@ -220,7 +220,41 @@ function stab(p0, p1, dicke, opt) {
  * @param {object} m   Modell
  * @param {object} erg Rechenergebnis (für die Ausnutzungen je Station)
  */
+/*
+ * DER EINZELMAST HAT NOCH KEIN BILD - und sagt es.
+ *
+ * Die Jochszene beginnt mit `querschnitt(m)`: vier Winkel, ihre Schenkel,
+ * die vier Blechebenen. Beim Einzelmast gibt es davon nichts, und der erste
+ * Aufruf brach mit «Unbekannte Ausrichtung: undefined» ab.
+ *
+ * >>> WARUM HIER NICHT EINFACH DER MAST GEZEICHNET WIRD. <<<
+ *
+ * Er WIRD gezeichnet - in der Jochszene, ueber rund hundertfuenfzig Zeilen
+ * verteilt und mit ihr verwoben: seine Geometrie haengt am Jochende, seine
+ * Farbe an den Stationen, seine Titel an den Bildgrenzen. Diesen Teil
+ * herauszuloesen ist eine eigene Arbeit; ihn NACHZUBAUEN waere die
+ * schlechtere: zwei Mastzeichnungen laufen frueher oder spaeter
+ * auseinander, und dann zeigt das Bild etwas anderes als der Nachweis.
+ *
+ * Bis dahin eine gueltige, leere Szene. Sie stuerzt nicht ab, sie behauptet
+ * nichts, und die Fussleiste sagt, was fehlt. Ein falsches Bild waere
+ * schlimmer als keines - der Nachweis rechnet.
+ */
+function szeneOhneBild(m) {
+  const H = m?.federn?.mastA?.H ?? m?.federn?.mast?.H ?? 10;
+  return {
+    flaechen: [], linien: [], marken: [], masse: [], bauteiltitel: [],
+    vektoren: [], schnitt: null, lastflaechen: [], bereiche: {},
+    legende: [],
+    grenzen: { xMin: -1, xMax: 1, yMin: -1, yMax: 1, zMin: 0, zMax: H },
+    stationen: [],
+    ohneBild: 'Für den Einzelmast ist die Modellansicht noch nicht gebaut. '
+            + 'Der Nachweis rechnet; das Bild folgt.',
+  };
+}
+
 export function erzeugeSzene(m, erg) {
+  if (m?.tragwerksart === 'einzelmast') return szeneOhneBild(m);
   const qs = querschnitt(m);
   const flaechen = [];
   const linien = [];

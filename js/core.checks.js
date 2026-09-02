@@ -411,7 +411,6 @@ export function fluchtChecks(m) {
 /** Zusätzliche Hinweise, die kein Ja/Nein-Nachweis sind. */
 export function hinweise(m) {
   const h = [];
-  const kl = klassifizierung(m);
 
   /*
    * DIE TRAGWERKSART, DIE (NOCH) NICHT GERECHNET WIRD.
@@ -426,7 +425,15 @@ export function hinweise(m) {
    * weil er alle anderen entwertet.
    */
   const art = tragwerksart(m);
-  if (art.key !== 'joch') {
+  /*
+   * DER TRAGAUSLEGER WIRD NOCH NICHT GERECHNET.
+   *
+   * Der Einzelmast schon — seit dem 2. September. Beim Tragausleger fehlt
+   * der Kern noch: er ist nach den Werkstattzeichnungen ein gegliederter
+   * Stab aus ZWEI UPE mit Flachlaschen, nicht aus vier Winkeln, und der
+   * Vierendeel-Kern trägt dort nicht unverändert.
+   */
+  if (art.key === 'tragausleger') {
     h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `
       + 'das Tragjoch. Der Rechenkern für diese Art ist noch nicht gebaut; '
       + 'alle folgenden Zahlen gelten dem Joch und nicht dem gewählten '
@@ -447,6 +454,31 @@ export function hinweise(m) {
       + 'sich zwei Tragwerke teilen, wird noch nicht gekoppelt: seine '
       + 'Reaktionen aus dem anderen Tragwerk fehlen.');
   }
+
+  /*
+   * DER EINZELMAST HAT KEINE GURTE, DIE SICH KLASSIFIZIEREN LIESSEN.
+   *
+   * Was darunter folgt, spricht von Ober- und Untergurt, Bindeblechen,
+   * Stützweite und Auflagern. Nichts davon gibt es hier; die erste Zeile —
+   * `klassifizierung(m)` — brach mit «Cannot read properties of undefined
+   * (reading aH)» ab, weil sie das Winkelprofil des Obergurts suchte.
+   *
+   * Gemeldet wird deshalb nur, was den Masten betrifft. Was zum Masten zu
+   * sagen ist, sagt sein eigener Nachweis.
+   */
+  if (art.key === 'einzelmast') {
+    if (m.anbauUmgesetzt > 0) {
+      h.push(`${m.anbauUmgesetzt} Anbauteil(e) standen am Joch und hängen `
+        + 'jetzt am Masten — ein Einzelmast hat kein Joch, an dem etwas '
+        + 'stehen könnte. Ihre Höhe über Fundament ist zu prüfen.');
+    }
+    h.push('Nachgewiesen ist der Querschnitt über die Masthöhe, nicht die '
+      + 'Stabilität: kein Biegeknicken, kein Biegedrillknicken. Bei einem '
+      + 'schlanken Kragmast kann sie massgebend werden.');
+    return h;
+  }
+
+  const kl = klassifizierung(m);
 
   if (kl.klasse4.length) {
     h.push(`Klasse 4 bei ${kl.klasse4.map((t) => t.bauteil).join(', ')}: gerechnet ` +

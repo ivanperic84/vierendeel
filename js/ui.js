@@ -2078,6 +2078,50 @@ function pruefungenHtml(urteil) {
 let beiSortiment = null;
 export function setzeSortimentSuche(fn) { beiSortiment = fn; }
 
+/**
+ * AUSWERTUNG EINES EINZELMASTEN.
+ *
+ * Nicht die Jochuebersicht mit abgeschalteten Teilen, sondern eine eigene,
+ * kurze Seite. Die Jochuebersicht spricht von Gurten, Blechen, Stationen und
+ * Auflagern - beim Einzelmast gaebe das eine Seite voller Leerstellen, und
+ * jede einzelne muesste erklaeren, warum sie leer ist.
+ *
+ * Gezeigt wird, was es gibt: das Urteil, die Hinweise, und das Mastblatt mit
+ * den Schnittgroessen ueber die Hoehe - dieselbe Tabelle, die beim Joch unter
+ * den Auflagerreaktionen steht.
+ */
+export function zeichneEinzelmast(node, letzte) {
+  const { erg, hinw = [] } = letzte;
+  const mn = erg?.mast;
+  const e = erg?.max?.etaGesamt ?? 0;
+  /*
+   * DIE STABILITAET IST NICHT GEFUEHRT, also ist eta kein volles Urteil.
+   *
+   * Dieselbe Regel wie beim Joch: die Zahl steht da, sie ist gerechnet und
+   * richtig - aber «Tragsicherheit erfuellt» darf nicht danebenstehen, wenn
+   * ein Nachweis fehlt, der das entscheidet. Bei einem schlanken Kragmast
+   * kann das Knicken massgebend werden.
+   */
+  const stufe = e > 1 ? 'fail' : 'warn';
+  const kopf = `<div class="urteil ${stufe}">
+      <div class="urteil-eta">η ${f3(e)}</div>
+      <div class="urteil-text">${e > 1
+        ? 'Querschnittsnachweis nicht erfüllt'
+        : 'Querschnitt erfüllt · Stabilität nicht geführt'}</div>
+    </div>`;
+
+  const hinweise = hinw.length
+    ? `<details class="klapp" open><summary>Hinweise zur Gültigkeit
+         <span class="zahl">${hinw.length}</span></summary>
+       <ul class="hinweisliste">${hinw.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+       </details>`
+    : '';
+
+  node.innerHTML = kopf + hinweise
+    + (mn ? mastblattHtml(erg)
+          : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>');
+}
+
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, hinweise = []) {
   const m = erg.modell, x = erg.extrem;
   const e = erg.max.etaGesamt;

@@ -23,7 +23,7 @@ import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
-         tauscheAktives, tragwerkHinzu, tragwerkWeg }
+         tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -257,11 +257,25 @@ function neuRechnen(neuZeichnen = true) {
   // Änderung immer einen Durchgang hinterher.
   const zeichneEingabe = () => {
     if (!neuZeichnen) return;
+    /*
+     * DIE ZUSATZSTUECKE DER MASKE GEHOEREN ZUM JOCH - bis auf eines.
+     *
+     * Hebelarme, Querschnittsklassen, Blechuebersicht und Stueckliste
+     * sprechen von Gurten und Blechen; beim Einzelmast gibt es sie nicht,
+     * und ihre Gruppen stehen ohnehin nicht in der Maske. Die Lastfallmatrix
+     * gilt jedem Tragwerk.
+     *
+     * Gebunden ist das an `letzte.mitJoch` und nicht daran, dass zufaellig
+     * `kl` null ist: der erste Anlauf las die Klassifizierung blind und
+     * brach mit «Cannot read properties of null (reading teile)» ab.
+     */
     const extras = letzte
-      ? { geo: ui.hebelarmUebersicht(letzte.erg),
-          prof: ui.qskMarke(letzte.kl),
-          blech: ui.blechUebersichtHtml(letzte.erg),
-          stueck: ui.stuecklisteHtml(letzte.anzeige),
+      ? { ...(letzte.mitJoch ? {
+            geo: ui.hebelarmUebersicht(letzte.erg),
+            prof: ui.qskMarke(letzte.kl),
+            blech: ui.blechUebersichtHtml(letzte.erg),
+            stueck: ui.stuecklisteHtml(letzte.anzeige),
+          } : {}),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);
@@ -305,34 +319,65 @@ function neuRechnen(neuZeichnen = true) {
 
     const erg = berechne(werte, profOG, profUG, stahl, joch);
 
+    /*
+     * WAS KEIN JOCH HAT, BEKOMMT KEINE JOCHAUSWERTUNG.
+     *
+     * Fuenf Schritte folgen sonst: die Tabellenlasten des Jochs, der
+     * Massvariantenvergleich, die Kombinationen, die Konstruktions- und die
+     * Fluchtkontrolle. Jeder einzelne greift auf Gurte, Bleche oder die
+     * Stuetzweite zu - beim Einzelmast gibt es davon nichts. Der erste, der
+     * es versuchte, brach mit «Cannot read properties of undefined (reading
+     * gk)» ab, und die ganze Auswertung stand still.
+     *
+     * Sie werden nicht abgesichert, sondern UEBERSPRUNGEN. Ein
+     * `char?.gk ?? 0` haette eine Null in ein Feld geschrieben, das dem
+     * Einzelmasten gar nicht gehoert.
+     */
+    const mitJoch = tragwerksart(werte).key !== 'einzelmast';
+
     // Die Tabellenlasten in die gesperrten Felder spiegeln, damit man sie
     // immer sieht - auch wenn gerade die Tabelle gilt.
-    if (!werte.lastenBearbeiten) {
+    if (mitJoch && !werte.lastenBearbeiten) {
       const c = erg.modell.char;
       werte.gkManuell = Math.round(c.gk * 1000) / 1000;
       werte.wkManuell = Math.round(c.wk * 1000) / 1000;
       werte.skManuell = Math.round(c.sk * 1000) / 1000;
     }
 
-    const vergleich = vergleichMassvarianten(werte, profOG, profUG, stahl, joch);
-    const kombi = vergleichKombinationen(werte, profOG, profUG, stahl, joch);
-    const checks = konstruktionsChecks(erg.modell);
+    const vergleich = mitJoch
+      ? vergleichMassvarianten(werte, profOG, profUG, stahl, joch) : null;
+    /*
+     * KEINE KOMBINATIONSTABELLE OHNE JOCH - aber die Form bleibt.
+     *
+     * `vergleichKombinationen` rechnet jede Lastfallkombination am Traeger
+     * durch. Beim Einzelmast gibt es das nicht; die Lastfallwahl ueber dem
+     * Modell liest trotzdem `kombi.lastfaelle`, und eine fehlende Liste
+     * brach sie mit «Cannot read properties of undefined (reading map)» ab.
+     * Leer heisst hier: nur die Umhuellende steht zur Wahl.
+     */
+    const kombi = mitJoch
+      ? vergleichKombinationen(werte, profOG, profUG, stahl, joch)
+      : { huellkurve: null, ergebnisse: {}, lastfaelle: [] };
+    const checks = mitJoch ? konstruktionsChecks(erg.modell) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
     // nur stört. Sie gehört ins Handbuch, sobald es eines gibt. Der Wert bleibt
     // in der Excel-Ausleitung erhalten.
-    const flucht = fluchtChecks(erg.modell);
+    const flucht = mitJoch ? fluchtChecks(erg.modell) : { warnungen: [] };
     const hinw = hinweise(erg.modell);
     const urteil = urteilKonstruktion(checks, werte.nachweise);
-    const kl = klassifizierung(erg.modell);
+    const kl = mitJoch ? klassifizierung(erg.modell) : null;
 
     // Für Modell und Auswertung gilt die gewählte Anzeigequelle
     const anzeige = anzeigeKombi === 'umhuellend'
       ? (kombi.huellkurve ?? erg) : (kombi.ergebnisse?.[anzeigeKombi] ?? erg);
 
-    const auflager = auflagerBlatt(werte, profOG, profUG, stahl, joch);
+    // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
+    // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
+    const auflager = mitJoch
+      ? auflagerBlatt(werte, profOG, profUG, stahl, joch) : null;
 
-    letzte = { erg, anzeige, vergleich, kombi, checks, auflager,
+    letzte = { erg, anzeige, vergleich, kombi, checks, auflager, mitJoch,
                warn: flucht.warnungen, hinw, kl, urteil };
 
     zeichneEingabe();
@@ -385,6 +430,20 @@ function zeichneBuehne() {
 
 function zeichneAuswertung() {
   if (!letzte) return;
+  /*
+   * OHNE JOCH KEINE JOCHAUSWERTUNG.
+   *
+   * Die vier Reiter - Uebersicht, Schnitt, Verlaeufe, Auflager - sprechen
+   * alle vom Traeger: Stationen, Gurte, Bleche, Auflagerreaktionen. Beim
+   * Einzelmast gaeben sie eine Seite voller Leerstellen. Er bekommt seine
+   * eigene, kurze Auswertung; die Reiterleiste entfaellt, weil es nichts zu
+   * waehlen gibt.
+   */
+  if (!letzte.mitJoch) {
+    ui.el('tabs-auswertung').innerHTML = '';
+    ui.zeichneEinzelmast(ui.el('auswertung'), letzte);
+    return;
+  }
   const { anzeige: erg, vergleich, kombi, checks, hinw, kl, urteil } = letzte;
   ui.zeichneTabs(ui.el('tabs-auswertung'), ui.AUSWERTUNG_TABS, tabAuswertung, (t) => {
     tabAuswertung = t; zeichneAuswertung();
@@ -423,12 +482,23 @@ function aktualisiereModell(erg) {
   // Die Blickrichtung wird beim ersten Setzen der Szene festgelegt; die
   // Werkzeugleiste muss danach wissen, welche gilt.
   if (ui.el('ebenen-tools')?.children.length) zeichneModellWerkzeuge();
-  // Der Nachweisschnitt wird in der Auswertung eingestellt, nicht hier.
-  ui.el('pos-marke').textContent =
-    `Schnitt x = ${erg.schnitt.x.toFixed(2)} m`;
-  ui.el('pos-station').textContent =
-    `Feld ${erg.schnitt.feld + 1}/${erg.schnitt.anzahlSchnitte}` +
-    ` · massgebendes Blech bei ${erg.schnitt.stationX.toFixed(2)} m`;
+  /*
+   * DIE FUSSLEISTE SAGT, WAS DA IST.
+   *
+   * Beim Joch sind das Nachweisschnitt und massgebendes Blech. Ein
+   * Einzelmast hat keinen Schnitt zwischen Bindeblechen - dort steht, dass
+   * die Ansicht noch fehlt, statt einer Feldnummer, die es nicht gibt.
+   */
+  if (erg.schnitt) {
+    ui.el('pos-marke').textContent =
+      `Schnitt x = ${erg.schnitt.x.toFixed(2)} m`;
+    ui.el('pos-station').textContent =
+      `Feld ${erg.schnitt.feld + 1}/${erg.schnitt.anzahlSchnitte}` +
+      ` · massgebendes Blech bei ${erg.schnitt.stationX.toFixed(2)} m`;
+  } else {
+    ui.el('pos-marke').textContent = szene.ohneBild ? 'Ansicht folgt' : '';
+    ui.el('pos-station').textContent = szene.ohneBild ?? '';
+  }
   /*
    * DIE EINWIRKUNGSKLASSE STEHT FUER SICH, RECHTS (Weisung).
    *
@@ -459,6 +529,23 @@ function aktualisiereFuss(erg, urteil, joch) {
   ui.el('st-urteil').innerHTML =
     `<span class="pkt" style="background:${farbe}"></span>` +
     `${gut ? 'Alle Nachweise erfüllt' : 'Nachweis nicht erfüllt'} · η = ${e.toFixed(3)}`;
+  /*
+   * DIE ZEILE BESCHREIBT DAS TRAGWERK, DAS DASTEHT.
+   *
+   * Beim Joch sind das Bauhoehe, Breite, Feldweite und die Frage, ob die
+   * Spannweite im Sortiment liegt. Ein Einzelmast hat davon nichts - die
+   * Zeile las sich dort «undefined × undefined mm · Feldweite NaN mm (Soll
+   * NaN) · AUSSERHALB Sortiment». Vier falsche Angaben in einer Zeile, und
+   * die letzte klang wie ein Befund.
+   */
+  const mast = erg.modell.federn?.mastA ?? erg.modell.federn?.mast;
+  if (erg.modell.tragwerksart === 'einzelmast') {
+    ui.el('st-modell').textContent = mast
+      ? `${mast.profil.name} · ${mast.H.toFixed(2)} m bis Anschluss`
+        + ` · ${mast.stegrichtung.label ?? mast.stegrichtung.key}`
+      : 'Kein Mastprofil gewählt';
+    return;
+  }
   const s = spannweiteImSortiment(joch, erg.modell.L);
   ui.el('st-modell').textContent =
     `${erg.modell.jd}${erg.modell.verlauf?.aktiv
@@ -3267,11 +3354,23 @@ function zeichneSchienen() {
   // Die drei Einzelnachweise. η gesamt stand hier zuoberst und ist weg: es
   // sagt nichts, was diese drei nicht schon sagen - es IST das grösste von
   // ihnen -, und in der Fusszeile steht es ohnehin mitsamt Urteil.
-  const nw = e ? [
-    ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`],
-    ['UG', e.max.etaUG.ug.eta, `Untergurt ${e.modell.profUG.name}`],
-    ['Bl', e.max.etaB.etaB, 'Bindeblech, massgebende Ebene'],
-  ] : [];
+  /*
+   * DIE SCHIENE ZEIGT, WAS ES GIBT.
+   *
+   * Beim Joch sind das die drei Einzelnachweise. Beim Einzelmast gibt es
+   * weder Ober- noch Untergurt noch Bindeblech - dort steht der eine
+   * Nachweis, den er hat. Die Schiene ist bei eingeklappter Schublade das
+   * Einzige, was von der Auswertung bleibt; sie darf nicht leer sein und
+   * erst recht nicht von Bauteilen sprechen, die nicht dastehen.
+   */
+  const nw = !e ? []
+    : letzte?.mitJoch === false
+      ? [['Ma', letzte.erg?.mast?.eta ?? 0, 'Mast, Querschnitt']]
+      : [
+        ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`],
+        ['UG', e.max.etaUG.ug.eta, `Untergurt ${e.modell.profUG.name}`],
+        ['Bl', e.max.etaB.etaB, 'Bindeblech, massgebende Ebene'],
+      ];
 
   // Die Reiter stehen oben, die Nachweise darunter: oben sucht man den Weg
   // zurück in die Auswertung, unten liest man ab. Die Pillen füllen die
