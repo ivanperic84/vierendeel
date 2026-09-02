@@ -22,7 +22,7 @@ import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
-import { fangeAufMasskette } from './core.constants.js';
+import { verortung, fangeAufMasskette } from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
@@ -175,8 +175,22 @@ function markiereGesichert() {
   zeigeSpeicherstand();
 }
 
+/** Zuletzt im Knopf gezeigte Verortung - damit sie nachzieht, ohne dass der
+ *  Knopf bei jedem Tastendruck neu aufgebaut wird. */
+let gezeigteVerortung = null;
+
 /** Nach jeder Aenderung: weicht der Stand vom zuletzt gesicherten ab? */
 function pruefeUngesichert() {
+  /*
+   * ZWEI GRUENDE, DEN KNOPF NEU ZU ZEICHNEN.
+   *
+   * Der Speicherzustand ist der eine. Der andere ist die VERORTUNG: sie steht
+   * seit dem 1. September im Knopf, und wer sie nachtraegt, will sie sofort
+   * dort sehen. Am Zustand haengt sie nicht - der steht laengst auf
+   * «ungesichert», waehrend Linie und Kilometer noch getippt werden.
+   */
+  const ort = verortung(werte);
+  if (ort !== gezeigteVerortung) { gezeigteVerortung = ort; zeigeSpeicherstand(); }
   if (gesicherteSignatur === null) return;
   const jetzt = standSignatur() !== gesicherteSignatur;
   if (jetzt !== ungesichert) { ungesichert = jetzt; zeigeSpeicherstand(); }
@@ -2080,9 +2094,25 @@ function baueKopf() {
 function aktualisiereProjektKnopf() {
   const b = ui.el('btn-projekt');
   if (!b) return;
+  /*
+   * DIE VERORTUNG GEHOERT IN DEN KOPF (Weisung, 1. September).
+   *
+   * Sie unterscheidet die Tragwerke eines Projekts - der Jochtyp tut das
+   * nicht, denn ein Projekt hat viele J90. Bis zum 1. September stand sie in
+   * der Kopfleiste ueber dem Modell; die ist weggefallen, und damit war der
+   * einzige Ort weg, an dem beim Rechnen zu sehen war, WELCHES Tragwerk auf
+   * dem Tisch liegt.
+   *
+   * Hier steht sie richtig: neben Projekt und Name, also bei den anderen
+   * Angaben, die das Tragwerk benennen statt es zu beschreiben. Ist nichts
+   * eingetragen, faellt sie weg - drei leere Trennzeichen sagen nichts.
+   */
+  const ort = verortung(werte);
+  gezeigteVerortung = ort;
   b.innerHTML =
     `${icon('projekte', 14)} <span>${esc(projekt.projekt || 'Ohne Projekt')}</span>` +
     ` · <b>${esc(projekt.name)}</b>${ungesichert ? '<i class="ungesichert" title="noch nicht in der Ablage">•</i>' : ''}`
+    + (ort ? ` <span class="tb-ort">· ${esc(ort)}</span>` : '')
     + ` ${icon('rechts', 12)}`;
   const zeit = entwurfZeit();
   // Der Titel sagt BEIDES: dass nichts verlorengeht, und was der Ablage fehlt.
@@ -2363,8 +2393,21 @@ async function zeichneSchublade() {
 
   // Die Verortungsfelder schreiben unmittelbar in die Eingabe - dieselbe
   // Verdrahtung wie im Optionen-Dialog, damit es nur eine gibt.
-  ui.verdrahteOptionen(ui.el('bs-verortung'), werte, (k, v) => {
+  ui.verdrahteOptionen(ui.el('bs-verortung'), werte, (k, v, zwischenstand) => {
     aendern(k, v);
+    /*
+     * WAEHREND DES TIPPENS BLEIBT DAS FELD STEHEN.
+     *
+     * verdrahteOptionen meldet jede Taste und sagt mit dem dritten Argument,
+     * dass es ein Zwischenstand ist. Wer das uebergeht und die Schublade neu
+     * zeichnet, ersetzt das Feld unter dem Cursor: der Fokus faellt auf den
+     * Rumpf, und das naechste Zeichen landet im Nichts - beim Ortsnamen nach
+     * dem ersten Buchstaben. Neu gezeichnet wird erst beim Verlassen.
+     *
+     * Der Kopf zieht trotzdem sofort nach: aendern() rechnet, und
+     * pruefeUngesichert() vergleicht dabei die Verortung.
+     */
+    if (zwischenstand) return;
     ui.el('bs-verortung').innerHTML = ui.verortungHtml(werte);
     zeichneSchublade();
   });

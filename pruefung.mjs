@@ -10058,6 +10058,123 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 63: die Verortung im Kopf.
+// Seit dem Wegfall der Kopfleiste ueber dem Modell gab es beim Rechnen keine
+// Stelle mehr, die sagte, WELCHES Tragwerk auf dem Tisch liegt. Sie steht
+// jetzt im Projektknopf - neben Projekt und Name, bei den uebrigen Angaben,
+// die das Tragwerk benennen statt es zu beschreiben.
+{
+  const aq63 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css63 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
+
+  wahr('Der Kopf holt die Verortung aus der einen Stelle',
+       /import \{[^}]*\bverortung\b[^}]*\} from '\.\/core\.constants\.js'/
+         .test(aq63));
+
+  {
+    const ab = aq63.indexOf('function aktualisiereProjektKnopf()');
+    const koerper = ab > 0 ? aq63.slice(ab, aq63.indexOf('\n}', ab)) : '';
+    wahr('Der Projektknopf traegt die Verortung',
+         koerper.includes('class="tb-ort"') && koerper.includes('esc(ort)'));
+    // Drei leere Trennzeichen sagen nichts: ohne Angabe faellt sie ganz weg.
+    wahr('… und laesst sie weg, wenn nichts eingetragen ist',
+         /\(ort \?[^\n]*tb-ort/.test(koerper));
+    // Der Name des Tragwerks bleibt das Erste; die Verortung ergaenzt ihn.
+    wahr('… hinter dem Namen, nicht davor',
+         koerper.indexOf('<b>') > 0
+         && koerper.indexOf('<b>') < koerper.indexOf('tb-ort'));
+  }
+
+  /*
+   * SIE ZIEHT SOFORT NACH. Waehrend Linie und Kilometer getippt werden, steht
+   * der Speicherzustand laengst auf «ungesichert» - haengt das Neuzeichnen
+   * allein daran, bleibt der Knopf stehen. Der Vergleich muss deshalb VOR dem
+   * fruehen Ruecksprung stehen.
+   */
+  {
+    const ab = aq63.indexOf('function pruefeUngesichert()');
+    const koerper = ab > 0 ? aq63.slice(ab, aq63.indexOf('\n}', ab)) : '';
+    const vergleich = koerper.indexOf('gezeigteVerortung');
+    const ruecksprung = koerper.indexOf('gesicherteSignatur === null) return');
+    wahr('Die Verortung im Knopf zieht bei jeder Eingabe nach',
+         vergleich > 0 && ruecksprung > 0 && vergleich < ruecksprung);
+    wahr('… und zeichnet nur bei echter Aenderung neu',
+         /ort !== gezeigteVerortung/.test(koerper));
+  }
+
+  /*
+   * DAS FELD BLEIBT UNTER DEM CURSOR STEHEN. verdrahteOptionen meldet jede
+   * Taste und markiert sie als Zwischenstand; wer das uebergeht, ersetzt das
+   * Feld beim Tippen und verliert den Fokus nach dem ersten Buchstaben.
+   */
+  {
+    const ab = aq63.indexOf("ui.verdrahteOptionen(ui.el('bs-verortung')");
+    const koerper = ab > 0 ? aq63.slice(ab, aq63.indexOf('\n  });', ab)) : '';
+    wahr('Die Verortungsfelder kennen den Zwischenstand',
+         /\(k, v, zwischenstand\)/.test(koerper));
+    wahr('… und zeichnen erst beim Verlassen neu',
+         koerper.indexOf('if (zwischenstand) return;') > 0
+         && koerper.indexOf('if (zwischenstand) return;')
+            < koerper.indexOf('zeichneSchublade()'));
+  }
+
+  {
+    const ab = css63.indexOf('.tb-ort {');
+    const regel = ab > 0 ? css63.slice(ab, css63.indexOf('}', ab)) : '';
+    wahr('Die Verortung steht leiser als der Name', regel.includes('var(--dim)'));
+    /*
+     * BEIM EINKLAPPEN GIBT SIE ALS ERSTE NACH. Ohne min-width: 0 legt flex
+     * jedem Kind den Boden seines laengsten Wortes unter - die Verortung
+     * bliebe stehen und der Knopf schnitte stattdessen hinten ab.
+     */
+    const kleiner = /flex-shrink:\s*(\d+)/.exec(regel);
+    wahr('… und gibt beim Einklappen als Erste nach',
+         regel.includes('min-width: 0') && !!kleiner && Number(kleiner[1]) > 1);
+    wahr('… mit Auslassungspunkten statt hartem Schnitt',
+         regel.includes('text-overflow: ellipsis'));
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 63: die Verortung steht im Kopf. Sie unterscheidet die Tragwerke
+// eines Projekts - der Jochtyp tut das nicht, ein Projekt hat viele J90.
+{
+  const aq63 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css63 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
+
+  const ab = aq63.indexOf('function aktualisiereProjektKnopf');
+  const koerper = ab > 0 ? aq63.slice(ab, aq63.indexOf('\n}', ab)) : '';
+  wahr('Der Projektknopf holt die Verortung', koerper.includes('verortung(werte)'));
+  // WAS FEHLT, FAELLT WEG: drei leere Trennzeichen sagen nichts.
+  wahr('… und zeigt sie nur, wenn es sie gibt', koerper.includes('ort ?'));
+  wahr('Die Einfuhr steht wieder', aq63.includes("import { verortung,"));
+  wahr('Und der Stil daempft sie', css63.includes('.tb-ort'));
+
+  /*
+   * SIE ZIEHT NACH, OHNE AM SPEICHERZUSTAND ZU HAENGEN.
+   *
+   * Der Knopf wurde nur neu gezeichnet, wenn der Zustand wechselte. Wer die
+   * Verortung nachtraegt, steht laengst auf «ungesichert» - sie waere erst
+   * verspaetet erschienen.
+   */
+  {
+    const a2 = aq63.indexOf('function pruefeUngesichert');
+    const k2 = a2 > 0 ? aq63.slice(a2, aq63.indexOf('\n}', a2)) : '';
+    wahr('Eine geaenderte Verortung zeichnet den Knopf neu',
+         k2.includes('gezeigteVerortung') && k2.includes('zeigeSpeicherstand()'));
+  }
+
+  // Die Reihenfolge der Angaben ist Weisung: vom Groben zum Feinen.
+  const { verortung: v63 } = await import(J('core.constants.js'));
+  wahr('Linie, Ort, Kilometer - in dieser Reihenfolge',
+       v63({ linie: '600', ortschaft: 'Schwyz', km: '016.661' })
+       === 'Linie 600 · Schwyz · KM 016.661');
+  wahr('Ohne Eintrag bleibt sie leer', v63({}) === '');
+  wahr('Und einzelne Luecken fallen einzeln weg',
+       v63({ ortschaft: 'Schwyz', km: '016.661' }) === 'Schwyz · KM 016.661');
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

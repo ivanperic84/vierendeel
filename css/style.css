@@ -88,6 +88,15 @@ body {
 }
 .tb-proj:hover { background: var(--s2); color: var(--on); }
 .tb-proj b { font-weight: 500; color: var(--on); }
+/* Die Verortung benennt das Tragwerk, ist aber nicht sein Name: leiser als
+   dieser, und beim Einklappen des Kopfes gibt sie als Erstes nach.
+   min-width: 0 hebt den Boden auf, den flex jedem Kind als min-content legt -
+   ohne ihn bliebe das laengste Wort stehen; das hohe flex-shrink laesst die
+   Verortung den ganzen Ueberschuss aufnehmen, bevor der Name etwas abgibt. */
+.tb-ort {
+  color: var(--dim); min-width: 0; flex-shrink: 100;
+  overflow: hidden; text-overflow: ellipsis;
+}
 .tb-sep { width: 1px; height: 20px; background: var(--ol); margin: 0 3px; }
 .tb-proj.offen { background: var(--acc-s); color: var(--on); }
 
