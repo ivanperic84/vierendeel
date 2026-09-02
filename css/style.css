@@ -1361,6 +1361,63 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .tw-neu { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .tw-neu .btn { font-size: 10px; }
 
+/* --- Mastkacheln ----------------------------------------------------------
+   EINE KACHEL JE MAST DES BLATTES, unter den Tragwerken. Auf einer Jochreihe
+   stehen drei Masten unter zwei Jochen - die Reihe zeigt das, statt es aus
+   «Ende A» und «Ende B» zweier Tragwerke erschliessen zu lassen.
+
+   NEBENEINANDER, nicht untereinander: eine Mastkachel traegt drei kurze
+   Zeilen und passt zu dritt in die Spalte. Untereinander waere die Reihe
+   laenger als die Tragwerksliste darueber - und sie ist ihr untergeordnet. */
+.mast-kacheln {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px;
+  padding-top: 7px; border-top: 1px solid var(--ol);
+}
+.mast-kacheln-titel {
+  flex: 0 0 100%; font-size: 9.5px; color: var(--dim);
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.mast-kachel {
+  flex: 1 1 66px; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 4px 6px; cursor: pointer; text-align: left;
+  font-family: inherit; color: var(--dim);
+  transition: border-color var(--t-schnell), background var(--t-schnell);
+}
+.mast-kachel:hover { border-color: var(--ol2); }
+.mast-kachel.an { border-color: var(--acc); background: var(--acc-s); }
+.mk-kopf {
+  display: flex; justify-content: space-between; gap: 5px;
+  font-size: 10px; font-weight: 500; color: var(--on2);
+}
+.mast-kachel.an .mk-kopf { color: var(--acc); }
+.mk-x { font-family: var(--f-mono); font-weight: 400; color: var(--dim); }
+.mk-prof {
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--on2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mk-fuss {
+  font-size: 9px; color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Der geteilte Mast faellt auf - wer ihn aendert, aendert zwei Tragwerke. */
+.mast-kachel.geteilt .mk-fuss { color: var(--acc); }
+
+/* Der Masten-Schalter an der Tragwerkskachel. Ausgeschaltet ist er blass und
+   durchgestrichen - «keine Masten» ist ein Zustand, den man sehen soll. */
+.tw-mast {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1px; width: 34px;
+  background: none; border: 1px solid transparent; border-radius: var(--m-r1);
+  color: var(--dim); cursor: pointer; font-family: inherit; font-size: 8px;
+  transition: color var(--t-schnell), border-color var(--t-schnell);
+}
+.tw-mast svg { display: block; }
+.tw-mast:hover { border-color: var(--ol); }
+.tw-mast.an { color: var(--acc); }
+.tw-mast:not(.an) { opacity: .55; text-decoration: line-through; }
+
 /* --- Bauformwahl ----------------------------------------------------------
    ZEILEN, NICHT KACHELN. Drei Kacheln nebeneinander waeren in einer 240 px
    breiten Seitenspalte je 75 px breit - zu wenig fuer eine Strichskizze, die

@@ -1827,6 +1827,13 @@ export class Modellansicht {
      */
     this.zeichnung = null;
     /*
+     * LAEUFT GERADE DAS NACHTRAEGLICHE VERSCHIEBEN DER ZEICHNUNG?
+     *
+     * Ein eigener Zustand statt eines Werkzeugs: das Verschieben ist kein
+     * Modus des Modells, sondern einer der Zeichnung - es endet mit ihr.
+     */
+    this.zeichnungSchieben = false;
+    /*
      * DIE MASSKETTE DER ZEICHNUNG, in Metern ab dem linken Jochende. Sie
      * kommt aus der Eingabe, nicht aus dem Bild - sie gilt auch ohne
      * hinterlegte Zeichnung, und ohne sie ist die Zeichnung nur ein Bild.
@@ -2219,9 +2226,18 @@ export class Modellansicht {
       c.focus?.({ preventScroll: true });
       zeiger.set(e.pointerId, this._geraetePunkt(e));
       if (zeiger.size === 1) {
-        griff = { art: schiebemodus(e) ? 'schieben' : 'drehen',
+        /*
+         * IM BILDSCHIEBEMODUS ZIEHT MAN DAS BILD, nicht die Kamera.
+         *
+         * Er steht vor der ueblichen Unterscheidung: solange er laeuft, ist
+         * das Ziehen fuer die Zeichnung reserviert. Sonst muesste man sich
+         * merken, welche Maustaste gerade was tut - und ein versehentlich
+         * gedrehtes Modell sieht aus wie ein verschobenes Bild.
+         */
+        const bild = this.zeichnungSchieben && this.zeichnung?.kalibrierung;
+        griff = { art: bild ? 'bild' : schiebemodus(e) ? 'schieben' : 'drehen',
                   bewegt: false, start: [e.clientX, e.clientY] };
-        c.style.cursor = griff.art === 'schieben' ? 'grabbing' : 'move';
+        c.style.cursor = griff.art === 'drehen' ? 'move' : 'grabbing';
       } else if (zeiger.size === 2) {
         // Der zweite Finger beendet das Drehen; was bis hierher gedreht
         // wurde, bleibt stehen.
@@ -2289,7 +2305,8 @@ export class Modellansicht {
       if (Math.abs(e.clientX - griff.start[0]) +
           Math.abs(e.clientY - griff.start[1]) > 3) griff.bewegt = true;
       const dx = jetzt[0] - vorher[0], dy = jetzt[1] - vorher[1];
-      if (griff.art === 'schieben') this._schiebe(dx, dy);
+      if (griff.art === 'bild') this.verschiebeZeichnung(dx, dy);
+      else if (griff.art === 'schieben') this._schiebe(dx, dy);
       else this._drehe(dx, dy, e.shiftKey);
       this.zeichne();
     });
@@ -2361,6 +2378,21 @@ export class Modellansicht {
       const w = 40;                          // Gerätepixel je Tastendruck
       const p = { ArrowLeft: [-w, 0], ArrowRight: [w, 0],
                   ArrowUp: [0, -w], ArrowDown: [0, w] }[e.key];
+      if (p && this.zeichnungSchieben && this.zeichnung?.kalibrierung) {
+        /*
+         * IM SCHIEBEMODUS RUECKEN DIE PFEILE DAS BILD, in Metern.
+         *
+         * Fuenf Zentimeter je Druck, mit Umschalt ein Zentimeter. Ziehen
+         * bringt es grob hin; das letzte Stueck trifft man mit der Maus
+         * nicht, weil ein Bildpunkt je nach Zoom mehrere Zentimeter ist.
+         */
+        const w2 = e.shiftKey ? 0.01 : 0.05;
+        this.verschiebeZeichnungWelt(Math.sign(p[0]) * w2,
+                                     -Math.sign(p[1]) * w2);
+        this.zeichne();
+        e.preventDefault();
+        return;
+      }
       if (p) {
         // Umschalt schiebt. Bei der Maus rastet Umschalt das Drehen - hier
         // gäbe es nichts zu rasten, die Tastatur dreht ohnehin in Schritten.
@@ -2412,6 +2444,13 @@ export class Modellansicht {
   /** Klick: erst Bemassung, dann Bauteil. */
   _klick(e) {
     if (!this.szene) return;
+    /*
+     * WER DAS BILD SCHIEBT, WAEHLT KEIN BAUTEIL AUS.
+     *
+     * Ein Zug ohne Bewegung ist ein Klick - und der haette sonst mitten im
+     * Schieben das Tragwerk gewechselt, unter dem die Zeichnung gerade liegt.
+     */
+    if (this.zeichnungSchieben) return;
     const [px, py] = this._geraetePunkt(e);
     /*
      * WIRD GERADE KALIBRIERT, GEHÖRT DER KLICK DER ZEICHNUNG.
@@ -2823,6 +2862,61 @@ export class Modellansicht {
    * es keine Umrechnung über die Welt - gerechnet wird deshalb über das
    * Rechteck, in dem es gerade liegt.
    */
+  /**
+   * DIE ZEICHNUNG NACHTRÄGLICH VERSCHIEBEN — um Bildschirmpunkte.
+   *
+   * Weisung vom 2. September: «es wäre daher noch gut das abgelegte QP Bild
+   * schieben zu können nachträglich, falls die Lage der Abstraktion nicht
+   * ganz gleicht bei einer Jochreihe.»
+   *
+   * >>> WARUM DAS EINGEMESSENE NICHT REICHT. <<<
+   *
+   * Zwei Klicks setzen das Bild über EIN Tragwerk — die Jochenden oder den
+   * linken Masten. Auf einer Jochreihe steht daneben ein zweites Joch, und
+   * dessen Lage kommt nicht aus dem Bild, sondern aus x₀ der Eingabe. Beide
+   * müssen zusammenpassen, und wenn die Abstraktion um dreissig Zentimeter
+   * daneben liegt, ist nicht das Bild schuld — sondern die Frage, welche der
+   * beiden Seiten man verschiebt. Bisher gab es darauf nur eine Antwort:
+   * neu einmessen. Das warf die gute Lage weg, um die schlechte zu ersetzen.
+   *
+   * >>> DER MASSSTAB BLEIBT UNANGETASTET. <<<
+   *
+   * Verschoben wird `x0`/`z0`, nicht `s`. Ein gezogener Massstab wäre eine
+   * zweite, unsichtbare Kalibrierung — und die eine, die man eingemessen
+   * hat, ist die belastbare. Wer den Massstab ändern will, misst neu ein.
+   *
+   * Gerechnet wird über DASSELBE Rechteck, das `_zeichnungMalen` zeichnet:
+   * so ist die Umrechnung Bildschirm → Welt genau die, die man sieht, und
+   * nicht eine zweite, die bei Perspektive um ein Prozent danebenläge.
+   *
+   * @returns {boolean} ob etwas verschoben wurde
+   */
+  verschiebeZeichnung(dxPx, dyPx) {
+    const z = this.zeichnung;
+    if (!z?.bild || !z.kalibrierung) return false;
+    if (this.ansichtKey !== 'laengs') return false;
+    const k = z.kalibrierung;
+    const proj = this._projektor();
+    const ecke = (px, py) => proj([k.x0 + k.s * px, 0, k.z0 - k.s * py]);
+    const a = ecke(0, 0), b = ecke(z.breite, z.hoehe);
+    if (!a || !b) return false;
+    const w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
+    if (!(w > 0.5) || !(h > 0.5)) return false;
+    return this.verschiebeZeichnungWelt((dxPx / w) * (k.s * z.breite),
+                                        -(dyPx / h) * (k.s * z.hoehe));
+  }
+
+  /** Dasselbe in Metern — der Weg der Pfeiltasten. */
+  verschiebeZeichnungWelt(dx, dz) {
+    const k = this.zeichnung?.kalibrierung;
+    if (!k) return false;
+    if (!Number.isFinite(dx) || !Number.isFinite(dz)) return false;
+    k.x0 += dx;
+    k.z0 += dz;
+    this.opt.beiZeichnungVerschoben?.(k);
+    return true;
+  }
+
   zeichnungTreffer(sx, sy) {
     const z = this.zeichnung;
     if (!z || !z.bild || !z.kalibrierung) return null;

@@ -7576,14 +7576,41 @@ titel('42  Der lange Mast mit Zusatzleitern');
           AU.mastSteifigkeit(ein({ mastLaenge: 5 }), 'A').ueberstand, 0, 1e-12, 'm');
   }
 
-  // Am Ende B gilt die eigene Angabe, sonst die des ersten Mastes.
+  /*
+   * AM ENDE B GILT DIE EIGENE ANGABE - aber PROFIL, LAENGE und HOEHE
+   * folgen seit dem 2. September ZWEI Schaltern, nicht mehr einem.
+   *
+   * `mastZwei`  = der MAST am Ende B ist ein anderer (Profil, Laenge, Steg)
+   * `mastHZwei` = das Joch schliesst dort ANDERS HOCH an
+   *
+   * Getrennt, weil `mastenProjizieren` den ersten schon setzt, wenn sich
+   * bloss die Profile unterscheiden - und dann waere `mastHB` mit seinem
+   * Standardwert 7.50 m still in die Drehfeder geraten. Ausfuehrlich in
+   * core.constants.js, anschlusshoehe().
+   */
   {
-    const w = ein({ mastLaenge: 12.5, mastZwei: true, mastHB: 9.0,
-                    mastLaengeB: 14.0, mastProfilB: 'HEB 240' });
+    const w = ein({ mastLaenge: 12.5, mastZwei: true, mastHZwei: true,
+                    mastHB: 9.0, mastLaengeB: 14.0, mastProfilB: 'HEB 240' });
     pruef('Ende B traegt seine eigene Laenge',
           AU.mastSteifigkeit(w, 'B').ueberstand, 14.0 - 9.0, 1e-9, 'm');
     pruef('Ende A bleibt davon unberuehrt',
           AU.mastSteifigkeit(w, 'A').ueberstand, 12.5 - 8.31, 1e-9, 'm');
+
+    // DIE PRUEFUNG, DIE DEN GRUND DER TRENNUNG FESTHAELT.
+    const nurMast = ein({ mastLaenge: 12.5, mastZwei: true, mastHZwei: false,
+                          mastHB: 9.0, mastLaengeB: 14.0,
+                          mastProfilB: 'HEB 240' });
+    pruef('Ein anderes Profil allein verschiebt die Anschlusshoehe nicht',
+          AU.mastSteifigkeit(nurMast, 'B').H, 8.31, 1e-12, 'm');
+    pruef('… das Profil gilt trotzdem',
+          AU.mastSteifigkeit(nurMast, 'B').laenge, 14.0, 1e-12, 'm');
+
+    // ALTE DATEIEN KENNEN DEN NEUEN SCHALTER NICHT - dann gilt der alte.
+    const alt = ein({ mastLaenge: 12.5, mastZwei: true, mastHB: 9.0,
+                      mastLaengeB: 14.0, mastProfilB: 'HEB 240' });
+    delete alt.mastHZwei;
+    pruef('Ohne den neuen Schalter gilt der alte', AU.mastSteifigkeit(alt, 'B').H,
+          9.0, 1e-12, 'm');
   }
 
   // --- Im Bild ------------------------------------------------------------
@@ -10513,7 +10540,16 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const e = mitBw({ G: 1, WindX: 1.5, WindY: 0, Schnee: 0 });
     wahr('Keine Knoten, aber eine Liste', Array.isArray(e.knoten) && !e.knoten.length);
     wahr('Ein Gesamt-eta gibt es', Number.isFinite(e.max.etaGesamt));
-    wahr('Es ist das des Mastes', e.max.etaGesamt === e.mast.eta);
+    /*
+     * SEIT DEM BIEGEKNICKNACHWEIS IST ES DER NACHWEIS, nicht der
+     * Querschnitt. Am gemessenen Regelmasten ist das Knicken das groessere
+     * von beiden - die Kopfzahl haette es sonst verschwiegen, waehrend
+     * daneben «Tragsicherheit erfuellt» steht.
+     */
+    wahr('Es ist der Nachweis des Mastes, nicht nur sein Querschnitt',
+         e.max.etaGesamt === e.mast.etaNachweis);
+    wahr('… und damit das groessere von Querschnitt und Knicken',
+         e.max.etaGesamt === Math.max(e.mast.eta, e.mast.etaStabil));
     wahr('Kein Auflagerblatt', e.auflager === null);
   }
 
@@ -11414,6 +11450,151 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const { s, m } = mast({ mastLaenge: 0 });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
     pruef('Ohne Gesamtlaenge zaehlt H', k.Lcr, 2 * 9, 1e-9, 'm');
+  }
+}
+
+// ===========================================================================
+// PRUEFUNG 75: der Mast als angewaehltes Bauteil, und die Zeichnung, die sich
+// nachtraeglich schieben laesst. Weisung vom 2. September.
+{
+  const C75 = await import(J('core.constants.js'));
+  const R75 = await import(J('render.3d.js'));
+
+  /*
+   * DREI MASTEN UNTER ZWEI JOCHEN.
+   *
+   * Die Frage des Auftraggebers: «Wie kann man drei verschiedene Masttypen
+   * eingeben?» Sie liess sich vorher nur ueber vier Enden zweier Tragwerke
+   * beantworten, von denen zwei derselbe Mast waren. Hier steht, dass es
+   * jetzt drei Adressen sind - und dass jede ihr eigenes Profil behaelt.
+   */
+  const reihe = () => {
+    let w = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 260',
+              mastVorhanden: true, endbedingung: 'mast' };
+    return C75.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20 });
+  };
+
+  {
+    const w = reihe();
+    const m = C75.mastenVon(w);
+    wahr('Zwei Joche stehen auf drei Masten', m.length === 3);
+    wahr('Der mittlere ist geteilt',
+         (m[1].traegt ?? []).length === 2);
+    wahr('… und die aeusseren nicht',
+         (m[0].traegt ?? []).length === 1 && (m[2].traegt ?? []).length === 1);
+  }
+
+  // JEDER MAST BEKOMMT SEIN EIGENES PROFIL - ueber seine Id, nicht ueber ein
+  // Ende. Das ist der ganze Gewinn der Kachelreihe.
+  {
+    let w = reihe();
+    const ids = C75.mastenVon(w).map((m) => m.id);
+    w = C75.setzeMastAngabe(w, ids[0], 'mastProfil', 'HEB 240');
+    w = C75.setzeMastAngabe(w, ids[1], 'mastProfil', 'HEM 240');
+    w = C75.setzeMastAngabe(w, ids[2], 'mastProfil', 'HEB 220');
+    const p = C75.mastenVon(w).map((m) => m.profil);
+    wahr('Drei Masten, drei Profile',
+         p[0] === 'HEB 240' && p[1] === 'HEM 240' && p[2] === 'HEB 220');
+  }
+
+  /*
+   * >>> DIE MASTENLISTE UEBERSTEHT DAS UMSCHALTEN. <<<
+   *
+   * Sie stand nicht in BLATT_FELDER, also nahm `tragwerkTeil` sie mit ins
+   * weggelegte Tragwerk - und aus dem angewaehlten kam eine alte Liste
+   * zurueck oder gar keine. Ein Mast, dem man gerade ein Profil gegeben
+   * hatte, stand nach einem Klick auf das Nachbarjoch wieder mit dem alten
+   * da. Genau dieser Weg wird hier gegangen.
+   */
+  {
+    let w = reihe();
+    const ids = C75.mastenVon(w).map((m) => m.id);
+    w = C75.setzeMastAngabe(w, ids[2], 'mastProfil', 'HEB 220');
+    const andere = C75.tragwerkeVon(w).find((t) => t.id !== (w.twId ?? 'T1'));
+    w = C75.tauscheAktives(w, andere.id);
+    wahr('Nach dem Umschalten steht das Profil noch da',
+         C75.mastenVon(w).some((m) => m.profil === 'HEB 220'));
+    w = C75.tauscheAktives(w, (w.weitere ?? [])[0].id);
+    wahr('… und nach dem Zurueckschalten auch',
+         C75.mastenVon(w).some((m) => m.profil === 'HEB 220'));
+  }
+
+  // DIE KACHELWAHL. Ohne sie gilt der Mast am Ende A des gerechneten
+  // Tragwerks - so verhaelt sich jede Datei aus der Zeit vor den Kacheln.
+  {
+    const w = reihe();
+    const ids = C75.mastenVon(w).map((m) => m.id);
+    wahr('Ohne Wahl gilt der erste Mast des aktiven Tragwerks',
+         C75.gewaehlterMast(w)?.id === C75.mastenFuer(w, C75.tragwerkeVon(w)[0])[0].id);
+    wahr('Mit Wahl gilt der angeklickte',
+         C75.gewaehlterMast({ ...w, mastAktiv: ids[2] })?.id === ids[2]);
+    wahr('Eine Id, die es nicht mehr gibt, faellt zurueck',
+         Boolean(C75.gewaehlterMast({ ...w, mastAktiv: 'M99' })));
+  }
+
+  /*
+   * >>> EIN ABGESCHALTETER MAST DARF SEINEM NACHBARN NICHT SEIN PROFIL
+   *     VERERBEN. <<<
+   *
+   * Am 2. September im Browser gemessen: drei Masten (HEB 260 / HEB 240 /
+   * HEM 240), dann die Masten des linken Jochs abgeschaltet. Die Nummern
+   * werden LAUFEND vergeben - der uebrig gebliebene Mast bei x 20 hiess
+   * danach M1 und bekam ueber die Id das Profil des verschwundenen: HEB 260
+   * statt HEB 240. Ein Mast mit einem fremden Profil, und man sieht es ihm
+   * nicht an.
+   *
+   * Seither geht die STELLE vor der Nummer (mastenVon in
+   * core.constants.js). Die Nummer ist eine Laufnummer; ein Mast ist, wo er
+   * steht.
+   */
+  {
+    let w = reihe();
+    const ids = C75.mastenVon(w).map((m) => m.id);
+    w = C75.setzeMastAngabe(w, ids[0], 'mastProfil', 'HEB 260');
+    w = C75.setzeMastAngabe(w, ids[1], 'mastProfil', 'HEB 240');
+    w = C75.setzeMastAngabe(w, ids[2], 'mastProfil', 'HEM 240');
+
+    // Die Masten des LINKEN Jochs abschalten - es ist nicht das aktive.
+    const links = C75.tragwerkeSortiert(w)[0];
+    let w2 = C75.tauscheAktives(w, links.id);
+    w2 = { ...w2, mastVorhanden: false };
+    const uebrig = C75.mastenVon(w2);
+    wahr('Zwei Masten bleiben stehen', uebrig.length === 2);
+    wahr('Der Mast bei x = 20 behaelt sein eigenes Profil',
+         uebrig.find((m) => Math.abs(m.x - 20) < 0.01)?.profil === 'HEB 240');
+    wahr('… und der am rechten Ende auch',
+         uebrig.find((m) => Math.abs(m.x - 35) < 0.01)?.profil === 'HEM 240');
+
+    // UND EIN VERSCHOBENES JOCH NIMMT SEINEN MASTEN MIT. Dort trifft die
+    // Stelle nicht mehr - dann faengt die Nummer den Fall.
+    const w3 = { ...w, xLage: 21 };
+    wahr('Ein verschobener Mast behaelt sein Profil ueber die Nummer',
+         C75.mastenVon(w3).find((m) => Math.abs(m.x - 36) < 0.01)?.profil
+           === 'HEM 240');
+  }
+
+  /*
+   * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
+   *
+   * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die
+   * Umrechnung Bildschirm -> Welt braucht einen Projektor, das Verschieben
+   * in Metern nicht. Und genau das ist der Weg der Pfeiltasten.
+   */
+  {
+    const schieb = R75.Modellansicht.prototype.verschiebeZeichnungWelt;
+    const stand = { zeichnung: { kalibrierung: { s: 0.01, x0: -10, z0: 4 } },
+                    opt: {} };
+    wahr('Verschoben wird', schieb.call(stand, 0.30, -0.20) === true);
+    pruef('x0 folgt', stand.zeichnung.kalibrierung.x0, -9.70, 1e-12, 'm');
+    pruef('z0 folgt', stand.zeichnung.kalibrierung.z0, 3.80, 1e-12, 'm');
+    pruef('Der Massstab bleibt', stand.zeichnung.kalibrierung.s, 0.01, 1e-15,
+          'm/Punkt');
+    wahr('Ohne Kalibrierung passiert nichts',
+         schieb.call({ zeichnung: null, opt: {} }, 1, 1) === false);
+    wahr('Eine unbrauchbare Zahl wird abgewiesen',
+         schieb.call(stand, NaN, 0) === false);
+    pruef('… und laesst die Lage stehen', stand.zeichnung.kalibrierung.x0,
+          -9.70, 1e-12, 'm');
   }
 }
 

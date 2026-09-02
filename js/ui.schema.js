@@ -19,7 +19,8 @@
  * ---------------------------------------------------------------------------
  */
 
-import { TRAGWERKSARTEN, tragwerksart } from './core.constants.js';
+import { TRAGWERKSARTEN, tragwerksart,
+         gewaehlterMast } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
@@ -44,6 +45,30 @@ const opt = (arr, k = 'key', l = 'label') => arr.map((x) => ({ wert: x[k], text:
  * darf ein Feld nicht zeigen, das die Rechnung nicht kennt (und umgekehrt).
  */
 const mastDa = (w) => mastImModell(w);
+
+/*
+ * DIE MASTFELDER GELTEN DEM ANGEWAEHLTEN MASTEN.
+ *
+ * Weisung vom 2. September, auf die Frage «wie kann man drei verschiedene
+ * Masttypen eingeben?»: das Umschalten der Masten gehoert zu den Kacheln.
+ *
+ * Vorher gab es je Tragwerk zwei Saetze Mastfelder - «Mastprofil» und
+ * «Mastprofil Ende B», letzterer hinter einem Haekchen. Auf einer Jochreihe
+ * mit drei Masten hiess das: erstes Joch anwaehlen, Haekchen setzen, Profil
+ * A und B eintippen, zweites Joch anwaehlen, Haekchen setzen, dessen B
+ * eintippen - und dabei wissen, dass das A des zweiten Jochs derselbe Mast
+ * ist wie das B des ersten. Drei Masten, fuenf Felder, eine Falle.
+ *
+ * Jetzt: drei Kacheln, drei Masten, EIN Satz Felder. Was hier steht, gilt
+ * dem angeklickten. `mastAktiv` ist Bedienzustand wie `bearbeiten` - er
+ * entscheidet, was die Maske zeigt, und nichts am Tragwerk.
+ */
+/** Der Wert einer Mastangabe am angewaehlten Masten, ersatzweise flach. */
+const amMast = (feld, flach) => (w) => {
+  const m = gewaehlterMast(w);
+  const v = m?.[feld];
+  return v === undefined || v === null ? w[flach] : v;
+};
 
 /**
  * DER GRAD AM FELD (Weisung: "bei der Eingabe von Radius und Spannweite die
@@ -298,13 +323,23 @@ export const FELDER = [
    * genau dann, wenn die Endbedingung ihn verlangte). Siehe `mastImModell`
    * in core.auflager.js.
    */
-  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
+  /*
+   * >>> DER SCHALTER STEHT AN DER TRAGWERKSKACHEL, nicht mehr hier. <<<
+   *
+   * Weisung vom 2. September: «nimm das aktiv inaktiv schalten der masten
+   * oben zu den kacheln». Er gilt dem TRAGWERK - beiden Enden zugleich -,
+   * und an der Kachel steht er neben dem, dem er gilt. Zweimal dieselbe
+   * Frage waeren zwei Orte, an denen man sie beantworten kann, und einer
+   * davon wird uebersehen.
+   */
+  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter', versteckt: true,
     label: 'Masten im Modell', standard: true,
     hinweis: 'Der Mast wird gezeichnet, ausgeleitet und nachgewiesen und trägt '
            + 'Wind und Anbauteile. Ob seine Steifigkeit die Drehfeder liefert, '
            + 'steht bei der Auflagerung.'},
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: 'Mastprofil',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
+    wertAus: amMast('profil', 'mastProfil'),
     sichtbar: (w) => mastDa(w) },
   /*
    * MIT SCHIEBER (Weisung, 28. August). Masthöhe und Mastlänge sind die
@@ -313,7 +348,7 @@ export const FELDER = [
    * Werkzeug, nicht ein Zahlenfeld, in das man tippt und wieder tippt.
    */
   { key: 'mastH', gruppe: 'mast', typ: 'schieber',
-    label: 'Masthöhe (Fuss bis Jochachse)',
+    label: 'Anschlusshöhe (Fuss bis Jochachse)',
     sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, min: 2, max: 20,
     sichtbar: (w) => mastDa(w) },
   /*
@@ -334,32 +369,56 @@ export const FELDER = [
   { key: 'mastLaenge', gruppe: 'mast', typ: 'schieber',
     label: 'Mastlänge gesamt (Fuss bis Kopf)',
     sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25,
+    wertAus: amMast('laenge', 'mastLaenge'),
     sichtbar: (w) => mastDa(w),
     hinweis: 'Gesamtlänge wie angeschrieben. Der Mast steht immer über den '
            + 'Obergurt hinaus, ohne Angabe 0.5 m. Handbuch.'},
   { key: 'mastSteg', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
+    wertAus: amMast('steg', 'mastSteg'),
     sichtbar: (w) => mastDa(w) },
   // ZWEI MASTE.
   // Die beiden Enden eines Jochs stehen selten auf demselben Mast: das Gelände
   // fällt, die Profile unterscheiden sich, und damit auch die Einspannung.
   // Bisher galt eine Drehfeder für beide Enden - beim Vergleichsmodell
   // (HEB 260 gegen HEM 240, 9.0 gegen 13.0 m) waren das rund 10 % Unterschied.
-  { key: 'mastZwei', gruppe: 'mast', typ: 'schalter',
-    label: 'Zweiter Mast am Ende B abweichend', standard: false,
-    sichtbar: (w) => mastDa(w) },
-  { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', label: 'Mastprofil Ende B',
-    standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
-    sichtbar: (w) => mastDa(w) && w.mastZwei },
-  { key: 'mastHB', gruppe: 'mast', typ: 'schieber', label: 'Masthöhe Ende B',
+  /*
+   * >>> DIE B-FELDER SIND IN DIE KACHELN GEWANDERT. <<<
+   *
+   * `mastZwei`, `mastProfilB`, `mastLaengeB`, `mastStegB` bleiben im
+   * Datensatz - der Rechenkern liest sie, und jede gespeicherte Datei
+   * traegt sie. Als FRAGE stehen sie nicht mehr da: der zweite Mast ist
+   * jetzt eine eigene Kachel, und man tippt seine Angaben dort ein, wo man
+   * ihn auch sieht. `mastenProjizieren` schreibt sie beim Rechnen aus der
+   * Mastenliste zurueck.
+   *
+   * Die ANSCHLUSSHOEHE bleibt eine Frage ans Tragwerk und steht deshalb
+   * hier: sie beschreibt, wie hoch DIESES Joch an seinem Masten anschliesst,
+   * nicht den Masten. Zwei Joche am selben Masten koennen verschieden hoch
+   * anschliessen - deshalb hat sie seit dem 2. September ihren eigenen
+   * Schalter (anschlusshoehe() in core.constants.js).
+   */
+  { key: 'mastZwei', gruppe: 'mast', typ: 'schalter', versteckt: true,
+    label: 'Zweiter Mast am Ende B abweichend', standard: false },
+  { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
+    label: 'Mastprofil Ende B',
+    standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name') },
+  { key: 'mastHZwei', gruppe: 'mast', typ: 'schalter',
+    label: 'Anschlusshöhe am Ende B abweichend', standard: false,
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2,
+    hinweis: 'Nur die Höhe, an der das Joch anschliesst. Das Profil des '
+           + 'zweiten Mastes steht an seiner Kachel.' },
+  { key: 'mastHB', gruppe: 'mast', typ: 'schieber',
+    label: 'Anschlusshöhe Ende B',
     sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.05, min: 2, max: 20,
-    sichtbar: (w) => mastDa(w) && w.mastZwei },
-  { key: 'mastLaengeB', gruppe: 'mast', typ: 'schieber', label: 'Mastlänge Ende B',
-    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25,
-    sichtbar: (w) => mastDa(w) && w.mastZwei },
-  { key: 'mastStegB', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Ende B',
-    standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
-    sichtbar: (w) => mastDa(w) && w.mastZwei },
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2
+                  && (w.mastHZwei ?? w.mastZwei) },
+  { key: 'mastLaengeB', gruppe: 'mast', typ: 'schieber', versteckt: true,
+    label: 'Mastlänge Ende B',
+    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, min: 0, max: 25 },
+  { key: 'mastStegB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
+    label: 'Stegrichtung Ende B',
+    standard: 'jochachse', optionen: opt(STEGRICHTUNGEN) },
   /*
    * PLASTISCHER WIDERSTAND FUeR DEN MASTEN (Weisung, 28. August: «1, aber
    * auch plastischen Widerstand optional auswählbar machen»).
@@ -440,6 +499,7 @@ export const FELDER = [
   { key: 'wMast', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
     sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
     ausLast: true,
+    wertAus: amMast('wMast', 'wMast'),
     sichtbar: (w) => mastDa(w),
     hinweis: 'Aus der Lasttabelle je Profil, Einwirkungsklasse und Stegrichtung. '
            + '«Werte bearbeiten» gibt das Feld frei.'},

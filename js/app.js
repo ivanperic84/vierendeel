@@ -27,7 +27,8 @@ import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
          tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
          MASTFELDER, setzeMastAngabe, rechensatz,
-         tragwerkeSortiert, tragwerkSatz, lageVon }
+         tragwerkeSortiert, tragwerkSatz, lageVon,
+         tragwerkeVon, mastenFuer }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -634,18 +635,78 @@ function aendern(key, wert) {
    * ueber diesen Weg, damit Speichern, Rechnen und Zeichnen daran haengen
    * bleiben - ein zweiter Weg waere ein zweiter, der vergessen wird.
    */
+  /*
+   * WER DAS TRAGWERK WECHSELT, BEKOMMT DESSEN MASTEN.
+   *
+   * Die Mastkachel bleibt sonst auf einem Masten stehen, der zum neu
+   * angewaehlten Tragwerk gar nicht gehoert - rechts steht dann die
+   * Auswertung des einen, links die Eingabe des anderen. Gemessen am
+   * 2. September: drei Tragwerke, angewaehlt der Einzelmast bei x 0, in den
+   * Feldern das Profil des Mastes bei x 40.
+   *
+   * >>> UMGEKEHRT NICHT. <<<
+   *
+   * Eine Mastkachel anzuklicken wechselt das Tragwerk NICHT. Ein geteilter
+   * Mast gehoert beiden, und welches Joch gerechnet wird, ist eine andere
+   * Frage als welcher Mast gerade in den Feldern steht.
+   */
+  const mastNachfuehren = () => {
+    const t = tragwerkeVon(werte)[0];
+    const meine = mastenFuer(werte, t).filter(Boolean).map((m) => m.id);
+    if (werte.mastAktiv && !meine.includes(werte.mastAktiv)) {
+      werte = { ...werte, mastAktiv: meine[0] ?? undefined };
+    }
+  };
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
+    mastNachfuehren();
     neuRechnen();
     return;
   }
   if (key === 'tragwerkNeu') {
     werte = tragwerkHinzu(werte, wert);
+    mastNachfuehren();
     neuRechnen();
     return;
   }
   if (key === 'tragwerkWeg') {
     werte = tragwerkWeg(werte, wert);
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  /*
+   * DIE MASTEN EINES TRAGWERKS EIN- ODER AUSSCHALTEN - an seiner Kachel.
+   *
+   * Weisung vom 2. September: «nimm das aktiv inaktiv schalten der masten
+   * oben zu den kacheln». Der Schalter stand unter den Mastfeldern und
+   * schaltete etwas, was man dort gar nicht sah; an der Kachel steht er
+   * neben dem Tragwerk, dem er gilt.
+   *
+   * >>> ER GILT DEM TRAGWERK, NICHT DEM EINZELNEN MASTEN. <<<
+   *
+   * `mastVorhanden` sagt, ob DIESES Tragwerk auf Masten steht - beide
+   * Enden zugleich. Einen einzelnen Masten wegzuschalten und den anderen
+   * stehen zu lassen kennt das Datenmodell nicht, und es waere auch kein
+   * Tragwerk. Deshalb sitzt der Schalter an der Tragwerkskachel und nicht
+   * an der Mastkachel.
+   */
+  if (key === 'tragwerkMasten') {
+    if ((werte.twId ?? 'T1') !== wert) werte = tauscheAktives(werte, wert);
+    werte = { ...werte, mastVorhanden: werte.mastVorhanden === false };
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  /*
+   * EINE MASTKACHEL ANGEKLICKT - sie waehlt nur an, sie aendert nichts.
+   *
+   * Das aktive TRAGWERK bleibt, wie es war: welches Joch gerechnet und
+   * ausgewertet wird, ist eine andere Frage als welcher Mast gerade in den
+   * Feldern steht. Ein geteilter Mast gehoert ohnehin beiden.
+   */
+  if (key === 'mastAktiv') {
+    werte = { ...werte, mastAktiv: wert };
     neuRechnen();
     return;
   }
@@ -660,8 +721,17 @@ function aendern(key, wert) {
    * weiterhin `werte.mastProfil`, und der Kern auch.
    */
   if (MASTFELDER.some((f) => f.flach === key || f.flachB === key)) {
+    /*
+     * DIE KACHEL SAGT, WELCHER MAST GEMEINT IST.
+     *
+     * Seit dem 2. September steht ueber den Mastfeldern eine Kachelreihe -
+     * ein Eintrag je Mast des Blattes. Was in den Feldern steht, gilt dem
+     * angeklickten; `mastAktiv` traegt seine Id. Ohne Kachelwahl bleibt es
+     * beim frueheren Weg (Ende A, ersatzweise B), und eine Datei aus der
+     * Zeit davor verhaelt sich unveraendert.
+     */
     const ende = MASTFELDER.some((f) => f.flachB === key) ? 'B' : 'A';
-    werte = setzeMastAngabe(werte, ende, key, wert);
+    werte = setzeMastAngabe(werte, werte.mastAktiv ?? ende, key, wert);
     werte = rechensatz(werte);
     neuRechnen();
     return;
@@ -1383,6 +1453,7 @@ async function zeichnungHolen(id) {
 let zeichnungMenue = false;
 
 function zeichnungMenueUmschalten() {
+  if (bildSchieben) { bildSchiebenEnde(false); return; }
   if (kalibrierung) kalibrierenEnde();
   if (setzen) setzenEnde();
   if (!ansicht.zeichnung) { zeichnungWaehlen(); return; }
@@ -1415,6 +1486,66 @@ async function zeichnungEntfernen() {
   ansicht.zeichne();
   try { await store.zeichnungLoeschen(projekt.id); } catch { /* nie gesichert */ }
   zeichnungMenueEnde();
+}
+
+/*
+ * DAS ABGELEGTE BILD NACHTRAEGLICH VERSCHIEBEN.
+ *
+ * Weisung vom 2. September: «es waere daher noch gut das abgelegte QP Bild
+ * schieben zu koennen nachtraeglich, falls die Lage der Abstraktion nicht
+ * ganz gleicht bei einer Jochreihe.»
+ *
+ * >>> DIE ALTE LAGE WIRD FESTGEHALTEN, BEVOR ETWAS PASSIERT. <<<
+ *
+ * Verschieben ist eine Handlung, die man daneben treffen kann - und was
+ * zwei Klicks eingemessen haben, darf ein ungeschickter Zug nicht wortlos
+ * verbrauchen. Solange der Modus laeuft, steht «zurueck» daneben; er setzt
+ * genau auf die Kalibrierung zurueck, die vorher galt.
+ *
+ * Gesichert wird erst am Ende. Waehrend des Ziehens liefen sonst dutzende
+ * Schreibvorgaenge in die Ablage, je Bild einer.
+ */
+let bildSchieben = null;     // { vorher: {s, x0, z0} }
+
+function bildSchiebenStarten() {
+  const z = ansicht.zeichnung;
+  if (!z?.kalibrierung) return;
+  if (kalibrierung) kalibrierenEnde();
+  if (setzen) setzenEnde();
+  zeichnungMenue = false;
+  bildSchieben = { vorher: { ...z.kalibrierung } };
+  // Die Zeichnung gilt nur in der Laengsansicht - dort wird auch geschoben.
+  if (ansicht.ansichtKey !== 'laengs') ansicht.blickrichtung('laengs');
+  ansicht.zeichnungSchieben = true;
+  ansicht.ebenen.zeichnung = true;
+  const cv = ui.el('canvas3d');
+  if (cv) cv.style.cursor = 'grab';
+  baueModellWerkzeuge();
+  zeichneBalken();
+  ansicht.zeichne();
+  /*
+   * DER FANG GEHOERT ANS ENDE, nicht an den Anfang.
+   *
+   * Die Pfeiltasten hoeren an der ZEICHENFLAECHE - ohne Fokus dort passiert
+   * beim Druecken nichts. Vorne gesetzt war er sofort wieder weg: der
+   * Balken wird gleich darauf neu gebaut, und der Knopf, ueber den man
+   * hierher kam, verschwindet dabei mitsamt dem Fokus. Gemessen am
+   * 2. September - Ziehen ging, die Pfeile taten nichts.
+   */
+  cv?.focus?.({ preventScroll: true });
+}
+
+async function bildSchiebenEnde(zurueck = false) {
+  if (!bildSchieben) return;
+  const z = ansicht.zeichnung;
+  if (zurueck && z) z.kalibrierung = { ...bildSchieben.vorher };
+  bildSchieben = null;
+  ansicht.zeichnungSchieben = false;
+  ui.el('canvas3d')?.style.removeProperty('cursor');
+  if (z && !zurueck) await zeichnungSichernFallsMoeglich();
+  baueModellWerkzeuge();
+  zeichneBalken();
+  ansicht.zeichne();
 }
 
 function kalibrierenStarten(bezugKey) {
@@ -1790,6 +1921,32 @@ function zeichneBalken() {
     return;
   }
   /*
+   * DER SCHIEBEBALKEN NENNT DIE VERSCHIEBUNG ALS ZAHL.
+   *
+   * Nicht nur «wird verschoben»: wer ein Bild um dreissig Zentimeter rueckt,
+   * will wissen, ob es dreissig waren. Die Zahl ist zugleich die Probe -
+   * weicht sie stark von dem ab, was man erwartet hat, stimmt eher die
+   * Eingabe als das Bild.
+   */
+  if (bildSchieben && ansicht.zeichnung?.kalibrierung) {
+    const k = ansicht.zeichnung.kalibrierung, v = bildSchieben.vorher;
+    const dx = k.x0 - v.x0, dz = k.z0 - v.z0;
+    const bewegt = Math.abs(dx) > 1e-4 || Math.abs(dz) > 1e-4;
+    n.hidden = false;
+    n.innerHTML = '<span>Zeichnung verschieben — <b>ziehen</b>, Pfeiltasten '
+      + '5 cm, mit Umschalt 1 cm'
+      + (bewegt ? ` · <b>Δx = ${dx.toFixed(2)} m, Δz = ${dz.toFixed(2)} m</b>`
+                : '')
+      + '</span>'
+      + (bewegt ? '<button class="btn btn-mini" data-bs-zur>zurück</button>' : '')
+      + '<button class="btn btn-mini btn-acc" data-bs-ok>fertig</button>';
+    if (canvas) canvas.style.cursor = 'grab';
+    n.querySelector('[data-bs-ok]').onclick = () => bildSchiebenEnde(false);
+    n.querySelector('[data-bs-zur]')?.addEventListener(
+      'click', () => bildSchiebenEnde(true));
+    return;
+  }
+  /*
    * DER VORSCHLAG DER ERKENNUNG - zum Bestätigen oder Verwerfen.
    *
    * Er steht über dem Modell, weil man dort SIEHT, ob er stimmt: liegt die
@@ -1824,6 +1981,15 @@ function zeichneBalken() {
                      && !ansicht.zeichnung.vorlaeufig;
     n.innerHTML = `<span>Zeichnung — ${eingemessen
         ? 'eingemessen' : '<b>noch nicht eingemessen</b>'}</span>`
+      /*
+       * AUCH WENN NOCH NICHT EINGEMESSEN WURDE.
+       *
+       * Ein frisch eingelegtes Bild liegt vorlaeufig da - auf die Jochlaenge
+       * gestreckt, mittig. Gerade dort will man es zurechtruecken. Am
+       * Zustand aendert das nichts: «noch nicht eingemessen» steht weiter
+       * daneben, denn geschoben ist nicht gemessen.
+       */
+      + '<button class="btn btn-mini" data-z-schieb>Verschieben</button>'
       + '<button class="btn btn-mini" data-z-mess>Neu einmessen</button>'
       + '<button class="btn btn-mini" data-z-neu>Bild ersetzen</button>'
       + '<button class="btn btn-mini btn-fail" data-z-weg>Entfernen</button>'
@@ -1831,6 +1997,7 @@ function zeichneBalken() {
     n.querySelector('[data-z-mess]').onclick = () => {
       zeichnungMenue = false; kalibrierenStarten('joch');
     };
+    n.querySelector('[data-z-schieb]').onclick = () => bildSchiebenStarten();
     n.querySelector('[data-z-neu]').onclick = () => zeichnungWaehlen();
     n.querySelector('[data-z-weg]').onclick = () => zeichnungEntfernen();
     n.querySelector('[data-z-ab]').onclick = () => zeichnungMenueEnde();
@@ -2099,6 +2266,14 @@ function zeigeAnbauteil(i) {
  * Auswahl, zuletzt das vergrösserte Diagramm. Jeder Druck einen Schritt.
  */
 function abbrechen() {
+  /*
+   * ESC BEENDET DAS SCHIEBEN, ohne es zurueckzunehmen.
+   *
+   * Anders als beim Einmessen gibt es hier keinen halbfertigen Zustand:
+   * das Bild liegt, wo es liegt. Wer die alte Lage zurueck will, druckt
+   * «zurueck» im Balken - das steht daneben, solange etwas verschoben ist.
+   */
+  if (bildSchieben) { bildSchiebenEnde(false); return; }
   const dlg = ui.el('ueberlagerung')?.firstElementChild;
   if (dlg) { dlg.querySelector('[data-zu]')?.click(); return; }
   if (schubladeOffen) { schubladeSchliessen(); return; }
@@ -2910,7 +3085,7 @@ function baueModellWerkzeuge() {
      * heben einander auf.
      */
     + `<button class="btn-icon v-handlung${
-         zeichnungMenue || kalibrierung ? ' laeuft' : ''}" id="v-zeichnung"
+         zeichnungMenue || kalibrierung || bildSchieben ? ' laeuft' : ''}" id="v-zeichnung"
        type="button" title="${ansicht.zeichnung
          ? 'Zeichnung: neu einmessen, ersetzen oder entfernen'
          : 'Querprofil-Zeichnung einlegen, auch mit Strg+V oder Hineinziehen'}"
@@ -4104,7 +4279,8 @@ export async function start() {
      * Sprung liefe ins Leere. Dann gilt der erste Mast fuer beide Enden, und
      * dessen Hoehe ist die richtige Stelle.
      */
-    beiMast: (ende) => zeigeFeld(ende === 'B' && werte.mastZwei ? 'mastHB' : 'mastH'),
+    beiMast: (ende) => zeigeFeld(
+      ende === 'B' && (werte.mastHZwei ?? werte.mastZwei) ? 'mastHB' : 'mastH'),
     /*
      * EIN KLICK INS BILD SCHALTET DAS TRAGWERK UM (Weisung, 2. September).
      *
@@ -4114,6 +4290,13 @@ export async function start() {
      */
     beiTragwerk: (id) => aendern('tragwerkAktiv', id),
     beiAnbauteil: (i) => zeigeAnbauteil(i),
+    /*
+     * DIE ZAHL IM BALKEN LAEUFT MIT DEM ZUG MIT.
+     *
+     * Ohne diese Meldung stuende «Δx = 0.00 m» stehen, bis man loslaesst -
+     * und genau waehrend des Ziehens will man sie lesen.
+     */
+    beiZeichnungVerschoben: () => { if (bildSchieben) zeichneBalken(); },
   });
 
   ui.setzeDiagrammBuehne(zeigeDiagrammGross);

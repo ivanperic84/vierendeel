@@ -11,7 +11,8 @@ import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
-         lageVon, tragwerkeVon, mastenFuer } from './core.constants.js';
+         lageVon, tragwerkeVon, mastenFuer, mastenVon,
+         gewaehlterMast } from './core.constants.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -200,7 +201,18 @@ export function maskenSignatur(werte, tab) {
      */
     tragwerkeSortiert(werte).map(
       (t) => `${t.id}:${tragwerksart(t).key}:${t.aktiv ? 1 : 0}:${tragwerkName(t)}`
-           + `:${lageVon(t)}`),
+           + `:${lageVon(t)}:${t.mastVorhanden === false ? 0 : 1}`),
+    /*
+     * DIE MASTKACHELN GEHOEREN GENAUSO DAZU.
+     *
+     * Sie sind kein Eingabefeld, sondern eine zweite Liste - und sie zeigt
+     * Profil und Lage jedes Mastes an. Ohne sie in der Signatur bliebe die
+     * angeklickte Kachel stehen, waehrend die Felder darunter schon dem
+     * neuen Masten gelten: derselbe Fehler wie bei der Tragwerksliste, nur
+     * eine Reihe tiefer.
+     */
+    mastenVon(werte).map((m) => `${m.id}:${m.x}:${m.profil ?? ''}`
+      + `:${m.id === gewaehlterMast(werte)?.id ? 1 : 0}`),
     gruppen.map((gid) => (gid === 'anbau'
       // Die Befestigungsart gehört dazu: sie ändert den Erklärtext am Feld.
       // Ebenso die Rolle der Module (Drahtwerk zeigt den Winkel statt der
@@ -275,6 +287,12 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
   });
   container.querySelectorAll('[data-tw-neu]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
+  });
+  container.querySelectorAll('[data-tw-mast]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tragwerkMasten', b.dataset.twMast));
+  });
+  container.querySelectorAll('[data-mast-aktiv]').forEach((b) => {
+    b.addEventListener('click', () => onChange('mastAktiv', b.dataset.mastAktiv));
   });
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
     b.addEventListener('click', () =>
@@ -612,6 +630,53 @@ export function hinweisHtml(schluessel, text) {
 const feldWert = (f, werte) =>
   (typeof f.wertAus === 'function' ? f.wertAus(werte) : werte[f.key]);
 
+/*
+ * DIE MASTEN ALS EIGENE KACHELREIHE.
+ *
+ * Weisung vom 2. September: «nimm das aktiv inaktiv schalten der masten oben
+ * zu den kacheln» - und die Frage, die dahintersteckt: «wie kann man drei
+ * verschiedene Masttypen eingeben?»
+ *
+ * >>> AUF EINER JOCHREIHE GIBT ES DREI MASTEN, ABER NUR ZWEI TRAGWERKE. <<<
+ *
+ * Zwei Joche, die sich den Mittelmasten teilen: M1 unter dem linken Ende,
+ * M2 dazwischen, M3 unter dem rechten. Drei Bauteile mit je eigenem Profil,
+ * eigener Laenge, eigener Stegrichtung. Die Eingabe kannte sie bisher nur
+ * als «Ende A» und «Ende B» JE TRAGWERK - vier Enden fuer drei Masten, und
+ * welche zwei davon derselbe waren, musste man wissen.
+ *
+ * Die Kachelreihe zeigt, was dasteht: drei Masten, einer davon geteilt.
+ * Anklicken waehlt ihn an, die Felder darunter gelten ihm. Der geteilte
+ * traegt seine beiden Tragwerke als Text - wer ihn aendert, aendert beide,
+ * und das soll man vorher lesen und nicht nachher merken.
+ */
+function mastKachelnHtml(werte) {
+  const masten = mastenVon(werte);
+  if (!masten.length) return '';
+  const gewaehlt = gewaehlterMast(werte);
+  const alleTw = tragwerkeSortiert(werte);
+  const namen = (ids) => (ids ?? []).map(
+    (id) => alleTw.find((x) => x.id === id)).filter(Boolean).map(tragwerkName);
+  return '<div class="mast-kacheln" role="group" aria-label="Masten">'
+    + '<span class="mast-kacheln-titel">Masten</span>'
+    + masten.map((m, i) => {
+      const traegt = namen(m.traegt);
+      const geteilt = traegt.length > 1;
+      return `<button type="button" class="mast-kachel${
+                m.id === gewaehlt?.id ? ' an' : ''}${geteilt ? ' geteilt' : ''}"
+              data-mast-aktiv="${esc(m.id)}"
+              title="${esc(`Mast ${i + 1} bei x = ${m.x.toFixed(2)} m`
+                + (geteilt ? ` - geteilt von ${traegt.join(' und ')}` : ''))}">
+          <span class="mk-kopf">M${i + 1}<span class="mk-x">x ${m.x.toFixed(2)}</span></span>
+          <span class="mk-prof">${esc(m.profil ?? '–')}</span>
+          <span class="mk-fuss">${geteilt
+            ? `geteilt · ${esc(traegt.join(' + '))}`
+            : esc(traegt[0] ?? '')}</span>
+        </button>`;
+    }).join('')
+    + '</div>';
+}
+
 function feldHtml(f, wert, werte) {
   const id = `feld-${f.key}`;
   // Zwei Sperren: Katalogmasse (bearbeiten) und Tabellenlasten (lastenBearbeiten).
@@ -658,6 +723,23 @@ function feldHtml(f, wert, werte) {
                   ? ` · x₀ = ${lageVon(t).toFixed(2)} m` : ''}</span>
             </span>
           </button>
+          ${/*
+             * NUR, WO DAS TRAGWERK OHNE MASTEN NOCH EINES WAERE.
+             *
+             * Ein Joch kann gelenkig oder eingespannt gelagert sein - dann
+             * steht kein Mast im Modell, und das ist ein sinnvoller Zustand.
+             * Beim Einzelmasten ist der Mast das Tragwerk; ihn wegzuschalten
+             * liesse nichts uebrig, und der Knopf haette nichts anzubieten.
+             */ ''}
+          ${art.traeger ? `<button type="button" class="tw-mast${
+                   t.mastVorhanden === false ? '' : ' an'}"
+                  data-tw-mast="${esc(t.id)}"
+                  aria-pressed="${t.mastVorhanden !== false}"
+                  title="${t.mastVorhanden === false
+                    ? 'Masten einschalten - sie werden gezeichnet, ausgeleitet '
+                      + 'und nachgewiesen'
+                    : 'Masten ausschalten - das Tragwerk steht dann ohne'}"
+          >${icon('mast', 13)}Masten</button>` : ''}
           ${liste.length > 1 ? `<button type="button" class="tw-weg"
                  data-tw-weg="${esc(t.id)}" title="Vom Blatt nehmen">×</button>` : ''}
         </div>`;
@@ -666,7 +748,17 @@ function feldHtml(f, wert, werte) {
       + TRAGWERKSARTEN.map((a) =>
           `<button type="button" class="btn btn-mini" data-tw-neu="${esc(a.key)}"
              title="${esc(a.kurz)}">+ ${esc(a.label)}</button>`).join('')
-      + `</div></div>`;
+      + `</div>`
+      /*
+       * DIE MASTEN GLEICH DARUNTER - sie gehoeren zu derselben Frage.
+       *
+       * «Was steht auf diesem Querprofil?» wird von beiden Reihen zusammen
+       * beantwortet: oben die Tragwerke, darunter die Masten, auf denen sie
+       * stehen. Getrennt in zwei Gruppen haette man zweimal dieselbe
+       * Anordnung gelesen, einmal als Joch und einmal als Stuetze.
+       */
+      + mastKachelnHtml(werte)
+      + `</div>`;
   } else if (f.typ === 'bauform') {
     /*
      * DREI KARTEN NEBENEINANDER, nicht drei Woerter in einem Menue.
@@ -2109,30 +2201,35 @@ export function setzeSortimentSuche(fn) { beiSortiment = fn; }
  * kostet nichts und beantwortet die Frage, bevor sie entsteht.
  */
 export function mastenUebersichtHtml(werte) {
-  const t = tragwerkeVon(werte)[0];
-  const [a, b] = mastenFuer(werte, t);
+  /*
+   * SEIT DEN KACHELN SPRICHT SIE VOM ANGEWAEHLTEN MASTEN.
+   *
+   * Die Liste aller Masten steht oben in der Kachelreihe - sie hier ein
+   * zweites Mal aufzuzaehlen hiesse, dieselbe Anordnung zweimal zu lesen.
+   * Was die Kachel nicht sagen kann, weil dort kein Platz dafuer ist, steht
+   * hier: WELCHEM Masten die Felder darunter gerade gelten, und was eine
+   * Aenderung an ihm sonst noch trifft.
+   */
+  const m = gewaehlterMast(werte);
+  if (!m) return '';
   const alleTw = tragwerkeSortiert(werte);
-  if (!a && !b) return '';
-  const zeile = (m, ende) => {
-    if (!m) return '';
-    // Wer sonst noch an diesem Masten haengt - ohne das aktive Tragwerk.
-    const andere = (m.traegt ?? []).filter((id) => id !== t.id)
-      .map((id) => alleTw.find((x) => x.id === id))
-      .filter(Boolean);
-    return `<div class="mast-zeile${andere.length ? ' geteilt' : ''}">
-      <span class="mast-ende">${ende}</span>
-      <span class="mast-lage">x₀ ${m.x.toFixed(2)} m</span>
+  const traegt = (m.traegt ?? []).map((id) => alleTw.find((x) => x.id === id))
+    .filter(Boolean).map(tragwerkName);
+  const nr = mastenVon(werte).findIndex((x) => x.id === m.id) + 1;
+  return `<div class="masten-uebersicht">
+    <div class="mast-zeile${traegt.length > 1 ? ' geteilt' : ''}">
+      <span class="mast-ende">M${nr}</span>
+      <span class="mast-lage">x ${m.x.toFixed(2)} m</span>
       <span class="mast-prof">${esc(m.profil ?? '–')}</span>
-      ${andere.length
-        ? `<span class="mast-teilt">trägt auch ${
-            andere.map((x) => esc(tragwerkName(x))).join(', ')}</span>`
+      ${traegt.length
+        ? `<span class="mast-teilt">trägt ${traegt.map(esc).join(' und ')}</span>`
         : ''}
-    </div>`;
-  };
-  return `<div class="masten-uebersicht">${zeile(a, 'A')}${zeile(b, 'B')}
-    ${(a?.traegt?.length ?? 0) > 1 || (b?.traegt?.length ?? 0) > 1
+    </div>
+    ${traegt.length > 1
       ? '<p class="mast-warn">Ein geteilter Mast gehört beiden Tragwerken — '
-        + 'was hier geändert wird, gilt auch drüben.</p>' : ''}
+        + 'was hier geändert wird, gilt auch drüben. Die Anschlusshöhe '
+        + 'nicht: sie beschreibt, wie hoch das jeweilige Joch anschliesst, '
+        + 'und steht deshalb bei jedem Tragwerk für sich.</p>' : ''}
   </div>`;
 }
 
@@ -2160,12 +2257,26 @@ export function zeichneEinzelmast(node, letzte) {
    * ein Nachweis fehlt, der das entscheidet. Bei einem schlanken Kragmast
    * kann das Knicken massgebend werden.
    */
-  const stufe = e > 1 ? 'fail' : 'warn';
+  /*
+   * DER SATZ DARUNTER STAND SEIT DEM 2. SEPTEMBER FALSCH DA.
+   *
+   * «Stabilitaet nicht gefuehrt» war richtig, solange sie es nicht war -
+   * seit dem Biegeknicknachweis (core.mast.js, mastStabilitaet) ist sie
+   * gefuehrt, und der Satz behauptete eine Luecke, die es nicht mehr gibt.
+   * Ein stehengebliebener Vorbehalt ist so irrefuehrend wie ein fehlender.
+   *
+   * Genannt wird jetzt, WAS massgebend war - Querschnitt oder Knicken. Das
+   * Biegedrillknicken bleibt ausdruecklich aussen vor (chi_LT = 1.0); es
+   * steht im Nachweisbericht, nicht in dieser Zeile.
+   */
+  const knickt = (mn?.stabil?.eta ?? 0) > (mn?.eta ?? 0);
+  const stufe = e > 1 ? 'fail' : 'ok';
   const kopf = `<div class="urteil ${stufe}">
       <div class="urteil-eta">η ${f3(e)}</div>
       <div class="urteil-text">${e > 1
-        ? 'Querschnittsnachweis nicht erfüllt'
-        : 'Querschnitt erfüllt · Stabilität nicht geführt'}</div>
+        ? 'Nachweis nicht erfüllt'
+        : `Tragsicherheit erfüllt · ${knickt
+            ? 'Biegeknicken massgebend' : 'Querschnitt massgebend'}`}</div>
     </div>`;
 
   const hinweise = hinw.length

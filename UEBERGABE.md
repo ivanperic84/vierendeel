@@ -27,6 +27,116 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Drei Masten, drei Kacheln (2. September)
+
+Die Frage des Auftraggebers war knapp: **«Wie kann man drei verschiedene
+Masttypen eingeben?»** Sie liess sich beantworten, und die Antwort war der
+Grund, es zu ändern.
+
+Auf einer Jochreihe stehen drei Masten unter zwei Jochen — der mittlere
+gehört beiden. Die Eingabe kannte sie nur als *Ende A* und *Ende B* **je
+Tragwerk**: vier Enden für drei Masten. Wer drei Profile wollte, musste das
+erste Joch anwählen, «Ende B abweichend» ankreuzen, zwei Profile eintippen,
+auf das zweite Joch umschalten, dort wieder ankreuzen — und dabei wissen,
+dass das *Ende A* des zweiten Jochs derselbe Mast ist wie das *Ende B* des
+ersten. Fünf Felder, eine Falle.
+
+Jetzt steht unter den Tragwerkskacheln eine **zweite Reihe: ein Eintrag je
+Mast des Blattes**, mit Nummer, Lage und Profil. Ein Klick wählt ihn an, die
+Mastfelder darunter gelten ihm. Der geteilte trägt seine beiden Tragwerke als
+Text — wer ihn ändert, ändert beide, und das soll man vorher lesen.
+`mastZwei`, `mastProfilB`, `mastLaengeB` und `mastStegB` bleiben im
+Datensatz und im Rechenkern; als **Frage** stehen sie nicht mehr da.
+
+Der Schalter **«Masten im Modell»** sitzt jetzt an der Tragwerkskachel
+(Weisung: «nimm das aktiv inaktiv schalten der masten oben zu den kacheln»).
+Er gilt dem Tragwerk und nicht dem einzelnen Masten — einen von zwei
+wegzuschalten kennt das Datenmodell nicht, und es wäre auch kein Tragwerk.
+
+#### Zwei Fehler, die dabei ans Licht kamen
+
+**Die Mastenliste gehörte keinem Tragwerk, stand aber in keinem
+Blattfeld.** `tragwerkTeil` nimmt alles mit, was nicht in `BLATT_FELDER`
+steht — die Masten wanderten beim Umschalten in das weggelegte Tragwerk, und
+aus dem angewählten kam eine alte Liste zurück oder gar keine. Ein Mast, dem
+man gerade ein Profil gegeben hatte, stand nach einem Klick auf das
+Nachbarjoch wieder mit dem alten da. `masten` und `mastAktiv` sind jetzt
+Blattangaben.
+
+**Ein abgeschalteter Mast vererbte seinem Nachbarn das Profil.** Im Browser
+gemessen: drei Masten (HEB 260 / HEB 240 / HEM 240), dann die Masten des
+linken Jochs ausgeschaltet. Die Nummern werden **laufend** vergeben — der
+übrig gebliebene Mast bei x = 20 hiess danach `M1` und bekam über die Id das
+Profil des verschwundenen: HEB 260 statt HEB 240. Ein Mast mit einem fremden
+Profil, und man sieht es ihm nicht an.
+
+Seither entscheidet in `mastenVon` die **Stelle**, nicht die Nummer, in zwei
+Durchgängen: erst gleiche Stelle auf den Zentimeter, dann die nächstgelegene,
+global nach Abstand geordnet. Der zweite Durchgang fängt das verschobene
+Joch — gibt man einer Reihe (Masten bei 0, 20, 35) die Lage x₀ = 21, stehen
+sie danach bei 0, 20, 21 und 36; der gespeicherte Eintrag von 35 gehört zu
+dem bei 36, und das sagt der Abstand, nicht die Reihenfolge.
+
+#### Die Anschlusshöhe bekommt ihren eigenen Schalter
+
+`mastZwei` hiess zweierlei auf einmal: «der Mast am Ende B ist ein anderer»
+**und** «das Joch schliesst dort anders hoch an». Solange man beide Masten
+über dieselbe Maske eintippte, fiel das nicht auf.
+
+Mit den Kacheln fällt es auf, und zwar teuer: `mastenProjizieren` setzt
+`mastZwei`, sobald sich die beiden Masten in **irgendeiner** Angabe
+unterscheiden. Wer dem rechten Masten ein anderes Profil gibt, hätte damit
+still `mastHB` scharfgeschaltet — ein Feld mit dem Standardwert 7.50 m, das
+niemand angefasst hat, mitten in der Drehfeder. Genau dieser Fehler ist am
+2. September schon einmal aufgetreten.
+
+Also **`mastHZwei`**, mit einer Aufgabe. Fehlt er — jede bisher gespeicherte
+Datei —, gilt `mastZwei`: dieselbe Höhe wie zuvor, kein Unterschied im
+Ergebnis. Geprüft wird beides.
+
+### Das abgelegte Querprofil nachträglich schieben (2. September)
+
+Weisung: «es wäre daher noch gut das abgelegte QP Bild schieben zu können
+nachträglich, falls die Lage der Abstraktion nicht ganz gleicht bei einer
+Jochreihe.»
+
+Zwei Klicks messen das Bild über **einem** Tragwerk ein. Auf einer Jochreihe
+steht daneben ein zweites Joch, und dessen Lage kommt nicht aus dem Bild,
+sondern aus x₀ der Eingabe. Passt beides nicht zusammen, gab es bisher nur
+eine Antwort: neu einmessen — die gute Lage wegwerfen, um die schlechte zu
+ersetzen.
+
+Im Zeichnungsmenü steht jetzt **«Verschieben»**: ziehen im Bild, Pfeiltasten
+5 cm, mit Umschalt 1 cm. Der Balken nennt die Verschiebung als Zahl
+(`Δx`, `Δz`) — sie ist zugleich die Probe: weicht sie stark von dem ab, was
+man erwartet hat, stimmt eher die Eingabe als das Bild. «zurück» setzt auf
+die Lage vor dem Zug, «fertig» sichert.
+
+**Der Massstab bleibt unangetastet.** Ein gezogener Massstab wäre eine
+zweite, unsichtbare Kalibrierung; die eingemessene ist die belastbare.
+Gerechnet wird über dasselbe Rechteck, das `_zeichnungMalen` zeichnet — die
+Umrechnung Bildschirm → Welt ist damit genau die, die man sieht.
+
+Ein frisch eingelegtes Bild darf man auch schieben, obwohl es noch nicht
+eingemessen ist: es liegt dann vorläufig da, und gerade dort will man es
+zurechtrücken. Am Zustand ändert das nichts — «noch nicht eingemessen» steht
+weiter daneben, denn geschoben ist nicht gemessen.
+
+### Der Vorbehalt am Einzelmasten war stehengeblieben (2. September)
+
+Die Auswertung des Einzelmasten sagte weiter «Querschnitt erfüllt ·
+Stabilität nicht geführt», und die Kopfzahl war `mast.eta` — die
+Querschnittsausnutzung. Seit dem Biegeknicknachweis ist die Stabilität
+geführt **und am Regelmasten das grössere von beiden** (0.1465 gegen
+0.1360). Der Satz behauptete eine Lücke, die es nicht mehr gibt, und die
+Zahl daneben hielt den massgebenden Nachweis heraus.
+
+Jetzt steht dort der Nachweis — `etaNachweis`, das grössere von Querschnitt
+und Knicken — und die Zeile nennt, **was** massgebend war. Das
+Biegedrillknicken bleibt ausdrücklich aussen vor (χ_LT = 1.0); das steht im
+Bericht, nicht in dieser Zeile.
+
+
 ### Der Weg von der Ausleitung in AxisVM (27. August)
 
 Die Brücke verlangte vor jedem Bau ein Aufräumen: erst die neue JSON in

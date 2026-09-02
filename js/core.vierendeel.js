@@ -348,7 +348,20 @@ export function berechneEinzelmast(inp, stahl) {
   const m = modellEinzelmast(inp, stahl);
   const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true,
                                   knickBeiwert: inp.knickBeiwert });
-  const eta = mast?.eta ?? 0;
+  /*
+   * >>> DAS URTEIL DES EINZELMASTEN IST DER NACHWEIS, nicht der Querschnitt.
+   *
+   * Hier stand `mast.eta` - die Querschnittsausnutzung. Solange die
+   * Stabilitaet nicht gefuehrt war, war das die einzige Zahl, die es gab,
+   * und daneben stand ausdruecklich «Stabilitaet nicht gefuehrt».
+   *
+   * Seit dem Biegeknicknachweis gibt es beide, und am gemessenen Regelmasten
+   * ist das Knicken das groessere von beiden (0.1465 gegen 0.1360). Die
+   * Kopfzahl weiter auf den Querschnitt zu setzen hiesse, den massgebenden
+   * Nachweis aus dem Urteil herauszuhalten - und die Zeile darunter sagt
+   * jetzt «Tragsicherheit erfuellt».
+   */
+  const eta = mast?.etaNachweis ?? mast?.eta ?? 0;
   return {
     modell: m, knoten: [], extrem: null,
     max: { etaGesamt: eta, etaL: 0, etaB: 0 },

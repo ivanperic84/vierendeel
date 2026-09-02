@@ -189,6 +189,22 @@ export const BLATT_FELDER = [
   // Die Masskette beschreibt die ZEICHNUNG, nicht das Tragwerk. Sie wird
   // einmal abgeschrieben und gilt für alles, was auf dem Blatt steht.
   'masskette',
+  /*
+   * >>> DIE MASTENLISTE GEHOERT DEM BLATT. <<<
+   *
+   * Sie stand nicht hier, und das war falsch - ein Fehler, den erst die
+   * Mastkacheln sichtbar gemacht haben. `tragwerkTeil` nimmt alles mit, was
+   * nicht in dieser Liste steht: die Masten wanderten damit beim Umschalten
+   * in das weggelegte Tragwerk hinein, und aus dem angewaehlten kam eine
+   * alte Liste zurueck - oder gar keine. Ein Mast, dem man gerade ein
+   * anderes Profil gegeben hat, stand nach einem Klick auf das Nachbarjoch
+   * wieder mit dem alten da.
+   *
+   * Ein Mast, den sich zwei Tragwerke teilen, kann ohnehin keinem von
+   * beiden gehoeren. Und `mastAktiv` sagt bloss, welche Kachel angeklickt
+   * ist - Bedienzustand des Blattes, wie `masskette`.
+   */
+  'masten', 'mastAktiv',
 ];
 
 /** Nur die Blattangaben aus einem Eingabesatz. */
@@ -439,9 +455,62 @@ export function mastenVon(w, tol = 0.1) {
   const soll = mastenAbgeleitet(w, tol);
   const alt = Array.isArray(w?.masten) ? w.masten : null;
   if (!alt || !alt.length) return soll;
+  /*
+   * >>> DIE STELLE ENTSCHEIDET, NICHT DIE NUMMER. <<<
+   *
+   * Hier wurde ueber die Id zugeordnet, und das war falsch - gemessen am
+   * 2. September im Browser: drei Masten (HEB 260 bei x 0, HEB 240 bei
+   * x 20, HEM 240 bei x 35), dann die Masten des linken Jochs abgeschaltet.
+   * `mastenAbgeleitet` vergibt die Nummern LAUFEND; der uebrig gebliebene
+   * Mast bei x 20 hiess danach M1 und bekam ueber die Id das Profil des
+   * verschwundenen: HEB 260 statt HEB 240. Ein Mast mit einem fremden
+   * Profil, und man sieht es ihm nicht an.
+   *
+   * Die Nummer ist eine Laufnummer und aendert sich, sobald sich die Liste
+   * aendert. Ein Mast ist, WO ER STEHT.
+   *
+   * ================== ZWEI DURCHGAENGE, UND WARUM ==========================
+   *
+   * 1. GLEICHE STELLE. Der Regelfall: nichts hat sich bewegt, jeder Eintrag
+   *    findet seinen Masten auf den Zentimeter.
+   *
+   * 2. NAECHSTGELEGENE STELLE, und zwar GLOBAL nach Abstand geordnet. Das
+   *    faengt das verschobene Joch: gibt man einer Reihe (Masten bei 0, 20,
+   *    35) eine neue Lage x0 = 21, stehen die Masten danach bei 0, 20, 21
+   *    und 36. Der gespeicherte Eintrag von x 35 gehoert zu dem bei 36, nicht
+   *    zu dem bei 21 - der Abstand sagt es, die Reihenfolge nicht. Ginge man
+   *    die Masten der Reihe nach durch, griffe der bei 21 zuerst zu.
+   *
+   * Jeder gespeicherte Eintrag wird HOECHSTENS EINMAL vergeben; was uebrig
+   * bleibt, faellt weg. Das ist die richtige Seite des Zweifels: lieber die
+   * abgeleitete Angabe als eine fremde.
+   */
+  const rest = alt.map((a, i) => ({ a, i, frei: true }));
+  const treffer = new Map();
+  const nimm = (m, e) => { e.frei = false; treffer.set(m.id, e.a); };
+
+  soll.forEach((m) => {
+    const e = rest.find((x) => x.frei
+      && Math.abs((x.a.x ?? NaN) - m.x) <= tol);
+    if (e) nimm(m, e);
+  });
+
+  const paare = [];
+  soll.forEach((m) => {
+    if (treffer.has(m.id)) return;
+    rest.forEach((e) => {
+      const d = Math.abs((e.a.x ?? NaN) - m.x);
+      if (Number.isFinite(d)) paare.push({ m, e, d });
+    });
+  });
+  paare.sort((p, q) => p.d - q.d);
+  paare.forEach(({ m, e }) => {
+    if (!e.frei || treffer.has(m.id)) return;
+    nimm(m, e);
+  });
+
   return soll.map((m) => {
-    const q = alt.find((a) => a.id === m.id)
-           ?? alt.find((a) => Math.abs((a.x ?? NaN) - m.x) <= tol);
+    const q = treffer.get(m.id);
     if (!q) return m;
     const o = { ...m };
     MASTFELDER.forEach((f) => {
@@ -453,6 +522,25 @@ export function mastenVon(w, tol = 0.1) {
     });
     return o;
   });
+}
+
+/**
+ * DER ANGEWAEHLTE MAST - der, dem die Eingabefelder gerade gelten.
+ *
+ * `mastAktiv` ist Bedienzustand, kein Tragwerksmerkmal: er sagt, welche der
+ * Kacheln angeklickt ist. Steht dort nichts oder eine Id, die es nicht mehr
+ * gibt - ein Joch wurde verschoben, ein Tragwerk vom Blatt genommen -, gilt
+ * der Mast am Ende A des gerechneten Tragwerks. Das ist genau der, dessen
+ * Angaben vor den Kacheln in den Feldern standen; eine Datei aus der Zeit
+ * davor oeffnet damit unveraendert.
+ */
+export function gewaehlterMast(w) {
+  const alle = mastenVon(w);
+  if (!alle.length) return null;
+  const gewaehlt = alle.find((m) => m.id === w?.mastAktiv);
+  if (gewaehlt) return gewaehlt;
+  const t = tragwerkeVon(w)[0];
+  return (t ? mastenFuer(w, t)[0] : null) ?? alle[0];
 }
 
 /** Ein Mast nach seiner Id. */
@@ -472,7 +560,29 @@ export const mastNach = (w, id) => mastenVon(w).find((m) => m.id === id) ?? null
  * derselbe Mast stand zweimal da, einen Meter gegeneinander versetzt.
  */
 export function anschlusshoehe(t, ende = 'A') {
-  const zwei = ende === 'B' && t?.mastZwei === true;
+  /*
+   * >>> EIN EIGENER SCHALTER, UND ZWAR AUS EINEM GEMESSENEN GRUND. <<<
+   *
+   * `mastZwei` hiess bisher zweierlei auf einmal: «der Mast am Ende B ist
+   * ein anderer» UND «das Joch schliesst dort anders hoch an». Solange man
+   * beide Masten ueber dieselbe Maske eintippte, fiel das nicht auf.
+   *
+   * Seit die Masten einzeln anwaehlbar sind, faellt es auf - und zwar
+   * teuer: `mastenProjizieren` setzt `mastZwei`, sobald sich die beiden
+   * Masten in IRGENDEINER Angabe unterscheiden. Wer dem rechten Masten ein
+   * anderes Profil gibt, haette damit still `mastHB` scharfgeschaltet - ein
+   * Feld mit dem Standardwert 7.50 m, das niemand angefasst hat. Der
+   * Mastfuss des einen Jochendes saesse einen halben Meter hoeher als der
+   * andere, die Drehfeder rechnete mit einer fremden Hoehe, und dem
+   * Ergebnis sieht man es nicht an. Genau dieser Fehler ist am 2. September
+   * schon einmal aufgetreten (siehe mastenProjizieren).
+   *
+   * Also zwei Schalter, jeder mit einer Aufgabe. Fehlt der neue - jede
+   * bisher gespeicherte Datei -, gilt der alte: dieselbe Hoehe wie zuvor,
+   * kein Unterschied im Ergebnis.
+   */
+  const zweiH = t?.mastHZwei ?? t?.mastZwei;
+  const zwei = ende === 'B' && zweiH === true;
   const h = zwei ? (t?.mastHB ?? t?.mastH) : t?.mastH;
   return Number(h) || 0;
 }
@@ -539,7 +649,11 @@ export function mastenProjizieren(satz, w, t) {
  * Genau so soll es sein — es ist ein Mast. Die Liste zeigt deshalb an, wer
  * alles daran hängt.
  */
-export function setzeMastAngabe(w, ende, flachKey, wert) {
+/**
+ * @param {object} w      Satz
+ * @param {string} ziel   Mast-Id ('M2') oder das Ende am aktiven Tragwerk ('A'/'B')
+ */
+export function setzeMastAngabe(w, ziel, flachKey, wert) {
   const feld = MASTFELDER.find((f) => f.flach === flachKey || f.flachB === flachKey);
   if (!feld) return w;
   /*
@@ -552,12 +666,25 @@ export function setzeMastAngabe(w, ende, flachKey, wert) {
    * ersten Lauf passiert.
    */
   if (feld.am === 'profil' && !String(wert ?? '').trim()) return w;
-  const t = tragwerkeVon(w)[0];
-  const [a, b] = mastenFuer(w, t);
-  const ziel = (ende === 'B' ? b : a) ?? a;
-  if (!ziel) return w;
-  const masten = mastenVon(w).map(
-    (m) => (m.id === ziel.id ? { ...m, [feld.am]: wert } : m));
+  /*
+   * DIE ID GEHT VOR DEM ENDE.
+   *
+   * Seit die Kacheln jeden Masten des Blattes einzeln anbieten, kommt die
+   * Aenderung nicht mehr als «Ende B des aktiven Tragwerks», sondern als
+   * «M3». Das ist der eindeutigere Weg: ein Mast, den sich zwei Tragwerke
+   * teilen, hat je nach Blickrichtung zwei verschiedene Enden - aber nur
+   * eine Id.
+   */
+  const alle = mastenVon(w);
+  let mast = alle.find((m) => m.id === ziel);
+  if (!mast) {
+    const t = tragwerkeVon(w)[0];
+    const [a, b] = mastenFuer(w, t);
+    mast = (ziel === 'B' ? b : a) ?? a;
+  }
+  if (!mast) return w;
+  const masten = alle.map(
+    (m) => (m.id === mast.id ? { ...m, [feld.am]: wert } : m));
   return { ...w, masten };
 }
 

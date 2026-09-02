@@ -198,7 +198,23 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
   const zwei = ende === 'B' && inp.mastZwei === true;
   const p = getMastprofil(zwei ? (inp.mastProfilB ?? inp.mastProfil) : inp.mastProfil);
   const sr = getStegrichtung(zwei ? (inp.mastStegB ?? inp.mastSteg) : inp.mastSteg);
-  const H = zwei ? (inp.mastHB ?? inp.mastH) : inp.mastH;
+  /*
+   * >>> DIE HOEHE FOLGT IHREM EIGENEN SCHALTER. <<<
+   *
+   * `mastZwei` sagt, dass der MAST am Ende B ein anderer ist - Profil,
+   * Laenge, Stegrichtung. Ob das Joch dort auch anders hoch anschliesst,
+   * ist eine zweite Frage, und seit die Masten einzeln anwaehlbar sind eine
+   * getrennte: `mastenProjizieren` setzt `mastZwei` schon, wenn sich bloss
+   * die Profile unterscheiden. Ohne die Trennung wuerde damit `mastHB`
+   * scharf - ein Feld mit dem Standardwert 7.50 m, das niemand angefasst
+   * hat, mitten in der Drehfeder. Ausfuehrlich in core.constants.js,
+   * anschlusshoehe().
+   *
+   * Fehlt `mastHZwei`, gilt `mastZwei` - jede bisher gespeicherte Datei
+   * rechnet damit unveraendert weiter.
+   */
+  const zweiH = ende === 'B' && (inp.mastHZwei ?? inp.mastZwei) === true;
+  const H = zweiH ? (inp.mastHB ?? inp.mastH) : inp.mastH;
   /*
    * DIE GESAMTLAENGE traegt nur die Geometrie, nicht die Steifigkeit.
    *
