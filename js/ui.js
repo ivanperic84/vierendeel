@@ -291,9 +291,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
   container.querySelectorAll('[data-tw-mast]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkMasten', b.dataset.twMast));
   });
-  container.querySelectorAll('[data-mast-aktiv]').forEach((b) => {
-    b.addEventListener('click', () => onChange('mastAktiv', b.dataset.mastAktiv));
-  });
+  verdrahteLeiste(container, werte, onChange);
   container.querySelectorAll('[data-bearbeiten]').forEach((b) => {
     b.addEventListener('click', () =>
       onChange('bearbeiten', !(aktuelleWerte ?? werte).bearbeiten));
@@ -630,51 +628,264 @@ export function hinweisHtml(schluessel, text) {
 const feldWert = (f, werte) =>
   (typeof f.wertAus === 'function' ? f.wertAus(werte) : werte[f.key]);
 
+/* ===========================================================================
+ * DIE QUERPROFIL-LEISTE
+ *
+ * Weisung vom 2. September: «kann man aus diesen eingaben nicht etwas
+ * interaktiveres machen? es ist alles etwas verstreut. ich verstehe nicht
+ * ganz all die einzelnen buttons und kacheln.»
+ *
+ * >>> VIER BEDIENELEMENTE FUER EINE FRAGE. <<<
+ *
+ * Hier standen: Tragwerkskacheln mit je einem Masten-Schalter und einem
+ * Kreuz, darunter eine Reihe Mastkacheln, darunter vier Knoepfe zum
+ * Hinzufuegen, darunter ein Zahlenfeld «Lage auf dem Querprofil». Alle
+ * beantworten dieselbe Frage - WAS STEHT AUF DIESEM BLATT UND WO -, und
+ * keines zeigt es. Sie beschreiben die Anordnung in Worten («x₀ = 20.00 m»),
+ * waehrend der Anwender ein Querprofil vor sich hat, auf dem sie zu sehen
+ * ist.
+ *
+ * Die Leiste ist dieselbe Anordnung als BILD: eine massstaebliche x-Achse
+ * des Blattes, jedes Tragwerk ein Balken auf seiner Lage, jeder Mast eine
+ * Marke an seiner Stelle. Anklicken waehlt, Ziehen verschiebt.
+ *
+ * ================== WARUM HTML UND NICHT SVG ==============================
+ *
+ * Die Balken sind KNOEPFE. In HTML sind sie das von selbst - mit Fokus,
+ * Tastaturbedienung und Titel; in SVG muesste jedes davon nachgebaut
+ * werden. Die Lage ist ein Prozentwert, und den rechnet CSS aus.
+ *
+ * ================== DAS ZAHLENFELD BLEIBT =================================
+ *
+ * Ziehen ist grob - ein Pixel sind auf 240 Punkten Breite und vierzig Metern
+ * Blatt rund siebzehn Zentimeter. Wer eine Lage auf den Zentimeter kennt,
+ * tippt sie. Das Bild gibt die Uebersicht, das Feld die Genauigkeit; beides
+ * abzuschaffen, weil das andere da ist, waere ein Verlust.
+ * =========================================================================== */
+
 /*
- * DIE MASTEN ALS EIGENE KACHELREIHE.
+ * DIE LEISTE BEDIENEN.
  *
- * Weisung vom 2. September: «nimm das aktiv inaktiv schalten der masten oben
- * zu den kacheln» - und die Frage, die dahintersteckt: «wie kann man drei
- * verschiedene Masttypen eingeben?»
+ * Drei Gesten auf demselben Element, und sie duerfen sich nicht ins Gehege
+ * kommen:
  *
- * >>> AUF EINER JOCHREIHE GIBT ES DREI MASTEN, ABER NUR ZWEI TRAGWERKE. <<<
+ *   KLICK auf einen Balken  -> dieses Tragwerk wird gerechnet
+ *   ZIEHEN eines Balkens    -> seine Lage auf dem Blatt
+ *   KLICK auf eine Marke    -> dieser Mast wird bearbeitet
  *
- * Zwei Joche, die sich den Mittelmasten teilen: M1 unter dem linken Ende,
- * M2 dazwischen, M3 unter dem rechten. Drei Bauteile mit je eigenem Profil,
- * eigener Laenge, eigener Stegrichtung. Die Eingabe kannte sie bisher nur
- * als «Ende A» und «Ende B» JE TRAGWERK - vier Enden fuer drei Masten, und
- * welche zwei davon derselbe waren, musste man wissen.
+ * >>> ZIEHEN UND KLICKEN TRENNT DIE SCHWELLE, NICHT DIE TASTE. <<<
  *
- * Die Kachelreihe zeigt, was dasteht: drei Masten, einer davon geteilt.
- * Anklicken waehlt ihn an, die Felder darunter gelten ihm. Der geteilte
- * traegt seine beiden Tragwerke als Text - wer ihn aendert, aendert beide,
- * und das soll man vorher lesen und nicht nachher merken.
+ * Unter drei Pixeln gilt es als Klick. Ohne diese Schwelle waere jeder
+ * Klick ein Zug um null Meter - und jeder Zug ein Klick, der beim Loslassen
+ * noch einmal umschaltet.
+ *
+ * >>> GERECHNET WIRD ERST BEIM LOSLASSEN. <<<
+ *
+ * Waehrend des Zugs wird nur die Leiste neu gezeichnet, mit der Lage als
+ * Zahl daneben. Bei jedem Pixel durchzurechnen hiesse, ein Joch mit
+ * sechshundert Knoten sechzigmal in der Sekunde zu loesen.
  */
-function mastKachelnHtml(werte) {
-  const masten = mastenVon(werte);
-  if (!masten.length) return '';
-  const gewaehlt = gewaehlterMast(werte);
+const QP_SCHWELLE = 3;
+
+export function verdrahteLeiste(container, werte, onChange) {
+  const leiste = container.querySelector('.qp-leiste');
+  if (!leiste) return;
+  const von = Number(leiste.dataset.qpVon), bis = Number(leiste.dataset.qpBis);
+  const spur = leiste.querySelector('.qp-spur');
+
+  container.querySelectorAll('[data-qp-mast]').forEach((b) => {
+    b.addEventListener('click', () => onChange('mastAktiv', b.dataset.qpMast));
+  });
+
+  container.querySelectorAll('[data-qp-tw]').forEach((b) => {
+    const id = b.dataset.qpTw;
+    let zug = null;
+    b.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const t = tragwerkeSortiert(werte).find((x) => x.id === id);
+      if (!t) return;
+      try { b.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
+      zug = { startX: e.clientX, x0: lageVon(t), bewegt: false };
+    });
+    b.addEventListener('pointermove', (e) => {
+      if (!zug) return;
+      const dpx = e.clientX - zug.startX;
+      if (!zug.bewegt && Math.abs(dpx) < QP_SCHWELLE) return;
+      zug.bewegt = true;
+      const breite = spur.getBoundingClientRect().width || 1;
+      // AUF FUENF ZENTIMETER GERASTET - dieselbe Schrittweite wie die
+      // Schieber. Ein Pixel sind auf 240 Punkten und vierzig Metern rund
+      // siebzehn Zentimeter; ohne Raster staende dort 20.1734.
+      const roh = zug.x0 + (dpx / breite) * (bis - von);
+      zug.x = Math.round(roh * 20) / 20;
+      /*
+       * >>> NUR DEN BALKEN SCHIEBEN, DIE LEISTE NICHT NEU BAUEN. <<<
+       *
+       * Der erste Versuch schrieb `leiste.outerHTML` neu. Damit verschwindet
+       * genau das Element, das den Zeiger gefangen haelt - der Fang faellt
+       * weg, die weiteren `pointermove` gehen woandershin, und der Zug bricht
+       * nach dem ersten Pixel ab. Man haette es fuer ein hakendes Ziehen
+       * gehalten und nicht fuer einen Fehler.
+       *
+       * Verschoben wird deshalb nur die Lage dieses einen Knopfes. Das ist
+       * ohnehin das Richtige: waehrend des Zugs aendert sich nichts als er.
+       */
+      b.style.left = `${((zug.x - von) / (bis - von) * 100).toFixed(3)}%`;
+      b.classList.add('zieht');
+      let marke = leiste.querySelector('.qp-zug');
+      if (!marke) {
+        marke = document.createElement('span');
+        marke.className = 'qp-zug';
+        spur.appendChild(marke);
+      }
+      marke.textContent = `x₀ = ${zug.x.toFixed(2)} m`;
+    });
+    const ende = (e) => {
+      if (!zug) return;
+      const fertig = zug;
+      zug = null;
+      try { b.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
+      if (!fertig.bewegt) { onChange('tragwerkAktiv', id); return; }
+      if (fertig.x !== undefined && fertig.x !== fertig.x0) {
+        onChange('tragwerkLage', { id, x: fertig.x });
+      } else {
+        onChange('tragwerkAktiv', id);      // gezogen und wieder abgelegt
+      }
+    };
+    b.addEventListener('pointerup', ende);
+    b.addEventListener('pointercancel', ende);
+  });
+
+  /*
+   * DAS AUFKLAPPMENUE DER BAUFORMEN.
+   *
+   * Es klappt beim Waehlen nicht selbst zu - die Maske wird ohnehin neu
+   * gebaut, sobald ein Tragwerk dazukommt. Es klappt zu, wenn man daneben
+   * klickt; alles andere waere ein Menue, das offen stehen bleibt.
+   */
+  const auf = container.querySelector('[data-qp-neu-auf]');
+  const liste = container.querySelector('.qp-neu-liste');
+  if (auf && liste) {
+    auf.addEventListener('click', (e) => {
+      e.stopPropagation();
+      liste.hidden = !liste.hidden;
+    });
+    document.addEventListener('click', function zu(e) {
+      if (!liste.isConnected) { document.removeEventListener('click', zu); return; }
+      if (!liste.contains(e.target) && e.target !== auf) liste.hidden = true;
+    });
+  }
+}
+
+/**
+ * Eine Zeile zum gewaehlten Masten - unter der Leiste, wo er angeklickt wird.
+ *
+ * Die Marke in der Leiste hat Platz fuer «M2» und sonst nichts. Welches
+ * Profil er traegt und wer alles an ihm haengt, steht deshalb hier. Und der
+ * geteilte Mast sagt es ausdruecklich: wer ihn aendert, aendert zwei
+ * Tragwerke.
+ */
+function mastenNotizHtml(werte) {
+  const m = gewaehlterMast(werte);
+  if (!m) return '';
   const alleTw = tragwerkeSortiert(werte);
-  const namen = (ids) => (ids ?? []).map(
-    (id) => alleTw.find((x) => x.id === id)).filter(Boolean).map(tragwerkName);
-  return '<div class="mast-kacheln" role="group" aria-label="Masten">'
-    + '<span class="mast-kacheln-titel">Masten</span>'
-    + masten.map((m, i) => {
-      const traegt = namen(m.traegt);
-      const geteilt = traegt.length > 1;
-      return `<button type="button" class="mast-kachel${
-                m.id === gewaehlt?.id ? ' an' : ''}${geteilt ? ' geteilt' : ''}"
-              data-mast-aktiv="${esc(m.id)}"
-              title="${esc(`Mast ${i + 1} bei x = ${m.x.toFixed(2)} m`
-                + (geteilt ? ` - geteilt von ${traegt.join(' und ')}` : ''))}">
-          <span class="mk-kopf">M${i + 1}<span class="mk-x">x ${m.x.toFixed(2)}</span></span>
-          <span class="mk-prof">${esc(m.profil ?? '–')}</span>
-          <span class="mk-fuss">${geteilt
-            ? `geteilt · ${esc(traegt.join(' + '))}`
-            : esc(traegt[0] ?? '')}</span>
-        </button>`;
-    }).join('')
-    + '</div>';
+  const nr = mastenVon(werte).findIndex((x) => x.id === m.id) + 1;
+  const traegt = (m.traegt ?? []).map((id) => alleTw.find((x) => x.id === id))
+    .filter(Boolean).map(tragwerkName);
+  return `<p class="qp-mast-notiz${traegt.length > 1 ? ' geteilt' : ''}">
+      <b>M${nr}</b> · x ${m.x.toFixed(2)} m · ${esc(m.profil ?? 'ohne Profil')}
+      ${traegt.length ? `· trägt ${traegt.map(esc).join(' und ')}` : ''}
+      ${traegt.length > 1 ? '<br>Geteilt — was am Masten geändert wird, gilt '
+        + 'beiden. Die Anschlusshöhe nicht: die gehört dem Joch.' : ''}
+    </p>`;
+}
+
+/** Blattkoordinate -> Prozent der Leistenbreite. */
+const qpPct = (x, von, bis) => ((x - von) / Math.max(1e-9, bis - von)) * 100;
+
+/**
+ * Der dargestellte Bereich: alles, was auf dem Blatt steht, plus Rand.
+ *
+ * Der Rand ist nicht Zierde - ohne ihn klebte ein Tragwerk am Leistenrand,
+ * und der Mast an seinem Ende waere halb abgeschnitten.
+ */
+export function qpBereich(werte) {
+  const alle = tragwerkeSortiert(werte);
+  const enden = alle.flatMap((t) => {
+    const a = lageVon(t);
+    return [a, a + (tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0)];
+  });
+  const von = Math.min(...enden, 0), bis = Math.max(...enden, 1);
+  const rand = Math.max(1.5, (bis - von) * 0.06);
+  return { von: von - rand, bis: bis + rand };
+}
+
+/**
+ * Die Leiste.
+ *
+ * @param {object} werte
+ * @param {{id:string, x:number}|null} zieht  Lage, die gerade gezogen wird
+ */
+export function querprofilLeisteHtml(werte, zieht = null) {
+  const alle = tragwerkeSortiert(werte);
+  if (!alle.length) return '';
+  const { von, bis } = qpBereich(werte);
+  const aktivId = werte.twId ?? 'T1';
+  const gewMast = gewaehlterMast(werte);
+  const masten = mastenVon(werte);
+
+  const balken = alle.map((t) => {
+    const art = tragwerksart(t);
+    const x0 = (zieht && zieht.id === t.id) ? zieht.x : lageVon(t);
+    const L = art.masten >= 2 ? (Number(t.L) || 0) : 0;
+    const links = qpPct(x0, von, bis);
+    // Ein Einzelmast hat keine Laenge - er bekommt eine Mindestbreite, sonst
+    // waere sein Balken ein Strich, den man nicht trifft.
+    const breit = Math.max(qpPct(x0 + L, von, bis) - links, 4);
+    const an = t.id === aktivId;
+    return `<button type="button" class="qp-tw${an ? ' an' : ''}${
+        zieht && zieht.id === t.id ? ' zieht' : ''}"
+        data-qp-tw="${esc(t.id)}" style="left:${links.toFixed(3)}%;
+        width:${breit.toFixed(3)}%"
+        title="${esc(`${tragwerkName(t)} — ${art.label}, x₀ = ${x0.toFixed(2)} m`
+          + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen')
+          + ' · ziehen verschiebt')}"
+        aria-pressed="${an}">
+        <span class="qp-tw-art">${esc(art.kuerzel)}</span>
+        <span class="qp-tw-name">${esc(tragwerkName(t))}</span>
+      </button>`;
+  }).join('');
+
+  const marken = masten.map((m, i) => {
+    const an = m.id === gewMast?.id;
+    const geteilt = (m.traegt ?? []).length > 1;
+    return `<button type="button" class="qp-mast${an ? ' an' : ''}${
+        geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
+        style="left:${qpPct(m.x, von, bis).toFixed(3)}%"
+        title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m — ${
+          m.profil ?? 'ohne Profil'}`
+          + (geteilt ? ' · von zwei Tragwerken geteilt' : ''))}"
+        aria-pressed="${an}"><span class="qp-mast-nr">M${i + 1}</span></button>`;
+  }).join('');
+
+  /*
+   * DIE SKALA NENNT DIE MASTSTELLEN - mehr nicht.
+   *
+   * Ein Raster alle fuenf Meter waere Zahlensalat auf 240 Punkten Breite.
+   * Gebraucht werden die Stellen, an denen etwas steht.
+   */
+  const zahlen = masten.map((m) =>
+    `<span class="qp-zahl" style="left:${qpPct(m.x, von, bis).toFixed(3)}%"
+       >${m.x.toFixed(Math.abs(m.x % 1) > 1e-9 ? 2 : 0)}</span>`).join('');
+
+  const gezogen = zieht
+    ? `<span class="qp-zug">x₀ = ${zieht.x.toFixed(2)} m</span>` : '';
+
+  return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
+      <div class="qp-spur">${balken}${gezogen}</div>
+      <div class="qp-achse">${marken}</div>
+      <div class="qp-skala">${zahlen}</div>
+    </div>`;
 }
 
 function feldHtml(f, wert, werte) {
@@ -688,77 +899,53 @@ function feldHtml(f, wert, werte) {
 
   if (f.typ === 'tragwerke') {
     /*
-     * DIE TRAGWERKE DES QUERPROFILS, als Liste.
+     * DIE LEISTE, UND DARUNTER EINE ZEILE HANDLUNGEN.
      *
-     * Bis zum 2. September stand hier eine Wahl aus drei Bauformen - sie
-     * behauptete, die Datei SEI ein Einzelmast. Auf einem Querprofil stehen
-     * aber zwei Masten oder eine ganze Jochreihe; eine Datei kann dann nicht
-     * EINE Art haben. Die Art gehoert ans einzelne Tragwerk.
+     * Bis zum 2. September standen hier vier Bedienelemente uebereinander
+     * (Tragwerkskacheln, Mastkacheln, vier Hinzufuege-Knoepfe, Zahlenfeld) -
+     * siehe querprofilLeisteHtml. Jetzt: ein Bild, das die Anordnung ZEIGT,
+     * und eine Zeile mit dem, was man am Gewaehlten tun kann.
      *
-     * Das Muster ist dasselbe wie bei den Anbauteilen: eine Liste, ein
-     * aktiver Eintrag, ein Knopf zum Hinzufuegen. Der Anwender kennt es
-     * damit schon aus dem Nachbarreiter.
+     * DIE HANDLUNGEN GELTEN DEM GEWAEHLTEN, nicht allen. «Masten» und
+     * «entfernen» beziehen sich auf das Tragwerk, das gerade gerechnet wird
+     * - dasselbe, das in der Leiste hervorgehoben ist und dessen Felder
+     * darunter stehen. Ein Knopf, der auf etwas wirkt, das man nicht sieht,
+     * ist ein Knopf, den man nicht drueckt.
      */
-    const liste = tragwerkeSortiert(werte);
-    inp = `<div class="tw-liste">`
-      + liste.map((t) => {
-        const art = tragwerksart(t);
-        return `<div class="tw-zeile${t.aktiv ? ' an' : ''}">
-          <button type="button" class="tw-wahl" data-tw-aktiv="${esc(t.id)}"
-                  title="${esc(art.label)} bearbeiten">
-            <figure class="hb-skizze">${bauformSkizze(art.key)}</figure>
-            <span class="tw-text">
-              <span class="tw-name">${esc(tragwerkName(t))}</span>
-              <span class="tw-art">${esc(art.label)}${
-                /*
-                 * DIE LAGE STEHT AN DER KACHEL, nicht nur im Feld darunter.
-                 *
-                 * Die Liste soll die Anordnung auf dem Blatt zeigen; dazu
-                 * gehoert die Zahl, nach der sie sortiert ist. Ohne sie
-                 * stuenden drei Kacheln in einer Reihenfolge, die man nicht
-                 * nachvollziehen kann. Bei EINEM Tragwerk faellt sie weg -
-                 * dort ordnet sie nichts.
-                 */
-                liste.length > 1
-                  ? ` · x₀ = ${lageVon(t).toFixed(2)} m` : ''}</span>
-            </span>
-          </button>
-          ${/*
-             * NUR, WO DAS TRAGWERK OHNE MASTEN NOCH EINES WAERE.
-             *
-             * Ein Joch kann gelenkig oder eingespannt gelagert sein - dann
-             * steht kein Mast im Modell, und das ist ein sinnvoller Zustand.
-             * Beim Einzelmasten ist der Mast das Tragwerk; ihn wegzuschalten
-             * liesse nichts uebrig, und der Knopf haette nichts anzubieten.
-             */ ''}
-          ${art.traeger ? `<button type="button" class="tw-mast${
-                   t.mastVorhanden === false ? '' : ' an'}"
-                  data-tw-mast="${esc(t.id)}"
-                  aria-pressed="${t.mastVorhanden !== false}"
-                  title="${t.mastVorhanden === false
-                    ? 'Masten einschalten - sie werden gezeichnet, ausgeleitet '
-                      + 'und nachgewiesen'
-                    : 'Masten ausschalten - das Tragwerk steht dann ohne'}"
-          >${icon('mast', 13)}Masten</button>` : ''}
-          ${liste.length > 1 ? `<button type="button" class="tw-weg"
-                 data-tw-weg="${esc(t.id)}" title="Vom Blatt nehmen">×</button>` : ''}
-        </div>`;
-      }).join('')
-      + `<div class="tw-neu">`
-      + TRAGWERKSARTEN.map((a) =>
-          `<button type="button" class="btn btn-mini" data-tw-neu="${esc(a.key)}"
-             title="${esc(a.kurz)}">+ ${esc(a.label)}</button>`).join('')
-      + `</div>`
+    const alle = tragwerkeSortiert(werte);
+    const aktiv = alle.find((t) => t.id === (werte.twId ?? 'T1')) ?? alle[0];
+    const art = tragwerksart(aktiv);
+    inp = querprofilLeisteHtml(werte)
+      + '<div class="qp-tun">'
       /*
-       * DIE MASTEN GLEICH DARUNTER - sie gehoeren zu derselben Frage.
-       *
-       * «Was steht auf diesem Querprofil?» wird von beiden Reihen zusammen
-       * beantwortet: oben die Tragwerke, darunter die Masten, auf denen sie
-       * stehen. Getrennt in zwei Gruppen haette man zweimal dieselbe
-       * Anordnung gelesen, einmal als Joch und einmal als Stuetze.
+       * EIN MENUE STATT VIER KNOEPFEN. Die vier Bauformen standen als vier
+       * gleich aussehende Knoepfe da und nahmen zwei Zeilen ein - obwohl man
+       * sie selten braucht und nie zwei davon zugleich.
        */
-      + mastKachelnHtml(werte)
-      + `</div>`;
+      + '<span class="qp-tun-neu"><button type="button" class="btn btn-mini"'
+      + ' data-qp-neu-auf>+ Tragwerk</button>'
+      + '<span class="qp-neu-liste" hidden>'
+      + TRAGWERKSARTEN.map((x) =>
+          `<button type="button" class="btn btn-mini" data-tw-neu="${esc(x.key)}"
+             title="${esc(x.kurz)}">${esc(x.label)}</button>`).join('')
+      + '</span></span>'
+      + (art.traeger
+        ? `<button type="button" class="btn btn-mini${
+             aktiv.mastVorhanden === false ? '' : ' an'}"
+             data-tw-mast="${esc(aktiv.id)}"
+             title="${esc(aktiv.mastVorhanden === false
+               ? 'Masten einschalten — sie werden gezeichnet, ausgeleitet und '
+                 + 'nachgewiesen'
+               : 'Masten ausschalten — das Tragwerk steht dann ohne')}"
+             aria-pressed="${aktiv.mastVorhanden !== false}">${
+             icon('mast', 13)} Masten</button>` : '')
+      + (alle.length > 1
+        ? `<button type="button" class="btn btn-mini btn-fail"
+             data-tw-weg="${esc(aktiv.id)}"
+             title="${esc(`${tragwerkName(aktiv)} vom Blatt nehmen`)}"
+             >\u00d7 entfernen</button>` : '')
+      + '</div>'
+      + mastenNotizHtml(werte);
   } else if (f.typ === 'bauform') {
     /*
      * DREI KARTEN NEBENEINANDER, nicht drei Woerter in einem Menue.

@@ -1361,62 +1361,103 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .tw-neu { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .tw-neu .btn { font-size: 10px; }
 
-/* --- Mastkacheln ----------------------------------------------------------
-   EINE KACHEL JE MAST DES BLATTES, unter den Tragwerken. Auf einer Jochreihe
-   stehen drei Masten unter zwei Jochen - die Reihe zeigt das, statt es aus
-   «Ende A» und «Ende B» zweier Tragwerke erschliessen zu lassen.
+/* --- Querprofil-Leiste ----------------------------------------------------
+   DIE ANORDNUNG ALS BILD statt in Worten. Eine massstaebliche x-Achse des
+   Blattes: jedes Tragwerk ein Balken auf seiner Lage, jeder Mast eine Marke
+   an seiner Stelle. Sie ersetzt vier Bedienelemente - Tragwerkskacheln,
+   Mastkacheln, vier Hinzufuege-Knoepfe und das Lage-Feld -, die alle
+   dieselbe Frage beantworteten und keines davon zeigte.
 
-   NEBENEINANDER, nicht untereinander: eine Mastkachel traegt drei kurze
-   Zeilen und passt zu dritt in die Spalte. Untereinander waere die Reihe
-   laenger als die Tragwerksliste darueber - und sie ist ihr untergeordnet. */
-.mast-kacheln {
-  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px;
-  padding-top: 7px; border-top: 1px solid var(--ol);
+   ALLES IN PROZENT: die Lage rechnet das Stylesheet aus, nicht JavaScript.
+   Damit stimmt sie auch, wenn die Seitenleiste breiter gezogen wird. */
+.qp-leiste {
+  position: relative; margin: 2px 0 8px;
+  user-select: none; touch-action: none;
 }
-.mast-kacheln-titel {
-  flex: 0 0 100%; font-size: 9.5px; color: var(--dim);
-  letter-spacing: .06em; text-transform: uppercase;
-}
-.mast-kachel {
-  flex: 1 1 66px; min-width: 0;
-  display: flex; flex-direction: column; gap: 1px;
-  background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);
-  padding: 4px 6px; cursor: pointer; text-align: left;
-  font-family: inherit; color: var(--dim);
+.qp-spur { position: relative; height: 34px; }
+.qp-tw {
+  position: absolute; top: 0; height: 34px;
+  display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  padding: 0 5px; min-width: 0; overflow: hidden;
+  background: var(--s2); border: 1px solid var(--ol);
+  border-radius: var(--m-r1); cursor: grab;
+  font-family: inherit; color: var(--dim); text-align: left;
   transition: border-color var(--t-schnell), background var(--t-schnell);
 }
-.mast-kachel:hover { border-color: var(--ol2); }
-.mast-kachel.an { border-color: var(--acc); background: var(--acc-s); }
-.mk-kopf {
-  display: flex; justify-content: space-between; gap: 5px;
-  font-size: 10px; font-weight: 500; color: var(--on2);
+.qp-tw:hover { border-color: var(--ol2); }
+.qp-tw.an { border-color: var(--acc); background: var(--acc-s); }
+.qp-tw.zieht { cursor: grabbing; opacity: .85; }
+.qp-tw-art {
+  font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim); white-space: nowrap;
 }
-.mast-kachel.an .mk-kopf { color: var(--acc); }
-.mk-x { font-family: var(--f-mono); font-weight: 400; color: var(--dim); }
-.mk-prof {
-  font-family: var(--f-mono); font-size: 10.5px; color: var(--on2);
+.qp-tw-name {
+  font-size: 10.5px; font-weight: 500; color: var(--on2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.mk-fuss {
-  font-size: 9px; color: var(--dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.qp-tw.an .qp-tw-name, .qp-tw.an .qp-tw-art { color: var(--acc); }
+/* Die Zahl waehrend des Zugs - sie steht ueber der Spur, nicht darin, sonst
+   verdeckte sie den Balken, den man gerade verschiebt. */
+.qp-zug {
+  position: absolute; right: 0; top: -14px;
+  font-family: var(--f-mono); font-size: 10px; color: var(--acc);
 }
-/* Der geteilte Mast faellt auf - wer ihn aendert, aendert zwei Tragwerke. */
-.mast-kachel.geteilt .mk-fuss { color: var(--acc); }
 
-/* Der Masten-Schalter an der Tragwerkskachel. Ausgeschaltet ist er blass und
-   durchgestrichen - «keine Masten» ist ein Zustand, den man sehen soll. */
-.tw-mast {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 1px; width: 34px;
-  background: none; border: 1px solid transparent; border-radius: var(--m-r1);
-  color: var(--dim); cursor: pointer; font-family: inherit; font-size: 8px;
-  transition: color var(--t-schnell), border-color var(--t-schnell);
+/* Die Achse: eine Linie, auf der die Masten stehen. */
+.qp-achse {
+  position: relative; height: 16px;
+  border-top: 1px solid var(--ol);
 }
-.tw-mast svg { display: block; }
-.tw-mast:hover { border-color: var(--ol); }
-.tw-mast.an { color: var(--acc); }
-.tw-mast:not(.an) { opacity: .55; text-decoration: line-through; }
+.qp-mast {
+  position: absolute; top: 0; transform: translateX(-50%);
+  width: 20px; height: 15px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--f-mono); font-size: 8.5px; color: var(--dim);
+  line-height: 1;
+}
+/* Der Strich IST der Mast - die Nummer steht darunter. */
+.qp-mast::before {
+  content: ''; position: absolute; left: 50%; top: -4px;
+  width: 2px; height: 9px; margin-left: -1px;
+  background: var(--dim); border-radius: 1px;
+}
+.qp-mast:hover::before { background: var(--on2); }
+.qp-mast.an::before { background: var(--acc); width: 3px; margin-left: -1.5px; }
+.qp-mast.an { color: var(--acc); }
+/* Ein geteilter Mast traegt zwei Tragwerke - er ist laenger gezeichnet. */
+.qp-mast.geteilt::before { top: -6px; height: 13px; }
+.qp-mast-nr { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); }
+
+.qp-skala { position: relative; height: 11px; }
+.qp-zahl {
+  position: absolute; transform: translateX(-50%);
+  font-family: var(--f-mono); font-size: 8.5px; color: var(--dim);
+}
+
+/* Die Handlungen am Gewaehlten - eine Zeile, keine Knopfwand. */
+.qp-tun { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.qp-tun .btn { font-size: 10px; display: inline-flex; align-items: center; gap: 3px; }
+.qp-tun .btn.an { color: var(--acc); border-color: var(--acc); }
+.qp-tun-neu { position: relative; display: inline-flex; }
+.qp-neu-liste {
+  position: absolute; left: 0; top: calc(100% + 3px); z-index: 30;
+  display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  background: var(--s1); border: 1px solid var(--ol2);
+  border-radius: var(--m-r1); box-shadow: 0 6px 18px rgba(0,0,0,.45);
+}
+.qp-neu-liste[hidden] { display: none; }
+.qp-neu-liste .btn { white-space: nowrap; text-align: left; }
+
+/* Die Notiz zum gewaehlten Masten. Was die Marke nicht sagen kann, steht
+   hier: Profil, und wer alles an ihm haengt. */
+.qp-mast-notiz {
+  margin: 6px 0 0; padding-left: 8px;
+  border-left: 2px solid var(--ol);
+  font-family: var(--f-mono); font-size: 10px; line-height: 1.5;
+  color: var(--dim);
+}
+.qp-mast-notiz.geteilt { border-left-color: var(--acc); }
+.qp-mast-notiz b { color: var(--on2); }
 
 /* --- Bauformwahl ----------------------------------------------------------
    ZEILEN, NICHT KACHELN. Drei Kacheln nebeneinander waeren in einer 240 px

@@ -27,6 +27,100 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Querprofil-Leiste (2. September)
+
+Weisung: «kann man aus diesen eingaben nicht etwas interaktiveres machen? es
+ist alles etwas verstreut. ich verstehe nicht ganz all die einzelnen buttons
+und kacheln.»
+
+Berechtigt. Im Block «Tragwerke» standen **vier Bedienelemente**:
+Tragwerkskacheln mit je einem Masten-Schalter und einem Kreuz, darunter eine
+Reihe Mastkacheln, darunter vier Knöpfe zum Hinzufügen, darunter ein
+Zahlenfeld «Lage auf dem Querprofil». Alle beantworten dieselbe Frage — *was
+steht auf diesem Blatt und wo* —, und keines **zeigt** es. Sie beschreiben
+die Anordnung in Worten («x₀ = 20.00 m»), während der Anwender ein Querprofil
+vor sich hat, auf dem sie zu sehen ist.
+
+An ihrer Stelle steht jetzt **eine massstäbliche Leiste**: die x-Achse des
+Blattes, jedes Tragwerk ein Balken auf seiner Lage, jeder Mast eine Marke an
+seiner Stelle, darunter die Zahlen. Anklicken wählt, Ziehen verschiebt (auf
+5 cm gerastet, mit der Lage als Zahl daneben). Darunter eine Zeile mit dem,
+was am Gewählten zu tun ist: `+ Tragwerk ▾`, `Masten`, `× entfernen`.
+
+**Das Zahlenfeld bleibt.** Ziehen ist grob — ein Pixel sind auf 240 Punkten
+Breite und vierzig Metern Blatt rund siebzehn Zentimeter. Wer eine Lage auf
+den Zentimeter kennt, tippt sie. Das Bild gibt die Übersicht, das Feld die
+Genauigkeit.
+
+**HTML, nicht SVG:** die Balken sind Knöpfe. In HTML sind sie das von selbst,
+mit Fokus, Tastatur und Titel; in SVG müsste jedes davon nachgebaut werden.
+Die Lage ist ein Prozentwert, und den rechnet CSS.
+
+Ein Fehler beim Bauen, der teuer geworden wäre: die erste Fassung schrieb
+beim Ziehen `leiste.outerHTML` neu. Damit verschwindet genau das Element, das
+den Zeiger gefangen hält — der Zug bricht nach dem ersten Pixel ab, und man
+hielte es für ein hakendes Ziehen statt für einen Fehler. Verschoben wird
+jetzt nur die Lage dieses einen Knopfes.
+
+### Der Klick traf das falsche Joch (2. September)
+
+Weisung: «Die eingabe der bauteile auf die tragwerke funktioniert nicht ganz.»
+
+Sie tat es nicht, und zwar so: Die Ansicht zeigt alle Tragwerke an ihrer Lage
+und liefert **Blattkoordinaten**. Die Bauteillage zählt ab dem **linken Ende
+ihres Tragwerks**. Beides war gleichgesetzt — richtig, solange nur eines
+dastand.
+
+Im Browser nachgestellt und aus dem gespeicherten Stand belegt: aktiv war das
+rechte Joch (x₀ = 20), geklickt wurde auf das **linke** bei x = 1.54, abgelegt
+wurde am **rechten** bei dessen 1.54 — auf dem Blatt bei 21.54 m. Zwanzig
+Meter neben dem Zeiger. Und auf dem rechten liess sich überhaupt nichts
+absetzen: dort liegen die Blattkoordinaten 20…40, geprüft wurde gegen 0…L.
+
+Behoben mit `blattNachLokal`. Dazu: ein Klick auf ein anderes Joch **schaltet
+selbst darauf um**, statt «daneben» zu melden — dieselbe Antwort auf dieselbe
+Geste wie ausserhalb des Setzens.
+
+### Zwei Befunde am Knicknachweis (2. September)
+
+**Die falsche Achse, unsichere Seite.** Gerechnet wurde in Bauachsen — «quer»
+und «längs» — und 6.61/6.62 der Reihe nach daraufgelegt. Steht der Steg quer
+zum Gleis, ist das dasselbe. Beim **gedrehten** Steg nimmt die schwache Achse
+das Quermoment: der Widerstand W wurde getauscht, χ und k nicht. Am HEB 260
+über 12 m, N 11 kN, M_quer 40 kNm, M_längs 8 kNm: η 0.443 statt 0.532, also
+**20 % zu klein**. EN 1993-1-1, 6.3.3 kennt nur Profilachsen; die Momente
+werden jetzt zuerst dorthin gedreht.
+
+**Die Knicklänge endet an der Krafteinleitung.** Bisher L_cr = β · Gesamtlänge
+mit dem Fusswert der Normalkraft. Über dem Jochanschluss trägt der Mast aber
+nichts als sein Eigengewicht, und was dort nicht drückt, kann dort auch nicht
+ausknicken. Ein Kragstab der Länge L mit einer Druckkraft in der Höhe *a*
+knickt mit π²EI/(2a)² — keine Näherung, das Stück darüber nimmt am
+Eigenwertproblem nicht teil. Am Regelmasten (HEB 260, 12.00 m, Anschluss
+9.00 m): L_cr 24.00 → 18.00 m, χ_z 0.059 → 0.101, η 1.276 → 1.065, also
+**16.5 % weniger**.
+
+Der Prüfstand fing dabei einen zweiten Fehler: die erste Fassung nahm den
+**Angriffspunkt** der Last. Eine Hängestütze auf 7.00 m trägt ihren Fahrdraht
+aber 1.35 m tiefer — die Knicklänge wäre auf 11.3 statt 14.0 m gefallen, und
+das ist die unsichere Seite. In den Masten kommt die Kraft an der
+**Befestigung**; die Lasten tragen dafür jetzt `zAnschluss` neben `z`.
+
+**Was weiterhin nicht geführt wird:** Biegedrillknicken (χ_LT = 1.0). Das
+sekundäre Moment aus der Auslenkung steckt in χ und den Interaktionsbeiwerten
+k_ij — das ist der Zweck des Ersatzstabverfahrens; ein zusätzlich angesetztes
+N·δ wäre dieselbe Wirkung ein zweites Mal.
+
+### Offen aus dem Bauteil-Durchlauf
+
+* Ein Bauteil am **geteilten Masten** gehört nur einem Tragwerk. Vom Nachbarn
+  aus unsichtbar — und wenn der gerechnet wird, fehlt die Last, obwohl sie am
+  selben Masten hängt.
+* Der Anbauteile-Reiter sagt nicht, zu welchem Tragwerk die Liste gehört.
+* `+ Tragwerk` kopiert die Anbauteile des aktiven mit, ohne den Namen zu
+  unterscheiden.
+
+
 ### Drei Masten, drei Kacheln (2. September)
 
 Die Frage des Auftraggebers war knapp: **«Wie kann man drei verschiedene

@@ -64,11 +64,11 @@ export const TOL = 1e-7;
  * halbe Eingabemaske, und es ist die Frage, die der Kern wirklich stellt.
  */
 export const TRAGWERKSARTEN = [
-  { key: 'joch', label: 'Tragjoch', traeger: true, masten: 2,
+  { key: 'joch', kuerzel: 'Joch', label: 'Tragjoch', traeger: true, masten: 2,
     kurz: 'Zwei Masten, Träger dazwischen' },
-  { key: 'einzelmast', label: 'Einzelmast', traeger: false, masten: 1,
+  { key: 'einzelmast', kuerzel: 'Mast', label: 'Einzelmast', traeger: false, masten: 1,
     kurz: 'Kragarm im Fundament, ohne Träger' },
-  { key: 'tragausleger', label: 'Mast mit Tragausleger', traeger: true, masten: 1,
+  { key: 'tragausleger', kuerzel: 'Ausleger', label: 'Mast mit Tragausleger', traeger: true, masten: 1,
     kurz: 'Auskragender Stab am Masten' },
   /*
    * DAS ABFANGJOCH nimmt die LEITERZUGKRAEFTE auf, nicht das Gewicht der
@@ -83,7 +83,7 @@ export const TRAGWERKSARTEN = [
    * ZWEI Gurte, nicht vier - der Vierendeel-Kern traegt hier so wenig wie
    * beim Tragausleger.
    */
-  { key: 'abfangjoch', label: 'Abfangjoch', traeger: true, masten: 2,
+  { key: 'abfangjoch', kuerzel: 'Abfang', label: 'Abfangjoch', traeger: true, masten: 2,
     kurz: 'Zwei UPE-Gurte, nimmt Leiterzug auf' },
 ];
 

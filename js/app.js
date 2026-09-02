@@ -706,6 +706,20 @@ function aendern(key, wert) {
    * ausgewertet wird, ist eine andere Frage als welcher Mast gerade in den
    * Feldern steht. Ein geteilter Mast gehoert ohnehin beiden.
    */
+  /*
+   * EIN BALKEN DER QUERPROFIL-LEISTE WURDE VERSCHOBEN.
+   *
+   * Er traegt seine Id mit: gezogen werden kann auch ein Tragwerk, das
+   * gerade nicht gerechnet wird. Es wird dabei zum gerechneten - wer etwas
+   * anfasst, meint es.
+   */
+  if (key === 'tragwerkLage') {
+    if ((werte.twId ?? 'T1') !== wert.id) werte = tauscheAktives(werte, wert.id);
+    werte = { ...werte, xLage: wert.x };
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
   if (key === 'mastAktiv') {
     werte = { ...werte, mastAktiv: wert };
     neuRechnen();
