@@ -43,7 +43,7 @@
 
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
-import { verortung, verortungKurz } from './core.constants.js';
+import { verortung, verortungKurz, tragwerksart } from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
@@ -467,7 +467,84 @@ function schenkelVersatz(p, ecke, ausr, tBlech = 0) {
  * @param {object} m       Modell aus core.vierendeel.modell()
  * @param {object} opt     {knotenmodell}
  */
+/* ===========================================================================
+ * DER EINZELMAST ALS STABMODELL
+ *
+ * `stabmodell` beginnt mit den Gurtquerschnitten des Jochs - ein Einzelmast
+ * hat keine, und der Aufbau brach mit «Cannot read properties of undefined
+ * (reading A)» ab. Und zwar lautlos: der Ausleitknopf tat nichts.
+ *
+ * >>> WARUM HIER EIN EIGENER AUFBAU STEHT UND NICHT EIN ERSATZ. <<<
+ *
+ * Bei der ANSICHT genuegte ein Querschnitt ohne Ausdehnung: die Schleifen
+ * laufen leer, gezeichnet wird nichts. Hier waere derselbe Weg falsch. Ein
+ * Ersatzprofil erzeugte eine Querschnittsdefinition GURT_OG in der
+ * AxisVM-Datei - ein Bauteil, das es nicht gibt, in einem Modell, das jemand
+ * rechnet. Was gezeichnet wird, darf naeherungsweise sein; was ausgeleitet
+ * wird, nicht.
+ *
+ * Geteilt wird deshalb, was sich teilen laesst: Sammler, Mastquerschnitt,
+ * Knotenbenennung (MAST_A_*) und die Einspannung im Fundament sind dieselben
+ * wie im Jochweg. Was fehlt, sind die STARR-Verbindungen zum Joch - es gibt
+ * keins.
+ * =========================================================================== */
+function stabmodellEinzelmast(m, opt = {}) {
+  const s = sammler();
+  const md = m.federn?.mastA ?? m.federn?.mast;
+  if (!md) {
+    throw new Error('Einzelmast ohne Masten: unter «Masten» ein Profil wählen.');
+  }
+  const qsMast = s.qs(mastQuerschnitt(md.profil));
+  /*
+   * DIE HOEHENNULL IST DER ANSCHLUSS, nicht der Fuss.
+   *
+   * So steht es auch beim Joch: z = 0 ist die Jochachse, der Mastfuss liegt
+   * bei -H. Beim Einzelmasten gibt es kein Joch, aber die Bezugshoehe bleibt
+   * dieselbe - sonst staende ein Einzelmast auf einem Blatt neben einem Joch
+   * um H versetzt in der Luft.
+   */
+  const zFuss = r6(-md.H);
+  const zKopf = md.ueberstand > 0 ? r6(zFuss + md.laenge) : 0;
+  const x = 0;
+
+  const kFuss = s.kn('MAST_A_F', x, 0, zFuss);
+  const kAnschluss = s.kn('MAST_A_OG', x, 0, 0);
+  const lcsMast = md.stegrichtung.achse === 'y' ? [1, 0, 0] : [0, 1, 0];
+
+  // Geteilt wird, wo etwas haengt - genau wie beim Joch.
+  const mastKn = new Map([[zFuss, kFuss], [0, kAnschluss]]);
+  if (zKopf > 1e-9) mastKn.set(zKopf, s.kn('MAST_A_KOPF', x, 0, zKopf));
+  const anbauMastAus = [];
+  (m.anbauMast ?? []).forEach((a) => {
+    const zA = r6(zFuss + (a.hMast ?? 0));
+    if (zA < zFuss - 1e-9 || zA > zKopf + 1e-9) {
+      anbauMastAus.push({ name: a.name ?? a.id, ende: 'A',
+                          hMast: a.hMast ?? 0, H: md.H });
+      return;
+    }
+    if (!mastKn.has(zA)) {
+      mastKn.set(zA, s.kn(`MAST_A_H${mastKn.size - 1}`, x, 0, zA));
+    }
+  });
+  const zStufen = [...mastKn.keys()].sort((a, b) => a - b);
+  for (let i = 0; i < zStufen.length - 1; i++) {
+    s.stab(`MAST_A_S${i + 1}`, qsMast,
+           mastKn.get(zStufen[i]), mastKn.get(zStufen[i + 1]),
+           { lcsZ: lcsMast });
+  }
+
+  // Volleinspannung im Fundament - dieselbe Festlegung wie beim Joch.
+  const auflager = [{ ende: 'A', x, h: 0, modell: 'mast', knoten: kFuss,
+                      art: 'eingespannt' }];
+
+  return { ...s, auflager, arme: [], knotenmodell: opt.knotenmodell ?? 'anschnitt',
+           zOben: 0, verschoben: [], ausKnotenVermerk: [],
+           zweiPunktAnschluss: false, anbauMastAus,
+           schottAusblenden: opt.schottAusblenden === true };
+}
+
 export function stabmodell(m, opt = {}) {
+  if (tragwerksart(m).key === 'einzelmast') return stabmodellEinzelmast(m, opt);
   const km = opt.knotenmodell ?? 'anschnitt';
   const s = sammler();
   const st = m.stationsListe;

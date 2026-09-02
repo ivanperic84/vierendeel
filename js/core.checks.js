@@ -136,6 +136,19 @@ export function gruppeVon(check) {
 }
 
 export function konstruktionsChecks(m) {
+  /*
+   * OHNE JOCH KEINE JOCHPRUEFUNGEN.
+   *
+   * Was hier folgt, prueft Gurtwinkel, Bindebleche, Blechlagen und
+   * Schraubenraender - beim Einzelmasten gibt es davon nichts, und die erste
+   * Zeile brach mit «Cannot read properties of undefined (reading aH)» ab,
+   * weil sie das Winkelprofil des Obergurts suchte.
+   *
+   * Eine LEERE Liste ist die richtige Antwort, keine Ausnahme: es sind keine
+   * Pruefungen verletzt, es gibt keine. Was zum Masten zu sagen ist, sagt
+   * sein Nachweis; was ihm fehlt - die Stabilitaet - steht in den Hinweisen.
+   */
+  if (tragwerksart(m).key === 'einzelmast') return [];
   const kl = klassifizierung(m);
   const checks = [];
 

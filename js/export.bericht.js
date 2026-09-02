@@ -10,7 +10,7 @@
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { FELDER, GRUPPEN, sichtbareFelder } from './ui.schema.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
-import { verortung, verortungKurz } from './core.constants.js';
+import { verortung, verortungKurz, tragwerksart } from './core.constants.js';
 
 const K = (t) => ({ v: t, s: STIL.KOPF });
 const B = (t) => ({ v: t, s: STIL.BLOCK });
@@ -69,6 +69,33 @@ function blattEingabe(werte, erg) {
   rows.push([]);
 
   const m = erg.modell;
+  /*
+   * DIE ABGELEITETEN GROESSEN SIND JOCHGROESSEN.
+   *
+   * Hebelarme, lichte Breiten, Auflagerkraefte, Stuetzmomente, die
+   * Biegesteifigkeit der Zwei-Gurt-Idealisierung - nichts davon hat ein
+   * Einzelmast. Der Excel-Knopf brach hier mit «Cannot read properties of
+   * undefined (reading herkunft)» ab, und zwar lautlos.
+   *
+   * Was der Mast an abgeleiteten Groessen hat, steht auf seinem eigenen
+   * Blatt: die Schnittgroessen ueber die Hoehe.
+   */
+  if (tragwerksart(m).key === 'einzelmast') {
+    rows.push([B('Mast')]);
+    rows.push([K('Grösse'), K('Wert'), K('Einheit'), K('Bemerkung')]);
+    const md = m.federn?.mastA ?? m.federn?.mast;
+    if (md) {
+      [['Profil', md.profil.name], ['Höhe bis Anschluss H', md.H, 'm'],
+       ['Gesamtlänge', md.laenge, 'm'], ['Überstand', md.ueberstand, 'm'],
+       ['Stegrichtung', md.stegrichtung.label ?? md.stegrichtung.key],
+       ['Trägheitsmoment I', md.I_cm4, 'cm⁴', 'starke Achse quer'],
+       ['Widerstandsmoment W', md.W_cm3, 'cm³', 'starke Achse quer'],
+      ].forEach((r) => rows.push(typeof r[1] === 'number'
+        ? [T(r[0]), N3(r[1]), T(r[2] ?? ''), T(r[3] ?? '')]
+        : [T(r[0]), T(String(r[1])), T(''), T('')]));
+    }
+    return { name: 'Eingabe', rows, breiten: [38, 14, 14, 12, 12, 12, 12, 10] };
+  }
   rows.push([B('Abgeleitete Grössen')]);
   rows.push([K('Grösse'), K('Wert'), K('Einheit'), K('Bemerkung')]);
   const ab = [
@@ -248,17 +275,63 @@ function blattProfile(m) {
 }
 
 /** Alles zusammen und herunterladen. */
-export function exportiere(werte, erg, checks, hinw, warn, vergleich, urteil) {
-  const blaetter = [
-    blattEingabe(werte, erg),
-    blattChecks(checks, hinw, warn, urteil),
-    blattBerechnung(erg),
-    blattZusammenfassung(erg, vergleich),
-    blattProfile(erg.modell),
+/**
+ * BLATT: DER MAST ÜBER SEINE HÖHE.
+ *
+ * Was beim Joch die Stationstabelle ist, ist hier die Schnittgrössentabelle
+ * des Kragarms: an jeder Stelle N, zwei Querkräfte, zwei Momente, Torsion
+ * und die Ausnutzung. Sie ist das Ergebnis - ohne sie wäre die Ausleitung
+ * eines Einzelmasten eine Datei ohne Zahlen.
+ */
+function blattMast(erg) {
+  const mn = erg?.mast;
+  const rows = [
+    [{ v: 'Mast – Schnittgrössen über die Höhe', s: STIL.TITEL }],
+    [{ v: 'Bemessungswerte des gewählten Lastfalls.', s: STIL.NOTIZ }],
+    [],
   ];
+  ['A', 'B'].forEach((ende) => {
+    const n = mn?.[ende];
+    if (!n) return;
+    rows.push([B(`Mast ${ende} · ${n.profil?.name ?? ''}`
+      + `  ·  η = ${n.eta.toFixed(3)}`)]);
+    rows.push([K('z [m]'), K('N [kN]'), K('V_quer [kN]'), K('V_längs [kN]'),
+               K('M_quer [kNm]'), K('M_längs [kNm]'), K('T [kNm]'), K('η')]);
+    (n.stationen ?? []).forEach((st) => {
+      rows.push([N3(st.z), N3(st.N), N3(st.Vq), N3(st.Vl),
+                 N3(st.Mq), N3(st.Ml), N3(st.T ?? 0), N3(st.eta ?? 0)]);
+    });
+    rows.push([]);
+  });
+  if (rows.length === 3) rows.push([T('Kein Mast im Modell.')]);
+  return { name: 'Mast', rows, breiten: [12, 12, 12, 12, 14, 14, 12, 10] };
+}
+
+export function exportiere(werte, erg, checks, hinw, warn, vergleich, urteil) {
+  /*
+   * DER BERICHT ENTHÄLT, WAS GERECHNET WURDE.
+   *
+   * Beim Joch sind das fünf Blätter. Ein Einzelmast hat weder Stationen noch
+   * Massvarianten noch Gurtprofile - drei davon wären leer, und ein leeres
+   * Blatt in einer Ausleitung liest sich wie ein vergessenes.
+   */
+  const einzeln = tragwerksart(erg.modell).key === 'einzelmast';
+  const blaetter = einzeln
+    ? [blattEingabe(werte, erg),
+       blattChecks(checks, hinw, warn, urteil),
+       blattMast(erg)]
+    : [blattEingabe(werte, erg),
+       blattChecks(checks, hinw, warn, urteil),
+       blattBerechnung(erg),
+       blattZusammenfassung(erg, vergleich),
+       blattProfile(erg.modell)];
   const wo = verortungKurz(werte);
-  const name = `Tragjoch${wo ? `_${wo}` : ''}`
-             + `_${erg.modell.typ ?? 'frei'}_L${erg.modell.L.toFixed(1)}m.xlsx`;
+  const md = erg.modell.federn?.mastA ?? erg.modell.federn?.mast;
+  const name = einzeln
+    ? `Einzelmast${wo ? `_${wo}` : ''}_${md?.profil?.name?.replace(/\s+/g, '') ?? 'Mast'}`
+      + `_H${(md?.H ?? 0).toFixed(1)}m.xlsx`
+    : `Tragjoch${wo ? `_${wo}` : ''}`
+      + `_${erg.modell.typ ?? 'frei'}_L${erg.modell.L.toFixed(1)}m.xlsx`;
   herunterladen(arbeitsmappe(blaetter), name);
   return name;
 }

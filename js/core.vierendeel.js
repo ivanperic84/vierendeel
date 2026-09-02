@@ -899,12 +899,23 @@ export function vergleichKombinationen(inp, profOG, profUG, stahl, joch) {
   const zeilen = uebersicht.lastfaelle.map((k) => {
     const e = berechne({ ...inp, lastfall: k.key }, profOG, profUG, stahl, joch);
     ergebnisse[k.key] = e;
+    /*
+     * DIE GURTSPALTEN GIBT ES NUR MIT JOCH.
+     *
+     * Die Frage «welcher Lastfall ist massgebend» stellt sich bei jedem
+     * Tragwerk, also bleibt die Uebersicht - nur ihre Spalten fallen weg.
+     * Hier ist Absichern richtig und Ueberspringen falsch: der Block gilt,
+     * einzelne Werte gibt es nicht.
+     */
+    const mitJoch = Boolean(e.max.etaOG);
     return {
       ...k,
       eta: e.max.etaGesamt,
-      etaOG: e.max.etaOG.og.eta, etaUG: e.max.etaUG.ug.eta, etaB: e.max.etaB.etaB,
-      qd: e.modell.qd, wd: e.modell.wd,
-      xMax: e.max.eta.x,
+      etaOG: mitJoch ? e.max.etaOG.og.eta : null,
+      etaUG: mitJoch ? e.max.etaUG.ug.eta : null,
+      etaB: mitJoch ? e.max.etaB.etaB : null,
+      qd: e.modell.qd ?? null, wd: e.modell.wd ?? null,
+      xMax: e.max.eta?.x ?? null,
     };
   });
   const nachweis = zeilen.filter((z) => z.nachweis);
@@ -1016,6 +1027,15 @@ export function auflagerBlatt(inp, profOG, profUG, stahl, joch) {
 
 /** Rechnet alle drei Massvarianten durch, damit der Einfluss sichtbar wird. */
 export function vergleichMassvarianten(inp, profOG, profUG, stahl, joch) {
+  /*
+   * MASSVARIANTEN SIND JOCHMASSE.
+   *
+   * Sie fragen, ob mit den Schwerpunkt- oder den Aussenmassen der Gurte
+   * gerechnet wird - eine Frage, die ein Einzelmast nicht stellt. Hier gibt
+   * es nichts zu vergleichen, und `null` sagt genau das; die Anzeige laesst
+   * den Abschnitt dann weg, statt eine Tabelle mit einer Zeile zu zeigen.
+   */
+  if (tragwerksart(inp).key === 'einzelmast') return null;
   const ref = inp.massVariante;
   const erg = {};
   MASSVARIANTEN.forEach((v) => {

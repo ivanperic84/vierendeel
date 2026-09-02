@@ -331,9 +331,18 @@ export function pyniteSkript(m, opt = {}) {
   // hat es seinen Nullpunkt, und die Summe über die vier Gurte ist dort das
   // reine Querschnittsmoment. Aus demselben Grund legt auch das Werkzeug
   // seinen Nachweisschnitt immer mittig zwischen zwei Bleche.
-  const xs = m.stationsListe.map((st) => st.x);
+  /*
+   * OHNE STATIONEN KEINE SCHNITTSTELLEN.
+   *
+   * Ein Einzelmast hat keine Bindebleche und damit keine Feldmitten - die
+   * Gegenueberstellung Werkzeug/PyNite gilt dem Joch. Das Skript entsteht
+   * trotzdem: der Mast steht darin als Stab, und wer ihn rechnen will,
+   * bekommt seine Schnittgroessen aus PyNite. Nur die Tabelle am Ende bleibt
+   * leer, weil es nichts gegenueberzustellen gibt.
+   */
+  const xs = (m.stationsListe ?? []).map((st) => st.x);
   const stationen = xs.slice(1).map((x, i) => py((x + xs[i]) / 2));
-  const zAchse = py(bau.zOben - m.h / 2);
+  const zAchse = py((bau.zOben ?? 0) - (m.h ?? 0) / 2);
 
   const kopfText = [
     `# Erzeugt vom Tragjoch-Werkzeug - PyNite-Gegenrechnung`,

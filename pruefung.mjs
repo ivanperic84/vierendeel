@@ -10999,6 +10999,74 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+// PRUEFUNG 71: der Einzelmast geht durch ALLE Wege. Die sechs Befunde des
+// Durchlaufs vom 2. September, einzeln festgehalten.
+{
+  const { berechneEinzelmast, konstruktionsChecks: kcAlt } =
+    await import(J('core.vierendeel.js'));
+  const CK = await import(J('core.checks.js'));
+  const AX = await import(J('export.axisvm.js'));
+  const PY = await import(J('export.pynite.js'));
+  const V71 = await import(J('core.vierendeel.js'));
+
+  const w71 = { ...standardwerte(), tragwerksart: 'einzelmast',
+                mastVorhanden: true, mastProfil: 'HEB 260',
+                mastH: 8, mastLaenge: 12, anbauteile: [] };
+  const e71 = berechneEinzelmast(w71, getStahl('S235'));
+
+  /*
+   * OHNE JOCH KEINE JOCHPRUEFUNGEN - eine LEERE Liste, keine Ausnahme.
+   *
+   * Es sind keine Pruefungen verletzt, es gibt keine. Die erste Zeile brach
+   * mit «Cannot read properties of undefined (reading aH)» ab, weil sie das
+   * Winkelprofil des Obergurts suchte.
+   */
+  {
+    const ck = CK.konstruktionsChecks(e71.modell);
+    wahr('Der Einzelmast hat keine Konstruktionspruefungen',
+         Array.isArray(ck) && ck.length === 0);
+  }
+
+  // MASSVARIANTEN SIND JOCHMASSE - beim Einzelmasten gibt es nichts zu
+  // vergleichen, und `null` sagt genau das.
+  wahr('Kein Massvariantenvergleich',
+       V71.vergleichMassvarianten(w71, null, null, getStahl('S235'), null) === null);
+
+  /*
+   * DAS STABMODELL: EIN STAB UND EIN FUNDAMENT.
+   *
+   * Kein Ersatzprofil - ein GURT_OG in der AxisVM-Datei waere ein Bauteil,
+   * das es nicht gibt, in einem Modell, das jemand rechnet. Was gezeichnet
+   * wird, darf naeherungsweise sein; was ausgeleitet wird, nicht.
+   */
+  {
+    const bau = AX.stabmodell(e71.modell, { knotenmodell: 'anschnitt' });
+    wahr('Der Einzelmast leitet sich aus', bau.staebe.length > 0);
+    wahr('… und zwar nur als Mast',
+         bau.staebe.every((st) => /^MAST_A_/.test(st.name)));
+    wahr('Keine Gurtquerschnitte in der Datei',
+         ![...bau.querschnitte.keys()].some((k) => /^GURT_/.test(k)));
+    wahr('Der Fuss ist eingespannt',
+         bau.auflager.length === 1 && bau.auflager[0].art === 'eingespannt');
+    /*
+     * DIE HOEHENNULL IST DER ANSCHLUSS, nicht der Fuss - wie beim Joch.
+     * Sonst staende ein Einzelmast neben einem Joch um H versetzt in der Luft.
+     */
+    const zs = [...bau.knoten.values()].map((k) => k.z);
+    pruef('Der Fuss liegt bei -H', Math.min(...zs), -8, 1e-9, 'm');
+    pruef('… und der Kopf beim Ueberstand', Math.max(...zs), 4, 1e-9, 'm');
+  }
+
+  // PYNITE: das Skript entsteht, auch ohne Feldmitten. Nur die
+  // Gegenueberstellung am Ende bleibt leer - es gibt nichts zu vergleichen.
+  {
+    const py = PY.pyniteSkript(e71.modell, { knotenmodell: 'anschnitt' });
+    wahr('Ein PyNite-Skript entsteht', py.text.includes('add_member'));
+    wahr('… mit dem Masten darin', /MAST_A_S1/.test(py.text));
+  }
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
