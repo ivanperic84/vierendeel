@@ -286,10 +286,43 @@ export function modellEinzelmast(inp, stahl) {
     return { ...t, proGruppe };
   });
 
+  /*
+   * EIN ERSATZQUERSCHNITT, DAMIT DIE ANSICHT DEN NORMALEN WEG NIMMT.
+   *
+   * `erzeugeSzene` beginnt mit dem Querschnitt des Jochs: vier Winkel, ihre
+   * Schenkel, die vier Blechebenen. Ein Einzelmast hat davon nichts - und
+   * ohne diese Angaben brach der Aufbau ab, weshalb er lange gar kein Bild
+   * bekam.
+   *
+   * >>> GEZEICHNET WIRD ER TROTZDEM VOM SELBEN CODE. <<<
+   *
+   * Der Mast steht dort schon: Koerper, Fundamentmarke, Anbauteile, Lasten,
+   * Einfaerbung ueber die Hoehe. Ihn ein zweites Mal zu zeichnen hiesse,
+   * zwei Mastzeichnungen zu pflegen - sie laufen frueher oder spaeter
+   * auseinander, und dann zeigt das Bild etwas anderes als der Nachweis.
+   *
+   * Also bekommt der Weg, was er braucht: einen Querschnitt ohne Ausdehnung.
+   * Die Schleifen ueber Gurte und Bleche laufen dann leer, die Huelle liegt
+   * auf der Achse, und alles Weitere - der Mast - entsteht wie immer.
+   */
+  const nullEcke = { schwerpunkt: { y: 0, z: 0 },
+                    schenkelStehend: { y0: 0, y1: 0, z0: 0, z1: 0 },
+                    schenkelLiegend: { y0: 0, y1: 0, z0: 0, z1: 0 } };
+  const qsErsatz = {
+    winkel: [],
+    // Die vier Ecken muessen ANSPRECHBAR sein, auch wenn sie auf der Achse
+    // liegen: die Schwerachsen des Stabmodells lesen sie unmittelbar.
+    byId: { OG_L: nullEcke, OG_R: nullEcke, UG_L: nullEcke, UG_R: nullEcke },
+    bindebleche: { vertikal: [{ y: 0 }, { y: 0 }],
+                   horizontal: [{ z: 0 }, { z: 0 }] },
+    huelle: { y0: 0, y1: 0, z0: 0, z1: 0 },
+  };
+
   return {
     tragwerksart: 'einzelmast',
     tragwerkeAufBlatt: 1 + (inp.weitere?.length ?? 0),
     geteilteMasten: geteilteMasten(inp),
+    qsErsatz,
     stahl, beiwerte,
     federn: federnRoh,
     mastLast: mastWindSatz(inp, federnRoh, beiwerte, bwX),

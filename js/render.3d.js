@@ -220,39 +220,6 @@ function stab(p0, p1, dicke, opt) {
  * @param {object} m   Modell
  * @param {object} erg Rechenergebnis (für die Ausnutzungen je Station)
  */
-/*
- * DER EINZELMAST HAT NOCH KEIN BILD - und sagt es.
- *
- * Die Jochszene beginnt mit `querschnitt(m)`: vier Winkel, ihre Schenkel,
- * die vier Blechebenen. Beim Einzelmast gibt es davon nichts, und der erste
- * Aufruf brach mit «Unbekannte Ausrichtung: undefined» ab.
- *
- * >>> WARUM HIER NICHT EINFACH DER MAST GEZEICHNET WIRD. <<<
- *
- * Er WIRD gezeichnet - in der Jochszene, ueber rund hundertfuenfzig Zeilen
- * verteilt und mit ihr verwoben: seine Geometrie haengt am Jochende, seine
- * Farbe an den Stationen, seine Titel an den Bildgrenzen. Diesen Teil
- * herauszuloesen ist eine eigene Arbeit; ihn NACHZUBAUEN waere die
- * schlechtere: zwei Mastzeichnungen laufen frueher oder spaeter
- * auseinander, und dann zeigt das Bild etwas anderes als der Nachweis.
- *
- * Bis dahin eine gueltige, leere Szene. Sie stuerzt nicht ab, sie behauptet
- * nichts, und die Fussleiste sagt, was fehlt. Ein falsches Bild waere
- * schlimmer als keines - der Nachweis rechnet.
- */
-function szeneOhneBild(m) {
-  const H = m?.federn?.mastA?.H ?? m?.federn?.mast?.H ?? 10;
-  return {
-    flaechen: [], linien: [], marken: [], masse: [], bauteiltitel: [],
-    vektoren: [], schnitt: null, lastflaechen: [], bereiche: {},
-    legende: [],
-    grenzen: { xMin: -1, xMax: 1, yMin: -1, yMax: 1, zMin: 0, zMax: H },
-    stationen: [],
-    ohneBild: 'Für den Einzelmast ist die Modellansicht noch nicht gebaut. '
-            + 'Der Nachweis rechnet; das Bild folgt.',
-  };
-}
-
 /* ===========================================================================
  * DAS GANZE BLATT IN EINEM BILD
  *
@@ -349,9 +316,46 @@ export function szenenVereinen(teile) {
   };
 }
 
+/**
+ * DIE BILDGRENZEN.
+ *
+ * Beim Joch spannen sie sich zwischen den Gurtenden auf: x von 0 bis L, quer
+ * und hoch die Huelle des Querschnitts. Das genuegt, solange ein Joch dasteht.
+ *
+ * EIN EINZELMAST HAT WEDER L NOCH HUELLE. Beides ist null, und die Grenzen
+ * hatten damit keine Ausdehnung - die Einpassung fand nichts, worauf sie
+ * haette zoomen koennen, und das Bild blieb leer, obwohl 672 Mastflaechen
+ * darin standen. Dort werden die Grenzen deshalb aus den GEZEICHNETEN
+ * Koerpern genommen; sie sind die Wahrheit ueber das, was zu sehen ist.
+ *
+ * Beim Joch bleibt es beim bisherigen Weg: er ist eingespielt, und ein
+ * anderer Zoom waere eine Aenderung ohne Anlass.
+ */
+function grenzenVon(m, qs, flaechen, z) {
+  const zMin = Math.min(qs.huelle.z0 * MM, z.zUnten, z.mastFussZ, ...z.zAT);
+  const zMax = Math.max(qs.huelle.z1 * MM, z.mastKopfZ, ...z.zAT, ...z.zTitel);
+  if (!m.qsErsatz) {
+    return { xMin: 0, xMax: m.L,
+             yMin: qs.huelle.y0 * MM, yMax: qs.huelle.y1 * MM, zMin, zMax };
+  }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  flaechen.forEach((f) => f.punkte.forEach((p) => {
+    if (p[0] < x0) x0 = p[0];
+    if (p[0] > x1) x1 = p[0];
+    if (p[1] < y0) y0 = p[1];
+    if (p[1] > y1) y1 = p[1];
+  }));
+  // Nichts gezeichnet: lieber ein kleiner Ausschnitt als eine Nullflaeche,
+  // durch die die Einpassung teilt.
+  if (!Number.isFinite(x0)) { x0 = -0.5; x1 = 0.5; y0 = -0.5; y1 = 0.5; }
+  return { xMin: x0, xMax: x1, yMin: y0, yMax: y1, zMin, zMax };
+}
+
 export function erzeugeSzene(m, erg) {
-  if (m?.tragwerksart === 'einzelmast') return szeneOhneBild(m);
-  const qs = querschnitt(m);
+  // Ohne Joch gibt es keinen Jochquerschnitt - der Ersatz laesst die
+  // Schleifen leer laufen, damit der REST wie immer entsteht (core.vierendeel.js,
+  // qsErsatz). Der Mast wird dadurch vom selben Code gezeichnet wie sonst.
+  const qs = m?.qsErsatz ?? querschnitt(m);
   const flaechen = [];
   const linien = [];
   const marken = [];
@@ -1604,9 +1608,8 @@ export function erzeugeSzene(m, erg) {
     flaechen, linien, marken, masse, bauteiltitel, vektoren, schnitt,
     lastflaechen, bereiche,
     legende: [...bauteile.values()],
-    grenzen: { xMin: 0, xMax: m.L, yMin: qs.huelle.y0 * MM, yMax: qs.huelle.y1 * MM,
-               zMin: Math.min(qs.huelle.z0 * MM, zUnten, mastFussZ, ...zAT),
-               zMax: Math.max(qs.huelle.z1 * MM, mastKopfZ, ...zAT, ...zTitel) },
+    grenzen: grenzenVon(m, qs, flaechen, {
+      zUnten, mastFussZ, zAT, mastKopfZ, zTitel }),
     stationen: stationen.map((s) => s.x),
     xNachweis: xN, schnittAktiv,
     anbauteile: detailBereiche,

@@ -10889,6 +10889,47 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Eine Szene bleibt sie selbst', R.szenenVereinen([eine]) === eine);
     wahr('Nichts ergibt nichts', R.szenenVereinen([null, null]) === null);
   }
+
+  /*
+   * DER EINZELMAST WIRD VOM SELBEN CODE GEZEICHNET.
+   *
+   * Er hatte lange gar kein Bild: `erzeugeSzene` beginnt mit dem Querschnitt
+   * des Jochs, und ohne vier Winkel brach der Aufbau ab. Ihn ein zweites Mal
+   * zu zeichnen waere die schlechtere Antwort gewesen - zwei
+   * Mastzeichnungen laufen auseinander, und dann zeigt das Bild etwas
+   * anderes als der Nachweis. Er bekommt jetzt einen ERSATZQUERSCHNITT ohne
+   * Ausdehnung; die Schleifen ueber Gurte und Bleche laufen leer, der Mast
+   * entsteht wie immer.
+   */
+  {
+    const { berechneEinzelmast } = await import(J('core.vierendeel.js'));
+    const w = { ...standardwerte(), tragwerksart: 'einzelmast',
+                mastVorhanden: true, mastProfil: 'HEB 260',
+                mastH: 8, mastLaenge: 12, anbauteile: [] };
+    const e = berechneEinzelmast(w, getStahl('S235'));
+    const sz = R.erzeugeSzene(e.modell, e);
+    wahr('Der Einzelmast hat Koerper', sz.flaechen.length > 100);
+    wahr('… und zwar Mastkoerper',
+         sz.flaechen.every((f) => f.gruppe === 'mast'));
+    wahr('Keine Gurte, keine Bleche',
+         !sz.flaechen.some((f) => f.gruppe === 'profil' || f.gruppe === 'blech'));
+    /*
+     * DIE GRENZEN KOMMEN AUS DEN GEZEICHNETEN KOERPERN.
+     *
+     * Beim Joch spannen sie sich zwischen den Gurtenden auf - x von 0 bis L.
+     * Ein Einzelmast hat weder L noch Huelle; beides ist null, und die
+     * Grenzen hatten damit keine Ausdehnung. Die Einpassung fand nichts,
+     * worauf sie haette zoomen koennen, und das Bild blieb leer, obwohl
+     * hunderte Mastflaechen darin standen.
+     */
+    const g = sz.grenzen;
+    wahr('Die Grenzen haben Ausdehnung in x', g.xMax > g.xMin);
+    wahr('… und in y', g.yMax > g.yMin);
+    wahr('… und umfassen den Masten', g.zMax - g.zMin > 8);
+    const xs = sz.flaechen.flatMap((f) => f.punkte.map((p) => p[0]));
+    wahr('Kein Koerper steht ausserhalb',
+         Math.min(...xs) >= g.xMin - 1e-9 && Math.max(...xs) <= g.xMax + 1e-9);
+  }
 }
 
 // ===========================================================================

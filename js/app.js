@@ -558,8 +558,15 @@ function aktualisiereModell(erg) {
       `Feld ${erg.schnitt.feld + 1}/${erg.schnitt.anzahlSchnitte}` +
       ` · massgebendes Blech bei ${erg.schnitt.stationX.toFixed(2)} m`;
   } else {
-    ui.el('pos-marke').textContent = szene.ohneBild ? 'Ansicht folgt' : '';
-    ui.el('pos-station').textContent = szene.ohneBild ?? '';
+    /*
+     * OHNE NACHWEISSCHNITT BLEIBT DIE ZEILE LEER.
+     *
+     * Beim Einzelmast gibt es keinen Schnitt zwischen Bindeblechen - er hat
+     * keine. Hier stand bis eben der Hinweis, dass die Ansicht noch fehle;
+     * seit sie da ist, waere er falsch.
+     */
+    ui.el('pos-marke').textContent = '';
+    ui.el('pos-station').textContent = '';
   }
   /*
    * DIE EINWIRKUNGSKLASSE STEHT FUER SICH, RECHTS (Weisung).
