@@ -3890,6 +3890,35 @@ ist aber der Ausschnitt, nicht die Vergrösserung. Jetzt zeigen sie dasselbe
 Bauwerk, einmal als Reihe (`querprofilGanz`) und einmal einzeln, von Eckklammern
 gefasst (`querprofilEines`).
 
+### Die Ausschnitt-Knöpfe separieren wirklich (3. September)
+
+Gemeldet mit Bild: „hier der screenshot mit den überstehenden lastflächen und
+schwerelinien, die nicht sauber ausgeblendet werden."
+
+**Der Verdacht war, die Teile seien nicht je Jochträger zugeschnitten.
+Nachgemessen sind sie es** — nur die halbe Blech- und Mastdicke ragt über die
+Grenze (±0.12 m), und das muss sie: ein Bauteil auf der Achse steht zur Hälfte
+davor. Was fehlte, war das **Ausblenden**: der Knopf *Nur das gerechnete
+Tragwerk* fuhr bloss die Kamera heran, der Nachbar stand weiter da — mit seiner
+Jochachse und den Flächen seiner Linienlasten, die von der Seite ins Bild
+ragten.
+
+Die beiden Knöpfe sind jetzt ein Paar und rufen, was es längst gibt:
+
+| Knopf | Handlung |
+|---|---|
+| *Ganzes Querprofil* | `alleZeigen()` + Gesamtansicht — nur wenn wirklich etwas beiseitegelegt ist, sonst schriebe jeder Klick einen Verlaufsschritt |
+| *Nur das gerechnete Tragwerk* | `nurDiesesZeigen()` + heranfahren |
+
+Eine Prüfstand-Kontrolle hält die gemessene Aussage fest: liefe je eine Linie
+oder Lastfläche über ihr Tragwerk hinaus, wäre das Ausblenden wieder
+wirkungslos — und man sähe es dort.
+
+**Nebenwirkung, bewusst so gelassen:** beim Separieren werden die Masten
+umnummeriert (M2/M3 werden zu M1/M2), weil ausgeblendete Tragwerke keine Masten
+aufs Blatt bringen. Das folgt der bestehenden Regel; ob es beim Arbeiten stört,
+muss sich zeigen.
+
 ## Der Abfangjoch-Rechenkern — die Weisung vom 3. September
 
 > „Die Abfangjoche sind liegende Vierendeelträger. diese sollte auch wenn

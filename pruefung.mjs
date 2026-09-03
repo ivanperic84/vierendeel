@@ -12832,6 +12832,60 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE SZENE EINES TRAGWERKS BLEIBT IN SEINEN GRENZEN. <<<
+   *
+   * Gemeldet am 3. September mit Bild: «hier der screenshot mit den
+   * ueberstehenden lastflaechen und schwerelinien, die nicht sauber
+   * ausgeblendet werden.» Der Verdacht war, die Teile seien nicht je
+   * Jochtraeger zugeschnitten.
+   *
+   * Nachgemessen sind sie es: nur die halbe Blech- und Mastdicke ragt ueber
+   * die Grenze, und das muss sie - ein Bauteil auf der Achse steht zur
+   * Haelfte davor. Was fehlte, war das AUSBLENDEN: der Knopf «nur das
+   * gerechnete Tragwerk» fuhr bloss die Kamera heran, der Nachbar stand
+   * weiter da. Seither ruft er `nurDiesesZeigen`.
+   *
+   * Diese Kontrolle haelt die gemessene Aussage fest. Liefe eine Linie oder
+   * eine Lastflaeche je ueber ihr Tragwerk hinaus, waere das Ausblenden
+   * wieder wirkungslos - und man saehe es an dieser Stelle.
+   */
+  {
+    const w = { ...standardwerte(), L: 20 };
+    const e = rechne(w);
+    const sz = R75.erzeugeSzene(e.modell, e);
+    const L = e.modell.L;
+    // Bauteile stehen zur Haelfte vor der Achse - ein Zehntelmeter Luft.
+    const LUFT = 0.15;
+    const xVon = (t) => {
+      const v = [];
+      const gehe = (a) => {
+        if (!Array.isArray(a)) return;
+        if (typeof a[0] === 'number') { v.push(a[0]); return; }
+        a.forEach(gehe);
+      };
+      gehe(t.punkte ?? t.poly ?? (t.p ? [t.p] : null));
+      return v.length ? [Math.min(...v), Math.max(...v)] : null;
+    };
+    for (const feld of ['linien', 'lastflaechen', 'vektoren', 'marken',
+                        'flaechen']) {
+      const liste = sz[feld] ?? [];
+      const raus = liste.filter((t) => {
+        const b = xVon(t);
+        return b && (b[0] < -LUFT || b[1] > L + LUFT);
+      });
+      wahr(`${feld}: nichts ragt aus dem Tragwerk`, raus.length === 0);
+    }
+    // Und die Systemachse endet genau am Tragwerk, nicht am Blattrand.
+    const achsen = (sz.linien ?? []).filter((t) => t.gruppe === 'achse');
+    wahr('Es gibt Achsenlinien', achsen.length > 0);
+    wahr('Sie enden am Tragwerk',
+         achsen.every((t) => {
+           const b = xVon(t);
+           return !b || (b[0] >= -LUFT && b[1] <= L + LUFT);
+         }));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

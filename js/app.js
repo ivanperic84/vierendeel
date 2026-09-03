@@ -3500,9 +3500,10 @@ function baueModellWerkzeuge() {
    * andere «worauf».
    */
   ui.el('ansicht-tools-u').innerHTML =
-    iconKnopf('v-ganz', 'querprofilGanz', 'Ganzes Querprofil zeigen')
+    iconKnopf('v-ganz', 'querprofilGanz',
+              'Ganzes Querprofil — alle Tragwerke einblenden')
     + iconKnopf('v-teil', 'querprofilEines',
-                'Nur das gerechnete Tragwerk zeigen')
+                'Nur das gerechnete Tragwerk — die übrigen beiseitelegen')
     + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine
@@ -3539,8 +3540,27 @@ function baueModellWerkzeuge() {
        aria-pressed="${Boolean(zeichnungMenue)}">${icon('zeichnung')}</button>`;
   ui.el('v-setzen').onclick = () => (setzen ? setzenEnde() : setzenStarten());
   ui.el('v-zeichnung').onclick = () => zeichnungMenueUmschalten();
+  /*
+   * >>> DIE BEIDEN SIND EIN PAAR: ALLES oder NUR DIESES. <<<
+   *
+   * Bis zum 3. September fuhren sie bloss die KAMERA - herangezoomt stand
+   * der Nachbar weiter da, nur ausserhalb des Ausschnitts. Seine Jochachse
+   * und die Flaechen seiner Linienlasten ragten von links ins Bild, und man
+   * konnte sie nicht loswerden, weil der Knopf gar nichts ausblendete.
+   *
+   * Gemeldet mit Bild: «hier der screenshot mit den ueberstehenden
+   * lastflaechen und schwerelinien, die nicht sauber ausgeblendet werden.»
+   *
+   * Die Teile SIND je Tragwerk zugeschnitten - gemessen ragt nur die halbe
+   * Blech- und Mastdicke ueber die Grenze, ±0.12 m. Was fehlte, war das
+   * Ausblenden selbst. `nurDiesesZeigen` gibt es seit dem Kontextmenue;
+   * der Knopf ruft jetzt dieselbe Handlung und faehrt danach heran.
+   */
   ui.el('v-ganz').onclick = () => {
     station = null; ansicht.station = null;
+    // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder
+    // Klick auf «ganzes Querprofil» einen Schritt in den Verlauf.
+    if (tragwerkeSortiert(werte).some((t) => versteckt(t))) alleZeigen();
     ansicht.ansichtZuruecksetzen(); zeichneAuswertung();
   };
   /*
@@ -3555,6 +3575,11 @@ function baueModellWerkzeuge() {
     const t = tragwerkeSortiert(werte).find((x) => x.aktiv)
            ?? tragwerkeSortiert(werte)[0];
     if (!t) return;
+    // ERST beiseitelegen, DANN heranfahren: `nurDiesesZeigen` rechnet neu
+    // und baut die Szene auf, der Zoom setzt nur die Kamera.
+    if (tragwerkeSortiert(werte).some((x) => x.id !== t.id && !versteckt(x))) {
+      nurDiesesZeigen(t.id);
+    }
     const x0 = lageVon(t);
     const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
     const halb = Math.max(1, L / 2);
