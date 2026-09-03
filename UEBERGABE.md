@@ -4375,6 +4375,33 @@ zweiten zu verrechnen.
 **Die Knicklänge bleibt AxisVM vorbehalten** (Weisung): PyNite rechnet linear
 und kann eine Stabilitätsfrage über den ganzen Träger nicht beantworten.
 
+#### Der Weg nach AxisVM ist geöffnet
+
+Um das Abfangjoch dort zu bauen, fehlte eine Querschnittsmethode: das
+Aufbauskript kannte nur `AddL` (Winkel), `AddI` (Mast) und `AddRectangular`.
+Ein UPE ist keines davon.
+
+**Vermessen statt geraten** — die Erkundung liefert 54 Add-Methoden, darunter:
+
+| Methode | Parameter | für |
+|---|---|---|
+| `AddC` | Name, h, b, **e**, tw, R, Process | UPE-Gurte (A160–A240) |
+| `AddI` | Name, h, b, tw, tf, R, Process | IPE-Gurte (A270–A360) — stand schon |
+
+`AddC` ist eingebaut (`form: 'Channel'`, Parameter `[h, b, tf, tw, R]` in mm).
+Damit lassen sich alle sieben Typen anlegen.
+
+*Nebenbei gelernt:* Erkundungs- und Aufbaulauf schreiben **dieselbe**
+Berichtsdatei — der grosse Vermessungsbericht war vom späteren Aufbaulauf
+überschrieben. Er liegt jetzt als `com/erkundung_signaturen.txt` gesichert
+(gitignored, 284 kB).
+
+**Was für den Vergleich noch fehlt:** ein JSON-Bauer für das Abfangjoch
+(`export.axisvm.js` baut Tragjoche), dann Aufbau mit `-Rechnen`, Auslesen an
+der laufenden Instanz, und die Gegenüberstellung mit dem Kern. Der Instanz-
+konflikt vom 3. September ist dabei zu beachten: **nie zwei Prozesse auf
+dieselbe Datei.**
+
 ### Was noch aussteht
 
 * der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,

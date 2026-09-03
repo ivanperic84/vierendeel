@@ -1452,6 +1452,21 @@ foreach ($q in $d.querschnitte) {
         @{ name = 'CrossSections.AddRectangular(Name, h, b, cspOther)'; tu = {
             if ($q.form -ne 'Rectangle') { throw 'kein Rechteck' }
             $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } },
+        <#  DER ABFANGJOCH-GURT IST EIN U-PROFIL.
+
+            AddC(Name, h, b, e, tw, R, Process) - vermessen am 3. September
+            an derselben Fassung wie AddL und AddI. Die Reihenfolge ist die
+            des Berichts, nicht geraten: nach b kommt e (die FLANSCHDICKE),
+            danach tw (der Steg) und zuletzt der Ausrundungsradius.
+
+            Gebraucht wird sie fuer A160 bis A240 - deren Gurte sind UPE.
+            Ab A270 sind es IPE, und dafuer steht AddI schon da.
+
+            Parameter: [h, b, tf, tw, R] in mm.                            #>
+        @{ name = 'CrossSections.AddC(Name, h, b, e, tw, R, cspRolled)'; tu = {
+            if ($q.form -ne 'Channel') { throw 'kein U-Profil' }
+            $m.CrossSections.AddC($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                  $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } },
         <#  DER MAST IST EIN I-PROFIL.
             AddI(Name, h, b, tw, tf, R, Process) - vermessen am 27.08. an
             derselben Fassung wie AddL. Der Ausrundungsradius R kommt aus der

@@ -72,3 +72,6 @@ com/*.json
 # Messwerte der Abfangjoch-Kalibrierung - Zwischenstand, kein Ergebnis
 kalibrierung_abfang.json
 .kalib_abfang/
+
+# Vermessungsbericht der AxisVM-Schnittstelle - gross und nur lokal von Wert
+com/erkundung_signaturen.txt
