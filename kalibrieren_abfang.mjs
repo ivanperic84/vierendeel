@@ -224,6 +224,20 @@ function lauf(typ, jt, F) {
   const q = AK.abfangQuerschnitt(typ);
   const ein = AK.abfangBlechstationen(typ, jt);
   if (!ein) return null;
+  /*
+   * >>> NUR MIT BELEGTER BLECHLAGE. <<<
+   *
+   * Wo die Feldfolge des Schemas aufgeht, steht die Reihe dort, wo die
+   * Zeichnung sie zeigt (A160 / 9.50 m: erstes Blech bei 2.000 m, letztes
+   * bei 7.500). Wo nicht, ist sie symmetrisch geschaetzt - gut genug fuer
+   * das Bild und den Nachweisschnitt, aber nicht fuer eine Messung, deren
+   * Ergebnis als Kennwert in jede kuenftige Rechnung eingeht.
+   *
+   * Der erste Kalibrierlauf lief ueber genaeherte Lagen und gab
+   * Durchbiegungen bis zum 19-fachen des Balkenwerts. Ein Teil davon war
+   * ein Modellfehler; der Rest war diese Naeherung.
+   */
+  if (!ein.randGenau) return { uebersprungen: true };
   const sw = AK.abfangStuetzweite(typ, jt);
   const L = sw ? sw.bis : jt;
   const blAlle = AJ.abfangBindeblech(typ);
@@ -302,12 +316,16 @@ const werte = [];
 for (const t of typen) {
   // Drei Laengen je Typ: kurz, mittel, lang - mehr braucht es nicht, um zu
   // sehen, ob der Kennwert von der Laenge abhaengt.
-  const alle = t.laengen.filter((z) => AK.abfangRechenbar(t.typ, z.jt));
-  const wahl = [alle[0], alle[Math.floor(alle.length / 2)], alle.at(-1)]
-    .filter(Boolean);
-  for (const z of wahl) {
+  /*
+   * ALLE LAENGEN MIT BELEGTER LAGE - es sind ohnehin nur zwanzig, und je
+   * mehr Messwerte, desto sicherer die Spanne. Drei je Typ waren die
+   * Notloesung, solange jeder Lauf ueber eine geschaetzte Lage lief.
+   */
+  const alle = t.laengen.filter((z) => AK.abfangRechenbar(t.typ, z.jt)
+    && AK.abfangBlechstationen(t.typ, z.jt)?.randGenau);
+  for (const z of alle) {
     const r = lauf(t.typ, z.jt, 20);
-    if (!r) continue;
+    if (!r || r.uebersprungen) continue;
     if (r.fehler) { console.log(`${t.typ}  ${z.jt}  FEHLER: ${r.fehler}`); continue; }
     werte.push(r);
     console.log(

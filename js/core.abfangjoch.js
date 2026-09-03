@@ -259,11 +259,55 @@ export function abfangBlechstationen(typ, jt) {
    * sie fehlen, wird die Reihe SYMMETRISCH in die Jochlaenge gelegt -
    * `randGenau` sagt, dass das eine Naeherung ist.
    */
-  const spanne = A1 + (n - 1) * A;
-  const rand = Math.max(0, (jt - spanne) / 2);
-  const stationen = [];
-  for (let i = 0; i < n; i++) stationen.push(rand + A1 + i * A);
   const QV = z.QV ?? [z.QV1];
+  const QVsumme = QV.reduce((a2, b2) => a2 + b2, 0) / 1000;   // mm -> m
+  /*
+   * >>> DIE FELDFOLGE, WENN SIE AUFGEHT - SONST DIE NAEHERUNG. <<<
+   *
+   * Das Schemablatt zeigt die Felder als «A9 A8 ... A2 A1 A1 A2 ... A9»:
+   * A1 ist das MITTLERE Feldpaar, nicht das erste. Bei A160 / 12.50 m sind
+   * das 18 Felder - zwei zu 250 in der Mitte, sechzehn zu 500 - und ihre
+   * Summe ist genau QV1 = 8500 mm. Die Reihe beginnt dann bei
+   * (jt - QV) / 2, bei A160 / 9.50 m also bei 2.000 m; genau die Zahl, die
+   * auch die Konstruktionszeichnung nennt (1450 + 550).
+   *
+   * >>> SIE GEHT NUR BEI 20 VON 157 LAENGEN AUF. <<<
+   *
+   * Nachgerechnet am 3. September: bei den uebrigen stimmen Blechzahl,
+   * Regelteilung und QV-Summe nicht zusammen - ab A240 sitzen zwischen den
+   * QV-Bereichen Quersteifungen, und wie sich die Bleche darauf verteilen,
+   * steht auf den Schemablaettern in Skizzen, die nur einzelne Laengen
+   * zeigen.
+   *
+   * Wo sie aufgeht, ist die Lage BELEGT (`randGenau: true`) und taugt zum
+   * Kalibrieren. Wo nicht, bleibt die alte Naeherung - gut genug, um
+   * Bleche im Bild zu zeigen und Nachweise ueber sie zu fuehren, aber nicht
+   * gut genug, um daraus einen Kennwert zu messen.
+   */
+  const felder = n - 1;
+  const summeExakt = 2 * A1 + (felder - 2) * A;
+  const gehtAuf = felder >= 2 && Math.abs(summeExakt - QVsumme) < 1e-6;
+
+  const stationen = [];
+  let randGenau = false;
+  let rand;
+  if (gehtAuf) {
+    // Die Feldfolge: aussen die Regelteilung, in der Mitte das Paar A1.
+    const folge = [];
+    const halb = (felder - 2) / 2;
+    for (let i = 0; i < halb; i++) folge.push(A);
+    folge.push(A1, A1);
+    for (let i = 0; i < halb; i++) folge.push(A);
+    rand = (jt - QVsumme) / 2;
+    let x = rand;
+    stationen.push(x);
+    folge.forEach((f) => { x += f; stationen.push(x); });
+    randGenau = true;
+  } else {
+    const spanne = A1 + (n - 1) * A;
+    rand = Math.max(0, (jt - spanne) / 2);
+    for (let i = 0; i < n; i++) stationen.push(rand + A1 + i * A);
+  }
   return {
     stationen,
     anzahl: n,
@@ -271,7 +315,11 @@ export function abfangBlechstationen(typ, jt) {
     bleche: z.bleche ?? n * 2,
     bereiche: QV.map((q, i) => ({ nr: i + 1, laenge: q / 1000 })),
     rand,
-    randGenau: false,
+    /*
+     * Ob die Lage aus der Feldfolge des Schemas stammt oder symmetrisch
+     * geschaetzt ist. Nur die belegte taugt zum Kalibrieren.
+     */
+    randGenau,
     teilung: A,
     erstesFeld: A1,
   };

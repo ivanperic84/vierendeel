@@ -4311,53 +4311,69 @@ zu Recht, denn die Gruppe hätte auch am **Tragjoch** unter den nicht geführten
 Nachweisen gestanden, und das hat gar keinen Abfanggurt. Der Hinweis gehört
 dorthin, wo die Tragwerksart bekannt ist.
 
-### Die Kalibrierung ist begonnen — und trägt noch nicht (3. September)
+### Die Kalibrierung: gemessen, aber nicht eingetragen (3. September)
 
 `kalibrieren_abfang.mjs` baut den liegenden Vierendeelträger in PyNite und
-stellt ihn gegen den Kern. Das Werkzeug läuft; **der gemessene Kennwert ist
-noch nicht brauchbar**, und `ABFANG_GURT_DAEMPFUNG` bleibt deshalb bei **1.0**
-(voller Anteil, sichere Seite).
+stellt ihn gegen den Kern. **`ABFANG_GURT_DAEMPFUNG` bleibt bei 1.0** — die
+Messung ist noch nicht so weit, dass ein Kennwert daraus einzutragen wäre.
 
-**Warum nicht: die Gegenprobe schlägt an.** Ein einfacher Balken mit Einzellast
-biegt sich um `F·L³/(48·E·I)`. Ein Vierendeel ist weicher — Faktor 1.1 bis
-vielleicht 2 wäre normal. Gemessen:
+#### Die Blechlage: 20 von 157 sind belegt
 
-| Lauf | Durchbiegung FEM/Balken | Gurtkraft FEM/Kern |
+Das Schemablatt zeigt die Felder als `A9 A8 … A2 A1 A1 A2 … A9` — **A1 ist das
+mittlere Feldpaar, nicht das erste.** Wo diese Folge aufgeht, steht die Reihe
+dort, wo die Zeichnung sie zeigt:
+
+```
+A160 / 9.50 m    erstes Blech 2.000 m, letztes 7.500 m
+Zeichnung        1450 + 550 = 2000, dann QV1 = 5500  →  7500
+```
+
+Das gilt für **20 Längen** (alle A160 mit ungeradem Halbmeter, alle A200) —
+alle mit *einem* QV-Bereich. Bei den übrigen 137 stimmen Blechzahl,
+Regelteilung und QV-Summe nicht zusammen; ab A240 sitzen zwischen den
+QV-Bereichen Quersteifungen, und wie sich die Bleche darauf verteilen, zeigen
+die Schemablätter nur für einzelne Längen. `randGenau` sagt, welche Lage
+belegt ist; die Kalibrierung nimmt nur diese.
+
+#### Zwei Modellfehler gefunden und behoben
+
+**Die Enden waren unverbunden.** In den Randbereichen standen die Gurte
+nebeneinander, ohne Kopplung — Durchbiegung bis 19-fach. In Wirklichkeit
+laufen sie an den Enden zusammen und sind durch Endblech und Gabel gekoppelt.
+Mit dem Endblech als Riegel sank der Faktor von 19.4 auf 7.2.
+
+**Die Lage war geschätzt.** Siehe oben; mit der belegten Folge sinkt er weiter.
+
+#### Was die Messung zeigt
+
+Die Gegenprobe ist die Durchbiegung gegen `F·L³/(48·E·I)`. Bei **langen**
+Trägern trägt das Modell (Faktor 1.2–2.0), bei kurzen nicht (bis 11.9) — dort
+ist der blechfreie Randbereich anteilig zu gross und mein Endbereich zu grob.
+In den sieben Läufen, in denen das Modell trägt:
+
+| | Mittel | Spanne |
 |---|---|---|
-| A160 / 5.50 m | **7.22** | 0.71 |
-| A160 / 9.00 m | 2.51 | 0.85 |
-| A160 / 12.50 m | 1.40 | 1.01 |
+| örtliches Moment FEM / Kern | **4.97** | 4.79 … 5.17 |
+| Gurtkraft FEM / Kern | **0.72** | 0.68 … 0.75 |
 
-**Je kürzer, desto schlechter** — und das zeigt die Ursache: der blechfreie
-Randbereich ist bei kurzen Trägern anteilig grösser.
+**Bemerkenswert stabil** — und beides zusammen sagt etwas über den Rechenweg,
+nicht nur über einen Faktor:
 
-**Ein Modellfehler war schon gefunden und behoben.** Im ersten Lauf standen die
-Gurte in den Randbereichen *unverbunden* nebeneinander (Durchbiegung bis
-19-fach). In Wirklichkeit laufen sie an den Enden zusammen — Spreizung 280
-statt d im Feld — und sind durch Endblech und Gabel gekoppelt. Mit dem
-Endblech als Riegel sank der Faktor von 19.4 auf 7.2.
+* Der Kern **überschätzt die Gurtkraft** um rund 40 % (`N = M/e` nimmt an, das
+  ganze Moment werde als Kräftepaar getragen). Sichere Seite.
+* Er **unterschätzt die örtliche Biegung** um Faktor ~5. Unsichere Seite.
 
-**Was noch fehlt, ist die Lage der Blechreihe.** Sie ist als Näherung
-angeschrieben (`randGenau: false`), und die Näherung ist zu grob:
+Beim wirklichen Vierendeel übernimmt die Gurtbiegung einen Teil des Moments,
+das der Kern vollständig dem Kräftepaar zuweist. Ob er in der Summe
+(`σ = N/A + M/W`) sicher liegt, hängt vom Verhältnis der beiden Anteile ab —
+und das ist die Frage, die vor dem Eintragen eines Kennwerts zu klären ist.
 
-```
-meine Näherung   erstes Blech bei 1.875 m — bei jeder Länge derselbe Rand
-die Zeichnung    1450 (Auflager) + 550 = 2.000 m, dann n × 500 über QV1
-```
+**Deshalb steht der Wert weiterhin auf 1.0.** Einen Faktor 5 einzutragen,
+während die Gurtkraft um 40 % danebenliegt, hiesse einen Fehler mit einem
+zweiten zu verrechnen.
 
-Für die Kalibrierung reicht das nicht. **Zu erfassen sind die Randmasse je
-Typ** (A160: 1450/550/900, A200: 1300/640) — dann steht die Reihe dort, wo sie
-wirklich sitzt, und die Messung wird belastbar.
-
-**Ein Warnsignal bleibt festzuhalten:** alle Läufe zeigen ein *grösseres*
-Gurtmoment als der Kern (Faktor 3.0 bis 4.6). Sollte sich das nach der
-Korrektur bestätigen, unterschätzt der Kern die örtliche Biegung — also die
-unsichere Seite, und `ABFANG_GURT_DAEMPFUNG` müsste **über** 1.0 liegen statt
-darunter. Das ist der Grund, warum der Wert bis zur belastbaren Messung nicht
-angetastet wird.
-
-**Die Knicklänge bleibt AxisVM vorbehalten** (Weisung): PyNite rechnet hier
-linear und kann eine Stabilitätsfrage über den ganzen Träger nicht beantworten.
+**Die Knicklänge bleibt AxisVM vorbehalten** (Weisung): PyNite rechnet linear
+und kann eine Stabilitätsfrage über den ganzen Träger nicht beantworten.
 
 ### Was noch aussteht
 
