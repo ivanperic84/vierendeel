@@ -13364,6 +13364,59 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DER EINZELMAST TRAEGT EINE BENENNUNG, NICHT DREI. <<<
+   *
+   * Gemeldet am 3. September: «hier braucht es nur eine tragwerkbenennung
+   * fuer den einzelmasten.» Im Bild standen drei Anschriften ueber einem
+   * einzigen Stiel:
+   *
+   *      HEB 240 · 7.50 m          das Ende B derselben Rechnung
+   *      M3 · HEB 240 · 7.50 m     das Ende A
+   *      P2 · frei · 0.00 m        der Jochtitel
+   *
+   * Der Jochtitel benennt dort ein Bauteil, das nicht dasteht: kein Jochtyp
+   * (deshalb «frei»), keine Jochlaenge (deshalb 0.00 m). Und die
+   * Mastschleife lief ueber beide Enden, obwohl es nur einen Masten gibt.
+   */
+  {
+    const {  modellEinzelmast: mEM } = await import(J('core.vierendeel.js'));
+    const wEM = { ...standardwerte(), tragwerksart: 'einzelmast', twPos: 'P2',
+                  mastProfil: 'HEB 240', mastH: 7.5, mastLaenge: 7.5 };
+    const szEM = R75.erzeugeSzene(mEM(wEM, getStahl(wEM.stahl)), null);
+    const tEM = szEM.bauteiltitel ?? [];
+    pruef('Der Einzelmast traegt genau eine Benennung', tEM.length, 1,
+          1e-9, 'Stk');
+    /*
+     * SIE LEISTET BEIDES: Tragwerk und Mast. Die Position steht voran -
+     * sie ersetzt den Jochtitel, der dort keinen Gegenstand hat -, dann der
+     * Mastname, dann Profil und Laenge.
+     */
+    wahr('Sie nennt die Position', tEM[0].text.startsWith('P2 · '));
+    wahr('… den Masten', tEM[0].text.includes('M1'));
+    wahr('… das Profil', tEM[0].text.includes('HEB 240'));
+    wahr('… und die Laenge', tEM[0].text.includes('7.50 m'));
+    /*
+     * UND KEIN JOCHTITEL: «frei» und «0.00 m» waren die Merkmale des
+     * Titels, der dort nichts zu suchen hatte.
+     */
+    wahr('Kein Jochtitel beim Einzelmasten',
+         !tEM.some((b) => b.text.includes('frei')
+                       || b.text.includes('0.00 m')));
+
+    /*
+     * DAS JOCH BEHAELT SEINE DREI - Jochtitel und zwei Masten. Die Kur darf
+     * den Regelfall nicht beschaedigen.
+     */
+    const eJ = rechne({ ...standardwerte(), L: 20, twPos: 'P1' });
+    const tJ = R75.erzeugeSzene(eJ.modell, eJ).bauteiltitel ?? [];
+    pruef('Das Joch traegt weiterhin drei', tJ.length, 3, 1e-9, 'Stk');
+    wahr('Darunter sein Jochtitel',
+         tJ.some((b) => b.text.startsWith('P1 · J90')));
+    wahr('Und der Jochtitel nennt die Jochlaenge',
+         tJ.some((b) => b.text.includes('20.00 m')));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

@@ -1594,13 +1594,40 @@ export function erzeugeSzene(m, erg) {
      * davor findet man die Zeile in der Seitenleiste wieder - dort steht
      * dieselbe Nummer.
      */
-    bauteiltitel.push({
-      p: [m.L / 2, 0, zOK + 0.95],
-      text: `${m.twPos ? `${m.twPos} · ` : ''}${m.typ ?? 'frei'}`
-          + ` · ${m.L.toFixed(2)} m`,
-      feld: 'typ', tab: 'system',
-    });
-    ['A', 'B'].forEach((name) => {
+    /*
+     * >>> DER EINZELMAST IST SEIN EIGENES TRAGWERK. <<<
+     *
+     * Gemeldet am 3. September: «hier braucht es nur eine tragwerkbenennung
+     * fuer den einzelmasten.» Im Bild standen DREI Anschriften ueber einem
+     * einzigen Stiel:
+     *
+     *      HEB 240 · 7.50 m          das Ende B derselben Rechnung
+     *      M3 · HEB 240 · 7.50 m     das Ende A
+     *      P2 · frei · 0.00 m        der Jochtitel
+     *
+     * Der Jochtitel ist dort sinnlos: ein Einzelmast hat keinen Jochtyp
+     * (deshalb «frei») und keine Jochlaenge (deshalb 0.00 m). Er benennt ein
+     * Bauteil, das nicht dasteht.
+     *
+     * Und die Mastschleife lief ueber BEIDE Enden, obwohl es nur einen
+     * Masten gibt - das Ende B zeichnete denselben Stiel ein zweites Mal,
+     * ohne Namen, weil `federn.namen.B` leer bleibt.
+     *
+     * Beim Einzelmasten faellt der Jochtitel weg, und die Schleife laeuft
+     * nur ueber A. Damit die eine verbleibende Anschrift beides leistet -
+     * Tragwerk UND Mast -, traegt sie die Position voran, genau wie der
+     * Jochtitel es taete.
+     */
+    const istEinzelmast = m.tragwerksart === 'einzelmast';
+    if (!istEinzelmast) {
+      bauteiltitel.push({
+        p: [m.L / 2, 0, zOK + 0.95],
+        text: `${m.twPos ? `${m.twPos} · ` : ''}${m.typ ?? 'frei'}`
+            + ` · ${m.L.toFixed(2)} m`,
+        feld: 'typ', tab: 'system',
+      });
+    }
+    (istEinzelmast ? ['A'] : ['A', 'B']).forEach((name) => {
       const g = mastGeo[name];
       if (!g?.koerper) return;
       const md = name === 'B' ? (federn.mastB ?? federn.mast) : (federn.mastA ?? federn.mast);
@@ -1621,7 +1648,11 @@ export function erzeugeSzene(m, erg) {
       bauteiltitel.push({
         // Der Mastkopf traegt oben Traversen; der Titel muss darueber hinaus.
         p: [g.x, 0, g.zKopf + 0.55],
-        text: `${mName ? `${mName} · ` : ''}${md.profil.name} · ${lang.toFixed(2)} m`,
+        // Beim Einzelmasten traegt diese eine Anschrift auch die Position -
+        // sie ersetzt den Jochtitel, der dort keinen Gegenstand hat.
+        text: `${istEinzelmast && m.twPos ? `${m.twPos} · ` : ''}`
+            + `${mName ? `${mName} · ` : ''}${md.profil.name}`
+            + ` · ${lang.toFixed(2)} m`,
         /*
          * >>> DAS ENDE GEHOERT AN DEN TITEL. <<<
          *

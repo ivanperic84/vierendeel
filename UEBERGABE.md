@@ -3923,6 +3923,32 @@ verantwortet.
 tiefer, und `.schiene-nw > div` griff nicht mehr — sie verloren Rahmen, Farbe
 und Höhe. Acht Selektoren auf Nachfahren umgestellt.
 
+### Der Einzelmast trägt eine Benennung, nicht drei (3. September)
+
+Gemeldet: „hier braucht es nur eine tragwerkbenennung für den einzelmasten."
+Über einem einzigen Stiel standen drei Anschriften:
+
+```
+HEB 240 · 7.50 m          das Ende B derselben Rechnung
+M3 · HEB 240 · 7.50 m     das Ende A
+P2 · frei · 0.00 m        der Jochtitel
+```
+
+Zwei Ursachen. Der **Jochtitel** wurde auch beim Einzelmast gesetzt — er
+benennt dort ein Bauteil, das nicht dasteht: kein Jochtyp (daher „frei"), keine
+Jochlänge (daher 0.00 m). Und die **Mastschleife lief über beide Enden**,
+obwohl es nur einen Masten gibt; das Ende B zeichnete denselben Stiel ein
+zweites Mal, ohne Namen, weil `federn.namen.B` leer bleibt.
+
+Jetzt steht dort **eine** Zeile, die beides leistet:
+
+```
+P2 · M1 · HEB 240 · 7.50 m
+```
+
+Die Position voran — sie ersetzt den Jochtitel, der dort keinen Gegenstand hat.
+Das Joch behält unverändert seine drei; der Prüfstand hält beide Fälle fest.
+
 ### Bauteiltitel weichen einander aus (3. September)
 
 Gemeldet: „Die darstellung der tragwerkbenennung ist nicht sauber wenn man
