@@ -4212,8 +4212,41 @@ erfundene wäre die Grundlage eines Nachweisschnitts, der nirgends steht. Die
 **Lage** der Reihe bleibt vorerst eine Näherung (`randGenau: false`), weil die
 Randmasse nur für A160 erfasst sind.
 
-**Erfasst sind die Stückzahlen bisher nur für A160.** Für A200 bis A360 stehen
-sie auf den Konstruktionszeichnungen und müssen nachgetragen werden.
+#### Nachgetragen: alle sieben Typen (3. September)
+
+| Typ | Längen | Bleche von … bis |
+|---|---|---|
+| A160 | 15 | 38 … 10 |
+| A200 | 23 | 54 … 10 |
+| A240 | 24 | 52 … 12 |
+| A270 | 26 | 62 … 20 |
+| A300 | 24 | 70 … 30 |
+| A330 | 23 | 78 … 40 |
+| A360 | 23 | 84 … 46 |
+
+**158 Längen, und die Reihen sind nicht linear.** Bei A240 stehen 48, 36 und 24
+je *zweimal*, weil der Träger ab dieser Grösse in mehrere Vierendeel-Bereiche
+gegliedert ist. Genau deshalb wäre die abgeleitete Formel falsch geblieben,
+auch wenn man sie an A160 kalibriert hätte.
+
+#### Ein Fehler auf dem Blatt selbst
+
+**A360 / 21.00 m führt 85 Bleche.** Der Wert ist **ungerade** — bei zwei
+Blechen je Station geometrisch unmöglich — und steht zwischen 60 und 56 in
+einer sonst streng absteigenden Reihe. Bei 420 dpi nachgeprüft: **kein
+Lesefehler, es steht so auf der Zeichnung** (vermutlich 58 verdreht).
+
+Erfasst ist der Wert, wie er geführt wird, aber als `blechFraglich`
+angeschrieben. `abfangBlechstationen` liefert dafür **null**, `abfangRechenbar`
+sagt **nein**. Ihn stillschweigend auf 84 oder 86 zu runden wäre die
+schlimmste Antwort: eine Zahl, die niemand geprüft hat, in einem Nachweis, dem
+man es nicht ansieht.
+
+Die Prüfstand-Kontrolle „je Station zwei Bleche, also gerade Zahl" hat den
+Fehler gefunden — sie steht jetzt für alle 158 Längen.
+
+**Zu klären:** ob 58 der richtige Wert ist. Bis dahin bleibt diese eine Länge
+ungerechnet; die Nachbarn 20.50 und 21.50 m sind unberührt.
 
 ### Der Gurtnachweis — und was er ausdrücklich nicht führt
 

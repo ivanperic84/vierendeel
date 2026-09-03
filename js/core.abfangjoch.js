@@ -232,6 +232,20 @@ export function abfangBlechstationen(typ, jt) {
    * sagen, dass er die Einteilung nicht kennt - eine geratene waere die
    * Grundlage eines Nachweisschnitts, der nirgends steht.
    */
+  /*
+   * >>> EIN FRAGLICHER WERT WIRD NICHT GERECHNET. <<<
+   *
+   * A360 / 21.00 m fuehrt 85 Bleche. Der Wert ist UNGERADE und damit bei
+   * zwei Blechen je Station unmoeglich; er steht zwischen 60 und 56 in einer
+   * sonst streng absteigenden Reihe. Bei 420 dpi nachgeprueft - kein
+   * Lesefehler, es steht so auf dem Blatt (vermutlich 58 verdreht).
+   *
+   * Ihn stillschweigend auf 84 oder 86 zu runden waere die schlimmste
+   * Antwort: eine Zahl, die niemand gepruefte hat, in einem Nachweis, dem man
+   * es nicht ansieht. Also null - und der Aufrufer sagt, dass er die
+   * Einteilung nicht kennt.
+   */
+  if (z.blechFraglich) return null;
   if (!(z.blechStationen > 0)) return null;
   const n = z.blechStationen;
   const A = z.A / 1000;                   // Regelteilung [m]
@@ -276,7 +290,16 @@ export function abfangRechenbar(typ, jt) {
     const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
     if (!abfangAufbau(a) || !abfangBindeblech(a)) return false;
     if (jt === undefined) return Boolean(a.laengen?.length);
-    return Boolean(abfangMasse(a, jt));
+    const z = abfangMasse(a, jt);
+    /*
+     * DIE LAENGE MUSS GEFUEHRT SEIN - UND IHRE BLECHZAHL BRAUCHBAR.
+     *
+     * Hier stand nur die erste Haelfte. A360 / 21.00 m fuehrt 85 Bleche,
+     * ungerade und damit unmoeglich; `abfangBlechstationen` liefert dafuer
+     * null, aber `abfangRechenbar` sagte weiterhin ja. Wer sich darauf
+     * verliess, bekam eine Zusage und danach nichts.
+     */
+    return Boolean(z && !z.blechFraglich && z.blechStationen > 0);
   } catch {
     return false;
   }

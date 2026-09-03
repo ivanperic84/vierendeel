@@ -13113,8 +13113,59 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * Eine erfundene waere die Grundlage eines Nachweisschnitts, der
      * nirgends steht.
      */
-    wahr('Ohne Stueckzahl keine Einteilung',
-         AK.abfangBlechstationen('A200', 10.0) === null);
+    /*
+     * >>> ALLE SIEBEN TYPEN FUEHREN JETZT IHRE STUECKZAHLEN. <<<
+     *
+     * Nachgetragen am 3. September aus den Konstruktionszeichnungen. Die
+     * Reihen sind NICHT linear: bei A240 stehen 48, 36 und 24 je zweimal,
+     * weil der Traeger ab dieser Groesse in mehrere Vierendeel-Bereiche
+     * gegliedert ist. Genau deshalb waere eine Formel falsch gewesen.
+     */
+    const neuAlle = AJ.abfangjoche().filter((x) => x.bauweise === 'neu');
+    for (const t of neuAlle) {
+      wahr(`${t.typ} fuehrt fuer jede Laenge eine Blechzahl`,
+           t.laengen.every((z) => z.bleche > 0));
+    }
+    pruef('158 Laengen mit Blechzahl',
+          neuAlle.reduce((n, t) => n + t.laengen.filter(
+            (z) => z.bleche > 0).length, 0), 158, 1e-9, 'Stk');
+    /*
+     * JE STATION ZWEI BLECHE - die Zahl muss GERADE sein. Diese Kontrolle
+     * hat den Blattfehler bei A360 gefunden.
+     */
+    const ungerade = neuAlle.flatMap((t) => t.laengen
+      .filter((z) => z.bleche % 2 !== 0)
+      .map((z) => `${t.typ}/${z.jt}`));
+    wahr('Genau eine Laenge fuehrt eine ungerade Blechzahl',
+         ungerade.length === 1 && ungerade[0] === 'A360/21');
+    wahr('… und sie ist als fraglich angeschrieben',
+         Boolean(AJ.getAbfangjoch('A360').laengen
+           .find((z) => z.jt === 21).blechFraglich));
+    /*
+     * >>> UND SIE WIRD NICHT GERECHNET. <<<
+     *
+     * 85 Bleche sind bei zwei je Station unmoeglich; der Wert steht
+     * zwischen 60 und 56 in einer sonst streng absteigenden Reihe. Ihn
+     * stillschweigend zu runden waere eine Zahl, die niemand geprueft hat,
+     * in einem Nachweis, dem man es nicht ansieht.
+     */
+    wahr('Die fragliche Laenge liefert keine Einteilung',
+         AK.abfangBlechstationen('A360', 21.0) === null);
+    wahr('… und gilt als nicht rechenbar',
+         !AK.abfangRechenbar('A360', 21.0));
+    wahr('Ihre Nachbarn dagegen schon',
+         AK.abfangRechenbar('A360', 20.5) && AK.abfangRechenbar('A360', 21.5));
+    // 157 von 158 lassen sich rechnen - eine einzige nicht.
+    let rechenbar = 0;
+    for (const t of neuAlle) {
+      for (const z of t.laengen) {
+        if (AK.abfangBlechstationen(t.typ, z.jt)) rechenbar += 1;
+      }
+    }
+    pruef('157 Laengen sind rechenbar', rechenbar, 157, 1e-9, 'Stk');
+
+    wahr('Eine ungefuehrte Laenge hat keine Einteilung',
+         AK.abfangBlechstationen('A200', 10.3) === null);
     wahr('Und die Lage ist als Naeherung angeschrieben',
          b95.randGenau === false);
 
@@ -13298,9 +13349,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       (m, b) => (Math.abs(b.x - L / 2) < Math.abs(m.x - L / 2) ? b : m));
     wahr('Das mittlere Blech ist das schwaechst beanspruchte',
          mitte.eta < alle.massgebend.eta);
-    // Ohne erfasste Einteilung gibt es keine Nachweise - keine geratenen.
-    wahr('Ohne Stueckzahl keine Blechnachweise',
-         AK.abfangBlechnachweise('A200', 10.0, Vfn, 21.8) === null);
+    /*
+     * OHNE ERFASSTE EINTEILUNG GIBT ES KEINE NACHWEISE - keine geratenen.
+     *
+     * Hier stand A200/10.0 - seit dem Nachtrag der Stueckzahlen ist diese
+     * Laenge erfasst, und die Kontrolle pruefte nichts mehr. Genommen wird
+     * jetzt die FRAGLICHE Laenge: A360/21.00 m fuehrt 85 Bleche, ungerade
+     * und damit unmoeglich.
+     */
+    wahr('Ohne brauchbare Stueckzahl keine Blechnachweise',
+         AK.abfangBlechnachweise('A360', 21.0, Vfn, 21.8) === null);
+    wahr('Eine ungefuehrte Laenge ebenso wenig',
+         AK.abfangBlechnachweise('A200', 10.3, Vfn, 21.8) === null);
   }
 
   /*
