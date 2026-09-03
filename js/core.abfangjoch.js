@@ -284,3 +284,83 @@ export function abfangRechenbar(typ, jt) {
 
 /** Die Endverstärkung am Auflager — Gabel oder Deckblech, je nach Typ. */
 export { abfangEndverstaerkung };
+
+/*
+ * ===========================================================================
+ * DER SPANNUNGSNACHWEIS DER GURTE.
+ * ===========================================================================
+ *
+ * Drei Anteile treffen sich im Gurt, und sie kommen aus zwei Richtungen:
+ *
+ *   N        Kräftepaar aus dem Moment IN der Rahmenebene (Leiterzug)
+ *   M_vert   Biegung QUER dazu — halbe Querlast, starke Achse des Gurtes
+ *   M_oertl  örtliche Biegung des Gurtes zwischen zwei Bindeblechen,
+ *            aus der Querkraft in der Rahmenebene
+ *
+ * >>> DER ÖRTLICHE ANTEIL IST HIER UNGEDÄMPFT ANGESETZT. <<<
+ *
+ * Beim Tragjoch mindert `GURT_DAEMPFUNG` = 0.45 diesen Anteil — gemessen an
+ * 80 PyNite-Läufen. Dieser Wert gilt für VIER Winkelgurte mit zwei
+ * Blechebenen und ist auf zwei Walzprofile nicht übertragbar. Bis er für das
+ * Abfangjoch gemessen ist, steht hier 1.0: der volle Anteil, also die
+ * sichere Seite. Was das kostet, sagt `daempfung` im Ergebnis — wer die
+ * Zahl später kalibriert, sieht sofort, wo sie wirkt.
+ */
+export const ABFANG_GURT_DAEMPFUNG = 1.0;
+
+/**
+ * Der Spannungsnachweis eines Gurtes.
+ *
+ * >>> OHNE KNICKEN. <<<
+ *
+ * Weisung vom 3. September: «die knicklänge hinten anstellen und mit axis
+ * kalibrieren. die 500mm sind zu unkonservativ da sich der gesamte träger
+ * biegt in der horizontal und vertikal ebene.»
+ *
+ * Das ist der Grund, warum der Blechabstand hier NICHT als Knicklänge
+ * durchgeht: der Druckgurt weicht nicht zwischen zwei Blechen aus, sondern
+ * mit dem ganzen Träger. Die massgebende Länge ist damit ein Vielfaches und
+ * muss gemessen werden.
+ *
+ * Bis dahin führt dieser Nachweis den QUERSCHNITT, nicht die Stabilität —
+ * und die Auswertung sagt es unter «nicht geführte Nachweise». Ein η, das
+ * den Druckgurt wie einen Zuggurt behandelt und das verschweigt, wäre die
+ * gefährlichste Zahl dieser Anwendung.
+ *
+ * @param {object} q     aus abfangQuerschnitt
+ * @param {object} s     Schnittgrössen {Mrahmen [kNm], Mvert [kNm], Vrahmen [kN]}
+ * @param {number} a     Bindeblechabstand [m]
+ * @param {number} fyd   Bemessungsfestigkeit [kN/cm²]
+ */
+export function abfangGurtnachweis(q, s, a, fyd) {
+  const N = abfangGurtkraefte(s.Mrahmen ?? 0, q.e).N;         // kN
+  /*
+   * Die örtliche Biegung: die Querkraft verteilt sich auf beide Gurte, und
+   * jeder Gurt biegt zwischen zwei Blechen wie ein beidseitig eingespannter
+   * Stab - Moment V/2 · a/2 an den Enden.
+   */
+  const Voertl = (Math.abs(s.Vrahmen ?? 0) / 2) * (a / 2);    // kNm
+  const Moertl = Voertl * ABFANG_GURT_DAEMPFUNG;
+
+  // kNm -> kNcm für die Widerstandsmomente in cm³
+  const sigN = N / q.Agurt;
+  const sigVert = (Math.abs(s.Mvert ?? 0) * 100) / q.Wvert;
+  const sigOertl = (Moertl * 100) / q.Wgurtz;
+  const sigma = sigN + sigVert + sigOertl;
+
+  return {
+    N, Moertl,
+    sigN, sigVert, sigOertl, sigma,
+    fyd,
+    eta: fyd > 0 ? sigma / fyd : Infinity,
+    daempfung: ABFANG_GURT_DAEMPFUNG,
+    /*
+     * DIE STABILITÄT IST NICHT DABEI - und das gehört ins Ergebnis, nicht
+     * in eine Fussnote. Wer `eta` liest, muss sehen, was darin fehlt.
+     */
+    knickenGefuehrt: false,
+    knickenGrund: 'Knicklänge des Druckgurtes noch nicht kalibriert — der '
+                + 'Blechabstand ist zu unkonservativ, weil sich der ganze '
+                + 'Träger in beiden Ebenen biegt (Weisung, 3. September).',
+  };
+}

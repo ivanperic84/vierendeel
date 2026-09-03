@@ -480,6 +480,25 @@ export function hinweise(m) {
       + 'Gurte nebeneinander, Bindebleche oben und unten —; sein Rechenkern ist '
       + 'im Bau. Der gewählte Typ benennt das Bauteil, alle folgenden Zahlen '
       + 'gelten dem Joch.');
+    /*
+     * >>> UND DER DRUCKGURT IST NICHT AUF STABILITAET GEPRUEFT. <<<
+     *
+     * Er traegt dieselbe Kraft wie der Zuggurt, aber er kann ausweichen.
+     * Sein Nachweis fehlt, weil die KNICKLAENGE nicht bekannt ist - und der
+     * naheliegende Wert waere der falsche.
+     *
+     * Weisung vom 3. September: «die knicklaenge hinten anstellen und mit
+     * axis kalibrieren. die 500mm sind zu unkonservativ da sich der gesamte
+     * traeger biegt in der horizontal und vertikal ebene.»
+     *
+     * Der Hinweis steht bei der ART, nicht in der allgemeinen Liste der
+     * nicht gefuehrten Nachweise: dort stuende er auch am Tragjoch, das gar
+     * keinen Abfanggurt hat.
+     */
+    h.push('Knicken des Druckgurtes wird beim Abfangjoch NICHT geführt — '
+      + 'die Knicklänge steht aus. Der Bindeblechabstand wäre zu '
+      + 'unkonservativ, weil sich der ganze Träger in beiden Ebenen biegt; '
+      + 'die massgebende Länge wird mit AxisVM gemessen.');
   }
   if (art.key === 'tragausleger') {
     h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `

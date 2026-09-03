@@ -13121,6 +13121,86 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     /*
      * WAS SICH RECHNEN LAESST, SAGT DER KERN SELBST.
      */
+    /*
+     * >>> DER SPANNUNGSNACHWEIS DES GURTES - OHNE KNICKEN. <<<
+     *
+     * Weisung vom 3. September: «die knicklaenge hinten anstellen und mit
+     * axis kalibrieren. die 500mm sind zu unkonservativ da sich der gesamte
+     * traeger biegt in der horizontal und vertikal ebene.»
+     *
+     * Der Nachweis fuehrt deshalb den QUERSCHNITT, nicht die Stabilitaet -
+     * und sagt das im Ergebnis. Ein eta, das den Druckgurt wie einen
+     * Zuggurt behandelt und das verschweigt, waere die gefaehrlichste Zahl
+     * dieser Anwendung.
+     */
+    {
+      const q = AK.abfangQuerschnitt('A160');
+      const fyd = 23.5 / 1.05;                  // S235, kN/cm2
+      const nw = AK.abfangGurtnachweis(
+        q, { Mrahmen: 50, Mvert: 8, Vrahmen: 20 }, 0.5, fyd);
+
+      // Von Hand: N = 50 / 0.383 = 130.5 kN auf 22.0 cm2 -> 5.93 kN/cm2
+      pruef('Normalspannung aus dem Kraeftepaar',
+            nw.sigN, 130.5 / 22.0, 0.05, 'kN/cm2');
+      // M_vert = 8 kNm auf W_y = 113.9 cm3 -> 7.02 kN/cm2
+      pruef('Biegung quer zur Rahmenebene',
+            nw.sigVert, 800 / 113.9, 0.02, 'kN/cm2');
+      // oertlich: V/2 * a/2 = 10 * 0.25 = 2.5 kNm auf W_z = 18.3 cm3
+      pruef('Oertliche Biegung zwischen den Blechen',
+            nw.sigOertl, 250 / 18.3, 0.02, 'kN/cm2');
+      pruef('Und die Summe ist die Summe',
+            nw.sigma, nw.sigN + nw.sigVert + nw.sigOertl, 1e-9, 'kN/cm2');
+      pruef('eta ist sigma durch f_yd', nw.eta, nw.sigma / fyd, 1e-9, '-');
+
+      /*
+       * DER OERTLICHE ANTEIL IST UNGEDAEMPFT - und das mit Absicht.
+       *
+       * Beim Tragjoch mindert GURT_DAEMPFUNG = 0.45 ihn, gemessen an 80
+       * PyNite-Laeufen. Der Wert gilt fuer VIER Winkelgurte mit zwei
+       * Blechebenen und ist auf zwei Walzprofile nicht uebertragbar. Bis er
+       * gemessen ist, steht 1.0: die sichere Seite.
+       */
+      pruef('Der oertliche Anteil ist ungedaempft', nw.daempfung, 1.0, 1e-9, '-');
+
+      /*
+       * >>> UND DAS ERGEBNIS SAGT, WAS FEHLT. <<<
+       */
+      wahr('Der Nachweis sagt, dass Knicken fehlt', nw.knickenGefuehrt === false);
+      wahr('… und nennt den Grund',
+           /[Kk]nicklänge/.test(nw.knickenGrund)
+           && /unkonservativ/.test(nw.knickenGrund));
+
+      // Ein groesserer Blechabstand erhoeht den oertlichen Anteil - linear.
+      const weit = AK.abfangGurtnachweis(
+        q, { Mrahmen: 50, Mvert: 8, Vrahmen: 20 }, 1.0, fyd);
+      pruef('Doppelter Blechabstand, doppelter oertlicher Anteil',
+            weit.sigOertl, 2 * nw.sigOertl, 1e-9, 'kN/cm2');
+      // Ohne Querkraft faellt er weg.
+      const ohneV = AK.abfangGurtnachweis(
+        q, { Mrahmen: 50, Mvert: 8, Vrahmen: 0 }, 0.5, fyd);
+      pruef('Ohne Querkraft kein oertlicher Anteil', ohneV.sigOertl, 0, 1e-9,
+            'kN/cm2');
+    }
+
+    /*
+     * DER HINWEIS STEHT BEI DER ART, NICHT IN DER ALLGEMEINEN LISTE.
+     *
+     * Eine Nachweisgruppe «Knicken Abfanggurt» stuende auch am Tragjoch
+     * unter den nicht gefuehrten - und das hat gar keinen Abfanggurt. Der
+     * erste Versuch machte genau das, und vier Kontrollen fielen darueber.
+     */
+    {
+      const { hinweise: hwK } = await import(J('core.checks.js'));
+      const mA = rechne({ ...standardwerte(), tragwerksart: 'abfangjoch',
+                          abfangTyp: 'A160' }).modell;
+      const zeilen = hwK(mA).join(' | ');
+      wahr('Beim Abfangjoch steht der Knick-Hinweis',
+           zeilen.includes('Knicken des Druckgurtes'));
+      const mJ = rechne(standardwerte()).modell;
+      wahr('Beim Tragjoch steht er nicht',
+           !hwK(mJ).join(' | ').includes('Druckgurtes'));
+    }
+
     wahr('A160 ist rechenbar', AK.abfangRechenbar('A160', 9.5));
     wahr('Eine ungefuehrte Laenge nicht', !AK.abfangRechenbar('A160', 9.7));
     wahr('Und die Altbauweise nicht', !AK.abfangRechenbar('UAP 130'));

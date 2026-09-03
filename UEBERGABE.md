@@ -4169,6 +4169,43 @@ Randmasse nur für A160 erfasst sind.
 **Erfasst sind die Stückzahlen bisher nur für A160.** Für A200 bis A360 stehen
 sie auf den Konstruktionszeichnungen und müssen nachgetragen werden.
 
+### Der Gurtnachweis — und was er ausdrücklich nicht führt
+
+Drei Anteile treffen sich im Gurt, aus zwei Richtungen:
+
+| Anteil | Herkunft | Widerstand |
+|---|---|---|
+| `N` | Kräftepaar aus dem Moment **in** der Rahmenebene | A des Gurtes |
+| `M_vert` | halbe Querlast, **quer** dazu | W_y (starke Achse) |
+| `M_örtl` | Gurt zwischen zwei Bindeblechen, aus V in der Rahmenebene | W_z (schwache Achse) |
+
+**Der örtliche Anteil ist ungedämpft angesetzt.** Beim Tragjoch mindert ihn
+`GURT_DAEMPFUNG` = 0.45, gemessen an 80 PyNite-Läufen — der Wert gilt für
+**vier Winkelgurte mit zwei Blechebenen** und ist auf zwei Walzprofile nicht
+übertragbar. Bis er für das Abfangjoch gemessen ist, steht
+`ABFANG_GURT_DAEMPFUNG` = 1.0: der volle Anteil, also die sichere Seite.
+
+#### Knicken wird nicht geführt — und das steht im Ergebnis
+
+> Weisung vom 3. September: „die knicklänge hinten anstellen und mit axis
+> kalibrieren. die 500mm sind zu unkonservativ da sich der gesamte träger
+> biegt in der horizontal und vertikal ebene."
+
+Der Druckgurt trägt dieselbe Kraft wie der Zuggurt, kann aber ausweichen. Der
+**Bindeblechabstand als Knicklänge wäre die naheliegende und genau die falsche
+Annahme**: der Gurt weicht nicht zwischen zwei Blechen aus, sondern mit dem
+ganzen Träger. Die massgebende Länge ist ein Vielfaches und wird **gemessen,
+nicht gesetzt**.
+
+`abfangGurtnachweis` gibt deshalb `knickenGefuehrt: false` samt Grund zurück,
+und die Auswertung schreibt es beim Abfangjoch als Hinweis an.
+
+**Ein Denkfehler auf dem Weg dahin:** zuerst legte ich dafür eine
+Nachweisgruppe *Knicken Abfanggurt* an. Vier Prüfstand-Kontrollen fielen —
+zu Recht, denn die Gruppe hätte auch am **Tragjoch** unter den nicht geführten
+Nachweisen gestanden, und das hat gar keinen Abfanggurt. Der Hinweis gehört
+dorthin, wo die Tragwerksart bekannt ist.
+
 ### Was noch aussteht
 
 * der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,
