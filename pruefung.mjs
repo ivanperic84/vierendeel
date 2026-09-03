@@ -12198,6 +12198,64 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> EIN ABFANGJOCH SCHLIESST NICHT AN, ES SITZT DARUEBER. <<<
+   *
+   * Weisung vom 3. September: «es gibt im normalfall nur abfangjoche die
+   * übereinander montiert sind.» Es wird auf DIESELBEN Masten montiert wie
+   * das Joch darunter - also uebernimmt es dessen Lage, statt sich rechts
+   * anzuhaengen. Der Regelfall gehoert in die Vorgabe.
+   */
+  {
+    let w = { typ: 'J90', L: 20, xLage: 0, twId: 'T1', mastH: 7.5 };
+    w = C75.tragwerkHinzu(w, 'abfangjoch', {});
+    w = { ...w, mastH: 9.0 };
+    w = C75.tragwerkHinzu(w, 'abfangjoch', {});
+    w = { ...w, mastH: 10.5 };
+    const b = C75.tragwerkeSortiert(w).map((t) => C75.bereichVon(t).join('-'));
+    wahr('Alle drei stehen ueber derselben Strecke',
+         b.join(' ') === '0-20 0-20 0-20');
+    // UND AUF DENSELBEN MASTEN. Zwei Masten, jeder traegt drei Tragwerke.
+    const m = C75.mastenVon(w);
+    pruef('Zwei Masten fuer drei Tragwerke', m.length, 2, 1e-9, 'Stk');
+    wahr('Jeder traegt alle drei', m.every((x) => (x.traegt ?? []).length === 3));
+
+    /*
+     * SIE UNTERSCHEIDEN SICH NUR IN DER ANSCHLUSSHOEHE - also steht sie im
+     * Namen. «HEB 240 · 9.00 m» las sich wie ein Mast; mit dem H davor liest
+     * es sich als das, was es ist. Ein eigener Typ (A160, A200, A240) steht
+     * noch aus.
+     */
+    const namen = C75.tragwerkeSortiert(w).map(C75.tragwerkName);
+    wahr('Das Abfangjoch nennt seine Anschlusshoehe',
+         namen[1].includes('H 9.00 m') && namen[2].includes('H 10.50 m'));
+    wahr('Das Tragjoch nennt weiter seinen Typ', namen[0].includes('J90'));
+  }
+
+  /*
+   * DIE NOTIZ ZUM MASTEN NENNT TYP UND LAENGE - mehr nicht.
+   *
+   * Weisung vom 3. September: «die info über den masten auf den typ und
+   * länge begrenzen in der schemaansicht. alles andere kann man der
+   * darstellung und der logik entnehmen.» Die Stelle steht als Zahl unter
+   * dem Masten, das Geteiltsein am breiteren Fundament, die Zugehoerigkeit
+   * an den Linien darueber.
+   */
+  {
+    const r = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
+    const ab = r.indexOf('function mastenNotizHtml(werte) {');
+    const koerper = ab > 0 ? r.slice(ab, r.indexOf('\n}\n', ab)) : '';
+    wahr('Die Notiz nennt Profil und Laenge',
+         koerper.includes('m.profil') && koerper.includes('m.laenge'));
+    wahr('… und nicht mehr die Stelle', !koerper.includes('m.x.toFixed'));
+    /*
+     * GESUCHT WIRD DIE EIGENSCHAFT, nicht das Wort: der Kommentar darueber
+     * ZITIERT die alte Zeile («… · traegt J90 · 20.00 m»), damit man weiss,
+     * was einmal dastand.
+     */
+    wahr('… und nicht mehr, wer daran haengt', !koerper.includes('.traegt'));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

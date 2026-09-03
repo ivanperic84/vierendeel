@@ -4277,6 +4277,25 @@ function kontextTragwerk(id) {
   if (alle.some(versteckt)) {
     p.push({ text: 'Alle wieder einblenden', tun: () => alleZeigen() });
   }
+  /*
+   * >>> EIN ABFANGJOCH GEHOERT UEBER EIN BESTIMMTES JOCH. <<<
+   *
+   * «Neues Tragwerk bei x = 18.50 m» auf dem leeren Grund setzt es an die
+   * Stelle, auf die man gezeigt hat - das ist richtig, aber ungenau: ein
+   * Abfangjoch sitzt nicht IRGENDWO, sondern auf DEN MASTEN des Jochs
+   * darunter, ueber dessen ganze Strecke. Hier gezeigt, hier uebernommen:
+   * Lage und Laenge kommen vom angeklickten Tragwerk.
+   *
+   * Was danach noch zu setzen bleibt, ist die Anschlusshoehe - die eine
+   * Angabe, die zwei uebereinanderstehende Abfangjoche unterscheidet.
+   */
+  if (tragwerksart(t).masten >= 2) {
+    p.push('-');
+    p.push({ text: 'Abfangjoch darüber setzen', tun: () => {
+      if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
+      aendern('tragwerkNeu', { art: 'abfangjoch', xLage: lageVon(t) });
+    } });
+  }
   p.push('-');
   p.push({ text: 'Auf dieses zoomen', tun: () => zoomAufTragwerk(id) });
   if (alle.length > 1) {

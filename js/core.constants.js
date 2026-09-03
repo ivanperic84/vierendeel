@@ -283,6 +283,23 @@ export function tragwerkName(t) {
     return [t?.typ ?? 'frei', t?.L ? `${Number(t.L).toFixed(2)} m` : null]
       .filter(Boolean).join(' · ');
   }
+  /*
+   * >>> EIN ABFANGJOCH WIRD NACH SEINER HOEHE UNTERSCHIEDEN. <<<
+   *
+   * Zwei uebereinander stehen auf denselben Masten, ueber derselben
+   * Strecke, mit demselben Profil - sie unterscheiden sich NUR in der
+   * Anschlusshoehe. «HEB 240 · 9.00 m» las sich dabei wie ein Mast; mit dem
+   * Zeichen H davor liest es sich als das, was es ist.
+   *
+   * Ein eigener Typ (A160, A200, A240 nach den Werkstattzeichnungen) steht
+   * noch aus - solange die Sortimentsdaten fehlen, ist die Hoehe das
+   * einzige, was dieses Abfangjoch von jenem trennt.
+   */
+  if (art.key === 'abfangjoch') {
+    const H = t?.mastH;
+    return [art.label, H > 0 ? `H ${Number(H).toFixed(2)} m` : null]
+      .filter(Boolean).join(' · ');
+  }
   const p = t?.mastProfil;
   const h = t?.mastLaenge > 0 ? t.mastLaenge : t?.mastH;
   return [p || art.label, h > 0 ? `${Number(h).toFixed(2)} m` : null]
@@ -1260,8 +1277,25 @@ export function tragwerkHinzu(w, art, vorlage = {}) {
    */
   const ohneLaenge = TRAGWERKSARTEN.find((x) => x.key === art)?.masten < 2;
   const schritt = ohneLaenge ? (Number(w?.flSpannweite) || 40) : 0;
-  const anschluss = Number.isFinite(rechts)
-    ? { xLage: rechts + schritt } : {};
+  /*
+   * >>> EIN ABFANGJOCH SCHLIESST NICHT AN, ES SITZT DARUEBER. <<<
+   *
+   * Weisung vom 3. September: «es gibt im normalfall nur abfangjoche die
+   * übereinander montiert sind.»
+   *
+   * Es wird auf DIESELBEN Masten montiert wie das Joch darunter - also
+   * uebernimmt es dessen Lage, statt sich rechts anzuhaengen. Das ist der
+   * Regelfall, und der Regelfall gehoert in die Vorgabe: sonst legt man ein
+   * Abfangjoch an und muss es erst noch dorthin schieben, wo es ohnehin
+   * hingehoert.
+   *
+   * Die Laenge kommt vom bisherigen Satz mit (`{ ...w }`), also spannt es
+   * ueber dieselbe Strecke. Wie hoch es sitzt, sagt seine Anschlusshoehe -
+   * und das ist die eine Angabe, die man danach wirklich setzen muss.
+   */
+  const darueber = art === 'abfangjoch';
+  const anschluss = darueber || !Number.isFinite(rechts)
+    ? {} : { xLage: rechts + schritt };
   return { ...w, ...anschluss, ...vorlage, tragwerksart: art,
            twId: `T${nr + 1}`, pos,
            weitere: [...rest, bisher] };

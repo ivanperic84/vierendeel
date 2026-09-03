@@ -992,18 +992,36 @@ export function verdrahteLeiste(container, werte, onChange) {
  * Tragwerke.
  */
 function mastenNotizHtml(werte) {
+  /*
+   * >>> NUR TYP UND LAENGE. <<<
+   *
+   * Weisung vom 3. September: «die info über den masten auf den typ und
+   * länge begrenzen in der schemaansicht. alles andere kann man der
+   * darstellung und der logik entnehmen.»
+   *
+   * Zu Recht. Hier stand «M2 · x 20.00 m · HEB 240 · traegt J90 · 20.00 m
+   * und J90 · 20.00 m», darunter zwei Zeilen ueber geteilte Masten. Vier
+   * Angaben, von denen drei schon im Bild stehen:
+   *
+   *   die STELLE     steht als Zahl unter dem Masten in der Leiste,
+   *   das GETEILTSEIN am breiteren Fundament,
+   *   WER daran haengt an den Linien, die ueber ihm zusammenlaufen.
+   *
+   * Was das Bild NICHT sagen kann, ist der Typ und die Laenge - zwei
+   * Zahlen, die kein Strich zeigt. Genau die bleiben.
+   *
+   * Die Warnung zum geteilten Masten faellt mit weg. Sie stand einmal da,
+   * weil die Zugehoerigkeit unsichtbar war; seit das Fundament sie zeigt und
+   * die Bezeichnung ueberall dieselbe ist, erklaert sie, was man sieht.
+   */
   const m = gewaehlterMast(werte);
   if (!m) return '';
-  const alleTw = tragwerkeSortiert(werte);
   const nr = mastenVon(werte).findIndex((x) => x.id === m.id) + 1;
-  const traegt = (m.traegt ?? []).map((id) => alleTw.find((x) => x.id === id))
-    .filter(Boolean).map(tragwerkName);
-  return `<p class="qp-mast-notiz${traegt.length > 1 ? ' geteilt' : ''}">
-      <b>M${nr}</b> · x ${m.x.toFixed(2)} m · ${esc(m.profil ?? 'ohne Profil')}
-      ${traegt.length ? `· trägt ${traegt.map(esc).join(' und ')}` : ''}
-      ${traegt.length > 1 ? '<br>Geteilt — was am Masten geändert wird, gilt '
-        + 'beiden. Die Anschlusshöhe nicht: die gehört dem Joch.' : ''}
-    </p>`;
+  // Die Laenge steht nur da, wenn sie angegeben ist: 0 heisst «nicht
+  // angeschrieben», und «0.00 m» waere eine Zahl, die niemand gemeint hat.
+  const L = Number(m.laenge) > 0 ? ` · ${Number(m.laenge).toFixed(2)} m` : '';
+  return `<p class="qp-mast-notiz"><b>M${nr}</b> · ${
+    esc(m.profil ?? 'ohne Profil')}${L}</p>`;
 }
 
 /**
