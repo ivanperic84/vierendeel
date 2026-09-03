@@ -4118,6 +4118,57 @@ Abstand der **Schwerachsen**.
 läge der Nachweis auf der unsicheren Seite. `gurtAchsabstand` macht den Abzug;
 der Prüfstand hält ihn für jeden Typ fest.
 
+### Der Rechenkern — erster Baustein (3. September)
+
+`js/core.abfangjoch.js` steht. Er kapselt, was der Nachweis über Querschnitt
+und Lastaufteilung wissen muss; die Nachweise selbst folgen darauf.
+
+| Funktion | was sie liefert |
+|---|---|
+| `abfangQuerschnitt(typ)` | Hebelarm `e`, Flächen, `I_rahmen` mit Steiner-Anteil, `I_vert` je Gurt |
+| `abfangGurtkraefte(M, e)` | **die Umrechnung auf die Gurte**: N = ± M / e |
+| `abfangLastQuer(q)` | halbe Last je Gurt, quer zur Rahmenebene |
+| `abfangStuetzweite(typ, jt)` | `js` aus der Mass-Tabelle — **nicht** `jt` |
+| `abfangBlechstationen(typ, jt)` | Stationen und Blechzahl **aus der Stückliste** |
+| `abfangRechenbar(typ, jt)` | ob die Daten für eine Rechnung reichen |
+
+Die Querschnittswerte über das Sortiment:
+
+| Typ | Gurt | k [cm] | **e [cm]** | I_rahmen [cm⁴] |
+|---|---|---|---|---|
+| A160 | UPE 160 | 42.0 | **38.3** | 16 323 |
+| A200 | UPE 200 | 56.0 | **51.8** | 39 203 |
+| A240 | UPE 240 | 78.0 | **73.2** | 103 773 |
+| A270 | IPE 270 | 87.0 | **73.5** | 124 822 |
+| A300 | IPE 300 | 90.0 | **75.0** | 152 521 |
+| A330 | IPE 330 | 92.0 | **76.0** | 182 365 |
+| A360 | IPE 360 | 94.0 | **77.0** | 217 605 |
+
+Der **Steiner-Anteil ist hier alles**: bei A160 stehen 85 cm⁴ Eigenanteil gegen
+16 100 cm⁴ Steiner — das Zweihundertfache. Der Prüfstand hält für jeden Typ
+fest, dass er das Zehnfache übersteigt; fällt er darunter, stimmt etwas an der
+Geometrie nicht.
+
+#### Ein Fehlversuch, der die stehende Vorgabe bestätigt hat
+
+Die Blecheinteilung leitete ich zuerst **ab** — QV1 = jt − 4.0 m, erstes Feld
+A1, dann 500er Raster. Das sah schlüssig aus und lag gegen die Stückliste der
+Konstruktionszeichnung **durchweg 4 bis 6 Bleche zu tief** (A160/9.5 m: 22
+gegen 26), über alle fünfzehn Längen.
+
+> „Massgebend sind die Daten, nicht die Herleitung. Führt das Sortiment eine
+> Länge, gilt sie — auch wenn sie sich rechnerisch bestätigen lässt."
+
+Jetzt kommt die Zahl aus der Stückliste (`laengen[].bleche`), und der Prüfstand
+vergleicht **alle fünfzehn** gegen die Zeichnung. Ohne erfasste Stückzahl
+liefert `abfangBlechstationen` **null** statt einer geratenen Einteilung — eine
+erfundene wäre die Grundlage eines Nachweisschnitts, der nirgends steht. Die
+**Lage** der Reihe bleibt vorerst eine Näherung (`randGenau: false`), weil die
+Randmasse nur für A160 erfasst sind.
+
+**Erfasst sind die Stückzahlen bisher nur für A160.** Für A200 bis A360 stehen
+sie auf den Konstruktionszeichnungen und müssen nachgetragen werden.
+
 ### Was noch aussteht
 
 * der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,

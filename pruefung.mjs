@@ -12999,6 +12999,134 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * ===================================================================
+   * DER RECHENKERN DES ABFANGJOCHS - erster Baustein.
+   * ===================================================================
+   *
+   * Weisung vom 3. September: liegender Vierendeeltraeger, als einfacher
+   * Balken abgebildet, mit der Umrechnung auf die einzelnen Gurte.
+   */
+  {
+    const AK = await import(J('core.abfangjoch.js'));
+    const PR = await import(J('data.profiles.js'));
+
+    /*
+     * >>> e IST NICHT k. <<<
+     *
+     * Der Hebelarm ist der Abstand der SCHWERACHSEN. Mit dem Aussenmass zu
+     * rechnen laege neun bis fuenfzehn Prozent auf der unsicheren Seite.
+     */
+    for (const t of AJ.abfangjoche().filter((x) => x.aufbau)) {
+      const q = AK.abfangQuerschnitt(t.typ);
+      wahr(`${t.typ}: e ist kleiner als k`, q.e < q.k);
+      pruef(`${t.typ}: e stimmt mit gurtAchsabstand`,
+            q.e, PR.gurtAchsabstand(q.gurt, q.k), 1e-9, 'cm');
+      /*
+       * DER STEINER-ANTEIL IST HIER ALLES. Bei A160 ist I_z des Gurtes
+       * 85 cm4, der Steiner-Anteil 16 100 - das Zweihundertfache. Faellt
+       * das je unter das Zehnfache, stimmt etwas an der Geometrie nicht.
+       */
+      const steiner = 2 * q.gurt.A * (q.e / 2) ** 2;
+      const eigen = 2 * q.gurt.Iz;
+      wahr(`${t.typ}: der Steiner-Anteil traegt`, steiner > 10 * eigen);
+      pruef(`${t.typ}: I_rahmen ist Eigen + Steiner`,
+            q.Irahmen, eigen + steiner, 1e-6, 'cm4');
+      // Und die Flaeche ist die zweier Gurte - nicht mehr, nicht weniger.
+      pruef(`${t.typ}: A ist zweimal der Gurt`, q.A, 2 * q.Agurt, 1e-9, 'cm2');
+    }
+    // Ueber das Sortiment waechst der Querschnitt durchweg.
+    const reihe6 = ['A160', 'A200', 'A240', 'A270', 'A300', 'A330', 'A360']
+      .map((x) => AK.abfangQuerschnitt(x));
+    for (let i = 1; i < reihe6.length; i++) {
+      wahr(`${reihe6[i].typ} ist steifer als ${reihe6[i - 1].typ}`,
+           reihe6[i].Irahmen > reihe6[i - 1].Irahmen);
+    }
+
+    /*
+     * >>> DIE UMRECHNUNG AUF DIE GURTE: N = M / e. <<<
+     *
+     * Das Kraeftepaar ist die Vierendeel-Annahme. Gegengerechnet von Hand:
+     * bei A160 (e = 38.3 cm) und M = 50 kNm sind das 50 / 0.383 = 130.5 kN.
+     */
+    const qA = AK.abfangQuerschnitt('A160');
+    const kr = AK.abfangGurtkraefte(50, qA.e);
+    pruef('A160: Gurtkraft bei M = 50 kNm', kr.N, 50 / (qA.e / 100), 1e-9, 'kN');
+    pruef('… von Hand nachgerechnet', kr.N, 130.5, 0.6, 'kN');
+    wahr('Zug und Druck sind gleich gross und entgegengesetzt',
+         Math.abs(kr.zug + kr.druck) < 1e-9 && kr.zug > 0);
+    // Doppeltes Moment, doppelte Kraft - die Beziehung ist linear.
+    pruef('Doppeltes Moment gibt doppelte Kraft',
+          AK.abfangGurtkraefte(100, qA.e).N, 2 * kr.N, 1e-9, 'kN');
+    // Ein groesserer Hebelarm entlastet die Gurte.
+    const qB = AK.abfangQuerschnitt('A360');
+    wahr('Der groessere Typ hat kleinere Gurtkraefte',
+         AK.abfangGurtkraefte(50, qB.e).N < kr.N);
+
+    /*
+     * QUER ZUR EBENE: jeder Gurt fuer sich, halbe Last (Weisung).
+     */
+    pruef('Die Querlast teilt sich haelftig',
+          AK.abfangLastQuer(3.4).jeGurt, 1.7, 1e-9, 'kN/m');
+
+    /*
+     * >>> jt IST NICHT js. <<<
+     *
+     * Mit der Jochlaenge statt der Stuetzweite zu rechnen ueberschaetzt das
+     * Feldmoment um das Quadrat des Verhaeltnisses - bei A160/9.50 waeren
+     * das elf Prozent auf der unsicheren Seite.
+     */
+    const sw = AK.abfangStuetzweite('A160', 9.5);
+    wahr('Die Stuetzweite ist kleiner als die Jochlaenge', sw.bis < 9.5);
+    pruef('A160/9.50 spannt bis 9.00 m', sw.bis, 9.0, 1e-9, 'm');
+    wahr('Eine ungefuehrte Laenge hat keine Stuetzweite',
+         AK.abfangStuetzweite('A160', 9.7) === null);
+
+    /*
+     * >>> DIE BLECHZAHL KOMMT AUS DER STUECKLISTE. <<<
+     *
+     * Der erste Versuch leitete sie aus QV1 und der Regelteilung ab und lag
+     * DURCHWEG 4 BIS 6 BLECHE ZU TIEF (A160/9.5 m: 22 gegen 26). Stehende
+     * Vorgabe: massgebend sind die Daten, nicht die Herleitung.
+     *
+     * Diese Kontrolle ist die Gegenprobe an der Zeichnung selbst.
+     */
+    const SOLL = { 12.5: 38, 12: 36, 11.5: 34, 11: 32, 10.5: 30, 10: 28,
+                   9.5: 26, 9: 24, 8.5: 22, 8: 20, 7.5: 18, 7: 16,
+                   6.5: 14, 6: 12, 5.5: 10 };
+    let stimmt = 0;
+    for (const z of AJ.getAbfangjoch('A160').laengen) {
+      const b = AK.abfangBlechstationen('A160', z.jt);
+      if (b && b.bleche === SOLL[z.jt]) stimmt += 1;
+    }
+    pruef('A160: alle Laengen stimmen mit der Stueckliste',
+          stimmt, 15, 1e-9, 'Stk');
+    const b95 = AK.abfangBlechstationen('A160', 9.5);
+    wahr('Je Station eines oben und eines unten',
+         b95.bleche === b95.anzahl * 2);
+    wahr('Die Stationen stehen im Regelraster',
+         b95.stationen.every((x, i) => i === 0
+           || Math.abs(x - b95.stationen[i - 1] - b95.teilung) < 1e-9));
+    wahr('Sie liegen alle im Joch',
+         b95.stationen[0] > 0 && b95.stationen.at(-1) < 9.5);
+    /*
+     * OHNE ERFASSTE STUECKZAHL KOMMT NULL - keine geratene Einteilung.
+     * Eine erfundene waere die Grundlage eines Nachweisschnitts, der
+     * nirgends steht.
+     */
+    wahr('Ohne Stueckzahl keine Einteilung',
+         AK.abfangBlechstationen('A200', 10.0) === null);
+    wahr('Und die Lage ist als Naeherung angeschrieben',
+         b95.randGenau === false);
+
+    /*
+     * WAS SICH RECHNEN LAESST, SAGT DER KERN SELBST.
+     */
+    wahr('A160 ist rechenbar', AK.abfangRechenbar('A160', 9.5));
+    wahr('Eine ungefuehrte Laenge nicht', !AK.abfangRechenbar('A160', 9.7));
+    wahr('Und die Altbauweise nicht', !AK.abfangRechenbar('UAP 130'));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die
