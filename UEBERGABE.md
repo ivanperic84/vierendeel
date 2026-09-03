@@ -3779,7 +3779,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Angepasstes Joch als eigenen Typ speichern** | offen |
 | **Excel-Generator** (`generate_vierendeel_L_SZS_C5.py`, `js/export.xlsx.js`) | nicht mit dem aktuellen Kern synchron |
 | **AxisVM über COM** | Modell wird vollständig aufgebaut und gespeichert. Offen: die lokalen Stabachsen (Abschnitt 6b), nächster Lauf vorbereitet |
-| **Ergebnisse zurücklesen** | Schnittstelle **vermessen**, aber nicht gebaut (`Results.NodalSupportForces`, `GetAllNodalSupportForces`, `Reactions`, `LineForces`). Ziel steht fest: Anzeige in der Anwendung mit Schalter *Vordimensionierung / FEM* — siehe *Der Weg dorthin* |
+| **Ergebnisse zurücklesen** | **gebaut** (`-Auslesen`, ab Zeile 767). Am 3. September vermessen und der Rechenweg durchgestochen: `Calculation.LinearAnalysis(cuiNoUserInteractionWithAutoCorrectNoShow)` läuft, 25 Ergebnisfälle. Offen: ein sauberer Durchstich des Auslesens — siehe *AxisVM rechnet über COM*|
 | **Prüffähiger Nachweisbericht** | pendent. Excel, Druckansicht und Handbuch decken es nicht — siehe *Pendent: der prüffähige Nachweisbericht* |
 | **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
@@ -4036,6 +4036,48 @@ der Prüfstand hält ihn für jeden Typ fest.
   Jochaufsätze, durchgehende Fahrleitung
 * Vergleichsrechnung PyNite / AxisVM, danach erst die Kopplung zweier
   Abfangjoche über gemeinsame Hängestützen
+
+## AxisVM rechnet über COM (3. September)
+
+Auf die Frage „kann man über die com schnittstelle nicht noch einen befehl zum
+durchrechnen geben?" — **ja, und es war schon gebaut.** Meine Aussage, das
+Zurücklesen sei „vermessen, aber nicht gebaut", stammte aus einer veralteten
+Notiz in dieser Datei und war falsch: `-Rechnen` steht seit längerem in
+`AxisVM_aufbauen.ps1` (Zeile 2244), das Auslesen ab Zeile 767.
+
+**Vermessen, nicht geraten** (die Erkundung liefert es):
+
+```
+ELongBoolean LinearAnalysis  (ECalculationUserInteraction)
+ELongBoolean LinearAnalysis2 (ECalculationUserInteraction, ELongBoolean, string)
+
+ECalculationUserInteraction
+  0  cuiUserInteraction                          Dialog
+  1  cuiNoUserInteractionWithAutoCorrect
+  2  cuiNoUserInteractionWithoutAutoCorrect
+  3  cuiNoUserInteractionWithAutoCorrectNoShow   ← das Skript nimmt diese
+  4  cuiNoUserInteractionWithoutAutoCorrectNoShow
+```
+
+Durchgestochen am Tragjoch: **25 Ergebnisfälle**, linear statisch.
+
+**Die Rückgabe ist mehrdeutig und darf nicht als Erfolgsprobe dienen.**
+`LinearAnalysis` gab **0** zurück, während 25 Ergebnisfälle vorlagen — bei
+`ELongBoolean` wäre 0 „falsch". Geprüft wird deshalb an der **Zahl der
+Ergebnisfälle**, nicht am Rückgabewert. Die Regel „Fehler kommen als negative
+Zahl" trägt hier nicht.
+
+**Zwei Instanzen vertragen sich nicht.** Ein zweiter Skriptstart für das
+Auslesen, während die erste Instanz das Modell noch offen hält, führt zu
+„Datei öffnen nicht möglich" und hängt AxisVM auf — am 3. September so
+passiert. Das Auslesen gehört an die **laufende** Instanz; der Ablauf ist:
+
+1. `AxisVM_aufbauen.cmd -Rechnen` — baut, speichert, rechnet
+2. AxisVM **offen lassen**
+3. `AxisVM_auslesen.cmd` — holt die Schnittgrössen
+
+Ob Schritt 3 in einem Zug mit Schritt 1 laufen kann, ist noch nicht geprüft;
+das wäre der nächste Schritt und spart den Instanzkonflikt ganz.
 
 ## Die Kalibrierung der beiden gefitteten Kennwerte (29. August)
 
