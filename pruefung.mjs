@@ -12511,6 +12511,10 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     const l160 = A160.laengen;
     wahr('A160 fuehrt 15 Laengen', l160.length === 15);
+    // 158 Laengen ueber das aktuelle Sortiment - jede aus ihrem Schemablatt.
+    pruef('Das Sortiment fuehrt 158 Laengen',
+          AJ.abfangjoche().reduce((n, t) => n + (t.laengen?.length ?? 0), 0),
+          158, 1e-9, 'Stk');
     wahr('Von 5.50 bis 12.50 m',
          l160[0].jt === 5.5 && l160[l160.length - 1].jt === 12.5);
     wahr('Die Regelteilung ist ueberall 500',
@@ -12552,10 +12556,68 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * und ohne die gibt es keinen Nachweisschnitt. Das muss abfragbar sein,
      * sonst rechnet der Kern auf halben Daten weiter.
      */
-    wahr('A160 ist vollstaendig', AJ.abfangVollstaendig('A160'));
-    wahr('A200 auch', AJ.abfangVollstaendig('A200'));
-    wahr('A240 noch nicht', !AJ.abfangVollstaendig('A240'));
-    wahr('Und A270 hat noch keinen Aufbau', !AJ.abfangAufbau('A270'));
+    /*
+     * SEIT DEM 3. SEPTEMBER IST DAS AKTUELLE SORTIMENT GANZ ERFASST.
+     *
+     * Sieben Typen, jeder mit Aufbau, Bindeblechen, Endverstaerkung und
+     * Mass-Tabelle. Die Altbauweise fuehrt nichts davon - fuer sie liegen
+     * keine Konstruktionszeichnungen vor -, und das muss sichtbar bleiben,
+     * damit niemand auf halben Daten rechnet.
+     */
+    const neuT = AJ.abfangjoche().filter((x) => x.bauweise === 'neu');
+    wahr('Sieben Typen im aktuellen Sortiment', neuT.length === 7);
+    for (const t of neuT) {
+      wahr(`${t.typ} ist vollstaendig`, AJ.abfangVollstaendig(t.typ));
+    }
+    const altT = AJ.abfangjoche().filter((x) => x.bauweise === 'alt');
+    wahr('Die Altbauweise ist es nicht',
+         altT.every((t) => !AJ.abfangVollstaendig(t.typ)));
+
+    /*
+     * >>> AB A270 IST DIE ENDVERSTAERKUNG KEINE GABEL MEHR. <<<
+     *
+     * A160 bis A240 setzen ein Gurtstueck gleichen Profils auf. Ab A270
+     * tritt ein DECKBLECH an seine Stelle, asymmetrisch: 1450 mm am linken
+     * Jochende, 650 am rechten. Wer nur nach `verstaerkung` fragt, findet
+     * bei den vier grossen Typen nichts - und weist den unverstaerkten
+     * Querschnitt an der Stelle nach, an der der verstaerkte steht.
+     */
+    for (const t of neuT) {
+      const e = AJ.abfangEndverstaerkung(t.typ);
+      wahr(`${t.typ} traegt eine Endverstaerkung`, Boolean(e));
+      wahr(`… und sagt ihre Bauart`,
+           e.art === (['A160', 'A200', 'A240'].includes(t.typ)
+             ? 'gabel' : 'deckblech'));
+    }
+    const gab240 = AJ.abfangEndverstaerkung('A240');
+    wahr('Die Gabel hat das Profil des Gurtes',
+         gab240.teile[0].profil === AJ.abfangAufbau('A240').gurtprofil);
+    const dbl = AJ.abfangEndverstaerkung('A330');
+    wahr('Das Deckblech sitzt an beiden Enden', dbl.teile.length === 2);
+    wahr('… links laenger als rechts',
+         dbl.teile[0].l === 1450 && dbl.teile[1].l === 650);
+    wahr('Und beide Enden gleich breit',
+         dbl.teile[0].b === dbl.teile[1].b);
+
+    /*
+     * DIE VIERENDEEL-BEREICHE. A160 und A200 fuehren einen, ab A240 sind es
+     * mehrere - dazwischen sitzen die Quersteifungen aus dem Gurtprofil.
+     * Ihre Summe plus die Randbereiche ergibt die Jochlaenge nicht exakt;
+     * geprueft wird deshalb nur, dass die Bereiche da sind und wachsen.
+     */
+    for (const t of neuT) {
+      wahr(`${t.typ} fuehrt seine Vierendeel-Bereiche`,
+           t.laengen.every((z) => Array.isArray(z.QV) && z.QV.length >= 1));
+      const kurz = t.laengen[0].QV.length;
+      const lang = t.laengen[t.laengen.length - 1].QV.length;
+      wahr(`… und teilt laengere Joche feiner`, lang >= kurz);
+    }
+    // Die Ueberhoehung teilt bei ALLEN Typen die ganze Jochlaenge.
+    for (const t of neuT) {
+      wahr(`${t.typ} teilt die Laenge mit seiner Ueberhoehung`,
+           t.laengen.every((z) => Math.abs(
+             2 * z.S.reduce((a2, b2) => a2 + b2, 0) - z.jt * 1000) < 2));
+    }
   }
 
   /*

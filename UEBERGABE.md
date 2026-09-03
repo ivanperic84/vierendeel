@@ -3929,25 +3929,38 @@ Träger gerade durchläuft; ab A200 ist er **gekropft** (Spreizung 280/400), und
 dort sind sie verschieden. Sie zu verwechseln hiesse, mit dem falschen
 Hebelarm zu rechnen — der Prüfstand hält beide Beziehungen fest.
 
-### Stand der Datenerfassung
+### Stand der Datenerfassung — das aktuelle Sortiment ist vollständig
 
-| Typ | Aufbau | Bindebleche | Gabel | Mass-Tabelle |
-|---|---|---|---|---|
-| A160 | ✓ | ✓ | ✓ | ✓ 15 Längen |
-| A200 | ✓ | ✓ | ✓ | ✓ 23 Längen |
-| A240 | ✓ | ✓ | ✓ | offen |
-| A300 | ✓ | ✓ | (Deckbleche, Rippen) | offen |
-| A360 | ✓ | ✓ | (Deckbleche, Rippen) | offen |
-| A270, A330 | offen | offen | offen | offen |
-| Altbauweise (10) | offen | offen | offen | offen |
+| Typ | Gurt | k [mm] | Längen | Endverstärkung | QV-Bereiche |
+|---|---|---|---|---|---|
+| A160 | UPE 160 | 420 | 15 (5.5–12.5 m) | Gabel UPE 160 × 660 | 1 |
+| A200 | UPE 200 | 560 | 23 (6.0–17.0 m) | Gabel UPE 200 × 600 | 1 |
+| A240 | UPE 240 | 780 | 24 (8.0–19.5 m) | Gabel UPE 240 × 615 | 1–5 |
+| A270 | IPE 270 | 870 | 26 (10.0–22.5 m) | Deckblech 260/10 | 1–6 |
+| A300 | IPE 300 | 900 | 24 (13.0–24.5 m) | Deckblech 290/10 | 1–6 |
+| A330 | IPE 330 | 920 | 23 (15.5–26.5 m) | Deckblech 320/10 | 1–6 |
+| A360 | IPE 360 | 940 | 23 (17.5–28.5 m) | Deckblech 350/10 | 1–7 |
 
-Die Auswahlliste schreibt „Masse unvollständig" an jeden Typ, dem die
-Mass-Tabelle fehlt — wer wählt, soll das **sehen**, statt es an einer
-ausbleibenden Zahl zu merken.
+**158 Längen**, jede mit erstem Blechfeld A1, Regelteilung 500, den
+Vierendeel-Bereichen QV, den Überhöhungsabschnitten S und der Überhöhung Pf
+(Soll/max) — aus den Schemablättern gelesen, nicht hergeleitet.
 
-**Ab A300 wird die Konstruktion reicher**: Deckbleche (350/10 × 1450 bzw. 650)
-und Verstärkungsrippen (80/10) kommen dazu, dazu Quersteifungen aus dem
-Gurtprofil. Das ist erfasst, aber noch nicht im Rechenmodell abgebildet.
+**Ab A270 wechselt die Bauweise am Jochende.** A160 bis A240 setzen ein
+Gurtstück gleichen Profils auf — die *Gabel*. Ab A270 tritt an seine Stelle
+ein **Deckblech**, und zwar asymmetrisch: 1450 mm am linken, 650 mm am rechten
+Jochende. Derselbe Zweck, andere Bauart. `abfangEndverstaerkung` gibt beides
+zurück und nennt die Art — wer nur nach `verstaerkung` fragt, findet bei den
+vier grossen Typen nichts und weist den unverstärkten Querschnitt an der
+Stelle nach, an der der verstärkte steht.
+
+Dazu ab A270: **Verstärkungsrippen** 80/10 (28 Stück) und **Querversteifungen**
+aus dem Gurtprofil, die die QV-Bereiche voneinander trennen. Erfasst, aber
+noch nicht im Rechenmodell abgebildet.
+
+**Die Altbauweise (10 Typen) führt nichts davon** — für sie liegen keine
+Konstruktionszeichnungen vor. Die Auswahlliste schreibt ihr „Masse
+unvollständig" an; wer wählt, soll das sehen, statt es an einer ausbleibenden
+Zahl zu merken.
 
 **Massgebend sind die Daten, nicht die Herleitung.** `QV1 = jt − 4.0 m`
 bestätigt jede erfasste Zeile, und `A1` wechselt zwischen 250 und 500 — beides
@@ -3956,8 +3969,6 @@ für eine Zwischenlänge `null` zurück statt einer erfundenen Einteilung.
 
 ### Was noch aussteht
 
-* die Mass-Tabellen der fünf übrigen aktuellen Typen, die Stücklisten von
-  A270 und A330
 * der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,
   Nachweisschnitt mit der Gabel am Auflager
 * die Lasten: Leiterzug in beiden Gleisrichtungen getrennt anordenbar,

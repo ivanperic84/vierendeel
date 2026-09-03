@@ -169,6 +169,31 @@ export function abfangGabel(typ) {
 }
 
 /**
+ * DIE ENDVERSTAERKUNG - in der Bauart, die der Typ fuehrt.
+ *
+ * >>> AB A270 IST ES KEINE GABEL MEHR. <<<
+ *
+ * A160 bis A240 setzen ein Gurtstueck gleichen Profils auf (UPE 160 x 660
+ * bei A160). Ab A270 tritt an seine Stelle ein DECKBLECH, und zwar
+ * asymmetrisch: 1450 mm am linken Jochende, 650 mm am rechten. Derselbe
+ * Zweck, andere Bauart - und wer nur nach `verstaerkung` fragt, findet bei
+ * den vier grossen Typen nichts und weist den unverstaerkten Querschnitt
+ * nach.
+ *
+ * @returns {{art: string, teile: Array}|null}
+ */
+export function abfangEndverstaerkung(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  if (a?.verstaerkung) {
+    return { art: 'gabel', teile: [a.verstaerkung] };
+  }
+  if (a?.deckblech?.length) {
+    return { art: 'deckblech', teile: a.deckblech };
+  }
+  return null;
+}
+
+/**
  * Die Zeile der Mass-Tabelle zu einer Jochlaenge.
  *
  * >>> MASSGEBEND SIND DIE DATEN. <<<
@@ -205,5 +230,6 @@ export function abfangLaengen(typ) {
  */
 export function abfangVollstaendig(typ) {
   const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
-  return Boolean(a?.aufbau && a?.bindeblech && a?.laengen?.length);
+  return Boolean(a?.aufbau && a?.bindeblech && a?.laengen?.length
+                 && (a.verstaerkung || a.deckblech?.length));
 }
