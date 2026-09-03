@@ -4527,6 +4527,49 @@ Tragjoch. Bei einem Randfeld von 2.0 m und 100 mm Blechbreite mindert das um
 **Noch offen:** die starren Bereiche auch im AxisVM-Modell, und die
 durchlaufende Linienlast über sie hinweg.
 
+#### Das Wissen des Tragjochs hat beide Fehler gelöst (3. September)
+
+Weisung: „wie wurde die ausrichtung der gurte beim tragjoch umgesetzt, nutze
+dieses wissen wenn möglich." Es stand beides schon im Aufbauskript — und ich
+hatte gegen beides verstossen.
+
+**Die Referenzen.** `AxisVM_aufbauen.ps1` sagt seit dem 22. August: *„AxisVM
+legt ohne Referenz die lokale z-Achse in die VERTIKALEBENE. Für die Gurte
+trifft das unsere Vorgabe [0,0,1]. Für die BLECHE nicht: ihr Rechteck muss mit
+der Breite in die Jochachse stehen, also z nach [1,0,0]. Stünde ein
+160x10-Blech hochkant, läge seine Biegesteifigkeit um (160/10)² daneben."*
+
+Ich hatte den Blechen dieselbe Referenz gegeben wie den Gurten — genau der
+Fehler, vor dem der Kommentar warnt, und genau das, was im Bild zu sehen war.
+
+**Die Starrelemente.** Ebenfalls eine stehende Vorgabe: *„die Starrelemente
+sind in AxisVM auch als solche zu modellieren und nicht als dicke Stäbe mit
+steifem Ersatzquerschnitt."* Meine sechzig Arme waren dicke Stäbe mit
+`steifesMaterial`. Als echte **Starrkörper** (`RigidBodies.Add`) rechnet das
+Modell — vorher gab es null Ergebnisfälle, jetzt fünf, und „gebaut, gerechnet
+und gelesen — alles in einem Lauf".
+
+#### Der Vergleich auf belegtem Grund
+
+A160 / 9.50 m, Leiterzug 22 kN, mit korrigiertem Hebelarm (31.68 cm),
+korrigiertem Querschnitt, richtigen Referenzen und echten Starrkörpern:
+
+| | N [kN] | M_örtl [kNm] | σ | η |
+|---|---|---|---|---|
+| Kern | 156.3 | 5.225 | 30.35 | **1.392** |
+| AxisVM | 101.0 | 8.515 | 42.37 | **1.943** |
+
+**Kern / AxisVM = 0.716** — der Kern liegt **28 % unter** AxisVM, also auf der
+**unsicheren** Seite. Die Ursache ist wieder das örtliche Moment: 5.2 gegen
+8.5 kNm. Die Anschnittminderung (0.950 bei 2.0 m Feld und 100 mm Blech) ist
+dabei nur ein kleiner Anteil.
+
+**Das ist der erste Vergleich, dem ich traue** — alle bekannten Fehler sind
+draussen. Was er sagt: der Ansatz „Kräftepaar plus örtliche Biegung aus V·a/4"
+trifft die Wirklichkeit noch nicht. Zu klären ist, ob das Randfeld anders
+wirkt als angenommen oder ob die Momentenverteilung im Vierendeel eine andere
+ist.
+
 #### Das AxisVM-Modell: zwei Blechebenen — und zwei offene Orientierungsfragen
 
 Umgebaut nach der Weisung: die Bleche liegen jetzt **auf Ober- und

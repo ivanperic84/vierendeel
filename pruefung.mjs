@@ -13569,9 +13569,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     wahr('Jeder Stab sagt seine lokale z-Achse',
          m.staebe.every((x) => Array.isArray(x.lcsZ) && x.lcsZ.length === 3));
-    wahr('Die waagrechten Staebe stehen aufrecht',
-         m.staebe.filter((x) => x.art !== 'starr')
+    /*
+     * DIE GURTE stehen aufrecht - z nach oben, wie beim Tragjoch. Die
+     * BLECHE brauchen z in die TRAEGERACHSE, damit ihre Breite dorthin
+     * zeigt; mit z nach oben stuenden sie hochkant, und ihre
+     * Biegesteifigkeit laege um (b/t)^2 daneben.
+     */
+    wahr('Die Gurte stehen aufrecht',
+         m.staebe.filter((x) => x.querschnitt === 'GURT' && x.art === 'stab')
            .every((x) => x.lcsZ[2] === 1));
+    wahr('Die Bleche legen z in die Traegerachse',
+         m.staebe.filter((x) => x.querschnitt.startsWith('BLECH'))
+           .every((x) => x.lcsZ[0] === 1));
     wahr('Die starren Arme nicht - sie stehen selbst senkrecht',
          m.staebe.filter((x) => x.art === 'starr')
            .every((x) => x.lcsZ[2] === 0));

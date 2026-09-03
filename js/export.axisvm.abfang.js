@@ -114,13 +114,20 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * liegen jeweils auf flansch lage oben und unten.» Sie liegen also AUF den
    * Flanschen, nicht hochkant zwischen den Gurten.
    *
-   * `AddRectangular(h, b)` nimmt h in lokaler z-Richtung. Bei einem flach
-   * liegenden Blech ist das die DICKE; die Breite misst in Trägerrichtung.
-   * Vertauscht gäbe es ein Blech, das hochkant steht - dieselbe Fläche,
-   * dieselbe Rahmensteifigkeit, aber eine ganz andere Bauform.
+   * >>> DIE BREITE STEHT VORN, DIE REFERENZ DREHT SIE. <<<
+   *
+   * `AddRectangular(h, b)` nimmt h in lokaler z. Beim Tragjoch steht dort
+   * die BREITE des Blechs (160 bei einem 160x10), und die Referenz legt die
+   * lokale z dorthin, wo die Breite hinsoll - in die Jochachse, `[1,0,0]`.
+   *
+   * Genau so hier. Erst stand `[t, b]` mit einer z-Referenz nach oben; das
+   * gab hochkant stehende Bleche (im Bild gesehen). Der Kommentar in
+   * AxisVM_aufbauen.ps1 sagt es seit dem 22. August: «Stuende ein
+   * 160x10-Blech hochkant, laege seine Biegesteifigkeit um (160/10)^2
+   * daneben - das Modell rechnete klaglos Unsinn.»
    */
   const blechQs = (name, m) => ({
-    name, form: 'Rectangle', parameter: [m.t, m.b],
+    name, form: 'Rectangle', parameter: [m.b, m.t],
     profil: `Flachstahl ${m.b}/${m.t}`,
     A: (m.b * m.t) / 1e6,
     Iy: (m.t * m.b ** 3) / 12 / 1e12,
@@ -190,15 +197,29 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    */
   /*
    * DIE STARREN ARME von der Schwerachse zum Flansch. Sie tragen nichts
-   * eigenes - sie halten den Anschlusspunkt dort, wo er sitzt. Das
-   * Aufbauskript kennt `steifesMaterial` dafür (Faktor 1000).
+   * eigenes - sie halten den Anschlusspunkt dort, wo er sitzt.
+   *
+   * >>> ALS STARRKOERPER, NICHT ALS DICKER STAB. <<<
+   *
+   * Stehende Vorgabe des Auftraggebers, in AxisVM_aufbauen.ps1 seit dem
+   * 22. August festgehalten: «die Starrelemente sind in AxisVM auch als
+   * solche zu modellieren und nicht als dicke Staebe mit steifem
+   * Ersatzquerschnitt». Das Skript baut aus `art: 'starr'` einen
+   * RigidBody - er haelt alle sechs Freiheitsgrade und kennt keine
+   * Freigabe.
+   *
+   * Erst standen hier `steifesMaterial: true` UND `art: 'starr'`. Das war
+   * beides zugleich und damit gegen die Vorgabe; ein Ersatzquerschnitt mit
+   * Faktor 1000 neben neun Meter langen Gurtstaeben ist zudem numerisch
+   * schlecht konditioniert - ein Verdacht fuer die Rechnung, die null
+   * Ergebnisfaelle lieferte.
    */
   xs.forEach((x, i) => {
     for (const g of ['V', 'H']) {
       for (const o of ['O', 'U']) {
         staebe.push({
           name: `ARM_${g}${o}${i}`, von: nm(g, i), bis: nmF(g, i, o),
-          querschnitt: 'GURT', steifesMaterial: true,
+          querschnitt: 'GURT', steifesMaterial: false,
           lcsZ: [0, 1, 0], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
         });
       }
@@ -219,7 +240,12 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       staebe.push({
         name: `BL_${o}${k}`, von: nmF('H', i, o), bis: nmF('V', i, o),
         querschnitt: 'BLECH', steifesMaterial: false,
-        lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+        /*
+         * z IN DIE TRAEGERACHSE - dorthin soll die Blechbreite. Dieselbe
+         * Referenz wie beim Tragjoch, aus demselben Grund; mit [0,0,1]
+         * stuende das Blech hochkant.
+         */
+        lcsZ: [1, 0, 0], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
       });
     }
   });
@@ -240,7 +266,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
         staebe.push({
           name: `BL_ENDE_${o}${k}`, von: nmF('H', i, o), bis: nmF('V', i, o),
           querschnitt: 'BLECH_ENDE', steifesMaterial: false,
-          lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+          lcsZ: [1, 0, 0], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
         });
       }
     });
