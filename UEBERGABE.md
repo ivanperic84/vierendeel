@@ -4471,6 +4471,36 @@ etwas über die Modellfrage aussagt, die absoluten Werte aber neu zu messen
 sind. **Und das AxisVM-Modell setzt die Bleche noch mittig statt auf
 Flanschhöhe** (oben und unten); das ist der nächste Schritt.
 
+#### Das AxisVM-Modell: zwei Blechebenen — und zwei offene Orientierungsfragen
+
+Umgebaut nach der Weisung: die Bleche liegen jetzt **auf Ober- und
+Unterflansch**, nicht mehr als ein Riegel in der Trägermitte. Angeschlossen
+über starre Arme von der Gurtschwerachse zur Flanschmitte — dort und nur dort
+stimmen die Trägheitsmomente des Gurtstabs.
+
+Für A160 / 9.50 m: 90 Knoten auf drei Ebenen (−7.52 / 0 / +7.52 cm), 118 Stäbe
+— 28 Gurt, 60 Arme, 26 Bleche, 4 Endbleche.
+
+**Das Modell rechnet noch nicht.** Der Lauf gab **Rückgabe 0 und null
+Ergebnisfälle**; die Fassung mit einem mittigen Riegel gab 1 und fünf. Die
+sechzig starren Arme sind der Verdacht — als Mechanismus oder als numerisch
+schlecht konditioniertes System. Zu prüfen ist zuerst, ob die Blechknoten
+wirklich gehalten sind: die Auflager sitzen an den Gurtknoten auf z = 0, die
+Blechebenen hängen allein an den Armen.
+
+**Und zwei Orientierungen stimmen noch nicht**, im Bild gesehen:
+
+* **Die Bleche stehen hochkant statt liegend.** Der Querschnitt ist als
+  `[t, b]` = 8/100 angelegt, was bei `AddRectangular(h, b)` die Dicke in die
+  lokale z legen sollte. Offenbar legt AxisVM die lokale z bei einem Stab in
+  y-Richtung anders, als `lcsZ: [0,0,1]` erwarten lässt.
+* **Die C-Profile sind nicht ausgerichtet.** Das Modell gibt keine Rotation
+  mit; AxisVM legt die Öffnung nach eigener Regel, statt beide nach aussen.
+  Für den einen Gurt braucht es zusätzlich eine Spiegelung.
+
+Beides sind Fragen der lokalen Achsen — sie gehören vermessen wie die
+Querschnittsmethode, nicht geraten.
+
 #### Der Vergleich — und was er aufgedeckt hat
 
 Der Umbau ist gemacht: `-Rechnen -Auslesen` baut, rechnet und liest **in einem

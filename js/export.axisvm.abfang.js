@@ -19,12 +19,33 @@
  * er biegt den Träger in seiner Rahmenebene. Das Eigengewicht wirkt in z,
  * quer dazu.
  *
- * >>> DIE GURTE STEHEN AUFRECHT, NEBENEINANDER. <<<
+ * >>> DIE GURTE STEHEN AUFRECHT, MIT DER OEFFNUNG NACH AUSSEN. <<<
  *
- * Ihr Steg ist senkrecht, die Flansche zeigen zur Trägermitte. Damit ist
- * ihre STARKE Achse waagrecht — sie trägt das Eigengewicht — und ihre
- * SCHWACHE liegt in der Rahmenebene, wo der Vierendeel-Verband wirkt. Genau
- * die Zuordnung, mit der auch der Kern rechnet.
+ * Ihr Steg ist senkrecht und liegt INNEN, die Flansche zeigen nach aussen —
+ * so steht es im Schnitt A-A, und die Gegenprobe geht auf: d/2 + b = k/2.
+ * Hier stand zuerst das Gegenteil («Flansche zur Trägermitte»); das ergab
+ * einen Hebelarm, der bei A160 siebzehn Prozent zu gross war.
+ *
+ * Damit ist ihre STARKE Achse waagrecht — sie trägt das Eigengewicht — und
+ * ihre SCHWACHE liegt in der Rahmenebene, wo der Vierendeel-Verband wirkt.
+ * Genau die Zuordnung, mit der auch der Kern rechnet.
+ *
+ * >>> UND DIE BLECHE LIEGEN AUF DEN FLANSCHEN, OBEN UND UNTEN. <<<
+ *
+ * Nicht mittig zwischen den Gurten. Zwei Bleche auf verschiedenen Höhen
+ * bilden mit den Gurten einen KASTEN und tragen Torsion; ein mittiger
+ * Riegel tut das nicht. Angeschlossen sind sie über starre Arme von der
+ * Gurtschwerachse zur Flanschmitte — dort und nur dort stimmen die
+ * Trägheitsmomente des Gurtstabs.
+ *
+ * >>> DIESES MODELL RECHNET NOCH NICHT. <<<
+ *
+ * Der Lauf vom 3. September gab Rueckgabe 0 und null Ergebnisfaelle; die
+ * Fassung mit EINEM mittigen Riegel gab 1 und fünf. Die sechzig starren Arme
+ * sind der Verdacht — als Mechanismus oder als numerisch schlecht
+ * konditioniertes System. Zu prüfen ist zuerst, ob die Blechknoten wirklich
+ * gehalten sind: die Auflager sitzen an den Gurtknoten auf z = 0, die
+ * Blechebenen hängen allein an den Armen.
  *
  * ======================= WAS DIESES MODELL PRÜFEN SOLL ====================
  *
@@ -86,9 +107,20 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     profil: p.name,
     A: p.A / 1e4, Iy: p.Iy / 1e8, Iz: p.Iz / 1e8, It: p.It / 1e8,
   }];
-  // Die Bleche: Rechtecke. h ist die Breite in Trägerrichtung, b die Dicke.
+  /*
+   * >>> DIE BLECHE LIEGEN FLACH. <<<
+   *
+   * Weisung vom 3. September: «die bleche sind nicht nur mittig sondern
+   * liegen jeweils auf flansch lage oben und unten.» Sie liegen also AUF den
+   * Flanschen, nicht hochkant zwischen den Gurten.
+   *
+   * `AddRectangular(h, b)` nimmt h in lokaler z-Richtung. Bei einem flach
+   * liegenden Blech ist das die DICKE; die Breite misst in Trägerrichtung.
+   * Vertauscht gäbe es ein Blech, das hochkant steht - dieselbe Fläche,
+   * dieselbe Rahmensteifigkeit, aber eine ganz andere Bauform.
+   */
   const blechQs = (name, m) => ({
-    name, form: 'Rectangle', parameter: [m.b, m.t],
+    name, form: 'Rectangle', parameter: [m.t, m.b],
     profil: `Flachstahl ${m.b}/${m.t}`,
     A: (m.b * m.t) / 1e6,
     Iy: (m.t * m.b ** 3) / 12 / 1e12,
@@ -108,10 +140,29 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     .map((v) => Math.round(v * 1e6) / 1e6))].sort((u, v) => u - v)
     .filter((v) => v >= -1e-9 && v <= L + 1e-9);
   const nm = (g, i) => `${g}_${xs[i].toFixed(3)}`;
+  /*
+   * >>> DREI EBENEN JE GURT. <<<
+   *
+   * Die SCHWERACHSE trägt den Gurtstab - dort und nur dort stimmen seine
+   * Trägheitsmomente. Die Bleche greifen aber am OBER- und UNTERFLANSCH an,
+   * um `zf` darüber und darunter. Sie an die Schwerachse zu hängen wäre
+   * bequem und falsch: dann läge ihre Ebene in der Trägermitte, und der
+   * Kasten, den sie mit den Gurten bilden, entstünde gar nicht.
+   *
+   * Also eigene Knoten auf Flanschhöhe, starr an den Gurtknoten gekoppelt.
+   * `zf` ist die Mitte des Flansches: halbe Profilhöhe minus halbe
+   * Flanschdicke.
+   */
+  const zf = (p.h - p.tf) / 2 / 100;      // cm -> m
+  const nmF = (g, i, o) => `${g}${o}_${xs[i].toFixed(3)}`;
   const knoten = [];
   xs.forEach((x, i) => {
     knoten.push({ name: nm('V', i), x, y: e / 2, z: 0 });
     knoten.push({ name: nm('H', i), x, y: -e / 2, z: 0 });
+    knoten.push({ name: nmF('V', i, 'O'), x, y: e / 2, z: zf });
+    knoten.push({ name: nmF('V', i, 'U'), x, y: e / 2, z: -zf });
+    knoten.push({ name: nmF('H', i, 'O'), x, y: -e / 2, z: zf });
+    knoten.push({ name: nmF('H', i, 'U'), x, y: -e / 2, z: -zf });
   });
 
   /*
@@ -137,14 +188,40 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * `lcsZ` = [0,0,1] gilt auch hier; das Rechteck ist mit h = Breite in
    * Trägerrichtung angelegt, und die dreht der Riegel selbst mit.
    */
+  /*
+   * DIE STARREN ARME von der Schwerachse zum Flansch. Sie tragen nichts
+   * eigenes - sie halten den Anschlusspunkt dort, wo er sitzt. Das
+   * Aufbauskript kennt `steifesMaterial` dafür (Faktor 1000).
+   */
+  xs.forEach((x, i) => {
+    for (const g of ['V', 'H']) {
+      for (const o of ['O', 'U']) {
+        staebe.push({
+          name: `ARM_${g}${o}${i}`, von: nm(g, i), bis: nmF(g, i, o),
+          querschnitt: 'GURT', steifesMaterial: true,
+          lcsZ: [0, 1, 0], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
+        });
+      }
+    }
+  });
+  /*
+   * >>> ZWEI BLECHE JE STATION, OBEN UND UNTEN. <<<
+   *
+   * Bisher stand hier EIN Riegel in der Trägermitte, mit der Steifigkeit
+   * beider Bleche. Das war die falsche Bauform: zwei Bleche auf
+   * verschiedenen Höhen bilden mit den Gurten einen KASTEN und tragen
+   * Torsion, ein mittiger Riegel tut das nicht.
+   */
   ein.stationen.forEach((s, k) => {
     const i = xs.indexOf(Math.round(s * 1e6) / 1e6);
     if (i < 0) return;
-    staebe.push({
-      name: `BL_${k}`, von: nm('H', i), bis: nm('V', i),
-      querschnitt: 'BLECH', steifesMaterial: false,
-      lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
-    });
+    for (const o of ['O', 'U']) {
+      staebe.push({
+        name: `BL_${o}${k}`, von: nmF('H', i, o), bis: nmF('V', i, o),
+        querschnitt: 'BLECH', steifesMaterial: false,
+        lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+      });
+    }
   });
   /*
    * >>> DIE ENDEN SIND GEKOPPELT. <<<
@@ -159,11 +236,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    */
   if (enden.length) {
     [0, xs.length - 1].forEach((i, k) => {
-      staebe.push({
-        name: `BL_ENDE_${k}`, von: nm('H', i), bis: nm('V', i),
-        querschnitt: 'BLECH_ENDE', steifesMaterial: false,
-        lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
-      });
+      for (const o of ['O', 'U']) {
+        staebe.push({
+          name: `BL_ENDE_${o}${k}`, von: nmF('H', i, o), bis: nmF('V', i, o),
+          querschnitt: 'BLECH_ENDE', steifesMaterial: false,
+          lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+        });
+      }
     });
   }
 

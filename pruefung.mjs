@@ -13498,8 +13498,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * Das ist der ganze Unterschied zum Tragjoch. Alle Knoten liegen auf
      * z = 0, und die beiden Gurte trennt der Achsabstand e in y.
      */
-    wahr('Alle Knoten liegen auf einer Hoehe',
-         m.knoten.every((k) => Math.abs(k.z) < 1e-12));
+    /*
+     * DIE KNOTEN LIEGEN AUF DREI HOEHEN - Schwerachse und beide Flansche.
+     *
+     * Hier stand «alle auf einer Hoehe». Das galt fuer die Fassung mit einem
+     * mittigen Riegel; seit die Bleche auf den Flanschen liegen (Weisung,
+     * 3. September), sind es drei Ebenen. Die GURTKNOTEN liegen weiterhin
+     * auf der Schwerachse - dort und nur dort stimmen die
+     * Traegheitsmomente des Gurtstabs.
+     */
+    wahr('Die Gurtknoten liegen auf der Schwerachse',
+         m.knoten.filter((k) => /^[VH]_/.test(k.name))
+           .every((k) => Math.abs(k.z) < 1e-12));
     const ys = [...new Set(m.knoten.map((k) => Math.round(k.y * 1e6) / 1e6))];
     wahr('Es gibt genau zwei Gurtebenen', ys.length === 2);
     pruef('Ihr Abstand ist der Hebelarm', Math.abs(ys[0] - ys[1]),
@@ -13530,8 +13540,20 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const gurtS = m.staebe.filter((x) => x.querschnitt === 'GURT');
     const blS = m.staebe.filter((x) => x.querschnitt === 'BLECH');
     const beS = m.staebe.filter((x) => x.querschnitt === 'BLECH_ENDE');
-    pruef('Ein Bindeblech je Station', blS.length, 13, 1e-9, 'Stk');
-    pruef('Zwei Endbleche', beS.length, 2, 1e-9, 'Stk');
+    /*
+     * ZWEI BLECHE JE STATION - oben und unten auf Flanschhoehe (Weisung,
+     * 3. September). Hier stand «eines je Station»; das war die Fassung mit
+     * einem mittigen Riegel, und die bildet den Kasten nicht ab, den zwei
+     * Bleche mit den Gurten bilden.
+     */
+    pruef('Zwei Bindebleche je Station', blS.length, 26, 1e-9, 'Stk');
+    pruef('Vier Endbleche - zwei Enden, zwei Ebenen', beS.length, 4, 1e-9, 'Stk');
+    // Sie liegen auf drei Hoehen: Schwerachse und beide Flansche.
+    const zEb = [...new Set(m.knoten.map((n2) => Math.round(n2.z * 1e6) / 1e6))];
+    pruef('Drei Ebenen in z', zEb.length, 3, 1e-9, 'Stk');
+    wahr('Symmetrisch zur Schwerachse',
+         Math.abs(Math.min(...zEb) + Math.max(...zEb)) < 1e-9
+         && zEb.includes(0));
     pruef('Je Feld zwei Gurtstaebe', gurtS.length,
           (m.knoten.length / 2 - 1) * 2, 1e-9, 'Stk');
     /*
@@ -13540,8 +13562,19 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * mit vertauschten Traegheitsmomenten und einem Ergebnis, dem man es
      * nicht ansieht.
      */
+    /*
+     * Jeder Stab sagt seine lokale z-Achse. Die STARREN ARME stehen
+     * senkrecht - fuer sie waere [0,0,1] die Stabachse selbst und damit
+     * ungueltig; sie tragen [0,1,0].
+     */
     wahr('Jeder Stab sagt seine lokale z-Achse',
-         m.staebe.every((x) => Array.isArray(x.lcsZ) && x.lcsZ[2] === 1));
+         m.staebe.every((x) => Array.isArray(x.lcsZ) && x.lcsZ.length === 3));
+    wahr('Die waagrechten Staebe stehen aufrecht',
+         m.staebe.filter((x) => x.art !== 'starr')
+           .every((x) => x.lcsZ[2] === 1));
+    wahr('Die starren Arme nicht - sie stehen selbst senkrecht',
+         m.staebe.filter((x) => x.art === 'starr')
+           .every((x) => x.lcsZ[2] === 0));
 
     /*
      * >>> DIE AUFLAGER SIND UM y UND z FREI. <<<
