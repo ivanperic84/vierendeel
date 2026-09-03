@@ -191,6 +191,22 @@ export const ICONS = {
   leiterzug: 'M2 6h16M4 6c3 4 9 4 12 0M10 8v8M8 16h4',
   schnee: 'M10 3v14M4 6.5l12 7M16 6.5l-12 7',
   gewicht: 'M10 3a2 2 0 100 4 2 2 0 000-4zM6 8h8l2 9H4z',
+  /*
+   * DIE GRUPPEN DER BAUTEILAUSWAHL (Weisung, 3. September: «eventuell macht
+   * es sinn mit gruppierungen und symbolen zu arbeiten»).
+   *
+   * Vierzehn gleich aussehende Kacheln untereinander sind eine Liste, keine
+   * Auswahl - man liest jede, um die eine zu finden. Ein Zeichen je Gruppe
+   * gibt der Reihe einen Anker, den das Auge trifft, bevor es liest.
+   */
+  // Joch mit einer Stuetze darunter, an der etwas haengt.
+  grpHaengestuetze: 'M2 5h16M10 5v6M7 11h6v4H7zM4 16h1M15 16h1',
+  // Joch mit einem Aufsatz darueber, der einen Zusatzleiter traegt.
+  grpJochaufsatz: 'M2 12h16M7 12V7h6v5M10 7V4M6 4h8',
+  // Zwei Leiter uebereinander - Tragseil und Fahrdraht.
+  grpLeiter: 'M2 6h16M2 13h16M6 6v7M14 6v7',
+  // Sammelbecken fuer das Uebrige.
+  grpUebrige: 'M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11.5 13.5h4M13.5 11.5v4',
 };
 
 /** Ein Icon als SVG-Markup. */

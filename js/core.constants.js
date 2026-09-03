@@ -745,11 +745,27 @@ function mastAus(t, ende, x) {
 function mastenAbgeleitet(w, tol) {
   const liste = [];
   tragwerkeSortiert(w).forEach((t) => {
-    // Ein ausgeblendetes Tragwerk bringt keine Masten mit. Einen GETEILTEN
-    // verliert das Blatt dadurch nicht - der Nachbar bringt ihn ebenfalls,
-    // und dort steht er weiter.
-    if (versteckt(t)) return;
+    /*
+     * >>> EIN AUSGEBLENDETES TRAGWERK ZAEHLT MIT, ES STEHT NUR NICHT DA. <<<
+     *
+     * Hier stand `if (versteckt(t)) return;` - und damit wanderten die
+     * NAMEN. Die Id ist die Laufnummer dieser Schleife (`M${n+1}`); wer den
+     * linken Nachbarn beiseitelegte, sah seinen M2 zu M1 werden und M3 zu
+     * M2. Auf einer Jochreihe heisst derselbe Mast dann je nach Ansicht
+     * anders, und die Nachweise nennen ihn beim falschen Namen.
+     *
+     * Weisung vom 3. September: «namen ueber ausblenden hinweg stabil
+     * halten, sonst fuehrt es zu missverstaendnissen.»
+     *
+     * Gezaehlt wird deshalb ueber ALLE Tragwerke des Blattes. Was von einem
+     * ausgeblendeten kommt, traegt `versteckt: true` und wird von
+     * `mastenVon` am Ende weggelassen - nachdem die Nummern vergeben sind.
+     *
+     * Ein GETEILTER Mast bleibt sichtbar, sobald ihn EIN sichtbares
+     * Tragwerk traegt.
+     */
     if (t.mastVorhanden === false) return;
+    const twVersteckt = versteckt(t);
     const lagen = mastLagen(t);
     /*
      * >>> GEKOPPELT WIRD NUR, WER EINE LAGE TRAEGT. <<<
@@ -778,9 +794,13 @@ function mastenAbgeleitet(w, tol) {
          * derselbe, und welche Angabe genauer ist, weiss niemand.
          */
         if (!da.traegt.includes(t.id)) da.traegt.push(t.id);
+        // Ein sichtbares Tragwerk holt den Masten ins Bild - auch wenn ihn
+        // zuerst ein ausgeblendetes angelegt hat.
+        if (!twVersteckt) da.versteckt = false;
         return;
       }
       liste.push({ id: `M${liste.length + 1}`, traegt: [t.id],
+                   versteckt: twVersteckt,
                    mitLage: traegtLage, ...mastAus(t, ende, x) });
     });
   });
@@ -803,10 +823,11 @@ function mastenAbgeleitet(w, tol) {
  * der gespeicherten Liste hinein. Zugeordnet ueber die Id, ersatzweise ueber
  * die Lage.
  */
-export function mastenVon(w, tol = 0.1) {
+export function mastenVon(w, tol = 0.1, mitVersteckten = false) {
+  const sichtbar = (l) => (mitVersteckten ? l : l.filter((m) => !m.versteckt));
   const soll = mastenAbgeleitet(w, tol);
   const alt = Array.isArray(w?.masten) ? w.masten : null;
-  if (!alt || !alt.length) return soll;
+  if (!alt || !alt.length) return sichtbar(soll);
   /*
    * >>> DIE STELLE ENTSCHEIDET, NICHT DIE NUMMER. <<<
    *
@@ -861,7 +882,10 @@ export function mastenVon(w, tol = 0.1) {
     nimm(m, e);
   });
 
-  return soll.map((m) => {
+  // Erst die Angaben zuordnen, DANN die versteckten weglassen: die
+  // Zuordnung laeuft ueber die Stelle, und ein ausgeblendeter Mast darf
+  // seine Angaben nicht verlieren, nur weil er gerade nicht im Bild ist.
+  return sichtbar(soll.map((m) => {
     const q = treffer.get(m.id);
     if (!q) return m;
     const o = { ...m };
@@ -873,7 +897,7 @@ export function mastenVon(w, tol = 0.1) {
       o[f.am] = v;
     });
     return o;
-  });
+  }));
 }
 
 /**
@@ -953,7 +977,18 @@ export function tragwerkPos(w, t) {
 /** Der Name eines Mastes: M1, M2, ... nach seiner Stelle von links. */
 export function mastName(w, m) {
   if (!m) return '';
-  const i = mastenVon(w).findIndex((x) => x.id === m.id);
+  /*
+   * >>> GEZAEHLT WIRD UEBER ALLE MASTEN DES BLATTES. <<<
+   *
+   * Auch die der ausgeblendeten Tragwerke. Sonst wanderte der Name, sobald
+   * man einen Nachbarn beiseitelegt - M2 wurde zu M1 -, und derselbe Mast
+   * hiesse je nach Ansicht anders. Die Id traegt die Nummer schon; gesucht
+   * wird sie hier nur noch, falls sie fehlt.
+   */
+  const alle = mastenVon(w, 0.1, true);
+  let i = alle.findIndex((x) => x.id === m.id);
+  // Ersatzweise ueber die Stelle: ein Mast ist, WO ER STEHT.
+  if (i < 0) i = alle.findIndex((x) => Math.abs((x.x ?? NaN) - (m.x ?? NaN)) < 0.1);
   return i < 0 ? (m.id ?? '') : `M${i + 1}`;
 }
 

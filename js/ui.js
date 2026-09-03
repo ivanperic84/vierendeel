@@ -1580,7 +1580,19 @@ const BEFESTIGUNG_WIRKUNG = {
 
 function anbauteileHtml(g, werte) {
   const liste = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
-  const kacheln = vorlagen().map((v) => `
+  /*
+   * >>> VIERZEHN GLEICHE KACHELN SIND EINE LISTE, KEINE AUSWAHL. <<<
+   *
+   * Weisung vom 3. September: «die Auswahl der bauteile sollte so
+   * uebersichtlich wie moeglich sein und nicht zu ueberladen wirken,
+   * eventuell macht es sinn mit gruppierungen und symbolen zu arbeiten».
+   *
+   * Gegliedert wird nach dem, WOFUER man sucht - Haengestuetzen,
+   * Jochaufsaetze, Leiter, Uebriges. Jede Gruppe traegt ein Zeichen, das
+   * das Auge trifft, bevor es liest. Eigene Vorlagen kommen ans Ende ihrer
+   * Gruppe; wer keine hat, merkt nichts davon.
+   */
+  const eineKachel = (v) => `
     <span class="kachel-huelle">
       <button class="kachel${v.eigen ? ' eigen' : ''}" data-vorlage="${esc(v.id)}"
               draggable="true" title="${esc(v.beschreibung)}">
@@ -1596,7 +1608,31 @@ function anbauteileHtml(g, werte) {
         >${icon('optionen', 11)}</button>
       ${v.eigen ? `<button class="kachel-weg" data-vorlage-weg="${esc(v.id)}"
         title="Eigene Vorlage entfernen">×</button>` : ''}
-    </span>`).join('');
+    </span>`;
+
+  const VORLAGENGRUPPEN = [
+    ['haengestuetze', 'Hängestützen und Ausleger', 'grpHaengestuetze'],
+    ['jochaufsatz', 'Jochaufsätze', 'grpJochaufsatz'],
+    ['leiter', 'Leiter und Traversen', 'grpLeiter'],
+    ['uebrige', 'Übrige', 'grpUebrige'],
+  ];
+  const alleV = vorlagen().filter((v) => v.id !== 'frei');
+  /*
+   * WAS KEINE GRUPPE TRAEGT, VERSCHWINDET NICHT.
+   *
+   * Eine eigene Vorlage aus dem Editor hat keine, und eine neue aus dem
+   * Katalog koennte eine unbekannte tragen. Beide landen unter «Übrige» -
+   * lieber an der falschen Stelle sichtbar als richtig einsortiert und weg.
+   */
+  const bekannt = new Set(VORLAGENGRUPPEN.map((x) => x[0]));
+  const kacheln = VORLAGENGRUPPEN.map(([key, titel, sym]) => {
+    const drin = alleV.filter((v) => (bekannt.has(v.gruppe) ? v.gruppe : 'uebrige') === key);
+    if (!drin.length) return '';
+    return `<div class="kachel-gruppe">
+        <span class="kachel-gruppe-kopf">${icon(sym, 13)} ${esc(titel)}</span>
+        <div class="kacheln">${drin.map(eineKachel).join('')}</div>
+      </div>`;
+  }).join('');
 
   // ÜBERSICHT BEI VIELEN TEILEN
   // ------------------------------------------------------------------------
@@ -1711,14 +1747,28 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       ${teile.map(zeile).join('')}
     </div>`).join('');
 
+  /*
+   * >>> DER HAEUFIGSTE GRIFF STEHT OBEN, NICHT ZUUNTERST IN DER LISTE. <<<
+   *
+   * Weisung vom 3. September: «zudem einen befehl bauteil zuweisen
+   * (allgemein) als button auffuehren, sonst muss man immer erst die liste
+   * oeffnen und die kachel frei definiert zu unterst auswaehlen».
+   *
+   * Genau das: ein Knopf neben dem Lastgenerator, der die Vorlage «frei»
+   * unmittelbar setzt. Die Kachel bleibt zusaetzlich in der Liste - wer sie
+   * dort gewohnt ist, findet sie weiter.
+   */
   return abschnitt(g.titel,
-    `<button class="btn btn-mini" data-generator type="button"
+    `<button class="btn btn-mini" data-vorlage-direkt="frei" type="button"
+       title="Freies Bauteil setzen — Typ, Länge und Lasten selbst eintragen"
+       >${icon('anbau', 12)} Bauteil zuweisen</button>
+     <button class="btn btn-mini" data-generator type="button"
        title="Anbauteile über die Gleise verteilen">Lastgenerator</button>
      <span class="sec-r">${liste.length} Stück</span>`) +
     klapp('anbau-vorrat', 'Anbauteil hinzufügen', `
       <p class="hinweis" style="margin:0 0 7px">Kachel anklicken oder ins
         Modell ziehen.</p>
-      <div class="kacheln">${kacheln}</div>
+      ${kacheln}
       ${klapp('anbau-achsen', 'Befestigung und Achsen', `
         <p class="hinweis" style="margin:0">
           Die Befestigung sitzt auf den Schwerachsen der Gurte. Zwei Angaben
@@ -2591,6 +2641,12 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       e.preventDefault();
       beiVorlageBearbeiten?.(b.dataset.vorlage);
     });
+  });
+  // Der Direktknopf tut dasselbe wie die Kachel «frei definiert» - er
+  // erspart nur das Aufklappen und Suchen.
+  container.querySelectorAll('[data-vorlage-direkt]').forEach((b) => {
+    b.addEventListener('click',
+      () => beiVorlageWahl?.(b.dataset.vorlageDirekt, null));
   });
   container.querySelectorAll('[data-generator]').forEach((b) => {
     b.addEventListener('click', () => beiGenerator?.());

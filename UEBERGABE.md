@@ -3863,6 +3863,27 @@ Der Typ geht in die **Bezeichnung** («A160 · H 7.50 m» in der Leiste statt
 **Offen bleibt der Rechenkern** — die Weisung dazu steht in *Der Abfangjoch-
 Rechenkern* weiter unten.
 
+### Die Bauteilauswahl: gegliedert, kompakter, mit Direktknopf (3. September)
+
+Vierzehn gleich aussehende Kacheln untereinander sind eine **Liste**, keine
+Auswahl — man liest jede, um die eine zu finden. Jetzt vier Gruppen mit je
+einem Zeichen im Kopf: *Hängestützen und Ausleger* (5), *Jochaufsätze* (3),
+*Leiter und Traversen* (4), *Übrige* (1).
+
+**Was keine Gruppe trägt, verschwindet nicht.** Eine eigene Vorlage aus dem
+Editor hat keine, eine neue aus dem Katalog könnte eine unbekannte tragen —
+beide landen unter *Übrige*. Lieber an der falschen Stelle sichtbar als
+richtig einsortiert und weg.
+
+**Der häufigste Griff steht oben.** „sonst muss man immer erst die liste öffnen
+und die kachel frei definiert zu unterst auswählen" — ein Knopf **Bauteil
+zuweisen** neben dem Lastgenerator setzt die Vorlage *frei* unmittelbar. Die
+Kachel bleibt zusätzlich in der Liste, wer sie dort gewohnt ist, findet sie
+weiter.
+
+Kompakter: Polster von 7 auf 5 px, Zeilenabstand enger, Kachelhöhe **50 px** —
+die vierzehn passen damit in eine Bildschirmhöhe statt in zwei.
+
 ### Drei Kleinigkeiten an der Leiste (3. September)
 
 **Der Mastklick schaltet auf sein Tragwerk.** „Dieser Wert wird immernoch nicht
@@ -3914,10 +3935,53 @@ Eine Prüfstand-Kontrolle hält die gemessene Aussage fest: liefe je eine Linie
 oder Lastfläche über ihr Tragwerk hinaus, wäre das Ausblenden wieder
 wirkungslos — und man sähe es dort.
 
-**Nebenwirkung, bewusst so gelassen:** beim Separieren werden die Masten
-umnummeriert (M2/M3 werden zu M1/M2), weil ausgeblendete Tragwerke keine Masten
-aufs Blatt bringen. Das folgt der bestehenden Regel; ob es beim Arbeiten stört,
-muss sich zeigen.
+**Die Nebenwirkung ist behoben.** Beim Separieren wurden die Masten
+umnummeriert — aus M2/M3 wurde M1/M2 —, weil die Id die Laufnummer über die
+**sichtbaren** Tragwerke war. Weisung: „namen über ausblenden hinweg stabil
+halten, sonst führt es zu missverständnissen." Gezählt wird jetzt über **alle**
+Tragwerke des Blattes; was von einem ausgeblendeten kommt, trägt `versteckt`
+und wird erst **nach** der Nummernvergabe weggelassen. Ein geteilter Mast
+bleibt sichtbar, sobald ihn ein sichtbares Tragwerk trägt, und behält seine
+Angaben — die Zuordnung läuft über die Stelle und passiert vor dem Filtern.
+
+## Die Reglagetabelle — Leiterzugkräfte (Fund vom 3. September)
+
+Unter `Grundlagen/Einwirkungen` liegen drei Blätter, die noch nirgends
+eingeflossen sind: *zulässige Standardlasten auf Fundamente*,
+*Gewichtslasten* und die **Reglagetabelle Leiterzugkräfte**. Die letzte ist
+die Grundlage, die dem Abfangjoch und dem Havariefall fehlt.
+
+Sie gibt die Zugkraft **je Regliertemperatur** von −20 bis +40 °C, für
+Einzelleiter und für Kettenwerke:
+
+| Bauart | Tragseil `cp` | Fahrdraht `fc` | H_Fd | Systemhöhe `sh` | Ts |
+|---|---|---|---|---|---|
+| Cat. N | StCu 50 | Cu 107 | 8.5 kN | 2.40 m | 6 kN |
+| Cat. N | StCu 50 | Cu 107 | 8.5 kN | 1.90 m | 8 kN |
+| Cat. N (Bestand) | StCu 92 | Cu 107 | 8.5 kN | 2.40 / 1.90 m | 6 / 8 kN |
+| Cat. NL (Gotthard) | StCu 92 | Cu 150 | 10 kN | — | 10 kN |
+
+Einzelleiter: Cu 95 → 6 kN (Speiseleitung, Feeder, Rückleiter), Cu 150 → 9 kN
+normal bzw. 6 kN reduziert, Ald 300 → 6 kN, unterschieden nach c ≤ 35 m und
+c > 35 m.
+
+**Damit ist die Aufteilung Tragseil / Fahrdraht vollständig belegt** — sie ist
+noch **nicht gebaut**. Heute steht ein Kettenwerk als *ein* Bauteil in der
+Datenbank (`Ts: StCu 50 / Fd: Cu 107`), und `istKettenwerk()` erkennt es nur am
+Namen. Was die Tabelle liefert und was zum Bauen fehlt:
+
+* der Fahrdraht trägt eine **eigene, konstante** Zugkraft (8.5 bzw. 10 kN)
+* das Tragseil eine **temperaturabhängige** aus der Tabelle
+* beide hängen um die **Systemhöhe** auseinander — **1.90 oder 2.40 m**, nicht
+  die 1.35 m, mit denen der Knicklängen-Fix gerechnet hat
+
+> **Nur die belasteten Zustände zählen.** Weisung vom 3. September: „Die
+> unbelasteten zustände der Leiter sind nur für die montage interessant nicht
+> für uns hier." Die Spalten *Ts unbelastet* bleiben also aussen vor — sie
+> gehören zur Reglage auf der Baustelle, nicht in den Nachweis.
+
+Offen und vorgängig zu entscheiden: **welche Regliertemperatur massgebend
+ist** — für den Normalfall und für den Havariefall (dort war −20 °C genannt).
 
 ## Der Abfangjoch-Rechenkern — die Weisung vom 3. September
 

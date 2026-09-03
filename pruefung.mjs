@@ -12953,6 +12953,52 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE MASTNAMEN BLEIBEN UEBER DAS AUSBLENDEN HINWEG STEHEN. <<<
+   *
+   * Weisung vom 3. September: «namen ueber ausblenden hinweg stabil halten,
+   * sonst fuehrt es zu missverstaendnissen.»
+   *
+   * Die Id eines Masten IST seine Laufnummer, und sie wurde nur ueber die
+   * SICHTBAREN Tragwerke vergeben. Wer den linken Nachbarn beiseitelegte,
+   * sah M2 zu M1 werden und M3 zu M2 - derselbe Mast hiess je nach Ansicht
+   * anders, und die Nachweise nannten ihn beim falschen Namen.
+   */
+  {
+    const w = reihe();                       // P1: 0-20, P2: 20-35
+    const vorher = C75.mastenVon(w).map((m) => C75.mastName(w, m));
+    wahr('Drei Masten, M1 bis M3',
+         vorher.join(',') === 'M1,M2,M3');
+
+    // Den linken Nachbarn beiseitelegen.
+    const ohne = { ...w, weitere: (w.weitere ?? []).map(
+      (t) => ({ ...t, ausgeblendet: true })) };
+    const nachher = C75.mastenVon(ohne);
+    wahr('Danach stehen zwei im Bild', nachher.length === 2);
+    const namen = nachher.map((m) => C75.mastName(ohne, m));
+    wahr('Und sie heissen weiterhin M2 und M3',
+         namen.join(',') === 'M2,M3');
+
+    /*
+     * DER GETEILTE MAST BLEIBT SICHTBAR. Ihn traegt auch das sichtbare
+     * Tragwerk - er verschwindet nicht, nur weil der Nachbar weg ist.
+     */
+    wahr('Der geteilte Mast steht weiter da',
+         nachher.some((m) => Math.abs(m.x - 20) < 1e-6));
+    // Und er hat seine Angaben behalten: die Zuordnung laeuft ueber die
+    // Stelle und passiert VOR dem Weglassen der versteckten.
+    const geteiltVor = C75.mastenVon(w).find((m) => Math.abs(m.x - 20) < 1e-6);
+    const geteiltNach = nachher.find((m) => Math.abs(m.x - 20) < 1e-6);
+    wahr('… mit demselben Profil',
+         geteiltVor.profil === geteiltNach.profil);
+
+    // Mit `mitVersteckten` kommen alle - daran haengt die Nummernvergabe.
+    wahr('Alle drei sind weiterhin abrufbar',
+         C75.mastenVon(ohne, 0.1, true).length === 3);
+    wahr('Der ausgeblendete ist als solcher gekennzeichnet',
+         C75.mastenVon(ohne, 0.1, true).filter((m) => m.versteckt).length === 1);
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die
