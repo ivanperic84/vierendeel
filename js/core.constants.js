@@ -807,6 +807,32 @@ export function gewaehlterMast(w) {
  * «Ende B · Mast M2» - was gemeint ist, und woran es steht.
  * =========================================================================== */
 
+/**
+ * >>> DIE POSITIONSNUMMER EINES TRAGWERKS: P1, P2, ... von links. <<<
+ *
+ * Weisung vom 3. September: «die joche sollten auch kurzbezeichnungen
+ * (positionen) damit man die eingabe in der Sidebar nachvollziehen kann.»
+ *
+ * Die Masten heissen laengst M1, M2, M3 und die Anbauteile A1, A2 - nur die
+ * Tragwerke selbst trugen im Bild keine Kennung. Auf einer Reihe aus drei
+ * Jochen stand dreimal «J90 · 20.00 m», und welches davon die Zahlen rechts
+ * meinen, war nicht zu sehen.
+ *
+ * >>> WARUM NICHT DIE ID. <<<
+ *
+ * `twId` ist die Kennung im Datensatz - T1, T2, T3 in der Reihenfolge, in
+ * der sie ANGELEGT wurden. Legt man ein Abfangjoch zwischen zwei bestehende,
+ * heisst es T4 und steht in der Mitte. Als Anschrift im Bild waere das
+ * irrefuehrend: eine Nummer, die man von links nach rechts liest, muss von
+ * links nach rechts zaehlen. Die Id bleibt, was sie ist, und wird nicht
+ * angezeigt.
+ */
+export function tragwerkPos(w, t) {
+  if (!t) return '';
+  const i = tragwerkeSortiert(w).findIndex((x) => x.id === t.id);
+  return i < 0 ? '' : `P${i + 1}`;
+}
+
 /** Der Name eines Mastes: M1, M2, ... nach seiner Stelle von links. */
 export function mastName(w, m) {
   if (!m) return '';
@@ -1018,6 +1044,9 @@ export function mastenProjizieren(satz, w, t) {
    */
   satz.mastNameA = mastName(w, a);
   satz.mastNameB = mastName(w, b);
+  // Und die eigene Positionsnummer - aus demselben Grund: das Modell kennt
+  // den Blattzusammenhang nicht und kann sich nicht selbst durchzaehlen.
+  satz.twPos = tragwerkPos(w, t);
   if (!a) return satz;
   MASTFELDER.forEach((f) => {
     if (a[f.am] !== undefined) satz[f.flach] = a[f.am];

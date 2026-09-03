@@ -1567,9 +1567,18 @@ export function erzeugeSzene(m, erg) {
      * unter der Leiste.
      */
     const zOK = qs.huelle.z1 * MM;
+    /*
+     * DER JOCHTITEL TRAEGT SEINE POSITION (Weisung, 3. September).
+     *
+     * Auf einer Reihe aus drei Jochen stand dreimal «J90 · 20.00 m», und
+     * welches davon die Zahlen rechts meint, war nicht zu sehen. Mit «P2»
+     * davor findet man die Zeile in der Seitenleiste wieder - dort steht
+     * dieselbe Nummer.
+     */
     bauteiltitel.push({
       p: [m.L / 2, 0, zOK + 0.95],
-      text: `${m.typ ?? 'frei'} · ${m.L.toFixed(2)} m`,
+      text: `${m.twPos ? `${m.twPos} · ` : ''}${m.typ ?? 'frei'}`
+          + ` · ${m.L.toFixed(2)} m`,
       feld: 'typ', tab: 'system',
     });
     ['A', 'B'].forEach((name) => {
@@ -1594,7 +1603,20 @@ export function erzeugeSzene(m, erg) {
         // Der Mastkopf traegt oben Traversen; der Titel muss darueber hinaus.
         p: [g.x, 0, g.zKopf + 0.55],
         text: `${mName ? `${mName} · ` : ''}${md.profil.name} · ${lang.toFixed(2)} m`,
-        feld: name === 'B' && m.mastZwei ? 'mastProfilB' : 'mastProfil',
+        /*
+         * >>> DAS ENDE GEHOERT AN DEN TITEL. <<<
+         *
+         * Weisung vom 3. September: «wenn ich die mastbezeichnung im 3d
+         * anklicke wird nicht in der sidebar auf M2 oder M1 umgeschalten.»
+         *
+         * Der Klick fuehrte auf das FELD «Mastprofil» - aber welcher Mast
+         * dort gerade angewaehlt ist, blieb, wie es war. Man klickte auf M2
+         * und bearbeitete M1. Der Titel sagt jetzt, WELCHES Ende er meint;
+         * die Anwendung waehlt den zugehoerigen Masten, bevor sie das Feld
+         * oeffnet.
+         */
+        mastEnde: name,
+        feld: 'mastProfil',
         // Der Titel gehoert zum Bauteil: ist der Mast ausgeblendet, steht
         // sonst sein Profil ueber leerem Grund.
         tab: 'system', gruppe: 'mast',
@@ -2526,7 +2548,10 @@ export class Modellansicht {
     }
     const mt = this._massTreffer.find(
       (t) => px >= t.x && px <= t.x + t.w && py >= t.y && py <= t.y + t.h);
-    if (mt) { this.opt.beiMass?.(mt.feld, mt.tab); return; }
+    // DER TREFFER GEHT MIT. Ein Titel weiss, zu welchem Tragwerk und zu
+    // welchem Mastende er gehoert; ohne diese Angabe fuehrte der Klick auf
+    // ein Feld, das gerade einem anderen Bauteil gilt.
+    if (mt) { this.opt.beiMass?.(mt.feld, mt.tab, mt.bt ?? null); return; }
     const tr = this._treffer(e);
     /*
      * EIN KLICK AUF EIN NICHT AKTIVES TRAGWERK MACHT ES AKTIV (Weisung,
@@ -4041,10 +4066,24 @@ export class Modellansicht {
         c.fillText(bt.text, bx + bw / 2, by + bh - 6 * s);
         c.textAlign = 'left';
         c.globalAlpha = 1;
-        // NICHT ANKLICKBAR. Der Titel fuehrt auf ein Eingabefeld des
-        // gerechneten Tragwerks; von einem fremden aus waere das ein Sprung
-        // an die falsche Stelle. Der Klick auf das Bauteil selbst schaltet
-        // ohnehin um.
+        /*
+         * >>> ANKLICKBAR IST ER TROTZDEM. <<<
+         *
+         * Hier stand ein `return`, mit der Begruendung, ein Titel fuehre auf
+         * ein Eingabefeld des GERECHNETEN Tragwerks - von einem fremden aus
+         * also an die falsche Stelle.
+         *
+         * Die Begruendung ist seit dem 3. September ueberholt: der Klick
+         * schaltet zuerst auf das Tragwerk um, zu dem der Titel gehoert, und
+         * beim Masttitel auch auf den Masten (siehe `beiMass` in app.js).
+         * Damit fuehrt er genau dorthin, wo man hingezeigt hat.
+         *
+         * Gemeldet: «wenn ich die mastbezeichnung im 3d anklicke wird nicht
+         * in der sidebar auf M2 oder M1 umgeschalten.»
+         */
+        this._massTreffer.push({ x: bx, y: by, w: bw, h: bh,
+                                 feld: bt.feld, tab: bt.tab, bt });
+        this._titelTreffer.push({ x: bx, y: by, w: bw, h: bh, bt });
         return;
       }
       c.fillStyle = t.viewerBg;
@@ -4061,7 +4100,7 @@ export class Modellansicht {
       c.fillText(bt.text, bx + bw / 2, by + bh - 6 * s);
       c.textAlign = 'left';
       this._massTreffer.push({ x: bx, y: by, w: bw, h: bh,
-                               feld: bt.feld, tab: bt.tab });
+                               feld: bt.feld, tab: bt.tab, bt });
       this._titelTreffer.push({ x: bx, y: by, w: bw, h: bh, bt });
     });
   }

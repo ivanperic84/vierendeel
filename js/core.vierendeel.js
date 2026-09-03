@@ -324,6 +324,8 @@ export function modellEinzelmast(inp, stahl) {
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
     tragwerkeAufBlatt: anzahlSichtbar(inp),
+    // Die Positionsnummer fuer die Anschrift im Bild (P1, P2, ...).
+    twPos: inp.twPos ?? '',
     geteilteMasten: geteilteMasten(inp),
     qsErsatz,
     stahl, beiwerte,
@@ -632,6 +634,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
     tragwerkeAufBlatt: anzahlSichtbar(inp),
+    // Die Positionsnummer fuer die Anschrift im Bild (P1, P2, ...).
+    twPos: inp.twPos ?? '',
     // Masten, die sich zwei Tragwerke teilen - der Zwischenmast einer
     // Jochreihe. Der Hinweis nennt die Stelle, nicht nur die Moeglichkeit.
     geteilteMasten: geteilteMasten(inp),

@@ -5009,7 +5009,32 @@ export async function start() {
       const x = letzte?.erg.knoten[st]?.x ?? 0;
       springeZu(st, x);
     },
-    beiMass: (feld) => zeigeFeld(feld),
+    /*
+     * >>> ERST DAS BAUTEIL WAEHLEN, DANN SEIN FELD OEFFNEN. <<<
+     *
+     * Weisung vom 3. September: «wenn ich die mastbezeichnung im 3d anklicke
+     * wird nicht in der sidebar auf M2 oder M1 umgeschalten.»
+     *
+     * Der Klick sprang bisher nur auf das FELD. Auf einem Blatt mit einem
+     * Tragwerk und einem Masten stimmte das immer; auf einer Jochreihe
+     * klickte man auf M3 und bearbeitete M1 - das Feld war das richtige, der
+     * Mast der falsche.
+     *
+     * Die Reihenfolge zaehlt: erst das TRAGWERK (es tauscht den ganzen
+     * Eingabesatz aus), dann der MAST darin, dann das Feld. Umgekehrt
+     * stuende die Mastwahl auf einem Tragwerk, das gleich weggelegt wird.
+     */
+    beiMass: (feld, tab, bt) => {
+      if (bt?.twId && bt.twId !== (werte.twId ?? 'T1')) {
+        aendern('tragwerkAktiv', bt.twId);
+      }
+      if (bt?.mastEnde) {
+        const t = tragwerkeVon(werte)[0];
+        const m = mastenFuer(werte, t)[bt.mastEnde === 'B' ? 1 : 0];
+        if (m && m.id !== werte.mastAktiv) aendern('mastAktiv', m.id);
+      }
+      zeigeFeld(feld);
+    },
     /*
      * MAST ANGEKLICKT: auf seine Eingabe springen.
      *

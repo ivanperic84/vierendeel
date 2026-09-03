@@ -13,7 +13,7 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt,
-         aufRaster, mastNameAmEnde } from './core.constants.js';
+         aufRaster, mastNameAmEnde, tragwerkPos } from './core.constants.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
@@ -768,7 +768,17 @@ export function verdrahteLeiste(container, werte, onChange) {
   const leiste = container.querySelector('.qp-leiste');
   if (!leiste) return;
   const von = Number(leiste.dataset.qpVon), bis = Number(leiste.dataset.qpBis);
-  const spur = leiste.querySelector('.qp-spur');
+  /*
+   * DIE BAHN IST DER MASSSTAB.
+   *
+   * Alle Zeilen teilen dieselbe Achse; ihre Breite rechnet den Zug in Meter
+   * um. Hier stand `.qp-spur` - die gemeinsame Balkenzeile von vorher. Seit
+   * die Leiste Zeilen fuehrt, gibt es sie nicht mehr, und `null` warf bei
+   * jedem Zeigerzug einen Fehler in die Wand. Gemessen am 3. September:
+   * fuenfzig Ausnahmen beim blossen Aufbau.
+   */
+  const spur = leiste.querySelector('.qp-bahn');
+  const zugRaum = leiste.querySelector('.qp-liste') ?? leiste;
 
   /*
    * >>> AM MASTEN ZIEHEN AENDERT DEN ABSTAND. <<<
@@ -810,7 +820,7 @@ export function verdrahteLeiste(container, werte, onChange) {
       const dpx = e.clientX - zug.startX;
       if (!zug.bewegt && Math.abs(dpx) < QP_SCHWELLE) return;
       zug.bewegt = true;
-      const breite = spur.getBoundingClientRect().width || 1;
+      const breite = spur?.getBoundingClientRect().width || 1;
       const roh = zug.x0 + (dpx / breite) * (bis - von);
       zug.x = mastGrenzen(zug.rollen, aufRaster(roh));
       b.style.left = `${((zug.x - von) / (bis - von) * 100).toFixed(3)}%`;
@@ -821,7 +831,7 @@ export function verdrahteLeiste(container, werte, onChange) {
       if (!marke) {
         marke = document.createElement('span');
         marke.className = 'qp-zug';
-        spur.appendChild(marke);
+        zugRaum.appendChild(marke);
       }
       marke.textContent = zug.rollen.alsB
         ? `Jochlänge ${(zug.x - zug.rollen.alsB.x0).toFixed(2)} m`
@@ -885,7 +895,7 @@ export function verdrahteLeiste(container, werte, onChange) {
       const dpx = e.clientX - zug.startX;
       if (!zug.bewegt && Math.abs(dpx) < QP_SCHWELLE) return;
       zug.bewegt = true;
-      const breite = spur.getBoundingClientRect().width || 1;
+      const breite = spur?.getBoundingClientRect().width || 1;
       // AUF FUENF ZENTIMETER GERASTET - dieselbe Schrittweite wie die
       // Schieber. Ein Pixel sind auf 240 Punkten und vierzig Metern rund
       // siebzehn Zentimeter; ohne Raster staende dort 20.1734.
@@ -909,7 +919,7 @@ export function verdrahteLeiste(container, werte, onChange) {
       if (!marke) {
         marke = document.createElement('span');
         marke.className = 'qp-zug';
-        spur.appendChild(marke);
+        zugRaum.appendChild(marke);
       }
       marke.textContent = `x₀ = ${zug.x.toFixed(2)} m`;
     });
@@ -1181,9 +1191,11 @@ export function querprofilLeisteHtml(werte, zieht = null) {
                 : 'Ausblenden — bleibt gespeichert, zählt aber nicht mehr')}"
         ></button>
       <button type="button" class="qp-name" data-qp-tw="${esc(t.id)}"
-              title="${esc(`${art.label}, x₀ = ${x0.toFixed(2)} m`
+              title="${esc(`${tragwerkPos(werte, t)} — ${art.label}, `
+                + `x₀ = ${x0.toFixed(2)} m`
                 + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen'))}"
-        ><span class="qp-art">${esc(art.kuerzel)}</span>${esc(tragwerkName(t))}</button>
+        ><span class="qp-art">${esc(tragwerkPos(werte, t))} · ${
+            esc(art.kuerzel)}</span>${esc(tragwerkName(t))}</button>
       <span class="qp-bahn">
         <button type="button" class="qp-linie${an ? ' an' : ''}${
             zieht && zieht.id === t.id ? ' zieht' : ''}"

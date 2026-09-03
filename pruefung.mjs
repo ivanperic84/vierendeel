@@ -9987,7 +9987,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    * gibt es nicht, er heisst 'profil', und _ebeneAn meldete false.
    */
   {
-    const ab = r61.indexOf("text: `${m.typ ?? 'frei'}");
+    /*
+     * DER ANKER IST DIE LAGE, nicht der Text: der Titel traegt seit dem
+     * 3. September die Positionsnummer davor (P2 · J90 · 20.00 m), und ein
+     * Anker im Text zerbricht bei jeder Anschrift neu. Die Aussage bleibt
+     * dieselbe - kein `gruppe:` am Jochtitel.
+     */
+    const ab = r61.indexOf('p: [m.L / 2, 0, zOK + 0.95],');
     const koerper = ab > 0 ? r61.slice(ab, r61.indexOf('});', ab)) : '';
     wahr('Der Jochtitel bleibt ungebunden',
          koerper.length > 0 && !koerper.includes('gruppe:'));
@@ -12049,6 +12055,61 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     z = C75.tragwerkHinzu(z, 'joch', { L: 20 });
     const g = C75.freieLage(z, z.twId, 5);
     wahr('Zwei Tragjoche werden auseinandergeschoben', g.geklemmt === true);
+  }
+
+  /*
+   * >>> DIE POSITIONSNUMMER: P1, P2, ... VON LINKS. <<<
+   *
+   * Weisung vom 3. September: «die joche sollten auch kurzbezeichnungen
+   * (positionen) damit man die eingabe in der Sidebar nachvollziehen kann.»
+   *
+   * Die Masten heissen laengst M1, M2 und die Anbauteile A1, A2 - nur die
+   * Tragwerke trugen im Bild keine Kennung. Auf einer Reihe stand dreimal
+   * «J90 · 20.00 m».
+   *
+   * NICHT die `twId`: sie zaehlt in der Reihenfolge, in der ANGELEGT wurde.
+   * Ein Abfangjoch, zwischen zwei bestehende gesetzt, heisst T4 und steht in
+   * der Mitte - eine Nummer, die man von links nach rechts liest, muss von
+   * links nach rechts zaehlen.
+   */
+  {
+    let w = { typ: 'J90', L: 20, xLage: 0, twId: 'T1' };
+    w = C75.tragwerkHinzu(w, 'joch', {});          // T2, rechts daneben
+    w = C75.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 20 });  // T3, links
+    const sortiert = C75.tragwerkeSortiert(w);
+    wahr('Von links gezaehlt: P1, P2, P3',
+         sortiert.map((t) => C75.tragwerkPos(w, t)).join(',') === 'P1,P2,P3');
+    // Die Id zaehlt anders - und genau darum wird sie nicht angezeigt.
+    wahr('Die Id folgt der Anlegereihenfolge, nicht der Lage',
+         sortiert.map((t) => t.id).join(',') !== 'T1,T2,T3');
+    // Und sie wandert in den Rechensatz, damit das Bild sie anschreiben kann.
+    wahr('Der Satz traegt die Position mit',
+         Boolean(C75.tragwerkSatz(w, sortiert[1].id).twPos));
+  }
+
+  /*
+   * >>> EIN TITEL IM BILD WEISS, WEM ER GEHOERT. <<<
+   *
+   * Gemeldet am 3. September: «wenn ich die mastbezeichnung im 3d anklicke
+   * wird nicht in der sidebar auf M2 oder M1 umgeschalten.» Der Klick fuehrte
+   * auf das FELD «Mastprofil» - welcher Mast dort angewaehlt war, blieb wie
+   * es war. Man klickte auf M2 und bearbeitete M1.
+   *
+   * Der Masttitel traegt jetzt sein Ende, und der Treffer geht mit an die
+   * Anwendung. Geprueft am Quelltext, weil beides in Ansicht und Anwendung
+   * lebt und keinen Einstieg von aussen hat.
+   */
+  {
+    const r3 = readFileSync(new URL('./js/render.3d.js', import.meta.url), 'utf8');
+    const rA = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+    wahr('Der Masttitel nennt sein Ende', r3.includes('mastEnde: name,'));
+    wahr('Der Treffer geht an die Anwendung',
+         r3.includes('this.opt.beiMass?.(mt.feld, mt.tab, mt.bt ?? null)'));
+    wahr('Auch ein gedaempfter Titel ist anklickbar',
+         r3.includes('ANKLICKBAR IST ER TROTZDEM'));
+    wahr('Die Anwendung waehlt erst das Tragwerk, dann den Masten',
+         rA.indexOf("aendern('tragwerkAktiv', bt.twId)")
+           < rA.indexOf("aendern('mastAktiv', m.id)"));
   }
 
   /*
