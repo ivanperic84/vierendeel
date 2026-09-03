@@ -13706,10 +13706,24 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Gurtknoten liegen auf der Schwerachse',
          m.knoten.filter((k) => /^[VH]_/.test(k.name))
            .every((k) => Math.abs(k.z) < 1e-12));
-    const ys = [...new Set(m.knoten.map((k) => Math.round(k.y * 1e6) / 1e6))];
+    /*
+     * >>> ZWEI GURTEBENEN - UND DAZWISCHEN DIE RIEGELKNOTEN. <<<
+     *
+     * Hier stand «genau zwei y-Ebenen im ganzen Modell». Das galt, solange
+     * der Riegel ein einzelner Stab von Achse zu Achse war. Seit die
+     * Knotenbereiche steif ausgebildet sind (Weisung, 3. September), sitzen
+     * zwischen den Gurten zwei weitere Knoten je Riegel - dort, wo das
+     * Bauteil beginnt und endet. Gezaehlt wird deshalb an den GURTknoten.
+     */
+    const ys = [...new Set(m.knoten.filter((k) => /^[VH][OU]?_/.test(k.name))
+      .map((k) => Math.round(k.y * 1e6) / 1e6))];
     wahr('Es gibt genau zwei Gurtebenen', ys.length === 2);
     pruef('Ihr Abstand ist der Hebelarm', Math.abs(ys[0] - ys[1]),
           m.tragwerk.e, 1e-9, 'm');
+    // Die Riegelknoten liegen INNERHALB der Gurte, nie ausserhalb.
+    wahr('Die Riegelknoten liegen zwischen den Gurten',
+         m.knoten.filter((k) => /_[ab]$/.test(k.name))
+           .every((k) => Math.abs(k.y) < m.tragwerk.e / 2 + 1e-9));
 
     /*
      * DER QUERSCHNITT: AddC nimmt (h, b, e, tw, R), AddI nimmt
@@ -13742,8 +13756,28 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * einem mittigen Riegel, und die bildet den Kasten nicht ab, den zwei
      * Bleche mit den Gurten bilden.
      */
-    pruef('Zwei Bindebleche je Station', blS.length, 32, 1e-9, 'Stk');
-    pruef('Vier Endbleche - zwei Enden, zwei Ebenen', beS.length, 4, 1e-9, 'Stk');
+    /*
+     * >>> JE RIEGEL DREI STAEBE: STARR - BLECH - STARR. <<<
+     *
+     * Weisung vom 3. September: «im bereich der knoten die ueberlagerung
+     * der traeger und verbindungsbleche steif ausbilden.» Sechzehn
+     * Stationen zu zwei Ebenen sind 32 Riegel - und 96 Staebe.
+     */
+    /*
+     * Vierzehn Stationen tragen das Regelblech - die sechzehnte Reihe minus
+     * die beiden, an denen laut Zeichnung ein Endblech sitzt (Weisung vom
+     * 4. September: «diese letzten stehenden bleche am schluss des traegers
+     * sollten nicht sein» - sie stehen jetzt an ihrer Station, nicht mehr
+     * am Traegerende). Je Station zwei Ebenen, je Riegel drei Staebe.
+     */
+    pruef('Zwei Bindebleche je Station', blS.length, 84, 1e-9, 'Stk');
+    const mittel = blS.filter((x) => x.name.endsWith('_2'));
+    pruef('… davon 28 das Blech selbst', mittel.length, 28, 1e-9, 'Stk');
+    wahr('Die beiden Enden sind Starrkoerper',
+         blS.filter((x) => /_[13]$/.test(x.name))
+           .every((x) => x.art === 'starr'));
+    pruef('Vier Endbleche - zwei Enden, zwei Ebenen',
+          beS.filter((x) => x.name.endsWith('_2')).length, 4, 1e-9, 'Stk');
     /*
      * >>> UND AB A240 STEHT AN DEN QV-GRENZEN EIN RIEGEL. <<<
      *
@@ -13754,7 +13788,8 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     {
       const m240 = XA.abfangAxisvmModell('A240', 8.0, {});
       const stS = m240.staebe.filter((x) => x.querschnitt === 'STEIFE');
-      pruef('A240 / 8.00 m: vier Steifen im Modell', stS.length, 4, 1e-9, 'Stk');
+      pruef('A240 / 8.00 m: vier Steifen im Modell',
+            stS.filter((x) => x.name.endsWith('_2')).length, 4, 1e-9, 'Stk');
       const qsQ = m240.querschnitte.find((q2) => q2.name === 'STEIFE');
       wahr('Sie ist ein I-Profil, kein Rechteck',
            qsQ?.form === 'I' && qsQ.profil === 'IPE 240');
@@ -13767,17 +13802,34 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
        */
       wahr('Ihr Steg steht senkrecht',
            stS.every((x) => x.lcsZ[0] === 0 && x.lcsZ[2] === 1));
-      wahr('… anders als die Bleche, die flach liegen',
+      /*
+       * DER STEIFE KNOTENBEREICH GILT AUCH FUER SIE: das IPE 240 x 600
+       * misst 600 mm, der Achsabstand der Gurte 647.6 - beide Enden sind
+       * um 23.8 mm starr.
+       */
+      wahr('Auch sie hat steife Enden',
+           stS.filter((x) => /_[13]$/.test(x.name)).length === 8);
+      /*
+       * Beide zeigen jetzt mit z nach oben - der Unterschied steckt im
+       * QUERSCHNITT: die Steife ist ein I mit senkrechtem Steg, das Blech
+       * ein flach liegendes Rechteck (Dicke hoch, Breite quer).
+       */
+      wahr('… und die Bleche liegen flach',
            m240.staebe.filter((x) => x.querschnitt === 'BLECH')
-             .every((x) => x.lcsZ[0] === 1));
+             .every((x) => x.lcsZ[2] === 1));
       // Sie sitzt auf der Schwerachse, die Bleche auf Flanschhoehe.
       const kn = new Map(m240.knoten.map((n2) => [n2.name, n2]));
       wahr('Sie sitzt auf der Schwerachse der Gurte',
            stS.every((x) => Math.abs(kn.get(x.von).z) < 1e-9));
       // Acht Blechstationen bleiben - zwoelf Stationen, vier davon Steifen.
-      pruef('Acht Blechstationen bleiben',
-            m240.staebe.filter((x) => x.querschnitt === 'BLECH').length,
-            16, 1e-9, 'Stk');
+      /*
+       * Zwoelf Stationen, vier davon Steifen, zwei mit Endblech - sechs
+       * bleiben fuer das Regelblech, in zwei Ebenen.
+       */
+      pruef('Sechs Blechstationen bleiben',
+            m240.staebe.filter((x) => x.querschnitt === 'BLECH'
+                                   && x.name.endsWith('_2')).length,
+            12, 1e-9, 'Stk');
     }
     // Sie liegen auf drei Hoehen: Schwerachse und beide Flansche.
     const zEb = [...new Set(m.knoten.map((n2) => Math.round(n2.z * 1e6) / 1e6))];
@@ -13785,8 +13837,42 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Symmetrisch zur Schwerachse',
          Math.abs(Math.min(...zEb) + Math.max(...zEb)) < 1e-9
          && zEb.includes(0));
-    pruef('Je Feld zwei Gurtstaebe', gurtS.length,
-          (m.knoten.length / 2 - 1) * 2, 1e-9, 'Stk');
+    /*
+     * >>> DIE GURTE LAUFEN DURCH - AUCH UEBER DIE STEIFEN ABSCHNITTE. <<<
+     *
+     * Hier stand die Zahl der Gurtstaebe gegen die halbe Knotenzahl. Das
+     * ging auf, solange jeder Knoten ein Gurtknoten war; seit die
+     * Flanschknoten und die Riegelknoten dazukommen, nicht mehr. Geprueft
+     * wird jetzt, worauf es ankommt: an jedem Gurt haengt zwischen je zwei
+     * benachbarten Knoten genau ein Stab, und keiner fehlt.
+     */
+    const gk = m.knoten.filter((k) => /^V_/.test(k.name)).length;
+    pruef('Je Feld zwei Gurtstaebe',
+          gurtS.filter((x) => /^[VH]_S\d+$/.test(x.name)).length,
+          (gk - 1) * 2, 1e-9, 'Stk');
+    /*
+     * DIE LINIENLAST LAEUFT UEBER ALLE ABSCHNITTE (Weisung, 3. September:
+     * «achte darauf dass die linienlast durchgeht, wie bei tragjoch»).
+     * Auch der steife Knotenbereich traegt sein Eigengewicht - sonst fehlte
+     * es genau dort, wo das Blech aufliegt.
+     */
+    const gs = new Set(gurtS.filter((x) => /^[VH]_S\d+$/.test(x.name))
+      .map((x) => x.name));
+    const mitLast = new Set(m.lasten.strecke.map((l) => l.stab));
+    wahr('Jeder Gurtabschnitt traegt seine Linienlast',
+         [...gs].every((n2) => mitLast.has(n2)));
+    /*
+     * >>> IM GURT WIRD NICHTS AUSGESTEIFT. <<<
+     *
+     * Hier stand «auch die steifen Gurtabschnitte tragen ihre Linienlast».
+     * Sie gibt es nicht mehr: Weisung vom 4. September, «die aussteiffung in
+     * den gurten wuerde ich weglassen, da diese auch die biegung um y
+     * beeinflussen». Der Gurt laeuft ununterbrochen durch, und damit auch
+     * seine Last - das prueft die Zeile darueber.
+     */
+    wahr('Kein Gurtabschnitt traegt steifes Material', !m.staebe.some(
+      (x) => x.querschnitt === 'GURT' && /^[VH]_S\d+$/.test(x.name)
+          && x.steifesMaterial === true));
     /*
      * `lcsZ` HAELT DEN QUERSCHNITT AUFRECHT. Ohne diese Angabe legt AxisVM
      * die lokale Achse nach eigener Regel, der Gurt laege auf der Seite -
@@ -13809,12 +13895,65 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Gurte stehen aufrecht',
          m.staebe.filter((x) => x.querschnitt === 'GURT' && x.art === 'stab')
            .every((x) => x.lcsZ[2] === 1));
-    wahr('Die Bleche legen z in die Traegerachse',
+    /*
+     * >>> DIE BLECHE LIEGEN FLACH - UEBER DEN QUERSCHNITT, NICHT UEBER DIE
+     *     REFERENZ. <<<
+     *
+     * Hier stand «z in die Traegerachse» (`lcsZ = [1,0,0]`). Im aufgebauten
+     * Modell standen die Bleche damit hochkant (Weisung, 4. September: «die
+     * bleche sind stehen anstatt liegend»): die Referenz griff nicht, und
+     * AxisVM legte seine lokale z in die Vertikalebene.
+     *
+     * Jetzt traegt der QUERSCHNITT die Lage - h = Dicke, b = Breite - und
+     * die Referenz zeigt nach oben. Damit liegt das Blech flach, gleich ob
+     * die Referenz ankommt oder nicht.
+     */
+    wahr('Die Bleche stehen aufrecht referenziert',
          m.staebe.filter((x) => x.querschnitt.startsWith('BLECH'))
-           .every((x) => x.lcsZ[0] === 1));
-    wahr('Die starren Arme nicht - sie stehen selbst senkrecht',
-         m.staebe.filter((x) => x.art === 'starr')
+           .every((x) => x.lcsZ[2] === 1));
+    wahr('… und ihr Querschnitt ist die Dicke hoch, die Breite quer',
+         (() => {
+           const q2 = m.querschnitte.find((x) => x.name === 'BLECH');
+           return q2.parameter[0] < q2.parameter[1];
+         })());
+    wahr('Die starren Arme stehen selbst senkrecht',
+         m.staebe.filter((x) => x.name.startsWith('ARM_'))
            .every((x) => x.lcsZ[2] === 0));
+
+    /*
+     * >>> DIE GABEL SITZT AUSSEN, UM EINE FLANSCHBREITE VERSETZT. <<<
+     *
+     * Weisung vom 4. September: «achte dabei dass die schwerelinie versetzt
+     * ist, da der gurt durchlaeuft und die aufdoppelung aussen
+     * angeschweisst ist» - «ja versatz sauber modellieren».
+     *
+     * Gebaut wird kein gemittelter Verbundquerschnitt, sondern das, was
+     * dasteht: ein zweiter Stab desselben Profils auf seiner eigenen Achse,
+     * an jedem Knoten starr mit dem Gurt verbunden.
+     */
+    {
+      const gb = m.staebe.filter((x) => x.name.startsWith('GABEL_'));
+      const ga = m.staebe.filter((x) => x.name.startsWith('GARM_'));
+      wahr('Die Gabel steht als eigener Stab da', gb.length > 0);
+      wahr('… und haengt an starren Querarmen',
+           ga.length > 0 && ga.every((x) => x.art === 'starr'));
+      const PR3 = await import(J('data.profiles.js'));
+      const p2 = PR3.getGurtprofil(m.tragwerk.gurtprofil);
+      pruef('Ihr Versatz ist eine Flanschbreite',
+            m.tragwerk.gabel.versatz, p2.b / 100, 1e-9, 'm');
+      const kn2 = new Map(m.knoten.map((n2) => [n2.name, n2]));
+      wahr('Sie liegt AUSSEN, nicht innen',
+           gb.every((x) => Math.abs(kn2.get(x.von).y) > m.tragwerk.e / 2));
+      // Sie beginnt 850 mm vom Jochende und ist so lang wie im Sortiment.
+      const xg = gb.map((x) => kn2.get(x.von).x);
+      pruef('Sie beginnt bei 0.850 m', Math.min(...xg), 0.85, 1e-9, 'm');
+      const xe = gb.map((x) => kn2.get(x.bis).x);
+      pruef('… und endet 660 mm weiter',
+            Math.max(...xe.filter((v) => v < 5)) - Math.min(...xg),
+            0.66, 1e-9, 'm');
+      wahr('An beiden Enden des Jochs',
+           Math.max(...xe) > m.tragwerk.L - 0.9);
+    }
 
     /*
      * >>> DIE AUFLAGER SIND UM y UND z FREI. <<<
@@ -13828,8 +13967,26 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Torsion ist gehalten',
          m.auflager.every((l) => l.fix === 'Rigid'));
     wahr('Nur ein Ende haelt in Laengsrichtung',
-         m.auflager.filter((l) => l.ux === 'Rigid').length === 2
-         && m.auflager.filter((l) => l.ux === 'Free').length === 2);
+         m.auflager.filter((l) => l.ux === 'Rigid').length === 1
+         && m.auflager.filter((l) => l.ux === 'Free').length === 1);
+    /*
+     * >>> EIN PUNKT JE ENDE, NICHT ZWEI GURTE. <<<
+     *
+     * Weisung vom 4. September: «die gabel gegen ende hin ist offen. nur
+     * ueber die auflagerpunkte lagern.» Zwei gehaltene Gurtknoten koennten
+     * ein Kraeftepaar aufnehmen und das Ende um z einspannen - die offene
+     * Gabel kann das nicht.
+     */
+    pruef('Zwei Auflager - eines je Ende', m.auflager.length, 2, 1e-9, 'Stk');
+    wahr('Sie sitzen auf der Jochachse',
+         m.auflager.every((l) => {
+           const k2 = m.knoten.find((n2) => n2.name === l.knoten);
+           return Math.abs(k2.y) < 1e-12 && Math.abs(k2.z) < 1e-12;
+         }));
+    wahr('Ein Schott haengt sie starr an beide Gurte',
+         m.staebe.filter((x) => x.name.startsWith('SCHOTT_')).length === 4
+         && m.staebe.filter((x) => x.name.startsWith('SCHOTT_'))
+              .every((x) => x.art === 'starr'));
 
     /*
      * DER LEITERZUG GREIFT IN DER TRAEGERMITTELEBENE AN (Weisung) - auf

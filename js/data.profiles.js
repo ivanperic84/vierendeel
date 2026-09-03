@@ -147,8 +147,38 @@ export function getStahl(name) {
  * Beim Abfangjoch liegt der Vierendeel-Verband in der SCHWACHEN Ebene -
  * genau dort, wo der Fehler sass.
  *
- * UPE 200 und UPE 240 stammen aus derselben Quelle und sind damit
- * verdaechtig; ihre Zeilen sind angeschrieben. Zu pruefen im selben Editor.
+ * >>> AM 4. SEPTEMBER NACHGEMESSEN - DERSELBE FEHLER, DIESELBE GROESSE. <<<
+ *
+ * UPE 200 und UPE 240 standen unter demselben Verdacht und trugen ihn als
+ * Vermerk. Der Auftraggeber hat beide im AxisVM-Querschnittseditor
+ * aufgerufen; das Muster wiederholt sich genau:
+ *
+ *              A       I_y      W_y  |    I_z      W_z     I_t     e_y
+ *   UPE 200   29.0 ok  1910 ok  191 ok  148->187  27->34  20->9   2.10->2.56
+ *   UPE 240   38.5 ok  3600 ok  300 ok  257->311  40->50  33->15  2.38->2.79
+ *
+ * Die starke Achse stimmte, die schwache lag 21 % zu tief, W_z 26 %, und
+ * I_t war mehr als doppelt so gross wie in Wirklichkeit. Beim Abfangjoch
+ * traegt genau die schwache Achse den Vierendeel-Verband.
+ *
+ * >>> W_z IST DER KLEINERE DER BEIDEN. <<<
+ *
+ * Ein U-Profil ist um z unsymmetrisch: der Editor gibt W_z,el,t und
+ * W_z,el,b getrennt aus. Genommen ist der KLEINERE - er gehoert zur
+ * weiter entfernten Faser, und dort faellt der Nachweis. Die Probe geht
+ * auf: I_z/W_z,t + I_z/W_z,b = b, bei UPE 200 5.44 + 2.56 = 8.00 cm.
+ *
+ * Daraus faellt auch e_y ab: der kleinere Abstand ist genau der zum
+ * Stegruecken, also I_z / W_z,el,b.
+ *
+ * >>> UND DAMIT STEHT UPE 160 IN FRAGE. <<<
+ *
+ * Dieselbe Probe auf UPE 160 angewandt: I_z/W_z = 106.83/22.58 = 4.73 cm,
+ * b - 4.73 = 2.27 - aber die Zeile fuehrt e_y = 1.84. Entweder stammt das
+ * W_z von der anderen Faser, oder e_y ist noch der alte Normwert. Der
+ * Unterschied wandert voll in den Hebelarm e = d + 2*e_y: bei A160 waeren
+ * es 325.4 statt 316.8 mm, knapp drei Prozent auf der sicheren Seite.
+ * Nachzumessen im selben Editor.
  *
  * >>> e_y IST DER GRUND, WARUM k NICHT DER HEBELARM IST. <<<
  *
@@ -172,8 +202,10 @@ export const GURTPROFILE = [
   // UPE 160 am 3. September gegen den AxisVM-Querschnittseditor geprueft
   // und berichtigt - siehe den Kasten unter der Tabelle.
   wp('UPE 160', 'UPE', 16.0,  7.0, 0.55, 0.95, 1.00, 21.67, 17.0,  911.1, 113.9, 6.48, 106.83, 22.58, 2.22, 5.23, 1.84),
-  wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.0, 22.8,  1910, 191.0, 8.12, 148.0, 27.0, 2.26, 20.4, 2.10),   // I_z, W_z, I_t UNGEPRUEFT
-  wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.5, 30.2,  3600, 300.0, 9.67, 257.0, 39.9, 2.58, 32.5, 2.38),   // I_z, W_z, I_t UNGEPRUEFT
+  // UPE 200 und UPE 240 am 4. September im AxisVM-Querschnittseditor
+  // vermessen - dieselbe Abweichung wie bei UPE 160, siehe unten.
+  wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.01, 22.8, 1909.3, 190.93, 8.11, 187.30, 34.43, 2.54, 8.95, 2.56),
+  wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.52, 30.2, 3598.9, 299.90, 9.67, 310.94, 50.08, 2.84, 15.24, 2.79),
   /*
    * IPE 240 ist KEIN Gurtprofil - A240 traegt UPE 240. Es steht hier als
    * QUERSTEIFE: die Konstruktionszeichnung fuehrt bei A240 ein IPE 240 x 600
