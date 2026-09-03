@@ -12886,6 +12886,73 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE GURTPROFILE DER ABFANGJOCHE. <<<
+   *
+   * Der Winkelkatalog traegt das Tragjoch; das Abfangjoch braucht UPE und
+   * IPE, und die standen bis zum 3. September nirgends. Es sind NORMWERTE
+   * (EN 10365 / DIN 1026-2), keine gemessenen - geprueft wird deshalb, ob
+   * sie zu sich selbst passen.
+   */
+  {
+    const PR = await import(J('data.profiles.js'));
+    wahr('Sieben Gurtprofile', PR.GURTPROFILE.length === 7);
+    /*
+     * DIE SCHAERFSTE PLAUSIBILITAETSPRUEFUNG, DIE ES HIER GIBT:
+     * Flaeche mal Wichte muss das Laufmetergewicht ergeben. Ein Tippfehler
+     * in A oder G faellt damit sofort auf - und beide gehen in den Nachweis.
+     */
+    for (const p of PR.GURTPROFILE) {
+      pruef(`${p.name}: A x 7.85 ergibt G`, p.A * 0.785, p.G, p.G * 0.005,
+            'kg/m');
+    }
+    // Und die Hauptmasse stimmen mit den Sortimentsblaettern ueberein.
+    for (const t of AJ.abfangjoche().filter((x) => x.aufbau)) {
+      const p = PR.getGurtprofil(t.aufbau.gurtprofil);
+      pruef(`${t.typ}: Profilhoehe wie im Blatt`, p.h * 10, t.aufbau.a,
+            0.5, 'mm');
+      pruef(`${t.typ}: Flanschbreite wie im Blatt`, p.b * 10, t.aufbau.b,
+            0.5, 'mm');
+      /*
+       * >>> UND c IST DIE FLANSCHDICKE. <<<
+       *
+       * Erste Lesart war «Stegdicke». Falsch - bei UPE 160 steht c = 9.5,
+       * und das ist t_f; t_w waere 5.5. Wer damit rechnet, setzt fast die
+       * halbe Dicke an.
+       */
+      pruef(`${t.typ}: c ist die Flanschdicke`, p.tf * 10, t.aufbau.c,
+            0.05, 'mm');
+    }
+
+    /*
+     * >>> DER HEBELARM IST NICHT k. <<<
+     *
+     * k ist das Aussenmass ueber beide Gurte; der Hebelarm der Vierendeel-
+     * Wirkung ist der Abstand der SCHWERACHSEN. Beim UPE liegt die Achse um
+     * e_y innerhalb des Stegruckens, beim IPE in der Profilmitte.
+     *
+     * Bei A160 sind das 38.3 statt 42.0 cm, bei A270 73.5 statt 87.0 - neun
+     * bis fuenfzehn Prozent, und sie gehen VOLL ins Moment. Mit k gerechnet
+     * laege der Nachweis auf der unsicheren Seite.
+     */
+    pruef('A160: Achsabstand statt Aussenmass',
+          PR.gurtAchsabstand('UPE 160', 42.0), 42.0 - 2 * 1.84, 1e-9, 'cm');
+    pruef('A270: beim IPE gilt k - b',
+          PR.gurtAchsabstand('IPE 270', 87.0), 87.0 - 13.5, 1e-9, 'cm');
+    for (const t of AJ.abfangjoche().filter((x) => x.aufbau)) {
+      const k = t.aufbau.k / 10;
+      const e = PR.gurtAchsabstand(t.aufbau.gurtprofil, k);
+      wahr(`${t.typ}: der Hebelarm ist kleiner als k`, e < k && e > 0.6 * k);
+    }
+    // Beim IPE ist k - b dasselbe wie d + b - eine Gegenprobe der Geometrie.
+    for (const t of AJ.abfangjoche().filter(
+      (x) => x.aufbau && x.aufbau.gurtprofil.startsWith('IPE'))) {
+      pruef(`${t.typ}: k - b ist d + b`,
+            PR.gurtAchsabstand(t.aufbau.gurtprofil, t.aufbau.k / 10),
+            (t.aufbau.d + t.aufbau.b) / 10, 1e-6, 'cm');
+    }
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

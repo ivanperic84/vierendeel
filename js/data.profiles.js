@@ -106,3 +106,81 @@ export function getStahl(name) {
   if (!s) throw new Error(`Unbekannte Stahlgüte: ${name}`);
   return s;
 }
+
+/*
+ * ===========================================================================
+ * DIE GURTPROFILE DER ABFANGJOCHE - UPE und IPE.
+ * ===========================================================================
+ *
+ * Der Katalog darueber fuehrt WINKEL: das Tragjoch ist ein Vierendeeltraeger
+ * aus vier gleichschenkligen Winkeln. Das Abfangjoch ist einer aus ZWEI
+ * Walzprofilen, und die standen bis zum 3. September nirgends - ohne sie
+ * kein Querschnittswert und damit kein Nachweis.
+ *
+ * >>> DIESE WERTE SIND NORMWERTE, NICHT GEMESSENE. <<<
+ *
+ * Sie stammen aus der Profilnorm (EN 10365 / DIN 1026-2), nicht aus den
+ * Sortimentsblaettern - dort stehen nur die Hauptmasse h, b und t_f. Sie
+ * gehen in den Nachweis ein und gehoeren deshalb gegengelesen.
+ *
+ * Gegengeprueft ist bisher das GEWICHT: A x 7.85 muss das Laufmetergewicht
+ * ergeben, und die Summe zweier Gurte plus Bindebleche das Jochgewicht der
+ * Sortimentstabelle. A160 kommt so auf 41.6 gegen 43 kg/m im Blatt, A200 auf
+ * 57.7 gegen 58 - der Rest sind Endverstaerkung und Schweissnaehte.
+ *
+ * >>> e_y IST DER GRUND, WARUM k NICHT DER HEBELARM IST. <<<
+ *
+ * Bei einem UPE liegt die Schwerachse um e_y INNERHALB des Stegruckens. Die
+ * Gurte stehen mit dem Steg aussen; der Achsabstand ist deshalb k - 2*e_y
+ * und nicht k. Bei A160 sind das 383 statt 420 mm - neun Prozent, und sie
+ * gehen voll in das Moment ein. Beim symmetrischen IPE liegt die Achse in
+ * der Profilmitte, dort gilt d + b.
+ *
+ * Masse in cm, cm2, cm4 - wie im Winkelkatalog darueber.
+ * ---------------------------------------------------------------------------
+ */
+const wp = (name, reihe, h, b, tw, tf, r, A, G, Iy, Wy, iy, Iz, Wz, iz, It, ey) =>
+  ({ name, reihe, h, b, tw, tf, r, A, G, Iy, Wy, iy, Iz, Wz, iz, It,
+     // Nur das U-Profil kennt eine Schwerpunktverschiebung; beim I liegt
+     // die Achse mittig, und `ey` bleibt null.
+     ey: ey ?? 0 });
+
+export const GURTPROFILE = [
+  //   name       reihe     h     b    t_w   t_f    r     A     G      I_y    W_y   i_y     I_z   W_z   i_z    I_t   e_y
+  wp('UPE 160', 'UPE', 16.0,  7.0, 0.55, 0.95, 1.00, 22.0, 17.3,   911, 113.9, 6.43,  85.3, 18.3, 1.97, 13.3, 1.84),
+  wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.0, 22.8,  1910, 191.0, 8.12, 148.0, 27.0, 2.26, 20.4, 2.10),
+  wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.5, 30.2,  3600, 300.0, 9.67, 257.0, 39.9, 2.58, 32.5, 2.38),
+  wp('IPE 270', 'IPE', 27.0, 13.5, 0.66, 1.02, 1.50, 45.9, 36.1,  5790, 429.0, 11.2, 420.0, 62.2, 3.02, 15.9, 0),
+  wp('IPE 300', 'IPE', 30.0, 15.0, 0.71, 1.07, 1.50, 53.8, 42.2,  8356, 557.0, 12.5, 604.0, 80.5, 3.35, 20.1, 0),
+  wp('IPE 330', 'IPE', 33.0, 16.0, 0.75, 1.15, 1.80, 62.6, 49.1, 11770, 713.0, 13.7, 788.0, 98.5, 3.55, 28.2, 0),
+  wp('IPE 360', 'IPE', 36.0, 17.0, 0.80, 1.27, 1.80, 72.7, 57.1, 16270, 904.0, 15.0, 1043.0, 123.0, 3.79, 37.3, 0),
+];
+
+/** Ein Gurtprofil nach Namen. */
+export function getGurtprofil(name) {
+  const p = GURTPROFILE.find((x) => x.name === name);
+  if (!p) throw new Error(`Unbekanntes Gurtprofil: ${name}`);
+  return p;
+}
+
+/**
+ * DER ACHSABSTAND DER BEIDEN GURTE [cm] - der wirkliche Hebelarm.
+ *
+ * >>> NICHT k. <<<
+ *
+ * k ist das Aussenmass ueber beide Gurte. Der Hebelarm der Vierendeel-
+ * Wirkung ist der Abstand der SCHWERACHSEN, und der ist kleiner:
+ *
+ *   UPE   Steg aussen, Achse um e_y nach innen   ->  k - 2*e_y
+ *   IPE   Achse in der Profilmitte               ->  k - b  ( = d + b )
+ *
+ * Bei A160 sind das 38.3 statt 42.0 cm. Neun Prozent, die voll ins Moment
+ * gehen - mit k gerechnet laege der Nachweis auf der unsicheren Seite.
+ *
+ * @param {string|object} profil  Gurtprofil oder sein Name
+ * @param {number} k              Aussenmass ueber beide Gurte [cm]
+ */
+export function gurtAchsabstand(profil, k) {
+  const p = typeof profil === 'string' ? getGurtprofil(profil) : profil;
+  return p.reihe === 'UPE' ? k - 2 * p.ey : k - p.b;
+}

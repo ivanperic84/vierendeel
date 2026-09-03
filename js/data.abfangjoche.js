@@ -140,8 +140,14 @@ export function abfangLaengenbereich(typ) {
  * dem falschen Hebelarm zu rechnen.
  *
  * Der Achsabstand der Gurte ist kleiner als k: die Schwerachse jedes Gurtes
- * liegt um e_y innerhalb des Stegruckens. Diesen Abzug macht der Kern, nicht
- * die Datenbank - er braucht dafuer den Profilkatalog.
+ * liegt um e_y innerhalb des Stegruckens. Diesen Abzug macht `gurtAchsabstand`
+ * in data.profiles.js - er braucht dafuer den Profilkatalog.
+ *
+ * >>> UND `c` IST DIE FLANSCHDICKE. <<<
+ *
+ * Nicht die Stegdicke, wie hier zuerst stand. Gegengeprueft an allen sieben
+ * Typen gegen die Profilnorm: UPE 160 fuehrt c = 9.5, und das ist t_f -
+ * t_w waere 5.5.
  */
 export function abfangAufbau(typ) {
   const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;

@@ -3996,6 +3996,38 @@ bestätigt jede erfasste Zeile, und `A1` wechselt zwischen 250 und 500 — beide
 steht als **Kontrolle** im Prüfstand, nicht als Rechenweg. `abfangMasse` gibt
 für eine Zwischenlänge `null` zurück statt einer erfundenen Einteilung.
 
+### Der Gurtkatalog — und zwei Fehler, die er aufgedeckt hat (3. September)
+
+Der Profilkatalog führte **nur Winkel** — das Tragjoch ist ein Vierendeelträger
+aus vier gleichschenkligen Winkeln. Die sieben UPE/IPE-Gurte des Abfangjochs
+fehlten vollständig; ohne sie kein Querschnittswert und damit kein Nachweis.
+`GURTPROFILE` in `data.profiles.js` führt sie jetzt, mit **Normwerten**
+(EN 10365 / DIN 1026-2) — sie gehen in den Nachweis ein und **gehören
+gegengelesen**.
+
+Geprüft ist bisher, ob sie zu sich selbst passen: **A × 7.85 gegen das
+Laufmetergewicht**, alle sieben auf ±0.2 %. Und die Summe zweier Gurte plus
+Bindebleche gegen das Jochgewicht der Sortimentstabelle — A160 kommt auf
+41.6 gegen 43 kg/m im Blatt, A200 auf 57.7 gegen 58; der Rest ist
+Endverstärkung und Schweissnaht.
+
+**Erster Fehler: `c` ist die Flanschdicke, nicht die Stegdicke.** Ich hatte es
+falsch benannt. Gegenprobe an allen sieben gegen die Profilnorm: UPE 160 führt
+c = 9.5 — das ist t_f, t_w wäre 5.5. Fast die halbe Dicke.
+
+**Zweiter Fehler, der schwerere: der Hebelarm ist nicht k.** `k` ist das
+Aussenmass über beide Gurte; der Hebelarm der Vierendeel-Wirkung ist der
+Abstand der **Schwerachsen**.
+
+| | Lage der Achse | Hebelarm | A160 | A270 |
+|---|---|---|---|---|
+| UPE | um e_y innerhalb des Stegrückens | `k − 2·e_y` | 38.3 statt 42.0 cm | — |
+| IPE | in der Profilmitte | `k − b` ( = `d + b`) | — | 73.5 statt 87.0 cm |
+
+**Neun bis fünfzehn Prozent, und sie gehen voll ins Moment.** Mit k gerechnet
+läge der Nachweis auf der unsicheren Seite. `gurtAchsabstand` macht den Abzug;
+der Prüfstand hält ihn für jeden Typ fest.
+
 ### Was noch aussteht
 
 * der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,
