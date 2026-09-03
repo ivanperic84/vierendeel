@@ -756,6 +756,25 @@ input[type=range].rng {
    UMGEBROCHEN und nicht waagrecht gescrollt: ein seitlicher Balken ist der
    unauffaelligste Weg, etwas zu verstecken. Nach unten begrenzt und dort
    scrollbar, damit die Liste das Modell nie ganz zudeckt. */
+/*
+ * DIE KOPFSPALTE - Titel und die beiden Knoepfe, senkrecht.
+ *
+ * Weisung vom 3. September: «diese beiden buttons auf die linke seite
+ * nehmen um platz zu sparen.» Sie standen rechts neben den Rollenspalten
+ * und machten den Balken um ihre Breite breiter. Links unter dem Titel
+ * kosten sie keine zusaetzliche Breite - der Titel ist nur eine Zeile hoch,
+ * darunter war der Platz leer.
+ *
+ * `align-self: flex-start` haelt die Spalte oben: der Balken zentriert
+ * seine Kinder, und eine mitgewachsene Kopfspalte saehe neben den
+ * Rollenspalten verrutscht aus.
+ */
+.viewer-balken .balken-kopf {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 0 0 auto; align-self: flex-start; width: max-content;
+  max-width: 150px;
+}
+.viewer-balken .balken-kopf .btn { width: 100%; }
 .viewer-balken .balken-wahl {
   display: flex; align-items: flex-start; flex-wrap: wrap;
   gap: 6px 14px; max-height: 46vh; overflow-y: auto; overflow-x: hidden;

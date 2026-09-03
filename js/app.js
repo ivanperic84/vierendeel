@@ -2458,9 +2458,23 @@ function zeichneBalken() {
        */
       + kopierbareHtml(st.ort);
     n.hidden = false;
-    n.innerHTML = `<span>Was kommt ${wo}?</span><div class="balken-wahl">${spalten}</div>`
+    /*
+     * >>> DIE BEIDEN KNOEPFE STEHEN LINKS, UNTER DEM TITEL. <<<
+     *
+     * Weisung vom 3. September: «diese beiden buttons auf die linke seite
+     * nehmen um platz zu sparen.»
+     *
+     * Vorher standen sie RECHTS neben der Vorlagenwahl und beanspruchten
+     * dort eine eigene Spalte - bei drei Rollenspalten war der Balken damit
+     * breiter als noetig. Unter dem Titel nutzen sie den Platz, der links
+     * ohnehin frei bleibt: der Titel ist eine Zeile hoch, die Spalten
+     * daneben sind es nicht.
+     */
+    n.innerHTML = '<div class="balken-kopf">'
+      + `<span>Was kommt ${wo}?</span>`
       + '<button class="btn btn-mini" data-setz-neu>andere Stelle</button>'
-      + '<button class="btn btn-mini" data-setz-ab>Abbrechen</button>';
+      + '<button class="btn btn-mini" data-setz-ab>Abbrechen</button>'
+      + `</div><div class="balken-wahl">${spalten}</div>`;
     n.querySelectorAll('[data-setz-vorlage]').forEach((b) => {
       b.onclick = () => setzeVorlageAnStelle(b.dataset.setzVorlage);
     });
