@@ -221,6 +221,34 @@ export function abfangMasse(typ, jt) {
   return ab <= 0.001 ? beste : null;
 }
 
+/**
+ * DIE RANDMASSE DER BLECHEINTEILUNG - die beiden Endbereiche.
+ *
+ * >>> DIE ENDEN SIND NICHT GLEICH LANG. <<<
+ *
+ * Weisung vom 3. September: «beachte zudem das die enden hier nicht gleich
+ * lang sind (gabellaenge). auf der linken seite kommt das erste blech schon
+ * bei 1450mm und dann das naechste nach 550 und auf der rechten sind es 900
+ * und dann zweimal 550 mm der rest wird gemaess der tabelle verteilt.»
+ *
+ * Das Schemablatt zeigt es fuer jede abgebildete Laenge gleich:
+ *
+ *   |<-- 2000 -->|<--------- QV = jt - 4000 --------->|<-- 2000 -->|
+ *   | 1450 | 550 | An .. A2 A1 A1 A2 .. An            | 550|550|900|
+ *
+ * Links traegt das Jochende die GABEL, rechts nicht - daher der Unterschied.
+ * Beide Endbereiche messen 2000; nur ihre Einteilung ist verschieden. Die
+ * Werte sind typspezifisch (A160 1450/550, A200 1375/625, A330 540/535/925)
+ * und im Schemablatt jeder Groesse einzeln nachgemessen.
+ *
+ * @returns {{linksErstesBlech, linksZweitesFeld, rechtsFelder: number[],
+ *            rechtsBisEnde, aussenBereich}|null} alles in mm
+ */
+export function abfangRandmasse(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return a?.randmasse ?? null;
+}
+
 /** Die gefuehrten Laengen eines Typs [m] - aus der Mass-Tabelle. */
 export function abfangLaengen(typ) {
   const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;

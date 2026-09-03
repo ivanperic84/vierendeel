@@ -13112,10 +13112,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     let stimmt = 0;
     for (const z of AJ.getAbfangjoch('A160').laengen) {
       const b = AK.abfangBlechstationen('A160', z.jt);
-      if (b && b.bleche === SOLL[z.jt]) stimmt += 1;
+      if (b && b.blecheListe === SOLL[z.jt]) stimmt += 1;
     }
-    pruef('A160: alle Laengen stimmen mit der Stueckliste',
+    pruef('A160: alle Laengen fuehren ihre Stueckzahl',
           stimmt, 15, 1e-9, 'Stk');
+    /*
+     * >>> UND DIE STUECKZAHL IST NICHT MEHR DIE BLECHZAHL. <<<
+     *
+     * `bleche` zaehlt jetzt die Stationen des SCHEMAS mal zwei, nicht die
+     * Regelbleche der Stueckliste. Bei A160 / 9.50 m sind das 32 gegen 26 -
+     * der Unterschied sind die drei Stationen in den Endbereichen, die die
+     * Stueckliste teils als Sonderbleche fuehrt.
+     */
     const b95 = AK.abfangBlechstationen('A160', 9.5);
     wahr('Je Station eines oben und eines unten',
          b95.bleche === b95.anzahl * 2);
@@ -13129,12 +13137,26 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * zu 250 - die Kontrolle haette den richtigen Fall abgelehnt.
      */
     const abst = b95.stationen.slice(1).map((x, i) => x - b95.stationen[i]);
-    wahr('Jeder Abstand ist Regelteilung oder mittleres Feld',
-         abst.every((d) => Math.abs(d - b95.teilung) < 1e-9
-                        || Math.abs(d - b95.erstesFeld) < 1e-9));
-    wahr('Die Regelteilung steht aussen',
-         Math.abs(abst[0] - b95.teilung) < 1e-9
-         && Math.abs(abst.at(-1) - b95.teilung) < 1e-9);
+    /*
+     * >>> DIE RANDFELDER SIND WEDER TEILUNG NOCH MITTLERES FELD. <<<
+     *
+     * Weisung vom 3. September: «Die Masse in den Endbereichen stimmen
+     * nicht mit der Zeichnung ueberein.» Zwischen den beiden aeusseren
+     * Blechen misst A160 links 550, rechts zweimal 550 - erst dazwischen
+     * gilt die Tabelle. Die alte Kontrolle liess nur Teilung oder A1 zu und
+     * haette die richtige Lage abgewiesen.
+     */
+    const innen = abst.slice(1, -2);
+    wahr('Im QV-Bereich: Regelteilung oder mittleres Feld',
+         innen.every((d) => Math.abs(d - b95.teilung) < 1e-9
+                         || Math.abs(d - b95.erstesFeld) < 1e-9));
+    wahr('Die Regelteilung steht am Rand des QV-Bereichs',
+         Math.abs(innen[0] - b95.teilung) < 1e-9
+         && Math.abs(innen.at(-1) - b95.teilung) < 1e-9);
+    // Die drei Randfelder stehen so, wie das Schemablatt sie bemasst.
+    pruef('Links das zweite Feld: 550 mm', abst[0], 0.55, 1e-9, 'm');
+    pruef('Rechts das erste Feld: 550 mm', abst.at(-2), 0.55, 1e-9, 'm');
+    pruef('Rechts das zweite Feld: 550 mm', abst.at(-1), 0.55, 1e-9, 'm');
     // Und die Summe der Felder ist die Laenge der Blechreihe.
     pruef('Die Felder decken die Blechreihe',
           abst.reduce((a2, b2) => a2 + b2, 0),
@@ -13182,11 +13204,22 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * stillschweigend zu runden waere eine Zahl, die niemand geprueft hat,
      * in einem Nachweis, dem man es nicht ansieht.
      */
-    wahr('Die fragliche Laenge liefert keine Einteilung',
-         AK.abfangBlechstationen('A360', 21.0) === null);
-    wahr('… und gilt als nicht rechenbar',
-         !AK.abfangRechenbar('A360', 21.0));
-    wahr('Ihre Nachbarn dagegen schon',
+    /*
+     * >>> SEIT DEM 3. SEPTEMBER TRAEGT DIE STUECKZAHL DIE LAGE NICHT MEHR. <<<
+     *
+     * Hier stand «liefert keine Einteilung»: die Stationen wurden aus der
+     * Stueckzahl abgeleitet, und eine unmoegliche Zahl gab keine Lage. Seit
+     * die Lage aus dem Schema kommt - Randmasse plus Feldfolge aus QV und
+     * A1 - ist A360 / 21.00 m wieder rechenbar. Die 85 bleiben fraglich;
+     * sie ZAEHLEN Bleche, sie verteilen sie nicht.
+     */
+    const f21 = AK.abfangBlechstationen('A360', 21.0);
+    wahr('Die fragliche Laenge hat trotzdem eine Lage', Boolean(f21));
+    wahr('… und sagt, dass ihre Stueckzahl fraglich ist',
+         f21.blechFraglich === true);
+    wahr('… und gilt wieder als rechenbar',
+         AK.abfangRechenbar('A360', 21.0));
+    wahr('Ihre Nachbarn ebenso',
          AK.abfangRechenbar('A360', 20.5) && AK.abfangRechenbar('A360', 21.5));
     // 157 von 158 lassen sich rechnen - eine einzige nicht.
     let rechenbar = 0;
@@ -13195,7 +13228,12 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
         if (AK.abfangBlechstationen(t.typ, z.jt)) rechenbar += 1;
       }
     }
-    pruef('157 Laengen sind rechenbar', rechenbar, 157, 1e-9, 'Stk');
+    /*
+     * ALLE 158 - vorher waren es 157, und die Lage galt nur bei zwanzig als
+     * belegt. Beides haengt an derselben Aenderung: die Feldzahl folgt aus
+     * QV und A1, nicht aus der Stueckzahl.
+     */
+    pruef('158 Laengen sind rechenbar', rechenbar, 158, 1e-9, 'Stk');
 
     wahr('Eine ungefuehrte Laenge hat keine Einteilung',
          AK.abfangBlechstationen('A200', 10.3) === null);
@@ -13208,16 +13246,37 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * Naeherung - sie lag bei 1.875 m.
      */
     wahr('Die Lage ist belegt', b95.randGenau === true);
-    pruef('Erstes Blech bei 2.000 m wie in der Zeichnung',
-          b95.stationen[0], 2.0, 1e-6, 'm');
-    pruef('Letztes bei 7.500 m', b95.stationen.at(-1), 7.5, 1e-6, 'm');
+    /*
+     * >>> DIE ENDEN SIND NICHT GLEICH LANG. <<<
+     *
+     * Weisung vom 3. September: «auf der linken seite kommt das erste blech
+     * schon bei 1450mm und dann das naechste nach 550 und auf der rechten
+     * sind es 900 und dann zweimal 550 mm». Hier stand 2.000 und 7.500 -
+     * die symmetrische Reihe ohne die Bleche der Endbereiche.
+     */
+    pruef('Erstes Blech bei 1.450 m', b95.stationen[0], 1.45, 1e-6, 'm');
+    pruef('Zweites bei 2.000 m', b95.stationen[1], 2.0, 1e-6, 'm');
+    pruef('Letztes bei 8.600 m', b95.stationen.at(-1), 8.6, 1e-6, 'm');
+    pruef('Vorletztes bei 8.050 m', b95.stationen.at(-2), 8.05, 1e-6, 'm');
+    // 9.500 - 0.900: das letzte Blech misst vom RECHTEN Ende.
+    pruef('Das letzte Blech steht 900 mm vom rechten Ende',
+          9.5 - b95.stationen.at(-1), 0.9, 1e-6, 'm');
+    pruef('Sechzehn Stationen', b95.anzahl, 16, 1e-9, 'Stk');
     /*
      * WO SIE NICHT AUFGEHT, BLEIBT DIE NAEHERUNG - und sagt es. Ab A240
      * sitzen Quersteifungen zwischen den QV-Bereichen; wie sich die Bleche
      * darauf verteilen, steht nicht in einer Formel.
      */
+    /*
+     * AUCH BEI A240 STEHT DIE LAGE - und die Endmasse sind andere als bei
+     * A160: 1380/620 links, 545/545/910 rechts. Beide Seiten summieren auf
+     * 2000, sonst waere eines der Masse falsch abgelesen.
+     */
     const grob = AK.abfangBlechstationen('A240', 12.0);
-    wahr('Bei A240 ist die Lage genaehert', grob?.randGenau === false);
+    wahr('Bei A240 steht die Lage ebenso', grob?.randGenau === true);
+    pruef('A240: erstes Blech bei 1.380 m', grob.stationen[0], 1.38, 1e-6, 'm');
+    pruef('A240: letztes 910 mm vom Ende',
+          12.0 - grob.stationen.at(-1), 0.91, 1e-6, 'm');
 
     /*
      * WAS SICH RECHNEN LAESST, SAGT DER KERN SELBST.
@@ -13378,7 +13437,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const Vfn = (x) => qd * (L / 2 - x);
     const alle = AK.abfangBlechnachweise('A160', L, Vfn, 21.8);
     wahr('Es sind so viele Nachweise wie Stationen',
-         alle.bleche.length === 13);
+         alle.bleche.length === 16);
     wahr('Jedes Blech kennt seine Stelle',
          alle.bleche.every((b) => b.x > 0 && b.x < L));
     /*
@@ -13416,8 +13475,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * jetzt die FRAGLICHE Laenge: A360/21.00 m fuehrt 85 Bleche, ungerade
      * und damit unmoeglich.
      */
-    wahr('Ohne brauchbare Stueckzahl keine Blechnachweise',
-         AK.abfangBlechnachweise('A360', 21.0, Vfn, 21.8) === null);
+    /*
+     * Die fragliche Stueckzahl blockiert den Nachweis nicht mehr - die Lage
+     * kommt aus dem Schema. Was nicht geht, ist eine UNGEFUEHRTE Laenge:
+     * dort gibt es weder Tabellenzeile noch Feldfolge.
+     */
+    wahr('Die fragliche Laenge wird jetzt nachgewiesen',
+         AK.abfangBlechnachweise('A360', 21.0, Vfn, 21.8) !== null);
     wahr('Eine ungefuehrte Laenge ebenso wenig',
          AK.abfangBlechnachweise('A200', 10.3, Vfn, 21.8) === null);
   }
@@ -13546,7 +13610,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * einem mittigen Riegel, und die bildet den Kasten nicht ab, den zwei
      * Bleche mit den Gurten bilden.
      */
-    pruef('Zwei Bindebleche je Station', blS.length, 26, 1e-9, 'Stk');
+    pruef('Zwei Bindebleche je Station', blS.length, 32, 1e-9, 'Stk');
     pruef('Vier Endbleche - zwei Enden, zwei Ebenen', beS.length, 4, 1e-9, 'Stk');
     // Sie liegen auf drei Hoehen: Schwerachse und beide Flansche.
     const zEb = [...new Set(m.knoten.map((n2) => Math.round(n2.z * 1e6) / 1e6))];
@@ -13619,7 +13683,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * sonst irgendwo, und das Modell saehe richtig aus.
      */
     let flog = null;
-    try { XA.abfangAxisvmModell('A360', 21.0, {}); } catch (e) { flog = e; }
+    try { XA.abfangAxisvmModell('A200', 10.3, {}); } catch (e) { flog = e; }
     wahr('Ohne Blecheinteilung wirft es', flog !== null);
   }
 
@@ -13644,9 +13708,20 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const AK = await import(J('core.abfangjoch.js'));
     const rf = AK.abfangRahmenfeld('A160', 9.5);
     wahr('Es gibt ein massgebendes Rahmenfeld', Boolean(rf));
-    pruef('Das Randfeld misst 2.00 m', rf.randfeld, 2.0, 1e-6, 'm');
-    pruef('Und ist das laengste', rf.a, 2.0, 1e-6, 'm');
-    pruef('Viermal die Regelteilung', rf.faktor, 4.0, 1e-6, '-');
+    /*
+     * >>> DAS RANDFELD IST KLEINER GEWORDEN - UND RICHTIGER. <<<
+     *
+     * Hier standen 2.00 m und der Faktor 4. Das war die symmetrische Reihe
+     * ohne die Endbleche. Nach dem Schema sitzt das erste Blech bei
+     * 1.450 m, und das Auflager liegt um den Ueberstand (jt - js)/2 = 0.25
+     * naeher: 1.200 m bleiben, knapp zweieinhalb Regelteilungen. Das
+     * Randfeld ist immer noch das massgebende - nur nicht mehr so gross,
+     * wie die Schaetzung glauben machte.
+     */
+    pruef('Der Ueberstand ueber das Auflager', rf.ueberstand, 0.25, 1e-6, 'm');
+    pruef('Das Randfeld misst 1.20 m', rf.randfeld, 1.2, 1e-6, 'm');
+    pruef('Und ist das laengste', rf.a, 1.2, 1e-6, 'm');
+    pruef('Zweikommavier Regelteilungen', rf.faktor, 2.4, 1e-6, '-');
     /*
      * DIE FELDER DECKEN DIE STUETZWEITE - kein Stueck faellt weg. Waere
      * eines vergessen, waere der Nachweis dort blind.
@@ -13698,7 +13773,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 
     // Ohne erfasste Einteilung kein Rahmenfeld - keine geratene Laenge.
     wahr('Ohne Einteilung kein Rahmenfeld',
-         AK.abfangRahmenfeld('A360', 21.0) === null);
+         AK.abfangRahmenfeld('A200', 10.3) === null);
   }
 
   /*

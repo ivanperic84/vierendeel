@@ -50,7 +50,8 @@
  */
 
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
-         abfangEndverstaerkung, abfangMasse } from './data.abfangjoche.js';
+         abfangEndverstaerkung, abfangMasse,
+         abfangRandmasse } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 
 /**
@@ -224,113 +225,165 @@ export function abfangStuetzweite(typ, jt) {
 export function abfangBlechstationen(typ, jt) {
   const z = abfangMasse(typ, jt);
   if (!z) return null;
+  const rm = abfangRandmasse(typ);
+  if (!rm) return null;
   /*
-   * >>> DIE ZAHL KOMMT AUS DER STUECKLISTE, NICHT AUS EINER FORMEL. <<<
+   * ===================== DIE FELDFOLGE STEHT IM SCHEMA ====================
    *
-   * Der erste Versuch leitete die Stationen aus QV1 und der Regelteilung
-   * ab - QV1 = jt - 4.0 m, erstes Feld A1, dann 500er Raster. Das sah
-   * schluessig aus und lag DURCHWEG 4 BIS 6 BLECHE ZU TIEF, gemessen an der
-   * Stueckliste der Konstruktionszeichnung (A160/9.5 m: 22 gegen 26).
+   * Weisung vom 3. September: «Die Masse in den Endbereichen stimmen nicht
+   * mit der Zeichnung ueberein. beachte zudem das die enden hier nicht
+   * gleich lang sind (gabellaenge). [...] der rest wird gemaess der tabelle
+   * verteilt.»
    *
-   * Stehende Vorgabe: «Massgebend sind die Daten, nicht die Herleitung.
-   * Fuehrt das Sortiment eine Laenge, gilt sie - auch wenn sie sich
-   * rechnerisch bestaetigen laesst. Eine eigene Herleitung an ihre Stelle zu
-   * setzen verstoesst gegen die erste Regel.» Genau dieser Fall.
+   * Das Schemablatt legt den Traeger in drei Stuecke:
    *
-   * Ohne erfasste Stueckzahl kommt null zurueck. Der Aufrufer muss dann
-   * sagen, dass er die Einteilung nicht kennt - eine geratene waere die
-   * Grundlage eines Nachweisschnitts, der nirgends steht.
-   */
-  /*
-   * >>> EIN FRAGLICHER WERT WIRD NICHT GERECHNET. <<<
+   *   |<--- 2000 --->|<-------- QV = jt - 4000 -------->|<--- 2000 --->|
+   *   | R1   |  R2   | An .. A2 A1 A1 A2 .. An          | Ra| Rb | Re  |
    *
-   * A360 / 21.00 m fuehrt 85 Bleche. Der Wert ist UNGERADE und damit bei
-   * zwei Blechen je Station unmoeglich; er steht zwischen 60 und 56 in einer
-   * sonst streng absteigenden Reihe. Bei 420 dpi nachgeprueft - kein
-   * Lesefehler, es steht so auf dem Blatt (vermutlich 58 verdreht).
+   * LINKS ein Blech bei R1 vom Jochende, das naechste R2 weiter - dort
+   * beginnt der QV-Bereich. RECHTS drei Bleche: Re vom rechten Ende, davor
+   * die beiden Felder Rb und Ra. Beide Endbereiche messen 2000, aber sie
+   * sind VERSCHIEDEN eingeteilt, weil links die Gabel sitzt.
    *
-   * Ihn stillschweigend auf 84 oder 86 zu runden waere die schlimmste
-   * Antwort: eine Zahl, die niemand gepruefte hat, in einem Nachweis, dem man
-   * es nicht ansieht. Also null - und der Aufrufer sagt, dass er die
-   * Einteilung nicht kennt.
-   */
-  if (z.blechFraglich) return null;
-  if (!(z.blechStationen > 0)) return null;
-  const n = z.blechStationen;
-  const A = z.A / 1000;                   // Regelteilung [m]
-  const A1 = z.A1 / 1000;                 // erstes Feld [m]
-  /*
-   * DIE LAGE IST EINE NAEHERUNG, DIE ZAHL NICHT.
+   * >>> WAS HIER VORHER STAND, WAR SYMMETRISCH UND DAMIT FALSCH. <<<
    *
-   * Wo die Reihe genau beginnt, sagt die Konstruktionszeichnung je Typ
-   * (bei A160: 1450 mm bis zum Auflager, dann 550 bis zum ersten Blech).
-   * Diese Randmasse stehen bisher nur fuer A160 in der Datenbank. Solange
-   * sie fehlen, wird die Reihe SYMMETRISCH in die Jochlaenge gelegt -
-   * `randGenau` sagt, dass das eine Naeherung ist.
+   * Die Reihe wurde mittig in die Jochlaenge gelegt und begann bei 2000 -
+   * das traf die Feldgrenze, aber es fehlten die drei Bleche in den
+   * Endbereichen. Damit lag das erste Feld bei 2.00 m statt bei 1.45 m, und
+   * `abfangRahmenfeld` fuehrte den Nachweis an einer Stelle, die es nicht
+   * gibt.
+   *
+   * ======================= DIE FELDZAHL IST RECHENBAR =====================
+   *
+   * Nicht die Stueckzahl sagt, wieviele Felder der QV-Bereich hat, sondern
+   * seine Laenge: die Folge ist An..A2 A1 A1 A2..An, also zwei Felder A1 und
+   * der Rest die Regelteilung A. Damit
+   *
+   *      QV = 2*A1 + (f - 2)*A     ->     f = (QV - 2*A1) / A + 2
+   *
+   * Gegengerechnet am 3. September an jeder Darstellung aller sieben
+   * Schemablaetter - A160/12.50 (A9..A9, 18 Felder), A200/16.50 (A13, 26),
+   * A240/19.50 (A16, 32), und sie stimmt jedesmal.
+   *
+   * DAS LOEST DIE ALTE SPERRE. Frueher wurde die Feldfolge gegen die
+   * Stueckzahl geprueft und galt nur bei 20 von 157 Laengen als belegt.
+   * Die Stueckzahl braucht es dafuer gar nicht - sie zaehlt Bleche, sie
+   * verteilt sie nicht.
    */
   const QV = z.QV ?? [z.QV1];
-  const QVsumme = QV.reduce((a2, b2) => a2 + b2, 0) / 1000;   // mm -> m
-  /*
-   * >>> DIE FELDFOLGE, WENN SIE AUFGEHT - SONST DIE NAEHERUNG. <<<
-   *
-   * Das Schemablatt zeigt die Felder als «A9 A8 ... A2 A1 A1 A2 ... A9»:
-   * A1 ist das MITTLERE Feldpaar, nicht das erste. Bei A160 / 12.50 m sind
-   * das 18 Felder - zwei zu 250 in der Mitte, sechzehn zu 500 - und ihre
-   * Summe ist genau QV1 = 8500 mm. Die Reihe beginnt dann bei
-   * (jt - QV) / 2, bei A160 / 9.50 m also bei 2.000 m; genau die Zahl, die
-   * auch die Konstruktionszeichnung nennt (1450 + 550).
-   *
-   * >>> SIE GEHT NUR BEI 20 VON 157 LAENGEN AUF. <<<
-   *
-   * Nachgerechnet am 3. September: bei den uebrigen stimmen Blechzahl,
-   * Regelteilung und QV-Summe nicht zusammen - ab A240 sitzen zwischen den
-   * QV-Bereichen Quersteifungen, und wie sich die Bleche darauf verteilen,
-   * steht auf den Schemablaettern in Skizzen, die nur einzelne Laengen
-   * zeigen.
-   *
-   * Wo sie aufgeht, ist die Lage BELEGT (`randGenau: true`) und taugt zum
-   * Kalibrieren. Wo nicht, bleibt die alte Naeherung - gut genug, um
-   * Bleche im Bild zu zeigen und Nachweise ueber sie zu fuehren, aber nicht
-   * gut genug, um daraus einen Kennwert zu messen.
-   */
-  const felder = n - 1;
-  const summeExakt = 2 * A1 + (felder - 2) * A;
-  const gehtAuf = felder >= 2 && Math.abs(summeExakt - QVsumme) < 1e-6;
+  const QVsumme = QV.reduce((a2, b2) => a2 + b2, 0);          // mm
+  const A = z.A;                                              // Regelteilung
+  const A1 = z.A1;                                            // mittleres Paar
+  const felder = (QVsumme - 2 * A1) / A + 2;
+  const gehtAuf = Number.isInteger(felder) && felder >= 2 && felder % 2 === 0
+                  && Math.abs(2 * A1 + (felder - 2) * A - QVsumme) < 1e-6;
+  if (!gehtAuf) return null;
+
+  const folge = [];
+  const halb = (felder - 2) / 2;
+  for (let i = 0; i < halb; i++) folge.push(A);
+  folge.push(A1, A1);
+  for (let i = 0; i < halb; i++) folge.push(A);
 
   const stationen = [];
-  let randGenau = false;
-  let rand;
-  if (gehtAuf) {
-    // Die Feldfolge: aussen die Regelteilung, in der Mitte das Paar A1.
-    const folge = [];
-    const halb = (felder - 2) / 2;
-    for (let i = 0; i < halb; i++) folge.push(A);
-    folge.push(A1, A1);
-    for (let i = 0; i < halb; i++) folge.push(A);
-    rand = (jt - QVsumme) / 2;
-    let x = rand;
-    stationen.push(x);
-    folge.forEach((f) => { x += f; stationen.push(x); });
-    randGenau = true;
-  } else {
-    const spanne = A1 + (n - 1) * A;
-    rand = Math.max(0, (jt - spanne) / 2);
-    for (let i = 0; i < n; i++) stationen.push(rand + A1 + i * A);
-  }
+  let x = rm.linksErstesBlech;                                // mm
+  stationen.push(x);
+  x += rm.linksZweitesFeld;                                   // = aussenBereich
+  stationen.push(x);
+  folge.forEach((f) => { x += f; stationen.push(x); });
+  (rm.rechtsFelder ?? []).forEach((f) => { x += f; stationen.push(x); });
+  /*
+   * Die Probe schliesst sich von selbst: R1+R2 = 2000, Ra+Rb+Re = 2000 und
+   * QV = jt - 4000. Wenn die letzte Station nicht auf jt - Re faellt, ist
+   * eines der drei Masse falsch erfasst - dann lieber nichts als eine
+   * Blechlage, die nirgends steht.
+   */
+  const soll = jt * 1000 - rm.rechtsBisEnde;
+  if (Math.abs(x - soll) > 1) return null;
+
+  const m = (v) => Math.round(v) / 1000;                      // mm -> m
+  /*
+   * >>> DIE STUECKZAHL UND DIE ZEICHNUNG GEHEN NICHT IMMER ZUSAMMEN. <<<
+   *
+   * Die Stueckliste der Konstruktionszeichnung fuehrt die Regelbleche und
+   * daneben die Sonderbleche der Enden: eines links (`endeL`) und je nach
+   * Typ eines oder zwei rechts (`endeR`). Zusammen also
+   *
+   *      Stationen laut Liste = blechStationen + 1 + Anzahl(endeR)
+   *
+   * Gefunden am 3. September: bei allen Laengen mit A1 = 500 deckt sich das
+   * mit den Stationen des Schemas. Bei A1 = 250 fehlt der Liste durchweg
+   * GENAU EIN PAAR - bei A160 wie bei A200, also nicht bei einem Typ
+   * verzaehlt, sondern systematisch. Es sieht aus, als haette die
+   * Stueckliste die Feldzahl als QV/A gerechnet, wo sie QV/A + 1 ist.
+   *
+   * Massgebend fuer die LAGE ist das Schema - es bemasst jede Station
+   * einzeln, und seine Summen gehen auf. Die Stueckzahl bleibt daneben
+   * stehen; `blechzahlStimmt` sagt, wo sie sich decken. Aufloesen muss das
+   * der Auftraggeber, nicht dieser Kern.
+   */
+  const bl = abfangBindeblech(typ);
+  const nEndeR = Array.isArray(bl?.endeR) ? bl.endeR.length : (bl?.endeR ? 1 : 0);
+  /*
+   * >>> NICHT AN JEDER STATION STEHT EIN BLECH. <<<
+   *
+   * Ab A240 ist der Traeger gegliedert, und an den Grenzen der
+   * QV-Bereiche sitzt statt eines Flachstahls eine QUERSTEIFE aus
+   * Walzprofil - bei A240 ein IPE 240 x 600, in der Stueckliste als eigene
+   * Position mit nB+1 Stueck (nB = Zahl der QV-Bereiche), dazu ein
+   * einzelnes IPE 240 x 280.
+   *
+   * Nachgerechnet am 3. September ueber alle 158 Laengen: mit
+   *
+   *      Steifen = 0            bei A160 und A200 (ungegliedert)
+   *      Steifen = nB + 2       bei A240
+   *      Steifen = nB + 1       bei A270 bis A360
+   *
+   * decken sich Schema und Stueckliste bei JEDER Laenge mit A1 = 500. Was
+   * dann noch bleibt, ist der eine systematische Fehlbetrag bei A1 = 250.
+   *
+   * >>> DER NACHWEIS RECHNET SIE TROTZDEM ALS BLECH. <<<
+   *
+   * Eine Quersteife aus Walzprofil ist um ein Vielfaches steifer als der
+   * Flachstahl. Sie als Blech nachzuweisen liegt auf der SICHEREN Seite -
+   * der Nachweis faellt am schwaecheren Bauteil. Sie richtig anzusetzen
+   * waere eine Entscheidung ueber den Spannungsverlauf und gehoert
+   * vorgaengig gefragt; bis dahin steht sie hier als Zahl, nicht als
+   * Rechenregel.
+   */
+  const nB = QV.length;
+  const name = typeof typ === 'string' ? typ : typ?.typ;
+  const steifen = nB <= 1 ? 0 : (name === 'A240' ? nB + 2 : nB + 1);
+  const ausListe = z.blechStationen
+    ? z.blechStationen + (bl?.endeL ? 1 : 0) + nEndeR + steifen : null;
   return {
-    stationen,
-    anzahl: n,
-    /** Regelbindebleche insgesamt - je Station eines oben und eines unten. */
-    bleche: z.bleche ?? n * 2,
+    stationen: stationen.map(m),
+    anzahl: stationen.length,
+    /** Alle Bleche - je Station eines oben und eines unten. */
+    bleche: stationen.length * 2,
+    /** Regelbleche laut Stueckliste der Konstruktionszeichnung. */
+    blecheListe: z.bleche ?? null,
+    /** Stationen laut Stueckliste, Endbleche mitgezaehlt. */
+    stationenListe: ausListe,
+    /** Ob Schema und Stueckliste dieselbe Zahl nennen. */
+    blechzahlStimmt: ausListe === null ? null : ausListe === stationen.length,
+    /** Stationen mit Quersteife statt Bindeblech - ab A240, noch nicht verortet. */
+    quersteifen: steifen,
+    /** Ob die Stueckzahl selbst fraglich ist (A360/21.00: 85, ungerade). */
+    blechFraglich: Boolean(z.blechFraglich),
     bereiche: QV.map((q, i) => ({ nr: i + 1, laenge: q / 1000 })),
-    rand,
+    /** Das erste Blech vom linken Jochende [m] - dort sitzt die Gabel. */
+    rand: m(rm.linksErstesBlech),
+    /** Das letzte Blech vom rechten Jochende [m]. */
+    randRechts: m(rm.rechtsBisEnde),
     /*
-     * Ob die Lage aus der Feldfolge des Schemas stammt oder symmetrisch
-     * geschaetzt ist. Nur die belegte taugt zum Kalibrieren.
+     * Die Lage stammt jetzt durchweg aus dem Schemablatt, nicht mehr aus
+     * einer symmetrischen Schaetzung. Das Feld bleibt, damit Aufrufer, die
+     * darauf sehen, nichts merken - es ist nur immer wahr.
      */
-    randGenau,
-    teilung: A,
-    erstesFeld: A1,
+    randGenau: true,
+    teilung: m(A),
+    erstesFeld: m(A1),
   };
 }
 
@@ -348,15 +401,22 @@ export function abfangRechenbar(typ, jt) {
     if (!abfangAufbau(a) || !abfangBindeblech(a)) return false;
     if (jt === undefined) return Boolean(a.laengen?.length);
     const z = abfangMasse(a, jt);
+    if (!z) return false;
     /*
-     * DIE LAENGE MUSS GEFUEHRT SEIN - UND IHRE BLECHZAHL BRAUCHBAR.
+     * DIE LAENGE MUSS GEFUEHRT SEIN - UND IHRE BLECHLAGE MUSS AUFGEHEN.
      *
-     * Hier stand nur die erste Haelfte. A360 / 21.00 m fuehrt 85 Bleche,
-     * ungerade und damit unmoeglich; `abfangBlechstationen` liefert dafuer
-     * null, aber `abfangRechenbar` sagte weiterhin ja. Wer sich darauf
-     * verliess, bekam eine Zusage und danach nichts.
+     * Hier stand `!z.blechFraglich && z.blechStationen > 0`: die Zusage hing
+     * an der STUECKZAHL. Das galt, solange die Stationen aus ihr abgeleitet
+     * wurden. Seit die Lage aus dem Schema kommt - Randmasse plus Feldfolge
+     * aus QV und A1 - traegt die Stueckzahl den Nachweis nicht mehr, und
+     * A360 / 21.00 m mit seinen 85 Blechen ist wieder rechenbar: die
+     * fragliche Zahl zaehlt Bleche, sie verteilt sie nicht.
+     *
+     * Gefragt wird jetzt, was der Nachweis wirklich braucht: kommt eine
+     * Blechlage zustande? `abfangBlechstationen` prueft dabei selbst, ob die
+     * Feldfolge in QV aufgeht und ob sie rechts auf jt - Re endet.
      */
-    return Boolean(z && !z.blechFraglich && z.blechStationen > 0);
+    return Boolean(abfangBlechstationen(a, jt));
   } catch {
     return false;
   }
@@ -398,13 +458,21 @@ export const ABFANG_GURT_DAEMPFUNG = 1.0;
  * massgebende Stelle war nicht die Feldmitte, sondern das AUFLAGER.
  *
  * Der Grund ist Geometrie, kein Kennwert: zwischen Auflager und erstem Blech
- * liegen bei A160 / 9.50 m ganze 2.00 m, waehrend die Regelteilung 0.50 m
- * misst. Das erste Rahmenfeld ist VIERMAL so lang wie die uebrigen - und
- * dort steht zugleich die groesste Querkraft. Mit der Regelteilung zu
- * rechnen unterschaetzt das Moment um genau diesen Faktor.
+ * liegt bei A160 / 9.50 m mehr als das Doppelte der Regelteilung, und dort
+ * steht zugleich die groesste Querkraft. Mit der Regelteilung zu rechnen
+ * unterschaetzt das Moment um genau diesen Faktor.
  *
  * Gemessen: eta 0.61 im Kern gegen 1.54 in AxisVM. Der Kern lag auf der
  * UNSICHEREN Seite, und zwar um das Zweieinhalbfache.
+ *
+ * >>> DIE ZAHL WURDE AM 3. SEPTEMBER KLEINER - UND RICHTIGER. <<<
+ *
+ * Damals stand das erste Blech rechnerisch bei 2.00 m, weil die Reihe
+ * symmetrisch in die Jochlaenge gelegt wurde. Das Schemablatt zeigt es
+ * anders: links sitzt schon bei 1.45 m ein Blech, und das Auflager liegt
+ * um den Ueberstand naeher. Bei A160 / 9.50 m (js bis 9.00) bleiben damit
+ * 1.20 m statt 2.00 - das massgebende Feld ist immer noch das Randfeld,
+ * aber es ist knapp zweieinhalb Regelteilungen lang, nicht vier.
  *
  * Genommen wird deshalb das GROESSTE Feld - der Randabstand, wenn er groesser
  * ist als die Teilung. Das ist die Stelle, an der der Nachweis faellt.
@@ -413,7 +481,20 @@ export function abfangRahmenfeld(typ, jt) {
   const ein = abfangBlechstationen(typ, jt);
   if (!ein) return null;
   const sw = abfangStuetzweite(typ, jt);
-  const L = sw ? sw.bis : jt;
+  /*
+   * >>> DIE STATIONEN ZAEHLEN AB JOCHENDE, DIE AUFLAGER LIEGEN INNEN. <<<
+   *
+   * Der Traeger kragt ueber beide Auflager aus: js ist die Stuetzweite, jt
+   * die Jochlaenge, und je Seite bleibt ue = (jt - js)/2. Hier stand vorher
+   * `L = sw.bis` als Traegerlaenge - das mischte zwei Bezugspunkte: das
+   * erste Feld wurde vom JOCHENDE gemessen, das letzte bis zur STUETZWEITE.
+   *
+   * Genommen wird die groesste gefuehrte Stuetzweite: sie gibt den
+   * kleinsten Ueberstand und damit das laengste Randfeld - die sichere
+   * Seite.
+   */
+  const js = sw ? sw.bis : jt;
+  const ue = Math.max(0, (jt - js) / 2);
   const st = ein.stationen;
   /*
    * Die Felder: vom Auflager zum ersten Blech, zwischen den Blechen, vom
@@ -422,9 +503,9 @@ export function abfangRahmenfeld(typ, jt) {
    */
   const felder = [];
   if (st.length) {
-    felder.push(Math.max(0, st[0]));
+    felder.push(Math.max(0, st[0] - ue));
     for (let i = 1; i < st.length; i++) felder.push(st[i] - st[i - 1]);
-    felder.push(Math.max(0, L - st[st.length - 1]));
+    felder.push(Math.max(0, (jt - ue) - st[st.length - 1]));
   }
   const groesst = felder.length ? Math.max(...felder) : ein.teilung;
   return {
@@ -432,6 +513,8 @@ export function abfangRahmenfeld(typ, jt) {
     /** Das massgebende Feld [m] - das laengste. */
     a: groesst,
     randfeld: felder.length ? felder[0] : null,
+    /** Der Ueberstand ueber das Auflager je Seite [m]. */
+    ueberstand: ue,
     teilung: ein.teilung,
     /** Um wieviel das Randfeld die Regelteilung uebersteigt. */
     faktor: ein.teilung > 0 ? groesst / ein.teilung : 1,

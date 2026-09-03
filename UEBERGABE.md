@@ -4657,6 +4657,116 @@ Instanzkonflikt — nie zwei Prozesse auf dieselbe Datei.
 * Vergleichsrechnung PyNite / AxisVM, danach erst die Kopplung zweier
   Abfangjoche über gemeinsame Hängestützen
 
+## Die Blecheinteilung — die Enden sind nicht gleich lang (3. September)
+
+> „Die Masse in den Endbereichen stimmen nicht mit der Zeichnung überein.
+> beachte zudem das die enden hier nicht gleich lang sind (gabellänge). auf
+> der linken seite kommt das erste blech schon bei 1450mm und dann das nächse
+> nach 550 und auf der rechten sind es 900 und dann zweimal 550 mm der rest
+> wird gemäss der tabelle verteilt. checke das bei allen anderen
+> abfangjochtypen, ob die logik verstanden wurde."
+
+### Der Aufbau, den das Schemablatt zeigt
+
+Jeder Träger zerfällt in **drei Stücke**, und die beiden äusseren messen
+immer 2000 mm — aber sie sind **verschieden eingeteilt**:
+
+```
+|<---- 2000(-je) ---->|<------- QV = jt - 4000 ------->|<---- 2000(-je) ---->|
+|   R1     |   R2     | An .. A2 A1 A1 A2 .. An        | Ra  | Rb  |   Re    |
+```
+
+Links sitzt die **Gabel**, rechts nicht — daher der Unterschied. Die Werte je
+Typ, aus jeder abgebildeten Länge aller sieben Schemablätter nachgemessen:
+
+| Typ | R1 | R2 | Ra | Rb | Re |
+|---|---|---|---|---|---|
+| A160 | 1450 | 550 | 550 | 550 | 900 |
+| A200 | 1375 | 625 | 545 | 545 | 910 |
+| A240 | 1380 | 620 | 545 | 545 | 910 |
+| A270 | 1390 | 610 | 540 | 540 | 920 |
+| A300 | 1390 | 610 | 540 | 540 | 920 |
+| A330 | 1380 | 620 | 540 | **535** | 925 |
+| A360 | 1380 | 620 | 540 | **535** | 925 |
+
+`R1 + R2 = 2000` und `Ra + Rb + Re = 2000` — beides geht bei jedem Typ auf.
+Genau diese Probe hat **zwei Zeichenfehler auf den Blättern** gefunden:
+A200 / 11.00 m nennt links 1380 (1380 + 625 = 2005), A240 / 19.50 m nennt
+1390 (1390 + 620 = 2010). Die je zwei anderen Darstellungen desselben Blattes
+nennen den Wert, der aufgeht — der steht in der Datenbank, mit Vermerk.
+
+Bei A330 und A360 sind die beiden Felder rechts **ungleich** (540 und 535).
+Das ist kein Lesefehler, es steht so auf beiden Blättern.
+
+### Die Feldzahl braucht keine Stückzahl
+
+Die Folge im QV-Bereich ist `An .. A2 A1 A1 A2 .. An` — aussen die
+Regelteilung `A`, in der Mitte das Paar `A1`. Damit ist
+
+```
+QV = 2·A1 + (f − 2)·A        →        f = (QV − 2·A1) / A + 2
+```
+
+Nachgerechnet an jeder Darstellung aller sieben Blätter: A160 / 12.50 m gibt
+18 Felder (A9…A9), A200 / 16.50 m gibt 26 (A13), A240 / 19.50 m gibt 32
+(A16) — und die Blätter beschriften genau diese Zahlen.
+
+**Das hat eine alte Sperre gelöst.** Vorher wurde die Feldfolge gegen die
+Stückzahl geprüft, und die Lage galt nur bei **20 von 157** Längen als belegt;
+A360 / 21.00 m mit seinen 85 Blechen war gar nicht rechenbar. Jetzt stehen
+**alle 158**. Die Stückzahl zählt Bleche — sie verteilt sie nicht.
+
+### Was das für den Nachweis ändert
+
+Das massgebende Rahmenfeld war **zu gross**. Bei A160 / 9.50 m:
+
+| | vorher | jetzt |
+|---|---|---|
+| erstes Blech | 2.000 m (symmetrisch geschätzt) | **1.450 m** (Schema) |
+| letztes Blech | 7.500 m | **8.600 m** (900 vom rechten Ende) |
+| Stationen | 13 | **16** |
+| Randfeld ab Auflager | 2.00 m | **1.20 m** |
+| Faktor zur Regelteilung | 4.0 | **2.4** |
+
+Das Randfeld bleibt das massgebende — es ist nur nicht mehr so lang, wie die
+Schätzung glauben machte. Zugleich zählen die Stationen jetzt **ab Jochende**,
+und `abfangRahmenfeld` zieht den Überstand `(jt − js)/2` ab, statt wie zuvor
+zwei Bezugspunkte zu mischen.
+
+### Die Stückliste und das Schema gehen nicht ganz zusammen
+
+Die Konstruktionszeichnungen führen neben den Regelblechen Sonderpositionen:
+ein Blech links (`endeL`), je nach Typ eines oder zwei rechts (`endeR`) — und
+**ab A240 Quersteifen aus Walzprofil** (bei A240 ein IPE 240 × 600 mit
+`nB + 1` Stück, dazu ein IPE 240 × 280). Mit
+
+```
+Stationen laut Liste = Regelbleche/2 + 1 + Anzahl(endeR) + Steifen
+Steifen = 0 (A160, A200) | nB + 2 (A240) | nB + 1 (A270 … A360)
+```
+
+decken sich Schema und Stückliste bei **jeder Länge mit A1 = 500**. Bei
+**A1 = 250** fehlt der Stückliste durchweg **genau ein Blechpaar** — bei A160
+wie bei A200, also nicht bei einem Typ verzählt, sondern systematisch. Es
+sieht aus, als hätte die Stückliste die Feldzahl als `QV/A` gerechnet, wo sie
+`QV/A + 1` ist.
+
+**Massgebend für die Lage ist das Schema** — es bemasst jede Station einzeln,
+und seine Summen gehen auf. Der Kern gibt beide Zahlen aus
+(`anzahl`, `stationenListe`) und sagt mit `blechzahlStimmt`, wo sie sich
+decken. Aufgelöst gehört das vom Auftraggeber.
+
+### Zwei offene Punkte, die der Nachweis berührt
+
+* **Die Quersteifen ab A240 werden als Bindeblech gerechnet.** Ein IPE-Riegel
+  ist um ein Vielfaches steifer als der Flachstahl; ihn als Blech
+  nachzuweisen liegt auf der **sicheren** Seite, weil der Nachweis am
+  schwächeren Bauteil fällt. Ihn richtig anzusetzen wäre eine Entscheidung
+  über den Spannungsverlauf — `quersteifen` sagt, wie viele es sind.
+* **Im AxisVM-Modell sitzen die Endbleche an den Trägerenden**, nicht an den
+  Stationen R1 und `jt − Re`, wo die Zeichnung sie zeigt. Das war schon vorher
+  so und beeinflusst die Steifigkeit am Auflager.
+
 ## Das Modell landete nicht neben dem Skript (3. September)
 
 Gemeldet: „Ich finde das vorherige axismodell nicht unter dem com ordner, ich
