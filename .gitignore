@@ -68,3 +68,7 @@ com/AxisVM_aufbau_bericht.txt
 com/AxisVM_*_bericht.txt
 com/AxisVM_aufbau_protokoll.txt
 com/*.json
+
+# Messwerte der Abfangjoch-Kalibrierung - Zwischenstand, kein Ergebnis
+kalibrierung_abfang.json
+.kalib_abfang/

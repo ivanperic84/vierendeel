@@ -4311,6 +4311,54 @@ zu Recht, denn die Gruppe hätte auch am **Tragjoch** unter den nicht geführten
 Nachweisen gestanden, und das hat gar keinen Abfanggurt. Der Hinweis gehört
 dorthin, wo die Tragwerksart bekannt ist.
 
+### Die Kalibrierung ist begonnen — und trägt noch nicht (3. September)
+
+`kalibrieren_abfang.mjs` baut den liegenden Vierendeelträger in PyNite und
+stellt ihn gegen den Kern. Das Werkzeug läuft; **der gemessene Kennwert ist
+noch nicht brauchbar**, und `ABFANG_GURT_DAEMPFUNG` bleibt deshalb bei **1.0**
+(voller Anteil, sichere Seite).
+
+**Warum nicht: die Gegenprobe schlägt an.** Ein einfacher Balken mit Einzellast
+biegt sich um `F·L³/(48·E·I)`. Ein Vierendeel ist weicher — Faktor 1.1 bis
+vielleicht 2 wäre normal. Gemessen:
+
+| Lauf | Durchbiegung FEM/Balken | Gurtkraft FEM/Kern |
+|---|---|---|
+| A160 / 5.50 m | **7.22** | 0.71 |
+| A160 / 9.00 m | 2.51 | 0.85 |
+| A160 / 12.50 m | 1.40 | 1.01 |
+
+**Je kürzer, desto schlechter** — und das zeigt die Ursache: der blechfreie
+Randbereich ist bei kurzen Trägern anteilig grösser.
+
+**Ein Modellfehler war schon gefunden und behoben.** Im ersten Lauf standen die
+Gurte in den Randbereichen *unverbunden* nebeneinander (Durchbiegung bis
+19-fach). In Wirklichkeit laufen sie an den Enden zusammen — Spreizung 280
+statt d im Feld — und sind durch Endblech und Gabel gekoppelt. Mit dem
+Endblech als Riegel sank der Faktor von 19.4 auf 7.2.
+
+**Was noch fehlt, ist die Lage der Blechreihe.** Sie ist als Näherung
+angeschrieben (`randGenau: false`), und die Näherung ist zu grob:
+
+```
+meine Näherung   erstes Blech bei 1.875 m — bei jeder Länge derselbe Rand
+die Zeichnung    1450 (Auflager) + 550 = 2.000 m, dann n × 500 über QV1
+```
+
+Für die Kalibrierung reicht das nicht. **Zu erfassen sind die Randmasse je
+Typ** (A160: 1450/550/900, A200: 1300/640) — dann steht die Reihe dort, wo sie
+wirklich sitzt, und die Messung wird belastbar.
+
+**Ein Warnsignal bleibt festzuhalten:** alle Läufe zeigen ein *grösseres*
+Gurtmoment als der Kern (Faktor 3.0 bis 4.6). Sollte sich das nach der
+Korrektur bestätigen, unterschätzt der Kern die örtliche Biegung — also die
+unsichere Seite, und `ABFANG_GURT_DAEMPFUNG` müsste **über** 1.0 liegen statt
+darunter. Das ist der Grund, warum der Wert bis zur belastbaren Messung nicht
+angetastet wird.
+
+**Die Knicklänge bleibt AxisVM vorbehalten** (Weisung): PyNite rechnet hier
+linear und kann eine Stabilitätsfrage über den ganzen Träger nicht beantworten.
+
 ### Was noch aussteht
 
 * der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,
