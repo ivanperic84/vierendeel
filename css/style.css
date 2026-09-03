@@ -2004,3 +2004,30 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 }
 .kontext-feld input { font-family: var(--f-mono); text-align: right; }
 .kontext-feld i { font-style: normal; color: var(--dim); }
+
+/*
+ * DIE DREI HANDLUNGEN AM TRAGWERK - rechts, als Zeichen (3. September).
+ *
+ * `margin-left:auto` schiebt sie ans Ende der Zeile, ohne dass die Zeile
+ * eine feste Aufteilung braucht: links waechst «+ Tragwerk» mit seiner
+ * ausgeklappten Liste, rechts stehen immer dieselben drei.
+ */
+.qp-tun-rechts {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+/* Der eingeschaltete Zustand der Masten - dasselbe Signal wie zuvor am
+   beschrifteten Knopf, nur jetzt am Zeichen. */
+.qp-tun-rechts .btn-icon.an {
+  color: var(--akz);
+  border-color: color-mix(in srgb, var(--akz) 55%, transparent);
+  background: color-mix(in srgb, var(--akz) 12%, transparent);
+}
+/* Entfernen bleibt rot - es ist die einzige der drei, die Eingaben wegwirft. */
+.btn-icon.btn-icon-weg:hover {
+  color: var(--fail);
+  border-color: color-mix(in srgb, var(--fail) 55%, transparent);
+}

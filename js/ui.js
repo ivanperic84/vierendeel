@@ -1094,37 +1094,48 @@ return querprofilLeisteHtml(werte)
         `<button type="button" class="btn btn-mini" data-tw-neu="${esc(x.key)}"
            title="${esc(x.kurz)}">${esc(x.label)}</button>`).join('')
     + '</span></span>'
+    /*
+     * >>> DREI HANDLUNGEN AM TRAGWERK, RECHTS UND NUR ALS ZEICHEN. <<<
+     *
+     * Weisung vom 3. September: «diese buttons koennte man auch als einfache
+     * symbole rechts anordnen.» Beschriftet nahmen sie die ganze Breite der
+     * Zeile ein und draengten «+ Tragwerk» an den Rand - dabei ist das der
+     * eine Knopf, den man sucht, und die drei anderen gelten dem, was schon
+     * da ist. Rechts, klein, mit Titel beim Ueberfahren.
+     *
+     * AUSBLENDEN IST NICHT ENTFERNEN. Entfernen wirft die Eingaben weg;
+     * Ausblenden legt den Abschnitt beiseite - er bleibt im Datensatz,
+     * verschwindet aber aus Bild, Bauteilliste, Ausleitung und Nachweis.
+     * Deshalb bleibt das Entfernen rot und steht ganz aussen.
+     *
+     * Nur wenn noch ein sichtbares uebrig bleibt: ein Blatt ohne
+     * gerechnetes Tragwerk waere eine Auswertung ohne Gegenstand.
+     */
+    + '<span class="qp-tun-rechts">'
     + (art.traeger
-      ? `<button type="button" class="btn btn-mini${
+      ? `<button type="button" class="btn-icon${
            aktiv.mastVorhanden === false ? '' : ' an'}"
            data-tw-mast="${esc(aktiv.id)}"
            title="${esc(aktiv.mastVorhanden === false
              ? 'Masten einschalten — sie werden gezeichnet, ausgeleitet und '
                + 'nachgewiesen'
              : 'Masten ausschalten — das Tragwerk steht dann ohne')}"
+           aria-label="Masten"
            aria-pressed="${aktiv.mastVorhanden !== false}">${
-           icon('mast', 13)} Masten</button>` : '')
-    /*
-     * AUSBLENDEN, NICHT ENTFERNEN - zwei verschiedene Absichten.
-     *
-     * Entfernen wirft die Eingaben weg. Ausblenden legt den Abschnitt
-     * beiseite: er bleibt im Datensatz, verschwindet aber aus Bild,
-     * Bauteilliste, Ausleitung und Nachweis. Auf einem langen Querprofil
-     * arbeitet man so an einem Abschnitt, ohne die anderen zu verlieren.
-     *
-     * Nur wenn noch ein sichtbares uebrig bleibt: ein Blatt ohne
-     * gerechnetes Tragwerk waere eine Auswertung ohne Gegenstand.
-     */
+           icon('mast', 14)}</button>` : '')
     + (alle.filter((t) => !versteckt(t)).length > 1
-      ? `<button type="button" class="btn btn-mini"
+      ? `<button type="button" class="btn-icon"
            data-tw-aus="${esc(aktiv.id)}"
+           aria-label="Ausblenden"
            title="Beiseitelegen — bleibt gespeichert, zählt aber nicht mehr"
-           >${icon('auge', 13)} ausblenden</button>` : '')
+           >${icon('auge', 14)}</button>` : '')
     + (alle.length > 1
-      ? `<button type="button" class="btn btn-mini btn-fail"
+      ? `<button type="button" class="btn-icon btn-icon-weg"
            data-tw-weg="${esc(aktiv.id)}"
+           aria-label="Entfernen"
            title="${esc(`${tragwerkName(aktiv)} vom Blatt nehmen`)}"
-           >\u00d7 entfernen</button>` : '')
+           >${icon('loeschen', 14)}</button>` : '')
+    + '</span>'
     + '</div>'
     + mastenNotizHtml(werte);
 }

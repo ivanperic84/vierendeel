@@ -32,6 +32,7 @@ import { verortung, fangeAufMasskette,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
          mastenVon, mastName, tragwerkName, aufRaster, TRAGWERKSARTEN,
+         mastZeichenplan,
          gewaehlterMast }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
@@ -518,32 +519,25 @@ function uebernehmeAnsichtsoptionen() {
  * Faellt der Aufbau, faellt nur DIESES Tragwerk weg: ein unvollstaendiger
  * Nachbar darf nicht das Bild des aktiven verhindern.
  */
-function szeneVonNebenan(t) {
+function szeneVonNebenan(t, zeichnen) {
   try {
     const satz = tragwerkSatz(werte, t.id);
+    // Der Zeichenplan gehoert an die SZENE, nicht an die Rechnung: was ein
+    // Tragwerk traegt, bleibt unveraendert - nur wer den geteilten Masten
+    // ins Bild setzt, ist geregelt.
+    const mit = (mo) => ({ ...mo, mastZeichnen: zeichnen });
     if (tragwerksart(satz).key === 'einzelmast') {
-      return erzeugeSzene(modellEinzelmast(satz, getStahl(satz.stahl)), null);
+      return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
     }
     const j = getTragjoch(satz.typ);
-    return erzeugeSzene(modell(satz, getProfil(satz.profOG),
-                               getProfil(satz.profUG),
-                               getStahl(satz.stahl), j), null);
+    return erzeugeSzene(mit(modell(satz, getProfil(satz.profOG),
+                                   getProfil(satz.profUG),
+                                   getStahl(satz.stahl), j)), null);
   } catch (e) {
     return null;
   }
 }
 
-/**
- * Die Szene des ganzen Querprofils.
- *
- * Das aktive Tragwerk kommt mit seinem Ergebnis - eingefaerbt, vermasst, mit
- * Lasten. Die uebrigen kommen als Umriss dazu, an ihrer Lage x0. Sie tragen
- * `passiv` und ihre Tragwerks-Id: daran haengt die gedaempfte Darstellung
- * und der Klick, der sie aktiv macht.
- *
- * DIE LAGE IST DER VERSATZ. Jede Einzelszene laeuft von 0 bis L; x0 schiebt
- * sie an ihren Platz auf dem Blatt.
- */
 function blattSzene(erg) {
   const aktivId = werte.twId ?? 'T1';
   /*
@@ -554,14 +548,16 @@ function blattSzene(erg) {
    */
   const alle = tragwerkeSortiert(werte)
     .filter((t) => !versteckt(t) || t.id === aktivId);
-  const eigen = erzeugeSzene(erg.modell, erg);
+  const plan = mastZeichenplan(werte, aktivId);
+  const eigen = erzeugeSzene(
+    { ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
   const teile = alle.map((t) => {
     const dx = lageVon(t);
     if (t.id === aktivId) {
       return szeneVerschieben({ ...eigen, aktiv: true }, dx,
                               { twId: t.id, aktiv: true });
     }
-    const sz = szeneVonNebenan(t);
+    const sz = szeneVonNebenan(t, plan[t.id]);
     return sz ? szeneVerschieben(sz, dx, { twId: t.id, passiv: true }) : null;
   });
   /*

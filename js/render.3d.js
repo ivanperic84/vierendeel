@@ -611,6 +611,25 @@ export function erzeugeSzene(m, erg) {
   [['A', xA, federn.cA, m.kappaA, federn.mastA ?? federn.mast],
    ['B', xB, federn.cB, m.kappaB, federn.mastB ?? federn.mast]].forEach(
     ([name, x, cPhi, kappa, mast]) => {
+      /*
+       * >>> EIN GETEILTER MAST WIRD NUR EINMAL GEZEICHNET. <<<
+       *
+       * Auf einer Jochreihe baut JEDES Tragwerk beide Enden - P1 den Masten
+       * bei x = 20 als sein Ende B, P2 denselben als sein Ende A. Im Bild
+       * standen dort zwei Koerper ineinander, mit doppelten Windpfeilen und
+       * flackernden Flaechen, wo sie sich schneiden.
+       *
+       * Gemeldet am 3. September: «die darstellung des masten hier bei der
+       * zwischenabstuetzung scheint nicht sauber modelliert zu sein, ich
+       * denke das ist noch ein ueberbleibsel der geteilten masten
+       * auslegung.» Genau das war es.
+       *
+       * WER ihn zeichnet, entscheidet `blattSzene`: das gerechnete
+       * Tragwerk, wenn es ihn traegt - dann bekommt er die Ausnutzung -,
+       * sonst das erste. Ohne Angabe zeichnen beide Enden wie bisher, damit
+       * ein einzelnes Tragwerk unveraendert bleibt.
+       */
+      if (m.mastZeichnen && m.mastZeichnen[name] === false) return;
       const z0 = zu(x);
       /*
        * DER MAST ALS KOERPER, UEBER SEINE GANZE HOEHE (Weisung).

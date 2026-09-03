@@ -1553,3 +1553,57 @@ export function fangeAufMasskette(x, kette, grenze = 0.20) {
   });
   return beste === null ? x : beste;
 }
+
+/**
+ * WER ZEICHNET WELCHEN MASTEN.
+ *
+ * >>> EIN MAST, EIN KOERPER. <<<
+ *
+ * Auf einer Jochreihe traegt der Zwischenmast zwei Tragwerke - und bis zum
+ * 3. September baute JEDES von beiden ihn in seine Szene. Zwei Koerper an
+ * derselben Stelle geben flackernde Flaechen, doppelte Windpfeile und ein
+ * Bild, dem man nicht ansieht, was davon eines ist.
+ *
+ * Gemeldet als: «die darstellung des masten hier bei der zwischenabstuetzung
+ * scheint nicht sauber modelliert zu sein, ich denke das ist noch ein
+ * ueberbleibsel der geteilten masten auslegung.»
+ *
+ * >>> DAS GERECHNETE TRAGWERK HAT VORRANG. <<<
+ *
+ * Nur seine Szene faerbt nach Ausnutzung ein; der Nachbar zeichnete den
+ * Masten grau. Waehlte man den falschen der beiden, verloere der Mast seine
+ * Farbe - er stuende da, als sei er nicht nachgewiesen. Traegt das
+ * gerechnete Tragwerk ihn nicht, nimmt ihn das erste in der Reihe.
+ *
+ * DIE RECHNUNG BLEIBT UNBERUEHRT. Der Plan sagt, wer ihn ZEICHNET - nicht,
+ * wer ihn traegt. Beide Tragwerke rechnen weiter mit ihrer Auflagerung.
+ *
+ * @param {object} w        Blatt
+ * @param {string} aktivId  Id des gerechneten Tragwerks
+ * @returns {Object} twId -> {A: boolean, B: boolean}
+ */
+export function mastZeichenplan(w, aktivId) {
+  const plan = {};
+  const twe = tragwerkeSortiert(w);
+  twe.forEach((t) => { plan[t.id] = { A: true, B: true }; });
+  mastenVon(w).forEach((mst) => {
+    const traegt = mst.traegt ?? [];
+    if (traegt.length < 2) return;
+    const wer = traegt.includes(aktivId) ? aktivId : traegt[0];
+    traegt.forEach((id) => {
+      if (id === wer || !plan[id]) return;
+      const t = twe.find((x) => x.id === id);
+      if (!t) return;
+      /*
+       * WELCHES ENDE ist es bei DIESEM Tragwerk? Der Mast steht auf einer
+       * Blattkoordinate, das Tragwerk laeuft von x0 bis x0 + L. Naeher am
+       * Anfang heisst Ende A, naeher am Ende heisst Ende B.
+       */
+      const x0 = lageVon(t);
+      const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
+      plan[id][Math.abs(mst.x - x0) <= Math.abs(mst.x - (x0 + L))
+        ? 'A' : 'B'] = false;
+    });
+  });
+  return plan;
+}

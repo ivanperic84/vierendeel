@@ -12705,6 +12705,71 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> EIN MAST, EIN KOERPER. <<<
+   *
+   * Auf einer Jochreihe traegt der Zwischenmast zwei Tragwerke - und bis
+   * zum 3. September baute JEDES von beiden ihn in seine Szene. Zwei
+   * Koerper an derselben Stelle geben flackernde Flaechen, doppelte
+   * Windpfeile und ein Bild, dem man nicht ansieht, was davon eines ist.
+   *
+   * Gemeldet als: «die darstellung des masten hier bei der
+   * zwischenabstuetzung scheint nicht sauber modelliert zu sein, ich denke
+   * das ist noch ein ueberbleibsel der geteilten masten auslegung.»
+   */
+  {
+    const w = reihe();                       // P1: 0-20, P2: 20-35
+    const masten = C75.mastenVon(w);
+    const geteilt = masten.filter((m) => (m.traegt ?? []).length > 1);
+    wahr('Die Reihe hat einen geteilten Masten', geteilt.length === 1);
+
+    /*
+     * DAS GERECHNETE TRAGWERK HAT VORRANG.
+     *
+     * Nur seine Szene faerbt nach Ausnutzung ein. Waehlte man den anderen,
+     * verloere der Mast seine Farbe - er stuende da, als sei er nicht
+     * nachgewiesen.
+     */
+    const p1 = C75.mastZeichenplan(w, 'T1');
+    wahr('T1 zeichnet beide seiner Enden', p1.T1.A && p1.T1.B);
+    wahr('T2 laesst das geteilte Ende weg', p1.T2.A === false);
+    wahr('… und zeichnet sein freies', p1.T2.B === true);
+
+    // Und umgekehrt, wenn T2 gerechnet wird.
+    const p2 = C75.mastZeichenplan(w, 'T2');
+    wahr('T2 zeichnet dann beide', p2.T2.A && p2.T2.B);
+    wahr('T1 laesst das geteilte Ende weg', p1.T1.B !== p2.T1.B);
+    wahr('… naemlich sein Ende B', p2.T1.B === false);
+    wahr('Sein freies Ende bleibt', p2.T1.A === true);
+
+    /*
+     * JEDER MAST WIRD GENAU EINMAL GEZEICHNET - das ist die eigentliche
+     * Aussage, und sie laesst sich zaehlen.
+     */
+    for (const aktiv of ['T1', 'T2']) {
+      const p = C75.mastZeichenplan(w, aktiv);
+      let n = 0;
+      for (const t of C75.tragwerkeSortiert(w)) {
+        if (p[t.id].A) n += 1;
+        if (p[t.id].B) n += 1;
+      }
+      pruef(`Bei ${aktiv} so viele Koerper wie Masten`, n, masten.length,
+            1e-9, 'Stk');
+    }
+
+    /*
+     * OHNE GETEILTEN MASTEN AENDERT SICH NICHTS.
+     *
+     * Ein einzelnes Tragwerk zeichnet beide Enden wie zuvor - sonst haette
+     * die Kur den Regelfall beschaedigt.
+     */
+    const allein = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 240',
+                     mastH: 8, mastLaenge: 12 };
+    const pa = C75.mastZeichenplan(allein, 'T1');
+    wahr('Ein einzelnes Tragwerk zeichnet beide Enden',
+         pa.T1.A === true && pa.T1.B === true);
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die
