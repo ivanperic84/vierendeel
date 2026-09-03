@@ -253,11 +253,12 @@ export const FELDER = [
    *
    * >>> GERECHNET WIRD ER NOCH NICHT. <<<
    *
-   * Der Abfangjoch-Rechenkern fehlt: das Joch ist ein ZWEIGURTIGER Traeger
-   * mit Sprossen im 500er-Raster, und der Kern dieser Anwendung rechnet
-   * vier Winkelgurte mit Bindeblechen. Was hier gewaehlt wird, benennt das
-   * Bauteil und geht in die Ausleitung, nicht in den Nachweis - und genau
-   * das sagt der Hinweis «abfangjochOhneKern» in der Auswertung.
+   * Der Abfangjoch-Rechenkern fehlt noch, aber nicht, weil der Rechenweg
+   * ein anderer waere: das Abfangjoch ist ein LIEGENDER Vierendeeltraeger -
+   * zwei Gurte statt vier, eine Blechebene statt zweier, Rahmenebene
+   * waagrecht statt senkrecht (Weisung, 3. September). Was hier gewaehlt
+   * wird, benennt bis dahin das Bauteil und geht in die Ausleitung, nicht
+   * in den Nachweis - und genau das sagt der Hinweis in der Auswertung.
    */
   { key: 'abfangTyp', gruppe: 'typ', typ: 'auswahl',
     label: (w) => `Abfangjoch-Typ ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),

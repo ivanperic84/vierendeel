@@ -7,13 +7,26 @@
  * Fahrleitung. Es wird über einem Tragjoch montiert, auf denselben Masten,
  * und mehrere übereinander sind der Regelfall.
  *
- * >>> ES IST EIN ZWEIGURTIGER TRÄGER. <<<
+ * >>> ES IST EIN LIEGENDER VIERENDEELTRÄGER. <<<
  *
- * Zwei Profile nebeneinander, Sprossen im 500er-Raster dazwischen — nach den
- * Sortimentsblättern des Betreibers. Der Vierendeel-Kern dieser Anwendung
- * rechnet vier Winkelgurte mit Bindeblechen und passt darauf nicht; der
- * eigene Rechenweg steht noch aus. Was hier steht, ist das Sortiment: Typen,
- * Längen, Gewichte, Schnee- und Windlasten je Laufmeter.
+ * Weisung vom 3. September: «Die Abfangjoche sind liegende Vierendeelträger.»
+ * Der Schnitt A-A der Sortimentsblätter zeigt es: ZWEI Profile Rücken an
+ * Rücken (UPE, ab A270 IPE), lichter Abstand d, verbunden durch Sprossen im
+ * 500er-Raster. Gurte und Pfosten ohne Diagonalen — ein Vierendeel-Rahmen,
+ * nur eben in EINER Ebene statt in zweien, und diese Ebene LIEGT.
+ *
+ * Das dreht die Tragwirkung gegenüber dem Tragjoch:
+ *
+ *   Tragjoch     Rahmenebene senkrecht, Vierendeel trägt das GEWICHT
+ *   Abfangjoch   Rahmenebene waagrecht, Vierendeel trägt den LEITERZUG
+ *
+ * Ein früherer Kommentar an dieser Stelle behauptete, der Kern dieser
+ * Anwendung passe darauf nicht. Das war falsch und aus dem Blatt allein
+ * gelesen: zwei Gurte statt vier, eine Blechebene statt zweier - der
+ * Rechenweg ist derselbe.
+ *
+ * Was hier steht, ist das Sortiment: Typen, Längen, Gewichte, Konstruktions-
+ * masse, Schnee- und Windlasten je Laufmeter.
  *
  * ================== ZWEI SORTIMENTE, ZWEI BENENNUNGEN =====================
  *

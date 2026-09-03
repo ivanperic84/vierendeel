@@ -3831,12 +3831,28 @@ fragt über `bereichVonTyp` das Sortiment der jeweiligen Art. Der Prüfstand hä
 beides fest — dass die Felder einander ausschliessen und dass keine Mastmarke
 des Blattes beim Ziehen wirft.
 
-### Gerechnet wird er nicht, und das sagt die Auswertung
+### Es ist ein LIEGENDER Vierendeelträger (Korrektur, 3. September)
 
-Das Abfangjoch ist ein **zweigurtiger** Träger mit Sprossen im 500er-Raster;
-der Kern dieser Anwendung rechnet vier Winkelgurte mit Bindeblechen. Wer einen
-Typ wählt, darf annehmen, dass damit gerechnet wird — deshalb steht in den
-Hinweisen, dass es nicht so ist, **mit dem gewählten Typ im Text**:
+Meine erste Lesart der Blätter — „zweigurtiger Träger, der Kern passt darauf
+nicht" — war **falsch**. Weisung: „Die Abfangjoche sind liegende
+Vierendeelträger." Der Schnitt A-A bestätigt es: zwei Profile **Rücken an
+Rücken** (UPE, ab A270 IPE), lichter Abstand `d`, verbunden durch Sprossen im
+500er-Raster. Gurte und Pfosten ohne Diagonalen — ein Vierendeel-Rahmen, nur in
+**einer** Ebene statt in zweien, und diese Ebene **liegt**.
+
+| | Rahmenebene | Vierendeel-Wirkung trägt | quer dazu |
+|---|---|---|---|
+| Tragjoch | senkrecht | Gewicht, Schnee | Wind |
+| Abfangjoch | **waagrecht** | **Leiterzug**, Wind in Gleisrichtung | Gewicht, Schnee |
+
+Der Rechenweg ist damit **derselbe**: zwei Gurte statt vier, eine Blechebene
+statt zweier. Einfacher Balken, Umrechnung auf die einzelnen Gurte, Nachweis
+über Bleche und Nachweisschnitt — jeder Träger für sich allein.
+
+### Gerechnet wird er noch nicht, und das sagt die Auswertung
+
+Solange der Kern im Bau ist, steht in den Hinweisen, dass nicht er gerechnet
+wird, **mit dem gewählten Typ im Text**:
 
 > Abfangjoch «UAP 250» gewählt — gerechnet wird weiterhin das Tragjoch. […]
 > Der gewählte Typ benennt das Bauteil, alle folgenden Zahlen gelten dem Joch.
@@ -3844,9 +3860,8 @@ Hinweisen, dass es nicht so ist, **mit dem gewählten Typ im Text**:
 Der Typ geht in die **Bezeichnung** («A160 · H 7.50 m» in der Leiste statt
 «Abfangjoch · H 7.50 m») und in die Ausleitung, nicht in den Nachweis.
 
-**Offen bleibt der Rechenkern.** Dazu fehlen ausserdem die zulässigen
-Nutzmomente und Reaktionskräfte; sie stehen in den Jochdiagrammen der
-Excel-Werkzeuge.
+**Offen bleibt der Rechenkern** — die Weisung dazu steht in *Der Abfangjoch-
+Rechenkern* weiter unten.
 
 ### Drei Kleinigkeiten an der Leiste (3. September)
 

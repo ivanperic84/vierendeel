@@ -464,10 +464,10 @@ export function hinweise(m) {
    *
    * Sein Sortiment steht seit dem 3. September vollstaendig in der Maske -
    * A160 bis A360 und die Altbauweise -, und wer den Typ waehlt, darf
-   * annehmen, dass damit gerechnet wird. Wird es nicht: das Abfangjoch ist
-   * ein ZWEIGURTIGER Traeger mit Sprossen im 500er-Raster, der Kern rechnet
-   * vier Winkelgurte mit Bindeblechen. Die gewaehlte Jochlaenge geht ins
-   * Modell, der Typ nur in die Benennung.
+   * annehmen, dass damit gerechnet wird. Wird es noch nicht: das Abfangjoch
+   * ist ein LIEGENDER Vierendeeltraeger (zwei Gurte, eine Blechebene,
+   * Rahmenebene waagrecht), und sein Kern ist im Bau. Die gewaehlte
+   * Jochlaenge geht ins Modell, der Typ nur in die Benennung.
    *
    * Der Hinweis nennt den gewaehlten Typ. Ein pauschales «wird nicht
    * gerechnet» liest sich wie ein Fehler des Werkzeugs; die Stelle zu
@@ -476,9 +476,10 @@ export function hinweise(m) {
   if (art.key === 'abfangjoch') {
     const typ = m.abfangTyp ? ` «${m.abfangTyp}»` : '';
     h.push(`Abfangjoch${typ} gewählt — gerechnet wird weiterhin das `
-      + 'Tragjoch. Das Abfangjoch ist ein zweigurtiger Träger mit Sprossen; '
-      + 'sein Rechenkern ist noch nicht gebaut. Der gewählte Typ benennt das '
-      + 'Bauteil, alle folgenden Zahlen gelten dem Joch.');
+      + 'Tragjoch. Das Abfangjoch ist ein liegender Vierendeelträger — zwei '
+      + 'Gurte, eine Blechebene, Rahmenebene waagrecht —; sein Rechenkern ist '
+      + 'im Bau. Der gewählte Typ benennt das Bauteil, alle folgenden Zahlen '
+      + 'gelten dem Joch.');
   }
   if (art.key === 'tragausleger') {
     h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `
