@@ -1255,6 +1255,34 @@ function feldHtml(f, wert, werte) {
     inp = `<input type="text" id="${id}" data-feld="${f.key}"
              value="${esc(wert ?? '')}" placeholder="${esc(f.platzhalter ?? '')}"
              ${f.laenge ? `maxlength="${f.laenge}"` : ''}${dis}>`;
+  } else if (f.typ === 'tasten') {
+    /*
+     * DIE KUERZELLISTE.
+     *
+     * Der INHALT kommt von aussen (`setzeTastenliste` aus app.js): dort
+     * stehen die Handlungen, und die Maske hat von ihnen nichts zu wissen.
+     * Hier steht nur, wie eine Belegung aussieht und wie man sie aendert.
+     */
+    // Als FUNKTION abgerufen, nicht als Liste gehalten: die wirksame Taste
+    // haengt an `werte` und aendert sich, waehrend der Dialog offen ist.
+    const tl = typeof tastenListe === 'function' ? tastenListe() : [];
+    inp = `<div class="tastenliste">`
+      + tl.map((t) => (t.gruppe
+        ? `<div class="tl-gruppe">${esc(t.gruppe)}</div>`
+        : `<div class="tl-zeile${t.still ? ' fest' : ''}">
+             <span class="tl-text">${esc(t.text)}</span>
+             ${t.still
+               ? `<kbd class="tl-fest">${esc(t.taste)}</kbd>`
+               : `<button type="button" class="tl-taste" data-taste="${esc(t.id)}"
+                    title="Anklicken und neue Taste drücken">${
+                    t.jetzt ? esc(t.jetzt) : '–'}</button>`}
+           </div>`)).join('')
+      + `</div>`
+      + (tastenMeldung
+        ? `<p class="tl-meldung">${esc(tastenMeldung)}</p>` : '')
+      + (Object.keys(werte.tasten ?? {}).length
+        ? `<button type="button" class="btn btn-mini" data-tasten-zurueck
+             >Auf die Vorgaben zurücksetzen</button>` : '');
   } else if (f.typ === 'schieber') {
     /*
      * ZWEI SCHRITTWEITEN AN EINEM WERT.
@@ -2258,6 +2286,23 @@ function atWahl(i, k, label, wert, optionen, hinweis = '') {
   </label>`;
 }
 
+/*
+ * DIE KUERZELLISTE, wie app.js sie sieht: {id, text, taste, jetzt, still,
+ * gruppe}. Die Maske zeigt sie an und meldet Aenderungen zurueck; welche
+ * Handlung dahintersteht, geht sie nichts an.
+ */
+let tastenListe = null;
+/*
+ * Eine abgewiesene Belegung sagt WARUM - und zwar dort, wo man sie
+ * vorgenommen hat. Der Handlungsbalken ueber dem Modell liegt hinter dem
+ * offenen Dialog; eine Meldung dort waere eine, die niemand liest.
+ */
+let tastenMeldung = '';
+export function setzeTastenMeldung(t) { tastenMeldung = t ?? ''; }
+
+/** Die Liste der Tastenkuerzel setzen (einmalig beim Start). */
+export function setzeTastenliste(liste) { tastenListe = liste; }
+
 let beiVorlageWahl = null, beiVorlageWeg = null, beiVorlageSichern = null;
 let beiGenerator = null, beiAnbauZoom = null, beiVorlageBearbeiten = null;
 let beiAnbauOeffnen = null;
@@ -2868,22 +2913,43 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    * abschalten, und dann hat hier keine Zahl zu stehen.
    */
   if (erg.mast && urteil.nachweise?.mast !== false) {
-    const mn = erg.mast[erg.mast.massgebendesEnde] ?? erg.mast.A;
-    const eN = erg.mast.etaNachweis ?? erg.mast.eta;
-    // Die Kachel nennt, WAS massgebend ist - Querschnitt oder Knicken. Ohne
-    // das stuende dort eine Zahl, deren Herkunft man raten muesste.
-    const wodurch = (erg.mast.etaStabil ?? 0) > erg.mast.eta
-      ? 'Knicken' : (mn.plastischWirksam ? 'plastisch' : 'elastisch');
-    kz.push(kachel('η Mast', f3(eN),
-      /*
-       * DER MASTNAME STATT DES JOCHENDES (Weisung, 2. September). «Ende B»
-       * sagt nicht, WELCHER Mast das ist - auf einer Jochreihe traegt der
-       * Zwischenmast diesen Namen von der einen Seite und «Ende A» von der
-       * anderen. `M2` gilt von beiden.
-       */
-      `${mn.profil.name} · Mast ${erg.modell.federn?.namen?.[
-          erg.mast.massgebendesEnde] ?? erg.mast.massgebendesEnde} · ${wodurch}`,
-      ampel(eN)));
+    /*
+     * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
+     *
+     * Weisung vom 2. September: «beide masten in die nachweise aufnehmen
+     * nicht nur den massgebenden».
+     *
+     * Hier stand EINE Kachel mit dem groesseren der beiden eta. Das
+     * beantwortet «haelt es?», aber nicht «wie weit ist der andere?» - und
+     * genau das ist die Frage, mit der man ein Sortiment waehlt. Zwei
+     * Masten, die gemeinsam ein Joch tragen, sind zwei Bauteile mit zwei
+     * Nachweisen; einer davon zu verschweigen macht die Auswertung kuerzer,
+     * nicht besser.
+     *
+     * Sie stehen unter ihrem NAMEN da (M1, M2), nicht unter «Ende A/B» -
+     * auf einer Jochreihe ist das der Unterschied zwischen einem Bauteil mit
+     * einem Namen und einem mit zweien.
+     *
+     * SIND BEIDE DERSELBE MAST - ein Joch ohne abweichendes Ende B rechnet
+     * zweimal dasselbe -, steht er einmal da. Zwei gleiche Kacheln
+     * nebeneinander waeren keine Auskunft, sondern ein Verdacht.
+     */
+    const namen = erg.modell.federn?.namen ?? {};
+    const gesehen = new Set();
+    ['A', 'B'].forEach((ende) => {
+      const n = erg.mast[ende];
+      if (!n) return;
+      const name = namen[ende] || `Ende ${ende}`;
+      if (gesehen.has(name)) return;
+      gesehen.add(name);
+      const eN = n.etaMitStabilitaet ?? n.eta;
+      // Die Kachel nennt, WAS massgebend ist - Querschnitt oder Knicken.
+      // Ohne das stuende dort eine Zahl, deren Herkunft man raten muesste.
+      const wodurch = (n.stabil?.eta ?? 0) > n.eta
+        ? 'Knicken' : (n.plastischWirksam ? 'plastisch' : 'elastisch');
+      kz.push(kachel(`η ${name}`, f3(eN),
+        `${n.profil.name} · ${wodurch}`, ampel(eN)));
+    });
   }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
@@ -3382,6 +3448,7 @@ export function zeichneAuflager(node, blatt, erg) {
 function mastblattHtml(erg) {
   const mn = erg?.mast;
   if (!mn) return '';
+  const namenVon = erg?.modell?.federn?.namen ?? {};
   const ende = (n) => {
     if (!n) return '';
     const kl = n.klasse;
@@ -3397,8 +3464,17 @@ function mastblattHtml(erg) {
         <td class="num">${f0(st.sig)}</td>
         <td class="num ${st.eta > 1 ? 'fail' : ''}">${f3(st.eta)}</td>
       </tr>`;
-    return `${abschnitt(`Mast ${n.ende} · ${n.profil.name}`,
-        `η ${f3(n.eta)} bei ${f2(n.massgebend.z)} m`)}
+    /*
+     * DIE UEBERSCHRIFT NENNT DEN MASTEN, nicht das Jochende - und die
+     * Zusammenfassung nennt BEIDE Zahlen, Querschnitt und Knicken. Bisher
+     * stand dort nur der Querschnitt, waehrend das Knicken am Regelmasten
+     * das groessere von beiden ist.
+     */
+    const name = namenVon?.[n.ende] || `Ende ${n.ende}`;
+    const kS = n.stabil;
+    return `${abschnitt(`Mast ${name} · ${n.profil.name}`,
+        `η ${f3(n.eta)} Querschnitt bei ${f2(n.massgebend.z)} m`
+        + (kS ? ` · η ${f3(kS.eta)} Knicken` : ''))}
       <div class="tabellenrahmen"><table class="dt">
         <thead><tr>
           <th class="num">z [m]</th><th class="num">N [kN]</th>
@@ -3432,10 +3508,16 @@ function mastblattHtml(erg) {
         Länge, Anbauteile am Masten mit ihren Ausladungen und das Eigengewicht
         des Mastes. Die Längskraft F_x des Jochs teilt sich nach der
         Steifigkeit k = 3EI/H³ auf die beiden Maste.</p>
-      <p class="notiz"><b>NICHT enthalten: die Stabilität.</b> Kein
-        Biegeknicken, kein Biegedrillknicken. Das ist ein Bauteilnachweis
-        nach EN 1993-1-1, 6.3, und er braucht eine Festlegung der Knicklänge.
-        Bei einem schlanken Kragmast kann er massgebend werden.</p>
+      <p class="notiz"><b>Das Biegeknicken ist enthalten</b> — EN 1993-1-1,
+        6.3.3, mit den Interaktionsbeiwerten nach Anhang B. Die Knicklänge
+        ist β · z_N, wobei z_N die Höhe der obersten Krafteinleitung ist:
+        über dem Jochanschluss trägt der Mast nur sein Eigengewicht, und was
+        dort nicht drückt, kann dort auch nicht ausknicken. β steht in den
+        Optionen (Vorgabe 2.0, Kragarm).</p>
+      <p class="notiz"><b>NICHT enthalten: das Biegedrillknicken</b>
+        (χ_LT = 1.0). Beim eingespannten Stiel mit Momenten um beide Achsen
+        ist das die übliche Annahme; sie steht hier, damit sie nachgeprüft
+        werden kann.</p>
       <p class="notiz">Die <b>Torsion M_t</b> steht in der Tabelle, geht aber
         nicht in η ein: Wölbkrafttorsion am offenen I-Profil ist ein eigenes
         Kapitel. Sie ist ausgewiesen, weil der Fundamentplaner sie braucht.</p>
@@ -3620,7 +3702,60 @@ export function optionenReiterHtml(werte, jetzt) {
 }
 
 /** Ereignisse des Optionen-Dialogs verdrahten. */
+/*
+ * DIE KUERZELLISTE WIRD IM OPTIONSDIALOG VERDRAHTET, nicht in der Maske.
+ *
+ * Dort steht sie, und der Dialog hat seinen eigenen Verdrahtungsweg
+ * (`verdrahteOptionen`). In `zeichneMaske` gesetzt lief sie ins Leere -
+ * die Knoepfe existierten, nur hoerte niemand auf sie.
+ */
+function verdrahteTasten(container, onChange) {
+  /*
+   * EINE TASTE BELEGEN: anklicken, druecken.
+   *
+   * Kein Textfeld - man tippt keine Taste ab, man DRUECKT sie. Das Feld
+   * haette ausserdem die Frage aufgeworfen, was «Pfeil links» dort heissen
+   * soll. Waehrend der Aufnahme faengt der Knopf jeden Druck ab; Esc bricht
+   * ab, Rueck- oder Entfernentaste schaltet das Kuerzel aus.
+   */
+  container.querySelectorAll('[data-taste]').forEach((b) => {
+    b.addEventListener('click', () => {
+      if (b.dataset.warte) return;
+      b.dataset.warte = '1';
+      const vorher = b.textContent;
+      b.textContent = '…';
+      b.classList.add('wartet');
+      const fertig = () => {
+        delete b.dataset.warte;
+        b.classList.remove('wartet');
+        b.removeEventListener('keydown', horch, true);
+        b.blur();
+      };
+      const horch = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Escape') { b.textContent = vorher; fertig(); return; }
+        const neu = (e.key === 'Backspace' || e.key === 'Delete') ? ''
+          : (e.key.length === 1 ? e.key.toLowerCase() : '');
+        // Sondertasten (F5, Pfeile, Tab) bleibem dem System - sie hier zu
+        // belegen hiesse, dem Browser ins Handwerk zu pfuschen.
+        if (neu === '' && e.key !== 'Backspace' && e.key !== 'Delete') {
+          b.textContent = vorher; fertig(); return;
+        }
+        fertig();
+        onChange('tasteBelegen', { id: b.dataset.taste, taste: neu });
+      };
+      b.addEventListener('keydown', horch, true);
+      b.focus();
+    });
+  });
+  container.querySelectorAll('[data-tasten-zurueck]').forEach((b) => {
+    b.addEventListener('click', () => onChange('tastenZurueck', true));
+  });
+}
+
 export function verdrahteOptionen(container, werte, onChange) {
+  verdrahteTasten(container, onChange);
   container.querySelectorAll('[data-feld]').forEach((inp) => {
     const key = inp.dataset.feld;
     const feld = FELDER.find((f) => f.key === key);

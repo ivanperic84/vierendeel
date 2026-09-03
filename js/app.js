@@ -356,8 +356,25 @@ function neuRechnen(neuZeichnen = true) {
       werte.skManuell = Math.round(c.sk * 1000) / 1000;
     }
 
+    /*
+     * >>> AUCH DIE VERGLEICHE RECHNEN MIT DEM RECHENSATZ. <<<
+     *
+     * Hier stand `werte` - der ROHE Satz, ohne die Projektion aus der
+     * Mastenliste. Der Hauptdurchgang oben nimmt `rechensatz(werte)`, die
+     * Vergleiche nahmen ihn nicht, und die ANGEZEIGTE Umhuellende kommt aus
+     * ihnen (`kombi.huellkurve`). Aufgefallen am 3. September an einer
+     * Kleinigkeit: die Mastkacheln der Auswertung hiessen «M1» und «Ende B»,
+     * waehrend das gerechnete Tragwerk auf M2 und M3 steht - die Namen
+     * wandern mit der Projektion, und die fehlte hier.
+     *
+     * Die Zahlen stimmten bisher, weil `aendern` die flachen Mastfelder nach
+     * jeder Aenderung zurueckschreibt. Darauf zu bauen hiesse, sich auf
+     * einen Nebeneffekt zu verlassen: jede Angabe, die NUR in der Liste
+     * steht, fehlte hier still.
+     */
+    const rs = rechensatz(werte);
     const vergleich = mitJoch
-      ? vergleichMassvarianten(werte, profOG, profUG, stahl, joch) : null;
+      ? vergleichMassvarianten(rs, profOG, profUG, stahl, joch) : null;
     /*
      * KEINE KOMBINATIONSTABELLE OHNE JOCH - aber die Form bleibt.
      *
@@ -368,7 +385,7 @@ function neuRechnen(neuZeichnen = true) {
      * Leer heisst hier: nur die Umhuellende steht zur Wahl.
      */
     const kombi = mitJoch
-      ? vergleichKombinationen(werte, profOG, profUG, stahl, joch)
+      ? vergleichKombinationen(rs, profOG, profUG, stahl, joch)
       : { huellkurve: null, ergebnisse: {}, lastfaelle: [] };
     const checks = mitJoch ? konstruktionsChecks(erg.modell) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
@@ -800,6 +817,56 @@ function aendern(key, wert) {
    * DER RECHTSKLICK IN DER LEISTE laeuft ueber denselben Weg wie jede andere
    * Absicht - er oeffnet nur ein Menue und aendert selbst nichts.
    */
+  /*
+   * >>> EINE TASTE BELEGEN. <<<
+   *
+   * Weisung vom 2. September: «Tastenkürzel in die optionen aufnehmen und
+   * anpassbar machen.»
+   *
+   * DOPPELTE BELEGUNGEN WERDEN ABGEWIESEN, nicht stillschweigend
+   * uebernommen. Zwei Handlungen auf einer Taste heisst: eine davon laeuft
+   * nie, und welche, entscheidet die Reihenfolge im Quelltext. Das waere ein
+   * Kuerzel, das «manchmal» tut - die unbrauchbarste Art von Bedienung.
+   *
+   * DIE ZIFFERN 1 BIS 7 sind vergeben: sie waehlen die aufgetragene Groesse
+   * und stehen als Reihe in der Uebersicht, nicht als einzelne Zeile. Wer
+   * sie hier belegte, verlore sie dort - ohne dass es jemand sagt.
+   */
+  if (key === 'tasteBelegen') {
+    const t = TASTEN.find((x) => x.id === wert.id);
+    if (!t) return;
+    const neu = String(wert.taste ?? '').toLowerCase();
+    if (neu && neu >= '1' && neu <= '7') {
+      ui.setzeTastenMeldung(`Die Taste «${neu}» wählt die aufgetragene `
+        + 'Grösse und lässt sich nicht belegen.');
+      return;
+    }
+    const belegt = neu && TASTEN.find(
+      (x) => x.id && x.id !== t.id && tasteVon(x).toLowerCase() === neu);
+    if (belegt) {
+      ui.setzeTastenMeldung(
+        `Die Taste «${neu}» liegt schon auf «${belegt.text}».`);
+      return;
+    }
+    ui.setzeTastenMeldung('');
+    handlung('Tastenkürzel', () => {
+      const tasten = { ...(werte.tasten ?? {}) };
+      // Die Vorgabe wird nicht als «Aenderung» gespeichert - so bleibt der
+      // Knopf «zuruecksetzen» ehrlich und die Datei schlank.
+      if (neu === t.taste) delete tasten[t.id]; else tasten[t.id] = neu;
+      werte = { ...werte, tasten };
+      neuRechnen();
+    });
+    return;
+  }
+  if (key === 'tastenZurueck') {
+    ui.setzeTastenMeldung('');
+    handlung('Tastenkürzel zurücksetzen', () => {
+      werte = { ...werte, tasten: {} };
+      neuRechnen();
+    });
+    return;
+  }
   if (key === 'kontextTragwerk') {
     kontextZeigen(wert.bei, kontextTragwerk(wert.id));
     return;
@@ -2707,19 +2774,38 @@ function zeigeSpeicherstand() { aktualisiereProjektKnopf(); }
  *    aus; sie waehlen Ansichten, oeffnen Fenster und schalten Ebenen. Was
  *    Folgen hat, verlangt weiterhin einen Klick.
  */
+/*
+ * >>> JEDES KUERZEL HAT EINE KENNUNG. <<<
+ *
+ * Weisung vom 2. September: «Tastenkürzel in die optionen aufnehmen und
+ * anpassbar machen.»
+ *
+ * Anpassbar heisst: die gewaehlte Taste muss irgendwo stehen - und zwar so,
+ * dass sie eine ANDERE Belegung ueberdauert. Ueber die Taste selbst ginge
+ * das nicht (wer «q» auf «w» legt, verlore die Zuordnung), also ueber die
+ * `id`. Sie ist ein Name der HANDLUNG, nicht der Taste.
+ *
+ * Was `still` traegt, ist nicht belegbar: Esc und die Steuertasten gehoeren
+ * dem System, und «1 … 7» ist eine Reihe, keine Taste.
+ */
 const TASTEN = [
-  { taste: '?', text: 'Diese Übersicht', tun: () => dialogTasten() },
+  { id: 'hilfe', taste: '?', text: 'Diese Übersicht', tun: () => dialogTasten() },
   { taste: 'Esc', text: 'Abbrechen, Dialog schliessen', still: true },
   { taste: 'Strg Z', text: 'Rückgängig', still: true },
   { taste: 'Strg ⇧ Z', text: 'Wiederherstellen', still: true },
 
   { gruppe: 'Blick' },
-  { taste: 'q', text: 'Querschnitt', tun: () => blickAuf('quer') },
-  { taste: 'l', text: 'Längsschnitt', tun: () => blickAuf('laengs') },
-  { taste: 'i', text: 'Isometrie', tun: () => blickAuf('iso') },
-  { taste: 'd', text: 'Draufsicht', tun: () => blickAuf('oben') },
-  { taste: '0', text: 'Ansicht zurücksetzen',
+  { id: 'quer', taste: 'q', text: 'Querschnitt', tun: () => blickAuf('quer') },
+  { id: 'laengs', taste: 'l', text: 'Längsschnitt', tun: () => blickAuf('laengs') },
+  { id: 'iso', taste: 'i', text: 'Isometrie', tun: () => blickAuf('iso') },
+  { id: 'oben', taste: 'd', text: 'Draufsicht', tun: () => blickAuf('oben') },
+  { id: 'zurueck', taste: '0', text: 'Ansicht zurücksetzen',
     tun: () => { ansicht.passeEin(); ansicht.zeichne(); } },
+  { id: 'ganz', taste: 'g', text: 'Ganzes Querprofil zeigen',
+    tun: () => { station = null; ansicht.station = null;
+                 ansicht.ansichtZuruecksetzen(); zeichneAuswertung(); } },
+  { id: 'teil', taste: 't', text: 'Nur das gerechnete Tragwerk',
+    tun: () => zoomAufTragwerk(werte.twId ?? 'T1') },
 
   { gruppe: 'Aufgetragene Grösse' },
   // Die Reihenfolge ist die von MODI, nicht eine eigene: sonst liefe die
@@ -2727,11 +2813,43 @@ const TASTEN = [
   { taste: '1 … 7', text: 'η · σ_v · σ · M · V · Positionen · neutral',
     still: true },
 
+  { gruppe: 'Bauen' },
+  { id: 'setzen', taste: 'b', text: 'Bauteil setzen',
+    tun: () => (setzen ? setzenEnde() : setzenStarten()) },
+  { id: 'naechstes', taste: 'n', text: 'Nächstes Tragwerk rechnen',
+    tun: () => naechstesTragwerk() },
+
   { gruppe: 'Fenster' },
-  { taste: 'p', text: 'Projektablage', tun: () => schubladeUmschalten() },
-  { taste: 'o', text: 'Optionen', tun: () => dialogOptionen() },
-  { taste: 'h', text: 'Handbuch', tun: () => dialogHandbuch() },
+  { id: 'ablage', taste: 'p', text: 'Projektablage', tun: () => schubladeUmschalten() },
+  { id: 'optionen', taste: 'o', text: 'Optionen', tun: () => dialogOptionen() },
+  { id: 'handbuch', taste: 'h', text: 'Handbuch', tun: () => dialogHandbuch() },
 ];
+
+/**
+ * Die WIRKSAME Taste eines Kuerzels: die eigene Belegung, sonst die Vorgabe.
+ *
+ * Eine leere Belegung heisst «abgeschaltet» - auch das ist eine Antwort, und
+ * eine, die man auf einer fremden Tastatur braucht.
+ */
+function tasteVon(t) {
+  if (!t?.id) return t?.taste ?? '';
+  const eigen = werte?.tasten?.[t.id];
+  return eigen === undefined ? t.taste : eigen;
+}
+
+/**
+ * DAS NAECHSTE TRAGWERK RECHNEN.
+ *
+ * Auf einer Reihe geht man sie der Reihe nach durch; ohne Kuerzel heisst das
+ * jedesmal in die Leiste greifen. Ausgeblendete werden uebersprungen - sie
+ * sind nicht da.
+ */
+function naechstesTragwerk() {
+  const sichtbar = tragwerkeSortiert(werte).filter((t) => !versteckt(t));
+  if (sichtbar.length < 2) return;
+  const i = sichtbar.findIndex((t) => t.id === (werte.twId ?? 'T1'));
+  aendern('tragwerkAktiv', sichtbar[(i + 1) % sichtbar.length].id);
+}
 
 /** Blickrichtung setzen, wenn es sie gibt. */
 function blickAuf(key) {
@@ -2779,7 +2897,8 @@ function tastendruck(e) {
   if (werte?.tastenkuerzel === false) return;
 
   if (e.key >= '1' && e.key <= '7') { e.preventDefault(); plotNummer(+e.key); return; }
-  const t = TASTEN.find((x) => x.tun && x.taste === e.key.toLowerCase());
+  const t = TASTEN.find((x) => x.tun && tasteVon(x)
+    && tasteVon(x).toLowerCase() === e.key.toLowerCase());
   if (!t) return;
   e.preventDefault();
   t.tun();
@@ -2789,11 +2908,16 @@ function tastendruck(e) {
 function dialogTasten() {
   const zeilen = TASTEN.map((t) => (t.gruppe
     ? `<tr><td colspan="2" class="tasten-gruppe">${esc(t.gruppe)}</td></tr>`
-    : `<tr><td><kbd>${esc(t.taste)}</kbd></td><td>${esc(t.text)}</td></tr>`)).join('');
+    : `<tr><td>${tasteVon(t)
+        ? `<kbd>${esc(tasteVon(t))}</kbd>`
+        : '<span class="dim">aus</span>'}</td>`
+      + `<td>${esc(t.text)}</td></tr>`)).join('');
   dialog('Tastenkürzel',
     `<table class="dt tasten">${zeilen}</table>
      <p class="notiz">Kürzel wirken nicht, während in einem Eingabefeld
-       geschrieben wird. Keines von ihnen verändert das Tragwerk.</p>`,
+       geschrieben wird. Keines von ihnen verändert das Tragwerk.
+       Belegen lassen sie sich unter <b>Optionen · Darstellung ·
+       Bedienung</b>.</p>`,
     '<button class="btn" data-zu>Schliessen</button>');
 }
 
@@ -4009,10 +4133,35 @@ function kontextZeigen(bei, punkte) {
   if (!echte.length) return;
   const n = document.createElement('div');
   n.className = 'kontext';
-  n.innerHTML = echte.map((p, i) => (p === '-'
-    ? '<hr>'
-    : `<button type="button" class="kontext-p${p.warn ? ' warn' : ''}"
-         data-k="${i}">${esc(p.text)}</button>`)).join('');
+  /*
+   * ZWEI ARTEN VON EINTRAG.
+   *
+   * Ein KNOPF tut etwas und schliesst das Menue. Ein FELD nimmt eine Angabe
+   * entgegen und laesst es offen - man aendert einen Typ und danach vielleicht
+   * noch die Laenge, ohne zweimal rechtszuklicken.
+   *
+   * Weisung vom 2. September: «beim kontextmenue bauteil parameter typ länge
+   * ausrichtung direkt eintragen können.» Genau das: nicht ein Menuepunkt,
+   * der die Karte in der Seitenleiste oeffnet, sondern die Angabe selbst,
+   * dort wo man auf das Bauteil zeigt.
+   */
+  n.innerHTML = echte.map((p, i) => {
+    if (p === '-') return '<hr>';
+    if (p.kopf) return `<div class="kontext-kopf">${esc(p.kopf)}</div>`;
+    if (p.feld) {
+      const f = p.feld;
+      const eingabe = f.art === 'auswahl'
+        ? `<select data-kf="${i}">${(f.optionen ?? []).map((o) =>
+            `<option value="${esc(o.wert)}"${String(o.wert) === String(f.wert)
+              ? ' selected' : ''}>${esc(o.text)}</option>`).join('')}</select>`
+        : `<input type="number" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
+             step="${f.schritt ?? 0.1}">`;
+      return `<label class="kontext-feld"><span>${esc(f.label)}</span>
+        ${eingabe}${f.einheit ? `<i>${esc(f.einheit)}</i>` : ''}</label>`;
+    }
+    return `<button type="button" class="kontext-p${p.warn ? ' warn' : ''}"
+         data-k="${i}">${esc(p.text)}</button>`;
+  }).join('');
   document.body.appendChild(n);
   kontextMenue = n;
   /*
@@ -4027,16 +4176,37 @@ function kontextZeigen(bei, punkte) {
   const y = Math.min(bei[1], window.innerHeight - r.height - 8);
   n.style.left = `${Math.max(4, x)}px`;
   n.style.top = `${Math.max(4, y)}px`;
-  n.querySelectorAll('[data-k]').forEach((b) => {
-    b.addEventListener('click', () => {
-      const p = echte[+b.dataset.k];
+  n.querySelectorAll('[data-k]').forEach((b2) => {
+    b2.addEventListener('click', () => {
+      const p = echte[+b2.dataset.k];
       kontextSchliessen();
       p?.tun?.();
     });
   });
-  // Ein Klick daneben, ein Rollen oder Esc schliesst es. `capture`, damit
-  // der Klick nicht zuerst im Modell landet.
-  const zu = () => { kontextSchliessen(); ab(); };
+  n.querySelectorAll('[data-kf]').forEach((el) => {
+    const p = echte[+el.dataset.kf];
+    const ev = el.tagName === 'SELECT' ? 'change' : 'change';
+    el.addEventListener(ev, () => {
+      const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
+      if (el.tagName !== 'SELECT' && !Number.isFinite(v)) return;
+      // DAS MENUE BLEIBT OFFEN. Wer den Typ aendert, will oft gleich die
+      // Laenge nachziehen - zweimal rechtsklicken waere eine Zumutung.
+      p?.tun?.(v);
+    });
+  });
+  /*
+   * >>> EIN KLICK INS MENUE SCHLIESST ES NICHT. <<<
+   *
+   * Hier stand ein `pointerdown`-Horcher ohne diese Pruefung. Mit
+   * nachgestellten Klicks fiel das nicht auf - die feuern kein
+   * `pointerdown`. Mit einer echten Maus schon: das Menue verschwand beim
+   * Druecken, und der `click` landete auf nichts. Kein Eintrag haette
+   * funktioniert, und die Ursache waere schwer zu sehen gewesen.
+   */
+  const zu = (e) => {
+    if (e && n.contains(e.target)) return;
+    kontextSchliessen(); ab();
+  };
   const ab = () => {
     document.removeEventListener('pointerdown', zu, true);
     window.removeEventListener('wheel', zu, true);
@@ -4138,25 +4308,106 @@ function kontextMast(mastId, twId) {
   return p;
 }
 
-/** Die Einträge zu einem Anbauteil. */
+/**
+ * DIE EINTRAEGE ZU EINEM ANBAUTEIL - mit den Angaben, nicht nur mit Wegen
+ * dorthin.
+ *
+ * Weisung vom 2. September: «beim kontextmenue bauteil parameter typ länge
+ * ausrichtung direkt eintragen können.»
+ *
+ * >>> WELCHE DREI. <<<
+ *
+ *   TYP          das Bauteil des ersten Moduls. Es traegt die Baugruppe;
+ *                was daran haengt, bleibt haengen.
+ *   LAGE/HOEHE   am Joch die Stelle x, am Masten die Hoehe ueber Fundament.
+ *                Dieselbe Zahl, die der Klick beim Setzen bestimmt hat -
+ *                und die man danach auf den Zentimeter nachzieht.
+ *   AUSRICHTUNG  auf welche Seite der Jochachse das Teil ausgreift. Bei
+ *                einem Ausleger ist das die haeufigste Korrektur ueberhaupt:
+ *                man setzt ihn und sieht, dass er zum falschen Gleis zeigt.
+ *
+ * Nicht mehr. Ein Kontextmenue mit zwoelf Feldern waere die Bauteilkarte,
+ * nur an einer schlechteren Stelle - die steht weiter in der Seitenleiste,
+ * und «bearbeiten» fuehrt hin.
+ */
 function kontextAnbauteil(i) {
   const a = (werte.anbauteile ?? [])[i];
   if (!a) return [];
-  return [
-    { text: `${a.name ?? 'Bauteil'} bearbeiten`, tun: () => zeigeAnbauteil(i) },
-    { text: 'Auf das Bauteil zoomen', tun: () => ansicht.zeigeAnbauteil(i) },
-    '-',
-    /*
-     * ABSCHALTEN IST NICHT ENTFERNEN - dieselbe Trennung wie beim Tragwerk.
-     * Ein abgeschaltetes Bauteil bleibt in der Liste und zaehlt nicht mit;
-     * ein entferntes ist weg.
-     */
-    { text: a.aktiv === false ? 'Wieder mitrechnen' : 'Nicht mitrechnen',
-      tun: () => setzeAnbauteile((werte.anbauteile ?? []).map(
-        (x, j) => (j === i ? { ...x, aktiv: x.aktiv === false } : x))) },
-    { text: 'Entfernen', warn: true,
-      tun: () => setzeAnbauteile((werte.anbauteile ?? []).filter((_, j) => j !== i)) },
-  ];
+  const setz = (fn) => {
+    const liste = (werte.anbauteile ?? []).map((x, j) => (j === i ? fn(x) : x));
+    setzeAnbauteile(liste);
+  };
+  const mod0 = (a.module ?? [])[0];
+  const amMasten = a.ort === 'mastA' || a.ort === 'mastB';
+  const p = [{ kopf: a.name ?? 'Bauteil' }];
+
+  /*
+   * DER TYP: was die Datenbank an dieser Stelle ueberhaupt zulaesst.
+   *
+   * Gefiltert nach der ROLLE des jetzigen Bauteils - ein Traeger laesst sich
+   * gegen einen anderen Traeger tauschen, nicht gegen einen Fahrdraht. Sonst
+   * stuende eine Baugruppe da, deren Glieder nicht mehr aufeinanderpassen,
+   * und die Pruefungen meldeten es erst hinterher.
+   */
+  if (mod0) {
+    let rolle = null;
+    try { rolle = getFlBauteil(mod0.bauteil)?.rolle ?? null; } catch { /* unbekannt */ }
+    const wahl = flBauteile(rolle).map((b2) => ({ wert: b2.id, text: b2.name ?? b2.id }));
+    if (wahl.length > 1) {
+      p.push({ feld: { art: 'auswahl', label: 'Typ', wert: mod0.bauteil,
+                       optionen: wahl },
+               tun: (v) => setz((x) => ({ ...x,
+                 module: (x.module ?? []).map((m, k) => (k === 0
+                   ? { ...m, bauteil: v } : m)) })) });
+    }
+  }
+
+  // LAGE oder HOEHE - je nachdem, woran es haengt.
+  p.push(amMasten
+    ? { feld: { art: 'zahl', label: 'Höhe', einheit: 'm', schritt: 0.05,
+                wert: a.hMast ?? 0 },
+        tun: (v) => setz((x) => ({ ...x, hMast: v })) }
+    : { feld: { art: 'zahl', label: 'Lage x', einheit: 'm', schritt: 0.1,
+                wert: a.x ?? 0 },
+        tun: (v) => setz((x) => ({ ...x, x: v })) });
+
+  /*
+   * DIE AUSRICHTUNG: das Vorzeichen der Ausladung.
+   *
+   * Sie steht als AUSWAHL da, nicht als Kreuzchen - «links / rechts» sagt,
+   * was man sieht; «gespiegelt: ja» verlangt, dass man sich den
+   * Ausgangszustand merkt. Gespiegelt wird die ganze Baugruppe, damit das,
+   * was am Ausleger haengt, mitgeht.
+   */
+  const ausladung = (a.module ?? []).reduce(
+    (m, x) => (Math.abs(x.x ?? 0) > Math.abs(m) ? (x.x ?? 0) : m), 0);
+  if (Math.abs(ausladung) > 1e-9) {
+    p.push({ feld: { art: 'auswahl', label: 'Ausrichtung',
+                     wert: ausladung < 0 ? 'links' : 'rechts',
+                     optionen: [{ wert: 'links', text: 'nach links' },
+                                { wert: 'rechts', text: 'nach rechts' }] },
+             tun: (v) => {
+               const soll = v === 'links' ? -1 : 1;
+               if (Math.sign(ausladung) === soll) return;
+               setz((x) => ({ ...x, module: (x.module ?? []).map(
+                 (m) => ({ ...m, x: -(m.x ?? 0) })) }));
+             } });
+  }
+
+  p.push('-');
+  p.push({ text: 'In der Seitenleiste bearbeiten', tun: () => zeigeAnbauteil(i) });
+  p.push({ text: 'Auf das Bauteil zoomen', tun: () => ansicht.zeigeAnbauteil(i) });
+  /*
+   * ABSCHALTEN IST NICHT ENTFERNEN - dieselbe Trennung wie beim Tragwerk.
+   * Ein abgeschaltetes Bauteil bleibt in der Liste und zaehlt nicht mit;
+   * ein entferntes ist weg.
+   */
+  p.push({ text: a.aktiv === false ? 'Wieder mitrechnen' : 'Nicht mitrechnen',
+           tun: () => setz((x) => ({ ...x, aktiv: x.aktiv === false })) });
+  p.push({ text: 'Entfernen', warn: true,
+           tun: () => setzeAnbauteile(
+             (werte.anbauteile ?? []).filter((_, j) => j !== i)) });
+  return p;
 }
 
 /**
@@ -4756,6 +5007,17 @@ export async function start() {
     beiKontext: (k) => kontextImModell(k),
   });
 
+  /*
+   * DIE KUERZELLISTE GEHT AN DIE MASKE.
+   *
+   * Sie zeigt sie an und meldet Aenderungen zurueck; welche Handlung
+   * dahintersteht, geht sie nichts an. Die wirksame Taste (`jetzt`) wird bei
+   * jedem Aufbau frisch gelesen - sie haengt an `werte`.
+   */
+  ui.setzeTastenliste(() => TASTEN.map((t) => (t.gruppe
+    ? { gruppe: t.gruppe }
+    : { id: t.id, text: t.text, taste: t.taste, jetzt: tasteVon(t),
+        still: t.still || !t.id })));
   ui.setzeDiagrammBuehne(zeigeDiagrammGross);
   // Der Knopf erscheint nur im Urteil, und nur wenn der Nachweis nicht
   // erfüllt ist - dort, wo die Frage «und welcher Typ dann?» aufkommt.

@@ -3520,11 +3520,15 @@ export class Modellansicht {
       const p = fl.punkte.map(proj);
       if (p.some((q) => !q)) return;
       const farbe = this._lastfarbe(fl.lastart, t);
+      // Dieselbe Daempfung wie bei den Pfeilen: die Flaeche eines nicht
+      // gerechneten Tragwerks zeigt, DASS dort etwas liegt, und draengt sich
+      // nicht vor das, was gerade nachgewiesen wird.
+      const leise = fl.passiv === true ? 0.3 : 1;
       c.beginPath();
       p.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])));
       c.closePath();
-      c.fillStyle = farbe; c.globalAlpha = 0.16; c.fill();
-      c.globalAlpha = 0.45; c.strokeStyle = farbe;
+      c.fillStyle = farbe; c.globalAlpha = 0.16 * leise; c.fill();
+      c.globalAlpha = 0.45 * leise; c.strokeStyle = farbe;
       c.lineWidth = 0.8 * this._s; c.stroke();
       c.globalAlpha = 1;
     });
@@ -3629,6 +3633,24 @@ export class Modellansicht {
       const l = Math.hypot(dx, dy) || 1;
       const ux = dx / l, uy = dy / l;
       const kopf = (v.schlank ? 5 : 8) * s;
+      /*
+       * >>> DIE LASTEN DES NICHT GERECHNETEN TRAGWERKS REDEN LEISE. <<<
+       *
+       * Weisung vom 3. September: «Die lasten beim inaktiven tragwerk auch
+       * ausgrauen samt beschriftung.»
+       *
+       * Bauteile und Titel waren laengst gedaempft; die Lastpfeile standen
+       * weiter in voller Farbe da - und sie sind das Lauteste im Bild, weil
+       * sie GEFAERBT sind, waehrend das passive Tragwerk grau ist. Auf einer
+       * Reihe uebertoenten die Pfeile des Nachbarn genau das Tragwerk,
+       * dessen Zahlen rechts stehen.
+       *
+       * Gedaempft, nicht weg - aus demselben Grund wie beim Titel: man will
+       * sehen, DASS der Nachbar belastet ist, und wo. Die Zahl dazu gehoert
+       * dem gerechneten.
+       */
+      const leise = v.passiv === true;
+      c.globalAlpha = leise ? 0.3 : 1;
       c.strokeStyle = farbe; c.fillStyle = farbe;
       c.lineWidth = (v.schlank ? 1 : 1.8) * s;
       c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0] - ux * kopf, b[1] - uy * kopf);
@@ -3638,7 +3660,17 @@ export class Modellansicht {
       c.lineTo(b[0] - ux * kopf - uy * kopf * 0.45, b[1] - uy * kopf + ux * kopf * 0.45);
       c.lineTo(b[0] - ux * kopf + uy * kopf * 0.45, b[1] - uy * kopf - ux * kopf * 0.45);
       c.closePath(); c.fill();
-      if (v.text) {
+      c.globalAlpha = 1;
+      /*
+       * DIE BESCHRIFTUNG DES NACHBARN FAELLT GANZ WEG.
+       *
+       * Anders als der Pfeil: eine Lastzahl ist eine ANGABE, und sie steht
+       * in einer Rangfolge mit begrenztem Platz (siehe `_texte`). Ein
+       * «F_z = 0.65 kN» vom Nachbarjoch verdraengt dort die Zahl, die man
+       * gerade nachweist - und blass gesetzt waere sie nur schwerer zu
+       * lesen, ohne weniger Platz zu brauchen.
+       */
+      if (v.text && !leise) {
         // BETRAG MITFUEHREN. In _texte entscheidet er die Rangfolge: bei
         // vielen Baugruppen kommt nicht mehr jede Beschriftung ins Bild, und
         // dann soll die groesste Kraft dastehen, nicht die zufaellig erste.

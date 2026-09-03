@@ -841,6 +841,24 @@ export const FELDER = [
     hinweis: 'Einzelne Tasten wie q, 1 oder h. Sie wirken nie in einem '
            + 'Eingabefeld und nie bei offenem Dialog. «?» zeigt die '
            + 'Übersicht. Escape und Strg+Z bleiben immer.' },
+  /*
+   * DIE BELEGUNG SELBST - eine Zeile je Kuerzel.
+   *
+   * Weisung vom 2. September: «Tastenkürzel in die optionen aufnehmen und
+   * anpassbar machen.» Sie standen bisher nur in einer Uebersicht, die man
+   * mit «?» aufruft - lesbar, aber nicht aenderbar. Wer eine Tastatur ohne
+   * «z» an der gewohnten Stelle hat oder ein Kuerzel doppelt belegt sieht,
+   * konnte nichts tun.
+   *
+   * Die Liste steht in den Optionen, weil sie dorthin gehoert: eine
+   * Einstellung der Bedienung, nicht des Tragwerks. Der eigentliche Inhalt
+   * kommt aus app.js - dort stehen die Handlungen, und nur dort.
+   */
+  { key: 'tasten', gruppe: 'ansicht', optionenDialog: true, typ: 'tasten',
+    label: 'Belegung', standard: {},
+    sichtbar: (w) => w.tastenkuerzel !== false,
+    hinweis: 'Auf eine Zeile klicken und die neue Taste drücken. Leer lassen '
+           + 'schaltet das Kürzel ab. Doppelte Belegungen werden abgewiesen.' },
   { key: 'modellTransparenz', optionenDialog: true, gruppe: 'ansicht',
     typ: 'schieber', label: 'Transparenz der Körper', einheit: '%',
     standard: 50, min: 0, max: 90, schritt: 5,
@@ -948,7 +966,7 @@ export const OPTIONEN_ABSCHNITTE = [
   { thema: 'ansicht', titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',
            'modellSchriftLast', 'modellSchriftMass'] },
-  { thema: 'ansicht', titel: 'Bedienung', keys: ['tastenkuerzel'] },
+  { thema: 'ansicht', titel: 'Bedienung', keys: ['tastenkuerzel', 'tasten'] },
 ];
 
 /**

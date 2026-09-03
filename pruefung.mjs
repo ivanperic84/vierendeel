@@ -11969,6 +11969,31 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DAS KONTEXTMENUE DARF SICH NICHT SELBST WEGZIEHEN. <<<
+   *
+   * Es schliesst bei einem `pointerdown` daneben. Ohne die Pruefung, OB der
+   * Druck daneben war, schloss es auch bei einem Druck DARIN - und der
+   * folgende `click` landete auf nichts. Mit nachgestellten Klicks faellt
+   * das nicht auf (die feuern kein `pointerdown`), mit einer echten Maus
+   * haette kein einziger Eintrag funktioniert.
+   *
+   * Am 2. September so gebaut, am 3. September mit einer echten Maus
+   * gefunden. Die Kontrolle liest den Quelltext, weil das Menue in app.js
+   * lebt und keinen Einstieg von aussen hat.
+   */
+  {
+    const r = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+    const ab = r.indexOf('const zu = (e) => {');
+    const koerper = ab > 0 ? r.slice(ab, ab + 220) : '';
+    wahr('Ein Druck IM Menue schliesst es nicht',
+         koerper.includes('n.contains(e.target)'));
+    // Und die Felder halten es offen: wer den Typ aendert, zieht oft gleich
+    // die Laenge nach.
+    wahr('Ein Feld im Menue schliesst es ebenfalls nicht',
+         r.includes('DAS MENUE BLEIBT OFFEN'));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

@@ -1916,3 +1916,57 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 /* Was nicht rueckgaengig aussieht, sieht auch nicht so aus. */
 .kontext-p.warn { color: var(--dim); }
 .kontext-p.warn:hover { background: none; color: var(--fail); }
+
+/* --- Tastenkuerzel in den Optionen ----------------------------------------
+   Eine Zeile je Handlung, rechts die Taste. Sie ist ein KNOPF: man tippt eine
+   Taste nicht ab, man drueckt sie. */
+.tastenliste {
+  display: flex; flex-direction: column; gap: 1px;
+  border: 1px solid var(--ol); border-radius: var(--m-r1);
+  padding: 4px; margin-bottom: 6px;
+}
+.tl-gruppe {
+  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim); padding: 6px 4px 2px;
+}
+.tl-zeile {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 3px 4px; border-radius: var(--m-r1);
+}
+.tl-zeile:hover { background: var(--s2); }
+.tl-text { font-size: 11px; color: var(--on2); }
+.tl-zeile.fest .tl-text { color: var(--dim); }
+.tl-taste, .tl-fest {
+  min-width: 34px; text-align: center;
+  font-family: var(--f-mono); font-size: 10.5px;
+  padding: 2px 6px; border-radius: 3px;
+  border: 1px solid var(--ol2); background: var(--s2); color: var(--on2);
+}
+.tl-taste { cursor: pointer; }
+.tl-taste:hover { border-color: var(--acc); color: var(--acc); }
+/* Waehrend der Aufnahme: der Knopf wartet auf einen Druck. */
+.tl-taste.wartet { border-color: var(--acc); background: var(--acc-s); color: var(--acc); }
+/* Was das System belegt, ist nicht zu vergeben. */
+.tl-fest { opacity: .55; }
+.tl-meldung { margin: 0 0 6px; font-size: 10.5px; color: var(--warn); }
+
+/* Ein Kontextmenue nimmt auch Angaben entgegen - Typ, Lage, Ausrichtung
+   direkt am Bauteil, statt eines Weges in die Seitenleiste. */
+.kontext-kopf {
+  font-size: 9.5px; letter-spacing: .04em; color: var(--dim);
+  padding: 3px 8px 5px; max-width: 200px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kontext-feld {
+  display: flex; align-items: center; gap: 6px; padding: 3px 8px;
+  font-size: 10.5px; color: var(--dim);
+}
+.kontext-feld > span { flex: 0 0 62px; }
+.kontext-feld select, .kontext-feld input {
+  flex: 1; min-width: 0; max-width: 132px;
+  background: var(--s2); border: 1px solid var(--ol);
+  border-radius: var(--m-r1); color: var(--on2);
+  font-family: inherit; font-size: 10.5px; padding: 2px 4px;
+}
+.kontext-feld input { font-family: var(--f-mono); text-align: right; }
+.kontext-feld i { font-style: normal; color: var(--dim); }
