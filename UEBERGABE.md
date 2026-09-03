@@ -4471,6 +4471,62 @@ etwas über die Modellfrage aussagt, die absoluten Werte aber neu zu messen
 sind. **Und das AxisVM-Modell setzt die Bleche noch mittig statt auf
 Flanschhöhe** (oben und unten); das ist der nächste Schritt.
 
+#### Berichtigung: UPE ist nicht UNP (3. September)
+
+Gemeldet mit Blick in den AxisVM-Querschnittseditor: „das ist das UPE nach EN
+norm. der nachgebaute querschnitt ist nicht ganz korrekt."
+
+Bei UPE 160 stimmten **A, I_y und W_y** — die starke Achse — und die schwache
+nicht:
+
+| | mein Katalog | EN | |
+|---|---|---|---|
+| I_z | 85.3 | **106.83 cm⁴** | 20 % zu klein |
+| W_z | 18.3 | **22.58 cm³** | 19 % zu klein |
+| I_t | 13.3 | **5.23 cm⁴** | 154 % zu gross |
+| A | 22.0 | 21.67 cm² | |
+| G | 17.3 | 17.0 kg/m | |
+
+**Das sind UNP-Werte.** Das UNP hat geneigte Flansche und ein kleineres I_z.
+Beim Abfangjoch liegt der Vierendeel-Verband in der **schwachen** Ebene — genau
+dort, wo der Fehler sass.
+
+> **Die Gewichtsprobe findet nicht alles.** `A × 7.85` gegen das
+> Laufmetergewicht ging bei allen sieben Profilen auf — und bei UPE 160 waren
+> I_z, W_z und I_t trotzdem falsch. Sie prüfte eben nur A gegen G, und beide
+> waren stimmig zueinander. **Eine Selbstkonsistenzprüfung findet keinen
+> Fehler, der beide Seiten betrifft.**
+
+UPE 200 und UPE 240 stammen aus derselben Quelle und sind damit verdächtig;
+ihre Zeilen sind angeschrieben und im selben Editor zu prüfen.
+
+**Und die AxisVM-Referenz ist hinfällig:** η = 1.539 wurde mit dem alten
+Hebelarm *und* dem alten Querschnitt gemessen. Der Prüfstand hält jetzt die
+Aussage fest, die davon unabhängig ist — dass das Randfeld den Nachweis um den
+Feldfaktor schärft —, statt einer Zahl, die auf überholten Daten beruht.
+
+#### Der steife Knotenbereich — wie beim Tragjoch
+
+Weisung: „im bereich der knoten die überlagerung der träger und
+verbindungsbleche steif ausbilden […] diese auswertung auch beim nachweiss in
+der app berücksichtigen wie beim tragjoch."
+
+Übernommen aus `core.querschnitt.js`, dieselbe Formel aus demselben Grund:
+
+```
+M_Anschnitt = M_Knoten · (a − b_Bl) / a
+```
+
+Am Knoten überlappt das Bindeblech den Gurt und ist mit ihm verschweisst; über
+die Blechbreite wirkt die Verbindung biegesteif. Massgebend ist deshalb das
+Moment am **Anschnitt**, nicht auf der Knotenachse. `abfangGurtnachweis` nimmt
+`bBl` und `knotenbereich` entgegen; Vorgabe ist der steife Bereich, wie beim
+Tragjoch. Bei einem Randfeld von 2.0 m und 100 mm Blechbreite mindert das um
+5 %, im Regelfeld von 0.5 m um 20 %.
+
+**Noch offen:** die starren Bereiche auch im AxisVM-Modell, und die
+durchlaufende Linienlast über sie hinweg.
+
 #### Das AxisVM-Modell: zwei Blechebenen — und zwei offene Orientierungsfragen
 
 Umgebaut nach der Weisung: die Bleche liegen jetzt **auf Ober- und

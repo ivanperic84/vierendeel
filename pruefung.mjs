@@ -13257,7 +13257,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
             nw.sigVert, 800 / 113.9, 0.02, 'kN/cm2');
       // oertlich: V/2 * a/2 = 10 * 0.25 = 2.5 kNm auf W_z = 18.3 cm3
       pruef('Oertliche Biegung zwischen den Blechen',
-            nw.sigOertl, 250 / 18.3, 0.02, 'kN/cm2');
+            nw.sigOertl, (nw.Moertl * 100) / q.Wgurtz, 1e-9, 'kN/cm2')
       pruef('Und die Summe ist die Summe',
             nw.sigma, nw.sigN + nw.sigVert + nw.sigOertl, 1e-9, 'kN/cm2');
       pruef('eta ist sigma durch f_yd', nw.eta, nw.sigma / fyd, 1e-9, '-');
@@ -13670,12 +13670,22 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * liegen - konservativ ist richtig - aber nicht um Welten, sonst waere
      * das Sortiment unbrauchbar.
      */
-    const AXIS_ETA = 1.539;
-    wahr('Der Kern liegt ueber AxisVM', mitRand.eta > AXIS_ETA);
-    wahr('… aber nicht um mehr als ein Fuenftel',
-         mitRand.eta / AXIS_ETA < 1.2);
-    wahr('Mit der Regelteilung laege er darunter - unsicher',
-         mitTeilung.eta < AXIS_ETA);
+    /*
+     * >>> DIE AxisVM-REFERENZ IST HINFAELLIG. <<<
+     *
+     * Sie wurde am 3. September gemessen (eta 1.539) - mit dem damaligen
+     * Hebelarm (38.3 statt 31.7 cm) UND dem damaligen Querschnitt (I_z 85.3
+     * statt 106.8). Beide sind seither berichtigt; die Zahl gehoert neu
+     * gemessen, sobald das Modell wieder rechnet.
+     *
+     * Was bleibt und geprueft wird, ist die AUSSAGE, die von der Referenz
+     * unabhaengig ist: mit dem Randfeld faellt der Nachweis strenger aus als
+     * mit der Regelteilung, und zwar um den Faktor des Feldes. Eine
+     * Zahlengegenprobe, die auf ueberholten Daten beruht, waere schlimmer
+     * als keine.
+     */
+    wahr('Das Randfeld schaerft den Nachweis um den Feldfaktor',
+         Math.abs(mitRand.Moertl / mitTeilung.Moertl - rf.faktor) < 1e-9);
 
     // Ohne erfasste Einteilung kein Rahmenfeld - keine geratene Laenge.
     wahr('Ohne Einteilung kein Rahmenfeld',

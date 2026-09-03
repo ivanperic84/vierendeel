@@ -462,7 +462,7 @@ export function abfangRahmenfeld(typ, jt) {
  * @param {number} a     Bindeblechabstand [m]
  * @param {number} fyd   Bemessungsfestigkeit [kN/cm²]
  */
-export function abfangGurtnachweis(q, s, a, fyd) {
+export function abfangGurtnachweis(q, s, a, fyd, opt = {}) {
   const N = abfangGurtkraefte(s.Mrahmen ?? 0, q.e).N;         // kN
   /*
    * Die örtliche Biegung: die Querkraft verteilt sich auf beide Gurte, und
@@ -470,7 +470,36 @@ export function abfangGurtnachweis(q, s, a, fyd) {
    * Stab - Moment V/2 · a/2 an den Enden.
    */
   const Voertl = (Math.abs(s.Vrahmen ?? 0) / 2) * (a / 2);    // kNm
-  const Moertl = Voertl * ABFANG_GURT_DAEMPFUNG;
+  /*
+   * >>> DER STEIFE KNOTENBEREICH - WIE BEIM TRAGJOCH. <<<
+   *
+   * Weisung vom 3. September: «im bereich der knoten die ueberlagerung der
+   * traeger und verbindungsbleche steif ausbilden [...] diese auswertung
+   * auch beim nachweiss in der app beruecksichtigen wie beim tragjoch.»
+   *
+   * Am Knoten ueberlappt das Bindeblech den Gurt und ist mit ihm
+   * verschweisst; ueber die Blechbreite b_Bl wirkt die Verbindung
+   * biegesteif. Massgebend ist deshalb nicht das Moment auf der Knotenachse,
+   * sondern das am ANSCHNITT des Blechs. Der Momentenverlauf im Gurt ist
+   * linear mit Nullpunkt in Feldmitte, also
+   *
+   *      M_Anschnitt = M_Knoten · (a − b_Bl) / a
+   *
+   * Dieselbe Formel wie in core.querschnitt.js, aus demselben Grund: beide
+   * Staebe werden am RAND des starren Bereichs nachgewiesen, nicht auf ihrer
+   * Schwerachse.
+   *
+   * >>> DAS IST EINE ABSPRACHE, KEINE RECHENFRAGE. <<<
+   *
+   * Ein Pruefmodell, das Achse zu Achse rechnet - so rechnet AxisVM ohne
+   * Zutun -, findet im Gurt das groessere Knotenmoment. Der Schalter
+   * `knotenbereich` haelt beide Antworten auseinander; Vorgabe ist der
+   * steife Bereich, wie beim Tragjoch.
+   */
+  const bBl = Number(opt.bBl) || 0;                            // m
+  const steif = (opt.knotenbereich ?? 'anschnitt') !== 'schwerachsen';
+  const anschnitt = (steif && bBl > 0 && a > bBl) ? (a - bBl) / a : 1;
+  const Moertl = Voertl * ABFANG_GURT_DAEMPFUNG * anschnitt;
 
   // kNm -> kNcm für die Widerstandsmomente in cm³
   const sigN = N / q.Agurt;
@@ -480,6 +509,8 @@ export function abfangGurtnachweis(q, s, a, fyd) {
 
   return {
     N, Moertl,
+    /** Minderung aus dem steifen Knotenbereich - 1.0 heisst: keine. */
+    anschnitt, bBl,
     sigN, sigVert, sigOertl, sigma,
     fyd,
     eta: fyd > 0 ? sigma / fyd : Infinity,

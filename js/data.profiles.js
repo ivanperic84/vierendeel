@@ -123,10 +123,32 @@ export function getStahl(name) {
  * Sortimentsblaettern - dort stehen nur die Hauptmasse h, b und t_f. Sie
  * gehen in den Nachweis ein und gehoeren deshalb gegengelesen.
  *
- * Gegengeprueft ist bisher das GEWICHT: A x 7.85 muss das Laufmetergewicht
- * ergeben, und die Summe zweier Gurte plus Bindebleche das Jochgewicht der
- * Sortimentstabelle. A160 kommt so auf 41.6 gegen 43 kg/m im Blatt, A200 auf
- * 57.7 gegen 58 - der Rest sind Endverstaerkung und Schweissnaehte.
+ * >>> DIE GEWICHTSPROBE FINDET NICHT ALLES. <<<
+ *
+ * A x 7.85 gegen das Laufmetergewicht ging bei ALLEN sieben Profilen auf -
+ * und bei UPE 160 waren I_z, W_z und I_t trotzdem falsch. Sie pruefte eben
+ * nur A gegen G, und beide waren stimmig zueinander. Eine
+ * Selbstkonsistenzpruefung findet keinen Fehler, der beide Seiten betrifft.
+ *
+ * >>> UPE IST NICHT UNP. <<<
+ *
+ * Am 3. September gegen den AxisVM-Querschnittseditor geprueft (Weisung:
+ * «das ist das UPE nach EN norm. der nachgebaute querschnitt ist nicht ganz
+ * korrekt»). Bei UPE 160 stimmten A, I_y und W_y - die STARKE Achse -, aber
+ * die schwache nicht:
+ *
+ *      I_z    85.3  ->  106.83 cm4     20 % zu klein
+ *      W_z    18.3  ->   22.58 cm3     19 % zu klein
+ *      I_t    13.3  ->    5.23 cm4    154 % zu gross
+ *      A      22.0  ->   21.67 cm2
+ *      G      17.3  ->   17.0  kg/m
+ *
+ * Das sind UNP-Werte: das UNP hat geneigte Flansche und ein kleineres I_z.
+ * Beim Abfangjoch liegt der Vierendeel-Verband in der SCHWACHEN Ebene -
+ * genau dort, wo der Fehler sass.
+ *
+ * UPE 200 und UPE 240 stammen aus derselben Quelle und sind damit
+ * verdaechtig; ihre Zeilen sind angeschrieben. Zu pruefen im selben Editor.
  *
  * >>> e_y IST DER GRUND, WARUM k NICHT DER HEBELARM IST. <<<
  *
@@ -147,9 +169,11 @@ const wp = (name, reihe, h, b, tw, tf, r, A, G, Iy, Wy, iy, Iz, Wz, iz, It, ey) 
 
 export const GURTPROFILE = [
   //   name       reihe     h     b    t_w   t_f    r     A     G      I_y    W_y   i_y     I_z   W_z   i_z    I_t   e_y
-  wp('UPE 160', 'UPE', 16.0,  7.0, 0.55, 0.95, 1.00, 22.0, 17.3,   911, 113.9, 6.43,  85.3, 18.3, 1.97, 13.3, 1.84),
-  wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.0, 22.8,  1910, 191.0, 8.12, 148.0, 27.0, 2.26, 20.4, 2.10),
-  wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.5, 30.2,  3600, 300.0, 9.67, 257.0, 39.9, 2.58, 32.5, 2.38),
+  // UPE 160 am 3. September gegen den AxisVM-Querschnittseditor geprueft
+  // und berichtigt - siehe den Kasten unter der Tabelle.
+  wp('UPE 160', 'UPE', 16.0,  7.0, 0.55, 0.95, 1.00, 21.67, 17.0,  911.1, 113.9, 6.48, 106.83, 22.58, 2.22, 5.23, 1.84),
+  wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.0, 22.8,  1910, 191.0, 8.12, 148.0, 27.0, 2.26, 20.4, 2.10),   // I_z, W_z, I_t UNGEPRUEFT
+  wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.5, 30.2,  3600, 300.0, 9.67, 257.0, 39.9, 2.58, 32.5, 2.38),   // I_z, W_z, I_t UNGEPRUEFT
   wp('IPE 270', 'IPE', 27.0, 13.5, 0.66, 1.02, 1.50, 45.9, 36.1,  5790, 429.0, 11.2, 420.0, 62.2, 3.02, 15.9, 0),
   wp('IPE 300', 'IPE', 30.0, 15.0, 0.71, 1.07, 1.50, 53.8, 42.2,  8356, 557.0, 12.5, 604.0, 80.5, 3.35, 20.1, 0),
   wp('IPE 330', 'IPE', 33.0, 16.0, 0.75, 1.15, 1.80, 62.6, 49.1, 11770, 713.0, 13.7, 788.0, 98.5, 3.55, 28.2, 0),
