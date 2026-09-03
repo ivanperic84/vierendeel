@@ -13892,9 +13892,23 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * zeigt; mit z nach oben stuenden sie hochkant, und ihre
      * Biegesteifigkeit laege um (b/t)^2 daneben.
      */
+    /*
+     * >>> DIE GURTE STEHEN SPIEGELBILDLICH. <<<
+     *
+     * Weisung vom 4. September: «gurte spiegelsymetrisch auf die jochachse
+     * bezogen (c ist gegen aussen offen)». Ein U-Profil laesst sich in
+     * AxisVM nicht spiegeln; die Referenz dreht es um 180 Grad um die
+     * Stabachse, und beim UPE vertauscht das genau die Oeffnungsrichtung.
+     * Aufrecht stehen beide - nur eben andersherum.
+     */
     wahr('Die Gurte stehen aufrecht',
          m.staebe.filter((x) => x.querschnitt === 'GURT' && x.art === 'stab')
-           .every((x) => x.lcsZ[2] === 1));
+           .every((x) => Math.abs(x.lcsZ[2]) === 1));
+    wahr('... und spiegelbildlich zur Jochachse',
+         m.staebe.filter((x) => /^V_S[0-9]+$/.test(x.name))
+           .every((x) => x.lcsZ[2] === 1)
+         && m.staebe.filter((x) => /^H_S[0-9]+$/.test(x.name))
+              .every((x) => x.lcsZ[2] === -1));
     /*
      * >>> DIE BLECHE LIEGEN FLACH - UEBER DEN QUERSCHNITT, NICHT UEBER DIE
      *     REFERENZ. <<<
@@ -13911,10 +13925,19 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Bleche stehen aufrecht referenziert',
          m.staebe.filter((x) => x.querschnitt.startsWith('BLECH'))
            .every((x) => x.lcsZ[2] === 1));
-    wahr('… und ihr Querschnitt ist die Dicke hoch, die Breite quer',
+    /*
+     * >>> DIE BREITE STEHT VORN. <<<
+     *
+     * Zweimal daneben: erst `[b,t]` mit Referenz `[1,0,0]`, dann `[t,b]` mit
+     * `[0,0,1]` - beide Male stand das Blech hochkant im Modell. Die zwei
+     * Aenderungen heben einander auf. `AddRectangular(h, b)` legt h in die
+     * lokale y, nicht in die lokale z; mit senkrechter Referenz gehoert
+     * damit die BREITE nach vorn.
+     */
+    wahr('… und ihr Querschnitt ist die Breite quer, die Dicke hoch',
          (() => {
            const q2 = m.querschnitte.find((x) => x.name === 'BLECH');
-           return q2.parameter[0] < q2.parameter[1];
+           return q2.parameter[0] > q2.parameter[1];
          })());
     wahr('Die starren Arme stehen selbst senkrecht',
          m.staebe.filter((x) => x.name.startsWith('ARM_'))

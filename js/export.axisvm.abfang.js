@@ -160,12 +160,25 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * nicht, und AxisVM legte seine lokale z in die Vertikalebene: damit
    * stand die 140-mm-Breite senkrecht statt in der Traegerachse.
    *
-   * Genommen wird deshalb die Paarung, die in BEIDEN Faellen flach liegt:
-   * h = DICKE in lokaler z, b = Breite in lokaler y. Ob die Referenz
-   * wirkt oder nicht - das Blech liegt.
+   * >>> ZWEIMAL DANEBEN, BEIM DRITTEN MAL GEMESSEN. <<<
+   *
+   * Erst stand `[b, t]` mit der Referenz `[1,0,0]`, dann `[t, b]` mit
+   * `[0,0,1]`. Der Auftraggeber hat BEIDE im Modell stehen sehen - und das
+   * ist kein Zufall: die zwei Aenderungen heben einander auf, wenn die
+   * Referenz die Achsen vertauscht. Zwei Fassungen, dieselbe Lage.
+   *
+   * Daraus folgt, was die Signatur nicht sagt: `AddRectangular(h, b)` legt
+   * h in die lokale y und b in die lokale z, nicht umgekehrt. Mit der
+   * Referenz `[0,0,1]` (lokale z senkrecht) gehoert die BREITE nach vorn
+   * und die Dicke nach hinten:
+   *
+   *      parameter [b, t]   mit   lcsZ [0,0,1]     -> liegt flach
+   *
+   * Weisung vom 4. September: «die liegenden bleche muessen um 90 Grad
+   * gekippt werden.»
    */
   const blechQs = (name, m) => ({
-    name, form: 'Rectangle', parameter: [m.t, m.b],
+    name, form: 'Rectangle', parameter: [m.b, m.t],
     profil: `Flachstahl ${m.b}/${m.t}`,
     A: (m.b * m.t) / 1e6,
     Iy: (m.t * m.b ** 3) / 12 / 1e12,
@@ -384,13 +397,32 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * nach eigener Regel, und der Gurt läge auf der Seite — mit vertauschten
    * Trägheitsmomenten und einem Ergebnis, dem man es nicht ansieht.
    */
+  /*
+   * >>> DIE GURTE STEHEN SPIEGELBILDLICH. <<<
+   *
+   * Weisung vom 4. September: «gurte spiegelsymetrisch auf die jochachse
+   * bezogen (c ist gegen aussen offen)».
+   *
+   * Ein U-Profil laesst sich in AxisVM nicht spiegeln - dieselbe Lage wie
+   * beim Tragjoch, wo es der Winkel ist: «beim gleichschenkligen Winkel ist
+   * das Spiegelbild eine Drehung um 90 Grad um die Stabachse, und die
+   * steuert die Referenzrichtung.» Beim UPE sind es 180 Grad, und die
+   * Referenz dreht sie: `[0,0,1]` fuer den einen Gurt, `[0,0,-1]` fuer den
+   * anderen. Das UPE ist symmetrisch zu seiner starken Achse, also
+   * vertauscht die Drehung nur die Oeffnungsrichtung - genau das, was
+   * gebraucht wird.
+   *
+   * Beim IPE (ab A270) ist sie ohne Wirkung: das Profil ist doppelt
+   * symmetrisch, und ein gedrehtes I sieht aus wie ein ungedrehtes.
+   */
+  const lcsGurt = (g) => (g === 'V' ? [0, 0, 1] : [0, 0, -1]);
   const staebe = [];
   for (let i = 0; i < xs.length - 1; i++) {
     for (const g of ['V', 'H']) {
       staebe.push({
         name: `${g}_S${i}`, von: nm(g, i), bis: nm(g, i + 1),
         querschnitt: 'GURT', steifesMaterial: false,
-        lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+        lcsZ: lcsGurt(g), gelenkAnfang: null, gelenkEnde: null, art: 'stab',
       });
     }
   }
@@ -455,7 +487,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
         staebe.push({
           name: `GABEL_${g}${i}`, von: nmG(g, i), bis: nmG(g, i + 1),
           querschnitt: 'GURT', steifesMaterial: false,
-          lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+          lcsZ: lcsGurt(g), gelenkAnfang: null, gelenkEnde: null, art: 'stab',
         });
       }
     }
