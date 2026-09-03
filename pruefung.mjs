@@ -12130,6 +12130,74 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> AUCH ALLEIN STEHT EIN TRAGWERK AN SEINER STELLE. <<<
+   *
+   * Gemeldet am 3. September: «beim separierter darstellung werden die
+   * lasten (linien) der ausgeblendeten noch dargestellt.»
+   *
+   * `blattSzene` hatte einen Kurzschluss: bleibt EIN Tragwerk sichtbar, gab
+   * es die unverschobene Szene zurueck - in den eigenen Koordinaten des
+   * Tragwerks, 0 bis L. Solange ein Blatt eines trug und dessen Lage null
+   * war, stimmte das. Blendet man auf einer Reihe die anderen aus, sprang
+   * das uebrige auf x = 0, waehrend Masskette und hinterlegte Zeichnung
+   * weiter in Blattkoordinaten stehen: Linien an Stellen, an denen nichts
+   * mehr ist.
+   *
+   * Und dasselbe traf das Setzen von Bauteilen: `stelleAus` rechnet den
+   * Klick von der Blatt- in die Tragwerkskoordinate um. Stand die Szene
+   * unverschoben da, ging jeder Klick um x0 daneben.
+   */
+  {
+    const rA = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+    const ab = rA.indexOf('function blattSzene(erg) {');
+    const koerper = ab > 0 ? rA.slice(ab, rA.indexOf('\nfunction ', ab + 10)) : '';
+    /*
+     * GESUCHT WIRD DIE ANWEISUNG, nicht der Text: der Kommentar darueber
+     * ZITIERT die entfernte Zeile, damit man weiss, was einmal dastand. Ein
+     * blosses `includes` faende sie dort wieder und meldete den Fehler als
+     * bestehend.
+     */
+    wahr('blattSzene kennt keinen Kurzschluss mehr',
+         koerper.length > 0 && !koerper.split(/\r?\n/).some(
+           (z) => z.trim() === 'if (alle.length < 2) return eigen;'));
+    wahr('… und verschiebt jedes Teil an seine Lage',
+         koerper.includes('szeneVerschieben({ ...eigen, aktiv: true }, dx,'));
+  }
+
+  /*
+   * >>> DIE LAENGENGRENZE GILT NUR DEM ENDE B. <<<
+   *
+   * Weisung vom 3. September: «das verschieben der tragwerke in der sidebar
+   * nochmals auf die funktionalität und logik checken.»
+   *
+   * Dabei gefunden: `mastGrenzen` legte die Sortimentsgrenze des Jochtyps
+   * AUCH auf das Ende A. Am Ende A gezogen VERSCHIEBT sich das Tragwerk -
+   * seine Laenge aendert sich gar nicht. Bei einem J90 (8 bis 26.5 m) liess
+   * sich ein Joch von 20 m deshalb nur zwischen -6.5 und +12 m um sein
+   * rechtes Ende schieben: eine Schranke, die niemand erklaeren kann.
+   */
+  {
+    const UI = await import(J('ui.js'));
+    const w = reihe();
+    const masten = C75.mastenVon(w);
+    const links = UI.mastRollen(w, masten[0].id);      // nur Ende A
+    wahr('Der linke Mast ist nur ein Ende A',
+         Boolean(links.alsA) && !links.alsB);
+    pruef('Ihn zu ziehen kennt keine Laengengrenze',
+          UI.mastGrenzen(links, -500), -500, 1e-9, 'm');
+    pruef('… auch nicht nach oben', UI.mastGrenzen(links, 500), 500, 1e-9, 'm');
+
+    // Am Ende B dagegen aendert das Ziehen die LAENGE - dort ist der
+    // Sortimentsbereich die richtige Grenze.
+    const rechts = UI.mastRollen(w, masten[masten.length - 1].id);
+    wahr('Der rechte Mast ist ein Ende B', Boolean(rechts.alsB));
+    const { laengenbereich: lb } = await import(J('data.tragjoche.js'));
+    const b = lb(T.getTragjoch(rechts.alsB.t.typ));
+    pruef('Er bleibt im Sortiment', UI.mastGrenzen(rechts, 1e4),
+          rechts.alsB.x0 + b.max, 1e-9, 'm');
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

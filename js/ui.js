@@ -752,15 +752,22 @@ export function mastGrenzen(rollen, x) {
     unten = Math.max(unten, rollen.alsB.x0 + b.min);
     oben = Math.min(oben, rollen.alsB.x0 + b.max);
   }
-  if (rollen.alsA && rollen.alsA.t) {
-    // Das Tragwerk rechts wandert mit; sein rechtes Ende darf nicht in
-    // seinen eigenen Nachbarn laufen. Das faengt `freieLage` beim Ablegen -
-    // hier genuegt die Laengengrenze des eigenen Typs.
-    const b = laengenbereich(getTragjoch(rollen.alsA.t.typ));
-    const rechtesEnde = rollen.alsA.x0 + (Number(rollen.alsA.t.L) || 0);
-    oben = Math.min(oben, rechtesEnde - b.min);
-    unten = Math.max(unten, rechtesEnde - b.max);
-  }
+  /*
+   * >>> DIE LAENGENGRENZE GILT NUR DEM ENDE B. <<<
+   *
+   * Hier stand sie auch fuer das Ende A - und das war falsch. Am Ende A
+   * gezogen VERSCHIEBT sich das Tragwerk (x0 wandert, L bleibt); seine
+   * Laenge aendert sich also gar nicht, und eine Laengengrenze hatte dort
+   * nichts zu suchen. Bei einem J90 (8 bis 26.5 m) liess sich ein Joch von
+   * 20 m deshalb nur zwischen -6.5 und +12 m um sein rechtes Ende
+   * verschieben - eine Schranke, die niemand erklaeren kann.
+   *
+   * Am Ende B dagegen aendert das Ziehen die LAENGE, und dort ist der
+   * Sortimentsbereich die richtige Grenze.
+   *
+   * Wohin das verschobene Tragwerk darf, entscheidet `freieLage` beim
+   * Ablegen - die Regel steht dort und nicht zweimal.
+   */
   return Math.min(Math.max(x, unten), oben);
 }
 

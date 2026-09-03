@@ -550,7 +550,6 @@ function blattSzene(erg) {
   const alle = tragwerkeSortiert(werte)
     .filter((t) => !versteckt(t) || t.id === aktivId);
   const eigen = erzeugeSzene(erg.modell, erg);
-  if (alle.length < 2) return eigen;
   const teile = alle.map((t) => {
     const dx = lageVon(t);
     if (t.id === aktivId) {
@@ -560,6 +559,26 @@ function blattSzene(erg) {
     const sz = szeneVonNebenan(t);
     return sz ? szeneVerschieben(sz, dx, { twId: t.id, passiv: true }) : null;
   });
+  /*
+   * >>> AUCH ALLEIN STEHT ES AN SEINER STELLE. <<<
+   *
+   * Hier stand `if (alle.length < 2) return eigen;` - die unverschobene
+   * Szene, in den EIGENEN Koordinaten des Tragwerks (0 bis L).
+   *
+   * Solange ein Blatt ein Tragwerk trug und dessen Lage null war, stimmte
+   * das. Sobald eines allein uebrigbleibt - weil man die anderen
+   * ausgeblendet hat -, stimmt es nicht mehr: das Joch sprang auf x = 0,
+   * waehrend Masten, Masskette und die hinterlegte Zeichnung weiter in
+   * Blattkoordinaten stehen. Was man dann sieht, sind Linien an Stellen, an
+   * denen nichts mehr ist.
+   *
+   * Gemeldet am 3. September: «beim separierter darstellung werden die
+   * lasten (linien) der ausgeblendeten noch dargestellt.»
+   *
+   * Und dasselbe traf das Setzen von Bauteilen: `stelleAus` rechnet den
+   * Klick von der Blattkoordinate in die des Tragwerks um (blattNachLokal).
+   * Stand die Szene unverschoben da, ging jeder Klick um x0 daneben.
+   */
   return szenenVereinen(teile);
 }
 
@@ -798,8 +817,19 @@ function aendern(key, wert) {
     };
     if (r.alsB) setzeAn(r.alsB.t.id, 'L', Math.max(0, wert.x - r.alsB.x0));
     if (r.alsA) {
-      // Das rechte Tragwerk behaelt seine Laenge und wandert mit.
-      setzeAn(r.alsA.t.id, 'xLage', wert.x);
+      /*
+       * DAS RECHTE TRAGWERK BEHAELT SEINE LAENGE UND WANDERT MIT - aber
+       * nicht in seinen Nachbarn hinein. `freieLage` entscheidet, wohin es
+       * darf; die Regel steht dort und nicht ein zweites Mal hier.
+       *
+       * Beim GETEILTEN Masten laeuft das nach der Laengenaenderung des
+       * linken Jochs: dessen rechtes Ende steht dann schon an der neuen
+       * Stelle, und das rechte schliesst dort an.
+       */
+      if ((werte.twId ?? 'T1') !== r.alsA.t.id) {
+        werte = tauscheAktives(werte, r.alsA.t.id);
+      }
+      werte = { ...werte, xLage: freieLage(werte, r.alsA.t.id, wert.x).x };
     }
     mastNachfuehren();
     neuRechnen();

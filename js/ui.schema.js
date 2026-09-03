@@ -20,7 +20,8 @@
  */
 
 import { TRAGWERKSARTEN, tragwerksart,
-         gewaehlterMast, mastName, mastNameAmEnde } from './core.constants.js';
+         gewaehlterMast, mastName, mastNameAmEnde,
+         tragwerkPos, tragwerkeVon } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
@@ -205,7 +206,16 @@ export const FELDER = [
 
   // --- Typ und Rechenmasse -------------------------------------------------
   {
-    key: 'typ', gruppe: 'typ', typ: 'auswahl', label: 'Tragjoch-Typ',
+    key: 'typ', gruppe: 'typ', typ: 'auswahl',
+    /*
+     * DAS JOCH NENNT SEINE POSITION, wie der Mast seine Nummer.
+     *
+     * Weisung vom 3. September: «kannst du noch bei der längeneingabe den
+     * aktiven joch (position) benennen, so wie bei den masten.» Auf einer
+     * Reihe stehen drei gleiche Joche; welches die Felder gerade meinen,
+     * stand nirgends - man musste es sich aus der Leiste merken.
+     */
+    label: (w) => `Tragjoch-Typ ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     standard: 'J90', optionen: [],
     hinweis: 'Setzt Profile, Masse, Teilung, Bindebleche und Tabellenlasten.',
   },
@@ -219,7 +229,8 @@ export const FELDER = [
     // Die Spannweite ist NICHT gesperrt: sie ist die Grösse, die am häufigsten
     // variiert wird. Der Schieber ist auf den Sortimentsbereich des Typs
     // begrenzt, damit man nicht unbemerkt aus dem Katalog läuft.
-    key: 'L', gruppe: 'geo', typ: 'schieber', label: 'Jochlänge', sym: 'jt',
+    key: 'L', gruppe: 'geo', typ: 'schieber', sym: 'jt',
+    label: (w) => `Jochlänge ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     einheit: 'm', standard: 20.0, min: 8, max: 34.5,
     // Der SCHIEBER rastet auf den halben Meter, das FELD auf den
     // Zentimeter (Weisung, 2. September). Ziehen ist die grobe Geste,
