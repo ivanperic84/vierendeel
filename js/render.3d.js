@@ -3852,6 +3852,23 @@ export class Modellansicht {
         // Zeichen selbst und macht aus einer Anschrift ein Bauteil. Lesbar
         // bleibt sie über einen Saum in der Hintergrundfarbe: er trennt den
         // Text vom Modell, ohne eine Fläche zu setzen.
+        /*
+         * >>> AUCH DIE ANBAUTEILE REDEN LEISE. <<<
+         *
+         * Gemeldet am 3. September: «beim inaktiv schalten die bezeichnung
+         * der anbauteile ist noch hell.»
+         *
+         * Bauteile, Titel, Lastpfeile und Bemassungen des nicht gerechneten
+         * Tragwerks waren laengst gedaempft - die Anschriften «A1», «A2»
+         * standen weiter in voller Helligkeit da. Auf einer Reihe mit
+         * zwanzig Bauteilen sind das zwanzig helle Marken ueber einem
+         * Tragwerk, das gar nicht gerechnet wird.
+         *
+         * DER LANGE NAME BLEIBT DEM GERECHNETEN. Er erscheint nur beim
+         * ANGEKLICKTEN Teil, und angeklickt wird nur im gerechneten
+         * Tragwerk; am fremden stuende er ohnehin nie.
+         */
+        const leise = mk.passiv === true;
         const text = (mk.teil === this.auswahlTeil && mk.textLang) || mk.text;
         c.font = this._font(this.schriftAnbau);
         const hAn = this.schriftAnbau * s;
@@ -3859,14 +3876,21 @@ export class Modellansicht {
         const bx = p[0] - b / 2, by = p[1] - hAn - 5 * s;
         if (!frei(bx - 2 * s, by, b + 4 * s, hAn + 4 * s)) { c.font = this._font(); return; }
         belegt.push({ x: bx - 2 * s, y: by, w: b + 4 * s, h: hAn + 4 * s });
-        c.strokeStyle = t.ol2; c.lineWidth = 0.8 * s; c.globalAlpha = 0.5;
+        c.strokeStyle = t.ol2; c.lineWidth = 0.8 * s;
+        c.globalAlpha = leise ? 0.22 : 0.5;
         c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0], by + hAn + 2 * s); c.stroke();
-        c.globalAlpha = 1;
+        c.globalAlpha = leise ? 0.45 : 1;
         c.lineJoin = 'round';
+        // Der Saum bleibt voll gedeckt: er trennt den Text vom Modell, und
+        // ein halbdurchsichtiger Saum liesse ihn ausfransen statt leiser
+        // werden.
+        c.globalAlpha = 1;
         c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
         c.strokeText(text, bx, by + hAn);
-        c.fillStyle = t.on2;
+        c.globalAlpha = leise ? 0.45 : 1;
+        c.fillStyle = leise ? t.dim : t.on2;
         c.fillText(text, bx, by + hAn);
+        c.globalAlpha = 1;
         c.font = this._font();
         return;
       }

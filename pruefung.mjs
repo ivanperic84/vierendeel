@@ -12055,6 +12055,23 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     z = C75.tragwerkHinzu(z, 'joch', { L: 20 });
     const g = C75.freieLage(z, z.twId, 5);
     wahr('Zwei Tragjoche werden auseinandergeschoben', g.geklemmt === true);
+
+    /*
+     * >>> UND ZWEI ABFANGJOCHE STEHEN UEBEREINANDER. <<<
+     *
+     * Weisung vom 3. September, praezisiert: «es gibt im normalfall nur
+     * abfangjoche die übereinander montiert sind. die tragjoche sind immer
+     * in reihe.»
+     *
+     * Die erste Fassung sagte «verschiedene Arten duerfen sich decken» - das
+     * war zu weit gefasst UND zu eng: es haette zwei Abfangjoche
+     * auseinandergeschoben, obwohl gerade die uebereinander gehoeren.
+     */
+    let ab = { typ: 'J90', L: 20, xLage: 0, twId: 'T1',
+               tragwerksart: 'abfangjoch' };
+    ab = C75.tragwerkHinzu(ab, 'abfangjoch', { xLage: 0, L: 20 });
+    wahr('Zwei Abfangjoche duerfen uebereinander stehen',
+         C75.freieLage(ab, ab.twId, 0).geklemmt === false);
   }
 
   /*

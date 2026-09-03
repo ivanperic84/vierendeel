@@ -400,20 +400,29 @@ export function freieLage(w, id, x) {
   alle.forEach((y) => {
     if (y.id === id) return;
     /*
-     * >>> WAS UEBEREINANDER STEHT, DARF SICH DECKEN. <<<
+     * >>> GESTAPELT WIRD NUR, WO ABGEFANGEN WIRD. <<<
      *
-     * Weisung vom 3. September: «wir haben zudem bei den abfangjochen zwei
-     * joche übereinander.»
+     * Weisung vom 3. September, praezisiert: «es gibt im normalfall nur
+     * abfangjoche die übereinander montiert sind. die tragjoche sind immer
+     * in reihe.»
      *
-     * Ein Abfangjoch sitzt UEBER einem Tragjoch, auf denselben Masten und
-     * auf derselben Strecke. Das ist kein Eingabefehler, sondern der Aufbau -
-     * und die Regel «nichts darf sich ueberschneiden» haette ihn verboten.
+     * Also nicht «verschiedene Arten duerfen sich decken» - das war zu weit
+     * gefasst und haette ein Tragjoch durch einen Tragausleger fahren
+     * lassen. Die Regel ist einfacher und schaerfer:
      *
-     * Verboten bleibt die Ueberschneidung GLEICHER Art: zwei Tragjoche, die
-     * einander durchdringen, beschreiben kein Tragwerk. Verschiedene Arten
-     * stehen uebereinander, und wie hoch, sagt ihre Anschlusshoehe.
+     *   ABFANGJOCH beteiligt   -> Ueberdeckung erlaubt. Es wird UEBER das
+     *                             Tragjoch montiert, auf denselben Masten,
+     *                             und zwei Abfangjoche uebereinander sind
+     *                             der Normalfall.
+     *   sonst                  -> Reihe. Tragjoche stehen nebeneinander und
+     *                             teilen sich hoechstens den Zwischenmasten.
+     *
+     * Wie hoch ein Abfangjoch sitzt, sagt seine Anschlusshoehe - nicht diese
+     * Regel und nicht die Leiste.
      */
-    if (tragwerksart(y).key !== tragwerksart(t).key) return;
+    const stapelbar = tragwerksart(y).key === 'abfangjoch'
+                   || tragwerksart(t).key === 'abfangjoch';
+    if (stapelbar) return;
     const [a, b] = bereichVon(y);
     // Wer LINKS von mir steht, begrenzt mich nach unten; wer rechts steht,
     // nach oben. Massgebend ist, wo er JETZT steht - nicht, wo er einmal
