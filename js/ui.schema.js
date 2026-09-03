@@ -24,7 +24,7 @@ import { TRAGWERKSARTEN, tragwerksart,
          tragwerkPos, tragwerkeVon } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
-import { abfangjoche, abfangLaengenbereich,
+import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa } from './data.abfangjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
 import { AUSRICHTUNGEN } from './geometry.js';
@@ -1120,7 +1120,15 @@ export function abfangOptionen() {
       wert: a.typ,
       gruppe: (a.bauweise ?? 'neu') === 'alt'
         ? 'Altbauweise — Bestand' : 'Aktuelles Sortiment',
-      text: `${a.typ} · ${a.profil} · ${b.text}`,
+      /*
+       * DIE ZEILE SAGT, OB DER TYP GANZ ERFASST IST.
+       *
+       * Ohne Mass-Tabelle steht der Aufbau da, aber keine Blecheinteilung -
+       * und ohne die gibt es keinen Nachweisschnitt. Wer waehlt, soll das
+       * SEHEN, statt es an einer ausbleibenden Zahl zu merken.
+       */
+      text: `${a.typ} · ${a.profil} · ${b.text}`
+          + (abfangVollstaendig(a) ? '' : ' — Masse unvollständig'),
     };
   };
   const alle = abfangjoche();

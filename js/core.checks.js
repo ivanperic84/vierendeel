@@ -477,7 +477,7 @@ export function hinweise(m) {
     const typ = m.abfangTyp ? ` «${m.abfangTyp}»` : '';
     h.push(`Abfangjoch${typ} gewählt — gerechnet wird weiterhin das `
       + 'Tragjoch. Das Abfangjoch ist ein liegender Vierendeelträger — zwei '
-      + 'Gurte, eine Blechebene, Rahmenebene waagrecht —; sein Rechenkern ist '
+      + 'Gurte nebeneinander, Bindebleche oben und unten —; sein Rechenkern ist '
       + 'im Bau. Der gewählte Typ benennt das Bauteil, alle folgenden Zahlen '
       + 'gelten dem Joch.');
   }

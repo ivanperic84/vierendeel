@@ -3890,6 +3890,81 @@ ist aber der Ausschnitt, nicht die Vergrösserung. Jetzt zeigen sie dasselbe
 Bauwerk, einmal als Reihe (`querprofilGanz`) und einmal einzeln, von Eckklammern
 gefasst (`querprofilEines`).
 
+## Der Abfangjoch-Rechenkern — die Weisung vom 3. September
+
+> „Die Abfangjoche sind liegende Vierendeelträger. diese sollte auch wenn
+> möglich als einfacher balken abgebildet werden und mit der umrechnung auf
+> die einzelne gurte. der nachweis erfolgt dann über die vorhandenen bleche
+> und den nachweisschnitt wie beim tragjoch. das heisst jeder träger wird für
+> sich alleine nachgewiesen."
+
+### Was entschieden ist
+
+| Frage | Entscheid |
+|---|---|
+| **Hebelarm** der Vierendeel-Wirkung | **k**, das Aussenmass im Feld (`d + 2b`). Die Gurte stehen nebeneinander, die Rahmenebene **liegt**. |
+| **Leiterzug** greift an | **in der Trägermittelebene** — keine planmässige Torsion, beide Gurte gleich beansprucht |
+| **Eigengewicht / Schnee** | **jeder Gurt für sich, halbe Last**, über seine starke Achse. Kein Rahmen quer zur Ebene. |
+| **Auflager** | Drehachse global um **y und z frei**, um x gehalten — einfacher Balken, Torsion um die Trägerachse gehalten |
+| **Kopplung** von Hängestützen an zwei Abfangjochen | **weggelassen**, bis die Vergleichsrechnungen mit PyNite und AxisVM tragen |
+| **Sprossen-/Blechmasse** | aus den **Konstruktionszeichnungen** unter `Grundlagen/Abfangjoche` |
+
+### Was die Zeichnungen ergeben haben
+
+Es sind **Bindebleche wie beim Tragjoch**, nicht „Sprossen" — die Stückliste
+nennt sie beim Namen: *Gurt · Verstärkung · Bindeblech L · Bindeblech ·
+Bindeblech R*. Je eines oben und unten (Schnitt A-A), Regelteilung **500**.
+Kein anderes Bauprinzip, nur **eine** Blechebene statt zweier.
+
+**Die Gabel am Jochende** (Weisung: „beachte noch die verstärkung zu den
+jochenden") ist ein aufgesetztes Gurtstück **gleichen Profils** — bei A160 ein
+UPE 160 × 660, zweimal. Es **verdoppelt den Gurtquerschnitt im
+Anschlussbereich**, und genau dort liegt der Nachweisschnitt am Auflager. Wer
+sie weglässt, weist den schwächsten Querschnitt an der Stelle nach, an der der
+stärkste steht.
+
+**h und k sind zwei verschiedene Masse.** `k` ist das Aussenmass im **Feld**,
+`h` das am **Jochende** (Spreizung + 2b). Bei A160 sind beide 420, weil der
+Träger gerade durchläuft; ab A200 ist er **gekropft** (Spreizung 280/400), und
+dort sind sie verschieden. Sie zu verwechseln hiesse, mit dem falschen
+Hebelarm zu rechnen — der Prüfstand hält beide Beziehungen fest.
+
+### Stand der Datenerfassung
+
+| Typ | Aufbau | Bindebleche | Gabel | Mass-Tabelle |
+|---|---|---|---|---|
+| A160 | ✓ | ✓ | ✓ | ✓ 15 Längen |
+| A200 | ✓ | ✓ | ✓ | ✓ 23 Längen |
+| A240 | ✓ | ✓ | ✓ | offen |
+| A300 | ✓ | ✓ | (Deckbleche, Rippen) | offen |
+| A360 | ✓ | ✓ | (Deckbleche, Rippen) | offen |
+| A270, A330 | offen | offen | offen | offen |
+| Altbauweise (10) | offen | offen | offen | offen |
+
+Die Auswahlliste schreibt „Masse unvollständig" an jeden Typ, dem die
+Mass-Tabelle fehlt — wer wählt, soll das **sehen**, statt es an einer
+ausbleibenden Zahl zu merken.
+
+**Ab A300 wird die Konstruktion reicher**: Deckbleche (350/10 × 1450 bzw. 650)
+und Verstärkungsrippen (80/10) kommen dazu, dazu Quersteifungen aus dem
+Gurtprofil. Das ist erfasst, aber noch nicht im Rechenmodell abgebildet.
+
+**Massgebend sind die Daten, nicht die Herleitung.** `QV1 = jt − 4.0 m`
+bestätigt jede erfasste Zeile, und `A1` wechselt zwischen 250 und 500 — beides
+steht als **Kontrolle** im Prüfstand, nicht als Rechenweg. `abfangMasse` gibt
+für eine Zwischenlänge `null` zurück statt einer erfundenen Einteilung.
+
+### Was noch aussteht
+
+* die Mass-Tabellen der fünf übrigen aktuellen Typen, die Stücklisten von
+  A270 und A330
+* der Rechenkern selbst: Balkenmodell, Umrechnung auf die Gurte,
+  Nachweisschnitt mit der Gabel am Auflager
+* die Lasten: Leiterzug in beiden Gleisrichtungen getrennt anordenbar,
+  Jochaufsätze, durchgehende Fahrleitung
+* Vergleichsrechnung PyNite / AxisVM, danach erst die Kopplung zweier
+  Abfangjoche über gemeinsame Hängestützen
+
 ## Die Kalibrierung der beiden gefitteten Kennwerte (29. August)
 
 `GURT_DAEMPFUNG` 0,42 und `ENDFELD_ZUSCHLAG` 2,0 standen auf **einer**

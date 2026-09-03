@@ -10,10 +10,25 @@
  * >>> ES IST EIN LIEGENDER VIERENDEELTRÄGER. <<<
  *
  * Weisung vom 3. September: «Die Abfangjoche sind liegende Vierendeelträger.»
- * Der Schnitt A-A der Sortimentsblätter zeigt es: ZWEI Profile Rücken an
- * Rücken (UPE, ab A270 IPE), lichter Abstand d, verbunden durch Sprossen im
- * 500er-Raster. Gurte und Pfosten ohne Diagonalen — ein Vierendeel-Rahmen,
- * nur eben in EINER Ebene statt in zweien, und diese Ebene LIEGT.
+ * Der Schnitt A-A zeigt es: ZWEI Gurte nebeneinander (UPE, ab A270 IPE),
+ * lichter Abstand d, verbunden durch BINDEBLECHE im 500er-Raster — je eines
+ * oben und unten, wie beim Tragjoch. Gurte und Pfosten ohne Diagonalen: ein
+ * Vierendeel-Rahmen, nur in EINER Ebene statt in zweien, und diese Ebene
+ * LIEGT.
+ *
+ * >>> DER HEBELARM IST k, DAS AUSSENMASS. <<<
+ *
+ * Weisung vom 3. September, auf Nachfrage: nicht h. Die Gurte stehen
+ * NEBENEINANDER, k = d + 2b spannt die Rahmenebene auf (A160: 70+280+70 =
+ * 420). Die Bauhöhe a ist die Profilhöhe — der Träger ist 160 hoch und
+ * 420 breit.
+ *
+ * >>> UND DIE GABEL AM JOCHENDE GEHÖRT DAZU. <<<
+ *
+ * Ein aufgesetztes Gurtstück gleichen Profils (bei A160: UPE 160 × 660,
+ * zweimal) verdoppelt den Gurtquerschnitt im Anschlussbereich. Für den
+ * Nachweisschnitt am Auflager ist das erheblich, und die stehende Vorgabe
+ * verlangt die Geometrie im Detail.
  *
  * Das dreht die Tragwirkung gegenüber dem Tragjoch:
  *
@@ -111,4 +126,84 @@ export function abfangLaengenbereich(typ) {
     max: Number.isFinite(max) ? max : 30,
     text: Number.isFinite(min) ? `${min}–${max} m` : `bis ${max} m`,
   };
+}
+
+/**
+ * DER AUFBAU EINES TYPS - was der Rechenkern braucht.
+ *
+ * >>> DER HEBELARM IST k, NICHT h. <<<
+ *
+ * Weisung vom 3. September auf Nachfrage. Die beiden Gurte stehen
+ * NEBENEINANDER; k = d + 2b ist das Aussenmass im Feld und spannt die
+ * Rahmenebene auf. `h` ist das Aussenmass am JOCHENDE (Spreizung + 2b) - bei
+ * den gekropften Typen ein anderes Mass, und es zu verwechseln hiesse, mit
+ * dem falschen Hebelarm zu rechnen.
+ *
+ * Der Achsabstand der Gurte ist kleiner als k: die Schwerachse jedes Gurtes
+ * liegt um e_y innerhalb des Stegruckens. Diesen Abzug macht der Kern, nicht
+ * die Datenbank - er braucht dafuer den Profilkatalog.
+ */
+export function abfangAufbau(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return a?.aufbau ?? null;
+}
+
+/** Die Bindebleche eines Typs: Regelblech im Feld, Endbleche links/rechts. */
+export function abfangBindeblech(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return a?.bindeblech ?? null;
+}
+
+/**
+ * DIE GABEL AM JOCHENDE (Weisung, 3. September: «beachte noch die
+ * verstaerkung zu den jochenden (Gabel)»).
+ *
+ * Ein aufgesetztes Gurtstueck gleichen Profils - bei A160 ein UPE 160 x 660,
+ * zweimal. Es VERDOPPELT den Gurtquerschnitt im Anschlussbereich, und genau
+ * dort liegt der Nachweisschnitt am Auflager. Wer es weglaesst, weist den
+ * schwaechsten Querschnitt an der Stelle nach, an der der staerkste steht.
+ */
+export function abfangGabel(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return a?.verstaerkung ?? null;
+}
+
+/**
+ * Die Zeile der Mass-Tabelle zu einer Jochlaenge.
+ *
+ * >>> MASSGEBEND SIND DIE DATEN. <<<
+ *
+ * Die Blecheinteilung liesse sich herleiten - QV1 = jt - 4.0 m, A1 wechselt
+ * zwischen 250 und 500 - und genau das waere der Fehler: fuehrt das Schema
+ * eine Zeile, gilt sie. Gesucht wird deshalb die gefuehrte Laenge, nicht die
+ * gerechnete; ohne Treffer kommt null zurueck und der Aufrufer sagt es.
+ */
+export function abfangMasse(typ, jt) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  const zeilen = a?.laengen ?? [];
+  if (!zeilen.length) return null;
+  let beste = null, ab = Infinity;
+  for (const z of zeilen) {
+    const d = Math.abs(z.jt - jt);
+    if (d < ab) { ab = d; beste = z; }
+  }
+  return ab <= 0.001 ? beste : null;
+}
+
+/** Die gefuehrten Laengen eines Typs [m] - aus der Mass-Tabelle. */
+export function abfangLaengen(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return (a?.laengen ?? []).map((z) => z.jt);
+}
+
+/**
+ * Ob ein Typ vollstaendig erfasst ist.
+ *
+ * Ohne Mass-Tabelle steht der Aufbau da, aber keine Blecheinteilung - und
+ * ohne die gibt es keinen Nachweisschnitt. Die Maske sagt es beim Typ,
+ * statt eine Rechnung auf halben Daten zu fuehren.
+ */
+export function abfangVollstaendig(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return Boolean(a?.aufbau && a?.bindeblech && a?.laengen?.length);
 }

@@ -12389,8 +12389,9 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Das aktuelle Sortiment reicht von A160 bis A360',
          neu[0].typ === 'A160' && neu[neu.length - 1].typ === 'A360');
     wahr('Jeder Typ nennt sein Gurtprofil', alle.every((a) => a.profil));
-    // Die Sprossen sitzen bei ALLEN im 500er-Raster - so stehen sie auf den
-    // Blaettern. Waere das je anders, muesste es hier auffallen.
+    // Die Bindebleche sitzen bei ALLEN im 500er-Raster - so steht es in der
+    // Mass-Tabelle der Schemablaetter (Spalte A2-A9). Waere das je anders,
+    // muesste es hier auffallen.
     wahr('Alle im 500er-Raster',
          alle.every((a) => a.masse?.teilung === 500));
     wahr('Und alle mit 280 mm Bauhoehe am Ende',
@@ -12426,6 +12427,135 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Altbauweise danach', g.length === 2 && g[1].startsWith('Altbauweise'));
     wahr('Die Zeile nennt Profil und Laengenbereich',
          o[0].text.includes('UPE 160') && o[0].text.includes('12.5'));
+  }
+
+  /*
+   * ===================================================================
+   * DER AUFBAU DER ABFANGJOCHE - aus den Konstruktionszeichnungen.
+   * ===================================================================
+   *
+   * Weisung vom 3. September: «Die Abfangjoche sind liegende
+   * Vierendeeltraeger.» Meine erste Lesart der Sortimentsblaetter -
+   * «zweigurtiger Traeger, der Kern passt darauf nicht» - war falsch.
+   *
+   * Der Schnitt A-A zeigt zwei Gurte NEBENEINANDER, die Stueckliste nennt
+   * sie beim Namen: Gurt, Verstaerkung, Bindeblech L, Bindeblech,
+   * Bindeblech R. Es sind BINDEBLECHE wie beim Tragjoch, je eines oben und
+   * unten - kein anderes Bauprinzip, nur eine Ebene statt zweier.
+   */
+  {
+    const A160 = AJ.getAbfangjoch('A160');
+    const auf = AJ.abfangAufbau('A160');
+    wahr('A160 fuehrt zwei Gurte', auf.gurte === 2);
+    wahr('… aus UPE 160', auf.gurtprofil === 'UPE 160');
+    /*
+     * >>> DER HEBELARM IST k, NICHT h. <<<
+     *
+     * Das war die Frage, die ich vorgaengig stellen musste. k = d + 2b ist
+     * das Aussenmass im FELD und spannt die Rahmenebene auf; h ist das
+     * Aussenmass am JOCHENDE. Bei A160 sind beide 420 - bei den gekropften
+     * Typen nicht, und dort waere die Verwechslung teuer.
+     */
+    pruef('k folgt aus d und b', auf.d + 2 * auf.b, auf.k, 1e-9, 'mm');
+    const a200 = AJ.abfangAufbau('A200');
+    pruef('… auch beim gekropften A200', a200.d + 2 * a200.b, a200.k, 1e-9, 'mm');
+    pruef('und h ist das ENDmass', a200.spreizung + 2 * a200.b,
+          A160.masse ? 440 : 440, 1e-9, 'mm');
+    wahr('Die beiden sind dort verschieden', a200.k !== 440);
+    // Die Spreizung am Ende ist bei allen erfassten Typen 280.
+    for (const t of AJ.abfangjoche().filter((x) => x.aufbau)) {
+      wahr(`${t.typ} spreizt am Ende auf 280`, t.aufbau.spreizung === 280);
+    }
+
+    /*
+     * DIE BINDEBLECHE - Regelblech im Feld, Endbleche abweichend.
+     *
+     * Das Regelblech ist so lang wie der lichte Abstand der Gurte: es fuellt
+     * genau die Luecke. Faellt das je auseinander, stimmt eine der beiden
+     * Angaben nicht.
+     */
+    const bl = AJ.abfangBindeblech('A160');
+    pruef('Das Regelblech fuellt die Luecke', bl.regel.l, auf.d, 1e-9, 'mm');
+    wahr('Es liegt in zwei Ebenen', bl.ebenen === 2);
+    wahr('Die Endbleche sind staerker',
+         bl.endeL.t > bl.regel.t && bl.endeR.t > bl.regel.t);
+
+    /*
+     * >>> DIE GABEL AM JOCHENDE. <<<
+     *
+     * Weisung vom 3. September: «beachte noch die verstaerkung zu den
+     * jochenden (Gabel)». Ein aufgesetztes Gurtstueck GLEICHEN Profils, das
+     * den Gurtquerschnitt im Anschlussbereich verdoppelt - und genau dort
+     * liegt der Nachweisschnitt am Auflager.
+     */
+    const gab = AJ.abfangGabel('A160');
+    wahr('Die Gabel ist erfasst', Boolean(gab));
+    wahr('Sie hat das Profil des Gurtes', gab.profil === auf.gurtprofil);
+    wahr('Und sitzt an beiden Enden', gab.anzahl === 2);
+    for (const t of AJ.abfangjoche().filter((x) => x.verstaerkung)) {
+      wahr(`${t.typ} traegt seine Gabel`,
+           t.verstaerkung.profil === t.aufbau.gurtprofil
+           && t.verstaerkung.laenge > 0);
+    }
+
+    /*
+     * DIE MASS-TABELLE - die Blecheinteilung je gefuehrte Laenge.
+     *
+     * >>> MASSGEBEND SIND DIE DATEN, NICHT DIE HERLEITUNG. <<<
+     *
+     * QV1 = jt - 4.0 m liesse sich herleiten und stimmt fuer jede erfasste
+     * Zeile. Genau deshalb steht es hier als KONTROLLE und nicht als
+     * Rechenweg: bestaetigt die Herleitung die Daten, ist das ein gutes
+     * Zeichen; ersetzt sie die Daten, ist es ein Verstoss gegen die
+     * stehende Vorgabe.
+     */
+    const l160 = A160.laengen;
+    wahr('A160 fuehrt 15 Laengen', l160.length === 15);
+    wahr('Von 5.50 bis 12.50 m',
+         l160[0].jt === 5.5 && l160[l160.length - 1].jt === 12.5);
+    wahr('Die Regelteilung ist ueberall 500',
+         l160.every((z) => z.A === 500));
+    wahr('Das erste Feld wechselt 250/500',
+         l160.every((z) => z.A1 === 250 || z.A1 === 500));
+    wahr('QV1 bestaetigt die Herleitung jt - 4.0 m',
+         l160.every((z) => Math.abs(z.QV1 - (z.jt * 1000 - 4000)) < 1e-6));
+    // Die Ueberhoehungsabschnitte decken die ganze Jochlaenge - symmetrisch,
+    // je Haelfte die Summe der S-Werte.
+    wahr('Die Ueberhoehung teilt die ganze Laenge',
+         l160.every((z) => Math.abs(2 * z.S.reduce((a2, b2) => a2 + b2, 0)
+                                    - z.jt * 1000) < 2));
+    const a200L = AJ.getAbfangjoch('A200').laengen;
+    wahr('A200 fuehrt 23 Laengen', a200L.length === 23);
+    wahr('… von 6.00 bis 17.00 m',
+         a200L[0].jt === 6.0 && a200L[a200L.length - 1].jt === 17.0);
+    wahr('… und teilt die Laenge ebenso',
+         a200L.every((z) => Math.abs(2 * z.S.reduce((a2, b2) => a2 + b2, 0)
+                                     - z.jt * 1000) < 2));
+
+    /*
+     * DIE ZEILE ZUR LAENGE - nur bei einer GEFUEHRTEN Laenge.
+     *
+     * Eine Zwischenlaenge bekommt keine erfundene Einteilung, sondern null.
+     * Der Aufrufer muss dann sagen, dass er sie nicht kennt.
+     */
+    wahr('Eine gefuehrte Laenge findet ihre Zeile',
+         AJ.abfangMasse('A160', 9.5)?.dm === '095');
+    wahr('Eine Zwischenlaenge findet keine',
+         AJ.abfangMasse('A160', 9.7) === null);
+    wahr('Und eine ausserhalb ebenso wenig',
+         AJ.abfangMasse('A160', 20) === null);
+
+    /*
+     * WAS VOLLSTAENDIG IST, SAGT DIE DATENBANK SELBST.
+     *
+     * Ohne Mass-Tabelle steht der Aufbau da, aber keine Blecheinteilung -
+     * und ohne die gibt es keinen Nachweisschnitt. Das muss abfragbar sein,
+     * sonst rechnet der Kern auf halben Daten weiter.
+     */
+    wahr('A160 ist vollstaendig', AJ.abfangVollstaendig('A160'));
+    wahr('A200 auch', AJ.abfangVollstaendig('A200'));
+    wahr('A240 noch nicht', !AJ.abfangVollstaendig('A240'));
+    wahr('Und A270 hat noch keinen Aufbau', !AJ.abfangAufbau('A270'));
   }
 
   /*
