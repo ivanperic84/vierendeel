@@ -11990,7 +11990,10 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   {
     const r = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
     const ab = r.indexOf('const zu = (e) => {');
-    const koerper = ab > 0 ? r.slice(ab, ab + 220) : '';
+    // Das Fenster wurde groesser: seit dem 3. September steht davor der
+    // Grund, warum `e.target` ein Node SEIN MUSS (wheel und blur liefern
+    // das Fenster, und `Node.contains(Window)` wirft).
+    const koerper = ab > 0 ? r.slice(ab, ab + 900) : '';
     wahr('Ein Druck IM Menue schliesst es nicht',
          koerper.includes('n.contains(e.target)'));
     // Und die Felder halten es offen: wer den Typ aendert, zieht oft gleich
@@ -12253,6 +12256,110 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * was einmal dastand.
      */
     wahr('… und nicht mehr, wer daran haengt', !koerper.includes('.traegt'));
+  }
+
+  /*
+   * >>> EIN JOCH GEHT NICHT DURCH EINEN FREMDEN MASTEN HINDURCH. <<<
+   *
+   * Weisung vom 3. September: «die tragwerkseingabe auf kollisionen checken
+   * so dass joche nicht durch angrenzende masten hindurchgehen können.»
+   *
+   * Zwei Faelle liess die bisherige Regel durch, beide gemessen:
+   *
+   *   EIN EINZELMAST hat keine Ausdehnung; die Ueberschneidung zweier
+   *   BEREICHE fasst ihn nicht. Ein Joch, auf L = 40 gesetzt, stand danach
+   *   0..40 mit einem fremden Masten bei 30 mitten darin.
+   *
+   *   EIN ABFANGJOCH ist von der Bereichsregel ausgenommen. Um fuenf Meter
+   *   verschoben stand sein Mast bei 5 im Joch darunter (0..20) und dessen
+   *   Mast bei 20 im Abfangjoch (5..25).
+   */
+  {
+    // A) DIE LAENGE HAELT AM NAECHSTEN MASTEN AN.
+    let a = { typ: 'J90', L: 20, xLage: 0, twId: 'T1', mastProfil: 'HEB 240',
+              mastH: 7.5, flSpannweite: 30 };
+    a = C75.tragwerkHinzu(a, 'einzelmast', {});
+    a = { ...a, xLage: 30 };
+    a = C75.tauscheAktives(a, 'T1');
+    pruef('Bis an den Masten heran ist erlaubt',
+          C75.freieLaenge(a, 'T1', 30).L, 30, 1e-9, 'm');
+    wahr('… und gilt nicht als geklemmt',
+         C75.freieLaenge(a, 'T1', 30).geklemmt === false);
+    pruef('Darueber hinaus wird angehalten',
+          C75.freieLaenge(a, 'T1', 40).L, 30, 1e-9, 'm');
+    wahr('… und sagt es', C75.freieLaenge(a, 'T1', 40).geklemmt === true);
+    pruef('Darunter bleibt alles frei',
+          C75.freieLaenge(a, 'T1', 25).L, 25, 1e-9, 'm');
+
+    // B) DAS ABFANGJOCH RASTET AUF DIE MASTEN DES JOCHS DARUNTER.
+    let b = { typ: 'J90', L: 20, xLage: 0, twId: 'T1', mastProfil: 'HEB 240',
+              mastH: 7.5 };
+    b = C75.tragwerkHinzu(b, 'abfangjoch', {});
+    pruef('Fuenf Meter verschoben wird es zurueckgeholt',
+          C75.freieLage(b, b.twId, 5).x, 0, 1e-9, 'm');
+    wahr('Deckungsgleich ist erlaubt',
+         C75.freieLage(b, b.twId, 0).geklemmt === false);
+
+    // C) UND EINE ALTE DATEI SAGT ES.
+    const alt = { ...a, L: 40 };
+    const k = C75.mastKollisionen(alt);
+    pruef('Die alte Lage wird gemeldet', k.length, 1, 1e-9, 'Stueck');
+    pruef('… mit der Stelle', k[0].x, 30, 1e-9, 'm');
+    wahr('Eine saubere Lage meldet nichts',
+         C75.mastKollisionen(a).length === 0);
+    // DAS ENDE DARF AUF DEM MASTEN LIEGEN - dort steht der gemeinsame.
+    wahr('Ein Mast am Ende ist keine Durchdringung',
+         C75.mastKollisionen({ ...a, L: 30 }).length === 0);
+  }
+
+  /*
+   * >>> DIE STELLE DES ANGEWAEHLTEN MASTEN IST EIN FELD. <<<
+   *
+   * Gemeldet am 3. September: «beim angeklicktem rechten masten, wird der x
+   * wert der lage nicht aktualisiert.» Es war kein Fehler IM Feld, sondern
+   * ein fehlendes Feld: «Lage auf dem Querprofil x0» ist die Lage des
+   * TRAGWERKS, und die aendert sich nicht, wenn man den rechten Masten
+   * anklickt.
+   *
+   * Das neue Feld liest die Stelle des angewaehlten Masten und schreibt sie
+   * ueber denselben Weg wie das Ziehen an der Marke.
+   */
+  {
+    const F = FELDER.find((x) => x.key === 'mastX');
+    wahr('Es gibt ein Feld fuer die Maststelle', Boolean(F));
+    const w = reihe();
+    const masten = C75.mastenVon(w);
+    // Ohne Wahl gilt der Mast am Ende A des gerechneten Tragwerks.
+    pruef('Ohne Wahl zeigt es den Masten am Ende A',
+          F.wertAus(w), C75.gewaehlterMast(w).x, 1e-9, 'm');
+    // Mit Wahl den angeklickten - hier der aeusserste rechts.
+    const rechts = masten[masten.length - 1];
+    pruef('Mit Wahl den angeklickten',
+          F.wertAus({ ...w, mastAktiv: rechts.id }), rechts.x, 1e-9, 'm');
+    wahr('Die Beschriftung nennt ihn beim Namen',
+         F.label({ ...w, mastAktiv: rechts.id })
+           .includes(C75.mastName(w, rechts)));
+  }
+
+  /*
+   * DIE TYPWAHL IST GEGLIEDERT.
+   *
+   * Weisung vom 3. September: «beim dropdown sollte man das etwas gliedern,
+   * das man es besser finden kann.» Die Liste war sortiert - erst das
+   * aktuelle Sortiment, dann die Altbauweise -, aber man SAH die Ordnung
+   * nicht. Eine sortierte Liste ohne Trennung liest sich wie eine
+   * unsortierte.
+   */
+  {
+    // Die Liste wird erst gefuellt, wenn die Typendatenbank steht.
+    const { setzeTypOptionen } = await import(J('ui.schema.js'));
+    const o = setzeTypOptionen();
+    wahr('Jede Zeile traegt ihre Gruppe', o.every((x) => x.gruppe));
+    const g = [...new Set(o.map((x) => x.gruppe))];
+    wahr('Aktuelles Sortiment steht zuerst', g[0] === 'Aktuelles Sortiment');
+    wahr('Die Altbauweise folgt', g[1].startsWith('Altbauweise'));
+    wahr('Und die Vergleichsmodelle stehen hinten',
+         g.indexOf('Vergleichsmodelle') > 1);
   }
 
   /*

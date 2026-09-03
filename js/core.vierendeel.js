@@ -12,7 +12,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
+import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
   from './core.constants.js';
 import { bemessungslasten, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
@@ -327,6 +327,9 @@ export function modellEinzelmast(inp, stahl) {
     // Die Positionsnummer fuer die Anschrift im Bild (P1, P2, ...).
     twPos: inp.twPos ?? '',
     geteilteMasten: geteilteMasten(inp),
+    // Masten, die mitten im Feld eines Tragwerks stehen - eine
+    // Durchdringung, kein Auflager. Der Hinweis nennt sie.
+    mastKollisionen: mastKollisionen(inp),
     qsErsatz,
     stahl, beiwerte,
     federn: { ...federnRoh, namen: { A: inp.mastNameA || 'M1', B: '' } },
@@ -639,6 +642,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     // Masten, die sich zwei Tragwerke teilen - der Zwischenmast einer
     // Jochreihe. Der Hinweis nennt die Stelle, nicht nur die Moeglichkeit.
     geteilteMasten: geteilteMasten(inp),
+    // Masten, die mitten im Feld eines Tragwerks stehen - eine
+    // Durchdringung, kein Auflager. Der Hinweis nennt sie.
+    mastKollisionen: mastKollisionen(inp),
     // Wo zwei Jochenden zu nah beieinanderstehen - die Ausleitung rueckt
     // dort automatisch nach, und das ist eine Modellunschaerfe.
     engeJochenden: engeJochenden(inp),

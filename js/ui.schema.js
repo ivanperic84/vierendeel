@@ -353,6 +353,38 @@ export const FELDER = [
     hinweis: 'Der Mast wird gezeichnet, ausgeleitet und nachgewiesen und trägt '
            + 'Wind und Anbauteile. Ob seine Steifigkeit die Drehfeder liefert, '
            + 'steht bei der Auflagerung.'},
+  /*
+   * >>> DIE STELLE DES ANGEWAEHLTEN MASTEN. <<<
+   *
+   * Gemeldet am 3. September: «beim angeklicktem rechten masten, wird der x
+   * wert der lage nicht aktualisiert.»
+   *
+   * Zu Recht - nur war es kein Fehler im Feld, sondern ein fehlendes Feld.
+   * «Lage auf dem Querprofil x₀» ist die Lage des TRAGWERKS, also seines
+   * linken Endes; klickt man den rechten Masten an, aendert sich daran
+   * nichts, und der Wert bleibt stehen. Was fehlte, war die Stelle des
+   * MASTEN selbst.
+   *
+   * Sie ist keine eigene Angabe, sondern eine gerechnete: sie folgt aus x₀
+   * und der Jochlaenge. Eingeben laesst sie sich trotzdem - dieselbe
+   * Wirkung wie das Ziehen an der Marke in der Leiste:
+   *
+   *   Ende A   verschiebt das Tragwerk (x₀ wandert, die Laenge bleibt)
+   *   Ende B   aendert die Laenge (das andere Ende bleibt stehen)
+   *   geteilt  beides zugleich - das linke Joch wird laenger, das rechte
+   *            wandert mit
+   *
+   * Damit gilt, was am 2. September verlangt wurde: ziehen fuer grob, Feld
+   * fuer genau - auch fuer den Mastabstand.
+   */
+  { key: 'mastX', gruppe: 'mast', typ: 'zahl',
+    label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
+    sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
+    wertAus: (w) => gewaehlterMast(w)?.x ?? 0,
+    sichtbar: (w) => mastDa(w) && Boolean(gewaehlterMast(w)),
+    hinweis: 'Folgt aus der Lage des Tragwerks und der Jochlänge. Am linken '
+           + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
+           + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),
@@ -1049,11 +1081,31 @@ export function setzeTypOptionen() {
   const alle = tragjoche();
   const srt = alle.filter((j) => j.sortiment !== false);
   const vgl = alle.filter((j) => j.sortiment === false);
+  /*
+   * >>> GEGLIEDERT, NICHT AUFGEREIHT. <<<
+   *
+   * Weisung vom 3. September: «beim dropdown sollte man das etwas gliedern,
+   * das man es besser finden kann.»
+   *
+   * Die Liste war sortiert - erst das aktuelle Sortiment, dann die
+   * Altbauweise, dann die Vergleichsmodelle -, aber man SAH die Ordnung
+   * nicht: sechzehn Zeilen hintereinander, und «J90-alt» stand mitten
+   * darin, ohne dass etwas sagte, wo das eine aufhoert und das andere
+   * anfaengt. Eine sortierte Liste ohne Trennung liest sich wie eine
+   * unsortierte.
+   *
+   * Die Gruppe steht an der Option; das Auswahlfeld macht daraus
+   * `optgroup` (ui.js). Wer eine Altbauweise waehlt, weiss es damit, bevor
+   * er klickt - und nicht erst am Suffix «-alt».
+   */
+  const mitGruppe = (g) => (j) => ({ ...zeile(j), gruppe: g });
   f.optionen = [
-    ...srt.filter((j) => (j.bauweise ?? 'neu') !== 'alt').map(zeile),
-    ...srt.filter((j) => (j.bauweise ?? 'neu') === 'alt').map(zeile),
-    ...vgl.map(vergleich),
-    { wert: 'frei', text: 'frei definiert' },
+    ...srt.filter((j) => (j.bauweise ?? 'neu') !== 'alt')
+      .map(mitGruppe('Aktuelles Sortiment')),
+    ...srt.filter((j) => (j.bauweise ?? 'neu') === 'alt')
+      .map(mitGruppe('Altbauweise — Bestand')),
+    ...vgl.map((j) => ({ ...vergleich(j), gruppe: 'Vergleichsmodelle' })),
+    { wert: 'frei', text: 'frei definiert', gruppe: 'Ohne Sortiment' },
   ];
   return f.optionen;
 }

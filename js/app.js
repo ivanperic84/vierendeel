@@ -30,8 +30,9 @@ import { verortung, fangeAufMasskette,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
-         anbauteileFuer, setzeAnbauteileAn, freieLage, versteckt,
-         mastenVon, mastName, tragwerkName, aufRaster, TRAGWERKSARTEN }
+         anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
+         mastenVon, mastName, tragwerkName, aufRaster, TRAGWERKSARTEN,
+         gewaehlterMast }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -808,6 +809,18 @@ function aendern(key, wert) {
    * rechten. Umgekehrt stuende das rechte kurz im linken drin, und
    * `freieLage` schoebe es wieder weg.
    */
+  /*
+   * DIE STELLE DES MASTEN AUS DEM FELD - derselbe Weg wie das Ziehen.
+   *
+   * Zwei Wege zur selben Angabe muessen dieselbe Wirkung haben, sonst ist
+   * einer von beiden der falsche. Das Feld meldet deshalb dieselbe Absicht
+   * wie die Marke in der Leiste.
+   */
+  if (key === 'mastX') {
+    const m = gewaehlterMast(werte);
+    if (!m) return;
+    return aendern('mastStelle', { mastId: m.id, x: Number(wert) || 0 });
+  }
   if (key === 'mastStelle') {
     const r = ui.mastRollen(werte, wert.mastId);
     if (!r) return;
@@ -815,7 +828,21 @@ function aendern(key, wert) {
       if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
       werte = { ...werte, [feld]: v };
     };
-    if (r.alsB) setzeAn(r.alsB.t.id, 'L', Math.max(0, wert.x - r.alsB.x0));
+    if (r.alsB) {
+      /*
+       * DIE LAENGE WAECHST NICHT UEBER EINEN FREMDEN MASTEN HINWEG.
+       *
+       * Am Ende B gezogen wird das Joch laenger - und koennte dabei den
+       * Masten schlucken, der daneben steht. `freieLaenge` haelt es an ihm
+       * an; das Ende darf darauf liegen, denn dort steht dann der
+       * gemeinsame Mast.
+       */
+      if ((werte.twId ?? 'T1') !== r.alsB.t.id) {
+        werte = tauscheAktives(werte, r.alsB.t.id);
+      }
+      const roh = Math.max(0, wert.x - r.alsB.x0);
+      werte = { ...werte, L: freieLaenge(werte, r.alsB.t.id, roh).L };
+    }
     if (r.alsA) {
       /*
        * DAS RECHTE TRAGWERK BEHAELT SEINE LAENGE UND WANDERT MIT - aber
@@ -983,6 +1010,24 @@ function aendern(key, wert) {
    * Regeln - der eine schuetzt, der andere nicht -, und der ungeschuetzte
    * ist der, den man beim genauen Arbeiten benutzt.
    */
+  /*
+   * DIE JOCHLAENGE HAELT AM NAECHSTEN MASTEN AN.
+   *
+   * Weisung vom 3. September: «die tragwerkseingabe auf kollisionen checken
+   * so dass joche nicht durch angrenzende masten hindurchgehen können.»
+   *
+   * Dieselbe Regel wie beim Verschieben, nur von der anderen Seite: dort
+   * wandert das Joch auf den Masten zu, hier waechst es auf ihn zu. Beides
+   * endet an derselben Stelle, und beides gehoert an den Weg, ueber den die
+   * Angabe hereinkommt - Feld wie Schieber.
+   */
+  if (key === 'L') {
+    const frei = freieLaenge(werte, werte.twId ?? 'T1', Number(wert) || 0);
+    werte = { ...werte, L: frei.L };
+    mastNachfuehrenGlobal();
+    neuRechnen();
+    return;
+  }
   if (key === 'xLage') {
     const frei = freieLage(werte, werte.twId ?? 'T1', Number(wert) || 0);
     werte = { ...werte, xLage: frei.x };
@@ -4241,7 +4286,15 @@ function kontextZeigen(bei, punkte) {
    * funktioniert, und die Ursache waere schwer zu sehen gewesen.
    */
   const zu = (e) => {
-    if (e && n.contains(e.target)) return;
+    /*
+     * NUR EIN ZEIGERDRUCK HAT EIN ZIEL IM BAUM.
+     *
+     * Derselbe Horcher bedient `pointerdown`, `wheel` und `blur`. Beim
+     * Fensterwechsel ist `e.target` das FENSTER, und `Node.contains(Window)`
+     * wirft - eine Ausnahme bei jedem Wechsel aus dem Fenster heraus,
+     * waehrend ein Menue offen steht. Gemessen am 3. September.
+     */
+    if (e?.target instanceof Node && n.contains(e.target)) return;
     kontextSchliessen(); ab();
   };
   const ab = () => {

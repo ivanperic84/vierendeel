@@ -407,40 +407,75 @@ export function bereichVon(t, x0 = null) {
  *
  * @returns {{x:number, geklemmt:boolean}}
  */
+/**
+ * DIE MASTEN DER UEBRIGEN TRAGWERKE - als blosse Stellen.
+ *
+ * Gebraucht als HINDERNIS: sie stehen dort, gleichgueltig wohin das
+ * betrachtete Tragwerk wandert. Aus den Tragwerken gerechnet und nicht aus
+ * `mastenVon`, weil die abgeleitete Liste sich mitbewegt, sobald man eine
+ * andere Lage durchprobiert.
+ */
+function fremdeMastlagen(w, id) {
+  return sichtbareTragwerke(w)
+    .filter((t) => t.id !== id && t.mastVorhanden !== false)
+    .flatMap((t) => mastLagen(t));
+}
+
+/**
+ * >>> EIN JOCH GEHT NICHT DURCH EINEN FREMDEN MASTEN HINDURCH. <<<
+ *
+ * Weisung vom 3. September: «die tragwerkseingabe auf kollisionen checken so
+ * dass joche nicht durch angrenzende masten hindurchgehen können.»
+ *
+ * Zwei Faelle, die die bisherige Regel durchliess:
+ *
+ *   EIN EINZELMAST hat keine Ausdehnung. Die Ueberschneidung zweier
+ *   BEREICHE fasst ihn nicht - er ist ein Punkt, und ein Punkt ueberdeckt
+ *   nichts. Er konnte damit mitten in einem Joch stehen.
+ *
+ *   EIN ABFANGJOCH ist von der Bereichsregel ausgenommen (es sitzt ueber
+ *   dem Tragjoch). Um einen halben Meter verschoben standen aber seine
+ *   MASTEN im Feld des Jochs darunter - gemessen: Abfangjoch 5..25 ueber
+ *   einem Joch 0..20 ergab einen Masten bei 5 mitten im Joch und einen bei
+ *   20 mitten im Abfangjoch.
+ *
+ * Ein Mast IM Feld ist kein Auflager, sondern eine Durchdringung. Die
+ * Enden sind ausdruecklich erlaubt: dort steht der gemeinsame Mast einer
+ * Reihe, und dort gehoert er hin.
+ *
+ * Behandelt werden die Masten deshalb wie Tragwerke ohne Laenge - dieselbe
+ * Rechnung, ein Hindernis mehr in der Liste.
+ *
+ * @returns {{x:number, geklemmt:boolean}}
+ */
 export function freieLage(w, id, x) {
   const alle = tragwerkeSortiert(w);
   const t = alle.find((y) => y.id === id);
   if (!t) return { x, geklemmt: false };
   const [, bis] = bereichVon(t, x);
   const L = bis - x;
-  let unten = -Infinity, oben = Infinity;
+
+  /*
+   * DIE HINDERNISSE, in einer Liste: die Bereiche der Tragwerke, durch die
+   * man nicht hindurch darf, und die Stellen der fremden Masten. Ein Mast
+   * ist ein Bereich der Laenge null - dieselbe Rechnung, kein Sonderfall.
+   */
+  const hindernis = [];
   alle.forEach((y) => {
     if (y.id === id) return;
     /*
-     * >>> GESTAPELT WIRD NUR, WO ABGEFANGEN WIRD. <<<
-     *
-     * Weisung vom 3. September, praezisiert: «es gibt im normalfall nur
-     * abfangjoche die übereinander montiert sind. die tragjoche sind immer
-     * in reihe.»
-     *
-     * Also nicht «verschiedene Arten duerfen sich decken» - das war zu weit
-     * gefasst und haette ein Tragjoch durch einen Tragausleger fahren
-     * lassen. Die Regel ist einfacher und schaerfer:
-     *
-     *   ABFANGJOCH beteiligt   -> Ueberdeckung erlaubt. Es wird UEBER das
-     *                             Tragjoch montiert, auf denselben Masten,
-     *                             und zwei Abfangjoche uebereinander sind
-     *                             der Normalfall.
-     *   sonst                  -> Reihe. Tragjoche stehen nebeneinander und
-     *                             teilen sich hoechstens den Zwischenmasten.
-     *
-     * Wie hoch ein Abfangjoch sitzt, sagt seine Anschlusshoehe - nicht diese
-     * Regel und nicht die Leiste.
+     * GESTAPELT WIRD NUR, WO ABGEFANGEN WIRD (Weisung, 3. September). Ein
+     * Abfangjoch sitzt UEBER dem Tragjoch, auf denselben Masten; zwei
+     * Abfangjoche uebereinander sind der Normalfall. Sonst gilt die Reihe.
      */
     const stapelbar = tragwerksart(y).key === 'abfangjoch'
                    || tragwerksart(t).key === 'abfangjoch';
-    if (stapelbar) return;
-    const [a, b] = bereichVon(y);
+    if (!stapelbar) hindernis.push(bereichVon(y));
+  });
+  fremdeMastlagen(w, id).forEach((mx) => hindernis.push([mx, mx]));
+
+  let unten = -Infinity, oben = Infinity;
+  hindernis.forEach(([a, b]) => {
     // Wer LINKS von mir steht, begrenzt mich nach unten; wer rechts steht,
     // nach oben. Massgebend ist, wo er JETZT steht - nicht, wo er einmal
     // stand.
@@ -464,6 +499,60 @@ export function freieLage(w, id, x) {
   const neu = Math.min(Math.max(x, unten), oben);
   return { x: Number.isFinite(neu) ? neu : x,
            geklemmt: Math.abs(neu - x) > 1e-9 };
+}
+
+/**
+ * >>> UND EIN JOCH WAECHST NICHT UEBER EINEN FREMDEN MASTEN HINWEG. <<<
+ *
+ * Dieselbe Kollision von der anderen Seite: die Lage bleibt, die Laenge
+ * waechst - und schluckt dabei den Masten, der daneben steht. Gemessen: ein
+ * Joch 0..20 neben einem Einzelmasten bei 30, auf L = 40 gesetzt, stand
+ * danach 0..40 mit dem fremden Masten bei 30 mitten darin.
+ *
+ * Die groesste zulaessige Laenge endet am naechsten Hindernis rechts. Das
+ * ENDE darf darauf liegen - dort steht dann der gemeinsame Mast.
+ *
+ * @returns {{L:number, geklemmt:boolean}}
+ */
+export function freieLaenge(w, id, L) {
+  const alle = tragwerkeSortiert(w);
+  const t = alle.find((y) => y.id === id);
+  if (!t || tragwerksart(t).masten < 2) return { L, geklemmt: false };
+  const x = lageVon(t);
+  let grenze = Infinity;
+  const nimm = (p) => { if (p > x + 1e-9) grenze = Math.min(grenze, p - x); };
+  alle.forEach((y) => {
+    if (y.id === id) return;
+    const stapelbar = tragwerksart(y).key === 'abfangjoch'
+                   || tragwerksart(t).key === 'abfangjoch';
+    if (!stapelbar) nimm(bereichVon(y)[0]);
+  });
+  fremdeMastlagen(w, id).forEach(nimm);
+  const neu = Math.min(L, grenze);
+  return { L: Number.isFinite(neu) ? neu : L,
+           geklemmt: Math.abs(neu - L) > 1e-9 };
+}
+
+/**
+ * WO EIN MAST MITTEN IN EINEM TRAGWERK STEHT.
+ *
+ * Die Regeln oben verhindern es beim Eingeben; eine gespeicherte Datei kann
+ * es trotzdem enthalten - sie ist aelter als die Regel. Dann sagt es der
+ * Hinweis, statt still ein Modell auszuleiten, in dem ein Mast durch einen
+ * Traeger stoesst.
+ *
+ * @returns {Array<{twId:string, x:number}>}
+ */
+export function mastKollisionen(w, tol = 0.05) {
+  const raus = [];
+  sichtbareTragwerke(w).forEach((t) => {
+    if (tragwerksart(t).masten < 2) return;
+    const [a, b] = bereichVon(t);
+    fremdeMastlagen(w, t.id).forEach((mx) => {
+      if (mx > a + tol && mx < b - tol) raus.push({ twId: t.id, x: mx });
+    });
+  });
+  return raus;
 }
 
 /*

@@ -1315,10 +1315,41 @@ function feldHtml(f, wert, werte) {
                 </button>`;
       }).join('') + '</div>';
   } else if (f.typ === 'auswahl') {
-    const opts = f.optionen.length
-      ? f.optionen.map((o) =>
-          `<option value="${esc(o.wert)}"${String(o.wert) === String(wert) ? ' selected' : ''}>${esc(o.text)}</option>`).join('')
-      : `<option value="${esc(wert)}" selected>${esc(wert)}</option>`;
+    /*
+     * >>> GEGLIEDERT, WO DIE OPTIONEN EINE GRUPPE TRAGEN. <<<
+     *
+     * Weisung vom 3. September: «beim dropdown sollte man das etwas
+     * gliedern, das man es besser finden kann.» Beim Jochtyp sind das
+     * aktuelles Sortiment, Altbauweise und Vergleichsmodelle - sechzehn
+     * Zeilen, in denen man sonst sucht.
+     *
+     * Aufeinanderfolgende Optionen derselben Gruppe kommen in EIN
+     * `optgroup`. Die Reihenfolge macht die Liste, nicht dieser Code: sie
+     * steht dort, wo die Optionen gebaut werden, und dort gehoert sie hin.
+     * Ohne Gruppe bleibt alles, wie es war.
+     */
+    const zeileOpt = (o) => `<option value="${esc(o.wert)}"${
+      String(o.wert) === String(wert) ? ' selected' : ''}>${esc(o.text)}</option>`;
+    let opts;
+    if (!f.optionen.length) {
+      opts = `<option value="${esc(wert)}" selected>${esc(wert)}</option>`;
+    } else if (f.optionen.some((o) => o.gruppe)) {
+      const teile = [];
+      let letzte = null;
+      f.optionen.forEach((o) => {
+        const g = o.gruppe ?? '';
+        if (g !== letzte) {
+          if (letzte !== null) teile.push('</optgroup>');
+          if (g) teile.push(`<optgroup label="${esc(g)}">`);
+          letzte = g;
+        }
+        teile.push(zeileOpt(o));
+      });
+      if (letzte) teile.push('</optgroup>');
+      opts = teile.join('');
+    } else {
+      opts = f.optionen.map(zeileOpt).join('');
+    }
     inp = `<select id="${id}" data-feld="${f.key}"${dis}>${opts}</select>`;
   } else if (f.typ === 'schalter') {
     inp = `<label class="schalter"><input type="checkbox" id="${id}" data-feld="${f.key}"

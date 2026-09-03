@@ -512,6 +512,27 @@ export function hinweise(m) {
   }
 
   const gm = m.geteilteMasten ?? [];
+  /*
+   * >>> EIN MAST MITTEN IM FELD IST EINE DURCHDRINGUNG. <<<
+   *
+   * Weisung vom 3. September: «die tragwerkseingabe auf kollisionen checken
+   * so dass joche nicht durch angrenzende masten hindurchgehen können.»
+   *
+   * Beim Eingeben wird es verhindert (freieLage, freieLaenge in
+   * core.constants.js). Eine gespeicherte Datei kann es trotzdem enthalten -
+   * sie ist aelter als die Regel. Dann sagt es der Hinweis, statt still ein
+   * Modell auszuleiten, in dem ein Mast durch einen Traeger stoesst.
+   */
+  const koll = m.mastKollisionen ?? [];
+  if (koll.length) {
+    h.push(`${koll.length === 1 ? 'Ein Mast steht' : `${koll.length} Masten stehen`}`
+      + ` MITTEN IM FELD eines Tragwerks (x = `
+      + `${koll.map((k) => k.x.toFixed(2)).join(', ')} m). Das ist kein `
+      + 'Auflager, sondern eine Durchdringung: der Träger läuft durch den '
+      + 'Mast hindurch. Die Eingabe verhindert das heute — diese Lage stammt '
+      + 'aus einer älteren Datei und ist zu bereinigen.');
+  }
+
   if (gm.length) {
     h.push(`${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
       + ` an einer Stelle, an der zwei Tragwerke zusammentreffen (x₀ = `
