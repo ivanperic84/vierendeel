@@ -4733,39 +4733,97 @@ Schätzung glauben machte. Zugleich zählen die Stationen jetzt **ab Jochende**,
 und `abfangRahmenfeld` zieht den Überstand `(jt − js)/2` ab, statt wie zuvor
 zwei Bezugspunkte zu mischen.
 
-### Die Stückliste und das Schema gehen nicht ganz zusammen
+### Die Stückliste und das Schema — aufgelöst bis auf einen Rest
 
 Die Konstruktionszeichnungen führen neben den Regelblechen Sonderpositionen:
 ein Blech links (`endeL`), je nach Typ eines oder zwei rechts (`endeR`) — und
-**ab A240 Quersteifen aus Walzprofil** (bei A240 ein IPE 240 × 600 mit
-`nB + 1` Stück, dazu ein IPE 240 × 280). Mit
+**ab A240 Quersteifen aus Walzprofil**. Mit
 
 ```
 Stationen laut Liste = Regelbleche/2 + 1 + Anzahl(endeR) + Steifen
-Steifen = 0 (A160, A200) | nB + 2 (A240) | nB + 1 (A270 … A360)
+Steifen = 0 (A160, A200) | nB + 1 | + 1 Endstück bei A240
 ```
 
-decken sich Schema und Stückliste bei **jeder Länge mit A1 = 500**. Bei
-**A1 = 250** fehlt der Stückliste durchweg **genau ein Blechpaar** — bei A160
-wie bei A200, also nicht bei einem Typ verzählt, sondern systematisch. Es
-sieht aus, als hätte die Stückliste die Feldzahl als `QV/A` gerechnet, wo sie
-`QV/A + 1` ist.
+decken sich Schema und Stückliste bei **jeder Länge mit A1 = 500** — alle 77.
+Bei **A1 = 250** fehlt der Stückliste durchweg **genau ein Blechpaar**, alle
+80, bei A160 wie bei A360. Nicht bei einem Typ verzählt, sondern
+systematisch; es sieht aus, als hätte sie die Feldzahl als `QV/A` gerechnet,
+wo sie `QV/A + 1` ist.
 
 **Massgebend für die Lage ist das Schema** — es bemasst jede Station einzeln,
 und seine Summen gehen auf. Der Kern gibt beide Zahlen aus
 (`anzahl`, `stationenListe`) und sagt mit `blechzahlStimmt`, wo sie sich
-decken. Aufgelöst gehört das vom Auftraggeber.
+decken. Dieser Rest gehört vom Auftraggeber aufgelöst.
 
-### Zwei offene Punkte, die der Nachweis berührt
+## Die Quersteifen ab A240 (3. September)
 
-* **Die Quersteifen ab A240 werden als Bindeblech gerechnet.** Ein IPE-Riegel
-  ist um ein Vielfaches steifer als der Flachstahl; ihn als Blech
-  nachzuweisen liegt auf der **sicheren** Seite, weil der Nachweis am
-  schwächeren Bauteil fällt. Ihn richtig anzusetzen wäre eine Entscheidung
-  über den Spannungsverlauf — `quersteifen` sagt, wie viele es sind.
-* **Im AxisVM-Modell sitzen die Endbleche an den Trägerenden**, nicht an den
-  Stationen R1 und `jt − Re`, wo die Zeichnung sie zeigt. Das war schon vorher
-  so und beeinflusst die Steifigkeit am Auflager.
+> „die quersteifen ab A240 richtig ansetzen."
+
+### Was in der Stückliste steht
+
+Alle fünf gegliederten Typen führen eine eigene Position **„Querversteifung"**
+aus Walzprofil — bei A240 nicht das Gurtprofil, bei den übrigen dasselbe:
+
+| Typ | Gurt | Querversteifung | Stück |
+|---|---|---|---|
+| A240 | UPE 240 | **IPE 240 × 600** | nB + 1, dazu **1 × IPE 240 × 280** |
+| A270 | IPE 270 | IPE 270 × 593 | nB + 1 |
+| A300 | IPE 300 | IPE 300 × 593 | nB + 1 |
+| A330 | IPE 330 | IPE 330 × 592 | nB + 1 |
+| A360 | IPE 360 | IPE 360 × 592 | nB + 1 |
+
+`nB` ist die Zahl der QV-Bereiche. Die Steifen sitzen an deren **Grenzen**,
+die beiden äusseren (2000 und `jt − 2000`) eingeschlossen. Nachgerechnet an
+allen **120 Längen** der fünf Typen: jede Grenze fällt auf eine Blechstation
+— sonst wäre die Zuordnung geraten. Das eine IPE 240 × 280 sitzt am Jochende,
+wo die Gurte auf die Spreizung zusammenlaufen; es ist nur **eines**, also nur
+an einem Ende.
+
+### Wie sie wirkt
+
+Der **Schnitt C-C** zeigt sie mit **senkrechtem Steg** zwischen die Gurtstege
+geschweisst, mit R19 ausgeklinkt und 140 mm anliegender Steglänge. Ihre
+beiden Flansche liegen damit von selbst dort, wo sonst die beiden Bindebleche
+liegen — sie ersetzt das Paar.
+
+Für die **waagrechte Rahmenebene** wirkt deshalb ihre **schwache Achse**
+(`W_z`), nicht die starke. Wer `W_y` einsetzte, bekäme bei IPE 240 das
+Siebenfache — 324 statt 47 cm³ — und einen Nachweis, der immer aufginge. Den
+Schub tragen die Flansche: `A_v = 2·b·t_f`.
+
+**Ein Riegel, kein Paar** — er nimmt die ganze Querkraft der Rahmenebene, wo
+jedes Blech nur die halbe trägt. Im Nachweis steht deshalb `V`, nicht `V/2`.
+
+### Was das ändert — weniger, als es aussieht
+
+`W_z` eines I-Profils ist im Wesentlichen die Summe seiner beiden Flansche,
+`2·t_f·b²/6` — die Formel des Blechpaares mit den Flanschmassen:
+
+| Typ | `W_z` Steife | Blechpaar | Verhältnis |
+|---|---|---|---|
+| A240 | 47.3 | 48.0 cm³ | **0.99** |
+| A270 | 62.2 | 65.3 | **0.95** |
+| A300 | 80.5 | 65.3 | 1.23 |
+| A330 | 98.5 | 65.3 | 1.51 |
+| A360 | 123.0 | 65.3 | 1.88 |
+
+Bei **A240 und A270 ist die Steife also schwächer** als das Paar, das sie
+ersetzt — um ein bis fünf Prozent. Die frühere Notiz, sie als Blech zu
+rechnen liege auf der sicheren Seite, galt nur für die grossen Typen und war
+bei den beiden kleinen knapp daneben. Dort wird der Nachweis jetzt
+geringfügig schärfer.
+
+Wo die Steife wirklich mehr kann, ist die **andere Richtung**: der Steg hält
+die Flansche auf Abstand und den Querschnitt in Form. Dafür ist sie
+eingebaut, nicht für die Rahmenebene — und dort wirkt sie im AxisVM-Modell
+jetzt auch, weil sie als I-Stab auf der Gurt-Schwerachse steht statt als zwei
+Flachstähle auf Flanschhöhe.
+
+### Ein offener Punkt, den der Nachweis berührt
+
+**Im AxisVM-Modell sitzen die Endbleche an den Trägerenden**, nicht an den
+Stationen `R1` und `jt − Re`, wo die Zeichnung sie zeigt. Das war schon vor
+diesen Änderungen so und beeinflusst die Steifigkeit am Auflager.
 
 ## Das Modell landete nicht neben dem Skript (3. September)
 

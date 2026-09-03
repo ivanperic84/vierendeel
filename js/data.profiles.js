@@ -174,6 +174,13 @@ export const GURTPROFILE = [
   wp('UPE 160', 'UPE', 16.0,  7.0, 0.55, 0.95, 1.00, 21.67, 17.0,  911.1, 113.9, 6.48, 106.83, 22.58, 2.22, 5.23, 1.84),
   wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.0, 22.8,  1910, 191.0, 8.12, 148.0, 27.0, 2.26, 20.4, 2.10),   // I_z, W_z, I_t UNGEPRUEFT
   wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.5, 30.2,  3600, 300.0, 9.67, 257.0, 39.9, 2.58, 32.5, 2.38),   // I_z, W_z, I_t UNGEPRUEFT
+  /*
+   * IPE 240 ist KEIN Gurtprofil - A240 traegt UPE 240. Es steht hier als
+   * QUERSTEIFE: die Konstruktionszeichnung fuehrt bei A240 ein IPE 240 x 600
+   * unter der Position «Querversteifung». Ohne seine Werte liesse sich der
+   * Riegel an den QV-Grenzen nicht nachweisen.
+   */
+  wp('IPE 240', 'IPE', 24.0, 12.0, 0.62, 0.98, 1.50, 39.1, 30.7,  3892, 324.0, 9.97, 283.6, 47.3, 2.69, 12.9, 0),
   wp('IPE 270', 'IPE', 27.0, 13.5, 0.66, 1.02, 1.50, 45.9, 36.1,  5790, 429.0, 11.2, 420.0, 62.2, 3.02, 15.9, 0),
   wp('IPE 300', 'IPE', 30.0, 15.0, 0.71, 1.07, 1.50, 53.8, 42.2,  8356, 557.0, 12.5, 604.0, 80.5, 3.35, 20.1, 0),
   wp('IPE 330', 'IPE', 33.0, 16.0, 0.75, 1.15, 1.80, 62.6, 49.1, 11770, 713.0, 13.7, 788.0, 98.5, 3.55, 28.2, 0),

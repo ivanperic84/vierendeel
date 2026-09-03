@@ -51,7 +51,7 @@
 
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangMasse,
-         abfangRandmasse } from './data.abfangjoche.js';
+         abfangRandmasse, abfangQuersteife } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 
 /**
@@ -353,7 +353,47 @@ export function abfangBlechstationen(typ, jt) {
    */
   const nB = QV.length;
   const name = typeof typ === 'string' ? typ : typ?.typ;
-  const steifen = nB <= 1 ? 0 : (name === 'A240' ? nB + 2 : nB + 1);
+  /*
+   * >>> DIE STEIFEN SITZEN AN DEN GRENZEN DER QV-BEREICHE. <<<
+   *
+   * Der erste Bereich beginnt bei 2000, jeder weitere schliesst an, der
+   * letzte endet bei jt - 2000. Das sind nB + 1 Grenzen - genau die Zahl,
+   * die die Stueckliste unter «Querversteifung» fuehrt.
+   *
+   * Nachgerechnet am 3. September ueber alle 120 Laengen der fuenf
+   * gegliederten Typen: JEDE Grenze faellt auf eine Blechstation. Sonst
+   * waere die Zuordnung geraten.
+   */
+  const qs = abfangQuersteife(typ);
+  const grenzen = [];
+  if (qs && nB > 1) {
+    let g = rm.aussenBereich;
+    grenzen.push(g);
+    for (const q of QV) { g += q; grenzen.push(g); }
+  }
+  const istGrenze = (mm) => grenzen.some((g) => Math.abs(g - mm) < 0.5);
+  /*
+   * DIE ENDBLECHE VON AUSSEN NACH INNEN. Der Traeger wird zum Ende hin
+   * schmaler (Spreizung 280 statt d im Feld), also ist das KUERZERE Blech
+   * das aeussere - eine Zuordnung aus der Geometrie, nicht aus der
+   * Reihenfolge der Erfassung: A330 und A360 fuehren ihre beiden endeR
+   * umgekehrt.
+   */
+  const endeR = (Array.isArray(bl?.endeR) ? bl.endeR : bl?.endeR ? [bl.endeR] : [])
+    .filter(Boolean).slice().sort((a2, b2) => (a2.l ?? 0) - (b2.l ?? 0));
+  const rechts = [];
+  if (qs?.ende) rechts.push({ art: 'steifeEnde', profil: qs.ende.profil });
+  endeR.forEach((m2) => rechts.push({ art: 'endeR', masse: m2 }));
+
+  const arten = stationen.map((mm, i) => {
+    if (i === 0) return bl?.endeL ? { art: 'endeL', masse: bl.endeL } : { art: 'regel' };
+    const vonRechts = stationen.length - 1 - i;      // 0 = aeusserste rechts
+    if (vonRechts < rechts.length) return rechts[vonRechts];
+    if (istGrenze(mm)) return { art: 'steife', profil: qs.profil };
+    return { art: 'regel' };
+  });
+  const steifen = arten.filter((a2) => a2.art === 'steife'
+                                    || a2.art === 'steifeEnde').length;
   const ausListe = z.blechStationen
     ? z.blechStationen + (bl?.endeL ? 1 : 0) + nEndeR + steifen : null;
   return {
@@ -367,7 +407,9 @@ export function abfangBlechstationen(typ, jt) {
     stationenListe: ausListe,
     /** Ob Schema und Stueckliste dieselbe Zahl nennen. */
     blechzahlStimmt: ausListe === null ? null : ausListe === stationen.length,
-    /** Stationen mit Quersteife statt Bindeblech - ab A240, noch nicht verortet. */
+    /** Was an jeder Station sitzt - Blech, Endblech oder Quersteife. */
+    arten,
+    /** Stationen mit Quersteife statt Bindeblech - ab A240. */
     quersteifen: steifen,
     /** Ob die Stueckzahl selbst fraglich ist (A360/21.00: 85, ungerade). */
     blechFraglich: Boolean(z.blechFraglich),
@@ -684,6 +726,76 @@ export function abfangBlechnachweis(bl, V, aSum, e, fyd) {
 }
 
 /**
+ * DER NACHWEIS EINER QUERVERSTEIFUNG — ab A240.
+ *
+ * >>> SIE ERSETZT DAS BLECHPAAR, ALSO NIMMT SIE DIE GANZE QUERKRAFT. <<<
+ *
+ * Das Bindeblech kommt zu zweit: eines oben, eines unten, jedes trägt die
+ * halbe Querkraft der Rahmenebene. Die Steife ist EIN Riegel — ihre beiden
+ * Flansche liegen zwar dort, wo sonst die Bleche liegen, aber sie hängen
+ * über den Steg zusammen und werden gemeinsam nachgewiesen. Deshalb steht
+ * hier `V` und nicht `V/2`.
+ *
+ * >>> IN DER RAHMENEBENE WIRKT IHRE SCHWACHE ACHSE. <<<
+ *
+ * Der Schnitt C-C zeigt den Riegel mit SENKRECHTEM Steg zwischen die
+ * Gurtstege geschweisst. Die Rahmenebene liegt waagrecht; die Biegung des
+ * Riegels darin geht deshalb um seine z-Achse, nicht um die starke y-Achse.
+ * Wer hier `W_y` einsetzte, bekäme bei IPE 240 das Siebenfache — 324 statt
+ * 47 cm³ — und einen Nachweis, der immer aufginge.
+ *
+ * Den Schub tragen dabei die FLANSCHE, nicht der Steg: A_v = 2·b·t_f. Beim
+ * Blech war es der ganze Querschnitt, weil ein Flachstahl keinen Steg hat.
+ *
+ * >>> IN DIESER RICHTUNG IST SIE FAST GENAU DAS BLECHPAAR. <<<
+ *
+ * W_z eines I-Profils ist im Wesentlichen die Summe seiner beiden Flansche:
+ * 2·t_f·b²/6. Genau die Formel des Blechpaares, nur mit den Flanschmassen.
+ * Gemessen an den fünf Typen (W_z gegen das Paar, das sie ersetzt):
+ *
+ *      A240   47.3 : 48.0   0.99      A330    98.5 : 65.3   1.51
+ *      A270   62.2 : 65.3   0.95      A360   123.0 : 65.3   1.88
+ *      A300   80.5 : 65.3   1.23
+ *
+ * Bei A240 und A270 ist die Steife also SCHWÄCHER als das Paar — um ein bis
+ * fünf Prozent. Die frühere Auskunft, sie als Blech zu rechnen liege auf der
+ * sicheren Seite, galt für die grossen Typen und war bei den beiden kleinen
+ * knapp daneben. Der Nachweis wird dort jetzt geringfügig schärfer.
+ *
+ * Wo die Steife wirklich mehr kann, ist die andere Richtung: der Steg hält
+ * die beiden Flansche auf Abstand und den Querschnitt in Form. Dafür ist sie
+ * eingebaut — nicht für die Rahmenebene.
+ *
+ * @param {string} profil  Profilname der Steife, z.B. 'IPE 240'
+ * @param {number} V       Querkraft der Rahmenebene an dieser Stelle [kN]
+ * @param {number} aSum    Summe der Nachbarfelder [m]
+ * @param {number} e       Achsabstand der Gurte [cm]
+ * @param {number} fyd     Bemessungsfestigkeit [kN/cm²]
+ */
+export function abfangSteifennachweis(profil, V, aSum, e, fyd) {
+  const p = getGurtprofil(profil);
+  const M = (Math.abs(V) * aSum) / 4;                    // kNm
+  const Vsteife = e > 0 ? (2 * M) / (e / 100) : 0;       // kN
+  const W = p.Wz;                                        // cm³, schwache Achse
+  const Av = 2 * p.b * p.tf;                             // cm², die Flansche
+  const sigma = W > 0 ? (M * 100) / W : Infinity;
+  const tau = Av > 0 ? Vsteife / Av : Infinity;
+  const sigmaV = Math.sqrt(sigma * sigma + 3 * tau * tau);
+  return {
+    profil: p.name, b: p.b, t: p.tf, W, A: Av,
+    /*
+     * `Vebene` heisst beim Blech die halbe Querkraft. Hier ist es die ganze
+     * - der Name bleibt, damit beide Nachweise nebeneinander auswertbar
+     * sind, aber `istSteife` sagt, dass er etwas anderes bedeutet.
+     */
+    Vebene: Math.abs(V), Mblech: M, Vblech: Vsteife,
+    sigma, tau, sigmaV, fyd,
+    eta: fyd > 0 ? sigmaV / fyd : Infinity,
+    istSteife: true,
+  };
+}
+
+/**
  * ALLE BINDEBLECHE EINES JOCHS - jedes für sich, wie gefordert.
  *
  * >>> DIE QUERKRAFT WIRD AN DER STELLE GENOMMEN, NICHT PAUSCHAL. <<<
@@ -716,21 +828,28 @@ export function abfangBlechnachweise(typ, jt, Vfunktion, fyd) {
     const aR = i < st.length - 1 ? st[i + 1] - x : 0;
     const aSum = aL + aR;
     /*
-     * WELCHES BLECH SITZT HIER. Die Endbleche sind stärker als das
-     * Regelblech - erstes und letztes bekommen sie, alle anderen das
-     * Regelmass. Welche Seite «L» und welche «R» ist, sagt die Zeichnung;
-     * genommen wird das jeweils SCHWÄCHERE der beiden Endbleche, solange
-     * die Zuordnung nicht erfasst ist.
+     * >>> WAS AN DIESER STATION SITZT, SAGT DIE EINTEILUNG. <<<
+     *
+     * Hier stand «erstes und letztes bekommen das schwächste Endblech, alle
+     * anderen das Regelmass» - eine Notlösung, solange die Zuordnung nicht
+     * erfasst war. `abfangBlechstationen` führt sie jetzt Station für
+     * Station: Endblech links, Regelblech, QUERSTEIFE an den QV-Grenzen,
+     * die beiden Endbleche rechts.
+     *
+     * Die Steife ist kein Blech. Sie bekommt ihren eigenen Nachweis - ein
+     * Riegel statt zweier Bleche, mit dem Widerstandsmoment der schwachen
+     * Profilachse.
      */
+    const art = ein.arten?.[i] ?? { art: 'regel' };
     const istRand = i === 0 || i === st.length - 1;
-    const enden = [bl.endeL, ...(Array.isArray(bl.endeR) ? bl.endeR
-      : bl.endeR ? [bl.endeR] : [])].filter(Boolean);
-    const schwaechstesEnde = enden.length
-      ? enden.reduce((m, c) => (c.t * c.b * c.b < m.t * m.b * m.b ? c : m))
-      : bl.regel;
-    const masse = istRand ? schwaechstesEnde : bl.regel;
+    if (art.art === 'steife' || art.art === 'steifeEnde') {
+      const n2 = abfangSteifennachweis(art.profil, Vfunktion(x), aSum, q.e, fyd);
+      return { i, x, aL, aR, aSum, istRand, art: art.art, masse: null, ...n2 };
+    }
+    const masse = art.masse ?? bl.regel;
     const n = abfangBlechnachweis(masse, Vfunktion(x), aSum, q.e, fyd);
-    return { i, x, aL, aR, aSum, istRand, masse, ...n };
+    return { i, x, aL, aR, aSum, istRand, art: art.art, masse,
+             istSteife: false, ...n };
   });
   const massgebend = bleche.reduce(
     (m, c) => (!m || c.eta > m.eta ? c : m), null);

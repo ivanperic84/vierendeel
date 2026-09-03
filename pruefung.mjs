@@ -12895,7 +12895,14 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    */
   {
     const PR = await import(J('data.profiles.js'));
-    wahr('Sieben Gurtprofile', PR.GURTPROFILE.length === 7);
+    /*
+     * ACHT, seit IPE 240 dazukam - es ist kein Gurtprofil, sondern die
+     * QUERSTEIFE von A240. Die Tabelle traegt beide Rollen, weil beide
+     * dieselben Werte brauchen.
+     */
+    wahr('Acht Walzprofile', PR.GURTPROFILE.length === 8);
+    wahr('IPE 240 ist dabei - die Quersteife von A240',
+         PR.GURTPROFILE.some((p) => p.name === 'IPE 240'));
     /*
      * DIE SCHAERFSTE PLAUSIBILITAETSPRUEFUNG, DIE ES HIER GIBT:
      * Flaeche mal Wichte muss das Laufmetergewicht ergeben. Ein Tippfehler
@@ -13268,6 +13275,131 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * darauf verteilen, steht nicht in einer Formel.
      */
     /*
+     * ======================================================================
+     * >>> DIE QUERSTEIFEN AB A240. <<<
+     * ======================================================================
+     *
+     * Weisung vom 3. September: «die quersteifen ab A240 richtig ansetzen.»
+     *
+     * An den Grenzen der QV-Bereiche sitzt statt eines Bindeblechpaares ein
+     * Riegel aus Walzprofil - die Stueckliste fuehrt ihn als eigene Position
+     * «Querversteifung». Vorher rechnete der Kern dort ein Blech, und die
+     * Zaehlung von Schema und Stueckliste ging um ebenso viele Stationen
+     * auseinander.
+     */
+    const GEGLIEDERT = ['A240', 'A270', 'A300', 'A330', 'A360'];
+    for (const t of GEGLIEDERT) {
+      wahr(`${t} fuehrt eine Quersteife`, Boolean(AJ.abfangQuersteife(t)));
+    }
+    wahr('A160 und A200 fuehren keine - sie sind ungegliedert',
+         !AJ.abfangQuersteife('A160') && !AJ.abfangQuersteife('A200'));
+    /*
+     * >>> SIE SITZEN AUF DEN QV-GRENZEN - UND ZWAR AUF STATIONEN. <<<
+     *
+     * Der erste Bereich beginnt bei 2000, der letzte endet bei jt - 2000.
+     * Faellt eine Grenze zwischen zwei Bleche, waere die Zuordnung geraten.
+     * Geprueft an allen 120 Laengen der fuenf gegliederten Typen.
+     */
+    let aufStation = 0;
+    let steifenZahl = 0;
+    for (const t of GEGLIEDERT) {
+      for (const z2 of AJ.getAbfangjoch(t).laengen) {
+        const e2 = AK.abfangBlechstationen(t, z2.jt);
+        if (!e2) continue;
+        const QV2 = z2.QV ?? [z2.QV1];
+        let g2 = 2000;
+        const gr = [g2];
+        for (const q2 of QV2) { g2 += q2; gr.push(g2); }
+        const mm = e2.stationen.map((v) => Math.round(v * 1000));
+        if (gr.every((v) => mm.includes(v))) aufStation += 1;
+        // Zahl der Steifen: nB + 1, bei A240 zusaetzlich das Endstueck.
+        const soll = QV2.length + 1 + (t === 'A240' ? 1 : 0);
+        if (e2.quersteifen === soll) steifenZahl += 1;
+      }
+    }
+    pruef('Jede QV-Grenze faellt auf eine Blechstation',
+          aufStation, 120, 1e-9, 'Stk');
+    pruef('Und die Steifenzahl ist nB + 1', steifenZahl, 120, 1e-9, 'Stk');
+    /*
+     * >>> DAMIT GEHEN SCHEMA UND STUECKLISTE AUF. <<<
+     *
+     * Vorher lagen sie ab A240 um bis zu neun Stationen auseinander - das
+     * waren genau die Steifen. Was bleibt, ist der eine systematische
+     * Fehlbetrag bei A1 = 250: dort fuehrt die Stueckliste durchweg ein
+     * Blechpaar zu wenig, bei A160 wie bei A360.
+     */
+    let deckt500 = 0;
+    let ab250 = 0;
+    for (const t of neuAlle) {
+      for (const z2 of t.laengen) {
+        const e2 = AK.abfangBlechstationen(t.typ, z2.jt);
+        if (!e2 || e2.stationenListe === null) continue;
+        if (z2.A1 === 500) { if (e2.blechzahlStimmt) deckt500 += 1; }
+        else if (e2.anzahl - e2.stationenListe === 1) ab250 += 1;
+      }
+    }
+    pruef('Bei A1 = 500 deckt sich jede Laenge', deckt500, 77, 1e-9, 'Stk');
+    pruef('Bei A1 = 250 fehlt genau ein Paar', ab250, 80, 1e-9, 'Stk');
+    /*
+     * >>> DER RIEGEL BIEGT UM SEINE SCHWACHE ACHSE. <<<
+     *
+     * Die Rahmenebene liegt waagrecht, der Steg der Steife steht senkrecht
+     * (Schnitt C-C). W_y einzusetzen gaebe bei IPE 240 das Siebenfache und
+     * einen Nachweis, der immer aufginge.
+     */
+    {
+      const PR2 = await import(J('data.profiles.js'));
+      const p2 = PR2.getGurtprofil('IPE 240');
+      const n2 = AK.abfangSteifennachweis('IPE 240', 40, 1.0, 30.0, 21.8);
+      pruef('Der Riegel rechnet mit W_z', n2.W, p2.Wz, 1e-9, 'cm3');
+      wahr('… nicht mit W_y', Math.abs(n2.W - p2.Wy) > 1);
+      // Den Schub tragen die Flansche, nicht der ganze Querschnitt.
+      pruef('Schubflaeche: beide Flansche', n2.A, 2 * p2.b * p2.tf, 1e-9, 'cm2');
+      wahr('… und das ist weniger als der Querschnitt', n2.A < p2.A);
+      /*
+       * EIN RIEGEL NIMMT DIE GANZE QUERKRAFT, ein Blechpaar teilt sie.
+       * Deshalb steht im Steifennachweis V und nicht V/2 - bei sonst
+       * gleichen Zahlen ist sein Moment doppelt so gross wie das eines
+       * einzelnen Blechs.
+       */
+      const bl2 = AJ.abfangBindeblech('A240').regel;
+      const nb = AK.abfangBlechnachweis(bl2, 40, 1.0, 30.0, 21.8);
+      pruef('Sein Moment ist das doppelte eines Blechs',
+            n2.Mblech / nb.Mblech, 2.0, 1e-9, '-');
+      /*
+       * >>> UND IST DAMIT FAST GENAU DAS BLECHPAAR. <<<
+       *
+       * W_z eines I ist im Wesentlichen 2*t_f*b^2/6 - die Formel des
+       * Blechpaares mit den Flanschmassen. Bei A240 liegt die Steife
+       * deshalb ein Prozent UNTER dem Paar, das sie ersetzt; die frueher
+       * notierte Auskunft «immer auf der sicheren Seite» galt nur fuer die
+       * grossen Typen.
+       */
+      const paar = 2 * ((bl2.t / 10) * (bl2.b / 10) ** 2 / 6);
+      wahr('A240: die Steife liegt knapp unter dem Blechpaar',
+           p2.Wz / paar > 0.97 && p2.Wz / paar < 1.0);
+      wahr('A360: deutlich darueber',
+           PR2.getGurtprofil('IPE 360').Wz
+           / (2 * ((AJ.abfangBindeblech('A360').regel.t / 10)
+                   * (AJ.abfangBindeblech('A360').regel.b / 10) ** 2 / 6)) > 1.8);
+    }
+    /*
+     * >>> DER NACHWEIS SETZT SIE AN DER RICHTIGEN STELLE AN. <<<
+     */
+    {
+      const Vf = (x) => 4.0 * (8.0 / 2 - x);
+      const a240 = AK.abfangBlechnachweise('A240', 8.0, Vf, 21.8);
+      const st2 = a240.bleche.filter((b2) => b2.istSteife);
+      pruef('A240 / 8.00 m: vier Steifen im Nachweis', st2.length, 4, 1e-9, 'Stk');
+      wahr('Sie stehen auf den QV-Grenzen und am Jochende',
+           st2.map((b2) => Math.round(b2.x * 1000)).join(',') === '2000,4000,6000,7090');
+      wahr('Jede kennt ihr Profil',
+           st2.every((b2) => b2.profil === 'IPE 240'));
+      wahr('Die uebrigen bleiben Bleche',
+           a240.bleche.filter((b2) => !b2.istSteife).length === 8);
+    }
+
+    /*
      * AUCH BEI A240 STEHT DIE LAGE - und die Endmasse sind andere als bei
      * A160: 1380/620 links, 545/545/910 rechts. Beide Seiten summieren auf
      * 2000, sonst waere eines der Masse falsch abgelesen.
@@ -13612,6 +13744,41 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     pruef('Zwei Bindebleche je Station', blS.length, 32, 1e-9, 'Stk');
     pruef('Vier Endbleche - zwei Enden, zwei Ebenen', beS.length, 4, 1e-9, 'Stk');
+    /*
+     * >>> UND AB A240 STEHT AN DEN QV-GRENZEN EIN RIEGEL. <<<
+     *
+     * Weisung vom 3. September: «die quersteifen ab A240 richtig ansetzen.»
+     * Im Modell heisst das: ein Stab mit dem I-Querschnitt der Steife auf
+     * der Gurt-Schwerachse - nicht zwei Flachstaehle auf Flanschhoehe.
+     */
+    {
+      const m240 = XA.abfangAxisvmModell('A240', 8.0, {});
+      const stS = m240.staebe.filter((x) => x.querschnitt === 'STEIFE');
+      pruef('A240 / 8.00 m: vier Steifen im Modell', stS.length, 4, 1e-9, 'Stk');
+      const qsQ = m240.querschnitte.find((q2) => q2.name === 'STEIFE');
+      wahr('Sie ist ein I-Profil, kein Rechteck',
+           qsQ?.form === 'I' && qsQ.profil === 'IPE 240');
+      /*
+       * DIE REFERENZ IST [0,0,1], NICHT [1,0,0] WIE BEIM BLECH. Der Riegel
+       * steht mit senkrechtem Steg; in der waagrechten Rahmenebene wirkt
+       * damit seine schwache Achse - so, wie der Nachweis sie ansetzt.
+       * Andersherum waere das Modell um I_y/I_z daneben, bei IPE 240 um
+       * das Vierzehnfache.
+       */
+      wahr('Ihr Steg steht senkrecht',
+           stS.every((x) => x.lcsZ[0] === 0 && x.lcsZ[2] === 1));
+      wahr('… anders als die Bleche, die flach liegen',
+           m240.staebe.filter((x) => x.querschnitt === 'BLECH')
+             .every((x) => x.lcsZ[0] === 1));
+      // Sie sitzt auf der Schwerachse, die Bleche auf Flanschhoehe.
+      const kn = new Map(m240.knoten.map((n2) => [n2.name, n2]));
+      wahr('Sie sitzt auf der Schwerachse der Gurte',
+           stS.every((x) => Math.abs(kn.get(x.von).z) < 1e-9));
+      // Acht Blechstationen bleiben - zwoelf Stationen, vier davon Steifen.
+      pruef('Acht Blechstationen bleiben',
+            m240.staebe.filter((x) => x.querschnitt === 'BLECH').length,
+            16, 1e-9, 'Stk');
+    }
     // Sie liegen auf drei Hoehen: Schwerachse und beide Flansche.
     const zEb = [...new Set(m.knoten.map((n2) => Math.round(n2.z * 1e6) / 1e6))];
     pruef('Drei Ebenen in z', zEb.length, 3, 1e-9, 'Stk');

@@ -61,10 +61,12 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung } from './data.abfangjoche.js';
 import { abfangQuerschnitt, abfangBlechstationen,
          abfangStuetzweite } from './core.abfangjoch.js';
+import { getGurtprofil } from './data.profiles.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
 const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
-                 'IPE 270': 15, 'IPE 300': 15, 'IPE 330': 18, 'IPE 360': 18 };
+                 'IPE 240': 15, 'IPE 270': 15, 'IPE 300': 15,
+                 'IPE 330': 18, 'IPE 360': 18 };
 
 /**
  * Das Stabmodell eines Abfangjochs im Austauschformat des Aufbauskripts.
@@ -138,6 +140,29 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const enden = [bl.endeL, ...(Array.isArray(bl.endeR) ? bl.endeR
     : bl.endeR ? [bl.endeR] : [])].filter(Boolean);
   if (enden.length) querschnitte.push(blechQs('BLECH_ENDE', enden[0]));
+  /*
+   * >>> DIE QUERSTEIFE IST EIN WALZPROFIL, KEIN BLECH. <<<
+   *
+   * Ab A240 sitzt an den Grenzen der QV-Bereiche ein Riegel aus Walzprofil
+   * statt eines Bindeblechpaares - bei A240 ein IPE 240 x 600, bei den
+   * uebrigen das Gurtprofil selbst. Ihn als zwei Flachstaehle zu bauen
+   * hiesse, die Steifigkeit zu unterschlagen, die der Steg dazwischen
+   * bringt: das I haelt seine beiden Flansche auf Abstand, ein Blechpaar
+   * tut das nur ueber die Gurte.
+   */
+  const qsteife = ein.arten?.some((a2) => a2.art === 'steife'
+                                       || a2.art === 'steifeEnde')
+    ? getGurtprofil(ein.arten.find((a2) => a2.profil).profil) : null;
+  if (qsteife) {
+    querschnitte.push({
+      name: 'STEIFE', form: 'I',
+      parameter: [qsteife.h * 10, qsteife.b * 10,
+                  qsteife.tw * 10, qsteife.tf * 10, RADIUS[qsteife.name] ?? 15],
+      profil: qsteife.name,
+      A: qsteife.A / 1e4, Iy: qsteife.Iy / 1e8,
+      Iz: qsteife.Iz / 1e8, It: qsteife.It / 1e8,
+    });
+  }
 
   /*
    * DIE KNOTEN. An jeder Blechstation und an beiden Auflagern, je Gurt
@@ -236,6 +261,30 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   ein.stationen.forEach((s, k) => {
     const i = xs.indexOf(Math.round(s * 1e6) / 1e6);
     if (i < 0) return;
+    /*
+     * >>> AN EINER STEIFEN-STATION STEHT EIN RIEGEL, KEIN PAAR. <<<
+     *
+     * Er sitzt auf der SCHWERACHSE der Gurte (z = 0), nicht auf Flanschhoehe
+     * - der Schnitt C-C zeigt ihn ueber die ganze Profilhoehe zwischen die
+     * Gurtstege geschweisst, mit R19 ausgeklinkt. Seine Flansche liegen
+     * dabei von selbst dort, wo sonst die Bleche liegen.
+     *
+     * Die Referenz ist `[0,0,1]`, nicht `[1,0,0]` wie beim Blech: der
+     * Riegel steht mit SENKRECHTEM Steg. Damit wirkt in der waagrechten
+     * Rahmenebene seine schwache Achse - genau so, wie der Nachweis
+     * (`abfangSteifennachweis`) sie ansetzt. Stuende er andersherum, waere
+     * das Modell um den Faktor Iy/Iz daneben, bei IPE 240 um das
+     * Vierzehnfache.
+     */
+    const art = ein.arten?.[k]?.art;
+    if (art === 'steife' || art === 'steifeEnde') {
+      staebe.push({
+        name: `STEIFE_${k}`, von: nm('H', i), bis: nm('V', i),
+        querschnitt: 'STEIFE', steifesMaterial: false,
+        lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'stab',
+      });
+      return;
+    }
     for (const o of ['O', 'U']) {
       staebe.push({
         name: `BL_${o}${k}`, von: nmF('H', i, o), bis: nmF('V', i, o),
@@ -334,6 +383,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       art: 'abfangjoch', bauform: 'liegender Vierendeeltraeger',
       gurtprofil: p.name, bleche: ein.anzahl,
       blechlage: ein.randGenau ? 'aus dem Schema' : 'genaehert',
+      quersteifen: ein.quersteifen ?? 0,
       endverstaerkung: abfangEndverstaerkung(typ)?.art ?? 'keine',
     },
     material: { name: 'S235', art: 'Steel', rho: 7850, E: 210000, G: 81000,

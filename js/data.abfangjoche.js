@@ -222,6 +222,33 @@ export function abfangMasse(typ, jt) {
 }
 
 /**
+ * DIE QUERVERSTEIFUNG - ab A240.
+ *
+ * >>> NICHT AN JEDER STATION STEHT EIN BLECH. <<<
+ *
+ * Ab A240 ist der Traeger gegliedert, und an den Grenzen der QV-Bereiche
+ * sitzt statt eines Bindeblechpaares ein RIEGEL aus Walzprofil. Die
+ * Stueckliste fuehrt ihn als eigene Position «Querversteifung»: bei A240
+ * ein IPE 240 x 600, bei den uebrigen das Gurtprofil selbst, jeweils mit
+ * nB + 1 Stueck (nB = Zahl der QV-Bereiche).
+ *
+ * Der Schnitt C-C der Konstruktionszeichnung zeigt ihn mit SENKRECHTEM Steg
+ * zwischen die Gurtstege geschweisst, mit R19 ausgeklinkt und 140 mm
+ * anliegender Steglaenge. Seine beiden Flansche liegen damit genau dort, wo
+ * sonst die beiden Bindebleche liegen - er ersetzt das Paar.
+ *
+ * A240 fuehrt zusaetzlich EIN Stueck IPE 240 x 280 am Jochende, wo die
+ * Gurte auf die Spreizung zusammenlaufen. Nur eines, also nur an einem Ende.
+ *
+ * @returns {{profil, laenge, ende?}|null} - null bei A160 und A200, die
+ *          ungegliedert sind und keine Querversteifung fuehren
+ */
+export function abfangQuersteife(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return a?.quersteife ?? null;
+}
+
+/**
  * DIE RANDMASSE DER BLECHEINTEILUNG - die beiden Endbereiche.
  *
  * >>> DIE ENDEN SIND NICHT GLEICH LANG. <<<
