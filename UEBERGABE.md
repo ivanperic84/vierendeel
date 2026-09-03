@@ -3863,6 +3863,27 @@ Der Typ geht in die **Bezeichnung** («A160 · H 7.50 m» in der Leiste statt
 **Offen bleibt der Rechenkern** — die Weisung dazu steht in *Der Abfangjoch-
 Rechenkern* weiter unten.
 
+### Ein Schalter, der sich selbst versteckt hätte (3. September)
+
+Gemeldet: „Dieser button ist sehr mächtig. wie kann man sonst die Masten wieder
+einblenden? könnte man über das kontextmenue oder in der sidebar unter masten
+einen box setzen?"
+
+**Es war schlimmer als „mächtig".** Das Symbol in der Tragwerksleiste schaltet
+die Masten eines Tragwerks aus — und war danach der **einzige** Weg zurück:
+alle übrigen Mastfelder hängen an `mastDa`, mit den Masten verschwand also die
+ganze Gruppe *Masten* aus der Seitenleiste. Gemessen: **null Felder** blieben
+stehen. Wer den kleinen Knopf nicht kennt, findet keinen Rückweg.
+
+`mastVorhanden` steht jetzt als Schalter in der Gruppe — **immer sichtbar**,
+auch im ausgeschalteten Zustand. Ohne Masten bleibt genau dieses eine Feld;
+der Prüfstand hält beides fest.
+
+*Nebenbei:* derselbe Schalter stand früher schon einmal dort und wanderte an
+die Kachel, „weil er unter den Mastfeldern etwas schaltete, was man dort gar
+nicht sah". Das galt, solange die Felder dastanden. Jetzt kommt er zurück —
+aus dem umgekehrten Grund: er ist das einzige, was dann noch dasteht.
+
 ### Die Bauteilauswahl: gegliedert, kompakter, mit Direktknopf (3. September)
 
 Vierzehn gleich aussehende Kacheln untereinander sind eine **Liste**, keine

@@ -426,6 +426,34 @@ export const FELDER = [
    * Damit gilt, was am 2. September verlangt wurde: ziehen fuer grob, Feld
    * fuer genau - auch fuer den Mastabstand.
    */
+  /*
+   * >>> DER SCHALTER, DER SICH SELBST VERSTECKT HAETTE. <<<
+   *
+   * Weisung vom 3. September: «Dieser button ist sehr maechtig. wie kann man
+   * sonst die Masten wieder einblenden? koennte man ueber das kontextmenue
+   * oder in der sidebar unter masten einen box setzen?»
+   *
+   * Gemeint ist das Symbol in der Tragwerksleiste. Es schaltet die Masten
+   * eines Tragwerks aus - und danach war es der EINZIGE Weg zurueck: alle
+   * uebrigen Mastfelder haengen an `mastDa`, also verschwand mit den Masten
+   * auch die ganze Gruppe «Masten» aus der Seitenleiste. Wer den kleinen
+   * Knopf nicht kennt, findet keinen Rueckweg.
+   *
+   * Frueher stand dieser Schalter schon einmal hier und wanderte an die
+   * Kachel, «weil er unter den Mastfeldern etwas schaltete, was man dort
+   * gar nicht sah». Das galt, solange die Felder dastanden. Jetzt kommt er
+   * zurueck - aus dem umgekehrten Grund: er ist das EINZIGE, was dann noch
+   * dasteht.
+   *
+   * IMMER SICHTBAR, auch ohne Masten. Ein Schalter, dessen Aus-Zustand ihn
+   * selbst verschwinden laesst, ist eine Falle.
+   */
+  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
+    label: 'Tragwerk steht auf Masten', standard: true,
+    sichtbar: (w) => tragwerksart(w).traeger === true,
+    hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
+           + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
+           + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
   { key: 'mastX', gruppe: 'mast', typ: 'zahl',
     label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
     sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,

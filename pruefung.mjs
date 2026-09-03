@@ -13625,6 +13625,39 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> EIN SCHALTER DARF SICH NICHT SELBST VERSTECKEN. <<<
+   *
+   * Weisung vom 3. September: «Dieser button ist sehr maechtig. wie kann man
+   * sonst die Masten wieder einblenden?»
+   *
+   * Das Symbol in der Tragwerksleiste schaltet die Masten eines Tragwerks
+   * aus - und war danach der EINZIGE Weg zurueck: alle uebrigen Mastfelder
+   * haengen an `mastDa`, mit den Masten verschwand also die ganze Gruppe
+   * «Masten» aus der Seitenleiste. Gemessen: null Felder blieben stehen.
+   */
+  {
+    const { sichtbareFelder: sfM } = await import(J('ui.schema.js'));
+    const w = standardwerte();
+    const mit = sfM('mast', w).map((f) => f.key);
+    const ohne = sfM('mast', { ...w, mastVorhanden: false })
+      .map((f) => f.key);
+    wahr('Mit Masten steht die Gruppe voll da', mit.length > 5);
+    /*
+     * DAS IST DER KERN: ohne Masten bleibt GENAU EIN Feld - der Schalter,
+     * der sie zurueckholt. Faellt er je weg, ist der Rueckweg wieder nur
+     * das Symbol in der Leiste.
+     */
+    wahr('Ohne Masten bleibt der Rueckweg stehen',
+         ohne.includes('mastVorhanden'));
+    pruef('… und zwar als einziges Feld', ohne.length, 1, 1e-9, 'Stk');
+    wahr('Er steht auch im vollen Zustand da', mit.includes('mastVorhanden'));
+    // Beim Einzelmasten gaebe es nichts abzuschalten - er IST der Mast.
+    wahr('Beim Einzelmasten steht er nicht',
+         !sfM('mast', { ...w, tragwerksart: 'einzelmast' })
+           .map((f) => f.key).includes('mastVorhanden'));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

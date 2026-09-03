@@ -781,6 +781,17 @@ function aendern(key, wert) {
    * Tragwerk. Deshalb sitzt der Schalter an der Tragwerkskachel und nicht
    * an der Mastkachel.
    */
+  /*
+   * DER SCHALTER IN DER SEITENLEISTE MELDET DIESELBE ABSICHT.
+   *
+   * `mastVorhanden` ist kein gewoehnliches Feld: es haengt am TRAGWERK, nicht
+   * an einem Masten, und es schaltet beide Enden zugleich. Es hier
+   * durchzureichen statt in den allgemeinen Feldweg zu geben haelt beide
+   * Wege - Knopf und Box - auf derselben Handlung.
+   */
+  if (key === 'mastVorhanden') {
+    return aendern('tragwerkMasten', werte.twId ?? 'T1');
+  }
   if (key === 'tragwerkMasten') {
     if ((werte.twId ?? 'T1') !== wert) werte = tauscheAktives(werte, wert);
     werte = { ...werte, mastVorhanden: werte.mastVorhanden === false };
