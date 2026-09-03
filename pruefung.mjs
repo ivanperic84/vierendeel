@@ -11994,6 +11994,64 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> EIN NEUES TRAGWERK LANDET NEBEN DEM LETZTEN, NICHT DARAUF. <<<
+   *
+   * Weisung vom 3. September, sinngemaess: «ich frage mich ob dies bei einem
+   * tragwerk das über drei joche geht noch sinnvoll ist.»
+   *
+   * Es war es nicht: `tragwerkHinzu` uebernahm den ganzen bisherigen Satz -
+   * samt `xLage`. Drei Tragjoche standen danach alle bei x0 = 0,
+   * deckungsgleich; in der Leiste war nur das oberste anklickbar, im Modell
+   * steckten sie ineinander.
+   */
+  {
+    let w = { typ: 'J90', L: 20, xLage: 0, twId: 'T1', flSpannweite: 40 };
+    w = C75.tragwerkHinzu(w, 'joch', {});
+    w = C75.tragwerkHinzu(w, 'joch', { L: 15 });
+    const lagen = C75.tragwerkeSortiert(w).map((t) => C75.bereichVon(t));
+    wahr('Drei Joche stehen in einer Reihe',
+         lagen.map((b) => b.join('-')).join(' ') === '0-20 20-40 40-55');
+    // Jedes schliesst am rechten Ende des vorigen an - dort steht der
+    // gemeinsame Zwischenmast.
+    pruef('Vier Masten, keine doppelten', C75.mastenVon(w).length, 4, 1e-9, 'Stk');
+
+    /*
+     * EIN EINZELMAST HAT KEINE LAENGE. «Am rechten Ende anschliessen» hiesse
+     * bei ihm: an dieselbe Stelle. Er rueckt um die Spannweite weiter.
+     */
+    const m1 = C75.tragwerkHinzu({ typ: 'J90', L: 20, xLage: 0, twId: 'T1',
+                                   flSpannweite: 40 }, 'einzelmast', {});
+    const m2 = C75.tragwerkHinzu(m1, 'einzelmast', {});
+    const xs = C75.tragwerkeSortiert(m2).map((t) => C75.lageVon(t));
+    wahr('Einzelmasten stehen nicht aufeinander',
+         new Set(xs.map((x) => x.toFixed(2))).size === xs.length);
+  }
+
+  /*
+   * >>> WAS UEBEREINANDER STEHT, DARF SICH DECKEN. <<<
+   *
+   * Weisung vom 3. September: «wir haben zudem bei den abfangjochen zwei
+   * joche übereinander.» Ein Abfangjoch sitzt UEBER einem Tragjoch, auf
+   * denselben Masten und auf derselben Strecke - die Regel «nichts darf sich
+   * ueberschneiden» haette diesen Aufbau verboten. Verboten bleibt die
+   * Ueberschneidung GLEICHER Art.
+   */
+  {
+    let w = { typ: 'J90', L: 20, xLage: 0, twId: 'T1' };
+    w = C75.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 20 });
+    const abfang = w.twId;
+    const f = C75.freieLage(w, abfang, 0);
+    pruef('Ein Abfangjoch darf auf dem Tragjoch liegen', f.x, 0, 1e-9, 'm');
+    wahr('… und wird nicht geklemmt', f.geklemmt === false);
+
+    // Zwei Tragjoche dagegen schon.
+    let z = { typ: 'J90', L: 20, xLage: 0, twId: 'T1' };
+    z = C75.tragwerkHinzu(z, 'joch', { L: 20 });
+    const g = C75.freieLage(z, z.twId, 5);
+    wahr('Zwei Tragjoche werden auseinandergeschoben', g.geklemmt === true);
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

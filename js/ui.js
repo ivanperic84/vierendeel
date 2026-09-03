@@ -848,13 +848,35 @@ export function verdrahteLeiste(container, werte, onChange) {
     });
   });
 
+  /*
+   * DAS KAESTCHEN IST DIE SICHTBARKEIT (Weisung, 3. September).
+   *
+   * Es schaltet dasselbe wie «ausblenden» im Kontextmenue - ein Tragwerk,
+   * das nicht zaehlt, verschwindet aus Bild, Bauteilliste, Ausleitung und
+   * Nachweis. Zwei Wege zur selben Sache, weil man sie an zwei Orten
+   * braucht; beide melden dieselbe Absicht.
+   */
+  container.querySelectorAll('[data-qp-sicht]').forEach((b) => {
+    b.addEventListener('click', () => onChange(
+      b.classList.contains('an') ? 'tragwerkAus' : 'tragwerkZeigen',
+      b.dataset.qpSicht));
+  });
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
     const id = b.dataset.qpTw;
     let zug = null;
     b.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       const t = tragwerkeSortiert(werte).find((x) => x.id === id);
-      if (!t || versteckt(t)) return;      // ausgeblendet: nur einblenden
+      if (!t) return;
+      /*
+       * NUR AN DER LINIE WIRD GEZOGEN.
+       *
+       * Der Name daneben ist ein eigener Knopf: er waehlt das Tragwerk und
+       * verschiebt es nicht. Wer auf einen Namen zeigt, meint «dieses» -
+       * nicht «dieses, zwei Meter weiter rechts».
+       */
+      if (!b.classList.contains('qp-linie')) return;
+      if (versteckt(t)) return;            // ausgeblendet: nur einblenden
       try { b.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
       zug = { startX: e.clientX, x0: lageVon(t), bewegt: false };
     });
@@ -905,9 +927,9 @@ export function verdrahteLeiste(container, werte, onChange) {
     };
     b.addEventListener('pointerup', ende);
     b.addEventListener('pointercancel', ende);
-    // Ein ausgeblendetes Tragwerk kennt nur eine Geste: zurueckholen.
-    if (b.dataset.qpZeigen) {
-      b.addEventListener('click', () => onChange('tragwerkZeigen', id));
+    // Der Name hat keinen Zug - er meldet den Klick unmittelbar.
+    if (!b.classList.contains('qp-linie')) {
+      b.addEventListener('click', () => onChange('tragwerkAktiv', id));
     }
     /*
      * RECHTSKLICK AUF DEN BALKEN - dieselben Eintraege wie im Modell.
@@ -1093,10 +1115,43 @@ export function qpBereich(werte) {
 }
 
 /**
- * Die Leiste.
+ * DIE LEISTE: EINE ZEILE JE TRAGWERK, LINIE UND NAME.
+ *
+ * Weisung vom 3. September: «könnte man eine liste mit bezeichnungen der
+ * Tragwerkteile machen und die abbildung soweit vereinfachen und reduzieren,
+ * dass nur linien und die bezeichnung zu sehen ist? so könnte man dann auch
+ * einfach und gezielt mit einer box die sichtbarkeit steuern.»
+ *
+ * >>> WARUM DAS DIE BESSERE FORM IST. <<<
+ *
+ * Vorher lagen alle Tragwerke in EINER Zeile nebeneinander, als
+ * massstaebliche Balken. Das las sich gut bei zweien und schlecht bei
+ * dreien: bei 240 Punkten Breite bleiben je Balken siebzig, und «J90 ·
+ * 20.00 m» passt dort nicht mehr hinein. Bei den Abfangjochen brach es ganz -
+ * zwei Joche UEBEREINANDER belegen dieselbe Strecke, und in einer Zeile
+ * laegen ihre Balken aufeinander.
+ *
+ * Eine Zeile je Tragwerk loest beides auf einmal: der Name hat die ganze
+ * Breite, und wieviele es sind, spielt keine Rolle mehr. Die LINIE in der
+ * Zeile behaelt, was am Balken gut war - sie steht massstaeblich an ihrer
+ * Stelle, und weil alle Zeilen dieselbe Achse teilen, liest man Lage und
+ * Laenge weiter im Vergleich ab.
+ *
+ * >>> DAS KAESTCHEN IST DIE SICHTBARKEIT. <<<
+ *
+ * Es schaltet dasselbe wie «ausblenden» im Kontextmenue - ein Tragwerk, das
+ * nicht zaehlt, verschwindet aus Bild, Bauteilliste, Ausleitung und
+ * Nachweis. Als Kaestchen in einer Liste ist es die Geste, die jeder kennt,
+ * und man sieht auf einen Blick, was gerade gilt.
+ *
+ * >>> DIE MASTEN STEHEN UNTER ALLEN ZEILEN. <<<
+ *
+ * Sie tragen jedes Tragwerk der Liste - eine eigene Zeile je Mast wuerde das
+ * verdecken. Unter der gemeinsamen Achse stehen sie da, wo sie hingehoeren:
+ * als Grundlinie, auf der alles darueber steht.
  *
  * @param {object} werte
- * @param {{id:string, x:number}|null} zieht  Lage, die gerade gezogen wird
+ * @param {{id:string, x:number, mastId?:string, text?:string}|null} zieht
  */
 export function querprofilLeisteHtml(werte, zieht = null) {
   const alle = tragwerkeSortiert(werte);
@@ -1106,56 +1161,43 @@ export function querprofilLeisteHtml(werte, zieht = null) {
   const gewMast = gewaehlterMast(werte);
   const masten = mastenVon(werte);
 
-  const balken = alle.map((t) => {
+  const zeilen = alle.map((t) => {
     const art = tragwerksart(t);
     const x0 = (zieht && zieht.id === t.id) ? zieht.x : lageVon(t);
     const L = art.masten >= 2 ? (Number(t.L) || 0) : 0;
     const links = qpPct(x0, von, bis);
-    // Ein Einzelmast hat keine Laenge - er bekommt eine Mindestbreite, sonst
-    // waere sein Balken ein Strich, den man nicht trifft.
-    const breit = Math.max(qpPct(x0 + L, von, bis) - links, 4);
+    // Ein Einzelmast hat keine Laenge - seine Linie waere ein Punkt. Sie
+    // bekommt eine Mindestbreite, damit man sie trifft.
+    const breit = Math.max(qpPct(x0 + L, von, bis) - links, 2.5);
     const an = t.id === aktivId;
-    /*
-     * EIN AUSGEBLENDETES TRAGWERK BLEIBT ALS UMRISS STEHEN.
-     *
-     * Ganz zu verschwinden waere die falsche Antwort: dann wuesste niemand
-     * mehr, dass es da ist, und schon gar nicht, wie man es zurueckholt.
-     * Als gestrichelter Umriss steht es an seiner Stelle und sagt beides -
-     * dass es zum Blatt gehoert und dass es gerade nicht zaehlt. Ein Klick
-     * holt es zurueck.
-     */
     const aus = versteckt(t);
-    return `<button type="button" class="qp-tw${an ? ' an' : ''}${
-        aus ? ' aus' : ''}${zieht && zieht.id === t.id ? ' zieht' : ''}"
-        data-qp-tw="${esc(t.id)}"${aus ? ' data-qp-zeigen="1"' : ''}
-        style="left:${links.toFixed(3)}%;
-        width:${breit.toFixed(3)}%"
-        title="${esc(`${tragwerkName(t)} — ${art.label}, x₀ = ${x0.toFixed(2)} m`
-          + (aus ? ' · ausgeblendet — anklicken blendet es wieder ein'
-             : an ? ' · wird gerechnet'
-             : ' · anklicken, um es zu rechnen')
-          + (aus ? '' : ' · ziehen verschiebt'))}"
-        aria-pressed="${an}">
-        <span class="qp-tw-art">${esc(art.kuerzel)}</span>
-        <span class="qp-tw-name">${esc(tragwerkName(t))}</span>
-      </button>`;
+    return `<div class="qp-zeile${an ? ' an' : ''}${aus ? ' aus' : ''}">
+      <button type="button" class="qp-auge${aus ? '' : ' an'}"
+              data-qp-sicht="${esc(t.id)}"
+              role="checkbox" aria-checked="${!aus}"
+              title="${esc(aus
+                ? 'Einblenden — zählt dann wieder in Bild, Bauteilliste, '
+                  + 'Ausleitung und Nachweis'
+                : 'Ausblenden — bleibt gespeichert, zählt aber nicht mehr')}"
+        ></button>
+      <button type="button" class="qp-name" data-qp-tw="${esc(t.id)}"
+              title="${esc(`${art.label}, x₀ = ${x0.toFixed(2)} m`
+                + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen'))}"
+        ><span class="qp-art">${esc(art.kuerzel)}</span>${esc(tragwerkName(t))}</button>
+      <span class="qp-bahn">
+        <button type="button" class="qp-linie${an ? ' an' : ''}${
+            zieht && zieht.id === t.id ? ' zieht' : ''}"
+          data-qp-tw="${esc(t.id)}"
+          style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%"
+          title="${esc(`x₀ = ${x0.toFixed(2)} m${L ? ` · ${L.toFixed(2)} m lang` : ''}`
+            + (aus ? '' : ' · ziehen verschiebt'))}"></button>
+      </span>
+    </div>`;
   }).join('');
 
   /*
-   * >>> EIN MAST IST KEIN STUMMEL. <<<
-   *
-   * Weisung vom 2. September: «Die masten in der tragwerkdarstellung klarer
-   * ausbilden, nicht als stummel.»
-   *
-   * Sie standen als neun Pixel langer Strich unter der Achse - ein
-   * Teilungsstrich auf einem Massstab, kein Bauteil. Jetzt stehen sie, wie
-   * sie stehen: ein Schaft vom Joch herunter, ein Fundamentkloetzchen unten,
-   * und darunter die Gelaendelinie. Die Leiste liest sich damit als kleiner
-   * AUFRISS des Querprofils - Joche oben, Masten darunter, Boden zuunterst -
-   * und nicht mehr als abstrakte Achse mit Marken.
-   *
-   * DER GETEILTE MAST ist breiter im Fundament: er traegt zwei Tragwerke,
-   * und das ist der Unterschied, den man in einer Reihe sofort sehen will.
+   * DIE MASTEN: Schaft, Fundament, Gelaendelinie - ein kleiner Aufriss unter
+   * der Liste. Der geteilte hat ein breiteres Fundament: er traegt zwei.
    */
   const marken = masten.map((m, i) => {
     const an = m.id === gewMast?.id;
@@ -1175,21 +1217,17 @@ export function querprofilLeisteHtml(werte, zieht = null) {
       </button>`;
   }).join('');
 
-  /*
-   * DIE ZAHL WAEHREND DES ZUGS nennt, WAS sich gerade aendert - die Lage
-   * eines Tragwerks oder den Abstand zweier Masten. Zwei verschiedene
-   * Gesten, zwei verschiedene Antworten; «x₀ = ...» ueber einem gezogenen
-   * Masten waere die falsche.
-   */
   const gezogen = zieht
     ? `<span class="qp-zug">${esc(zieht.text
         ?? `x₀ = ${zieht.x.toFixed(2)} m`)}</span>` : '';
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      <div class="qp-spur">${balken}${gezogen}</div>
-      <div class="qp-achse">${marken}<span class="qp-boden"></span></div>
+      <div class="qp-liste">${zeilen}${gezogen}</div>
+      <div class="qp-achse"><span class="qp-bahn"
+        >${marken}<span class="qp-boden"></span></span></div>
     </div>`;
 }
+
 
 function feldHtml(f, wert, werte) {
   const id = `feld-${f.key}`;

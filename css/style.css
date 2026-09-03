@@ -1362,55 +1362,92 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .tw-neu .btn { font-size: 10px; }
 
 /* --- Querprofil-Leiste ----------------------------------------------------
-   DIE ANORDNUNG ALS BILD statt in Worten. Eine massstaebliche x-Achse des
-   Blattes: jedes Tragwerk ein Balken auf seiner Lage, jeder Mast eine Marke
-   an seiner Stelle. Sie ersetzt vier Bedienelemente - Tragwerkskacheln,
-   Mastkacheln, vier Hinzufuege-Knoepfe und das Lage-Feld -, die alle
-   dieselbe Frage beantworteten und keines davon zeigte.
+   EINE ZEILE JE TRAGWERK: Kaestchen, Name, Linie (Weisung, 3. September:
+   «nur linien und die bezeichnung», Sichtbarkeit ueber eine Box).
 
-   ALLES IN PROZENT: die Lage rechnet das Stylesheet aus, nicht JavaScript.
-   Damit stimmt sie auch, wenn die Seitenleiste breiter gezogen wird. */
-.qp-leiste {
-  position: relative; margin: 2px 0 8px;
-  user-select: none; touch-action: none;
+   Vorher lagen alle Tragwerke als massstaebliche Balken in EINER Zeile. Das
+   las sich gut bei zweien und schlecht bei dreien - siebzig Punkte je Balken,
+   und der Name passt nicht hinein -, und bei zwei Jochen UEBEREINANDER
+   (Abfangjoch) lagen sie aufeinander. Als Zeilen ist beides aufgeloest: der
+   Name hat die ganze Breite, die Anzahl spielt keine Rolle.
+
+   Die LINIE behaelt, was am Balken gut war: alle Zeilen teilen dieselbe
+   Achse, also liest man Lage und Laenge weiter im Vergleich ab. */
+.qp-leiste { position: relative; margin: 2px 0 8px;
+  user-select: none; touch-action: none; }
+.qp-liste { position: relative; display: flex; flex-direction: column; gap: 1px; }
+.qp-zeile {
+  display: flex; align-items: center; gap: 5px;
+  padding: 1px 2px; border-radius: var(--m-r1);
 }
-.qp-spur { position: relative; height: 34px; }
-.qp-tw {
-  position: absolute; top: 0; height: 34px;
-  display: flex; flex-direction: column; justify-content: center; gap: 1px;
-  padding: 0 5px; min-width: 0; overflow: hidden;
-  background: var(--s2); border: 1px solid var(--ol);
-  border-radius: var(--m-r1); cursor: grab;
-  font-family: inherit; color: var(--dim); text-align: left;
-  transition: border-color var(--t-schnell), background var(--t-schnell);
+.qp-zeile:hover { background: var(--s2); }
+.qp-zeile.an { background: var(--acc-s); }
+.qp-zeile.aus { opacity: .5; }
+
+/* Das Kaestchen: Sichtbarkeit. Ein Haken, kein Auge - es steht in einer
+   Liste, und dort ist das Kaestchen die Geste, die jeder kennt. */
+.qp-auge {
+  flex: 0 0 13px; width: 13px; height: 13px; padding: 0; cursor: pointer;
+  background: var(--s2); border: 1px solid var(--ol2);
+  border-radius: 3px; position: relative;
 }
-.qp-tw:hover { border-color: var(--ol2); }
-.qp-tw.an { border-color: var(--acc); background: var(--acc-s); }
-.qp-tw.zieht { cursor: grabbing; opacity: .85; }
-.qp-tw-art {
-  font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--dim); white-space: nowrap;
+.qp-auge.an { background: var(--acc); border-color: var(--acc); }
+.qp-auge.an::after {
+  content: ''; position: absolute; left: 3.5px; top: 1px;
+  width: 3px; height: 6px; border: solid var(--s0);
+  border-width: 0 1.6px 1.6px 0; transform: rotate(42deg);
 }
-.qp-tw-name {
-  font-size: 10.5px; font-weight: 500; color: var(--on2);
+.qp-auge:hover { border-color: var(--acc); }
+
+.qp-name {
+  flex: 0 0 96px; min-width: 0; display: flex; flex-direction: column;
+  gap: 0; padding: 2px 3px; cursor: pointer; text-align: left;
+  background: none; border: none; font-family: inherit;
+  color: var(--on2); font-size: 10.5px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.qp-tw.an .qp-tw-name, .qp-tw.an .qp-tw-art { color: var(--acc); }
-/* Die Zahl waehrend des Zugs - sie steht ueber der Spur, nicht darin, sonst
-   verdeckte sie den Balken, den man gerade verschiebt. */
+.qp-zeile.an .qp-name { color: var(--acc); }
+.qp-art {
+  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim);
+}
+.qp-zeile.an .qp-art { color: var(--acc); }
+
+/* DIE BAHN ist die gemeinsame Achse aller Zeilen - darin sitzt die Linie an
+   ihrer Stelle. Sie ist auch die Bahn der Masten darunter, damit beides
+   uebereinanderpasst. */
+.qp-bahn { position: relative; flex: 1; min-width: 40px; height: 18px;
+  display: block; }
+.qp-linie {
+  position: absolute; top: 7px; height: 4px; padding: 0;
+  background: var(--dim); border: none; border-radius: 2px;
+  cursor: grab;
+}
+.qp-linie:hover { background: var(--on2); }
+.qp-linie.an { background: var(--acc); height: 5px; top: 6.5px; }
+.qp-linie.zieht { cursor: grabbing; opacity: .8; }
+/* Die Enden der Linie sind die Masten - ein Strich mit Endmarken liest sich
+   als Traeger zwischen zwei Stuetzen, ein blosser Balken nicht. */
+.qp-linie::before, .qp-linie::after {
+  content: ''; position: absolute; top: -3px; width: 2px; height: 10px;
+  background: inherit; border-radius: 1px;
+}
+.qp-linie::before { left: 0; }
+.qp-linie::after { right: 0; }
+.qp-zeile.aus .qp-linie { background: none; border: 1px dashed var(--ol2); }
+
+/* Die Zahl waehrend des Zugs. */
 .qp-zug {
-  position: absolute; right: 0; top: -14px;
+  position: absolute; right: 0; top: -13px;
   font-family: var(--f-mono); font-size: 10px; color: var(--acc);
 }
 
-/* DIE ACHSE IST EIN KLEINER AUFRISS, keine Skala mit Marken.
-
-   Die Masten standen als neun Pixel langer Strich da - ein Teilungsstrich,
-   kein Bauteil (Weisung: «nicht als stummel»). Jetzt: Schaft vom Joch
-   herunter, Fundamentkloetzchen unten, Gelaendelinie darunter. Die Leiste
-   liest sich damit als Aufriss des Querprofils - Joche oben, Masten
-   darunter, Boden zuunterst. */
-.qp-achse { position: relative; height: 36px; }
+/* --- Die Masten unter der Liste -------------------------------------------
+   Sie tragen JEDE Zeile darueber - eine eigene Zeile je Mast wuerde das
+   verdecken. Als kleiner Aufriss unter der gemeinsamen Achse stehen sie da,
+   wo sie hingehoeren: als Grundlinie. */
+.qp-achse { display: flex; margin-top: 3px; }
+.qp-achse .qp-bahn { height: 36px; margin-left: 119px; }
 .qp-boden {
   position: absolute; left: 0; right: 0; bottom: 13px; height: 1px;
   background: var(--ol);
@@ -1423,12 +1460,10 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   line-height: 1;
 }
 .qp-mast.zieht { cursor: grabbing; }
-/* Der Schaft - vom oberen Rand bis auf das Fundament. */
 .qp-mast-schaft {
   position: absolute; left: 50%; top: 0; bottom: 18px; width: 2px;
   margin-left: -1px; background: var(--dim); border-radius: 1px;
 }
-/* Das Fundament sitzt auf dem Boden, halb darin - wie im Aufriss. */
 .qp-mast-fuss {
   position: absolute; left: 50%; bottom: 10px; width: 9px; height: 7px;
   margin-left: -4.5px; background: var(--dim); border-radius: 1px;
@@ -1446,12 +1481,12 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   background: var(--acc); width: 3px; margin-left: -1.5px;
 }
 .qp-mast.an .qp-mast-fuss { background: var(--acc); }
-/* DER GETEILTE MAST traegt zwei Tragwerke - sein Fundament ist breiter.
-   Das ist der Unterschied, den man in einer Reihe sofort sehen will. */
+/* DER GETEILTE MAST traegt zwei Tragwerke - sein Fundament ist breiter. */
 .qp-mast.geteilt .qp-mast-fuss { width: 15px; margin-left: -7.5px; height: 8px; }
 
 /* Die Handlungen am Gewaehlten - eine Zeile, keine Knopfwand. */
-.qp-tun { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.qp-tun { display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  margin-top: 6px; }
 .qp-tun .btn { font-size: 10px; display: inline-flex; align-items: center; gap: 3px; }
 .qp-tun .btn.an { color: var(--acc); border-color: var(--acc); }
 .qp-tun-neu { position: relative; display: inline-flex; }
@@ -1464,8 +1499,7 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .qp-neu-liste[hidden] { display: none; }
 .qp-neu-liste .btn { white-space: nowrap; text-align: left; }
 
-/* Die Notiz zum gewaehlten Masten. Was die Marke nicht sagen kann, steht
-   hier: Profil, und wer alles an ihm haengt. */
+/* Die Notiz zum gewaehlten Masten. */
 .qp-mast-notiz {
   margin: 6px 0 0; padding-left: 8px;
   border-left: 2px solid var(--ol);

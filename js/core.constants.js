@@ -399,6 +399,21 @@ export function freieLage(w, id, x) {
   let unten = -Infinity, oben = Infinity;
   alle.forEach((y) => {
     if (y.id === id) return;
+    /*
+     * >>> WAS UEBEREINANDER STEHT, DARF SICH DECKEN. <<<
+     *
+     * Weisung vom 3. September: «wir haben zudem bei den abfangjochen zwei
+     * joche übereinander.»
+     *
+     * Ein Abfangjoch sitzt UEBER einem Tragjoch, auf denselben Masten und
+     * auf derselben Strecke. Das ist kein Eingabefehler, sondern der Aufbau -
+     * und die Regel «nichts darf sich ueberschneiden» haette ihn verboten.
+     *
+     * Verboten bleibt die Ueberschneidung GLEICHER Art: zwei Tragjoche, die
+     * einander durchdringen, beschreiben kein Tragwerk. Verschiedene Arten
+     * stehen uebereinander, und wie hoch, sagt ihre Anschlusshoehe.
+     */
+    if (tragwerksart(y).key !== tragwerksart(t).key) return;
     const [a, b] = bereichVon(y);
     // Wer LINKS von mir steht, begrenzt mich nach unten; wer rechts steht,
     // nach oben. Massgebend ist, wo er JETZT steht - nicht, wo er einmal
@@ -424,6 +439,19 @@ export function freieLage(w, id, x) {
   return { x: Number.isFinite(neu) ? neu : x,
            geklemmt: Math.abs(neu - x) > 1e-9 };
 }
+
+/*
+ * HIER STAND EINE SPURENVERTEILUNG - und sie ist ueberfluessig geworden.
+ *
+ * Sie stapelte Tragwerke, die sich in x decken, in mehrere Zeilen einer
+ * gemeinsamen Balkenleiste (Abfangjoch ueber Tragjoch). Seit die Leiste je
+ * Tragwerk EINE Zeile fuehrt (Weisung vom 3. September), gibt es nichts mehr
+ * zu stapeln: jedes hat seine Zeile, und die Ueberdeckung ist gerade das,
+ * was man daran ablesen soll.
+ *
+ * Was BLEIBT, ist die Regel in `freieLage`: verschiedene Arten duerfen sich
+ * decken, gleiche nicht. Die beschreibt das Tragwerk, nicht seine Zeichnung.
+ */
 
 /** Und zurueck - fuer alles, was eine Bauteillage im Blatt anzeigen will. */
 export const lokalNachBlatt = (t, x) => x + lageVon(t);
@@ -1162,7 +1190,41 @@ export function tragwerkHinzu(w, art, vorlage = {}) {
   const nr = alle.reduce((m, t) => Math.max(m, Number(String(t.id).slice(1)) || 0), 0);
   const bisher = { ...tragwerkTeil(w), id: w.twId ?? 'T1', pos: w.pos ?? 0 };
   const pos = alle.reduce((m, t) => Math.max(m, t.pos ?? 0), 0) + 1;
-  return { ...w, ...vorlage, tragwerksart: art,
+  /*
+   * >>> NEBEN DAS LETZTE, NICHT DARAUF. <<<
+   *
+   * Weisung vom 3. September, sinngemaess: «ich frage mich ob dies bei einem
+   * tragwerk das über drei joche geht noch sinnvoll ist.»
+   *
+   * Es war es nicht, und der Grund lag hier: der neue Satz uebernahm den
+   * ganzen bisherigen - samt `xLage`. Drei Tragjoche standen danach alle bei
+   * x0 = 0, deckungsgleich uebereinander; in der Leiste war nur das oberste
+   * anklickbar, im Modell steckten sie ineinander. Wer das nicht sofort von
+   * Hand richtigstellte, hatte drei Tragwerke an einer Stelle.
+   *
+   * Der Regelfall einer Reihe ist: das naechste schliesst rechts an. Genau
+   * dort landet es - am rechten Ende des aeussersten, also auf dem
+   * gemeinsamen Zwischenmasten. Eine ausdrueckliche Lage in `vorlage` geht
+   * vor; so setzt der Rechtsklick im Modell dorthin, wohin man gezeigt hat.
+   */
+  const rechts = alle.reduce((m, t) => Math.max(m, bereichVon(t)[1]), -Infinity);
+  /*
+   * >>> WAS KEINE AUSDEHNUNG HAT, BRAUCHT EINEN ABSTAND. <<<
+   *
+   * Ein Joch schliesst am rechten Ende des aeussersten an - dort steht der
+   * gemeinsame Zwischenmast, und genau das ist eine Jochreihe.
+   *
+   * Ein EINZELMAST hat keine Laenge. «Am rechten Ende anschliessen» hiesse
+   * bei ihm: an dieselbe Stelle. Zwei Masten an einem Punkt sind kein
+   * Tragwerk. Er rueckt deshalb um die Spannweite der Fahrleitung weiter -
+   * die Zahl, die auf dem Blatt ohnehin steht und die den Mastabstand
+   * beschreibt.
+   */
+  const ohneLaenge = TRAGWERKSARTEN.find((x) => x.key === art)?.masten < 2;
+  const schritt = ohneLaenge ? (Number(w?.flSpannweite) || 40) : 0;
+  const anschluss = Number.isFinite(rechts)
+    ? { xLage: rechts + schritt } : {};
+  return { ...w, ...anschluss, ...vorlage, tragwerksart: art,
            twId: `T${nr + 1}`, pos,
            weitere: [...rest, bisher] };
 }

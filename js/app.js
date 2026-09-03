@@ -31,7 +31,7 @@ import { verortung, fangeAufMasskette,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, versteckt,
-         mastenVon, mastName, tragwerkName }
+         mastenVon, mastName, tragwerkName, aufRaster, TRAGWERKSARTEN }
   from './core.constants.js';
 import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
@@ -705,7 +705,14 @@ function aendern(key, wert) {
     return;
   }
   if (key === 'tragwerkNeu') {
-    werte = tragwerkHinzu(werte, wert);
+    /*
+     * Der Knopf meldet nur die Art; der Rechtsklick im Modell meldet Art UND
+     * Stelle. Beides laeuft ueber denselben Weg - ein zweiter waere einer,
+     * den man vergisst.
+     */
+    werte = typeof wert === 'string'
+      ? tragwerkHinzu(werte, wert)
+      : tragwerkHinzu(werte, wert.art, { xLage: wert.xLage });
     mastNachfuehren();
     neuRechnen();
     return;
@@ -4418,7 +4425,7 @@ function kontextAnbauteil(i) {
  * die man staendig braucht, und die beiden Handlungen, die im Modell
  * beginnen.
  */
-function kontextGrund() {
+function kontextGrund(k) {
   const p = [
     { text: 'Ganzes Querprofil zeigen',
       tun: () => { station = null; ansicht.station = null;
@@ -4428,6 +4435,31 @@ function kontextGrund() {
   ];
   if (letzte?.erg?.schnitt) {
     p.push({ text: 'Auf den Nachweisschnitt', tun: () => ansicht.zeigeSchnitt(2.5) });
+  }
+  /*
+   * >>> EIN TRAGWERK DORT ANLEGEN, WO MAN HINZEIGT. <<<
+   *
+   * Weisung vom 3. September: «ich könnte mir persönlich ein ähnliches
+   * vorgehen vorstellen wie bei den anbauteilen wo man diese in das modell
+   * zieht oder per rechtsklick ein neues tragelement hinzufügen könnte.»
+   *
+   * Genau so. Der Knopf «+ Tragwerk» in der Leiste haengt das naechste
+   * rechts an - der Regelfall einer Reihe. Wer es woanders haben will,
+   * zeigt hin: ein Abfangjoch UEBER ein bestehendes Tragjoch etwa laesst
+   * sich nur so setzen, denn es teilt sich dessen Strecke.
+   *
+   * Die Stelle wird auf den halben Meter gerastet - dieselbe Grobheit wie
+   * beim Ziehen, aus demselben Grund: ein Klick ins Bild trifft keinen
+   * Zentimeter.
+   */
+  if (Number.isFinite(k?.welt?.x)) {
+    const wo = aufRaster(k.welt.x);
+    p.push('-');
+    p.push({ kopf: `Neues Tragwerk bei x = ${wo.toFixed(2)} m` });
+    TRAGWERKSARTEN.forEach((a) => {
+      p.push({ text: a.label,
+               tun: () => aendern('tragwerkNeu', { art: a.key, xLage: wo }) });
+    });
   }
   p.push('-');
   p.push({ text: setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
@@ -4463,7 +4495,7 @@ function kontextImModell(k) {
   } else if (k.was === 'tragwerk') {
     punkte = kontextTragwerk(twId);
   } else {
-    punkte = kontextGrund();
+    punkte = kontextGrund(k);
   }
   kontextZeigen(k.bei, punkte);
 }
