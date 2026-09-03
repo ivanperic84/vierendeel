@@ -15,6 +15,7 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          gewaehlterMast, versteckt,
          aufRaster, mastNameAmEnde, tragwerkPos } from './core.constants.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
+import { abfangLaengenbereich } from './data.abfangjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -745,10 +746,28 @@ export function mastRollen(werte, mastId) {
  * groesste - und dazu der Nachbar auf der anderen Seite: ein Zwischenmast,
  * ueber sein Nachbarjoch hinausgezogen, brauchte eine negative Laenge.
  */
+/**
+ * Der Laengenbereich eines Tragwerks - aus SEINEM Sortiment.
+ *
+ * Ein Abfangjoch fuehrt A160 bis A360, ein Tragjoch J60 bis J130. Blind
+ * `getTragjoch` zu fragen warf «Unbekannter Tragjochtyp: A160», und zwar
+ * beim blossen Ziehen an einer Mastmarke - weit weg von der Eingabe.
+ */
+function bereichVonTyp(t) {
+  try {
+    return tragwerksart(t).key === 'abfangjoch'
+      ? abfangLaengenbereich(t.abfangTyp)
+      : laengenbereich(getTragjoch(t.typ));
+  } catch {
+    // Ein unbekannter Typ darf das Ziehen nicht anhalten.
+    return { min: 0, max: Infinity, text: 'frei' };
+  }
+}
+
 export function mastGrenzen(rollen, x) {
   let unten = -Infinity, oben = Infinity;
   if (rollen.alsB) {
-    const b = laengenbereich(getTragjoch(rollen.alsB.t.typ));
+    const b = bereichVonTyp(rollen.alsB.t);
     unten = Math.max(unten, rollen.alsB.x0 + b.min);
     oben = Math.min(oben, rollen.alsB.x0 + b.max);
   }
@@ -1330,6 +1349,16 @@ function feldHtml(f, wert, werte) {
      */
     const zeileOpt = (o) => `<option value="${esc(o.wert)}"${
       String(o.wert) === String(wert) ? ' selected' : ''}>${esc(o.text)}</option>`;
+    /*
+     * DIE LISTE DARF VON DEN WERTEN ABHAENGEN.
+     *
+     * Der Jochtyp stellt je nach Tragwerksart ein anderes Sortiment zur
+     * Wahl - Tragjoche J60..J130, Abfangjoche A160..A360. Ohne diesen Weg
+     * braeuchte es zwei Felder mit zwei Namen an zwei Stellen der Maske.
+     */
+    if (typeof f.optionenAus === 'function') {
+      f = { ...f, optionen: f.optionenAus(werte) ?? [] };
+    }
     let opts;
     if (!f.optionen.length) {
       opts = `<option value="${esc(wert)}" selected>${esc(wert)}</option>`;

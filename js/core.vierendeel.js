@@ -633,6 +633,10 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * diese beiden fehlten.
      */
     tragwerksart: inp.tragwerksart,
+    // Der gewaehlte Abfangjochtyp. Er geht in KEINE Rechnung - der Kern
+    // dafuer fehlt -, aber der Hinweis in der Auswertung nennt ihn, und
+    // `modell` zaehlt seine Felder einzeln auf (siehe oben).
+    abfangTyp: inp.abfangTyp,
     // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.

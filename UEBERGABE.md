@@ -3123,7 +3123,7 @@ unverändert, zweiter Mast wirkungslos ohne Schalter).
 Neu: `manifest.webmanifest`, `sw.js`, `js/pwa.js`, `icons/` (aus
 `make_icons.py`). Die Modulversion lässt sich auf dem Gerät **installieren**
 und startet danach **ohne Verbindung**. Abgelegt wird die ganze Schale —
-`index.html`, Stylesheet, alle Module, die drei `data/*.json`, die Symbole.
+`index.html`, Stylesheet, alle Module, die vier `data/*.json`, die Symbole.
 
 Zwei Entscheide, die man kennen muss:
 
@@ -3639,7 +3639,7 @@ nach dem Datenpaket — der Weg ist durchgespielt (siehe unten).
 
 | | |
 |---|---|
-| `data/*.json` | die drei Datenbanken — sie machen die Ablage sonst nicht-öffentlich |
+| `data/*.json` | die vier Datenbanken — sie machen die Ablage sonst nicht-öffentlich |
 | `Grundlagen/`, `*.axs`, `*.axe`, `*.pdf`, `*.docx`, `*.xlsx` | Projektunterlagen |
 | `vierendeel_tool*.html` | Erzeugnisse von build_html.py; die vollständige trägt die Zahlen eingebettet |
 | `generate_vierendeel_L_SZS_C5.py` und die zwei Excel-Prüfer | nennen Betreiber und Zeichnungsnummern im Klartext, ausserdem nicht mehr synchron |
@@ -3669,7 +3669,7 @@ Dazu zwei Anpassungen, die dieser Weg nötig gemacht hat:
 die datenfreie Ausgabe statt abzubrechen. Für GitHub Pages muss die Datei
 `index.html` heissen — sie heisst so.
 
-`pruefung.mjs` **braucht** die drei `data/*.json`. In einer öffentlichen Ablage
+`pruefung.mjs` **braucht** die vier `data/*.json`. In einer öffentlichen Ablage
 laufen die Kontrollen erst, wenn das Datenpaket örtlich danebenliegt. Das steht
 so im README.
 
@@ -3744,7 +3744,7 @@ Das gilt auf dem neuen Rechner unverändert weiter. **Die Ablage wird
 Ein AxisVM-Platz sollte auch mal zehnmal hintereinander geöffnet werden dürfen —
 beim Vermessen einer Schnittstelle ist das der Normalfall.
 
-`pruefung.mjs` **braucht** die drei `data/*.json`. Liegen sie nicht daneben,
+`pruefung.mjs` **braucht** die vier `data/*.json`. Liegen sie nicht daneben,
 laufen die Kontrollen nicht.
 
 ### Das Erste, was dort zu tun ist
@@ -3788,6 +3788,65 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
+| **Abfangjoch** | Sortiment seit dem 3. September vollständig in der Maske (17 Typen, gegliedert nach aktuell/alt) — siehe *Das Sortiment der Abfangjoche*. Der **Rechenkern fehlt**: zweigurtiger Träger mit Sprossen, nicht vier Winkelgurte. Die Auswertung sagt es mit dem gewählten Typ im Hinweis |
+
+## Das Sortiment der Abfangjoche (3. September)
+
+**Weisung:** „weiter mit dem aufbau der abfangjoche gehen. die zeichnungen sind
+unter den grundlagen, beachte dass es hier auch ein sortiment aktuell und alt
+gibt. beim dropdown sollte man das etwas gliedern, das man es besser finden
+kann."
+
+`data/abfangjoche.json` führt **17 Typen** aus den Sortimentsblättern:
+
+| Sortiment | Typen | Benennung |
+|---|---|---|
+| aktuell | A160, A200, A240 (UPE) · A270, A300, A330, A360 (IPE) | A-Nummer = Höhe des Gurtprofils in mm |
+| Altbauweise | UAP 130 · 150 · 175 · 200 · 220 · 250 · UAP 300 · IPE 270 · 330 · 360 | nach dem **Profil** |
+
+Je Typ stehen darin: Gurtprofil, Längenbereich, Gewicht je Laufmeter, die
+Konstruktionsmasse (Bauhöhe im Feld und am Ende, Sprossenteilung, abweichende
+Endprofile) und die Schnee- und Windlasten je Laufmeter nach Klasse.
+
+**Die Altbauweise führt nur eine grösste Länge.** Auf ihren Blättern steht
+„jt max." und keine kleinste. Eine erfundene Untergrenze wäre eine Angabe, die
+niemand gemacht hat; `abfangLaengenbereich` nimmt deshalb die kleinste Länge,
+die das Sortiment überhaupt führt, und schreibt „bis 9.5 m" statt einer Spanne.
+
+**Warum es Paare gibt, die dasselbe Profil führen.** A270 und IPE 270 tragen
+beide ein IPE 270 und wiegen 98 gegen 111 kg/m. Auf Nachfrage: „die altbaujoche
+sind so beschriftet und die abweichung ergibt sich aus dem zusammenbau."
+
+### Der Typ steht in einem eigenen Feld — nicht in `typ`
+
+Der erste Versuch war eine Liste mit zwei Sortimenten, je nach Tragwerksart.
+Das sah aufgeräumt aus und brach sofort: `typ` ist die Angabe, mit der der
+**Rechenkern** sein Joch aus der Typendatenbank holt (`getTragjoch`). Ein
+«A160» darin warf *Unbekannter Tragjochtyp* — und zwar beim blossen **Ziehen an
+einer Mastmarke**, weit weg von der Eingabe, weil `mastGrenzen` den
+Längenbereich über denselben Weg sucht.
+
+Jetzt: `abfangTyp` neben `typ`, sichtbar ist immer nur eines. `mastGrenzen`
+fragt über `bereichVonTyp` das Sortiment der jeweiligen Art. Der Prüfstand hält
+beides fest — dass die Felder einander ausschliessen und dass keine Mastmarke
+des Blattes beim Ziehen wirft.
+
+### Gerechnet wird er nicht, und das sagt die Auswertung
+
+Das Abfangjoch ist ein **zweigurtiger** Träger mit Sprossen im 500er-Raster;
+der Kern dieser Anwendung rechnet vier Winkelgurte mit Bindeblechen. Wer einen
+Typ wählt, darf annehmen, dass damit gerechnet wird — deshalb steht in den
+Hinweisen, dass es nicht so ist, **mit dem gewählten Typ im Text**:
+
+> Abfangjoch «UAP 250» gewählt — gerechnet wird weiterhin das Tragjoch. […]
+> Der gewählte Typ benennt das Bauteil, alle folgenden Zahlen gelten dem Joch.
+
+Der Typ geht in die **Bezeichnung** («A160 · H 7.50 m» in der Leiste statt
+«Abfangjoch · H 7.50 m») und in die Ausleitung, nicht in den Nachweis.
+
+**Offen bleibt der Rechenkern.** Dazu fehlen ausserdem die zulässigen
+Nutzmomente und Reaktionskräfte; sie stehen in den Jochdiagrammen der
+Excel-Werkzeuge.
 
 ## Die Kalibrierung der beiden gefitteten Kennwerte (29. August)
 

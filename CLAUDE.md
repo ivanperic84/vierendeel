@@ -57,7 +57,7 @@ Der Prüfstand prüft **Bausteine**, `durchlauf.mjs` einen **Durchgang**:
 Eingabe, Rechnung, Szene, Ausleitung, Bericht — für Joch, Einzelmast und
 Jochreihe. Nach einem Umbau an Datenstruktur oder Rechenweg beides laufen
 lassen; am 2. September standen 2290 Kontrollen grün, während der
-Excel-Knopf am Einzelmasten wortlos nichts tat. `pruefung.mjs` braucht die drei `data/*.json`
+Excel-Knopf am Einzelmasten wortlos nichts tat. `pruefung.mjs` braucht die vier `data/*.json`
 daneben; ohne sie laufen die Kontrollen nicht.
 
 Was in Modulen läuft, läuft nicht zwangsläufig gebündelt. Der Bündler prüft

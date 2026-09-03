@@ -41,6 +41,9 @@ const A = await import(J('data.anbauteile.js'));
 A.setzeAnbauteilDB(JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8')));
 const FL = await import(J('data.fl.js'));
 FL.setzeFlDB(JSON.parse(readFileSync(join(HIER, 'data', 'fl_bauteile.json'), 'utf8')));
+const AJ = await import(J('data.abfangjoche.js'));
+AJ.setzeAbfangDB(JSON.parse(
+  readFileSync(join(HIER, 'data', 'abfangjoche.json'), 'utf8')));
 
 /**
  * Anbauteil für Prüfzwecke. raster = 0 lässt beide Befestigungspunkte
@@ -12360,6 +12363,148 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Altbauweise folgt', g[1].startsWith('Altbauweise'));
     wahr('Und die Vergleichsmodelle stehen hinten',
          g.indexOf('Vergleichsmodelle') > 1);
+  }
+
+  /*
+   * ===================================================================
+   * DAS SORTIMENT DER ABFANGJOCHE.
+   * ===================================================================
+   *
+   * Weisung vom 3. September: «weiter mit dem aufbau der abfangjoche gehen.
+   * die zeichnungen sind unter den grundlagen, beachte dass es hier auch ein
+   * sortiment aktuell und alt gibt.»
+   *
+   * Siebzehn Typen aus den Sortimentsblaettern - sieben im aktuellen
+   * Sortiment (A160 bis A360), zehn in der Altbauweise. Geprueft wird der
+   * UMFANG, nicht jede Zahl: dass keine Bauweise fehlt, dass die
+   * Laengenbereiche zusammenpassen und dass die Liste die Ordnung ZEIGT.
+   */
+  {
+    const alle = AJ.abfangjoche();
+    wahr('Das Sortiment steht vollstaendig', alle.length === 17);
+    const neu = alle.filter((a) => a.bauweise === 'neu');
+    const alt = alle.filter((a) => a.bauweise === 'alt');
+    wahr('Sieben im aktuellen Sortiment', neu.length === 7);
+    wahr('Zehn in der Altbauweise', alt.length === 10);
+    wahr('Das aktuelle Sortiment reicht von A160 bis A360',
+         neu[0].typ === 'A160' && neu[neu.length - 1].typ === 'A360');
+    wahr('Jeder Typ nennt sein Gurtprofil', alle.every((a) => a.profil));
+    // Die Sprossen sitzen bei ALLEN im 500er-Raster - so stehen sie auf den
+    // Blaettern. Waere das je anders, muesste es hier auffallen.
+    wahr('Alle im 500er-Raster',
+         alle.every((a) => a.masse?.teilung === 500));
+    wahr('Und alle mit 280 mm Bauhoehe am Ende',
+         alle.every((a) => a.masse?.jdEnde === 280));
+
+    /*
+     * >>> DIE ALTBAUWEISE FUEHRT NUR EINE GROESSTE LAENGE. <<<
+     *
+     * Auf ihren Blaettern steht «jt max.» und keine kleinste. Eine erfundene
+     * Untergrenze waere eine Angabe, die niemand gemacht hat.
+     */
+    wahr('Die Altbauweise nennt keine kleinste Laenge',
+         alt.every((a) => a.jt[0] === null));
+    const bA160 = AJ.abfangLaengenbereich('A160');
+    pruef('A160 von', bA160.min, 5.5, 1e-9, 'm');
+    pruef('A160 bis', bA160.max, 12.5, 1e-9, 'm');
+    const bAlt = AJ.abfangLaengenbereich('UAP 130');
+    pruef('Die Altbauweise bis', bAlt.max, 9.5, 1e-9, 'm');
+    pruef('… und ab der kleinsten Laenge des Sortiments', bAlt.min, 5.5, 1e-9, 'm');
+    wahr('Die Beschriftung sagt es',
+         bAlt.text.startsWith('bis') && bA160.text.includes('–'));
+
+    /*
+     * DIESELBE GLIEDERUNG WIE BEIM TRAGJOCH - aus demselben Grund: eine
+     * sortierte Liste ohne Trennung liest sich wie eine unsortierte.
+     */
+    const { abfangOptionen } = await import(J('ui.schema.js'));
+    const o = abfangOptionen();
+    wahr('Siebzehn Zeilen zur Wahl', o.length === 17);
+    wahr('Jede traegt ihre Gruppe', o.every((x) => x.gruppe));
+    const g = [...new Set(o.map((x) => x.gruppe))];
+    wahr('Aktuelles Sortiment zuerst', g[0] === 'Aktuelles Sortiment');
+    wahr('Altbauweise danach', g.length === 2 && g[1].startsWith('Altbauweise'));
+    wahr('Die Zeile nennt Profil und Laengenbereich',
+         o[0].text.includes('UPE 160') && o[0].text.includes('12.5'));
+  }
+
+  /*
+   * >>> DER ABFANGJOCHTYP GEHOERT NICHT INS FELD `typ`. <<<
+   *
+   * Erster Versuch am 3. September: eine Liste, zwei Sortimente, je nach
+   * Art. Das brach sofort - `typ` ist die Angabe, mit der der RECHENKERN
+   * sein Joch holt (`getTragjoch`). Ein «A160» darin warf «Unbekannter
+   * Tragjochtyp», und zwar beim blossen ZIEHEN AN EINER MASTMARKE, weit weg
+   * von der Eingabe.
+   */
+  {
+    const fTyp = FELDER.find((x) => x.key === 'typ');
+    const fAbf = FELDER.find((x) => x.key === 'abfangTyp');
+    wahr('Es gibt ein eigenes Feld fuer den Abfangjochtyp', Boolean(fAbf));
+    const alsJoch = { tragwerksart: 'joch' };
+    const alsAbf = { tragwerksart: 'abfangjoch' };
+    wahr('Am Tragjoch steht der Tragjochtyp',
+         fTyp.sichtbar(alsJoch) && !fAbf.sichtbar(alsJoch));
+    wahr('Am Abfangjoch der Abfangjochtyp',
+         !fTyp.sichtbar(alsAbf) && fAbf.sichtbar(alsAbf));
+    wahr('Und beide nie zugleich',
+         !(fTyp.sichtbar(alsAbf) && fAbf.sichtbar(alsAbf)));
+
+    /*
+     * DER BUG SELBST: Ziehen an der Marke eines Abfangjochs.
+     *
+     * `mastGrenzen` fragte blind `getTragjoch(t.typ)`. Steht dort ein
+     * Abfangjochtyp - oder, wie hier, gar keiner -, flog die Ausnahme.
+     */
+    const w = C75.tragwerkHinzu(
+      { typ: 'J90', L: 12, xLage: 0, mastProfil: 'HEB 240',
+        mastH: 8, mastLaenge: 12 },
+      'abfangjoch', { abfangTyp: 'A160', L: 10 });
+    const tAbf = C75.tragwerkeVon(w).find(
+      (t) => C75.tragwerksart(t).key === 'abfangjoch');
+    wahr('Das Abfangjoch traegt seinen Typ', tAbf?.abfangTyp === 'A160');
+    // Und die Leiste nennt ihn: zwei uebereinander unterscheiden sich sonst
+    // nur in der Anschlusshoehe, und «Abfangjoch · H 7.50 m» sagt nicht,
+    // welches Sortiment darunter liegt.
+    wahr('Die Bezeichnung nennt ihn',
+         C75.tragwerkName(w, tAbf).startsWith('A160'));
+    wahr('Und keinen Tragjochtyp im Rechenfeld',
+         tAbf?.typ === undefined || tAbf.typ !== 'A160');
+    const UIA = await import(J('ui.js'));
+    // An JEDER Marke des Blattes, nicht nur an einer - der Fehler haengt
+    // daran, WELCHES Tragwerk am gezogenen Ende haengt.
+    let flog = null;
+    for (const m of C75.mastenVon(w)) {
+      try { UIA.mastGrenzen(UIA.mastRollen(w, m.id), m.x); }
+      catch (e) { flog = e; }
+    }
+    wahr('Ziehen an seinen Mastmarken wirft nicht', flog === null);
+  }
+
+  /*
+   * >>> UND DER NACHWEIS SAGT, DASS ER KEINER IST. <<<
+   *
+   * Das Sortiment steht in der Maske, und wer den Typ waehlt, darf annehmen,
+   * dass damit gerechnet wird. Wird es nicht: das Abfangjoch ist ein
+   * zweigurtiger Traeger mit Sprossen, der Kern rechnet vier Winkelgurte
+   * mit Bindeblechen. Ein Werkzeug, das hier still die Jochrechnung
+   * weiterfuehrt, waere die schlimmste Antwort.
+   */
+  {
+    const { hinweise: hwA } = await import(J('core.checks.js'));
+    // Am GERECHNETEN Modell, nicht an einem Stueckwerk: `hinweise` fragt
+    // auch die Querschnittsklassifizierung, und die braucht Profile.
+    const modellVon = (extra) =>
+      rechne({ ...standardwerte(), ...extra }).modell;
+    const h = hwA(modellVon({ tragwerksart: 'abfangjoch', abfangTyp: 'A160' }));
+    const zeile = h.find((x) => x.includes('Abfangjoch'));
+    wahr('Der Hinweis steht da', Boolean(zeile));
+    wahr('Er nennt den gewaehlten Typ', zeile.includes('A160'));
+    wahr('Und sagt, dass das Tragjoch gerechnet wird',
+         zeile.includes('Tragjoch'));
+    const ohne = hwA(modellVon({ tragwerksart: 'joch' }));
+    wahr('Beim Tragjoch steht er nicht',
+         !ohne.some((x) => x.includes('Abfangjoch')));
   }
 
   /*

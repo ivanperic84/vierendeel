@@ -291,13 +291,15 @@ export function tragwerkName(t) {
    * Anschlusshoehe. «HEB 240 · 9.00 m» las sich dabei wie ein Mast; mit dem
    * Zeichen H davor liest es sich als das, was es ist.
    *
-   * Ein eigener Typ (A160, A200, A240 nach den Werkstattzeichnungen) steht
-   * noch aus - solange die Sortimentsdaten fehlen, ist die Hoehe das
-   * einzige, was dieses Abfangjoch von jenem trennt.
+   * SEIT DEM 3. SEPTEMBER STEHT DER TYP DAVOR (A160 bis A360, dazu die
+   * Altbauweise). Er kommt aus `abfangTyp` und nicht aus `typ`: dort holt
+   * der Rechenkern sein TRAGjoch. Fehlt er - alte Staende haben ihn nicht -,
+   * bleibt es bei der Gattungsbezeichnung.
    */
   if (art.key === 'abfangjoch') {
     const H = t?.mastH;
-    return [art.label, H > 0 ? `H ${Number(H).toFixed(2)} m` : null]
+    return [t?.abfangTyp || art.label,
+            H > 0 ? `H ${Number(H).toFixed(2)} m` : null]
       .filter(Boolean).join(' · ');
   }
   const p = t?.mastProfil;

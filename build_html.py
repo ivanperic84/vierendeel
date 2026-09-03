@@ -341,6 +341,19 @@ def main(ohne_daten=False):
             TAG_FL,
             '<script type="application/json" id="fl-bauteil-db">\n' + fltext + "\n</script>")
 
+    # Das Abfangjoch-Sortiment. ES DARF FEHLEN - anders als die drei oben ist
+    # es keine Voraussetzung; wer kein Abfangjoch auf dem Blatt hat, braucht
+    # es nicht, und der Bau soll daran nicht scheitern.
+    TAG_AJ = '<script type="application/json" id="abfangjoch-db"></script>'
+    AJ_JSON = DB_JSON.parent / "abfangjoche.json"
+    if TAG_AJ in html and AJ_JSON.exists() and not ohne_daten:
+        ajtext = AJ_JSON.read_text(encoding="utf-8")
+        if "</script" in ajtext:
+            raise SystemExit("abfangjoche.json enthält '</script' – das bricht die Einbettung.")
+        html = html.replace(
+            TAG_AJ,
+            '<script type="application/json" id="abfangjoch-db">\n' + ajtext + "\n</script>")
+
     # Die Einzeldatei hat keine Nachbardateien: kein Manifest, keine Symbole,
     # kein Dienstarbeiter. Ohne diese Zeile meldet der Browser nur ein
     # fehlendes Manifest; js/pwa.js erkennt an ihrem Fehlen ausserdem, dass es

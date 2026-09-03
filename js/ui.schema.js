@@ -24,6 +24,8 @@ import { TRAGWERKSARTEN, tragwerksart,
          tragwerkPos, tragwerkeVon } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
+import { abfangjoche, abfangLaengenbereich,
+         abfangDbDa } from './data.abfangjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
@@ -127,8 +129,16 @@ export const GRUPPEN = [
    */
   { id: 'art',   titel: 'Tragwerke' },
   { id: 'ort',   titel: 'Verortung' },
-  { id: 'typ',   titel: 'Tragjoch-Typ und Rechenmasse',
-    arten: ['joch', 'tragausleger'] },
+  /*
+   * DAS ABFANGJOCH HAT EBENFALLS EINEN TYP (seit dem 3. September).
+   *
+   * Sein Sortiment ist ein anderes - A160 bis A360, dazu die Altbauweise
+   * nach Profilbezeichnung -, aber die FRAGE ist dieselbe: welcher Typ,
+   * welche Laenge. Sie gehoert in dieselbe Gruppe; was sie zur Wahl stellt,
+   * entscheidet die Tragwerksart (siehe `optionenAus` am Feld `typ`).
+   */
+  { id: 'typ',   titel: 'Jochtyp und Rechenmasse',
+    arten: ['joch', 'tragausleger', 'abfangjoch'] },
   { id: 'geo',   titel: 'Systemgeometrie', arten: ['joch', 'tragausleger'] },
   { id: 'aufl',  titel: 'Auflagerung des Jochs', arten: ['joch'] },
   /*
@@ -208,6 +218,20 @@ export const FELDER = [
   {
     key: 'typ', gruppe: 'typ', typ: 'auswahl',
     /*
+     * >>> DER ABFANGJOCHTYP GEHOERT NICHT IN DIESES FELD. <<<
+     *
+     * Erster Versuch: eine Liste, zwei Sortimente, je nach Art. Das sah
+     * aufgeraeumt aus und brach sofort - `typ` ist die Angabe, mit der der
+     * RECHENKERN sein Joch aus der Typendatenbank holt (`getTragjoch`). Ein
+     * «A160» darin wirft «Unbekannter Tragjochtyp», und zwar an Stellen,
+     * die mit der Eingabe nichts zu tun haben - beim blossen Ziehen an
+     * einer Mastmarke etwa.
+     *
+     * Zwei Sortimente, zwei Felder. Sichtbar ist immer nur eines; welches,
+     * sagt die Tragwerksart.
+     */
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    /*
      * DAS JOCH NENNT SEINE POSITION, wie der Mast seine Nummer.
      *
      * Weisung vom 3. September: «kannst du noch bei der längeneingabe den
@@ -219,6 +243,30 @@ export const FELDER = [
     standard: 'J90', optionen: [],
     hinweis: 'Setzt Profile, Masse, Teilung, Bindebleche und Tabellenlasten.',
   },
+  /*
+   * >>> DER TYP DES ABFANGJOCHS. <<<
+   *
+   * Ein eigenes Feld, weil es ein eigenes Sortiment ist: A160 bis A360 im
+   * aktuellen, die Altbauweise nach Profilbezeichnung (UAP 130, IPE 270).
+   * Es steht an derselben Stelle wie der Tragjochtyp und sieht gleich aus -
+   * sichtbar ist immer nur das eine.
+   *
+   * >>> GERECHNET WIRD ER NOCH NICHT. <<<
+   *
+   * Der Abfangjoch-Rechenkern fehlt: das Joch ist ein ZWEIGURTIGER Traeger
+   * mit Sprossen im 500er-Raster, und der Kern dieser Anwendung rechnet
+   * vier Winkelgurte mit Bindeblechen. Was hier gewaehlt wird, benennt das
+   * Bauteil und geht in die Ausleitung, nicht in den Nachweis - und genau
+   * das sagt der Hinweis «abfangjochOhneKern» in der Auswertung.
+   */
+  { key: 'abfangTyp', gruppe: 'typ', typ: 'auswahl',
+    label: (w) => `Abfangjoch-Typ ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
+    standard: 'A160', optionen: [],
+    optionenAus: () => abfangOptionen(),
+    sichtbar: (w) => tragwerksart(w).key === 'abfangjoch',
+    hinweis: 'Aktuelles Sortiment A160–A360, darunter die Altbauweise nach '
+           + 'ihrer Profilbezeichnung. Der Nachweis des Abfangjochs wird noch '
+           + 'nicht geführt.' },
   {
     key: 'massVariante', optionenDialog: true, gruppe: 'typ', typ: 'auswahl', label: 'Hebelarme aus',
     standard: 'schwerpunkt', optionen: opt(MASSVARIANTEN),
@@ -1054,6 +1102,31 @@ export function typUebernehmen(werte, joch) {
     t2: regel?.dicke ?? werte.t2,
     ...(alt ? { endbedingung: 'gelenkig' } : {}),
   };
+}
+
+/**
+ * DIE TYPWAHL DES ABFANGJOCHS - gegliedert wie die des Tragjochs.
+ *
+ * Aktuelles Sortiment zuerst, Altbauweise darunter. Die Zeile nennt das
+ * Gurtprofil und den Laengenbereich: danach waehlt man, nicht nach der
+ * Nummer.
+ */
+export function abfangOptionen() {
+  if (!abfangDbDa()) return [];
+  const zeile = (a) => {
+    const b = abfangLaengenbereich(a);
+    return {
+      wert: a.typ,
+      gruppe: (a.bauweise ?? 'neu') === 'alt'
+        ? 'Altbauweise — Bestand' : 'Aktuelles Sortiment',
+      text: `${a.typ} · ${a.profil} · ${b.text}`,
+    };
+  };
+  const alle = abfangjoche();
+  return [
+    ...alle.filter((a) => (a.bauweise ?? 'neu') !== 'alt').map(zeile),
+    ...alle.filter((a) => (a.bauweise ?? 'neu') === 'alt').map(zeile),
+  ];
 }
 
 /** Füllt die Typ-Auswahlliste, sobald die Typendatenbank geladen ist. */

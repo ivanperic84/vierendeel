@@ -51,6 +51,10 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          setzeEigeneVorlagen, erzeugeGleislasten, neuesModul,
          baugruppeSumme } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
+// Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
+// Abfangjoch auf dem Blatt hat, braucht es nicht.
+import { ladeAbfangjoche, abfangjoche, abfangDbDa,
+         abfangLaengenbereich } from './data.abfangjoche.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
@@ -730,9 +734,31 @@ function aendern(key, wert) {
      * Stelle. Beides laeuft ueber denselben Weg - ein zweiter waere einer,
      * den man vergisst.
      */
+    const art = typeof wert === 'string' ? wert : wert.art;
+    /*
+     * >>> EIN ABFANGJOCH BRINGT SEINEN EIGENEN TYP MIT. <<<
+     *
+     * Der neue Satz uebernimmt den bisherigen - samt `typ`, und der lautet
+     * dann «J90». In der Auswahlliste des Abfangjochs steht J90 aber nicht;
+     * der Browser zeigt daraufhin den ERSTEN Eintrag an, waehrend im
+     * Datensatz weiter J90 steht. Zwei verschiedene Antworten auf dieselbe
+     * Frage, und die sichtbare ist die falsche.
+     *
+     * Beim Anlegen wird deshalb der erste Typ des Sortiments gesetzt - und
+     * mit ihm eine Laenge, die er auch fuehrt.
+     */
+    const vorgabe = {};
+    if (art === 'abfangjoch' && abfangDbDa()) {
+      const erst = abfangjoche()[0];
+      // In SEIN Feld, nicht in `typ` - dort holt der Rechenkern sein
+      // Tragjoch, und ein «A160» wirft dort «Unbekannter Tragjochtyp».
+      vorgabe.abfangTyp = erst.typ;
+      const b = abfangLaengenbereich(erst);
+      vorgabe.L = Math.min(Math.max(Number(werte.L) || b.min, b.min), b.max);
+    }
     werte = typeof wert === 'string'
-      ? tragwerkHinzu(werte, wert)
-      : tragwerkHinzu(werte, wert.art, { xLage: wert.xLage });
+      ? tragwerkHinzu(werte, wert, vorgabe)
+      : tragwerkHinzu(werte, wert.art, { ...vorgabe, xLage: wert.xLage });
     mastNachfuehren();
     neuRechnen();
     return;
@@ -5084,6 +5110,9 @@ export async function start() {
   // aus einem örtlich geladenen Datenpaket. Fehlt beides, ist das kein
   // Fehler, sondern der Normalfall der datenfreien Ausgabe.
   const daten = await datenBereitstellen([ladeDatenbank, ladeAnbauteile, ladeFlBauteile]);
+  // Getrennt und ohne Abbruch: die drei oben sind Voraussetzung, dieses
+  // eine ist es nicht.
+  await ladeAbfangjoche().catch(() => null);
   if (daten.quelle === 'keine') {
     dialogDaten();
     return;

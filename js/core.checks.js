@@ -459,6 +459,27 @@ export function hinweise(m) {
    * Stab aus ZWEI UPE mit Flachlaschen, nicht aus vier Winkeln, und der
    * Vierendeel-Kern trägt dort nicht unverändert.
    */
+  /*
+   * DAS ABFANGJOCH EBENSO WENIG.
+   *
+   * Sein Sortiment steht seit dem 3. September vollstaendig in der Maske -
+   * A160 bis A360 und die Altbauweise -, und wer den Typ waehlt, darf
+   * annehmen, dass damit gerechnet wird. Wird es nicht: das Abfangjoch ist
+   * ein ZWEIGURTIGER Traeger mit Sprossen im 500er-Raster, der Kern rechnet
+   * vier Winkelgurte mit Bindeblechen. Die gewaehlte Jochlaenge geht ins
+   * Modell, der Typ nur in die Benennung.
+   *
+   * Der Hinweis nennt den gewaehlten Typ. Ein pauschales «wird nicht
+   * gerechnet» liest sich wie ein Fehler des Werkzeugs; die Stelle zu
+   * benennen macht daraus eine Angabe, mit der man umgehen kann.
+   */
+  if (art.key === 'abfangjoch') {
+    const typ = m.abfangTyp ? ` «${m.abfangTyp}»` : '';
+    h.push(`Abfangjoch${typ} gewählt — gerechnet wird weiterhin das `
+      + 'Tragjoch. Das Abfangjoch ist ein zweigurtiger Träger mit Sprossen; '
+      + 'sein Rechenkern ist noch nicht gebaut. Der gewählte Typ benennt das '
+      + 'Bauteil, alle folgenden Zahlen gelten dem Joch.');
+  }
   if (art.key === 'tragausleger') {
     h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `
       + 'das Tragjoch. Der Rechenkern für diese Art ist noch nicht gebaut; '
