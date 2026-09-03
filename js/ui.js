@@ -1285,7 +1285,13 @@ export function querprofilLeisteHtml(werte, zieht = null) {
 }
 
 
-function feldHtml(f, wert, werte) {
+/*
+ * Ausgefuehrt, damit der Pruefstand die Beschriftung festnageln kann:
+ * sie steht AUSSERHALB von `[data-tragwerkfeld]`, sonst raeumt sie die
+ * Nachfuehrung bei jedem Mastklick weg. Reine Zeichenkettenarbeit, kein
+ * DOM - der Aufruf laeuft auch in Node.
+ */
+export function feldHtml(f, wert, werte) {
   const id = `feld-${f.key}`;
   /*
    * EINE BESCHRIFTUNG DARF DEN MASTEN NENNEN.
@@ -1470,8 +1476,23 @@ function feldHtml(f, wert, werte) {
    * die Leiste zeigt Laengen, Lagen und Profile, und die aendern sich beim
    * Ziehen eines Schiebers fortwaehrend. `leisteNachfuehren` findet es
    * daran wieder.
+   *
+   * >>> SIE SITZT UM DEN INHALT, NICHT UM DAS FELD. <<<
+   *
+   * Zuerst stand sie am aeusseren `div.feld` - und `leisteNachfuehren`
+   * setzt dessen `innerHTML` neu. Damit verschwand bei JEDEM Mastklick die
+   * BESCHRIFTUNG «Tragwerke auf diesem Querprofil» und der Hinweis darunter:
+   * `tragwerkfeldHtml` liefert beides nicht mit. Die Maske sackte um zwei
+   * Zeilen zusammen und beim naechsten vollen Neubau wieder auseinander.
+   *
+   * Weisung vom 3. September: «kannst du diesen text immer anlassen auch
+   * wenn man auf die masten klickt, da sonst die darstellung springt.»
+   *
+   * Nachgefuehrt wird jetzt nur, was sich aendert. Die Beschriftung gehoert
+   * nicht dazu - und ein aufgeklappter Hinweis bleibt offen.
    */
-  const marke = f.typ === 'tragwerke' ? ' data-tragwerkfeld' : '';
+  const inhalt = f.typ === 'tragwerke'
+    ? `<div data-tragwerkfeld>${inp}</div>` : inp;
   /*
    * EINE BESCHRIFTUNG DARF DEN MASTEN NENNEN.
    *
@@ -1481,9 +1502,9 @@ function feldHtml(f, wert, werte) {
    * kann «Ende B · Mast M2» daraus machen: was gemeint ist, und woran es
    * steht.
    */
-  return `<div class="feld${gesperrt ? ' gesperrt' : ''}"${marke}>
+  return `<div class="feld${gesperrt ? ' gesperrt' : ''}">
     <label for="${id}">${esc(label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
-    ${inp}${optionsSkizze(f.key, wert)}${notizHtml}${hinweis}</div>`;
+    ${inhalt}${optionsSkizze(f.key, wert)}${notizHtml}${hinweis}</div>`;
 }
 
 // --- Anbauteile -------------------------------------------------------------

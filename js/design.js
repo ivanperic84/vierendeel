@@ -137,6 +137,25 @@ export const ICONS = {
   hell: 'M10 3v2M10 15v2M3 10h2M15 10h2M5.5 5.5l1.4 1.4M13.1 13.1l1.4 1.4M5.5 14.5l1.4-1.4M13.1 6.9l1.4-1.4M10 7a3 3 0 100 6 3 3 0 000-6z',
   dunkel: 'M15 11.5A6 6 0 018.5 5a6 6 0 106.5 6.5z',
   zoom: 'M9 4a5 5 0 100 10A5 5 0 009 4zM12.5 12.5L17 17',
+  /*
+   * DIE BEIDEN AUSSCHNITTE DER MODELLANSICHT (Weisung, 3. September:
+   * «kannst du zutreffendere symbole fuer diese buttons finden»).
+   *
+   * Vorher standen dort eine LUPE und VIER ECKEN NACH AUSSEN - beides sagt
+   * «zoom» und keines sagt, WORAUF. Die Frage ist aber nicht die
+   * Vergroesserung, sondern der Ausschnitt: das ganze Blatt oder das eine
+   * Tragwerk. Also zeigen die Symbole genau das - dasselbe Bild, einmal
+   * dreifach und einmal einzeln eingefasst.
+   *
+   * GANZ: eine Jochreihe auf dem Boden - drei Masten, durchgehender Riegel.
+   */
+  querprofilGanz: 'M2 17h16M4 17V6M10 17V6M16 17V6M3 6h14',
+  /*
+   * EINES: dasselbe Tragwerk, aber nur eines, und von Eckklammern gefasst -
+   * das Zeichen fuer «nur dieser Ausschnitt».
+   */
+  querprofilEines: 'M3 6V3h3M17 6V3h-3M3 14v3h3M17 14v3h-3'
+                 + 'M6 15V8M14 15V8M5 8h10',
   // Vier Ecken nach aussen: «ins grosse Fenster ziehen»
   aufziehen: 'M3 8V3h5M17 12v5h-5M3 3l6 6M17 17l-6-6',
   raster: 'M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3zM11 11h6v6h-6z',

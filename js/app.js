@@ -985,7 +985,35 @@ function aendern(key, wert) {
     neuRechnen();
     return;
   }
+  /*
+   * >>> EIN MAST ANGEKLICKT HEISST: SEIN TRAGWERK IST GEMEINT. <<<
+   *
+   * Weisung vom 3. September: «Dieser Wert wird immernoch nicht nachgezogen
+   * wenn ich einzelne masten anklicke in der schemadarstellung.» Gemeint war
+   * «Lage auf dem Querprofil x0», das Feld unmittelbar unter der Leiste.
+   *
+   * Es stand still, weil `mastAktiv` NUR den Masten umschaltete. Auf einer
+   * Jochreihe stand danach zweierlei in einer Maske: die Mastfelder galten
+   * dem angeklickten Masten M1, Lage, Jochlaenge und Jochtyp weiterhin dem
+   * gerechneten Tragwerk P2. Zwei Bezuege nebeneinander, und dem Bild sieht
+   * man nicht an, welcher gerade gilt - das ist schlimmer als ein Feld, das
+   * nicht nachzieht.
+   *
+   * DER GETEILTE MAST BLEIBT, WO ER IST. Haengt der angeklickte Mast schon
+   * am gerechneten Tragwerk - der Zwischenmast einer Reihe haengt an zweien
+   * -, wird nicht umgeschaltet. Sonst spraenge das Blatt beim Anklicken des
+   * Zwischenmastes auf das Nachbarjoch, ohne dass jemand darum gebeten hat.
+   */
   if (key === 'mastAktiv') {
+    const m = mastenVon(werte).find((x) => x.id === wert);
+    const jetzt = werte.twId ?? 'T1';
+    if (m?.traegt?.length && !m.traegt.includes(jetzt)) {
+      werte = tauscheAktives(werte, m.traegt[0]);
+      // Erst aufraeumen, dann waehlen: `mastNachfuehrenGlobal` setzt
+      // `mastAktiv` zurueck, wenn der Mast nicht zum gerechneten Tragwerk
+      // gehoert - und genau das hat sich eben geaendert.
+      mastNachfuehren();
+    }
     werte = { ...werte, mastAktiv: wert };
     neuRechnen();
     return;
@@ -3476,8 +3504,9 @@ function baueModellWerkzeuge() {
    * andere «worauf».
    */
   ui.el('ansicht-tools-u').innerHTML =
-    iconKnopf('v-ganz', 'zoom', 'Ganzes Querprofil zeigen')
-    + iconKnopf('v-teil', 'aufziehen', 'Nur das gerechnete Tragwerk zeigen')
+    iconKnopf('v-ganz', 'querprofilGanz', 'Ganzes Querprofil zeigen')
+    + iconKnopf('v-teil', 'querprofilEines',
+                'Nur das gerechnete Tragwerk zeigen')
     + iconKnopf('v-schnitt', 'schnitt', 'Auf den Nachweisschnitt fahren');
   // Oben links, auf der Hoehe des Lastfalls (Weisung): die eine Handlung,
   // die man im Modell beginnt, steht auf derselben Zeile wie die eine

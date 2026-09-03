@@ -12508,6 +12508,73 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE BESCHRIFTUNG UEBERLEBT DIE NACHFUEHRUNG. <<<
+   *
+   * Die Leiste im Feld «Tragwerke» ist das einzige Feld, dessen INHALT
+   * nachgefuehrt wird statt seines Werts - Laengen, Lagen und Profile
+   * aendern sich beim Ziehen fortwaehrend. `leisteNachfuehren` setzt dazu
+   * das `innerHTML` der Marke `[data-tragwerkfeld]` neu.
+   *
+   * Die Marke sass am AEUSSEREN Feldrahmen. Damit fiel bei jedem Mastklick
+   * die Beschriftung «Tragwerke auf diesem Querprofil» weg und der Hinweis
+   * darunter mit ihr: `tragwerkfeldHtml` liefert beides nicht. Die Maske
+   * sackte um zwei Zeilen zusammen und beim naechsten vollen Neubau wieder
+   * auseinander.
+   *
+   * Weisung vom 3. September: «kannst du diesen text immer anlassen auch
+   * wenn man auf die masten klickt, da sonst die darstellung springt.»
+   */
+  {
+    const UIF = await import(J('ui.js'));
+    const f = FELDER.find((x) => x.key === 'tragwerksart');
+    const h = UIF.feldHtml(f, 'joch', standardwerte());
+    const iLabel = h.indexOf('Tragwerke auf diesem Querprofil');
+    const iMarke = h.indexOf('data-tragwerkfeld');
+    wahr('Das Feld traegt seine Beschriftung', iLabel >= 0);
+    wahr('Und die Marke der Nachfuehrung', iMarke >= 0);
+    // DAS ist die Invariante: Beschriftung ausserhalb, Inhalt innerhalb.
+    wahr('Die Beschriftung steht VOR der Marke', iLabel < iMarke);
+    wahr('Der Hinweis steht dahinter',
+         h.lastIndexOf('hinweis') > iMarke);
+    // Gegenprobe: ein gewoehnliches Feld traegt gar keine Marke.
+    const g = UIF.feldHtml(FELDER.find((x) => x.key === 'xLage'), 0,
+                           standardwerte());
+    wahr('Ein gewoehnliches Feld traegt keine',
+         !g.includes('data-tragwerkfeld'));
+  }
+
+  /*
+   * >>> DIE BEIDEN AUSSCHNITTE HABEN EIGENE SYMBOLE. <<<
+   *
+   * Weisung vom 3. September: «kannst du zutreffendere symbole fuer diese
+   * buttons finden.» Vorher standen dort eine Lupe und vier Ecken nach
+   * aussen - beides sagt «zoom» und keines sagt, WORAUF. Die Frage ist aber
+   * nicht die Vergroesserung, sondern der Ausschnitt.
+   */
+  {
+    const { ICONS } = await import(J('design.js'));
+    wahr('Es gibt ein Symbol fuer das ganze Querprofil',
+         Boolean(ICONS.querprofilGanz));
+    wahr('… und eines fuer das einzelne Tragwerk',
+         Boolean(ICONS.querprofilEines));
+    wahr('Beide sind verschieden',
+         ICONS.querprofilGanz !== ICONS.querprofilEines);
+    /*
+     * DER EIGENTLICHE BRUCHPUNKT: Name und Definition muessen zusammen
+     * passen. `icon('tippfehler')` liefert klaglos ein LEERES Bildchen -
+     * der Knopf steht dann ohne Zeichen da, und niemand bemerkt es beim
+     * Umbenennen.
+     */
+    const { icon: ic } = await import(J('design.js'));
+    for (const n of ['querprofilGanz', 'querprofilEines']) {
+      wahr(`${n} zeichnet wirklich`, ic(n).includes(ICONS[n]));
+    }
+    // Und die alten stehen noch fuer ihre eigenen Stellen.
+    wahr('Lupe und Aufziehen bleiben erhalten',
+         Boolean(ICONS.zoom) && Boolean(ICONS.aufziehen));
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

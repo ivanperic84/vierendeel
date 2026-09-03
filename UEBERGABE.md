@@ -3848,6 +3848,33 @@ Der Typ geht in die **Bezeichnung** («A160 · H 7.50 m» in der Leiste statt
 Nutzmomente und Reaktionskräfte; sie stehen in den Jochdiagrammen der
 Excel-Werkzeuge.
 
+### Drei Kleinigkeiten an der Leiste (3. September)
+
+**Der Mastklick schaltet auf sein Tragwerk.** „Dieser Wert wird immernoch nicht
+nachgezogen wenn ich einzelne masten anklicke in der schemadarstellung" — gemeint
+war *Lage auf dem Querprofil x₀*, das Feld unmittelbar unter der Leiste. Es stand
+still, weil `mastAktiv` nur den **Masten** umschaltete. Auf einer Jochreihe stand
+danach zweierlei in einer Maske: die Mastfelder galten M1, Lage und Jochtyp
+weiterhin dem gerechneten Tragwerk P2. Zwei Bezüge nebeneinander, und dem Bild
+sieht man nicht an, welcher gilt — schlimmer als ein Feld, das nicht nachzieht.
+
+Der **geteilte Mast bleibt, wo er ist**: hängt er schon am gerechneten Tragwerk,
+wird nicht umgeschaltet. Sonst spränge das Blatt beim Anklicken des
+Zwischenmastes aufs Nachbarjoch, ohne dass jemand darum gebeten hat.
+
+**Die Beschriftung überlebt die Nachführung.** Die Marke `[data-tragwerkfeld]`
+sass am **äusseren** Feldrahmen, und `leisteNachfuehren` setzt dessen `innerHTML`
+neu. Damit fiel bei jedem Mastklick „Tragwerke auf diesem Querprofil" weg und der
+Hinweis darunter mit ihr — die Maske sackte um zwei Zeilen zusammen und beim
+nächsten vollen Neubau wieder auseinander. Die Marke sitzt jetzt **um den Inhalt**;
+`feldHtml` ist dafür ausgeführt, damit der Prüfstand die Reihenfolge festnagelt.
+
+**Zwei zutreffendere Symbole.** Die Ausschnitt-Knöpfe trugen eine **Lupe** und
+**vier Ecken nach aussen** — beides sagt „zoom", keines sagt *worauf*. Die Frage
+ist aber der Ausschnitt, nicht die Vergrösserung. Jetzt zeigen sie dasselbe
+Bauwerk, einmal als Reihe (`querprofilGanz`) und einmal einzeln, von Eckklammern
+gefasst (`querprofilEines`).
+
 ## Die Kalibrierung der beiden gefitteten Kennwerte (29. August)
 
 `GURT_DAEMPFUNG` 0,42 und `ENDFELD_ZUSCHLAG` 2,0 standen auf **einer**
