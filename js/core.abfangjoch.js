@@ -380,6 +380,56 @@ export { abfangEndverstaerkung };
 export const ABFANG_GURT_DAEMPFUNG = 1.0;
 
 /**
+ * DAS MASSGEBENDE RAHMENFELD EINES ABFANGJOCHS [m].
+ *
+ * >>> NICHT DIE REGELTEILUNG. <<<
+ *
+ * Gefunden am 3. September beim Vergleich mit AxisVM und PyNite. Beide gaben
+ * ein Gurtmoment, das vier- bis fuenfmal ueber dem des Kerns lag - und die
+ * massgebende Stelle war nicht die Feldmitte, sondern das AUFLAGER.
+ *
+ * Der Grund ist Geometrie, kein Kennwert: zwischen Auflager und erstem Blech
+ * liegen bei A160 / 9.50 m ganze 2.00 m, waehrend die Regelteilung 0.50 m
+ * misst. Das erste Rahmenfeld ist VIERMAL so lang wie die uebrigen - und
+ * dort steht zugleich die groesste Querkraft. Mit der Regelteilung zu
+ * rechnen unterschaetzt das Moment um genau diesen Faktor.
+ *
+ * Gemessen: eta 0.61 im Kern gegen 1.54 in AxisVM. Der Kern lag auf der
+ * UNSICHEREN Seite, und zwar um das Zweieinhalbfache.
+ *
+ * Genommen wird deshalb das GROESSTE Feld - der Randabstand, wenn er groesser
+ * ist als die Teilung. Das ist die Stelle, an der der Nachweis faellt.
+ */
+export function abfangRahmenfeld(typ, jt) {
+  const ein = abfangBlechstationen(typ, jt);
+  if (!ein) return null;
+  const sw = abfangStuetzweite(typ, jt);
+  const L = sw ? sw.bis : jt;
+  const st = ein.stationen;
+  /*
+   * Die Felder: vom Auflager zum ersten Blech, zwischen den Blechen, vom
+   * letzten Blech zum anderen Auflager. Das Randfeld traegt die groesste
+   * Querkraft und ist zugleich das laengste - beides trifft zusammen.
+   */
+  const felder = [];
+  if (st.length) {
+    felder.push(Math.max(0, st[0]));
+    for (let i = 1; i < st.length; i++) felder.push(st[i] - st[i - 1]);
+    felder.push(Math.max(0, L - st[st.length - 1]));
+  }
+  const groesst = felder.length ? Math.max(...felder) : ein.teilung;
+  return {
+    felder,
+    /** Das massgebende Feld [m] - das laengste. */
+    a: groesst,
+    randfeld: felder.length ? felder[0] : null,
+    teilung: ein.teilung,
+    /** Um wieviel das Randfeld die Regelteilung uebersteigt. */
+    faktor: ein.teilung > 0 ? groesst / ein.teilung : 1,
+  };
+}
+
+/**
  * Der Spannungsnachweis eines Gurtes.
  *
  * >>> OHNE KNICKEN. <<<

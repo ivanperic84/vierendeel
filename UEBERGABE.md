@@ -4416,7 +4416,43 @@ eines ist. Die Kandidatenliste hat das in einem Lauf geklärt, ohne Raten.
 Gegenprobe am Querschnitt: **A = 0.002185 m² gegen 0.002200 aus der Tabelle,
 −0.7 %.**
 
-#### Was noch fehlt: das Zurücklesen im selben Lauf
+#### Der Vergleich — und was er aufgedeckt hat
+
+Der Umbau ist gemacht: `-Rechnen -Auslesen` baut, rechnet und liest **in einem
+Lauf**, im selben Modellobjekt. Vorher meldete der Aufbaulauf 5 Ergebnisfälle
+und der Auslesenlauf danach 0 — die Ergebnisse stehen im laufenden Modell,
+nicht in der `.axs`, und überleben den Prozesswechsel nicht.
+
+**A160 / 9.50 m, Leiterzug 22 kN.** Beide Programme sagen dasselbe:
+
+| | N AxisVM/Kern | M_örtl AxisVM/Kern |
+|---|---|---|
+| PyNite | 0.72 | 4.97 |
+| **AxisVM** | **0.82** | **4.45** |
+
+**Es war kein Kennwert, sondern ein Rechenfehler.** Die massgebende Stelle ist
+nicht die Feldmitte, sondern das **Auflager** — und dort liegt zwischen
+Auflager und erstem Blech ein Rahmenfeld von **2.00 m**, während die
+Regelteilung 0.50 m misst. Viermal so lang, und dort steht zugleich die
+grösste Querkraft.
+
+| | σ [kN/cm²] | η |
+|---|---|---|
+| Kern mit Regelteilung 0.5 m | 13.39 | **0.61** |
+| Kern mit Randfeld 2.0 m | 35.93 | **1.65** |
+| AxisVM | 33.56 | **1.54** |
+
+Der Kern lag **auf der unsicheren Seite, um das Zweieinhalbfache.** Mit dem
+richtigen Feld trifft er AxisVM auf **7 %** und bleibt konservativ.
+
+`abfangRahmenfeld(typ, jt)` liefert die Feldfolge und das massgebende — das
+längste — Feld. **`ABFANG_GURT_DAEMPFUNG` bleibt bei 1.0:** es brauchte keinen
+Kennwert, sondern die richtige Länge. Genau das soll eine Kalibrierung
+leisten — einen Fehler finden, nicht einen Faktor anpassen.
+
+#### Nebenbei vermessen: das U-Profil
+
+
 
 `-Auslesen` findet **0 Ergebnisfälle**, obwohl der Aufbaulauf 5 meldet. Der
 Grund steht im Bericht: der Auslesezweig nimmt ein **offenes Modell**

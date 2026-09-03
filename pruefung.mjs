@@ -13557,6 +13557,74 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DAS MASSGEBENDE RAHMENFELD IST NICHT DIE REGELTEILUNG. <<<
+   *
+   * Gefunden am 3. September beim Vergleich mit AxisVM und PyNite: beide
+   * gaben ein Gurtmoment vier- bis fuenfmal ueber dem des Kerns, und die
+   * massgebende Stelle war nicht die Feldmitte, sondern das AUFLAGER.
+   *
+   * Der Grund ist Geometrie, kein Kennwert: zwischen Auflager und erstem
+   * Blech liegen bei A160 / 9.50 m ganze 2.00 m, die Regelteilung misst
+   * 0.50. Das erste Rahmenfeld ist VIERMAL so lang - und dort steht
+   * zugleich die groesste Querkraft.
+   *
+   * Gemessen: eta 0.61 mit der Regelteilung, 1.65 mit dem Randfeld,
+   * 1.54 in AxisVM. Der Kern lag auf der UNSICHEREN Seite, um das
+   * Zweieinhalbfache; mit dem richtigen Feld trifft er AxisVM auf sieben
+   * Prozent und bleibt konservativ.
+   */
+  {
+    const AK = await import(J('core.abfangjoch.js'));
+    const rf = AK.abfangRahmenfeld('A160', 9.5);
+    wahr('Es gibt ein massgebendes Rahmenfeld', Boolean(rf));
+    pruef('Das Randfeld misst 2.00 m', rf.randfeld, 2.0, 1e-6, 'm');
+    pruef('Und ist das laengste', rf.a, 2.0, 1e-6, 'm');
+    pruef('Viermal die Regelteilung', rf.faktor, 4.0, 1e-6, '-');
+    /*
+     * DIE FELDER DECKEN DIE STUETZWEITE - kein Stueck faellt weg. Waere
+     * eines vergessen, waere der Nachweis dort blind.
+     */
+    const sw = AK.abfangStuetzweite('A160', 9.5);
+    pruef('Die Felder decken die Stuetzweite',
+          rf.felder.reduce((a2, b2) => a2 + b2, 0), sw.bis, 1e-6, 'm');
+    // In der Mitte sitzt das kuerzeste Paar - das Feld A1 des Schemas.
+    pruef('Das kuerzeste Feld ist das mittlere Paar',
+          Math.min(...rf.felder), 0.25, 1e-6, 'm');
+
+    /*
+     * >>> UND DAS AENDERT DEN NACHWEIS. <<<
+     *
+     * Dieselbe Rechnung, einmal mit der Regelteilung und einmal mit dem
+     * Randfeld. Der Unterschied ist der Faktor, um den der Kern danebenlag.
+     */
+    const q = AK.abfangQuerschnitt('A160');
+    const F = 22, L = sw.bis;
+    const s0 = { Mrahmen: (F * L) / 4, Mvert: 0, Vrahmen: F / 2 };
+    const mitTeilung = AK.abfangGurtnachweis(q, s0, rf.teilung, 21.8);
+    const mitRand = AK.abfangGurtnachweis(q, s0, rf.a, 21.8);
+    wahr('Mit dem Randfeld faellt der Nachweis strenger aus',
+         mitRand.eta > mitTeilung.eta);
+    pruef('… und zwar um den Faktor des Feldes',
+          mitRand.Moertl / mitTeilung.Moertl, rf.faktor, 1e-9, '-');
+    /*
+     * DIE GEGENPROBE AN AxisVM. Gemessen am 3. September fuer A160 / 9.50 m
+     * unter 22 kN Leiterzug: sigma 33.56, eta 1.539. Der Kern darf darueber
+     * liegen - konservativ ist richtig - aber nicht um Welten, sonst waere
+     * das Sortiment unbrauchbar.
+     */
+    const AXIS_ETA = 1.539;
+    wahr('Der Kern liegt ueber AxisVM', mitRand.eta > AXIS_ETA);
+    wahr('… aber nicht um mehr als ein Fuenftel',
+         mitRand.eta / AXIS_ETA < 1.2);
+    wahr('Mit der Regelteilung laege er darunter - unsicher',
+         mitTeilung.eta < AXIS_ETA);
+
+    // Ohne erfasste Einteilung kein Rahmenfeld - keine geratene Laenge.
+    wahr('Ohne Einteilung kein Rahmenfeld',
+         AK.abfangRahmenfeld('A360', 21.0) === null);
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

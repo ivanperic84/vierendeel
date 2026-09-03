@@ -764,7 +764,22 @@ Abschnitt '2 - Modell anlegen'
 <#  BEIM AUSLESEN WIRD NICHTS ANGELEGT.
     Das gerechnete Modell steht bereits offen; ein neues waere leer, und
     leere Ergebnisse sehen aus wie Nullen.                                 #>
-if ($Auslesen) {
+<#  >>> RECHNEN UND AUSLESEN GEHOEREN IN EINEN LAUF. <<<
+
+    `-Auslesen` allein greift ein OFFENES Modell und ueberspringt den Aufbau -
+    das ist der Weg, wenn jemand von Hand gerechnet hat. Zusammen mit
+    `-Rechnen` waere er falsch: dann soll das Skript SELBST bauen, rechnen und
+    danach lesen.
+
+    Am 3. September so aufgefallen: der Aufbaulauf meldete 5 Ergebnisfaelle,
+    der Auslesenlauf danach 0. Die Ergebnisse ueberleben den Prozesswechsel
+    nicht - sie stehen im laufenden Modell, nicht in der .axs. Und
+    `-Rechnen -Auslesen` half nicht, weil auch dann nur der Auslesezweig lief.
+
+    Beides zusammen heisst jetzt: bauen, rechnen, lesen - im selben
+    Modellobjekt. Das erspart zugleich den Instanzkonflikt, der AxisVM schon
+    einmal aufgehaengt hat.                                                #>
+if ($Auslesen -and -not $Rechnen) {
     $r = Versuche 'Offenes Modell nehmen' @(
         @{ name = 'Models.ActiveIndex'; tu = { [int]$app.Models.ActiveIndex } },
         @{ name = 'Models.CurrentIndex'; tu = { [int]$app.Models.CurrentIndex } },
@@ -1002,7 +1017,7 @@ function Lies-Schnittgroessen {
     return $nGelesen
 }
 
-if ($Auslesen) {
+if ($Auslesen -and -not $Rechnen) {
     $zielA = if ($Ziel) { $Ziel }
              elseif ($Json) { NebenDatei $Json '_ergebnisse.json' }
              else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
@@ -2340,8 +2355,26 @@ if ($Rechnen) {
     }
 }
 
+<#  UND JETZT LESEN - im selben Modell, das eben gerechnet hat.
+
+    Der Aufruf ist derselbe wie im Auslesezweig oben; was ihn hier moeglich
+    macht, ist bloss der Zeitpunkt. `$m` haelt das Modell mit seinen
+    Ergebnissen, und niemand hat dazwischen einen zweiten Prozess auf
+    dieselbe Datei gesetzt.                                                #>
+if ($Rechnen -and $Auslesen) {
+    $zielR = if ($Ziel) { $Ziel }
+             elseif ($Json) { NebenDatei $Json '_ergebnisse.json' }
+             else { Join-Path $PSScriptRoot 'AxisVM_ergebnisse.json' }
+    $nR = Lies-Schnittgroessen $m $zielR
+    Schreib ''
+    Schreib "  Ergebnisse: $zielR"
+    Schreib "  $nR Lastfaelle gelesen"
+}
+
 Abschnitt 'Fertig'
-if ($Rechnen) {
+if ($Rechnen -and $Auslesen) {
+    Schreib 'Gebaut, gerechnet und gelesen - alles in einem Lauf.'
+} elseif ($Rechnen) {
     Schreib 'Das Modell steht und ist linear statisch gerechnet - auf Weisung.'
     Schreib 'Zum Auslesen: AxisVM_auslesen.cmd bei offenem Modell.'
 } else {
