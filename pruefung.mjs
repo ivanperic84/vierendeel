@@ -13103,9 +13103,26 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const b95 = AK.abfangBlechstationen('A160', 9.5);
     wahr('Je Station eines oben und eines unten',
          b95.bleche === b95.anzahl * 2);
-    wahr('Die Stationen stehen im Regelraster',
-         b95.stationen.every((x, i) => i === 0
-           || Math.abs(x - b95.stationen[i - 1] - b95.teilung) < 1e-9));
+    /*
+     * >>> DIE STATIONEN FOLGEN DER FELDFOLGE, NICHT EINEM RASTER. <<<
+     *
+     * Hier stand «jeder Abstand gleich der Regelteilung». Das galt, solange
+     * die Lage geschaetzt war. Das Schemablatt zeigt die Felder aber als
+     * «A9 A8 ... A2 A1 A1 A2 ... A9»: aussen die Regelteilung, in der MITTE
+     * das Paar A1. Bei A160 / 9.50 m sind das zehn Felder zu 500 und zwei
+     * zu 250 - die Kontrolle haette den richtigen Fall abgelehnt.
+     */
+    const abst = b95.stationen.slice(1).map((x, i) => x - b95.stationen[i]);
+    wahr('Jeder Abstand ist Regelteilung oder mittleres Feld',
+         abst.every((d) => Math.abs(d - b95.teilung) < 1e-9
+                        || Math.abs(d - b95.erstesFeld) < 1e-9));
+    wahr('Die Regelteilung steht aussen',
+         Math.abs(abst[0] - b95.teilung) < 1e-9
+         && Math.abs(abst.at(-1) - b95.teilung) < 1e-9);
+    // Und die Summe der Felder ist die Laenge der Blechreihe.
+    pruef('Die Felder decken die Blechreihe',
+          abst.reduce((a2, b2) => a2 + b2, 0),
+          b95.stationen.at(-1) - b95.stationen[0], 1e-9, 'm');
     wahr('Sie liegen alle im Joch',
          b95.stationen[0] > 0 && b95.stationen.at(-1) < 9.5);
     /*
@@ -13166,8 +13183,25 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 
     wahr('Eine ungefuehrte Laenge hat keine Einteilung',
          AK.abfangBlechstationen('A200', 10.3) === null);
-    wahr('Und die Lage ist als Naeherung angeschrieben',
-         b95.randGenau === false);
+    /*
+     * >>> UND DIE LAGE IST HIER BELEGT. <<<
+     *
+     * Bei A160 / 9.50 m geht die Feldfolge auf, und die Reihe steht dort,
+     * wo die Zeichnung sie zeigt: erstes Blech bei 2.000 m (1450 + 550),
+     * letztes bei 7.500 (2000 + QV1 5500). Frueher stand hier die
+     * Naeherung - sie lag bei 1.875 m.
+     */
+    wahr('Die Lage ist belegt', b95.randGenau === true);
+    pruef('Erstes Blech bei 2.000 m wie in der Zeichnung',
+          b95.stationen[0], 2.0, 1e-6, 'm');
+    pruef('Letztes bei 7.500 m', b95.stationen.at(-1), 7.5, 1e-6, 'm');
+    /*
+     * WO SIE NICHT AUFGEHT, BLEIBT DIE NAEHERUNG - und sagt es. Ab A240
+     * sitzen Quersteifungen zwischen den QV-Bereichen; wie sich die Bleche
+     * darauf verteilen, steht nicht in einer Formel.
+     */
+    const grob = AK.abfangBlechstationen('A240', 12.0);
+    wahr('Bei A240 ist die Lage genaehert', grob?.randGenau === false);
 
     /*
      * WAS SICH RECHNEN LAESST, SAGT DER KERN SELBST.
