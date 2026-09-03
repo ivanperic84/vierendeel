@@ -2216,12 +2216,42 @@ try {
 
 # --- 10 - Sichern ------------------------------------------------------------
 Abschnitt '10 - Sichern'
-$axs = [IO.Path]::ChangeExtension($Json, '.axs')
+<#  >>> AXISVM BRAUCHT EINEN ABSOLUTEN PFAD. <<<
+
+    Hier stand ChangeExtension($Json, '.axs') - und $Json kam so herein, wie
+    es aufgerufen wurde. Bei '.\Joch.json' blieb daraus '.\Joch.axs', ein
+    RELATIVER Pfad.
+
+    AxisVM ist ein eigener Prozess mit eigenem Arbeitsverzeichnis. Es loest
+    '.\' gegen SEINES auf, nicht gegen das des Skripts - die Datei landet
+    dann irgendwo im Programmordner, und neben dem Modell liegt nichts.
+
+    Am 3. September genau so passiert: der Bericht meldete
+    'Speichern -> .\AxisVM_J100_...axs', der Ordner blieb leer.
+    Gemeldet als: "Ich finde das vorherige axismodell nicht unter dem com
+    ordner, ich denke es wurde nicht gespeichert."                        #>
+$axs = [IO.Path]::GetFullPath(
+    [IO.Path]::ChangeExtension($Json, '.axs'))
 $r = Versuche 'Speichern' @(
     @{ name = 'SaveToFile(datei, lbFalse)'; tu = { $m.SaveToFile($axs, $lbFalsch) } }
 )
-if ($r.ok) { Schreib "  $axs" }
-else { Schreib '  nicht gespeichert - das Modell steht offen in AxisVM.' }
+<#  >>> UND DIE PROBE IST DIE DATEI, NICHT DIE RUECKGABE. <<<
+
+    Dieselbe Lehre wie bei LinearAnalysis, das 0 zurueckgab, waehrend 25
+    Ergebnisfaelle vorlagen: was AxisVM meldet, taugt nicht als Nachweis.
+    Nachgesehen wird, OB die Datei da ist und wie gross sie ist. Ein
+    Modell, von dem das Skript sagt, es sei gespeichert, und das nirgends
+    liegt, ist die schlimmste Art von Erfolgsmeldung.                     #>
+if ($r.ok -and (Test-Path -LiteralPath $axs)) {
+    $kb = [math]::Round((Get-Item -LiteralPath $axs).Length / 1KB)
+    Schreib "  $axs  ($kb kB)"
+} elseif ($r.ok) {
+    Schreib '  >>> WARNUNG: SaveToFile meldete Erfolg, die Datei ist nicht da.'
+    Schreib "      Erwartet: $axs"
+    Schreib '      Das Modell steht offen in AxisVM - dort von Hand sichern.'
+} else {
+    Schreib '  nicht gespeichert - das Modell steht offen in AxisVM.'
+}
 
 <#  =========================================================================
     RECHNEN - NUR AUF AUSDRUECKLICHE WEISUNG.

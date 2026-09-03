@@ -2043,3 +2043,12 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
   color: var(--fail);
   border-color: color-mix(in srgb, var(--fail) 55%, transparent);
 }
+
+/* Die Handlungen des Abschnitts «Anbauteile» - eine eigene Zeile unter dem
+   Titel. Nebeneinander stehen sie auch bei schmaler Seitenleiste; auf der
+   Titelzeile brachen sie um und liessen den Kopf unaufgeraeumt aussehen
+   (Weisung, 3. September). */
+.at-werkzeuge {
+  display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 9px;
+}
+.at-werkzeuge .btn-mini svg { display: block; }

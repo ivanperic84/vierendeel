@@ -3992,8 +3992,22 @@ Namen. Was die Tabelle liefert und was zum Bauen fehlt:
 > für uns hier." Die Spalten *Ts unbelastet* bleiben also aussen vor — sie
 > gehören zur Reglage auf der Baustelle, nicht in den Nachweis.
 
-Offen und vorgängig zu entscheiden: **welche Regliertemperatur massgebend
-ist** — für den Normalfall und für den Havariefall (dort war −20 °C genannt).
+### Die massgebenden Regliertemperaturen — entschieden
+
+Weisung vom 3. September: „für havarie ist −20° und für die bemessung
+tragsicherheit die +5° bei schnee leiteinwirkung −5°"
+
+| Fall | T | warum |
+|---|---|---|
+| **Tragsicherheit** | **+5 °C** | Regelfall der Bemessung |
+| **Schnee leitend** | **−5 °C** | Schnee fällt bei Frost — die Schneelast trifft auf einen straffer gezogenen Leiter |
+| **Havarie** | **−20 °C** | Bruchfall bei grösster Zugkraft |
+
+Der Leiterzug wächst mit sinkender Temperatur; die grösste Kraft steht bei
+−20 °C im Draht. Das ist nicht immer der ungünstigste Fall — deshalb drei
+Festlegungen und nicht eine. `REGLIERTEMPERATUREN` in `data.fl.js` führt sie;
+`reglierTemperatur(key)` gibt ohne Treffer die Tragsicherheit zurück, weil eine
+erfundene Temperatur schlimmer wäre als die häufigste.
 
 ## Der Abfangjoch-Rechenkern — die Weisung vom 3. September
 
@@ -4112,6 +4126,25 @@ der Prüfstand hält ihn für jeden Typ fest.
   Jochaufsätze, durchgehende Fahrleitung
 * Vergleichsrechnung PyNite / AxisVM, danach erst die Kopplung zweier
   Abfangjoche über gemeinsame Hängestützen
+
+## Das Modell landete nicht neben dem Skript (3. September)
+
+Gemeldet: „Ich finde das vorherige axismodell nicht unter dem com ordner, ich
+denke es wurde nicht gespeichert." Der Bericht meldete
+`Speichern -> .\AxisVM_J100_….axs` — und der Ordner blieb leer.
+
+**Ursache: ein relativer Pfad.** `$axs = ChangeExtension($Json, '.axs')`
+übernahm den Pfad so, wie er hereinkam; bei `.\Joch.json` blieb daraus
+`.\Joch.axs`. **AxisVM ist ein eigener Prozess mit eigenem
+Arbeitsverzeichnis** und löst `.\` gegen *seines* auf — die Datei landet im
+Programmordner, nicht neben dem Skript.
+
+Behoben mit `GetFullPath`. Und, dieselbe Lehre wie bei `LinearAnalysis`:
+**die Probe ist die Datei, nicht die Rückgabe.** Nach dem Speichern wird
+`Test-Path` gefragt und die Grösse ausgegeben; meldet `SaveToFile` Erfolg und
+es liegt nichts da, steht das als laute Warnung im Bericht. Ein Skript, das
+sagt, es habe gespeichert, während nichts existiert, ist die schlimmste Art
+von Erfolgsmeldung.
 
 ## AxisVM rechnet über COM (3. September)
 

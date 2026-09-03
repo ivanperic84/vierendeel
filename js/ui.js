@@ -1772,13 +1772,26 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
    * unmittelbar setzt. Die Kachel bleibt zusaetzlich in der Liste - wer sie
    * dort gewohnt ist, findet sie weiter.
    */
-  return abschnitt(g.titel,
-    `<button class="btn btn-mini" data-vorlage-direkt="frei" type="button"
-       title="Freies Bauteil setzen — Typ, Länge und Lasten selbst eintragen"
-       >${icon('anbau', 12)} Bauteil zuweisen</button>
-     <button class="btn btn-mini" data-generator type="button"
-       title="Anbauteile über die Gleise verteilen">Lastgenerator</button>
-     <span class="sec-r">${liste.length} Stück</span>`) +
+  /*
+   * >>> DIE KNOEPFE STEHEN UNTER DEM TITEL, NICHT AUF SEINER ZEILE. <<<
+   *
+   * Zuerst standen sie als `rechts` im Abschnittskopf - und brachen dort um,
+   * weil zwei beschriftete Knoepfe neben «ANBAUTEILE» nicht in eine Zeile
+   * passen. Der Titel stand dann links, die Knoepfe uebereinander rechts
+   * daneben: unaufgeraeumt (Weisung, 3. September).
+   *
+   * Auf der Titelzeile bleibt nur, was dorthin gehoert: die Anzahl. Die
+   * Handlungen bekommen ihre eigene Zeile und stehen damit auch bei
+   * schmaler Seitenleiste nebeneinander.
+   */
+  return abschnitt(g.titel, `<span class="sec-r">${liste.length} Stück</span>`) +
+    `<div class="at-werkzeuge">
+       <button class="btn btn-mini" data-vorlage-direkt="frei" type="button"
+         title="Freies Bauteil setzen — Typ, Länge und Lasten selbst eintragen"
+         >${icon('anbau', 12)} Bauteil zuweisen</button>
+       <button class="btn btn-mini" data-generator type="button"
+         title="Anbauteile über die Gleise verteilen">Lastgenerator</button>
+     </div>` +
     klapp('anbau-vorrat', 'Anbauteil hinzufügen', `
       <p class="hinweis" style="margin:0 0 7px">Kachel anklicken oder ins
         Modell ziehen.</p>

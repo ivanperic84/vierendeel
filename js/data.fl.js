@@ -158,3 +158,57 @@ export function flStand() {
   return { version: d._version, stand: d._stand, bauteile: d.bauteile.length,
            quelle: d._quelle?.dokument ?? '' };
 }
+
+/*
+ * ===========================================================================
+ * DIE REGLIERTEMPERATUR - welche Spalte der Reglagetabelle gilt.
+ * ===========================================================================
+ *
+ * Die Reglagetabelle (Grundlagen/Einwirkungen) fuehrt die Leiterzugkraft je
+ * Temperatur von -20 bis +40 Grad. Welche davon im Nachweis gilt, ist keine
+ * Ableitung, sondern eine FESTLEGUNG - und sie kommt vom Auftraggeber
+ * (Weisung, 3. September):
+ *
+ *   "fuer havarie ist -20 Grad und fuer die bemessung tragsicherheit die
+ *    +5 Grad bei schnee leiteinwirkung -5 Grad"
+ *
+ * >>> WARUM DREI UND NICHT EINE. <<<
+ *
+ * Der Leiterzug WAECHST mit sinkender Temperatur - bei -20 Grad steht die
+ * groesste Kraft im Draht. Das ist nicht immer der ungünstigste Fall:
+ *
+ *   TRAGSICHERHEIT (+5)   der Regelfall der Bemessung
+ *   SCHNEE (-5)           kaelter, weil Schnee bei Frost faellt: die
+ *                         Schneelast trifft auf einen straffer gezogenen
+ *                         Leiter, und beide wirken zusammen
+ *   HAVARIE (-20)         der Bruchfall bei groesster Zugkraft
+ *
+ * >>> DIE UNBELASTETEN ZUSTAENDE GELTEN HIER NICHT. <<<
+ *
+ * Die Tabelle fuehrt je Kettenwerk "Ts belastet" und "Ts unbelastet". Der
+ * unbelastete Zustand gehoert zur Reglage auf der Baustelle - "nur fuer die
+ * montage interessant nicht fuer uns hier" (Weisung, 3. September). In den
+ * Nachweis geht ausschliesslich der belastete.
+ * ---------------------------------------------------------------------------
+ */
+export const REGLIERTEMPERATUREN = [
+  { key: 'tragsicherheit', T: 5, label: 'Tragsicherheit (+5 \u00b0C)',
+    hinweis: 'Regelfall der Bemessung.' },
+  { key: 'schnee', T: -5, label: 'Schnee leitend (\u22125 \u00b0C)',
+    hinweis: 'Schnee f\u00e4llt bei Frost \u2014 die Schneelast trifft auf einen '
+           + 'straffer gezogenen Leiter.' },
+  { key: 'havarie', T: -20, label: 'Havarie (\u221220 \u00b0C)',
+    hinweis: 'Bruchfall bei gr\u00f6sster Zugkraft. Aussergew\u00f6hnliche '
+           + 'Einwirkung, st\u00e4ndige Lasten charakteristisch.' },
+];
+
+/**
+ * Die Regliertemperatur zu einem Lastfall [Grad C].
+ *
+ * Ohne Treffer gilt die Tragsicherheit - der Regelfall. Eine erfundene
+ * Temperatur waere schlimmer als die haeufigste: sie stuende nirgends.
+ */
+export function reglierTemperatur(key) {
+  const r = REGLIERTEMPERATUREN.find((x) => x.key === key);
+  return (r ?? REGLIERTEMPERATUREN[0]).T;
+}
