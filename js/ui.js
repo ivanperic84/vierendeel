@@ -1625,8 +1625,22 @@ function anbauteileHtml(g, werte) {
    * lieber an der falschen Stelle sichtbar als richtig einsortiert und weg.
    */
   const bekannt = new Set(VORLAGENGRUPPEN.map((x) => x[0]));
+  /*
+   * >>> DER REGELFALL STEHT VORN. <<<
+   *
+   * Weisung vom 3. September: «die leiter fuer die R-FL und N-FL
+   * Kettenwerke und die Rueckleiter sind primaer interessant, die aldrey
+   * kommen ab und zu vor, den rest als zusatz nehmen.»
+   *
+   * `rang` sagt es je Vorlage: 1 Regelfall, 2 gewoehnlich, 3 Zusatz. Bei
+   * gleichem Rang bleibt die Reihenfolge des Katalogs - eine zweite
+   * Sortierung nach Namen wuerde eine Ordnung erfinden, die niemand gewollt
+   * hat.
+   */
   const kacheln = VORLAGENGRUPPEN.map(([key, titel, sym]) => {
-    const drin = alleV.filter((v) => (bekannt.has(v.gruppe) ? v.gruppe : 'uebrige') === key);
+    const drin = alleV
+      .filter((v) => (bekannt.has(v.gruppe) ? v.gruppe : 'uebrige') === key)
+      .sort((a, b) => (a.rang ?? 2) - (b.rang ?? 2));
     if (!drin.length) return '';
     return `<div class="kachel-gruppe">
         <span class="kachel-gruppe-kopf">${icon(sym, 13)} ${esc(titel)}</span>

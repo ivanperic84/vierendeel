@@ -3884,6 +3884,18 @@ weiter.
 Kompakter: Polster von 7 auf 5 px, Zeilenabstand enger, Kachelhöhe **50 px** —
 die vierzehn passen damit in eine Bildschirmhöhe statt in zwei.
 
+**Der Regelfall steht vorn.** Weisung: „die leiter für die R-FL und N-FL
+Kettenwerke und die Rückleiter sind primär interessant, die aldrey kommen ab
+und zu vor, den rest als zusatz nehmen." `rang` sagt es je Vorlage — 1
+Regelfall, 2 gewöhnlich, 3 Zusatz. Die Leiter-Gruppe steht damit als *N-FL ·
+R-FL · Rückleiter · Traverse*. Bei gleichem Rang bleibt die Reihenfolge des
+Katalogs; eine zweite Sortierung nach Namen würde eine Ordnung erfinden, die
+niemand gewollt hat.
+
+**Aldrey fehlt als Vorlage.** Die Reglagetabelle führt Ald 300 mm² mit 6 kN
+(unterschieden nach c ≤ 35 m und c > 35 m); im Bauteilkatalog gibt es dazu
+nichts. Es gehört als Vorlage mit Rang 2 dazu, sobald die Kennwerte vorliegen.
+
 ### Drei Kleinigkeiten an der Leiste (3. September)
 
 **Der Mastklick schaltet auf sein Tragwerk.** „Dieser Wert wird immernoch nicht
