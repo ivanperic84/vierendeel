@@ -13019,8 +13019,24 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     for (const t of AJ.abfangjoche().filter((x) => x.aufbau)) {
       const q = AK.abfangQuerschnitt(t.typ);
       wahr(`${t.typ}: e ist kleiner als k`, q.e < q.k);
+      /*
+       * >>> DIE U-PROFILE ZEIGEN NACH AUSSEN. <<<
+       *
+       * Weisung vom 3. September nach Blick ins AxisVM-Modell. Der Schnitt
+       * A-A bestaetigt es: die STEGE liegen innen im Abstand d, die
+       * Flansche zeigen nach aussen, und die Schwerachse liegt um e_y
+       * weiter aussen. Hier stand `gurtAchsabstand(gurt, k)` ohne d - das
+       * ist die umgekehrte Lage und gab bei A160 38.3 statt 31.7 cm.
+       */
       pruef(`${t.typ}: e stimmt mit gurtAchsabstand`,
-            q.e, PR.gurtAchsabstand(q.gurt, q.k), 1e-9, 'cm');
+            q.e, PR.gurtAchsabstand(q.gurt, q.k, q.d), 1e-9, 'cm');
+      // Die Gegenprobe der Geometrie: d/2 + b = k/2.
+      if (q.gurt.reihe === 'UPE') {
+        pruef(`${t.typ}: d/2 + b ergibt k/2`,
+              q.d / 2 + q.gurt.b, q.k / 2, 1e-9, 'cm');
+        // Und der Hebelarm liegt zwischen d und k - naeher an d.
+        wahr(`${t.typ}: e liegt zwischen d und k`, q.e > q.d && q.e < q.k);
+      }
       /*
        * DER STEINER-ANTEIL IST HIER ALLES. Bei A160 ist I_z des Gurtes
        * 85 cm4, der Steiner-Anteil 16 100 - das Zweihundertfache. Faellt
@@ -13224,9 +13240,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       const nw = AK.abfangGurtnachweis(
         q, { Mrahmen: 50, Mvert: 8, Vrahmen: 20 }, 0.5, fyd);
 
-      // Von Hand: N = 50 / 0.383 = 130.5 kN auf 22.0 cm2 -> 5.93 kN/cm2
+      /*
+       * Von Hand: N = M / e auf die Gurtflaeche.
+       *
+       * Hier stand `50 / 0.383` - der Hebelarm der frueheren, falschen
+       * Profillage (Steg aussen). Seit dem 3. September zeigen die U-Profile
+       * nach AUSSEN, e liegt bei 0.317 m, und die Zahl waere von Hand
+       * nachgerechnet 157.8 / 22.0 = 7.17 kN/cm2. Genommen wird sie aus `e`,
+       * damit sie beim naechsten Geometriefund mitwandert statt zu brechen.
+       */
       pruef('Normalspannung aus dem Kraeftepaar',
-            nw.sigN, 130.5 / 22.0, 0.05, 'kN/cm2');
+            nw.sigN, (50 / (q.e / 100)) / q.Agurt, 1e-9, 'kN/cm2');
+      pruef('… und von Hand nachgerechnet', nw.sigN, 7.17, 0.02, 'kN/cm2');
       // M_vert = 8 kNm auf W_y = 113.9 cm3 -> 7.02 kN/cm2
       pruef('Biegung quer zur Rahmenebene',
             nw.sigVert, 800 / 113.9, 0.02, 'kN/cm2');

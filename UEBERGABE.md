@@ -4437,6 +4437,40 @@ eines ist. Die Kandidatenliste hat das in einem Lauf geklärt, ohne Raten.
 Gegenprobe am Querschnitt: **A = 0.002185 m² gegen 0.002200 aus der Tabelle,
 −0.7 %.**
 
+#### Berichtigung: die U-Profile zeigen nach aussen (3. September)
+
+Gemeldet nach Blick ins AxisVM-Modell: „die beiden c-profile in diesem fall
+sollten beide gegen aussen zeigen und die bleche sind nicht nur mittig sondern
+liegen jeweils auf flansch lage oben und unten."
+
+**Beides trifft zu, und der Schnitt A-A belegt es.** Die **Stege liegen innen**
+im Abstand `d`, die Flansche zeigen nach aussen; die Gegenprobe geht auf:
+`d/2 + b = k/2`, bei A160 also 14 + 7 = 21 cm.
+
+Ich hatte die umgekehrte Lage angenommen — Steg aussen, Schwerachse nach
+innen. Das trifft den **Hebelarm**, und der geht in jede Gurtkraft ein:
+
+| Typ | e alt | e neu | |
+|---|---|---|---|
+| A160 | 38.3 | **31.7** | −17.3 % |
+| A200 | 51.8 | **44.2** | −14.7 % |
+| A240 | 73.2 | **64.8** | −11.6 % |
+
+**Der Hebelarm war zu gross, die Gurtkraft `N = M/e` damit zu klein — die
+unsichere Seite.** Bei A160 um 21 %. `gurtAchsabstand(profil, k, d)` nimmt
+jetzt `d` und rechnet `d + 2·e_y`; ohne `d` fällt es auf die alte Annahme
+zurück, und der Prüfstand hält die Gegenprobe `d/2 + b = k/2` für jeden
+UPE-Typ fest.
+
+Die IPE-Typen (A270–A360) bleiben unberührt — ihre Lage ist eine eigene Frage,
+die ich ohne Beleg nicht ändere.
+
+**Was daraus folgt:** die AxisVM-Zahlen unten sind mit dem *alten* Hebelarm
+gerechnet — im Modell **und** im Kern, weshalb das Verhältnis 0.82 trotzdem
+etwas über die Modellfrage aussagt, die absoluten Werte aber neu zu messen
+sind. **Und das AxisVM-Modell setzt die Bleche noch mittig statt auf
+Flanschhöhe** (oben und unten); das ist der nächste Schritt.
+
 #### Der Vergleich — und was er aufgedeckt hat
 
 Der Umbau ist gemacht: `-Rechnen -Auslesen` baut, rechnet und liest **in einem

@@ -82,7 +82,14 @@ export function abfangQuerschnitt(typ) {
   }
   const p = getGurtprofil(auf.gurtprofil);
   const k = auf.k / 10;                 // mm -> cm
-  const e = gurtAchsabstand(p, k);      // cm, Achsabstand der Gurte
+  const d = auf.d / 10;                 // lichter Abstand der STEGE
+  /*
+   * Der Hebelarm braucht `d`: die U-Profile zeigen mit der Oeffnung nach
+   * AUSSEN, ihre Stege stehen innen im Abstand d, und die Schwerachse liegt
+   * um e_y weiter aussen. Ohne d faellt die Funktion auf die frueher
+   * angenommene Lage zurueck - siebzehn Prozent daneben.
+   */
+  const e = gurtAchsabstand(p, k, d);   // cm, Achsabstand der Gurte
 
   /*
    * DER STEINER-ANTEIL IST HIER ALLES.
@@ -103,6 +110,8 @@ export function abfangQuerschnitt(typ) {
     gurte: 2,
     /** Aussenmass über beide Gurte [cm] — NICHT der Hebelarm. */
     k,
+    /** Lichter Abstand der Stege [cm] — die Profile öffnen nach aussen. */
+    d,
     /** Achsabstand der Gurte [cm] — der Hebelarm der Vierendeel-Wirkung. */
     e,
     /** Fläche beider Gurte [cm²]. */

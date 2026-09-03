@@ -180,7 +180,29 @@ export function getGurtprofil(name) {
  * @param {string|object} profil  Gurtprofil oder sein Name
  * @param {number} k              Aussenmass ueber beide Gurte [cm]
  */
-export function gurtAchsabstand(profil, k) {
+export function gurtAchsabstand(profil, k, d = null) {
   const p = typeof profil === 'string' ? getGurtprofil(profil) : profil;
-  return p.reihe === 'UPE' ? k - 2 * p.ey : k - p.b;
+  if (p.reihe !== 'UPE') return k - p.b;
+  /*
+   * >>> DIE OEFFNUNG ZEIGT NACH AUSSEN. <<<
+   *
+   * Weisung vom 3. September, nach Blick ins AxisVM-Modell: «die beiden
+   * c-profile in diesem fall sollten beide gegen aussen zeigen». Der
+   * Schnitt A-A bestaetigt es: die STEGE liegen innen, die Flansche zeigen
+   * nach aussen, und `d` ist der Abstand der Stege. Die Gegenprobe geht
+   * auf - d/2 + b = k/2, bei A160 also 14 + 7 = 21.
+   *
+   * Hier stand `k - 2*e_y`, die umgekehrte Lage: Steg aussen, Achse nach
+   * innen. Damit lag der Hebelarm bei A160 auf 38.3 cm statt auf 31.7 -
+   * SIEBZEHN PROZENT ZU GROSS, und die Gurtkraft N = M/e entsprechend
+   * einundzwanzig Prozent zu klein. Das ist die unsichere Seite.
+   *
+   * Richtig: der Stegruecken liegt bei d/2 von der Mitte, und die
+   * Schwerachse liegt um e_y weiter AUSSEN, zum Flansch hin.
+   *
+   * Ohne `d` bleibt die alte Rechnung - sie ist dann eine Annahme, und der
+   * Aufrufer soll das Mass mitgeben, das die Zeichnung fuehrt.
+   */
+  if (d !== null && d > 0) return d + 2 * p.ey;
+  return k - 2 * p.ey;
 }
