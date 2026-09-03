@@ -4070,7 +4070,44 @@ export class Modellansicht {
       const randX = 6 * s, randO = 46 * s;
       const bx = Math.max(randX,
         Math.min(p[0] - bw / 2, this.cv.width - bw - randX));
-      const by = Math.max(randO, p[1] - bh);
+      /*
+       * >>> ZWEI TITEL AN EINER STELLE WEICHEN AUS. <<<
+       *
+       * Gemeldet am 3. September: «Die darstellung der tragwerkbenennung ist
+       * nicht sauber wenn man einen dritten separaten masten stellt.» Im Bild
+       * lagen «M1 · HEB 260 · 12.50 m» und der Nachbartitel uebereinander -
+       * zwei Kaesten am selben Punkt, und was dastand, war beides zugleich
+       * und keines davon lesbar.
+       *
+       * Marken, Pfeiltexte und Werte pruefen laengst gegen `_belegt`. Die
+       * Titel taten es als einzige nicht: sie wurden gezeichnet, wo ihr
+       * Bauteil steht, und fertig. Solange die Bauteile auseinanderliegen
+       * faellt das nicht auf; ein Einzelmast NEBEN einem Jochmasten steht
+       * aber genau dort, wo schon einer steht.
+       *
+       * >>> AUSWEICHEN, NICHT WEGLASSEN. <<<
+       *
+       * Bei den Werten ist Weglassen richtig - sie stehen ohnehin als Farbe
+       * am Bauteil. Ein Titel, der ganz verschwindet, nimmt dagegen die
+       * Orientierung mit: man saehe, WO ein Tragwerk steht, aber nicht mehr,
+       * WAS es ist, und koennte es nicht mehr anklicken. Er rueckt deshalb
+       * nach oben, bis er frei steht - dieselbe Richtung, in die der Kasten
+       * ohnehin ueber seinem Bauteil sitzt.
+       *
+       * Findet er in sechs Schritten keinen Platz, bleibt er, wo er war. Das
+       * ist die ehrlichere Seite: lieber ein Titel zuviel im Gedraenge als
+       * einer, der ans andere Ende des Bildes wandert und dort ein fremdes
+       * Bauteil zu benennen scheint.
+       */
+      let by = Math.max(randO, p[1] - bh);
+      const luft = 3 * s;
+      for (let v = 0; v < 6; v++) {
+        if (this._frei(bx, by, bw, bh)) break;
+        const hoch = by - (bh + luft);
+        if (hoch < randO) break;
+        by = hoch;
+      }
+      this._belegt.push({ x: bx, y: by, w: bw, h: bh });
       /*
        * UNTER DEM ZEIGER LEUCHTET DER RAHMEN AUF (Weisung).
        *

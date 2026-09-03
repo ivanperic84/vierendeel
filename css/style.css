@@ -222,7 +222,7 @@ body {
    Farbe trägt nur der Wert und ein schmaler Streifen an der Kante - kein
    voller Rahmen und kein Hintergrund, sonst leuchtet die Schiene stärker als
    das Modell daneben. */
-.schiene-nw > div {
+.schiene-nw div {
   flex: 1; min-height: 40px; display: grid; place-items: center; overflow: hidden;
   border-radius: var(--m-r1); background: var(--s2);
   border: 1px solid var(--ol); border-left-width: 2px;
@@ -238,12 +238,12 @@ body {
   font-style: normal; font-size: 8.5px; color: var(--dim);
 }
 .schiene-nw b { font-size: 11px; }
-.schiene-nw > div.ok   { border-left-color: var(--ok); }
-.schiene-nw > div.ok   b { color: var(--ok); }
-.schiene-nw > div.warn { border-left-color: var(--warn); }
-.schiene-nw > div.warn b { color: var(--warn); }
-.schiene-nw > div.nok  { border-left-color: var(--fail); }
-.schiene-nw > div.nok  b { color: var(--fail); }
+.schiene-nw div.ok   { border-left-color: var(--ok); }
+.schiene-nw div.ok   b { color: var(--ok); }
+.schiene-nw div.warn { border-left-color: var(--warn); }
+.schiene-nw div.warn b { color: var(--warn); }
+.schiene-nw div.nok  { border-left-color: var(--fail); }
+.schiene-nw div.nok  b { color: var(--fail); }
 
 .split {
   cursor: col-resize; touch-action: none; background: var(--bg);
@@ -1865,7 +1865,7 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
    Die ZIFFER wechselt hart, das ist Absicht (siehe oben). Der Farbstreifen
    an der Kante darf laufen: er sagt gut/eng/verletzt, und dieser Wechsel ist
    das, was man aus dem Augenwinkel mitbekommen soll. */
-.schiene-nw > div {
+.schiene-nw div {
   transition: border-left-color var(--t-ruhig), background var(--t-ruhig), flex-grow var(--t-ruhig);
 }
 .schiene-nw b, .schiene-nw i { transition: color var(--t-ruhig); }
@@ -2052,3 +2052,18 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
   display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 9px;
 }
 .at-werkzeuge .btn-mini svg { display: block; }
+
+/* DIE NACHWEIS-SCHIENE IST GRUPPIERT (Weisung, 3. September).
+   Joch und Mast sind zwei Bauteile; fuenf Pillen in einer Reihe lesen sich
+   wie eine Steigerung, mit einem Trenner dazwischen liest man zwei Gruppen.
+   Die Gruppe erbt das Flex-Verhalten, damit die Pillen weiter die Hoehe
+   fuellen - sonst saessen sie oben und der Rest bliebe leer. */
+.nw-gruppe {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1 1 auto; min-height: 0;
+}
+.nw-gruppe > div { flex: 1 1 auto; min-height: 0; }
+.nw-gruppe-trenner {
+  flex: 0 0 auto; height: 1px; margin: 3px 4px;
+  background: var(--ol);
+}

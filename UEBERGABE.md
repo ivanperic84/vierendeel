@@ -3896,6 +3896,52 @@ niemand gewollt hat.
 (unterschieden nach c ≤ 35 m und c > 35 m); im Bauteilkatalog gibt es dazu
 nichts. Es gehört als Vorlage mit Rang 2 dazu, sobald die Kennwerte vorliegen.
 
+### Die Nachweis-Schiene zeigt alle Nachweise (3. September)
+
+Weisung: „Hier die pillen mit den restlichen nachweisen (mast etc.) erweitern
+und etwas gruppiert darstellen."
+
+Die Schiene zeigte drei Pillen — Obergurt, Untergurt, Bindeblech. **Der Mast
+fehlte, und er ist auf einer Jochreihe regelmässig der massgebende**: im
+gemessenen Fall 0.87 gegen 0.45. Wer die Schublade zuklappte und nur die
+Schiene sah, las den kleineren der beiden Werte und hielt ihn für den Stand
+des Tragwerks.
+
+Jetzt zwei Gruppen mit einem Trenner dazwischen:
+
+| Gruppe | Pillen |
+|---|---|
+| Joch | OG · UG · Bl |
+| Masten | M2 · M3 (unter ihrem Namen, jeder Mast einmal) |
+
+Fünf Pillen in einer Reihe lesen sich wie eine Steigerung; mit einem Trenner
+liest man zwei Bauteile. Der Mast erscheint nur, wenn sein Nachweis auch
+**geführt** wird — sonst zeigte die Schiene mehr, als die Auswertung
+verantwortet.
+
+*Nebenbei aufgefallen:* Durch die Gruppierung sassen die Pillen eine Ebene
+tiefer, und `.schiene-nw > div` griff nicht mehr — sie verloren Rahmen, Farbe
+und Höhe. Acht Selektoren auf Nachfahren umgestellt.
+
+### Bauteiltitel weichen einander aus (3. September)
+
+Gemeldet: „Die darstellung der tragwerkbenennung ist nicht sauber wenn man
+einen dritten separaten masten stellt." Im Bild lagen zwei Titelkästen
+übereinander — was dastand, war beides zugleich und keines davon lesbar.
+
+**Marken, Pfeiltexte und Werte prüfen längst gegen `_belegt`. Die Titel taten
+es als einzige nicht.** Solange die Bauteile auseinanderliegen fällt das nicht
+auf; ein Einzelmast *neben* einem Jochmasten steht aber genau dort, wo schon
+einer steht.
+
+**Ausweichen, nicht weglassen.** Bei den Werten ist Weglassen richtig — sie
+stehen ohnehin als Farbe am Bauteil. Ein Titel, der verschwindet, nimmt die
+Orientierung mit: man sähe, *wo* ein Tragwerk steht, aber nicht mehr, *was* es
+ist, und könnte es nicht mehr anklicken. Er rückt deshalb nach oben, bis er
+frei steht. Findet er in sechs Schritten keinen Platz, bleibt er — lieber ein
+Titel im Gedränge als einer, der ans andere Ende wandert und dort ein fremdes
+Bauteil zu benennen scheint.
+
 ### Drei Kleinigkeiten an der Leiste (3. September)
 
 **Der Mastklick schaltet auf sein Tragwerk.** „Dieser Wert wird immernoch nicht

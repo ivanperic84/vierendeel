@@ -4137,14 +4137,66 @@ function zeichneSchienen() {
    * Einzige, was von der Auswertung bleibt; sie darf nicht leer sein und
    * erst recht nicht von Bauteilen sprechen, die nicht dastehen.
    */
-  const nw = !e ? []
-    : letzte?.mitJoch === false
-      ? [['Ma', letzte.erg?.mast?.eta ?? 0, 'Mast, Querschnitt']]
-      : [
+  /*
+   * >>> ALLE NACHWEISE, NACH BAUTEIL GRUPPIERT. <<<
+   *
+   * Weisung vom 3. September: «Hier die pillen mit den restlichen nachweisen
+   * (mast etc.) erweitern und etwas gruppiert darstellen.»
+   *
+   * Hier standen drei Pillen: Obergurt, Untergurt, Bindeblech. Der Mast
+   * fehlte - und er ist auf einer Jochreihe regelmaessig der massgebende
+   * (0.87 gegen 0.45 im gemessenen Fall). Wer die Schublade zuklappt und nur
+   * die Schiene sieht, las damit den kleineren der beiden Werte und hielt
+   * ihn fuer den Stand des Tragwerks.
+   *
+   * >>> GRUPPIERT, WEIL ES ZWEI BAUTEILE SIND. <<<
+   *
+   * Joch und Mast sind nicht dasselbe Tragglied. Fuenf Pillen in einer Reihe
+   * lesen sich wie eine Steigerung; mit einem Trenner dazwischen liest man
+   * zwei Gruppen. Der Trenner kostet drei Pixel und spart die Rueckfrage,
+   * was «M2» neben «Bl» zu suchen hat.
+   *
+   * DIE MASTEN STEHEN UNTER IHREM NAMEN da (M1, M2) - dieselbe Regel wie in
+   * den Kacheln der Auswertung. Sind beide Enden derselbe Mast, steht er
+   * einmal: zwei gleiche Pillen waeren keine Auskunft, sondern ein Verdacht.
+   */
+  const gruppen = [];
+  if (e) {
+    if (letzte?.mitJoch === false) {
+      gruppen.push({ titel: 'Mast',
+        teile: [['Ma', letzte.erg?.mast?.eta ?? 0, 'Mast, Querschnitt']] });
+    } else {
+      gruppen.push({ titel: 'Joch', teile: [
         ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`],
         ['UG', e.max.etaUG.ug.eta, `Untergurt ${e.modell.profUG.name}`],
         ['Bl', e.max.etaB.etaB, 'Bindeblech, massgebende Ebene'],
-      ];
+      ] });
+    }
+    /*
+     * Nur wenn der Nachweis auch GEFUEHRT wird: die Gruppe laesst sich
+     * abschalten, und dann hat hier keine Zahl zu stehen. Dieselbe Regel
+     * wie bei den Kacheln - sonst zeigte die Schiene mehr, als die
+     * Auswertung verantwortet.
+     */
+    const mastGefuehrt = letzte?.urteil?.nachweise?.mast !== false;
+    if (letzte?.mitJoch !== false && letzte?.erg?.mast && mastGefuehrt) {
+      const namen = e.modell.federn?.namen ?? {};
+      const gesehen = new Set();
+      const teile = [];
+      ['A', 'B'].forEach((ende) => {
+        const n = letzte.erg.mast[ende];
+        if (!n) return;
+        const name = namen[ende] || `Ende ${ende}`;
+        if (gesehen.has(name)) return;
+        gesehen.add(name);
+        // Wie in den Kacheln: fuer das Urteil zaehlt der NACHWEIS, nicht
+        // der Querschnitt allein - Stabilitaet eingeschlossen.
+        teile.push([name, n.etaMitStabilitaet ?? n.eta ?? 0,
+                    `${name}${n.profil ? ` ${n.profil}` : ''}`]);
+      });
+      if (teile.length) gruppen.push({ titel: 'Masten', teile });
+    }
+  }
 
   // Die Reiter stehen oben, die Nachweise darunter: oben sucht man den Weg
   // zurück in die Auswertung, unten liest man ab. Die Pillen füllen die
@@ -4153,12 +4205,15 @@ function zeichneSchienen() {
   r.innerHTML =
     ui.AUSWERTUNG_TABS
       .map((t) => knopf(t.id, t.icon, `${t.titel} öffnen`, t.id === tabAuswertung)).join('') +
-    (e ? '<div class="schiene-trenner"></div>' +
-         `<div class="schiene-nw">${nw.map(([k, v, titel]) =>
-           `<div class="${stufe(v)}"
-                 title="${esc(titel)}: η = ${v.toFixed(3)}">
-              <span class="senkrecht"><i>${k}</i><b>${v.toFixed(2)}</b></span>
-            </div>`).join('')}</div>` : '');
+    (gruppen.length ? '<div class="schiene-trenner"></div>' +
+         `<div class="schiene-nw">${gruppen.map((g, i) =>
+           (i ? '<span class="nw-gruppe-trenner"></span>' : '') +
+           `<span class="nw-gruppe" title="${esc(g.titel)}">${
+             g.teile.map(([k, v, titel]) =>
+               `<div class="${stufe(v)}"
+                     title="${esc(`${g.titel} · ${titel}`)}: η = ${v.toFixed(3)}">
+                  <span class="senkrecht"><i>${esc(k)}</i><b>${v.toFixed(2)}</b></span>
+                </div>`).join('')}</span>`).join('')}</div>` : '');
   r.querySelectorAll('[data-reiter]').forEach((b) => {
     b.onclick = () => { tabAuswertung = b.dataset.reiter; zeichneAuswertung(); ausklappen('rechts'); };
   });
