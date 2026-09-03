@@ -13451,6 +13451,112 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DAS ABFANGJOCH ALS STABMODELL FUER AxisVM. <<<
+   *
+   * Der Jochexport baut vier Winkelgurte in zwei Blechebenen, senkrecht.
+   * Das Abfangjoch ist ein anderes Tragwerk - zwei Walzgurte nebeneinander,
+   * Bindebleche oben und unten, und der Rahmen LIEGT.
+   */
+  {
+    const XA = await import(J('export.axisvm.abfang.js'));
+    const m = XA.abfangAxisvmModell('A160', 9.5, { Fh: 22 });
+
+    wahr('Das Format ist das des Aufbauskripts',
+         m.format === 'tragjoch-stabmodell');
+    wahr('Es sagt, was es ist',
+         m.merkmale.includes('abfangjoch')
+         && m.tragwerk.bauform.includes('Vierendeel'));
+
+    /*
+     * >>> DIE GURTE STEHEN NEBENEINANDER, NICHT UEBEREINANDER. <<<
+     *
+     * Das ist der ganze Unterschied zum Tragjoch. Alle Knoten liegen auf
+     * z = 0, und die beiden Gurte trennt der Achsabstand e in y.
+     */
+    wahr('Alle Knoten liegen auf einer Hoehe',
+         m.knoten.every((k) => Math.abs(k.z) < 1e-12));
+    const ys = [...new Set(m.knoten.map((k) => Math.round(k.y * 1e6) / 1e6))];
+    wahr('Es gibt genau zwei Gurtebenen', ys.length === 2);
+    pruef('Ihr Abstand ist der Hebelarm', Math.abs(ys[0] - ys[1]),
+          m.tragwerk.e, 1e-9, 'm');
+
+    /*
+     * DER QUERSCHNITT: AddC nimmt (h, b, e, tw, R), AddI nimmt
+     * (h, b, tw, tf, R). Die Reihenfolge ist NICHT dieselbe, und sie zu
+     * vertauschen gaebe ein Profil, das plausibel aussieht und falsch ist.
+     */
+    const gurt = m.querschnitte.find((q) => q.name === 'GURT');
+    wahr('Der UPE-Gurt ist ein U-Profil', gurt.form === 'Channel');
+    pruef('h steht vorn', gurt.parameter[0], 160, 1e-9, 'mm');
+    pruef('dann b', gurt.parameter[1], 70, 1e-9, 'mm');
+    pruef('dann die FLANSCHdicke', gurt.parameter[2], 9.5, 1e-9, 'mm');
+    pruef('dann der Steg', gurt.parameter[3], 5.5, 1e-9, 'mm');
+    // Und beim IPE-Typ dreht sich die Reihenfolge um.
+    const mI = XA.abfangAxisvmModell('A270', 15.0, { Fh: 22 });
+    const gI = mI.querschnitte.find((q) => q.name === 'GURT');
+    wahr('Der IPE-Gurt ist ein I-Profil', gI.form === 'I');
+    pruef('dort steht der Steg vor dem Flansch', gI.parameter[2], 6.6, 1e-9, 'mm');
+    pruef('und der Flansch danach', gI.parameter[3], 10.2, 1e-9, 'mm');
+
+    /*
+     * DIE STAEBE. Je Feld zwei Gurte, je Station ein Bindeblech, dazu die
+     * beiden Endbleche.
+     */
+    const gurtS = m.staebe.filter((x) => x.querschnitt === 'GURT');
+    const blS = m.staebe.filter((x) => x.querschnitt === 'BLECH');
+    const beS = m.staebe.filter((x) => x.querschnitt === 'BLECH_ENDE');
+    pruef('Ein Bindeblech je Station', blS.length, 13, 1e-9, 'Stk');
+    pruef('Zwei Endbleche', beS.length, 2, 1e-9, 'Stk');
+    pruef('Je Feld zwei Gurtstaebe', gurtS.length,
+          (m.knoten.length / 2 - 1) * 2, 1e-9, 'Stk');
+    /*
+     * `lcsZ` HAELT DEN QUERSCHNITT AUFRECHT. Ohne diese Angabe legt AxisVM
+     * die lokale Achse nach eigener Regel, der Gurt laege auf der Seite -
+     * mit vertauschten Traegheitsmomenten und einem Ergebnis, dem man es
+     * nicht ansieht.
+     */
+    wahr('Jeder Stab sagt seine lokale z-Achse',
+         m.staebe.every((x) => Array.isArray(x.lcsZ) && x.lcsZ[2] === 1));
+
+    /*
+     * >>> DIE AUFLAGER SIND UM y UND z FREI. <<<
+     *
+     * Weisung vom 3. September. Die Torsion um die Traegerachse bleibt
+     * gehalten; in Laengsrichtung haelt nur EIN Ende, sonst bekaeme der
+     * Traeger Zwang aus seiner eigenen Verkuerzung.
+     */
+    wahr('Beide Biegungen sind gelenkig',
+         m.auflager.every((l) => l.fiy === 'Free' && l.fiz === 'Free'));
+    wahr('Die Torsion ist gehalten',
+         m.auflager.every((l) => l.fix === 'Rigid'));
+    wahr('Nur ein Ende haelt in Laengsrichtung',
+         m.auflager.filter((l) => l.ux === 'Rigid').length === 2
+         && m.auflager.filter((l) => l.ux === 'Free').length === 2);
+
+    /*
+     * DER LEITERZUG GREIFT IN DER TRAEGERMITTELEBENE AN (Weisung) - auf
+     * beide Gurte gleich, keine planmaessige Torsion. Er wirkt in y.
+     */
+    wahr('Der Leiterzug wirkt in Gleisrichtung',
+         m.lasten.punkt.every((l) => l.richtung === 'Y'));
+    pruef('Er teilt sich auf beide Gurte',
+          m.lasten.punkt.reduce((a2, l) => a2 + l.wert, 0), 22, 1e-9, 'kN');
+    wahr('Und beide bekommen gleich viel',
+         m.lasten.punkt[0].wert === m.lasten.punkt[1].wert);
+    // Das Eigengewicht quer dazu, je Gurt die Haelfte.
+    wahr('Das Eigengewicht wirkt lotrecht',
+         m.lasten.strecke.every((l) => l.richtung === 'Z' && l.wert < 0));
+
+    /*
+     * OHNE ERFASSTE BLECHEINTEILUNG KEIN MODELL - die Bleche stuenden
+     * sonst irgendwo, und das Modell saehe richtig aus.
+     */
+    let flog = null;
+    try { XA.abfangAxisvmModell('A360', 21.0, {}); } catch (e) { flog = e; }
+    wahr('Ohne Blecheinteilung wirft es', flog !== null);
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die

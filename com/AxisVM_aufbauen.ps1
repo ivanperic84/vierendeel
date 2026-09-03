@@ -1463,10 +1463,28 @@ foreach ($q in $d.querschnitte) {
             Ab A270 sind es IPE, und dafuer steht AddI schon da.
 
             Parameter: [h, b, tf, tw, R] in mm.                            #>
+        <#  >>> NICHT JEDER PROZESS PASST ZU JEDEM QUERSCHNITT. <<<
+
+            Erster Versuch mit cspRolled: Rueckgabe -100001, und die
+            Aufzaehlung nennt den Grund beim Namen -
+            cseNotAllowedProcessForCrossSectionType. Ein U-Profil nimmt den
+            Prozess 'gewalzt' nicht an, obwohl es eines ist.
+
+            Genau dafuer gibt es hier Kandidaten: erst der naheliegende,
+            dann der andere. Was traegt, sagt der Bericht - geraten wird
+            nicht, und ein Fehlschlag kostet eine Zeile statt eines Laufs. #>
         @{ name = 'CrossSections.AddC(Name, h, b, e, tw, R, cspRolled)'; tu = {
             if ($q.form -ne 'Channel') { throw 'kein U-Profil' }
             $m.CrossSections.AddC($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
                                   $p[3] * $mm, $p[4] * $mm, $cspGewalzt) } },
+        @{ name = 'CrossSections.AddC(Name, h, b, e, tw, R, cspOther)'; tu = {
+            if ($q.form -ne 'Channel') { throw 'kein U-Profil' }
+            $m.CrossSections.AddC($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                  $p[3] * $mm, $p[4] * $mm, $cspAnderes) } },
+        @{ name = 'CrossSections.AddU(Name, h, b, e, tw, R, cspOther)'; tu = {
+            if ($q.form -ne 'Channel') { throw 'kein U-Profil' }
+            $m.CrossSections.AddU($q.name, $p[0] * $mm, $p[1] * $mm, $p[2] * $mm,
+                                  $p[3] * $mm, $p[4] * $mm, $cspAnderes) } },
         <#  DER MAST IST EIN I-PROFIL.
             AddI(Name, h, b, tw, tf, R, Process) - vermessen am 27.08. an
             derselben Fassung wie AddL. Der Ausrundungsradius R kommt aus der

@@ -75,3 +75,4 @@ kalibrierung_abfang.json
 
 # Vermessungsbericht der AxisVM-Schnittstelle - gross und nur lokal von Wert
 com/erkundung_signaturen.txt
+com/AxisVM_Abfangjoch_*

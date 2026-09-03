@@ -4396,11 +4396,37 @@ Berichtsdatei — der grosse Vermessungsbericht war vom späteren Aufbaulauf
 überschrieben. Er liegt jetzt als `com/erkundung_signaturen.txt` gesichert
 (gitignored, 284 kB).
 
-**Was für den Vergleich noch fehlt:** ein JSON-Bauer für das Abfangjoch
-(`export.axisvm.js` baut Tragjoche), dann Aufbau mit `-Rechnen`, Auslesen an
-der laufenden Instanz, und die Gegenüberstellung mit dem Kern. Der Instanz-
-konflikt vom 3. September ist dabei zu beachten: **nie zwei Prozesse auf
-dieselbe Datei.**
+#### Der JSON-Bauer steht — das Modell rechnet in AxisVM
+
+`js/export.axisvm.abfang.js` baut das Abfangjoch als Stabmodell. Es ist ein
+eigenes Modul, weil es mit dem Jochexport nichts teilt ausser dem Format: dort
+vier Winkelgurte in zwei Ebenen, senkrecht — hier zwei Walzgurte nebeneinander,
+Bindebleche oben und unten, und der Rahmen **liegt**.
+
+Für A160 / 9.50 m: 30 Knoten, 28 Gurtstäbe, 13 Bindebleche, 2 Endbleche, 4
+Auflager. **In AxisVM aufgebaut und gerechnet** — 5 Ergebnisfälle, Datei
+gespeichert.
+
+**Zwei Dinge mussten dafür vermessen werden.** Erstens die Methode: `AddC`
+schlug fehl (Rückgabe **−100001 = `cseNotAllowedProcessForCrossSectionType`**),
+und zwar mit *beiden* Prozessen. Es trägt **`AddU(Name, h, b, e, tw, R,
+cspOther)`** — ein U-Profil nimmt den Prozess „gewalzt" nicht an, obwohl es
+eines ist. Die Kandidatenliste hat das in einem Lauf geklärt, ohne Raten.
+
+Gegenprobe am Querschnitt: **A = 0.002185 m² gegen 0.002200 aus der Tabelle,
+−0.7 %.**
+
+#### Was noch fehlt: das Zurücklesen im selben Lauf
+
+`-Auslesen` findet **0 Ergebnisfälle**, obwohl der Aufbaulauf 5 meldet. Der
+Grund steht im Bericht: der Auslesezweig nimmt ein **offenes Modell**
+(`Models.Item(1)`) und überspringt den Aufbau — die beiden Schalter schliessen
+einander aus, und die Ergebnisse überleben den Prozesswechsel nicht.
+
+`-Rechnen -Auslesen` zusammen hilft nicht; auch dann läuft nur der
+Auslesezweig. **Der Umbau ist klein und klar:** nach dem Rechnen im selben
+Modellobjekt auslesen, statt ein neues zu greifen. Das erspart zugleich den
+Instanzkonflikt — nie zwei Prozesse auf dieselbe Datei.
 
 ### Was noch aussteht
 
