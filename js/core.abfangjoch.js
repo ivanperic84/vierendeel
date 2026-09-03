@@ -364,3 +364,131 @@ export function abfangGurtnachweis(q, s, a, fyd) {
                 + 'Träger in beiden Ebenen biegt (Weisung, 3. September).',
   };
 }
+
+/*
+ * ===========================================================================
+ * DER BINDEBLECHNACHWEIS.
+ * ===========================================================================
+ *
+ * Weisung: «der nachweis erfolgt dann über die vorhandenen bleche und den
+ * nachweisschnitt wie beim tragjoch». Also dieselbe Systematik, dieselben
+ * Namen — wer den Jochnachweis kennt, liest diesen ohne Umlernen:
+ *
+ *      M_Blech = V_Ebene · ( a_links + a_rechts ) / 4
+ *      V_Blech = 2 · M_Blech / Hebelarm
+ *
+ * >>> ZWEI EBENEN TEILEN SICH DIE QUERKRAFT. <<<
+ *
+ * Beim Tragjoch laufen vier Blechebenen um den Kasten; beim Abfangjoch sind
+ * es zwei — je eines oben und unten an jeder Station (Schnitt A-A). Die
+ * Querkraft IN DER RAHMENEBENE verteilt sich auf beide, also V/2 je Ebene.
+ *
+ * >>> DAS BLECH STEHT HOCHKANT. <<<
+ *
+ * Seine Breite b (in Trägerlängsrichtung) ist die Bauhöhe des Riegels, seine
+ * Dicke t die schwache Richtung. Bei A160: 100 breit, 8 dick, 280 lang — die
+ * Länge ist der lichte Gurtabstand und geht nicht ins Widerstandsmoment ein,
+ * sondern in die Nachgiebigkeit.
+ *
+ *      W = t · b² / 6        A = b · t        A_v = A (Rechteck, voller Schub)
+ *
+ * >>> DAS RANDFELD IST DER UNGÜNSTIGE. <<<
+ *
+ * `Σa_Nachbarfelder` ist am ersten und letzten Blech nur EIN Feld breit —
+ * dort steht aber die grösste Querkraft. Beide Wirkungen laufen gegeneinander;
+ * welche gewinnt, hängt von der Einteilung ab, und genau deshalb wird jedes
+ * Blech einzeln gerechnet statt nur das mittlere.
+ */
+
+/**
+ * Der Nachweis EINES Bindeblechs.
+ *
+ * @param {object} bl   Blechmasse {b, t} [mm] aus der Datenbank
+ * @param {number} V    Querkraft in der Rahmenebene an dieser Stelle [kN]
+ * @param {number} aSum Summe der Nachbarfelder (a_links + a_rechts) [m]
+ * @param {number} e    Achsabstand der Gurte [cm]
+ * @param {number} fyd  Bemessungsfestigkeit [kN/cm²]
+ */
+export function abfangBlechnachweis(bl, V, aSum, e, fyd) {
+  const b = (bl?.b ?? 0) / 10;            // mm -> cm
+  const t = (bl?.t ?? 0) / 10;
+  if (!(b > 0 && t > 0)) {
+    throw new Error('Abfangjoch: Blechmasse fehlen — kein Blechnachweis.');
+  }
+  // Zwei Blechebenen teilen sich die Querkraft der Rahmenebene.
+  const Vebene = Math.abs(V) / 2;
+  const Mblech = (Vebene * aSum) / 4;                    // kNm
+  const Vblech = e > 0 ? (2 * Mblech) / (e / 100) : 0;   // kN
+
+  const W = (t * b * b) / 6;              // cm³
+  const A = b * t;                        // cm²
+  const sigma = (Mblech * 100) / W;       // kNm -> kNcm
+  const tau = Vblech / A;
+  /*
+   * VERGLEICHSSPANNUNG nach von Mises. Im Blech treffen Biegung und Schub
+   * an derselben Stelle zusammen - sie einzeln nachzuweisen liesse die
+   * ungünstigste Faser aus.
+   */
+  const sigmaV = Math.sqrt(sigma * sigma + 3 * tau * tau);
+
+  return {
+    b, t, W, A,
+    Vebene, Mblech, Vblech,
+    sigma, tau, sigmaV, fyd,
+    eta: fyd > 0 ? sigmaV / fyd : Infinity,
+  };
+}
+
+/**
+ * ALLE BINDEBLECHE EINES JOCHS - jedes für sich, wie gefordert.
+ *
+ * >>> DIE QUERKRAFT WIRD AN DER STELLE GENOMMEN, NICHT PAUSCHAL. <<<
+ *
+ * Ein einfacher Balken hat am Auflager die grösste Querkraft und in der
+ * Mitte keine. Mit dem Auflagerwert für alle Bleche zu rechnen wäre grob
+ * konservativ und würde die Feldbleche unbrauchbar überschätzen; mit dem
+ * mittleren wäre es unsicher. Also je Station der dortige Wert.
+ *
+ * `Vfunktion` bekommt die Stelle x [m] und gibt die Querkraft [kN] — so
+ * bleibt dieser Kern von der Schnittgrössenrechnung unabhängig und lässt
+ * sich gegen PyNite und AxisVM stellen, ohne ihn anzufassen.
+ *
+ * @returns {{bleche: Array, massgebend: object|null}|null}
+ */
+export function abfangBlechnachweise(typ, jt, Vfunktion, fyd) {
+  const q = abfangQuerschnitt(typ);
+  const ein = abfangBlechstationen(typ, jt);
+  const bl = abfangBindeblech(typ);
+  if (!ein || !bl?.regel) return null;
+
+  const st = ein.stationen;
+  const bleche = st.map((x, i) => {
+    /*
+     * Die Nachbarfelder: am Rand gibt es nur eines. Es zu verdoppeln wäre
+     * bequem und falsch - das Randblech trägt weniger Feld, aber mehr
+     * Querkraft, und beides gehört einzeln gerechnet.
+     */
+    const aL = i > 0 ? x - st[i - 1] : 0;
+    const aR = i < st.length - 1 ? st[i + 1] - x : 0;
+    const aSum = aL + aR;
+    /*
+     * WELCHES BLECH SITZT HIER. Die Endbleche sind stärker als das
+     * Regelblech - erstes und letztes bekommen sie, alle anderen das
+     * Regelmass. Welche Seite «L» und welche «R» ist, sagt die Zeichnung;
+     * genommen wird das jeweils SCHWÄCHERE der beiden Endbleche, solange
+     * die Zuordnung nicht erfasst ist.
+     */
+    const istRand = i === 0 || i === st.length - 1;
+    const enden = [bl.endeL, ...(Array.isArray(bl.endeR) ? bl.endeR
+      : bl.endeR ? [bl.endeR] : [])].filter(Boolean);
+    const schwaechstesEnde = enden.length
+      ? enden.reduce((m, c) => (c.t * c.b * c.b < m.t * m.b * m.b ? c : m))
+      : bl.regel;
+    const masse = istRand ? schwaechstesEnde : bl.regel;
+    const n = abfangBlechnachweis(masse, Vfunktion(x), aSum, q.e, fyd);
+    return { i, x, aL, aR, aSum, istRand, masse, ...n };
+  });
+  const massgebend = bleche.reduce(
+    (m, c) => (!m || c.eta > m.eta ? c : m), null);
+  return { bleche, massgebend, e: q.e, einteilung: ein };
+}

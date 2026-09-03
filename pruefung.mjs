@@ -13207,6 +13207,103 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DER BINDEBLECHNACHWEIS DES ABFANGJOCHS. <<<
+   *
+   * Dieselbe Systematik wie beim Tragjoch (Weisung: «ueber die vorhandenen
+   * bleche und den nachweisschnitt wie beim tragjoch»):
+   *
+   *      M_Blech = V_Ebene * ( a_links + a_rechts ) / 4
+   *      V_Blech = 2 * M_Blech / Hebelarm
+   *
+   * Zwei Blechebenen statt vier - je eines oben und unten - teilen sich die
+   * Querkraft der Rahmenebene.
+   */
+  {
+    const AK = await import(J('core.abfangjoch.js'));
+    const q = AK.abfangQuerschnitt('A160');
+    const bl = AJ.abfangBindeblech('A160').regel;      // 100/8 x 280
+
+    /*
+     * VON HAND NACHGERECHNET. V = 40 kN, Felder 0.5 + 0.5 m, e = 38.3 cm:
+     *   V_Ebene = 20 kN
+     *   M_Blech = 20 * 1.0 / 4      = 5.0 kNm
+     *   V_Blech = 2 * 5.0 / 0.383   = 26.1 kN
+     *   W = 0.8 * 10^2 / 6          = 13.33 cm3
+     *   sigma = 500 / 13.33         = 37.5 kN/cm2
+     */
+    const n = AK.abfangBlechnachweis(bl, 40, 1.0, q.e, 21.8);
+    pruef('Die Querkraft teilt sich auf zwei Ebenen', n.Vebene, 20, 1e-9, 'kN');
+    pruef('M_Blech = V_Ebene * Sa / 4', n.Mblech, 5.0, 1e-9, 'kNm');
+    pruef('V_Blech = 2 * M / e', n.Vblech, 2 * 5.0 / (q.e / 100), 1e-9, 'kN');
+    pruef('W = t * b^2 / 6', n.W, (0.8 * 10 * 10) / 6, 1e-9, 'cm3');
+    pruef('A = b * t', n.A, 8.0, 1e-9, 'cm2');
+    pruef('Biegespannung von Hand', n.sigma, 37.5, 0.1, 'kN/cm2');
+    /*
+     * DIE VERGLEICHSSPANNUNG LIEGT UEBER BEIDEN EINZELWERTEN - Biegung und
+     * Schub treffen sich an derselben Stelle. Waere sie kleiner als die
+     * Biegung allein, stimmte die Wurzel nicht.
+     */
+    wahr('sigma_v liegt ueber der Biegung allein', n.sigmaV > n.sigma);
+    pruef('sigma_v nach von Mises', n.sigmaV,
+          Math.sqrt(n.sigma ** 2 + 3 * n.tau ** 2), 1e-9, 'kN/cm2');
+    pruef('eta ist sigma_v / fyd', n.eta, n.sigmaV / 21.8, 1e-9, '-');
+    // Doppelte Querkraft, doppelte Spannung - die Beziehung ist linear.
+    pruef('Doppelte Querkraft gibt doppeltes eta',
+          AK.abfangBlechnachweis(bl, 80, 1.0, q.e, 21.8).eta, 2 * n.eta,
+          1e-9, '-');
+    // Ohne Blechmasse keine Zahl, sondern eine Ausnahme.
+    let flog = null;
+    try { AK.abfangBlechnachweis({}, 40, 1.0, q.e, 21.8); }
+    catch (e) { flog = e; }
+    wahr('Ohne Blechmasse wirft es', flog !== null);
+
+    /*
+     * ALLE BLECHE EINES JOCHS - jedes an SEINER Stelle.
+     *
+     * Mit dem Auflagerwert fuer alle zu rechnen waere grob konservativ, mit
+     * dem mittleren unsicher. Geprueft wird an einem einfachen Balken:
+     * V(x) laeuft von +qL/2 linear auf -qL/2.
+     */
+    const L = 9.5, qd = 4.0;
+    const Vfn = (x) => qd * (L / 2 - x);
+    const alle = AK.abfangBlechnachweise('A160', L, Vfn, 21.8);
+    wahr('Es sind so viele Nachweise wie Stationen',
+         alle.bleche.length === 13);
+    wahr('Jedes Blech kennt seine Stelle',
+         alle.bleche.every((b) => b.x > 0 && b.x < L));
+    /*
+     * DAS RANDFELD IST NUR EIN FELD BREIT. Es zu verdoppeln waere bequem
+     * und falsch - das Randblech traegt weniger Feld, aber mehr Querkraft.
+     */
+    wahr('Das erste Blech hat nur ein Nachbarfeld',
+         alle.bleche[0].aL === 0 && alle.bleche[0].aR > 0);
+    wahr('Das letzte ebenso',
+         alle.bleche.at(-1).aR === 0 && alle.bleche.at(-1).aL > 0);
+    wahr('Die inneren haben zwei',
+         alle.bleche.slice(1, -1).every((b) => b.aL > 0 && b.aR > 0));
+    // Rand- und Endbleche sind staerker als das Regelblech.
+    wahr('Die Randbleche sind Endbleche',
+         alle.bleche[0].istRand && alle.bleche.at(-1).istRand);
+    wahr('Und die inneren tragen das Regelmass',
+         alle.bleche.slice(1, -1).every((b) => b.masse.b === bl.b
+                                            && b.masse.t === bl.t));
+    // Das massgebende ist wirklich das groesste.
+    wahr('Das massgebende Blech ist das mit dem groessten eta',
+         alle.bleche.every((b) => b.eta <= alle.massgebend.eta + 1e-12));
+    /*
+     * IN DER MITTE IST DIE QUERKRAFT NULL - dort muss das eta gegen null
+     * gehen. Faellt das je aus, sitzt die Querkraft an der falschen Stelle.
+     */
+    const mitte = alle.bleche.reduce(
+      (m, b) => (Math.abs(b.x - L / 2) < Math.abs(m.x - L / 2) ? b : m));
+    wahr('Das mittlere Blech ist das schwaechst beanspruchte',
+         mitte.eta < alle.massgebend.eta);
+    // Ohne erfasste Einteilung gibt es keine Nachweise - keine geratenen.
+    wahr('Ohne Stueckzahl keine Blechnachweise',
+         AK.abfangBlechnachweise('A200', 10.0, Vfn, 21.8) === null);
+  }
+
+  /*
    * DIE ZEICHNUNG SCHIEBEN - der Massstab bleibt unangetastet.
    *
    * Geprueft wird an der Kalibrierung selbst, ohne Zeichenflaeche: die
