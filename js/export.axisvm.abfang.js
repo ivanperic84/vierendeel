@@ -407,12 +407,33 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Nur die GABEL (A160 bis A240). Ab A270 tritt an ihre Stelle ein
    * Deckblech, und das ist ein anderes Bauteil - es fehlt hier noch.
    */
+  /*
+   * >>> SIE SITZT NUR AN EINEM ENDE. <<<
+   *
+   * Weisung vom 4. September: «beachte das die verstaerkung nur einseitig
+   * ist aufgrund der laengeren gabel fuer das einfaedelnde montieren der
+   * traeger zwischen zwei masten.»
+   *
+   * Bis hierher stand sie an beiden - und damit ein Modell, das an beiden
+   * Enden den doppelten Gurtquerschnitt trug, wo das Bauwerk ihn nur an
+   * einem hat. Die Stueckliste sagt es auch: `anzahl: 2` heisst bei zwei
+   * Gurten EIN Stueck je Gurt an einem Ende, nicht vier an beiden.
+   *
+   * Es ist das lange Ende - dasselbe, das die Blecheinteilung mit 1450 statt
+   * 900 bis zum ersten Blech ausweist. Der Traeger wird zwischen zwei
+   * stehende Masten eingefaedelt; dafuer braucht ein Ende Ueberlaenge, und
+   * genau dieses wird verstaerkt.
+   *
+   * DAS MODELL WIRD DAMIT UNSYMMETRISCH - so wie das Bauwerk. Die beiden
+   * Auflagerschnitte sind nicht mehr gleich, und der schwaechere ist der am
+   * kurzen Ende.
+   */
   const gabel = gabelQs ? verstQs.teile[0] : null;
   const gBereiche = [];
   if (gabel?.beginn > 0 && gabel?.laenge > 0) {
     const v0 = gabel.beginn / 1000;
     const v1 = (gabel.beginn + gabel.laenge) / 1000;
-    gBereiche.push([v0, v1], [L - v1, L - v0]);
+    gBereiche.push([v0, v1]);
     gBereiche.forEach(([u, o]) => { xs.push(Math.round(u * 1e6) / 1e6,
                                             Math.round(o * 1e6) / 1e6); });
     xs.sort((u, v) => u - v);
@@ -863,7 +884,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       quersteifen: ein.quersteifen ?? 0,
       knotenbereich: km,
       gabel: gabel ? { profil: gabel.profil, laenge: gabel.laenge,
-                       beginn: gabel.beginn, versatz: yv } : null,
+                       beginn: gabel.beginn, versatz: yv,
+                       // Nur am langen Jochende - dem Montageende.
+                       seite: 'L', anzahl: 2 } : null,
       endverstaerkung: abfangEndverstaerkung(typ)?.art ?? 'keine',
     },
     material: { name: 'S235', art: 'Steel', rho: 7850, E: 210000, G: 81000,

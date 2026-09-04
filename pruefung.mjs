@@ -14013,10 +14013,23 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       pruef('Sie beginnt bei 0.850 m', Math.min(...xg), 0.85, 1e-9, 'm');
       const xe = gb.map((x) => kn2.get(x.bis).x);
       pruef('… und endet 660 mm weiter',
-            Math.max(...xe.filter((v) => v < 5)) - Math.min(...xg),
-            0.66, 1e-9, 'm');
-      wahr('An beiden Enden des Jochs',
-           Math.max(...xe) > m.tragwerk.L - 0.9);
+            Math.max(...xe) - Math.min(...xg), 0.66, 1e-9, 'm');
+      /*
+       * >>> NUR AN EINEM ENDE. <<<
+       *
+       * Hier stand bis zum 4. September das Gegenteil - «An beiden Enden des
+       * Jochs» - und der Pruefstand hielt damit einen Modellfehler fest.
+       * Weisung: «beachte das die verstaerkung nur einseitig ist aufgrund
+       * der laengeren gabel fuer das einfaedelnde montieren der traeger
+       * zwischen zwei masten.» Verstaerkt ist das lange Montageende, das
+       * kurze nicht.
+       */
+      wahr('Nur am langen Jochende, nicht am kurzen',
+           Math.max(...xe) < m.tragwerk.L - 1);
+      // Ein Stueck je Gurt - in Feldern gebaut, aber auf zwei Achsen.
+      pruef('Auf zwei Achsen, eine je Gurt',
+            new Set(gb.map((x) => kn2.get(x.von).y.toFixed(6))).size,
+            2, 1e-9, 'Achsen');
     }
 
     /*

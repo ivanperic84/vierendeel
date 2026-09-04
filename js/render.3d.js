@@ -39,8 +39,17 @@ import { querschnitt } from './geometry.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
-
-const MM = 1 / 1000;
+/*
+ * DIE BAUSTEINE STEHEN SEIT DEM 4. SEPTEMBER IN `render.koerper.js`.
+ *
+ * Weisung: «gibt es hierfuer ein modul in der app die zustaendig ist fuer
+ * das 3d und deren ableitung von den tabellen zu den koerpern. das ganze
+ * wird sich wiederholen beim tragausleger.» - Bis dahin lagen sie hier,
+ * modulintern, und das Abfangjoch musste sich eigene bauen. Jetzt teilen
+ * sich alle Tragwerksarten dieselben.
+ */
+import { MM, prisma, prismaZ, platte, quader, stab,
+         iProfilPoly } from './render.koerper.js';
 
 /**
  * Kurzform eines Bauteilnamens für die Beschriftung im Modell.
@@ -106,112 +115,6 @@ const norm = (a) => {
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 const punkt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-
-// --- Bausteine der Szene ----------------------------------------------------
-
-/**
- * Prisma aus einem Querschnittspolygon [[y,z],…] zwischen x0 und x1.
- *
- * dz0/dz1 heben das Polygon an den beiden Enden um ein Mass [m] an. Damit
- * lassen sich die verjüngten Enden der Altbauweise zeichnen: der Untergurt
- * steigt zum Auflager hin an, der Obergurt bleibt gerade.
- */
-function prisma(poly, x0, x1, opt, dz0 = 0, dz1 = 0, poly1 = null) {
-  const flaechen = [];
-  const pA = poly, pB = poly1 ?? poly;      // Querschnitt bei x0 und bei x1
-  const n = pA.length;
-  const P = (x, p, dz) => [x, p[0] * MM, p[1] * MM + dz];
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    flaechen.push({
-      punkte: [P(x0, pA[i], dz0), P(x0, pA[j], dz0),
-               P(x1, pB[j], dz1), P(x1, pB[i], dz1)],
-      xMitte: (x0 + x1) / 2, ...opt,
-    });
-  }
-  // Stirnflächen
-  flaechen.push({ punkte: pA.map((p) => P(x0, p, dz0)), xMitte: x0, ...opt });
-  flaechen.push({ punkte: pB.map((p) => P(x1, p, dz1)), xMitte: x1, ...opt });
-  return flaechen;
-}
-
-/**
- * Quader aus Mittelebene, Dicke und Ausdehnung.
- *
- * neigung [m/m] kippt das Blech um die Jochachse quer: die vordere Kante liegt
- * um breite/2·neigung tiefer als die hintere. Gebraucht für die Bleche des
- * Untergurts in der Schräge der Altbauweise.
- */
-function platte(x, breite, achse, lage, von, bis, opt, neigung = 0) {
-  const h = (breite * MM) / 2;
-  const x0 = x - h, x1 = x + h;
-  const t = (opt.dicke * MM) / 2;
-  const poly = achse === 'y'
-    // Blech in einer Vertikalebene: konstante y-Lage, spannt in z
-    ? [[lage - t, von], [lage + t, von], [lage + t, bis], [lage - t, bis]]
-    // Blech in einer Horizontalebene: konstante z-Lage, spannt in y
-    : [[von, lage - t], [bis, lage - t], [bis, lage + t], [von, lage + t]];
-  return prisma(poly.map((p) => [p[0] / MM, p[1] / MM]), x0, x1, opt,
-                -h * neigung, +h * neigung);
-}
-
-/**
- * Prisma aus einem Querschnittspolygon [[x,y],…] (mm) zwischen z0 und z1 (m).
- *
- * Das Gegenstück zu `prisma`, das in x auszieht. Ein Mast steht lotrecht;
- * ohne diesen Baustein liesse er sich nur als Kasten andeuten, und ein Kasten
- * ist kein HEB.
- */
-function prismaZ(poly, cx, z0, z1, opt) {
-  const flaechen = [];
-  const n = poly.length;
-  const P = (p, z) => [cx + p[0] * MM, p[1] * MM, z];
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    flaechen.push({ punkte: [P(poly[i], z0), P(poly[j], z0),
-                             P(poly[j], z1), P(poly[i], z1)],
-                    xMitte: cx, ...opt });
-  }
-  flaechen.push({ punkte: poly.map((p) => P(p, z0)), xMitte: cx, ...opt });
-  flaechen.push({ punkte: poly.map((p) => P(p, z1)), xMitte: cx, ...opt });
-  return flaechen;
-}
-
-/**
- * Der I-Querschnitt eines Mastes als Polygon [[x,y],…] in Millimetern.
- *
- * Zwölf Ecken: zwei Flansche und der Steg dazwischen. Die STEGRICHTUNG
- * entscheidet, wie er im Raum liegt - «Steg in Jochachse» heisst, dass die
- * Profilhöhe h in der Jochachse (x) steht und die Flanschbreite b quer dazu.
- * Gedreht ist es umgekehrt. Genau das unterscheidet die starke von der
- * schwachen Achse quer zum Gleis, und man soll es dem Bild ansehen.
- */
-function iProfilPoly({ h, b, tw, tf }, achse) {
-  const u = h / 2, v = b / 2, w = tw / 2;
-  const uv = [
-    [-u, -v], [-u, +v], [-u + tf, +v], [-u + tf, +w],
-    [+u - tf, +w], [+u - tf, +v], [+u, +v], [+u, -v],
-    [+u - tf, -v], [+u - tf, -w], [-u + tf, -w], [-u + tf, -v],
-  ];
-  return achse === 'y' ? uv : uv.map(([a, c]) => [c, a]);
-}
-
-/** Achsparalleler Quader um einen Mittelpunkt, Kantenlängen in m. */
-function quader(mitte, [dx, dy, dz], opt) {
-  const [cx, cy, cz] = mitte;
-  const poly = [[cy - dy / 2, cz - dz / 2], [cy + dy / 2, cz - dz / 2],
-                [cy + dy / 2, cz + dz / 2], [cy - dy / 2, cz + dz / 2]];
-  return prisma(poly.map((p) => [p[0] / MM, p[1] / MM]),
-                cx - dx / 2, cx + dx / 2, opt);
-}
-
-/** Stab zwischen zwei Punkten als schlanker Quader (achsnah genügt hier). */
-function stab(p0, p1, dicke, opt) {
-  const m = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2];
-  const d = sub(p1, p0);
-  return quader(m, [Math.abs(d[0]) + dicke, Math.abs(d[1]) + dicke,
-                    Math.abs(d[2]) + dicke], opt);
-}
 
 // --- Szenenaufbau -----------------------------------------------------------
 

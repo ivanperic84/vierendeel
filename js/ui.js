@@ -1319,7 +1319,16 @@ export function feldHtml(f, wert, werte) {
   // Zwei Sperren: Katalogmasse (bearbeiten) und Tabellenlasten (lastenBearbeiten).
   const gesperrt = (f.ausDB && !werte.bearbeiten) ||
                    (f.ausLast && !werte.lastenBearbeiten);
-  const hinweis = hinweisHtml(f.key, f.hinweis);
+  /*
+   * DER HINWEIS DARF EINE FUNKTION SEIN - wie das Label darueber.
+   *
+   * Seit dem Schieber fuer die Jochlaenge (4. September) haengt sein Text an
+   * der Tragwerksart. Ohne diese Zeile landete die Funktion selbst im Feld:
+   * unter dem Schieber stand ihr Quelltext, «(w) => (tragwerksart(w).key
+   * === 'abfangjoch' ? ...» - im Browser zu sehen, nicht im Pruefstand.
+   */
+  const hinweis = hinweisHtml(f.key,
+    typeof f.hinweis === 'function' ? f.hinweis(werte) : f.hinweis);
   const dis = gesperrt ? ' disabled' : '';
   let inp;
 
