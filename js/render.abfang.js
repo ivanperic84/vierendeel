@@ -114,7 +114,14 @@ export function abfangSzene(typ, jt, opt = {}) {
     if ((art === 'steife' || art === 'steifeEnde') && pSt) {
       flaechen.push(...quader(x - pSt.b / 200, x + pSt.b / 200, 0, 0,
                               d, pSt.h / 100, {
-        gruppe: 'steife', teil: `STEIFE_${k}`, station: k,
+        /*
+         * DIE QUERSTEIFE IST EIN BLECH IM SINNE DER EBENEN. Der Renderer
+         * kennt `profil`, `blech`, `anbau` - eine eigene Ebene 'steife'
+         * gaebe es nicht, und `_ebeneAn` liesse sie stillschweigend weg.
+         * Sie steht an derselben Stelle wie ein Blechpaar und gehoert zu
+         * derselben Schaltergruppe.
+         */
+        gruppe: 'blech', teil: `STEIFE_${k}`, station: k,
         label: `Quersteife · ${qsSt.profil}`,
       }));
       return;
@@ -155,26 +162,70 @@ export function abfangSzene(typ, jt, opt = {}) {
    * DIE AUFLAGER. Zwei Marken auf der Jochachse, um den Überstand
    * eingerückt - dort hängt im Modell der Auflagerpunkt an beiden Gurten.
    */
+  /*
+   * >>> DIE FELDNAMEN SIND DIE DES RENDERERS. <<<
+   *
+   * Erster Anlauf: `punkt`, `von`, `bis`, `label`. Der Renderer liest aber
+   * `p`, `p0`, `p1`, `text` - und stolperte an `mk.p[0]` ueber undefined,
+   * bevor irgendetwas gezeichnet war. Ergebnis: eine leere Flaeche und
+   * zweihundert gleiche Zeilen in der Konsole.
+   *
+   * Der Auftraggeber hat es gemeldet, nicht der Pruefstand: er baut die
+   * Szene, aber er malt sie nicht.
+   */
   for (const x of [ue, jt - ue]) {
-    marken.push({ punkt: [x, 0, -hG / 2 - 0.15], art: 'auflager',
-                  label: 'Auflager' });
+    marken.push({ gruppe: 'auflager', art: 'auflager',
+                  p: [x, 0, -hG / 2 - 0.15], text: 'Auflager' });
   }
 
   bauteiltitel.push({
-    punkt: [jt / 2, 0, hG / 2 + 0.25],
+    p: [jt / 2, 0, hG / 2 + 0.25],
     text: `${typ} · ${jt.toFixed(2)} m · ${ein?.anzahl ?? 0} Stationen`,
-    feld: 'abfangTyp',
+    feld: 'abfangTyp', tab: 'system',
   });
-  masse.push({ von: [0, 0, -hG / 2 - 0.35], bis: [jt, 0, -hG / 2 - 0.35],
-               text: `${jt.toFixed(2)} m`, feld: 'abfangLaenge' });
+  masse.push({
+    feld: 'L', tab: 'system', achse: 'x',
+    p0: [0, 0, 0], p1: [jt, 0, 0], ab: [0, 0, -1], d: 0.9,
+    text: `jt = ${jt.toFixed(2)} m`,
+  });
   if (sw) {
-    masse.push({ von: [ue, 0, -hG / 2 - 0.55], bis: [jt - ue, 0, -hG / 2 - 0.55],
-                 text: `js ${js.toFixed(2)} m` });
+    masse.push({
+      tab: 'system', achse: 'x',
+      p0: [ue, 0, 0], p1: [jt - ue, 0, 0], ab: [0, 0, -1], d: 1.5,
+      text: `js = ${js.toFixed(2)} m`,
+    });
   }
+
+  /*
+   * >>> OHNE `grenzen` BLEIBT DIE KAMERA STEHEN. <<<
+   *
+   * `ansichtZuruecksetzen` liest sie als Erstes und kehrt ohne sie sofort
+   * zurueck - die Szene ist dann da, das Bild aber leer, weil die Kamera
+   * noch auf das vorige Tragwerk sieht. Genau das hat der Auftraggeber
+   * gemeldet: «ich sehe die abfangjoche im 3d noch nicht.» Zweihundert
+   * Flaechen, kein Pixel.
+   *
+   * Gebildet wird sie aus dem, was wirklich gezeichnet wird - so macht es
+   * `grenzenVon` fuer den Ersatzquerschnitt auch.
+   */
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  let z0 = Infinity, z1 = -Infinity;
+  flaechen.forEach((f) => f.punkte.forEach((pt) => {
+    if (pt[0] < x0) x0 = pt[0];
+    if (pt[0] > x1) x1 = pt[0];
+    if (pt[1] < y0) y0 = pt[1];
+    if (pt[1] > y1) y1 = pt[1];
+    if (pt[2] < z0) z0 = pt[2];
+    if (pt[2] > z1) z1 = pt[2];
+  }));
+  if (!Number.isFinite(x0)) { x0 = 0; x1 = jt; y0 = -0.5; y1 = 0.5; z0 = -0.5; z1 = 0.5; }
 
   return {
     flaechen, linien, marken, masse, bauteiltitel,
     vektoren: [], lastflaechen: [],
+    // Etwas Luft nach oben und unten fuer Titel und Masskette.
+    grenzen: { xMin: x0, xMax: x1, yMin: y0, yMax: y1,
+               zMin: z0 - 1.2, zMax: z1 + 0.8 },
     L: jt, art: 'abfangjoch', typ,
     // Der Nachweisschnitt liegt im Randfeld - dort fällt er (Randfeld ist
     // das längste Feld, siehe abfangRahmenfeld).

@@ -22,7 +22,8 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
-         KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
+         KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
+         auflagerVorgabe } from './export.axisvm.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
@@ -267,7 +268,17 @@ function neuRechnen(neuZeichnen = true) {
   // VOR der Rechnung: der Stand, der gleich gilt, gehoert in den Verlauf.
   if (hist.melde(werte)) baueKopf();
   const joch = jochVonTyp();
-  setzeGrenzen(joch, werte.L);
+  /*
+   * DIE SCHIEBERGRENZEN KOMMEN AUS DEM SORTIMENT DES TRAGWERKS (Weisung,
+   * 4. September). Beim Abfangjoch ist das ein anderer Bereich je Typ -
+   * A160 5.50 bis 12.50, A360 17.50 bis 28.50.
+   */
+  let abfangB = null;
+  if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
+    try { abfangB = abfangLaengenbereich(getAbfangjoch(werte.abfangTyp)); }
+    catch { abfangB = null; }
+  }
+  setzeGrenzen(joch, werte.L, abfangB);
 
   // Die Eingabemaske zeigt Ergebnisse mit an (Querschnittsklassen, Lastfälle).
   // Sie wird deshalb NACH der Rechnung aufgebaut - sonst hinkte sie einer
@@ -735,10 +746,19 @@ function aendern(key, wert) {
    * an dem Rechnung, Bild und Ausleitung hängen. Ein zweites Längenfeld
    * wäre ein zweiter Ort für dieselbe Zahl.
    */
-  if (key === 'abfangLaenge') {
-    const jt = Number(wert);
-    if (Number.isFinite(jt)) return aendern('L', jt);
-    return;
+  /*
+   * >>> DER SCHIEBER RASTET AUF DIE GEFUEHRTEN LAENGEN. <<<
+   *
+   * Weisung vom 4. September: derselbe Schieber wie beim Tragjoch. Das
+   * Abfangjoch fuehrt aber nur die Laengen im Halbmeterraster - eine Zahl
+   * dazwischen haette keine Zeile in der Mass-Tabelle, und der Kern faende
+   * weder Stuetzweite noch Blecheinteilung. Statt sie abzuweisen, rastet
+   * sie hier auf die naechste ein: die Geste bleibt frei, das Ergebnis
+   * gefuehrt.
+   */
+  if (key === 'L' && tragwerksart(werte).key === 'abfangjoch') {
+    const nah = abfangNaechsteLaenge(werte.abfangTyp, wert);
+    if (nah !== null) wert = nah;
   }
   /*
    * WER DEN TYP WECHSELT, BEKOMMT EINE LÄNGE, DIE ES GIBT.
@@ -4963,31 +4983,22 @@ function exportKlick() {
 function dialogAxisvm() {
   if (!letzte) return;
   /*
-   * BEIM ABFANGJOCH IST DIE WAHL EINE ANDERE. Knotenmodell, Auflagermodell
-   * und Starrelemente stehen dort fest - sie sind im Modell entschieden
-   * (steife Riegelenden, ein Auflagerpunkt je Ende, Starrkoerper). Was
-   * bleibt, ist der Weg ueber die COM-Bruecke.
+   * >>> DIESELBE MASKE FUER ALLE ARTEN. <<<
+   *
+   * Weisung vom 4. September: «die gleiche maske fuer alle arten von
+   * tragwerken. die bennenung und auswahl ist dann entsprechend
+   * anzupassen.»
+   *
+   * Bis dahin bekam das Abfangjoch einen eigenen, kuerzeren Dialog - die
+   * Wahl war dort im Modell entschieden. Das war bequem und uneinheitlich:
+   * wer zwischen zwei Tragwerken wechselt, sah zwei verschiedene Masken
+   * fuer dieselbe Handlung.
+   *
+   * Jetzt steht eine Maske da. Was fuer eine Art nicht gilt, faellt aus der
+   * Liste; was anders heisst, traegt seinen eigenen Namen (`labelAbfang`).
    */
-  if (tragwerksart(werte).key === 'abfangjoch') {
-    const typ = werte.abfangTyp;
-    const jt = Number(werte.L);
-    const d0 = dialog('AxisVM-Ausleitung — Abfangjoch', `
-      <p>Schreibt das Stabmodell des <b>${esc(typ)}</b> über
-         <b>${jt.toFixed(2)} m</b> aus: zwei Gurte, die Bindebleche jeder
-         Station auf Flanschhöhe, die Quersteifen an den Bereichsgrenzen,
-         die Gabel am Jochende auf ihrer versetzten Achse und einen
-         Auflagerpunkt je Ende.</p>
-      <p class="notiz">Die Datei neben <code>com/AxisVM_aufbauen.cmd</code>
-         legen und diese aufrufen — oder auf ihr Symbol ziehen. Gerechnet
-         wird nicht; der Startknopf bleibt Ihre Entscheidung.</p>`,
-      `<button class="btn btn-acc" data-los>Ausleiten</button>
-       <button class="btn" data-zu>Abbrechen</button>`);
-    d0.node.querySelector('[data-los]').onclick = () => {
-      d0.zu();
-      axisvmKlick('anschnitt', 'json');
-    };
-    return;
-  }
+  const art = tragwerksart(werte).key;
+  const istAbfang = art === 'abfangjoch';
   const wahl = KNOTENMODELLE.map((k, i) => `
     <label class="schalter">
       <input type="radio" name="km" value="${k.key}"${i === 0 ? ' checked' : ''}>
@@ -4995,26 +5006,40 @@ function dialogAxisvm() {
     </label>`).join('');
   // Die Vorgabe hängt an der Bauweise: die Altbauweise ist zu flach, als
   // dass ein Kräftepaar aus Ober- und Untergurt das Ende halten dürfte.
-  const vorgabe = auflagerVorgabe(letzte.erg.modell);
+  const vorgabe = istAbfang ? 'punkt' : auflagerVorgabe(letzte.erg.modell);
   // Das Mastmodell baut den Mast wirklich auf - ohne Mast in der Eingabe
   // gibt es nichts zu bauen. Ausgegraut statt versteckt: so ist zu sehen,
   // dass es das Modell gibt und woran es haengt.
   const hatMast = !!letzte.erg.modell.federn?.mast;
-  const lager = AUFLAGERMODELLE.map((k) => {
-    const geht = k.braucht !== 'mast' || hatMast;
+  const lager = auflagerModelleFuer(art).map((k) => {
+    /*
+     * DER MAST IM ABFANGJOCH-MODELL FEHLT NOCH. Die Weisung nennt ihn -
+     * «spaeter beim masten wie bei den tragjochen vorgehen» -, gebaut ist
+     * er nicht: das Modell setzt bisher einen Auflagerpunkt je Ende. Die
+     * Zeile steht trotzdem da, damit die Maske dieselbe ist.
+     */
+    const geht = k.braucht !== 'mast'
+      ? true : (istAbfang ? false : hatMast);
     return `
     <label class="schalter${geht ? '' : ' aus'}">
       <input type="radio" name="am" value="${k.key}"${k.key === vorgabe ? ' checked' : ''}${geht ? '' : ' disabled'}>
       <span>${esc(k.label)}${geht ? ''
-        : ' — braucht Endauflager «teilweise eingespannt (Mast)»'}</span>
+        : (istAbfang ? ' — noch nicht gebaut; das Modell lagert auf Punkten'
+                     : ' — braucht Endauflager «teilweise eingespannt (Mast)»')}</span>
     </label>`;
   }).join('');
   const d = dialog('AxisVM-Ausleitung', `
-    <p>Schreibt das Stabmodell aus: vier Gurte, die Bindebleche jeder Station,
-       die Gabellagerung und die Anbauteile am wirklichen Angriffspunkt. Die
-       Lasten laufen <b>je Einwirkungsgruppe getrennt und charakteristisch</b>
-       heraus; die ständige Last dabei nochmals geteilt in <b>Joch,
-       Anbauteile und Ablenkkräfte</b>.</p>
+    <p>${istAbfang
+      ? `Schreibt das Stabmodell des <b>${esc(werte.abfangTyp ?? '')}</b> über
+         <b>${Number(werte.L).toFixed(2)} m</b> aus: zwei Gurte, die
+         Bindebleche jeder Station auf Flanschhöhe, die Quersteifen an den
+         Bereichsgrenzen und die Gabel am Jochende auf ihrer versetzten
+         Achse.`
+      : `Schreibt das Stabmodell aus: vier Gurte, die Bindebleche jeder Station,
+         die Gabellagerung und die Anbauteile am wirklichen Angriffspunkt. Die
+         Lasten laufen <b>je Einwirkungsgruppe getrennt und charakteristisch</b>
+         heraus; die ständige Last dabei nochmals geteilt in <b>Joch,
+         Anbauteile und Ablenkkräfte</b>.`}</p>
     <p class="notiz">Über die COM-Brücke kommen ausserdem mit: das
        <b>Eigengewicht der Stäbe</b> als Last im ständigen Lastfall und die
        <b>Lastkombinationen dieser Anwendung</b> — AxisVM erzeugt also keine
@@ -5024,22 +5049,31 @@ function dialogAxisvm() {
       <label class="schalter"><input type="radio" name="fmt" value="json" checked>
         <span>JSON für die COM-Brücke, vollständig, ohne Zusatzmodul.
               Datei neben <code>com/AxisVM_aufbauen.cmd</code> legen</span></label>
-      <label class="schalter"><input type="radio" name="fmt" value="saf">
-        <span>SAF-Mappe (.xlsx), vollständig, braucht aber das SAF-Interface
-              in AxisVM (kostenpflichtiges Modul)</span></label>
-      <label class="schalter"><input type="radio" name="fmt" value="dxf">
-        <span>DXF + Zuordnungsmappe, nur die Geometrie; Querschnitte,
-              Auflager und Lasten von Hand</span></label>
-      <label class="schalter"><input type="radio" name="fmt" value="pynite">
-        <span>PyNite-Skript (.py), freie Gegenrechnung, läuft ohne AxisVM</span></label>
+      ${['saf', 'dxf', 'pynite'].map((f) => {
+        const t = { saf: 'SAF-Mappe (.xlsx), vollständig, braucht aber das '
+                       + 'SAF-Interface in AxisVM (kostenpflichtiges Modul)',
+                    dxf: 'DXF + Zuordnungsmappe, nur die Geometrie; '
+                       + 'Querschnitte, Auflager und Lasten von Hand',
+                    pynite: 'PyNite-Skript (.py), freie Gegenrechnung, '
+                          + 'läuft ohne AxisVM' }[f];
+        /*
+         * WAS ES NICHT GIBT, STEHT AUSGEGRAUT DA - nicht versteckt. So ist
+         * zu sehen, dass es den Weg gibt und woran er haengt; ein Feld, das
+         * je nach Tragwerk verschwindet, laesst den Benutzer suchen.
+         */
+        return `<label class="schalter${istAbfang ? ' aus' : ''}">
+          <input type="radio" name="fmt" value="${f}"${istAbfang ? ' disabled' : ''}>
+          <span>${t}${istAbfang ? ' — für das Abfangjoch noch nicht gebaut' : ''}</span>
+        </label>`;
+      }).join('')}
     </div>
-    <div class="feld"><label>Knotenmodell</label>${wahl}</div>
+    ${istAbfang ? '' : `<div class="feld"><label>Knotenmodell</label>${wahl}</div>`}
     <div class="feld"><label>Auflagermodell</label>${lager}
       <p class="notiz">In Jochachse hält <b>genau ein Knoten</b> — mehr verlangt
          das Gleichgewicht nicht, und jeder weitere wäre ein Zwang. Nur im
          Mastmodell halten beide Fundamente, dort aber über die Biegung der
          Maste.</p></div>
-    <div class="feld"><label>Starrelemente</label>
+    ${istAbfang ? '' : `<div class="feld"><label>Starrelemente</label>
       <label class="schalter"><input type="radio" name="starr" value="koerper" checked>
         <span>als Starrkörper und Verbindungselemente, so, wie AxisVM sie
               führt. Der Übergang Gurt → Anbauteil wird ein
@@ -5048,12 +5082,12 @@ function dialogAxisvm() {
       <label class="schalter"><input type="radio" name="starr" value="staebe">
         <span>als steife Stäbe, dicker Ersatzquerschnitt mit der Güte des
               Tragwerks, gewöhnliche Stabendgelenke</span></label>
-    </div>
-    <div class="feld"><label>Ausgabe</label>
+    </div>`}
+    ${istAbfang ? '' : `<div class="feld"><label>Ausgabe</label>
       <label class="schalter"><input type="checkbox" name="schott">
         <span>Endschott aus den Resultattabellen ausblenden, es bleibt
               tragendes Bauteil im Modell</span></label>
-    </div>
+    </div>`}
     <p class="notiz">Für einen Vergleich beide Modelle rechnen: erst ihre
        Differenz trennt die Frage des Knotenmodells von der des Rechenwegs.
        Das Blatt «Anleitung» in der Mappe nennt, was beim Import zu prüfen
@@ -5061,11 +5095,18 @@ function dialogAxisvm() {
     `<button class="btn btn-acc" data-los>Ausleiten</button>
      <button class="btn" data-zu>Abbrechen</button>`);
   d.node.querySelector('[data-los]').onclick = () => {
-    const km = d.node.querySelector('input[name="km"]:checked').value;
-    const fmt = d.node.querySelector('input[name="fmt"]:checked').value;
-    const aus = d.node.querySelector('input[name="schott"]').checked;
-    const am = d.node.querySelector('input[name="am"]:checked').value;
-    const sm = d.node.querySelector('input[name="starr"]:checked').value;
+    // Was beim Abfangjoch nicht zur Wahl steht, traegt seinen festen Wert.
+    const lies = (n, vorgabe) => {
+      const el = d.node.querySelector(`input[name="${n}"]:checked`)
+              ?? d.node.querySelector(`input[name="${n}"]`);
+      if (!el) return vorgabe;
+      return el.type === 'checkbox' ? el.checked : el.value;
+    };
+    const km = lies('km', 'anschnitt');
+    const fmt = lies('fmt', 'json');
+    const aus = lies('schott', false);
+    const am = lies('am', 'punkt');
+    const sm = lies('starr', 'koerper');
     d.zu();
     axisvmKlick(km, fmt, aus, am, sm);
   };
@@ -5088,7 +5129,11 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
   if (tragwerksart(werte).key === 'abfangjoch') {
     const typ = werte.abfangTyp;
     const jt = Number(werte.L);
-    return handlung('COM-Ausleitung', () => exportiereAbfangJson(typ, jt, {}));
+    // Das Knotenmodell reicht durch: es entscheidet, ob die Riegelenden
+    // steif ausgebildet werden oder das Modell Achse zu Achse rechnet.
+    return handlung('COM-Ausleitung',
+      () => exportiereAbfangJson(typ, jt, { knotenbereich: knotenmodell,
+                                            auflagerModell }));
   }
   /*
    * `modellVon` BAUT EIN BELIEBIGES TRAGWERK DES BLATTES.

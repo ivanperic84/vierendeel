@@ -281,54 +281,43 @@ export const FELDER = [
     standard: 'schwerpunkt', optionen: opt(MASSVARIANTEN),
   },
 
-  /*
-   * >>> DAS ABFANGJOCH HAT KEINE FREIE LAENGE. <<<
-   *
-   * Weisung vom 4. September: «den katalog der typen und laengen der
-   * abfangjoche in die sidebar, damit man die modelle in axis aufbauen
-   * kann.»
-   *
-   * Das Sortiment fuehrt je Typ eine Reihe von Laengen im Halbmeterraster -
-   * A160 von 5.50 bis 12.50, A360 von 17.50 bis 28.50. Dazwischen gibt es
-   * nichts: `abfangMasse` findet zu einer ungefuehrten Laenge keine Zeile,
-   * und ohne sie steht weder Blecheinteilung noch Stuetzweite. Ein
-   * SCHIEBER trifft die Reihe nur zufaellig - deshalb hier eine Auswahl.
-   *
-   * Sie schreibt in dasselbe Feld `L` wie der Schieber des Tragjochs; das
-   * eine ist beim Abfangjoch sichtbar, das andere nicht.
-   */
-  { key: 'abfangLaenge', gruppe: 'geo', typ: 'auswahl',
-    label: (w) => `Jochlänge ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
-    optionenAus: (w) => abfangLaengenOptionen(w.abfangTyp),
-    /*
-     * DER WERT KOMMT AUS `L`, NICHT AUS EINEM ZWEITEN FELD.
-     *
-     * Die Auswahl zeigt, was in `L` steht - und schreibt beim Waehlen
-     * dorthin zurueck (app.js). Damit gibt es die Jochlaenge weiterhin
-     * genau einmal; die Liste ist nur eine andere Art, sie zu setzen.
-     */
-    wertAus: (w) => Number(w.L).toFixed(2),
-    sichtbar: (w) => tragwerksart(w).key === 'abfangjoch',
-    hinweis: 'Die gefuehrten Laengen des gewählten Typs. Jede trägt ihre '
-           + 'eigene Zeile der Mass-Tabelle — Stützweite, Blecheinteilung '
-           + 'und Überhöhung. Dazwischen gibt es nichts.' },
-
   // --- Systemgeometrie -----------------------------------------------------
   {
     // Die Spannweite ist NICHT gesperrt: sie ist die Grösse, die am häufigsten
     // variiert wird. Der Schieber ist auf den Sortimentsbereich des Typs
     // begrenzt, damit man nicht unbemerkt aus dem Katalog läuft.
-    // BEIM ABFANGJOCH steht an seiner Stelle die Auswahl `abfangLaenge`.
+    /*
+     * >>> EIN SCHIEBER, BEI BEIDEN ARTEN DERSELBE. <<<
+     *
+     * Weisung vom 4. September: «mit schieber gleich wie bei den tragjochen
+     * die bedienung und auswahl der abfangjoche umsetzen, da die groesseren
+     * typen einen viel groesseren range haben bezueglich der laenge und wir
+     * ein einheitliches bild wollen.»
+     *
+     * Zuerst stand hier eine Auswahlliste - das Sortiment fuehrt ja nur
+     * gefuehrte Laengen. Bei A360 sind das aber dreiundzwanzig Eintraege
+     * von 17.50 bis 28.50 m, und eine Liste dieser Laenge liest sich
+     * schlechter als ein Schieber, der auf dieselben Werte rastet.
+     *
+     * DAS RASTER MACHT DIE ARBEIT: `zugSchritt` 0.5 trifft jede gefuehrte
+     * Laenge des Abfangjochs, und `setzeGrenzen` zieht min/max aus dem
+     * jeweiligen Sortiment nach. Was dazwischen von Hand eingetippt wird,
+     * faengt `aendern` ab - dort rastet die Zahl auf die naechste gefuehrte
+     * Laenge ein.
+     */
     key: 'L', gruppe: 'geo', typ: 'schieber', sym: 'jt',
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     label: (w) => `Jochlänge ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     einheit: 'm', standard: 20.0, min: 8, max: 34.5,
     // Der SCHIEBER rastet auf den halben Meter, das FELD auf den
     // Zentimeter (Weisung, 2. September). Ziehen ist die grobe Geste,
     // Tippen die genaue.
     schritt: 0.05, zugSchritt: 0.5,
-    hinweis: 'Schieberbereich = Sortiment des gewählten Typs. Der Schieber '
-           + 'rastet auf den halben Meter; genauer geht es im Feld daneben.',
+    hinweis: (w) => (tragwerksart(w).key === 'abfangjoch'
+      ? 'Schieberbereich = Sortiment des gewählten Typs. Das Abfangjoch '
+      + 'führt nur die Längen im Halbmeterraster; eine Zahl dazwischen '
+      + 'rastet auf die nächste geführte ein.'
+      : 'Schieberbereich = Sortiment des gewählten Typs. Der Schieber '
+      + 'rastet auf den halben Meter; genauer geht es im Feld daneben.'),
   },
   // a₁ ist NICHT die Regelteilung, sondern das Endfeld am Auflager (750 mm
   // nach Zeichnung). Wo eine Mass-Tabelle vorliegt, kommt die Teilung dazwischen
@@ -1216,6 +1205,10 @@ export function abfangOptionen() {
 /**
  * DIE GEFÜHRTEN LÄNGEN EINES ABFANGJOCHTYPS.
  *
+ * Seit dem 4. September stellt sie kein Auswahlfeld mehr - der Schieber
+ * tut es (Weisung: einheitliches Bild). Sie bleibt, weil `aendern` daraus
+ * die nächstgelegene geführte Länge sucht und der Hinweistext sie nennt.
+ *
  * Jede Zeile nennt, was an ihr hängt: die Stützweite aus der Mass-Tabelle
  * und ob die Blecheinteilung steht. Wer wählt, sieht damit vor dem Klick,
  * ob sich daraus ein Modell bauen lässt.
@@ -1290,8 +1283,15 @@ export function setzeTypOptionen() {
 }
 
 /** Grenzt Spannweite und Nachweisschnitt auf den Sortimentsbereich ein. */
-export function setzeGrenzen(joch, L) {
-  const b = laengenbereich(joch);
+export function setzeGrenzen(joch, L, abfangBereich = null) {
+  /*
+   * DER BEREICH KOMMT AUS DEM SORTIMENT DES TRAGWERKS.
+   *
+   * Beim Abfangjoch reicht er von 5.50 m (A160) bis 28.50 (A360) - und je
+   * Typ ist er ein anderer. Ohne Nachfuehrung stuende der Schieber auf den
+   * Grenzen des Tragjochs, und A360 liesse sich gar nicht bis 28.50 ziehen.
+   */
+  const b = abfangBereich ?? laengenbereich(joch);
   const fl = feld('L');
   fl.min = b.min; fl.max = b.max;
   const fx = feld('xNachweis');

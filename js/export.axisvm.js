@@ -91,18 +91,47 @@ export const KNOTENMODELLE = [
  * Rahmenfaktor, unabhängig vom Lastfall. Was die Schrauben davon tragen, ist
  * ein eigener Nachweis in der Anwendung (Prüfung A1, Gurtanschluss am Mast).
  */
+/*
+ * >>> DIESELBE MASKE FUER ALLE TRAGWERKSARTEN. <<<
+ *
+ * Weisung vom 4. September: «Die Lagerung auswahl ob mit oder ohne mast
+ * modeliert werden soll, ist einheitlich beim output modal aufzufuehren.
+ * das heisst wir sollten die gleiche maske sehen fuer alle arten von
+ * tragwerken. die bennenung und auswahl ist dann entsprechend anzupassen.»
+ *
+ * `arten` sagt, wo ein Modell gilt. Was nirgends steht, gilt ueberall - so
+ * bleibt die Liste lesbar, und ein neues Modell muss nicht jede Art
+ * aufzaehlen.
+ *
+ * Beim Abfangjoch gibt es die vier Gurtebenen des Tragjochs nicht: es hat
+ * zwei Gurte, und sein Ende ist eine offene Gabel. Dort steht der PUNKT -
+ * ein Auflagerpunkt auf der Jochachse, ueber ein Schott an beide Gurte
+ * gehaengt (Weisung, 4. September: «nur ueber die auflagerpunkte lagern»).
+ */
 export const AUFLAGERMODELLE = [
   { key: 'mast',
     label: 'Mast im Modell: Starrkörper je Gurtebene, Linkelement zum Mast '
          + '(Kräfte starr, Momente frei), Fundament eingespannt',
+    labelAbfang: 'Mit Mast: der Auflagerpunkt hängt am Mastkopf, Fundament '
+               + 'eingespannt — wie beim Tragjoch',
     braucht: 'mast' },
   { key: 'gurte',
-    label: 'Gurte einzeln: Untergurte y/z, Obergurte nur y (ohne Einspannung)' },
+    label: 'Gurte einzeln: Untergurte y/z, Obergurte nur y (ohne Einspannung)',
+    arten: ['joch', 'tragausleger'] },
   { key: 'mitte',
-    label: 'Mitte der Gurtebenen vorn und hinten, y/z, Gelenk um y (Altbauweise)' },
+    label: 'Mitte der Gurtebenen vorn und hinten, y/z, Gelenk um y (Altbauweise)',
+    arten: ['joch', 'tragausleger'] },
   { key: 'punkt',
-    label: 'Ein Punkt je Ende mit Drehfeder (Abgleich mit dem Ersatzbalken)' },
+    label: 'Ein Punkt je Ende mit Drehfeder (Abgleich mit dem Ersatzbalken)',
+    labelAbfang: 'Ohne Mast: ein Auflagerpunkt je Ende auf der Jochachse, '
+               + 'über ein Schott an beide Gurte gehängt' },
 ];
+
+/** Die Auflagermodelle, die für eine Tragwerksart in Frage kommen. */
+export const auflagerModelleFuer = (art) =>
+  AUFLAGERMODELLE.filter((k) => !k.arten || k.arten.includes(art))
+    .map((k) => ({ ...k,
+      label: art === 'abfangjoch' && k.labelAbfang ? k.labelAbfang : k.label }));
 
 /**
  * VORGABE DES AUFLAGERMODELLS.
