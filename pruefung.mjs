@@ -13858,18 +13858,24 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * wird jetzt, worauf es ankommt: an jedem Gurt haengt zwischen je zwei
      * benachbarten Knoten genau ein Stab, und keiner fehlt.
      */
+    /*
+     * >>> IM GABELBEREICH TRAEGT DER VERBUNDSTAB. <<<
+     *
+     * Der Gurt laeuft dort NICHT weiter - er waere doppelt vorhanden,
+     * einmal fuer sich und einmal im Verbund. Gezaehlt wird deshalb die
+     * Summe aus beiden: sie deckt jedes Feld genau einmal.
+     */
     const gk = m.knoten.filter((k) => /^V_/.test(k.name)).length;
-    pruef('Je Feld zwei Gurtstaebe',
-          gurtS.filter((x) => /^[VH]_S\d+$/.test(x.name)).length,
-          (gk - 1) * 2, 1e-9, 'Stk');
+    const laengs = m.staebe.filter((x) => /^[VH]_S\d+$/.test(x.name)
+                                       || /^GABEL_[VH]\d+$/.test(x.name));
+    pruef('Je Feld zwei Laengsstaebe', laengs.length, (gk - 1) * 2, 1e-9, 'Stk');
     /*
      * DIE LINIENLAST LAEUFT UEBER ALLE ABSCHNITTE (Weisung, 3. September:
      * «achte darauf dass die linienlast durchgeht, wie bei tragjoch»).
      * Auch der steife Knotenbereich traegt sein Eigengewicht - sonst fehlte
      * es genau dort, wo das Blech aufliegt.
      */
-    const gs = new Set(gurtS.filter((x) => /^[VH]_S\d+$/.test(x.name))
-      .map((x) => x.name));
+    const gs = new Set(laengs.map((x) => x.name));
     const mitLast = new Set(m.lasten.strecke.map((l) => l.stab));
     wahr('Jeder Gurtabschnitt traegt seine Linienlast',
          [...gs].every((n2) => mitLast.has(n2)));
@@ -13973,10 +13979,33 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       wahr('… und haengt an starren Querarmen',
            ga.length > 0 && ga.every((x) => x.art === 'starr'));
       const PR3 = await import(J('data.profiles.js'));
+      /*
+       * >>> DER VERBUND LIEGT AUF DER HALBEN FLANSCHBREITE. <<<
+       *
+       * Die beiden Einzelachsen liegen eine ganze Flanschbreite
+       * auseinander; der Schwerpunkt zweier gleicher Profile liegt
+       * dazwischen. Der Auftraggeber hat es im Querschnittsmodul gemessen:
+       * y_G = 35.0 mm bei einem UPE 160 mit b = 70.
+       */
       const p2 = PR3.getGurtprofil(m.tragwerk.gurtprofil);
-      pruef('Ihr Versatz ist eine Flanschbreite',
-            m.tragwerk.gabel.versatz, p2.b / 100, 1e-9, 'm');
       const kn2 = new Map(m.knoten.map((n2) => [n2.name, n2]));
+      pruef('Ihr Versatz ist die halbe Flanschbreite',
+            m.tragwerk.gabel.versatz, p2.b / 200, 1e-9, 'm');
+      /*
+       * DER QUERSCHNITT IST DER ECHTE, kein Ersatz mit gerechneten Werten:
+       * zwei gleichsinnige U als Polygonzug ueber AddCustom (Weisung,
+       * 4. September). Die Kennwerte stehen daneben - sie tragen die
+       * Flaechenprobe des Aufbauskripts und lassen sich gegen das
+       * Querschnittsmodul halten.
+       */
+      const qg = m.querschnitte.find((x) => x.name === 'GABEL');
+      wahr('Die Gabel traegt einen Doppel-U-Querschnitt', qg?.form === 'DoppelU');
+      pruef('Seine Flaeche ist die doppelte', qg.A, 2 * p2.A / 1e4, 1e-12, 'm2');
+      pruef('… und sein I_z traegt den Steiner-Anteil',
+            qg.Iz, 2 * (p2.Iz + p2.A * (p2.b / 2) ** 2) / 1e8, 1e-12, 'm4');
+      wahr('Der Verbundstab steht auf der Verbundachse',
+           gb.every((x) => Math.abs(kn2.get(x.von).y)
+                           > m.tragwerk.e / 2 + p2.b / 400));
       wahr('Sie liegt AUSSEN, nicht innen',
            gb.every((x) => Math.abs(kn2.get(x.von).y) > m.tragwerk.e / 2));
       // Sie beginnt 850 mm vom Jochende und ist so lang wie im Sortiment.

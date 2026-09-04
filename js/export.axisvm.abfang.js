@@ -238,6 +238,49 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     Iz: (m.b * m.t ** 3) / 12 / 1e12,
     It: (m.b * m.t ** 3) / 3 / 1e12,
   });
+  /*
+   * >>> DIE GABEL IST EIN QUERSCHNITT, KEIN ZWEITER STAB. <<<
+   *
+   * Weisung vom 4. September: «diese verdoppelung muesste man mit einem
+   * ersatzstab loesen, da sonst diese parallel geschalten sind und nicht
+   * als ganzes wirken» - und: «den querschnitt sauber in axis aufbauen
+   * nicht ueber kennwerte modifizieren.»
+   *
+   * Beides trifft. Zwei Staebe, an den Knoten gekoppelt, tragen PARALLEL:
+   * ihre Steifigkeiten addieren sich zu 2*I, waehrend der Verbund
+   * 2*(I + A*a^2) hat - bei A160 214 gegen 745 cm4, Faktor 3.5. Und ein
+   * Ersatzrechteck mit gerechneten Kennwerten waere zwar richtig gerechnet,
+   * aber nicht das Bauteil.
+   *
+   * Gebaut wird deshalb der ECHTE Querschnitt: zwei gleichsinnige U,
+   * versetzt um eine Flanschbreite, als Polygonzug ueber AddCustom. Der Weg
+   * ist in com/AxisVM_querschnitt_messen.ps1 vermessen; das Aufbauskript
+   * kennt ihn als `form: 'DoppelU'`.
+   *
+   * Die Kennwerte stehen daneben, damit die Flaechenprobe des Skripts
+   * greift - gerechnet wird mit dem Polygon.
+   */
+  const verstQs = abfangEndverstaerkung(typ);
+  const gabelQs = verstQs?.art === 'gabel' && verstQs.teile[0]?.beginn > 0
+                && verstQs.teile[0]?.laenge > 0;
+  const gabelVersatz = p.b * 10;                 // mm, eine Flanschbreite
+  if (gabelQs) {
+    const A2 = 2 * p.A;                          // cm2
+    const abst = p.b / 2;                        // cm, halbe Flanschbreite
+    querschnitte.push({
+      name: 'GABEL', form: 'DoppelU', profil: `2 × ${p.name}`,
+      parameter: [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10,
+                  RADIUS[p.name] ?? 10],
+      versatz: gabelVersatz,
+      A: A2 / 1e4,
+      // Die starke Achse addiert sich schlicht - beide Profile stehen
+      // gleich hoch. Um die schwache kommt der Steiner-Anteil dazu, und
+      // genau der fehlt zwei parallelen Staeben.
+      Iy: (2 * p.Iy) / 1e8,
+      Iz: (2 * (p.Iz + p.A * abst * abst)) / 1e8,
+      It: (2 * p.It) / 1e8,
+    });
+  }
   querschnitte.push(blechQs('BLECH', bl.regel));
   const enden = [bl.endeL, ...(Array.isArray(bl.endeR) ? bl.endeR
     : bl.endeR ? [bl.endeR] : [])].filter(Boolean);
@@ -364,8 +407,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Nur die GABEL (A160 bis A240). Ab A270 tritt an ihre Stelle ein
    * Deckblech, und das ist ein anderes Bauteil - es fehlt hier noch.
    */
-  const verst = abfangEndverstaerkung(typ);
-  const gabel = verst?.art === 'gabel' ? verst.teile[0] : null;
+  const gabel = gabelQs ? verstQs.teile[0] : null;
   const gBereiche = [];
   if (gabel?.beginn > 0 && gabel?.laenge > 0) {
     const v0 = gabel.beginn / 1000;
@@ -471,6 +513,12 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const lcsGurt = (g) => (g === 'V' ? [0, 0, 1] : [0, 0, -1]);
   const staebe = [];
   for (let i = 0; i < xs.length - 1; i++) {
+    /*
+     * IM GABELBEREICH TRAEGT DER VERBUNDSTAB - der Gurt waere dort doppelt.
+     * Seine Linienlast wandert mit: sie haengt am Stab, nicht an der Stelle
+     * (siehe unten, `strecke`).
+     */
+    if (gabelQs && inGabel(xs[i], xs[i + 1])) continue;
     for (const g of ['V', 'H']) {
       staebe.push({
         name: `${g}_S${i}`, von: nm(g, i), bis: nm(g, i + 1),
@@ -518,8 +566,21 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Flanschbreite) und traegt nichts eigenes - er haelt die beiden Profile
    * dort zusammen, wo die Schweissnaht sie zusammenhaelt.
    */
-  const yv = p.b / 100;                          // cm -> m, eine Flanschbreite
-  if (gabel) {
+  /*
+   * >>> IM GABELBEREICH STEHT EIN STAB, NICHT ZWEI. <<<
+   *
+   * Er traegt den Verbundquerschnitt und liegt auf DESSEN Schwerachse - um
+   * die halbe Flanschbreite weiter aussen als der Gurt, weil beide
+   * Einzelachsen eine ganze Flanschbreite auseinanderliegen und der
+   * Schwerpunkt zweier gleicher Profile dazwischen liegt.
+   *
+   * An beiden Enden des Bereichs setzt ein starrer Arm ueber, der den
+   * Versatz ueberbrueckt. Der Gurtstab selbst laeuft dort NICHT weiter -
+   * er waere sonst doppelt vorhanden, einmal fuer sich und einmal im
+   * Verbund.
+   */
+  const yv = p.b / 200;                          // cm -> m, HALBE Flanschbreite
+  if (gabel && gabelQs) {
     const nmG = (g, i) => `G${g}_${xs[i].toFixed(3)}`;
     xs.forEach((x, i) => {
       const drin = gBereiche.some(([u, o]) => x >= u - 1e-9 && x <= o + 1e-9);
@@ -527,11 +588,20 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       for (const g of ['V', 'H']) {
         const sgn = g === 'V' ? 1 : -1;
         knoten.push({ name: nmG(g, i), x, y: sgn * (e / 2 + yv), z: 0 });
-        staebe.push({
-          name: `GARM_${g}${i}`, von: nm(g, i), bis: nmG(g, i),
-          querschnitt: 'GURT', steifesMaterial: false,
-          lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
-        });
+      }
+    });
+    // Die beiden Uebergaenge - nur an den Bereichsenden, nicht dazwischen.
+    gBereiche.forEach(([u, o], k) => {
+      for (const x of [u, o]) {
+        const i = xs.findIndex((v) => Math.abs(v - x) < 1e-9);
+        if (i < 0) continue;
+        for (const g of ['V', 'H']) {
+          staebe.push({
+            name: `GARM_${g}${k}_${x.toFixed(3)}`, von: nm(g, i), bis: nmG(g, i),
+            querschnitt: 'GURT', steifesMaterial: false,
+            lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
+          });
+        }
       }
     });
     for (let i = 0; i < xs.length - 1; i++) {
@@ -539,7 +609,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       for (const g of ['V', 'H']) {
         staebe.push({
           name: `GABEL_${g}${i}`, von: nmG(g, i), bis: nmG(g, i + 1),
-          querschnitt: 'GURT', steifesMaterial: false,
+          querschnitt: 'GABEL', steifesMaterial: false,
           lcsZ: lcsGurt(g), gelenkAnfang: null, gelenkEnde: null, art: 'stab',
         });
       }
@@ -751,13 +821,31 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     punkt.push({ name: `FH_${g}`, knoten: nm(g, mitte), richtung: 'Y',
                  wert: Fh / 2, lastfall: 'Leiterzug' });
   }
+  /*
+   * >>> DIE LINIENLAST HAENGT AM STAB, NICHT AN DER STELLE. <<<
+   *
+   * Weisung vom 3. September: «achte darauf dass die linienlast durchgeht,
+   * wie bei tragjoch.» Hier stand eine Schleife ueber die Felder, die auf
+   * `V_S${i}` schrieb - im Gabelbereich gibt es diesen Stab aber nicht
+   * mehr, dort traegt `GABEL_V${i}`. Zehn Lasten landeten auf Staeben, die
+   * das Modell nicht kennt, und zehn Gabelstaebe standen ohne Eigengewicht
+   * da.
+   *
+   * Gezaehlt wird deshalb, was WIRKLICH gebaut wurde: jeder Gurt- und
+   * Gabelstab bekommt seine Last, und keiner bleibt aus.
+   *
+   * Die GABEL traegt das Doppelte: sie ist zwei Profile. `gd` ist das
+   * Gewicht des ganzen Jochs je Meter, halbiert auf die zwei Gurte - im
+   * Verbundbereich also einmal ganz.
+   */
   const strecke = [];
-  for (let i = 0; i < xs.length - 1; i++) {
-    for (const g of ['V', 'H']) {
-      strecke.push({ name: `G_${g}${i}`, stab: `${g}_S${i}`, richtung: 'Z',
-                     wert: -gd / 2, lastfall: 'G' });
-    }
-  }
+  staebe.filter((st2) => st2.art === 'stab'
+                      && (st2.querschnitt === 'GURT' || st2.querschnitt === 'GABEL'))
+    .forEach((st2) => {
+      const doppelt = st2.querschnitt === 'GABEL';
+      strecke.push({ name: `G_${st2.name}`, stab: st2.name, richtung: 'Z',
+                     wert: -gd / 2 * (doppelt ? 2 : 1), lastfall: 'G' });
+    });
 
   return {
     format: 'tragjoch-stabmodell',

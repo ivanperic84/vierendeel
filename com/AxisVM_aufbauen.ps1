@@ -276,9 +276,10 @@ if ($exe) {
     if ($rt.ok -and $rt.wert) {
         try {
             $wandler = New-Object System.Runtime.InteropServices.TypeLibConverter
-            $asm = $wandler.ConvertTypeLibToAssembly(
+            $script:asm = $wandler.ConvertTypeLibToAssembly(
                 $rt.wert, 'Interop.AxisVM.dll', 0, (New-Object TlbSenke),
                 $null, $null, 'AxisVM', $null)
+            $asm = $script:asm
             Schreib "  Baugruppe erzeugt: $($asm.GetTypes().Count) Typen."
             $gefunden.Add('Typbibliothek -> Interop-Baugruppe zur Laufzeit')
         } catch {
@@ -1442,6 +1443,90 @@ Abschnitt '4 - Querschnitte'
     wirft hier KEINEN Fehler, sie liefert still einen tausendfach falschen
     Querschnitt. Deshalb wird unten die Flaeche zurueckgelesen.            #>
 $mm = 0.001
+
+<#  >>> DER VERBUNDQUERSCHNITT AUS ZWEI GLEICHSINNIGEN U-PROFILEN. <<<
+
+    Die Gabel am Jochende ist zwei UPE nebeneinander: der Flansch des
+    Gurtes stoesst an den Steg der Aufdoppelung, beide oeffnen nach aussen
+    (Schnitt A-A, 45-Grad-Naht). Kein parametrischer Querschnitt trifft das -
+    AddDoubleU kennt nur "opened" (Ruecken an Ruecken) und "closed"
+    (Oeffnungen zueinander), beide symmetrisch.
+
+    Vorgabe des Auftraggebers vom 4. September: "den querschnitt sauber in
+    axis aufbauen nicht ueber kennwerte modifizieren." Also AddCustom.
+
+    DER WEG IST VERMESSEN (com/AxisVM_querschnitt_messen.ps1):
+
+      1. Ein Hilfs-U ueber AddU anlegen - AxisVM baut dessen Polygon selbst.
+      2. Seine ShapePolygonList lesen. Sie ist SCHREIBGESCHUETZT: Add meldet
+         -1, AddLine laesst LineCount unveraendert.
+      3. Eine EIGENE Liste aus den CoClasses der Interop-Baugruppe fuellen -
+         zwei Polygone, das zweite um die Flanschbreite versetzt.
+      4. AddCustom(Name, Liste, cspOther).
+
+    Die Probe: der Auftraggeber hat den Verbund im Querschnittsmodul gebaut
+    und gemessen - A 4334.70 mm2, Iy 1.8222E+7, Iz 7446516, y_G 35.0 mm.
+    Der aufgebaute trifft A auf +0.8 %; der Rest sind die Ausrundungen, die
+    das Polygon nicht fuehrt.
+
+    RPoint2d heisst Coord1/Coord2, nicht x/y.                              #>
+function VerbundQuerschnitt($modell, [string]$name, $par, [double]$versatz) {
+    if (-not $script:asm) { throw 'keine Interop-Baugruppe' }
+    $typen  = $script:asm.GetTypes()
+    $tPunkt = $typen | Where-Object { $_.Name -eq 'RPoint2d' } | Select-Object -First 1
+    $kListe = $typen | Where-Object { $_.Name -eq 'AxisVMPolygon2dListClass' } | Select-Object -First 1
+    $kPoly  = $typen | Where-Object { $_.Name -eq 'AxisVMPolygon2dClass' } | Select-Object -First 1
+    $kLinie = $typen | Where-Object { $_.Name -eq 'AxisVMLine2dClass' } | Select-Object -First 1
+    if (-not ($tPunkt -and $kListe -and $kPoly -and $kLinie)) {
+        throw 'CoClasses fuer Polygon2d fehlen'
+    }
+    # Das Hilfsprofil - nur als Vorlage fuer die Kontur. Es bleibt im Modell
+    # stehen; ein Querschnitt ohne Stab kostet nichts und macht die Herkunft
+    # sichtbar.
+    $hn = "$name`_Vorlage"
+    $hilf = $modell.CrossSections.AddU($hn, $par[0] * $mm, $par[1] * $mm,
+                                       $par[2] * $mm, $par[3] * $mm,
+                                       $par[4] * $mm, 0)
+    if ($hilf -le 0) { throw "Vorlage AddU meldet $hilf" }
+    $pg0 = $modell.CrossSections.Item($hilf).ShapePolygonList.Item(1)
+    # Die Kontur einlesen.
+    $kontur = New-Object System.Collections.Generic.List[object]
+    for ($i = 1; $i -le $pg0.LineCount; $i++) {
+        $ln = $pg0.Line($i)
+        $a = [Activator]::CreateInstance($tPunkt)
+        $b = [Activator]::CreateInstance($tPunkt)
+        $ok = $false
+        try { $null = $ln.GetLinePoints([ref]$a, [ref]$b); $ok = $true } catch { }
+        if (-not $ok) {
+            $null = $ln.GetPoint(1, [ref]$a); $null = $ln.GetPoint(2, [ref]$b)
+        }
+        $kontur.Add(@{ ax = $a.Coord1; ay = $a.Coord2
+                       bx = $b.Coord1; by = $b.Coord2 })
+    }
+    if ($kontur.Count -lt 3) { throw 'Kontur nicht lesbar' }
+    # Zwei Polygone: an Ort und um den Versatz verschoben.
+    $liste = [Activator]::CreateInstance($kListe)
+    foreach ($dx in @(0.0, ($versatz * $mm))) {
+        $poly = [Activator]::CreateInstance($kPoly)
+        foreach ($k in $kontur) {
+            $li = [Activator]::CreateInstance($kLinie)
+            $a2 = [Activator]::CreateInstance($tPunkt)
+            $b2 = [Activator]::CreateInstance($tPunkt)
+            $a2.Coord1 = $k.ax + $dx; $a2.Coord2 = $k.ay
+            $b2.Coord1 = $k.bx + $dx; $b2.Coord2 = $k.by
+            $ok2 = $false
+            try { $null = $li.SetLinePoints($a2, $b2); $ok2 = $true } catch { }
+            if (-not $ok2) {
+                $null = $li.SetPoint(1, $a2); $null = $li.SetPoint(2, $b2)
+            }
+            try { $li.LineType = 0 } catch { }
+            $null = $poly.AddLine($li)
+        }
+        if ($liste.Add($poly) -le 0) { throw 'Polygon nicht angenommen' }
+    }
+    return $modell.CrossSections.AddCustom($name, $liste, 0)
+}
+
 $qs = @{}
 foreach ($q in $d.querschnitte) {
     $p = $q.parameter
@@ -1467,6 +1552,9 @@ foreach ($q in $d.querschnitte) {
         @{ name = 'CrossSections.AddRectangular(Name, h, b, cspOther)'; tu = {
             if ($q.form -ne 'Rectangle') { throw 'kein Rechteck' }
             $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } },
+        @{ name = 'CrossSections.AddCustom(Name, Polygon2dList, cspOther)'; tu = {
+            if ($q.form -ne 'DoppelU') { throw 'kein Doppel-U' }
+            VerbundQuerschnitt $m $q.name $p ([double]$q.versatz) } },
         <#  DER ABFANGJOCH-GURT IST EIN U-PROFIL.
 
             AddC/AddU(Name, h, b, e, tw, R, Process) - vermessen am
