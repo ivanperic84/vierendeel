@@ -249,6 +249,62 @@ export function abfangQuersteife(typ) {
 }
 
 /**
+ * DIE KROEPFUNG DER JOCHENDEN.
+ *
+ * >>> DER TRAEGER IST AM ENDE SCHMALER. <<<
+ *
+ * Weisung vom 4. September: «zudem sind die jochenden in der gesamtbreite
+ * nicht verfuengt (abgekroepft)». In der DRAUFSICHT laufen die beiden Gurte
+ * zum Jochende hin zusammen - von der lichten Weite `d` im Feld auf
+ * `lichtEnde` am Ende. Die Werkstattzeichnung A300 zeigt es an beiden Enden
+ * mit zwei Knicken: einer nahe dem Ende, der zweite dort, wo die volle Weite
+ * erreicht ist.
+ *
+ * Das ist keine Zier. Der Hebelarm der Vierendeel-Wirkung ist k = d + 2b, und
+ * er faellt am Ende auf rund die Haelfte - genau dort, wo der Auflagerschnitt
+ * liegt. Wer gerade Gurte rechnet, rechnet den Endschnitt zu steif.
+ *
+ * A160 ist `form: 'gerade'` und fuehrt keine Kroepfung.
+ *
+ * @returns {{knickLangesEnde, knickKurzesEnde, vollbreiteAb, lichtEnde}|null}
+ *          alles in mm, vom jeweiligen Jochende aus gemessen
+ */
+export function abfangKroepfung(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  return a?.kroepfung ?? null;
+}
+
+/**
+ * DIE LICHTE WEITE DER GURTE AN DER STELLE x.
+ *
+ * Im Feld ist es `d`, am Jochende `lichtEnde`, dazwischen linear. Das LANGE
+ * (Montage-)Ende knickt frueher als das kurze - die Zeichnung gibt 850 gegen
+ * 920 -, also braucht die Funktion die Jochlaenge, um zu wissen, an welchem
+ * Ende sie steht.
+ *
+ * @param {string|object} typ
+ * @param {number} x   Stelle ab dem langen Jochende [m]
+ * @param {number} jt  Jochlaenge [m]
+ * @returns {number} lichte Weite [mm]
+ */
+export function abfangLichteWeite(typ, x, jt) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  const d = a?.aufbau?.d ?? 0;
+  const kr = a?.kroepfung;
+  if (!kr) return d;
+  // Abstand vom naeheren Jochende, und welches Ende das ist.
+  const vonLinks = x * 1000;
+  const vonRechts = (jt - x) * 1000;
+  const lang = vonLinks <= vonRechts;
+  const s = lang ? vonLinks : vonRechts;
+  const knick = lang ? kr.knickLangesEnde : kr.knickKurzesEnde;
+  if (s <= knick) return kr.lichtEnde;
+  if (s >= kr.vollbreiteAb) return d;
+  const u = (s - knick) / (kr.vollbreiteAb - knick);
+  return kr.lichtEnde + u * (d - kr.lichtEnde);
+}
+
+/**
  * DIE RANDMASSE DER BLECHEINTEILUNG - die beiden Endbereiche.
  *
  * >>> DIE ENDEN SIND NICHT GLEICH LANG. <<<

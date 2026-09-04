@@ -12468,6 +12468,42 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     }
 
     /*
+     * >>> DIE JOCHENDEN SIND ABGEKROEPFT. <<<
+     *
+     * Weisung vom 4. September: «zudem sind die jochenden in der
+     * gesamtbreite nicht verfuengt (abgekroepft)». In der Draufsicht laufen
+     * die Gurte zum Ende hin zusammen. Bei A300 gibt die Werkstattzeichnung
+     * am Jochende aussen 600 - das sind 300 licht plus zweimal die
+     * Flanschbreite 150 -, und die beiden innenliegenden Deckbleche zu 10
+     * machen daraus die Spreizung 280.
+     */
+    {
+      const w = (t, x, jt) => AJ.abfangLichteWeite(t, x, jt);
+      pruef('A300 misst am Jochende 300 licht', w('A300', 0, 13), 300, 1e-9, 'mm');
+      pruef('… aussen also 600', w('A300', 0, 13) + 2 * AJ.abfangAufbau('A300').b,
+            600, 1e-9, 'mm');
+      pruef('… und die Deckbleche machen daraus die Spreizung',
+            w('A300', 0, 13) - 2 * 10, AJ.abfangAufbau('A300').spreizung,
+            1e-9, 'mm');
+      pruef('Im Feld steht die volle lichte Weite', w('A300', 6.5, 13),
+            AJ.abfangAufbau('A300').d, 1e-9, 'mm');
+      // Das lange Ende knickt frueher als das kurze - 850 gegen 920.
+      wahr('Das lange Ende knickt frueher als das kurze',
+           w('A300', 0.9, 13) > w('A300', 13 - 0.9, 13));
+      // A160 ist gerade und kennt keine Kroepfung.
+      wahr('A160 ist gerade', AJ.abfangKroepfung('A160') === null);
+      pruef('… und misst ueberall gleich', w('A160', 0, 12.5),
+            w('A160', 6.25, 12.5), 1e-9, 'mm');
+      /*
+       * DIE QUERSTEIFE AM JOCHENDE BELEGT DIE KROEPFUNG: A240 fuehrt dort
+       * ein IPE 240 x 280, und 280 ist genau die Spreizung. Ein Riegel von
+       * 280 haette im Feld, bei 600 lichter Weite, keinen Anschluss.
+       */
+      pruef('A240 riegelt am Ende ueber 280', AJ.abfangQuersteife('A240').ende.laenge,
+            w('A240', 0, 14), 1e-9, 'mm');
+    }
+
+    /*
      * DIE BINDEBLECHE - Regelblech im Feld, Endbleche abweichend.
      *
      * Das Regelblech ist so lang wie der lichte Abstand der Gurte: es fuellt

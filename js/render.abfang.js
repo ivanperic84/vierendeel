@@ -41,7 +41,8 @@
 import { abfangQuerschnitt, abfangBlechstationen,
          abfangStuetzweite } from './core.abfangjoch.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
-         abfangEndverstaerkung, abfangQuersteife } from './data.abfangjoche.js';
+         abfangEndverstaerkung, abfangQuersteife,
+         abfangKroepfung, abfangLichteWeite } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { bauteilFarbe } from './design.js';
 import { prisma, prismaY, platte, walzProfilPoly } from './render.koerper.js';
@@ -68,6 +69,31 @@ export function abfangSzene(typ, jt, opt = {}) {
   const zf = (p.h - p.tf) / 2 / 100;      // Flanschmitte über der Schwerachse
   const js = sw ? sw.bis : jt;
   const ue = Math.max(0, (jt - js) / 2);
+
+  /*
+   * >>> DIE JOCHENDEN SIND ABGEKRÖPFT. <<<
+   *
+   * Weisung vom 4. September: «zudem sind die jochenden in der gesamtbreite
+   * nicht verfuengt (abgekroepft)». In der Draufsicht laufen die Gurte zum
+   * Ende hin zusammen — bei A300 von 600 lichter Weite im Feld auf 300 am
+   * Ende, mit einem Knick bei 850 (langes Ende) bzw. 920 (kurzes) und voller
+   * Weite ab 1920.
+   *
+   * ALLES QUER HÄNGT DARAN: die Gurtachsen, die Länge jedes Bindeblechs, die
+   * Lage der Gabel und des Deckblechs. Deshalb steht die lichte Weite hier
+   * als Funktion von x und nicht als Zahl.
+   *
+   * `versatzAchse` ist der Abstand von der lichten Kante zur Schwerachse des
+   * Gurtes — beim U die Schwerpunktlage e_y, beim I die halbe Flanschbreite.
+   * Er folgt aus den Daten (e − d)/2 und muss nicht unterschieden werden.
+   */
+  const kr = abfangKroepfung(a);
+  const versatzAchse = (q.e * 10 - (auf.d ?? 0)) / 2;      // mm
+  const licht = (x) => abfangLichteWeite(a, x, jt);        // mm
+  const yAchse = (x) => (licht(x) / 2 + versatzAchse) / 1000;   // m
+  /** Der Gurtumriss an der Stelle x, auf seiner Seite s. */
+  const polyGurt = (x, s, aus = 0) => walzProfilPoly(p, { oeffnung: s })
+    .map(([y, z]) => [y + s * (yAchse(x) + aus) * 1000, z]);
 
   const flaechen = [];
   const linien = [];
@@ -123,7 +149,14 @@ export function abfangSzene(typ, jt, opt = {}) {
    * und die Grenzen der Gabel.
    */
   const stationen = ein?.stationen ?? [];
-  const xs = [0, jt, ...stationen, ...gBereiche.flat()]
+  // Die Knickstellen sind Schnitte wie jede Station - sonst liefe der Gurt
+  // geradlinig ueber den Knick hinweg.
+  const knicke = kr
+    ? [kr.knickLangesEnde, kr.vollbreiteAb].flatMap(
+        (v) => [v / 1000, jt - v / 1000])
+      .concat([kr.knickKurzesEnde / 1000, jt - kr.knickKurzesEnde / 1000])
+    : [];
+  const xs = [0, jt, ...stationen, ...gBereiche.flat(), ...knicke]
     .map((x) => Math.round(x * 1e6) / 1e6)
     .filter((x) => x >= 0 && x <= jt)
     .sort((u, v) => u - v)
@@ -140,14 +173,14 @@ export function abfangSzene(typ, jt, opt = {}) {
     // Je Gurt EIN Eintrag in der Stueckliste - nicht je Feld, sonst zaehlte
     // sie Prismen statt Bauteile.
     fbGurt = farbeFuer(`profil|${p.name}`, `Gurt · ${p.name}`, 'profil');
-    const poly = walzProfilPoly(p, { oeffnung: s })
-      .map(([y, z]) => [y + s * e / 2 * 1000, z]);
     for (let i = 0; i < xs.length - 1; i++) {
-      flaechen.push(...prisma(poly, xs[i], xs[i + 1], {
+      // Anfangs- UND Endumriss: dazwischen zieht `prisma` die Schräge des
+      // Knicks. Genau dafür nimmt es einen zweiten Querschnitt.
+      flaechen.push(...prisma(polyGurt(xs[i], s), xs[i], xs[i + 1], {
         gruppe: 'profil', teil: s > 0 ? 'GURT_V' : 'GURT_H', station: i,
         farbeBauteil: fbGurt,
         label: `Gurt ${s > 0 ? 'vorn' : 'hinten'} · ${p.name}`,
-      }));
+      }, 0, 0, polyGurt(xs[i + 1], s)));
     }
   }
 
@@ -161,13 +194,11 @@ export function abfangSzene(typ, jt, opt = {}) {
     for (const s of [1, -1]) {
       const fb = farbeFuer(`profil|gabel|${gabel.profil}`,
                            `Gabel · ${gabel.profil} × ${gabel.laenge}`, 'profil');
-      const poly = walzProfilPoly(p, { oeffnung: s })
-        .map(([y, z]) => [y + s * (e / 2 + bG) * 1000, z]);
       for (const [x0, x1] of gBereiche) {
-        flaechen.push(...prisma(poly, x0, x1, {
+        flaechen.push(...prisma(polyGurt(x0, s, bG), x0, x1, {
           gruppe: 'profil', teil: 'GABEL', farbeBauteil: fb,
           label: `Gabel · ${gabel.profil} × ${gabel.laenge}`,
-        }));
+        }, 0, 0, polyGurt(x1, s, bG)));
       }
     }
   }
@@ -175,15 +206,22 @@ export function abfangSzene(typ, jt, opt = {}) {
   /*
    * DAS DECKBLECH — ab A270 tritt es an die Stelle der Gabel.
    *
-   * >>> SEINE LAGE IST EINE LESART, KEIN BELEG. <<<
+   * >>> ES LIEGT INNEN, NICHT BÜNDIG AUSSEN. <<<
    *
-   * Die Stückliste führt b, t und l, nicht die Lage. Belegt ist der
-   * Zusammenhang b = a − 10 über alle vier Typen (A270 260/270, A300
-   * 290/300, A330 320/330, A360 350/360): die Breite folgt der PROFILHÖHE,
-   * nicht der Flanschbreite. Gezeichnet ist es deshalb als stehendes Blech
-   * auf der Aussenseite des Gurtes, über die Profilhöhe — an derselben
-   * Stelle und mit derselben Aufgabe wie die Gabel der kleineren Typen.
-   * Bestätigt ist das nicht, und im Rechenmodell steht es noch gar nicht.
+   * Weisung vom 4. September: «die Deckbleche in diesem fall ist nicht
+   * bündig zum C-Profil (innenliegend), dies sieht man auch auf den
+   * Schemazeichnungen (stärkere nachzeichnung innenliegend).»
+   *
+   * Damit geht die Massenkette der Werkstattzeichnung auf: am Jochende misst
+   * A300 aussen 600, das sind 300 lichte Weite plus zweimal die Flanschbreite
+   * 150. Die beiden Deckbleche zu 10 springen nach innen vor und machen aus
+   * den 300 die SPREIZUNG 280 — die Zahl, die das Sortiment für jeden Typ
+   * führt. Läge das Blech aussen, wäre die Spreizung 320 und die Angabe
+   * falsch.
+   *
+   * Seine Breite ist die Profilhöhe weniger 10 (A270 260/270, A300 290/300,
+   * A330 320/330, A360 350/360) — es deckt den Steg zwischen den Flanschen,
+   * nicht den Flansch.
    */
   for (const db of (verst?.art === 'deckblech' ? verst.teile : [])) {
     const l2 = (db.l ?? 0) / 1000;
@@ -191,26 +229,39 @@ export function abfangSzene(typ, jt, opt = {}) {
     const [x0, x1] = db.lage === 'R' ? [jt - l2, jt] : [0, l2];
     const t2 = db.t ?? 10;                        // mm
     const hD = db.b ?? p.h * 10;                  // mm, Breite = Profilhöhe − 10
+    /** Der Blechumriss an der Stelle x - er folgt der Kröpfung wie der Gurt. */
+    const polyDeck = (x, s) => {
+      const yi = s * licht(x) / 2;                // innere Kante des Gurtes
+      return [[yi - s * t2, -hD / 2], [yi, -hD / 2],
+              [yi, hD / 2], [yi - s * t2, hD / 2]];
+    };
     for (const s of [1, -1]) {
       const fb = farbeFuer(`blech|deck|${db.b}x${db.t}`,
                            `Deckblech ${db.b}×${db.t}`, 'blech');
-      // Aussenkante der Flanschspitzen: Schwerachse + b − e_y.
-      const yA = s * (e / 2 + bG - p.ey / 100) * 1000;
-      const poly = [[yA, -hD / 2], [yA + s * t2, -hD / 2],
-                    [yA + s * t2, hD / 2], [yA, hD / 2]];
-      flaechen.push(...prisma(poly, x0, x1, {
+      flaechen.push(...prisma(polyDeck(x0, s), x0, x1, {
         gruppe: 'blech', teil: `DECK_${db.lage}`, farbeBauteil: fb,
         label: `Deckblech ${db.b}×${db.t}×${db.l} (${db.lage})`,
-      }));
+      }, 0, 0, polyDeck(x1, s)));
     }
   }
 
   /*
    * DIE RIEGEL. An jeder Station entweder ein Blechpaar auf Flanschhöhe oder
    * — ab A240 an den Grenzen der QV-Bereiche — eine Quersteife aus
-   * Walzprofil auf der Schwerachse. Beide spannen über die LÄNGE AUS DER
-   * STÜCKLISTE, nicht über den Achsabstand: dass A270 bei d = 600 ein
-   * Regelblech von 463 führt, ist ein Datum und keine Ungenauigkeit.
+   * Walzprofil auf der Schwerachse.
+   *
+   * >>> SIE SPANNEN ÜBER DIE LICHTE WEITE AN IHRER STATION. <<<
+   *
+   * Weisung vom 4. September: «die liegenden verbinungsbleche sind zu kurz».
+   * Zuvor stand hier die Länge `l` aus der Stückliste, und bei den
+   * IPE-Typen reichte das Blech nicht bis an die Gurte: A300 führt 447, die
+   * lichte Weite ist dort 600. Ein Riegel, der nicht anschliesst, ist kein
+   * Riegel.
+   *
+   * Weil der Träger zum Ende hin abgekröpft ist, ist diese Weite an jeder
+   * Station eine andere — deshalb `licht(x)` und keine feste Zahl. Die
+   * Stücklistenlänge steht weiter in der Beschriftung; wofür sie bei den
+   * IPE-Typen gilt, ist offen (sie liegt durchweg bei d − b − 2.5).
    */
   const qsSt = abfangQuersteife(typ);
   const pSt = qsSt?.profil ? getGurtprofil(qsSt.profil) : null;
@@ -222,9 +273,10 @@ export function abfangSzene(typ, jt, opt = {}) {
        * Seine beiden Flansche liegen damit dort, wo sonst die zwei
        * Bindebleche liegen — er ersetzt das Paar, und das soll man sehen.
        */
-      const lSt = ((art === 'steifeEnde' ? qsSt.ende?.laenge : qsSt.laenge)
-                   ?? auf.d ?? 0) / 1000;
-      const mm = Math.round(lSt * 1000);
+      // Auch sie schliesst an die Gurte an - Stuecklistenlaenge im Namen.
+      const lSt = licht(x) / 1000;
+      const mm = (art === 'steifeEnde' ? qsSt.ende?.laenge : qsSt.laenge)
+                 ?? Math.round(lSt * 1000);
       const fb = farbeFuer(`profil|steife|${pSt.name}|${mm}`,
                            `Quersteife · ${pSt.name} × ${mm}`, 'profil');
       flaechen.push(...prismaY(walzProfilPoly(pSt), x, -lSt / 2, lSt / 2, {
@@ -242,7 +294,7 @@ export function abfangSzene(typ, jt, opt = {}) {
     }
     const m2 = ein.arten?.[k]?.masse ?? bl?.regel;
     if (!m2) return;
-    const lB = (m2.l ?? auf.d ?? 0) / 1000;         // Blechlänge quer [m]
+    const lB = licht(x) / 1000;                     // Blechlänge quer [m]
     const kurz = { endeL: 'Endblech links', endeR: 'Endblech rechts' }[art]
               ?? 'Bindeblech';
     for (const s of [1, -1]) {
