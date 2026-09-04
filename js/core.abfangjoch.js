@@ -279,10 +279,32 @@ export function abfangBlechstationen(typ, jt) {
                   && Math.abs(2 * A1 + (felder - 2) * A - QVsumme) < 1e-6;
   if (!gehtAuf) return null;
 
+  /*
+   * >>> IN DER MITTE STEHT NICHT ZWINGEND EIN BLECH. <<<
+   *
+   * Weisung vom 4. September: «beachte das es nicht immer zwingend in der
+   * mitte ein verbindungsblech hat. die abstaende gelten nach tabelle.»
+   *
+   * Die Tabelle fuehrt zwei Teilungen: A1 = 500 bei 78 Laengen, A1 = 250 bei
+   * 80. Bei A1 = 500 treffen sich in der Mitte zwei Felder, und dazwischen
+   * sitzt ein Blechpaar. Bei A1 = 250 ist 2 x A1 = A - die beiden halben
+   * Felder sind zusammen EIN Regelfeld, und dazwischen sitzt keines.
+   *
+   * DAS LOEST DEN ALTEN FEHLBETRAG. Seit dem 3. September stand hier
+   * vermerkt, dass der Stueckliste bei A1 = 250 «durchweg genau ein Paar
+   * fehlt» - bei A160 wie bei A200, also systematisch. Es fehlte ihr nicht:
+   * das Blech in der Mitte gibt es dort nicht. A360 / 21.50 m fuehrt 60
+   * Bindebleche, also 30 Paare; gebaut waren 31.
+   *
+   * Die Feldlaengen bleiben, nur die Station dazwischen faellt weg. Der
+   * Nachweisschnitt liegt im Randfeld und wird davon nicht beruehrt.
+   */
+  const mitteOhneBlech = Math.abs(2 * A1 - A) < 1e-6;
   const folge = [];
   const halb = (felder - 2) / 2;
   for (let i = 0; i < halb; i++) folge.push(A);
-  folge.push(A1, A1);
+  if (mitteOhneBlech) folge.push(A1 + A1);
+  else folge.push(A1, A1);
   for (let i = 0; i < halb; i++) folge.push(A);
 
   const stationen = [];

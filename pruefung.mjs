@@ -12485,8 +12485,35 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       pruef('… und die Deckbleche machen daraus die Spreizung',
             w('A300', 0, 13) - 2 * 10, AJ.abfangAufbau('A300').spreizung,
             1e-9, 'mm');
+      /*
+       * >>> `d` IST DER STEGABSTAND, NICHT DIE LICHTE WEITE. <<<
+       *
+       * Hier stand bis zum 4. September `d` als Sollwert - und der
+       * Pruefstand hielt damit fest, was die Zeichnung widerlegt. Sie
+       * bemasst im Feld drei Werte ineinander, bei A270 735 | 600 | 465:
+       * aussen ueber die Flanschspitzen, die Stegachsen, licht. Beim UPE
+       * liegt der Steg AUF der Innenkante, dort sind beide gleich; beim IPE
+       * in der Mitte, und licht ist d - b.
+       */
       pruef('Im Feld steht die volle lichte Weite', w('A300', 6.5, 13),
-            AJ.abfangAufbau('A300').d, 1e-9, 'mm');
+            AJ.abfangLichtFeld('A300'), 1e-9, 'mm');
+      pruef('… und die ist beim I um eine Flanschbreite kleiner als d',
+            AJ.abfangLichtFeld('A300'),
+            AJ.abfangAufbau('A300').d - AJ.abfangAufbau('A300').b, 1e-9, 'mm');
+      pruef('Beim U sind Stegabstand und lichte Weite dasselbe',
+            AJ.abfangLichtFeld('A240'), AJ.abfangAufbau('A240').d, 1e-9, 'mm');
+      /*
+       * DIE PROBE MACHT DIE STUECKLISTE: jedes Bindeblech misst die lichte
+       * Weite an seiner Station. Vorher lagen die inneren Endbleche der
+       * IPE-Typen 80 mm daneben.
+       */
+      for (const [t2, jt2, x2, soll] of [['A270', 13, 13 - 1.46, 391],
+                                         ['A360', 21.5, 21.5 - 1.465, 371],
+                                         ['A200', 11, 1.375, 342],
+                                         ['A240', 14, 14 - 0.91, 280]]) {
+        wahr(`${t2}: das Blech bei ${x2.toFixed(2)} m misst ${soll}`,
+             Math.abs(w(t2, x2, jt2) - soll) < 5);
+      }
       // Das lange Ende knickt frueher als das kurze - 850 gegen 920.
       wahr('Das lange Ende knickt frueher als das kurze',
            w('A300', 0.9, 13) > w('A300', 13 - 0.9, 13));
@@ -13304,7 +13331,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     // 9.500 - 0.900: das letzte Blech misst vom RECHTEN Ende.
     pruef('Das letzte Blech steht 900 mm vom rechten Ende',
           9.5 - b95.stationen.at(-1), 0.9, 1e-6, 'm');
-    pruef('Sechzehn Stationen', b95.anzahl, 16, 1e-9, 'Stk');
+    /*
+     * FUENFZEHN, NICHT SECHZEHN: A160 / 9.50 m fuehrt A1 = 250, und dort
+     * bilden die beiden halben Felder EIN Regelfeld ohne Blech dazwischen
+     * (Weisung, 4. September). Bis dahin stand hier 16 - und der Pruefstand
+     * hielt damit das Paar fest, das der Stueckliste zu fehlen schien.
+     */
+    pruef('Fuenfzehn Stationen', b95.anzahl, 15, 1e-9, 'Stk');
     /*
      * WO SIE NICHT AUFGEHT, BLEIBT DIE NAEHERUNG - und sagt es. Ab A240
      * sitzen Quersteifungen zwischen den QV-Bereichen; wie sich die Bleche
@@ -13375,7 +13408,16 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       }
     }
     pruef('Bei A1 = 500 deckt sich jede Laenge', deckt500, 77, 1e-9, 'Stk');
-    pruef('Bei A1 = 250 fehlt genau ein Paar', ab250, 80, 1e-9, 'Stk');
+    /*
+     * >>> DER FEHLBETRAG WAR KEINER. <<<
+     *
+     * Hier stand bis zum 4. September, der Stueckliste fehle bei A1 = 250
+     * «durchweg genau ein Paar». Sie hatte recht: bei A1 = 250 ist 2 x A1
+     * = A, die beiden halben Felder sind zusammen ein Regelfeld, und in der
+     * Mitte sitzt kein Blech (Weisung: «es hat nicht immer zwingend in der
+     * mitte ein verbindungsblech»). Jetzt deckt sich JEDE Laenge.
+     */
+    pruef('Und bei A1 = 250 auch', ab250, 0, 1e-9, 'Stk');
     /*
      * >>> DER RIEGEL BIEGT UM SEINE SCHWACHE ACHSE. <<<
      *
@@ -13605,7 +13647,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const Vfn = (x) => qd * (L / 2 - x);
     const alle = AK.abfangBlechnachweise('A160', L, Vfn, 21.8);
     wahr('Es sind so viele Nachweise wie Stationen',
-         alle.bleche.length === 16);
+         alle.bleche.length === 15);
     wahr('Jedes Blech kennt seine Stelle',
          alle.bleche.every((b) => b.x > 0 && b.x < L));
     /*
@@ -13818,9 +13860,11 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * sollten nicht sein» - sie stehen jetzt an ihrer Station, nicht mehr
      * am Traegerende). Je Station zwei Ebenen, je Riegel drei Staebe.
      */
-    pruef('Zwei Bindebleche je Station', blS.length, 84, 1e-9, 'Stk');
+    // Eine Station weniger (kein Blech in der Mitte) sind sechs Staebe
+    // weniger: zwei Ebenen zu je starr - Blech - starr.
+    pruef('Zwei Bindebleche je Station', blS.length, 78, 1e-9, 'Stk');
     const mittel = blS.filter((x) => x.name.endsWith('_2'));
-    pruef('… davon 28 das Blech selbst', mittel.length, 28, 1e-9, 'Stk');
+    pruef('… davon 26 das Blech selbst', mittel.length, 26, 1e-9, 'Stk');
     wahr('Die beiden Enden sind Starrkoerper',
          blS.filter((x) => /_[13]$/.test(x.name))
            .every((x) => x.art === 'starr'));
@@ -14166,9 +14210,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const sw = AK.abfangStuetzweite('A160', 9.5);
     pruef('Die Felder decken die Stuetzweite',
           rf.felder.reduce((a2, b2) => a2 + b2, 0), sw.bis, 1e-6, 'm');
-    // In der Mitte sitzt das kuerzeste Paar - das Feld A1 des Schemas.
-    pruef('Das kuerzeste Feld ist das mittlere Paar',
-          Math.min(...rf.felder), 0.25, 1e-6, 'm');
+    /*
+     * IN DER MITTE SITZT KEIN BLECH - A160 / 9.50 m fuehrt A1 = 250, und
+     * die beiden halben Felder sind zusammen ein Regelfeld von 500. Hier
+     * stand 0.25; das war die Fassung mit dem Blech dazwischen.
+     */
+    pruef('Das kuerzeste Feld ist die Regelteilung',
+          Math.min(...rf.felder), 0.5, 1e-6, 'm');
 
     /*
      * >>> UND DAS AENDERT DEN NACHWEIS. <<<

@@ -275,12 +275,57 @@ export function abfangKroepfung(typ) {
 }
 
 /**
+ * >>> `d` IST DER STEGABSTAND, NICHT DURCHWEG DIE LICHTE WEITE. <<<
+ *
+ * Befund vom 4. September, an fuenf Konstruktionszeichnungen nachgemessen.
+ * Die Draufsicht bemasst im Feld drei Werte ineinander, bei A270
+ *
+ *      735  |  600  |  465
+ *    aussen | Stege | licht
+ *
+ * und das Regelbindeblech misst 463. Beim UPE faellt der Unterschied nicht
+ * auf: sein Steg LIEGT auf der Innenkante, dort sind Stegabstand und lichte
+ * Weite dasselbe (A240: d = 600, Blech 600). Beim IPE liegt der Steg in der
+ * MITTE, und die lichte Weite ist d - b. Genau um diesen Betrag waren die
+ * Bindebleche der vier grossen Typen zu lang gezeichnet.
+ *
+ * Probe ueber alle Typen und Stationen: jedes Blech der Stueckliste trifft
+ * seine Station auf wenige Millimeter (A270 endeR 391 gegen 389, A360 endeR
+ * 371 gegen 371). Vorher lagen die inneren Endbleche 80 mm daneben.
+ *
+ * FOLGE FUER DEN RECHENKERN - hier bewusst NICHT gezogen: der Achsabstand e
+ * der IPE-Typen ist damit d und nicht d + b, das Aussenmass k ist d + b und
+ * nicht d + 2b. Der Hebelarm der Vierendeel-Wirkung faellt bei A270 von 735
+ * auf 600. Das ist ein Nachweisentscheid und gehoert dem Auftraggeber.
+ *
+ * @returns {number} lichte Weite im Feld [mm]
+ */
+export function abfangLichtFeld(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  const d = a?.aufbau?.d ?? 0;
+  return d - abfangStegVersatz(a) * 2;
+}
+
+/**
+ * Der Abstand vom Gurtsteg zur INNENKANTE des Gurtes [mm].
+ *
+ * Null beim offenen Profil - dort ist der Stegruecken die Innenkante. Beim
+ * I-Profil die halbe Flanschbreite, weil der Steg in der Mitte sitzt.
+ */
+export function abfangStegVersatz(typ) {
+  const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
+  // Die Reihe steht vor dem Leerzeichen: «UPE 240» -> «UPE».
+  const reihe = String(a?.aufbau?.gurtprofil ?? '').split(' ')[0];
+  return ['UPE', 'UAP', 'U'].includes(reihe) ? 0 : (a?.aufbau?.b ?? 0) / 2;
+}
+
+/**
  * DIE LICHTE WEITE DER GURTE AN DER STELLE x.
  *
- * Im Feld ist es `d`, am Jochende `lichtEnde`, dazwischen linear. Das LANGE
- * (Montage-)Ende knickt frueher als das kurze - die Zeichnung gibt 850 gegen
- * 920 -, also braucht die Funktion die Jochlaenge, um zu wissen, an welchem
- * Ende sie steht.
+ * Im Feld ist es `abfangLichtFeld`, am Jochende `lichtEnde`, dazwischen
+ * linear. Das LANGE (Montage-)Ende knickt frueher als das kurze - die
+ * Zeichnung gibt 850 gegen 920 bzw. 970 -, also braucht die Funktion die
+ * Jochlaenge, um zu wissen, an welchem Ende sie steht.
  *
  * @param {string|object} typ
  * @param {number} x   Stelle ab dem langen Jochende [m]
@@ -289,7 +334,7 @@ export function abfangKroepfung(typ) {
  */
 export function abfangLichteWeite(typ, x, jt) {
   const a = typeof typ === 'string' ? getAbfangjoch(typ) : typ;
-  const d = a?.aufbau?.d ?? 0;
+  const d = abfangLichtFeld(a);
   const kr = a?.kroepfung;
   if (!kr) return d;
   // Abstand vom naeheren Jochende, und welches Ende das ist.

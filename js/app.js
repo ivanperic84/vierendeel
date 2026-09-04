@@ -771,7 +771,17 @@ function aendern(key, wert) {
     if (neu !== null && Math.abs(neu - (Number(werte.L) || 0)) > 1e-9) {
       return aendern('L', neu);
     }
-    mastNachfuehren();
+    /*
+     * DIREKT, NICHT UEBER DEN ALIAS.
+     *
+     * `mastNachfuehren` ist weiter unten mit `const` gebunden - hier oben
+     * liegt es noch in der toten Zone, und der Aufruf warf «Cannot access
+     * 'mastNachfuehren' before initialization». Zu sehen war es nur, wenn
+     * der Typwechsel die Laenge NICHT mitzog; sonst kehrt die Zeile darueber
+     * vorher zurueck. Genau so ist es aufgefallen: A270 anwaehlen, 12.50 m
+     * bleibt gueltig, und die Anwendung stand.
+     */
+    mastNachfuehrenGlobal();
     neuRechnen();
     return;
   }
