@@ -25,7 +25,8 @@ import { TRAGWERKSARTEN, tragwerksart,
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
-         abfangDbDa } from './data.abfangjoche.js';
+         abfangDbDa, abfangLaengen, getAbfangjoch,
+         abfangMasse } from './data.abfangjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
@@ -139,7 +140,14 @@ export const GRUPPEN = [
    */
   { id: 'typ',   titel: 'Jochtyp und Rechenmasse',
     arten: ['joch', 'tragausleger', 'abfangjoch'] },
-  { id: 'geo',   titel: 'Systemgeometrie', arten: ['joch', 'tragausleger'] },
+  /*
+   * DIE GEOMETRIE GILT AUCH FUERS ABFANGJOCH - mit seinen eigenen Feldern.
+   * Dort steht die Laengenauswahl statt des Schiebers, und die Masse des
+   * Tragjochquerschnitts (jd, jbb, Endfeld, Masskette) bleiben aus: sie
+   * kommen beim Abfangjoch aus dem Sortiment und sind nicht einzustellen.
+   */
+  { id: 'geo',   titel: 'Systemgeometrie',
+    arten: ['joch', 'tragausleger', 'abfangjoch'] },
   { id: 'aufl',  titel: 'Auflagerung des Jochs', arten: ['joch'] },
   /*
    * DIE MASTEN SIND EIN EIGENES HAUPTTRAGWERK (Weisung, 28. August: «die
@@ -273,12 +281,46 @@ export const FELDER = [
     standard: 'schwerpunkt', optionen: opt(MASSVARIANTEN),
   },
 
+  /*
+   * >>> DAS ABFANGJOCH HAT KEINE FREIE LAENGE. <<<
+   *
+   * Weisung vom 4. September: «den katalog der typen und laengen der
+   * abfangjoche in die sidebar, damit man die modelle in axis aufbauen
+   * kann.»
+   *
+   * Das Sortiment fuehrt je Typ eine Reihe von Laengen im Halbmeterraster -
+   * A160 von 5.50 bis 12.50, A360 von 17.50 bis 28.50. Dazwischen gibt es
+   * nichts: `abfangMasse` findet zu einer ungefuehrten Laenge keine Zeile,
+   * und ohne sie steht weder Blecheinteilung noch Stuetzweite. Ein
+   * SCHIEBER trifft die Reihe nur zufaellig - deshalb hier eine Auswahl.
+   *
+   * Sie schreibt in dasselbe Feld `L` wie der Schieber des Tragjochs; das
+   * eine ist beim Abfangjoch sichtbar, das andere nicht.
+   */
+  { key: 'abfangLaenge', gruppe: 'geo', typ: 'auswahl',
+    label: (w) => `Jochlänge ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
+    optionenAus: (w) => abfangLaengenOptionen(w.abfangTyp),
+    /*
+     * DER WERT KOMMT AUS `L`, NICHT AUS EINEM ZWEITEN FELD.
+     *
+     * Die Auswahl zeigt, was in `L` steht - und schreibt beim Waehlen
+     * dorthin zurueck (app.js). Damit gibt es die Jochlaenge weiterhin
+     * genau einmal; die Liste ist nur eine andere Art, sie zu setzen.
+     */
+    wertAus: (w) => Number(w.L).toFixed(2),
+    sichtbar: (w) => tragwerksart(w).key === 'abfangjoch',
+    hinweis: 'Die gefuehrten Laengen des gewählten Typs. Jede trägt ihre '
+           + 'eigene Zeile der Mass-Tabelle — Stützweite, Blecheinteilung '
+           + 'und Überhöhung. Dazwischen gibt es nichts.' },
+
   // --- Systemgeometrie -----------------------------------------------------
   {
     // Die Spannweite ist NICHT gesperrt: sie ist die Grösse, die am häufigsten
     // variiert wird. Der Schieber ist auf den Sortimentsbereich des Typs
     // begrenzt, damit man nicht unbemerkt aus dem Katalog läuft.
+    // BEIM ABFANGJOCH steht an seiner Stelle die Auswahl `abfangLaenge`.
     key: 'L', gruppe: 'geo', typ: 'schieber', sym: 'jt',
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     label: (w) => `Jochlänge ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     einheit: 'm', standard: 20.0, min: 8, max: 34.5,
     // Der SCHIEBER rastet auf den halben Meter, das FELD auf den
@@ -305,6 +347,7 @@ export const FELDER = [
    */
   {
     key: 'masskette', gruppe: 'geo', typ: 'text',
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     label: 'Masskette der Zeichnung', einheit: 'cm', standard: '',
     platzhalter: 'z. B. 15 209 474 735 885 983 1185 1200', laenge: 120,
     hinweis: 'Masse über dem Joch in cm ab linkem Jochende, wie auf der '
@@ -312,6 +355,7 @@ export const FELDER = [
            + 'Kette angeschrieben ist.',
   },
   { key: 'a1', gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'a₁', einheit: 'm', standard: 0.75, min: 0.3, max: 1.5, schritt: 0.05,
     ausDB: true,
     hinweis: 'Abstand Jochende bis erstes Bindeblech. Teilung dazwischen aus der '
@@ -319,10 +363,13 @@ export const FELDER = [
   // Bei verjüngten Enden und Grundrissknick sind das die Masse IM FELD; die
   // Werte am Jochende ergeben sich daraus über Voute und Knick.
   { key: 'jd', gruppe: 'geo', typ: 'zahl', label: 'Gesamthöhe im Feld (Aussenmass)',
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'jd', einheit: 'mm', standard: 500, schritt: 10, min: 50, ausDB: true },
   { key: 'jbbOG', gruppe: 'geo', typ: 'zahl', label: 'Breite Obergurt im Feld (Aussenmass)',
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'jbb,OG', einheit: 'mm', standard: 440, schritt: 10, min: 50, ausDB: true },
   { key: 'jbbUG', gruppe: 'geo', typ: 'zahl', label: 'Breite Untergurt im Feld (Aussenmass)',
+    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'jbb,UG', einheit: 'mm', standard: 440, schritt: 10, min: 50, ausDB: true },
   // Der Nachweisschnitt wird im Auswertungsreiter «Schnitt» feldweise gesetzt.
   // Ein zweiter Schieber hier wäre dieselbe Grösse ein zweites Mal.
@@ -1164,6 +1211,28 @@ export function abfangOptionen() {
     ...alle.filter((a) => (a.bauweise ?? 'neu') !== 'alt').map(zeile),
     ...alle.filter((a) => (a.bauweise ?? 'neu') === 'alt').map(zeile),
   ];
+}
+
+/**
+ * DIE GEFÜHRTEN LÄNGEN EINES ABFANGJOCHTYPS.
+ *
+ * Jede Zeile nennt, was an ihr hängt: die Stützweite aus der Mass-Tabelle
+ * und ob die Blecheinteilung steht. Wer wählt, sieht damit vor dem Klick,
+ * ob sich daraus ein Modell bauen lässt.
+ */
+export function abfangLaengenOptionen(typ) {
+  if (!abfangDbDa() || !typ) return [];
+  let a = null;
+  try { a = getAbfangjoch(typ); } catch { return []; }
+  return abfangLaengen(a).map((jt) => {
+    const z = abfangMasse(a, jt);
+    const js = z?.js ? `js ${z.js[0].toFixed(2)}–${z.js[1].toFixed(2)} m` : '';
+    return {
+      wert: jt.toFixed(2),
+      text: `${jt.toFixed(2)} m${js ? ` · ${js}` : ''}`
+          + (z?.blechFraglich ? ' — Blechzahl fraglich' : ''),
+    };
+  });
 }
 
 /** Füllt die Typ-Auswahlliste, sobald die Typendatenbank geladen ist. */

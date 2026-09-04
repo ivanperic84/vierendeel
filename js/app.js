@@ -23,6 +23,8 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
 import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerVorgabe } from './export.axisvm.js';
+import { exportiereAbfangJson } from './export.axisvm.abfang.js';
+import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
          tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
@@ -55,7 +57,8 @@ import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
-         abfangLaengenbereich } from './data.abfangjoche.js';
+         abfangLaengenbereich, abfangLaengen,
+         getAbfangjoch } from './data.abfangjoche.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
@@ -526,6 +529,19 @@ function szeneVonNebenan(t, zeichnen) {
     // Tragwerk traegt, bleibt unveraendert - nur wer den geteilten Masten
     // ins Bild setzt, ist geregelt.
     const mit = (mo) => ({ ...mo, mastZeichnen: zeichnen });
+    /*
+     * >>> DAS ABFANGJOCH ZEICHNET SICH SELBST. <<<
+     *
+     * Weisung vom 4. September: die 3D-Abbildung gehoert in die App. Es hat
+     * zwei Gurte statt vier, seine Bleche liegen flach auf Flanschhoehe,
+     * und ab A240 stehen Quersteifen dazwischen - `erzeugeSzene` faende
+     * dafuer weder Querschnitt noch Stationsliste. `abfangSzene` baut
+     * dieselbe Gestalt aus derselben Quelle, aus der auch die Ausleitung
+     * nach AxisVM entsteht.
+     */
+    if (tragwerksart(satz).key === 'abfangjoch') {
+      return abfangSzene(satz.abfangTyp, Number(satz.L), {});
+    }
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
     }
@@ -549,8 +565,9 @@ function blattSzene(erg) {
   const alle = tragwerkeSortiert(werte)
     .filter((t) => !versteckt(t) || t.id === aktivId);
   const plan = mastZeichenplan(werte, aktivId);
-  const eigen = erzeugeSzene(
-    { ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
+  const eigen = tragwerksart(werte).key === 'abfangjoch'
+    ? abfangSzene(werte.abfangTyp, Number(werte.L), {})
+    : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
   const teile = alle.map((t) => {
     const dx = lageVon(t);
     if (t.id === aktivId) {
@@ -690,7 +707,54 @@ function mastNachfuehrenGlobal() {
   werte = { ...werte, anbauteile: anbauteileFuer(werte, tragwerkeVon(werte)[0]) };
 }
 
+/**
+ * DIE NÄCHSTGELEGENE GEFÜHRTE LÄNGE EINES ABFANGJOCHTYPS.
+ *
+ * Beim Wechsel des Typs bleibt die eingestellte Länge stehen, auch wenn der
+ * neue Typ sie nicht führt - A160 endet bei 12.50 m, A360 beginnt bei
+ * 17.50. Ohne Nachführung stünde dort eine Länge ohne Zeile in der
+ * Mass-Tabelle, und der Kern fände weder Stützweite noch Blecheinteilung.
+ */
+function abfangNaechsteLaenge(typ, jt) {
+  if (!abfangDbDa() || !typ) return null;
+  let liste = [];
+  try { liste = abfangLaengen(getAbfangjoch(typ)); } catch { return null; }
+  if (!liste.length) return null;
+  const ziel = Number(jt);
+  if (!Number.isFinite(ziel)) return liste[0];
+  return liste.reduce((a, b) => (Math.abs(b - ziel) < Math.abs(a - ziel) ? b : a));
+}
+
 function aendern(key, wert) {
+  /*
+   * >>> DIE LÄNGENAUSWAHL SCHREIBT IN `L`. <<<
+   *
+   * Weisung vom 4. September: der Katalog der Längen gehört in die
+   * Seitenleiste. Er steht dort als eigenes Feld, damit die Liste die
+   * geführten Längen zeigen kann - geschrieben wird aber in dasselbe `L`,
+   * an dem Rechnung, Bild und Ausleitung hängen. Ein zweites Längenfeld
+   * wäre ein zweiter Ort für dieselbe Zahl.
+   */
+  if (key === 'abfangLaenge') {
+    const jt = Number(wert);
+    if (Number.isFinite(jt)) return aendern('L', jt);
+    return;
+  }
+  /*
+   * WER DEN TYP WECHSELT, BEKOMMT EINE LÄNGE, DIE ES GIBT.
+   *
+   * Sonst bliebe die alte stehen - und A360 führt keine 9.50 m.
+   */
+  if (key === 'abfangTyp') {
+    const neu = abfangNaechsteLaenge(wert, werte.L);
+    werte = { ...werte, abfangTyp: wert };
+    if (neu !== null && Math.abs(neu - (Number(werte.L) || 0)) > 1e-9) {
+      return aendern('L', neu);
+    }
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
   /*
    * DIE TRAGWERKSLISTE MELDET DREI ABSICHTEN.
    *
@@ -4898,6 +4962,32 @@ function exportKlick() {
  */
 function dialogAxisvm() {
   if (!letzte) return;
+  /*
+   * BEIM ABFANGJOCH IST DIE WAHL EINE ANDERE. Knotenmodell, Auflagermodell
+   * und Starrelemente stehen dort fest - sie sind im Modell entschieden
+   * (steife Riegelenden, ein Auflagerpunkt je Ende, Starrkoerper). Was
+   * bleibt, ist der Weg ueber die COM-Bruecke.
+   */
+  if (tragwerksart(werte).key === 'abfangjoch') {
+    const typ = werte.abfangTyp;
+    const jt = Number(werte.L);
+    const d0 = dialog('AxisVM-Ausleitung — Abfangjoch', `
+      <p>Schreibt das Stabmodell des <b>${esc(typ)}</b> über
+         <b>${jt.toFixed(2)} m</b> aus: zwei Gurte, die Bindebleche jeder
+         Station auf Flanschhöhe, die Quersteifen an den Bereichsgrenzen,
+         die Gabel am Jochende auf ihrer versetzten Achse und einen
+         Auflagerpunkt je Ende.</p>
+      <p class="notiz">Die Datei neben <code>com/AxisVM_aufbauen.cmd</code>
+         legen und diese aufrufen — oder auf ihr Symbol ziehen. Gerechnet
+         wird nicht; der Startknopf bleibt Ihre Entscheidung.</p>`,
+      `<button class="btn btn-acc" data-los>Ausleiten</button>
+       <button class="btn" data-zu>Abbrechen</button>`);
+    d0.node.querySelector('[data-los]').onclick = () => {
+      d0.zu();
+      axisvmKlick('anschnitt', 'json');
+    };
+    return;
+  }
   const wahl = KNOTENMODELLE.map((k, i) => `
     <label class="schalter">
       <input type="radio" name="km" value="${k.key}"${i === 0 ? ' checked' : ''}>
@@ -4984,6 +5074,22 @@ function dialogAxisvm() {
 function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
                     auflagerModell = null, starrModell = 'koerper') {
   const m = letzte.erg.modell;
+  /*
+   * >>> DAS ABFANGJOCH GEHT SEINEN EIGENEN WEG. <<<
+   *
+   * Es ist ein LIEGENDER Vierendeeltraeger: zwei Gurte statt vier, Bleche
+   * auf Flanschhoehe, Quersteifen ab A240, die Gabel am Jochende. Sein
+   * Modell entsteht aus Typ und Laenge, nicht aus dem Blattmodell des
+   * Tragjochs - `stabmodellJson` haette dafuer keinen Gurt.
+   *
+   * Die uebrigen Wege (SAF, DXF, PyNite) gibt es dafuer noch nicht; der
+   * Dialog bietet sie beim Abfangjoch deshalb nicht an.
+   */
+  if (tragwerksart(werte).key === 'abfangjoch') {
+    const typ = werte.abfangTyp;
+    const jt = Number(werte.L);
+    return handlung('COM-Ausleitung', () => exportiereAbfangJson(typ, jt, {}));
+  }
   /*
    * `modellVon` BAUT EIN BELIEBIGES TRAGWERK DES BLATTES.
    *

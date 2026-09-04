@@ -75,6 +75,38 @@ const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
  * @param {number} jt    Jochlänge [m] — eine GEFÜHRTE Länge
  * @param {object} opt   { Fh: horizontale Abfangkraft [kN], gd, sd }
  */
+/**
+ * DIE AUSLEITUNG SCHREIBT DIE DATEI.
+ *
+ * Weisung vom 4. September: «den katalog der typen und laengen der
+ * abfangjoche in die sidebar, damit man die modelle in axis aufbauen kann.»
+ * Damit fehlt der letzte Schritt - eine Datei, die neben
+ * `com/AxisVM_aufbauen.cmd` liegt.
+ *
+ * Denselben Weg nimmt `exportiereJson` fuer das Tragjoch; hier steht er
+ * eigens, weil das Abfangjoch weder Blattmodell noch Lastkombinationen der
+ * Anwendung mitbringt: sein Modell entsteht aus Typ und Laenge allein.
+ */
+export function exportiereAbfangJson(typ, jt, opt = {}) {
+  const d = abfangAxisvmModell(typ, jt, opt);
+  const name = `AxisVM_Abfangjoch_${typ}_${Number(jt).toFixed(1)}m.json`;
+  const blob = new Blob([JSON.stringify(d, null, 1)],
+                        { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return {
+    name,
+    kennzahlen: {
+      knoten: d.knoten.length, staebe: d.staebe.length,
+      querschnitte: d.querschnitte.length,
+      lasten: d.lasten.punkt.length + d.lasten.strecke.length,
+    },
+  };
+}
+
 export function abfangAxisvmModell(typ, jt, opt = {}) {
   const a = getAbfangjoch(typ);
   const auf = abfangAufbau(a);
