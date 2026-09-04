@@ -38,15 +38,16 @@
  * ===========================================================================
  */
 
-import { abfangQuerschnitt, abfangBlechstationen,
-         abfangStuetzweite } from './core.abfangjoch.js';
+import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
+         abfangAnbindung } from './core.abfangjoch.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife,
          abfangKroepfung, abfangLichteWeite,
          abfangLichtFeld } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { bauteilFarbe } from './design.js';
-import { prisma, prismaY, platte, walzProfilPoly } from './render.koerper.js';
+import { prisma, prismaY, platte, stab, quader,
+         walzProfilPoly } from './render.koerper.js';
 
 /**
  * DIE SZENE EINES ABFANGJOCHS.
@@ -345,6 +346,56 @@ export function abfangSzene(typ, jt, opt = {}) {
         label: `${kurz} ${m2.b}×${m2.t}×${m2.l}`,
       }));
     }
+  });
+
+  /*
+   * ================== DIE ANBAUTEILE AM ABFANGJOCH =======================
+   *
+   * Weisung vom 4. September: «die anbindung an das joch erfolgt über die
+   * beiden gurte für die vertikalen elemente (jochaufsatz / hängestütze /
+   * fahrleitung etc.) Die Abgefangenen Leiter wirken auf mitte Träger.»
+   *
+   * Gezeichnet wird, was das Modell auch baut: ein Punkt auf der Jochachse
+   * und von dort die Arme zu den Gurten — beide beim vertikalen Element,
+   * einer beim abgefangenen Leiter. Der Ständer hängt am selben Punkt und
+   * reicht bis zur Höhe des Bauteils.
+   */
+  (opt.anbauteile ?? []).forEach((at, j) => {
+    if (!at || at.aktiv === false) return;
+    if ((at.ort ?? 'joch') !== 'joch') return;
+    const x = Math.min(Math.max(Number(at.x) || 0, 0), jt);
+    const an = abfangAnbindung(at);
+    const fb = farbeFuer(`anbau|${at.vorlage ?? at.name}`,
+                         at.name ?? 'Anbauteil', 'anbau');
+    const teil = `AT_${j + 1}`;
+    const opt2 = { gruppe: 'anbau', teil, farbeBauteil: fb,
+                   label: `${at.name ?? 'Anbauteil'} · ${an.art === 'mitte'
+                     ? `Mitte Träger (${an.seite === 'H' ? 'hinten' : 'vorn'})`
+                     : 'über beide Gurte'}` };
+    // Die Arme zu den Gurten - dieselbe Wahl wie im Stabmodell.
+    const seiten = an.art === 'mitte' ? [an.seite === 'H' ? -1 : 1] : [1, -1];
+    seiten.forEach((sg) => {
+      flaechen.push(...stab([x, 0, 0], [x, sg * yAchse(x), 0], 0.035, opt2));
+    });
+    /*
+     * DER STAENDER. Seine Länge ist die tiefste Modulhöhe der Baugruppe -
+     * so weit reicht das Bauteil unter das Joch. Ohne Modul bleibt ein
+     * Stummel: es steht etwas da, und man sieht, dass es keine Höhe führt.
+     */
+    const zs = (at.module ?? []).map((m2) => Number(m2?.z) || 0);
+    const zTief = zs.length ? Math.min(...zs, 0) : -0.25;
+    const zHoch = zs.length ? Math.max(...zs, 0) : 0;
+    if (zTief < -0.01) {
+      flaechen.push(...stab([x, 0, 0], [x, 0, zTief], 0.045, opt2));
+      flaechen.push(...quader([x, 0, zTief], [0.09, 0.09, 0.06], opt2));
+    }
+    if (zHoch > 0.01) {
+      flaechen.push(...stab([x, 0, 0], [x, 0, zHoch], 0.045, opt2));
+      flaechen.push(...quader([x, 0, zHoch], [0.09, 0.09, 0.06], opt2));
+    }
+    marken.push({ gruppe: 'anbau', art: 'anbau', teil,
+                  p: [x, 0, zTief < -0.01 ? zTief - 0.12 : hG / 2 + 0.12],
+                  text: at.name ?? `A${j + 1}` });
   });
 
   /*

@@ -599,7 +599,9 @@ function szeneVonNebenan(t, zeichnen) {
      * nach AxisVM entsteht.
      */
     if (tragwerksart(satz).key === 'abfangjoch') {
-      return abfangSzene(satz.abfangTyp, Number(satz.L), {});
+      // Die Anbauteile gehoeren ins Bild - sie gehoeren auch ins Modell.
+      return abfangSzene(satz.abfangTyp, Number(satz.L),
+                         { anbauteile: satz.anbauteile ?? [] });
     }
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
@@ -625,7 +627,8 @@ function blattSzene(erg) {
     .filter((t) => !versteckt(t) || t.id === aktivId);
   const plan = mastZeichenplan(werte, aktivId);
   const eigen = tragwerksart(werte).key === 'abfangjoch'
-    ? abfangSzene(werte.abfangTyp, Number(werte.L), {})
+    ? abfangSzene(werte.abfangTyp, Number(werte.L),
+                  { anbauteile: tragwerkSatz(werte).anbauteile ?? [] })
     : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
   const teile = alle.map((t) => {
     const dx = lageVon(t);
@@ -5207,11 +5210,24 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
   if (tragwerksart(werte).key === 'abfangjoch') {
     const typ = werte.abfangTyp;
     const jt = Number(werte.L);
+    // Der Satz des AKTIVEN Tragwerks - dort stehen seine Anbauteile, seine
+    // Fahrleitungsspannweite und sein Radius, nicht im Blattobjekt.
+    const aktSatz = tragwerkSatz(werte);
     // Das Knotenmodell reicht durch: es entscheidet, ob die Riegelenden
     // steif ausgebildet werden oder das Modell Achse zu Achse rechnet.
+    /*
+     * DIE ANBAUTEILE REICHEN MIT DURCH (Weisung, 4. September). Ohne sie
+     * baut die Ausleitung ein nacktes Joch und wirft eine pauschale
+     * Abfangkraft in die Mitte - die Eingabe waere still verloren.
+     */
     return handlung('COM-Ausleitung',
-      () => exportiereAbfangJson(typ, jt, { knotenbereich: knotenmodell,
-                                            auflagerModell }));
+      () => exportiereAbfangJson(typ, jt, {
+        knotenbereich: knotenmodell, auflagerModell,
+        anbauteile: aktSatz.anbauteile ?? [],
+        L_FL: Number(aktSatz.L_FL) || 0,
+        R: Number(aktSatz.R) || 0,
+        ek: aktSatz.ek,
+      }));
   }
   /*
    * `modellVon` BAUT EIN BELIEBIGES TRAGWERK DES BLATTES.

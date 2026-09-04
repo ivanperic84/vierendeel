@@ -10,6 +10,8 @@
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
+import { abfangAnbindung, ABFANG_ANBINDUNGEN,
+         ABFANG_SEITEN } from './core.abfangjoch.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt,
@@ -224,9 +226,15 @@ export function maskenSignatur(werte, tab) {
       // Höhe über Fundament. Ohne ihn in der Signatur blieb die Karte beim
       // Umschalten stehen: der Wert war gesetzt, die Maske zeigte weiter die
       // Jochfelder.
+      /*
+       * DIE ANBINDUNG GEHOERT DAZU. Sie entscheidet, ob die Karte das Feld
+       * «Seite» zeigt - beim abgefangenen Leiter ja, beim vertikalen
+       * Element nicht. Ohne sie in der Signatur blieb die Karte stehen:
+       * «Mitte Träger» war gewaehlt, das Seitenfeld erschien nie.
+       */
       ? (werte.anbauteile ?? []).map(
           (a) => `${a.id}:${a.aktiv !== false}:${befestigungsArt(a)}:` +
-                 `${ortVon(a)}:` +
+                 `${ortVon(a)}:${abfangAnbindung(a).art}:` +
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(','))
@@ -424,7 +432,19 @@ export function aktualisiereMaske(container, werte, extras = {}) {
     const a = teilVon(+inp.closest('.at-karte').dataset.idx);
     if (!a) return;
     const k = inp.dataset.k;
-    const v = k === 'befestigung' ? befestigungsArt(a) : a[k];
+    /*
+     * DIE ABGELEITETEN FELDER BRAUCHEN IHREN ABLEITER.
+     *
+     * `befestigung`, `anbindung` und `seite` stehen nicht immer am Bauteil -
+     * sie folgen aus seiner Art, solange niemand sie gesetzt hat. Wer hier
+     * roh `a[k]` liest, bekommt undefined und schreibt eine Null ins Feld;
+     * das Auswahlfeld steht danach leer. Genau so war es beim Seitenfeld zu
+     * sehen: «Mitte Träger» gewählt, «Seite» ohne Eintrag.
+     */
+    const v = k === 'befestigung' ? befestigungsArt(a)
+      : k === 'anbindung' ? abfangAnbindung(a).art
+      : k === 'seite' ? abfangAnbindung(a).seite
+      : a[k];
     if (inp.type === 'checkbox') inp.checked = a.aktiv !== false;
     else if (String(inp.value) !== String(v ?? 0)) inp.value = v ?? 0;
   });
@@ -1744,6 +1764,38 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
             : ''}
           ${ortVon(a) === 'joch'
             ? atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)
+            : ''}
+          ${/*
+             * >>> AM ABFANGJOCH ENTSCHEIDET DIE ANBINDUNG. <<<
+             *
+             * Weisung vom 4. September: «die anbindung an das joch erfolgt
+             * ueber die beiden gurte fuer die vertikalen elemente
+             * (jochaufsatz / haengestuetze / fahrleitung etc.) Die
+             * Abgefangenen Leiter wirken auf mitte Traeger. Die Abgefangenen
+             * leiter koennen auf beiden Seiten angesetzt werden.»
+             *
+             * Die Vorgabe folgt der Vorlagengruppe - `leiter` zieht auf
+             * Mitte, alles andere sitzt auf den Gurten. Sie steht als Wahl
+             * da, weil sie nicht immer stimmt: eine Fahrleitung kann haengen
+             * ODER abgefangen sein, und aus den Daten des Bauteils folgt das
+             * nicht.
+             *
+             * Nur beim Abfangjoch: das Tragjoch hat vier Gurte und kennt die
+             * Frage in dieser Form nicht.
+             */''}
+          ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
+            ? atWahl(i, 'anbindung', 'Anbindung',
+                     abfangAnbindung(a).art,
+                     ABFANG_ANBINDUNGEN,
+                     ABFANG_ANBINDUNGEN.find(
+                       (x) => x.key === abfangAnbindung(a).art)?.hinweis ?? '')
+            : ''}
+          ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
+            && abfangAnbindung(a).art === 'mitte'
+            ? atWahl(i, 'seite', 'Seite', abfangAnbindung(a).seite,
+                     ABFANG_SEITEN,
+                     'Von welcher Seite der Leiter kommt. Sie entscheidet, '
+                     + 'welcher der beiden Gurte die Abfangkraft aufnimmt.')
             : ''}
           ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
                    'Nach welchem Gleis die Baugruppe gruppiert wird. '

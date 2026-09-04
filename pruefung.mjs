@@ -14235,6 +14235,137 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
             g.z1 - db.z1, 5, 1e-6, 'mm');
     }
 
+    // Der Kern des Abfangjochs traegt die Anbindungsregel.
+    const AK = await import(J('core.abfangjoch.js'));
+
+    /*
+     * ================ FIX ODER BEWEGLICH ABGEFANGEN =====================
+     *
+     * Weisung vom 4. September, woertlich: «bei den leitern werden die N-FL
+     * Tragseile fix (temperatur abhaengig, fuer die bemessung mit wind wird
+     * 5 Grad angesetzt) und die R-FL Tragseile beweglich (immer volle
+     * leiterzugkraft) abgefangen. bei der Fahrleitung N-FL sind es im
+     * Normalfall die 8.5 und bei den R-FL die 10 kN und beide beweglich,
+     * somit temperatur unabhaengig.»
+     */
+    {
+      const art = (id) => FL.abfangArt(id);
+      wahr('N-FL: das Tragseil ist FIX abgefangen',
+           art('drahtwerk-n-fl-stcu-50').ts === 'fix');
+      wahr('R-FL: das Tragseil ist BEWEGLICH',
+           art('drahtwerk-r-fl-stcu-92').ts === 'beweglich');
+      wahr('Beide Fahrdraehte sind beweglich',
+           art('drahtwerk-n-fl-cu-107').fd === 'beweglich'
+           && art('drahtwerk-r-fl-cu-107').fd === 'beweglich');
+      pruef('Der N-FL-Fahrdraht zieht mit 8.5 kN',
+            FL.leiterzug('drahtwerk-n-fl-cu-107'), 8.5, 1e-9, 'kN');
+      pruef('Der R-FL-Fahrdraht mit 10', FL.leiterzug('drahtwerk-r-fl-cu-107'),
+            10, 1e-9, 'kN');
+      /*
+       * DAS GANZE N-FL-DRAHTWERK IST GEMISCHT: Tragseil fix, Fahrdraht
+       * beweglich. Beim R-FL sind beide beweglich, es ist damit
+       * temperaturunabhaengig.
+       */
+      wahr('Das N-FL-Drahtwerk ist gemischt abgefangen',
+           art('drahtwerk-n-fl-ts-stcu-50-fd-cu-107').art === 'gemischt');
+      wahr('Das R-FL-Drahtwerk ganz beweglich',
+           art('drahtwerk-r-fl-ts-stcu-92-fd-cu-107').art === 'beweglich');
+      wahr('… und damit temperaturunabhaengig',
+           !FL.abfangkraft('drahtwerk-r-fl-ts-stcu-92-fd-cu-107')
+             .temperaturabhaengig);
+      wahr('Das N-FL-Drahtwerk dagegen nicht',
+           FL.abfangkraft('drahtwerk-n-fl-ts-stcu-50-fd-cu-107')
+             .temperaturabhaengig);
+      // Die Summe der Teile ist das Drahtwerk: 6.4 + 8.5 = 14.9.
+      pruef('N-FL: Ts + Fd geben das Drahtwerk',
+            FL.leiterzug('drahtwerk-n-fl-stcu-50')
+            + FL.leiterzug('drahtwerk-n-fl-cu-107'),
+            FL.leiterzug('drahtwerk-n-fl-ts-stcu-50-fd-cu-107'), 1e-9, 'kN');
+      pruef('R-FL ebenso', FL.leiterzug('drahtwerk-r-fl-stcu-92')
+            + FL.leiterzug('drahtwerk-r-fl-cu-107'),
+            FL.leiterzug('drahtwerk-r-fl-ts-stcu-92-fd-cu-107'), 1e-9, 'kN');
+      /*
+       * >>> OHNE REGLAGETABELLE KEINE ZAHL FUER -5 UND -20. <<<
+       *
+       * Der Katalog fuehrt Z bei +5 Grad. Bei +5 stimmt fix und beweglich
+       * ueberein; fuer die kaelteren Faelle fehlt die Tabelle, und die
+       * Funktion sagt es, statt zu interpolieren.
+       */
+      wahr('Bei +5 Grad ist die Tabelle da',
+           !FL.abfangkraft('drahtwerk-n-fl-stcu-50',
+                           { tempFall: 'tragsicherheit' }).ohneTabelle);
+      wahr('Bei Havarie fehlt sie und wird gemeldet',
+           FL.abfangkraft('drahtwerk-n-fl-stcu-50',
+                          { tempFall: 'havarie' }).ohneTabelle);
+      wahr('Beim beweglichen fehlt sie nie',
+           !FL.abfangkraft('drahtwerk-r-fl-stcu-92',
+                           { tempFall: 'havarie' }).ohneTabelle);
+    }
+
+    /*
+     * ============ WO EIN ANBAUTEIL AM ABFANGJOCH ANGREIFT ===============
+     *
+     * Weisung vom 4. September: «die anbindung an das joch erfolgt ueber die
+     * beiden gurte fuer die vertikalen elemente (jochaufsatz / haengestuetze
+     * / fahrleitung etc.) Die Abgefangenen Leiter wirken auf mitte Traeger.
+     * Die Abgefangenen leiter koennen auf beiden Seiten angesetzt werden.»
+     */
+    {
+      const nfl = { ...A.neuesAnbauteil('leiter-nfl', 4.0), name: 'N-FL' };
+      const rfl = { ...A.neuesAnbauteil('leiter-rfl', 8.0), name: 'R-FL',
+                    seite: 'H' };
+      const hs = { ...A.neuesAnbauteil('hs-fahrdraht', 6.0), name: 'HS' };
+      pruef('Der Leiter zieht auf Mitte Traeger',
+            AK.abfangAnbindung(nfl).art === 'mitte' ? 1 : 0, 1, 1e-9, '-');
+      pruef('Die Haengestuetze sitzt auf beiden Gurten',
+            AK.abfangAnbindung(hs).art === 'gurte' ? 1 : 0, 1, 1e-9, '-');
+      wahr('Ohne Angabe kommt der Leiter von vorn',
+           AK.abfangAnbindung(nfl).seite === 'V');
+      wahr('Mit Angabe von hinten', AK.abfangAnbindung(rfl).seite === 'H');
+      wahr('Die Vorgabe ist als solche gekennzeichnet',
+           AK.abfangAnbindung(nfl).vorgegeben);
+      wahr('Eine gesetzte Anbindung sticht sie aus',
+           AK.abfangAnbindung({ ...nfl, anbindung: 'gurte' }).art === 'gurte');
+      // Beim vertikalen Element gibt es keine Seite - es sitzt auf beiden.
+      wahr('Das vertikale Element kennt keine Seite',
+           AK.abfangAnbindung(hs).seite === null);
+
+      /*
+       * IM MODELL: EIN KNOTEN AUF DER JOCHACHSE, STARRE ARME ZU DEN GURTEN.
+       * Der Leiter bekommt einen Arm, das vertikale Element zwei.
+       */
+      const mA = XA.abfangAxisvmModell('A300', 13.0,
+        { anbauteile: [nfl, rfl, hs], L_FL: 60 });
+      pruef('Drei Anbauteile, drei Knoten',
+            mA.knoten.filter((n2) => /^AT\d+$/.test(n2.name)).length,
+            3, 1e-9, 'Stk');
+      wahr('Sie sitzen auf der Jochachse',
+           mA.knoten.filter((n2) => /^AT\d+$/.test(n2.name))
+             .every((n2) => n2.y === 0 && n2.z === 0));
+      pruef('Vier starre Arme: 1 + 1 + 2',
+            mA.staebe.filter((x2) => /^ATARM_/.test(x2.name)).length,
+            4, 1e-9, 'Stk');
+      wahr('… und alle sind Starrkoerper',
+           mA.staebe.filter((x2) => /^ATARM_/.test(x2.name))
+             .every((x2) => x2.art === 'starr'));
+      // Der Leiter vorn zieht in +y, der hintere in -y.
+      const fh = (n2) => mA.lasten.punkt.find((p2) => p2.name === n2);
+      pruef('Der Leiter vorn zieht mit +14.9 kN', fh('FH_AT1').wert,
+            14.9, 1e-9, 'kN');
+      pruef('Der hintere mit -22', fh('FH_AT2').wert, -22, 1e-9, 'kN');
+      wahr('Die Haengestuetze traegt keinen Leiterzug', !fh('FH_AT3'));
+      wahr('Wohl aber Eigengewicht', fh('G_AT3').wert < 0);
+      /*
+       * DIE PAUSCHALE ABFANGKRAFT WEICHT, sobald abgefangene Leiter
+       * eingetragen sind - sonst stuende sie zusaetzlich in der Mitte.
+       */
+      wahr('Die pauschale Abfangkraft steht dann nicht mehr da',
+           !mA.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+      const mB = XA.abfangAxisvmModell('A300', 13.0, { anbauteile: [hs] });
+      wahr('Ohne Leiter bleibt sie',
+           mB.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+    }
+
     /*
      * DIE GEGENPROBE AN EINEM GEKROPFTEN TYP. A160 ist gerade; erst A240
      * zeigt, was die Weisung meint.

@@ -153,6 +153,105 @@ export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
 /** Leiterzugkraft eines Drahtwerks [kN], bei T + 5 °C. */
 export const leiterzug = (id) => getFlBauteil(id).leiterzug ?? 0;
 
+/* ===========================================================================
+ * FIX ODER BEWEGLICH - WIE EIN LEITER ABGEFANGEN WIRD
+ * ===========================================================================
+ *
+ * Weisung vom 4. September, wörtlich:
+ *
+ *   «bei den leitern werden die N-FL Tragseile fix (temperatur abhängig, für
+ *    die bemessung mit wind wird 5° angesetzt) und die R-FL Tragseile
+ *    beweglich (immer volle leiterzugkraft) abgefangen. bei der Fahrleitung
+ *    N-FL sind es im Normalfall die 8.5 und bei den R-FL die 10 kN und beide
+ *    beweglich, somit temperatur unabhängig.»
+ *
+ * >>> WARUM DAS EIN UNTERSCHIED IST. <<<
+ *
+ * BEWEGLICH abgefangen heisst: über eine Nachspannung. Der Leiter steht
+ * immer unter seiner vollen Zugkraft, gleich wie kalt es ist - das Gewicht
+ * hält sie konstant.
+ *
+ * FIX abgefangen heisst: starr verankert. Dann folgt die Kraft der
+ * Temperatur, weil der Draht sich zusammenzieht und nirgends nachgeben kann.
+ * Für die Bemessung mit Wind gilt +5 °C, und genau darauf ist der
+ * Bauteilkatalog bezogen.
+ *
+ * >>> EIN DRAHTWERK SIND ZWEI LEITER. <<<
+ *
+ * Die Katalogeinträge fassen Tragseil und Fahrdraht zusammen - N-FL 14.9 =
+ * 6.4 (Ts) + 8.5 (Fd), R-FL 22 = 12 (Ts) + 10 (Fd). Die Abfangart trennt
+ * sie: beim N-FL ist NUR das Tragseil fix, der Fahrdraht ist beweglich.
+ * Beim R-FL sind beide beweglich, das ganze Drahtwerk also
+ * temperaturunabhängig.
+ *
+ * >>> DIE ZAHLEN FALLEN HEUTE ZUSAMMEN. <<<
+ *
+ * Der Katalog führt Z bei +5 °C, und die Bemessung mit Wind rechnet bei
+ * +5 °C. Fix und beweglich geben dort denselben Wert. Der Unterschied
+ * greift erst bei den kälteren Fällen - Schnee bei −5, Havarie bei −20 -,
+ * und für die fehlt die Reglagetabelle noch. Solange sie fehlt, sagt
+ * `abfangkraft` es, statt eine Zahl zu erfinden.
+ * =========================================================================== */
+
+/**
+ * Wie die Teile eines Drahtwerks abgefangen sind.
+ *
+ * Die Zuordnung hängt an der Bezeichnung des Katalogeintrags - `n-fl` und
+ * `r-fl` stehen darin -, nicht an einer Liste von Ids: neue Varianten
+ * derselben Fahrleitung sollen von selbst richtig liegen.
+ *
+ * @returns {{ts: string|null, fd: string|null, art: string}}
+ *          'fix' | 'beweglich' je Teil, `art` die des ganzen Drahtwerks
+ *          ('gemischt', wenn beide Teile verschieden abgefangen sind)
+ */
+export function abfangArt(id) {
+  const b = typeof id === 'string' ? getFlBauteil(id) : id;
+  const n = String(b?.id ?? '');
+  const hatTs = /-ts-/.test(n) || /stcu/.test(n);
+  const hatFd = /-fd-/.test(n) || /-cu-\d/.test(n);
+  /*
+   * NUR DAS TRAGSEIL DER N-FL IST FIX. Alles andere haengt an einer
+   * Nachspannung - auch der Rueckleiter Cu 95, fuer den keine eigene
+   * Weisung vorliegt: beweglich ist dort die Annahme, die keine
+   * Temperaturabhaengigkeit erfindet.
+   */
+  const ts = hatTs ? (/^drahtwerk-n-fl/.test(n) ? 'fix' : 'beweglich') : null;
+  const fd = hatFd ? 'beweglich' : null;
+  const arten = [ts, fd].filter(Boolean);
+  const art = arten.length === 0 ? 'beweglich'
+    : arten.every((x) => x === arten[0]) ? arten[0] : 'gemischt';
+  return { ts, fd, art };
+}
+
+/**
+ * DIE ABFANGKRAFT EINES DRAHTWERKS [kN].
+ *
+ * Sie ist die Kraft, die das Abfangjoch aufnimmt - nicht die Umlenkkraft im
+ * Bogen. Beim beweglich abgefangenen Teil ist es die volle Zugkraft, beim
+ * fix abgefangenen die zur Regliertemperatur.
+ *
+ * @param {string} id       Katalog-Id des Drahtwerks
+ * @param {object} opt      {tempFall: Schlüssel aus REGLIERTEMPERATUREN}
+ * @returns {{Z:number, art:string, T:number, temperaturabhaengig:boolean,
+ *            ohneTabelle:boolean}}
+ */
+export function abfangkraft(id, { tempFall = 'tragsicherheit' } = {}) {
+  const Z = leiterzug(id);
+  const a = abfangArt(id);
+  const T = reglierTemperatur(tempFall);
+  const fixDabei = a.ts === 'fix' || a.fd === 'fix';
+  /*
+   * >>> OHNE TABELLE KEINE ZAHL. <<<
+   *
+   * Der Katalog fuehrt Z bei +5 °C. Fuer -5 und -20 braeuchte es die
+   * Reglagetabelle, und die ist nicht erfasst. Statt zu interpolieren -
+   * der Zusammenhang ist nicht linear - sagt die Funktion, dass sie den
+   * Wert von +5 zurueckgibt, obwohl ein kaelterer Fall gefragt war.
+   */
+  const ohneTabelle = fixDabei && T !== 5;
+  return { Z, art: a.art, T, temperaturabhaengig: fixDabei, ohneTabelle };
+}
+
 export function flStand() {
   const d = db();
   return { version: d._version, stand: d._stand, bauteile: d.bauteile.length,

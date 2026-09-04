@@ -877,3 +877,87 @@ export function abfangBlechnachweise(typ, jt, Vfunktion, fyd) {
     (m, c) => (!m || c.eta > m.eta ? c : m), null);
   return { bleche, massgebend, e: q.e, einteilung: ein };
 }
+
+
+/* ===========================================================================
+ * WIE EIN ANBAUTEIL AM ABFANGJOCH ANGREIFT
+ * ===========================================================================
+ *
+ * Weisung vom 4. September, wörtlich:
+ *
+ *   «die anbindung an das joch erfolgt über die beiden gurte für die
+ *    vertikalen elemente (jochaufsatz / hängestütze / fahrleitung etc.) Die
+ *    Abgefangenen Leiter wirken auf mitte Träger. Die Abgefangenen leiter
+ *    können auf beiden Seiten angesetzt werden. so dass entweder der vordere
+ *    oder hintere IPE oder UPE Träger belastet wird.»
+ *
+ * >>> ZWEI ANBINDUNGEN, NICHT EINE. <<<
+ *
+ * Das Abfangjoch hat zwei Gurte nebeneinander, und es macht einen
+ * Unterschied, an welchem ein Bauteil hängt:
+ *
+ *   GURTE   Was auf dem Joch steht oder daran hängt - Jochaufsatz,
+ *           Hängestütze, eine direkt abgezogene Fahrleitung - sitzt auf
+ *           BEIDEN Gurten. Seine Last teilt sich, und der Träger trägt sie
+ *           als Rahmen.
+ *
+ *   MITTE   Der abgefangene Leiter zieht auf MITTE TRÄGER, auf der
+ *           Jochachse. Er kommt von einer Seite, und diese Seite entscheidet,
+ *           welcher der beiden Gurte die Kraft aufnimmt.
+ *
+ * >>> DIE SEITE IST EINE EINGABE, KEINE ABLEITUNG. <<<
+ *
+ * Ein Leiter kann von vorn oder von hinten kommen; beides ist gebaut. Aus
+ * den Daten des Anbauteils folgt das nicht, also steht es im Anbauteil.
+ * Ohne Angabe gilt vorn - eine Vorgabe, keine Behauptung.
+ *
+ * >>> UND DIE ART LÄSST SICH ÜBERSCHREIBEN. <<<
+ *
+ * Die Vorgabe folgt der Vorlagengruppe: `leiter` zieht auf Mitte, alles
+ * andere sitzt auf den Gurten. Das trifft den Regelfall, aber nicht jeden -
+ * eine Fahrleitung kann als vertikales Element hängen ODER abgefangen sein.
+ * Wer es anders braucht, trägt es am Bauteil ein, statt dass hier geraten
+ * wird.
+ * =========================================================================== */
+
+export const ABFANG_ANBINDUNGEN = [
+  { key: 'gurte', label: 'Über beide Gurte',
+    hinweis: 'Vertikale Elemente — Jochaufsatz, Hängestütze, hängende '
+           + 'Fahrleitung. Die Last teilt sich auf beide Gurte.' },
+  { key: 'mitte', label: 'Mitte Träger',
+    hinweis: 'Abgefangener Leiter. Zieht auf der Jochachse; die Seite sagt, '
+           + 'welcher Gurt die Kraft aufnimmt.' },
+];
+
+export const ABFANG_SEITEN = [
+  { key: 'V', label: 'vorn' },
+  { key: 'H', label: 'hinten' },
+];
+
+/**
+ * Die Anbindung eines Anbauteils an das Abfangjoch.
+ *
+ * @param {object} a      Anbauteil
+ * @param {object} vorl   seine Vorlage (für die Vorgabe der Art), optional
+ * @returns {{art: 'gurte'|'mitte', seite: 'V'|'H'|null, vorgegeben: boolean}}
+ */
+export function abfangAnbindung(a, vorl = null) {
+  const gesetzt = ABFANG_ANBINDUNGEN.some((x) => x.key === a?.anbindung);
+  /*
+   * DIE VORGABE ERKENNT DEN LEITER AN SEINER VORLAGE. Die Gruppe steht in
+   * der Vorlagendatenbank, nicht am angelegten Bauteil - wer sie nicht
+   * mitgibt, bekaeme sonst fuer jeden Leiter «Gurte». Die Kennung reicht:
+   * `leiter-nfl`, `leiter-rfl`, `leiter-rl`.
+   *
+   * OFFEN: `leiter-traverse` traegt dieselbe Gruppe und ist doch ein
+   * vertikales Element. Sie steht damit vorerst auf «Mitte» - am Bauteil
+   * umstellbar, und die Karte sagt, dass es eine Vorgabe war.
+   */
+  const gruppe = vorl?.gruppe ?? a?.gruppe
+    ?? (/^leiter-/.test(String(a?.vorlage ?? '')) ? 'leiter' : null);
+  const art = gesetzt ? a.anbindung : (gruppe === 'leiter' ? 'mitte' : 'gurte');
+  const seite = art === 'mitte'
+    ? (ABFANG_SEITEN.some((x) => x.key === a?.seite) ? a.seite : 'V')
+    : null;
+  return { art, seite, vorgegeben: !gesetzt };
+}

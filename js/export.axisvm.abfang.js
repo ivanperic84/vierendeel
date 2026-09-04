@@ -60,8 +60,10 @@
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
          abfangLichteWeite, abfangLichtFeld } from './data.abfangjoche.js';
-import { abfangQuerschnitt, abfangBlechstationen,
-         abfangStuetzweite } from './core.abfangjoch.js';
+import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
+         abfangAnbindung } from './core.abfangjoch.js';
+import { abfangkraft } from './data.fl.js';
+import { baugruppeSumme } from './data.anbauteile.js';
 import { getGurtprofil } from './data.profiles.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
@@ -347,7 +349,17 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     ? [kroepf.knickLangesEnde / 1000, kroepf.vollbreiteAb / 1000,
        L - kroepf.knickKurzesEnde / 1000, L - kroepf.vollbreiteAb / 1000]
     : [];
-  const xs = [...new Set([0, ue, ...ein.stationen, ...knicke, L - ue, L]
+  /*
+   * >>> DIE ANBAUTEILE BRINGEN IHRE STELLEN MIT. <<<
+   *
+   * Weisung vom 4. September. Ein Bauteil greift dort an, wo es steht -
+   * nicht an der naechsten Blechstation. Seine Stelle ist deshalb ein
+   * Knoten wie jede andere.
+   */
+  const anbau = (opt.anbauteile ?? []).filter((t2) => t2 && t2.aktiv !== false);
+  const anbauX = anbau.map((t2) => Math.min(Math.max(Number(t2.x) || 0, 0), L))
+    .map((v) => Math.round(v * 1e6) / 1e6);
+  const xs = [...new Set([0, ue, ...ein.stationen, ...knicke, ...anbauX, L - ue, L]
     .map((v) => Math.round(v * 1e6) / 1e6))].sort((u, v) => u - v)
     .filter((v) => v >= -1e-9 && v <= L + 1e-9);
   /*
@@ -876,10 +888,142 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     if (Math.abs(v - xM) < Math.abs(xs[mitte] - xM)) mitte = i;
   });
   const punkt = [];
-  for (const g of ['V', 'H']) {
-    punkt.push({ name: `FH_${g}`, knoten: nm(g, mitte), richtung: 'Y',
-                 wert: Fh / 2, lastfall: 'Leiterzug' });
+  /*
+   * >>> OHNE ANBAUTEILE BLEIBT DIE PAUSCHALE ABFANGKRAFT. <<<
+   *
+   * Sie war bis zum 4. September der einzige Weg: EIN Wert `Fh`, halbiert
+   * auf beide Gurte in der Traegermitte. Wo abgefangene Leiter eingetragen
+   * sind, tritt an ihre Stelle die Summe der einzelnen Abfangkraefte an
+   * IHREN Stellen - dasselbe Bauwerk, nur nicht mehr auf einen Punkt
+   * geworfen.
+   */
+  const leiterAusAnbau = anbau.some(
+    (t2) => abfangAnbindung(t2).art === 'mitte');
+  if (!leiterAusAnbau) {
+    for (const g of ['V', 'H']) {
+      punkt.push({ name: `FH_${g}`, knoten: nm(g, mitte), richtung: 'Y',
+                   wert: Fh / 2, lastfall: 'Leiterzug' });
+    }
   }
+
+  /*
+   * ================= DIE ANBAUTEILE AM ABFANGJOCH ========================
+   *
+   * Weisung vom 4. September, woertlich:
+   *
+   *   «die anbindung an das joch erfolgt ueber die beiden gurte fuer die
+   *    vertikalen elemente (jochaufsatz / haengestuetze / fahrleitung etc.)
+   *    Die Abgefangenen Leiter wirken auf mitte Traeger. Die Abgefangenen
+   *    leiter koennen auf beiden Seiten angesetzt werden. so dass entweder
+   *    der vordere oder hintere IPE oder UPE Traeger belastet wird.»
+   *
+   * Jedes Bauteil bekommt EINEN Knoten auf der Jochachse (y = 0, z = 0) und
+   * von dort STARRE Arme zu den Gurten - beide bei einem vertikalen
+   * Element, nur einer beim abgefangenen Leiter. Der Knoten traegt die
+   * Lasten; die Arme tragen sie dorthin, wo das Bauteil angeschraubt ist.
+   *
+   * >>> ALS STARRKOERPER, NICHT ALS DICKER STAB. <<<
+   *
+   * Dieselbe Weisung wie ueberall im Modell (siehe `riegel`): ein steifer
+   * Ersatzquerschnitt ist ein Stab mit sehr grossen Kennwerten und bleibt
+   * eine Feder. Ein Starrkoerper ist keine.
+   */
+  const anbauKnoten = [];
+  anbau.forEach((t2, j) => {
+    const x = Math.min(Math.max(Number(t2.x) || 0, 0), L);
+    const i = xs.findIndex((v) => Math.abs(v - x) < 1e-6);
+    if (i < 0) return;
+    const an = abfangAnbindung(t2);
+    const knA = `AT${j + 1}`;
+    knoten.push({ name: knA, x: xs[i], y: 0, z: 0 });
+    anbauKnoten.push({ name: knA, teil: t2, anbindung: an, i });
+    const seiten = an.art === 'mitte' ? [an.seite] : ['V', 'H'];
+    seiten.forEach((g) => {
+      staebe.push({
+        name: `ATARM_${j + 1}${g}`, von: knA, bis: nm(g, i),
+        querschnitt: 'GURT', steifesMaterial: false,
+        lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
+      });
+    });
+  });
+
+  /*
+   * DIE LASTEN DER ANBAUTEILE.
+   *
+   *   G_Anbau    Eigengewicht, staendig, nach unten
+   *   Leiterzug  Abfangkraft eines abgefangenen Leiters, in Gleisrichtung
+   *   WindX/Y    Wind auf das Bauteil, in Jochachse und in Gleisrichtung
+   *
+   * >>> DIE ABFANGKRAFT FOLGT DER ABFANGART. <<<
+   *
+   * Weisung vom 4. September: N-FL-Tragseile fix (temperaturabhaengig,
+   * Bemessung mit Wind bei +5 Grad), R-FL-Tragseile beweglich (immer volle
+   * Leiterzugkraft), beide Fahrdraehte beweglich. `abfangkraft` in
+   * data.fl.js traegt die Regel; hier steht nur, wohin die Zahl geht.
+   *
+   * >>> DIE KOMBINATIONEN BLEIBEN BEIM AUFTRAGGEBER. <<<
+   *
+   * Die Windlastfaelle werden geschrieben, aber in KEINE Kombination
+   * gestellt - «Lastkombinationen und Berechnung bleiben die Entscheidung
+   * des Auftraggebers im Programm». Geschrieben werden sie trotzdem, sonst
+   * waere die Eingabe still verloren.
+   */
+  /*
+   * >>> DIE LASTWERTE KOMMEN AUS DERSELBEN QUELLE WIE BEIM TRAGJOCH. <<<
+   *
+   * `baugruppeSumme` loest die Module einer Baugruppe genau so auf wie dort:
+   * ein Drahtwerk ueber die SPANNWEITE der Fahrleitung, ein Ausleger ueber
+   * seine eigene Laenge, eigene Lastbloecke unveraendert. Der erste Anlauf
+   * hier rechnete jedes Modul mit einem Meter - das Eigengewicht einer N-FL
+   * kam damit auf 0.02 kN statt auf den Anteil einer Aufhaengung.
+   */
+  const ekAn = opt.ek ?? 'EK2';
+  const sumOpt = { ek: ekAn, R: Number(opt.R) || 0,
+                   spannweite: Number(opt.L_FL) || 0 };
+  anbauKnoten.forEach(({ name: knA, teil: t2, anbindung: an }, j) => {
+    const sum = baugruppeSumme(t2, sumOpt);
+    const Gz = sum.Gz, Qx = sum.Qx, Qy = sum.Qy;
+    /*
+     * DIE ABFANGKRAFT IST NICHT DIE UMLENKKRAFT. Sie steht nur beim
+     * abgefangenen Leiter an, und sie kommt aus `abfangkraft` - fix oder
+     * beweglich, siehe data.fl.js.
+     */
+    let Zab = 0, temperaturabhaengig = false, ohneTabelle = false;
+    if (an.art === 'mitte') {
+      (Array.isArray(t2.module) ? t2.module : []).forEach((m2) => {
+        if (!m2 || !m2.bauteil) return;
+        try {
+          const k2 = abfangkraft(m2.bauteil, { tempFall: opt.tempFall });
+          Zab += k2.Z * (m2.anzahl || 1);
+          temperaturabhaengig = temperaturabhaengig || k2.temperaturabhaengig;
+          ohneTabelle = ohneTabelle || k2.ohneTabelle;
+        } catch { /* kein Drahtwerk - dann auch keine Abfangkraft */ }
+      });
+    }
+    const nm2 = `AT${j + 1}`;
+    if (Gz) {
+      punkt.push({ name: `G_${nm2}`, knoten: knA, richtung: 'Z',
+                   wert: -Math.abs(Gz), lastfall: 'G_Anbau' });
+    }
+    if (Zab) {
+      /*
+       * DIE RICHTUNG IST DIE GLEISRICHTUNG (y) - der Leiter zieht laengs.
+       * Das Vorzeichen folgt der Seite: ein Leiter vorn zieht nach vorn.
+       */
+      punkt.push({ name: `FH_${nm2}`, knoten: knA, richtung: 'Y',
+                   wert: (an.seite === 'H' ? -1 : 1) * Zab,
+                   lastfall: 'Leiterzug',
+                   abfangung: { temperaturabhaengig, ohneTabelle } });
+    }
+    if (Qx) {
+      punkt.push({ name: `WX_${nm2}`, knoten: knA, richtung: 'X',
+                   wert: Qx, lastfall: 'WindX' });
+    }
+    if (Qy) {
+      punkt.push({ name: `WY_${nm2}`, knoten: knA, richtung: 'Y',
+                   wert: Qy, lastfall: 'WindY' });
+    }
+  });
   /*
    * >>> DIE LINIENLAST HAENGT AM STAB, NICHT AN DER STELLE. <<<
    *
@@ -926,20 +1070,37 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
                        // Nur am langen Jochende - dem Montageende.
                        seite: 'L', anzahl: 2 } : null,
       endverstaerkung: abfangEndverstaerkung(typ)?.art ?? 'keine',
+      anbauteile: anbauKnoten.map((k2) => ({
+        knoten: k2.name, name: k2.teil.name ?? '', x: xs[k2.i],
+        anbindung: k2.anbindung.art, seite: k2.anbindung.seite,
+        // «vorgegeben» heisst: die Art folgt der Vorlagengruppe, es hat
+        // niemand ausdruecklich gewaehlt.
+        vorgegeben: k2.anbindung.vorgegeben,
+      })),
     },
     material: { name: 'S235', art: 'Steel', rho: 7850, E: 210000, G: 81000,
                 nu: 0.3, alpha: 1.2e-5, fy: 235 },
     materialSteif: { name: 'S235 steif', faktor: 1000 },
     querschnitte, knoten, staebe, auflager,
+    /*
+     * DIE WINDLASTFAELLE STEHEN DA, ABER IN KEINER KOMBINATION - die
+     * gehoert dem Auftraggeber im Programm. Geschrieben werden sie
+     * trotzdem: sonst waere die Eingabe still verloren.
+     */
     lastfaelle: [
       { key: 'G', label: 'Staendig - Joch', art: 'Others' },
+      { key: 'G_Anbau', label: 'Staendig - Anbauteile', art: 'Others' },
       { key: 'Leiterzug', label: 'Leiterzug (Abfangung)', art: 'Others' },
+      { key: 'WindX', label: 'Wind in Jochachse (Anbauteile)', art: 'Others' },
+      { key: 'WindY', label: 'Wind in Gleisrichtung (Anbauteile)', art: 'Others' },
     ],
     kombinationen: [
       { key: 'gk', bez: 'Staendig', art: 'charakteristisch', nachweis: false,
-        anteile: [{ lastfall: 'G', faktor: 1 }] },
+        anteile: [{ lastfall: 'G', faktor: 1 },
+                  { lastfall: 'G_Anbau', faktor: 1 }] },
       { key: 'ULS', bez: 'Tragsicherheit', art: 'Bemessung', nachweis: true,
         anteile: [{ lastfall: 'G', faktor: 1.35 },
+                  { lastfall: 'G_Anbau', faktor: 1.35 },
                   { lastfall: 'Leiterzug', faktor: 1.5 }] },
     ],
     lasten: { punkt, strecke },
