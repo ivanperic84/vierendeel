@@ -42,6 +42,8 @@ A.setzeAnbauteilDB(JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json')
 const FL = await import(J('data.fl.js'));
 FL.setzeFlDB(JSON.parse(readFileSync(join(HIER, 'data', 'fl_bauteile.json'), 'utf8')));
 const AJ = await import(J('data.abfangjoche.js'));
+// Die Szene des Abfangjochs - sie traegt die Lage jedes Bauteils.
+const R3D = await import(J('render.abfang.js'));
 AJ.setzeAbfangDB(JSON.parse(
   readFileSync(join(HIER, 'data', 'abfangjoche.json'), 'utf8')));
 
@@ -14194,6 +14196,43 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
               kr2.lichtEnde + (Math.round(m.tragwerk.e * 1000) - auf2.d),
               1e-9, 'mm');
       }
+    }
+
+    /*
+     * >>> DAS DECKBLECH LIEGT AN DER INNEREN FLANSCHSPITZE. <<<
+     *
+     * Weisung vom 4. September: «Die Deckbleche hier beim A300 liegen auf
+     * der achse des IPE, diese sollten innenseitig buendig anliegen gemaess
+     * zeichnung.»
+     *
+     * Die Ursache lag nicht am Blech, sondern am Gurt: der Versatz von der
+     * lichten Kante zur Schwerachse wurde gegen `d` gerechnet, und seit `d`
+     * der Stegabstand ist, kam dabei beim I NULL heraus. Die Gurtachse lag
+     * damit um eine halbe Flanschbreite zu weit innen - genau dort, wo das
+     * Blech sitzt.
+     *
+     * A300 am Jochende: licht 300, Achse auf 225, Flanschspitzen auf 150 und
+     * 300 (aussen 600). Das Blech von 140 bis 150, in z um 5 mm hinter jeder
+     * Flanschkante (Schnitt B-B).
+     */
+    {
+      const szA = R3D.abfangSzene('A300', 13.0);
+      const vorn = (teil) => {
+        const f = szA.flaechen.filter((q) => q.teil === teil
+          && q.punkte.every((pt) => pt[0] <= 0.5 + 1e-9) && q.punkte[0][1] > 0);
+        const ys = f.flatMap((q) => q.punkte.map((pt) => pt[1] * 1000));
+        const zs = f.flatMap((q) => q.punkte.map((pt) => pt[2] * 1000));
+        return { y0: Math.min(...ys), y1: Math.max(...ys),
+                 z0: Math.min(...zs), z1: Math.max(...zs) };
+      };
+      const g = vorn('GURT_V'), db = vorn('DECK_L');
+      pruef('A300 am Ende: innere Flanschspitze bei 150', g.y0, 150, 1e-6, 'mm');
+      pruef('… aeussere bei 300, aussen also 600', g.y1, 300, 1e-6, 'mm');
+      pruef('Das Deckblech schliesst buendig an', db.y1, g.y0, 1e-6, 'mm');
+      pruef('… und ist 10 mm dick', db.y1 - db.y0, 10, 1e-6, 'mm');
+      wahr('Es liegt INNEN, nicht auf der Achse', db.y1 < (g.y0 + g.y1) / 2);
+      pruef('In der Hoehe bleibt es 5 mm hinter der Flanschkante',
+            g.z1 - db.z1, 5, 1e-6, 'mm');
     }
 
     /*

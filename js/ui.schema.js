@@ -791,7 +791,30 @@ export const FELDER = [
            + 'daneben; am Drahtwerk überschreibbar.'},
 
   // --- Anbauteile ----------------------------------------------------------
+  /*
+   * >>> AM ABFANGJOCH WERDEN SIE NOCH NICHT GEBAUT. <<<
+   *
+   * Weisung vom 4. September: «die Anbauteile noch checken ob diese gebaut
+   * werden können.» Nachgesehen: nein. Der Abfangjoch-Kern kennt kein
+   * Anbauteil, die Szene zeichnet keines, und die AxisVM-Ausleitung führt
+   * genau zwei Lastfälle - Eigengewicht und Leiterzug. Was hier eingetragen
+   * wird, bleibt im Datensatz stehen und wirkt dort nicht.
+   *
+   * Das Feld bleibt trotzdem sichtbar - die Eingabe geht nicht verloren, und
+   * wer zwischen zwei Tragwerken wechselt, soll dieselbe Maske sehen. Aber
+   * es sagt, woran es ist.
+   *
+   * WO EIN ANBAUTEIL AM LIEGENDEN TRAEGER ANGREIFT, ist eine Entscheidung
+   * ueber den Spannungsverlauf - an welchem Gurt, an welcher Station, auf
+   * Flanschhoehe oder auf der Schwerachse. Sie gehoert vorgaengig gefragt.
+   */
   { key: 'anbauteile', gruppe: 'anbau', typ: 'anbauteile', label: 'Anbauteile',
+    hinweis: (w) => (tragwerksart(w).key === 'abfangjoch'
+      ? 'Am Abfangjoch noch nicht angeschlossen: der Rechenkern, das Bild '
+      + 'und die AxisVM-Ausleitung führen bisher nur Eigengewicht und '
+      + 'Leiterzug. Eingetragene Bauteile bleiben erhalten, wirken aber '
+      + 'nicht — wo sie am liegenden Träger angreifen, ist noch zu klären.'
+      : ''),
     standard: [] },
   // Eigene Vorlagen: was sich jemand für sein Projekt zusammenstellt.
   { key: 'eigeneVorlagen', gruppe: 'anbau', typ: 'liste', versteckt: true,

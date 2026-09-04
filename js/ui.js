@@ -1793,7 +1793,27 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
    * Handlungen bekommen ihre eigene Zeile und stehen damit auch bei
    * schmaler Seitenleiste nebeneinander.
    */
+  /*
+   * >>> AM ABFANGJOCH WIRKEN SIE NOCH NICHT. <<<
+   *
+   * Weisung vom 4. September: «die Anbauteile noch checken ob diese gebaut
+   * werden koennen.» Nachgesehen: der Abfangjoch-Kern kennt kein Anbauteil,
+   * die Szene zeichnet keines, und die AxisVM-Ausleitung fuehrt zwei
+   * Lastfaelle - Eigengewicht und Leiterzug. Eingetragenes bleibt im
+   * Datensatz stehen und wirkt dort nicht.
+   *
+   * Der Abschnitt bleibt sichtbar: die Eingabe geht nicht verloren, und wer
+   * zwischen zwei Tragwerken wechselt, soll dieselbe Maske sehen. Aber er
+   * sagt, woran er ist - schweigend danebenstehen waere schlimmer.
+   */
+  const nichtGetragen = tragwerksart(werte).key === 'abfangjoch'
+    ? `<small class="hinweis" style="display:block;margin:0 0 7px">
+         Am Abfangjoch noch nicht angeschlossen: Rechenkern, Bild und
+         AxisVM-Ausleitung führen bisher nur Eigengewicht und Leiterzug.
+         Eingetragene Bauteile bleiben erhalten, wirken aber nicht.
+       </small>` : '';
   return abschnitt(g.titel, `<span class="sec-r">${liste.length} Stück</span>`) +
+    nichtGetragen +
     `<div class="at-werkzeuge">
        <button class="btn btn-mini" data-vorlage-direkt="frei" type="button"
          title="Freies Bauteil setzen — Typ, Länge und Lasten selbst eintragen"

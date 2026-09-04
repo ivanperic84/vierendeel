@@ -96,11 +96,59 @@ let zuletztGezoomt = null;
 // --- Zustand ----------------------------------------------------------------
 
 /** Frischer Zustand mit einem Beispiel-Anbauteil, damit das Modell nicht leer ist. */
-function frisch() {
+/**
+ * >>> EIN FRISCHER STAND - IN DER ART, DIE GEBRAUCHT WIRD. <<<
+ *
+ * Weisung vom 4. September: «eine template für tragjoch und Abfangjoch
+ * erstellen, momentan muss man das bestehende tragjoch löschen und ein
+ * abfangjoch erstellen.»
+ *
+ * Vorher gab es genau eine Vorlage, das Tragjoch. Wer ein Abfangjoch wollte,
+ * legte eines daneben und löschte das Tragjoch wieder — zwei Handgriffe für
+ * das, was der erste hätte tun sollen.
+ *
+ * Gebaut wird über DIESELBEN Wege wie ein zweites Tragwerk auf dem Blatt:
+ * `tragwerkHinzu` legt es an, `tragwerkWeg` räumt das Tragjoch ab. Ein
+ * zweiter Weg wäre einer, der die Sonderfälle des ersten nicht kennt — den
+ * Typwechsel beim Abfangjoch zum Beispiel.
+ *
+ * @param {string} art  Schlüssel aus TRAGWERKSARTEN, Vorgabe 'joch'
+ */
+function frisch(art = 'joch') {
   const std = { ...standardwerte(), bearbeiten: false };
-  const w = typUebernehmen(std, getTragjoch(std.typ));
+  let w = typUebernehmen(std, getTragjoch(std.typ));
   w.anbauteile = [{ ...neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrleitung Gleis 1' }];
+  if (art && art !== 'joch') {
+    /*
+     * DIE ID DES TRAGJOCHS ZUERST MERKEN. `tragwerkHinzu` macht das NEUE
+     * Tragwerk zum Hauptsatz und schiebt das bisherige in `weitere` - `twId`
+     * zeigt danach auf das neue. Wer erst hinterher liest, loescht genau
+     * das, was er anlegen wollte: das Ergebnis war ein Tragjoch mit dem
+     * Titel «Neues Abfangjoch».
+     */
+    const alt = w.twId ?? 'T1';
+    w = tragwerkHinzu(w, art, artVorgabe(art, w));
+    w = tragwerkWeg(w, alt);
+  }
   return w;
+}
+
+/**
+ * Was ein neu angelegtes Tragwerk seiner Art mitbringen muss.
+ *
+ * Beim Abfangjoch ist das sein Typ und eine Länge, die dieser Typ auch
+ * führt — sonst stünde «J90» im Satz und der erste Sortimentseintrag in der
+ * Liste. Steht auch in `aendern('tragwerkNeu')`; die Funktion hält beide
+ * Wege auf demselben Stand.
+ */
+function artVorgabe(art, w) {
+  const v = {};
+  if (art !== 'abfangjoch' || !abfangDbDa()) return v;
+  const erst = abfangjoche()[0];
+  v.abfangTyp = erst.typ;
+  const b = abfangLaengenbereich(erst);
+  v.L = Math.min(Math.max(Number(w?.L) || b.min, b.min), b.max);
+  return v;
 }
 
 function laden() {
@@ -837,15 +885,10 @@ function aendern(key, wert) {
      * Beim Anlegen wird deshalb der erste Typ des Sortiments gesetzt - und
      * mit ihm eine Laenge, die er auch fuehrt.
      */
-    const vorgabe = {};
-    if (art === 'abfangjoch' && abfangDbDa()) {
-      const erst = abfangjoche()[0];
-      // In SEIN Feld, nicht in `typ` - dort holt der Rechenkern sein
-      // Tragjoch, und ein «A160» wirft dort «Unbekannter Tragjochtyp».
-      vorgabe.abfangTyp = erst.typ;
-      const b = abfangLaengenbereich(erst);
-      vorgabe.L = Math.min(Math.max(Number(werte.L) || b.min, b.min), b.max);
-    }
+    // In SEIN Feld, nicht in `typ` - dort holt der Rechenkern sein Tragjoch,
+    // und ein «A160» wirft dort «Unbekannter Tragjochtyp». `artVorgabe`
+    // haelt diesen Weg und den der Vorlage (`frisch`) auf demselben Stand.
+    const vorgabe = artVorgabe(art, werte);
     werte = typeof wert === 'string'
       ? tragwerkHinzu(werte, wert, vorgabe)
       : tragwerkHinzu(werte, wert.art, { ...vorgabe, xLage: wert.xLage });
@@ -4929,10 +4972,35 @@ function dialogSpeichern() {
   d.node.querySelector('[data-neu]').onclick = () => sichere(true);
 }
 
+/**
+ * >>> DIE VORLAGE WIRD GEWAEHLT, NICHT VORAUSGESETZT. <<<
+ *
+ * Weisung vom 4. September. Hier stand ein `confirm` mit einer einzigen
+ * Antwort — und die hiess immer Tragjoch. Jetzt stehen die vier
+ * Tragwerksarten zur Wahl; die Warnung vor dem Verlust steht daneben, wo sie
+ * hingehört, statt in einem Kasten des Browsers.
+ */
 function neuesTragjoch() {
-  if (!confirm('Neues Tragjoch beginnen? Nicht gespeicherte Änderungen gehen verloren.')) return;
-  werte = frisch();
-  projekt = { id: null, name: 'Neues Tragjoch', projekt: projekt.projekt };
+  const d = dialog('Neues Tragwerk', `
+    <p>Womit soll begonnen werden? Der bisherige Stand geht verloren, wenn er
+       nicht gespeichert ist.</p>
+    <div class="feld"><label>Vorlage</label>
+      ${TRAGWERKSARTEN.map((a, i) => `<label class="schalter">
+        <input type="radio" name="vorlage" value="${esc(a.key)}"${i ? '' : ' checked'}>
+        <span><b>${esc(a.label)}</b> — ${esc(a.kurz)}</span></label>`).join('')}
+    </div>`,
+    '<button class="btn btn-acc" data-los>Beginnen</button>');
+  d.node.querySelector('[data-los]').onclick = () => {
+    const art = d.node.querySelector('input[name="vorlage"]:checked').value;
+    d.zu();
+    beginneNeu(art);
+  };
+}
+
+function beginneNeu(art) {
+  const bez = TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
+  werte = frisch(art);
+  projekt = { id: null, name: `Neues ${bez}`, projekt: projekt.projekt };
   station = null;
   // Die Zeichnung des vorigen Tragwerks geht mit ihm - sie zeigte ein
   // anderes Bauwerk und wäre hinter dem neuen schlicht falsch.

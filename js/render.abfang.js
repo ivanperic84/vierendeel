@@ -42,7 +42,8 @@ import { abfangQuerschnitt, abfangBlechstationen,
          abfangStuetzweite } from './core.abfangjoch.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife,
-         abfangKroepfung, abfangLichteWeite } from './data.abfangjoche.js';
+         abfangKroepfung, abfangLichteWeite,
+         abfangLichtFeld } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { bauteilFarbe } from './design.js';
 import { prisma, prismaY, platte, walzProfilPoly } from './render.koerper.js';
@@ -88,7 +89,22 @@ export function abfangSzene(typ, jt, opt = {}) {
    * Er folgt aus den Daten (e − d)/2 und muss nicht unterschieden werden.
    */
   const kr = abfangKroepfung(a);
-  const versatzAchse = (q.e * 10 - (auf.d ?? 0)) / 2;      // mm
+  /*
+   * >>> GEGEN DIE LICHTE WEITE, NICHT GEGEN `d`. <<<
+   *
+   * Hier stand `(e - d)/2`. Das galt, solange `d` die lichte Weite war -
+   * seit dem Befund vom 4. September ist es der STEGABSTAND, und beim I ist
+   * er gleich dem Achsabstand. Der Versatz kam damit auf NULL heraus, und
+   * die Gurte standen um eine halbe Flanschbreite zu weit innen: bei A300
+   * lag die Achse auf 150 statt 225 mm.
+   *
+   * Zu sehen war es am Deckblech, nicht am Gurt - es sitzt an der inneren
+   * Flanschspitze, und die lag damit genau auf der Gurtachse. Genau so hat
+   * es der Auftraggeber gemeldet: «Die Deckbleche liegen auf der achse des
+   * IPE.» Die Ausleitung war nicht betroffen, sie rechnet schon gegen
+   * `abfangLichtFeld`.
+   */
+  const versatzAchse = (q.e * 10 - abfangLichtFeld(a)) / 2;      // mm
   const licht = (x) => abfangLichteWeite(a, x, jt);        // mm
   const yAchse = (x) => (licht(x) / 2 + versatzAchse) / 1000;   // m
   /** Der Gurtumriss an der Stelle x, auf seiner Seite s. */
