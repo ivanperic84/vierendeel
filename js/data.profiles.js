@@ -245,7 +245,26 @@ export function getGurtprofil(name) {
  */
 export function gurtAchsabstand(profil, k, d = null) {
   const p = typeof profil === 'string' ? getGurtprofil(profil) : profil;
-  if (p.reihe !== 'UPE') return k - p.b;
+  /*
+   * >>> BEIM I-PROFIL IST `d` SCHON DER ACHSABSTAND. <<<
+   *
+   * Weisung vom 4. September: «Die 600 sind bei den IPE Typen auf die
+   * schwerelinie bezogen und bei den UPE auf die aussenkante.»
+   *
+   * Der Steg eines I liegt in der MITTE - das Mass zwischen den beiden
+   * Stegen ist damit zugleich das Mass zwischen den Schwerelinien. Beim U
+   * liegt er am Ruecken, also auf der Aussenkante des Profils, und die
+   * Schwerachse sitzt um e_y weiter zum Flansch hin.
+   *
+   * Hier stand `k - b`. Das las `d` als lichte Weite und legte die Achsen um
+   * eine halbe Flanschbreite zu weit nach aussen: bei A270 auf 735 statt
+   * 600, ZWEIUNDZWANZIG PROZENT ZU GROSS. Der Hebelarm faellt damit, die
+   * Gurtkraft N = M/e steigt - die alte Lesart lag auf der unsicheren Seite.
+   *
+   * Die Zeichnung bemasst es dreifach ineinander, bei A270 735 | 600 | 465:
+   * aussen ueber die Flanschspitzen, die Stege, licht. Das mittlere ist d.
+   */
+  if (p.reihe !== 'UPE') return (d !== null && d > 0) ? d : k - p.b;
   /*
    * >>> DIE OEFFNUNG ZEIGT NACH AUSSEN. <<<
    *

@@ -58,7 +58,8 @@
  */
 
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
-         abfangEndverstaerkung, abfangQuersteife } from './data.abfangjoche.js';
+         abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
+         abfangLichteWeite, abfangLichtFeld } from './data.abfangjoche.js';
 import { abfangQuerschnitt, abfangBlechstationen,
          abfangStuetzweite } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
@@ -140,7 +141,31 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const js = sw ? sw.bis : jt;
   const ue = Math.max(0, (jt - js) / 2);
   const L = jt;
-  const e = q.e / 100;                       // cm -> m, Achsabstand der Gurte
+  const e = q.e / 100;                       // cm -> m, Achsabstand im Feld
+  /*
+   * ===================== DIE KROEPFUNG DER JOCHENDEN =====================
+   *
+   * Weisung vom 4. September: «die modelle sind mit kroepfung in axis zu
+   * modellieren.»
+   *
+   * In der Draufsicht laufen die Gurte zum Jochende hin zusammen. Die
+   * Konstruktionszeichnung schreibt beide Knicke an: A200 und A240 knicken
+   * am kurzen Ende bei 970 und stehen ab 1940 voll, die vier IPE-Typen bei
+   * 920 und ab 1920; am langen (Montage-)Ende alle bei 850.
+   *
+   * DAS IST KEINE ZIER. Der Hebelarm der Vierendeel-Wirkung ist der
+   * Achsabstand, und er faellt am Ende auf rund die Haelfte - bei A300 von
+   * 600 auf 435 mm. Genau dort liegt der Auflagerschnitt. Gerade Gurte
+   * rechnen den Endbereich zu steif.
+   *
+   * `versatzAchse` ist der Abstand von der lichten Kante zur Schwerachse -
+   * beim U die Schwerpunktlage e_y, beim I die halbe Flanschbreite. Er
+   * folgt aus den Daten und muss nicht unterschieden werden.
+   */
+  const versatzAchse = (q.e * 10 - abfangLichtFeld(a)) / 2;   // mm
+  const kroepf = abfangKroepfung(a);
+  /** Der Achsabstand der Gurte an der Stelle x [m]. */
+  const eAn = (x) => (abfangLichteWeite(a, x, L) + 2 * versatzAchse) / 1000;
 
   /*
    * DIE QUERSCHNITTE.
@@ -313,7 +338,16 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * DIE KNOTEN. An jeder Blechstation und an beiden Auflagern, je Gurt
    * einer. `V` ist der Gurt in +y, `H` der in -y.
    */
-  const xs = [...new Set([0, ue, ...ein.stationen, L - ue, L]
+  /*
+   * DIE KNICKSTELLEN SIND KNOTEN WIE JEDE STATION. Ohne sie liefe der Gurt
+   * geradlinig ueber den Knick hinweg - ein Stabzug bildet nur ab, was
+   * seine Knoten hergeben.
+   */
+  const knicke = kroepf
+    ? [kroepf.knickLangesEnde / 1000, kroepf.vollbreiteAb / 1000,
+       L - kroepf.knickKurzesEnde / 1000, L - kroepf.vollbreiteAb / 1000]
+    : [];
+  const xs = [...new Set([0, ue, ...ein.stationen, ...knicke, L - ue, L]
     .map((v) => Math.round(v * 1e6) / 1e6))].sort((u, v) => u - v)
     .filter((v) => v >= -1e-9 && v <= L + 1e-9);
   /*
@@ -380,7 +414,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Probe: A300  e 750 - d 600 = 150 = b(IPE 300) ✓
    *        A160  e 316.8 - d 280 = 36.8 = 2·e_y(UPE 160) ✓
    */
-  const lichteWeite = auf.d ?? 0;               // mm
+  /** Die lichte Weite zwischen den Gurten an der Stelle x [mm]. */
+  const lichtAn = (x) => abfangLichteWeite(a, x, L);
   /*
    * =================== DIE GABEL AM JOCHENDE ==============================
    *
@@ -501,8 +536,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    */
   const knoten = [];
   xs.forEach((x, i) => {
-    knoten.push({ name: nm('V', i), x, y: e / 2, z: 0 });
-    knoten.push({ name: nm('H', i), x, y: -e / 2, z: 0 });
+    // Der Achsabstand ist an jeder Stelle ein anderer - siehe `eAn`.
+    knoten.push({ name: nm('V', i), x, y: eAn(x) / 2, z: 0 });
+    knoten.push({ name: nm('H', i), x, y: -eAn(x) / 2, z: 0 });
   });
 
   /*
@@ -608,7 +644,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       if (!drin) return;
       for (const g of ['V', 'H']) {
         const sgn = g === 'V' ? 1 : -1;
-        knoten.push({ name: nmG(g, i), x, y: sgn * (e / 2 + yv), z: 0 });
+        // Die Gabel liegt IM ANZUG (Weisung, 4. September) - ihre Achse
+        // folgt der des Gurtes und traegt den Versatz obendrauf.
+        knoten.push({ name: nmG(g, i), x, y: sgn * (eAn(x) / 2 + yv), z: 0 });
       }
     });
     // Die beiden Uebergaenge - nur an den Bereichsenden, nicht dazwischen.
@@ -658,7 +696,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const riegel = (name, qsName, i, zo, lmm, lcsZ) => {
     const x = xs[i];
     const halb = (Number(lmm) || 0) / 2000;          // halbe Bauteillaenge [m]
-    if (!(km === 'anschnitt' && halb > 0 && halb < e / 2)) {
+    if (!(km === 'anschnitt' && halb > 0 && halb < eAn(x) / 2)) {
       staebe.push({ name, von: nm('H', i), bis: nm('V', i),
                     querschnitt: qsName, steifesMaterial: false, lcsZ,
                     gelenkAnfang: null, gelenkEnde: null, art: 'stab' });
@@ -699,7 +737,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
      */
     const art = ein.arten?.[k]?.art;
     if (art === 'steife' || art === 'steifeEnde') {
-      riegel(`STEIFE_${k}`, 'STEIFE', i, 0, lichteWeite, [0, 0, 1]);
+      riegel(`STEIFE_${k}`, 'STEIFE', i, 0, lichtAn(xs[i]), [0, 0, 1]);
       return;
     }
     /*
@@ -720,7 +758,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       ? 'BLECH_ENDE' : 'BLECH';
     for (const o of ['O', 'U']) {
       riegel(`BL_${o}${k}`, qsRiegel, i, o === 'O' ? zf : -zf,
-             lichteWeite, [0, 0, 1]);
+             lichtAn(xs[i]), [0, 0, 1]);
     }
   });
   /*

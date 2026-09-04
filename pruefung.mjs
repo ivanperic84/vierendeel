@@ -13006,19 +13006,44 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     pruef('A160: Achsabstand statt Aussenmass',
           PR.gurtAchsabstand('UPE 160', 42.0), 42.0 - 2 * 1.84, 1e-9, 'cm');
-    pruef('A270: beim IPE gilt k - b',
-          PR.gurtAchsabstand('IPE 270', 87.0), 87.0 - 13.5, 1e-9, 'cm');
+    /*
+     * >>> BEIM I IST `d` SCHON DER ACHSABSTAND. <<<
+     *
+     * Weisung vom 4. September: «Die 600 sind bei den IPE Typen auf die
+     * schwerelinie bezogen und bei den UPE auf die aussenkante.» Der Steg
+     * eines I liegt in der Mitte - das Mass zwischen den Stegen ist damit
+     * das Mass zwischen den Schwerelinien.
+     *
+     * Hier stand `k - b`, und das las `d` als lichte Weite. Bei A270 lag der
+     * Hebelarm damit auf 735 statt 600 mm - zweiundzwanzig Prozent zu gross,
+     * auf der unsicheren Seite.
+     */
+    pruef('A270: das Mass d ist der Achsabstand',
+          PR.gurtAchsabstand('IPE 270', 73.5, 60.0), 60.0, 1e-9, 'cm');
+    pruef('… ohne d bleibt die Naeherung k - b',
+          PR.gurtAchsabstand('IPE 270', 73.5), 73.5 - 13.5, 1e-9, 'cm');
     for (const t of AJ.abfangjoche().filter((x) => x.aufbau)) {
       const k = t.aufbau.k / 10;
       const e = PR.gurtAchsabstand(t.aufbau.gurtprofil, k);
       wahr(`${t.typ}: der Hebelarm ist kleiner als k`, e < k && e > 0.6 * k);
     }
-    // Beim IPE ist k - b dasselbe wie d + b - eine Gegenprobe der Geometrie.
+    /*
+     * DIE DREI MASSE DER DRAUFSICHT GEHEN INEINANDER AUF: aussen ueber die
+     * Flanschspitzen, die Schwerelinien, licht. Bei A270 735 | 600 | 465,
+     * und das Regelbindeblech misst 463.
+     */
     for (const t of AJ.abfangjoche().filter(
       (x) => x.aufbau && x.aufbau.gurtprofil.startsWith('IPE'))) {
-      pruef(`${t.typ}: k - b ist d + b`,
-            PR.gurtAchsabstand(t.aufbau.gurtprofil, t.aufbau.k / 10),
-            (t.aufbau.d + t.aufbau.b) / 10, 1e-6, 'cm');
+      const a2 = t.aufbau;
+      pruef(`${t.typ}: der Achsabstand ist d`,
+            PR.gurtAchsabstand(a2.gurtprofil, a2.k / 10, a2.d / 10),
+            a2.d / 10, 1e-9, 'cm');
+      pruef(`${t.typ}: aussen ist d + b`, a2.k, a2.d + a2.b, 1e-9, 'mm');
+      pruef(`${t.typ}: licht ist d - b`, AJ.abfangLichtFeld(t.typ),
+            a2.d - a2.b, 1e-9, 'mm');
+      wahr(`${t.typ}: und das Regelblech trifft licht`,
+           Math.abs(AJ.abfangBindeblech(t.typ).regel.l
+                    - AJ.abfangLichtFeld(t.typ)) < 5);
     }
   }
 
@@ -14091,6 +14116,21 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       // Sie beginnt 850 mm vom Jochende und ist so lang wie im Sortiment.
       const xg = gb.map((x) => kn2.get(x.von).x);
       pruef('Sie beginnt bei 0.850 m', Math.min(...xg), 0.85, 1e-9, 'm');
+      /*
+       * >>> DIE GABEL LIEGT IM ANZUG. <<<
+       *
+       * Weisung vom 4. September: «beachte das auf der langen gabel die
+       * verstaerkung im anzug liegt.» Sie beginnt genau am Knick (850) und
+       * laeuft auf dem verjuengten Stueck - ihre Achse folgt also der des
+       * Gurtes und ist an ihrem Ende weiter aussen als an ihrem Anfang.
+       */
+      const yg = gb.flatMap((x) => [Math.abs(kn2.get(x.von).y),
+                                    Math.abs(kn2.get(x.bis).y)]);
+      // A160 ist `form: 'gerade'` und kennt keinen Anzug - dort steht die
+      // Gabel auf einer Achse. Bei den gekropften Typen wandert sie.
+      wahr('Beim geraden Typ steht sie auf einer Achse',
+           !AJ.abfangKroepfung(m.tragwerk.typ)
+           === (Math.max(...yg) - Math.min(...yg) < 1e-9));
       const xe = gb.map((x) => kn2.get(x.bis).x);
       pruef('… und endet 660 mm weiter',
             Math.max(...xe) - Math.min(...xg), 0.66, 1e-9, 'm');
@@ -14110,6 +14150,83 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       pruef('Auf zwei Achsen, eine je Gurt',
             new Set(gb.map((x) => kn2.get(x.von).y.toFixed(6))).size,
             2, 1e-9, 'Achsen');
+    }
+
+    /*
+     * >>> DIE KROEPFUNG STEHT IM STABMODELL. <<<
+     *
+     * Weisung vom 4. September: «die modelle sind mit kroepfung in axis zu
+     * modellieren.» Der Achsabstand der Gurte ist damit keine Zahl mehr,
+     * sondern eine Funktion von x - und der Hebelarm der Vierendeel-Wirkung
+     * faellt am Auflagerschnitt auf rund drei Viertel.
+     */
+    {
+      const yV = m.knoten.filter((n2) => /^V_/.test(n2.name))
+        .sort((a2, b2) => a2.x - b2.x);
+      const eAm = (x) => {
+        const n2 = yV.reduce((b2, k2) => (Math.abs(k2.x - x) < Math.abs(b2.x - x)
+          ? k2 : b2), yV[0]);
+        return Math.round(n2.y * 2000);
+      };
+      const auf2 = AJ.abfangAufbau(m.tragwerk.typ);
+      pruef('Im Feld steht der volle Achsabstand', eAm(m.tragwerk.L / 2),
+            Math.round(m.tragwerk.e * 1000), 1e-9, 'mm');
+      // A160 ist gerade - dort ist der Achsabstand ueberall derselbe.
+      wahr('Beim geraden Typ bleibt er ueberall gleich',
+           Boolean(AJ.abfangKroepfung(m.tragwerk.typ))
+           === (eAm(0) < eAm(m.tragwerk.L / 2)));
+      wahr('… und beide Enden verhalten sich gleich',
+           (eAm(0) < eAm(m.tragwerk.L / 2))
+           === (eAm(m.tragwerk.L) < eAm(m.tragwerk.L / 2)));
+      /*
+       * DIE KNICKE SIND KNOTEN. Ohne sie liefe der Gurt geradlinig darueber
+       * hinweg - ein Stabzug bildet nur ab, was seine Knoten hergeben.
+       */
+      const kr2 = AJ.abfangKroepfung(m.tragwerk.typ);
+      if (kr2) {
+        for (const v of [kr2.knickLangesEnde / 1000, kr2.vollbreiteAb / 1000]) {
+          wahr(`Der Knick bei ${v.toFixed(3)} m ist ein Knoten`,
+               yV.some((n2) => Math.abs(n2.x - v) < 1e-9));
+        }
+        // Vor dem Knick steht die Endweite, dahinter waechst sie.
+        pruef('Bis zum Knick bleibt die Endweite',
+              eAm(kr2.knickLangesEnde / 2000),
+              kr2.lichtEnde + (Math.round(m.tragwerk.e * 1000) - auf2.d),
+              1e-9, 'mm');
+      }
+    }
+
+    /*
+     * DIE GEGENPROBE AN EINEM GEKROPFTEN TYP. A160 ist gerade; erst A240
+     * zeigt, was die Weisung meint.
+     */
+    {
+      const m2 = XA.abfangAxisvmModell('A240', 14.0, {});
+      const yV = m2.knoten.filter((n2) => /^V_/.test(n2.name))
+        .sort((a2, b2) => a2.x - b2.x);
+      const eAm = (x) => {
+        const n2 = yV.reduce((b2, k2) => (Math.abs(k2.x - x) < Math.abs(b2.x - x)
+          ? k2 : b2), yV[0]);
+        return Math.round(n2.y * 2000);
+      };
+      pruef('A240 im Feld: 656 mm Achsabstand', eAm(7.0), 656, 1e-9, 'mm');
+      pruef('… am langen Jochende nur 336', eAm(0), 336, 1e-9, 'mm');
+      pruef('… und am kurzen ebenso', eAm(14.0), 336, 1e-9, 'mm');
+      pruef('Der Knick bei 0.850 m ist ein Knoten',
+            yV.filter((n2) => Math.abs(n2.x - 0.85) < 1e-9).length, 1, 1e-9, 'Stk');
+      pruef('Die volle Weite steht ab 1.940 m',
+            yV.filter((n2) => Math.abs(n2.x - 1.94) < 1e-9).length, 1, 1e-9, 'Stk');
+      /*
+       * DIE RIEGEL SPANNEN UEBER DIE LICHTE WEITE IHRER STATION - nicht
+       * ueber eine feste Zahl. Im Feld sind das 600, am Jochende 280.
+       */
+      const kn3 = new Map(m2.knoten.map((n2) => [n2.name, n2]));
+      const bl3 = m2.staebe.filter((x2) => /^BL_O\d+_2$/.test(x2.name));
+      const laengen = new Set(bl3.map((x2) => Math.round(
+        (kn3.get(x2.bis).y - kn3.get(x2.von).y) * 1000)));
+      wahr('Im Feld messen die Riegel 600', laengen.has(600));
+      wahr('… und im Anzug sind sie kuerzer',
+           [...laengen].some((v) => v > 400 && v < 600));
     }
 
     /*
