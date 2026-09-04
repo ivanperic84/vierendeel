@@ -1469,15 +1469,35 @@ foreach ($q in $d.querschnitte) {
             $m.CrossSections.AddRectangular($q.name, $p[0] * $mm, $p[1] * $mm, $cspAnderes) } },
         <#  DER ABFANGJOCH-GURT IST EIN U-PROFIL.
 
-            AddC(Name, h, b, e, tw, R, Process) - vermessen am 3. September
-            an derselben Fassung wie AddL und AddI. Die Reihenfolge ist die
-            des Berichts, nicht geraten: nach b kommt e (die FLANSCHDICKE),
-            danach tw (der Steg) und zuletzt der Ausrundungsradius.
+            AddC/AddU(Name, h, b, e, tw, R, Process) - vermessen am
+            3. September an derselben Fassung wie AddL und AddI.
+
+            >>> UND AM 4. SEPTEMBER BERICHTIGT: `e` IST DER STEG. <<<
+
+            Hier stand "nach b kommt e (die FLANSCHDICKE), danach tw (der
+            Steg)". Die Namen legen das nahe, die Kontur sagt etwas anderes.
+            Gemessen an einem UPE 160, beide Belegungen gebaut und an ihrem
+            Traegheitsmoment gepruefte:
+
+              e=9.5, tw=5.5   A 2185.5   I_y  7'215'754   I_z   781'415
+              e=5.5, tw=9.5   A 2105.5   I_y  8'826'018   I_z 1'054'530
+              Norm UPE 160    A 2167.0   I_y  9'111'000   I_z 1'068'300
+
+            Die zweite trifft; die drei Prozent Rest sind die Ausrundungen,
+            die das Polygon nicht fuehrt. Mit der ersten war der Gurt 21 %
+            zu weich in der starken und 27 % in der schwachen Achse.
+
+            >>> DIE FLAECHENPROBE FAND ES NICHT. <<<
+
+            Sie lag bei +0.9 %: vertauschte Steg- und Flanschdicke geben
+            fast dieselbe Flaeche. Eine Probe, die nur A prueft, findet
+            keinen Fehler, der die Verteilung betrifft - dieselbe Lehre wie
+            bei UPE 160 gegen UNP.
 
             Gebraucht wird sie fuer A160 bis A240 - deren Gurte sind UPE.
             Ab A270 sind es IPE, und dafuer steht AddI schon da.
 
-            Parameter: [h, b, tf, tw, R] in mm.                            #>
+            Parameter: [h, b, tw, tf, R] in mm - STEG VOR FLANSCH.        #>
         <#  >>> NICHT JEDER PROZESS PASST ZU JEDEM QUERSCHNITT. <<<
 
             Erster Versuch mit cspRolled: Rueckgabe -100001, und die

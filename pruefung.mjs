@@ -13726,16 +13726,28 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
            .every((k) => Math.abs(k.y) < m.tragwerk.e / 2 + 1e-9));
 
     /*
-     * DER QUERSCHNITT: AddC nimmt (h, b, e, tw, R), AddI nimmt
-     * (h, b, tw, tf, R). Die Reihenfolge ist NICHT dieselbe, und sie zu
-     * vertauschen gaebe ein Profil, das plausibel aussieht und falsch ist.
+     * >>> DER STEG STEHT VOR DEM FLANSCH - BEI BEIDEN. <<<
+     *
+     * Hier stand «AddC nimmt (h, b, e, tw, R), AddI nimmt (h, b, tw, tf, R).
+     * Die Reihenfolge ist NICHT dieselbe» - und das war falsch. Am
+     * 4. September im Querschnittseditor gemessen, indem beide Belegungen
+     * gebaut und an ihrem Traegheitsmoment geprueft wurden:
+     *
+     *   e=9.5, tw=5.5   I_y  7'215'754   I_z   781'415
+     *   e=5.5, tw=9.5   I_y  8'826'018   I_z 1'054'530
+     *   Norm UPE 160    I_y  9'111'000   I_z 1'068'300
+     *
+     * `e` ist die STEGDICKE, obwohl `tw` danebensteht und anderes nahelegt.
+     * Mit der alten Belegung war der Gurt 21 % zu weich in der starken und
+     * 27 % in der schwachen Achse - und die Flaechenprobe fand es nicht,
+     * weil vertauschte Dicken fast dieselbe Flaeche geben.
      */
     const gurt = m.querschnitte.find((q) => q.name === 'GURT');
     wahr('Der UPE-Gurt ist ein U-Profil', gurt.form === 'Channel');
     pruef('h steht vorn', gurt.parameter[0], 160, 1e-9, 'mm');
     pruef('dann b', gurt.parameter[1], 70, 1e-9, 'mm');
-    pruef('dann die FLANSCHdicke', gurt.parameter[2], 9.5, 1e-9, 'mm');
-    pruef('dann der Steg', gurt.parameter[3], 5.5, 1e-9, 'mm');
+    pruef('dann die STEGdicke', gurt.parameter[2], 5.5, 1e-9, 'mm');
+    pruef('dann der Flansch', gurt.parameter[3], 9.5, 1e-9, 'mm');
     // Und beim IPE-Typ dreht sich die Reihenfolge um.
     const mI = XA.abfangAxisvmModell('A270', 15.0, { Fh: 22 });
     const gI = mI.querschnitte.find((q) => q.name === 'GURT');

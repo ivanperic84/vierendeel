@@ -123,8 +123,29 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const querschnitte = [{
     name: 'GURT',
     form: istU ? 'Channel' : 'I',
+    /*
+     * >>> BEI AddU IST `e` DIE STEGDICKE, NICHT DIE FLANSCHDICKE. <<<
+     *
+     * Die Signatur liest sich als AddU(Name, h, b, e, tw, R), und `tw` legt
+     * nahe, dass dort die Stegdicke steht. Am 4. September im Modell
+     * nachgemessen - sie steht nicht dort:
+     *
+     *   e=9.5, tw=5.5   A 2185.5   I_y  7'215'754   I_z   781'415
+     *   e=5.5, tw=9.5   A 2105.5   I_y  8'826'018   I_z 1'054'530
+     *   Norm UPE 160    A 2167.0   I_y  9'111'000   I_z 1'068'300
+     *
+     * Die zweite Belegung trifft; der Rest von drei Prozent sind die
+     * Ausrundungen, die das Polygon nicht fuehrt. Mit der ersten war der
+     * Gurt 21 % zu weich in der starken und 27 % in der schwachen Achse -
+     * und die Flaechenprobe des Aufbauskripts fand es nicht, weil
+     * vertauschte Steg- und Flanschdicke fast dieselbe Flaeche geben
+     * (+0.9 %).
+     *
+     * Beim IPE steht die Stegdicke ohnehin vorn (AddI(h, b, tw, tf, R)),
+     * dort war die Belegung von Anfang an richtig.
+     */
     parameter: istU
-      ? [p.h * 10, p.b * 10, p.tf * 10, p.tw * 10, RADIUS[p.name] ?? 10]
+      ? [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, RADIUS[p.name] ?? 10]
       : [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, RADIUS[p.name] ?? 15],
     profil: p.name,
     A: p.A / 1e4, Iy: p.Iy / 1e8, Iz: p.Iz / 1e8, It: p.It / 1e8,
