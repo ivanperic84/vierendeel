@@ -163,6 +163,29 @@ export function abfangSzene(typ, jt, opt = {}) {
     .filter((x, i, arr) => i === 0 || x - arr[i - 1] > 1e-9);
 
   /*
+   * >>> WAS AM GURT SITZT, FOLGT DEM GURT. <<<
+   *
+   * Weisung vom 4. September: «die langen deckbleche innen sind auch
+   * gekröpft, sie folgen somit dem Gurt und sind keine direktverbindung.»
+   *
+   * Ein Prisma zwischen zwei Querschnitten ist GERADE. Deckblech und Gabel
+   * reichen aber über den Knick hinweg — das Deckblech am langen Ende über
+   * 1450 mm, der Knick liegt bei 850. Mit nur zwei Querschnitten schnitt das
+   * Blech geradlinig über die Kröpfung hinweg statt ihr zu folgen; im Bild
+   * war genau das zu sehen.
+   *
+   * `band` legt deshalb an jeder Knickstelle im Bereich einen Schnitt und
+   * setzt das Bauteil aus Abschnitten zusammen — so, wie es geschweisst ist.
+   */
+  const band = (fnPoly, x0, x1, opt) => {
+    const cuts = [x0, ...xs.filter((v) => v > x0 + 1e-9 && v < x1 - 1e-9), x1];
+    for (let i = 0; i < cuts.length - 1; i++) {
+      flaechen.push(...prisma(fnPoly(cuts[i]), cuts[i], cuts[i + 1], opt,
+                              0, 0, fnPoly(cuts[i + 1])));
+    }
+  };
+
+  /*
    * DIE GURTE. Zwei Profile bei y = ±e/2 — dort, wo auch das AxisVM-Modell
    * sie führt. Die Öffnung des C zeigt nach aussen (Weisung, 4. September:
    * «gurte spiegelsymetrisch auf die jochachse bezogen»); der Stegrücken
@@ -195,10 +218,10 @@ export function abfangSzene(typ, jt, opt = {}) {
       const fb = farbeFuer(`profil|gabel|${gabel.profil}`,
                            `Gabel · ${gabel.profil} × ${gabel.laenge}`, 'profil');
       for (const [x0, x1] of gBereiche) {
-        flaechen.push(...prisma(polyGurt(x0, s, bG), x0, x1, {
+        band((x) => polyGurt(x, s, bG), x0, x1, {
           gruppe: 'profil', teil: 'GABEL', farbeBauteil: fb,
           label: `Gabel · ${gabel.profil} × ${gabel.laenge}`,
-        }, 0, 0, polyGurt(x1, s, bG)));
+        });
       }
     }
   }
@@ -238,10 +261,10 @@ export function abfangSzene(typ, jt, opt = {}) {
     for (const s of [1, -1]) {
       const fb = farbeFuer(`blech|deck|${db.b}x${db.t}`,
                            `Deckblech ${db.b}×${db.t}`, 'blech');
-      flaechen.push(...prisma(polyDeck(x0, s), x0, x1, {
+      band((x) => polyDeck(x, s), x0, x1, {
         gruppe: 'blech', teil: `DECK_${db.lage}`, farbeBauteil: fb,
         label: `Deckblech ${db.b}×${db.t}×${db.l} (${db.lage})`,
-      }, 0, 0, polyDeck(x1, s)));
+      });
     }
   }
 
