@@ -57,6 +57,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
 import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
+import { abfangAuswertung } from './core.abfangjoch.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
          getAbfangjoch } from './data.abfangjoche.js';
@@ -400,6 +401,54 @@ function neuRechnen(neuZeichnen = true) {
     const erg = berechne(rechensatz(werte), profOG, profUG, stahl, joch);
 
     /*
+     * >>> DAS ABFANGJOCH RECHNET SEINEN EIGENEN NACHWEIS. <<<
+     *
+     * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
+     *
+     * `berechne` oben ist der Kern des TRAGJOCHS - vier Winkelgurte, zwei
+     * Blechebenen, Torsion aus dem Anbauteilversatz. Er läuft weiter, weil
+     * das Blatt, die Masken und die Verläufe an seiner Gestalt hängen; seine
+     * NACHWEISE gelten für ein Abfangjoch aber nicht, und sie standen bis
+     * hierher trotzdem rechts in der Spalte.
+     *
+     * `abfangAuswertung` rechnet daneben, was diesem Tragwerk gehört: das
+     * Kräftepaar aus dem Moment in der waagrechten Rahmenebene, die örtliche
+     * Biegung des Gurtes zwischen zwei Blechen, die Bindebleche als Riegel.
+     * Die Beiwerte sind DIESELBEN wie beim Tragjoch — γ_G, γ_Q und ψ₀ aus
+     * der Eingabe; ein zweiter Satz wäre ein zweiter Ort, an dem eine
+     * Festlegung steht.
+     *
+     * Die Lasten des Jochs kommen aus der Sortimentstabelle (`erg.modell.char`
+     * spiegelt sie in die Felder), die der Anbauteile aus dem Bauteilkatalog
+     * über `abfangAnbauLasten` — dieselbe Quelle, aus der die Ausleitung und
+     * die Kraftpfeile im Bild kommen.
+     */
+    if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
+      const satzA = tragwerkSatz(werte);
+      const a2 = getAbfangjoch(werte.abfangTyp);
+      const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[satzA.ek] ?? '1.1';
+      const sKl = String(satzA.schneeKlasse ?? '1.25');
+      try {
+        erg.abfang = abfangAuswertung({
+          typ: werte.abfangTyp, jt: Number(werte.L),
+          // kg/m -> kN/m; die Sortimentstabelle führt das Gewicht in kg.
+          gk: (a2?.gewicht ?? 0) * 9.81 / 1000,
+          wk: a2?.wind?.[qpEk] ?? 0,
+          sk: satzA.schneeAktiv === false ? 0 : (a2?.schnee?.[sKl] ?? 0),
+          anbauteile: satzA.anbauteile ?? [],
+          gammaG: werte.gammaG, gammaQ: werte.gammaQ, psi0: werte.psi0,
+          fyd: stahl.fyd, ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
+          knotenbereich: 'anschnitt',
+        });
+      } catch (e2) {
+        // Ein Typ ohne erfasste Blechlage ist nicht rechenbar - dann steht
+        // dort nichts, statt einer Zahl aus dem falschen Modell.
+        erg.abfang = null;
+        console.warn('Abfangjoch-Auswertung:', e2?.message ?? e2);
+      }
+    }
+
+    /*
      * WAS KEIN JOCH HAT, BEKOMMT KEINE JOCHAUSWERTUNG.
      *
      * Fuenf Schritte folgen sonst: die Tabellenlasten des Jochs, der
@@ -468,6 +517,20 @@ function neuRechnen(neuZeichnen = true) {
     // Für Modell und Auswertung gilt die gewählte Anzeigequelle
     const anzeige = anzeigeKombi === 'umhuellend'
       ? (kombi.huellkurve ?? erg) : (kombi.ergebnisse?.[anzeigeKombi] ?? erg);
+    /*
+     * >>> DIE AUSWERTUNG SIEHT `anzeige`, NICHT `erg`. <<<
+     *
+     * Die rechte Spalte bekommt die Huellkurve der Kombinationen - ein
+     * eigenes Objekt, gebaut vom Kombinationsapparat des Tragjochs. Der
+     * Abfangjoch-Nachweis hing an `erg` und kam dort nie an; in der Spalte
+     * standen weiter «η Obergurt» und «η Untergurt», obwohl die Zahl
+     * daneben schon gerechnet war.
+     *
+     * Er wandert deshalb mit. Seine eigene Kombination steckt in ihm selbst
+     * (γ_G, γ_Q, ψ₀ ueber zwei Leitfaelle) - die Huellkurve des Tragjochs
+     * hat darauf keinen Einfluss.
+     */
+    if (erg.abfang) anzeige.abfang = erg.abfang;
 
     // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
     // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
@@ -4348,6 +4411,19 @@ function zeichneSchienen() {
     if (letzte?.mitJoch === false) {
       gruppen.push({ titel: 'Mast',
         teile: [['Ma', letzte.erg?.mast?.eta ?? 0, 'Mast, Querschnitt']] });
+    } else if (e.abfang) {
+      /*
+       * >>> DAS ABFANGJOCH HAT ZWEI GURTE, NICHT VIER. <<<
+       *
+       * Weisung vom 4. September: «nachweise beim Abfangjoch
+       * aktualisieren.» Hier standen «OG», «UG» und «Bl» - die Pillen des
+       * Tragjochs. Wer die Schublade zuklappt, sieht nur diese Schiene;
+       * sie darf nicht von Bauteilen sprechen, die es nicht gibt.
+       */
+      gruppen.push({ titel: 'Abfangjoch', teile: [
+        ['G', e.abfang.gurt?.eta ?? 0, `Gurt ${e.abfang.q.gurt.name}`],
+        ['Bl', e.abfang.blech?.eta ?? 0, 'Bindeblech, massgebende Station'],
+      ] });
     } else {
       gruppen.push({ titel: 'Joch', teile: [
         ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`],
@@ -4361,8 +4437,11 @@ function zeichneSchienen() {
      * wie bei den Kacheln - sonst zeigte die Schiene mehr, als die
      * Auswertung verantwortet.
      */
+    // Beim Abfangjoch steht keine Mastpille - `erg.mast` kommt aus der
+    // Tragjochrechnung und gilt fuer dieses Tragwerk nicht.
     const mastGefuehrt = letzte?.urteil?.nachweise?.mast !== false;
-    if (letzte?.mitJoch !== false && letzte?.erg?.mast && mastGefuehrt) {
+    if (!e.abfang && letzte?.mitJoch !== false && letzte?.erg?.mast
+        && mastGefuehrt) {
       const namen = e.modell.federn?.namen ?? {};
       const gesehen = new Set();
       const teile = [];

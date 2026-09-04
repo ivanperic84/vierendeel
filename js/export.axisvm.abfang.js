@@ -61,9 +61,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife, abfangKroepfung,
          abfangLichteWeite, abfangLichtFeld } from './data.abfangjoche.js';
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
-         abfangAnbindung } from './core.abfangjoch.js';
-import { abfangkraft } from './data.fl.js';
-import { baugruppeSumme } from './data.anbauteile.js';
+         abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
@@ -976,36 +974,23 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * hier rechnete jedes Modul mit einem Meter - das Eigengewicht einer N-FL
    * kam damit auf 0.02 kN statt auf den Anteil einer Aufhaengung.
    */
+  /*
+   * >>> EINE QUELLE FUER BILD UND AUSLEITUNG. <<<
+   *
+   * `abfangAnbauLasten` steht im Kern und liefert dieselben Zahlen, die die
+   * Modellansicht als Pfeile zeichnet. Bis zum 4. September rechnete jede
+   * Seite fuer sich - das Bild haette eine Kraft zeigen koennen, die das
+   * Modell nicht aufbringt. Die Regeln stehen dort: `baugruppeSumme` fuer
+   * Eigengewicht und Wind, `abfangkraft` fuer die Laengskraft, und ein
+   * durchgehender Leiter faengt nichts ab.
+   */
   const ekAn = opt.ek ?? 'EK2';
-  const sumOpt = { ek: ekAn, R: Number(opt.R) || 0,
-                   spannweite: Number(opt.L_FL) || 0 };
-  anbauKnoten.forEach(({ name: knA, teil: t2, anbindung: an }, j) => {
-    const sum = baugruppeSumme(t2, sumOpt);
-    const Gz = sum.Gz, Qx = sum.Qx, Qy = sum.Qy;
-    /*
-     * DIE ABFANGKRAFT IST NICHT DIE UMLENKKRAFT. Sie steht nur beim
-     * abgefangenen Leiter an, und sie kommt aus `abfangkraft` - fix oder
-     * beweglich, siehe data.fl.js.
-     */
-    /*
-     * >>> EIN DURCHGEHENDER LEITER FAENGT NICHTS AB. <<<
-     *
-     * Weisung vom 4. September: «ist dieser durchgehen (keine abfangkraefte)
-     * oder wird dieser vorne oder hinten abgefangen». Sein Eigengewicht und
-     * sein Wind wirken weiter - nur die Laengskraft nicht.
-     */
-    let Zab = 0, temperaturabhaengig = false, ohneTabelle = false;
-    if (an.abgefangen) {
-      (Array.isArray(t2.module) ? t2.module : []).forEach((m2) => {
-        if (!m2 || !m2.bauteil) return;
-        try {
-          const k2 = abfangkraft(m2.bauteil, { tempFall: opt.tempFall });
-          Zab += k2.Z * (m2.anzahl || 1);
-          temperaturabhaengig = temperaturabhaengig || k2.temperaturabhaengig;
-          ohneTabelle = ohneTabelle || k2.ohneTabelle;
-        } catch { /* kein Drahtwerk - dann auch keine Abfangkraft */ }
-      });
-    }
+  const lastOpt = { ek: ekAn, R: Number(opt.R) || 0,
+                    spannweite: Number(opt.L_FL) || 0, tempFall: opt.tempFall };
+  anbauKnoten.forEach(({ name: knA, teil: t2 }, j) => {
+    const lw = abfangAnbauLasten(t2, lastOpt);
+    const Gz = lw.Gz, Qx = lw.Qx, Qy = lw.Qy, Zab = lw.Z;
+    const { temperaturabhaengig, ohneTabelle } = lw;
     const nm2 = `AT${j + 1}`;
     if (Gz) {
       punkt.push({ name: `G_${nm2}`, knoten: knA, richtung: 'Z',
@@ -1016,8 +1001,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
        * DIE RICHTUNG IST DIE GLEISRICHTUNG (y) - der Leiter zieht laengs.
        * Das Vorzeichen folgt der Seite: ein Leiter vorn zieht nach vorn.
        */
-      punkt.push({ name: `FH_${nm2}`, knoten: knA, richtung: 'Y',
-                   wert: (an.seite === 'H' ? -1 : 1) * Zab,
+      // Das Vorzeichen steckt schon in `Z` - der Leiter von hinten zieht
+      // nach hinten.
+      punkt.push({ name: `FH_${nm2}`, knoten: knA, richtung: 'Y', wert: Zab,
                    lastfall: 'Leiterzug',
                    abfangung: { temperaturabhaengig, ohneTabelle } });
     }

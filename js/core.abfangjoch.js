@@ -53,6 +53,8 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangMasse,
          abfangRandmasse, abfangQuersteife } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
+import { abfangkraft } from './data.fl.js';
+import { baugruppeSumme } from './data.anbauteile.js';
 
 /**
  * DIE QUERSCHNITTSWERTE EINES ABFANGJOCHS.
@@ -991,4 +993,247 @@ export function abfangAnbindung(a, vorl = null) {
     ? (ABFANG_VERLAEUFE.find((x) => x.key === verlauf)?.seite ?? null) : null;
   return { art, verlauf, seite, abgefangen: Boolean(seite),
            vorgegeben: !gesetzt };
+}
+
+/**
+ * DIE LASTEN EINES ANBAUTEILS AM ABFANGJOCH.
+ *
+ * >>> EINE QUELLE FUER BILD UND AUSLEITUNG. <<<
+ *
+ * Die Ausleitung und die Modellansicht brauchen dieselben Zahlen: das Bild
+ * zeigt die Pfeile, die das Modell aufbringt. Standen sie an zwei Stellen,
+ * hiesse jede Aenderung zwei Stellen - und die zweite wird vergessen.
+ *
+ * Eigengewicht und Wind kommen aus `baugruppeSumme`, derselben Aufloesung
+ * wie beim Tragjoch (ein Drahtwerk ueber die Spannweite, ein Ausleger ueber
+ * seine Laenge). Die ABFANGKRAFT kommt aus `abfangkraft` und steht nur beim
+ * abgefangenen Leiter an; ein durchgehender zieht nicht.
+ *
+ * @param {object} at   Anbauteil
+ * @param {object} opt  {ek, R, spannweite, tempFall}
+ * @returns {{Gz, Qx, Qy, Z, anbindung, temperaturabhaengig, ohneTabelle}}
+ *          Gz [kN] nach unten positiv gezaehlt · Qx, Qy [kN] Wind ·
+ *          Z [kN] Abfangkraft in Gleisrichtung, vorzeichenbehaftet
+ */
+export function abfangAnbauLasten(at, opt = {}) {
+  const an = abfangAnbindung(at);
+  const sum = baugruppeSumme(at, { ek: opt.ek ?? 'EK2', R: Number(opt.R) || 0,
+                                   spannweite: Number(opt.spannweite) || 0 });
+  let Z = 0, temperaturabhaengig = false, ohneTabelle = false;
+  if (an.abgefangen) {
+    (Array.isArray(at?.module) ? at.module : []).forEach((m) => {
+      if (!m || !m.bauteil) return;
+      try {
+        const k = abfangkraft(m.bauteil, { tempFall: opt.tempFall });
+        Z += k.Z * (m.anzahl || 1);
+        temperaturabhaengig = temperaturabhaengig || k.temperaturabhaengig;
+        ohneTabelle = ohneTabelle || k.ohneTabelle;
+      } catch { /* kein Drahtwerk - dann auch keine Abfangkraft */ }
+    });
+    // Ein Leiter, der von hinten kommt, zieht nach hinten.
+    if (an.seite === 'H') Z = -Z;
+  }
+  return { Gz: sum.Gz, Qx: sum.Qx, Qy: sum.Qy, Z,
+           anbindung: an, temperaturabhaengig, ohneTabelle };
+}
+
+/* ===========================================================================
+ * DIE SCHNITTGROESSEN DES ABFANGJOCHS
+ * ===========================================================================
+ *
+ * Ein Einfeldtraeger mit zwei Kragarmen: die Auflager sitzen um den
+ * Ueberstand ue eingerueckt, der Traeger steht von 0 bis L.
+ *
+ * >>> WARUM EIN EIGENER RECHNER UND NICHT `schnittgroessen`. <<<
+ *
+ * Der Kern des Tragjochs rechnet einen Vierendeeltraeger mit vier Gurten,
+ * zwei Blechebenen und Torsion aus dem Anbauteilversatz. Davon gilt hier
+ * nichts: zwei Gurte, eine waagrechte Rahmenebene, und quer dazu traegt
+ * jeder Gurt fuer sich. Was gebraucht wird, sind M(x) und V(x) eines
+ * Balkens - mehr nicht.
+ *
+ * Gerechnet wird mit dem Gleichgewicht, nicht mit einer Formel je Lastfall:
+ * Auflagerkraefte aus Summe M = 0, dann M(x) und V(x) aus den Anteilen
+ * links von x. Damit tragen Streckenlast und Einzelkraefte denselben Weg,
+ * und Kragarme fallen von selbst richtig aus.
+ */
+
+/**
+ * M(x) und V(x) eines Traegers mit zwei Kragarmen.
+ *
+ * @param {number} L   Traegerlaenge [m], 0 bis L
+ * @param {number} ue  Ueberstand je Ende [m] - Auflager bei ue und L-ue
+ * @param {object} last {q: Streckenlast [kN/m] ueber die ganze Laenge,
+ *                       F: [{x, wert}] Einzelkraefte [kN]}
+ * @returns {{M: Function, V: Function, A: number, B: number}}
+ */
+export function abfangBalken(L, ue, { q = 0, F = [] } = {}) {
+  const xA = ue, xB = L - ue, sp = xB - xA;
+  if (!(sp > 0)) throw new Error('Abfangjoch: Stuetzweite muss positiv sein.');
+  const kraefte = (F ?? []).filter((f) => Number.isFinite(f?.x)
+                                       && Number.isFinite(f?.wert));
+  // Summe der Momente um A gibt die Kraft in B.
+  const Mq = q * L * (L / 2 - xA);                       // Streckenlast
+  const MF = kraefte.reduce((a, f) => a + f.wert * (f.x - xA), 0);
+  const B = (Mq + MF) / sp;
+  const A = q * L + kraefte.reduce((a, f) => a + f.wert, 0) - B;
+  /** Was links von x steht - Streckenlast, Einzelkraefte, Auflager. */
+  const links = (x) => {
+    let V = q * Math.max(0, Math.min(x, L));
+    let M = q * Math.max(0, Math.min(x, L)) * (Math.min(x, L) / 2);
+    kraefte.forEach((f) => { if (f.x <= x + 1e-12) { V += f.wert; M += f.wert * (x - f.x); } });
+    if (x >= xA - 1e-12) { V -= A; M -= A * (x - xA); }
+    if (x >= xB - 1e-12) { V -= B; M -= B * (x - xB); }
+    return { V, M };
+  };
+  return { A, B, xA, xB,
+           /** Biegemoment an der Stelle x [kNm] - Zug unten positiv. */
+           M: (x) => -links(x).M,
+           /** Querkraft an der Stelle x [kN]. */
+           V: (x) => links(x).V };
+}
+
+/* ===========================================================================
+ * DIE AUSWERTUNG - was rechts in der Anwendung steht
+ * ===========================================================================
+ *
+ * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
+ *
+ * Bis dahin standen dort die Nachweise des TRAGJOCHS - Obergurt, Untergurt,
+ * Bindeblech, gerechnet an einem Vierendeeltraeger mit vier Winkelgurten,
+ * waehrend links ein Abfangjoch gewaehlt war. Die Zahlen gehoerten nicht zu
+ * diesem Tragwerk.
+ *
+ * >>> DIE EINWIRKUNGEN UND IHRE BEIWERTE. <<<
+ *
+ * STAENDIG   Eigengewicht des Jochs (Sortimentstabelle), Eigengewicht der
+ *            Anbauteile, und der LEITERZUG. Dass die Leiterkraft staendig
+ *            ist, ist die Konvention dieses Werkzeugs - dieselbe wie beim
+ *            Tragjoch, wo die Umlenkkraft in Gruppe G laeuft.
+ *
+ * VERAENDERLICH  Wind (auf Joch und Anbauteile) und Schnee, beide aus der
+ *            Sortimentstabelle bzw. dem Bauteilkatalog.
+ *
+ * Kombiniert wird mit γ_G, γ_Q und ψ₀ AUS DER EINGABE - denselben Zahlen,
+ * mit denen das Tragjoch rechnet. Zwei Faelle werden gebildet, Wind leitend
+ * und Schnee leitend, und der groessere gilt; eine Huellkurve ist nie
+ * unsicher.
+ *
+ * >>> ZWEI EBENEN, ZWEI TRAGWIRKUNGEN. <<<
+ *
+ * IN der waagrechten Rahmenebene traegt der Vierendeel: das Moment wird zum
+ * Kraeftepaar N = M/e in den Gurten (`abfangGurtkraefte`), die Querkraft
+ * biegt den Gurt oertlich zwischen zwei Blechen.
+ *
+ * QUER dazu traegt jeder Gurt fuer sich die halbe Last ueber seine starke
+ * Achse (`abfangLastQuer`, Weisung vom 3. September: «jeder Gurt fuer sich,
+ * halbe Last»).
+ */
+
+/**
+ * @param {object} o  {typ, jt, gk, wk, sk, anbauteile, gammaG, gammaQ, psi0,
+ *                     fyd, ek, L_FL, R, knotenbereich}
+ * @returns {object|null} null, wenn der Typ oder die Laenge nicht rechenbar ist
+ */
+export function abfangAuswertung(o = {}) {
+  const { typ, jt } = o;
+  if (!abfangRechenbar(typ, jt)) return null;
+  const q = abfangQuerschnitt(typ);
+  const rf = abfangRahmenfeld(typ, jt);
+  const ein = abfangBlechstationen(typ, jt);
+  if (!rf || !ein) return null;
+  const sw = abfangStuetzweite(typ, jt);
+  const js = sw ? sw.bis : jt;
+  const ue = Math.max(0, (jt - js) / 2);
+  const gG = Number(o.gammaG) || 1.3;
+  const gQ = Number(o.gammaQ) || 1.3;
+  const p0 = Number.isFinite(o.psi0) ? o.psi0 : 0.5;
+  const fyd = Number(o.fyd) || 21.8;
+
+  // --- Die Lasten sammeln --------------------------------------------------
+  const lastOpt = { ek: o.ek, R: o.R, spannweite: o.L_FL, tempFall: o.tempFall };
+  const teile = (o.anbauteile ?? [])
+    .filter((t) => t && t.aktiv !== false && (t.ort ?? 'joch') === 'joch')
+    .map((t) => ({ t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt),
+                   lw: abfangAnbauLasten(t, lastOpt) }));
+  const gk = Number(o.gk) || 0;                 // kN/m Joch
+  const wk = Number(o.wk) || 0;                 // kN/m Wind auf das Joch
+  const sk = Number(o.sk) || 0;                 // kN/m Schnee auf das Joch
+
+  const Fstaendig = teile.filter((p) => p.lw.Gz)
+    .map((p) => ({ x: p.x, wert: Math.abs(p.lw.Gz) }));
+  const Fleiter = teile.filter((p) => p.lw.Z)
+    .map((p) => ({ x: p.x, wert: p.lw.Z }));
+  const FwindY = teile.filter((p) => p.lw.Qy)
+    .map((p) => ({ x: p.x, wert: p.lw.Qy }));
+
+  /*
+   * DIE RAHMENEBENE LIEGT WAAGRECHT. Alles, was quer zum Traeger und
+   * waagrecht zieht, wirkt darin: der Leiterzug und der Wind in
+   * Gleisrichtung.
+   */
+  const balkenRahmenZ = abfangBalken(jt, ue, { F: Fleiter });
+  const balkenRahmenW = abfangBalken(jt, ue, { q: wk, F: FwindY });
+  // Quer dazu: Eigengewicht und Schnee, lotrecht.
+  const balkenVertG = abfangBalken(jt, ue, { q: gk, F: Fstaendig });
+  const balkenVertS = abfangBalken(jt, ue, { q: sk });
+
+  /**
+   * Die Bemessungswerte an der Stelle x - Huellkurve ueber die beiden
+   * Leitfaelle. Der Betrag entscheidet: ein Vorzeichenwechsel im Wind macht
+   * die Kombination nicht guenstiger.
+   */
+  const bemessung = (x) => {
+    const Zr = balkenRahmenZ.M(x), Wr = balkenRahmenW.M(x);
+    const Gv = balkenVertG.M(x), Sv = balkenVertS.M(x);
+    const ZrV = balkenRahmenZ.V(x), WrV = balkenRahmenW.V(x);
+    const GvV = balkenVertG.V(x), SvV = balkenVertS.V(x);
+    const faelle = [
+      // Wind leitend
+      { w: gQ, s: gQ * p0 },
+      // Schnee leitend
+      { w: gQ * p0, s: gQ },
+    ];
+    let beste = null;
+    faelle.forEach((f) => {
+      const Mrahmen = gG * Zr + f.w * Math.abs(Wr) * Math.sign(Zr || 1);
+      const Vrahmen = gG * ZrV + f.w * Math.abs(WrV) * Math.sign(ZrV || 1);
+      const Mvert = gG * Gv + f.s * Sv;
+      const Vvert = gG * GvV + f.s * SvV;
+      const kenn = Math.abs(Mrahmen) / (q.e / 100) + Math.abs(Mvert);
+      if (!beste || kenn > beste.kenn) {
+        beste = { Mrahmen, Vrahmen, Mvert, Vvert, kenn };
+      }
+    });
+    return beste;
+  };
+
+  // --- Der Gurtnachweis, Station fuer Station ------------------------------
+  const bBl = (abfangBindeblech(typ)?.regel?.b ?? 0) / 1000;   // m
+  const stationen = ein.stationen ?? [];
+  const stellen = [...new Set([0, ue, jt / 2, jt - ue, jt, ...stationen])]
+    .filter((x) => x >= 0 && x <= jt).sort((a2, b2) => a2 - b2);
+  const gurtReihe = stellen.map((x) => {
+    const s2 = bemessung(x);
+    const n = abfangGurtnachweis(q, s2, rf.a, fyd,
+                                 { bBl, knotenbereich: o.knotenbereich });
+    return { x, ...n, schnitt: s2 };
+  });
+  const gurt = gurtReihe.reduce((a2, b2) => (b2.eta > a2.eta ? b2 : a2),
+                                gurtReihe[0]);
+
+  // --- Bleche und Quersteifen ---------------------------------------------
+  const bleche = abfangBlechnachweise(typ, jt, (x) => bemessung(x).Vrahmen, fyd);
+  const blech = (bleche?.bleche ?? []).reduce(
+    (a2, b2) => (!a2 || (b2.eta ?? 0) > (a2.eta ?? 0) ? b2 : a2), null);
+
+  const etaMax = Math.max(gurt?.eta ?? 0, blech?.eta ?? 0);
+  return {
+    typ, jt, js, ueberstand: ue, q, rahmenfeld: rf,
+    lasten: { gk, wk, sk, teile: teile.length,
+              leiterzug: Fleiter.reduce((a2, f) => a2 + Math.abs(f.wert), 0) },
+    beiwerte: { gammaG: gG, gammaQ: gQ, psi0: p0, fyd },
+    reihe: gurtReihe, gurt, bleche, blech,
+    max: { eta: etaMax, ok: etaMax <= 1 },
+  };
 }

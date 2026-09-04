@@ -10,7 +10,7 @@
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
-import { abfangAnbindung, ABFANG_ANBINDUNGEN,
+import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
          ABFANG_VERLAEUFE } from './core.abfangjoch.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
@@ -2447,6 +2447,113 @@ function anbauteilSkizzeMast(a, werte) {
   </svg>`;
 }
 
+
+/**
+ * ===========================================================================
+ * DIE SKIZZE AM ABFANGJOCH.
+ * ===========================================================================
+ *
+ * Weisung vom 4. September: «Die diagrammdarstellung auf die lasten
+ * anpassen.»
+ *
+ * `anbauteilSkizze` zeichnet das TRAGJOCH: zwei Gurtebenen übereinander,
+ * vier Winkel, ein Anschluss oben oder unten. Am Abfangjoch stand damit ein
+ * Querschnitt, den es dort nicht gibt — und daneben ein Kräftepaar F_y/F_z,
+ * das die eigentliche Frage nicht beantwortet: wohin zieht der Leiter?
+ *
+ * Hier steht, was am Abfangjoch gilt:
+ *
+ *   LINKS   Blick in die Jochachse. Zwei Gurte NEBENEINANDER, dazwischen
+ *           die lichte Weite. Die Anbindung ist zu sehen — über beide Gurte
+ *           oder auf Mitte Träger — und der Leiterzug zieht waagrecht nach
+ *           vorn, nach hinten oder gar nicht.
+ *
+ *   RECHTS  Draufsicht. Der Träger liegt, die Rahmenebene ist waagrecht;
+ *           der Leiter läuft quer dazu ab. Genau so sieht man, ob er
+ *           durchgeht oder endet.
+ *
+ * Die KRÄFTE sind die gerechneten, nicht gezeichnete Platzhalter: G aus dem
+ * Eigengewicht der Baugruppe, Z_ab aus den Kennwerten der Drahtwerke
+ * (Weisung: «die Leiterzugkräfte ergeben sich dann aus den kennwerten der
+ * bauteile»).
+ */
+function anbauteilSkizzeAbfang(a, werte) {
+  const an = abfangAnbindung(a);
+  const x = a.x ?? 0, L = werte.L ?? 20;
+  let lw = null;
+  try {
+    lw = abfangAnbauLasten(a, { ek: werte.ek, R: werte.R,
+                                spannweite: werte.L_FL });
+  } catch { lw = null; }
+
+  // --- links: Blick in die Jochachse --------------------------------------
+  const cx = 74, cyM = 68;                 // Mitte des Querschnitts
+  const halb = 30;                         // halber Gurtabstand im Bild
+  const hh = 20;                           // halbe Profilhöhe im Bild
+  const gurtBild = (sy) => `
+    <rect class="sk-winkel" x="${cx + sy * halb - 7}" y="${cyM - hh}"
+          width="14" height="${2 * hh}" rx="1"/>`;
+  // Die Anbindung: über beide Gurte ein Riegel, auf Mitte ein Punkt.
+  const anbindung = an.art === 'gurte'
+    ? `<line class="sk-an" x1="${cx - halb}" y1="${cyM}" x2="${cx + halb}" y2="${cyM}"/>`
+    : `<line class="sk-an" x1="${cx - 5}" y1="${cyM}" x2="${cx + 5}" y2="${cyM}"/>`;
+  // Der Leiterzug: die Richtung ist die Aussage.
+  const zPfeil = (sy) => `
+    <g class="sk-kraft" data-zu="verlauf">
+      <line x1="${cx}" y1="${cyM}" x2="${cx + sy * 52}" y2="${cyM}"/>
+      <polygon points="${cx + sy * 52},${cyM} ${cx + sy * 44},${cyM - 4}
+                       ${cx + sy * 44},${cyM + 4}"/>
+    </g>`;
+  const zRichtungen = an.art !== 'mitte' ? []
+    : (an.verlauf === 'durchgehend' ? [1, -1] : [an.seite === 'H' ? -1 : 1]);
+  const zText = lw && lw.Z
+    ? `Z_ab ${Math.abs(lw.Z).toFixed(2)} kN`
+    : (an.verlauf === 'durchgehend' ? 'durchgehend — kein Z' : '');
+  const gText = lw && lw.Gz ? `G ${Math.abs(lw.Gz).toFixed(2)} kN` : '';
+
+  // --- rechts: Draufsicht -------------------------------------------------
+  const aX0 = 186, aX1 = 288, gyV = 46, gyH = 92;
+  const px = aX0 + Math.max(0, Math.min(1, x / (L || 1))) * (aX1 - aX0);
+  const leiterDraufsicht = an.art !== 'mitte' ? '' : zRichtungen.map((sy) => `
+    <line class="sk-teil" x1="${px}" y1="${(gyV + gyH) / 2}"
+          x2="${px}" y2="${sy > 0 ? gyV - 16 : gyH + 16}"/>
+    ${an.verlauf === 'durchgehend' ? '' : `<circle class="sk-winkel" cx="${px}"
+          cy="${sy > 0 ? gyV - 16 : gyH + 16}" r="3"/>`}`).join('');
+
+  return `<svg class="at-skizze" viewBox="0 0 300 165" role="img"
+     aria-label="Massskizze am Abfangjoch">
+    <text class="sk-titel" x="8" y="12">Blick in die Jochachse</text>
+    ${gurtBild(-1)}${gurtBild(1)}
+    ${anbindung}
+    ${an.art === 'gurte'
+      ? `<line class="sk-teil" x1="${cx}" y1="${cyM}" x2="${cx}" y2="${cyM + 30}"/>
+         <circle class="sk-winkel" cx="${cx}" cy="${cyM + 30}" r="2.6"/>`
+      : `<circle class="sk-winkel" cx="${cx}" cy="${cyM}" r="3"/>`}
+    ${zRichtungen.map(zPfeil).join('')}
+    <g class="sk-kraft" data-zu="Fz">
+      <line x1="${cx}" y1="${cyM + 30}" x2="${cx}" y2="${cyM + 44}"/>
+      <polygon points="${cx},${cyM + 44} ${cx - 4},${cyM + 36} ${cx + 4},${cyM + 36}"/>
+    </g>
+    <text class="sk-notiz" x="8" y="142">${esc(zText)}</text>
+    <text class="sk-notiz" x="8" y="154">${esc(gText)}</text>
+
+    <text class="sk-titel" x="186" y="12">Draufsicht</text>
+    <line class="sk-gurt" x1="${aX0}" y1="${gyV}" x2="${aX1}" y2="${gyV}"/>
+    <line class="sk-gurt" x1="${aX0}" y1="${gyH}" x2="${aX1}" y2="${gyH}"/>
+    <line class="sk-steg" x1="${px}" y1="${gyV}" x2="${px}" y2="${gyH}"/>
+    ${leiterDraufsicht}
+    <g class="sk-mass" data-zu="x">
+      <line x1="${aX0}" y1="112" x2="${px}" y2="112"/>
+      <text x="${aX0}" y="124">x ${x.toFixed(2)} m</text>
+    </g>
+    <text class="sk-notiz" x="186" y="140">vorn oben · 0 … ${L.toFixed(1)} m</text>
+    <text class="sk-notiz" x="186" y="152">${esc(
+      an.art === 'gurte' ? 'über beide Gurte'
+        : `Mitte Träger · ${ABFANG_VERLAEUFE.find(
+             (v) => v.key === an.verlauf)?.label ?? ''}`)}</text>
+  </svg>`;
+}
+
 function anbauteilSkizze(a, werte) {
   const bef = befestigungsArt(a);
   // Der tiefste bzw. höchste Angriffspunkt der Baugruppe steht stellvertretend
@@ -2546,7 +2653,19 @@ function anbauteilSkizze(a, werte) {
  * beschriftet jede Zahl falsch.
  */
 export function anbauteilSkizzeFuer(a, werte) {
-  return amMast(a) ? anbauteilSkizzeMast(a, werte) : anbauteilSkizze(a, werte);
+  if (amMast(a)) return anbauteilSkizzeMast(a, werte);
+  /*
+   * >>> DAS ABFANGJOCH BEKOMMT SEINE EIGENE. <<<
+   *
+   * Weisung vom 4. September: «Die diagrammdarstellung auf die lasten
+   * anpassen.» Die Jochskizze zeigt zwei Gurtebenen uebereinander und ein
+   * Kraeftepaar F_y/F_z - beides gilt am Abfangjoch nicht, und die
+   * eigentliche Frage, wohin der Leiter zieht, beantwortet sie gar nicht.
+   */
+  if (tragwerksart(werte).key === 'abfangjoch') {
+    return anbauteilSkizzeAbfang(a, werte);
+  }
+  return anbauteilSkizze(a, werte);
 }
 
 /** Rolle eines Moduls aus der Lasttabelle; null, wenn unbekannt. */
@@ -3242,13 +3361,47 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
   const mastEta = (erg.mast && urteil.nachweise?.mast !== false)
     ? (erg.mast.etaNachweis ?? erg.mast.eta) : null;
   const mastUeber = mastEta !== null && mastEta > 1;
+  /*
+   * >>> DAS ABFANGJOCH HAT SEINE EIGENEN NACHWEISE. <<<
+   *
+   * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
+   *
+   * Bis dahin standen hier «η Obergurt», «η Untergurt» und «η Bindeblech» -
+   * gerechnet am Vierendeeltraeger des TRAGJOCHS mit vier Winkelgurten,
+   * waehrend links ein Abfangjoch gewaehlt war. Die Zahlen gehoerten nicht
+   * zu diesem Tragwerk, und sie sahen doch aus wie seine.
+   *
+   * `erg.abfang` traegt jetzt die Auswertung des Abfangjochs
+   * (`abfangAuswertung` in core.abfangjoch.js): zwei Gurte, ein Kraeftepaar
+   * aus dem Moment in der waagrechten Rahmenebene, die Bindebleche als
+   * Riegel. Der ZAHLENWERT oben - η gesamt - folgt ihr ebenso; sonst stuende
+   * eine Ueberschrift ueber Kacheln, die etwas anderes sagen.
+   */
+  const ab = erg.abfang ?? null;
+  const eAn = ab ? ab.max.eta : e;
   const zustand = !gefuehrt ? 'warn'
-    : (e > 1 || mastUeber || urteil.bindendVerletzt === true ? 'nok' : 'ok');
+    : (eAn > 1 || (!ab && mastUeber) || urteil.bindendVerletzt === true
+       ? 'nok' : 'ok');
 
   // Jede Kachel kennt die Stelle, an der ihr Wert auftritt - ein Klick fährt
   // das Modell dorthin.
   const bei = (k) => ({ x: k.x, station: k.i });
-  const kz = [
+  /*
+   * ZWEI GURTE, NICHT VIER - und sie heissen nicht Ober- und Untergurt.
+   * Beim Abfangjoch liegen sie NEBENEINANDER; der Nachweis ist fuer beide
+   * derselbe, weil das Kraeftepaar sie gleich stark trifft. Dazu die
+   * Bindebleche und, ab A240, die Quersteifen.
+   */
+  const kz = ab ? [
+    kachel('η Gurt', f3(ab.gurt?.eta ?? 0), ab.q.gurt.name,
+           ampel(ab.gurt?.eta ?? 0), { x: ab.gurt?.x ?? 0 }),
+    kachel('η Bindeblech', f3(ab.blech?.eta ?? 0),
+           ab.blech ? `Station ${(ab.blech.x ?? 0).toFixed(2)} m` : 'kein Blech',
+           ampel(ab.blech?.eta ?? 0), { x: ab.blech?.x ?? 0 }),
+    kachel('N Gurt', `${(ab.gurt?.N ?? 0).toFixed(0)} kN`,
+           `Kräftepaar · e = ${(ab.q.e).toFixed(1)} cm`, 'ok',
+           { x: ab.gurt?.x ?? 0 }),
+  ] : [
     kachel('η Obergurt', f3(erg.max.etaOG.og.eta), m.profOG.name,
            ampel(erg.max.etaOG.og.eta), bei(erg.max.etaOG)),
     kachel('η Untergurt', f3(erg.max.etaUG.ug.eta), m.profUG.name,
@@ -3268,7 +3421,12 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    * Nur wenn der Nachweis auch geführt wird: die Gruppe lässt sich
    * abschalten, und dann hat hier keine Zahl zu stehen.
    */
-  if (erg.mast && urteil.nachweise?.mast !== false) {
+  /*
+   * BEIM ABFANGJOCH STEHT KEINE MASTKACHEL. `erg.mast` kommt aus der
+   * Tragjochrechnung; sie gilt fuer dieses Tragwerk nicht, und eine Zahl,
+   * die zu einem anderen Modell gehoert, ist schlimmer als keine.
+   */
+  if (!ab && erg.mast && urteil.nachweise?.mast !== false) {
     /*
      * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
      *
@@ -3336,11 +3494,11 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
 
   node.innerHTML = `
     <div class="urteil ${zustand}">
-      <span class="urteil-zahl">η ${f3(e)}</span>
+      <span class="urteil-zahl">η ${f3(eAn)}</span>
       <span>${!gefuehrt
         ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
-        : (e <= 1
-            ? (mastUeber
+        : (eAn <= 1
+            ? ((!ab && mastUeber)
                 ? `Joch erfüllt, MAST NICHT (η ${f3(mastEta)})`
                 : 'Tragsicherheit erfüllt')
             : 'Tragsicherheit NICHT erfüllt')}${

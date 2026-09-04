@@ -39,7 +39,7 @@
  */
 
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
-         abfangAnbindung } from './core.abfangjoch.js';
+         abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangQuersteife,
          abfangKroepfung, abfangLichteWeite,
@@ -138,6 +138,19 @@ export function abfangSzene(typ, jt, opt = {}) {
    * oben. `push` ist der eine Ort, an dem sich das sicherstellen laesst;
    * jede Aufrufstelle einzeln zu bedienen hiesse, eine zu vergessen.
    */
+  /*
+   * ==================== DIE LASTEN IM BILD ===============================
+   *
+   * Weisung vom 4. September: «Die lasten darstellen im 3d die die
+   * leiterzugkraefte ausweisen.»
+   *
+   * Gezeichnet wird, was das Modell aufbringt - dieselben Zahlen aus
+   * `abfangAnbauLasten`. Die Art faerbt den Pfeil: Leiterzug, Wind,
+   * staendig. Die Laenge waechst mit der WURZEL der Kraft; linear
+   * erschluege ein Pfeil von 22 kN jeden von einem.
+   */
+  const vektoren = [];
+  const pfeilLaenge = (kN) => 0.30 + 0.55 * Math.sqrt(Math.abs(kN) / 20);
   const rohFlaechen = [];
   const flaechen = {
     push: (...f) => rohFlaechen.push(
@@ -455,6 +468,29 @@ export function abfangSzene(typ, jt, opt = {}) {
                                 { ...opt2, teil: `${teil}_A` }));
       }
     }
+    /*
+     * DIE KRAEFTE DES BAUTEILS greifen am Knoten auf der Jochachse an -
+     * genau dort, wo sie auch im Stabmodell sitzen.
+     */
+    const lw = abfangAnbauLasten(at, {
+      ek: opt.ek ?? 'EK2', R: opt.R, spannweite: opt.L_FL,
+      tempFall: opt.tempFall });
+    const pAn = [x, 0, 0];
+    const pfeil = (art, ri, wert, nm) => {
+      if (!wert) return;
+      const f = Math.sign(wert) * pfeilLaenge(wert);
+      vektoren.push({
+        gruppe: 'last', art: 'last', lastart: art, p: pAn, teil,
+        v: [ri[0] * f, ri[1] * f, ri[2] * f],
+        text: `${nm} = ${Math.abs(wert).toFixed(2)} kN`,
+        titel: `${at.name ?? 'Anbauteil'} · ${nm}`,
+      });
+    };
+    pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab');
+    pfeil('staendig', [0, 0, -1], Math.abs(lw.Gz), 'G');
+    pfeil('windX', [1, 0, 0], lw.Qx, 'W_x');
+    pfeil('windY', [0, 1, 0], lw.Qy, 'W_y');
+
     marken.push({ gruppe: 'anbau', art: 'anbau', teil,
                   p: [x, 0, zTief < -0.01 ? zTief - 0.12 : hG / 2 + 0.12],
                   text: at.name ?? `A${j + 1}` });
@@ -567,7 +603,7 @@ export function abfangSzene(typ, jt, opt = {}) {
 
   return {
     flaechen: rohFlaechen, linien, marken, masse, bauteiltitel,
-    vektoren: [], lastflaechen: [],
+    vektoren, lastflaechen: [],
     legende: [...bauteile.values()],
     // Etwas Luft nach oben und unten für Titel und Masskette.
     grenzen: { xMin: x0, xMax: x1, yMin: y0, yMax: y1,

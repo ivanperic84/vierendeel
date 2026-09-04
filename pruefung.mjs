@@ -14336,6 +14336,144 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     }
 
     /*
+     * ================= DER BALKEN MIT ZWEI KRAGARMEN ====================
+     *
+     * Er traegt die Schnittgroessen des Abfangjochs. Geprueft wird gegen
+     * die drei Faelle, die man im Kopf hat - sonst prueft man eine Formel
+     * gegen sich selbst.
+     */
+    {
+      const b1 = AK.abfangBalken(10, 0, { q: 1 });
+      pruef('Gleichlast: M = qL²/8', b1.M(5), 12.5, 1e-9, 'kNm');
+      pruef('… und V am Auflager qL/2', b1.V(0), -5, 1e-9, 'kN');
+      pruef('… in der Mitte null', b1.V(5), 0, 1e-9, 'kN');
+      const b2 = AK.abfangBalken(10, 0, { F: [{ x: 5, wert: 4 }] });
+      pruef('Einzelkraft mittig: M = FL/4', b2.M(5), 10, 1e-9, 'kNm');
+      /*
+       * DER KRAGARM IST DER GRUND FUER DIESEN RECHNER. Das Abfangjoch
+       * ragt an beiden Enden ueber die Auflager hinaus - bei A160 / 9.50 m
+       * um 250 mm -, und dort sitzt der Nachweisschnitt.
+       */
+      const b3 = AK.abfangBalken(10, 2, { F: [{ x: 0, wert: 3 }] });
+      pruef('Kragarm: M am Auflager = F·ue', Math.abs(b3.M(2)), 6, 1e-9, 'kNm');
+      wahr('Am freien Ende ist er null', Math.abs(b3.M(0)) < 1e-9);
+      // Das Gleichgewicht muss aufgehen: Summe der Auflagerkraefte = Last.
+      const b4 = AK.abfangBalken(13, 0.25, { q: 1.2, F: [{ x: 4, wert: 9 }] });
+      pruef('Die Auflagerkraefte tragen die ganze Last',
+            b4.A + b4.B, 1.2 * 13 + 9, 1e-9, 'kN');
+      wahr('Am Traegerende ist das Moment null',
+           Math.abs(b4.M(0)) < 1e-9 && Math.abs(b4.M(13)) < 1e-9);
+    }
+
+    /*
+     * ================ DIE AUSWERTUNG DES ABFANGJOCHS ====================
+     *
+     * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
+     * Bis dahin standen rechts in der Anwendung die Nachweise des
+     * TRAGJOCHS - Obergurt, Untergurt, Bindeblech -, waehrend links ein
+     * Abfangjoch gewaehlt war.
+     */
+    {
+      const at2 = [{ ...A.neuesAnbauteil('leiter-nfl', 4.0), name: 'N-FL' },
+                   { ...A.neuesAnbauteil('leiter-rfl', 9.0), name: 'R-FL' }];
+      const e2 = AK.abfangAuswertung({
+        typ: 'A300', jt: 13.0, gk: 1.08, wk: 0.61, sk: 0.52,
+        anbauteile: at2, gammaG: 1.3, gammaQ: 1.3, psi0: 0.5,
+        fyd: 21.8, L_FL: 60 });
+      wahr('Sie kommt zustande', Boolean(e2));
+      pruef('Die Stuetzweite ist js, nicht jt', e2.js, 12.5, 1e-9, 'm');
+      pruef('Der Ueberstand folgt daraus', e2.ueberstand, 0.25, 1e-9, 'm');
+      /*
+       * DIE LEITERZUGKRAEFTE KOMMEN AUS DEN KENNWERTEN (Weisung,
+       * 4. September): N-FL 14.9 + R-FL 22.0 = 36.9 kN.
+       */
+      pruef('Der Leiterzug summiert die Kennwerte',
+            e2.lasten.leiterzug, 36.9, 1e-9, 'kN');
+      wahr('Der Gurtnachweis steht', Number.isFinite(e2.gurt?.eta));
+      wahr('Der Blechnachweis auch', Number.isFinite(e2.blech?.eta));
+      pruef('η gesamt ist der groessere der beiden', e2.max.eta,
+            Math.max(e2.gurt.eta, e2.blech.eta), 1e-12, '-');
+      /*
+       * >>> MEHR LEITERZUG, MEHR AUSNUTZUNG. <<<
+       *
+       * Die Probe, die eine vertauschte Achse fangen wuerde: der Leiterzug
+       * wirkt IN der Rahmenebene, und dort traegt der Vierendeel ueber das
+       * Kraeftepaar N = M/e. Verdoppelt man ihn, muss N steigen.
+       */
+      const e3 = AK.abfangAuswertung({
+        typ: 'A300', jt: 13.0, gk: 1.08, wk: 0.61, sk: 0.52,
+        anbauteile: [...at2, { ...A.neuesAnbauteil('leiter-rfl', 6.0),
+                               name: 'R-FL 2' }],
+        gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 21.8, L_FL: 60 });
+      wahr('Ein dritter Leiter erhoeht die Gurtkraft', e3.gurt.N > e2.gurt.N);
+      wahr('… und damit die Ausnutzung', e3.max.eta > e2.max.eta);
+      /*
+       * EIN DURCHGEHENDER LEITER ZIEHT NICHT. Sein Eigengewicht bleibt,
+       * seine Laengskraft nicht - der Unterschied muss sich im Nachweis
+       * zeigen, sonst waere die Eingabe folgenlos.
+       */
+      const e4 = AK.abfangAuswertung({
+        typ: 'A300', jt: 13.0, gk: 1.08, wk: 0.61, sk: 0.52,
+        anbauteile: at2.map((t3) => ({ ...t3, verlauf: 'durchgehend' })),
+        gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 21.8, L_FL: 60 });
+      pruef('Durchgehend: kein Leiterzug', e4.lasten.leiterzug, 0, 1e-9, 'kN');
+      wahr('… und eine kleinere Gurtkraft', e4.gurt.N < e2.gurt.N);
+      /*
+       * DIE BEIWERTE SIND DIE DER EINGABE - dieselben wie beim Tragjoch.
+       * Ein groesseres γ_G muss durchschlagen.
+       */
+      const e5 = AK.abfangAuswertung({
+        typ: 'A300', jt: 13.0, gk: 1.08, wk: 0.61, sk: 0.52,
+        anbauteile: at2, gammaG: 1.5, gammaQ: 1.3, psi0: 0.5,
+        fyd: 21.8, L_FL: 60 });
+      wahr('Ein groesseres γ_G erhoeht die Ausnutzung',
+           e5.max.eta > e2.max.eta);
+      // Ohne erfasste Laenge gibt es keine Auswertung, statt einer erfundenen.
+      wahr('Eine ungefuehrte Laenge gibt null',
+           AK.abfangAuswertung({ typ: 'A300', jt: 13.37 }) === null);
+    }
+
+    /*
+     * ================= DIE LASTEN IM BILD ===============================
+     *
+     * Weisung vom 4. September: «Die lasten darstellen im 3d die die
+     * leiterzugkraefte ausweisen.» Gezeichnet wird, was das Modell
+     * aufbringt - dieselbe Quelle, `abfangAnbauLasten`.
+     */
+    {
+      const at3 = [{ ...A.neuesAnbauteil('leiter-nfl', 4.0), name: 'N-FL' },
+                   { ...A.neuesAnbauteil('leiter-rfl', 9.0), name: 'R-FL',
+                     verlauf: 'hinten' },
+                   { ...A.neuesAnbauteil('leiter-rl', 11.0), name: 'RL',
+                     verlauf: 'durchgehend' }];
+      const szL = R3D.abfangSzene('A300', 13.0,
+        { anbauteile: at3, L_FL: 60, ek: 'EK2' });
+      const zug = szL.vektoren.filter((v) => v.lastart === 'leiterzug');
+      pruef('Zwei Leiterzugpfeile - der dritte geht durch',
+            zug.length, 2, 1e-9, 'Stk');
+      wahr('Der vordere zieht nach +y, der hintere nach -y',
+           zug.some((v) => v.v[1] > 0) && zug.some((v) => v.v[1] < 0));
+      wahr('Sie nennen ihre Kraft',
+           zug.every((v) => /Z_ab = \d/.test(v.text)));
+      wahr('Alle drei tragen ihr Eigengewicht',
+           szL.vektoren.filter((v) => v.lastart === 'staendig').length === 3);
+      wahr('Die Pfeile greifen auf der Jochachse an',
+           szL.vektoren.every((v) => v.p[1] === 0 && v.p[2] === 0));
+      /*
+       * DIESELBE QUELLE WIE DIE AUSLEITUNG. Ein Bild, das eine Kraft zeigt,
+       * die das Modell nicht aufbringt, ist schlimmer als keines.
+       */
+      const mL = XA.abfangAxisvmModell('A300', 13.0,
+        { anbauteile: at3, L_FL: 60, ek: 'EK2' });
+      const fh = mL.lasten.punkt.filter((p2) => p2.lastfall === 'Leiterzug');
+      pruef('Auch das Modell kennt zwei Leiterzugkraefte',
+            fh.length, 2, 1e-9, 'Stk');
+      wahr('Und dieselben Betraege wie das Bild',
+           fh.every((p2) => zug.some(
+             (v) => v.text.includes(Math.abs(p2.wert).toFixed(2)))));
+    }
+
+    /*
      * ============ WO EIN ANBAUTEIL AM ABFANGJOCH ANGREIFT ===============
      *
      * Weisung vom 4. September: «die anbindung an das joch erfolgt ueber die
