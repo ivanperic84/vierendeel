@@ -897,8 +897,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * IHREN Stellen - dasselbe Bauwerk, nur nicht mehr auf einen Punkt
    * geworfen.
    */
-  const leiterAusAnbau = anbau.some(
-    (t2) => abfangAnbindung(t2).art === 'mitte');
+  const leiterAusAnbau = anbau.some((t2) => abfangAnbindung(t2).abgefangen);
   if (!leiterAusAnbau) {
     for (const g of ['V', 'H']) {
       punkt.push({ name: `FH_${g}`, knoten: nm(g, mitte), richtung: 'Y',
@@ -988,8 +987,15 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
      * abgefangenen Leiter an, und sie kommt aus `abfangkraft` - fix oder
      * beweglich, siehe data.fl.js.
      */
+    /*
+     * >>> EIN DURCHGEHENDER LEITER FAENGT NICHTS AB. <<<
+     *
+     * Weisung vom 4. September: «ist dieser durchgehen (keine abfangkraefte)
+     * oder wird dieser vorne oder hinten abgefangen». Sein Eigengewicht und
+     * sein Wind wirken weiter - nur die Laengskraft nicht.
+     */
     let Zab = 0, temperaturabhaengig = false, ohneTabelle = false;
-    if (an.art === 'mitte') {
+    if (an.abgefangen) {
       (Array.isArray(t2.module) ? t2.module : []).forEach((m2) => {
         if (!m2 || !m2.bauteil) return;
         try {
@@ -1050,6 +1056,43 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
                      wert: -gd / 2 * (doppelt ? 2 : 1), lastfall: 'G' });
     });
 
+  /*
+   * =========== WIND UND SCHNEE AUF DEN JOCHTRAEGER SELBST ================
+   *
+   * Weisung vom 4. September: «der wind auf den jochtraeger kann den
+   * grundlagen entnommen werden.» Die Sortimentstabelle fuehrt beides je
+   * Typ als Streckenlast [kN/m], nach Referenzdruck gestaffelt:
+   *
+   *     Wind    0.9 | 1.1 | 1.3 kN/m2   - dieselben drei wie EK1 bis EK3
+   *     Schnee  0.9 | 1.25 kN/m2        - die beiden Schneeklassen
+   *
+   * A300 traegt damit 0.61 kN/m Wind bei EK2 und 0.52 kN/m Schnee bei 1.25.
+   *
+   * RICHTUNG: Der Wind steht QUER zur Traegerachse und waagrecht - beim
+   * liegenden Vierendeel also in Gleisrichtung (y), dieselbe Richtung wie
+   * der Leiterzug und die steife Richtung des Rahmens. Der Schnee steht
+   * lotrecht (z) und trifft die schwache.
+   *
+   * Beide teilen sich auf die zwei Gurte, wie das Eigengewicht.
+   */
+  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[ekAn] ?? '1.1';
+  const wJoch = a?.wind?.[qpEk] ?? 0;
+  const sKl = String(opt.schneeKlasse ?? '1.25');
+  const sJoch = (opt.schneeAktiv === false ? 0 : (a?.schnee?.[sKl] ?? 0));
+  staebe.filter((st2) => st2.art === 'stab'
+                      && (st2.querschnitt === 'GURT' || st2.querschnitt === 'GABEL'))
+    .forEach((st2) => {
+      const dopp = st2.querschnitt === 'GABEL' ? 2 : 1;
+      if (wJoch) {
+        strecke.push({ name: `W_${st2.name}`, stab: st2.name, richtung: 'Y',
+                       wert: wJoch / 2 * dopp, lastfall: 'WindJoch' });
+      }
+      if (sJoch) {
+        strecke.push({ name: `S_${st2.name}`, stab: st2.name, richtung: 'Z',
+                       wert: -sJoch / 2 * dopp, lastfall: 'SchneeJoch' });
+      }
+    });
+
   return {
     format: 'tragjoch-stabmodell',
     version: 1,
@@ -1070,9 +1113,14 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
                        // Nur am langen Jochende - dem Montageende.
                        seite: 'L', anzahl: 2 } : null,
       endverstaerkung: abfangEndverstaerkung(typ)?.art ?? 'keine',
+      // Aus der Sortimentstabelle, nicht gerechnet - siehe oben.
+      lasttabelle: { ek: ekAn, windRef: qpEk, wind: wJoch,
+                     schneeKlasse: sKl, schnee: sJoch,
+                     gewicht: a?.gewicht ?? null },
       anbauteile: anbauKnoten.map((k2) => ({
         knoten: k2.name, name: k2.teil.name ?? '', x: xs[k2.i],
         anbindung: k2.anbindung.art, seite: k2.anbindung.seite,
+        verlauf: k2.anbindung.verlauf,
         // «vorgegeben» heisst: die Art folgt der Vorlagengruppe, es hat
         // niemand ausdruecklich gewaehlt.
         vorgegeben: k2.anbindung.vorgegeben,
@@ -1093,6 +1141,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       { key: 'Leiterzug', label: 'Leiterzug (Abfangung)', art: 'Others' },
       { key: 'WindX', label: 'Wind in Jochachse (Anbauteile)', art: 'Others' },
       { key: 'WindY', label: 'Wind in Gleisrichtung (Anbauteile)', art: 'Others' },
+      { key: 'WindJoch', label: 'Wind auf den Jochtraeger', art: 'Others' },
+      { key: 'SchneeJoch', label: 'Schnee auf den Jochtraeger', art: 'Others' },
     ],
     kombinationen: [
       { key: 'gk', bez: 'Staendig', art: 'charakteristisch', nachweis: false,

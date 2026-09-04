@@ -14225,6 +14225,39 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
         return { y0: Math.min(...ys), y1: Math.max(...ys),
                  z0: Math.min(...zs), z1: Math.max(...zs) };
       };
+      /*
+       * >>> OHNE WERTE KEINE FARBE AUS DER SKALA. <<<
+       *
+       * Weisung vom 4. September: «die farbe fuer die resultatauswertung
+       * fuer das abfangjoch modell nachziehen.» Die Ansicht faerbt nach
+       * `f.werte[feld]`; fehlt das Feld GANZ, faellt sie auf die
+       * Bauteilfarbe zurueck - und das Abfangjoch stand in den
+       * Plot-Ansichten im gewoehnlichen Stahlton da, als waere es
+       * nachgewiesen. Ein leerer Wertesatz laesst es neutral.
+       */
+      wahr('Jede Flaeche traegt einen Wertesatz',
+           szA.flaechen.every((f) => f.werte !== undefined));
+      wahr('… und er ist leer', szA.flaechen.every(
+        (f) => Object.keys(f.werte).length === 0));
+      /*
+       * DIE MASTEN STEHEN UNTER DEN AUFLAGERN (Weisung, 4. September). Ohne
+       * Mastangabe wird keiner gezeichnet - er waere eine Behauptung ueber
+       * die Lagerung.
+       */
+      wahr('Ohne Mastangabe steht kein Mast',
+           !szA.flaechen.some((f) => f.gruppe === 'mast'));
+      const szM = R3D.abfangSzene('A300', 13.0,
+        { mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse' } });
+      const mst = szM.flaechen.filter((f) => f.gruppe === 'mast');
+      wahr('Mit Angabe zwei Masten',
+           new Set(mst.map((f) => f.teil)).size === 2);
+      pruef('Sie reichen bis zum Fundament',
+            Math.min(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
+            -7.5, 1e-9, 'm');
+      wahr('… und enden an der Jochachse',
+           Math.abs(Math.max(...mst.flatMap(
+             (f) => f.punkte.map((p2) => p2[2])))) < 1e-9);
+
       const g = vorn('GURT_V'), db = vorn('DECK_L');
       pruef('A300 am Ende: innere Flanschspitze bei 150', g.y0, 150, 1e-6, 'mm');
       pruef('… aeussere bei 300, aussen also 600', g.y1, 300, 1e-6, 'mm');
@@ -14319,9 +14352,36 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
             AK.abfangAnbindung(nfl).art === 'mitte' ? 1 : 0, 1, 1e-9, '-');
       pruef('Die Haengestuetze sitzt auf beiden Gurten',
             AK.abfangAnbindung(hs).art === 'gurte' ? 1 : 0, 1, 1e-9, '-');
-      wahr('Ohne Angabe kommt der Leiter von vorn',
-           AK.abfangAnbindung(nfl).seite === 'V');
+      /*
+       * >>> DER VERLAUF, NICHT DIE SEITE. <<<
+       *
+       * Weisung vom 4. September: «ist dieser durchgehen (keine
+       * abfangkraefte) oder wird dieser vorne oder hinten abgefangen».
+       * Ohne Angabe gilt «vorn abgefangen» - ein Abfangjoch faengt ab.
+       */
+      wahr('Ohne Angabe wird vorn abgefangen',
+           AK.abfangAnbindung(nfl).verlauf === 'vorn'
+           && AK.abfangAnbindung(nfl).seite === 'V');
+      wahr('Die alte Angabe seite:H gilt weiter als «hinten abgefangen»',
+           AK.abfangAnbindung({ ...nfl, seite: 'H' }).verlauf === 'hinten');
       wahr('Mit Angabe von hinten', AK.abfangAnbindung(rfl).seite === 'H');
+      const durch = { ...nfl, verlauf: 'durchgehend' };
+      wahr('Ein durchgehender Leiter hat keine Seite',
+           AK.abfangAnbindung(durch).seite === null);
+      wahr('… und faengt nichts ab', !AK.abfangAnbindung(durch).abgefangen);
+      wahr('Ein abgefangener schon', AK.abfangAnbindung(nfl).abgefangen);
+      /*
+       * IM MODELL: kein Leiterzug, aber Eigengewicht und Wind. Ein
+       * durchgehender Leiter haengt am Joch, er zieht nur nicht daran.
+       */
+      const mD = XA.abfangAxisvmModell('A300', 13.0,
+        { anbauteile: [durch], L_FL: 60 });
+      wahr('Der durchgehende Leiter traegt keinen Leiterzug',
+           !mD.lasten.punkt.some((p2) => p2.name === 'FH_AT1'));
+      wahr('Wohl aber Eigengewicht',
+           mD.lasten.punkt.some((p2) => p2.name === 'G_AT1' && p2.wert < 0));
+      wahr('Und die pauschale Abfangkraft bleibt dann stehen',
+           mD.lasten.punkt.some((p2) => p2.name === 'FH_V'));
       wahr('Die Vorgabe ist als solche gekennzeichnet',
            AK.abfangAnbindung(nfl).vorgegeben);
       wahr('Eine gesetzte Anbindung sticht sie aus',
@@ -14443,8 +14503,68 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Und beide bekommen gleich viel',
          m.lasten.punkt[0].wert === m.lasten.punkt[1].wert);
     // Das Eigengewicht quer dazu, je Gurt die Haelfte.
-    wahr('Das Eigengewicht wirkt lotrecht',
-         m.lasten.strecke.every((l) => l.richtung === 'Z' && l.wert < 0));
+    /*
+     * DREI STRECKENLASTEN, DREI RICHTUNGEN. Bis zum 4. September trug das
+     * Modell nur das Eigengewicht; seither kommen Wind und Schnee auf den
+     * Jochtraeger dazu (Weisung: «der wind auf den jochtraeger kann den
+     * grundlagen entnommen werden»). Der Wind steht waagrecht quer zur
+     * Traegerachse - in Gleisrichtung -, Eigengewicht und Schnee lotrecht.
+     */
+    const q = (lf) => m.lasten.strecke.filter((l) => l.lastfall === lf);
+    wahr('Das Eigengewicht wirkt lotrecht nach unten',
+         q('G').length > 0 && q('G').every((l) => l.richtung === 'Z' && l.wert < 0));
+    wahr('Der Schnee ebenso',
+         q('SchneeJoch').every((l) => l.richtung === 'Z' && l.wert < 0));
+    wahr('Der Wind waagrecht in Gleisrichtung',
+         q('WindJoch').length > 0
+         && q('WindJoch').every((l) => l.richtung === 'Y'));
+    /*
+     * DIE ZAHLEN STEHEN IN DER SORTIMENTSTABELLE, nicht in einer Formel:
+     * A160 traegt 0.32 kN/m Wind bei EK2 und 0.24 kN/m Schnee bei 1.25 -
+     * je Gurt die Haelfte.
+     */
+    pruef('A160: Wind 0.32 kN/m, je Gurt 0.16',
+          q('WindJoch')[0].wert, 0.16, 1e-9, 'kN/m');
+    pruef('… und Schnee 0.24, je Gurt 0.12',
+          q('SchneeJoch')[0].wert, -0.12, 1e-9, 'kN/m');
+
+    /*
+     * >>> KEIN VERWEIS INS LEERE. <<<
+     *
+     * Das COM-Skript liest die Datei stur: es sucht jeden Knoten, jeden
+     * Stab, jeden Lastfall in seiner Tabelle nach. Was es dort nicht
+     * findet, meldet es als «Punktlast an unbekanntem Knoten» - oder bricht
+     * ab. Dieselbe Probe hier, ueber vier Typen und mit Anbauteilen, kostet
+     * nichts und faengt genau diese Klasse Fehler.
+     */
+    for (const [t2, jt2] of [['A160', 9.5], ['A240', 14.0],
+                             ['A300', 13.0], ['A360', 21.5]]) {
+      const mv = XA.abfangAxisvmModell(t2, jt2, { anbauteile: [
+        { ...A.neuesAnbauteil('leiter-nfl', 4.0), name: 'N-FL' },
+        { ...A.neuesAnbauteil('leiter-rfl', 8.0), name: 'R-FL', verlauf: 'hinten' },
+        { ...A.neuesAnbauteil('hs-fahrdraht', 6.0), name: 'HS' },
+      ], L_FL: 60, ek: 'EK2' });
+      const kn = new Set(mv.knoten.map((n2) => n2.name));
+      const st = new Set(mv.staebe.map((x2) => x2.name));
+      const qs = new Set(mv.querschnitte.map((x2) => x2.name));
+      const lfk = new Set(mv.lastfaelle.map((x2) => x2.key));
+      wahr(`${t2}: jeder Stab haengt an zwei bekannten Knoten`,
+           mv.staebe.every((x2) => kn.has(x2.von) && kn.has(x2.bis)));
+      wahr(`${t2}: jeder Stab hat seinen Querschnitt`,
+           mv.staebe.every((x2) => qs.has(x2.querschnitt)));
+      wahr(`${t2}: jede Last sitzt an einem bekannten Ort`,
+           mv.lasten.punkt.every((p2) => kn.has(p2.knoten))
+           && mv.lasten.strecke.every((p2) => st.has(p2.stab)));
+      wahr(`${t2}: jede Last kennt ihren Lastfall`,
+           mv.lasten.punkt.every((p2) => lfk.has(p2.lastfall))
+           && mv.lasten.strecke.every((p2) => lfk.has(p2.lastfall)));
+      wahr(`${t2}: jede Kombination auch`,
+           mv.kombinationen.every((k2) => k2.anteile.every(
+             (an2) => lfk.has(an2.lastfall))));
+      wahr(`${t2}: jede Lastrichtung ist X, Y oder Z`,
+           [...mv.lasten.punkt, ...mv.lasten.strecke].every(
+             (p2) => ['X', 'Y', 'Z'].includes(p2.richtung)));
+    }
 
     /*
      * OHNE ERFASSTE BLECHEINTEILUNG KEIN MODELL - die Bleche stuenden

@@ -929,9 +929,30 @@ export const ABFANG_ANBINDUNGEN = [
            + 'welcher Gurt die Kraft aufnimmt.' },
 ];
 
-export const ABFANG_SEITEN = [
-  { key: 'V', label: 'vorn' },
-  { key: 'H', label: 'hinten' },
+/**
+ * >>> DER VERLAUF SAGT MEHR ALS DIE SEITE. <<<
+ *
+ * Weisung vom 4. September: «Anstatt nur Seite anzugeben, waere besser den
+ * verlauf der Leiter, ist dieser durchgehen (keine abfangkraefte) oder wird
+ * dieser vorne oder hinten abgefangen.»
+ *
+ * Hier stand nur «vorn / hinten», und beides hiess abgefangen. Ein Leiter,
+ * der ueber das Joch hinweglaeuft, liess sich damit gar nicht eintragen -
+ * er bekam eine Abfangkraft, die es nicht gibt.
+ *
+ * DURCHGEHEND ist deshalb ein eigener Fall: Eigengewicht und Wind wirken,
+ * die Abfangkraft nicht.
+ */
+export const ABFANG_VERLAEUFE = [
+  { key: 'vorn', label: 'vorn abgefangen', seite: 'V',
+    hinweis: 'Der Leiter endet am Joch. Die Abfangkraft geht in den '
+           + 'vorderen Gurt.' },
+  { key: 'hinten', label: 'hinten abgefangen', seite: 'H',
+    hinweis: 'Der Leiter endet am Joch. Die Abfangkraft geht in den '
+           + 'hinteren Gurt.' },
+  { key: 'durchgehend', label: 'durchgehend', seite: null,
+    hinweis: 'Der Leiter läuft über das Joch hinweg — keine Abfangkraft. '
+           + 'Eigengewicht und Wind wirken weiter.' },
 ];
 
 /**
@@ -956,8 +977,18 @@ export function abfangAnbindung(a, vorl = null) {
   const gruppe = vorl?.gruppe ?? a?.gruppe
     ?? (/^leiter-/.test(String(a?.vorlage ?? '')) ? 'leiter' : null);
   const art = gesetzt ? a.anbindung : (gruppe === 'leiter' ? 'mitte' : 'gurte');
-  const seite = art === 'mitte'
-    ? (ABFANG_SEITEN.some((x) => x.key === a?.seite) ? a.seite : 'V')
-    : null;
-  return { art, seite, vorgegeben: !gesetzt };
+  /*
+   * DIE ALTE ANGABE GILT WEITER. Staende bis zum 4. September fuehren
+   * `seite: 'V'|'H'`; sie bedeutete «abgefangen auf dieser Seite» und wird
+   * genau so gelesen. Wer nichts gesetzt hat, bekommt «vorn abgefangen» -
+   * ein Abfangjoch faengt ab, das ist sein Zweck.
+   */
+  const ausSeite = { V: 'vorn', H: 'hinten' }[a?.seite];
+  const v = ABFANG_VERLAEUFE.some((x) => x.key === a?.verlauf)
+    ? a.verlauf : (ausSeite ?? 'vorn');
+  const verlauf = art === 'mitte' ? v : null;
+  const seite = verlauf
+    ? (ABFANG_VERLAEUFE.find((x) => x.key === verlauf)?.seite ?? null) : null;
+  return { art, verlauf, seite, abgefangen: Boolean(seite),
+           vorgegeben: !gesetzt };
 }

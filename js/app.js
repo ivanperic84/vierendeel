@@ -601,7 +601,8 @@ function szeneVonNebenan(t, zeichnen) {
     if (tragwerksart(satz).key === 'abfangjoch') {
       // Die Anbauteile gehoeren ins Bild - sie gehoeren auch ins Modell.
       return abfangSzene(satz.abfangTyp, Number(satz.L),
-                         { anbauteile: satz.anbauteile ?? [] });
+                         { anbauteile: satz.anbauteile ?? [],
+                           mast: abfangMastAngabe(satz) });
     }
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
@@ -628,7 +629,8 @@ function blattSzene(erg) {
   const plan = mastZeichenplan(werte, aktivId);
   const eigen = tragwerksart(werte).key === 'abfangjoch'
     ? abfangSzene(werte.abfangTyp, Number(werte.L),
-                  { anbauteile: tragwerkSatz(werte).anbauteile ?? [] })
+                  { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
+                    mast: abfangMastAngabe(tragwerkSatz(werte)) })
     : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
   const teile = alle.map((t) => {
     const dx = lageVon(t);
@@ -777,6 +779,22 @@ function mastNachfuehrenGlobal() {
  * 17.50. Ohne Nachführung stünde dort eine Länge ohne Zeile in der
  * Mass-Tabelle, und der Kern fände weder Stützweite noch Blecheinteilung.
  */
+/**
+ * DIE MASTANGABE FUER DAS BILD DES ABFANGJOCHS.
+ *
+ * Weisung vom 4. September: «Die Masten im 3D noch darstellen.» Ohne
+ * Masten - `mastVorhanden === false` - gibt es nichts zu zeichnen: das
+ * Tragwerk steht dann auf der eingestellten Auflagerbedingung, nicht auf
+ * einem Stiel.
+ */
+function abfangMastAngabe(satz) {
+  if (!satz || satz.mastVorhanden === false) return null;
+  const hoehe = Number(satz.mastH) || 0;
+  if (!satz.mastProfil || !(hoehe > 0)) return null;
+  return { profil: satz.mastProfil, hoehe,
+           stegrichtung: satz.mastSteg ?? 'jochachse' };
+}
+
 function abfangNaechsteLaenge(typ, jt) {
   if (!abfangDbDa() || !typ) return null;
   let liste = [];
@@ -5227,6 +5245,10 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
         L_FL: Number(aktSatz.L_FL) || 0,
         R: Number(aktSatz.R) || 0,
         ek: aktSatz.ek,
+        // Schnee und Wind auf den Traeger kommen aus der Sortimentstabelle;
+        // welche Spalte gilt, sagt die Eingabe.
+        schneeAktiv: aktSatz.schneeAktiv,
+        schneeKlasse: aktSatz.schneeKlasse,
       }));
   }
   /*

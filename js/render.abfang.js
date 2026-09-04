@@ -46,8 +46,29 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangLichtFeld } from './data.abfangjoche.js';
 import { getGurtprofil } from './data.profiles.js';
 import { bauteilFarbe } from './design.js';
-import { prisma, prismaY, platte, stab, quader,
-         walzProfilPoly } from './render.koerper.js';
+import { prisma, prismaY, platte, prismaZ, stab, quader,
+         iProfilPoly, walzProfilPoly } from './render.koerper.js';
+import { getMastprofil, getStegrichtung } from './data.masten.js';
+
+/*
+ * >>> OHNE WERTE KEINE FARBE AUS DER SKALA. <<<
+ *
+ * Weisung vom 4. September: «die farbe fuer die resultatauswertung fuer das
+ * abfangjoch modell nachziehen.»
+ *
+ * Die Modellansicht faerbt nach `f.werte[feld]`: ist der Wert eine Zahl,
+ * kommt eine Farbe der Ausnutzungsskala; fehlt das Feld `werte` GANZ, faellt
+ * sie auf die Bauteilfarbe zurueck - und das Abfangjoch stand in den
+ * Plot-Ansichten (eta, sigma, M, V) im gewoehnlichen Stahlton da, als waere
+ * es nachgewiesen. Es ist es nicht: sein Rechenkern haengt an keiner Stelle
+ * der Anwendung.
+ *
+ * Ein LEERER Wertesatz sagt genau das: das Feld ist da, die Zahl fehlt, und
+ * die Ansicht faerbt neutral. «Lieber eine Luecke als eine Farbe, die eine
+ * Groesse vortaeuscht» - so steht es dort schon fuer die einzelne fehlende
+ * Zahl.
+ */
+const OHNE_WERTE = Object.freeze({});
 
 /**
  * DIE SZENE EINES ABFANGJOCHS.
@@ -112,7 +133,18 @@ export function abfangSzene(typ, jt, opt = {}) {
   const polyGurt = (x, s, aus = 0) => walzProfilPoly(p, { oeffnung: s })
     .map(([y, z]) => [y + s * (yAchse(x) + aus) * 1000, z]);
 
-  const flaechen = [];
+  /*
+   * Alles, was hier in `flaechen` kommt, traegt `werte: OHNE_WERTE` - siehe
+   * oben. `push` ist der eine Ort, an dem sich das sicherstellen laesst;
+   * jede Aufrufstelle einzeln zu bedienen hiesse, eine zu vergessen.
+   */
+  const rohFlaechen = [];
+  const flaechen = {
+    push: (...f) => rohFlaechen.push(
+      ...f.map((x) => ({ werte: OHNE_WERTE, ...x }))),
+    forEach: (fn) => rohFlaechen.forEach(fn),
+    get length() { return rohFlaechen.length; },
+  };
   const linien = [];
   const marken = [];
   const masse = [];
@@ -393,10 +425,74 @@ export function abfangSzene(typ, jt, opt = {}) {
       flaechen.push(...stab([x, 0, 0], [x, 0, zHoch], 0.045, opt2));
       flaechen.push(...quader([x, 0, zHoch], [0.09, 0.09, 0.06], opt2));
     }
+    /*
+     * >>> DER VERLAUF DES LEITERS IST ZU SEHEN. <<<
+     *
+     * Weisung vom 4. September: «dies sollte dann auch im 3d entsprechend
+     * sichtbar sein beim anbauteil.»
+     *
+     * Ein DURCHGEHENDER Leiter laeuft nach beiden Seiten weiter - er endet
+     * nicht am Joch, und er faengt nichts ab. Ein abgefangener endet dort,
+     * auf seiner Seite. Gezeichnet wird beides auf der Hoehe des Drahtwerks:
+     * ein Strich nach vorn, nach hinten oder nach beiden Seiten.
+     */
+    if (an.art === 'mitte') {
+      const zL = zs.length ? Math.min(...zs) : -0.35;
+      const richtungen = an.verlauf === 'durchgehend' ? [1, -1]
+        : [an.seite === 'H' ? -1 : 1];
+      richtungen.forEach((sy) => {
+        flaechen.push(...stab([x, 0, zL], [x, sy * 1.1, zL], 0.03, {
+          ...opt2, teil: `${teil}_L`,
+          label: `${at.name ?? 'Leiter'} · ${an.verlauf === 'durchgehend'
+            ? 'durchgehend, keine Abfangkraft'
+            : `${an.verlauf === 'hinten' ? 'hinten' : 'vorn'} abgefangen`}`,
+        }));
+      });
+      // Das ENDE bekommt einen Klotz - dort sitzt die Abspannung.
+      if (an.verlauf !== 'durchgehend') {
+        const sy = an.seite === 'H' ? -1 : 1;
+        flaechen.push(...quader([x, sy * 1.1, zL], [0.10, 0.14, 0.10],
+                                { ...opt2, teil: `${teil}_A` }));
+      }
+    }
     marken.push({ gruppe: 'anbau', art: 'anbau', teil,
                   p: [x, 0, zTief < -0.01 ? zTief - 0.12 : hG / 2 + 0.12],
                   text: at.name ?? `A${j + 1}` });
   });
+
+  /*
+   * ========================= DIE MASTEN ==================================
+   *
+   * Weisung vom 4. September: «Die Masten im 3D noch darstellen.»
+   *
+   * Sie stehen unter den beiden Auflagern und reichen vom Fundament bis zur
+   * Jochachse. Gezeichnet wird der ECHTE Profilumriss - `prismaZ` mit dem
+   * I-Polygon, derselbe Weg wie beim Tragjoch; ein Kasten wäre hier so
+   * falsch wie bei den Gurten.
+   *
+   * Die Stegrichtung entscheidet, wie er im Raum liegt: «Steg quer zum
+   * Gleis» stellt die Profilhöhe in die Jochachse, gedreht ist es umgekehrt.
+   * Genau das unterscheidet die starke von der schwachen Achse quer zum
+   * Gleis, und man soll es dem Bild ansehen.
+   *
+   * OHNE MASTANGABE WIRD NICHTS GEZEICHNET. Ein Mast, den niemand gewählt
+   * hat, wäre eine Behauptung über die Lagerung.
+   */
+  if (opt.mast?.profil && opt.mast.hoehe > 0) {
+    let mp = null;
+    try { mp = getMastprofil(opt.mast.profil); } catch { mp = null; }
+    if (mp) {
+      const achse = getStegrichtung(opt.mast.stegrichtung)?.achse ?? 'y';
+      const poly = iProfilPoly(mp, achse);
+      const fb = farbeFuer(`mast|${mp.name}`, `Mast · ${mp.name}`, 'mast');
+      for (const x of [ue, jt - ue]) {
+        flaechen.push(...prismaZ(poly, x, -opt.mast.hoehe, 0, {
+          gruppe: 'mast', teil: `MAST_${x < jt / 2 ? 'A' : 'B'}`,
+          farbeBauteil: fb, label: `Mast · ${mp.name}`,
+        }));
+      }
+    }
+  }
 
   /*
    * DIE AUFLAGER. Zwei Marken auf der Jochachse, um den Überstand eingerückt
@@ -457,7 +553,7 @@ export function abfangSzene(typ, jt, opt = {}) {
    */
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   let z0 = Infinity, z1 = -Infinity;
-  flaechen.forEach((f) => f.punkte.forEach((pt) => {
+  rohFlaechen.forEach((f) => f.punkte.forEach((pt) => {
     if (pt[0] < x0) x0 = pt[0];
     if (pt[0] > x1) x1 = pt[0];
     if (pt[1] < y0) y0 = pt[1];
@@ -470,7 +566,7 @@ export function abfangSzene(typ, jt, opt = {}) {
   }
 
   return {
-    flaechen, linien, marken, masse, bauteiltitel,
+    flaechen: rohFlaechen, linien, marken, masse, bauteiltitel,
     vektoren: [], lastflaechen: [],
     legende: [...bauteile.values()],
     // Etwas Luft nach oben und unten für Titel und Masskette.

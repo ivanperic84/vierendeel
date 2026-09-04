@@ -11,7 +11,7 @@ import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, ABFANG_ANBINDUNGEN,
-         ABFANG_SEITEN } from './core.abfangjoch.js';
+         ABFANG_VERLAEUFE } from './core.abfangjoch.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt,
@@ -235,6 +235,7 @@ export function maskenSignatur(werte, tab) {
       ? (werte.anbauteile ?? []).map(
           (a) => `${a.id}:${a.aktiv !== false}:${befestigungsArt(a)}:` +
                  `${ortVon(a)}:${abfangAnbindung(a).art}:` +
+                 `${abfangAnbindung(a).verlauf ?? ''}:` +
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(','))
@@ -443,7 +444,7 @@ export function aktualisiereMaske(container, werte, extras = {}) {
      */
     const v = k === 'befestigung' ? befestigungsArt(a)
       : k === 'anbindung' ? abfangAnbindung(a).art
-      : k === 'seite' ? abfangAnbindung(a).seite
+      : k === 'verlauf' ? abfangAnbindung(a).verlauf
       : a[k];
     if (inp.type === 'checkbox') inp.checked = a.aktiv !== false;
     else if (String(inp.value) !== String(v ?? 0)) inp.value = v ?? 0;
@@ -1758,7 +1759,22 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                          0.05, 0, Math.max(werte.mastH ?? 12,
                                            werte.mastLaenge ?? 0,
                                            werte.mastLaengeB ?? 0))}
-          ${ortVon(a) === 'joch'
+          ${/*
+             * >>> DAS ABFANGJOCH HAT KEINE GURTEBENEN. <<<
+             *
+             * Weisung vom 4. September: «die eingabe ueber die Befestigung
+             * an das des jochs anpassen, wir haben da keine ober und
+             * untergurte.»
+             *
+             * Die Befestigungsarten - «am Untergurt», «am Obergurt»,
+             * «durchgehend Ober- und Untergurt» - beschreiben das TRAGJOCH
+             * mit seinen zwei Gurtebenen uebereinander. Das Abfangjoch hat
+             * zwei Gurte NEBENEINANDER; die Frage lautet dort «beide Gurte
+             * oder Mitte Traeger», und die stellt das Feld «Anbindung»
+             * darunter. Zwei Felder fuer dieselbe Frage waeren eines zu
+             * viel - und das falsche stand oben.
+             */''}
+          ${ortVon(a) === 'joch' && tragwerksart(werte).key !== 'abfangjoch'
             ? atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
                      BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])
             : ''}
@@ -1790,12 +1806,21 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                      ABFANG_ANBINDUNGEN.find(
                        (x) => x.key === abfangAnbindung(a).art)?.hinweis ?? '')
             : ''}
+          ${/*
+             * >>> DER VERLAUF, NICHT DIE SEITE. <<<
+             *
+             * Weisung vom 4. September: «Anstatt nur Seite anzugeben, waere
+             * besser den verlauf der Leiter, ist dieser durchgehen (keine
+             * abfangkraefte) oder wird dieser vorne oder hinten
+             * abgefangen.» Die Leiterzugkraefte folgen dann aus den
+             * Kennwerten der Bauteile - sie stehen nirgends als Eingabe.
+             */''}
           ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
             && abfangAnbindung(a).art === 'mitte'
-            ? atWahl(i, 'seite', 'Seite', abfangAnbindung(a).seite,
-                     ABFANG_SEITEN,
-                     'Von welcher Seite der Leiter kommt. Sie entscheidet, '
-                     + 'welcher der beiden Gurte die Abfangkraft aufnimmt.')
+            ? atWahl(i, 'verlauf', 'Verlauf des Leiters',
+                     abfangAnbindung(a).verlauf, ABFANG_VERLAEUFE,
+                     ABFANG_VERLAEUFE.find(
+                       (x) => x.key === abfangAnbindung(a).verlauf)?.hinweis ?? '')
             : ''}
           ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
                    'Nach welchem Gleis die Baugruppe gruppiert wird. '
