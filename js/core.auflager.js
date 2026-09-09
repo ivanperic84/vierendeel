@@ -703,11 +703,35 @@ export const LINK_GRADE = [
  * steht waagrecht, und «oben/unten» gibt es dort nicht.
  */
 export const LINK_EBENEN = {
-  joch: [{ key: 'OG', label: 'Obergurte' }, { key: 'UG', label: 'Untergurte' }],
-  tragausleger: [{ key: 'OG', label: 'Obergurte' },
-                 { key: 'UG', label: 'Untergurte' }],
-  abfangjoch: [{ key: 'V', label: 'Gurt vorn' }, { key: 'H', label: 'Gurt hinten' }],
+  joch: [{ key: 'OG', label: 'Obergurte', achse: 'z' },
+         { key: 'UG', label: 'Untergurte', achse: 'z' }],
+  tragausleger: [{ key: 'OG', label: 'Obergurte', achse: 'z' },
+                 { key: 'UG', label: 'Untergurte', achse: 'z' }],
+  /*
+   * `achse` sagt, WORIN die beiden Ebenen auseinanderliegen: beim Tragjoch
+   * in z (uebereinander), beim Abfangjoch in y (nebeneinander). Daran haengt,
+   * welche Drehung ihr Kraeftepaar sperrt - und damit, welcher
+   * Freiheitsgrad loslassen muss, damit ein Gelenk eines wird.
+   */
+  abfangjoch: [{ key: 'V', label: 'Gurt vorn', achse: 'y' },
+               { key: 'H', label: 'Gurt hinten', achse: 'y' }],
 };
+
+/**
+ * Welche Drehung das Kraeftepaar der beiden Ebenen sperrt - und welcher
+ * Freiheitsgrad sie freigibt.
+ *
+ *   Ebenen in z (Tragjoch)     Paar sperrt φ_y   ->   x muss loslassen
+ *   Ebenen in y (Abfangjoch)   Paar sperrt φ_z   ->   x muss loslassen
+ *
+ * In beiden Faellen ist es x - die Jochachse. Das ist kein Zufall: die
+ * Ebenen liegen quer zur Traegerachse, und eine Drehung um ihre
+ * Verbindungslinie verschiebt sie laengs.
+ */
+export function linkGelenk(art) {
+  const achse = (LINK_EBENEN[art] ?? LINK_EBENEN.joch)[0]?.achse ?? 'z';
+  return { paarAchse: achse, sperrt: achse === 'z' ? 'yy' : 'zz', gibtFrei: 'x' };
+}
 
 /** Die Ebenen, die eine Tragwerksart führt. */
 export const linkEbenen = (art) => LINK_EBENEN[art] ?? LINK_EBENEN.joch;
@@ -715,11 +739,42 @@ export const linkEbenen = (art) => LINK_EBENEN[art] ?? LINK_EBENEN.joch;
 /*
  * DIE VORGABE - so, wie die Ausschnitte es zeigen.
  *
- * Beim Tragjoch: Untergurt fest, Obergurt laengs frei. Beim Abfangjoch
- * stehen die beiden Gurte nebeneinander; dort verschiebt die Endverdrehung
- * sie nicht gegenlaeufig in x, sondern in z - deshalb halten dort beide in
- * x, und die Frage stellt sich anders. Bis der Auftraggeber sie beantwortet,
- * steht die sichere Fassung da: beide Gurte halten alle drei Kraefte.
+ * TRAGJOCH: Untergurt fest, Obergurt laengs frei. Die beiden Ebenen liegen
+ * UEBEREINANDER; eine Verdrehung des Endes um y verschiebt sie gegenlaeufig
+ * in x. Beide zu halten sperrt die Verdrehung - das Ende steht dann
+ * eingespannt da, ohne dass es jemand eingestellt haette.
+ *
+ * >>> ABFANGJOCH: DASSELBE, UM NEUNZIG GRAD GEDREHT. <<<
+ *
+ * Weisung vom 5. September:
+ *
+ *   «bei den Abfangjochen wird man zudem noch die vorderen und hinteren
+ *    auflager unterschiedlich einstellen koennen, da wir eine Drehfeder um
+ *    die z achse als gelenk ausbilden wollen, um nicht die
+ *    biegebeanspruchung in den masten als torsion zu uebertragen. der
+ *    einzige torsionsanteil resultiert aus der exzentrizitaet des
+ *    anschlusspunktes (mastachse / auflagerpunkt).»
+ *
+ * Seine beiden Gurte liegen NEBENEINANDER, in y - der Gleisrichtung. Eine
+ * Drehung des Jochendes um z (lotrecht) verschiebt sie deshalb gegenlaeufig
+ * in x, der Jochachse:
+ *
+ *      Punkt bei (0, ±e/2)   ->   Δx = ∓ φ_z · e/2
+ *
+ * >>> UND DARIN LIEGT DIE FALLE. <<<
+ *
+ * K_ZZ = 0 an beiden Links sieht nach einem Gelenk aus und ist keines:
+ * halten BEIDE Gurte in x, sperrt ihr Kraeftepaar die Drehung um z trotzdem.
+ * Das Biegemoment des Jochs in der waagrechten Ebene - aus dem Leiterzug -
+ * laeuft dann als TORSION in den Masten.
+ *
+ * Das Gelenk entsteht erst, wenn EIN Gurt in x loslaesst. Dann bleibt als
+ * Torsion nur, was aus der Exzentrizitaet zwischen Mastachse und
+ * Auflagerpunkt folgt - genau das, was die Weisung stehen laesst.
+ *
+ * WELCHER der beiden loslaesst, ist eine Wahl und keine Ableitung: das Joch
+ * ist zu seiner Achse symmetrisch. Vorgegeben ist der VORDERE; die Maske
+ * laesst beide getrennt einstellen.
  */
 const VOLL = { x: 'Rigid', y: 'Rigid', z: 'Rigid',
                xx: 'Free', yy: 'Free', zz: 'Free' };
@@ -728,7 +783,7 @@ const LAENGS_FREI = { ...VOLL, x: 'Free' };
 export const LINK_VORGABEN = {
   joch: { OG: LAENGS_FREI, UG: VOLL },
   tragausleger: { OG: LAENGS_FREI, UG: VOLL },
-  abfangjoch: { V: VOLL, H: VOLL },
+  abfangjoch: { V: LAENGS_FREI, H: VOLL },
 };
 
 /**
@@ -749,7 +804,7 @@ export const LINK_VORGABEN = {
  * @returns {{x,y,z,xx,yy,zz}} je 'Rigid' | 'Free' | number
  */
 export function linkBedingung(inp, art, ebene) {
-  const vorgabe = (LINK_VORGABEN[art] ?? LINK_VORGABEN.joch)[ebene] ?? VOLL;
+  const vorgabe = linkVorgabe(inp, art, ebene);
   const gesetzt = inp?.auflagerLinks?.[ebene] ?? null;
   if (!gesetzt) return { ...vorgabe };
   const o = {};
@@ -761,11 +816,42 @@ export function linkBedingung(inp, art, ebene) {
   return o;
 }
 
+/**
+ * >>> DIE VORGABE STEHT UNTER OPTIONEN. <<<
+ *
+ * Weisung vom 5. September: «Die Voreinstellung der Auflagerbedingungen
+ * sollte noch unter optionen aufgefuehrt sein und anpassbar.»
+ *
+ * Drei Stufen, von aussen nach innen:
+ *
+ *   1  was am TRAGWERK eingestellt ist   `auflagerLinks`
+ *   2  was unter OPTIONEN steht          `auflagerVorgabe`
+ *   3  was eingebaut ist                 `LINK_VORGABEN`
+ *
+ * Stufe 2 ist neu. Wer im Haus immer denselben Anschluss baut, setzt ihn
+ * dort einmal - und jedes neue Tragwerk startet damit, ohne dass jemand
+ * eine Zeile Quelltext aendert. Was am einzelnen Tragwerk davon abweicht,
+ * bleibt am Tragwerk.
+ */
+export function linkVorgabe(inp, art, ebene) {
+  const eingebaut = (LINK_VORGABEN[art] ?? LINK_VORGABEN.joch)[ebene] ?? VOLL;
+  const ausOptionen = inp?.auflagerVorgabe?.[art]?.[ebene]
+                   ?? inp?.auflagerVorgabe?.[ebene] ?? null;
+  if (!ausOptionen) return { ...eingebaut };
+  const o = {};
+  LINK_GRADE.forEach(({ key }) => {
+    const v = ausOptionen[key];
+    o[key] = (v === 'Rigid' || v === 'Free' || Number.isFinite(v))
+      ? v : eingebaut[key];
+  });
+  return o;
+}
+
 /** Weicht die Einstellung von der Vorgabe ab? Fuer den Hinweis in der Maske. */
 export function linkAbweichend(inp, art) {
   return linkEbenen(art).some(({ key }) => {
     const ist = linkBedingung(inp, art, key);
-    const soll = (LINK_VORGABEN[art] ?? LINK_VORGABEN.joch)[key] ?? VOLL;
+    const soll = linkVorgabe(inp, art, key);
     return LINK_GRADE.some(({ key: g }) => ist[g] !== soll[g]);
   });
 }

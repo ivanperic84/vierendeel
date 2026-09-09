@@ -63,6 +63,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
          abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
+import { linkBedingung } from './core.auflager.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
 const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
@@ -836,15 +837,28 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
         lcsZ: [0, 0, 1],
         /*
          * Das Skript baut aus `art: 'link'` ein LinkElement und liest die
-         * Steifigkeit je Richtung aus `kraftuebertragung`. Die Kraefte
-         * bleiben gehalten, die drei Drehungen sind frei - genau die
-         * Unterbrechung, um die es geht.
+         * Steifigkeit je Richtung aus `kraftuebertragung`.
+         *
+         * >>> UND ZWAR DIE EINGESTELLTE. <<<
+         *
+         * Weisung vom 5. September: «bei den Abfangjochen wird man zudem
+         * noch die vorderen und hinteren auflager unterschiedlich einstellen
+         * koennen, da wir eine Drehfeder um die z achse als gelenk ausbilden
+         * wollen, um nicht die biegebeanspruchung in den masten als torsion
+         * zu uebertragen.»
+         *
+         * Hier stand fuer BEIDE Gurte dasselbe: alle drei Kraefte starr, die
+         * Drehungen frei. K_ZZ = 0 sah damit nach einem Gelenk aus und war
+         * keines - die beiden Gurte liegen in y auseinander, und halten sie
+         * beide in x, sperrt ihr Kraeftepaar die Drehung um z trotzdem.
+         *
+         * `linkBedingung` traegt jetzt, was in der Maske steht; die Vorgabe
+         * laesst den VORDEREN Gurt laengs los.
          */
         gelenkAnfang: anschluss === 'link' ? 'M' : null, gelenkEnde: null,
         art: anschluss === 'link' ? 'link' : 'starr',
         kraftuebertragung: anschluss === 'link'
-          ? { x: 'Rigid', y: 'Rigid', z: 'Rigid',
-              xx: 'Free', yy: 'Free', zz: 'Free' } : null,
+          ? linkBedingung(opt, 'abfangjoch', g) : null,
       });
     }
     auflager.push({

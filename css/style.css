@@ -2088,48 +2088,61 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 }
 
 /* ===========================================================================
- * DIE AUFLAGERBEDINGUNG AM MASTEN - anklickbares Diagramm
+ * DIE AUFLAGERBEDINGUNG AM MASTEN
  *
- * Weisung vom 5. September: «am besten mit einem interaktiven diagramm
- * (richtungsfeder und drehfeder ein aus schalten koennen)».
+ * Weisung vom 5. September: «diese abbildung ist etwas unuebersichtlich. und
+ * man sucht die stelle zum anklicken, da viele elemente sehr nahe oder
+ * uebereinander sind. wuerde es sinn machen diese als isometrie
+ * darzustellen.»
  *
- * AUSGEFUELLT HAELT, OFFEN LAESST LOS. Der Zustand steckt in der Fuellung,
- * nicht in einer Beschriftung - so liest sich das Bild ohne Legende.
+ * BILD UND BEDIENUNG SIND GETRENNT. Das isometrische Bild erklaert, was wo
+ * steht; die Schaltflaechen darunter sind der Knopf. Ein Pfeil von dreissig
+ * Pixeln ist eine schoene Zeichnung und ein schlechter Knopf.
  * =========================================================================== */
-.auflager-links { display: flex; flex-direction: column; gap: 6px; }
+.auflager-links { display: flex; flex-direction: column; gap: 7px; }
 .al-bild { width: 100%; height: auto; background: var(--flaeche2, #0002);
            border: 1px solid var(--rand, #3334); border-radius: 6px; }
-.al-gurt   { stroke: var(--stahl, #8fa8c8); stroke-width: 3; }
-.al-riegel { stroke: var(--stahl, #8fa8c8); stroke-width: 2.5; }
+.al-gurt   { stroke: var(--stahl, #8fa8c8); stroke-width: 3.5;
+             stroke-linecap: round; }
 .al-link   { stroke: var(--dim, #7a8699); stroke-width: 1.6;
              stroke-dasharray: 3 2; }
-.al-mast   { stroke: var(--dim, #7a8699); stroke-width: 4; }
+.al-mast   { stroke: var(--dim, #7a8699); stroke-width: 5;
+             stroke-linecap: round; }
 .al-punkt  { fill: var(--acc, #6ea8fe); }
 .al-name   { fill: var(--dim, #7a8699); font-size: 8px; }
-.al-notiz  { fill: var(--dim, #7a8699); font-size: 7px; }
+.al-notiz  { fill: var(--dim, #7a8699); font-size: 7.5px; }
+.al-achse line    { stroke: var(--dim, #7a8699); stroke-width: 1.2; }
+.al-achse polygon { fill: var(--dim, #7a8699); }
+.al-achse text    { fill: var(--dim, #7a8699); font-size: 8px;
+                    font-style: italic; }
 
-.al-grad { cursor: pointer; }
-.al-grad text { font-size: 8px; fill: var(--dim, #7a8699); }
-.al-grad line, .al-grad path { stroke-width: 1.8; fill: none; }
-.al-grad polygon { stroke-width: 1; }
-.al-grad:hover text { fill: var(--acc, #6ea8fe); }
-.al-grad:focus-visible { outline: 2px solid var(--acc, #6ea8fe);
-                         outline-offset: 2px; }
+/*
+ * DIE SCHALTFLAECHEN. Sechs je Gurtebene, gross genug zum Treffen, und der
+ * Zustand steht als WORT darin - nicht als Farbe allein.
+ */
+.al-reihe { display: flex; flex-direction: column; gap: 3px; }
+.al-reihe.stumm { opacity: 0.45; }
+.al-reihe-kopf { font-size: 11px; color: var(--dim, #7a8699); }
+.al-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.al-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 4px 2px; min-height: 34px; cursor: pointer;
+  background: var(--flaeche2, #0002); border: 1px solid var(--rand, #3334);
+  border-radius: 5px; color: var(--dim, #7a8699); font: inherit;
+}
+.al-chip:hover { border-color: var(--acc, #6ea8fe); }
+.al-chip:focus-visible { outline: 2px solid var(--acc, #6ea8fe);
+                         outline-offset: 1px; }
+.al-chip[disabled] { cursor: default; }
+.al-chip-sym { font-family: var(--f-mono); font-size: 11px; }
+.al-chip-zustand { font-size: 9px; }
+/* STARR gehalten, FREI losgelassen, FEDER dazwischen. */
+.al-chip.al-starr { border-color: var(--ok, #57c785); color: var(--ok, #57c785); }
+.al-chip.al-frei  { border-style: dashed; }
+.al-chip.al-feder { border-color: var(--warn, #e0a33e);
+                    color: var(--warn, #e0a33e); }
 
-/* STARR: ausgefuellt. */
-.al-starr line, .al-starr path { stroke: var(--ok, #57c785); }
-.al-starr polygon { fill: var(--ok, #57c785); stroke: var(--ok, #57c785); }
-.al-starr text { fill: var(--ok, #57c785); }
-/* FREI: offen und gestrichelt - der Pfeil ist da, er haelt nur nichts. */
-.al-frei line, .al-frei path { stroke: var(--dim, #7a8699);
-                               stroke-dasharray: 2.5 2.5; }
-.al-frei polygon { fill: none; stroke: var(--dim, #7a8699); }
-/* FEDER: dazwischen, in der Warnfarbe - eine Zahl steht dahinter. */
-.al-feder-an line, .al-feder-an path { stroke: var(--warn, #e0a33e); }
-.al-grad.al-feder line, .al-grad.al-feder path { stroke: var(--warn, #e0a33e); }
-.al-grad.al-feder polygon { fill: var(--warn, #e0a33e);
-                            stroke: var(--warn, #e0a33e); }
-.al-grad.al-feder text { fill: var(--warn, #e0a33e); }
+.hinweis.warnt { color: var(--warn, #e0a33e); }
 
 .al-federn { display: grid; gap: 3px; margin-bottom: 8px; }
 .al-federn > b { font-size: 11px; color: var(--dim, #7a8699); }
@@ -2137,3 +2150,30 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
             align-items: center; gap: 6px; }
 .al-feder span { font-size: 11px; color: var(--dim, #7a8699); }
 .al-feder small { font-size: 10px; color: var(--dim, #7a8699); }
+
+/* ===========================================================================
+ * DAS SICHTBARKEITSSYMBOL AN DER MASTKACHEL
+ *
+ * Weisung vom 5. September: «kann man dies mit einem allgemeinen
+ * sichtbarkeitssymbol austauschen, dieses wuerde dann fuer die aktiven
+ * elemente (joche oder masten)». Dieselbe Form wie das Auge an der
+ * Tragwerkszeile - nur kleiner, weil die Kachel es ist.
+ * =========================================================================== */
+/*
+ * DER HALTER ERBT DIE LAGE. Die Kachel stand bisher selbst absolut auf der
+ * Bahn; jetzt traegt der Halter die Stelle, und Kachel und Auge stehen
+ * darin uebereinander. `top/bottom: 0` bleibt an der Kachel - sie soll
+ * weiterhin die volle Hoehe der Bahn fuellen.
+ */
+.qp-mast-halter { position: absolute; top: 0; bottom: 0;
+                  transform: translateX(-50%); width: 30px; }
+.qp-mast-halter .qp-mast { left: 50%; }
+.qp-auge-mast { position: absolute; left: 50%; bottom: -3px;
+                transform: translateX(-50%); z-index: 2; }
+.qp-auge-mast { width: 12px; height: 12px; }
+/* Ein ausgeschalteter Mast steht blass da - er zaehlt nicht mehr. */
+.qp-mast.aus { opacity: 0.35; }
+
+/* Ein Mast, den es im Modell nicht gibt: blass, ohne Griff, mit Auge. */
+.qp-mast-halter.geist .qp-mast { opacity: 0.22; cursor: default; }
+.qp-mast-halter.geist .qp-auge-mast { opacity: 0.75; }

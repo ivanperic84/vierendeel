@@ -5321,6 +5321,8 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
       () => exportiereAbfangJson(typ, jt, {
         knotenbereich: knotenmodell, auflagerModell,
         anbauteile: aktSatz.anbauteile ?? [],
+        // Die Auflagerbedingung je Gurt - vorn und hinten getrennt.
+        auflagerLinks: aktSatz.auflagerLinks, auflagerVorgabe: werte.auflagerVorgabe,
         L_FL: Number(aktSatz.L_FL) || 0,
         R: Number(aktSatz.R) || 0,
         ek: aktSatz.ek,

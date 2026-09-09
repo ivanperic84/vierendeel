@@ -6035,15 +6035,43 @@ titel('34b Die Auflagerbedingung je Gurtebene');
        AUF.linkBedingung(w2, 'joch', 'UG').y === 'Rigid');
 
   /*
-   * DAS ABFANGJOCH HAT ZWEI GURTE NEBENEINANDER - «oben/unten» gibt es dort
-   * nicht. Bis der Auftraggeber die Freiheitsgrade dafuer festlegt, halten
-   * beide alle drei Kraefte: die sichere Fassung.
+   * >>> DAS ABFANGJOCH: DASSELBE, UM NEUNZIG GRAD GEDREHT. <<<
+   *
+   * Weisung vom 5. September: «bei den Abfangjochen wird man zudem noch die
+   * vorderen und hinteren auflager unterschiedlich einstellen koennen, da
+   * wir eine Drehfeder um die z achse als gelenk ausbilden wollen, um nicht
+   * die biegebeanspruchung in den masten als torsion zu uebertragen.»
+   *
+   * Seine Gurte liegen NEBENEINANDER in y. Eine Drehung des Endes um z
+   * verschiebt sie gegenlaeufig in x - halten beide, ist die Drehung
+   * gesperrt, und das Biegemoment aus dem Leiterzug laeuft als Torsion in
+   * den Masten. K_ZZ = 0 sieht dann nach einem Gelenk aus und ist keines.
    */
   wahr('Das Abfangjoch fuehrt vorn und hinten',
        AUF.linkEbenen('abfangjoch').map((e) => e.key).join(',') === 'V,H');
-  wahr('… und haelt dort vorerst alle Kraefte',
-       ['V', 'H'].every((e) => ['x', 'y', 'z'].every(
+  wahr('… und die beiden liegen in y auseinander',
+       AUF.linkGelenk('abfangjoch').paarAchse === 'y');
+  wahr('Ihr Kraeftepaar sperrt die Drehung um z',
+       AUF.linkGelenk('abfangjoch').sperrt === 'zz');
+  wahr('Freigegeben wird dafuer die Jochachse',
+       AUF.linkGelenk('abfangjoch').gibtFrei === 'x');
+  wahr('Der vordere Gurt laesst laengs los',
+       AUF.linkBedingung({}, 'abfangjoch', 'V').x === 'Free');
+  wahr('Der hintere haelt', AUF.linkBedingung({}, 'abfangjoch', 'H').x === 'Rigid');
+  wahr('Beide halten quer und lotrecht',
+       ['V', 'H'].every((e) => ['y', 'z'].every(
          (f) => AUF.linkBedingung({}, 'abfangjoch', e)[f] === 'Rigid')));
+  /*
+   * BEIM TRAGJOCH IST ES DIESELBE ACHSE - kein Zufall: die Ebenen liegen
+   * quer zur Traegerachse, und eine Drehung um ihre Verbindungslinie
+   * verschiebt sie laengs.
+   */
+  wahr('Beim Tragjoch liegen die Ebenen in z',
+       AUF.linkGelenk('joch').paarAchse === 'z');
+  wahr('… ihr Paar sperrt die Drehung um y',
+       AUF.linkGelenk('joch').sperrt === 'yy');
+  wahr('… und freigegeben wird ebenfalls x',
+       AUF.linkGelenk('joch').gibtFrei === 'x');
   wahr('Sechs Freiheitsgrade, drei Kraefte und drei Momente',
        AUF.LINK_GRADE.length === 6
        && AUF.LINK_GRADE.filter((g) => g.art === 'kraft').length === 3);

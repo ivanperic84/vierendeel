@@ -12,8 +12,8 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
          ABFANG_VERLAEUFE } from './core.abfangjoch.js';
-import { LINK_GRADE, linkEbenen, linkBedingung,
-         linkAbweichend } from './core.auflager.js';
+import { LINK_GRADE, linkEbenen, linkBedingung, linkVorgabe, linkGelenk,
+         linkAbweichend, mastImModell } from './core.auflager.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt,
@@ -252,6 +252,74 @@ export function maskenSignatur(werte, tab) {
              JSON.stringify(werte.auflagerLinks)]
           : sichtbareFelder(gid, werte).map((f) => f.key)))),
   ]);
+}
+
+/**
+ * >>> DIE VERDRAHTUNG GILT AN BEIDEN ORTEN. <<<
+ *
+ * Das Diagramm steht in der Maske (Bedingung dieses Tragwerks) UND im
+ * Optionsdialog (Voreinstellung). Der Dialog verdrahtet sonst nur
+ * `[data-feld]` - Eingabefelder mit Wert. Ein angeklickter Pfeil ist keines,
+ * und ohne diese Funktion waere das Bild dort ein Bild ohne Wirkung.
+ */
+export function verdrahteAuflagerLinks(container, werte, onChange) {
+  /*
+   * DIE RAHMENDATEN SAGEN, WOHIN GESCHRIEBEN WIRD. In der Maske steht die
+   * Bedingung dieses Tragwerks (`auflagerLinks`), unter Optionen die
+   * Voreinstellung (`auflagerVorgabe`) - dasselbe Bild, zwei Ziele.
+   */
+  const alRahmen = (el) => el.closest('.auflager-links');
+  const alLesen = (rahmen, ebene) => (rahmen.dataset.alFeld === 'auflagerVorgabe'
+    ? linkVorgabe(werte, rahmen.dataset.alArt, ebene)
+    : linkBedingung(werte, rahmen.dataset.alArt, ebene));
+  const linkSetzen = (rahmen, ebene, grad, wert) => {
+    const feld = rahmen.dataset.alFeld;
+    const art = rahmen.dataset.alArt;
+    if (feld === 'auflagerVorgabe') {
+      const alt = werte.auflagerVorgabe ?? {};
+      const je = alt[art] ?? {};
+      const eb = { ...linkVorgabe(werte, art, ebene), ...(je[ebene] ?? {}) };
+      onChange('auflagerVorgabe',
+               { ...alt, [art]: { ...je, [ebene]: { ...eb, [grad]: wert } } });
+      return;
+    }
+    const alt = werte.auflagerLinks ?? {};
+    const eb = { ...linkBedingung(werte, art, ebene), ...(alt[ebene] ?? {}) };
+    onChange('auflagerLinks', { ...alt, [ebene]: { ...eb, [grad]: wert } });
+  };
+  container.querySelectorAll('.al-grad').forEach((g) => {
+    const um = () => {
+      const rahmen = alRahmen(g);
+      if (!rahmen) return;
+      const v = alLesen(rahmen, g.dataset.ebene)[g.dataset.grad];
+      // Eine gesetzte Feder faellt beim Klick auf «starr» zurueck; sonst
+      // liesse sie sich nur ueber das Zahlenfeld wieder loswerden.
+      linkSetzen(rahmen, g.dataset.ebene, g.dataset.grad,
+                 Number.isFinite(v) ? 'Rigid' : (v === 'Rigid' ? 'Free' : 'Rigid'));
+    };
+    g.addEventListener('click', um);
+    g.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); um(); }
+    });
+  });
+  container.querySelectorAll('[data-al-feder]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const rahmen = alRahmen(inp);
+      if (!rahmen) return;
+      const roh = inp.value.trim().replace(',', '.');
+      const z = Number(roh);
+      // Leer heisst: zurueck auf den Schaltzustand. Eine Zahl heisst Feder.
+      if (!roh) {
+        const v = alLesen(rahmen, inp.dataset.alFeder)[inp.dataset.grad];
+        linkSetzen(rahmen, inp.dataset.alFeder, inp.dataset.grad,
+                   Number.isFinite(v) ? 'Rigid' : v);
+        return;
+      }
+      if (!Number.isFinite(z) || z < 0) return;
+      linkSetzen(rahmen, inp.dataset.alFeder, inp.dataset.grad, z);
+    });
+  });
+
 }
 
 export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = {}) {
@@ -929,6 +997,17 @@ export function verdrahteLeiste(container, werte, onChange) {
       b.classList.contains('an') ? 'tragwerkAus' : 'tragwerkZeigen',
       b.dataset.qpSicht));
   });
+  /*
+   * DAS AUGE AN DER MASTKACHEL. Es meldet dieselbe Absicht wie der frühere
+   * Knopf in der Handlungszeile - `tragwerkMasten` schaltet um; hier steht
+   * nur ein anderer Ort und ein anderes Symbol davor.
+   */
+  container.querySelectorAll('[data-qp-mastsicht]').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onChange('tragwerkMasten', b.dataset.qpMastsicht);
+    });
+  });
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
     const id = b.dataset.qpTw;
     let zug = null;
@@ -1096,50 +1175,13 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
    * `auflagerLinks` - die Maske traegt keinen eigenen Zustand, sondern liest
    * ihn beim naechsten Durchgang wieder aus den Werten.
    */
-  const linkSetzen = (ebene, grad, wert) => {
-    const art = tragwerksart(werte).key;
-    const alt = werte.auflagerLinks ?? {};
-    const eb = { ...linkBedingung(werte, art, ebene), ...(alt[ebene] ?? {}) };
-    onChange('auflagerLinks', { ...alt, [ebene]: { ...eb, [grad]: wert } });
-  };
-  container.querySelectorAll('.al-grad').forEach((g) => {
-    const um = () => {
-      const b = linkBedingung(werte, tragwerksart(werte).key, g.dataset.ebene);
-      const v = b[g.dataset.grad];
-      // Eine gesetzte Feder faellt beim Klick auf «starr» zurueck; sonst
-      // liesse sie sich nur ueber das Zahlenfeld wieder loswerden.
-      linkSetzen(g.dataset.ebene, g.dataset.grad,
-                 Number.isFinite(v) ? 'Rigid' : (v === 'Rigid' ? 'Free' : 'Rigid'));
-    };
-    g.addEventListener('click', um);
-    g.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); um(); }
-    });
-  });
-  container.querySelectorAll('[data-al-feder]').forEach((inp) => {
-    inp.addEventListener('change', () => {
-      const roh = inp.value.trim().replace(',', '.');
-      const z = Number(roh);
-      // Leer heisst: zurueck auf den Schaltzustand. Eine Zahl heisst Feder.
-      if (!roh) {
-        const b = linkBedingung(werte, tragwerksart(werte).key,
-                                inp.dataset.alFeder);
-        const v = b[inp.dataset.grad];
-        linkSetzen(inp.dataset.alFeder, inp.dataset.grad,
-                   Number.isFinite(v) ? 'Rigid' : v);
-        return;
-      }
-      if (!Number.isFinite(z) || z < 0) return;
-      linkSetzen(inp.dataset.alFeder, inp.dataset.grad, z);
-    });
-  });
+  verdrahteAuflagerLinks(container, werte, onChange);
 
   container.querySelectorAll('[data-tw-neu]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
   });
-  container.querySelectorAll('[data-tw-mast]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkMasten', b.dataset.twMast));
-  });
+  // `data-tw-mast` gibt es nicht mehr - das Auge an der Mastkachel meldet
+  // dieselbe Absicht (siehe `data-qp-mastsicht` in verdrahteLeiste).
   container.querySelectorAll('[data-tw-aus]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkAus', b.dataset.twAus));
   });
@@ -1189,18 +1231,19 @@ return querprofilLeisteHtml(werte)
      * Nur wenn noch ein sichtbares uebrig bleibt: ein Blatt ohne
      * gerechnetes Tragwerk waere eine Auswertung ohne Gegenstand.
      */
+    /*
+     * >>> DER MASTKNOPF STEHT NICHT MEHR HIER. <<<
+     *
+     * Weisung vom 5. September: «Dieser button wirkt hier etwas verloren,
+     * kann man dies mit einem allgemeinen sichtbarkeitssymbol austauschen.»
+     *
+     * Er sass in der Ecke der Handlungszeile — weit weg von dem, was er
+     * schaltet, und bei einem einzelnen Tragwerk als EINZIGER Knopf, weil
+     * Ausblenden und Entfernen dann beide entfallen. Das Auge sitzt jetzt an
+     * der Mastkachel, wo der Mast steht; dieselbe Form wie an der
+     * Tragwerkszeile.
+     */
     + '<span class="qp-tun-rechts">'
-    + (art.traeger
-      ? `<button type="button" class="btn-icon${
-           aktiv.mastVorhanden === false ? '' : ' an'}"
-           data-tw-mast="${esc(aktiv.id)}"
-           title="${esc(aktiv.mastVorhanden === false
-             ? 'Masten einschalten — sie werden gezeichnet, ausgeleitet und '
-               + 'nachgewiesen'
-             : 'Masten ausschalten — das Tragwerk steht dann ohne')}"
-           aria-label="Masten"
-           aria-pressed="${aktiv.mastVorhanden !== false}">${
-           icon('mast', 14)}</button>` : '')
     + (alle.filter((t) => !versteckt(t)).length > 1
       ? `<button type="button" class="btn-icon"
            data-tw-aus="${esc(aktiv.id)}"
@@ -1344,22 +1387,86 @@ export function querprofilLeisteHtml(werte, zieht = null) {
    * DIE MASTEN: Schaft, Fundament, Gelaendelinie - ein kleiner Aufriss unter
    * der Liste. Der geteilte hat ein breiteres Fundament: er traegt zwei.
    */
-  const marken = masten.map((m, i) => {
-    const an = m.id === gewMast?.id;
-    const geteilt = (m.traegt ?? []).length > 1;
+  /*
+   * >>> EIN SICHTBARKEITSSYMBOL, AN JEDEM ELEMENT. <<<
+   *
+   * Weisung vom 5. September, zum einsamen Mastknopf in der Handlungszeile:
+   * «Dieser button wirkt hier etwas verloren, kann man dies mit einem
+   * allgemeinen sichtbarkeitssymbol austauschen, dieses würde dann für die
+   * aktiven elemente (joche oder masten).»
+   *
+   * Das Auge gab es schon — an jeder Tragwerkszeile, links vom Namen. Es
+   * fehlte nur an den MASTEN, und deshalb stand deren Schalter als eigenes,
+   * fremd aussehendes Symbol in der Ecke der Handlungszeile: weit weg von
+   * dem, was er schaltet, und als einziger Knopf, wenn nur ein Tragwerk auf
+   * dem Blatt steht.
+   *
+   * Jetzt trägt jedes Element sein eigenes Auge — dieselbe Form, dieselbe
+   * Bedeutung: was aus ist, zählt nicht mehr in Bild, Bauteilliste,
+   * Ausleitung und Nachweis.
+   *
+   * >>> `mastVorhanden` GILT DEM TRAGWERK, NICHT DEM EINZELNEN MASTEN. <<<
+   *
+   * Ein Joch steht auf Masten oder ohne — beide Enden zugleich. Das Auge an
+   * der Kachel schaltet deshalb die Masten des Tragwerks, dem dieser Mast
+   * gehört; bei einem geteilten das des GERECHNETEN, wenn es ihn trägt.
+   * Der Titel nennt es beim Namen, damit niemand raten muss.
+   */
+  /*
+   * >>> EIN AUSGESCHALTETER MAST BLEIBT STEHEN, BLASS. <<<
+   *
+   * `mastenVon` fuehrt keine Masten mehr, sobald `mastVorhanden` aus ist -
+   * mit ihnen verschwaende auch das Auge, mit dem man sie zurueckholt. «Ein
+   * Schalter, dessen Aus-Zustand ihn selbst verschwinden laesst, ist eine
+   * Falle», steht schon beim Feld in der Maske; hier gilt dasselbe.
+   *
+   * Fuer jedes sichtbare Traegertragwerk ohne Masten stehen deshalb zwei
+   * BLASSE Kacheln an den Jochenden - ohne Profil, ohne Ziehgriff, aber mit
+   * dem Auge. Sie sagen: hier waeren Masten, und so kommen sie wieder.
+   */
+  const geister = [];
+  alle.filter((y) => !versteckt(y) && tragwerksart(y).masten >= 2
+                  && y.mastVorhanden === false)
+    .forEach((y) => {
+      const x0 = lageVon(y), L = Number(y.L) || 0;
+      [x0, x0 + L].forEach((gx, k) => geister.push({
+        geist: true, id: `${y.id}-G${k}`, traegt: [y.id], x: gx, profil: null,
+      }));
+    });
+
+  const marken = [...masten, ...geister].map((m, i) => {
+    const an = !m.geist && m.id === gewMast?.id;
+    const traegt = m.traegt ?? [];
+    const geteilt = traegt.length > 1;
     const x = (zieht && zieht.mastId === m.id) ? zieht.x : m.x;
-    return `<button type="button" class="qp-mast${an ? ' an' : ''}${
-        geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
-        style="left:${qpPct(x, von, bis).toFixed(3)}%"
-        title="${esc(`M${i + 1} bei x = ${x.toFixed(2)} m — ${
-          m.profil ?? 'ohne Profil'}`
-          + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
-          + ' · ziehen ändert den Mastabstand')}"
+    const zuTw = traegt.includes(aktivId) ? aktivId : traegt[0];
+    const tw = alle.find((y) => y.id === zuTw) ?? null;
+    const mastAn = tw ? tw.mastVorhanden !== false : true;
+    return `<span class="qp-mast-halter${m.geist ? ' geist' : ''}"
+        style="left:${qpPct(x, von, bis).toFixed(3)}%">
+      <button type="button" class="qp-mast${an ? ' an' : ''}${
+        geteilt ? ' geteilt' : ''}${mastAn ? '' : ' aus'}"
+        ${m.geist ? 'disabled' : `data-qp-mast="${esc(m.id)}"`}
+        title="${esc(m.geist
+          ? `Ohne Masten bei x = ${x.toFixed(2)} m — das Auge schaltet sie ein`
+          : `M${i + 1} bei x = ${x.toFixed(2)} m — ${m.profil ?? 'ohne Profil'}`
+            + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
+            + ' · ziehen ändert den Mastabstand')}"
         aria-pressed="${an}">
         <span class="qp-mast-schaft"></span>
         <span class="qp-mast-fuss"></span>
-        <span class="qp-mast-x">${x.toFixed(Math.abs(x % 1) > 1e-9 ? 2 : 0)}</span>
-      </button>`;
+        <span class="qp-mast-x">${m.geist ? ''
+          : x.toFixed(Math.abs(x % 1) > 1e-9 ? 2 : 0)}</span>
+      </button>
+      ${tw ? `<button type="button" class="qp-auge qp-auge-mast${
+          mastAn ? ' an' : ''}" data-qp-mastsicht="${esc(tw.id)}"
+          role="checkbox" aria-checked="${mastAn}"
+          title="${esc(mastAn
+            ? `Masten von ${tragwerkPos(werte, tw)} ausschalten — das Tragwerk `
+              + 'steht dann ohne'
+            : `Masten von ${tragwerkPos(werte, tw)} einschalten — sie werden `
+              + 'gezeichnet, ausgeleitet und nachgewiesen')}"></button>` : ''}
+    </span>`;
   }).join('');
 
   const gezogen = zieht
@@ -1411,7 +1518,8 @@ export function feldHtml(f, wert, werte) {
   let inp;
 
   if (f.typ === 'auflagerlinks') {
-    inp = auflagerDiagrammHtml(werte, tragwerksart(werte).key);
+    inp = auflagerDiagrammHtml(werte, tragwerksart(werte).key,
+                               f.vorgabefeld ? 'auflagerVorgabe' : 'auflagerLinks');
   } else if (f.typ === 'tragwerke') {
     inp = tragwerkfeldHtml(werte);
   } else if (f.typ === 'bauform') {
@@ -1453,8 +1561,18 @@ export function feldHtml(f, wert, werte) {
      * steht dort, wo die Optionen gebaut werden, und dort gehoert sie hin.
      * Ohne Gruppe bleibt alles, wie es war.
      */
+    /*
+     * EINE OPTION DARF AUSGEGRAUT DASTEHEN.
+     *
+     * Weisung vom 5. September: «der kragmast nur auswaehlbar wenn die
+     * masten deaktiviert sind.» Sie zu ENTFERNEN waere bequemer und
+     * schlechter: wer sie sucht, fände sie nicht mehr und wüsste nicht,
+     * warum. Ausgegraut steht sie da und sagt, woran sie hängt - dasselbe
+     * Vorgehen wie bei den Ausleitungswegen des Abfangjochs.
+     */
     const zeileOpt = (o) => `<option value="${esc(o.wert)}"${
-      String(o.wert) === String(wert) ? ' selected' : ''}>${esc(o.text)}</option>`;
+      String(o.wert) === String(wert) ? ' selected' : ''}${
+      o.aus ? ' disabled' : ''}>${esc(o.text)}</option>`;
     /*
      * DIE LISTE DARF VON DEN WERTEN ABHAENGEN.
      *
@@ -2575,74 +2693,200 @@ function linkZustand(v) {
 /**
  * Das Diagramm eines Jochendes am Masten.
  *
- * Gezeichnet wird die SEITENANSICHT: die Jochachse laeuft waagrecht nach
- * links ins Feld, der Mast steht rechts. Die beiden Gurtebenen liegen
- * uebereinander - so, wie die beiden Ausschnitte aus AxisVM sie zeigen.
+ * >>> DIE ACHSEN SIND DIE DES MODELLS. <<<
+ *
+ * Weisung vom 5. September: «die vertikale ist z, die jochachse (quer zum
+ * Gleis) x, die y achse ist die längs zum Gleis.»
+ *
+ * Der erste Wurf hatte y senkrecht und z waagrecht — genau vertauscht. In
+ * einem Bild, das die Richtungen erklären soll, ist das der einzige Fehler,
+ * der wirklich zählt.
+ *
+ * Gezeichnet ist der Blick LÄNGS ZUM GLEIS, also in y-Richtung. Damit liegt
+ *
+ *      x  waagrecht        die Jochachse, ins Feld hinein
+ *      z  senkrecht        lotrecht
+ *      y  in die Tiefe     längs zum Gleis — schräg gezeichnet
+ *
+ * >>> DIE DREHUNGEN OHNE KREISE. <<<
+ *
+ * Weisung: «es braucht die einzelnen strichlierten kreise nicht.» Drei
+ * ineinandergeschachtelte Bögen je Ebene waren sechs Kreise im Bild und
+ * beantworteten keine Frage — welcher gehört zu welcher Achse, sah man
+ * ihnen nicht an. Sie stehen jetzt als drei kleine Marken am
+ * Anschlusspunkt: Kürzel, Zustand, anklickbar.
  */
-function auflagerDiagrammHtml(werte, art) {
+/*
+ * >>> DASSELBE BILD AN ZWEI ORTEN. <<<
+ *
+ * Weisung vom 5. September: «Die Voreinstellung der Auflagerbedingungen
+ * sollte noch unter optionen aufgeführt sein und anpassbar.»
+ *
+ * In der Maske steht die Bedingung DIESES Tragwerks, unter Optionen die
+ * Voreinstellung für jedes neue. Beides ist dieselbe Frage in derselben
+ * Form; sie zweimal zu zeichnen hiesse, sie zweimal zu pflegen.
+ *
+ * `feld` sagt, wohin geschrieben wird, `lesen` woher gelesen. Mehr
+ * unterscheidet die beiden nicht.
+ */
+
+/*
+ * ===========================================================================
+ * DAS BILD IST ISOMETRISCH, DIE BEDIENUNG STEHT DANEBEN
+ * ===========================================================================
+ *
+ * Weisung vom 5. September: «diese abbildung ist etwas unübersichtlich. und
+ * man sucht die stelle zum anklicken, da viele elemente sehr nahe oder
+ * übereinander sind. würde es sinn machen diese als isometrie darzustellen.»
+ *
+ * >>> ZWEI FEHLER IN EINEM. <<<
+ *
+ * Der erste Wurf war eine SEITENANSICHT, und darin fallen zwei der drei
+ * Achsen zusammen: y zeigte in die Tiefe und musste als Marke danebenstehen,
+ * während x und z als Pfeile gingen. Drei Richtungen, zwei Darstellungsarten
+ * — man sah dem Bild nicht an, dass es dieselbe Frage dreimal stellt.
+ *
+ * Der zweite: Bild UND Bedienung waren dasselbe Element. Ein Pfeil von
+ * dreissig Pixel ist eine schöne Zeichnung und ein schlechter Knopf, und wo
+ * sechs davon um einen Punkt stehen, trifft man den falschen.
+ *
+ * >>> JETZT GETRENNT. <<<
+ *
+ * ISOMETRIE zeigt, was wo steht: die drei Achsen in drei verschiedene
+ * Richtungen, die beiden Gurtebenen dort, wo sie liegen — beim Tragjoch
+ * übereinander in z, beim Abfangjoch nebeneinander in y —, und der Mast
+ * daneben. Sie erklärt und lässt sich nicht anklicken.
+ *
+ * SCHALTFLÄCHEN darunter, je Gurtebene eine Reihe von sechs. Gross,
+ * beschriftet, mit dem Zustand als Wort. Wer etwas ändern will, findet es.
+ * =========================================================================== */
+
+
+/*
+ * DIE ISOMETRIE. Ein Rechtssystem, wie es das Modell fuehrt:
+ *
+ *      x  Jochachse, quer zum Gleis   nach links unten
+ *      y  laengs zum Gleis            nach rechts unten
+ *      z  lotrecht                    nach oben
+ *
+ * Die Zahlen sind Bildpunkte je Einheit, nicht Meter - das Bild erklaert
+ * Richtungen, es misst nichts.
+ */
+const ISO = { x: [-22, 13], y: [22, 13], z: [0, -26] };
+const isoP = (o, ax = 0, ay = 0, az = 0) => [
+  o[0] + ISO.x[0] * ax + ISO.y[0] * ay + ISO.z[0] * az,
+  o[1] + ISO.x[1] * ax + ISO.y[1] * ay + ISO.z[1] * az,
+];
+
+function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
+  const vorgabefeld = feld === 'auflagerVorgabe';
+  const lies = (ebene) => (vorgabefeld
+    ? linkVorgabe(werte, art, ebene) : linkBedingung(werte, art, ebene));
   const ebenen = linkEbenen(art);
-  const waagrecht = art === 'abfangjoch';
-  // Zwei Ebenen, im Bild uebereinander (Tragjoch) bzw. nebeneinander
-  // gedacht, aber gezeichnet ebenfalls uebereinander - die Bedienung soll
-  // bei beiden Arten dieselbe sein.
-  const yE = [52, 108];
-  const xG0 = 24, xG1 = 150, xMast = 196;
+  const gelenk = linkGelenk(art);
+  const anschluss = werte.mastAnschluss ?? 'durchlaufend';
+  /*
+   * >>> DAS BILD ZEIGT AUCH DEN ANSCHLUSS ANS JOCH. <<<
+   *
+   * Weisung vom 5. September: «Die auflagerbedingung sollte noch mit der
+   * unteren abbildung (anschluss ans joch) verbunden werden.» «Kragmast,
+   * Anschluss in einem Punkt» heisst: EIN Anschluss statt zweier — und genau
+   * das gehört in dieses Bild, nicht in ein zweites daneben.
+   */
+  const einPunkt = anschluss === 'kragarm' && !mastImModell(werte);
+  const klasse = (v) => (v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder');
 
-  const pfeil = (ebene, grad, cx, cy, dx, dy) => {
-    const v = linkBedingung(werte, art, ebene.key)[grad.key];
-    const zustand = v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder';
-    const x2 = cx + dx, y2 = cy + dy;
-    const kopf = `${x2},${y2} ${x2 - dy * 0.22 - dx * 0.30},${y2 + dx * 0.22 - dy * 0.30} `
-               + `${x2 + dy * 0.22 - dx * 0.30},${y2 - dx * 0.22 - dy * 0.30}`;
-    return `<g class="al-grad al-${zustand}" data-ebene="${esc(ebene.key)}"
-         data-grad="${esc(grad.key)}" role="button" tabindex="0"
-         title="${esc(ebene.label)} · ${esc(grad.sym)} ${esc(grad.label)} — ${
-           esc(linkZustand(v))}. Anklicken schaltet um.">
-      <line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}"/>
+  // --- Das Bild ------------------------------------------------------------
+  /*
+   * >>> KEINE BESCHRIFTUNG IM BILD. <<<
+   *
+   * Sie stand am Ende jedes Gurtbalkens, linksbuendig nach aussen - und
+   * «Obergurte» ragte dort aus dem Rahmen. Sie stand ausserdem ZWEIMAL da:
+   * einmal im Bild, einmal als Kopf der Schaltflaechenreihe darunter. Das
+   * Bild zeigt jetzt nur die Geometrie; die Namen stehen dort, wo man
+   * schaltet.
+   */
+  const O = [110, 52];                       // Anschluss der ersten Ebene
+  /*
+   * Wohin die zweite Ebene liegt: beim Tragjoch TIEFER (z), beim Abfangjoch
+   * DAHINTER (y). Genau das unterscheidet die beiden Bauarten - und daran
+   * haengt, welche Drehung ihr Kraeftepaar sperrt.
+   */
+  const inY = gelenk.paarAchse === 'y';
+  const orte = [O, inY ? isoP(O, 0, 1.7, 0) : isoP(O, 0, 0, -1.7)];
+  // Der Mast steht beim Tragjoch NEBEN dem Joch, beim Abfangjoch ZWISCHEN
+  // den beiden Gurten - dort straddelt das Joch ihn.
+  const mAy = inY ? 0.85 : 0.5;
+
+  const balken = orte.map((p, i) => {
+    const e = isoP(p, 2.4);                  // der Gurt laeuft in die Jochachse
+    const traegt = !einPunkt || i === orte.length - 1;
+    return `<line class="al-gurt" x1="${p[0]}" y1="${p[1]}"
+                  x2="${e[0]}" y2="${e[1]}"/>
+      ${traegt ? `<circle class="al-punkt" cx="${p[0]}" cy="${p[1]}" r="3.4"/>`
+               : ''}`;
+  }).join('');
+
+  const mKopf = isoP(O, -0.5, mAy, 1.0);
+  const mFuss = isoP(O, -0.5, mAy, -2.6);
+  const arme = orte.map((p, i) => {
+    if (einPunkt && i !== orte.length - 1) return '';
+    const q = isoP(O, -0.5, mAy, inY ? 0 : (i === 0 ? 0 : -1.7));
+    return `<line class="al-link" x1="${p[0]}" y1="${p[1]}"
+                  x2="${q[0]}" y2="${q[1]}"/>`;
+  }).join('');
+
+  // Die Pfeile zeigen die ACHSEN, nicht den Zustand - der steht darunter.
+  const achsPfeil = (key, laenge) => {
+    const v = ISO[key];
+    const nx = v[0] * laenge, ny = v[1] * laenge;
+    const l = Math.hypot(nx, ny) || 1;
+    const ux = nx / l, uy = ny / l;
+    const kopf = `${nx},${ny} ${nx - ux * 7 - uy * 3.2},${ny - uy * 7 + ux * 3.2} `
+               + `${nx - ux * 7 + uy * 3.2},${ny - uy * 7 - ux * 3.2}`;
+    return `<g class="al-achse">
+      <line x1="0" y1="0" x2="${nx}" y2="${ny}"/>
       <polygon points="${kopf}"/>
-      <text x="${x2 + (dx > 0 ? 5 : dx < 0 ? -5 : 0)}"
-            y="${y2 + (dy > 0 ? 11 : dy < 0 ? -4 : 4)}"
-            text-anchor="${dx > 0 ? 'start' : dx < 0 ? 'end' : 'middle'}"
-        >${esc(grad.sym.replace('K_', ''))}</text>
-    </g>`;
+      <text x="${nx + ux * 9}" y="${ny + uy * 9 + 3}"
+            text-anchor="middle">${esc(key)}</text></g>`;
   };
 
-  const bogen = (ebene, grad, cx, cy, r, i) => {
-    const v = linkBedingung(werte, art, ebene.key)[grad.key];
-    const zustand = v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder';
-    const a0 = -140 + i * 8, a1 = 140 - i * 8;
-    const P = (g) => [cx + r * Math.cos(g * Math.PI / 180),
-                      cy + r * Math.sin(g * Math.PI / 180)];
-    const [x1, y1] = P(a0), [x2, y2] = P(a1);
-    return `<g class="al-grad al-dreh al-${zustand}" data-ebene="${esc(ebene.key)}"
-         data-grad="${esc(grad.key)}" role="button" tabindex="0"
-         title="${esc(ebene.label)} · ${esc(grad.sym)} ${esc(grad.label)} — ${
-           esc(linkZustand(v))}. Anklicken schaltet um.">
-      <path d="M ${x1} ${y1} A ${r} ${r} 0 1 1 ${x2} ${y2}"/>
-      <text x="${cx + r + 4}" y="${cy + 3}"
-        >${esc(grad.sym.replace('K_', ''))}</text>
-    </g>`;
-  };
+  const bild = `<svg class="al-bild" viewBox="0 0 208 148" role="img"
+       aria-label="Auflagerbedingung am Masten, isometrisch">
+    <line class="al-mast" x1="${mKopf[0]}" y1="${mKopf[1]}"
+          x2="${mFuss[0]}" y2="${mFuss[1]}"/>
+    <text class="al-notiz" x="${mFuss[0]}" y="${mFuss[1] + 12}"
+          text-anchor="middle">Mast</text>
+    ${arme}${balken}
+    <text class="al-notiz" x="${isoP(O, 2.4)[0]}" y="${isoP(O, 2.4)[1] + 14}"
+          text-anchor="middle">Feld</text>
+    <g class="al-achsen" transform="translate(46,30)">
+      ${achsPfeil('x', 0.85)}${achsPfeil('y', 0.85)}${achsPfeil('z', 0.7)}
+    </g>
+  </svg>`;
 
-  const kraefte = LINK_GRADE.filter((g) => g.art === 'kraft');
-  const momente = LINK_GRADE.filter((g) => g.art === 'moment');
-
+  // --- Die Schaltflaechen --------------------------------------------------
   const reihen = ebenen.map((ebene, i) => {
-    const cy = yE[i];
-    const cx = xG1 + 14;                       // auf dem Linkelement
-    return `
-      <line class="al-gurt" x1="${xG0}" y1="${cy}" x2="${xG1}" y2="${cy}"/>
-      <line class="al-link" x1="${xG1}" y1="${cy}" x2="${xMast}" y2="${cy}"/>
-      <circle class="al-punkt" cx="${xG1}" cy="${cy}" r="3"/>
-      <text class="al-name" x="${xG0}" y="${cy - 8}">${esc(ebene.label)}</text>
-      ${pfeil(ebene, kraefte[0], cx, cy, -26, 0)}
-      ${pfeil(ebene, kraefte[1], cx, cy, 0, i === 0 ? -24 : 24)}
-      ${pfeil(ebene, kraefte[2], cx, cy, 22, 0)}
-      ${momente.map((g, k) => bogen(ebene, g, cx, cy, 9 + k * 5, k)).join('')}`;
+    const b = lies(ebene.key);
+    const stumm = einPunkt && i !== ebenen.length - 1;
+    return `<div class="al-reihe${stumm ? ' stumm' : ''}">
+      <div class="al-reihe-kopf">${esc(ebene.label)}${
+        stumm ? ' <small>— kein Anschluss (Kragmast)</small>' : ''}</div>
+      <div class="al-chips">${LINK_GRADE.map((g) => {
+        const v = b[g.key];
+        return `<button type="button" class="al-chip al-grad al-${klasse(v)}"
+            data-ebene="${esc(ebene.key)}" data-grad="${esc(g.key)}"
+            aria-pressed="${v === 'Rigid'}"${stumm ? ' disabled' : ''}
+            title="${esc(`${ebene.label} · ${g.sym} — ${g.label}. ${g.hinweis}`)}">
+          <span class="al-chip-sym">${esc(g.sym.replace('K_', ''))}</span>
+          <span class="al-chip-zustand">${esc(linkZustand(v))}</span>
+        </button>`;
+      }).join('')}</div>
+    </div>`;
   }).join('');
 
   const federn = ebenen.map((ebene) => {
-    const b = linkBedingung(werte, art, ebene.key);
+    const b = lies(ebene.key);
     return `<div class="al-federn"><b>${esc(ebene.label)}</b>${
       LINK_GRADE.map((g) => {
         const v = b[g.key];
@@ -2656,19 +2900,29 @@ function auflagerDiagrammHtml(werte, art) {
       }).join('')}</div>`;
   }).join('');
 
-  return `<div class="auflager-links">
-    <svg class="al-bild" viewBox="0 0 240 150" role="img"
-         aria-label="Auflagerbedingung am Masten, anklickbar">
-      <line class="al-mast" x1="${xMast}" y1="16" x2="${xMast}" y2="140"/>
-      <line class="al-riegel" x1="${xG1}" y1="${yE[0]}" x2="${xG1}" y2="${yE[1]}"/>
-      ${reihen}
-      <text class="al-notiz" x="${xG0}" y="140">Feld ←</text>
-      <text class="al-notiz" x="${xMast}" y="150" text-anchor="middle">Mast</text>
-    </svg>
-    <p class="hinweis">Ausgefüllt hält, offen lässt los. Anklicken schaltet um;
-       ein Wert im Feld darunter macht daraus eine Feder.</p>
-    ${klapp('auflager-federn', 'Federwerte je Gurtebene', federn,
-            linkAbweichend(werte, art) ? 'von der Vorgabe abweichend' : 'Vorgabe',
+  /*
+   * DER HINWEIS NENNT DAS GELENK BEIM NAMEN. Halten beide Ebenen in x, ist
+   * die Drehung um die Paarachse gesperrt - gleichgueltig, was K_YY oder
+   * K_ZZ sagen. Das ist die Falle, und sie gehoert dorthin, wo man sie
+   * stellen kann.
+   */
+  const beideFest = ebenen.every((e) => lies(e.key).x === 'Rigid');
+  const gelenkText = gelenk.paarAchse === 'z'
+    ? 'Halten beide Gurtebenen längs (X), ist die Biegung um <b>y</b> '
+      + 'eingespannt — auch bei K_YY = frei.'
+    : 'Halten beide Gurte längs (X), ist die Biegung um <b>z</b> eingespannt '
+      + '— auch bei K_ZZ = frei. Das Moment läuft dann als Torsion in den '
+      + 'Masten.';
+
+  return `<div class="auflager-links" data-al-feld="${esc(feld)}"
+       data-al-art="${esc(art)}">
+    ${bild}
+    ${reihen}
+    <p class="hinweis${beideFest ? ' warnt' : ''}">${gelenkText}</p>
+    ${klapp(`auflager-federn-${feld}`, 'Federwerte je Gurtebene', federn,
+            vorgabefeld ? 'Voreinstellung'
+              : (linkAbweichend(werte, art) ? 'von der Vorgabe abweichend'
+                                            : 'Vorgabe'),
             false)}
   </div>`;
 }
@@ -4466,6 +4720,8 @@ function verdrahteTasten(container, onChange) {
 
 export function verdrahteOptionen(container, werte, onChange) {
   verdrahteTasten(container, onChange);
+  // Das Diagramm der Auflagerbedingung steht auch hier - als Voreinstellung.
+  verdrahteAuflagerLinks(container, werte, onChange);
   container.querySelectorAll('[data-feld]').forEach((inp) => {
     const key = inp.dataset.feld;
     const feld = FELDER.find((f) => f.key === key);

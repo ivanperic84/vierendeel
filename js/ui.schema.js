@@ -405,25 +405,6 @@ export const FELDER = [
   // Die Auflager stehen dort, wo die Maste stehen - nicht zwingend am Gurtende.
   // L bleibt die Länge der GURTE (daran hängt die Blecheinteilung), die
   // Stützweite ist L − kragA − kragB.
-  /*
-   * >>> DIE AUFLAGERBEDINGUNG AM MASTEN, ANKLICKBAR. <<<
-   *
-   * Weisung vom 5. September: «die Auflagerbedingung sollten anpassbar sein
-   * in der app, am besten mit einem interaktiven diagramm (richtungsfeder
-   * und drehfeder ein aus schalten koennen) und beim aufklappen kann man die
-   * einzelnen Federeigenschaften der einzelnen gurte noch anpassen.»
-   *
-   * Sie gilt dort, wo ein Mast im Modell steht - ohne Mast gibt es kein
-   * Linkelement, an dem sich etwas einstellen liesse. Was hier steht, geht
-   * in die AxisVM-Ausleitung; der Ersatzbalken des Rechenkerns kennt sie
-   * nicht, er traegt seine Drehfeder.
-   */
-  { key: 'auflagerLinks', gruppe: 'aufl', typ: 'auflagerlinks',
-    label: 'Auflagerbedingung am Masten', standard: null,
-    sichtbar: (w) => mastDa(w),
-    hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
-           + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
-           + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
   { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
     sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
     hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
@@ -444,19 +425,17 @@ export const FELDER = [
    * in core.auflager.js.
    */
   /*
-   * >>> DER SCHALTER STEHT AN DER TRAGWERKSKACHEL, nicht mehr hier. <<<
+   * >>> HIER STAND `mastVorhanden` EIN ZWEITES MAL. <<<
    *
-   * Weisung vom 2. September: «nimm das aktiv inaktiv schalten der masten
-   * oben zu den kacheln». Er gilt dem TRAGWERK - beiden Enden zugleich -,
-   * und an der Kachel steht er neben dem, dem er gilt. Zweimal dieselbe
-   * Frage waeren zwei Orte, an denen man sie beantworten kann, und einer
-   * davon wird uebersehen.
+   * Versteckt, mit einem anderen Namen («Masten im Modell») und einem
+   * anderen Hinweistext als der sichtbare Schalter weiter unten. Zwei
+   * Einträge unter DEMSELBEN Schlüssel: wer `FELDER.find(f => f.key ===
+   * 'mastVorhanden')` schreibt, bekommt den versteckten - also den, den
+   * niemand sieht und niemand pflegt.
+   *
+   * Er ist weg. Der Schalter steht jetzt an EINER Stelle, ganz oben in der
+   * Gruppe «Masten», wo man ihn sucht.
    */
-  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter', versteckt: true,
-    label: 'Masten im Modell', standard: true,
-    hinweis: 'Der Mast wird gezeichnet, ausgeleitet und nachgewiesen und trägt '
-           + 'Wind und Anbauteile. Ob seine Steifigkeit die Drehfeder liefert, '
-           + 'steht bei der Auflagerung.'},
   /*
    * >>> DIE STELLE DES ANGEWAEHLTEN MASTEN. <<<
    *
@@ -503,12 +482,37 @@ export const FELDER = [
    * IMMER SICHTBAR, auch ohne Masten. Ein Schalter, dessen Aus-Zustand ihn
    * selbst verschwinden laesst, ist eine Falle.
    */
-  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
-    label: 'Tragwerk steht auf Masten', standard: true,
-    sichtbar: (w) => tragwerksart(w).traeger === true,
-    hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
-           + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
-           + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
+  /*
+   * >>> DIE AUFLAGERBEDINGUNG AM MASTEN, ANKLICKBAR. <<<
+   *
+   * Weisung vom 5. September: «die Auflagerbedingung sollten anpassbar sein
+   * in der app, am besten mit einem interaktiven diagramm (richtungsfeder
+   * und drehfeder ein aus schalten koennen) und beim aufklappen kann man die
+   * einzelnen Federeigenschaften der einzelnen gurte noch anpassen.»
+   *
+   * Sie gilt dort, wo ein Mast im Modell steht - ohne Mast gibt es kein
+   * Linkelement, an dem sich etwas einstellen liesse. Was hier steht, geht
+   * in die AxisVM-Ausleitung; der Ersatzbalken des Rechenkerns kennt sie
+   * nicht, er traegt seine Drehfeder.
+   *
+   * >>> SIE STEHT BEI DEN MASTEN, NICHT BEI DER AUFLAGERUNG. <<<
+   *
+   * Die Gruppe «Auflagerung des Jochs» fuehrt `arten: ['joch']` - sie
+   * beschreibt den Ersatzbalken des Tragjochs mit Endbedingung, Drehfeder
+   * und Kragarmen. Das Abfangjoch sieht sie nie, und genau dort soll die
+   * Bedingung jetzt einstellbar sein (Weisung, 5. September: «bei den
+   * Abfangjochen wird man zudem noch die vorderen und hinteren auflager
+   * unterschiedlich einstellen koennen»).
+   *
+   * Die Gruppe «Masten» kennt keine Artenschranke - und ihr Name trifft es
+   * ohnehin besser: es ist die Bedingung AM MASTEN.
+   */
+  { key: 'auflagerLinks', gruppe: 'mast', typ: 'auflagerlinks',
+    label: 'Auflagerbedingung am Masten', standard: null,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
+           + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
+           + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
   { key: 'mastX', gruppe: 'mast', typ: 'zahl',
     label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
     sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
@@ -517,6 +521,27 @@ export const FELDER = [
     hinweis: 'Folgt aus der Lage des Tragwerks und der Jochlänge. Am linken '
            + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
            + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
+  /*
+   * >>> DER SCHALTER STEHT ZUOBERST. <<<
+   *
+   * Weisung vom 5. September: «das deaktivieren der masten im modell sollte
+   * klar auswaehlbar sein und nicht als einziges button unter der
+   * schemadarstellung tragwerke.»
+   *
+   * Er stand unten in der Gruppe, hinter Profil, Anschlusshoehe, Laenge und
+   * Stegrichtung - also hinter allem, was ihn voraussetzt. Wer die Masten
+   * abschalten wollte, fand zuerst den kleinen Symbolknopf in der
+   * Tragwerksleiste und nahm an, das sei der einzige Weg.
+   *
+   * IMMER SICHTBAR, auch ohne Masten. Ein Schalter, dessen Aus-Zustand ihn
+   * selbst verschwinden laesst, ist eine Falle.
+   */
+  { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
+    label: 'Tragwerk steht auf Masten', standard: true,
+    sichtbar: (w) => tragwerksart(w).traeger === true,
+    hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
+           + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
+           + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),
@@ -619,8 +644,32 @@ export const FELDER = [
    * das JOCHENDE gehalten wird. Sichtbar ist er trotzdem nur mit Masten -
    * ohne einen gibt es nichts, woran das Joch durchlaufen könnte.
    */
+  /*
+   * >>> DER KRAGMAST GILT NUR OHNE MAST IM MODELL. <<<
+   *
+   * Weisung vom 5. September: «der kragmast nur auswaehlbar wenn die masten
+   * deaktiviert sind.»
+   *
+   * «Kragmast, Anschluss in einem Punkt» beschreibt einen Mast, der das Joch
+   * an EINER Stelle traegt - seine Drehsteifigkeit ist dann E·I/H. Steht der
+   * Mast IM Modell, ist das kein Ansatz mehr, sondern eine Geometrie: zwei
+   * Linkelemente im Abstand der Jochhoehe, und die Steifigkeit entsteht aus
+   * der Biegung des Mastes dazwischen. Ein «Anschluss in einem Punkt» stuende
+   * daneben und waere von nichts mehr gedeckt.
+   *
+   * Die Option bleibt SICHTBAR und wird ausgegraut - was es gibt und woran es
+   * haengt, soll dastehen. Dasselbe Vorgehen wie bei den Ausleitungswegen des
+   * Abfangjochs.
+   */
   { key: 'mastAnschluss', gruppe: 'aufl', typ: 'auswahl', label: 'Anschluss ans Joch',
-    standard: 'durchlaufend', optionen: opt(MASTANSCHLUESSE),
+    standard: 'durchlaufend',
+    optionen: opt(MASTANSCHLUESSE),
+    optionenAus: (w) => MASTANSCHLUESSE.map((a) => ({
+      wert: a.key,
+      text: a.key === 'kragarm' && mastImModell(w)
+        ? `${a.label} — nur ohne Masten im Modell` : a.label,
+      aus: a.key === 'kragarm' && mastImModell(w),
+    })),
     sichtbar: (w) => mastDa(w) && w.endbedingung === 'mast',
     hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
            + 'Längskräften. Für Vertikallast und Wind in Gleisrichtung gilt der '
@@ -885,6 +934,23 @@ export const FELDER = [
     optionen: [...opt(NORMENSAETZE), { wert: 'frei', text: 'von Hand gesetzt' }],
     hinweis: 'Setzt γ und ψ auf den gewählten Satz. «Von Hand» lässt die Werte '
            + 'unverändert.'},
+  /*
+   * >>> DIE VOREINSTELLUNG DER AUFLAGERBEDINGUNGEN. <<<
+   *
+   * Weisung vom 5. September: «Die Voreinstellung der Auflagerbedingungen
+   * sollte noch unter optionen aufgefuehrt sein und anpassbar.»
+   *
+   * Sie steht bei den uebrigen Festlegungen, die fuer JEDES Tragwerk gelten -
+   * Normensatz, Lastbeiwerte, Torsionsmodell. Was am einzelnen Tragwerk davon
+   * abweicht, wird dort eingestellt und bleibt dort; hier steht, womit ein
+   * neues beginnt.
+   */
+  { key: 'auflagerVorgabe', optionenDialog: true, gruppe: 'komb',
+    typ: 'auflagerlinks', vorgabefeld: true,
+    label: 'Voreinstellung der Auflagerbedingung am Masten', standard: null,
+    hinweis: 'Gilt für jedes neue Tragwerk dieser Art. Die Ausschnitte aus '
+           + 'AxisVM zeigen für die alten, verjüngten Tragjoche: Untergurt '
+           + 'fest, Obergurt längs frei.' },
   { key: 'gammaG', optionenDialog: true, gruppe: 'komb', typ: 'zahl', label: 'Lastbeiwert ständig',
     sym: 'γ_G', einheit: '–', standard: 1.30, schritt: 0.05, min: 1 },
   { key: 'gammaQ', optionenDialog: true, gruppe: 'komb', typ: 'zahl', label: 'Lastbeiwert veränderlich',
