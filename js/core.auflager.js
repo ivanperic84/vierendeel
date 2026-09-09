@@ -33,12 +33,68 @@ export const E_STAHL = 210e6;
 /** Praktisch starre Feder für den Fall "voll eingespannt". */
 const C_STARR = 1e12;
 
+/*
+ * >>> DIE AUFLAGERBEDINGUNG DARF DIE ENDBEDINGUNG SEIN. <<<
+ *
+ * Weisung vom 9. September, als Frage: «kann man die Endauflager auswahl mit
+ * dem untern diagramm und der definition der ober untergurte …» - der Satz
+ * bricht ab; auf Rueckfrage entschieden: eine neue Wahl, die c_phi aus der
+ * Auflagerbedingung nimmt.
+ *
+ * >>> WAS BISHER NEBENEINANDER STAND. <<<
+ *
+ * Die Endbedingung setzte die Drehfeder des ERSATZBALKENS - damit rechnet
+ * die Anwendung. Die Matrix darunter setzte die LINKELEMENTE - die gehen in
+ * die AxisVM-Ausleitung. Zwei Beschreibungen desselben Jochendes, und die
+ * Zahl, die aus den Gurtfedern folgt (`linkEinspannung`), stand da, ohne
+ * gerechnet zu werden. Wer die Federn nach einem gemessenen Modell einstellt,
+ * bekam sie im Nachweis nicht zu sehen.
+ *
+ * >>> UND WARUM DER MAST IN REIHE DAZUKOMMT. <<<
+ *
+ * Der Anschluss ist nicht das Einzige, was nachgibt. Steht ein Mast im
+ * Modell, sitzen ZWEI Federn hintereinander - der Gurtanschluss und der
+ * Mast -, und hintereinander addieren sich die Nachgiebigkeiten:
+ *
+ *      1/c_ges = 1/c_Anschluss + 1/c_Mast
+ *
+ * Ohne diesen Schritt hiesse «beide Gurte starr» voll eingespannt, obwohl
+ * der Mast sich biegt - die unsichere Annahme, und zwar am verjuengten
+ * Jochende, wo das Stuetzmoment massgebend ist. Es ist eine Ausfuehrungs-
+ * entscheidung zur Weisung; beide Zahlen liegen vor, und nur zusammen
+ * beschreiben sie das Ende.
+ */
 export const ENDBEDINGUNGEN = [
   { key: 'gelenkig', label: 'gelenkig (c_φ = 0)' },
   { key: 'mast',     label: 'teilweise. Steifigkeit aus Mast' },
+  { key: 'links',    label: 'teilweise. aus der Auflagerbedingung am Masten' },
   { key: 'manuell',  label: 'teilweise. C_φ manuell' },
   { key: 'voll',     label: 'voll eingespannt (c_φ = ∞)' },
 ];
+
+/**
+ * Die Drehfeder aus der eingestellten Auflagerbedingung.
+ *
+ * @param {object} inp  Eingabesatz
+ * @param {object|null} mast  Mastangabe (fuer die Reihenschaltung), oder null
+ * @returns {{c:number, art:string}}
+ */
+export function federAusLinks(inp, mast = null) {
+  const art = inp?.tragwerksart ?? 'joch';
+  const h = Number(inp?.h) || (Number(inp?.jd) || 0) / 1000;
+  const e = linkEinspannung(inp, art, h);
+  // Ein Gelenk bleibt ein Gelenk, gleichgueltig wie steif der Mast ist.
+  if (e.art === 'gelenk') return { c: 0, art: 'gelenkig (aus der Bedingung)' };
+  const cAn = e.art === 'eingespannt' ? Infinity : e.cPhi;
+  const cM = Number(mast?.cPhi);
+  if (!Number.isFinite(cM) || cM <= 0) {
+    return { c: Number.isFinite(cAn) ? cAn : C_STARR,
+             art: Number.isFinite(cAn)
+               ? 'teilweise (Gurtfedern)' : 'voll eingespannt (Gurtfedern starr)' };
+  }
+  if (!Number.isFinite(cAn)) return { c: cM, art: 'teilweise (Mast, Gurte starr)' };
+  return { c: 1 / (1 / cAn + 1 / cM), art: 'teilweise (Gurtfedern und Mast)' };
+}
 
 /**
  * Biegesteifigkeit EI des gegliederten Jochs um die horizontale Achse.
@@ -446,6 +502,17 @@ export function drehfedern(inp, verschieblich = false) {
                               art: 'voll eingespannt' };
     case 'manuell':  return { cA: inp.cPhi, cB: inp.cPhi, ...geo,
                               art: 'teilweise (manuell)' };
+    /*
+     * DIE FEDERN DER GURTANSCHLUESSE, in Reihe mit dem Masten - siehe den
+     * Vermerk bei ENDBEDINGUNGEN. Beide Enden tragen dieselbe Bedingung
+     * (die Maske fuehrt einen Satz je Gurtebene); die MASTFEDER kann
+     * verschieden sein, deshalb je Ende gerechnet.
+     */
+    case 'links': {
+      const a = federAusLinks(inp, mastA);
+      const b = federAusLinks(inp, mastB);
+      return { cA: a.c, cB: b.c, ...geo, art: a.art };
+    }
     case 'mast': {
       /*
        * OHNE MASTEN GIBT ES KEINE STEIFIGKEIT AUS DEM MASTEN.

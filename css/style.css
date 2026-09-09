@@ -2231,6 +2231,10 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 .al-einspannung.al-e-feder { border-left-color: var(--warn);
                              color: var(--warn); }
 .al-einspannung.al-e-frei  { border-left-style: dashed; }
+/* Wird mit dieser Zahl gerechnet, steht sie kraeftiger da - sie ist dann
+   keine Nebenangabe mehr, sondern die Feder des Nachweises. */
+.al-einspannung.gilt { border-left-width: 3px; background: var(--s3); }
+.al-einspannung.gilt .al-e-wert { font-size: 12.5px; }
 
 .al-federn { display: grid; gap: 3px; margin-bottom: 8px; }
 .al-federn > b { font-size: 11px; color: var(--dim, #7a8699); }

@@ -27,6 +27,39 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Auflagerbedingung darf die Endbedingung sein (9. September)
+
+Weisung, als abgebrochener Satz: «kann man die Endauflager auswahl mit dem
+untern diagramm und der definition der ober untergurte …» — auf Rückfrage
+entschieden: **eine neue Wahl, die c_φ aus der Auflagerbedingung nimmt.**
+
+Bis dahin standen zwei Beschreibungen desselben Jochendes nebeneinander: die
+Endbedingung setzte die Drehfeder des **Ersatzbalkens** (damit rechnet die
+Anwendung), die Matrix die **Linkelemente** (die gehen in die
+AxisVM-Ausleitung). Die Zahl aus `linkEinspannung` stand da, ohne gerechnet zu
+werden.
+
+```
+ENDBEDINGUNGEN += { key: 'links', label: 'teilweise. aus der Auflagerbedingung am Masten' }
+```
+
+**Der Mast kommt in Reihe dazu** — Ausführungsentscheidung zur Weisung, und
+sie ist erheblich: steht ein Mast im Modell, sitzen zwei Federn
+hintereinander, und hintereinander addieren sich die Nachgiebigkeiten.
+
+```
+1/c_ges = 1/c_Anschluss + 1/c_Mast        (federAusLinks in core.auflager.js)
+```
+
+Ohne diesen Schritt hiesse «beide Gurte starr» *voll eingespannt*, obwohl der
+Mast sich biegt — die unsichere Annahme, und zwar am verjüngten Jochende, wo
+das Stützmoment massgebend ist. Ein Gelenk bleibt ein Gelenk, gleichgültig wie
+steif der Mast ist.
+
+Die Zeile unter der Matrix sagt jetzt, **ob** mit dieser Zahl gerechnet wird —
+bei der neuen Wahl steht sie kräftiger da, sonst nennt sie sich als Angabe für
+die Ausleitung.
+
 ### Kleinere Bilder, Matrix, eine Skizze weniger (9. September)
 
 Weisung: «kannst du die diagramme etwas kleiner gestalten. die buttons für die

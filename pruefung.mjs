@@ -6106,6 +6106,67 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   }
 
   /*
+   * =============== DIE AUFLAGERBEDINGUNG ALS ENDBEDINGUNG ==============
+   *
+   * Weisung vom 9. September, auf Rueckfrage entschieden: eine Wahl, die
+   * c_phi aus der eingestellten Auflagerbedingung nimmt - was im Diagramm
+   * steht, rechnet dann auch der Ersatzbalken.
+   *
+   * DER MAST KOMMT IN REIHE DAZU. Steht einer im Modell, sitzen zwei Federn
+   * hintereinander; ohne diesen Schritt hiesse «beide Gurte starr» voll
+   * eingespannt, obwohl der Mast sich biegt - die unsichere Annahme.
+   */
+  {
+    const basisL = { tragwerksart: 'joch', jd: 500,
+                     mastProfil: 'HEB 240', mastH: 7.0, mastSteg: 'jochachse',
+                     mastVorhanden: true, endbedingung: 'links' };
+    // Die Vorgabe des Tragjochs ist ein Gelenk: der Obergurt laesst laengs los.
+    const g = AUF.drehfedern(basisL);
+    pruef('Die Vorgabe ergibt ein Gelenk', g.cA, 0, 1e-9, 'kNm/rad');
+    wahr('… und sagt es in der Bezeichnung', /gelenkig/.test(g.art));
+
+    // Beide Gurte starr: dann bleibt der MAST als einzige Nachgiebigkeit.
+    const starr = { ...basisL,
+                    auflagerLinks: { OG: { x: 'Rigid' }, UG: { x: 'Rigid' } } };
+    const mastFeder = AUF.mastSteifigkeit(starr, 'A').cPhi;
+    pruef('Starre Gurte lassen den Masten uebrig',
+          AUF.drehfedern(starr).cA, mastFeder, 1e-6, 'kNm/rad');
+    wahr('… und die Bezeichnung nennt beide',
+         /Gurte starr/.test(AUF.drehfedern(starr).art));
+
+    /*
+     * EINE FEDER JE GURT: Reihenschaltung ueber den Hebelarm, danach mit dem
+     * Masten in Reihe. Nachgerechnet von Hand.
+     */
+    const mitFeder = { ...basisL,
+                       auflagerLinks: { OG: { x: 20000 }, UG: { x: 20000 } } };
+    const h = 0.5;
+    const cAnschluss = (20000 * 20000) / (20000 + 20000) * h * h;
+    const soll = 1 / (1 / cAnschluss + 1 / mastFeder);
+    pruef('Gurtfedern und Mast in Reihe',
+          AUF.drehfedern(mitFeder).cA, soll, 1e-6, 'kNm/rad');
+    wahr('Die Reihe ist weicher als jede der beiden',
+         AUF.drehfedern(mitFeder).cA < Math.min(cAnschluss, mastFeder));
+
+    // Ohne Mast im Modell bleibt die Anschlussfeder allein.
+    const ohneMast = { ...mitFeder, mastVorhanden: false };
+    pruef('Ohne Masten gilt die Anschlussfeder',
+          AUF.drehfedern(ohneMast).cA, cAnschluss, 1e-6, 'kNm/rad');
+
+    wahr('Die Wahl steht in der Liste',
+         AUF.ENDBEDINGUNGEN.some((x) => x.key === 'links'));
+    /*
+     * UND SIE VERAENDERT DEN NACHWEIS - das ist der Punkt der Uebung. Mit
+     * starren Gurten steht dieselbe Feder da wie bei «Steifigkeit aus Mast»
+     * im unverschieblichen Fall; mit der Vorgabe (Gelenk) ist es die
+     * weichste aller Annahmen.
+     */
+    wahr('Gelenk ist weicher als die Mastfeder',
+         AUF.drehfedern(basisL).cA < AUF.drehfedern({ ...basisL,
+           endbedingung: 'mast' }).cA);
+  }
+
+  /*
    * >>> DAS ANSICHTSBILD TRAEGT DIE ANSCHLUSSART. <<<
    *
    * Sie stand in einer eigenen Optionsskizze; die ist weg (Weisung,

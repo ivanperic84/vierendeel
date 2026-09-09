@@ -646,6 +646,21 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    */
   const eKlasse = e.art === 'gelenk' ? 'al-e-frei'
     : e.art === 'eingespannt' ? 'al-e-starr' : 'al-e-feder';
+  /*
+   * >>> UND OB DIESE ZAHL GERECHNET WIRD. <<<
+   *
+   * Weisung vom 9. September, auf Rueckfrage entschieden: die Endbedingung
+   * «aus der Auflagerbedingung am Masten» nimmt sie. Steht sie, gilt das,
+   * was hier eingestellt ist, auch im Nachweis - und dann muss es dabei
+   * stehen. Sonst geht die Zahl nur in die Ausleitung, und wer sie fuer den
+   * Nachweis haelt, haelt sie fuer mehr, als sie ist.
+   */
+  const gerechnet = !vorgabefeld && werte.endbedingung === 'links';
+  const eWirkung = vorgabefeld ? ''
+    : (gerechnet
+      ? ' Der Nachweis rechnet damit — in Reihe mit dem Masten, wo einer steht.'
+      : ' Geht in die AxisVM-Ausleitung; der Nachweis rechnet mit dem '
+        + 'gewählten Endauflager.');
 
   /*
    * >>> UND OB DAS SYSTEM UEBERHAUPT STEHT. <<<
@@ -670,9 +685,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     ${bild}
     ${labilHtml}
     ${matrix}
-    <p class="al-einspannung ${eKlasse}">
+    <p class="al-einspannung ${eKlasse}${gerechnet ? ' gilt' : ''}">
       <span class="al-e-wert">${eWert}</span>
-      <span class="al-e-text">${eText}</span></p>
+      <span class="al-e-text">${eText}${eWirkung}</span></p>
     ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern',
             federKreuz + federn,
             vorgabefeld ? 'Voreinstellung'
