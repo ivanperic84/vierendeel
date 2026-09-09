@@ -27,6 +27,42 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Regliertemperatur an der Kombination, Bruchfall (9. September)
+
+Weisung: «Die temperatur ist an die kombinationen gekoppelt. Wind
+leiteinwirkung → +5° Schnee leiteinwirkung −5° und Havariefall (ohne
+veränderliche einwirkungen) → −20° dabei sollte ein leiter als bruch bestimmt
+werden können optional um den massgebenden fall zu bestimmen für den
+nachweis.»
+
+`ABFANG_FAELLE` in `core.abfangjoch.js` führt die drei Fälle:
+
+| Fall | Beiwerte | Temperatur |
+|---|---|---|
+| Wind leitend | γ_G·(G+Zug) + γ_Q·W + γ_Q·ψ₀·S | +5 °C |
+| Schnee leitend | γ_G·(G+Zug) + γ_Q·ψ₀·W + γ_Q·S | −5 °C |
+| **Havarie** | 1.0·(G+Zug), *keine* veränderlichen | −20 °C |
+
+**Jeder Fall baut sein eigenes Lastbild** — die Zugkraft hängt an der
+Temperatur, und im Havariefall fällt die eines gebrochenen Leiters ganz weg.
+Ein Lastbild für alle Fälle gäbe es damit nicht mehr.
+
+**Der Bruchfall** ist ein Schalter an der Bauteilkarte («Bruch im Havariefall
+untersuchen»), nur beim abgefangenen Leiter. Gemessen an zwei Leitern vorn und
+hinten: ohne Bruch zieht im Havariefall 29.80 kN, mit Bruch 14.90 — Wind und
+Schnee bleiben unberührt. Der Fall sucht nicht die grösste Last, sondern die
+grösste **Ungleichheit**.
+
+Die Übersicht nennt jetzt den **massgebenden Fall** neben η («massgebend: Wind
+leitend»); mit Bruch steht «(Bruch)» dabei.
+
+> **Offen — Datenfrage an den Auftraggeber:** die **Reglagetabelle** fehlt.
+> Der Katalog führt je Drahtwerk *einen* Wert (`leiterzug`), gültig bei +5 °C;
+> für −5 und −20 °C gibt `abfangkraft` denselben zurück und meldet es
+> (`ohneTabelle`). Ein fix abgefangener Leiter zieht **kalt stärker** — Schnee-
+> und Havariefall stehen damit **zu günstig** da, und der Havariefall kann
+> heute gar nicht massgebend werden. Der Hinweis sagt es in der Liste.
+
 ### Die Zugkraft im Modell — geprüft (9. September)
 
 Weisung: «die zugkraft im modell noch prüfen.» Gemessen an A240 / 12.50 m mit

@@ -16,7 +16,8 @@ import { klassifizierung } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
 import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
          mastImModell } from './core.auflager.js';
-import { getFlBauteil, istKettenwerk } from './data.fl.js';
+import { getFlBauteil, istKettenwerk,
+         abfangkraft } from './data.fl.js';
 import { abfangZugOhneWirkung,
          abfangAnbindung } from './core.abfangjoch.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
@@ -551,6 +552,40 @@ export function hinweise(m) {
         + 'hängt sie dagegen über einen starren Arm an den gewählten Gurt '
         + '(vorn oder hinten). Global ist es dasselbe Moment, örtlich nicht: '
         + 'die Einleitung an einem Gurt führt der Ersatzbalken nicht.');
+    }
+    /*
+     * >>> DIE REGLIERTEMPERATUR FOLGT DER KOMBINATION - DIE ZAHLEN NOCH
+     * NICHT. <<<
+     *
+     * Weisung vom 9. September: «Die temperatur ist an die kombinationen
+     * gekoppelt. Wind leiteinwirkung -> +5° Schnee leiteinwirkung -5° und
+     * Havariefall (ohne veraenderliche einwirkungen) -> -20°.»
+     *
+     * Die Kopplung steht (`ABFANG_FAELLE`). Was fehlt, ist die
+     * REGLAGETABELLE: der Katalog fuehrt je Drahtwerk EINEN Wert, gueltig
+     * bei +5 °C. Fuer -5 und -20 gibt `abfangkraft` denselben Wert zurueck
+     * und meldet es.
+     *
+     * DAS IST DIE UNSICHERE RICHTUNG. Ein fix abgefangener Leiter zieht
+     * KALT STAERKER; der Schnee- und der Havariefall stehen damit zu
+     * guenstig da. Wer sie nachweist, muss die Zugkraft von Hand einsetzen -
+     * und dass sie fehlt, darf nicht in einer Fussnote stehen.
+     */
+    const ohneTab = (m.anbauteile ?? [])
+      .filter((t2) => t2 && t2.aktiv !== false && (t2.ort ?? 'joch') === 'joch')
+      .filter((t2) => abfangAnbindung(t2).abgefangen)
+      .filter((t2) => (Array.isArray(t2.module) ? t2.module : []).some((mo) => {
+        if (!mo?.bauteil) return false;
+        try { return abfangkraft(mo.bauteil, { tempFall: 'havarie' }).ohneTabelle; }
+        catch { return false; }
+      }));
+    if (ohneTab.length) {
+      h.push('Die Regliertemperatur folgt der Kombination — Wind leitend '
+        + '+5 °C, Schnee leitend −5 °C, Havarie −20 °C. Die REGLAGETABELLE '
+        + 'ist nicht erfasst: für −5 und −20 °C steht die Zugkraft von '
+        + `+5 °C (${ohneTab.map((t2) => t2.name ?? 'Leiter').join(', ')}). `
+        + 'Ein fix abgefangener Leiter zieht kalt STÄRKER — der Schnee- und '
+        + 'der Havariefall stehen damit zu günstig da.');
     }
     const ohneZug = abfangZugOhneWirkung(m.anbauteile ?? [],
                                          { tempFall: m.tempFall });

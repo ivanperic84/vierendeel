@@ -1199,6 +1199,60 @@ export function abfangFyd(stahl, gammaM0) {
   return Number.isFinite(fy) && fy > 0 ? fy / 10 / g : 21.8;
 }
 
+/* ===========================================================================
+ * DIE REGLIERTEMPERATUR HAENGT AN DER KOMBINATION
+ * ===========================================================================
+ *
+ * Weisung vom 9. September:
+ *
+ *   «Die temperatur ist an die kombinationen gekoppelt. Wind leiteinwirkung
+ *    -> +5° Schnee leiteinwirkung -5° und Havariefall (ohne veraenderliche
+ *    einwirkungen) -> -20° dabei sollte ein leiter als bruch bestimmt werden
+ *    koennen optional um den massgebenden fall zu bestimmen fuer den
+ *    nachweis.»
+ *
+ * >>> WARUM DAS ZUSAMMENGEHOERT. <<<
+ *
+ * Die Zugkraft eines FIX abgefangenen Leiters haengt an seiner Temperatur:
+ * kalt zieht er staerker. Welche Temperatur gilt, sagt nicht der Anwender,
+ * sondern die Kombination - Schnee faellt bei Frost, und der Bruchfall wird
+ * bei der groessten Zugkraft untersucht. Bisher stand `tempFall` als eigene
+ * Angabe daneben und wurde von niemandem gesetzt; jetzt folgt sie dem Fall.
+ *
+ * >>> DER HAVARIEFALL. <<<
+ *
+ * Aussergewoehnliche Einwirkung: KEINE veraenderlichen Einwirkungen (kein
+ * Wind, kein Schnee), staendige Lasten CHARAKTERISTISCH (γ_G = 1.0), und der
+ * Leiterzug bei -20 °C. Optional bricht dabei ein Leiter - dann faellt seine
+ * Kraft weg, und was bleibt, ist unsymmetrisch. Genau dafuer steht der Fall:
+ * er sucht nicht die groesste Last, sondern die groesste UNGLEICHHEIT.
+ *
+ * >>> WAS HEUTE FEHLT. <<<
+ *
+ * Die REGLAGETABELLE. Der Katalog fuehrt je Drahtwerk EINEN Wert
+ * (`leiterzug`), gueltig bei +5 °C. Fuer -5 und -20 braeuchte es die
+ * Tabelle; solange sie fehlt, gibt `abfangkraft` den Wert von +5 zurueck und
+ * meldet es (`ohneTabelle`). Die Kopplung steht damit, die Zahlen dahinter
+ * warten - und das Ergebnis sagt es, statt eine Genauigkeit vorzutaeuschen.
+ */
+export const ABFANG_FAELLE = [
+  { key: 'wind', label: 'Wind leitend', tempFall: 'tragsicherheit',
+    leit: 'wind',
+    hinweis: 'Wind als Leiteinwirkung, Schnee mit ψ₀ — Regliertemperatur '
+           + '+5 °C.' },
+  { key: 'schnee', label: 'Schnee leitend', tempFall: 'schnee',
+    leit: 'schnee',
+    hinweis: 'Schnee als Leiteinwirkung, Wind mit ψ₀ — Schnee fällt bei '
+           + 'Frost, Regliertemperatur −5 °C.' },
+  { key: 'havarie', label: 'Havarie', tempFall: 'havarie', leit: null,
+    hinweis: 'Aussergewöhnliche Einwirkung: keine veränderlichen Lasten, '
+           + 'ständige charakteristisch, Regliertemperatur −20 °C. Ein als '
+           + 'gebrochen bezeichneter Leiter zieht dabei nicht mehr.' },
+];
+
+/** Bricht dieser Leiter im Havariefall? */
+export const abfangBricht = (t2) => t2?.bruch === true;
+
 export function abfangAuswertung(o = {}) {
   const { typ, jt } = o;
   if (!abfangRechenbar(typ, jt)) return null;
@@ -1215,58 +1269,101 @@ export function abfangAuswertung(o = {}) {
   const fyd = Number(o.fyd) || 21.8;
 
   // --- Die Lasten sammeln --------------------------------------------------
-  const lastOpt = { ek: o.ek, R: o.R, spannweite: o.L_FL, tempFall: o.tempFall };
-  const teile = (o.anbauteile ?? [])
-    .filter((t) => t && t.aktiv !== false && (t.ort ?? 'joch') === 'joch')
-    .map((t) => ({ t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt),
-                   lw: abfangAnbauLasten(t, lastOpt) }));
   const gk = Number(o.gk) || 0;                 // kN/m Joch
   const wk = Number(o.wk) || 0;                 // kN/m Wind auf das Joch
   const sk = Number(o.sk) || 0;                 // kN/m Schnee auf das Joch
+  const amJoch = (o.anbauteile ?? [])
+    .filter((t) => t && t.aktiv !== false && (t.ort ?? 'joch') === 'joch');
 
-  const Fstaendig = teile.filter((p) => p.lw.Gz)
-    .map((p) => ({ x: p.x, wert: Math.abs(p.lw.Gz) }));
-  const Fleiter = teile.filter((p) => p.lw.Z)
-    .map((p) => ({ x: p.x, wert: p.lw.Z }));
-  const FwindY = teile.filter((p) => p.lw.Qy)
-    .map((p) => ({ x: p.x, wert: p.lw.Qy }));
-
-  /*
-   * DIE RAHMENEBENE LIEGT WAAGRECHT. Alles, was quer zum Traeger und
-   * waagrecht zieht, wirkt darin: der Leiterzug und der Wind in
-   * Gleisrichtung.
+  /**
+   * >>> JE FALL EIN EIGENES LASTBILD. <<<
+   *
+   * Weisung vom 9. September: die Regliertemperatur haengt an der
+   * Kombination. Damit haengt auch die LEITERZUGKRAFT daran - und im
+   * Havariefall faellt die eines gebrochenen Leiters ganz weg. Ein Lastbild
+   * fuer alle Faelle gaebe es also nicht mehr; jeder baut sein eigenes.
+   *
+   * Was NICHT vom Fall abhaengt: Eigengewicht und Wind der Bauteile. Sie
+   * kommen aus dem Katalog und aus der Einwirkungskombination, nicht aus der
+   * Temperatur.
    */
-  const balkenRahmenZ = abfangBalken(jt, ue, { F: Fleiter });
-  const balkenRahmenW = abfangBalken(jt, ue, { q: wk, F: FwindY });
-  // Quer dazu: Eigengewicht und Schnee, lotrecht.
-  const balkenVertG = abfangBalken(jt, ue, { q: gk, F: Fstaendig });
-  const balkenVertS = abfangBalken(jt, ue, { q: sk });
+  const lastbild = (fall) => {
+    const lastOpt = { ek: o.ek, R: o.R, spannweite: o.L_FL,
+                      tempFall: fall.tempFall };
+    const teile2 = amJoch.map((t) => {
+      const lw = abfangAnbauLasten(t, lastOpt);
+      // Der gebrochene Leiter zieht nicht mehr - alles andere bleibt.
+      const bricht = fall.key === 'havarie' && abfangBricht(t);
+      return { t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt),
+               bricht, lw: bricht ? { ...lw, Z: 0 } : lw };
+    });
+    const Fstaendig = teile2.filter((p) => p.lw.Gz)
+      .map((p) => ({ x: p.x, wert: Math.abs(p.lw.Gz) }));
+    const Fleiter = teile2.filter((p) => p.lw.Z)
+      .map((p) => ({ x: p.x, wert: p.lw.Z }));
+    const FwindY = teile2.filter((p) => p.lw.Qy)
+      .map((p) => ({ x: p.x, wert: p.lw.Qy }));
+    /*
+     * DIE RAHMENEBENE LIEGT WAAGRECHT. Alles, was quer zum Traeger und
+     * waagrecht zieht, wirkt darin: der Leiterzug und der Wind in
+     * Gleisrichtung. Quer dazu: Eigengewicht und Schnee, lotrecht.
+     */
+    return {
+      fall, teile: teile2,
+      rahmenZ: abfangBalken(jt, ue, { F: Fleiter }),
+      rahmenW: abfangBalken(jt, ue, { q: wk, F: FwindY }),
+      vertG: abfangBalken(jt, ue, { q: gk, F: Fstaendig }),
+      vertS: abfangBalken(jt, ue, { q: sk }),
+      leiterzug: Fleiter.reduce((a2, f) => a2 + Math.abs(f.wert), 0),
+      ohneTabelle: teile2.some((p) => p.lw.ohneTabelle),
+      gebrochen: teile2.filter((p) => p.bricht).map((p) => p.t.name ?? 'Leiter'),
+    };
+  };
+
+  const bilder = ABFANG_FAELLE.map(lastbild);
+  const teile = bilder[0].teile;
 
   /**
    * Die Bemessungswerte an der Stelle x - Huellkurve ueber die beiden
    * Leitfaelle. Der Betrag entscheidet: ein Vorzeichenwechsel im Wind macht
    * die Kombination nicht guenstiger.
    */
+  /**
+   * Die Bemessungswerte an der Stelle x - Huellkurve ueber die Faelle.
+   *
+   * >>> DREI FAELLE, JEDER MIT SEINEN BEIWERTEN. <<<
+   *
+   *   Wind leitend      γ_G · (G + Zug)  +  γ_Q · W  +  γ_Q·ψ₀ · S    +5 °C
+   *   Schnee leitend    γ_G · (G + Zug)  +  γ_Q·ψ₀ · W  +  γ_Q · S    -5 °C
+   *   Havarie           1.0 · (G + Zug)                              -20 °C
+   *
+   * Der LEITERZUG zaehlt zu den staendigen Einwirkungen - er steht immer an
+   * und schwankt nur mit der Temperatur. Im Havariefall sind die staendigen
+   * charakteristisch (γ = 1.0) und die veraenderlichen weg; was den Fall
+   * massgebend machen kann, ist nicht seine Groesse, sondern der BRUCH: ein
+   * Leiter zieht nicht mehr, der gegenueberliegende schon.
+   *
+   * Der Betrag entscheidet: ein Vorzeichenwechsel im Wind macht die
+   * Kombination nicht guenstiger.
+   */
   const bemessung = (x) => {
-    const Zr = balkenRahmenZ.M(x), Wr = balkenRahmenW.M(x);
-    const Gv = balkenVertG.M(x), Sv = balkenVertS.M(x);
-    const ZrV = balkenRahmenZ.V(x), WrV = balkenRahmenW.V(x);
-    const GvV = balkenVertG.V(x), SvV = balkenVertS.V(x);
-    const faelle = [
-      // Wind leitend
-      { w: gQ, s: gQ * p0 },
-      // Schnee leitend
-      { w: gQ * p0, s: gQ },
-    ];
     let beste = null;
-    faelle.forEach((f) => {
-      const Mrahmen = gG * Zr + f.w * Math.abs(Wr) * Math.sign(Zr || 1);
-      const Vrahmen = gG * ZrV + f.w * Math.abs(WrV) * Math.sign(ZrV || 1);
-      const Mvert = gG * Gv + f.s * Sv;
-      const Vvert = gG * GvV + f.s * SvV;
+    bilder.forEach((b) => {
+      const havarie = b.fall.key === 'havarie';
+      const gGf = havarie ? 1.0 : gG;
+      const wF = havarie ? 0 : (b.fall.leit === 'wind' ? gQ : gQ * p0);
+      const sF = havarie ? 0 : (b.fall.leit === 'schnee' ? gQ : gQ * p0);
+      const Zr = b.rahmenZ.M(x), Wr = b.rahmenW.M(x);
+      const Gv = b.vertG.M(x), Sv = b.vertS.M(x);
+      const ZrV = b.rahmenZ.V(x), WrV = b.rahmenW.V(x);
+      const GvV = b.vertG.V(x), SvV = b.vertS.V(x);
+      const Mrahmen = gGf * Zr + wF * Math.abs(Wr) * Math.sign(Zr || 1);
+      const Vrahmen = gGf * ZrV + wF * Math.abs(WrV) * Math.sign(ZrV || 1);
+      const Mvert = gGf * Gv + sF * Sv;
+      const Vvert = gGf * GvV + sF * SvV;
       const kenn = Math.abs(Mrahmen) / (q.e / 100) + Math.abs(Mvert);
       if (!beste || kenn > beste.kenn) {
-        beste = { Mrahmen, Vrahmen, Mvert, Vvert, kenn };
+        beste = { Mrahmen, Vrahmen, Mvert, Vvert, kenn, fall: b.fall.key };
       }
     });
     return beste;
@@ -1292,11 +1389,26 @@ export function abfangAuswertung(o = {}) {
     (a2, b2) => (!a2 || (b2.eta ?? 0) > (a2.eta ?? 0) ? b2 : a2), null);
 
   const etaMax = Math.max(gurt?.eta ?? 0, blech?.eta ?? 0);
+  /*
+   * WELCHER FALL MASSGEBEND IST, steht am Gurtnachweis der massgebenden
+   * Stelle - dort hat die Huellkurve entschieden. Er gehoert ins Ergebnis:
+   * «eta 0.72» sagt nichts darueber, ob Schnee oder ein Bruch dahintersteht.
+   */
+  const massFall = gurt?.schnitt?.fall ?? null;
+  const bildVon = (k) => bilder.find((b) => b.fall.key === k) ?? bilder[0];
   return {
     typ, jt, js, ueberstand: ue, q, rahmenfeld: rf,
     lasten: { gk, wk, sk, teile: teile.length,
-              leiterzug: Fleiter.reduce((a2, f) => a2 + Math.abs(f.wert), 0) },
+              leiterzug: bildVon(massFall).leiterzug },
     beiwerte: { gammaG: gG, gammaQ: gQ, psi0: p0, fyd },
+    faelle: bilder.map((b) => ({
+      key: b.fall.key, label: b.fall.label, tempFall: b.fall.tempFall,
+      leiterzug: b.leiterzug, ohneTabelle: b.ohneTabelle,
+      gebrochen: b.gebrochen,
+    })),
+    fall: massFall,
+    /** Steht die Zahl auf einer Temperatur, fuer die keine Tabelle da ist? */
+    ohneTabelle: bildVon(massFall).ohneTabelle,
     reihe: gurtReihe, gurt, bleche, blech,
     max: { eta: etaMax, ok: etaMax <= 1 },
   };

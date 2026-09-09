@@ -1826,6 +1826,34 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                      ABFANG_VERLAEUFE.find(
                        (x) => x.key === abfangAnbindung(a).verlauf)?.hinweis ?? '')
             : ''}
+          ${/*
+             * >>> DER BRUCHFALL. <<<
+             *
+             * Weisung vom 9. September: «dabei sollte ein leiter als bruch
+             * bestimmt werden koennen optional um den massgebenden fall zu
+             * bestimmen fuer den nachweis.»
+             *
+             * Er gilt nur im HAVARIEFALL - der aussergewoehnlichen
+             * Einwirkung ohne veraenderliche Lasten. Dort faellt die
+             * Zugkraft dieses Leiters weg, und was bleibt, zieht
+             * einseitig. Der Fall sucht nicht die groesste Last, sondern
+             * die groesste Ungleichheit.
+             *
+             * Nur beim abgefangenen Leiter: ein durchgehender zieht
+             * ohnehin nicht, und ein vertikales Element bricht nicht in
+             * diesem Sinne.
+             */''}
+          ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
+            && abfangAnbindung(a).abgefangen
+            ? `<label class="at-feld breit2 schalter" data-feldname="bruch">
+                 <input class="at" data-k="bruch" data-idx="${i}"
+                        type="checkbox"${a.bruch === true ? ' checked' : ''}>
+                 <span>Bruch im Havariefall untersuchen</span>
+                 ${hinweisHtml(`at-${i}-bruch`,
+                   'Im Havariefall (−20 °C, ohne veränderliche Einwirkungen) '
+                   + 'zieht dieser Leiter nicht mehr. Der Nachweis rechnet den '
+                   + 'Fall mit und nimmt den ungünstigeren.')}
+               </label>` : ''}
           ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
                    'Nach welchem Gleis die Baugruppe gruppiert wird. '
                    + '0 = ohne Zuordnung. Der Lastgenerator setzt die Nummer '
@@ -3384,6 +3412,14 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    */
   const ab = erg.abfang ?? null;
   const eAn = ab ? ab.max.eta : e;
+  /*
+   * >>> WELCHER FALL DAHINTERSTEHT. <<<
+   *
+   * Weisung vom 9. September: die Regliertemperatur haengt an der
+   * Kombination. Damit ist «η 0.72» nicht mehr die ganze Auskunft - ob
+   * Wind, Schnee oder ein Bruch massgebend war, gehoert daneben.
+   */
+  const abFall = ab?.faelle?.find((f) => f.key === ab.fall) ?? null;
   const zustand = !gefuehrt ? 'warn'
     : (eAn > 1 || (!ab && mastUeber) || urteil.bindendVerletzt === true
        ? 'nok' : 'ok');
@@ -3509,6 +3545,18 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
             : 'Tragsicherheit NICHT erfüllt')}${
         urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}${
         offeneNw ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
+      ${/*
+         * DER MASSGEBENDE FALL steht neben der Zahl (Weisung, 9. September:
+         * die Regliertemperatur haengt an der Kombination). «η 0.72» sagt
+         * nicht, ob Wind, Schnee oder ein Bruch dahintersteht - und genau
+         * das entscheidet, was man am Bauwerk aendern muss.
+         */''}
+      ${abFall ? `<span class="urteil-fall" title="${esc(
+          `${abFall.label} · Regliertemperatur nach ${abFall.tempFall}`
+          + (abFall.gebrochen?.length
+            ? ` · gebrochen: ${abFall.gebrochen.join(', ')}` : ''))}"
+        >massgebend: ${esc(abFall.label)}${
+          abFall.gebrochen?.length ? ' (Bruch)' : ''}</span>` : ''}
       ${/*
          * DER KNOPF FOLGT DER ZAHL, DIE OBEN STEHT (Weisung, 9. September:
          * «den groesseren typ pruefen der die abfangkraft traegt»). Hier

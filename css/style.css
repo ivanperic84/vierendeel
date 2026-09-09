@@ -2130,6 +2130,13 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
  * Zeichnungsblatt. Wird die Spalte zu schmal, bricht der Schnitt unter die
  * Ansicht - lieber untereinander als beide unlesbar klein.
  */
+/* Der massgebende Fall neben dem Urteil - eine Angabe, kein Schmuck. */
+.urteil-fall {
+  font-size: 10.5px; color: var(--dim); font-family: var(--f-mono);
+  padding: 1px 6px; border: 1px solid var(--ol); border-radius: 999px;
+  white-space: nowrap;
+}
+
 .al-bilder { display: flex; flex-wrap: wrap; gap: 5px;
              background: var(--s2); border: 1px solid var(--ol);
              border-radius: var(--m-r1); padding: 5px 6px 3px; }

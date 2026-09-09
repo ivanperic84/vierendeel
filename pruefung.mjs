@@ -12982,6 +12982,84 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * ====== DIE REGLIERTEMPERATUR HAENGT AN DER KOMBINATION ==============
+   *
+   * Weisung vom 9. September: «Die temperatur ist an die kombinationen
+   * gekoppelt. Wind leiteinwirkung -> +5° Schnee leiteinwirkung -5° und
+   * Havariefall (ohne veraenderliche einwirkungen) -> -20° dabei sollte ein
+   * leiter als bruch bestimmt werden koennen optional um den massgebenden
+   * fall zu bestimmen fuer den nachweis.»
+   */
+  if (AJ.abfangDbDa()) {
+    const AB6 = await import(J('core.abfangjoch.js'));
+    wahr('Drei Faelle, jeder mit seiner Temperatur',
+         AB6.ABFANG_FAELLE.map((f) => `${f.key}:${f.tempFall}`).join(',')
+         === 'wind:tragsicherheit,schnee:schnee,havarie:havarie');
+    const FLx = await import(J('data.fl.js'));
+    pruef('Wind leitend rechnet mit +5 °C',
+          FLx.reglierTemperatur('tragsicherheit'), 5, 1e-9, '°C');
+    pruef('Schnee leitend mit −5 °C',
+          FLx.reglierTemperatur('schnee'), -5, 1e-9, '°C');
+    pruef('Havarie mit −20 °C',
+          FLx.reglierTemperatur('havarie'), -20, 1e-9, '°C');
+
+    const leiter = (id, x, verlauf, bruch = false) => ({
+      id, vorlage: 'hs-fahrdraht', name: `Leiter ${verlauf}`, x, ort: 'joch',
+      aktiv: true, anbindung: 'mitte', verlauf, bruch,
+      module: [{ bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107', anzahl: 1, z: 0 }],
+    });
+    const rechne = (teile) => AB6.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: teile,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0 });
+
+    /*
+     * DER BRUCH WIRKT NUR IM HAVARIEFALL - dort faellt die Zugkraft weg,
+     * in den beiden anderen zieht der Leiter weiter.
+     */
+    const zwei = [leiter('a', 4, 'vorn'), leiter('b', 8, 'hinten')];
+    const mitBruch = [leiter('a', 4, 'vorn'), leiter('b', 8, 'hinten', true)];
+    const rOhne = rechne(zwei), rMit = rechne(mitBruch);
+    const zug = (r, k) => r.faelle.find((f) => f.key === k).leiterzug;
+    pruef('Ohne Bruch ziehen im Havariefall beide',
+          zug(rOhne, 'havarie'), zug(rOhne, 'wind'), 1e-9, 'kN');
+    pruef('Mit Bruch nur noch einer', zug(rMit, 'havarie'),
+          zug(rMit, 'wind') / 2, 1e-9, 'kN');
+    wahr('… und Wind und Schnee bleiben unberuehrt',
+         zug(rMit, 'wind') === zug(rOhne, 'wind')
+         && zug(rMit, 'schnee') === zug(rOhne, 'schnee'));
+    wahr('Der gebrochene Leiter steht mit Namen da',
+         rMit.faelle.find((f) => f.key === 'havarie').gebrochen.length === 1);
+    wahr('Ohne Bruchangabe bricht keiner',
+         rOhne.faelle.every((f) => f.gebrochen.length === 0));
+
+    /*
+     * DAS ERGEBNIS NENNT DEN MASSGEBENDEN FALL - «eta 0.72» sagt sonst
+     * nicht, ob Wind, Schnee oder ein Bruch dahintersteht.
+     */
+    wahr('Das Ergebnis nennt den massgebenden Fall',
+         AB6.ABFANG_FAELLE.some((f) => f.key === rOhne.fall), rOhne.fall);
+    /*
+     * UND ES SAGT, DASS DIE REGLAGETABELLE FEHLT. Ein fix abgefangener
+     * Leiter zieht kalt staerker; solange nur der Wert von +5 °C dasteht,
+     * stehen Schnee- und Havariefall zu guenstig da.
+     */
+    wahr('Der kalte Fall ist als ohne Tabelle gekennzeichnet',
+         rOhne.faelle.find((f) => f.key === 'havarie').ohneTabelle === true);
+    wahr('… der Regelfall dagegen nicht',
+         rOhne.faelle.find((f) => f.key === 'wind').ohneTabelle === false);
+
+    /*
+     * DER HAVARIEFALL RECHNET OHNE VERAENDERLICHE EINWIRKUNGEN. Mit
+     * denselben Zugkraeften ist er damit kleiner als die beiden Leitfaelle -
+     * massgebend wird er erst mit der kalten Zugkraft oder durch den Bruch.
+     */
+    const nurHav = AB6.ABFANG_FAELLE.find((f) => f.key === 'havarie');
+    wahr('Der Havariefall hat keine Leiteinwirkung', nurHav.leit === null);
+    wahr('… und nennt seine Beiwerte im Hinweis',
+         /veränderlich/i.test(nurHav.hinweis) && /−20/.test(nurHav.hinweis));
+  }
+
+  /*
    * >>> DIE ZUGKRAFT IM MODELL. <<<
    *
    * Weisung vom 9. September: «die zugkraft im modell noch pruefen.»
