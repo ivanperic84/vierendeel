@@ -758,7 +758,8 @@ export const FELDER = [
                   && (tragwerksart(w).key !== 'joch' || w.endbedingung === 'mast'),
     hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
            + 'Längskräften. Für Vertikallast und Wind in Gleisrichtung gilt der '
-           + 'Rahmenwert 4.00·E·I/H.'},
+           + 'Rahmenwert 4.00·E·I/H. Wie der Mast am Joch endet, zeigt das '
+           + 'Ansichtsbild der Auflagerbedingung darunter.'},
   /*
    * STARTWERT AUS (Weisung, 27. August).
    *

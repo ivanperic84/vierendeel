@@ -6106,6 +6106,32 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   }
 
   /*
+   * >>> DAS ANSICHTSBILD TRAEGT DIE ANSCHLUSSART. <<<
+   *
+   * Sie stand in einer eigenen Optionsskizze; die ist weg (Weisung,
+   * 9. September). Damit muss dieses Bild sie zeigen - sonst waere die
+   * Angabe ersatzlos verschwunden.
+   */
+  {
+    const AL = await import(J('ui.auflagerlinks.js'));
+    const bild = (an) => AL.auflagerDiagrammHtml(
+      { mastVorhanden: true, mastAnschluss: an, jd: 500 }, 'joch');
+    wahr('Der durchlaufende Mast laeuft durch',
+         bild('durchlaufend').includes('läuft durch'));
+    wahr('Der Kragmast endet am Joch',
+         bild('kragarm').includes('endet hier'));
+    /*
+     * UND ZWAR ALS LAGE, nicht nur als Wort: der Kragmast beginnt erst auf
+     * der Anschlussebene. Das Rechteck des Masten faengt dort an.
+     */
+    const oben = (an) => Number(bild(an)
+      .match(/<rect class="kasten" x="\d+" y="(\d+)"/)[1]);
+    wahr('Der Kragmast beginnt tiefer als der durchlaufende',
+         oben('kragarm') > oben('durchlaufend'),
+         `${oben('kragarm')} gegen ${oben('durchlaufend')}`);
+  }
+
+  /*
    * =================== IST DAS SYSTEM GEHALTEN? ========================
    *
    * Weisung, 9. September: «zudem noch warnung wenn system labil gelagert».
@@ -8244,9 +8270,19 @@ titel('44  Skizzen an den Eingabefeldern');
   const OS = await import(J('doku.optionsskizzen.js'));
   const SCH = await import(J('ui.schema.js'));
 
-  wahr('Drei Felder fuehren eine Skizze',
-       OS.SKIZZEN_FELDER.join(',') === 'knotenbereich,mastAnschluss,mastSteg',
+  /*
+   * >>> ZWEI, SEIT DIE ANSCHLUSSSKIZZE WEG IST. <<<
+   *
+   * Weisung vom 9. September, als Frage: «braucht es diese abbildung noch
+   * wenn wir die beiden neuen auflagerabbildungen haben.» Sie zeigte dasselbe
+   * Jochende wie die Auflagerbedingung, nur in einem zweiten Stil - und seit
+   * beide in der Gruppe «Auflager» stehen, untereinander.
+   */
+  wahr('Zwei Felder fuehren eine Skizze',
+       OS.SKIZZEN_FELDER.join(',') === 'knotenbereich,mastSteg',
        OS.SKIZZEN_FELDER.join(','));
+  wahr('Der Mastanschluss fuehrt keine mehr',
+       OS.optionsSkizze('mastAnschluss', 'durchlaufend') === '');
   wahr('Ein Feld ohne Skizze gibt eine leere Zeichenkette',
        OS.optionsSkizze('gibtsnicht', 'egal') === '');
 

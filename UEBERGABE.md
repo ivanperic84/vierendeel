@@ -27,6 +27,37 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Kleinere Bilder, Matrix, eine Skizze weniger (9. September)
+
+Weisung: «kannst du die diagramme etwas kleiner gestalten. die buttons für die
+eingabe geordneter darstellen. eventuell als matrix darstellen.» — und, als
+Frage: «braucht es diese abbildung noch wenn wir die beiden neuen
+auflagerabbildungen haben.»
+
+**Die Bilder** sind von 264 × 200 auf 264 × 128 Einheiten gestrafft; gemessen
+in der Maske 347 statt 417 px für beide. Gekürzt ist der Leerraum, nicht die
+Zeichnung — die Strichstärken bleiben, die Schrift ist die der Maske (9.5 px)
+statt die des Handbuchs (11 px).
+
+**Die Schalter als Matrix:**
+
+```
+              X          Y          Z
+ Obergurte  [5000]    [starr]    [frei]
+ Untergurte [starr]   [starr]    [starr]
+```
+
+Vorher zwei Reihen zu dritt mit ganzer Angabe je Knopf («X Feder 5000») —
+ungleich breit, nicht fluchtend, und die Achse stand sechsmal da. In der Zelle
+steht jetzt nur der Zustand; dass es eine Feder ist, sagt die Farbe.
+
+**Die Optionsskizze zum Mastanschluss ist weg.** Sie zeigte dasselbe Jochende
+wie das Auflagerbild, nur in einem zweiten Stil — und seit beide Felder in der
+Gruppe *Auflager* stehen, untereinander. Was sie trug, steht jetzt dort: die
+Anschlussart als **Lage des Mastendes** im Ansichtsbild («läuft durch» /
+«endet hier»), die Faktoren (1.45 bzw. 1.00 · E·I/H) in den Namen der Auswahl
+selbst. `SKIZZEN_FELDER` führt noch `knotenbereich` und `mastSteg`.
+
 ### Die Leiste, die Typauswahl, eine Auflagergruppe (9. September)
 
 Weisung: «Hier drag and drop raus nehmen. Die masten direkt anschreiben wie bei

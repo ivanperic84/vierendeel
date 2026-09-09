@@ -79,48 +79,21 @@ const knotenbereich = (wert) => {
 };
 
 /*
- * DER MASTANSCHLUSS: über einen Punkt oder über die Jochhöhe.
+ * >>> DIE SKIZZE ZUM MASTANSCHLUSS IST WEG. <<<
  *
- * Läuft der Mast über die Anschlussebene hinaus und ist das Joch über seine
- * ganze Höhe angeschlossen, hält der Anschluss das Jochende zusätzlich gegen
- * Verdrehen - die Einspannung wird steifer (1.45 statt 1.00 · E·I/H). Der
- * Unterschied ist eine Lage, kein Beiwert: er steht im Bild.
+ * Weisung vom 9. September, als Frage: «braucht es diese abbildung noch wenn
+ * wir die beiden neuen auflagerabbildungen haben, könnte man auch diese
+ * nutzen.»
+ *
+ * Nein. Sie zeigte dasselbe Jochende wie die Auflagerbedingung darunter -
+ * Mast, zwei Gurte, Anschluss ueber die Jochhoehe oder in einem Punkt -, nur
+ * in einem zweiten Stil. Seit beide Felder in derselben Gruppe «Auflager»
+ * stehen, standen zwei Bilder desselben Details untereinander.
+ *
+ * Was sie trug, steht jetzt dort: die ANSCHLUSSART als Lage des Mastendes im
+ * Ansichtsbild («laeuft durch» / «endet hier»), die FAKTOREN (1.45 bzw.
+ * 1.00 · E·I/H) in den Namen der Auswahl selbst.
  */
-const mastAnschluss = (wert) => {
-  const durch = wert !== 'kragarm';
-  const xM = 120, zOG = 54, zUG = 116, zFuss = 176;
-  return skizze(
-    durch ? 'Mast durchlaufend, über die Jochhöhe angeschlossen'
-          : 'Kragmast, in einem Punkt angeschlossen',
-    '0 0 520 210', `
-    <line class="b" x1="${xM}" y1="${durch ? 20 : zOG}" x2="${xM}" y2="${zFuss}"
-      stroke-width="7"/>
-    <line class="hl" x1="${xM - 26}" y1="${zFuss}" x2="${xM + 26}" y2="${zFuss}"
-      stroke-width="2"/>
-    ${[0, 1, 2, 3].map((i) => `<line class="hl" x1="${xM - 20 + i * 14}" y1="${zFuss}"
-       x2="${xM - 28 + i * 14}" y2="${zFuss + 13}"/>`).join('')}
-    <line class="b" x1="${xM + 40}" y1="${zOG}" x2="470" y2="${zOG}"/>
-    <line class="b" x1="${xM + 40}" y1="${zUG}" x2="470" y2="${zUG}"/>
-    ${[0, 1, 2, 3, 4].map((i) => `<line class="hl" x1="${xM + 76 + i * 66}" y1="${zOG}"
-       x2="${xM + 76 + i * 66}" y2="${zUG}" stroke-width="1.4"/>`).join('')}
-    ${durch
-      ? `<line class="k" x1="${xM + 6}" y1="${zOG}" x2="${xM + 40}" y2="${zOG}" stroke-width="2.4"/>
-         <line class="k" x1="${xM + 6}" y1="${zUG}" x2="${xM + 40}" y2="${zUG}" stroke-width="2.4"/>
-         <circle class="kn" cx="${xM + 40}" cy="${zOG}" r="4.5"/>
-         <circle class="kn" cx="${xM + 40}" cy="${zUG}" r="4.5"/>
-         <text class="acc" x="${xM + 50}" y="${zOG - 10}">über die Jochhöhe angeschlossen</text>
-         <text class="dim" x="${xM}" y="14" text-anchor="middle">läuft durch</text>`
-      : `<line class="k" x1="${xM + 6}" y1="${(zOG + zUG) / 2}" x2="${xM + 40}"
-           y2="${(zOG + zUG) / 2}" stroke-width="2.4"/>
-         <circle class="kn" cx="${xM + 40}" cy="${(zOG + zUG) / 2}" r="5"/>
-         <text class="acc" x="${xM + 50}" y="${(zOG + zUG) / 2 - 10}">ein Anschlusspunkt</text>
-         <text class="dim" x="${xM}" y="${zOG - 12}" text-anchor="middle">endet hier</text>`}
-    <text class="dim" x="466" y="${zOG - 8}" text-anchor="end">Obergurt</text>
-    <text class="dim" x="466" y="${zUG + 16}" text-anchor="end">Untergurt</text>
-    <text class="acc" x="${xM + 50}" y="${zFuss - 12}">c_φ = ${
-      durch ? '1.45' : '1.00'} · E·I/H</text>
-  `);
-};
 
 /*
  * DIE STEGRICHTUNG: welche Achse quer zum Gleis steht.
@@ -293,7 +266,6 @@ export const BAUFORMEN_KEYS = Object.keys(BAUFORMEN);
 /** Welche Felder eine Skizze führen. */
 const SKIZZEN = {
   knotenbereich,
-  mastAnschluss,
   mastSteg,
 };
 

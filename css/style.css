@@ -2121,9 +2121,13 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
  * Zeichnungsblatt. Wird die Spalte zu schmal, bricht der Schnitt unter die
  * Ansicht - lieber untereinander als beide unlesbar klein.
  */
-.al-bilder { display: flex; flex-wrap: wrap; gap: 8px;
+.al-bilder { display: flex; flex-wrap: wrap; gap: 5px;
              background: var(--s2); border: 1px solid var(--ol);
-             border-radius: var(--m-r1); padding: 7px 8px 5px; }
+             border-radius: var(--m-r1); padding: 5px 6px 3px; }
+/* Die Schrift der Maskenskizze ist kleiner als die des Handbuchs - dort
+   steht sie ueber die Textbreite, hier in einer 300 px schmalen Spalte. */
+.al-skizze text { font-size: 9.5px; }
+.al-skizze text.dim { font-size: 9px; }
 .al-skizze { margin: 0; flex: 1 1 168px; min-width: 0; }
 /* DIE ANSCHRIFT SAGT, WAS MAN SIEHT (Weisung, 9. September: «kannst du noch
    die anschrift Ansicht und Schnitt etwas sichtbarer machen»). Sie stand in
@@ -2153,20 +2157,35 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
  * Zustand steht als WORT darin - nicht als Farbe allein.
  */
 /*
- * EINZEILIG (Weisung, 5. September: «die felder zur auswahl kleiner
- * gestalten (einzeiler text)»). Kuerzel und Zustand in EINER Zeile; was das
- * Bild schon zeigt, muss der Knopf nicht wiederholen.
+ * >>> DIE SCHALTER STEHEN ALS MATRIX. <<<
+ *
+ * Weisung, 9. September: «die buttons für die eingabe geordneter darstellen.
+ * eventuell als matrix darstellen.»
+ *
+ * Zwei Reihen zu dritt mit ganzer Beschriftung je Knopf («X Feder 5000»)
+ * gaben ungleich breite Knoepfe, die nicht fluchteten, und nannten die Achse
+ * sechsmal. In der Matrix steht sie EINMAL, als Spaltenkopf; in der Zelle
+ * steht nur noch der Zustand.
  */
-.al-reihe { display: grid; grid-template-columns: 74px 1fr;
-            align-items: center; gap: 6px; }
-.al-reihe.stumm { opacity: 0.45; }
-.al-reihe-kopf { font-size: 11px; color: var(--dim, #7a8699); }
-.al-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.al-matrix {
+  display: grid; grid-template-columns: 62px repeat(3, 1fr);
+  gap: 3px 4px; align-items: center;
+}
+.al-mkopf {
+  text-align: center; font-family: var(--f-mono); font-size: 10px;
+  color: var(--dim); letter-spacing: .08em;
+}
+.al-mzeile {
+  font-size: 10.5px; color: var(--dim); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.al-mzeile.stumm { opacity: 0.45; }
 .al-chip {
-  padding: 3px 4px; cursor: pointer; text-align: center; white-space: nowrap;
+  padding: 3px 2px; cursor: pointer; text-align: center; white-space: nowrap;
   background: var(--flaeche2, #0002); border: 1px solid var(--rand, #3334);
   border-radius: 4px; color: var(--dim, #7a8699);
   font: inherit; font-size: 10.5px; font-family: var(--f-mono);
+  overflow: hidden; text-overflow: ellipsis;
 }
 .al-chip:hover { border-color: var(--acc, #6ea8fe); }
 .al-chip:focus-visible { outline: 2px solid var(--acc, #6ea8fe);
