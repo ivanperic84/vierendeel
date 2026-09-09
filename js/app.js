@@ -29,6 +29,7 @@ import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
          tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
+         tragwerkTeil,
          MASTFELDER, setzeMastAngabe, rechensatz,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
@@ -878,9 +879,9 @@ function mastLaengeNachfuehren(w, feldH, feldL, neuH) {
   const altH = Number(w?.[feldH]) || 0;
   const altL = Number(w?.[feldL]) || 0;
   const gekoppelt = altL === 0
-    || Math.abs(altL - mastLaengeVorgabe(altH)) < 1e-6;
+    || Math.abs(altL - mastLaengeVorgabe(altH, w?.jd)) < 1e-6;
   if (!gekoppelt) return null;
-  return { [feldL]: mastLaengeVorgabe(neuH) };
+  return { [feldL]: mastLaengeVorgabe(neuH, w?.jd) };
 }
 
 function abfangMastAngabe(satz) {
@@ -4802,13 +4803,60 @@ function kontextTragwerk(id) {
       aendern('tragwerkNeu', { art: 'abfangjoch', xLage: lageVon(t) });
     } });
   }
+  /*
+   * >>> VERSCHIEBEN UND KOPIEREN STEHEN HIER, NICHT AM ZEIGER. <<<
+   *
+   * Weisung vom 5. September: «nimm die funktion des drag and drop in der
+   * sidebar unter tragwerke raus, diese funktion ist zu unpraezise. nimm
+   * dafuer beim 3d unter dem kontextmenue die moeglichkeit elemente zu
+   * kopieren verschieben und zu loeschen, dies fuer tragwerke und
+   * anbauteile.»
+   *
+   * VERSCHIEBEN ist eine ZAHL, kein Zug: die Lage x₀ steht als Feld da und
+   * laesst sich auf den Zentimeter setzen. Was der Zeiger auf einer Bahn von
+   * vierzig Metern nie konnte, kostet hier eine Eingabe.
+   *
+   * KOPIEREN nimmt den ganzen Satz mit - Typ, Laenge, Profile, Bleche,
+   * Anbauteile - und setzt ihn um eine Jochlaenge weiter. Das ist die Geste
+   * einer Jochreihe: dasselbe Joch noch einmal, nur woanders.
+   */
   p.push('-');
+  p.push({ feld: { art: 'zahl', label: 'Lage x₀', einheit: 'm', schritt: 0.05,
+                   wert: lageVon(t) },
+           tun: (v) => aendern('tragwerkLage', { id, x: v }) });
+  p.push({ text: `${tragwerkName(t)} kopieren`, tun: () => tragwerkKopieren(id) });
   p.push({ text: 'Auf dieses zoomen', tun: () => zoomAufTragwerk(id) });
   if (alle.length > 1) {
     p.push({ text: 'Vom Blatt nehmen', warn: true,
              tun: () => aendern('tragwerkWeg', id) });
   }
   return p;
+}
+
+/**
+ * >>> EIN TRAGWERK NOCH EINMAL, EINE JOCHLAENGE WEITER. <<<
+ *
+ * Weisung vom 5. September. Die Kopie traegt alles mit, was das Original
+ * traegt - `tragwerkHinzu` bekommt den ganzen Satz als Vorlage. Nur die
+ * LAGE ist eine andere: um seine eigene Laenge versetzt, damit die beiden
+ * nicht uebereinanderstehen und man die Kopie sieht.
+ *
+ * Sie wird ausserdem zum GERECHNETEN - wer kopiert, will an der Kopie
+ * weiterarbeiten, nicht am Original.
+ */
+function tragwerkKopieren(id) {
+  handlung('Tragwerk kopieren', () => {
+    const t = tragwerkeSortiert(werte).find((x) => x.id === id);
+    if (!t) return;
+    const satz = { ...tragwerkTeil(t) };
+    delete satz.id;
+    delete satz.pos;
+    const L = Number(t.L) || 0;
+    werte = tragwerkHinzu(werte, tragwerksart(t).key,
+                          { ...satz, xLage: lageVon(t) + (L || 2) });
+    mastNachfuehrenGlobal();
+    neuRechnen();
+  });
 }
 
 /**
@@ -4966,6 +5014,21 @@ function kontextAnbauteil(i) {
    */
   p.push({ text: a.aktiv === false ? 'Wieder mitrechnen' : 'Nicht mitrechnen',
            tun: () => setz((x) => ({ ...x, aktiv: x.aktiv === false })) });
+  /*
+   * KOPIEREN (Weisung, 5. September). Ein Bauteil steht selten allein - je
+   * Gleis dasselbe, nur eine Spannweite weiter. Die Kopie sitzt einen
+   * halben Meter daneben, damit sie nicht im Original verschwindet.
+   */
+  p.push({ text: 'Kopieren', tun: () => {
+    const liste = [...(werte.anbauteile ?? [])];
+    const kopie = { ...a, id: `AT-${Math.random().toString(36).slice(2, 8)}`,
+                    module: (a.module ?? []).map((m) => ({ ...m })),
+                    lasten: (a.lasten ?? []).map((l) => ({ ...l })) };
+    if ((a.ort ?? 'joch') === 'joch') kopie.x = (Number(a.x) || 0) + 0.5;
+    else kopie.hMast = (Number(a.hMast) || 0) + 0.5;
+    liste.splice(i + 1, 0, kopie);
+    setzeAnbauteile(liste);
+  } });
   p.push({ text: 'Entfernen', warn: true,
            tun: () => setzeAnbauteile(
              (werte.anbauteile ?? []).filter((_, j) => j !== i)) });

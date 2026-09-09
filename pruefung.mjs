@@ -4064,8 +4064,14 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
     // selbst, nicht aus den Bildgrenzen: die tragen den Masten inzwischen mit.
     const zOG = Math.max(...sz.flaechen.filter((f) => f.gruppe === 'profil')
       .flatMap((f) => f.punkte.map((p) => p[2])));
-    pruef('Der Kopf steht einen halben Meter ueber dem Obergurt',
-          Math.max(...zs), zOG + 0.5, 1e-9, 'm');
+    /*
+     * MINDESTENS einen halben Meter. Seit dem 5. September liegt die
+     * vorgegebene Laenge auf dem HALBMETERRASTER des Sortiments und ist
+     * damit meist etwas laenger als das Mindestmass - aufgerundet, nie ab.
+     */
+    wahr('Der Kopf steht mindestens einen halben Meter ueber dem Obergurt',
+         Math.max(...zs) >= zOG + 0.5 - 1e-9,
+         `${(Math.max(...zs) - zOG).toFixed(3)} m`);
     // Der Fuss und die Auflagermarke muessen dieselbe Stelle sein.
     const fussMarke = mAuf.find((k) => k.art === 'auflager'
                                     && Math.abs(k.p[0] - 0.35) < 1e-9);
@@ -7764,10 +7770,21 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * stand daneben eine andere Regel (mindestens 0.50 m ueber die Oberkante
      * des Obergurts), und beide wussten nichts voneinander.
      */
-    pruef('Ohne Angabe steht er 0.50 m ueber', ohne.ueberstand, 0.5, 1e-12, 'm');
-    pruef('Die Laenge folgt der Hoehe', ohne.laenge, 8.31 + 0.5, 1e-9, 'm');
-    pruef('Die Vorgabe rechnet dasselbe',
-          AU.mastLaengeVorgabe(8.31), 8.81, 1e-9, 'm');
+    /*
+     * H = 8.31 m, jd = 500 mm: die Oberkante des Obergurts liegt 0.25 m
+     * ueber der Jochachse, der Mindestueberstand 0.50 m darueber - also
+     * 9.06 m, aufgerundet auf das Halbmeterraster 9.50 m.
+     */
+    pruef('Die Vorgabe zaehlt ab Oberkante Obergurt',
+          AU.mastLaengeVorgabe(8.31, 500), 9.5, 1e-9, 'm');
+    pruef('Ohne jd bleibt es die Jochachse',
+          AU.mastLaengeVorgabe(8.31, 0), 9.0, 1e-9, 'm');
+    pruef('Sie liegt immer auf dem Halbmeterraster',
+          AU.mastLaengeVorgabe(9.0, 600) % AU.MAST_RASTER, 0, 1e-12, 'm');
+    wahr('Und nie unter dem Mindestueberstand',
+         AU.mastLaengeVorgabe(9.0, 600) >= 9.0 + 0.3 + 0.5 - 1e-9);
+    pruef('Ohne Angabe folgt die Laenge daraus', ohne.laenge,
+          AU.mastLaengeVorgabe(8.31, ein({}).jd), 1e-9, 'm');
     pruef('Mit 12.5 m Laenge ueber 8.31 m Hoehe', lang.ueberstand, 12.5 - 8.31,
           1e-9, 'm');
     pruef('Die Laenge steht am Modell', lang.laenge, 12.5, 1e-12, 'm');
@@ -7838,8 +7855,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
     // Ohne Angabe: der halbe Meter ueber dem Obergurt, mehr nicht.
     const zOG = Math.max(...kurz.sz.flaechen.filter((f) => f.gruppe === 'profil')
       .flatMap((f) => f.punkte.map((p) => p[2])));
-    pruef('Ohne Laengenangabe endet er knapp ueber dem Obergurt',
-          kopfVon(kurz.sz), zOG + 0.5, 1e-9, 'm');
+    wahr('Ohne Laengenangabe endet er ueber dem Obergurt',
+         kopfVon(kurz.sz) >= zOG + 0.5 - 1e-9,
+         `${(kopfVon(kurz.sz) - zOG).toFixed(3)} m`);
     // Mit Angabe: der Fuss bleibt, der Kopf steigt.
     pruef('Der Fuss bleibt, wo er war', fussVon(lang.sz), fussVon(kurz.sz), 1e-9, 'm');
     pruef('Der Koerper misst die ganze Laenge',
@@ -9066,10 +9084,20 @@ titel('49  Der Mastnachweis');
      * Bei H = 8.00 m ist der Mast seit dem 5. September 8.50 m lang, und
      * die Handrechnung lautet w·L²/2 statt w·H²/2.
      */
-    pruef('Kurz: w·8.5²/2', fuss(kurz).Mq, (0.5 * 8.5 * 8.5) / 2, 1e-6, 'kNm');
+    /*
+     * DER WIND FAENGT DEN GANZEN MASTEN. Bei H = 8.00 m und jd = 500 mm ist
+     * er seit dem 5. September 9.00 m lang (8.00 + 0.25 + 0.50, aufgerundet
+     * auf das Halbmeterraster), und die Handrechnung lautet w·L²/2.
+     */
+    pruef('Kurz: w·9²/2', fuss(kurz).Mq, (0.5 * 81) / 2, 1e-6, 'kNm');
     pruef('Lang: w·12.5²/2', fuss(lang).Mq, (0.5 * 156.25) / 2, 1e-6, 'kNm');
-    wahr('Der Ueberstand macht mehr als die Haelfte aus',
-         fuss(lang).Mq > 2 * fuss(kurz).Mq,
+    /*
+     * DER UEBERSTAND WIEGT SCHWER: 12.50 m gegen 9.00 m sind 39 gegen 20
+     * kNm - fast das Doppelte, obwohl der Mast nur um ein Drittel laenger
+     * ist. Das Moment waechst quadratisch.
+     */
+    wahr('Der Ueberstand waechst quadratisch',
+         fuss(lang).Mq > 1.8 * fuss(kurz).Mq,
          `${fuss(lang).Mq.toFixed(2)} gegen ${fuss(kurz).Mq.toFixed(2)} kNm`);
   }
 
@@ -11758,7 +11786,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   {
     const { s, m } = mast({ mastLaenge: 0 });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
-    pruef('Ohne Gesamtlaenge gilt H + 0.50', k.Lcr, 2 * 9.5, 1e-9, 'm');
+    pruef('Ohne Gesamtlaenge gilt die Vorgabe', k.Lcr, 2 * 10.0, 1e-9, 'm');
   }
 }
 

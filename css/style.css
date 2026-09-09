@@ -2102,6 +2102,21 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 .auflager-links { display: flex; flex-direction: column; gap: 7px; }
 .al-bild { width: 100%; height: auto; background: var(--flaeche2, #0002);
            border: 1px solid var(--rand, #3334); border-radius: 6px; }
+/*
+ * NAEHER AM MODELL (Weisung, 5. September: «die isometrie mehr an das modell
+ * 3d anlehnen, es ist zu abstrakt»). Dieselben Farben wie in der
+ * Modellansicht: Gurtwinkel stahlblau, Bindeblech orange, Mast grau.
+ */
+.al-gurt-flaeche  { fill: var(--stahl, #8fa8c8); opacity: 0.75; }
+.al-blech         { fill: var(--blech, #e0a33e); opacity: 0.85; }
+.al-mast-flaeche  { fill: var(--dim, #7a8699); opacity: 0.55; }
+/* Die gehaltenen Richtungen im Bild - dieselbe Sprache wie die Schalter. */
+.al-halt line, .al-halt polygon { stroke-width: 1.6; }
+.al-halt.al-starr line    { stroke: var(--ok, #57c785); }
+.al-halt.al-starr polygon { fill: var(--ok, #57c785); stroke: var(--ok, #57c785); }
+.al-halt.al-feder line    { stroke: var(--warn, #e0a33e); }
+.al-halt.al-feder polygon { fill: var(--warn, #e0a33e);
+                            stroke: var(--warn, #e0a33e); }
 .al-gurt   { stroke: var(--stahl, #8fa8c8); stroke-width: 3.5;
              stroke-linecap: round; }
 .al-link   { stroke: var(--dim, #7a8699); stroke-width: 1.6;
@@ -2120,15 +2135,21 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
  * DIE SCHALTFLAECHEN. Sechs je Gurtebene, gross genug zum Treffen, und der
  * Zustand steht als WORT darin - nicht als Farbe allein.
  */
-.al-reihe { display: flex; flex-direction: column; gap: 3px; }
+/*
+ * EINZEILIG (Weisung, 5. September: «die felder zur auswahl kleiner
+ * gestalten (einzeiler text)»). Kuerzel und Zustand in EINER Zeile; was das
+ * Bild schon zeigt, muss der Knopf nicht wiederholen.
+ */
+.al-reihe { display: grid; grid-template-columns: 74px 1fr;
+            align-items: center; gap: 6px; }
 .al-reihe.stumm { opacity: 0.45; }
 .al-reihe-kopf { font-size: 11px; color: var(--dim, #7a8699); }
 .al-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .al-chip {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 4px 2px; min-height: 34px; cursor: pointer;
+  padding: 3px 4px; cursor: pointer; text-align: center; white-space: nowrap;
   background: var(--flaeche2, #0002); border: 1px solid var(--rand, #3334);
-  border-radius: 5px; color: var(--dim, #7a8699); font: inherit;
+  border-radius: 4px; color: var(--dim, #7a8699);
+  font: inherit; font-size: 10.5px; font-family: var(--f-mono);
 }
 .al-chip:hover { border-color: var(--acc, #6ea8fe); }
 .al-chip:focus-visible { outline: 2px solid var(--acc, #6ea8fe);

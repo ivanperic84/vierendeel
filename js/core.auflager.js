@@ -181,28 +181,43 @@ export function biegesteifigkeitJoch(h, pOG, pUG) {
 export const MAST_UNVERSCHIEBLICH = 4.00;
 
 /**
- * >>> DIE MASTLAENGE HAENGT AN DER ANSCHLUSSHOEHE. <<<
+ * >>> DER UEBERSTAND ZAEHLT AB OBERKANTE OBERGURT. <<<
  *
- * Weisung vom 5. September: 0.50 m ueber der Anschlusshoehe. H misst vom
- * Fundament bis zur JOCHACHSE; der Kopf steht also einen halben Meter
- * darueber.
+ * Weisung vom 5. September, entschieden: «ab ok obergurt den ueberstand
+ * ansetzen, und die maten auf 0.50 m schritte anlegen.»
  *
- * >>> DAS IST WENIGER, ALS DAS HANDBUCH BISHER SAGT. <<<
+ * Das ist die aeltere der beiden Regeln - dieselbe, die die Modellansicht
+ * seit je haelt und das Handbuch beschreibt. Sie gilt jetzt ueberall, und
+ * die kurzlebige Fassung «0.50 m ueber der Jochachse» ist weg.
  *
- * Dort steht: «Ohne Laengenangabe setzt das Werkzeug den Mindestueberstand
- * von 0.50 m ueber die Oberkante des Obergurtprofils an, nicht ueber die
- * Jochachse.» Bei jd 500 mm sind das rund 0.75 m ueber der Jochachse - eine
- * Viertelstunde mehr Mast. Die neue Weisung nennt ausdruecklich die
- * ANSCHLUSSHOEHE; sie steht hier. Welche der beiden gilt, ist eine Frage an
- * den Auftraggeber - bis dahin haelt die Modellansicht ihren
- * Mindestueberstand als Untergrenze, damit die stehende Vorgabe («der Mast
- * steht immer ueber den Obergurt hinaus») nicht still faellt.
+ * H misst vom Fundament bis zur JOCHACHSE; die Oberkante des Obergurts
+ * liegt um die halbe Bauhoehe darueber. Also
+ *
+ *      L_M = H + jd/2 + 0.50 m,   aufgerundet auf den halben Meter
+ *
+ * >>> UND ZWAR AUFGERUNDET, NIE AB. <<<
+ *
+ * Das Sortiment fuehrt die Masten im Halbmeterraster (DP22 / 10.50 m), und
+ * ein Mast, den es nicht gibt, waere eine Zeichnung ohne Bauteil.
+ * Abgerundet wuerde der Mindestueberstand unterschritten - deshalb immer
+ * nach oben.
  */
 export const MAST_UEBERSTAND_VORGABE = 0.50;
 
-/** Die vorgegebene Gesamtlaenge zu einer Anschlusshoehe [m]. */
-export const mastLaengeVorgabe = (H) =>
-  Math.round(((Number(H) || 0) + MAST_UEBERSTAND_VORGABE) * 1000) / 1000;
+/** Das Raster der Mastlaengen im Sortiment [m]. */
+export const MAST_RASTER = 0.50;
+
+/**
+ * Die vorgegebene Gesamtlaenge [m].
+ *
+ * @param {number} H   Anschlusshoehe, Fundament bis Jochachse [m]
+ * @param {number} jd  Bauhoehe des Jochs, Aussenmass [mm]
+ */
+export function mastLaengeVorgabe(H, jd = 0) {
+  const roh = (Number(H) || 0) + (Number(jd) || 0) / 2000
+            + MAST_UEBERSTAND_VORGABE;
+  return Math.round(Math.ceil(roh / MAST_RASTER) * MAST_RASTER * 1000) / 1000;
+}
 
 export const MASTANSCHLUESSE = [
   { key: 'durchlaufend', faktor: 1.45,
@@ -265,7 +280,7 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    */
   const rohLaenge = zwei ? (inp.mastLaengeB || inp.mastLaenge || 0)
                          : (inp.mastLaenge || 0);
-  const laenge = rohLaenge > 0 ? rohLaenge : mastLaengeVorgabe(H);
+  const laenge = rohLaenge > 0 ? rohLaenge : mastLaengeVorgabe(H, inp?.jd);
   const ueberstand = Math.max(0, laenge - H);
   const I_cm4 = sr.achse === 'y' ? p.Iy : p.Iz;
   const W_cm3 = sr.achse === 'y' ? p.Wy : p.Wz;
@@ -756,6 +771,69 @@ export const LINK_EBENEN = {
   abfangjoch: [{ key: 'V', label: 'Gurt vorn', achse: 'y' },
                { key: 'H', label: 'Gurt hinten', achse: 'y' }],
 };
+
+/* ===========================================================================
+ * DIE EINSPANNUNG FOLGT AUS DEN WEGFEDERN
+ * ===========================================================================
+ *
+ * Weisung vom 5. September, als Frage gestellt: «die drehfeder ergibt sich
+ * aus den angaben zu den einfachen federn, man koennte diese auch weglassen,
+ * was denkst du? man koennte diese anzeige auch dazu nutzen, damit man sieht
+ * welche einspannung im modell wirkt bei der eingabe der obigen einfachen
+ * wegfeder.»
+ *
+ * >>> JA - UND ZWAR AUS ZWEI GRUENDEN. <<<
+ *
+ * ERSTENS ist die Drehfeder am Linkelement hier wirkungslos. Der Anschluss
+ * besteht aus ZWEI Punkten im Abstand der Jochhoehe; ihre beiden Wegfedern
+ * bilden ein Kraeftepaar, und das ist die Einspannung. Eine Drehfeder am
+ * einzelnen Punkt kaeme daneben und beschriebe eine Steifigkeit, die das
+ * Bauteil nicht hat - der Anschluss ist eine Schraubverbindung, kein
+ * eingespanntes Ende.
+ *
+ * ZWEITENS ist sie in jedem gemessenen Modell FREI. Die Ausschnitte aus
+ * AxisVM zeigen K_XX = K_YY = K_ZZ = 0 an beiden Ebenen, und der Aufbau des
+ * Werkzeugs setzt sie seit je so.
+ *
+ * >>> WAS AN IHRE STELLE TRITT. <<<
+ *
+ * Die WIRKSAME Drehsteifigkeit, gerechnet aus dem, was dasteht:
+ *
+ *      c_phi = k_OG · k_UG / (k_OG + k_UG) · h²      [kNm/rad]
+ *
+ * Zwei Federn in Reihe ueber den Hebelarm h. Ist eine von beiden starr,
+ * bleibt die andere; sind beide starr, ist der Anschluss eingespannt; ist
+ * eine frei, ist er ein Gelenk. Genau das soll man beim Eintippen sehen.
+ *
+ * >>> WELCHE RICHTUNG. <<<
+ *
+ * Die Ebenen liegen in z (Tragjoch) oder in y (Abfangjoch) auseinander, und
+ * die Feder, die das Paar bildet, ist die in der JOCHACHSE - dieselbe, die
+ * `linkGelenk` benennt. Der Hebelarm ist ihr Abstand.
+ *
+ * @param {object} inp    Eingabesatz
+ * @param {string} art    Tragwerksart
+ * @param {number} h      Abstand der beiden Ebenen [m]
+ * @returns {{cPhi:number|null, art:string, k:number[], h:number}}
+ *          cPhi null heisst: unendlich, also eingespannt
+ */
+export function linkEinspannung(inp, art, h) {
+  const g = linkGelenk(art);
+  const eb = linkEbenen(art);
+  const k = eb.map((e) => linkBedingung(inp, art, e.key)[g.gibtFrei]);
+  const hebel = Number(h) || 0;
+  if (k.some((v) => v === 'Free')) {
+    return { cPhi: 0, art: 'gelenk', k, h: hebel, um: g.sperrt };
+  }
+  if (k.every((v) => v === 'Rigid')) {
+    return { cPhi: null, art: 'eingespannt', k, h: hebel, um: g.sperrt };
+  }
+  // Mindestens eine Feder mit Zahl: Reihenschaltung ueber den Hebelarm.
+  const z = k.map((v) => (v === 'Rigid' ? Infinity : Number(v)));
+  const reihe = 1 / (1 / z[0] + 1 / z[1]);
+  return { cPhi: reihe * hebel * hebel, art: 'feder', k, h: hebel,
+           um: g.sperrt };
+}
 
 /**
  * Welche Drehung das Kraeftepaar der beiden Ebenen sperrt - und welcher

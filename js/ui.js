@@ -13,7 +13,8 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
          ABFANG_VERLAEUFE } from './core.abfangjoch.js';
 import { LINK_GRADE, linkEbenen, linkBedingung, linkVorgabe, linkGelenk,
-         linkAbweichend, mastImModell } from './core.auflager.js';
+         linkEinspannung, linkAbweichend,
+         mastImModell } from './core.auflager.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt,
@@ -931,53 +932,26 @@ export function verdrahteLeiste(container, werte, onChange) {
    * (stehende Vorgabe: massgebend sind die Daten). Am Ende rastet die
    * Eingabe ohnehin auf die naechste gefuehrte Laenge.
    */
+  /*
+   * >>> DAS ZIEHEN IST RAUS. <<<
+   *
+   * Weisung vom 5. September: «nimm die funktion des drag and drop in der
+   * sidebar unter tragwerke raus, diese funktion ist zu unpraezise.»
+   *
+   * Sie war es. Die Bahn ist ein paar hundert Pixel breit und traegt bis zu
+   * vierzig Meter Querprofil - ein Pixel sind zehn Zentimeter, und der
+   * Zeiger trifft schon den Nachbarn, bevor man losgelassen hat. Ein
+   * Mastabstand, den man auf zehn Zentimeter genau BRAUCHT, laesst sich so
+   * nicht setzen; man zieht, liest die Zahl, zieht nach, und tippt am Ende
+   * doch.
+   *
+   * Was bleibt: ANKLICKEN waehlt, RECHTSKLICK oeffnet das Kontextmenue.
+   * Dort steht die Stelle als ZAHL - und im Modell stehen jetzt Kopieren,
+   * Verschieben und Entfernen (siehe `kontextTragwerk` in app.js).
+   */
   container.querySelectorAll('[data-qp-mast]').forEach((b) => {
     const mastId = b.dataset.qpMast;
-    let zug = null;
-    b.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      const rollen = mastRollen(werte, mastId);
-      if (!rollen) return;
-      try { b.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
-      zug = { startX: e.clientX, x0: rollen.x, rollen, bewegt: false };
-    });
-    b.addEventListener('pointermove', (e) => {
-      if (!zug) return;
-      const dpx = e.clientX - zug.startX;
-      if (!zug.bewegt && Math.abs(dpx) < QP_SCHWELLE) return;
-      zug.bewegt = true;
-      const breite = spur?.getBoundingClientRect().width || 1;
-      const roh = zug.x0 + (dpx / breite) * (bis - von);
-      zug.x = mastGrenzen(zug.rollen, aufRaster(roh));
-      b.style.left = `${((zug.x - von) / (bis - von) * 100).toFixed(3)}%`;
-      b.classList.add('zieht');
-      const feld = b.querySelector('.qp-mast-x');
-      if (feld) feld.textContent = zug.x.toFixed(2);
-      let marke = leiste.querySelector('.qp-zug');
-      if (!marke) {
-        marke = document.createElement('span');
-        marke.className = 'qp-zug';
-        zugRaum.appendChild(marke);
-      }
-      marke.textContent = zug.rollen.alsB
-        ? `Jochlänge ${(zug.x - zug.rollen.alsB.x0).toFixed(2)} m`
-        : `x₀ = ${zug.x.toFixed(2)} m`;
-    });
-    const ende = (e) => {
-      if (!zug) return;
-      const fertig = zug;
-      zug = null;
-      try { b.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
-      if (!fertig.bewegt || fertig.x === undefined
-          || Math.abs(fertig.x - fertig.x0) < 1e-9) {
-        onChange('mastAktiv', mastId);
-        return;
-      }
-      onChange('mastStelle', { mastId, x: fertig.x });
-    };
-    b.addEventListener('pointerup', ende);
-    b.addEventListener('pointercancel', ende);
-    // Rechtsklick auf die Mastmarke - dieselben Eintraege wie im Modell.
+    b.addEventListener('click', () => onChange('mastAktiv', mastId));
     b.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       onChange('kontextMast', { id: mastId, bei: [e.clientX, e.clientY] });
@@ -1008,109 +982,19 @@ export function verdrahteLeiste(container, werte, onChange) {
       onChange('tragwerkMasten', b.dataset.qpMastsicht);
     });
   });
+  /*
+   * DERSELBE GRUND WIE OBEN: das Ziehen des Tragwerksbalkens ist raus
+   * (Weisung, 5. September). Anklicken waehlt, Rechtsklick oeffnet das
+   * Kontextmenue - und dort steht die Lage als Zahl.
+   */
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
-    const id = b.dataset.qpTw;
-    let zug = null;
-    b.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      const t = tragwerkeSortiert(werte).find((x) => x.id === id);
-      if (!t) return;
-      /*
-       * NUR AN DER LINIE WIRD GEZOGEN.
-       *
-       * Der Name daneben ist ein eigener Knopf: er waehlt das Tragwerk und
-       * verschiebt es nicht. Wer auf einen Namen zeigt, meint «dieses» -
-       * nicht «dieses, zwei Meter weiter rechts».
-       */
-      if (!b.classList.contains('qp-linie')) return;
-      if (versteckt(t)) return;            // ausgeblendet: nur einblenden
-      try { b.setPointerCapture(e.pointerId); } catch { /* kein Fang */ }
-      zug = { startX: e.clientX, x0: lageVon(t), bewegt: false };
-    });
-    b.addEventListener('pointermove', (e) => {
-      if (!zug) return;
-      const dpx = e.clientX - zug.startX;
-      if (!zug.bewegt && Math.abs(dpx) < QP_SCHWELLE) return;
-      zug.bewegt = true;
-      const breite = spur?.getBoundingClientRect().width || 1;
-      // AUF FUENF ZENTIMETER GERASTET - dieselbe Schrittweite wie die
-      // Schieber. Ein Pixel sind auf 240 Punkten und vierzig Metern rund
-      // siebzehn Zentimeter; ohne Raster staende dort 20.1734.
-      const roh = zug.x0 + (dpx / breite) * (bis - von);
-      zug.x = aufRaster(roh);
-      /*
-       * >>> NUR DEN BALKEN SCHIEBEN, DIE LEISTE NICHT NEU BAUEN. <<<
-       *
-       * Der erste Versuch schrieb `leiste.outerHTML` neu. Damit verschwindet
-       * genau das Element, das den Zeiger gefangen haelt - der Fang faellt
-       * weg, die weiteren `pointermove` gehen woandershin, und der Zug bricht
-       * nach dem ersten Pixel ab. Man haette es fuer ein hakendes Ziehen
-       * gehalten und nicht fuer einen Fehler.
-       *
-       * Verschoben wird deshalb nur die Lage dieses einen Knopfes. Das ist
-       * ohnehin das Richtige: waehrend des Zugs aendert sich nichts als er.
-       */
-      b.style.left = `${((zug.x - von) / (bis - von) * 100).toFixed(3)}%`;
-      b.classList.add('zieht');
-      let marke = leiste.querySelector('.qp-zug');
-      if (!marke) {
-        marke = document.createElement('span');
-        marke.className = 'qp-zug';
-        zugRaum.appendChild(marke);
-      }
-      marke.textContent = `x₀ = ${zug.x.toFixed(2)} m`;
-    });
-    const ende = (e) => {
-      if (!zug) return;
-      const fertig = zug;
-      zug = null;
-      try { b.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
-      if (!fertig.bewegt) { onChange('tragwerkAktiv', id); return; }
-      if (fertig.x !== undefined && fertig.x !== fertig.x0) {
-        onChange('tragwerkLage', { id, x: fertig.x });
-      } else {
-        onChange('tragwerkAktiv', id);      // gezogen und wieder abgelegt
-      }
-    };
-    b.addEventListener('pointerup', ende);
-    b.addEventListener('pointercancel', ende);
-    // Der Name hat keinen Zug - er meldet den Klick unmittelbar.
-    if (!b.classList.contains('qp-linie')) {
-      b.addEventListener('click', () => onChange('tragwerkAktiv', id));
-    }
-    /*
-     * RECHTSKLICK AUF DEN BALKEN - dieselben Eintraege wie im Modell.
-     *
-     * Weisung vom 2. September: «ausblenden mit rechtsklick ermöglichen im
-     * 3d sowie in der sidebar». Dieselbe Geste am selben Gegenstand bietet
-     * dasselbe an, gleichgueltig ob man ihn im Bild oder in der Leiste
-     * anfasst - alles andere waere zweierlei Bedienung fuer eine Sache.
-     */
+    b.addEventListener('click', () => onChange('tragwerkAktiv', b.dataset.qpTw));
     b.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      onChange('kontextTragwerk', { id, bei: [e.clientX, e.clientY] });
+      onChange('kontextTragwerk', { id: b.dataset.qpTw,
+                                    bei: [e.clientX, e.clientY] });
     });
   });
-
-  /*
-   * DAS AUFKLAPPMENUE DER BAUFORMEN.
-   *
-   * Es klappt beim Waehlen nicht selbst zu - die Maske wird ohnehin neu
-   * gebaut, sobald ein Tragwerk dazukommt. Es klappt zu, wenn man daneben
-   * klickt; alles andere waere ein Menue, das offen stehen bleibt.
-   */
-  const auf = container.querySelector('[data-qp-neu-auf]');
-  const liste = container.querySelector('.qp-neu-liste');
-  if (auf && liste) {
-    auf.addEventListener('click', (e) => {
-      e.stopPropagation();
-      liste.hidden = !liste.hidden;
-    });
-    document.addEventListener('click', function zu(e) {
-      if (!liste.isConnected) { document.removeEventListener('click', zu); return; }
-      if (!liste.contains(e.target) && e.target !== auf) liste.hidden = true;
-    });
-  }
 }
 
 /**
@@ -2785,103 +2669,141 @@ function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   const ebenen = linkEbenen(art);
   const gelenk = linkGelenk(art);
   const anschluss = werte.mastAnschluss ?? 'durchlaufend';
-  /*
-   * >>> DAS BILD ZEIGT AUCH DEN ANSCHLUSS ANS JOCH. <<<
-   *
-   * Weisung vom 5. September: «Die auflagerbedingung sollte noch mit der
-   * unteren abbildung (anschluss ans joch) verbunden werden.» «Kragmast,
-   * Anschluss in einem Punkt» heisst: EIN Anschluss statt zweier — und genau
-   * das gehört in dieses Bild, nicht in ein zweites daneben.
-   */
   const einPunkt = anschluss === 'kragarm' && !mastImModell(werte);
   const klasse = (v) => (v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder');
 
+  /*
+   * >>> NUR DIE DREI WEGFEDERN. <<<
+   *
+   * Weisung vom 5. September: «die drehfeder ergibt sich aus den angaben zu
+   * den einfachen federn, man könnte diese auch weglassen.» Sie ist am
+   * Linkelement wirkungslos — der Anschluss besteht aus ZWEI Punkten im
+   * Abstand der Jochhöhe, und ihr Kräftepaar IST die Einspannung. Was sie
+   * ergibt, steht darunter als Zahl (`linkEinspannung`).
+   *
+   * Die drei Drehungen bleiben im aufgeklappten Teil einstellbar — wer sie
+   * braucht, findet sie; wer nicht, sieht sie nicht.
+   */
+  const wege = LINK_GRADE.filter((g) => g.art === 'kraft');
+
   // --- Das Bild ------------------------------------------------------------
   /*
-   * >>> KEINE BESCHRIFTUNG IM BILD. <<<
+   * >>> NAEHER AM MODELL. <<<
    *
-   * Sie stand am Ende jedes Gurtbalkens, linksbuendig nach aussen - und
-   * «Obergurte» ragte dort aus dem Rahmen. Sie stand ausserdem ZWEIMAL da:
-   * einmal im Bild, einmal als Kopf der Schaltflaechenreihe darunter. Das
-   * Bild zeigt jetzt nur die Geometrie; die Namen stehen dort, wo man
-   * schaltet.
+   * Weisung: «die isometrie mehr an das modell 3d anlehnen, es ist zu
+   * abstrakt.» Zwei Striche und ein Balken zeigten die Lage, aber nicht das
+   * Bauteil. Jetzt stehen dort BAENDER in der Farbe der Gurtwinkel, ein
+   * Bindeblech dazwischen und ein Mast mit Breite — dieselben Farben wie in
+   * der Modellansicht, damit man das eine im anderen wiedererkennt.
    */
-  const O = [110, 52];                       // Anschluss der ersten Ebene
-  /*
-   * Wohin die zweite Ebene liegt: beim Tragjoch TIEFER (z), beim Abfangjoch
-   * DAHINTER (y). Genau das unterscheidet die beiden Bauarten - und daran
-   * haengt, welche Drehung ihr Kraeftepaar sperrt.
-   */
+  const O = [104, 56];
   const inY = gelenk.paarAchse === 'y';
   const orte = [O, inY ? isoP(O, 0, 1.7, 0) : isoP(O, 0, 0, -1.7)];
-  // Der Mast steht beim Tragjoch NEBEN dem Joch, beim Abfangjoch ZWISCHEN
-  // den beiden Gurten - dort straddelt das Joch ihn.
   const mAy = inY ? 0.85 : 0.5;
 
+  /** Ein Gurtband: ein schmales Parallelogramm laengs der Jochachse. */
+  const band = (p, breite = 7) => {
+    const e = isoP(p, 2.5);
+    const d = [breite * 0.0, breite];           // Dicke nach unten im Bild
+    return `<polygon class="al-gurt-flaeche" points="${p[0]},${p[1]}
+      ${e[0]},${e[1]} ${e[0] + d[0]},${e[1] + d[1]} ${p[0] + d[0]},${p[1] + d[1]}"/>`;
+  };
+
   const balken = orte.map((p, i) => {
-    const e = isoP(p, 2.4);                  // der Gurt laeuft in die Jochachse
     const traegt = !einPunkt || i === orte.length - 1;
-    return `<line class="al-gurt" x1="${p[0]}" y1="${p[1]}"
-                  x2="${e[0]}" y2="${e[1]}"/>
-      ${traegt ? `<circle class="al-punkt" cx="${p[0]}" cy="${p[1]}" r="3.4"/>`
-               : ''}`;
+    return band(p) + (traegt
+      ? `<circle class="al-punkt" cx="${p[0]}" cy="${p[1] + 3.5}" r="3.6"/>` : '');
   }).join('');
 
-  const mKopf = isoP(O, -0.5, mAy, 1.0);
-  const mFuss = isoP(O, -0.5, mAy, -2.6);
+  // Das Bindeblech zwischen den beiden Ebenen - wie im Modell, in seiner Farbe.
+  const blech = einPunkt ? '' : `<polygon class="al-blech" points="${
+    isoP(O, 1.6)[0]},${isoP(O, 1.6)[1] + 3} ${
+    isoP(O, 1.9)[0]},${isoP(O, 1.9)[1] + 3} ${
+    isoP(orte[1], 1.9)[0]},${isoP(orte[1], 1.9)[1] + 3} ${
+    isoP(orte[1], 1.6)[0]},${isoP(orte[1], 1.6)[1] + 3}"/>`;
+
+  // Der Mast: ein Band mit Breite, nicht ein Strich.
+  const mK = isoP(O, -0.5, mAy, 1.2), mF = isoP(O, -0.5, mAy, -2.4);
+  const mast = `<polygon class="al-mast-flaeche" points="${mK[0] - 5},${mK[1]}
+    ${mK[0] + 5},${mK[1]} ${mF[0] + 5},${mF[1]} ${mF[0] - 5},${mF[1]}"/>`;
+
   const arme = orte.map((p, i) => {
     if (einPunkt && i !== orte.length - 1) return '';
     const q = isoP(O, -0.5, mAy, inY ? 0 : (i === 0 ? 0 : -1.7));
-    return `<line class="al-link" x1="${p[0]}" y1="${p[1]}"
-                  x2="${q[0]}" y2="${q[1]}"/>`;
+    return `<line class="al-link" x1="${p[0]}" y1="${p[1] + 3.5}"
+                  x2="${q[0]}" y2="${q[1] + 3.5}"/>`;
   }).join('');
 
-  // Die Pfeile zeigen die ACHSEN, nicht den Zustand - der steht darunter.
+  /*
+   * >>> DIE AKTIVEN FREIHEITSGRADE STEHEN IM BILD. <<<
+   *
+   * Weisung: «die felder zur auswahl kleiner gestalten (einzeiler text) und
+   * dafür die aktiven freiheitsgrade in der abbildung darstellen.»
+   *
+   * Je Ebene ein Pfeil in JEDE Richtung, die gehalten ist — nach der Isometrie
+   * ausgerichtet, in der Farbe des Zustands. Was frei ist, steht nicht da;
+   * das Bild zeigt die Lagerung, nicht die Liste.
+   */
+  const halt = orte.map((p, i) => {
+    if (einPunkt && i !== orte.length - 1) return '';
+    const b = lies(ebenen[i].key);
+    const c = [p[0], p[1] + 3.5];
+    return wege.map((g) => {
+      const v = b[g.key];
+      if (v === 'Free') return '';
+      const [dx, dy] = ISO[g.key];
+      const l = 0.62;
+      const x2 = c[0] + dx * l, y2 = c[1] + dy * l;
+      const n = Math.hypot(dx, dy) || 1;
+      const ux = (dx / n), uy = (dy / n);
+      const kopf = `${x2},${y2} ${x2 - ux * 6 - uy * 2.8},${y2 - uy * 6 + ux * 2.8} `
+                 + `${x2 - ux * 6 + uy * 2.8},${y2 - uy * 6 - ux * 2.8}`;
+      return `<g class="al-halt al-${klasse(v)}">
+        <line x1="${c[0]}" y1="${c[1]}" x2="${x2}" y2="${y2}"/>
+        <polygon points="${kopf}"/></g>`;
+    }).join('');
+  }).join('');
+
   const achsPfeil = (key, laenge) => {
     const v = ISO[key];
     const nx = v[0] * laenge, ny = v[1] * laenge;
     const l = Math.hypot(nx, ny) || 1;
     const ux = nx / l, uy = ny / l;
-    const kopf = `${nx},${ny} ${nx - ux * 7 - uy * 3.2},${ny - uy * 7 + ux * 3.2} `
-               + `${nx - ux * 7 + uy * 3.2},${ny - uy * 7 - ux * 3.2}`;
-    return `<g class="al-achse">
-      <line x1="0" y1="0" x2="${nx}" y2="${ny}"/>
+    const kopf = `${nx},${ny} ${nx - ux * 6 - uy * 2.8},${ny - uy * 6 + ux * 2.8} `
+               + `${nx - ux * 6 + uy * 2.8},${ny - uy * 6 - ux * 2.8}`;
+    return `<g class="al-achse"><line x1="0" y1="0" x2="${nx}" y2="${ny}"/>
       <polygon points="${kopf}"/>
-      <text x="${nx + ux * 9}" y="${ny + uy * 9 + 3}"
+      <text x="${nx + ux * 8}" y="${ny + uy * 8 + 3}"
             text-anchor="middle">${esc(key)}</text></g>`;
   };
 
-  const bild = `<svg class="al-bild" viewBox="0 0 208 148" role="img"
+  const bild = `<svg class="al-bild" viewBox="0 0 208 138" role="img"
        aria-label="Auflagerbedingung am Masten, isometrisch">
-    <line class="al-mast" x1="${mKopf[0]}" y1="${mKopf[1]}"
-          x2="${mFuss[0]}" y2="${mFuss[1]}"/>
-    <text class="al-notiz" x="${mFuss[0]}" y="${mFuss[1] + 12}"
+    ${mast}${arme}${blech}${balken}${halt}
+    <text class="al-notiz" x="${mF[0]}" y="${mF[1] + 12}"
           text-anchor="middle">Mast</text>
-    ${arme}${balken}
-    <text class="al-notiz" x="${isoP(O, 2.4)[0]}" y="${isoP(O, 2.4)[1] + 14}"
+    <text class="al-notiz" x="${isoP(O, 2.5)[0]}" y="${isoP(O, 2.5)[1] + 16}"
           text-anchor="middle">Feld</text>
-    <g class="al-achsen" transform="translate(46,30)">
-      ${achsPfeil('x', 0.85)}${achsPfeil('y', 0.85)}${achsPfeil('z', 0.7)}
+    <g class="al-achsen" transform="translate(40,26)">
+      ${achsPfeil('x', 0.7)}${achsPfeil('y', 0.7)}${achsPfeil('z', 0.58)}
     </g>
   </svg>`;
 
-  // --- Die Schaltflaechen --------------------------------------------------
+  // --- Die Schalter, einzeilig --------------------------------------------
   const reihen = ebenen.map((ebene, i) => {
     const b = lies(ebene.key);
     const stumm = einPunkt && i !== ebenen.length - 1;
     return `<div class="al-reihe${stumm ? ' stumm' : ''}">
-      <div class="al-reihe-kopf">${esc(ebene.label)}${
-        stumm ? ' <small>— kein Anschluss (Kragmast)</small>' : ''}</div>
-      <div class="al-chips">${LINK_GRADE.map((g) => {
+      <span class="al-reihe-kopf">${esc(ebene.label)}${
+        stumm ? ' — kein Anschluss' : ''}</span>
+      <span class="al-chips">${wege.map((g) => {
         const v = b[g.key];
         return `<button type="button" class="al-chip al-grad al-${klasse(v)}"
             data-ebene="${esc(ebene.key)}" data-grad="${esc(g.key)}"
             aria-pressed="${v === 'Rigid'}"${stumm ? ' disabled' : ''}
-            title="${esc(`${ebene.label} · ${g.sym} — ${g.label}. ${g.hinweis}`)}">
-          <span class="al-chip-sym">${esc(g.sym.replace('K_', ''))}</span>
-          <span class="al-chip-zustand">${esc(linkZustand(v))}</span>
-        </button>`;
-      }).join('')}</div>
+            title="${esc(`${ebene.label} · ${g.sym} — ${g.label}. ${g.hinweis}`)}"
+          >${esc(g.sym.replace('K_', ''))} ${esc(linkZustand(v))}</button>`;
+      }).join('')}</span>
     </div>`;
   }).join('');
 
@@ -2901,25 +2823,30 @@ function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   }).join('');
 
   /*
-   * DER HINWEIS NENNT DAS GELENK BEIM NAMEN. Halten beide Ebenen in x, ist
-   * die Drehung um die Paarachse gesperrt - gleichgueltig, was K_YY oder
-   * K_ZZ sagen. Das ist die Falle, und sie gehoert dorthin, wo man sie
-   * stellen kann.
+   * >>> WAS DIE FEDERN ERGEBEN, STEHT DA. <<<
+   *
+   * Weisung: «man könnte diese anzeige auch dazu nutzen, damit man sieht
+   * welche einspannung im modell wirkt bei der eingabe der obigen einfachen
+   * wegfeder.» Genau das: die beiden Wegfedern in Reihe über den Hebelarm.
    */
-  const beideFest = ebenen.every((e) => lies(e.key).x === 'Rigid');
-  const gelenkText = gelenk.paarAchse === 'z'
-    ? 'Halten beide Gurtebenen längs (X), ist die Biegung um <b>y</b> '
-      + 'eingespannt — auch bei K_YY = frei.'
-    : 'Halten beide Gurte längs (X), ist die Biegung um <b>z</b> eingespannt '
-      + '— auch bei K_ZZ = frei. Das Moment läuft dann als Torsion in den '
-      + 'Masten.';
+  const h = Number(werte.h) || (Number(werte.jd) || 0) / 1000;
+  const e = linkEinspannung(werte, art, h);
+  const umText = e.um === 'yy' ? 'y (Vertikalbiegung)' : 'z (waagrechte Biegung)';
+  const eText = e.art === 'gelenk'
+    ? `<b>Gelenk um ${umText}</b> — eine Ebene lässt längs los, das Kräftepaar `
+      + 'kann sich nicht bilden.'
+    : e.art === 'eingespannt'
+      ? `<b>Eingespannt um ${umText}</b> — beide Ebenen halten längs. Das `
+        + 'Moment läuft voll in den Masten.'
+      : `<b>c_φ ≈ ${e.cPhi.toFixed(0)} kNm/rad</b> um ${umText} — aus den `
+        + `beiden Wegfedern über den Hebelarm ${e.h.toFixed(3)} m.`;
 
   return `<div class="auflager-links" data-al-feld="${esc(feld)}"
        data-al-art="${esc(art)}">
     ${bild}
     ${reihen}
-    <p class="hinweis${beideFest ? ' warnt' : ''}">${gelenkText}</p>
-    ${klapp(`auflager-federn-${feld}`, 'Federwerte je Gurtebene', federn,
+    <p class="hinweis${e.art === 'eingespannt' ? ' warnt' : ''}">${eText}</p>
+    ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern', federn,
             vorgabefeld ? 'Voreinstellung'
               : (linkAbweichend(werte, art) ? 'von der Vorgabe abweichend'
                                             : 'Vorgabe'),

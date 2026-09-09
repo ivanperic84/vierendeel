@@ -559,16 +559,21 @@ damit unabhängig von der Blechteilung.</p>
 <p><b>Der Mast steht immer über den Obergurt hinaus.</b> Das ist Vorgabe des
 Auftraggebers und auf jedem Querprofil so gezeichnet.</p>
 
-<p><b>Die Länge hängt an der Anschlusshöhe.</b> Weisung vom 5. September: die
-Mastlänge ist voreingestellt <b>0.50 m länger als die Anschlusshöhe</b>, also
-L_M = H + 0.50 m. Wer die Länge zieht, löst die Kopplung für dieses Tragwerk;
-wer sie wieder auf H + 0.50 stellt, schliesst sie.</p>
+<p><b>Die Länge hängt an der Anschlusshöhe.</b> Weisung vom 5. September:
+der Überstand zählt <b>ab Oberkante Obergurt</b>, und die Masten liegen im
+<b>Halbmeterraster</b> des Sortiments. Voreingestellt ist deshalb
 
-<p>Zwei Bezüge stehen damit nebeneinander: die <b>Voreinstellung</b> misst
-0.50 m über der <b>Jochachse</b>, die ältere Regel für das Bild 0.50 m über
-der <b>Oberkante des Obergurtprofils</b> — bei jd 500 mm rund 0.75 m über der
-Achse. Die Modellansicht hält die zweite als Untergrenze, damit die stehende
-Vorgabe nicht still fällt. Welche der beiden gilt, ist noch zu entscheiden.</p>
+<br><br><code>L_M = H + jd/2 + 0.50 m</code>, aufgerundet auf den halben
+Meter<br><br>
+
+bei H = 7.50 m und jd = 500 mm also 8.50 m. Aufgerundet, nie ab: ein Mast,
+den es nicht gibt, wäre eine Zeichnung ohne Bauteil, und abgerundet fiele der
+Mindestüberstand unter das Mass.</p>
+
+<p>Wer die Länge zieht, löst die Kopplung für dieses Tragwerk; wer sie wieder
+auf den Vorgabewert stellt, schliesst sie. Der Schieber rastet auf den halben
+Meter, das Zahlenfeld daneben bleibt fein — eine Länge vom Blatt lässt sich
+eintippen, auch wenn sie zwischen zwei Rasterschritten liegt.</p>
 
 <p>Gefragt wird nach der <b>Länge</b>, nicht nach dem Überstand, weil das
 Querprofil beides führt: die Gesamtlänge und die Anschlusshöhe. Der Überstand

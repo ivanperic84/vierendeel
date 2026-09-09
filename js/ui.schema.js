@@ -607,18 +607,25 @@ export const FELDER = [
    */
   { key: 'mastLaenge', gruppe: 'mast', typ: 'schieber',
     label: 'Mastlänge gesamt (Fuss bis Kopf)',
+    /*
+     * DAS SORTIMENT FUEHRT DEN HALBEN METER (Weisung, 5. September). Der
+     * SCHIEBER rastet darauf - `zugSchritt` -, das Zahlenfeld daneben bleibt
+     * fein: wer eine Laenge vom Blatt abliest, soll sie eintippen koennen,
+     * auch wenn sie zwischen zwei Rasterschritten liegt. Die VORGABE liegt
+     * auf dem Raster, und darum ging es.
+     */
     sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
     min: 0, max: 25,
     wertAus: (w) => {
       const v = amMast('laenge', 'mastLaenge')(w);
-      return v > 0 ? v : mastLaengeVorgabe(anschlusshoeheVon(w));
+      return v > 0 ? v : mastLaengeVorgabe(anschlusshoeheVon(w), w.jd);
     },
     sichtbar: (w) => mastDa(w),
-    hinweis: (w) => `Gesamtlänge wie angeschrieben. Vorgabe ist die `
-           + `Anschlusshöhe plus 0.50 m — hier ${
-             mastLaengeVorgabe(anschlusshoeheVon(w)).toFixed(2)} m. Der Mast `
-           + 'steht immer über den Obergurt hinaus; die Modellansicht hält '
-           + 'das als Untergrenze. Handbuch.' },
+    hinweis: (w) => `Gesamtlänge wie angeschrieben. Vorgabe ist 0.50 m über `
+           + `Oberkante Obergurt, aufgerundet auf den halben Meter — hier ${
+             mastLaengeVorgabe(anschlusshoeheVon(w), w.jd).toFixed(2)} m bei `
+           + `H = ${anschlusshoeheVon(w).toFixed(2)} m und jd = ${
+             Math.round(Number(w.jd) || 0)} mm. Handbuch.` },
   { key: 'mastSteg', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
     wertAus: amMast('steg', 'mastSteg'),
