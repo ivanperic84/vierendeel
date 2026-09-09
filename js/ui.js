@@ -1355,7 +1355,7 @@ export function feldHtml(f, wert, werte) {
         return `<button type="button" class="bauform${an ? ' an' : ''}"
                   data-bauform="${esc(o.wert)}" data-feld-bauform="${f.key}"
                   role="radio" aria-checked="${an}"${dis}>
-                  <figure class="hb-skizze">${bauformSkizze(o.wert)}</figure>
+                  <figure class="skizze hb-skizze">${bauformSkizze(o.wert)}</figure>
                   <span class="bauform-text">
                     <span class="bauform-name">${esc(o.text)}</span>
                     ${o.kurz ? `<span class="bauform-kurz">${esc(o.kurz)}</span>` : ''}

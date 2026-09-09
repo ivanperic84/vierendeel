@@ -28,7 +28,7 @@
 
 /** Rahmen einer Optionsskizze. Kein Titel: die Beschriftung steht am Feld. */
 const skizze = (beschriftung, viewBox, inhalt) =>
-  `<figure class="hb-skizze opt-skizze">
+  `<figure class="skizze hb-skizze opt-skizze">
      <svg viewBox="${viewBox}" role="img" aria-label="${beschriftung}">${inhalt}</svg>
    </figure>`;
 

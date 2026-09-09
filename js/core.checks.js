@@ -14,7 +14,8 @@ import { U, tragwerksart } from './core.constants.js';
 import { querschnitt } from './geometry.js';
 import { klassifizierung } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
-import { MAST_UNVERSCHIEBLICH, mastFreiraum } from './core.auflager.js';
+import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
+         mastImModell } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
 import { amMast } from './data.anbauteile.js';
@@ -506,6 +507,32 @@ export function hinweise(m) {
       + 'alle folgenden Zahlen gelten dem Joch und nicht dem gewählten '
       + 'Tragwerk.');
   }
+  /*
+   * >>> EINE LABILE LAGERUNG STEHT AUCH HIER. <<<
+   *
+   * Weisung vom 9. September: «zudem noch warnung wenn system labil
+   * gelagert». Sie steht im Bild der Auflagerbedingung, wo man sie
+   * einstellt - aber das Feld ist zugeklappt, sobald man weiterarbeitet.
+   * Ein Modell, das gar nicht steht, darf man nicht nur dort erfahren, wo
+   * man ohnehin schon hinschaut.
+   *
+   * NUR WENN DER MAST IM MODELL IST: ohne Mast gibt es keine Linkelemente,
+   * und die Lagerung ist dann die Drehfeder des Ersatzbalkens - ein anderes
+   * System, das diese Pruefung nicht beschreibt.
+   */
+  if (mastImModell(m)) {
+    const lab = linkLabilitaet(m, art.key);
+    if (lab.labil) {
+      h.push('Auflagerbedingung am Masten: das Tragwerk ist LABIL gelagert — '
+        + 'es kann sich als Ganzes bewegen, ohne dass eine Feder sich dehnt ('
+        + lab.moden.map((x) => `${x.art === 'drehung' ? 'Drehung' : 'Verschiebung'} `
+                             + `${x.text}`).join('; ')
+        + '). Die AxisVM-Ausleitung erzeugt damit ein Modell, das nicht '
+        + 'rechenbar ist; der Ersatzbalken der Anwendung merkt davon nichts '
+        + 'und rechnet weiter mit seiner Drehfeder.');
+    }
+  }
+
   /*
    * NUR DAS AKTIVE TRAGWERK IST GERECHNET.
    *

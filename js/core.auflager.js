@@ -974,6 +974,169 @@ export function linkAbweichend(inp, art) {
   });
 }
 
+/* ===========================================================================
+ * IST DAS SYSTEM UEBERHAUPT GEHALTEN?
+ * ===========================================================================
+ *
+ * Weisung vom 9. September: «zudem noch warnung wenn system labil gelagert».
+ *
+ * >>> WARUM DAS NOETIG IST. <<<
+ *
+ * Jeder einzelne Freiheitsgrad hier ist eine sinnvolle Eingabe - der
+ * Obergurt laesst laengs los, der vordere Gurt gibt die Torsion frei -, und
+ * jeder fuer sich sieht harmlos aus. LABIL wird das System erst aus der
+ * SUMME: gibt keine Ebene mehr in y, steht das Joch in Gleisrichtung auf
+ * nichts. Das sieht man den sechs Schaltern nicht an, und ein
+ * Stabwerksprogramm meldet es erst beim Rechnen - mit einer Fehlermeldung
+ * ueber eine singulaere Matrix, aus der niemand liest, WELCHE Bewegung frei
+ * geblieben ist.
+ *
+ * >>> WIE GERECHNET WIRD. <<<
+ *
+ * Das Joch ist ein STARRKOERPER mit sechs Freiheitsgraden; der Mast ist der
+ * Boden. Jede gehaltene Richtung an jedem Anschlusspunkt ist eine
+ * Bedingungsgleichung an diese sechs:
+ *
+ *      u_P = u + phi × r        (Verschiebung eines Punktes im Abstand r)
+ *
+ *      Halt in x   [ 1  0  0    0   r_z  -r_y ]
+ *      Halt in y   [ 0  1  0  -r_z   0    r_x ]
+ *      Halt in z   [ 0  0  1   r_y  -r_x   0  ]
+ *      Halt um x   [ 0  0  0    1    0     0  ]   (und entsprechend y, z)
+ *
+ * Der RANG dieser Matrix sagt, wie viele der sechs Bewegungen gesperrt sind.
+ * Rang 6 heisst gehalten; jede fehlende Einheit ist eine Bewegung, die das
+ * Joch als Ganzes ausfuehren kann, ohne dass eine Feder sich dehnt. Der
+ * NULLRAUM sagt WELCHE - und genau das ist der Satz, den die Warnung
+ * braucht.
+ *
+ * >>> WARUM OHNE MASSE. <<<
+ *
+ * Gerechnet wird mit normierten Abstaenden (Stuetzweite 1, Ebenenabstand 1).
+ * Der Rang haengt nicht von den Betraegen ab, nur davon, ob die Punkte
+ * auseinanderliegen - und das tun sie immer. Die Pruefung braucht deshalb
+ * keine Geometrie und gilt fuer jedes Joch gleich.
+ *
+ * >>> WAS SIE NICHT IST. <<<
+ *
+ * Kein Nachweis. Sie prueft die KINEMATIK der Lagerung, nicht ihre
+ * Steifigkeit: eine sehr weiche Feder haelt hier als «gehalten», auch wenn
+ * das System praktisch nachgiebig ist. Und sie sieht nur die Linkelemente -
+ * der Ersatzbalken des Rechenkerns traegt seine eigene Drehfeder.
+ */
+
+/** Haelt dieser Freiheitsgrad? Eine Feder haelt, eine Feder mit 0 nicht. */
+const linkHaelt = (v) => v === 'Rigid' || (Number.isFinite(v) && v > 0);
+
+/** Die sechs Bewegungen, in der Reihenfolge der Spalten. */
+const LABIL_NAMEN = {
+  x: 'in der Jochachse x (quer zum Gleis)',
+  y: 'in Gleisrichtung y',
+  z: 'lotrecht (z)',
+  xx: 'um die Jochachse x — Torsion',
+  yy: 'um die Querachse y — Vertikalbiegung',
+  zz: 'um die Hochachse z — Biegung im Grundriss',
+};
+
+/**
+ * Die Bedingungsmatrix auf Zeilenstufenform bringen; Rang und Nullraum.
+ *
+ * Gauss-Jordan mit Spaltenpivotierung, sechs Spalten - klein genug, dass
+ * eine Bibliothek mehr Aufwand waere als die zwanzig Zeilen hier.
+ */
+function nullraum6(zeilen) {
+  const N = 6;
+  const A = zeilen.map((r) => r.slice());
+  const pivotSpalten = [];
+  let r = 0;
+  for (let c = 0; c < N && r < A.length; c += 1) {
+    let best = r;
+    for (let i = r; i < A.length; i += 1) {
+      if (Math.abs(A[i][c]) > Math.abs(A[best][c])) best = i;
+    }
+    if (Math.abs(A[best][c]) < 1e-9) continue;
+    [A[r], A[best]] = [A[best], A[r]];
+    const p = A[r][c];
+    for (let j = 0; j < N; j += 1) A[r][j] /= p;
+    for (let i = 0; i < A.length; i += 1) {
+      if (i === r || Math.abs(A[i][c]) < 1e-12) continue;
+      const f = A[i][c];
+      for (let j = 0; j < N; j += 1) A[i][j] -= f * A[r][j];
+    }
+    pivotSpalten.push(c);
+    r += 1;
+  }
+  const frei = [];
+  for (let c = 0; c < N; c += 1) if (!pivotSpalten.includes(c)) frei.push(c);
+  // Je freie Spalte ein Basisvektor des Nullraums.
+  const basis = frei.map((fc) => {
+    const v = new Array(N).fill(0);
+    v[fc] = 1;
+    pivotSpalten.forEach((pc, i) => { v[pc] = -A[i][fc]; });
+    return v;
+  });
+  return { rang: pivotSpalten.length, basis };
+}
+
+/**
+ * Ist die Lagerung kinematisch ausreichend?
+ *
+ * @param {object} inp  Eingabesatz
+ * @param {string} art  Tragwerksart
+ * @param {object} opt  { einPunkt, lies } - `lies(ebene)` liefert die
+ *                      Bedingung; ohne Angabe `linkBedingung`.
+ * @returns {{labil:boolean, rang:number, fehlend:number,
+ *           moden:{achse:string, art:string, text:string}[]}}
+ */
+export function linkLabilitaet(inp, art, opt = {}) {
+  const eb = linkEbenen(art);
+  const g = linkGelenk(art);
+  const lies = opt.lies ?? ((ebene) => linkBedingung(inp, art, ebene));
+  // Bei einem Punktanschluss traegt nur die letzte Ebene - so, wie das Bild
+  // es zeigt.
+  const ebenen = opt.einPunkt ? eb.slice(-1) : eb;
+
+  const zeilen = [];
+  ebenen.forEach((e) => {
+    const b = lies(e.key);
+    /*
+     * Die beiden Ebenen liegen in `paarAchse` auseinander, die beiden Enden
+     * in x. Vier Punkte, an beiden Enden dieselbe Bedingung - so steht es
+     * in der Ausleitung (export.axisvm.js, Linkelemente je Gurtebene).
+     */
+    const versatz = eb.indexOf(e) === 0 ? 0.5 : -0.5;
+    [-0.5, 0.5].forEach((xE) => {
+      const rV = { x: xE, y: 0, z: 0 };
+      rV[g.paarAchse] = versatz;
+      if (linkHaelt(b.x)) zeilen.push([1, 0, 0, 0, rV.z, -rV.y]);
+      if (linkHaelt(b.y)) zeilen.push([0, 1, 0, -rV.z, 0, rV.x]);
+      if (linkHaelt(b.z)) zeilen.push([0, 0, 1, rV.y, -rV.x, 0]);
+      if (linkHaelt(b.xx)) zeilen.push([0, 0, 0, 1, 0, 0]);
+      if (linkHaelt(b.yy)) zeilen.push([0, 0, 0, 0, 1, 0]);
+      if (linkHaelt(b.zz)) zeilen.push([0, 0, 0, 0, 0, 1]);
+    });
+  });
+
+  const { rang, basis } = nullraum6(zeilen);
+  const schluessel = ['x', 'y', 'z', 'xx', 'yy', 'zz'];
+  const moden = basis.map((v) => {
+    /*
+     * Der groesste Anteil benennt die Bewegung. Eine DREHUNG zaehlt vor
+     * einer Verschiebung: eine Drehung um einen entfernten Punkt traegt
+     * immer auch Verschiebungsanteile, umgekehrt nicht.
+     */
+    const dreh = [3, 4, 5].reduce((a, i) =>
+      (Math.abs(v[i]) > Math.abs(v[a]) ? i : a), 3);
+    const schieb = [0, 1, 2].reduce((a, i) =>
+      (Math.abs(v[i]) > Math.abs(v[a]) ? i : a), 0);
+    const i = Math.abs(v[dreh]) > 1e-9 ? dreh : schieb;
+    const k = schluessel[i];
+    return { achse: k, art: i >= 3 ? 'drehung' : 'verschiebung',
+             text: LABIL_NAMEN[k] };
+  });
+  return { labil: rang < 6, rang, fehlend: 6 - rang, moden };
+}
+
 /*
  * >>> DER MAST DARF EINWAERTS STEHEN - UND DURFTE ES SCHON. <<<
  *

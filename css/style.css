@@ -1310,36 +1310,56 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim);
   margin-top: 12px !important; padding-top: 6px; border-top: 1px dashed var(--ol);
 }
-/* --- Skizzen im Handbuch ---------------------------------------------------
+/* --- Skizzen ---------------------------------------------------------------
    Die Skizze trägt keine festen Farben: sie nimmt dieselben Tokens wie das
    Modell, damit Stahl im Bild und Stahl in der Zeichnung dasselbe Grau sind
-   und beide Themen ohne zweite Fassung stimmen. */
+   und beide Themen ohne zweite Fassung stimmen.
+
+   DIE ZEICHENKLASSEN HÄNGEN AN `.skizze`, nicht am Ort (Weisung, 9. Sept.:
+   «so im stil wie im handbuch hinterlegt»). Seit die Auflagerbedingung in
+   der Maske mit denselben Bausteinen zeichnet, gäbe eine Regel je Ort zwei
+   Stile, die sich mit der Zeit trennen. `.hb-skizze` / `.al-skizze` sagen
+   nur noch, WIE GROSS das Bild an seinem Ort steht. */
 .hb-skizze { margin: 12px 0 16px; }
-.hb-skizze svg { width: 100%; height: auto; display: block; }
-.hb-skizze figcaption {
+.skizze svg { width: 100%; height: auto; display: block; }
+.skizze figcaption {
   font-size: 10px; color: var(--xdim); margin-top: 5px; line-height: 1.45;
   padding-left: 2px;
 }
 /* Bauteil, Achse, Hilfslinie */
-.hb-skizze .b  { stroke: var(--stahl); stroke-width: 3; fill: none; stroke-linecap: round; }
-.hb-skizze .st { fill: var(--stahl); stroke: none; }
-.hb-skizze .st2 { fill: var(--dim); stroke: none; }
-.hb-skizze .d  { stroke: var(--dim); stroke-width: 1; fill: none; stroke-dasharray: 7 3 2 3; }
-.hb-skizze .hl { stroke: var(--ol); stroke-width: 1; fill: none; }
-.hb-skizze .kasten { stroke: var(--stahl); stroke-width: 2; fill: none; }
-.hb-skizze .am { fill: var(--acc-s); stroke: none; }
-.hb-skizze .blech { fill: var(--blech); fill-opacity: .32; stroke: var(--blech); stroke-width: 1.2; }
-.hb-skizze .steif { fill: var(--dim); fill-opacity: .22; stroke: none; }
-.hb-skizze .kn { fill: var(--on2); stroke: none; }
+.skizze .b  { stroke: var(--stahl); stroke-width: 3; fill: none; stroke-linecap: round; }
+.skizze .st { fill: var(--stahl); stroke: none; }
+.skizze .st2 { fill: var(--dim); stroke: none; }
+.skizze .d  { stroke: var(--dim); stroke-width: 1; fill: none; stroke-dasharray: 7 3 2 3; }
+.skizze .hl { stroke: var(--ol); stroke-width: 1; fill: none; }
+.skizze .kasten { stroke: var(--stahl); stroke-width: 2; fill: none; }
+.skizze .am { fill: var(--acc-s); stroke: none; }
+.skizze .blech { fill: var(--blech); fill-opacity: .32; stroke: var(--blech); stroke-width: 1.2; }
+.skizze .steif { fill: var(--dim); fill-opacity: .22; stroke: none; }
+.skizze .kn { fill: var(--on2); stroke: none; }
 /* Masslinie und Kraft */
-.hb-skizze .m  { stroke: var(--dim); stroke-width: 1; fill: none; }
-.hb-skizze .mf { fill: var(--dim); stroke: none; }
-.hb-skizze .k  { stroke: var(--acc); stroke-width: 1.6; fill: none; }
-.hb-skizze .kf { fill: var(--acc); stroke: none; }
+.skizze .m  { stroke: var(--dim); stroke-width: 1; fill: none; }
+.skizze .mf { fill: var(--dim); stroke: none; }
+.skizze .k  { stroke: var(--acc); stroke-width: 1.6; fill: none; }
+.skizze .kf { fill: var(--acc); stroke: none; }
+/* Was HINTER der Schnittebene liegt, wird gestrichelt - nicht
+   strichpunktiert; das ist die Achse. */
+.skizze .verdeckt { stroke: var(--dim); stroke-width: 1.2; fill: none;
+                    stroke-dasharray: 5 3; }
+/* Das Linkelement zum Masten: kein Bauteil, sondern eine Bedingung. */
+.skizze .link { stroke: var(--dim); stroke-width: 1.4; fill: none;
+                stroke-dasharray: 4 2.5; }
+/* Die Halterung: STARR wie ein gehaltener Grad, FEDER wie eine Zahl -
+   dieselben zwei Farben wie die Schaltflächen darunter, damit Bild und
+   Knopf dasselbe sagen. */
+.skizze .hs  { stroke: var(--ok); stroke-width: 1.6; fill: none; }
+.skizze .hsf { fill: var(--ok); stroke: none; }
+.skizze .hf  { stroke: var(--warn); stroke-width: 1.6; fill: none; }
+.skizze .hff { fill: var(--warn); stroke: none; }
 /* Schrift */
-.hb-skizze text { fill: var(--on2); font-family: var(--f-mono); font-size: 11px; }
-.hb-skizze text.dim { fill: var(--dim); font-size: 10px; }
-.hb-skizze text.acc { fill: var(--acc); font-size: 10.5px; }
+.skizze text { fill: var(--on2); font-family: var(--f-mono); font-size: 11px; }
+.skizze text.dim { fill: var(--dim); font-size: 10px; }
+.skizze text.acc { fill: var(--acc); font-size: 10.5px; }
 
 /* --- Mastenuebersicht -----------------------------------------------------
    Eine Zeile je Mast des aktiven Tragwerks. Der geteilte traegt seine zweite
@@ -2100,36 +2120,29 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
  * Pixeln ist eine schoene Zeichnung und ein schlechter Knopf.
  * =========================================================================== */
 .auflager-links { display: flex; flex-direction: column; gap: 7px; }
-.al-bild { width: 100%; height: auto; background: var(--flaeche2, #0002);
-           border: 1px solid var(--rand, #3334); border-radius: 6px; }
+
 /*
- * NAEHER AM MODELL (Weisung, 5. September: «die isometrie mehr an das modell
- * 3d anlehnen, es ist zu abstrakt»). Dieselben Farben wie in der
- * Modellansicht: Gurtwinkel stahlblau, Bindeblech orange, Mast grau.
+ * ANSICHT UND SCHNITT NEBENEINANDER (Weisung, 9. September). Zwei Bilder
+ * derselben Sache; nebeneinander liest man sie als Paar, wie auf einem
+ * Zeichnungsblatt. Wird die Spalte zu schmal, bricht der Schnitt unter die
+ * Ansicht - lieber untereinander als beide unlesbar klein.
  */
-.al-gurt-flaeche  { fill: var(--stahl, #8fa8c8); opacity: 0.75; }
-.al-blech         { fill: var(--blech, #e0a33e); opacity: 0.85; }
-.al-mast-flaeche  { fill: var(--dim, #7a8699); opacity: 0.55; }
-/* Die gehaltenen Richtungen im Bild - dieselbe Sprache wie die Schalter. */
-.al-halt line, .al-halt polygon { stroke-width: 1.6; }
-.al-halt.al-starr line    { stroke: var(--ok, #57c785); }
-.al-halt.al-starr polygon { fill: var(--ok, #57c785); stroke: var(--ok, #57c785); }
-.al-halt.al-feder line    { stroke: var(--warn, #e0a33e); }
-.al-halt.al-feder polygon { fill: var(--warn, #e0a33e);
-                            stroke: var(--warn, #e0a33e); }
-.al-gurt   { stroke: var(--stahl, #8fa8c8); stroke-width: 3.5;
-             stroke-linecap: round; }
-.al-link   { stroke: var(--dim, #7a8699); stroke-width: 1.6;
-             stroke-dasharray: 3 2; }
-.al-mast   { stroke: var(--dim, #7a8699); stroke-width: 5;
-             stroke-linecap: round; }
-.al-punkt  { fill: var(--acc, #6ea8fe); }
-.al-name   { fill: var(--dim, #7a8699); font-size: 8px; }
-.al-notiz  { fill: var(--dim, #7a8699); font-size: 7.5px; }
-.al-achse line    { stroke: var(--dim, #7a8699); stroke-width: 1.2; }
-.al-achse polygon { fill: var(--dim, #7a8699); }
-.al-achse text    { fill: var(--dim, #7a8699); font-size: 8px;
-                    font-style: italic; }
+.al-bilder { display: flex; flex-wrap: wrap; gap: 8px;
+             background: var(--s2); border: 1px solid var(--ol);
+             border-radius: var(--m-r1); padding: 7px 8px 5px; }
+.al-skizze { margin: 0; flex: 1 1 168px; min-width: 0; }
+.al-skizze figcaption { font-size: 9px; }
+
+/*
+ * DIE LABILE LAGERUNG (Weisung, 9. September: «zudem noch warnung wenn
+ * system labil gelagert»). Sie steht als Kasten, nicht als Zeile: ein Satz
+ * in der Farbe der Warnung geht unter, wenn darüber ein Bild steht.
+ */
+.al-labil {
+  margin: 0; padding: 5px 8px; border-left: 3px solid var(--fail);
+  background: var(--fail-s, var(--warn-s)); color: var(--fail);
+  border-radius: var(--m-r1); font-size: 10.5px; line-height: 1.5;
+}
 
 /*
  * DIE SCHALTFLAECHEN. Sechs je Gurtebene, gross genug zum Treffen, und der

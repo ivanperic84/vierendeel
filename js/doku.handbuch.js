@@ -19,64 +19,21 @@
  * ---------------------------------------------------------------------------
  */
 
+import { skizze, pf, mass, knoten, winkel, raus, rein, txt }
+  from './doku.skizze.js';
+
 const f = (t) => `<div class="hb-f">${t}</div>`;
 const q = (t) => `<p class="hb-q">${t}</p>`;
 
-// --- Bausteine der Skizzen ---------------------------------------------------
-/**
- * Eine Skizze sagt in zwei Sekunden, wofür der Text zwei Absätze braucht -
- * aber nur, wenn sie dasselbe meint. Alle Skizzen hier sind deshalb aus den
- * Grössen der Formeln aufgebaut und tragen deren Bezeichnungen, nicht eigene.
+/*
+ * DIE BAUSTEINE DER SKIZZEN STEHEN IN `doku.skizze.js`.
  *
- * Gezeichnet wird in SVG mit Klassen statt festen Farben: so folgt die Skizze
- * dem hellen wie dem dunklen Thema, und Bauteilfarben (Stahl, Blech) sind
- * dieselben wie im Modell.
+ * Eine Skizze sagt in zwei Sekunden, wofuer der Text zwei Absaetze braucht -
+ * aber nur, wenn sie dasselbe meint. Alle Skizzen hier sind deshalb aus den
+ * Groessen der Formeln aufgebaut und tragen deren Bezeichnungen, nicht
+ * eigene. Seit dem 9. September zeichnet die Auflagerbedingung in der Maske
+ * mit denselben Bausteinen; sie liegen darum in einem eigenen Modul.
  */
-const skizze = (titel, viewBox, inhalt) =>
-  `<figure class="hb-skizze">
-     <svg viewBox="${viewBox}" role="img" aria-label="${titel}">${inhalt}</svg>
-     <figcaption>${titel}</figcaption>
-   </figure>`;
-
-/** Linie mit Pfeilspitze. Die Spitze wird gerechnet, nicht über einen Marker
- *  gelegt - Marker erben die Farbe nicht zuverlässig. */
-const pf = (x1, y1, x2, y2, kl = 'k') => {
-  const a = Math.atan2(y2 - y1, x2 - x1);
-  const L = 7.5, w = 3.2;
-  const px = x2 - L * Math.cos(a), py = y2 - L * Math.sin(a);
-  const p1 = `${(px + w * Math.sin(a)).toFixed(1)},${(py - w * Math.cos(a)).toFixed(1)}`;
-  const p2 = `${(px - w * Math.sin(a)).toFixed(1)},${(py + w * Math.cos(a)).toFixed(1)}`;
-  return `<line class="${kl}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` +
-         `<path class="${kl}f" d="M${x2} ${y2}L${p1}L${p2}z"/>`;
-};
-
-/** Masslinie mit Pfeilen an beiden Enden und Text in der Mitte. */
-const mass = (x1, y1, x2, y2, text, dy = -4) => {
-  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-  const senk = Math.abs(x2 - x1) < Math.abs(y2 - y1);
-  return pf(mx, my, x1, y1, 'm') + pf(mx, my, x2, y2, 'm') +
-    `<text class="dim" x="${senk ? mx + 5 : mx}" y="${senk ? my + 3 : my + dy}"` +
-    ` text-anchor="${senk ? 'start' : 'middle'}">${text}</text>`;
-};
-
-/** Anschlusspunkt / Knoten. */
-const knoten = (x, y, r = 4) => `<circle class="kn" cx="${x}" cy="${y}" r="${r}"/>`;
-
-/** Eckwinkel im Querschnitt, als kleines Quadrat auf der Schwerachse. */
-const winkel = (x, y, s = 9) =>
-  `<rect class="st" x="${x - s / 2}" y="${y - s / 2}" width="${s}" height="${s}"/>`;
-
-/** Kraft aus der Ebene heraus (⊙) bzw. in sie hinein (⊗). */
-const raus = (x, y, r = 6) =>
-  `<circle class="k" cx="${x}" cy="${y}" r="${r}" fill="none"/><circle class="kf" cx="${x}" cy="${y}" r="1.8"/>`;
-const rein = (x, y, r = 6) =>
-  `<circle class="k" cx="${x}" cy="${y}" r="${r}" fill="none"/>` +
-  `<line class="k" x1="${x - r * 0.7}" y1="${y - r * 0.7}" x2="${x + r * 0.7}" y2="${y + r * 0.7}"/>` +
-  `<line class="k" x1="${x + r * 0.7}" y1="${y - r * 0.7}" x2="${x - r * 0.7}" y2="${y + r * 0.7}"/>`;
-
-const txt = (x, y, s, kl = '', anker = 'middle') =>
-  `<text class="${kl}" x="${x}" y="${y}" text-anchor="${anker}">${s}</text>`;
-
 /**
  * Die Abschnitte des Handbuchs.
  * Jeder trägt seine Kennung (für das Inhaltsverzeichnis und den Sprung), einen

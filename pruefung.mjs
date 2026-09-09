@@ -1796,7 +1796,7 @@ titel('29  Handbuch');
 
   // Skizzen: sie sollen die Formeln zeigen, nicht bloss dekorieren
   wahr('Handbuch enthält zwölf Skizzen',
-       (html.match(/<figure class="hb-skizze">/g) ?? []).length === 12);
+       (html.match(/<figure class="skizze hb-skizze">/g) ?? []).length === 12);
   wahr('Keine Skizze hat unberechnete Koordinaten',
        !/NaN|undefined/.test(html));
   ['achsen', 'einwirkungen', 'system', 'querschnitt', 'vierendeel',
@@ -2203,7 +2203,7 @@ titel('18g  Handbuch als eigenständige Datei');
   // Zwoelf seit dem Kapitel zur AxisVM-Ausleitung (28. August): der Anschluss
   // in Draufsicht und in Ansicht. Vorher zehn.
   pruef('Alle zwoelf Skizzen mitgenommen',
-        (datei.match(/<figure class="hb-skizze">/g) ?? []).length, 12, 1e-12, 'Stk');
+        (datei.match(/<figure class="skizze hb-skizze">/g) ?? []).length, 12, 1e-12, 'Stk');
   wahr('Keine unberechneten Werte', !/NaN|undefined|Infinity/.test(datei));
   wahr('Fussnote und Stand stehen drin',
        datei.includes('Prüfstand') && /Stand /.test(datei));
@@ -6081,6 +6081,92 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   wahr('Sechs Freiheitsgrade, drei Kraefte und drei Momente',
        AUF.LINK_GRADE.length === 6
        && AUF.LINK_GRADE.filter((g) => g.art === 'kraft').length === 3);
+
+  /*
+   * UND SIE STEHT IN DER HINWEISLISTE. Das Bild ist zugeklappt, sobald man
+   * weiterarbeitet; ein Modell, das gar nicht steht, darf man nicht nur
+   * dort erfahren, wo man ohnehin schon hinschaut.
+   */
+  {
+    const { hinweise } = await import(J('core.checks.js'));
+    const wLab = basis({ endbedingung: 'mast', mastProfil: 'HEB 240',
+                         mastH: 7.0, mastSteg: 'jochachse', L: 20 });
+    const mLab = modell(wLab, getProfil(wLab.profOG), getProfil(wLab.profUG),
+                        getStahl(wLab.stahl), T.getTragjoch('J90'));
+    wahr('Mit der Vorgabe steht kein Labilitaetshinweis',
+         !hinweise(mLab).some((x) => /LABIL/.test(x)));
+    wahr('Ohne Halt in y steht er da',
+         hinweise({ ...mLab,
+                       auflagerLinks: { OG: { y: 'Free' }, UG: { y: 'Free' } } })
+           .some((x) => /LABIL/.test(x)));
+    wahr('Ohne Mast im Modell schweigt er - dort traegt die Drehfeder',
+         !hinweise({ ...mLab, mastVorhanden: false,
+                        auflagerLinks: { OG: { y: 'Free' }, UG: { y: 'Free' } } })
+           .some((x) => /LABIL/.test(x)));
+  }
+
+  /*
+   * =================== IST DAS SYSTEM GEHALTEN? ========================
+   *
+   * Weisung, 9. September: «zudem noch warnung wenn system labil gelagert».
+   *
+   * Gerechnet wird der Rang der Bedingungsmatrix eines Starrkoerpers mit
+   * sechs Freiheitsgraden. Die Kontrollen halten die vier Faelle fest, in
+   * denen man sich vertun kann - und den wichtigsten Fall ueberhaupt: dass
+   * die VORGABE haelt. Ein Werkzeug, das seine eigene Voreinstellung als
+   * labil meldet, wuerde niemand ernst nehmen.
+   */
+  const labil = (w, art = 'joch', opt = {}) => AUF.linkLabilitaet(w, art, opt);
+  wahr('Die Vorgabe des Tragjochs haelt', labil({}).labil === false);
+  wahr('… mit allen sechs Bewegungen gesperrt', labil({}).rang === 6);
+  wahr('Die Vorgabe des Abfangjochs haelt ebenso',
+       labil({}, 'abfangjoch').labil === false);
+  /*
+   * QUER LOSGELASSEN: haelt keine Ebene mehr in y, steht das Joch in
+   * Gleisrichtung auf nichts. Das ist der Fall, den man beim Einstellen des
+   * Gelenks am ehesten baut - und den kein Schalter fuer sich anzeigt.
+   */
+  const ohneY = labil({ auflagerLinks: { OG: { y: 'Free' }, UG: { y: 'Free' } } });
+  wahr('Ohne Halt in y ist das System labil', ohneY.labil === true);
+  wahr('… und die Verschiebung in y wird benannt',
+       ohneY.moden.some((m) => m.achse === 'y' && m.art === 'verschiebung'));
+  /*
+   * LAENGS: die Vorgabe haelt x nur am Untergurt. Laesst auch der los,
+   * fehlt die Jochachse - eine einzige Bewegung, nicht mehr.
+   */
+  const ohneX = labil({ auflagerLinks: { UG: { x: 'Free' } } });
+  wahr('Ohne Halt in x ebenfalls labil', ohneX.labil === true);
+  wahr('… und zwar genau eine Bewegung', ohneX.fehlend === 1);
+  wahr('… naemlich die Jochachse',
+       ohneX.moden[0].achse === 'x' && ohneX.moden[0].art === 'verschiebung');
+  /*
+   * NUR EINE EBENE: zwei Punkte auf EINER Linie laengs x halten alles ausser
+   * der Drehung um diese Linie. Das ist die Torsion - und der Grund, warum
+   * der Anschluss ueberhaupt zwei Ebenen hat.
+   */
+  const eine = labil({ auflagerLinks: { OG: { x: 'Free', y: 'Free', z: 'Free' } } });
+  wahr('Nur eine tragende Ebene laesst die Torsion frei',
+       eine.labil === true && eine.moden[0].achse === 'xx');
+  /*
+   * EINE FEDER HAELT, EINE FEDER MIT NULL NICHT. Der Unterschied ist die
+   * ganze Frage: 0 kN/m ist die Schreibweise fuer «frei», und wer sie
+   * eintippt, meint es auch so.
+   */
+  wahr('Eine Feder haelt wie eine Halterung',
+       labil({ auflagerLinks: { OG: { y: 25000 }, UG: { y: 25000 } } })
+         .labil === false);
+  wahr('Eine Feder mit 0 haelt nicht',
+       labil({ auflagerLinks: { OG: { y: 0 }, UG: { y: 0 } } }).labil === true);
+  /*
+   * DIE VORGABE AUS DEN OPTIONEN wird ueber `lies` gelesen - der Dialog
+   * zeigt dasselbe Bild und muss dieselbe Warnung bekommen.
+   */
+  wahr('Die Pruefung liest auch die Voreinstellung',
+       labil({}, 'joch',
+             { lies: (e) => AUF.linkVorgabe(
+                 { auflagerVorgabe: { joch: { OG: { y: 'Free' },
+                                              UG: { y: 'Free' } } } }, 'joch', e) })
+         .labil === true);
 
   /*
    * IM MODELL: die Bedingung wandert in die Linkelemente. Das ist der Punkt

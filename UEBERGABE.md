@@ -27,6 +27,67 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Ansicht und Schnitt statt Isometrie (9. September)
+
+Weisung: «die darstellung ist zu abstrakt und passt nicht zum rest, mach bei
+der darstellung der Auflager, eine ansicht und schnitt, so im stil wie im
+handbuch hinterlegt.»
+
+Die Isometrie war ein **dritter Stil**: das Handbuch zeichnet Strichzeichnungen
+mit Massen, die Modellansicht zeigt Körper — dazwischen stand ein Bild, das
+keines von beidem war. Jetzt zwei Bilder im selben Massstab, mit denselben
+Bausteinen wie das Handbuch:
+
+| Tragwerksart | Längsbild | Querbild |
+|---|---|---|
+| Tragjoch (Ebenen in z) | **Ansicht** — Blick in Gleisrichtung, x waagrecht, z senkrecht | **Schnitt** — Blick in die Jochachse, y waagrecht, z senkrecht |
+| Abfangjoch (Ebenen in y) | **Grundriss** — Blick von oben, x waagrecht, y senkrecht | derselbe Schnitt |
+
+Beide Bilder tragen dieselbe viewBox und dieselben Ebenenhöhen — ein Strich ist
+hier so dick wie dort, und das Auge verbindet die beiden von selbst.
+
+**Die Freiheitsgrade stehen am Anschlusspunkt.** Die zwei Richtungen *in* der
+Bildebene als Doppelpfeil (eine Halterung sperrt beide Seiten), die dritte als
+Kreis *um* den Punkt — das Zeichen für senkrecht zur Zeichenebene. Eine Feder
+ist ein Zickzack bzw. ein gestrichelter Kreis, in der Farbe der Schaltfläche
+darunter. Was frei ist, wird nicht gezeichnet. Die Achsen nennt die
+Bildunterschrift, nicht sechs Buchstaben im Bild.
+
+**Neu ausgelagert:** `js/doku.skizze.js` trägt die Zeichenbausteine (`skizze`,
+`pf`, `mass`, `knoten`, `winkel`, `raus`, `rein`, `txt` und neu `feder`). Sie
+standen als lokale Konstanten in `doku.handbuch.js`; ein Pfeil, der in der
+Maske anders aussieht als im Handbuch, wäre ein zweiter Pfeil. Im Blatt hängen
+die Zeichenklassen jetzt an `.skizze`, die Grösse am Ort (`.hb-skizze`,
+`.al-skizze`, `.opt-skizze`).
+
+### Warnung bei labiler Lagerung (9. September)
+
+Weisung: «zudem noch warnung wenn system labil gelagert.»
+
+Jeder Freiheitsgrad für sich ist eine sinnvolle Eingabe — labil wird das System
+erst aus der **Summe**: hält keine Ebene mehr in y, steht das Joch in
+Gleisrichtung auf nichts. `linkLabilitaet` (in `core.auflager.js`) rechnet den
+Rang der Bedingungsmatrix eines Starrkörpers mit sechs Freiheitsgraden:
+
+```
+u_P = u + φ × r        Halt in x:  [ 1  0  0    0   r_z  -r_y ]
+                       Halt in y:  [ 0  1  0  -r_z   0    r_x ]
+                       Halt in z:  [ 0  0  1   r_y  -r_x   0  ]
+```
+
+Rang 6 heisst gehalten; der **Nullraum** nennt die Bewegung, die frei geblieben
+ist — genau der Satz, den ein Programmabbruch mit «singulärer Matrix» nicht
+liefert. Gerechnet wird mit normierten Abständen: der Rang hängt nicht von den
+Beträgen ab, die Prüfung braucht deshalb keine Geometrie.
+
+Die Warnung steht an **zwei** Orten: als roter Kasten über den Schaltflächen
+(dort stellt man es ein) und in der allgemeinen Hinweisliste (dort sieht man es
+auch mit zugeklapptem Feld). Nur wenn ein Mast im Modell steht — ohne ihn gibt
+es keine Linkelemente, und die Lagerung ist die Drehfeder des Ersatzbalkens.
+
+Eine Feder hält wie eine Halterung; eine Feder mit **0** hält nicht — das ist
+die Schreibweise für «frei», und wer sie eintippt, meint es auch so.
+
 ### Die Auflagerbedingung ist ein eigenes Modul (5. September)
 
 Frage: «haben wir diese eingabe schon als modul ausgelagert?» — Nein, sie lag

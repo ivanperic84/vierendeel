@@ -23,8 +23,9 @@
  */
 
 import { LINK_GRADE, linkEbenen, linkBedingung, linkVorgabe, linkGelenk,
-         linkEinspannung, linkAbweichend,
+         linkEinspannung, linkAbweichend, linkLabilitaet,
          mastImModell } from './core.auflager.js';
+import { skizze, pf, mass, knoten, winkel, txt, feder } from './doku.skizze.js';
 import { klapp, esc } from './design.js';
 
 /**
@@ -199,21 +200,97 @@ function linkZustand(v) {
  * =========================================================================== */
 
 
-/*
- * DIE ISOMETRIE. Ein Rechtssystem, wie es das Modell fuehrt:
+/* ===========================================================================
+ * ANSICHT UND SCHNITT - IM STIL DES HANDBUCHS
+ * ===========================================================================
  *
- *      x  Jochachse, quer zum Gleis   nach links unten
- *      y  laengs zum Gleis            nach rechts unten
- *      z  lotrecht                    nach oben
+ * Weisung vom 9. September: «die darstellung ist zu abstrakt und passt nicht
+ * zum rest, mach bei der darstellung der Auflager, eine ansicht und schnitt,
+ * so im stil wie im handbuch hinterlegt.»
  *
- * Die Zahlen sind Bildpunkte je Einheit, nicht Meter - das Bild erklaert
- * Richtungen, es misst nichts.
+ * >>> WARUM DIE ISOMETRIE WEG IST. <<<
+ *
+ * Sie war ein DRITTER Stil im Werkzeug: das Handbuch zeichnet
+ * Strichzeichnungen mit Massen und Achsen, die Modellansicht zeigt Koerper -
+ * und dazwischen stand ein Bild, das keines von beidem war. Farbige Baender
+ * in schiefer Projektion sehen aus wie ein Modell und tragen doch kein Mass;
+ * wer wissen will, WO der Anschlusspunkt sitzt, liest es einer Isometrie
+ * ohne Bemassung nicht ab.
+ *
+ * Der Bauingenieur liest ANSICHT UND SCHNITT. Zwei Bilder, jedes in seiner
+ * Ebene, mit den Massen dran - dasselbe Blattpaar, das auf jeder
+ * Werkstattzeichnung steht. Gezeichnet wird mit den Bausteinen des
+ * Handbuchs (`doku.skizze.js`), nicht mit nachgebauten.
+ *
+ * >>> WELCHE ZWEI. <<<
+ *
+ * Die beiden Anschlussebenen muessen in BEIDEN Bildern getrennt zu sehen
+ * sein, sonst zeigt das eine nur einen Punkt. Sie liegen beim Tragjoch in z
+ * auseinander, beim Abfangjoch in y:
+ *
+ *   Tragjoch     Laengsbild = ANSICHT   (Blick in y)   x waagrecht, z senkrecht
+ *   Abfangjoch   Laengsbild = GRUNDRISS (Blick in z)   x waagrecht, y senkrecht
+ *   beide        Querbild   = SCHNITT   (Blick in x)   y waagrecht, z senkrecht
+ *
+ * >>> DIE FREIHEITSGRADE STEHEN AM PUNKT. <<<
+ *
+ * Die beiden Richtungen IN der Bildebene als Doppelpfeil - eine Halterung
+ * sperrt beide Seiten, ein einzelner Pfeil sagte etwas anderes. Die dritte,
+ * die aus der Ebene zeigt, als Kreis UM den Anschlusspunkt: das Zeichen fuer
+ * senkrecht zur Zeichenebene, und es sitzt genau dort, wo es hingehoert.
+ *
+ * Eine FEDER ist ein Zickzack in derselben Richtung, ein gestrichelter Kreis
+ * aus der Ebene. Was FREI ist, wird nicht gezeichnet - das Bild zeigt die
+ * Lagerung, nicht die Liste.
+ * =========================================================================== */
+
+/** Haelt dieser Grad? (Dieselbe Regel wie im Rechenkern: Feder 0 haelt nicht.) */
+const haelt = (v) => v === 'Rigid' || (Number.isFinite(v) && v > 0);
+const istFeder = (v) => Number.isFinite(v) && v > 0;
+
+/**
+ * Die Halterung in einer Richtung DER BILDEBENE.
+ *
+ * @param {number[]} p   Anschlusspunkt
+ * @param {number[]} ri  Einheitsrichtung im Bild
+ * @param {*} v          Zustand des Freiheitsgrads
  */
-const ISO = { x: [-22, 13], y: [22, 13], z: [0, -26] };
-const isoP = (o, ax = 0, ay = 0, az = 0) => [
-  o[0] + ISO.x[0] * ax + ISO.y[0] * ay + ISO.z[0] * az,
-  o[1] + ISO.x[1] * ax + ISO.y[1] * ay + ISO.z[1] * az,
-];
+function haltEbene(p, ri, v) {
+  if (!haelt(v)) return '';
+  const kl = istFeder(v) ? 'hf' : 'hs';
+  const [ux, uy] = ri;
+  const a = 8.5, l = 13;                  // Abstand vom Punkt, Laenge
+  const zeichen = istFeder(v)
+    /*
+     * Die Feder steht auf EINER Seite. Ein Zickzack in beide Richtungen
+     * waere ein Bauteil, das es nicht gibt; der Doppelpfeil dagegen meint
+     * die gesperrte Richtung, nicht zwei Bauteile.
+     */
+    ? feder(p[0] + ux * a, p[1] + uy * a, ux, uy, l + 6, kl)
+    : pf(p[0] + ux * a, p[1] + uy * a, p[0] + ux * (a + l), p[1] + uy * (a + l), kl)
+      + pf(p[0] - ux * a, p[1] - uy * a, p[0] - ux * (a + l), p[1] - uy * (a + l), kl);
+  return zeichen;
+}
+
+/**
+ * Die Halterung SENKRECHT ZUR BILDEBENE: ein Kreis um den Anschlusspunkt.
+ * Gestrichelt, wenn es eine Feder ist.
+ */
+function haltTiefe(p, v) {
+  if (!haelt(v)) return '';
+  const kl = istFeder(v) ? 'hf' : 'hs';
+  return `<circle class="${kl}" cx="${p[0]}" cy="${p[1]}" r="8" fill="none"${
+    istFeder(v) ? ' stroke-dasharray="3 2.4"' : ''}/>`;
+}
+
+/** Punkt, Halterungen und Beschriftung an einer Anschlussebene. */
+function anschluss(p, b, achsen, label) {
+  return knoten(p[0], p[1], 3.6)
+    + haltEbene(p, achsen.hRi, b[achsen.h])
+    + haltEbene(p, achsen.vRi, b[achsen.v])
+    + haltTiefe(p, b[achsen.t])
+    + (label ? txt(p[0] - 13, p[1] - 12, label, 'dim', 'end') : '');
+}
 
 export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   const vorgabefeld = feld === 'auflagerVorgabe';
@@ -221,9 +298,10 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     ? linkVorgabe(werte, art, ebene) : linkBedingung(werte, art, ebene));
   const ebenen = linkEbenen(art);
   const gelenk = linkGelenk(art);
-  const anschluss = werte.mastAnschluss ?? 'durchlaufend';
-  const einPunkt = anschluss === 'kragarm' && !mastImModell(werte);
+  const anschlussArt = werte.mastAnschluss ?? 'durchlaufend';
+  const einPunkt = anschlussArt === 'kragarm' && !mastImModell(werte);
   const klasse = (v) => (v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder');
+  const traegt = (i) => !einPunkt || i === ebenen.length - 1;
 
   /*
    * >>> NUR DIE DREI WEGFEDERN. <<<
@@ -239,108 +317,98 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    */
   const wege = LINK_GRADE.filter((g) => g.art === 'kraft');
 
-  // --- Das Bild ------------------------------------------------------------
-  /*
-   * >>> NAEHER AM MODELL. <<<
-   *
-   * Weisung: «die isometrie mehr an das modell 3d anlehnen, es ist zu
-   * abstrakt.» Zwei Striche und ein Balken zeigten die Lage, aber nicht das
-   * Bauteil. Jetzt stehen dort BAENDER in der Farbe der Gurtwinkel, ein
-   * Bindeblech dazwischen und ein Mast mit Breite — dieselben Farben wie in
-   * der Modellansicht, damit man das eine im anderen wiedererkennt.
-   */
-  const O = [104, 56];
+  // Die Ebenen liegen in z auseinander (Tragjoch) oder in y (Abfangjoch).
   const inY = gelenk.paarAchse === 'y';
-  const orte = [O, inY ? isoP(O, 0, 1.7, 0) : isoP(O, 0, 0, -1.7)];
-  const mAy = inY ? 0.85 : 0.5;
-
-  /** Ein Gurtband: ein schmales Parallelogramm laengs der Jochachse. */
-  const band = (p, breite = 7) => {
-    const e = isoP(p, 2.5);
-    const d = [breite * 0.0, breite];           // Dicke nach unten im Bild
-    return `<polygon class="al-gurt-flaeche" points="${p[0]},${p[1]}
-      ${e[0]},${e[1]} ${e[0] + d[0]},${e[1] + d[1]} ${p[0] + d[0]},${p[1] + d[1]}"/>`;
-  };
-
-  const balken = orte.map((p, i) => {
-    const traegt = !einPunkt || i === orte.length - 1;
-    return band(p) + (traegt
-      ? `<circle class="al-punkt" cx="${p[0]}" cy="${p[1] + 3.5}" r="3.6"/>` : '');
-  }).join('');
-
-  // Das Bindeblech zwischen den beiden Ebenen - wie im Modell, in seiner Farbe.
-  const blech = einPunkt ? '' : `<polygon class="al-blech" points="${
-    isoP(O, 1.6)[0]},${isoP(O, 1.6)[1] + 3} ${
-    isoP(O, 1.9)[0]},${isoP(O, 1.9)[1] + 3} ${
-    isoP(orte[1], 1.9)[0]},${isoP(orte[1], 1.9)[1] + 3} ${
-    isoP(orte[1], 1.6)[0]},${isoP(orte[1], 1.6)[1] + 3}"/>`;
-
-  // Der Mast: ein Band mit Breite, nicht ein Strich.
-  const mK = isoP(O, -0.5, mAy, 1.2), mF = isoP(O, -0.5, mAy, -2.4);
-  const mast = `<polygon class="al-mast-flaeche" points="${mK[0] - 5},${mK[1]}
-    ${mK[0] + 5},${mK[1]} ${mF[0] + 5},${mF[1]} ${mF[0] - 5},${mF[1]}"/>`;
-
-  const arme = orte.map((p, i) => {
-    if (einPunkt && i !== orte.length - 1) return '';
-    const q = isoP(O, -0.5, mAy, inY ? 0 : (i === 0 ? 0 : -1.7));
-    return `<line class="al-link" x1="${p[0]}" y1="${p[1] + 3.5}"
-                  x2="${q[0]}" y2="${q[1] + 3.5}"/>`;
-  }).join('');
 
   /*
-   * >>> DIE AKTIVEN FREIHEITSGRADE STEHEN IM BILD. <<<
+   * >>> BEIDE BILDER IM SELBEN MASSSTAB. <<<
    *
-   * Weisung: «die felder zur auswahl kleiner gestalten (einzeiler text) und
-   * dafür die aktiven freiheitsgrade in der abbildung darstellen.»
-   *
-   * Je Ebene ein Pfeil in JEDE Richtung, die gehalten ist — nach der Isometrie
-   * ausgerichtet, in der Farbe des Zustands. Was frei ist, steht nicht da;
-   * das Bild zeigt die Lagerung, nicht die Liste.
+   * Gleiche viewBox und gleiche Flexbreite heisst: ein Strich ist hier so
+   * dick wie dort, und die beiden Gurtebenen liegen in beiden Bildern auf
+   * DERSELBEN Hoehe. Das Auge verbindet die zwei Bilder dann von selbst -
+   * genau das, was Ansicht und Schnitt auf einem Zeichnungsblatt tun.
    */
-  const halt = orte.map((p, i) => {
-    if (einPunkt && i !== orte.length - 1) return '';
-    const b = lies(ebenen[i].key);
-    const c = [p[0], p[1] + 3.5];
-    return wege.map((g) => {
-      const v = b[g.key];
-      if (v === 'Free') return '';
-      const [dx, dy] = ISO[g.key];
-      const l = 0.62;
-      const x2 = c[0] + dx * l, y2 = c[1] + dy * l;
-      const n = Math.hypot(dx, dy) || 1;
-      const ux = (dx / n), uy = (dy / n);
-      const kopf = `${x2},${y2} ${x2 - ux * 6 - uy * 2.8},${y2 - uy * 6 + ux * 2.8} `
-                 + `${x2 - ux * 6 + uy * 2.8},${y2 - uy * 6 - ux * 2.8}`;
-      return `<g class="al-halt al-${klasse(v)}">
-        <line x1="${c[0]}" y1="${c[1]}" x2="${x2}" y2="${y2}"/>
-        <polygon points="${kopf}"/></g>`;
-    }).join('');
-  }).join('');
+  const BB = [264, 200];                  // Bildfeld beider Skizzen
+  const yE = [62, 130];                   // die beiden Ebenen, in beiden Bildern
 
-  const achsPfeil = (key, laenge) => {
-    const v = ISO[key];
-    const nx = v[0] * laenge, ny = v[1] * laenge;
-    const l = Math.hypot(nx, ny) || 1;
-    const ux = nx / l, uy = ny / l;
-    const kopf = `${nx},${ny} ${nx - ux * 6 - uy * 2.8},${ny - uy * 6 + ux * 2.8} `
-               + `${nx - ux * 6 + uy * 2.8},${ny - uy * 6 - ux * 2.8}`;
-    return `<g class="al-achse"><line x1="0" y1="0" x2="${nx}" y2="${ny}"/>
-      <polygon points="${kopf}"/>
-      <text x="${nx + ux * 8}" y="${ny + uy * 8 + 3}"
-            text-anchor="middle">${esc(key)}</text></g>`;
-  };
+  /* --- Das Laengsbild: Ansicht bzw. Grundriss ----------------------------
+   *
+   * Der Mast steht rechts, das Feld laeuft nach links hinaus - dieselbe
+   * Leserichtung wie in der Modellansicht und auf dem Querprofil.
+   */
+  const mastL = 208, gurtE = 176;         // Mastkante, Ende der Gurte
+  const laengs = [
+    // Der Mast als Bauteil, nicht als Strich.
+    `<rect class="kasten" x="${mastL}" y="16" width="24" height="152"/>`,
+    txt(mastL + 12, 182, 'Mast', 'dim'),
+    // Systemachse des Jochs.
+    `<line class="d" x1="30" y1="96" x2="248" y2="96"/>`,
+    txt(36, 110, 'Feld', 'dim', 'start'),
+    // Die beiden Gurtebenen und zwei Bindebleche dazwischen.
+    ...yE.map((y) => `<line class="b" x1="34" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
+    ...[70, 124].map((x) =>
+      `<rect class="blech" x="${x}" y="${yE[0]}" width="12" height="${yE[1] - yE[0]}"/>`),
+    // Das Linkelement je Ebene: vom Gurtende zum Masten.
+    ...yE.map((y, i) => (traegt(i)
+      ? `<line class="link" x1="${gurtE}" y1="${y}" x2="${mastL}" y2="${y}"/>` : '')),
+    mass(22, yE[0], 22, yE[1], inY ? 'b' : 'h'),
+  ].join('');
 
-  const bild = `<svg class="al-bild" viewBox="0 0 208 138" role="img"
-       aria-label="Auflagerbedingung am Masten, isometrisch">
-    ${mast}${arme}${blech}${balken}${halt}
-    <text class="al-notiz" x="${mF[0]}" y="${mF[1] + 12}"
-          text-anchor="middle">Mast</text>
-    <text class="al-notiz" x="${isoP(O, 2.5)[0]}" y="${isoP(O, 2.5)[1] + 16}"
-          text-anchor="middle">Feld</text>
-    <g class="al-achsen" transform="translate(40,26)">
-      ${achsPfeil('x', 0.7)}${achsPfeil('y', 0.7)}${achsPfeil('z', 0.58)}
-    </g>
-  </svg>`;
+  const achsenL = inY
+    ? { h: 'x', hRi: [-1, 0], v: 'y', vRi: [0, -1], t: 'z' }
+    : { h: 'x', hRi: [-1, 0], v: 'z', vRi: [0, -1], t: 'y' };
+  const punkteL = yE.map((y, i) => (traegt(i)
+    ? anschluss([gurtE, y], lies(ebenen[i].key), achsenL, esc(ebenen[i].key))
+    : '')).join('');
+
+  /* --- Das Querbild: Schnitt in der Jochachse ---------------------------
+   *
+   * Blick INS Feld hinein, der Mast steht dahinter - deshalb ist er
+   * gestrichelt: was hinter der Schnittebene liegt, wird nicht ausgezogen.
+   */
+  const cx = BB[0] / 2;
+  const quer = [`<rect class="verdeckt" x="${cx - 13}" y="34" width="26" height="128"/>`,
+                txt(cx, 192, 'Mast dahinter', 'dim')];
+  const punkteQ = [];
+  const achsenQ = { h: 'y', hRi: [1, 0], v: 'z', vRi: [0, -1], t: 'x' };
+  if (inY) {
+    // Abfangjoch: zwei Gurte NEBENEINANDER, Bindebleche oben und unten.
+    const px = [cx - 42, cx + 42];
+    quer.push(`<rect class="blech" x="${px[0]}" y="${yE[0] + 8}" width="84" height="9"/>`);
+    quer.push(`<rect class="blech" x="${px[0]}" y="${yE[1] - 17}" width="84" height="9"/>`);
+    quer.push(px.map((x) => winkel(x, 96, 15)).join(''));
+    quer.push(mass(px[0], 170, px[1], 170, 'b'));
+    px.forEach((x, i) => punkteQ.push(traegt(i)
+      ? anschluss([x, 96], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key)) : ''));
+  } else {
+    // Tragjoch: je Ebene zwei Winkel, dazwischen die Vertikalbleche.
+    const bx = [cx - 42, cx + 42];
+    quer.push(yE.map((y) =>
+      `<line class="b" x1="${bx[0]}" y1="${y}" x2="${bx[1]}" y2="${y}"/>`
+      + bx.map((x) => winkel(x, y, 11)).join('')).join(''));
+    quer.push(bx.map((x) =>
+      `<rect class="blech" x="${x - 4.5}" y="${yE[0]}" width="9" height="${
+        yE[1] - yE[0]}"/>`).join(''));
+    quer.push(mass(bx[0], 170, bx[1], 170, 'b'));
+    quer.push(mass(bx[1] + 28, yE[0], bx[1] + 28, yE[1], 'h'));
+    yE.forEach((y, i) => punkteQ.push(traegt(i)
+      ? anschluss([cx, y], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key)) : ''));
+  }
+
+  /*
+   * >>> DIE ACHSEN STEHEN IN DER UNTERSCHRIFT, NICHT IM BILD. <<<
+   *
+   * Ein Buchstabe an jedem Pfeil waere sechsmal dasselbe, und was FREI ist,
+   * bekaeme gar keinen - man wuesste beim Lesen nicht, welche Achse fehlt.
+   * Die Unterschrift nennt sie einmal fuer das ganze Bild; so haelt es auch
+   * das Handbuch («Laengsansicht, y aus der Ebene»).
+   */
+  const bild = `<div class="al-bilder">${
+    skizze(inY ? 'Grundriss — x waagrecht, y senkrecht, z aus der Ebene (⊙)'
+               : 'Ansicht — x waagrecht, z senkrecht, y aus der Ebene (⊙)',
+           `0 0 ${BB[0]} ${BB[1]}`, laengs + punkteL, 'al-skizze')}${
+    skizze('Schnitt — y waagrecht, z senkrecht, x aus der Ebene (⊙)',
+           `0 0 ${BB[0]} ${BB[1]}`, quer.join('') + punkteQ.join(''), 'al-skizze')}</div>`;
 
   // --- Die Schalter, einzeilig --------------------------------------------
   const reihen = ebenen.map((ebene, i) => {
@@ -394,9 +462,28 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
       : `<b>c_φ ≈ ${e.cPhi.toFixed(0)} kNm/rad</b> um ${umText} — aus den `
         + `beiden Wegfedern über den Hebelarm ${e.h.toFixed(3)} m.`;
 
+  /*
+   * >>> UND OB DAS SYSTEM UEBERHAUPT STEHT. <<<
+   *
+   * Weisung vom 9. September: «zudem noch warnung wenn system labil
+   * gelagert». Sie steht ZUOBERST, ueber allem anderen: was die Einspannung
+   * ergibt, ist gleichgueltig, wenn das Joch als Ganzes davonlaeuft.
+   * `linkLabilitaet` nennt die Bewegung, die frei geblieben ist - das ist
+   * der Satz, den ein Programmabbruch mit «singulaere Matrix» nicht liefert.
+   */
+  const lab = linkLabilitaet(werte, art, { einPunkt, lies });
+  const labilHtml = lab.labil
+    ? `<p class="al-labil"><b>Labil gelagert</b> — das Tragwerk kann sich als `
+      + 'Ganzes bewegen, ohne dass eine Feder sich dehnt: '
+      + lab.moden.map((m) => `${m.art === 'drehung' ? 'Drehung' : 'Verschiebung'} `
+                           + `${esc(m.text)}`).join('; ')
+      + '. Ein Stabwerksprogramm bricht damit ab.</p>'
+    : '';
+
   return `<div class="auflager-links" data-al-feld="${esc(feld)}"
        data-al-art="${esc(art)}">
     ${bild}
+    ${labilHtml}
     ${reihen}
     <p class="hinweis${e.art === 'eingespannt' ? ' warnt' : ''}">${eText}</p>
     ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern', federn,
