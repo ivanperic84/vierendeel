@@ -1227,13 +1227,17 @@ export function abfangFyd(stahl, gammaM0) {
  * Kraft weg, und was bleibt, ist unsymmetrisch. Genau dafuer steht der Fall:
  * er sucht nicht die groesste Last, sondern die groesste UNGLEICHHEIT.
  *
- * >>> WAS HEUTE FEHLT. <<<
+ * >>> WOHER DIE ZAHLEN KOMMEN. <<<
  *
- * Die REGLAGETABELLE. Der Katalog fuehrt je Drahtwerk EINEN Wert
- * (`leiterzug`), gueltig bei +5 °C. Fuer -5 und -20 braeuchte es die
- * Tabelle; solange sie fehlt, gibt `abfangkraft` den Wert von +5 zurueck und
- * meldet es (`ohneTabelle`). Die Kopplung steht damit, die Zahlen dahinter
- * warten - und das Ergebnis sagt es, statt eine Genauigkeit vorzutaeuschen.
+ * Aus der REGLAGETABELLE (`reglageZug`). Sie fuehrt je Drahtwerk die
+ * Zugkraft ueber die Temperatur; der Katalogwert `leiterzug` ist ihre
+ * Spalte +5 °C. Der Schneefall nimmt die Spalte «-5 °C +Z» - mit
+ * Zusatzlast, weil der Schnee am Leiter haengt und ihn straffer zieht
+ * (Weisung vom 9. September, 0.007 kN/m fuer Tragwerke unter 1000 m).
+ *
+ * Fuehrt die Tabelle fuer ein Drahtwerk keine Zeile, gibt `abfangkraft` den
+ * Wert von +5 zurueck und meldet es (`ohneTabelle`) - statt eine
+ * Genauigkeit vorzutaeuschen, die die Daten nicht hergeben.
  */
 export const ABFANG_FAELLE = [
   { key: 'wind', label: 'Wind leitend', tempFall: 'tragsicherheit',
@@ -1243,7 +1247,9 @@ export const ABFANG_FAELLE = [
   { key: 'schnee', label: 'Schnee leitend', tempFall: 'schnee',
     leit: 'schnee',
     hinweis: 'Schnee als Leiteinwirkung, Wind mit ψ₀ — Schnee fällt bei '
-           + 'Frost, Regliertemperatur −5 °C.' },
+           + 'Frost, Regliertemperatur −5 °C mit Zusatzlast (+Z, '
+           + '0.007 kN/m). Der Schnee hängt am Leiter und zieht ihn '
+           + 'straffer.' },
   { key: 'havarie', label: 'Havarie', tempFall: 'havarie', leit: null,
     hinweis: 'Aussergewöhnliche Einwirkung: keine veränderlichen Lasten, '
            + 'ständige charakteristisch, Regliertemperatur −20 °C. Ein als '

@@ -289,8 +289,9 @@ Reglagetabelle tut dasselbe.</p>
 <table class="dt">
 <tr><th>Kombination</th><th>Regliertemperatur</th><th>Warum</th></tr>
 <tr><td>Wind leitend</td><td>+5 °C</td><td>Regelfall der Bemessung</td></tr>
-<tr><td>Schnee leitend</td><td>−5 °C</td><td>Schnee fällt bei Frost – die
-  Schneelast trifft auf einen straffer gezogenen Leiter</td></tr>
+<tr><td>Schnee leitend</td><td>−5 °C <b>+Z</b></td><td>Schnee fällt bei
+  Frost – er trifft auf einen straffer gezogenen Leiter und hängt sich
+  obendrein an ihn</td></tr>
 <tr><td>Havarie</td><td>−20 °C</td><td>grösste Zugkraft; ausser­gewöhnliche
   Einwirkung ohne veränderliche Lasten, ständige charakteristisch</td></tr>
 </table>
@@ -309,20 +310,39 @@ ausschliesslich die <b>belastete</b>. Der Bauteilkatalog führt den Wert bei
 Zuordnung:</p>
 
 <table class="dt">
-<tr><th>Drahtwerk</th><th>−20 °C</th><th>−5 °C</th><th>+5 °C</th></tr>
-<tr><td>Cu 95, Rückleiter (6 kN)</td><td>6.0</td><td>4.6</td><td><b>3.9</b></td></tr>
-<tr><td>N-FL Ts StCu 50 (sh 1.90 m, 8 kN)</td><td>8.0</td><td>7.0</td>
+<tr><th>Drahtwerk</th><th>Havarie<br>−20 °C</th>
+  <th>Schnee<br>−5 °C +Z</th><th>Wind<br>+5 °C</th></tr>
+<tr><td>Cu 95, Rückleiter (6 kN)</td><td>6.0</td><td>6.5</td>
+  <td><b>3.9</b></td></tr>
+<tr><td>N-FL Ts StCu 50 (sh 1.90 m, 8 kN)</td><td>8.0</td><td>8.0</td>
   <td><b>6.4</b></td></tr>
-<tr><td>N-FL StCu 50 / Cu 107, ganz</td><td>16.5</td><td>15.5</td>
+<tr><td>N-FL StCu 50 / Cu 107, ganz</td><td>16.5</td><td>16.5</td>
   <td><b>14.9</b></td></tr>
 <tr><td>R-FL StCu 92 / Cu 107, ganz</td><td>22.0</td><td>22.0</td>
   <td><b>22.0</b></td></tr>
 </table>
 
-<p>Zwischen den Stützstellen wird linear interpoliert; im Nachweis kommt das
-nicht vor, weil −20, −5 und +5 °C selbst Stützstellen sind. Ausserhalb
-der Tabelle gilt der Randwert – sie zu verlängern hiesse, über ihren
-Geltungsbereich hinaus zu rechnen.</p>
+<h4>3.6 Die Zusatzlast im Schneefall</h4>
+<p>Neben der Spalte −5 °C führt die Reglagetabelle die Spalte
+<b>−5 °C +Z</b>: die erhöhte Zugkraft durch <b>Zusatzlast</b>. Der Schnee
+hängt sich an den Leiter, und ein fix abgespannter kann nicht nachgeben –
+die Kraft steigt über den Wert der blossen Temperatur hinaus. Beim
+Rückleiter Cu 95 sind das <b>6.5 statt 4.6 kN</b>.</p>
+
+<p>Gerechnet wird mit der Zusatzlast <b>0.007 kN/m</b>. Sie gilt für
+Tragwerke <b>unterhalb 1000 m ü. M.</b> und deckt damit den grössten Teil
+ab. Die Tabelle führt daneben 0.015 kN/m.</p>
+
+${q(`Liegt das Tragwerk <b>höher als 1000 m</b>, gilt 0.015 kN/m – beim
+Cu 95 8.4 statt 6.5 kN. Das Werkzeug rechnet diesen Fall <b>nicht</b>; die
+Zugkraft ist dort von Hand einzusetzen.`)}
+
+<p>Interpoliert wird in dieser Spalte nicht: sie gilt bei −5 °C und für
+genau die beiden Lasten, die dastehen. In der gewöhnlichen Zeile dagegen wird
+zwischen den Stützstellen linear interpoliert – im Nachweis kommt das nicht
+vor, weil −20 und +5 °C selbst Stützstellen sind. Ausserhalb der Tabelle
+gilt der Randwert; sie zu verlängern hiesse, über ihren Geltungsbereich
+hinaus zu rechnen.</p>
 
 ${q(`Führt die Tabelle für ein Drahtwerk <b>keine Zeile</b>, rechnet das
 Werkzeug mit dem Wert von +5 °C und <b>sagt es</b> – der Hinweis in der
@@ -331,7 +351,7 @@ Richtung: ein fix abgefangener Leiter zieht kalt stärker, der Schnee- und der
 Havariefall stünden zu günstig da. Ihre Zugkraft ist dann von Hand
 einzusetzen.`)}
 
-<h4>3.6 Gebrauchstauglichkeit</h4>
+<h4>3.7 Gebrauchstauglichkeit</h4>
 <p>Alle ständigen Beiwerte 1.0, die veränderlichen abgemindert. Geführt wird
 <b>nur die seltene Stufe</b>: leitende Einwirkung 1.00, begleitende 0.50.</p>
 

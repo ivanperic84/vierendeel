@@ -13033,10 +13033,16 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
           33.0, 1e-9, 'kN');
     pruef('… bei Wind dagegen bei +5 Grad', zug(rOhne, 'wind'),
           29.8, 1e-9, 'kN');
-    pruef('… und bei Schnee bei -5 Grad', zug(rOhne, 'schnee'),
-          2 * (7.0 + 8.5), 1e-9, 'kN');
-    wahr('Kalt zieht das Drahtwerk staerker',
-         zug(rOhne, 'havarie') > zug(rOhne, 'schnee')
+    /*
+     * BEIM SCHNEE KOMMT DIE ZUSATZLAST DAZU: Spalte «-5 °C +Z» mit
+     * 0.007 kN/m, das Tragseil zieht dort 8.0 statt 7.0 kN. Damit steht der
+     * Schneefall beim N-FL auf demselben Zug wie der Havariefall - der
+     * Unterschied zwischen beiden liegt allein in den Beiwerten.
+     */
+    pruef('… und bei Schnee mit Zusatzlast', zug(rOhne, 'schnee'),
+          2 * (8.0 + 8.5), 1e-9, 'kN');
+    wahr('Kalt zieht das Drahtwerk staerker als bei Wind',
+         zug(rOhne, 'havarie') > zug(rOhne, 'wind')
          && zug(rOhne, 'schnee') > zug(rOhne, 'wind'));
     pruef('Mit Bruch nur noch einer', zug(rMit, 'havarie'),
           zug(rOhne, 'havarie') / 2, 1e-9, 'kN');
@@ -15498,9 +15504,9 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       pruef('Ts StCu 50 bei Wind (+5 Grad)',
             FL.abfangkraft('drahtwerk-n-fl-stcu-50',
                            { tempFall: 'tragsicherheit' }).Z, 6.4, 1e-9, 'kN');
-      pruef('… bei Schnee (-5 Grad)',
+      pruef('… bei Schnee (-5 Grad +Z)',
             FL.abfangkraft('drahtwerk-n-fl-stcu-50',
-                           { tempFall: 'schnee' }).Z, 7.0, 1e-9, 'kN');
+                           { tempFall: 'schnee' }).Z, 8.0, 1e-9, 'kN');
       pruef('… bei Havarie (-20 Grad)',
             FL.abfangkraft('drahtwerk-n-fl-stcu-50',
                            { tempFall: 'havarie' }).Z, 8.0, 1e-9, 'kN');
@@ -15606,9 +15612,48 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
         pruef('Cu 95 rechnet bei Havarie mit -20 Grad',
               FL.abfangkraft('drahtwerk-cu-95', { tempFall: 'havarie' }).Z,
               6.0, 1e-9, 'kN');
-        pruef('… bei Schnee mit -5 Grad',
+        pruef('… bei Schnee mit -5 Grad und Zusatzlast',
               FL.abfangkraft('drahtwerk-cu-95', { tempFall: 'schnee' }).Z,
-              4.6, 1e-9, 'kN');
+              6.5, 1e-9, 'kN');
+
+        /*
+         * >>> DIE SPALTE «-5 °C +Z». <<<
+         *
+         * Weisung vom 9. September: «man kann fuer die bemessung -5° +Z
+         * (0.007 kN/m) nehmen. dieser wert ist fuer Tragwerke die unterhalb
+         * von 1000 hoehenmeter liegen.» Der Schnee haengt am Leiter und
+         * zieht ihn straffer - 6.5 statt 4.6 kN beim Cu 95.
+         */
+        pruef('Der Schneefall traegt 0.007 kN/m',
+              FL.reglierZusatzlast('schnee'), 0.007, 1e-12, 'kN/m');
+        wahr('Wind und Havarie tragen keine',
+             FL.reglierZusatzlast('tragsicherheit') === 0
+             && FL.reglierZusatzlast('havarie') === 0);
+        pruef('Ohne Zusatzlast steht die blosse Temperatur da',
+              FL.reglageZug('drahtwerk-cu-95', -5), 4.6, 1e-9, 'kN');
+        pruef('Mit 0.007 die Spalte +Z',
+              FL.reglageZug('drahtwerk-cu-95', -5, { zusatzlast: 0.007 }),
+              6.5, 1e-9, 'kN');
+        pruef('Die Tabelle fuehrt auch 0.015',
+              FL.reglageZug('drahtwerk-cu-95', -5, { zusatzlast: 0.015 }),
+              8.4, 1e-9, 'kN');
+        /*
+         * INTERPOLIERT WIRD HIER NICHT. Die Spalte gilt bei -5 °C und fuer
+         * genau die Lasten, die dastehen - alles andere waere erfunden.
+         */
+        wahr('Eine andere Zusatzlast gibt es nicht',
+             FL.reglageZug('drahtwerk-cu-95', -5, { zusatzlast: 0.01 })
+             === null);
+        wahr('… und eine andere Temperatur auch nicht',
+             FL.reglageZug('drahtwerk-cu-95', -20, { zusatzlast: 0.007 })
+             === null);
+        /*
+         * VIER RUECKLEITER IM SCHNEE ziehen 26.0 kN - mehr als im
+         * Havariefall mit 24.0. Der kaelteste Fall ist nicht der groesste.
+         */
+        pruef('Vier Rueckleiter im Schnee',
+              FL.abfangkraft('drahtwerk-cu-95-x4',
+                             { tempFall: 'schnee' }).Z, 26.0, 1e-9, 'kN');
         pruef('Vier Rueckleiter im Havariefall',
               FL.abfangkraft('drahtwerk-cu-95-x4',
                              { tempFall: 'havarie' }).Z, 24.0, 1e-9, 'kN');

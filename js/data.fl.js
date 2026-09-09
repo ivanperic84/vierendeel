@@ -202,10 +202,32 @@ export function reglageTabelle(id) {
  *
  * Ausserhalb der Tabelle gilt der Randwert; sie zu verlängern hiesse, über
  * ihren Geltungsbereich hinaus zu rechnen.
+ *
+ * >>> DIE ZUSATZLAST HAT EINE EIGENE SPALTE. <<<
+ *
+ * Weisung vom 9. September: «man kann fuer die bemessung -5° +Z
+ * (0.007 kN/m) nehmen.» Die Reglagetabelle führt neben «−5 °C» zwei weitere
+ * Spalten, für die Schneelasten 0.007 und 0.015 kN/m. Der Schnee HÄNGT am
+ * Leiter und zieht ihn straffer — die Zugkraft steigt über den Wert der
+ * blossen Temperatur hinaus; beim Rückleiter Cu 95 sind das 6.5 statt
+ * 4.6 kN.
+ *
+ * Interpoliert wird hier NICHT. Die Spalte gilt bei einer Temperatur und
+ * für genau die Lasten, die die Tabelle führt; für alles andere gibt es
+ * `null` statt einer erfundenen Zahl.
+ *
+ * @param {number} [opt.zusatzlast]  Schneelast am Leiter [kN/m]
  */
-export function reglageZug(id, T) {
+export function reglageZug(id, T, { zusatzlast = 0 } = {}) {
   const r = reglageTabelle(id);
   if (!r || !Number.isFinite(T)) return null;
+  if (zusatzlast > 0) {
+    const z = r.zusatz;
+    if (!z || !Array.isArray(z.lasten) || !Array.isArray(z.vals)) return null;
+    if (Math.abs((z.T ?? NaN) - T) > 1e-9) return null;
+    const i = z.lasten.findIndex((l) => Math.abs(l - zusatzlast) < 1e-12);
+    return i >= 0 ? z.vals[i] : null;
+  }
   const { temps, vals } = r;
   if (T <= temps[0]) return vals[0];
   if (T >= temps[temps.length - 1]) return vals[vals.length - 1];
@@ -349,9 +371,10 @@ export function abfangkraft(id, { tempFall = 'tragsicherheit' } = {}) {
    * haelt die Nachspannung die Kraft konstant; eine Tabelle wuerde ihn auch
    * dann nicht beschreiben, wenn eine dalaege.
    */
-  const ausTab = fixDabei ? reglageZug(id, T) : null;
-  const ohneTabelle = fixDabei && ausTab === null && T !== 5;
-  return { Z: ausTab ?? Z5, Z5, art: a.art, T,
+  const zl = reglierZusatzlast(tempFall);
+  const ausTab = fixDabei ? reglageZug(id, T, { zusatzlast: zl }) : null;
+  const ohneTabelle = fixDabei && ausTab === null && !(T === 5 && zl === 0);
+  return { Z: ausTab ?? Z5, Z5, art: a.art, T, zusatzlast: zl,
            temperaturabhaengig: fixDabei,
            ausTabelle: ausTab !== null, ohneTabelle };
 }
@@ -397,9 +420,24 @@ export function flStand() {
 export const REGLIERTEMPERATUREN = [
   { key: 'tragsicherheit', T: 5, label: 'Tragsicherheit (+5 \u00b0C)',
     hinweis: 'Regelfall der Bemessung.' },
-  { key: 'schnee', T: -5, label: 'Schnee leitend (\u22125 \u00b0C)',
+  /*
+   * >>> DER SCHNEEFALL RECHNET MIT ZUSATZLAST. <<<
+   *
+   * Weisung vom 9. September: «man kann fuer die bemessung -5° +Z
+   * (0.007 kN/m) nehmen. dieser wert ist fuer Tragwerke die unterhalb von
+   * 1000 hoehenmeter liegen, als der groesste teil und somit relevant.»
+   *
+   * Der Schnee HAENGT am Leiter und zieht ihn straffer - die Zugkraft
+   * steigt ueber den Wert der blossen Temperatur hinaus. Die Tabelle fuehrt
+   * daneben 0.015 kN/m; wer hoeher als 1000 m baut, setzt die Zugkraft von
+   * Hand ein.
+   */
+  { key: 'schnee', T: -5, zusatzlast: 0.007,
+    label: 'Schnee leitend (\u22125 \u00b0C +Z)',
     hinweis: 'Schnee f\u00e4llt bei Frost \u2014 die Schneelast trifft auf einen '
-           + 'straffer gezogenen Leiter.' },
+           + 'straffer gezogenen Leiter und zieht ihn zus\u00e4tzlich straffer. '
+           + 'Gerechnet mit der Zusatzlast 0.007 kN/m, g\u00fcltig unterhalb '
+           + '1000 m \u00fc. M.' },
   { key: 'havarie', T: -20, label: 'Havarie (\u221220 \u00b0C)',
     hinweis: 'Bruchfall bei gr\u00f6sster Zugkraft. Aussergew\u00f6hnliche '
            + 'Einwirkung, st\u00e4ndige Lasten charakteristisch.' },
@@ -414,4 +452,10 @@ export const REGLIERTEMPERATUREN = [
 export function reglierTemperatur(key) {
   const r = REGLIERTEMPERATUREN.find((x) => x.key === key);
   return (r ?? REGLIERTEMPERATUREN[0]).T;
+}
+
+/** Die Zusatzlast am Leiter zu einem Lastfall [kN/m]; 0, wo keine gilt. */
+export function reglierZusatzlast(key) {
+  const r = REGLIERTEMPERATUREN.find((x) => x.key === key);
+  return (r ?? REGLIERTEMPERATUREN[0]).zusatzlast ?? 0;
 }

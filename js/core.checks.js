@@ -582,7 +582,7 @@ export function hinweise(m) {
       }));
     if (ohneTab.length) {
       h.push('Die Regliertemperatur folgt der Kombination — Wind leitend '
-        + '+5 °C, Schnee leitend −5 °C, Havarie −20 °C. Für diese fix '
+        + '+5 °C, Schnee leitend −5 °C +Z, Havarie −20 °C. Für diese fix '
         + 'abgefangenen Leiter fehlt die REGLAGETABELLE, es steht die '
         + 'Zugkraft von +5 °C: '
         + `${ohneTab.map((t2) => t2.name ?? 'Leiter').join(', ')}. `
