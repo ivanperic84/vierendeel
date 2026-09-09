@@ -241,6 +241,13 @@ export function reglageZug(id, T) {
  * Für die Bemessung mit Wind gilt +5 °C, und genau darauf ist der
  * Bauteilkatalog bezogen.
  *
+ * >>> DER EINZELLEITER IST FIX ABGESPANNT. <<<
+ *
+ * Weisung vom 9. September: «der cu95 ist fix abgefangen, tabelle scharf
+ * stellen.» Rückleiter, Speiseleitung und Feeder hängen an keiner
+ * Nachspannvorrichtung — ihre Kraft folgt der Temperatur wie die eines
+ * N-FL-Tragseils.
+ *
  * >>> EIN DRAHTWERK SIND ZWEI LEITER. <<<
  *
  * Die Katalogeinträge fassen Tragseil und Fahrdraht zusammen - N-FL 14.9 =
@@ -254,18 +261,16 @@ export function reglageZug(id, T) {
  * Der Katalog führt Z bei +5 °C, und die Bemessung mit Wind rechnet bei
  * +5 °C. Fix und beweglich geben dort denselben Wert. Der Unterschied greift
  * erst bei den kälteren Fällen — Schnee bei −5, Havarie bei −20 —, und dort
- * entscheidet die REGLAGETABELLE (`reglageZug`). Wo sie fehlt, sagt
- * `abfangkraft` es, statt eine Zahl zu erfinden.
+ * entscheidet die REGLAGETABELLE (`reglageZug`).
  *
- * >>> OFFEN: DAS BELASTETE TRAGSEIL DER N-FL. <<<
+ * >>> DIE TABELLE FÜHRT DEN BELASTETEN ZUSTAND. <<<
  *
- * Genau für den einzigen fix abgefangenen Teil liegt die Tabelle NICHT vor.
- * Die Reglagetabelle führt je Kettenwerk den UNBELASTETEN Zustand über die
- * Temperatur — den Wert der Montage — und den belasteten nur bei EINER
- * Temperatur. Der belastete ist der, der in den Nachweis geht (Weisung vom
- * 3. September). Ihn aus dem unbelasteten herzuleiten hiesse, die
- * Zustandsgleichung an die Stelle der Daten zu setzen; das ist nicht diese
- * Anwendung.
+ * Je Kettenwerk stehen zwei Zeilen da, «Ts belastet» und «Ts unbelastet».
+ * Die unbelastete gehört zur Reglage auf der Baustelle (Weisung vom
+ * 3. September); in den Nachweis geht ausschliesslich die belastete. Der
+ * Katalogwert 6.4 kN des N-FL-Tragseils StCu 50 ist der belastete Wert der
+ * Zeile «sh 1.90 m, 8 kN» bei +5 °C — damit steht fest, welche Zeile zu
+ * welchem Katalogeintrag gehört, und `pruefung.mjs` hält es fest.
  * =========================================================================== */
 
 /**
@@ -282,24 +287,29 @@ export function reglageZug(id, T) {
 export function abfangArt(id) {
   const b = typeof id === 'string' ? getFlBauteil(id) : id;
   const n = String(b?.id ?? '');
+  /*
+   * >>> EIN EINZELLEITER IST KEIN KETTENWERK. <<<
+   *
+   * Rueckleiter, Speiseleitung, Feeder - sie haengen an keiner
+   * Nachspannvorrichtung, sondern sind FIX abgespannt. Weisung vom
+   * 9. September: «der cu95 ist fix abgefangen, tabelle scharf stellen.»
+   *
+   * Die Reglagetabelle sagte es schon: sie fuehrt den Cu 95 ueber die
+   * Temperatur - 3.9 kN bei +5 °C, 6.0 kN bei -20 °C. Ein beweglich
+   * abgefangener Leiter haette in jeder Spalte dieselbe Kraft.
+   *
+   * Erkannt wird er daran, dass er NICHT zu einem Kettenwerk gehoert:
+   * `n-fl` und `r-fl` stehen nur bei den Fahrleitungen im Namen. Damit
+   * liegt ein neuer Einzelleiter von selbst richtig.
+   */
+  if (/^drahtwerk-/.test(n) && !/^drahtwerk-[nr]-fl/.test(n)) {
+    return { ts: null, fd: null, art: 'fix' };
+  }
   const hatTs = /-ts-/.test(n) || /stcu/.test(n);
   const hatFd = /-fd-/.test(n) || /-cu-\d/.test(n);
   /*
-   * NUR DAS TRAGSEIL DER N-FL IST FIX. Alles andere haengt an einer
-   * Nachspannung.
-   *
-   * >>> BEIM RUECKLEITER Cu 95 IST DAS ZU KLAEREN. <<<
-   *
-   * Fuer ihn liegt keine Weisung vor, und `beweglich` war die Annahme, die
-   * keine Temperaturabhaengigkeit erfindet. Seit der 9. September die
-   * Reglagetabelle brachte, steht sie gegen die Daten: die Tabelle fuehrt
-   * den Cu 95 ueber die Temperatur - 3.9 kN bei +5 °C, 6.0 kN bei -20 °C.
-   * Ein beweglich abgefangener Leiter haette dort in jeder Spalte dieselbe
-   * Kraft.
-   *
-   * Bis der Auftraggeber es sagt, bleibt es bei `beweglich` - die Aenderung
-   * waere nachweiserheblich und nicht meine. Die Tabelle liegt im Katalog
-   * bereit; sie greift in dem Augenblick, in dem hier 'fix' steht.
+   * INNERHALB DER KETTENWERKE IST NUR DAS TRAGSEIL DER N-FL FIX. Die
+   * Fahrdraehte und das ganze R-FL haengen an einer Nachspannung.
    */
   const ts = hatTs ? (/^drahtwerk-n-fl/.test(n) ? 'fix' : 'beweglich') : null;
   const fd = hatFd ? 'beweglich' : null;
@@ -326,7 +336,7 @@ export function abfangkraft(id, { tempFall = 'tragsicherheit' } = {}) {
   const Z5 = leiterzug(id);
   const a = abfangArt(id);
   const T = reglierTemperatur(tempFall);
-  const fixDabei = a.ts === 'fix' || a.fd === 'fix';
+  const fixDabei = a.ts === 'fix' || a.fd === 'fix' || a.art === 'fix';
   /*
    * >>> DIE TABELLE, WENN ES SIE GIBT - SONST DIE MELDUNG. <<<
    *

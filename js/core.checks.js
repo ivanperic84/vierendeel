@@ -562,11 +562,10 @@ export function hinweise(m) {
      * Havariefall (ohne veraenderliche einwirkungen) -> -20°.»
      *
      * Die Kopplung steht (`ABFANG_FAELLE`), und seit dem 9. September fuehrt
-     * der Katalog Reglagetabellen (`reglageZug`). Fuer das BELASTETE
-     * TRAGSEIL der N-FL - den einzigen fix abgefangenen Teil - liegt keine
-     * vor: die Quelle tabelliert dort den unbelasteten Zustand, den der
-     * Nachweis nicht braucht. Wo die Tabelle fehlt, gibt `abfangkraft` den
-     * Wert von +5 °C zurueck und meldet es.
+     * der Katalog die REGLAGETABELLE (`reglageZug`) - Rueckleiter Cu 95 und
+     * N-FL mit Tragseil StCu 50. Wo fuer ein Drahtwerk keine Zeile passt,
+     * gibt `abfangkraft` den Wert von +5 °C zurueck und meldet es; dieser
+     * Hinweis traegt es weiter.
      *
      * DAS IST DIE UNSICHERE RICHTUNG. Ein fix abgefangener Leiter zieht
      * KALT STAERKER; der Schnee- und der Havariefall stehen damit zu

@@ -13020,10 +13020,26 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const mitBruch = [leiter('a', 4, 'vorn'), leiter('b', 8, 'hinten', true)];
     const rOhne = rechne(zwei), rMit = rechne(mitBruch);
     const zug = (r, k) => r.faelle.find((f) => f.key === k).leiterzug;
-    pruef('Ohne Bruch ziehen im Havariefall beide',
-          zug(rOhne, 'havarie'), zug(rOhne, 'wind'), 1e-9, 'kN');
+    /*
+     * >>> IM HAVARIEFALL ZIEHEN BEIDE - UND ZWAR KALT. <<<
+     *
+     * Seit die Reglagetabelle scharf ist, stehen die drei Faelle auf drei
+     * Zugkraeften. Das Drahtwerk N-FL StCu 50 / Cu 107 traegt bei -20 °C
+     * 8.0 (Ts) + 8.5 (Fd) = 16.5 kN, bei +5 °C dagegen 6.4 + 8.5 = 14.9.
+     * Zwei Leiter geben 33.0 gegen 29.8 - der Havariefall ist damit NICHT
+     * mehr der kleinste.
+     */
+    pruef('Im Havariefall ziehen beide kalt', zug(rOhne, 'havarie'),
+          33.0, 1e-9, 'kN');
+    pruef('… bei Wind dagegen bei +5 Grad', zug(rOhne, 'wind'),
+          29.8, 1e-9, 'kN');
+    pruef('… und bei Schnee bei -5 Grad', zug(rOhne, 'schnee'),
+          2 * (7.0 + 8.5), 1e-9, 'kN');
+    wahr('Kalt zieht das Drahtwerk staerker',
+         zug(rOhne, 'havarie') > zug(rOhne, 'schnee')
+         && zug(rOhne, 'schnee') > zug(rOhne, 'wind'));
     pruef('Mit Bruch nur noch einer', zug(rMit, 'havarie'),
-          zug(rMit, 'wind') / 2, 1e-9, 'kN');
+          zug(rOhne, 'havarie') / 2, 1e-9, 'kN');
     wahr('… und Wind und Schnee bleiben unberuehrt',
          zug(rMit, 'wind') === zug(rOhne, 'wind')
          && zug(rMit, 'schnee') === zug(rOhne, 'schnee'));
@@ -13039,19 +13055,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Das Ergebnis nennt den massgebenden Fall',
          AB6.ABFANG_FAELLE.some((f) => f.key === rOhne.fall), rOhne.fall);
     /*
-     * UND ES SAGT, DASS DIE REGLAGETABELLE FEHLT. Ein fix abgefangener
-     * Leiter zieht kalt staerker; solange nur der Wert von +5 °C dasteht,
-     * stehen Schnee- und Havariefall zu guenstig da.
+     * UND KEIN FALL STEHT MEHR OHNE TABELLE DA. Weisung vom 9. September:
+     * «tabelle scharf stellen.» Waere sie es nicht, rechnete der kalte Fall
+     * mit dem Wert von +5 °C - und stuende zu guenstig da.
      */
-    wahr('Der kalte Fall ist als ohne Tabelle gekennzeichnet',
-         rOhne.faelle.find((f) => f.key === 'havarie').ohneTabelle === true);
-    wahr('… der Regelfall dagegen nicht',
-         rOhne.faelle.find((f) => f.key === 'wind').ohneTabelle === false);
+    wahr('Kein Fall rechnet mehr ohne Tabelle',
+         rOhne.faelle.every((f) => f.ohneTabelle === false));
 
     /*
-     * DER HAVARIEFALL RECHNET OHNE VERAENDERLICHE EINWIRKUNGEN. Mit
-     * denselben Zugkraeften ist er damit kleiner als die beiden Leitfaelle -
-     * massgebend wird er erst mit der kalten Zugkraft oder durch den Bruch.
+     * DER HAVARIEFALL RECHNET OHNE VERAENDERLICHE EINWIRKUNGEN - dafuer mit
+     * der groessten Zugkraft und ohne Teilsicherheitsbeiwert auf den
+     * staendigen Lasten. Ob er massgebend wird, entscheidet sich am
+     * einzelnen Tragwerk; der Bruch kann ihn dorthin bringen.
      */
     const nurHav = AB6.ABFANG_FAELLE.find((f) => f.key === 'havarie');
     wahr('Der Havariefall hat keine Leiteinwirkung', nurHav.leit === null);
@@ -15431,6 +15446,21 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       wahr('Beide Fahrdraehte sind beweglich',
            art('drahtwerk-n-fl-cu-107').fd === 'beweglich'
            && art('drahtwerk-r-fl-cu-107').fd === 'beweglich');
+      /*
+       * >>> DER EINZELLEITER IST FIX ABGESPANNT. <<<
+       *
+       * Weisung vom 9. September: «der cu95 ist fix abgefangen, tabelle
+       * scharf stellen.» Erkannt wird er daran, dass er zu keinem
+       * Kettenwerk gehoert - `n-fl` und `r-fl` stehen nur bei den
+       * Fahrleitungen im Namen.
+       */
+      wahr('Der Rueckleiter Cu 95 ist FIX abgespannt',
+           art('drahtwerk-cu-95').art === 'fix');
+      wahr('… und die Buendel ebenso',
+           ['x2', 'x3', 'x4'].every(
+             (x) => art(`drahtwerk-cu-95-${x}`).art === 'fix'));
+      wahr('… womit er der Temperatur folgt',
+           FL.abfangkraft('drahtwerk-cu-95').temperaturabhaengig);
       pruef('Der N-FL-Fahrdraht zieht mit 8.5 kN',
             FL.leiterzug('drahtwerk-n-fl-cu-107'), 8.5, 1e-9, 'kN');
       pruef('Der R-FL-Fahrdraht mit 10', FL.leiterzug('drahtwerk-r-fl-cu-107'),
@@ -15459,21 +15489,47 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
             + FL.leiterzug('drahtwerk-r-fl-cu-107'),
             FL.leiterzug('drahtwerk-r-fl-ts-stcu-92-fd-cu-107'), 1e-9, 'kN');
       /*
-       * >>> OHNE REGLAGETABELLE KEINE ZAHL FUER -5 UND -20. <<<
+       * >>> DIE DREI FAELLE STEHEN AUF DREI ZUGKRAEFTEN. <<<
        *
-       * Der Katalog fuehrt Z bei +5 Grad. Bei +5 stimmt fix und beweglich
-       * ueberein; fuer die kaelteren Faelle fehlt die Tabelle, und die
-       * Funktion sagt es, statt zu interpolieren.
+       * Das N-FL-Tragseil StCu 50 folgt der Reglagetabelle, Zeile
+       * «sh 1.90 m, 8 kN, Ts belastet»: 6.4 kN bei +5 Grad, 7.0 bei -5,
+       * 8.0 bei -20. Der Katalogwert ist die Spalte +5.
        */
-      wahr('Bei +5 Grad ist die Tabelle da',
-           !FL.abfangkraft('drahtwerk-n-fl-stcu-50',
-                           { tempFall: 'tragsicherheit' }).ohneTabelle);
-      wahr('Bei Havarie fehlt sie und wird gemeldet',
-           FL.abfangkraft('drahtwerk-n-fl-stcu-50',
-                          { tempFall: 'havarie' }).ohneTabelle);
-      wahr('Beim beweglichen fehlt sie nie',
+      pruef('Ts StCu 50 bei Wind (+5 Grad)',
+            FL.abfangkraft('drahtwerk-n-fl-stcu-50',
+                           { tempFall: 'tragsicherheit' }).Z, 6.4, 1e-9, 'kN');
+      pruef('… bei Schnee (-5 Grad)',
+            FL.abfangkraft('drahtwerk-n-fl-stcu-50',
+                           { tempFall: 'schnee' }).Z, 7.0, 1e-9, 'kN');
+      pruef('… bei Havarie (-20 Grad)',
+            FL.abfangkraft('drahtwerk-n-fl-stcu-50',
+                           { tempFall: 'havarie' }).Z, 8.0, 1e-9, 'kN');
+      wahr('… und keiner davon ohne Tabelle',
+           ['tragsicherheit', 'schnee', 'havarie'].every(
+             (tf) => !FL.abfangkraft('drahtwerk-n-fl-stcu-50',
+                                     { tempFall: tf }).ohneTabelle));
+      /*
+       * BEIM BEWEGLICHEN AENDERT SICH NICHTS. Die Nachspannung haelt die
+       * Kraft konstant - eine Tabelle wuerde ihn auch dann nicht
+       * beschreiben, wenn eine dalaege.
+       */
+      pruef('Das R-FL zieht kalt gleich stark',
+            FL.abfangkraft('drahtwerk-r-fl-ts-stcu-92-fd-cu-107',
+                           { tempFall: 'havarie' }).Z, 22, 1e-9, 'kN');
+      wahr('Beim beweglichen fehlt die Tabelle nie',
            !FL.abfangkraft('drahtwerk-r-fl-stcu-92',
                            { tempFall: 'havarie' }).ohneTabelle);
+      /*
+       * >>> WO EINE ZEILE FEHLT, WIRD ES GEMELDET. <<<
+       *
+       * Fuer das Drahtwerk Ts StCu 50 / Fd Cu 150 (14.5 kN) fuehrt die
+       * Reglagetabelle keine Zeile - sie kennt StCu 50 nur mit Fd Cu 107
+       * und Cu 150 nur mit StCu 92. Geraten wird nicht; die Funktion sagt,
+       * dass der Wert von +5 Grad dasteht.
+       */
+      wahr('Ohne passende Zeile bleibt es beim Wert von +5 Grad',
+           FL.abfangkraft('drahtwerk-n-fl-ts-stcu-50-fd-cu-150',
+                          { tempFall: 'havarie' }).ohneTabelle);
 
       /*
        * ============== DIE REGLAGETABELLE ==============================
@@ -15528,25 +15584,37 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
               FL.reglageZug('drahtwerk-cu-95', -40), 6.0, 1e-9, 'kN');
         pruef('Ueber +40 ebenso',
               FL.reglageZug('drahtwerk-cu-95', 60), 2.6, 1e-9, 'kN');
-        wahr('Ohne Tabelle gibt es keine Zahl',
-             FL.reglageZug('drahtwerk-n-fl-stcu-50', -20) === null);
+        // Wo keine Zeile passt, gibt es keine Zahl - der Fahrdraht Cu 150
+        // am Tragseil StCu 50 kommt in der Tabelle nicht vor.
+        wahr('Ohne passende Zeile gibt es keine Zahl',
+             FL.reglageZug('drahtwerk-n-fl-ts-stcu-50-fd-cu-150', -20)
+             === null);
+        // Das N-FL-Tragseil dagegen steht darin.
+        pruef('Ts StCu 50 bei -20 Grad',
+              FL.reglageZug('drahtwerk-n-fl-stcu-50', -20), 8.0, 1e-9, 'kN');
+        pruef('Das ganze Drahtwerk mit Fahrdraht',
+              FL.reglageZug('drahtwerk-n-fl-ts-stcu-50-fd-cu-107', -20),
+              16.5, 1e-9, 'kN');
 
         /*
-         * >>> DER Cu 95 GILT HEUTE ALS BEWEGLICH. <<<
+         * >>> DIE TABELLE IST SCHARF. <<<
          *
-         * Die Tabelle sagt etwas anderes - ein beweglich abgefangener Leiter
-         * haette in jeder Spalte dieselbe Kraft. Die Abfangart zu aendern
-         * ist nachweiserheblich und Sache des Auftraggebers; solange sie
-         * steht, greift die Tabelle nicht, und die Kontrolle haelt fest,
-         * WELCHER Stand geprueft ist.
+         * Weisung vom 9. September. Vier Rueckleiter Cu 95 ziehen im
+         * Havariefall 24.0 kN statt 15.6 - ein Unterschied von 8.4 kN, der
+         * vorher fehlte.
          */
-        pruef('Cu 95 rechnet vorerst mit dem Wert von +5 Grad',
+        pruef('Cu 95 rechnet bei Havarie mit -20 Grad',
               FL.abfangkraft('drahtwerk-cu-95', { tempFall: 'havarie' }).Z,
-              3.9, 1e-9, 'kN');
-        wahr('… und meldet dabei keine fehlende Tabelle, weil er als '
-             + 'beweglich gilt',
-             !FL.abfangkraft('drahtwerk-cu-95',
-                             { tempFall: 'havarie' }).ohneTabelle);
+              6.0, 1e-9, 'kN');
+        pruef('… bei Schnee mit -5 Grad',
+              FL.abfangkraft('drahtwerk-cu-95', { tempFall: 'schnee' }).Z,
+              4.6, 1e-9, 'kN');
+        pruef('Vier Rueckleiter im Havariefall',
+              FL.abfangkraft('drahtwerk-cu-95-x4',
+                             { tempFall: 'havarie' }).Z, 24.0, 1e-9, 'kN');
+        wahr('Der Wert kommt aus der Tabelle, nicht aus dem Katalog',
+             FL.abfangkraft('drahtwerk-cu-95',
+                            { tempFall: 'havarie' }).ausTabelle);
       }
     }
 

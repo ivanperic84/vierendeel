@@ -266,8 +266,22 @@ Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.
 Über eine Nachspannung – <i>beweglich</i> – hält ein Gewicht die Kraft
 konstant, gleich wie kalt es ist. Starr verankert – <i>fix</i> – folgt sie der
 Temperatur: der Draht zieht sich zusammen und kann nirgends nachgeben, die Kraft
-wächst. Bei der N-FL ist <b>nur das Tragseil</b> fix abgefangen; die
-Fahrdrähte und das ganze R-FL-Kettenwerk hängen an einer Nachspannung.</p>
+wächst.</p>
+
+<table class="dt">
+<tr><th>Leiter</th><th>Abfangung</th><th>Folge</th></tr>
+<tr><td>N-FL Tragseil</td><td>fix</td><td>temperaturabhängig</td></tr>
+<tr><td>N-FL Fahrdraht</td><td>beweglich</td><td>konstant (8.5 kN)</td></tr>
+<tr><td>R-FL Trag­seil und Fahr­draht</td><td>beweglich</td>
+  <td>konstant (12 + 10 kN)</td></tr>
+<tr><td>Einzelleiter – Rückleiter, Speise­leitung, Feeder</td><td>fix</td>
+  <td>temperaturabhängig</td></tr>
+</table>
+
+<p>Ein Kettenwerk ist damit <b>gemischt</b>: beim N-FL folgt das Tragseil der
+Temperatur, der Fahrdraht nicht. Der Katalogeintrag führt beide zusammen –
+N-FL StCu 50 / Cu 107 mit 14.9 = 6.4 (Ts) + 8.5 (Fd) kN –, und die
+Reglagetabelle tut dasselbe.</p>
 
 <p>Welche Temperatur im Nachweis gilt, ist keine Ableitung, sondern eine
 <b>Festlegung</b> – und sie hängt an der Kombination:</p>
@@ -287,16 +301,34 @@ niedrigsten – massgebend wird er, wenn ein Leiter als <b>gebrochen</b>
 bezeichnet ist: seine Kraft fällt weg, der gegenüberliegende zieht weiter,
 und das Joch trägt die Differenz.</p>
 
-<p>Die Zugkraft je Temperatur steht in der <b>Reglagetabelle</b>. Der
-Bauteilkatalog führt den Wert bei +5 °C; liegt für ein Drahtwerk die
-Tabelle vor, kommt der kalte Wert von dort (zwischen den Stützstellen linear
-– die drei Regliertemperaturen sind selbst Stützstellen). Liegt sie nicht
-vor, rechnet das Werkzeug mit dem Wert von +5 °C und <b>sagt es</b>.</p>
+<p>Die Zugkraft je Temperatur steht in der <b>Reglagetabelle</b>. Sie führt
+je Kettenwerk zwei Zeilen, <i>Ts belastet</i> und <i>Ts unbelastet</i>; die
+unbelastete gehört zur Reglage auf der Baustelle, in den Nachweis geht
+ausschliesslich die <b>belastete</b>. Der Bauteilkatalog führt den Wert bei
++5 °C – er ist die Spalte +5 derselben Zeile, und daran hängt die
+Zuordnung:</p>
 
-${q(`Das ist die <b>unsichere Richtung</b>. Ein fix abgefangener Leiter zieht
-kalt stärker; steht für ihn nur der Wert von +5 °C, sind der Schnee- und
-der Havariefall zu günstig gerechnet. Der Hinweis in der Übersicht nennt
-die betroffenen Leiter beim Namen – ihre Zugkraft ist dann von Hand
+<table class="dt">
+<tr><th>Drahtwerk</th><th>−20 °C</th><th>−5 °C</th><th>+5 °C</th></tr>
+<tr><td>Cu 95, Rückleiter (6 kN)</td><td>6.0</td><td>4.6</td><td><b>3.9</b></td></tr>
+<tr><td>N-FL Ts StCu 50 (sh 1.90 m, 8 kN)</td><td>8.0</td><td>7.0</td>
+  <td><b>6.4</b></td></tr>
+<tr><td>N-FL StCu 50 / Cu 107, ganz</td><td>16.5</td><td>15.5</td>
+  <td><b>14.9</b></td></tr>
+<tr><td>R-FL StCu 92 / Cu 107, ganz</td><td>22.0</td><td>22.0</td>
+  <td><b>22.0</b></td></tr>
+</table>
+
+<p>Zwischen den Stützstellen wird linear interpoliert; im Nachweis kommt das
+nicht vor, weil −20, −5 und +5 °C selbst Stützstellen sind. Ausserhalb
+der Tabelle gilt der Randwert – sie zu verlängern hiesse, über ihren
+Geltungsbereich hinaus zu rechnen.</p>
+
+${q(`Führt die Tabelle für ein Drahtwerk <b>keine Zeile</b>, rechnet das
+Werkzeug mit dem Wert von +5 °C und <b>sagt es</b> – der Hinweis in der
+Übersicht nennt die betroffenen Leiter beim Namen. Das ist die unsichere
+Richtung: ein fix abgefangener Leiter zieht kalt stärker, der Schnee- und der
+Havariefall stünden zu günstig da. Ihre Zugkraft ist dann von Hand
 einzusetzen.`)}
 
 <h4>3.6 Gebrauchstauglichkeit</h4>
