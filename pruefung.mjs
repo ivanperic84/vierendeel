@@ -6106,6 +6106,46 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   }
 
   /*
+   * >>> DIE DREHFEDERN AM LINKELEMENT SIND KEINE EINGABE MEHR. <<<
+   *
+   * Weisung vom 9. September, als Frage: «macht es sinn die drehsteifigkeit
+   * hier noch eingeben zu koennen, die einzelnen gurte sind gelenkig
+   * gelagert? welche auswirkung hat es?» - Entschieden: ganz raus.
+   *
+   * Der Befund, der es entschied: sie wirkte im MODELL (die Ausleitung
+   * reichte alle sechs Grade durch), nicht aber in der Anzeige und im
+   * Nachweis (`linkEinspannung` liest nur die Wegfeder). Anwendung und
+   * AxisVM rechneten dann verschiedene Systeme.
+   *
+   * Geprueft wird deshalb der WEG: eine Zahl in K_YY - auch aus einem alten
+   * Stand - darf nirgends mehr ankommen.
+   */
+  {
+    const mitDreh = { auflagerLinks: { OG: { x: 'Rigid', yy: 50000, xx: 'Rigid' },
+                                       UG: { x: 'Rigid', zz: 1234 } } };
+    ['OG', 'UG'].forEach((eb) => {
+      const b = AUF.linkBedingung(mitDreh, 'joch', eb);
+      wahr(`${eb}: die drei Drehungen bleiben frei`,
+           ['xx', 'yy', 'zz'].every((g) => b[g] === 'Free'),
+           ['xx', 'yy', 'zz'].map((g) => `${g}=${b[g]}`).join(' '));
+      wahr(`${eb}: die Wegfedern gelten weiter`, b.x === 'Rigid');
+    });
+    // Auch aus den Optionen kommt keine durch.
+    const ausOpt = { auflagerVorgabe: { joch: { OG: { yy: 9999 } } } };
+    wahr('Die Voreinstellung bringt auch keine mit',
+         AUF.linkVorgabe(ausOpt, 'joch', 'OG').yy === 'Free');
+    // Und im Modell steht sie dann auf Free.
+    const wD = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+                       mastSteg: 'jochachse', L: 20 });
+    const mD = modell(wD, getProfil(wD.profOG), getProfil(wD.profUG),
+                      getStahl(wD.stahl), T.getTragjoch('J90'));
+    const jD = AX.stabmodellJson({ ...mD, ...mitDreh }, { auflagerModell: 'mast' });
+    wahr('Das Linkelement traegt keine Drehfeder',
+         ['xx', 'yy', 'zz'].every((g) => jD.staebe
+           .find((x) => x.name === 'LINK_A_OG').kraftuebertragung[g] === 'Free'));
+  }
+
+  /*
    * =============== DIE AUFLAGERBEDINGUNG ALS ENDBEDINGUNG ==============
    *
    * Weisung vom 9. September, auf Rueckfrage entschieden: eine Wahl, die

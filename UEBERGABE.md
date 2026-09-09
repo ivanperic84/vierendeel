@@ -27,6 +27,36 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Drehfedern am Linkelement sind raus (9. September)
+
+Frage: «macht es sinn die drehsteifigkeit hier noch eingeben zu können, die
+einzelnen gurte sind gelenkig gelagert? welche auswirkung hat es?» — auf
+Rückfrage entschieden: **ganz raus, fest auf frei.**
+
+**Am Bauteil:** Der Gurtanschluss ist eine Schraubverbindung an einem Punkt.
+Er nimmt kein Moment auf; die Einspannung entsteht aus dem Kräftepaar der
+beiden Anschlüsse im Abstand h. Eine Drehfeder am einzelnen Link kommt zum
+Kräftepaar *hinzu* — das Ende wäre doppelt eingespannt.
+
+**Die Auswirkung war einseitig, und das war der eigentliche Grund:**
+
+```
+K_YY = Free     angezeigt: eingespannt   ins Modell: Free
+K_YY = 50000    angezeigt: eingespannt   ins Modell: 50000
+```
+
+Im Modell wirkte sie voll (die Ausleitung reicht alle sechs Grade durch), in
+Anzeige und Nachweis gar nicht (`linkEinspannung` liest nur die Wegfeder in
+der Jochachse). Anwendung und AxisVM rechneten dann verschiedene Systeme, und
+man sah es keiner der beiden Zahlen an. Steifer gerechnet heisst zudem
+grösseres Stützmoment — am verjüngten Jochende die unsichere Seite.
+
+`linkBedingung` und `linkVorgabe` geben die Momentengrade jetzt **immer** frei,
+auch wenn ein alter Stand eine Zahl mitbringt (`LINK_DREH_FREI` in
+`core.auflager.js`). Die Grade bleiben in `LINK_GRADE`: die Ausleitung schreibt
+sechs Werte, der sechste heisst dann eben 0. Der Klappteil heisst «Federwerte
+von Hand» und führt noch sechs Felder statt zwölf.
+
 ### Ansicht kürzer, Schnitt grösser (9. September)
 
 Weisung: «beim diagramm die ansicht um ein feld einkürzen dafür die breite im

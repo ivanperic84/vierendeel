@@ -993,7 +993,9 @@ export function linkBedingung(inp, art, ebene) {
   const gesetzt = inp?.auflagerLinks?.[ebene] ?? null;
   if (!gesetzt) return { ...vorgabe };
   const o = {};
-  LINK_GRADE.forEach(({ key }) => {
+  LINK_GRADE.forEach(({ key, art: a }) => {
+    // Die Drehungen sind keine Eingabe mehr - siehe LINK_DREH_FREI.
+    if (a === 'moment') { o[key] = 'Free'; return; }
     const v = gesetzt[key];
     o[key] = (v === 'Rigid' || v === 'Free' || Number.isFinite(v))
       ? v : vorgabe[key];
@@ -1018,13 +1020,61 @@ export function linkBedingung(inp, art, ebene) {
  * eine Zeile Quelltext aendert. Was am einzelnen Tragwerk davon abweicht,
  * bleibt am Tragwerk.
  */
+/* ===========================================================================
+ * DIE DREHFEDERN AM LINKELEMENT SIND KEINE EINGABE
+ * ===========================================================================
+ *
+ * Weisung vom 9. September, als Frage: «macht es sinn die drehsteifigkeit
+ * hier noch eingeben zu koennen, die einzelnen gurte sind gelenkig gelagert?
+ * welche auswirkung hat es?» - Entschieden: ganz raus, fest auf frei.
+ *
+ * >>> AM BAUTEIL. <<<
+ *
+ * Der Gurtanschluss ist eine Schraubverbindung an EINEM Punkt. Er nimmt kein
+ * Moment auf; die Einspannung des Jochendes entsteht aus dem KRAEFTEPAAR der
+ * beiden Anschluesse im Abstand h. Eine Drehfeder am einzelnen Link
+ * beschreibt eine Steifigkeit, die die Verbindung nicht hat - und sie kommt
+ * zum Kraeftepaar HINZU, spannt das Ende also doppelt ein.
+ *
+ * >>> WAS SIE ANRICHTETE. <<<
+ *
+ * Im Modell wirkte sie voll: `linkBedingung` reichte alle sechs Grade an die
+ * Ausleitung durch, AxisVM rechnete damit. Steifer gerechnet heisst
+ * groesseres Stuetzmoment - und am verjuengten Jochende ist genau das die
+ * UNSICHERE Seite, weil dort dem Moment nur der kleine Hebelarm
+ * gegenuebersteht.
+ *
+ * In der Anzeige und im Nachweis wirkte sie dagegen gar nicht:
+ * `linkEinspannung` liest nur die Wegfeder in der Jochachse. Gemessen:
+ *
+ *     K_YY = Free     angezeigt: eingespannt   ins Modell: Free
+ *     K_YY = 50000    angezeigt: eingespannt   ins Modell: 50000
+ *
+ * Anwendung und AxisVM rechneten dann VERSCHIEDENE Systeme, und man sah es
+ * keiner der beiden Zahlen an. Das ist der eigentliche Grund: nicht dass die
+ * Eingabe nichts taete, sondern dass sie an einer Stelle etwas tat und an
+ * der anderen nicht.
+ *
+ * >>> UND DIE MESSUNG SAGT DASSELBE. <<<
+ *
+ * In jedem vermessenen Modell stehen sie auf null - die Ausschnitte aus
+ * AxisVM zeigen K_XX = K_YY = K_ZZ = 0 an beiden Ebenen.
+ *
+ * `linkBedingung` und `linkVorgabe` geben sie deshalb IMMER frei, auch wenn
+ * ein alter Stand eine Zahl mitbringt. Die Grade bleiben in LINK_GRADE
+ * stehen: die Ausleitung schreibt sechs Werte, und der sechste heisst dann
+ * eben 0.
+ */
+export const LINK_DREH_FREI = true;
+
 export function linkVorgabe(inp, art, ebene) {
   const eingebaut = (LINK_VORGABEN[art] ?? LINK_VORGABEN.joch)[ebene] ?? VOLL;
   const ausOptionen = inp?.auflagerVorgabe?.[art]?.[ebene]
                    ?? inp?.auflagerVorgabe?.[ebene] ?? null;
   if (!ausOptionen) return { ...eingebaut };
   const o = {};
-  LINK_GRADE.forEach(({ key }) => {
+  LINK_GRADE.forEach(({ key, art: a }) => {
+    if (a === 'moment') { o[key] = 'Free'; return; }
     const v = ausOptionen[key];
     o[key] = (v === 'Rigid' || v === 'Free' || Number.isFinite(v))
       ? v : eingebaut[key];

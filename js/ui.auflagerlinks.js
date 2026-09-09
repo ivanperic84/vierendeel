@@ -593,8 +593,14 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
 
   const federn = ebenen.map((ebene) => {
     const b = lies(ebene.key);
+    /*
+     * NUR NOCH DIE DREI WEGFEDERN (Weisung, 9. September). Die Drehungen am
+     * Linkelement sind keine Eingabe mehr - der Gurtanschluss ist eine
+     * Schraubverbindung und nimmt kein Moment auf; die Begruendung steht
+     * bei `LINK_DREH_FREI` in core.auflager.js.
+     */
     return `<div class="al-federn"><b>${esc(ebene.label)}</b>${
-      LINK_GRADE.map((g) => {
+      wege.map((g) => {
         const v = b[g.key];
         /*
          * DIE EINHEIT LIEGT IM FELD (Weisung, 9. September: «die einheit für
@@ -711,7 +717,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     <p class="al-einspannung ${eKlasse}${gerechnet ? ' gilt' : ''}">
       <span class="al-e-wert">${eWert}</span>
       <span class="al-e-text">${eText}${eWirkung}</span></p>
-    ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern',
+    ${klapp(`auflager-federn-${feld}`, 'Federwerte von Hand',
             federKreuz + federn,
             vorgabefeld ? 'Voreinstellung'
               : (linkAbweichend(werte, art) ? 'von der Vorgabe abweichend'
