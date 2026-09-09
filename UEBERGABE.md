@@ -38,10 +38,20 @@ Beim Tragjoch stehen dort Ober- und Untergurt mit stehenden Bindeblechen; das
 Abfangjoch legt seinen Rahmen waagrecht — zwei Walzprofile **nebeneinander**,
 Bleche oben und unten (`core.abfangjoch.js`: «Rahmenebene waagrecht»).
 
-Im Grundriss sieht man deshalb jetzt die beiden Gurte als **Profile mit
-Breite** und dazwischen die Bleche als **Flächen**, von oben gesehen — ein
-Träger, kein Rahmen. Die Bildunterschriften sagen es dazu: «Grundriss — der
-Träger liegt, Bleche oben und unten» und «Schnitt — zwei Gurte nebeneinander».
+**Und beide Arten zeigen eine Ansicht** (Weisung, kurz darauf: «nimm die
+ansicht anstatt grundriss, so ist es gleich wie beim tragjoch und es kommt
+nicht zu verwechslungen»). Der Grundriss war fachlich richtig und als *Paar*
+falsch: zwei Bilder nebeneinander, die verschiedene Blickrichtungen meinen,
+liest man als dieselbe.
+
+In der Ansicht ist das Abfangjoch **ein flacher Balken** — Ober- und
+Unterkante, dazwischen die Quersteifen gestrichelt. Seine beiden Gurte liegen
+in y auseinander, der hintere steht also genau hinter dem vorderen; seine
+Halterung wird **gestrichelt und weiter ausgreifend** gezeichnet, wie jede
+verdeckte Kante (`hs2` / `hf2` im Blatt). Ein seitlicher Versatz wäre die
+Alternative gewesen — er behauptete aber eine Stelle, an der nichts sitzt.
+Welcher Gurt welchen Grad hält, zeigt daneben der Schnitt: «zwei Gurte
+nebeneinander».
 
 ### Die Auswirkung in der Modellansicht (9. September)
 

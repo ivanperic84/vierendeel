@@ -256,11 +256,22 @@ const istFeder = (v) => Number.isFinite(v) && v > 0;
  * @param {number[]} ri  Einheitsrichtung im Bild
  * @param {*} v          Zustand des Freiheitsgrads
  */
-function haltEbene(p, ri, v) {
+function haltEbene(p, ri, v, verdeckt = false) {
   if (!haelt(v)) return '';
-  const kl = istFeder(v) ? 'hf' : 'hs';
+  /*
+   * VERDECKT heisst: gestrichelt und blass - die Zeichenkonvention fuer das,
+   * was hinter der Bildebene liegt. In der ANSICHT des Abfangjochs steht der
+   * hintere Gurt genau hinter dem vorderen; seine Halterung waere sonst
+   * unsichtbar oder, schlimmer, mit der vorderen verwechselbar.
+   */
+  const kl = (istFeder(v) ? 'hf' : 'hs') + (verdeckt ? '2' : '');
   const [ux, uy] = ri;
-  const a = 6.5, l = 9.5;                 // Abstand vom Punkt, Laenge
+  /*
+   * Die VERDECKTE Halterung greift weiter aus: sie liegt exakt hinter der
+   * vorderen, und nur so schaut sie hervor. Ein seitlicher Versatz waere die
+   * Alternative - er behauptete aber eine Stelle, an der nichts sitzt.
+   */
+  const a = verdeckt ? 10 : 6.5, l = verdeckt ? 11 : 9.5;
   const zeichen = istFeder(v)
     /*
      * Die Feder steht auf EINER Seite. Ein Zickzack in beide Richtungen
@@ -277,9 +288,9 @@ function haltEbene(p, ri, v) {
  * Die Halterung SENKRECHT ZUR BILDEBENE: ein Kreis um den Anschlusspunkt.
  * Gestrichelt, wenn es eine Feder ist.
  */
-function haltTiefe(p, v) {
+function haltTiefe(p, v, verdeckt = false) {
   if (!haelt(v)) return '';
-  const kl = istFeder(v) ? 'hf' : 'hs';
+  const kl = (istFeder(v) ? 'hf' : 'hs') + (verdeckt ? '2' : '');
   return `<circle class="${kl}" cx="${p[0]}" cy="${p[1]}" r="7" fill="none"${
     istFeder(v) ? ' stroke-dasharray="3 2.4"' : ''}/>`;
 }
@@ -293,12 +304,12 @@ function haltTiefe(p, v) {
  * Gurtwinkel, seit die Breite dem Massstab der Hoehe folgt (Weisung,
  * 9. September). Dort haengt das Schild deshalb am Bildrand.
  */
-function anschluss(p, b, achsen, label, wo = null) {
+function anschluss(p, b, achsen, label, wo = null, verdeckt = false) {
   const [lx, ly, anker] = wo ?? [p[0] - 11, p[1] - 10, 'end'];
-  return knoten(p[0], p[1], 3.6)
-    + haltEbene(p, achsen.hRi, b[achsen.h])
-    + haltEbene(p, achsen.vRi, b[achsen.v])
-    + haltTiefe(p, b[achsen.t])
+  return (verdeckt ? '' : knoten(p[0], p[1], 3.6))
+    + haltEbene(p, achsen.hRi, b[achsen.h], verdeckt)
+    + haltEbene(p, achsen.vRi, b[achsen.v], verdeckt)
+    + haltTiefe(p, b[achsen.t], verdeckt)
     + (label ? txt(lx, ly, label, 'dim', anker) : '');
 }
 
@@ -398,8 +409,30 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * durchlaufende Mast steht ueber der Anschlussebene, der Kragmast endet
    * dort. Ein Mass, kein Beiwert - jetzt steht es hier.
    */
+  /*
+   * >>> UND DAS ABFANGJOCH ZEIGT AUCH EINE ANSICHT. <<<
+   *
+   * Weisung vom 9. September: «nimm die ansicht anstatt grundriss, so ist es
+   * gleich wie beim tragjoch und es kommt nicht zu verwechslungen.»
+   *
+   * Der Grundriss war fachlich richtig und als PAAR falsch: zwei Bilder, die
+   * nebeneinander stehen und verschiedene Blickrichtungen meinen, liest man
+   * als dieselbe. Jetzt zeigen beide Arten dasselbe Blattpaar - ANSICHT und
+   * SCHNITT.
+   *
+   * >>> WAS DAS FUER DEN HINTEREN GURT HEISST. <<<
+   *
+   * Beim Tragjoch liegen die Ebenen in z auseinander; in der Ansicht sieht
+   * man beide. Beim Abfangjoch liegen sie in y - der hintere Gurt steht
+   * GENAU HINTER dem vorderen. Seine Halterung wird deshalb gestrichelt und
+   * blass gezeichnet, wie jede verdeckte Kante; welcher Gurt welchen Grad
+   * haelt, zeigt daneben der Schnitt.
+   */
+  const traegerH = 26;                    // Bauhoehe des liegenden Traegers
+  const mitteL = inY ? (yE[0] + yE[1]) / 2 : null;
+  const kanten = inY ? [mitteL - traegerH / 2, mitteL + traegerH / 2] : yE;
   const kragmast = anschlussArt === 'kragarm';
-  const mastOben = kragmast ? yE[0] : 12;
+  const mastOben = kragmast ? kanten[0] : 12;
   const laengs = [
     // Der Mast als Bauteil, nicht als Strich.
     `<rect class="kasten" x="${mastL}" y="${mastOben}" width="22" height="${
@@ -407,8 +440,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     txt(mastL + 11, 128, 'Mast', 'dim'),
     txt(mastL + 11, mastOben - 5, kragmast ? 'endet hier' : 'läuft durch', 'dim'),
     // Systemachse des Jochs.
-    `<line class="d" x1="24" y1="70" x2="204" y2="70"/>`,
-    txt(30, 82, 'Feld', 'dim', 'start'),
+    `<line class="d" x1="24" y1="${inY ? mitteL : 70}" x2="204" y2="${
+      inY ? mitteL : 70}"/>`,
+    txt(34, inY ? mitteL + 22 : 82, 'Feld', 'dim', 'start'),
     /*
      * >>> DIE BLECHE SIND HIER NUR BAUTEIL, NICHT THEMA. <<<
      *
@@ -422,44 +456,35 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
      * ist das einzige Farbige.
      */
     /*
-     * >>> DAS ABFANGJOCH IST EIN LIEGENDER TRAEGER. <<<
-     *
-     * Weisung vom 9. September: «die ansicht zeigt nicht das Abfangjoch, es
-     * gibt da keine ober und untergurt sondern nur einen traeger.»
-     *
-     * Richtig - und das Bild sagte etwas anderes. Es zeichnete beide Arten
-     * gleich: zwei Linien und Querstriche dazwischen, also die Gestalt des
-     * TRAGJOCHS mit anderen Namen. Beim Tragjoch stehen dort Ober- und
-     * Untergurt mit stehenden Bindeblechen; beim Abfangjoch liegen ZWEI
-     * WALZPROFILE NEBENEINANDER, und die Bleche liegen oben und unten
-     * (siehe core.abfangjoch.js: «Rahmenebene waagrecht»).
-     *
-     * Im GRUNDRISS sieht man deshalb: die beiden Gurte als Profile - jeder
-     * mit seiner Breite, nicht als Strich -, und dazwischen die Bleche als
-     * FLAECHEN, von oben gesehen. Das ist ein Traeger, kein Rahmen.
+     * DAS ABFANGJOCH IST EIN TRAEGER (Weisung, 9. September: «es gibt da
+     * keine ober und untergurt sondern nur einen traeger»). In der Ansicht
+     * ist das ein Balken mit Ober- und Unterkante; die Bleche liegen oben
+     * und unten, also IN diesen Kanten, und die Quersteifen stehen als
+     * senkrechte Striche dazwischen.
      */
-    ...(inY
-      ? [...yE.flatMap((y) => [
-          `<line class="b" x1="28" y1="${y - 2}" x2="${gurtE}" y2="${y - 2}"/>`,
-          `<line class="b" x1="28" y1="${y + 2}" x2="${gurtE}" y2="${y + 2}"/>`]),
-         ...[62, 104].map((x) =>
-           `<rect class="steif" x="${x}" y="${yE[0]}" width="24" height="${
-             yE[1] - yE[0]}"/>`)]
-      : [...yE.map((y) => `<line class="b" x1="28" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
-         ...[70, 110].map((x) =>
-           `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`)]),
-    // Das Linkelement je Ebene: vom Gurtende zum Masten.
-    ...yE.map((y, i) => (traegt(i)
-      ? `<line class="link" x1="${gurtE}" y1="${y}" x2="${mastL}" y2="${y}"/>` : '')),
-    mass(16, yE[0], 16, yE[1], inY ? 'b' : 'h'),
+    ...kanten.map((y) => `<line class="b" x1="28" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
+    ...[70, 110].map((x) =>
+      `<line class="${inY ? 'd' : 'b'}" x1="${x}" y1="${kanten[0]}" x2="${x}" y2="${
+        kanten[1]}"/>`),
+    mass(16, kanten[0], 16, kanten[1], 'h'),
   ].join('');
 
-  const achsenL = inY
-    ? { h: 'x', hRi: [-1, 0], v: 'y', vRi: [0, -1], t: 'z' }
-    : { h: 'x', hRi: [-1, 0], v: 'z', vRi: [0, -1], t: 'y' };
-  const punkteL = yE.map((y, i) => (traegt(i)
-    ? anschluss([gurtE, y], lies(ebenen[i].key), achsenL, esc(ebenen[i].key))
-    : '')).join('');
+  const achsenL = { h: 'x', hRi: [-1, 0], v: 'z', vRi: [0, -1], t: 'y' };
+  /*
+   * DIE ANSCHLUSSPUNKTE. Beim Tragjoch einer je Gurtebene, uebereinander;
+   * beim Abfangjoch beide auf der Traegerachse - der hintere verdeckt.
+   */
+  const punkteL = inY
+    ? ebenen.map((e, i) => (traegt(i)
+        ? anschluss([gurtE, mitteL], lies(e.key), achsenL,
+                    i === 0
+                      ? esc(`${ebenen[0].key} vorn, ${ebenen[1].key} dahinter`)
+                      : '',
+                    i === 0 ? [gurtE - 6, kanten[0] - 8, 'end'] : null, i === 1)
+        : '')).join('')
+    : yE.map((y, i) => (traegt(i)
+        ? anschluss([gurtE, y], lies(ebenen[i].key), achsenL, esc(ebenen[i].key))
+        : '')).join('');
 
   /* --- Das Querbild: Schnitt in der Jochachse ---------------------------
    *
@@ -547,12 +572,11 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * Ansicht und Schnitt etwas sichtbarer machen»).
    */
   const bild = `<div class="al-bilder">${
-    skizze(inY ? 'Grundriss — Blick von oben auf den liegenden Träger'
-               : 'Ansicht — Blick in Gleisrichtung',
+    skizze('Ansicht — Blick in Gleisrichtung',
            `0 0 ${BB[0]} ${BB[1]}`, laengs + punkteL + kreuz(achsenL), 'al-skizze',
-           `<b>${inY ? 'Grundriss' : 'Ansicht'}</b> — ${
-             inY ? 'der Träger liegt, Bleche oben und unten'
-                 : 'Blick in Gleisrichtung'}`)}${
+           `<b>Ansicht</b> — ${inY
+             ? 'der Träger liegt, hinterer Gurt verdeckt'
+             : 'Blick in Gleisrichtung'}`)}${
     skizze('Schnitt — Blick in die Jochachse',
            `0 0 ${BB[0]} ${BB[1]}`, quer.join('') + punkteQ.join('') + kreuz(achsenQ),
            'al-skizze', `<b>Schnitt</b> — ${

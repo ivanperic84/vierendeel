@@ -6123,12 +6123,24 @@ titel('34b Die Auflagerbedingung je Gurtebene');
       { tragwerksart: 'joch', mastVorhanden: true, jd: 500 }, 'joch');
     const bildA = AL2.auflagerDiagrammHtml(
       { tragwerksart: 'abfangjoch', mastVorhanden: true }, 'abfangjoch');
-    wahr('Das Tragjoch zeigt seine Ansicht', /<b>Ansicht<\/b>/.test(bildJ));
-    wahr('Das Abfangjoch zeigt den Grundriss', /<b>Grundriss<\/b>/.test(bildA));
-    wahr('… und nennt den liegenden Traeger',
-         /Träger liegt/.test(bildA));
-    wahr('Nur das Abfangjoch traegt Blechflaechen im Laengsbild',
-         /class="steif"/.test(bildA) && !/class="steif"/.test(bildJ));
+    /*
+     * BEIDE ARTEN ZEIGEN EINE ANSICHT (Weisung, 9. September: «nimm die
+     * ansicht anstatt grundriss, so ist es gleich wie beim tragjoch und es
+     * kommt nicht zu verwechslungen»). Der Grundriss war fachlich richtig
+     * und als PAAR falsch: zwei Bilder nebeneinander, die verschiedene
+     * Blickrichtungen meinen, liest man als dieselbe.
+     */
+    wahr('Beide Arten zeigen eine Ansicht',
+         /<b>Ansicht<\/b>/.test(bildJ) && /<b>Ansicht<\/b>/.test(bildA));
+    wahr('Kein Grundriss mehr', !/Grundriss/.test(bildA));
+    wahr('Beim Abfangjoch ist der hintere Gurt verdeckt',
+         /hinterer Gurt verdeckt/.test(bildA));
+    /*
+     * UND SEINE HALTERUNG WIRD GESTRICHELT GEZEICHNET - die Klasse `hs2`
+     * gibt es nur dort, wo eine Ebene hinter der anderen liegt.
+     */
+    wahr('Die verdeckte Halterung ist als solche gezeichnet',
+         /class="hs2/.test(bildA) && !/class="hs2/.test(bildJ));
     wahr('Sein Schnitt nennt die zwei Gurte nebeneinander',
          /zwei Gurte nebeneinander/.test(bildA));
   }

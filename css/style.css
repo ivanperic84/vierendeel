@@ -1356,6 +1356,15 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .skizze .hsf { fill: var(--ok); stroke: none; }
 .skizze .hf  { stroke: var(--warn); stroke-width: 1.6; fill: none; }
 .skizze .hff { fill: var(--warn); stroke: none; }
+/* VERDECKT: was hinter der Bildebene liegt, wird gestrichelt und blass -
+   in der Ansicht des Abfangjochs steht der hintere Gurt genau hinter dem
+   vorderen (Weisung, 9. September). */
+.skizze .hs2  { stroke: var(--ok); stroke-width: 1.1; fill: none;
+                stroke-dasharray: 2.5 2; opacity: .6; }
+.skizze .hs2f { fill: var(--ok); stroke: none; opacity: .6; }
+.skizze .hf2  { stroke: var(--warn); stroke-width: 1.1; fill: none;
+                stroke-dasharray: 2.5 2; opacity: .6; }
+.skizze .hf2f { fill: var(--warn); stroke: none; opacity: .6; }
 /* Schrift */
 .skizze text { fill: var(--on2); font-family: var(--f-mono); font-size: 11px; }
 .skizze text.dim { fill: var(--dim); font-size: 10px; }
