@@ -27,6 +27,40 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Zugkraft im Modell — geprüft (9. September)
+
+Weisung: «die zugkraft im modell noch prüfen.» Gemessen an A240 / 12.50 m mit
+einem Drahtwerk bei x = 10.00 m:
+
+| | vorn abgefangen | hinten | durchgehend |
+|---|---|---|---|
+| Kern `abfangAnbauLasten` | +14.90 kN | −14.90 kN | 0 |
+| Bild (Pfeil) | (10.00, **+1.10**, 0) nach +y | (10.00, −1.10, 0) nach −y | keiner |
+| Modell `FH_AT1` | Y +14.90 kN am Knoten AT1 (10.00, **0**, 0) | −14.90 kN | keine eigene |
+| Nachweis | 14.90 kN | 14.90 kN | 0 |
+
+**Betrag, Richtung und Vorzeichen stimmen in allen drei Wegen.** Der
+Angriffsknoten sitzt auf der Trägerachse, der starre Arm `ATARM_1V` führt zu
+*einem* Gurt — «so dass entweder der vordere oder hintere IPE oder UPE Träger
+belastet wird» (Weisung, 4. September). Lastfall «Leiterzug».
+
+**Zwei Befunde:**
+
+1. **Nachweis und Modell verteilen den Zug verschieden.** Der Nachweis setzt
+   die Kraft auf die Trägerachse an (Kräftepaar, beide Gurte gleich), das
+   Modell hängt sie an den gewählten Gurt. Global dasselbe Moment, örtlich
+   nicht — die Einleitung an einem Gurt führt der Ersatzbalken nicht. Steht
+   jetzt als Hinweis in der Liste.
+
+2. **«Durchgehend» hebt die pauschale Abfangkraft nicht auf** — Nachweis
+   0.00 kN gegen Modell 22 kN (FH_V + FH_H). Die Bedingung fragt, ob ein
+   Leiter *abgefangen* ist; ein durchgehender zählt wie keiner. Beides lässt
+   sich vertreten; **dem Auftraggeber vorgelegt**, bis dahin unverändert.
+
+**Nicht bedienbar:** der Temperaturfall. `abfangkraft` kennt +5 / −5 / −20 °C
+und meldet, wenn die Reglagetabelle für den kalten Fall fehlt (`ohneTabelle`),
+aber es gibt kein Eingabefeld — es gilt immer der Regelfall +5 °C.
+
 ### Der Zugpfeil sitzt an der Abspannung (9. September)
 
 Weisung: «den kraftvektor auf die markierung schieben und nicht in der mitte

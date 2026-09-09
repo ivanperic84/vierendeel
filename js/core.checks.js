@@ -17,7 +17,8 @@ import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
 import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
          mastImModell } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
-import { abfangZugOhneWirkung } from './core.abfangjoch.js';
+import { abfangZugOhneWirkung,
+         abfangAnbindung } from './core.abfangjoch.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
 import { amMast } from './data.anbauteile.js';
 
@@ -519,6 +520,38 @@ export function hinweise(m) {
      * Entschieden wird das an der Anlage, nicht im Werkzeug - deshalb ein
      * HINWEIS und keine Annahme.
      */
+    /*
+     * >>> NACHWEIS UND MODELL VERTEILEN DEN ZUG VERSCHIEDEN. <<<
+     *
+     * Weisung vom 9. September: «die zugkraft im modell noch pruefen.»
+     * Betrag, Richtung und Angriffsstelle stimmen ueberein - gemessen an
+     * A240 / 12.50 m: 14.90 kN in y, am Knoten der Traegerachse, Lastfall
+     * «Leiterzug». Was sich unterscheidet, ist der Weg von dort in die
+     * Gurte:
+     *
+     *   NACHWEIS   die Kraft sitzt auf der Traegerachse; das Moment wird
+     *              zum Kraeftepaar N = ±M/e, beide Gurte gleich stark.
+     *   MODELL     ein starrer Arm fuehrt sie an EINEN Gurt - «so dass
+     *              entweder der vordere oder hintere IPE oder UPE Traeger
+     *              belastet wird» (Weisung, 4. September).
+     *
+     * Beides ist gewollt, und beides ist richtig fuer das, was es
+     * beschreibt: global dasselbe Moment, oertlich nicht. Der Ersatzbalken
+     * kennt die Einleitung an einem Gurt nicht - dieselbe Grenze wie beim
+     * Tragjoch, und sie gehoert dorthin, wo die Zahlen stehen.
+     */
+    const abgefangen = (m.anbauteile ?? []).filter(
+      (t2) => t2 && t2.aktiv !== false && (t2.ort ?? 'joch') === 'joch'
+              && abfangAnbindung(t2).abgefangen);
+    if (abgefangen.length) {
+      h.push(`${abgefangen.length === 1 ? 'Ein abgefangener Leiter zieht'
+        : `${abgefangen.length} abgefangene Leiter ziehen`} am Joch. Der `
+        + 'NACHWEIS setzt die Kraft auf die Trägerachse an — das Moment wird '
+        + 'zum Kräftepaar, beide Gurte gleich stark. Das ausgeleitete MODELL '
+        + 'hängt sie dagegen über einen starren Arm an den gewählten Gurt '
+        + '(vorn oder hinten). Global ist es dasselbe Moment, örtlich nicht: '
+        + 'die Einleitung an einem Gurt führt der Ersatzbalken nicht.');
+    }
     const ohneZug = abfangZugOhneWirkung(m.anbauteile ?? [],
                                          { tempFall: m.tempFall });
     if (ohneZug.length) {

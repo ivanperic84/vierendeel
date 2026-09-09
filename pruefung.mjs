@@ -12982,6 +12982,81 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE ZUGKRAFT IM MODELL. <<<
+   *
+   * Weisung vom 9. September: «die zugkraft im modell noch pruefen.»
+   * Gemessen an A240 / 12.50 m, ein Drahtwerk bei x = 10.00 m: Betrag,
+   * Richtung und Angriffsstelle muessen in Kern, Bild und Ausleitung
+   * dieselben sein.
+   */
+  if (AJ.abfangDbDa()) {
+    const AB5 = await import(J('core.abfangjoch.js'));
+    const RA5 = await import(J('render.abfang.js'));
+    const XA5 = await import(J('export.axisvm.abfang.js'));
+    const teilV = (verlauf) => ({
+      id: `AT-${verlauf}`, vorlage: 'hs-fahrdraht', name: `Leiter ${verlauf}`,
+      x: 10, ort: 'joch', aktiv: true, anbindung: 'mitte', verlauf,
+      module: [{ bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107', anzahl: 1, z: 0 }],
+    });
+    const o5 = { ek: 'EK2', L_FL: 0, R: 0 };
+    const kern = AB5.abfangAnbauLasten(teilV('vorn'), { ...o5, spannweite: 0 });
+    const bild = (RA5.abfangSzene('A240', 12.5,
+      { anbauteile: [teilV('vorn')], ...o5 }).vektoren ?? [])
+      .find((v) => v.lastart === 'leiterzug');
+    const mod = XA5.abfangAxisvmModell('A240', 12.5,
+      { anbauteile: [teilV('vorn')], ...o5 });
+    const last = (mod.lasten?.punkt ?? []).find((p) => p.lastfall === 'Leiterzug');
+
+    pruef('Kern und Bild nennen denselben Zug',
+          Number(String(bild.text).match(/([\d.]+)/)[1]), Math.abs(kern.Z),
+          0.005, 'kN');
+    pruef('Und das Modell auch', Math.abs(Number(last.wert)), Math.abs(kern.Z),
+          1e-9, 'kN');
+    wahr('Es zieht in Gleisrichtung', last.richtung === 'Y');
+    wahr('Der Lastfall heisst «Leiterzug»', last.lastfall === 'Leiterzug');
+    /*
+     * DER ANGRIFFSKNOTEN LIEGT AUF DER TRAEGERACHSE - und der starre Arm
+     * fuehrt zu EINEM Gurt: «so dass entweder der vordere oder hintere
+     * Traeger belastet wird» (Weisung, 4. September).
+     */
+    const knA = (mod.knoten ?? []).find((k) => k.name === last.knoten);
+    wahr('Der Knoten sitzt auf der Traegerachse',
+         Math.abs(knA.y) < 1e-9 && Math.abs(knA.z) < 1e-9,
+         `(${knA.x}, ${knA.y}, ${knA.z})`);
+    pruef('… an der Stelle des Bauteils', Number(knA.x), 10, 0.01, 'm');
+    const arme = (mod.staebe ?? []).filter((st) => /^ATARM_/.test(st.name ?? ''));
+    pruef('Genau ein starrer Arm zum Gurt', arme.length, 1, 1e-9, 'Stk');
+    wahr('… und zwar zum vorderen', /_1V$/.test(arme[0].name)
+         && arme[0].art === 'starr', arme[0].name);
+    /*
+     * HINTEN ABGEFANGEN dreht das Vorzeichen und den Arm - beides, sonst
+     * zoege der Leiter am falschen Gurt.
+     */
+    const modH = XA5.abfangAxisvmModell('A240', 12.5,
+      { anbauteile: [teilV('hinten')], ...o5 });
+    const lastH = (modH.lasten?.punkt ?? []).find((p) => p.lastfall === 'Leiterzug');
+    wahr('Hinten abgefangen zieht nach hinten', Number(lastH.wert) < 0);
+    wahr('… und haengt am hinteren Gurt',
+         (modH.staebe ?? []).some((st) => /^ATARM_1H$/.test(st.name ?? '')));
+    /*
+     * EIN DURCHGEHENDER LEITER ZIEHT NICHT - dann darf im Modell auch keine
+     * Leiterzuglast stehen.
+     */
+    const modD = XA5.abfangAxisvmModell('A240', 12.5,
+      { anbauteile: [teilV('durchgehend')], ...o5 });
+    /*
+     * OFFEN: der durchgehende Leiter bringt keine EIGENE Zuglast - die
+     * PAUSCHALE bleibt aber stehen (siehe den Vermerk in
+     * export.axisvm.abfang.js). Nachweis 0 kN gegen Modell 22 kN; der
+     * Widerspruch ist dem Auftraggeber vorgelegt.
+     */
+    wahr('Der durchgehende Leiter bringt keine eigene Zuglast',
+         !(modD.lasten?.punkt ?? []).some((p) => /^FH_AT/.test(p.name ?? '')));
+    wahr('… bis zum Entscheid bleibt die Pauschale',
+         (modD.lasten?.punkt ?? []).some((p) => p.name === 'FH_V'));
+  }
+
+  /*
    * >>> DIE BEMESSUNGSFESTIGKEIT DES ABFANGJOCHS. <<<
    *
    * Weisung vom 9. September, beim Pruefen des A240 aufgefallen: die
