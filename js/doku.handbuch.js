@@ -557,9 +557,18 @@ damit unabhängig von der Blechteilung.</p>
 </table>
 
 <p><b>Der Mast steht immer über den Obergurt hinaus.</b> Das ist Vorgabe des
-Auftraggebers und auf jedem Querprofil so gezeichnet. Ohne Längenangabe setzt
-das Werkzeug den Mindestüberstand von 0.50 m über die Oberkante des
-Obergurtprofils an, nicht über die Jochachse.</p>
+Auftraggebers und auf jedem Querprofil so gezeichnet.</p>
+
+<p><b>Die Länge hängt an der Anschlusshöhe.</b> Weisung vom 5. September: die
+Mastlänge ist voreingestellt <b>0.50 m länger als die Anschlusshöhe</b>, also
+L_M = H + 0.50 m. Wer die Länge zieht, löst die Kopplung für dieses Tragwerk;
+wer sie wieder auf H + 0.50 stellt, schliesst sie.</p>
+
+<p>Zwei Bezüge stehen damit nebeneinander: die <b>Voreinstellung</b> misst
+0.50 m über der <b>Jochachse</b>, die ältere Regel für das Bild 0.50 m über
+der <b>Oberkante des Obergurtprofils</b> — bei jd 500 mm rund 0.75 m über der
+Achse. Die Modellansicht hält die zweite als Untergrenze, damit die stehende
+Vorgabe nicht still fällt. Welche der beiden gilt, ist noch zu entscheiden.</p>
 
 <p>Gefragt wird nach der <b>Länge</b>, nicht nach dem Überstand, weil das
 Querprofil beides führt: die Gesamtlänge und die Anschlusshöhe. Der Überstand

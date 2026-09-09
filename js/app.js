@@ -64,7 +64,7 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
-import { mastImModell } from './core.auflager.js';
+import { mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
 import { pwaEinrichten, kannInstallieren, installiere, alsProgramm,
@@ -850,6 +850,39 @@ function mastNachfuehrenGlobal() {
  * Tragwerk steht dann auf der eingestellten Auflagerbedingung, nicht auf
  * einem Stiel.
  */
+/**
+ * >>> DIE MASTLAENGE FOLGT DER ANSCHLUSSHOEHE. <<<
+ *
+ * Weisung vom 5. September: «das feld Mastlaenge mit der Anschlusshoehe
+ * koppeln, die Mastlaenge als voreinstellwert 0.5m laenger auf
+ * anschlusshoehe bezogen.»
+ *
+ * >>> GEKOPPELT HEISST: SOLANGE SIE AUF DEM VORGABEWERT STEHT. <<<
+ *
+ * Ein zweites Feld «Laenge von Hand» waere eine Frage mehr, die niemand
+ * beantworten will. Die Kopplung erkennt sich an der Zahl selbst: steht die
+ * Laenge auf 0 (nie gesetzt) oder genau auf «alte Hoehe + 0.50», so war sie
+ * gekoppelt und wandert mit. Steht etwas anderes da, hat es jemand gewollt -
+ * und dann bleibt es stehen.
+ *
+ * Dasselbe Vorgehen wie bei der Windlast auf den Masten, die nachgefuehrt
+ * wird, solange die Lastwerte nicht von Hand freigegeben sind.
+ *
+ * @param {object} w    Werte VOR der Aenderung
+ * @param {string} feldH  'mastH' oder 'mastHB'
+ * @param {string} feldL  'mastLaenge' oder 'mastLaengeB'
+ * @param {number} neuH   die neue Hoehe [m]
+ * @returns {object|null} die nachgefuehrte Laenge, oder null
+ */
+function mastLaengeNachfuehren(w, feldH, feldL, neuH) {
+  const altH = Number(w?.[feldH]) || 0;
+  const altL = Number(w?.[feldL]) || 0;
+  const gekoppelt = altL === 0
+    || Math.abs(altL - mastLaengeVorgabe(altH)) < 1e-6;
+  if (!gekoppelt) return null;
+  return { [feldL]: mastLaengeVorgabe(neuH) };
+}
+
 function abfangMastAngabe(satz) {
   if (!satz || satz.mastVorhanden === false) return null;
   const hoehe = Number(satz.mastH) || 0;
@@ -1256,6 +1289,33 @@ function aendern(key, wert) {
    * Geschrieben wird in die Liste, danach zurueckprojiziert: die Maske liest
    * weiterhin `werte.mastProfil`, und der Kern auch.
    */
+  /*
+   * >>> DIE LAENGE FOLGT DER HOEHE. <<<
+   *
+   * Weisung vom 5. September. `mastH` steht NICHT in MASTFELDER - die Hoehe
+   * gehoert dem Jochende, nicht dem Masten (siehe `anschlusshoehe`). Sie
+   * faellt deshalb durch bis zum allgemeinen Weg, und dort muss die
+   * Kopplung sitzen.
+   */
+  if (key === 'mastH' || key === 'mastHB') {
+    /*
+     * >>> DIE LAENGE GEHT DEN NORMALEN WEG, DIE HOEHE AUCH. <<<
+     *
+     * Hier stand ein eigener Zweig mit `return` - er setzte beide Felder von
+     * Hand und war damit ein ZWEITER Weg neben dem allgemeinen. Genau das
+     * ging schief: die Hoehe gehoert dem TRAGWERK und wird ueber den
+     * allgemeinen Weg in dessen Satz geschrieben; mein Zweig setzte nur das
+     * flache Feld, und `neuRechnen` las gleich darauf wieder den alten Wert
+     * aus dem Satz. Im Feld stand 6.50, gespeichert blieb 7.50.
+     *
+     * Jetzt wird nur die LAENGE nachgezogen - ueber `aendern` selbst, also
+     * ueber den Weg, den ein Mastfeld ohnehin nimmt (MASTFELDER, Liste,
+     * Rueckprojektion). Danach faellt die Hoehe durch wie jedes andere Feld.
+     */
+    const feldL = key === 'mastHB' ? 'mastLaengeB' : 'mastLaenge';
+    const nach = mastLaengeNachfuehren(werte, key, feldL, Number(wert) || 0);
+    if (nach) aendern(feldL, nach[feldL]);
+  }
   if (MASTFELDER.some((f) => f.flach === key || f.flachB === key)) {
     /*
      * DIE KACHEL SAGT, WELCHER MAST GEMEINT IST.

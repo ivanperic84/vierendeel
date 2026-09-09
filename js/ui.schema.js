@@ -21,7 +21,8 @@
 
 import { TRAGWERKSARTEN, tragwerksart,
          gewaehlterMast, mastName, mastNameAmEnde,
-         tragwerkPos, tragwerkeVon } from './core.constants.js';
+         tragwerkPos, tragwerkeVon,
+         anschlusshoehe } from './core.constants.js';
 import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
@@ -35,7 +36,7 @@ import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
 import { TORSIONSMODELLE } from './core.statics.js';
 
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
-         mastImModell } from './core.auflager.js';
+         mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE } from './core.lasten.js';
@@ -49,6 +50,24 @@ const opt = (arr, k = 'key', l = 'label') => arr.map((x) => ({ wert: x[k], text:
  * darf ein Feld nicht zeigen, das die Rechnung nicht kennt (und umgekehrt).
  */
 const mastDa = (w) => mastImModell(w);
+
+/**
+ * Die Anschlusshoehe des ANGEWAEHLTEN Masten.
+ *
+ * Auf einer Jochreihe steht am Ende B ein anderer Mast mit einer anderen
+ * Hoehe. Die Kopplung der Laenge muss der Hoehe folgen, die daneben im Feld
+ * steht - nicht immer der des Endes A.
+ */
+const anschlusshoeheVon = (w) => {
+  /*
+   * `mastAus` traegt Profil, Laenge, Steg und Wind - die Hoehe nicht: sie
+   * gehoert dem JOCHENDE, nicht dem Masten (siehe `anschlusshoehe` in
+   * core.constants.js). Gefragt wird deshalb ueber das Ende, an dem der
+   * angewaehlte Mast steht.
+   */
+  const m = gewaehlterMast(w);
+  return anschlusshoehe(w, m?.ende === 'B' ? 'B' : 'A');
+};
 
 /*
  * DIE MASTFELDER GELTEN DEM ANGEWAEHLTEN MASTEN.
@@ -571,13 +590,35 @@ export const FELDER = [
    * 0 heisst «nicht angegeben»: dann ragt der Mast den halben Meter über den
    * Obergurt, den die stehende Vorgabe verlangt, und nicht weiter.
    */
+  /*
+   * >>> SIE IST AN DIE ANSCHLUSSHOEHE GEKOPPELT. <<<
+   *
+   * Weisung vom 5. September: «das feld Mastlaenge mit der Anschlusshoehe
+   * koppeln, die Mastlaenge als voreinstellwert 0.5m laenger auf
+   * anschlusshoehe bezogen.»
+   *
+   * Das Feld stand auf 0 und meinte damit «keine Angabe». Man sah ihm nicht
+   * an, wie lang der Mast dann wirklich ist - und Bild und Modell waren sich
+   * darueber nicht einig. Jetzt steht die Zahl da, die gilt: H + 0.50 m.
+   *
+   * Wer sie zieht, loest die Kopplung fuer dieses Tragwerk; wer sie wieder
+   * auf H + 0.50 stellt, schliesst sie. `aendern` fuehrt sie nach, solange
+   * sie gekoppelt ist (siehe app.js).
+   */
   { key: 'mastLaenge', gruppe: 'mast', typ: 'schieber',
     label: 'Mastlänge gesamt (Fuss bis Kopf)',
-    sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 25,
-    wertAus: amMast('laenge', 'mastLaenge'),
+    sym: 'L_M', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
+    min: 0, max: 25,
+    wertAus: (w) => {
+      const v = amMast('laenge', 'mastLaenge')(w);
+      return v > 0 ? v : mastLaengeVorgabe(anschlusshoeheVon(w));
+    },
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Gesamtlänge wie angeschrieben. Der Mast steht immer über den '
-           + 'Obergurt hinaus, ohne Angabe 0.5 m. Handbuch.'},
+    hinweis: (w) => `Gesamtlänge wie angeschrieben. Vorgabe ist die `
+           + `Anschlusshöhe plus 0.50 m — hier ${
+             mastLaengeVorgabe(anschlusshoeheVon(w)).toFixed(2)} m. Der Mast `
+           + 'steht immer über den Obergurt hinaus; die Modellansicht hält '
+           + 'das als Untergrenze. Handbuch.' },
   { key: 'mastSteg', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
     wertAus: amMast('steg', 'mastSteg'),
@@ -621,7 +662,8 @@ export const FELDER = [
                   && (w.mastHZwei ?? w.mastZwei) },
   { key: 'mastLaengeB', gruppe: 'mast', typ: 'schieber', versteckt: true,
     label: 'Mastlänge Ende B',
-    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 25 },
+    sym: 'L_M,B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
+    min: 0, max: 25 },
   { key: 'mastStegB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Stegrichtung Ende B',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN) },

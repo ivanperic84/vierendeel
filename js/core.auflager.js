@@ -180,6 +180,30 @@ export function biegesteifigkeitJoch(h, pOG, pUG) {
  */
 export const MAST_UNVERSCHIEBLICH = 4.00;
 
+/**
+ * >>> DIE MASTLAENGE HAENGT AN DER ANSCHLUSSHOEHE. <<<
+ *
+ * Weisung vom 5. September: 0.50 m ueber der Anschlusshoehe. H misst vom
+ * Fundament bis zur JOCHACHSE; der Kopf steht also einen halben Meter
+ * darueber.
+ *
+ * >>> DAS IST WENIGER, ALS DAS HANDBUCH BISHER SAGT. <<<
+ *
+ * Dort steht: «Ohne Laengenangabe setzt das Werkzeug den Mindestueberstand
+ * von 0.50 m ueber die Oberkante des Obergurtprofils an, nicht ueber die
+ * Jochachse.» Bei jd 500 mm sind das rund 0.75 m ueber der Jochachse - eine
+ * Viertelstunde mehr Mast. Die neue Weisung nennt ausdruecklich die
+ * ANSCHLUSSHOEHE; sie steht hier. Welche der beiden gilt, ist eine Frage an
+ * den Auftraggeber - bis dahin haelt die Modellansicht ihren
+ * Mindestueberstand als Untergrenze, damit die stehende Vorgabe («der Mast
+ * steht immer ueber den Obergurt hinaus») nicht still faellt.
+ */
+export const MAST_UEBERSTAND_VORGABE = 0.50;
+
+/** Die vorgegebene Gesamtlaenge zu einer Anschlusshoehe [m]. */
+export const mastLaengeVorgabe = (H) =>
+  Math.round(((Number(H) || 0) + MAST_UEBERSTAND_VORGABE) * 1000) / 1000;
+
 export const MASTANSCHLUESSE = [
   { key: 'durchlaufend', faktor: 1.45,
     label: 'Mast durchlaufend, Anschluss über die Jochhöhe (c_φ = 1.45·E·I/H)' },
@@ -224,8 +248,24 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    * Einspannung des Jochs nicht weicher. `laenge` steht deshalb daneben und
    * nicht an der Stelle von H.
    */
-  const laenge = zwei ? (inp.mastLaengeB || inp.mastLaenge || 0)
-                      : (inp.mastLaenge || 0);
+  /*
+   * >>> OHNE ANGABE FOLGT DIE LAENGE DER ANSCHLUSSHOEHE. <<<
+   *
+   * Weisung vom 5. September: «das feld Mastlaenge mit der Anschlusshoehe
+   * koppeln, die Mastlaenge als voreinstellwert 0.5m laenger auf
+   * anschlusshoehe bezogen.»
+   *
+   * Bis hierher stand `0` fuer «keine Angabe», und `0` hiess im Modell:
+   * KEIN Ueberstand, der Mast endet am Obergurt. Im BILD galt daneben eine
+   * andere Regel - mindestens 0.50 m ueber die Oberkante des Obergurts -,
+   * und beide wussten nichts voneinander. Dasselbe Tragwerk hatte damit im
+   * Bild einen Mastkopf und im ausgeleiteten Modell keinen.
+   *
+   * Jetzt traegt EINE Zahl beide: ohne Angabe ist die Laenge H + 0.50 m.
+   */
+  const rohLaenge = zwei ? (inp.mastLaengeB || inp.mastLaenge || 0)
+                         : (inp.mastLaenge || 0);
+  const laenge = rohLaenge > 0 ? rohLaenge : mastLaengeVorgabe(H);
   const ueberstand = Math.max(0, laenge - H);
   const I_cm4 = sr.achse === 'y' ? p.Iy : p.Iz;
   const W_cm3 = sr.achse === 'y' ? p.Wy : p.Wz;

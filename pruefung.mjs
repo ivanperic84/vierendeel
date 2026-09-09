@@ -6549,7 +6549,13 @@ titel('36  Der Weg von der Ausleitung in AxisVM');
     // Im Modell steht die Last auf JEDEM Maststab, je Richtung ein Lastfall.
     const jM = AXN.stabmodellJson(mM, { knotenmodell: 'anschnitt', auflagerModell: 'mast' });
     const qM = jM.lasten.strecke.filter((q) => q.stab.startsWith('MAST_'));
-    pruef('Vier Maststaebe, je zwei Richtungen', qM.length, 8, 1e-12, 'Stk');
+    /*
+     * SECHS STUECKE STATT VIER. Seit dem 5. September ist die Mastlaenge an
+     * die Anschlusshoehe gekoppelt - H + 0.50 m -, und damit hat JEDER Mast
+     * einen Kopfknoten ueber dem Obergurt. Er teilt den Schaft ein weiteres
+     * Mal; die Zahl der Querschnitte je Richtung bleibt.
+     */
+    pruef('Sechs Maststaebe, je zwei Richtungen', qM.length, 12, 1e-12, 'Stk');
     wahr('Jochachse im Lastfall WindX',
          qM.filter((q) => q.lastfall === 'WindX')
            .every((q) => q.richtung === 'X' && Math.abs(q.wert - 0.38) < 1e-9));
@@ -6631,10 +6637,14 @@ titel('37  Anbauteile am Masten');
   const jM = AXA.stabmodellJson(mM, { knotenmodell: 'anschnitt',
                                       auflagerModell: 'mast', eingabe: wM });
   const knV = new Map(jM.knoten.map((k) => [k.name, k]));
-  // Der Mast wird dort geteilt, wo etwas an ihm haengt: Fuss, Anbauhoehe,
-  // Untergurt, Obergurt - also drei Stuecke statt zwei.
+  /*
+   * Der Mast wird dort geteilt, wo etwas an ihm haengt: Fuss, Anbauhoehe,
+   * Untergurt, Obergurt - und seit dem 5. September zusaetzlich am KOPF, der
+   * durch die Kopplung an die Anschlusshoehe (H + 0.50 m) immer da ist.
+   * Also vier Stuecke.
+   */
   const stA = jM.staebe.filter((x) => /^MAST_A_S/.test(x.name));
-  pruef('Der Mast A ist an der Anbauhoehe geteilt', stA.length, 3, 1e-12, 'Stk');
+  pruef('Der Mast A ist an der Anbauhoehe geteilt', stA.length, 4, 1e-12, 'Stk');
   pruef('Und der Knoten liegt auf der eingegebenen Hoehe',
         knV.get('MAST_A_H1').z - knV.get('MAST_A_F').z, 5.0, 1e-9, 'm');
   wahr('Die Kette haengt am Mastknoten',
@@ -7743,7 +7753,21 @@ titel('42  Der lange Mast mit Zusatzleitern');
   {
     const ohne = AU.mastSteifigkeit(ein({}), 'A');
     const lang = AU.mastSteifigkeit(ein({ mastLaenge: 12.5 }), 'A');
-    pruef('Ohne Angabe ist der Ueberstand null', ohne.ueberstand, 0, 1e-12, 'm');
+    /*
+     * >>> OHNE ANGABE STEHT DER MAST 0.50 M UEBER. <<<
+     *
+     * Weisung vom 5. September: «das feld Mastlaenge mit der Anschlusshoehe
+     * koppeln, die Mastlaenge als voreinstellwert 0.5m laenger auf
+     * anschlusshoehe bezogen.»
+     *
+     * Hier stand «Ueberstand null». Das galt fuer das MODELL - im BILD
+     * stand daneben eine andere Regel (mindestens 0.50 m ueber die Oberkante
+     * des Obergurts), und beide wussten nichts voneinander.
+     */
+    pruef('Ohne Angabe steht er 0.50 m ueber', ohne.ueberstand, 0.5, 1e-12, 'm');
+    pruef('Die Laenge folgt der Hoehe', ohne.laenge, 8.31 + 0.5, 1e-9, 'm');
+    pruef('Die Vorgabe rechnet dasselbe',
+          AU.mastLaengeVorgabe(8.31), 8.81, 1e-9, 'm');
     pruef('Mit 12.5 m Laenge ueber 8.31 m Hoehe', lang.ueberstand, 12.5 - 8.31,
           1e-9, 'm');
     pruef('Die Laenge steht am Modell', lang.laenge, 12.5, 1e-12, 'm');
@@ -7851,8 +7875,12 @@ titel('42  Der lange Mast mit Zusatzleitern');
       const lm = massVon(lang.sz, 'mastLaenge');
       wahr('Bei angegebener Laenge steht auch sie da', !!lm, lm ? lm.text : '(fehlt)');
       pruef('Ueber die ganze Laenge', Math.abs(lm.p1[2] - lm.p0[2]), 12.5, 1e-9, 'm');
-      wahr('Ohne Laengenangabe steht sie nicht da',
-           !massVon(kurz.sz, 'mastLaenge'));
+      /*
+       * SIE STEHT JETZT IMMER DA: ohne Angabe ist die Laenge H + 0.50 m,
+       * also gibt es einen Ueberstand und damit eine Masskette dafuer.
+       */
+      wahr('Ohne Laengenangabe steht sie trotzdem da',
+           !!massVon(kurz.sz, 'mastLaenge'));
       wahr('Die Masthoehe aber schon', !!massVon(kurz.sz, 'mastH'));
     }
     /*
@@ -8979,15 +9007,27 @@ titel('49  Der Mastnachweis');
     const r = rechne2({});
     const f = fuss(r);
     const md = r.modell.federn.mastA ?? r.modell.federn.mast;
+    /*
+     * >>> UEBER DIE GANZE LAENGE, NICHT NUR BIS ZUM ANSCHLUSS. <<<
+     *
+     * Hier stand `gk * md.H`. Das galt, solange «keine Laengenangabe» im
+     * Modell «kein Ueberstand» hiess. Seit dem 5. September ist die Laenge
+     * an die Anschlusshoehe gekoppelt (H + 0.50 m), und der Kragarm darueber
+     * traegt sein Gewicht mit - er steht ja da.
+     */
     const gk = (md.profil.g * 9.81) / 1000;          // kN/m
-    const soll = r.modell.RA + gk * md.H;            // Beiwert G = 1
+    const soll = r.modell.RA + gk * md.laenge;       // Beiwert G = 1
     pruef('Am Fuss steht Jochlast plus Mastgewicht', f.N, soll, 1e-6, 'kN');
     wahr('Und das Gewicht ist nicht null', gk * md.H > 5,
          `${(gk * md.H).toFixed(2)} kN`);
     // Am Jochanschluss fehlt genau der untere Teil des Gewichts.
+    /*
+     * AM ANSCHLUSS STEHT DIE JOCHLAST PLUS DER KRAGARM DARUEBER. Bis zum
+     * 5. September endete der Mast dort, und es war nur die Jochlast.
+     */
     const anschluss = r.mast.A.stationen.find((s2) => Math.abs(s2.z - md.H) < 1e-9);
-    pruef('Am Jochanschluss ist es nur die Jochlast', anschluss.N,
-          r.modell.RA, 1e-6, 'kN');
+    pruef('Am Jochanschluss kommt der Kragarm dazu', anschluss.N,
+          r.modell.RA + gk * md.ueberstand, 1e-6, 'kN');
   }
 
   // --- Der Kragarm unter Gleichlast ---------------------------------------
@@ -9021,7 +9061,12 @@ titel('49  Der Mastnachweis');
     const kurz = rechne2({ wMast: 0.5, beiwerteFest: { ...nurG, G: 0, WindX: 1 } });
     const lang = rechne2({ wMast: 0.5, mastLaenge: 12.5,
                            beiwerteFest: { ...nurG, G: 0, WindX: 1 } });
-    pruef('Kurz: w·8²/2', fuss(kurz).Mq, (0.5 * 64) / 2, 1e-6, 'kNm');
+    /*
+     * DER WIND FAENGT DEN GANZEN MASTEN, auch den Kragarm ueber dem Joch.
+     * Bei H = 8.00 m ist der Mast seit dem 5. September 8.50 m lang, und
+     * die Handrechnung lautet w·L²/2 statt w·H²/2.
+     */
+    pruef('Kurz: w·8.5²/2', fuss(kurz).Mq, (0.5 * 8.5 * 8.5) / 2, 1e-6, 'kNm');
     pruef('Lang: w·12.5²/2', fuss(lang).Mq, (0.5 * 156.25) / 2, 1e-6, 'kNm');
     wahr('Der Ueberstand macht mehr als die Haelfte aus',
          fuss(lang).Mq > 2 * fuss(kurz).Mq,
@@ -11458,8 +11503,16 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   {
     let w = typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false },
                            T.getTragjoch('J90'));
+    /*
+     * VERSCHIEDENE ANSCHLUSSHOEHEN - und seit dem 5. September auch
+     * verschiedene LAENGEN, weil sie daran haengen. Beide Tragwerke tragen
+     * ihre eigene; das zweite bekommt sie ausdruecklich mit, sonst erbte es
+     * die des ersten und der geteilte Mast staende zweimal verschieden da.
+     */
     w.L = 20; w.xLage = 0; w.mastVorhanden = true; w.mastH = 8;
-    w = C72.tragwerkHinzu(w, 'joch', { L: 15, xLage: 20, mastH: 8.5 });
+    w.mastLaenge = 8.5;
+    w = C72.tragwerkHinzu(w, 'joch',
+                          { L: 15, xLage: 20, mastH: 8.5, mastLaenge: 9.0 });
     const bau = AX72.stabmodellBlatt(w, deps72, { knotenmodell: 'anschnitt' });
     wahr('Auch bei verschiedenen Anschlusshoehen kein Widerspruch',
          (bau.blatt?.widerspruch?.length ?? 0) === 0);
@@ -11697,11 +11750,15 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die kuerzere Knicklaenge gibt das groessere chi', k.chiZ > kO.chiZ);
   }
 
-  // OHNE MASTLAENGE GILT DIE HOEHE - dann endet der Mast am Anschluss.
+  /*
+   * OHNE MASTLAENGE GILT DIE VORGABE - H + 0.50 m. Bis zum 5. September
+   * endete der Mast dort am Anschluss; seither steht er einen halben Meter
+   * darueber, und die Knicklaenge misst bis zum Kopf.
+   */
   {
     const { s, m } = mast({ mastLaenge: 0 });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
-    pruef('Ohne Gesamtlaenge zaehlt H', k.Lcr, 2 * 9, 1e-9, 'm');
+    pruef('Ohne Gesamtlaenge gilt H + 0.50', k.Lcr, 2 * 9.5, 1e-9, 'm');
   }
 }
 

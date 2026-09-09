@@ -1547,6 +1547,7 @@ export function stabmodell(m, opt = {}) {
         mastKn.set(zKopf, s.kn(`MAST_${mn(ende)}_KOPF`, x, 0, zKopf));
       }
       const ausserhalb = [];
+      let anbauNr = 0;
       (m.anbauMast ?? []).forEach((a) => {
         if ((a.ort === 'mastB' ? 'B' : 'A') !== ende) return;
         const zA = r6(zFuss + (a.hMast ?? 0));
@@ -1556,7 +1557,18 @@ export function stabmodell(m, opt = {}) {
           return;
         }
         if (!mastKn.has(zA)) {
-          mastKn.set(zA, s.kn(`MAST_${mn(ende)}_H${mastKn.size - 2}`, x, 0, zA));
+          /*
+           * >>> DER NAME ZAEHLT ANBAUHOEHEN, NICHT KNOTEN. <<<
+           *
+           * Hier stand `mastKn.size - 2` - die Zahl der schon gesetzten
+           * Knoten minus Fuss und Untergurt. Das ging gut, solange der
+           * KOPFKNOTEN nur beim langen Masten dazukam; seit die Mastlaenge
+           * an der Anschlusshoehe haengt (5. September), gibt es ihn immer,
+           * und aus `MAST_A_H1` wurde still `MAST_A_H2`. Ein Name, der sich
+           * verschiebt, weil anderswo ein Knoten dazukam, ist keiner.
+           */
+          anbauNr += 1;
+          mastKn.set(zA, s.kn(`MAST_${mn(ende)}_H${anbauNr}`, x, 0, zA));
         }
       });
       anbauMastAus.push(...ausserhalb);
