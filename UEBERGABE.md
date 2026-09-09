@@ -27,6 +27,37 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### «Mitte Träger» — was die Umstellung bewirkt (9. September)
+
+Weisung: «das anbauteil auf mitte träger umstellen und prüfen.»
+
+Gemessen am Bauteil «Fahrleitung Gleis 1» (Hängestütze mit Drahtwerk
+NFL TS StCu 50 / FD Cu 107) auf einem **A160 über 12.50 m**, Bauteil bei
+x = 10.00 m:
+
+| | über beide Gurte | auf Mitte Träger |
+|---|---|---|
+| Abfangkraft Z | 0.00 kN | **14.90 kN** |
+| η Gurt | 0.499 | **1.575** |
+| η Bindeblech | 0.132 | **0.888** |
+| N Gurt (Kräftepaar) | 26 kN | **131 kN** |
+| Hinweis «keine Abfangkraft» | steht | weg |
+
+**Der A160 trägt diesen Leiter über 12.50 m nicht** — η 1.575. Im Bild
+erscheinen mit der Umstellung der Zugpfeil `Z_ab = 14.90 kN`, der Leiterstrich
+und der Abspannklotz (`AT_1_L`, `AT_1_A`).
+
+Umgestellt wird in der **Bauteilkarte**, Feld *Anbindung* → «Mitte Träger»;
+darunter erscheint dann *Verlauf des Leiters* (vorn / hinten abgefangen /
+durchgehend). Beide Felder gibt es nur, solange ein Abfangjoch das aktive
+Tragwerk ist.
+
+**Nebenbefund, behoben:** der Hinweis «Abfangjoch gewählt — gerechnet wird
+weiterhin das Tragjoch» stand noch aus dem August und widersprach den Kacheln
+daneben («η Gurt 1.575 · UPE 160»). Er sagt jetzt, was gilt: die Übersicht
+zeigt den eigenen Nachweis, die Reiter *Schnitt*, *Verläufe* und *Auflager*
+rechnen weiter den Ersatzbalken des Tragjochs.
+
 ### Die Anbauteile am Abfangjoch — zwei Befunde (9. September)
 
 Weisung: «die anbauteile im abfangjoch prüfen.»

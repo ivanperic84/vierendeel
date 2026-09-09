@@ -12938,6 +12938,29 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DER HINWEIS SAGT, WAS HEUTE GILT. <<<
+   *
+   * Bis zum 9. September stand dort «gerechnet wird weiterhin das Tragjoch»
+   * - waehrend die Uebersicht danebem «η Gurt 1.575 · UPE 160» zeigte, die
+   * Zahl des Abfangjochs. Zwei Aussagen ueber dieselbe Groesse, eine davon
+   * falsch.
+   */
+  {
+    /*
+     * Gelesen wird der QUELLTEXT: `hinweise` braucht ein volles Modell, und
+     * geprueft wird hier der Satz, nicht der Weg dorthin.
+     */
+    const r9 = readFileSync(new URL('./js/core.checks.js', import.meta.url),
+                            'utf8');
+    wahr('Der Hinweis nennt den eigenen Nachweis',
+         r9.includes('die Übersicht zeigt seinen eigenen Nachweis'));
+    wahr('… und nicht mehr «weiterhin das Tragjoch»',
+         !r9.includes('gerechnet wird weiterhin das '));
+    wahr('… nennt aber die Reiter, die es noch sind',
+         r9.includes('SCHNITT, VERLÄUFE und AUFLAGER'));
+  }
+
+  /*
    * ============ DIE ANBAUTEILE AM ABFANGJOCH ==========================
    *
    * Weisung vom 9. September: «die anbauteile im abfangjoch pruefen.» Zwei

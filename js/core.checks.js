@@ -462,26 +462,30 @@ export function hinweise(m) {
    * Vierendeel-Kern trägt dort nicht unverändert.
    */
   /*
-   * DAS ABFANGJOCH EBENSO WENIG.
+   * >>> DAS ABFANGJOCH RECHNET SEINEN EIGENEN NACHWEIS. <<<
    *
-   * Sein Sortiment steht seit dem 3. September vollstaendig in der Maske -
-   * A160 bis A360 und die Altbauweise -, und wer den Typ waehlt, darf
-   * annehmen, dass damit gerechnet wird. Wird es noch nicht: das Abfangjoch
-   * ist ein LIEGENDER Vierendeeltraeger (zwei Gurte, eine Blechebene,
-   * Rahmenebene waagrecht), und sein Kern ist im Bau. Die gewaehlte
-   * Jochlaenge geht ins Modell, der Typ nur in die Benennung.
+   * Hier stand bis zum 9. September: «gerechnet wird weiterhin das
+   * Tragjoch … sein Rechenkern ist im Bau.» Das galt am 3. September und
+   * gilt seit dem 8. nicht mehr - `abfangAuswertung` rechnet Gurt und
+   * Bleche, und die Uebersicht zeigt seine Zahlen (η Gurt, η Bindeblech,
+   * N Gurt).
    *
-   * Der Hinweis nennt den gewaehlten Typ. Ein pauschales «wird nicht
-   * gerechnet» liest sich wie ein Fehler des Werkzeugs; die Stelle zu
-   * benennen macht daraus eine Angabe, mit der man umgehen kann.
+   * Aufgefallen ist es beim Pruefen der Anbauteile (Weisung, 9. September):
+   * die Kacheln sagten «η Gurt 1.575 · UPE 160» und der Hinweis daneben,
+   * es werde das Tragjoch gerechnet. Zwei Aussagen ueber dieselbe Zahl, und
+   * eine davon falsch - das ist schlimmer als eine fehlende Angabe.
+   *
+   * WAS BLEIBT: die REITER. Schnitt, Verlaeufe und Auflager zeigen weiter
+   * den Ersatzbalken des Tragjochs; sie haengen an dessen Gurten, Blechen
+   * und Stationen. Das steht jetzt da, statt einer ueberholten Warnung.
    */
   if (art.key === 'abfangjoch') {
     const typ = m.abfangTyp ? ` «${m.abfangTyp}»` : '';
-    h.push(`Abfangjoch${typ} gewählt — gerechnet wird weiterhin das `
-      + 'Tragjoch. Das Abfangjoch ist ein liegender Vierendeelträger — zwei '
-      + 'Gurte nebeneinander, Bindebleche oben und unten —; sein Rechenkern ist '
-      + 'im Bau. Der gewählte Typ benennt das Bauteil, alle folgenden Zahlen '
-      + 'gelten dem Joch.');
+    h.push(`Abfangjoch${typ}: die Übersicht zeigt seinen eigenen Nachweis — `
+      + 'zwei Gurte nebeneinander, das Kräftepaar aus dem Moment in der '
+      + 'waagrechten Rahmenebene, die Bindebleche als Riegel. Die Reiter '
+      + 'SCHNITT, VERLÄUFE und AUFLAGER rechnen dagegen weiter den '
+      + 'Ersatzbalken des Tragjochs; ihre Zahlen gelten diesem Joch nicht.');
     /*
      * >>> UND DER DRUCKGURT IST NICHT AUF STABILITAET GEPRUEFT. <<<
      *
