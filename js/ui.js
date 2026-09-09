@@ -890,6 +890,37 @@ export function verdrahteLeiste(container, werte, onChange) {
   });
 
   /*
+   * >>> DAS AUFKLAPPMENUE DER BAUFORMEN. <<<
+   *
+   * Es klappt beim Waehlen nicht selbst zu - die Maske wird ohnehin neu
+   * gebaut, sobald ein Tragwerk dazukommt. Es klappt zu, wenn man daneben
+   * klickt; alles andere waere ein Menue, das offen stehen bleibt.
+   *
+   * >>> ES WAR VIER TAGE LANG TOT. <<<
+   *
+   * Gemeldet am 9. September: «funktioniert dieser button +Tragwerke?» -
+   * Nein. Der Horcher fiel am 5. September weg, als das ZIEHEN aus der
+   * Leiste genommen wurde: der Schnitt lief von `[data-qp-mast]` bis zum
+   * naechsten Block, und dieses Menue lag dazwischen. Der Knopf stand
+   * seither da und tat nichts.
+   *
+   * Der Pruefstand haelt das jetzt fest (siehe «Die Leiste bleibt
+   * bedienbar»): jedes `data-...` der Leiste braucht seinen Horcher.
+   */
+  const auf = container.querySelector('[data-qp-neu-auf]');
+  const liste = container.querySelector('.qp-neu-liste');
+  if (auf && liste) {
+    auf.addEventListener('click', (e) => {
+      e.stopPropagation();
+      liste.hidden = !liste.hidden;
+    });
+    document.addEventListener('click', function zu(e) {
+      if (!liste.isConnected) { document.removeEventListener('click', zu); return; }
+      if (!liste.contains(e.target) && e.target !== auf) liste.hidden = true;
+    });
+  }
+
+  /*
    * DAS KAESTCHEN IST DIE SICHTBARKEIT (Weisung, 3. September).
    *
    * Es schaltet dasselbe wie «ausblenden» im Kontextmenue - ein Tragwerk,
@@ -917,46 +948,18 @@ export function verdrahteLeiste(container, werte, onChange) {
   });
 }
 
-/**
- * Eine Zeile zum gewaehlten Masten - unter der Leiste, wo er angeklickt wird.
+/*
+ * >>> DIE MASTNOTIZ IST WEG. <<<
  *
- * Die Marke in der Leiste hat Platz fuer «M2» und sonst nichts. Welches
- * Profil er traegt und wer alles an ihm haengt, steht deshalb hier. Und der
- * geteilte Mast sagt es ausdruecklich: wer ihn aendert, aendert zwei
- * Tragwerke.
+ * Weisung vom 9. September: «die benennung unterhalb braucht es nicht, diese
+ * ist schon oben enthalten.»
+ *
+ * Sie stand unter der Leiste - «M2 · HEB 240» - und sagte, welchen Masten die
+ * Felder darunter meinen. Seit die Masten ihre eigene Zeile haben (Weisung
+ * vom selben Tag), steht dort dasselbe und mehr: «M2 · MAST / HEB 240 ·
+ * x 26.50 m», und der angewaehlte ist hervorgehoben. Zweimal dieselbe Angabe
+ * untereinander liest man als zwei verschiedene.
  */
-function mastenNotizHtml(werte) {
-  /*
-   * >>> NUR TYP UND LAENGE. <<<
-   *
-   * Weisung vom 3. September: «die info über den masten auf den typ und
-   * länge begrenzen in der schemaansicht. alles andere kann man der
-   * darstellung und der logik entnehmen.»
-   *
-   * Zu Recht. Hier stand «M2 · x 20.00 m · HEB 240 · traegt J90 · 20.00 m
-   * und J90 · 20.00 m», darunter zwei Zeilen ueber geteilte Masten. Vier
-   * Angaben, von denen drei schon im Bild stehen:
-   *
-   *   die STELLE     steht als Zahl unter dem Masten in der Leiste,
-   *   das GETEILTSEIN am breiteren Fundament,
-   *   WER daran haengt an den Linien, die ueber ihm zusammenlaufen.
-   *
-   * Was das Bild NICHT sagen kann, ist der Typ und die Laenge - zwei
-   * Zahlen, die kein Strich zeigt. Genau die bleiben.
-   *
-   * Die Warnung zum geteilten Masten faellt mit weg. Sie stand einmal da,
-   * weil die Zugehoerigkeit unsichtbar war; seit das Fundament sie zeigt und
-   * die Bezeichnung ueberall dieselbe ist, erklaert sie, was man sieht.
-   */
-  const m = gewaehlterMast(werte);
-  if (!m) return '';
-  const nr = mastenVon(werte).findIndex((x) => x.id === m.id) + 1;
-  // Die Laenge steht nur da, wenn sie angegeben ist: 0 heisst «nicht
-  // angeschrieben», und «0.00 m» waere eine Zahl, die niemand gemeint hat.
-  const L = Number(m.laenge) > 0 ? ` · ${Number(m.laenge).toFixed(2)} m` : '';
-  return `<p class="qp-mast-notiz"><b>M${nr}</b> · ${
-    esc(m.profil ?? 'ohne Profil')}${L}</p>`;
-}
 
 /**
  * Die Knoepfe und Gesten des Tragwerkfeldes.
@@ -1061,8 +1064,7 @@ return querprofilLeisteHtml(werte)
            title="${esc(`${tragwerkName(aktiv)} vom Blatt nehmen`)}"
            >${icon('loeschen', 14)}</button>` : '')
     + '</span>'
-    + '</div>'
-    + mastenNotizHtml(werte);
+    + '</div>';
 }
 
 /**

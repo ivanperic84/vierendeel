@@ -12938,27 +12938,47 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
-   * DIE NOTIZ ZUM MASTEN NENNT TYP UND LAENGE - mehr nicht.
+   * >>> DIE MASTNOTIZ IST WEG - SIE STAND ZWEIMAL DA. <<<
    *
-   * Weisung vom 3. September: «die info über den masten auf den typ und
-   * länge begrenzen in der schemaansicht. alles andere kann man der
-   * darstellung und der logik entnehmen.» Die Stelle steht als Zahl unter
-   * dem Masten, das Geteiltsein am breiteren Fundament, die Zugehoerigkeit
-   * an den Linien darueber.
+   * Weisung vom 9. September: «die benennung unterhalb braucht es nicht,
+   * diese ist schon oben enthalten.»
+   *
+   * Sie nannte Typ und Laenge des angewaehlten Masten (Weisung vom
+   * 3. September: «die info über den masten auf den typ und länge
+   * begrenzen»). Seit die Masten ihre eigene ZEILE in der Leiste haben,
+   * steht dort dasselbe und mehr - Name, Profil und Stelle, der angewaehlte
+   * hervorgehoben.
    */
   {
     const r = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
-    const ab = r.indexOf('function mastenNotizHtml(werte) {');
+    wahr('Die Mastnotiz unter der Leiste ist raus',
+         !r.includes('mastenNotizHtml') && !r.includes('qp-mast-notiz'));
+    wahr('… und die Mastzeile traegt die Angabe',
+         r.includes('qp-mastzeile') && r.includes('ohne Profil'));
+  }
+
+  /*
+   * >>> DIE LEISTE BLEIBT BEDIENBAR. <<<
+   *
+   * Weisung vom 9. September: «funktioniert dieser button +Tragwerke?» -
+   * Nein, vier Tage lang nicht. Der Horcher fiel am 5. September weg, als
+   * das ZIEHEN aus der Leiste genommen wurde: der Schnitt lief von
+   * `[data-qp-mast]` bis zum naechsten Block, und das Aufklappmenue lag
+   * dazwischen.
+   *
+   * Ein Knopf, der nichts tut, faellt niemandem auf, der ihn nicht drueckt.
+   * Deshalb wird ab jetzt gezaehlt: JEDES `data-...` der Leiste braucht
+   * seinen Horcher in `verdrahteLeiste`.
+   */
+  {
+    const r = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
+    const ab = r.indexOf('export function verdrahteLeiste(');
     const koerper = ab > 0 ? r.slice(ab, r.indexOf('\n}\n', ab)) : '';
-    wahr('Die Notiz nennt Profil und Laenge',
-         koerper.includes('m.profil') && koerper.includes('m.laenge'));
-    wahr('… und nicht mehr die Stelle', !koerper.includes('m.x.toFixed'));
-    /*
-     * GESUCHT WIRD DIE EIGENSCHAFT, nicht das Wort: der Kommentar darueber
-     * ZITIERT die alte Zeile («… · traegt J90 · 20.00 m»), damit man weiss,
-     * was einmal dastand.
-     */
-    wahr('… und nicht mehr, wer daran haengt', !koerper.includes('.traegt'));
+    ['qp-neu-auf', 'qp-mast', 'qp-sicht', 'qp-tw'].forEach((d) => {
+      wahr(`Die Leiste verdrahtet ${d}`, koerper.includes(d), d);
+    });
+    wahr('Das Aufklappmenue schaltet `hidden`',
+         koerper.includes('liste.hidden = !liste.hidden'));
   }
 
   /*
