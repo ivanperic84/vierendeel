@@ -12,6 +12,8 @@ import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
          ABFANG_VERLAEUFE } from './core.abfangjoch.js';
+import { LINK_GRADE, linkEbenen, linkBedingung,
+         linkAbweichend } from './core.auflager.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt,
@@ -239,7 +241,16 @@ export function maskenSignatur(werte, tab) {
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(','))
-      : sichtbareFelder(gid, werte).map((f) => f.key))),
+      /*
+       * DIE AUFLAGERBEDINGUNG GEHOERT DAZU. Ihr Diagramm ist gezeichnet,
+       * kein Eingabefeld - `aktualisiereMaske` gleicht nur Feldwerte ab und
+       * liesse es stehen. Ohne diese Zeile schaltete der Klick den Wert um,
+       * und der Pfeil blieb, wie er war: die Zahl richtig, das Bild falsch.
+       */
+      : (gid === 'aufl' && werte.auflagerLinks
+          ? [...sichtbareFelder(gid, werte).map((f) => f.key),
+             JSON.stringify(werte.auflagerLinks)]
+          : sichtbareFelder(gid, werte).map((f) => f.key)))),
   ]);
 }
 
@@ -1077,6 +1088,52 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
   container.querySelectorAll('[data-tw-weg]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkWeg', b.dataset.twWeg));
   });
+  /*
+   * >>> DAS DIAGRAMM IST DIE EINGABE. <<<
+   *
+   * Ein Klick auf einen Pfeil schaltet den Freiheitsgrad um, ein Wert im
+   * Feld darunter macht daraus eine Feder. Beides schreibt in DASSELBE Feld
+   * `auflagerLinks` - die Maske traegt keinen eigenen Zustand, sondern liest
+   * ihn beim naechsten Durchgang wieder aus den Werten.
+   */
+  const linkSetzen = (ebene, grad, wert) => {
+    const art = tragwerksart(werte).key;
+    const alt = werte.auflagerLinks ?? {};
+    const eb = { ...linkBedingung(werte, art, ebene), ...(alt[ebene] ?? {}) };
+    onChange('auflagerLinks', { ...alt, [ebene]: { ...eb, [grad]: wert } });
+  };
+  container.querySelectorAll('.al-grad').forEach((g) => {
+    const um = () => {
+      const b = linkBedingung(werte, tragwerksart(werte).key, g.dataset.ebene);
+      const v = b[g.dataset.grad];
+      // Eine gesetzte Feder faellt beim Klick auf «starr» zurueck; sonst
+      // liesse sie sich nur ueber das Zahlenfeld wieder loswerden.
+      linkSetzen(g.dataset.ebene, g.dataset.grad,
+                 Number.isFinite(v) ? 'Rigid' : (v === 'Rigid' ? 'Free' : 'Rigid'));
+    };
+    g.addEventListener('click', um);
+    g.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); um(); }
+    });
+  });
+  container.querySelectorAll('[data-al-feder]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const roh = inp.value.trim().replace(',', '.');
+      const z = Number(roh);
+      // Leer heisst: zurueck auf den Schaltzustand. Eine Zahl heisst Feder.
+      if (!roh) {
+        const b = linkBedingung(werte, tragwerksart(werte).key,
+                                inp.dataset.alFeder);
+        const v = b[inp.dataset.grad];
+        linkSetzen(inp.dataset.alFeder, inp.dataset.grad,
+                   Number.isFinite(v) ? 'Rigid' : v);
+        return;
+      }
+      if (!Number.isFinite(z) || z < 0) return;
+      linkSetzen(inp.dataset.alFeder, inp.dataset.grad, z);
+    });
+  });
+
   container.querySelectorAll('[data-tw-neu]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
   });
@@ -1353,7 +1410,9 @@ export function feldHtml(f, wert, werte) {
   const dis = gesperrt ? ' disabled' : '';
   let inp;
 
-  if (f.typ === 'tragwerke') {
+  if (f.typ === 'auflagerlinks') {
+    inp = auflagerDiagrammHtml(werte, tragwerksart(werte).key);
+  } else if (f.typ === 'tragwerke') {
     inp = tragwerkfeldHtml(werte);
   } else if (f.typ === 'bauform') {
     /*
@@ -2477,6 +2536,143 @@ function anbauteilSkizzeMast(a, werte) {
  * (Weisung: «die Leiterzugkräfte ergeben sich dann aus den kennwerten der
  * bauteile»).
  */
+
+/* ===========================================================================
+ * DIE AUFLAGERBEDINGUNG AM MASTEN - ANKLICKBAR
+ * ===========================================================================
+ *
+ * Weisung vom 5. September: «die Auflagerbedingung sollten anpassbar sein in
+ * der app, am besten mit einem interaktiven diagramm (richtungsfeder und
+ * drehfeder ein aus schalten koennen) und beim aufklappen kann man die
+ * einzelnen Federeigenschaften der einzelnen gurte noch anpassen.»
+ *
+ * >>> WARUM EIN BILD UND KEINE SECHS HAKEN. <<<
+ *
+ * Sechs Haken mit den Namen K_X bis K_ZZ beantworten die Frage nicht, die
+ * man hat: welche Richtung ist x? Das Bild zeigt das Jochende am Masten von
+ * der Seite - zwei Gurtebenen, dazwischen der Riegel, daneben der Mast - und
+ * setzt die Pfeile dorthin, wo die Kraft wirklich angreift. Ein AUSGEFUELLTER
+ * Pfeil haelt, ein OFFENER laesst los.
+ *
+ * >>> DREI ZUSTAENDE, NICHT ZWEI. <<<
+ *
+ * Ein Freiheitsgrad ist starr, frei ODER eine Feder. Der Klick schaltet
+ * zwischen den ersten beiden - das ist der Regelfall und muss schnell gehen.
+ * Die Feder ist die Ausnahme; sie steht im aufgeklappten Teil als Zahl, je
+ * Gurtebene. Wer eine setzt, sieht sie im Bild als gestrichelten Pfeil.
+ */
+
+/** Der naechste Zustand beim Anklicken: starr <-> frei. */
+const linkUmschalten = (v) => (v === 'Rigid' ? 'Free' : 'Rigid');
+
+/** Kurzzeichen fuer den Zustand, fuer Titel und Vorlesehilfe. */
+function linkZustand(v) {
+  if (v === 'Rigid') return 'starr';
+  if (v === 'Free') return 'frei';
+  return `Feder ${v}`;
+}
+
+/**
+ * Das Diagramm eines Jochendes am Masten.
+ *
+ * Gezeichnet wird die SEITENANSICHT: die Jochachse laeuft waagrecht nach
+ * links ins Feld, der Mast steht rechts. Die beiden Gurtebenen liegen
+ * uebereinander - so, wie die beiden Ausschnitte aus AxisVM sie zeigen.
+ */
+function auflagerDiagrammHtml(werte, art) {
+  const ebenen = linkEbenen(art);
+  const waagrecht = art === 'abfangjoch';
+  // Zwei Ebenen, im Bild uebereinander (Tragjoch) bzw. nebeneinander
+  // gedacht, aber gezeichnet ebenfalls uebereinander - die Bedienung soll
+  // bei beiden Arten dieselbe sein.
+  const yE = [52, 108];
+  const xG0 = 24, xG1 = 150, xMast = 196;
+
+  const pfeil = (ebene, grad, cx, cy, dx, dy) => {
+    const v = linkBedingung(werte, art, ebene.key)[grad.key];
+    const zustand = v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder';
+    const x2 = cx + dx, y2 = cy + dy;
+    const kopf = `${x2},${y2} ${x2 - dy * 0.22 - dx * 0.30},${y2 + dx * 0.22 - dy * 0.30} `
+               + `${x2 + dy * 0.22 - dx * 0.30},${y2 - dx * 0.22 - dy * 0.30}`;
+    return `<g class="al-grad al-${zustand}" data-ebene="${esc(ebene.key)}"
+         data-grad="${esc(grad.key)}" role="button" tabindex="0"
+         title="${esc(ebene.label)} · ${esc(grad.sym)} ${esc(grad.label)} — ${
+           esc(linkZustand(v))}. Anklicken schaltet um.">
+      <line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}"/>
+      <polygon points="${kopf}"/>
+      <text x="${x2 + (dx > 0 ? 5 : dx < 0 ? -5 : 0)}"
+            y="${y2 + (dy > 0 ? 11 : dy < 0 ? -4 : 4)}"
+            text-anchor="${dx > 0 ? 'start' : dx < 0 ? 'end' : 'middle'}"
+        >${esc(grad.sym.replace('K_', ''))}</text>
+    </g>`;
+  };
+
+  const bogen = (ebene, grad, cx, cy, r, i) => {
+    const v = linkBedingung(werte, art, ebene.key)[grad.key];
+    const zustand = v === 'Rigid' ? 'starr' : v === 'Free' ? 'frei' : 'feder';
+    const a0 = -140 + i * 8, a1 = 140 - i * 8;
+    const P = (g) => [cx + r * Math.cos(g * Math.PI / 180),
+                      cy + r * Math.sin(g * Math.PI / 180)];
+    const [x1, y1] = P(a0), [x2, y2] = P(a1);
+    return `<g class="al-grad al-dreh al-${zustand}" data-ebene="${esc(ebene.key)}"
+         data-grad="${esc(grad.key)}" role="button" tabindex="0"
+         title="${esc(ebene.label)} · ${esc(grad.sym)} ${esc(grad.label)} — ${
+           esc(linkZustand(v))}. Anklicken schaltet um.">
+      <path d="M ${x1} ${y1} A ${r} ${r} 0 1 1 ${x2} ${y2}"/>
+      <text x="${cx + r + 4}" y="${cy + 3}"
+        >${esc(grad.sym.replace('K_', ''))}</text>
+    </g>`;
+  };
+
+  const kraefte = LINK_GRADE.filter((g) => g.art === 'kraft');
+  const momente = LINK_GRADE.filter((g) => g.art === 'moment');
+
+  const reihen = ebenen.map((ebene, i) => {
+    const cy = yE[i];
+    const cx = xG1 + 14;                       // auf dem Linkelement
+    return `
+      <line class="al-gurt" x1="${xG0}" y1="${cy}" x2="${xG1}" y2="${cy}"/>
+      <line class="al-link" x1="${xG1}" y1="${cy}" x2="${xMast}" y2="${cy}"/>
+      <circle class="al-punkt" cx="${xG1}" cy="${cy}" r="3"/>
+      <text class="al-name" x="${xG0}" y="${cy - 8}">${esc(ebene.label)}</text>
+      ${pfeil(ebene, kraefte[0], cx, cy, -26, 0)}
+      ${pfeil(ebene, kraefte[1], cx, cy, 0, i === 0 ? -24 : 24)}
+      ${pfeil(ebene, kraefte[2], cx, cy, 22, 0)}
+      ${momente.map((g, k) => bogen(ebene, g, cx, cy, 9 + k * 5, k)).join('')}`;
+  }).join('');
+
+  const federn = ebenen.map((ebene) => {
+    const b = linkBedingung(werte, art, ebene.key);
+    return `<div class="al-federn"><b>${esc(ebene.label)}</b>${
+      LINK_GRADE.map((g) => {
+        const v = b[g.key];
+        return `<label class="al-feder" title="${esc(g.hinweis)}">
+          <span>${esc(g.sym)}</span>
+          <input type="text" data-al-feder="${esc(ebene.key)}"
+                 data-grad="${esc(g.key)}"
+                 value="${esc(v === 'Rigid' || v === 'Free' ? '' : String(v))}"
+                 placeholder="${v === 'Rigid' ? 'starr' : 'frei'}">
+          <small>${esc(g.einheit)}</small></label>`;
+      }).join('')}</div>`;
+  }).join('');
+
+  return `<div class="auflager-links">
+    <svg class="al-bild" viewBox="0 0 240 150" role="img"
+         aria-label="Auflagerbedingung am Masten, anklickbar">
+      <line class="al-mast" x1="${xMast}" y1="16" x2="${xMast}" y2="140"/>
+      <line class="al-riegel" x1="${xG1}" y1="${yE[0]}" x2="${xG1}" y2="${yE[1]}"/>
+      ${reihen}
+      <text class="al-notiz" x="${xG0}" y="140">Feld ←</text>
+      <text class="al-notiz" x="${xMast}" y="150" text-anchor="middle">Mast</text>
+    </svg>
+    <p class="hinweis">Ausgefüllt hält, offen lässt los. Anklicken schaltet um;
+       ein Wert im Feld darunter macht daraus eine Feder.</p>
+    ${klapp('auflager-federn', 'Federwerte je Gurtebene', federn,
+            linkAbweichend(werte, art) ? 'von der Vorgabe abweichend' : 'Vorgabe',
+            false)}
+  </div>`;
+}
+
 function anbauteilSkizzeAbfang(a, werte) {
   const an = abfangAnbindung(a);
   const x = a.x ?? 0, L = werte.L ?? 20;

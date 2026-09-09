@@ -2086,3 +2086,54 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
   flex: 0 0 auto; height: 1px; margin: 3px 4px;
   background: var(--ol);
 }
+
+/* ===========================================================================
+ * DIE AUFLAGERBEDINGUNG AM MASTEN - anklickbares Diagramm
+ *
+ * Weisung vom 5. September: «am besten mit einem interaktiven diagramm
+ * (richtungsfeder und drehfeder ein aus schalten koennen)».
+ *
+ * AUSGEFUELLT HAELT, OFFEN LAESST LOS. Der Zustand steckt in der Fuellung,
+ * nicht in einer Beschriftung - so liest sich das Bild ohne Legende.
+ * =========================================================================== */
+.auflager-links { display: flex; flex-direction: column; gap: 6px; }
+.al-bild { width: 100%; height: auto; background: var(--flaeche2, #0002);
+           border: 1px solid var(--rand, #3334); border-radius: 6px; }
+.al-gurt   { stroke: var(--stahl, #8fa8c8); stroke-width: 3; }
+.al-riegel { stroke: var(--stahl, #8fa8c8); stroke-width: 2.5; }
+.al-link   { stroke: var(--dim, #7a8699); stroke-width: 1.6;
+             stroke-dasharray: 3 2; }
+.al-mast   { stroke: var(--dim, #7a8699); stroke-width: 4; }
+.al-punkt  { fill: var(--acc, #6ea8fe); }
+.al-name   { fill: var(--dim, #7a8699); font-size: 8px; }
+.al-notiz  { fill: var(--dim, #7a8699); font-size: 7px; }
+
+.al-grad { cursor: pointer; }
+.al-grad text { font-size: 8px; fill: var(--dim, #7a8699); }
+.al-grad line, .al-grad path { stroke-width: 1.8; fill: none; }
+.al-grad polygon { stroke-width: 1; }
+.al-grad:hover text { fill: var(--acc, #6ea8fe); }
+.al-grad:focus-visible { outline: 2px solid var(--acc, #6ea8fe);
+                         outline-offset: 2px; }
+
+/* STARR: ausgefuellt. */
+.al-starr line, .al-starr path { stroke: var(--ok, #57c785); }
+.al-starr polygon { fill: var(--ok, #57c785); stroke: var(--ok, #57c785); }
+.al-starr text { fill: var(--ok, #57c785); }
+/* FREI: offen und gestrichelt - der Pfeil ist da, er haelt nur nichts. */
+.al-frei line, .al-frei path { stroke: var(--dim, #7a8699);
+                               stroke-dasharray: 2.5 2.5; }
+.al-frei polygon { fill: none; stroke: var(--dim, #7a8699); }
+/* FEDER: dazwischen, in der Warnfarbe - eine Zahl steht dahinter. */
+.al-feder-an line, .al-feder-an path { stroke: var(--warn, #e0a33e); }
+.al-grad.al-feder line, .al-grad.al-feder path { stroke: var(--warn, #e0a33e); }
+.al-grad.al-feder polygon { fill: var(--warn, #e0a33e);
+                            stroke: var(--warn, #e0a33e); }
+.al-grad.al-feder text { fill: var(--warn, #e0a33e); }
+
+.al-federn { display: grid; gap: 3px; margin-bottom: 8px; }
+.al-federn > b { font-size: 11px; color: var(--dim, #7a8699); }
+.al-feder { display: grid; grid-template-columns: 42px 1fr 56px;
+            align-items: center; gap: 6px; }
+.al-feder span { font-size: 11px; color: var(--dim, #7a8699); }
+.al-feder small { font-size: 10px; color: var(--dim, #7a8699); }

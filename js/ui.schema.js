@@ -405,6 +405,25 @@ export const FELDER = [
   // Die Auflager stehen dort, wo die Maste stehen - nicht zwingend am Gurtende.
   // L bleibt die Länge der GURTE (daran hängt die Blecheinteilung), die
   // Stützweite ist L − kragA − kragB.
+  /*
+   * >>> DIE AUFLAGERBEDINGUNG AM MASTEN, ANKLICKBAR. <<<
+   *
+   * Weisung vom 5. September: «die Auflagerbedingung sollten anpassbar sein
+   * in der app, am besten mit einem interaktiven diagramm (richtungsfeder
+   * und drehfeder ein aus schalten koennen) und beim aufklappen kann man die
+   * einzelnen Federeigenschaften der einzelnen gurte noch anpassen.»
+   *
+   * Sie gilt dort, wo ein Mast im Modell steht - ohne Mast gibt es kein
+   * Linkelement, an dem sich etwas einstellen liesse. Was hier steht, geht
+   * in die AxisVM-Ausleitung; der Ersatzbalken des Rechenkerns kennt sie
+   * nicht, er traegt seine Drehfeder.
+   */
+  { key: 'auflagerLinks', gruppe: 'aufl', typ: 'auflagerlinks',
+    label: 'Auflagerbedingung am Masten', standard: null,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
+           + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
+           + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
   { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
     sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
     hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '

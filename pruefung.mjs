@@ -5982,6 +5982,138 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
   }
 }
 
+titel('34b Die Auflagerbedingung je Gurtebene');
+
+/*
+ * WEISUNG DES AUFTRAGGEBERS, 5. September, nach zwei Ausschnitten aus AxisVM:
+ *
+ *   «der obere ausschnitt ist die halterung der zwei obergurte und die
+ *    untere abbildung ist die der untergurte. diese einstellung der
+ *    freiheitsgrade gilt in diesem beispiel bei den alten Tragjochen, da
+ *    diese verjuengt sind in den enden. wir sollten aber den aufbau gleich
+ *    gestalten fuer die restlichen jocharten. die Auflagerbedingung sollten
+ *    anpassbar sein in der app.»
+ *
+ * Was in den Ausschnitten stand:
+ *
+ *              K_X       K_Y       K_Z      K_XX  K_YY  K_ZZ
+ *   OBERGURT     0     1E+10     1E+10        0     0     0
+ *   UNTERGURT  1E+10   1E+10     1E+10        0     0     0
+ *
+ * 1E+10 ist das «starr» der Feder, 0 die echte Freigabe.
+ */
+{
+  const AUF = await import(J('core.auflager.js'));
+  const AX = await import(J('export.axisvm.js'));
+  const { modell } = await import(J('core.vierendeel.js'));
+
+  const og = AUF.linkBedingung({}, 'joch', 'OG');
+  const ug = AUF.linkBedingung({}, 'joch', 'UG');
+  wahr('Der Obergurt laesst die Jochachse los', og.x === 'Free');
+  wahr('… haelt aber quer und lotrecht', og.y === 'Rigid' && og.z === 'Rigid');
+  wahr('Der Untergurt haelt alle drei Kraefte',
+       ug.x === 'Rigid' && ug.y === 'Rigid' && ug.z === 'Rigid');
+  wahr('Beide geben alle drei Momente frei',
+       ['xx', 'yy', 'zz'].every((f) => og[f] === 'Free' && ug[f] === 'Free'));
+  wahr('Ohne Eingabe steht die Vorgabe', !AUF.linkAbweichend({}, 'joch'));
+
+  /*
+   * DIE EINSTELLUNG SCHLAEGT DIE VORGABE - aber nur, wo eine steht. Eine
+   * halb gefuellte Eingabe darf nicht in eine halbe Lagerung fallen.
+   */
+  const w1 = { auflagerLinks: { OG: { x: 'Rigid' } } };
+  wahr('Ein gesetzter Grad gilt',
+       AUF.linkBedingung(w1, 'joch', 'OG').x === 'Rigid');
+  wahr('… die uebrigen kommen aus der Vorgabe',
+       AUF.linkBedingung(w1, 'joch', 'OG').y === 'Rigid'
+       && AUF.linkBedingung(w1, 'joch', 'OG').xx === 'Free');
+  wahr('Und die Abweichung wird gemeldet', AUF.linkAbweichend(w1, 'joch'));
+  const w2 = { auflagerLinks: { UG: { z: 25000, y: 'was?' } } };
+  pruef('Eine Zahl bleibt eine Feder',
+        AUF.linkBedingung(w2, 'joch', 'UG').z, 25000, 1e-9, 'kN/m');
+  wahr('Ein unbrauchbarer Wert faellt zurueck',
+       AUF.linkBedingung(w2, 'joch', 'UG').y === 'Rigid');
+
+  /*
+   * DAS ABFANGJOCH HAT ZWEI GURTE NEBENEINANDER - «oben/unten» gibt es dort
+   * nicht. Bis der Auftraggeber die Freiheitsgrade dafuer festlegt, halten
+   * beide alle drei Kraefte: die sichere Fassung.
+   */
+  wahr('Das Abfangjoch fuehrt vorn und hinten',
+       AUF.linkEbenen('abfangjoch').map((e) => e.key).join(',') === 'V,H');
+  wahr('… und haelt dort vorerst alle Kraefte',
+       ['V', 'H'].every((e) => ['x', 'y', 'z'].every(
+         (f) => AUF.linkBedingung({}, 'abfangjoch', e)[f] === 'Rigid')));
+  wahr('Sechs Freiheitsgrade, drei Kraefte und drei Momente',
+       AUF.LINK_GRADE.length === 6
+       && AUF.LINK_GRADE.filter((g) => g.art === 'kraft').length === 3);
+
+  /*
+   * IM MODELL: die Bedingung wandert in die Linkelemente. Das ist der Punkt
+   * der ganzen Uebung - eine Einstellung, die nirgends ankommt, ist keine.
+   */
+  const wL = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+                     mastSteg: 'jochachse', L: 20 });
+  const mLb = modell(wL, getProfil(wL.profOG), getProfil(wL.profUG),
+                     getStahl(wL.stahl), T.getTragjoch('J90'));
+  const j1 = AX.stabmodellJson(mLb, { auflagerModell: 'mast' });
+  const lOG = j1.staebe.find((x) => x.name === 'LINK_A_OG');
+  const lUG = j1.staebe.find((x) => x.name === 'LINK_A_UG');
+  wahr('Der Obergurt-Link ist laengs frei', lOG.kraftuebertragung.x === 'Free');
+  wahr('Der Untergurt-Link haelt', lUG.kraftuebertragung.x === 'Rigid');
+  const j2 = AX.stabmodellJson(
+    { ...mLb, auflagerLinks: { OG: { x: 'Rigid' }, UG: { z: 25000 } } },
+    { auflagerModell: 'mast' });
+  wahr('Eine Aenderung kommt im Modell an',
+       j2.staebe.find((x) => x.name === 'LINK_A_OG')
+         .kraftuebertragung.x === 'Rigid');
+  pruef('Auch eine Feder',
+        j2.staebe.find((x) => x.name === 'LINK_A_UG').kraftuebertragung.z,
+        25000, 1e-9, 'kN/m');
+
+  /*
+   * =================== STEHENDE STARRELEMENTE ==========================
+   *
+   * Weisung, 5. September: «beachte noch beim tragjoch alt das man noch
+   * starrelemente (vertikale) an den enden und beim uebergang zum knick hin
+   * anbringen.»
+   *
+   * Am verjuengten Ende laufen die Gurte zusammen; ohne Riegel dazwischen
+   * ist das Endstueck in seiner Ebene ein Gelenkviereck, und die beiden
+   * Linkelemente haengen an einem weichen Gebilde statt an einer Scheibe.
+   */
+  const riegel = (jm) => jm.staebe.filter((x) => /^RIEGEL_/.test(x.name));
+  const xVon = (n) => Number(n.split('_')[2]);
+  const rNeu = riegel(j1);
+  wahr('Das gerade Joch bekommt Riegel an beiden Enden',
+       new Set(rNeu.map((x) => xVon(x.name))).size === 2);
+  wahr('… und zwar links und rechts, also vier', rNeu.length === 4);
+  wahr('Alle sind Starrkoerper', rNeu.every((x) => x.art === 'starr'));
+  wahr('Sie verbinden Ober- und Untergurt',
+       rNeu.every((x) => /^OG/.test(x.von) && /^UG/.test(x.bis)));
+
+  /*
+   * DAS ALTE JOCH IST VERJUENGT - dort kommen die beiden Knickstellen dazu.
+   * Die Voute laeuft 900 gerade und 2100 schraeg, der Knick liegt also bei
+   * 3.000 m vom Jochende.
+   */
+  let wAlt = basis({ typ: 'J90-alt', L: 20, endbedingung: 'mast',
+                     mastProfil: 'HEB 240', mastH: 7.0,
+                     mastSteg: 'jochachse' });
+  wAlt = typUebernehmen(wAlt, T.getTragjoch('J90-alt'));
+  const mAlt = modell(wAlt, getProfil(wAlt.profOG), getProfil(wAlt.profUG),
+                      getStahl(wAlt.stahl), T.getTragjoch('J90-alt'));
+  const rAlt = riegel(AX.stabmodellJson(mAlt, { auflagerModell: 'mast' }));
+  const stellen = [...new Set(rAlt.map((x) => xVon(x.name)))]
+    .sort((a, b) => a - b);
+  wahr('Das verjuengte Joch bekommt vier Stellen',
+       stellen.length === 4, stellen.join(' '));
+  pruef('Enden bei 0 und L', stellen[0] + stellen[3], 20, 1e-6, 'm');
+  pruef('Der Knick liegt 3.000 m vom Ende', stellen[1], 3.0, 1e-6, 'm');
+  pruef('… und spiegelbildlich am anderen', stellen[2], 17.0, 1e-6, 'm');
+  wahr('Acht Riegel, zwei je Stelle', rAlt.length === 8);
+}
+
 titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
 
 /*
@@ -6037,10 +6169,25 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
     const l = stabVon(`LINK_${e}_${g}`);
     wahr(`Ende ${e}, ${g}: von dort ein Linkelement an den Mast`,
          l && l.art === 'link' && l.bis === `MAST_${e}_${g}`);
-    wahr(`Ende ${e}, ${g}: Kraefte starr, Momente frei`,
-         ['x', 'y', 'z'].every((f) => l.kraftuebertragung[f] === 'Rigid')
-         && ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'),
-         JSON.stringify(l.kraftuebertragung));
+    /*
+     * >>> JEDE GURTEBENE HAT IHRE EIGENE BEDINGUNG. <<<
+     *
+     * Weisung vom 5. September, nach zwei Ausschnitten aus AxisVM: der
+     * OBERGURT laesst die Jochachse los (K_X = 0), der UNTERGURT haelt alle
+     * drei Kraefte. Hier stand fuer beide Ebenen dasselbe - und damit war
+     * die Endverdrehung um y gesperrt, die Ober- und Untergurt gegenlaeufig
+     * in x verschiebt.
+     *
+     * Die drei Momente sind bei beiden frei; das Kraeftepaar der beiden
+     * Ebenen traegt die Einspannung, nicht eine Feder im Link.
+     */
+    const sollX = g === 'OG' ? 'Free' : 'Rigid';
+    wahr(`Ende ${e}, ${g}: laengs ${sollX === 'Free' ? 'frei' : 'starr'}`,
+         l.kraftuebertragung.x === sollX, JSON.stringify(l.kraftuebertragung));
+    wahr(`Ende ${e}, ${g}: quer und lotrecht starr`,
+         ['y', 'z'].every((f) => l.kraftuebertragung[f] === 'Rigid'));
+    wahr(`Ende ${e}, ${g}: alle drei Momente frei`,
+         ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'));
   }));
   // Ein Linkelement braucht eine LINIE, und eine Linie braucht Laenge.
   // Verschoben wird deshalb der Anschlusspunkt nach innen, nicht die

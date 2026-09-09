@@ -51,7 +51,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
-import { mastAchse } from './core.auflager.js';
+import { mastAchse, linkBedingung } from './core.auflager.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -1164,6 +1164,36 @@ export function stabmodell(m, opt = {}) {
     ugVersatz[seite] = r6(dyOG - dyUG);
   });
 
+  /*
+   * ============ DIE STEHENDEN STARRELEMENTE AM JOCHENDE ==================
+   *
+   * Weisung vom 5. September: «beachte noch beim tragjoch alt das man noch
+   * starrelemente (vertikale) an den enden und beim uebergang zum knick hin
+   * anbringen, dies sieht man auch in den beiden bildern von vorhin.»
+   *
+   * In den beiden AxisVM-Ausschnitten stehen sie als schwarze Rahmen da: je
+   * ein senkrechter Riegel vom Obergurt zum Untergurt, am Jochende und dort,
+   * wo die Verjüngung endet.
+   *
+   * >>> WARUM SIE GEBRAUCHT WERDEN. <<<
+   *
+   * Am verjüngten Ende laufen die Gurte zusammen; zwischen den beiden
+   * Ebenen steht dort nichts als der schräge Gurt selbst. Ohne einen Riegel
+   * dazwischen ist das Endstück in seiner Ebene ein Gelenkviereck - es
+   * schert aus, und die beiden Linkelemente hängen an einem weichen Gebilde
+   * statt an einer Scheibe. Die Anschlusspunkte müssen aber tragen, was das
+   * Kräftepaar der Einspannung ausmacht.
+   *
+   * >>> WO SIE STEHEN. <<<
+   *
+   *   am JOCHENDE          x = 0 und x = L
+   *   am KNICK der Voute   dort, wo die Schräge in die volle Bauhöhe geht
+   *
+   * Beide Stellen sind schon feste Schnitte - das Jochende ohnehin, der
+   * Knick über `vouteSchnitte`. Gebaut wird je Seite (links/rechts) EIN
+   * Riegel; die beiden Seiten quer zu verbinden wäre ein drittes Bauteil,
+   * das die Zeichnung nicht kennt.
+   */
   const gurtKnoten = (gurt, seite, x) => {
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
     const b = m.breite ? m.breite.bAn(x) : m.b;
@@ -1172,6 +1202,37 @@ export function stabmodell(m, opt = {}) {
                  + (gurt === 'UG' ? ugVersatz[seite] : 0));
     return s.kn(`${gurt}${seite}_${x.toFixed(3)}`, x, y, z);
   };
+
+  /*
+   * DIE STELLEN DER STEHENDEN RIEGEL. Jochenden immer; die Knickstellen nur,
+   * wo es eine Verjüngung gibt - ein gerades Joch hat dort nichts zu
+   * versteifen, und ein Riegel mitten im Feld wäre eine Erfindung.
+   */
+  const schottX = new Set([0, r6(m.L)]);
+  if (m.verlauf?.aktiv && m.verlauf.voute) {
+    const v = m.verlauf.voute;
+    const stauchung = Math.min(1, (m.L * 1000) / (2 * v.knick));
+    const knick = (v.gerade + v.neigung) * stauchung / 1000;      // m
+    [knick, r6(m.L - knick)].forEach((xk) => {
+      if (xk > 1e-6 && xk < m.L - 1e-6) schottX.add(r6(xk));
+    });
+  }
+  [...schottX].forEach((xk) => {
+    // Nur wo der Schnitt wirklich existiert - sonst hinge der Riegel
+    // zwischen zwei Gurtstaeben statt an ihren Knoten.
+    if (!xs.some((v) => Math.abs(v - xk) < 1e-9)) return;
+    ['L', 'R'].forEach((seite) => {
+      /*
+       * DER NAME IST NICHT `SCHOTT`. Den tragen schon die Starrstaebe des
+       * Punktlagers, die vom Auflagerknoten zu den vier Gurten laufen -
+       * zwei verschiedene Bauteile unter einem Namen waeren zwei, die man
+       * nicht mehr auseinanderhaelt.
+       */
+      s.stab(`RIEGEL_${seite}_${xk.toFixed(3)}`, qsStarr,
+             gurtKnoten('OG', seite, xk), gurtKnoten('UG', seite, xk),
+             { starrRolle: 'verbindung' });
+    });
+  });
 
   ['OG', 'UG'].forEach((gurt) => ['L', 'R'].forEach((seite) => {
     for (let i = 0; i < xs.length - 1; i++) {
@@ -1506,6 +1567,28 @@ export function stabmodell(m, opt = {}) {
                { lcsZ: lcsMast });
       }
 
+      /*
+       * >>> JEDE GURTEBENE HAT IHRE EIGENE BEDINGUNG. <<<
+       *
+       * Weisung vom 5. September, nach zwei Ausschnitten aus AxisVM: «der
+       * obere ausschnitt ist die halterung der zwei obergurte und die untere
+       * abbildung ist die der untergurte.»
+       *
+       *              K_X       K_Y       K_Z      K_XX  K_YY  K_ZZ
+       *   OBERGURT     0     1E+10     1E+10        0     0     0
+       *   UNTERGURT  1E+10   1E+10     1E+10        0     0     0
+       *
+       * Hier stand für beide Ebenen dasselbe: alle drei Kräfte starr. Damit
+       * war die Jochachse an vier Punkten gehalten - und eine Verdrehung des
+       * Endes um y, die Ober- und Untergurt GEGENLÄUFIG in x verschiebt, war
+       * gesperrt. Dasselbe Muster, das beim Gurtmodell schon einmal ein Ende
+       * einspannte, ohne dass es jemand eingestellt hatte (siehe
+       * `laengsAnker` oben).
+       *
+       * DIE EINSTELLUNG IST JETZT EINE EINGABE. `linkBedingung` liest, was in
+       * der Maske steht, und fällt sonst auf die Vorgabe der Tragwerksart
+       * zurück - beim Tragjoch also Untergurt fest, Obergurt längs frei.
+       */
       const einwaerts = ende === 'A' ? LINK_LAENGE : -LINK_LAENGE;
       [['OG', kOG, zOben], ['UG', kUG, zUnten]].forEach(([gurt, kMast, zG]) => {
         const ans = s.kn(`ANS_${an(ende)}_${gurt}`, r6(x + einwaerts), 0, zG);
@@ -1515,8 +1598,7 @@ export function stabmodell(m, opt = {}) {
         });
         s.stab(`LINK_${an(ende)}_${gurt}`, qsStarr, ans, kMast,
                { starrRolle: 'uebergang',
-                 kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
-                          xx: 'Free', yy: 'Free', zz: 'Free' } });
+                 kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
       });
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).

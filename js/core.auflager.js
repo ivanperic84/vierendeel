@@ -623,3 +623,167 @@ export function mastFreiraum(m, ende = 'A', sperren = null) {
   return { achse, tiefe: halb * 2, grenze, blech, frei,
            ueberschnitt: frei < -1e-9 };
 }
+
+/* ===========================================================================
+ * DIE AUFLAGERBEDINGUNG AM MASTEN - JE GURTEBENE EINE
+ * ===========================================================================
+ *
+ * Weisung vom 5. September, nach zwei Bildschirmausschnitten aus AxisVM:
+ *
+ *   «der obere ausschnitt ist die halterung der zwei obergurte und die
+ *    untere abbildung ist die der untergurte. diese einstellung der
+ *    freiheitsgrade gilt in diesem beispiel bei den alten Tragjochen, da
+ *    diese verjuengt sind in den enden. wir sollten aber den aufbau gleich
+ *    gestalten fuer die restlichen jocharten. die Auflagerbedingung sollten
+ *    anpassbar sein in der app.»
+ *
+ * >>> WAS IN DEN BEIDEN AUSSCHNITTEN STAND. <<<
+ *
+ *              K_X       K_Y       K_Z      K_XX  K_YY  K_ZZ
+ *   OBERGURT     0     1E+10     1E+10        0     0     0
+ *   UNTERGURT  1E+10   1E+10     1E+10        0     0     0
+ *
+ * 1E+10 ist das «starr» der Feder, 0 die echte Freigabe. Der UNTERGURT
+ * haelt also in allen drei Richtungen, der OBERGURT laesst die Jochachse
+ * los.
+ *
+ * >>> WARUM GERADE DIE LAENGSRICHTUNG AM OBERGURT. <<<
+ *
+ * Eine Verdrehung des Jochendes um y verschiebt Ober- und Untergurt
+ * GEGENLAEUFIG in x. Haelt man beide, sperrt man die Verdrehung - das Ende
+ * steht dann nahezu eingespannt da, ohne dass es jemand eingestellt haette.
+ * Genau dieser Befund steht seit dem 27. August in `export.axisvm.js` bei
+ * den Modellen `gurte` und `mitte` («vier Festhaltungen sperrten sie
+ * weitgehend»); dort loest ihn ein einzelner Laengsanker. Am Masten loest
+ * ihn die Freigabe am Obergurt - dasselbe Prinzip, an der richtigen Stelle.
+ *
+ * Beim ALTEN Tragjoch kommt der zweite Grund dazu: seine Enden sind
+ * verjuengt, die Gurte laufen dort zusammen, und der kurze Hebel zwischen
+ * ihnen wuerde jede Laengshaltung in ein grosses Moment uebersetzen.
+ *
+ * >>> DIE EINSTELLUNG IST EINE EINGABE, KEINE FESTLEGUNG. <<<
+ *
+ * Sie gilt «in diesem Beispiel» - fuer die alten, verjuengten Joche. Der
+ * Aufbau soll fuer alle Jocharten derselbe sein, die Freiheitsgrade nicht
+ * zwingend. Deshalb steht hier eine VORGABE je Art und daneben ein Weg, sie
+ * zu ueberschreiben; entschieden wird in der Maske, nicht hier.
+ * =========================================================================== */
+
+/** Die sechs Freiheitsgrade eines Linkelements, in der Reihenfolge des Dialogs. */
+export const LINK_GRADE = [
+  { key: 'x', sym: 'K_X', art: 'kraft', einheit: 'kN/m',
+    label: 'Längs — in der Jochachse',
+    hinweis: 'Frei geben, wo die Endverdrehung Ober- und Untergurt '
+           + 'gegenläufig verschiebt. Beide Ebenen zu halten spannt das '
+           + 'Jochende ein, ohne dass es jemand einstellt.' },
+  { key: 'y', sym: 'K_Y', art: 'kraft', einheit: 'kN/m',
+    label: 'Quer — in Gleisrichtung',
+    hinweis: 'Trägt den Winddruck und den Leiterzug in den Masten.' },
+  { key: 'z', sym: 'K_Z', art: 'kraft', einheit: 'kN/m',
+    label: 'Lotrecht',
+    hinweis: 'Trägt Eigengewicht und Schnee ab.' },
+  { key: 'xx', sym: 'K_XX', art: 'moment', einheit: 'kNm/rad',
+    label: 'Torsion um die Jochachse',
+    hinweis: 'Zwei Anschlüsse im Abstand der Jochhöhe halten die Torsion '
+           + 'schon über ihr Kräftepaar — hier gehalten wäre sie doppelt.' },
+  { key: 'yy', sym: 'K_YY', art: 'moment', einheit: 'kNm/rad',
+    label: 'Biegung um die Querachse',
+    hinweis: 'Die teilweise Einspannung entsteht aus dem Kräftepaar der '
+           + 'beiden Gurtebenen, nicht aus dieser Feder.' },
+  { key: 'zz', sym: 'K_ZZ', art: 'moment', einheit: 'kNm/rad',
+    label: 'Biegung um die Hochachse',
+    hinweis: 'Wie K_YY: aus dem Kräftepaar, nicht aus der Feder.' },
+];
+
+/**
+ * DIE GURTEBENEN EINER TRAGWERKSART.
+ *
+ * Das Tragjoch hat zwei Ebenen UEBEREINANDER - Ober- und Untergurt, je zwei
+ * Winkel. Das Abfangjoch hat zwei Gurte NEBENEINANDER; sein Kraeftepaar
+ * steht waagrecht, und «oben/unten» gibt es dort nicht.
+ */
+export const LINK_EBENEN = {
+  joch: [{ key: 'OG', label: 'Obergurte' }, { key: 'UG', label: 'Untergurte' }],
+  tragausleger: [{ key: 'OG', label: 'Obergurte' },
+                 { key: 'UG', label: 'Untergurte' }],
+  abfangjoch: [{ key: 'V', label: 'Gurt vorn' }, { key: 'H', label: 'Gurt hinten' }],
+};
+
+/** Die Ebenen, die eine Tragwerksart führt. */
+export const linkEbenen = (art) => LINK_EBENEN[art] ?? LINK_EBENEN.joch;
+
+/*
+ * DIE VORGABE - so, wie die Ausschnitte es zeigen.
+ *
+ * Beim Tragjoch: Untergurt fest, Obergurt laengs frei. Beim Abfangjoch
+ * stehen die beiden Gurte nebeneinander; dort verschiebt die Endverdrehung
+ * sie nicht gegenlaeufig in x, sondern in z - deshalb halten dort beide in
+ * x, und die Frage stellt sich anders. Bis der Auftraggeber sie beantwortet,
+ * steht die sichere Fassung da: beide Gurte halten alle drei Kraefte.
+ */
+const VOLL = { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+               xx: 'Free', yy: 'Free', zz: 'Free' };
+const LAENGS_FREI = { ...VOLL, x: 'Free' };
+
+export const LINK_VORGABEN = {
+  joch: { OG: LAENGS_FREI, UG: VOLL },
+  tragausleger: { OG: LAENGS_FREI, UG: VOLL },
+  abfangjoch: { V: VOLL, H: VOLL },
+};
+
+/**
+ * Die Auflagerbedingung einer Gurtebene - Vorgabe oder gesetzter Wert.
+ *
+ * `inp.auflagerLinks` traegt, was in der Maske eingestellt ist:
+ *
+ *     { OG: { x: 'Free', y: 'Rigid', ... }, UG: { ... } }
+ *
+ * Ein Freiheitsgrad kann drei Dinge sein: 'Rigid', 'Free' oder eine ZAHL -
+ * dann ist es eine Feder mit diesem Wert. Was nicht dasteht, kommt aus der
+ * Vorgabe; eine halb gefuellte Eingabe soll nicht in eine halbe Lagerung
+ * fallen.
+ *
+ * @param {object} inp   Eingabesatz
+ * @param {string} art   Tragwerksart
+ * @param {string} ebene 'OG' | 'UG' | 'V' | 'H'
+ * @returns {{x,y,z,xx,yy,zz}} je 'Rigid' | 'Free' | number
+ */
+export function linkBedingung(inp, art, ebene) {
+  const vorgabe = (LINK_VORGABEN[art] ?? LINK_VORGABEN.joch)[ebene] ?? VOLL;
+  const gesetzt = inp?.auflagerLinks?.[ebene] ?? null;
+  if (!gesetzt) return { ...vorgabe };
+  const o = {};
+  LINK_GRADE.forEach(({ key }) => {
+    const v = gesetzt[key];
+    o[key] = (v === 'Rigid' || v === 'Free' || Number.isFinite(v))
+      ? v : vorgabe[key];
+  });
+  return o;
+}
+
+/** Weicht die Einstellung von der Vorgabe ab? Fuer den Hinweis in der Maske. */
+export function linkAbweichend(inp, art) {
+  return linkEbenen(art).some(({ key }) => {
+    const ist = linkBedingung(inp, art, key);
+    const soll = (LINK_VORGABEN[art] ?? LINK_VORGABEN.joch)[key] ?? VOLL;
+    return LINK_GRADE.some(({ key: g }) => ist[g] !== soll[g]);
+  });
+}
+
+/*
+ * >>> DER MAST DARF EINWAERTS STEHEN - UND DURFTE ES SCHON. <<<
+ *
+ * Weisung vom 5. September: «als offsett habe ich den versatz des masten zum
+ * jochende hin gemeint. die auflagerpunkte blieben bis jetzt immer an den
+ * gurtenden, so koennen sie nun auch innerhalb des endfeldstaebe liegen.»
+ *
+ * Das Mass traegt `kragA` / `kragB` - «Abstand der Mastachse vom Gurtende,
+ * Stuetzweite = L - kragA - kragB». `mastAchse` oben liest es, der
+ * Ersatzbalken rechnet damit, und die Ausleitung setzt seit dem
+ * 1. September einen FESTEN Schnitt auf die Mastachse, damit die
+ * Starrkoerper nicht zwischen zwei Gurtstaeben haengen.
+ *
+ * Hier stand kurzzeitig ein zweites Feld `mastVersatz`. Es ist wieder weg:
+ * eine Laenge, die an zwei Orten steht, steht bald an zwei Orten
+ * verschieden.
+ */
