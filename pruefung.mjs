@@ -13045,15 +13045,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const modD = XA5.abfangAxisvmModell('A240', 12.5,
       { anbauteile: [teilV('durchgehend')], ...o5 });
     /*
-     * OFFEN: der durchgehende Leiter bringt keine EIGENE Zuglast - die
-     * PAUSCHALE bleibt aber stehen (siehe den Vermerk in
-     * export.axisvm.abfang.js). Nachweis 0 kN gegen Modell 22 kN; der
-     * Widerspruch ist dem Auftraggeber vorgelegt.
+     * DER DURCHGEHENDE LEITER ZIEHT NICHT - weder mit eigener Last noch
+     * ueber die Pauschale (Weisung, 9. September: «die pauschale bei
+     * durchgehend rausnehmen»). Nachweis und Modell sagen jetzt dasselbe:
+     * null.
      */
-    wahr('Der durchgehende Leiter bringt keine eigene Zuglast',
-         !(modD.lasten?.punkt ?? []).some((p) => /^FH_AT/.test(p.name ?? '')));
-    wahr('… bis zum Entscheid bleibt die Pauschale',
-         (modD.lasten?.punkt ?? []).some((p) => p.name === 'FH_V'));
+    wahr('Der durchgehende Leiter bringt keine Zuglast',
+         !(modD.lasten?.punkt ?? []).some((p) => p.lastfall === 'Leiterzug'));
   }
 
   /*
@@ -15600,8 +15598,30 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
            !mD.lasten.punkt.some((p2) => p2.name === 'FH_AT1'));
       wahr('Wohl aber Eigengewicht',
            mD.lasten.punkt.some((p2) => p2.name === 'G_AT1' && p2.wert < 0));
-      wahr('Und die pauschale Abfangkraft bleibt dann stehen',
-           mD.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+      /*
+       * >>> UND DIE PAUSCHALE ENTFAELLT. <<<
+       *
+       * Weisung vom 9. September: «die pauschale bei durchgehend
+       * rausnehmen.» Bis dahin bekam ein Modell mit ausschliesslich
+       * durchgehenden Leitern die Regelabfangung von 22 kN - eine Last, die
+       * aus keiner Eingabe folgt und die der Nachweis nicht kennt (dort
+       * stand 0.00 kN).
+       *
+       * Wer «durchgehend» eintraegt, hat die Abfangung beschrieben; sie ist
+       * null. Der Regelfall gilt nur noch, wo GAR KEIN Leiter steht.
+       */
+      wahr('Und die pauschale Abfangkraft entfaellt',
+           !mD.lasten.punkt.some((p2) => p2.name === 'FH_V'
+                                      || p2.name === 'FH_H'));
+      {
+        const mLeer = XA.abfangAxisvmModell('A300', 13.0, { anbauteile: [] });
+        wahr('Ohne jeden Leiter bleibt der Regelfall',
+             mLeer.lasten.punkt.some((p2) => p2.name === 'FH_V')
+             && mLeer.lasten.punkt.some((p2) => p2.name === 'FH_H'));
+        const mHs = XA.abfangAxisvmModell('A300', 13.0, { anbauteile: [hs] });
+        wahr('… und auch bei einem Teil, das kein Leiter ist',
+             mHs.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+      }
       wahr('Die Vorgabe ist als solche gekennzeichnet',
            AK.abfangAnbindung(nfl).vorgegeben);
       wahr('Eine gesetzte Anbindung sticht sie aus',

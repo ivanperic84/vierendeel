@@ -908,28 +908,28 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * an ihre Stelle die Summe der einzelnen Abfangkraefte an IHREN Stellen -
    * dasselbe Bauwerk, nur nicht mehr auf einen Punkt geworfen.
    *
-   * >>> OFFEN: «DURCHGEHEND» HEBT SIE NICHT AUF. <<<
+   * >>> «DURCHGEHEND» IST AUCH EINE ANGABE. <<<
    *
-   * Weisung vom 9. September: «die zugkraft im modell noch pruefen.» Dabei
-   * gemessen - ein Leiter, ausdruecklich als «durchgehend» eingetragen:
+   * Weisung vom 9. September: «die zugkraft im modell noch pruefen» - und
+   * auf den Befund hin: «die pauschale bei durchgehend rausnehmen.»
    *
-   *      Nachweis   Leiterzug 0.00 kN                 eta 0.204
-   *      Modell     FH_V 11.00 + FH_H 11.00 kN        (die Pauschale)
+   * Gemessen war der Widerspruch:
    *
-   * Die Bedingung fragt, ob ein Leiter ABGEFANGEN ist. Ein durchgehender
-   * zaehlt damit wie keiner, und das Modell bekommt die pauschalen 22 kN,
-   * die der Anwender gerade verneint hat.
+   *      Nachweis   durchgehend  ->  Leiterzug 0.00 kN     eta 0.204
+   *      Modell     durchgehend  ->  FH_V 11.00 + FH_H 11.00 kN
    *
-   * BEIDES LAESST SICH VERTRETEN: die Pauschale ist der Regelfall eines
-   * Abfangjochs, und wer nur durchgehende Leiter eintraegt, hat die
-   * Abfangung noch nicht beschrieben. Dagegen steht, dass «durchgehend»
-   * eine ANGABE ist und der Nachweis ihr folgt.
+   * Die Bedingung fragte, ob ein Leiter ABGEFANGEN ist. Ein durchgehender
+   * zaehlte damit wie keiner, und das Modell bekam die pauschalen 22 kN,
+   * die der Anwender gerade verneint hatte - eine Last, die aus keiner
+   * Eingabe folgt und die der Nachweis nicht kennt.
    *
-   * Der Widerspruch ist dem Auftraggeber vorgelegt; bis zu seinem Entscheid
-   * bleibt es, wie es war (Pruefstand: «Und die pauschale Abfangkraft
-   * bleibt dann stehen»).
+   * Gefragt wird jetzt, ob ueberhaupt ein LEITER beschrieben ist - ein
+   * Bauteil, das auf Mitte Traeger wirkt. Ist eines da, gilt, was dort
+   * steht, auch wenn es null ist. Ist keines da, weiss das Werkzeug nichts
+   * ueber die Abfangung und nimmt den Regelfall: EIN Wert `Fh`, halbiert
+   * auf beide Gurte in der Traegermitte.
    */
-  const leiterAusAnbau = anbau.some((t2) => abfangAnbindung(t2).abgefangen);
+  const leiterAusAnbau = anbau.some((t2) => abfangAnbindung(t2).art === 'mitte');
   if (!leiterAusAnbau) {
     for (const g of ['V', 'H']) {
       punkt.push({ name: `FH_${g}`, knoten: nm(g, mitte), richtung: 'Y',

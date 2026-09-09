@@ -52,10 +52,21 @@ belastet wird» (Weisung, 4. September). Lastfall «Leiterzug».
    nicht — die Einleitung an einem Gurt führt der Ersatzbalken nicht. Steht
    jetzt als Hinweis in der Liste.
 
-2. **«Durchgehend» hebt die pauschale Abfangkraft nicht auf** — Nachweis
-   0.00 kN gegen Modell 22 kN (FH_V + FH_H). Die Bedingung fragt, ob ein
-   Leiter *abgefangen* ist; ein durchgehender zählt wie keiner. Beides lässt
-   sich vertreten; **dem Auftraggeber vorgelegt**, bis dahin unverändert.
+2. **«Durchgehend» hob die pauschale Abfangkraft nicht auf** — Nachweis
+   0.00 kN gegen Modell 22 kN (FH_V + FH_H). Auf Entscheid vom 9. September
+   («die pauschale bei durchgehend rausnehmen») behoben: gefragt wird jetzt,
+   ob überhaupt ein *Leiter* beschrieben ist, nicht ob einer abgefangen wird.
+
+   | Fall | Modell |
+   |---|---|
+   | gar kein Anbauteil | Pauschale 22 kN |
+   | nur ein Jochaufsatz (kein Leiter) | Pauschale 22 kN |
+   | ein durchgehender Leiter | **keine** |
+   | ein abgefangener Leiter | FH_AT1 14.90 kN |
+   | einer vorn + einer durchgehend | FH_AT1 14.90 kN |
+
+   Ist ein Leiter da, gilt, was dort steht — auch wenn es null ist. Der
+   Regelfall gilt nur noch, wo das Werkzeug nichts über die Abfangung weiss.
 
 **Nicht bedienbar:** der Temperaturfall. `abfangkraft` kennt +5 / −5 / −20 °C
 und meldet, wenn die Reglagetabelle für den kalten Fall fehlt (`ohneTabelle`),
