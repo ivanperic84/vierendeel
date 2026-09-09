@@ -1575,6 +1575,25 @@ function dialogSortiment() {
   const f0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '–');
   const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
   const f3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : '–');
+  /*
+   * >>> BEIM ABFANGJOCH SEIN EIGENES SORTIMENT. <<<
+   *
+   * Weisung vom 9. September: «den groesseren typ pruefen der die
+   * abfangkraft traegt.»
+   *
+   * Der Dialog rechnete nur Tragjoche durch - beim Abfangjoch waere die
+   * Liste die eines fremden Bauteils gewesen. Jetzt gilt dieselbe Frage fuer
+   * beide Sortimente: welcher Typ traegt DIESE Lasten bei DIESER Laenge.
+   *
+   * Der Unterschied liegt nur in den Quellen: `abfangAuswertung` statt
+   * `berechne`, das Abfangjoch-Sortiment statt der Typendatenbank, und die
+   * Lasten des Jochs kommen aus seiner eigenen Tabelle (Gewicht, Wind,
+   * Schnee je Typ) statt aus den Feldern der Maske.
+   */
+  if (tragwerksart(werte).key === 'abfangjoch') {
+    dialogSortimentAbfang({ f0, f2, f3 });
+    return;
+  }
 
   const zeilen = tragjoche().map((j) => {
     const b = laengenbereich(j);
@@ -1633,6 +1652,99 @@ function dialogSortiment() {
     tr.addEventListener('click', () => {
       ui.el('ueberlagerung').querySelector('[data-zu]')?.click();
       aendern('typ', tr.dataset.typ);
+    });
+  });
+}
+
+/**
+ * >>> WELCHER ABFANGJOCHTYP TRAEGT DIESE LASTEN? <<<
+ *
+ * Weisung vom 9. September: «den groesseren typ pruefen der die abfangkraft
+ * traegt.» Dieselbe Frage wie beim Tragjoch, dasselbe Verfahren - nur das
+ * Sortiment und der Rechenkern sind andere.
+ *
+ * >>> DIE LAENGE ENTSCHEIDET MIT. <<<
+ *
+ * Das Abfangjoch-Sortiment fuehrt je Typ einen Laengenbereich, und die
+ * Bereiche ueberlappen nur teilweise: A160 endet bei 12.50 m, A300 beginnt
+ * bei 13.00 m. Ein Typ, der die eingestellte Laenge NICHT fuehrt, wird
+ * deshalb nicht stillschweigend uebergangen - er steht mit seinem Bereich
+ * da. Sonst suchte man den naechstgroesseren und faende ihn nicht.
+ */
+function dialogSortimentAbfang({ f0, f2, f3 }) {
+  const satz = tragwerkSatz(werte);
+  const jt = Number(werte.L) || 0;
+  const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[satz.ek] ?? '1.1';
+  const sKl = String(satz.schneeKlasse ?? '1.25');
+
+  const zeilen = abfangjoche().map((a) => {
+    const b = abfangLaengenbereich(a);
+    const grund = jt < b.min - 1e-9 || jt > b.max + 1e-9
+      ? `Länge ${f2(jt)} m ausserhalb ${b.text}` : null;
+    if (grund) return { typ: a.typ, eta: null, grund, profil: a.profil };
+    try {
+      const r = abfangAuswertung({
+        typ: a.typ, jt,
+        gk: (a.gewicht ?? 0) * 9.81 / 1000,
+        wk: a.wind?.[qpEk] ?? 0,
+        sk: satz.schneeAktiv === false ? 0 : (a.schnee?.[sKl] ?? 0),
+        anbauteile: satz.anbauteile ?? [],
+        gammaG: werte.gammaG, gammaQ: werte.gammaQ, psi0: werte.psi0,
+        fyd: getStahl(werte.stahl).fyd, ek: satz.ek,
+        L_FL: satz.L_FL, R: satz.R, knotenbereich: 'anschnitt',
+      });
+      if (!r) return { typ: a.typ, eta: null, profil: a.profil,
+                       grund: 'nicht rechenbar — Blechlage nicht erfasst' };
+      return { typ: a.typ, eta: r.max.eta, profil: a.profil,
+               etaGurt: r.gurt?.eta, etaBlech: r.blech?.eta,
+               N: r.gurt?.N, gewicht: a.gewicht ?? null };
+    } catch (f) {
+      return { typ: a.typ, eta: null, profil: a.profil,
+               grund: String(f.message ?? f) };
+    }
+  });
+
+  const traegt = zeilen.filter((z) => z.eta !== null && z.eta <= 1)
+    .sort((a, b) => b.eta - a.eta);
+  const zuKlein = zeilen.filter((z) => z.eta !== null && z.eta > 1)
+    .sort((a, b) => a.eta - b.eta);
+  const geht = zeilen.filter((z) => z.eta === null);
+
+  const zeile = (z) => `
+    <tr class="${z.eta === null ? '' : z.eta <= 1 ? 'klick' : 'klick nok'}"
+        ${z.eta === null ? '' : `data-abfangtyp="${esc(z.typ)}"`}>
+      <td><b>${esc(z.typ)}</b>${z.typ === werte.abfangTyp
+        ? ' <span class="ablage-meta">gewählt</span>' : ''}</td>
+      <td class="num">${z.eta === null ? '–' : f3(z.eta)}</td>
+      <td>${z.eta === null ? esc(z.grund)
+        : `${esc(z.profil)} · Gurt ${f3(z.etaGurt)} · Blech ${f3(z.etaBlech)}`
+          + ` · N ${f0(Math.abs(z.N ?? 0))} kN`
+          + `${z.gewicht ? ` · ${f0(z.gewicht)} kg/m` : ''}`}</td>
+    </tr>`;
+
+  const block = (titel, liste) => (liste.length ? `
+    ${abschnitt(titel, `${liste.length} Typ${liste.length === 1 ? '' : 'en'}`)}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Typ</th><th class="num">η</th>
+        <th>Profil · Gurt · Blech · Kräftepaar</th></tr></thead>
+      <tbody>${liste.map(zeile).join('')}</tbody></table></div>` : '');
+
+  dialog('Sortiment durchrechnen',
+    `<p class="notiz" style="margin-top:0">Dieselbe Länge (${f2(jt)} m),
+       dieselben Anbauteile und Beiwerte, nur der Abfangjoch-Typ wechselt.
+       Eigengewicht, Wind und Schnee des Jochs kommen dabei aus der
+       Sortimentstabelle des jeweiligen Typs.
+       <b>Der gewählte Typ ändert sich nicht von selbst:</b> eine Zeile
+       anklicken übernimmt ihn.</p>
+     ${block('Trägt', traegt)}
+     ${block('Zu klein', zuKlein)}
+     ${block('Nicht gerechnet', geht)}`,
+    '<button class="btn" data-zu>Schliessen</button>', 'dialog-breit');
+
+  ui.el('ueberlagerung').querySelectorAll('[data-abfangtyp]').forEach((tr) => {
+    tr.addEventListener('click', () => {
+      ui.el('ueberlagerung').querySelector('[data-zu]')?.click();
+      aendern('abfangTyp', tr.dataset.abfangtyp);
     });
   });
 }

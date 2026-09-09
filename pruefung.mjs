@@ -5734,12 +5734,33 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
   // --- Bei eta > 1 fehlte der Weg zum naechsten Typ -----------------------
   {
     wahr('Es gibt eine Sortimentssuche', aq.includes('function dialogSortiment'));
+    /*
+     * SIE FOLGT DER ZAHL, DIE OBEN STEHT (Weisung, 9. September). Hier stand
+     * `e > 1` - die Ausnutzung des TRAGJOCH-Ersatzbalkens. Beim Abfangjoch
+     * zeigt die Ueberschrift aber `eAn`, und der Knopf fehlte genau dann,
+     * wenn man ihn brauchte.
+     */
     wahr('Sie erscheint nur, wenn der Nachweis nicht erfuellt ist',
-         /e > 1 && beiSortiment/.test(uq));
+         /eAn > 1 && beiSortiment/.test(uq));
     wahr('Der Typ wechselt nicht von selbst',
          aq.includes('DER TYP WECHSELT NICHT VON SELBST'));
     wahr('Was nicht gerechnet werden kann, steht mit Grund da',
          aq.includes("block('Nicht gerechnet', geht)"));
+    /*
+     * >>> UND SIE KENNT BEIDE SORTIMENTE. <<<
+     *
+     * Weisung: «den groesseren typ pruefen der die abfangkraft traegt.» Der
+     * Dialog rechnete nur Tragjoche durch; beim Abfangjoch waere die Liste
+     * die eines fremden Bauteils gewesen.
+     */
+    wahr('Das Abfangjoch hat seine eigene Liste',
+         aq.includes('function dialogSortimentAbfang'));
+    wahr('… und sie rechnet mit seinem Kern',
+         /dialogSortimentAbfang[\s\S]{0,2500}abfangAuswertung\(/.test(aq));
+    wahr('… nennt Typen ausserhalb des Laengenbereichs mit Grund',
+         /ausserhalb \$\{b\.text\}/.test(aq));
+    wahr('… und ein Klick uebernimmt den Abfangtyp',
+         aq.includes("aendern('abfangTyp', tr.dataset.abfangtyp)"));
   }
 
   // --- Rolle und Traeger standen nirgends ---------------------------------

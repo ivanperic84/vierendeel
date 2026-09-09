@@ -27,6 +27,34 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Welcher Typ trägt die Abfangkraft (9. September)
+
+Weisung: «den grösseren typ prüfen der die abfangkraft trägt.»
+
+Der Dialog **«Sortiment durchrechnen»** kann das jetzt auch fürs Abfangjoch
+(`dialogSortimentAbfang`) — bis dahin rechnete er nur Tragjoche durch, und der
+Knopf erschien nach `e > 1`, also nach der Ausnutzung des *Tragjoch*-
+Ersatzbalkens. Beim Abfangjoch fehlte er genau dann, wenn man ihn brauchte;
+jetzt folgt er `eAn`, der Zahl, die oben steht.
+
+Gemessen am Blatt (A160 / 12.50 m, Leiter bei x = 10.00 m auf «Mitte Träger»,
+γ_G 1.3 · γ_Q 1.3 · ψ₀ 0.5, **Schnee abgeschaltet**):
+
+| | η | Profil | kg/m |
+|---|---|---|---|
+| A160 *(gewählt)* | **1.475** | UPE 160 | 43 |
+| **A200** | **0.930** | UPE 200 | 58 |
+| A240 | 0.678 | UPE 240 | 85 |
+| A270 | 0.558 | IPE 270 | 98 |
+| A300 / A330 / A360 | — | führen 12.50 m nicht (ab 13.0 / 15.5 / 17.5 m) | |
+
+**Mit Schnee** (Klasse 1.25) verschiebt sich das: A200 kommt auf 1.04 und
+trägt nicht mehr — dann ist **A240** der kleinste tragende Typ.
+
+Der Dialog nennt auch, was er *nicht* rechnen kann: die Typen ausserhalb des
+Längenbereichs mit ihrem Bereich, die Altbauweise mit «Blechlage nicht
+erfasst».
+
 ### «Mitte Träger» — was die Umstellung bewirkt (9. September)
 
 Weisung: «das anbauteil auf mitte träger umstellen und prüfen.»

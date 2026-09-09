@@ -3509,7 +3509,14 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
             : 'Tragsicherheit NICHT erfüllt')}${
         urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}${
         offeneNw ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
-      ${e > 1 && beiSortiment ? `<button class="btn btn-mini" data-sortiment
+      ${/*
+         * DER KNOPF FOLGT DER ZAHL, DIE OBEN STEHT (Weisung, 9. September:
+         * «den groesseren typ pruefen der die abfangkraft traegt»). Hier
+         * stand `e` - die Ausnutzung des TRAGJOCH-Ersatzbalkens. Beim
+         * Abfangjoch zeigt die Ueberschrift aber `eAn`, und der Knopf fehlte
+         * genau dann, wenn man ihn brauchte.
+         */''}
+      ${eAn > 1 && beiSortiment ? `<button class="btn btn-mini" data-sortiment
          type="button" title="Alle Typen des Sortiments mit dieser Geometrie und
 diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
          >Sortiment durchrechnen</button>` : ''}
