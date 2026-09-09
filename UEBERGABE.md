@@ -27,6 +27,55 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Der Mastenschalter — das Auge ist raus (9. September)
+
+Frage: «ich versteh die logik nicht beim ein ausblenden der masten, in der 3d
+abbildung werden gewisse nachgeschoben. die frage ist auch, warum sollte man
+einzelne masten ausblenden wollen die in einer jochreihe stehen.»
+
+Nachgemessen an einer Reihe von drei Jochen (Masten bei 0, 20, 40, 55 m):
+
+```
+alle drei mit Masten   M1@0:HEB 240  M2@20:HEB 240  M3@40:HEB 260  M4@55:HEM 240
+P1 ohne Masten         M1@20:HEB 260  M2@40:HEB 260  M3@55:HEM 240     <- vorher
+P1 ohne Masten         M2@20:HEB 260  M3@40:HEB 260  M4@55:HEM 240     <- jetzt
+```
+
+**Drei Befunde, alle behoben:**
+
+1. **Die Namen wanderten.** `mastenAbgeleitet` liess das mastlose Tragwerk gar
+   keine Lagen anlegen — der Mast bei 20 m hiess danach M1 statt M2. Beim
+   *Ausblenden* eines Tragwerks war genau das schon geregelt (Weisung vom
+   3. September: «namen über ausblenden hinweg stabil halten»). Jetzt gilt
+   dieselbe Lösung: das mastlose Tragwerk zählt mit, trägt `ohneMast: true`,
+   und `mastenVon` lässt es am Ende weg — nachdem die Nummern vergeben sind.
+
+2. **Der geteilte Mast erbte ein fremdes Profil.** Hatte ihn ein mastloses
+   Tragwerk angelegt, stand dessen Profil daran. Jetzt schreiben die Angaben
+   des ersten Trägers **mit** Masten sie über.
+
+3. **Der Schalter wechselte das gerechnete Tragwerk.** Er musste
+   `tauscheAktives` rufen, weil die Felder des aktiven Tragwerks flach im
+   Blatt liegen. Neu: `tragwerkAendern(w, id, fn)` greift das Feld an, wo
+   immer es liegt. Damit springt die Auswertung nicht mehr, und der geteilte
+   Zwischenmast wechselt nicht mehr den Zeichner — das war das
+   «Nachgeschobene» im Bild.
+
+**Und das Auge in der Leiste ist weg.** Es war keine Sichtbarkeit, sondern eine
+Modellangabe («Tragwerk steht auf Masten»), stand neben dem Auge fürs
+Ausblenden und sah aus wie ein zweites davon; der Schalter dafür steht seit dem
+5. September ohnehin zuoberst in der Gruppe *Masten*. In einer Jochreihe gibt
+es für ihn keinen sinnvollen Fall: der geteilte Mast bleibt stehen (der Nachbar
+trägt ihn), und das Joch steht im Bild auf einem Masten, während es sich als
+«ohne» rechnet. Mit dem Auge fallen die blassen Geistkacheln weg — sie standen
+allein dafür da, dass es nicht mit den Masten verschwindet.
+
+Das **Kontextmenü am Masten** meint jetzt den Träger dieses Masten, nicht das
+gerechnete Tragwerk: am linken Masten stand «Masten von … ausschalten» und traf
+das rechte Joch. Der Eintrag nennt die Stelle auf dem Blatt — «Masten von P1
+(J90 · 20.00 m) ausschalten» —, weil zwei gleiche Joche einer Reihe sonst
+gleich heissen.
+
 ### Ansicht und Schnitt statt Isometrie (9. September)
 
 Weisung: «die darstellung ist zu abstrakt und passt nicht zum rest, mach bei

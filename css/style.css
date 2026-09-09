@@ -2202,12 +2202,6 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
 .qp-mast-halter { position: absolute; top: 0; bottom: 0;
                   transform: translateX(-50%); width: 30px; }
 .qp-mast-halter .qp-mast { left: 50%; }
-.qp-auge-mast { position: absolute; left: 50%; bottom: -3px;
-                transform: translateX(-50%); z-index: 2; }
-.qp-auge-mast { width: 12px; height: 12px; }
-/* Ein ausgeschalteter Mast steht blass da - er zaehlt nicht mehr. */
-.qp-mast.aus { opacity: 0.35; }
-
-/* Ein Mast, den es im Modell nicht gibt: blass, ohne Griff, mit Auge. */
-.qp-mast-halter.geist .qp-mast { opacity: 0.22; cursor: default; }
-.qp-mast-halter.geist .qp-auge-mast { opacity: 0.75; }
+/* Das Auge fuer die Masten ist raus (Weisung, 9. September) - geschaltet
+   wird in der Maske. Mit ihm fallen die blassen Geistkacheln weg, die nur
+   dafuer dastanden, dass es nicht mit den Masten verschwindet. */

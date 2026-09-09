@@ -903,17 +903,6 @@ export function verdrahteLeiste(container, werte, onChange) {
       b.dataset.qpSicht));
   });
   /*
-   * DAS AUGE AN DER MASTKACHEL. Es meldet dieselbe Absicht wie der frühere
-   * Knopf in der Handlungszeile - `tragwerkMasten` schaltet um; hier steht
-   * nur ein anderer Ort und ein anderes Symbol davor.
-   */
-  container.querySelectorAll('[data-qp-mastsicht]').forEach((b) => {
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      onChange('tragwerkMasten', b.dataset.qpMastsicht);
-    });
-  });
-  /*
    * DERSELBE GRUND WIE OBEN: das Ziehen des Tragwerksbalkens ist raus
    * (Weisung, 5. September). Anklicken waehlt, Rechtsklick oeffnet das
    * Kontextmenue - und dort steht die Lage als Zahl.
@@ -1222,65 +1211,60 @@ export function querprofilLeisteHtml(werte, zieht = null) {
    *
    * >>> `mastVorhanden` GILT DEM TRAGWERK, NICHT DEM EINZELNEN MASTEN. <<<
    *
-   * Ein Joch steht auf Masten oder ohne — beide Enden zugleich. Das Auge an
-   * der Kachel schaltet deshalb die Masten des Tragwerks, dem dieser Mast
-   * gehört; bei einem geteilten das des GERECHNETEN, wenn es ihn trägt.
-   * Der Titel nennt es beim Namen, damit niemand raten muss.
+   * Ein Joch steht auf Masten oder ohne — beide Enden zugleich. Geschaltet
+   * wird das in der Maske («Tragwerk steht auf Masten») oder im Kontextmenü
+   * des Masten; die Leiste zeigt nur, was dasteht.
    */
   /*
-   * >>> EIN AUSGESCHALTETER MAST BLEIBT STEHEN, BLASS. <<<
+   * >>> DAS AUGE FUER DIE MASTEN IST RAUS. <<<
    *
-   * `mastenVon` fuehrt keine Masten mehr, sobald `mastVorhanden` aus ist -
-   * mit ihnen verschwaende auch das Auge, mit dem man sie zurueckholt. «Ein
-   * Schalter, dessen Aus-Zustand ihn selbst verschwinden laesst, ist eine
-   * Falle», steht schon beim Feld in der Maske; hier gilt dasselbe.
+   * Weisung vom 9. September: «ich versteh die logik nicht beim ein
+   * ausblenden der masten, in der 3d abbildung werden gewisse nachgeschoben.
+   * die frage ist auch, warum sollte man einzelne masten ausblenden wollen
+   * die in einer jochreihe stehen.»
    *
-   * Fuer jedes sichtbare Traegertragwerk ohne Masten stehen deshalb zwei
-   * BLASSE Kacheln an den Jochenden - ohne Profil, ohne Ziehgriff, aber mit
-   * dem Auge. Sie sagen: hier waeren Masten, und so kommen sie wieder.
+   * Drei Gruende, und der dritte ist der eigentliche:
+   *
+   * ES WAR KEINE SICHTBARKEIT. `mastVorhanden` sagt, ob das Tragwerk AUF
+   * MASTEN STEHT - eine Modellangabe, die das Joch gelenkig lagert und den
+   * Mastnachweis wegnimmt. Neben dem Auge fuers Ausblenden sah es aus wie
+   * ein zweites Auge fuer dasselbe.
+   *
+   * ES STAND ZWEIMAL DA. Der Schalter «Tragwerk steht auf Masten» steht
+   * seit dem 5. September zuoberst in der Gruppe Masten - auf Weisung, weil
+   * er «klar auswaehlbar sein und nicht als einziges button unter der
+   * schemadarstellung tragwerke» stehen sollte. Der zweite Ort ist damit
+   * ueberzaehlig.
+   *
+   * IN EINER REIHE ERGIBT ER KEINEN FALL. Die Tragwerke teilen sich die
+   * Zwischenmasten: schaltet man eines ab, bleibt der geteilte Mast stehen
+   * (der Nachbar traegt ihn), und das Joch steht im Bild auf einem Masten
+   * und rechnet sich zugleich als «ohne». Bild und Rechnung sagten
+   * Verschiedenes.
+   *
+   * Mit dem Auge fallen auch die blassen Geistkacheln weg - sie standen
+   * allein dafuer da, dass das Auge nicht mit den Masten verschwindet.
    */
-  const geister = [];
-  alle.filter((y) => !versteckt(y) && tragwerksart(y).masten >= 2
-                  && y.mastVorhanden === false)
-    .forEach((y) => {
-      const x0 = lageVon(y), L = Number(y.L) || 0;
-      [x0, x0 + L].forEach((gx, k) => geister.push({
-        geist: true, id: `${y.id}-G${k}`, traegt: [y.id], x: gx, profil: null,
-      }));
-    });
-
-  const marken = [...masten, ...geister].map((m, i) => {
-    const an = !m.geist && m.id === gewMast?.id;
+  const marken = masten.map((m, i) => {
+    const an = m.id === gewMast?.id;
     const traegt = m.traegt ?? [];
     const geteilt = traegt.length > 1;
     const x = (zieht && zieht.mastId === m.id) ? zieht.x : m.x;
-    const zuTw = traegt.includes(aktivId) ? aktivId : traegt[0];
-    const tw = alle.find((y) => y.id === zuTw) ?? null;
-    const mastAn = tw ? tw.mastVorhanden !== false : true;
-    return `<span class="qp-mast-halter${m.geist ? ' geist' : ''}"
+    return `<span class="qp-mast-halter"
         style="left:${qpPct(x, von, bis).toFixed(3)}%">
       <button type="button" class="qp-mast${an ? ' an' : ''}${
-        geteilt ? ' geteilt' : ''}${mastAn ? '' : ' aus'}"
-        ${m.geist ? 'disabled' : `data-qp-mast="${esc(m.id)}"`}
-        title="${esc(m.geist
-          ? `Ohne Masten bei x = ${x.toFixed(2)} m — das Auge schaltet sie ein`
-          : `M${i + 1} bei x = ${x.toFixed(2)} m — ${m.profil ?? 'ohne Profil'}`
-            + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
-            + ' · ziehen ändert den Mastabstand')}"
+        geteilt ? ' geteilt' : ''}"
+        data-qp-mast="${esc(m.id)}"
+        title="${esc(`M${i + 1} bei x = ${x.toFixed(2)} m — ${
+          m.profil ?? 'ohne Profil'}`
+          + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
+          + ' · Rechtsklick öffnet das Kontextmenü')}"
         aria-pressed="${an}">
         <span class="qp-mast-schaft"></span>
         <span class="qp-mast-fuss"></span>
-        <span class="qp-mast-x">${m.geist ? ''
-          : x.toFixed(Math.abs(x % 1) > 1e-9 ? 2 : 0)}</span>
+        <span class="qp-mast-x">${
+          x.toFixed(Math.abs(x % 1) > 1e-9 ? 2 : 0)}</span>
       </button>
-      ${tw ? `<button type="button" class="qp-auge qp-auge-mast${
-          mastAn ? ' an' : ''}" data-qp-mastsicht="${esc(tw.id)}"
-          role="checkbox" aria-checked="${mastAn}"
-          title="${esc(mastAn
-            ? `Masten von ${tragwerkPos(werte, tw)} ausschalten — das Tragwerk `
-              + 'steht dann ohne'
-            : `Masten von ${tragwerkPos(werte, tw)} einschalten — sie werden `
-              + 'gezeichnet, ausgeleitet und nachgewiesen')}"></button>` : ''}
     </span>`;
   }).join('');
 

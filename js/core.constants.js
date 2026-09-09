@@ -763,8 +763,31 @@ function mastenAbgeleitet(w, tol) {
      *
      * Ein GETEILTER Mast bleibt sichtbar, sobald ihn EIN sichtbares
      * Tragwerk traegt.
+     *
+     * >>> UND DASSELBE GILT FUER «STEHT OHNE MASTEN». <<<
+     *
+     * Weisung vom 9. September: «ich versteh die logik nicht beim ein
+     * ausblenden der masten, in der 3d abbildung werden gewisse
+     * nachgeschoben.»
+     *
+     * Hier stand `if (t.mastVorhanden === false) return;` - und damit
+     * wanderten die Namen genau so, wie sie es beim Ausblenden getan
+     * hatten. Nachgemessen an einer Reihe von drei Jochen (Masten bei 0,
+     * 20, 40, 55):
+     *
+     *     alle mit Masten     M1@0  M2@20  M3@40  M4@55
+     *     P1 ohne Masten      M1@20 M2@40  M3@55        <- alles verschoben
+     *
+     * Der Mast bei 20 hiess danach M1, der bei 40 M2. Und weil `mastenVon`
+     * die gespeicherten Angaben ueber die STELLE zuordnet, sah man es dem
+     * Bild nur daran an, dass ploetzlich ein anderer Mast beschriftet war.
+     *
+     * Jetzt zaehlt das mastlose Tragwerk MIT: es legt seine Lagen an und
+     * traegt `ohneMast: true`; `mastenVon` laesst sie am Ende weg -
+     * nachdem die Nummern vergeben sind. Dieselbe Loesung wie beim
+     * Ausblenden, aus demselben Grund.
      */
-    if (t.mastVorhanden === false) return;
+    const ohneMast = t.mastVorhanden === false;
     const twVersteckt = versteckt(t);
     const lagen = mastLagen(t);
     /*
@@ -797,10 +820,22 @@ function mastenAbgeleitet(w, tol) {
         // Ein sichtbares Tragwerk holt den Masten ins Bild - auch wenn ihn
         // zuerst ein ausgeblendetes angelegt hat.
         if (!twVersteckt) da.versteckt = false;
+        /*
+         * DIE ANGABEN GEHOEREN DEM, DER DEN MASTEN WIRKLICH TRAEGT.
+         *
+         * Hat ihn zuerst ein mastloses Tragwerk angelegt, stand dort dessen
+         * Profil - ein Bauteil aus einem Satz, der gerade sagt, er stehe
+         * ohne Masten. Der erste Traeger MIT Masten schreibt sie deshalb
+         * ueber; danach gilt wieder «der zuerst gefundene».
+         */
+        if (da.ohneMast && !ohneMast) {
+          Object.assign(da, mastAus(t, ende, x));
+          da.ohneMast = false;
+        }
         return;
       }
       liste.push({ id: `M${liste.length + 1}`, traegt: [t.id],
-                   versteckt: twVersteckt,
+                   versteckt: twVersteckt, ohneMast,
                    mitLage: traegtLage, ...mastAus(t, ende, x) });
     });
   });
@@ -824,7 +859,13 @@ function mastenAbgeleitet(w, tol) {
  * die Lage.
  */
 export function mastenVon(w, tol = 0.1, mitVersteckten = false) {
-  const sichtbar = (l) => (mitVersteckten ? l : l.filter((m) => !m.versteckt));
+  /*
+   * WEGGELASSEN WIRD ERST AM ENDE - beides: das ausgeblendete Tragwerk und
+   * das, welches ohne Masten steht. Bis dahin haben sie ihre Nummer
+   * bekommen, und die bleibt damit ueber beide Schalter hinweg stehen.
+   */
+  const sichtbar = (l) => (mitVersteckten
+    ? l : l.filter((m) => !m.versteckt && !m.ohneMast));
   const soll = mastenAbgeleitet(w, tol);
   const alt = Array.isArray(w?.masten) ? w.masten : null;
   if (!alt || !alt.length) return sichtbar(soll);
@@ -1362,6 +1403,31 @@ export function tauscheAktives(w, id) {
   const neu = { ...blattAngaben(w), ...rest[i], twId: rest[i].id ?? `T${i + 2}` };
   neu.weitere = rest.map((t, j) => (j === i ? bisher : t));
   return neu;
+}
+
+/**
+ * EIN TRAGWERK AENDERN, OHNE ES ZUM GERECHNETEN ZU MACHEN.
+ *
+ * Weisung vom 9. September, sinngemaess: der Schalter fuer die Masten soll
+ * nicht nebenbei das Tragwerk wechseln. Er musste es bis dahin, weil die
+ * Felder des AKTIVEN Tragwerks flach im Blatt liegen und die der uebrigen
+ * in `weitere` - wer das Feld eines anderen aendern wollte, tauschte es
+ * zuerst nach vorn. Ein Schalter, der die ganze Auswertung umstellt, ist
+ * aber keiner: man wollte einen Masten abschalten und bekam einen anderen
+ * Nachweis.
+ *
+ * @param {object} w     Blatt
+ * @param {string} id    Tragwerk
+ * @param {Function} fn  (satz) => Teilmenge der zu setzenden Felder
+ */
+export function tragwerkAendern(w, id, fn) {
+  const eigen = w?.twId ?? 'T1';
+  if (id === eigen) return { ...w, ...fn(w) };
+  const rest = w?.weitere ?? [];
+  const i = rest.findIndex((x) => x.id === id);
+  if (i < 0) return w;
+  return { ...w,
+           weitere: rest.map((x, j) => (j === i ? { ...x, ...fn(x) } : x)) };
 }
 
 /** Ein weiteres Tragwerk auf das Blatt setzen. Es wird gleich das aktive. */

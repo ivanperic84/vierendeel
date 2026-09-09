@@ -11086,6 +11086,79 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> «STEHT OHNE MASTEN» VERSCHIEBT DIE NAMEN NICHT. <<<
+   *
+   * Weisung vom 9. September: «ich versteh die logik nicht beim ein
+   * ausblenden der masten, in der 3d abbildung werden gewisse
+   * nachgeschoben.»
+   *
+   * Das mastlose Tragwerk zaehlt jetzt MIT: es legt seine Lagen an, traegt
+   * `ohneMast` und faellt erst am Ende weg - nachdem die Nummern vergeben
+   * sind. Dieselbe Regel wie beim Ausblenden (Weisung, 3. September:
+   * «namen ueber ausblenden hinweg stabil halten»).
+   */
+  {
+    const drei = () => {
+      let w = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 240', mastH: 7 };
+      w = C.tragwerkHinzu(w, 'joch', { L: 20, xLage: 20, mastProfil: 'HEB 260' });
+      return C.tragwerkHinzu(w, 'joch', { L: 15, xLage: 40,
+                                          mastProfil: 'HEM 240' });
+    };
+    const namen = (w) => C.mastenVon(w).map((m) => `${m.id}@${m.x}`).join(' ');
+    const voll = drei();
+    wahr('Eine Reihe von drei Jochen hat vier Masten',
+         C.mastenVon(voll).length === 4);
+    wahr('… M1 bis M4 an 0, 20, 40, 55',
+         namen(voll) === 'M1@0 M2@20 M3@40 M4@55');
+    /*
+     * ACHTUNG BEI DER ID: `tragwerkHinzu` macht das NEUE Tragwerk zum
+     * aktiven - nach zweimal Hinzufuegen liegt T1 in `weitere`, und genau
+     * das soll `tragwerkAendern` koennen.
+     */
+    const ohne1 = C.tragwerkAendern(voll, 'T1', () => ({ mastVorhanden: false }));
+    wahr('Ohne Masten am ersten Joch faellt nur der aeussere weg',
+         namen(ohne1) === 'M2@20 M3@40 M4@55');
+    const ohne2 = C.tragwerkAendern(voll, 'T2', () => ({ mastVorhanden: false }));
+    wahr('… und am mittleren bleiben alle vier stehen',
+         namen(ohne2) === 'M1@0 M2@20 M3@40 M4@55');
+    /*
+     * DIE ANGABEN GEHOEREN DEM, DER DEN MASTEN WIRKLICH TRAEGT. Der Mast
+     * bei 40 wurde von T2 angelegt (HEB 260); steht T2 ohne Masten, gilt
+     * das Profil von T3.
+     */
+    const bei = (w, x) => C.mastenVon(w).find((m) => Math.abs(m.x - x) < 1e-9);
+    wahr('Der geteilte Mast traegt sonst das Profil seines Anlegers',
+         bei(voll, 40)?.profil === 'HEB 260');
+    wahr('… und ohne dessen Masten das des anderen Traegers',
+         bei(ohne2, 40)?.profil === 'HEM 240');
+    wahr('Ein Mast, den nur ein mastloses Tragwerk traegt, ist weg',
+         bei(ohne1, 0) === undefined);
+    wahr('Der geteilte bleibt, weil der Nachbar ihn traegt',
+         bei(ohne1, 20)?.traegt.includes('T2') === true);
+  }
+
+  /*
+   * >>> UND DER SCHALTER WECHSELT DAS GERECHNETE TRAGWERK NICHT. <<<
+   *
+   * `tragwerkAendern` greift das Feld an, wo immer es liegt - flach im
+   * Blatt beim aktiven, in `weitere` bei den uebrigen.
+   */
+  {
+    let w = { twId: 'T1', typ: 'J90', L: 12, xLage: 0, mastProfil: 'HEB 260' };
+    w = C.tragwerkHinzu(w, 'joch', { L: 10, xLage: 12 });   // T2 wird aktiv
+    const aktiv = w.twId;
+    const n = C.tragwerkAendern(w, 'T1', () => ({ mastVorhanden: false }));
+    wahr('Das gerechnete Tragwerk bleibt, wo es war', n.twId === aktiv);
+    wahr('… und das andere hat den Schalter',
+         C.tragwerkeVon(n).find((t) => t.id === 'T1').mastVorhanden === false);
+    const m = C.tragwerkAendern(n, aktiv, () => ({ mastVorhanden: false }));
+    wahr('Auch das aktive laesst sich so schalten',
+         m.mastVorhanden === false && m.twId === aktiv);
+    wahr('Eine unbekannte Id laesst das Blatt stehen',
+         C.tragwerkAendern(w, 'T9', () => ({ mastVorhanden: false })) === w);
+  }
+
+  /*
    * >>> GEKOPPELT WIRD NUR, WER EINE LAGE TRAEGT. <<<
    *
    * Der Standardwert von x0 ist null. Ohne diese Regel stehen ALLE

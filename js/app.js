@@ -28,14 +28,16 @@ import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
 import { verortung, fangeAufMasskette,
-         tauscheAktives, tragwerkHinzu, tragwerkWeg, tragwerksart,
+         tauscheAktives, tragwerkAendern, tragwerkHinzu, tragwerkWeg,
+         tragwerksart,
          tragwerkTeil,
          MASTFELDER, setzeMastAngabe, rechensatz,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
-         mastenVon, mastName, tragwerkName, aufRaster, TRAGWERKSARTEN,
+         mastenVon, mastName, tragwerkName, tragwerkPos, aufRaster,
+         TRAGWERKSARTEN,
          mastZeichenplan,
          gewaehlterMast }
   from './core.constants.js';
@@ -1048,8 +1050,21 @@ function aendern(key, wert) {
     return aendern('tragwerkMasten', werte.twId ?? 'T1');
   }
   if (key === 'tragwerkMasten') {
-    if ((werte.twId ?? 'T1') !== wert) werte = tauscheAktives(werte, wert);
-    werte = { ...werte, mastVorhanden: werte.mastVorhanden === false };
+    /*
+     * >>> ER WECHSELT DAS GERECHNETE TRAGWERK NICHT. <<<
+     *
+     * Weisung vom 9. September. Hier stand `tauscheAktives` - weil die
+     * Felder des aktiven Tragwerks flach im Blatt liegen, war das der
+     * einzige Weg, das Feld eines anderen zu erreichen. Die Nebenwirkung
+     * war die eigentliche Wirkung: die ganze Auswertung sprang auf ein
+     * anderes Joch, und der geteilte Zwischenmast wechselte dabei den
+     * Zeichner - im Bild sah es aus, als wuerde er nachgeschoben.
+     *
+     * `tragwerkAendern` greift jetzt genau das eine Feld an, egal wo es
+     * liegt.
+     */
+    werte = tragwerkAendern(werte, wert ?? (werte.twId ?? 'T1'),
+                            (t) => ({ mastVorhanden: t.mastVorhanden === false }));
     mastNachfuehren();
     neuRechnen();
     return;
@@ -4888,11 +4903,27 @@ function alleZeigen() {
   });
 }
 
-/** Die Einträge zu einem Masten. */
+/**
+ * Die Einträge zu einem Masten.
+ *
+ * >>> WELCHES TRAGWERK GEMEINT IST, SAGT DER MAST. <<<
+ *
+ * Weisung vom 9. September: «ich versteh die logik nicht beim ein ausblenden
+ * der masten.» Hier lag ein Teil davon: `twId` war IMMER das gerechnete
+ * Tragwerk, gleichgültig, welchen Masten man angeklickt hatte. Am linken
+ * Masten stand «Masten von … ausschalten» und traf das rechte Joch — bei
+ * zwei gleichen Jochen einer Reihe sah man dem Menütext nicht einmal an,
+ * dass er den falschen meint.
+ *
+ * Gemeint ist, wer den Masten TRÄGT. Bei einem geteilten das gerechnete,
+ * wenn es ihn trägt — dieselbe Regel wie in der Leiste; sonst der erste.
+ */
 function kontextMast(mastId, twId) {
   const m = mastenVon(werte).find((x) => x.id === mastId);
   if (!m) return [];
-  const t = tragwerkeSortiert(werte).find((x) => x.id === twId)
+  const traegt = m.traegt ?? [];
+  const wer = traegt.includes(twId) ? twId : (traegt[0] ?? twId);
+  const t = tragwerkeSortiert(werte).find((x) => x.id === wer)
          ?? tragwerkeVon(werte)[0];
   const p = [
     { text: `${mastName(werte, m)} bearbeiten`, tun: () => {
@@ -4910,9 +4941,8 @@ function kontextMast(mastId, twId) {
    */
   if (t && tragwerksart(t).traeger) {
     p.push('-');
-    p.push({ text: t.mastVorhanden === false
-      ? `Masten von ${tragwerkName(t)} einschalten`
-      : `Masten von ${tragwerkName(t)} ausschalten`,
+    p.push({ text: `Masten von ${tragwerkPos(werte, t)} (${tragwerkName(t)}) `
+      + (t.mastVorhanden === false ? 'einschalten' : 'ausschalten'),
       tun: () => aendern('tragwerkMasten', t.id) });
   }
   return p;
