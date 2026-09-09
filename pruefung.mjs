@@ -12938,6 +12938,85 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * ============ DIE ANBAUTEILE AM ABFANGJOCH ==========================
+   *
+   * Weisung vom 9. September: «die anbauteile im abfangjoch pruefen.» Zwei
+   * Befunde kamen dabei heraus.
+   *
+   * ERSTENS: BILD UND NACHWEIS RECHNETEN VERSCHIEDEN. `abfangAnbauLasten`
+   * ist DIESELBE Quelle fuer Nachweis, Bild und Ausleitung - sie braucht
+   * aber ihre Angaben (Kombination, Spannweite, Radius, Temperaturfall).
+   * Die Ausleitung reichte sie durch, die Szene nicht:
+   *
+   *      Nachweis   G = 1.70 kN     (Spannweite 60 m)
+   *      Bild alt   G = 0.50 kN     (ohne Spannweite)
+   *
+   * ZWEITENS: EIN DRAHTWERK OHNE ABFANGWIRKUNG. Ein Bauteil mit Drahtwerk,
+   * das ueber die GURTE angebunden ist, bringt keine Laengskraft. Das kann
+   * richtig sein und kann der Fall sein, um dessentwillen das Abfangjoch
+   * dasteht - am Ergebnis sieht man es nicht.
+   */
+  if (AJ.abfangDbDa()) {
+    const AB3 = await import(J('core.abfangjoch.js'));
+    const RA3 = await import(J('render.abfang.js'));
+    const teil = {
+      id: 'AT-p', vorlage: 'hs-fahrdraht', name: 'Fahrleitung Gleis 1',
+      x: 6.25, ort: 'joch', aktiv: true,
+      module: [
+        { bauteil: 'anbauteil-haengestuetze-od-haengerohr', anzahl: 1, z: -1.35 },
+        { bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107', anzahl: 1, z: -2.7 },
+      ],
+    };
+    const lastOpt = { ek: 'EK2', L_FL: 60, R: 0 };
+    const lw = AB3.abfangAnbauLasten(teil, { ...lastOpt, spannweite: 60 });
+    wahr('Das Anbauteil bringt Eigengewicht und Wind',
+         lw.Gz > 0 && lw.Qy > 0, `Gz ${lw.Gz.toFixed(2)}  Qy ${lw.Qy.toFixed(2)}`);
+
+    /*
+     * DIE PFEILE IM BILD ZEIGEN DIESELBE ZAHL - mit den Angaben, ohne sie
+     * nicht. Genau das war der Fehler.
+     */
+    const gVon = (sz) => {
+      const v = (sz.vektoren ?? []).find((x) => x.lastart === 'staendig');
+      return v ? Number(String(v.text).match(/([\d.]+)/)?.[1] ?? 0) : 0;
+    };
+    const mitAngaben = RA3.abfangSzene('A160', 12.5,
+      { anbauteile: [teil], ...lastOpt });
+    const ohneAngaben = RA3.abfangSzene('A160', 12.5, { anbauteile: [teil] });
+    pruef('Der Kraftpfeil zeigt das Eigengewicht des Nachweises',
+          gVon(mitAngaben), lw.Gz, 0.005, 'kN');
+    wahr('… und ohne die Angaben zeigte er weniger',
+         gVon(ohneAngaben) < gVon(mitAngaben) - 0.5,
+         `${gVon(ohneAngaben)} gegen ${gVon(mitAngaben)}`);
+
+    /*
+     * DAS TEIL TRAEGT EIN DRAHTWERK UND FAENGT NICHTS AB - weil seine
+     * Vorlage zur Gruppe `haengestuetze` gehoert. Der Hinweis nennt es.
+     */
+    wahr('Ohne Abfangwirkung gibt es keine Laengskraft', lw.Z === 0);
+    const ohneZug = AB3.abfangZugOhneWirkung([teil]);
+    wahr('Das Werkzeug nennt das Teil beim Namen',
+         ohneZug.length === 1 && ohneZug[0].name === 'Fahrleitung Gleis 1');
+    /*
+     * UMGESTELLT AUF «MITTE TRAEGER» kommt die Kraft - und der Hinweis
+     * verschwindet. Beides muss gelten, sonst waere er ein Dauerzustand.
+     */
+    const abgefangen = { ...teil, anbindung: 'mitte', verlauf: 'vorn' };
+    const lw2 = AB3.abfangAnbauLasten(abgefangen, { ...lastOpt, spannweite: 60 });
+    wahr('Auf «Mitte Traeger» zieht der Leiter', Math.abs(lw2.Z) > 0,
+         `Z ${lw2.Z.toFixed(2)} kN`);
+    wahr('… und der Hinweis entfaellt',
+         AB3.abfangZugOhneWirkung([abgefangen]).length === 0);
+    /*
+     * EIN TEIL OHNE DRAHTWERK wird nicht genannt - sonst stuende der Hinweis
+     * bei jedem Jochaufsatz.
+     */
+    wahr('Ein Teil ohne Drahtwerk bleibt unerwaehnt',
+         AB3.abfangZugOhneWirkung([{ name: 'Aufsatz', x: 3, ort: 'joch',
+                                     module: [{ bauteil: null }] }]).length === 0);
+  }
+
+  /*
    * >>> DAS ABFANGJOCH FAERBT NACH SEINEM EIGENEN NACHWEIS. <<<
    *
    * Weisung vom 9. September: «das abfangjoch im modell fertig bauen, es ist

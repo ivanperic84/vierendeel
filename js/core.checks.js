@@ -17,6 +17,7 @@ import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
 import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
          mastImModell } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk } from './data.fl.js';
+import { abfangZugOhneWirkung } from './core.abfangjoch.js';
 import { freieLageAmJoch, hatTraeger } from './core.anbauteile.js';
 import { amMast } from './data.anbauteile.js';
 
@@ -500,6 +501,30 @@ export function hinweise(m) {
       + 'die Knicklänge steht aus. Der Bindeblechabstand wäre zu '
       + 'unkonservativ, weil sich der ganze Träger in beiden Ebenen biegt; '
       + 'die massgebende Länge wird mit AxisVM gemessen.');
+    /*
+     * >>> EIN DRAHTWERK, DAS NICHTS ABFAENGT. <<<
+     *
+     * Weisung vom 9. September: «die anbauteile im abfangjoch pruefen.»
+     *
+     * Ein Bauteil mit Drahtwerk, das ueber die GURTE angebunden ist, bringt
+     * keine Laengskraft - `abgefangen` ist dann falsch. Das kann richtig
+     * sein (ein durchlaufender Fahrdraht faengt nichts ab) und kann der
+     * Fall sein, um dessentwillen das Abfangjoch dasteht. Am Ergebnis sieht
+     * man es nicht: die Ausnutzung ist einfach kleiner.
+     *
+     * Entschieden wird das an der Anlage, nicht im Werkzeug - deshalb ein
+     * HINWEIS und keine Annahme.
+     */
+    const ohneZug = abfangZugOhneWirkung(m.anbauteile ?? [],
+                                         { tempFall: m.tempFall });
+    if (ohneZug.length) {
+      h.push(`${ohneZug.length === 1 ? 'Ein Anbauteil trägt' : `${ohneZug.length} `
+        + 'Anbauteile tragen'} ein Drahtwerk, ist aber über die GURTE `
+        + `angebunden und bringt deshalb KEINE Abfangkraft: `
+        + `${ohneZug.map((t2) => `${t2.name} bei ${t2.x.toFixed(2)} m`).join(', ')}. `
+        + 'Wird der Leiter dort abgefangen, gehört die Anbindung auf «Mitte '
+        + 'Träger» — sonst fehlt dem Joch die Last, für die es dasteht.');
+    }
   }
   if (art.key === 'tragausleger') {
     h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `

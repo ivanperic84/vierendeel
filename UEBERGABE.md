@@ -27,6 +27,38 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Anbauteile am Abfangjoch — zwei Befunde (9. September)
+
+Weisung: «die anbauteile im abfangjoch prüfen.»
+
+**1. Bild und Nachweis rechneten verschieden.** `abfangAnbauLasten` steht im
+Kern und ist *dieselbe* Quelle für Nachweis, Bild und Ausleitung — genau dafür
+wurde sie am 4. September dorthin gelegt. Sie braucht aber ihre Angaben:
+Einwirkungskombination, Spannweite der Fahrleitung, Radius, Temperaturfall.
+Die Ausleitung reichte sie durch, `abfangSzene` nicht:
+
+```
+Nachweis   G = 1.70 kN     (Spannweite 60 m)
+Bild alt   G = 0.50 kN     (ohne Spannweite — das Drahtwerk zählte nur sein
+                            Stück am Joch)
+```
+
+Behoben mit `abfangLastAngaben(satz)` in app.js — eine Stelle für alle Aufrufe
+der Szene, damit es beim nächsten Mal nicht wieder zwei sind.
+
+**2. Ein Drahtwerk, das nichts abfängt.** Ein Bauteil mit Drahtwerk, dessen
+Vorlage zur Gruppe `haengestuetze` gehört (nicht `leiter`), wird «über beide
+Gurte» angebunden — und bringt damit **keine Abfangkraft**. Am Ergebnis sieht
+man es nicht: die Ausnutzung ist einfach kleiner.
+
+Gemessen am Bauteil «Fahrleitung Gleis 1» des Auftraggebers: Z = 0 kN. Auf
+«Mitte Träger» umgestellt wären es **14.90 kN**.
+
+Das kann richtig sein — ein durchlaufender Fahrdraht fängt nichts ab — und
+kann der Fall sein, für den das Abfangjoch dasteht. Entschieden wird das an
+der Anlage, nicht im Werkzeug: `abfangZugOhneWirkung` nennt die betroffenen
+Teile, und `hinweise()` schreibt sie in die Liste.
+
 ### Das Abfangjoch im Modell (9. September)
 
 Weisung: «das abfangjoch im modell fertig bauen, es ist noch alles grau und

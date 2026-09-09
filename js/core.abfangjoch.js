@@ -1037,6 +1037,44 @@ export function abfangAnbauLasten(at, opt = {}) {
            anbindung: an, temperaturabhaengig, ohneTabelle };
 }
 
+/**
+ * >>> EIN DRAHTWERK, DAS NICHTS ABFAENGT. <<<
+ *
+ * Weisung vom 9. September: «die anbauteile im abfangjoch pruefen.» Der
+ * Befund, der dabei herauskam, ist der unangenehmere von zweien:
+ *
+ * Ein Bauteil traegt ein Drahtwerk - eine Haengestuetze mit Fahrdraht etwa -
+ * und steht auf einem ABFANGJOCH. Seine Anbindung ist «ueber beide Gurte»,
+ * denn seine Vorlage gehoert zur Gruppe `haengestuetze`, nicht `leiter`.
+ * Damit ist `abgefangen` falsch, und `abfangAnbauLasten` gibt Z = 0 zurueck:
+ * Eigengewicht und Wind kommen an, die LAENGSKRAFT nicht.
+ *
+ * Das kann richtig sein - ein durchlaufender Fahrdraht an einer Stuetze
+ * faengt nichts ab. Es kann aber auch der Fall sein, um dessentwillen das
+ * Abfangjoch ueberhaupt dasteht, und dann fehlt die groesste Last des
+ * Bauwerks. Am Ergebnis sieht man es nicht: die Ausnutzung ist einfach
+ * kleiner.
+ *
+ * Diese Funktion nennt die Teile, bei denen es zu entscheiden ist. Sie
+ * entscheidet NICHT selbst - welcher Leiter abgefangen wird, sagt die
+ * Anlage, nicht das Werkzeug.
+ *
+ * @param {object[]} teile  Anbauteile des Tragwerks
+ * @param {object} opt      {tempFall}
+ * @returns {{name:string, x:number}[]} Teile mit Zugkraft ohne Abfangwirkung
+ */
+export function abfangZugOhneWirkung(teile, opt = {}) {
+  return (teile ?? [])
+    .filter((t2) => t2 && t2.aktiv !== false && (t2.ort ?? 'joch') === 'joch')
+    .filter((t2) => !abfangAnbindung(t2).abgefangen)
+    .filter((t2) => (Array.isArray(t2.module) ? t2.module : []).some((m) => {
+      if (!m?.bauteil) return false;
+      try { return Math.abs(abfangkraft(m.bauteil, opt).Z || 0) > 0; }
+      catch { return false; }
+    }))
+    .map((t2) => ({ name: t2.name ?? 'Anbauteil', x: Number(t2.x) || 0 }));
+}
+
 /* ===========================================================================
  * DIE SCHNITTGROESSEN DES ABFANGJOCHS
  * ===========================================================================

@@ -668,7 +668,8 @@ function szeneVonNebenan(t, zeichnen) {
       // Die Anbauteile gehoeren ins Bild - sie gehoeren auch ins Modell.
       return abfangSzene(satz.abfangTyp, Number(satz.L),
                          { anbauteile: satz.anbauteile ?? [],
-                           mast: abfangMastAngabe(satz), lager: satz });
+                           mast: abfangMastAngabe(satz), lager: satz,
+                           ...abfangLastAngaben(satz) });
     }
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
@@ -698,6 +699,7 @@ function blattSzene(erg) {
                   { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
                     mast: abfangMastAngabe(tragwerkSatz(werte)),
                     lager: tragwerkSatz(werte),
+                    ...abfangLastAngaben(tragwerkSatz(werte)),
                     /*
                      * DAS ERGEBNIS FAERBT DAS BILD (Weisung, 9. September:
                      * «es ist noch alles grau»). Nur das GERECHNETE Tragwerk
@@ -924,6 +926,31 @@ function abfangMastAngabe(satz) {
   if (!satz.mastProfil || !(hoehe > 0)) return null;
   return { profil: satz.mastProfil, hoehe,
            stegrichtung: satz.mastSteg ?? 'jochachse' };
+}
+
+/**
+ * >>> WOMIT DIE KRAFTPFEILE RECHNEN. <<<
+ *
+ * Weisung vom 9. September: «die anbauteile im abfangjoch pruefen.» Der Befund
+ * war eine Abweichung zwischen Bild und Nachweis:
+ *
+ *      Nachweis   G = 1.70 kN     (mit Spannweite 60 m)
+ *      Bild       G = 0.50 kN     (ohne Spannweite - das Drahtwerk zaehlte
+ *                                  nur sein Stueck am Joch)
+ *
+ * `abfangAnbauLasten` steht im Kern und ist DIESELBE Quelle fuer Nachweis,
+ * Bild und Ausleitung - genau dafuer wurde sie am 4. September dorthin
+ * gelegt. Sie braucht aber ihre Angaben: die Einwirkungskombination, die
+ * Spannweite der Fahrleitung, den Radius und den Temperaturfall. Die
+ * Ausleitung reichte sie durch, die Szene nicht - und das Bild zeigte
+ * Pfeile, die das Modell so nicht aufbringt.
+ *
+ * Eine Stelle fuer alle drei Aufrufe, damit es beim naechsten Mal nicht
+ * wieder zwei sind.
+ */
+function abfangLastAngaben(satz) {
+  return { ek: satz?.ek, L_FL: Number(satz?.L_FL) || 0,
+           R: Number(satz?.R) || 0, tempFall: satz?.tempFall };
 }
 
 function abfangNaechsteLaenge(typ, jt) {
