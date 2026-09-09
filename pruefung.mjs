@@ -6106,6 +6106,74 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   }
 
   /*
+   * >>> WAS DIE MODELLANSICHT DAVON ZEIGT. <<<
+   *
+   * Weisung vom 9. September: «die auswirkung im modell 3d noch pruefen.»
+   *
+   * TRAGJOCH: die Marke am Auflager schreibt die Drehfeder an; mit der
+   * Endbedingung «aus der Auflagerbedingung» ist das genau die Zahl, die
+   * unter der Matrix steht. Gemessen (J90/20 m, HEB 240/7.0 m):
+   *
+   *     Vorgabe (Gelenk)          gelenkig · κ 0 %
+   *     beide Gurte laengs starr  c_φ 13512 · κ 67 %   (= die Mastfeder)
+   *     Gurtfedern 20000          c_φ 2110 · κ 24 %
+   *
+   * ABFANGJOCH: dort stand «Auflager» und sonst nichts - die eingestellte
+   * Bedingung war im Bild unsichtbar. Jetzt traegt die Marke dieselbe
+   * Angabe wie beim Tragjoch.
+   */
+  {
+    const R3 = await import(J('render.3d.js'));
+    const RA = await import(J('render.abfang.js'));
+    const zeilenVon = (sz) => (sz.marken ?? [])
+      .filter((x) => x.art === 'auflagertext')
+      .map((x) => (x.zeilen ?? []).join(' | '));
+
+    const wA = basis({ endbedingung: 'links', mastProfil: 'HEB 240',
+                       mastH: 7.0, mastSteg: 'jochachse', L: 20 });
+    const bild = (links) => {
+      const w = { ...wA, auflagerLinks: links };
+      const e = rechne(w);
+      return zeilenVon(R3.erzeugeSzene(e.modell, e));
+    };
+    wahr('Die Vorgabe steht als Gelenk im Bild',
+         bild(undefined).every((z) => /gelenkig/.test(z)), bild(undefined)[0]);
+    wahr('Starre Gurte zeigen die Mastfeder',
+         bild({ OG: { x: 'Rigid' }, UG: { x: 'Rigid' } })
+           .every((z) => /c_φ 13512/.test(z)),
+         bild({ OG: { x: 'Rigid' }, UG: { x: 'Rigid' } })[0]);
+    wahr('Gurtfedern kommen als Zahl an',
+         bild({ OG: { x: 20000 }, UG: { x: 20000 } })
+           .every((z) => /c_φ 2110/.test(z)));
+    /*
+     * UND DIE DREHFEDER AENDERT AUCH IM BILD NICHTS - sie ist keine Eingabe
+     * mehr, also darf die Marke sich nicht bewegen.
+     */
+    wahr('Eine Drehfeder bewegt das Bild nicht',
+         bild({ OG: { x: 20000, yy: 50000 }, UG: { x: 20000, yy: 50000 } })
+           .join() === bild({ OG: { x: 20000 }, UG: { x: 20000 } }).join());
+
+    // --- Das Abfangjoch ---------------------------------------------------
+    if (AJ.abfangDbDa()) {
+      const satz = (links) => ({ tragwerksart: 'abfangjoch', abfangTyp: 'A330',
+                                 mastVorhanden: true, mastProfil: 'HEB 240',
+                                 mastH: 7.0, mastSteg: 'jochachse',
+                                 auflagerLinks: links });
+      const szA = (links) => RA.abfangSzene('A330', 20,
+        { anbauteile: [], lager: satz(links),
+          mast: { profil: 'HEB 240', hoehe: 7.0, stegrichtung: 'jochachse' } });
+      const zA = zeilenVon(szA(undefined));
+      wahr('Das Abfangjoch schreibt seine Lagerung an', zA.length === 2, zA[0]);
+      wahr('… mit dem Masten davor', zA.every((z) => /HEB 240/.test(z)));
+      wahr('… und der Vorgabe als Gelenk um z',
+           zA.every((z) => /Gelenk um z/.test(z)));
+      const zS = zeilenVon(szA({ V: { x: 'Rigid' }, H: { x: 'Rigid' } }));
+      wahr('Halten beide Gurte laengs, ist es eingespannt',
+           zS.every((z) => /eingespannt um z/.test(z)), zS[0]);
+    }
+  }
+
+  /*
    * >>> DIE DREHFEDERN AM LINKELEMENT SIND KEINE EINGABE MEHR. <<<
    *
    * Weisung vom 9. September, als Frage: «macht es sinn die drehsteifigkeit

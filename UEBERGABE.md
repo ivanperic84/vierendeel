@@ -27,6 +27,32 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Auswirkung in der Modellansicht (9. September)
+
+Weisung: «die auswirkung im modell 3d noch prüfen.»
+
+**Tragjoch — sie kommt an.** Die Marke am Auflager schreibt die Drehfeder an;
+mit der Endbedingung «aus der Auflagerbedingung» ist das genau die Zahl, die
+unter der Matrix steht. Gemessen (J90 über 20 m, HEB 240 / 7.00 m):
+
+| Auflagerbedingung | im Bild |
+|---|---|
+| Vorgabe (Obergurt längs frei) | `gelenkig · κ 0 %` |
+| beide Gurte längs starr | `c_φ 13512 · κ 67 %` — die Mastfeder allein |
+| Gurtfedern 20 000 kN/m | `c_φ 2110 · κ 24 %` |
+
+Die entfernte Drehfeder bewegt das Bild nicht mehr — dieselben Zeilen mit und
+ohne K_YY.
+
+**Abfangjoch — sie kam nicht an.** Dort stand «Auflager» und sonst nichts: die
+eingestellte Bedingung war im Bild unsichtbar, obwohl gerade beim Abfangjoch
+die Falle sitzt (halten beide Gurte längs, läuft das Moment als Torsion in den
+Masten). Die Marke trägt jetzt dieselbe Angabe wie beim Tragjoch —
+`HEB 240 · 7.5 m` und darunter `Gelenk um z` bzw. `eingespannt um z` oder
+`c_φ … um z`. Den Hebelarm nimmt die Szene aus ihrem eigenen `e`, dem
+Achsabstand der beiden Gurte; ihn von aussen hereinzureichen hiesse, ihn ein
+zweites Mal zu bestimmen.
+
 ### Die Drehfedern am Linkelement sind raus (9. September)
 
 Frage: «macht es sinn die drehsteifigkeit hier noch eingeben zu können, die

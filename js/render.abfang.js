@@ -49,6 +49,7 @@ import { bauteilFarbe } from './design.js';
 import { prisma, prismaY, platte, prismaZ, stab, quader,
          iProfilPoly, walzProfilPoly } from './render.koerper.js';
 import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { linkEinspannung } from './core.auflager.js';
 
 /*
  * >>> OHNE WERTE KEINE FARBE AUS DER SKALA. <<<
@@ -76,6 +77,15 @@ const OHNE_WERTE = Object.freeze({});
  * @param {string} typ  z.B. 'A160'
  * @param {number} jt   Jochlänge [m], eine der geführten
  * @param {object} opt  {mastZeichnen}
+ */
+/**
+ * Die Szene eines Abfangjochs.
+ *
+ * @param {string} typ   Abfangjochtyp
+ * @param {number} jt    Jochlaenge [m]
+ * @param {object} opt   { mast, anbauteile, lager } - `lager` ist der
+ *                       Eingabesatz; daraus liest die Szene die
+ *                       Auflagerbedingung fuer die Beschriftung.
  */
 export function abfangSzene(typ, jt, opt = {}) {
   const a = getAbfangjoch(typ);
@@ -543,9 +553,45 @@ export function abfangSzene(typ, jt, opt = {}) {
    * Auftraggeber, nicht der Prüfstand: er baut die Szene, aber er malt sie
    * nicht.
    */
+  /*
+   * >>> UND SIE SAGEN, WIE GELAGERT IST. <<<
+   *
+   * Weisung vom 9. September: «die auswirkung im modell 3d noch pruefen.»
+   * Beim Tragjoch steht an der Marke, was das Ende haelt - «HEB 240 · 7.0 m»
+   * und darunter «c_φ 2110 · κ 24 %». Beim Abfangjoch stand «Auflager», und
+   * das war alles: was in der Auflagerbedingung eingestellt ist, war im Bild
+   * nicht zu sehen.
+   *
+   * Der Hebelarm des Kraeftepaars ist hier `e` - der Achsabstand der beiden
+   * Gurte, die NEBENEINANDER liegen. Deshalb rechnet die Szene die
+   * Einspannung selbst: das Mass liegt genau hier vor, und es von aussen
+   * hereinzureichen hiesse, es ein zweites Mal zu bestimmen.
+   */
+  const lagerText = () => {
+    if (!opt.lager) return null;
+    const ein = linkEinspannung(opt.lager, 'abfangjoch', e);
+    if (ein.art === 'gelenk') return 'Gelenk um z';
+    if (ein.art === 'eingespannt') return 'eingespannt um z';
+    return `c_φ ${Math.round(ein.cPhi)} um z`;
+  };
+  const lz = lagerText();
   for (const x of [ue, jt - ue]) {
+    /*
+     * DIE MARKE HEISST «A» ODER «B», wie beim Tragjoch - «Auflager» stand
+     * daneben und sagte nichts, was die Zeile darunter nicht besser sagt.
+     */
     marken.push({ gruppe: 'auflager', art: 'auflager',
-                  p: [x, 0, -hG / 2 - 0.15], text: 'Auflager' });
+                  p: [x, 0, -hG / 2 - 0.15], text: x < jt / 2 ? 'A' : 'B' });
+    if (opt.mast?.profil || lz) {
+      marken.push({ gruppe: 'auflager', art: 'auflagertext',
+                    p: [x, 0, -hG / 2 - 0.15 - (opt.mast?.hoehe ?? 0)],
+                    zeilen: [
+                      opt.mast?.profil
+                        ? `${opt.mast.profil} · ${opt.mast.hoehe.toFixed(1)} m`
+                        : null,
+                      lz,
+                    ].filter(Boolean) });
+    }
   }
 
   bauteiltitel.push({

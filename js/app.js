@@ -668,7 +668,7 @@ function szeneVonNebenan(t, zeichnen) {
       // Die Anbauteile gehoeren ins Bild - sie gehoeren auch ins Modell.
       return abfangSzene(satz.abfangTyp, Number(satz.L),
                          { anbauteile: satz.anbauteile ?? [],
-                           mast: abfangMastAngabe(satz) });
+                           mast: abfangMastAngabe(satz), lager: satz });
     }
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
@@ -696,7 +696,8 @@ function blattSzene(erg) {
   const eigen = tragwerksart(werte).key === 'abfangjoch'
     ? abfangSzene(werte.abfangTyp, Number(werte.L),
                   { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
-                    mast: abfangMastAngabe(tragwerkSatz(werte)) })
+                    mast: abfangMastAngabe(tragwerkSatz(werte)),
+                    lager: tragwerkSatz(werte) })
     : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
   const teile = alle.map((t) => {
     const dx = lageVon(t);
