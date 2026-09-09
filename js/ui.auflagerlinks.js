@@ -25,7 +25,8 @@
 import { LINK_GRADE, linkEbenen, linkBedingung, linkVorgabe, linkGelenk,
          linkEinspannung, linkAbweichend, linkLabilitaet,
          mastImModell } from './core.auflager.js';
-import { skizze, pf, mass, knoten, winkel, txt, feder } from './doku.skizze.js';
+import { skizze, achsenkreuz, pf, mass, knoten, winkel, txt,
+         feder } from './doku.skizze.js';
 import { klapp, esc } from './design.js';
 
 /**
@@ -344,10 +345,21 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     // Systemachse des Jochs.
     `<line class="d" x1="30" y1="96" x2="248" y2="96"/>`,
     txt(36, 110, 'Feld', 'dim', 'start'),
-    // Die beiden Gurtebenen und zwei Bindebleche dazwischen.
+    /*
+     * >>> DIE BLECHE SIND HIER NUR BAUTEIL, NICHT THEMA. <<<
+     *
+     * Weisung vom 9. September: «kannst du hier die orangen elemente gleich
+     * machen wie die restlichen linien des jochträgers. diese sind nicht so
+     * wichtig hier sondern die lagerung.»
+     *
+     * Sie standen in der Blechfarbe des Modells - orange Flaechen, das
+     * Auffaelligste im Bild, obwohl das Bild von der LAGERUNG handelt. Jetzt
+     * dieselbe Linie wie die Gurte: der Traeger ist da, und was ihn haelt,
+     * ist das einzige Farbige.
+     */
     ...yE.map((y) => `<line class="b" x1="34" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
     ...[70, 124].map((x) =>
-      `<rect class="blech" x="${x}" y="${yE[0]}" width="12" height="${yE[1] - yE[0]}"/>`),
+      `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`),
     // Das Linkelement je Ebene: vom Gurtende zum Masten.
     ...yE.map((y, i) => (traegt(i)
       ? `<line class="link" x1="${gurtE}" y1="${y}" x2="${mastL}" y2="${y}"/>` : '')),
@@ -374,8 +386,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   if (inY) {
     // Abfangjoch: zwei Gurte NEBENEINANDER, Bindebleche oben und unten.
     const px = [cx - 42, cx + 42];
-    quer.push(`<rect class="blech" x="${px[0]}" y="${yE[0] + 8}" width="84" height="9"/>`);
-    quer.push(`<rect class="blech" x="${px[0]}" y="${yE[1] - 17}" width="84" height="9"/>`);
+    // Die Bleche als Linie, wie die Gurte - siehe oben.
+    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[0] + 12}" x2="${px[1]}" y2="${yE[0] + 12}"/>`);
+    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[1] - 12}" x2="${px[1]}" y2="${yE[1] - 12}"/>`);
     quer.push(px.map((x) => winkel(x, 96, 15)).join(''));
     quer.push(mass(px[0], 170, px[1], 170, 'b'));
     px.forEach((x, i) => punkteQ.push(traegt(i)
@@ -387,8 +400,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
       `<line class="b" x1="${bx[0]}" y1="${y}" x2="${bx[1]}" y2="${y}"/>`
       + bx.map((x) => winkel(x, y, 11)).join('')).join(''));
     quer.push(bx.map((x) =>
-      `<rect class="blech" x="${x - 4.5}" y="${yE[0]}" width="9" height="${
-        yE[1] - yE[0]}"/>`).join(''));
+      `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`).join(''));
     quer.push(mass(bx[0], 170, bx[1], 170, 'b'));
     quer.push(mass(bx[1] + 28, yE[0], bx[1] + 28, yE[1], 'h'));
     yE.forEach((y, i) => punkteQ.push(traegt(i)
@@ -396,19 +408,36 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   }
 
   /*
-   * >>> DIE ACHSEN STEHEN IN DER UNTERSCHRIFT, NICHT IM BILD. <<<
+   * >>> DIE ACHSEN STEHEN IM BILD, UNTEN LINKS. <<<
    *
-   * Ein Buchstabe an jedem Pfeil waere sechsmal dasselbe, und was FREI ist,
-   * bekaeme gar keinen - man wuesste beim Lesen nicht, welche Achse fehlt.
-   * Die Unterschrift nennt sie einmal fuer das ganze Bild; so haelt es auch
-   * das Handbuch («Laengsansicht, y aus der Ebene»).
+   * Weisung vom 9. September: «kannst du noch ein kleines achsystem jeweils
+   * unten links aufführen, damit man besser die richtungen nachvollziehen
+   * kann.»
+   *
+   * Vorher nannte sie nur die Unterschrift - ein Satz, den man liest und im
+   * Kopf auf das Bild legt. Das Kreuz zeigt die zwei Richtungen der
+   * Bildebene als Pfeil und die dritte als Kreis, dasselbe Zeichen, das am
+   * Anschlusspunkt die Halterung senkrecht zur Ebene meint.
+   *
+   * Ein Buchstabe an jedem Halterungspfeil waere die Alternative gewesen -
+   * sechsmal dasselbe, und was FREI ist, bekaeme gar keinen.
+   */
+  const kreuz = (a) => achsenkreuz([26, BB[1] - 26], a);
+
+  /*
+   * DIE UNTERSCHRIFT NENNT DIE ART DES BILDES, nicht mehr die Achsen - die
+   * stehen jetzt darin. «Ansicht» und «Schnitt» tragen die Auszeichnung,
+   * weil sie sagen, WAS man sieht (Weisung: «kannst du noch die anschrift
+   * Ansicht und Schnitt etwas sichtbarer machen»).
    */
   const bild = `<div class="al-bilder">${
-    skizze(inY ? 'Grundriss — x waagrecht, y senkrecht, z aus der Ebene (⊙)'
-               : 'Ansicht — x waagrecht, z senkrecht, y aus der Ebene (⊙)',
-           `0 0 ${BB[0]} ${BB[1]}`, laengs + punkteL, 'al-skizze')}${
-    skizze('Schnitt — y waagrecht, z senkrecht, x aus der Ebene (⊙)',
-           `0 0 ${BB[0]} ${BB[1]}`, quer.join('') + punkteQ.join(''), 'al-skizze')}</div>`;
+    skizze(inY ? 'Grundriss — Blick von oben' : 'Ansicht — Blick in Gleisrichtung',
+           `0 0 ${BB[0]} ${BB[1]}`, laengs + punkteL + kreuz(achsenL), 'al-skizze',
+           `<b>${inY ? 'Grundriss' : 'Ansicht'}</b> — Blick ${
+             inY ? 'von oben' : 'in Gleisrichtung'}`)}${
+    skizze('Schnitt — Blick in die Jochachse',
+           `0 0 ${BB[0]} ${BB[1]}`, quer.join('') + punkteQ.join('') + kreuz(achsenQ),
+           'al-skizze', '<b>Schnitt</b> — Blick in die Jochachse')}</div>`;
 
   // --- Die Schalter, einzeilig --------------------------------------------
   const reihen = ebenen.map((ebene, i) => {
@@ -427,6 +456,25 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
       }).join('')}</span>
     </div>`;
   }).join('');
+
+  /*
+   * >>> UND DASSELBE KREUZ STEHT BEI DEN FEDERWERTEN. <<<
+   *
+   * Weisung vom 9. September: «und auch bei der eingabe manuell von hand
+   * unter federwerte.»
+   *
+   * Dort stehen zwoelf Felder mit Namen wie K_X und K_YY - und das Bild
+   * darueber ist beim Aufklappen ausser Sicht. Ohne Kreuz muesste man sich
+   * merken, wohin x zeigt; mit ihm steht die Zuordnung neben der Zahl, die
+   * man gerade eintippt. Es zeigt ALLE DREI Richtungen, weil dort auch die
+   * Drehungen einstellbar sind.
+   */
+  const federKreuz = skizze('Achsen des Modells', '0 0 210 76',
+    achsenkreuz([32, 46], { h: 'x', hRi: [-1, 0], v: 'z', vRi: [0, -1], t: 'y' }, 20)
+    + txt(78, 30, 'x  Jochachse', 'dim', 'start')
+    + txt(78, 46, 'y  Gleisrichtung (⊙)', 'dim', 'start')
+    + txt(78, 62, 'z  lotrecht', 'dim', 'start'),
+    'al-skizze al-achsbild', '');
 
   const federn = ebenen.map((ebene) => {
     const b = lies(ebene.key);
@@ -461,6 +509,22 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
         + 'Moment läuft voll in den Masten.'
       : `<b>c_φ ≈ ${e.cPhi.toFixed(0)} kNm/rad</b> um ${umText} — aus den `
         + `beiden Wegfedern über den Hebelarm ${e.h.toFixed(3)} m.`;
+  /*
+   * >>> SIE TRAEGT DIE FARBE IHRES ZUSTANDS. <<<
+   *
+   * Weisung vom 9. September: «Die daraus berechnete drehsteifigkeit farbig
+   * machen so wie die buttons.»
+   *
+   * Dieselben drei Farben wie die Schaltflaechen darueber, und aus demselben
+   * Grund: sie ist deren ERGEBNIS. Gelenk liest sich wie «frei», eingespannt
+   * wie «starr», eine Zahl wie eine Feder - wer die Schalter aendert, sieht
+   * die Farbe darunter mitgehen.
+   *
+   * Vorher war einzig «eingespannt» gefaerbt, und zwar in der Warnfarbe: das
+   * sagte «Achtung», wo «starr» gemeint war.
+   */
+  const eKlasse = e.art === 'gelenk' ? 'al-frei'
+    : e.art === 'eingespannt' ? 'al-starr' : 'al-feder';
 
   /*
    * >>> UND OB DAS SYSTEM UEBERHAUPT STEHT. <<<
@@ -485,8 +549,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     ${bild}
     ${labilHtml}
     ${reihen}
-    <p class="hinweis${e.art === 'eingespannt' ? ' warnt' : ''}">${eText}</p>
-    ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern', federn,
+    <p class="al-einspannung ${eKlasse}">${eText}</p>
+    ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern',
+            federKreuz + federn,
             vorgabefeld ? 'Voreinstellung'
               : (linkAbweichend(werte, art) ? 'von der Vorgabe abweichend'
                                             : 'Vorgabe'),

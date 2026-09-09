@@ -30,11 +30,36 @@
  * `al-skizze`) die Groesse am jeweiligen Ort - im Handbuch ueber die
  * Textbreite, in der Maske schmal.
  */
-export const skizze = (titel, viewBox, inhalt, kl = 'hb-skizze') =>
+export const skizze = (titel, viewBox, inhalt, kl = 'hb-skizze',
+                       beschriftung = null) =>
   `<figure class="skizze ${kl}">
      <svg viewBox="${viewBox}" role="img" aria-label="${titel}">${inhalt}</svg>
-     ${titel ? `<figcaption>${titel}</figcaption>` : ''}
+     ${titel ? `<figcaption>${beschriftung ?? titel}</figcaption>` : ''}
    </figure>`;
+
+/**
+ * EIN KLEINES ACHSENKREUZ - die zwei Richtungen der Bildebene und die
+ * dritte, die aus ihr heraussteht.
+ *
+ * Weisung vom 9. September: «kannst du noch ein kleines achsystem jeweils
+ * unten links aufführen, damit man besser die richtungen nachvollziehen
+ * kann.» Die Achsen standen nur in der Unterschrift - als Satz, den man
+ * lesen und im Kopf auf das Bild legen muss. Als Kreuz IM Bild ist die
+ * Zuordnung da, wo man sie braucht.
+ *
+ * @param {number[]} o    Ursprung im Bild
+ * @param {object} a      {h, hRi, v, vRi, t} - Achsen und Bildrichtungen
+ * @param {number} l      Laenge der Pfeile
+ */
+export const achsenkreuz = (o, a, l = 17) => {
+  const arm = (name, [ux, uy]) =>
+    pf(o[0], o[1], o[0] + ux * l, o[1] + uy * l, 'm')
+    + txt(o[0] + ux * (l + 7), o[1] + uy * (l + 7) + 3.5, name, 'dim');
+  return `<g class="achsenkreuz">${arm(a.h, a.hRi)}${arm(a.v, a.vRi)}`
+    + `<circle class="m" cx="${o[0]}" cy="${o[1]}" r="4.6" fill="none"/>`
+    + `<circle class="mf" cx="${o[0]}" cy="${o[1]}" r="1.5"/>`
+    + txt(o[0] - 8, o[1] + 11, a.t, 'dim') + '</g>';
+};
 
 /** Linie mit Pfeilspitze. Die Spitze wird gerechnet, nicht ueber einen Marker
  *  gelegt - Marker erben die Farbe nicht zuverlaessig. */

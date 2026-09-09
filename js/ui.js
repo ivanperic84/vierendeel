@@ -1134,16 +1134,37 @@ export function qpBereich(werte) {
  * Nachweis. Als Kaestchen in einer Liste ist es die Geste, die jeder kennt,
  * und man sieht auf einen Blick, was gerade gilt.
  *
- * >>> DIE MASTEN STEHEN UNTER ALLEN ZEILEN. <<<
+ * >>> UND JE MAST EINE ZEILE, ANGESCHRIEBEN WIE DIE JOCHE. <<<
  *
- * Sie tragen jedes Tragwerk der Liste - eine eigene Zeile je Mast wuerde das
- * verdecken. Unter der gemeinsamen Achse stehen sie da, wo sie hingehoeren:
- * als Grundlinie, auf der alles darueber steht.
+ * Weisung vom 9. September: «Die masten direkt anschreiben wie bei den
+ * jochen (bessere übersicht).»
+ *
+ * Sie standen als kleiner Aufriss unter der gemeinsamen Achse - Schaft,
+ * Fundament, Gelaendelinie - und trugen als ganze Beschriftung ihre
+ * x-Stelle. Welches Profil dort steht, wie hoch der Mast ist, welchem
+ * Tragwerk er gehoert: nichts davon war zu sehen, es stand im Titel, den man
+ * erst mit dem Zeiger findet.
+ *
+ * Jetzt dieselbe Zeile wie beim Joch - Kuerzel, Name, Marke auf der
+ * gemeinsamen Bahn:
+ *
+ *      P1 · Joch     J90 · 20.00 m      ├────────────┤
+ *      M1 · Mast     HEB 240 · 0.00 m   ▲
+ *      M2 · Mast     HEB 240 · 20.00 m               ▲
+ *
+ * Der Aufriss ging dabei verloren, die UEBERSICHT gewonnen: auf einer
+ * Jochreihe steht jetzt jedes Bauteil mit Namen da, und die Bahn zeigt
+ * weiterhin, was wo steht.
+ *
+ * >>> DIE MARKE IST EIN AUFLAGERDREIECK. <<<
+ *
+ * Das Joch traegt seine Linie mit Endmarken, der Mast sein Dreieck - beides
+ * die Zeichensprache, die man aus dem Schema kennt. Ein geteilter Mast
+ * bekommt den breiteren Fuss; er traegt zwei.
  *
  * @param {object} werte
- * @param {{id:string, x:number, mastId?:string, text?:string}|null} zieht
  */
-export function querprofilLeisteHtml(werte, zieht = null) {
+export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
   if (!alle.length) return '';
   const { von, bis } = qpBereich(werte);
@@ -1153,7 +1174,7 @@ export function querprofilLeisteHtml(werte, zieht = null) {
 
   const zeilen = alle.map((t) => {
     const art = tragwerksart(t);
-    const x0 = (zieht && zieht.id === t.id) ? zieht.x : lageVon(t);
+    const x0 = lageVon(t);
     const L = art.masten >= 2 ? (Number(t.L) || 0) : 0;
     const links = qpPct(x0, von, bis);
     // Ein Einzelmast hat keine Laenge - seine Linie waere ein Punkt. Sie
@@ -1177,12 +1198,11 @@ export function querprofilLeisteHtml(werte, zieht = null) {
         ><span class="qp-art">${esc(tragwerkPos(werte, t))} · ${
             esc(art.kuerzel)}</span>${esc(tragwerkName(t))}</button>
       <span class="qp-bahn">
-        <button type="button" class="qp-linie${an ? ' an' : ''}${
-            zieht && zieht.id === t.id ? ' zieht' : ''}"
+        <button type="button" class="qp-linie${an ? ' an' : ''}"
           data-qp-tw="${esc(t.id)}"
           style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%"
           title="${esc(`x₀ = ${x0.toFixed(2)} m${L ? ` · ${L.toFixed(2)} m lang` : ''}`
-            + (aus ? '' : ' · ziehen verschiebt'))}"></button>
+            + ' · Rechtsklick öffnet das Kontextmenü')}"></button>
       </span>
     </div>`;
   }).join('');
@@ -1231,51 +1251,57 @@ export function querprofilLeisteHtml(werte, zieht = null) {
    * ein zweites Auge fuer dasselbe.
    *
    * ES STAND ZWEIMAL DA. Der Schalter «Tragwerk steht auf Masten» steht
-   * seit dem 5. September zuoberst in der Gruppe Masten - auf Weisung, weil
-   * er «klar auswaehlbar sein und nicht als einziges button unter der
-   * schemadarstellung tragwerke» stehen sollte. Der zweite Ort ist damit
-   * ueberzaehlig.
+   * seit dem 5. September zuoberst in der Gruppe Masten - auf Weisung.
    *
    * IN EINER REIHE ERGIBT ER KEINEN FALL. Die Tragwerke teilen sich die
    * Zwischenmasten: schaltet man eines ab, bleibt der geteilte Mast stehen
    * (der Nachbar traegt ihn), und das Joch steht im Bild auf einem Masten
-   * und rechnet sich zugleich als «ohne». Bild und Rechnung sagten
-   * Verschiedenes.
-   *
-   * Mit dem Auge fallen auch die blassen Geistkacheln weg - sie standen
-   * allein dafuer da, dass das Auge nicht mit den Masten verschwindet.
+   * und rechnet sich zugleich als «ohne».
    */
-  const marken = masten.map((m, i) => {
+  const mastZeilen = masten.map((m, i) => {
     const an = m.id === gewMast?.id;
     const traegt = m.traegt ?? [];
     const geteilt = traegt.length > 1;
-    const x = (zieht && zieht.mastId === m.id) ? zieht.x : m.x;
-    return `<span class="qp-mast-halter"
-        style="left:${qpPct(x, von, bis).toFixed(3)}%">
-      <button type="button" class="qp-mast${an ? ' an' : ''}${
-        geteilt ? ' geteilt' : ''}"
-        data-qp-mast="${esc(m.id)}"
-        title="${esc(`M${i + 1} bei x = ${x.toFixed(2)} m — ${
-          m.profil ?? 'ohne Profil'}`
-          + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
-          + ' · Rechtsklick öffnet das Kontextmenü')}"
-        aria-pressed="${an}">
-        <span class="qp-mast-schaft"></span>
-        <span class="qp-mast-fuss"></span>
-        <span class="qp-mast-x">${
-          x.toFixed(Math.abs(x % 1) > 1e-9 ? 2 : 0)}</span>
-      </button>
-    </span>`;
+    const wessen = traegt.map((id) => alle.find((y) => y.id === id))
+      .filter(Boolean).map((y) => tragwerkPos(werte, y)).join(' + ');
+    return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}${
+        i === 0 ? ' erste' : ''}">
+      <span class="qp-auge-platz"></span>
+      <button type="button" class="qp-name" data-qp-mast="${esc(m.id)}"
+              title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m`
+                + (wessen ? ` · trägt ${wessen}` : '')
+                + ' · Rechtsklick öffnet das Kontextmenü')}"
+        ><span class="qp-art">M${i + 1} · Mast${geteilt ? ' ⊕' : ''}</span>${
+          /*
+           * «x 0.00 m», nicht «0.00 m». Beim Joch daneben steht die LAENGE
+           * an dieser Stelle; dieselbe Form ohne Kennzeichen liesse die
+           * Stelle des Masten wie eine Laenge lesen - und im Modell heisst
+           * seine Beschriftung tatsaechlich «M1 · HEB 240 · 8.50 m», mit
+           * der Laenge.
+           */
+          esc(`${m.profil ?? 'ohne Profil'} · x ${m.x.toFixed(2)} m`)}</button>
+      <span class="qp-bahn">
+        <button type="button" class="qp-mast${an ? ' an' : ''}${
+            geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
+          style="left:${qpPct(m.x, von, bis).toFixed(3)}%"
+          title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m`
+            + (geteilt ? ' · von zwei Tragwerken geteilt' : ''))}"
+          aria-pressed="${an}">
+          <span class="qp-mast-marke"></span>
+          <span class="qp-mast-fuss"></span>
+        </button>
+      </span>
+    </div>`;
   }).join('');
 
-  const gezogen = zieht
-    ? `<span class="qp-zug">${esc(zieht.text
-        ?? `x₀ = ${zieht.x.toFixed(2)} m`)}</span>` : '';
-
+  /*
+   * DIE GELAENDELINIE SCHLIESST DIE LISTE AB. Sie ist das, worauf die
+   * Masten stehen - ohne sie schwebten die Dreiecke.
+   */
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      <div class="qp-liste">${zeilen}${gezogen}</div>
+      <div class="qp-liste">${zeilen}${mastZeilen}</div>
       <div class="qp-achse"><span class="qp-bahn"
-        >${marken}<span class="qp-boden"></span></span></div>
+        ><span class="qp-boden"></span></span></div>
     </div>`;
 }
 

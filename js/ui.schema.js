@@ -167,7 +167,31 @@ export const GRUPPEN = [
    */
   { id: 'geo',   titel: 'Systemgeometrie',
     arten: ['joch', 'tragausleger', 'abfangjoch'] },
-  { id: 'aufl',  titel: 'Auflagerung des Jochs', arten: ['joch'] },
+  /*
+   * >>> EINE GRUPPE FUERS AUFLAGER, NICHT ZWEI. <<<
+   *
+   * Weisung vom 9. September: «es hat momentan zwei gruppen für die auflager
+   * (Auflagerung des Jochs und unter Masten) wäre es nicht sinnvoller eine
+   * einzige gruppe mit dem Auflager zu machen?»
+   *
+   * Ja. Die Auflagerangaben standen an zwei Orten: Endbedingung, Drehfeder,
+   * Kragarme und Anschlussart hier - die BEDINGUNG am Masten dagegen unter
+   * «Masten», zwischen Profil und Anschlusshoehe. Wer das Ende beschreiben
+   * wollte, musste zwei Abschnitte auf und ab gehen, und beide sagten
+   * einander nicht, dass sie dasselbe Ende meinen.
+   *
+   * DIE TRENNUNG LIEGT JETZT DORT, WO SIE HINGEHOERT:
+   *
+   *      Auflager   WIE das Tragwerk gelagert ist   Bedingung, Feder, Kragarm
+   *      Masten     WAS dort steht                  Profil, Hoehe, Laenge, Steg
+   *
+   * WARUM SIE FRUEHER BEI DEN MASTEN STAND: die Gruppe hiess «Auflagerung
+   * des Jochs» und fuehrte `arten: ['joch']` - das Abfangjoch sah sie nie,
+   * und genau dort sollte die Bedingung einstellbar sein. Die Schranke ist
+   * jetzt weg; was nur das Tragjoch betrifft (Ersatzbalken, Drehfeder,
+   * Kragarme), traegt sie am FELD, wo sie hingehoert.
+   */
+  { id: 'aufl',  titel: 'Auflager' },
   /*
    * DIE MASTEN SIND EIN EIGENES HAUPTTRAGWERK (Weisung, 28. August: «die
    * Haupttragwerke sollten global gesteuert werden»).
@@ -414,22 +438,32 @@ export const FELDER = [
    * einem Modell zu beginnen, das es so nicht gibt - und die
    * Einspannwirkung stillschweigend auf null zu setzen.
    */
+  /*
+   * DIESE VIER GELTEN DEM ERSATZBALKEN DES TRAGJOCHS - Endbedingung,
+   * Drehfeder und die beiden Kragarme. Bis zum 9. September trug die GRUPPE
+   * die Schranke `arten: ['joch']`; seit sie das Auflager aller Arten
+   * fuehrt, steht sie am Feld.
+   */
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
     standard: 'mast', optionen: opt(ENDBEDINGUNGEN),
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     hinweis: 'Wirkt auf die Vertikalbiegung; für Wind bleiben die Enden '
            + 'gelenkig.'},
   { key: 'cPhi', gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
-    sichtbar: (w) => w.endbedingung === 'manuell' },
+    sichtbar: (w) => tragwerksart(w).key === 'joch'
+                  && w.endbedingung === 'manuell' },
   // Die Auflager stehen dort, wo die Maste stehen - nicht zwingend am Gurtende.
   // L bleibt die Länge der GURTE (daran hängt die Blecheinteilung), die
   // Stützweite ist L − kragA − kragB.
   { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
     sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
            + 'kragB; darüber hinaus wirkt das Joch als Kragarm.'},
   { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
-    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0 },
+    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'joch' },
   /*
    * OB EIN MAST DASTEHT - die eine Frage, die vorher in der Endauflagerwahl
    * mitentschieden wurde.
@@ -526,12 +560,6 @@ export const FELDER = [
    * Die Gruppe «Masten» kennt keine Artenschranke - und ihr Name trifft es
    * ohnehin besser: es ist die Bedingung AM MASTEN.
    */
-  { key: 'auflagerLinks', gruppe: 'mast', typ: 'auflagerlinks',
-    label: 'Auflagerbedingung am Masten', standard: null,
-    sichtbar: (w) => mastDa(w),
-    hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
-           + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
-           + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
   { key: 'mastX', gruppe: 'mast', typ: 'zahl',
     label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
     sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
@@ -719,7 +747,15 @@ export const FELDER = [
         ? `${a.label} — nur ohne Masten im Modell` : a.label,
       aus: a.key === 'kragarm' && mastImModell(w),
     })),
-    sichtbar: (w) => mastDa(w) && w.endbedingung === 'mast',
+    /*
+     * FRUEHER NUR BEIM TRAGJOCH - durch die Gruppenschranke, nicht aus
+     * einem Grund. Der Anschluss ans Joch beschreibt, wie das Tragwerk auf
+     * dem Masten sitzt; das hat jeder Traeger. Was er bewirkt, gilt
+     * weiterhin dem Ersatzbalken: die Endbedingung «Mast» steht in der
+     * Bedingung mit drin.
+     */
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
+                  && (tragwerksart(w).key !== 'joch' || w.endbedingung === 'mast'),
     hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
            + 'Längskräften. Für Vertikallast und Wind in Gleisrichtung gilt der '
            + 'Rahmenwert 4.00·E·I/H.'},
@@ -749,10 +785,31 @@ export const FELDER = [
    * Ausgeblendet gehoert sie deshalb NICHT; sie gehoert nur nicht unter den
    * Schalter. Der begrenzt die Feder, sie ist die Grenze selbst.
    */
+  /*
+   * >>> SIE STEHT BEIM AUFLAGER. <<<
+   *
+   * Weisung vom 9. September. Sie stand unter «Masten» - mit der Begruendung,
+   * die Gruppe «Auflagerung des Jochs» fuehre `arten: ['joch']` und das
+   * Abfangjoch sehe sie nie. Diese Schranke ist weg; damit faellt auch der
+   * Grund weg, die Bedingung vom uebrigen Auflager zu trennen.
+   *
+   * Sie gilt dort, wo ein Mast im Modell steht und ein TRAEGER darauf sitzt -
+   * ohne Mast gibt es kein Linkelement, und beim Einzelmasten gibt es kein
+   * Tragwerk, das anzuschliessen waere. Was hier steht, geht in die
+   * AxisVM-Ausleitung; der Ersatzbalken des Rechenkerns kennt sie nicht, er
+   * traegt seine Drehfeder.
+   */
+  { key: 'auflagerLinks', gruppe: 'aufl', typ: 'auflagerlinks',
+    label: 'Auflagerbedingung am Masten', standard: null,
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true,
+    hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
+           + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
+           + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
   { key: 'schraubenFgrenz', gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,
-    sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
+    sichtbar: (w) => tragwerksart(w).key === 'joch'
+                  && !['gelenkig', 'voll'].includes(w.endbedingung),
     hinweis: 'Grenzwert für Prüfung A1, Gurtanschluss am Mast. Gilt auch ohne '
            + 'die Begrenzung darunter. Horizontalkraft JE GURT, die '
            + 'Ebenenkraft ist das Doppelte.'},
@@ -772,7 +829,8 @@ export const FELDER = [
    */
   { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
     label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
-    sichtbar: (w) => !['gelenkig', 'voll'].includes(w.endbedingung),
+    sichtbar: (w) => tragwerksart(w).key === 'joch'
+                  && !['gelenkig', 'voll'].includes(w.endbedingung),
     hinweis: 'Die Drehfeder wird iterativ herabgesetzt, bis die Grenzlast der '
            + 'Gurtschrauben eingehalten ist.'},
   { key: 'wMast', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
@@ -1398,9 +1456,26 @@ export function setzeTypOptionen() {
    * Der Vermerk «ohne Bleche» bleibt: er sagt, dass ein Blechnachweis mit
    * diesem Typ nicht zu fuehren ist, und das muss man vor der Wahl wissen.
    */
+  /*
+   * >>> UND DER LAENGENBEREICH GEHOERT IN DIE ZEILE. <<<
+   *
+   * Weisung vom 9. September: «beim Tragjoch typ auswahl auch den
+   * laengenbereich angeben im nahmen, so wie bei den abfangjochen.»
+   *
+   * Er ist die Angabe, nach der man den Typ ueberhaupt SUCHT: das Joch ist
+   * so lang, wie der Mastabstand es verlangt, und die Frage lautet «welcher
+   * Typ traegt diese Laenge». Ohne den Bereich waehlt man einen Typ, sieht
+   * den Laengenschieber zusammenschnappen und faengt von vorn an.
+   *
+   * Dasselbe Format wie beim Abfangjoch (`abfangLaengenbereich`), damit
+   * beide Listen gleich zu lesen sind. Fuehrt ein Typ zwei Bereiche - kurz
+   * und normal -, stehen beide da; das ist keine Doppelung, sondern die
+   * Sortimentsangabe.
+   */
   const zeile = (j) => ({
     wert: j.typ,
     text: `${j.typ} · jd ${j.jd}${j.voute ? `→${j.voute.endJd}` : ''} mm`
+        + ` · ${laengenbereich(j).text}`
         + `${j.bleche ? '' : ' · ohne Bleche'}`,
   });
   // Vergleichsmodelle (`sortiment: false`) bilden ein fremdes Bauwerk nach.

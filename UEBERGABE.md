@@ -27,6 +27,70 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Leiste, die Typauswahl, eine Auflagergruppe (9. September)
+
+Weisung: «Hier drag and drop raus nehmen. Die masten direkt anschreiben wie bei
+den jochen (bessere übersicht). beim Tragjoch typ auswahl auch den
+längenbereich angeben im nahmen, so wie bei den abfangjochen. es hat momentan
+zwei gruppen für die auflager (Auflagerung des Jochs und unter Masten) wäre es
+nicht sinnvoller eine einzige gruppe mit dem Auflager zu machen?»
+
+**Die Masten haben ihre eigene Zeile.** Sie standen als kleiner Aufriss unter
+der gemeinsamen Achse und trugen als ganze Beschriftung ihre x-Stelle; Profil,
+Länge und Zugehörigkeit standen nur im Titel. Jetzt dieselbe Zeile wie beim
+Joch:
+
+```
+P1 · Joch     J90 · 20.00 m        ├────────────┤
+M1 · Mast     HEB 240 · x 0.00 m   ▲
+M2 · Mast     HEB 240 · x 20.00 m               ▲
+```
+
+Die Marke ist ein Auflagerdreieck, der geteilte Mast trägt den breiteren Fuss.
+Die Stelle steht als «x 0.00 m» — beim Joch daneben ist dieselbe Form die
+*Länge*, und im Modell heisst die Mastbeschriftung «M1 · HEB 240 · 8.50 m».
+Vom Ziehen sind auch die letzten Reste weg (Zustand `zieht`, Tooltip «ziehen
+verschiebt», die Zahl während des Zugs).
+
+**Der Längenbereich steht im Typnamen** — `J90 · jd 500 mm · 8–19.5 m /
+20–26.5 m`, im Format des Abfangjochs. Er ist die Angabe, nach der man den Typ
+sucht: das Joch ist so lang, wie der Mastabstand es verlangt.
+
+**Eine Gruppe fürs Auflager.** Die Bedingung am Masten stand unter «Masten»,
+alles übrige unter «Auflagerung des Jochs» — mit der Begründung, jene Gruppe
+führe `arten: ['joch']` und das Abfangjoch sehe sie nie. Die Schranke ist weg;
+was nur den Ersatzbalken des Tragjochs betrifft (Endbedingung, Drehfeder,
+Kragarme, Schraubengrenze), trägt sie jetzt am **Feld**. Damit:
+
+| Gruppe | Zuständig für |
+|---|---|
+| **Auflager** | *wie* das Tragwerk gelagert ist — Endbedingung, Feder, Kragarme, Anschluss ans Joch, Bedingung am Masten |
+| **Masten** | *was* dort steht — Profil, Anschlusshöhe, Länge, Stegrichtung, Ende B |
+
+### Die Auflagerskizze: Lagerung vor Bauteil (9. September)
+
+Weisung: «kannst du hier die orangen elemente gleich machen wie die restlichen
+linien des jochträgers. diese sind nicht so wichtig hier sondern die lagerung.
+kannst du noch die anschrift Ansicht und Schnitt etwas sichtbarer machen.
+kannst du noch ein kleines achsystem jeweils unten links aufführen … und auch
+bei der eingabe manuell von hand unter federwerte. Die daraus berechnete
+drehsteifigkeit farbig machen so wie die buttons.»
+
+- **Die Bindebleche sind Linien wie die Gurte.** In der Blechfarbe des Modells
+  waren sie das Auffälligste im Bild, obwohl das Bild von der Lagerung handelt.
+  Farbig ist jetzt nur noch, was hält.
+- **Achsenkreuz unten links** in beiden Bildern (`achsenkreuz` in
+  `doku.skizze.js`): die zwei Richtungen der Bildebene als Pfeil, die dritte
+  als Kreis — dasselbe Zeichen, das am Anschlusspunkt die Halterung senkrecht
+  zur Ebene meint. Dasselbe Kreuz steht über den **Federwerten von Hand**, wo
+  zwölf Felder mit Namen wie K_X und K_YY stehen und das Bild ausser Sicht ist.
+- **«Ansicht» und «Schnitt»** stehen ausgezeichnet in der Bildunterschrift; die
+  Achsen sind daraus verschwunden, sie stehen im Bild.
+- **Die Einspannung trägt die Farbe ihres Zustands** — Gelenk wie «frei»,
+  eingespannt wie «starr» (grün), eine Zahl wie eine Feder (orange). Vorher war
+  einzig «eingespannt» gefärbt, und zwar in der Warnfarbe: das sagte «Achtung»,
+  wo «starr» gemeint war.
+
 ### Der Mastenschalter — das Auge ist raus (9. September)
 
 Frage: «ich versteh die logik nicht beim ein ausblenden der masten, in der 3d

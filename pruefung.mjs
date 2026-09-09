@@ -10555,7 +10555,8 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 {
   const { TRAGWERKSARTEN, tragwerksart: art64, hatTraeger } =
     await import(J('core.constants.js'));
-  const { GRUPPEN: G64, gruppeGilt } = await import(J('ui.schema.js'));
+  const { GRUPPEN: G64, gruppeGilt, sichtbareFelder } =
+    await import(J('ui.schema.js'));
   const UI64 = await import(J('ui.js'));
   const { BAUFORMEN_KEYS, bauformSkizze } =
     await import(J('doku.optionsskizzen.js'));
@@ -10644,10 +10645,43 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    */
   const em = { tragwerksart: 'einzelmast' };
   const jo = { tragwerksart: 'joch' };
-  ['typ', 'geo', 'aufl', 'prof', 'blech', 'stueck'].forEach((gid) => {
+  ['typ', 'geo', 'prof', 'blech', 'stueck'].forEach((gid) => {
     wahr(`Gruppe ${gid} entfaellt beim Einzelmast`, gruppeGilt(gid, em) === false);
     wahr(`… und gilt beim Joch`, gruppeGilt(gid, jo) === true);
   });
+  /*
+   * >>> DAS AUFLAGER GEHT UEBER DIE FELDER, NICHT UEBER DIE GRUPPE. <<<
+   *
+   * Weisung vom 9. September: eine einzige Gruppe fuers Auflager. Sie fuehrt
+   * seither keine Artenschranke mehr - sonst saehe das Abfangjoch sie nie,
+   * und genau dort ist die Bedingung am Masten einzustellen. Was nur den
+   * Ersatzbalken des Tragjochs betrifft, traegt die Schranke am FELD.
+   *
+   * Geprueft wird deshalb das Ergebnis: beim Einzelmasten steht dort kein
+   * Feld, und die Gruppe erscheint gar nicht (zeichneMaske laesst eine
+   * leere Gruppe weg).
+   */
+  wahr('Gruppe aufl gilt formal fuer jede Art', gruppeGilt('aufl', em) === true);
+  wahr('… hat beim Einzelmast aber kein Feld',
+       sichtbareFelder('aufl', em).length === 0);
+  wahr('… und beim Joch ihre Endbedingung',
+       sichtbareFelder('aufl', jo).some((f) => f.key === 'endbedingung'));
+  /*
+   * DIE AUFLAGERBEDINGUNG AM MASTEN steht jetzt ebenfalls dort - beim Joch
+   * wie beim Abfangjoch, sobald ein Mast im Modell ist.
+   */
+  const mitMast = (art) => ({ tragwerksart: art, mastVorhanden: true });
+  ['joch', 'abfangjoch'].forEach((art) => {
+    wahr(`Die Auflagerbedingung steht beim ${art} in der Gruppe Auflager`,
+         sichtbareFelder('aufl', mitMast(art)).some((f) => f.key === 'auflagerLinks'));
+  });
+  wahr('… und beim Einzelmasten nirgends',
+       ['aufl', 'mast'].every((g) =>
+         !sichtbareFelder(g, mitMast('einzelmast'))
+           .some((f) => f.key === 'auflagerLinks')));
+  wahr('Die Gruppe Masten fuehrt sie nicht mehr',
+       !sichtbareFelder('mast', mitMast('joch'))
+         .some((f) => f.key === 'auflagerLinks'));
   // Die Masten und die Lasten gelten immer - sie sind bei jeder Art da.
   ['art', 'mast', 'trasse', 'anbau', 'ein', 'komb'].forEach((gid) => {
     wahr(`Gruppe ${gid} gilt bei jeder Art`,
