@@ -12982,6 +12982,45 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DIE BEMESSUNGSFESTIGKEIT DES ABFANGJOCHS. <<<
+   *
+   * Weisung vom 9. September, beim Pruefen des A240 aufgefallen: die
+   * Auswertung bekam `fyd: stahl.fyd` - ein Feld, das `getStahl` nicht
+   * fuehrt. Der Wert war `undefined`, und `abfangAuswertung` fiel auf ihren
+   * Rueckfallwert 21.8 kN/cm² zurueck. Bei S355 waeren das 33.8 statt 21.8
+   * gewesen: die Ausnutzung um 55 % zu hoch, ohne dass man saehe, woher.
+   */
+  {
+    const AB4 = await import(J('core.abfangjoch.js'));
+    const P4 = await import(J('data.profiles.js'));
+    pruef('S235 mit gamma 1.05', AB4.abfangFyd(P4.getStahl('S235'), 1.05),
+          22.381, 0.001, 'kN/cm²');
+    pruef('S355 mit gamma 1.05', AB4.abfangFyd(P4.getStahl('S355'), 1.05),
+          33.810, 0.001, 'kN/cm²');
+    pruef('Ein anderer Beiwert wirkt', AB4.abfangFyd(P4.getStahl('S235'), 1.0),
+          23.5, 1e-9, 'kN/cm²');
+    /*
+     * OHNE STAHL BLEIBT DIE NOTBREMSE - der Rueckfallwert. Er ist die
+     * Ausnahme, nicht die Regel.
+     */
+    pruef('Ohne Stahl der Rueckfallwert', AB4.abfangFyd(null, 1.05),
+          21.8, 1e-9, 'kN/cm²');
+    /*
+     * UND SIE KOMMT AN: mit S355 traegt derselbe Typ, der mit dem
+     * Rueckfallwert ueberschritten waere.
+     */
+    if (AJ.abfangDbDa()) {
+      const mit = (stahl) => AB4.abfangAuswertung({
+        typ: 'A160', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24,
+        anbauteile: [], gammaG: 1.3, gammaQ: 1.3, psi0: 0.5,
+        fyd: AB4.abfangFyd(P4.getStahl(stahl), 1.05) });
+      wahr('Der hoehere Stahl senkt die Ausnutzung',
+           mit('S355').max.eta < mit('S235').max.eta * 0.75,
+           `${mit('S235').max.eta.toFixed(3)} -> ${mit('S355').max.eta.toFixed(3)}`);
+    }
+  }
+
+  /*
    * ============ DIE ANBAUTEILE AM ABFANGJOCH ==========================
    *
    * Weisung vom 9. September: «die anbauteile im abfangjoch pruefen.» Zwei

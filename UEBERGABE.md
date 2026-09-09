@@ -27,6 +27,41 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### A240 mit Schnee — und ein falsches f_yd (9. September)
+
+Weisung: «den A240 einsetzen und mit schnee prüfen.»
+
+**Eingesetzt und geprüft** (A240 · 12.50 m, Leiter bei x = 10.00 m auf «Mitte
+Träger», Schnee Klasse 1.25 zugeschaltet, S235 · γ_M0 1.05):
+
+| | Wert |
+|---|---|
+| η Gurt | **0.700** (UPE 240) |
+| η Bindeblech | 0.458 bei x = 10.50 m |
+| Kräftepaar N | 65 kN (Hebelarm e = 65.6 cm) |
+| Urteil | **Tragsicherheit erfüllt** · 2 Nachweise nicht geführt |
+
+Das Sortiment mit denselben Einstellungen: A160 1.504 · A200 0.958 ·
+**A240 0.700** · A270 0.579. A200 trägt also auch mit Schnee — mit 4 %
+Reserve; A240 hat 30 %.
+
+**Dabei aufgefallen: das Abfangjoch rechnete mit einer fremden Festigkeit.**
+Die Auswertung bekam `fyd: stahl.fyd` — ein Feld, das `getStahl` nicht führt
+(dort stehen `name`, `fy`, `fu`). Der Wert war `undefined`, und
+`abfangAuswertung` fiel still auf ihren Rückfallwert **21.8 kN/cm²** zurück.
+
+```
+f_yd [kN/cm²] = f_y [N/mm²] / 10 / γ_M0        (abfangFyd)
+
+S235 · 1.05   22.38   statt 21.8    →  η 2.6 % zu hoch
+S355 · 1.05   33.81   statt 21.8    →  η 55 % zu hoch
+```
+
+Bei S235 lag es auf der sicheren Seite, bei S355 hätte das Werkzeug jedes
+Abfangjoch als überlastet ausgewiesen. Der Rückfallwert bleibt, wo gar nichts
+übergeben wird — als Notbremse, nicht als Regel. Mit der Korrektur sinkt der
+A240 von 0.719 auf 0.700.
+
 ### Welcher Typ trägt die Abfangkraft (9. September)
 
 Weisung: «den grösseren typ prüfen der die abfangkraft trägt.»

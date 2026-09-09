@@ -1173,6 +1173,32 @@ export function abfangBalken(L, ue, { q = 0, F = [] } = {}) {
  *                     fyd, ek, L_FL, R, knotenbereich}
  * @returns {object|null} null, wenn der Typ oder die Laenge nicht rechenbar ist
  */
+/**
+ * >>> DIE BEMESSUNGSFESTIGKEIT DES ABFANGJOCHS. <<<
+ *
+ * Weisung vom 9. September, beim Pruefen des A240 aufgefallen: die
+ * Auswertung bekam `fyd: stahl.fyd` - und `getStahl` fuehrt kein `fyd`,
+ * sondern nur `fy`. Der Wert war also `undefined`, und `abfangAuswertung`
+ * fiel auf ihren Rueckfallwert 21.8 kN/cm² zurueck.
+ *
+ * Bei S235 mit γ_M0 = 1.05 sind das 2.6 % zu wenig - auf der sicheren Seite,
+ * aber nicht das, was eingestellt ist. Bei S355 waeren es 33.8 statt 21.8:
+ * die Ausnutzung stuende dann um 55 % zu hoch, und niemand saehe, woher.
+ *
+ *      f_yd [kN/cm²] = f_y [N/mm²] / 10 / γ_M0
+ *
+ * Der Rueckfallwert bleibt, wo gar nichts uebergeben wird - er ist die
+ * Notbremse, nicht die Regel.
+ *
+ * @param {object} stahl  {fy} in N/mm²
+ * @param {number} gammaM0
+ */
+export function abfangFyd(stahl, gammaM0) {
+  const fy = Number(stahl?.fy);
+  const g = Number(gammaM0) || 1.05;
+  return Number.isFinite(fy) && fy > 0 ? fy / 10 / g : 21.8;
+}
+
 export function abfangAuswertung(o = {}) {
   const { typ, jt } = o;
   if (!abfangRechenbar(typ, jt)) return null;

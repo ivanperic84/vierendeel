@@ -60,7 +60,7 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
 import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
-import { abfangAuswertung } from './core.abfangjoch.js';
+import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
          getAbfangjoch } from './data.abfangjoche.js';
@@ -440,7 +440,13 @@ function neuRechnen(neuZeichnen = true) {
           sk: satzA.schneeAktiv === false ? 0 : (a2?.schnee?.[sKl] ?? 0),
           anbauteile: satzA.anbauteile ?? [],
           gammaG: werte.gammaG, gammaQ: werte.gammaQ, psi0: werte.psi0,
-          fyd: stahl.fyd, ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
+          /*
+           * f_yd AUS STAHL UND γ_M0 (Weisung, 9. September). Hier stand
+           * `stahl.fyd` - das Feld gibt es am Stahlobjekt nicht, und die
+           * Auswertung fiel still auf 21.8 kN/cm² zurueck.
+           */
+          fyd: abfangFyd(stahl, werte.gammaM0),
+          ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
           knotenbereich: 'anschnitt',
         });
       } catch (e2) {
@@ -1690,7 +1696,7 @@ function dialogSortimentAbfang({ f0, f2, f3 }) {
         sk: satz.schneeAktiv === false ? 0 : (a.schnee?.[sKl] ?? 0),
         anbauteile: satz.anbauteile ?? [],
         gammaG: werte.gammaG, gammaQ: werte.gammaQ, psi0: werte.psi0,
-        fyd: getStahl(werte.stahl).fyd, ek: satz.ek,
+        fyd: abfangFyd(getStahl(werte.stahl), werte.gammaM0), ek: satz.ek,
         L_FL: satz.L_FL, R: satz.R, knotenbereich: 'anschnitt',
       });
       if (!r) return { typ: a.typ, eta: null, profil: a.profil,
