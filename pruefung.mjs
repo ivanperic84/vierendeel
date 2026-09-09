@@ -6106,6 +6106,34 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   }
 
   /*
+   * >>> DIE BEIDEN ARTEN SEHEN NICHT MEHR GLEICH AUS. <<<
+   *
+   * Weisung vom 9. September: «die ansicht zeigt nicht das Abfangjoch, es
+   * gibt da keine ober und untergurt sondern nur einen traeger.»
+   *
+   * Das Laengsbild zeichnete beide Arten gleich - zwei Linien mit
+   * Querstrichen, die Gestalt des TRAGJOCHS. Das Abfangjoch legt seinen
+   * Rahmen waagrecht: zwei Walzprofile nebeneinander, Bleche oben und
+   * unten. Im Grundriss sind das zwei Profile mit Breite und dazwischen
+   * Blechflaechen.
+   */
+  {
+    const AL2 = await import(J('ui.auflagerlinks.js'));
+    const bildJ = AL2.auflagerDiagrammHtml(
+      { tragwerksart: 'joch', mastVorhanden: true, jd: 500 }, 'joch');
+    const bildA = AL2.auflagerDiagrammHtml(
+      { tragwerksart: 'abfangjoch', mastVorhanden: true }, 'abfangjoch');
+    wahr('Das Tragjoch zeigt seine Ansicht', /<b>Ansicht<\/b>/.test(bildJ));
+    wahr('Das Abfangjoch zeigt den Grundriss', /<b>Grundriss<\/b>/.test(bildA));
+    wahr('… und nennt den liegenden Traeger',
+         /Träger liegt/.test(bildA));
+    wahr('Nur das Abfangjoch traegt Blechflaechen im Laengsbild',
+         /class="steif"/.test(bildA) && !/class="steif"/.test(bildJ));
+    wahr('Sein Schnitt nennt die zwei Gurte nebeneinander',
+         /zwei Gurte nebeneinander/.test(bildA));
+  }
+
+  /*
    * >>> WAS DIE MODELLANSICHT DAVON ZEIGT. <<<
    *
    * Weisung vom 9. September: «die auswirkung im modell 3d noch pruefen.»

@@ -27,6 +27,22 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Das Abfangjoch ist ein liegender Träger (9. September)
+
+Weisung: «die ansicht zeigt nicht das Abfangjoch, es gibt da keine ober und
+untergurt sondern nur einen träger.»
+
+Richtig — das Längsbild zeichnete **beide Arten gleich**: zwei Linien mit
+Querstrichen dazwischen, also die Gestalt des Tragjochs mit anderen Namen.
+Beim Tragjoch stehen dort Ober- und Untergurt mit stehenden Bindeblechen; das
+Abfangjoch legt seinen Rahmen waagrecht — zwei Walzprofile **nebeneinander**,
+Bleche oben und unten (`core.abfangjoch.js`: «Rahmenebene waagrecht»).
+
+Im Grundriss sieht man deshalb jetzt die beiden Gurte als **Profile mit
+Breite** und dazwischen die Bleche als **Flächen**, von oben gesehen — ein
+Träger, kein Rahmen. Die Bildunterschriften sagen es dazu: «Grundriss — der
+Träger liegt, Bleche oben und unten» und «Schnitt — zwei Gurte nebeneinander».
+
 ### Die Auswirkung in der Modellansicht (9. September)
 
 Weisung: «die auswirkung im modell 3d noch prüfen.»

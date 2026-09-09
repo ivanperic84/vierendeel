@@ -421,9 +421,33 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
      * dieselbe Linie wie die Gurte: der Traeger ist da, und was ihn haelt,
      * ist das einzige Farbige.
      */
-    ...yE.map((y) => `<line class="b" x1="28" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
-    ...[70, 110].map((x) =>
-      `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`),
+    /*
+     * >>> DAS ABFANGJOCH IST EIN LIEGENDER TRAEGER. <<<
+     *
+     * Weisung vom 9. September: «die ansicht zeigt nicht das Abfangjoch, es
+     * gibt da keine ober und untergurt sondern nur einen traeger.»
+     *
+     * Richtig - und das Bild sagte etwas anderes. Es zeichnete beide Arten
+     * gleich: zwei Linien und Querstriche dazwischen, also die Gestalt des
+     * TRAGJOCHS mit anderen Namen. Beim Tragjoch stehen dort Ober- und
+     * Untergurt mit stehenden Bindeblechen; beim Abfangjoch liegen ZWEI
+     * WALZPROFILE NEBENEINANDER, und die Bleche liegen oben und unten
+     * (siehe core.abfangjoch.js: «Rahmenebene waagrecht»).
+     *
+     * Im GRUNDRISS sieht man deshalb: die beiden Gurte als Profile - jeder
+     * mit seiner Breite, nicht als Strich -, und dazwischen die Bleche als
+     * FLAECHEN, von oben gesehen. Das ist ein Traeger, kein Rahmen.
+     */
+    ...(inY
+      ? [...yE.flatMap((y) => [
+          `<line class="b" x1="28" y1="${y - 2}" x2="${gurtE}" y2="${y - 2}"/>`,
+          `<line class="b" x1="28" y1="${y + 2}" x2="${gurtE}" y2="${y + 2}"/>`]),
+         ...[62, 104].map((x) =>
+           `<rect class="steif" x="${x}" y="${yE[0]}" width="24" height="${
+             yE[1] - yE[0]}"/>`)]
+      : [...yE.map((y) => `<line class="b" x1="28" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
+         ...[70, 110].map((x) =>
+           `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`)]),
     // Das Linkelement je Ebene: vom Gurtende zum Masten.
     ...yE.map((y, i) => (traegt(i)
       ? `<line class="link" x1="${gurtE}" y1="${y}" x2="${mastL}" y2="${y}"/>` : '')),
@@ -523,13 +547,16 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * Ansicht und Schnitt etwas sichtbarer machen»).
    */
   const bild = `<div class="al-bilder">${
-    skizze(inY ? 'Grundriss — Blick von oben' : 'Ansicht — Blick in Gleisrichtung',
+    skizze(inY ? 'Grundriss — Blick von oben auf den liegenden Träger'
+               : 'Ansicht — Blick in Gleisrichtung',
            `0 0 ${BB[0]} ${BB[1]}`, laengs + punkteL + kreuz(achsenL), 'al-skizze',
-           `<b>${inY ? 'Grundriss' : 'Ansicht'}</b> — Blick ${
-             inY ? 'von oben' : 'in Gleisrichtung'}`)}${
+           `<b>${inY ? 'Grundriss' : 'Ansicht'}</b> — ${
+             inY ? 'der Träger liegt, Bleche oben und unten'
+                 : 'Blick in Gleisrichtung'}`)}${
     skizze('Schnitt — Blick in die Jochachse',
            `0 0 ${BB[0]} ${BB[1]}`, quer.join('') + punkteQ.join('') + kreuz(achsenQ),
-           'al-skizze', '<b>Schnitt</b> — Blick in die Jochachse')}</div>`;
+           'al-skizze', `<b>Schnitt</b> — ${
+             inY ? 'zwei Gurte nebeneinander' : 'Blick in die Jochachse'}`)}</div>`;
 
   // --- Die Schalter, einzeilig --------------------------------------------
   /*
