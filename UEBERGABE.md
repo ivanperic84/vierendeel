@@ -27,6 +27,28 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Der Mastfuss ist der Nullpunkt (9. September)
+
+Weisung: «Die Anschlusshöhe bezieht sich immer auf den Mastfuss des linken
+(ersten masten). der punkt ist somit als referenz des modells zu lesen. wenn
+man den wert anschlusshöhe ändert dann wandert das joch und nicht der
+mastfuss, da man sonst nicht zwei joche übereinander vernünftig eingeben
+kann.»
+
+Der Rechenkern baut jedes Tragwerk für sich, mit der **Jochachse auf z = 0**
+und dem Fuss bei −H. Beim Zusammensetzen des Blattes (`blattSzene`) wird jede
+Szene jetzt um **+H** angehoben: dann liegt jeder Mastfuss auf 0, und die
+Anschlusshöhe sagt, wie hoch das Joch darüber sitzt.
+
+Ohne diesen Schritt lagen *alle* Jochachsen auf 0 und die Füsse verschieden
+tief — zwei Abfangjoche übereinander (H 9.00 und 10.50) standen auf derselben
+Höhe, mit zwei Fundamenten in verschiedenen Tiefen. `szeneVerschieben` nimmt
+dafür ein viertes Argument `dz`.
+
+Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
+die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
+(`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
+
 ### Das Abfangjoch ist ein liegender Träger (9. September)
 
 Weisung: «die ansicht zeigt nicht das Abfangjoch, es gibt da keine ober und

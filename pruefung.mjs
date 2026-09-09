@@ -12938,6 +12938,54 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<
+   *
+   * Weisung vom 9. September: «Die Anschlusshoehe bezieht sich immer auf den
+   * Mastfuss des linken (ersten masten). der punkt ist somit als referenz des
+   * modells zu lesen. wenn man den wert anschlusshoehe aendert dann wandert
+   * das joch und nicht der mastfuss, da man sonst nicht zwei joche
+   * uebereinander vernuenftig eingeben kann.»
+   *
+   * Der Rechenkern baut jedes Tragwerk fuer sich, mit der JOCHACHSE auf
+   * z = 0 und dem Fuss bei -H. `blattSzene` hebt jede Szene deshalb um +H;
+   * dann liegen alle Fuesse auf 0. Geprueft wird der Baustein, der das
+   * traegt: `szeneVerschieben` mit einem dz.
+   */
+  {
+    const R3z = await import(J('render.3d.js'));
+    const sz = { flaechen: [{ punkte: [[0, 0, -7.5], [1, 0, 0]] }],
+                 linien: [], marken: [{ p: [0, 0, -7.5] }],
+                 masse: [{ p0: [0, 0, -7.5], p1: [0, 0, 0] }],
+                 bauteiltitel: [], vektoren: [], lastflaechen: [],
+                 grenzen: { xMin: 0, xMax: 20, zMin: -7.5, zMax: 0.5 } };
+    const hoch = R3z.szeneVerschieben(sz, 3, {}, 7.5);
+    pruef('Der Fusspunkt liegt nach der Hebung auf null',
+          hoch.flaechen[0].punkte[0][2], 0, 1e-9, 'm');
+    pruef('… und die Jochachse auf der Anschlusshoehe',
+          hoch.flaechen[0].punkte[1][2], 7.5, 1e-9, 'm');
+    pruef('Die Marke wandert mit', hoch.marken[0].p[2], 0, 1e-9, 'm');
+    pruef('Die Masslinie auch', hoch.masse[0].p0[2], 0, 1e-9, 'm');
+    pruef('Und x bleibt, wie es war', hoch.flaechen[0].punkte[1][0], 4, 1e-9, 'm');
+    pruef('Die Grenzen wandern mit', hoch.grenzen.zMin, 0, 1e-9, 'm');
+    /*
+     * ZWEI TRAGWERKE MIT VERSCHIEDENER ANSCHLUSSHOEHE stehen danach auf
+     * DERSELBEN Grundlinie - das ist der Fall, um den es geht: zwei Joche
+     * uebereinander auf denselben Masten.
+     */
+    const tief = R3z.szeneVerschieben(
+      { ...sz, flaechen: [{ punkte: [[0, 0, -10.5], [1, 0, 0]] }] },
+      0, {}, 10.5);
+    pruef('Auch das hoeher angeschlossene steht auf null',
+          tief.flaechen[0].punkte[0][2], 0, 1e-9, 'm');
+    wahr('… und sein Joch liegt hoeher',
+         tief.flaechen[0].punkte[1][2] > hoch.flaechen[0].punkte[1][2],
+         `${tief.flaechen[0].punkte[1][2]} gegen ${hoch.flaechen[0].punkte[1][2]}`);
+    // Ohne dz bleibt alles, wie es war - der Regelfall des Bausteins.
+    pruef('Ohne Hebung bleibt z unberuehrt',
+          R3z.szeneVerschieben(sz, 5).flaechen[0].punkte[0][2], -7.5, 1e-9, 'm');
+  }
+
+  /*
    * >>> DIE MASTNOTIZ IST WEG - SIE STAND ZWEIMAL DA. <<<
    *
    * Weisung vom 9. September: «die benennung unterhalb braucht es nicht,

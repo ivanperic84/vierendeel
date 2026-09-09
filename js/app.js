@@ -699,14 +699,38 @@ function blattSzene(erg) {
                     mast: abfangMastAngabe(tragwerkSatz(werte)),
                     lager: tragwerkSatz(werte) })
     : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
+  /*
+   * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<
+   *
+   * Weisung vom 9. September: «Die Anschlusshoehe bezieht sich immer auf den
+   * Mastfuss des linken (ersten masten). der punkt ist somit als referenz
+   * des modells zu lesen. wenn man den wert anschlusshoehe aendert dann
+   * wandert das joch und nicht der mastfuss, da man sonst nicht zwei joche
+   * uebereinander vernuenftig eingeben kann. fuer das gesamte modell sollte
+   * man sich auf einen Referenzpunkt beziehen.»
+   *
+   * Jede Einzelszene kommt mit der JOCHACHSE auf z = 0 und dem Fuss bei -H.
+   * Angehoben um +H liegt der Fuss auf 0 - und alle Tragwerke des Blattes
+   * stehen auf derselben Grundlinie, gleichgueltig wie hoch ihre Joche
+   * anschliessen.
+   *
+   * WELCHES H. Das des Endes A, also des LINKEN Masten: das ist der Punkt,
+   * den die Weisung zur Referenz erklaert. Traegt ein Tragwerk am Ende B
+   * eine andere Hoehe (`mastHZwei`), bleibt sie relativ dazu, wie sie im
+   * Einzelmodell steht - der Mast steht dann tiefer oder hoeher, und genau
+   * das soll er.
+   */
+  const hebung = (t) => Number(tragwerkSatz(werte, t.id).mastH) || 0;
   const teile = alle.map((t) => {
     const dx = lageVon(t);
+    const dz = hebung(t);
     if (t.id === aktivId) {
       return szeneVerschieben({ ...eigen, aktiv: true }, dx,
-                              { twId: t.id, aktiv: true });
+                              { twId: t.id, aktiv: true }, dz);
     }
     const sz = szeneVonNebenan(t, plan[t.id]);
-    return sz ? szeneVerschieben(sz, dx, { twId: t.id, passiv: true }) : null;
+    return sz
+      ? szeneVerschieben(sz, dx, { twId: t.id, passiv: true }, dz) : null;
   });
   /*
    * >>> AUCH ALLEIN STEHT ES AN SEINER STELLE. <<<

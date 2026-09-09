@@ -144,13 +144,17 @@ const punkt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const pVersch = (p, dx) => (Array.isArray(p) ? [p[0] + dx, p[1], p[2]] : p);
 
 /** Ein Szenenteil (Flaeche, Linie, Marke, ...) um dx verschoben. */
-function teilVersch(t, dx, zusatz) {
+function teilVersch(t, dx, zusatz, dz = 0) {
   const o = { ...t, ...zusatz };
-  if (Array.isArray(t.punkte)) o.punkte = t.punkte.map((p) => pVersch(p, dx));
-  if (Array.isArray(t.p)) o.p = pVersch(t.p, dx);
-  if (Array.isArray(t.p0)) o.p0 = pVersch(t.p0, dx);
-  if (Array.isArray(t.p1)) o.p1 = pVersch(t.p1, dx);
-  if (Array.isArray(t.poly)) o.poly = t.poly.map((p) => pVersch(p, dx));
+  const v = (p) => {
+    const q = pVersch(p, dx);
+    return dz ? [q[0], q[1], (q[2] ?? 0) + dz] : q;
+  };
+  if (Array.isArray(t.punkte)) o.punkte = t.punkte.map(v);
+  if (Array.isArray(t.p)) o.p = v(t.p);
+  if (Array.isArray(t.p0)) o.p0 = v(t.p0);
+  if (Array.isArray(t.p1)) o.p1 = v(t.p1);
+  if (Array.isArray(t.poly)) o.poly = t.poly.map(v);
   if (Number.isFinite(t.xMitte)) o.xMitte = t.xMitte + dx;
   if (Number.isFinite(t.x)) o.x = t.x + dx;
   // `v` ist eine RICHTUNG, kein Ort - sie wird nicht verschoben.
@@ -163,9 +167,27 @@ function teilVersch(t, dx, zusatz) {
  * `zusatz` wandert in jeden Teil: dort steht, zu welchem Tragwerk er gehoert
  * und ob es das aktive ist. Daran haengen die Einfaerbung und der Klick.
  */
-export function szeneVerschieben(sz, dx, zusatz = {}) {
+/**
+ * >>> UND IN z, SEIT DER MASTFUSS DER NULLPUNKT IST. <<<
+ *
+ * Weisung vom 9. September: «Die Anschlusshoehe bezieht sich immer auf den
+ * Mastfuss des linken (ersten masten). der punkt ist somit als referenz des
+ * modells zu lesen. wenn man den wert anschlusshoehe aendert dann wandert
+ * das joch und nicht der mastfuss, da man sonst nicht zwei joche
+ * uebereinander vernuenftig eingeben kann.»
+ *
+ * Der Rechenkern baut jedes Tragwerk fuer sich, mit der JOCHACHSE auf z = 0
+ * und dem Fuss bei -H. Beim Zusammensetzen wird jede Szene deshalb um +H
+ * angehoben: dann liegt jeder Mastfuss auf 0, und die Anschlusshoehe sagt,
+ * wie hoch das Joch darueber sitzt.
+ *
+ * Ohne diesen Schritt lagen ALLE Jochachsen auf 0 und die Fuesse verschieden
+ * tief - zwei Abfangjoche uebereinander (H 9.00 und 10.50) standen dann auf
+ * derselben Hoehe, mit zwei Fundamenten in verschiedenen Tiefen.
+ */
+export function szeneVerschieben(sz, dx, zusatz = {}, dz = 0) {
   if (!sz) return sz;
-  const l = (a) => (a ?? []).map((t) => teilVersch(t, dx, zusatz));
+  const l = (a) => (a ?? []).map((t) => teilVersch(t, dx, zusatz, dz));
   const g = sz.grenzen ?? {};
   return {
     ...sz,
@@ -183,7 +205,9 @@ export function szeneVerschieben(sz, dx, zusatz = {}) {
      */
     xNachweis: Number.isFinite(sz.xNachweis) ? sz.xNachweis + dx : sz.xNachweis,
     stationen: (sz.stationen ?? []).map((x) => x + dx),
-    grenzen: { ...g, xMin: (g.xMin ?? 0) + dx, xMax: (g.xMax ?? 0) + dx },
+    grenzen: { ...g, xMin: (g.xMin ?? 0) + dx, xMax: (g.xMax ?? 0) + dx,
+               ...(Number.isFinite(g.zMin) ? { zMin: g.zMin + dz } : {}),
+               ...(Number.isFinite(g.zMax) ? { zMax: g.zMax + dz } : {}) },
   };
 }
 
