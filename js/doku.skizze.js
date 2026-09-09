@@ -51,14 +51,29 @@ export const skizze = (titel, viewBox, inhalt, kl = 'hb-skizze',
  * @param {object} a      {h, hRi, v, vRi, t} - Achsen und Bildrichtungen
  * @param {number} l      Laenge der Pfeile
  */
-export const achsenkreuz = (o, a, l = 17) => {
+export const achsenkreuz = (o, a, l = 20) => {
+  /*
+   * >>> DER PFEIL BEGINNT HINTER DEM KREIS. <<<
+   *
+   * Weisung vom 9. September: «die länge der Achsen länger machen, so dass
+   * die pfeile nicht am kreis anliegend sind.» Sie liefen vom Mittelpunkt
+   * aus, und ihre Spitze sass unmittelbar an der dritten Achse - drei
+   * Zeichen auf einem Fleck.
+   */
+  const r = 4.6, ab = r + 3;
   const arm = (name, [ux, uy]) =>
-    pf(o[0], o[1], o[0] + ux * l, o[1] + uy * l, 'm')
+    pf(o[0] + ux * ab, o[1] + uy * ab, o[0] + ux * l, o[1] + uy * l, 'm')
     + txt(o[0] + ux * (l + 7), o[1] + uy * (l + 7) + 3.5, name, 'dim');
+  /*
+   * DIE DRITTE ACHSE STEHT ZURUECK (Weisung: «die beiden achsen die aus der
+   * ebene heraus gerichtet sind etwas mehr ausgrauen»). Sie zeigt aus dem
+   * Blatt heraus - in der Zeichnung ist sie ein Punkt und keine Richtung,
+   * und so soll sie auch wirken.
+   */
   return `<g class="achsenkreuz">${arm(a.h, a.hRi)}${arm(a.v, a.vRi)}`
-    + `<circle class="m" cx="${o[0]}" cy="${o[1]}" r="4.6" fill="none"/>`
-    + `<circle class="mf" cx="${o[0]}" cy="${o[1]}" r="1.5"/>`
-    + txt(o[0] - 8, o[1] + 11, a.t, 'dim') + '</g>';
+    + `<circle class="mt" cx="${o[0]}" cy="${o[1]}" r="${r}" fill="none"/>`
+    + `<circle class="mtf" cx="${o[0]}" cy="${o[1]}" r="1.5"/>`
+    + txt(o[0] - 8, o[1] + 11, a.t, 'xdim') + '</g>';
 };
 
 /** Linie mit Pfeilspitze. Die Spitze wird gerechnet, nicht ueber einen Marker

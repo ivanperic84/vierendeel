@@ -284,13 +284,22 @@ function haltTiefe(p, v) {
     istFeder(v) ? ' stroke-dasharray="3 2.4"' : ''}/>`;
 }
 
-/** Punkt, Halterungen und Beschriftung an einer Anschlussebene. */
-function anschluss(p, b, achsen, label) {
+/**
+ * Punkt, Halterungen und Beschriftung an einer Anschlussebene.
+ *
+ * >>> WO DAS SCHILD HAENGT, SAGT DER AUFRUFER. <<<
+ *
+ * In der Ansicht ist links vom Punkt Platz; im Schnitt steht dort der
+ * Gurtwinkel, seit die Breite dem Massstab der Hoehe folgt (Weisung,
+ * 9. September). Dort haengt das Schild deshalb am Bildrand.
+ */
+function anschluss(p, b, achsen, label, wo = null) {
+  const [lx, ly, anker] = wo ?? [p[0] - 11, p[1] - 10, 'end'];
   return knoten(p[0], p[1], 3.6)
     + haltEbene(p, achsen.hRi, b[achsen.h])
     + haltEbene(p, achsen.vRi, b[achsen.v])
     + haltTiefe(p, b[achsen.t])
-    + (label ? txt(p[0] - 11, p[1] - 10, label, 'dim', 'end') : '');
+    + (label ? txt(lx, ly, label, 'dim', anker) : '');
 }
 
 export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
@@ -342,7 +351,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * sitzt dichter am Bauteil. Die Strichstaerken bleiben, wie sie waren -
    * das Bild wird flacher, nicht kleiner gedruckt.
    */
-  const BB = [264, 128];                  // Bildfeld beider Skizzen
+  const BB = [264, 134];                  // Bildfeld beider Skizzen
   const yE = [44, 88];                    // die beiden Ebenen, in beiden Bildern
 
   /* --- Das Laengsbild: Ansicht bzw. Grundriss ----------------------------
@@ -414,33 +423,57 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * Blick INS Feld hinein, der Mast steht dahinter - deshalb ist er
    * gestrichelt: was hinter der Schnittebene liegt, wird nicht ausgezogen.
    */
+  /*
+   * >>> BREITE UND HOEHE IM SELBEN MASSSTAB. <<<
+   *
+   * Weisung vom 9. September: «beim schnitt die breite der höhe anpassen, so
+   * dass beide gleiche masse haben, das joch ist meistens höher als breit.»
+   *
+   * Gezeichnet stand ein Querschnitt von 80 × 44 Einheiten - fast doppelt so
+   * breit wie hoch, waehrend das Bauteil daneben umgekehrt steht (J90: jd
+   * 500 mm hoch, jbb 420 mm breit). Ein Schnitt, dessen Seitenverhaeltnis
+   * das Gegenteil des Bauteils zeigt, erzaehlt etwas Falsches ueber die
+   * Hebelarme - und genau um Hebelarme geht es hier.
+   *
+   * Genommen werden die Masse des Tragwerks; der Massstab der Hoehe gilt
+   * dann auch fuer die Breite. Begrenzt auf ein Fenster, damit ein
+   * ungewoehnlicher Satz das Bild nicht sprengt.
+   */
   const cx = BB[0] / 2;
-  const quer = [`<rect class="verdeckt" x="${cx - 12}" y="22" width="24" height="82"/>`,
-                txt(cx, 122, 'Mast dahinter', 'dim')];
+  const bauH = Number(werte.jd) || 500;
+  const bauB = Number(werte.jbbOG) || Number(werte.jbbUG) || 420;
+  const verh = Math.max(0.45, Math.min(1.5, bauB / bauH));
+  const halbB = ((yE[1] - yE[0]) * verh) / 2;
+  const quer = [`<rect class="verdeckt" x="${cx - 11}" y="22" width="22" height="82"/>`,
+                txt(cx, 128, 'Mast dahinter', 'dim')];
   const punkteQ = [];
   const achsenQ = { h: 'y', hRi: [1, 0], v: 'z', vRi: [0, -1], t: 'x' };
   if (inY) {
     // Abfangjoch: zwei Gurte NEBENEINANDER, Bindebleche oben und unten.
-    const px = [cx - 42, cx + 42];
+    // Beim Abfangjoch liegen die Gurte in y auseinander: `b` IST die
+    // gezeichnete Breite, die Bauhoehe steht senkrecht dazu.
+    const px = [cx - Math.max(halbB, 22), cx + Math.max(halbB, 22)];
     // Die Bleche als Linie, wie die Gurte - siehe oben.
-    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[0] + 12}" x2="${px[1]}" y2="${yE[0] + 12}"/>`);
-    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[1] - 12}" x2="${px[1]}" y2="${yE[1] - 12}"/>`);
+    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[0] + 10}" x2="${px[1]}" y2="${yE[0] + 10}"/>`);
+    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[1] - 10}" x2="${px[1]}" y2="${yE[1] - 10}"/>`);
     quer.push(px.map((x) => winkel(x, 66, 13)).join(''));
-    quer.push(mass(px[0], 108, px[1], 108, 'b'));
+    quer.push(mass(px[0], 112, px[1], 112, 'b'));
     px.forEach((x, i) => punkteQ.push(traegt(i)
-      ? anschluss([x, 66], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key)) : ''));
+      ? anschluss([x, 66], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key),
+                  [x, 44, 'middle']) : ''));
   } else {
     // Tragjoch: je Ebene zwei Winkel, dazwischen die Vertikalbleche.
-    const bx = [cx - 40, cx + 40];
+    const bx = [cx - halbB, cx + halbB];
     quer.push(yE.map((y) =>
       `<line class="b" x1="${bx[0]}" y1="${y}" x2="${bx[1]}" y2="${y}"/>`
       + bx.map((x) => winkel(x, y, 10)).join('')).join(''));
     quer.push(bx.map((x) =>
       `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`).join(''));
-    quer.push(mass(bx[0], 108, bx[1], 108, 'b'));
-    quer.push(mass(bx[1] + 24, yE[0], bx[1] + 24, yE[1], 'h'));
+    quer.push(mass(bx[0], 112, bx[1], 112, 'b'));
+    quer.push(mass(bx[1] + 22, yE[0], bx[1] + 22, yE[1], 'h'));
     yE.forEach((y, i) => punkteQ.push(traegt(i)
-      ? anschluss([cx, y], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key)) : ''));
+      ? anschluss([cx, y], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key),
+                  [bx[0] - 26, y + 3, 'end']) : ''));
   }
 
   /*
@@ -540,13 +573,23 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     return `<div class="al-federn"><b>${esc(ebene.label)}</b>${
       LINK_GRADE.map((g) => {
         const v = b[g.key];
+        /*
+         * DIE EINHEIT LIEGT IM FELD (Weisung, 9. September: «die einheit für
+         * die werte hinterlegen. rechtsbündig in den feldern darstellen»).
+         *
+         * Sie stand als dritte Spalte daneben und kostete die Breite, die
+         * der Zahl fehlte. Im Feld hinterlegt gehoert sie sichtbar zum Wert,
+         * und die Zahl steht rechtsbuendig davor - so, wie man Zahlen
+         * vergleicht.
+         */
         return `<label class="al-feder" title="${esc(g.hinweis)}">
           <span>${esc(g.sym)}</span>
-          <input type="text" data-al-feder="${esc(ebene.key)}"
-                 data-grad="${esc(g.key)}"
-                 value="${esc(v === 'Rigid' || v === 'Free' ? '' : String(v))}"
-                 placeholder="${v === 'Rigid' ? 'starr' : 'frei'}">
-          <small>${esc(g.einheit)}</small></label>`;
+          <span class="al-feld">
+            <input type="text" data-al-feder="${esc(ebene.key)}"
+                   data-grad="${esc(g.key)}"
+                   value="${esc(v === 'Rigid' || v === 'Free' ? '' : String(v))}"
+                   placeholder="${v === 'Rigid' ? 'starr' : 'frei'}">
+            <small>${esc(g.einheit)}</small></span></label>`;
       }).join('')}</div>`;
   }).join('');
 
@@ -560,14 +603,27 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   const h = Number(werte.h) || (Number(werte.jd) || 0) / 1000;
   const e = linkEinspannung(werte, art, h);
   const umText = e.um === 'yy' ? 'y (Vertikalbiegung)' : 'z (waagrechte Biegung)';
+  /*
+   * >>> WERT UND ERKLAERUNG, NICHT EIN SATZ. <<<
+   *
+   * Weisung vom 9. September: «der text der drehfeder ordnen.» Er lief als
+   * ein Fliesstext mit fettem Anfang, und weil der Wert nicht umbrechen darf
+   * («c_φ ≈ 1250 kNm/rad» ist EINE Angabe), schob er die Zeilen ineinander.
+   *
+   * Jetzt zwei Teile: die ANGABE zuerst, in ihrer Zeile - das ist, was man
+   * sucht -, darunter, WORUM es sich dreht und WORAUS sie folgt.
+   */
+  const eWert = e.art === 'gelenk' ? 'Gelenk'
+    : e.art === 'eingespannt' ? 'Eingespannt'
+      : `c_φ ≈ ${e.cPhi.toFixed(0)} kNm/rad`;
   const eText = e.art === 'gelenk'
-    ? `<b>Gelenk um ${umText}</b> — eine Ebene lässt längs los, das Kräftepaar `
-      + 'kann sich nicht bilden.'
+    ? `um ${umText} — eine Ebene lässt längs los, das Kräftepaar kann sich `
+      + 'nicht bilden.'
     : e.art === 'eingespannt'
-      ? `<b>Eingespannt um ${umText}</b> — beide Ebenen halten längs. Das `
-        + 'Moment läuft voll in den Masten.'
-      : `<b>c_φ ≈ ${e.cPhi.toFixed(0)} kNm/rad</b> um ${umText} — aus den `
-        + `beiden Wegfedern über den Hebelarm ${e.h.toFixed(3)} m.`;
+      ? `um ${umText} — beide Ebenen halten längs. Das Moment läuft voll in `
+        + 'den Masten.'
+      : `um ${umText} — aus den beiden Wegfedern über den Hebelarm `
+        + `${e.h.toFixed(3)} m.`;
   /*
    * >>> SIE TRAEGT DIE FARBE IHRES ZUSTANDS. <<<
    *
@@ -582,8 +638,14 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * Vorher war einzig «eingespannt» gefaerbt, und zwar in der Warnfarbe: das
    * sagte «Achtung», wo «starr» gemeint war.
    */
-  const eKlasse = e.art === 'gelenk' ? 'al-frei'
-    : e.art === 'eingespannt' ? 'al-starr' : 'al-feder';
+  /*
+   * EIGENE KLASSENNAMEN. «al-feder» heisst schon die Zeile eines
+   * Federwertes im aufgeklappten Teil - dieselbe Klasse zweimal vergeben,
+   * und das Blatt legt deren Raster (42px 1fr) ueber diese Zeile: der Wert
+   * bekam 42 Punkte, lief darueber hinaus und stand im Text.
+   */
+  const eKlasse = e.art === 'gelenk' ? 'al-e-frei'
+    : e.art === 'eingespannt' ? 'al-e-starr' : 'al-e-feder';
 
   /*
    * >>> UND OB DAS SYSTEM UEBERHAUPT STEHT. <<<
@@ -608,7 +670,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     ${bild}
     ${labilHtml}
     ${matrix}
-    <p class="al-einspannung ${eKlasse}">${eText}</p>
+    <p class="al-einspannung ${eKlasse}">
+      <span class="al-e-wert">${eWert}</span>
+      <span class="al-e-text">${eText}</span></p>
     ${klapp(`auflager-federn-${feld}`, 'Federwerte und Drehfedern',
             federKreuz + federn,
             vorgabefeld ? 'Voreinstellung'

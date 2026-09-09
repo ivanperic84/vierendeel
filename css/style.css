@@ -2128,6 +2128,17 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
    steht sie ueber die Textbreite, hier in einer 300 px schmalen Spalte. */
 .al-skizze text { font-size: 9.5px; }
 .al-skizze text.dim { font-size: 9px; }
+.al-skizze text.xdim { fill: var(--xdim); font-size: 9px; }
+/* FEINER ALS IM HANDBUCH (Weisung, 9. September: «die grauen linien der
+   jochstruktur können feiner ausfallen»). Dort traegt die Skizze die ganze
+   Textbreite, hier steht sie in einer schmalen Spalte - dieselbe Strichdicke
+   wirkt darin plump, und sie soll ohnehin zuruecktreten: das Thema ist die
+   Lagerung. */
+.al-skizze .b { stroke-width: 2; }
+.al-skizze .kasten { stroke-width: 1.4; }
+/* Die Achse, die aus der Ebene zeigt, steht zurueck. */
+.skizze .mt  { stroke: var(--xdim); stroke-width: 1; fill: none; }
+.skizze .mtf { fill: var(--xdim); stroke: none; }
 .al-skizze { margin: 0; flex: 1 1 168px; min-width: 0; }
 /* DIE ANSCHRIFT SAGT, WAS MAN SIEHT (Weisung, 9. September: «kannst du noch
    die anschrift Ansicht und Schnitt etwas sichtbarer machen»). Sie stand in
@@ -2205,23 +2216,36 @@ svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
    dieselben drei wie die Schaltflaechen darueber, denn sie ist deren
    Ergebnis: Gelenk wie «frei», eingespannt wie «starr», eine Zahl wie eine
    Feder. */
+/* WERT UND ERKLAERUNG STEHEN GETRENNT (Weisung, 9. September: «der text der
+   drehfeder ordnen»). Der Wert darf nicht umbrechen - «c_φ ≈ 1250 kNm/rad»
+   ist EINE Angabe -, und als Teil eines Fliesstexts schob er die Zeilen
+   ineinander. Jetzt steht er in seiner eigenen. */
 .al-einspannung {
-  margin: 0; font-size: 10.5px; line-height: 1.5; padding: 3px 0 0 9px;
-  border-left: 2px solid var(--ol); color: var(--dim);
+  margin: 0; padding: 3px 0 3px 9px; border-left: 2px solid var(--ol);
+  color: var(--dim); display: grid; gap: 1px;
 }
-/* «c_φ ≈ 1250 kNm/rad» ist EINE Angabe - in der schmalen Spalte brach sie
-   sonst nach dem Zeichen um. */
-.al-einspannung b { white-space: nowrap; }
-.al-einspannung.al-starr { border-left-color: var(--ok); color: var(--ok); }
-.al-einspannung.al-feder { border-left-color: var(--warn); color: var(--warn); }
-.al-einspannung.al-frei  { border-left-style: dashed; }
+.al-e-wert { font-size: 11.5px; font-weight: 600; font-family: var(--f-mono);
+             white-space: nowrap; }
+.al-e-text { font-size: 10px; line-height: 1.45; color: var(--dim); }
+.al-einspannung.al-e-starr { border-left-color: var(--ok); color: var(--ok); }
+.al-einspannung.al-e-feder { border-left-color: var(--warn);
+                             color: var(--warn); }
+.al-einspannung.al-e-frei  { border-left-style: dashed; }
 
 .al-federn { display: grid; gap: 3px; margin-bottom: 8px; }
 .al-federn > b { font-size: 11px; color: var(--dim, #7a8699); }
-.al-feder { display: grid; grid-template-columns: 42px 1fr 56px;
+.al-feder { display: grid; grid-template-columns: 42px 1fr;
             align-items: center; gap: 6px; }
-.al-feder span { font-size: 11px; color: var(--dim, #7a8699); }
-.al-feder small { font-size: 10px; color: var(--dim, #7a8699); }
+.al-feder > span { font-size: 11px; color: var(--dim, #7a8699); }
+/* DIE EINHEIT LIEGT IM FELD, die Zahl steht rechtsbuendig davor (Weisung,
+   9. September). Als eigene Spalte kostete sie die Breite, die der Zahl
+   fehlte. */
+.al-feld { position: relative; display: block; }
+.al-feld input { width: 100%; text-align: right; padding-right: 46px; }
+.al-feld small {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  font-size: 9.5px; color: var(--xdim); pointer-events: none;
+}
 
 /* ===========================================================================
  * DAS SICHTBARKEITSSYMBOL AN DER MASTKACHEL
