@@ -15474,6 +15474,80 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       wahr('Beim beweglichen fehlt sie nie',
            !FL.abfangkraft('drahtwerk-r-fl-stcu-92',
                            { tempFall: 'havarie' }).ohneTabelle);
+
+      /*
+       * ============== DIE REGLAGETABELLE ==============================
+       *
+       * Weisung vom 9. September: «die werte sin in einer anderen app
+       * hinterlegt.» Von dort kommt die Tabelle des Rueckleiters Cu 95.
+       *
+       * >>> DER STUETZWERT BEI +5 IST DIE PROBE. <<<
+       *
+       * Katalog und Tabelle beschreiben dasselbe. Faellt die Spalte +5 der
+       * Tabelle nicht mit `leiterzug` zusammen, laufen zwei Zahlen
+       * nebeneinander her - und im Nachweis steht bald die falsche.
+       */
+      {
+        const mitTab = FL.flBauteile()
+          .filter((b) => FL.reglageTabelle(b.id));
+        wahr('Der Katalog fuehrt Reglagetabellen', mitTab.length > 0,
+             `${mitTab.length} Drahtwerke`);
+        mitTab.forEach((b) => {
+          pruef(`${b.id}: Spalte +5 ist der Katalogwert`,
+                FL.reglageZug(b.id, 5), FL.leiterzug(b.id), 1e-9, 'kN');
+          const r = FL.reglageTabelle(b.id);
+          wahr(`${b.id}: kalt zieht staerker`,
+               r.vals.every((v, i) => i === 0 || v <= r.vals[i - 1] + 1e-9));
+          wahr(`${b.id}: Temperaturen steigen`,
+               r.temps.every((v, i) => i === 0 || v > r.temps[i - 1]));
+        });
+
+        // Der Rueckleiter Cu 95, 6 kN Basiskraft - drei Stuetzstellen.
+        pruef('Cu 95 bei -20 Grad', FL.reglageZug('drahtwerk-cu-95', -20),
+              6.0, 1e-9, 'kN');
+        pruef('… bei -5 Grad', FL.reglageZug('drahtwerk-cu-95', -5),
+              4.6, 1e-9, 'kN');
+        pruef('… bei +5 Grad', FL.reglageZug('drahtwerk-cu-95', 5),
+              3.9, 1e-9, 'kN');
+        // Vier Leiter ziehen viermal so stark.
+        pruef('Vier Cu 95 bei -20', FL.reglageZug('drahtwerk-cu-95-x4', -20),
+              24.0, 1e-9, 'kN');
+
+        /*
+         * ZWISCHEN DEN STUETZSTELLEN WIRD LINEAR INTERPOLIERT - eine
+         * Naeherung, die im Nachweis nie zum Zug kommt: -20, -5 und +5 sind
+         * selbst Stuetzstellen.
+         */
+        pruef('Zwischen -5 und 0 wird interpoliert',
+              FL.reglageZug('drahtwerk-cu-95', -2.5), 4.4, 1e-9, 'kN');
+        /*
+         * AUSSERHALB GILT DER RANDWERT. Die Tabelle zu verlaengern hiesse,
+         * ueber ihren Geltungsbereich hinaus zu rechnen.
+         */
+        pruef('Unter -20 bleibt es beim Randwert',
+              FL.reglageZug('drahtwerk-cu-95', -40), 6.0, 1e-9, 'kN');
+        pruef('Ueber +40 ebenso',
+              FL.reglageZug('drahtwerk-cu-95', 60), 2.6, 1e-9, 'kN');
+        wahr('Ohne Tabelle gibt es keine Zahl',
+             FL.reglageZug('drahtwerk-n-fl-stcu-50', -20) === null);
+
+        /*
+         * >>> DER Cu 95 GILT HEUTE ALS BEWEGLICH. <<<
+         *
+         * Die Tabelle sagt etwas anderes - ein beweglich abgefangener Leiter
+         * haette in jeder Spalte dieselbe Kraft. Die Abfangart zu aendern
+         * ist nachweiserheblich und Sache des Auftraggebers; solange sie
+         * steht, greift die Tabelle nicht, und die Kontrolle haelt fest,
+         * WELCHER Stand geprueft ist.
+         */
+        pruef('Cu 95 rechnet vorerst mit dem Wert von +5 Grad',
+              FL.abfangkraft('drahtwerk-cu-95', { tempFall: 'havarie' }).Z,
+              3.9, 1e-9, 'kN');
+        wahr('… und meldet dabei keine fehlende Tabelle, weil er als '
+             + 'beweglich gilt',
+             !FL.abfangkraft('drahtwerk-cu-95',
+                             { tempFall: 'havarie' }).ohneTabelle);
+      }
     }
 
     /*

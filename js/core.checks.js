@@ -561,10 +561,12 @@ export function hinweise(m) {
      * gekoppelt. Wind leiteinwirkung -> +5° Schnee leiteinwirkung -5° und
      * Havariefall (ohne veraenderliche einwirkungen) -> -20°.»
      *
-     * Die Kopplung steht (`ABFANG_FAELLE`). Was fehlt, ist die
-     * REGLAGETABELLE: der Katalog fuehrt je Drahtwerk EINEN Wert, gueltig
-     * bei +5 °C. Fuer -5 und -20 gibt `abfangkraft` denselben Wert zurueck
-     * und meldet es.
+     * Die Kopplung steht (`ABFANG_FAELLE`), und seit dem 9. September fuehrt
+     * der Katalog Reglagetabellen (`reglageZug`). Fuer das BELASTETE
+     * TRAGSEIL der N-FL - den einzigen fix abgefangenen Teil - liegt keine
+     * vor: die Quelle tabelliert dort den unbelasteten Zustand, den der
+     * Nachweis nicht braucht. Wo die Tabelle fehlt, gibt `abfangkraft` den
+     * Wert von +5 °C zurueck und meldet es.
      *
      * DAS IST DIE UNSICHERE RICHTUNG. Ein fix abgefangener Leiter zieht
      * KALT STAERKER; der Schnee- und der Havariefall stehen damit zu
@@ -581,9 +583,10 @@ export function hinweise(m) {
       }));
     if (ohneTab.length) {
       h.push('Die Regliertemperatur folgt der Kombination — Wind leitend '
-        + '+5 °C, Schnee leitend −5 °C, Havarie −20 °C. Die REGLAGETABELLE '
-        + 'ist nicht erfasst: für −5 und −20 °C steht die Zugkraft von '
-        + `+5 °C (${ohneTab.map((t2) => t2.name ?? 'Leiter').join(', ')}). `
+        + '+5 °C, Schnee leitend −5 °C, Havarie −20 °C. Für diese fix '
+        + 'abgefangenen Leiter fehlt die REGLAGETABELLE, es steht die '
+        + 'Zugkraft von +5 °C: '
+        + `${ohneTab.map((t2) => t2.name ?? 'Leiter').join(', ')}. `
         + 'Ein fix abgefangener Leiter zieht kalt STÄRKER — der Schnee- und '
         + 'der Havariefall stehen damit zu günstig da.');
     }

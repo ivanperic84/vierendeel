@@ -154,6 +154,71 @@ export function flLastwerte(id, { ek = 'EK2', laenge = 1, anzahl = 1 } = {}) {
 export const leiterzug = (id) => getFlBauteil(id).leiterzug ?? 0;
 
 /* ===========================================================================
+ * DIE REGLAGETABELLE - ZUGKRAFT JE TEMPERATUR
+ * ===========================================================================
+ *
+ * Weisung vom 9. September: «die werte sin in einer anderen app hinterlegt»
+ * (Durchhang). Von dort stammt die Tabelle des RUECKLEITERS Cu 95 mit
+ * 6 kN Basiskraft:
+ *
+ *     -20 °C   6.0 kN        +5 °C   3.9 kN        +20 °C   3.2 kN
+ *
+ * >>> DER STUETZWERT BESTAETIGT DIE ZUORDNUNG. <<<
+ *
+ * Der Katalog fuehrt fuer Cu 95 3.9 kN, und die Tabelle nennt bei +5 °C
+ * genau 3.9. Beide Quellen beschreiben dasselbe - der Katalogwert ist der
+ * Wert einer Spalte, nicht eine eigene Groesse. Die Daten laden pruefen das
+ * (`pruefung.mjs`), damit eine spaetere Tabelle nicht neben dem Katalog
+ * herlaeuft.
+ *
+ * >>> DIE TABELLE FUEHRT DAS GANZE DRAHTWERK. <<<
+ *
+ * Ein Katalogeintrag fasst Tragseil und Fahrdraht zusammen; die Tabelle tut
+ * dasselbe. Der beweglich abgefangene Teil steht dabei in jeder Spalte
+ * gleich - er haengt an der Nachspannung, nicht an der Temperatur.
+ * =========================================================================== */
+
+/**
+ * Die Reglagetabelle eines Drahtwerks, oder `null`.
+ *
+ * @returns {{temps:number[], vals:number[]}|null} Temperaturen [°C] und
+ *          Zugkräfte [kN], aufsteigend nach Temperatur
+ */
+export function reglageTabelle(id) {
+  const r = (typeof id === 'string' ? getFlBauteil(id) : id)?.reglage;
+  if (!Array.isArray(r?.temps) || !Array.isArray(r?.vals)) return null;
+  if (r.temps.length !== r.vals.length || r.temps.length < 2) return null;
+  return r;
+}
+
+/**
+ * Die Zugkraft eines Drahtwerks bei der Temperatur T [kN], oder `null`.
+ *
+ * Zwischen den Stützstellen wird LINEAR interpoliert. Das ist eine Näherung
+ * — der Zusammenhang ist es nicht —, aber die Tabelle steht in 5-°C-Schritten
+ * und die drei Regliertemperaturen des Nachweises (−20, −5, +5) sind selbst
+ * Stützstellen. Interpoliert wird also nur, wo jemand von Hand eine
+ * Zwischentemperatur einsetzt.
+ *
+ * Ausserhalb der Tabelle gilt der Randwert; sie zu verlängern hiesse, über
+ * ihren Geltungsbereich hinaus zu rechnen.
+ */
+export function reglageZug(id, T) {
+  const r = reglageTabelle(id);
+  if (!r || !Number.isFinite(T)) return null;
+  const { temps, vals } = r;
+  if (T <= temps[0]) return vals[0];
+  if (T >= temps[temps.length - 1]) return vals[vals.length - 1];
+  for (let i = 1; i < temps.length; i += 1) {
+    if (T <= temps[i]) {
+      const f = (T - temps[i - 1]) / (temps[i] - temps[i - 1]);
+      return vals[i - 1] + f * (vals[i] - vals[i - 1]);
+    }
+  }
+  return null;
+}
+
+/* ===========================================================================
  * FIX ODER BEWEGLICH - WIE EIN LEITER ABGEFANGEN WIRD
  * ===========================================================================
  *
@@ -184,13 +249,23 @@ export const leiterzug = (id) => getFlBauteil(id).leiterzug ?? 0;
  * Beim R-FL sind beide beweglich, das ganze Drahtwerk also
  * temperaturunabhängig.
  *
- * >>> DIE ZAHLEN FALLEN HEUTE ZUSAMMEN. <<<
+ * >>> DIE ZAHLEN FALLEN BEI +5 °C ZUSAMMEN. <<<
  *
  * Der Katalog führt Z bei +5 °C, und die Bemessung mit Wind rechnet bei
- * +5 °C. Fix und beweglich geben dort denselben Wert. Der Unterschied
- * greift erst bei den kälteren Fällen - Schnee bei −5, Havarie bei −20 -,
- * und für die fehlt die Reglagetabelle noch. Solange sie fehlt, sagt
+ * +5 °C. Fix und beweglich geben dort denselben Wert. Der Unterschied greift
+ * erst bei den kälteren Fällen — Schnee bei −5, Havarie bei −20 —, und dort
+ * entscheidet die REGLAGETABELLE (`reglageZug`). Wo sie fehlt, sagt
  * `abfangkraft` es, statt eine Zahl zu erfinden.
+ *
+ * >>> OFFEN: DAS BELASTETE TRAGSEIL DER N-FL. <<<
+ *
+ * Genau für den einzigen fix abgefangenen Teil liegt die Tabelle NICHT vor.
+ * Die Reglagetabelle führt je Kettenwerk den UNBELASTETEN Zustand über die
+ * Temperatur — den Wert der Montage — und den belasteten nur bei EINER
+ * Temperatur. Der belastete ist der, der in den Nachweis geht (Weisung vom
+ * 3. September). Ihn aus dem unbelasteten herzuleiten hiesse, die
+ * Zustandsgleichung an die Stelle der Daten zu setzen; das ist nicht diese
+ * Anwendung.
  * =========================================================================== */
 
 /**
@@ -211,9 +286,20 @@ export function abfangArt(id) {
   const hatFd = /-fd-/.test(n) || /-cu-\d/.test(n);
   /*
    * NUR DAS TRAGSEIL DER N-FL IST FIX. Alles andere haengt an einer
-   * Nachspannung - auch der Rueckleiter Cu 95, fuer den keine eigene
-   * Weisung vorliegt: beweglich ist dort die Annahme, die keine
-   * Temperaturabhaengigkeit erfindet.
+   * Nachspannung.
+   *
+   * >>> BEIM RUECKLEITER Cu 95 IST DAS ZU KLAEREN. <<<
+   *
+   * Fuer ihn liegt keine Weisung vor, und `beweglich` war die Annahme, die
+   * keine Temperaturabhaengigkeit erfindet. Seit der 9. September die
+   * Reglagetabelle brachte, steht sie gegen die Daten: die Tabelle fuehrt
+   * den Cu 95 ueber die Temperatur - 3.9 kN bei +5 °C, 6.0 kN bei -20 °C.
+   * Ein beweglich abgefangener Leiter haette dort in jeder Spalte dieselbe
+   * Kraft.
+   *
+   * Bis der Auftraggeber es sagt, bleibt es bei `beweglich` - die Aenderung
+   * waere nachweiserheblich und nicht meine. Die Tabelle liegt im Katalog
+   * bereit; sie greift in dem Augenblick, in dem hier 'fix' steht.
    */
   const ts = hatTs ? (/^drahtwerk-n-fl/.test(n) ? 'fix' : 'beweglich') : null;
   const fd = hatFd ? 'beweglich' : null;
@@ -232,24 +318,32 @@ export function abfangArt(id) {
  *
  * @param {string} id       Katalog-Id des Drahtwerks
  * @param {object} opt      {tempFall: Schlüssel aus REGLIERTEMPERATUREN}
- * @returns {{Z:number, art:string, T:number, temperaturabhaengig:boolean,
+ * @returns {{Z:number, Z5:number, art:string, T:number,
+ *            temperaturabhaengig:boolean, ausTabelle:boolean,
  *            ohneTabelle:boolean}}
  */
 export function abfangkraft(id, { tempFall = 'tragsicherheit' } = {}) {
-  const Z = leiterzug(id);
+  const Z5 = leiterzug(id);
   const a = abfangArt(id);
   const T = reglierTemperatur(tempFall);
   const fixDabei = a.ts === 'fix' || a.fd === 'fix';
   /*
-   * >>> OHNE TABELLE KEINE ZAHL. <<<
+   * >>> DIE TABELLE, WENN ES SIE GIBT - SONST DIE MELDUNG. <<<
    *
-   * Der Katalog fuehrt Z bei +5 °C. Fuer -5 und -20 braeuchte es die
-   * Reglagetabelle, und die ist nicht erfasst. Statt zu interpolieren -
-   * der Zusammenhang ist nicht linear - sagt die Funktion, dass sie den
-   * Wert von +5 zurueckgibt, obwohl ein kaelterer Fall gefragt war.
+   * Der Katalog fuehrt Z bei +5 °C. Liegt fuer dieses Drahtwerk die
+   * Reglagetabelle vor, kommt der kalte Wert von dort. Liegt sie nicht vor,
+   * gibt die Funktion den Wert von +5 zurueck und SAGT es - statt zu
+   * schaetzen, wo der Zusammenhang nicht linear ist.
+   *
+   * Nur der FIX abgefangene Leiter folgt der Temperatur. Beim beweglichen
+   * haelt die Nachspannung die Kraft konstant; eine Tabelle wuerde ihn auch
+   * dann nicht beschreiben, wenn eine dalaege.
    */
-  const ohneTabelle = fixDabei && T !== 5;
-  return { Z, art: a.art, T, temperaturabhaengig: fixDabei, ohneTabelle };
+  const ausTab = fixDabei ? reglageZug(id, T) : null;
+  const ohneTabelle = fixDabei && ausTab === null && T !== 5;
+  return { Z: ausTab ?? Z5, Z5, art: a.art, T,
+           temperaturabhaengig: fixDabei,
+           ausTabelle: ausTab !== null, ohneTabelle };
 }
 
 export function flStand() {

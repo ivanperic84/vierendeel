@@ -261,7 +261,45 @@ kommen nur 1.0 und 1.30 vor, auf veränderliche 1.30 und 0.65 = 1.30 · 0.50.
 Nie 1.35 oder 1.50. <b>γ_Q 1.50 gegen 1.30 sind 15 % auf jede veränderliche
 Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.`)}
 
-<h4>3.5 Gebrauchstauglichkeit</h4>
+<h4>3.5 Regliertemperatur und Leiterzug</h4>
+<p>Die Zugkraft eines Leiters hängt davon ab, <b>wie er abgefangen</b> ist.
+Über eine Nachspannung – <i>beweglich</i> – hält ein Gewicht die Kraft
+konstant, gleich wie kalt es ist. Starr verankert – <i>fix</i> – folgt sie der
+Temperatur: der Draht zieht sich zusammen und kann nirgends nachgeben, die Kraft
+wächst. Bei der N-FL ist <b>nur das Tragseil</b> fix abgefangen; die
+Fahrdrähte und das ganze R-FL-Kettenwerk hängen an einer Nachspannung.</p>
+
+<p>Welche Temperatur im Nachweis gilt, ist keine Ableitung, sondern eine
+<b>Festlegung</b> – und sie hängt an der Kombination:</p>
+
+<table class="dt">
+<tr><th>Kombination</th><th>Regliertemperatur</th><th>Warum</th></tr>
+<tr><td>Wind leitend</td><td>+5 °C</td><td>Regelfall der Bemessung</td></tr>
+<tr><td>Schnee leitend</td><td>−5 °C</td><td>Schnee fällt bei Frost – die
+  Schneelast trifft auf einen straffer gezogenen Leiter</td></tr>
+<tr><td>Havarie</td><td>−20 °C</td><td>grösste Zugkraft; ausser­gewöhnliche
+  Einwirkung ohne veränderliche Lasten, ständige charakteristisch</td></tr>
+</table>
+
+<p><b>Der Havariefall sucht nicht die grösste Last, sondern die grösste
+Ungleichheit.</b> Ohne Wind und Schnee steht er unter allen dreien am
+niedrigsten – massgebend wird er, wenn ein Leiter als <b>gebrochen</b>
+bezeichnet ist: seine Kraft fällt weg, der gegenüberliegende zieht weiter,
+und das Joch trägt die Differenz.</p>
+
+<p>Die Zugkraft je Temperatur steht in der <b>Reglagetabelle</b>. Der
+Bauteilkatalog führt den Wert bei +5 °C; liegt für ein Drahtwerk die
+Tabelle vor, kommt der kalte Wert von dort (zwischen den Stützstellen linear
+– die drei Regliertemperaturen sind selbst Stützstellen). Liegt sie nicht
+vor, rechnet das Werkzeug mit dem Wert von +5 °C und <b>sagt es</b>.</p>
+
+${q(`Das ist die <b>unsichere Richtung</b>. Ein fix abgefangener Leiter zieht
+kalt stärker; steht für ihn nur der Wert von +5 °C, sind der Schnee- und
+der Havariefall zu günstig gerechnet. Der Hinweis in der Übersicht nennt
+die betroffenen Leiter beim Namen – ihre Zugkraft ist dann von Hand
+einzusetzen.`)}
+
+<h4>3.6 Gebrauchstauglichkeit</h4>
 <p>Alle ständigen Beiwerte 1.0, die veränderlichen abgemindert. Geführt wird
 <b>nur die seltene Stufe</b>: leitende Einwirkung 1.00, begleitende 0.50.</p>
 
@@ -276,7 +314,7 @@ Gebrauchstauglichkeit selbst (Durchbiegung, Verdrehung des Jochs,
 Querverschiebung der Mastköpfe und damit die Solllage des Fahrdrahts) ist im
 Werkzeug <b>nicht geführt</b>. Sie erscheint deshalb nicht in η.`)}
 
-<p class="hb-quelle">core.lasten.js · core.trasse.js</p>
+<p class="hb-quelle">core.lasten.js · core.trasse.js · data.fl.js · core.abfangjoch.js</p>
 `,
 },
 
