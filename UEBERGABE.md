@@ -27,6 +27,46 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Die Auflagerbedingung ist ein eigenes Modul (5. September)
+
+Frage: «haben wir diese eingabe schon als modul ausgelagert?» — Nein, sie lag
+zur Hälfte in `core.auflager.js` (die Daten) und zur Hälfte mitten in `ui.js`
+(das Bild, rund 250 Zeilen zwischen Anbauteilskizze und Maskenaufbau). Jetzt
+drei Schichten:
+
+| Modul | Zuständig für |
+|---|---|
+| `core.auflager.js` | **was gilt** — `LINK_GRADE`, `LINK_EBENEN`, `LINK_VORGABEN`, `linkBedingung`, `linkGelenk`, `linkEinspannung`, `mastLaengeVorgabe` |
+| `js/ui.auflagerlinks.js` | **wie es aussieht und sich bedienen lässt** — `auflagerDiagrammHtml`, `verdrahteAuflagerLinks` |
+| `ui.js` | **wo es steht** — in der Maske beim Feld `auflagerLinks`, im Optionsdialog bei `auflagerVorgabe` |
+
+Der Schnitt lohnt sich, weil dasselbe Bild an **zwei** Orten steht und die
+nächste Tragwerksart (Tragausleger) es ein drittes Mal braucht. Mitgewandert
+ist die Isometrie (`ISO`, `isoP`); `linkUmschalten` blieb liegen — es rief
+niemand mehr, seit der Klick die gesetzte Feder berücksichtigt.
+
+`ui.js` verliert damit den Import aus `core.auflager.js` vollständig. Das neue
+Modul steht in `sw.js` (der Prüfstand hält fest, dass der Dienstarbeiter jedes
+Modul aus `js/` führt) und bündelt vor `ui.js`.
+
+### Am Masten ziehen — zurückgenommen (5. September)
+
+Der Abschnitt weiter unten beschreibt das Ziehen in der Querprofil-Leiste. Es
+ist **raus**; Weisung vom 5. September: «nimm die funktion des drag and drop in
+der sidebar unter tragwerke raus, diese funktion ist zu unpräzise.» Sie war es:
+die Bahn trägt bis zu vierzig Meter auf ein paar hundert Pixel — ein Pixel sind
+zehn Zentimeter.
+
+An seiner Stelle steht das **Kontextmenü im Modell**:
+
+| Element | Einträge |
+|---|---|
+| Tragwerk | Lage x₀ als Zahl · «… kopieren» · Auf dieses zoomen · Vom Blatt nehmen |
+| Anbauteil | Lage x (bzw. Höhe am Masten) als Zahl · Kopieren · Entfernen |
+
+Die Kopie eines Tragwerks trägt den ganzen Satz mit — Typ, Länge, Profile,
+Bleche, Anbauteile — und sitzt eine Jochlänge weiter; sie wird zum gerechneten.
+
 ### Die Leiste wird ein Aufriss (2. September)
 
 Weisung: «Die masten in der tragwerkdarstellung klarer ausbilden, nicht als
