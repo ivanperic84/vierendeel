@@ -59,15 +59,31 @@ import { linkEinspannung } from './core.auflager.js';
  *
  * Die Modellansicht faerbt nach `f.werte[feld]`: ist der Wert eine Zahl,
  * kommt eine Farbe der Ausnutzungsskala; fehlt das Feld `werte` GANZ, faellt
- * sie auf die Bauteilfarbe zurueck - und das Abfangjoch stand in den
- * Plot-Ansichten (eta, sigma, M, V) im gewoehnlichen Stahlton da, als waere
- * es nachgewiesen. Es ist es nicht: sein Rechenkern haengt an keiner Stelle
- * der Anwendung.
+ * sie auf die Bauteilfarbe zurueck - das Abfangjoch stuende in den
+ * Plot-Ansichten im gewoehnlichen Stahlton da, als waere es nachgewiesen.
  *
- * Ein LEERER Wertesatz sagt genau das: das Feld ist da, die Zahl fehlt, und
- * die Ansicht faerbt neutral. «Lieber eine Luecke als eine Farbe, die eine
- * Groesse vortaeuscht» - so steht es dort schon fuer die einzelne fehlende
- * Zahl.
+ * Ein LEERER Wertesatz sagt das Gegenteil: das Feld ist da, die Zahl fehlt,
+ * und die Ansicht faerbt neutral.
+ *
+ * >>> SEIT ES SEINEN NACHWEIS HAT, STEHEN DORT ZAHLEN. <<<
+ *
+ * Weisung vom 9. September: «das abfangjoch im modell fertig bauen, es ist
+ * noch alles grau und ohne anbauteile. achte darauf das die darstellung dem
+ * prinzip der tragjoche entspricht.»
+ *
+ * `abfangAuswertung` rechnet seit dem 8. September Gurt und Bleche Station
+ * fuer Station. Bekommt die Szene dieses Ergebnis (`opt.erg`), traegt jeder
+ * Gurtabschnitt und jedes Blech seine eigenen Werte - dieselben Felder wie
+ * beim Tragjoch, damit die Plotumschaltung ohne Sonderfall arbeitet:
+ *
+ *      eta     Ausnutzung
+ *      sig_v   Gurt: Summe der Normalspannungen · Blech: von Mises
+ *      sig     Gurt: aus der Normalkraft · Blech: aus dem Anschnittmoment
+ *      M       Gurt: oertliches Rahmenmoment · Blech: Anschnittmoment
+ *      V       nur die Bleche - wie beim Tragjoch bleiben die Gurte grau
+ *
+ * OHNE Ergebnis bleibt es beim leeren Satz: ein Typ ohne erfasste Blechlage
+ * ist nicht rechenbar, und ein Nachbartragwerk wird gar nicht gerechnet.
  */
 const OHNE_WERTE = Object.freeze({});
 
@@ -95,6 +111,32 @@ export function abfangSzene(typ, jt, opt = {}) {
   const ein = abfangBlechstationen(typ, jt);
   const bl = abfangBindeblech(typ);
   const sw = abfangStuetzweite(typ, jt);
+
+  /*
+   * DIE WERTE JE STELLE - aus der Reihe des Gurtnachweises.
+   *
+   * Genommen wird die naechstgelegene Stelle, nicht interpoliert: die Reihe
+   * steht an den Stationen und an den Auflagern, und dazwischen aendert sich
+   * die Ausnutzung stetig. Ein Abschnitt traegt damit den Wert der Stelle,
+   * die ihm gehoert - so faerbt auch das Tragjoch.
+   */
+  const A = opt.erg ?? null;
+  const gurtWerte = (x) => {
+    const r = A?.reihe;
+    if (!Array.isArray(r) || !r.length) return OHNE_WERTE;
+    const n = r.reduce((a2, b2) =>
+      (Math.abs(b2.x - x) < Math.abs(a2.x - x) ? b2 : a2), r[0]);
+    return { eta: n.eta, sig_v: n.sigma, sig: n.sigN, M: n.Moertl, N: n.N };
+  };
+  /** Die Werte eines Blechs oder einer Quersteife an der Station x. */
+  const blechWerte = (x) => {
+    const liste = A?.bleche?.bleche;
+    if (!Array.isArray(liste) || !liste.length) return OHNE_WERTE;
+    const n = liste.reduce((a2, b2) =>
+      (Math.abs(b2.x - x) < Math.abs(a2.x - x) ? b2 : a2), liste[0]);
+    return { eta: n.eta, sig_v: n.sigmaV, sig: n.sigma,
+             M: n.Mblech, V: n.Vblech };
+  };
 
   const e = q.e / 100;                    // cm -> m, Achsabstand der Gurte
   const hG = p.h / 100;                   // Profilhöhe [m]
@@ -274,6 +316,7 @@ export function abfangSzene(typ, jt, opt = {}) {
       flaechen.push(...prisma(polyGurt(xs[i], s), xs[i], xs[i + 1], {
         gruppe: 'profil', teil: s > 0 ? 'GURT_V' : 'GURT_H', station: i,
         farbeBauteil: fbGurt,
+        werte: gurtWerte((xs[i] + xs[i + 1]) / 2),
         label: `Gurt ${s > 0 ? 'vorn' : 'hinten'} · ${p.name}`,
       }, 0, 0, polyGurt(xs[i + 1], s)));
     }
@@ -383,6 +426,7 @@ export function abfangSzene(typ, jt, opt = {}) {
          * Schaltergruppe.
          */
         gruppe: 'blech', teil: `STEIFE_${k}`, station: k, farbeBauteil: fb,
+        werte: blechWerte(x),
         label: `Quersteife · ${pSt.name} × ${mm}`,
       }));
       return;
@@ -397,7 +441,7 @@ export function abfangSzene(typ, jt, opt = {}) {
                            `${kurz} ${m2.b}×${m2.t}×${m2.l}`, 'blech');
       flaechen.push(...platte(x, m2.b ?? 100, 'z', s * zf, -lB / 2, lB / 2, {
         gruppe: 'blech', teil: `BL_${s > 0 ? 'O' : 'U'}${k}`, station: k,
-        dicke: m2.t ?? 8, farbeBauteil: fb,
+        dicke: m2.t ?? 8, farbeBauteil: fb, werte: blechWerte(x),
         label: `${kurz} ${m2.b}×${m2.t}×${m2.l}`,
       }));
     }
@@ -594,9 +638,16 @@ export function abfangSzene(typ, jt, opt = {}) {
     }
   }
 
+  /*
+   * DER NAME IST DER NAME (Weisung, 9. September: «nimm beim namen des jochs
+   * im 3d die station weg»). Wieviele Blechstationen der Typ fuehrt, steht
+   * in der Stueckliste und an den Blechen selbst; im Titel war es eine
+   * dritte Zahl, die niemand liest - beim Tragjoch steht dort auch nur Typ
+   * und Laenge.
+   */
   bauteiltitel.push({
     p: [jt / 2, 0, hG / 2 + 0.25],
-    text: `${typ} · ${jt.toFixed(2)} m · ${ein?.anzahl ?? 0} Stationen`,
+    text: `${typ} · ${jt.toFixed(2)} m`,
     feld: 'abfangTyp', tab: 'system',
   });
   masse.push({

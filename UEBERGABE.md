@@ -27,6 +27,38 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Das Abfangjoch im Modell (9. September)
+
+Weisung: «das abfangjoch im modell fertig bauen, es ist noch alles grau und
+ohne anbauteile. nimm beim namen des jochs im 3d die station weg. achte darauf
+das die darstellung dem prinzip der tragjoche entspricht.»
+
+**Grau war es aus einem Grund, der nicht mehr gilt.** Am 4. September bekam
+die Abfangjoch-Szene bewusst einen *leeren* Wertesatz (`OHNE_WERTE`): sein
+Rechenkern hing damals an keiner Stelle der Anwendung, und eine Farbe aus der
+Ausnutzungsskala wäre eine Behauptung gewesen. Seit dem 8. September rechnet
+`abfangAuswertung` Gurt und Bleche Station für Station.
+
+Die Szene bekommt dieses Ergebnis jetzt als `opt.erg` und trägt **dieselben
+Felder wie das Tragjoch**, damit die Plotumschaltung ohne Sonderfall arbeitet:
+
+| Feld | Gurt | Blech / Quersteife |
+|---|---|---|
+| `eta` | Ausnutzung | Ausnutzung |
+| `sig_v` | Summe der Normalspannungen | von Mises |
+| `sig` | aus der Normalkraft | aus dem Anschnittmoment |
+| `M` | örtliches Rahmenmoment | Anschnittmoment |
+| `V` | — (grau, wie beim Tragjoch) | Blechquerkraft |
+
+Genommen wird die **nächstgelegene Stelle** der Reihe, nicht interpoliert: die
+Reihe steht an den Stationen und an den Auflagern. Gemessen an A330 / 26.50 m:
+2170 von 2230 Flächen tragen Werte, η läuft von 0.001 bis 0.483. Ohne Ergebnis
+bleibt alles neutral — ein nicht gerechnetes Nachbartragwerk soll nicht
+aussehen wie ein nachgewiesenes.
+
+**Der Bauteiltitel** heisst jetzt «A330 · 26.50 m» statt «… · 49 Stationen» —
+beim Tragjoch steht dort auch nur Typ und Länge.
+
 ### Der Mastfuss ist der Nullpunkt (9. September)
 
 Weisung: «Die Anschlusshöhe bezieht sich immer auf den Mastfuss des linken

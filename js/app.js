@@ -697,7 +697,14 @@ function blattSzene(erg) {
     ? abfangSzene(werte.abfangTyp, Number(werte.L),
                   { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
                     mast: abfangMastAngabe(tragwerkSatz(werte)),
-                    lager: tragwerkSatz(werte) })
+                    lager: tragwerkSatz(werte),
+                    /*
+                     * DAS ERGEBNIS FAERBT DAS BILD (Weisung, 9. September:
+                     * «es ist noch alles grau»). Nur das GERECHNETE Tragwerk
+                     * bekommt es - ein Nachbar wird nicht gerechnet, und
+                     * eine Farbe aus der Skala waere dort eine Behauptung.
+                     */
+                    erg: erg.abfang ?? null })
     : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
   /*
    * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<

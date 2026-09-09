@@ -12938,6 +12938,68 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DAS ABFANGJOCH FAERBT NACH SEINEM EIGENEN NACHWEIS. <<<
+   *
+   * Weisung vom 9. September: «das abfangjoch im modell fertig bauen, es ist
+   * noch alles grau und ohne anbauteile. nimm beim namen des jochs im 3d die
+   * station weg. achte darauf das die darstellung dem prinzip der tragjoche
+   * entspricht.»
+   *
+   * Grau war es aus einem Grund, der seit dem 8. September nicht mehr gilt:
+   * `abfangAuswertung` rechnet Gurt und Bleche Station fuer Station. Die
+   * Szene bekommt dieses Ergebnis jetzt und traegt dieselben Felder wie das
+   * Tragjoch - eta, sig_v, sig, M, V.
+   */
+  if (AJ.abfangDbDa()) {
+    const RA2 = await import(J('render.abfang.js'));
+    const AB2 = await import(J('core.abfangjoch.js'));
+    const typ = 'A330', jt = 26.5;
+    const ergA = AB2.abfangAuswertung({
+      typ, jt, gk: 0.5, wk: 0.3, sk: 0.2, anbauteile: [],
+      gammaG: 1.3, gammaQ: 1.5, psi0: 0.5, fyd: 21.8, ek: 'EK2' });
+    wahr('Der Abfangjoch-Nachweis liefert eine Reihe',
+         (ergA?.reihe?.length ?? 0) > 5 && (ergA?.bleche?.bleche?.length ?? 0) > 5);
+
+    const mitEta = (sz) => (sz.flaechen ?? [])
+      .filter((f) => f.werte && Number.isFinite(f.werte.eta));
+    const grau = RA2.abfangSzene(typ, jt, {});
+    const bunt = RA2.abfangSzene(typ, jt, { erg: ergA });
+    wahr('Ohne Ergebnis bleibt es neutral', mitEta(grau).length === 0);
+    wahr('Mit Ergebnis tragen die Gurte ihre Ausnutzung',
+         mitEta(bunt).filter((f) => /GURT/.test(f.teil ?? '')).length > 100);
+    wahr('… und die Bleche ihre eigene',
+         mitEta(bunt).filter((f) => /BL_|STEIFE/.test(f.teil ?? '')).length > 20);
+    /*
+     * DIE WERTE SIND NICHT ALLE GLEICH - sonst waere es eine Farbe statt
+     * eines Verlaufs, und die Station am Auflager saehe aus wie die in
+     * Feldmitte.
+     */
+    const etas = mitEta(bunt).map((f) => f.werte.eta);
+    wahr('Die Ausnutzung laeuft ueber den Traeger',
+         Math.max(...etas) > Math.min(...etas) + 0.05,
+         `${Math.min(...etas).toFixed(3)} … ${Math.max(...etas).toFixed(3)}`);
+    wahr('Die Felder heissen wie beim Tragjoch',
+         ['eta', 'sig_v', 'sig', 'M'].every((k) =>
+           Number.isFinite(mitEta(bunt)[0].werte[k])));
+    /*
+     * DER NAME TRAEGT KEINE STATIONSZAHL (Weisung, 9. September). Beim
+     * Tragjoch steht dort auch nur Typ und Laenge.
+     */
+    const titel = (bunt.bauteiltitel ?? []).map((x) => x.text).join(' ');
+    wahr('Der Bauteiltitel nennt Typ und Laenge', /A330 · 26\.50 m/.test(titel));
+    wahr('… und keine Stationen', !/Station/.test(titel), titel);
+    /*
+     * UND DIE ANBAUTEILE STEHEN IM BILD - Arm, Staender und der Verlauf des
+     * Leiters, wie beim Tragjoch.
+     */
+    const mitAt = RA2.abfangSzene(typ, jt, { erg: ergA, anbauteile: [
+      { name: 'Fahrleitung Gleis 1', x: 10, ort: 'joch', module: [{ z: -0.35 }] },
+    ] });
+    wahr('Ein Anbauteil wird gezeichnet',
+         (mitAt.flaechen ?? []).filter((f) => f.gruppe === 'anbau').length > 5);
+  }
+
+  /*
    * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<
    *
    * Weisung vom 9. September: «Die Anschlusshoehe bezieht sich immer auf den
