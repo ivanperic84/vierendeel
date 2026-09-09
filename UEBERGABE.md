@@ -27,6 +27,23 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Der Zugpfeil sitzt an der Abspannung (9. September)
+
+Weisung: «den kraftvektor auf die markierung schieben und nicht in der mitte
+joch.»
+
+Der Leiter endet am **Abspannklotz** — dem Quader am Ende des Strichs —, und
+dort zieht er. Der Pfeil `Z_ab` stand auf der Jochachse und sah aus, als
+greife die Kraft am Träger selbst an; woher sie kommt, war einen Meter weiter
+zu sehen und ohne Zusammenhang.
+
+**Das Modell bleibt, wie es ist:** die Ausleitung setzt Z weiterhin auf den
+Knoten der Trägerachse («Die Abgefangenen Leiter wirken auf mitte Träger»,
+Weisung vom 4. September). Verschoben ist der *Pfeil*, nicht der
+Angriffspunkt — er zeigt, woher der Zug kommt, und der Strich dazwischen sagt,
+wie er ans Joch gelangt. Die übrigen Pfeile (G, W_x, W_y) bleiben am
+Anschlusspunkt; der Prüfstand hält beides fest.
+
 ### A240 mit Schnee — und ein falsches f_yd (9. September)
 
 Weisung: «den A240 einsetzen und mit schnee prüfen.»

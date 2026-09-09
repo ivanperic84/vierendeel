@@ -15447,8 +15447,25 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
            zug.every((v) => /Z_ab = \d/.test(v.text)));
       wahr('Alle drei tragen ihr Eigengewicht',
            szL.vektoren.filter((v) => v.lastart === 'staendig').length === 3);
-      wahr('Die Pfeile greifen auf der Jochachse an',
-           szL.vektoren.every((v) => v.p[1] === 0 && v.p[2] === 0));
+      /*
+       * >>> DER ZUGPFEIL SITZT AN DER ABSPANNUNG. <<<
+       *
+       * Weisung vom 9. September: «den kraftvektor auf die markierung
+       * schieben und nicht in der mitte joch.» Der Leiter endet am Klotz,
+       * und dort zieht er; auf der Jochachse sah es aus, als greife die
+       * Kraft am Traeger selbst an.
+       *
+       * DAS MODELL BLEIBT: die Ausleitung setzt Z weiter auf den Knoten der
+       * Traegerachse - das prueft der Abschnitt gleich darunter.
+       */
+      wahr('Die uebrigen Pfeile greifen auf der Jochachse an',
+           szL.vektoren.filter((v) => v.lastart !== 'leiterzug')
+             .every((v) => v.p[1] === 0 && v.p[2] === 0));
+      wahr('Der Zugpfeil sitzt am Ende des Leiters',
+           zug.every((v) => Math.abs(v.p[1]) > 1 && v.p[2] < 0),
+           zug.map((v) => `y ${v.p[1].toFixed(2)} z ${v.p[2].toFixed(2)}`).join(' · '));
+      wahr('… und auf der Seite, auf der er abgefangen wird',
+           zug.every((v) => Math.sign(v.p[1]) === Math.sign(v.v[1])));
       /*
        * DIESELBE QUELLE WIE DIE AUSLEITUNG. Ein Bild, das eine Kraft zeigt,
        * die das Modell nicht aufbringt, ist schlimmer als keines.

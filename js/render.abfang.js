@@ -503,6 +503,7 @@ export function abfangSzene(typ, jt, opt = {}) {
      * auf seiner Seite. Gezeichnet wird beides auf der Hoehe des Drahtwerks:
      * ein Strich nach vorn, nach hinten oder nach beiden Seiten.
      */
+    let abspannung = null;                // wo der Leiter endet
     if (an.art === 'mitte') {
       const zL = zs.length ? Math.min(...zs) : -0.35;
       const richtungen = an.verlauf === 'durchgehend' ? [1, -1]
@@ -518,29 +519,46 @@ export function abfangSzene(typ, jt, opt = {}) {
       // Das ENDE bekommt einen Klotz - dort sitzt die Abspannung.
       if (an.verlauf !== 'durchgehend') {
         const sy = an.seite === 'H' ? -1 : 1;
-        flaechen.push(...quader([x, sy * 1.1, zL], [0.10, 0.14, 0.10],
+        abspannung = [x, sy * 1.1, zL];
+        flaechen.push(...quader(abspannung, [0.10, 0.14, 0.10],
                                 { ...opt2, teil: `${teil}_A` }));
       }
     }
     /*
      * DIE KRAEFTE DES BAUTEILS greifen am Knoten auf der Jochachse an -
      * genau dort, wo sie auch im Stabmodell sitzen.
+     *
+     * >>> DER ZUG NICHT. <<<
+     *
+     * Weisung vom 9. September: «den kraftvektor auf die markierung
+     * schieben und nicht in der mitte joch.»
+     *
+     * Der Leiter endet an der ABSPANNUNG - dem Klotz am Ende des Strichs -,
+     * und dort zieht er. Der Pfeil stand auf der Jochachse und sah aus, als
+     * greife die Kraft am Traeger selbst an; wo sie herkommt, war einen
+     * Meter weiter zu sehen und ohne Zusammenhang.
+     *
+     * DAS MODELL BLEIBT, WIE ES IST: die Ausleitung setzt Z weiterhin auf
+     * den Knoten der Traegerachse («Die Abgefangenen Leiter wirken auf mitte
+     * Traeger», Weisung vom 4. September). Verschoben ist der PFEIL, nicht
+     * der Angriffspunkt - er zeigt, woher der Zug kommt, und der Strich
+     * dazwischen sagt, wie er ans Joch gelangt.
      */
     const lw = abfangAnbauLasten(at, {
       ek: opt.ek ?? 'EK2', R: opt.R, spannweite: opt.L_FL,
       tempFall: opt.tempFall });
     const pAn = [x, 0, 0];
-    const pfeil = (art, ri, wert, nm) => {
+    const pfeil = (art, ri, wert, nm, p = pAn) => {
       if (!wert) return;
       const f = Math.sign(wert) * pfeilLaenge(wert);
       vektoren.push({
-        gruppe: 'last', art: 'last', lastart: art, p: pAn, teil,
+        gruppe: 'last', art: 'last', lastart: art, p, teil,
         v: [ri[0] * f, ri[1] * f, ri[2] * f],
         text: `${nm} = ${Math.abs(wert).toFixed(2)} kN`,
         titel: `${at.name ?? 'Anbauteil'} · ${nm}`,
       });
     };
-    pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab');
+    pfeil('leiterzug', [0, 1, 0], lw.Z, 'Z_ab', abspannung ?? pAn);
     pfeil('staendig', [0, 0, -1], Math.abs(lw.Gz), 'G');
     pfeil('windX', [1, 0, 0], lw.Qx, 'W_x');
     pfeil('windY', [0, 1, 0], lw.Qy, 'W_y');
