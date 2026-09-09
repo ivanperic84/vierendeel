@@ -351,15 +351,34 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * sitzt dichter am Bauteil. Die Strichstaerken bleiben, wie sie waren -
    * das Bild wird flacher, nicht kleiner gedruckt.
    */
-  const BB = [264, 134];                  // Bildfeld beider Skizzen
-  const yE = [44, 88];                    // die beiden Ebenen, in beiden Bildern
+  /*
+   * >>> DIE ANSICHT IST EIN FELD KUERZER, DER SCHNITT GROESSER. <<<
+   *
+   * Weisung vom 9. September: «beim diagramm die ansicht um ein feld
+   * einkürzen dafür die breite im schnitt etwas breiter machen. den masten
+   * in der ansicht zudem etwas näher an die auflager nehmen.»
+   *
+   * Das Bildfeld ist schmaler geworden - ein Feld weniger, und der Mast
+   * rueckt an den Anschluss heran: die Luecke zwischen Gurtende und
+   * Mastkante trug nichts, das Linkelement ist kurz, nicht lang.
+   *
+   * DER SCHNITT ZEICHNET IN EIGENEM MASSSTAB. Er teilte bis jetzt die
+   * Ebenenhoehe mit der Ansicht - das verband die beiden Bilder, liess ihn
+   * aber als schmalen Streifen in der Bildmitte stehen, seit seine Breite
+   * dem Bauteil folgt. Jetzt fuellt er sein Feld; INNERHALB des Schnitts
+   * bleiben Hoehe und Breite im selben Massstab, und das ist der Vergleich,
+   * auf den es ankommt (Weisung, 9. September: «so das beide gleiche masse
+   * haben»).
+   */
+  const BB = [216, 138];                  // Bildfeld beider Skizzen
+  const yE = [44, 96];                    // die beiden Ebenen der Ansicht
 
   /* --- Das Laengsbild: Ansicht bzw. Grundriss ----------------------------
    *
    * Der Mast steht rechts, das Feld laeuft nach links hinaus - dieselbe
    * Leserichtung wie in der Modellansicht und auf dem Querprofil.
    */
-  const mastL = 210, gurtE = 178;         // Mastkante, Ende der Gurte
+  const mastL = 168, gurtE = 148;         // Mastkante, Ende der Gurte
   /*
    * >>> UND DAS BILD ZEIGT, OB DER MAST DURCHLAEUFT. <<<
    *
@@ -384,12 +403,12 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   const laengs = [
     // Der Mast als Bauteil, nicht als Strich.
     `<rect class="kasten" x="${mastL}" y="${mastOben}" width="22" height="${
-      108 - mastOben}"/>`,
-    txt(mastL + 11, 120, 'Mast', 'dim'),
+      116 - mastOben}"/>`,
+    txt(mastL + 11, 128, 'Mast', 'dim'),
     txt(mastL + 11, mastOben - 5, kragmast ? 'endet hier' : 'läuft durch', 'dim'),
     // Systemachse des Jochs.
-    `<line class="d" x1="28" y1="66" x2="248" y2="66"/>`,
-    txt(34, 78, 'Feld', 'dim', 'start'),
+    `<line class="d" x1="24" y1="70" x2="204" y2="70"/>`,
+    txt(30, 82, 'Feld', 'dim', 'start'),
     /*
      * >>> DIE BLECHE SIND HIER NUR BAUTEIL, NICHT THEMA. <<<
      *
@@ -402,13 +421,13 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
      * dieselbe Linie wie die Gurte: der Traeger ist da, und was ihn haelt,
      * ist das einzige Farbige.
      */
-    ...yE.map((y) => `<line class="b" x1="32" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
-    ...[68, 122].map((x) =>
+    ...yE.map((y) => `<line class="b" x1="28" y1="${y}" x2="${gurtE}" y2="${y}"/>`),
+    ...[70, 110].map((x) =>
       `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`),
     // Das Linkelement je Ebene: vom Gurtende zum Masten.
     ...yE.map((y, i) => (traegt(i)
       ? `<line class="link" x1="${gurtE}" y1="${y}" x2="${mastL}" y2="${y}"/>` : '')),
-    mass(20, yE[0], 20, yE[1], inY ? 'b' : 'h'),
+    mass(16, yE[0], 16, yE[1], inY ? 'b' : 'h'),
   ].join('');
 
   const achsenL = inY
@@ -443,37 +462,41 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
   const bauH = Number(werte.jd) || 500;
   const bauB = Number(werte.jbbOG) || Number(werte.jbbUG) || 420;
   const verh = Math.max(0.45, Math.min(1.5, bauB / bauH));
-  const halbB = ((yE[1] - yE[0]) * verh) / 2;
-  const quer = [`<rect class="verdeckt" x="${cx - 11}" y="22" width="22" height="82"/>`,
-                txt(cx, 128, 'Mast dahinter', 'dim')];
+  // Der Schnitt fuellt sein Feld: die Hoehe ist gesetzt, die Breite folgt
+  // ihr im Massstab des Bauteils.
+  const qz = [24, 100];
+  const halbB = ((qz[1] - qz[0]) * verh) / 2;
+  const quer = [`<rect class="verdeckt" x="${cx - 12}" y="16" width="24" height="92"/>`,
+                txt(cx, 134, 'Mast dahinter', 'dim')];
   const punkteQ = [];
   const achsenQ = { h: 'y', hRi: [1, 0], v: 'z', vRi: [0, -1], t: 'x' };
   if (inY) {
     // Abfangjoch: zwei Gurte NEBENEINANDER, Bindebleche oben und unten.
     // Beim Abfangjoch liegen die Gurte in y auseinander: `b` IST die
     // gezeichnete Breite, die Bauhoehe steht senkrecht dazu.
-    const px = [cx - Math.max(halbB, 22), cx + Math.max(halbB, 22)];
+    const px = [cx - Math.max(halbB, 26), cx + Math.max(halbB, 26)];
     // Die Bleche als Linie, wie die Gurte - siehe oben.
-    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[0] + 10}" x2="${px[1]}" y2="${yE[0] + 10}"/>`);
-    quer.push(`<line class="b" x1="${px[0]}" y1="${yE[1] - 10}" x2="${px[1]}" y2="${yE[1] - 10}"/>`);
-    quer.push(px.map((x) => winkel(x, 66, 13)).join(''));
-    quer.push(mass(px[0], 112, px[1], 112, 'b'));
+    const mitte = (qz[0] + qz[1]) / 2;
+    quer.push(`<line class="b" x1="${px[0]}" y1="${qz[0] + 14}" x2="${px[1]}" y2="${qz[0] + 14}"/>`);
+    quer.push(`<line class="b" x1="${px[0]}" y1="${qz[1] - 14}" x2="${px[1]}" y2="${qz[1] - 14}"/>`);
+    quer.push(px.map((x) => winkel(x, mitte, 15)).join(''));
+    quer.push(mass(px[0], 122, px[1], 122, 'b'));
     px.forEach((x, i) => punkteQ.push(traegt(i)
-      ? anschluss([x, 66], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key),
-                  [x, 44, 'middle']) : ''));
+      ? anschluss([x, mitte], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key),
+                  [x, qz[0] + 4, 'middle']) : ''));
   } else {
     // Tragjoch: je Ebene zwei Winkel, dazwischen die Vertikalbleche.
     const bx = [cx - halbB, cx + halbB];
-    quer.push(yE.map((y) =>
+    quer.push(qz.map((y) =>
       `<line class="b" x1="${bx[0]}" y1="${y}" x2="${bx[1]}" y2="${y}"/>`
-      + bx.map((x) => winkel(x, y, 10)).join('')).join(''));
+      + bx.map((x) => winkel(x, y, 11)).join('')).join(''));
     quer.push(bx.map((x) =>
-      `<line class="b" x1="${x}" y1="${yE[0]}" x2="${x}" y2="${yE[1]}"/>`).join(''));
-    quer.push(mass(bx[0], 112, bx[1], 112, 'b'));
-    quer.push(mass(bx[1] + 22, yE[0], bx[1] + 22, yE[1], 'h'));
-    yE.forEach((y, i) => punkteQ.push(traegt(i)
+      `<line class="b" x1="${x}" y1="${qz[0]}" x2="${x}" y2="${qz[1]}"/>`).join(''));
+    quer.push(mass(bx[0], 122, bx[1], 122, 'b'));
+    quer.push(mass(bx[1] + 24, qz[0], bx[1] + 24, qz[1], 'h'));
+    qz.forEach((y, i) => punkteQ.push(traegt(i)
       ? anschluss([cx, y], lies(ebenen[i].key), achsenQ, esc(ebenen[i].key),
-                  [bx[0] - 26, y + 3, 'end']) : ''));
+                  [bx[0] - 24, y + 3, 'end']) : ''));
   }
 
   /*
@@ -491,7 +514,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * Ein Buchstabe an jedem Halterungspfeil waere die Alternative gewesen -
    * sechsmal dasselbe, und was FREI ist, bekaeme gar keinen.
    */
-  const kreuz = (a) => achsenkreuz([22, BB[1] - 18], a, 12);
+  const kreuz = (a) => achsenkreuz([20, BB[1] - 18], a, 12);
 
   /*
    * DIE UNTERSCHRIFT NENNT DIE ART DES BILDES, nicht mehr die Achsen - die

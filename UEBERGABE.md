@@ -27,6 +27,23 @@ eigenständige Datei wird sonst still veraltet.
 
 ## Diese Sitzung
 
+### Ansicht kürzer, Schnitt grösser (9. September)
+
+Weisung: «beim diagramm die ansicht um ein feld einkürzen dafür die breite im
+schnitt etwas breiter machen. den masten in der ansicht zudem etwas näher an
+die auflager nehmen.»
+
+Bildfeld 264 × 134 → **216 × 138**, ein Feld weniger, und der Mast rückt an
+den Anschluss heran — die Lücke zwischen Gurtende und Mastkante trug nichts,
+das Linkelement ist kurz, nicht lang.
+
+**Der Schnitt zeichnet jetzt in eigenem Massstab.** Er teilte bis dahin die
+Ebenenhöhe mit der Ansicht; das verband die zwei Bilder, liess ihn aber als
+schmalen Streifen in der Bildmitte stehen, seit seine Breite dem Bauteil
+folgt. Jetzt füllt er sein Feld — *innerhalb* des Schnitts bleiben Höhe und
+Breite im Massstab des Bauteils, und das ist der Vergleich, auf den es
+ankommt.
+
 ### Die Auflagerbedingung darf die Endbedingung sein (9. September)
 
 Weisung, als abgebrochener Satz: «kann man die Endauflager auswahl mit dem
