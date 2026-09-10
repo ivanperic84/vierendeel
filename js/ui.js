@@ -3421,7 +3421,13 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    */
   const abFall = ab?.faelle?.find((f) => f.key === ab.fall) ?? null;
   const zustand = !gefuehrt ? 'warn'
-    : (eAn > 1 || (!ab && mastUeber) || urteil.bindendVerletzt === true
+    /*
+     * DER MAST ZAEHLT AUCH AM ABFANGJOCH INS URTEIL. Hier stand `!ab &&` -
+     * richtig, solange sein Nachweis aus dem Tragjoch-Ersatzbalken kam.
+     * Seit er auf den eigenen Auflagerkraeften steht, ist ein
+     * ueberschrittener Mast ein ueberschrittener Mast.
+     */
+    : (eAn > 1 || mastUeber || urteil.bindendVerletzt === true
        ? 'nok' : 'ok');
 
   // Jede Kachel kennt die Stelle, an der ihr Wert auftritt - ein Klick fährt
@@ -3463,11 +3469,18 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
    * abschalten, und dann hat hier keine Zahl zu stehen.
    */
   /*
-   * BEIM ABFANGJOCH STEHT KEINE MASTKACHEL. `erg.mast` kommt aus der
-   * Tragjochrechnung; sie gilt fuer dieses Tragwerk nicht, und eine Zahl,
-   * die zu einem anderen Modell gehoert, ist schlimmer als keine.
+   * >>> AUCH AM ABFANGJOCH STEHT JETZT EINE MASTKACHEL. <<<
+   *
+   * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
+   * machen.»
+   *
+   * Hier stand `if (!ab && ...)`: `erg.mast` kam aus der Tragjochrechnung,
+   * galt fuer dieses Tragwerk nicht, und eine Zahl aus einem fremden Modell
+   * ist schlimmer als keine. Seit das Abfangjoch seine eigenen
+   * Auflagerkraefte abgibt, wird der Nachweis mit IHNEN gebildet
+   * (`quelle: 'abfangjoch'`), und die Kachel gehoert wieder her.
    */
-  if (!ab && erg.mast && urteil.nachweise?.mast !== false) {
+  if (erg.mast && urteil.nachweise?.mast !== false) {
     /*
      * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
      *
@@ -3619,7 +3632,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
       <span>${!gefuehrt
         ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
         : (eAn <= 1
-            ? ((!ab && mastUeber)
+            ? (mastUeber
                 ? `Joch erfüllt, MAST NICHT (η ${f3(mastEta)})`
                 : 'Tragsicherheit erfüllt')
             : 'Tragsicherheit NICHT erfüllt')}${

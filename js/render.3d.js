@@ -744,8 +744,16 @@ export function erzeugeSzene(m, erg) {
       const ak = mast?.anker;
       if (ak?.typ && ak.h > 0 && ak.a > 0) {
         const vz = ak.seite === 'minus' ? -1 : 1;
+        const laengs = ak.richtung === 'y';
         const zA = zF + Math.min(ak.h, zKopf - zF);
-        const xF = x + vz * ak.a;
+        /*
+         * DER STAB LIEGT IN SEINER EBENE: quer zum Gleis in der Jochachse,
+         * laengs in Gleisrichtung. Beides muss man im Bild unterscheiden
+         * koennen - sonst sieht ein wirkungsloser Anker aus wie ein
+         * wirksamer.
+         */
+        const xF = laengs ? x : x + vz * ak.a;
+        const yF = laengs ? vz * ak.a : 0;
         const nw = erg?.anker?.[name]?.nachweis ?? null;
         const wie = nw ? `${nw.typ} · ${nw.N >= 0 ? 'Zug' : 'Druck'} `
                        + `${Math.abs(nw.N).toFixed(1)} kN · η `
@@ -753,9 +761,11 @@ export function erzeugeSzene(m, erg) {
                       : `${ak.typ} · nicht gerechnet`;
         // Doppellinie, damit er als Bauteil lesbar ist und nicht als Mass.
         [-0.5, +0.5].forEach((d) => {
+          const dx = laengs ? d * halb : 0;
+          const dy = laengs ? 0 : d * halb;
           linien.push({ gruppe: 'mast', anker: true, stark: true,
                         label: `Anker ${name} · ${wie}`,
-                        punkte: [[x, d * halb, zA], [xF, d * halb, zF]] });
+                        punkte: [[x + dx, dy, zA], [xF + dx, yF + dy, zF]] });
         });
         // Das Ankerfundament: ein Klotz am Boden, kein Auflagerdreieck.
         const fb = 0.35 * halb;
@@ -763,19 +773,21 @@ export function erzeugeSzene(m, erg) {
           if (i === 0) return;
           const q = arr[i - 1];
           linien.push({ gruppe: 'mast', anker: true,
-            punkte: [[xF + q[0] * fb, q[1] * fb, zF],
-                     [xF + p[0] * fb, p[1] * fb, zF]] });
+            punkte: [[xF + q[0] * fb, yF + q[1] * fb, zF],
+                     [xF + p[0] * fb, yF + p[1] * fb, zF]] });
         });
         /*
          * DIE BEIDEN GELENKE. Ein kleiner Kreis, gezeichnet als Vieleck -
          * die Szene kennt keine Kreise, und acht Ecken genuegen.
          */
-        [[x, zA], [xF, zF]].forEach(([xg, zg]) => {
+        [[x, 0, zA], [xF, yF, zF]].forEach(([xg, yg, zg]) => {
           const r = 0.22 * halb;
           const pkt = [];
           for (let k2 = 0; k2 <= 8; k2 += 1) {
             const w2 = (k2 / 8) * 2 * Math.PI;
-            pkt.push([xg + r * Math.cos(w2), 0, zg + r * Math.sin(w2)]);
+            const c = r * Math.cos(w2);
+            pkt.push([xg + (laengs ? 0 : c), yg + (laengs ? c : 0),
+                      zg + r * Math.sin(w2)]);
           }
           for (let k2 = 1; k2 < pkt.length; k2 += 1) {
             linien.push({ gruppe: 'mast', anker: true,

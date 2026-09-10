@@ -13297,6 +13297,55 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
            MA.ankerStabkraftAus(-30, null) === null);
 
       /*
+       * >>> EIN SCHRAEGER STAB HAELT NUR SEINE EIGENE EBENE. <<<
+       *
+       * Am TRAGJOCH kippt die Umlenkkraft den Masten quer zum Gleis - dort
+       * gehoert der Anker in die Jochachse. Am ABFANGJOCH steht die grosse
+       * Kraft LAENGS, und ein Anker quer dazu haelt davon nichts.
+       *
+       * Im Browser gemessen, A240 mit einem Leiter bei x = 10.00: der
+       * Endmast stand bei eta 2.205, und ein Anker in der Jochachse aenderte
+       * daran NICHTS - seine Kraft war null. In Gleisrichtung gesetzt fiel
+       * eta auf 0.593.
+       */
+      const nurY = { zKopf: 10, wQuer: 0, wLaengs: 0,
+                     lasten: [{ z: 10, Fx: 0, Fy: 12, Fz: 0,
+                                Mq: 0, Ml: 0, ex: 0, ey: 0 }] };
+      pruef('Eine Kraft laengs haelt der Anker laengs',
+            MA.ankerHaltekraft(nurY, 10, 'y'), -12, 1e-9, 'kN');
+      pruef('… und der Anker quer haelt davon nichts',
+            MA.ankerHaltekraft(nurY, 10, 'x'), 0, 1e-12, 'kN');
+      const nurX = { zKopf: 10, wQuer: 0, wLaengs: 0,
+                     lasten: [{ z: 10, Fx: 12, Fy: 0, Fz: 0,
+                                Mq: 0, Ml: 0, ex: 0, ey: 0 }] };
+      pruef('Umgekehrt genauso',
+            MA.ankerHaltekraft(nurX, 10, 'x'), -12, 1e-9, 'kN');
+      pruef('… und nichts in der anderen Ebene',
+            MA.ankerHaltekraft(nurX, 10, 'y'), 0, 1e-12, 'kN');
+      /*
+       * AUCH DER WIND AUF DEN MASTEN gehoert in seine Ebene: quer der eine,
+       * laengs der andere.
+       */
+      const wind = { zKopf: 10, wQuer: 2, wLaengs: 1, lasten: [] };
+      pruef('Der Wind quer wirkt in der Jochachse',
+            MA.ankerHaltekraft(wind, 10, 'x'), -(3 * 2 * 10) / 8, 1e-9, 'kN');
+      pruef('… und der Wind laengs in Gleisrichtung',
+            MA.ankerHaltekraft(wind, 10, 'y'), -(3 * 1 * 10) / 8, 1e-9, 'kN');
+      /*
+       * UND DIE STABKRAFT WIRKT DORT, WO DER STAB LIEGT. Eine Kraft in y
+       * hat am Masten nichts in x verloren - sonst entlastete ein Anker die
+       * Ebene, in der er gar nicht steht.
+       */
+      const kY = MA.ankerStabkraftAus(-30, geo, 'plus', 'y');
+      wahr('Der laengs liegende Stab wirkt in y',
+           kY.Fy === -30 && kY.Fx === 0);
+      const kX = MA.ankerStabkraftAus(-30, geo, 'plus', 'x');
+      wahr('… der quer liegende in x',
+           kX.Fx === -30 && kX.Fy === 0);
+      wahr('Die lotrechte Komponente gilt in beiden Ebenen',
+           Math.abs(kX.Fz - kY.Fz) < 1e-12);
+
+      /*
        * >>> UND DIE GANZE KETTE. <<<
        *
        * Vom Anker am Masten der Liste ueber den Rechensatz, die
@@ -13443,14 +13492,162 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          && hav.beiwerte.w === 0);
 
     /*
-     * >>> DIE KRAFT IN JOCHACHSE FEHLT NOCH - UND SAGT ES. <<<
+     * >>> DIE KRAFT IN JOCHACHSE WIRD JETZT GEFUEHRT. <<<
      *
-     * Wind quer zum Gleis laeuft im liegenden Traeger als Normalkraft. Wie
-     * sie sich auf die beiden Masten verteilt, ist eine Modellfrage; sie
-     * wird ausgewiesen statt erfunden.
+     * Wind quer zum Gleis laeuft im liegenden Traeger als Normalkraft an
+     * seine Enden. Verteilt wird sie nicht hier, sondern nach der
+     * Kopfsteifigkeit der beiden Masten (`mastLasten`) - deshalb steht sie
+     * als SUMME da.
      */
-    wahr('Ohne Wind in Jochachse steht der Merkposten auf falsch',
-         paar.auflager.ohneFx === false);
+    wahr('Die Kraft in Jochachse steht als Summe da',
+         Number.isFinite(paar.auflager.A.faelle[0].Fxges));
+    /*
+     * UND DER ANSCHLUSSPUNKT SITZT NEBEN DER MASTACHSE. Der vordere Gurt
+     * ist in der Jochachse frei; die Kraft haengt am hinteren, und der
+     * liegt um den halben Gurtabstand daneben. Genau daraus kommt die
+     * Torsion, die die Weisung stehen laesst.
+     */
+    pruef('Der Anschluss sitzt um den halben Gurtabstand daneben',
+          paar.auflager.ey, (paar.q.e / 100) / 2, 1e-12, 'm');
+    /*
+     * DIE CHARAKTERISTISCHE KOMBINATION STEHT DANEBEN - alle Anteile mit
+     * Beiwert 1. Sie wird gebraucht, wo eine ZULAESSIGE Kraft
+     * gegenuebersteht: beim Zuganker am Masten.
+     */
+    const wA = paar.auflager.A.faelle.find((f) => f.key === 'wind');
+    pruef('Charakteristisch: das Gewicht ohne Beiwert',
+          wA.char.Fz, wA.anteile.G + wA.anteile.S, 1e-9, 'kN');
+    wahr('… und kleiner als der Bemessungswert', wA.char.Fz < wA.Fz);
+  }
+
+  /*
+   * ====== DER MASTNACHWEIS AM ABFANGJOCH ===============================
+   *
+   * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
+   * machen.»
+   *
+   * Bis dahin las `mastLasten` die Reaktionen des TRAGJOCH-Ersatzbalkens -
+   * am Abfangjoch die Zahlen eines anderen Tragwerks. Jetzt kommen sie aus
+   * `abfangAuswertung`.
+   */
+  if (AJ.abfangDbDa()) {
+    const AB8 = await import(J('core.abfangjoch.js'));
+    const MA8 = await import(J('core.mast.js'));
+    const AU8 = await import(J('core.auflager.js'));
+
+    const federn8 = AU8.drehfedern({
+      endbedingung: 'mast', mastVorhanden: true, mastProfil: 'HEB 240',
+      mastH: 7.5, mastSteg: 'jochachse' });
+    const modell8 = { L: 12.5, federn: federn8, RA: 99, RB: 99, MA: 99, MB: 99,
+                      wd: 9, H: [], T: [], N: [{ x: 6, w: 99 }],
+                      beiwerte: { G: 1.3 }, stahl: { fy: 235 }, gammaM0: 1.0,
+                      mastLast: { A: { xd: 0, yd: 0 }, B: { xd: 0, yd: 0 } },
+                      anbauMastFlach: [] };
+    const leiter8 = (id, x, verlauf) => ({
+      id, vorlage: 'hs-fahrdraht', name: id, x, ort: 'joch', aktiv: true,
+      anbindung: 'mitte', verlauf,
+      module: [{ bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107',
+                 anzahl: 1, z: 0 }] });
+    const rechne8 = (teile) => AB8.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: teile,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0 });
+
+    /*
+     * >>> DIE JOCHKRAFT KOMMT AUS DEM ABFANGJOCH, NICHT AUS DEM TRAGJOCH. <<<
+     *
+     * Das Modell traegt absichtlich unsinnige Tragjochwerte (RA = 99 kN,
+     * MA = 99 kNm). Taeuchten sie im Ergebnis auf, laese `mastLasten` noch
+     * den Ersatzbalken.
+     */
+    const abS = rechne8([]);
+    const mAb = { ...modell8, abfangAuflager: abS.auflager };
+    const gA = MA8.mastLasten(mAb, 'A');
+    wahr('Die Jochkraft kommt aus dem Abfangjoch',
+         gA.quelle === 'abfangjoch');
+    pruef('… und traegt seine Auflagerkraft',
+          gA.lasten[0].Fz, abS.auflager.A.Fz, 1e-9, 'kN');
+    wahr('Kein Wert aus dem Tragjoch-Ersatzbalken',
+         Math.abs(gA.lasten[0].Fz - 99) > 1
+         && gA.lasten[0].Mq === 0 && gA.lasten[0].Ml === 0);
+    wahr('Ohne Abfangjoch bleibt es beim Tragjoch',
+         MA8.mastLasten(modell8, 'A').quelle === 'tragjoch');
+
+    /*
+     * >>> AM ANSCHLUSS GEHT KEIN MOMENT UEBER. <<<
+     *
+     * Die Links des Abfangjochs haben alle Momentengrade frei, und die
+     * Drehung um z ist bewusst geloest - der vordere Gurt ist in der
+     * Jochachse frei. Was bleibt, ist die Torsion aus der Exzentrizitaet:
+     * die Kraft in der Jochachse haengt am HINTEREN Gurt, um den halben
+     * Gurtabstand neben der Mastachse.
+     */
+    pruef('Der Anschluss sitzt neben der Mastachse',
+          Math.abs(gA.lasten[0].ey), abS.auflager.ey, 1e-12, 'm');
+    wahr('… und zwar hinten', gA.lasten[0].ey < 0);
+
+    /*
+     * >>> SYMMETRISCH BELASTET SIND BEIDE MASTEN GLEICH. <<<
+     *
+     * Ohne Anbauteile traegt das Joch nur sich selbst; die beiden Enden
+     * bekommen dasselbe. Ein Unterschied waere ein Fehler im Lastbild.
+     */
+    const nwA = MA8.mastNachweis(mAb, 'A', {});
+    const nwB = MA8.mastNachweis(mAb, 'B', {});
+    pruef('Ohne Anbauteile tragen beide Masten dasselbe',
+          nwA.eta, nwB.eta, 1e-9, '-');
+
+    /*
+     * >>> UND EIN LEITER NAHE AM ENDE BELASTET DIESES ENDE. <<<
+     *
+     * Gemessen im Browser an A240 / 12.50 m mit einem Leiter bei x = 10.00:
+     * F_y 7.61 kN am naeheren Mast gegen 19.72 kN am ferneren - und der
+     * Nachweis folgt: eta 0.982 gegen 2.205. Das ist der Grund, warum ein
+     * Abfangjoch den Endmasten sprengen kann, waehrend das Joch selbst
+     * haelt.
+     */
+    const einseitig = rechne8([leiter8('vorn', 10, 'vorn')]);
+    const mE = { ...modell8, abfangAuflager: einseitig.auflager };
+    wahr('Der Leiter bei x = 10.00 belastet das Ende B staerker',
+         Math.abs(einseitig.auflager.B.Fy)
+         > 2 * Math.abs(einseitig.auflager.A.Fy),
+         `${einseitig.auflager.B.Fy.toFixed(2)} gegen `
+         + `${einseitig.auflager.A.Fy.toFixed(2)} kN`);
+    wahr('… und der Mastnachweis folgt',
+         MA8.mastNachweis(mE, 'B', {}).eta
+         > MA8.mastNachweis(mE, 'A', {}).eta);
+    /*
+     * DIE KRAFT IN GLEISRICHTUNG BIEGT DEN MASTEN LAENGS, nicht quer. Sie
+     * steht am Kopf und wirkt ueber die volle Anschlusshoehe - das ist die
+     * Beanspruchung, fuer die das Abfangjoch dasteht.
+     */
+    const stB = MA8.mastSchnitt(mE, 'B').stationen[0];
+    pruef('Sie erzeugt das Moment laengs',
+          Math.abs(stB.Ml),
+          Math.abs(einseitig.auflager.B.Fy) * 7.5, 0.6, 'kNm');
+    wahr('… und quer bleibt es klein', Math.abs(stB.Mq) < 1e-9);
+
+    /*
+     * >>> DIE KRAFT IN JOCHACHSE WIRD NACH KOPFSTEIFIGKEIT VERTEILT. <<<
+     *
+     * Sie kommt als SUMME aus dem Abfangjoch - der liegende Traeger leitet
+     * sie als Normalkraft an seine Enden -, und wie sie sich aufteilt,
+     * entscheidet die Steifigkeit der beiden Mastkoepfe. Bei gleichen
+     * Masten ist das die Haelfte.
+     */
+    const mFx = { ...modell8,
+      abfangAuflager: { ...abS.auflager,
+        A: { ...abS.auflager.A, Fxges: 10 },
+        B: { ...abS.auflager.B, Fxges: 10 } } };
+    pruef('Gleiche Masten teilen sich die Kraft in Jochachse',
+          MA8.mastLasten(mFx, 'A').lasten[0].Fx, 5, 1e-9, 'kN');
+    /*
+     * UND SIE ERZEUGT DIE TORSION - ueber die Exzentrizitaet des
+     * Anschlusses. Genau der Anteil, den die Weisung vom 5. September
+     * stehen laesst.
+     */
+    const stFx = MA8.mastSchnitt(mFx, 'A').stationen[0];
+    pruef('Die Torsion kommt aus der Exzentrizitaet',
+          Math.abs(stFx.Mt), 5 * abS.auflager.ey, 1e-9, 'kNm');
   }
 
   /*

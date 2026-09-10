@@ -524,20 +524,36 @@ export function hinweise(m) {
       + 'Reiter SCHNITT, VERLÄUFE und AUFLAGER rechnen dagegen weiter den '
       + 'Ersatzbalken des Tragjochs; ihre Zahlen gelten diesem Joch nicht.');
     /*
-     * >>> DER MAST WIRD NOCH NICHT NACHGEWIESEN. <<<
+     * >>> DER MAST STEHT AUF DEN KRAEFTEN DES ABFANGJOCHS. <<<
      *
-     * Weisung vom 9. September: «fange danach noch mit dem implementieren
-     * der Masten beim Abfangjoch an.» Die Auflagerkraefte stehen jetzt da -
-     * das ist die Groesse, die der Mast bekommt. Sein NACHWEIS liest bis
-     * heute die Reaktionen des Tragjoch-Ersatzbalkens und wird deshalb am
-     * Abfangjoch nicht gefuehrt; eine Zahl aus dem falschen Modell waere
-     * schlimmer als keine.
+     * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
+     * machen.» Hier stand bis dahin, er werde nicht gefuehrt - richtig,
+     * solange er die Reaktionen des Tragjoch-Ersatzbalkens las.
+     *
+     * WAS DER ANSCHLUSS NICHT UEBERTRAEGT, gehoert trotzdem in den Hinweis:
+     * die Momentengrade der Links sind frei, und die Drehung um z ist
+     * bewusst geloest. Der Mast bekommt Kraefte und die Torsion aus der
+     * Exzentrizitaet - kein Biegemoment aus dem Joch.
      */
-    h.push('Der MASTNACHWEIS wird am Abfangjoch nicht geführt. Die '
-      + 'Auflagerkräfte stehen bei den Schnittgrössen — F_y in '
-      + 'Gleisrichtung ist die Kraft, die am Mastkopf ansteht und ihn über '
-      + 'die volle Anschlusshöhe biegt. Die Kraft in JOCHACHSE (Wind quer '
-      + 'auf die Anbauteile) ist darin noch nicht enthalten.');
+    h.push('Der Mastnachweis steht auf den AUFLAGERKRÄFTEN DES ABFANGJOCHS, '
+      + 'nicht auf denen des Tragjoch-Ersatzbalkens. Der Anschluss leitet '
+      + 'KEIN Biegemoment ein: alle Momentengrade der Links sind frei, und '
+      + 'die Drehung um z ist gelöst (vorderer Gurt in der Jochachse frei). '
+      + 'Was bleibt, ist die Torsion aus der Exzentrizität zwischen '
+      + 'Mastachse und hinterem Gurt.');
+    /*
+     * >>> DIE TORSION DES LIEGENDEN TRAEGERS FEHLT NOCH. <<<
+     *
+     * `abfangAuswertung` rechnet zwei Ebenen - die waagrechte Rahmenebene
+     * und die lotrechte Biegung -, aber keine Torsion um die Traegerachse.
+     * Ein Anbauteil, das ausserhalb der Traegerachse haengt, verdreht ihn;
+     * ueber das Kraeftepaar der beiden Gurte kaeme das im Masten als
+     * Moment LAENGS an. Wo es fehlt, steht der Mast zu guenstig da.
+     */
+    h.push('Die TORSION des liegenden Trägers ist nicht gerechnet — ein '
+      + 'Anbauteil ausserhalb der Trägerachse verdreht ihn, und über das '
+      + 'Kräftepaar der beiden Gurte käme das im Masten an. Wo sie auftritt, '
+      + 'steht der Mast zu günstig da.');
     /*
      * >>> UND DER DRUCKGURT IST NICHT AUF STABILITAET GEPRUEFT. <<<
      *

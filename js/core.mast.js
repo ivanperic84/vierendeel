@@ -167,11 +167,45 @@ export function mastLasten(m, ende = 'A') {
    * Reaktion waeren zwei Gelegenheiten, sich zu irren.
    */
   const hQuer = (p) => (seite === 'A' ? (L - p.x) / L : p.x / L);
-  const Fz = seite === 'A' ? (m.RA ?? 0) : (m.RB ?? 0);
-  const Fy = ((m.wd ?? 0) * L) / 2
-           + (m.H ?? []).reduce((a, p) => a + p.w * hQuer(p), 0);
-  const Mq = seite === 'A' ? (m.MA ?? 0) : (m.MB ?? 0);
-  const Ml = (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0);
+  /*
+   * ========================================================================
+   * >>> DAS ABFANGJOCH GIBT ANDERE KRAEFTE AB. <<<
+   * ========================================================================
+   *
+   * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
+   * machen.»
+   *
+   * `m.RA`, `m.MA`, `m.H`, `m.T` sind die Reaktionen des TRAGJOCH-
+   * Ersatzbalkens - vier Winkelgurte, Rahmenebene senkrecht. Am Abfangjoch
+   * beschreiben sie ein anderes Tragwerk, und deshalb stand dort bisher gar
+   * keine Mastkachel. `abfangAuswertung` rechnet seine eigenen
+   * Auflagerkraefte; sie kommen als `m.abfangAuflager` herein.
+   *
+   * WAS ANKOMMT:
+   *
+   *   F_z   lotrecht, aus Eigengewicht und Schnee
+   *   F_y   in GLEISRICHTUNG - der Leiterzug und der Wind auf das Joch.
+   *         Das ist die grosse Kraft; sie biegt den Masten ueber die volle
+   *         Anschlusshoehe, und dafuer steht das Abfangjoch da.
+   *   F_x   in der Jochachse - Wind quer auf die Anbauteile. Sie kommt als
+   *         SUMME und wird hier nach der Kopfsteifigkeit verteilt, genau
+   *         wie die Laengskraft des Tragjochs.
+   *
+   * >>> UND WAS NICHT ANKOMMT: MOMENTE. <<<
+   *
+   * Die Links des Abfangjochs haben alle Momentengrade FREI (core.auflager,
+   * LINK_DREH_FREI). Uebertragen wird nur, was ein Kraeftepaar der beiden
+   * Gurte hergibt - und die Drehung um z ist bewusst geloest: der vordere
+   * Gurt ist in der Jochachse frei, damit das Rahmenmoment NICHT als
+   * Torsion in den Masten laeuft (Weisung vom 5. September).
+   *
+   * Was bleibt, ist die Torsion aus der EXZENTRIZITAET: weil nur der
+   * hintere Gurt die Kraft in der Jochachse haelt, greift sie um den halben
+   * Gurtabstand neben der Mastachse an. Genau der Anteil, den die Weisung
+   * stehen laesst - er faellt hier ueber `ey` an.
+   */
+  const ab = m.abfangAuflager?.[seite] ? m.abfangAuflager : null;
+  const abE = ab?.[seite] ?? null;
 
   /*
    * DIE LÄNGSKRAFT DES JOCHS TEILT SICH NACH DER STEIFIGKEIT (Weisung).
@@ -193,7 +227,21 @@ export function mastLasten(m, ende = 'A') {
   const kA = kVon('A'), kB = kVon('B');
   const kSum = kA + kB;
   const anteil = kSum > 0 ? (seite === 'A' ? kA : kB) / kSum : 0.5;
-  const Fx = (m.N ?? []).reduce((a, n) => a + n.w, 0) * anteil;
+  const Fz = abE ? abE.Fz : (seite === 'A' ? (m.RA ?? 0) : (m.RB ?? 0));
+  const Fy = abE ? abE.Fy
+                 : ((m.wd ?? 0) * L) / 2
+                   + (m.H ?? []).reduce((a, p) => a + p.w * hQuer(p), 0);
+  const Mq = abE ? 0 : (seite === 'A' ? (m.MA ?? 0) : (m.MB ?? 0));
+  const Ml = abE ? 0
+                 : (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0);
+  const Fx = (abE ? (abE.Fxges ?? 0) : (m.N ?? []).reduce((a, n) => a + n.w, 0))
+             * anteil;
+  /*
+   * DER HINTERE GURT HAELT, UND ER LIEGT HINTEN: die Exzentrizitaet zaehlt
+   * in −y. Fuer den Betrag der Torsion ist das Vorzeichen gleichgueltig,
+   * fuer ihre Richtung im Bild nicht.
+   */
+  const eyAnschluss = ab ? -(ab.ey ?? 0) : 0;
 
   /*
    * `zAnschluss` IST NICHT DASSELBE WIE `z`.
@@ -209,7 +257,7 @@ export function mastLasten(m, ende = 'A') {
    */
   const lasten = [{
     art: 'joch', name: `Joch, Anschluss Ende ${seite}`, z: H, zAnschluss: H,
-    Fz, Fx, Fy, Mq, Ml, ex: 0, ey: 0,
+    Fz, Fx, Fy, Mq, Ml, ex: 0, ey: eyAnschluss,
   }];
 
   // --- Eigengewicht des Mastes --------------------------------------------
@@ -262,6 +310,13 @@ export function mastLasten(m, ende = 'A') {
             */
            laenge: md.laenge, ueberstand: md.ueberstand,
            anker: md.anker ?? null,
+           /*
+            * WOHER DIE JOCHKRAFT KOMMT. Sie steht im Ergebnis, weil sie
+            * ueber die Gueltigkeit der ganzen Zahl entscheidet: die
+            * Reaktionen des Tragjoch-Ersatzbalkens gelten am Abfangjoch
+            * nicht, und umgekehrt.
+            */
+           quelle: abE ? 'abfangjoch' : 'tragjoch',
            I: md.I, Iq: md.Iq, W: md.W_cm3, Wq: md.Wq_cm3 };
 }
 
@@ -297,12 +352,21 @@ export function mastLasten(m, ende = 'A') {
  * mehr, der Anker weniger. Die Weisung sagt Variante 3, und die ist die
  * ungünstigere für den ANKER: er bekommt die volle Haltekraft.
  *
- * >>> UND SIE WIRKT IN DER JOCHACHSE. <<<
+ * >>> UND SIE WIRKT IN EINER EBENE, NICHT IN BEIDEN. <<<
  *
- * Der Anker steht in +x oder −x, also quer zum Gleis. Gehalten wird deshalb
- * die Verschiebung in x - dieselbe Richtung, in der `Vq` und `Mq` laufen.
- * In Gleisrichtung (y) bleibt der Mast Kragarm; ein schraeger Stab in einer
- * Ebene haelt die andere nicht.
+ * Ein schraeger Stab haelt die Richtung, in der er liegt - die andere nicht.
+ * Welche das ist, sagt die Eingabe:
+ *
+ *   JOCHACHSE (x)      der Regelfall am Tragjoch. Dort kippt die
+ *                      Umlenkkraft aus dem Bogen den Masten quer zum Gleis.
+ *   GLEISRICHTUNG (y)  der Regelfall am ABFANGJOCH. Dort steht die grosse
+ *                      Kraft laengs - der Leiterzug -, und ein Anker quer
+ *                      dazu haelt nichts davon.
+ *
+ * Das ist keine Feinheit: ein Anker in der falschen Ebene bekommt
+ * rechnerisch NULL und entlastet den Masten nicht. Gemessen am Abfangjoch
+ * A240 mit einem Leiter bei x = 10.00 - eta 2.205 am Endmasten, und der
+ * Anker in der Jochachse aenderte daran nichts.
  * ======================================================================== */
 
 /**
@@ -337,21 +401,25 @@ function kragarmVerschiebung(a, { q = 0, L = 0, kraefte = [], momente = [] }) {
  * @returns {number|null} X - positiv heisst: die Stütze drückt den Masten
  *          in +x. Null, wenn keine brauchbare Höhe vorliegt.
  */
-export function ankerHaltekraft(g, aH) {
+export function ankerHaltekraft(g, aH, richtung = 'x') {
   if (!g || !Number.isFinite(aH) || aH <= 0) return null;
   // Ueber dem Mastkopf gibt es nichts zu halten.
   const a = Math.min(aH, g.zKopf);
   if (!(a > 0)) return null;
-  const kraefte = g.lasten.map((l) => ({ F: l.Fx ?? 0, z: l.z }));
+  const y = richtung === 'y';
+  const kraefte = g.lasten.map(
+    (l) => ({ F: (y ? l.Fy : l.Fx) ?? 0, z: l.z }));
   /*
-   * ZWEI QUELLEN FUER EIN MOMENT: das eingeleitete `Mq` und die
-   * Vertikallast ueber ihre AUSLADUNG. Dieselben zwei, die `mastSchnitt`
-   * addiert - waeren es hier andere, stuenden zwei Rechnungen nebeneinander.
+   * ZWEI QUELLEN FUER EIN MOMENT: das eingeleitete Moment dieser Ebene und
+   * die Vertikallast ueber ihre AUSLADUNG. Dieselben zwei, die
+   * `mastSchnitt` addiert - waeren es hier andere, stuenden zwei
+   * Rechnungen nebeneinander.
    */
   const momente = g.lasten.map((l) => ({
-    M: (l.Mq ?? 0) + (l.Fz ?? 0) * (l.ex ?? 0), z: l.z }));
-  const d10 = kragarmVerschiebung(a, { q: g.wQuer, L: g.zKopf,
-                                       kraefte, momente });
+    M: (y ? (l.Ml ?? 0) + (l.Fz ?? 0) * (l.ey ?? 0)
+          : (l.Mq ?? 0) + (l.Fz ?? 0) * (l.ex ?? 0)), z: l.z }));
+  const d10 = kragarmVerschiebung(a, { q: y ? g.wLaengs : g.wQuer,
+                                       L: g.zKopf, kraefte, momente });
   const d11 = (a * a * a) / 3;
   if (!(d11 > 0)) return null;
   return -d10 / d11;
@@ -369,11 +437,16 @@ export function ankerHaltekraft(g, aH) {
  * @param {object} geo Ergebnis aus `ankerGeometrie`
  * @param {string} seite 'plus' (Fundament in +x) oder 'minus'
  */
-export function ankerStabkraftAus(X, geo, seite = 'plus') {
+export function ankerStabkraftAus(X, geo, seite = 'plus', richtung = 'x') {
   if (!geo || !Number.isFinite(X) || !(geo.cos > 0)) return null;
   const s = seite === 'minus' ? -1 : 1;
   const N = X / (s * geo.cos);
-  return { N, Fx: X, Fz: N * geo.sin, seite: s };
+  /*
+   * DIE WAAGRECHTE KOMPONENTE WIRKT IN DER EBENE DES STABES - in x oder in
+   * y, je nachdem, wohin sein Fundament steht. Die lotrechte gilt immer.
+   */
+  return { N, Fx: richtung === 'y' ? 0 : X, Fy: richtung === 'y' ? X : 0,
+           Fz: N * geo.sin, seite: s, richtung };
 }
 
 /**
@@ -498,16 +571,17 @@ function ankerImMast(g) {
    * Hinweis, dass die Angabe nicht zum Masten passt (core.checks.js).
    */
   const zA = Math.min(a.h, g.zKopf);
-  const X = ankerHaltekraft(g, zA);
-  const k = ankerStabkraftAus(X, geo, a.seite);
+  const ri = a.richtung === 'y' ? 'y' : 'x';
+  const X = ankerHaltekraft(g, zA, ri);
+  const k = ankerStabkraftAus(X, geo, a.seite, ri);
   if (!k) return null;
   return {
     kraft: { typ: a.typ, N: k.N, X, z: zA, geo,
-             seite: a.seite ?? 'plus',
+             seite: a.seite ?? 'plus', richtung: ri,
              befestigung: a.befestigung ?? 'ankerplatte',
              ueberKopf: a.h > g.zKopf + 1e-9 },
     last: { art: 'anker', name: `Anker ${a.typ}`, z: zA, zAnschluss: zA,
-            Fz: k.Fz, Fx: k.Fx, Fy: 0, Mq: 0, Ml: 0, ex: 0, ey: 0 },
+            Fz: k.Fz, Fx: k.Fx, Fy: k.Fy, Mq: 0, Ml: 0, ex: 0, ey: 0 },
   };
 }
 

@@ -1321,6 +1321,16 @@ export function abfangAuswertung(o = {}) {
       vertG: abfangBalken(jt, ue, { q: gk, F: Fstaendig }),
       vertS: abfangBalken(jt, ue, { q: sk }),
       leiterzug: Fleiter.reduce((a2, f) => a2 + Math.abs(f.wert), 0),
+      /*
+       * >>> DIE KRAFT IN DER JOCHACHSE. <<<
+       *
+       * Wind quer zum Gleis auf die Anbauteile. Der liegende Traeger nimmt
+       * sie als NORMALKRAFT auf - er biegt sich davon nicht, er leitet sie
+       * an seine Enden weiter. Wie sie sich auf die beiden Masten verteilt,
+       * entscheidet deren Kopfsteifigkeit; das rechnet `mastLasten`, das es
+       * fuer das Tragjoch laengst tut. Hier steht nur die SUMME.
+       */
+      Fx: teile2.reduce((a2, p) => a2 + (p.lw.Qx ?? 0), 0),
       ohneTabelle: teile2.some((p) => p.lw.ohneTabelle),
       gebrochen: teile2.filter((p) => p.bricht).map((p) => p.t.name ?? 'Leiter'),
     };
@@ -1452,7 +1462,21 @@ export function abfangAuswertung(o = {}) {
        * Anlage.
        */
       const Fy = bw.g * Zy + bw.w * Math.abs(Wy) * Math.sign(Zy || 1);
+      /*
+       * >>> DIE CHARAKTERISTISCHE KOMBINATION STEHT DANEBEN. <<<
+       *
+       * Alle Anteile mit Beiwert 1. Sie wird gebraucht, wo eine ZULAESSIGE
+       * Kraft gegenuebersteht statt eines Bemessungswiderstandes - beim
+       * Zuganker am Masten (Weisung vom 10. September). Sie hier zu bilden
+       * ist billiger, als sie spaeter aus dem Bemessungswert
+       * zurueckzurechnen: die drei Beiwerte sind verschieden, und der Weg
+       * zurueck waere nicht eindeutig.
+       */
       const e = { key: b.fall.key, label: b.fall.label, Fz, Fy,
+                  Fxges: bw.w ? b.Fx : 0,
+                  char: { Fz: Gz + Sz,
+                          Fy: Zy + Math.abs(Wy) * Math.sign(Zy || 1),
+                          Fxges: b.Fx },
                   anteile: { G: Gz, S: Sz, Z: Zy, W: Wy },
                   beiwerte: bw };
       // Massgebend ist, was den Masten am staerksten beansprucht: die
@@ -1461,18 +1485,27 @@ export function abfangAuswertung(o = {}) {
       if (!beste || kenn > beste.kenn) beste = { ...e, kenn };
       return e;
     });
-    return { ende, Fz: beste.Fz, Fy: beste.Fy, fall: beste.key,
+    return { ende, Fz: beste.Fz, Fy: beste.Fy, Fxges: beste.Fxges,
+             fall: beste.key, char: beste.char,
              anteile: beste.anteile, faelle };
   };
 
   const auflager = {
     A: auflagerAn('A'), B: auflagerAn('B'),
     /*
-     * Die Kraft in Jochachse fehlt - siehe oben. Sie steht als Merkposten
-     * da, damit der Hinweis sie beim Namen nennen kann, statt dass jemand
-     * eine Null fuer eine Rechnung haelt.
+     * >>> WO DER ANSCHLUSS SITZT. <<<
+     *
+     * Die beiden Gurte liegen in GLEISRICHTUNG nebeneinander, die Mastachse
+     * dazwischen. Der vordere Gurt ist in der Jochachse frei gelagert -
+     * damit das Rahmenmoment nicht als Torsion in den Masten laeuft
+     * (Weisung vom 5. September). Die Kraft in der Jochachse haengt deshalb
+     * ganz am HINTEREN Gurt, und der sitzt um den halben Gurtabstand neben
+     * der Mastachse.
+     *
+     * Genau das ist die Exzentrizitaet, die die Weisung stehen laesst: der
+     * einzige Torsionsanteil, den der Mast noch bekommt.
      */
-    ohneFx: teile.some((p) => Math.abs(p.lw.Qx ?? 0) > 1e-9),
+    ey: (q.e / 100) / 2,
   };
 
   // --- Der Gurtnachweis, Station fuer Station ------------------------------

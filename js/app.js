@@ -62,6 +62,8 @@ import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
+// Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
+import { mastNachweise, mastSchnitt } from './core.mast.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
          getAbfangjoch } from './data.abfangjoche.js';
@@ -463,6 +465,27 @@ function neuRechnen(neuZeichnen = true) {
         erg.abfang = null;
         console.warn('Abfangjoch-Auswertung:', e2?.message ?? e2);
       }
+      /*
+       * >>> UND DER MAST BEKOMMT SEINE KRAEFTE. <<<
+       *
+       * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
+       * machen.»
+       *
+       * `berechne` hat den Masten oben schon gerechnet - mit den Reaktionen
+       * des TRAGJOCH-Ersatzbalkens, denn etwas anderes kennt es nicht. Am
+       * Abfangjoch gelten sie nicht; deshalb stand dort bisher gar keine
+       * Mastkachel.
+       *
+       * Jetzt liegen die eigenen Auflagerkraefte vor, und der Nachweis wird
+       * mit ihnen NEU gebildet. Nicht ergaenzt, sondern ersetzt: zwei
+       * Mastnachweise nebeneinander waeren einer zuviel.
+       */
+      if (erg.abfang?.auflager) {
+        const optM = { plastisch: werte.mastPlastisch === true,
+                       knickBeiwert: werte.knickBeiwert };
+        erg.mast = mastNachweise(
+          { ...erg.modell, abfangAuflager: erg.abfang.auflager }, optM);
+      }
     }
 
     /*
@@ -534,7 +557,11 @@ function neuRechnen(neuZeichnen = true) {
      * charakteristischen Lastfaelle laufen daneben mit, und aus ihnen kommt
      * die Zahl.
      */
-    erg.anker = mitJoch ? ankerAuswertung(kombi) : null;
+    erg.anker = mitJoch
+      ? (erg.abfang?.auflager
+          ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager)
+          : ankerAuswertung(kombi))
+      : null;
     const checks = mitJoch ? konstruktionsChecks(erg.modell) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
@@ -562,6 +589,15 @@ function neuRechnen(neuZeichnen = true) {
      * hat darauf keinen Einfluss.
      */
     if (erg.abfang) anzeige.abfang = erg.abfang;
+    /*
+     * >>> UND DER MASTNACHWEIS MIT IHM. <<<
+     *
+     * `anzeige` ist beim Regelfall die Huellkurve der Tragjoch-
+     * Kombinationen, und die traegt ihren eigenen Mastnachweis - gerechnet
+     * aus dem Ersatzbalken. Am Abfangjoch gilt der nicht; er wird deshalb
+     * ersetzt, wie der Jochnachweis daneben.
+     */
+    if (erg.abfang?.auflager && erg.mast) anzeige.mast = erg.mast;
     /*
      * >>> UND DER ANKER AUS DEMSELBEN GRUND. <<<
      *
@@ -2551,12 +2587,13 @@ function vorlagenZusammenfuehren(w) {
  */
 const ANKERFELDER = {
   ankerTyp: 'typ', ankerH: 'h', ankerA: 'a',
-  ankerSeite: 'seite', ankerBef: 'befestigung',
+  ankerRichtung: 'richtung', ankerSeite: 'seite', ankerBef: 'befestigung',
 };
 
 /** Womit ein neu gesetzter Anker anfaengt, bis jemand die Masse eintraegt. */
 const ANKER_STANDARD = {
-  typ: 'U12', h: 4.0, a: 3.0, seite: 'plus', befestigung: 'ankerplatte',
+  typ: 'U12', h: 4.0, a: 3.0, richtung: 'x', seite: 'plus',
+  befestigung: 'ankerplatte',
 };
 
 /**
@@ -2594,6 +2631,48 @@ function ankerAuswertung(kombi) {
                              { befestigung: k.befestigung });
     proEnde[ende] = { ...beste, geo: k.geo, nachweis: nw,
                       ueberKopf: k.ueberKopf === true };
+  });
+  const enden = Object.values(proEnde);
+  if (!enden.length) return null;
+  return {
+    ...proEnde,
+    eta: Math.max(...enden.map((e) => e.nachweis?.eta ?? 0)),
+    ok: enden.every((e) => e.nachweis?.ok !== false),
+  };
+}
+
+/**
+ * DER ANKERNACHWEIS AM ABFANGJOCH.
+ *
+ * >>> ES GEHT NICHT UEBER DIE LASTFAELLE DES TRAGJOCHS. <<<
+ *
+ * `ankerAuswertung` sammelt die charakteristischen Lastfaelle aus
+ * `vergleichKombinationen` - und die rechnen den Tragjoch-Ersatzbalken. Am
+ * Abfangjoch waeren das Kraefte aus dem falschen Modell.
+ *
+ * Das Abfangjoch fuehrt seine charakteristische Kombination selbst mit
+ * (`auflager[ende].char`, alle Anteile mit Beiwert 1). Daraus wird ein
+ * eigenes Lastbild gebaut und der Masten damit geschnitten; die Ankerkraft
+ * faellt dabei an wie sonst auch.
+ */
+function ankerAmAbfangjoch(modell, auflager) {
+  const charAuflager = {
+    ey: auflager.ey,
+    A: auflager.A ? { ...auflager.A, ...auflager.A.char } : null,
+    B: auflager.B ? { ...auflager.B, ...auflager.B.char } : null,
+  };
+  const mChar = { ...modell, abfangAuflager: charAuflager };
+  const proEnde = {};
+  ['A', 'B'].forEach((ende) => {
+    const sch = mastSchnitt(mChar, ende);
+    const k = sch?.ankerkraft;
+    if (!k) return;
+    proEnde[ende] = {
+      kraft: k, lastfall: 'abfang', bez: 'Abfangjoch, charakteristisch',
+      geo: k.geo, ueberKopf: k.ueberKopf === true,
+      nachweis: ankerNachweis(k.typ, k.N, k.geo.L,
+                              { befestigung: k.befestigung }),
+    };
   });
   const enden = Object.values(proEnde);
   if (!enden.length) return null;

@@ -803,15 +803,44 @@ export const FELDER = [
     hinweis: 'Waagrecht vom Mastfuss bis zum Ankerfundament, quer zum Gleis. '
            + 'Je weiter weg, desto flacher der Stab — und desto kleiner '
            + 'seine Kraft für dieselbe Wirkung.' },
+  /*
+   * >>> IN WELCHER EBENE ER LIEGT. <<<
+   *
+   * Ein schraeger Stab haelt die Richtung, in der er liegt - die andere
+   * nicht. Am TRAGJOCH kippt die Umlenkkraft den Masten quer zum Gleis,
+   * also steht der Anker in der Jochachse. Am ABFANGJOCH steht die grosse
+   * Kraft laengs - der Leiterzug -, und dort gehoert er in die
+   * Gleisrichtung.
+   *
+   * Das ist keine Feinheit: in der falschen Ebene bekommt er rechnerisch
+   * NULL und entlastet den Masten nicht.
+   */
+  { key: 'ankerRichtung', gruppe: 'mast', typ: 'auswahl',
+    label: 'Ebene des Ankers', standard: 'x',
+    wertAus: amAnker('richtung', 'x'),
+    optionen: [
+      { wert: 'x', label: 'Jochachse (quer zum Gleis)' },
+      { wert: 'y', label: 'Gleisrichtung (längs)' }],
+    sichtbar: ankerDa,
+    notiz: (w) => (gewaehlterMast(w)?.anker?.richtung === 'y'
+      ? 'Hält die Kraft in Gleisrichtung — der Leiterzug am Abfangjoch.'
+      : 'Hält die Kraft in der Jochachse — die Umlenkkraft am Tragjoch.'),
+    hinweis: 'Der Stab hält nur die Richtung, in der er liegt. Am Abfangjoch '
+           + 'ist die grosse Kraft der Leiterzug in GLEISRICHTUNG; ein Anker '
+           + 'quer dazu hält davon nichts.' },
   { key: 'ankerSeite', gruppe: 'mast', typ: 'auswahl',
     label: 'Seite des Ankerfundaments', standard: 'plus',
     wertAus: amAnker('seite', 'plus'),
-    optionen: [
-      { wert: 'plus', label: 'in +x (vom Gleis weg)' },
-      { wert: 'minus', label: 'in −x (zum Gleis hin)' }],
+    optionenAus: (w) => (gewaehlterMast(w)?.anker?.richtung === 'y'
+      ? [{ wert: 'plus', label: 'in +y (Gleisrichtung, vorn)' },
+         { wert: 'minus', label: 'in −y (Gleisrichtung, hinten)' }]
+      : [{ wert: 'plus', label: 'in +x (vom Gleis weg)' },
+         { wert: 'minus', label: 'in −x (zum Gleis hin)' }]),
+    optionen: [{ wert: 'plus', label: 'in +' },
+               { wert: 'minus', label: 'in −' }],
     sichtbar: ankerDa,
-    hinweis: 'In der Jochachse gemessen. Der Anker steht auf der Seite, zu '
-           + 'der er ZIEHT — gegen die Kraft, die den Masten kippt.' },
+    hinweis: 'Der Anker steht auf der Seite, zu der er ZIEHT — gegen die '
+           + 'Kraft, die den Masten kippt.' },
   { key: 'ankerBef', gruppe: 'mast', typ: 'auswahl',
     label: 'Befestigung an Fundament und Mast', standard: 'ankerplatte',
     wertAus: amAnker('befestigung', 'ankerplatte'),
