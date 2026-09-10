@@ -171,6 +171,196 @@ export function stab(p0, p1, dicke, opt) {
                     Math.abs(d[2]) + dicke], opt);
 }
 
+/* ===========================================================================
+ * DER MAST - EIN BAUSTEIN FUER BEIDE SZENEN
+ * ===========================================================================
+ *
+ * Weisung vom 10. September: «warum sehen die masten anders aus im 3d als
+ * die bei den tragjochen? wurden diese nicht fertig gebaut?»
+ *
+ * >>> WEIL ES ZWEI ZEICHNUNGEN WAREN. <<<
+ *
+ * `render.3d.js` baut die Szene des Tragjochs, `render.abfang.js` die des
+ * Abfangjochs - und jede zeichnete ihren Masten selbst. Beim Tragjoch mit
+ * allem: Ausnutzung über die Höhe, Überstand über den Anschluss,
+ * Fussschraffur, Zuganker. Beim Abfangjoch ein einzelnes Prisma vom Fuss bis
+ * zur Jochachse, einfarbig.
+ *
+ * Es war nicht «nicht fertig gebaut», sondern ZWEIMAL gebaut - und die
+ * zweite Fassung blieb hinter der ersten zurück. Genau das passiert mit
+ * jeder Kopie.
+ *
+ * Hier steht sie EINMAL. Beide Szenen rufen sie, und was hier dazukommt,
+ * steht in beiden Bildern.
+ *
+ * >>> DIE KOORDINATEN SIND IN BEIDEN SZENEN DIESELBEN. <<<
+ *
+ * z = 0 ist die Jochachse, der Fuss liegt bei −H, der Mast steht auf y = 0.
+ * Das galt in beiden Modulen schon vorher; deshalb lässt sich der Baustein
+ * überhaupt teilen.
+ * =========================================================================== */
+
+/**
+ * Flächen und Linien eines Masten.
+ *
+ * @param {object} o
+ *   profil        Mastprofil aus dem Sortiment
+ *   achse         'y' | 'z' - Stegrichtung
+ *   x             Lage in der Jochachse [m]
+ *   zFuss         Fuss [m], meist negativ
+ *   zAnschluss    Jochachse [m], meist 0
+ *   zKopf         Kopf [m] - darüber der Überstand
+ *   name          'A' | 'B' - für `teil` und die Beschriftung
+ *   grund         Beschriftung ohne Zusatz
+ *   nachweis      Ergebnis aus mastNachweise()[name], oder null
+ *   farbeBauteil  Farbe, wenn kein Nachweis vorliegt
+ *   anker         {typ, h, a, richtung, seite} am Masten, oder null
+ *   ankerText     Beschriftung des Ankers
+ * @returns {{flaechen:object[], linien:object[]}}
+ */
+export function mastKoerper(o) {
+  const flaechen = [];
+  const linien = [];
+  const { profil, achse = 'y', x, zFuss, zKopf, name = 'A',
+          grund = 'Mast', nachweis = null } = o;
+  if (!profil) return { flaechen, linien };
+  const poly = iProfilPoly(profil, achse);
+  const teil = `MAST_${name}`;
+
+  /*
+   * >>> DER MAST TRAEGT SEINE AUSNUTZUNG. <<<
+   *
+   * Er stand als EIN Koerper da, einfarbig, waehrend jedes Blech und jeder
+   * Gurt seinen Kennwert zeigte. Dabei ist gerade am Masten der VERLAUF die
+   * Auskunft: die Ausnutzung waechst zum Fuss hin, und bei teilweiser
+   * Einspannung nimmt sie zum Joch hin wieder zu.
+   *
+   * Gezeichnet wird je Abschnitt zwischen zwei Stationen ein eigenes
+   * Prisma. Massgebend ist der UNGUENSTIGERE der beiden Endwerte - ein
+   * Abschnitt, der nur seinen unteren Wert zeigte, faerbte die Stelle unter
+   * einer Einzellast zu guenstig ein.
+   */
+  const st = nachweis?.stationen ?? [];
+  if (st.length >= 2) {
+    for (let i = 0; i < st.length - 1; i += 1) {
+      const u = st[i], ob = st[i + 1];
+      const zu2 = zFuss + u.z, zo2 = zFuss + ob.z;
+      if (!(zo2 > zu2 + 1e-9)) continue;
+      const arg = (f) => Math.max(Math.abs(u[f] ?? 0), Math.abs(ob[f] ?? 0));
+      const schlimmer = u.eta >= ob.eta ? u : ob;
+      flaechen.push(...prismaZ(poly, x, zu2, zo2, {
+        gruppe: 'mast', teil,
+        werte: {
+          eta: schlimmer.eta,
+          sig_v: schlimmer.sig,
+          sig: Math.abs(schlimmer.sigN ?? 0),
+          N: schlimmer.N,
+          M: Math.max(arg('Mq'), arg('Ml')),
+          V: Math.max(arg('Vq'), arg('Vl')),
+        },
+        label: `${grund} · ${u.z.toFixed(2)} bis ${ob.z.toFixed(2)} m`
+             + ` über Fuss · η ${schlimmer.eta.toFixed(3)}`,
+      }));
+    }
+    /*
+     * DER MAST REICHT WEITER ALS DER NACHWEIS. Er endet am Mastkopf, wie
+     * ihn die Laengenangabe bestimmt; die Zeichnung fuehrt ihn mindestens
+     * einen halben Meter ueber den Obergurt. Ohne dieses Stueck endete er
+     * an der letzten Station, und der Ueberstand mit seinen Traversen
+     * fehlte im Bild.
+     */
+    const zLetzt = zFuss + st[st.length - 1].z;
+    if (zKopf > zLetzt + 1e-9) {
+      flaechen.push(...prismaZ(poly, x, zLetzt, zKopf, {
+        gruppe: 'mast', teil,
+        label: `${grund} · Überstand über den Nachweis`,
+      }));
+    }
+  } else {
+    // Ohne Nachweis bleibt er ein Koerper ohne Kennwert - neutral
+    // eingefaerbt statt mit einer erfundenen Zahl.
+    flaechen.push(...prismaZ(poly, x, zFuss, zKopf, {
+      gruppe: 'mast', teil, farbeBauteil: o.farbeBauteil,
+      label: `${grund} · ${(zKopf - zFuss).toFixed(2)} m`,
+    }));
+  }
+
+  const halb = ((achse === 'y' ? profil.b : profil.h) / 2) * MM;
+  // Fussschraffur - der Mast ist am Fuss eingespannt.
+  const H = Math.max(0.5, (o.zAnschluss ?? 0) - zFuss);
+  for (let k = -2; k <= 2; k += 1) {
+    const y = (k / 2) * halb;
+    linien.push({ gruppe: 'mast',
+                  punkte: [[x, y, zFuss],
+                           [x, y - 0.12 * halb, zFuss - 0.14 * H]] });
+  }
+
+  linien.push(...ankerLinien(o, halb, zFuss, zKopf));
+  return { flaechen, linien };
+}
+
+/**
+ * >>> DER ZUGANKER ODER DIE DRUCKSTUETZE. <<<
+ *
+ * Ein schraeger Stab vom Masten zu einem eigenen Fundament. Gezeichnet als
+ * Doppellinie: eine einzelne Linie sieht aus wie eine Masslinie, und genau
+ * das ist er nicht.
+ *
+ * DAS GELENK STEHT DA, WEIL ES DER PUNKT IST. An beiden Enden ein Kreis
+ * statt einer Schraffur - der Stab traegt nur Normalkraft. Wer das Bild
+ * liest, muss sehen, dass hier kein Moment uebergeht; die Einspannung des
+ * Mastfusses daneben zeigt den Unterschied.
+ *
+ * ER LIEGT IN SEINER EBENE: quer zum Gleis in der Jochachse, laengs in
+ * Gleisrichtung. Beides muss man im Bild unterscheiden koennen - sonst
+ * sieht ein wirkungsloser Anker aus wie ein wirksamer.
+ */
+function ankerLinien(o, halb, zFuss, zKopf) {
+  const ak = o.anker;
+  if (!ak?.typ || !(ak.h > 0) || !(ak.a > 0)) return [];
+  const linien = [];
+  const { x, name = 'A' } = o;
+  const vz = ak.seite === 'minus' ? -1 : 1;
+  const laengs = ak.richtung === 'y';
+  const zA = zFuss + Math.min(ak.h, zKopf - zFuss);
+  const xF = laengs ? x : x + vz * ak.a;
+  const yF = laengs ? vz * ak.a : 0;
+  const wie = o.ankerText ?? `${ak.typ} · nicht gerechnet`;
+
+  [-0.5, +0.5].forEach((d) => {
+    const dx = laengs ? d * halb : 0;
+    const dy = laengs ? 0 : d * halb;
+    linien.push({ gruppe: 'mast', anker: true, stark: true,
+                  label: `Anker ${name} · ${wie}`,
+                  punkte: [[x + dx, dy, zA], [xF + dx, yF + dy, zFuss]] });
+  });
+  // Das Ankerfundament: ein Klotz am Boden, kein Auflagerdreieck.
+  const fb = 0.35 * halb;
+  [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, -1]].forEach((p, i, arr) => {
+    if (i === 0) return;
+    const q = arr[i - 1];
+    linien.push({ gruppe: 'mast', anker: true,
+      punkte: [[xF + q[0] * fb, yF + q[1] * fb, zFuss],
+               [xF + p[0] * fb, yF + p[1] * fb, zFuss]] });
+  });
+  // Die beiden Gelenke - als Vieleck, die Szene kennt keine Kreise.
+  [[x, 0, zA], [xF, yF, zFuss]].forEach(([xg, yg, zg]) => {
+    const r = 0.22 * halb;
+    const pkt = [];
+    for (let k = 0; k <= 8; k += 1) {
+      const w = (k / 8) * 2 * Math.PI;
+      const c = r * Math.cos(w);
+      pkt.push([xg + (laengs ? 0 : c), yg + (laengs ? c : 0),
+                zg + r * Math.sin(w)]);
+    }
+    for (let k = 1; k < pkt.length; k += 1) {
+      linien.push({ gruppe: 'mast', anker: true,
+                    punkte: [pkt[k - 1], pkt[k]] });
+    }
+  });
+  return linien;
+}
+
 /**
  * DER UMRISS EINES U-PROFILS als Polygon [[y,z],...] in Millimetern.
  *

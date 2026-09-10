@@ -773,6 +773,15 @@ function blattSzene(erg) {
     ? abfangSzene(werte.abfangTyp, Number(werte.L),
                   { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
                     mast: abfangMastAngabe(tragwerkSatz(werte)),
+                    masten: abfangMastenAngabe(
+                      rechensatz(werte), erg.modell.federn?.namen),
+                    /*
+                     * DER NACHWEIS FAERBT AUCH DEN MASTEN - dieselbe Regel
+                     * wie beim Joch: nur das GERECHNETE Tragwerk bekommt
+                     * ihn, ein Nachbar bliebe eine Behauptung.
+                     */
+                    ergMast: erg.mast ?? null,
+                    ergAnker: erg.anker ?? null,
                     lager: tragwerkSatz(werte),
                     ...abfangLastAngaben(tragwerkSatz(werte)),
                     /*
@@ -1000,6 +1009,39 @@ function abfangMastAngabe(satz) {
   if (!satz.mastProfil || !(hoehe > 0)) return null;
   return { profil: satz.mastProfil, hoehe,
            stegrichtung: satz.mastSteg ?? 'jochachse' };
+}
+
+/**
+ * >>> DIE BEIDEN MASTEN EINZELN - fuer die Abfangszene. <<<
+ *
+ * Weisung vom 10. September: die Masten sollen aussehen wie beim Tragjoch.
+ * Dazu gehoert, dass sie sich unterscheiden duerfen: Profil, Hoehe,
+ * Ueberstand und der Anker stehen je Ende, nicht einmal fuer beide.
+ *
+ * Die Angaben kommen aus demselben Rechensatz, den der Kern bekommt - Bild
+ * und Rechnung sollen nicht aus zwei Quellen schoepfen.
+ */
+function abfangMastenAngabe(satz, namen) {
+  if (!satz || satz.mastVorhanden === false) return null;
+  const je = (ende) => {
+    const zwei = ende === 'B' && satz.mastZwei === true;
+    const zweiH = ende === 'B' && (satz.mastHZwei ?? satz.mastZwei) === true;
+    const profil = zwei ? (satz.mastProfilB ?? satz.mastProfil)
+                        : satz.mastProfil;
+    const hoehe = Number(zweiH ? (satz.mastHB ?? satz.mastH) : satz.mastH) || 0;
+    if (!profil || !(hoehe > 0)) return null;
+    const roh = Number(zwei ? (satz.mastLaengeB || satz.mastLaenge)
+                            : satz.mastLaenge) || 0;
+    return {
+      profil, hoehe, name: namen?.[ende] ?? null,
+      stegrichtung: (zwei ? (satz.mastStegB ?? satz.mastSteg)
+                          : satz.mastSteg) ?? 'jochachse',
+      // Der Kopf ueber der Jochachse - ohne Angabe endet er dort.
+      ueberstand: roh > hoehe ? roh - hoehe : 0,
+      anker: (ende === 'B' ? satz.mastAnkerB : satz.mastAnkerA) ?? null,
+    };
+  };
+  return { A: je('A'), B: je('B') };
 }
 
 /**

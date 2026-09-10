@@ -16339,9 +16339,38 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       pruef('Sie reichen bis zum Fundament',
             Math.min(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
             -7.5, 1e-9, 'm');
-      wahr('… und enden an der Jochachse',
-           Math.abs(Math.max(...mst.flatMap(
-             (f) => f.punkte.map((p2) => p2[2])))) < 1e-9);
+      /*
+       * >>> UND SIE RAGEN UEBER DEN ANSCHLUSS. <<<
+       *
+       * Weisung vom 10. September: «warum sehen die masten anders aus im 3d
+       * als die bei den tragjochen?» Hier stand «und enden an der
+       * Jochachse» - genau das war der Unterschied. Beim Tragjoch fuehrt die
+       * Zeichnung den Masten mindestens einen halben Meter ueber die
+       * Oberkante des Traegers, und dort sitzen die Traversen.
+       *
+       * A300: Profilhoehe 300 mm, also 0.15 + 0.50 = 0.65 m ueber der
+       * Jochachse.
+       */
+      pruef('… und ragen ueber den Anschluss hinaus',
+            Math.max(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
+            0.65, 1e-9, 'm');
+      /*
+       * BEIDE SZENEN NEHMEN DENSELBEN BAUSTEIN. Waeren es zwei, liefe die
+       * eine der anderen wieder davon - genau das war der Befund.
+       */
+      {
+        const rq = readFileSync(join(HIER, 'js', 'render.abfang.js'), 'utf8');
+        const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+        wahr('Die Abfangszene ruft den gemeinsamen Mastbaustein',
+             /mastKoerper\(/.test(rq));
+        wahr('… und die Tragjochszene auch', /mastKoerper\(/.test(r3));
+        /*
+         * Und keine ZWEITE Ankerzeichnung daneben - der Kommentar darf den
+         * Baustein nennen, der Code nicht noch einmal dasselbe malen.
+         */
+        wahr('Die Ankerlinien stehen nur im Baustein',
+             !/anker: true/.test(r3) && !/anker: true/.test(rq));
+      }
 
       const g = vorn('GURT_V'), db = vorn('DECK_L');
       pruef('A300 am Ende: innere Flanschspitze bei 150', g.y0, 150, 1e-6, 'mm');

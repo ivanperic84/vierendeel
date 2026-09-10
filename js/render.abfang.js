@@ -47,7 +47,8 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
 import { getGurtprofil } from './data.profiles.js';
 import { bauteilFarbe } from './design.js';
 import { prisma, prismaY, platte, prismaZ, stab, quader,
-         iProfilPoly, walzProfilPoly } from './render.koerper.js';
+         iProfilPoly, walzProfilPoly,
+         mastKoerper } from './render.koerper.js';
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { linkEinspannung } from './core.auflager.js';
 
@@ -586,19 +587,60 @@ export function abfangSzene(typ, jt, opt = {}) {
    * OHNE MASTANGABE WIRD NICHTS GEZEICHNET. Ein Mast, den niemand gewählt
    * hat, wäre eine Behauptung über die Lagerung.
    */
+  /*
+   * >>> DERSELBE BAUSTEIN WIE BEIM TRAGJOCH. <<<
+   *
+   * Weisung vom 10. September: «warum sehen die masten anders aus im 3d als
+   * die bei den tragjochen? wurden diese nicht fertig gebaut?»
+   *
+   * Hier stand ein einzelnes Prisma vom Fuss bis zur Jochachse, einfarbig -
+   * waehrend die Tragjochszene daneben die Ausnutzung ueber die Hoehe zeigte,
+   * den Ueberstand, die Fussschraffur und den Zuganker. Es war nicht
+   * unfertig, sondern eine ZWEITE Zeichnung desselben Bauteils, und die
+   * blieb hinter der ersten zurueck.
+   *
+   * `mastKoerper` steht jetzt in `render.koerper.js` und gilt beiden.
+   *
+   * >>> UND JEDES ENDE BEKOMMT SEINEN EIGENEN. <<<
+   *
+   * `opt.mast` war EINE Angabe fuer beide Masten; sie stammt aus den flachen
+   * Feldern des Satzes. Profil, Hoehe und Anker koennen sich zwischen den
+   * Enden unterscheiden - `opt.masten` traegt sie einzeln, wo sie da sind.
+   */
   if (opt.mast?.profil && opt.mast.hoehe > 0) {
-    let mp = null;
-    try { mp = getMastprofil(opt.mast.profil); } catch { mp = null; }
-    if (mp) {
-      const achse = getStegrichtung(opt.mast.stegrichtung)?.achse ?? 'y';
-      const poly = iProfilPoly(mp, achse);
+    const enden = [['A', ue], ['B', jt - ue]];
+    for (const [name, x] of enden) {
+      const md = opt.masten?.[name] ?? opt.mast;
+      if (!md?.profil || !(md.hoehe > 0)) continue;
+      let mp = null;
+      try { mp = getMastprofil(md.profil); } catch { mp = null; }
+      if (!mp) continue;
+      const achse = getStegrichtung(md.stegrichtung)?.achse ?? 'y';
       const fb = farbeFuer(`mast|${mp.name}`, `Mast · ${mp.name}`, 'mast');
-      for (const x of [ue, jt - ue]) {
-        flaechen.push(...prismaZ(poly, x, -opt.mast.hoehe, 0, {
-          gruppe: 'mast', teil: `MAST_${x < jt / 2 ? 'A' : 'B'}`,
-          farbeBauteil: fb, label: `Mast · ${mp.name}`,
-        }));
-      }
+      const stegText = achse === 'y'
+        ? 'Steg quer zum Gleis' : 'Steg längs zum Gleis';
+      const nwA = opt.ergAnker?.[name]?.nachweis ?? null;
+      const mk = mastKoerper({
+        profil: mp, achse, x, zFuss: -md.hoehe, zAnschluss: 0,
+        /*
+         * DER KOPF RAGT UEBER DEN ANSCHLUSS - mindestens den halben Meter,
+         * den die stehende Vorgabe verlangt, und ueber die Oberkante des
+         * Traegers hinaus. Ohne das endete der Mast an der Jochachse, und
+         * der Ueberstand mit seinen Traversen fehlte im Bild.
+         */
+        zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
+        name, grund: `Mast ${md.name ?? name} · ${mp.name} · ${stegText}`,
+        nachweis: opt.ergMast?.[name] ?? null,
+        farbeBauteil: fb,
+        anker: md.anker ?? null,
+        ankerText: nwA
+          ? `${nwA.typ} · ${nwA.N >= 0 ? 'Zug' : 'Druck'} `
+            + `${Math.abs(nwA.N).toFixed(1)} kN · η `
+            + `${(nwA.eta ?? 0).toFixed(3)}`
+          : null,
+      });
+      flaechen.push(...mk.flaechen);
+      linien.push(...mk.linien);
     }
   }
 
