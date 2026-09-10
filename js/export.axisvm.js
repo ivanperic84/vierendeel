@@ -944,6 +944,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     arme: teile.flatMap((x) => x.bau.arme ?? []),
     ausKnotenVermerk: teile.flatMap((x) => x.bau.ausKnotenVermerk ?? []),
     anbauMastAus: teile.flatMap((x) => x.bau.anbauMastAus ?? []),
+    ankerAus: teile.flatMap((x) => x.bau.ankerAus ?? []),
     verschoben: teile.flatMap((x) => x.bau.verschoben ?? []),
     knotenmodell: erstes.knotenmodell ?? (opt.knotenmodell ?? 'anschnitt'),
     zOben: erstes.zOben ?? 0,
@@ -1369,6 +1370,11 @@ export function stabmodell(m, opt = {}) {
   // NICHT gebaut, und das Modell soll es sagen statt sie stillschweigend
   // wegzulassen.
   const anbauMastAus = [];
+  /*
+   * DIE ANKER, DIE AUSGELEITET WURDEN - fuer den Bericht. Ihre
+   * Querschnittswerte sind nicht erfasst, und das muss dort stehen.
+   */
+  const ankerAus = [];
   // Fundamenthöhe je Ende: die Anbauhöhen zählen von dort.
   const mastFuss = {};
   /*
@@ -1612,6 +1618,84 @@ export function stabmodell(m, opt = {}) {
                { starrRolle: 'uebergang',
                  kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
       });
+
+      /* =====================================================================
+       * DER ZUGANKER ODER DIE DRUCKSTUETZE
+       * =====================================================================
+       *
+       * Weisung vom 11. September: «die anker im 3d nachziehen und im axis
+       * testen.»
+       *
+       * >>> EIN PENDELSTAB, UND ER SIEHT AUCH SO AUS. <<<
+       *
+       * An beiden Enden GELENKIG (Weisung vom 9. September): er traegt nur
+       * Normalkraft. In AxisVM heisst das ein Stab mit geloesten Momenten an
+       * beiden Enden - `gelenkAnfang: 'M'` ueber `starrArt` -, und am Boden
+       * ein Auflager, das die drei Verschiebungen haelt und die drei
+       * Drehungen freigibt. Ein eingespanntes Ankerfundament waere ein
+       * anderes Bauteil.
+       *
+       * >>> DIE EBENE FOLGT DER EINGABE. <<<
+       *
+       * Quer zum Gleis steht er in der Jochachse (x), laengs in
+       * Gleisrichtung (y). Im Modell ist das der Unterschied zwischen einem
+       * Anker, der die Umlenkkraft haelt, und einem, der die Abfangkraft
+       * haelt - und einer in der falschen Ebene haelt nichts.
+       *
+       * >>> WAS FEHLT: DIE QUERSCHNITTSWERTE. <<<
+       *
+       * Der Katalog fuehrt die Stuetze als «2x UNP 120» - eine Bezeichnung,
+       * keine Flaeche. UNP-Profile stehen nicht im Profilkatalog (dort sind
+       * die Winkel des Tragjochs und die UPE der Abfangjoche). Ausgeleitet
+       * wird deshalb ein PLATZHALTER-Querschnitt, der im Namen sagt, was er
+       * ist; die Dehnsteifigkeit des Stabes stimmt damit nicht, und der
+       * Bericht sagt es.
+       *
+       * Fuer die Lage im Modell und fuer die Kraefte aus dem Gleichgewicht
+       * ist das ohne Belang - fuer eine Verformungsrechnung nicht.
+       * =================================================================== */
+      const ak = md.anker;
+      if (ak?.typ && ak.h > 0 && ak.a > 0) {
+        const vzA = ak.seite === 'minus' ? -1 : 1;
+        const laengsA = ak.richtung === 'y';
+        const zAnk = r6(zFuss + Math.min(ak.h, zOben - h / 2 - zFuss));
+        const xF = laengsA ? x : r6(x + vzA * ak.a);
+        const yF = laengsA ? r6(vzA * ak.a) : 0;
+        /*
+         * DER ANSCHLUSSKNOTEN AM MASTEN gehoert in die Stabteilung - sonst
+         * haengt der Anker an einem Punkt, den der Maststab nicht kennt.
+         * Dieselbe Regel wie bei den Anbauteilen am Masten.
+         */
+        if (!mastKn.has(zAnk)) {
+          mastKn.set(zAnk, s.kn(`MAST_${mn(ende)}_ANK`, x, 0, zAnk));
+        }
+        const kAnkF = s.kn(`ANKER_${mn(ende)}_F`, xF, yF, zFuss);
+        /*
+         * >>> DER FORMSCHLUESSEL HEISST `Rectangle`, NICHT `R`. <<<
+         *
+         * Gemessen am 11. September beim ersten Aufbau in AxisVM: «ABBRUCH:
+         * Querschnitt ANKER_U12_PLATZHALTER nicht anlegbar». Die Bruecke
+         * probiert ihre Kandidaten der Reihe nach durch und prueft je den
+         * Formschluessel; `R` traf keinen, und sie hielt an - richtig so,
+         * denn ein geratener Querschnitt waere schlimmer.
+         *
+         * `rechteck` schreibt ihn richtig, und sie steht seit den Blechen
+         * da. Ihn von Hand ein zweites Mal zu schreiben war der Fehler.
+         */
+        const qsAnker = s.qs({
+          ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`
+                            + '_PLATZHALTER', h: 120, b: 60 }),
+          profil: `${ak.typ} — Querschnittswerte nicht erfasst`,
+          A: 120 * 60 / 1e6, Iy: 1e-6, Iz: 1e-6, It: 1e-6,
+        });
+        s.stab(`ANKER_${mn(ende)}`, qsAnker, mastKn.get(zAnk), kAnkF,
+               { gelenkAnfang: 'M', gelenkEnde: 'M' });
+        auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
+                        ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                        fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null });
+        ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
+                        h: ak.h, a: ak.a });
+      }
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
       auflager.push({ ende, x, h: r6(h), modell: am, knoten: kFuss,
@@ -1970,6 +2054,7 @@ export function stabmodell(m, opt = {}) {
 
   return { ...s, auflager, arme, knotenmodell: km, zOben, verschoben,
            ausKnotenVermerk, zweiPunktAnschluss, anbauMastAus,
+           ankerAus,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -2767,6 +2852,27 @@ export function stabmodellJson(m, opt = {}) {
        */
       anbauMastAus: (bau.anbauMastAus ?? []).map((v) => ({
         name: v.name, ende: v.ende, hMast: r6(v.hMast), mastH: r6(v.H),
+      })),
+      /*
+       * >>> DIE ANKER UND IHRE LUECKE. <<<
+       *
+       * Weisung vom 11. September: «die anker im 3d nachziehen und im axis
+       * testen.»
+       *
+       * Sie stehen als Pendelstab im Modell - gelenkig an beiden Enden,
+       * unten ein Auflager ohne Einspannung. Was FEHLT, sind ihre
+       * Querschnittswerte: der Katalog fuehrt «2x UNP 120» als Bezeichnung,
+       * und UNP-Profile stehen nicht im Profilkatalog. Ausgeleitet wird ein
+       * Platzhalter, dessen Name es sagt.
+       *
+       * Fuer die Lage und fuer die Kraefte aus dem Gleichgewicht ist das
+       * ohne Belang - fuer eine Verformungsrechnung nicht. Deshalb steht es
+       * im Bericht und nicht in einem Kommentar.
+       */
+      anker: (bau.ankerAus ?? []).map((v) => ({
+        ende: v.ende, typ: v.typ, richtung: v.richtung,
+        h: r6(v.h), a: r6(v.a),
+        vermerk: 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt',
       })),
       // WO DAS TRAGWERK STEHT. Eigene Felder, damit sie maschinell lesbar
       // bleiben, und zusaetzlich in der Bezeichnung - die traegt der Bericht

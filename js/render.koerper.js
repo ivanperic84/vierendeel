@@ -171,6 +171,69 @@ export function stab(p0, p1, dicke, opt) {
                     Math.abs(d[2]) + dicke], opt);
 }
 
+/**
+ * EIN SCHRÄGER STAB ALS KÖRPER.
+ *
+ * Weisung vom 11. September: «die anker im 3d nachziehen.»
+ *
+ * `stab` daneben legt einen ACHSPARALLELEN Quader um die Verbindung — für
+ * eine kurze Andeutung genügt das, für einen sechs Meter langen Zuganker
+ * nicht: aus dem Stab würde ein Kasten, der die halbe Szene füllt.
+ *
+ * Hier wird der Querschnitt wirklich um die Stabachse gelegt. Die beiden
+ * Querrichtungen folgen aus der Achse selbst: die erste steht senkrecht auf
+ * ihr und auf der Lotrechten, die zweite auf beiden. Damit liegt der
+ * Querschnitt immer richtig, gleichgültig in welcher Ebene der Stab steht —
+ * und genau darauf kommt es an, weil ein Anker quer zum Gleis oder längs
+ * dazu stehen kann.
+ *
+ * @param {number[]} p0  Anfang [x,y,z] in m
+ * @param {number[]} p1  Ende
+ * @param {number} b     Breite des Querschnitts [m]
+ * @param {number} h     Höhe des Querschnitts [m]
+ * @param {object} opt   wandert an jede Fläche
+ */
+export function schraegerStab(p0, p1, b, h, opt = {}) {
+  const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+  const L = Math.hypot(d[0], d[1], d[2]);
+  if (!(L > 1e-9)) return [];
+  const e = d.map((v) => v / L);
+  /*
+   * DIE ERSTE QUERRICHTUNG steht senkrecht auf der Achse und auf z. Läuft
+   * der Stab selbst lotrecht, gibt das Kreuzprodukt null - dann wird nach x
+   * ausgewichen. Ein Anker steht nie ganz senkrecht, aber ein Baustein, der
+   * bei einem Grenzfall NaN liefert, gehört nicht ins Bild.
+   */
+  const kreuz = (a, c) => [a[1] * c[2] - a[2] * c[1],
+                           a[2] * c[0] - a[0] * c[2],
+                           a[0] * c[1] - a[1] * c[0]];
+  const norm = (v) => {
+    const n = Math.hypot(v[0], v[1], v[2]);
+    return n > 1e-9 ? v.map((x) => x / n) : null;
+  };
+  const q1 = norm(kreuz(e, [0, 0, 1])) ?? norm(kreuz(e, [1, 0, 0]))
+          ?? [1, 0, 0];
+  const q2 = norm(kreuz(e, q1)) ?? [0, 1, 0];
+
+  const ecke = (p, s1, s2) => [
+    p[0] + s1 * (b / 2) * q1[0] + s2 * (h / 2) * q2[0],
+    p[1] + s1 * (b / 2) * q1[1] + s2 * (h / 2) * q2[1],
+    p[2] + s1 * (b / 2) * q1[2] + s2 * (h / 2) * q2[2]];
+  const vz = [[-1, -1], [+1, -1], [+1, +1], [-1, +1]];
+  const A = vz.map(([s1, s2]) => ecke(p0, s1, s2));
+  const B = vz.map(([s1, s2]) => ecke(p1, s1, s2));
+
+  const xMitte = (p0[0] + p1[0]) / 2;
+  const flaechen = [];
+  for (let i = 0; i < 4; i += 1) {
+    const j = (i + 1) % 4;
+    flaechen.push({ punkte: [A[i], A[j], B[j], B[i]], xMitte, ...opt });
+  }
+  flaechen.push({ punkte: A, xMitte: p0[0], ...opt });
+  flaechen.push({ punkte: [...B].reverse(), xMitte: p1[0], ...opt });
+  return flaechen;
+}
+
 /* ===========================================================================
  * DER MAST - EIN BAUSTEIN FUER BEIDE SZENEN
  * ===========================================================================
@@ -295,8 +358,11 @@ export function mastKoerper(o) {
                            [x, y - 0.12 * halb, zFuss - 0.14 * H]] });
   }
 
-  linien.push(...ankerLinien(o, halb, zFuss, zKopf));
-  return { flaechen, linien };
+  const ank = ankerTeile(o, halb, zFuss, zKopf);
+  linien.push(...ank.linien);
+  flaechen.push(...ank.flaechen);
+  return { flaechen, linien,
+           bauteiltitel: ank.bauteiltitel, masse: ank.masse };
 }
 
 /**
@@ -315,10 +381,14 @@ export function mastKoerper(o) {
  * Gleisrichtung. Beides muss man im Bild unterscheiden koennen - sonst
  * sieht ein wirkungsloser Anker aus wie ein wirksamer.
  */
-function ankerLinien(o, halb, zFuss, zKopf) {
+function ankerTeile(o, halb, zFuss, zKopf) {
+  const leer = { linien: [], flaechen: [], bauteiltitel: [], masse: [] };
   const ak = o.anker;
-  if (!ak?.typ || !(ak.h > 0) || !(ak.a > 0)) return [];
+  if (!ak?.typ || !(ak.h > 0) || !(ak.a > 0)) return leer;
   const linien = [];
+  const flaechen = [];
+  const bauteiltitel = [];
+  const masse = [];
   const { x, name = 'A' } = o;
   const vz = ak.seite === 'minus' ? -1 : 1;
   const laengs = ak.richtung === 'y';
@@ -327,6 +397,27 @@ function ankerLinien(o, halb, zFuss, zKopf) {
   const yF = laengs ? vz * ak.a : 0;
   const wie = o.ankerText ?? `${ak.typ} · nicht gerechnet`;
 
+  /*
+   * >>> DER STAB IST EIN KOERPER, KEINE LINIE. <<<
+   *
+   * Weisung vom 11. September: «die anker im 3d nachziehen.»
+   *
+   * Gezeichnet war eine Doppellinie - lesbar, aber kein Bauteil. Der U12
+   * ist zwei gespreizte U-Profile, der Seilanker ein Seil; beide sind
+   * schlank, aber sie haben eine Dicke, und im Bild neben einem HEB 240
+   * gehoert sie dazu. Der Querschnitt wird um die STABACHSE gelegt
+   * (`schraegerStab`), nicht achsparallel - sonst wuerde aus einem sechs
+   * Meter langen Anker ein Kasten.
+   *
+   * DIE LINIEN BLEIBEN als Kanten daneben: sie tragen die Beschriftung und
+   * sind auch dann zu sehen, wenn der Koerper hinter dem Masten liegt.
+   */
+  const pM = [x, 0, zA], pF = [xF, yF, zFuss];
+  const dick = Math.max(0.06, 0.55 * halb);
+  flaechen.push(...schraegerStab(pM, pF, dick, dick, {
+    gruppe: 'mast', teil: `ANKER_${name}`,
+    label: `Anker ${name} · ${wie}`,
+  }));
   [-0.5, +0.5].forEach((d) => {
     const dx = laengs ? d * halb : 0;
     const dy = laengs ? 0 : d * halb;
@@ -358,7 +449,39 @@ function ankerLinien(o, halb, zFuss, zKopf) {
                     punkte: [pkt[k - 1], pkt[k]] });
     }
   });
-  return linien;
+
+  /*
+   * >>> DIE ANSCHRIFT UND DIE BEIDEN MASSE. <<<
+   *
+   * Weisung vom 11. September. Jedes andere Bauteil traegt seinen Namen im
+   * Bild und laesst sich anklicken; der Anker war das einzige, das stumm
+   * dastand. Die Anschrift sitzt auf halber Stablaenge, seitlich neben der
+   * Achse - im Stab selbst waere sie vom Koerper verdeckt.
+   *
+   * DIE MASSE SIND DIE EINGABE: die Anschlusshoehe am Masten und der
+   * Abstand des Fundaments. Beide fuehren auf ihr Feld, und zwar auf das
+   * des richtigen Masten (`mastEnde`).
+   */
+  const mitte = [(x + xF) / 2, yF / 2, (zA + zFuss) / 2];
+  bauteiltitel.push({
+    p: [mitte[0], mitte[1] + (laengs ? 0 : 0.35), mitte[2] + 0.35],
+    text: `Anker ${name} · ${wie}`,
+    mastEnde: name, feld: 'ankerTyp', tab: 'system', gruppe: 'mast',
+  });
+  masse.push({
+    feld: 'ankerH', tab: 'system', achse: 'z', mastEnde: name,
+    p0: [x, laengs ? vz * ak.a : 0, zFuss],
+    p1: [x, laengs ? vz * ak.a : 0, zA],
+    ab: laengs ? [1, 0, 0] : [0, 1, 0], d: 0.6,
+    text: `h_A = ${ak.h.toFixed(2)} m`,
+  });
+  masse.push({
+    feld: 'ankerA', tab: 'system', achse: laengs ? 'y' : 'x', mastEnde: name,
+    p0: [x, 0, zFuss], p1: [xF, yF, zFuss],
+    ab: [0, 0, -1], d: 0.5,
+    text: `a_A = ${ak.a.toFixed(2)} m`,
+  });
+  return { linien, flaechen, bauteiltitel, masse };
 }
 
 /**

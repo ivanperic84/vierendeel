@@ -49,6 +49,7 @@ import { bauteilFarbe } from './design.js';
 import { prisma, prismaY, platte, prismaZ, stab, quader,
          iProfilPoly, walzProfilPoly,
          mastKoerper } from './render.koerper.js';
+
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { linkEinspannung } from './core.auflager.js';
 
@@ -642,6 +643,8 @@ export function abfangSzene(typ, jt, opt = {}) {
       });
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);
+      bauteiltitel.push(...(mk.bauteiltitel ?? []));
+      masse.push(...(mk.masse ?? []));
       /*
        * >>> UND SEINE ANSCHRIFT. <<<
        *

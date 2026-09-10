@@ -8267,6 +8267,123 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
   }
 
+  /*
+   * ====== DER ANKER IN DER AXISVM-AUSLEITUNG ===========================
+   *
+   * Weisung vom 11. September: «die anker im 3d nachziehen und im axis
+   * testen.»
+   *
+   * >>> UND DER TEST HAT SOFORT ETWAS GEFUNDEN. <<<
+   *
+   * Erster Aufbau in AxisVM X8: «ABBRUCH: Querschnitt
+   * ANKER_U12_PLATZHALTER nicht anlegbar». Der Formschluessel hiess `R`,
+   * die Bruecke kennt `Rectangle` - sie probiert ihre Kandidaten durch,
+   * prueft je die Form und haelt an, wenn keiner passt. Richtig so: ein
+   * geratener Querschnitt waere schlimmer als ein Abbruch.
+   *
+   * Deshalb prueft die erste Kontrolle hier nicht den Anker, sondern ALLE
+   * Querschnitte gegen die Formen, die die Bruecke fuehrt.
+   */
+  {
+    const einA = (extra) => ({
+      ...standardwerte(), typ: 'J90', L: 20, xLage: 0, twId: 'T1',
+      mastVorhanden: true, endbedingung: 'mast', mastProfil: 'HEB 240',
+      mastH: 7.5, mastSteg: 'jochachse', ...extra });
+    const laufA = (masten) => {
+      const w = CCa.rechensatz(einA({ masten }));
+      const erg = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                           getStahl(w.stahl), T.getTragjoch(w.typ));
+      return AX.stabmodellJson(erg.modell, { eingabe: w,
+                                             auflagerModell: 'mast' });
+    };
+    const CCa = await import(J('core.constants.js'));
+    const jA = laufA([
+      { id: 'M1', x: 0, profil: 'HEB 240',
+        anker: { typ: 'U12', h: 4, a: 3, richtung: 'x', seite: 'minus',
+                 befestigung: 'ankerplatte' } },
+      { id: 'M2', x: 20, profil: 'HEB 240',
+        anker: { typ: 'U14', h: 5, a: 4, richtung: 'y', seite: 'plus',
+                 befestigung: 'ankerplatte' } }]);
+
+    /*
+     * >>> JEDER QUERSCHNITT TRAEGT EINE FORM, DIE DIE BRUECKE KENNT. <<<
+     *
+     * Die Liste steht in AxisVM_aufbauen.ps1; ein Name daneben bricht den
+     * Aufbau ab, und zwar erst im Programm, nach zwei Minuten Aufbauzeit.
+     */
+    const FORMEN = ['Angle', 'Rectangle', 'DoppelU', 'Channel', 'I'];
+    const fremd = (jA.querschnitte ?? [])
+      .filter((q) => q.form && !FORMEN.includes(q.form));
+    wahr('Alle Querschnitte tragen eine bekannte Form',
+         fremd.length === 0, fremd.map((q) => `${q.name}:${q.form}`).join(', '));
+
+    /*
+     * >>> DER ANKER IST EIN PENDELSTAB. <<<
+     *
+     * An beiden Enden gelenkig - er traegt nur Normalkraft. Im Modell
+     * gemessen: «4 Freigaben gesetzt als rtHinged», zwei Anker mal zwei
+     * Enden.
+     */
+    const stA = (jA.staebe ?? []).filter((x) => /^ANKER_/.test(x.name));
+    wahr('Zwei Ankerstaebe im Modell', stA.length === 2);
+    wahr('Beide an beiden Enden gelenkig',
+         stA.every((x) => x.gelenkAnfang === 'M' && x.gelenkEnde === 'M'));
+    wahr('… und als Stab, nicht als Starrkoerper',
+         stA.every((x) => x.art === 'stab'));
+    /*
+     * DAS FUNDAMENT HAELT DIE VERSCHIEBUNGEN UND GIBT DIE DREHUNGEN FREI -
+     * ein eingespanntes Ankerfundament waere ein anderes Bauteil. Der
+     * Mastfuss daneben bleibt voll eingespannt.
+     */
+    const aufA = (jA.auflager ?? []).filter((x) => /^ANKER_/.test(x.knoten));
+    wahr('Zwei Ankerfundamente', aufA.length === 2);
+    wahr('Sie halten die Verschiebungen',
+         aufA.every((x) => x.ux === 'Rigid' && x.uy === 'Rigid'
+                        && x.uz === 'Rigid'));
+    wahr('… und geben die Drehungen frei',
+         aufA.every((x) => x.fix === 'Free' && x.fiy === 'Free'
+                        && x.fiz === 'Free'));
+    wahr('Der Mastfuss bleibt dagegen eingespannt',
+         (jA.auflager ?? []).filter((x) => /^MAST_/.test(x.knoten))
+           .every((x) => x.fix === 'Rigid'));
+
+    /*
+     * >>> DIE EBENE FOLGT DER EINGABE. <<<
+     *
+     * Quer zum Gleis steht der Anker in der Jochachse, laengs in
+     * Gleisrichtung. Im Modell ist das der Unterschied zwischen einem
+     * Anker, der die Umlenkkraft haelt, und einem, der nichts haelt.
+     */
+    const kn = (nm) => (jA.knoten ?? []).find((k) => k.name === nm);
+    const fA = kn('ANKER_A_F'), fB = kn('ANKER_B_F');
+    wahr('Der quer stehende steht in der Jochachse',
+         Math.abs(fA.y) < 1e-9 && Math.abs(fA.x - (-3)) < 1e-9,
+         `x ${fA.x} y ${fA.y}`);
+    wahr('Der laengs stehende in Gleisrichtung',
+         Math.abs(fB.x - 20) < 1e-9 && Math.abs(fB.y - 4) < 1e-9,
+         `x ${fB.x} y ${fB.y}`);
+    pruef('Der Anschluss sitzt auf der Ankerhoehe ueber dem Fuss',
+          kn('MAST_A_ANK').z - fA.z, 4, 1e-6, 'm');
+
+    /*
+     * >>> UND DIE LUECKE STEHT IM BERICHT. <<<
+     *
+     * Der Katalog fuehrt die Stuetze als «2x UNP 120» - eine Bezeichnung,
+     * keine Flaeche. UNP-Profile stehen nicht im Profilkatalog. Ausgeleitet
+     * wird ein Platzhalter, und das darf nicht in einem Kommentar stehen.
+     */
+    const bA = jA.tragwerk?.anker ?? [];
+    wahr('Der Bericht nennt beide Anker', bA.length === 2);
+    wahr('… mit ihrem Vermerk',
+         bA.every((v) => /nicht erfasst/.test(v.vermerk)));
+    wahr('… und der Querschnitt sagt es im Namen',
+         (jA.querschnitte ?? []).filter((q) => /^ANKER_/.test(q.name))
+           .every((q) => /PLATZHALTER/.test(q.name)));
+    wahr('Ohne Anker steht nichts davon da',
+         (laufA([{ id: 'M1', x: 0, profil: 'HEB 240' }])
+           .staebe ?? []).every((x) => !/^ANKER_/.test(x.name)));
+  }
+
   // --- In der Ausleitung ---------------------------------------------------
   /*
    * BIS HIERHER FIEL GENAU DAS HERAUS, was der Auftraggeber ansetzen will:

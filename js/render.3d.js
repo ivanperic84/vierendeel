@@ -660,6 +660,10 @@ export function erzeugeSzene(m, erg) {
         });
         flaechen.push(...mk.flaechen);
         linien.push(...mk.linien);
+        // Der Anker traegt seine Anschrift und seine beiden Masse selbst -
+        // sie kommen aus demselben Baustein wie sein Koerper.
+        bauteiltitel.push(...(mk.bauteiltitel ?? []));
+        masse.push(...(mk.masse ?? []));
       }
 
       const halb = (mast ? (mast.stegrichtung?.achse === 'y'
