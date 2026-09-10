@@ -650,14 +650,39 @@ export function abfangGurtnachweis(q, s, a, fyd, opt = {}) {
   const anschnitt = (steif && bBl > 0 && a > bBl) ? (a - bBl) / a : 1;
   const Moertl = Voertl * ABFANG_GURT_DAEMPFUNG * anschnitt;
 
+  /* =========================================================================
+   * DIE LOTRECHTE BIEGUNG IM EINZELNEN GURT
+   * =========================================================================
+   *
+   * >>> HALBE LAST JE GURT - ENDLICH AUCH IN DER RECHNUNG. <<<
+   *
+   * Weisung vom 3. September auf Nachfrage: «jeder Gurt fuer sich, halbe
+   * Last», ueber seine starke Achse. `abfangLastQuer` schreibt das seit
+   * damals hin - und wurde von niemandem aufgerufen. Gerechnet wurde
+   * `M_vert / W_Gurt`: das Moment des GANZEN Traegers gegen das
+   * Widerstandsmoment EINES Gurtes, also das Doppelte.
+   *
+   * Aufgefallen beim Einbau der Torsion (Weisung vom 10. September): sie
+   * gibt dem einen Gurt mehr und dem anderen weniger, und dafuer muss erst
+   * feststehen, was ein Gurt ueberhaupt traegt.
+   *
+   * >>> UND DIE TORSION KOMMT DAZU. <<<
+   *
+   * Sie ist das gegenlaeufige Kraeftepaar: im einen Gurt addiert sie sich,
+   * im anderen zieht sie ab. Massgebend ist der eine.
+   *
+   *      M_Gurt = |M_vert| / 2  +  |M_tors|
+   * ======================================================================= */
+  const MgurtVert = Math.abs(s.Mvert ?? 0) / 2 + Math.abs(s.Mtors ?? 0);
+
   // kNm -> kNcm für die Widerstandsmomente in cm³
   const sigN = N / q.Agurt;
-  const sigVert = (Math.abs(s.Mvert ?? 0) * 100) / q.Wvert;
+  const sigVert = (MgurtVert * 100) / q.Wvert;
   const sigOertl = (Moertl * 100) / q.Wgurtz;
   const sigma = sigN + sigVert + sigOertl;
 
   return {
-    N, Moertl,
+    N, Moertl, MgurtVert, Mtors: Math.abs(s.Mtors ?? 0),
     /** Minderung aus dem steifen Knotenbereich - 1.0 heisst: keine. */
     anschnitt, bBl,
     sigN, sigVert, sigOertl, sigma,
@@ -1019,6 +1044,44 @@ export function abfangAnbauLasten(at, opt = {}) {
   const an = abfangAnbindung(at);
   const sum = baugruppeSumme(at, { ek: opt.ek ?? 'EK2', R: Number(opt.R) || 0,
                                    spannweite: Number(opt.spannweite) || 0 });
+  /* =========================================================================
+   * DIE TORSION DES LIEGENDEN TRAEGERS
+   * =========================================================================
+   *
+   * Weisung vom 10. September: «die torsion des liegenden traegers noch
+   * rechnen.»
+   *
+   * >>> WORAUS SIE ENTSTEHT. <<<
+   *
+   * Der Traeger liegt waagrecht, seine Achse zeigt in die Jochachse. Alles,
+   * was NEBEN dieser Achse angreift, verdreht ihn:
+   *
+   *   LOTRECHTE KRAFT seitlich versetzt     T = F_z · y
+   *   KRAFT IN GLEISRICHTUNG ausserhalb
+   *   der Achsebene                         T = F_y · z
+   *
+   * Die Hebelarme stehen an jedem Modul (`y`, `z`) - dieselben, mit denen
+   * das Tragjoch seine Anbauteile verortet. Es fehlte nicht die Angabe,
+   * sondern ihre Auswertung.
+   *
+   * >>> WAS KEINE TORSION MACHT: DER LEITERZUG. <<<
+   *
+   * Er wird an der ANBINDUNG eingeleitet, nicht dort, wo der Draht haengt.
+   * «Mitte Traeger» heisst genau das: die Kraft geht in der Traegerachse
+   * hinein. Ein Fahrdraht zwei Meter darunter zieht an der Haengestuetze,
+   * und die traegt ihn zum Joch hinauf - im Traeger kommt die Kraft
+   * zentrisch an.
+   *
+   * Waere es anders, ergaebe sich ein Torsionsmoment in der Groesse des
+   * Rahmenmoments, und kein Abfangjoch waere je nachweisbar. Die Anbindung
+   * ist die Aussage darueber, und sie steht in der Maske.
+   */
+  const torsionAus = (gruppe, feld) => (sum.teile ?? []).reduce(
+    (a2, p) => a2 + (p.kraefte?.[gruppe]?.[feld] ?? 0)
+                    * (feld === 'Fz' ? (p.y ?? 0) : (p.z ?? 0)), 0);
+  const TG = torsionAus('G', 'Fz');
+  const TS = torsionAus('Schnee', 'Fz');
+  const TW = torsionAus('WindY', 'Fy');
   let Z = 0, temperaturabhaengig = false, ohneTabelle = false;
   if (an.abgefangen) {
     (Array.isArray(at?.module) ? at.module : []).forEach((m) => {
@@ -1034,6 +1097,12 @@ export function abfangAnbauLasten(at, opt = {}) {
     if (an.seite === 'H') Z = -Z;
   }
   return { Gz: sum.Gz, Qx: sum.Qx, Qy: sum.Qy, Z,
+           /**
+            * Torsionsmomente um die Traegerachse [kNm], je Einwirkung.
+            * Der Leiterzug steht NICHT darin - er kommt zentrisch an,
+            * siehe oben.
+            */
+           TG, TS, TW,
            anbindung: an, temperaturabhaengig, ohneTabelle };
 }
 
@@ -1280,6 +1349,12 @@ export function abfangAuswertung(o = {}) {
   const sk = Number(o.sk) || 0;                 // kN/m Schnee auf das Joch
   const amJoch = (o.anbauteile ?? [])
     .filter((t) => t && t.aktiv !== false && (t.ort ?? 'joch') === 'joch');
+  /*
+   * DER HEBELARM DES KRAEFTEPAARS - derselbe fuer das Rahmenmoment und fuer
+   * die Torsion. Der Katalog fuehrt ihn in Zentimetern; gerechnet wird in
+   * Metern, wie alles andere in dieser Funktion.
+   */
+  const eGurt = q.e / 100;
 
   /**
    * >>> JE FALL EIN EIGENES LASTBILD. <<<
@@ -1310,6 +1385,32 @@ export function abfangAuswertung(o = {}) {
     const FwindY = teile2.filter((p) => p.lw.Qy)
       .map((p) => ({ x: p.x, wert: p.lw.Qy }));
     /*
+     * >>> DIE TORSION WIRD ZUM GEGENLAEUFIGEN KRAEFTEPAAR. <<<
+     *
+     * Weisung vom 10. September: «die torsion des liegenden traegers noch
+     * rechnen.»
+     *
+     * Ein offener Traeger aus zwei Gurten und Bindeblechen traegt Torsion
+     * nicht ueber St.-Venant - dafuer ist er viel zu weich -, sondern als
+     * WOELBKRAFTTORSION: die beiden Gurte biegen sich lotrecht GEGENLAEUFIG.
+     * Ein Torsionsmoment T an der Stelle x ist damit dasselbe wie zwei
+     * entgegengesetzte lotrechte Kraefte ±T/e an derselben Stelle - e ist
+     * der Achsabstand der Gurte, derselbe Hebelarm wie beim Kraeftepaar aus
+     * dem Rahmenmoment.
+     *
+     * Daraus folgt alles Weitere von selbst: der Balken mit diesen Kraeften
+     * gibt das ZUSATZMOMENT im einen Gurt (und mit umgekehrtem Vorzeichen im
+     * anderen), und seine Auflagerkraefte sind das Kraeftepaar, das am
+     * Masten als Moment laengs ankommt.
+     *
+     * DAS IST DIE UEBLICHE NAEHERUNG fuer offene Profile mit Gabellagerung.
+     * Sie unterschlaegt den St.-Venant-Anteil - bei diesem Querschnitt der
+     * kleinere - und liegt damit auf der sicheren Seite.
+     */
+    const Ftors = (feld) => teile2
+      .filter((p) => Math.abs(p.lw[feld] ?? 0) > 1e-12)
+      .map((p) => ({ x: p.x, wert: (p.lw[feld] ?? 0) / eGurt }));
+    /*
      * DIE RAHMENEBENE LIEGT WAAGRECHT. Alles, was quer zum Traeger und
      * waagrecht zieht, wirkt darin: der Leiterzug und der Wind in
      * Gleisrichtung. Quer dazu: Eigengewicht und Schnee, lotrecht.
@@ -1320,6 +1421,18 @@ export function abfangAuswertung(o = {}) {
       rahmenW: abfangBalken(jt, ue, { q: wk, F: FwindY }),
       vertG: abfangBalken(jt, ue, { q: gk, F: Fstaendig }),
       vertS: abfangBalken(jt, ue, { q: sk }),
+      /*
+       * DIE DREI TORSIONSBALKEN - je Einwirkung einer, damit sie dieselben
+       * Beiwerte bekommen wie die Last, aus der sie stammen. Das Joch selbst
+       * verdreht sich nicht: seine Eigenlast und der Schnee liegen in seiner
+       * Achse.
+       */
+      torG: abfangBalken(jt, ue, { F: Ftors('TG') }),
+      torS: abfangBalken(jt, ue, { F: Ftors('TS') }),
+      torW: abfangBalken(jt, ue, { F: Ftors('TW') }),
+      torsion: teile2.reduce(
+        (a2, p) => a2 + Math.abs(p.lw.TG ?? 0) + Math.abs(p.lw.TS ?? 0)
+                      + Math.abs(p.lw.TW ?? 0), 0),
       leiterzug: Fleiter.reduce((a2, f) => a2 + Math.abs(f.wert), 0),
       /*
        * >>> DIE KRAFT IN DER JOCHACHSE. <<<
@@ -1392,9 +1505,27 @@ export function abfangAuswertung(o = {}) {
       const Vrahmen = gGf * ZrV + wF * Math.abs(WrV) * Math.sign(ZrV || 1);
       const Mvert = gGf * Gv + sF * Sv;
       const Vvert = gGf * GvV + sF * SvV;
-      const kenn = Math.abs(Mrahmen) / (q.e / 100) + Math.abs(Mvert);
+      /*
+       * >>> DIE TORSION KOMMT IM GURT AN. <<<
+       *
+       * Weisung vom 10. September: «die torsion des liegenden traegers noch
+       * rechnen.»
+       *
+       * Die drei Torsionsbalken geben das Moment des gegenlaeufigen
+       * Kraeftepaars. Es addiert sich im EINEN Gurt zur lotrechten Biegung
+       * und zieht sie im anderen ab - massgebend ist der eine, also der
+       * BETRAG. Ein Vorzeichenwechsel macht die Kombination nicht
+       * guenstiger, hier so wenig wie beim Wind.
+       */
+      const Mtors = Math.abs(gGf * b.torG.M(x)) + Math.abs(sF * b.torS.M(x))
+                  + Math.abs(wF * b.torW.M(x));
+      const Vtors = Math.abs(gGf * b.torG.V(x)) + Math.abs(sF * b.torS.V(x))
+                  + Math.abs(wF * b.torW.V(x));
+      const kenn = Math.abs(Mrahmen) / (q.e / 100)
+                 + Math.abs(Mvert) + Mtors;
       if (!beste || kenn > beste.kenn) {
-        beste = { Mrahmen, Vrahmen, Mvert, Vvert, kenn, fall: b.fall.key };
+        beste = { Mrahmen, Vrahmen, Mvert, Vvert, Mtors, Vtors, kenn,
+                  fall: b.fall.key };
       }
     });
     return beste;
@@ -1456,6 +1587,17 @@ export function abfangAuswertung(o = {}) {
       const Zy = k(b.rahmenZ), Wy = k(b.rahmenW);
       const Fz = bw.g * Gz + bw.s * Sz;
       /*
+       * >>> DAS KRAEFTEPAAR DER TORSION STEHT AM AUFLAGER. <<<
+       *
+       * Die beiden Gurte druecken gegenlaeufig nach unten und oben; ueber
+       * ihren Achsabstand ist das ein MOMENT UM DIE JOCHACHSE, und der Mast
+       * bekommt es als Biegung in Gleisrichtung. Genau der Anteil, der bis
+       * heute fehlte - und er fehlte auf der unsicheren Seite.
+       */
+      const kT = (bal) => Math.abs(ende === 'A' ? bal.A : bal.B);
+      const Ptors = bw.g * kT(b.torG) + bw.s * kT(b.torS)
+                  + bw.w * kT(b.torW);
+      /*
        * DER WIND GEHT MIT DEM BETRAG in die Kombination - er hat keine feste
        * Richtung, und ein Vorzeichenwechsel macht sie nicht guenstiger. Der
        * Leiterzug dagegen behaelt sein Vorzeichen: wohin er zieht, sagt die
@@ -1472,11 +1614,14 @@ export function abfangAuswertung(o = {}) {
        * zurueckzurechnen: die drei Beiwerte sind verschieden, und der Weg
        * zurueck waere nicht eindeutig.
        */
+      const PtorsK = kT(b.torG) + kT(b.torS) + kT(b.torW);
       const e = { key: b.fall.key, label: b.fall.label, Fz, Fy,
                   Fxges: bw.w ? b.Fx : 0,
+                  /** Lotrechtes Kraeftepaar aus der Torsion [kN je Gurt]. */
+                  Ptors,
                   char: { Fz: Gz + Sz,
                           Fy: Zy + Math.abs(Wy) * Math.sign(Zy || 1),
-                          Fxges: b.Fx },
+                          Fxges: b.Fx, Ptors: PtorsK },
                   anteile: { G: Gz, S: Sz, Z: Zy, W: Wy },
                   beiwerte: bw };
       // Massgebend ist, was den Masten am staerksten beansprucht: die
@@ -1486,6 +1631,7 @@ export function abfangAuswertung(o = {}) {
       return e;
     });
     return { ende, Fz: beste.Fz, Fy: beste.Fy, Fxges: beste.Fxges,
+             Ptors: beste.Ptors,
              fall: beste.key, char: beste.char,
              anteile: beste.anteile, faelle };
   };

@@ -232,8 +232,24 @@ export function mastLasten(m, ende = 'A') {
                  : ((m.wd ?? 0) * L) / 2
                    + (m.H ?? []).reduce((a, p) => a + p.w * hQuer(p), 0);
   const Mq = abE ? 0 : (seite === 'A' ? (m.MA ?? 0) : (m.MB ?? 0));
-  const Ml = abE ? 0
-                 : (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0);
+  /*
+   * >>> DIE TORSION DES JOCHS KOMMT ALS MOMENT LAENGS AN. <<<
+   *
+   * Weisung vom 10. September: «die torsion des liegenden traegers noch
+   * rechnen.»
+   *
+   * Sie wird im Joch als gegenlaeufiges Kraeftepaar der beiden Gurte
+   * abgetragen. Am Auflager stehen diese beiden lotrechten Kraefte
+   * nebeneinander, im Achsabstand e - und das ist ein Moment um die
+   * JOCHACHSE, also Biegung des Masten in Gleisrichtung.
+   *
+   * Genau der Anteil, der bis hierher fehlte und den der Hinweis benannt
+   * hat: «wo sie auftritt, steht der Mast zu guenstig da». Jetzt steht er
+   * nicht mehr zu guenstig da.
+   */
+  const Ml = abE
+    ? (abE.Ptors ?? 0) * 2 * (ab?.ey ?? 0)
+    : (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0);
   const Fx = (abE ? (abE.Fxges ?? 0) : (m.N ?? []).reduce((a, n) => a + n.w, 0))
              * anteil;
   /*

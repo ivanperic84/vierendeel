@@ -542,18 +542,32 @@ export function hinweise(m) {
       + 'Was bleibt, ist die Torsion aus der Exzentrizität zwischen '
       + 'Mastachse und hinterem Gurt.');
     /*
-     * >>> DIE TORSION DES LIEGENDEN TRAEGERS FEHLT NOCH. <<<
+     * >>> DIE TORSION IST GERECHNET - ALS WOELBKRAFTTORSION. <<<
      *
-     * `abfangAuswertung` rechnet zwei Ebenen - die waagrechte Rahmenebene
-     * und die lotrechte Biegung -, aber keine Torsion um die Traegerachse.
-     * Ein Anbauteil, das ausserhalb der Traegerachse haengt, verdreht ihn;
-     * ueber das Kraeftepaar der beiden Gurte kaeme das im Masten als
-     * Moment LAENGS an. Wo es fehlt, steht der Mast zu guenstig da.
+     * Weisung vom 10. September. Hier stand bis dahin, sie fehle.
+     *
+     * Was der Hinweis jetzt sagen muss, ist die ANNAHME dahinter: der
+     * St.-Venant-Anteil ist weggelassen. Bei zwei offenen Gurten mit
+     * Bindeblechen ist er der kleinere, und ihn wegzulassen liegt auf der
+     * sicheren Seite - aber es ist eine Annahme und keine Rechnung.
+     *
+     * UND WO SIE NICHT ENTSTEHT: der Leiterzug wird an der Anbindung
+     * eingeleitet, nicht dort, wo der Draht haengt. Das ist die Aussage der
+     * Anbindung «Mitte Traeger», und sie entscheidet ueber die groesste
+     * Kraft am Bauwerk - deshalb steht sie hier.
      */
-    h.push('Die TORSION des liegenden Trägers ist nicht gerechnet — ein '
-      + 'Anbauteil ausserhalb der Trägerachse verdreht ihn, und über das '
-      + 'Kräftepaar der beiden Gurte käme das im Masten an. Wo sie auftritt, '
-      + 'steht der Mast zu günstig da.');
+    h.push('Die TORSION des liegenden Trägers wird als '
+      + 'WÖLBKRAFTTORSION gerechnet: das Torsionsmoment wird zum '
+      + 'gegenläufigen Kräftepaar der beiden Gurte (T/e), im einen Gurt '
+      + 'addiert es sich zur lotrechten Biegung, am Auflager kommt es im '
+      + 'Masten als Moment längs an. Der St.-Venant-Anteil ist weggelassen '
+      + '— bei diesem Querschnitt der kleinere, und das liegt auf der '
+      + 'sicheren Seite.');
+    h.push('Der LEITERZUG erzeugt dabei KEINE Torsion: er wird an der '
+      + 'Anbindung eingeleitet, nicht dort, wo der Draht hängt. «Mitte '
+      + 'Träger» heisst, dass er zentrisch ankommt — die Hängestütze trägt '
+      + 'ihn zum Joch hinauf. Wo ein Leiter wirklich ausserhalb der '
+      + 'Trägerachse abgefangen wird, ist das von Hand zu erfassen.');
     /*
      * >>> UND DER DRUCKGURT IST NICHT AUF STABILITAET GEPRUEFT. <<<
      *

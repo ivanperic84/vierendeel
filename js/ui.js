@@ -3598,6 +3598,15 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
              `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
       kachel('M quer (lotrecht)', f2(g.Mvert ?? 0),
              `kNm · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
+      /*
+       * DAS MOMENT IM EINZELNEN GURT ist die Zahl, die in den Nachweis
+       * geht: die halbe lotrechte Last plus die Torsion. «M quer» darueber
+       * gilt dem ganzen Traeger - beide zu zeigen erspart die Frage, warum
+       * die eine Zahl nicht in der anderen steckt.
+       */
+      kachel('M Gurt lotrecht', f2(ab.gurt?.MgurtVert ?? 0),
+             `kNm · davon Torsion ${f2(ab.gurt?.Mtors ?? 0)}`, '',
+             { x: ab.gurt?.x ?? 0 }),
       kachel('V quer (lotrecht)', f2(g.Vvert ?? 0),
              `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
       zeileAuflager('A'), zeileAuflager('B'),

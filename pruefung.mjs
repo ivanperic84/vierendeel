@@ -13521,6 +13521,117 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * ====== DIE TORSION DES LIEGENDEN TRAEGERS ===========================
+   *
+   * Weisung vom 10. September: «die torsion des liegenden traegers noch
+   * rechnen.»
+   *
+   * Der Traeger liegt waagrecht; alles, was NEBEN seiner Achse angreift,
+   * verdreht ihn. Ein offener Traeger aus zwei Gurten traegt das als
+   * WOELBKRAFTTORSION - die beiden Gurte biegen sich lotrecht gegenlaeufig.
+   * Ein Torsionsmoment T ist damit dasselbe wie zwei entgegengesetzte
+   * Kraefte ±T/e.
+   */
+  if (AJ.abfangDbDa()) {
+    const AB9 = await import(J('core.abfangjoch.js'));
+    const teilT = (id, x, y, z) => ({
+      id, vorlage: 'hs-fahrdraht', name: id, x, ort: 'joch', aktiv: true,
+      anbindung: 'mitte', verlauf: 'vorn',
+      module: [{ bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107',
+                 anzahl: 1, z, y }] });
+    const rechneT = (teile) => AB9.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: teile,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2',
+      L_FL: 40 });
+
+    /*
+     * >>> DAS TORSIONSMOMENT EINES BAUTEILS. <<<
+     *
+     * Lotrechte Kraft mal seitlichem Versatz. Ein Drahtwerk ueber 40 m
+     * Spannweite wiegt 0.8 kN; einen Meter neben der Achse sind das
+     * 0.8 kNm.
+     */
+    const lwMitte = AB9.abfangAnbauLasten(teilT('a', 6, 0, -1.5),
+      { ek: 'EK2', R: 0, spannweite: 40 });
+    const lwSeite = AB9.abfangAnbauLasten(teilT('a', 6, 1.0, -1.5),
+      { ek: 'EK2', R: 0, spannweite: 40 });
+    pruef('In der Achse gibt es keine Torsion', lwMitte.TG, 0, 1e-12, 'kNm');
+    pruef('Einen Meter daneben: F_z mal Hebel',
+          lwSeite.TG, lwSeite.Gz * 1.0, 1e-9, 'kNm');
+    /*
+     * >>> DER LEITERZUG MACHT KEINE TORSION. <<<
+     *
+     * Er wird an der ANBINDUNG eingeleitet, nicht dort, wo der Draht
+     * haengt. «Mitte Traeger» heisst genau das. Waere es anders, ergaebe
+     * sich ein Torsionsmoment in der Groesse des Rahmenmoments - hier
+     * 14.9 kN mal 1.5 m -, und kein Abfangjoch waere je nachweisbar.
+     */
+    wahr('Der Leiterzug steht nicht in der Torsion',
+         Math.abs(lwSeite.Z) > 10 && Math.abs(lwSeite.TG) < 1.0);
+
+    /*
+     * >>> IM GURT KOMMT SIE AN. <<<
+     *
+     * Gemessen an A240 / 12.50 m, ein Drahtwerk bei x = 6.00 m:
+     * ohne Versatz eta 0.499, einen Meter daneben 0.564. Das Moment im
+     * massgebenden Gurt waechst von 9.01 auf 13.35 kNm.
+     */
+    const ohneV = rechneT([teilT('a', 6, 0, -1.5)]);
+    const mitV = rechneT([teilT('a', 6, 1.0, -1.5)]);
+    pruef('Ohne Versatz kein Zusatzmoment',
+          ohneV.gurt.Mtors, 0, 1e-12, 'kNm');
+    wahr('Mit Versatz waechst das Moment im Gurt',
+         mitV.gurt.MgurtVert > ohneV.gurt.MgurtVert,
+         `${mitV.gurt.MgurtVert.toFixed(2)} statt `
+         + `${ohneV.gurt.MgurtVert.toFixed(2)} kNm`);
+    pruef('… und zwar genau um das Torsionsmoment',
+          mitV.gurt.MgurtVert,
+          Math.abs(mitV.gurt.schnitt.Mvert) / 2 + mitV.gurt.Mtors,
+          1e-9, 'kNm');
+    wahr('Die Ausnutzung folgt', mitV.gurt.eta > ohneV.gurt.eta);
+    /*
+     * DIE LOTRECHTE LAST AENDERT SICH DABEI NICHT - der Versatz verschiebt
+     * sie nur seitlich. Waere M_vert mitgewachsen, waere die Torsion
+     * doppelt gezaehlt.
+     */
+    pruef('Die lotrechte Biegung bleibt dieselbe',
+          mitV.gurt.schnitt.Mvert, ohneV.gurt.schnitt.Mvert, 1e-9, 'kNm');
+
+    /*
+     * >>> UND AM AUFLAGER STEHT DAS KRAEFTEPAAR. <<<
+     *
+     * Von Hand: T = 0.8 kNm, e = 0.656 m -> Ersatzkraft 1.22 kN bei
+     * x = 6.00. Der Balken (Stuetzweite 12.00, Kragarm 0.25) gibt am Ende A
+     * 0.635 kN; mit gamma_G = 1.3 sind das 0.83 kN.
+     */
+    pruef('Das Kraeftepaar am Auflager',
+          mitV.auflager.A.Ptors, 0.83, 0.02, 'kN');
+    pruef('Ohne Versatz steht dort nichts',
+          ohneV.auflager.A.Ptors, 0, 1e-12, 'kN');
+    /*
+     * IM MASTEN WIRD DARAUS EIN MOMENT LAENGS - das Kraeftepaar ueber den
+     * Achsabstand der Gurte. Genau der Anteil, der bis zum 10. September
+     * fehlte, und er fehlte auf der unsicheren Seite.
+     */
+    const MA9 = await import(J('core.mast.js'));
+    const AU9 = await import(J('core.auflager.js'));
+    const f9 = AU9.drehfedern({ endbedingung: 'mast', mastVorhanden: true,
+      mastProfil: 'HEB 240', mastH: 7.5, mastSteg: 'jochachse' });
+    const m9 = (aufl) => ({
+      L: 12.5, federn: f9, RA: 0, RB: 0, MA: 0, MB: 0, wd: 0,
+      H: [], T: [], N: [], beiwerte: { G: 1.3 }, stahl: { fy: 235 },
+      gammaM0: 1, mastLast: { A: { xd: 0, yd: 0 }, B: { xd: 0, yd: 0 } },
+      anbauMastFlach: [], abfangAuflager: aufl });
+    const gTors = MA9.mastLasten(m9(mitV.auflager), 'A');
+    pruef('Der Mast bekommt das Moment laengs',
+          gTors.lasten[0].Ml,
+          mitV.auflager.A.Ptors * 2 * mitV.auflager.ey, 1e-9, 'kNm');
+    pruef('Ohne Torsion bekommt er keines',
+          MA9.mastLasten(m9(ohneV.auflager), 'A').lasten[0].Ml,
+          0, 1e-12, 'kNm');
+  }
+
+  /*
    * ====== DER MASTNACHWEIS AM ABFANGJOCH ===============================
    *
    * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
@@ -15491,9 +15602,40 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       pruef('Normalspannung aus dem Kraeftepaar',
             nw.sigN, (50 / (q.e / 100)) / q.Agurt, 1e-9, 'kN/cm2');
       pruef('… und von Hand nachgerechnet', nw.sigN, 7.17, 0.02, 'kN/cm2');
-      // M_vert = 8 kNm auf W_y = 113.9 cm3 -> 7.02 kN/cm2
-      pruef('Biegung quer zur Rahmenebene',
-            nw.sigVert, 800 / 113.9, 0.02, 'kN/cm2');
+      /*
+       * >>> HALBE LAST JE GURT. <<<
+       *
+       * Weisung vom 3. September: «jeder Gurt fuer sich, halbe Last», ueber
+       * seine starke Achse. Hier stand `800 / 113.9` - das Moment des
+       * GANZEN Traegers gegen das Widerstandsmoment EINES Gurtes, also das
+       * Doppelte. `abfangLastQuer` schreibt die Regel seit damals hin und
+       * wurde von niemandem aufgerufen; aufgefallen ist es beim Einbau der
+       * Torsion, die erst wissen muss, was ein Gurt traegt.
+       *
+       * M_vert = 8 kNm -> 4 kNm je Gurt auf W_y = 113.9 cm3 -> 3.51 kN/cm2
+       */
+      pruef('Biegung quer zur Rahmenebene: halbe Last je Gurt',
+            nw.sigVert, 400 / 113.9, 0.02, 'kN/cm2');
+      pruef('… und das Moment im Gurt ist die Haelfte',
+            nw.MgurtVert, 4, 1e-9, 'kNm');
+      pruef('… passend zu abfangLastQuer',
+            AK.abfangLastQuer(8).jeGurt, nw.MgurtVert, 1e-9, 'kNm');
+      /*
+       * >>> DIE TORSION ADDIERT SICH IM EINEN GURT. <<<
+       *
+       * Sie ist das gegenlaeufige Kraeftepaar: im einen Gurt dazu, im
+       * anderen davon ab. Massgebend ist der eine.
+       */
+      const nwT = AK.abfangGurtnachweis(
+        q, { Mrahmen: 50, Mvert: 8, Mtors: 2, Vrahmen: 20 }, 0.5, fyd);
+      pruef('Torsion kommt zum halben Moment dazu',
+            nwT.MgurtVert, 4 + 2, 1e-9, 'kNm');
+      wahr('… und ihr Vorzeichen aendert nichts',
+           AK.abfangGurtnachweis(
+             q, { Mrahmen: 50, Mvert: 8, Mtors: -2, Vrahmen: 20 },
+             0.5, fyd).MgurtVert === nwT.MgurtVert);
+      wahr('Ohne Torsion bleibt es beim halben Moment',
+           nw.Mtors === 0);
       // oertlich: V/2 * a/2 = 10 * 0.25 = 2.5 kNm auf W_z = 18.3 cm3
       pruef('Oertliche Biegung zwischen den Blechen',
             nw.sigOertl, (nw.Moertl * 100) / q.Wgurtz, 1e-9, 'kN/cm2')
