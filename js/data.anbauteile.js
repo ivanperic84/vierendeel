@@ -81,8 +81,59 @@ function db() {
  */
 let EIGENE = [];
 
+/* ===========================================================================
+ * EINE KACHEL JE VORLAGE
+ * ===========================================================================
+ *
+ * Weisung vom 9. September: «Die kacheln sind teilweise mehrfach enthalten,
+ * die ich mal definiert und gespeichert habe.»
+ *
+ * >>> WIE SIE SICH VERMEHRT HABEN. <<<
+ *
+ * `vorlageSichern` haengte an, ohne zu schauen, ob dieselbe Vorlage schon
+ * dasteht: wer ein Bauteil zweimal sicherte - und den vorgeschlagenen Namen
+ * beide Male bestaetigte -, bekam zwei Kacheln mit demselben Namen. Dasselbe
+ * beim Anpassen einer Katalogvorlage: jedes Mal entstand eine neue Kopie
+ * «… (angepasst)» daneben.
+ *
+ * >>> WAS «DIESELBE» HEISST. <<<
+ *
+ * Name UND Inhalt. Zwei Vorlagen desselben Namens mit verschiedenen Modulen
+ * sind zwei Dinge und bleiben beide stehen - der Name ist frei gewaehlt und
+ * taugt allein nicht als Kennung. Sind auch die Module gleich, ist es eine
+ * Vorlage, die zweimal dasteht.
+ *
+ * Die ID zaehlt NICHT mit: sie wird bei jedem Sichern neu gewuerfelt und
+ * waere genau das Merkmal, an dem sich zwei gleiche Kacheln unterscheiden.
+ *
+ * Entdoppelt wird beim SETZEN, nicht erst beim Zeichnen: so raeumt schon das
+ * Laden eines alten Standes auf, und was einmal weg ist, kommt nicht ueber
+ * den naechsten Speichervorgang zurueck.
+ * =========================================================================== */
+
+/** Woran zwei Vorlagen als dieselbe zu erkennen sind. */
+export function vorlagenKennung(v) {
+  const mod = (v?.module ?? []).map((m) => [m.bauteil, m.anzahl ?? 1,
+                                            m.z ?? 0, m.y ?? 0].join(':'));
+  const lb = (v?.lastbloecke ?? []).map((l) => [l.einwirkung, l.x ?? 0,
+    l.y ?? 0, l.z ?? 0, l.Fx ?? 0, l.Fy ?? 0, l.Fz ?? 0, l.M ?? 0].join(':'));
+  return JSON.stringify([String(v?.name ?? '').trim(), v?.raster ?? null,
+                         v?.befestigung ?? null, mod, lb]);
+}
+
+/** Die Liste ohne Doppelte; die erste ihrer Art bleibt stehen. */
+export function entdoppelteVorlagen(liste) {
+  const gesehen = new Set();
+  return (liste ?? []).filter((v) => {
+    const k = vorlagenKennung(v);
+    if (gesehen.has(k)) return false;
+    gesehen.add(k);
+    return true;
+  });
+}
+
 export function setzeEigeneVorlagen(liste) {
-  EIGENE = (liste ?? []).map((v) => ({ ...v, eigen: true }));
+  EIGENE = entdoppelteVorlagen(liste).map((v) => ({ ...v, eigen: true }));
   return EIGENE;
 }
 

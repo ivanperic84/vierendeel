@@ -55,7 +55,8 @@ import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
          MASS, FARBEN as farben } from './design.js';
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          normalisiereAnbauteil,
-         setzeEigeneVorlagen, erzeugeGleislasten, neuesModul,
+         setzeEigeneVorlagen, entdoppelteVorlagen,
+         erzeugeGleislasten, neuesModul,
          baugruppeSumme } from './data.anbauteile.js';
 import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
@@ -735,10 +736,9 @@ function blattSzene(erg) {
    * Einzelmodell steht - der Mast steht dann tiefer oder hoeher, und genau
    * das soll er.
    */
-  const hebung = (t) => Number(tragwerkSatz(werte, t.id).mastH) || 0;
   const teile = alle.map((t) => {
     const dx = lageVon(t);
-    const dz = hebung(t);
+    const dz = hebungVon(t);
     if (t.id === aktivId) {
       return szeneVerschieben({ ...eigen, aktiv: true }, dx,
                               { twId: t.id, aktiv: true }, dz);
@@ -2449,6 +2449,39 @@ async function kalibrierKlick(t, geraet) {
  */
 let setzen = null;
 
+/**
+ * >>> WIE HOCH STEHT DIESES TRAGWERK AUF DEM BLATT? <<<
+ *
+ * Weisung vom 8. September: «wenn man den wert anschlusshöhe ändert dann
+ * wandert das joch und nicht der mastfuss ... für das gesamte modell sollte
+ * man sich auf einen Referenzpunkt beziehen.»
+ *
+ * Jede Einzelszene kommt mit der Jochachse auf z = 0. Auf dem Blatt liegen
+ * alle Mastfuesse auf 0, das Joch also auf +H. Die Zahl steht hier EINMAL:
+ * die Szene hebt damit an, und `stelleAus` faengt damit. Zwei Rechnungen
+ * waeren zwei Orte, an denen dieselbe Festlegung steht - und genau das ist
+ * schiefgegangen (siehe dort).
+ */
+const hebungVon = (t) => Number(tragwerkSatz(werte, t?.id).mastH) || 0;
+
+/**
+ * >>> DIE EIGENEN KACHELN AUS EINEM ALTEN STAND EINSAMMELN. <<<
+ *
+ * Sie gehoeren jetzt dem Blatt (`BLATT_FELDER`). In einem Stand von vorher
+ * stehen sie am einzelnen Tragwerk - und dort haben sie sich vermehrt: jede
+ * Kopie eines Tragwerks brachte ihre eigene Liste mit.
+ *
+ * Zusammengefuehrt und entdoppelt geht keine verloren, und keine steht
+ * zweimal da. Einmal beim Laden - danach fuehrt sie das Blatt.
+ */
+function vorlagenZusammenfuehren(w) {
+  const alle = [...(w?.eigeneVorlagen ?? [])];
+  (w?.weitere ?? []).forEach((t2) => {
+    (t2?.eigeneVorlagen ?? []).forEach((v) => alle.push(v));
+  });
+  return entdoppelteVorlagen(alle);
+}
+
 function setzenStarten(vorwahl = null) {
   if (kalibrierung) kalibrierenEnde();
   setzen = { stelle: null, vorwahl };
@@ -2497,7 +2530,24 @@ function stelleAus(w) {
    */
   const t = tragwerkeVon(werte)[0];
   const xl = blattNachLokal(t, w.x);
-  if (xl >= -0.3 && xl <= L + 0.3 && Math.abs(w.z) <= h / 2 + 0.6) {
+  /*
+   * >>> AUCH DIE HOEHE GEHOERT UMGERECHNET. <<<
+   *
+   * Weisung vom 9. September: «anbauteile lassen sich nicht zuweisen ueber
+   * den button im 3d fenster und auch nicht ueber drag and drop per kachel.»
+   *
+   * Sie liessen sich nicht setzen, seit die Blattszene jedes Tragwerk um
+   * seine Anschlusshoehe ANHEBT (`hebungVon`): auf dem Blatt liegt die
+   * Jochachse bei z = H, im Tragwerk bei z = 0. Gefangen wurde weiter um 0 -
+   * also 7.50 m UNTER dem Joch, in Fusshoehe. Wer aufs Joch zeigte, bekam
+   * «daneben»; getroffen haette nur, wer in die Luft darunter klickt.
+   *
+   * Fuer x stand die Umrechnung laengst da (`blattNachLokal`); fuer z
+   * fehlte sie. Beides ist dieselbe Frage: wo im TRAGWERK liegt der Punkt,
+   * auf den im BLATT gezeigt wurde.
+   */
+  const zl = w.z - hebungVon(t);
+  if (xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
     const xb = fangeAufMasskette(
       lokalNachBlatt(t, Math.max(0, Math.min(L, xl))), m.masskette ?? []);
     const x = Math.max(0, Math.min(L, blattNachLokal(t, xb)));
@@ -2520,11 +2570,11 @@ function stelleAus(w) {
    * nichts.
    */
   const oben = H + (md?.ueberstand ?? 0);
-  if (H > 0 && (nahA || nahB) && w.z < oben - H - (h / 2) + 1e-9) {
+  if (H > 0 && (nahA || nahB) && zl < oben - H - (h / 2) + 1e-9) {
     // AUF DEN SCHRITT DES REGLERS GERUNDET (5 cm). Sonst zeigt die Karte
     // eine andere Zahl an, als der Klick gesetzt hat - der Regler rastet
     // auf seinen Schritt, und der Anwender sieht 5.20, wo 5.15 steht.
-    const hM = Math.max(0, Math.min(oben, w.z + H));
+    const hM = Math.max(0, Math.min(oben, zl + H));
     return { ort: nahA ? 'mastA' : 'mastB', hMast: Math.round(hM * 20) / 20 };
   }
   return null;
@@ -3013,7 +3063,40 @@ function vorlageSichern(i) {
   if (!a) return;
   const name = prompt('Name der Vorlage:', a.name);
   if (!name) return;
-  const liste = [...(werte.eigeneVorlagen ?? []), alsVorlage(a, name)];
+  const neu = alsVorlage(a, name);
+  const alt = werte.eigeneVorlagen ?? [];
+  /*
+   * >>> NICHT ZWEIMAL DASSELBE. <<<
+   *
+   * Weisung vom 9. September: «Die kacheln sind teilweise mehrfach enthalten,
+   * die ich mal definiert und gespeichert habe.»
+   *
+   * Bisher wurde angehaengt. Wer denselben Namen ein zweites Mal bestaetigte,
+   * bekam eine zweite Kachel - und beim dritten Mal eine dritte. Jetzt wird
+   * gefragt: ERSETZEN heisst, die Vorlage ist neu gefasst; DANEBEN heisst,
+   * es sind zwei, und dann bekommt die zweite auch einen eigenen Namen.
+   */
+  const gleich = alt.findIndex(
+    (v) => String(v.name ?? '').trim() === name.trim());
+  let liste;
+  if (gleich >= 0) {
+    const ersetzen = confirm(
+      `Eine eigene Vorlage «${name}» gibt es schon.
+
+`
+      + 'OK ersetzt sie. Abbrechen legt die neue daneben — sie bekommt dann '
+      + 'einen eigenen Namen.');
+    if (ersetzen) {
+      liste = alt.map((v, k) => (k === gleich ? { ...neu, id: v.id } : v));
+    } else {
+      const frei = (n) => (alt.some((v) => v.name === n)
+        ? frei(`${name} (${alt.filter((v) => v.name.startsWith(name)).length
+                          + 1})`) : n);
+      liste = [...alt, { ...neu, name: frei(`${name} (2)`) }];
+    }
+  } else {
+    liste = [...alt, neu];
+  }
   werte = { ...werte, eigeneVorlagen: liste };
   setzeEigeneVorlagen(liste);
   neuRechnen();
@@ -3088,9 +3171,15 @@ function dialogVorlageBearbeiten(id) {
       lastbloecke: (v.lastbloecke ?? []).map((l) => ({ ...l })),
       eigen: true,
     };
-    const liste = istKopie
+    /*
+     * EINE ANGEPASSTE KATALOGVORLAGE ZWEIMAL ANGEPASST ist keine zweite
+     * Kachel. `entdoppelteVorlagen` faengt das ab: gleicher Name, gleicher
+     * Inhalt - eine Vorlage. Die Liste bleibt hier trotzdem vollstaendig,
+     * damit eine bewusst zweite Fassung (anderer Inhalt) stehen bleibt.
+     */
+    const liste = entdoppelteVorlagen(istKopie
       ? [...(werte.eigeneVorlagen ?? []), eintrag]
-      : (werte.eigeneVorlagen ?? []).map((x) => (x.id === v.id ? eintrag : x));
+      : (werte.eigeneVorlagen ?? []).map((x) => (x.id === v.id ? eintrag : x)));
     werte = { ...werte, eigeneVorlagen: liste };
     setzeEigeneVorlagen(liste);
     d.zu();
@@ -3769,7 +3858,8 @@ async function zeichneSchublade() {
                  'Lastfälle werden übernommen; die Jochlänge bleibt.')) return;
     werte = { ...werte, ...v.werte, bearbeiten: false };
     werte.anbauteile = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
-    setzeEigeneVorlagen(werte.eigeneVorlagen ?? []);
+    werte.eigeneVorlagen = vorlagenZusammenfuehren(werte);
+    setzeEigeneVorlagen(werte.eigeneVorlagen);
     station = null;
     schubladeSchliessen();
     neuRechnen();
@@ -5927,6 +6017,7 @@ export async function start() {
   }
   setzeTypOptionen();
   werte = laden();
+  werte.eigeneVorlagen = vorlagenZusammenfuehren(werte);
   setzeEigeneVorlagen(werte.eigeneVorlagen);
   uebertrageTokens(thema);
 

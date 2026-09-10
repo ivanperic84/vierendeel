@@ -218,6 +218,19 @@ export const BLATT_FELDER = [
    * haengt, auch nicht.
    */
   'mastAnbauteile',
+  /*
+   * >>> UND DIE EIGENEN VORLAGEN. <<<
+   *
+   * Weisung vom 9. September: «Die kacheln sind teilweise mehrfach
+   * enthalten, die ich mal definiert und gespeichert habe.»
+   *
+   * Sie standen am einzelnen Tragwerk. Damit trug jedes Joch seine eigene
+   * Kachelliste - beim Umschalten wechselte das Werkzeug, mit dem man
+   * arbeitet, und was am einen Joch gesichert war, fehlte am anderen. Eine
+   * selbstgebaute Kachel ist HANDWERKSZEUG des Anwenders, keine Eigenschaft
+   * eines Jochs; sie gehoert dem Blatt wie die Masten und die Masskette.
+   */
+  'eigeneVorlagen',
 ];
 
 /** Nur die Blattangaben aus einem Eingabesatz. */

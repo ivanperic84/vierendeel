@@ -13081,6 +13081,118 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * ====== ANBAUTEILE LIESSEN SICH NICHT MEHR SETZEN ====================
+   *
+   * Weisung vom 9. September: «anbauteile lassen sich nicht zuweisen ueber
+   * den button im 3d fenster und auch nicht ueber drag and drop per kachel.»
+   *
+   * >>> DER BEFUND. <<<
+   *
+   * Die Blattszene HEBT jedes Tragwerk um seine Anschlusshoehe an, seit der
+   * Mastfuss der Referenzpunkt ist (Weisung vom 8. September). Auf dem Blatt
+   * liegt die Jochachse damit bei z = H, im Tragwerk bei z = 0. `stelleAus`
+   * fing weiter um 0 - also 7.50 m UNTER dem Joch. Im Browser gemessen: ein
+   * Klick auf die Jochachse gab «Dort ist x = 23.69 m, z = 6.99 m -- auf das
+   * Joch oder einen Masten klicken», ein Klick in die leere Luft darunter
+   * (z = 0.00) oeffnete das Menue.
+   *
+   * Fuer x stand die Umrechnung laengst da (`blattNachLokal`), fuer z nicht.
+   * Geprueft wird der Quelltext, weil die Geste im Browser haengt - die
+   * REGEL dahinter laesst sich hier festhalten: EINE Hebung, und der
+   * Fangbereich rechnet mit ihr.
+   */
+  {
+    const aq58 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    wahr('Die Hebung steht an EINER Stelle',
+         (aq58.match(/const hebungVon = /g) ?? []).length === 1);
+    wahr('Die Blattszene hebt damit an', aq58.includes('const dz = hebungVon(t)'));
+    wahr('Und der Fangbereich rechnet sie heraus',
+         aq58.includes('const zl = w.z - hebungVon(t)'));
+    /*
+     * KEIN ROHES w.z MEHR IM FANGBEREICH. Genau das war der Fehler; eine
+     * Kontrolle auf das Vorhandensein von `zl` allein wuerde ihn nicht
+     * bemerken, wenn daneben das alte `w.z` stehen bliebe.
+     */
+    const fang = aq58.slice(aq58.indexOf('function stelleAus('),
+                            aq58.indexOf('function stelleGewaehlt('));
+    wahr('Der Fangbereich vergleicht nicht mehr gegen die Blatthoehe',
+         !/Math\.abs\(w\.z\)/.test(fang) && !/w\.z \+ H/.test(fang));
+    wahr('… und der Mast wird auf derselben Hoehe gefangen',
+         fang.includes('zl + H') && fang.includes('zl < oben - H'));
+    /*
+     * BEIDE WEGE GEHEN DURCH DIESELBE FUNKTION - der Knopf im Modellfenster
+     * und das Ablegen per Kachel. Waeren es zwei, waere einer davon beim
+     * naechsten Mal wieder falsch.
+     */
+    wahr('Das Ablegen fragt dieselbe Stelle wie der Klick',
+         /v\.addEventListener\('drop'[\s\S]{0,900}?stelleAus\(w\)/.test(aq58));
+  }
+
+  /*
+   * ====== EINE KACHEL JE VORLAGE =======================================
+   *
+   * Weisung vom 9. September: «Die kacheln sind teilweise mehrfach
+   * enthalten, die ich mal definiert und gespeichert habe.»
+   */
+  {
+    const AN = await import(J('data.anbauteile.js'));
+    const v = (name, bauteil, z = 0) => ({
+      id: `EV-${Math.random().toString(36).slice(2, 8)}`, name, raster: 0.4,
+      befestigung: 'oben', module: [{ bauteil, anzahl: 1, z }],
+      lastbloecke: [], eigen: true,
+    });
+    /*
+     * DIESELBE VORLAGE ZWEIMAL GESICHERT ist eine Vorlage. Die ID zaehlt
+     * nicht mit - sie wird bei jedem Sichern neu gewuerfelt und waere genau
+     * das Merkmal, an dem sich zwei gleiche Kacheln unterscheiden.
+     */
+    const a1 = v('Meine Stuetze', 'drahtwerk-n-fl-cu-107');
+    const a2 = v('Meine Stuetze', 'drahtwerk-n-fl-cu-107');
+    wahr('Zweimal dasselbe gibt eine Kachel',
+         AN.entdoppelteVorlagen([a1, a2]).length === 1);
+    wahr('… und die ID spielt dabei keine Rolle',
+         AN.vorlagenKennung(a1) === AN.vorlagenKennung(a2));
+    /*
+     * ZWEI DINGE DESSELBEN NAMENS BLEIBEN ZWEI. Der Name ist frei gewaehlt
+     * und taugt allein nicht als Kennung; entschieden wird am INHALT.
+     */
+    const b = v('Meine Stuetze', 'drahtwerk-n-fl-cu-107', -0.5);
+    wahr('Gleicher Name, anderer Inhalt: beide bleiben',
+         AN.entdoppelteVorlagen([a1, b]).length === 2);
+    wahr('Die erste ihrer Art bleibt stehen',
+         AN.entdoppelteVorlagen([a1, a2, b])[0].id === a1.id);
+    wahr('Eine leere Liste bleibt leer',
+         AN.entdoppelteVorlagen([]).length === 0
+         && AN.entdoppelteVorlagen(null).length === 0);
+    /*
+     * ENTDOPPELT WIRD BEIM SETZEN - so raeumt schon das Laden eines alten
+     * Standes auf, statt die Doppelung nur zu verstecken.
+     */
+    const vorher = AN.vorlagen().length;
+    AN.setzeEigeneVorlagen([a1, a2, b]);
+    wahr('Gesetzt werden zwei, nicht drei',
+         AN.vorlagen().length === vorher + 2);
+    AN.setzeEigeneVorlagen([]);
+
+    /*
+     * >>> UND SIE GEHOEREN DEM BLATT. <<<
+     *
+     * Am einzelnen Tragwerk trug jedes Joch seine eigene Kachelliste. Eine
+     * selbstgebaute Kachel ist Handwerkszeug des Anwenders, keine
+     * Eigenschaft eines Jochs - wie die Masten und die Masskette.
+     */
+    const CC = await import(J('core.constants.js'));
+    wahr('Die eigenen Vorlagen sind eine Blattangabe',
+         CC.BLATT_FELDER.includes('eigeneVorlagen'));
+    wahr('… und bleiben deshalb nicht am Tragwerk haengen',
+         CC.tragwerkTeil({ L: 12, eigeneVorlagen: [a1] }).eigeneVorlagen
+         === undefined);
+    wahr('… sondern stehen in den Blattangaben',
+         (CC.blattAngaben({ eigeneVorlagen: [a1] }).eigeneVorlagen ?? [])
+           .length === 1);
+  }
+
+  /*
    * >>> DIE ZUGKRAFT IM MODELL. <<<
    *
    * Weisung vom 9. September: «die zugkraft im modell noch pruefen.»
