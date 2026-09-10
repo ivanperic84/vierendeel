@@ -16385,6 +16385,22 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       wahr('Ohne Mast bleibt die Marke am Joch',
            aufO.length === 2 && aufO[0].p[2] > -1);
       /*
+       * >>> UND DAS DREIECK STEHT NUR, WO KEINE SCHRAFFUR IST. <<<
+       *
+       * Weisung vom 10. September: «nimm die pfeilsymbole weg, es genuegt
+       * das einspannsymbol.» Am Mastfuss zeichnet `mastKoerper` die
+       * Fussschraffur - sie zeigt die EINSPANNUNG. Das Auflagerdreieck
+       * daneben sagt nur «hier ist ein Lager» und laesst offen, welches;
+       * zwei Symbole nebeneinander sind keine doppelte Auskunft, sondern
+       * eine unklare.
+       */
+      wahr('Mit Mast steht kein Auflagerdreieck mehr',
+           aufM.every((k) => k.ohneSymbol === true));
+      wahr('… ohne Mast dagegen schon',
+           aufO.every((k) => !k.ohneSymbol));
+      wahr('Der Name bleibt in beiden Faellen',
+           aufM.every((k) => k.text) && aufO.every((k) => k.text));
+      /*
        * BEIDE SZENEN NEHMEN DENSELBEN BAUSTEIN. Waeren es zwei, liefe die
        * eine der anderen wieder davon - genau das war der Befund.
        */

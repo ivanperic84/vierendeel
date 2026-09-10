@@ -691,7 +691,14 @@ export function erzeugeSzene(m, erg) {
        * Ohne Mast gibt es keinen Fuss - dann bleibt die Marke am Joch.
        */
       marken.push({ gruppe: 'auflager', art: 'auflager',
-                    p: [x, 0, mast?.profil ? zF : z0], text: name });
+                    p: [x, 0, mast?.profil ? zF : z0], text: name,
+                    /*
+                     * MIT MAST STEHT DIE FUSSSCHRAFFUR DA - das Dreieck
+                     * daneben waere das zweite Zeichen fuer dieselbe Sache.
+                     * Ohne Mast bleibt es: dann gibt es keine Schraffur,
+                     * und die Lagerung muesste sonst ungezeichnet bleiben.
+                     */
+                    ohneSymbol: Boolean(mast?.profil) });
       /*
        * DIE MASTEN VERMASSEN (Weisung), ab JOCH UNTERKANTE.
        *
@@ -3745,11 +3752,30 @@ export class Modellansicht {
     let gesetzt = 0;
     sammlung.forEach(({ mk, p }) => {
       if (mk.art === 'auflager') {
+        /*
+         * >>> WO EINGESPANNT IST, GENUEGT DAS EINSPANNSYMBOL. <<<
+         *
+         * Weisung vom 10. September: «nimm die pfeilsymbole weg, es genuegt
+         * das einspannsymbol.»
+         *
+         * Am Mastfuss stehen zwei Zeichen fuer dieselbe Sache: das
+         * Auflagerdreieck und die Fussschraffur. Die Schraffur sagt mehr -
+         * sie zeigt die EINSPANNUNG -, das Dreieck sagt nur «hier ist ein
+         * Lager» und laesst offen, welches. Zwei Symbole nebeneinander sind
+         * keine doppelte Auskunft, sondern eine unklare.
+         *
+         * DER NAME BLEIBT. «A» und «B» unterscheiden die beiden Enden, und
+         * das tut sonst nichts an dieser Stelle.
+         */
+        if (!mk.ohneSymbol) {
+          c.fillStyle = t.on2;
+          c.beginPath();
+          c.moveTo(p[0], p[1]);
+          c.lineTo(p[0] - 7 * s, p[1] + 12 * s);
+          c.lineTo(p[0] + 7 * s, p[1] + 12 * s);
+          c.closePath(); c.fill();
+        }
         c.fillStyle = t.on2;
-        c.beginPath();
-        c.moveTo(p[0], p[1]);
-        c.lineTo(p[0] - 7 * s, p[1] + 12 * s); c.lineTo(p[0] + 7 * s, p[1] + 12 * s);
-        c.closePath(); c.fill();
         c.fillText(mk.text ?? '', p[0] - 3 * s, p[1] + 26 * s);
         return;
       }

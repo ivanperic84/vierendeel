@@ -705,7 +705,9 @@ export function abfangSzene(typ, jt, opt = {}) {
      */
     const zMarke = mastDa ? -md.hoehe : -hG / 2 - 0.15;
     marken.push({ gruppe: 'auflager', art: 'auflager',
-                  p: [x, 0, zMarke], text: name });
+                  p: [x, 0, zMarke], text: name,
+                  // Mit Mast steht die Fussschraffur da - siehe render.3d.js.
+                  ohneSymbol: mastDa });
     if (mastDa || lz) {
       marken.push({ gruppe: 'auflager', art: 'auflagertext',
                     p: [x, 0, zMarke],
