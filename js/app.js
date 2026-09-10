@@ -31,7 +31,7 @@ import { verortung, fangeAufMasskette,
          tauscheAktives, tragwerkAendern, tragwerkHinzu, tragwerkWeg,
          tragwerksart,
          tragwerkTeil,
-         MASTFELDER, setzeMastAngabe, rechensatz,
+         MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
@@ -65,6 +65,13 @@ import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
          getAbfangjoch } from './data.abfangjoche.js';
+/*
+ * DAS ANKERSORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten. Wie das
+ * Abfangjoch-Sortiment ist es keine Voraussetzung: wer keinen Anker hat,
+ * braucht es nicht.
+ */
+import { ladeAnker, ankerDbDa, ankerGeometrie,
+         ankerNachweis } from './data.anker.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
@@ -1397,6 +1404,34 @@ function aendern(key, wert) {
     const nach = mastLaengeNachfuehren(werte, key, feldL, Number(wert) || 0);
     if (nach) aendern(feldL, nach[feldL]);
   }
+  /*
+   * >>> DIE ANKERFELDER SCHREIBEN AN DEN MASTEN. <<<
+   *
+   * Weisung vom 9. September: «bitte danach die moeglichkeit Zuganker oder
+   * Drucksuetzen an den masten zu modelieren.»
+   *
+   * Anders als Profil und Hoehe haben sie keinen flachen Zwilling im Satz -
+   * sie beschreiben EIN Bauteil an EINEM Masten. Deshalb ein eigener Zweig
+   * statt eines Eintrags in MASTFELDER: dort stuende ein Feldpaar, von dem
+   * die eine Haelfte nirgends hingehoert.
+   *
+   * DER TYP SCHALTET DAS BAUTEIL. Auf «keiner» gestellt verschwindet der
+   * ganze Anker, nicht nur sein Typ - ein halber Anker waere weder zu
+   * zeichnen noch nachzuweisen.
+   */
+  if (ANKERFELDER[key]) {
+    const id = werte.mastAktiv ?? gewaehlterMast(werte)?.id;
+    if (!id) { neuRechnen(); return; }
+    const alt = mastenVon(werte).find((m) => m.id === id)?.anker ?? null;
+    if (key === 'ankerTyp' && !String(wert ?? '').trim()) {
+      werte = setzeMastAnker(werte, id, null);
+    } else {
+      werte = setzeMastAnker(werte, id,
+        { ...ANKER_STANDARD, ...(alt ?? {}), [ANKERFELDER[key]]: wert });
+    }
+    neuRechnen();
+    return;
+  }
   if (MASTFELDER.some((f) => f.flach === key || f.flachB === key)) {
     /*
      * DIE KACHEL SAGT, WELCHER MAST GEMEINT IST.
@@ -2481,6 +2516,23 @@ function vorlagenZusammenfuehren(w) {
   });
   return entdoppelteVorlagen(alle);
 }
+
+/**
+ * Die Ankerfelder der Maske und ihr Platz im Ankerobjekt.
+ *
+ * Zwei Namen fuer dieselbe Sache: in der Maske heissen sie `ankerH`, am
+ * Bauteil `h`. Das ist Absicht - die Maske braucht eindeutige Schluessel
+ * ueber alle Gruppen hinweg, das Bauteil kurze.
+ */
+const ANKERFELDER = {
+  ankerTyp: 'typ', ankerH: 'h', ankerA: 'a',
+  ankerSeite: 'seite', ankerBef: 'befestigung',
+};
+
+/** Womit ein neu gesetzter Anker anfaengt, bis jemand die Masse eintraegt. */
+const ANKER_STANDARD = {
+  typ: 'U12', h: 4.0, a: 3.0, seite: 'plus', befestigung: 'ankerplatte',
+};
 
 function setzenStarten(vorwahl = null) {
   if (kalibrierung) kalibrierenEnde();
@@ -6011,6 +6063,7 @@ export async function start() {
   // Getrennt und ohne Abbruch: die drei oben sind Voraussetzung, dieses
   // eine ist es nicht.
   await ladeAbfangjoche().catch(() => null);
+  await ladeAnker().catch(() => null);
   if (daten.quelle === 'keine') {
     dialogDaten();
     return;

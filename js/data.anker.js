@@ -201,6 +201,70 @@ export function ankerNachweis(id, N, L, opt = {}) {
   };
 }
 
+/* ===========================================================================
+ * DIE GEOMETRIE AM MASTEN
+ * ===========================================================================
+ *
+ * Der Stab läuft vom Masten schräg hinunter zu einem eigenen Fundament.
+ * Beschrieben wird er durch zwei Masse — beide sind das, was auf dem
+ * Querprofil steht, und keines davon ist abgeleitet:
+ *
+ *   h   ANSCHLUSSHÖHE am Masten, über dem Mastfuss
+ *   a   ABSTAND des Ankerfundaments vom Mastfuss, waagrecht
+ *
+ * Daraus folgt alles Übrige: die Länge über Pythagoras, der Winkel gegen die
+ * Waagrechte, und die beiden Anteile, mit denen eine Stabkraft am Masten
+ * ankommt.
+ *
+ * >>> DER NEIGUNGSWINKEL IST DIE WICHTIGE ZAHL. <<<
+ *
+ * Gegen eine waagrechte Kraft wirkt nur der waagrechte Anteil der Stabkraft,
+ * also N · cos α. Je STEILER der Stab steht, desto kleiner ist cos α und
+ * desto grösser muss N werden, um dieselbe Kraft zu halten — ein steil
+ * angesetzter Anker arbeitet gegen sich selbst. Weit vom Masten weg und
+ * tief am Masten angeschlossen ist die wirksame Lage; wie weit man gehen
+ * kann, sagt die Länge über die Knickkurve.
+ * ======================================================================== */
+
+/**
+ * Die Geometrie eines Ankers oder einer Stütze.
+ *
+ * @param {number} h  Anschlusshöhe am Masten [m]
+ * @param {number} a  waagrechter Abstand des Fundaments [m]
+ * @returns {{h, a, L, alpha, cos, sin}|null}
+ *          `alpha` [°] gegen die Waagrechte; `cos`/`sin` die Anteile, mit
+ *          denen eine Stabkraft waagrecht bzw. lotrecht wirkt.
+ */
+export function ankerGeometrie(h, a) {
+  const hh = Number(h), aa = Number(a);
+  if (!Number.isFinite(hh) || !Number.isFinite(aa)) return null;
+  if (hh <= 0 || aa <= 0) return null;
+  const L = Math.sqrt(hh * hh + aa * aa);
+  return { h: hh, a: aa, L, alpha: (Math.atan2(hh, aa) * 180) / Math.PI,
+           cos: aa / L, sin: hh / L };
+}
+
+/**
+ * DIE STABKRAFT AUS EINER WAAGRECHTEN KRAFT AM ANSCHLUSSPUNKT [kN].
+ *
+ * Nimmt der Stab die waagrechte Kraft H allein auf, folgt sie aus dem
+ * Gleichgewicht am Anschlusspunkt: der waagrechte Anteil der Stabkraft muss
+ * H halten, also N = H / cos α.
+ *
+ * >>> DAS IST DIE OBERE SCHRANKE, NICHT DIE RECHNUNG. <<<
+ *
+ * Ob der Stab die Kraft WIRKLICH allein aufnimmt, hängt daran, wieviel der
+ * eingespannte Mastfuss daneben abträgt — das System ist einfach statisch
+ * unbestimmt, und die Aufteilung folgt aus den Steifigkeiten. Solange diese
+ * Festlegung nicht getroffen ist, gibt diese Funktion den Wert für «der Stab
+ * trägt alles». Er liegt auf der sicheren Seite für den STAB und auf der
+ * unsicheren für den MASTFUSS; wer sie benutzt, muss beides wissen.
+ */
+export function ankerStabkraft(H, geo) {
+  if (!geo || !Number.isFinite(H) || !(geo.cos > 0)) return null;
+  return H / geo.cos;
+}
+
 /** Stand der Datenbank - für die Fussleiste und den Bericht. */
 export function ankerStand() {
   return DB ? { typen: DB.typen.length, quelle: DB._quelle ?? null } : null;

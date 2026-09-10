@@ -29,6 +29,9 @@ import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
          abfangMasse } from './data.abfangjoche.js';
 import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
+import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
+         ankerGeometrie, ankerZulDruck, ankerZulZug,
+         getAnkerTyp } from './data.anker.js';
 import { AUSRICHTUNGEN } from './geometry.js';
 import { MASSVARIANTEN, BLECHQUELLEN } from './core.vierendeel.js';
 import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
@@ -92,6 +95,46 @@ const amMast = (feld, flach) => (w) => {
   const v = m?.[feld];
   return v === undefined || v === null ? w[flach] : v;
 };
+
+/*
+ * >>> DER ANKER STEHT AM MASTEN, NICHT AM SATZ. <<<
+ *
+ * Weisung vom 9. September: «bitte danach die moeglichkeit Zuganker oder
+ * Drucksuetzen an den masten zu modelieren.»
+ *
+ * Anders als Profil und Hoehe hat er keinen flachen Zwilling im Satz - er
+ * ist ein eigenes Bauteil und gehoert genau EINEM Masten. Fehlt er, steht
+ * hier der Standardwert; das Feld ist dann leer, nicht falsch belegt.
+ */
+const amAnker = (feld, std = '') => (w) => gewaehlterMast(w)?.anker?.[feld] ?? std;
+
+/** Steht an diesem Masten ein Anker? Nur dann gelten seine Felder. */
+const ankerDa = (w) => mastDa(w) && Boolean(gewaehlterMast(w)?.anker?.typ);
+
+/**
+ * DIE GEOMETRIE UNTER DEN FELDERN.
+ *
+ * Laenge und Neigung sind nicht einzugeben - sie folgen aus Hoehe und
+ * Abstand. Sie danebenzuschreiben erspart das Nachrechnen und zeigt sofort,
+ * ob der Stab zu lang fuer das Sortiment wird.
+ */
+function ankerNotiz(w) {
+  const a = gewaehlterMast(w)?.anker;
+  if (!a?.typ || !ankerDbDa()) return '';
+  const g = ankerGeometrie(a.h, a.a);
+  if (!g) return 'Höhe und Abstand eintragen — beide grösser als null.';
+  let t;
+  try { t = getAnkerTyp(a.typ); } catch { return ''; }
+  const zD = ankerZulDruck(a.typ, g.L);
+  const zZ = ankerZulZug(a.typ, a.befestigung ?? 'ankerplatte');
+  const lang = g.L > (t.laengeMax ?? Infinity) + 1e-9;
+  return `Stablänge ${g.L.toFixed(2)} m · Neigung ${g.alpha.toFixed(1)}° `
+    + `gegen die Waagrechte · zulässig ${zZ?.toFixed(0) ?? '–'} kN Zug, `
+    + (lang
+        ? `Druck NICHT geführt — über ${(t.laengeMax ?? 0).toFixed(2)} m `
+          + 'gibt es diesen Typ nicht'
+        : `${zD?.toFixed(1) ?? '–'} kN Druck`);
+}
 
 /**
  * DER GRAD AM FELD (Weisung: "bei der Eingabe von Radius und Spannweite die
@@ -716,6 +759,69 @@ export const FELDER = [
     sichtbar: (w) => mastDa(w),
     hinweis: 'W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2. Interaktion '
            + 'linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.'},
+  /* =========================================================================
+   * ZUGANKER UND DRUCKSTUETZE AM MASTEN
+   * =========================================================================
+   *
+   * Weisung vom 9. September: «bitte danach die moeglichkeit Zuganker oder
+   * Drucksuetzen an den masten zu modelieren. diese sind gelenkig gelagert.»
+   *
+   * Ein schraeger Stab vom Masten zu einem eigenen Fundament. Beschrieben
+   * wird er durch ZWEI Masse - die Anschlusshoehe am Masten und den
+   * waagrechten Abstand des Fundaments. Laenge und Neigung folgen daraus und
+   * stehen als Notiz darunter; sie sind keine Eingabe.
+   *
+   * Er gehoert dem ANGEWAEHLTEN Masten, wie Profil und Hoehe: die
+   * Kachelreihe darueber sagt, welcher gemeint ist.
+   * ====================================================================== */
+  { key: 'ankerTyp', gruppe: 'mast', typ: 'auswahl',
+    label: (w) => `Zuganker / Druckstütze ${
+      gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
+    standard: '', wertAus: amAnker('typ', ''),
+    optionenAus: () => [{ wert: '', label: 'keiner' },
+      ...ankerTypen().map((t2) => ({ wert: t2.id,
+        label: `${t2.name} · ${t2.art === 'seil' ? 'nur Zug'
+          : `bis ${(t2.laengeMax ?? 0).toFixed(2)} m`}` }))],
+    optionen: [{ wert: '', label: 'keiner' }],
+    sichtbar: (w) => mastDa(w) && ankerDbDa(),
+    hinweis: 'Ein schräger Stab vom Masten zu einem eigenen Fundament, an '
+           + 'beiden Enden gelenkig — er trägt nur Normalkraft. Die Stütze '
+           + 'nimmt Zug und Druck, der Seilanker nur Zug.' },
+  { key: 'ankerH', gruppe: 'mast', typ: 'schieber',
+    label: 'Anschlusshöhe des Ankers am Masten',
+    sym: 'h_A', einheit: 'm', standard: 4.0, schritt: 0.05, zugSchritt: 0.5,
+    min: 0.5, max: 20, wertAus: amAnker('h', 4.0),
+    sichtbar: ankerDa,
+    hinweis: 'Über dem Mastfuss gemessen — dem Referenzpunkt des Modells. '
+           + 'Tief angeschlossen wird der Stab flacher und damit wirksamer.' },
+  { key: 'ankerA', gruppe: 'mast', typ: 'schieber',
+    label: 'Abstand des Ankerfundaments',
+    sym: 'a_A', einheit: 'm', standard: 3.0, schritt: 0.05, zugSchritt: 0.5,
+    min: 0.5, max: 20, wertAus: amAnker('a', 3.0),
+    sichtbar: ankerDa,
+    notiz: ankerNotiz,
+    hinweis: 'Waagrecht vom Mastfuss bis zum Ankerfundament, quer zum Gleis. '
+           + 'Je weiter weg, desto flacher der Stab — und desto kleiner '
+           + 'seine Kraft für dieselbe Wirkung.' },
+  { key: 'ankerSeite', gruppe: 'mast', typ: 'auswahl',
+    label: 'Seite des Ankerfundaments', standard: 'plus',
+    wertAus: amAnker('seite', 'plus'),
+    optionen: [
+      { wert: 'plus', label: 'in +x (vom Gleis weg)' },
+      { wert: 'minus', label: 'in −x (zum Gleis hin)' }],
+    sichtbar: ankerDa,
+    hinweis: 'In der Jochachse gemessen. Der Anker steht auf der Seite, zu '
+           + 'der er ZIEHT — gegen die Kraft, die den Masten kippt.' },
+  { key: 'ankerBef', gruppe: 'mast', typ: 'auswahl',
+    label: 'Befestigung an Fundament und Mast', standard: 'ankerplatte',
+    wertAus: amAnker('befestigung', 'ankerplatte'),
+    optionen: ANKER_BEFESTIGUNGEN.map(
+      (b) => ({ wert: b.key, label: b.label })),
+    sichtbar: (w) => ankerDa(w)
+      && gewaehlterMast(w)?.anker?.typ !== 'SA20',
+    hinweis: 'Auf ZUG begrenzt nicht die Stütze, sondern die Befestigung: '
+           + 'an Ankerplatte und Vorsetzkonsole gilt der grössere Wert, an '
+           + 'Ankereisen oder Anschlussbügel der kleinere.' },
   /*
    * DER ANSCHLUSS GEHOERT ZUR AUFLAGERUNG, nicht zum Masten: er sagt, wie
    * das JOCHENDE gehalten wird. Sichtbar ist er trotzdem nur mit Masten -

@@ -13117,6 +13117,91 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     wahr('Der Nachweis nennt seine Vergleichsbasis',
          nD.vergleichsbasis === 'zulaessigeKraft');
+
+    /*
+     * >>> DIE GEOMETRIE AM MASTEN. <<<
+     *
+     * Zwei Masse beschreiben den Stab: die Anschlusshoehe am Masten und der
+     * waagrechte Abstand seines Fundaments. Alles Uebrige folgt daraus.
+     */
+    const g345 = AN.ankerGeometrie(4, 3);
+    pruef('3-4-5: die Laenge folgt aus Pythagoras', g345.L, 5, 1e-9, 'm');
+    pruef('… der Winkel gegen die Waagrechte', g345.alpha,
+          (Math.atan2(4, 3) * 180) / Math.PI, 1e-9, '°');
+    pruef('… der waagrechte Anteil', g345.cos, 0.6, 1e-9, '-');
+    pruef('… der lotrechte', g345.sin, 0.8, 1e-9, '-');
+    wahr('Ohne brauchbare Masse gibt es keine Geometrie',
+         AN.ankerGeometrie(0, 3) === null
+         && AN.ankerGeometrie(4, -1) === null
+         && AN.ankerGeometrie(NaN, 3) === null);
+    /*
+     * >>> JE STEILER DER STAB, DESTO GROESSER SEINE KRAFT. <<<
+     *
+     * Gegen eine waagrechte Kraft wirkt nur der waagrechte Anteil N·cos α.
+     * Steil angesetzt wird cos α klein, und N muss wachsen - der Anker
+     * arbeitet gegen sich selbst. Das ist der Grund, das Ankerfundament
+     * nicht zu nah an den Masten zu setzen.
+     */
+    const flach = AN.ankerGeometrie(2, 8);   // flach: alpha rund 14 Grad
+    const steil = AN.ankerGeometrie(8, 2);   // steil: alpha rund 76 Grad
+    wahr('Der steile Stab traegt bei gleicher Wirkung mehr',
+         AN.ankerStabkraft(30, steil) > AN.ankerStabkraft(30, flach),
+         `steil ${AN.ankerStabkraft(30, steil).toFixed(1)} gegen `
+         + `flach ${AN.ankerStabkraft(30, flach).toFixed(1)} kN`);
+    wahr('… und der flache liegt nahe bei der Kraft selbst',
+         AN.ankerStabkraft(30, flach) < 32);
+    pruef('N = H / cos alpha', AN.ankerStabkraft(30, g345), 50, 1e-9, 'kN');
+    wahr('Ohne Geometrie keine Stabkraft',
+         AN.ankerStabkraft(30, null) === null);
+    /*
+     * UND DIE LAENGE GEHT IN DEN NACHWEIS. Ein Stab mit 4 m Hoehe und 8 m
+     * Abstand ist 8.94 m lang - danach fragt die Knickkurve, nicht nach der
+     * Hoehe.
+     */
+    const g2 = AN.ankerGeometrie(4, 8);
+    pruef('Die Laenge entscheidet, nicht die Hoehe',
+          AN.ankerNachweis('U12', -30, g2.L).zul,
+          AN.ankerZulDruck('U12', g2.L), 1e-9, 'kN');
+
+    /*
+     * >>> DER ANKER GEHOERT DEM MASTEN. <<<
+     *
+     * Er steht an EINEM Masten, gehoert keinem Tragwerk und wandert beim
+     * Nachfuehren der Liste mit - zugeordnet ueber die STELLE, nicht ueber
+     * die Nummer. Sonst bekaeme nach dem Verschieben eines Jochs ein
+     * fremder Mast den Anker, so wie es beim Profil schon einmal war.
+     */
+    {
+      const CC2 = await import(J('core.constants.js'));
+      const basis = { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 240',
+                      mastH: 7.0, twId: 'T1' };
+      const mitAnker = CC2.setzeMastAnker(basis, 'M2',
+        { typ: 'U12', h: 4.0, a: 3.0, seite: 'vorn',
+          befestigung: 'ankerplatte' });
+      const masten = CC2.mastenVon(mitAnker);
+      wahr('Der Anker steht am gemeinten Masten',
+           masten.find((m) => m.id === 'M2')?.anker?.typ === 'U12');
+      wahr('… und nur dort',
+           masten.filter((m) => m.anker).length === 1);
+      /*
+       * VERSCHIEBT MAN DAS TRAGWERK, wandert der Anker mit seinem Masten -
+       * er haengt an der Stelle, nicht an der Nummer.
+       */
+      const verschoben = CC2.mastenVon({ ...mitAnker, xLage: 5 });
+      wahr('Nach dem Verschieben steht er immer noch an einem Masten',
+           verschoben.filter((m) => m.anker).length === 1);
+      /*
+       * UND ER LAESST SICH WEGNEHMEN. Ein Anker ist ein Bauteil: entweder
+       * er steht da, oder er steht nicht da.
+       */
+      const ohne = CC2.mastenVon(CC2.setzeMastAnker(mitAnker, 'M2', null));
+      wahr('Weggenommen ist er weg',
+           ohne.every((m) => m.anker === undefined));
+      wahr('Ein unbekannter Mast aendert nichts',
+           CC2.setzeMastAnker(basis, 'M9', { typ: 'U12' }) === basis);
+      wahr('Die eigenen Felder des Masten sind benannt',
+           CC2.MAST_EIGEN.includes('anker'));
+    }
   }
 
   /*

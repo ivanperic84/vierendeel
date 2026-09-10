@@ -730,6 +730,30 @@ export const MASTFELDER = [
   { flach: 'wMast', flachB: 'wMastB', am: 'wMast' },
 ];
 
+/* ===========================================================================
+ * WAS NUR DEM MASTEN GEHOERT
+ * ===========================================================================
+ *
+ * Weisung vom 9. September: «bitte danach die moeglichkeit Zuganker oder
+ * Drucksuetzen an den masten zu modelieren.»
+ *
+ * Die Felder in `MASTFELDER` haben ZWEI Wohnorte: eine flache Angabe am
+ * Tragwerk (`mastProfil`) und eine am Masten (`profil`). Das ist Erbe - die
+ * Anwendung kannte erst ein Joch mit zwei Enden, dann Masten mit Namen.
+ *
+ * Der ANKER hat diese Vorgeschichte nicht. Er steht an EINEM Masten, gehoert
+ * keinem Tragwerk und braucht deshalb keinen flachen Zwilling. Er wandert
+ * beim Nachfuehren der Liste mit wie die uebrigen Angaben - zugeordnet ueber
+ * die STELLE, nicht ueber die Nummer, aus demselben Grund wie dort.
+ *
+ * >>> UND ER IST EIN EIGENES BAUTEIL, KEIN MERKMAL. <<<
+ *
+ * Deshalb steht er als Objekt da (`anker`), nicht als fuenf Einzelfelder:
+ * ein Mast hat einen Anker oder keinen. Fehlt das Objekt, ist keiner da -
+ * das ist der Unterschied zu einem Feld, dessen Wert man raten muesste.
+ * ======================================================================== */
+export const MAST_EIGEN = ['anker'];
+
 /** Ein Mast aus den flachen Feldern eines Satzes, Ende A oder B. */
 function mastAus(t, ende, x) {
   const zwei = ende === 'B' && t?.mastZwei === true;
@@ -949,6 +973,14 @@ export function mastenVon(w, tol = 0.1, mitVersteckten = false) {
       if (v === undefined || v === null) return;
       if (f.am === 'profil' && !String(v).trim()) return;
       o[f.am] = v;
+    });
+    /*
+     * WAS NUR DEM MASTEN GEHOERT, WANDERT UNVERAENDERT MIT. Es gibt keinen
+     * abgeleiteten Wert daneben, den es ergaenzen koennte - ein Anker steht
+     * da oder nicht.
+     */
+    MAST_EIGEN.forEach((k) => {
+      if (q[k] !== undefined && q[k] !== null) o[k] = q[k];
     });
     return o;
   }));
@@ -1327,6 +1359,32 @@ export function setzeMastAngabe(w, ziel, flachKey, wert) {
   if (!mast) return w;
   const masten = alle.map(
     (m) => (m.id === mast.id ? { ...m, [feld.am]: wert } : m));
+  return { ...w, masten };
+}
+
+/**
+ * DEN ANKER EINES MASTEN SETZEN - oder ihn wegnehmen.
+ *
+ * `wert` ist das ganze Ankerobjekt oder `null`. Ein Anker ist ein Bauteil,
+ * kein Merkmal: entweder steht er da, oder er steht nicht da. Ihn feldweise
+ * zu setzen hiesse, einen halben Anker zulassen zu muessen - einen mit Typ,
+ * aber ohne Abstand -, und der waere weder zu zeichnen noch nachzuweisen.
+ *
+ * @param {object} w     Eingabesatz
+ * @param {string} ziel  Id des Masten (M1, M2 …)
+ * @param {object|null} wert  {typ, h, a, seite, befestigung} oder null
+ */
+export function setzeMastAnker(w, ziel, wert) {
+  const alle = mastenVon(w);
+  const mast = alle.find((m) => m.id === ziel);
+  if (!mast) return w;
+  const masten = alle.map((m) => {
+    if (m.id !== mast.id) return m;
+    const o = { ...m };
+    if (wert === null || wert === undefined) delete o.anker;
+    else o.anker = { ...wert };
+    return o;
+  });
   return { ...w, masten };
 }
 
