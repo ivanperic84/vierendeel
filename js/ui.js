@@ -3509,7 +3509,45 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
   // Profilen; als «Kennzahl» hatten sie hier nichts verloren.
-  const sg = [
+  /*
+   * >>> DAS ABFANGJOCH ZEIGT SEINE EIGENEN. <<<
+   *
+   * Weisung vom 9. September: «fange danach noch mit dem implementieren der
+   * Masten beim Abfangjoch an.»
+   *
+   * Hier standen `x.MyMax` und die uebrigen Extremwerte des TRAGJOCH-
+   * Ersatzbalkens - auch dann, wenn links ein Abfangjoch gewaehlt war. Sie
+   * gehoeren zu einem anderen Tragwerk; «max M_y 13.68 kNm» am Abfangjoch
+   * war eine Zahl aus dem falschen Modell.
+   *
+   * Das Abfangjoch hat zwei Ebenen, und in jeder ein Moment: in der
+   * waagrechten RAHMENEBENE traegt der Vierendeel (daraus das Kraeftepaar),
+   * QUER dazu biegt jeder Gurt fuer sich. Dazu die beiden AUFLAGERKRAEFTE -
+   * das ist es, was am Masten ankommt.
+   */
+  const sg = ab ? (() => {
+    const g = ab.gurt?.schnitt ?? {};
+    const zeileAuflager = (e) => {
+      const a = ab.auflager?.[e];
+      if (!a) return null;
+      const name = erg.modell.federn?.namen?.[e] || `Ende ${e}`;
+      return kachel(`Auflager ${name}`,
+        `${f2(a.Fy)} / ${f2(a.Fz)}`,
+        `kN · F_y / F_z · ${a.fall}`, '',
+        { x: e === 'A' ? (ab.ueberstand ?? 0) : ab.jt - (ab.ueberstand ?? 0) });
+    };
+    return [
+      kachel('M Rahmenebene', f2(g.Mrahmen ?? 0),
+             `kNm · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
+      kachel('V Rahmenebene', f2(g.Vrahmen ?? 0),
+             `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
+      kachel('M quer (lotrecht)', f2(g.Mvert ?? 0),
+             `kNm · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
+      kachel('V quer (lotrecht)', f2(g.Vvert ?? 0),
+             `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
+      zeileAuflager('A'), zeileAuflager('B'),
+    ].filter(Boolean);
+  })() : [
     kachel('max M_y', f2(x.MyMax), `kNm · x=${f2(x.xMyMax)}`, '', { x: x.xMyMax }),
     kachel('max V_z', f2(x.VzMax), `kN · x=${f2(x.xVzMax)}`, '', { x: x.xVzMax }),
     kachel('max M_z', f2(x.MzMax), `kNm · x=${f2(x.xMzMax)}`, '', { x: x.xMzMax }),
@@ -3579,7 +3617,8 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${nichtGefuehrtHtml(urteil)}
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
-            `max M_y ${f2(x.MyMax)} kNm`)}
+            ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mrahmen ?? 0)} kNm`
+               : `max M_y ${f2(x.MyMax)} kNm`)}
     ${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>

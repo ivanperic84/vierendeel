@@ -1352,13 +1352,28 @@ export function abfangAuswertung(o = {}) {
    * Der Betrag entscheidet: ein Vorzeichenwechsel im Wind macht die
    * Kombination nicht guenstiger.
    */
+  /**
+   * Die drei Teilsicherheitsbeiwerte eines Falles.
+   *
+   * Sie standen in `bemessung` und wurden fuer die Auflagerkraefte ein
+   * zweites Mal gebraucht. Zweimal geschrieben waeren sie zwei Orte, an
+   * denen dieselbe Festlegung steht - und der zweite laeuft dem ersten
+   * davon.
+   */
+  const beiwerteVon = (fall) => {
+    const havarie = fall.key === 'havarie';
+    return {
+      g: havarie ? 1.0 : gG,
+      w: havarie ? 0 : (fall.leit === 'wind' ? gQ : gQ * p0),
+      s: havarie ? 0 : (fall.leit === 'schnee' ? gQ : gQ * p0),
+    };
+  };
+
   const bemessung = (x) => {
     let beste = null;
     bilder.forEach((b) => {
-      const havarie = b.fall.key === 'havarie';
-      const gGf = havarie ? 1.0 : gG;
-      const wF = havarie ? 0 : (b.fall.leit === 'wind' ? gQ : gQ * p0);
-      const sF = havarie ? 0 : (b.fall.leit === 'schnee' ? gQ : gQ * p0);
+      const bw = beiwerteVon(b.fall);
+      const gGf = bw.g, wF = bw.w, sF = bw.s;
       const Zr = b.rahmenZ.M(x), Wr = b.rahmenW.M(x);
       const Gv = b.vertG.M(x), Sv = b.vertS.M(x);
       const ZrV = b.rahmenZ.V(x), WrV = b.rahmenW.V(x);
@@ -1373,6 +1388,91 @@ export function abfangAuswertung(o = {}) {
       }
     });
     return beste;
+  };
+
+  /* =========================================================================
+   * DIE AUFLAGERKRAEFTE - WAS DER MAST BEKOMMT
+   * =========================================================================
+   *
+   * Weisung vom 9. September: «fange danach noch mit dem implementieren der
+   * Masten beim Abfangjoch an.»
+   *
+   * >>> WARUM SIE NICHT AUS DEM TRAGJOCH KOMMEN KOENNEN. <<<
+   *
+   * Der Mastnachweis liest bis heute `m.RA`, `m.MA`, `m.H`, `m.T` - die
+   * Reaktionen des TRAGJOCH-Ersatzbalkens. Am Abfangjoch beschreiben sie ein
+   * anderes Tragwerk: vier Winkelgurte statt zweier Walzprofile, und vor
+   * allem eine andere Hauptlast. Deshalb stand am Abfangjoch bisher gar
+   * keine Mastkachel - lieber keine Zahl als eine aus dem falschen Modell.
+   *
+   * >>> WAS DAS ABFANGJOCH ABGIBT. <<<
+   *
+   * Es ist ein Balken auf zwei Stuetzen mit zwei Kragarmen, und `abfangBalken`
+   * rechnet fuer jedes Lastbild bereits die beiden Auflagerkraefte A und B
+   * mit. Vier Bilder, vier Kraefte je Ende:
+   *
+   *   LOTRECHT (z)        Eigengewicht des Jochs und der Anbauteile,
+   *                       Schnee                    -> vertG, vertS
+   *   IN GLEISRICHTUNG (y) Leiterzug und Wind auf das Joch in
+   *                       Gleisrichtung             -> rahmenZ, rahmenW
+   *
+   * Die Kraft in Gleisrichtung ist die grosse: sie steht am Mastkopf an und
+   * biegt ihn ueber die volle Anschlusshoehe. Genau dafuer steht das
+   * Abfangjoch da.
+   *
+   * >>> WAS NOCH NICHT DARIN STEHT. <<<
+   *
+   * Die Kraft IN DER JOCHACHSE (x) - Wind quer zum Gleis auf die Anbauteile,
+   * `Qx`. Sie laeuft im liegenden Traeger als NORMALKRAFT und geht ungeteilt
+   * in die Auflager; wie sie sich auf die beiden Masten verteilt, haengt an
+   * deren Steifigkeit und an der Frage, ob der Anschluss sie ueberhaupt
+   * uebertraegt. Das ist eine Modellfrage, keine Rechnung - sie wird
+   * ausgewiesen (`ohneFx`), nicht erfunden.
+   * ======================================================================= */
+
+  /**
+   * Die Auflagerkraft an einem Ende, Huellkurve ueber die drei Faelle.
+   *
+   * @param {'A'|'B'} ende
+   * @returns {{Fz:number, Fy:number, fall:string, anteile:object}}
+   *          Bemessungswerte [kN]; Fz nach unten, Fy in Gleisrichtung
+   */
+  const auflagerAn = (ende) => {
+    const k = (bal) => (ende === 'A' ? bal.A : bal.B);
+    let beste = null;
+    const faelle = bilder.map((b) => {
+      const bw = beiwerteVon(b.fall);
+      const Gz = k(b.vertG), Sz = k(b.vertS);
+      const Zy = k(b.rahmenZ), Wy = k(b.rahmenW);
+      const Fz = bw.g * Gz + bw.s * Sz;
+      /*
+       * DER WIND GEHT MIT DEM BETRAG in die Kombination - er hat keine feste
+       * Richtung, und ein Vorzeichenwechsel macht sie nicht guenstiger. Der
+       * Leiterzug dagegen behaelt sein Vorzeichen: wohin er zieht, sagt die
+       * Anlage.
+       */
+      const Fy = bw.g * Zy + bw.w * Math.abs(Wy) * Math.sign(Zy || 1);
+      const e = { key: b.fall.key, label: b.fall.label, Fz, Fy,
+                  anteile: { G: Gz, S: Sz, Z: Zy, W: Wy },
+                  beiwerte: bw };
+      // Massgebend ist, was den Masten am staerksten beansprucht: die
+      // Querkraft am Kopf mit ihrem Hebel und die Auflast zusammen.
+      const kenn = Math.abs(Fy) + Math.abs(Fz) / 10;
+      if (!beste || kenn > beste.kenn) beste = { ...e, kenn };
+      return e;
+    });
+    return { ende, Fz: beste.Fz, Fy: beste.Fy, fall: beste.key,
+             anteile: beste.anteile, faelle };
+  };
+
+  const auflager = {
+    A: auflagerAn('A'), B: auflagerAn('B'),
+    /*
+     * Die Kraft in Jochachse fehlt - siehe oben. Sie steht als Merkposten
+     * da, damit der Hinweis sie beim Namen nennen kann, statt dass jemand
+     * eine Null fuer eine Rechnung haelt.
+     */
+    ohneFx: teile.some((p) => Math.abs(p.lw.Qx ?? 0) > 1e-9),
   };
 
   // --- Der Gurtnachweis, Station fuer Station ------------------------------
@@ -1415,6 +1515,7 @@ export function abfangAuswertung(o = {}) {
     fall: massFall,
     /** Steht die Zahl auf einer Temperatur, fuer die keine Tabelle da ist? */
     ohneTabelle: bildVon(massFall).ohneTabelle,
+    auflager,
     reihe: gurtReihe, gurt, bleche, blech,
     max: { eta: etaMax, ok: etaMax <= 1 },
   };

@@ -485,9 +485,25 @@ export function hinweise(m) {
     const typ = m.abfangTyp ? ` «${m.abfangTyp}»` : '';
     h.push(`Abfangjoch${typ}: die Übersicht zeigt seinen eigenen Nachweis — `
       + 'zwei Gurte nebeneinander, das Kräftepaar aus dem Moment in der '
-      + 'waagrechten Rahmenebene, die Bindebleche als Riegel. Die Reiter '
-      + 'SCHNITT, VERLÄUFE und AUFLAGER rechnen dagegen weiter den '
+      + 'waagrechten Rahmenebene, die Bindebleche als Riegel. Auch die '
+      + 'SCHNITTGRÖSSEN und die AUFLAGERKRÄFTE sind seine eigenen. Die '
+      + 'Reiter SCHNITT, VERLÄUFE und AUFLAGER rechnen dagegen weiter den '
       + 'Ersatzbalken des Tragjochs; ihre Zahlen gelten diesem Joch nicht.');
+    /*
+     * >>> DER MAST WIRD NOCH NICHT NACHGEWIESEN. <<<
+     *
+     * Weisung vom 9. September: «fange danach noch mit dem implementieren
+     * der Masten beim Abfangjoch an.» Die Auflagerkraefte stehen jetzt da -
+     * das ist die Groesse, die der Mast bekommt. Sein NACHWEIS liest bis
+     * heute die Reaktionen des Tragjoch-Ersatzbalkens und wird deshalb am
+     * Abfangjoch nicht gefuehrt; eine Zahl aus dem falschen Modell waere
+     * schlimmer als keine.
+     */
+    h.push('Der MASTNACHWEIS wird am Abfangjoch nicht geführt. Die '
+      + 'Auflagerkräfte stehen bei den Schnittgrössen — F_y in '
+      + 'Gleisrichtung ist die Kraft, die am Mastkopf ansteht und ihn über '
+      + 'die volle Anschlusshöhe biegt. Die Kraft in JOCHACHSE (Wind quer '
+      + 'auf die Anbauteile) ist darin noch nicht enthalten.');
     /*
      * >>> UND DER DRUCKGURT IST NICHT AUF STABILITAET GEPRUEFT. <<<
      *

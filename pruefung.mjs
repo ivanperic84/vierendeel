@@ -12982,6 +12982,98 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * ====== WAS DAS ABFANGJOCH AN DIE MASTEN ABGIBT ======================
+   *
+   * Weisung vom 9. September: «fange danach noch mit dem implementieren der
+   * Masten beim Abfangjoch an.»
+   *
+   * Der Mastnachweis las bisher die Reaktionen des TRAGJOCH-Ersatzbalkens;
+   * am Abfangjoch beschreiben sie ein anderes Tragwerk. `abfangAuswertung`
+   * gibt jetzt seine eigenen Auflagerkraefte aus - je Ende, je Fall, mit den
+   * Anteilen, aus denen sie kommen.
+   */
+  if (AJ.abfangDbDa()) {
+    const AB7 = await import(J('core.abfangjoch.js'));
+    const leiter7 = (id, x, verlauf, bauteil) => ({
+      id, vorlage: 'hs-fahrdraht', name: id, x, ort: 'joch', aktiv: true,
+      anbindung: 'mitte', verlauf, module: [{ bauteil, anzahl: 1, z: 0 }],
+    });
+    const rechne7 = (teile) => AB7.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: teile,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0 });
+
+    /*
+     * >>> ZWEI GEGENLAEUFIGE LEITER SIND EIN KRAEFTEPAAR. <<<
+     *
+     * Einer zieht nach vorn, einer nach hinten - in der Summe null. Die
+     * beiden Masten bekommen dieselbe Kraft, aber in entgegengesetzter
+     * Richtung: das Joch dreht sich um die lotrechte Achse, und genau das
+     * muessen die Masten halten.
+     */
+    const paar = rechne7([
+      leiter7('vorn', 4, 'vorn', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107'),
+      leiter7('hinten', 8, 'hinten', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107')]);
+    wahr('Das Abfangjoch weist seine Auflagerkraefte aus',
+         !!paar.auflager?.A && !!paar.auflager?.B);
+    pruef('Ein Kraeftepaar gibt zwei gleich grosse Kraefte',
+          paar.auflager.A.Fy, -paar.auflager.B.Fy, 1e-9, 'kN');
+    pruef('… und beide Enden tragen dasselbe Gewicht',
+          paar.auflager.A.Fz, paar.auflager.B.Fz, 1e-9, 'kN');
+    wahr('Beide Kraefte stehen nach unten',
+         paar.auflager.A.Fz > 0 && paar.auflager.B.Fz > 0);
+
+    /*
+     * >>> GLEICHGEWICHT: WAS OBEN HINEINGEHT, KOMMT UNTEN HERAUS. <<<
+     *
+     * Die charakteristischen Anteile eines Falles muessen sich zur ganzen
+     * Last summieren. Ein Leiter allein zieht 14.9 kN; A und B zusammen
+     * halten sie, wie der Hebel es verlangt.
+     */
+    const einer = rechne7([
+      leiter7('vorn', 3, 'vorn', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107')]);
+    const wind = (e) => einer.auflager[e].faelle.find((f) => f.key === 'wind');
+    pruef('Ein Leiter, zwei Auflager: die Summe ist die Zugkraft',
+          wind('A').anteile.Z + wind('B').anteile.Z, 14.9, 1e-6, 'kN');
+    wahr('Der naehere Mast bekommt mehr',
+         Math.abs(wind('A').anteile.Z) > Math.abs(wind('B').anteile.Z));
+    /*
+     * DAS EIGENGEWICHT DES JOCHS teilt sich zu gleichen Teilen: es ist eine
+     * Gleichlast auf einem symmetrischen Traeger.
+     */
+    pruef('Das Jochgewicht traegt jedes Ende zur Haelfte',
+          wind('A').anteile.G, wind('B').anteile.G, 1e-9, 'kN');
+    pruef('… und zusammen sind es 0.42 kN/m auf 12.50 m',
+          wind('A').anteile.G + wind('B').anteile.G, 0.42 * 12.5, 0.3, 'kN');
+
+    /*
+     * >>> JEDER FALL STEHT DA, UND EINER IST MASSGEBEND. <<<
+     */
+    wahr('Alle drei Faelle sind ausgewiesen',
+         einer.auflager.A.faelle.length === AB7.ABFANG_FAELLE.length);
+    wahr('Der massgebende ist einer davon',
+         einer.auflager.A.faelle.some((f) => f.key === einer.auflager.A.fall));
+    /*
+     * IM HAVARIEFALL FEHLT DER SCHNEE - die staendigen Lasten stehen
+     * charakteristisch da, die veraenderlichen gar nicht.
+     */
+    const hav = einer.auflager.A.faelle.find((f) => f.key === 'havarie');
+    pruef('Havarie: die staendige Last ohne Beiwert',
+          hav.Fz, hav.anteile.G, 1e-9, 'kN');
+    wahr('… und ohne Schneeanteil', hav.beiwerte.s === 0
+         && hav.beiwerte.w === 0);
+
+    /*
+     * >>> DIE KRAFT IN JOCHACHSE FEHLT NOCH - UND SAGT ES. <<<
+     *
+     * Wind quer zum Gleis laeuft im liegenden Traeger als Normalkraft. Wie
+     * sie sich auf die beiden Masten verteilt, ist eine Modellfrage; sie
+     * wird ausgewiesen statt erfunden.
+     */
+    wahr('Ohne Wind in Jochachse steht der Merkposten auf falsch',
+         paar.auflager.ohneFx === false);
+  }
+
+  /*
    * ====== DIE REGLIERTEMPERATUR HAENGT AN DER KOMBINATION ==============
    *
    * Weisung vom 9. September: «Die temperatur ist an die kombinationen
