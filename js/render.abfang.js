@@ -203,6 +203,7 @@ export function abfangSzene(typ, jt, opt = {}) {
    * erschluege ein Pfeil von 22 kN jeden von einem.
    */
   const vektoren = [];
+  const lastflaechen = [];
   const pfeilLaenge = (kN) => 0.30 + 0.55 * Math.sqrt(Math.abs(kN) / 20);
   const rohFlaechen = [];
   const flaechen = {
@@ -641,6 +642,109 @@ export function abfangSzene(typ, jt, opt = {}) {
       });
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);
+      /*
+       * >>> UND SEINE ANSCHRIFT. <<<
+       *
+       * Weisung vom 11. September: «die beschriftungspillen im 3d fehlen
+       * bei den masten.»
+       *
+       * Beim Tragjoch steht ueber jedem Mastkopf «M2 · HEB 240 · 8.00 m»,
+       * und ein Klick darauf oeffnet sein Profilfeld - fuer GENAU diesen
+       * Masten. Hier fehlte sie ganz; das Bild nannte den Masten nirgends,
+       * und anklicken liess er sich auch nicht.
+       *
+       * DIE LAENGE, NICHT DIE HOEHE: angeschrieben ist auf dem Querprofil
+       * die Gesamtlaenge. Ohne Angabe steht die Hoehe bis zur Jochachse.
+       *
+       * `mastEnde` sagt, WELCHEN Masten die Anschrift meint - sonst
+       * bearbeitet man M2 und klickt auf M3.
+       */
+      const lang = (md.ueberstand ?? 0) > 0
+        ? md.hoehe + md.ueberstand : md.hoehe;
+      bauteiltitel.push({
+        p: [x, 0, Math.max(hG / 2 + 0.5, md.ueberstand ?? 0) + 0.55],
+        text: `${md.name ? `${md.name} · ` : ''}${mp.name}`
+            + ` · ${lang.toFixed(2)} m`,
+        mastEnde: name, feld: 'mastProfil', tab: 'system', gruppe: 'mast',
+      });
+    }
+  }
+
+  /* =========================================================================
+   * DIE VERTEILTEN LASTEN
+   * =========================================================================
+   *
+   * Weisung vom 11. September: «die lasten sind nicht abgebildet wenn
+   * abfangjoch ausgewählt.»
+   *
+   * Die Szene zeichnete nur die EINZELLASTEN der Anbauteile — Zug, Gewicht,
+   * Wind je Bauteil. Was über die ganze Länge wirkt, fehlte: das
+   * Eigengewicht des Jochs, der Schnee darauf und der Wind dagegen. Ohne
+   * Anbauteile war das Bild damit leer, obwohl das Joch sich selbst trägt.
+   *
+   * >>> DIE ZAHLEN KOMMEN AUS DEM NACHWEIS, NICHT AUS DER TABELLE. <<<
+   *
+   * `erg.lasten` trägt gk, wk und sk — dieselben Werte, mit denen
+   * `abfangAuswertung` rechnet. Sie hier ein zweites Mal aus dem Sortiment
+   * zu holen hiesse, zwei Quellen zu führen; genau das ist am 9. September
+   * schon einmal auseinandergelaufen (Bild 0.50 kN gegen Nachweis 1.70).
+   *
+   * >>> DIE RICHTUNGEN SIND DIE DES LIEGENDEN TRÄGERS. <<<
+   *
+   *   g, s   lotrecht nach unten, gestapelt über dem Träger
+   *   w      in GLEISRICHTUNG, seitlich gegen den Träger — nicht quer wie
+   *          beim Tragjoch. Die Rahmenebene liegt hier waagrecht, und der
+   *          Wind wirkt darin.
+   * ======================================================================= */
+  const la = opt.erg?.lasten;
+  if (la) {
+    let zStapel = hG / 2 + 0.30;
+    [{ w: la.gk ?? 0, art: 'staendig', nm: 'g_k' },
+     { w: la.sk ?? 0, art: 'schnee', nm: 's_k' }].forEach((teil) => {
+      if (!(teil.w > 0)) return;
+      const zVon = zStapel;
+      const zBis = zStapel + Math.min(0.5, 0.12 + teil.w * 0.12);
+      zStapel = zBis;
+      const n = Math.max(6, Math.min(24, Math.round(jt / 1.2)));
+      for (let i = 0; i <= n; i += 1) {
+        const x = (i * jt) / n;
+        vektoren.push({
+          gruppe: 'last', art: 'gleichlast', lastart: teil.art,
+          p: [x, 0, zBis], v: [0, 0, -(zBis - zVon) - 0.16], schlank: true,
+          text: i === Math.round(n / 2)
+            ? `${teil.nm} = ${teil.w.toFixed(2)} kN/m` : '',
+        });
+      }
+      lastflaechen.push({
+        gruppe: 'last', art: 'gleichlast', lastart: teil.art,
+        punkte: [[0, 0, zBis], [jt, 0, zBis], [jt, 0, zVon], [0, 0, zVon]],
+        titel: `${teil.nm} = ${teil.w.toFixed(2)} kN/m`,
+      });
+    });
+
+    /*
+     * DER WIND STEHT AUF DER SEITE, VON DER ER KOMMT — sonst stünden die
+     * Pfeile im Bauteil. Beim liegenden Träger ist das die Flanke in
+     * Gleisrichtung, also die Aussenkante des vorderen Gurtes.
+     */
+    if ((la.wk ?? 0) > 1e-9) {
+      const yKante = e / 2 + bG / 2;
+      const yAus = yKante + 0.42;
+      const n = Math.max(5, Math.min(18, Math.round(jt / 1.6)));
+      for (let i = 0; i <= n; i += 1) {
+        const x = (i * jt) / n;
+        vektoren.push({
+          gruppe: 'last', art: 'wind', lastart: 'windY',
+          p: [x, yAus, 0], v: [0, -0.34, 0], schlank: true,
+          text: i === Math.round(n / 2)
+            ? `w_k = ${la.wk.toFixed(2)} kN/m` : '',
+        });
+      }
+      lastflaechen.push({
+        gruppe: 'last', art: 'wind', lastart: 'windY',
+        punkte: [[0, yAus, 0], [jt, yAus, 0], [jt, yKante, 0], [0, yKante, 0]],
+        titel: `w_k = ${la.wk.toFixed(2)} kN/m`,
+      });
     }
   }
 
@@ -781,7 +885,7 @@ export function abfangSzene(typ, jt, opt = {}) {
 
   return {
     flaechen: rohFlaechen, linien, marken, masse, bauteiltitel,
-    vektoren, lastflaechen: [],
+    vektoren, lastflaechen,
     legende: [...bauteile.values()],
     // Etwas Luft nach oben und unten für Titel und Masskette.
     grenzen: { xMin: x0, xMax: x1, yMin: y0, yMax: y1,

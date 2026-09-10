@@ -16487,6 +16487,74 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       const aufO = szA.marken.filter((k) => k.art === 'auflager');
       wahr('Ohne Mast bleibt die Marke am Joch',
            aufO.length === 2 && aufO[0].p[2] > -1);
+
+      /*
+       * >>> JEDER MAST TRAEGT SEINE ANSCHRIFT. <<<
+       *
+       * Weisung vom 11. September: «die beschriftungspillen im 3d fehlen
+       * bei den masten.» Beim Tragjoch steht ueber jedem Mastkopf
+       * «M2 · HEB 240 · 8.00 m», und ein Klick darauf oeffnet SEIN
+       * Profilfeld. Hier fehlte sie ganz: das Bild nannte den Masten
+       * nirgends, und anklicken liess er sich auch nicht.
+       */
+      const szN = R3D.abfangSzene('A300', 13.0, {
+        mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse' },
+        masten: {
+          A: { profil: 'HEB 240', hoehe: 7.5, name: 'M2',
+               stegrichtung: 'jochachse' },
+          B: { profil: 'HEB 260', hoehe: 8.0, name: 'M3',
+               stegrichtung: 'jochachse' } } });
+      const titelM = (szN.bauteiltitel ?? []).filter((t) => t.mastEnde);
+      wahr('Zwei Mastanschriften', titelM.length === 2);
+      wahr('Sie nennen Namen, Profil und Laenge',
+           titelM.some((t) => t.text.includes('M2')
+                           && t.text.includes('HEB 240'))
+           && titelM.some((t) => t.text.includes('M3')
+                              && t.text.includes('HEB 260')));
+      /*
+       * DAS ENDE GEHOERT AN DIE ANSCHRIFT - sonst bearbeitet man M2 und
+       * klickt auf M3. Dieselbe Falle wie beim Tragjoch am 3. September.
+       */
+      wahr('Jede sagt, welchen Masten sie meint',
+           titelM.every((t) => t.mastEnde && t.feld === 'mastProfil'));
+      wahr('… und sie stehen ueber dem Mastkopf',
+           titelM.every((t) => t.p[2] > 0));
+      wahr('Ohne Mast keine Anschrift',
+           (szA.bauteiltitel ?? []).every((t) => !t.mastEnde));
+
+      /*
+       * >>> DIE VERTEILTEN LASTEN. <<<
+       *
+       * Weisung vom 11. September: «die lasten sind nicht abgebildet wenn
+       * abfangjoch ausgewählt.» Gezeichnet waren nur die EINZELLASTEN der
+       * Anbauteile; was ueber die ganze Laenge wirkt, fehlte. Ohne
+       * Anbauteile war das Bild damit leer, obwohl das Joch sich selbst
+       * traegt.
+       */
+      const szL = R3D.abfangSzene('A240', 12.5, {
+        mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse' },
+        erg: { lasten: { gk: 0.42, wk: 0.31, sk: 0.24 } } });
+      const arten = new Set((szL.vektoren ?? [])
+        .filter((v) => v.gruppe === 'last')
+        .map((v) => v.lastart));
+      wahr('Eigengewicht, Schnee und Wind stehen im Bild',
+           arten.has('staendig') && arten.has('schnee') && arten.has('windY'),
+           [...arten].join(', '));
+      wahr('Und jede traegt ihre Flaeche',
+           (szL.lastflaechen ?? []).length === 3);
+      wahr('Die Flaechen nennen den Wert',
+           (szL.lastflaechen ?? []).some((f) => /0\.42/.test(f.titel))
+           && (szL.lastflaechen ?? []).some((f) => /0\.31/.test(f.titel)));
+      /*
+       * DIE ZAHLEN KOMMEN AUS DEM NACHWEIS, nicht aus einer zweiten
+       * Abfrage des Sortiments. Genau das ist am 9. September schon einmal
+       * auseinandergelaufen - Bild 0.50 kN gegen Nachweis 1.70.
+       */
+      wahr('Ohne Ergebnis keine verteilte Last',
+           (R3D.abfangSzene('A240', 12.5, {
+             mast: { profil: 'HEB 240', hoehe: 7.5,
+                     stegrichtung: 'jochachse' } }).lastflaechen ?? [])
+             .length === 0);
       /*
        * >>> UND DAS DREIECK STEHT NUR, WO KEINE SCHRAFFUR IST. <<<
        *
