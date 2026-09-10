@@ -46,6 +46,15 @@ const AJ = await import(J('data.abfangjoche.js'));
 const R3D = await import(J('render.abfang.js'));
 AJ.setzeAbfangDB(JSON.parse(
   readFileSync(join(HIER, 'data', 'abfangjoche.json'), 'utf8')));
+/*
+ * DAS ANKER-SORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten.
+ * Wie das Abfangjoch-Sortiment darf es fehlen; die Kontrollen springen dann.
+ */
+const AN = await import(J('data.anker.js'));
+try {
+  AN.setzeAnkerDB(JSON.parse(
+    readFileSync(join(HIER, 'data', 'anker.json'), 'utf8')));
+} catch { /* ohne Sortiment weiter */ }
 
 /**
  * Anbauteil für Prüfzwecke. raster = 0 lässt beide Befestigungspunkte
@@ -12979,6 +12988,135 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          !r9.includes('gerechnet wird weiterhin das '));
     wahr('… nennt aber die Reiter, die es noch sind',
          r9.includes('SCHNITT, VERLÄUFE und AUFLAGER'));
+  }
+
+  /*
+   * ====== ZUG-/DRUCKSTUETZEN UND SEILANKER AM MASTEN ===================
+   *
+   * Weisung vom 9. September: «bitte danach die moeglichkeit Zuganker oder
+   * Drucksuetzen an den masten zu modelieren. diese sind gelenkig gelagert.
+   * … koennen anhand des bemessungdiagramms nachgewiessen werden.»
+   *
+   * Das Sortimentsblatt fuehrt die zulaessige DRUCKBELASTUNG ueber die
+   * Stuetzenlaenge - eine fallende Kurve je Typ. Die Werte sind aus der
+   * Vektorquelle des Diagramms ausgelesen, nicht am Bildschirm abgegriffen.
+   */
+  if (AN.ankerDbDa()) {
+    wahr('Das Ankersortiment ist geladen', AN.ankerTypen().length >= 3,
+         `${AN.ankerTypen().length} Typen`);
+    wahr('Die Stuetze traegt Druck, das Seil nicht',
+         AN.ankerTraegtDruck('U12') && AN.ankerTraegtDruck('U14')
+         && !AN.ankerTraegtDruck('SA20'));
+
+    /*
+     * >>> DIE KURVE FAELLT, WEIL DIE STUETZE KNICKT. <<<
+     *
+     * Je laenger sie ist, desto weniger Druck traegt sie. Das ist die
+     * Aussage des Diagramms, und sie muss ueber die ganze Laenge gelten -
+     * eine Kurve, die irgendwo wieder steigt, waere falsch abgelesen.
+     */
+    ['U12', 'U14'].forEach((typ) => {
+      const t2 = AN.getAnkerTyp(typ);
+      const N = t2.druck.N;
+      wahr(`${typ}: die zulaessige Druckkraft faellt mit der Laenge`,
+           N.every((v, i) => i === 0 || v < N[i - 1] + 1e-9));
+      wahr(`${typ}: die Kurve endet an der groessten Laenge`,
+           Math.abs(t2.druck.L[t2.druck.L.length - 1] - t2.laengeMax) < 1e-9);
+      wahr(`${typ}: sie beginnt an der Kappung`,
+           Math.abs(N[0] - t2.druck.kappung) < 1e-9);
+    });
+
+    /*
+     * STUETZSTELLEN AUS DEM DIAGRAMM - abgelesen im halben Meter.
+     * U12 bei 10.50 m (seiner groessten Laenge) rund 44 kN,
+     * U14 bei 12.50 m rund 51 kN. Der laengere Typ traegt bei gleicher
+     * Laenge mehr; das ist der Grund, ihn zu waehlen.
+     */
+    pruef('U12 bei 10.50 m', AN.ankerZulDruck('U12', 10.5), 43.7, 0.05, 'kN');
+    pruef('U12 bei 8.00 m', AN.ankerZulDruck('U12', 8.0), 75.6, 0.05, 'kN');
+    pruef('U14 bei 12.50 m', AN.ankerZulDruck('U14', 12.5), 51.2, 0.05, 'kN');
+    pruef('U14 bei 10.50 m', AN.ankerZulDruck('U14', 10.5), 75.0, 0.05, 'kN');
+    wahr('Der U14 traegt bei gleicher Laenge mehr als der U12',
+         AN.ankerZulDruck('U14', 10.5) > AN.ankerZulDruck('U12', 10.5));
+    /*
+     * ZWISCHEN DEN STUETZSTELLEN WIRD INTERPOLIERT - die Kurve ist glatt,
+     * und die Laenge einer Stuetze ist keine runde Zahl.
+     */
+    pruef('Zwischen 8.00 und 9.00 m liegt die Mitte',
+          AN.ankerZulDruck('U12', 8.5), (75.6 + 60.0) / 2, 1e-9, 'kN');
+    /*
+     * KURZ: DER QUERSCHNITT KAPPT. Unterhalb des Schnittpunkts mit der
+     * Kappungslinie laeuft die Kurve waagrecht - dort knickt die Stuetze
+     * nicht mehr, sondern der Querschnitt fliesst.
+     */
+    pruef('Kurz gekappt bei der Querschnittsgrenze',
+          AN.ankerZulDruck('U12', 5.0), 135, 1e-9, 'kN');
+    /*
+     * LANG: ES GIBT SIE NICHT. Die Kurve fortzusetzen hiesse, ein Bauteil
+     * zu bemessen, das niemand liefert.
+     */
+    wahr('Ueber der groessten Laenge gibt es keinen Wert',
+         AN.ankerZulDruck('U12', 11.0) === null
+         && AN.ankerZulDruck('U14', 13.0) === null);
+    wahr('Und ein Seil hat gar keine Druckkurve',
+         AN.ankerZulDruck('SA20', 8.0) === null);
+
+    /*
+     * >>> AUF ZUG ENTSCHEIDET DIE BEFESTIGUNG, NICHT DIE LAENGE. <<<
+     *
+     * Ein Zugstab knickt nicht. Das Blatt nennt zwei Werte: den grossen fuer
+     * Ankerplatte und Vorsetzkonsole, den kleineren fuer Ankereisen oder
+     * Anschlussbuegel. Es ist die BEFESTIGUNG, die begrenzt.
+     */
+    pruef('Zug an Ankerplatte', AN.ankerZulZug('U12', 'ankerplatte'),
+          135, 1e-9, 'kN');
+    pruef('Zug an Ankereisen', AN.ankerZulZug('U12', 'ankereisen'),
+          90, 1e-9, 'kN');
+    wahr('Beide Stuetzentypen tragen denselben Zug',
+         AN.ankerZulZug('U12', 'ankerplatte')
+         === AN.ankerZulZug('U14', 'ankerplatte'));
+    pruef('Der Seilanker traegt 67 kN Betriebslast',
+          AN.ankerZulZug('SA20'), 67, 1e-9, 'kN');
+    wahr('Seine Bruchkraft ist ein Vielfaches davon und steht nicht im '
+         + 'Nachweis',
+         AN.getAnkerTyp('SA20').bruchkraft > 3 * AN.ankerZulZug('SA20'));
+
+    /*
+     * >>> DER NACHWEIS SAGT, WAS BEGRENZT. <<<
+     *
+     * Gegen Knicken hilft ein groesserer Typ, gegen die Befestigung nur eine
+     * andere Befestigung. Eine blosse Zahl liesse offen, wo man ansetzt.
+     */
+    const nD = AN.ankerNachweis('U12', -40, 9.0);
+    wahr('Druck wird gegen die Knickkurve geprueft', nD.grund === 'knicken');
+    pruef('… und eta ist Kraft durch zulaessig', nD.eta,
+          40 / AN.ankerZulDruck('U12', 9.0), 1e-9, '-');
+    wahr('Kurzer Druckstab: der Querschnitt begrenzt',
+         AN.ankerNachweis('U12', -40, 5.0).grund === 'querschnitt');
+    wahr('Zug: die Befestigung begrenzt',
+         AN.ankerNachweis('U12', 40, 9.0).grund === 'befestigung');
+    /*
+     * EIN SEIL AUF DRUCK IST EIN FEHLER IM MODELL, kein Nachweis: es haengt
+     * durch. Das wird gemeldet, nicht mit eta = 0 weggerechnet.
+     */
+    const nS = AN.ankerNachweis('SA20', -10, 8.0);
+    wahr('Ein Seil auf Druck faellt durch', nS.ok === false
+         && nS.grund === 'seilAufDruck');
+    /*
+     * UEBER DEM SORTIMENT GIBT ES KEIN URTEIL - weder ja noch nein.
+     */
+    const nU = AN.ankerNachweis('U12', -40, 11.5);
+    wahr('Ueber der groessten Laenge steht kein Urteil da',
+         nU.ok === null && nU.grund === 'ueberSortiment');
+    /*
+     * >>> ES SIND ZULAESSIGE KRAEFTE, KEINE BEMESSUNGSWIDERSTAENDE. <<<
+     *
+     * Das Blatt stammt aus dem Verfahren der zulaessigen Spannungen. Womit
+     * die Zahlen zu vergleichen sind, steht im Ergebnis - damit niemand
+     * einen Bemessungswert dagegenhaelt, ohne es zu merken.
+     */
+    wahr('Der Nachweis nennt seine Vergleichsbasis',
+         nD.vergleichsbasis === 'zulaessigeKraft');
   }
 
   /*

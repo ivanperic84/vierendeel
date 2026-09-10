@@ -354,6 +354,19 @@ def main(ohne_daten=False):
             TAG_AJ,
             '<script type="application/json" id="abfangjoch-db">\n' + ajtext + "\n</script>")
 
+    # Das Anker-Sortiment (Zug-/Druckstuetzen, Seilanker). Wie das
+    # Abfangjoch-Sortiment DARF ES FEHLEN: wer keinen Anker am Masten hat,
+    # braucht es nicht.
+    TAG_AN = '<script type="application/json" id="anker-db"></script>'
+    AN_JSON = DB_JSON.parent / "anker.json"
+    if TAG_AN in html and AN_JSON.exists() and not ohne_daten:
+        antext = AN_JSON.read_text(encoding="utf-8")
+        if "</script" in antext:
+            raise SystemExit("anker.json enthält '</script' – das bricht die Einbettung.")
+        html = html.replace(
+            TAG_AN,
+            '<script type="application/json" id="anker-db">\n' + antext + "\n</script>")
+
     # Die Einzeldatei hat keine Nachbardateien: kein Manifest, keine Symbole,
     # kein Dienstarbeiter. Ohne diese Zeile meldet der Browser nur ein
     # fehlendes Manifest; js/pwa.js erkennt an ihrem Fehlen ausserdem, dass es
