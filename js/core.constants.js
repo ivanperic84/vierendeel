@@ -1289,6 +1289,19 @@ export function mastenProjizieren(satz, w, t) {
   MASTFELDER.forEach((f) => {
     if (a[f.am] !== undefined) satz[f.flach] = a[f.am];
   });
+  /*
+   * >>> DER ANKER GEHT MIT, UND ZWAR JE ENDE EINZELN. <<<
+   *
+   * Weisung vom 9. September: Zuganker und Druckstuetzen am Masten.
+   *
+   * Er haengt NICHT an `mastZwei`. Dieses Haekchen sagt «der Mast am Ende B
+   * ist ein anderer» und wird nur gesetzt, wenn Profil, Laenge oder Steg
+   * abweichen. Ein Anker steht aber gerade dann an EINEM der beiden Masten,
+   * wenn die Masten sonst gleich sind - haetten wir ihn dort eingehaengt,
+   * waere er am haeufigsten Fall unsichtbar geblieben.
+   */
+  satz.mastAnkerA = a.anker ?? null;
+  satz.mastAnkerB = (b?.anker ?? null);
   if (b) {
     /*
      * >>> `mastZwei` HEISST «ENDE B WEICHT AB», nicht «es gibt zwei». <<<

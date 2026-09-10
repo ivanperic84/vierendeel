@@ -720,6 +720,70 @@ export function erzeugeSzene(m, erg) {
                       punkte: [[x, y, zF], [x, y - 0.12 * halb, zF - 0.14 * H]] });
       }
       /*
+       * >>> DER ZUGANKER ODER DIE DRUCKSTUETZE. <<<
+       *
+       * Weisung vom 9. September: «bitte danach die moeglichkeit Zuganker
+       * oder Drucksuetzen an den masten zu modelieren. diese sind gelenkig
+       * gelagert.»
+       *
+       * Ein schraeger Stab vom Masten zu einem eigenen Fundament, in der
+       * JOCHACHSE - derselben Ebene, in der das Joch liegt. Gezeichnet als
+       * Doppellinie: eine einzelne Linie sieht aus wie eine Masslinie, und
+       * genau das ist er nicht.
+       *
+       * >>> DAS GELENK STEHT DA, WEIL ES DER PUNKT IST. <<<
+       *
+       * An beiden Enden ein Kreis statt einer Schraffur - der Stab traegt
+       * nur Normalkraft. Wer das Bild liest, muss sehen, dass hier kein
+       * Moment uebergeht; die Einspannung des Mastfusses daneben zeigt den
+       * Unterschied.
+       *
+       * Er haengt an der Gruppe `mast`: er gehoert zur Lagerung des Masten
+       * und wird mit ihm ein- und ausgeblendet.
+       */
+      const ak = mast?.anker;
+      if (ak?.typ && ak.h > 0 && ak.a > 0) {
+        const vz = ak.seite === 'minus' ? -1 : 1;
+        const zA = zF + Math.min(ak.h, zKopf - zF);
+        const xF = x + vz * ak.a;
+        const nw = erg?.anker?.[name]?.nachweis ?? null;
+        const wie = nw ? `${nw.typ} · ${nw.N >= 0 ? 'Zug' : 'Druck'} `
+                       + `${Math.abs(nw.N).toFixed(1)} kN · η `
+                       + `${(nw.eta ?? 0).toFixed(3)}`
+                      : `${ak.typ} · nicht gerechnet`;
+        // Doppellinie, damit er als Bauteil lesbar ist und nicht als Mass.
+        [-0.5, +0.5].forEach((d) => {
+          linien.push({ gruppe: 'mast', anker: true, stark: true,
+                        label: `Anker ${name} · ${wie}`,
+                        punkte: [[x, d * halb, zA], [xF, d * halb, zF]] });
+        });
+        // Das Ankerfundament: ein Klotz am Boden, kein Auflagerdreieck.
+        const fb = 0.35 * halb;
+        [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, -1]].forEach((p, i, arr) => {
+          if (i === 0) return;
+          const q = arr[i - 1];
+          linien.push({ gruppe: 'mast', anker: true,
+            punkte: [[xF + q[0] * fb, q[1] * fb, zF],
+                     [xF + p[0] * fb, p[1] * fb, zF]] });
+        });
+        /*
+         * DIE BEIDEN GELENKE. Ein kleiner Kreis, gezeichnet als Vieleck -
+         * die Szene kennt keine Kreise, und acht Ecken genuegen.
+         */
+        [[x, zA], [xF, zF]].forEach(([xg, zg]) => {
+          const r = 0.22 * halb;
+          const pkt = [];
+          for (let k2 = 0; k2 <= 8; k2 += 1) {
+            const w2 = (k2 / 8) * 2 * Math.PI;
+            pkt.push([xg + r * Math.cos(w2), 0, zg + r * Math.sin(w2)]);
+          }
+          for (let k2 = 1; k2 < pkt.length; k2 += 1) {
+            linien.push({ gruppe: 'mast', anker: true,
+                          punkte: [pkt[k2 - 1], pkt[k2]] });
+          }
+        });
+      }
+      /*
        * DAS LAGER SITZT AM MASTFUSS (Weisung), nicht an der Jochachse.
        *
        * Dort steht das Fundament, und dort ist eingespannt. An der Jochachse

@@ -521,6 +521,20 @@ function neuRechnen(neuZeichnen = true) {
     const kombi = mitJoch
       ? vergleichKombinationen(rs, profOG, profUG, stahl, joch)
       : { huellkurve: null, ergebnisse: {}, lastfaelle: [] };
+    /*
+     * >>> DER ANKERNACHWEIS RECHNET CHARAKTERISTISCH. <<<
+     *
+     * Weisung vom 10. September: «nimm variante 3 und die charakteristische
+     * kraft.»
+     *
+     * Das Bemessungsblatt der Zug- und Druckstuetzen fuehrt ZULAESSIGE
+     * Kraefte - eine Groesse aus dem Verfahren der zulaessigen Spannungen.
+     * Ihr gegenueber steht die charakteristische Einwirkung, nicht der
+     * Bemessungswert. Der Hauptdurchgang `erg` rechnet mit Beiwerten; die
+     * charakteristischen Lastfaelle laufen daneben mit, und aus ihnen kommt
+     * die Zahl.
+     */
+    erg.anker = mitJoch ? ankerAuswertung(kombi) : null;
     const checks = mitJoch ? konstruktionsChecks(erg.modell) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
@@ -548,6 +562,17 @@ function neuRechnen(neuZeichnen = true) {
      * hat darauf keinen Einfluss.
      */
     if (erg.abfang) anzeige.abfang = erg.abfang;
+    /*
+     * >>> UND DER ANKER AUS DEMSELBEN GRUND. <<<
+     *
+     * Er hing an `erg` und kam in der Spalte nie an - derselbe Weg, den der
+     * Abfangjoch-Nachweis schon einmal gegangen ist. Seine Kombination
+     * steckt in ihm selbst: er rechnet auf den CHARAKTERISTISCHEN
+     * Lastfaellen, nicht auf der Huellkurve des Tragsicherheitsnachweises.
+     * Welche Kombination die rechte Spalte gerade zeigt, aendert daran
+     * nichts.
+     */
+    if (erg.anker) anzeige.anker = erg.anker;
 
     // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
     // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
@@ -2533,6 +2558,51 @@ const ANKERFELDER = {
 const ANKER_STANDARD = {
   typ: 'U12', h: 4.0, a: 3.0, seite: 'plus', befestigung: 'ankerplatte',
 };
+
+/**
+ * DER NACHWEIS DER ANKER UND DRUCKSTUETZEN.
+ *
+ * >>> HUELLKURVE UEBER DIE CHARAKTERISTISCHEN LASTFAELLE. <<<
+ *
+ * Das Werkzeug rechnet sie ohnehin - «Staendig», «Anbauteile», «Schnee»,
+ * «Wind y», «Wind x» und «Staendig + Wind», alle mit Beiwert 1. Der letzte
+ * ist der Regelfall fuer diesen Nachweis: die Kraft in der Jochachse kommt
+ * aus der Umlenkung (staendig) und aus dem Wind, und dort stehen beide
+ * zusammen. Die uebrigen laufen mit, weil eine Huellkurve nie unsicher ist.
+ *
+ * Was NICHT genommen wird, sind die Kombinationen des
+ * Tragsicherheitsnachweises: sie tragen γ_G und γ_Q, und die gehoeren nicht
+ * gegen eine zulaessige Kraft.
+ */
+function ankerAuswertung(kombi) {
+  const lf = (kombi?.lastfaelle ?? []).filter(
+    (l) => l.art === 'charakteristisch');
+  if (!lf.length) return null;
+  const proEnde = {};
+  ['A', 'B'].forEach((ende) => {
+    let beste = null;
+    lf.forEach((l) => {
+      const k = kombi.ergebnisse?.[l.key]?.mast?.[ende]?.ankerkraft;
+      if (!k) return;
+      if (!beste || Math.abs(k.N) > Math.abs(beste.kraft.N)) {
+        beste = { kraft: k, lastfall: l.key, bez: l.bez };
+      }
+    });
+    if (!beste) return;
+    const k = beste.kraft;
+    const nw = ankerNachweis(k.typ, k.N, k.geo.L,
+                             { befestigung: k.befestigung });
+    proEnde[ende] = { ...beste, geo: k.geo, nachweis: nw,
+                      ueberKopf: k.ueberKopf === true };
+  });
+  const enden = Object.values(proEnde);
+  if (!enden.length) return null;
+  return {
+    ...proEnde,
+    eta: Math.max(...enden.map((e) => e.nachweis?.eta ?? 0)),
+    ok: enden.every((e) => e.nachweis?.ok !== false),
+  };
+}
 
 function setzenStarten(vorwahl = null) {
   if (kalibrierung) kalibrierenEnde();

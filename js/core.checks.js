@@ -443,6 +443,40 @@ export function hinweise(m) {
   const h = [];
 
   /*
+   * >>> DER ANKER RECHNET NACH EINER ANDEREN REGEL ALS DAS UEBRIGE. <<<
+   *
+   * Weisung vom 10. September: «nimm variante 3 und die charakteristische
+   * kraft.»
+   *
+   * Zwei Dinge sind daran ungewoehnlich, und beide muessen dastehen:
+   *
+   * 1. DAS SYSTEM. Der Mast ist am Ankerpunkt GEHALTEN und am Fuss
+   *    eingespannt - ein Zweifeldsystem. Die Nachgiebigkeit des Stabes und
+   *    seines Fundaments steckt NICHT darin; «gehalten» heisst starr
+   *    gehalten. Fuer den Anker ist das die unguenstigere Annahme, fuer den
+   *    Mastfuss die guenstigere.
+   *
+   * 2. DIE KRAFT. Das Bemessungsblatt fuehrt ZULAESSIGE Kraefte aus dem
+   *    Verfahren der zulaessigen Spannungen. Dagegen steht die
+   *    charakteristische Einwirkung - waehrend das ganze uebrige Werkzeug
+   *    mit Bemessungswerten rechnet. Ein eta von 0.07 am Anker und eines von
+   *    0.75 am Gurt beziehen sich auf verschiedene Dinge.
+   */
+  const mitAnker = [(m?.federn?.mastA ?? m?.federn?.mast)?.anker,
+                    m?.federn?.mastB?.anker].filter((a) => a?.typ);
+  if (mitAnker.length) {
+    h.push('Zuganker/Druckstütze: der Mast ist am ANKERPUNKT GEHALTEN und am '
+      + 'Fuss eingespannt (Zweifeldsystem). Die Dehnung des Stabes und die '
+      + 'Nachgiebigkeit seines Fundaments sind NICHT enthalten — für den '
+      + 'Anker die ungünstigere Annahme, für den Mastfuss die günstigere.');
+    h.push('Der Ankernachweis vergleicht die CHARAKTERISTISCHE Kraft mit der '
+      + 'zulässigen Kraft des Bemessungsdiagramms — beides ohne '
+      + 'Teilsicherheitsbeiwerte. Sein η ist deshalb nicht mit dem η des '
+      + 'Jochs oder des Masten vergleichbar, die auf Bemessungswerten '
+      + 'stehen.');
+  }
+
+  /*
    * DIE TRAGWERKSART, DIE (NOCH) NICHT GERECHNET WIRD.
    *
    * Die Wahl steht seit dem 2. September in der Maske und blendet aus, was

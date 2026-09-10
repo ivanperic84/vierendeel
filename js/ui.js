@@ -3506,6 +3506,48 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
         `${n.profil.name} · ${wodurch}`, ampel(eN)));
     });
   }
+  /*
+   * >>> DER ANKER BEKOMMT SEINE EIGENE KACHEL. <<<
+   *
+   * Weisung vom 9./10. September: Zuganker und Druckstuetzen am Masten,
+   * nachgewiesen ueber das Bemessungsdiagramm, mit der charakteristischen
+   * Kraft.
+   *
+   * Sie steht NEBEN der Mastkachel, nicht darin: der Anker ist ein eigenes
+   * Bauteil mit einem eigenen Nachweis, und sein eta bezieht sich auf eine
+   * ZULAESSIGE KRAFT, nicht auf einen Bemessungswiderstand. Zwei Zahlen mit
+   * verschiedener Bedeutung zusammenzuziehen hiesse, beide unbrauchbar zu
+   * machen.
+   *
+   * Die Kachel nennt den TYP und die Kraft mit ihrem Vorzeichen - «Zug» oder
+   * «Druck» ist die Auskunft, an der man sieht, ob der Stab auf der
+   * richtigen Seite steht.
+   */
+  if (erg.anker) {
+    const namenA = erg.modell.federn?.namen ?? {};
+    const gesehenA = new Set();
+    ['A', 'B'].forEach((ende) => {
+      const e = erg.anker[ende];
+      const nw = e?.nachweis;
+      if (!nw) return;
+      const name = namenA[ende] || `Ende ${ende}`;
+      if (gesehenA.has(name)) return;
+      gesehenA.add(name);
+      const zug = nw.N >= 0;
+      const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
+        + `${Math.abs(nw.N).toFixed(1)} kN`;
+      /*
+       * OHNE URTEIL KEINE AMPEL. Ueber der groessten lieferbaren Laenge
+       * gibt es die Stuetze nicht - dort steht ein Strich, keine Zahl.
+       */
+      if (nw.eta === null || !Number.isFinite(nw.eta)) {
+        kz.push(kachel(`η Anker ${name}`, '–', `${wie} · ${nw.grund === 'seilAufDruck'
+          ? 'Seil trägt keinen Druck' : 'über dem Sortiment'}`, 'nok'));
+        return;
+      }
+      kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampel(nw.eta)));
+    });
+  }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
   // Profilen; als «Kennzahl» hatten sie hier nichts verloren.

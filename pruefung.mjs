@@ -13202,6 +13202,163 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       wahr('Die eigenen Felder des Masten sind benannt',
            CC2.MAST_EIGEN.includes('anker'));
     }
+
+    /*
+     * ====== DER MAST IST AM ANKERPUNKT GEHALTEN (VARIANTE 3) ===========
+     *
+     * Weisung vom 10. September, auf Nachfrage: «nimm variante 3 und die
+     * charakteristische kraft.» Also ein Zweifeldsystem - unten die
+     * Einspannung, auf der Ankerhoehe eine unverschiebliche Stuetze,
+     * darueber ein Kragarm.
+     *
+     * Geprueft wird gegen die Loesungen, die im Buch stehen: der propped
+     * cantilever ist einfach statisch unbestimmt und hat geschlossene
+     * Formeln. Eine Rechnung gegen sich selbst waere keine Kontrolle.
+     */
+    {
+      const MA = await import(J('core.mast.js'));
+      /** Ein Lastbild von Hand - nur das, was `ankerHaltekraft` liest. */
+      const g = (o2) => ({ zKopf: 10, wQuer: 0, lasten: [], ...o2 });
+
+      /*
+       * KRAFT AM KOPF, HALTERUNG AM KOPF: die Stuetze nimmt die ganze
+       * Kraft. Alles andere waere kein Gleichgewicht.
+       */
+      const kopf = g({ lasten: [{ z: 10, Fx: 10, Fz: 0, Mq: 0, ex: 0 }] });
+      pruef('Halterung am Kopf nimmt die ganze Kraft',
+            MA.ankerHaltekraft(kopf, 10), -10, 1e-9, 'kN');
+      /*
+       * KRAFT AM KOPF, HALTERUNG AUF HALBER HOEHE: X = -F·(3L-a)/(2a).
+       * Mit L = 10, a = 5 sind das -2.5·F - die Stuetze zieht MEHR als die
+       * Last, weil der obere Teil auskragt. Der Fuss bekommt den Rest.
+       */
+      pruef('Halterung auf halber Hoehe zieht ueber',
+            MA.ankerHaltekraft(kopf, 5), -10 * (3 * 10 - 5) / (2 * 5),
+            1e-9, 'kN');
+      /*
+       * GLEICHLAST UEBER DIE HOEHE, HALTERUNG AM KOPF: X = -3qL/8, die
+       * bekannte Loesung des propped cantilever.
+       */
+      const gleich = g({ wQuer: 2 });
+      pruef('Gleichlast, Halterung am Kopf: 3qL/8',
+            MA.ankerHaltekraft(gleich, 10), -(3 * 2 * 10) / 8, 1e-9, 'kN');
+      /*
+       * KEINE LAST, KEINE HALTEKRAFT. Und ohne brauchbare Hoehe kein Wert.
+       */
+      pruef('Ohne Last haelt der Anker nichts',
+            MA.ankerHaltekraft(g({}), 5), 0, 1e-12, 'kN');
+      wahr('Ohne Hoehe gibt es keine Haltekraft',
+           MA.ankerHaltekraft(kopf, 0) === null
+           && MA.ankerHaltekraft(null, 5) === null);
+      /*
+       * EIN MOMENT AM KOPF wirkt wie eine Kraft mit Hebel - dieselbe
+       * Biegelinie, dieselbe Halterung. M am Kopf, Halterung am Kopf:
+       * X = -3M/(2L).
+       */
+      const mom = g({ lasten: [{ z: 10, Fx: 0, Fz: 0, Mq: 20, ex: 0 }] });
+      pruef('Ein Moment am Kopf: 3M/(2L)',
+            MA.ankerHaltekraft(mom, 10), -(3 * 20) / (2 * 10), 1e-9, 'kN');
+      /*
+       * UND DIE AUSMITTE EINER VERTIKALLAST ZAEHLT MIT - dieselben zwei
+       * Quellen, die `mastSchnitt` addiert.
+       */
+      const ausmitte = g({ lasten: [{ z: 10, Fx: 0, Fz: 20, Mq: 0, ex: 1 }] });
+      pruef('Vertikallast ueber die Ausladung wirkt wie ein Moment',
+            MA.ankerHaltekraft(ausmitte, 10),
+            MA.ankerHaltekraft(mom, 10), 1e-9, 'kN');
+
+      /*
+       * >>> AUS DER HALTEKRAFT WIRD DIE STABKRAFT. <<<
+       *
+       * Der Stab laeuft schraeg; nur sein waagrechter Anteil haelt. Steht
+       * das Fundament in +x und drueckt die Stuetze den Masten in −x
+       * zurueck, ist der Stab auf DRUCK - er stemmt sich dagegen.
+       */
+      const geo = AN.ankerGeometrie(4, 3);      // L = 5, cos = 0.6
+      const kD = MA.ankerStabkraftAus(-30, geo, 'plus');
+      pruef('N = X / cos alpha', kD.N, -50, 1e-9, 'kN');
+      wahr('… und der Stab steht auf Druck', kD.N < 0);
+      /*
+       * AUF DER ANDEREN SEITE DREHT ES SICH UM: dieselbe Haltekraft, ein
+       * Fundament in −x - und der Stab zieht.
+       */
+      const kZ = MA.ankerStabkraftAus(-30, geo, 'minus');
+      pruef('Auf der Gegenseite dreht sich das Vorzeichen', kZ.N, 50,
+            1e-9, 'kN');
+      /*
+       * DIE LOTRECHTE KOMPONENTE BELASTET DEN MASTEN. Ein Zuganker zieht
+       * ihn nach unten, eine Druckstuetze hebt ihn - beides steht
+       * unterhalb des Anschlusspunktes in der Normalkraft.
+       */
+      pruef('Zug zieht den Masten nach unten', kZ.Fz, 50 * geo.sin,
+            1e-9, 'kN');
+      wahr('… und Druck hebt ihn', kD.Fz < 0);
+      wahr('Ohne Geometrie keine Stabkraft',
+           MA.ankerStabkraftAus(-30, null) === null);
+
+      /*
+       * >>> UND DIE GANZE KETTE. <<<
+       *
+       * Vom Anker am Masten der Liste ueber den Rechensatz, die
+       * Drehfedern und die Mastlasten bis zur Kraft im Stab. Jedes Glied
+       * ist einzeln geprueft; diese Kontrolle prueft, dass sie
+       * zusammenhaengen - genau daran hat es beim ersten Anlauf gefehlt.
+       */
+      const CC3 = await import(J('core.constants.js'));
+      const AU3 = await import(J('core.auflager.js'));
+      const w3 = {
+        typ: 'J90', L: 20, xLage: 0, twId: 'T1',
+        mastVorhanden: true, endbedingung: 'mast',
+        mastProfil: 'HEB 240', mastH: 7.5, mastSteg: 'quer',
+        masten: [
+          { id: 'M1', x: 0, profil: 'HEB 240' },
+          { id: 'M2', x: 20, profil: 'HEB 240',
+            anker: { typ: 'U12', h: 4, a: 3, seite: 'plus',
+                     befestigung: 'ankerplatte' } },
+        ],
+      };
+      const rs3 = CC3.rechensatz(w3);
+      wahr('Der Rechensatz traegt den Anker am richtigen Ende',
+           rs3.mastAnkerA === null && rs3.mastAnkerB?.typ === 'U12');
+      const f3 = AU3.drehfedern(rs3);
+      wahr('Die Mastangaben tragen ihn weiter',
+           f3.mastB?.anker?.typ === 'U12' && !f3.mastA?.anker);
+      const m3 = {
+        L: 20, federn: f3, RA: 20, RB: 20, MA: 5, MB: 5,
+        wd: 0, H: [], T: [], N: [{ x: 10, w: 20 }],
+        beiwerte: { G: 1 }, stahl: { fy: 235 }, gammaM0: 1,
+        mastLast: { A: { xd: 0, yd: 0 }, B: { xd: 0, yd: 0 } },
+        anbauMastFlach: [],
+      };
+      const sB = MA.mastSchnitt(m3, 'B');
+      wahr('Am Ende B steht die Ankerkraft', !!sB.ankerkraft);
+      wahr('Am Ende A steht keine',
+           MA.mastSchnitt(m3, 'A').ankerkraft === null);
+      pruef('Die Stablaenge kommt aus der Geometrie',
+            sB.ankerkraft.geo.L, 5, 1e-9, 'm');
+      /*
+       * DER ANKER ENTLASTET DEN MASTFUSS. Genau dafuer steht er da: ohne
+       * ihn traegt die Einspannung das ganze Moment, mit ihm einen Teil
+       * davon. Verglichen wird an derselben Stelle, im selben Lastbild.
+       */
+      const ohneAnker = MA.mastSchnitt(
+        { ...m3, federn: { ...f3, mastB: { ...f3.mastB, anker: null } } },
+        'B');
+      const MqFuss = (x) => Math.abs(x.stationen[0].Mq);
+      wahr('Der Anker entlastet den Mastfuss',
+           MqFuss(sB) < MqFuss(ohneAnker),
+           `${MqFuss(sB).toFixed(1)} statt ${MqFuss(ohneAnker).toFixed(1)} kNm`);
+      /*
+       * UND ER STEHT AN SEINER STELLE IM VERLAUF: unterhalb des
+       * Anschlusspunktes wirkt er, oberhalb nicht.
+       */
+      const beiZ = (x, z) => x.stationen.reduce(
+        (a2, b2) => (Math.abs(b2.z - z) < Math.abs(a2.z - z) ? b2 : a2));
+      wahr('Ueber dem Anker aendert er nichts',
+           Math.abs(beiZ(sB, 6).Mq - beiZ(ohneAnker, 6).Mq) < 1e-9);
+      wahr('… darunter sehr wohl',
+           Math.abs(beiZ(sB, 2).Mq - beiZ(ohneAnker, 2).Mq) > 1e-6);
+    }
   }
 
   /*

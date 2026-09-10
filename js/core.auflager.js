@@ -354,7 +354,17 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
   // Verschieblich: der Anschlussfaktor greift, der Kopf kann ausweichen.
   // Unverschieblich: das Joch hält die beiden Mastköpfe zusammen; dann regiert
   // die Rahmenwirkung, nicht die Bauart des Anschlusses.
+  /*
+   * DER ANKER GEHOERT ZU DIESEM MASTEN - er wandert unveraendert durch.
+   *
+   * Auf die STEIFIGKEIT der Drehfeder wirkt er hier NICHT: die Feder
+   * beschreibt, wie das Jochende gehalten wird, und dafuer waere die
+   * Halterung weiter unten am Masten ein zweites Kapitel. Was er aendert,
+   * sind die SCHNITTGROESSEN im Masten - und die stehen in core.mast.js.
+   */
+  const anker = (ende === 'B' ? inp.mastAnkerB : inp.mastAnkerA) ?? null;
   return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, laenge, ueberstand, ende,
+           anker,
            anschluss: an.key, faktor: an.faktor,
            cKragarm,
            cVerschieblich: an.faktor * cKragarm,

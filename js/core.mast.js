@@ -76,6 +76,7 @@
  */
 
 import { mastSteifigkeit } from './core.auflager.js';
+import { ankerGeometrie } from './data.anker.js';
 
 /** Erdbeschleunigung für das Eigengewicht des Mastes [m/s²]. */
 const G_ERD = 9.81;
@@ -260,7 +261,119 @@ export function mastLasten(m, ende = 'A') {
             * sechs Meter zu kurz gewesen, und chi entsprechend zu gross.
             */
            laenge: md.laenge, ueberstand: md.ueberstand,
+           anker: md.anker ?? null,
            I: md.I, Iq: md.Iq, W: md.W_cm3, Wq: md.Wq_cm3 };
+}
+
+/* ===========================================================================
+ * DER MAST MIT ZUGANKER ODER DRUCKSTUETZE
+ * ===========================================================================
+ *
+ * Weisung vom 10. September, auf Nachfrage: «nimm variante 3 und die
+ * charakteristische kraft.»
+ *
+ * VARIANTE 3 heisst: der Mast ist am ANKERPUNKT GEHALTEN und am Fuss
+ * weiterhin EINGESPANNT. Ein Zweifeldsystem also - unten die Einspannung,
+ * auf der Hoehe h_A eine unverschiebliche Stuetze, darueber ein Kragarm.
+ *
+ * >>> EINFACH STATISCH UNBESTIMMT - UND DAS EI KUERZT SICH. <<<
+ *
+ * Die Unbekannte ist die Haltekraft X an der Stuetze. Sie folgt aus der
+ * Vertraeglichkeit: an der Stelle h_A darf sich nichts verschieben.
+ *
+ *      δ₁₀ + X · δ₁₁ = 0        X = − δ₁₀ / δ₁₁
+ *
+ * δ₁₀ ist die Verschiebung des KRAGARMS an dieser Stelle unter den
+ * aeusseren Lasten, δ₁₁ die unter einer Einheitskraft dort. Beide tragen
+ * dasselbe E·I im Nenner - es KUERZT SICH heraus. Damit braucht diese
+ * Rechnung weder Elastizitaetsmodul noch Traegheitsmoment, und sie ist
+ * unabhaengig vom Mastprofil. Das ist keine Vereinfachung, sondern die
+ * Eigenschaft eines einfach unbestimmten Systems mit EINEM Baustoff.
+ *
+ * >>> DIE NACHGIEBIGKEIT DES ANKERS STECKT NICHT DARIN. <<<
+ *
+ * «Gehalten» heisst starr gehalten. Ein Stab, der sich dehnt, und ein
+ * Ankerfundament, das nachgibt, wuerden X verkleinern - der Mastfuss bekaeme
+ * mehr, der Anker weniger. Die Weisung sagt Variante 3, und die ist die
+ * ungünstigere für den ANKER: er bekommt die volle Haltekraft.
+ *
+ * >>> UND SIE WIRKT IN DER JOCHACHSE. <<<
+ *
+ * Der Anker steht in +x oder −x, also quer zum Gleis. Gehalten wird deshalb
+ * die Verschiebung in x - dieselbe Richtung, in der `Vq` und `Mq` laufen.
+ * In Gleisrichtung (y) bleibt der Mast Kragarm; ein schraeger Stab in einer
+ * Ebene haelt die andere nicht.
+ * ======================================================================== */
+
+/**
+ * Verschiebung eines Kragarms an der Stelle a [Einheiten von 1/EI].
+ *
+ * Eingespannt bei z = 0, frei bei z = L. Alle Formeln in derselben
+ * Vorzeichenregel wie `mastSchnitt`: eine Kraft in +x verschiebt nach +x,
+ * und ein Moment mit demselben Drehsinn wie F·arm ebenso.
+ */
+function kragarmVerschiebung(a, { q = 0, L = 0, kraefte = [], momente = [] }) {
+  let w = 0;
+  // Gleichlast ueber die ganze Laenge
+  if (q) w += (q * a * a * (6 * L * L - 4 * L * a + a * a)) / 24;
+  kraefte.forEach(({ F, z }) => {
+    if (!F) return;
+    // Oberhalb der Stelle: der ganze Hebel wirkt. Unterhalb: nur bis dort.
+    w += a <= z ? (F * a * a * (3 * z - a)) / 6
+                : (F * z * z * (3 * a - z)) / 6;
+  });
+  momente.forEach(({ M, z }) => {
+    if (!M) return;
+    w += a <= z ? (M * a * a) / 2 : (M * z * (2 * a - z)) / 2;
+  });
+  return w;
+}
+
+/**
+ * DIE HALTEKRAFT AM ANKERPUNKT [kN], in x-Richtung.
+ *
+ * @param {object} g   Ergebnis aus `mastLasten`
+ * @param {number} aH  Anschlusshöhe des Ankers über dem Fuss [m]
+ * @returns {number|null} X - positiv heisst: die Stütze drückt den Masten
+ *          in +x. Null, wenn keine brauchbare Höhe vorliegt.
+ */
+export function ankerHaltekraft(g, aH) {
+  if (!g || !Number.isFinite(aH) || aH <= 0) return null;
+  // Ueber dem Mastkopf gibt es nichts zu halten.
+  const a = Math.min(aH, g.zKopf);
+  if (!(a > 0)) return null;
+  const kraefte = g.lasten.map((l) => ({ F: l.Fx ?? 0, z: l.z }));
+  /*
+   * ZWEI QUELLEN FUER EIN MOMENT: das eingeleitete `Mq` und die
+   * Vertikallast ueber ihre AUSLADUNG. Dieselben zwei, die `mastSchnitt`
+   * addiert - waeren es hier andere, stuenden zwei Rechnungen nebeneinander.
+   */
+  const momente = g.lasten.map((l) => ({
+    M: (l.Mq ?? 0) + (l.Fz ?? 0) * (l.ex ?? 0), z: l.z }));
+  const d10 = kragarmVerschiebung(a, { q: g.wQuer, L: g.zKopf,
+                                       kraefte, momente });
+  const d11 = (a * a * a) / 3;
+  if (!(d11 > 0)) return null;
+  return -d10 / d11;
+}
+
+/**
+ * DIE STABKRAFT IM ANKER [kN] - Zug positiv.
+ *
+ * Der Stab laeuft vom Mastpunkt (0, h) zum Fundament (s·a, 0). Zieht er mit
+ * N > 0, wirkt auf den Masten die Kraft N·(s·cos α, −sin α): waagrecht zum
+ * Fundament hin, lotrecht nach unten. Aus der waagrechten Komponente folgt
+ * die Stabkraft, aus der lotrechten die Zusatzlast am Masten.
+ *
+ * @param {number} X   Haltekraft in +x [kN]
+ * @param {object} geo Ergebnis aus `ankerGeometrie`
+ * @param {string} seite 'plus' (Fundament in +x) oder 'minus'
+ */
+export function ankerStabkraftAus(X, geo, seite = 'plus') {
+  if (!geo || !Number.isFinite(X) || !(geo.cos > 0)) return null;
+  const s = seite === 'minus' ? -1 : 1;
+  const N = X / (s * geo.cos);
+  return { N, Fx: X, Fz: N * geo.sin, seite: s };
 }
 
 /**
@@ -291,7 +404,25 @@ export const MAST_SCHRITT = 0.5;
 export function mastSchnitt(m, ende = 'A') {
   const g = mastLasten(m, ende);
   if (!g) return null;
-  const { H, zKopf, gd, wQuer, wLaengs, lasten } = g;
+  const { H, zKopf, gd, wQuer, wLaengs } = g;
+  /*
+   * >>> DIE HALTEKRAFT DES ANKERS IST EINE LAST WIE JEDE ANDERE. <<<
+   *
+   * Weisung vom 10. September: Variante 3 - der Mast ist am Ankerpunkt
+   * gehalten, der Fuss bleibt eingespannt.
+   *
+   * Gerechnet wird die Unbekannte X aus der Vertraeglichkeit
+   * (`ankerHaltekraft`) und dann als aeussere Kraft in die Liste gestellt.
+   * Danach laeuft die Summation unveraendert weiter - sie ist fuer ein
+   * System im Gleichgewicht richtig, gleichgueltig woher eine Kraft kommt.
+   *
+   * ZWEI KOMPONENTEN: die waagrechte haelt den Masten, die lotrechte
+   * belastet ihn zusaetzlich. Ein Zuganker zieht nach unten, eine
+   * Druckstuetze hebt - beides steht unterhalb des Anschlusspunktes in der
+   * Normalkraft.
+   */
+  const ank = ankerImMast(g);
+  const lasten = ank ? [...g.lasten, ank.last] : g.lasten;
 
   /*
    * WO GERECHNET WIRD.
@@ -347,7 +478,37 @@ export function mastSchnitt(m, ende = 'A') {
     return { z, N, Vq, Vl, Mq, Ml, Mt };
   });
 
-  return { ...g, stationen };
+  return { ...g, stationen, ankerkraft: ank?.kraft ?? null };
+}
+
+/**
+ * Die Ankerkraft und die Last, die sie am Masten erzeugt.
+ *
+ * @param {object} g Ergebnis aus `mastLasten`
+ * @returns {{kraft, last}|null}
+ */
+function ankerImMast(g) {
+  const a = g?.anker;
+  if (!a?.typ) return null;
+  const geo = ankerGeometrie(a.h, a.a);
+  if (!geo) return null;
+  /*
+   * UEBER DEM MASTKOPF GIBT ES NICHTS ZU HALTEN. Wer die Anschlusshoehe
+   * hoeher setzt als den Masten, bekommt die Halterung am Kopf - und den
+   * Hinweis, dass die Angabe nicht zum Masten passt (core.checks.js).
+   */
+  const zA = Math.min(a.h, g.zKopf);
+  const X = ankerHaltekraft(g, zA);
+  const k = ankerStabkraftAus(X, geo, a.seite);
+  if (!k) return null;
+  return {
+    kraft: { typ: a.typ, N: k.N, X, z: zA, geo,
+             seite: a.seite ?? 'plus',
+             befestigung: a.befestigung ?? 'ankerplatte',
+             ueberKopf: a.h > g.zKopf + 1e-9 },
+    last: { art: 'anker', name: `Anker ${a.typ}`, z: zA, zAnschluss: zA,
+            Fz: k.Fz, Fx: k.Fx, Fy: 0, Mq: 0, Ml: 0, ex: 0, ey: 0 },
+  };
 }
 
 /**
