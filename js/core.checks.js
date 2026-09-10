@@ -517,12 +517,28 @@ export function hinweise(m) {
    */
   if (art.key === 'abfangjoch') {
     const typ = m.abfangTyp ? ` «${m.abfangTyp}»` : '';
-    h.push(`Abfangjoch${typ}: die Übersicht zeigt seinen eigenen Nachweis — `
+    /*
+     * >>> DIE REITER RECHNEN JETZT DAS ABFANGJOCH. <<<
+     *
+     * Weisung vom 10. September: «die reiter schnitt verläufe und auflager
+     * beim abfangjoch fertig machen.» Hier stand bis dahin, sie rechneten
+     * weiter den Ersatzbalken des Tragjochs - richtig, solange es so war.
+     *
+     * Was der Hinweis behaelt, ist die GLIEDERUNG: das Abfangjoch
+     * kombiniert selbst, und deshalb steht im Auflagerblatt nicht dasselbe
+     * wie beim Tragjoch. Wer die beiden Blaetter nebeneinanderlegt, muss
+     * das wissen.
+     */
+    h.push(`Abfangjoch${typ}: die ganze Auswertung ist seine eigene — `
       + 'zwei Gurte nebeneinander, das Kräftepaar aus dem Moment in der '
-      + 'waagrechten Rahmenebene, die Bindebleche als Riegel. Auch die '
-      + 'SCHNITTGRÖSSEN und die AUFLAGERKRÄFTE sind seine eigenen. Die '
-      + 'Reiter SCHNITT, VERLÄUFE und AUFLAGER rechnen dagegen weiter den '
-      + 'Ersatzbalken des Tragjochs; ihre Zahlen gelten diesem Joch nicht.');
+      + 'waagrechten Rahmenebene, die Bindebleche als Riegel, dazu die '
+      + 'Reiter SCHNITT, VERLÄUFE und AUFLAGER.');
+    h.push('Das AUFLAGERBLATT ist anders gegliedert als beim Tragjoch: dort '
+      + 'stehen die Reaktionen nach Einwirkungsgruppen, damit der '
+      + 'Fundamentplaner selbst kombiniert. Das Abfangjoch kombiniert '
+      + 'SELBST — drei Fälle mit je eigener Regliertemperatur —, deshalb ist '
+      + 'es nach FÄLLEN aufgeschlüsselt, mit den charakteristischen '
+      + 'Anteilen daneben.');
     /*
      * >>> DER MAST STEHT AUF DEN KRAEFTEN DES ABFANGJOCHS. <<<
      *

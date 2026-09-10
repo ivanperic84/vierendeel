@@ -4010,11 +4010,19 @@ function verdrahteDiagramme(node) {
 
 /** Verläufe: Diagramme und der Massvarianten-Vergleich. */
 export function zeichneVerlauf(node, dia, vergleich) {
-  node.innerHTML = `
-    ${diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen)}
-    ${diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene)}
-    ${diagrammBlock('ausnutzung', 'Ausnutzung', dia.ausnutzung)}
-    ${klapp('verlauf-massvarianten', 'Einfluss der Hebelarm-Definition', `
+  /*
+   * >>> OHNE VERGLEICH FAELLT DER BLOCK WEG, NICHT DIE SEITE. <<<
+   *
+   * Weisung vom 10. September: «die reiter schnitt verläufe und auflager
+   * beim abfangjoch fertig machen.»
+   *
+   * Der Massvariantenvergleich stellt die Hebelarm-Definitionen des
+   * TRAGJOCHS gegenueber - h und b des Vierendeeltraegers aus vier
+   * Winkelgurten. Am Abfangjoch gibt es das nicht; dort kommt `null`
+   * herein, und `vergleich.zeilen` brach die ganze Seite ab.
+   */
+  const massBlock = vergleich?.zeilen?.length
+    ? klapp('verlauf-massvarianten', 'Einfluss der Hebelarm-Definition', `
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>Variante</th><th class="num">h</th><th class="num">b</th>
         <th class="num">η OG</th><th class="num">η UG</th><th class="num">η Blech</th>
@@ -4030,7 +4038,13 @@ export function zeichneVerlauf(node, dia, vergleich) {
         </tr>`).join('')}</tbody></table></div>
     <ul class="hinweis" style="padding-left:16px">${MASSVARIANTEN.map((v) =>
       `<li><b>${esc(v.kurz)}</b> — ${esc(v.beschreibung)}</li>`).join('')}</ul>`,
-      `gewählt: ${esc(vergleich.zeilen.find((z) => z.istGewaehlt)?.kurz ?? '')}`)}`;
+      `gewählt: ${esc(vergleich.zeilen.find((z) => z.istGewaehlt)?.kurz ?? '')}`)
+    : '';
+  node.innerHTML = `
+    ${diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen)}
+    ${diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene)}
+    ${diagrammBlock('ausnutzung', 'Ausnutzung', dia.ausnutzung)}
+    ${massBlock}`;
   verdrahteDiagramme(node);
   verdrahteKlapp(node);
 }
@@ -4101,6 +4115,243 @@ export function zeichneAuflager(node, blatt, erg) {
         selbst, sowie die Gebrauchstauglichkeitsnachweise. <b>Beides steht im
         Mastnachweis darunter</b> – dort mit den Beiwerten des gewählten
         Lastfalls.</p>`)}
+    ${mastblattHtml(erg)}`;
+  verdrahteKlapp(node);
+}
+
+/**
+ * DER SCHNITT DES ABFANGJOCHS.
+ *
+ * Weisung vom 10. September: «die reiter schnitt verläufe und auflager beim
+ * abfangjoch fertig machen.»
+ *
+ * Der Reiter zeigte bis hierher den Schnitt des TRAGJOCHS: vier Winkelecken
+ * mit N und σ, zwei Blechebenen mit V, M, τ. Am Abfangjoch gibt es weder
+ * vier Ecken noch zwei Ebenen — es sind ZWEI GURTE nebeneinander und EINE
+ * Blechlage, oben und unten am selben Riegel.
+ *
+ * >>> DREI ANTEILE MACHEN DIE SPANNUNG IM GURT. <<<
+ *
+ *   σ_N      das Kräftepaar aus dem Moment der waagrechten Rahmenebene,
+ *            N = M/e auf die Gurtfläche
+ *   σ_vert   die lotrechte Biegung: halbe Last je Gurt, dazu die Torsion
+ *            als gegenläufiges Kräftepaar
+ *   σ_örtl   die örtliche Biegung zwischen zwei Bindeblechen, aus der
+ *            Querkraft der Rahmenebene
+ *
+ * Sie werden als Beträge addiert — das ist der ungünstigste Punkt des
+ * Querschnitts und braucht keine Annahme darüber, wo er liegt.
+ *
+ * >>> DIE TABELLE LÄUFT ÜBER DIE NACHWEISSTELLEN. <<<
+ *
+ * Das sind die Blechstationen plus die vier Randstellen; dazwischen wird
+ * nicht nachgewiesen, weil dort nichts springt. Die massgebende Zeile ist
+ * hervorgehoben.
+ */
+export function zeichneAbfangSchnitt(node, ab) {
+  const g = ab.gurt;
+  const s = g?.schnitt ?? {};
+  const q = ab.q ?? {};
+
+  const zeileStelle = (r) => `
+    <tr class="${r.x === g?.x ? 'aktiv' : ''}${(r.eta ?? 0) > 1 ? ' nok' : ''}">
+      <td class="num">${f2(r.x)}</td>
+      <td class="num">${f2(r.schnitt?.Mrahmen ?? 0)}</td>
+      <td class="num stark">${f2(r.N ?? 0)}</td>
+      <td class="num">${f2(r.MgurtVert ?? 0)}</td>
+      <td class="num">${f3(r.Moertl ?? 0)}</td>
+      <td class="num">${f1(r.sigN ?? 0)}</td>
+      <td class="num">${f1(r.sigVert ?? 0)}</td>
+      <td class="num">${f1(r.sigOertl ?? 0)}</td>
+      <td class="num stark">${f1(r.sigma ?? 0)}</td>
+      <td class="num ${ampel(r.eta ?? 0)}">${f3(r.eta ?? 0)}</td>
+    </tr>`;
+
+  const bl = (ab.bleche?.bleche ?? []);
+  const zeileBlech = (b) => `
+    <tr class="${(b.eta ?? 0) > 1 ? 'nok' : ''}">
+      <td class="num">${f2(b.x)}</td>
+      <td>${esc(b.istSteife ? 'Quersteife' : 'Bindeblech')}${
+        b.istRand ? '<br><span class="ablage-meta">Randfeld</span>' : ''}</td>
+      <td class="num">${b.masse ? `${f0(b.b)}×${f0(b.t)}` : '–'}</td>
+      <td class="num">${f2(b.aSum ?? 0)}</td>
+      <td class="num">${f2(b.Vebene ?? 0)}</td>
+      <td class="num">${f3(b.Mblech ?? 0)}</td>
+      <td class="num">${f1(b.sigma ?? 0)}</td>
+      <td class="num">${f1(b.tau ?? 0)}</td>
+      <td class="num stark">${f1(b.sigmaV ?? 0)}</td>
+      <td class="num ${ampel(b.eta ?? 0)}">${f3(b.eta ?? 0)}</td>
+    </tr>`;
+
+  node.innerHTML = `
+    ${abschnitt('Massgebende Stelle',
+      `x = ${f2(g?.x ?? 0)} m · Fall ${esc(s.fall ?? '–')}`)}
+    <div class="kennzahlen">
+      ${kachel('N Kräftepaar', `${f2(g?.N ?? 0)} kN`,
+               `M/e · e = ${f1(q.e ?? 0)} cm`)}
+      ${kachel('M Gurt lotrecht', `${f2(g?.MgurtVert ?? 0)} kNm`,
+               `davon Torsion ${f2(g?.Mtors ?? 0)}`)}
+      ${kachel('M örtlich', `${f3(g?.Moertl ?? 0)} kNm`,
+               `Rahmenfeld ${f2(ab.rahmenfeld?.a ?? 0)} m`)}
+      ${kachel('σ gesamt', `${f1(g?.sigma ?? 0)}`,
+               `kN/cm² · f_yd ${f1(g?.fyd ?? 0)}`)}
+      ${kachel('η Gurt', f3(g?.eta ?? 0), esc(q.gurt?.name ?? ''),
+               ampel(g?.eta ?? 0))}
+    </div>
+
+    ${abschnitt('Schnittgrössen an dieser Stelle')}
+    <div class="kennzahlen">
+      ${kachel('M Rahmenebene', `${f2(s.Mrahmen ?? 0)} kNm`, 'waagrecht')}
+      ${kachel('V Rahmenebene', `${f2(s.Vrahmen ?? 0)} kN`, 'waagrecht')}
+      ${kachel('M quer', `${f2(s.Mvert ?? 0)} kNm`, 'lotrecht, ganzer Träger')}
+      ${kachel('V quer', `${f2(s.Vvert ?? 0)} kN`, 'lotrecht')}
+      ${kachel('M Torsion', `${f2(s.Mtors ?? 0)} kNm`, 'im Gurt, aus T/e')}
+    </div>
+
+    ${abschnitt('Gurtnachweis, Stelle für Stelle',
+                'die massgebende Zeile ist hervorgehoben')}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr>
+        <th class="num">x [m]</th><th class="num">M_Rahmen [kNm]</th>
+        <th class="num">N [kN]</th><th class="num">M_Gurt [kNm]</th>
+        <th class="num">M_örtl [kNm]</th>
+        <th class="num">σ_N</th><th class="num">σ_vert</th>
+        <th class="num">σ_örtl</th><th class="num">σ [kN/cm²]</th>
+        <th class="num">η</th></tr></thead>
+      <tbody>${(ab.reihe ?? []).map(zeileStelle).join('')}</tbody>
+    </table></div>
+
+    ${bl.length ? `
+    ${abschnitt('Bindebleche und Quersteifen',
+                `${bl.length} Stück · Raster ${f2(ab.rahmenfeld?.a ?? 0)} m`)}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr>
+        <th class="num">x [m]</th><th>Art</th><th class="num">b×t [mm]</th>
+        <th class="num">a [m]</th><th class="num">V_Ebene [kN]</th>
+        <th class="num">M [kNm]</th><th class="num">σ</th><th class="num">τ</th>
+        <th class="num">σ_v [kN/cm²]</th><th class="num">η</th></tr></thead>
+      <tbody>${bl.map(zeileBlech).join('')}</tbody>
+    </table></div>` : ''}
+
+    ${klapp('abfang-schnitt-hinweis', 'Woraus die Spannung besteht', `
+      <p class="notiz" style="margin-top:0">
+        <b>σ_N</b> ist das Kräftepaar aus dem Moment der waagrechten
+        Rahmenebene: N = M/e auf die Gurtfläche, mit e als Abstand der
+        Gurt-SCHWERACHSEN (${f1(q.e ?? 0)} cm), nicht dem Aussenmass.</p>
+      <p class="notiz"><b>σ_vert</b> ist die lotrechte Biegung. Jeder Gurt
+        trägt die HALBE Last über seine starke Achse; dazu kommt die Torsion
+        des Trägers als gegenläufiges Kräftepaar — im einen Gurt addiert sie
+        sich, im anderen zieht sie ab, und massgebend ist der eine.</p>
+      <p class="notiz"><b>σ_örtl</b> ist die Biegung des Gurtes zwischen zwei
+        Bindeblechen, aus der Querkraft der Rahmenebene. Nachgewiesen wird am
+        ANSCHNITT des Blechs, nicht auf der Knotenachse: über die Blechbreite
+        ist die Verbindung biegesteif.</p>
+      <p class="notiz">Die drei Anteile werden als BETRÄGE addiert. Das ist
+        der ungünstigste Punkt des Querschnitts und braucht keine Annahme
+        darüber, wo er liegt.</p>
+      <p class="notiz"><b>Nicht enthalten: das KNICKEN des Druckgurtes.</b>
+        Die Knicklänge steht aus — der Bindeblechabstand wäre zu
+        unkonservativ, weil sich der ganze Träger in beiden Ebenen biegt.</p>`)}`;
+  verdrahteKlapp(node);
+}
+
+/**
+ * DIE AUFLAGER DES ABFANGJOCHS.
+ *
+ * Weisung vom 10. September: «die reiter schnitt verläufe und auflager beim
+ * abfangjoch fertig machen.»
+ *
+ * Der Reiter zeigte bis hierher das Auflagerblatt des TRAGJOCHS —
+ * charakteristische Gruppenwerte eines Ersatzbalkens mit vier Winkelgurten.
+ * Am Abfangjoch waren das die Zahlen eines anderen Tragwerks; gemessen an
+ * A240 · 12.50 m standen dort 5.21 kN, während das Joch selbst 8.32 abgibt.
+ *
+ * >>> ES IST EINE ANDERE GLIEDERUNG. <<<
+ *
+ * Das Tragjoch führt die Reaktionen nach EINWIRKUNGSGRUPPEN auf, damit der
+ * Fundamentplaner selbst kombinieren kann. Das Abfangjoch kombiniert
+ * SELBST — drei Fälle mit je eigener Regliertemperatur, und der grösste
+ * gilt. Aufgeschlüsselt wird deshalb nach FÄLLEN, und je Fall stehen die
+ * charakteristischen Anteile daneben, aus denen er entsteht.
+ *
+ * >>> UND DIE BEIDEN ENDEN SIND NICHT GLEICH. <<<
+ *
+ * Ein Leiter nahe am einen Mast belastet diesen stärker — beim gemessenen
+ * Beispiel 19.72 gegen 7.61 kN. Die Enden stehen deshalb nebeneinander, mit
+ * dem Namen des Masten, der sie bekommt.
+ */
+export function zeichneAbfangAuflager(node, ab, erg) {
+  const namen = erg?.modell?.federn?.namen ?? {};
+  const nam = (e) => namen[e] || `Ende ${e}`;
+  const enden = ['A', 'B'].filter((e) => ab.auflager?.[e]);
+
+  /*
+   * DIE ANTEILE EINES FALLES - charakteristisch, wie sie in die Kombination
+   * gehen. Sie stehen da, damit man den Bemessungswert nachrechnen kann:
+   * γ_G · G + γ_Q · S usw. mit den Beiwerten, die daneben angeschrieben sind.
+   */
+  const fallZeile = (f, e) => `
+    <tr class="${f.key === ab.auflager[e].fall ? 'aktiv' : ''}">
+      <td>${esc(f.label)}<br><span class="ablage-meta">γ_G ${f2(f.beiwerte.g)}
+        · γ_W ${f2(f.beiwerte.w)} · γ_S ${f2(f.beiwerte.s)}</span></td>
+      <td class="num">${f2(f.anteile.G)}</td>
+      <td class="num">${f2(f.anteile.S)}</td>
+      <td class="num">${f2(f.anteile.Z)}</td>
+      <td class="num">${f2(f.anteile.W)}</td>
+      <td class="num stark">${f2(f.Fz)}</td>
+      <td class="num stark">${f2(f.Fy)}</td>
+    </tr>`;
+
+  const tabelle = (e) => `
+    ${abschnitt(`Auflager ${nam(e)}`,
+                `massgebend: ${esc(ab.auflager[e].fall)}`)}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Fall</th>
+        <th class="num">G [kN]</th><th class="num">S [kN]</th>
+        <th class="num">Zug [kN]</th><th class="num">Wind [kN]</th>
+        <th class="num">F_z,d [kN]</th><th class="num">F_y,d [kN]</th></tr></thead>
+      <tbody>${ab.auflager[e].faelle.map((f) => fallZeile(f, e)).join('')}</tbody>
+    </table></div>`;
+
+  const A = ab.auflager.A, B = ab.auflager.B;
+  node.innerHTML = `
+    ${abschnitt('Reaktionskräfte', 'Bemessungswerte, Hüllkurve über die drei Fälle')}
+    <div class="kennzahlen">
+      ${kachel(`F_y ${nam('A')}`, f2(A?.Fy ?? 0), 'kN · in Gleisrichtung')}
+      ${kachel(`F_y ${nam('B')}`, f2(B?.Fy ?? 0), 'kN · in Gleisrichtung')}
+      ${kachel(`F_z ${nam('A')}`, f2(A?.Fz ?? 0), 'kN · lotrecht')}
+      ${kachel(`F_z ${nam('B')}`, f2(B?.Fz ?? 0), 'kN · lotrecht')}
+      ${kachel('F_x total', f2(A?.Fxges ?? 0), 'kN · in Jochachse')}
+      ${kachel('Kräftepaar Torsion', f2(A?.Ptors ?? 0),
+               `kN je Gurt · Hebel ${f2(2 * (ab.auflager.ey ?? 0))} m`)}
+    </div>
+    ${enden.map(tabelle).join('')}
+    ${klapp('abfang-auflager-hinweis',
+            'Achsen, Vorzeichen und was der Anschluss überträgt', `
+      <p class="notiz" style="margin-top:0">
+        <b>F_y</b> läuft in GLEISRICHTUNG — der Leiterzug und der Wind auf das
+        Joch. Das ist die grosse Kraft; sie steht am Mastkopf an und biegt ihn
+        über die volle Anschlusshöhe. <b>F_z</b> lotrecht, positiv nach unten.
+        <b>F_x</b> in der Jochachse, aus Wind quer auf die Anbauteile: der
+        liegende Träger leitet sie als Normalkraft an seine Enden, und wie sie
+        sich auf die beiden Masten verteilt, entscheidet deren
+        Kopfsteifigkeit — deshalb steht nur die Summe da.</p>
+      <p class="notiz"><b>Der Anschluss leitet KEIN Biegemoment ein.</b> Alle
+        Momentengrade der Links sind frei, und die Drehung um z ist bewusst
+        gelöst: der vordere Gurt ist in der Jochachse frei, damit das
+        Rahmenmoment nicht als Torsion in den Masten läuft. Was bleibt, ist
+        das <b>Kräftepaar aus der Torsion</b> des Trägers — zwei gegenläufige
+        lotrechte Kräfte im Achsabstand der Gurte, im Masten eine Biegung in
+        Gleisrichtung.</p>
+      <p class="notiz">Die Spalten <b>G, S, Zug, Wind</b> sind
+        CHARAKTERISTISCH; <b>F_z,d</b> und <b>F_y,d</b> sind der
+        Bemessungswert des Falles, gebildet mit den Beiwerten, die neben
+        seinem Namen stehen. Beim Havariefall sind die ständigen Lasten
+        charakteristisch (γ_G = 1.0) und die veränderlichen weg.</p>
+      <p class="notiz">Die Zeile mit dem grössten Wert ist hervorgehoben — sie
+        ist die massgebende. Welcher Fall das ist, hängt an der Stelle des
+        Leiters: nahe an einem Mast bekommt dieser ein Vielfaches des
+        anderen.</p>`)}
     ${mastblattHtml(erg)}`;
   verdrahteKlapp(node);
 }

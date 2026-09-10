@@ -16,7 +16,7 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion,
          klassifizierung } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
-import { diagramme } from './render.charts.js';
+import { diagramme, abfangDiagramme } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
@@ -690,13 +690,44 @@ function zeichneAuswertung() {
   if (tabAuswertung === 'uebersicht') {
     ui.zeichneUebersicht(node, erg, urteil, springeZu, station, hinw);
   } else if (tabAuswertung === 'schnitt') {
-    ui.zeichneSchnitt(node, erg, waehleSchnittfeld,
-                      (o) => aendern('schnittOrientierung', o),
-                      schnittUmschalten);
+    /*
+     * >>> DAS ABFANGJOCH HAT SEINEN EIGENEN SCHNITT. <<<
+     *
+     * Weisung vom 10. September. Der Schnitt des Tragjochs zeigt vier
+     * Winkelecken und zwei Blechebenen; das Abfangjoch hat ZWEI Gurte
+     * nebeneinander und EINE Blechlage. Es sind nicht dieselben Bauteile,
+     * und deshalb ist es nicht dieselbe Tabelle.
+     */
+    if (erg.abfang) ui.zeichneAbfangSchnitt(node, erg.abfang);
+    else ui.zeichneSchnitt(node, erg, waehleSchnittfeld,
+                           (o) => aendern('schnittOrientierung', o),
+                           schnittUmschalten);
   } else if (tabAuswertung === 'auflager') {
-    ui.zeichneAuflager(node, letzte.auflager, erg);
+    /*
+     * >>> DAS ABFANGJOCH HAT SEIN EIGENES AUFLAGERBLATT. <<<
+     *
+     * Weisung vom 10. September. Das Blatt des Tragjochs fuehrt die
+     * Reaktionen nach EINWIRKUNGSGRUPPEN auf, damit der Fundamentplaner
+     * selbst kombiniert. Das Abfangjoch kombiniert SELBST - drei Faelle mit
+     * je eigener Regliertemperatur -, und aufgeschluesselt wird deshalb nach
+     * Faellen.
+     */
+    if (erg.abfang?.auflager) ui.zeichneAbfangAuflager(node, erg.abfang, erg);
+    else ui.zeichneAuflager(node, letzte.auflager, erg);
   } else {
-    ui.zeichneVerlauf(node, diagramme(erg, 860), vergleich);
+    /*
+     * >>> DAS ABFANGJOCH ZEIGT SEINE EIGENEN VERLAEUFE. <<<
+     *
+     * Weisung vom 10. September: «die reiter schnitt verläufe und auflager
+     * beim abfangjoch fertig machen.» Hier standen die Kurven des
+     * Tragjoch-Ersatzbalkens - am Abfangjoch die eines anderen Tragwerks.
+     *
+     * Der Massvariantenvergleich bleibt weg: er vergleicht Blecheinteilungen
+     * des Tragjochs und hat am liegenden Traeger keinen Gegenstand.
+     */
+    const abD = erg.abfang ? abfangDiagramme(erg.abfang, 860) : null;
+    ui.zeichneVerlauf(node, abD ?? diagramme(erg, 860),
+                      abD ? null : vergleich);
   }
 }
 

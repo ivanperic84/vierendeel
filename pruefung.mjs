@@ -12983,11 +12983,28 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const r9 = readFileSync(new URL('./js/core.checks.js', import.meta.url),
                             'utf8');
     wahr('Der Hinweis nennt den eigenen Nachweis',
-         r9.includes('die Übersicht zeigt seinen eigenen Nachweis'));
+         r9.includes('die ganze Auswertung ist seine eigene'));
     wahr('… und nicht mehr «weiterhin das Tragjoch»',
          !r9.includes('gerechnet wird weiterhin das '));
-    wahr('… nennt aber die Reiter, die es noch sind',
-         r9.includes('SCHNITT, VERLÄUFE und AUFLAGER'));
+    /*
+     * >>> UND DIE REITER GEHOEREN JETZT DAZU. <<<
+     *
+     * Weisung vom 10. September: «die reiter schnitt verläufe und auflager
+     * beim abfangjoch fertig machen.» Hier stand «nennt aber die Reiter,
+     * die es noch sind» - der Hinweis zaehlte sie als AUSNAHME auf. Jetzt
+     * zaehlt er sie als Teil der eigenen Auswertung.
+     */
+    wahr('… und zaehlt die Reiter dazu',
+         r9.includes('Reiter SCHNITT, VERLÄUFE und AUFLAGER'));
+    wahr('Nirgends steht mehr, sie rechneten den Ersatzbalken',
+         !r9.includes('rechnen dagegen weiter den'));
+    /*
+     * DIE GLIEDERUNG DES AUFLAGERBLATTS BLEIBT EIN HINWEIS: das Tragjoch
+     * fuehrt Einwirkungsgruppen, das Abfangjoch Faelle. Wer die beiden
+     * Blaetter nebeneinanderlegt, muss das wissen.
+     */
+    wahr('Das Auflagerblatt nennt seine andere Gliederung',
+         r9.includes('nach FÄLLEN aufgeschlüsselt'));
   }
 
   /*
@@ -13518,6 +13535,82 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     pruef('Charakteristisch: das Gewicht ohne Beiwert',
           wA.char.Fz, wA.anteile.G + wA.anteile.S, 1e-9, 'kN');
     wahr('… und kleiner als der Bemessungswert', wA.char.Fz < wA.Fz);
+  }
+
+  /*
+   * ====== DIE DREI AUSWERTUNGSREITER DES ABFANGJOCHS ===================
+   *
+   * Weisung vom 10. September: «die reiter schnitt verläufe und auflager
+   * beim abfangjoch fertig machen.»
+   *
+   * Sie zeigten die Auswertung des TRAGJOCH-Ersatzbalkens - vier
+   * Winkelecken, zwei Blechebenen, Gruppenreaktionen. Am Abfangjoch sind
+   * das andere Bauteile und eine andere Gliederung.
+   */
+  if (AJ.abfangDbDa()) {
+    const CH = await import(J('render.charts.js'));
+    const AB10 = await import(J('core.abfangjoch.js'));
+    const rD = AB10.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24,
+      anbauteile: [{ id: 'a', vorlage: 'hs-fahrdraht', name: 'L', x: 6,
+                     ort: 'joch', aktiv: true, anbindung: 'mitte',
+                     verlauf: 'vorn',
+                     module: [{ bauteil: 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107',
+                                anzahl: 1, z: -1.5, y: 0.8 }] }],
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 40 });
+
+    /*
+     * >>> DIE VERLAEUFE ZEIGEN BEIDE EBENEN UND DIE TORSION. <<<
+     *
+     * Am Tragjoch stehen dort M_y, V_z, M_z, T_x eines Traegers mit vier
+     * Winkelgurten. Hier sind es die zwei Ebenen des liegenden Traegers,
+     * und daneben das, was im GURT ankommt - Kraeftepaar, lotrechte
+     * Biegung, oertliche Biegung.
+     */
+    const dia = CH.abfangDiagramme(rD, 900);
+    wahr('Die drei Diagramme stehen da',
+         !!dia?.schnittgroessen && !!dia?.ebene && !!dia?.ausnutzung);
+    wahr('Sie sind SVG und nennen das Abfangjoch',
+         /^<figure/.test(dia.schnittgroessen)
+         && /Abfangjoch/.test(dia.schnittgroessen));
+    wahr('Die Torsion hat ihre eigene Kurve',
+         /M Torsion/.test(dia.schnittgroessen));
+    wahr('Das Kraeftepaar steht im Gurtdiagramm',
+         /Kr..?ftepaar/.test(dia.ebene));
+    wahr('Und die Ausnutzung nennt das Gurtprofil',
+         dia.ausnutzung.includes(rD.q.gurt.name));
+    wahr('Ohne Reihe gibt es kein Diagramm',
+         CH.abfangDiagramme(null) === null
+         && CH.abfangDiagramme({ reihe: [] }) === null);
+
+    /*
+     * >>> DIE DREI REITER GEHEN AN DIE RICHTIGE FUNKTION. <<<
+     *
+     * Geprueft am Quelltext, weil die Reiter im Browser haengen - die REGEL
+     * dahinter laesst sich hier festhalten: liegt ein Abfangjoch vor, wird
+     * seine eigene Auswertung gezeichnet, sonst die des Tragjochs.
+     */
+    {
+      const aq59 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+      const uq59 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+      wahr('Der Schnittreiter kennt das Abfangjoch',
+           /if \(erg\.abfang\) ui\.zeichneAbfangSchnitt/.test(aq59));
+      wahr('Der Auflagerreiter auch',
+           /if \(erg\.abfang\?\.auflager\) ui\.zeichneAbfangAuflager/
+             .test(aq59));
+      wahr('Und die Verlaeufe nehmen abfangDiagramme',
+           /abfangDiagramme\(erg\.abfang, 860\)/.test(aq59));
+      wahr('Die beiden Zeichner sind ausgefuehrt',
+           /export function zeichneAbfangSchnitt/.test(uq59)
+           && /export function zeichneAbfangAuflager/.test(uq59));
+      /*
+       * DER MASSVARIANTENVERGLEICH DARF FEHLEN. Er stellt die
+       * Hebelarm-Definitionen des Tragjochs gegenueber; am Abfangjoch gibt
+       * es das nicht, und `vergleich.zeilen` brach die ganze Seite ab.
+       */
+      wahr('Der Verlaufsreiter haelt einen fehlenden Vergleich aus',
+           /vergleich\?\.zeilen\?\.length/.test(uq59));
+    }
   }
 
   /*
@@ -14811,8 +14904,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const zeile = h.find((x) => x.includes('Abfangjoch'));
     wahr('Der Hinweis steht da', Boolean(zeile));
     wahr('Er nennt den gewaehlten Typ', zeile.includes('A160'));
-    wahr('Und sagt, dass das Tragjoch gerechnet wird',
-         zeile.includes('Tragjoch'));
+    /*
+     * >>> ER SAGT JETZT, DASS ES SEIN EIGENER NACHWEIS IST. <<<
+     *
+     * Weisung vom 10. September: die drei Reiter sind fertig. Hier stand
+     * «sagt, dass das Tragjoch gerechnet wird» - das war die Aussage,
+     * solange sie den Ersatzbalken zeigten. Jetzt zaehlt der Hinweis sie
+     * als Teil der eigenen Auswertung auf.
+     */
+    wahr('Und sagt, dass die ganze Auswertung seine eigene ist',
+         zeile.includes('seine eigene'));
+    wahr('… und nennt die drei Reiter',
+         zeile.includes('SCHNITT, VERLÄUFE und AUFLAGER'));
     const ohne = hwA(modellVon({ tragwerksart: 'joch' }));
     wahr('Beim Tragjoch steht er nicht',
          !ohne.some((x) => x.includes('Abfangjoch')));

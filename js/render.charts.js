@@ -98,6 +98,101 @@ export function linienDiagramm(o) {
   </figure>`;
 }
 
+/* ===========================================================================
+ * DIE VERLAEUFE DES ABFANGJOCHS
+ * ===========================================================================
+ *
+ * Weisung vom 10. September: «die reiter schnitt verläufe und auflager beim
+ * abfangjoch fertig machen.»
+ *
+ * Bis hierher zeigte der Reiter die Kurven des TRAGJOCH-Ersatzbalkens - M_y,
+ * V_z, M_z, T_x eines Vierendeelträgers mit vier Winkelgurten. Am Abfangjoch
+ * beschreiben sie ein anderes Tragwerk.
+ *
+ * >>> ES SIND ANDERE GRÖSSEN, WEIL ES ZWEI EBENEN SIND. <<<
+ *
+ *   RAHMENEBENE (waagrecht)   dort trägt der Vierendeel: das Moment wird zum
+ *                             Kräftepaar N = M/e in den Gurten, die Querkraft
+ *                             biegt den Gurt örtlich zwischen zwei Blechen.
+ *   QUER DAZU (lotrecht)      jeder Gurt für sich, halbe Last - dazu die
+ *                             Torsion als gegenläufiges Kräftepaar.
+ *
+ * Beide gehören ins Bild, und die Torsion daneben: sie ist der Anteil, den
+ * man am fertigen Träger nicht sieht und der trotzdem im Gurt steht.
+ *
+ * >>> DIE STELLEN SIND DIE DES NACHWEISES. <<<
+ *
+ * `gurtReihe` läuft über die Blechstationen plus die vier Randstellen - genau
+ * die Punkte, an denen gerechnet wird. Ein feineres Raster zu zeichnen hiesse,
+ * einen Verlauf zu zeigen, der so nicht nachgewiesen ist.
+ * =========================================================================== */
+
+/**
+ * Die Diagramme des Abfangjochs.
+ *
+ * @param {object} ab  Ergebnis aus `abfangAuswertung`
+ * @param {number} breite
+ * @returns {object|null} null, wenn keine Reihe vorliegt
+ */
+export function abfangDiagramme(ab, breite = 900) {
+  const r = ab?.reihe;
+  if (!Array.isArray(r) || r.length < 2) return null;
+  const x = r.map((s) => s.x);
+  const sn = (f) => r.map((s) => s.schnitt?.[f] ?? 0);
+  const gurt = ab.q?.gurt?.name ?? 'Gurt';
+
+  /*
+   * DIE BLECHE HABEN IHRE EIGENEN STELLEN. Sie sitzen im Raster des
+   * Sortiments, nicht auf den Nachweisstellen des Gurtes; ihre Ausnutzung
+   * wird deshalb auf die Gurtstellen abgebildet - der nächstgelegene Wert
+   * gilt. Zwei x-Achsen in einem Diagramm wären keine Auskunft.
+   */
+  const bleche = (ab.bleche?.bleche ?? []).filter((b) => Number.isFinite(b.x));
+  const etaBlech = x.map((xi) => {
+    if (!bleche.length) return 0;
+    const b = bleche.reduce((a, c) =>
+      (Math.abs(c.x - xi) < Math.abs(a.x - xi) ? c : a));
+    return Math.abs(b.x - xi) <= 0.6 ? (b.eta ?? 0) : 0;
+  });
+
+  return {
+    schnittgroessen: linienDiagramm({
+      titel: 'Schnittgrössen des Abfangjochs — zwei Ebenen', breite,
+      yLabel: 'M [kNm] / V [kN]', punkte: x,
+      serien: [
+        { name: 'M Rahmenebene', werte: sn('Mrahmen'), skizze: 'My' },
+        { name: 'V Rahmenebene', werte: sn('Vrahmen'), skizze: 'Vz' },
+        { name: 'M quer (lotrecht)', werte: sn('Mvert'), skizze: 'Mz' },
+        { name: 'M Torsion', werte: sn('Mtors'), cls: 'serie-4', skizze: 'Tx' },
+      ],
+    }),
+    ebene: linienDiagramm({
+      titel: 'Was im Gurt ankommt — Kräftepaar, lotrechte Biegung, örtliche '
+           + 'Biegung', breite, hoehe: 210,
+      yLabel: 'N [kN] / M [kNm]', punkte: x,
+      serien: [
+        { name: `N Kräftepaar (e = ${(ab.q?.e ?? 0).toFixed(1)} cm)`,
+          werte: r.map((s) => s.N ?? 0), skizze: 'Vebene' },
+        { name: 'M Gurt lotrecht (halbe Last + Torsion)',
+          werte: r.map((s) => s.MgurtVert ?? 0), skizze: 'Mlokal' },
+        { name: 'M örtlich zwischen zwei Blechen',
+          werte: r.map((s) => s.Moertl ?? 0), cls: 'serie-4',
+          skizze: 'Mlokal' },
+      ],
+    }),
+    ausnutzung: linienDiagramm({
+      titel: 'Ausnutzungsgrad η(x)', breite, hoehe: 240,
+      yLabel: 'η [–]', punkte: x, grenze: 1.0,
+      serien: [
+        { name: `Gurt ${gurt}`, werte: r.map((s) => s.eta ?? 0),
+          skizze: 'eta' },
+        { name: 'Bindeblech (nächstgelegenes)', werte: etaBlech,
+          skizze: 'eta' },
+      ],
+    }),
+  };
+}
+
 /** Die drei Standarddiagramme aus einem Rechenergebnis. */
 export function diagramme(erg, breite = 900) {
   const k = erg.knoten;
