@@ -16355,6 +16355,36 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
             Math.max(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
             0.65, 1e-9, 'm');
       /*
+       * >>> DAS LAGER SITZT AM MASTFUSS, NICHT AN DER JOCHACHSE. <<<
+       *
+       * Weisung vom 10. September: «bei den masten beim abfangjoch sind
+       * noch lagersymbole beim auflager zum masten, diese sind so bei den
+       * tragjochen nicht vorhanden.»
+       *
+       * Beim Tragjoch wurde die Marke aus genau diesem Grund schon einmal
+       * verlegt: unten steht das FUNDAMENT, und dort ist eingespannt. Am
+       * Jochende sitzt der ANSCHLUSS - beim Abfangjoch die Drehfeder um z,
+       * die daneben angeschrieben ist. Ein Auflagersymbol dort las sich wie
+       * ein Lager.
+       */
+      const aufM = szM.marken.filter((k) => k.art === 'auflager');
+      wahr('Zwei Auflagermarken', aufM.length === 2);
+      pruef('Sie sitzen am Mastfuss', aufM[0].p[2], -7.5, 1e-9, 'm');
+      pruef('… also auf der Hoehe des Mastendes',
+            Math.min(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
+            aufM[0].p[2], 1e-9, 'm');
+      const txtM = szM.marken.filter((k) => k.art === 'auflagertext');
+      wahr('Der Text steht bei der Marke',
+           txtM.length > 0 && Math.abs(txtM[0].p[2] - aufM[0].p[2]) < 1e-9);
+      /*
+       * OHNE MAST GIBT ES KEINEN FUSS - dann bleibt die Marke am Joch, wie
+       * beim Tragjoch auch. Eine Marke im Nichts waere schlimmer als eine
+       * am falschen Ort.
+       */
+      const aufO = szA.marken.filter((k) => k.art === 'auflager');
+      wahr('Ohne Mast bleibt die Marke am Joch',
+           aufO.length === 2 && aufO[0].p[2] > -1);
+      /*
        * BEIDE SZENEN NEHMEN DENSELBEN BAUSTEIN. Waeren es zwei, liefe die
        * eine der anderen wieder davon - genau das war der Befund.
        */

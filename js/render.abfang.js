@@ -679,20 +679,39 @@ export function abfangSzene(typ, jt, opt = {}) {
     return `c_φ ${Math.round(ein.cPhi)} um z`;
   };
   const lz = lagerText();
-  for (const x of [ue, jt - ue]) {
+  for (const [name, x] of [['A', ue], ['B', jt - ue]]) {
+    const md = opt.masten?.[name] ?? opt.mast;
+    const mastDa = Boolean(md?.profil && md.hoehe > 0);
     /*
-     * DIE MARKE HEISST «A» ODER «B», wie beim Tragjoch - «Auflager» stand
-     * daneben und sagte nichts, was die Zeile darunter nicht besser sagt.
+     * >>> DAS LAGER SITZT AM MASTFUSS, NICHT AN DER JOCHACHSE. <<<
+     *
+     * Weisung vom 10. September: «bei den masten beim abfangjoch sind noch
+     * lagersymbole beim auflager zum masten, diese sind so bei den
+     * tragjochen nicht vorhanden.»
+     *
+     * Dieselbe Stelle, dieselbe Begruendung wie beim Tragjoch, wo sie schon
+     * einmal verlegt wurde: unten steht das FUNDAMENT, und dort ist
+     * eingespannt. Am Jochende sitzt kein Lager, sondern der ANSCHLUSS ans
+     * Joch - beim Abfangjoch die Drehfeder um z, die daneben angeschrieben
+     * ist.
+     *
+     * Ein Auflagersymbol dort las sich wie ein Lager und war damit die
+     * Aussage, die beim Nachbau eines geprueften FEM-Modells am teuersten
+     * war. Es zweimal zu machen war nur moeglich, weil die beiden Szenen
+     * ihre Marken getrennt setzen - wie zuvor schon die Mastkoerper.
+     *
+     * OHNE MAST GIBT ES KEINEN FUSS - dann bleibt die Marke am Joch, wie
+     * beim Tragjoch auch.
      */
+    const zMarke = mastDa ? -md.hoehe : -hG / 2 - 0.15;
     marken.push({ gruppe: 'auflager', art: 'auflager',
-                  p: [x, 0, -hG / 2 - 0.15], text: x < jt / 2 ? 'A' : 'B' });
-    if (opt.mast?.profil || lz) {
+                  p: [x, 0, zMarke], text: name });
+    if (mastDa || lz) {
       marken.push({ gruppe: 'auflager', art: 'auflagertext',
-                    p: [x, 0, -hG / 2 - 0.15 - (opt.mast?.hoehe ?? 0)],
+                    p: [x, 0, zMarke],
                     zeilen: [
-                      opt.mast?.profil
-                        ? `${opt.mast.profil} · ${opt.mast.hoehe.toFixed(1)} m`
-                        : null,
+                      mastDa ? `${md.profil} · ${md.hoehe.toFixed(1)} m`
+                             : null,
                       lz,
                     ].filter(Boolean) });
     }
