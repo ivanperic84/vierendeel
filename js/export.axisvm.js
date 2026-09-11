@@ -52,7 +52,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
 import { mastAchse, linkBedingung } from './core.auflager.js';
-import { ankerQuerschnitt } from './data.anker.js';
+import { ankerQuerschnitt, ankerSpreizung } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -1652,15 +1652,23 @@ export function stabmodell(m, opt = {}) {
        *
        * Ausgeleitet wird ein RECHTECK mit der richtigen Flaeche, nicht die
        * wirkliche Kontur: zwei gespreizte U-Profile sind kein
-       * parametrischer Querschnitt, und ihr Spreizmass steht in keiner
-       * Zeichnung, die hier vorliegt. Fuer einen PENDELSTAB ist das genug -
+       * parametrischer Querschnitt. Fuer einen PENDELSTAB ist das genug -
        * er traegt nur Normalkraft, und dafuer zaehlt E·A. Die Bruecke misst
        * die Flaeche zurueck und vergleicht sie mit dem Tabellenwert.
        *
-       * WAS DAMIT NICHT STIMMT, steht im Bericht: I_z des Verbunds haengt
-       * am Spreizmass und ist nicht erfasst. Ein Knicknachweis in AxisVM
-       * waere darauf nicht zu gruenden - der laeuft ueber das
-       * Bemessungsdiagramm, und das fuehrt seine eigene Kurve.
+       * >>> UND DAS RECHTECK BLEIBT RICHTIG, AUCH MIT DEM SPREIZMASS. <<<
+       *
+       * Weisung vom 11. September: das Spreizmass steht jetzt im Katalog -
+       * die beiden Profile laufen keilfoermig auseinander, 104 bzw. 124 mm
+       * am engen, 225 mm am weiten Ende. Damit ist der Stab ein Stab mit
+       * VERAENDERLICHEM Querschnitt: A bleibt konstant, I_z waechst zum
+       * weiten Ende hin.
+       *
+       * Fuer den Pendelstab aendert das nichts - er traegt Normalkraft, und
+       * die haengt an A. Ein KNICKNACHWEIS in AxisVM waere auf ein
+       * konstantes I_z ohnehin nicht zu gruenden; der laeuft ueber das
+       * Bemessungsdiagramm, und dessen Kurve kennt den Keil bereits. Der
+       * Bericht sagt beides.
        * =================================================================== */
       const ak = md.anker;
       if (ak?.typ && ak.h > 0 && ak.a > 0) {
@@ -1692,6 +1700,8 @@ export function stabmodell(m, opt = {}) {
          */
         let qw = null;
         try { qw = ankerQuerschnitt(ak.typ); } catch { qw = null; }
+        let spreiz = null;
+        try { spreiz = ankerSpreizung(ak.typ); } catch { spreiz = null; }
         /*
          * DIE KANTEN DES ERSATZRECHTECKS folgen der Flaeche und der
          * Profilhoehe: h aus dem Profil, b so, dass b*h die Flaeche des
@@ -1718,7 +1728,8 @@ export function stabmodell(m, opt = {}) {
                         ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
                         fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null });
         ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
-                        h: ak.h, a: ak.a, qs: qw ?? null });
+                        h: ak.h, a: ak.a, qs: qw ?? null,
+                        spreiz: spreiz ?? null });
       }
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
@@ -2899,18 +2910,31 @@ export function stabmodellJson(m, opt = {}) {
         profil: v.qs?.profil ?? null, quelle: v.qs?.quelle ?? null,
         A_cm2: v.qs?.A ?? null, Iy_cm4: v.qs?.Iy ?? null,
         /*
-         * >>> WAS AM VERBUND FEHLT, BLEIBT IM BERICHT. <<<
+         * >>> WAS DER BERICHT UEBER DEN VERBUND SAGT. <<<
          *
-         * I_z haengt am Spreizmass der beiden Profile, und das steht in
-         * keiner Zeichnung, die hier vorliegt. Fuer den Pendelstab ohne
-         * Belang - er traegt nur Normalkraft -, fuer einen Knicknachweis in
-         * AxisVM sehr wohl. Der laeuft ueber das Bemessungsdiagramm, und
-         * das fuehrt seine eigene Kurve.
+         * Die beiden Profile sind GESPREIZT, keilfoermig ueber die Laenge.
+         * I_z ist deshalb kein fester Wert, sondern ein Verlauf - und ein
+         * Rechteck gleicher Flaeche bildet ihn nicht ab. Fuer den
+         * Pendelstab ohne Belang, fuer einen Knicknachweis in AxisVM sehr
+         * wohl. Der laeuft ueber das Bemessungsdiagramm, und dessen Kurve
+         * kennt den Keil bereits.
+         *
+         * Das Spreizmass steht im Bericht, damit es nachvollziehbar bleibt,
+         * WELCHE Geometrie das Rechteck ersetzt.
          */
+        spreizung: v.spreiz
+          ? { schmal_mm: v.spreiz.schmal, breit_mm: v.spreiz.breit,
+              parallelSchmal_mm: v.spreiz.parallelSchmal,
+              parallelBreit_mm: v.spreiz.parallelBreit,
+              bezug: v.spreiz.bezug ?? 'offen' }
+          : null,
         vermerk: v.qs
           ? `${v.qs.anzahl ?? 1}× ${v.qs.profil} nach ${v.qs.quelle}; `
-            + 'als Rechteck gleicher Fläche ausgeleitet, I_z des Verbunds '
-            + '(Spreizmass) nicht erfasst'
+            + 'als Rechteck gleicher Fläche ausgeleitet'
+            + (v.spreiz
+                ? `, Verbund gespreizt ${v.spreiz.schmal}→${v.spreiz.breit} mm `
+                  + '— I_z veränderlich, im Rechteck nicht abgebildet'
+                : ', I_z des Verbunds (Spreizmass) nicht erfasst')
           : 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt',
       })),
       // WO DAS TRAGWERK STEHT. Eigene Felder, damit sie maschinell lesbar

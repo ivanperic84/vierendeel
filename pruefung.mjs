@@ -8370,12 +8370,31 @@ titel('42  Der lange Mast mit Zusatzleitern');
      *
      * Der Katalog fuehrt die Stuetze als «2x UNP 120» - eine Bezeichnung,
      * keine Flaeche. UNP-Profile stehen nicht im Profilkatalog. Ausgeleitet
-     * wird ein Platzhalter, und das darf nicht in einem Kommentar stehen.
+     * wird ein Ersatzrechteck, und das darf nicht in einem Kommentar
+     * stehen.
      */
     const bA = jA.tragwerk?.anker ?? [];
     wahr('Der Bericht nennt beide Anker', bA.length === 2);
     wahr('… mit ihrem Vermerk',
-         bA.every((v) => /nicht erfasst/.test(v.vermerk)));
+         bA.every((v) => /Rechteck gleicher Fläche/.test(v.vermerk)));
+    /*
+     * >>> DER VERMERK NENNT DEN KEIL, NICHT MEHR EINE LUECKE. <<<
+     *
+     * Weisung vom 11. September: «hier ist ein beispiel der logik fuer das
+     * spreizmass der Druckstueze U12, dises ist auf die restlichen
+     * anwendbar.» Bis dahin sagte der Bericht, das Spreizmass stehe in
+     * keiner Zeichnung. Jetzt steht es im Katalog, und der Bericht sagt
+     * das Richtige: I_z ist VERAENDERLICH und im Ersatzrechteck nicht
+     * abgebildet - das ist eine andere Aussage als "nicht erfasst".
+     */
+    wahr('… und der Vermerk nennt den Keil',
+         bA.every((v) => /gespreizt \d+→\d+ mm/.test(v.vermerk)
+                      && /veränderlich/.test(v.vermerk)));
+    wahr('Die Spreizung steht als eigenes Feld im Bericht',
+         bA.every((v) => v.spreizung?.schmal_mm > 0
+                      && v.spreizung.breit_mm > v.spreizung.schmal_mm));
+    wahr('… und sagt, dass der Bezug der Masslinie offen ist',
+         bA.every((v) => v.spreizung.bezug === 'offen'));
     /*
      * >>> UND DER QUERSCHNITT TRAEGT DIE WERTE, NICHT MEHR EINEN
      * PLATZHALTER. <<<
@@ -8403,6 +8422,70 @@ titel('42  Der lange Mast mit Zusatzleitern');
     wahr('Ohne Anker steht nichts davon da',
          (laufA([{ id: 'M1', x: 0, profil: 'HEB 240' }])
            .staebe ?? []).every((x) => !/^ANKER_/.test(x.name)));
+
+    /* =====================================================================
+     * DAS SPREIZMASS
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «die abstaende der beiden enden sind
+     * vermasst. diese verlaufen zuerst parallel bis zur ersten vermassung,
+     * hier links mit 990 mm und rechts mit 3390 mm angegeben. von da an
+     * verlaeuft der abstand variabel, da verbindungen der beiden enden.»
+     *
+     * Die 3390 mm der Zeichnung sind 1610 mm vom anderen Ende her - das
+     * Blatt des U14 fuehrt beide Masse, und nur so laesst sich die Logik
+     * auf andere Laengen uebertragen. Die Stuetze ist verstellbar; ein
+     * Mass ab dem ENDE gilt fuer jede Laenge, eines ab dem Nullpunkt der
+     * Zeichnung nur fuer diese eine.
+     * =================================================================== */
+    const spU12 = AN.ankerSpreizung('U12');
+    pruef('U12: das enge Ende', spU12.schmal, 104, 1e-9, 'mm');
+    pruef('U12: das weite Ende', spU12.breit, 225, 1e-9, 'mm');
+    pruef('U12: parallel am engen Ende', spU12.parallelSchmal, 990, 1e-9, 'mm');
+    pruef('U12: parallel am weiten Ende', spU12.parallelBreit, 1610, 1e-9, 'mm');
+    pruef('U14: das enge Ende ist weiter', AN.ankerSpreizung('U14').schmal,
+          124, 1e-9, 'mm');
+    /*
+     * >>> WAS NICHT DASTEHT, WIRD NICHT ANGENOMMEN. <<<
+     *
+     * Die Masslinie steht zwischen den beiden Profilen; ob sie die lichte
+     * Weite, den Achsabstand oder das Aussenmass misst, sagt das Blatt
+     * nicht. Beim UNP 120 liegen dazwischen rund 120 mm, und I_z des
+     * Verbunds geht mit dem QUADRAT des Achsabstands. Solange der Nachweis
+     * ueber das Bemessungsdiagramm laeuft, ist das unerheblich - fuer eine
+     * eigene Knickrechnung nicht, und dann ist zuerst zu fragen.
+     */
+    wahr('Der Bezug der Masslinie bleibt offen', spU12.bezug === null);
+    wahr('Das Seil hat kein Spreizmass', AN.ankerSpreizung('SA20') === null);
+
+    // Der Verlauf ueber eine Stuetze von 5.00 m, Stelle fuer Stelle.
+    const sp5 = (x) => AN.ankerSpreizungAn('U12', 5, x);
+    pruef('Am engen Ende', sp5(0), 104, 1e-9, 'mm');
+    pruef('… und noch bei 0.99 m parallel', sp5(0.99), 104, 1e-9, 'mm');
+    pruef('In der Mitte des veraenderlichen Stuecks', sp5(2.19), 164.5,
+          1e-9, 'mm');
+    pruef('Ab 3.39 m wieder parallel', sp5(3.39), 225, 1e-9, 'mm');
+    pruef('Am weiten Ende', sp5(5), 225, 1e-9, 'mm');
+    wahr('Der Abstand waechst ueberall, nirgends faellt er',
+         Array.from({ length: 50 }, (_, i) => sp5((i * 5) / 49))
+           .every((v, i, a) => i === 0 || v >= a[i - 1] - 1e-9));
+    /*
+     * KURZE STUETZEN zeigt die Zeichnung nicht: 990 + 1610 = 2.60 m, und
+     * darunter ueberlappen die beiden parallelen Stuecke. Dann laeuft der
+     * Abstand linear ueber die ganze Laenge - die Enden stimmen, und mehr
+     * gibt das Blatt nicht her. Ein NaN oder ein Sprung waere schlimmer.
+     */
+    pruef('Kurze Stuetze: die Mitte liegt dazwischen',
+          AN.ankerSpreizungAn('U12', 2, 1), 164.5, 1e-9, 'mm');
+    pruef('Kurze Stuetze: das enge Ende stimmt',
+          AN.ankerSpreizungAn('U12', 2, 0), 104, 1e-9, 'mm');
+    pruef('Kurze Stuetze: das weite Ende stimmt',
+          AN.ankerSpreizungAn('U12', 2, 2), 225, 1e-9, 'mm');
+    wahr('Ausserhalb wird nicht extrapoliert, sondern gekappt',
+         sp5(-3) === 104 && sp5(99) === 225);
+    wahr('Ohne Sortimentseintrag kommt null, kein NaN',
+         AN.ankerSpreizungAn('SA20', 5, 2) === null
+         && AN.ankerSpreizungAn('U12', 0, 0) === null);
   }
 
   // --- In der Ausleitung ---------------------------------------------------

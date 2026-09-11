@@ -279,13 +279,23 @@ export function ankerStabkraft(H, geo) {
  * Profilkatalog von AxisVM führt sie unter keinem der naheliegenden Namen.
  * Jetzt stehen sie im Ankerkatalog, mit ihrer Quelle.
  *
- * >>> WAS DER VERBUND HERGIBT UND WAS NICHT. <<<
+ * >>> WAS DER VERBUND HERGIBT, UND WARUM `I_z` EINE FUNKTION IST. <<<
  *
  * `A` und `I_y` sind das Vielfache des Einzelprofils — beide Profile liegen
- * parallel, die starke Achse fällt zusammen. `I_z` des VERBUNDS hängt am
- * Spreizmass und ist NICHT erfasst: es steht in keiner Zeichnung, die hier
- * vorliegt. Für den Pendelstab ist das ohne Belang — er trägt nur
- * Normalkraft —, und wo es das nicht ist, sagt es der Wert `null`.
+ * parallel, die starke Achse fällt zusammen. Bei `I_z` ist das anders: die
+ * beiden Profile sind GESPREIZT, und zwar keilförmig über die Länge. Damit
+ * ist `I_z` keine Zahl, sondern ein Verlauf — der Stab hat einen
+ * VERÄNDERLICHEN QUERSCHNITT: `A` bleibt konstant, `I_z` wächst zum weiten
+ * Ende hin.
+ *
+ * Das erklärt zugleich, warum der Nachweis über das Bemessungsdiagramm läuft
+ * und nicht aus `A` und `I` gerechnet wird: die Knickkurve des Blattes
+ * kennt diesen Verlauf bereits. Aus einem festen `I_z` liesse sich die
+ * Kurve gar nicht nachbauen.
+ *
+ * `querschnitt.Iz` bleibt deshalb `null` — nicht weil das Mass fehlte,
+ * sondern weil an dieser Stelle keine einzelne Zahl richtig wäre. Die
+ * Geometrie führt `ankerSpreizung`.
  *
  * >>> BEIM SEIL STEHT DIE DEHNUNG IM BLATT, NICHT DIE FLÄCHE. <<<
  *
@@ -299,6 +309,79 @@ export function ankerStabkraft(H, geo) {
 export function ankerQuerschnitt(id) {
   const a = typeof id === 'string' ? getAnkerTyp(id) : id;
   return a?.querschnitt ?? null;
+}
+
+/* ===========================================================================
+ * DAS SPREIZMASS
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «hier ist ein beispiel der logik für das
+ * spreizmass der Druckstüze U12, dises ist auf die restlichen anwendbar. die
+ * abstände der beiden enden sind vermasst. diese verlaufen zuerst parallel
+ * bis zur ersten vermassung, hier links mit 990 mm und rechts mit 3390 mm
+ * angegeben. von da an verläuft der abstand variabel, da verbindungen der
+ * beiden enden.»
+ *
+ * Die Stütze ist ein KEIL: am engen Ende liegen die beiden Profile dicht
+ * (U12 104 mm, U14 124 mm), am weiten Ende 225 mm. Von jedem Ende läuft der
+ * Abstand zuerst ein Stück PARALLEL — 990 mm am engen, 1610 mm am weiten
+ * Ende —, erst dazwischen verändert er sich. Die 3390 mm der Zeichnung sind
+ * die 1610 mm vom anderen Ende her; das Blatt des U14 führt beide Masse.
+ *
+ * >>> ZWEI DINGE SAGT DAS BLATT NICHT, UND SIE WERDEN NICHT ANGENOMMEN. <<<
+ *
+ * Erstens WORAUF sich die Masslinie bezieht — lichte Weite zwischen den
+ * Profilen, Achsabstand oder Aussenmass. Zwischen lichtem Mass und
+ * Achsabstand liegen beim UNP 120 rund 120 mm, und `I_z` des Verbunds geht
+ * mit dem Quadrat des Achsabstands. Zweitens, WELCHES Ende am Masten sitzt.
+ *
+ * Beides ist für den Nachweis unerheblich, solange er über das
+ * Bemessungsdiagramm läuft — die Kurve kennt die Geometrie schon. Für eine
+ * eigene Knickrechnung wäre es erheblich, und dann ist zuerst zu fragen.
+ * `bezug: null` hält das offen, statt es stillschweigend zu entscheiden.
+ * ======================================================================== */
+
+/**
+ * Das Spreizmass eines Typs, wie es im Sortiment steht.
+ *
+ * @returns {object|null} {schmal, breit, parallelSchmal, parallelBreit,
+ *          bezug, quelle} in mm — oder null (Seil, oder Typ ohne Blatt)
+ */
+export function ankerSpreizung(id) {
+  const a = typeof id === 'string' ? getAnkerTyp(id) : id;
+  return a?.spreizung ?? null;
+}
+
+/**
+ * DER ABSTAND DER BEIDEN PROFILE AN EINER STELLE [mm].
+ *
+ * `x` misst vom ENGEN Ende aus. Drei Abschnitte, genau wie die Zeichnung sie
+ * vermasst: parallel eng, veränderlich, parallel weit.
+ *
+ * >>> KURZE STÜTZEN. <<<
+ *
+ * Die beiden parallelen Stücke machen zusammen 2.60 m. Ist die Stütze
+ * kürzer, überlappen sie — die Zeichnung zeigt diesen Fall nicht. Dann
+ * läuft der Abstand über die ganze Länge linear; das trifft die beiden
+ * Enden richtig, und mehr gibt das Blatt nicht her.
+ *
+ * @param {string} id  Typ
+ * @param {number} L   Länge der Stütze [m]
+ * @param {number} x   Stelle ab dem engen Ende [m]
+ * @returns {number|null} mm
+ */
+export function ankerSpreizungAn(id, L, x) {
+  const sp = ankerSpreizung(id);
+  if (!sp || !Number.isFinite(L) || !Number.isFinite(x) || !(L > 0)) {
+    return null;
+  }
+  const xx = Math.min(Math.max(x, 0), L);
+  const a = (sp.parallelSchmal ?? 0) / 1000;
+  const b = L - (sp.parallelBreit ?? 0) / 1000;
+  if (!(b > a)) return sp.schmal + (sp.breit - sp.schmal) * (xx / L);
+  if (xx <= a) return sp.schmal;
+  if (xx >= b) return sp.breit;
+  return sp.schmal + (sp.breit - sp.schmal) * ((xx - a) / (b - a));
 }
 
 /** Stand der Datenbank - für die Fussleiste und den Bericht. */
