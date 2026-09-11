@@ -952,54 +952,84 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       staebe.push({ name: `MAST_${ende}`, von: kKopf, bis: kFuss,
                     querschnitt: mastQs.name, steifesMaterial: false,
                     lcsZ: [0, 0, 1] });
-      /*
-       * JE GURT EINE KONSOLE UND EIN LINK. 'V' liegt bei y = +e/2 (vorn),
-       * 'H' bei y = -e/2 (hinten); die Konsole zeigt jeweils dorthin.
-       */
-      /*
-       * >>> WENN DER PLATZ NICHT REICHT. <<<
+      /* ===================================================================
+       * >>> DIE KONSOLE KRAGT AUS DER MASTACHSE AUS - IN x. <<<
+       * ===================================================================
        *
-       * Konsole und Link messen zusammen 200 mm. Der halbe Gurtabstand ist
-       * beim A240 232 mm - es bleiben 32 mm fuer den Arm dazwischen. Beim
-       * A160 sind es aber nur 158 mm, und die Kette liefe rueckwaerts: der
-       * Konsolknoten saesse weiter aussen als der Gurt.
+       * Befund vom 11. September, am Modell gesehen: «hier fehlen noch die
+       * 150 mm auskragung von der mastachse in x richtung.»
        *
-       * DAS LINK HAT VORRANG. An ihm sitzt die Lagerbedingung, und seine
-       * Laenge steht in der Weisung; die Konsole ist der Fueller davor. Sie
-       * wird deshalb gestutzt, das Link bleibt bei 50 mm - erst wenn auch
-       * dafuer der Platz fehlt, teilen sich beide, was da ist.
+       * Hier stand die Konsole QUER, in y, und fuellte den halben
+       * Gurtabstand. Das war die falsche Achse. Die Weisung vom
+       * 11. September meint das Bauteil am Masten: eine Konsole, die aus
+       * der Mastachse herausragt und auf der das Joch aufliegt. Sie misst
+       * 150 mm, und sie misst sie in JOCHRICHTUNG - genau wie beim
+       * Tragjoch, wo dieselbe Kette seit demselben Tag steht.
        *
-       * >>> DIE ENDEN SIND GEKROEPFT. <<<
+       *     MAST_K --[KONSOLE starr 150 mm in x]--> KONS
+       *     KONS   --[Arm starr]--> ANS_g --[LINK 50 mm]--> Gurt g
        *
-       * `eAn` gibt den Gurtabstand AN DIESER STELLE, und am Auflager ist er
-       * kleiner als im Feld: A240 misst dort 336 statt 464 mm. Es bleiben
-       * 168 mm je Seite, und 150 + 50 passen nicht hinein. Mit der festen
-       * Feldbreite gerechnet saesse der Konsolknoten weiter aussen als der
-       * Gurt - die Kette liefe rueckwaerts.
-       */
-      const halbE = eAn(xs[i]) / 2;
-      const lLink = Math.min(AUFL_LINK_LAENGE, halbE * 0.45);
-      // Die Konsole reicht bis an das Link heran - ZWEI Glieder, wie in der
-      // Weisung. Ein Fuellstab dazwischen waere ein drittes Bauteil ohne
-      // Aufgabe.
-      const lKons = halbE - lLink;
+       * >>> DIE RICHTUNG: NACH INNEN. <<<
+       *
+       * Zum Jochmittelpunkt hin. Das Joch kragt ueber den Masten hinaus
+       * (`ue`), und nach aussen laege die Konsole unter dem Ueberstand
+       * statt unter dem Feld.
+       *
+       * >>> DER MAST MUSS NICHT AM ENDE STEHEN. <<<
+       *
+       * Weisung vom 11. September: «die auflager koennen innerhalb des
+       * traegers frei in der x richtung liegen. es gibt tragjoche die haben
+       * eine auskragung, da der mast nicht am ende sondern weiter nach
+       * innen liegt, zum Beispiel in einer Bauphase.» Die Kette rechnet
+       * deshalb aus `xs[i]` und dem Jochmittelpunkt, nicht aus dem Jochende.
+       *
+       * >>> DANN WIE BEI DEN ANBAUTEILEN. <<<
+       *
+       * «von hier aus wie bei den anbauteilen vorgehen, oben werden beide
+       * Gurte jeweils ueber linkelemente (50 mm) gehalten»: von der
+       * Konsolspitze fuehrt je Gurt ein starrer Arm hinueber, und die
+       * letzten 50 mm davon sind das Link. Dort sitzt die Lagerbedingung,
+       * dort wird geschraubt.
+       * ================================================================= */
+      // Auf Mikrometer gerundet - sonst traegt ein Knotenname die
+      // Fliesskomma-Ausfransung mit sich herum.
+      const r6 = (v) => Math.round(v * 1e6) / 1e6;
+      const vzX = xs[i] <= L / 2 ? +1 : -1;       // nach innen
+      const kKons = `KONS_${ende}`;
+      knoten.push({ name: kKons, x: r6(xs[i] + vzX * KONSOL_LAENGE), y: 0, z: 0 });
+      staebe.push({
+        name: `KONSOLE_${ende}`, von: kKopf, bis: kKons,
+        querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
+        art: 'starr',
+      });
       for (const g of ['V', 'H']) {
-        const vzG = g === 'V' ? +1 : -1;
-        const kKons = `KONS_${ende}${g}`;
-        knoten.push({ name: kKons, x: xs[i], y: vzG * lKons, z: 0 });
+        const kG = anschlussKnoten(g, i);
+        const pG = knoten.find((k2) => k2.name === kG);
+        const pK = knoten.find((k2) => k2.name === kKons);
+        const d = [pG.x - pK.x, pG.y - pK.y, pG.z - pK.z];
+        const lg = Math.hypot(...d);
+        /*
+         * DAS LINK BEHAELT SEINE 50 mm, solange der Arm sie hergibt. Reicht
+         * er nicht - ein sehr schmales Joch -, teilen sich beide, was da
+         * ist: die Lagerbedingung braucht eine Linie, und eine Linie
+         * braucht Laenge.
+         */
+        const lLink = Math.min(AUFL_LINK_LAENGE, lg * 0.45);
+        const f = (lg - lLink) / lg;
+        const kAns = `ANS_${ende}${g}`;
+        // UNGERUNDET. Der Knotenname traegt hier keine Koordinate, und
+        // eine Rundung auf Mikrometer brachte das Link um 0.1 Mikrometer
+        // um seine 50 mm - eine Ungenauigkeit ohne jeden Gegenwert.
+        knoten.push({ name: kAns, x: pK.x + d[0] * f,
+                      y: pK.y + d[1] * f, z: pK.z + d[2] * f });
         staebe.push({
-          name: `KONSOLE_${ende}${g}`, von: kKopf, bis: kKons,
+          name: `KONSARM_${ende}${g}`, von: kKons, bis: kAns,
           querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
           art: 'starr',
         });
-        /*
-         * DAS LINK SITZT ZWISCHEN KONSOLE UND GURT - dort wird geschraubt,
-         * und dort gehoert die Freigabe hin. Der Gurtknoten liegt bei
-         * y = ±e/2; das Link ueberbrueckt die letzten 50 mm davor.
-         */
         staebe.push({
           // Auch das Auflager haengt an der tragenden Achse.
-          name: `LINK_${ende}${g}`, von: kKons, bis: anschlussKnoten(g, i),
+          name: `LINK_${ende}${g}`, von: kAns, bis: kG,
           querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
           gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
           kraftuebertragung: linkBedingung(opt, 'abfangjoch', g),

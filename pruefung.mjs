@@ -6754,23 +6754,77 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
     };
     wahr('Das Abfangjoch baut jetzt einen Masten', Boolean(stM('MAST_A')));
     pruef('… und er ist so hoch wie angegeben', lg('MAST_A'), 7.5, 1e-9, 'm');
-    wahr('Die Konsole geht starr vom Mastkopf aus',
-         stM('KONSOLE_AV')?.von === 'MAST_A_K'
-         && stM('KONSOLE_AV')?.art === 'starr');
-    wahr('Von ihr haelt ein Linkelement den Gurt',
-         stM('LINK_AV')?.art === 'link'
-         && stM('LINK_AV')?.von === 'KONS_AV');
     /*
-     * DAS LINK HAELT SEINE 50 mm. Die Konsole nicht immer: die Gurtenden
-     * sind GEKROEPFT, und am Auflager misst A240 nur 336 statt 464 mm
-     * Gurtabstand - 150 + 50 passen nicht in die 168 mm je Seite. Das Link
-     * hat Vorrang, denn an ihm sitzt die Lagerbedingung.
+     * >>> DIE KONSOLE KRAGT IN x AUS, NICHT IN y. <<<
+     *
+     * Befund vom 11. September, am Modell gesehen: «hier fehlen noch die
+     * 150 mm auskragung von der mastachse in x richtung.» Sie stand quer
+     * und fuellte den halben Gurtabstand - die falsche Achse. Gemeint ist
+     * das Bauteil am Masten, auf dem das Joch aufliegt: 150 mm in
+     * JOCHRICHTUNG, wie beim Tragjoch.
      */
+    wahr('Die Konsole geht starr vom Mastkopf aus',
+         stM('KONSOLE_A')?.von === 'MAST_A_K'
+         && stM('KONSOLE_A')?.art === 'starr');
+    pruef('… und kragt 150 mm in x aus der Mastachse aus',
+          knM('KONS_A').x - knM('MAST_A_K').x, 0.15, 1e-9, 'm');
+    wahr('… geradeaus, ohne Versatz quer oder hoch',
+         Math.abs(knM('KONS_A').y) < 1e-12
+         && Math.abs(knM('KONS_A').z) < 1e-12);
+    wahr('… nach INNEN, nicht unter den Ueberstand',
+         knM('KONS_A').x > knM('MAST_A_K').x
+         && knM('KONS_B').x < knM('MAST_B_K').x);
+    /*
+     * VON DER KONSOLSPITZE WIE BEI DEN ANBAUTEILEN: je Gurt ein starrer
+     * Arm hinueber, und seine letzten 50 mm sind das Link. Der Arm laeuft
+     * schraeg - die Spitze steht 150 mm weiter innen als der Gurtknoten.
+     */
+    wahr('Je Gurt ein starrer Arm zur Konsolspitze',
+         stM('KONSARM_AV')?.art === 'starr' && stM('KONSARM_AV')?.von === 'KONS_A'
+         && stM('KONSARM_AH')?.art === 'starr' && stM('KONSARM_AH')?.von === 'KONS_A');
+    wahr('… und an dessen Ende haelt ein Linkelement den Gurt',
+         stM('LINK_AV')?.art === 'link' && stM('LINK_AV')?.von === 'ANS_AV'
+         && stM('LINK_AH')?.art === 'link' && stM('LINK_AH')?.von === 'ANS_AH');
     pruef('Das Linkelement misst 50 mm', lg('LINK_AV'), 0.05, 1e-9, 'm');
-    wahr('… und die Konsole fuellt den Rest bis zum Gurt',
-         Math.abs(lg('KONSOLE_AV') + lg('LINK_AV')
-                  - Math.abs(knM(stM('LINK_AV').bis).y)) < 1e-9,
-         `${(lg('KONSOLE_AV') * 1000).toFixed(0)} + 50 mm`);
+    wahr('… und beide Glieder zusammen treffen den Gurtknoten',
+         Math.abs(lg('KONSARM_AV') + lg('LINK_AV')
+                  - Math.hypot(knM('V_0.250').x - knM('KONS_A').x,
+                               knM('V_0.250').y - knM('KONS_A').y)) < 1e-9);
+    /*
+     * >>> DER MAST MUSS NICHT AM ENDE STEHEN. <<<
+     *
+     * Weisung vom 11. September: «die auflager koennen innerhalb des
+     * traegers frei in der x richtung liegen. es gibt tragjoche die haben
+     * eine auskragung, da der mast nicht am ende sondern weiter nach innen
+     * liegt, zum Beispiel in einer Bauphase.»
+     *
+     * Der Ueberstand folgt aus Traegerlaenge und Stuetzweite; wandert der
+     * Mast nach innen, hat die Kette mitzuwandern und ihre 150 mm zu
+     * behalten. Geprueft ueber die ganze Laengenspanne des Typs - der
+     * Ueberstand waechst dabei von wenigen Zentimetern auf einen halben
+     * Meter.
+     */
+    let jeGeprueft = 0;
+    const schief = [];
+    const bereich2 = AJ.abfangLaengenbereich('A240');
+    for (let Lj = bereich2.min; Lj <= bereich2.max + 1e-9; Lj += 0.5) {
+      const jL = Math.round(Lj * 100) / 100;
+      let mo;
+      try {
+        mo = AXA2.abfangAxisvmModell('A240', jL,
+                                     { mast: { profil: 'HEB 240', hoehe: 7.5 } });
+      } catch { continue; }
+      jeGeprueft++;
+      const kv = (n2) => mo.knoten.find((k2) => k2.name === n2);
+      for (const e2 of ['A', 'B']) {
+        const kk = kv(`KONS_${e2}`), mk = kv(`MAST_${e2}_K`);
+        if (!kk || !mk || Math.abs(Math.abs(kk.x - mk.x) - 0.15) > 1e-9) {
+          schief.push(`${jL} m / ${e2}`);
+        }
+      }
+    }
+    wahr(`Die Auskragung haelt 150 mm, wo der Mast auch steht (${jeGeprueft} Laengen)`,
+         schief.length === 0, schief.slice(0, 3).join('; '));
     /*
      * >>> DAS AUFLAGER SITZT AM MASTFUSS, NICHT MEHR AM JOCHENDE. <<<
      */
