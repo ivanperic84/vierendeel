@@ -592,10 +592,25 @@ function ankerTeile(o, halb, zFuss, zKopf) {
    * Abstand des Fundaments. Beide fuehren auf ihr Feld, und zwar auf das
    * des richtigen Masten (`mastEnde`).
    */
-  const mitte = [(x + xF) / 2, yF / 2, (zA + zFuss) / 2];
+  /*
+   * >>> DIE ANSCHRIFT STEHT AM FUNDAMENT, NICHT AUF HALBER STABLAENGE. <<<
+   *
+   * Weisung vom 11. September: «die beschriftung zum ankerfundament nehmen,
+   * so das diese besser verteilt sind.»
+   *
+   * Auf halber Stablaenge lag sie mitten im Bild - dort, wo auch die
+   * Anbauteile des Jochs, ihre Kraftpfeile und die Mastanschriften stehen.
+   * Am Fundament ist Platz: dorthin zeigt sonst nichts.
+   *
+   * UND DER WINKEL GEHOERT HINEIN (Weisung, gleicher Tag). Er stand als
+   * eigene Anschrift am Bogen und war damit die dritte Beschriftung an
+   * einem Bauteil, das zwei Angaben hat. Jetzt trägt die Anschrift Position,
+   * Typ und Neigung, und der Bogen zeigt nur noch, was gemeint ist.
+   */
+  const alphaGrad = (Math.atan2(ak.h, ak.a) * 180) / Math.PI;
   bauteiltitel.push({
-    p: [mitte[0], mitte[1] + (laengs ? 0 : 0.35), mitte[2] + 0.35],
-    text: `Anker ${name} · ${wie}`,
+    p: [xF, yF + (laengs ? 0 : 0.35), zFuss + 0.55],
+    text: `Anker ${name} · ${wie} · α = ${alphaGrad.toFixed(1)}°`,
     mastEnde: name, feld: 'ankerTyp', tab: 'system', gruppe: 'mast',
   });
   /*
@@ -658,18 +673,11 @@ function ankerTeile(o, halb, zFuss, zKopf) {
                   punkte: [bogen[k - 1], bogen[k]] });
   }
   /*
-   * DIE ZAHL steht auf halbem Bogen, ein Stueck nach aussen geschoben -
-   * innerhalb des Bogens liefe sie gegen die Stabachse.
+   * DIE ZAHL AM BOGEN IST WEG (Weisung vom 11. September: «den winkel
+   * dazunehmen» - nämlich in die Anschrift). Drei Beschriftungen an einem
+   * Bauteil mit zwei Eingabemassen waren eine zuviel; der Bogen allein sagt,
+   * WELCHER Winkel gemeint ist, und die Zahl steht daneben am Fundament.
    */
-  const wM = alpha / 2;
-  const rT = rB * 1.35;
-  bauteiltitel.push({
-    p: [xF + eH[0] * rT * Math.cos(wM),
-        yF + eH[1] * rT * Math.cos(wM),
-        zFuss + rT * Math.sin(wM)],
-    text: `α = ${((alpha * 180) / Math.PI).toFixed(1)}°`,
-    mastEnde: name, feld: 'ankerH', tab: 'system', gruppe: 'mast',
-  });
   return { linien, flaechen, bauteiltitel, masse };
 }
 

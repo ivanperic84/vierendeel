@@ -1328,6 +1328,26 @@ function aendern(key, wert) {
     neuRechnen();
     return;
   }
+  /*
+   * >>> DAS FENSTER KOMMT VOR DEM TRAGWERK. <<<
+   *
+   * Weisung vom 11. September: «dies beim erstellen eines tragweks
+   * einblenden und wenn man es anklickt.» `tragwerkNeu` legt weiter an - der
+   * Dialog ruft es selbst, wenn seine drei Fragen beantwortet sind.
+   */
+  if (key === 'tragwerkDialog') {
+    /*
+     * ZWEI ABSENDER, ZWEI BEDEUTUNGEN. Das Menue «+ Tragwerk» schickt eine
+     * ART («abfangjoch»), die Tragwerkszeile eine ID («T2»). Beides sind
+     * Zeichenketten, und der erste Anlauf las «abfangjoch» als Id - der
+     * Dialog hiess dann «frei bearbeiten» und hätte ein bestehendes
+     * Tragwerk geändert statt eines anzulegen.
+     */
+    const istArt = TRAGWERKSARTEN.some((a) => a.key === wert);
+    dialogTragwerk(istArt ? null : (typeof wert === 'string' ? wert : null),
+                   istArt ? wert : null);
+    return;
+  }
   if (key === 'tragwerkNeu') {
     /*
      * Der Knopf meldet nur die Art; der Rechtsklick im Modell meldet Art UND
@@ -5267,7 +5287,14 @@ function zeichneSchienen() {
   const r = ui.el('schiene-rechts');
   if (!r) return;
   const e = letzte?.anzeige;
-  const stufe = (v) => (v > 1 ? 'nok' : v > 0.9 ? 'warn' : 'ok');
+  /*
+   * OHNE ZAHL KEINE AMPEL. Ueber der groessten lieferbaren Laenge gibt es
+   * fuer den Anker kein eta - dort steht ein Strich, und der ist ein Befund:
+   * das Bauteil ist nicht belegt. Gruen waere die falsche Farbe, rot die
+   * Behauptung einer Ueberschreitung, die niemand gerechnet hat.
+   */
+  const stufe = (v) => (!Number.isFinite(v) ? 'nok'
+    : v > 1 ? 'nok' : v > 0.9 ? 'warn' : 'ok');
   // Die drei Einzelnachweise. η gesamt stand hier zuoberst und ist weg: es
   // sagt nichts, was diese drei nicht schon sagen - es IST das grösste von
   // ihnen -, und in der Fusszeile steht es ohnehin mitsamt Urteil.
@@ -5334,16 +5361,33 @@ function zeichneSchienen() {
      * wie bei den Kacheln - sonst zeigte die Schiene mehr, als die
      * Auswertung verantwortet.
      */
-    // Beim Abfangjoch steht keine Mastpille - `erg.mast` kommt aus der
-    // Tragjochrechnung und gilt fuer dieses Tragwerk nicht.
+    /* =====================================================================
+     * >>> DIE MASTEN STEHEN AUCH AM ABFANGJOCH IN DER SCHIENE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «beim abfangjoch die pillen fuer masten
+     * (anker druckstuetzen) beim zugeklappten zustand auffuehren und
+     * gruppieren wie beim tragjoch.»
+     *
+     * Hier stand: «Beim Abfangjoch steht keine Mastpille - `erg.mast` kommt
+     * aus der Tragjochrechnung und gilt fuer dieses Tragwerk nicht.» Das war
+     * richtig bis zum 10. September; seither wird der Mastnachweis am
+     * Abfangjoch mit dessen EIGENEN Auflagerkraeften gebildet und ersetzt
+     * den alten (`anzeige.mast`). Der Grund fuer die Auslassung ist damit
+     * weggefallen, die Auslassung war geblieben.
+     *
+     * Und sie war die gefaehrlichere Haelfte: gerade am Abfangjoch wird der
+     * Mast regelmaessig massgebend - im Bedienlauf vom 11. September stand
+     * das Joch bei 0.52 und ein Mast bei 1.47. Wer die Schublade zuklappt,
+     * sah nur den kleineren Wert.
+     * =================================================================== */
     const mastGefuehrt = letzte?.urteil?.nachweise?.mast !== false;
-    if (!e.abfang && letzte?.mitJoch !== false && letzte?.erg?.mast
-        && mastGefuehrt) {
+    if (letzte?.mitJoch !== false && e.mast && mastGefuehrt) {
       const namen = e.modell.federn?.namen ?? {};
       const gesehen = new Set();
       const teile = [];
       ['A', 'B'].forEach((ende) => {
-        const n = letzte.erg.mast[ende];
+        const n = e.mast[ende];
         if (!n) return;
         const name = namen[ende] || `Ende ${ende}`;
         if (gesehen.has(name)) return;
@@ -5354,6 +5398,40 @@ function zeichneSchienen() {
                     `${name}${n.profil ? ` ${n.profil}` : ''}`]);
       });
       if (teile.length) gruppen.push({ titel: 'Masten', teile });
+    }
+    /* =====================================================================
+     * >>> UND DIE ANKER ALS EIGENE GRUPPE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 11. September (dieselbe): «(anker druckstuetzen)».
+     *
+     * Sie bekommen eine eigene Gruppe und nicht einen Platz bei den Masten,
+     * denn ihr eta steht auf einer anderen Grundlage: CHARAKTERISTISCHE
+     * Kraft gegen die zulaessige des Bemessungsdiagramms, waehrend Joch und
+     * Mast auf Bemessungswerten stehen. Zwei Zahlen in einer Reihe lesen
+     * sich als vergleichbar - genau das sind sie nicht, und der Titel der
+     * Gruppe sagt es.
+     *
+     * UEBER DEM SORTIMENT gibt es kein eta. Die Pille steht trotzdem da,
+     * mit einem Strich: eine fehlende Pille laese sich als «kein Anker»
+     * lesen, und das waere die falsche Auskunft.
+     */
+    if (e.anker) {
+      const namen = e.modell.federn?.namen ?? {};
+      const gesehen = new Set();
+      const teile = [];
+      ['A', 'B'].forEach((ende) => {
+        const nw = e.anker[ende]?.nachweis;
+        if (!nw) return;
+        const name = namen[ende] || `Ende ${ende}`;
+        if (gesehen.has(name)) return;
+        gesehen.add(name);
+        const wie = `${name} · ${nw.typ} · ${nw.N >= 0 ? 'Zug' : 'Druck'} `
+          + `${Math.abs(nw.N).toFixed(1)} kN charakteristisch`
+          + (nw.lieferbar === false ? ' · ÜBER DEM SORTIMENT' : '');
+        teile.push([name, Number.isFinite(nw.eta) ? nw.eta : null, wie]);
+      });
+      if (teile.length) gruppen.push({ titel: 'Anker · char.', teile });
     }
   }
 
@@ -5370,8 +5448,11 @@ function zeichneSchienen() {
            `<span class="nw-gruppe" title="${esc(g.titel)}">${
              g.teile.map(([k, v, titel]) =>
                `<div class="${stufe(v)}"
-                     title="${esc(`${g.titel} · ${titel}`)}: η = ${v.toFixed(3)}">
-                  <span class="senkrecht"><i>${esc(k)}</i><b>${v.toFixed(2)}</b></span>
+                     title="${esc(`${g.titel} · ${titel}`)}: η = ${
+                       Number.isFinite(v) ? v.toFixed(3)
+                         : 'nicht geführt'}">
+                  <span class="senkrecht"><i>${esc(k)}</i><b>${
+                    Number.isFinite(v) ? v.toFixed(2) : '–'}</b></span>
                 </div>`).join('')}</span>`).join('')}</div>` : '');
   r.querySelectorAll('[data-reiter]').forEach((b) => {
     b.onclick = () => { tabAuswertung = b.dataset.reiter; zeichneAuswertung(); ausklappen('rechts'); };
@@ -6239,6 +6320,221 @@ function dialogAnker(mastId = null) {
       werte = { ...werte, mastAktiv: id };
       d.zu();
       neuRechnen();
+    };
+  }
+  verdrahte();
+}
+
+/* ===========================================================================
+ * DAS TRAGWERK - IN EINEM FENSTER
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «fuer die restlichen elemente eine gleiches
+ * modal machen wie beim anker, dies beim erstellen eines tragweks einblenden
+ * und wenn man es anklickt.»
+ *
+ * >>> DIESELBEN DREI FRAGEN WIE BEIM ANKER. <<<
+ *
+ *   1. WELCHE ART      Tragjoch, Einzelmast, Tragausleger, Abfangjoch
+ *   2. WELCHER TYP     das Sortiment haengt an der Art
+ *   3. WO UND WIE LANG Lage auf dem Querprofil, Stuetzweite
+ *
+ * Bis hierher gab es zwei Wege und keinen ganzen: «+ Tragwerk» legte eines
+ * mit Vorgabewerten an, und danach suchte man in der Maske die vier Felder
+ * zusammen. Die Art liess sich ueberhaupt erst seit heute wechseln, und auch
+ * das nur ueber das Kontextmenue.
+ *
+ * >>> BEIM ANLEGEN UND BEIM ANKLICKEN. <<<
+ *
+ * Angelegt wird erst beim «Setzen» - ein abgebrochener Dialog hinterlaesst
+ * kein halbes Tragwerk. Beim Anklicken eines BESTEHENDEN oeffnet er sich mit
+ * dessen Werten; der erste Klick waehlt es an, der zweite oeffnet das
+ * Fenster. So bleibt das schnelle Umschalten zwischen zwei Tragwerken, was
+ * es war, und die Bearbeitung ist einen Klick entfernt.
+ * ========================================================================= */
+function dialogTragwerk(id = null, artVor = null) {
+  const neuesTragwerk = !id;
+  const alle = tragwerkeSortiert(werte);
+  const t = id ? alle.find((x) => x.id === id) : null;
+  /*
+   * DER ENTWURF LEBT IM FENSTER. Beim bestehenden Tragwerk kommen die Werte
+   * aus ihm, beim neuen aus dem zuletzt angewaehlten - wer ein zweites Joch
+   * setzt, will meistens dasselbe noch einmal.
+   */
+  const vorlage = t ?? alle.find((x) => x.id === (werte.twId ?? 'T1')) ?? alle[0];
+  let e = {
+    // Die angeklickte Art des Menues gewinnt - sie ist die Absicht des
+    // Klicks; die Vorlage liefert nur, was sie sonst noch mitbringt.
+    art: artVor ?? tragwerksart(vorlage ?? werte).key,
+    typ: vorlage?.typ ?? werte.typ,
+    abfangTyp: vorlage?.abfangTyp ?? werte.abfangTyp,
+    L: Number(vorlage?.L ?? werte.L) || 20,
+    x0: neuesTragwerk ? (lageVon(vorlage) || 0) + (Number(vorlage?.L) || 0)
+                      : lageVon(t),
+  };
+  /*
+   * KOMMT DIE ART AUS DEM MENUE, bringt sie ihr eigenes Sortiment mit - die
+   * Vorlage daneben ist vielleicht ein Tragjoch, und «J90» steht in keiner
+   * Abfangjoch-Liste.
+   */
+  if (artVor) {
+    const v = artVorgabe(artVor, { ...werte, L: e.L });
+    if (v.abfangTyp) e.abfangTyp = v.abfangTyp;
+    if (Number.isFinite(v.L)) e.L = v.L;
+  }
+
+  const artDef = () => TRAGWERKSARTEN.find((a) => a.key === e.art)
+                    ?? TRAGWERKSARTEN[0];
+  const istAbfang = () => e.art === 'abfangjoch';
+
+  /*
+   * DIE LAENGE GIBT ES NUR, WO ES EINEN TRAEGER GIBT. Ein Einzelmast hat
+   * keine Stuetzweite; ein Feld dafuer waere eine Frage ohne Gegenstand.
+   */
+  const mitLaenge = () => artDef().masten >= 2;
+
+  /** Der Laengenbereich des gewaehlten Typs - er begrenzt die Eingabe. */
+  const bereich = () => {
+    if (istAbfang()) {
+      try {
+        const a = getAbfangjoch(e.abfangTyp);
+        const b = abfangLaengenbereich(a);
+        return { min: b.min, max: b.max, text: b.text };
+      } catch { return { min: 5, max: 35, text: '' }; }
+    }
+    try {
+      const j = getTragjoch(e.typ);
+      const ls = (j?.laengen ?? []).map(Number).filter(Number.isFinite);
+      if (ls.length) {
+        return { min: Math.min(...ls), max: Math.max(...ls),
+                 text: `${Math.min(...ls).toFixed(1)}–${Math.max(...ls).toFixed(1)} m` };
+      }
+    } catch { /* ohne Sortiment freie Laenge */ }
+    return { min: 4, max: 40, text: '' };
+  };
+
+  const koerper = () => {
+    const b = bereich();
+    const typListe = istAbfang()
+      ? abfangjoche().map((a) => ({ wert: a.typ,
+          text: `${a.typ} · ${a.profil} · ${abfangLaengenbereich(a).text}` }))
+      : tragjoche().map((j) => ({ wert: j.typ,
+          text: `${j.typ} · jd ${j.jd} mm` }));
+    const typJetzt = istAbfang() ? e.abfangTyp : e.typ;
+    return `
+    <div class="feld"><label>Welche Art</label>
+      <div class="ank-lagen" role="radiogroup" aria-label="Tragwerksart">
+        ${TRAGWERKSARTEN.map((a) => `
+          <button type="button" class="btn btn-mini${
+              a.key === e.art ? ' an' : ''}"
+            data-tw-art="${esc(a.key)}" role="radio"
+            aria-checked="${a.key === e.art}"
+            title="${esc(a.kurz)}">${esc(a.label)}</button>`).join('')}
+      </div>
+      <small class="hinweis">${esc(artDef().kurz)}</small></div>
+
+    ${artDef().traeger ? `<div class="feld">
+      <label for="dlg-tw-typ">Welcher Typ</label>
+      <select id="dlg-tw-typ">${typListe.map((o) =>
+        `<option value="${esc(o.wert)}"${o.wert === typJetzt ? ' selected' : ''}
+          >${esc(o.text)}</option>`).join('')}</select>
+      <small class="hinweis">${istAbfang()
+        ? 'Das Abfangjoch nimmt den Leiterzug auf — zwei Gurte nebeneinander.'
+        : 'Das Tragjoch trägt Gewicht, Schnee und Wind — vier Winkelgurte.'}
+      </small></div>` : ''}
+
+    ${mitLaenge() ? `<div class="feld">
+      <label for="dlg-tw-l">Stützweite</label>
+      <input id="dlg-tw-l" type="number" step="0.5" min="${b.min}"
+             max="${b.max}" value="${e.L.toFixed(2)}">
+      <small class="hinweis">m${b.text
+        ? ` · das Sortiment führt ${esc(b.text)}` : ''}</small></div>` : ''}
+
+    <div class="feld"><label for="dlg-tw-x">Lage auf dem Querprofil</label>
+      <input id="dlg-tw-x" type="number" step="0.05" value="${e.x0.toFixed(2)}">
+      <small class="hinweis">m · quer zum Gleis, in der Jochachse, ab dem
+        Nullpunkt der Zeichnung.</small></div>
+
+    <p class="notiz">${neuesTragwerk
+      ? 'Profile, Bleche und Anbauteile übernimmt das neue Tragwerk vom '
+        + 'zuletzt gewählten — sie lassen sich danach in der Maske ändern.'
+      : 'Profile, Bleche, Masten und Anbauteile bleiben, wie sie sind. Ein '
+        + 'Wechsel der ART setzt Typ und Länge auf das Sortiment der neuen '
+        + 'Art — «J90» steht in keiner Abfangjoch-Liste.'}</p>`;
+  };
+
+  const d = dialog(neuesTragwerk ? 'Neues Tragwerk'
+                                 : `${tragwerkName(t)} bearbeiten`,
+    koerper(),
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-tw-ok>${
+       neuesTragwerk ? 'Setzen' : 'Übernehmen'}</button>`);
+
+  const neu = () => {
+    d.node.querySelector('.dialog-koerper').innerHTML = koerper();
+    verdrahte();
+  };
+  function verdrahte() {
+    const n = d.node;
+    n.querySelectorAll('[data-tw-art]').forEach((b) => {
+      b.onclick = () => {
+        if (b.dataset.twArt === e.art) return;
+        e = { ...e, art: b.dataset.twArt };
+        /*
+         * DER TYP MUSS ZUR ART PASSEN. «J90» steht in keiner
+         * Abfangjoch-Liste; der Browser zeigte sonst den ersten Eintrag,
+         * waehrend im Entwurf etwas anderes stuende - dieselbe Falle, die
+         * beim Anlegen schon einmal zugeschnappt ist.
+         */
+        const v = artVorgabe(e.art, { ...werte, L: e.L });
+        if (v.abfangTyp) e.abfangTyp = v.abfangTyp;
+        if (Number.isFinite(v.L)) e.L = v.L;
+        const b2 = bereich();
+        e.L = Math.min(Math.max(e.L, b2.min), b2.max);
+        neu();
+      };
+    });
+    const typ = n.querySelector('#dlg-tw-typ');
+    if (typ) typ.onchange = () => {
+      if (istAbfang()) e.abfangTyp = typ.value; else e.typ = typ.value;
+      const b2 = bereich();
+      e.L = Math.min(Math.max(e.L, b2.min), b2.max);
+      neu();
+    };
+    const zahl = (sel, feld) => {
+      const el = n.querySelector(sel);
+      if (!el) return;
+      el.oninput = () => {
+        const v = parseFloat(el.value);
+        if (Number.isFinite(v)) e = { ...e, [feld]: v };
+      };
+    };
+    zahl('#dlg-tw-l', 'L');
+    zahl('#dlg-tw-x', 'x0');
+    n.querySelector('[data-tw-ok]').onclick = () => {
+      d.zu();
+      if (neuesTragwerk) {
+        aendern('tragwerkNeu', { art: e.art, xLage: e.x0 });
+        // Typ und Laenge danach setzen: `tragwerkHinzu` bringt die Vorgabe
+        // der Art mit, und die soll der Entwurf ueberschreiben.
+        if (artDef().traeger) {
+          aendern(istAbfang() ? 'abfangTyp' : 'typ',
+                  istAbfang() ? e.abfangTyp : e.typ);
+        }
+        if (mitLaenge()) aendern('L', e.L);
+        return;
+      }
+      if (tragwerksart(t).key !== e.art) {
+        aendern('tragwerkArt', { id, art: e.art });
+      } else if ((werte.twId ?? 'T1') !== id) {
+        werte = tauscheAktives(werte, id);
+      }
+      if (artDef().traeger) {
+        aendern(istAbfang() ? 'abfangTyp' : 'typ',
+                istAbfang() ? e.abfangTyp : e.typ);
+      }
+      if (mitLaenge()) aendern('L', e.L);
+      aendern('tragwerkLage', { id, x: e.x0 });
     };
   }
   verdrahte();

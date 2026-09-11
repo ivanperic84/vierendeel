@@ -191,11 +191,27 @@ export function abfangDiagramme(ab, breite = 900) {
     schnittgroessen: linienDiagramm({
       titel: 'Schnittgrössen des Abfangjochs — zwei Ebenen', breite,
       yLabel: 'M [kNm] / V [kN]', punkte: x,
+      /*
+       * >>> DIE BILDER GEHOEREN DEM LIEGENDEN TRAEGER. <<<
+       *
+       * Weisung vom 11. September: «die verdrahtung der sekundären
+       * diagramme unter verläufe sind nicht korrekt.»
+       *
+       * Hier standen `My`, `Vz`, `Mz`, `Tx` - die Kraftbilder des TRAGJOCHS.
+       * Unter «M Rahmenebene» las man «M_y biegt das Joch lotrecht, oben
+       * Druck, unten Zug», unter «M Torsion» den umlaufenden Schubfluss
+       * eines geschlossenen Kastens. Das Abfangjoch hat weder Ober- und
+       * Untergurt noch vier Ebenen, und seine Rahmenebene liegt waagrecht.
+       *
+       * Die `abf`-Bilder zeigen dasselbe in DRAUFSICHT und im Querschnitt
+       * des liegenden Traegers.
+       */
       serien: [
-        { name: 'M Rahmenebene', werte: sn('Mrahmen'), skizze: 'My' },
-        { name: 'V Rahmenebene', werte: sn('Vrahmen'), skizze: 'Vz' },
-        { name: 'M quer (lotrecht)', werte: sn('Mvert'), skizze: 'Mz' },
-        { name: 'M Torsion', werte: sn('Mtors'), cls: 'serie-4', skizze: 'Tx' },
+        { name: 'M Rahmenebene', werte: sn('Mrahmen'), skizze: 'abfN' },
+        { name: 'V Rahmenebene', werte: sn('Vrahmen'), skizze: 'abfV' },
+        { name: 'M quer (lotrecht)', werte: sn('Mvert'), skizze: 'abfMvert' },
+        { name: 'M Torsion', werte: sn('Mtors'), cls: 'serie-4',
+          skizze: 'abfTors' },
       ],
     }),
     ebene: linienDiagramm({
@@ -204,12 +220,12 @@ export function abfangDiagramme(ab, breite = 900) {
       yLabel: 'N [kN] / M [kNm]', punkte: x,
       serien: [
         { name: `N Kräftepaar (e = ${(ab.q?.e ?? 0).toFixed(1)} cm)`,
-          werte: r.map((s) => s.N ?? 0), skizze: 'Vebene' },
+          werte: r.map((s) => s.N ?? 0), skizze: 'abfN' },
         { name: 'M Gurt lotrecht (halbe Last + Torsion)',
-          werte: r.map((s) => s.MgurtVert ?? 0), skizze: 'Mlokal' },
+          werte: r.map((s) => s.MgurtVert ?? 0), skizze: 'abfTors' },
         { name: 'M örtlich zwischen zwei Blechen',
           werte: r.map((s) => s.Moertl ?? 0), cls: 'serie-4',
-          skizze: 'Mlokal' },
+          skizze: 'abfOertl' },
       ],
     }),
     ausnutzung: linienDiagramm({
@@ -274,7 +290,7 @@ export function ankerDiagramm(e, sortiment, opt = {}) {
 
   const vorh = Math.abs(nw.N);
   const serien = [{ name: `zulässig nach Blatt · ${nw.typ}`, werte: N,
-                    skizze: null }];
+                    skizze: 'ankerKurve' }];
   /*
    * DIE KONTROLLKURVE wird auf DENSELBEN Stuetzstellen ausgewertet - zwei
    * x-Achsen in einem Bild waeren keine Auskunft. Sie ist ein
@@ -285,7 +301,7 @@ export function ankerDiagramm(e, sortiment, opt = {}) {
     const k = L.map((l) => opt.knickKurve(l));
     if (k.every(Number.isFinite)) {
       serien.push({ name: 'N_b,Rd senkrecht zur Spreizebene (Kontrolle)',
-                    werte: k, cls: 'serie-4', skizze: null });
+                    werte: k, cls: 'serie-4', skizze: 'ankerKnick' });
     }
   }
   return linienDiagramm({
@@ -344,11 +360,17 @@ export function mastDiagramme(mn, opt = {}) {
       titel: `Schnittgrössen über die Masthöhe${nm}`,
       breite, hoehe: 230, xLabel: 'z über Mastfuss [m]',
       yLabel: 'M [kNm] / N, V [kN]', punkte: z,
+      /*
+       * ALLE VIER ZEIGEN DASSELBE BILD: den Masten als Kragarm mit dem
+       * Anker als zweitem Stuetzpunkt. Es ist das eine Bild, das die vier
+       * Kurven erklaert - wo das Moment knickt und die Normalkraft springt.
+       * Vier verschiedene waeren vier Wege zu derselben Aussage.
+       */
       serien: [
-        { name: 'M quer', werte: w('Mq'), skizze: 'My' },
-        { name: 'M längs', werte: w('Ml'), skizze: 'Mz' },
-        { name: 'N', werte: w('N'), skizze: 'Vebene' },
-        { name: 'V quer', werte: w('Vq'), cls: 'serie-4', skizze: 'Vz' },
+        { name: 'M quer', werte: w('Mq'), skizze: 'mastM' },
+        { name: 'M längs', werte: w('Ml'), skizze: 'mastM' },
+        { name: 'N', werte: w('N'), skizze: 'mastM' },
+        { name: 'V quer', werte: w('Vq'), cls: 'serie-4', skizze: 'mastM' },
       ],
     }),
     ausnutzung: linienDiagramm({

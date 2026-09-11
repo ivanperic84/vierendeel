@@ -989,8 +989,21 @@ export function verdrahteLeiste(container, werte, onChange) {
   container.querySelectorAll('[data-qp-anker]').forEach((b) => {
     b.addEventListener('click', () => onChange('ankerDialog', b.dataset.qpAnker));
   });
+  /*
+   * >>> ERSTER KLICK WAEHLT, ZWEITER OEFFNET. <<<
+   *
+   * Weisung vom 11. September: «und wenn man es anklickt» - das Fenster
+   * soll sich auch am bestehenden Tragwerk oeffnen lassen.
+   *
+   * Wuerde schon der erste Klick es oeffnen, waere das schnelle Umschalten
+   * zwischen zwei Tragwerken dahin: man klickt auf P2, um dessen Zahlen zu
+   * sehen, nicht um es zu bearbeiten. So bleibt beides - und die
+   * Ankerzeile daneben macht es genauso.
+   */
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkAktiv', b.dataset.qpTw));
+    b.addEventListener('click', () => onChange(
+      b.dataset.qpTw === (werte.twId ?? 'T1') ? 'tragwerkDialog' : 'tragwerkAktiv',
+      b.dataset.qpTw));
     b.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       onChange('kontextTragwerk', { id: b.dataset.qpTw,
@@ -1035,8 +1048,17 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
    */
   verdrahteAuflagerLinks(container, werte, onChange);
 
+  /*
+   * >>> DIE ART WAEHLT MAN IM FENSTER, NICHT IM MENUE. <<<
+   *
+   * Weisung vom 11. September: «dies beim erstellen eines tragweks
+   * einblenden». Das Menue legte bis hierher sofort an - mit Vorgabetyp und
+   * Vorgabelaenge -, und danach suchte man in der Maske die vier Felder
+   * zusammen. Jetzt fragt der Dialog sie, und er kommt mit der angeklickten
+   * Art schon vorbelegt.
+   */
   container.querySelectorAll('[data-tw-neu]').forEach((b) => {
-    b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
+    b.addEventListener('click', () => onChange('tragwerkDialog', b.dataset.twNeu));
   });
   /*
    * DER ANKER MELDET SICH WIE JEDE ANDERE EINGABE - ueber `onChange`. Die
@@ -1275,63 +1297,6 @@ function qpKopfHtml(von, bis) {
     </div>`;
 }
 
-/**
- * DIE ZEILE EINES ZUGANKERS ODER EINER DRUCKSTUETZE.
- *
- * Weisung vom 11. September: «nimm zudem die anker noch mit auf.»
- *
- * >>> WAS SIE ZEIGT. <<<
- *
- * Typ und Laenge - dieselben zwei Angaben wie die Anschrift im Bild
- * (Weisung vom selben Tag: «nur die pos. typ und laenge anschreiben») -
- * und die ANORDNUNG: quer zum Gleis oder laengs, vorn oder hinten. Genau
- * die Angabe, die dartueber entscheidet, ob der Stab rechnerisch etwas
- * haelt oder nichts.
- *
- * Ein Klick oeffnet den Anker-Dialog an diesem Masten.
- *
- * Steht kein Anker, steht auch keine Zeile: eine leere Zeile je Mast
- * machte aus der Matrix eine Liste von Leerstellen.
- */
-function ankerZeileHtml(werte, m, i, von, bis) {
-  const ak = m.anker;
-  if (!ak?.typ || !(ak.h > 0) || !(ak.a > 0)) return '';
-  const laengs = ak.richtung === 'y';
-  const vz = ak.seite === 'minus' ? -1 : 1;
-  const L = Math.sqrt(ak.h * ak.h + ak.a * ak.a);
-  /*
-   * WIE ER LIEGT, IN WORTEN DES QUERPROFILS. «in +y» sagt nichts, wenn man
-   * gerade auf ein Blatt schaut; «vorn» und «hinten» schon.
-   */
-  const wo = laengs
-    ? (vz > 0 ? 'längs vorn' : 'längs hinten')
-    : (vz > 0 ? 'quer, weg' : 'quer, zum Gleis');
-  /*
-   * DIE LINIE LIEGT IN DER JOCHACHSE - und nur der quer stehende Anker hat
-   * darin eine Ausdehnung. Der laengs stehende ragt aus dem Blatt heraus;
-   * seine Linie waere ein Punkt, und sie bekommt dieselbe Mindestbreite
-   * wie die eines Einzelmasten.
-   */
-  const xF = laengs ? m.x : m.x + vz * ak.a;
-  const links = qpPct(Math.min(m.x, xF), von, bis);
-  const breit = Math.max(qpPct(Math.max(m.x, xF), von, bis) - links, 2.5);
-  return `<div class="qp-zeile qp-ankerzeile">
-      <span class="qp-auge-platz"></span>
-      <button type="button" class="qp-name" data-qp-anker="${esc(m.id)}"
-              title="${esc(`Zuganker / Druckstütze am Masten M${i + 1}`
-                + ` · ${ak.typ} · L = ${L.toFixed(2)} m`
-                + ` · h_A ${ak.h.toFixed(2)} m · a_A ${ak.a.toFixed(2)} m`
-                + ' · anklicken zum Ändern')}"
-        ><span class="qp-art">A${i + 1} · Anker · ${esc(wo)}</span>${
-          esc(`${ak.typ} · L = ${L.toFixed(2)} m`)}</button>
-      <span class="qp-bahn">
-        <button type="button" class="qp-ankerlinie"
-          data-qp-anker="${esc(m.id)}"
-          style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%"
-          title="${esc(`Fundament ${ak.a.toFixed(2)} m vom Mastfuss`)}"></button>
-      </span>
-    </div>`;
-}
 
 export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
@@ -1427,61 +1392,85 @@ export function querprofilLeisteHtml(werte) {
    * (der Nachbar traegt ihn), und das Joch steht im Bild auf einem Masten
    * und rechnet sich zugleich als «ohne».
    */
-  const mastZeilen = masten.map((m, i) => {
-    const an = m.id === gewMast?.id;
-    const traegt = m.traegt ?? [];
-    const geteilt = traegt.length > 1;
-    const wessen = traegt.map((id) => alle.find((y) => y.id === id))
-      .filter(Boolean).map((y) => tragwerkPos(werte, y)).join(' + ');
-    return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}${
-        i === 0 ? ' erste' : ''}">
+  /* =========================================================================
+   * >>> ALLE MASTEN IN EINER ZEILE, SENKRECHT ANGESCHRIEBEN. <<<
+   * =========================================================================
+   *
+   * Weisung vom 11. September: «ordne dies kompakter und das man einen
+   * besseren uebersicht hat. fuer die masten und anker kann man die vertikal
+   * anschreiben, dann braucht man nicht fuer jedes element nicht eine
+   * separate zeile.»
+   *
+   * Vorher: je eine Zeile pro Mast und pro Anker. Ein Querprofil mit drei
+   * Tragwerken, vier Masten und zwei Ankern brauchte zehn Zeilen, und die
+   * Bahn - das eigentlich Interessante - war zehnmal dieselbe.
+   *
+   * Jetzt: EINE Zeile. Jeder Mast steht an seiner Stelle auf der Bahn, sein
+   * Name senkrecht darunter. Ein Anker haengt als kurzer Strich daran, in
+   * der Richtung, in die sein Fundament zeigt.
+   *
+   * >>> WAS DABEI NICHT VERLOREN GEHEN DARF. <<<
+   *
+   * Jeder Mast bleibt anklickbar (waehlt ihn an), rechtsklickbar (sein
+   * Kontextmenue) und traegt seinen vollen Text im Titel. Die Zeile ist
+   * kuerzer, nicht aermer - ein Ueberblick, der etwas weglaesst, was man
+   * danach doch sucht, ist keiner.
+   * ======================================================================= */
+  const mastZeilen = masten.length ? `<div class="qp-zeile qp-mastreihe">
       <span class="qp-auge-platz"></span>
-      <button type="button" class="qp-name" data-qp-mast="${esc(m.id)}"
-              title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m`
-                + (wessen ? ` · trägt ${wessen}` : '')
-                + ' · Rechtsklick öffnet das Kontextmenü')}"
-        ><span class="qp-art">M${i + 1} · Mast${geteilt ? ' ⊕' : ''}</span>${
+      <span class="qp-name qp-name-fest">
+        <span class="qp-art">Masten${
+          masten.some((m) => m.anker?.typ) ? ' &amp; Anker' : ''}</span>${
+        esc(`${masten.length} Stück`)}</span>
+      <span class="qp-bahn qp-bahn-hoch">
+        ${masten.map((m, i) => {
+          const an = m.id === gewMast?.id;
+          const traegt = m.traegt ?? [];
+          const geteilt = traegt.length > 1;
+          const wessen = traegt.map((id) => alle.find((y) => y.id === id))
+            .filter(Boolean).map((y) => tragwerkPos(werte, y)).join(' + ');
+          const ak = m.anker;
+          const hatAnker = Boolean(ak?.typ && ak.h > 0 && ak.a > 0);
           /*
-           * «x 0.00 m», nicht «0.00 m». Beim Joch daneben steht die LAENGE
-           * an dieser Stelle; dieselbe Form ohne Kennzeichen liesse die
-           * Stelle des Masten wie eine Laenge lesen - und im Modell heisst
-           * seine Beschriftung tatsaechlich «M1 · HEB 240 · 8.50 m», mit
-           * der Laenge.
+           * DER ANKER ALS KURZER STRICH am Fuss des Dreiecks, in die
+           * Richtung seines Fundaments. Quer zum Gleis liegt er in der
+           * Jochachse und hat auf der Bahn eine Laenge; laengs steht er
+           * aus dem Blatt heraus, und dann ist er ein Stummel. Beides
+           * unterscheidet sich im Bild, und genau darauf kommt es an:
+           * ein Anker in der falschen Ebene haelt nichts.
            */
-          esc(`${m.profil ?? 'ohne Profil'} · x ${m.x.toFixed(2)} m`)}</button>
-      <span class="qp-bahn">
-        <button type="button" class="qp-mast${an ? ' an' : ''}${
-            geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
-          style="left:${qpPct(m.x, von, bis).toFixed(3)}%"
-          title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m`
-            + (geteilt ? ' · von zwei Tragwerken geteilt' : ''))}"
-          aria-pressed="${an}">
-          <span class="qp-mast-marke"></span>
-          <span class="qp-mast-fuss"></span>
-        </button>
+          const laengsA = ak?.richtung === 'y';
+          const vzA = ak?.seite === 'minus' ? -1 : 1;
+          const ankTitel = hatAnker
+            ? `${ak.typ} · ${laengsA ? 'längs' : 'quer'} · `
+              + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m`
+            : '';
+          return `<span class="qp-mastgruppe" style="left:${
+              qpPct(m.x, von, bis).toFixed(3)}%">
+            <button type="button" class="qp-mast${an ? ' an' : ''}${
+                geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
+              title="${esc(`M${i + 1} · ${m.profil ?? 'ohne Profil'}`
+                + ` bei x = ${m.x.toFixed(2)} m`
+                + (wessen ? ` · trägt ${wessen}` : '')
+                + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
+                + (hatAnker ? ` · Anker ${ankTitel}` : '')
+                + ' · Rechtsklick öffnet das Kontextmenü')}"
+              aria-pressed="${an}">
+              <span class="qp-mast-marke"></span>
+              <span class="qp-mast-fuss"></span>
+            </button>
+            ${hatAnker ? `<button type="button" class="qp-ankerstrich${
+                laengsA ? ' laengs' : (vzA > 0 ? ' plus' : ' minus')}"
+              data-qp-anker="${esc(m.id)}"
+              title="${esc(`Zuganker / Druckstütze am Masten M${i + 1} · `
+                + ankTitel + ' · anklicken zum Ändern')}"></button>` : ''}
+            <span class="qp-mastschrift${an ? ' an' : ''}"
+              >M${i + 1}${geteilt ? ' ⊕' : ''}${
+                hatAnker ? ` · ${esc(ak.typ)}` : ''}</span>
+          </span>`;
+        }).join('')}
       </span>
-    </div>`
-    /* =====================================================================
-     * >>> UND DER ANKER STEHT UNTER SEINEM MASTEN. <<<
-     * =====================================================================
-     *
-     * Weisung vom 11. September: «nimm zudem die anker noch mit auf.»
-     *
-     * Er war das einzige Bauteil ohne Zeile in der Matrix. Im Bild stand er,
-     * im Nachweis stand er, in der Liste der Dinge auf diesem Querprofil
-     * fehlte er - und damit die eine Stelle, an der man SIEHT, was alles
-     * dasteht.
-     *
-     * EINGERUECKT, weil er kein Tragwerk ist: er gehoert dem Masten, wie
-     * dessen Profil und dessen Hoehe. Ein Anker ohne Masten gibt es nicht.
-     *
-     * SEINE LINIE LIEGT AUF DER BAHN wie jede andere: vom Mastfuss zum
-     * Ankerfundament, und ihre Laenge ist der waagrechte Abstand a. Damit
-     * sieht man auf einen Blick, ob zwei Anker aufeinander zulaufen oder
-     * ob einer ueber die Blattkante hinausragt.
-     * =================================================================== */
-    + ankerZeileHtml(werte, m, i, von, bis);
-  }).join('');
+    </div>` : '';
 
   /*
    * DIE GELAENDELINIE SCHLIESST DIE LISTE AB. Sie ist das, worauf die
@@ -3969,11 +3958,22 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
 diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
          >Sortiment durchrechnen</button>` : ''}
     </div>
-    ${hinweise.length ? klapp('uebersicht-hinweise', 'Hinweise zur Gültigkeit',
-        `<div class="hinweisliste">${hinweise.map((h) =>
-          `<p class="notiz">${esc(h)}</p>`).join('')}</div>`,
-        hinweise.length === 1 ? '1 Hinweis' : `${hinweise.length} Hinweise`) : ''}
-    ${pruefungenHtml(urteil)}
+    ${/*
+       * >>> DIE NACHWEISE ZUERST. <<<
+       *
+       * Weisung vom 11. September: «die konstruktionsprüfungen und hinweise
+       * zur gültigkeit nach unten nehmen, für mich sind diese nicht so
+       * relevant.»
+       *
+       * Sie standen zwischen dem Urteil und den Nachweiskacheln - zwei
+       * zugeklappte Blöcke, die man bei jedem Blick auf η überspringen
+       * musste. Wegfallen dürfen sie nicht (ein stillschweigend fehlender
+       * Nachweis ist die gefährlichste Zeile der Anwendung), aber sie
+       * gehören dorthin, wo man sie sucht: ans Ende.
+       *
+       * «Nicht geführte Nachweise» bleibt oben bei den Nachweisen. Es ist
+       * keine Prüfung, sondern die Kehrseite der Kacheln daneben.
+       */''}
     ${abschnitt('Nachweise')}
     <div class="kennzahlen">${kz.join('')}</div>
     ${nichtGefuehrtHtml(urteil)}
@@ -3993,6 +3993,11 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
           <td class="num stark ${ampel(s.eta)}">${f3(s.eta)}</td>
         </tr>`).join('')}</tbody>
     </table></div>
+    ${pruefungenHtml(urteil)}
+    ${hinweise.length ? klapp('uebersicht-hinweise', 'Hinweise zur Gültigkeit',
+        `<div class="hinweisliste">${hinweise.map((h) =>
+          `<p class="notiz">${esc(h)}</p>`).join('')}</div>`,
+        hinweise.length === 1 ? '1 Hinweis' : `${hinweise.length} Hinweise`) : ''}
 `;
 
   node.querySelectorAll('[data-station]').forEach((tr) => {

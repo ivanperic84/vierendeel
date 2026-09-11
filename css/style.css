@@ -1497,19 +1497,67 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 /* DIE ANKERZEILE ist eingerueckt: sie gehoert dem Masten darueber, nicht dem
    Querprofil. Gestrichelt, weil der Stab schraeg aus der Blattebene laeuft -
    seine Linie ist eine Projektion, keine Ansicht. */
-.qp-ankerzeile .qp-name { padding-left: 11px; white-space: normal; }
-/* DIE ART-ZEILE DARF UMBRECHEN. «A1 · ANKER · QUER, ZUM GLEIS» passt bei
-   96 px nicht in eine Zeile, und abgeschnitten stuende dort «A1 · ANKER ·
-   QUER,» - die halbe Lage, also die falsche. Zwei Zeilen zu acht Pixeln
-   sind niedriger als eine falsche Angabe. */
-.qp-ankerzeile .qp-art { color: var(--dim); white-space: normal;
-  line-height: 1.15; }
-.qp-ankerlinie {
-  position: absolute; top: 7px; height: 4px; padding: 0; cursor: pointer;
-  background: none; border: 0; border-top: 2px dashed var(--on2);
-  border-radius: 0; opacity: .75;
+/* ===========================================================================
+   DIE MASTREIHE: ALLE MASTEN IN EINER ZEILE
+
+   Weisung vom 11. September: «ordne dies kompakter ... fuer die masten und
+   anker kann man die vertikal anschreiben, dann braucht man nicht fuer jedes
+   element nicht eine separate zeile.»
+
+   Vorher stand jeder Mast und jeder Anker in einer eigenen Zeile - zehn
+   Zeilen fuer ein Querprofil mit drei Tragwerken, und die Bahn daneben
+   zehnmal dieselbe. Jetzt traegt EINE Zeile alle; die Namen stehen senkrecht
+   darunter, weil waagrecht nebeneinander bei vier Masten auf dreissig Metern
+   nichts mehr lesbar bliebe.
+   ========================================================================= */
+.qp-mastreihe { align-items: flex-start; padding-top: 2px; }
+/* Der Name der Zeile ist kein Knopf - es gibt nichts anzuwaehlen, was allen
+   Masten zugleich gilt. */
+.qp-name-fest {
+  flex: 0 0 96px; min-width: 0; display: flex; flex-direction: column;
+  padding: 2px 3px; text-align: left; color: var(--on2); font-size: 10.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.qp-ankerlinie:hover { border-top-color: var(--acc); opacity: 1; }
+/* Die Bahn braucht Hoehe fuer die senkrechte Schrift. ZWEI Klassen, weil
+   `.qp-bahn` weiter unten in dieser Datei steht und bei gleicher Spezifitaet
+   die spaetere Regel gewinnt - eine Zeile Vorsprung genuegt, um 62 px wieder
+   auf 18 zu setzen, und dann ragt die Schrift aus ihrer Bahn heraus. */
+.qp-mastreihe .qp-bahn.qp-bahn-hoch { height: 46px; }
+.qp-mastgruppe { position: absolute; top: 0; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; }
+.qp-mastgruppe .qp-mast { position: static; transform: none; }
+
+/* DIE SENKRECHTE ANSCHRIFT. `writing-mode` statt `rotate`, damit die Zeile
+   ihre Hoehe von selbst bekommt - eine gedrehte Zeile behaelt im Fluss ihre
+   waagrechte Ausdehnung und schoebe die Nachbarn beiseite. */
+.qp-mastschrift {
+  writing-mode: vertical-rl; text-orientation: mixed;
+  font-size: 9px; letter-spacing: .02em; color: var(--dim);
+  margin-top: 1px; max-height: 28px; overflow: hidden;
+  white-space: nowrap; pointer-events: none;
+}
+.qp-mastschrift.an { color: var(--acc); }
+
+/* DER ANKER ALS STRICH am Fuss des Dreiecks, in Richtung seines Fundaments.
+   Quer zum Gleis liegt er in der Bahnebene und zeigt nach links oder rechts;
+   laengs steht er aus dem Blatt heraus und ist ein Stummel nach unten. Der
+   Unterschied muss zu sehen sein - ein Anker in der falschen Ebene haelt
+   rechnerisch nichts. */
+.qp-ankerstrich {
+  position: absolute; top: 13px; width: 16px; height: 8px; padding: 0;
+  background: none; border: 0; cursor: pointer;
+  border-bottom: 2px dashed var(--on2); opacity: .8;
+}
+.qp-ankerstrich.plus  { left: 50%; transform: rotate(20deg);
+  transform-origin: left center; }
+.qp-ankerstrich.minus { right: 50%; transform: rotate(-20deg);
+  transform-origin: right center; }
+/* Laengs: er zeigt aus dem Blatt - ein kurzer Strich nach unten. */
+.qp-ankerstrich.laengs {
+  left: 50%; width: 8px; transform: translateX(-50%) rotate(72deg);
+  transform-origin: center top;
+}
+.qp-ankerstrich:hover { border-bottom-color: var(--acc); opacity: 1; }
 .qp-zeile {
   display: flex; align-items: center; gap: 5px;
   padding: 1px 2px; border-radius: var(--m-r1);

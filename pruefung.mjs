@@ -8594,10 +8594,25 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * anker»). Sie steht an der Bemassung daneben.
        */
       const ta = (k.bauteiltitel ?? []).filter((t) => /^Anker /.test(t.text));
-      wahr('Die Anschrift nennt Pos. und Typ', ta.length === 1
-           && /^Anker A · U12$/.test(ta[0].text), ta[0]?.text);
-      wahr('… und der Winkel steht als eigene Anschrift da',
-           (k.bauteiltitel ?? []).some((t) => /^α = /.test(t.text)));
+      /*
+       * DIE ANSCHRIFT TRAEGT POS., TYP UND WINKEL - und nur diese drei.
+       * Weisung vom 11. September: «beim beschriften im 3d die laenge
+       * weglassen» und «den winkel dazunehmen». Die Laenge steht an der
+       * Bemassung daneben.
+       */
+      wahr('Die Anschrift nennt Pos., Typ und Winkel', ta.length === 1
+           && /^Anker A · U12 · α = \d+\.\d°$/.test(ta[0].text), ta[0]?.text);
+      wahr('… und nicht die Laenge', !/L = /.test(ta[0]?.text ?? ''));
+      /*
+       * SIE STEHT AM FUNDAMENT (Weisung: «die beschriftung zum
+       * ankerfundament nehmen, so das diese besser verteilt sind») - auf
+       * halber Stablaenge lag sie mitten im Bild.
+       */
+      wahr('… und sie steht am Ankerfundament',
+           Math.abs(ta[0].p[1] - 4.5) < 0.5 && ta[0].p[2] < -7.5,
+           JSON.stringify(ta[0].p.map((v) => +v.toFixed(2))));
+      wahr('Der Winkel hat keine eigene Anschrift mehr',
+           !(k.bauteiltitel ?? []).some((t) => /^α = /.test(t.text)));
       /*
        * DAS HOEHENMASS STEHT AM MASTEN (Weisung: «die vertikale vermassung
        * auf seite mast rueber nehmen»), also auf der Mastachse - nicht
@@ -8672,6 +8687,65 @@ titel('42  Der lange Mast mit Zusatzleitern');
          && AN.ankerNachweis('U12', -50, 12).lieferbar === false);
     wahr('Ein Seil auf Druck traegt das Feld auch',
          AN.ankerNachweis('SA20', -10, 8).lieferbar === true);
+
+    /* =====================================================================
+     * JEDE KURVE ZEIGT DAS BILD IHRES EIGENEN TRAGWERKS
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «die verdrahtung der sekundären diagramme
+     * unter verläufe sind nicht korrekt.»
+     *
+     * Die Kurven des Abfangjochs trugen die Kraftbilder des TRAGJOCHS:
+     * unter «M Rahmenebene» stand «M_y biegt das Joch lotrecht … oben
+     * Druck, unten Zug», unter «N Kräftepaar» das Bild der Ebenenquerkraft,
+     * unter «M Torsion» der umlaufende Schubfluss eines geschlossenen
+     * Kastens. Das Abfangjoch hat weder Ober- und Untergurt noch vier
+     * Ebenen - und seine Rahmenebene liegt waagrecht.
+     *
+     * Gepruef wird BEIDES: dass jeder Schluessel ein Bild hat (ein Tippfehler
+     * bliebe sonst stumm - der Klick zeigte einfach nichts), und dass die
+     * Bilder des Abfangjochs nicht die des Tragjochs sind.
+     * =================================================================== */
+    {
+      const SK = await import(J('render.skizzen.js'));
+      const CH = await import(J('render.charts.js'));
+      const quelle = readFileSync(
+        new URL('./js/render.charts.js', import.meta.url), 'utf8');
+      const benutzt = [...quelle.matchAll(/skizze: '([a-zA-Z]+)'/g)]
+        .map((m2) => m2[1]);
+      wahr('Alle benutzten Skizzenschluessel gibt es',
+           benutzt.every((k) => SK.skizzeFuer(k)),
+           benutzt.filter((k) => !SK.skizzeFuer(k)).join(', ') || 'alle da');
+      /*
+       * DIE KURVEN DES ABFANGJOCHS zeigen `abf`-Bilder, keine des
+       * Tragjochs. `eta` ist die eine Ausnahme: die Ausnutzung ist bei
+       * beiden dieselbe Frage.
+       */
+      const AB11 = await import(J('core.abfangjoch.js'));
+      const rAb = AB11.abfangAuswertung({
+        typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24,
+        anbauteile: [], gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38,
+        ek: 'EK2', L_FL: 40 });
+      const abD = CH.abfangDiagramme(rAb, 600);
+      const jochBilder = ['My', 'Vz', 'Mz', 'Tx', 'Vebene', 'Mlokal'];
+      const imAbfang = [...String(abD.schnittgroessen + abD.ebene)
+        .matchAll(/data-skizze="([a-zA-Z]+)"/g)].map((m2) => m2[1]);
+      wahr('Das Abfangjoch zeigt kein Tragjoch-Bild',
+           imAbfang.length > 0
+           && imAbfang.every((k) => !jochBilder.includes(k)),
+           imAbfang.join(', '));
+      wahr('… sondern seine eigenen',
+           imAbfang.every((k) => /^abf/.test(k)));
+      /*
+       * UND JEDES BILD TRAEGT SEINEN TEXT. Ein Bild ohne Erklaerung ist
+       * Dekoration; genau das sollen diese Skizzen nicht sein.
+       */
+      wahr('Jede Skizze hat Bild und Text',
+           Object.keys(SK.SKIZZEN).every((k) => {
+             const s = SK.skizzeFuer(k);
+             return s?.svg?.includes('<svg') && (s.text ?? '').length > 40;
+           }));
+    }
   }
 
   // --- In der Ausleitung ---------------------------------------------------
@@ -14869,8 +14943,19 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const r = readFileSync(new URL('./js/ui.js', import.meta.url), 'utf8');
     wahr('Die Mastnotiz unter der Leiste ist raus',
          !r.includes('mastenNotizHtml') && !r.includes('qp-mast-notiz'));
-    wahr('… und die Mastzeile traegt die Angabe',
-         r.includes('qp-mastzeile') && r.includes('ohne Profil'));
+    /*
+     * SEIT DEM 11. SEPTEMBER STEHEN ALLE MASTEN IN EINER ZEILE (Weisung:
+     * «ordne dies kompakter ... fuer die masten und anker kann man die
+     * vertikal anschreiben, dann braucht man nicht fuer jedes element nicht
+     * eine separate zeile»). Die Klasse heisst deshalb `qp-mastreihe`; die
+     * Angabe steht im Titel jedes Dreiecks, samt Profil.
+     */
+    wahr('… und die Mastreihe traegt die Angabe',
+         r.includes('qp-mastreihe') && r.includes('ohne Profil'));
+    wahr('… und jeder Mast ist einzeln anwaehlbar',
+         r.includes('data-qp-mast='));
+    wahr('… und sein Anker haengt daran',
+         r.includes('qp-ankerstrich') && r.includes('data-qp-anker='));
   }
 
   /*
