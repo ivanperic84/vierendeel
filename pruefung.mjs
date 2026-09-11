@@ -12837,8 +12837,20 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     // rastet grob, das Zahlenfeld daneben auf den Zentimeter.
     const grob = FELDER.filter((f) => f.zugSchritt);
     wahr('Es gibt Felder mit grober Ziehstufe', grob.length >= 4);
-    wahr('Sie rasten am Schieber auf den halben Meter',
-         grob.every((f) => f.zugSchritt === 0.5));
+    /*
+     * >>> DER HALBE METER GILT FUER LAENGEN. <<<
+     *
+     * Weisung vom 11. September: der Anker traegt jetzt auch seine NEIGUNG
+     * als Schieber, und die rastet auf fuenf Grad. Hier stand «alle Felder
+     * mit Ziehstufe rasten auf 0.5» - richtig, solange alle in Metern
+     * massen. Die Regel bleibt, ihr Geltungsbereich steht jetzt dabei.
+     */
+    const inMetern = grob.filter((f) => f.einheit === 'm');
+    wahr('Die Laengen rasten am Schieber auf den halben Meter',
+         inMetern.length >= 4 && inMetern.every((f) => f.zugSchritt === 0.5));
+    wahr('… und der Winkel auf fuenf Grad',
+         grob.filter((f) => f.einheit === '°')
+             .every((f) => f.zugSchritt === 5));
     wahr('… und im Feld feiner',
          grob.every((f) => f.schritt < f.zugSchritt));
     wahr('Die Jochlaenge ist darunter',
@@ -13356,6 +13368,74 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
            CC2.setzeMastAnker(basis, 'M9', { typ: 'U12' }) === basis);
       wahr('Die eigenen Felder des Masten sind benannt',
            CC2.MAST_EIGEN.includes('anker'));
+
+      /*
+       * >>> WOMIT EIN NEUER ANKER ANFAENGT. <<<
+       *
+       * Weisung vom 11. September: «als voreinstellwerte die anker sind im
+       * abstand von 4.50 m (fundamente). der anker hat einen winkel von ca
+       * 60°.»
+       *
+       * Der Winkel zaehlt gegen die WAAGRECHTE. Bei 60 Grad ist der Stab
+       * genau doppelt so lang wie der Abstand - das ist die Probe, die
+       * beide Angaben zugleich prueft.
+       */
+      const aq60 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+      const zahl = (n) => {
+        const m2 = aq60.match(new RegExp(`const ${n} = ([0-9.]+);`));
+        return m2 ? Number(m2[1]) : NaN;
+      };
+      pruef('Der Fundamentabstand ist voreingestellt',
+            zahl('ANKER_ABSTAND_VOR'), 4.5, 1e-12, 'm');
+      pruef('Und die Neigung', zahl('ANKER_WINKEL_VOR'), 60, 1e-12, '°');
+      {
+        const a0 = zahl('ANKER_ABSTAND_VOR'), g0 = zahl('ANKER_WINKEL_VOR');
+        const h0 = Math.round(a0 * Math.tan((g0 * Math.PI) / 180) * 100) / 100;
+        const g1 = AN.ankerGeometrie(h0, a0);
+        pruef('Daraus folgt die Anschlusshoehe', h0, 7.79, 0.005, 'm');
+        pruef('… und die Stablaenge ist das Doppelte des Abstands',
+              g1.L, 2 * a0, 0.005, 'm');
+        pruef('… mit der Neigung, die dastand', g1.alpha, g0, 0.05, '°');
+        /*
+         * SIE LIEGT IM SORTIMENT - und zwar nicht am Rand. In der Kappung
+         * unter sechs Metern sagt die Kurve nichts mehr aus; dort steht
+         * der Querschnitt, nicht das Knicken.
+         */
+        const t12 = AN.getAnkerTyp('U12');
+        wahr('Die Stablaenge liegt im Sortiment',
+             g1.L <= t12.laengeMax + 1e-9 && g1.L > t12.druck.kappungAb,
+             `${g1.L.toFixed(2)} m in 5.95 bis ${t12.laengeMax} m`);
+        pruef('Der U12 traegt dort 60 kN Druck',
+              AN.ankerZulDruck('U12', g1.L), 60, 0.5, 'kN');
+      }
+      /*
+       * DER SCHIEBER FUER DIE NEIGUNG SPEICHERT NICHTS. Sie folgt aus
+       * Hoehe und Abstand; zwei Speicherorte fuer dieselbe Groesse laufen
+       * auseinander. Deshalb steht `ankerWinkel` NICHT in ANKERFELDER.
+       */
+      wahr('Der Winkel wird nicht gespeichert',
+           /const ANKERFELDER = \{[^}]*\}/.test(aq60)
+           && !/ankerWinkel: '/.test(aq60));
+      wahr('… sondern verstellt die Hoehe',
+           /if \(key === 'ankerWinkel'\)/.test(aq60));
+      /*
+       * >>> UND DIE EBENE FAENGT DORT AN, WO SIE WIRKT. <<<
+       *
+       * Ein schraeger Stab haelt nur die Ebene, in der er liegt. Am
+       * Tragjoch kippt die Umlenkkraft den Masten quer zum Gleis, am
+       * Abfangjoch steht die grosse Kraft laengs. Ohne diese
+       * Unterscheidung setzt man am Abfangjoch einen Anker und sieht eine
+       * Null - genau das ist am 10. September passiert.
+       *
+       * Im Browser gemessen, A240 mit Leiter bei x = 10.00 und den
+       * Voreinstellwerten 4.50 m / 60 Grad: eta M3 von 2.205 auf 0.234,
+       * der Anker selbst bei 0.509.
+       */
+      wahr('Die voreingestellte Ebene folgt der Tragwerksart',
+           /const ankerRichtungVor = /.test(aq60)
+           && /abfangjoch' \? 'y' : 'x'/.test(aq60));
+      wahr('… und sie wird beim Setzen angewandt',
+           /richtung: ankerRichtungVor\(werte\)/.test(aq60));
     }
 
     /*

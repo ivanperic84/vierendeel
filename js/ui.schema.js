@@ -789,20 +789,45 @@ export const FELDER = [
            + 'nimmt Zug und Druck, der Seilanker nur Zug.' },
   { key: 'ankerH', gruppe: 'mast', typ: 'schieber',
     label: 'Anschlusshöhe des Ankers am Masten',
-    sym: 'h_A', einheit: 'm', standard: 4.0, schritt: 0.05, zugSchritt: 0.5,
-    min: 0.5, max: 20, wertAus: amAnker('h', 4.0),
+    sym: 'h_A', einheit: 'm', standard: 7.79, schritt: 0.05, zugSchritt: 0.5,
+    min: 0.5, max: 20, wertAus: amAnker('h', 7.79),
     sichtbar: ankerDa,
     hinweis: 'Über dem Mastfuss gemessen — dem Referenzpunkt des Modells. '
            + 'Tief angeschlossen wird der Stab flacher und damit wirksamer.' },
   { key: 'ankerA', gruppe: 'mast', typ: 'schieber',
     label: 'Abstand des Ankerfundaments',
-    sym: 'a_A', einheit: 'm', standard: 3.0, schritt: 0.05, zugSchritt: 0.5,
-    min: 0.5, max: 20, wertAus: amAnker('a', 3.0),
+    sym: 'a_A', einheit: 'm', standard: 4.5, schritt: 0.05, zugSchritt: 0.5,
+    min: 0.5, max: 20, wertAus: amAnker('a', 4.5),
+    sichtbar: ankerDa,
+    hinweis: 'Waagrecht vom Mastfuss bis zum Ankerfundament. Das ist die '
+           + 'Angabe, die auf dem Plan steht: dort wird das Fundament '
+           + 'gesetzt. Voreingestellt sind 4.50 m.' },
+  /*
+   * >>> DER WINKEL IST EINE EINGABE, ABER KEINE ANGABE. <<<
+   *
+   * Weisung vom 11. September: «der anker hat einen winkel von ca 60°.» So
+   * denkt man ueber einen Anker - nicht in Hoehe und Abstand, sondern in
+   * seiner Neigung.
+   *
+   * Gespeichert wird er NICHT: er folgt aus Hoehe und Abstand, und zwei
+   * Speicherorte fuer dieselbe Groesse laufen auseinander. Wer ihn
+   * eintraegt, verstellt damit die HOEHE; der Abstand bleibt stehen.
+   */
+  { key: 'ankerWinkel', gruppe: 'mast', typ: 'schieber',
+    label: 'Neigung des Ankers',
+    sym: 'α', einheit: '°', standard: 60, schritt: 1, zugSchritt: 5,
+    min: 5, max: 85,
+    wertAus: (w) => {
+      const ak = gewaehlterMast(w)?.anker;
+      const h = Number(ak?.h) || 0, a = Number(ak?.a) || 0;
+      return a > 0 && h > 0
+        ? Math.round((Math.atan2(h, a) * 180) / Math.PI) : 60;
+    },
     sichtbar: ankerDa,
     notiz: ankerNotiz,
-    hinweis: 'Waagrecht vom Mastfuss bis zum Ankerfundament, quer zum Gleis. '
-           + 'Je weiter weg, desto flacher der Stab — und desto kleiner '
-           + 'seine Kraft für dieselbe Wirkung.' },
+    hinweis: 'Gegen die WAAGRECHTE gemessen. Bei 60° ist der Stab genau '
+           + 'doppelt so lang wie der Abstand seines Fundaments. Ziehen '
+           + 'verstellt die Anschlusshöhe am Masten — der Abstand bleibt.' },
   /*
    * >>> IN WELCHER EBENE ER LIEGT. <<<
    *

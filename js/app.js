@@ -1553,6 +1553,24 @@ function aendern(key, wert) {
    * ganze Anker, nicht nur sein Typ - ein halber Anker waere weder zu
    * zeichnen noch nachzuweisen.
    */
+  if (key === 'ankerWinkel') {
+    /*
+     * DER WINKEL VERSTELLT DIE HOEHE. Er wird nicht gespeichert - siehe
+     * ANKER_WINKEL. Aus dem Rahmen faellt er nicht: unter 5 und ueber
+     * 85 Grad ist ein Anker keiner mehr, und die Hoehe liefe gegen null
+     * oder ins Unendliche.
+     */
+    const id = werte.mastAktiv ?? gewaehlterMast(werte)?.id;
+    const alt = id ? (mastenVon(werte).find((m) => m.id === id)?.anker ?? null)
+                   : null;
+    if (!alt?.typ) { neuRechnen(); return; }
+    const g = Math.max(5, Math.min(85, Number(wert) || 0));
+    const h = Math.round((Number(alt.a) || 0)
+                         * Math.tan((g * Math.PI) / 180) * 100) / 100;
+    werte = setzeMastAnker(werte, id, { ...alt, h });
+    neuRechnen();
+    return;
+  }
   if (ANKERFELDER[key]) {
     const id = werte.mastAktiv ?? gewaehlterMast(werte)?.id;
     if (!id) { neuRechnen(); return; }
@@ -1561,7 +1579,8 @@ function aendern(key, wert) {
       werte = setzeMastAnker(werte, id, null);
     } else {
       werte = setzeMastAnker(werte, id,
-        { ...ANKER_STANDARD, ...(alt ?? {}), [ANKERFELDER[key]]: wert });
+        { ...ANKER_STANDARD, richtung: ankerRichtungVor(werte),
+          ...(alt ?? {}), [ANKERFELDER[key]]: wert });
     }
     neuRechnen();
     return;
@@ -2663,11 +2682,72 @@ const ANKERFELDER = {
   ankerRichtung: 'richtung', ankerSeite: 'seite', ankerBef: 'befestigung',
 };
 
-/** Womit ein neu gesetzter Anker anfaengt, bis jemand die Masse eintraegt. */
-const ANKER_STANDARD = {
-  typ: 'U12', h: 4.0, a: 3.0, richtung: 'x', seite: 'plus',
-  befestigung: 'ankerplatte',
+/**
+ * >>> DER WINKEL IST EINE EINGABE, ABER KEINE ANGABE. <<<
+ *
+ * Weisung vom 11. September: «der anker hat einen winkel von ca 60 Grad.»
+ * So denkt man ueber einen Anker - nicht in Hoehe und Abstand, sondern in
+ * seiner Neigung.
+ *
+ * Gespeichert wird er trotzdem NICHT: er folgt aus Hoehe und Abstand, und
+ * zwei Speicherorte fuer dieselbe Groesse laufen auseinander. Wer ihn
+ * eintraegt, verstellt damit die HOEHE - der Abstand bleibt, denn er sagt,
+ * wo das Fundament steht, und das ist die Angabe, die auf dem Plan steht.
+ */
+const ANKER_WINKEL = (ak) => {
+  const h = Number(ak?.h) || 0, a = Number(ak?.a) || 0;
+  return a > 0 && h > 0 ? (Math.atan2(h, a) * 180) / Math.PI : 0;
 };
+
+/** Womit ein neu gesetzter Anker anfaengt, bis jemand die Masse eintraegt. */
+/* ===========================================================================
+ * WOMIT EIN NEUER ANKER ANFAENGT
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «als voreinstellwerte die anker sind im abstand
+ * von 4.50 m (fundamente). der anker hat einen winkel von ca 60 Grad.»
+ *
+ * >>> DIE BEIDEN ANGABEN BESTIMMEN DIE HOEHE. <<<
+ *
+ * Der Winkel zaehlt gegen die WAAGRECHTE. Mit 4.50 m Abstand folgt
+ *
+ *      h = a · tan 60° = 7.79 m        L = a / cos 60° = 2a = 9.00 m
+ *
+ * Die Laenge geht glatt auf - bei 60 Grad ist sie genau das Doppelte des
+ * Abstands -, sie liegt mitten im Sortimentsbereich (5 bis 12.50 m), und
+ * der Anschluss sitzt auf der Hoehe, auf der auch das Joch angreift. Alle
+ * drei sprechen fuer diese Lesart; gegen die Lotrechte gemessen waere die
+ * Stuetze 5.20 m lang und stuende in der Kappung des Diagramms, wo die
+ * Kurve nichts mehr aussagt.
+ * ======================================================================== */
+const ANKER_WINKEL_VOR = 60;
+const ANKER_ABSTAND_VOR = 4.5;
+const ANKER_STANDARD = {
+  typ: 'U12',
+  a: ANKER_ABSTAND_VOR,
+  h: Math.round(ANKER_ABSTAND_VOR
+                * Math.tan((ANKER_WINKEL_VOR * Math.PI) / 180) * 100) / 100,
+  richtung: 'x', seite: 'plus', befestigung: 'ankerplatte',
+};
+
+/**
+ * >>> UND DIE EBENE FOLGT DER TRAGWERKSART. <<<
+ *
+ * Ein schraeger Stab haelt nur die Ebene, in der er liegt. Am TRAGJOCH
+ * kippt die Umlenkkraft aus dem Bogen den Masten quer zum Gleis - dort
+ * gehoert der Anker in die Jochachse. Am ABFANGJOCH steht die grosse Kraft
+ * LAENGS, der Leiterzug, und ein Anker quer dazu haelt davon nichts.
+ *
+ * Ohne diese Unterscheidung setzt man am Abfangjoch einen Anker und sieht
+ * eine Null: die Kraft ist null, der Mast bleibt ueberlastet, und woran es
+ * liegt, sieht man dem Bild nicht an. Genau das ist am 10. September
+ * passiert - eta 2.205, und der Anker aenderte nichts daran.
+ *
+ * Es bleibt eine VOREINSTELLUNG: wer den Anker anders stellen will, stellt
+ * ihn anders. Sie soll nur nicht dort anfangen, wo er nutzlos ist.
+ */
+const ankerRichtungVor = (w) =>
+  (tragwerksart(w).key === 'abfangjoch' ? 'y' : 'x');
 
 /**
  * DER NACHWEIS DER ANKER UND DRUCKSTUETZEN.
