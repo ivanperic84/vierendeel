@@ -1200,7 +1200,26 @@ ${skizze('Links durchgehend: Hebelarm h. Rechts einseitig: nur noch der Gurtabst
     `<line class="b" x1="344" y1="146" x2="344" y2="212"/>`,
     knoten(344, 212, 4.4),
     pf(344, 212, 404, 212), txt(408, 216, 'F_y', 'acc', 'start'),
-    pf(296, 142, 296, 112), pf(392, 150, 392, 194),
+    /*
+     * >>> DER DREHSINN FOLGT DER KRAFT. <<<
+     *
+     * Weisung vom 11. September: «hier sollten die verikalen richtungen
+     * vertauscht werden. sonst stimmt es nicht mit dem drehsinn infolge der
+     * karft f.»
+     *
+     * F_y greift UNTER der Gurtebene an und zeigt nach rechts. Das
+     * Torsionsmoment um die Jochachse ist damit
+     *
+     *     M_x = − z · F_y = −(−a)·F = +a·F     (z nach oben, a > 0)
+     *
+     * Das Kraeftepaar der beiden Gurtpunkte muss dasselbe liefern:
+     *
+     *     M_x = Σ (y · F_z) = (−b/2)·F_z,links + (+b/2)·F_z,rechts
+     *
+     * Fuer M_x > 0 heisst das: RECHTS nach oben, LINKS nach unten. Hier
+     * stand es umgekehrt - die Skizze zeigte den Gegendrehsinn.
+     */
+    pf(296, 142, 296, 190), pf(392, 150, 392, 106),
     txt(344, 62, '&Delta;F_z = T_d / b', 'acc'),
     txt(344, 80, 'gr&ouml;sser, weil b &lt; h', 'dim'),
     pf(344, 176, 296, 176, 'm'), pf(344, 176, 392, 176, 'm'),

@@ -1850,6 +1850,39 @@ titel('29  Handbuch');
    */
   wahr('Handbuch enthält siebzehn Skizzen',
        (html.match(/<figure class="skizze hb-skizze">/g) ?? []).length === 17);
+  /* =========================================================================
+   * DER DREHSINN DES EINSEITIGEN ANSCHLUSSES
+   * =========================================================================
+   *
+   * Weisung vom 11. September: «hier sollten die verikalen richtungen
+   * vertauscht werden. sonst stimmt es nicht mit dem drehsinn infolge der
+   * karft f.»
+   *
+   * Die Skizze zeigte F_y nach rechts, unter der Gurtebene angreifend - und
+   * dazu ein Kraeftepaar, das in den GEGENdrehsinn zeigte. Das Gleichgewicht
+   * um die Jochachse verlangt
+   *
+   *     M_x = −z·F_y = +a·F   und   M_x = Σ(y·F_z)
+   *
+   * also RECHTS nach oben und LINKS nach unten. Gepruef wird am gezeichneten
+   * SVG: der linke Pfeil laeuft abwaerts (y waechst), der rechte aufwaerts.
+   */
+  {
+    // Der Abschnitt heisst `einleitung` - Lasteinleitung der Anbauteile.
+    const s5 = HB.HANDBUCH.find((x) => x.id === 'einleitung')?.html ?? '';
+    const paar = [...s5.matchAll(
+      /<line class="k" x1="(296|392)" y1="(\d+)" x2="\d+" y2="(\d+)"/g)];
+    wahr('Das Kraeftepaar des einseitigen Anschlusses steht da',
+         paar.length === 2, `${paar.length} Pfeile`);
+    if (paar.length === 2) {
+      const links = paar.find((m2) => m2[1] === '296');
+      const rechts = paar.find((m2) => m2[1] === '392');
+      wahr('… links zeigt nach unten', +links[3] > +links[2],
+           `y ${links[2]} → ${links[3]}`);
+      wahr('… rechts zeigt nach oben', +rechts[3] < +rechts[2],
+           `y ${rechts[2]} → ${rechts[3]}`);
+    }
+  }
   wahr('Keine Skizze hat unberechnete Koordinaten',
        !/NaN|undefined/.test(html));
   ['achsen', 'einwirkungen', 'system', 'querschnitt', 'vierendeel',
