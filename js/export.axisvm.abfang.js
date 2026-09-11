@@ -689,6 +689,38 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     }
   }
 
+  /* =========================================================================
+   * >>> IM GABELBEREICH TRAEGT DIE GABEL, ALSO HAENGT DORT ALLES AN IHR. <<<
+   * =========================================================================
+   *
+   * Befund vom 11. September, am Modell in AxisVM gesehen: das Endblech
+   * stand IN DER LUFT - ohne Verbindung zu den Traegern.
+   *
+   * Der Grund liegt im Gabelbereich. Dort laeuft der Gurtstab bewusst NICHT
+   * weiter (siehe `inGabel` oben): an seine Stelle tritt der Verbundstab
+   * GABEL, und der liegt auf DESSEN Schwerachse - um die halbe Flanschbreite
+   * weiter aussen. Die Knoten `V_x`/`H_x` an einer Station MITTEN im Bereich
+   * bleiben damit uebrig: sie werden zwar angelegt, aber kein Stab beruehrt
+   * sie mehr. Ein Blech, das sich daran haengt, haengt an nichts.
+   *
+   * Gemessen an A240/12.5 m: das Endblech sitzt bei x = 1.380 m, der
+   * Gabelbereich reicht von 0.850 bis 1.465 m. Ebenso A160 und A200; A270
+   * entging es nur, weil sein Endblech ausserhalb des Bereichs faellt.
+   *
+   * `anschlussKnoten` beantwortet deshalb die Frage, an die sich alles
+   * Angehaengte zu halten hat: WO liegt an dieser Station die tragende
+   * Gurtachse? Im Gabelbereich ist das die Gabel, sonst der Gurt. An den
+   * beiden Bereichsenden sind beide ueber `GARM` starr gekoppelt - dort ist
+   * die Wahl gleichgueltig, und der einheitlichen Regel zuliebe faellt sie
+   * auf die Gabel.
+   * ======================================================================= */
+  const imGabelbereich = (x) => gabelQs
+    && gBereiche.some(([u, o]) => x >= u - 1e-9 && x <= o + 1e-9);
+  const anschlussKnoten = (g, i) => (imGabelbereich(xs[i])
+    ? `G${g}_${xs[i].toFixed(3)}` : nm(g, i));
+  /** Abstand der tragenden Achse von der Traegermitte [m] an Station i. */
+  const yAnschluss = (i) => eAn(xs[i]) / 2 + (imGabelbereich(xs[i]) ? yv : 0);
+
   /*
    * >>> EIN RIEGEL, DREI STAEBE: STARR - BAUTEIL - STARR. <<<
    *
@@ -710,8 +742,10 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const riegel = (name, qsName, i, zo, lmm, lcsZ) => {
     const x = xs[i];
     const halb = (Number(lmm) || 0) / 2000;          // halbe Bauteillaenge [m]
-    if (!(km === 'anschnitt' && halb > 0 && halb < eAn(x) / 2)) {
-      staebe.push({ name, von: nm('H', i), bis: nm('V', i),
+    // Beide Enden an die TRAGENDE Achse - im Gabelbereich ist das die Gabel.
+    const [nH, nV] = [anschlussKnoten('H', i), anschlussKnoten('V', i)];
+    if (!(km === 'anschnitt' && halb > 0 && halb < yAnschluss(i))) {
+      staebe.push({ name, von: nH, bis: nV,
                     querschnitt: qsName, steifesMaterial: false, lcsZ,
                     gelenkAnfang: null, gelenkEnde: null, art: 'stab' });
       return;
@@ -719,13 +753,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     const na = `${name}_a`, nb2 = `${name}_b`;
     knoten.push({ name: na, x, y: -halb, z: zo },
                 { name: nb2, x, y: halb, z: zo });
-    staebe.push({ name: `${name}_1`, von: nm('H', i), bis: na,
+    staebe.push({ name: `${name}_1`, von: nH, bis: na,
                   querschnitt: qsName, steifesMaterial: false, lcsZ,
                   gelenkAnfang: null, gelenkEnde: null, art: 'starr' });
     staebe.push({ name: `${name}_2`, von: na, bis: nb2,
                   querschnitt: qsName, steifesMaterial: false, lcsZ,
                   gelenkAnfang: null, gelenkEnde: null, art: 'stab' });
-    staebe.push({ name: `${name}_3`, von: nb2, bis: nm('V', i),
+    staebe.push({ name: `${name}_3`, von: nb2, bis: nV,
                   querschnitt: qsName, steifesMaterial: false, lcsZ,
                   gelenkAnfang: null, gelenkEnde: null, art: 'starr' });
   };
@@ -964,7 +998,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
          * y = ±e/2; das Link ueberbrueckt die letzten 50 mm davor.
          */
         staebe.push({
-          name: `LINK_${ende}${g}`, von: kKons, bis: nm(g, i),
+          // Auch das Auflager haengt an der tragenden Achse.
+          name: `LINK_${ende}${g}`, von: kKons, bis: anschlussKnoten(g, i),
           querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
           gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
           kraftuebertragung: linkBedingung(opt, 'abfangjoch', g),
@@ -983,7 +1018,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     knoten.push({ name: kA, x: xs[i], y: 0, z: 0 });
     for (const g of ['V', 'H']) {
       staebe.push({
-        name: `SCHOTT_${ende}${g}`, von: kA, bis: nm(g, i),
+        name: `SCHOTT_${ende}${g}`, von: kA, bis: anschlussKnoten(g, i),
         querschnitt: 'GURT', steifesMaterial: false,
         lcsZ: [0, 0, 1],
         /*
@@ -1083,7 +1118,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const leiterAusAnbau = anbau.some((t2) => abfangAnbindung(t2).art === 'mitte');
   if (!leiterAusAnbau) {
     for (const g of ['V', 'H']) {
-      punkt.push({ name: `FH_${g}`, knoten: nm(g, mitte), richtung: 'Y',
+      punkt.push({ name: `FH_${g}`, knoten: anschlussKnoten(g, mitte),
+                   richtung: 'Y',
                    wert: Fh / 2, lastfall: 'Leiterzug' });
     }
   }
@@ -1122,7 +1158,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     const seiten = an.art === 'mitte' ? [an.seite] : ['V', 'H'];
     seiten.forEach((g) => {
       staebe.push({
-        name: `ATARM_${j + 1}${g}`, von: knA, bis: nm(g, i),
+        // Ein Anbauteil im Gabelbereich greift an der Gabel an.
+        name: `ATARM_${j + 1}${g}`, von: knA, bis: anschlussKnoten(g, i),
         querschnitt: 'GURT', steifesMaterial: false,
         lcsZ: [0, 0, 1], gelenkAnfang: null, gelenkEnde: null, art: 'starr',
       });

@@ -6788,6 +6788,71 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
      * bekommt weiterhin einen Auflagerpunkt je Ende - die Weisung vom
      * 4. September gilt unveraendert fort.
      */
+    /* =====================================================================
+     * >>> KEIN ANSCHLUSS DARF IN DER LUFT HAENGEN. <<<
+     * =====================================================================
+     *
+     * Befund vom 11. September, am Modell in AxisVM gesehen: das Endblech
+     * stand frei im Raum, ohne Verbindung zu den Traegern.
+     *
+     * Der Grund war der Gabelbereich. Dort laeuft der Gurtstab bewusst
+     * nicht weiter - an seiner Stelle traegt der Verbundstab GABEL, und der
+     * liegt auf einer eigenen Achse. Die Knoten V_x / H_x an einer Station
+     * MITTEN im Bereich blieben uebrig: angelegt, aber von keinem Stab mehr
+     * beruehrt. Das Blech hing daran und damit an nichts.
+     *
+     * >>> DIE REGEL, NICHT DER EINZELFALL. <<<
+     *
+     * Geprueft wird deshalb nicht die eine Stelle, sondern der Satz: JEDER
+     * Knoten, an dem etwas angeschlossen ist, muss auch von einem tragenden
+     * Laengsbauteil beruehrt werden - Gurt, Gabel oder Uebergangsarm.
+     * Ausgenommen sind allein die Knoten IM Bauteil (`_a`/`_b`), der
+     * Auflagerpunkt und der Mast: die tragen ihre Aufgabe selbst.
+     *
+     * Gelaufen ueber alle Typen und Laengen - der Gabelbereich liegt fest,
+     * die Blechstationen wandern mit der Laenge, und ob beide aufeinander
+     * treffen, entscheidet sich erst im Einzelfall. A270 entging dem Fehler
+     * nur, weil sein Endblech neben den Bereich faellt.
+     * =================================================================== */
+    let geprueft = 0;
+    const haengend = [];
+    for (const t of AJ.abfangjoche()) {
+      const typ = t.typ ?? t.id;
+      let bereich;
+      try { bereich = AJ.abfangLaengenbereich(typ); } catch { continue; }
+      for (let L = bereich.min; L <= bereich.max + 1e-9; L += 0.5) {
+        const jl = Math.round(L * 100) / 100;
+        let mo;
+        try { mo = AXA2.abfangAxisvmModell(typ, jl, {}); } catch { continue; }
+        geprueft++;
+        const anKnoten = new Map();
+        for (const s of mo.staebe) for (const k of [s.von, s.bis]) {
+          if (!anKnoten.has(k)) anKnoten.set(k, []);
+          anKnoten.get(k).push(s.name);
+        }
+        for (const [k, liste] of anKnoten) {
+          if (/_a$|_b$/.test(k) || /^AUFL_/.test(k) || /^MAST_/.test(k)) continue;
+          if (liste.some((n2) => /^[VH]_S\d|^GABEL_|^GARM_/.test(n2))) continue;
+          haengend.push(`${typ}/${jl} m: ${k}`);
+        }
+      }
+    }
+    wahr(`Kein Anschlussknoten ohne tragendes Laengsbauteil (${geprueft} Modelle)`,
+         haengend.length === 0, haengend.slice(0, 3).join('; '));
+    /*
+     * UND DIE STELLE SELBST, mit Mass: das Endblech von A240/12.5 m sitzt
+     * bei x = 1.380 m, mitten im Gabelbereich 0.850 … 1.465 m. Es haengt an
+     * der Gabelachse - um die halbe Flanschbreite weiter aussen als der
+     * Gurt, deshalb GV_/GH_ und nicht V_/H_.
+     */
+    const a240 = AXA2.abfangAxisvmModell('A240', 12.5, {});
+    const endblech = a240.staebe.find((s) => s.name === 'BL_O0_3');
+    wahr('Das Endblech im Gabelbereich haengt an der Gabel',
+         endblech?.bis === 'GV_1.380', String(endblech?.bis));
+    wahr('… und der Gabelstab beruehrt denselben Knoten',
+         a240.staebe.some((s) => /^GABEL_V/.test(s.name)
+                              && (s.von === 'GV_1.380' || s.bis === 'GV_1.380')));
+
     const jo = AXA2.abfangAxisvmModell('A240', 12.5, {});
     wahr('Ohne Mastangabe lagert es weiter auf Punkten',
          jo.auflager.every((a) => a.modell === 'punkt')
