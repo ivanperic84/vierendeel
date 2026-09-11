@@ -61,7 +61,9 @@ export function linienDiagramm(o) {
   // Grenzwert
   if (o.grenze !== undefined) {
     g += `<line class="grenze" x1="${n(mL)}" y1="${n(Y(o.grenze))}" x2="${n(W - mR)}" y2="${n(Y(o.grenze))}"/>`;
-    g += `<text class="grenze-txt" x="${n(W - mR - 4)}" y="${n(Y(o.grenze) - 5)}" text-anchor="end">η = ${o.grenze}</text>`;
+    // «η = 1» passt nur zum Ausnutzungsdiagramm. Wo die Grenze etwas
+    // anderes ist - die vorhandene Stabkraft etwa -, sagt `grenzeText` es.
+    g += `<text class="grenze-txt" x="${n(W - mR - 4)}" y="${n(Y(o.grenze) - 5)}" text-anchor="end">${esc(o.grenzeText ?? `η = ${o.grenze}`)}</text>`;
   }
 
   // Serien
@@ -69,6 +71,36 @@ export function linienDiagramm(o) {
     const d = xs.map((x, i) => `${i ? 'L' : 'M'}${n(X(x))},${n(Y(s.werte[i]))}`).join(' ');
     g += `<path class="serie ${s.cls ?? 'serie-' + (k + 1)}" d="${d}"/>`;
   });
+
+  /* =======================================================================
+   * >>> DIE MARKE: EIN PUNKT AUF DER KURVE. <<<
+   * =======================================================================
+   *
+   * Weisung vom 11. September: «es sind noch sinnvolle diagramme (sidebar /
+   * verlaeufe) fuer die druckstuetze und abfangjoch nachzuziehen.»
+   *
+   * Das Bemessungsdiagramm der Stuetze ist erst dann eine Auskunft, wenn man
+   * SEINEN Punkt darauf sieht: die Kurve allein sagt, was zulaessig ist,
+   * nicht ob es reicht. Mit Fadenkreuz auf beide Achsen - sonst muesste man
+   * die Laenge unten und die Kraft links selbst ablesen.
+   * ===================================================================== */
+  if (o.marke && Number.isFinite(o.marke.x) && Number.isFinite(o.marke.y)) {
+    const mx = X(o.marke.x), my = Y(o.marke.y);
+    g += `<line class="marke-faden" x1="${n(mL)}" y1="${n(my)}"`
+       + ` x2="${n(mx)}" y2="${n(my)}"/>`;
+    g += `<line class="marke-faden" x1="${n(mx)}" y1="${n(my)}"`
+       + ` x2="${n(mx)}" y2="${n(H - mB)}"/>`;
+    g += `<circle class="marke${o.marke.schlecht ? ' nok' : ''}"`
+       + ` cx="${n(mx)}" cy="${n(my)}" r="4.5"/>`;
+    if (o.marke.text) {
+      // Nach links kippen, wenn der Punkt rechts steht - sonst laeuft die
+      // Beschriftung aus dem Bild.
+      const rechts = mx > (W + mL) / 2;
+      g += `<text class="marke-txt" x="${n(mx + (rechts ? -9 : 9))}"`
+         + ` y="${n(my - 9)}" text-anchor="${rechts ? 'end' : 'start'}"`
+         + `>${esc(o.marke.text)}</text>`;
+    }
+  }
 
   // Legende - ANKLICKBAR, wo es ein Kraftbild dazu gibt.
   // Der unsichtbare Rechteckdeckel ist die Trefferfläche: eine Textzeile von
@@ -189,6 +221,141 @@ export function abfangDiagramme(ab, breite = 900) {
         { name: 'Bindeblech (nächstgelegenes)', werte: etaBlech,
           skizze: 'eta' },
       ],
+    }),
+  };
+}
+
+/* ===========================================================================
+ * DAS BEMESSUNGSDIAGRAMM DER DRUCKSTUETZE
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «es sind noch sinnvolle diagramme (sidebar /
+ * verlaeufe) fuer die druckstuetze und abfangjoch nachzuziehen.»
+ *
+ * >>> WARUM GERADE DIESES. <<<
+ *
+ * Der Nachweis der Stuetze IST eine Kurve - das Sortimentsblatt traegt die
+ * zulaessige Druckkraft ueber die Laenge auf, und das Werkzeug interpoliert
+ * darin. Wer nur «eta 0.27» liest, sieht nicht, WO er auf dieser Kurve steht:
+ * ob eine halbe Meter mehr Laenge nichts ausmacht oder den Nachweis kippt.
+ *
+ * Die Kurve faellt steil ab. Bei U12 gibt das Blatt zwischen 6 und 10 m
+ * 135 auf 48.7 kN - ueber ein Drittel der Laenge zwei Drittel der Tragkraft.
+ * Genau das zeigt das Bild, und eine Zahl kann es nicht.
+ *
+ * >>> DREI LINIEN, UND JEDE SAGT ETWAS ANDERES. <<<
+ *
+ *   ZULAESSIG      die Kurve des Blattes, Stuetzstelle fuer Stuetzstelle
+ *   VORHANDEN      die Stabkraft dieser Anordnung, als waagrechte Grenze
+ *   KNICKEN        die Kontrollrechnung senkrecht zur Spreizebene
+ *                  (`ankerKnicken`) - sie liegt hoch, und dass sie hoch
+ *                  liegt, ist die Aussage: massgebend ist die andere
+ *                  Richtung, und die steckt in der Blattkurve.
+ *
+ * Auf ZUG gibt es das Diagramm nicht: dort haengt die zulaessige Kraft an der
+ * Befestigung, nicht an der Laenge, und eine Kurve ueber L waere eine
+ * Waagrechte ohne Aussage.
+ * ========================================================================= */
+
+/**
+ * Das Bemessungsdiagramm einer Druckstuetze mit ihrem Arbeitspunkt.
+ *
+ * @param {object} e       Eintrag aus `erg.anker[ende]`
+ * @param {object} sortiment  {L: number[], N: number[]} des Typs
+ * @param {object} opt     {breite, name, laengeMax, knickKurve}
+ * @returns {string|null}  null auf Zug und ohne Kurve
+ */
+export function ankerDiagramm(e, sortiment, opt = {}) {
+  const nw = e?.nachweis;
+  if (!nw || nw.N >= 0) return null;               // Zugstab: keine Kurve
+  const L = Array.isArray(sortiment?.L) ? sortiment.L : null;
+  const N = Array.isArray(sortiment?.N) ? sortiment.N : null;
+  if (!L || !N || L.length !== N.length || L.length < 2) return null;
+
+  const vorh = Math.abs(nw.N);
+  const serien = [{ name: `zulässig nach Blatt · ${nw.typ}`, werte: N,
+                    skizze: null }];
+  /*
+   * DIE KONTROLLKURVE wird auf DENSELBEN Stuetzstellen ausgewertet - zwei
+   * x-Achsen in einem Bild waeren keine Auskunft. Sie ist ein
+   * BEMESSUNGSwert und die Blattkurve eine zulaessige Kraft; dass sie nicht
+   * dieselbe Groesse sind, sagt die Legende.
+   */
+  if (typeof opt.knickKurve === 'function') {
+    const k = L.map((l) => opt.knickKurve(l));
+    if (k.every(Number.isFinite)) {
+      serien.push({ name: 'N_b,Rd senkrecht zur Spreizebene (Kontrolle)',
+                    werte: k, cls: 'serie-4', skizze: null });
+    }
+  }
+  return linienDiagramm({
+    titel: `Bemessungsdiagramm ${nw.typ}${opt.name ? ` · ${opt.name}` : ''}`
+         + ' — zulässige Druckkraft über die Länge',
+    breite: opt.breite ?? 900, hoehe: 240,
+    xLabel: 'Stützenlänge L [m]', yLabel: 'N [kN]',
+    punkte: L, serien,
+    grenze: vorh,
+    grenzeText: `vorhanden ${vorh.toFixed(1)} kN`,
+    marke: {
+      x: Math.min(Math.max(nw.L, L[0]), L[L.length - 1]),
+      y: vorh,
+      text: `L ${nw.L.toFixed(2)} m · η ${(nw.eta ?? 0).toFixed(3)}`,
+      schlecht: nw.lieferbar === false || (nw.eta ?? 0) > 1,
+    },
+  });
+}
+
+/* ===========================================================================
+ * DIE SCHNITTGROESSEN DES MASTEN UEBER SEINE HOEHE
+ * ===========================================================================
+ *
+ * Weisung vom 11. September (dieselbe). Der Mast hatte eine TABELLE im
+ * Auflagerblatt und kein Bild - und gerade bei ihm sagt das Bild mehr: wo
+ * der Anker angreift, springt die Normalkraft, und das Moment knickt.
+ *
+ * >>> DIE HOEHE STEHT AUF DER X-ACHSE, NICHT AUF DER Y-ACHSE. <<<
+ *
+ * Ein Mast steht senkrecht, und das Bild moechte man aufrecht. Die Diagramme
+ * dieses Werkzeugs tragen aber alle x waagrecht auf, und zwei Leserichtungen
+ * nebeneinander sind schlimmer als eine ungewohnte. z laeuft von 0 (Fuss)
+ * nach oben - wie in der Tabelle darunter.
+ * ========================================================================= */
+
+/**
+ * Der Verlauf eines Mastnachweises ueber die Hoehe.
+ *
+ * @param {object} mn   Eintrag aus `erg.mast[name]`
+ * @param {object} opt  {breite, name}
+ * @returns {object|null} {schnitt, ausnutzung} - null ohne Reihe
+ */
+export function mastDiagramme(mn, opt = {}) {
+  // `stationen` heisst die Reihe am Mastnachweis - dieselben Punkte, die
+  // die Tabelle im Auflagerblatt fuehrt.
+  const r = mn?.stationen;
+  if (!Array.isArray(r) || r.length < 2) return null;
+  // Von unten nach oben, wie der Mast steht.
+  const s = [...r].sort((a, b) => (a.z ?? 0) - (b.z ?? 0));
+  const z = s.map((p) => p.z ?? 0);
+  const w = (f) => s.map((p) => p[f] ?? 0);
+  const breite = opt.breite ?? 900;
+  const nm = opt.name ? ` · ${opt.name}` : '';
+  return {
+    schnitt: linienDiagramm({
+      titel: `Schnittgrössen über die Masthöhe${nm}`,
+      breite, hoehe: 230, xLabel: 'z über Mastfuss [m]',
+      yLabel: 'M [kNm] / N, V [kN]', punkte: z,
+      serien: [
+        { name: 'M quer', werte: w('Mq'), skizze: 'My' },
+        { name: 'M längs', werte: w('Ml'), skizze: 'Mz' },
+        { name: 'N', werte: w('N'), skizze: 'Vebene' },
+        { name: 'V quer', werte: w('Vq'), cls: 'serie-4', skizze: 'Vz' },
+      ],
+    }),
+    ausnutzung: linienDiagramm({
+      titel: `Ausnutzung über die Masthöhe${nm}`,
+      breite, hoehe: 200, xLabel: 'z über Mastfuss [m]',
+      yLabel: 'η [–]', punkte: z, grenze: 1.0,
+      serien: [{ name: 'η Querschnitt', werte: w('eta'), skizze: 'eta' }],
     }),
   };
 }

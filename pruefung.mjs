@@ -1779,11 +1779,39 @@ titel('29  Handbuch');
 {
   const HB = await import(J('doku.handbuch.js'));
 
-  // Zwoelf seit dem Kapitel zur AxisVM-Ausleitung (Weisung vom 28. August:
-  // "da sollte ein kapitel aufgenommen werden der den export zu axisvm
-  // beschreibt"). Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
-  wahr('Handbuch hat alle zwoelf Abschnitte', HB.HANDBUCH.length === 12,
+  /*
+   * Zwoelf seit dem Kapitel zur AxisVM-Ausleitung (Weisung vom 28. August:
+   * "da sollte ein kapitel aufgenommen werden der den export zu axisvm
+   * beschreibt"), FUENFZEHN seit dem 11. September.
+   *
+   * Weisung: "diese und alle anderen berechnungen fuer das abfangjoch masten
+   * sind im handbuch zu hinterlegen fuer die nachvollziehbarkeit, aehnlich
+   * wie beim tragjoch." Die Abschnitte 1 bis 12 gelten dem Tragjoch; das
+   * Abfangjoch, sein Mast und der Zuganker haben seither eigene.
+   *
+   * Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
+   */
+  wahr('Handbuch hat alle fuenfzehn Abschnitte', HB.HANDBUCH.length === 15,
        `${HB.HANDBUCH.length} Abschnitte`);
+  /*
+   * UND DIE DREI NEUEN STEHEN NAMENTLICH DA. Ein blosser Zaehler faellt
+   * nicht auf, wenn ein Kapitel gegen ein anderes getauscht wird.
+   */
+  ['abfangjoch', 'mast-abfang', 'anker'].forEach((id) => {
+    wahr(`Handbuch fuehrt den Abschnitt «${id}»`,
+         HB.HANDBUCH.some((s) => s.id === id));
+  });
+  /*
+   * DIE HERLEITUNGEN, DIE DORT STEHEN MUESSEN. Sie sind der Grund, warum es
+   * die Kapitel gibt - ein Abschnitt ohne sie waere eine Ueberschrift.
+   */
+  const hbText = HB.HANDBUCH.map((s) => s.html).join(' ');
+  [['Kraeftepaar N = M/e', /N = M_Rahmen \/ e/],
+   ['Woelbkrafttorsion T/e', /± T \/ e/],
+   ['Variante 3 des Ankers', /δ₁₀ \+ X · δ₁₁ = 0/],
+   ['Knicken: N_cr und chi', /N_cr = π²·E·I \/ L²/],
+   ['die Konsole mit 0.15 m', /Starrelement von[\s\S]{0,12}0\.15 m/]]
+    .forEach(([was, r]) => wahr(`Das Handbuch fuehrt ${was}`, r.test(hbText)));
   wahr('Jeder Abschnitt hat Kennung, Titel und Rumpf',
        HB.HANDBUCH.every((s) => s.id && s.titel && s.html?.length > 200));
   wahr('Kennungen sind eindeutig',
@@ -8424,6 +8452,39 @@ titel('42  Der lange Mast mit Zusatzleitern');
            .staebe ?? []).every((x) => !/^ANKER_/.test(x.name)));
 
     /* =====================================================================
+     * DIE VORSATZKONSOLE ALS STARRELEMENT
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «wir koennen es idealisiert mit einem
+     * pauschalen abstand (starrelement) von ca. 0.15m modellieren.»
+     *
+     * Die Stuetze sitzt nicht auf der Mastachse, sondern am Flansch. Damit
+     * greift ihre Kraft EXZENTRISCH an, und der Mast traegt das zugehoerige
+     * Moment - bei 20 kN sind das 3 kNm.
+     * =================================================================== */
+    const kons = (jA.staebe ?? []).filter((s) => /^KONSOLE_/.test(s.name));
+    wahr('Je Anker eine Konsole', kons.length === 2);
+    {
+      const kn = (nm) => (jA.knoten ?? []).find((k) => k.name === nm);
+      kons.forEach((s) => {
+        const p0 = kn(s.von), p1 = kn(s.bis);
+        const d = Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z);
+        pruef(`${s.name}: 0.15 m vom Masten weg`, d, 0.15, 1e-9, 'm');
+      });
+      /*
+       * UND DER ANKER HAENGT AN IHREM ENDE, nicht mehr am Masten: sonst
+       * staende die Konsole daneben und truege nichts.
+       */
+      const stA2 = (jA.staebe ?? []).filter((s) => /^ANKER_/.test(s.name));
+      wahr('Der Anker beginnt am Konsolenende',
+           stA2.every((s) => /_K$/.test(s.von)));
+      wahr('… und die Konsole ist ein STARR-Querschnitt',
+           kons.every((s) => /STARR/.test(s.querschnitt)));
+    }
+    wahr('Der Bericht nennt die Idealisierung',
+         bA.every((v) => v.konsole_m === 0.15));
+
+    /* =====================================================================
      * DAS SPREIZMASS
      * =====================================================================
      *
@@ -8486,6 +8547,131 @@ titel('42  Der lange Mast mit Zusatzleitern');
     wahr('Ohne Sortimentseintrag kommt null, kein NaN',
          AN.ankerSpreizungAn('SA20', 5, 2) === null
          && AN.ankerSpreizungAn('U12', 0, 0) === null);
+
+    /* =====================================================================
+     * DAS WEITE ENDE SITZT AM MASTEN
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «das weite ende der Druckstuetze liegt auf
+     * seite Mast. dieses wird dann direkt an den flanschen oder mit einer
+     * vorsatzkonsole befestigt.»
+     *
+     * Das dreht die Zeichnung um: hier stand das enge Ende oben, weil eine
+     * Konsole schmal aussieht. Sie ist es nicht - die beiden Profile fassen
+     * den Mastflansch, und dafuer muessen sie auseinanderstehen.
+     * =================================================================== */
+    wahr('Der Katalog sagt, welches Ende am Masten sitzt',
+         spU12.weitesEnde === 'mast' && spU12.engesEnde === 'fundament');
+    /*
+     * IM BILD gemessen, nicht im Katalog: `mastKoerper` zeichnet den Keil,
+     * und seine erste Stuetzstelle ist der Mastpunkt. Die Linien tragen die
+     * Profilachsen; ihr Abstand minus der gezeichneten Profilbreite ist der
+     * lichte Spalt.
+     */
+    {
+      const KB = await import(J('render.koerper.js'));
+      const MP = await import(J('data.masten.js'));
+      const k = KB.mastKoerper({
+        profil: MP.getMastprofil('HEB 240'), achse: 'y', x: 0,
+        zFuss: -8.5, zAnschluss: 0, zKopf: 0.5, name: 'A',
+        anker: { typ: 'U12', h: 6.43, a: 4.5, richtung: 'y', seite: 'plus' },
+        ankerSpreiz: AN.ankerSpreizung('U12'),
+      });
+      const ll = (k.linien ?? []).filter((x) => x.anker && x.stark);
+      wahr('Die Stuetze ist zwei Profile, nicht eines', ll.length === 2);
+      if (ll.length === 2) {
+        const a2 = ll[0].punkte, b2 = ll[1].punkte;
+        const spalt = (i) => (b2[i][0] - a2[i][0]) * 1000;
+        wahr('… am MASTEN stehen sie weit auseinander',
+             spalt(0) > spalt(a2.length - 1) + 50,
+             `${spalt(0).toFixed(0)} gegen ${spalt(a2.length - 1).toFixed(0)} mm`);
+        wahr('… und der Abstand nimmt nirgends zu',
+             a2.every((p, i) => i === 0 || spalt(i) <= spalt(i - 1) + 1e-6));
+      }
+      /*
+       * DIE ANSCHRIFT NENNT DIE LAENGE NICHT MEHR (Weisung vom
+       * 11. September: «beim beschriften im 3d die laenge weglassen beim
+       * anker»). Sie steht an der Bemassung daneben.
+       */
+      const ta = (k.bauteiltitel ?? []).filter((t) => /^Anker /.test(t.text));
+      wahr('Die Anschrift nennt Pos. und Typ', ta.length === 1
+           && /^Anker A · U12$/.test(ta[0].text), ta[0]?.text);
+      wahr('… und der Winkel steht als eigene Anschrift da',
+           (k.bauteiltitel ?? []).some((t) => /^α = /.test(t.text)));
+      /*
+       * DAS HOEHENMASS STEHT AM MASTEN (Weisung: «die vertikale vermassung
+       * auf seite mast rueber nehmen»), also auf der Mastachse - nicht
+       * ueber dem Ankerfundament.
+       */
+      const mH = (k.masse ?? []).find((mm) => mm.feld === 'ankerH');
+      wahr('Das Hoehenmass steht auf der Mastachse',
+           Math.abs(mH.p0[0]) < 1e-9 && Math.abs(mH.p0[1]) < 1e-9);
+    }
+
+    /* =====================================================================
+     * DAS KNICKEN DER STUETZE - DIE KONTROLLRECHNUNG
+     * =====================================================================
+     *
+     * Weisung vom 11. September: ein Knicknachweis, «falls einfach
+     * umsetzbar». Einfach ist die Ebene SENKRECHT zur Spreizung; die andere
+     * ist ein mehrteiliger Druckstab nach EN 1993-1-1 6.4 und steckt im
+     * Bemessungsdiagramm.
+     * =================================================================== */
+    {
+      const k8 = AN.ankerKnicken('U12', 8);
+      // Euler von Hand: N_cr = pi^2 * E * I / L^2, I = 728 cm4, L = 800 cm.
+      pruef('U12 ueber 8 m: N_cr', k8.Ncr,
+            (Math.PI ** 2 * 21000 * 728) / (800 * 800), 1e-9, 'kN');
+      pruef('… N_pl = A · f_y', k8.Npl, 34.0 * 23.5, 1e-9, 'kN');
+      pruef('… bezogene Schlankheit', k8.lambda,
+            Math.sqrt(k8.Npl / k8.Ncr), 1e-12, '-');
+      wahr('… Knicklinie c', k8.knicklinie === 'c');
+      wahr('… chi liegt zwischen 0 und 1', k8.chi > 0 && k8.chi < 1);
+      pruef('… N_b,Rd = chi · N_pl', k8.NbRd, k8.chi * k8.Npl, 1e-9, 'kN');
+      /*
+       * >>> UND SIE LIEGT UEBER DER KURVE DES BLATTES. <<<
+       *
+       * Das ist die eigentliche Aussage: die Stuetze knickt NICHT senkrecht
+       * zur Spreizebene, sondern IN ihr - und deshalb ist das Blatt
+       * strenger. Faellt diese Kontrolle einmal um, stimmt etwas an der
+       * Anordnung nicht.
+       */
+      [6, 8, 10, 10.5].forEach((L) => {
+        wahr(`Bei ${L.toFixed(2)} m bleibt die Kontrolle ueber dem Blatt`,
+             AN.ankerKnicken('U12', L).NbRd > AN.ankerZulDruck('U12', L));
+      });
+      wahr('Ein laengerer Stab knickt frueher',
+           AN.ankerKnicken('U12', 10).NbRd < AN.ankerKnicken('U12', 6).NbRd);
+      wahr('Das Seil bekommt keinen Knicknachweis',
+           AN.ankerKnicken('SA20', 8) === null);
+      wahr('… und der Nachweis sagt, was er nicht enthaelt',
+           /6\.4/.test(k8.nichtEnthalten));
+    }
+
+    /* =====================================================================
+     * UEBER DER GROESSTEN LIEFERBAREN LAENGE
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «wenn die maximallaenge ueberschritten ist,
+     * dann warnung angeben.»
+     *
+     * Auf DRUCK fiel das immer auf - `ankerZulDruck` gibt dort null. Auf ZUG
+     * nicht: die zulaessige Kraft haengt an der BEFESTIGUNG, nicht an der
+     * Laenge, und eine zwoelf Meter lange U12 bekam klaglos ihr eta.
+     * =================================================================== */
+    wahr('Kurz genug: lieferbar',
+         AN.ankerNachweis('U12', 50, 9).lieferbar === true);
+    wahr('Zu lang auf ZUG: Nachweis gefuehrt, aber gemeldet',
+         AN.ankerNachweis('U12', 50, 12).lieferbar === false
+         && AN.ankerNachweis('U12', 50, 12).eta > 0);
+    wahr('… und die Warnung nennt beide Laengen',
+         /12\.00/.test(AN.ankerNachweis('U12', 50, 12).warnung)
+         && /10\.50/.test(AN.ankerNachweis('U12', 50, 12).warnung));
+    wahr('Zu lang auf DRUCK: kein Nachweis',
+         AN.ankerNachweis('U12', -50, 12).eta === null
+         && AN.ankerNachweis('U12', -50, 12).lieferbar === false);
+    wahr('Ein Seil auf Druck traegt das Feld auch',
+         AN.ankerNachweis('SA20', -10, 8).lieferbar === true);
   }
 
   // --- In der Ausleitung ---------------------------------------------------

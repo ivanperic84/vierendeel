@@ -406,12 +406,15 @@ function ankerTeile(o, halb, zFuss, zKopf) {
    * Eingabe aendern. Im Modell steht, WAS dasteht; die Ausnutzung steht in
    * der Kachel daneben, und sie steht dort genauer.
    *
-   * Die Laenge folgt aus den beiden Eingabemassen und ist die Zahl, mit der
-   * man ins Sortiment geht: die Knickkurve des Blattes ist ueber sie
-   * aufgetragen.
+   * >>> UND DIE LAENGE IST SEIT DEM 11. SEPTEMBER AUCH DRAUSSEN. <<<
+   *
+   * Weisung: «beim beschriften im 3d die laenge weglassen beim anker.»
+   *
+   * Sie steht an der Bemassung daneben - h_A, a_A und der Winkel -, und
+   * dort ist sie ablesbar, statt ein drittes Mal im Text zu stehen. Was
+   * bleibt, ist die Anschrift eines Bauteils: seine Position und sein Typ.
    */
-  const LAnker = Math.sqrt(ak.h * ak.h + ak.a * ak.a);
-  const wie = `${ak.typ} · L = ${LAnker.toFixed(2)} m`;
+  const wie = `${ak.typ}`;
 
   /*
    * >>> DER STAB IST EIN KOERPER, KEINE LINIE. <<<
@@ -469,17 +472,34 @@ function ankerTeile(o, halb, zFuss, zKopf) {
   // Die Spreizung steht quer zur Ankerebene: liegt der Anker in
   // Gleisrichtung, spreizt er in der Jochachse - und umgekehrt.
   const spreizAchse = laengs ? 0 : 1;
+  /*
+   * >>> DAS WEITE ENDE SITZT AM MASTEN. <<<
+   *
+   * Weisung vom 11. September: «das weite ende der Druckstuetze liegt auf
+   * seite Mast. dieses wird dann direkt an den flanschen oder mit einer
+   * vorsatzkonsole befestigt.»
+   *
+   * Hier stand das Gegenteil - ich hatte das enge Ende oben angenommen,
+   * weil eine Konsole schmal aussieht. Sie ist es nicht: die beiden
+   * Profile fassen den Mastflansch von beiden Seiten, und dafuer muessen
+   * sie dort WEIT auseinanderstehen. Am Fundament laufen sie zusammen und
+   * sitzen eng auf der Ankerplatte.
+   *
+   * `s` laeuft von 0 (Mast, weit) nach 1 (Fundament, eng); die parallelen
+   * Stuecke folgen mit: 1610 mm am weiten Ende oben, 990 mm am engen unten.
+   */
   const halbAbstand = (s) => {
-    // s in [0,1] ab dem ENGEN Ende (oben am Masten).
     if (!sp) return 0;
-    const a2 = (sp.parallelSchmal ?? 0) / 1000;
-    const b2 = LStab - (sp.parallelBreit ?? 0) / 1000;
+    // Vom MASTEN aus gemessen: erst 1610 mm parallel weit, dann der Keil,
+    // die letzten 990 mm vor dem Fundament wieder parallel eng.
+    const a2 = (sp.parallelBreit ?? 0) / 1000;
+    const b2 = LStab - (sp.parallelSchmal ?? 0) / 1000;
     const xx = s * LStab;
     const mm2 = !(b2 > a2)
-      ? sp.schmal + (sp.breit - sp.schmal) * (xx / LStab)
-      : xx <= a2 ? sp.schmal
-        : xx >= b2 ? sp.breit
-          : sp.schmal + (sp.breit - sp.schmal) * ((xx - a2) / (b2 - a2));
+      ? sp.breit + (sp.schmal - sp.breit) * (xx / LStab)
+      : xx <= a2 ? sp.breit
+        : xx >= b2 ? sp.schmal
+          : sp.breit + (sp.schmal - sp.breit) * ((xx - a2) / (b2 - a2));
     // Lichtes Mass + eine Profilbreite = Achsabstand der beiden Koerper;
     // der sichtbare Spalt ist dann genau das Mass der Zeichnung.
     return (mm2 / 1000 + dick) / 2;
@@ -495,9 +515,9 @@ function ankerTeile(o, halb, zFuss, zKopf) {
     /*
      * >>> DREI ABSCHNITTE, UND DIE KNICKE SITZEN AUF DEM MASS. <<<
      *
-     * Der Verlauf hat genau zwei Knicke: dort, wo das parallele Stueck
-     * endet (990 mm vom engen Ende) und dort, wo das andere beginnt
-     * (1610 mm vom weiten). Ein festes Raster trifft sie nicht - bei 7.85 m
+     * Der Verlauf hat genau zwei Knicke: dort, wo das parallele Stueck am
+     * Masten endet (1610 mm) und dort, wo das andere vor dem Fundament
+     * beginnt (990 mm). Ein festes Raster trifft sie nicht - bei 7.85 m
      * Stablaenge faellt der erste auf s = 0.126, zwischen zwei Sechsteln,
      * und der Keil begaenne im Bild zu frueh.
      *
@@ -505,8 +525,8 @@ function ankerTeile(o, halb, zFuss, zKopf) {
      * nicht: zwischen ihnen ist der Verlauf gerade, und jede weitere
      * Flaeche kostet die Szene Zeit ohne etwas zu zeigen.
      */
-    const sA = Math.min(1, ((sp.parallelSchmal ?? 0) / 1000) / LStab);
-    const sB = Math.max(0, 1 - ((sp.parallelBreit ?? 0) / 1000) / LStab);
+    const sA = Math.min(1, ((sp.parallelBreit ?? 0) / 1000) / LStab);
+    const sB = Math.max(0, 1 - ((sp.parallelSchmal ?? 0) / 1000) / LStab);
     const stuetz = (sB > sA ? [0, sA, sB, 1] : [0, 1])
       .filter((s, i2, arr) => i2 === 0 || s - arr[i2 - 1] > 1e-6);
     [-1, +1].forEach((vzP) => {

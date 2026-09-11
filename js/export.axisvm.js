@@ -162,6 +162,19 @@ export const auflagerVorgabe = (m) => {
 const STARR = { name: 'STARR', h: 500, b: 500 };
 
 /**
+ * DER ABSTAND MASTACHSE - ANKERANSCHLUSS [m].
+ *
+ * Weisung vom 11. September: «wir koennen es idealisiert mit einem
+ * pauschalen abstand (starrelement) von ca. 0.15m modellieren.»
+ *
+ * Die Stuetze sitzt nicht auf der Mastachse, sondern am Flansch - direkt
+ * angeschraubt oder ueber eine Vorsatzkonsole. Das wirkliche Mass haengt am
+ * Mastprofil und an der Konsole; 150 mm sind die Pauschale, die der
+ * Auftraggeber dafuer gesetzt hat.
+ */
+const ANKER_KONSOLE = 0.15;
+
+/**
  * Merkmale des Aufbaus, die man der Datei nicht ansieht.
  *
  * `anbau-kette`  Anbauteile stehen in einer Kette (Traeger -> Aufbau ->
@@ -1722,7 +1735,44 @@ export function stabmodell(m, opt = {}) {
           Iz: qw?.Iz ? qw.Iz / 1e8 : 1e-6,
           It: qw?.It ? qw.It / 1e8 : 1e-6,
         });
-        s.stab(`ANKER_${mn(ende)}`, qsAnker, mastKn.get(zAnk), kAnkF,
+        /* ===================================================================
+         * >>> DIE VORSATZKONSOLE STEHT ALS STARRELEMENT DA. <<<
+         * ===================================================================
+         *
+         * Weisung vom 11. September: «das weite ende der Druckstuetze liegt
+         * auf seite Mast. dieses wird dann direkt an den flanschen oder mit
+         * einer vorsatzkonsole befestigt. wir koennen es idealisiert mit
+         * einem pauschalen abstand (starrelement) von ca. 0.15m
+         * modellieren.»
+         *
+         * Bis hierher sass der Anker AUF der Mastachse. Er sitzt aber nicht
+         * dort, sondern am Flansch - eine Konsole davor, und die beiden
+         * U-Profile fassen sie von beiden Seiten. Zwischen Mastachse und
+         * Anschlusspunkt liegen rund 150 mm.
+         *
+         * >>> WAS DAS AENDERT: EIN MOMENT AM MASTEN. <<<
+         *
+         * Die Stabkraft greift jetzt EXZENTRISCH an. Bei 20 kN und 0.15 m
+         * sind das 3 kNm, die der Mast zusaetzlich traegt - klein gegen sein
+         * Fussmoment, aber vorhanden, und in einem Rahmenmodell will man sie
+         * sehen. Genau dafuer ist die Ausleitung da.
+         *
+         * >>> DER ARM ZEIGT DORTHIN, WO DER ANKER STEHT. <<<
+         *
+         * Zum Fundament hin, in der Ebene des Ankers: quer zum Gleis in x,
+         * laengs in y. Ein Arm auf der falschen Seite kehrte das Moment um.
+         *
+         * DER NACHWEIS im Werkzeug rechnet weiter ohne diese Exzentrizitaet
+         * (`ankerHaltekraft` setzt am Mastpunkt an). Das ist eine Aussage
+         * ueber das AUSGELEITETE Modell, keine ueber den Nachweis - und der
+         * Bericht sagt es.
+         * ================================================================= */
+        const kKons = s.kn(`ANKER_${mn(ende)}_K`,
+                           laengsA ? x : r6(x + vzA * ANKER_KONSOLE),
+                           laengsA ? r6(vzA * ANKER_KONSOLE) : 0, zAnk);
+        s.stab(`KONSOLE_${mn(ende)}`, qsStarr, mastKn.get(zAnk), kKons,
+               { starrRolle: 'verbindung' });
+        s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
                { gelenkAnfang: 'M', gelenkEnde: 'M' });
         auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
                         ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
@@ -2922,6 +2972,12 @@ export function stabmodellJson(m, opt = {}) {
          * Das Spreizmass steht im Bericht, damit es nachvollziehbar bleibt,
          * WELCHE Geometrie das Rechteck ersetzt.
          */
+        /*
+         * DIE KONSOLE steht im Bericht, weil sie eine IDEALISIERUNG ist:
+         * 150 mm pauschal, nicht gemessen. Wer das Modell nachrechnet, muss
+         * wissen, woher die Exzentrizitaet kommt.
+         */
+        konsole_m: ANKER_KONSOLE,
         spreizung: v.spreiz
           ? { schmal_mm: v.spreiz.schmal, breit_mm: v.spreiz.breit,
               parallelSchmal_mm: v.spreiz.parallelSchmal,

@@ -3780,12 +3780,48 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
           ? 'Seil trägt keinen Druck' : 'über dem Sortiment'}`, 'nok'));
         return;
       }
+      /*
+       * >>> EIN NACHWEIS AN EINEM BAUTEIL, DAS ES NICHT GIBT. <<<
+       *
+       * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
+       * dann warnung angeben.» Auf Zug wird der Nachweis geführt - gegen die
+       * Befestigung ist nichts einzuwenden -, aber die Kachel darf dann
+       * nicht grün danebenstehen: das Sortiment führt diese Länge nicht.
+       */
+      if (nw.lieferbar === false) {
+        kz.push(kachel(`η Anker ${name}`, f3(nw.eta),
+          `${wie} · ÜBER DEM SORTIMENT`, 'nok', { titel: nw.warnung ?? '' }));
+        return;
+      }
       kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampel(nw.eta), {
         titel: `Charakteristische Kraft gegen die zulässige des `
              + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
              + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
              + `vergleichbar, die auf Bemessungswerten stehen.`,
       }));
+      /*
+       * >>> UND DAS KNICKEN DANEBEN, ALS AUSKUNFT. <<<
+       *
+       * Weisung vom 11. September: ein Knicknachweis, «falls einfach
+       * umsetzbar.» Einfach ist die Ebene SENKRECHT zur Spreizung; die
+       * andere steckt im Bemessungsdiagramm (siehe `ankerKnicken`).
+       *
+       * Die Kachel steht bewusst OHNE Ampel: sie ist kein zweites Urteil.
+       * Ihre Zahl ist ein Bemessungswert und das η daneben einer aus
+       * zulässigen Kräften - nebeneinander grün und grün zu färben hiesse,
+       * sie seien dasselbe.
+       */
+      if (e.knick) {
+        const k = e.knick;
+        kz.push(kachel(`Knicken ${name}`, `${f0(k.NbRd)} kN`,
+          `N_b,Rd · λ̄ ${f2(k.lambda)} · χ ${f3(k.chi)}`, '', {
+            titel: `Euler und Knicklinie c SENKRECHT zur Spreizebene — dort `
+                 + `ist der Querschnitt konstant (I = ${f0(k.I)} cm⁴, ohne `
+                 + `Steiner-Anteil) und der Stab einteilig. `
+                 + `N_cr ${k.Ncr.toFixed(0)} kN. `
+                 + `KONTROLLRECHNUNG, kein zweiter Nachweis: ${k.nichtEnthalten}`,
+          }));
+      }
     });
   }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
@@ -4272,7 +4308,7 @@ function verdrahteDiagramme(node) {
 }
 
 /** Verläufe: Diagramme und der Massvarianten-Vergleich. */
-export function zeichneVerlauf(node, dia, vergleich) {
+export function zeichneVerlauf(node, dia, vergleich, weitere = null) {
   /*
    * >>> OHNE VERGLEICH FAELLT DER BLOCK WEG, NICHT DIE SEITE. <<<
    *
@@ -4303,11 +4339,46 @@ export function zeichneVerlauf(node, dia, vergleich) {
       `<li><b>${esc(v.kurz)}</b> — ${esc(v.beschreibung)}</li>`).join('')}</ul>`,
       `gewählt: ${esc(vergleich.zeilen.find((z) => z.istGewaehlt)?.kurz ?? '')}`)
     : '';
+  /* =========================================================================
+   * >>> DER MAST UND DIE STUETZE BEKOMMEN IHRE EIGENEN BILDER. <<<
+   * =========================================================================
+   *
+   * Weisung vom 11. September: «es sind noch sinnvolle diagramme (sidebar /
+   * verlaeufe) fuer die druckstuetze und abfangjoch nachzuziehen falls nicht
+   * schon gemacht.»
+   *
+   * Das Abfangjoch hatte seine drei seit dem 10. September. Der MAST hatte
+   * eine Tabelle und kein Bild, die STUETZE nicht einmal das - obwohl ihr
+   * Nachweis eine Kurve IST.
+   *
+   * Sie stehen UNTER den Jochdiagrammen und je Bauteil in einem eigenen
+   * Block: wer den Traeger liest, soll nicht erst an zwei Masten
+   * vorbeiscrollen.
+   */
+  const extra = (weitere ?? []).map((w, i) => {
+    const teile = [];
+    if (w.bemessung) {
+      teile.push(diagrammBlock(`anker-bem-${i}`,
+        'Bemessungsdiagramm der Stütze', w.bemessung));
+    }
+    if (w.schnitt) {
+      teile.push(diagrammBlock(`mast-schnitt-${i}`,
+        'Schnittgrössen über die Höhe', w.schnitt));
+    }
+    if (w.ausnutzung) {
+      teile.push(diagrammBlock(`mast-eta-${i}`,
+        'Ausnutzung über die Höhe', w.ausnutzung));
+    }
+    if (!teile.length) return '';
+    return abschnitt(w.titel ?? '') + teile.join('');
+  }).join('');
+
   node.innerHTML = `
     ${diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen)}
     ${diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene)}
     ${diagrammBlock('ausnutzung', 'Ausnutzung', dia.ausnutzung)}
-    ${massBlock}`;
+    ${massBlock}
+    ${extra}`;
   verdrahteDiagramme(node);
   verdrahteKlapp(node);
 }

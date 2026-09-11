@@ -16,7 +16,8 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion,
          klassifizierung } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
-import { diagramme, abfangDiagramme } from './render.charts.js';
+import { diagramme, abfangDiagramme, ankerDiagramm,
+         mastDiagramme } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
@@ -73,6 +74,7 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
  * braucht es nicht.
  */
 import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
+         ankerKnicken,
          ankerTypen, ankerTraegtDruck,
          ANKER_BEFESTIGUNGEN } from './data.anker.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
@@ -570,7 +572,31 @@ function neuRechnen(neuZeichnen = true) {
     // in der Excel-Ausleitung erhalten.
     const flucht = mitJoch ? fluchtChecks(erg.modell) : { warnungen: [] };
     const hinw = hinweise(erg.modell);
-    const urteil = urteilKonstruktion(checks, werte.nachweise);
+    /*
+     * >>> WENN ES DEN STAB SO NICHT GIBT, STEHT ES IN DER LISTE. <<<
+     *
+     * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
+     * dann warnung angeben.» In der Kachel steht sie seither rot; hier
+     * steht sie ein zweites Mal, weil die Hinweisliste das ist, was in den
+     * Bericht geht - und dort fällt eine Farbe nicht auf.
+     *
+     * ANGEHAENGT UND NICHT IN `hinweise`: die Funktion sieht das MODELL, der
+     * Ankernachweis haengt aber an `erg.anker`. Ihn dort hineinzureichen
+     * hiesse, das Modell um ein Ergebnis zu erweitern - und dann stuende
+     * dieselbe Zahl an zwei Orten.
+     */
+    ['A', 'B'].forEach((ende) => {
+      const nw = erg.anker?.[ende]?.nachweis;
+      if (nw?.lieferbar === false && nw.warnung) {
+        hinw.push(`Zuganker/Druckstütze — ${nw.warnung}`
+          + (nw.eta === null ? ''
+            : ' Der Nachweis steht trotzdem da, weil die zulässige Kraft der'
+              + ' BEFESTIGUNG gilt und nicht der Länge; das Bauteil selbst ist'
+              + ' damit nicht belegt.'));
+      }
+    });
+    const urteil = urteilKonstruktion(checks, werte.nachweise,
+                                      tragwerksart(werte).key);
     const kl = mitJoch ? klassifizierung(erg.modell) : null;
 
     // Für Modell und Auswertung gilt die gewählte Anzeigequelle
@@ -727,8 +753,44 @@ function zeichneAuswertung() {
      * des Tragjochs und hat am liegenden Traeger keinen Gegenstand.
      */
     const abD = erg.abfang ? abfangDiagramme(erg.abfang, 860) : null;
+    /*
+     * >>> UND DIE BILDER DER MASTEN UND IHRER STUETZEN. <<<
+     *
+     * Weisung vom 11. September: «es sind noch sinnvolle diagramme (sidebar
+     * / verlaeufe) fuer die druckstuetze und abfangjoch nachzuziehen.»
+     *
+     * Je Mast ein Block: seine Schnittgroessen ueber die Hoehe, seine
+     * Ausnutzung, und - wenn er eine Druckstuetze traegt - deren
+     * Bemessungsdiagramm mit dem Arbeitspunkt darauf.
+     *
+     * DIE KURVE DES BLATTES kommt aus dem Sortiment, nicht aus dem
+     * Ergebnis: `ankerTypen` fuehrt sie als Stuetzstellen. Die
+     * Kontrollkurve daneben wird mit denselben Beiwerten gerechnet wie die
+     * Kachel - `ankerKnickenSicher` ist dieselbe Funktion.
+     */
+    const weitere = [];
+    ['A', 'B'].forEach((ende) => {
+      const mn = erg.mast?.[ende] ?? null;
+      const ak = erg.anker?.[ende] ?? null;
+      if (!mn && !ak) return;
+      // Der Mastnachweis fuehrt kein `name` - sein Schluessel ist das Ende.
+      const name = `Ende ${ende}`;
+      const md = mn ? mastDiagramme(mn, { breite: 860, name }) : null;
+      let bem = null;
+      if (ak?.nachweis) {
+        const typ = ankerTypen().find((t) => t.id === ak.nachweis.typ);
+        bem = ankerDiagramm(ak, typ?.druck ?? null, {
+          breite: 860, name,
+          knickKurve: (l) => ankerKnickenSicher(ak.nachweis.typ, l)?.NbRd,
+        });
+      }
+      if (!md && !bem) return;
+      weitere.push({ titel: `Mast ${name}`, bemessung: bem,
+                     schnitt: md?.schnitt ?? null,
+                     ausnutzung: md?.ausnutzung ?? null });
+    });
     ui.zeichneVerlauf(node, abD ?? diagramme(erg, 860),
-                      abD ? null : vergleich);
+                      abD ? null : vergleich, weitere);
   }
 }
 
@@ -2838,6 +2900,32 @@ const ankerRichtungVor = (w) =>
  * Tragsicherheitsnachweises: sie tragen γ_G und γ_Q, und die gehoeren nicht
  * gegen eine zulaessige Kraft.
  */
+/**
+ * DIE KONTROLLRECHNUNG ZUM KNICKEN, mit den Beiwerten dieser Eingabe.
+ *
+ * Weisung vom 11. September: ein Knicknachweis der Druckstuetze, «falls
+ * einfach umsetzbar.» Was einfach ist und was nicht, steht bei
+ * `ankerKnicken` in data.anker.js.
+ *
+ * >>> ZWEI DINGE HOLT DIESER HELFER, UND BEIDE AUS DER EINGABE. <<<
+ *
+ * f_y kommt in N/mm² und wird auf kN/cm² gebracht. gamma_M1 gibt es als
+ * eigenes Feld nicht; fuer das Knicken gilt derselbe Beiwert wie fuer den
+ * Querschnitt (`gammaM0`). Ein zweites Feld, das nie einen anderen Wert
+ * traegt, waere ein Feld zuviel.
+ *
+ * Ohne Sortimentseintrag - und beim Seil - kommt null zurueck, kein Fehler:
+ * wer keine Stuetze hat, braucht die Rechnung nicht.
+ */
+function ankerKnickenSicher(typ, L) {
+  try {
+    return ankerKnicken(typ, L, {
+      fy: (getStahl(werte.stahl)?.fy ?? 235) / 10,
+      gammaM1: Number(werte.gammaM0) > 0 ? Number(werte.gammaM0) : 1.0,
+    });
+  } catch { return null; }
+}
+
 function ankerAuswertung(kombi) {
   const lf = (kombi?.lastfaelle ?? []).filter(
     (l) => l.art === 'charakteristisch');
@@ -2856,7 +2944,22 @@ function ankerAuswertung(kombi) {
     const k = beste.kraft;
     const nw = ankerNachweis(k.typ, k.N, k.geo.L,
                              { befestigung: k.befestigung });
-    proEnde[ende] = { ...beste, geo: k.geo, nachweis: nw,
+    /*
+     * >>> DAS KNICKEN DANEBEN - ALS AUSKUNFT, NICHT ALS NACHWEIS. <<<
+     *
+     * Weisung vom 11. September: «was wir noch ergänzen könnten ist ein
+     * knicknachweis der druckstütze, falls einfach umsetzbar.»
+     *
+     * Einfach ist die Richtung SENKRECHT zur Spreizebene - dort ist der
+     * Querschnitt konstant und der Stab einteilig. Die andere Richtung ist
+     * ein mehrteiliger Druckstab nach EN 1993-1-1 6.4 und steckt im
+     * Bemessungsdiagramm; siehe `ankerKnicken`.
+     *
+     * Nur auf DRUCK: ein Zugstab knickt nicht, und eine Zahl daneben würde
+     * gelesen, als täte er es.
+     */
+    const knick = k.N < 0 ? ankerKnickenSicher(k.typ, k.geo.L) : null;
+    proEnde[ende] = { ...beste, geo: k.geo, nachweis: nw, knick,
                       ueberKopf: k.ueberKopf === true };
   });
   const enden = Object.values(proEnde);
@@ -2899,6 +3002,9 @@ function ankerAmAbfangjoch(modell, auflager) {
       geo: k.geo, ueberKopf: k.ueberKopf === true,
       nachweis: ankerNachweis(k.typ, k.N, k.geo.L,
                               { befestigung: k.befestigung }),
+      // Dieselbe Kontrollrechnung wie am Tragjoch - nur auf DRUCK, ein
+      // Zugstab knickt nicht. Siehe `ankerKnicken`.
+      knick: k.N < 0 ? ankerKnickenSicher(k.typ, k.geo.L) : null,
     };
   });
   const enden = Object.values(proEnde);

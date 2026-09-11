@@ -172,12 +172,17 @@ export function ankerNachweis(id, N, L, opt = {}) {
    */
   if (!zug && a.art === 'seil') {
     return { art: a.art, typ: id, N, L, zul: 0, eta: Infinity, ok: false,
+             lieferbar: true, warnung: null,
              grund: 'seilAufDruck',
              text: 'Ein Seilanker trägt keinen Druck — er hängt durch.',
              vergleichsbasis: 'zulaessigeKraft' };
   }
   if (zul === null) {
     return { art: a.art, typ: id, N, L, zul: null, eta: null, ok: null,
+             lieferbar: false,
+             warnung: `${id}: Länge ${L.toFixed(2)} m über der grössten `
+               + `lieferbaren (${(a.laengeMax ?? 0).toFixed(2)} m) — `
+               + 'diesen Typ gibt es so nicht.',
              grund: 'ueberSortiment',
              text: `Länge ${L.toFixed(2)} m über der grössten lieferbaren `
                  + `(${(a.laengeMax ?? 0).toFixed(2)} m) — kein Nachweis.`,
@@ -185,8 +190,30 @@ export function ankerNachweis(id, N, L, opt = {}) {
   }
   const eta = zul > 0 ? Math.abs(N) / zul : Infinity;
   const gekappt = !zug && L <= (a.druck?.kappungAb ?? 0) + 1e-9;
+  /*
+   * >>> AUCH EIN ZUGSTAB MUSS LIEFERBAR SEIN. <<<
+   *
+   * Weisung vom 11. September: «wenn die maximallaenge ueberschritten ist,
+   * dann warnung angeben.»
+   *
+   * Auf DRUCK faellt das von selbst auf: `ankerZulDruck` gibt ueber der
+   * groessten gefuehrten Laenge `null`, und der Nachweis bricht oben mit
+   * `ueberSortiment` ab. Auf ZUG nicht - dort haengt die zulaessige Kraft
+   * an der BEFESTIGUNG, nicht an der Laenge, und eine zwoelf Meter lange
+   * U12 bekam klaglos ihr eta.
+   *
+   * Die Kraft stimmt dann auch; nur gibt es das Bauteil nicht. Der Nachweis
+   * wird deshalb GEFUEHRT und die Lieferbarkeit daneben gemeldet - ein
+   * abgebrochener Nachweis waere hier die falsche Antwort, denn gegen die
+   * Befestigung ist nichts einzuwenden.
+   */
+  const lieferbar = !(L > (a.laengeMax ?? Infinity) + 1e-9);
   return {
     art: a.art, typ: id, N, L, zul, eta, ok: eta <= 1,
+    lieferbar,
+    warnung: lieferbar ? null
+      : `${id}: Länge ${L.toFixed(2)} m über der grössten lieferbaren `
+        + `(${(a.laengeMax ?? 0).toFixed(2)} m) — diesen Typ gibt es so nicht.`,
     grund: zug ? 'befestigung' : (gekappt ? 'querschnitt' : 'knicken'),
     text: zug
       ? `Zug — zulässig ${zul.toFixed(1)} kN (${opt.befestigung ?? 'ankerplatte'})`
@@ -328,17 +355,28 @@ export function ankerQuerschnitt(id) {
  * Ende —, erst dazwischen verändert er sich. Die 3390 mm der Zeichnung sind
  * die 1610 mm vom anderen Ende her; das Blatt des U14 führt beide Masse.
  *
- * >>> ZWEI DINGE SAGT DAS BLATT NICHT, UND SIE WERDEN NICHT ANGENOMMEN. <<<
+ * >>> WELCHES ENDE WO SITZT, STEHT SEIT DEM 11. SEPTEMBER FEST. <<<
  *
- * Erstens WORAUF sich die Masslinie bezieht — lichte Weite zwischen den
- * Profilen, Achsabstand oder Aussenmass. Zwischen lichtem Mass und
- * Achsabstand liegen beim UNP 120 rund 120 mm, und `I_z` des Verbunds geht
- * mit dem Quadrat des Achsabstands. Zweitens, WELCHES Ende am Masten sitzt.
+ * Weisung: «das weite ende der Druckstütze liegt auf seite Mast. dieses wird
+ * dann direkt an den flanschen oder mit einer vorsatzkonsole befestigt.»
  *
- * Beides ist für den Nachweis unerheblich, solange er über das
+ * Das WEITE Ende (225 mm) gehört an den Masten — dort fassen die beiden
+ * Profile den Flansch, und dafür müssen sie auseinanderstehen. Am Fundament
+ * laufen sie zusammen und sitzen eng auf der Ankerplatte. Entsprechend
+ * liegen die parallelen Stücke: 1610 mm oben, 990 mm unten.
+ *
+ * >>> WAS DAS BLATT WEITERHIN NICHT SAGT. <<<
+ *
+ * WORAUF sich die Masslinie bezieht — lichte Weite zwischen den Profilen,
+ * Achsabstand oder Aussenmass. Zwischen lichtem Mass und Achsabstand liegen
+ * beim UNP 120 rund 120 mm, und `I_z` des Verbunds geht mit dem Quadrat des
+ * Achsabstands.
+ *
+ * Für den Nachweis ist das unerheblich, solange er über das
  * Bemessungsdiagramm läuft — die Kurve kennt die Geometrie schon. Für eine
- * eigene Knickrechnung wäre es erheblich, und dann ist zuerst zu fragen.
- * `bezug: null` hält das offen, statt es stillschweigend zu entscheiden.
+ * eigene Knickrechnung IN der Spreizebene wäre es erheblich, und dann ist
+ * zuerst zu fragen. `bezug: null` hält das offen, statt es stillschweigend
+ * zu entscheiden.
  * ======================================================================== */
 
 /**
@@ -382,6 +420,114 @@ export function ankerSpreizungAn(id, L, x) {
   if (xx <= a) return sp.schmal;
   if (xx >= b) return sp.breit;
   return sp.schmal + (sp.breit - sp.schmal) * ((xx - a) / (b - a));
+}
+
+/* ===========================================================================
+ * DAS KNICKEN DER STUETZE - ALS KONTROLLRECHNUNG
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «was wir noch ergaenzen koennten ist ein
+ * knicknachweis der druckstuetze, falls einfach umsetzbar.»
+ *
+ * >>> EINE RICHTUNG IST EINFACH, DIE ANDERE NICHT. <<<
+ *
+ * Die Stuetze besteht aus zwei U-Profilen, die keilfoermig auseinander
+ * laufen. Sie kann in zwei Ebenen ausweichen, und die beiden sind
+ * grundverschieden:
+ *
+ *   SENKRECHT ZUR SPREIZEBENE   Beide Profile biegen sich um ihre eigene
+ *                               starke Achse. Kein Steiner-Anteil, kein
+ *                               Verbund, I ueber die ganze Laenge KONSTANT
+ *                               (2 x I_y des Einzelprofils). Das ist ein
+ *                               gewoehnlicher Druckstab - Euler und die
+ *                               Knicklinie genuegen.
+ *
+ *   IN DER SPREIZEBENE          Ein MEHRTEILIGER Druckstab nach EN 1993-1-1
+ *                               Abschnitt 6.4: der Steiner-Anteil traegt
+ *                               fast alles, die Bindelaschen machen den
+ *                               Verbund schubweich, und der Querschnitt ist
+ *                               ueber die Laenge VERAENDERLICH. Das braucht
+ *                               I_eff, die Schubsteifigkeit S_v und den
+ *                               Nachweis des Einzelstabs zwischen den
+ *                               Laschen - und den Bezug des Spreizmasses,
+ *                               der bis heute offen ist.
+ *
+ * Gerechnet wird deshalb NUR die erste. Die zweite steckt im
+ * Bemessungsdiagramm des Blattes, und dort gehoert sie hin.
+ *
+ * >>> WAS DIE RECHNUNG ZEIGT, IST NICHT DER NACHWEIS. <<<
+ *
+ * Gemessen am 11. September: U12 ueber 10.00 m ergibt N_b,Rd = 123 kN,
+ * waehrend das Blatt dort 48.7 kN zulaesst. Die Stuetze knickt also NICHT
+ * senkrecht zur Spreizebene - sie knickt in ihr, und genau deshalb ist das
+ * Blatt strenger.
+ *
+ * Die Zahl ist damit eine AUSKUNFT, kein zweiter Nachweis: sie sagt, dass
+ * die andere Richtung massgebend bleibt. Waere sie einmal kleiner als der
+ * Diagrammwert, waere das ein Befund - dann stimmte etwas an der
+ * Anordnung nicht, etwa eine sehr lange Stuetze mit kleinem Profil.
+ *
+ * MASSGEBEND BLEIBT DAS DIAGRAMM. Die Weisung vom 9. September
+ * («koennen anhand des bemessungdiagramms nachgewiessen werden») steht, und
+ * ein guenstigerer Wert daneben aendert daran nichts.
+ * ========================================================================= */
+
+/** Elastizitaetsmodul Stahl [kN/cm2] - dieselbe Zahl wie im uebrigen Werkzeug. */
+const E_ANKER = 21000;
+
+/**
+ * KNICKEN SENKRECHT ZUR SPREIZEBENE - die einfach rechenbare Richtung.
+ *
+ * Euler mit der Knicklaenge L (beidseits gelenkig - der Pendelstab ist an
+ * beiden Enden gelenkig angeschlossen, Weisung vom 9. September), dann die
+ * Knicklinie c nach EN 1993-1-1 Tab. 6.2. Kurve c gilt fuer «andere
+ * Querschnitte» und ist unter den gewalzten die unguenstigste; sie zu
+ * waehlen ist die sichere Seite und keine Ableitung.
+ *
+ * @param {string} id   Typ aus dem Sortiment
+ * @param {number} L    Laenge des Stabes [m]
+ * @param {object} opt  {fy [kN/cm2], gammaM1}
+ * @returns {object|null} {Ncr, lambda, chi, NbRd, Npl, ...} in kN - oder
+ *          null beim Seil und bei jedem Typ ohne Querschnittswerte
+ */
+export function ankerKnicken(id, L, opt = {}) {
+  const a = typeof id === 'string' ? getAnkerTyp(id) : id;
+  if (!a || a.art !== 'stuetze') return null;
+  const qs = a.querschnitt;
+  if (!qs || !(qs.A > 0) || !(qs.Iy > 0) || !(L > 0)) return null;
+  const fy = Number(opt.fy) > 0 ? Number(opt.fy) : 23.5;      // kN/cm2
+  const gM1 = Number(opt.gammaM1) > 0 ? Number(opt.gammaM1) : 1.0;
+  const Lcm = L * 100;
+  const Ncr = (Math.PI * Math.PI * E_ANKER * qs.Iy) / (Lcm * Lcm);
+  const Npl = qs.A * fy;
+  const lambda = Math.sqrt(Npl / Ncr);
+  const alpha = 0.49;                       // Knicklinie c
+  const Phi = 0.5 * (1 + alpha * (lambda - 0.2) + lambda * lambda);
+  const wurzel = Phi * Phi - lambda * lambda;
+  const chi = Math.min(1, 1 / (Phi + Math.sqrt(Math.max(wurzel, 0))));
+  return {
+    typ: a.id, L,
+    /** Traegheitsmoment der Ebene [cm4] - konstant, ohne Steiner-Anteil. */
+    I: qs.Iy,
+    A: qs.A, fy, gammaM1: gM1,
+    /** Ideale Knicklast [kN]. */
+    Ncr,
+    /** Vollplastische Normalkraft [kN]. */
+    Npl,
+    /** Bezogene Schlankheit [-]. */
+    lambda,
+    /** Abminderungsbeiwert der Knicklinie c [-]. */
+    chi,
+    knicklinie: 'c',
+    /** Knickwiderstand [kN] - BEMESSUNGSWERT, nicht mit dem Blatt vergleichbar. */
+    NbRd: (chi * Npl) / gM1,
+    ebene: 'senkrecht zur Spreizebene',
+    /** Was diese Rechnung NICHT abdeckt - steht im Ergebnis, nicht im Kommentar. */
+    nichtEnthalten: 'Knicken IN der Spreizebene: mehrteiliger Druckstab nach '
+      + 'EN 1993-1-1 6.4 mit veraenderlichem Querschnitt, Schubweichheit der '
+      + 'Bindelaschen und dem Nachweis des Einzelstabs dazwischen. Diese '
+      + 'Richtung ist massgebend und steckt im Bemessungsdiagramm.',
+  };
 }
 
 /** Stand der Datenbank - für die Fussleiste und den Bericht. */

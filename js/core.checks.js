@@ -98,9 +98,26 @@ export const NACHWEISGRUPPEN = [
   { key: 'auflagerJoch', titel: 'Auflager Joch', vorhanden: true, standard: false,
     was: 'Gurtanschluss am Mast, Kräftepaar M/h gegen die Schraubengrenze',
     gilt: (c) => c.id === 'A1' },
+  /*
+   * >>> DER TEXT HAENGT AN DER TRAGWERKSART. <<<
+   *
+   * Gefunden am 11. September: bei einem Abfangjoch stand hier «Gesamtstab
+   * und EINZELWINKEL» - die vier Winkelgurte des Tragjochs, waehrend zwei
+   * UPE-Gurte dastanden. Dieselbe Sorte Fehler wie in den Hinweisen daneben,
+   * nur eine Zeile kuerzer.
+   *
+   * Die LUECKE ist bei beiden dieselbe - kein Knicknachweis des Traegers -,
+   * aber ihr Grund ist ein anderer: beim Tragjoch fehlt er fuer Gesamtstab
+   * und Einzelwinkel, beim Abfangjoch fuer den DRUCKGURT, und dort steht
+   * ausserdem die Knicklaenge aus.
+   */
   { key: 'knickenJoch', titel: 'Knicken Joch', vorhanden: false, standard: false,
-    was: 'Gesamtstab und Einzelwinkel, in diesem Werkzeug nicht enthalten, '
-       + 'separat zu führen' },
+    was: (art) => (art === 'abfangjoch'
+      ? 'Druckgurt des liegenden Trägers — die Knicklänge steht aus; der '
+        + 'Bindeblechabstand wäre zu unkonservativ, weil sich der ganze '
+        + 'Träger in beiden Ebenen biegt'
+      : 'Gesamtstab und Einzelwinkel, in diesem Werkzeug nicht enthalten, '
+        + 'separat zu führen') },
   /*
    * SEIT DEM 28. AUGUST VORHANDEN (Weisung, auf ausdrückliche Nachfrage).
    *
@@ -1293,7 +1310,7 @@ export function hinweise(m) {
 }
 
 /** Sammelurteil über alle Prüfungen. */
-export function urteilKonstruktion(checks, nachweise) {
+export function urteilKonstruktion(checks, nachweise, art = 'joch') {
   const harte = checks.filter((c) => !c.warnungNichtFehler);
   const nw = nachweiseAuswahl(nachweise);
   /*
@@ -1303,7 +1320,10 @@ export function urteilKonstruktion(checks, nachweise) {
    * deshalb steht die Zahl daneben und die Namen darunter.
    */
   const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => !nw[g.key])
-    .map((g) => ({ key: g.key, titel: g.titel, was: g.was,
+    .map((g) => ({ key: g.key, titel: g.titel,
+                   // `was` darf von der Tragwerksart abhaengen - siehe
+                   // `knickenJoch` in NACHWEISGRUPPEN.
+                   was: typeof g.was === 'function' ? g.was(art) : g.was,
                    /*
                     * Der Unterschied zählt: AUSGESCHALTET ist eine
                     * Einstellung, die man umlegen kann, NICHT ENTHALTEN ist

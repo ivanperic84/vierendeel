@@ -1458,6 +1458,15 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    «biete noch eine einfache moeglichkeit die anordnung vor oder hinter dem
    masten vorzunehmen»). Die getroffene Wahl MUSS zu sehen sein - vier gleich
    aussehende Knoepfe waeren keine Auswahl, sondern vier Knoepfe. */
+/* DIE MARKE IM DIAGRAMM (Weisung, 11. September): der Arbeitspunkt auf der
+   Kurve des Bemessungsblatts, mit Fadenkreuz auf beide Achsen. Ohne das
+   Kreuz muesste man Laenge und Kraft selbst ablesen. */
+.marke { fill: var(--acc); stroke: var(--s0); stroke-width: 1.5; }
+.marke.nok { fill: var(--fail); }
+.marke-faden { stroke: var(--acc); stroke-width: 1; stroke-dasharray: 3 3;
+  opacity: .65; }
+.marke-txt { fill: var(--acc); font-size: 10px; font-weight: 600; }
+
 .ank-lagen { display: flex; flex-wrap: wrap; gap: 4px; }
 .ank-lagen .btn.an {
   background: var(--acc); border-color: var(--acc); color: var(--s0);
