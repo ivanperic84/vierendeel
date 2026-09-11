@@ -12,7 +12,8 @@
 
 import { U, tragwerksart } from './core.constants.js';
 import { querschnitt } from './geometry.js';
-import { klassifizierung } from './core.klassen.js';
+import { klassifizierung, klassifiziereBlech,
+         klassifiziereGurtprofil } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
 import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
          mastImModell } from './core.auflager.js';
@@ -152,7 +153,133 @@ export function gruppeVon(check) {
   return NACHWEISGRUPPEN.find((g) => g.gilt && g.gilt(check))?.key ?? null;
 }
 
-export function konstruktionsChecks(m) {
+/**
+ * DIE KONSTRUKTIONSPRUEFUNGEN DES ABFANGJOCHS.
+ *
+ * Weisung vom 11. September nach einem Bedienlauf: die Pruefungen hatten das
+ * Tragjoch geprueft, waehrend ein Abfangjoch dastand.
+ *
+ * >>> GEPRUEFT WIRD, WAS DIE AUSWERTUNG KENNT. <<<
+ *
+ * `abfangAuswertung` fuehrt Gurtprofil, Blecheinteilung, Stuetzweite und
+ * Rahmenfeld - daraus lassen sich vier Pruefungen bilden, und keine davon
+ * braucht eine Zahl, die nicht dasteht.
+ *
+ * >>> UND WAS HIER NICHT STEHT, STEHT NICHT ALS HAKEN DA. <<<
+ *
+ * Der Gurtanschluss am Masten (A1) haengt an der geometrischen Feder des
+ * Vierendeeltraegers; die Feldeinteilung L/a_1 am Blechraster des
+ * Tragjochs. Beides gibt es am liegenden Traeger nicht. Sie fehlen
+ * absichtlich, und die Hinweisliste sagt es.
+ *
+ * @param {object} m   Modell (fuer eps, Anbauteile, Nachweisschnitt)
+ * @param {object} ab  Ergebnis aus `abfangAuswertung`, oder null
+ */
+function abfangChecks(m, ab) {
+  /*
+   * OHNE AUSWERTUNG KEINE PRUEFUNG. Ein Typ ohne erfasste Blechlage ist
+   * nicht rechenbar (`abfangAuswertung` wirft dann); eine leere Liste ist
+   * die richtige Antwort, keine erfundene.
+   */
+  if (!ab?.q?.gurt) return [];
+  const checks = [];
+  const eps = m.eps ?? 1;
+
+  /*
+   * DER GURT. Klassifiziert wird mit der Normalkraft aus dem Kraeftepaar -
+   * sie schiebt den Steg in eine unguenstigere Klasse, und genau dafuer ist
+   * der Gurt da. DRUCK ist positiv: massgebend ist der gedrueckte Gurt, und
+   * das Kraeftepaar gibt beiden denselben Betrag.
+   */
+  const kg = klassifiziereGurtprofil(ab.q.gurt, eps,
+                                     Math.abs(ab.gurt?.N ?? 0));
+  const schlimmstes = kg.kriterien.reduce(
+    (a, b) => (b.klasse > a.klasse ? b : a));
+  checks.push({
+    id: 'Q1',
+    text: `Gurt ${kg.bauteil} – ${schlimmstes.id}`,
+    vorhanden: schlimmstes.ct, erforderlich: schlimmstes.grenze,
+    einheit: 'c/t', richtung: '<=',
+    ok: kg.klasse <= 3, status: `Klasse ${kg.klasse}`, klasse: kg.klasse,
+    warnungNichtFehler: kg.klasse === 3,
+    // Wie beim Tragjoch: Klasse 4 heisst, elastisch rechnen ist unzulaessig.
+    urteilBindend: true,
+  });
+
+  /*
+   * DIE BLECHE - jede Abmessung einmal. Quersteifen sind Profile, keine
+   * Bleche; sie tragen `profil` statt `masse` und werden hier ausgelassen.
+   */
+  const gesehen = new Set();
+  (ab.bleche?.bleche ?? []).forEach((b) => {
+    if (b.istSteife || !(b.b > 0) || !(b.t > 0)) return;
+    const s = `${b.b}x${b.t}`;
+    if (gesehen.has(s)) return;
+    gesehen.add(s);
+    const kb = klassifiziereBlech(
+      { breite: b.b * 10, dicke: b.t * 10, pos: b.art ?? '' }, eps);
+    checks.push({
+      id: `Q${checks.length + 1}`,
+      text: `Bindeblech ${kb.bauteil} – ${kb.kriterien[0].id}`,
+      vorhanden: kb.ct, erforderlich: kb.kriterien[0].grenze,
+      einheit: 'c/t', richtung: '<=',
+      ok: kb.klasse <= 3, status: `Klasse ${kb.klasse}`, klasse: kb.klasse,
+      warnungNichtFehler: kb.klasse === 3, urteilBindend: true,
+    });
+  });
+
+  /*
+   * DIE BEFESTIGUNGSPUNKTE liegen bei x +/- raster/2 und muessen auf dem
+   * Traeger liegen - dieselbe Regel wie beim Tragjoch, nur gegen die
+   * Traegerlaenge des Abfangjochs statt gegen die des Ersatzbalkens.
+   * Bauteile am MASTEN zaehlen nicht mit: ihr x ist bedeutungslos.
+   */
+  const aktive = (m.anbauteile ?? [])
+    .filter((a) => a.aktiv !== false && !amMast(a));
+  const rand = (a) => [a.x - (a.raster ?? 0.4) / 2,
+                       a.x + (a.raster ?? 0.4) / 2];
+  const jt = ab.jt ?? 0;
+  const xMax = aktive.length ? Math.max(...aktive.map((a) => rand(a)[1])) : 0;
+  const xMin = aktive.length ? Math.min(...aktive.map((a) => rand(a)[0])) : 0;
+  const ausserhalb = aktive.filter((a) => rand(a)[0] < 0 || rand(a)[1] > jt);
+  const linksRaus = xMin < 0;
+  checks.push({
+    id: 'P1',
+    text: `Befestigungspunkte der ${aktive.length} Anbauteile auf dem Joch`,
+    vorhanden: linksRaus ? xMin : xMax, erforderlich: linksRaus ? 0 : jt,
+    einheit: 'm', richtung: linksRaus ? '>=' : '<=',
+    ok: ausserhalb.length === 0,
+    status: ausserhalb.length === 0 ? 'OK'
+      : `AUSSERHALB: ${ausserhalb.map((a) => a.name ?? a.id).join(', ')}`,
+  });
+
+  checks.push(pruef('P3', 'Lage des Nachweisschnitts:  0 ≤ x_N ≤ L',
+    m.xNachweis ?? 0, jt, 'm', '<=', 'OK', 'AUSSERHALB'));
+
+  /*
+   * DAS RAHMENFELD steht in der Mass-Tabelle und ist keine Eingabe - es
+   * gibt also nichts zu pruefen, aber der Wert gehoert ins Blatt: das
+   * RANDFELD ist breiter als die Regelteilung, und die oertliche Biegung
+   * des Gurtes waechst damit quadratisch.
+   */
+  const rf = ab.rahmenfeld;
+  if (rf?.randfeld > 0 && rf?.teilung > 0) {
+    checks.push({
+      id: 'P4',
+      text: 'Randfeld gegen Regelteilung – die örtliche Biegung wächst '
+          + 'quadratisch',
+      vorhanden: rf.randfeld, erforderlich: rf.teilung,
+      einheit: 'm', richtung: '>=',
+      ok: true,
+      status: `Faktor ${(rf.faktor ?? 0).toFixed(2)} · aus der Mass-Tabelle, `
+            + 'keine Eingabe',
+      warnungNichtFehler: true,
+    });
+  }
+  return checks;
+}
+
+export function konstruktionsChecks(m, ab = null) {
   /*
    * OHNE JOCH KEINE JOCHPRUEFUNGEN.
    *
@@ -166,6 +293,26 @@ export function konstruktionsChecks(m) {
    * sein Nachweis; was ihm fehlt - die Stabilitaet - steht in den Hinweisen.
    */
   if (tragwerksart(m).key === 'einzelmast') return [];
+  /*
+   * >>> UND DAS ABFANGJOCH PRUEFT SEINE EIGENEN TEILE. <<<
+   *
+   * Gefunden am 11. September in einem Bedienlauf: bei einem A240 mit
+   * UPE-240-Gurten standen hier zehn gruene Haken - darunter «Obergurt
+   * L 90x90x9», «Bindeblech Blech 100×10» und die Feldeinteilung
+   * L / a_1 des Blechrasters. Alles Teile des TRAGJOCH-Ersatzbalkens, den
+   * `berechne` mitfuehrt, weil Masken und Verlaeufe an seiner Gestalt
+   * haengen.
+   *
+   * Zehn erfuellte Pruefungen an einem Bauteil, das nicht dasteht, sind
+   * schlimmer als keine: der Nutzer sieht «10 erfuellt» und haelt seinen
+   * Traeger fuer geprueft.
+   *
+   * `abfangChecks` prueft, was WIRKLICH dasteht - Gurtprofil, Bindebleche,
+   * Befestigungspunkte, Nachweisschnitt. Was sich mit den Daten des
+   * Abfangjochs nicht fuehren laesst, steht nicht als Haken da, sondern in
+   * den Hinweisen.
+   */
+  if (tragwerksart(m).key === 'abfangjoch') return abfangChecks(m, ab);
   const kl = klassifizierung(m);
   const checks = [];
 
@@ -579,6 +726,50 @@ export function hinweise(m) {
       + 'Masten als Moment längs an. Der St.-Venant-Anteil ist weggelassen '
       + '— bei diesem Querschnitt der kleinere, und das liegt auf der '
       + 'sicheren Seite.');
+    /*
+     * >>> DIE TORSIONSANTEILE HEBEN SICH AUF - UND DAS MUSS DASTEHEN. <<<
+     *
+     * Gefunden am 11. September in einem Bedienlauf: ein zusaetzlicher
+     * Jochaufsatz senkte die Ausnutzung des Gurtes von 0.540 auf 0.508.
+     * Alles andere stieg - Rahmenmoment, Kraeftepaar, oertliche Biegung -,
+     * nur die lotrechte Gurtbiegung fiel um 14 %.
+     *
+     * DER GRUND IST RICHTIG GERECHNET: T = SUMME(F · z), und z zaehlt ab der
+     * Traegerachse. Ein Jochaufsatz sitzt DARUEBER (z > 0), eine
+     * Haengestuetze DARUNTER (z < 0). Derselbe Wind verdreht den Traeger
+     * ueber beide gegensinnig, und die Summe wird kleiner. Wer die Beitraege
+     * als Betraege addierte, rechnete eine Verdrehung, die es nicht gibt.
+     *
+     * >>> WARUM ES TROTZDEM IN DEN HINWEIS GEHOERT. <<<
+     *
+     * Weil der Nachweis damit an einem Bauteil haengt, das ENTLASTET. Faellt
+     * der Aufsatz spaeter weg - Umbau, Rueckbau, ein Leiter weniger -,
+     * steigt die Ausnutzung, ohne dass jemand etwas hinzugefuegt haette. Das
+     * ist die Art Abhaengigkeit, die man beim Pruefen sehen muss und beim
+     * Rechnen nicht bemerkt.
+     *
+     * Der Hinweis erscheint nur, wenn es ihn BRAUCHT: stehen alle Aufbauten
+     * auf derselben Seite der Achse, hebt sich nichts auf, und eine Warnung
+     * ohne Gegenstand ist so schlecht wie eine fehlende.
+     *
+     * Weisung vom 11. September auf Nachfrage: «vorzeichenrichtig lassen»,
+     * mit diesem Hinweis im Blatt.
+     */
+    const zLagen = (m.anbauteile ?? [])
+      .filter((a) => a && a.aktiv !== false && (a.ort ?? 'joch') === 'joch')
+      .flatMap((a) => (Array.isArray(a.module) ? a.module : [])
+        .map((mo) => Number(mo?.z)))
+      .filter((z) => Number.isFinite(z) && Math.abs(z) > 1e-9);
+    if (zLagen.some((z) => z > 0) && zLagen.some((z) => z < 0)) {
+      h.push('Anbauteile stehen ÜBER und UNTER der Trägerachse. Ihre '
+        + 'Torsionsbeiträge werden VORZEICHENRICHTIG summiert (T = Σ F·z) '
+        + 'und heben sich deshalb teilweise auf — derselbe Wind verdreht '
+        + 'den Träger über einen Aufsatz und über eine Hängestütze '
+        + 'gegensinnig. Das ist gerechnet, nicht übersehen. FOLGE FÜR DIE '
+        + 'PRÜFUNG: ein zusätzliches Bauteil kann die Ausnutzung SENKEN, '
+        + 'und fällt ein Aufbau später weg, STEIGT sie. Der Nachweis gilt '
+        + 'für die Bestückung, die hier steht.');
+    }
     h.push('Der LEITERZUG erzeugt dabei KEINE Torsion: er wird an der '
       + 'Anbindung eingeleitet, nicht dort, wo der Draht hängt. «Mitte '
       + 'Träger» heisst, dass er zentrisch ankommt — die Hängestütze trägt '
@@ -688,9 +879,12 @@ export function hinweise(m) {
     const ohneZug = abfangZugOhneWirkung(m.anbauteile ?? [],
                                          { tempFall: m.tempFall });
     if (ohneZug.length) {
-      h.push(`${ohneZug.length === 1 ? 'Ein Anbauteil trägt' : `${ohneZug.length} `
-        + 'Anbauteile tragen'} ein Drahtwerk, ist aber über die GURTE `
-        + `angebunden und bringt deshalb KEINE Abfangkraft: `
+      const eins = ohneZug.length === 1;
+      h.push(`${eins
+        ? 'Ein Anbauteil trägt ein Drahtwerk, ist'
+        : `${ohneZug.length} Anbauteile tragen ein Drahtwerk, sind`} `
+        + `aber über die GURTE angebunden und `
+        + `${eins ? 'bringt' : 'bringen'} deshalb KEINE Abfangkraft: `
         + `${ohneZug.map((t2) => `${t2.name} bei ${t2.x.toFixed(2)} m`).join(', ')}. `
         + 'Wird der Leiter dort abgefangen, gehört die Anbindung auf «Mitte '
         + 'Träger» — sonst fehlt dem Joch die Last, für die es dasteht.');
@@ -910,6 +1104,32 @@ export function hinweise(m) {
       + 'zusammen; die Rechnung im Werkzeug nimmt den Wert, wie er dasteht. '
       + 'Ist es Absicht, kann der Hinweis stehen bleiben.');
   }
+
+  /* =========================================================================
+   * AB HIER SPRICHT DER TRAGJOCH-ERSATZBALKEN - UND NUR ER.
+   * =========================================================================
+   *
+   * Weisung vom 11. September nach einem Bedienlauf: bei einem Abfangjoch
+   * A240 standen einundzwanzig Hinweise im Blatt, die einem anderen
+   * Tragwerk gehoerten. Vier davon las man leicht als Aussage ueber den
+   * liegenden Traeger:
+   *
+   *   «Schiefe Biegung der GURTWINKEL ist erfasst»   - er hat UPE-Gurte
+   *   «Torsion ... auf alle VIER EBENEN»              - er hat zwei Gurte
+   *   «Blechstaffelung J90 aus den Stueckzahlen»      - gewaehlt war A240
+   *   «Der MAST IST AUFLAGER, NICHT BAUTEIL»          - sein Mastnachweis
+   *                                                      stand daneben
+   *
+   * Der letzte widersprach direkt einem Hinweis zwei Absaetze darueber, der
+   * seit dem 10. September sagt, der Mastnachweis stehe auf den
+   * Auflagerkraeften des Abfangjochs. Zwei Saetze ueber dieselbe Sache, und
+   * einer davon falsch.
+   *
+   * Alles, was folgt, haengt an Gurtwinkeln, Blechebenen, Drehfedern und
+   * der Blechstaffelung des Vierendeeltraegers. Das Abfangjoch hat davon
+   * nichts; seine eigenen Hinweise stehen oben im `abfangjoch`-Zweig.
+   * ======================================================================= */
+  if (art.key === 'abfangjoch') return h;
 
   // EIGENANTEIL DER GURTE am globalen Moment.
   if (m.eigenanteil) {

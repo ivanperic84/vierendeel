@@ -241,10 +241,22 @@ export function iconKnopf(id, name, titel, aktiv = false) {
  * Stelle, an der die Kennzahl auftritt.
  */
 export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
+  /*
+   * DER FUENFTE PARAMETER KANN ZWEIERLEI SEIN.
+   *
+   * `{x, station}` macht die Kachel ANKLICKBAR - das Modell faehrt an die
+   * Stelle. `{titel}` gibt ihr nur eine Erlaeuterung beim Darueberfahren;
+   * das brauchte zuerst die Ankerkachel (Weisung, 11. September: ihr η steht
+   * auf charakteristischen Kraeften und ist mit den Nachbarn nicht
+   * vergleichbar - und das las man nur im eingeklappten Hinweis).
+   *
+   * Beides in einem Feld, weil es dieselbe Frage beantwortet: was es mit
+   * dieser Zahl auf sich hat.
+   */
   const k = ziel && Number.isFinite(ziel.x)
     ? ` klick" data-kz-x="${ziel.x}" data-kz-station="${ziel.station ?? ''}` +
       `" title="Im Modell anfahren: x = ${ziel.x.toFixed(2)} m`
-    : '';
+    : (ziel?.titel ? `" title="${esc(ziel.titel)}` : '');
   return `<div class="kz${zustand ? ' ' + zustand : ''}${k}">
     <div class="kz-t">${esc(titel)}</div>
     <div class="kz-w">${esc(wert)}</div>

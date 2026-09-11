@@ -118,6 +118,79 @@ export function klassifiziereBlech(b, eps) {
   };
 }
 
+/**
+ * QUERSCHNITTSKLASSE EINES ABFANGJOCH-GURTES (UPE oder IPE).
+ *
+ * >>> WARUM NICHT `klassifiziereWinkel`. <<<
+ *
+ * Gefunden am 11. September in einem Bedienlauf: das Pruefblatt eines
+ * Abfangjochs A240 fuehrte «Obergurt L 90x90x9 – Winkel unter Druck». Ein
+ * Winkel des TRAGJOCHS, waehrend links ein UPE 240 gewaehlt war - zehn gruene
+ * Haken fuer ein Bauteil, das nicht dasteht.
+ *
+ * Der Gurt des Abfangjochs ist ein U- oder I-Profil, und beide werden anders
+ * klassifiziert als ein Winkel: der Flansch kragt aus, der Steg ist an beiden
+ * Raendern gestuetzt.
+ *
+ * >>> DIE BEIDEN REIHEN UNTERSCHEIDEN SICH IM FLANSCH. <<<
+ *
+ *   UPE   der Flansch kragt VOM STEG WEG, ueber seine ganze Breite:
+ *         c = b − t_w
+ *   IPE   er kragt nach BEIDEN Seiten, je zur Haelfte:
+ *         c = (b − t_w) / 2
+ *
+ * Ein UPE mit der I-Formel gerechnet kaeme auf die halbe Ausladung und damit
+ * auf eine zu gute Klasse - der Fehler laege auf der unsicheren Seite.
+ *
+ * Der AUSRUNDUNGSRADIUS bleibt weg, wie bei `mastKlasse`: c wird damit zu
+ * gross und die Klasse unguenstiger als in der Profiltabelle. Auch das ist
+ * die sichere Seite, und es braucht keine Zahl, die nicht dasteht.
+ *
+ * Grundlage ist EN 1993-1-1, Tabelle 5.2 - dieselbe, auf der der
+ * Mastnachweis steht. Kein neuer Grundsatz, dieselbe Regel an einem
+ * weiteren Profil.
+ *
+ * @param {object} p    Gurtprofil aus GURTPROFILE, Masse in cm
+ * @param {number} eps  √(235/f_y)
+ * @param {number} nEd  Normalkraft im Gurt [kN], DRUCK positiv
+ */
+export function klassifiziereGurtprofil(p, eps, nEd = 0) {
+  // Von cm auf mm - die Grenzwerte der Norm stehen dimensionslos, aber f_y
+  // in N/mm2, und die Stegflaeche unten wird damit gerechnet.
+  const h = p.h * 10, b = p.b * 10, tw = p.tw * 10, tf = p.tf * 10;
+  const istU = p.reihe === 'UPE' || p.reihe === 'UAP' || p.reihe === 'UNP';
+  const cF = istU ? b - tw : (b - tw) / 2;
+  const ctF = cF / tf;
+  const klF = klasseAuskragend(ctF, eps);
+  /*
+   * DER STEG, an beiden Raendern gestuetzt (Tab. 5.2, Blatt 1). `alpha` ist
+   * der gedrueckte Anteil der Steghoehe; ohne Normalkraft die Haelfte.
+   * Dieselbe Herleitung wie in `mastKlasse` - zwei Formeln fuer dieselbe
+   * Sache waeren zwei Orte, an denen eine Festlegung steht.
+   */
+  const hs = h - 2 * tf;
+  const ctS = hs / tw;
+  const fy = 235 / (eps * eps);
+  const nDruck = Math.max(0, nEd);
+  const alpha = Math.min(1, 0.5 + (nDruck * 1000) / (2 * hs * tw * fy));
+  const gr1 = alpha > 0.5 ? (396 * eps) / (13 * alpha - 1) : (36 * eps) / alpha;
+  const gr2 = alpha > 0.5 ? (456 * eps) / (13 * alpha - 1) : (41.5 * eps) / alpha;
+  const klS = ctS <= gr1 ? 1 : ctS <= gr2 ? 2 : ctS <= 42 * eps ? 3 : 4;
+  const klasse = Math.max(klF, klS);
+  return {
+    bauteil: p.name, eps, klasse, hinweis: beurteilung(klasse),
+    kriterien: [
+      { id: `Flansch auskragend, c = ${istU ? 'b − t_w' : '(b − t_w)/2'}`,
+        ct: ctF, art: 'auskragend', grenze: GRENZEN_AUSKRAGEND.k3 * eps,
+        klasse: klF },
+      { id: 'Steg beidseitig gestützt, Druck und Biegung',
+        ct: ctS, art: 'gestuetzt', grenze: 42 * eps, klasse: klS },
+    ],
+    flansch: { ct: ctF, klasse: klF, grenze: 9 * eps },
+    steg: { ct: ctS, klasse: klS, alpha, grenze: gr1 },
+  };
+}
+
 /** Klassifizierung aller Bauteile des Modells. */
 export function klassifizierung(m) {
   const eps = m.eps;

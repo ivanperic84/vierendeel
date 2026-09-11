@@ -278,7 +278,7 @@ export function schraegerStab(p0, p1, b, h, opt = {}) {
  *   nachweis      Ergebnis aus mastNachweise()[name], oder null
  *   farbeBauteil  Farbe, wenn kein Nachweis vorliegt
  *   anker         {typ, h, a, richtung, seite} am Masten, oder null
- *   ankerText     Beschriftung des Ankers
+ *   ankerSpreiz   Spreizmass der Stuetze aus dem Sortiment (oder null)
  * @returns {{flaechen:object[], linien:object[]}}
  */
 export function mastKoerper(o) {
@@ -395,7 +395,23 @@ function ankerTeile(o, halb, zFuss, zKopf) {
   const zA = zFuss + Math.min(ak.h, zKopf - zFuss);
   const xF = laengs ? x : x + vz * ak.a;
   const yF = laengs ? vz * ak.a : 0;
-  const wie = o.ankerText ?? `${ak.typ} · nicht gerechnet`;
+  /*
+   * >>> DIE ANSCHRIFT NENNT DAS BAUTEIL, NICHT SEIN ERGEBNIS. <<<
+   *
+   * Weisung vom 11. September: «bei der beschriftung des ankers nur die
+   * pos. typ und laenge anschreiben.»
+   *
+   * Bis dahin stand «Anker B · U12 · Druck 17.4 kN · η 0.289» im Bild -
+   * vier Angaben, von denen zwei aus dem Nachweis kommen und sich bei jeder
+   * Eingabe aendern. Im Modell steht, WAS dasteht; die Ausnutzung steht in
+   * der Kachel daneben, und sie steht dort genauer.
+   *
+   * Die Laenge folgt aus den beiden Eingabemassen und ist die Zahl, mit der
+   * man ins Sortiment geht: die Knickkurve des Blattes ist ueber sie
+   * aufgetragen.
+   */
+  const LAnker = Math.sqrt(ak.h * ak.h + ak.a * ak.a);
+  const wie = `${ak.typ} · L = ${LAnker.toFixed(2)} m`;
 
   /*
    * >>> DER STAB IST EIN KOERPER, KEINE LINIE. <<<
@@ -414,17 +430,111 @@ function ankerTeile(o, halb, zFuss, zKopf) {
    */
   const pM = [x, 0, zA], pF = [xF, yF, zFuss];
   const dick = Math.max(0.06, 0.55 * halb);
-  flaechen.push(...schraegerStab(pM, pF, dick, dick, {
-    gruppe: 'mast', teil: `ANKER_${name}`,
-    label: `Anker ${name} · ${wie}`,
-  }));
-  [-0.5, +0.5].forEach((d) => {
-    const dx = laengs ? d * halb : 0;
-    const dy = laengs ? 0 : d * halb;
-    linien.push({ gruppe: 'mast', anker: true, stark: true,
-                  label: `Anker ${name} · ${wie}`,
-                  punkte: [[x + dx, dy, zA], [xF + dx, yF + dy, zFuss]] });
-  });
+  const LStab = Math.hypot(xF - x, yF, zA - zFuss);
+
+  /* =======================================================================
+   * >>> ZWEI PROFILE, KEILFOERMIG GESPREIZT. <<<
+   * =======================================================================
+   *
+   * Weisung vom 11. September: «die Drueckstuetze korrekt im 3d abbilden.»
+   *
+   * Gezeichnet war EIN Quader. Der Katalog fuehrt die Stuetze aber als
+   * «2× UNP 120», und das Spreizmass steht seit dem 11. September darin:
+   * 104 mm (U12) bzw. 124 mm (U14) am engen Ende, 225 mm am weiten, davon
+   * 990 mm parallel am engen und 1610 mm parallel am weiten Ende.
+   *
+   * Der Keil ist das Kennzeichen des Bauteils - an ihm erkennt man es im
+   * Bild, und er erklaert, warum der Knicknachweis ueber das
+   * Bemessungsdiagramm laeuft und nicht aus einem festen I_z.
+   *
+   * >>> ZWEI DINGE SAGT DAS BLATT NICHT. SIE STEHEN HIER ALS LESART. <<<
+   *
+   * 1. WORAUF sich die Masslinie bezieht. Gezeichnet wird sie als LICHTE
+   *    WEITE zwischen den Profilen. Dafuer spricht die Flachlasche
+   *    FLA 140/8, die den Spalt ueberbrueckt: ueber 104 mm liegt sie
+   *    beidseits 18 mm auf. Bewiesen ist es damit nicht.
+   * 2. WELCHES Ende am Masten sitzt. Gezeichnet wird das ENGE Ende oben -
+   *    dort haengt die Stuetze an einer Konsole, unten steht sie auf der
+   *    Ankerplatte.
+   *
+   * Fuer den NACHWEIS ist beides ohne Belang: der laeuft ueber das
+   * Bemessungsdiagramm, und dessen Kurve kennt die Geometrie schon
+   * (`data/anker.json`, Feld `bezug: null`). Faellt die Angabe spaeter, ist
+   * hier die Stelle, an der sie eingesetzt wird.
+   *
+   * Ohne Spreizmass - beim Seilanker, und bei jedem Typ ohne Blatt - bleibt
+   * es beim einen Stab. Ein Seil ist kein Keil.
+   * ===================================================================== */
+  const sp = o.ankerSpreiz ?? null;
+  // Die Spreizung steht quer zur Ankerebene: liegt der Anker in
+  // Gleisrichtung, spreizt er in der Jochachse - und umgekehrt.
+  const spreizAchse = laengs ? 0 : 1;
+  const halbAbstand = (s) => {
+    // s in [0,1] ab dem ENGEN Ende (oben am Masten).
+    if (!sp) return 0;
+    const a2 = (sp.parallelSchmal ?? 0) / 1000;
+    const b2 = LStab - (sp.parallelBreit ?? 0) / 1000;
+    const xx = s * LStab;
+    const mm2 = !(b2 > a2)
+      ? sp.schmal + (sp.breit - sp.schmal) * (xx / LStab)
+      : xx <= a2 ? sp.schmal
+        : xx >= b2 ? sp.breit
+          : sp.schmal + (sp.breit - sp.schmal) * ((xx - a2) / (b2 - a2));
+    // Lichtes Mass + eine Profilbreite = Achsabstand der beiden Koerper;
+    // der sichtbare Spalt ist dann genau das Mass der Zeichnung.
+    return (mm2 / 1000 + dick) / 2;
+  };
+  const punktAuf = (s, vzP) => {
+    const p = [pM[0] + (pF[0] - pM[0]) * s,
+               pM[1] + (pF[1] - pM[1]) * s,
+               pM[2] + (pF[2] - pM[2]) * s];
+    p[spreizAchse] += vzP * halbAbstand(s);
+    return p;
+  };
+  if (sp) {
+    /*
+     * >>> DREI ABSCHNITTE, UND DIE KNICKE SITZEN AUF DEM MASS. <<<
+     *
+     * Der Verlauf hat genau zwei Knicke: dort, wo das parallele Stueck
+     * endet (990 mm vom engen Ende) und dort, wo das andere beginnt
+     * (1610 mm vom weiten). Ein festes Raster trifft sie nicht - bei 7.85 m
+     * Stablaenge faellt der erste auf s = 0.126, zwischen zwei Sechsteln,
+     * und der Keil begaenne im Bild zu frueh.
+     *
+     * Die Stuetzstellen sind deshalb die Knicke selbst. Mehr braucht es
+     * nicht: zwischen ihnen ist der Verlauf gerade, und jede weitere
+     * Flaeche kostet die Szene Zeit ohne etwas zu zeigen.
+     */
+    const sA = Math.min(1, ((sp.parallelSchmal ?? 0) / 1000) / LStab);
+    const sB = Math.max(0, 1 - ((sp.parallelBreit ?? 0) / 1000) / LStab);
+    const stuetz = (sB > sA ? [0, sA, sB, 1] : [0, 1])
+      .filter((s, i2, arr) => i2 === 0 || s - arr[i2 - 1] > 1e-6);
+    [-1, +1].forEach((vzP) => {
+      for (let i2 = 1; i2 < stuetz.length; i2 += 1) {
+        flaechen.push(...schraegerStab(
+          punktAuf(stuetz[i2 - 1], vzP), punktAuf(stuetz[i2], vzP),
+          dick, dick, {
+            gruppe: 'mast', teil: `ANKER_${name}`,
+            label: `Anker ${name} · ${wie}`,
+          }));
+      }
+      linien.push({ gruppe: 'mast', anker: true, stark: true,
+                    label: `Anker ${name} · ${wie}`,
+                    punkte: stuetz.map((s) => punktAuf(s, vzP)) });
+    });
+  } else {
+    flaechen.push(...schraegerStab(pM, pF, dick, dick, {
+      gruppe: 'mast', teil: `ANKER_${name}`,
+      label: `Anker ${name} · ${wie}`,
+    }));
+    [-0.5, +0.5].forEach((d) => {
+      const dx = laengs ? d * halb : 0;
+      const dy = laengs ? 0 : d * halb;
+      linien.push({ gruppe: 'mast', anker: true, stark: true,
+                    label: `Anker ${name} · ${wie}`,
+                    punkte: [[x + dx, dy, zA], [xF + dx, yF + dy, zFuss]] });
+    });
+  }
   // Das Ankerfundament: ein Klotz am Boden, kein Auflagerdreieck.
   const fb = 0.35 * halb;
   [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, -1]].forEach((p, i, arr) => {
@@ -468,11 +578,23 @@ function ankerTeile(o, halb, zFuss, zKopf) {
     text: `Anker ${name} · ${wie}`,
     mastEnde: name, feld: 'ankerTyp', tab: 'system', gruppe: 'mast',
   });
+  /*
+   * >>> DIE HOEHE WIRD AM MASTEN GEMESSEN, ALSO STEHT SIE DORT. <<<
+   *
+   * Weisung vom 11. September: «die vertikale vermassung auf seite mast
+   * rueber nehmen.»
+   *
+   * Sie stand ueber dem ANKERFUNDAMENT, also am falschen Ende: h_A ist die
+   * Anschlusshoehe AM MASTEN ueber dem Mastfuss. Wer ein Mass sucht, sucht
+   * es an dem Bauteil, das es beschreibt.
+   *
+   * Abgehoben wird auf die dem Anker ABGEWANDTE Seite - dort ist nichts,
+   * was die Masslinie verdecken koennte.
+   */
   masse.push({
     feld: 'ankerH', tab: 'system', achse: 'z', mastEnde: name,
-    p0: [x, laengs ? vz * ak.a : 0, zFuss],
-    p1: [x, laengs ? vz * ak.a : 0, zA],
-    ab: laengs ? [1, 0, 0] : [0, 1, 0], d: 0.6,
+    p0: [x, 0, zFuss], p1: [x, 0, zA],
+    ab: laengs ? [0, -vz, 0] : [-vz, 0, 0], d: 0.6,
     text: `h_A = ${ak.h.toFixed(2)} m`,
   });
   masse.push({
@@ -480,6 +602,53 @@ function ankerTeile(o, halb, zFuss, zKopf) {
     p0: [x, 0, zFuss], p1: [xF, yF, zFuss],
     ab: [0, 0, -1], d: 0.5,
     text: `a_A = ${ak.a.toFixed(2)} m`,
+  });
+
+  /* =======================================================================
+   * >>> DER WINKEL, ALS BOGEN AM FUNDAMENT. <<<
+   * =======================================================================
+   *
+   * Weisung vom 11. September: «den winkel noch vermassen.»
+   *
+   * Gemessen wird er gegen die WAAGRECHTE - so steht die Voreinstellung
+   * («der anker hat einen winkel von ca 60°», Weisung vom 11. September),
+   * und so folgt er aus den beiden Massen: tan α = h_A / a_A.
+   *
+   * Der Bogen sitzt am FUNDAMENT, zwischen dem Boden und der Stabachse.
+   * Dort ist er der Winkel, den man auf der Zeichnung sieht; am Mastkopf
+   * waere es sein Gegenwinkel, und der steht in keiner Eingabe.
+   *
+   * Gezeichnet als Linienzug: die Szene kennt keine Boegen, und ein
+   * Vieleck aus acht Sehnen ist bei dieser Groesse nicht davon zu
+   * unterscheiden. Dieselbe Loesung wie bei den Gelenkkreisen darueber.
+   */
+  const alpha = Math.atan2(ak.h, ak.a);
+  const rB = Math.max(0.45, 1.4 * halb);
+  // Die Waagrechte zeigt vom Fundament zum Masten, die Lotrechte nach oben.
+  const eH = laengs ? [0, -vz, 0] : [-vz, 0, 0];
+  const bogen = [];
+  for (let k = 0; k <= 8; k += 1) {
+    const w = (k / 8) * alpha;
+    bogen.push([xF + eH[0] * rB * Math.cos(w),
+                yF + eH[1] * rB * Math.cos(w),
+                zFuss + rB * Math.sin(w)]);
+  }
+  for (let k = 1; k < bogen.length; k += 1) {
+    linien.push({ gruppe: 'mast', anker: true,
+                  punkte: [bogen[k - 1], bogen[k]] });
+  }
+  /*
+   * DIE ZAHL steht auf halbem Bogen, ein Stueck nach aussen geschoben -
+   * innerhalb des Bogens liefe sie gegen die Stabachse.
+   */
+  const wM = alpha / 2;
+  const rT = rB * 1.35;
+  bauteiltitel.push({
+    p: [xF + eH[0] * rT * Math.cos(wM),
+        yF + eH[1] * rT * Math.cos(wM),
+        zFuss + rT * Math.sin(wM)],
+    text: `α = ${((alpha * 180) / Math.PI).toFixed(1)}°`,
+    mastEnde: name, feld: 'ankerH', tab: 'system', gruppe: 'mast',
   });
   return { linien, flaechen, bauteiltitel, masse };
 }

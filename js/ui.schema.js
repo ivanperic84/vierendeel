@@ -778,11 +778,11 @@ export const FELDER = [
     label: (w) => `Zuganker / Druckstütze ${
       gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: '', wertAus: amAnker('typ', ''),
-    optionenAus: () => [{ wert: '', label: 'keiner' },
+    optionenAus: () => [{ wert: '', text: 'keiner' },
       ...ankerTypen().map((t2) => ({ wert: t2.id,
-        label: `${t2.name} · ${t2.art === 'seil' ? 'nur Zug'
+        text: `${t2.name} · ${t2.art === 'seil' ? 'nur Zug'
           : `bis ${(t2.laengeMax ?? 0).toFixed(2)} m`}` }))],
-    optionen: [{ wert: '', label: 'keiner' }],
+    optionen: [{ wert: '', text: 'keiner' }],
     sichtbar: (w) => mastDa(w) && ankerDbDa(),
     hinweis: 'Ein schräger Stab vom Masten zu einem eigenen Fundament, an '
            + 'beiden Enden gelenkig — er trägt nur Normalkraft. Die Stütze '
@@ -844,8 +844,8 @@ export const FELDER = [
     label: 'Ebene des Ankers', standard: 'x',
     wertAus: amAnker('richtung', 'x'),
     optionen: [
-      { wert: 'x', label: 'Jochachse (quer zum Gleis)' },
-      { wert: 'y', label: 'Gleisrichtung (längs)' }],
+      { wert: 'x', text: 'Jochachse (quer zum Gleis)' },
+      { wert: 'y', text: 'Gleisrichtung (längs)' }],
     sichtbar: ankerDa,
     notiz: (w) => (gewaehlterMast(w)?.anker?.richtung === 'y'
       ? 'Hält die Kraft in Gleisrichtung — der Leiterzug am Abfangjoch.'
@@ -857,12 +857,12 @@ export const FELDER = [
     label: 'Seite des Ankerfundaments', standard: 'plus',
     wertAus: amAnker('seite', 'plus'),
     optionenAus: (w) => (gewaehlterMast(w)?.anker?.richtung === 'y'
-      ? [{ wert: 'plus', label: 'in +y (Gleisrichtung, vorn)' },
-         { wert: 'minus', label: 'in −y (Gleisrichtung, hinten)' }]
-      : [{ wert: 'plus', label: 'in +x (vom Gleis weg)' },
-         { wert: 'minus', label: 'in −x (zum Gleis hin)' }]),
-    optionen: [{ wert: 'plus', label: 'in +' },
-               { wert: 'minus', label: 'in −' }],
+      ? [{ wert: 'plus', text: 'in +y (Gleisrichtung, vorn)' },
+         { wert: 'minus', text: 'in −y (Gleisrichtung, hinten)' }]
+      : [{ wert: 'plus', text: 'in +x (vom Gleis weg)' },
+         { wert: 'minus', text: 'in −x (zum Gleis hin)' }]),
+    optionen: [{ wert: 'plus', text: 'in +' },
+               { wert: 'minus', text: 'in −' }],
     sichtbar: ankerDa,
     hinweis: 'Der Anker steht auf der Seite, zu der er ZIEHT — gegen die '
            + 'Kraft, die den Masten kippt.' },
@@ -870,7 +870,7 @@ export const FELDER = [
     label: 'Befestigung an Fundament und Mast', standard: 'ankerplatte',
     wertAus: amAnker('befestigung', 'ankerplatte'),
     optionen: ANKER_BEFESTIGUNGEN.map(
-      (b) => ({ wert: b.key, label: b.label })),
+      (b) => ({ wert: b.key, text: b.label })),
     sichtbar: (w) => ankerDa(w)
       && gewaehlterMast(w)?.anker?.typ !== 'SA20',
     hinweis: 'Auf ZUG begrenzt nicht die Stütze, sondern die Befestigung: '
@@ -1146,10 +1146,10 @@ export const FELDER = [
    */
   { key: 'anbauteile', gruppe: 'anbau', typ: 'anbauteile', label: 'Anbauteile',
     hinweis: (w) => (tragwerksart(w).key === 'abfangjoch'
-      ? 'Am Abfangjoch noch nicht angeschlossen: der Rechenkern, das Bild '
-      + 'und die AxisVM-Ausleitung führen bisher nur Eigengewicht und '
-      + 'Leiterzug. Eingetragene Bauteile bleiben erhalten, wirken aber '
-      + 'nicht — wo sie am liegenden Träger angreifen, ist noch zu klären.'
+      ? 'Am Abfangjoch wirken sie vollständig: Eigengewicht, Wind und die '
+      + 'Torsion aus der Exzentrizität über und unter der Trägerachse. '
+      + 'Der LEITERZUG hängt an der Anbindung — nur «Mitte Träger» leitet '
+      + 'ihn ein; «über beide Gurte» trägt nur Gewicht und Wind.'
       : ''),
     standard: [] },
   // Eigene Vorlagen: was sich jemand für sein Projekt zusammenstellt.

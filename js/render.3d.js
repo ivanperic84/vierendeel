@@ -39,6 +39,7 @@ import { querschnitt } from './geometry.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
+import { ankerSpreizung } from './data.anker.js';
 /*
  * DIE BAUSTEINE STEHEN SEIT DEM 4. SEPTEMBER IN `render.koerper.js`.
  *
@@ -646,17 +647,19 @@ export function erzeugeSzene(m, erg) {
          * Hoehe, Ueberstand, Fussschraffur, Zuganker), steht jetzt in
          * `mastKoerper` und gilt beiden Bildern.
          */
-        const nwA = erg?.anker?.[name]?.nachweis ?? null;
         const mk = mastKoerper({
           profil: mast.profil, achse: mast.stegrichtung?.achse ?? 'y',
           x, zFuss: zF, zAnschluss: z0, zKopf, name, grund,
           nachweis: erg?.mast?.[name] ?? null,
           anker: mast.anker ?? null,
-          ankerText: nwA
-            ? `${nwA.typ} · ${nwA.N >= 0 ? 'Zug' : 'Druck'} `
-              + `${Math.abs(nwA.N).toFixed(1)} kN · η `
-              + `${(nwA.eta ?? 0).toFixed(3)}`
-            : null,
+          /*
+           * DAS SPREIZMASS KOMMT AUS DEM SORTIMENT, nicht aus der Szene:
+           * `render.koerper.js` ist reine Geometrie und laedt keine
+           * Datenbank. Derselbe Weg, den `ankerText` vor ihm ging.
+           */
+          ankerSpreiz: mast.anker?.typ
+            ? (() => { try { return ankerSpreizung(mast.anker.typ); }
+                       catch { return null; } })() : null,
         });
         flaechen.push(...mk.flaechen);
         linien.push(...mk.linien);

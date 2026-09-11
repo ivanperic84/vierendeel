@@ -51,6 +51,7 @@ import { prisma, prismaY, platte, prismaZ, stab, quader,
          mastKoerper } from './render.koerper.js';
 
 import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { ankerSpreizung } from './data.anker.js';
 import { linkEinspannung } from './core.auflager.js';
 
 /*
@@ -621,7 +622,6 @@ export function abfangSzene(typ, jt, opt = {}) {
       const fb = farbeFuer(`mast|${mp.name}`, `Mast · ${mp.name}`, 'mast');
       const stegText = achse === 'y'
         ? 'Steg quer zum Gleis' : 'Steg längs zum Gleis';
-      const nwA = opt.ergAnker?.[name]?.nachweis ?? null;
       const mk = mastKoerper({
         profil: mp, achse, x, zFuss: -md.hoehe, zAnschluss: 0,
         /*
@@ -635,11 +635,10 @@ export function abfangSzene(typ, jt, opt = {}) {
         nachweis: opt.ergMast?.[name] ?? null,
         farbeBauteil: fb,
         anker: md.anker ?? null,
-        ankerText: nwA
-          ? `${nwA.typ} · ${nwA.N >= 0 ? 'Zug' : 'Druck'} `
-            + `${Math.abs(nwA.N).toFixed(1)} kN · η `
-            + `${(nwA.eta ?? 0).toFixed(3)}`
-          : null,
+        // Wie in `render.3d.js`: das Sortiment gehoert nicht in die Szene.
+        ankerSpreiz: md.anker?.typ
+          ? (() => { try { return ankerSpreizung(md.anker.typ); }
+                     catch { return null; } })() : null,
       });
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);

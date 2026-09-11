@@ -530,6 +530,53 @@ export function aktualisiereMaske(container, werte, extras = {}) {
  */
 export function hebelarmUebersicht(erg) {
   const m = erg.modell;
+  /* =========================================================================
+   * BEIM ABFANGJOCH IST ES EIN ANDERER HEBELARM.
+   * =========================================================================
+   *
+   * Gefunden am 11. September in einem Bedienlauf: bei einem A240 stand in
+   * der Maske «h = jd − zs_OG − zs_UG = 500 − 25.4 − 25.4 = 449 mm» und
+   * darunter «Schenkel innen» - die Bauhoehe des J90 und die Schwerachsen
+   * zweier Winkelprofile. Der Nachweis daneben rechnete mit e = 65.6 cm.
+   *
+   * Zwei Hebelarme fuer dieselbe Sache, und der in der EINGABE war der
+   * falsche: wer sein Zeichnungsmass gegen diese Zahl prueft - und genau
+   * dafuer steht der Abschnitt hier -, prueft gegen ein anderes Bauteil.
+   *
+   * >>> DER LIEGENDE TRAEGER HAT NUR EINEN. <<<
+   *
+   * Das Tragjoch steht und hat zwei: h zwischen den Gurtschwerachsen
+   * (lotrecht) und b zwischen den Blechebenen (waagrecht). Das Abfangjoch
+   * liegt, seine beiden Gurte stehen nebeneinander - es gibt EINEN
+   * Hebelarm, und das ist ihr Achsabstand e.
+   *
+   * Die drei Masse daneben sind die, die auf der Zeichnung stehen: k ueber
+   * alles, d licht zwischen den Stegen. e folgt daraus und ist KEINES von
+   * beiden - genau die Verwechslung, gegen die dieser Abschnitt gebaut ist.
+   * ======================================================================= */
+  const ab = erg.abfang ?? null;
+  if (ab?.q) {
+    const cm = (v) => f1(v);
+    const g = ab.q.gurt;
+    const istU = String(g?.reihe ?? '').startsWith('U');
+    return `${abschnitt('Hebelarm des Kräftepaars')}
+    <div class="kennzahlen">
+      ${kachel('e', cm(ab.q.e), 'cm · Gurtschwerachsen')}
+      ${kachel('k', cm(ab.q.k), 'cm · Aussenmass')}
+      ${kachel('d', cm(ab.q.d), 'cm · Abstand der Stege')}
+    </div>
+    <p class="hinweis" style="margin:2px 0 0">
+      Zwei Gurte ${esc(g?.name ?? '')} NEBENEINANDER, die Rahmenebene liegt
+      waagrecht. N = M/e mit e = ${cm(ab.q.e)} cm — dem Abstand der
+      SCHWERACHSEN, nicht dem Aussenmass k.<br>
+      ${istU
+        ? `UPE: Stege innen, Flansche nach aussen — die Schwerachse liegt um
+           e_y weiter aussen → e = d + 2·e_y
+           = ${cm(ab.q.d)} + 2·${f1(g?.ey ?? 0)} = ${cm(ab.q.e)} cm`
+        : `I-Profil: der Steg liegt in der Profilmitte, d ist damit schon der
+           Achsabstand → e = d = ${cm(ab.q.e)} cm`}
+    </p>`;
+  }
   const ha = m.hebelarme;
   if (!ha) return '';
   const mm = (v) => f0(v * 1000);
@@ -938,6 +985,10 @@ export function verdrahteLeiste(container, werte, onChange) {
    * (Weisung, 5. September). Anklicken waehlt, Rechtsklick oeffnet das
    * Kontextmenue - und dort steht die Lage als Zahl.
    */
+  // Die Ankerzeile fuehrt auf denselben Dialog - mit ihrem Masten vorbelegt.
+  container.querySelectorAll('[data-qp-anker]').forEach((b) => {
+    b.addEventListener('click', () => onChange('ankerDialog', b.dataset.qpAnker));
+  });
   container.querySelectorAll('[data-qp-tw]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkAktiv', b.dataset.qpTw));
     b.addEventListener('contextmenu', (e) => {
@@ -987,6 +1038,14 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
   container.querySelectorAll('[data-tw-neu]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkNeu', b.dataset.twNeu));
   });
+  /*
+   * DER ANKER MELDET SICH WIE JEDE ANDERE EINGABE - ueber `onChange`. Die
+   * Anwendung oeffnet den Dialog; die Maske weiss nicht, wie er aussieht,
+   * und soll es nicht wissen. Ohne Mastangabe heisst: der Dialog fragt.
+   */
+  container.querySelectorAll('[data-anker-neu]').forEach((b) => {
+    b.addEventListener('click', () => onChange('ankerDialog', null));
+  });
   // `data-tw-mast` gibt es nicht mehr - das Auge an der Mastkachel meldet
   // dieselbe Absicht (siehe `data-qp-mastsicht` in verdrahteLeiste).
   container.querySelectorAll('[data-tw-aus]').forEach((b) => {
@@ -1020,6 +1079,29 @@ return querprofilLeisteHtml(werte)
     + TRAGWERKSARTEN.map((x) =>
         `<button type="button" class="btn btn-mini" data-tw-neu="${esc(x.key)}"
            title="${esc(x.kurz)}">${esc(x.label)}</button>`).join('')
+    /* =====================================================================
+     * >>> DER ANKER STEHT IN DERSELBEN LISTE - UND IST DOCH KEIN TRAGWERK.
+     * <<<
+     *
+     * Weisung vom 11. September: «nimm druckstütze und zuganker als
+     * +tragwerk zur auswahl mit auf.»
+     *
+     * Gesucht wird er dort, weil man ihn HINZUFÜGT wie alles andere auf dem
+     * Blatt. Gebaut wird er anders: er hängt an einem MASTEN, nicht am
+     * Querprofil, und ohne Masten gibt es ihn nicht. Würde er in
+     * `TRAGWERKSARTEN` stehen, legte `tragwerkNeu` ein Tragwerk an - eines,
+     * das nichts trägt und für das die halbe Maske keine Felder hätte.
+     *
+     * Deshalb ein eigener Schlüssel: er öffnet den Dialog, der fragt, an
+     * welchen Masten der Stab gehört und wie er liegt. Der Trennstrich
+     * davor sagt, dass hier etwas anderes beginnt.
+     * =================================================================== */
+    + '<span class="qp-neu-trenn" role="separator"></span>'
+    + `<button type="button" class="btn btn-mini" data-anker-neu
+         title="${esc('Schräger Stab vom Masten zu einem eigenen Fundament, '
+           + 'an beiden Enden gelenkig — er trägt nur Normalkraft. '
+           + 'Gehört einem Masten, nicht dem Querprofil.')}"
+         >Zuganker / Druckstütze…</button>`
     + '</span></span>'
     /*
      * >>> DREI HANDLUNGEN AM TRAGWERK, RECHTS UND NUR ALS ZEICHEN. <<<
@@ -1166,6 +1248,91 @@ export function qpBereich(werte) {
  *
  * @param {object} werte
  */
+/**
+ * DIE SPALTENKOEPFE DER MATRIX.
+ *
+ * Weisung vom 11. September: «kannst du diese modellabbildung im matrix art
+ * darstellen und beschriften.»
+ *
+ * Die Leiste war eine Liste aus Zeilen ohne Kopf: links ein Name, rechts
+ * eine Linie auf einer Bahn. Was die Linie bedeutet - eine Lage in Metern
+ * auf dem Querprofil - stand nirgends, und die Spalte mit dem Haken schon
+ * gar nicht.
+ *
+ * Der Kopf sagt es, einmal, und die Bahn bekommt ihre Skala: links der
+ * Anfang des Blatts, rechts das Ende. Ohne die beiden Zahlen ist eine
+ * Position ohne Massstab.
+ */
+function qpKopfHtml(von, bis) {
+  return `<div class="qp-kopf">
+      <span class="qp-auge-platz" aria-hidden="true"></span>
+      <span class="qp-kopf-name">Bauteil</span>
+      <span class="qp-bahn qp-kopf-bahn">
+        <span class="qp-kopf-skala qp-kopf-links">${von.toFixed(1)} m</span>
+        <span class="qp-kopf-titel">Lage auf dem Querprofil</span>
+        <span class="qp-kopf-skala qp-kopf-rechts">${bis.toFixed(1)} m</span>
+      </span>
+    </div>`;
+}
+
+/**
+ * DIE ZEILE EINES ZUGANKERS ODER EINER DRUCKSTUETZE.
+ *
+ * Weisung vom 11. September: «nimm zudem die anker noch mit auf.»
+ *
+ * >>> WAS SIE ZEIGT. <<<
+ *
+ * Typ und Laenge - dieselben zwei Angaben wie die Anschrift im Bild
+ * (Weisung vom selben Tag: «nur die pos. typ und laenge anschreiben») -
+ * und die ANORDNUNG: quer zum Gleis oder laengs, vorn oder hinten. Genau
+ * die Angabe, die dartueber entscheidet, ob der Stab rechnerisch etwas
+ * haelt oder nichts.
+ *
+ * Ein Klick oeffnet den Anker-Dialog an diesem Masten.
+ *
+ * Steht kein Anker, steht auch keine Zeile: eine leere Zeile je Mast
+ * machte aus der Matrix eine Liste von Leerstellen.
+ */
+function ankerZeileHtml(werte, m, i, von, bis) {
+  const ak = m.anker;
+  if (!ak?.typ || !(ak.h > 0) || !(ak.a > 0)) return '';
+  const laengs = ak.richtung === 'y';
+  const vz = ak.seite === 'minus' ? -1 : 1;
+  const L = Math.sqrt(ak.h * ak.h + ak.a * ak.a);
+  /*
+   * WIE ER LIEGT, IN WORTEN DES QUERPROFILS. «in +y» sagt nichts, wenn man
+   * gerade auf ein Blatt schaut; «vorn» und «hinten» schon.
+   */
+  const wo = laengs
+    ? (vz > 0 ? 'längs vorn' : 'längs hinten')
+    : (vz > 0 ? 'quer, weg' : 'quer, zum Gleis');
+  /*
+   * DIE LINIE LIEGT IN DER JOCHACHSE - und nur der quer stehende Anker hat
+   * darin eine Ausdehnung. Der laengs stehende ragt aus dem Blatt heraus;
+   * seine Linie waere ein Punkt, und sie bekommt dieselbe Mindestbreite
+   * wie die eines Einzelmasten.
+   */
+  const xF = laengs ? m.x : m.x + vz * ak.a;
+  const links = qpPct(Math.min(m.x, xF), von, bis);
+  const breit = Math.max(qpPct(Math.max(m.x, xF), von, bis) - links, 2.5);
+  return `<div class="qp-zeile qp-ankerzeile">
+      <span class="qp-auge-platz"></span>
+      <button type="button" class="qp-name" data-qp-anker="${esc(m.id)}"
+              title="${esc(`Zuganker / Druckstütze am Masten M${i + 1}`
+                + ` · ${ak.typ} · L = ${L.toFixed(2)} m`
+                + ` · h_A ${ak.h.toFixed(2)} m · a_A ${ak.a.toFixed(2)} m`
+                + ' · anklicken zum Ändern')}"
+        ><span class="qp-art">A${i + 1} · Anker · ${esc(wo)}</span>${
+          esc(`${ak.typ} · L = ${L.toFixed(2)} m`)}</button>
+      <span class="qp-bahn">
+        <button type="button" class="qp-ankerlinie"
+          data-qp-anker="${esc(m.id)}"
+          style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%"
+          title="${esc(`Fundament ${ak.a.toFixed(2)} m vom Mastfuss`)}"></button>
+      </span>
+    </div>`;
+}
+
 export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
   if (!alle.length) return '';
@@ -1293,7 +1460,27 @@ export function querprofilLeisteHtml(werte) {
           <span class="qp-mast-fuss"></span>
         </button>
       </span>
-    </div>`;
+    </div>`
+    /* =====================================================================
+     * >>> UND DER ANKER STEHT UNTER SEINEM MASTEN. <<<
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «nimm zudem die anker noch mit auf.»
+     *
+     * Er war das einzige Bauteil ohne Zeile in der Matrix. Im Bild stand er,
+     * im Nachweis stand er, in der Liste der Dinge auf diesem Querprofil
+     * fehlte er - und damit die eine Stelle, an der man SIEHT, was alles
+     * dasteht.
+     *
+     * EINGERUECKT, weil er kein Tragwerk ist: er gehoert dem Masten, wie
+     * dessen Profil und dessen Hoehe. Ein Anker ohne Masten gibt es nicht.
+     *
+     * SEINE LINIE LIEGT AUF DER BAHN wie jede andere: vom Mastfuss zum
+     * Ankerfundament, und ihre Laenge ist der waagrechte Abstand a. Damit
+     * sieht man auf einen Blick, ob zwei Anker aufeinander zulaufen oder
+     * ob einer ueber die Blattkante hinausragt.
+     * =================================================================== */
+    + ankerZeileHtml(werte, m, i, von, bis);
   }).join('');
 
   /*
@@ -1301,6 +1488,7 @@ export function querprofilLeisteHtml(werte) {
    * Masten stehen - ohne sie schwebten die Dreiecke.
    */
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
+      ${qpKopfHtml(von, bis)}
       <div class="qp-liste">${zeilen}${mastZeilen}</div>
       <div class="qp-achse"><span class="qp-bahn"
         ><span class="qp-boden"></span></span></div>
@@ -1915,11 +2103,29 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
    * zwischen zwei Tragwerken wechselt, soll dieselbe Maske sehen. Aber er
    * sagt, woran er ist - schweigend danebenstehen waere schlimmer.
    */
+  /*
+   * >>> SIE WIRKEN. DER SATZ HIER SAGTE DAS GEGENTEIL. <<<
+   *
+   * Gefunden am 11. September in einem Bedienlauf: hier stand «Eingetragene
+   * Bauteile bleiben erhalten, wirken aber nicht». Gemessen hob das erste
+   * gesetzte Bauteil die Ausnutzung des Gurtes von 0.372 auf 0.478.
+   *
+   * Der Satz stammte aus der Zeit vor `abfangAnbauLasten`; seit dem
+   * 10. September gehen Eigengewicht, Wind UND die Torsion aus der
+   * Exzentrizitaet in den Nachweis. Eine Warnung, die dem Nutzer sagt,
+   * seine Eingabe sei wirkungslos, ist schlimmer als gar keine: sie laedt
+   * dazu ein, die Last ein zweites Mal von Hand anzusetzen.
+   *
+   * WAS BLEIBT, ist die eine Stelle, an der es wirklich auf eine Angabe
+   * ankommt: die ANBINDUNG entscheidet ueber die Abfangkraft, und die ist
+   * die groesste Last am Bauwerk. Welche Teile davon betroffen sind, nennt
+   * der Gueltigkeitshinweis beim Namen.
+   */
   const nichtGetragen = tragwerksart(werte).key === 'abfangjoch'
     ? `<small class="hinweis" style="display:block;margin:0 0 7px">
-         Am Abfangjoch noch nicht angeschlossen: Rechenkern, Bild und
-         AxisVM-Ausleitung führen bisher nur Eigengewicht und Leiterzug.
-         Eingetragene Bauteile bleiben erhalten, wirken aber nicht.
+         Eigengewicht, Wind und die Torsion aus der Exzentrizität gehen in
+         den Nachweis ein. Über die ABFANGKRAFT entscheidet die Anbindung:
+         nur «Mitte Träger» leitet den Leiterzug ein.
        </small>` : '';
   return abschnitt(g.titel, `<span class="sec-r">${liste.length} Stück</span>`) +
     nichtGetragen +
@@ -3547,8 +3753,24 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
       if (gesehenA.has(name)) return;
       gesehenA.add(name);
       const zug = nw.N >= 0;
+      /*
+       * >>> DIE KACHEL SAGT, WORAUF IHR η STEHT. <<<
+       *
+       * Weisung vom 10. September: «nimm variante 3 und die charakteristische
+       * kraft.» Der Anker vergleicht seither eine CHARAKTERISTISCHE Kraft mit
+       * der zulässigen des Bemessungsdiagramms - beides ohne
+       * Teilsicherheitsbeiwerte -, während Gurt, Blech und Mast daneben auf
+       * Bemessungswerten stehen.
+       *
+       * Das stand nur im aufklappbaren Gültigkeitshinweis. Gefunden am
+       * 11. September in einem Bedienlauf: die Masttabelle zeigte am
+       * Ankerpunkt 17.39 kN, die Kachel daneben 16.8 - und der Unterschied
+       * sah aus wie ein Fehler, bis der Hinweis ihn aufklärte. Genau beim
+       * VERGLEICHEN zweier Zahlen braucht man die Auskunft, und genau dort
+       * war sie eingeklappt.
+       */
       const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
-        + `${Math.abs(nw.N).toFixed(1)} kN`;
+        + `${Math.abs(nw.N).toFixed(1)} kN char.`;
       /*
        * OHNE URTEIL KEINE AMPEL. Ueber der groessten lieferbaren Laenge
        * gibt es die Stuetze nicht - dort steht ein Strich, keine Zahl.
@@ -3558,7 +3780,12 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
           ? 'Seil trägt keinen Druck' : 'über dem Sortiment'}`, 'nok'));
         return;
       }
-      kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampel(nw.eta)));
+      kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampel(nw.eta), {
+        titel: `Charakteristische Kraft gegen die zulässige des `
+             + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
+             + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
+             + `vergleichbar, die auf Bemessungswerten stehen.`,
+      }));
     });
   }
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
@@ -3626,14 +3853,49 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
     kachel('R_A', f2(m.RA), 'kN', '', { x: 0, station: 0 }),
   ];
 
-  const stellen = erg.knoten
-    .map((k) => ({
-      i: k.i, x: k.x, eta: k.eta,
-      teil: k.etaEcken >= k.etaBleche
-        ? k.massgebendeEcke.label : (k.massgebendeEbene.label ?? '–'),
-      etaEcken: k.etaEcken, etaBleche: k.etaBleche,
-    }))
-    .sort((a, b) => b.eta - a.eta).slice(0, 12);
+  /*
+   * >>> DIE STELLEN GEHOEREN DEM TRAGWERK, DAS DASTEHT. <<<
+   *
+   * Gefunden am 11. September in einem Bedienlauf: bei einem Abfangjoch
+   * A240 standen hier «Vertikalebene links» und «Obergurt rechts» mit
+   * η bis 0.566 - Bauteile des TRAGJOCHS mit vier Winkelgurten und zwei
+   * Blechebenen, waehrend die Ueberschrift darueber η 0.593 des
+   * Abfangjochs zeigte. Zwei Zahlenwerke uebereinander, und das untere
+   * gehoerte einem anderen Traeger.
+   *
+   * Das Abfangjoch hat ZWEI GURTE NEBENEINANDER und EINE Blechlage. Seine
+   * Nachweisstellen stehen in `ab.reihe`, die Bleche in `ab.bleche`; das
+   * massgebende Blech einer Stelle ist das naechstgelegene - dieselbe
+   * Zuordnung, mit der der Verlaufsreiter seine Blechkurve zeichnet.
+   */
+  const stellen = ab
+    ? (() => {
+        const bl = ab.bleche?.bleche ?? [];
+        const naechstes = (x) => bl.reduce(
+          (a, b) => (a === null || Math.abs(b.x - x) < Math.abs(a.x - x)
+                     ? b : a), null);
+        return (ab.reihe ?? []).map((z, i) => {
+          const b = naechstes(z.x);
+          const eGurt = z.eta ?? 0;
+          const eBlech = b?.eta ?? 0;
+          return {
+            i, x: z.x, eta: Math.max(eGurt, eBlech),
+            teil: eGurt >= eBlech
+              ? `Gurt ${ab.q?.gurt?.name ?? ''}`.trim()
+              : `${b?.istSteife ? 'Quersteife' : 'Bindeblech'}`
+                + ` bei ${f2(b?.x ?? 0)} m`,
+            etaEcken: eGurt, etaBleche: eBlech,
+          };
+        }).sort((a2, b2) => b2.eta - a2.eta).slice(0, 12);
+      })()
+    : erg.knoten
+      .map((k) => ({
+        i: k.i, x: k.x, eta: k.eta,
+        teil: k.etaEcken >= k.etaBleche
+          ? k.massgebendeEcke.label : (k.massgebendeEbene.label ?? '–'),
+        etaEcken: k.etaEcken, etaBleche: k.etaBleche,
+      }))
+      .sort((a, b) => b.eta - a.eta).slice(0, 12);
 
   node.innerHTML = `
     <div class="urteil ${zustand}">
@@ -3686,7 +3948,8 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>
-        <th class="num">η Profil</th><th class="num">η Blech</th><th class="num">η</th></tr></thead>
+        <th class="num">${ab ? 'η Gurt' : 'η Profil'}</th>
+        <th class="num">η Blech</th><th class="num">η</th></tr></thead>
       <tbody>${stellen.map((s) => `
         <tr class="klick${s.i === aktiveStation ? ' aktiv' : ''}" data-station="${s.i}" data-x="${s.x}">
           <td>${s.i}</td><td class="num">${f2(s.x)}</td><td>${esc(s.teil)}</td>

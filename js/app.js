@@ -72,8 +72,9 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
  * Abfangjoch-Sortiment ist es keine Voraussetzung: wer keinen Anker hat,
  * braucht es nicht.
  */
-import { ladeAnker, ankerDbDa, ankerGeometrie,
-         ankerNachweis } from './data.anker.js';
+import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
+         ankerTypen, ankerTraegtDruck,
+         ANKER_BEFESTIGUNGEN } from './data.anker.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind } from './data.masten.js';
@@ -361,7 +362,7 @@ function neuRechnen(neuZeichnen = true) {
      */
     const extras = letzte
       ? { ...(letzte.mitJoch ? {
-            geo: ui.hebelarmUebersicht(letzte.erg),
+            geo: ui.hebelarmUebersicht(letzte.anzeige ?? letzte.erg),
             prof: ui.qskMarke(letzte.kl),
             blech: ui.blechUebersichtHtml(letzte.erg),
             stueck: ui.stuecklisteHtml(letzte.anzeige),
@@ -562,7 +563,7 @@ function neuRechnen(neuZeichnen = true) {
           ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager)
           : ankerAuswertung(kombi))
       : null;
-    const checks = mitJoch ? konstruktionsChecks(erg.modell) : [];
+    const checks = mitJoch ? konstruktionsChecks(erg.modell, erg.abfang) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
     // nur stört. Sie gehört ins Handbuch, sobald es eines gibt. Der Wert bleibt
@@ -931,7 +932,29 @@ function aktualisiereModell(erg) {
 }
 
 function aktualisiereFuss(erg, urteil, joch) {
-  const e = erg.max.etaGesamt;
+  /*
+   * >>> DIE FUSSLEISTE ZEIGTE DAS TRAGJOCH, WAEHREND EIN ABFANGJOCH DASTAND.
+   * <<<
+   *
+   * Gefunden am 11. September in einem Bedienlauf: unten stand «η = 0.689»
+   * und «500 × 440 mm · Feldweite 750 mm», oben in der Uebersicht «η
+   * 0.593» bei einem A240 mit UPE-240-Gurten. Die 500 mm sind die Bauhoehe
+   * des J90, die Feldweite sein Blechraster - Zahlen des
+   * Tragjoch-Ersatzbalkens, den `berechne` mitfuehrt, weil Masken und
+   * Verlaeufe an seiner Gestalt haengen.
+   *
+   * Genau dieser Fall ist beim EINZELMASTEN schon einmal aufgeschlagen
+   * («undefined × undefined mm · Feldweite NaN mm») und darunter geloest
+   * worden - fuer das Abfangjoch fehlte der Zweig. Der Kommentar oben sagt
+   * seither, zwei Anzeigen derselben Sache duerften einander nicht
+   * widersprechen; hier taten sie es.
+   *
+   * Massgebend ist jetzt DIESELBE Zahl wie in der Uebersicht: `ab.max.eta`
+   * aus `abfangAuswertung`. Zwei Quellen fuer ein Urteil waeren der Fehler
+   * ein zweites Mal.
+   */
+  const ab = erg.abfang ?? null;
+  const e = ab ? ab.max.eta : erg.max.etaGesamt;
   // DIESELBE REGEL WIE OBEN IM URTEIL. Sie liefen auseinander: die Fussleiste
   // sagte «Nachweis nicht erfuellt», waehrend das Urteil gruen dastand - eine
   // Klemme zehn Zentimeter zu weit rechts genuegte. Zwei Anzeigen derselben
@@ -956,6 +979,22 @@ function aktualisiereFuss(erg, urteil, joch) {
       ? `${mast.profil.name} · ${mast.H.toFixed(2)} m bis Anschluss`
         + ` · ${mast.stegrichtung.label ?? mast.stegrichtung.key}`
       : 'Kein Mastprofil gewählt';
+    return;
+  }
+  /*
+   * UND DIE ZEILE BESCHREIBT DAS ABFANGJOCH, wenn eines dasteht: sein
+   * Gurtprofil, der Hebelarm des Kraeftepaars, das Rahmenfeld und die Zahl
+   * der Bleche. Bauhoehe und Blechraster des Jochtraegers gibt es hier
+   * nicht - der Traeger liegt, und seine beiden Gurte stehen nebeneinander.
+   */
+  if (ab) {
+    const bl = ab.bleche?.bleche?.length ?? 0;
+    ui.el('st-modell').textContent =
+      `${ab.typ ?? '–'} · ${ab.q?.gurt?.name ?? '–'}, zwei Gurte`
+      + ` · e = ${((ab.q?.e ?? 0)).toFixed(1)} cm`
+      + ` · Stützweite ${(ab.js ?? 0).toFixed(2)} m`
+      + ` · Rahmenfeld ${((ab.rahmenfeld?.a ?? 0) * 1000).toFixed(0)} mm`
+      + (bl ? ` · ${bl} Bleche` : '');
     return;
   }
   const s = spannweiteImSortiment(joch, erg.modell.L);
@@ -1188,6 +1227,41 @@ function aendern(key, wert) {
   const mastNachfuehren = mastNachfuehrenGlobal;
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  /*
+   * >>> DER ANKER BEKOMMT EINEN EIGENEN DIALOG. <<<
+   *
+   * Weisung vom 11. September: «biete noch eine einfache moeglichkeit die
+   * anordnung vor oder hinter dem masten vorzunehmen. am besten in einem
+   * separatem modal wo abgefragt wird welchen an welchem masten und wie
+   * angeordnet.»
+   *
+   * Bis dahin lagen die fuenf Angaben verstreut in der Mastgruppe der Maske,
+   * und WELCHEM Masten sie galten, sagte eine Kachelreihe weiter oben. Wer
+   * einen zweiten Anker setzen wollte, musste das erst herausfinden.
+   */
+  if (key === 'ankerDialog') {
+    dialogAnker(typeof wert === 'string' ? wert : null);
+    return;
+  }
+  /*
+   * >>> DIE ART EINES BESTEHENDEN TRAGWERKS WECHSELN. <<<
+   *
+   * Weisung vom 11. September (Bedienlauf): das Kontextmenue konnte alles
+   * ausser dem Naheliegendsten. Gewechselt wird ueber DENSELBEN Weg, den das
+   * Anlegen geht - `artVorgabe` setzt Typ und Laenge auf das Sortiment der
+   * neuen Art, genau wie `tragwerkNeu` es tut. Ein zweiter Weg waere einer,
+   * den man beim naechsten Typ vergisst.
+   */
+  if (key === 'tragwerkArt') {
+    const { id, art } = wert;
+    const t = tragwerkeSortiert(werte).find((x) => x.id === id);
+    if (!t || tragwerksart(t).key === art) { neuRechnen(); return; }
+    werte = { ...werte, tragwerksart: art, ...artVorgabe(art, werte) };
+    werte = rechensatz(werte);
     mastNachfuehren();
     neuRechnen();
     return;
@@ -4935,6 +5009,26 @@ function baueLayout() {
     links = Math.max(SCHIENE, Math.round(links * f));
     rechts = Math.max(SCHIENE, Math.round(rechts * f));
   }
+  /*
+   * >>> ENTWEDER BREIT GENUG ZUM ARBEITEN ODER EINGEKLAPPT. <<<
+   *
+   * Gefunden am 11. September in einem Bedienlauf bei 835 px Fensterbreite:
+   * die Ruecknahme oben stauchte die Schublade auf rund 230 px. Das ist
+   * schmaler, als ihr Inhalt werden kann - die Anbauteilliste braucht mit
+   * Punkt, Position, Name, Station und Kraeften ihre gut 250 px -, und die
+   * Spalte bekam einen waagrechten Bildlauf. Beim Scrollen wanderten dann
+   * die Beschriftungen nach links aus dem Bild: «...ARME DES KRAEFTEPAARS»
+   * statt «HEBELARME», «...st durchlaufend» statt «Mast durchlaufend».
+   *
+   * Eine Schublade, in der man die Beschriftungen wegschieben muss, ist
+   * keine Schublade mehr. Unterhalb der Arbeitsbreite wird sie deshalb ganz
+   * EINGEKLAPPT - dann steht die Schiene mit ihren Symbolen da, und der Weg
+   * zurueck ist ein Klick. Das ist der Zustand, den die Schiene seit dem
+   * 5. September vorsieht; er wurde nur nie von selbst erreicht.
+   */
+  const ARBEITSBREITE = 260;
+  if (links < ARBEITSBREITE) links = SCHIENE;
+  if (rechts < ARBEITSBREITE) rechts = SCHIENE;
   setze('--sp-links', links); setze('--sp-rechts', rechts);
 
   // Zuletzt offene Breite je Seite, damit das Einklappen umkehrbar bleibt
@@ -5439,6 +5533,39 @@ function kontextTragwerk(id) {
       aendern('tragwerkNeu', { art: 'abfangjoch', xLage: lageVon(t) });
     } });
   }
+  /* =========================================================================
+   * >>> DIE ART LAESST SICH WECHSELN. <<<
+   * =========================================================================
+   *
+   * Gefunden am 11. September in einem Bedienlauf: wer ein Tragjoch gesetzt
+   * hatte und ein Abfangjoch brauchte, musste ein zweites anlegen und das
+   * erste loeschen. Das Kontextmenue bot kopieren, zoomen, verschieben -
+   * nur nicht das, was man am haeufigsten will.
+   *
+   * >>> WAS DABEI BLEIBT UND WAS NICHT. <<<
+   *
+   * Lage, Laenge, Masten und Anbauteile gehoeren dem TRAGWERK und bleiben.
+   * Der TYP gehoert der Art: «J90» steht in keiner Abfangjoch-Liste, und
+   * «A240» in keiner Tragjoch-Liste. Ein stehengebliebener Typ waere derselbe
+   * Fehler, der beim Anlegen schon einmal aufgeschlagen ist - die
+   * Auswahlliste zeigt dann den ersten Eintrag, waehrend im Datensatz etwas
+   * anderes steht. `tragwerkNeu` setzt ihn deshalb neu, und diese Stelle
+   * benutzt denselben Weg.
+   *
+   * Die Laenge wandert mit: ein A160 fuehrt 5.5-12.5 m, ein J130 bis 34.5 m.
+   * Wer von einem 30-m-Joch auf A160 wechselt, bekommt die naechste Laenge,
+   * die der neue Typ wirklich fuehrt.
+   * ======================================================================= */
+  const andere = TRAGWERKSARTEN.filter((a) => a.key !== tragwerksart(t).key);
+  if (andere.length) {
+    p.push('-');
+    andere.forEach((a) => {
+      p.push({ text: `Art wechseln auf: ${a.label}`, tun: () => {
+        if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
+        aendern('tragwerkArt', { id, art: a.key });
+      } });
+    });
+  }
   /*
    * >>> VERSCHIEBEN UND KOPIEREN STEHEN HIER, NICHT AM ZEIGER. <<<
    *
@@ -5804,6 +5931,211 @@ function dialog(titel, koerper, knoepfe, klasse = '') {
   n.querySelectorAll('[data-zu]').forEach((b) => { b.onclick = zu; });
   n.querySelector('.scrim').onclick = (e) => { if (e.target.classList.contains('scrim')) zu(); };
   return { node: n, zu };
+}
+
+/* ===========================================================================
+ * DER ZUGANKER ODER DIE DRUCKSTUETZE - IN EINEM FENSTER
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «am besten in einem separatem modal wo
+ * abgefragt wird welchen an welchem masten und wie angeordnet.»
+ *
+ * Drei Fragen, in dieser Reihenfolge, weil eine die naechste bestimmt:
+ *
+ *   1. AN WELCHEM MASTEN   ohne Masten gibt es keinen Anker
+ *   2. WELCHER TYP         die Stuetze traegt Druck, das Seil nur Zug
+ *   3. WIE ANGEORDNET      quer zum Gleis oder laengs, und auf welcher Seite
+ *
+ * >>> DIE ANORDNUNG IST DIE WICHTIGE FRAGE. <<<
+ *
+ * Ein Stab haelt nur die Richtung, in der er liegt. Steht er quer, waehrend
+ * die grosse Kraft laengs zieht, haelt er rechnerisch NICHTS - und der
+ * Nachweis sieht trotzdem gut aus, weil die Kraft am Mastfuss ankommt.
+ * Deshalb stehen die vier Moeglichkeiten als KNOEPFE da, in den Worten des
+ * Querprofils, und der Vorschlag folgt der Tragwerksart.
+ * ========================================================================= */
+function dialogAnker(mastId = null) {
+  const masten = mastenVon(werte);
+  if (!masten.length) {
+    dialog('Zuganker / Druckstütze',
+      `<p class="notiz">Auf diesem Querprofil steht kein Mast. Ein Anker
+         hängt an einem Masten — ohne Masten gibt es ihn nicht.</p>`,
+      '<button class="btn" data-zu>Schliessen</button>');
+    return;
+  }
+  // Vorbelegt: der angeklickte, sonst der angewaehlte, sonst der erste.
+  let id = mastId ?? werte.mastAktiv ?? gewaehlterMast(werte)?.id
+           ?? masten[0].id;
+  const holen = () => mastenVon(werte).find((m) => m.id === id) ?? masten[0];
+  /*
+   * DER ENTWURF STEHT IM FENSTER, NICHT IM DATENSATZ. Geschrieben wird erst
+   * beim «Setzen» - sonst haette ein abgebrochener Dialog den Anker schon
+   * angelegt, und «Abbrechen» hiesse nichts.
+   */
+  const vorhanden = holen().anker ?? null;
+  let e = { ...ANKER_STANDARD, richtung: ankerRichtungVor(werte),
+            ...(vorhanden ?? {}) };
+  if (!e.typ) e.typ = ankerTypen()[0]?.id ?? '';
+
+  const LAGEN = [
+    { r: 'y', s: 'plus',  t: 'Längs · vorn',
+      k: 'in Gleisrichtung, Fundament auf der vorderen Seite' },
+    { r: 'y', s: 'minus', t: 'Längs · hinten',
+      k: 'in Gleisrichtung, Fundament auf der hinteren Seite' },
+    { r: 'x', s: 'plus',  t: 'Quer · vom Gleis weg',
+      k: 'in der Jochachse, Fundament vom Gleis weg' },
+    { r: 'x', s: 'minus', t: 'Quer · zum Gleis hin',
+      k: 'in der Jochachse, Fundament zum Gleis hin' },
+  ];
+
+  const folgeText = () => {
+    const L = Math.sqrt((e.h || 0) ** 2 + (e.a || 0) ** 2);
+    const al = (e.a > 0) ? (Math.atan2(e.h || 0, e.a) * 180) / Math.PI : 0;
+    return `Daraus: Länge <b>${L.toFixed(2)} m</b> · Neigung gegen die `
+      + `Waagrechte <b>${al.toFixed(1)}°</b>. Je flacher der Stab, desto `
+      + 'wirksamer hält er — und desto länger wird er.';
+  };
+
+  const koerper = () => {
+    const m = holen();
+    const seil = (() => {
+      try { return !ankerTraegtDruck(e.typ); } catch { return false; }
+    })();
+    return `
+    <div class="feld"><label for="dlg-ank-mast">An welchem Masten</label>
+      <select id="dlg-ank-mast">${mastenVon(werte).map((x, j) =>
+        `<option value="${esc(x.id)}"${x.id === m.id ? ' selected' : ''}
+          >M${j + 1} · ${esc(x.profil ?? 'ohne Profil')} · x ${
+            x.x.toFixed(2)} m${x.anker?.typ
+              ? ` — trägt schon ${esc(x.anker.typ)}` : ''}</option>`
+        ).join('')}</select>
+      <small class="hinweis">Der Stab hängt am Masten, nicht am Querprofil.${
+        m.anker?.typ
+          ? ' Dieser Mast trägt bereits einen — «Setzen» ersetzt ihn.' : ''}
+      </small></div>
+
+    <div class="feld"><label for="dlg-ank-typ">Welcher Typ</label>
+      <select id="dlg-ank-typ">${ankerTypen().map((t2) =>
+        `<option value="${esc(t2.id)}"${t2.id === e.typ ? ' selected' : ''}
+          >${esc(t2.name)} · ${t2.art === 'seil' ? 'nur Zug'
+            : `bis ${(t2.laengeMax ?? 0).toFixed(2)} m`}</option>`).join('')}
+      </select>
+      <small class="hinweis">${seil
+        ? 'Ein Seilanker trägt nur ZUG — auf der Druckseite hängt er durch '
+          + 'und trägt nichts.'
+        : 'Die Stütze trägt Zug UND Druck; ihre Druckkraft begrenzt das '
+          + 'Knicken, also ihre Länge.'}</small></div>
+
+    <div class="feld"><label>Wie angeordnet</label>
+      <div class="ank-lagen" role="radiogroup" aria-label="Anordnung">
+        ${LAGEN.map((l) => {
+          const an = l.r === e.richtung && l.s === e.seite;
+          return `<button type="button" class="btn btn-mini${an ? ' an' : ''}"
+            data-ank-lage="${l.r}|${l.s}" role="radio" aria-checked="${an}"
+            title="${esc(l.k)}">${esc(l.t)}</button>`;
+        }).join('')}
+      </div>
+      <small class="hinweis">Der Stab hält nur die Richtung, in der er
+        liegt. Am Abfangjoch ist die grosse Kraft der Leiterzug in
+        GLEISRICHTUNG; ein Anker quer dazu hält davon nichts.</small></div>
+
+    <div class="feld"><label for="dlg-ank-h">Anschlusshöhe am Masten</label>
+      <input id="dlg-ank-h" type="number" step="0.05" min="0.5" max="20"
+             value="${(e.h ?? 0).toFixed(2)}">
+      <small class="hinweis">m über dem Mastfuss.</small></div>
+    <div class="feld"><label for="dlg-ank-a">Abstand des Fundaments</label>
+      <input id="dlg-ank-a" type="number" step="0.05" min="0.5" max="20"
+             value="${(e.a ?? 0).toFixed(2)}">
+      <small class="hinweis">m waagrecht vom Mastfuss.</small></div>
+
+    ${!seil ? `<div class="feld">
+      <label for="dlg-ank-bef">Befestigung an Fundament und Mast</label>
+      <select id="dlg-ank-bef">${ANKER_BEFESTIGUNGEN.map((b) =>
+        `<option value="${esc(b.key)}"${b.key === e.befestigung
+          ? ' selected' : ''}>${esc(b.label)}</option>`).join('')}</select>
+      <small class="hinweis">Auf ZUG begrenzt nicht die Stütze, sondern die
+        Befestigung.</small></div>` : ''}
+
+    ${/*
+       * DIE BEIDEN FOLGEGROESSEN stehen da, weil man in ihnen denkt: «der
+       * anker hat einen winkel von ca 60°» (Weisung, 11. September). Sie
+       * sind KEINE Eingabe - sie folgen aus Hoehe und Abstand, und zwei
+       * Speicherorte fuer dieselbe Groesse laufen auseinander.
+       */''}
+    <p class="notiz" id="dlg-ank-folge">${folgeText()}</p>`;
+  };
+
+  const d = dialog('Zuganker / Druckstütze', koerper(),
+    `${vorhanden ? '<button class="btn btn-fail" data-ank-weg>Entfernen</button>'
+                 : ''}
+     <button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-ank-ok>Setzen</button>`);
+
+  const neu = () => {
+    d.node.querySelector('.dialog-koerper').innerHTML = koerper();
+    verdrahte();
+  };
+  function verdrahte() {
+    const n = d.node;
+    n.querySelector('#dlg-ank-mast').onchange = (ev) => {
+      id = ev.target.value;
+      // Der neue Mast bringt seinen eigenen Anker mit, wenn er einen hat.
+      const v = holen().anker;
+      e = { ...ANKER_STANDARD, richtung: ankerRichtungVor(werte),
+            ...(v ?? {}), typ: v?.typ ?? e.typ };
+      neu();
+    };
+    n.querySelector('#dlg-ank-typ').onchange = (ev) => {
+      e = { ...e, typ: ev.target.value };
+      neu();
+    };
+    n.querySelectorAll('[data-ank-lage]').forEach((b) => {
+      b.onclick = () => {
+        const [r, s] = b.dataset.ankLage.split('|');
+        e = { ...e, richtung: r, seite: s };
+        neu();
+      };
+    });
+    /*
+     * DIE ZAHLENFELDER FUEHREN NUR DIE FOLGEZEILE NACH, nicht den ganzen
+     * Koerper: ein Neuaufbau naehme mitten im Tippen den Fokus, und aus
+     * «7.7» wuerde nie «7.79».
+     */
+    const zahl = (sel, feld) => {
+      const el = n.querySelector(sel);
+      if (!el) return;
+      el.oninput = () => {
+        const v = parseFloat(el.value);
+        if (!Number.isFinite(v)) return;
+        e = { ...e, [feld]: v };
+        const f = n.querySelector('#dlg-ank-folge');
+        if (f) f.innerHTML = folgeText();
+      };
+    };
+    zahl('#dlg-ank-h', 'h');
+    zahl('#dlg-ank-a', 'a');
+    const bef = n.querySelector('#dlg-ank-bef');
+    if (bef) bef.onchange = () => { e = { ...e, befestigung: bef.value }; };
+    const weg = n.querySelector('[data-ank-weg]');
+    if (weg) weg.onclick = () => {
+      werte = setzeMastAnker(werte, id, null);
+      werte = { ...werte, mastAktiv: id };
+      d.zu();
+      neuRechnen();
+    };
+    n.querySelector('[data-ank-ok]').onclick = () => {
+      werte = setzeMastAnker(werte, id, { ...e });
+      /*
+       * DER GESETZTE MAST WIRD ANGEWAEHLT: die Felder der Maske zeigen dann
+       * denselben Anker, und wer nach dem Schliessen etwas nachjustiert,
+       * aendert den, den er eben gesetzt hat.
+       */
+      werte = { ...werte, mastAktiv: id };
+      d.zu();
+      neuRechnen();
+    };
+  }
+  verdrahte();
 }
 
 function dialogSpeichern() {

@@ -489,10 +489,24 @@ input[type=range].rng {
    Zeichen. «Leiter-Traverse am Joch» und «Lampe LED» standen beide als «L..»
    da, und zwei Baugruppen liessen sich in der Liste nicht unterscheiden.
    Jetzt hat der Name eine Untergrenze, und die Kräftezeile ist das, was als
-   erstes gekürzt wird - sie steht vollständig im Titel der Zeile. */
+   erstes gekürzt wird - sie steht vollständig im Titel der Zeile.
+
+   >>> DIE UNTERGRENZE IST VON 84 AUF 40 PX GEFALLEN. <<<
+
+   Gefunden am 11. September in einem Bedienlauf: die Schublade lässt sich
+   schmaler ziehen als diese Zeile breit ist (84 px Name + 26 Pos + 9 Punkt +
+   die Station, die als `auto` GAR NICHT nachgab, + 91 px Abstände = rund
+   283 px). Was nicht hineinpasst, lief seitlich hinaus: die Spalte bekam
+   einen waagrechten Bildlauf, und beim Scrollen wanderten die Beschriftungen
+   nach links aus dem Bild - «...ARME DES KRÄFTEPAARS» statt «HEBELARME».
+
+   Bei der Vorgabebreite von 386 px trat das nie auf. Eine Zeile, die nur
+   bei einer Einstellung hält, hält aber nicht: `minmax(0, auto)` lässt jetzt
+   auch die Station nachgeben, und der Name kürzt sich, bevor die Spalte
+   ausbricht. Beides steht vollständig im Titel der Zeile. */
 .at-zeile {
   display: grid; align-items: center; gap: 7px; cursor: pointer;
-  grid-template-columns: 9px 26px minmax(84px, 1fr) auto minmax(0, auto);
+  grid-template-columns: 9px 26px minmax(40px, 1fr) minmax(0, auto) minmax(0, auto);
   padding: 5px 84px 5px 7px; border-radius: var(--m-r1);
 }
 .at-zeile:hover { background: var(--s2); }
@@ -1436,6 +1450,57 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .qp-leiste { position: relative; margin: 2px 0 8px;
   user-select: none; touch-action: none; }
 .qp-liste { position: relative; display: flex; flex-direction: column; gap: 1px; }
+
+/* DER KOPF DER MATRIX (Weisung, 11. September: «im matrix art darstellen und
+   beschriften»). Dieselben Spaltenbreiten wie die Zeilen darunter - sonst
+   stuende die Beschriftung neben ihrer Spalte statt darueber. */
+/* DIE VIER LAGEN DES ANKERS als Schalterreihe (Weisung, 11. September:
+   «biete noch eine einfache moeglichkeit die anordnung vor oder hinter dem
+   masten vorzunehmen»). Die getroffene Wahl MUSS zu sehen sein - vier gleich
+   aussehende Knoepfe waeren keine Auswahl, sondern vier Knoepfe. */
+.ank-lagen { display: flex; flex-wrap: wrap; gap: 4px; }
+.ank-lagen .btn.an {
+  background: var(--acc); border-color: var(--acc); color: var(--s0);
+  font-weight: 600;
+}
+.ank-lagen .btn.an:hover { background: var(--acc); }
+
+.qp-kopf {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 2px 2px; border-bottom: 1px solid var(--ol2); margin-bottom: 2px;
+}
+.qp-kopf-name {
+  flex: 0 0 96px; padding: 0 3px;
+  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim);
+}
+.qp-kopf-bahn { height: auto; display: flex; align-items: baseline;
+  justify-content: space-between; gap: 4px; }
+.qp-kopf-titel {
+  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* DIE SKALA macht aus der Bahn ein Mass. Ohne die beiden Zahlen ist eine
+   Linie auf ihr nur eine Linie. */
+.qp-kopf-skala { font-size: 8px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+/* DIE ANKERZEILE ist eingerueckt: sie gehoert dem Masten darueber, nicht dem
+   Querprofil. Gestrichelt, weil der Stab schraeg aus der Blattebene laeuft -
+   seine Linie ist eine Projektion, keine Ansicht. */
+.qp-ankerzeile .qp-name { padding-left: 11px; white-space: normal; }
+/* DIE ART-ZEILE DARF UMBRECHEN. «A1 · ANKER · QUER, ZUM GLEIS» passt bei
+   96 px nicht in eine Zeile, und abgeschnitten stuende dort «A1 · ANKER ·
+   QUER,» - die halbe Lage, also die falsche. Zwei Zeilen zu acht Pixeln
+   sind niedriger als eine falsche Angabe. */
+.qp-ankerzeile .qp-art { color: var(--dim); white-space: normal;
+  line-height: 1.15; }
+.qp-ankerlinie {
+  position: absolute; top: 7px; height: 4px; padding: 0; cursor: pointer;
+  background: none; border: 0; border-top: 2px dashed var(--on2);
+  border-radius: 0; opacity: .75;
+}
+.qp-ankerlinie:hover { border-top-color: var(--acc); opacity: 1; }
 .qp-zeile {
   display: flex; align-items: center; gap: 5px;
   padding: 1px 2px; border-radius: var(--m-r1);
