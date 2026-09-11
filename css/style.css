@@ -1525,15 +1525,32 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .qp-mastreihe .qp-bahn.qp-bahn-hoch { height: 46px; }
 .qp-mastgruppe { position: absolute; top: 0; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; }
-.qp-mastgruppe .qp-mast { position: static; transform: none; }
+/* Das Symbol sitzt oben in der Gruppe, die Anschrift darunter - siehe
+   `.qp-mastschrift`. Es bleibt absolut positioniert, damit die Schrift
+   darunter die Breite der Gruppe bestimmt und nicht das 22 px breite
+   Symbol. */
 
 /* DIE SENKRECHTE ANSCHRIFT. `writing-mode` statt `rotate`, damit die Zeile
    ihre Hoehe von selbst bekommt - eine gedrehte Zeile behaelt im Fluss ihre
    waagrechte Ausdehnung und schoebe die Nachbarn beiseite. */
+/* DIE ANSCHRIFT STEHT UNTER DEM SYMBOL, NICHT DARIN.
+
+   Weisung vom 11. September: «die masten und anker sauber anschreiben in der
+   darstellung sidebar, diese ist momentan ueberlagert mit dem symbol. das
+   anschreiben der elemente kann auch unterhalb der darstellung erfolgen so
+   wie bei den jochen einfach um 90 grad ausgerichtet.»
+
+   Sie sass im selben Kasten wie das Dreieck und lag darueber. Jetzt beginnt
+   sie UNTER dem Mastfuss - `padding-top` schiebt sie an dem Symbol vorbei -,
+   und `writing-mode` dreht sie um 90 Grad, damit vier Masten auf dreissig
+   Metern nebeneinander Platz haben.
+
+   `writing-mode` statt `rotate`, weil eine gedrehte Zeile im Fluss ihre
+   waagrechte Ausdehnung behaelt und die Nachbarn beiseiteschoebe. */
 .qp-mastschrift {
   writing-mode: vertical-rl; text-orientation: mixed;
   font-size: 9px; letter-spacing: .02em; color: var(--dim);
-  margin-top: 1px; max-height: 28px; overflow: hidden;
+  padding-top: 22px; max-height: 46px; overflow: hidden;
   white-space: nowrap; pointer-events: none;
 }
 .qp-mastschrift.an { color: var(--acc); }
@@ -1632,21 +1649,37 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 
 /* DIE MARKE IST EIN AUFLAGERDREIECK - die Zeichensprache des Schemas. */
 .qp-mast {
-  position: absolute; top: 0; bottom: 0; width: 22px;
+  position: absolute; top: 0; width: 22px; height: 20px;
   transform: translateX(-50%); padding: 0;
   background: none; border: none; cursor: pointer;
 }
+/* In der Mastreihe steht das Symbol im Fluss und die Schrift darunter -
+   dort darf es nicht absolut sitzen. */
+.qp-mastgruppe .qp-mast { position: absolute; top: 0; }
+/* ===========================================================================
+   DER MAST IST EIN STRICH
+
+   Weisung vom 11. September: «die maste nicht als dreieck sondern als strich
+   darstellen.»
+
+   Das Dreieck ist das Zeichen fuer ein AUFLAGER - es sagt, wie gelagert
+   wird. Ein Mast ist aber ein Bauteil, und im Querprofil steht er senkrecht:
+   ein Strich mit einem Fuss darunter. Dasselbe, was das 3D seit dem
+   11. September zeigt, seit dort aus der Fussschraffur ein Fundamentkopf
+   geworden ist.
+   ========================================================================= */
 .qp-mast-marke {
-  position: absolute; left: 50%; top: 4px; margin-left: -5px;
-  width: 0; height: 0; border-left: 5px solid transparent;
-  border-right: 5px solid transparent; border-bottom: 9px solid var(--dim);
+  position: absolute; left: 50%; top: 2px; margin-left: -1px;
+  width: 2px; height: 14px; background: var(--dim); border-radius: 1px;
 }
 .qp-mast-fuss {
-  position: absolute; left: 50%; top: 13px; width: 12px; height: 2px;
-  margin-left: -6px; background: var(--dim); border-radius: 1px;
+  position: absolute; left: 50%; top: 15px; width: 8px; height: 3px;
+  margin-left: -4px; background: var(--dim); border-radius: 1px;
 }
-.qp-mast:hover .qp-mast-marke { border-bottom-color: var(--on2); }
+.qp-mast:hover .qp-mast-marke,
 .qp-mast:hover .qp-mast-fuss { background: var(--on2); }
+.qp-mast.an .qp-mast-marke,
+.qp-mast.an .qp-mast-fuss { background: var(--acc); }
 .qp-mast.an .qp-mast-marke { border-bottom-color: var(--acc); }
 .qp-mast.an .qp-mast-fuss { background: var(--acc); }
 /* DER GETEILTE MAST traegt zwei Tragwerke - sein Fundament ist breiter. */
