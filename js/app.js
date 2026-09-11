@@ -6719,14 +6719,19 @@ function dialogAxisvm() {
      * er nicht: das Modell setzt bisher einen Auflagerpunkt je Ende. Die
      * Zeile steht trotzdem da, damit die Maske dieselbe ist.
      */
-    const geht = k.braucht !== 'mast'
-      ? true : (istAbfang ? false : hatMast);
+    /*
+     * SEIT DEM 11. SEPTEMBER KANN AUCH DAS ABFANGJOCH MIT MAST (Weisung:
+     * «Auflager so machen dass zuerst die starrelemente von mast ausgeht»).
+     * Hier stand `istAbfang ? false` - die Zeile war ausgegraut, weil das
+     * Modell keinen Masten kannte. Jetzt gilt fuer beide Arten dieselbe
+     * Bedingung: es braucht einen Masten im Tragwerk.
+     */
+    const geht = k.braucht !== 'mast' ? true : hatMast;
     return `
     <label class="schalter${geht ? '' : ' aus'}">
       <input type="radio" name="am" value="${k.key}"${k.key === vorgabe ? ' checked' : ''}${geht ? '' : ' disabled'}>
       <span>${esc(k.label)}${geht ? ''
-        : (istAbfang ? ' — noch nicht gebaut; das Modell lagert auf Punkten'
-                     : ' — braucht Endauflager «teilweise eingespannt (Mast)»')}</span>
+        : ' — braucht einen Masten im Tragwerk'}</span>
     </label>`;
   }).join('');
   const d = dialog('AxisVM-Ausleitung', `
@@ -6840,6 +6845,22 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
      * baut die Ausleitung ein nacktes Joch und wirft eine pauschale
      * Abfangkraft in die Mitte - die Eingabe waere still verloren.
      */
+    /*
+     * DAS MASTPROFIL FUER DIE ABFANGJOCH-AUSLEITUNG.
+     *
+     * Beide Enden tragen denselben Masten, solange nichts anderes
+     * eingestellt ist; abweichende Profile je Ende kennt das
+     * Abfangjoch-Modell noch nicht, und eines zu erfinden waere schlimmer
+     * als eines wegzulassen. Genommen wird Ende A.
+     */
+    const mastFuerAbfang = (satz) => {
+      if (satz?.mastVorhanden === false) return null;
+      const mst = mastenVon({ ...werte, ...satz });
+      const m0 = mst[0];
+      if (!m0?.profil) return null;
+      const hoehe = Number(satz?.H ?? werte.H) || 0;
+      return hoehe > 0 ? { profil: m0.profil, hoehe } : null;
+    };
     return handlung('COM-Ausleitung',
       () => exportiereAbfangJson(typ, jt, {
         knotenbereich: knotenmodell, auflagerModell,
@@ -6853,6 +6874,19 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
         // welche Spalte gilt, sagt die Eingabe.
         schneeAktiv: aktSatz.schneeAktiv,
         schneeKlasse: aktSatz.schneeKlasse,
+        /*
+         * >>> UND DER MAST, WENN EINER DASTEHT. <<<
+         *
+         * Weisung vom 11. September: «Auflager so machen dass zuerst die
+         * starrelemente von mast ausgeht (150 mm) …» Das setzt einen Masten
+         * voraus, und bis hierher hatte das Abfangjoch-Modell keinen: es
+         * lagerte auf einem Punkt je Ende.
+         *
+         * Gereicht wird das Profil des ANGEWAEHLTEN Endes und die
+         * Anschlusshoehe. Steht kein Mast im Tragwerk, bleibt `mast` null -
+         * dann baut die Ausleitung wie bisher auf Punkten.
+         */
+        mast: auflagerModell === 'mast' ? mastFuerAbfang(aktSatz) : null,
       }));
   }
   /*

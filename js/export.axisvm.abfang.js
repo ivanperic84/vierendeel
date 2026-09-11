@@ -64,6 +64,9 @@ import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
          abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
 import { linkBedingung } from './core.auflager.js';
+// Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
+// demselben Katalog wie beim Tragjoch.
+import { getMastprofil } from './data.masten.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
 const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
@@ -825,9 +828,157 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * weiterhin 'schott' - die Wahl ist fuer den Nachweis erheblich und
    * gehoert dem Auftraggeber, nicht diesem Modul.
    */
+  /* =======================================================================
+   * DER MAST UND DER WEG ZU DEN GURTEN
+   * =======================================================================
+   *
+   * Weisung vom 11. September: «Auflager so machen dass zuerst die
+   * starrelemente von mast ausgeht (150 mm) von hier aus wie bei den
+   * anbauteilen vorgehen oben werden beide Gurte jeweils ueber linkelemente
+   * (50 mm) gehalten.»
+   *
+   * Bis hierher gab es im Abfangjoch-Modell KEINEN Masten: das Joch lagerte
+   * auf einem Punkt je Ende. Die Weisung vom 4. September nannte ihn schon
+   * («spaeter beim masten wie bei den tragjochen vorgehen»), gebaut war er
+   * nicht - und im Ausleitungsdialog stand die Zeile als «noch nicht
+   * gebaut» ausgegraut.
+   *
+   * >>> DIESELBE KETTE WIE BEIM TRAGJOCH, NUR LIEGEND. <<<
+   *
+   *     Mastknoten --[KONSOLE starr 150 mm]--> Konsolknoten
+   *     Konsolknoten --[LINK 50 mm]--> Gurtknoten
+   *
+   * Der Unterschied zum Tragjoch ist die RICHTUNG. Dort stehen Ober- und
+   * Untergurt UEBEREINANDER, und die Kette laeuft in der Jochachse nach
+   * innen. Hier liegen die beiden Gurte NEBENEINANDER, bei y = ±e/2 - die
+   * Kette laeuft also quer, in Gleisrichtung, vom Masten auf der Jochachse
+   * zu jedem der beiden Gurte.
+   *
+   * >>> WAS DIE MASKE EINSTELLT. <<<
+   *
+   * «die einstellungen der lagerung erfolgt ueber die sidebar auflager»:
+   * `linkBedingung` liest sie und faellt sonst auf die Vorgabe der Art
+   * zurueck - beim Abfangjoch laesst der VORDERE Gurt laengs los, damit das
+   * Kraeftepaar die Drehung um z nicht sperrt.
+   * ===================================================================== */
+  const KONSOL_LAENGE = 0.15;
+  const AUFL_LINK_LAENGE = 0.05;
+  const mastD = opt.mast ?? null;
+  const mastProfil = mastD?.profil
+    ? (() => { try { return getMastprofil(mastD.profil); } catch { return null; } })()
+    : null;
+  const mitMast = Boolean(mastProfil && (mastD.hoehe ?? 0) > 0);
+  /*
+   * ZWEI QUERSCHNITTE KOMMEN MIT DEM MASTEN: sein eigenes I-Profil und der
+   * steife Stab fuer Konsole und Link. Beide nur, wenn der Mast wirklich
+   * gebaut wird - ein Querschnitt ohne Stab ist ein Eintrag, den niemand
+   * braucht, und die Bruecke legt ihn trotzdem an.
+   *
+   * DIE AUSRUNDUNG wird aus der FLAECHE zurueckgerechnet, wie beim Tragjoch:
+   * das Profil traegt sie nicht, und ohne sie faellt A um einige Prozent zu
+   * klein aus.
+   */
+  const mastQs = mitMast ? (() => {
+    const pm = mastProfil;
+    const rest = pm.A * 100 - 2 * pm.b * pm.tf - (pm.h - 2 * pm.tf) * pm.tw;
+    const R = rest > 0 ? Math.sqrt(rest / (4 - Math.PI)) : 0;
+    return {
+      name: `MAST_${pm.name.replace(/\s+/g, '')}`, form: 'I',
+      profil: pm.name,
+      parameter: [pm.h, pm.b, pm.tw, pm.tf, Math.round(R * 1e6) / 1e6],
+      A: pm.A / 1e4, Iy: pm.Iy / 1e8, Iz: pm.Iz / 1e8, It: pm.It / 1e8,
+    };
+  })() : null;
+  if (mastQs) {
+    querschnitte.push(mastQs);
+    querschnitte.push({ name: 'STARR', form: 'Rectangle',
+                        parameter: [500, 500],
+                        profil: 'steifer Stab, Konsole und Link' });
+  }
+
   const anschluss = opt.auflagerAnschluss ?? 'schott';
   const auflager = [];
   [['A', iA], ['B', iB]].forEach(([ende, i]) => {
+    /* =====================================================================
+     * >>> MIT MAST: DIE KETTE LAEUFT VON IHM AUS. <<<
+     * =====================================================================
+     *
+     * Weisung vom 11. September. Der Mast steht auf der Jochachse (y = 0),
+     * sein Kopf auf Traegerhoehe (z = 0), sein Fuss `hoehe` tiefer und dort
+     * voll eingespannt - dieselbe Annahme wie beim Tragjoch.
+     *
+     * Von seinem Kopf geht je Gurt eine Konsole (starr, 150 mm) quer nach
+     * aussen, und an deren Ende haelt ein Linkelement (50 mm) den Gurt.
+     * =================================================================== */
+    if (mitMast) {
+      const kKopf = `MAST_${ende}_K`;
+      const kFuss = `MAST_${ende}_F`;
+      knoten.push({ name: kKopf, x: xs[i], y: 0, z: 0 });
+      knoten.push({ name: kFuss, x: xs[i], y: 0, z: -mastD.hoehe });
+      staebe.push({ name: `MAST_${ende}`, von: kKopf, bis: kFuss,
+                    querschnitt: mastQs.name, steifesMaterial: false,
+                    lcsZ: [0, 0, 1] });
+      /*
+       * JE GURT EINE KONSOLE UND EIN LINK. 'V' liegt bei y = +e/2 (vorn),
+       * 'H' bei y = -e/2 (hinten); die Konsole zeigt jeweils dorthin.
+       */
+      /*
+       * >>> WENN DER PLATZ NICHT REICHT. <<<
+       *
+       * Konsole und Link messen zusammen 200 mm. Der halbe Gurtabstand ist
+       * beim A240 232 mm - es bleiben 32 mm fuer den Arm dazwischen. Beim
+       * A160 sind es aber nur 158 mm, und die Kette liefe rueckwaerts: der
+       * Konsolknoten saesse weiter aussen als der Gurt.
+       *
+       * DAS LINK HAT VORRANG. An ihm sitzt die Lagerbedingung, und seine
+       * Laenge steht in der Weisung; die Konsole ist der Fueller davor. Sie
+       * wird deshalb gestutzt, das Link bleibt bei 50 mm - erst wenn auch
+       * dafuer der Platz fehlt, teilen sich beide, was da ist.
+       *
+       * >>> DIE ENDEN SIND GEKROEPFT. <<<
+       *
+       * `eAn` gibt den Gurtabstand AN DIESER STELLE, und am Auflager ist er
+       * kleiner als im Feld: A240 misst dort 336 statt 464 mm. Es bleiben
+       * 168 mm je Seite, und 150 + 50 passen nicht hinein. Mit der festen
+       * Feldbreite gerechnet saesse der Konsolknoten weiter aussen als der
+       * Gurt - die Kette liefe rueckwaerts.
+       */
+      const halbE = eAn(xs[i]) / 2;
+      const lLink = Math.min(AUFL_LINK_LAENGE, halbE * 0.45);
+      // Die Konsole reicht bis an das Link heran - ZWEI Glieder, wie in der
+      // Weisung. Ein Fuellstab dazwischen waere ein drittes Bauteil ohne
+      // Aufgabe.
+      const lKons = halbE - lLink;
+      for (const g of ['V', 'H']) {
+        const vzG = g === 'V' ? +1 : -1;
+        const kKons = `KONS_${ende}${g}`;
+        knoten.push({ name: kKons, x: xs[i], y: vzG * lKons, z: 0 });
+        staebe.push({
+          name: `KONSOLE_${ende}${g}`, von: kKopf, bis: kKons,
+          querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
+          art: 'starr',
+        });
+        /*
+         * DAS LINK SITZT ZWISCHEN KONSOLE UND GURT - dort wird geschraubt,
+         * und dort gehoert die Freigabe hin. Der Gurtknoten liegt bei
+         * y = ±e/2; das Link ueberbrueckt die letzten 50 mm davor.
+         */
+        staebe.push({
+          name: `LINK_${ende}${g}`, von: kKons, bis: nm(g, i),
+          querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
+          gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
+          kraftuebertragung: linkBedingung(opt, 'abfangjoch', g),
+        });
+      }
+      // Der Mastfuss traegt das Auflager - nicht mehr das Jochende.
+      auflager.push({
+        ende, knoten: kFuss, x: xs[i], modell: 'mast',
+        ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+        fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
+        cFiy_MNm: null, cFiy_kNm: null, cUz_MN: null, cUz_kNm: null,
+      });
+      return;
+    }
     const kA = `AUFL_${ende}`;
     knoten.push({ name: kA, x: xs[i], y: 0, z: 0 });
     for (const g of ['V', 'H']) {

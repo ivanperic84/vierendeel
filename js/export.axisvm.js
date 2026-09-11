@@ -203,6 +203,51 @@ const MIN_SCHNITT = 0.025;
 
 // Länge des vertikalen Linkelements zwischen Gurt und Anbauteil (Weisung:
 // rund 10 cm). Am Obergurt nach oben, am Untergurt nach unten angesetzt.
+/* ===========================================================================
+ * DER WEG VOM MASTEN ZUM GURT
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «Auflager so machen dass zuerst die
+ * starrelemente von mast ausgeht (150 mm) von hier aus wie bei den
+ * anbauteilen vorgehen oben werden beide Gurte jeweils ueber linkelemente
+ * (50 mm) gehalten.»
+ *
+ * >>> DIE REIHENFOLGE IST UMGEKEHRT WORDEN. <<<
+ *
+ * Bis hierher lief der Weg vom GURT aus: zwei Starrstaebe von den beiden
+ * Winkeln auf einen Sammelknoten 0.10 m einwaerts, von dort EIN Link zum
+ * Masten. Der Link sass damit am Joch, und der Mast hing starr daran.
+ *
+ * Jetzt laeuft er vom MASTEN aus, wie bei den Anbauteilen:
+ *
+ *     Mastknoten --[STARR 150 mm]--> Konsolknoten
+ *     Konsolknoten --[LINK 50 mm]--> Gurtsammelknoten
+ *     Gurtsammelknoten --[starr]--> die beiden Winkel
+ *
+ * >>> WARUM DAS EIN ANDERES TRAGWERK IST. <<<
+ *
+ * Der starre Teil gehoert jetzt dem MASTEN: er ist die Konsole, auf der das
+ * Joch aufliegt, und er traegt deren Exzentrizitaet. Das Linkelement sitzt
+ * dort, wo wirklich geschraubt wird - zwischen Konsole und Gurt -, und dort
+ * gehoert die Freigabe hin. Vorher war es umgekehrt, und die Konsole war
+ * gar nicht abgebildet.
+ * ========================================================================= */
+
+/** Starrelement vom Mastknoten zur Konsole [m] (Weisung, 11. September). */
+const KONSOL_LAENGE = 0.15;
+
+/**
+ * Linkelement von der Konsole zum Gurt [m] (Weisung, 11. September).
+ *
+ * NICHT DASSELBE wie `LINK_LAENGE`: das gehoert den ANBAUTEILEN und misst
+ * seit dem 27. August rund 10 cm - der senkrechte Uebergang vom Gurt zum
+ * Anschlusskoerper. Zwei verschiedene Stellen, zwei verschiedene Masse; sie
+ * an eine Konstante zu haengen hiesse, das eine mit dem anderen zu
+ * verstellen.
+ */
+const AUFL_LINK_LAENGE = 0.05;
+
+/** Vertikales Linkelement Gurt -> Anbauteil [m]. */
 const LINK_LAENGE = 0.10;
 
 /*
@@ -1621,16 +1666,45 @@ export function stabmodell(m, opt = {}) {
        * der Maske steht, und fällt sonst auf die Vorgabe der Tragwerksart
        * zurück - beim Tragjoch also Untergurt fest, Obergurt längs frei.
        */
-      const einwaerts = ende === 'A' ? LINK_LAENGE : -LINK_LAENGE;
+      /*
+       * >>> DIE KETTE LAEUFT VOM MASTEN ZUM GURT. <<<
+       *
+       * Weisung vom 11. September - siehe KONSOL_LAENGE oben. Drei Glieder
+       * je Gurtebene, und jedes hat seine eigene Aufgabe:
+       *
+       *   KONSOLE  starr, 150 mm vom Mastknoten nach innen. Sie ist das
+       *            Bauteil, auf dem das Joch aufliegt, und sie traegt die
+       *            Exzentrizitaet zwischen Mastachse und Anschluss.
+       *   LINK      50 mm weiter, von der Konsole zum Gurtsammelknoten.
+       *            HIER sitzt die Freigabe - dort wird geschraubt.
+       *   STARR    vom Sammelknoten auf die beiden Winkel, wie bisher.
+       *
+       * DIE RICHTUNG: nach INNEN, also ins Joch hinein. Am Ende B kehrt sie
+       * sich um; die Konsole ragt nie ueber das Jochende hinaus.
+       */
+      const vzE = ende === 'A' ? +1 : -1;
       [['OG', kOG, zOben], ['UG', kUG, zUnten]].forEach(([gurt, kMast, zG]) => {
-        const ans = s.kn(`ANS_${an(ende)}_${gurt}`, r6(x + einwaerts), 0, zG);
-        ['L', 'R'].forEach((seite) => {
-          s.stab(`STARR_${an(ende)}_${gurt}${seite}`, qsStarr,
-                 gurtKnoten(gurt, seite, x), ans, { starrRolle: 'verbindung' });
-        });
-        s.stab(`LINK_${an(ende)}_${gurt}`, qsStarr, ans, kMast,
+        const xKons = r6(x + vzE * KONSOL_LAENGE);
+        const xAns = r6(x + vzE * (KONSOL_LAENGE + AUFL_LINK_LAENGE));
+        const kKons = s.kn(`KONS_${an(ende)}_${gurt}`, xKons, 0, zG);
+        const ans = s.kn(`ANS_${an(ende)}_${gurt}`, xAns, 0, zG);
+        // 1 - die Konsole, starr am Masten.
+        s.stab(`KONSOLE_${an(ende)}_${gurt}`, qsStarr, kMast, kKons,
+               { starrRolle: 'verbindung' });
+        /*
+         * 2 - das Linkelement. Was es uebertraegt, steht in der MASKE
+         * (Weisung vom 11. September: «die einstellungen der lagerung
+         * erfolgt ueber die sidebar auflager») - `linkBedingung` liest sie
+         * und faellt sonst auf die Vorgabe der Tragwerksart zurueck.
+         */
+        s.stab(`LINK_${an(ende)}_${gurt}`, qsStarr, kKons, ans,
                { starrRolle: 'uebergang',
                  kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
+        // 3 - vom Sammelknoten auf die beiden Winkel.
+        ['L', 'R'].forEach((seite) => {
+          s.stab(`STARR_${an(ende)}_${gurt}${seite}`, qsStarr,
+                 ans, gurtKnoten(gurt, seite, x), { starrRolle: 'verbindung' });
+        });
       });
 
       /* =====================================================================
@@ -1770,7 +1844,13 @@ export function stabmodell(m, opt = {}) {
         const kKons = s.kn(`ANKER_${mn(ende)}_K`,
                            laengsA ? x : r6(x + vzA * ANKER_KONSOLE),
                            laengsA ? r6(vzA * ANKER_KONSOLE) : 0, zAnk);
-        s.stab(`KONSOLE_${mn(ende)}`, qsStarr, mastKn.get(zAnk), kKons,
+        /*
+         * ANKERKONSOLE, nicht KONSOLE: seit dem 11. September heisst die
+         * Auflagerkonsole am Jochende `KONSOLE_A_OG`, und ein Filter auf
+         * `KONSOLE_` traefe beide. Namen im Modell sind Adressen - zwei
+         * Bauteile duerfen sich keine teilen.
+         */
+        s.stab(`ANKERKONSOLE_${mn(ende)}`, qsStarr, mastKn.get(zAnk), kKons,
                { starrRolle: 'verbindung' });
         s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
                { gelenkAnfang: 'M', gelenkEnde: 'M' });

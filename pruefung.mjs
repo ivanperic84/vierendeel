@@ -6672,12 +6672,32 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
   // --- Anschluss je Gurtebene ---------------------------------------------
   ['A', 'B'].forEach((e) => ['OG', 'UG'].forEach((g) => {
     const k = stabVon(`STARR_${e}_${g}L`), r = stabVon(`STARR_${e}_${g}R`);
-    wahr(`Ende ${e}, ${g}: zwei Starrkoerper auf einen Anschlusspunkt`,
-         k && r && k.art === 'starr' && r.art === 'starr'
-         && k.bis === `ANS_${e}_${g}` && r.bis === `ANS_${e}_${g}`);
+    /* =====================================================================
+     * DIE KETTE LAEUFT VOM MASTEN ZUM GURT
+     * =====================================================================
+     *
+     * Weisung vom 11. September: «Auflager so machen dass zuerst die
+     * starrelemente von mast ausgeht (150 mm) von hier aus wie bei den
+     * anbauteilen vorgehen oben werden beide Gurte jeweils ueber
+     * linkelemente (50 mm) gehalten.»
+     *
+     * Vorher lief sie umgekehrt: zwei Starrstaebe VOM Gurt auf einen
+     * Sammelknoten, von dort ein Link ZUM Masten. Der starre Teil gehoerte
+     * damit dem Joch, und die Konsole am Masten war gar nicht abgebildet.
+     *
+     *   MAST --[KONSOLE starr 150]--> KONS --[LINK 50]--> ANS --[starr]--> Gurt
+     * =================================================================== */
+    const kons = stabVon(`KONSOLE_${e}_${g}`);
+    wahr(`Ende ${e}, ${g}: die Konsole geht starr vom Masten aus`,
+         kons && kons.art === 'starr'
+         && kons.von === `MAST_${e}_${g}` && kons.bis === `KONS_${e}_${g}`);
     const l = stabVon(`LINK_${e}_${g}`);
-    wahr(`Ende ${e}, ${g}: von dort ein Linkelement an den Mast`,
-         l && l.art === 'link' && l.bis === `MAST_${e}_${g}`);
+    wahr(`Ende ${e}, ${g}: von der Konsole ein Linkelement zum Gurt`,
+         l && l.art === 'link'
+         && l.von === `KONS_${e}_${g}` && l.bis === `ANS_${e}_${g}`);
+    wahr(`Ende ${e}, ${g}: und von dort starr auf beide Winkel`,
+         k && r && k.art === 'starr' && r.art === 'starr'
+         && k.von === `ANS_${e}_${g}` && r.von === `ANS_${e}_${g}`);
     /*
      * >>> JEDE GURTEBENE HAT IHRE EIGENE BEDINGUNG. <<<
      *
@@ -6698,13 +6718,19 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
     wahr(`Ende ${e}, ${g}: alle drei Momente frei`,
          ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'));
   }));
-  // Ein Linkelement braucht eine LINIE, und eine Linie braucht Laenge.
-  // Verschoben wird deshalb der Anschlusspunkt nach innen, nicht die
-  // Mastachse nach aussen: die Stuetzweite bleibt die des Rechenkerns.
-  pruef('Der Anschlusspunkt sitzt 10 cm einwaerts',
-        knotenVon('ANS_A_OG').x - knotenVon('MAST_A_OG').x, 0.10, 1e-9, 'm');
+  /*
+   * DIE BEIDEN LAENGEN, EINZELN GEPRUEFT (Weisung, 11. September). Verschoben
+   * wird nach INNEN, nicht die Mastachse nach aussen: die Stuetzweite bleibt
+   * die des Rechenkerns, und die Konsole ragt nie ueber das Jochende hinaus.
+   */
+  pruef('Die Konsole misst 150 mm',
+        knotenVon('KONS_A_OG').x - knotenVon('MAST_A_OG').x, 0.15, 1e-9, 'm');
+  pruef('Das Linkelement misst 50 mm',
+        knotenVon('ANS_A_OG').x - knotenVon('KONS_A_OG').x, 0.05, 1e-9, 'm');
+  pruef('Der Anschlusspunkt sitzt damit 200 mm einwaerts',
+        knotenVon('ANS_A_OG').x - knotenVon('MAST_A_OG').x, 0.20, 1e-9, 'm');
   pruef('Am anderen Ende ebenso, spiegelbildlich',
-        knotenVon('MAST_B_OG').x - knotenVon('ANS_B_OG').x, 0.10, 1e-9, 'm');
+        knotenVon('MAST_B_OG').x - knotenVon('ANS_B_OG').x, 0.20, 1e-9, 'm');
   wahr('Und er liegt auf der Jochachse',
        Math.abs(knotenVon('ANS_A_OG').y) < 1e-9);
   pruef('Die Mastachse steht in der Jochendebene',
@@ -8558,7 +8584,8 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * greift ihre Kraft EXZENTRISCH an, und der Mast traegt das zugehoerige
      * Moment - bei 20 kN sind das 3 kNm.
      * =================================================================== */
-    const kons = (jA.staebe ?? []).filter((s) => /^KONSOLE_/.test(s.name));
+    const kons = (jA.staebe ?? []).filter(
+      (s) => /^ANKERKONSOLE_/.test(s.name));
     wahr('Je Anker eine Konsole', kons.length === 2);
     {
       const kn = (nm) => (jA.knoten ?? []).find((k) => k.name === nm);
