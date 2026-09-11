@@ -4162,18 +4162,56 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
     wahr('Und die Bildgrenzen reichen bis zum Fuss', sz.grenzen.zMin <= -H * 0.9,
          `zMin = ${sz.grenzen.zMin.toFixed(2)} m`);
   }
-  /*
-   * Die Fussschraffur bleibt: sie sagt, dass dort eingespannt ist. Sie liegt
-   * seit dem 28. August in der Ebene `mast` und nicht mehr in `auflager` -
-   * der Mast ist ein Bauteil und laesst sich einzeln wegnehmen, ohne die
-   * Lagerung zu verlieren.
-   */
+  /* =========================================================================
+   * >>> AUS DER FUSSSCHRAFFUR IST EIN FUNDAMENTKOPF GEWORDEN. <<<
+   * =========================================================================
+   *
+   * Weisung vom 11. September: «die fundamentkoepfe vertikal machen und
+   * etwas doppel so dick wie den masten darstellen.»
+   *
+   * Bis dahin standen dort fuenf schraege Striche - das Zeichen fuer eine
+   * Einspannung. Es sagt, WIE gelagert wird, zeigt aber nicht, WAS dort
+   * steht. Jetzt ist es ein Koerper: doppelte Mastbreite, quadratisch im
+   * Grundriss, auf der Fusslinie stehend.
+   *
+   * Die Lagerung selbst bleibt in der Ebene `auflager` und der Kopf in
+   * `mast` - der Mast ist ein Bauteil und laesst sich wegnehmen, ohne dass
+   * die Lagerung verschwindet. Das galt fuer die Schraffur und gilt fuer den
+   * Kopf.
+   * ======================================================================= */
   const mastL = sz.linien.filter((l) => l.gruppe === 'mast');
-  wahr('Die Fussschraffur steht weiterhin da',
-       mastL.filter((l) => !l.kragarm && !l.mast).length >= 10);
+  const fkF = sz.flaechen.filter((f) => /^FUNDAMENT_/.test(f.teil ?? ''));
+  wahr('Der Fundamentkopf steht als Koerper da', fkF.length > 0,
+       `${fkF.length} Flaechen`);
+  {
+    // Doppelte Mastbreite: HEB 240 ist 0.24 m breit, der Kopf also 0.48 m.
+    const ys = fkF.flatMap((f) => f.punkte.map((p2) => p2[1]));
+    const zs = fkF.flatMap((f) => f.punkte.map((p2) => p2[2]));
+    pruef('… und ist doppelt so breit wie der Mast',
+          Math.max(...ys) - Math.min(...ys), 0.48, 1e-6, 'm');
+    /*
+     * DER BEZUG IST DER MASTFUSS, nicht -H. `H` ist die ANSCHLUSSHOEHE des
+     * Jochs; der Mast reicht tiefer - um den Ueberstand und um die halbe
+     * Bauhoehe des Traegers. Der erste Anlauf pruefte gegen -7.50 und
+     * bekam -7.7455: der Kopf stand richtig, die Kontrolle fragte falsch.
+     */
+    const mastZ = sz.flaechen
+      .filter((f) => f.gruppe === 'mast' && !/FUNDAMENT/.test(f.teil ?? ''))
+      .flatMap((f) => f.punkte.map((p2) => p2[2]));
+    pruef('… und steht AUF dem Mastfuss', Math.min(...zs),
+          Math.min(...mastZ), 1e-9, 'm');
+  }
+  /*
+   * DIE TRENNUNG DER EBENEN BLEIBT, nur zaehlt sie jetzt KOERPER: die
+   * Fussschraffur war die einzige Mastlinie, und seit dem 11. September ist
+   * sie ein Fundamentkopf. Die Aussage ist dieselbe - was zum Masten
+   * gehoert, liegt in `mast` und laesst sich wegnehmen, ohne die Lagerung
+   * zu verlieren; die Auflagerzeichen bleiben in `auflager`.
+   */
+  const mastKoerperF = sz.flaechen.filter((f) => f.gruppe === 'mast');
   wahr('Und zwar in der Ebene der Masten',
-       auf.every((l) => l.gruppe === 'auflager')
-       && mastL.length > 0, `${mastL.length} Mastlinien`);
+       auf.every((l) => l.gruppe === 'auflager') && mastKoerperF.length > 0,
+       `${mastKoerperF.length} Mastflaechen, ${mastL.length} Mastlinien`);
   wahr('Die Kragarme sind ausgewiesen', auf.filter((l) => l.kragarm).length === 2);
   const txt = mAuf.filter((k) => k.art === 'auflagertext')
     .map((k) => k.zeilen.join(' / ')).join(' | ');
@@ -15762,8 +15800,21 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const e = rechne(w);
     const sz = R75.erzeugeSzene(e.modell, e);
     const L = e.modell.L;
-    // Bauteile stehen zur Haelfte vor der Achse - ein Zehntelmeter Luft.
-    const LUFT = 0.15;
+    /*
+     * Bauteile stehen zur Haelfte vor der Achse - ein Zehntelmeter Luft.
+     *
+     * SEIT DEM 11. SEPTEMBER MEHR (Weisung: «die fundamentkoepfe vertikal
+     * machen und etwas doppel so dick wie den masten darstellen»). Der
+     * Fundamentkopf ist doppelt so breit wie der Mast und steht am Jochende;
+     * er ragt damit ueber die Tragwerkslaenge hinaus - und das ist richtig,
+     * ein Fundament IST breiter als sein Mast. Beim HEB 240 sind es 0.24 m
+     * je Seite.
+     *
+     * Die Kontrolle soll weiter fangen, was WIRKLICH danebensteht: eine
+     * Lastflaeche des Nachbarjochs, eine Linie ueber das halbe Blatt. Dafuer
+     * genuegt ein halber Meter.
+     */
+    const LUFT = 0.5;
     const xVon = (t) => {
       const v = [];
       const gehe = (a) => {
@@ -17123,8 +17174,18 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       const szM = R3D.abfangSzene('A300', 13.0,
         { mast: { profil: 'HEB 240', hoehe: 7.5, stegrichtung: 'jochachse' } });
       const mst = szM.flaechen.filter((f) => f.gruppe === 'mast');
+      /*
+       * ZWEI MASTKOERPER - die Fundamentkoepfe zaehlen nicht mit. Sie stehen
+       * seit dem 11. September als eigene Teile in derselben Gruppe
+       * (Weisung: «die fundamentkoepfe vertikal machen»); ohne diese
+       * Unterscheidung zaehlte die Kontrolle vier.
+       */
       wahr('Mit Angabe zwei Masten',
-           new Set(mst.map((f) => f.teil)).size === 2);
+           new Set(mst.map((f) => f.teil)
+             .filter((t) => t && !/^(ANKER)?FUNDAMENT/.test(t))).size === 2);
+      wahr('… und je einen Fundamentkopf',
+           new Set(mst.map((f) => f.teil)
+             .filter((t) => /^FUNDAMENT/.test(t ?? ''))).size === 2);
       pruef('Sie reichen bis zum Fundament',
             Math.min(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
             -7.5, 1e-9, 'm');

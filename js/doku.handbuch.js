@@ -1924,8 +1924,19 @@ ${skizze('Am Masten zählt jede Last mit ihrer wirklichen Höhe UND ihrer '
   + 'Ausladung', '0 0 430 220', [
     `<line class="stahl" x1="140" y1="26" x2="140" y2="186"
        style="stroke-width:7"/>`,
-    `<path class="einspann" d="M118 186h44l-6 12H124z"/>`,
-    `<line class="auflager-l" x1="110" y1="198" x2="170" y2="198"/>`,
+    /*
+     * >>> DER FUNDAMENTKOPF STEHT SENKRECHT. <<<
+     *
+     * Weisung vom 11. September: «die fundamentkoepfe vertikal machen und
+     * etwas doppel so dick wie den masten darstellen.»
+     *
+     * Hier stand ein flaches Trapez - das Zeichen fuer eine Einspannung, aber
+     * kein Fundament. Ein Mastfundament ist ein senkrechter Klotz, in den der
+     * Mast hineinreicht; seine Breite ist das Doppelte des Mastes (hier
+     * 7 px Stab, 14 px Kopf).
+     */
+    `<rect class="stahl" x="133" y="186" width="14" height="22"/>`,
+    `<line class="auflager-l" x1="110" y1="208" x2="170" y2="208"/>`,
     // Eine Traverse mit Last am Ende
     `<line class="stahl" x1="140" y1="60" x2="280" y2="60"
        style="stroke-width:4"/>`,
@@ -2023,14 +2034,20 @@ ${skizze('Der Mast mit Anker: am Fuss eingespannt, am Ankerpunkt gehalten',
     `<line class="stahl" x1="150" y1="30" x2="150" y2="196"
        style="stroke-width:7"/>`,
     // Einspannung
-    `<path class="einspann" d="M128 196h44l-6 12H134z"/>`,
-    `<line class="auflager-l" x1="120" y1="208" x2="180" y2="208"/>`,
+    // Senkrechter Kopf, doppelte Mastbreite - siehe Kapitel 14.
+    `<rect class="stahl" x="143" y="196" width="14" height="22"/>`,
+    `<line class="auflager-l" x1="120" y1="218" x2="180" y2="218"/>`,
     // Anker
     `<line class="stahl" x1="150" y1="76" x2="300" y2="196"
        style="stroke-width:4"/>`,
     `<circle class="heel" cx="150" cy="76" r="5"/>`,
     `<circle class="heel" cx="300" cy="196" r="5"/>`,
-    `<path class="einspann" d="M286 196h28l-4 10h-20z"/>`,
+    /*
+     * DAS ANKERFUNDAMENT GENAUSO (Weisung: «beim ankerfundament gleich
+     * machen») - nur schmaler, weil der Stab schmaler ist: 4 px Stab,
+     * 8 px Kopf.
+     */
+    `<rect class="stahl" x="296" y="196" width="8" height="22"/>`,
     // Last am Kopf
     pf(104, 44, 146, 44, 'acc'),
     txt(90, 48, 'F', 'acc'),

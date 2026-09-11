@@ -349,14 +349,35 @@ export function mastKoerper(o) {
   }
 
   const halb = ((achse === 'y' ? profil.b : profil.h) / 2) * MM;
-  // Fussschraffur - der Mast ist am Fuss eingespannt.
-  const H = Math.max(0.5, (o.zAnschluss ?? 0) - zFuss);
-  for (let k = -2; k <= 2; k += 1) {
-    const y = (k / 2) * halb;
-    linien.push({ gruppe: 'mast',
-                  punkte: [[x, y, zFuss],
-                           [x, y - 0.12 * halb, zFuss - 0.14 * H]] });
-  }
+  /* =======================================================================
+   * >>> DER FUNDAMENTKOPF IST EIN KOERPER, KEINE SCHRAFFUR. <<<
+   * =======================================================================
+   *
+   * Weisung vom 11. September: «die fundamentkoepfe vertikal machen und
+   * etwas doppel so dick wie den masten darstellen.»
+   *
+   * Hier standen fuenf schraege Striche - das Zeichen fuer eine Einspannung.
+   * Es sagt, WIE gelagert wird, aber es zeigt nicht, WAS dort steht. Ein
+   * Mastfundament ist ein senkrechter Klotz, in den der Mast hineinreicht,
+   * und im Bild neben einem HEB 240 gehoert er als Koerper dazu.
+   *
+   * DOPPELTE MASTBREITE, und quadratisch im Grundriss: das Fundament ist
+   * nicht schlanker in der einen Richtung, nur weil das Profil es ist.
+   * Seine Hoehe folgt der Breite - ein flacher Teller sieht aus wie eine
+   * Platte, ein hoher Klotz wie ein Fundament.
+   *
+   * ER STEHT AUF DER FUSSLINIE UND RAGT NACH OBEN. Der Mast steckt damit im
+   * Fundament, was er tut. Ihn nach UNTEN zu setzen hiesse, das Modell
+   * reichte tiefer als der Mastfuss - und genau daran haengen zwei
+   * Kontrollen: das Stabmodell endet am Fundament, nicht darunter.
+   */
+  const fkHalb = halb * 2;
+  const fkHoch = Math.max(0.35, fkHalb * 1.1);
+  flaechen.push(...quader(
+    [x, 0, zFuss + fkHoch / 2], [2 * fkHalb, 2 * fkHalb, fkHoch], {
+      gruppe: 'mast', teil: `FUNDAMENT_${name}`,
+      label: `Fundamentkopf ${name}`,
+    }));
 
   const ank = ankerTeile(o, halb, zFuss, zKopf);
   linien.push(...ank.linien);
@@ -555,15 +576,22 @@ function ankerTeile(o, halb, zFuss, zKopf) {
                     punkte: [[x + dx, dy, zA], [xF + dx, yF + dy, zFuss]] });
     });
   }
-  // Das Ankerfundament: ein Klotz am Boden, kein Auflagerdreieck.
-  const fb = 0.35 * halb;
-  [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, -1]].forEach((p, i, arr) => {
-    if (i === 0) return;
-    const q = arr[i - 1];
-    linien.push({ gruppe: 'mast', anker: true,
-      punkte: [[xF + q[0] * fb, yF + q[1] * fb, zFuss],
-               [xF + p[0] * fb, yF + p[1] * fb, zFuss]] });
-  });
+  /*
+   * DAS ANKERFUNDAMENT GENAUSO (Weisung, 11. September: «beim ankerfundament
+   * gleich machen») - ein senkrechter Kopf, doppelt so dick wie der Stab.
+   *
+   * Es war ein Rechteck aus vier Linien AM BODEN, flach wie ein Deckel. Der
+   * Massstab ist hier der STAB, nicht der Mast: die Stuetze ist schlank, und
+   * ein Fundament in Mastbreite daneben sagte etwas Falsches ueber ihre
+   * Groesse.
+   */
+  const afHalb = dick;
+  const afHoch = Math.max(0.28, afHalb * 1.8);
+  flaechen.push(...quader(
+    [xF, yF, zFuss + afHoch / 2], [2 * afHalb, 2 * afHalb, afHoch], {
+      gruppe: 'mast', anker: true, teil: `ANKERFUNDAMENT_${name}`,
+      label: `Ankerfundament ${name}`,
+    }));
   // Die beiden Gelenke - als Vieleck, die Szene kennt keine Kreise.
   [[x, 0, zA], [xF, yF, zFuss]].forEach(([xg, yg, zg]) => {
     const r = 0.22 * halb;
