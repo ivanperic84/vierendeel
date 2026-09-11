@@ -1976,7 +1976,15 @@ svg.sk .sk-grenze { stroke: var(--fail); stroke-width: 1.6; stroke-dasharray: 3 
 svg.sk text { font-family: var(--f-mono); }
 svg.sk .sk-t { font-size: 9px; fill: var(--on2); }
 svg.sk .sk-t2 { font-size: 7.5px; fill: var(--dim); }
-svg.sk .sk-t3 { font-size: 8px; fill: var(--bg); }
+svg.sk .sk-t3 { font-size: 8px; fill: var(--xdim); }
+/* DAS ACHSENKREUZ (Weisung, 11. September: «kann man zusaetzlich noch die
+   achsen anzeigen zur orientierung»). Es steht zurueckhaltend in der Ecke -
+   es soll die Lesart klaeren, nicht um Aufmerksamkeit werben. */
+svg.sk .sk-achse { stroke: var(--xdim); stroke-width: 1; fill: none; }
+svg.sk .sk-achse-f { fill: var(--xdim); }
+/* Masslinien in den Skizzen: dieselbe Zurueckhaltung. */
+svg.sk .sk-mass { stroke: var(--xdim); stroke-width: .8;
+  stroke-dasharray: 2 2; }
 
 /* === BEWEGUNG =============================================================
    Nichts springt. Jeder Zustandswechsel, den man sonst nur als «vorher /

@@ -365,13 +365,28 @@ function neuRechnen(neuZeichnen = true) {
     const extras = letzte
       ? { ...(letzte.mitJoch ? {
             geo: ui.hebelarmUebersicht(letzte.anzeige ?? letzte.erg),
-            prof: ui.qskMarke(letzte.kl),
+
             blech: ui.blechUebersichtHtml(letzte.erg),
             stueck: ui.stuecklisteHtml(letzte.anzeige),
           } : {}),
           // Die Masten stehen bei JEDER Tragwerksart - sie sind das
           // Grundelement, nicht ein Zubehoer des Jochs.
           mast: ui.mastenUebersichtHtml(werte),
+          /*
+           * >>> DIE PROFILTAFEL GILT JEDEM TRAGWERK. <<<
+           *
+           * Weisung vom 11. September: «alle ergänzten bauteile unter
+           * profile nachführen, so wie bei den tragjochen.» Gurte, Masten
+           * und Anker mit ihren Querschnittswerten - die Tafel, die man
+           * beim Nachrechnen daneben legt.
+           *
+           * Sie steht deshalb AUSSERHALB von `mitJoch`, gemeinsam mit der
+           * Klassenmarke: die gibt es nur, wo Winkelgurte klassifiziert
+           * wurden, die Tafel immer. `anzeige` statt `erg`, damit das
+           * Abfangjoch seine eigenen Gurte zeigt.
+           */
+          prof: (letzte.kl ? ui.qskMarke(letzte.kl) : '')
+              + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }
       : {};
     const sig = ui.maskenSignatur(werte, tabEingabe);

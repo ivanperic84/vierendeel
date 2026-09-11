@@ -101,48 +101,127 @@ function liegend(y0 = 26, y1 = 54) {
   return g;
 }
 
+/* ===========================================================================
+ * DAS ACHSENKREUZ - WORAUF MAN SCHAUT
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «ich verstehe diese abbildung nicht ganz, kann
+ * man zusaetzlich noch die achsen anzeigen zur orientierung.»
+ *
+ * Ein Bild des liegenden Traegers sieht in der Draufsicht genauso aus wie
+ * eines des stehenden in der Seitenansicht - zwei parallele Linien mit
+ * Pfosten dazwischen. Ohne Achsen ist nicht zu sehen, WELCHE Ebene gemeint
+ * ist, und genau das entscheidet ueber alles Weitere.
+ *
+ * Die Achsen des Werkzeugs: x die Jochachse (quer zum Gleis), y die
+ * Gleisrichtung, z lotrecht. Das Kreuz steht unten links und nennt die
+ * beiden Achsen, die in der Bildebene liegen.
+ * ========================================================================= */
+/**
+ * EINE KRAFT SENKRECHT ZUR BILDEBENE.
+ *
+ * `raus` true: sie zeigt auf den Betrachter zu (Kreis mit Punkt),
+ * false: von ihm weg (Kreis mit Kreuz). Die uebliche Konvention.
+ *
+ * Gebraucht im QUERSCHNITT: ein Moment um die lotrechte Achse erzeugt ein
+ * Kraeftepaar in TRAEGERRICHTUNG - und die steht dort senkrecht auf dem
+ * Papier. Hier stand zuerst ein Pfeilpaar in der Bildebene; es zeigte nach
+ * innen und las sich als Druck auf beide Ebenen, was ein Kraeftepaar
+ * gerade nicht ist.
+ */
+function quer(cx, cy, raus, kl = 'sk-k', r = 6) {
+  const g = `<circle class="${kl}" cx="${cx}" cy="${cy}" r="${r}"`
+          + ` fill="none"/>`;
+  if (raus) return g + `<circle class="${kl}-f" cx="${cx}" cy="${cy}" r="2"/>`;
+  const d = r * 0.7;
+  return g
+    + `<line class="${kl}" x1="${cx - d}" y1="${cy - d}" x2="${cx + d}"`
+    + ` y2="${cy + d}"/>`
+    + `<line class="${kl}" x1="${cx + d}" y1="${cy - d}" x2="${cx - d}"`
+    + ` y2="${cy + d}"/>`;
+}
+
+function achsen(a1, a2, x = 16, y = 74) {
+  const L = 11;
+  return pf(x, y, x + L, y, 'sk-achse')
+       + pf(x, y, x, y - L, 'sk-achse')
+       + txt(x + L + 5, y + 3, a1, 'sk-t3')
+       + txt(x - 1, y - L - 3, a2, 'sk-t3');
+}
+
 const bild = (inhalt, text) => ({ svg:
-  `<svg viewBox="0 0 200 84" role="img" class="sk">${inhalt}</svg>`, text });
+  `<svg viewBox="0 0 200 90" role="img" class="sk">${inhalt}</svg>`, text });
 
 /**
  * Ein Kraftbild je Grösse. Der Schlüssel steht an der Serie des Diagramms
  * (siehe render.charts.js), damit Kurve und Bild nicht auseinanderlaufen.
  */
 export const SKIZZEN = {
+  /*
+   * >>> ZUG UND DRUCK ZEIGEN GEGENEINANDER. <<<
+   *
+   * Weisung vom 11. September: «sollte der zug nich pfeile zeigen die
+   * entgegen gerichtet sind als anders als beim druck.»
+   *
+   * Er sollte, und er tat es nicht: beide Reihen liefen von aussen nach
+   * innen. Fuer den gedrueckten Gurt ist das richtig - die Kraefte druecken
+   * ihn zusammen -, fuer den gezogenen ist es das Gegenteil dessen, was
+   * geschieht. Der Fehler stand hier, seit es das Bild gibt.
+   *
+   *   DRUCK   Pfeile zeigen IN den Gurt hinein     -->   <--
+   *   ZUG     Pfeile zeigen AUS dem Gurt heraus    <--   -->
+   */
   My: () => bild(
     balken() + pf(60, 8, 60, 22) + pf(140, 8, 140, 22)
     + txt(60, 6, 'F') + txt(140, 6, 'F')
     + pf(30, 40, 60, 40, 'sk-druck') + pf(170, 40, 140, 40, 'sk-druck')
     + txt(100, 24, 'Druck', 'sk-t2')
     + txt(100, 68, 'Zug', 'sk-t2')
-    + pf(30, 50, 60, 50, 'sk-zug') + pf(170, 50, 140, 50, 'sk-zug'),
-    'M_y biegt das Joch lotrecht. Es wird als Kräftepaar zwischen Ober- und '
-    + 'Untergurt abgetragen: N = M_y/h, oben Druck, unten Zug.'),
+    + pf(60, 50, 30, 50, 'sk-zug') + pf(140, 50, 170, 50, 'sk-zug')
+    + achsen('x', 'z'),
+    'Seitenansicht des stehenden Jochs. M_y biegt es lotrecht; das Moment '
+    + 'wird als Kräftepaar zwischen Ober- und Untergurt abgetragen: '
+    + 'N = M_y/h. Der Obergurt wird GEDRÜCKT (Pfeile nach innen), der '
+    + 'Untergurt GEZOGEN (Pfeile nach aussen).'),
 
   Vz: () => bild(
     balken() + pf(100, 8, 100, 22) + txt(100, 6, 'F')
     + pf(45, 30, 45, 50, 'sk-quer') + pf(155, 50, 155, 30, 'sk-quer')
     + txt(45, 74, 'V_z', 'sk-t2') + txt(155, 74, 'V_z', 'sk-t2')
-    + txt(100, 74, 'getragen von den zwei Vertikalebenen', 'sk-t2'),
+    + txt(100, 74, 'getragen von den zwei Vertikalebenen', 'sk-t2')
+    + achsen('x', 'z'),
     'V_z ist die lotrechte Querkraft. Sie läuft über die beiden SEITLICHEN '
     + 'Ebenen zu den Auflagern, je zur Hälfte.'),
 
+  /*
+   * >>> DAS KRAEFTEPAAR STEHT SENKRECHT AUF DEM PAPIER. <<<
+   *
+   * M_z dreht um die LOTRECHTE Achse; sein Kraeftepaar wirkt damit in
+   * Traegerrichtung - und die zeigt im Querschnitt aus dem Bild heraus.
+   * Hier standen zwei Pfeile IN der Bildebene, beide nach innen: das las
+   * sich als Druck auf beide Ebenen, und ein Kraeftepaar ist das nicht.
+   * Dazu ein Pfeil der Laenge null, der nur einen Fleck hinterliess.
+   */
   Mz: () => bild(
-    kasten() + pf(100, 6, 100, 14, 'sk-quer')
-    + pf(30, 20, 60, 20) + pf(170, 20, 140, 20)
+    kasten() + bogen(100, 42, 22, -1.2, 1.2, 'sk-quer')
     + txt(100, 12, 'M_z', 'sk-t2')
-    + pf(54, 42, 54, 42) + txt(54, 78, 'Ebene links', 'sk-t2')
-    + txt(146, 78, 'Ebene rechts', 'sk-t2')
-    + txt(100, 46, 'Kräftepaar über b', 'sk-t2'),
-    'M_z biegt das Joch im Grundriss - Wind in Gleisrichtung. Kräftepaar '
-    + 'zwischen den beiden SEITLICHEN Ebenen im Abstand b.'),
+    + quer(54, 42, false, 'sk-druck') + quer(146, 42, true, 'sk-zug')
+    + txt(54, 78, 'Ebene links: Druck', 'sk-t2')
+    + txt(146, 78, 'Ebene rechts: Zug', 'sk-t2')
+    + txt(100, 66, 'Kräftepaar über b', 'sk-t2')
+    + achsen('y', 'z'),
+    'QUERSCHNITT, Blick in die Jochachse. M_z biegt das Joch im Grundriss - '
+    + 'Wind in Gleisrichtung. Das Kräftepaar wirkt in TRÄGERRICHTUNG, also '
+    + 'senkrecht zum Papier: ⊗ drückt vom Betrachter weg, ⊙ zieht auf ihn '
+    + 'zu. Die beiden seitlichen Ebenen stehen im Abstand b.'),
 
   Tx: () => bild(
     kasten()
     + bogen(100, 42, 34, -2.5, 2.2, 'sk-tors')
     + pf(54, 30, 146, 30, 'sk-fluss') + pf(146, 54, 54, 54, 'sk-fluss')
     + txt(100, 20, 'q_T = T_x / (2·b·h)', 'sk-t2')
-    + txt(100, 80, 'läuft um: oben und unten gegenläufig', 'sk-t2'),
+    + txt(100, 80, 'läuft um: oben und unten gegenläufig', 'sk-t2')
+    + achsen('y', 'z'),
     'T_x dreht das Joch um seine Achse. Der Schubfluss LÄUFT UM den '
     + 'geschlossenen Kasten - er addiert sich auf einer Ebene und zieht auf '
     + 'der gegenüberliegenden ab.'),
@@ -152,7 +231,8 @@ export const SKIZZEN = {
     + pf(54, 30, 146, 30, 'sk-fluss') + pf(146, 54, 54, 54, 'sk-fluss')
     + pf(54, 24, 146, 24, 'sk-quer') + pf(54, 60, 146, 60, 'sk-quer')
     + txt(100, 16, 'V_Balken/2 (beide gleich)', 'sk-t2')
-    + txt(100, 80, '+ Schubfluss: einmal dazu, einmal weg', 'sk-t2'),
+    + txt(100, 80, '+ Schubfluss: einmal dazu, einmal weg', 'sk-t2')
+    + achsen('y', 'z'),
     'Die Ebenenquerkraft ist die Summe aus halber Balkenquerkraft und dem '
     + 'Schubfluss aus Torsion. Weil der Schubfluss umläuft, ist EINE Ebene '
     + 'stärker beansprucht als die gegenüberliegende.'),
@@ -166,7 +246,8 @@ export const SKIZZEN = {
     + txt(100, 12, 'V_Ebene', 'sk-t2')
     + bogen(66, 26, 9, 3.4, 5.6) + bogen(134, 58, 9, 0.4, 2.6)
     + txt(100, 44, 'a₁', 'sk-t2')
-    + txt(100, 76, 'M am Anschnitt, nicht auf der Achse', 'sk-t2'),
+    + txt(100, 76, 'M am Anschnitt, nicht auf der Achse', 'sk-t2')
+    + achsen('x', 'z'),
     'Im Vierendeel-Feld biegt die Ebenenquerkraft den Gurt zwischen zwei '
     + 'Blechen. Nachgewiesen wird am ANSCHNITT des Blechs: M = M_Knoten · '
     + '(a₁ − b_Bl)/a₁.'),
@@ -181,28 +262,67 @@ export const SKIZZEN = {
    * ======================================================================= */
 
   /** Das Kraeftepaar der waagrechten Rahmenebene. */
+  /*
+   * >>> DER LEITERZUG STEHT AUF DER ZUGSEITE. <<<
+   *
+   * Weisung vom 11. September: «den leiterzug wuerde ich immer auf die
+   * zuseite nehmen.»
+   *
+   * Er stand oben, mit Pfeilen AUF den Traeger zu - und las sich damit wie
+   * ein Druck von aussen. Ein abgefangener Leiter ZIEHT aber: er haengt am
+   * Traeger und zieht in seine Richtung. Auf der Zugseite angesetzt und vom
+   * Traeger WEG gerichtet sagt der Pfeil, was wirklich geschieht.
+   *
+   * Und die Biegung bleibt dieselbe: eine Kraft, die nach unten zieht, biegt
+   * den Traeger nach unten - gleichgueltig, an welcher Faser man den Pfeil
+   * ansetzt. Der abgewandte Gurt wird gedrueckt, der zugewandte gezogen.
+   */
   abfN: () => bild(
+    /*
+     * DIE HOEHEN SIND ABGEZAEHLT. Der Traeger liegt zwischen y = 26 und 54;
+     * darueber der Druck, darunter der Zug, ganz unten der Leiterzug. Bei
+     * 84 Pixeln Bildhoehe ueberlappen zwei Textzeilen sonst sofort - und
+     * eine Beschriftung, die man nicht lesen kann, ist keine.
+     */
     liegend()
-    + pf(70, 8, 70, 20, 'sk-quer') + pf(130, 8, 130, 20, 'sk-quer')
-    + txt(100, 6, 'Leiterzug, waagrecht', 'sk-t2')
-    + pf(40, 22, 70, 22, 'sk-druck') + pf(160, 22, 130, 22, 'sk-druck')
-    + pf(40, 58, 70, 58, 'sk-zug') + pf(160, 58, 130, 58, 'sk-zug')
-    + txt(100, 18, 'Druck', 'sk-t2')
-    + txt(100, 68, 'Zug', 'sk-t2')
-    + txt(100, 44, 'e', 'sk-t2'),
-    'Draufsicht. Das Moment der WAAGRECHTEN Rahmenebene wird zum Kräftepaar '
-    + 'zwischen den beiden Gurten: N = M_Rahmen/e, mit e als Abstand der '
-    + 'Schwerachsen. Ein Gurt zieht, der andere drückt.'),
+    + txt(100, 12, 'abgewandter Gurt: Druck', 'sk-t2')
+    // Druck: nach innen. Zug: nach aussen. Siehe den Kasten bei `My`.
+    + pf(42, 20, 72, 20, 'sk-druck') + pf(158, 20, 128, 20, 'sk-druck')
+    + `<line class="sk-mass" x1="34" y1="26" x2="34" y2="54"/>`
+    + txt(40, 43, 'e', 'sk-t2', 'start')
+    + pf(72, 62, 42, 62, 'sk-zug') + pf(128, 62, 158, 62, 'sk-zug')
+    + txt(100, 74, 'Gurt auf der Zugseite: Zug', 'sk-t2')
+    // Der Leiterzug greift am Gurt der Zugseite an und zieht von ihm weg.
+    + pf(70, 54, 70, 68, 'sk-zug') + pf(130, 54, 130, 68, 'sk-zug')
+    + txt(100, 84, 'Leiterzug in Gleisrichtung — er ZIEHT', 'sk-t2')
+    + achsen('x', 'y', 14, 20),
+    'DRAUFSICHT auf den liegenden Träger — von oben gesehen. x ist die '
+    + 'Jochachse (quer zum Gleis), y die Gleisrichtung. Der Leiterzug zieht '
+    + 'in y und biegt den Träger in seiner WAAGRECHTEN Rahmenebene. Das '
+    + 'Moment wird zum Kräftepaar zwischen den beiden Gurten: '
+    + 'N = M_Rahmen/e, mit e als Abstand der Schwerachsen. Der Gurt auf der '
+    + 'Zugseite wird GEZOGEN (Pfeile nach aussen), der abgewandte '
+    + 'GEDRÜCKT (Pfeile nach innen).'),
 
   /** Die Querkraft derselben Ebene. */
   abfV: () => bild(
     liegend()
     + pf(90, 12, 110, 12, 'sk-quer')
     + txt(100, 8, 'V_Rahmen', 'sk-t2')
-    + pf(30, 40, 30, 40) + pf(45, 20, 45, 60, 'sk-quer')
+    /*
+     * DER NULLPFEIL IST RAUS. Hier stand `pf(30, 40, 30, 40)` - Anfang und
+     * Ende derselbe Punkt. `Math.atan2(0, 0)` gibt null, die Spitze fiel
+     * auf den Schaft, und im Bild blieb ein Fleck ohne Bedeutung stehen.
+     *
+     * DIE BEIDEN PFEILE an den Enden sind das VORZEICHENPAAR der Querkraft:
+     * links laeuft sie in die eine, rechts in die andere Richtung - so wie
+     * die Kurve im Diagramm daneben durch null geht.
+     */
+    + pf(45, 20, 45, 60, 'sk-quer')
     + pf(155, 60, 155, 20, 'sk-quer')
     + txt(100, 44, 'auf beide Gurte, je zur Hälfte', 'sk-t2')
-    + txt(100, 76, 'sie biegt den Gurt zwischen zwei Blechen', 'sk-t2'),
+    + txt(100, 76, 'sie biegt den Gurt zwischen zwei Blechen', 'sk-t2')
+    + achsen('x', 'y'),
     'Die Querkraft der waagrechten Rahmenebene läuft über beide Gurte zu den '
     + 'Auflagern. Sie ist es, die den Gurt ÖRTLICH zwischen zwei Blechen '
     + 'biegt.'),
@@ -215,7 +335,8 @@ export const SKIZZEN = {
     + pf(61, 10, 61, 26) + pf(139, 10, 139, 26)
     + txt(61, 7, 'q/2', 'sk-t2') + txt(139, 7, 'q/2', 'sk-t2')
     + txt(100, 46, 'e', 'sk-t2')
-    + txt(100, 70, 'jeder Gurt für sich, über seine starke Achse', 'sk-t2'),
+    + txt(100, 70, 'jeder Gurt für sich, über seine starke Achse', 'sk-t2')
+    + achsen('y', 'z'),
     'Schnitt quer zur Trägerachse. Eigengewicht und Schnee wirken lotrecht — '
     + 'quer zur Rahmenebene. Jeder Gurt trägt die HALBE Last über seine '
     + 'starke Achse; ein Kräftepaar gibt es dafür nicht.'),
@@ -226,9 +347,17 @@ export const SKIZZEN = {
     + `<rect class="sk-eck" x="134" y="30" width="10" height="24"/>`
     + `<line class="sk-blech" x1="61" y1="42" x2="139" y2="42"/>`
     + bogen(100, 42, 30, -2.6, 2.3, 'sk-tors')
-    + pf(61, 26, 61, 8, 'sk-zug') + pf(139, 58, 139, 74, 'sk-druck')
+    /*
+     * NICHT IN ZUG-/DRUCKFARBEN. Die beiden Kraefte ±T/e sind ein
+     * KRAEFTEPAAR - gegenlaeufige LOTRECHTE Kraefte, keine Normalkraefte
+     * im Gurt. Gruen und rot daneben laesen sie als Zug und Druck, und
+     * das sind sie nicht: sie erzeugen erst die Biegung, aus der die
+     * Normalspannung folgt.
+     */
+    + pf(61, 26, 61, 8, 'sk-quer') + pf(139, 58, 139, 74, 'sk-quer')
     + txt(61, 5, '+T/e', 'sk-t2') + txt(139, 80, '−T/e', 'sk-t2')
-    + txt(100, 20, 'T', 'sk-t2'),
+    + txt(100, 20, 'T', 'sk-t2')
+    + achsen('y', 'z'),
     'WÖLBKRAFTTORSION, nicht St. Venant: der offene Träger ist dafür zu '
     + 'weich. Das Torsionsmoment wird zum gegenläufigen Kräftepaar ±T/e — die '
     + 'beiden Gurte biegen sich lotrecht GEGENEINANDER. Im einen Gurt addiert '
@@ -244,7 +373,8 @@ export const SKIZZEN = {
     + txt(100, 12, 'V_Rahmen', 'sk-t2')
     + bogen(66, 26, 9, 3.4, 5.6) + bogen(134, 58, 9, 0.4, 2.6)
     + txt(100, 44, 'a', 'sk-t2')
-    + txt(100, 76, 'am ANSCHNITT des Blechs, nicht auf der Achse', 'sk-t2'),
+    + txt(100, 76, 'am ANSCHNITT des Blechs, nicht auf der Achse', 'sk-t2')
+    + achsen('x', 'y'),
     'Draufsicht auf ein Rahmenfeld. Die Querkraft der Rahmenebene biegt den '
     + 'Gurt zwischen zwei Bindeblechen. Nachgewiesen wird am ANSCHNITT: über '
     + 'die Blechbreite ist die Verbindung biegesteif. Das Randfeld ist '
@@ -264,7 +394,8 @@ export const SKIZZEN = {
     + txt(40, 19, 'F', 'sk-t2')
     + txt(104, 34, 'Anker', 'sk-t2')
     + txt(70, 8, 'Kopf', 'sk-t2')
-    + txt(150, 74, 'Fundament', 'sk-t2'),
+    + txt(150, 74, 'Fundament', 'sk-t2')
+    + achsen('x', 'z', 186, 20),
     'Der Mast ist ein Kragarm: am Fuss eingespannt, oben belastet. Trägt er '
     + 'einen Anker, ist er dort zusätzlich GEHALTEN — ein Zweifeldsystem. '
     + 'Das Moment knickt am Ankerpunkt, und die Normalkraft springt dort.'),

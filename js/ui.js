@@ -36,6 +36,9 @@ import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
 import { skizzeFuer } from './render.skizzen.js';
+// Fuer die Profiluebersicht: die Querschnittswerte des Ankers und
+// die Stahlguete stehen in ihren eigenen Datenmodulen.
+import { ankerQuerschnitt } from './data.anker.js';
 
 /*
  * DAS GERECHNETE MODELL, für die Lage eines Anbauteils.
@@ -3590,6 +3593,19 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
     ? (erg.mast.etaNachweis ?? erg.mast.eta) : null;
   const mastUeber = mastEta !== null && mastEta > 1;
   /*
+   * UND DER ANKER EBENSO (Weisung, 11. September). Sein eta steht auf
+   * charakteristischen Kraeften und ist mit dem des Jochs nicht
+   * vergleichbar - fuer die Frage «reicht es» zaehlt es trotzdem. Ueber
+   * dem Sortiment gibt es kein eta; dort ist das Bauteil erst recht nicht
+   * belegt, und der Durchlauf ist dieselbe Auskunft wert.
+   */
+  const ankerUeber = ['A', 'B'].some((ende) => {
+    const nw = erg.anker?.[ende]?.nachweis;
+    if (!nw) return false;
+    return nw.lieferbar === false
+      || (Number.isFinite(nw.eta) && nw.eta > 1);
+  });
+  /*
    * >>> DAS ABFANGJOCH HAT SEINE EIGENEN NACHWEISE. <<<
    *
    * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
@@ -3953,7 +3969,25 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
          * Abfangjoch zeigt die Ueberschrift aber `eAn`, und der Knopf fehlte
          * genau dann, wenn man ihn brauchte.
          */''}
-      ${eAn > 1 && beiSortiment ? `<button class="btn btn-mini" data-sortiment
+      ${/*
+         * >>> AUCH DANN, WENN DER MAST ODER DER ANKER ÜBERSCHRITTEN IST. <<<
+         *
+         * Weisung vom 11. September: «das feld sortiment durchrechnen sollte
+         * auch dann eingeblendet werden wenn die masten oder anker /
+         * druckstützen ausgenutzt sind.»
+         *
+         * Der Knopf hängte an `eAn` — der Ausnutzung des JOCHS. Am
+         * Abfangjoch wird aber regelmässig der Mast massgebend: im
+         * Bedienlauf vom 11. September stand das Joch bei 0.52 und ein Mast
+         * bei 1.47, und der Knopf fehlte genau dann, wenn man ihn brauchte.
+         *
+         * Ein grösserer Jochtyp hilft dem Masten zwar nicht unmittelbar —
+         * aber er ändert Eigengewicht, Windfläche und Auflagerkräfte, und
+         * der Durchlauf zeigt, welcher Typ welche Fussgrössen bringt. Das
+         * ist die Auskunft, mit der man die Wahl trifft.
+         */''}
+      ${(eAn > 1 || mastUeber || ankerUeber) && beiSortiment
+        ? `<button class="btn btn-mini" data-sortiment
          type="button" title="Alle Typen des Sortiments mit dieser Geometrie und
 diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
          >Sortiment durchrechnen</button>` : ''}
@@ -4209,6 +4243,107 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
  * Kompakte Querschnittsklassen-Marke für die Profil-Sidebar.
  * Die ausführliche Herleitung öffnet sich per Knopf im Überlagerungsfenster.
  */
+/* ===========================================================================
+ * ALLE PROFILE DES TRAGWERKS, AN EINER STELLE
+ * ===========================================================================
+ *
+ * Weisung vom 11. September: «alle ergaenzten bauteile unter profile
+ * nachfuehren, so wie bei den tragjochen.»
+ *
+ * Der Reiter «Gurtprofile» zeigte die zwei Winkel des Tragjochs und war bei
+ * jeder anderen Tragwerksart ueberhaupt nicht da - beim Abfangjoch fehlte er
+ * ganz, samt Stahlguete und Teilsicherheitsbeiwert, die allen gelten.
+ *
+ * Seit dem 9. September sind drei Bauteilarten dazugekommen, und jede bringt
+ * ihre eigenen Querschnittswerte mit:
+ *
+ *   ABFANGJOCH   zwei UPE oder IPE nebeneinander
+ *   MAST         HEB oder HEM, je Ende eines
+ *   ANKER        zwei UNP, gespreizt
+ *
+ * Sie stehen jetzt hier, mit denselben Kennwerten wie die Gurte: Flaeche,
+ * Traegheitsmomente, Widerstandsmomente. Das ist die Tafel, die man beim
+ * Nachrechnen neben sich legt.
+ *
+ * >>> WAS FEHLT, STEHT ALS STRICH DA. <<<
+ *
+ * Der Anker fuehrt kein I_z: die beiden Profile sind gespreizt, und der
+ * Wert waechst ueber die Laenge. Ein Strich sagt das; eine Null waere eine
+ * Behauptung.
+ */
+export function profilUebersicht(erg, werte) {
+  if (!erg) return '';
+  const m = erg.modell;
+  const ab = erg.abfang ?? null;
+  const zeilen = [];
+  const gesehen = new Set();
+  /*
+   * JEDES PROFIL EINMAL. Zwei Masten mit demselben HEB 240 sind eine Zeile -
+   * zwei gleiche untereinander waeren keine Auskunft, sondern ein Verdacht.
+   * Die Rolle sammelt sich dafuer in der ersten Spalte.
+   */
+  const zu = (rolle, p, opt = {}) => {
+    if (!p?.name) return;
+    const s = `${p.name}|${opt.anzahl ?? 1}`;
+    const da = zeilen.find((z) => z.s === s);
+    if (da) { if (!da.rolle.includes(rolle)) da.rolle += ` · ${rolle}`; return; }
+    if (gesehen.has(s)) return;
+    gesehen.add(s);
+    zeilen.push({ s, rolle, name: p.name, anzahl: opt.anzahl ?? 1,
+                  A: p.A, Iy: p.Iy ?? p.I, Iz: p.Iz, Wy: p.Wy ?? p.W,
+                  Wz: p.Wz, It: p.It, G: p.G, quelle: opt.quelle ?? '' });
+  };
+
+  if (ab?.q?.gurt) {
+    zu('Gurt', ab.q.gurt, { anzahl: 2,
+      quelle: `Abfangjoch ${ab.typ}, zwei Gurte nebeneinander` });
+  } else if (m.profOG) {
+    zu('Obergurt', m.profOG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel' });
+    zu('Untergurt', m.profUG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel' });
+  }
+  ['A', 'B'].forEach((ende) => {
+    const f = m.federn?.[`mast${ende}`] ?? (ende === 'A' ? m.federn?.mast : null);
+    const name = m.federn?.namen?.[ende] || `Ende ${ende}`;
+    if (f?.profil) zu(`Mast ${name}`, f.profil, { quelle: 'Mastsortiment' });
+    const ak = f?.anker;
+    if (ak?.typ) {
+      let qs = null;
+      try { qs = ankerQuerschnitt(ak.typ); } catch { qs = null; }
+      if (qs) {
+        zu(`Anker ${name}`, { name: `${ak.typ} · ${qs.anzahl ?? 2}× ${qs.profil}`,
+                              A: qs.A, Iy: qs.Iy, Iz: qs.Iz, It: qs.It },
+           { quelle: qs.quelle ?? '' });
+      }
+    }
+  });
+  if (!zeilen.length) return '';
+
+  const z = (v, n = 1) => (Number.isFinite(v) ? f2(v) : '–');
+  // Der Stahl steht im MODELL - ein zweiter Weg ueber den Katalog waere
+  // eine zweite Quelle fuer dieselbe Angabe.
+  const st = m.stahl ?? null;
+  return `${abschnitt('Profile dieses Tragwerks',
+      `${zeilen.length} verschiedene`)}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Rolle</th><th>Profil</th><th class="num">n</th>
+        <th class="num">A [cm²]</th><th class="num">I_y [cm⁴]</th>
+        <th class="num">I_z [cm⁴]</th><th class="num">W_y [cm³]</th>
+        <th class="num">I_t [cm⁴]</th></tr></thead>
+      <tbody>${zeilen.map((r) => `
+        <tr title="${esc(r.quelle)}">
+          <td>${esc(r.rolle)}</td><td>${esc(r.name)}</td>
+          <td class="num">${r.anzahl}</td>
+          <td class="num">${z(r.A)}</td><td class="num">${z(r.Iy)}</td>
+          <td class="num">${z(r.Iz)}</td><td class="num">${z(r.Wy)}</td>
+          <td class="num">${z(r.It)}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hinweis" style="margin:3px 0 0">Werte je EINZELPROFIL, «n» sagt,
+      wie viele davon das Bauteil trägt. Ein Strich heisst: nicht erfasst —
+      beim Anker etwa I_z, das mit der Spreizung über die Länge wächst.
+      ${st ? `Stahl ${esc(st.name)}, f_y ${f0(st.fy)} N/mm².` : ''}</p>`;
+}
+
 export function qskMarke(kl) {
   const stufe = (k) => (k <= 2 ? 'ok' : k === 3 ? 'warn' : 'fail');
   return `<div class="qsk">

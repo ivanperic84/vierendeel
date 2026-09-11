@@ -250,7 +250,19 @@ export const GRUPPEN = [
    * Druckstützen. Die Gruppe ist dafür angelegt.
    */
   { id: 'mast',  titel: 'Masten' },
-  { id: 'prof',  titel: 'Gurtprofile', arten: ['joch', 'tragausleger'] },
+  /*
+   * >>> DER PROFILREITER GILT ALLEN ARTEN. <<<
+   *
+   * Weisung vom 11. September: «alle ergaenzten bauteile unter profile
+   * nachfuehren, so wie bei den tragjochen.»
+   *
+   * Er war auf Tragjoch und Tragausleger begrenzt - beim Abfangjoch und beim
+   * Einzelmasten fehlte er ganz, und mit ihm die STAHLGUETE und der
+   * Teilsicherheitsbeiwert, die jedem Tragwerk gelten. Die Gurtfelder
+   * blenden sich weiterhin selbst aus (`sichtbar` am Feld); was bleibt, ist
+   * die Profiluebersicht und der Stahl.
+   */
+  { id: 'prof',  titel: 'Profile' },
   { id: 'blech', titel: 'Bindebleche', arten: ['joch', 'tragausleger'] },
   // Ohne eigene Eingabefelder: die Stückliste wird als Ergebnisstück
   // eingehängt (siehe extras in app.js).
@@ -1025,8 +1037,12 @@ export const FELDER = [
 
   // --- Gurtprofile ---------------------------------------------------------
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',
+    // Die Winkelgurte gibt es nur am Vierendeeltraeger; das Abfangjoch
+    // fuehrt seine Gurte im Sortiment, der Einzelmast hat keine.
+    sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
     standard: 'L 90x90x9', optionen: opt(PROFILE, 'name', 'name'), ausDB: true },
   { key: 'profUG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Untergurt',
+    sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
     standard: 'L 90x90x9', optionen: opt(PROFILE, 'name', 'name'), ausDB: true },
   { key: 'ausrOG', optionenDialog: true, gruppe: 'prof', typ: 'auswahl',
     label: 'Ausrichtung Obergurt', standard: 'LA_SI', optionen: opt(AUSRICHTUNGEN) },

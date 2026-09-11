@@ -1152,7 +1152,16 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
        szBg.masse.filter((mz) => mz.zu === 'AT0' && mz.achse === 'z').length >= 2);
 
   // Auftragbare Grössen: Wertebereiche und Zuordnung
-  pruef('Fünf auftragbare Grössen', R.PLOTS.length, 5, 1e-12, 'Stk');
+  /*
+   * SIEBEN seit dem 11. September (Weisung: «beim resultat plott noch
+   * normalkraft und torsion aufnhemen zur auswahl»). N ist die Gurtkraft
+   * aus dem Kraeftepaar, T das Torsionsmoment des Querschnitts.
+   */
+  pruef('Sieben auftragbare Grössen', R.PLOTS.length, 7, 1e-12, 'Stk');
+  wahr('Darunter Normalkraft und Torsion',
+       ['N', 'T'].every((k) => R.PLOTS.some((p) => p.key === k)));
+  wahr('Jede auftragbare Groesse nennt ihre Einheit und ihr Feld',
+       R.PLOTS.every((p) => p.feld && p.einheit && p.label && p.fussnote));
   const gurt = aus.flaechen.find((f) => f.gruppe === 'profil' && f.werte);
   const blech = aus.flaechen.find((f) => f.gruppe === 'blech' && f.werte);
   wahr('Gurt führt Normalkraft, aber keine Querkraft',
@@ -1832,8 +1841,15 @@ titel('29  Handbuch');
   });
 
   // Skizzen: sie sollen die Formeln zeigen, nicht bloss dekorieren
-  wahr('Handbuch enthält zwölf Skizzen',
-       (html.match(/<figure class="skizze hb-skizze">/g) ?? []).length === 12);
+  /*
+   * SIEBZEHN seit dem 11. September (Weisung: «ergaenze zudem die diagramme
+   * im handbuch wo sinnvoll») - fuenf in den Kapiteln 13 bis 15: der
+   * Hebelarm mit seinen drei ineinanderliegenden Massen, die
+   * Woelbkrafttorsion, der Mast mit Ausladung, das Zweifeldsystem des
+   * Ankers und sein Spreizmass.
+   */
+  wahr('Handbuch enthält siebzehn Skizzen',
+       (html.match(/<figure class="skizze hb-skizze">/g) ?? []).length === 17);
   wahr('Keine Skizze hat unberechnete Koordinaten',
        !/NaN|undefined/.test(html));
   ['achsen', 'einwirkungen', 'system', 'querschnitt', 'vierendeel',
@@ -2239,8 +2255,8 @@ titel('18g  Handbuch als eigenständige Datei');
        HB.HANDBUCH.every((a) => datei.includes(`href="#hb-${a.id}"`)));
   // Zwoelf seit dem Kapitel zur AxisVM-Ausleitung (28. August): der Anschluss
   // in Draufsicht und in Ansicht. Vorher zehn.
-  pruef('Alle zwoelf Skizzen mitgenommen',
-        (datei.match(/<figure class="skizze hb-skizze">/g) ?? []).length, 12, 1e-12, 'Stk');
+  pruef('Alle siebzehn Skizzen mitgenommen',
+        (datei.match(/<figure class="skizze hb-skizze">/g) ?? []).length, 17, 1e-12, 'Stk');
   wahr('Keine unberechneten Werte', !/NaN|undefined|Infinity/.test(datei));
   wahr('Fussnote und Stand stehen drin',
        datei.includes('Prüfstand') && /Stand /.test(datei));
@@ -5777,8 +5793,17 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
      * zeigt die Ueberschrift aber `eAn`, und der Knopf fehlte genau dann,
      * wenn man ihn brauchte.
      */
-    wahr('Sie erscheint nur, wenn der Nachweis nicht erfuellt ist',
-         /eAn > 1 && beiSortiment/.test(uq));
+    /*
+     * SEIT DEM 11. SEPTEMBER AUCH BEIM MASTEN UND BEIM ANKER (Weisung: «das
+     * feld sortiment durchrechnen sollte auch dann eingeblendet werden wenn
+     * die masten oder anker / druckstuetzen ausgenutzt sind»). Am
+     * Abfangjoch wird regelmaessig der Mast massgebend - im Bedienlauf
+     * stand das Joch bei 0.52 und ein Mast bei 1.47.
+     */
+    wahr('Sie erscheint, wenn Joch, Mast oder Anker ueberschritten ist',
+         /\(eAn > 1 \|\| mastUeber \|\| ankerUeber\)/.test(uq));
+    wahr('… und der Anker zaehlt auch die Ueberlaenge',
+         /ankerUeber = \[/.test(uq) && /lieferbar === false/.test(uq));
     wahr('Der Typ wechselt nicht von selbst',
          aq.includes('DER TYP WECHSELT NICHT VON SELBST'));
     wahr('Was nicht gerechnet werden kann, steht mit Grund da',
@@ -8740,6 +8765,63 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * UND JEDES BILD TRAEGT SEINEN TEXT. Ein Bild ohne Erklaerung ist
        * Dekoration; genau das sollen diese Skizzen nicht sein.
        */
+      /* ===================================================================
+       * ZUG ZIEHT NACH AUSSEN, DRUCK DRUECKT NACH INNEN
+       * ===================================================================
+       *
+       * Weisung vom 11. September: «sollte der zug nich pfeile zeigen die
+       * entgegen gerichtet sind als anders als beim druck. checke bei allen
+       * diagrammen noch die pfeilrichtungen der vektoren, ob richtig.»
+       *
+       * Er sollte, und er tat es nicht: in `My` und `abfN` liefen BEIDE
+       * Reihen von aussen nach innen. Fuer den gedrueckten Gurt ist das
+       * richtig, fuer den gezogenen das Gegenteil dessen, was geschieht -
+       * und in `My` stand der Fehler, seit es das Bild gibt.
+       *
+       * Gepruef wird am gezeichneten SVG, nicht am Quelltext: nur dort
+       * steht, wohin ein Pfeil am Ende zeigt.
+       * ================================================================= */
+      Object.keys(SK.SKIZZEN).forEach((k) => {
+        const svg = SK.skizzeFuer(k).svg;
+        /*
+         * NUR DIE WAAGRECHTEN. Die Kraefte im Gurt laufen laengs des
+         * Traegers; senkrechte und schraege Linien derselben Klasse sind
+         * etwas anderes - die beiden Striche eines ⊗ etwa, das eine Kraft
+         * SENKRECHT zur Bildebene zeigt. Sie nach innen oder aussen zu
+         * pruefen ergaebe keinen Sinn.
+         */
+        const paare = [...svg.matchAll(
+          /class="(sk-(?:zug|druck))" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
+          .filter((m2) => m2[3] === m2[5]);
+        if (!paare.length) return;
+        /*
+         * JE PAAR: zwei Pfeile auf derselben Hoehe. Zeigen sie AUFEINANDER
+         * ZU, ist es Druck; VONEINANDER WEG, ist es Zug. Die Mitte des
+         * Bildes ist x = 100.
+         */
+        const nachInnen = (x1, x2) => (x1 < 100 ? x2 > x1 : x2 < x1);
+        paare.forEach((m2) => {
+          const art = m2[1], x1 = +m2[2], x2 = +m2[4];
+          const innen = nachInnen(x1, x2);
+          wahr(`${k}: ${art} zeigt nach ${art === 'sk-druck'
+                 ? 'innen' : 'aussen'}`,
+               art === 'sk-druck' ? innen : !innen,
+               `x ${x1} → ${x2}`);
+        });
+      });
+      /*
+       * UND KEIN PFEIL HAT LAENGE NULL. `Math.atan2(0, 0)` gibt null, die
+       * Spitze faellt auf den Schaft, und im Bild bleibt ein Fleck ohne
+       * Bedeutung stehen - genau das stand in `abfV`.
+       */
+      Object.keys(SK.SKIZZEN).forEach((k) => {
+        const svg = SK.skizzeFuer(k).svg;
+        const nix = [...svg.matchAll(
+          /x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
+          .filter((m2) => m2[1] === m2[3] && m2[2] === m2[4]);
+        wahr(`${k}: kein Pfeil der Laenge null`, nix.length === 0,
+             nix.length ? `${nix.length} Stueck` : '');
+      });
       wahr('Jede Skizze hat Bild und Text',
            Object.keys(SK.SKIZZEN).every((k) => {
              const s = SK.skizzeFuer(k);
@@ -11401,10 +11483,42 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    */
   const em = { tragwerksart: 'einzelmast' };
   const jo = { tragwerksart: 'joch' };
-  ['typ', 'geo', 'prof', 'blech', 'stueck'].forEach((gid) => {
+  ['typ', 'geo', 'blech', 'stueck'].forEach((gid) => {
     wahr(`Gruppe ${gid} entfaellt beim Einzelmast`, gruppeGilt(gid, em) === false);
     wahr(`… und gilt beim Joch`, gruppeGilt(gid, jo) === true);
   });
+  /* =======================================================================
+   * >>> DER PROFILREITER IST DIE AUSNAHME. <<<
+   * =======================================================================
+   *
+   * Weisung vom 11. September: «alle ergaenzten bauteile unter profile
+   * nachfuehren, so wie bei den tragjochen.»
+   *
+   * Er stand hier in der Liste dessen, was beim Einzelmasten entfaellt - zu
+   * Recht, solange er nur die zwei Winkelgurte fuehrte. Inzwischen traegt er
+   * die PROFILTAFEL aller Bauteile (Gurte, Masten, Anker) und die
+   * Stahlguete, und beides gilt jedem Tragwerk.
+   *
+   * Die Gurtfelder blenden sich weiterhin selbst aus - ueber `sichtbar` am
+   * FELD, nicht ueber die Gruppe. Das ist derselbe Weg, den das Auflager
+   * schon geht.
+   * ===================================================================== */
+  wahr('Gruppe prof gilt jeder Tragwerksart',
+       ['joch', 'einzelmast', 'abfangjoch', 'tragausleger']
+         .every((a) => gruppeGilt('prof', { tragwerksart: a }) === true));
+  {
+    const feldGilt = (key, w) => {
+      const f = FELDER.find((x) => x.key === key);
+      return !f?.sichtbar || f.sichtbar(w) === true;
+    };
+    wahr('… aber die Gurtfelder nur am Vierendeeltraeger',
+         feldGilt('profOG', jo) === true
+         && feldGilt('profOG', em) === false
+         && feldGilt('profOG', { tragwerksart: 'abfangjoch' }) === false);
+    wahr('… und die Stahlguete ueberall',
+         ['joch', 'einzelmast', 'abfangjoch']
+           .every((a) => feldGilt('stahl', { tragwerksart: a }) === true));
+  }
   /*
    * >>> DAS AUFLAGER GEHT UEBER DIE FELDER, NICHT UEBER DIE GRUPPE. <<<
    *

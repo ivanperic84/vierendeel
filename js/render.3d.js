@@ -338,13 +338,29 @@ export function erzeugeSzene(m, erg) {
       // das GRÖSSERE der beiden - nur M_y zu zeigen färbte den Gurt zu
       // günstig ein, sobald der Wind regiert (dort ist M_z der grössere).
       const M = Math.max(Math.abs(k.My_lokal ?? 0), Math.abs(k.Mz_lokal ?? 0));
+      /*
+       * >>> N UND T STEHEN JETZT AUCH ZUR WAHL. <<<
+       *
+       * Weisung vom 11. September: «beim resultat plott noch normalkraft und
+       * torsion aufnhemen zur auswahl.»
+       *
+       * N ist die GURTKRAFT aus dem Kraeftepaar - die Zahl, die den
+       * Querschnitt bestimmt, und sie stand als Feld laengst da, nur ohne
+       * Plot dazu. T ist das Torsionsmoment des QUERSCHNITTS: es gehoert
+       * nicht einem Gurt, sondern der Station, und faerbt deshalb alle
+       * Bauteile eines Schnitts gleich. Genau das ist die Aussage - Torsion
+       * ist eine Groesse des ganzen Kastens.
+       */
       return { eta: e.eta, sig_v: e.sig_v, sig: e.sig_N, N: e.N,
-               M: Number.isFinite(M) ? M : null, V: null };
+               M: Number.isFinite(M) ? M : null, V: null,
+               T: Number.isFinite(k.Tx) ? Math.abs(k.Tx) : null };
     }
     const e = k.ebenen?.find((c) => c.id === teil);
     if (!e || e.eta === null) return null;
+    // Die Bleche tragen im Modell keine Normalkraft - dort bleibt N leer.
     return { eta: e.eta, sig_v: e.sig_v, sig: e.sig, N: null,
-             M: e.M ?? null, V: e.V ?? null };
+             M: e.M ?? null, V: e.V ?? null,
+             T: Number.isFinite(k.Tx) ? Math.abs(k.Tx) : null };
   };
 
   // --- Farbschlüssel der Bauteildarstellung --------------------------------
@@ -1764,6 +1780,20 @@ export const PLOTS = [
   { key: 'V',     label: 'Querkraft V',            kurz: 'V',    feld: 'V',
     einheit: 'kN', nk: 1,
     fussnote: 'Nur für die Bindebleche ausgewiesen; die Gurte bleiben grau.' },
+  /*
+   * Weisung vom 11. September: «beim resultat plott noch normalkraft und
+   * torsion aufnhemen zur auswahl.»
+   */
+  { key: 'N',     label: 'Normalkraft N',          kurz: 'N',    feld: 'N',
+    einheit: 'kN', nk: 1,
+    fussnote: 'Gurtkraft aus dem Kräftepaar N = M/h bzw. M/e, dazu der '
+            + 'Längskraftanteil. Nur für die Gurte ausgewiesen; die Bleche '
+            + 'bleiben grau.' },
+  { key: 'T',     label: 'Torsion T',              kurz: 'T',    feld: 'T',
+    einheit: 'kNm', nk: 2,
+    fussnote: 'Torsionsmoment des QUERSCHNITTS — es gehört der Station, '
+            + 'nicht dem einzelnen Bauteil, und färbt deshalb alle Teile '
+            + 'eines Schnitts gleich.' },
 ];
 
 export const MODI = [

@@ -1716,6 +1716,24 @@ Das MITTLERE ist <code>d</code>.</p>
 <tr><td>UPE</td><td>innen, Flansche nach aussen</td><td>e = d + 2·e_y</td></tr>
 </table>
 
+${skizze('Querschnitt des Abfangjochs: drei Masse ineinander, und nur eines '
+  + 'ist der Hebelarm', '0 0 430 190', [
+    // Zwei UPE nebeneinander, Stege innen, Flansche nach aussen.
+    `<rect class="kasten" x="96" y="70" width="26" height="72"/>`,
+    `<rect class="kasten" x="308" y="70" width="26" height="72"/>`,
+    `<line class="sysline-dash" x1="60" y1="106" x2="370" y2="106"/>`,
+    // Die Schwerachsen - sie liegen um e_y weiter aussen als die Stege.
+    `<line class="sp" x1="109" y1="56" x2="109" y2="156"/>`,
+    `<line class="sp" x1="321" y1="56" x2="321" y2="156"/>`,
+    txt(109, 50, 'Schwerachse', 'acc'),
+    txt(321, 50, 'Schwerachse', 'acc'),
+    mass(109, 168, 321, 168, 'e &mdash; der HEBELARM', 16),
+    mass(122, 148, 308, 148, 'd &mdash; Stege', 14),
+    mass(96, 186, 334, 186, 'k &mdash; aussen', 14),
+    txt(215, 100, 'N = M_Rahmen / e', 'acc'),
+    txt(215, 122, 'nicht / k und nicht / d', 'dim'),
+  ].join(''))}
+
 ${q(`Beide Lesarten sind teuer erkauft. <b>UPE:</b> hier stand einmal
 k − 2·e_y, also Steg aussen – der Hebelarm lag bei A160 auf 38.3 statt
 31.7 cm, siebzehn Prozent zu gross und die Gurtkraft entsprechend zu klein.
@@ -1776,6 +1794,21 @@ St. Venant – dafür ist er viel zu weich –, sondern als
 <b>gegenläufig</b>.</p>
 
 ${f(`T an der Stelle x&nbsp; ⇔ &nbsp;zwei Kräfte ± T / e an derselben Stelle`)}
+
+${skizze('Wölbkrafttorsion: das Torsionsmoment wird zum gegenläufigen '
+  + 'Kräftepaar ±T/e', '0 0 430 210', [
+    `<rect class="kasten" x="96" y="78" width="26" height="64"/>`,
+    `<rect class="kasten" x="308" y="78" width="26" height="64"/>`,
+    `<line class="sysline-dash" x1="60" y1="110" x2="370" y2="110"/>`,
+    pf(109, 78, 109, 34, 'acc'),
+    txt(109, 26, '+T/e', 'acc'),
+    pf(321, 142, 321, 186, 'acc'),
+    txt(321, 200, '&minus;T/e', 'acc'),
+    txt(215, 60, 'T', 'acc'),
+    mass(109, 158, 321, 158, 'e', 14),
+    txt(215, 110, 'die beiden Gurte biegen sich', 'dim'),
+    txt(215, 126, 'lotrecht GEGENEINANDER', 'dim'),
+  ].join(''))}
 
 <p>Damit folgt alles Weitere von selbst: der Balken mit diesen Kräften gibt das
 Zusatzmoment im einen Gurt, und seine Auflagerkräfte sind das Kräftepaar, das
@@ -1887,6 +1920,28 @@ Einzellasten an ihrer wirklichen Höhe und ihrer wirklichen Ausladung.</p>
 
 ${f(`M(z) = Σ [ F · (z_i − z) ] + Σ M_i + q · (z_Kopf − z)² / 2`)}
 
+${skizze('Am Masten zählt jede Last mit ihrer wirklichen Höhe UND ihrer '
+  + 'Ausladung', '0 0 430 220', [
+    `<line class="stahl" x1="140" y1="26" x2="140" y2="186"
+       style="stroke-width:7"/>`,
+    `<path class="einspann" d="M118 186h44l-6 12H124z"/>`,
+    `<line class="auflager-l" x1="110" y1="198" x2="170" y2="198"/>`,
+    // Eine Traverse mit Last am Ende
+    `<line class="stahl" x1="140" y1="60" x2="280" y2="60"
+       style="stroke-width:4"/>`,
+    pf(280, 34, 280, 54, 'acc'),
+    txt(280, 28, 'F_z', 'acc'),
+    mass(140, 78, 280, 78, 'e_x &mdash; Ausladung', 12),
+    // Wind auf den Mast
+    pf(76, 110, 132, 110, 'acc'),
+    txt(62, 114, 'w', 'acc'),
+    mass(320, 60, 320, 186, 'z'),
+    txt(215, 150, 'M = &Sigma; F&middot;(z_i &minus; z) + &Sigma; M_i'
+        + ' + q&middot;(z_K &minus; z)&sup2;/2', 'acc'),
+    txt(215, 172, 'F_z &middot; e_x gehört dazu &mdash;', 'dim'),
+    txt(215, 188, 'sonst fehlt das halbe Fussmoment', 'dim'),
+  ].join(''))}
+
 <p>Zwei Quellen für ein Moment, und beide gehören dazu: das eingeleitete
 Moment dieser Ebene und die Vertikallast über ihre <b>Ausladung</b>. Dieselben
 zwei, mit denen auch die Haltekraft des Ankers gerechnet wird – wären es
@@ -1962,6 +2017,33 @@ Verträglichkeit am Ankerpunkt:</p>
 
 ${f(`δ₁₀ + X · δ₁₁ = 0&nbsp;&nbsp;&nbsp;→&nbsp;&nbsp;&nbsp; X = − δ₁₀ / δ₁₁`)}
 
+${skizze('Der Mast mit Anker: am Fuss eingespannt, am Ankerpunkt gehalten',
+  '0 0 430 230', [
+    // Mast
+    `<line class="stahl" x1="150" y1="30" x2="150" y2="196"
+       style="stroke-width:7"/>`,
+    // Einspannung
+    `<path class="einspann" d="M128 196h44l-6 12H134z"/>`,
+    `<line class="auflager-l" x1="120" y1="208" x2="180" y2="208"/>`,
+    // Anker
+    `<line class="stahl" x1="150" y1="76" x2="300" y2="196"
+       style="stroke-width:4"/>`,
+    `<circle class="heel" cx="150" cy="76" r="5"/>`,
+    `<circle class="heel" cx="300" cy="196" r="5"/>`,
+    `<path class="einspann" d="M286 196h28l-4 10h-20z"/>`,
+    // Last am Kopf
+    pf(104, 44, 146, 44, 'acc'),
+    txt(90, 48, 'F', 'acc'),
+    // Die Haltekraft X
+    pf(196, 76, 156, 76, 'acc'),
+    txt(212, 80, 'X', 'acc'),
+    mass(150, 214, 300, 214, 'a_A', 14),
+    mass(340, 76, 340, 196, 'h_A'),
+    txt(215, 150, '&delta;&#8321;&#8320; + X &middot; &delta;&#8321;&#8321; = 0',
+        'acc'),
+    txt(300, 120, 'nur Normalkraft', 'dim'),
+  ].join(''))}
+
 <p>δ₁₀ ist die Verschiebung des Kragarms unter der äusseren Last an der Stelle
 des Ankers, δ₁₁ = a³/3 die Verschiebung aus einer Einheitskraft dort. <b>EI
 kürzt sich heraus</b> – die Aufteilung hängt nur an der Geometrie.</p>
@@ -2011,6 +2093,28 @@ Ende läuft der Abstand zuerst ein Stück parallel – 1610 mm am weiten Ende,
 
 <p>Das weite Ende sitzt am Masten, weil die beiden Profile dort den Flansch
 fassen – direkt angeschraubt oder über eine Vorsatzkonsole.</p>
+
+${skizze('Das Spreizmass: 1610 mm parallel am Masten, 990 mm am Fundament, '
+  + 'dazwischen der Keil', '0 0 430 150', [
+    // Die beiden Profile, von oben gesehen.
+    `<path class="stahl" fill="none" style="stroke-width:4"
+       d="M40 44 H150 L330 66 H390"/>`,
+    `<path class="stahl" fill="none" style="stroke-width:4"
+       d="M40 106 H150 L330 84 H390"/>`,
+    // Die Flachlaschen
+    `<line class="blech" x1="150" y1="44" x2="150" y2="106"
+       style="stroke-width:3"/>`,
+    `<line class="blech" x1="240" y1="55" x2="240" y2="95"
+       style="stroke-width:3"/>`,
+    `<line class="blech" x1="330" y1="66" x2="330" y2="84"
+       style="stroke-width:3"/>`,
+    mass(40, 128, 150, 128, '1610 &mdash; parallel', 12),
+    mass(330, 128, 390, 128, '990', 12),
+    txt(40, 30, 'am MASTEN', 'acc', 'start'),
+    txt(390, 30, 'am FUNDAMENT', 'acc', 'end'),
+    txt(60, 82, '225', 'dim'),
+    txt(370, 82, '104', 'dim'),
+  ].join(''))}
 
 <p>Damit ist der Stab ein Stab mit <b>veränderlichem Querschnitt</b>: A bleibt
 konstant, I_z wächst zum Masten hin. Das erklärt zugleich, warum der Nachweis
