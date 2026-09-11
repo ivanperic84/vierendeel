@@ -52,6 +52,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
 import { mastAchse, linkBedingung } from './core.auflager.js';
+import { ankerQuerschnitt } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -1642,17 +1643,24 @@ export function stabmodell(m, opt = {}) {
        * Anker, der die Umlenkkraft haelt, und einem, der die Abfangkraft
        * haelt - und einer in der falschen Ebene haelt nichts.
        *
-       * >>> WAS FEHLT: DIE QUERSCHNITTSWERTE. <<<
+       * >>> DIE QUERSCHNITTSWERTE STEHEN JETZT DA. <<<
        *
-       * Der Katalog fuehrt die Stuetze als «2x UNP 120» - eine Bezeichnung,
-       * keine Flaeche. UNP-Profile stehen nicht im Profilkatalog (dort sind
-       * die Winkel des Tragjochs und die UPE der Abfangjoche). Ausgeleitet
-       * wird deshalb ein PLATZHALTER-Querschnitt, der im Namen sagt, was er
-       * ist; die Dehnsteifigkeit des Stabes stimmt damit nicht, und der
-       * Bericht sagt es.
+       * Weisung vom 11. September: «die querschnittswerte gemaess c5 szs
+       * oder en nachtragen.» Bis dahin ging hier ein Platzhalter hinaus -
+       * der Katalog fuehrte die Stuetze als «2x UNP 120», eine Bezeichnung
+       * ohne Flaeche.
        *
-       * Fuer die Lage im Modell und fuer die Kraefte aus dem Gleichgewicht
-       * ist das ohne Belang - fuer eine Verformungsrechnung nicht.
+       * Ausgeleitet wird ein RECHTECK mit der richtigen Flaeche, nicht die
+       * wirkliche Kontur: zwei gespreizte U-Profile sind kein
+       * parametrischer Querschnitt, und ihr Spreizmass steht in keiner
+       * Zeichnung, die hier vorliegt. Fuer einen PENDELSTAB ist das genug -
+       * er traegt nur Normalkraft, und dafuer zaehlt E·A. Die Bruecke misst
+       * die Flaeche zurueck und vergleicht sie mit dem Tabellenwert.
+       *
+       * WAS DAMIT NICHT STIMMT, steht im Bericht: I_z des Verbunds haengt
+       * am Spreizmass und ist nicht erfasst. Ein Knicknachweis in AxisVM
+       * waere darauf nicht zu gruenden - der laeuft ueber das
+       * Bemessungsdiagramm, und das fuehrt seine eigene Kurve.
        * =================================================================== */
       const ak = md.anker;
       if (ak?.typ && ak.h > 0 && ak.a > 0) {
@@ -1682,11 +1690,27 @@ export function stabmodell(m, opt = {}) {
          * `rechteck` schreibt ihn richtig, und sie steht seit den Blechen
          * da. Ihn von Hand ein zweites Mal zu schreiben war der Fehler.
          */
+        let qw = null;
+        try { qw = ankerQuerschnitt(ak.typ); } catch { qw = null; }
+        /*
+         * DIE KANTEN DES ERSATZRECHTECKS folgen der Flaeche und der
+         * Profilhoehe: h aus dem Profil, b so, dass b*h die Flaeche des
+         * VERBUNDS ergibt. Damit sieht der Stab im Modell aus wie das, was
+         * er traegt, und die Flaeche stimmt auf den Quadratmillimeter.
+         */
+        const A_cm2 = Number(qw?.A) || 0;
+        const hQ = Number(qw?.h) || 120;                     // mm
+        const bQ = A_cm2 > 0 ? (A_cm2 * 100) / hQ : 60;      // mm
         const qsAnker = s.qs({
-          ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`
-                            + '_PLATZHALTER', h: 120, b: 60 }),
-          profil: `${ak.typ} — Querschnittswerte nicht erfasst`,
-          A: 120 * 60 / 1e6, Iy: 1e-6, Iz: 1e-6, It: 1e-6,
+          ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`,
+                        h: r6(hQ), b: r6(bQ) }),
+          profil: qw?.profil
+            ? `${ak.typ} — ${qw.anzahl ?? 1}× ${qw.profil} (${qw.quelle})`
+            : `${ak.typ} — Querschnittswerte nicht erfasst`,
+          A: A_cm2 > 0 ? A_cm2 / 1e4 : 120 * 60 / 1e6,       // cm2 -> m2
+          Iy: qw?.Iy ? qw.Iy / 1e8 : 1e-6,
+          Iz: qw?.Iz ? qw.Iz / 1e8 : 1e-6,
+          It: qw?.It ? qw.It / 1e8 : 1e-6,
         });
         s.stab(`ANKER_${mn(ende)}`, qsAnker, mastKn.get(zAnk), kAnkF,
                { gelenkAnfang: 'M', gelenkEnde: 'M' });
@@ -1694,7 +1718,7 @@ export function stabmodell(m, opt = {}) {
                         ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
                         fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null });
         ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
-                        h: ak.h, a: ak.a });
+                        h: ak.h, a: ak.a, qs: qw ?? null });
       }
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
@@ -2872,7 +2896,22 @@ export function stabmodellJson(m, opt = {}) {
       anker: (bau.ankerAus ?? []).map((v) => ({
         ende: v.ende, typ: v.typ, richtung: v.richtung,
         h: r6(v.h), a: r6(v.a),
-        vermerk: 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt',
+        profil: v.qs?.profil ?? null, quelle: v.qs?.quelle ?? null,
+        A_cm2: v.qs?.A ?? null, Iy_cm4: v.qs?.Iy ?? null,
+        /*
+         * >>> WAS AM VERBUND FEHLT, BLEIBT IM BERICHT. <<<
+         *
+         * I_z haengt am Spreizmass der beiden Profile, und das steht in
+         * keiner Zeichnung, die hier vorliegt. Fuer den Pendelstab ohne
+         * Belang - er traegt nur Normalkraft -, fuer einen Knicknachweis in
+         * AxisVM sehr wohl. Der laeuft ueber das Bemessungsdiagramm, und
+         * das fuehrt seine eigene Kurve.
+         */
+        vermerk: v.qs
+          ? `${v.qs.anzahl ?? 1}× ${v.qs.profil} nach ${v.qs.quelle}; `
+            + 'als Rechteck gleicher Fläche ausgeleitet, I_z des Verbunds '
+            + '(Spreizmass) nicht erfasst'
+          : 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt',
       })),
       // WO DAS TRAGWERK STEHT. Eigene Felder, damit sie maschinell lesbar
       // bleiben, und zusaetzlich in der Bezeichnung - die traegt der Bericht

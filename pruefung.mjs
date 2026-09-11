@@ -8376,9 +8376,30 @@ titel('42  Der lange Mast mit Zusatzleitern');
     wahr('Der Bericht nennt beide Anker', bA.length === 2);
     wahr('… mit ihrem Vermerk',
          bA.every((v) => /nicht erfasst/.test(v.vermerk)));
-    wahr('… und der Querschnitt sagt es im Namen',
-         (jA.querschnitte ?? []).filter((q) => /^ANKER_/.test(q.name))
-           .every((q) => /PLATZHALTER/.test(q.name)));
+    /*
+     * >>> UND DER QUERSCHNITT TRAEGT DIE WERTE, NICHT MEHR EINEN
+     * PLATZHALTER. <<<
+     *
+     * Weisung vom 11. September: «die querschnittswerte gemaess c5 szs oder
+     * en nachtragen.» Hier stand die Probe auf den Platzhalternamen -
+     * richtig, solange keine Werte da waren.
+     *
+     * Ausgeleitet wird ein RECHTECK gleicher Flaeche: zwei gespreizte
+     * U-Profile sind kein parametrischer Querschnitt, und fuer einen
+     * Pendelstab zaehlt E·A. In AxisVM zurueckgemessen: +0.0 % gegen den
+     * Tabellenwert.
+     */
+    const qsA = (jA.querschnitte ?? []).filter((q) => /^ANKER_/.test(q.name));
+    wahr('Kein Platzhalter mehr',
+         qsA.every((q) => !/PLATZHALTER/.test(q.name)));
+    wahr('Der Querschnitt nennt Profil und Quelle',
+         qsA.every((q) => /UNP/.test(q.profil) && /C5|EN /.test(q.profil)));
+    pruef('U12: die Flaeche des Verbunds, in m2',
+          qsA.find((q) => /U12/.test(q.name)).A,
+          AN.ankerQuerschnitt('U12').A / 1e4, 1e-12, 'm2');
+    wahr('… und das Rechteck hat genau diese Flaeche',
+         qsA.every((q) => Math.abs(q.parameter[0] * q.parameter[1] / 1e6
+                                   - q.A) < 1e-9));
     wahr('Ohne Anker steht nichts davon da',
          (laufA([{ id: 'M1', x: 0, profil: 'HEB 240' }])
            .staebe ?? []).every((x) => !/^ANKER_/.test(x.name)));
@@ -16946,6 +16967,80 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
         wahr('Der Wert kommt aus der Tabelle, nicht aus dem Katalog',
              FL.abfangkraft('drahtwerk-cu-95',
                             { tempFall: 'havarie' }).ausTabelle);
+      }
+
+      /*
+       * ====== DIE QUERSCHNITTSWERTE DER STUETZEN ========================
+       *
+       * Weisung vom 11. September: «die querschnittswerte gemaess c5 szs
+       * oder en nachtragen.» Sie standen nirgends: der Katalog fuehrte
+       * «2x UNP 120» als Bezeichnung, und UNP-Profile stehen weder im
+       * Profilkatalog des Werkzeugs noch - unter den naheliegenden Namen -
+       * im Katalog von AxisVM.
+       */
+      if (AN.ankerDbDa()) {
+        const qU12 = AN.ankerQuerschnitt('U12');
+        const qU14 = AN.ankerQuerschnitt('U14');
+        wahr('Beide Stuetzen fuehren ihre Werte',
+             !!qU12?.A && !!qU14?.A);
+        wahr('… und nennen ihre Quelle',
+             /C5|EN /.test(qU12.quelle) && /C5|EN /.test(qU14.quelle));
+
+        /*
+         * >>> DIE PROBE IST DAS GEWICHT. <<<
+         *
+         * Ein abgetippter Wert faellt sonst erst im Nachweis auf, und dann
+         * als Zahl ohne Herkunft. A und G stehen in der Tabelle getrennt
+         * nebeneinander und haengen ueber die Dichte zusammen:
+         *
+         *      G [kg/m] = A [cm2] · 0.785
+         *
+         * Beide sind gerundet (A auf 0.1 cm2, G auf 0.1 kg/m), deshalb ein
+         * Prozent Toleranz. Ein Zahlendreher faellt damit auf, eine Rundung
+         * nicht.
+         */
+        [qU12, qU14].forEach((q) => {
+          pruef(`${q.profil}: A mal Dichte gibt das Tabellengewicht`,
+                q.AEinzel * 0.785 * q.anzahl, q.G, q.G * 0.01, 'kg/m');
+        });
+        /*
+         * DER VERBUND IST DAS VIELFACHE - beide Profile liegen parallel,
+         * die starke Achse faellt zusammen.
+         */
+        pruef('U12: A des Verbunds', qU12.A, qU12.AEinzel * qU12.anzahl,
+              1e-9, 'cm2');
+        pruef('U12: I_y des Verbunds', qU12.Iy, qU12.IyEinzel * qU12.anzahl,
+              1e-9, 'cm4');
+        /*
+         * >>> I_z DES VERBUNDS IST NICHT ERFASST. <<<
+         *
+         * Es haengt am Spreizmass, und das steht in keiner Zeichnung, die
+         * hier vorliegt. `null` sagt das; eine Zahl daraus zu machen hiesse,
+         * das Mass zu erfinden.
+         */
+        wahr('I_z des Verbunds steht ausdruecklich auf null',
+             qU12.Iz === null && qU14.Iz === null);
+        wahr('… waehrend das Einzelprofil seines fuehrt',
+             qU12.IzEinzel > 0 && qU14.IzEinzel > 0);
+        /*
+         * DER GROESSERE TYP IST GROESSER - eine Kontrolle, die ein
+         * vertauschtes Wertepaar findet.
+         */
+        wahr('Der U14 hat mehr Flaeche und mehr Traegheit',
+             qU14.A > qU12.A && qU14.Iy > qU12.Iy);
+        /*
+         * >>> BEIM SEIL STEHT DIE DEHNUNG IM BLATT, NICHT DIE FLAECHE. <<<
+         *
+         * 0.1 mm je Meter und kN heisst E·A = 10'000 kN. Die Flaeche folgt
+         * daraus mit E = 21'000 kN/cm2.
+         */
+        const qS = AN.ankerQuerschnitt('SA20');
+        pruef('Der Seilanker traegt E·A aus dem Blatt', qS.EA, 10000,
+              1e-9, 'kN');
+        pruef('… und seine Flaeche folgt daraus', qS.A * 21000, qS.EA,
+              0.5, 'kN');
+        wahr('Ein Seil hat kein Traegheitsmoment',
+             qS.Iy === null && qS.Iz === null);
       }
     }
 

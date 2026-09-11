@@ -265,6 +265,42 @@ export function ankerStabkraft(H, geo) {
   return H / geo.cos;
 }
 
+/**
+ * DIE QUERSCHNITTSWERTE EINES ANKERS.
+ *
+ * Weisung vom 11. September: «die querschnittswerte gemaess c5 szs oder en
+ * nachtragen.»
+ *
+ * >>> SIE STANDEN NIRGENDS. <<<
+ *
+ * Der Katalog führte die Stütze als «2× UNP 120» — eine Bezeichnung, keine
+ * Fläche. UNP-Profile stehen auch nicht im Profilkatalog des Werkzeugs (dort
+ * sind die Winkel des Tragjochs und die UPE der Abfangjoche), und der
+ * Profilkatalog von AxisVM führt sie unter keinem der naheliegenden Namen.
+ * Jetzt stehen sie im Ankerkatalog, mit ihrer Quelle.
+ *
+ * >>> WAS DER VERBUND HERGIBT UND WAS NICHT. <<<
+ *
+ * `A` und `I_y` sind das Vielfache des Einzelprofils — beide Profile liegen
+ * parallel, die starke Achse fällt zusammen. `I_z` des VERBUNDS hängt am
+ * Spreizmass und ist NICHT erfasst: es steht in keiner Zeichnung, die hier
+ * vorliegt. Für den Pendelstab ist das ohne Belang — er trägt nur
+ * Normalkraft —, und wo es das nicht ist, sagt es der Wert `null`.
+ *
+ * >>> BEIM SEIL STEHT DIE DEHNUNG IM BLATT, NICHT DIE FLÄCHE. <<<
+ *
+ * 0.1 mm je Meter und kN heisst E·A = 10 000 kN. Die Ersatzfläche daraus
+ * beschreibt das Seil im Stabmodell genauer als eine geschätzte Drahtfläche:
+ * gemessen ist die Dehnung, nicht der metallische Querschnitt.
+ *
+ * @returns {object|null} {profil, anzahl, quelle, A, Iy, Iz, It, …} in
+ *          cm, cm², cm⁴ — oder null, wenn der Typ keine führt
+ */
+export function ankerQuerschnitt(id) {
+  const a = typeof id === 'string' ? getAnkerTyp(id) : id;
+  return a?.querschnitt ?? null;
+}
+
 /** Stand der Datenbank - für die Fussleiste und den Bericht. */
 export function ankerStand() {
   return DB ? { typen: DB.typen.length, quelle: DB._quelle ?? null } : null;
