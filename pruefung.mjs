@@ -6723,6 +6723,87 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
    * wird nach INNEN, nicht die Mastachse nach aussen: die Stuetzweite bleibt
    * die des Rechenkerns, und die Konsole ragt nie ueber das Jochende hinaus.
    */
+  /* =========================================================================
+   * DER MAST IM ABFANGJOCH-MODELL
+   * =========================================================================
+   *
+   * Weisung vom 11. September: «Auflager so machen dass zuerst die
+   * starrelemente von mast ausgeht (150 mm) von hier aus wie bei den
+   * anbauteilen vorgehen oben werden beide Gurte jeweils ueber linkelemente
+   * (50 mm) gehalten.»
+   *
+   * Bis dahin hatte das Abfangjoch-Modell keinen Masten: es lagerte auf
+   * einem Punkt je Ende, und im Ausleitungsdialog stand «Mit Mast»
+   * ausgegraut. Die Weisung vom 4. September nannte ihn schon.
+   *
+   * DIESELBE KETTE, NUR LIEGEND: beim Tragjoch stehen Ober- und Untergurt
+   * uebereinander und die Kette laeuft in der Jochachse nach innen; hier
+   * liegen die beiden Gurte nebeneinander, und sie laeuft quer.
+   * ======================================================================= */
+  if (AJ.abfangDbDa()) {
+    const AXA2 = await import(J('export.axisvm.abfang.js'));
+    const jm = AXA2.abfangAxisvmModell('A240', 12.5,
+      { mast: { profil: 'HEB 240', hoehe: 7.5 } });
+    const knM = (n) => jm.knoten.find((k) => k.name === n);
+    const stM = (n) => jm.staebe.find((s) => s.name === n);
+    const lg = (n) => {
+      const s = stM(n);
+      if (!s) return null;
+      const a = knM(s.von), b = knM(s.bis);
+      return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    };
+    wahr('Das Abfangjoch baut jetzt einen Masten', Boolean(stM('MAST_A')));
+    pruef('… und er ist so hoch wie angegeben', lg('MAST_A'), 7.5, 1e-9, 'm');
+    wahr('Die Konsole geht starr vom Mastkopf aus',
+         stM('KONSOLE_AV')?.von === 'MAST_A_K'
+         && stM('KONSOLE_AV')?.art === 'starr');
+    wahr('Von ihr haelt ein Linkelement den Gurt',
+         stM('LINK_AV')?.art === 'link'
+         && stM('LINK_AV')?.von === 'KONS_AV');
+    /*
+     * DAS LINK HAELT SEINE 50 mm. Die Konsole nicht immer: die Gurtenden
+     * sind GEKROEPFT, und am Auflager misst A240 nur 336 statt 464 mm
+     * Gurtabstand - 150 + 50 passen nicht in die 168 mm je Seite. Das Link
+     * hat Vorrang, denn an ihm sitzt die Lagerbedingung.
+     */
+    pruef('Das Linkelement misst 50 mm', lg('LINK_AV'), 0.05, 1e-9, 'm');
+    wahr('… und die Konsole fuellt den Rest bis zum Gurt',
+         Math.abs(lg('KONSOLE_AV') + lg('LINK_AV')
+                  - Math.abs(knM(stM('LINK_AV').bis).y)) < 1e-9,
+         `${(lg('KONSOLE_AV') * 1000).toFixed(0)} + 50 mm`);
+    /*
+     * >>> DAS AUFLAGER SITZT AM MASTFUSS, NICHT MEHR AM JOCHENDE. <<<
+     */
+    wahr('Die Auflager sitzen an den Mastfuessen',
+         jm.auflager.every((a) => /^MAST_._F$/.test(a.knoten)
+                               && a.modell === 'mast'));
+    wahr('… und beide Fuesse sind voll eingespannt',
+         jm.auflager.every((a) => ['ux', 'uy', 'uz', 'fix', 'fiy', 'fiz']
+           .every((f) => a[f] === 'Rigid')));
+    wahr('Der Mastquerschnitt traegt seine Kennwerte',
+         jm.querschnitte.some((c) => c.name === 'MAST_HEB240'
+                                  && c.form === 'I' && c.A > 0));
+    /*
+     * OHNE MASTANGABE BLEIBT ES BEIM ALTEN WEG. Wer keinen Masten fuehrt,
+     * bekommt weiterhin einen Auflagerpunkt je Ende - die Weisung vom
+     * 4. September gilt unveraendert fort.
+     */
+    const jo = AXA2.abfangAxisvmModell('A240', 12.5, {});
+    wahr('Ohne Mastangabe lagert es weiter auf Punkten',
+         jo.auflager.every((a) => a.modell === 'punkt')
+         && !jo.staebe.some((s) => /^MAST_/.test(s.name)));
+    /*
+     * DAS MERKMAL SAGT, WAS DAS MODELL KANN. `anbau-kette` fuehrt es
+     * bewusst NICHT: die Anbauteile haengen hier als Punktlasten am Gurt,
+     * nicht als Kette aus Starrelementen. Die Bruecke meldet das beim
+     * Aufbau, und die Meldung soll stehen bleiben.
+     */
+    wahr('Mit Mast nennt das Modell die neue Anschlussart',
+         (jm.merkmale ?? []).includes('mast-konsole-link'));
+    wahr('… und behauptet keine Anbauteil-Kette',
+         !(jm.merkmale ?? []).includes('anbau-kette'));
+  }
+
   pruef('Die Konsole misst 150 mm',
         knotenVon('KONS_A_OG').x - knotenVon('MAST_A_OG').x, 0.15, 1e-9, 'm');
   pruef('Das Linkelement misst 50 mm',

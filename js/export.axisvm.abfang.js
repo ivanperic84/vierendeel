@@ -1267,7 +1267,22 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   return {
     format: 'tragjoch-stabmodell',
     version: 1,
-    merkmale: ['abfangjoch', 'liegender-vierendeel'],
+    /*
+     * >>> DIE ANBAUTEILE HAENGEN ANDERS ALS AM TRAGJOCH. <<<
+     *
+     * Das Tragjoch fuehrt `anbau-kette`: seine Baugruppen stehen als Kette
+     * aus Starrelementen im Modell, Traeger, Aufbau und Drahtwerk einzeln.
+     * Das Abfangjoch setzt ihre Lasten als PUNKTLASTEN an einen Gurtknoten -
+     * global dasselbe, oertlich nicht.
+     *
+     * Das Merkmal fehlt deshalb hier, und die Bruecke meldet es beim Aufbau
+     * ausdruecklich: «das Modell steht, aber nicht so, wie das Werkzeug es
+     * heute baut.» Die Meldung ist richtig, und sie soll stehen bleiben,
+     * bis die Kette auch hier gebaut ist. Ein Merkmal einzutragen, das man
+     * nicht erfuellt, waere die falsche Art, eine Warnung loszuwerden.
+     */
+    merkmale: ['abfangjoch', 'liegender-vierendeel',
+               ...(mitMast ? ['mast-konsole-link'] : [])],
     erzeugt: new Date().toISOString().slice(0, 19),
     einheiten: { laenge: 'm', parameter: 'mm', kraft: 'kN', moment: 'kNm',
                  drehfeder: 'kNm/rad', flaeche: 'm2', traegheit: 'm4' },
