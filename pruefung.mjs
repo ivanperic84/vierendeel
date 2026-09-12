@@ -16903,6 +16903,42 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /*
+   * >>> DAS MASTSYMBOL STEHT AUF SEINER STELLE. <<<
+   *
+   * Weisung vom 13. September: «das jochende ist versetzt im bezug zum
+   * masten.» Im Browser nachgemessen: die Jochlinie begann bei 147.5 px,
+   * die Mitte des Mastsymbols lag bei 136.5 - elf Pixel daneben, genau die
+   * halbe Symbolbreite.
+   *
+   * `.qp-mast` traegt `transform: translateX(-50%)`, weil es sonst mit
+   * seiner linken Kante auf der Prozentstelle saesse. In der Mastreihe
+   * sitzt es aber IN der Gruppe, und die ist schon auf die Stelle
+   * zentriert: ohne `left: 50%` bleibt es an seiner statischen Position
+   * stehen, und die Verschiebung zieht es zusaetzlich nach links.
+   *
+   * DAS IST EINE ZEILE CSS UND EIN FEHLER, DEN MAN NICHT RECHNET, SONDERN
+   * SIEHT. Geprueft wird deshalb die Regel selbst - eine Textkontrolle, wie
+   * an den uebrigen Stellen, an denen Zeichnung und Zahl zusammenpassen
+   * muessen.
+   */
+  {
+    const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    const regel = /\.qp-mastgruppe\s+\.qp-mast\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    wahr('Die Regel der Mastgruppe steht da', Boolean(regel.trim()));
+    wahr('… und setzt das Symbol auf die Mitte der Gruppe',
+         /left:\s*50%/.test(regel), regel.trim());
+    // Und die Gruppe selbst sitzt mittig auf ihrer Stelle - sonst waere die
+    // Mitte der Gruppe nicht die Stelle.
+    const gruppe = /\.qp-mastgruppe\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    wahr('Die Gruppe ist auf ihre Stelle zentriert',
+         /translateX\(-50%\)/.test(gruppe));
+    // Das Symbol nimmt die halbe Breite wieder zurueck.
+    const mast = /\n\.qp-mast\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    wahr('Das Symbol nimmt die halbe Breite zurueck',
+         /translateX\(-50%\)/.test(mast));
+  }
+
+  /*
    * >>> DIE BEIDEN AUSSCHNITTE HABEN EIGENE SYMBOLE. <<<
    *
    * Weisung vom 3. September: «kannst du zutreffendere symbole fuer diese

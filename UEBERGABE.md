@@ -345,6 +345,15 @@ Höhe schneidet ab, und `overflow: hidden` sagt es nicht — mit 5.4 px je
 Zeichen war im Browser schon «M1» abgeschnitten, weil ein M breiter ist als
 das Mittel.
 
+**Das Symbol stand elf Pixel daneben.** Weisung, gleich darauf: «das
+jochende ist versetzt im bezug zum masten.» Nachgemessen: Jochlinie bei
+147.5 px, Mitte des Mastsymbols bei 136.5 — genau die halbe Symbolbreite.
+`.qp-mast` trägt `translateX(-50%)`, weil es sonst als absolutes Element mit
+seiner linken Kante auf der Prozentstelle sässe; in der Mastreihe sitzt es
+aber *in* der Gruppe, und die ist schon zentriert. Ohne `left: 50%` blieb es
+am Anfang der Gruppe stehen, und die Verschiebung zog es zusätzlich nach
+links. Eine Zeile CSS — und ein Fehler, den man nicht rechnet, sondern sieht.
+
 **Die Linie schweigt, wo ein Mast steht.** Die Enden eines Jochs *sind* seine
 Masten, und die schreiben ihre Lage selbst an — eine Zeile tiefer auf
 derselben Bahn. Stünde sie auch an der Linie, läge dieselbe Zahl zweimal

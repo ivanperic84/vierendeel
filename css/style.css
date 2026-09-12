@@ -1696,9 +1696,25 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   transform: translateX(-50%); padding: 0;
   background: none; border: none; cursor: pointer;
 }
-/* In der Mastreihe steht das Symbol im Fluss und die Schrift darunter -
-   dort darf es nicht absolut sitzen. */
-.qp-mastgruppe .qp-mast { position: absolute; top: 0; }
+/* ===========================================================================
+   DAS SYMBOL STEHT AUF SEINER STELLE
+
+   Weisung vom 13. September: «das jochende ist versetzt im bezug zum
+   masten.» Nachgemessen im Browser: die Jochlinie begann bei 147.5 px, die
+   Mitte des Mastsymbols lag bei 136.5 - elf Pixel daneben, genau die halbe
+   Symbolbreite.
+
+   `.qp-mast` traegt `transform: translateX(-50%)`, weil es sonst - als
+   absolutes Element auf `left: <Stelle>%` - mit seiner linken Kante auf der
+   Stelle saesse. In der Mastreihe sitzt es aber nicht auf einem Prozentwert,
+   sondern IN der Gruppe, und die ist schon auf die Stelle zentriert. Ohne
+   `left` blieb es an seiner statischen Position am Anfang der Gruppe stehen
+   - und die Verschiebung um die halbe Breite zog es zusaetzlich nach links.
+
+   `left: 50%` setzt es auf die Mitte der Gruppe; die Verschiebung nimmt
+   dann die halbe Breite zurueck, und Symbol, Masszahl, Anschrift und
+   Jochende stehen uebereinander. */
+.qp-mastgruppe .qp-mast { position: absolute; top: 0; left: 50%; }
 /* ===========================================================================
    DER MAST IST EIN STRICH
 
