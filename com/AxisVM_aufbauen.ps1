@@ -1736,6 +1736,8 @@ $st = @{}; $laenge = @{}; $artVon = @{}
 $erste = $true; $nG = 0; $nGnein = 0
 $nStab = 0; $nLink = 0; $nLinkNein = 0
 $starrLinien = New-Object System.Collections.Generic.List[int]
+# Name -> Nummer des Verbindungselements, fuer das Zuruecklesen in 7b.
+$linkVon = @{}
 foreach ($sb in $d.staebe) {
     $vk = $kn[$sb.von]; $bk = $kn[$sb.bis]; $iq = $qs[$sb.querschnitt]
     if (-not $vk -or -not $bk) { Beenden 6 "Stab $($sb.name): Knoten fehlt." }
@@ -1771,7 +1773,11 @@ foreach ($sb in $d.staebe) {
     if ($art -eq 'starr') {
         [void]$starrLinien.Add([int]$r.wert)
     } elseif ($art -eq 'link') {
-        if ((LinkSetzen ([int]$r.wert) $sb ([int]$vk)) -gt 0) { $nLink++ } else { $nLinkNein++ }
+        $iLink = LinkSetzen ([int]$r.wert) $sb ([int]$vk)
+        # Die Nummer wird in Abschnitt 7b gebraucht: dort wird
+        # zurueckgelesen, was das Element wirklich uebertraegt.
+        if ($iLink -gt 0) { $nLink++; $linkVon[$sb.name] = [int]$iLink }
+        else { $nLinkNein++ }
     } else {
         $nStab++
         # Gewoehnliche Stabendgelenke gibt es nur noch am wirklichen Stab -
@@ -2144,6 +2150,118 @@ foreach ($a in $d.auflager) {
              $a.ende, $a.knoten, $stf.x, $stf.y, $stf.z)
     Schreib ("      {0,-16}  xx {1,11:N0}  yy {2,12:N1}  zz {3,11:N0}" -f
              '', $stf.xx, $stf.yy, $stf.zz)
+}
+
+# --- 7b - was die Verbindungselemente uebertragen ----------------------------
+<#  DIE LAGERBEDINGUNG SITZT IM LINK, NICHT IM AUFLAGER.
+
+    Weisung vom 12. September: "kannst du ein modell im axis aufbauen um die
+    auflagerbedingungen zu checken."
+
+    Der Bericht fuehrte bisher nur die NODALEN Auflager - und die stehen am
+    Mastfuss und sind immer voll eingespannt. Was das Joch am Masten haelt
+    und was es loslaesst, steht im LINKELEMENT zwischen Konsole und Gurt.
+    Genau das stellt die Sidebar ein, und genau das war im Bericht nicht zu
+    sehen.
+
+    >>> ZURUECKGELESEN, NICHT NACHERZAEHLT. <<<
+
+    Gedruckt wird, was das MODELL sagt - nicht, was die Datei wollte. Ein
+    Bericht, der die Eingabe wiederholt, prueft nichts. Laesst sich ein
+    Element nicht lesen, sagt die Zeile das und nennt daneben den Sollwert,
+    damit der Vergleich von Hand moeglich bleibt.                          #>
+if ($linkVon.Count -gt 0) {
+    Abschnitt '7b - Lagerbedingungen der Verbindungselemente'
+    $sollVon = @{}
+    foreach ($sb in $d.staebe) {
+        if ($sb.kraftuebertragung) { $sollVon[$sb.name] = $sb.kraftuebertragung }
+    }
+    $gelesen = 0; $blind = 0; $leerSatz = 0
+    Schreib ("  {0,-16} {1,-40} {2}" -f 'Element', 'gehalten / frei (x y z xx yy zz)', 'Quelle')
+    foreach ($nameL in ($linkVon.Keys | Sort-Object)) {
+        $iL = $linkVon[$nameL]
+        <#  GetRec, NICHT Item.
+            Am 12. September an der laufenden Fassung vermessen:
+            LinkElements fuehrt AddLL, AddNN, GetRec(int, RLinkElementRec)
+            und SetRec - aber kein Item(). Der erste Versuch lief ueber
+            Item() und lieferte bei allen vier Elementen nichts; die
+            Mitgliederliste im Bericht sagte dann, was es stattdessen gibt.
+
+            Der Satz wird gefuellt UEBERGEBEN, nicht zurueckgegeben - und
+            ein Wertetyp geht als Kopie durch, wenn man ihn nicht als [ref]
+            reicht. Beide Wege werden versucht.                          #>
+        <#  NICHT $st - DEN NAMEN HAT ABSCHNITT 6 SCHON.
+            Dort haelt er Stabname -> Liniennummer, und Abschnitt 9 braucht
+            ihn noch. Ueberschrieben brach der Lauf in den Lasten ab:
+            "Es ist nicht moeglich, einen Index auf ein NULL-Array
+            anzuwenden." Ein Lauf fuer einen Variablennamen.             #>
+        $ausModell = $null; $wegLesen = ''; $lstf = $null
+        try {
+            $rec = NeuerSatz 'RLinkElementRec'
+            $ok = 0
+            try { $ok = $m.LinkElements.GetRec($iL, [ref]$rec); $wegLesen = 'ref' }
+            catch { $ok = $m.LinkElements.GetRec($iL, $rec); $wegLesen = 'Kopie' }
+            <#  >>> EIN LEERER SATZ IST KEIN MESSWERT. <<<
+                Am 12. September gemessen: GetRec meldet einen Wert > 0, der
+                Satz kommt aber UNGEFUELLT zurueck - LineId 0, alle
+                Steifigkeiten 0. Dasselbe Verhalten wie bei AddNN, wo ein
+                Verbund-Typ ueber fremde Gueltigkeitsbereiche nicht mehr als
+                Satz am COM-Marshaller ankommt; hier trifft es die
+                Gegenrichtung.
+
+                "frei frei frei" waere daraus die gefaehrlichste aller
+                Antworten: sie sieht aus wie eine Messung und sagt, das Joch
+                haenge an nichts. Also gilt der Satz nur, wenn seine
+                Liniennummer stimmt.                                      #>
+            $liSoll = if ($st.ContainsKey($nameL)) { [int]$st[$nameL] } else { 0 }
+            $liIst = try { [int]$rec.LineId } catch { -1 }
+            if (([int]$ok -gt 0) -and ($liIst -eq $liSoll) -and ($liSoll -gt 0)) {
+                $lstf = $rec.Stiffnesses
+                # ForEach-Object, nicht `foreach`: die Anweisung laesst sich
+                # in 5.1 nicht in einen Ausdruck klammern (-join unten).
+                $ausModell = @('x','y','z','xx','yy','zz') | ForEach-Object {
+                    if ([double]$lstf.$_ -gt 0) { 'fest' } else { 'frei' } }
+            } elseif ([int]$ok -gt 0) {
+                $script:leerSatz++
+            }
+        } catch { $ausModell = $null }
+        if ($ausModell) {
+            $gelesen++
+            <#  DIE ZAHL GEHOERT DANEBEN.
+                "frei" kann zweierlei heissen: die Steifigkeit ist wirklich
+                null - oder der Satz kam leer zurueck und wir lesen eine
+                Kopie, die nie gefuellt wurde. Die Liniennummer aus dem Satz
+                gegen die gemerkte gehalten sagt, welches von beidem es ist.  #>
+            Schreib ("  {0,-16} {1,-40} {2}" -f $nameL, ($ausModell -join ' '),
+                     "Modell ($wegLesen, Linie $liIst)")
+        } else {
+            $blind++
+            $s = $sollVon[$nameL]
+            $txt = if ($s) {
+                (@('x','y','z','xx','yy','zz') | ForEach-Object {
+                    if ([string]$s.$_ -eq 'Free') { 'frei' } else { 'fest' } }) -join ' '
+            } else { '(keine Angabe)' }
+            Schreib ("  {0,-16} {1,-40} {2}" -f $nameL, $txt, 'Datei - nicht lesbar')
+        }
+    }
+    if ($blind -gt 0) {
+        Schreib ''
+        Schreib "  >>> $blind von $($linkVon.Count) Verbindungselementen liessen sich nicht"
+        Schreib "      zuruecklesen. Die Zeile nennt dann den Sollwert aus der Datei -"
+        Schreib "      also das, was AddNN uebergeben bekam, nicht das Gemessene."
+        if ($leerSatz -gt 0) {
+            Schreib ''
+            Schreib "      GetRec meldete bei $leerSatz davon Erfolg, gab den Satz aber LEER"
+            Schreib "      zurueck (LineId 0). Das ist kein leeres Lager, sondern ein"
+            Schreib "      Marshaller, der den Verbund-Typ nicht zurueckreicht. Nachsehen"
+            Schreib "      laesst es sich in AxisVM am Element selbst."
+        }
+        Mitglieder 'LinkElements' $m.LinkElements
+        SatzAufbau 'RLinkElementRec'
+    } elseif ($gelesen -gt 0) {
+        $gefunden.Add('Lagerbedingung zurueckgelesen -> LinkElements.GetRec(i, RLinkElementRec)')
+        Schreib ("  {0,-34} LinkElements.GetRec(i, RLinkElementRec)" -f 'Zurueckgelesen')
+    }
 }
 
 # --- 8 - Lastfaelle ----------------------------------------------------------
