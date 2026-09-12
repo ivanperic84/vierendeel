@@ -386,9 +386,29 @@ export function mastDiagramme(mn, opt = {}) {
 export function diagramme(erg, breite = 900) {
   const k = erg.knoten;
   const x = k.map((r) => r.x);
+  /*
+   * >>> DIE UMHÜLLENDE IST KEINE MOMENTENLINIE. <<<
+   *
+   * Nachgefragt am 12. September: «ich kann mir die schnittgrösse my bei
+   * diesem tragwerk nicht erklären.»
+   *
+   * Die Rechnung stimmt - geprüft am Gleichgewicht: M(L/2) − M(0) ist exakt
+   * qL²/8, und dass M(0) nicht null ist, kommt von der Drehfeder des Masten.
+   * Verwirrend ist etwas anderes: `huellkurve()` nimmt je Station den Knoten
+   * der Kombination mit dem GRÖSSTEN η - mit allem, was an ihm hängt, also
+   * auch mit ihrem M_y. Wo die massgebende Kombination von Station zu
+   * Station wechselt, springt die Linie, und dM/dx ist dort nicht mehr V.
+   *
+   * Für den Nachweis ist das richtig: gefragt ist an jeder Stelle der
+   * ungünstigste Wert. Als KURVE gelesen ist es eine Falle, denn sie sieht
+   * aus wie ein Schnittgrössenverlauf. Also steht es im Titel, und wer eine
+   * echte Momentenlinie braucht, wählt oben einen einzelnen Lastfall.
+   */
+  const huell = erg.istHuellkurve === true;
+  const zusatz = huell ? ' · umhüllend, keine Momentenlinie' : '';
   return {
     schnittgroessen: linienDiagramm({
-      titel: 'Schnittgrössen Ersatzbalken', breite,
+      titel: `Schnittgrössen Ersatzbalken${zusatz}`, breite,
       yLabel: 'M [kNm] / V [kN]', punkte: x,
       serien: [
         { name: 'M_y,ed', werte: k.map((r) => r.My), skizze: 'My' },
