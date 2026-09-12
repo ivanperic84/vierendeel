@@ -205,6 +205,32 @@ export function szeneVerschieben(sz, dx, zusatz = {}, dz = 0) {
      * Stelle, an der nichts ist.
      */
     xNachweis: Number.isFinite(sz.xNachweis) ? sz.xNachweis + dx : sz.xNachweis,
+    /*
+     * >>> UND DIE BEREICHE DER ANBAUTEILE AUCH. <<<
+     *
+     * Gemeldet am 12. September: «zoom auf bauteil funktioniert nicht, der
+     * bildausschnitt ist nicht im bild wenn man es anklickt.»
+     *
+     * Genau hier lag es. `anbauteile` traegt je Teil den Bereich, den
+     * `zeigeAnbauteil` anfaehrt - x, xMin/xMax, zMin/zMax. Er stand in den
+     * Koordinaten des EINZELNEN Tragwerks, waehrend alles andere um dx und
+     * dz verschoben wurde. Beim Joch mit Masten hebt `blattSzene` die Szene
+     * um die Anschlusshoehe an: gemessen zMin = -1.05 in der Szene, das Teil
+     * aber bei -2.92 bis 0.22 - siebeneinhalb Meter zu tief. Die Kamera fuhr
+     * unter das Modell, und im Bild stand nichts.
+     *
+     * Dieselbe Falle wie beim Nachweisschnitt darueber, und aus demselben
+     * Grund uebersehen: es ist keine Zeichnung, sondern eine Koordinate, und
+     * die faellt beim Durchsehen der Liste nicht auf.
+     */
+    anbauteile: (sz.anbauteile ?? []).map((b) => ({
+      ...b,
+      x: b.x + dx,
+      ...(Number.isFinite(b.xMin) ? { xMin: b.xMin + dx } : {}),
+      ...(Number.isFinite(b.xMax) ? { xMax: b.xMax + dx } : {}),
+      ...(Number.isFinite(b.zMin) ? { zMin: b.zMin + dz } : {}),
+      ...(Number.isFinite(b.zMax) ? { zMax: b.zMax + dz } : {}),
+    })),
     stationen: (sz.stationen ?? []).map((x) => x + dx),
     grenzen: { ...g, xMin: (g.xMin ?? 0) + dx, xMax: (g.xMax ?? 0) + dx,
                ...(Number.isFinite(g.zMin) ? { zMin: g.zMin + dz } : {}),
@@ -249,6 +275,20 @@ export function szenenVereinen(teile) {
     xNachweis: (da.find((s) => s.aktiv) ?? da[0]).xNachweis,
     schnittAktiv: (da.find((s) => s.aktiv) ?? da[0]).schnittAktiv,
     stationen: sammle('stationen'),
+    /*
+     * >>> DIE BEREICHE GEHOEREN DEM AKTIVEN TRAGWERK. <<<
+     *
+     * Wie der Schnitt und seine Stelle. Sie standen bisher gar nicht in der
+     * vereinten Szene - `zeigeAnbauteil` fand nichts und tat nichts: in
+     * einer Jochreihe war der Zoom auf ein Bauteil wirkungslos, ohne jede
+     * Meldung.
+     *
+     * ALLE ZU SAMMELN WAERE FALSCH: die Nummer `index` zaehlt je Tragwerk
+     * von vorn, und `find` naehme den ersten Treffer - ein Klick auf A2
+     * fuehre zum A2 des NACHBARN. Die Schublade zeigt die Teile des aktiven
+     * Tragwerks, also gehoeren seine Bereiche hierher.
+     */
+    anbauteile: (da.find((s) => s.aktiv) ?? da[0]).anbauteile ?? [],
     legende: [...legende.values()], bereiche,
     grenzen: { xMin: min('xMin'), xMax: max('xMax'),
                yMin: min('yMin'), yMax: max('yMax'),

@@ -3364,7 +3364,10 @@ function setzeBaugruppeAnStelle(roh) {
   (werte.anbauteile ?? []).forEach((x) => ui.setzeKlapp(`at-${x.id}`, false));
   ui.setzeKlapp(`at-${t.id}`, true);
   setzeAnbauteile([...(werte.anbauteile ?? []), t]);
-  if (st.ort === 'joch') ansicht.zoomAuf(t.x, null, Math.max(2, werte.L / 8));
+  if (st.ort === 'joch') {
+    // Im Blatt, nicht im Tragwerk - siehe `blattVersatz`.
+    ansicht.zoomAuf(blattVersatz() + t.x, null, Math.max(2, werte.L / 8));
+  }
   else ansicht.zeigeAnbauteil((werte.anbauteile ?? []).length - 1);
 }
 
@@ -4057,7 +4060,8 @@ function waehleSchnittfeld(feld) {
 function springeZu(st, x) {
   station = st;
   werte = { ...werte, xNachweis: x };
-  ansicht.zoomAuf(x, st);
+  // Im Blatt, nicht im Tragwerk - siehe `blattVersatz`.
+  ansicht.zoomAuf(blattVersatz() + x, st);
   neuRechnen();
 }
 
@@ -6210,6 +6214,28 @@ function kontextImModell(k) {
     punkte = kontextGrund(k);
   }
   kontextZeigen(k.bei, punkte);
+}
+
+/* ===========================================================================
+ * >>> DIE KAMERA FAEHRT IM BLATT, NICHT IM TRAGWERK. <<<
+ * ===========================================================================
+ *
+ * Gefunden am 12. September beim Nachsehen der uebrigen Zoomwege.
+ *
+ * Die Szene steht im BLATT: jedes Tragwerk sitzt bei `lageVon(t)` und ist um
+ * seine Anschlusshoehe angehoben. Eine Stelle aus der Eingabe - das x eines
+ * Anbauteils, die Stelle eines Nachweisschnitts - steht dagegen in den
+ * Koordinaten ihres EIGENEN Tragwerks, also zwischen 0 und L.
+ *
+ * Beim ersten Tragwerk ist das dasselbe: `lageVon` gibt dort 0. Beim zweiten
+ * nicht - dann fuhr die Kamera um den Abstand der beiden Tragwerke daneben,
+ * und im Bild stand die Nachbarposition. Kein Fehler, keine Meldung, nur eine
+ * Kamera an der falschen Stelle.
+ */
+function blattVersatz() {
+  const t = tragwerkeSortiert(werte).find((x) => x.aktiv)
+         ?? tragwerkeSortiert(werte)[0];
+  return t ? (Number(lageVon(t)) || 0) : 0;
 }
 
 /** Auf ein Tragwerk fahren - dieselbe Rechnung wie der Knopf «Teilübersicht». */

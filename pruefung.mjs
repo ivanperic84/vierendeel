@@ -12943,9 +12943,15 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     lastflaechen: [{ punkte: [[0, 0, 1], [4, 0, 1]] }],
     schnitt: { x: 2, poly: [[2, 0, 0], [2, 1, 0]] },
     stationen: [0, 2, 4], xNachweis: 2, schnittAktiv: true,
+    /*
+     * DER BEREICH, DEN DER ZOOM ANFAEHRT. Er traegt x UND z - siehe die
+     * Kontrollen weiter unten; er wurde beim Verschieben vergessen.
+     */
+    anbauteile: [{ index: 0, name: 'A1', teil: 'AT0', x: 2, r: 0.2,
+                   xMin: 1.8, xMax: 2.2, zMin: -1, zMax: 0.5 }],
     legende: [{ key: 'gurt', label: 'Gurt' }],
     bereiche: { eta: 0.5 },
-    grenzen: { xMin: 0, xMax: 4, yMin: 0, yMax: 1, zMin: 0, zMax: 2 },
+    grenzen: { xMin: 0, xMax: 4, yMin: 0, yMax: 1, zMin: -1, zMax: 2 },
   });
 
   /*
@@ -12973,6 +12979,46 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * keine Meldung - die Kamera fuhr nur an eine Stelle, an der nichts ist.
      */
     pruef('Und der Nachweisschnitt auch', v.xNachweis, 12, 1e-12, 'm');
+    /* =====================================================================
+     * >>> UND DER BEREICH DES ANBAUTEILS. <<<
+     * =====================================================================
+     *
+     * Gemeldet am 12. September: «zoom auf bauteil funktioniert nicht, der
+     * bildausschnitt ist nicht im bild wenn man es anklickt.»
+     *
+     * `anbauteile` traegt je Teil den Bereich, den `zeigeAnbauteil` anfaehrt.
+     * Er stand in den Koordinaten des EINZELNEN Tragwerks, waehrend alles
+     * andere verschoben wurde - dieselbe Falle wie beim Nachweisschnitt eine
+     * Zeile darueber, und aus demselben Grund uebersehen: es ist keine
+     * Zeichnung, sondern eine Koordinate.
+     *
+     * >>> DIESER TEIL WANDERT AUCH IN z. <<<
+     *
+     * `blattSzene` hebt jede Szene um die Anschlusshoehe an, damit die
+     * Mastfuesse auf einer Hoehe liegen. Am gemessenen Fall: Szene von
+     * -1.05 bis 9.80, das Teil aber bei -2.92 bis 0.22 - siebeneinhalb Meter
+     * zu tief, und die Kamera fuhr unter das Modell.
+     */
+    const vz = R.szeneVerschieben(szene(), 10, { twId: 'T2' }, 7.5);
+    pruef('Der Bereich des Anbauteils wandert in x', vz.anbauteile[0].x,
+          12, 1e-12, 'm');
+    pruef('… mit seinen beiden Raendern', vz.anbauteile[0].xMax, 12.2, 1e-12, 'm');
+    pruef('… und er wandert in z mit', vz.anbauteile[0].zMin, 6.5, 1e-12, 'm');
+    pruef('… beide Raender', vz.anbauteile[0].zMax, 8.0, 1e-12, 'm');
+    wahr('… die Nummer bleibt, sonst faende ihn niemand',
+         vz.anbauteile[0].index === 0 && vz.anbauteile[0].teil === 'AT0');
+    /*
+     * DER BEREICH MUSS IN DER SZENE LIEGEN. Das ist die Probe, die den
+     * Befund gefunden haette: was der Zoom anfaehrt, hat innerhalb der
+     * Grenzen zu liegen, in denen das Modell steht.
+     */
+    wahr('Der angefahrene Bereich liegt in den Grenzen der Szene',
+         vz.anbauteile.every((b) => b.zMin >= vz.grenzen.zMin - 1e-9
+                                 && b.zMax <= vz.grenzen.zMax + 1e-9
+                                 && b.x >= vz.grenzen.xMin - 1e-9
+                                 && b.x <= vz.grenzen.xMax + 1e-9),
+         `Teil z ${vz.anbauteile[0].zMin}…${vz.anbauteile[0].zMax}, `
+         + `Szene z ${vz.grenzen.zMin}…${vz.grenzen.zMax}`);
     pruef('Die Grenzen wandern', v.grenzen.xMin, 10, 1e-12, 'm');
     pruef('… beide', v.grenzen.xMax, 14, 1e-12, 'm');
     wahr('Quer und hoch bleibt alles stehen',
@@ -13002,6 +13048,21 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Der Schnitt ist der des aktiven', g.schnitt.x === 12);
     wahr('… und seine Stelle ebenso', g.xNachweis === 12);
     wahr('Und die Stationen sind alle da', g.stationen.length === 6);
+    /*
+     * >>> DIE BEREICHE GEHOEREN DEM AKTIVEN TRAGWERK. <<<
+     *
+     * Sie standen in der vereinten Szene gar nicht - `zeigeAnbauteil` fand
+     * nichts und tat nichts: in einer Jochreihe war der Zoom auf ein Bauteil
+     * wirkungslos, ohne jede Meldung.
+     *
+     * Alle zu sammeln waere falsch: `index` zaehlt je Tragwerk von vorn, und
+     * ein Klick auf A1 fuehre zum A1 des Nachbarn. Die Schublade zeigt die
+     * Teile des aktiven Tragwerks, also gehoeren seine Bereiche hierher -
+     * wie der Schnitt und seine Stelle.
+     */
+    wahr('Die Bereiche der Anbauteile stehen in der vereinten Szene',
+         (g.anbauteile ?? []).length === 1);
+    pruef('… und es sind die des AKTIVEN', g.anbauteile[0].x, 12, 1e-12, 'm');
   }
   {
     // Ein einzelnes Tragwerk bleibt, wie es ist - kein Umweg ohne Not.
