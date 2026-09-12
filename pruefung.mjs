@@ -13595,6 +13595,88 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          `${kg.eta.toFixed(3)} gegen ${k.eta.toFixed(3)}`);
   }
 
+  /* =========================================================================
+   * >>> DIE MASSENPUNKTE UND IHRE HOEHE. <<<
+   * =========================================================================
+   *
+   * Weisung vom 12. September: «zu beachten sind auch die massenpunkte und
+   * deren hoehe bezogen auf den eingespannten stab (mast)».
+   *
+   * Der Mast ist ein eingespannter Kragarm. Eine Druckkraft in der Hoehe a
+   * knickt ihn mit N_cr = pi^2 EI / (2a)^2 - je hoeher sie sitzt, desto
+   * kleiner die Knicklast. Sitzen mehrere Kraefte auf verschiedenen Hoehen,
+   * ist die sichere Idealisierung, sie ALLE auf die oberste zu legen: nach
+   * oben verschoben wirkt jede Masse unguenstiger.
+   *
+   * Genau das rechnet der Kern: `z_N` ist die oberste Krafteinleitung, und
+   * `N_Ed` ist der FUSSWERT, also die Summe. Die Paarung ist damit die
+   * konservative - und sie ist es, die hier geprueft wird.
+   *
+   * >>> DER EINTRITT, NICHT DER ANGRIFFSPUNKT. <<<
+   *
+   * Eine Haengestuetze traegt ihren Fahrdraht anderthalb Meter unter ihrer
+   * Befestigung. In den MASTEN kommt die Kraft an der Befestigung, und bis
+   * dorthin drueckt sie. Mit dem Angriffspunkt gerechnet fiele die
+   * Knicklaenge zu kurz aus - die unsichere Seite.
+   */
+  {
+    /*
+     * POSITIVES F_z DRUECKT. Beim ersten Anlauf standen hier negative
+     * Werte - dann ziehen die Lasten nach oben, die Normalkraft NIMMT zum
+     * Fuss hin ab, und N_Ed fiel auf 7.79 kN statt auf 26.9. Die Rechnung
+     * war richtig, die Probe falsch herum; das Vorzeichen steht deshalb
+     * jetzt hier.
+     */
+    const traverse = (id, h, Fz) => ({
+      id, name: `Traverse ${id}`, ort: 'mast', hMast: h, aktiv: true,
+      raster: 0, module: [{ z: 0 }],
+      lasten: [{ einwirkung: 'G', z: 0, Fz }],
+    });
+    const mitPunkten = mast({ anbauteile: [
+      traverse('oben', 11.0, 3), traverse('mitte', 7.0, 8),
+      traverse('unten', 3.0, 5)] });
+    const kp = M74.mastStabilitaet(mitPunkten.s, mitPunkten.m, {});
+    const lot = (mitPunkten.s.lasten ?? [])
+      .filter((l) => Math.abs(l.Fz ?? 0) > 1e-9);
+    wahr('Jeder Massenpunkt steht mit seiner Hoehe da', lot.length >= 3,
+         lot.map((l) => `${l.name} @ ${l.zAnschluss ?? l.z}`).join(', '));
+    pruef('Massgebend ist die OBERSTE Krafteinleitung', kp.zN, 11.0, 1e-9, 'm');
+    pruef('… und daraus die Knicklaenge', kp.Lcr, 2 * 11.0, 1e-9, 'm');
+    /*
+     * DIE SUMME STEHT DER OBERSTEN HOEHE GEGENUEBER. Waere N_Ed nur die
+     * oberste Einzelkraft, fiele der Nachweis zu guenstig aus.
+     */
+    const summe = lot.reduce((a, l) => a + Math.abs(l.Fz), 0);
+    wahr('N_Ed ist der Fusswert - Summe plus Eigengewicht des Masten',
+         kp.NEd > summe * 1.05,
+         `N_Ed ${kp.NEd.toFixed(2)} gegen Summe ${summe.toFixed(2)} kN`);
+    /*
+     * UND DIE HOEHE WIRKT: derselbe Satz Lasten, nur tiefer angesetzt, gibt
+     * eine kuerzere Knicklaenge und ein groesseres chi. Das ist die Probe
+     * auf die Richtung - ohne Zahl aus dem Buch.
+     */
+    const tiefer = mast({ anbauteile: [
+      traverse('oben', 6.0, 3), traverse('mitte', 5.0, 8),
+      traverse('unten', 3.0, 5)] });
+    const kt = M74.mastStabilitaet(tiefer.s, tiefer.m, {});
+    wahr('Tiefer angesetzte Massen knicken weniger',
+         kt.Lcr < kp.Lcr && kt.chiZ > kp.chiZ,
+         `L_cr ${kt.Lcr.toFixed(2)} gegen ${kp.Lcr.toFixed(2)} m`);
+    /*
+     * DER EINTRITT ZAEHLT. Eine Last, die 1.50 m unter ihrer Befestigung
+     * angreift, darf die Knicklaenge nicht verkuerzen.
+     */
+    const haenge = {
+      id: 'hs', name: 'Haengestuetze', ort: 'mast', hMast: 9.0, aktiv: true,
+      raster: 0, module: [{ z: -1.5 }],
+      lasten: [{ einwirkung: 'G', z: -1.5, Fz: 6 }],
+    };
+    const kh = M74.mastStabilitaet(mast({ anbauteile: [haenge] }).s,
+                                   mast({ anbauteile: [haenge] }).m, {});
+    pruef('Die Knicklaenge folgt dem EINTRITT, nicht dem Angriffspunkt',
+          kh.zN, 9.0, 1e-9, 'm');
+  }
+
   // EIN LAENGERER MAST KNICKT FRUEHER - die Richtung muss stimmen.
   {
     const kurz = M74.mastStabilitaet(mast({ mastLaenge: 8 }).s,

@@ -4847,6 +4847,111 @@ export function zeichneAbfangAuflager(node, ab, erg) {
  * sagt es, damit niemand die beiden Tabellen nebeneinanderlegt und sich
  * wundert.
  */
+/* ===========================================================================
+ * DER KNICKNACHWEIS, AUFGESCHRIEBEN
+ * ===========================================================================
+ *
+ * Weisung vom 12. September: der Nachweis ist im Bericht zu fuehren - und
+ * «zu beachten sind auch die massenpunkte und deren hoehe bezogen auf den
+ * eingespannten stab (mast)».
+ *
+ * Bisher stand vom Knicken nur die fertige Zahl in der Ueberschrift. Der Weg
+ * dorthin - Knicklaenge, Schlankheit, Knicklinie, Abminderung, die beiden
+ * Interaktionsgleichungen - stand nirgends, und die MASSENPUNKTE schon gar
+ * nicht.
+ *
+ * >>> WARUM DIE HOEHEN HIERHER GEHOEREN. <<<
+ *
+ * Der Mast ist ein eingespannter Kragarm. Eine Druckkraft in der Hoehe a
+ * knickt ihn mit N_cr = pi^2 EI / (2a)^2 - je hoeher sie sitzt, desto
+ * kleiner die Knicklast. Sitzen mehrere Kraefte auf verschiedenen Hoehen,
+ * ist die sichere Idealisierung, sie ALLE auf die oberste zu legen: nach
+ * oben verschoben wirkt jede Masse unguenstiger.
+ *
+ * Genau das rechnet der Kern - `z_N` ist die oberste Krafteinleitung, und
+ * `N_Ed` ist der Fusswert, also die SUMME. Was fehlte, war die Liste, an der
+ * sich das nachpruefen laesst. Sie steht jetzt da, mit der massgebenden
+ * Zeile hervorgehoben.
+ * ========================================================================= */
+function knickblatt(kS, n) {
+  if (!kS) return '';
+  const kur = kS.knicklinie ?? {};
+  /*
+   * NUR DIE LOTRECHTEN. Waagrechte Lasten biegen den Masten, sie druecken
+   * ihn nicht - fuer die Knicklaenge zaehlen sie nicht mit.
+   */
+  const punkte = (n.lasten ?? [])
+    .filter((l) => Math.abs(l.Fz ?? 0) > 1e-9)
+    .map((l) => ({ ...l, zE: l.zAnschluss ?? l.z ?? 0 }))
+    .sort((a, b) => b.zE - a.zE);
+  const massen = punkte.length ? `
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Massenpunkt</th><th class="num">z [m]</th>
+        <th class="num">Eintritt [m]</th><th class="num">F_z [kN]</th></tr></thead>
+      <tbody>${punkte.map((l) => `
+        <tr class="${Math.abs(l.zE - kS.zN) < 1e-9 ? 'aktiv' : ''}">
+          <td>${esc(l.name ?? '')}</td>
+          <td class="num">${f2(l.z ?? l.zE)}</td>
+          <td class="num">${f2(l.zE)}</td>
+          <td class="num">${f2(l.Fz)}</td></tr>`).join('')}
+      </tbody></table></div>
+    <p class="notiz" style="margin:4px 0 0">Die <b>Eintrittshöhe</b> ist die
+      Stelle, an der die Kraft in den Masten übergeht — bei einer Hängestütze
+      die Befestigung, nicht der Angriffspunkt des Fahrdrahts anderthalb Meter
+      darunter. Massgebend für die Knicklänge ist die <b>oberste</b>
+      (hervorgehoben): alle Kräfte werden so gerechnet, als sässen sie dort.
+      Nach oben verschoben wirkt jede Masse ungünstiger — die Annahme liegt
+      damit auf der sicheren Seite.</p>`
+    : `<p class="notiz" style="margin:4px 0 0">Keine lotrechte Krafteinleitung
+       — es gilt die ganze Mastlänge als Knicklänge.</p>`;
+  const z = (v, s2 = 2) => (Number.isFinite(v) ? (s2 === 3 ? f3(v) : f2(v)) : '–');
+  return `${klapp(`mast-knick-${n.ende}`,
+    `Knicknachweis · L_cr ${z(kS.Lcr)} m · η ${f3(kS.eta)}`, `
+    ${massen}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th></th><th class="num">um y (stark)</th>
+        <th class="num">um z (schwach)</th></tr></thead>
+      <tbody>
+        <tr><td>Knicklänge L_cr = β · z_N</td>
+            <td class="num" colspan="2">${z(kS.beta)} · ${z(kS.zN)} =
+                <b>${z(kS.Lcr)} m</b></td></tr>
+        <tr><td>N_cr = π²·E·I / L_cr²  [kN]</td>
+            <td class="num">${z(kS.NcrY)}</td><td class="num">${z(kS.NcrZ)}</td></tr>
+        <tr><td>N_Rk = A · f_y  [kN]</td>
+            <td class="num" colspan="2">${z(kS.NRk)}</td></tr>
+        <tr><td>bezogene Schlankheit λ̄</td>
+            <td class="num">${z(kS.lamY, 3)}</td><td class="num">${z(kS.lamZ, 3)}</td></tr>
+        <tr><td>Knicklinie (α)</td>
+            <td class="num">${kur.y ?? '–'} (${z(kS.alphaY, 3)})</td>
+            <td class="num">${kur.z ?? '–'} (${z(kS.alphaZ, 3)})</td></tr>
+        <tr><td>Abminderung χ</td>
+            <td class="num">${z(kS.chiY, 3)}</td><td class="num">${z(kS.chiZ, 3)}</td></tr>
+        <tr><td>Beiwert k</td>
+            <td class="num">${z(kS.kyy, 3)}</td><td class="num">${z(kS.kzz, 3)}</td></tr>
+        <tr><td>M_Ed  [kNm]</td>
+            <td class="num">${z(kS.MyEd)}</td><td class="num">${z(kS.MzEd)}</td></tr>
+        <tr><td>M_Rk  [kNm]</td>
+            <td class="num">${z(kS.MRy)}</td><td class="num">${z(kS.MRz)}</td></tr>
+        <tr class="${kS.eta61 >= kS.eta62 ? 'aktiv' : ''}">
+            <td>η Gleichung 6.61</td>
+            <td class="num" colspan="2">${f3(kS.eta61)}</td></tr>
+        <tr class="${kS.eta62 > kS.eta61 ? 'aktiv' : ''}">
+            <td>η Gleichung 6.62</td>
+            <td class="num" colspan="2">${f3(kS.eta62)}</td></tr>
+      </tbody></table></div>
+    <p class="notiz" style="margin:4px 0 0">N_Ed = <b>${z(kS.NEd)} kN</b>
+      (Fusswert, also die Summe aller Massenpunkte) · γ_M = ${z(kS.gammaM1, 3)}
+      · massgebend ${esc(kS.massgebend ?? '')}.
+      ${kS.ohneNachweis ? 'Unter λ̄ = 0.2 verlangt die Norm keinen Knicknachweis.' : ''}</p>
+    <p class="notiz"><b>Woher die Gleichungen kommen:</b> die Knickkurve ist in
+      SIA 263 und EN 1993-1-1 dieselbe — χ = 1/(Φ + √(Φ²−λ̄²)) mit
+      Φ = 0.5[1 + α(λ̄−0.2) + λ̄²], und der Widerstandsbeiwert 1.05 ist der der
+      SIA. Die <b>Interaktionsbeiwerte</b> k stammen aus EN 1993-1-1,
+      Anhang B; SIA 263 führt dafür eine eigene Fassung (Kapitel 5,
+      Gleichungen 49–51). Solange sie nicht hinterlegt ist, steht hier, was
+      gerechnet wurde.</p>`)}`;
+}
+
 function mastblattHtml(erg) {
   const mn = erg?.mast;
   if (!mn) return '';
@@ -4887,6 +4992,7 @@ function mastblattHtml(erg) {
         </tr></thead>
         <tbody>${[...n.stationen].reverse().map(zeile).join('')}</tbody>
       </table></div>
+      ${knickblatt(kS, n)}
       <p class="notiz" style="margin:4px 0 0">
         Querschnittsklasse <b>${kl.klasse}</b> (Flansch c/t ${f1(kl.flansch.ct)},
         Steg ${f1(kl.steg.ct)}) · Widerstand ${n.plastischWirksam
