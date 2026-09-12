@@ -774,8 +774,20 @@ export function mastStabilitaet(s, m, o = {}) {
   const lamY = Math.sqrt(NRk / NcrY), lamZ = Math.sqrt(NRk / NcrZ);
   const chiY = chiVon(lamY, alphaY), chiZ = chiVon(lamZ, alphaZ);
 
-  // Massgebend ist die Stelle mit der grössten Ausnutzung - beim Kragmast
-  // der Fuss, aber ein Anbauteil weiter oben kann es verschieben.
+  /*
+   * >>> DREI GRÖSSTWERTE, JEDER FÜR SICH. <<<
+   *
+   * Hier stand, massgebend sei «die Stelle mit der grössten Ausnutzung».
+   * Das beschreibt nicht, was geschieht: genommen wird je Schnittgrösse ihr
+   * eigener Höchstwert über die ganze Höhe, und die drei können von
+   * verschiedenen Stellen stammen.
+   *
+   * Beim Kragmast tun sie das nicht - N, M_quer und M_längs wachsen alle
+   * zum Fuss hin, und dort liegen alle drei. Mit einem Zuganker kann sich
+   * das Momentenbild umkehren, und dann stehen Werte nebeneinander, die nie
+   * gleichzeitig auftreten. Das ist die SICHERE Seite und bleibt so; es
+   * soll nur dastehen, statt anders benannt zu sein.
+   */
   const NEd = Math.max(...s.stationen.map((st) => Math.abs(st.N)));
   const MqEd = Math.max(...s.stationen.map((st) => Math.abs(st.Mq)));
   const MlEd = Math.max(...s.stationen.map((st) => Math.abs(st.Ml)));

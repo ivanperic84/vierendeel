@@ -13507,6 +13507,94 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die schwache Achse knickt eher', k.chiZ < k.chiY);
   }
 
+  /* =========================================================================
+   * >>> DIE GANZE GLEICHUNG, VON HAND NACHGERECHNET. <<<
+   * =========================================================================
+   *
+   * Nachgefragt am 12. September: «kannst du das knicken auch beim masten
+   * selbst pruefen?» Die Bausteine standen hier schon - Euler, N_Rk, lambda,
+   * die Knicklinie, chi. Die INTERAKTION nicht, und sie ist es, die am Ende
+   * die Ausnutzung liefert.
+   *
+   * Druck und Biegung nach 6.3.3, Gleichungen 6.61/6.62, mit den Beiwerten
+   * aus Anhang B. Der Fall: HEB 260, 12.0 m, Kragarm (beta = 2), Wind quer,
+   * S235, gamma_M = 1.05.
+   *
+   *   L_cr   = 2 * 12.00                     =  24.000 m
+   *   N_Rk   = 118.4 * 23.5                  = 2782.40 kN
+   *   lambda_y = sqrt(2782.40 / 529.72)      =   2.2765
+   *   chi_y  (Linie b, alpha 0.34)           =   0.16586
+   *   n_y    = 10.948 / (0.16586*2782.4/1.05) =  0.02491
+   *   k_yy   = 0.9 (1 + 0.6*2.2765*0.02491)  =   0.93062
+   *   M_Ry/g = 269.78 / 1.05                 = 256.933 kNm
+   *   eta61  = 0.02491 + 0.93062*35.64/256.933 = 0.15400
+   *
+   * >>> WAS HIER NICHT STEHT. <<<
+   *
+   * Die Knickkurve selbst ist in SIA 263 und EN 1993-1-1 dieselbe - das ist
+   * an der Tafel geprueft (siehe die Kontrollen beim Anker). Die
+   * INTERAKTIONSBEIWERTE sind es nicht: Anhang B ist die europaeische
+   * Fassung, SIA 263 fuehrt eine eigene. Solange die Norm nicht vorliegt,
+   * wird geprueft, was dasteht - und im Bericht steht, woher es kommt.
+   */
+  {
+    const { s, m } = mast();
+    const k = M74.mastStabilitaet(s, m, {});
+    const g = k.gammaM1;
+    pruef('Der Widerstandsbeiwert ist der der SIA', g, 1.05, 1e-12, '–');
+    /*
+     * n = N_Ed / (chi N_Rk / gamma) - der Druckanteil der Gleichung.
+     */
+    const nY = k.NEd / ((k.chiY * k.NRk) / g);
+    const nZ = k.NEd / ((k.chiZ * k.NRk) / g);
+    /*
+     * k_yy = C_m (1 + 0.6 lambda n), gedeckelt bei C_m * 1.6 (Tabelle B.1).
+     * C_m = 0.9 fuer den Kragarm mit Kopflast (Tabelle B.3).
+     */
+    pruef('k_yy nach Anhang B', k.kyy,
+          Math.min(0.9 * (1 + 0.6 * k.lamY * nY), 0.9 * 1.6), 1e-12, '–');
+    pruef('k_zz ebenso', k.kzz,
+          Math.min(0.9 * (1 + 0.6 * k.lamZ * nZ), 0.9 * 1.6), 1e-12, '–');
+    wahr('… und C_m ist der des Kragarms', k.Cm === 0.9);
+    /*
+     * DIE BEIDEN GLEICHUNGEN. Die Nebenachse traegt 60 % (B.1, k_yz =
+     * 0.6 k_zz) - dieselbe Regel in beide Richtungen.
+     */
+    pruef('Gleichung 6.61, von Hand', k.eta61,
+          nY + k.kyy * (k.MyEd / (k.MRy / g))
+             + 0.6 * k.kzz * (k.MzEd / (k.MRz / g)), 1e-12, '–');
+    pruef('Gleichung 6.62, von Hand', k.eta62,
+          nZ + 0.6 * k.kyy * (k.MyEd / (k.MRy / g))
+             + k.kzz * (k.MzEd / (k.MRz / g)), 1e-12, '–');
+    wahr('Massgebend ist die groessere der beiden',
+         Math.abs(k.eta - Math.max(k.eta61, k.eta62)) < 1e-12);
+    /*
+     * UND DIE ZAHL SELBST - damit ein Umbau am Rechenweg auffaellt und
+     * nicht bloss eine Gleichung gegen sich selbst geprueft wird.
+     */
+    pruef('Die Ausnutzung des Beispiels', k.eta, 0.15400, 1e-4, '–');
+    /*
+     * DIE MOMENTE STEHEN IN DEN PROFILACHSEN, nicht in den Bauachsen. Bei
+     * Steg quer zum Gleis nimmt die starke Achse das Quermoment; das ist die
+     * Identitaet, und genau deshalb faellt ein Vertauschen hier nicht auf -
+     * es faellt beim GEDREHTEN Steg auf, und dort steht die Kontrolle.
+     */
+    wahr('Bei Steg quer zum Gleis nimmt die starke Achse das Quermoment',
+         s.stegrichtung?.achse === 'y' && Math.abs(k.MyEd - k.MqEd) < 1e-12);
+    const gedreht = mast({ mastSteg: 'quer' });
+    const kg = M74.mastStabilitaet(gedreht.s, gedreht.m, {});
+    wahr('… und bei gedrehtem Steg die schwache',
+         Math.abs(kg.MzEd - kg.MqEd) < 1e-12
+         && Math.abs(kg.MyEd - kg.MlEd) < 1e-12);
+    /*
+     * DASSELBE MOMENT UM DIE SCHWACHE ACHSE MUSS MEHR AUSNUTZEN. Eine Probe
+     * ohne Zahl aus dem Buch: W_z ist beim HEB 260 knapp ein Drittel von
+     * W_y, und chi_z ist kleiner als chi_y.
+     */
+    wahr('Der gedrehte Steg nutzt staerker aus', kg.eta > k.eta,
+         `${kg.eta.toFixed(3)} gegen ${k.eta.toFixed(3)}`);
+  }
+
   // EIN LAENGERER MAST KNICKT FRUEHER - die Richtung muss stimmen.
   {
     const kurz = M74.mastStabilitaet(mast({ mastLaenge: 8 }).s,
