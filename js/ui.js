@@ -4880,28 +4880,33 @@ function knickblatt(kS, n) {
    * NUR DIE LOTRECHTEN. Waagrechte Lasten biegen den Masten, sie druecken
    * ihn nicht - fuer die Knicklaenge zaehlen sie nicht mit.
    */
-  const punkte = (n.lasten ?? [])
-    .filter((l) => Math.abs(l.Fz ?? 0) > 1e-9)
-    .map((l) => ({ ...l, zE: l.zAnschluss ?? l.z ?? 0 }))
-    .sort((a, b) => b.zE - a.zE);
-  const massen = punkte.length ? `
+  const mp = kS.massen ?? [];
+  const hoch = kS.ueberAnschluss ?? [];
+  const massen = mp.length ? `
     <div class="tabellenrahmen"><table class="dt">
-      <thead><tr><th>Massenpunkt</th><th class="num">z [m]</th>
-        <th class="num">Eintritt [m]</th><th class="num">F_z [kN]</th></tr></thead>
-      <tbody>${punkte.map((l) => `
-        <tr class="${Math.abs(l.zE - kS.zN) < 1e-9 ? 'aktiv' : ''}">
-          <td>${esc(l.name ?? '')}</td>
-          <td class="num">${f2(l.z ?? l.zE)}</td>
-          <td class="num">${f2(l.zE)}</td>
-          <td class="num">${f2(l.Fz)}</td></tr>`).join('')}
+      <thead><tr><th>Masse</th><th>angesetzt auf</th>
+        <th class="num">z [m]</th><th class="num">P [kN]</th></tr></thead>
+      <tbody>${mp.map((l) => `
+        <tr><td>${esc(l.name)}</td><td>${esc(l.herkunft)}</td>
+          <td class="num">${f2(l.z)}</td>
+          <td class="num">${f2(l.P)}</td></tr>`).join('')}
+        <tr class="aktiv"><td colspan="2">Ersatzhöhe nach Rayleigh</td>
+          <td class="num"><b>${f2(kS.zN)}</b></td>
+          <td class="num">${f2(mp.reduce((a, x) => a + x.P, 0))}</td></tr>
       </tbody></table></div>
-    <p class="notiz" style="margin:4px 0 0">Die <b>Eintrittshöhe</b> ist die
-      Stelle, an der die Kraft in den Masten übergeht — bei einer Hängestütze
-      die Befestigung, nicht der Angriffspunkt des Fahrdrahts anderthalb Meter
-      darunter. Massgebend für die Knicklänge ist die <b>oberste</b>
-      (hervorgehoben): alle Kräfte werden so gerechnet, als sässen sie dort.
-      Nach oben verschoben wirkt jede Masse ungünstiger — die Annahme liegt
-      damit auf der sicheren Seite.</p>`
+    <p class="notiz" style="margin:4px 0 0">Die Anbauteile und die Jochlast
+      sitzen auf der <b>Anschlusshöhe</b> (Joch, Tragausleger oder Ausleger),
+      das Eigengewicht des Mastes in seinem <b>Schwerpunkt</b>. Zwei Massen auf
+      zwei Höhen lassen sich nicht durch eine einzige Höhe ersetzen — die
+      <b>Ersatzhöhe</b> folgt deshalb aus dem Rayleigh-Quotienten mit der
+      Knickfigur des Kragarms w = δ[1 − cos(πz/2L)]: sie ist die Höhe, auf der
+      die ganze Masse dieselbe Wirkung hätte. Bei einer einzigen Masse kommt
+      wieder deren eigene Höhe heraus.</p>
+    ${hoch.length ? `<p class="notiz"><b>Über dem Anschluss:</b> ${
+      hoch.map((l) => `${esc(l.name)} auf ${f2(l.z)} m (${f2(l.Fz)} kN)`).join(', ')}.
+      Diese Massen werden nach der Festlegung auf die Anschlusshöhe
+      ${f2(kS.zAnschluss)} m gesetzt und wirken damit <b>weniger
+      destabilisierend</b> als an ihrem wirklichen Ort.</p>` : ''}`
     : `<p class="notiz" style="margin:4px 0 0">Keine lotrechte Krafteinleitung
        — es gilt die ganze Mastlänge als Knicklänge.</p>`;
   const z = (v, s2 = 2) => (Number.isFinite(v) ? (s2 === 3 ? f3(v) : f2(v)) : '–');
@@ -4912,7 +4917,7 @@ function knickblatt(kS, n) {
       <thead><tr><th></th><th class="num">um y (stark)</th>
         <th class="num">um z (schwach)</th></tr></thead>
       <tbody>
-        <tr><td>Knicklänge L_cr = β · z_N</td>
+        <tr><td>Knicklänge L_cr = β · z_eq</td>
             <td class="num" colspan="2">${z(kS.beta)} · ${z(kS.zN)} =
                 <b>${z(kS.Lcr)} m</b></td></tr>
         <tr><td>N_cr = π²·E·I / L_cr²  [kN]</td>

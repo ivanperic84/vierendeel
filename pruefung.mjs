@@ -13477,8 +13477,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const { s, m } = mast();
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
     const p = MP.MASTPROFILE.find((x) => x.name === 'HEB 260');
-    pruef('L_cr = beta · Gesamtlaenge', k.Lcr, 24, 1e-9, 'm');
-    const NcrSoll = (Math.PI ** 2 * 210000 * (p.Iz * 1e4)) / ((24000) ** 2) / 1000;
+    /*
+     * L_cr = beta * z_eq, und z_eq ist seit dem 13. September die
+     * Ersatzhoehe nach Rayleigh. Der Einzelmast der Probe traegt nur sein
+     * Eigengewicht; das sitzt im Schwerpunkt, also bei 6.00 m von 12.00 m.
+     */
+    pruef('L_cr = beta · Ersatzhoehe', k.Lcr, 12, 1e-9, 'm');
+    const NcrSoll = (Math.PI ** 2 * 210000 * (p.Iz * 1e4)) / ((12000) ** 2) / 1000;
     pruef('N_cr um die schwache Achse', k.NcrZ, NcrSoll, 1e-6, 'kN');
     pruef('N_Rk = A · f_y', k.NRk, (p.A * 100 * 235) / 1000, 1e-9, 'kN');
     pruef('lambda_quer = sqrt(N_Rk / N_cr)', k.lamZ,
@@ -13572,7 +13577,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * UND DIE ZAHL SELBST - damit ein Umbau am Rechenweg auffaellt und
      * nicht bloss eine Gleichung gegen sich selbst geprueft wird.
      */
-    pruef('Die Ausnutzung des Beispiels', k.eta, 0.15400, 1e-4, '–');
+    pruef('Die Ausnutzung des Beispiels', k.eta, 0.13359, 1e-4, '–');
     /*
      * DIE MOMENTE STEHEN IN DEN PROFILACHSEN, nicht in den Bauachsen. Bei
      * Steg quer zum Gleis nimmt die starke Achse das Quermoment; das ist die
@@ -13640,8 +13645,16 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       .filter((l) => Math.abs(l.Fz ?? 0) > 1e-9);
     wahr('Jeder Massenpunkt steht mit seiner Hoehe da', lot.length >= 3,
          lot.map((l) => `${l.name} @ ${l.zAnschluss ?? l.z}`).join(', '));
-    pruef('Massgebend ist die OBERSTE Krafteinleitung', kp.zN, 11.0, 1e-9, 'm');
-    pruef('… und daraus die Knicklaenge', kp.Lcr, 2 * 11.0, 1e-9, 'm');
+    /*
+     * SEIT DEM 13. SEPTEMBER NICHT MEHR DIE OBERSTE, sondern die
+     * ANSCHLUSSHOEHE - alle drei Traversen rechnen auf 9.00 m mit, das
+     * Eigengewicht auf 6.00 m, und dazwischen liegt die Ersatzhoehe.
+     */
+    wahr('Alle Anbauteile sitzen auf der Anschlusshoehe',
+         Math.abs(kp.massen[0].z - 9.0) < 1e-9
+         && Math.abs(kp.massen[0].P - 16.0) < 1e-9);
+    wahr('… und die Ersatzhoehe liegt dazwischen',
+         kp.zN > 6.0 && kp.zN < 9.0, `${kp.zN.toFixed(3)} m`);
     /*
      * DIE SUMME STEHT DER OBERSTEN HOEHE GEGENUEBER. Waere N_Ed nur die
      * oberste Einzelkraft, fiele der Nachweis zu guenstig aus.
@@ -13659,9 +13672,14 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       traverse('oben', 6.0, 3), traverse('mitte', 5.0, 8),
       traverse('unten', 3.0, 5)] });
     const kt = M74.mastStabilitaet(tiefer.s, tiefer.m, {});
-    wahr('Tiefer angesetzte Massen knicken weniger',
-         kt.Lcr < kp.Lcr && kt.chiZ > kp.chiZ,
-         `L_cr ${kt.Lcr.toFixed(2)} gegen ${kp.Lcr.toFixed(2)} m`);
+    /*
+     * Die eigenen Hoehen der Teile aendern daran NICHTS mehr - sie werden
+     * ja alle auf den Anschluss gesetzt. Geprueft wird deshalb, dass es
+     * wirklich so ist.
+     */
+    wahr('Die eigenen Hoehen der Teile aendern die Ersatzhoehe nicht',
+         Math.abs(kt.zN - kp.zN) < 1e-9,
+         `${kt.zN.toFixed(4)} gegen ${kp.zN.toFixed(4)} m`);
     /*
      * DER EINTRITT ZAEHLT. Eine Last, die 1.50 m unter ihrer Befestigung
      * angreift, darf die Knicklaenge nicht verkuerzen.
@@ -13673,8 +13691,12 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     };
     const kh = M74.mastStabilitaet(mast({ anbauteile: [haenge] }).s,
                                    mast({ anbauteile: [haenge] }).m, {});
-    pruef('Die Knicklaenge folgt dem EINTRITT, nicht dem Angriffspunkt',
-          kh.zN, 9.0, 1e-9, 'm');
+    /*
+     * Der Eintritt zaehlt weiter - aber nur noch dafuer, OB das Teil ueber
+     * dem Anschluss sitzt. Seine Masse rechnet auf der Anschlusshoehe mit.
+     */
+    wahr('Die Masse rechnet auf der Anschlusshoehe mit',
+         Math.abs(kh.massen[0].z - 9.0) < 1e-9);
   }
 
   // EIN LAENGERER MAST KNICKT FRUEHER - die Richtung muss stimmen.
@@ -13747,47 +13769,133 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          Math.abs(kD.MRz - kD.MRq) < 1e-9 && Math.abs(kG.MRy - kG.MRq) < 1e-9);
   }
 
-  /*
-   * >>> DIE KNICKLAENGE ENDET AN DER KRAFTEINLEITUNG. <<<
+  /* =========================================================================
+   * >>> WO DIE MASSEN SITZEN - UND WIE SIE GEWOGEN WERDEN. <<<
+   * =========================================================================
    *
-   * Weisung vom 2. September, auf Nachfrage entschieden: nach der
-   * Angriffshoehe abstufen. Ein Kragstab der Laenge L mit einer Druckkraft
-   * in der Hoehe a < L knickt mit N_cr = pi^2 EI/(2a)^2 - das Stueck
-   * darueber traegt keine destabilisierende Kraft und faehrt nur mit.
+   * Weisung vom 13. September: «die massen der anbauteile ist auf die höhe
+   * der joche oder der tragausleger zuzuweisen oder bei den einzelmasten den
+   * auslegern (anschlusshöhe) der masseschwerpunkt der masten ist auf den
+   * masseschwerpunkt zu setzen. falls es mit dieser definition noch den
+   * rayleigh braucht, dann einbauen.»
    *
-   * Gemessen wird an einem Masten mit Anbauteil auf 7.00 m: die Last kommt
-   * dort herein, der Mast ist 12 m lang, und die Knicklaenge ist 2 mal 7,
-   * nicht 2 mal 12.
+   * Damit sind es ZWEI Massen auf zwei Hoehen, und die bisherige Regel
+   * («die oberste Krafteinleitung zaehlt») genuegt nicht mehr. Der
+   * Rayleigh-Quotient mit der Knickfigur des Kragarms
+   *
+   *     w(z) = delta [1 - cos(pi z / 2L)]        g(a) = a/2 - (L/2pi) sin(pi a/L)
+   *
+   * liefert die ERSATZHOEHE z_eq aus  g(z_eq) = Sum P_i g(a_i) / Sum P_i.
+   *
+   * >>> ZWEI PROBEN, DIE OHNE DEN KERN AUSKOMMEN. <<<
+   *
+   * Erstens der Grenzfall: EINE Masse an der Spitze muss die Eulerlast des
+   * Kragarms ergeben, N_cr = pi^2 EI/(2L)^2. Das ist die Herkunft der Formel
+   * und faellt auf, wenn an ihr gedreht wird.
+   *
+   * Zweitens die Formel selbst, hier unabhaengig nachgerechnet.
    */
   {
+    const gVon = (a, L2) => a / 2 - (L2 / (2 * Math.PI)) * Math.sin((Math.PI * a) / L2);
+    const zEq = (massen, L2) => {
+      const Pg = massen.reduce((a, x) => a + x.P, 0);
+      const soll = massen.reduce((a, x) => a + x.P * gVon(Math.min(x.z, L2), L2), 0) / Pg;
+      let u = 0, o = L2;
+      for (let i = 0; i < 60; i++) {
+        const mi = (u + o) / 2;
+        if (gVon(mi, L2) < soll) u = mi; else o = mi;
+      }
+      return (u + o) / 2;
+    };
+    // Der Grenzfall: eine Masse an der Spitze -> ihre eigene Hoehe.
+    pruef('Eine Masse an der Spitze gibt die Spitze',
+          zEq([{ z: 12, P: 5 }], 12), 12, 1e-9, 'm');
+    // Und zwei gleiche Massen liegen dazwischen, nicht bei der hoeheren.
+    const zw = zEq([{ z: 12, P: 5 }, { z: 6, P: 5 }], 12);
+    wahr('Zwei Massen liegen dazwischen', zw > 6 && zw < 12,
+         `${zw.toFixed(3)} m`);
+
+    /*
+     * >>> UND JETZT GEGEN DEN KERN. <<<
+     *
+     * Der Einzelmast der Probe traegt keine Jochlast - es bleibt sein
+     * EIGENGEWICHT, und das sitzt nach der Weisung im Schwerpunkt L/2.
+     * HEB 260: 93 kg/m, also 0.9123 kN/m mal 12 m = 10.95 kN auf 6.00 m.
+     */
+    const ohne = mast();
+    const kO = M74.mastStabilitaet(ohne.s, ohne.m, { beta: 2.0 });
+    wahr('Ohne weitere Last bleibt das Eigengewicht', kO.massen.length === 1);
+    wahr('… und es sitzt im Schwerpunkt',
+         kO.massen[0].herkunft === 'Schwerpunkt');
+    pruef('Der Schwerpunkt liegt auf halber Laenge', kO.zN, 6.0, 1e-9, 'm');
+    pruef('… und die Knicklaenge folgt ihm', kO.Lcr, 12.0, 1e-9, 'm');
+
+    /*
+     * MIT ANBAUTEIL: es wird der ANSCHLUSSHOEHE zugewiesen, nicht seiner
+     * eigenen. Der Mast der Probe schliesst auf 9.00 m an; das Teil steht
+     * auf 7.00 m und rechnet trotzdem auf 9.00 m mit.
+     */
     const teil = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
                    hMast: 7 };
     const { s, m } = mast({ anbauteile: [teil] });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
-    pruef('Die Last kommt auf 7.00 m herein', k.zN, 7, 1e-9, 'm');
-    pruef('… und die Knicklaenge endet dort', k.Lcr, 14, 1e-9, 'm');
+    wahr('Mit Anbauteil sind es zwei Massen', k.massen.length === 2);
+    wahr('… die eine auf der Anschlusshoehe',
+         k.massen[0].herkunft === 'Anschlusshöhe'
+         && Math.abs(k.massen[0].z - 9.0) < 1e-9);
+    pruef('Die Ersatzhoehe stimmt mit der Formel ueberein',
+          k.zN, zEq(k.massen, k.L), 1e-6, 'm');
+    wahr('… und sie liegt zwischen Schwerpunkt und Anschluss',
+         k.zN > 6.0 && k.zN < 9.0, `${k.zN.toFixed(3)} m`);
     pruef('Die Gesamtlaenge steht daneben', k.L, 12, 1e-9, 'm');
+    /*
+     * DIE RICHTUNG: mehr Last oben hebt die Ersatzhoehe. Das ist die Probe,
+     * die ohne jede Zahl auskommt.
+     */
+    const schwer = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
+                     hMast: 7 };
+    const kS2 = M74.mastStabilitaet(mast({ anbauteile: [schwer, schwer] }).s,
+                                    mast({ anbauteile: [schwer, schwer] }).m,
+                                    { beta: 2.0 });
+    wahr('Mehr Last auf der Anschlusshoehe hebt die Ersatzhoehe',
+         kS2.zN > k.zN, `${kS2.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
+    wahr('… und macht das Knicken damit ungünstiger', kS2.chiZ < k.chiZ);
 
-    // OHNE EINGELEITETE LAST bleibt es bei der ganzen Laenge - dann drueckt
-    // oben wirklich noch etwas.
-    const ohne = mast();
-    const kO = M74.mastStabilitaet(ohne.s, ohne.m, { beta: 2.0 });
-    pruef('Ohne Krafteinleitung gilt die ganze Laenge', kO.Lcr, 24, 1e-9, 'm');
-
-    // UND DIE ABSTUFUNG WIRKT IN DIE RICHTIGE RICHTUNG: kuerzere
-    // Knicklaenge, groesseres chi.
-    wahr('Die kuerzere Knicklaenge gibt das groessere chi', k.chiZ > kO.chiZ);
+    /*
+     * >>> WAS ÜBER DEM ANSCHLUSS SITZT, WIRD GENANNT. <<<
+     *
+     * Die Weisung setzt die Anbauteile auf die Anschlusshoehe. Eine Traverse
+     * DARUEBER sitzt damit rechnerisch tiefer als in Wirklichkeit - die
+     * unsichere Seite. Gerechnet wird nach der Weisung; ausgewiesen wird es
+     * trotzdem, sonst steht die Abweichung nirgends.
+     */
+    const oben = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
+                   hMast: 11 };
+    const kU = M74.mastStabilitaet(mast({ anbauteile: [oben] }).s,
+                                   mast({ anbauteile: [oben] }).m, { beta: 2.0 });
+    /*
+     * EINE Baugruppe bringt MEHRERE Lastpunkte mit - die Haengestuetze und
+     * die Fahrleitung daran. Gezaehlt werden die Punkte, nicht die Teile.
+     */
+    wahr('Was ueber dem Anschluss sitzt, wird ausgewiesen',
+         (kU.ueberAnschluss ?? []).length >= 1
+         && kU.ueberAnschluss.every((l) => Math.abs(l.z - 11) < 1e-9),
+         kU.ueberAnschluss.map((l) => `${l.z} m`).join(', '));
+    wahr('… und der Anschluss steht als Bezug daneben',
+         Math.abs(kU.zAnschluss - 9.0) < 1e-9);
   }
 
   /*
    * OHNE MASTLAENGE GILT DIE VORGABE - H + 0.50 m. Bis zum 5. September
    * endete der Mast dort am Anschluss; seither steht er einen halben Meter
-   * darueber, und die Knicklaenge misst bis zum Kopf.
+   * darueber, und die Laenge misst bis zum Kopf. Sie geht in den Rayleigh
+   * ein: die Knickfigur gehoert dem ganzen Kragarm.
    */
   {
     const { s, m } = mast({ mastLaenge: 0 });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
-    pruef('Ohne Gesamtlaenge gilt die Vorgabe', k.Lcr, 2 * 10.0, 1e-9, 'm');
+    pruef('Ohne Gesamtlaenge gilt die Vorgabe', k.L, 10.0, 1e-9, 'm');
+    pruef('… und der Schwerpunkt liegt auf ihrer Haelfte', k.zN, 5.0, 1e-9, 'm');
   }
 }
 

@@ -750,11 +750,110 @@ export function mastStabilitaet(s, m, o = {}) {
    * die UNSICHERE Seite. In den Masten kommt die Kraft an der Befestigung,
    * und bis dorthin drueckt sie.
    */
-  const zLast = mitFz.length
-    ? Math.max(...mitFz.map((l) => l.zAnschluss ?? l.z)) : 0;
-  // Ohne eingeleitete Last gilt die ganze Länge - dann drückt oben wirklich
-  // noch etwas. Und eine Last am Fuss verkürzt nichts auf null.
-  const zN = zLast > 0.5 ? Math.min(zLast, L) : L;
+  /* =======================================================================
+   * >>> WO DIE MASSEN SITZEN - UND WIE SIE GEWOGEN WERDEN. <<<
+   * =======================================================================
+   *
+   * Weisung vom 13. September: «die massen der anbauteile ist auf die höhe
+   * der joche oder der tragausleger zuzuweisen oder bei den einzelmasten den
+   * auslegern (anschlusshöhe) der masseschwerpunkt der masten ist auf den
+   * masseschwerpunkt zu setzen. falls es mit dieser definition noch den
+   * rayleigh braucht, dann einbauen.»
+   *
+   * Damit sind es ZWEI Massen auf zwei Höhen, und eine einzige «oberste
+   * Krafteinleitung» genügt nicht mehr:
+   *
+   *   P_A   alle Anbauteile und die Jochlast, gemeinsam auf der
+   *         ANSCHLUSSHÖHE H - dort hängt das Joch, der Tragausleger oder
+   *         beim Einzelmasten der Ausleger, und dort treten sie ein
+   *   P_M   das Eigengewicht des Mastes, in seinem SCHWERPUNKT L/2
+   *
+   * >>> DESHALB RAYLEIGH. <<<
+   *
+   * Für den eingespannten Kragarm mit der Knickfigur
+   *
+   *     w(z) = δ [1 − cos(π z / 2L)]
+   *
+   * liefert der Rayleigh-Quotient den kritischen Vielfachen
+   *
+   *     λ_cr = E I (π/2L)² (L/2) / Σ P_i · g(a_i)
+   *     g(a) = a/2 − (L/2π) · sin(π a / L)
+   *
+   * Für EINE Last an der Spitze (a = L) ist g = L/2, und daraus wird
+   * N_cr = π²EI/(2L)² - die Eulerlast des Kragarms, exakt. Die Formel ist
+   * also keine neue Regel, sondern die bekannte, auf mehrere Massen
+   * erweitert.
+   *
+   * >>> AUSGEDRÜCKT WIRD DAS ERGEBNIS ALS ERSATZHÖHE. <<<
+   *
+   * Statt einen zweiten Weg neben `L_cr = β · z_N` aufzumachen, wird die
+   * Höhe gesucht, auf der die GESAMTE Masse dieselbe Wirkung hätte:
+   *
+   *     g(z_eq) = Σ P_i g(a_i) / Σ P_i
+   *
+   * `g` wächst monoton (g' = ½[1 − cos(πa/L)] ≥ 0), also ist z_eq eindeutig
+   * und mit einer Intervallhalbierung in zwanzig Schritten genau genug. Alles
+   * dahinter - β, L_cr, der Bericht - bleibt, wie es war; bei einer einzigen
+   * Masse kommt wieder ihre eigene Höhe heraus.
+   *
+   * >>> EINE ABWEICHUNG, DIE DASTEHEN SOLL. <<<
+   *
+   * Das Eigengewicht ist in Wirklichkeit VERTEILT. Der Kragarm unter
+   * Eigengewicht knickt bei q·L = 7.837 EI/L²; dieselbe Last im Schwerpunkt
+   * gäbe π²EI/L² = 9.87 EI/L². Die Punktmasse im Schwerpunkt ist damit rund
+   * 12 % zu günstig für diesen Anteil - exakt entspräche ihr die Höhe
+   * 0.561 L. Gesetzt ist der Schwerpunkt, weil die Weisung ihn nennt; hier
+   * steht, was das bedeutet.
+   * ===================================================================== */
+  const zAnschluss = (s.H > 0 ? s.H : L);
+  const PA = mitFz.reduce((a, l) => a + Math.abs(l.Fz), 0);
+  const PM = Math.abs((s.gd ?? 0) * L);
+  const massen = [];
+  if (PA > 1e-9) {
+    massen.push({ name: 'Anbauteile und Jochlast', z: Math.min(zAnschluss, L),
+                  P: PA, herkunft: 'Anschlusshöhe' });
+  }
+  /*
+   * >>> WAS ÜBER DEM ANSCHLUSS SITZT, WIRD HERUNTERGESETZT. <<<
+   *
+   * Die Weisung weist die Anbauteile der Anschlusshöhe zu. Eine Traverse
+   * ÜBER dem Joch - Speiseleitung, Beleuchtung - sitzt damit rechnerisch
+   * tiefer, als sie steht, und wirkt weniger destabilisierend als in
+   * Wirklichkeit. Das ist die unsichere Seite, und deshalb wird sie
+   * ausgewiesen statt verschwiegen: der Bericht nennt jedes Teil, das
+   * höher steht, mit beiden Höhen.
+   *
+   * Gerechnet wird trotzdem nach der Weisung - sie ist die Festlegung des
+   * Auftraggebers, und eine stille Abweichung davon wäre schlimmer als die
+   * Abweichung selbst.
+   */
+  const ueberAnschluss = mitFz
+    .map((l) => ({ name: l.name, z: l.zAnschluss ?? l.z ?? 0, Fz: Math.abs(l.Fz) }))
+    .filter((l) => l.z > zAnschluss + 1e-9)
+    .sort((a, b) => b.z - a.z);
+  if (PM > 1e-9) {
+    massen.push({ name: 'Eigengewicht des Mastes', z: L / 2, P: PM,
+                  herkunft: 'Schwerpunkt' });
+  }
+  /** Das Integral der Knickfigur bis zur Höhe a - siehe oben. */
+  const gVon = (a) => a / 2 - (L / (2 * Math.PI)) * Math.sin((Math.PI * a) / L);
+  let zN;
+  if (!massen.length) {
+    // Ohne jede Masse gilt die ganze Länge - dann drückt oben wirklich noch
+    // etwas, und eine Last am Fuss verkürzt nichts auf null.
+    zN = L;
+  } else if (massen.length === 1) {
+    zN = Math.max(0.5, Math.min(massen[0].z, L));
+  } else {
+    const Pges = massen.reduce((a, x) => a + x.P, 0);
+    const gSoll = massen.reduce((a, x) => a + x.P * gVon(Math.min(x.z, L)), 0) / Pges;
+    let u = 0, o = L;
+    for (let i = 0; i < 40; i++) {
+      const mi = (u + o) / 2;
+      if (gVon(mi) < gSoll) u = mi; else o = mi;
+    }
+    zN = Math.max(0.5, Math.min((u + o) / 2, L));
+  }
   const Lcr = beta * zN;
   if (!(Lcr > 0)) return null;
 
@@ -852,6 +951,12 @@ export function mastStabilitaet(s, m, o = {}) {
 
   return {
     beta, Lcr, gammaM1, zN, L,
+    /*
+     * DIE MASSEN, WIE SIE ANGESETZT WURDEN - nicht wie sie im Modell
+     * stehen. Der Bericht fuehrt genau diese Liste auf; ohne sie waere
+     * `zN` eine Zahl ohne Herkunft.
+     */
+    massen, zAnschluss, ueberAnschluss,
     NEd, MqEd, MlEd, MyEd, MzEd, NRk, MRq, MRl, MRy, MRz,
     NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ, kyy, kzz, Cm,
     knicklinie: { y: schlank ? 'a' : 'b', z: schlank ? 'b' : 'c' },
