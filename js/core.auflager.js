@@ -31,7 +31,9 @@ import { getMastprofil, getStegrichtung } from './data.masten.js';
 export const E_STAHL = 210e6;
 
 /** Praktisch starre Feder für den Fall "voll eingespannt". */
-const C_STARR = 1e12;
+// Exportiert, seit die Pruefung A2 "starr" von "sehr steif" unterscheiden
+// muss (12. September).
+export const C_STARR = 1e12;
 
 /*
  * >>> DIE AUFLAGERBEDINGUNG DARF DIE ENDBEDINGUNG SEIN. <<<

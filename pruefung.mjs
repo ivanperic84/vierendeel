@@ -6125,6 +6125,56 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('Und sagt, ob es reicht', a1.ok === (ga.F <= 24 * (1 + 1e-9)),
          `F = ${ga.F.toFixed(2)} kN gegen 24 kN`);
 
+    /* =====================================================================
+     * A2 - ENDAUFLAGER UND AUFLAGERBEDINGUNG BESCHREIBEN DASSELBE ENDE
+     * =====================================================================
+     *
+     * Nachgefragt am 12. September: «die auswahl endauflager und die
+     * auflagebedingungen und der berechnungskern sollten verdrahtet sein.»
+     *
+     * Verdrahtet SIND sie, aber nur auf einem Weg: `endbedingung = 'links'`
+     * fuehrt die Bedingung ueber `federAusLinks` in den Rechenkern. Die vier
+     * anderen Endauflager holen ihre Feder woanders her und lassen die
+     * Bedingung unbeachtet - waehrend das AUSGELEITETE Modell immer ihr
+     * folgt. Damit koennen beide zwei verschiedene Tragwerke beschreiben.
+     *
+     * >>> DIE VORGABE IST EINER DIESER FAELLE. <<<
+     *
+     * `endbedingung: 'mast'` und die Vorgabe-Bedingung (Obergurt laengs
+     * frei) stehen beide als Standard da. Die Bedingung LOEST das
+     * Kraeftepaar der beiden Gurtebenen - im ausgeleiteten Modell kann das
+     * Jochende sich um y drehen, ohne dass der Mast etwas dagegen haelt.
+     * Der Rechenkern setzt dort die Mastfeder an.
+     *
+     * Die Pruefung entscheidet das nicht, sie sagt es - mit beiden Zahlen.
+     */
+    const a2Fall = (zus) => {
+      const b2 = bau({ mastVorhanden: true, mastProfil: 'HEB 260', mastH: 8.0,
+                       ...zus });
+      return CH.konstruktionsChecks(b2.m).find((c) => c.id === 'A2');
+    };
+    const beideFest = { OG: { x: 'Rigid' }, UG: { x: 'Rigid' } };
+    const a2mast = a2Fall({ endbedingung: 'mast' });
+    wahr('A2 steht in der Liste', !!a2mast, a2mast ? a2mast.text : '(fehlt)');
+    wahr('Vorgabe-Bedingung und Mastfeder laufen auseinander',
+         a2mast && a2mast.ok === false, a2mast?.status ?? '');
+    wahr('… und sie ist eine Warnung, kein Fehler',
+         a2mast?.warnungNichtFehler === true);
+    wahr('Gelenkig und Vorgabe-Bedingung sagen dasselbe',
+         a2Fall({ endbedingung: 'gelenkig' })?.ok === true);
+    wahr('Mast und beide Gurte gehalten ebenso',
+         a2Fall({ endbedingung: 'mast', auflagerLinks: beideFest })?.ok === true);
+    wahr('Gelenkig gegen beide Gurte gehalten nicht',
+         a2Fall({ endbedingung: 'gelenkig', auflagerLinks: beideFest })
+           ?.ok === false);
+    /*
+     * BEI 'links' GIBT ES NICHTS ZU VERGLEICHEN - dort IST die Bedingung die
+     * Feder. Eine Pruefung, die sich selbst bestaetigt, waere eine Zeile
+     * ohne Aussage.
+     */
+    wahr('Bei «aus der Auflagerbedingung» entfaellt die Pruefung',
+         !a2Fall({ endbedingung: 'links', auflagerLinks: beideFest }));
+
     // Voll eingespannt ist eine Idealisierung, keine Verbindung - dort nicht.
     const voll = bau({ endbedingung: 'voll', schraubenFgrenz: 24 });
     wahr('Bei voller Einspannung wird nichts nachgewiesen', !voll.m.gurtanschluss);

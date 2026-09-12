@@ -16,7 +16,7 @@ import { klassifizierung, klassifiziereBlech,
          klassifiziereGurtprofil } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
 import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
-         mastImModell } from './core.auflager.js';
+         mastImModell, federAusLinks, C_STARR } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk,
          abfangkraft } from './data.fl.js';
 import { abfangZugOhneWirkung,
@@ -383,6 +383,63 @@ export function konstruktionsChecks(m, ab = null) {
       ok: ga.ok === true,
       status: `M_St ${Math.max(Math.abs(ga.MA), Math.abs(ga.MB)).toFixed(2)} kNm `
             + `/ h ${ga.h.toFixed(3)} m · η ${ga.eta.toFixed(2)}`,
+    });
+  }
+
+  /* =========================================================================
+   * A2 - ENDAUFLAGER UND AUFLAGERBEDINGUNG BESCHREIBEN DASSELBE ENDE
+   * =========================================================================
+   *
+   * Nachgefragt am 12. September: "die auswahl endauflager und die
+   * auflagebedingungen und der berechnungskern sollten verdrahtet sein."
+   *
+   * Verdrahtet SIND sie - aber nur auf einem Weg. `endbedingung = 'links'`
+   * fuehrt die eingestellte Bedingung ueber `federAusLinks` in den
+   * Rechenkern; die vier anderen Endauflager holen ihre Feder woanders her
+   * (Mast, Handwert, null, unendlich) und lassen die Bedingung unbeachtet.
+   *
+   * DAS AUSGELEITETE MODELL FOLGT IMMER DER BEDINGUNG. Im FEM sitzt sie im
+   * Linkelement zwischen Konsole und Gurt - dort und nur dort entscheidet
+   * sich, ob das Kraeftepaar der beiden Gurtebenen das Ende haelt. Damit
+   * koennen Rechenkern und ausgeleitetes Modell ZWEI VERSCHIEDENE TRAGWERKE
+   * beschreiben, ohne dass es jemand merkt.
+   *
+   * Gemessen an einem J100 / 15 m mit HEB 260:
+   *
+   *   Endauflager   Bedingung                 Kern        Modell
+   *   gelenkig      Vorgabe (OG laengs frei)  0           0            gleich
+   *   mast          Vorgabe                   15'666      15'666       gleich
+   *   gelenkig      beide Gurte gehalten      0           eingespannt  ANDERS
+   *   voll          Vorgabe                   unendlich   15'666       ANDERS
+   *
+   * >>> DIE PRUEFUNG ENTSCHEIDET NICHTS, SIE SAGT ES. <<<
+   *
+   * Welche der beiden Angaben gilt, ist eine Entscheidung des Auftraggebers -
+   * und `endbedingung = 'links'` ist der Weg, sie zusammenzulegen. Hier steht
+   * nur, dass sie auseinanderlaufen, mit beiden Zahlen daneben.
+   */
+  if (tragwerksart(m).key === 'joch' && m.federn && m.endbedingung !== 'links') {
+    const ausBed = federAusLinks(m, m.federn.mastA ?? m.federn.mast ?? null);
+    const kern = Number(m.federn.cA) || 0;
+    const modell2 = Number(ausBed.c) || 0;
+    // Beide unendlich steif heisst dasselbe, auch wenn die Zahlen differieren.
+    const starr = (v) => v >= C_STARR * 0.999;
+    const gleich = (starr(kern) && starr(modell2))
+      || Math.abs(kern - modell2) <= Math.max(kern, modell2, 1) * 0.02;
+    const zahl = (v) => (starr(v) ? 'starr' : `${Math.round(v)}`);
+    checks.push({
+      id: 'A2',
+      text: 'Endauflager und Auflagerbedingung am Masten beschreiben '
+          + 'dasselbe Ende',
+      vorhanden: kern, erforderlich: modell2, einheit: 'kNm/rad',
+      richtung: '=',
+      ok: gleich,
+      status: gleich
+        ? `${m.federn.art} · ${zahl(kern)} kNm/rad`
+        : `Rechenkern ${zahl(kern)} (${m.federn.art}), ausgeleitetes Modell `
+        + `${zahl(modell2)} (${ausBed.art}) — «${'aus der Auflagerbedingung '
+        + 'am Masten'}» legt beide zusammen`,
+      warnungNichtFehler: true,
     });
   }
 

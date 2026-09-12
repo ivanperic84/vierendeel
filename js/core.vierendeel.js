@@ -687,6 +687,16 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     beiwerte,
     char, ...lasten, ...reakt,
     steif, federn, gurtanschluss, ...auf, endbedingung: inp.endbedingung,
+    /*
+     * DIE AUFLAGERBEDINGUNG WANDERT MIT (12. September).
+     *
+     * Sie steht bisher nur in der Eingabe, und die Ausleitung liest sie von
+     * dort. Die Pruefung A2 vergleicht aber, was der RECHENKERN am Ende
+     * ansetzt, mit dem, was das ausgeleitete Modell haelt - und sie sieht
+     * nur das Modell. Ohne diese Zeile las sie eine leere Bedingung und
+     * meldete jedes Mal "gelenkig".
+     */
+    auflagerLinks: inp.auflagerLinks ?? null,
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
     // Hebelarm des einseitigen Kräftepaars, je Gurt [m] - er folgt der
     // Massvariante und steht deshalb neben h und b im Modell.
