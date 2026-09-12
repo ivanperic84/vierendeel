@@ -6753,43 +6753,101 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
       return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
     };
     wahr('Das Abfangjoch baut jetzt einen Masten', Boolean(stM('MAST_A')));
-    pruef('… und er ist so hoch wie angegeben', lg('MAST_A'), 7.5, 1e-9, 'm');
     /*
-     * >>> DIE KONSOLE KRAGT IN x AUS, NICHT IN y. <<<
-     *
-     * Befund vom 11. September, am Modell gesehen: «hier fehlen noch die
-     * 150 mm auskragung von der mastachse in x richtung.» Sie stand quer
-     * und fuellte den halben Gurtabstand - die falsche Achse. Gemeint ist
-     * das Bauteil am Masten, auf dem das Joch aufliegt: 150 mm in
-     * JOCHRICHTUNG, wie beim Tragjoch.
+     * ZWEI STUECKE, EINE HOEHE. Der Mast ist am Konsolansatz geteilt
+     * (Weisung, 12. September) - oben das kurze Stueck bis zur Jochachse,
+     * unten der Rest bis zum Fuss. Zusammen ist er so hoch wie angegeben.
      */
-    wahr('Die Konsole geht starr vom Mastkopf aus',
-         stM('KONSOLE_A')?.von === 'MAST_A_K'
+    pruef('… und er ist so hoch wie angegeben',
+          lg('MAST_A_O') + lg('MAST_A'), 7.5, 1e-9, 'm');
+    /* =====================================================================
+     * >>> DIE KONSOLE MISST EINE HALBE MASTBREITE, IN x. <<<
+     * =====================================================================
+     *
+     * Zwei Befunde, beide am Modell gesehen:
+     *
+     * 11. September: «hier fehlen noch die 150 mm auskragung von der
+     * mastachse in x richtung.» Sie stand quer und fuellte den halben
+     * Gurtabstand - die falsche Achse.
+     *
+     * 12. September: «mach noch die konsolenlaenge abhaengig vom Masttyp
+     * (halbe mastbreite) und ein feld wo man diesen wert auch ueberschreiben
+     * kann.» Die 150 mm waren pauschal; beim HEB 300 endete die Konsole
+     * damit noch innerhalb des Profils. HEB 240 -> 120 mm.
+     */
+    wahr('Die Konsole geht starr vom Konsolansatz am Masten aus',
+         stM('KONSOLE_A')?.von === 'MAST_A_A'
          && stM('KONSOLE_A')?.art === 'starr');
-    pruef('… und kragt 150 mm in x aus der Mastachse aus',
-          knM('KONS_A').x - knM('MAST_A_K').x, 0.15, 1e-9, 'm');
-    wahr('… geradeaus, ohne Versatz quer oder hoch',
-         Math.abs(knM('KONS_A').y) < 1e-12
-         && Math.abs(knM('KONS_A').z) < 1e-12);
+    pruef('… und kragt eine halbe Mastbreite aus (HEB 240)',
+          knM('KONS_A').x - knM('MAST_A_A').x, 0.12, 1e-9, 'm');
     wahr('… nach INNEN, nicht unter den Ueberstand',
          knM('KONS_A').x > knM('MAST_A_K').x
          && knM('KONS_B').x < knM('MAST_B_K').x);
     /*
-     * VON DER KONSOLSPITZE WIE BEI DEN ANBAUTEILEN: je Gurt ein starrer
-     * Arm hinueber, und seine letzten 50 mm sind das Link. Der Arm laeuft
-     * schraeg - die Spitze steht 150 mm weiter innen als der Gurtknoten.
+     * DAS FELD SCHLAEGT DIE ABLEITUNG. `auflagerKonsole` in mm; 0 heisst
+     * "dem Masten folgen" - nicht "leer", denn ein leeres Zahlenfeld laesst
+     * sich in dieser Oberflaeche nicht zurueckgeben.
      */
-    wahr('Je Gurt ein starrer Arm zur Konsolspitze',
-         stM('KONSARM_AV')?.art === 'starr' && stM('KONSARM_AV')?.von === 'KONS_A'
-         && stM('KONSARM_AH')?.art === 'starr' && stM('KONSARM_AH')?.von === 'KONS_A');
-    wahr('… und an dessen Ende haelt ein Linkelement den Gurt',
-         stM('LINK_AV')?.art === 'link' && stM('LINK_AV')?.von === 'ANS_AV'
-         && stM('LINK_AH')?.art === 'link' && stM('LINK_AH')?.von === 'ANS_AH');
+    const mitFeld = AXA2.abfangAxisvmModell('A240', 12.5,
+      { mast: { profil: 'HEB 240', hoehe: 7.5 }, auflagerKonsole: 200 });
+    const kvF = (n2) => mitFeld.knoten.find((k2) => k2.name === n2);
+    pruef('Das Feld überschreibt sie', kvF('KONS_A').x - kvF('MAST_A_A').x,
+          0.20, 1e-9, 'm');
+    const mitNull = AXA2.abfangAxisvmModell('A240', 12.5,
+      { mast: { profil: 'HEB 260', hoehe: 7.5 }, auflagerKonsole: 0 });
+    const kvN = (n2) => mitNull.knoten.find((k2) => k2.name === n2);
+    pruef('… und 0 führt zurück zum Masten (HEB 260)',
+          kvN('KONS_A').x - kvN('MAST_A_A').x, 0.13, 1e-9, 'm');
+
+    /* =====================================================================
+     * >>> JEDES GLIED LAEUFT IN GENAU EINER ACHSE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 12. September: «die starrelemente rechtwinklig machen und
+     * nicht zurueckfuehren auf die mastachse lage» und «um nicht mit den
+     * elementen zu kollidieren, die starrelemente versetzt in der z achse
+     * ansetzen».
+     *
+     * Vorher lief EIN schraeger Arm von der Konsolspitze zurueck auf den
+     * Gurtknoten an der Mastachse - zwei Richtungen in einem Stab, und
+     * mitten durch die Gurte hindurch.
+     */
+    const achse = (nm2) => {
+      const s2 = stM(nm2);
+      if (!s2) return '-';
+      const a2 = knM(s2.von), b2 = knM(s2.bis);
+      const d2 = [Math.abs(b2.x - a2.x), Math.abs(b2.y - a2.y), Math.abs(b2.z - a2.z)];
+      const gross = d2.filter((v) => v > 1e-9);
+      return gross.length === 1 ? 'xyz'[d2.findIndex((v) => v > 1e-9)] : 'schräg';
+    };
+    wahr('Die Konsole läuft in x', achse('KONSOLE_A') === 'x');
+    wahr('Der Arm zum Gurt läuft in y',
+         achse('KONSARM_AV') === 'y' && achse('KONSARM_AH') === 'y');
+    wahr('Der Stiel darunter läuft in z',
+         achse('LINKSTIEL_AV') === 'z' && achse('LINKSTIEL_AH') === 'z');
+    wahr('Und das Linkelement auch',
+         achse('LINK_AV') === 'z' && achse('LINK_AH') === 'z');
     pruef('Das Linkelement misst 50 mm', lg('LINK_AV'), 0.05, 1e-9, 'm');
-    wahr('… und beide Glieder zusammen treffen den Gurtknoten',
-         Math.abs(lg('KONSARM_AV') + lg('LINK_AV')
-                  - Math.hypot(knM('V_0.250').x - knM('KONS_A').x,
-                               knM('V_0.250').y - knM('KONS_A').y)) < 1e-9);
+    /*
+     * >>> NICHT ZURUECK AUF DIE MASTACHSE. <<<
+     * Der Gurt hat an der Konsolspitze einen eigenen Knoten - sonst gaebe es
+     * den rechten Winkel nicht: ein Stabzug bildet nur ab, was seine Knoten
+     * hergeben.
+     */
+    wahr('Der Gurt hat an der Konsolspitze einen Knoten',
+         Math.abs(knM(stM('LINK_AV').bis).x - knM('KONS_A').x) < 1e-9);
+    wahr('… und ein Gurtstab berührt ihn',
+         jm.staebe.some((s2) => /^[VH]_S\d|^GABEL_|^GARM_/.test(s2.name)
+           && [s2.von, s2.bis].includes(stM('LINK_AV').bis)));
+    /*
+     * >>> UNTER DEN GURTEN DURCH. <<<
+     * Eine halbe Profilhoehe plus 50 mm Luft. Das A240 traegt ein IPE 240:
+     * 0.120 + 0.050 = 0.170 m unter der Schwerachse.
+     */
+    pruef('Die Starrelemente liegen unter dem Gurt',
+          knM('KONS_A').z, -0.17, 1e-9, 'm');
+    wahr('… und tiefer als die Bleche auf Flanschhöhe',
+         knM('KONS_A').z < -Math.abs(knM('BL_U0_a').z) + 1e-9);
     /*
      * >>> DER MAST MUSS NICHT AM ENDE STEHEN. <<<
      *
@@ -6817,13 +6875,13 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
       jeGeprueft++;
       const kv = (n2) => mo.knoten.find((k2) => k2.name === n2);
       for (const e2 of ['A', 'B']) {
-        const kk = kv(`KONS_${e2}`), mk = kv(`MAST_${e2}_K`);
-        if (!kk || !mk || Math.abs(Math.abs(kk.x - mk.x) - 0.15) > 1e-9) {
+        const kk = kv(`KONS_${e2}`), mk = kv(`MAST_${e2}_A`);
+        if (!kk || !mk || Math.abs(Math.abs(kk.x - mk.x) - 0.12) > 1e-9) {
           schief.push(`${jL} m / ${e2}`);
         }
       }
     }
-    wahr(`Die Auskragung haelt 150 mm, wo der Mast auch steht (${jeGeprueft} Laengen)`,
+    wahr(`Die Auskragung haelt ihr Mass, wo der Mast auch steht (${jeGeprueft} Laengen)`,
          schief.length === 0, schief.slice(0, 3).join('; '));
     /*
      * >>> DAS AUFLAGER SITZT AM MASTFUSS, NICHT MEHR AM JOCHENDE. <<<
@@ -6893,6 +6951,47 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
     }
     wahr(`Kein Anschlussknoten ohne tragendes Laengsbauteil (${geprueft} Modelle)`,
          haengend.length === 0, haengend.slice(0, 3).join('; '));
+
+    /* =====================================================================
+     * >>> DAS AUFLAGER STEHT DORT, WO DIE STUETZWEITE ES HINSTELLT. <<<
+     * =====================================================================
+     *
+     * Befund vom 12. September: der Mast am Ende B stand beim A240/12.5 m
+     * bei x = 11.59 m statt bei 12.25 m - zwei Drittelmeter daneben, und mit
+     * ihm das Auflager und die Stuetzweite des ganzen FEM-Modells.
+     *
+     * Der Grund war ein INDEX, der seine Liste ueberlebt hat. `iA`/`iB`
+     * zeigen in die Stationsliste, und die wird danach noch einmal
+     * angefasst: der Gabelbereich schiebt seine beiden Grenzen hinein und
+     * sortiert neu. Jede Einfuegung vor dem Auflager schiebt dessen Eintrag
+     * nach hinten - der Index zeigt dann auf den Nachbarn.
+     *
+     * Der Ueberstand ist (L - js)/2 je Ende, und beide Auflager liegen
+     * symmetrisch dazu. Das ist von der Stationsliste unabhaengig und
+     * deshalb die richtige Probe: geprueft wird gegen die ZAHL, nicht gegen
+     * einen zweiten Index.
+     */
+    const danebenA = [];
+    for (const t of AJ.abfangjoche()) {
+      const typ = t.typ ?? t.id;
+      let bereich;
+      try { bereich = AJ.abfangLaengenbereich(typ); } catch { continue; }
+      for (let L2 = bereich.min; L2 <= bereich.max + 1e-9; L2 += 0.5) {
+        const jl = Math.round(L2 * 100) / 100;
+        let mo;
+        try { mo = AXA2.abfangAxisvmModell(typ, jl, {}); } catch { continue; }
+        const ue2 = mo.tragwerk.ueberstand;
+        const soll = [ue2, mo.tragwerk.L - ue2];
+        const ist = mo.auflager.map((a) => a.x).sort((u, v) => u - v);
+        if (ist.length !== 2
+            || Math.abs(ist[0] - soll[0]) > 1e-9
+            || Math.abs(ist[1] - soll[1]) > 1e-9) {
+          danebenA.push(`${typ}/${jl} m: ${ist.join(' | ')} statt ${soll.join(' | ')}`);
+        }
+      }
+    }
+    wahr('Beide Auflager stehen um den Ueberstand eingerueckt',
+         danebenA.length === 0, danebenA.slice(0, 3).join('; '));
     /*
      * UND DIE STELLE SELBST, mit Mass: das Endblech von A240/12.5 m sitzt
      * bei x = 1.380 m, mitten im Gabelbereich 0.850 … 1.465 m. Es haengt an

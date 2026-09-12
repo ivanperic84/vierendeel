@@ -2182,7 +2182,8 @@ export class Modellansicht {
    *             Doppelklick           das getroffene Bauteil heranholen
    *
    *   Finger    ein Finger            drehen
-   *             zwei Finger           kneifen zoomt, wischen schiebt
+   *             zwei Finger           kneifen zoomt, wischen schiebt -
+   *                                   auch senkrecht (12. September)
    *             Doppeltipp            das getroffene Bauteil heranholen
    *
    *   Tastatur  Pfeile                drehen, mit Umschalt schieben
@@ -2415,9 +2416,33 @@ export class Modellansicht {
       const dy = inPixel(e.deltaY, e.deltaMode);
       const dx = inPixel(e.deltaX, e.deltaMode);
       const [px, py] = this._geraetePunkt(e);
-      // Zwei-Finger-Wischen auf dem Trackpad schiebt, Kneifen zoomt - das
-      // meldet der Browser als Rad mit gedrückter Strg-Taste.
-      if (e.ctrlKey || Math.abs(dy) > Math.abs(dx) * 2) {
+      /*
+       * >>> KNEIFEN ODER WISCHEN - NICHT: SENKRECHT ODER WAAGRECHT. <<<
+       *
+       * Hier stand `Math.abs(dy) > Math.abs(dx) * 2`, und der Kommentar
+       * daneben behauptete, Wischen schiebe. Er beschrieb, was gemeint war,
+       * nicht was geschah: ein Zwei-Finger-Wisch NACH UNTEN hat kein dx, und
+       * damit war die Bedingung immer erfüllt - es wurde gezoomt. Gemeldet
+       * am 12. September.
+       *
+       * Die Richtung ist das falsche Unterscheidungsmerkmal. Zu trennen sind
+       * zwei GERÄTE:
+       *
+       *   Kneifen auf dem Trackpad   Rad mit gedrückter Strg-Taste
+       *   Wischen auf dem Trackpad   viele kleine Schritte, oft mit dx
+       *   Mausrad                    grobe Rasten, nie mit dx
+       *
+       * Das Rad meldet je Raste entweder Zeilen/Seiten (deltaMode ≠ 0, so
+       * macht es Firefox) oder ein glattes Vielfaches von 100 bzw. 120
+       * Pixeln (so macht es Chrome). Ein Trackpad liefert dagegen
+       * fortlaufende Zwischenwerte. Das ist eine Heuristik und keine
+       * Messung - deshalb bleibt das Kneifen der sichere Weg zum Zoom, und
+       * die Tasten + und − tun es ohnehin.
+       */
+      const raste = Math.abs(dy);
+      const ausRad = e.deltaMode !== 0
+        || (dx === 0 && raste >= 100 && (raste % 100 === 0 || raste % 120 === 0));
+      if (e.ctrlKey || ausRad) {
         this._zoome(Math.exp(dy * 0.0012), px, py);
       } else {
         const s = this._dpr();

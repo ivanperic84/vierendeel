@@ -978,6 +978,38 @@ export const FELDER = [
     hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
            + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
            + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
+  /*
+   * >>> DIE KONSOLE MISST EINE HALBE MASTBREITE. <<<
+   *
+   * Weisung vom 12. September: "mach noch die konsolenlaenge abhaengig vom
+   * Masttyp (halbe mastbreite) und ein feld wo man diesen wert auch
+   * ueberschreiben kann."
+   *
+   * Bis hierher waren es pauschale 150 mm - ein Wert, der beim HEB 300
+   * innerhalb des Profils endete und beim HEB 200 weit davor. Die Konsole
+   * sitzt aber am Flansch, und der ist so breit, wie der Mast breit ist.
+   * Eine halbe Mastbreite bringt ihren Anschlusspunkt an die Flanschkante -
+   * dorthin, wo die Vorsatzkonsole angeschweisst wird.
+   *
+   * HEB 200 -> 100 mm, HEB 240 -> 120 mm, HEB 260 -> 130 mm, HEB 300 -> 150 mm.
+   *
+   * >>> NULL HEISST: DEM MASTEN FOLGEN. <<<
+   *
+   * Nicht "leer": ein leeres Zahlenfeld laesst sich in dieser Oberflaeche
+   * nicht zurueckgeben - `bindeFelder` verwirft einen Eintrag, der keine
+   * Zahl ergibt, und der alte Wert bliebe stehen. Mit der Null gibt es einen
+   * Weg zurueck zur Ableitung, und er steht im Hinweis.
+   *
+   * Wer eine bestimmte Konsole hat, traegt ihr Mass ein und bekommt es
+   * unveraendert - das Sortiment hat Vorrang vor der Ableitung.
+   */
+  { key: 'auflagerKonsole', gruppe: 'aufl', typ: 'zahl',
+    label: 'Konsole am Masten', sym: 'a_K', einheit: 'mm',
+    standard: 0, schritt: 5, min: 0,
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true,
+    hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung. '
+           + '0 = eine halbe Mastbreite (HEB 240 → 120 mm). Gilt für die '
+           + 'AxisVM-Ausleitung; der Ersatzbalken kennt sie nicht.' },
   { key: 'schraubenFgrenz', gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,

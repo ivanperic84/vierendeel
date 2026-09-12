@@ -63,7 +63,7 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
 import { abfangQuerschnitt, abfangBlechstationen, abfangStuetzweite,
          abfangAnbindung, abfangAnbauLasten } from './core.abfangjoch.js';
 import { getGurtprofil } from './data.profiles.js';
-import { linkBedingung } from './core.auflager.js';
+import { linkBedingung, konsolLaenge } from './core.auflager.js';
 // Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
 // demselben Katalog wie beim Tragjoch.
 import { getMastprofil } from './data.masten.js';
@@ -361,7 +361,35 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
   const anbau = (opt.anbauteile ?? []).filter((t2) => t2 && t2.aktiv !== false);
   const anbauX = anbau.map((t2) => Math.min(Math.max(Number(t2.x) || 0, 0), L))
     .map((v) => Math.round(v * 1e6) / 1e6);
-  const xs = [...new Set([0, ue, ...ein.stationen, ...knicke, ...anbauX, L - ue, L]
+  /*
+   * >>> DIE KONSOLSPITZE IST EINE STATION. <<<
+   *
+   * Weisung vom 12. September: "die starrelemente rechtwinklig machen und
+   * nicht zurueckfuehren auf die mastachse lage."
+   *
+   * Der Arm zum Gurt lief bisher SCHRAEG: von der Konsolspitze bei
+   * x = x_Mast + a_K zurueck auf den Gurtknoten bei x = x_Mast. Rechtwinklig
+   * wird er erst, wenn der Gurt an der Spitze selbst einen Knoten hat - ein
+   * Stabzug bildet nur ab, was seine Knoten hergeben.
+   *
+   * Der Mast wird deshalb hier schon gelesen, obwohl er erst weiter unten
+   * gebaut wird: seine Breite bestimmt die Konsolenlaenge und damit die
+   * Station.
+   */
+  const mastD = opt.mast ?? null;
+  const mastProfil = mastD?.profil
+    ? (() => { try { return getMastprofil(mastD.profil); } catch { return null; } })()
+    : null;
+  const mitMast = Boolean(mastProfil && (mastD.hoehe ?? 0) > 0);
+  const lKons = konsolLaenge(opt, mastProfil);
+  // Nach innen, zum Jochmittelpunkt - nach aussen laege die Konsole unter
+  // dem Ueberstand statt unter dem Feld.
+  const konsX = mitMast
+    ? [ue + lKons, L - ue - lKons].map((v) => Math.round(v * 1e6) / 1e6)
+      .filter((v) => v > 1e-9 && v < L - 1e-9)
+    : [];
+  const xs = [...new Set([0, ue, ...ein.stationen, ...knicke, ...anbauX,
+                          ...konsX, L - ue, L]
     .map((v) => Math.round(v * 1e6) / 1e6))].sort((u, v) => u - v)
     .filter((v) => v >= -1e-9 && v <= L + 1e-9);
   /*
@@ -369,8 +397,30 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * zeigen auf sie; die Enden bleiben als Knoten stehen, weil der Traeger
    * dort ueberkragt und das Endblech sie verbindet.
    */
-  const iA = xs.findIndex((v) => Math.abs(v - ue) < 1e-9);
-  const iB = xs.findIndex((v) => Math.abs(v - (L - ue)) < 1e-9);
+  /* =========================================================================
+   * >>> EIN INDEX GILT NUR, SOLANGE DIE LISTE STEHT. <<<
+   * =========================================================================
+   *
+   * Befund vom 12. September, beim Nachmessen der Konsole aufgefallen: der
+   * Mast am Ende B stand bei x = 11.59 m statt bei 12.25 m - zwei
+   * Drittelmeter daneben, und mit ihm das Auflager und die Stuetzweite des
+   * FEM-Modells.
+   *
+   * Der Grund ist diese Stelle. `iA`/`iB` sind INDIZES in `xs`, und `xs`
+   * wird danach noch einmal angefasst: der Gabelbereich schiebt seine
+   * beiden Grenzen hinein und sortiert neu (siehe `gBereiche`). Jede
+   * Einfuegung VOR dem Auflager verschiebt dessen Eintrag nach hinten - der
+   * Index zeigt dann auf den Nachbarn. Beim A240/12.5 m sind es zwei
+   * Einfuegungen (0.85 und 1.465 m), und genau zwei Stationen weiter vorn
+   * liegt 11.59 m.
+   *
+   * Die Indizes werden deshalb gesetzt, NACHDEM die Liste vollstaendig ist -
+   * `aufIndizes()` weiter unten, direkt hinter dem Gabelblock. Hier stehen
+   * sie nur als erster Wert, damit alles dazwischen eine Zahl hat.
+   * ======================================================================= */
+  const aufIndex = (x) => xs.findIndex((v) => Math.abs(v - x) < 1e-9);
+  let iA = aufIndex(ue);
+  let iB = aufIndex(L - ue);
   /*
    * ===================== DER STEIFE KNOTENBEREICH ========================
    *
@@ -490,6 +540,13 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       if (Math.abs(xs[i] - xs[i - 1]) < 1e-9) xs.splice(i, 1);
     }
   }
+  /*
+   * DIE LISTE STEHT JETZT - also stehen auch die Auflager. Ohne diese zwei
+   * Zeilen zeigten `iA` und `iB` auf die Nachbarstationen (siehe oben).
+   */
+  iA = aufIndex(ue);
+  iB = aufIndex(L - ue);
+
   /** Ob ein Feld im Bereich der Gabel liegt. */
   const inGabel = (u, o) => gBereiche.some(
     ([a2, b2]) => u >= a2 - 1e-9 && o <= b2 + 1e-9);
@@ -897,11 +954,14 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * ===================================================================== */
   const KONSOL_LAENGE = 0.15;
   const AUFL_LINK_LAENGE = 0.05;
-  const mastD = opt.mast ?? null;
-  const mastProfil = mastD?.profil
-    ? (() => { try { return getMastprofil(mastD.profil); } catch { return null; } })()
-    : null;
-  const mitMast = Boolean(mastProfil && (mastD.hoehe ?? 0) > 0);
+  /*
+   * LUFT ZWISCHEN STARRELEMENT UND GURT [m] (Weisung, 12. September: "um
+   * nicht mit den elementen zu kollidieren, die starrelemente versetzt in
+   * der z achse ansetzen"). Gemessen von der Gurtunterkante nach unten.
+   */
+  const AUFL_Z_LUFT = 0.05;
+  // Mast, Konsolenlaenge und Konsolstation stehen schon oben - sie
+  // bestimmen die Stationsliste (siehe `konsX`).
   /*
    * ZWEI QUERSCHNITTE KOMMEN MIT DEM MASTEN: sein eigenes I-Profil und der
    * steife Stab fuer Konsole und Link. Beide nur, wenn der Mast wirklich
@@ -949,9 +1009,10 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       const kFuss = `MAST_${ende}_F`;
       knoten.push({ name: kKopf, x: xs[i], y: 0, z: 0 });
       knoten.push({ name: kFuss, x: xs[i], y: 0, z: -mastD.hoehe });
-      staebe.push({ name: `MAST_${ende}`, von: kKopf, bis: kFuss,
-                    querschnitt: mastQs.name, steifesMaterial: false,
-                    lcsZ: [0, 0, 1] });
+      // Zwei Stuecke statt eines: dazwischen sitzt der Konsolansatz
+      // `MAST_x_A`. Er entsteht erst weiter unten, deshalb stehen auch die
+      // beiden Staebe dort.
+      const mastGeteilt = true;
       /* ===================================================================
        * >>> DIE KONSOLE KRAGT AUS DER MASTACHSE AUS - IN x. <<<
        * ===================================================================
@@ -994,46 +1055,100 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       // Auf Mikrometer gerundet - sonst traegt ein Knotenname die
       // Fliesskomma-Ausfransung mit sich herum.
       const r6 = (v) => Math.round(v * 1e6) / 1e6;
-      const vzX = xs[i] <= L / 2 ? +1 : -1;       // nach innen
+      /* ===================================================================
+       * >>> RECHTE WINKEL, UND UNTER DEN GURTEN DURCH. <<<
+       * ===================================================================
+       *
+       * Zwei Weisungen vom 12. September:
+       *
+       *   "die starrelemente rechtwinklig machen und nicht zurueckfuehren
+       *    auf die mastachse lage."
+       *   "um nicht mit den elementen zu kollidieren, die starrelemente
+       *    versetzt in der z achse ansetzen."
+       *
+       * Vorher lief EIN schraeger Arm von der Konsolspitze zurueck auf den
+       * Gurtknoten an der Mastachse - zwei Richtungen in einem Stab, und
+       * mitten durch die Gurte hindurch. Jetzt laeuft jedes Glied in genau
+       * EINER Achse:
+       *
+       *   MAST_K  (x_M, 0, 0)            Mastkopf auf der Jochachse
+       *     | Mast weiter hinunter
+       *   MAST_A  (x_M, 0, z_V)          Ansatz der Konsole, unter den Gurten
+       *     -- KONSOLE   in x, a_K  -->  KONS  (x_K, 0, z_V)
+       *     -- KONSARM   in y       -->  ARM   (x_K, +-e/2, z_V)
+       *     -- LINKSTIEL in z       -->  ANS   (x_K, +-e/2, -50 mm)
+       *     -- LINK      in z, 50mm -->  Gurt  (x_K, +-e/2, 0)
+       *
+       * >>> WIE TIEF. <<<
+       *
+       * Eine halbe Profilhoehe plus 50 mm Luft: damit laeuft der Arm unter
+       * dem Untergurt durch, und die Bleche auf Flanschhoehe trifft er
+       * ohnehin nicht mehr. Das Mass haengt am Gurtprofil, nicht an einer
+       * festen Zahl - ein A160 braucht weniger Platz als ein A360.
+       *
+       * >>> DER MAST BEKOMMT DORT EINEN KNOTEN. <<<
+       *
+       * Statt eines zweiten Stabes neben dem Masten wird er geteilt. Die
+       * Konsole ist am Mast angeschweisst, nicht daneben gehaengt; und ein
+       * Starrelement, das dem Masten ueber ein Stueck parallel laeuft, waere
+       * dieselbe Aussage zweimal.
+       */
+      const iK = xs.findIndex((v) => Math.abs(v - (ende === 'A'
+        ? ue + lKons : L - ue - lKons)) < 1e-9);
+      /*
+       * Fehlt die Station - ein sehr kurzes Joch, bei dem die Konsolspitze
+       * hinter dem anderen Auflager laege -, bleibt es beim Gurtknoten an
+       * der Mastachse. Dann ist der Arm wieder schraeg; das ist der ehrliche
+       * Rueckfall und nicht der Regelfall.
+       */
+      const iA2 = iK >= 0 ? iK : i;
+      const xK = xs[iA2];
+      const zV = r6(-(p.h / 200 + AUFL_Z_LUFT));
+      const kAnsatz = `MAST_${ende}_A`;
+      knoten.push({ name: kAnsatz, x: xs[i], y: 0, z: zV });
       const kKons = `KONS_${ende}`;
-      knoten.push({ name: kKons, x: r6(xs[i] + vzX * KONSOL_LAENGE), y: 0, z: 0 });
+      knoten.push({ name: kKons, x: xK, y: 0, z: zV });
       staebe.push({
-        name: `KONSOLE_${ende}`, von: kKopf, bis: kKons,
+        name: `KONSOLE_${ende}`, von: kAnsatz, bis: kKons,
         querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
         art: 'starr',
       });
       for (const g of ['V', 'H']) {
-        const kG = anschlussKnoten(g, i);
+        const kG = anschlussKnoten(g, iA2);
         const pG = knoten.find((k2) => k2.name === kG);
-        const pK = knoten.find((k2) => k2.name === kKons);
-        const d = [pG.x - pK.x, pG.y - pK.y, pG.z - pK.z];
-        const lg = Math.hypot(...d);
         /*
-         * DAS LINK BEHAELT SEINE 50 mm, solange der Arm sie hergibt. Reicht
-         * er nicht - ein sehr schmales Joch -, teilen sich beide, was da
-         * ist: die Lagerbedingung braucht eine Linie, und eine Linie
-         * braucht Laenge.
+         * DAS LINK BEHAELT SEINE 50 mm - es misst jetzt in z, und dort ist
+         * immer Platz. Der Stiel darunter fuellt den Rest bis zum Arm.
          */
-        const lLink = Math.min(AUFL_LINK_LAENGE, lg * 0.45);
-        const f = (lg - lLink) / lg;
+        const kArm = `ARM_${ende}${g}`;
         const kAns = `ANS_${ende}${g}`;
-        // UNGERUNDET. Der Knotenname traegt hier keine Koordinate, und
-        // eine Rundung auf Mikrometer brachte das Link um 0.1 Mikrometer
-        // um seine 50 mm - eine Ungenauigkeit ohne jeden Gegenwert.
-        knoten.push({ name: kAns, x: pK.x + d[0] * f,
-                      y: pK.y + d[1] * f, z: pK.z + d[2] * f });
+        knoten.push({ name: kArm, x: pG.x, y: pG.y, z: zV });
+        knoten.push({ name: kAns, x: pG.x, y: pG.y, z: -AUFL_LINK_LAENGE });
         staebe.push({
-          name: `KONSARM_${ende}${g}`, von: kKons, bis: kAns,
+          name: `KONSARM_${ende}${g}`, von: kKons, bis: kArm,
           querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
+          art: 'starr',
+        });
+        staebe.push({
+          name: `LINKSTIEL_${ende}${g}`, von: kArm, bis: kAns,
+          querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0],
           art: 'starr',
         });
         staebe.push({
           // Auch das Auflager haengt an der tragenden Achse.
           name: `LINK_${ende}${g}`, von: kAns, bis: kG,
-          querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1],
+          querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0],
           gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
           kraftuebertragung: linkBedingung(opt, 'abfangjoch', g),
         });
+      }
+      if (mastGeteilt) {
+        staebe.push({ name: `MAST_${ende}_O`, von: kKopf, bis: kAnsatz,
+                      querschnitt: mastQs.name, steifesMaterial: false,
+                      lcsZ: [0, 0, 1] });
+        staebe.push({ name: `MAST_${ende}`, von: kAnsatz, bis: kFuss,
+                      querschnitt: mastQs.name, steifesMaterial: false,
+                      lcsZ: [0, 0, 1] });
       }
       // Der Mastfuss traegt das Auflager - nicht mehr das Jochende.
       auflager.push({

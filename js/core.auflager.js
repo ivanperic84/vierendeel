@@ -998,6 +998,48 @@ export const LINK_VORGABEN = {
  * @param {string} ebene 'OG' | 'UG' | 'V' | 'H'
  * @returns {{x,y,z,xx,yy,zz}} je 'Rigid' | 'Free' | number
  */
+/* ===========================================================================
+ * DIE KONSOLE AM MASTEN
+ * ===========================================================================
+ *
+ * Weisung vom 12. September: "mach noch die konsolenlaenge abhaengig vom
+ * Masttyp (halbe mastbreite) und ein feld wo man diesen wert auch
+ * ueberschreiben kann."
+ *
+ * Bis hierher waren es pauschale 150 mm - beim HEB 300 endete die Konsole
+ * damit noch INNERHALB des Profils, beim HEB 200 weit vor seiner Kante. Sie
+ * sitzt aber am Flansch, und der ist so breit, wie der Mast breit ist. Eine
+ * halbe Mastbreite bringt ihren Anschlusspunkt genau an die Flanschkante -
+ * dorthin, wo die Vorsatzkonsole angeschweisst wird.
+ *
+ *   HEB 200 -> 100 mm    HEB 260 -> 130 mm
+ *   HEB 240 -> 120 mm    HEB 300 -> 150 mm
+ *
+ * Das Feld `auflagerKonsole` schlaegt die Ableitung; 0 heisst "dem Masten
+ * folgen". Ohne Mastprofil bleibt es bei den 150 mm, damit ein altes Modell
+ * ohne Angabe unveraendert weiterlaeuft.
+ *
+ * EINE STELLE FUER BEIDE. Tragjoch und Abfangjoch bauen dieselbe Kette; ein
+ * zweites Mal dasselbe zu rechnen hiesse, es beim naechsten Mal nur an einer
+ * Stelle zu aendern.
+ * ========================================================================= */
+
+/** Rueckfall ohne Mastprofil [m] - das Mass, das bis zum 12. September galt. */
+export const KONSOLE_OHNE_MAST = 0.15;
+
+/**
+ * Auskragung der Konsole aus der Mastachse [m].
+ *
+ * @param inp     Eingabe (traegt `auflagerKonsole` in mm, 0 = automatisch)
+ * @param profil  Mastprofil aus dem Katalog (`b` in mm)
+ */
+export function konsolLaenge(inp, profil) {
+  const eigen = Number(inp?.auflagerKonsole);
+  if (Number.isFinite(eigen) && eigen > 0) return eigen / 1000;
+  const b = Number(profil?.b);
+  return b > 0 ? b / 2000 : KONSOLE_OHNE_MAST;
+}
+
 export function linkBedingung(inp, art, ebene) {
   const vorgabe = linkVorgabe(inp, art, ebene);
   const gesetzt = inp?.auflagerLinks?.[ebene] ?? null;
