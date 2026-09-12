@@ -691,7 +691,8 @@ export function mastStabilitaet(s, m, o = {}) {
   const p = s?.profil;
   if (!p) return null;
   const fy = m.stahl?.fy ?? 235;
-  const gammaM1 = o.gammaM1 ?? m.gammaM1 ?? m.gammaM0 ?? 1.0;
+  // 1.05 als letzter Rueckfall - SIA 263 fuer Stabilitaet, wie in der Maske.
+  const gammaM1 = o.gammaM1 ?? m.gammaM1 ?? m.gammaM0 ?? 1.05;
   const beta = Number.isFinite(o.beta) ? o.beta : 2.0;
   /*
    * DIE GESAMTLÄNGE, NICHT H — siehe oben. Fehlt sie, gilt H: dann endet der

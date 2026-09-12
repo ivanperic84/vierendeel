@@ -496,7 +496,20 @@ export function ankerKnicken(id, L, opt = {}) {
   const qs = a.querschnitt;
   if (!qs || !(qs.A > 0) || !(qs.Iy > 0) || !(L > 0)) return null;
   const fy = Number(opt.fy) > 0 ? Number(opt.fy) : 23.5;      // kN/cm2
-  const gM1 = Number(opt.gammaM1) > 0 ? Number(opt.gammaM1) : 1.0;
+  /*
+   * >>> DER RUECKFALL IST 1.05, NICHT 1.00. <<<
+   *
+   * Grundlage der Bemessung ist SIA 263 (Weisung, 12. September), und dort
+   * ist der Widerstandsbeiwert fuer Stabilitaetsprobleme 1.05 - nicht die
+   * 1.00, die EN 1993-1-1 empfiehlt. Die Maske fuehrt ihn als `gammaM0` mit
+   * genau diesem Vorgabewert, und der Aufrufer reicht ihn durch.
+   *
+   * Hier stand 1.00. Solange der eine Aufrufer den Wert mitgibt, faellt das
+   * nicht auf; ein zweiter haette stillschweigend fuenf Prozent zuviel
+   * bekommen. Ein Rueckfallwert, der von der Norm abweicht, ist eine Falle
+   * mit Verfallsdatum.
+   */
+  const gM1 = Number(opt.gammaM1) > 0 ? Number(opt.gammaM1) : 1.05;
   const Lcm = L * 100;
   const Ncr = (Math.PI * Math.PI * E_ANKER * qs.Iy) / (Lcm * Lcm);
   const Npl = qs.A * fy;

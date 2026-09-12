@@ -9287,7 +9287,94 @@ titel('42  Der lange Mast mit Zusatzleitern');
             Math.sqrt(k8.Npl / k8.Ncr), 1e-12, '-');
       wahr('… Knicklinie c', k8.knicklinie === 'c');
       wahr('… chi liegt zwischen 0 und 1', k8.chi > 0 && k8.chi < 1);
-      pruef('… N_b,Rd = chi · N_pl', k8.NbRd, k8.chi * k8.Npl, 1e-9, 'kN');
+      /*
+       * >>> DER WIDERSTANDSBEIWERT IST 1.05. <<<
+       *
+       * Grundlage der Bemessung ist SIA 263 (Weisung, 12. September); dort
+       * ist gamma_M fuer Stabilitaetsprobleme 1.05, nicht die 1.00, die
+       * EN 1993-1-1 empfiehlt. Die Maske fuehrt ihn als `gammaM0` mit genau
+       * diesem Vorgabewert.
+       *
+       * Hier stand `N_b,Rd = chi * N_pl` - die Gleichung OHNE Beiwert. Sie
+       * ging durch, solange der Rueckfallwert der Funktion 1.00 war, und
+       * haette jede Aenderung daran als Fehler gemeldet, statt sie zu
+       * pruefen. Der Beiwert steht jetzt in der Zeile.
+       */
+      pruef('… N_b,Rd = chi · N_pl / gamma_M', k8.NbRd,
+            (k8.chi * k8.Npl) / 1.05, 1e-9, 'kN');
+      pruef('… und der Rueckfallwert ist der der SIA', k8.gammaM1, 1.05,
+            1e-12, '-');
+      pruef('… ein eigener Wert schlaegt ihn',
+            AN.ankerKnicken('U12', 8, { gammaM1: 1.0 }).NbRd,
+            k8.chi * k8.Npl, 1e-9, 'kN');
+
+      /* =====================================================================
+       * >>> DIE KNICKKURVE GEGEN DIE TAFEL DER NORM. <<<
+       * =====================================================================
+       *
+       * Weisung vom 12. September: «überprüfe die berechnung der knicklast
+       * hier im rechenkern mit der fachliteratur … als grundlage für die
+       * bemessung gilt die sia stahlbaunorm 263.»
+       *
+       * SIA 263 und EN 1993-1-1 fuehren dieselbe Knickkurve - die
+       * europaeischen Knicklinien a/b/c/d mit denselben Imperfektions-
+       * beiwerten und derselben Gleichung:
+       *
+       *   Phi = 0.5 [1 + alpha (lambda - 0.2) + lambda^2]
+       *   chi = 1 / (Phi + sqrt(Phi^2 - lambda^2))  <= 1
+       *
+       * Beide Normen drucken sie zusaetzlich als TAFEL. Die Tafelwerte sind
+       * die unabhaengige Grösse, an der sich die Umsetzung messen laesst -
+       * sie stehen nicht in diesem Werkzeug, sondern im Buch.
+       *
+       * Genommen sind die vier meistzitierten Werte bei lambda = 1.00 und
+       * der Plateauwert bei 0.2. Was darueber hinaus in der Tafel steht,
+       * liesse sich ergaenzen; diese fuenf genuegen, um eine vertauschte
+       * Kurve oder ein falsches alpha aufzudecken.
+       */
+      const chiKurve = (lam, alpha) => {
+        const Phi = 0.5 * (1 + alpha * (lam - 0.2) + lam * lam);
+        return Math.min(1, 1 / (Phi + Math.sqrt(Math.max(0, Phi * Phi - lam * lam))));
+      };
+      const ALPHA = { a: 0.21, b: 0.34, c: 0.49, d: 0.76 };
+      const TAFEL = { a: 0.6656, b: 0.5970, c: 0.5399, d: 0.4671 };
+      Object.entries(TAFEL).forEach(([kurve, soll]) => {
+        /*
+         * TOLERANZ 2e-4, RELATIV: die Tafel ist auf vier Stellen gedruckt,
+         * bei chi ~ 0.5 sind das rund 1e-4 relativ. Enger zu pruefen hiesse,
+         * die Rundung der Tafel zu pruefen und nicht die Formel.
+         */
+        pruef(`Knicklinie ${kurve} bei lambda = 1.00 (Tafel)`,
+              chiKurve(1.0, ALPHA[kurve]), soll, 2e-4, '-');
+      });
+      wahr('Bis lambda = 0.2 gilt der Querschnitt, chi = 1',
+           Object.values(ALPHA).every((a) => Math.abs(chiKurve(0.2, a) - 1) < 1e-12));
+      /*
+       * UND DIE OBERE SCHRANKE: chi * N_pl bleibt unter der Eulerlast. Die
+       * Knickkurve naehert sich ihr von unten an - das ist ihre Herkunft und
+       * eine Probe, die ohne jede Tafel auskommt.
+       */
+      wahr('Die Kurve bleibt unter Euler',
+           [0.5, 1.0, 1.5, 2.0, 3.0].every((lam) =>
+             chiKurve(lam, 0.49) < 1 / (lam * lam)));
+      /*
+       * DIE STUETZE SELBST, mit allen Zwischenwerten - U12 ueber 6.00 m,
+       * von Hand nachgerechnet:
+       *
+       *   N_cr   = pi^2 * 21000 * 728 / 600^2 =  419.13 kN
+       *   N_pl   = 34.0 * 23.5                =  799.00 kN
+       *   lambda = sqrt(799.00 / 419.13)      =    1.3807
+       *   Phi    = 0.5 [1 + 0.49*1.1807 + 1.9063] = 1.7424
+       *   chi    = 1 / (1.7424 + 1.0629)      =    0.3565
+       *   N_b,Rd = 0.3565 * 799.00 / 1.05     =  271.3  kN
+       */
+      {
+        const k6 = AN.ankerKnicken('U12', 6, { fy: 23.5, gammaM1: 1.05 });
+        pruef('U12 ueber 6 m: N_cr', k6.Ncr, 419.129, 0.001, 'kN');
+        pruef('… lambda', k6.lambda, 1.38069, 1e-4, '-');
+        pruef('… chi (Linie c)', k6.chi, 0.35646, 1e-4, '-');
+        pruef('… N_b,Rd', k6.NbRd, 271.28, 1e-3, 'kN');
+      }
       /*
        * >>> UND SIE LIEGT UEBER DER KURVE DES BLATTES. <<<
        *
