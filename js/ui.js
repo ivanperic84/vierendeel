@@ -4887,7 +4887,9 @@ function knickblatt(kS, n) {
       <thead><tr><th>Masse</th><th>angesetzt auf</th>
         <th class="num">z [m]</th><th class="num">P [kN]</th></tr></thead>
       <tbody>${mp.map((l) => `
-        <tr><td>${esc(l.name)}</td><td>${esc(l.herkunft)}</td>
+        <tr><td>${esc(l.name)}</td>
+          <td>${esc(l.herkunft)}${Number.isFinite(l.schwerpunkt)
+            ? ` <span class="notiz">(Schwerpunkt ${f2(l.schwerpunkt)} m)</span>` : ''}</td>
           <td class="num">${f2(l.z)}</td>
           <td class="num">${f2(l.P)}</td></tr>`).join('')}
         <tr class="aktiv"><td colspan="2">Ersatzhöhe nach Rayleigh</td>
@@ -4895,18 +4897,23 @@ function knickblatt(kS, n) {
           <td class="num">${f2(mp.reduce((a, x) => a + x.P, 0))}</td></tr>
       </tbody></table></div>
     <p class="notiz" style="margin:4px 0 0">Die Anbauteile und die Jochlast
-      sitzen auf der <b>Anschlusshöhe</b> (Joch, Tragausleger oder Ausleger),
-      das Eigengewicht des Mastes in seinem <b>Schwerpunkt</b>. Zwei Massen auf
-      zwei Höhen lassen sich nicht durch eine einzige Höhe ersetzen — die
-      <b>Ersatzhöhe</b> folgt deshalb aus dem Rayleigh-Quotienten mit der
-      Knickfigur des Kragarms w = δ[1 − cos(πz/2L)]: sie ist die Höhe, auf der
-      die ganze Masse dieselbe Wirkung hätte. Bei einer einzigen Masse kommt
-      wieder deren eigene Höhe heraus.</p>
+      sitzen auf der <b>Anschlusshöhe</b> (Joch, Tragausleger oder Ausleger) —
+      nach oben verschoben wirkt eine Masse ungünstiger, für alles darunter ist
+      das also die sichere Seite. Was <b>höher</b> steht, behält seine eigene
+      Höhe. Das Eigengewicht des Mastes geht <b>verteilt</b> ein; die Höhe in
+      der Tabelle ist die, auf der eine Punktmasse dasselbe täte — sie liegt bei
+      0.60 der Länge, nicht beim Schwerpunkt.</p>
+    <p class="notiz">Mehrere Massen auf mehreren Höhen lassen sich nicht durch
+      eine einzige ersetzen. Die <b>Ersatzhöhe</b> folgt deshalb aus dem
+      Rayleigh-Quotienten mit der Knickfigur des Kragarms
+      w = δ[1 − cos(πz/2L)]: aus g(a) = a/2 − (L/2π)·sin(πa/L) und
+      g(z_eq) = Σ P_i·g(a_i) / Σ P_i. Für <b>eine</b> Last an der Spitze ist
+      g = L/2, und daraus wird N_cr = π²EI/(2L)² — die Eulerlast des Kragarms,
+      exakt. Die verteilte Last steht mit ihrem Integral
+      ∫g dz = L²(¼ − 1/π²) im selben Quotienten.</p>
     ${hoch.length ? `<p class="notiz"><b>Über dem Anschluss:</b> ${
-      hoch.map((l) => `${esc(l.name)} auf ${f2(l.z)} m (${f2(l.Fz)} kN)`).join(', ')}.
-      Diese Massen werden nach der Festlegung auf die Anschlusshöhe
-      ${f2(kS.zAnschluss)} m gesetzt und wirken damit <b>weniger
-      destabilisierend</b> als an ihrem wirklichen Ort.</p>` : ''}`
+      hoch.map((l) => `${esc(l.name)} auf ${f2(l.z)} m (${f2(l.Fz)} kN)`).join(', ')}
+      — auf der eigenen Höhe gerechnet, nicht auf ${f2(kS.zAnschluss)} m.</p>` : ''}`
     : `<p class="notiz" style="margin:4px 0 0">Keine lotrechte Krafteinleitung
        — es gilt die ganze Mastlänge als Knicklänge.</p>`;
   const z = (v, s2 = 2) => (Number.isFinite(v) ? (s2 === 3 ? f3(v) : f2(v)) : '–');
@@ -4931,30 +4938,47 @@ function knickblatt(kS, n) {
             <td class="num">${kur.z ?? '–'} (${z(kS.alphaZ, 3)})</td></tr>
         <tr><td>Abminderung χ</td>
             <td class="num">${z(kS.chiY, 3)}</td><td class="num">${z(kS.chiZ, 3)}</td></tr>
-        <tr><td>Beiwert k</td>
-            <td class="num">${z(kS.kyy, 3)}</td><td class="num">${z(kS.kzz, 3)}</td></tr>
+        <tr><td>N_K,Rd = χ · N_Rk / γ_M  [kN]  <span class="notiz">4.5.1.3</span></td>
+            <td class="num">${z(kS.NKyRd)}</td><td class="num">${z(kS.NKzRd)}</td></tr>
+        <tr><td>Vergrösserungsfaktor 1/(1 − N_Ed/N_cr)</td>
+            <td class="num">${z(kS.vy, 3)}</td><td class="num">${z(kS.vz, 3)}</td></tr>
         <tr><td>M_Ed  [kNm]</td>
             <td class="num">${z(kS.MyEd)}</td><td class="num">${z(kS.MzEd)}</td></tr>
-        <tr><td>M_Rk  [kNm]</td>
-            <td class="num">${z(kS.MRy)}</td><td class="num">${z(kS.MRz)}</td></tr>
-        <tr class="${kS.eta61 >= kS.eta62 ? 'aktiv' : ''}">
-            <td>η Gleichung 6.61</td>
-            <td class="num" colspan="2">${f3(kS.eta61)}</td></tr>
-        <tr class="${kS.eta62 > kS.eta61 ? 'aktiv' : ''}">
-            <td>η Gleichung 6.62</td>
-            <td class="num" colspan="2">${f3(kS.eta62)}</td></tr>
+        <tr><td>M_Rd = W · f_y / γ_M  [kNm]  <span class="notiz">5.1.3</span></td>
+            <td class="num">${z(kS.MyRd)}</td><td class="num">${z(kS.MzRd)}</td></tr>
+      </tbody></table></div>
+    <div class="tabellenrahmen"><table class="dt">
+      <tbody>
+        <tr class="aktiv"><td><b>Gleichung (50)</b> — SIA 263, Ziffer 5.1.10.1<br>
+          <span class="notiz">N_Ed/N_K,Rd + ω_y/(1−N_Ed/N_cr,y)·M_y,Ed/M_D,Rd
+          + ω_z/(1−N_Ed/N_cr,z)·M_z,Ed/M_z,Rd</span></td>
+          <td class="num ${kS.eta50 > 1 ? 'fail' : ''}"><b>${f3(kS.eta50)}</b></td></tr>
+        <tr><td>Gleichung (51) — Ziffer 5.1.10.2, zulässige Alternative<br>
+          <span class="notiz">(ω_y M_y,Ed/M_y,red,Rd)^β + (ω_z M_z,Ed/M_z,red,Rd)^β
+          · β = ${z(kS.beta51, 3)} · M_red,Rd ${z(kS.MyredRd)} / ${z(kS.MzredRd)} kNm</span></td>
+          <td class="num">${Number.isFinite(kS.eta51) ? f3(kS.eta51) : '–'}</td></tr>
       </tbody></table></div>
     <p class="notiz" style="margin:4px 0 0">N_Ed = <b>${z(kS.NEd)} kN</b>
-      (Fusswert, also die Summe aller Massenpunkte) · γ_M = ${z(kS.gammaM1, 3)}
-      · massgebend ${esc(kS.massgebend ?? '')}.
+      (Fusswert, also die Summe aller Massen) · N_K,Rd = <b>${z(kS.NKRd)} kN</b>
+      (Minimum beider Achsen, 5.1.10.1) · ω = ${z(kS.omega, 3)} ·
+      γ_M = ${z(kS.gammaM1, 3)}. Geführt wird <b>Gleichung (50)</b>.
       ${kS.ohneNachweis ? 'Unter λ̄ = 0.2 verlangt die Norm keinen Knicknachweis.' : ''}</p>
-    <p class="notiz"><b>Woher die Gleichungen kommen:</b> die Knickkurve ist in
-      SIA 263 und EN 1993-1-1 dieselbe — χ = 1/(Φ + √(Φ²−λ̄²)) mit
-      Φ = 0.5[1 + α(λ̄−0.2) + λ̄²], und der Widerstandsbeiwert 1.05 ist der der
-      SIA. Die <b>Interaktionsbeiwerte</b> k stammen aus EN 1993-1-1,
-      Anhang B; SIA 263 führt dafür eine eigene Fassung (Kapitel 5,
-      Gleichungen 49–51). Solange sie nicht hinterlegt ist, steht hier, was
-      gerechnet wurde.</p>`)}`;
+    <p class="notiz"><b>Der Nachweis ist nach SIA 263 geführt.</b> Die
+      Knickkurve nach Ziffer 4.5.1 — χ = 1/(Φ + √(Φ²−λ̄²)) mit
+      Φ = 0.5[1 + α(λ̄−0.2) + λ̄²] —, die Widerstände nach 4.5.1.3 und 5.1.3,
+      die Interaktion nach 5.1.10.1. <b>ω = 1.0</b> nach Ziffer 5.1.10.3: bei
+      querbelasteten Stäben ist der Beiwert der Momentenverteilung zu 1.0 zu
+      setzen, und der Mast trägt Wind über die ganze Höhe. Das <b>Moment
+      zweiter Ordnung</b> steckt im Vergrösserungsfaktor; N_Ed und M_Ed sind
+      deshalb Werte nach Theorie 1. Ordnung, ohne Ersatzimperfektionen, wie
+      die Norm es verlangt.</p>
+    <p class="notiz"><b>Nicht geführt: das Kippen</b> (Ziffer 4.5.2). An die
+      Stelle von M_D,Rd tritt M_y,Rd. Beim eingespannten Stiel mit Momenten um
+      beide Achsen ist das die übliche Annahme; sie steht hier, damit sie
+      nachgeprüft werden kann. Gleichung (51) setzt „Knicken aus der Ebene und
+      Kippen nicht verhindert“ voraus und gilt für doppeltsymmetrische
+      I-Querschnitte — beides trifft zu; die Norm lässt mit „darf“ die Wahl,
+      geführt wird die strengere und bedingungslose (50).</p>`)}`;
 }
 
 function mastblattHtml(erg) {
@@ -5021,14 +5045,14 @@ function mastblattHtml(erg) {
         Länge, Anbauteile am Masten mit ihren Ausladungen und das Eigengewicht
         des Mastes. Die Längskraft F_x des Jochs teilt sich nach der
         Steifigkeit k = 3EI/H³ auf die beiden Maste.</p>
-      <p class="notiz"><b>Das Biegeknicken ist enthalten</b> — EN 1993-1-1,
-        6.3.3, mit den Interaktionsbeiwerten nach Anhang B. Die Knicklänge
-        ist β · z_N, wobei z_N die Höhe der obersten Krafteinleitung ist:
-        über dem Jochanschluss trägt der Mast nur sein Eigengewicht, und was
-        dort nicht drückt, kann dort auch nicht ausknicken. β steht in den
-        Optionen (Vorgabe 2.0, Kragarm).</p>
-      <p class="notiz"><b>NICHT enthalten: das Biegedrillknicken</b>
-        (χ_LT = 1.0). Beim eingespannten Stiel mit Momenten um beide Achsen
+      <p class="notiz"><b>Das Biegeknicken ist enthalten</b> — SIA 263,
+        Ziffer 4.5.1 für die Knickkurve und 5.1.10.1, Gleichung (50), für
+        Druck mit zweiachsiger Biegung. Die Knicklänge ist β · z_eq; die
+        Ersatzhöhe z_eq folgt aus dem Rayleigh-Quotienten über alle Massen
+        (Einzelheiten im Knicknachweis je Mast). β steht in den Optionen
+        (Vorgabe 2.0, Kragarm).</p>
+      <p class="notiz"><b>NICHT enthalten: das Kippen</b> (Ziffer 4.5.2,
+        χ_LT = 1.0). Beim eingespannten Stiel mit Momenten um beide Achsen
         ist das die übliche Annahme; sie steht hier, damit sie nachgeprüft
         werden kann.</p>
       <p class="notiz">Die <b>Torsion M_t</b> steht in der Tabelle, geht aber

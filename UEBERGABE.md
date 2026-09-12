@@ -305,6 +305,76 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Der Knicknachweis läuft nach SIA 263 (13. September)
+
+Weisung: «ziel ist es den nachweis komplett nach sia zu führen und diesen auch
+im nachweisbericht so aufzuführen.» Der Wortlaut der Ziffern 5.1.9 und 5.1.10
+liegt vor.
+
+| | SIA 263 |
+|---|---|
+| Knickkurve, χ_K | Ziffer 4.5.1 — **identisch** mit EN 1993-1-1, an der Tafel geprüft |
+| N_K,Rd = χ·N_Rk/γ_M | Ziffer 4.5.1.3 |
+| M_Rd = W·f_y/γ_M | Ziffer 5.1.3 |
+| Druck + zweiachsige Biegung | **Ziffer 5.1.10.1, Gleichung (50)** |
+| zulässige Alternative | Ziffer 5.1.10.2, Gleichung (51) — ausgewiesen, nicht geführt |
+| γ_M | 1.05 |
+
+```
+N_Ed/N_K,Rd + ω_y/(1−N_Ed/N_cr,y)·M_y,Ed/M_D,Rd
+            + ω_z/(1−N_Ed/N_cr,z)·M_z,Ed/M_z,Rd  ≤ 1.0        (50)
+```
+
+**Der Unterschied zum Eurocode ist der Ansatz, nicht eine Zahl.** EN arbeitet
+mit Interaktionsbeiwerten k_ij, SIA mit dem **Vergrösserungsfaktor**
+1/(1 − N_Ed/N_cr) — dem Momentenzuwachs zweiter Ordnung, unmittelbar
+hingeschrieben. Deshalb verlangt die Norm N_Ed und M_Ed ausdrücklich «nach
+Theorie 1. Ordnung (ohne Ersatzimperfektionen)».
+
+**ω = 1.0** nach Ziffer 5.1.10.3: bei querbelasteten Stäben ist der Beiwert der
+Momentenverteilung zu 1.0 zu setzen, und der Mast trägt Wind über die ganze
+Höhe. Das ist zugleich der ungünstigste Wert.
+
+**Das Kippen wird nicht geführt** (Weisung, 13. September). An die Stelle von
+M_D,Rd nach 4.5.2 tritt M_y,Rd.
+
+Am Regelfall gemessen: η steigt von 0.861 (EN 6.61/6.62) auf **0.979** (SIA 50)
+— der SIA-Nachweis ist hier strenger. Gleichung (51) gäbe 0.859.
+
+### Die Massen am Masten und ihre Höhe (13. September)
+
+Weisung: «die massen der anbauteile ist auf die höhe der joche oder der
+tragausleger zuzuweisen oder bei den einzelmasten den auslegern
+(anschlusshöhe) der masseschwerpunkt der masten ist auf den masseschwerpunkt
+zu setzen», und auf Nachfrage: «kannst du die abweichungen so anpassen das es
+aus deiner sicht stimmt».
+
+| Masse | angesetzt auf |
+|---|---|
+| Anbauteile und Jochlast | **Anschlusshöhe**, aber nie tiefer als ihre eigene |
+| Eigengewicht des Mastes | **verteilt** über die Länge |
+
+Damit sind es mehrere Massen auf mehreren Höhen; eine einzige Höhe genügt
+nicht mehr. Die **Ersatzhöhe** folgt aus dem Rayleigh-Quotienten mit der
+Knickfigur des Kragarms w = δ[1 − cos(πz/2L)]:
+
+```
+g(a)     = a/2 − (L/2π)·sin(πa/L)
+g(z_eq)  = Σ P_i·g(a_i) / Σ P_i          verteilt: ∫g dz = L²(¼ − 1/π²)
+```
+
+Für **eine** Last an der Spitze ist g = L/2, und daraus wird N_cr = π²EI/(2L)²
+— die Eulerlast des Kragarms, exakt. Die Formel ist also die bekannte, auf
+mehrere Massen erweitert. Alles dahinter bleibt: L_cr = β · z_eq.
+
+**Zwei Stellen, an denen die Weisung wörtlich unsicher gewesen wäre**, auf
+Nachfrage geschlossen: eine Masse **über** dem Anschluss behält ihre eigene
+Höhe (nach unten verschoben wirkte sie zu günstig), und das Eigengewicht geht
+**verteilt** ein statt als Punkt im Schwerpunkt — sein Integral ist
+0.148679 qL² gegen 0.109014 PL im Schwerpunkt, ein Drittel mehr. Die
+äquivalente Punkthöhe liegt bei 0.600 L, nicht bei 0.500 L; sie steht im
+Bericht neben dem Schwerpunkt.
+
 ### Der Fusspunkt ist ein eigenes Mass (12. September)
 
 Frage: «kann man die fusspunkthöhe und die mastlänge frei wählen bei allen

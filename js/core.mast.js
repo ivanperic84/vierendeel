@@ -806,13 +806,45 @@ export function mastStabilitaet(s, m, o = {}) {
    * steht, was das bedeutet.
    * ===================================================================== */
   const zAnschluss = (s.H > 0 ? s.H : L);
-  const PA = mitFz.reduce((a, l) => a + Math.abs(l.Fz), 0);
+  /*
+   * >>> AUF DIE ANSCHLUSSHOEHE - ABER NIE NACH UNTEN. <<<
+   *
+   * Weisung vom 13. September: die Anbauteile sind der Anschlusshoehe
+   * zuzuweisen. Fuer alles, was DARUNTER sitzt, ist das die sichere Seite -
+   * nach oben verschoben wirkt eine Masse unguenstiger.
+   *
+   * Fuer eine Traverse UEBER dem Anschluss waere es die unsichere: sie saesse
+   * rechnerisch tiefer, als sie steht. Auf Nachfrage entschieden (13.
+   * September, «kannst du die abweichungen so anpassen das es aus deiner
+   * sicht stimmt»), gilt deshalb
+   *
+   *     z = max(Anschlusshoehe, eigene Eintrittshoehe)
+   *
+   * Damit folgt die Zuweisung der Weisung ueberall dort, wo sie sicher ist,
+   * und nur dort weicht sie ab, wo die Weisung selbst unsicher waere.
+   */
+  const punkte = mitFz.map((l) => {
+    const eigen = Math.min(L, l.zAnschluss ?? l.z ?? 0);
+    return { name: l.name, P: Math.abs(l.Fz), zEigen: eigen,
+             z: Math.min(L, Math.max(zAnschluss, eigen)) };
+  }).filter((x) => x.P > 1e-9);
+  const PA = punkte.reduce((a, x) => a + x.P, 0);
   const PM = Math.abs((s.gd ?? 0) * L);
   const massen = [];
-  if (PA > 1e-9) {
+  /*
+   * ZUSAMMENGEFASST, WO SIE AUF DERSELBEN HOEHE SITZEN - der Bericht soll
+   * die Anschlusshoehe als EINE Zeile zeigen und jede hoehere einzeln.
+   */
+  const aufAnschluss = punkte.filter((x) => x.z <= zAnschluss + 1e-9);
+  const darueber = punkte.filter((x) => x.z > zAnschluss + 1e-9)
+    .sort((a, b) => b.z - a.z);
+  const PAn = aufAnschluss.reduce((a, x) => a + x.P, 0);
+  if (PAn > 1e-9) {
     massen.push({ name: 'Anbauteile und Jochlast', z: Math.min(zAnschluss, L),
-                  P: PA, herkunft: 'Anschlusshöhe' });
+                  P: PAn, herkunft: 'Anschlusshöhe' });
   }
+  darueber.forEach((x) => massen.push({
+    name: x.name, z: x.z, P: x.P, herkunft: 'eigene Höhe, über dem Anschluss' }));
   /*
    * >>> WAS ÜBER DEM ANSCHLUSS SITZT, WIRD HERUNTERGESETZT. <<<
    *
@@ -827,32 +859,64 @@ export function mastStabilitaet(s, m, o = {}) {
    * Auftraggebers, und eine stille Abweichung davon wäre schlimmer als die
    * Abweichung selbst.
    */
-  const ueberAnschluss = mitFz
-    .map((l) => ({ name: l.name, z: l.zAnschluss ?? l.z ?? 0, Fz: Math.abs(l.Fz) }))
-    .filter((l) => l.z > zAnschluss + 1e-9)
-    .sort((a, b) => b.z - a.z);
-  if (PM > 1e-9) {
-    massen.push({ name: 'Eigengewicht des Mastes', z: L / 2, P: PM,
-                  herkunft: 'Schwerpunkt' });
-  }
+  const ueberAnschluss = darueber
+    .map((x) => ({ name: x.name, z: x.z, Fz: x.P }));
+  /* =======================================================================
+   * >>> DAS EIGENGEWICHT BLEIBT VERTEILT. <<<
+   * =======================================================================
+   *
+   * Die Weisung setzt es in den Schwerpunkt L/2. Das ist zu guenstig, und
+   * zwar nachrechenbar: im Rayleigh-Quotienten traegt eine VERTEILTE Last q
+   * den Term
+   *
+   *     q * Integral(0..L) g(z) dz  =  q * L^2 (1/4 - 1/pi^2)
+   *
+   * waehrend dieselbe Last als Punkt im Schwerpunkt nur P*g(L/2) beitraegt.
+   * Das Verhaeltnis ist 0.148679 L^2 zu 0.109014 L^2 - die Punktmasse im
+   * Schwerpunkt unterschaetzt ihren Anteil um ein Drittel.
+   *
+   * Auf Nachfrage entschieden (13. September): gerechnet wird das Integral.
+   * Das ist kein neuer Beiwert, sondern dieselbe Methode, richtig angewandt -
+   * die verteilte Last steht im Rayleigh-Quotienten so gut wie die Punktlast.
+   *
+   * >>> WO SIE DAMIT SITZT. <<<
+   *
+   * Die aequivalente Punkthoehe folgt aus g(a) = L (1/4 - 1/pi^2) und liegt
+   * bei rund 0.60 L - nicht bei 0.50 L. Sie wird ausgerechnet und im Bericht
+   * genannt, damit der Unterschied zur Weisung sichtbar bleibt.
+   * ===================================================================== */
+  const gIntegral = L * L * (0.25 - 1 / (Math.PI * Math.PI));
   /** Das Integral der Knickfigur bis zur Höhe a - siehe oben. */
   const gVon = (a) => a / 2 - (L / (2 * Math.PI)) * Math.sin((Math.PI * a) / L);
+  /** Die Hoehe, auf der ein Anteil mit dem Gewicht `wert` seine Wirkung hat. */
+  const hoeheZu = (wert) => {
+    let u = 0, o = L;
+    for (let i = 0; i < 60; i++) {
+      const mi = (u + o) / 2;
+      if (gVon(mi) < wert) u = mi; else o = mi;
+    }
+    return (u + o) / 2;
+  };
+  if (PM > 1e-9) {
+    massen.push({ name: 'Eigengewicht des Mastes', z: hoeheZu(gIntegral / L),
+                  P: PM, herkunft: 'verteilt über die Länge',
+                  schwerpunkt: L / 2 });
+  }
   let zN;
-  if (!massen.length) {
+  const Pges = massen.reduce((a, x) => a + x.P, 0);
+  if (!(Pges > 1e-9)) {
     // Ohne jede Masse gilt die ganze Länge - dann drückt oben wirklich noch
     // etwas, und eine Last am Fuss verkürzt nichts auf null.
     zN = L;
-  } else if (massen.length === 1) {
-    zN = Math.max(0.5, Math.min(massen[0].z, L));
   } else {
-    const Pges = massen.reduce((a, x) => a + x.P, 0);
-    const gSoll = massen.reduce((a, x) => a + x.P * gVon(Math.min(x.z, L)), 0) / Pges;
-    let u = 0, o = L;
-    for (let i = 0; i < 40; i++) {
-      const mi = (u + o) / 2;
-      if (gVon(mi) < gSoll) u = mi; else o = mi;
-    }
-    zN = Math.max(0.5, Math.min((u + o) / 2, L));
+    /*
+     * Der verteilte Anteil geht mit seinem INTEGRAL ein, die Punktmassen mit
+     * g(a). Beide stehen im selben Zaehler - es ist ein Quotient, keine
+     * Fallunterscheidung.
+     */
+    const summe = punkte.reduce((a, x) => a + x.P * gVon(x.z), 0)
+                + (PM > 1e-9 ? (PM / L) * gIntegral : 0);
+    zN = Math.max(0.5, Math.min(hoeheZu(summe / Pges), L));
   }
   const Lcr = beta * zN;
   if (!(Lcr > 0)) return null;
@@ -921,33 +985,101 @@ export function mastStabilitaet(s, m, o = {}) {
   const MRq = stegQuer ? MRy : MRz;
   const MRl = stegQuer ? MRz : MRy;
 
+  /* =======================================================================
+   * DIE INTERAKTION NACH SIA 263, ZIFFER 5.1.10
+   * =======================================================================
+   *
+   * Weisung vom 12. September: «als grundlage für die bemessung gilt die sia
+   * stahlbaunorm 263», und der Nachweis ist danach zu fuehren. Der Wortlaut
+   * der Ziffern 5.1.9 und 5.1.10 liegt seit dem 13. September vor.
+   *
+   * Hier stand bis dahin EN 1993-1-1, 6.61/6.62 mit den Beiwerten k_ij aus
+   * Anhang B. Die KNICKKURVE ist in beiden Normen dieselbe - das ist an der
+   * Tafel geprueft -, die INTERAKTION nicht: SIA 263 arbeitet nicht mit
+   * k-Beiwerten, sondern mit dem VERGROESSERUNGSFAKTOR 1/(1 - N/N_cr).
+   *
+   * >>> GLEICHUNG (50), Ziffer 5.1.10.1 - Druck und zweiachsige Biegung. <<<
+   *
+   *   N_Ed/N_K,Rd + omega_y/(1 - N_Ed/N_cr,y) * M_y,Ed/M_D,Rd
+   *               + omega_z/(1 - N_Ed/N_cr,z) * M_z,Ed/M_z,Rd  <= 1.0
+   *
+   *   N_K,Rd    Minimum aus N_Ky,Rd und N_Kz,Rd (Ziffer 4.5.1.3)
+   *   M_D,Rd    Kippwiderstand nach 4.5.2 - siehe unten
+   *   omega     Beiwert der Momentenverteilung nach 5.1.9.1
+   *
+   * >>> OMEGA IST 1.0, UND ZWAR NACH DER NORM. <<<
+   *
+   * Ziffer 5.1.10.3: «Bei querbelasteten Staeben und verschieblichen Rahmen
+   * duerfen die Gleichungen (50) und (51) naeherungsweise auch verwendet
+   * werden, wobei omega = 1,0 einzusetzen ist.» Der Mast ist ein
+   * querbelasteter Stab - Wind ueber die ganze Hoehe -, also gilt 1.0. Das
+   * ist zugleich der unguenstigste Wert; die Abstufung 0.6 + 0.4 psi der
+   * Ziffer 5.1.9.1 gilt nur bei linearem Momentenverlauf.
+   *
+   * >>> DER KIPPWIDERSTAND IST DER BIEGEWIDERSTAND. <<<
+   *
+   * Weisung vom 13. September: «das kippen nicht einbauen.» M_D,Rd nach
+   * 4.5.2 wird deshalb nicht gerechnet; an seine Stelle tritt M_y,Rd nach
+   * 5.1.3. Beim eingespannten Stiel mit Momenten um beide Achsen ist das
+   * die uebliche Annahme - sie steht im Bericht, damit sie nachgeprueft
+   * werden kann.
+   *
+   * >>> UND DAS MOMENT ZWEITER ORDNUNG. <<<
+   *
+   * Es steckt im Faktor 1/(1 - N_Ed/N_cr). Die Norm verlangt N_Ed und M_Ed
+   * ausdruecklich «nach Theorie 1. Ordnung (ohne Ersatzimperfektionen)» -
+   * genau das liefert der Schnitt. Ein zusaetzliches N mal delta waere eine
+   * zweite Erfassung derselben Wirkung.
+   * ===================================================================== */
+  const omega = 1.0;                       // 5.1.10.3, querbelasteter Stab
+  const NKyRd = (chiY * NRk) / gammaM1;    // 4.5.1.3
+  const NKzRd = (chiZ * NRk) / gammaM1;
+  const NKRd = Math.min(NKyRd, NKzRd);
+  const MyRd = MRy / gammaM1;              // 5.1.3
+  const MzRd = MRz / gammaM1;
+  const MDRd = MyRd;                       // Kippen nicht gefuehrt (Weisung)
   /*
-   * INTERAKTIONSBEIWERTE, Anhang B, Tabelle B.1 (Querschnitt Klasse 1/2 wie
-   * Klasse 3 behandelt - konservativ und ohne Sonderfall).
-   *
-   * C_m = 0.9 für den Kragarm mit Kopflast (Tabelle B.3). Der Beiwert bleibt
-   * innerhalb seiner Schranken; ohne die Deckelung liefe er bei kleiner
-   * Normalkraft gegen sich selbst.
-   *
-   * >>> HIER STECKT DAS MOMENT ZWEITER ORDNUNG. <<<
-   *
-   * Das Ersatzstabverfahren rechnet nicht am verformten System; es faengt
-   * die Zusatzmomente aus der Auslenkung in chi und in den Beiwerten k_ij
-   * ein. Ein gesondert angesetztes N mal delta waere eine ZWEITE Erfassung
-   * derselben Wirkung. Wer sie ausgerechnet sehen will, braucht eine
-   * Rechnung nach Theorie II. Ordnung - und die gehoert ins Statikprogramm,
-   * nicht hierher.
+   * DER VERGROESSERUNGSFAKTOR BRAUCHT N_Ed < N_cr. Ist er es nicht, ist der
+   * Stab schon ausgeknickt - dann meldet der Nachweis das, statt eine
+   * negative Zahl weiterzureichen.
    */
-  const Cm = 0.9;
-  const nY = NEd / ((chiY * NRk) / gammaM1);
-  const nZ = NEd / ((chiZ * NRk) / gammaM1);
-  const kyy = Math.min(Cm * (1 + 0.6 * lamY * nY), Cm * 1.6);
-  const kzz = Math.min(Cm * (1 + 0.6 * lamZ * nZ), Cm * 1.6);
-  // Die Nebenachse trägt 60 % der Hauptachsenwirkung (B.1, k_yz = 0.6·k_zz).
-  const eta61 = nY + kyy * (MyEd / (MRy / gammaM1))
-              + 0.6 * kzz * (MzEd / (MRz / gammaM1));
-  const eta62 = nZ + 0.6 * kyy * (MyEd / (MRy / gammaM1))
-              + kzz * (MzEd / (MRz / gammaM1));
+  const ausgeknickt = NEd >= NcrY * 0.999 || NEd >= NcrZ * 0.999;
+  const vy = ausgeknickt ? 1 : 1 - NEd / NcrY;
+  const vz = ausgeknickt ? 1 : 1 - NEd / NcrZ;
+  const eta50 = ausgeknickt ? Infinity
+    : NEd / NKRd + (omega / vy) * (MyEd / MDRd) + (omega / vz) * (MzEd / MzRd);
+
+  /* =======================================================================
+   * >>> GLEICHUNG (51), Ziffer 5.1.10.2 - die zulaessige Alternative. <<<
+   * =======================================================================
+   *
+   * «Falls das Knicken aus der Ebene und das Kippen nicht verhindert sind,
+   * DARF bei doppeltsymmetrischen I-Querschnitten ... der Stabilitaetsnachweis
+   * mit folgender Interaktionsbeziehung durchgefuehrt werden»:
+   *
+   *   (omega_y M_y,Ed / M_y,red,Rd)^beta + (omega_z M_z,Ed / M_z,red,Rd)^beta <= 1
+   *
+   *   M_y,red,Rd = M_D,Rd,min (1 - N_Ed/N_K,Rd,min)(1 - N_Ed/N_cr,y)
+   *                jedoch <= omega_y M_D,Rd
+   *   M_z,red,Rd = M_z,Rd (1 - N_Ed/N_K,Rd,min)(1 - N_Ed/N_cr,z)
+   *   beta       = 0.4 + N_Ed/N_Rd + b/(h - t_f)        jedoch beta >= 1
+   *
+   * >>> SIE WIRD GERECHNET, ABER SIE IST NICHT DER NACHWEIS. <<<
+   *
+   * «darf» heisst: die Norm laesst die Wahl. Gefuehrt wird (50) - sie gilt
+   * ohne Bedingung und ist die strengere. (51) steht im Bericht daneben,
+   * damit sichtbar ist, was die Alternative ergaebe; wer sie fuehren will,
+   * entscheidet das und nicht das Werkzeug.
+   */
+  const NRd = (A * fy) / 1000 / gammaM1;   // Querschnittswiderstand Druck
+  const beta51 = Math.max(1, 0.4 + NEd / NRd + p.b / (p.h - p.tf));
+  const MyredRd = ausgeknickt ? 0
+    : Math.min(MDRd * (1 - NEd / NKRd) * (1 - NEd / NcrY), omega * MDRd);
+  const MzredRd = ausgeknickt ? 0
+    : MzRd * (1 - NEd / NKRd) * (1 - NEd / NcrZ);
+  const eta51 = (MyredRd > 0 && MzredRd > 0)
+    ? (omega * MyEd / MyredRd) ** beta51 + (omega * MzEd / MzredRd) ** beta51
+    : Infinity;
 
   return {
     beta, Lcr, gammaM1, zN, L,
@@ -958,14 +1090,22 @@ export function mastStabilitaet(s, m, o = {}) {
      */
     massen, zAnschluss, ueberAnschluss,
     NEd, MqEd, MlEd, MyEd, MzEd, NRk, MRq, MRl, MRy, MRz,
-    NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ, kyy, kzz, Cm,
+    NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ,
     knicklinie: { y: schlank ? 'a' : 'b', z: schlank ? 'b' : 'c' },
-    eta: Math.max(eta61, eta62),
-    eta61, eta62,
-    // Die Namen bleiben - der Bericht liest sie. Sie benennen jetzt die
-    // GLEICHUNG, nicht die Bauachse: 6.61 gehoert zur starken Achse.
-    etaQuer: eta61, etaLaengs: eta62,
-    massgebend: eta61 >= eta62 ? 'starke Achse (6.61)' : 'schwache Achse (6.62)',
+    // --- SIA 263, Ziffer 5.1.10 ------------------------------------------
+    omega, NKyRd, NKzRd, NKRd, MyRd, MzRd, MDRd, NRd, beta51,
+    MyredRd, MzredRd, ausgeknickt,
+    /** Vergroesserungsfaktoren 1/(1 - N/N_cr) der beiden Ebenen. */
+    vy: 1 / vy, vz: 1 / vz,
+    /** Der Nachweis: Gleichung (50). */
+    eta: eta50,
+    eta50, eta51,
+    /*
+     * DIE ALTEN NAMEN BLEIBEN, damit Bericht und Kontrollen nicht an einer
+     * Umbenennung haengen - sie tragen jetzt die SIA-Gleichungen.
+     */
+    etaQuer: eta50, etaLaengs: eta51,
+    massgebend: 'Gleichung (50), SIA 263 Ziffer 5.1.10.1',
     // Unter dieser Schlankheit verlangt die Norm keinen Knicknachweis.
     ohneNachweis: lamY <= 0.2 && lamZ <= 0.2,
   };

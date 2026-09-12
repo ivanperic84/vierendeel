@@ -13478,12 +13478,17 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
     const p = MP.MASTPROFILE.find((x) => x.name === 'HEB 260');
     /*
-     * L_cr = beta * z_eq, und z_eq ist seit dem 13. September die
-     * Ersatzhoehe nach Rayleigh. Der Einzelmast der Probe traegt nur sein
-     * Eigengewicht; das sitzt im Schwerpunkt, also bei 6.00 m von 12.00 m.
+     * L_cr = beta * z_eq, und z_eq ist die Ersatzhoehe nach Rayleigh. Der
+     * Einzelmast der Probe traegt nur sein Eigengewicht, und das ist
+     * VERTEILT: sein Anteil im Rayleigh-Quotienten ist das Integral
+     * L^2 (1/4 - 1/pi^2), und die Hoehe, auf der eine Punktmasse dasselbe
+     * taete, liegt bei 0.6001 L - nicht beim Schwerpunkt 0.5 L.
      */
-    pruef('L_cr = beta · Ersatzhoehe', k.Lcr, 12, 1e-9, 'm');
-    const NcrSoll = (Math.PI ** 2 * 210000 * (p.Iz * 1e4)) / ((12000) ** 2) / 1000;
+    pruef('Die Ersatzhoehe des verteilten Eigengewichts', k.zN / k.L,
+          0.60007, 1e-4, '– (von L)');
+    pruef('L_cr = beta · Ersatzhoehe', k.Lcr, 2 * 0.60007 * 12, 1e-4, 'm');
+    const NcrSoll = (Math.PI ** 2 * 210000 * (p.Iz * 1e4))
+                  / ((k.Lcr * 1000) ** 2) / 1000;
     pruef('N_cr um die schwache Achse', k.NcrZ, NcrSoll, 1e-6, 'kN');
     pruef('N_Rk = A · f_y', k.NRk, (p.A * 100 * 235) / 1000, 1e-9, 'kN');
     pruef('lambda_quer = sqrt(N_Rk / N_cr)', k.lamZ,
@@ -13521,26 +13526,29 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    * die Knicklinie, chi. Die INTERAKTION nicht, und sie ist es, die am Ende
    * die Ausnutzung liefert.
    *
-   * Druck und Biegung nach 6.3.3, Gleichungen 6.61/6.62, mit den Beiwerten
-   * aus Anhang B. Der Fall: HEB 260, 12.0 m, Kragarm (beta = 2), Wind quer,
-   * S235, gamma_M = 1.05.
+   * Druck und zweiachsige Biegung nach SIA 263, Ziffer 5.1.10.1,
+   * Gleichung (50). Der Wortlaut liegt seit dem 13. September vor; bis dahin
+   * stand hier EN 1993-1-1, 6.61/6.62 mit den Beiwerten aus Anhang B.
    *
-   *   L_cr   = 2 * 12.00                     =  24.000 m
-   *   N_Rk   = 118.4 * 23.5                  = 2782.40 kN
-   *   lambda_y = sqrt(2782.40 / 529.72)      =   2.2765
-   *   chi_y  (Linie b, alpha 0.34)           =   0.16586
-   *   n_y    = 10.948 / (0.16586*2782.4/1.05) =  0.02491
-   *   k_yy   = 0.9 (1 + 0.6*2.2765*0.02491)  =   0.93062
-   *   M_Ry/g = 269.78 / 1.05                 = 256.933 kNm
-   *   eta61  = 0.02491 + 0.93062*35.64/256.933 = 0.15400
+   * >>> DIE NORMEN UNTERSCHEIDEN SICH IM ANSATZ, NICHT NUR IN ZAHLEN. <<<
    *
-   * >>> WAS HIER NICHT STEHT. <<<
+   * EN arbeitet mit Interaktionsbeiwerten k_ij, SIA mit dem
+   * VERGROESSERUNGSFAKTOR 1/(1 - N_Ed/N_cr) - dem Momentenzuwachs zweiter
+   * Ordnung, unmittelbar hingeschrieben. Die Knickkurve davor ist in beiden
+   * dieselbe; das ist an der Tafel geprueft (siehe die Kontrollen beim
+   * Anker).
    *
-   * Die Knickkurve selbst ist in SIA 263 und EN 1993-1-1 dieselbe - das ist
-   * an der Tafel geprueft (siehe die Kontrollen beim Anker). Die
-   * INTERAKTIONSBEIWERTE sind es nicht: Anhang B ist die europaeische
-   * Fassung, SIA 263 fuehrt eine eigene. Solange die Norm nicht vorliegt,
-   * wird geprueft, was dasteht - und im Bericht steht, woher es kommt.
+   * DER FALL: HEB 260, 12.0 m, Kragarm (beta = 2), Wind quer, S235,
+   * gamma_M = 1.05. Die Ersatzhoehe des verteilten Eigengewichts liegt bei
+   * 0.6001 * 12.00 = 7.201 m, also L_cr = 14.402 m.
+   *
+   *   N_Ky,Rd = 0.39636 * 2782.40 / 1.05      = 1050.3  kN
+   *   N_Kz,Rd = 0.15038 * 2782.40 / 1.05      =  398.5  kN
+   *   N_K,Rd  = Minimum                        =  398.5  kN
+   *   N_Ed/N_K,Rd                              =    0.02747
+   *   1/(1 - 10.948/1490.9)                    =    1.00739
+   *   M_D,Rd  = 269.78 / 1.05                  =  256.93 kNm
+   *   eta     = 0.02747 + 1.00739 * 35.64/256.93 = 0.16722
    */
   {
     const { s, m } = mast();
@@ -13548,36 +13556,69 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const g = k.gammaM1;
     pruef('Der Widerstandsbeiwert ist der der SIA', g, 1.05, 1e-12, '–');
     /*
-     * n = N_Ed / (chi N_Rk / gamma) - der Druckanteil der Gleichung.
+     * DIE WIDERSTAENDE, Ziffer 4.5.1.3 und 5.1.3.
      */
-    const nY = k.NEd / ((k.chiY * k.NRk) / g);
-    const nZ = k.NEd / ((k.chiZ * k.NRk) / g);
+    pruef('N_Ky,Rd = chi_y N_Rk / gamma_M', k.NKyRd,
+          (k.chiY * k.NRk) / g, 1e-12, 'kN');
+    pruef('N_Kz,Rd ebenso', k.NKzRd, (k.chiZ * k.NRk) / g, 1e-12, 'kN');
+    pruef('N_K,Rd ist das Minimum der beiden (5.1.10.1)', k.NKRd,
+          Math.min(k.NKyRd, k.NKzRd), 1e-12, 'kN');
+    wahr('… und das ist hier die schwache Achse', k.NKRd === k.NKzRd);
     /*
-     * k_yy = C_m (1 + 0.6 lambda n), gedeckelt bei C_m * 1.6 (Tabelle B.1).
-     * C_m = 0.9 fuer den Kragarm mit Kopflast (Tabelle B.3).
+     * OMEGA = 1.0 nach Ziffer 5.1.10.3: «Bei querbelasteten Staeben und
+     * verschieblichen Rahmen duerfen die Gleichungen (50) und (51)
+     * naeherungsweise auch verwendet werden, wobei omega = 1,0 einzusetzen
+     * ist.» Der Mast traegt Wind ueber die ganze Hoehe.
      */
-    pruef('k_yy nach Anhang B', k.kyy,
-          Math.min(0.9 * (1 + 0.6 * k.lamY * nY), 0.9 * 1.6), 1e-12, '–');
-    pruef('k_zz ebenso', k.kzz,
-          Math.min(0.9 * (1 + 0.6 * k.lamZ * nZ), 0.9 * 1.6), 1e-12, '–');
-    wahr('… und C_m ist der des Kragarms', k.Cm === 0.9);
+    pruef('omega = 1.0 (5.1.10.3, querbelasteter Stab)', k.omega, 1.0, 1e-12, '–');
     /*
-     * DIE BEIDEN GLEICHUNGEN. Die Nebenachse traegt 60 % (B.1, k_yz =
-     * 0.6 k_zz) - dieselbe Regel in beide Richtungen.
+     * DER VERGROESSERUNGSFAKTOR - hier steckt das Moment zweiter Ordnung.
+     * Die Norm verlangt N_Ed und M_Ed «nach Theorie 1. Ordnung (ohne
+     * Ersatzimperfektionen)»; der Zuwachs kommt aus diesem Faktor.
      */
-    pruef('Gleichung 6.61, von Hand', k.eta61,
-          nY + k.kyy * (k.MyEd / (k.MRy / g))
-             + 0.6 * k.kzz * (k.MzEd / (k.MRz / g)), 1e-12, '–');
-    pruef('Gleichung 6.62, von Hand', k.eta62,
-          nZ + 0.6 * k.kyy * (k.MyEd / (k.MRy / g))
-             + k.kzz * (k.MzEd / (k.MRz / g)), 1e-12, '–');
-    wahr('Massgebend ist die groessere der beiden',
-         Math.abs(k.eta - Math.max(k.eta61, k.eta62)) < 1e-12);
+    pruef('Vergroesserungsfaktor um y', k.vy,
+          1 / (1 - k.NEd / k.NcrY), 1e-12, '–');
+    pruef('… und um z', k.vz, 1 / (1 - k.NEd / k.NcrZ), 1e-12, '–');
+    wahr('Er ist groesser als eins', k.vy > 1 && k.vz > 1);
     /*
-     * UND DIE ZAHL SELBST - damit ein Umbau am Rechenweg auffaellt und
-     * nicht bloss eine Gleichung gegen sich selbst geprueft wird.
+     * >>> GLEICHUNG (50), VON HAND. <<<
      */
-    pruef('Die Ausnutzung des Beispiels', k.eta, 0.13359, 1e-4, '–');
+    pruef('Gleichung (50), von Hand', k.eta50,
+          k.NEd / k.NKRd
+          + (k.omega * k.vy) * (k.MyEd / k.MDRd)
+          + (k.omega * k.vz) * (k.MzEd / k.MzRd), 1e-12, '–');
+    pruef('Die Ausnutzung des Beispiels', k.eta, 0.16722, 1e-4, '–');
+    wahr('Der Nachweis IST Gleichung (50)', k.eta === k.eta50);
+    /*
+     * DER KIPPWIDERSTAND IST DER BIEGEWIDERSTAND - Weisung vom
+     * 13. September: «das kippen nicht einbauen.»
+     */
+    wahr('M_D,Rd ist M_y,Rd - Kippen wird nicht gefuehrt',
+         Math.abs(k.MDRd - k.MyRd) < 1e-12);
+    /*
+     * >>> GLEICHUNG (51), Ziffer 5.1.10.2 - die zulaessige Alternative. <<<
+     *
+     * beta = 0.4 + N_Ed/N_Rd + b/(h - t_f), jedoch beta >= 1. Beim HEB 260
+     * ist b/(h - t_f) = 260/242.5 = 1.0722, also beta rund 1.48.
+     */
+    const pM = MP.MASTPROFILE.find((x) => x.name === 'HEB 260');
+    pruef('beta nach 5.1.10.2', k.beta51,
+          Math.max(1, 0.4 + k.NEd / k.NRd + pM.b / (pM.h - pM.tf)), 1e-12, '–');
+    wahr('… und es ist mindestens eins', k.beta51 >= 1);
+    pruef('M_y,red,Rd nach 5.1.10.2', k.MyredRd,
+          Math.min(k.MDRd * (1 - k.NEd / k.NKRd) * (1 - k.NEd / k.NcrY),
+                   k.omega * k.MDRd), 1e-12, 'kNm');
+    pruef('M_z,red,Rd ebenso', k.MzredRd,
+          k.MzRd * (1 - k.NEd / k.NKRd) * (1 - k.NEd / k.NcrZ), 1e-12, 'kNm');
+    pruef('Gleichung (51), von Hand', k.eta51,
+          (k.omega * k.MyEd / k.MyredRd) ** k.beta51
+          + (k.omega * k.MzEd / k.MzredRd) ** k.beta51, 1e-12, '–');
+    /*
+     * GEFUEHRT WIRD (50). «darf» in 5.1.10.2 heisst: die Norm laesst die
+     * Wahl; (50) gilt ohne Bedingung. (51) steht daneben, damit sichtbar
+     * ist, was die Alternative ergaebe.
+     */
+    wahr('Gefuehrt wird (50), nicht (51)', k.eta !== k.eta51);
     /*
      * DIE MOMENTE STEHEN IN DEN PROFILACHSEN, nicht in den Bauachsen. Bei
      * Steg quer zum Gleis nimmt die starke Achse das Quermoment; das ist die
@@ -13598,6 +13639,14 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      */
     wahr('Der gedrehte Steg nutzt staerker aus', kg.eta > k.eta,
          `${kg.eta.toFixed(3)} gegen ${k.eta.toFixed(3)}`);
+    /*
+     * UND DIE SCHRANKE: ohne Normalkraft und ohne Moment ist die Gleichung
+     * null, mit wachsendem Moment waechst sie monoton. Eine Probe, die
+     * keine Zahl aus dem Buch braucht.
+     */
+    wahr('Ohne Momente bleibt nur der Druckanteil',
+         Math.abs((k.NEd / k.NKRd) - (k.eta50 - k.vy * k.MyEd / k.MDRd
+                                      - k.vz * k.MzEd / k.MzRd)) < 1e-12);
   }
 
   /* =========================================================================
@@ -13650,11 +13699,22 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * ANSCHLUSSHOEHE - alle drei Traversen rechnen auf 9.00 m mit, das
      * Eigengewicht auf 6.00 m, und dazwischen liegt die Ersatzhoehe.
      */
-    wahr('Alle Anbauteile sitzen auf der Anschlusshoehe',
-         Math.abs(kp.massen[0].z - 9.0) < 1e-9
-         && Math.abs(kp.massen[0].P - 16.0) < 1e-9);
-    wahr('… und die Ersatzhoehe liegt dazwischen',
-         kp.zN > 6.0 && kp.zN < 9.0, `${kp.zN.toFixed(3)} m`);
+    /*
+     * ALLE DREI STEHEN UNTER DEM ANSCHLUSS (11, 7 und 3 m gegen 9 m? nein:
+     * die oberste steht auf 11 und bleibt dort). Geprueft wird deshalb die
+     * Aufteilung: was unter dem Anschluss sitzt, wird zusammengefasst; was
+     * darueber steht, bleibt einzeln.
+     */
+    const anschlussZeile = kp.massen.find((x) => x.herkunft === 'Anschlusshöhe');
+    wahr('Was unter dem Anschluss sitzt, rechnet auf ihm',
+         anschlussZeile && Math.abs(anschlussZeile.z - 9.0) < 1e-9
+         && Math.abs(anschlussZeile.P - 13.0) < 1e-9,
+         `${anschlussZeile?.P} kN auf ${anschlussZeile?.z} m`);
+    wahr('… und die oberste Traverse bleibt auf 11 m',
+         kp.massen.some((x) => Math.abs(x.z - 11) < 1e-9
+                            && Math.abs(x.P - 3.0) < 1e-9));
+    wahr('Die Ersatzhoehe liegt zwischen Eigengewicht und Anschluss',
+         kp.zN > 7.0 && kp.zN < 10.0, `${kp.zN.toFixed(3)} m`);
     /*
      * DIE SUMME STEHT DER OBERSTEN HOEHE GEGENUEBER. Waere N_Ed nur die
      * oberste Einzelkraft, fiele der Nachweis zu guenstig aus.
@@ -13677,8 +13737,13 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * ja alle auf den Anschluss gesetzt. Geprueft wird deshalb, dass es
      * wirklich so ist.
      */
-    wahr('Die eigenen Hoehen der Teile aendern die Ersatzhoehe nicht',
-         Math.abs(kt.zN - kp.zN) < 1e-9,
+    /*
+     * TIEFER ANGESETZTE MASSEN KNICKEN WENIGER - jetzt wieder, denn was
+     * ueber dem Anschluss sass, bleibt dort. Im tieferen Satz steht nichts
+     * mehr oben, also faellt die Ersatzhoehe.
+     */
+    wahr('Tiefer angesetzte Massen geben eine kleinere Ersatzhoehe',
+         kt.zN < kp.zN,
          `${kt.zN.toFixed(4)} gegen ${kp.zN.toFixed(4)} m`);
     /*
      * DER EINTRITT ZAEHLT. Eine Last, die 1.50 m unter ihrer Befestigung
@@ -13825,10 +13890,34 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const ohne = mast();
     const kO = M74.mastStabilitaet(ohne.s, ohne.m, { beta: 2.0 });
     wahr('Ohne weitere Last bleibt das Eigengewicht', kO.massen.length === 1);
-    wahr('… und es sitzt im Schwerpunkt',
-         kO.massen[0].herkunft === 'Schwerpunkt');
-    pruef('Der Schwerpunkt liegt auf halber Laenge', kO.zN, 6.0, 1e-9, 'm');
-    pruef('… und die Knicklaenge folgt ihm', kO.Lcr, 12.0, 1e-9, 'm');
+    /*
+     * >>> ES IST VERTEILT, NICHT EIN PUNKT IM SCHWERPUNKT. <<<
+     *
+     * Die Weisung vom 13. September setzte es in den Schwerpunkt; auf
+     * Nachfrage am selben Tag ("kannst du die abweichungen so anpassen das
+     * es aus deiner sicht stimmt") wird es als das gerechnet, was es ist.
+     *
+     * Im Rayleigh-Quotienten traegt eine verteilte Last q das Integral
+     * q * Integral(0..L) g dz = q L^2 (1/4 - 1/pi^2) = 0.148679 q L^2,
+     * waehrend dieselbe Last im Schwerpunkt nur P g(L/2) = 0.109014 P L
+     * beitraegt - ein Drittel zu wenig.
+     *
+     * DIE PROBE RECHNET DAS INTEGRAL SELBST. Sie haengt nicht an einer
+     * Zahl aus dem Kern, sondern an der Stammfunktion:
+     *   Integral z/2 dz = L^2/4,  Integral sin(pi z/L) dz = 2L/pi.
+     */
+    wahr('… und es steht als verteilt da',
+         kO.massen[0].herkunft === 'verteilt über die Länge');
+    const gI = (L2) => L2 * L2 * (0.25 - 1 / (Math.PI * Math.PI));
+    const gV = (a, L2) => a / 2 - (L2 / (2 * Math.PI)) * Math.sin((Math.PI * a) / L2);
+    pruef('Die Ersatzhoehe traegt das Integral der verteilten Last',
+          gV(kO.zN, kO.L), gI(kO.L) / kO.L, 1e-6, 'm');
+    pruef('… sie liegt bei 0.600 L, nicht bei 0.500',
+          kO.zN / kO.L, 0.60007, 1e-4, '–');
+    wahr('… also hoeher als der Schwerpunkt', kO.zN > kO.L / 2,
+         `${kO.zN.toFixed(3)} gegen ${(kO.L / 2).toFixed(3)} m`);
+    wahr('Der Schwerpunkt steht zum Vergleich daneben',
+         Math.abs(kO.massen[0].schwerpunkt - kO.L / 2) < 1e-9);
 
     /*
      * MIT ANBAUTEIL: es wird der ANSCHLUSSHOEHE zugewiesen, nicht seiner
@@ -13877,10 +13966,24 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * EINE Baugruppe bringt MEHRERE Lastpunkte mit - die Haengestuetze und
      * die Fahrleitung daran. Gezaehlt werden die Punkte, nicht die Teile.
      */
+    /*
+     * >>> UND ES BLEIBT AUCH OBEN. <<<
+     *
+     * Die Weisung setzt die Anbauteile auf die Anschlusshoehe. Fuer alles
+     * darunter ist das die sichere Seite - nach oben verschoben wirkt eine
+     * Masse unguenstiger. Fuer eine Traverse DARUEBER waere es die
+     * unsichere; auf Nachfrage entschieden gilt deshalb
+     * z = max(Anschlusshoehe, eigene Hoehe).
+     */
     wahr('Was ueber dem Anschluss sitzt, wird ausgewiesen',
          (kU.ueberAnschluss ?? []).length >= 1
          && kU.ueberAnschluss.every((l) => Math.abs(l.z - 11) < 1e-9),
          kU.ueberAnschluss.map((l) => `${l.z} m`).join(', '));
+    wahr('… und rechnet auf seiner eigenen Hoehe mit',
+         kU.massen.some((x) => Math.abs(x.z - 11) < 1e-9
+                            && x.herkunft.startsWith('eigene')));
+    wahr('… die Ersatzhoehe steigt dadurch', kU.zN > kO.zN,
+         `${kU.zN.toFixed(3)} gegen ${kO.zN.toFixed(3)} m`);
     wahr('… und der Anschluss steht als Bezug daneben',
          Math.abs(kU.zAnschluss - 9.0) < 1e-9);
   }
@@ -13895,7 +13998,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const { s, m } = mast({ mastLaenge: 0 });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
     pruef('Ohne Gesamtlaenge gilt die Vorgabe', k.L, 10.0, 1e-9, 'm');
-    pruef('… und der Schwerpunkt liegt auf ihrer Haelfte', k.zN, 5.0, 1e-9, 'm');
+    pruef('… und die Ersatzhoehe folgt ihr', k.zN / k.L, 0.60007, 1e-4, '–');
   }
 }
 
