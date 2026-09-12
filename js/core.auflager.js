@@ -268,7 +268,9 @@ export const MAST_RASTER = 0.50;
 /**
  * Die vorgegebene Gesamtlaenge [m].
  *
- * @param {number} H   Anschlusshoehe, Fundament bis Jochachse [m]
+ * @param {number} H   FREIE Laenge, Fusspunkt bis Jochachse [m] - nicht die
+ *                     Anschlusshoehe: die Laenge misst vom Fuss, und seit dem
+ *                     12. September koennen die beiden auseinanderliegen
  * @param {number} jd  Bauhoehe des Jochs, Aussenmass [mm]
  */
 export function mastLaengeVorgabe(H, jd = 0) {
@@ -311,7 +313,52 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    * rechnet damit unveraendert weiter.
    */
   const zweiH = ende === 'B' && (inp.mastHZwei ?? inp.mastZwei) === true;
-  const H = zweiH ? (inp.mastHB ?? inp.mastH) : inp.mastH;
+  const HAn = Number(zweiH ? (inp.mastHB ?? inp.mastH) : inp.mastH) || 0;
+  /* =========================================================================
+   * >>> DER FUSSPUNKT IST EIN EIGENES MASS. <<<
+   * =========================================================================
+   *
+   * Weisung vom 12. September, auf die Frage, ob sich Fusspunkthoehe und
+   * Mastlaenge an jeder Position frei waehlen lassen.
+   *
+   * Bis hierher waren es zwei Namen fuer eine Zahl: der Fuss lag IMMER genau
+   * die Anschlusshoehe unter der Jochachse, und die Mastlaenge wuchs allein
+   * nach oben. Ein Mast, dessen Fuss vierzig Zentimeter tiefer steht - weil
+   * das Gelaende faellt oder das Fundament tiefer bindet -, war damit nicht
+   * abzubilden: bei gleicher Anschlusshoehe las das Modell die Mehrlaenge
+   * als Ueberstand OBEN.
+   *
+   * Jetzt sind es zwei Groessen, so wie am Bauwerk:
+   *
+   *   HAnschluss   Jochachse ueber der BEZUGSHOEHE - was auf dem Blatt steht
+   *   fuss         Versatz des Fusspunktes gegen diese Bezugshoehe,
+   *                positiv nach oben, negativ bei fallendem Gelaende
+   *   H            was dazwischen liegt: die FREIE LAENGE, Fuss bis
+   *                Jochachse - und die ist es, die sich biegt
+   *
+   * >>> WARUM DIE FREIE LAENGE UND NICHT DIE ANSCHLUSSHOEHE. <<<
+   *
+   * Weisung vom 12. September, ausdruecklich bestaetigt: in die Drehfeder
+   * geht die Laenge ein, ueber die sich der Mast unter dem Jochanschluss
+   * verbiegt - c_phi = Rahmenfaktor * E*I/H. Steht der Fuss tiefer, ist
+   * dieser Hebel laenger und die Einspannung weicher. Mit der Anschlusshoehe
+   * zu rechnen hiesse, einen Meter Mast zu uebersehen.
+   *
+   * >>> UND DESHALB HEISST DIE FREIE LAENGE WEITER `H`. <<<
+   *
+   * Alles, was den Masten rechnet, misst vom FUSS aus: die Drehfeder, die
+   * Kopfverdrehung aus Wind und Laengskraft, der Mastnachweis ueber die
+   * Hoehe (core.mast.js setzt `z: H` fuer den Jochanschluss), und die
+   * Ausleitung, die den Fuss bei `Jochachse - H` absetzt. Sie alle meinen
+   * dieselbe Strecke. Ihr den Namen zu lassen heisst: OHNE Versatz aendert
+   * sich nichts, und mit Versatz aendert sich alles an genau einer Stelle.
+   *
+   * Die Anschlusshoehe steht als `HAnschluss` daneben - sie beschriftet das
+   * Bild und traegt den Hoehenversatz der Jochreihe.
+   * ======================================================================= */
+  const fussRoh = zwei ? (inp.mastFussB ?? inp.mastFuss) : inp.mastFuss;
+  const fuss = Number(fussRoh) || 0;
+  const H = HAn - fuss;
   /*
    * DIE GESAMTLAENGE traegt nur die Geometrie, nicht die Steifigkeit.
    *
@@ -366,6 +413,9 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    */
   const anker = (ende === 'B' ? inp.mastAnkerB : inp.mastAnkerA) ?? null;
   return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, laenge, ueberstand, ende,
+           // Die Anschlusshoehe steht daneben - sie beschriftet das Bild und
+           // traegt den Hoehenversatz der Jochreihe (siehe oben).
+           HAnschluss: HAn, fuss,
            anker,
            anschluss: an.key, faktor: an.faktor,
            cKragarm,

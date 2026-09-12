@@ -1141,18 +1141,39 @@ function mastNachfuehrenGlobal() {
  * @param {number} neuH   die neue Hoehe [m]
  * @returns {object|null} die nachgefuehrte Laenge, oder null
  */
-function mastLaengeNachfuehren(w, feldH, feldL, neuH) {
-  const altH = Number(w?.[feldH]) || 0;
+/*
+ * >>> GEMESSEN WIRD VOM FUSS, NICHT VON DER BEZUGSHOEHE. <<<
+ *
+ * Weisung vom 12. September: der Fusspunkt ist ein eigenes Mass. Die Laenge
+ * ist Fuss bis Kopf - die Vorgabe rechnet deshalb mit der FREIEN Laenge
+ * (Anschlusshoehe minus Fussversatz). Ohne das waere ein Mast auf tieferem
+ * Fuss um genau diesen Versatz zu kurz.
+ *
+ * Die Funktion nimmt die beiden freien Laengen jetzt UNMITTELBAR entgegen.
+ * Vorher hiess der Parameter `neuH` und meinte die Anschlusshoehe; welche
+ * der beiden Groessen gemeint ist, soll am Aufruf stehen und nicht in der
+ * Funktion geraten werden - es sind zwei Aufrufer mit zwei Anlaessen.
+ */
+function mastLaengeNachfuehren(w, feldL, altFrei, neuFrei) {
   const altL = Number(w?.[feldL]) || 0;
   const gekoppelt = altL === 0
-    || Math.abs(altL - mastLaengeVorgabe(altH, w?.jd)) < 1e-6;
+    || Math.abs(altL - mastLaengeVorgabe(altFrei, w?.jd)) < 1e-6;
   if (!gekoppelt) return null;
-  return { [feldL]: mastLaengeVorgabe(neuH, w?.jd) };
+  return { [feldL]: mastLaengeVorgabe(neuFrei, w?.jd) };
+}
+
+/** Der Fussversatz, der zu einem Laengenfeld gehoert [m]. */
+function fussZu(w, feldL) {
+  const k = feldL === 'mastLaengeB' ? 'mastFussB' : 'mastFuss';
+  return Number(w?.[k] ?? w?.mastFuss) || 0;
 }
 
 function abfangMastAngabe(satz) {
   if (!satz || satz.mastVorhanden === false) return null;
-  const hoehe = Number(satz.mastH) || 0;
+  // VOM FUSS gemessen (Weisung, 12. September): die Hoehe, die hier gebraucht
+  // wird, ist die freie Laenge - der Mast reicht von seinem Fuss bis zur
+  // Jochachse, und der Fuss liegt nicht mehr zwingend bei -H.
+  const hoehe = (Number(satz.mastH) || 0) - (Number(satz.mastFuss) || 0);
   if (!satz.mastProfil || !(hoehe > 0)) return null;
   return { profil: satz.mastProfil, hoehe,
            stegrichtung: satz.mastSteg ?? 'jochachse' };
@@ -1690,6 +1711,22 @@ function aendern(key, wert) {
    * faellt deshalb durch bis zum allgemeinen Weg, und dort muss die
    * Kopplung sitzen.
    */
+  /*
+   * >>> DER FUSSPUNKT ZIEHT DIE LAENGE MIT. <<<
+   *
+   * Aus demselben Grund wie die Hoehe: die Laenge ist Fuss bis Kopf. Wer den
+   * Fuss einen halben Meter tiefer setzt, braucht einen halben Meter mehr
+   * Mast - solange die Laenge gekoppelt ist.
+   */
+  if (key === 'mastFuss' || key === 'mastFussB') {
+    const feldL2 = key === 'mastFussB' ? 'mastLaengeB' : 'mastLaenge';
+    const feldH2 = key === 'mastFussB' ? 'mastHB' : 'mastH';
+    const H2 = Number(werte?.[feldH2] ?? werte?.mastH) || 0;
+    const nach2 = mastLaengeNachfuehren(werte, feldL2,
+                                        H2 - fussZu(werte, feldL2),
+                                        H2 - (Number(wert) || 0));
+    if (nach2) aendern(feldL2, nach2[feldL2]);
+  }
   if (key === 'mastH' || key === 'mastHB') {
     /*
      * >>> DIE LAENGE GEHT DEN NORMALEN WEG, DIE HOEHE AUCH. <<<
@@ -1706,7 +1743,10 @@ function aendern(key, wert) {
      * Rueckprojektion). Danach faellt die Hoehe durch wie jedes andere Feld.
      */
     const feldL = key === 'mastHB' ? 'mastLaengeB' : 'mastLaenge';
-    const nach = mastLaengeNachfuehren(werte, key, feldL, Number(wert) || 0);
+    const f = fussZu(werte, feldL);
+    const nach = mastLaengeNachfuehren(werte, feldL,
+                                       (Number(werte?.[key]) || 0) - f,
+                                       (Number(wert) || 0) - f);
     if (nach) aendern(feldL, nach[feldL]);
   }
   /*

@@ -2643,6 +2643,86 @@ titel('19  AxisVM-Export (SAF)');
        && AX.auflagerVorgabe({ bauweise: 'neu' }) === 'gurte');
 
   /* =========================================================================
+   * >>> DER FUSSPUNKT IST EIN EIGENES MASS. <<<
+   * =========================================================================
+   *
+   * Weisung vom 12. September. Bis dahin lag der Fuss IMMER genau die
+   * Anschlusshoehe unter der Jochachse, und die Mastlaenge wuchs allein nach
+   * oben. Ein Mast auf tieferem Fundament - fallendes Gelaende, tiefere
+   * Einbindung - war bei gleicher Anschlusshoehe nicht abzubilden.
+   *
+   * Jetzt sind es drei Groessen, und sie haengen so zusammen:
+   *
+   *   H_frei = H_Anschluss - Fussversatz     (positiv nach oben)
+   *   z_Fuss = Jochachse - H_frei
+   *   z_Kopf = z_Fuss + L_M
+   *
+   * >>> UND DIE DREHFEDER RECHNET MIT DER FREIEN LAENGE. <<<
+   *
+   * Ausdrueckliche Weisung: c_phi = Rahmenfaktor * E*I/H, und H ist die
+   * Strecke, ueber die sich der Mast unter dem Jochanschluss verbiegt. Ein
+   * tieferer Fuss macht die Einspannung weicher - das ist keine
+   * Darstellung, das rechnet mit.
+   */
+  {
+    const AU = await import(J('core.auflager.js'));
+    const CK = await import(J('core.constants.js'));
+    const gr = { ...basis(), mastVorhanden: true, endbedingung: 'mast',
+                 mastProfil: 'HEB 260', mastH: 7.5, mastLaenge: 0 };
+    const s0 = AU.mastSteifigkeit(gr, 'A', false);
+    const s4 = AU.mastSteifigkeit({ ...gr, mastFuss: -0.4 }, 'A', false);
+    pruef('Ohne Versatz ist die freie Laenge die Anschlusshoehe',
+          s0.H, 7.5, 1e-12, 'm');
+    wahr('… und der Versatz steht als null dabei', s0.fuss === 0);
+    pruef('Ein tieferer Fuss verlaengert sie', s4.H, 7.9, 1e-12, 'm');
+    pruef('… die Anschlusshoehe bleibt, wo sie war',
+          s4.HAnschluss, 7.5, 1e-12, 'm');
+    /*
+     * c_phi ~ 1/H - die Probe ist ein Dreisatz und braucht keine zweite
+     * Rechnung: dieselbe Steifigkeit, nur ein laengerer Hebel.
+     */
+    pruef('Die Drehfeder folgt der freien Laenge',
+          s4.cPhi, s0.cPhi * 7.5 / 7.9, 1e-6, 'kNm/rad');
+    wahr('… und wird dadurch weicher, nicht steifer', s4.cPhi < s0.cPhi);
+    /*
+     * DIE LAENGE MISST VOM FUSS. Ohne eigene Angabe ist sie die freie Laenge
+     * plus halbe Jochhoehe plus 0.50 m, aufgerundet auf den halben Meter -
+     * bei 7.90 m also 9.00 statt 8.50.
+     */
+    pruef('Die vorgegebene Laenge misst vom Fuss', s4.laenge, 9.0, 1e-12, 'm');
+    /*
+     * UND IM AUSGELEITETEN MODELL STEHT ER DORT. Der Fuss faellt um den
+     * Versatz, der Kopf um Versatz plus Mehrlaenge.
+     */
+    const mF = modell({ ...gr, mastFuss: -0.4 },
+                      getProfil(gr.profOG), getProfil(gr.profUG),
+                      getStahl(gr.stahl), T.getTragjoch(gr.typ ?? 'J90'));
+    const bF = AX.stabmodell(mF, { knotenmodell: 'anschnitt' });
+    const knF = (n) => [...bF.knoten.values()].find((k) => k.name === n);
+    pruef('Im Modell faellt der Mastfuss mit', knF('MAST_A_F').z, -7.9, 1e-9, 'm');
+    pruef('… und der Kopf steht auf Fuss + Laenge',
+          knF('MAST_A_KOPF').z, -7.9 + 9.0, 1e-9, 'm');
+    /*
+     * OHNE ANGABE AENDERT SICH NICHTS. Jede bisher gespeicherte Datei
+     * rechnet unveraendert weiter - das ist die Bedingung, unter der ein
+     * neues Mass ueberhaupt dazukommen darf.
+     */
+    const ohne = AU.mastSteifigkeit(gr, 'A', false);
+    const nullExplizit = AU.mastSteifigkeit({ ...gr, mastFuss: 0 }, 'A', false);
+    wahr('Ohne Angabe rechnet alles wie zuvor',
+         Math.abs(ohne.cPhi - nullExplizit.cPhi) < 1e-9
+         && ohne.H === nullExplizit.H && ohne.laenge === nullExplizit.laenge);
+    /*
+     * ER GEHOERT DEM MASTEN, NICHT DEM JOCHENDE. Zwei Joche am selben
+     * Masten duerfen verschieden hoch anschliessen - aber sie stehen auf
+     * demselben Fundament. Deshalb steht er in MASTFELDER.
+     */
+    wahr('Der Fusspunkt steht in der Mastenliste',
+         CK.MASTFELDER.some((f) => f.am === 'fuss' && f.flach === 'mastFuss'
+                               && f.flachB === 'mastFussB'));
+  }
+
+  /* =========================================================================
    * >>> DIE MASKE BIETET AN, WAS DIESES TRAGWERK HAT. <<<
    * =========================================================================
    *

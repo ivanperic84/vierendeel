@@ -29,7 +29,7 @@
 /* eslint-env serviceworker */
 
 // === von build_html.py erzeugt - nicht von Hand ändern ======================
-const VERSION = '7968730fa1fa';
+const VERSION = 'd8703a5045cc';
 const SCHALE = [
   './',
   'index.html',

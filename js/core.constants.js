@@ -728,6 +728,19 @@ export const MASTFELDER = [
   { flach: 'mastLaenge', flachB: 'mastLaengeB', am: 'laenge' },
   { flach: 'mastSteg', flachB: 'mastStegB', am: 'steg' },
   { flach: 'wMast', flachB: 'wMastB', am: 'wMast' },
+  /*
+   * >>> DER FUSSPUNKT GEHOERT DEM MASTEN. <<<
+   *
+   * Weisung vom 12. September. Anders als die ANSCHLUSSHOEHE, die dem
+   * Jochende gehoert - zwei Joche am selben Masten duerfen verschieden hoch
+   * anschliessen, aber sie stehen auf demselben Fundament. Ein geteilter
+   * Mast hat einen Fuss, und deshalb steht er hier und nicht am Tragwerk.
+   *
+   * Das ist zugleich der Grund, warum `hoehenversatz` unveraendert bleibt:
+   * er gleicht die Anschlusshoehen aus, und der Fussversatz ist auf beiden
+   * Seiten eines geteilten Masten derselbe - er kuerzt sich heraus.
+   */
+  { flach: 'mastFuss', flachB: 'mastFussB', am: 'fuss' },
 ];
 
 /* ===========================================================================

@@ -108,6 +108,16 @@ const amMast = (feld, flach) => (w) => {
  */
 const amAnker = (feld, std = '') => (w) => gewaehlterMast(w)?.anker?.[feld] ?? std;
 
+/**
+ * Die FREIE Laenge des angewaehlten Masten [m] - Fusspunkt bis Jochachse.
+ *
+ * Anschlusshoehe minus Fussversatz. Sie ist das Mass, ueber das sich der
+ * Mast biegt, und deshalb die Bezugsgroesse der Laengenvorgabe und der
+ * Drehfeder (Weisung, 12. September).
+ */
+const freieLaengeVon = (w) => anschlusshoeheVon(w)
+  - (Number(amMast('fuss', 'mastFuss')(w)) || 0);
+
 /** Steht an diesem Masten ein Anker? Nur dann gelten seine Felder. */
 const ankerDa = (w) => mastDa(w) && Boolean(gewaehlterMast(w)?.anker?.typ);
 
@@ -701,14 +711,52 @@ export const FELDER = [
     min: 0, max: 25,
     wertAus: (w) => {
       const v = amMast('laenge', 'mastLaenge')(w);
-      return v > 0 ? v : mastLaengeVorgabe(anschlusshoeheVon(w), w.jd);
+      // Vom FUSS gemessen: die Laenge ist Fuss bis Kopf, und seit dem
+      // 12. September liegt der Fuss nicht mehr zwingend bei -H.
+      return v > 0 ? v : mastLaengeVorgabe(freieLaengeVon(w), w.jd);
     },
     sichtbar: (w) => mastDa(w),
     hinweis: (w) => `Gesamtlänge wie angeschrieben. Vorgabe ist 0.50 m über `
            + `Oberkante Obergurt, aufgerundet auf den halben Meter — hier ${
-             mastLaengeVorgabe(anschlusshoeheVon(w), w.jd).toFixed(2)} m bei `
-           + `H = ${anschlusshoeheVon(w).toFixed(2)} m und jd = ${
+             mastLaengeVorgabe(freieLaengeVon(w), w.jd).toFixed(2)} m bei `
+           + `H = ${freieLaengeVon(w).toFixed(2)} m und jd = ${
              Math.round(Number(w.jd) || 0)} mm. Handbuch.` },
+  /*
+   * >>> FUSSPUNKT UND ANSCHLUSSHOEHE SIND ZWEI MASSE. <<<
+   *
+   * Weisung vom 12. September. Bis dahin lag der Fuss IMMER genau die
+   * Anschlusshoehe unter der Jochachse, und die Mastlaenge wuchs allein nach
+   * oben. Ein Mast, dessen Fuss vierzig Zentimeter tiefer steht - fallendes
+   * Gelaende, tiefere Einbindung -, war nicht abzubilden: bei gleicher
+   * Anschlusshoehe las das Modell die Mehrlaenge als Ueberstand oben.
+   *
+   * NULL IST DER REGELFALL und heisst: Fuss auf der Bezugshoehe, alles wie
+   * bisher. Negativ heisst tiefer.
+   *
+   * >>> ER VERLAENGERT DEN HEBEL DER DREHFEDER. <<<
+   *
+   * c_phi = Rahmenfaktor * E*I/H, und H ist die FREIE Laenge vom Fuss bis
+   * zur Jochachse. Ein tieferer Fuss macht die Einspannung also weicher -
+   * das ist keine Darstellung, das rechnet mit. Der Hinweis sagt es, damit
+   * niemand den Wert fuer eine Bildkorrektur haelt.
+   */
+  { key: 'mastFuss', gruppe: 'mast', typ: 'schieber',
+    label: (w) => `Fusspunkt · Mast ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
+    // Der halbe Meter am Schieber wie bei jeder Laenge; das Zahlenfeld
+    // daneben bleibt fein - ein Gelaendesprung misst selten 0.50 m.
+    sym: 'Δz_F', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
+    min: -3, max: 3,
+    wertAus: amMast('fuss', 'mastFuss'),
+    sichtbar: (w) => mastDa(w),
+    hinweis: (w) => `Versatz des Fusspunktes gegen die Bezugshöhe, positiv `
+           + `nach oben. 0 = Fuss genau ${anschlusshoeheVon(w).toFixed(2)} m `
+           + `unter der Jochachse; negativ bei fallendem Gelände oder tieferer `
+           + `Einbindung. Verlängert die freie Länge und macht damit die `
+           + `Drehfeder weicher — c_φ = Rahmenfaktor · E·I/H.` },
+  { key: 'mastFussB', gruppe: 'mast', typ: 'schieber', versteckt: true,
+    label: 'Fusspunkt Ende B',
+    sym: 'Δz_F,B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
+    min: -3, max: 3 },
   { key: 'mastSteg', gruppe: 'mast', typ: 'auswahl', label: 'Stegrichtung Mast',
     standard: 'jochachse', optionen: opt(STEGRICHTUNGEN),
     wertAus: amMast('steg', 'mastSteg'),

@@ -746,7 +746,16 @@ export function erzeugeSzene(m, erg) {
         masse.push({
           feld: name === 'A' ? 'mastH' : 'mastHB', tab: 'aufl', achse: 'z',
           p0: [x, 0, zF], p1: [x, 0, z0], ab: [seite, 0, 0], d: 0.75,
-          text: `H${name === 'B' ? '_B' : ''} = ${mast.H.toFixed(2)} m`,
+          /*
+           * DAS MASS IST DIE FREIE LAENGE - es liegt ja zwischen Fuss und
+           * Jochachse, und genau die misst `mast.H` seit dem 12. September.
+           * Steht der Fuss versetzt, faellt sie mit der Anschlusshoehe nicht
+           * mehr zusammen; dann steht diese in Klammern daneben, denn sie ist
+           * die Zahl vom Blatt.
+           */
+          text: `H${name === 'B' ? '_B' : ''} = ${mast.H.toFixed(2)} m`
+              + (Math.abs(mast.fuss ?? 0) > 1e-9
+                  ? ` (Anschluss ${(mast.HAnschluss ?? mast.H).toFixed(2)})` : ''),
         });
         if (mast.ueberstand > 0) {
           masse.push({
@@ -762,7 +771,10 @@ export function erzeugeSzene(m, erg) {
       // Lagerung, beides ohne ausgeschriebene Wörter.
       marken.push({ gruppe: 'auflager', art: 'auflagertext', p: [x, 0, zF],
                     zeilen: [
-                      mast ? `${mast.profil.name} · ${mast.H.toFixed(1)} m` : null,
+                      mast ? `${mast.profil.name} · ${mast.H.toFixed(1)} m`
+                           + (Math.abs(mast.fuss ?? 0) > 1e-9
+                               ? ` · Fuss ${mast.fuss > 0 ? '+' : ''}${
+                                   mast.fuss.toFixed(2)} m` : '') : null,
                       [cText(cPhi ?? 0),
                        Number.isFinite(kappa)
                          ? `κ ${(100 * Math.max(0, Math.min(1, kappa))).toFixed(0)} %`

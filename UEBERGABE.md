@@ -305,6 +305,51 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Der Fusspunkt ist ein eigenes Mass (12. September)
+
+Frage: «kann man die fusspunkthöhe und die mastlänge frei wählen bei allen
+positionen?» — die Mastlänge ja, den Fusspunkt bis dahin nicht. Er lag
+**immer** genau die Anschlusshöhe unter der Jochachse, und die Länge wuchs
+allein nach oben. Ein Mast auf tieferem Fundament — fallendes Gelände,
+tiefere Einbindung — war bei gleicher Anschlusshöhe nicht abzubilden: das
+Modell las die Mehrlänge als Überstand oben.
+
+Jetzt sind es drei Grössen:
+
+| | |
+|---|---|
+| `HAnschluss` | Jochachse über der Bezugshöhe — die Zahl vom Blatt |
+| `fuss` | Versatz des Fusspunktes gegen die Bezugshöhe, positiv nach oben |
+| `H` | die **freie Länge**, Fuss bis Jochachse — `HAnschluss − fuss` |
+
+```
+z_Fuss = Jochachse − H
+z_Kopf = z_Fuss + L_M
+```
+
+**Die Drehfeder rechnet mit der freien Länge** (Weisung, ausdrücklich):
+`c_φ = Rahmenfaktor · E·I/H`. Ein tieferer Fuss macht die Einspannung
+weicher — beim HEB 260 mit H = 7.50 m und 40 cm tieferem Fuss von 16'710 auf
+15'864 kNm/rad, also −5 %. Das ist keine Darstellung, das rechnet mit.
+
+**Und deshalb heisst die freie Länge weiter `H`.** Alles, was den Masten
+rechnet, misst vom Fuss: die Drehfeder, die Kopfverdrehung aus Wind und
+Längskraft, der Mastnachweis über die Höhe (`core.mast.js` setzt `z: H` für
+den Jochanschluss), und die Ausleitung, die den Fuss bei `Jochachse − H`
+absetzt. Ohne Versatz ändert sich damit **nichts**; mit Versatz ändert sich
+alles an genau einer Stelle.
+
+**Er gehört dem Masten, nicht dem Jochende.** Zwei Joche am selben Masten
+dürfen verschieden hoch anschliessen (`mastHZwei`) — aber sie stehen auf
+demselben Fundament. `mastFuss` steht deshalb in `MASTFELDER` und wandert
+über die Mastenliste. Das ist zugleich der Grund, warum `hoehenversatz`
+unverändert bleibt: er gleicht die Anschlusshöhen aus, und der Fussversatz
+ist auf beiden Seiten eines geteilten Masten derselbe — er kürzt sich heraus.
+
+`hebungVon` liest weiter die **Anschlusshöhe**. Der Nullpunkt des Blattes ist
+damit die Bezugshöhe und nicht der wirkliche Fuss; ein Versatz zeigt sich im
+Bild als tieferer Fuss, und genau dafür ist er da.
+
 ### Das Abfangjoch ist ein liegender Träger (9. September)
 
 Weisung: «die ansicht zeigt nicht das Abfangjoch, es gibt da keine ober und
@@ -506,7 +551,7 @@ Kragarme, Schraubengrenze), trägt sie jetzt am **Feld**. Damit:
 | Gruppe | Zuständig für |
 |---|---|
 | **Auflager** | *wie* das Tragwerk gelagert ist — Endbedingung, Feder, Kragarme, Anschluss ans Joch, Bedingung am Masten |
-| **Masten** | *was* dort steht — Profil, Anschlusshöhe, Länge, Stegrichtung, Ende B |
+| **Masten** | *was* dort steht — Profil, Anschlusshöhe, Fusspunkt, Länge, Stegrichtung, Ende B |
 
 ### Die Auflagerskizze: Lagerung vor Bauteil (9. September)
 
