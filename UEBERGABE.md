@@ -305,6 +305,53 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Die Leiste schreibt Mastprofil, Länge und Lage an (13. September)
+
+Weisung: «diese darstellung optimieren und beim mast typ und länge ergänzen
+noch x wert anschreiben in abbildung.»
+
+Das Joch trug in der Leiste seinen Namen — «J100 · 15.00 m» —, der Mast eine
+Anzahl: «2 Stück». Welches Profil dort steht, wie lang es ist und wo es steht,
+wusste nur der Titel unter dem Zeiger. Jetzt steht es da:
+
+```
+BAUTEIL              -1.5 m   LAGE AUF DEM QUERPROFIL   21.5 m
+P1 · JOCH            |------------------------------------|
+J90 · 20.00 m
+MASTEN                 ┴                                ┴
+2 × HEB 240          0.00                            20.00
+8.50 m                 M1                                M2
+```
+
+**Einmal, wenn alle gleich sind — sonst je Mast eine Zeile.** Der Regelfall
+ist ein Joch auf zwei gleichen Masten; dort wäre «M1 HEB 240 · 8.50 m / M2
+HEB 240 · 8.50 m» zweimal dasselbe. Steht es einmal da, sieht man auf einen
+Blick, dass es *ein* Sortimentsstück ist. Weichen sie voneinander ab, ist
+genau das die Nachricht — dann steht jeder mit seinem Namen da.
+
+**Die Länge steht auch da, wenn sie niemand eingetippt hat.** `mastLaenge` ist
+ein Feld mit abgeleitetem Standardwert; fehlt es, zeigt die Maske
+`mastLaengeVorgabe(H, jd)`. Nähme die Leiste nur den eingetippten Wert, stünde
+dort «HEB 240» ohne Länge, während das Feld daneben 8.50 m zeigt. Das Ende
+ergibt sich aus der Stelle: steht der Mast auf x₀ seines Tragwerks, ist er
+dessen Ende A, sonst B.
+
+**Die Lage steht waagrecht unter dem Fuss, nicht in der senkrechten Schrift.**
+Jedes Zeichen dort kostet Bahnhöhe — bei 9 px rund 6.5 px. «M1 · x 0.00 m»
+hätte die Reihe von 46 auf über 90 Pixel getrieben, für eine Zahl, die
+waagrecht dreißig Pixel braucht. Senkrecht bleibt nur, was lang wird: Name
+und Ankertyp. Die Höhe folgt der längsten Anschrift (`--qp-hoch`); eine feste
+Höhe schneidet ab, und `overflow: hidden` sagt es nicht — mit 5.4 px je
+Zeichen war im Browser schon «M1» abgeschnitten, weil ein M breiter ist als
+das Mittel.
+
+**Die Linie schweigt, wo ein Mast steht.** Die Enden eines Jochs *sind* seine
+Masten, und die schreiben ihre Lage selbst an — eine Zeile tiefer auf
+derselben Bahn. Stünde sie auch an der Linie, läge dieselbe Zahl zweimal
+untereinander. Angeschrieben wird deshalb nur ein Ende **ohne** Masten: das
+Tragwerk, das ohne Masten steht, und die Jochreihe, deren Zwischenmast zwei
+Enden zugleich trägt. Die acht Pixel für die Masszahl kosten nur dort.
+
 ### Der Knicknachweis läuft nach SIA 263 (13. September)
 
 Weisung: «ziel ist es den nachweis komplett nach sia zu führen und diesen auch

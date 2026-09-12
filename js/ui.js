@@ -16,8 +16,12 @@ import { auflagerDiagrammHtml, verdrahteAuflagerLinks }
   from './ui.auflagerlinks.js';
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
-         gewaehlterMast, versteckt,
+         gewaehlterMast, versteckt, anschlusshoehe,
          aufRaster, mastNameAmEnde, tragwerkPos } from './core.constants.js';
+// Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
+// Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
+// einen Wert zeigt.
+import { mastLaengeVorgabe } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich } from './data.abfangjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
@@ -1301,6 +1305,15 @@ function qpKopfHtml(von, bis) {
 }
 
 
+/*
+ * AB WIEVIEL BREITE DAS ZWEITE MASS PLATZ HAT [% der Bahn].
+ *
+ * Zwei Zahlen zu 8.5 px brauchen gut 60 px; eine Bahn in der Seitenspalte
+ * ist rund 300 px breit. Unter 20 % liefen sie ineinander - dann steht nur
+ * der Anfang da, und das Ende liest man am Masten darunter.
+ */
+const MASS_PLATZ = 20;
+
 export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
   if (!alle.length) return '';
@@ -1308,6 +1321,18 @@ export function querprofilLeisteHtml(werte) {
   const aktivId = werte.twId ?? 'T1';
   const gewMast = gewaehlterMast(werte);
   const masten = mastenVon(werte);
+
+  /*
+   * >>> DIE LINIE SCHWEIGT, WO EIN MAST STEHT. <<<
+   *
+   * Die Enden eines Jochs sind seine Masten - und die schreiben ihre Lage
+   * selbst an, eine Zeile tiefer auf derselben Bahn. Stuende sie auch an
+   * der Linie, laege dieselbe Zahl zweimal untereinander. Angeschrieben
+   * wird deshalb nur ein Ende OHNE Masten: das Tragwerk, das ohne Masten
+   * steht, und die Jochreihe, deren Zwischenmast zwei Enden zugleich
+   * traegt.
+   */
+  const mastBei = (x) => masten.some((m) => Math.abs(m.x - x) < 0.05);
 
   const zeilen = alle.map((t) => {
     const art = tragwerksart(t);
@@ -1319,6 +1344,13 @@ export function querprofilLeisteHtml(werte) {
     const breit = Math.max(qpPct(x0 + L, von, bis) - links, 2.5);
     const an = t.id === aktivId;
     const aus = versteckt(t);
+    /*
+     * Die acht Pixel fuer die Masszahl kosten nur, wo eine steht. Steht das
+     * Joch auf Masten, schreiben die ihre Lage selbst an - dann bleibt die
+     * Zeile so flach wie zuvor.
+     */
+    const massLinks = !mastBei(x0);
+    const massRechts = Boolean(L) && breit >= MASS_PLATZ && !mastBei(x0 + L);
     return `<div class="qp-zeile${an ? ' an' : ''}${aus ? ' aus' : ''}">
       <button type="button" class="qp-auge${aus ? '' : ' an'}"
               data-qp-sicht="${esc(t.id)}"
@@ -1334,12 +1366,17 @@ export function querprofilLeisteHtml(werte) {
                 + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen'))}"
         ><span class="qp-art">${esc(tragwerkPos(werte, t))} · ${
             esc(art.kuerzel)}</span>${esc(tragwerkName(t))}</button>
-      <span class="qp-bahn">
+      <span class="qp-bahn${massLinks || massRechts ? ' qp-bahn-mass' : ''}">
         <button type="button" class="qp-linie${an ? ' an' : ''}"
           data-qp-tw="${esc(t.id)}"
           style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%"
           title="${esc(`x₀ = ${x0.toFixed(2)} m${L ? ` · ${L.toFixed(2)} m lang` : ''}`
             + ' · Rechtsklick öffnet das Kontextmenü')}"></button>
+        ${massLinks ? `<span class="qp-mass qp-mass-links"
+              style="left:${links.toFixed(3)}%">${x0.toFixed(2)}</span>` : ''}${
+        massRechts ? `<span class="qp-mass qp-mass-rechts"
+              style="right:${(100 - links - breit).toFixed(3)}%">${
+                (x0 + L).toFixed(2)}</span>` : ''}
       </span>
     </div>`;
   }).join('');
@@ -1419,13 +1456,97 @@ export function querprofilLeisteHtml(werte) {
    * kuerzer, nicht aermer - ein Ueberblick, der etwas weglaesst, was man
    * danach doch sucht, ist keiner.
    * ======================================================================= */
+  /* =========================================================================
+   * >>> DER MAST SAGT, WAS ER IST - PROFIL, LAENGE, LAGE. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «diese darstellung optimieren und beim mast
+   * typ und laenge ergaenzen noch x wert anschreiben in abbildung.»
+   *
+   * In der Zeile stand «2 Stueck». Das Joch darueber trug seinen Namen -
+   * «J100 · 15.00 m» -, der Mast eine Anzahl; welches Profil dort steht und
+   * wie lang es ist, wusste nur der Titel, den man mit dem Zeiger findet.
+   *
+   * >>> EINMAL, WENN ALLE GLEICH SIND - SONST JE MAST EINE ZEILE. <<<
+   *
+   * Der Regelfall ist ein Joch auf zwei gleichen Masten; dort waere «M1 HEB
+   * 240 · 10.50 m / M2 HEB 240 · 10.50 m» zweimal dasselbe. Steht es nur
+   * einmal da («2 × HEB 240 · 10.50 m»), sieht man auf einen Blick, dass es
+   * EIN Sortimentsstueck ist. Weichen sie voneinander ab, ist genau das die
+   * Nachricht - dann steht jeder mit seinem eigenen Namen da.
+   *
+   * >>> DIE LAGE STEHT WAAGRECHT UNTER DEM MASTEN, NICHT IN DER SCHRIFT. <<<
+   *
+   * Die senkrechte Anschrift traegt die Bahnhoehe: jedes Zeichen kostet
+   * rund fuenf Pixel. «M1 · x 0.00 m» haette die Reihe von 46 auf 90 Pixel
+   * getrieben - fuer eine Zahl, die waagrecht dreissig Pixel braucht. Sie
+   * steht deshalb als Mass unter dem Fuss, wie in einer Vermassung; senkrecht
+   * bleibt nur, was lang wird: Name und Ankertyp.
+   * ======================================================================= */
+  /*
+   * >>> DIE LAENGE STEHT DA, AUCH WENN SIE NIEMAND EINGETIPPT HAT. <<<
+   *
+   * `mastLaenge` ist ein Feld mit ABGELEITETEM Standardwert: fehlt es,
+   * zeigt die Maske `mastLaengeVorgabe(H, jd)` - einen halben Meter ueber
+   * Oberkante Obergurt, aufgerundet. Naehme die Leiste nur den eingetippten
+   * Wert, stuende dort «HEB 240» ohne Laenge, waehrend das Feld daneben
+   * 8.50 m zeigt. Dieselbe Rechnung, dieselbe Zahl.
+   *
+   * DAS ENDE ERGIBT SICH AUS DER STELLE: steht der Mast auf x0 seines
+   * Tragwerks, ist er dessen Ende A, sonst B. Die Anschlusshoehe gehoert
+   * dem JOCHENDE (siehe `anschlusshoehe`), der Fusspunkt dem MASTEN - die
+   * freie Laenge ist ihre Differenz.
+   */
+  const mastLaengeVon = (m) => {
+    const v = Number(m.laenge) || 0;
+    if (v > 0) return v;
+    const t = alle.find((x) => (m.traegt ?? []).includes(x.id));
+    if (!t) return 0;
+    const ende = Math.abs(m.x - lageVon(t)) < 0.05 ? 'A' : 'B';
+    const H = anschlusshoehe(t, ende) - (Number(m.fuss) || 0);
+    return H > 0 ? mastLaengeVorgabe(H, t.jd) : 0;
+  };
+  const mastProfil = (m) => String(m.profil ?? '').trim() || 'ohne Profil';
+  const mastText = (m) => {
+    const l = mastLaengeVon(m);
+    return [mastProfil(m), l > 0 ? `${l.toFixed(2)} m` : null]
+      .filter(Boolean).join(' · ');
+  };
+  const einerlei = masten.length > 0
+    && masten.every((m) => mastText(m) === mastText(masten[0]));
+  const mastSchrift = (m, i) => `M${i + 1}${
+      (m.traegt ?? []).length > 1 ? ' ⊕' : ''}${
+      m.anker?.typ && m.anker.h > 0 && m.anker.a > 0 ? ` · ${m.anker.typ}` : ''}`;
+  /*
+   * DIE HOEHE FOLGT DER LAENGSTEN ANSCHRIFT. Eine feste Hoehe waere
+   * entweder zu knapp (die Schrift wird abgeschnitten, und `overflow:
+   * hidden` sagt es nicht) oder zu grosszuegig - und die Leiste steht in
+   * einer Seitenspalte, wo jede Zeile zaehlt.
+   *
+   * 38 px stehen fuer Symbol, Mass und Luft; jedes Zeichen der senkrechten
+   * Schrift kostet bei 9 px rund 6.5 px. Im Browser nachgemessen: mit
+   * 5.4 px je Zeichen war schon «M1» abgeschnitten - ein M ist breiter als
+   * das Mittel, und die Rechnung muss den unguenstigen Fall tragen.
+   */
+  const maxSchrift = masten.reduce((a, m, i) =>
+    Math.max(a, mastSchrift(m, i).length), 2);
+  const bahnHoch = Math.min(110, Math.round(38 + maxSchrift * 6.5));
+
   const mastZeilen = masten.length ? `<div class="qp-zeile qp-mastreihe">
       <span class="qp-auge-platz"></span>
       <span class="qp-name qp-name-fest">
         <span class="qp-art">Masten${
           masten.some((m) => m.anker?.typ) ? ' &amp; Anker' : ''}</span>${
-        esc(`${masten.length} Stück`)}</span>
-      <span class="qp-bahn qp-bahn-hoch">
+        einerlei
+          ? `<span>${esc(masten.length > 1
+                ? `${masten.length} × ${mastProfil(masten[0])}`
+                : mastProfil(masten[0]))}</span><span class="qp-mastlang">${
+              esc(mastLaengeVon(masten[0]) > 0
+                ? `${mastLaengeVon(masten[0]).toFixed(2)} m` : 'ohne Länge')
+            }</span>`
+          : masten.map((m, i) => `<span class="qp-mastliste">${
+              esc(`M${i + 1} ${mastText(m)}`)}</span>`).join('')}</span>
+      <span class="qp-bahn qp-bahn-hoch" style="--qp-hoch:${bahnHoch}px">
         ${masten.map((m, i) => {
           const an = m.id === gewMast?.id;
           const traegt = m.traegt ?? [];
@@ -1467,6 +1588,8 @@ export function querprofilLeisteHtml(werte) {
               data-qp-anker="${esc(m.id)}"
               title="${esc(`Zuganker / Druckstütze am Masten M${i + 1} · `
                 + ankTitel + ' · anklicken zum Ändern')}"></button>` : ''}
+            <span class="qp-mastmass${an ? ' an' : ''}"
+              >${m.x.toFixed(2)}</span>
             <span class="qp-mastschrift${an ? ' an' : ''}"
               >M${i + 1}${geteilt ? ' ⊕' : ''}${
                 hatAnker ? ` · ${esc(ak.typ)}` : ''}</span>

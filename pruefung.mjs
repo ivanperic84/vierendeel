@@ -16792,6 +16792,116 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          !g.includes('data-tragwerkfeld'));
   }
 
+  /* =========================================================================
+   * >>> DIE LEISTE SCHREIBT AN, WAS DASTEHT. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «diese darstellung optimieren und beim mast
+   * typ und laenge ergaenzen noch x wert anschreiben in abbildung.»
+   *
+   * Das Joch trug seinen Namen - «J100 · 15.00 m» -, der Mast eine Anzahl:
+   * «2 Stueck». Welches Profil dort steht, wie lang es ist und wo es steht,
+   * wusste nur der Titel unter dem Zeiger.
+   *
+   * Geprueft wird an der ZEICHENKETTE, nicht am DOM: `querprofilLeisteHtml`
+   * ist reine Textarbeit und laeuft damit auch hier in Node.
+   */
+  {
+    const UIF = await import(J('ui.js'));
+    const MA = await import(J('core.auflager.js'));
+    const joch = (extra = {}) => ({
+      ...standardwerte(), tragwerksart: 'joch', typ: 'J100', L: 15,
+      xLage: 0, mastH: 7.5, jd: 500,
+      mastProfil: 'HEB 240', mastVorhanden: true, ...extra,
+    });
+    const h = UIF.querprofilLeisteHtml(joch());
+    /*
+     * 1 - PROFIL UND LAENGE, WIE BEIM JOCH.
+     */
+    wahr('Die Mastreihe nennt das Profil', h.includes('HEB 240'));
+    wahr('… und zaehlt sie zusammen, wenn alle gleich sind',
+         h.includes('2 \u00d7 HEB 240'));
+    wahr('«2 Stueck» steht nicht mehr da', !h.includes('St\u00fcck'));
+    /*
+     * 2 - DIE LAENGE STEHT DA, OBWOHL SIE NIEMAND EINGETIPPT HAT.
+     *
+     * `mastLaenge` fehlt im Satz; die Maske zeigt dort die Vorgabe. Die
+     * Leiste rechnet dieselbe - sonst stuende in der Uebersicht nichts,
+     * wo das Feld daneben einen Wert zeigt.
+     */
+    const soll = MA.mastLaengeVorgabe(7.5, 500);
+    wahr('Die Laenge ist die Vorgabe des Feldes',
+         h.includes(`${soll.toFixed(2)} m`), `${soll.toFixed(2)} m`);
+    const hL = UIF.querprofilLeisteHtml(joch({ mastLaenge: 11.5 }));
+    wahr('… und eine eingetippte Laenge schlaegt sie',
+         hL.includes('11.50 m'));
+    /*
+     * 3 - DIE LAGE, ANGESCHRIEBEN.
+     */
+    const masse = [...h.matchAll(/class="qp-mastmass[^"]*"\s*>([-\d.]+)</g)]
+      .map((m) => m[1]);
+    wahr('Jeder Mast traegt seine Lage', masse.length === 2, masse.join(', '));
+    wahr('… und zwar seine eigene',
+         masse[0] === '0.00' && masse[1] === '15.00');
+    /*
+     * WAAGRECHT, NICHT IN DER SENKRECHTEN SCHRIFT. Jedes Zeichen dort
+     * kostet Bahnhoehe; «M1 · x 0.00 m» haette die Reihe fast verdoppelt.
+     */
+    const schriften = [...h.matchAll(/class="qp-mastschrift[^"]*"\s*>([^<]*)</g)]
+      .map((m) => m[1].trim());
+    wahr('Die senkrechte Schrift bleibt der Name',
+         schriften.every((s) => !s.includes('x ')), schriften.join(' | '));
+    /*
+     * 4 - KEINE ZAHL ZWEIMAL.
+     *
+     * Die Enden des Jochs SIND seine Masten. Stuende die Lage auch an der
+     * Linie, laege dieselbe Zahl zweimal untereinander.
+     */
+    wahr('Steht das Joch auf Masten, schweigt seine Linie',
+         !h.includes('qp-mass-links') && !h.includes('qp-mass-rechts'));
+    wahr('… und die Zeile bleibt so flach wie zuvor',
+         !h.includes('qp-bahn-mass'));
+    const hO = UIF.querprofilLeisteHtml(joch({ mastVorhanden: false }));
+    wahr('Ohne Masten schreibt die Linie ihre Enden an',
+         hO.includes('qp-mass-links') && hO.includes('qp-mass-rechts'));
+    wahr('… und die Zeile macht dafuer Platz', hO.includes('qp-bahn-mass'));
+    wahr('Die Zahlen sind Anfang und Ende',
+         hO.includes('>0.00</span>') && hO.includes('>15.00</span>'));
+    /*
+     * 5 - WEICHEN SIE VONEINANDER AB, STEHT JEDER FUER SICH.
+     */
+    const hG = UIF.querprofilLeisteHtml(joch({
+      masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5 },
+               { id: 'M2', x: 15, profil: 'HEB 260', laenge: 12.0 }] }));
+    wahr('Gemischte Masten stehen einzeln da',
+         hG.includes('M1 HEB 240') && hG.includes('M2 HEB 260'));
+    wahr('… und nicht zusammengezaehlt', !hG.includes('2 \u00d7 HEB'));
+    /*
+     * 6 - DIE BAHNHOEHE FOLGT DER LAENGSTEN ANSCHRIFT.
+     *
+     * Eine feste Hoehe schneidet die Schrift ab, und `overflow: hidden`
+     * sagt es nicht. Im Browser nachgemessen: mit 5.4 px je Zeichen war
+     * schon «M1» abgeschnitten.
+     */
+    const hoch = (s) => Number(/--qp-hoch:(\d+)px/.exec(s)?.[1] ?? 0);
+    wahr('Die Bahn traegt ihre Hoehe', hoch(h) > 0, `${hoch(h)} px`);
+    const hA = UIF.querprofilLeisteHtml(joch({
+      masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5,
+                 anker: { typ: 'A160', h: 2, a: 3 } },
+               { id: 'M2', x: 15, profil: 'HEB 240', laenge: 8.5 }] }));
+    wahr('Ein Ankertyp in der Schrift macht sie hoeher',
+         hoch(hA) > hoch(h), `${hoch(hA)} gegen ${hoch(h)} px`);
+    wahr('… aber nicht unbegrenzt', hoch(hA) <= 110);
+    /*
+     * 7 - WAS NICHT VERLOREN GEHEN DARF: jeder Mast bleibt anklickbar, und
+     * sein voller Text steht im Titel. Die Zeile ist kuerzer, nicht aermer.
+     */
+    wahr('Jeder Mast bleibt ein Knopf',
+         (h.match(/data-qp-mast="/g) ?? []).length === 2);
+    wahr('… und nennt seine Lage im Titel',
+         h.includes('bei x = 0.00 m') && h.includes('bei x = 15.00 m'));
+  }
+
   /*
    * >>> DIE BEIDEN AUSSCHNITTE HABEN EIGENE SYMBOLE. <<<
    *

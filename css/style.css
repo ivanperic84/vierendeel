@@ -1522,7 +1522,7 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    `.qp-bahn` weiter unten in dieser Datei steht und bei gleicher Spezifitaet
    die spaetere Regel gewinnt - eine Zeile Vorsprung genuegt, um 62 px wieder
    auf 18 zu setzen, und dann ragt die Schrift aus ihrer Bahn heraus. */
-.qp-mastreihe .qp-bahn.qp-bahn-hoch { height: 46px; }
+.qp-mastreihe .qp-bahn.qp-bahn-hoch { height: var(--qp-hoch, 51px); }
 .qp-mastgruppe { position: absolute; top: 0; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; }
 /* Das Symbol sitzt oben in der Gruppe, die Anschrift darunter - siehe
@@ -1550,10 +1550,35 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .qp-mastschrift {
   writing-mode: vertical-rl; text-orientation: mixed;
   font-size: 9px; letter-spacing: .02em; color: var(--dim);
-  padding-top: 22px; max-height: 46px; overflow: hidden;
-  white-space: nowrap; pointer-events: none;
+  padding-top: 1px; max-height: calc(var(--qp-hoch, 51px) - 32px);
+  overflow: hidden; white-space: nowrap; pointer-events: none;
 }
 .qp-mastschrift.an { color: var(--acc); }
+
+/* DIE LAGE DES MASTEN, WAAGRECHT UNTER SEINEM FUSS (Weisung, 13. September:
+   «noch x wert anschreiben in abbildung»). Waagrecht, weil eine Zahl
+   senkrecht die ganze Reihe hoeher macht - siehe den Kommentar bei
+   `bahnHoch`. 21 px schieben sie am Symbol vorbei. */
+.qp-mastmass {
+  padding-top: 21px; font-size: 8.5px; line-height: 1;
+  color: var(--dim); font-variant-numeric: tabular-nums;
+  white-space: nowrap; pointer-events: none;
+}
+.qp-mastmass.an { color: var(--acc); }
+
+/* Profil und Laenge stehen UNTEREINANDER. «2 x HEB 240 . 8.50 m» ist
+   zwanzig Zeichen; die Spalte ist 96 px breit, und bei 10.5 px Schrift
+   schnitt sie das letzte Wort ab - im Browser nachgemessen. Zwei Zeilen
+   passen, und die Spalte muss dafuer nicht breiter werden (sie nimmt der
+   Bahn den Platz weg, und die traegt die eigentliche Aussage). */
+.qp-mastlang { font-size: 9.5px; color: var(--dim); }
+
+/* Weichen die Masten voneinander ab, steht jeder mit Profil und Laenge in
+   der Namensspalte - eine Zeile je Mast, klein und ohne eigene Bahn. */
+.qp-mastliste {
+  font-size: 9px; line-height: 1.35; color: var(--on2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* DER ANKER ALS STRICH am Fuss des Dreiecks, in Richtung seines Fundaments.
    Quer zum Gleis liegt er in der Bahnebene und zeigt nach links oder rechts;
@@ -1633,6 +1658,24 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .qp-linie::before { left: 0; }
 .qp-linie::after { right: 0; }
 .qp-zeile.aus .qp-linie { background: none; border: 1px dashed var(--ol2); }
+
+/* ===========================================================================
+   DIE LINIE BEKOMMT IHRE MASSE
+
+   Weisung vom 13. September: «noch x wert anschreiben in abbildung.» Die
+   Bahn trug eine Skala an ihren Enden - das sagt, wo das Blatt anfaengt und
+   aufhoert, nicht, wo das Tragwerk steht. Jetzt steht die Zahl an der Linie
+   selbst: links der Anfang, rechts das Ende, buendig mit den Endmarken.
+
+   Die Bahn wird dafuer acht Pixel hoeher. Das ist der Preis; eine Zahl, die
+   auf der Linie liegt, liest sich nicht. */
+.qp-bahn-mass { height: 26px; }
+.qp-mass {
+  position: absolute; top: 13px; font-size: 8.5px; line-height: 1;
+  color: var(--dim); font-variant-numeric: tabular-nums;
+  white-space: nowrap; pointer-events: none;
+}
+.qp-zeile.an .qp-mass { color: var(--acc); }
 
 /* --- Die Masten als eigene Zeilen -----------------------------------------
    Weisung, 9. September: «Die masten direkt anschreiben wie bei den jochen
