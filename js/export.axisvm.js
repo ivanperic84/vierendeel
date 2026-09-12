@@ -134,6 +134,42 @@ export const auflagerModelleFuer = (art) =>
     .map((k) => ({ ...k,
       label: art === 'abfangjoch' && k.labelAbfang ? k.labelAbfang : k.label }));
 
+/* ===========================================================================
+ * >>> WAS ZUR WAHL STEHT, UND WAS NICHT MEHR. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 12. September: "kannst du beim output die lagerung gemaess
+ * unseren aktuellen definition anbieten und die restlichen weglassen, falls
+ * nicht wirklich notwendig."
+ *
+ * Die Maske fuehrte alle vier Modelle nebeneinander, und drei davon konnten
+ * fuer ein bestimmtes Tragwerk gar nicht gemeint sein: `mast` braucht einen
+ * Masten, `mitte` ist die Altbauweise, `gurte` die neue ohne Masten. Wer ein
+ * Joch mit Masten ausleitet, bekam drei Zeilen zum Ueberlesen.
+ *
+ * Es bleiben ZWEI, und beide haben einen Grund:
+ *
+ *   die Lagerung des Tragwerks   was gebaut wird - Mast, oder ohne Masten
+ *                                die Lagerung seiner Bauweise
+ *   ein Punkt je Ende            der ABGLEICH mit dem Ersatzbalken. Er ist
+ *                                das einzige Modell, das die teilweise
+ *                                Einspannung als Drehfeder traegt, und die
+ *                                Vergleichsbasis der Kalibrierung (siehe
+ *                                AUFLAGERMODELLE oben). Kein Produktionsweg,
+ *                                aber ein gebrauchter.
+ *
+ * Weggelassen wird nur die WAHL, nicht das Modell: `gurte` und `mitte`
+ * bleiben, was sie sind, und der Pruefstand rechnet sie weiter durch. Ein
+ * Tragwerk sieht nur noch seines.
+ */
+export function auflagerAngebot(m, art, hatMast = null) {
+  const vorgabe = auflagerVorgabe(m);
+  const mastDa = hatMast === null ? Boolean(m?.federn?.mast) : hatMast;
+  return auflagerModelleFuer(art).filter((k) => k.key === 'punkt'
+    || k.key === vorgabe
+    || (k.key === 'mast' && mastDa));
+}
+
 /**
  * VORGABE DES AUFLAGERMODELLS.
  *

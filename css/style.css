@@ -2450,3 +2450,13 @@ svg.sk .sk-mass { stroke: var(--xdim); stroke-width: .8;
 /* Das Auge fuer die Masten ist raus (Weisung, 9. September) - geschaltet
    wird in der Maske. Mit ihm fallen die blassen Geistkacheln weg, die nur
    dafuer dastanden, dass es nicht mit den Masten verschwindet. */
+
+/* ===========================================================================
+   EIN VERSTECKTES FELD IST VERSTECKT
+
+   `.feld` traegt `display: grid`, und das schlaegt die Regel des Browsers
+   fuer das Attribut `hidden` - das Feld blieb sichtbar, obwohl `hidden`
+   gesetzt war. Aufgefallen am 12. September am Schottschalter im
+   Ausgabedialog, der nur beim PyNite-Weg erscheinen soll.
+   ========================================================================= */
+.feld[hidden] { display: none; }

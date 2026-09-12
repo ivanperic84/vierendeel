@@ -2642,6 +2642,53 @@ titel('19  AxisVM-Export (SAF)');
   wahr('Vorgabe nach Bauweise', AX.auflagerVorgabe({ bauweise: 'alt' }) === 'mitte'
        && AX.auflagerVorgabe({ bauweise: 'neu' }) === 'gurte');
 
+  /* =========================================================================
+   * >>> DIE MASKE BIETET AN, WAS DIESES TRAGWERK HAT. <<<
+   * =========================================================================
+   *
+   * Weisung vom 12. September: «kannst du beim output die lagerung gemaess
+   * unseren aktuellen definition anbieten und die restlichen weglassen, falls
+   * nicht wirklich notwendig.»
+   *
+   * Vier Modelle standen nebeneinander, drei davon ohne Bezug zum Tragwerk
+   * auf dem Tisch. Es bleiben zwei: seine eigene Lagerung und der Punkt je
+   * Ende fuer den Abgleich mit dem Ersatzbalken - das einzige Modell, das die
+   * teilweise Einspannung als Drehfeder traegt.
+   *
+   * WEGGELASSEN WIRD DIE WAHL, NICHT DAS MODELL. `gurte` und `mitte` bleiben,
+   * was sie sind; der Pruefstand rechnet sie weiter durch (siehe die
+   * Kontrollen zum Gurt- und zum Mittenmodell weiter oben).
+   */
+  {
+    const schl = (m2, art2, hm) => AX.auflagerAngebot(m2, art2, hm)
+      .map((k) => k.key).join(',');
+    wahr('Mit Mast: seine Lagerung und der Abgleich',
+         schl({ federn: { mast: {} }, bauweise: 'neu' }, 'joch', true)
+         === 'mast,punkt');
+    wahr('Ohne Mast, neue Bauweise: die Gurte statt des Masten',
+         schl({ bauweise: 'neu' }, 'joch', false) === 'gurte,punkt');
+    wahr('Altbauweise: die Mitte der Gurtebenen',
+         schl({ bauweise: 'alt' }, 'joch', false) === 'mitte,punkt');
+    wahr('Das Abfangjoch kennt Gurt- und Mittenmodell ohnehin nicht',
+         schl({ federn: { mast: {} } }, 'abfangjoch', true) === 'mast,punkt');
+    wahr('… und ohne Masten bleibt ihm der Punkt',
+         schl({}, 'abfangjoch', false) === 'punkt');
+    /*
+     * DER ABGLEICH IST IMMER DABEI - er haengt an keinem Bauteil, sondern
+     * bildet den Ersatzbalken nach. Faellt er einmal aus der Liste, ist die
+     * Vergleichsbasis der Kalibrierung nicht mehr zu erreichen.
+     */
+    wahr('Der Abgleich steht in jedem Fall zur Wahl',
+         ['joch', 'tragausleger', 'abfangjoch'].every((a2) =>
+           [true, false].every((hm) =>
+             AX.auflagerAngebot({ bauweise: 'neu' }, a2, hm)
+               .some((k) => k.key === 'punkt'))));
+    wahr('Und keines der angebotenen Modelle ist erfunden',
+         ['joch', 'abfangjoch'].every((a2) =>
+           AX.auflagerAngebot({ federn: { mast: {} } }, a2, true)
+             .every((k) => AX.AUFLAGERMODELLE.some((o) => o.key === k.key))));
+  }
+
   // --- Starrelemente bis an die Blechkanten ---------------------------------
   {
     // Schnitt C-C: Vertikalblech 320 = 500 − 2·90, es stösst an

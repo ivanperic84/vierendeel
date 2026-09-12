@@ -24,7 +24,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
 import { exportiere } from './export.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
-         auflagerVorgabe } from './export.axisvm.js';
+         auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
@@ -6786,7 +6786,19 @@ function dialogAxisvm() {
   // gibt es nichts zu bauen. Ausgegraut statt versteckt: so ist zu sehen,
   // dass es das Modell gibt und woran es haengt.
   const hatMast = !!letzte.erg.modell.federn?.mast;
-  const lager = auflagerModelleFuer(art).map((k) => {
+  /*
+   * >>> NUR DIE LAGERUNG, DIE DIESES TRAGWERK HAT. <<<
+   *
+   * Weisung vom 12. September: «kannst du beim output die lagerung gemaess
+   * unseren aktuellen definition anbieten und die restlichen weglassen,
+   * falls nicht wirklich notwendig.»
+   *
+   * Hier standen alle vier Modelle nebeneinander, drei davon ohne Bezug zum
+   * Tragwerk auf dem Tisch. Es bleiben zwei: seine eigene Lagerung und der
+   * Punkt je Ende fuer den Abgleich mit dem Ersatzbalken. Was das kann und
+   * was nicht, steht bei `auflagerAngebot`.
+   */
+  const lager = auflagerAngebot(letzte.erg.modell, art, hatMast).map((k) => {
     /*
      * DER MAST IM ABFANGJOCH-MODELL FEHLT NOCH. Die Weisung nennt ihn -
      * «spaeter beim masten wie bei den tragjochen vorgehen» -, gebaut ist
@@ -6863,10 +6875,15 @@ function dialogAxisvm() {
         <span>als steife Stäbe, dicker Ersatzquerschnitt mit der Güte des
               Tragwerks, gewöhnliche Stabendgelenke</span></label>
     </div>`}
-    ${istAbfang ? '' : `<div class="feld"><label>Ausgabe</label>
+    ${istAbfang ? '' : `<div class="feld" id="feld-schott" hidden>
+      <label>Ausgabe</label>
       <label class="schalter"><input type="checkbox" name="schott">
-        <span>Endschott aus den Resultattabellen ausblenden, es bleibt
+        <span>Endschott aus der PyNite-Resultattabelle ausblenden, es bleibt
               tragendes Bauteil im Modell</span></label>
+      <p class="notiz">Betrifft nur die Stabkräfte-Tabelle des
+         PyNite-Skripts — und dort nur das Modell «ein Punkt je Ende»: die
+         Endschotte gibt es allein in ihm. Am ausgeleiteten Modell ändert der
+         Schalter nichts.</p>
     </div>`}
     <p class="notiz">Für einen Vergleich beide Modelle rechnen: erst ihre
        Differenz trennt die Frage des Knotenmodells von der des Rechenwegs.
@@ -6874,6 +6891,24 @@ function dialogAxisvm() {
        bleibt.</p>`,
     `<button class="btn btn-acc" data-los>Ausleiten</button>
      <button class="btn" data-zu>Abbrechen</button>`);
+  /*
+   * >>> DER SCHOTTSCHALTER ERSCHEINT MIT SEINEM FORMAT. <<<
+   *
+   * Er wirkt allein im PyNite-Skript: dort laesst er die SCHOTT-Staebe aus
+   * der Stabkraefte-Tabelle heraus (`SCHOTT_AUSBLENDEN`). In JSON, SAF und
+   * DXF tut er nichts - er stand trotzdem immer da und versprach eine
+   * Wirkung, die es nicht gab.
+   */
+  const schottFeld = d.node.querySelector('#feld-schott');
+  const schottZeigen = () => {
+    if (!schottFeld) return;
+    const f = d.node.querySelector('input[name="fmt"]:checked')?.value;
+    schottFeld.hidden = f !== 'pynite';
+  };
+  d.node.querySelectorAll('input[name="fmt"]').forEach((r) => {
+    r.addEventListener('change', schottZeigen);
+  });
+  schottZeigen();
   d.node.querySelector('[data-los]').onclick = () => {
     // Was beim Abfangjoch nicht zur Wahl steht, traegt seinen festen Wert.
     const lies = (n, vorgabe) => {
