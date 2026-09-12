@@ -47,7 +47,7 @@ import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
 // zur Laufzeit nachladen liessen.
 import { verkleinere, bildAusEreignis, kalibriere,
-         bezugPunkte } from './bild.zeichnung.js';
+         bezuegeFuer } from './bild.zeichnung.js';
 import { erkenneTragwerk } from './bild.erkennung.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
@@ -2572,9 +2572,28 @@ async function zeichnungEinlegen(blob, name = 'Zeichnung') {
     erkannt = null;
     const t = roh.maske
       ? erkenneTragwerk(roh.maske, roh.breite, roh.hoehe) : null;
-    const welt = bezugPunkte('joch', letzte?.erg?.modell);
-    const k = t && welt && t.guete >= ERKENNUNG_GRENZE
-      ? kalibriere(t.p1, t.p2, welt[0], welt[1]) : null;
+    /*
+     * >>> AUCH DIE SELBSTERKENNUNG BRAUCHT EINEN BEZUG. <<<
+     *
+     * Sie nahm bisher immer das Joch. Hat das Modell keines - ein
+     * Einzelmast -, gab `bezugPunkte('joch')` null, es wurde nichts
+     * eingemessen, und der Ruecksprung auf das Einmessen von Hand lief in
+     * dieselbe Wand: die Zeichnung blieb vorlaeufig liegen, ohne dass ein
+     * Wort darueber fiel.
+     *
+     * Dieselbe Erkennung traegt beide Paare. WAAGRECHT sind es die beiden
+     * Mastachsen auf der Jochachse, LOTRECHT Fundamentoberkante und
+     * Jochachse am linken Masten. Genommen wird der erste Bezug, den das
+     * Modell hergibt - das Joch, wo es eines gibt, sonst der Mast.
+     */
+    const moeglich = bezuegeFuer(letzte?.erg?.modell ?? null);
+    const bez = moeglich.find((b) => b.key === 'joch') ?? moeglich[0] ?? null;
+    const bildPaar = (key) => (key === 'mast'
+      ? [{ px: t.masten.links, py: t.fuesse.links },
+         { px: t.masten.links, py: t.jochY }]
+      : [t.p1, t.p2]);
+    const k = t && bez && t.guete >= ERKENNUNG_GRENZE
+      ? kalibriere(...bildPaar(bez.key), bez.welt[0], bez.welt[1]) : null;
     // Der Zeichnungsknopf und die Ebenengruppe aendern sich mit dem Bild:
     // vorher «Zeichnung…» und zwei graue Schalter, jetzt beides scharf. Ohne
     // dieses Nachzeichnen behauptete der Knopf weiter, es gebe keine.
@@ -2583,13 +2602,13 @@ async function zeichnungEinlegen(blob, name = 'Zeichnung') {
       ansicht.zeichnung.kalibrierung = k;
       ansicht.zeichnung.vorlaeufig = false;
       ansicht.zeichne();
-      erkannt = { guete: t.guete };
+      erkannt = { guete: t.guete, label: bez.label };
       zeichneBalken();
       await zeichnungSichernFallsMoeglich();
       return;
     }
     await zeichnungSichernFallsMoeglich();
-    kalibrierenStarten('joch');
+    kalibrierenStarten();
   } catch (f) {
     // Der Handlungsbalken ueber dem Modell: dort steht ohnehin, was als
     // Naechstes zu tun ist, und dorthin schaut man beim Einlegen eines
@@ -2736,10 +2755,40 @@ async function bildSchiebenEnde(zurueck = false) {
   ansicht.zeichne();
 }
 
-function kalibrierenStarten(bezugKey) {
-  const welt = bezugPunkte(bezugKey, letzte?.erg?.modell);
-  if (!welt || !ansicht.zeichnung) { kalibrierenEnde(); return; }
-  kalibrierung = { bezug: bezugKey, welt, punkte: [] };
+/**
+ * Das Einmessen beginnen - mit der Frage, WONACH.
+ *
+ * >>> DIE WAHL GEHOERT VOR DIE KLICKS. <<<
+ *
+ * Weisung vom 12. September: "man muesste hier eine auswahl vornehmen ob ein
+ * mast (vertikal) oder ein joch (horizontal) als referenz dient."
+ *
+ * Bisher begann jedes Einmessen beim Joch, und das lotrechte Mass lag hinter
+ * einem Knopf namens "anderes Mass" - zu finden erst, wenn man schon im
+ * Fadenkreuz stand und die erste Anweisung vom falschen Punkt sprach. Wer
+ * eine angeschnittene Zeichnung einlegt, auf der kein Jochende zu sehen ist,
+ * musste das erst merken und dann suchen.
+ *
+ * Ohne Schluessel wird gefragt; mit Schluessel geht es unmittelbar los. Gibt
+ * es nur einen Bezug, wird nicht gefragt - eine Wahl mit einer Antwort ist
+ * keine.
+ */
+function kalibrierenStarten(bezugKey = null) {
+  const moeglich = bezuegeFuer(letzte?.erg?.modell ?? null);
+  if (!moeglich.length || !ansicht.zeichnung) { kalibrierenEnde(); return; }
+  const key = bezugKey ?? (moeglich.length === 1 ? moeglich[0].key : null);
+  if (!key) {
+    kalibrierung = { wahl: moeglich, punkte: [] };
+    ansicht.kalibrierPunkte = [];
+    ansicht.beiZeichnungsklick = null;
+    zeichneBalken();
+    return;
+  }
+  const b = moeglich.find((x) => x.key === key);
+  if (!b) { kalibrierenEnde(); return; }
+  const welt = b.welt;
+  kalibrierung = { bezug: b.key, label: b.label, wahlbar: moeglich.length > 1,
+                   welt, punkte: [] };
   // Der Geraetepunkt kommt als zweites Argument - er wird gebraucht, um den
   // gesetzten Punkt stehen zu lassen, waehrend man den zweiten sucht.
   ansicht.kalibrierPunkte = [];
@@ -3396,18 +3445,42 @@ function zeichneBalken() {
   const n = ui.el('viewer-balken');
   if (!n) return;
   const canvas = ui.el('canvas3d');
+  /*
+   * ERST DIE FRAGE, WONACH EINGEMESSEN WIRD (Weisung, 12. September).
+   *
+   * Die Knoepfe tragen die Richtung im Namen - waagrecht oder lotrecht -,
+   * denn danach sucht man auf dem Blatt: nicht nach einem Bauteil, sondern
+   * nach zwei Punkten, die man sicher treffen kann.
+   */
+  if (kalibrierung?.wahl && ansicht.zeichnung) {
+    n.hidden = false;
+    n.innerHTML = '<span>Zeichnung einmessen — <b>wonach?</b></span>'
+      + kalibrierung.wahl.map((b) =>
+          `<button class="btn btn-mini" data-kalib-w="${esc(b.key)}"`
+          + ` title="${esc(b.hinweis)}">${esc(b.label)}</button>`).join('')
+      + '<button class="btn btn-mini" data-kalib-ab>Abbrechen</button>';
+    if (canvas) canvas.style.removeProperty('cursor');
+    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde();
+    n.querySelectorAll('[data-kalib-w]').forEach((b) => {
+      b.onclick = () => kalibrierenStarten(b.dataset.kalibW);
+    });
+    return;
+  }
   if (kalibrierung && ansicht.zeichnung) {
     const i = kalibrierung.punkte.length;
     const w = kalibrierung.welt[i];
     n.hidden = false;
-    n.innerHTML = `<span>Zeichnung einmessen — <b>${esc(w.text)}</b> anklicken`
-      + ` (${i + 1}/2)</span>`
-      + '<button class="btn btn-mini" data-kalib-bezug>anderes Mass</button>'
+    n.innerHTML = `<span>Zeichnung einmessen nach <b>${esc(kalibrierung.label)}</b>`
+      + ` — <b>${esc(w.text)}</b> anklicken (${i + 1}/2)</span>`
+      + (kalibrierung.wahlbar
+          ? '<button class="btn btn-mini" data-kalib-bezug>anderes Mass</button>' : '')
       + '<button class="btn btn-mini" data-kalib-ab>Abbrechen</button>';
     if (canvas) canvas.style.cursor = 'crosshair';
     n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde();
-    n.querySelector('[data-kalib-bezug]').onclick = () =>
-      kalibrierenStarten(kalibrierung.bezug === 'joch' ? 'mast' : 'joch');
+    // Zurueck zur Frage, nicht zum anderen Mass: bei drei Bezuegen waere ein
+    // Umschalter eine Rateschleife.
+    n.querySelector('[data-kalib-bezug]')?.addEventListener(
+      'click', () => kalibrierenStarten());
     return;
   }
   /*
@@ -3454,14 +3527,15 @@ function zeichneBalken() {
      * deutliches Ergebnis, und die Anschrift muss das sagen, statt Zweifel
      * zu säen, die nicht bestehen.
      */
-    n.innerHTML = '<span>Zeichnung selbst eingemessen, die beiden Masten '
+    n.innerHTML = '<span>Zeichnung selbst eingemessen nach '
+      + `<b>${esc(erkannt.label ?? 'Jochenden')}</b>, die beiden Masten `
       + 'heben sich ab (nächster Strich '
       + `${Math.round(erkannt.guete * 100)} % kürzer). <b>Sitzt sie?</b></span>`
       + '<button class="btn btn-mini" data-erk-ok>passt</button>'
       + '<button class="btn btn-mini" data-erk-hand>von Hand einmessen</button>';
     n.querySelector('[data-erk-ok]').onclick = () => { erkannt = null; zeichneBalken(); };
     n.querySelector('[data-erk-hand]').onclick = () => {
-      erkannt = null; kalibrierenStarten('joch');
+      erkannt = null; kalibrierenStarten();
     };
     return;
   }
@@ -3485,7 +3559,7 @@ function zeichneBalken() {
       + '<button class="btn btn-mini btn-fail" data-z-weg>Entfernen</button>'
       + '<button class="btn btn-mini" data-z-ab>Abbrechen</button>';
     n.querySelector('[data-z-mess]').onclick = () => {
-      zeichnungMenue = false; kalibrierenStarten('joch');
+      zeichnungMenue = false; kalibrierenStarten();
     };
     n.querySelector('[data-z-schieb]').onclick = () => bildSchiebenStarten();
     n.querySelector('[data-z-neu]').onclick = () => zeichnungWaehlen();

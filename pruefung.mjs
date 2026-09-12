@@ -7599,6 +7599,52 @@ titel('38  Hinterlegte Querprofil-Zeichnung');
     wahr('Und beide stehen am linken Masten', mb[0].x === 0 && mb[1].x === 0);
     wahr('Jeder Punkt sagt, was anzuklicken ist',
          [...j, ...mb].every((x) => typeof x.text === 'string' && x.text.length > 10));
+
+    /* =====================================================================
+     * >>> WAS ZUR WAHL STEHT, HAENGT AM MODELL. <<<
+     * =====================================================================
+     *
+     * Weisung vom 12. September: "man muesste hier eine auswahl vornehmen ob
+     * ein mast (vertikal) oder ein joch (horizontal) als referenz dient. und
+     * die zeichnung muesste dann entsprechend positioniert werden."
+     *
+     * Bisher begann jedes Einmessen beim Joch. `bezuegeFuer` liefert die
+     * Liste, aus der gefragt werden kann - und sie fuehrt nur, was es im
+     * Modell wirklich gibt. Ein Bezug, den man anbietet und der dann null
+     * liefert, ist schlimmer als keiner: das Einmessen bricht still ab.
+     * =================================================================== */
+    wahr('Ohne Mast steht nur der Jochbezug zur Wahl',
+         BZ.bezuegeFuer(mB).map((b) => b.key).join() === 'joch');
+    wahr('Mit Mast stehen beide zur Wahl',
+         BZ.bezuegeFuer(mM).map((b) => b.key).sort().join() === 'joch,mast');
+    wahr('Jeder gefuehrte Bezug bringt seine zwei Punkte gleich mit',
+         BZ.bezuegeFuer(mM).every((b) => Array.isArray(b.welt) && b.welt.length === 2
+                                      && typeof b.label === 'string'));
+    wahr('Ohne Modell steht nichts zur Wahl', BZ.bezuegeFuer(null).length === 0);
+    /*
+     * UND DIE ZEICHNUNG WIRD ENTSPRECHEND GESETZT. Derselbe Bildausschnitt,
+     * einmal ueber das Joch eingemessen und einmal ueber den Masten: der
+     * Massstab muss beide Male derselbe sein, sonst passt nur eine der
+     * beiden Richtungen.
+     *
+     * Das Blatt: 20 m Joch auf 800 Punkte, 7 m Mast auf 280 Punkte - beides
+     * 0.025 m je Punkt, und beide Male liegt der Bildpunkt (100 | 400) auf
+     * dem linken Mastkopf.
+     */
+    {
+      const wJ = BZ.bezuegeFuer(mM).find((b) => b.key === 'joch').welt;
+      const wM2 = BZ.bezuegeFuer(mM).find((b) => b.key === 'mast').welt;
+      const ueberJoch = BZ.kalibriere({ px: 100, py: 400 }, { px: 900, py: 400 },
+                                      wJ[0], wJ[1]);
+      const ueberMast = BZ.kalibriere({ px: 100, py: 680 },
+                                      { px: 100, py: 400 }, wM2[0], wM2[1]);
+      pruef('Ueber das Joch eingemessen: 0.025 m je Punkt',
+            ueberJoch.s, 0.025, 1e-9, 'm/Punkt');
+      pruef('Ueber den Masten eingemessen: derselbe Massstab',
+            ueberMast.s, 0.025, 1e-9, 'm/Punkt');
+      pruef('… und dieselbe Lage in x', ueberMast.x0, ueberJoch.x0, 1e-9, 'm');
+      pruef('… und dieselbe Lage in z', ueberMast.z0, ueberJoch.z0, 1e-9, 'm');
+    }
   }
 
   /*

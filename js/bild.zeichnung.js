@@ -171,14 +171,20 @@ export function bildRahmen(k, breite, hoehe) {
  * gut zu treffen ist.
  */
 export const BEZUEGE = [
-  { key: 'joch', label: 'Jochenden (Länge L)',
+  /*
+   * DIE RICHTUNG STEHT IM NAMEN (Weisung, 12. September: "ob ein mast
+   * (vertikal) oder ein joch (horizontal) als referenz dient"). Auf dem
+   * Blatt sucht man nicht nach einem Bauteil, sondern nach zwei Punkten,
+   * die man sicher trifft - und dafür ist die Richtung die erste Frage.
+   */
+  { key: 'joch', label: 'Joch, waagrecht (Länge L)',
     hinweis: 'Links und rechts das Ende des Jochs anklicken. Waagrecht – '
            + 'meist am besten zu treffen.',
     punkte: (m) => (m?.L > 0
       ? [{ x: 0, z: 0, text: 'linkes Jochende, Höhe der Jochachse' },
          { x: m.L, z: 0, text: 'rechtes Jochende, Höhe der Jochachse' }]
       : null) },
-  { key: 'mast', label: 'Mast Ende A (Höhe H)',
+  { key: 'mast', label: 'Mast, lotrecht (Höhe H)',
     hinweis: 'Fundamentoberkante und Jochachse am linken Masten anklicken. '
            + 'Lotrecht – gut, wenn das Joch angeschnitten ist.',
     punkte: (m) => {
@@ -199,4 +205,28 @@ export const BEZUEGE = [
 export function bezugPunkte(key, m) {
   const b = BEZUEGE.find((x) => x.key === key);
   return b ? b.punkte(m) : null;
+}
+
+/**
+ * Die Bezuege, die es in DIESEM Modell gibt - mit ihren Punkten.
+ *
+ * >>> DIE WAHL GEHOERT VOR DAS EINMESSEN. <<<
+ *
+ * Weisung vom 12. September: "man muesste hier eine auswahl vornehmen ob ein
+ * mast (vertikal) oder ein joch (horizontal) als referenz dient. und die
+ * zeichnung muesste dann entsprechend positioniert werden."
+ *
+ * Bisher begann jedes Einmessen beim Joch, und das andere Mass lag hinter
+ * einem Knopf namens "anderes Mass" - zu finden erst, wenn man schon im
+ * Fadenkreuz stand. Ein Einzelmast hat aber gar kein Joch: `punkte(m)` gab
+ * null, das Einmessen brach still ab, und die Zeichnung blieb vorlaeufig
+ * liegen.
+ *
+ * Wer die Liste hat, kann fragen, statt zu raten - und hat nichts anzubieten,
+ * wo es nichts gibt.
+ */
+export function bezuegeFuer(m) {
+  return BEZUEGE
+    .map((b) => ({ ...b, welt: b.punkte(m) }))
+    .filter((b) => Array.isArray(b.welt) && b.welt.length === 2);
 }

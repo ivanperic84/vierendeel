@@ -292,6 +292,16 @@ export function erkenneTragwerk(maske, breite, hoehe, o = {}) {
     guete: Math.min(m.guete, j.guete),
     masten: { links: m.links.mitte, rechts: m.rechts.mitte },
     jochY: j.y,
+    /*
+     * AUCH DAS LOTRECHTE PAAR.
+     *
+     * `p1`/`p2` spannen das Joch auf - zwei Punkte auf einer waagrechten
+     * Linie. Wer nach der MASTHOEHE einmisst, braucht statt dessen zwei
+     * Punkte uebereinander: Fundamentoberkante und Jochachse am selben
+     * Masten. Beides steckt in derselben Erkennung, und es waere Unsinn,
+     * sie ein zweites Mal laufen zu lassen.
+     */
+    fuesse: { links: m.links.fuss, rechts: m.rechts.fuss },
   };
 }
 
