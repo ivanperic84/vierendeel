@@ -1332,7 +1332,30 @@ export function querprofilLeisteHtml(werte) {
    * steht, und die Jochreihe, deren Zwischenmast zwei Enden zugleich
    * traegt.
    */
-  const mastBei = (x) => masten.some((m) => Math.abs(m.x - x) < 0.05);
+  /*
+   * >>> EIN EINZELMAST IST SEIN TRAGWERK - KEINE ZWEITE ZEILE. <<<
+   *
+   * Bei einer Bauform mit EINEM Masten sind Tragwerk und Mast dasselbe
+   * Bauteil: die Tragwerkszeile heisst «P1 · Mast / HEB 260 · 7.50 m», die
+   * Mastzeile hiesse «M1 · Mast / HEB 260 · 7.50 m». Zweimal dieselbe
+   * Angabe untereinander ist keine Gleichwertigkeit, sondern Rauschen.
+   *
+   * AUSNAHME: ein ANKER. Er haengt am Masten, nicht am Tragwerk, und sein
+   * Strich braucht eine Bahn - dann steht die Zeile wieder da. Und sobald
+   * der Mast ein Joch traegt (zwei Masten), gilt sie ohnehin.
+   */
+  const eigeneZeile = (m) => Boolean(m.anker?.typ)
+    || !(m.traegt ?? []).every((id) => {
+      const t = alle.find((x) => x.id === id);
+      return t && tragwerksart(t).masten < 2;
+    });
+  const mastenMitZeile = masten.filter(eigeneZeile);
+
+  /*
+   * Gezaehlt wird, wer seine Lage SELBST anschreibt. Der Einzelmast ohne
+   * eigene Zeile tut das nicht - dort schreibt sie die Tragwerkslinie an.
+   */
+  const mastBei = (x) => mastenMitZeile.some((m) => Math.abs(m.x - x) < 0.05);
 
   const zeilen = alle.map((t) => {
     const art = tragwerksart(t);
@@ -1457,31 +1480,40 @@ export function querprofilLeisteHtml(werte) {
    * danach doch sucht, ist keiner.
    * ======================================================================= */
   /* =========================================================================
-   * >>> DER MAST SAGT, WAS ER IST - PROFIL, LAENGE, LAGE. <<<
+   * >>> JE MAST EINE ZEILE - GLEICHWERTIG MIT DEM JOCH. <<<
    * =========================================================================
    *
-   * Weisung vom 13. September: «diese darstellung optimieren und beim mast
-   * typ und laenge ergaenzen noch x wert anschreiben in abbildung.»
+   * Weisung vom 13. September: «kannst du die laenge und typ bei jedem
+   * masten schreiben, sonst wirken diese tragwerke untergeordnet im bezug
+   * zum joch. design gleichwertig waehlen.»
    *
-   * In der Zeile stand «2 Stueck». Das Joch darueber trug seinen Namen -
-   * «J100 · 15.00 m» -, der Mast eine Anzahl; welches Profil dort steht und
-   * wie lang es ist, wusste nur der Titel, den man mit dem Zeiger findet.
+   * Das trifft es. Die Masten standen in EINER Sammelzeile - «Masten /
+   * 2 x HEB 240 / 8.50 m» - und trugen auf der Bahn nur ihre Nummer,
+   * senkrecht. Das Joch daneben hatte Kuerzel, Namen und Linie; der Mast
+   * eine Anzahl. Ein Mast ist aber kein Zubehoer des Jochs: er traegt
+   * seinen eigenen Nachweis, sein eigenes Profil, seine eigene Laenge.
    *
-   * >>> EINMAL, WENN ALLE GLEICH SIND - SONST JE MAST EINE ZEILE. <<<
+   * Jetzt dieselbe Zeile wie das Tragwerk - Kuerzel, Name, Marke auf der
+   * gemeinsamen Bahn, die Lage darunter:
    *
-   * Der Regelfall ist ein Joch auf zwei gleichen Masten; dort waere «M1 HEB
-   * 240 · 10.50 m / M2 HEB 240 · 10.50 m» zweimal dasselbe. Steht es nur
-   * einmal da («2 × HEB 240 · 10.50 m»), sieht man auf einen Blick, dass es
-   * EIN Sortimentsstueck ist. Weichen sie voneinander ab, ist genau das die
-   * Nachricht - dann steht jeder mit seinem eigenen Namen da.
+   *      P1 · JOCH         |------------------------|
+   *      J90 · 20.00 m
+   *      M1 · MAST         +
+   *      HEB 240 · 8.50 m  0.00
+   *      M2 · MAST                                  +
+   *      HEB 240 · 8.50 m                       20.00
    *
-   * >>> DIE LAGE STEHT WAAGRECHT UNTER DEM MASTEN, NICHT IN DER SCHRIFT. <<<
+   * >>> DAS NIMMT DIE WEISUNG VOM 11. SEPTEMBER ZUM TEIL ZURUECK. <<<
    *
-   * Die senkrechte Anschrift traegt die Bahnhoehe: jedes Zeichen kostet
-   * rund fuenf Pixel. «M1 · x 0.00 m» haette die Reihe von 46 auf 90 Pixel
-   * getrieben - fuer eine Zahl, die waagrecht dreissig Pixel braucht. Sie
-   * steht deshalb als Mass unter dem Fuss, wie in einer Vermassung; senkrecht
-   * bleibt nur, was lang wird: Name und Ankertyp.
+   * Dort hiess es: «ordne dies kompakter ... fuer die masten und anker kann
+   * man die vertikal anschreiben, dann braucht man nicht fuer jedes element
+   * nicht eine separate zeile.» Der Grund war gut: je eine Zeile pro Mast
+   * UND pro Anker, zehn Zeilen fuer drei Tragwerke.
+   *
+   * Zurueck kommt die MASTZEILE, nicht die Ankerzeile. Der Anker haengt als
+   * Strich am Symbol und steht im Namen darunter - das spart die Haelfte
+   * der damaligen Zeilen. Und die senkrechte Anschrift faellt weg, die je
+   * nach Laenge 46 bis 110 Pixel Bahnhoehe brauchte.
    * ======================================================================= */
   /*
    * >>> DIE LAENGE STEHT DA, AUCH WENN SIE NIEMAND EINGETIPPT HAT. <<<
@@ -1512,91 +1544,64 @@ export function querprofilLeisteHtml(werte) {
     return [mastProfil(m), l > 0 ? `${l.toFixed(2)} m` : null]
       .filter(Boolean).join(' · ');
   };
-  const einerlei = masten.length > 0
-    && masten.every((m) => mastText(m) === mastText(masten[0]));
-  const mastSchrift = (m, i) => `M${i + 1}${
-      (m.traegt ?? []).length > 1 ? ' ⊕' : ''}${
-      m.anker?.typ && m.anker.h > 0 && m.anker.a > 0 ? ` · ${m.anker.typ}` : ''}`;
-  /*
-   * DIE HOEHE FOLGT DER LAENGSTEN ANSCHRIFT. Eine feste Hoehe waere
-   * entweder zu knapp (die Schrift wird abgeschnitten, und `overflow:
-   * hidden` sagt es nicht) oder zu grosszuegig - und die Leiste steht in
-   * einer Seitenspalte, wo jede Zeile zaehlt.
-   *
-   * 38 px stehen fuer Symbol, Mass und Luft; jedes Zeichen der senkrechten
-   * Schrift kostet bei 9 px rund 6.5 px. Im Browser nachgemessen: mit
-   * 5.4 px je Zeichen war schon «M1» abgeschnitten - ein M ist breiter als
-   * das Mittel, und die Rechnung muss den unguenstigen Fall tragen.
-   */
-  const maxSchrift = masten.reduce((a, m, i) =>
-    Math.max(a, mastSchrift(m, i).length), 2);
-  const bahnHoch = Math.min(110, Math.round(38 + maxSchrift * 6.5));
-
-  const mastZeilen = masten.length ? `<div class="qp-zeile qp-mastreihe">
+  const mastZeilen = masten.map((m, i) => {
+    if (!eigeneZeile(m)) return '';
+    const an = m.id === gewMast?.id;
+    const traegt = m.traegt ?? [];
+    const geteilt = traegt.length > 1;
+    const wessen = traegt.map((id) => alle.find((y) => y.id === id))
+      .filter(Boolean).map((y) => tragwerkPos(werte, y)).join(' + ');
+    const ak = m.anker;
+    const hatAnker = Boolean(ak?.typ && ak.h > 0 && ak.a > 0);
+    /*
+     * DER ANKER ALS KURZER STRICH am Fuss des Masten, in die Richtung
+     * seines Fundaments. Quer zum Gleis liegt er in der Jochachse und hat
+     * auf der Bahn eine Laenge; laengs steht er aus dem Blatt heraus, und
+     * dann ist er ein Stummel. Beides unterscheidet sich im Bild, und genau
+     * darauf kommt es an: ein Anker in der falschen Ebene haelt nichts.
+     */
+    const laengsA = ak?.richtung === 'y';
+    const vzA = ak?.seite === 'minus' ? -1 : 1;
+    const ankTitel = hatAnker
+      ? `${ak.typ} · ${laengsA ? 'längs' : 'quer'} · `
+        + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m`
+      : '';
+    const links = qpPct(m.x, von, bis).toFixed(3);
+    return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}${
+        i === 0 ? ' erste' : ''}">
       <span class="qp-auge-platz"></span>
-      <span class="qp-name qp-name-fest">
-        <span class="qp-art">Masten${
-          masten.some((m) => m.anker?.typ) ? ' &amp; Anker' : ''}</span>${
-        einerlei
-          ? `<span>${esc(masten.length > 1
-                ? `${masten.length} × ${mastProfil(masten[0])}`
-                : mastProfil(masten[0]))}</span><span class="qp-mastlang">${
-              esc(mastLaengeVon(masten[0]) > 0
-                ? `${mastLaengeVon(masten[0]).toFixed(2)} m` : 'ohne Länge')
-            }</span>`
-          : masten.map((m, i) => `<span class="qp-mastliste">${
-              esc(`M${i + 1} ${mastText(m)}`)}</span>`).join('')}</span>
-      <span class="qp-bahn qp-bahn-hoch" style="--qp-hoch:${bahnHoch}px">
-        ${masten.map((m, i) => {
-          const an = m.id === gewMast?.id;
-          const traegt = m.traegt ?? [];
-          const geteilt = traegt.length > 1;
-          const wessen = traegt.map((id) => alle.find((y) => y.id === id))
-            .filter(Boolean).map((y) => tragwerkPos(werte, y)).join(' + ');
-          const ak = m.anker;
-          const hatAnker = Boolean(ak?.typ && ak.h > 0 && ak.a > 0);
-          /*
-           * DER ANKER ALS KURZER STRICH am Fuss des Dreiecks, in die
-           * Richtung seines Fundaments. Quer zum Gleis liegt er in der
-           * Jochachse und hat auf der Bahn eine Laenge; laengs steht er
-           * aus dem Blatt heraus, und dann ist er ein Stummel. Beides
-           * unterscheidet sich im Bild, und genau darauf kommt es an:
-           * ein Anker in der falschen Ebene haelt nichts.
-           */
-          const laengsA = ak?.richtung === 'y';
-          const vzA = ak?.seite === 'minus' ? -1 : 1;
-          const ankTitel = hatAnker
-            ? `${ak.typ} · ${laengsA ? 'längs' : 'quer'} · `
-              + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m`
-            : '';
-          return `<span class="qp-mastgruppe" style="left:${
-              qpPct(m.x, von, bis).toFixed(3)}%">
-            <button type="button" class="qp-mast${an ? ' an' : ''}${
-                geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
-              title="${esc(`M${i + 1} · ${m.profil ?? 'ohne Profil'}`
+      <button type="button" class="qp-name" data-qp-mast="${esc(m.id)}"
+              aria-pressed="${an}"
+              title="${esc(`M${i + 1} · ${mastText(m)}`
                 + ` bei x = ${m.x.toFixed(2)} m`
                 + (wessen ? ` · trägt ${wessen}` : '')
                 + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
                 + (hatAnker ? ` · Anker ${ankTitel}` : '')
                 + ' · Rechtsklick öffnet das Kontextmenü')}"
-              aria-pressed="${an}">
-              <span class="qp-mast-marke"></span>
-              <span class="qp-mast-fuss"></span>
-            </button>
-            ${hatAnker ? `<button type="button" class="qp-ankerstrich${
-                laengsA ? ' laengs' : (vzA > 0 ? ' plus' : ' minus')}"
-              data-qp-anker="${esc(m.id)}"
-              title="${esc(`Zuganker / Druckstütze am Masten M${i + 1} · `
-                + ankTitel + ' · anklicken zum Ändern')}"></button>` : ''}
-            <span class="qp-mastmass${an ? ' an' : ''}"
-              >${m.x.toFixed(2)}</span>
-            <span class="qp-mastschrift${an ? ' an' : ''}"
-              >M${i + 1}${geteilt ? ' ⊕' : ''}${
-                hatAnker ? ` · ${esc(ak.typ)}` : ''}</span>
-          </span>`;
-        }).join('')}
+        ><span class="qp-art">M${i + 1} · Mast${
+            geteilt ? ' ⊕' : ''}</span>${esc(mastText(m))}${
+        hatAnker ? `<span class="qp-mastlang">Anker ${esc(ak.typ)} · ${
+            laengsA ? 'längs' : 'quer'}</span>` : ''}</button>
+      <span class="qp-bahn qp-bahn-mass">
+        <span class="qp-mastgruppe" style="left:${links}%">
+          <button type="button" class="qp-mast${an ? ' an' : ''}${
+              geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
+            title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m`
+              + ' · Rechtsklick öffnet das Kontextmenü')}"
+            aria-pressed="${an}">
+            <span class="qp-mast-marke"></span>
+            <span class="qp-mast-fuss"></span>
+          </button>
+          ${hatAnker ? `<button type="button" class="qp-ankerstrich${
+              laengsA ? ' laengs' : (vzA > 0 ? ' plus' : ' minus')}"
+            data-qp-anker="${esc(m.id)}"
+            title="${esc(`Zuganker / Druckstütze am Masten M${i + 1} · `
+              + ankTitel + ' · anklicken zum Ändern')}"></button>` : ''}
+          <span class="qp-mastmass${an ? ' an' : ''}">${m.x.toFixed(2)}</span>
+        </span>
       </span>
-    </div>` : '';
+    </div>`;
+  }).join('');
 
   /*
    * DIE GELAENDELINIE SCHLIESST DIE LISTE AB. Sie ist das, worauf die

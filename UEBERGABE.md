@@ -305,6 +305,49 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Je Mast eine Zeile, gleichwertig mit dem Joch (13. September)
+
+Weisung: «kannst du die länge und typ bei jedem masten schreiben, sonst wirken
+diese tragwerke untergeordnet im bezug zum joch. design gleichwertig wählen.»
+
+Das trifft es. Die Masten standen in **einer** Sammelzeile — «Masten / 2 ×
+HEB 240 / 8.50 m» — und trugen auf der Bahn nur ihre Nummer, senkrecht. Das
+Joch daneben hatte Kürzel, Namen und Linie; der Mast eine Anzahl. Ein Mast ist
+aber kein Zubehör des Jochs: er trägt seinen eigenen Nachweis, sein eigenes
+Profil, seine eigene Länge.
+
+```
+BAUTEIL            -1.5 m  LAGE AUF DEM QUERPROFIL  21.5 m
+☑ P1 · JOCH        ├----------------------------------┤
+  J90 · 20.00 m
+  M1 · MAST         ┴
+  HEB 240 · 8.50 m  0.00
+  M2 · MAST                                         ┴
+  HEB 240 · 8.50 m                                  20.00
+```
+
+**Gleichwertig heißt gleiches Raster:** dieselben drei Spalten (Platz fürs
+Kästchen, Name, Bahn), dasselbe Kürzel-über-Namen, dieselbe 26 px hohe Bahn mit
+der Masszahl an derselben Stelle darunter. Der einzige Unterschied bleibt das
+**Sichtbarkeits-Kästchen**: einzelne Masten lassen sich nicht ausblenden
+(Weisung, 9. September — auf einer Jochreihe teilen sich zwei Tragwerke den
+Zwischenmasten, und ein abgeschaltetes Joch stünde dann im Bild auf einem
+Masten, den es rechnerisch nicht hat).
+
+**Das nimmt die Weisung vom 11. September zum Teil zurück** («ordne dies
+kompakter … für die masten und anker kann man die vertikal anschreiben»).
+Zurück kommt die *Mastzeile*, nicht die Ankerzeile: der Anker hängt als Strich
+am Symbol und steht als dritte kleine Zeile im Namen. Das spart die Hälfte der
+damaligen Zeilen, und die senkrechte Anschrift fällt weg, die je nach Länge 46
+bis 110 Pixel Bahnhöhe brauchte.
+
+**Ein Einzelmast ist sein Tragwerk — keine zweite Zeile.** Bei einer Bauform
+mit *einem* Masten sind Tragwerk und Mast dasselbe Bauteil: «P1 · Mast /
+HEB 260 · 7.50 m» und darunter «M1 · Mast / HEB 260 · 7.50 m» wäre zweimal
+dieselbe Angabe. Dann schreibt die Tragwerkslinie die Lage an. Ausnahme: ein
+**Anker** — er hängt am Masten, nicht am Tragwerk, und sein Strich braucht eine
+Bahn.
+
 ### Die Leiste schreibt Mastprofil, Länge und Lage an (13. September)
 
 Weisung: «diese darstellung optimieren und beim mast typ und länge ergänzen

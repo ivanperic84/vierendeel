@@ -16207,14 +16207,15 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Die Mastnotiz unter der Leiste ist raus',
          !r.includes('mastenNotizHtml') && !r.includes('qp-mast-notiz'));
     /*
-     * SEIT DEM 11. SEPTEMBER STEHEN ALLE MASTEN IN EINER ZEILE (Weisung:
-     * «ordne dies kompakter ... fuer die masten und anker kann man die
-     * vertikal anschreiben, dann braucht man nicht fuer jedes element nicht
-     * eine separate zeile»). Die Klasse heisst deshalb `qp-mastreihe`; die
-     * Angabe steht im Titel jedes Dreiecks, samt Profil.
+     * SEIT DEM 13. SEPTEMBER TRAEGT JEDER MAST WIEDER SEINE EIGENE ZEILE
+     * (Weisung: «kannst du die laenge und typ bei jedem masten schreiben,
+     * sonst wirken diese tragwerke untergeordnet im bezug zum joch»). Vom
+     * 11. bis dahin stand alles in einer Sammelzeile `qp-mastreihe`; die
+     * Klasse heisst jetzt `qp-mastzeile`, und die Angabe steht im Namen -
+     * nicht mehr nur im Titel.
      */
-    wahr('… und die Mastreihe traegt die Angabe',
-         r.includes('qp-mastreihe') && r.includes('ohne Profil'));
+    wahr('… und die Mastzeile traegt die Angabe',
+         r.includes('qp-mastzeile') && r.includes('ohne Profil'));
     wahr('… und jeder Mast ist einzeln anwaehlbar',
          r.includes('data-qp-mast='));
     wahr('… und sein Anker haengt daran',
@@ -16793,15 +16794,16 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   }
 
   /* =========================================================================
-   * >>> DIE LEISTE SCHREIBT AN, WAS DASTEHT. <<<
+   * >>> JE MAST EINE ZEILE, GLEICHWERTIG MIT DEM JOCH. <<<
    * =========================================================================
    *
-   * Weisung vom 13. September: «diese darstellung optimieren und beim mast
-   * typ und laenge ergaenzen noch x wert anschreiben in abbildung.»
+   * Weisung vom 13. September: «kannst du die laenge und typ bei jedem
+   * masten schreiben, sonst wirken diese tragwerke untergeordnet im bezug
+   * zum joch. design gleichwertig waehlen.»
    *
-   * Das Joch trug seinen Namen - «J100 · 15.00 m» -, der Mast eine Anzahl:
-   * «2 Stueck». Welches Profil dort steht, wie lang es ist und wo es steht,
-   * wusste nur der Titel unter dem Zeiger.
+   * Davor stand eine Sammelzeile - «Masten / 2 x HEB 240 / 8.50 m» - und
+   * auf der Bahn nur die Nummer, senkrecht. Das Joch hatte Kuerzel, Namen
+   * und Linie; der Mast eine Anzahl.
    *
    * Geprueft wird an der ZEICHENKETTE, nicht am DOM: `querprofilLeisteHtml`
    * ist reine Textarbeit und laeuft damit auch hier in Node.
@@ -16815,19 +16817,39 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
       mastProfil: 'HEB 240', mastVorhanden: true, ...extra,
     });
     const h = UIF.querprofilLeisteHtml(joch());
+    const zeilen = (s, klasse) =>
+      (s.match(new RegExp(`class="qp-zeile[^"]*${klasse}`, 'g')) ?? []).length;
     /*
-     * 1 - PROFIL UND LAENGE, WIE BEIM JOCH.
+     * 1 - DIE FORM IST DIESELBE.
      */
-    wahr('Die Mastreihe nennt das Profil', h.includes('HEB 240'));
-    wahr('… und zaehlt sie zusammen, wenn alle gleich sind',
-         h.includes('2 \u00d7 HEB 240'));
-    wahr('«2 Stueck» steht nicht mehr da', !h.includes('St\u00fcck'));
+    wahr('Jeder Mast hat seine eigene Zeile', zeilen(h, 'qp-mastzeile') === 2);
+    wahr('Die Sammelzeile ist weg', !h.includes('qp-mastreihe'));
+    wahr('… und mit ihr die senkrechte Anschrift',
+         !h.includes('qp-mastschrift'));
+    wahr('«2 Stueck» und «2 x» stehen nicht mehr da',
+         !h.includes('St\u00fcck') && !h.includes('2 \u00d7'));
     /*
-     * 2 - DIE LAENGE STEHT DA, OBWOHL SIE NIEMAND EINGETIPPT HAT.
-     *
-     * `mastLaenge` fehlt im Satz; die Maske zeigt dort die Vorgabe. Die
-     * Leiste rechnet dieselbe - sonst stuende in der Uebersicht nichts,
-     * wo das Feld daneben einen Wert zeigt.
+     * DIESELBEN DREI SPALTEN WIE BEIM JOCH: Platz fuers Kaestchen, Name,
+     * Bahn. Das IST die Gleichwertigkeit - nicht eine Aehnlichkeit der
+     * Farbe, sondern dasselbe Raster.
+     */
+    const mastZeile = /<div class="qp-zeile qp-mastzeile[^>]*>([\s\S]*?)<\/div>/
+      .exec(h)?.[1] ?? '';
+    for (const teil of ['qp-auge-platz', 'class="qp-name"', 'class="qp-bahn']) {
+      wahr(`Die Mastzeile traegt ${teil} wie die Jochzeile`,
+           mastZeile.includes(teil));
+    }
+    /*
+     * 2 - KUERZEL UND NAME, WIE BEIM JOCH.
+     */
+    wahr('Das Kuerzel nennt Nummer und Gattung',
+         h.includes('>M1 \u00b7 Mast<') && h.includes('>M2 \u00b7 Mast<'));
+    wahr('Der Name traegt Profil und Laenge',
+         (h.match(/HEB 240 \u00b7 8\.50 m/g) ?? []).length >= 2);
+    /*
+     * DIE LAENGE STEHT DA, OBWOHL SIE NIEMAND EINGETIPPT HAT. `mastLaenge`
+     * fehlt im Satz; die Maske zeigt dort die Vorgabe, und die Leiste
+     * rechnet dieselbe.
      */
     const soll = MA.mastLaengeVorgabe(7.5, 500);
     wahr('Die Laenge ist die Vorgabe des Feldes',
@@ -16838,67 +16860,90 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     /*
      * 3 - DIE LAGE, ANGESCHRIEBEN.
      */
-    const masse = [...h.matchAll(/class="qp-mastmass[^"]*"\s*>([-\d.]+)</g)]
+    const masse = [...h.matchAll(/class="qp-mastmass[^"]*">([-\d.]+)</g)]
       .map((m) => m[1]);
     wahr('Jeder Mast traegt seine Lage', masse.length === 2, masse.join(', '));
     wahr('… und zwar seine eigene',
          masse[0] === '0.00' && masse[1] === '15.00');
     /*
-     * WAAGRECHT, NICHT IN DER SENKRECHTEN SCHRIFT. Jedes Zeichen dort
-     * kostet Bahnhoehe; «M1 · x 0.00 m» haette die Reihe fast verdoppelt.
-     */
-    const schriften = [...h.matchAll(/class="qp-mastschrift[^"]*"\s*>([^<]*)</g)]
-      .map((m) => m[1].trim());
-    wahr('Die senkrechte Schrift bleibt der Name',
-         schriften.every((s) => !s.includes('x ')), schriften.join(' | '));
-    /*
      * 4 - KEINE ZAHL ZWEIMAL.
      *
-     * Die Enden des Jochs SIND seine Masten. Stuende die Lage auch an der
-     * Linie, laege dieselbe Zahl zweimal untereinander.
+     * Die Enden des Jochs SIND seine Masten, und die schreiben ihre Lage
+     * eine Zeile tiefer an. Stuende sie auch an der Linie, laege dieselbe
+     * Zahl zweimal untereinander.
      */
+    const jochZeile = /<div class="qp-zeile(?! qp-mastzeile)[^"]*"[\s\S]*?<\/div>/
+      .exec(h)?.[0] ?? '';
     wahr('Steht das Joch auf Masten, schweigt seine Linie',
-         !h.includes('qp-mass-links') && !h.includes('qp-mass-rechts'));
-    wahr('… und die Zeile bleibt so flach wie zuvor',
-         !h.includes('qp-bahn-mass'));
+         !jochZeile.includes('qp-mass-links')
+         && !jochZeile.includes('qp-mass-rechts'));
+    wahr('… und die Jochzeile bleibt so flach wie zuvor',
+         !jochZeile.includes('qp-bahn-mass'));
     const hO = UIF.querprofilLeisteHtml(joch({ mastVorhanden: false }));
     wahr('Ohne Masten schreibt die Linie ihre Enden an',
          hO.includes('qp-mass-links') && hO.includes('qp-mass-rechts'));
-    wahr('… und die Zeile macht dafuer Platz', hO.includes('qp-bahn-mass'));
     wahr('Die Zahlen sind Anfang und Ende',
          hO.includes('>0.00</span>') && hO.includes('>15.00</span>'));
+    wahr('… und ohne Masten gibt es auch keine Mastzeile',
+         zeilen(hO, 'qp-mastzeile') === 0);
     /*
-     * 5 - WEICHEN SIE VONEINANDER AB, STEHT JEDER FUER SICH.
+     * 5 - VERSCHIEDENE MASTEN STEHEN VERSCHIEDEN DA. Das war der Anlass
+     * der Weisung: eine Sammelzeile kann nur EINEN Namen tragen.
      */
     const hG = UIF.querprofilLeisteHtml(joch({
       masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5 },
                { id: 'M2', x: 15, profil: 'HEB 260', laenge: 12.0 }] }));
-    wahr('Gemischte Masten stehen einzeln da',
-         hG.includes('M1 HEB 240') && hG.includes('M2 HEB 260'));
-    wahr('… und nicht zusammengezaehlt', !hG.includes('2 \u00d7 HEB'));
+    wahr('Jeder traegt sein eigenes Profil',
+         hG.includes('HEB 240 \u00b7 8.50 m')
+         && hG.includes('HEB 260 \u00b7 12.00 m'));
     /*
-     * 6 - DIE BAHNHOEHE FOLGT DER LAENGSTEN ANSCHRIFT.
-     *
-     * Eine feste Hoehe schneidet die Schrift ab, und `overflow: hidden`
-     * sagt es nicht. Im Browser nachgemessen: mit 5.4 px je Zeichen war
-     * schon «M1» abgeschnitten.
+     * 6 - DER ANKER HAT KEINE EIGENE ZEILE MEHR (Weisung, 11. September),
+     * steht aber im Namen und als Strich auf der Bahn.
      */
-    const hoch = (s) => Number(/--qp-hoch:(\d+)px/.exec(s)?.[1] ?? 0);
-    wahr('Die Bahn traegt ihre Hoehe', hoch(h) > 0, `${hoch(h)} px`);
     const hA = UIF.querprofilLeisteHtml(joch({
       masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5,
                  anker: { typ: 'A160', h: 2, a: 3 } },
                { id: 'M2', x: 15, profil: 'HEB 240', laenge: 8.5 }] }));
-    wahr('Ein Ankertyp in der Schrift macht sie hoeher',
-         hoch(hA) > hoch(h), `${hoch(hA)} gegen ${hoch(h)} px`);
-    wahr('… aber nicht unbegrenzt', hoch(hA) <= 110);
+    wahr('Der Anker steht im Namen seines Masten',
+         hA.includes('Anker A160'));
+    wahr('… und als Strich auf der Bahn',
+         hA.includes('qp-ankerstrich'));
+    wahr('… aber nicht in einer eigenen Zeile',
+         zeilen(hA, 'qp-mastzeile') === 2);
     /*
-     * 7 - WAS NICHT VERLOREN GEHEN DARF: jeder Mast bleibt anklickbar, und
-     * sein voller Text steht im Titel. Die Zeile ist kuerzer, nicht aermer.
+     * 6b - EIN EINZELMAST IST SEIN TRAGWERK - KEINE ZWEITE ZEILE.
+     *
+     * Bei einer Bauform mit EINEM Masten sind Tragwerk und Mast dasselbe
+     * Bauteil; zweimal «HEB 260 · 7.50 m» untereinander ist keine
+     * Gleichwertigkeit, sondern Rauschen. Dann schreibt die Tragwerkslinie
+     * die Lage an - sonst stuende sie nirgends.
      */
-    wahr('Jeder Mast bleibt ein Knopf',
-         (h.match(/data-qp-mast="/g) ?? []).length === 2);
-    wahr('… und nennt seine Lage im Titel',
+    const einz = (extra = {}) => ({
+      ...standardwerte(), tragwerksart: 'einzelmast', xLage: 4, mastH: 7.5,
+      jd: 0, mastProfil: 'HEB 260', mastVorhanden: true, ...extra });
+    const hE = UIF.querprofilLeisteHtml(einz());
+    wahr('Der Einzelmast bekommt keine zweite Zeile',
+         zeilen(hE, 'qp-mastzeile') === 0);
+    wahr('… und seine Lage steht an der Tragwerkslinie',
+         hE.includes('qp-mass-links') && hE.includes('>4.00</span>'));
+    /*
+     * AUSNAHME ANKER: er haengt am Masten, nicht am Tragwerk, und sein
+     * Strich braucht eine Bahn.
+     */
+    const hEA = UIF.querprofilLeisteHtml(einz({
+      masten: [{ id: 'M1', x: 4, profil: 'HEB 260', laenge: 8,
+                 anker: { typ: 'A160', h: 2, a: 3 } }] }));
+    wahr('Mit Anker steht die Mastzeile wieder da',
+         zeilen(hEA, 'qp-mastzeile') === 1);
+    wahr('… und traegt den Ankerstrich', hEA.includes('qp-ankerstrich'));
+    /*
+     * 7 - WAS NICHT VERLOREN GEHEN DARF: Name UND Symbol waehlen den
+     * Masten an, beide tragen `data-qp-mast` (wie beim Joch Name und
+     * Linie), und der volle Text steht im Titel.
+     */
+    wahr('Name und Symbol fuehren beide auf den Masten',
+         (h.match(/data-qp-mast="/g) ?? []).length === 4);
+    wahr('… und nennen seine Lage im Titel',
          h.includes('bei x = 0.00 m') && h.includes('bei x = 15.00 m'));
   }
 

@@ -1498,87 +1498,42 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    Querprofil. Gestrichelt, weil der Stab schraeg aus der Blattebene laeuft -
    seine Linie ist eine Projektion, keine Ansicht. */
 /* ===========================================================================
-   DIE MASTREIHE: ALLE MASTEN IN EINER ZEILE
+   DIE MASTZEILE: EINE JE MAST, WIE BEIM JOCH
 
-   Weisung vom 11. September: «ordne dies kompakter ... fuer die masten und
-   anker kann man die vertikal anschreiben, dann braucht man nicht fuer jedes
-   element nicht eine separate zeile.»
+   Weisung vom 13. September: «kannst du die laenge und typ bei jedem masten
+   schreiben, sonst wirken diese tragwerke untergeordnet im bezug zum joch.
+   design gleichwertig waehlen.»
 
-   Vorher stand jeder Mast und jeder Anker in einer eigenen Zeile - zehn
-   Zeilen fuer ein Querprofil mit drei Tragwerken, und die Bahn daneben
-   zehnmal dieselbe. Jetzt traegt EINE Zeile alle; die Namen stehen senkrecht
-   darunter, weil waagrecht nebeneinander bei vier Masten auf dreissig Metern
-   nichts mehr lesbar bliebe.
+   Vom 11. bis zum 13. September standen alle Masten in EINER Sammelzeile
+   mit senkrechter Anschrift - kompakt, aber eben auch: ein Bauteil zweiter
+   Klasse neben dem Joch. Jetzt traegt jeder Mast dieselbe Zeile wie ein
+   Tragwerk: Kaestchenplatz, Kuerzel, Name, Bahn.
+
+   GLEICHWERTIG HEISST GLEICHE MASSE. Die Bahn ist dieselbe 26 px hohe
+   `qp-bahn-mass` wie beim Joch, und die Masszahl sitzt an derselben Stelle
+   darunter. Symbol und Zahl ruecken dafuer um sechs Pixel zusammen - sonst
+   raegte die Zahl in die naechste Zeile.
    ========================================================================= */
-.qp-mastreihe { align-items: flex-start; padding-top: 2px; }
-/* Der Name der Zeile ist kein Knopf - es gibt nichts anzuwaehlen, was allen
-   Masten zugleich gilt. */
-.qp-name-fest {
-  flex: 0 0 96px; min-width: 0; display: flex; flex-direction: column;
-  padding: 2px 3px; text-align: left; color: var(--on2); font-size: 10.5px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-/* Die Bahn braucht Hoehe fuer die senkrechte Schrift. ZWEI Klassen, weil
-   `.qp-bahn` weiter unten in dieser Datei steht und bei gleicher Spezifitaet
-   die spaetere Regel gewinnt - eine Zeile Vorsprung genuegt, um 62 px wieder
-   auf 18 zu setzen, und dann ragt die Schrift aus ihrer Bahn heraus. */
-.qp-mastreihe .qp-bahn.qp-bahn-hoch { height: var(--qp-hoch, 51px); }
+.qp-mastzeile .qp-mast { height: 15px; }
+.qp-mastzeile .qp-mast-marke { top: 0; height: 12px; }
+.qp-mastzeile .qp-mast-fuss { top: 12px; }
+.qp-mastzeile .qp-mastmass { padding-top: 16px; }
+.qp-mastzeile .qp-ankerstrich { top: 9px; }
+/* Die Gruppe haelt Symbol, Ankerstrich und Masszahl auf EINER Stelle
+   zusammen - sie ist auf ihren Prozentwert zentriert, alles darin auf sie. */
 .qp-mastgruppe { position: absolute; top: 0; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; }
-/* Das Symbol sitzt oben in der Gruppe, die Anschrift darunter - siehe
-   `.qp-mastschrift`. Es bleibt absolut positioniert, damit die Schrift
-   darunter die Breite der Gruppe bestimmt und nicht das 22 px breite
-   Symbol. */
-
-/* DIE SENKRECHTE ANSCHRIFT. `writing-mode` statt `rotate`, damit die Zeile
-   ihre Hoehe von selbst bekommt - eine gedrehte Zeile behaelt im Fluss ihre
-   waagrechte Ausdehnung und schoebe die Nachbarn beiseite. */
-/* DIE ANSCHRIFT STEHT UNTER DEM SYMBOL, NICHT DARIN.
-
-   Weisung vom 11. September: «die masten und anker sauber anschreiben in der
-   darstellung sidebar, diese ist momentan ueberlagert mit dem symbol. das
-   anschreiben der elemente kann auch unterhalb der darstellung erfolgen so
-   wie bei den jochen einfach um 90 grad ausgerichtet.»
-
-   Sie sass im selben Kasten wie das Dreieck und lag darueber. Jetzt beginnt
-   sie UNTER dem Mastfuss - `padding-top` schiebt sie an dem Symbol vorbei -,
-   und `writing-mode` dreht sie um 90 Grad, damit vier Masten auf dreissig
-   Metern nebeneinander Platz haben.
-
-   `writing-mode` statt `rotate`, weil eine gedrehte Zeile im Fluss ihre
-   waagrechte Ausdehnung behaelt und die Nachbarn beiseiteschoebe. */
-.qp-mastschrift {
-  writing-mode: vertical-rl; text-orientation: mixed;
-  font-size: 9px; letter-spacing: .02em; color: var(--dim);
-  padding-top: 1px; max-height: calc(var(--qp-hoch, 51px) - 32px);
-  overflow: hidden; white-space: nowrap; pointer-events: none;
-}
-.qp-mastschrift.an { color: var(--acc); }
-
 /* DIE LAGE DES MASTEN, WAAGRECHT UNTER SEINEM FUSS (Weisung, 13. September:
-   «noch x wert anschreiben in abbildung»). Waagrecht, weil eine Zahl
-   senkrecht die ganze Reihe hoeher macht - siehe den Kommentar bei
-   `bahnHoch`. 21 px schieben sie am Symbol vorbei. */
+   «noch x wert anschreiben in abbildung»). */
 .qp-mastmass {
-  padding-top: 21px; font-size: 8.5px; line-height: 1;
-  color: var(--dim); font-variant-numeric: tabular-nums;
-  white-space: nowrap; pointer-events: none;
+  font-size: 8.5px; line-height: 1; color: var(--dim);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  pointer-events: none;
 }
 .qp-mastmass.an { color: var(--acc); }
-
-/* Profil und Laenge stehen UNTEREINANDER. «2 x HEB 240 . 8.50 m» ist
-   zwanzig Zeichen; die Spalte ist 96 px breit, und bei 10.5 px Schrift
-   schnitt sie das letzte Wort ab - im Browser nachgemessen. Zwei Zeilen
-   passen, und die Spalte muss dafuer nicht breiter werden (sie nimmt der
-   Bahn den Platz weg, und die traegt die eigentliche Aussage). */
-.qp-mastlang { font-size: 9.5px; color: var(--dim); }
-
-/* Weichen die Masten voneinander ab, steht jeder mit Profil und Laenge in
-   der Namensspalte - eine Zeile je Mast, klein und ohne eigene Bahn. */
-.qp-mastliste {
-  font-size: 9px; line-height: 1.35; color: var(--on2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+/* Der Anker steht als dritte, kleine Zeile im Namen - er gehoert dem
+   Masten, hat aber keine eigene Zeile mehr (Weisung, 11. September). */
+.qp-mastlang { font-size: 9px; color: var(--dim); }
 
 /* DER ANKER ALS STRICH am Fuss des Dreiecks, in Richtung seines Fundaments.
    Quer zum Gleis liegt er in der Bahnebene und zeigt nach links oder rechts;
