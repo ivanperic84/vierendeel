@@ -996,9 +996,47 @@ export function huellkurve(liste) {
   const gueltig = (liste ?? []).filter((e) => e?.knoten?.length);
   if (!gueltig.length) return null;
   const erste = gueltig[0];
-  const knotenH = erste.knoten.map((_, i) =>
-    gueltig.reduce((a, e) => ((e.knoten[i]?.eta ?? -1) > (a?.eta ?? -1) ? e.knoten[i] : a),
-                   erste.knoten[i]));
+  /* =========================================================================
+   * >>> DIE ECHTE UMHUELLENDE: MIN UND MAX JE GROESSE. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die, ob
+   * eine echte Umhuellende je Groesse gezeigt werden soll.
+   *
+   * Genommen wird hier je Station der Knoten mit dem GROESSTEN eta, mit
+   * allem, was an ihm haengt - also auch mit SEINEM M_y. Fuer den Nachweis
+   * ist das richtig: gefragt ist an jeder Stelle der unguenstigste Wert.
+   *
+   * Als KURVE gelesen ist es eine Falle. Wo die massgebende Kombination von
+   * Station zu Station wechselt, springt die Linie, und dM/dx ist dort nicht
+   * mehr V. Nachgefragt am 12. September: «ich kann mir die schnittgroesse
+   * my bei diesem tragwerk nicht erklaeren.»
+   *
+   * DIE SPANNE ist die Antwort darauf. Sie sagt je Station, zwischen welchen
+   * Werten die Groesse ueber ALLE Kombinationen liegt - das ist, was ein
+   * Statikprogramm als Umhuellende zeichnet. Der eta-Knoten bleibt daneben
+   * stehen: er traegt den Nachweis.
+   *
+   * >>> KOPIERT, NICHT ANGEHAENGT. <<<
+   *
+   * `knotenH` sind Referenzen auf die Knoten der Einzelkombinationen. Wer
+   * daran eine Eigenschaft setzt, setzt sie in JEDER Ansicht dieses
+   * Lastfalls - der Einzellastfall traegt dann eine Spanne, die es dort
+   * nicht gibt.
+   */
+  const SPANNGROESSEN = ['My', 'Vz', 'Mz', 'Tx'];
+  const knotenH = erste.knoten.map((_, i) => {
+    const best = gueltig.reduce(
+      (a, e) => ((e.knoten[i]?.eta ?? -1) > (a?.eta ?? -1) ? e.knoten[i] : a),
+      erste.knoten[i]);
+    const spanne = {};
+    SPANNGROESSEN.forEach((g) => {
+      const werte = gueltig.map((e) => e.knoten[i]?.[g])
+        .filter((v) => Number.isFinite(v));
+      if (werte.length) spanne[g] = [Math.min(...werte), Math.max(...werte)];
+    });
+    return { ...best, spanne };
+  });
   const argMax = (fn) => knotenH.reduce((a, r) => (fn(r) > fn(a) ? r : a), knotenH[0]);
   const etaGesamt = Math.max(...gueltig.map((e) => e.max.etaGesamt));
   return {

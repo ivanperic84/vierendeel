@@ -27,7 +27,9 @@ export function linienDiagramm(o) {
   const W = o.breite ?? 900, H = o.hoehe ?? 240;
   const mL = 62, mR = 16, mT = 26, mB = 42;
   const xs = o.punkte;
-  const alle = o.serien.flatMap((s) => s.werte).filter(Number.isFinite);
+  const alle = o.serien
+    .flatMap((s) => [...s.werte, ...(s.band ? [...s.band[0], ...s.band[1]] : [])])
+    .filter(Number.isFinite);
   if (o.grenze !== undefined) alle.push(o.grenze);
   alle.push(0);
 
@@ -67,9 +69,31 @@ export function linienDiagramm(o) {
   }
 
   // Serien
+  /* =======================================================================
+   * >>> DIE SPANNE ALS BAND, DIE LINIE DARAUF. <<<
+   * =======================================================================
+   *
+   * Weisung vom 13. September: eine echte Umhuellende je Groesse.
+   *
+   * Eine Umhuellende hat KEINE Linie - sie hat einen oberen und einen
+   * unteren Rand, und dazwischen liegt alles, was die Kombinationen
+   * hergeben. Als Band gezeichnet bleibt es EINE Serie in der Legende;
+   * acht Einzellinien fuer vier Groessen waeren eine Legende, die niemand
+   * mehr liest.
+   *
+   * Die Linie darauf ist der Wert der massgebenden Kombination - die, die
+   * das groesste eta traegt. Sie liegt immer im Band; wo sie an seinem Rand
+   * laeuft, bestimmt dieselbe Kombination auch die Groesse.
+   */
   o.serien.forEach((s, k) => {
+    const cls = s.cls ?? 'serie-' + (k + 1);
+    if (s.band) {
+      const oben = xs.map((x, i) => `${i ? 'L' : 'M'}${n(X(x))},${n(Y(s.band[1][i]))}`);
+      const unten = xs.map((x, i) => `L${n(X(x))},${n(Y(s.band[0][i]))}`).reverse();
+      g += `<path class="band ${cls}" d="${oben.join(' ')} ${unten.join(' ')} Z"/>`;
+    }
     const d = xs.map((x, i) => `${i ? 'L' : 'M'}${n(X(x))},${n(Y(s.werte[i]))}`).join(' ');
-    g += `<path class="serie ${s.cls ?? 'serie-' + (k + 1)}" d="${d}"/>`;
+    g += `<path class="serie ${cls}" d="${d}"/>`;
   });
 
   /* =======================================================================
@@ -405,16 +429,33 @@ export function diagramme(erg, breite = 900) {
    * echte Momentenlinie braucht, wählt oben einen einzelnen Lastfall.
    */
   const huell = erg.istHuellkurve === true;
-  const zusatz = huell ? ' · umhüllend, keine Momentenlinie' : '';
+  /*
+   * >>> SEIT DEM 13. SEPTEMBER STEHT DAS BAND DAHINTER. <<<
+   *
+   * Der Titel sagte bis dahin nur, dass die Linie keine Momentenlinie sei -
+   * richtig, aber es blieb bei der Warnung. Jetzt ist die Spanne gezeichnet:
+   * je Station das Kleinste und das Groesste ueber alle Kombinationen. Wer
+   * eine echte Momentenlinie braucht, waehlt weiterhin oben einen einzelnen
+   * Lastfall - dann faellt das Band weg, weil es nichts zu umhuellen gibt.
+   */
+  const zusatz = huell ? ' · umhüllend, Band = Spanne über alle Kombinationen' : '';
+  /*
+   * DIE SPANNE STEHT AM KNOTEN (siehe `huellkurve`). Fehlt sie - ein
+   * einzelner Lastfall, ein alter Stand -, wird kein Band gezeichnet; die
+   * Linie allein bleibt richtig.
+   */
+  const band = (g) => (huell && k.every((r) => r.spanne?.[g])
+    ? [k.map((r) => r.spanne[g][0]), k.map((r) => r.spanne[g][1])] : null);
   return {
     schnittgroessen: linienDiagramm({
       titel: `Schnittgrössen Ersatzbalken${zusatz}`, breite,
       yLabel: 'M [kNm] / V [kN]', punkte: x,
       serien: [
-        { name: 'M_y,ed', werte: k.map((r) => r.My), skizze: 'My' },
-        { name: 'V_z,ed', werte: k.map((r) => r.Vz), skizze: 'Vz' },
-        { name: 'M_z,ed', werte: k.map((r) => r.Mz), skizze: 'Mz' },
-        { name: 'T_x,ed', werte: k.map((r) => r.Tx), cls: 'serie-4', skizze: 'Tx' },
+        { name: 'M_y,ed', werte: k.map((r) => r.My), skizze: 'My', band: band('My') },
+        { name: 'V_z,ed', werte: k.map((r) => r.Vz), skizze: 'Vz', band: band('Vz') },
+        { name: 'M_z,ed', werte: k.map((r) => r.Mz), skizze: 'Mz', band: band('Mz') },
+        { name: 'T_x,ed', werte: k.map((r) => r.Tx), cls: 'serie-4', skizze: 'Tx',
+          band: band('Tx') },
       ],
     }),
     ebene: linienDiagramm({

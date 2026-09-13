@@ -6503,6 +6503,119 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     pruef('Die Konsole bleibt auf ihrer Gurthöhe', kKons.z, kMast.z, 1e-12, 'm');
   }
 
+  /* =========================================================================
+   * >>> DIE UMHUELLENDE FUEHRT MIN UND MAX JE GROESSE. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die, ob
+   * eine echte Umhuellende je Groesse gezeigt werden soll.
+   *
+   * `huellkurve()` nimmt je Station den Knoten mit dem GROESSTEN eta, mit
+   * allem, was an ihm haengt - also auch mit SEINEM M_y. Fuer den Nachweis
+   * ist das richtig. Als Kurve gelesen ist es eine Falle: wo die massgebende
+   * Kombination wechselt, springt die Linie, und dM/dx ist dort nicht V.
+   *
+   * Nachgemessen am J90 / 20.00 m, Feldmitte: M_y = 46.54 kNm, waehrend die
+   * Spanne ueber alle Kombinationen von 44.46 bis 48.62 reicht. Der
+   * eta-Wert liegt also MITTEN im Band - die fuer eta massgebende
+   * Kombination liefert dort nicht das groesste Moment. Genau das war die
+   * Frage vom 12. September.
+   * ======================================================================= */
+  {
+    const { vergleichKombinationen: vgl } = await import(J('core.vierendeel.js'));
+    const kk = vgl(
+      { ...standardwerte(), typ: 'J90', L: 20, mastVorhanden: true },
+      getProfil(standardwerte().profOG), getProfil(standardwerte().profUG),
+      getStahl(standardwerte().stahl), T.getTragjoch('J90'));
+    const h = kk.huellkurve;
+    wahr('Die Huellkurve steht da', Boolean(h?.knoten?.length));
+    wahr('Jeder Knoten traegt seine Spanne',
+         h.knoten.every((r) => r.spanne && r.spanne.My && r.spanne.Vz),
+         `${h.knoten.filter((r) => !r.spanne).length} ohne`);
+    /*
+     * >>> DER NACHWEISWERT LIEGT IMMER IM BAND. <<<
+     *
+     * Er stammt aus einer der Kombinationen, ueber die das Band gebildet
+     * wird - laege er ausserhalb, waere eine davon nicht eingerechnet.
+     */
+    for (const g of ['My', 'Vz', 'Mz', 'Tx']) {
+      const raus = h.knoten.filter((r) => r.spanne?.[g]
+        && (r[g] < r.spanne[g][0] - 1e-9 || r[g] > r.spanne[g][1] + 1e-9));
+      wahr(`${g}: der Nachweiswert liegt im Band`, raus.length === 0,
+           `${raus.length} Ausreisser`);
+      wahr(`${g}: die Spanne ist nicht verdreht`,
+           h.knoten.every((r) => !r.spanne?.[g]
+             || r.spanne[g][0] <= r.spanne[g][1] + 1e-12));
+    }
+    /* =====================================================================
+     * >>> UND SIE LIEGT AUSEINANDER, WO ES ETWAS AUSEINANDERZULEGEN GIBT.
+     * =====================================================================
+     *
+     * Eine Kontrolle auf ein Band, das ueberall auf null zusammenfaellt,
+     * waere blind. Gemessen am 13. September, beide Faelle:
+     *
+     *   nackt (nur Joch)    M_y Mitte 38.26, Spanne 38.26 … 38.26   0/29
+     *   mit Fahrleitung     M_y Mitte 46.54, Spanne 44.46 … 48.62  27/29
+     *
+     * DAS IST KEIN FEHLER, SONDERN DIE AUSSAGE. Ohne Anbauteile tragen die
+     * vier Nachweiskombinationen dieselbe vertikale Last; sie unterscheiden
+     * sich nur im Wind, und der geht nicht in M_y. Dann IST die Umhuellende
+     * eine Linie, und das Band faellt zu Recht in sich zusammen.
+     */
+    const breite = (hk) => hk.knoten.filter((r) => r.spanne?.My
+      && r.spanne.My[1] - r.spanne.My[0] > 1e-6).length;
+    wahr('Ohne veraenderliche Vertikallast ist das Band eine Linie',
+         breite(h) === 0, `${breite(h)} von ${h.knoten.length}`);
+    const mitFL = { ...standardwerte(), typ: 'J90', L: 20, mastVorhanden: true,
+      anbauteile: [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }] };
+    const hFL = vgl(mitFL, getProfil(mitFL.profOG), getProfil(mitFL.profUG),
+                    getStahl(mitFL.stahl), T.getTragjoch('J90')).huellkurve;
+    wahr('Mit Fahrleitung hat es eine Breite',
+         breite(hFL) > hFL.knoten.length / 2,
+         `${breite(hFL)} von ${hFL.knoten.length}`);
+    /*
+     * >>> UND GENAU DAS WAR DIE FRAGE VOM 12. SEPTEMBER. <<<
+     *
+     * In Feldmitte liegt der Nachweiswert MITTEN im Band: die fuer eta
+     * massgebende Kombination liefert dort nicht das groesste Moment. Wer
+     * die Linie als Momentenlinie liest, sucht den Fehler in der Rechnung.
+     */
+    const mitte = hFL.knoten[Math.floor(hFL.knoten.length / 2)];
+    pruef('Feldmitte: der Nachweiswert', mitte.My, 46.54, 2e-3, 'kNm');
+    pruef('… die untere Schranke', mitte.spanne.My[0], 44.46, 2e-3, 'kNm');
+    pruef('… die obere', mitte.spanne.My[1], 48.62, 2e-3, 'kNm');
+    wahr('… und er liegt zwischen beiden, nicht am Rand',
+         mitte.My > mitte.spanne.My[0] + 1e-6
+         && mitte.My < mitte.spanne.My[1] - 1e-6);
+    /*
+     * >>> DIE EINZELLASTFAELLE BLEIBEN UNBERUEHRT. <<<
+     *
+     * `knotenH` sind Referenzen auf die Knoten der Einzelkombinationen. Wer
+     * daran eine Eigenschaft setzt, setzt sie in JEDER Ansicht dieses
+     * Lastfalls - der Einzellastfall traegt dann eine Spanne, die es dort
+     * nicht gibt. Deshalb wird kopiert, und deshalb steht das hier.
+     */
+    const einzeln = Object.values(kk.ergebnisse ?? {});
+    wahr('Es gibt Einzellastfaelle', einzeln.length > 1);
+    wahr('… und keiner von ihnen traegt eine Spanne',
+         einzeln.every((e) => (e.knoten ?? []).every((r) => r.spanne === undefined)));
+    /*
+     * DAS DIAGRAMM ZEICHNET DAS BAND NUR DORT, WO ES EINES GIBT.
+     */
+    const CHT = await import(J('render.charts.js'));
+    const dH = CHT.diagramme(hFL, 900);
+    wahr('Das Huellkurven-Diagramm traegt Bandflaechen',
+         (dH.schnittgroessen.match(/class="band /g) ?? []).length === 4,
+         `${(dH.schnittgroessen.match(/class="band /g) ?? []).length} Bänder`);
+    wahr('… und sagt im Titel, was das Band ist',
+         dH.schnittgroessen.includes('Spanne über alle Kombinationen'));
+    const dE = CHT.diagramme(einzeln[0], 900);
+    wahr('Ein einzelner Lastfall zeichnet keines',
+         !dE.schnittgroessen.includes('class="band '));
+    wahr('… und nennt sich auch nicht umhüllend',
+         !dE.schnittgroessen.includes('umhüllend'));
+  }
+
   // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
