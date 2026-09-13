@@ -1729,57 +1729,26 @@ export function querprofilLeisteHtml(werte) {
    * DIE GELAENDELINIE SCHLIESST DIE LISTE AB. Sie ist das, worauf die
    * Masten stehen - ohne sie schwebten die Dreiecke.
    */
-  /* =========================================================================
-   * >>> DIE MASSKETTE: WAS ZWISCHEN DEN MASTEN LIEGT. <<<
-   * =========================================================================
+  /*
+   * >>> DIE FELDWEITEN STANDEN HIER EINEN TAG LANG. <<<
    *
-   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die
-   * angebotene Masskette mit den Feldweiten.
+   * Angeboten und am 13. September gebaut: unter der Gelaendelinie eine
+   * Kette mit dem Abstand zwischen den Masten. Am selben Tag wieder
+   * herausgenommen - Weisung: «feldweite angabe ueberfluessig.»
    *
-   * Jede Zeile schreibt ihre LAGE an - 0.00, 20.00, 35.00. Im Querprofil
-   * ist aber meist der ABSTAND die Zahl, die man sucht: wie weit ist es von
-   * diesem Masten zum naechsten. Sie stand nirgends und war von Hand aus
-   * zwei Lagen zu bilden.
+   * Sie war es. Die Weite zwischen zwei Masten IST die Stuetzweite ihres
+   * Jochs, und die steht eine Zeile hoeher im Namen: «J90 · 20.00 m». Auf
+   * einer Jochreihe steht sie an jedem Joch. Die Kette hat dieselbe Zahl
+   * ein zweites Mal gezeichnet und dafuer dreizehn Pixel genommen.
    *
-   * Angeschrieben wird zwischen allen Masten, die eine Zeile haben - in der
-   * Reihenfolge, in der sie stehen. Ein Einzelmast bekommt keine Kette: ein
-   * Abstand braucht zwei Punkte.
-   *
-   * >>> SIE STEHT UNTER DER GELAENDELINIE, NICHT AUF DER BAHN. <<<
-   *
-   * Auf der Bahn laege sie ueber den Symbolen und waere eine fuenfte Zeile,
-   * die um denselben Platz kaempft. Unter der Linie ist sie das, was eine
-   * Masskette auf einer Zeichnung ist: die Vermassung unter dem Bild.
-   * ======================================================================= */
-  const kettePunkte = mastenMitZeile.map((m) => m.x).sort((a, b) => a - b);
-  const ketteHtml = kettePunkte.length >= 2 ? `<div class="qp-kette">
-      <span class="qp-auge-platz"></span>
-      <span class="qp-name qp-name-fest qp-kette-kopf">Feldweiten</span>
-      <span class="qp-bahn">${kettePunkte.slice(0, -1).map((x, i) => {
-        const x2 = kettePunkte[i + 1];
-        const l = qpPct(x, von, bis);
-        const b = qpPct(x2, von, bis) - l;
-        /*
-         * ZU SCHMAL FUER IHRE ZAHL: ein Feld von zwei Metern auf einem
-         * Blatt von vierzig traegt keine fuenf Zeichen. Dann steht der
-         * Strich allein da - er sagt immer noch, DASS dort ein Feld ist,
-         * und die Zahl steht im Titel.
-         */
-        const eng = b < 11;
-        return `<span class="qp-kette-feld${eng ? ' eng' : ''}"
-            style="left:${l.toFixed(3)}%;width:${b.toFixed(3)}%"
-            title="${esc(`${(x2 - x).toFixed(2)} m von ${x.toFixed(2)} `
-              + `bis ${x2.toFixed(2)} m`)}"
-          >${eng ? '' : (x2 - x).toFixed(2)}</span>`;
-      }).join('')}</span>
-    </div>` : '';
+   * Der Vermerk bleibt, damit sie nicht ein drittes Mal vorgeschlagen wird.
+   */
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
       ${qpKopfHtml(von, bis)}
       <div class="qp-liste">${zeilen}${mastZeilen}</div>
       <div class="qp-achse"><span class="qp-bahn"
         ><span class="qp-boden"></span></span></div>
-      ${ketteHtml}
     </div>`;
 }
 

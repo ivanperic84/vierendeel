@@ -332,9 +332,11 @@ der Linie. Am J90/20 m mit Fahrleitung, Feldmitte: Nachweiswert 46.54 kNm,
 Spanne **44.46 … 48.62**. Der Nachweiswert liegt *mitten* im Band — genau die
 Frage vom 12. September.
 
-**4 · Die Masskette zeigt die Feldweiten**, unter der Geländelinie, je Feld
-ein Kästchen mit Strichen und der Weite. Ein zu schmales Feld lässt die Zahl
-weg und behält sie im Titel.
+**4 · Die Masskette mit den Feldweiten** wurde gebaut und am selben Tag wieder
+herausgenommen — Weisung: «feldweite angabe überflüssig.» Sie war es: die Weite
+zwischen zwei Masten *ist* die Stützweite ihres Jochs, und die steht eine Zeile
+höher im Namen («J90 · 20.00 m»). Dieselbe Zahl ein zweites Mal, für dreizehn
+Pixel. Eine Kontrolle hält jetzt fest, dass sie weg bleibt.
 
 **5 · Die Leiste zeigt die Ausnutzung** im Kürzel jeder Zeile — grün bis 0.95,
 gelb bis 1.00, rot darüber. Gezeigt wird nur, was *gerechnet* ist: das aktive
@@ -351,6 +353,22 @@ Umzusetzen war nichts, festzuhalten schon.
 Nicht umgesetzt: der **Platzhalter des Kästchens** in den Mastzeilen. Ihn
 wegzunehmen bräche die Spaltenflucht mit den Tragwerkszeilen, und die ist mehr
 wert als ein leeres Quadrat.
+
+### Der Jochstrich ist so dick wie der Maststrich (13. September)
+
+Weisung: «den strich für das joch weniger dick machen, ist gleich wichtig wie
+mast bauteil.»
+
+Der Balken war vier Pixel hoch (fünf im gewählten Zustand), der Maststrich zwei
+breit. Ein Bauteil, das doppelt so fett gezeichnet ist, liest sich als das
+wichtigere — und genau das sollte die gleichwertige Zeile ja aufheben. Jetzt
+tragen beide zwei Pixel; die **Endmarken** bleiben, sie sind das Zeichen für den
+Träger zwischen zwei Stützen.
+
+Die Falle dabei ist die **Trefferfläche**: ein zwei Pixel hoher Knopf ist mit
+der Maus nicht zu treffen. Sie kommt aus durchsichtigen Rändern (`border-top`
+und `-bottom` je 4 px), und die Farbe bleibt über `background-clip: content-box`
+im Inhalt. Eine Kontrolle hält beides fest.
 
 ### Befund: das Gesamturteil kennt den Mastnachweis nicht (13. September)
 

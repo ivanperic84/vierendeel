@@ -17453,52 +17453,46 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
            .length === 3);
     UIF.setzeEtaFuerLeiste(null);
 
-    /* =====================================================================
-     * >>> DIE MASSKETTE: WAS ZWISCHEN DEN MASTEN LIEGT. <<<
-     * =====================================================================
-     *
-     * Weisung vom 13. September: «offene fragen umsetzen» - darunter die
-     * angebotene Masskette mit den Feldweiten.
-     *
-     * Jede Zeile schreibt ihre LAGE an. Im Querprofil ist aber meist der
-     * ABSTAND die gesuchte Zahl, und der war von Hand aus zwei Lagen zu
-     * bilden.
-     */
-    const felder = (s) => [...s.matchAll(
-      /class="qp-kette-feld[^"]*"[^>]*>([\d.]*)</g)].map((x) => x[1]);
-    wahr('Zwei Masten geben ein Feld', felder(h).length === 1,
-         felder(h).join(', '));
-    wahr('… und es misst die Stuetzweite', felder(h)[0] === '15.00');
-    const hR = UIF.querprofilLeisteHtml({
-      ...joch(), L: 20,
-      weitere: [{ id: 'T2', tragwerksart: 'joch', typ: 'J90', L: 15,
-                  xLage: 20, mastH: 7.5, jd: 500, mastProfil: 'HEB 240',
-                  mastVorhanden: true }] });
-    wahr('Drei Masten geben zwei Felder', felder(hR).length === 2,
-         felder(hR).join(', '));
-    wahr('… und beide messen ihr eigenes', felder(hR).join('|') === '20.00|15.00');
     /*
-     * EIN ABSTAND BRAUCHT ZWEI PUNKTE. Der Einzelmast hat einen - und seit
-     * heute nicht einmal eine eigene Zeile.
+     * >>> KEINE FELDWEITEN MEHR. <<<
+     *
+     * Am 13. September gebaut und am selben Tag wieder heraus - Weisung:
+     * «feldweite angabe ueberfluessig.» Die Weite zwischen zwei Masten IST
+     * die Stuetzweite ihres Jochs, und die steht eine Zeile hoeher im
+     * Namen. Die Kontrolle bleibt als Schranke: wer sie wieder einbaut,
+     * faellt hier auf.
      */
-    wahr('Ein einzelner Mast gibt keine Kette',
-         felder(UIF.querprofilLeisteHtml({
-           ...standardwerte(), tragwerksart: 'einzelmast', xLage: 4,
-           mastH: 7.5, jd: 0, mastProfil: 'HEB 260',
-           mastVorhanden: true })).length === 0);
+    wahr('Die Leiste zeigt keine Feldweiten',
+         !UIF.querprofilLeisteHtml(joch()).includes('qp-kette'));
     /*
-     * ZU SCHMAL FUER IHRE ZAHL: dann steht der Strich allein, und die Zahl
-     * bleibt im Titel. Ein Feld, das stumm verschwindet, waere schlechter
-     * als eines ohne Beschriftung.
+     * >>> DER JOCHSTRICH IST SO DICK WIE DER MASTSTRICH. <<<
+     *
+     * Weisung vom 13. September: «den strich fuer das joch weniger dick
+     * machen, ist gleich wichtig wie mast bauteil.» Der Balken war vier
+     * Pixel hoch, der Maststrich zwei breit - ein Bauteil, das doppelt so
+     * fett gezeichnet ist, liest sich als das wichtigere.
+     *
+     * DIE FALLE dabei ist die Trefferflaeche: ein zwei Pixel hoher Knopf
+     * ist mit der Maus nicht zu treffen. Sie kommt aus durchsichtigen
+     * Raendern, und die Farbe bleibt ueber `background-clip` im Inhalt.
+     * Wer die Regel spaeter aufraeumt, faellt hier auf.
      */
-    const hEng = UIF.querprofilLeisteHtml({
-      ...joch(), L: 40,
-      weitere: [{ id: 'T2', tragwerksart: 'joch', typ: 'J90', L: 1.5,
-                  xLage: 40, mastH: 7.5, jd: 500, mastProfil: 'HEB 240',
-                  mastVorhanden: true }] });
-    wahr('Ein enges Feld laesst seine Zahl weg',
-         hEng.includes('qp-kette-feld eng'));
-    wahr('… sagt sie aber im Titel', hEng.includes('1.50 m von 40.00'));
+    const cssL = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    const regel = (name) => {
+      const i = cssL.indexOf(`\n.${name} {`);
+      return i < 0 ? '' : cssL.slice(i, cssL.indexOf('}', i));
+    };
+    const px = (s, feld) => {
+      const m = new RegExp(`${feld}:\\s*(\\d+(?:\\.\\d+)?)px`).exec(s);
+      return m ? Number(m[1]) : NaN;
+    };
+    const rL = regel('qp-linie');
+    const rM = regel('qp-mast-marke');
+    pruef('Der Jochstrich ist so dick wie der Maststrich',
+          px(rL, 'height'), px(rM, 'width'), 1e-12, 'px');
+    wahr('… und behaelt seine Trefferflaeche',
+         /border-top:\s*4px solid transparent/.test(rL)
+         && /background-clip:\s*content-box/.test(rL), rL.trim().slice(0, 60));
 
     /*
      * 6b - EIN EINZELMAST IST SEIN TRAGWERK - KEINE ZWEITE ZEILE.

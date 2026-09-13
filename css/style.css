@@ -1637,18 +1637,35 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    uebereinanderpasst. */
 .qp-bahn { position: relative; flex: 1; min-width: 40px; height: 18px;
   display: block; }
+/* >>> SO DICK WIE DER MASTSTRICH, NICHT DOPPELT. <<<
+
+   Weisung vom 13. September: «den strich fuer das joch weniger dick machen,
+   ist gleich wichtig wie mast bauteil.»
+
+   Der Balken war vier Pixel hoch (fuenf im gewaehlten Zustand), der
+   Maststrich zwei breit. Ein Bauteil, das doppelt so fett gezeichnet ist,
+   liest sich als das wichtigere - und genau das sollte die gleichwertige
+   Zeile ja aufheben. Jetzt tragen beide zwei Pixel; die ENDMARKEN bleiben,
+   sie sind das Zeichen fuer den Traeger zwischen zwei Stuetzen.
+
+   Die Trefferflaeche bleibt gross: `padding` statt Hoehe - ein zwei Pixel
+   hoher Knopf waere mit der Maus nicht zu treffen. */
 .qp-linie {
-  position: absolute; top: 7px; height: 4px; padding: 0;
-  background: var(--dim); border: none; border-radius: 2px;
+  position: absolute; top: 8px; height: 2px; padding: 0;
+  background: var(--dim); border: none; border-radius: 1px;
   cursor: pointer;
+  /* Die Flaeche, die der Zeiger trifft, reicht ueber den Strich hinaus. */
+  box-sizing: content-box;
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  background-clip: content-box; margin-top: -4px;
 }
-.qp-linie:hover { background: var(--on2); }
-.qp-linie.an { background: var(--acc); height: 5px; top: 6.5px; }
+.qp-linie:hover { background: var(--on2); background-clip: content-box; }
+.qp-linie.an { background: var(--acc); background-clip: content-box; }
 /* Die Enden der Linie sind die Masten - ein Strich mit Endmarken liest sich
    als Traeger zwischen zwei Stuetzen, ein blosser Balken nicht. */
 .qp-linie::before, .qp-linie::after {
-  content: ''; position: absolute; top: -3px; width: 2px; height: 10px;
-  background: inherit; border-radius: 1px;
+  content: ''; position: absolute; top: -4px; width: 2px; height: 10px;
+  background: inherit; background-clip: border-box; border-radius: 1px;
 }
 .qp-linie::before { left: 0; }
 .qp-linie::after { right: 0; }
@@ -1746,35 +1763,6 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   position: absolute; left: 0; right: 0; top: 0; height: 1px;
   background: var(--ol);
 }
-
-/* ===========================================================================
-   DIE MASSKETTE UNTER DER GELAENDELINIE
-
-   Weisung vom 13. September. Jede Zeile schreibt ihre LAGE an; im
-   Querprofil ist aber meist der ABSTAND die gesuchte Zahl. Die Kette zeigt
-   ihn dort, wo eine Vermassung auf einer Zeichnung steht: unter dem Bild.
-
-   Jedes Feld ist ein Kaestchen mit Strichen an beiden Enden und der Zahl in
-   der Mitte - dieselbe Zeichensprache wie die Masskette des Jochs. */
-.qp-kette { display: flex; align-items: center; gap: 5px; margin-top: 1px; }
-.qp-kette-kopf {
-  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--dim); padding: 0 3px;
-}
-.qp-kette .qp-bahn { height: 13px; }
-.qp-kette-feld {
-  position: absolute; top: 0; height: 11px; line-height: 11px;
-  text-align: center; font-size: 8.5px; color: var(--dim);
-  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden;
-  border-left: 1px solid var(--ol); border-right: 1px solid var(--ol);
-}
-/* Der Strich in der Mitte, hinter der Zahl - er macht aus zwei Marken ein
-   Mass. Bei engen Feldern faellt die Zahl weg, der Strich bleibt. */
-.qp-kette-feld::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 5px;
-  border-top: 1px dashed var(--ol); z-index: -1;
-}
-.qp-kette-feld.eng { color: transparent; }
 
 /* Die Handlungen am Gewaehlten - eine Zeile, keine Knopfwand. */
 .qp-tun { display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
