@@ -133,7 +133,7 @@ export const EINGABE_TABS = [
   { id: 'system', titel: 'System', icon: 'system',
     // Die Tragwerksart zuerst: sie entscheidet, welche der folgenden Gruppen
     // ueberhaupt erscheinen.
-    gruppen: ['art', 'typ', 'geo', 'aufl', 'mast'] },
+    gruppen: ['art', 'geo', 'aufl', 'mast'] },
   // Die Stückliste gehört zu den Profilen: sie sagt, was aus der gewählten
   // Profil- und Blechwahl an Stahl herauskommt. Als eigener Auswertungsreiter
   // stand sie weit weg von der Entscheidung, die sie beeinflusst.
@@ -283,8 +283,51 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     if (!felder.length) return zusatz;
     const knopf = felder.some((f) => f.ausDB) ? bearbeitenKnopf(werte)
                 : felder.some((f) => f.ausLast) ? lastenKnopf(werte) : '';
+    /* =====================================================================
+     * >>> EINE ERSTE UND EINE ZWEITE EBENE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 13. September: «sidebar system aufräumen und eine bessere
+     * übersicht schaffen.»
+     *
+     * Der Reiter war 3406 Pixel hoch bei 731 Pixel Fenster - viereinhalb
+     * Bildschirme, durch die man bei jeder Massänderung scrollt. Gemessen,
+     * nicht geschätzt.
+     *
+     * Die Länge kam nicht von zu vielen Fragen, sondern davon, dass ALLE
+     * gleich laut gestellt waren: die Jochlänge, die man dauernd ändert,
+     * stand neben der Gurtbreite aus dem Katalog, die man einmal im Jahr
+     * anfasst.
+     *
+     * `fein: true` am Feld heisst: es gehört in die zweite Ebene. Der Block
+     * merkt sich seinen Zustand wie jeder andere Klappabschnitt, und er
+     * steht OFFEN, sobald «Werte bearbeiten» an ist - wer die Katalogmasse
+     * freischaltet, will sie sehen.
+     *
+     * WAS NICHT IN DIE ZWEITE EBENE DARF: alles, was den Rest bestimmt. Der
+     * Schalter «Tragwerk steht auf Masten» entscheidet, ob die Gruppe
+     * darunter überhaupt eine Frage stellt - er bleibt oben, wie am
+     * 5. September festgelegt.
+     * =================================================================== */
+    const haupt = felder.filter((f) => !f.fein);
+    const fein = felder.filter((f) => f.fein);
+    /*
+     * DAS ZUSATZSTUECK KANN IN DIE ZWEITE EBENE GEHOEREN. Die Hebelarme des
+     * Kraeftepaars sind die Auskunft, was aus den Katalogmassen geworden
+     * ist - sie stehen dort richtig, wo diese Masse stehen, und nicht als
+     * Tabelle zwischen den Fragen.
+     */
+    const feinExtra = g.extraFein ? zusatz : '';
+    const feinBlock = fein.length || feinExtra
+      ? klapp(`fein-${gid}`, g.feinTitel ?? 'Feineinstellungen',
+              fein.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
+              + feinExtra,
+              `${fein.length}`,
+              Boolean(werte.bearbeiten && fein.some((f) => f.ausDB)))
+      : '';
     return abschnitt(g.titel, knopf) +
-           felder.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('') + zusatz;
+           haupt.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
+           + feinBlock + (feinExtra ? '' : zusatz);
   }).join('');
 
   container.querySelectorAll('[data-feld]').forEach((inp) => {
@@ -3605,50 +3648,40 @@ let beiSortiment = null;
 export function setzeSortimentSuche(fn) { beiSortiment = fn; }
 
 /**
- * DIE MASTEN DES AKTIVEN TRAGWERKS - und wer sonst noch an ihnen haengt.
+ * DIE WARNUNG AM GETEILTEN MASTEN.
  *
  * Seit dem Mastenumbau ist der Mast das Grundelement: ein Mast, den sich
  * zwei Tragwerke teilen, ist EINER. Das ist der Gewinn und die Falle
- * zugleich - wer sein Profil aendert, aendert es fuer beide.
+ * zugleich - wer sein Profil aendert, aendert es fuer beide. Eine
+ * Aenderung, die woanders wirkt, ohne dass man es sieht, ist die
+ * unangenehmste Art von Verhalten.
  *
- * >>> ALSO MUSS ES DASTEHEN. <<<
+ * >>> DIE ANGABEN SELBST STEHEN IN DER LEISTE. <<<
  *
- * Eine Aenderung, die woanders wirkt, ohne dass man es sieht, ist die
- * unangenehmste Art von Verhalten. Die Zeile «traegt auch J90 - 20.00 m»
- * kostet nichts und beantwortet die Frage, bevor sie entsteht.
+ * Hier stand bis zum 13. September eine Zeile «M1 · x 0.00 m · HEB 240 ·
+ * traegt J90 · 20.00 m». Seit die Leiste je Mast eine eigene Zeile fuehrt -
+ * mit Profil, Laenge, Anschlusshoehe und den Tragwerken, die er traegt -
+ * war das dieselbe Auskunft ein zweites Mal, dreissig Zeilen weiter unten.
+ *
+ * Was die Leiste NICHT sagen kann, bleibt: die Folge fuer den Nachbarn.
+ * Deshalb steht hier noch der Satz, und auch nur dann, wenn es ihn
+ * betrifft.
  */
 export function mastenUebersichtHtml(werte) {
-  /*
-   * SEIT DEN KACHELN SPRICHT SIE VOM ANGEWAEHLTEN MASTEN.
-   *
-   * Die Liste aller Masten steht oben in der Kachelreihe - sie hier ein
-   * zweites Mal aufzuzaehlen hiesse, dieselbe Anordnung zweimal zu lesen.
-   * Was die Kachel nicht sagen kann, weil dort kein Platz dafuer ist, steht
-   * hier: WELCHEM Masten die Felder darunter gerade gelten, und was eine
-   * Aenderung an ihm sonst noch trifft.
-   */
   const m = gewaehlterMast(werte);
   if (!m) return '';
   const alleTw = tragwerkeSortiert(werte);
   const traegt = (m.traegt ?? []).map((id) => alleTw.find((x) => x.id === id))
-    .filter(Boolean).map(tragwerkName);
-  const nr = mastenVon(werte).findIndex((x) => x.id === m.id) + 1;
+    .filter(Boolean);
+  if (traegt.length < 2) return '';
   return `<div class="masten-uebersicht">
-    <div class="mast-zeile${traegt.length > 1 ? ' geteilt' : ''}">
-      <span class="mast-ende">M${nr}</span>
-      <span class="mast-lage">x ${m.x.toFixed(2)} m</span>
-      <span class="mast-prof">${esc(m.profil ?? '–')}</span>
-      ${traegt.length
-        ? `<span class="mast-teilt">trägt ${traegt.map(esc).join(' und ')}</span>`
-        : ''}
-    </div>
-    ${traegt.length > 1
-      ? '<p class="mast-warn">Ein geteilter Mast gehört beiden Tragwerken — '
-        + 'was hier geändert wird, gilt auch drüben. Die Anschlusshöhe '
-        + 'nicht: sie beschreibt, wie hoch das jeweilige Joch anschliesst, '
-        + 'und steht deshalb bei jedem Tragwerk für sich.</p>' : ''}
+    <p class="mast-warn">Dieser Mast gehört beiden Tragwerken — was hier
+      geändert wird, gilt auch drüben. Die Anschlusshöhe nicht: sie
+      beschreibt, wie hoch das jeweilige Joch anschliesst, und steht
+      deshalb bei jedem Tragwerk für sich.</p>
   </div>`;
 }
+
 
 /**
  * AUSWERTUNG EINES EINZELMASTEN.

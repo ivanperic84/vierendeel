@@ -305,6 +305,67 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Der Reiter System hat zwei Ebenen (13. September)
+
+Weisung: «sidebar system aufräumen und eine bessere übersicht schaffen.»
+
+Er war **3406 Pixel hoch bei 731 Pixel Fenster** — viereinhalb Bildschirme,
+durch die man bei jeder Massänderung scrollt. Gemessen, nicht geschätzt. Die
+Länge kam nicht von zu vielen Fragen, sondern davon, dass **alle gleich laut
+gestellt** waren: die Jochlänge, die man dauernd ändert, stand neben der
+Gurtbreite aus dem Katalog, die man einmal im Jahr anfasst.
+
+**Die Regel, nach der sortiert wurde:**
+
+| Erste Ebene | Zweite Ebene |
+|---|---|
+| was man an *diesem* Tragwerk einstellt | was aus dem **Sortiment** kommt |
+| Typ, Länge, Lagerung, Profil, Höhe | und was einen Regelwert hat, den man selten verlässt |
+
+Sie ist ableitbar, nicht nach Geschmack gesetzt: ein Feld mit `ausDB` ist ohne
+«Werte bearbeiten» gar nicht änderbar — was man nicht anfassen kann, gehört
+nicht in die erste Ebene. Der Knopf **öffnet den Block**, wenn er drückt wird.
+
+```
+== Tragwerke ==                      == Auflager ==
+   Tragwerke auf diesem Querprofil      Endauflager
+   Lage auf dem Querprofil x₀           Anschluss ans Joch
+                                        Auflagerbedingung am Masten
+== Jochtyp und Geometrie ==             Kragarm A / B
+   Tragjoch-Typ P1                      [+] Drehfeder, Konsole, Gurtverbindung
+   Jochlänge jt
+   [+] Masse aus dem Sortiment (5)   == Masten ==
+                                        Tragwerk steht auf Masten
+                                        Stelle · Profil · H · L · Steg · Anker
+                                        [+] Fusspunkt, zweites Ende, Nachweis
+```
+
+**Was noch weggefallen ist:**
+
+* **«Jochtyp und Rechenmasse»** führte genau *ein* Feld — eine Überschrift für
+  eine Zeile —, und die Masse standen im nächsten Abschnitt, obwohl der Typ sie
+  setzt. Jetzt ein Abschnitt.
+* **Die Mastzeile unter den Feldern** («M1 · x 0.00 m · HEB 240 · trägt J90»)
+  war dieselbe Auskunft ein zweites Mal, seit die Leiste je Mast eine Zeile
+  führt. Geblieben ist der **Satz zum geteilten Masten** — was die Leiste nicht
+  sagen kann, ist die Folge für den Nachbarn.
+* **Die Hebelarme des Kräftepaars** sind die Auskunft, was aus den Katalogmassen
+  geworden ist — sie stehen jetzt dort, wo diese Masse stehen.
+
+**Zwei Reihenfolgen richtiggestellt:**
+
+* **«Tragwerk steht auf Masten» steht zuoberst** — der Kommentar im Schema sagte
+  das seit dem 5. September, der Code tat es nicht: `mastX` war später
+  davorgerutscht. Erst *ob* es Masten gibt, dann *wo* sie stehen. Ein Feld, von
+  dem die Sichtbarkeit anderer abhängt, darf auch nie in die zweite Ebene.
+* **Die Kragarme stehen hinter der Lagerung** — sie sassen zwischen
+  «Endauflager» und «Anschluss ans Joch», zwei Längen mitten in drei Fragen zur
+  Lagerung.
+
+Nachgemessen: **2437 Pixel, 28 Prozent kürzer.** Die Hinweise unter den Feldern
+kosten davon 275 Pixel — sie bleiben: elf Prozent für das Wissen, warum ein
+Feld dasteht, ist ein guter Tausch.
+
 ### Wer trägt wen, und wie hoch schliesst es an (13. September)
 
 Frage: «warum m2 anders? was könnte eine übersicht verbessern?»

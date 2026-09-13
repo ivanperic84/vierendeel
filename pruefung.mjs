@@ -1192,6 +1192,127 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
 }
 
 // ===========================================================================
+/* ===========================================================================
+ * >>> DER REITER SYSTEM HAT ZWEI EBENEN. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 13. September: «sidebar system aufraeumen und eine bessere
+ * uebersicht schaffen.»
+ *
+ * Er war 3406 Pixel hoch bei 731 Pixel Fenster - viereinhalb Bildschirme.
+ * Die Laenge kam nicht von zu vielen Fragen, sondern davon, dass ALLE gleich
+ * laut gestellt waren: die Jochlaenge, die man dauernd aendert, stand neben
+ * der Gurtbreite aus dem Katalog, die man einmal im Jahr anfasst.
+ *
+ * DIE REGEL, nach der sortiert wurde:
+ *
+ *   Erste Ebene   was man an DIESEM Tragwerk einstellt
+ *   Zweite Ebene  was aus dem SORTIMENT kommt, und was einen Regelwert hat,
+ *                 den man selten verlaesst
+ *
+ * Nachgemessen im Browser: 2437 Pixel, also 28 Prozent kuerzer.
+ * ========================================================================= */
+{
+  const U = await import(J('ui.schema.js'));
+  const w = standardwerte();
+  const keys = (g) => U.sichtbareFelder(g, w).map((f) => f.key);
+  const feinVon = (g) => U.sichtbareFelder(g, w).filter((f) => f.fein)
+    .map((f) => f.key);
+
+  /*
+   * 1 - DIE GRUPPE 'typ' IST IN 'geo' AUFGEGANGEN.
+   *
+   * «Jochtyp und Rechenmasse» fuehrte GENAU EIN Feld - eine Ueberschrift
+   * fuer eine Zeile -, und die Masse standen im naechsten Abschnitt, obwohl
+   * der Typ sie setzt.
+   */
+  wahr('Die Gruppe typ gibt es nicht mehr',
+       !U.GRUPPEN.some((g) => g.id === 'typ'));
+  wahr('Kein Feld zeigt noch auf sie',
+       !U.FELDER.some((f) => f.gruppe === 'typ'));
+  wahr('Der Typ steht bei der Geometrie', keys('geo').includes('typ'));
+  wahr('… und zwar als erstes', keys('geo')[0] === 'typ');
+  wahr('… die Jochlaenge gleich dahinter', keys('geo')[1] === 'L');
+
+  /*
+   * 2 - WAS AUS DEM SORTIMENT KOMMT, STEHT IN DER ZWEITEN EBENE.
+   *
+   * Die Regel ist ableitbar und nicht nach Geschmack gesetzt: ein Feld mit
+   * `ausDB` ist ohne «Werte bearbeiten» gar nicht aenderbar. Ein Feld, das
+   * man nicht anfassen kann, gehoert nicht in die erste Ebene.
+   */
+  const ausDbSichtbar = U.sichtbareFelder('geo', w).filter((f) => f.ausDB);
+  wahr('Es gibt Katalogfelder in der Geometrie', ausDbSichtbar.length >= 3);
+  wahr('… und jedes davon steht in der zweiten Ebene',
+       ausDbSichtbar.every((f) => f.fein),
+       ausDbSichtbar.filter((f) => !f.fein).map((f) => f.key).join(', '));
+  wahr('Die Masskette steht dort auch', feinVon('geo').includes('masskette'));
+  wahr('Typ und Laenge dagegen nicht',
+       !feinVon('geo').includes('typ') && !feinVon('geo').includes('L'));
+
+  /*
+   * 3 - WAS DEN REST BESTIMMT, BLEIBT OBEN.
+   *
+   * Der Schalter «Tragwerk steht auf Masten» entscheidet, ob die Gruppe
+   * darunter ueberhaupt eine Frage stellt. Ein Feld, von dem die Sichtbarkeit
+   * anderer abhaengt, in einen zugeklappten Block zu legen, waere die
+   * schlechteste Stelle der ganzen Maske.
+   */
+  wahr('Der Mastschalter ist nicht fein',
+       !U.FELDER.find((f) => f.key === 'mastVorhanden').fein);
+  /*
+   * >>> UND ER STEHT ZUOBERST - JETZT AUCH WIRKLICH. <<<
+   *
+   * Weisung vom 5. September: «das deaktivieren der masten im modell sollte
+   * klar auswaehlbar sein.» Der Kommentar im Schema sagte es seither, der
+   * Code tat es nicht: `mastX` war spaeter davorgerutscht. Erst OB es Masten
+   * gibt, dann WO sie stehen.
+   */
+  const mk = keys('mast');
+  wahr('Der Mastschalter steht zuoberst', mk[0] === 'mastVorhanden', mk[0]);
+  wahr('… und die Stelle dahinter', mk[1] === 'mastX');
+
+  /*
+   * 4 - ERST WIE GELAGERT WIRD, DANN WAS DARUEBER HINAUSSTEHT.
+   */
+  const ak = keys('aufl');
+  const vor = (a, b) => ak.indexOf(a) >= 0 && ak.indexOf(a) < ak.indexOf(b);
+  wahr('Das Endauflager steht vor den Kragarmen', vor('endbedingung', 'kragA'));
+  wahr('Der Anschluss ans Joch auch', vor('mastAnschluss', 'kragA'));
+  wahr('Die Bedingung am Masten auch', vor('auflagerLinks', 'kragA'));
+  wahr('Und die Kragarme stehen beieinander',
+       ak.indexOf('kragB') === ak.indexOf('kragA') + 1);
+
+  /*
+   * 5 - JEDE GRUPPE MIT FEINEN FELDERN SAGT AUCH, WIE IHR BLOCK HEISST.
+   *
+   * Ohne Titel stuende dort «Feineinstellungen» - dreimal dasselbe Wort auf
+   * einem Bildschirm, und keines sagte, was drin ist.
+   */
+  const mitFein = U.GRUPPEN.filter((g) =>
+    U.FELDER.some((f) => f.gruppe === g.id && f.fein));
+  wahr('Es gibt Gruppen mit zweiter Ebene', mitFein.length >= 3);
+  wahr('… und jede traegt ihren eigenen Titel',
+       mitFein.every((g) => typeof g.feinTitel === 'string' && g.feinTitel),
+       mitFein.filter((g) => !g.feinTitel).map((g) => g.id).join(', '));
+  wahr('Die Titel sind verschieden',
+       new Set(mitFein.map((g) => g.feinTitel)).size === mitFein.length);
+
+  /*
+   * 6 - DIE MASKE BAUT DEN BLOCK AUCH WIRKLICH.
+   *
+   * `zeichneMaske` braucht ein DOM und laeuft hier nicht; geprueft wird die
+   * Quelle. Das ist die Stelle, an der ein Umbau den Block still fallen
+   * liesse - die Felder traegen dann `fein` und stuenden nirgends.
+   */
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Maske teilt in Haupt und Fein',
+       uq.includes('felder.filter((f) => !f.fein)')
+       && uq.includes('felder.filter((f) => f.fein)'));
+  wahr('… und klappt den Block auf, wenn bearbeitet wird',
+       uq.includes('werte.bearbeiten && fein.some((f) => f.ausDB)'));
+}
+
 titel('18  Oberfläche: Struktur der Eingabe');
 
 {
@@ -1200,7 +1321,7 @@ titel('18  Oberfläche: Struktur der Eingabe');
   const w = standardwerte();
 
   // Keine Grösse darf zweimal bedienbar sein
-  const alleSichtbaren = ['typ', 'geo', 'aufl', 'prof', 'blech', 'anbau', 'ein', 'komb']
+  const alleSichtbaren = ['geo', 'aufl', 'prof', 'blech', 'anbau', 'ein', 'komb']
     .flatMap((g) => sichtbar(g, w));
   wahr('Nachweisschnitt nicht doppelt in der Eingabe',
        !alleSichtbaren.includes('xNachweis'),
@@ -12190,7 +12311,12 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    */
   const em = { tragwerksart: 'einzelmast' };
   const jo = { tragwerksart: 'joch' };
-  ['typ', 'geo', 'blech', 'stueck'].forEach((gid) => {
+  /*
+   * Die Gruppe 'typ' ist am 13. September in 'geo' aufgegangen - ein
+   * Abschnitt mit einem einzigen Feld, dessen Masse im naechsten standen
+   * (Weisung: «sidebar system aufraeumen»).
+   */
+  ['geo', 'blech', 'stueck'].forEach((gid) => {
     wahr(`Gruppe ${gid} entfaellt beim Einzelmast`, gruppeGilt(gid, em) === false);
     wahr(`… und gilt beim Joch`, gruppeGilt(gid, jo) === true);
   });

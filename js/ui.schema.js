@@ -210,15 +210,23 @@ export const GRUPPEN = [
    * welche Laenge. Sie gehoert in dieselbe Gruppe; was sie zur Wahl stellt,
    * entscheidet die Tragwerksart (siehe `optionenAus` am Feld `typ`).
    */
-  { id: 'typ',   titel: 'Jochtyp und Rechenmasse',
-    arten: ['joch', 'tragausleger', 'abfangjoch'] },
+  /*
+   * >>> DER TYP UND DIE MASSE SIND EIN ABSCHNITT. <<<
+   *
+   * Weisung vom 13. September: «sidebar system aufraeumen». «Jochtyp und
+   * Rechenmasse» fuehrte GENAU EIN Feld - eine Ueberschrift fuer eine
+   * Zeile -, und die Masse darunter standen in einem zweiten Abschnitt,
+   * obwohl der Typ sie setzt. Wer den Typ wechselt, aendert damit jd, jbb
+   * und die Teilung; das gehoert zusammengelesen.
+   */
   /*
    * DIE GEOMETRIE GILT AUCH FUERS ABFANGJOCH - mit seinen eigenen Feldern.
    * Dort steht die Laengenauswahl statt des Schiebers, und die Masse des
    * Tragjochquerschnitts (jd, jbb, Endfeld, Masskette) bleiben aus: sie
    * kommen beim Abfangjoch aus dem Sortiment und sind nicht einzustellen.
    */
-  { id: 'geo',   titel: 'Systemgeometrie',
+  { id: 'geo',   titel: 'Jochtyp und Geometrie',
+    feinTitel: 'Masse aus dem Sortiment', extraFein: true,
     arten: ['joch', 'tragausleger', 'abfangjoch'] },
   /*
    * >>> EINE GRUPPE FUERS AUFLAGER, NICHT ZWEI. <<<
@@ -244,7 +252,8 @@ export const GRUPPEN = [
    * jetzt weg; was nur das Tragjoch betrifft (Ersatzbalken, Drehfeder,
    * Kragarme), traegt sie am FELD, wo sie hingehoert.
    */
-  { id: 'aufl',  titel: 'Auflager' },
+  { id: 'aufl',  titel: 'Auflager',
+    feinTitel: 'Drehfeder, Konsole, Gurtverbindung' },
   /*
    * DIE MASTEN SIND EIN EIGENES HAUPTTRAGWERK (Weisung, 28. August: «die
    * Haupttragwerke sollten global gesteuert werden»).
@@ -259,7 +268,8 @@ export const GRUPPEN = [
    * Masten mit Tragausleger als eigene Tragwerksart, dazu Zuganker und
    * Druckstützen. Die Gruppe ist dafür angelegt.
    */
-  { id: 'mast',  titel: 'Masten' },
+  { id: 'mast',  titel: 'Masten',
+    feinTitel: 'Fusspunkt, zweites Ende, Nachweis' },
   /*
    * >>> DER PROFILREITER GILT ALLEN ARTEN. <<<
    *
@@ -332,7 +342,7 @@ export const FELDER = [
 
   // --- Typ und Rechenmasse -------------------------------------------------
   {
-    key: 'typ', gruppe: 'typ', typ: 'auswahl',
+    key: 'typ', gruppe: 'geo', typ: 'auswahl',
     /*
      * >>> DER ABFANGJOCHTYP GEHOERT NICHT IN DIESES FELD. <<<
      *
@@ -376,7 +386,7 @@ export const FELDER = [
    * wird, benennt bis dahin das Bauteil und geht in die Ausleitung, nicht
    * in den Nachweis - und genau das sagt der Hinweis in der Auswertung.
    */
-  { key: 'abfangTyp', gruppe: 'typ', typ: 'auswahl',
+  { key: 'abfangTyp', gruppe: 'geo', typ: 'auswahl',
     label: (w) => `Abfangjoch-Typ ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     standard: 'A160', optionen: [],
     optionenAus: () => abfangOptionen(),
@@ -385,7 +395,7 @@ export const FELDER = [
            + 'ihrer Profilbezeichnung. Der Nachweis des Abfangjochs wird noch '
            + 'nicht geführt.' },
   {
-    key: 'massVariante', optionenDialog: true, gruppe: 'typ', typ: 'auswahl', label: 'Hebelarme aus',
+    key: 'massVariante', optionenDialog: true, gruppe: 'geo', typ: 'auswahl', label: 'Hebelarme aus',
     standard: 'schwerpunkt', optionen: opt(MASSVARIANTEN),
   },
 
@@ -443,7 +453,7 @@ export const FELDER = [
    * wird grosszügig (core.constants.js, massketteLesen).
    */
   {
-    key: 'masskette', gruppe: 'geo', typ: 'text',
+    key: 'masskette', fein: true, gruppe: 'geo', typ: 'text',
     sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     label: 'Masskette der Zeichnung', einheit: 'cm', standard: '',
     platzhalter: 'z. B. 15 209 474 735 885 983 1185 1200', laenge: 120,
@@ -451,7 +461,7 @@ export const FELDER = [
            + 'Zeichnung. Letztes Mass gleich Jochlänge. Leer lassen, wo keine '
            + 'Kette angeschrieben ist.',
   },
-  { key: 'a1', gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
+  { key: 'a1', fein: true, gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
     sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'a₁', einheit: 'm', standard: 0.75, min: 0.3, max: 1.5, schritt: 0.05,
     ausDB: true,
@@ -459,13 +469,13 @@ export const FELDER = [
            + 'Mass-Tabelle des Typs.'},
   // Bei verjüngten Enden und Grundrissknick sind das die Masse IM FELD; die
   // Werte am Jochende ergeben sich daraus über Voute und Knick.
-  { key: 'jd', gruppe: 'geo', typ: 'zahl', label: 'Gesamthöhe im Feld (Aussenmass)',
+  { key: 'jd', fein: true, gruppe: 'geo', typ: 'zahl', label: 'Gesamthöhe im Feld (Aussenmass)',
     sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'jd', einheit: 'mm', standard: 500, schritt: 10, min: 50, ausDB: true },
-  { key: 'jbbOG', gruppe: 'geo', typ: 'zahl', label: 'Breite Obergurt im Feld (Aussenmass)',
+  { key: 'jbbOG', fein: true, gruppe: 'geo', typ: 'zahl', label: 'Breite Obergurt im Feld (Aussenmass)',
     sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'jbb,OG', einheit: 'mm', standard: 440, schritt: 10, min: 50, ausDB: true },
-  { key: 'jbbUG', gruppe: 'geo', typ: 'zahl', label: 'Breite Untergurt im Feld (Aussenmass)',
+  { key: 'jbbUG', fein: true, gruppe: 'geo', typ: 'zahl', label: 'Breite Untergurt im Feld (Aussenmass)',
     sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
     sym: 'jbb,UG', einheit: 'mm', standard: 440, schritt: 10, min: 50, ausDB: true },
   // Der Nachweisschnitt wird im Auswertungsreiter «Schnitt» feldweise gesetzt.
@@ -514,21 +524,13 @@ export const FELDER = [
     sichtbar: (w) => tragwerksart(w).key === 'joch',
     hinweis: 'Wirkt auf die Vertikalbiegung; für Wind bleiben die Enden '
            + 'gelenkig.'},
-  { key: 'cPhi', gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
+  { key: 'cPhi', fein: true, gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
     sichtbar: (w) => tragwerksart(w).key === 'joch'
                   && w.endbedingung === 'manuell' },
   // Die Auflager stehen dort, wo die Maste stehen - nicht zwingend am Gurtende.
   // L bleibt die Länge der GURTE (daran hängt die Blecheinteilung), die
   // Stützweite ist L − kragA − kragB.
-  { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
-    sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
-    sichtbar: (w) => tragwerksart(w).key === 'joch',
-    hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
-           + 'kragB; darüber hinaus wirkt das Joch als Kragarm.'},
-  { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
-    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
-    sichtbar: (w) => tragwerksart(w).key === 'joch' },
   /*
    * OB EIN MAST DASTEHT - die eine Frage, die vorher in der Endauflagerwahl
    * mitentschieden wurde.
@@ -625,14 +627,6 @@ export const FELDER = [
    * Die Gruppe «Masten» kennt keine Artenschranke - und ihr Name trifft es
    * ohnehin besser: es ist die Bedingung AM MASTEN.
    */
-  { key: 'mastX', gruppe: 'mast', typ: 'zahl',
-    label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
-    sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
-    wertAus: (w) => gewaehlterMast(w)?.x ?? 0,
-    sichtbar: (w) => mastDa(w) && Boolean(gewaehlterMast(w)),
-    hinweis: 'Folgt aus der Lage des Tragwerks und der Jochlänge. Am linken '
-           + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
-           + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
   /*
    * >>> DER SCHALTER STEHT ZUOBERST. <<<
    *
@@ -654,6 +648,14 @@ export const FELDER = [
     hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
            + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
            + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
+  { key: 'mastX', gruppe: 'mast', typ: 'zahl',
+    label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
+    sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
+    wertAus: (w) => gewaehlterMast(w)?.x ?? 0,
+    sichtbar: (w) => mastDa(w) && Boolean(gewaehlterMast(w)),
+    hinweis: 'Folgt aus der Lage des Tragwerks und der Jochlänge. Am linken '
+           + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
+           + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),
@@ -740,7 +742,7 @@ export const FELDER = [
    * das ist keine Darstellung, das rechnet mit. Der Hinweis sagt es, damit
    * niemand den Wert fuer eine Bildkorrektur haelt.
    */
-  { key: 'mastFuss', gruppe: 'mast', typ: 'schieber',
+  { key: 'mastFuss', fein: true, gruppe: 'mast', typ: 'schieber',
     label: (w) => `Fusspunkt · Mast ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     // Der halbe Meter am Schieber wie bei jeder Laenge; das Zahlenfeld
     // daneben bleibt fein - ein Gelaendesprung misst selten 0.50 m.
@@ -753,7 +755,7 @@ export const FELDER = [
            + `unter der Jochachse; negativ bei fallendem Gelände oder tieferer `
            + `Einbindung. Verlängert die freie Länge und macht damit die `
            + `Drehfeder weicher — c_φ = Rahmenfaktor · E·I/H.` },
-  { key: 'mastFussB', gruppe: 'mast', typ: 'schieber', versteckt: true,
+  { key: 'mastFussB', fein: true, gruppe: 'mast', typ: 'schieber', versteckt: true,
     label: 'Fusspunkt Ende B',
     sym: 'Δz_F,B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
     min: -3, max: 3 },
@@ -787,13 +789,13 @@ export const FELDER = [
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Mastprofil Ende B',
     standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name') },
-  { key: 'mastHZwei', gruppe: 'mast', typ: 'schalter',
+  { key: 'mastHZwei', fein: true, gruppe: 'mast', typ: 'schalter',
     label: (w) => `Anschlusshöhe am Ende B (Mast ${mastNameAmEnde(w, null, 'B')}) abweichend`,
     standard: false,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2,
     hinweis: 'Nur die Höhe, an der das Joch anschliesst. Das Profil des '
            + 'zweiten Mastes steht an seiner Kachel.' },
-  { key: 'mastHB', gruppe: 'mast', typ: 'schieber',
+  { key: 'mastHB', fein: true, gruppe: 'mast', typ: 'schieber',
     label: (w) => `Anschlusshöhe Ende B · Mast ${mastNameAmEnde(w, null, 'B')}`,
     sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2
@@ -814,7 +816,7 @@ export const FELDER = [
    * W_pl wird aus der Profilgeometrie gerechnet, ohne Ausrundung, also auf
    * der sicheren Seite (core.mast.js).
    */
-  { key: 'mastPlastisch', gruppe: 'mast', typ: 'schalter',
+  { key: 'mastPlastisch', fein: true, gruppe: 'mast', typ: 'schalter',
     label: 'Mast plastisch nachweisen', standard: false,
     sichtbar: (w) => mastDa(w),
     hinweis: 'W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2. Interaktion '
@@ -1051,14 +1053,30 @@ export const FELDER = [
    * Wer eine bestimmte Konsole hat, traegt ihr Mass ein und bekommt es
    * unveraendert - das Sortiment hat Vorrang vor der Ableitung.
    */
-  { key: 'auflagerKonsole', gruppe: 'aufl', typ: 'zahl',
+  /*
+   * >>> ERST WIE GELAGERT WIRD, DANN WAS DARUEBER HINAUSSTEHT. <<<
+   *
+   * Weisung vom 13. September: «sidebar system aufraeumen». Die Kragarme
+   * standen zwischen «Endauflager» und «Anschluss ans Joch» - zwei Laengen
+   * mitten in drei Fragen zur Lagerung. Sie gehoeren dahinter: was ueber
+   * die Mastachse hinausragt, ergibt sich aus ihr.
+   */
+  { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
+    sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
+    hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
+           + 'kragB; darüber hinaus wirkt das Joch als Kragarm.'},
+  { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
+    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'joch' },
+  { key: 'auflagerKonsole', fein: true, gruppe: 'aufl', typ: 'zahl',
     label: 'Konsole am Masten', sym: 'a_K', einheit: 'mm',
     standard: 0, schritt: 5, min: 0,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true,
     hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung. '
            + '0 = eine halbe Mastbreite (HEB 240 → 120 mm). Gilt für die '
            + 'AxisVM-Ausleitung; der Ersatzbalken kennt sie nicht.' },
-  { key: 'schraubenFgrenz', gruppe: 'aufl', typ: 'zahl',
+  { key: 'schraubenFgrenz', fein: true, gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,
     sichtbar: (w) => tragwerksart(w).key === 'joch'
@@ -1080,7 +1098,7 @@ export const FELDER = [
    * Jochlasten -, damit man sieht, womit gerechnet wird; der Knopf «Werte
    * bearbeiten» entsperrt sie fuer den Ausnahmefall.
    */
-  { key: 'schraubenGrenze', gruppe: 'aufl', typ: 'schalter',
+  { key: 'schraubenGrenze', fein: true, gruppe: 'aufl', typ: 'schalter',
     label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
     sichtbar: (w) => tragwerksart(w).key === 'joch'
                   && !['gelenkig', 'voll'].includes(w.endbedingung),
