@@ -6617,6 +6617,58 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
   }
 
   /* =========================================================================
+   * >>> DAS AUFLAGER LIEGT FREI IM ENDFELD. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die, ob
+   * das Auflager beim Jochende frei im Endfeld aufliegen soll.
+   *
+   * NACHGEMESSEN: es tut es bereits. `kragA` ruecken die Mastachse nach
+   * innen, und der Gurt bekommt an dieser Stelle einen EIGENEN Knoten -
+   * auch mitten im Endfeld, zwischen zwei Bindeblechen:
+   *
+   *   kragA 0.00   Mast bei 0.000   Gurtstationen 0.00 0.05 0.70 0.75
+   *   kragA 0.40   Mast bei 0.400   Gurtstationen 0.00 0.05 0.40 0.70
+   *   kragA 1.20   Mast bei 1.200   Knoten bei 1.200
+   *
+   * Bei 0.40 steht die Station zwischen 0.05 und 0.70 - sie ist neu, nicht
+   * gerundet. Genau darum ging die Frage: ein Auflager, das auf die
+   * naechste Blechstation springt, verschiebt die Stuetzweite um bis zu
+   * einer halben Teilung, ohne dass es jemand sieht.
+   *
+   * Umzusetzen ist also nichts. Festzuhalten schon - sonst faellt es beim
+   * naechsten Umbau der Stationsliste still wieder heraus.
+   * ======================================================================= */
+  {
+    const frei = bau({ mastVorhanden: true, mastProfil: 'HEB 260', L: 20,
+                       kragA: 0.4 });
+    const bF = AX.stabmodell(frei.m, { knotenmodell: 'anschnitt' });
+    const stF = bF.staebe.find((s) => s.name === 'STARR_A_OGL');
+    const kF = bF.knoten.get(stF.bis);
+    pruef('Der Auflagerknoten sitzt auf der Mastachse', kF.x, 0.4, 1e-9, 'm');
+    /*
+     * UND ER IST EINE EIGENE STATION, keine gerundete. Die Nachbarn liegen
+     * bei 0.05 und 0.70 - waere gerundet worden, laege er auf einem davon.
+     */
+    const stationen = [...bF.knoten.keys()]
+      .filter((n) => /^OGL_/.test(n))
+      .map((n) => Number(n.split('_')[1]))
+      .sort((a, b) => a - b);
+    wahr('… und steht als eigene Station in der Liste',
+         stationen.some((v) => Math.abs(v - 0.4) < 1e-9),
+         stationen.slice(0, 5).map((v) => v.toFixed(2)).join(', '));
+    const nachbarn = stationen.filter((v) => Math.abs(v - 0.4) > 1e-9);
+    wahr('… zwischen zwei Blechstationen, nicht auf einer',
+         nachbarn.some((v) => v < 0.4) && nachbarn.some((v) => v > 0.4));
+    // Und dasselbe am anderen Ende.
+    const frei2 = bau({ mastVorhanden: true, mastProfil: 'HEB 260', L: 20,
+                        kragB: 0.4 });
+    const bF2 = AX.stabmodell(frei2.m, { knotenmodell: 'anschnitt' });
+    const st2 = bF2.staebe.find((s) => s.name === 'STARR_B_OGL');
+    pruef('Am Ende B ebenso', bF2.knoten.get(st2.bis).x, 19.6, 1e-9, 'm');
+  }
+
+  /* =========================================================================
    * >>> BEFUND: DAS GESAMTURTEIL KENNT DEN MASTNACHWEIS NICHT. <<<
    * =========================================================================
    *

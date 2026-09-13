@@ -305,6 +305,80 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Die offenen Fragen, abgearbeitet (13. September)
+
+Weisung: «offene fragen umsetzen.»
+
+**1 · Das Endauflager folgt der Auflagerbedingung.** Die Vorgabe war `mast`
+und warnte im Regelfall: der Kern setzte die Mastfeder an (16'710 kNm/rad),
+während das ausgeleitete Modell gelenkig war — die Auflagerbedingung gibt den
+Obergurt längs frei. Zwei verschiedene Tragwerke. Jetzt ist `links` die
+Vorgabe; **η steigt von 0.4567 auf 0.5086**, elf Prozent, auf der sicheren
+Seite. Wer die alte Rechnung will, wählt «teilweise. Steifigkeit aus Mast».
+Die Tabelle im A2-Kommentar war falsch und ist nachgemessen richtiggestellt.
+
+**2 · Die Auflagerkette des Tragjochs läuft rechtwinklig.** Beim Abfangjoch
+ist sie seit dem 12. September zerlegt; das Tragjoch blieb bei *einem*
+schrägen Stab vom Sammelknoten zum Winkel — in x zurück und zugleich in y nach
+aussen, quer durchs Jochende. Jetzt zwei Glieder mit einer Ecke: `KONSARM` in
+y, `STARR` in x. Der z-Versatz bleibt aus (die Mastknoten sitzen bereits auf
+den Gurthöhen; beim Abfangjoch liegt der Anschluss wegen des Gabelbereichs
+tiefer).
+
+**3 · Die Umhüllende zeigt ihre Spanne.** `huellkurve()` nimmt je Station den
+Knoten mit dem grössten η — mit *seinem* M_y. Jetzt führt sie zusätzlich min
+und max über alle Kombinationen, und das Diagramm zeichnet sie als Band hinter
+der Linie. Am J90/20 m mit Fahrleitung, Feldmitte: Nachweiswert 46.54 kNm,
+Spanne **44.46 … 48.62**. Der Nachweiswert liegt *mitten* im Band — genau die
+Frage vom 12. September.
+
+**4 · Die Masskette zeigt die Feldweiten**, unter der Geländelinie, je Feld
+ein Kästchen mit Strichen und der Weite. Ein zu schmales Feld lässt die Zahl
+weg und behält sie im Titel.
+
+**5 · Die Leiste zeigt die Ausnutzung** im Kürzel jeder Zeile — grün bis 0.95,
+gelb bis 1.00, rot darüber. Gezeigt wird nur, was *gerechnet* ist: das aktive
+Tragwerk und seine Masten. Eine volle Hüllkurve kostet nachgemessen 32 ms; bei
+drei Tragwerken wären das hundert Millisekunden bei jedem Tastendruck. Die
+übrigen Zeilen tragen einen **Strich**, nicht nichts — eine leere Stelle liest
+sich wie «in Ordnung».
+
+**6 · Das Auflager liegt frei im Endfeld** — das tat es bereits. `kragA` rückt
+die Mastachse nach innen, und der Gurt bekommt dort einen eigenen Knoten, auch
+zwischen zwei Bindeblechen (bei 0.40 zwischen den Stationen 0.05 und 0.70).
+Umzusetzen war nichts, festzuhalten schon.
+
+Nicht umgesetzt: der **Platzhalter des Kästchens** in den Mastzeilen. Ihn
+wegzunehmen bräche die Spaltenflucht mit den Tragwerkszeilen, und die ist mehr
+wert als ein leeres Quadrat.
+
+### Befund: das Gesamturteil kennt den Mastnachweis nicht (13. September)
+
+Gefunden beim Einbau der η-Marke — sie stellt Träger und Mast nebeneinander,
+und genau dort fällt es auf. Gemessen an einem J90/20.00 m auf einem HEB 200,
+13.00 m hoch:
+
+| | |
+|---|---|
+| Mast, Nachweis nach SIA 263 | η = **3.140** |
+| `etaGesamt` (Fussleiste, Urteil) | η = 0.387 |
+| `urteilKonstruktion` | `alleOk = true` |
+
+Die Fussleiste meldet dabei «**Alle Nachweise erfüllt** · η = 0.387», während
+ein geführter Nachweis dreifach überschritten ist.
+
+**Warum:** `etaGesamt` ist das Maximum über die Knoten des *Ersatzbalkens*. Der
+Mastnachweis läuft daneben (`erg.mast`), hat seine Gruppe in `NACHWEISGRUPPEN`
+(`key: 'mast'`, `standard: true`), aber **kein `gilt`** — es gibt keine
+Prüfung, die ihm zugeordnet wäre. Damit geht er weder in `etaGesamt` noch in
+`urteilKonstruktion` ein.
+
+**Nicht behoben, und zwar mit Absicht.** Wie das Urteil gebildet wird — Maximum
+über alle Bauteile, oder ein eigenes Urteil je Bauteil — greift in Fussleiste,
+Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
+Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
+umgesetzt worden, und dann gehört sie umgeschrieben.
+
 ### Der Reiter System hat zwei Ebenen (13. September)
 
 Weisung: «sidebar system aufräumen und eine bessere übersicht schaffen.»
@@ -4747,12 +4821,13 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Prüffähiger Nachweisbericht** | pendent. Excel, Druckansicht und Handbuch decken es nicht — siehe *Pendent: der prüffähige Nachweisbericht* |
 | **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
-| **Einzelmast, Tragausleger, Zuganker** | Die Gruppe «Masten» ist seit dem 28. August angelegt und entkoppelt. Was fehlt: die Tragwerksart (Joch / Einzelmast / Mast mit Tragausleger) als übergreifende Wahl, und Zuganker bzw. Druckstützen als Tragglieder am Masten — sie ändern die Statik des Mastes, sind also keine Anbauteile |
+| **Einzelmast, Tragausleger, Zuganker** | **gebaut.** Vier Tragwerksarten stehen zur Wahl (`TRAGWERKSARTEN`), Zuganker und Druckstützen sind Tragglieder am Masten mit eigenem Katalog (`data.anker.js`) und eigenem Nachweis |
 | **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). Am 1. September kam ein vierter dazu: `SCHIEFE_DAEMPFUNG` = **0,70** (509 Messstellen, Gegenprobe 0,994) — siehe *SCHIEFE_DAEMPFUNG*. `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. `MAST_UNVERSCHIEBLICH` steht seit dem 31. August auf **4,00** (vorher 3,10) — siehe *Die Drehfeder des Mastes*. Damit sind alle drei Kennwerte entschieden |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
-| **Abfangjoch** | Sortiment seit dem 3. September vollständig in der Maske (17 Typen, gegliedert nach aktuell/alt) — siehe *Das Sortiment der Abfangjoche*. Der **Rechenkern fehlt**: zweigurtiger Träger mit Sprossen, nicht vier Winkelgurte. Die Auswertung sagt es mit dem gewählten Typ im Hinweis |
+| **Mastnachweis im Gesamturteil** | **offen, und es ist ein Entscheid.** `etaGesamt` und `urteilKonstruktion` kennen ihn nicht; die Fussleiste meldet «Alle Nachweise erfüllt», während der Mast dreifach überschritten sein kann — siehe *Befund: das Gesamturteil kennt den Mastnachweis nicht* |
+| **Abfangjoch** | **gebaut.** Sortiment seit dem 3. September vollständig (17 Typen), Rechenkern seit dem 10. September eigen (`core.abfangjoch.js`): zweigurtiger Träger mit Sprossen, eigene Auswertung über Schnitt, Verläufe und Auflager |
 
 ## Das Sortiment der Abfangjoche (3. September)
 
