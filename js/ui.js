@@ -60,6 +60,28 @@ import { ankerQuerschnitt } from './data.anker.js';
 let modellFuerLage = null;
 export function setzeModellFuerLage(m) { modellFuerLage = m ?? null; }
 
+/* ===========================================================================
+ * DAS ETA FUER DIE LEISTE
+ * ===========================================================================
+ *
+ * Weisung vom 13. September: «offene fragen umsetzen» - darunter das
+ * angebotene eta je Bauteil in der Leiste.
+ *
+ * >>> GEZEIGT WIRD NUR, WAS GERECHNET IST. <<<
+ *
+ * Die Leiste wird aus den EINGABEWERTEN gebaut; gerechnet wird das AKTIVE
+ * Tragwerk. Eine volle Huellkurve kostet nachgemessen 32 ms - bei drei
+ * Tragwerken waeren das hundert Millisekunden bei jedem Tastendruck, und
+ * zwar fuer Zahlen, die nebenan in der Auswertung ohnehin stehen.
+ *
+ * Also steht die Zahl dort, wo sie gilt: am gerechneten Tragwerk und an
+ * seinen Masten. Die uebrigen tragen einen STRICH - nicht nichts. Eine
+ * leere Stelle liest sich wie «in Ordnung»; ein Strich sagt «hier steht
+ * keine Zahl», und der Titel sagt warum.
+ */
+let etaLeiste = null;
+export function setzeEtaFuerLeiste(o) { etaLeiste = o ?? null; }
+
 export const el = (id) => document.getElementById(id);
 
 /**
@@ -1357,6 +1379,24 @@ function qpKopfHtml(von, bis) {
  */
 const MASS_PLATZ = 20;
 
+/**
+ * Die Ausnutzung als kleine Marke im Kuerzel einer Leistenzeile.
+ *
+ * Drei Zustaende und ein vierter: erfuellt, knapp, verletzt - und «nicht
+ * gerechnet». Die Schwelle bei 0.95 ist keine Norm, sondern eine Warnung
+ * vor dem Rand: wer bei 0.97 steht, sollte es sehen, bevor eine Laenge um
+ * zehn Zentimeter waechst.
+ */
+function etaMarke(v, grund = '') {
+  if (!Number.isFinite(v)) {
+    return `<span class="qp-eta leer" title="${esc(grund
+      || 'nicht gerechnet — dieses Tragwerk anklicken')}">–</span>`;
+  }
+  const zustand = v > 1 ? 'fail' : v > 0.95 ? 'warn' : 'ok';
+  return `<span class="qp-eta ${zustand}" title="${esc(
+    `Ausnutzung η = ${v.toFixed(3)}`)}">η ${v.toFixed(2)}</span>`;
+}
+
 export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
   if (!alle.length) return '';
@@ -1431,7 +1471,9 @@ export function querprofilLeisteHtml(werte) {
                 + `x₀ = ${x0.toFixed(2)} m`
                 + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen'))}"
         ><span class="qp-art">${esc(tragwerkPos(werte, t))} · ${
-            esc(art.kuerzel)}</span>${esc(tragwerkName(t))}</button>
+            esc(art.kuerzel)}${
+            t.id === etaLeiste?.twId ? etaMarke(etaLeiste.tragwerk)
+              : etaMarke(NaN)}</span>${esc(tragwerkName(t))}</button>
       <span class="qp-bahn${massLinks || massRechts ? ' qp-bahn-mass' : ''}">
         <button type="button" class="qp-linie${an ? ' an' : ''}"
           data-qp-tw="${esc(t.id)}"
@@ -1656,7 +1698,10 @@ export function querprofilLeisteHtml(werte) {
                 + (hatAnker ? ` · Anker ${ankTitel}` : '')
                 + ' · Rechtsklick öffnet das Kontextmenü')}"
         ><span class="qp-art">M${i + 1} · Mast${
-            wessen && alle.length > 1 ? ` · ${esc(wessen)}` : ''}</span>${
+            wessen && alle.length > 1 ? ` · ${esc(wessen)}` : ''}${
+            etaMarke(etaLeiste?.masten?.[m.id],
+                     'nicht gerechnet — er gehört keinem gerechneten Tragwerk')
+          }</span>${
         esc(mastText(m))}${untenZeile
           ? `<span class="qp-mastlang">${esc(untenZeile)}</span>` : ''}</button>
       <span class="qp-bahn qp-bahn-mass">

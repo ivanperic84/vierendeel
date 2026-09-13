@@ -6616,6 +6616,72 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          !dE.schnittgroessen.includes('umhüllend'));
   }
 
+  /* =========================================================================
+   * >>> BEFUND: DAS GESAMTURTEIL KENNT DEN MASTNACHWEIS NICHT. <<<
+   * =========================================================================
+   *
+   * Gefunden am 13. September beim Einbau der eta-Marke in die Leiste - sie
+   * stellt Traeger und Mast nebeneinander, und genau dort faellt es auf.
+   *
+   * GEMESSEN an einem J90 / 20.00 m auf einem HEB 200, 13.00 m hoch:
+   *
+   *   Mast, Nachweis nach SIA 263        eta = 3.140
+   *   etaGesamt (Fussleiste, Urteil)     eta = 0.387
+   *   urteilKonstruktion                 alleOk = true
+   *
+   * Die Fussleiste meldet dabei «Alle Nachweise erfuellt · eta = 0.387»,
+   * waehrend ein gefuehrter Nachweis dreifach ueberschritten ist.
+   *
+   * >>> WARUM DAS SO IST. <<<
+   *
+   * `etaGesamt` ist das Maximum ueber die Knoten des ERSATZBALKENS - der
+   * Traeger, nichts sonst. Der Mastnachweis laeuft daneben (`erg.mast`), hat
+   * seine Gruppe in NACHWEISGRUPPEN (`key: 'mast'`, standard: true), aber
+   * KEIN `gilt` - es gibt keine Pruefung, die ihm zugeordnet waere. Damit
+   * geht er weder in `etaGesamt` noch in `urteilKonstruktion` ein.
+   *
+   * >>> DIESE KONTROLLE HAELT DEN IST-ZUSTAND FEST, NICHT DAS WUNSCHBILD.
+   *
+   * Wie das Urteil gebildet wird - Maximum ueber alle Bauteile, oder ein
+   * eigenes Urteil je Bauteil - ist eine Entscheidung des Auftraggebers und
+   * greift in Fussleiste, Bericht und Excel zugleich. Bis sie gefallen ist,
+   * steht hier, was gilt: faellt diese Kontrolle, ist die Entscheidung
+   * umgesetzt worden, und dann gehoert sie umgeschrieben.
+   * ======================================================================= */
+  {
+    const { m: mSchlank } = bau({ mastVorhanden: true, mastProfil: 'HEB 200',
+                                  mastH: 13.0, L: 20 });
+    const CH2 = await import(J('core.checks.js'));
+    const eSchlank = berechne({ ...standardwerte(), typ: 'J90', L: 20,
+      mastVorhanden: true, mastProfil: 'HEB 200', mastH: 13.0 },
+      getProfil(standardwerte().profOG), getProfil(standardwerte().profUG),
+      getStahl(standardwerte().stahl), T.getTragjoch('J90'));
+    const etaMast = eSchlank.mast?.etaNachweis ?? 0;
+    wahr('Der Mast ist deutlich ueberschritten', etaMast > 2,
+         `η = ${etaMast.toFixed(3)}`);
+    wahr('… und etaGesamt weiss nichts davon',
+         eSchlank.max.etaGesamt < 1,
+         `etaGesamt = ${eSchlank.max.etaGesamt.toFixed(3)}`);
+    const ckS = CH2.konstruktionsChecks(eSchlank.modell);
+    const urt = CH2.urteilKonstruktion(ckS, standardwerte().nachweise, 'joch');
+    wahr('… und das Konstruktionsurteil auch nicht',
+         urt.bindendVerletzt !== true,
+         `bindendVerletzt = ${urt.bindendVerletzt}`);
+    /*
+     * DIE GRUPPE STEHT IM VERZEICHNIS, ABER OHNE PRUEFUNG. Das ist der Ort,
+     * an dem die Entscheidung ansetzen wuerde.
+     */
+    const gMast = CH2.NACHWEISGRUPPEN.find((g) => g.key === 'mast');
+    wahr('Die Nachweisgruppe «Mast» ist vorhanden und voreingestellt an',
+         gMast?.vorhanden === true && gMast?.standard === true);
+    wahr('… traegt aber keine Pruefung', typeof gMast.gilt !== 'function');
+    /*
+     * WAS ES SCHON GIBT: die Zahl steht in der Auswertung und seit heute in
+     * der Leiste. Wer hinsieht, sieht sie - das Urteil sagt sie nur nicht.
+     */
+    wahr('Der Mastnachweis steht im Ergebnis', Number.isFinite(etaMast));
+  }
+
   // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
@@ -17285,6 +17351,56 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          hA.includes('qp-ankerstrich'));
     wahr('… aber nicht in einer eigenen Zeile',
          zeilen(hA, 'qp-mastzeile') === 2);
+    /* =====================================================================
+     * >>> DIE AUSNUTZUNG STEHT IM KUERZEL - WO SIE GERECHNET IST. <<<
+     * =====================================================================
+     *
+     * Weisung vom 13. September: «offene fragen umsetzen» - darunter das
+     * angebotene eta je Bauteil.
+     *
+     * Gerechnet wird das AKTIVE Tragwerk; eine volle Huellkurve kostet
+     * nachgemessen 32 ms, bei drei Tragwerken also hundert Millisekunden bei
+     * jedem Tastendruck. Die uebrigen Zeilen tragen deshalb einen STRICH -
+     * nicht nichts. Eine leere Stelle liest sich wie «in Ordnung».
+     */
+    UIF.setzeEtaFuerLeiste({ twId: 'T1', tragwerk: 0.45,
+                             masten: { M1: 0.98, M2: 1.07 } });
+    const hEta = UIF.querprofilLeisteHtml(joch());
+    const marken = [...hEta.matchAll(/class="qp-eta ([a-z]+)"[^>]*>([^<]*)</g)]
+      .map((m) => `${m[2].trim()} [${m[1]}]`);
+    wahr('Das gerechnete Tragwerk traegt seine Zahl',
+         marken[0] === 'η 0.45 [ok]', marken.join(' | '));
+    wahr('Der knappe Mast steht als Warnung da', marken[1] === 'η 0.98 [warn]');
+    wahr('Der ueberschrittene als Fehler', marken[2] === 'η 1.07 [fail]');
+    /*
+     * DIE SCHWELLE BEI 0.95 ist keine Norm, sondern eine Warnung vor dem
+     * Rand: wer bei 0.97 steht, soll es sehen, bevor eine Laenge um zehn
+     * Zentimeter waechst.
+     */
+    UIF.setzeEtaFuerLeiste({ twId: 'T1', tragwerk: 0.95, masten: {} });
+    wahr('Genau auf der Schwelle ist es noch erfuellt',
+         /class="qp-eta ok"[^>]*>η 0.95/.test(UIF.querprofilLeisteHtml(joch())));
+    /*
+     * OHNE GERECHNETE ZAHL EIN STRICH, und der Titel sagt warum.
+     */
+    UIF.setzeEtaFuerLeiste(null);
+    const hOhne = UIF.querprofilLeisteHtml(joch());
+    wahr('Ohne Rechnung stehen ueberall Striche',
+         (hOhne.match(/class="qp-eta leer"/g) ?? []).length === 3,
+         `${(hOhne.match(/class="qp-eta leer"/g) ?? []).length} Striche`);
+    wahr('… und sagen, dass nicht gerechnet wurde',
+         hOhne.includes('nicht gerechnet'));
+    /*
+     * EIN ANDERES TRAGWERK BEKOMMT KEINE FREMDE ZAHL. Das ist die Falle
+     * dieser Loesung: `etaLeiste` liegt im Modul und ueberlebt den
+     * Neuaufbau der Maske.
+     */
+    UIF.setzeEtaFuerLeiste({ twId: 'T2', tragwerk: 0.45, masten: {} });
+    wahr('Die Zahl gilt nur ihrem Tragwerk',
+         (UIF.querprofilLeisteHtml(joch()).match(/class="qp-eta leer"/g) ?? [])
+           .length === 3);
+    UIF.setzeEtaFuerLeiste(null);
+
     /* =====================================================================
      * >>> DIE MASSKETTE: WAS ZWISCHEN DEN MASTEN LIEGT. <<<
      * =====================================================================

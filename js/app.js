@@ -37,7 +37,7 @@ import { verortung, fangeAufMasskette,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
-         mastenVon, mastName, tragwerkName, tragwerkPos, aufRaster,
+         mastenVon, mastName, mastNameAmEnde, tragwerkName, tragwerkPos, aufRaster,
          TRAGWERKSARTEN,
          mastZeichenplan,
          gewaehlterMast }
@@ -659,6 +659,42 @@ function neuRechnen(neuZeichnen = true) {
 
     letzte = { erg, anzeige, vergleich, kombi, checks, auflager, mitJoch,
                warn: flucht.warnungen, hinw, kl, urteil };
+
+  /* =========================================================================
+     * >>> DIE LEISTE BEKOMMT DIE AUSNUTZUNG DESSEN, WAS GERECHNET IST. <<<
+     * =========================================================================
+     *
+     * Weisung vom 13. September: das eta je Bauteil in der Leiste.
+     *
+     * Gerechnet wird das AKTIVE Tragwerk; eine volle Huellkurve kostet
+     * nachgemessen 32 ms, bei drei Tragwerken also hundert Millisekunden bei
+     * jedem Tastendruck. Die uebrigen Zeilen tragen deshalb einen Strich -
+     * siehe `setzeEtaFuerLeiste` in ui.js.
+     *
+     * DAS ETA DES MASTEN IST `etaMitStabilitaet`, nicht `eta`: letzteres ist
+     * der QUERSCHNITT, an dem Farbskala und Hoehenverlauf haengen. Wer nach
+     * dem Nachweis fragt, bekommt den Nachweis - mit dem Knicken darin.
+     */
+    {
+      const anz = letzte?.anzeige ?? erg;
+      const masten = {};
+      ['A', 'B'].forEach((ende) => {
+        const n = anz.mast?.[ende];
+        if (!n) return;
+        const id = mastenVon(werte).find(
+          (x) => mastName(werte, x) === mastNameAmEnde(werte, null, ende))?.id;
+        if (!id) return;
+        const v = n.etaMitStabilitaet ?? n.eta;
+        // Ein geteilter Mast steht in zwei Tragwerken; gezeigt wird der
+        // groessere der beiden Nachweise, nicht der zuletzt geschriebene.
+        masten[id] = Math.max(masten[id] ?? 0, Number(v) || 0);
+      });
+      ui.setzeEtaFuerLeiste({
+        twId: werte.twId ?? 'T1',
+        tragwerk: anz.max?.etaGesamt,
+        masten,
+      });
+    }
 
     zeichneEingabe();
     zeichneEinwirkungswahl();

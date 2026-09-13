@@ -1617,6 +1617,20 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   color: var(--dim);
 }
 .qp-zeile.an .qp-art { color: var(--acc); }
+/* DAS KUERZEL TRAEGT DIE AUSNUTZUNG, rechtsbuendig (Weisung, 13. September).
+   Dort ist Platz, und die Zeile wird dafuer nicht laenger - eine eigene
+   Spalte haette der Bahn Breite genommen, und die traegt die Aussage. */
+.qp-art { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 4px; }
+.qp-eta {
+  font-size: 8px; letter-spacing: 0; text-transform: none;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  padding: 0 3px; border-radius: 3px;
+}
+.qp-eta.ok   { color: var(--ok);   background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.qp-eta.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.qp-eta.fail { color: var(--fail); background: color-mix(in srgb, var(--fail) 18%, transparent); }
+.qp-eta.leer { color: var(--dim); background: none; }
 
 /* DIE BAHN ist die gemeinsame Achse aller Zeilen - darin sitzt die Linie an
    ihrer Stelle. Sie ist auch die Bahn der Masten darunter, damit beides
