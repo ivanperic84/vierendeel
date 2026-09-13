@@ -6431,6 +6431,78 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('Bei voller Einspannung wird nichts nachgewiesen', !voll.m.gurtanschluss);
   }
 
+  /* =========================================================================
+   * >>> AUCH BEIM TRAGJOCH LAEUFT JEDES GLIED IN EINER ACHSE. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die, ob
+   * die rechten Winkel auch beim Tragjoch gelten sollen.
+   *
+   * Beim Abfangjoch ist die Kette seit dem 12. September zerlegt (siehe die
+   * Kontrollen dort). Das Tragjoch blieb als einziges bei EINEM schraegen
+   * Stab vom Sammelknoten zum Winkel - in x zurueck und zugleich in y nach
+   * aussen, quer durch das Jochende hindurch.
+   *
+   * DIE KETTE, GEMESSEN am J90 / 20.00 m mit HEB 260 (Ende A, Obergurt):
+   *
+   *   KONSOLE_A_OG    (0.000, 0.000, 0.225) -> (0.150, 0.000, 0.225)   x
+   *   LINK_A_OG       (0.150, 0.000, 0.225) -> (0.200, 0.000, 0.225)   x
+   *   KONSARM_A_OGL   (0.200, 0.000, 0.225) -> (0.200,-0.195, 0.225)   y
+   *   STARR_A_OGL     (0.200,-0.195, 0.225) -> (0.000,-0.195, 0.225)   x
+   *
+   * Ein Starrelement uebertraegt alles; die Geometrie aendert an den
+   * Auflagerkraeften nichts. Sie aendert, WAS MAN SIEHT: am Knick liest man
+   * ab, welches Glied welche Exzentrizitaet traegt.
+   * ======================================================================= */
+  {
+    const { m: m3 } = bau({ mastVorhanden: true, mastProfil: 'HEB 260',
+                            mastH: 8.0 });
+    const b3 = AX.stabmodell(m3, { knotenmodell: 'anschnitt' });
+    const kn3 = (n) => b3.knoten.get(n);
+    const st3 = (n) => b3.staebe.find((s) => s.name === n);
+    const achse3 = (n) => {
+      const s = st3(n);
+      if (!s) return '(fehlt)';
+      const a = kn3(s.von), b = kn3(s.bis);
+      if (!a || !b) return '(ohne Knoten)';
+      const d = [Math.abs(b.x - a.x), Math.abs(b.y - a.y), Math.abs(b.z - a.z)];
+      const gross = d.filter((v) => v > 1e-9);
+      return gross.length === 1 ? 'xyz'[d.findIndex((v) => v > 1e-9)]
+           : gross.length === 0 ? 'Punkt' : 'schräg';
+    };
+    wahr('Die Konsole läuft in x', achse3('KONSOLE_A_OG') === 'x',
+         achse3('KONSOLE_A_OG'));
+    wahr('Das Linkelement auch', achse3('LINK_A_OG') === 'x');
+    wahr('Der Arm zur Gurtachse läuft in y',
+         achse3('KONSARM_A_OGL') === 'y' && achse3('KONSARM_A_OGR') === 'y',
+         `${achse3('KONSARM_A_OGL')} / ${achse3('KONSARM_A_OGR')}`);
+    wahr('Und der Stab auf den Winkel wieder in x',
+         achse3('STARR_A_OGL') === 'x' && achse3('STARR_A_OGR') === 'x');
+    /*
+     * >>> UND ZWAR AN BEIDEN ENDEN UND IN BEIDEN GURTEBENEN. <<<
+     *
+     * Vier Ecken, zwei Seiten - wer nur eine prueft, laesst die anderen
+     * sieben laufen. Das ist genau die Art Fehler, die erst im Modell
+     * auffaellt.
+     */
+    const alleGlieder = b3.staebe.filter((s) =>
+      /^(KONSOLE|LINK|KONSARM|STARR)_[AB]_/.test(s.name));
+    wahr('Die Kette hat an beiden Enden alle Glieder',
+         alleGlieder.length === 24, `${alleGlieder.length} Stäbe`);
+    const schraege = alleGlieder.filter((s) => achse3(s.name) === 'schräg');
+    wahr('Kein Glied der Auflagerkette läuft schräg',
+         schraege.length === 0, schraege.map((s) => s.name).join(', '));
+    /*
+     * DER Z-VERSATZ BLEIBT AUS - anders als beim Abfangjoch. Dort liegt der
+     * Anschluss unter der Mastachse, weil ein Gabelbereich dazwischen sitzt;
+     * hier sitzen die Mastknoten bereits auf den Gurthoehen. Ein Versatz in
+     * z waere eine Erfindung, und die Kontrolle haelt das fest.
+     */
+    const kKons = kn3(st3('KONSOLE_A_OG').bis);
+    const kMast = kn3(st3('KONSOLE_A_OG').von);
+    pruef('Die Konsole bleibt auf ihrer Gurthöhe', kKons.z, kMast.z, 1e-12, 'm');
+  }
+
   // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
@@ -7043,9 +7115,23 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
     wahr(`Ende ${e}, ${g}: von der Konsole ein Linkelement zum Gurt`,
          l && l.art === 'link'
          && l.von === `KONS_${e}_${g}` && l.bis === `ANS_${e}_${g}`);
-    wahr(`Ende ${e}, ${g}: und von dort starr auf beide Winkel`,
+    /*
+     * >>> UND ZWAR UEBER EINE ECKE, SEIT DEM 13. SEPTEMBER. <<<
+     *
+     * Hier lief EIN schraeger Stab vom Sammelknoten auf den Winkel - in x
+     * zurueck und zugleich in y nach aussen. Jetzt zwei Glieder mit einem
+     * rechten Winkel dazwischen, wie beim Abfangjoch:
+     *
+     *   ANS --[KONSARM in y]--> ECK --[STARR in x]--> Winkel
+     */
+    const armL = stabVon(`KONSARM_${e}_${g}L`);
+    const armR = stabVon(`KONSARM_${e}_${g}R`);
+    wahr(`Ende ${e}, ${g}: von dort ein Arm zu jeder Gurtachse`,
+         armL && armR && armL.art === 'starr' && armR.art === 'starr'
+         && armL.von === `ANS_${e}_${g}` && armR.von === `ANS_${e}_${g}`);
+    wahr(`Ende ${e}, ${g}: und von der Ecke starr auf beide Winkel`,
          k && r && k.art === 'starr' && r.art === 'starr'
-         && k.von === `ANS_${e}_${g}` && r.von === `ANS_${e}_${g}`);
+         && k.von === armL.bis && r.von === armR.bis);
     /*
      * >>> JEDE GURTEBENE HAT IHRE EIGENE BEDINGUNG. <<<
      *

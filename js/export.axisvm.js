@@ -1290,13 +1290,21 @@ export function stabmodell(m, opt = {}) {
    * Riegel; die beiden Seiten quer zu verbinden wäre ein drittes Bauteil,
    * das die Zeichnung nicht kennt.
    */
+  /*
+   * DIE Y-LAGE EINER GURTACHSE. Sie stand in `gurtKnoten` eingeschlossen;
+   * seit die Auflagerkette rechtwinklig laeuft, braucht auch ihr Eckknoten
+   * dieselbe Zahl. Zwei Rechnungen fuer dieselbe Achse liefen frueher oder
+   * spaeter auseinander.
+   */
+  const yGurt = (gurt, seite, x) => {
+    const b = m.breite ? m.breite.bAn(x) : m.b;
+    return r6((seite === 'L' ? -1 : +1) * (b / 2)
+              + (gurt === 'UG' ? ugVersatz[seite] : 0));
+  };
   const gurtKnoten = (gurt, seite, x) => {
     const h = m.verlauf ? m.verlauf.hAn(x) : m.h;
-    const b = m.breite ? m.breite.bAn(x) : m.b;
     const z = gurt === 'OG' ? zOben : zOben - h;
-    const y = r6((seite === 'L' ? -1 : +1) * (b / 2)
-                 + (gurt === 'UG' ? ugVersatz[seite] : 0));
-    return s.kn(`${gurt}${seite}_${x.toFixed(3)}`, x, y, z);
+    return s.kn(`${gurt}${seite}_${x.toFixed(3)}`, x, yGurt(gurt, seite, x), z);
   };
 
   /*
@@ -1736,10 +1744,49 @@ export function stabmodell(m, opt = {}) {
         s.stab(`LINK_${an(ende)}_${gurt}`, qsStarr, kKons, ans,
                { starrRolle: 'uebergang',
                  kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
-        // 3 - vom Sammelknoten auf die beiden Winkel.
+        /* =================================================================
+         * >>> 3 - UND ZWAR RECHTWINKLIG, IN ZWEI GLIEDERN. <<<
+         * =================================================================
+         *
+         * Weisung vom 13. September: «offene fragen umsetzen» - darunter
+         * die, ob die rechten Winkel und der z-Versatz auch beim Tragjoch
+         * gelten sollen.
+         *
+         * Hier stand EIN Stab vom Sammelknoten (xAns, 0, zG) zum Winkel
+         * (x, ±b/2, zG). Der lief SCHRAEG - in x zurueck und zugleich in y
+         * nach aussen -, und zwar quer durch das Jochende hindurch. Beim
+         * Abfangjoch ist die Kette seit dem 12. September in rechtwinklige
+         * Glieder zerlegt (KONSOLE in x, KONSARM in y, LINKSTIEL in z); das
+         * Tragjoch blieb als einziges bei der Diagonale.
+         *
+         * ZWEI GLIEDER, JEDES IN EINER ACHSE:
+         *
+         *   KONSARM  in y, vom Sammelknoten zur Gurtachse ±b/2
+         *   STARR    in x, von dort auf die Station des Winkels
+         *
+         * >>> WARUM DAS NICHT NUR SCHOENER IST. <<<
+         *
+         * Ein Starrelement uebertraegt alles; die Geometrie aendert an den
+         * Auflagerkraeften nichts. Sie aendert, WAS MAN SIEHT: im Modell
+         * liest man am Knick ab, welches Glied welche Exzentrizitaet
+         * traegt - die Auskragung aus der Mastachse (x) und den Abstand zur
+         * Gurtachse (y). Bei der Diagonale waren beide in einem Stab
+         * vermengt, und wer die Kette nachmisst, misst zwei Masse auf
+         * einmal.
+         *
+         * DER Z-VERSATZ dagegen bleibt aus: beim Abfangjoch liegt der
+         * Anschluss unter der Mastachse, weil dort ein Gabelbereich sitzt.
+         * Hier sitzen kOG und kUG bereits auf den Gurthoehen - ein
+         * zusaetzlicher Versatz in z waere eine Erfindung.
+         * ================================================================= */
         ['L', 'R'].forEach((seite) => {
+          const gk = gurtKnoten(gurt, seite, x);
+          const eck = s.kn(`ECK_${an(ende)}_${gurt}${seite}`,
+                           xAns, yGurt(gurt, seite, x), zG);
+          s.stab(`KONSARM_${an(ende)}_${gurt}${seite}`, qsStarr,
+                 ans, eck, { starrRolle: 'verbindung' });
           s.stab(`STARR_${an(ende)}_${gurt}${seite}`, qsStarr,
-                 ans, gurtKnoten(gurt, seite, x), { starrRolle: 'verbindung' });
+                 eck, gk, { starrRolle: 'verbindung' });
         });
       });
 
