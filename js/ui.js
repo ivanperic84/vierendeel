@@ -1529,14 +1529,24 @@ export function querprofilLeisteHtml(werte) {
    * dem JOCHENDE (siehe `anschlusshoehe`), der Fusspunkt dem MASTEN - die
    * freie Laenge ist ihre Differenz.
    */
+  /*
+   * DIE ANSCHLUSSHOEHE GEHOERT DEM JOCHENDE, der Fusspunkt dem MASTEN. Beide
+   * zusammen ergeben die freie Laenge - das Mass, ueber das sich der Mast
+   * biegt und aus dem die Laengenvorgabe folgt.
+   */
+  const mastMasse = (m) => {
+    const t = alle.find((x) => (m.traegt ?? []).includes(x.id));
+    if (!t) return { H: 0, fuss: 0, frei: 0, jd: 0 };
+    const ende = Math.abs(m.x - lageVon(t)) < 0.05 ? 'A' : 'B';
+    const H = anschlusshoehe(t, ende);
+    const fuss = Number(m.fuss) || 0;
+    return { H, fuss, frei: H - fuss, jd: t.jd };
+  };
   const mastLaengeVon = (m) => {
     const v = Number(m.laenge) || 0;
     if (v > 0) return v;
-    const t = alle.find((x) => (m.traegt ?? []).includes(x.id));
-    if (!t) return 0;
-    const ende = Math.abs(m.x - lageVon(t)) < 0.05 ? 'A' : 'B';
-    const H = anschlusshoehe(t, ende) - (Number(m.fuss) || 0);
-    return H > 0 ? mastLaengeVorgabe(H, t.jd) : 0;
+    const { frei, jd } = mastMasse(m);
+    return frei > 0 ? mastLaengeVorgabe(frei, jd) : 0;
   };
   const mastProfil = (m) => String(m.profil ?? '').trim() || 'ohne Profil';
   const mastText = (m) => {
@@ -1566,6 +1576,30 @@ export function querprofilLeisteHtml(werte) {
       ? `${ak.typ} · ${laengsA ? 'längs' : 'quer'} · `
         + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m`
       : '';
+    /* =====================================================================
+     * >>> DIE DRITTE ZEILE: WORAUF ES IM QUERPROFIL ANKOMMT. <<<
+     * =====================================================================
+     *
+     * Frage vom 13. September: «was koennte eine uebersicht verbessern?»
+     *
+     * Die Zeile zeigte Profil und GESAMTLAENGE. Im Querprofil gefragt ist
+     * aber die ANSCHLUSSHOEHE - die Unterkante des Jochs -, und seit dem
+     * 12. September gibt es dazu den FUSSPUNKT: ein Mast, dessen Fuss
+     * vierzig Zentimeter tiefer steht, ist vierzig Zentimeter laenger, und
+     * man sah es der Uebersicht nicht an.
+     *
+     * Der Fusspunkt steht nur da, wenn er NICHT null ist. Null ist der
+     * Regelfall und hiesse «Fuss auf der Bezugshoehe» - eine Zahl, die
+     * nichts sagt, macht die Zeile nur laenger.
+     */
+    const mm = mastMasse(m);
+    const untenZeile = [
+      mm.H > 0 ? `H ${mm.H.toFixed(2)} m` : null,
+      Math.abs(mm.fuss) > 1e-9
+        ? `Fuss ${mm.fuss > 0 ? '+' : '−'}${Math.abs(mm.fuss).toFixed(2)} m`
+        : null,
+      hatAnker ? `${ak.typ} ${laengsA ? 'längs' : 'quer'}` : null,
+    ].filter(Boolean).join(' · ');
     const links = qpPct(m.x, von, bis).toFixed(3);
     return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}${
         i === 0 ? ' erste' : ''}">
@@ -1579,9 +1613,9 @@ export function querprofilLeisteHtml(werte) {
                 + (hatAnker ? ` · Anker ${ankTitel}` : '')
                 + ' · Rechtsklick öffnet das Kontextmenü')}"
         ><span class="qp-art">M${i + 1} · Mast${
-            geteilt ? ' ⊕' : ''}</span>${esc(mastText(m))}${
-        hatAnker ? `<span class="qp-mastlang">Anker ${esc(ak.typ)} · ${
-            laengsA ? 'längs' : 'quer'}</span>` : ''}</button>
+            wessen && alle.length > 1 ? ` · ${esc(wessen)}` : ''}</span>${
+        esc(mastText(m))}${untenZeile
+          ? `<span class="qp-mastlang">${esc(untenZeile)}</span>` : ''}</button>
       <span class="qp-bahn qp-bahn-mass">
         <span class="qp-mastgruppe" style="left:${links}%">
           <button type="button" class="qp-mast${an ? ' an' : ''}${

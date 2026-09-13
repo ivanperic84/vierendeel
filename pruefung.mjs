@@ -16947,6 +16947,97 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          h.includes('bei x = 0.00 m') && h.includes('bei x = 15.00 m'));
   }
 
+  /* =========================================================================
+   * >>> WER TRAEGT WEN, UND WIE HOCH SCHLIESST ES AN. <<<
+   * =========================================================================
+   *
+   * Frage vom 13. September: «was koennte eine uebersicht verbessern?»
+   *
+   * Zwei Angaben fehlten, und beide standen bestenfalls im Titel unter dem
+   * Zeiger:
+   *
+   *   1. WEN DER MAST TRAEGT. «M2 · MAST ⊕» sagte «geteilt», nicht von wem.
+   *      Auf einer Jochreihe ist das die wichtigste Angabe ueberhaupt.
+   *   2. DIE ANSCHLUSSHOEHE. Die Zeile zeigte Profil und GESAMTLAENGE; im
+   *      Querprofil gefragt ist die Unterkante des Jochs - und seit dem
+   *      12. September gibt es dazu den Fusspunkt.
+   */
+  {
+    const UIF = await import(J('ui.js'));
+    const reihe = {
+      ...standardwerte(), tragwerksart: 'joch', typ: 'J100', L: 20, xLage: 0,
+      mastH: 7.5, jd: 500, mastProfil: 'HEB 240', mastVorhanden: true,
+      twId: 'T1',
+      weitere: [{ id: 'T2', tragwerksart: 'joch', typ: 'J90', L: 15,
+                  xLage: 20, mastH: 7.5, jd: 500, mastProfil: 'HEB 260',
+                  mastVorhanden: true }],
+    };
+    const h = UIF.querprofilLeisteHtml(reihe);
+    /*
+     * 1 - DIE TRAEGER STEHEN IM KUERZEL.
+     */
+    wahr('Der linke Mast traegt P1', h.includes('M1 · Mast · P1<'));
+    wahr('Der Zwischenmast traegt beide', h.includes('M2 · Mast · P1 + P2<'));
+    wahr('Der rechte traegt P2', h.includes('M3 · Mast · P2<'));
+    /*
+     * DAS ZEICHEN ⊕ IST WEG - es sagte «geteilt», und das sagen jetzt die
+     * Namen. Zwei Zeichen fuer dieselbe Aussage sind eines zuviel.
+     */
+    wahr('Das Zeichen für «geteilt» ist raus', !h.includes('⊕'));
+    /*
+     * BEI EINEM EINZIGEN TRAGWERK bleibt es weg: «M1 · MAST · P1» waere
+     * eine Angabe ohne Alternative.
+     */
+    const eines = UIF.querprofilLeisteHtml({
+      ...standardwerte(), tragwerksart: 'joch', typ: 'J100', L: 15, xLage: 0,
+      mastH: 7.5, jd: 500, mastProfil: 'HEB 240', mastVorhanden: true });
+    wahr('Steht nur ein Tragwerk da, nennt der Mast es nicht',
+         eines.includes('>M1 · Mast<'));
+    /*
+     * 2 - DIE ANSCHLUSSHOEHE, UND DER FUSSPUNKT NUR WENN ER EINER IST.
+     */
+    wahr('Die Anschlusshoehe steht da',
+         (h.match(/H 7\.50 m/g) ?? []).length === 3);
+    wahr('Ohne Fussversatz steht kein Fusspunkt da', !h.includes('Fuss'));
+    const hF = UIF.querprofilLeisteHtml({
+      ...reihe,
+      masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5, fuss: -0.4 },
+               { id: 'M2', x: 20, profil: 'HEB 240', laenge: 8.5 },
+               { id: 'M3', x: 35, profil: 'HEB 260', laenge: 8.5 }] });
+    wahr('Ein Fussversatz steht mit Vorzeichen da',
+         hF.includes('Fuss −0.40 m'));
+    wahr('… und nur an SEINEM Masten',
+         (hF.match(/Fuss /g) ?? []).length === 1);
+    /*
+     * DER ANKER STEHT IN DERSELBEN ZEILE - er hat keine eigene mehr
+     * (Weisung, 11. September).
+     */
+    const hA = UIF.querprofilLeisteHtml({
+      ...reihe,
+      masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5,
+                 anker: { typ: 'A160', h: 2, a: 3 } },
+               { id: 'M2', x: 20, profil: 'HEB 240', laenge: 8.5 },
+               { id: 'M3', x: 35, profil: 'HEB 260', laenge: 8.5 }] });
+    wahr('Der Anker steht neben der Hoehe', hA.includes('A160 quer'));
+    /*
+     * 3 - ZWEI AUSWAHLEN, ZWEI STAERKEN.
+     *
+     * «warum m2 anders?» - M1 war angewaehlt, M2 nicht. Der Grund war
+     * richtig, die Darstellung nicht: Tragwerk UND Mast trugen denselben
+     * Flaechenton. Das gerechnete Tragwerk behaelt ihn, der angewaehlte
+     * Mast bekommt einen schmalen Balken.
+     */
+    const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    const regel = /\.qp-zeile\.qp-mastzeile\.an\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    wahr('Die Mastauswahl hat eine eigene Regel', Boolean(regel.trim()));
+    wahr('… ohne Flaechenton', /background:\s*none/.test(regel));
+    wahr('… dafuer mit einem Balken', /inset 2px 0 0/.test(regel));
+    // Und das Tragwerk behaelt seinen - sonst waere nichts gewonnen.
+    const twRegel = /\.qp-zeile\.an\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    wahr('Das gerechnete Tragwerk behaelt die Flaeche',
+         /background:\s*var\(--acc-s\)/.test(twRegel));
+  }
+
   /*
    * >>> DAS MASTSYMBOL STEHT AUF SEINER STELLE. <<<
    *

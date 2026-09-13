@@ -1514,6 +1514,23 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
    darunter. Symbol und Zahl ruecken dafuer um sechs Pixel zusammen - sonst
    raegte die Zahl in die naechste Zeile.
    ========================================================================= */
+/* >>> ZWEI AUSWAHLEN, ZWEI STAERKEN. <<<
+
+   Frage vom 13. September: «warum m2 anders?» - M1 war angewaehlt, M2 nicht.
+   Der Grund war richtig, die Darstellung nicht: Tragwerk UND Mast trugen
+   denselben Flaechenton, also standen zwei Zeilen gleich laut da, und man
+   musste raten, welche davon das gerechnete Tragwerk ist.
+
+   Das gerechnete Tragwerk behaelt die Flaeche - es bestimmt, was gerechnet
+   wird. Der angewaehlte Mast bekommt einen schmalen Balken: er bestimmt
+   nur, welchem Bauteil die Mastfelder gerade gelten. Der Name bleibt in
+   beiden Faellen in der Akzentfarbe. */
+.qp-zeile.qp-mastzeile.an {
+  background: none;
+  box-shadow: inset 2px 0 0 var(--acc);
+}
+.qp-zeile.qp-mastzeile.an:hover { background: var(--s2); }
+
 .qp-mastzeile .qp-mast { height: 15px; }
 .qp-mastzeile .qp-mast-marke { top: 0; height: 12px; }
 .qp-mastzeile .qp-mast-fuss { top: 12px; }

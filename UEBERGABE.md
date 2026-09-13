@@ -305,6 +305,40 @@ Genommen wird das H des **Endes A**, also des linken Masten — der Punkt, den
 die Weisung zur Referenz erklärt. Eine abweichende Höhe am Ende B
 (`mastHZwei`) bleibt relativ dazu, wie sie im Einzelmodell steht.
 
+### Wer trägt wen, und wie hoch schliesst es an (13. September)
+
+Frage: «warum m2 anders? was könnte eine übersicht verbessern?»
+
+**Zur ersten Hälfte:** M1 war angewählt, M2 nicht — die Mastfelder der Maske
+gelten immer *einem* Masten. Dazu trug M1 den gestrichelten Trennstrich
+(`.erste`, 3 px mehr Höhe), der Träger von Stützen trennt. Der Grund war
+richtig, die Darstellung nicht: Tragwerk **und** Mast trugen denselben
+Flächenton, also standen zwei Zeilen gleich laut da.
+
+**Zwei Auswahlen, zwei Stärken.** Das gerechnete Tragwerk behält die Fläche —
+es bestimmt, *was* gerechnet wird. Der angewählte Mast bekommt einen schmalen
+Balken links: er bestimmt nur, welchem Bauteil die Mastfelder gerade gelten.
+Der Name bleibt in beiden Fällen in der Akzentfarbe.
+
+**Zur zweiten Hälfte** — zwei Angaben, die bestenfalls im Titel unter dem
+Zeiger standen:
+
+1. **Wen der Mast trägt.** «M2 · MAST ⊕» sagte «geteilt», nicht von wem. Auf
+   einer Jochreihe ist das die wichtigste Angabe überhaupt. Jetzt steht sie im
+   Kürzel: `M1 · MAST · P1`, `M2 · MAST · P1 + P2`, `M3 · MAST · P2`. Das
+   Zeichen ⊕ fällt weg — die Namen sagen dasselbe genauer. Steht nur *ein*
+   Tragwerk auf dem Blatt, bleibt es weg: eine Angabe ohne Alternative.
+2. **Die Anschlusshöhe.** Die Zeile zeigte Profil und *Gesamtlänge*; im
+   Querprofil gefragt ist die Unterkante des Jochs. Sie steht als dritte kleine
+   Zeile: `H 7.50 m`. Ein **Fusspunkt** ≠ 0 kommt dazu (`Fuss −0.40 m`) — nur
+   dann, denn null ist der Regelfall und sagte nichts. Der **Anker** steht in
+   derselben Zeile (`A160 quer`) statt in einer eigenen.
+
+Offen geblieben und angeboten: eine **Masskette** mit den Feldweiten unter der
+Geländelinie, und **η je Bauteil** als Ampel in der Zeile — letzteres der
+grösste Eingriff, weil die Leiste aus den Eingabewerten gebaut wird und das
+gerechnete Modell dort nicht vorliegt.
+
 ### Je Mast eine Zeile, gleichwertig mit dem Joch (13. September)
 
 Weisung: «kannst du die länge und typ bei jedem masten schreiben, sonst wirken
