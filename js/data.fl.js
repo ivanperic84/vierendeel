@@ -76,6 +76,139 @@ export function istKettenwerk(b) {
   return t.includes('ts:') && t.includes('fd:');
 }
 
+/* ===========================================================================
+ * TRAGSEIL UND FAHRDRAHT, GETRENNT GEWAEHLT
+ * ===========================================================================
+ *
+ * Weisung vom 13. September: «wir wollten die kettenwerke ts + fd separieren
+ * bei der voreingabe der bauteile. da sonst die eingabe verschachtelt wird.»
+ *
+ * Die Tabelle fuehrt jede Paarung als EIGENEN Eintrag - «N-FL Ts: StCu 50 /
+ * Fd: Cu 107», «N-FL Ts: StCu 50 / Fd: Cu 150», «R-FL Ts: StCu 92 / Fd: Cu
+ * 107». Bei n Tragseilen und m Fahrdraehten sind das n mal m Zeilen in einer
+ * Auswahlliste, und jede neue Paarung braucht einen neuen Datensatz.
+ *
+ * >>> DIE EINGABE WIRD GETRENNT, DIE WERTE NICHT. <<<
+ *
+ * Das ist der Punkt, an dem es heikel wird. Nachgemessen am 13. September:
+ *
+ *   N-FL Ts: StCu 50 / Fd: Cu 107     Eigengewicht   Leiterzug   w_quer EK2
+ *   Tabelle, Kettenwerk                    0.020        14.9        0.0240
+ *   Tragseil + Fahrdraht einzeln           0.020        14.9        0.0208
+ *                                          gleich      gleich     +15 % !!
+ *
+ * Gewicht und Zug addieren sich exakt; der WIND nicht. Das Kettenwerk traegt
+ * rund fuenfzehn Prozent mehr als seine beiden Leiter zusammen - die Haenger
+ * und das Y-Beiseil haben auch eine Flaeche, und die Tabelle fuehrt sie im
+ * Kettenwerk mit.
+ *
+ * WER TS UND FD EINZELN ANSETZT UND ADDIERT, RECHNET DEN WIND ZU KLEIN.
+ * Deshalb waehlt man hier zwar getrennt, gerechnet wird aber weiterhin mit
+ * dem Tabelleneintrag der PAARUNG. Gibt es ihn nicht, sagt die Maske das -
+ * still zu summieren waere die schlechteste der drei Antworten.
+ *
+ * («Massgebend sind die Daten, nicht die Herleitung» - die stehende Vorgabe
+ * des Auftraggebers, und hier ist der Fall, fuer den sie geschrieben ist.)
+ *
+ * >>> ERKANNT WIRD AM NAMEN, NICHT AN EINER LISTE. <<<
+ *
+ * «Ts: X / Fd: Y» sagt beides. Was hinter Ts steht, ist ein Tragseil; was
+ * hinter Fd steht, ein Fahrdraht. Ein Leiter, der in keinem Kettenwerk
+ * vorkommt, ist ein einzelner - Cu 95 etwa. Kommt eine neue Paarung in die
+ * Tabelle, steht sie ohne Zutun in beiden Listen.
+ */
+const KETTE_RE = /^(\S+)\s+Ts:\s*(.+?)\s*\/\s*Fd:\s*(.+?)\s*(?:\(x(\d+)\))?$/;
+const EINZEL_RE = /^(N-FL|R-FL)\s+(.+?)\s*(?:\(x(\d+)\))?$/;
+
+/**
+ * Ein Drahtwerk in seine Teile zerlegt.
+ *
+ * @returns {{familie:string|null, ts:string|null, fd:string|null, anzahl:number}}
+ *   `ts`/`fd` tragen den Leiter MIT seiner Familie («N-FL StCu 50») - derselbe
+ *   Draht hat in zwei Familien verschiedene Zugkraefte (Cu 107: 8.5 gegen
+ *   10.0 kN), und ohne die Familie waere die Auswahl zweideutig.
+ */
+export function flZerlegung(b) {
+  const name = String(b?.name ?? '').replace(/\s+/g, ' ').trim();
+  const k = KETTE_RE.exec(name);
+  if (k) {
+    return { familie: k[1], ts: `${k[1]} ${k[2]}`, fd: `${k[1]} ${k[3]}`,
+             anzahl: Number(k[4] ?? 1) };
+  }
+  const e = EINZEL_RE.exec(name);
+  if (e) {
+    return { familie: e[1], ts: null, fd: null, leiter: `${e[1]} ${e[2]}`,
+             anzahl: Number(e[3] ?? 1) };
+  }
+  const n = /^(.+?)\s*\(x(\d+)\)$/.exec(name);
+  return { familie: null, ts: null, fd: null,
+           leiter: n ? n[1] : name, anzahl: Number(n?.[2] ?? 1) };
+}
+
+/** Alle Drahtwerke, die ein Kettenwerk sind - Tragseil UND Fahrdraht. */
+const kettenwerke = () => db().bauteile.filter((b) => istKettenwerk(b));
+
+/**
+ * Die waehlbaren Tragseile - aus den Kettenwerken der Tabelle.
+ *
+ * Aus IHNEN und nicht aus den Einzeleintraegen: ein Tragseil ist, was in
+ * einem Kettenwerk hinter «Ts:» steht. «N-FL StCu 50» gibt es auch einzeln,
+ * «R-FL StCu 92» ebenso - aber die Zuordnung kommt aus der Paarung.
+ */
+export function flTragseile() {
+  const s = new Map();
+  kettenwerke().forEach((b) => {
+    const z = flZerlegung(b);
+    if (z.ts && !s.has(z.ts)) s.set(z.ts, { name: z.ts, familie: z.familie });
+  });
+  return [...s.values()];
+}
+
+/** Die waehlbaren Fahrdraehte - ebenso. */
+export function flFahrdraehte() {
+  const s = new Map();
+  kettenwerke().forEach((b) => {
+    const z = flZerlegung(b);
+    if (z.fd && !s.has(z.fd)) s.set(z.fd, { name: z.fd, familie: z.familie });
+  });
+  return [...s.values()];
+}
+
+/**
+ * Die Leiter, die in keinem Kettenwerk vorkommen - Zusatzleiter, Cu 95.
+ *
+ * Sie stehen fuer sich und werden nicht gepaart; ihre Vielfachen (x2, x3)
+ * bleiben in der Liste, weil die Tabelle sie fuehrt.
+ */
+export function flEinzelleiter() {
+  const ts = new Set(flTragseile().map((x) => x.name));
+  const fd = new Set(flFahrdraehte().map((x) => x.name));
+  return db().bauteile.filter((b) => b.rolle === 'drahtwerk'
+    && !istKettenwerk(b)
+    && !ts.has(flZerlegung(b).leiter ?? '')
+    && !fd.has(flZerlegung(b).leiter ?? ''));
+}
+
+/**
+ * Der Tabelleneintrag zu einer Paarung - oder null.
+ *
+ * @param {string|null} ts  Tragseil mit Familie, oder null
+ * @param {string|null} fd  Fahrdraht mit Familie, oder null
+ * @param {number} anzahl   Vielfaches, wie es die Tabelle fuehrt
+ */
+export function flPaarung(ts, fd, anzahl = 1) {
+  if (!ts && !fd) return null;
+  const passt = (b) => {
+    const z = flZerlegung(b);
+    if (z.anzahl !== anzahl) return false;
+    if (ts && fd) return z.ts === ts && z.fd === fd;
+    // Ein einzelner Leiter: er traegt keinen Ts/Fd-Namen, sondern steht als
+    // `leiter` da. Gesucht wird der Eintrag, der genau so heisst.
+    return !z.ts && !z.fd && z.leiter === (ts || fd);
+  };
+  return db().bauteile.find((b) => b.rolle === 'drahtwerk' && passt(b)) ?? null;
+}
+
 export function getFlBauteil(id) {
   const b = db().bauteile.find((x) => x.id === id);
   if (!b) throw new Error(`Unbekanntes Fahrleitungsbauteil: ${id}`);

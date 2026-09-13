@@ -573,6 +573,15 @@ input[type=range].rng {
   background: var(--s1); padding: 6px 7px;
 }
 .modul-kopf { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+/* DER PARTNER ZUM LEITER (Weisung, 13. September: «die kettenwerke ts + fd
+   separieren»). Zu einem Tragseil der Fahrdraht, zu einem Fahrdraht das
+   Tragseil - eine Zeile unter der Bauteilwahl, eingerueckt, damit man sieht,
+   dass sie zu ihr gehoert und keine zweite Wahl derselben Art ist. */
+.modul-partner {
+  display: flex; align-items: center; gap: 5px;
+  margin: -2px 0 5px 10px; font-size: 10.5px; color: var(--dim);
+}
+.modul-partner select { flex: 1; min-width: 0; }
 
 /* --- Die Kette, in der Karte lesbar --------------------------------------
    Was auf was sitzt, entsteht aus den ROLLEN der Bauteile - und die standen

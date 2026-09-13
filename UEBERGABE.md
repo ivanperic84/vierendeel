@@ -397,6 +397,58 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Tragseil und Fahrdraht, getrennt gewählt (13. September)
+
+Weisung: «wir wollten die kettenwerke ts + fd separieren bei der voreingabe der
+bauteile. da sonst die eingabe verschachtelt wird.»
+
+Die Tabelle führt **jede Paarung als eigenen Eintrag** — «N-FL Ts: StCu 50 /
+Fd: Cu 107», «… / Fd: Cu 150», «R-FL Ts: StCu 92 / Fd: Cu 107». Bei *n*
+Tragseilen und *m* Fahrdrähten sind das n·m Zeilen in einer Auswahlliste, und
+jede neue Paarung braucht einen neuen Datensatz.
+
+**Jetzt zwei Schritte:** in der Liste steht der einzelne Leiter, daneben das
+Feld «mit Fahrdraht» bzw. «mit Tragseil». Die Kettenwerke verschwinden aus der
+Liste — sie sind das *Ergebnis* der beiden Wahlen, keine dritte Möglichkeit.
+Die Liste schrumpft von 26 auf 21 Einträge.
+
+> **Der Befund, der die Sache heikel macht.** Nachgemessen in der Bauteiltabelle:
+>
+> | N-FL Ts: StCu 50 / Fd: Cu 107 | Eigengewicht | Leiterzug | w_quer EK2 |
+> |---|---|---|---|
+> | Tabelle, Kettenwerk | 0.020 | 14.9 | **0.0240** |
+> | Tragseil + Fahrdraht einzeln | 0.020 | 14.9 | **0.0208** |
+> | | gleich | gleich | **+15 %** |
+>
+> Gewicht und Zug addieren sich exakt, der **Wind nicht**: das Kettenwerk trägt
+> rund fünfzehn Prozent mehr als seine beiden Leiter zusammen — die Hänger und
+> das Y-Beiseil haben auch eine Fläche, und die Tabelle führt sie mit. **Wer Ts
+> und Fd einzeln ansätze und addierte, rechnete den Wind zu klein.**
+
+Deshalb: **getrennt ist die Eingabe, nicht die Ablage.** Gespeichert wird
+weiterhin *ein* `bauteil` — die Id des Tabelleneintrags. Rechnung, Ausleitung,
+Bericht und jeder gespeicherte Stand bleiben unverändert. Gibt es eine Paarung
+nicht (N-FL Tragseil mit R-FL Fahrdraht), steht sie gar nicht erst zur Wahl.
+
+Im Browser nachgemessen, der Kreislauf schliesst exakt:
+
+```
+Kettenwerk            F_x 1.35 · F_y 0.55 · F_z 1.30 kN
+Partner weggenommen   F_x 0.89 · F_y 0.55 · F_z 0.90 kN   (nur Tragseil)
+Partner zurück        F_x 1.35 · F_y 0.55 · F_z 1.30 kN   identisch
+```
+
+**Erkannt wird am Namen, nicht an einer Liste.** Was hinter «Ts:» steht, ist ein
+Tragseil; was hinter «Fd:» steht, ein Fahrdraht; ein Leiter, der in keinem
+Kettenwerk vorkommt, ist ein einzelner (Cu 95). Kommt eine neue Paarung in die
+Tabelle, steht sie ohne Zutun in beiden Listen. Der Leiter trägt dabei seine
+**Familie** mit — derselbe Draht hat in zwei Familien verschiedene Zugkräfte
+(Cu 107: 8.5 kN in der N-FL, 10.0 kN in der R-FL).
+
+Nebenbefund: die Vielfachen **(x2), (x3), (x4) sind exakte Vielfache** des
+Einzelleiters, in allen Grössen. Sie liessen sich eines Tages durch das Feld
+`anzahl` ersetzen; eine Kontrolle hält die Voraussetzung fest.
+
 ### Lasten und Anbauteile aufgeräumt (13. September)
 
 Weisung: «bauteile optimieren und der lasten.»

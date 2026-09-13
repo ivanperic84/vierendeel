@@ -30,7 +30,8 @@ import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel, ANBAU_ORTE, ortVon, amMast } from './data.anbauteile.js';
-import { flBauteile, getFlBauteil, istStreckenlast,
+import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
+         flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn,
          hatTraeger } from './core.anbauteile.js';
@@ -2539,21 +2540,114 @@ function bezugsHinweis(a) {
     : '<span class="sec-r">ab Schwerachse des Anschlussgurtes</span>';
 }
 
+/** Ist diese Id ein Kettenwerk? Ohne Wurf, auch bei unbekannter Id. */
+function istKettenwerkId(id) {
+  try { return istKettenwerk(getFlBauteil(id)); } catch { return false; }
+}
+
 function modulListeHtml(a, i, werte) {
   const module = a.module ?? [];
   const trasse = trasseVon(werte);
 
+  /* =========================================================================
+   * >>> TRAGSEIL UND FAHRDRAHT WERDEN GETRENNT GEWAEHLT. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «wir wollten die kettenwerke ts + fd
+   * separieren bei der voreingabe der bauteile. da sonst die eingabe
+   * verschachtelt wird.»
+   *
+   * Die Tabelle fuehrt jede Paarung als eigenen Eintrag - «Ts: StCu 50 /
+   * Fd: Cu 107», «Ts: StCu 50 / Fd: Cu 150», «Ts: StCu 92 / Fd: Cu 107».
+   * In einer Auswahlliste sind das n mal m Zeilen.
+   *
+   * JETZT ZWEI SCHRITTE: in der Liste steht der einzelne Leiter, und
+   * daneben steht, was als Partner dazukommt. Die Kettenwerke selbst
+   * verschwinden aus der Liste - sie sind das ERGEBNIS der beiden Wahlen,
+   * nicht eine dritte Moeglichkeit.
+   *
+   * >>> GERECHNET WIRD WEITER MIT DEM TABELLENEINTRAG. <<<
+   *
+   * Nachgemessen: das Kettenwerk traegt rund fuenfzehn Prozent mehr Wind
+   * als seine beiden Leiter zusammen (0.0240 gegen 0.0208 kN/m bei EK2) -
+   * die Haenger und das Y-Beiseil haben auch eine Flaeche. Wer Ts und Fd
+   * einzeln ansetzt und addiert, rechnet den Wind zu klein. Die Paarung
+   * holt deshalb den Eintrag der Tabelle; gibt es ihn nicht, sagt die
+   * Maske das (siehe `flPaarung`).
+   */
+  /*
+   * >>> WELCHEN EINTRAG DIE HAUPTLISTE ZEIGT. <<<
+   *
+   * Steht im Modul ein KETTENWERK, steht es nicht mehr in der Liste - es ist
+   * das Ergebnis zweier Wahlen. Die Liste zeigt dann seinen TRAGSEIL-Eintrag,
+   * und das Partnerfeld daneben den Fahrdraht.
+   *
+   * Ohne diese Zeile zeigte die Liste den ERSTEN Eintrag als gewaehlt an -
+   * «Jochaufsatz Norm-Typ einfach», wo ein Kettenwerk steht. Im Browser
+   * gefunden, beim ersten Lauf nach dem Umbau: ein falsches Bauteil im Feld,
+   * und der naechste Klick haette es wirklich gesetzt.
+   */
+  const listenWert = (id) => {
+    let b = null;
+    try { b = getFlBauteil(id); } catch { return id; }
+    if (!istKettenwerk(b)) return id;
+    const z = flZerlegung(b);
+    return flPaarung(z.ts, null, z.anzahl ?? 1)?.id ?? id;
+  };
+
   const auswahl = (wert) => {
-    const gruppe = (rolle, titel) => {
-      const liste = flBauteile(rolle);
+    const zeigt = listenWert(wert);
+    const gruppe = (rolle, titel, filter = null) => {
+      const liste = flBauteile(rolle).filter((b) => !filter || filter(b));
       if (!liste.length) return '';
       return `<optgroup label="${esc(titel)}">${liste.map((b) =>
-        `<option value="${esc(b.id)}"${b.id === wert ? ' selected' : ''}
+        `<option value="${esc(b.id)}"${b.id === zeigt ? ' selected' : ''}
           >${esc(b.name)}</option>`).join('')}</optgroup>`;
     };
+    /*
+     * DER RUECKFALL: gibt es zum Tragseil keinen Einzeleintrag, bleibt das
+     * Kettenwerk selbst in der Liste. Lieber ein Eintrag, der dort nicht
+     * hingehoert, als ein Feld, das etwas anderes zeigt, als gespeichert ist.
+     */
+    const fremd = zeigt === wert && istKettenwerkId(wert);
     return gruppe('traeger', 'Träger am Joch') +
            gruppe('aufbau', 'Aufbauten') +
-           gruppe('drahtwerk', 'Drahtwerke');
+           gruppe('drahtwerk', 'Leiter',
+                  (b) => !istKettenwerk(b) || (fremd && b.id === wert));
+  };
+
+  /*
+   * DER PARTNER: zu einem Tragseil der Fahrdraht, zu einem Fahrdraht das
+   * Tragseil. Die Liste kommt aus den KETTENWERKEN der Tabelle - damit
+   * steht jede waehlbare Paarung auch wirklich darin.
+   */
+  const partnerFeld = (m, k, i) => {
+    let b = null;
+    try { b = getFlBauteil(m.bauteil); } catch { return ''; }
+    if (b.rolle !== 'drahtwerk') return '';
+    const z = flZerlegung(b);
+    const kw = istKettenwerk(b);
+    // Welcher der beiden Plaetze ist besetzt - und welcher ist zu fuellen?
+    const alsTs = kw ? z.ts : flTragseile().some((x) => x.name === z.leiter);
+    const alsFd = kw ? z.fd : flFahrdraehte().some((x) => x.name === z.leiter);
+    if (!alsTs && !alsFd) return '';          // ein einzelner Leiter, Cu 95
+    const suchtFd = kw ? true : Boolean(alsTs);
+    const liste = suchtFd ? flFahrdraehte() : flTragseile();
+    const gewaehlt = kw ? (suchtFd ? z.fd : z.ts) : '';
+    const eigen = kw ? (suchtFd ? z.ts : z.fd) : z.leiter;
+    /*
+     * NUR WAS ES IN DER TABELLE GIBT. Eine Paarung ohne Eintrag waere eine
+     * Summe, und die faellt beim Wind fuenfzehn Prozent zu klein aus.
+     */
+    const moeglich = liste.filter((x) => flPaarung(
+      suchtFd ? eigen : x.name, suchtFd ? x.name : eigen, z.anzahl ?? 1));
+    if (!moeglich.length) return '';
+    return `<label class="modul-partner">${suchtFd ? 'mit Fahrdraht' : 'mit Tragseil'}
+      <select class="mod" data-mk="partner" data-idx="${i}" data-mod="${k}">
+        <option value=""${gewaehlt ? '' : ' selected'}>— keiner, einzelner Leiter</option>
+        ${moeglich.map((x) => `<option value="${esc(x.name)}"${
+          x.name === gewaehlt ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
+      </select></label>`;
   };
 
   const kette = ketteJeModul(a, werte);
@@ -2583,6 +2677,7 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
         <button class="loeschen" data-mod-weg="${k}" data-idx="${i}"
                 title="Modul entfernen">×</button>
       </div>
+      ${partnerFeld(m, k, i)}
       ${kt ? `<div class="modul-kette">
         ${kt.rolle ? `<span class="rollen-marke r-${esc(kt.rolle)}"
             title="Rolle aus der Lasttabelle, sie bestimmt, was auf was sitzt"
@@ -3508,6 +3603,68 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
     if (!l[idx]) return;
     const m = (l[idx].module ?? []).map((x) => ({ ...x }));
     if (!m[mod]) return;
+    /* =====================================================================
+     * >>> DER PARTNER IST KEIN FELD, SONDERN EINE PAARUNG. <<<
+     * =====================================================================
+     *
+     * Weisung vom 13. September: Tragseil und Fahrdraht getrennt waehlen.
+     * Gespeichert wird weiterhin EIN `bauteil` - die Id des
+     * Tabelleneintrags. Das ist der Grund, warum Rechnung, Ausleitung,
+     * Bericht und jeder gespeicherte Stand unveraendert bleiben: getrennt
+     * ist die EINGABE, nicht die Ablage.
+     *
+     * Gibt es die Paarung nicht, bleibt das Bauteil stehen, wie es war -
+     * eine Summe zweier Leiter waere beim Wind fuenfzehn Prozent zu klein.
+     */
+    /*
+     * >>> DER PARTNER UEBERLEBT DEN WECHSEL DES LEITERS. <<<
+     *
+     * Wer in der Hauptliste das Tragseil wechselt, waehrend ein Fahrdraht
+     * daneben steht, bekaeme sonst den Einzelleiter - der Partner fiele
+     * still weg, und mit ihm fuenfzehn Prozent Wind. Gibt es die neue
+     * Paarung, wird sie genommen; gibt es sie nicht, gilt der neue Leiter
+     * allein, und das Partnerfeld steht danach leer da.
+     */
+    if (feld === 'bauteil') {
+      let alt = null;
+      try { alt = getFlBauteil(m[mod].bauteil); } catch { /* neu */ }
+      let neu = null;
+      try { neu = getFlBauteil(wert); } catch { /* unbekannt */ }
+      if (alt && neu && istKettenwerk(alt) && neu.rolle === 'drahtwerk'
+          && !istKettenwerk(neu)) {
+        const zA = flZerlegung(alt), zN = flZerlegung(neu);
+        const neuIstTs = flTragseile().some((x) => x.name === zN.leiter);
+        const paar = neuIstTs
+          ? flPaarung(zN.leiter, zA.fd, zA.anzahl ?? 1)
+          : flPaarung(zA.ts, zN.leiter, zA.anzahl ?? 1);
+        if (paar) {
+          m[mod] = { ...m[mod], bauteil: paar.id };
+          l[idx] = { ...l[idx], module: m };
+          onAnbau(l);
+          return;
+        }
+      }
+    }
+    if (feld === 'partner') {
+      let b = null;
+      try { b = getFlBauteil(m[mod].bauteil); } catch { return; }
+      const z = flZerlegung(b);
+      const kw = istKettenwerk(b);
+      const eigen = kw ? z.ts : z.leiter;
+      const eigenIstTs = kw
+        ? true : flTragseile().some((x) => x.name === z.leiter);
+      const neuB = !wert
+        // Partner weg: zurueck auf den einzelnen Leiter.
+        ? flPaarung(eigenIstTs ? eigen : null, eigenIstTs ? null : eigen,
+                    z.anzahl ?? 1)
+        : flPaarung(eigenIstTs ? eigen : wert, eigenIstTs ? wert : eigen,
+                    z.anzahl ?? 1);
+      if (!neuB) return;
+      m[mod] = { ...m[mod], bauteil: neuB.id };
+      l[idx] = { ...l[idx], module: m };
+      onAnbau(l);
+      return;
+    }
     m[mod] = { ...m[mod], [feld]: wert };
     l[idx] = { ...l[idx], module: m };
     onAnbau(l);

@@ -6834,6 +6834,136 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('Der Mastnachweis steht im Ergebnis', Number.isFinite(etaMast));
   }
 
+  /* =========================================================================
+   * >>> TRAGSEIL UND FAHRDRAHT, GETRENNT GEWAEHLT. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «wir wollten die kettenwerke ts + fd
+   * separieren bei der voreingabe der bauteile. da sonst die eingabe
+   * verschachtelt wird.»
+   *
+   * Die Tabelle fuehrt jede Paarung als eigenen Eintrag; bei n Tragseilen
+   * und m Fahrdraehten sind das n mal m Zeilen in einer Auswahlliste.
+   * ======================================================================= */
+  {
+    const FLK = await import(J('data.fl.js'));
+    /*
+     * 1 - DIE ZERLEGUNG LIEST DEN NAMEN.
+     *
+     * «Ts: X / Fd: Y» sagt beides. Der LEITER traegt seine Familie mit -
+     * derselbe Draht hat in zwei Familien verschiedene Zugkraefte (Cu 107:
+     * 8.5 kN in der N-FL, 10.0 kN in der R-FL), und ohne die Familie waere
+     * die Auswahl zweideutig.
+     */
+    const kw = FLK.getFlBauteil('drahtwerk-n-fl-ts-stcu-50-fd-cu-107');
+    const z = FLK.flZerlegung(kw);
+    wahr('Das Kettenwerk zerfaellt in Tragseil und Fahrdraht',
+         z.ts === 'N-FL StCu 50' && z.fd === 'N-FL Cu 107',
+         `${z.ts} / ${z.fd}`);
+    wahr('… und traegt seine Familie mit', z.familie === 'N-FL');
+    pruef('Einfach heisst Anzahl eins', z.anzahl, 1, 1e-12, '–');
+    const z2 = FLK.flZerlegung(
+      FLK.getFlBauteil('drahtwerk-n-fl-ts-stcu-50-fd-cu-107-x2'));
+    pruef('… und (x2) heisst zwei', z2.anzahl, 2, 1e-12, '–');
+    const ze = FLK.flZerlegung(FLK.getFlBauteil('drahtwerk-cu-95'));
+    wahr('Ein einzelner Leiter hat weder Ts noch Fd',
+         !ze.ts && !ze.fd && ze.leiter === 'Cu 95', JSON.stringify(ze));
+    /*
+     * 2 - DIE LISTEN KOMMEN AUS DEN KETTENWERKEN, nicht aus einer gepflegten
+     * Aufzaehlung. Kommt eine neue Paarung in die Tabelle, steht sie ohne
+     * Zutun in beiden Listen.
+     */
+    const ts = FLK.flTragseile().map((x) => x.name);
+    const fd = FLK.flFahrdraehte().map((x) => x.name);
+    wahr('Die Tragseile stehen zur Wahl',
+         ts.includes('N-FL StCu 50') && ts.includes('R-FL StCu 92'),
+         ts.join(', '));
+    wahr('Die Fahrdraehte auch',
+         fd.includes('N-FL Cu 107') && fd.includes('N-FL Cu 150')
+         && fd.includes('R-FL Cu 107'), fd.join(', '));
+    wahr('Cu 150 gibt es nur in der Paarung',
+         !FLK.flBauteile('drahtwerk').some((b) =>
+           FLK.flZerlegung(b).leiter === 'N-FL Cu 150'));
+    wahr('Cu 95 steht bei den einzelnen Leitern',
+         FLK.flEinzelleiter().some((b) => b.id === 'drahtwerk-cu-95'));
+    /*
+     * 3 - DIE PAARUNG FINDET DEN TABELLENEINTRAG.
+     */
+    for (const [a, b, soll] of [
+      ['N-FL StCu 50', 'N-FL Cu 107', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107'],
+      ['N-FL StCu 50', 'N-FL Cu 150', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-150'],
+      ['R-FL StCu 92', 'R-FL Cu 107', 'drahtwerk-r-fl-ts-stcu-92-fd-cu-107'],
+    ]) {
+      wahr(`${a} + ${b}`, FLK.flPaarung(a, b)?.id === soll,
+           FLK.flPaarung(a, b)?.id ?? '(keine)');
+    }
+    wahr('Eine Paarung ueber die Familien hinweg gibt es nicht',
+         FLK.flPaarung('N-FL StCu 50', 'R-FL Cu 107') === null);
+    wahr('Ohne Partner kommt der einzelne Leiter',
+         FLK.flPaarung('N-FL StCu 50', null)?.id === 'drahtwerk-n-fl-stcu-50');
+    wahr('Und das Vielfache wird mitgefuehrt',
+         FLK.flPaarung('N-FL StCu 50', 'N-FL Cu 107', 2)?.id
+           === 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107-x2');
+
+    /* =====================================================================
+     * >>> 4 - UND HIER IST DER GRUND, WARUM NICHT SUMMIERT WIRD. <<<
+     * =====================================================================
+     *
+     * Gewicht und Leiterzug addieren sich exakt, der WIND nicht. Das
+     * Kettenwerk traegt rund fuenfzehn Prozent mehr als seine beiden Leiter
+     * zusammen - die Haenger und das Y-Beiseil haben auch eine Flaeche, und
+     * die Tabelle fuehrt sie im Kettenwerk mit.
+     *
+     * «Massgebend sind die Daten, nicht die Herleitung» - die stehende
+     * Vorgabe des Auftraggebers, und hier ist der Fall, fuer den sie
+     * geschrieben ist. Wer Ts und Fd einzeln ansetzt und addiert, rechnet
+     * den Wind zu klein.
+     */
+    const tsB = FLK.getFlBauteil('drahtwerk-n-fl-stcu-50');
+    const fdB = FLK.getFlBauteil('drahtwerk-n-fl-cu-107');
+    pruef('Das Eigengewicht addiert sich', kw.eigengewicht,
+          tsB.eigengewicht + fdB.eigengewicht, 1e-12, 'kN/m');
+    pruef('Der Leiterzug auch', kw.leiterzug,
+          tsB.leiterzug + fdB.leiterzug, 1e-12, 'kN');
+    const wq = (b, ek) => (b.windQuer ?? {})[ek];
+    for (const ek of ['EK1', 'EK2', 'EK3']) {
+      const summe = wq(tsB, ek) + wq(fdB, ek);
+      wahr(`Der Wind ${ek} ist MEHR als die Summe`, wq(kw, ek) > summe + 1e-9,
+           `${wq(kw, ek)} gegen ${Math.round(summe * 1e5) / 1e5}`);
+    }
+    pruef('Und zwar um rund fuenfzehn Prozent',
+          wq(kw, 'EK2') / (wq(tsB, 'EK2') + wq(fdB, 'EK2')), 1.1538, 1e-3, '–');
+    /*
+     * 5 - DIE VIELFACHEN SIND EXAKTE VIELFACHE. Das ist kein Zufall, und es
+     * ist die Voraussetzung dafuer, dass man sie eines Tages durch das Feld
+     * `anzahl` ersetzen koennte.
+     */
+    const e95 = FLK.getFlBauteil('drahtwerk-cu-95');
+    for (const [id, n] of [['drahtwerk-cu-95-x2', 2], ['drahtwerk-cu-95-x3', 3],
+                           ['drahtwerk-cu-95-x4', 4]]) {
+      const b = FLK.getFlBauteil(id);
+      pruef(`Cu 95 (x${n}): Gewicht`, b.eigengewicht,
+            e95.eigengewicht * n, 1e-12, 'kN/m');
+      pruef(`Cu 95 (x${n}): Wind EK2`, wq(b, 'EK2'), wq(e95, 'EK2') * n,
+            1e-12, 'kN/m');
+    }
+    /*
+     * 6 - DIE MASKE ZEIGT DIE KETTENWERKE NICHT MEHR IN DER LISTE - sie sind
+     * das ERGEBNIS zweier Wahlen. Geprueft wird die Quelle; `modulListeHtml`
+     * braucht die Karte einer Baugruppe und laeuft hier nicht.
+     */
+    const uq3 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Auswahl laesst die Kettenwerke weg',
+         uq3.includes("gruppe('drahtwerk', 'Leiter', (b) => !istKettenwerk(b))")
+         || uq3.includes('!istKettenwerk(b) || (fremd'));
+    wahr('… zeigt aber das Tragseil des gespeicherten Kettenwerks',
+         uq3.includes('const listenWert = (id)'));
+    wahr('Der Partner bildet eine Paarung, kein Feld',
+         uq3.includes("if (feld === 'partner')"));
+    wahr('… und ueberlebt den Wechsel des Leiters',
+         uq3.includes("if (feld === 'bauteil')"));
+  }
+
   // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
