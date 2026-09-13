@@ -1283,6 +1283,106 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
   wahr('Und die Kragarme stehen beieinander',
        ak.indexOf('kragB') === ak.indexOf('kragA') + 1);
 
+  /* =========================================================================
+   * >>> DIE LASTEN IN DER REIHENFOLGE, IN DER SIE ENTSTEHEN. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «bauteile optimieren und der lasten.»
+   *
+   * Die Gruppe begann mit dem Wind auf den MASTEN - einem Sonderfall, der
+   * nur bei stehendem Masten gilt -, dann kam sein Schalter, dann die
+   * Klassenwahl, dann der Zuschlag, und erst danach die drei
+   * charakteristischen Grundlasten. Also von hinten nach vorn.
+   */
+  {
+    const ek = keys('ein');
+    const vorEin = (a, b) => ek.indexOf(a) >= 0 && ek.indexOf(b) >= 0
+      && ek.indexOf(a) < ek.indexOf(b);
+    wahr('Erst die Wahl, dann was daraus folgt',
+         vorEin('windKlasse', 'gkManuell'), ek.join(', '));
+    /*
+     * MIT SCHNEE: ohne ihn stehen die beiden Schneefelder gar nicht da -
+     * `schneeAktiv` schaltet sie frei. Die Kontrolle muss ihn einschalten,
+     * sonst prueft sie eine leere Liste und faellt aus dem falschen Grund.
+     */
+    const ekS = U.sichtbareFelder('ein', { ...w, schneeAktiv: true })
+      .map((f) => f.key);
+    wahr('Schnee ja/nein steht vor der Schneelast',
+         ekS.indexOf('schneeAktiv') < ekS.indexOf('skManuell')
+         && ekS.includes('skManuell'), ekS.join(', '));
+    wahr('… und die Klasse gleich dahinter',
+         ekS.indexOf('schneeKlasse') === ekS.indexOf('schneeAktiv') + 1);
+    wahr('Die Grundlasten stehen beieinander',
+         ek.indexOf('wkManuell') === ek.indexOf('gkManuell') + 1);
+    /*
+     * >>> DER ZUSCHLAG UND DER MASTWIND SIND ZWEITE EBENE. <<<
+     */
+    const feinEin = U.sichtbareFelder('ein', { ...w, mastVorhanden: true })
+      .filter((f) => f.fein).map((f) => f.key);
+    for (const k of ['gZusatz', 'wMast', 'mastWindAufJoch']) {
+      wahr(`${k} steht in der zweiten Ebene`, feinEin.includes(k),
+           feinEin.join(', '));
+    }
+    /* =====================================================================
+     * >>> DIE DREI GRUNDLASTEN NICHT - UND DAS IST EINE AUSNAHME. <<<
+     * =====================================================================
+     *
+     * Sie tragen `ausLast` und sind ohne «Werte bearbeiten» gesperrt. Nach
+     * der Regel aus dem Reiter System (was man nicht anfassen kann, gehoert
+     * nicht in die erste Ebene) muessten sie in den Klappblock.
+     *
+     * SIE BLEIBEN TROTZDEM OBEN. Der Unterschied: die Katalogmasse dort
+     * sagen, wie das Bauteil AUSSIEHT - diese hier sagen, was auf ihm
+     * LIEGT. Man soll stets sehen, womit gerechnet wird, ohne einen Block
+     * aufzuklappen. Der Vermerk steht seit jeher im Schema; hier steht er
+     * als Kontrolle, damit ihn kein spaeteres Aufraeumen wegwischt.
+     */
+    for (const k of ['gkManuell', 'wkManuell']) {
+      const f = U.FELDER.find((x) => x.key === k);
+      wahr(`${k} ist gesperrt …`, f.ausLast === true);
+      wahr('… steht aber in der ersten Ebene', !f.fein);
+    }
+    // Und die Gruppe sagt, wie ihr Block heisst.
+    const gEin = U.GRUPPEN.find((g) => g.id === 'ein');
+    wahr('Die Gruppe nennt ihre zweite Ebene beim Namen',
+         gEin.feinTitel === 'Zuschlag und Wind auf den Masten');
+  }
+
+  /* =========================================================================
+   * >>> DER REITER ANBAUTEILE FAENGT MIT DEN BAUTEILEN AN. <<<
+   * =========================================================================
+   *
+   * Er begann mit drei Feldern, die man EINMAL einstellt - Spannweite,
+   * Radius, Ablenkwinkel -, und erst darunter kam, worum es geht. An jedem
+   * Arbeitsgang scrollte man daran vorbei.
+   *
+   * `zugeklappt` macht aus der Gruppe einen Klappabschnitt statt einer
+   * Ueberschrift. Sie bleibt oben - die Ablenkung folgt aus ihr, und das
+   * liest sich von oben nach unten -, kostet aber nur noch eine Zeile.
+   *
+   * NICHT DASSELBE WIE `fein`: fein trennt INNERHALB einer Gruppe das
+   * Haeufige vom Seltenen, zugeklappt legt die ganze Gruppe beiseite.
+   */
+  {
+    const gT = U.GRUPPEN.find((g) => g.id === 'trasse');
+    wahr('Die Trasse faengt zugeklappt an', gT.zugeklappt === true);
+    wahr('… und hat wirklich Felder darin',
+         U.sichtbareFelder('trasse', w).length === 3,
+         `${U.sichtbareFelder('trasse', w).length} Felder`);
+    // Die Gruppe der Bauteile selbst bleibt offen - sie IST der Reiter.
+    const gA = U.GRUPPEN.find((g) => g.id === 'anbau');
+    wahr('Die Anbauteile bleiben offen', !gA.zugeklappt);
+    /*
+     * DIE MASKE MUSS DARAUS AUCH EINEN KLAPPABSCHNITT MACHEN. `zeichneMaske`
+     * braucht ein DOM und laeuft hier nicht; geprueft wird die Quelle - das
+     * ist die Stelle, an der ein Umbau das Merkmal still fallen liesse.
+     */
+    const uq2 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Maske kennt das Merkmal',
+         uq2.includes('if (g.zugeklappt)')
+         && uq2.includes('klapp(`gruppe-${gid}`'));
+  }
+
   /*
    * 5 - JEDE GRUPPE MIT FEINEN FELDERN SAGT AUCH, WIE IHR BLOCK HEISST.
    *

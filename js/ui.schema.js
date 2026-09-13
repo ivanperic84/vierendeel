@@ -288,9 +288,23 @@ export const GRUPPEN = [
   // eingehängt (siehe extras in app.js).
   { id: 'stueck', titel: 'Stückliste und Eigengewicht',
     arten: ['joch', 'tragausleger'] },
-  { id: 'trasse', titel: 'Trasse und Fahrleitung' },
+  /*
+   * >>> DIE TRASSE FAENGT ZUGEKLAPPT AN. <<<
+   *
+   * Weisung vom 13. September: «bauteile optimieren». Der Reiter
+   * «Anbauteile» begann mit drei Feldern, die man EINMAL einstellt -
+   * Spannweite, Radius, Ablenkwinkel -, und erst darunter kam, worum es
+   * geht: die Liste der Bauteile. An jedem Arbeitsgang scrollte man daran
+   * vorbei.
+   *
+   * `zugeklappt` macht aus der Gruppe einen Klappabschnitt statt einer
+   * Ueberschrift. Sie bleibt oben - die Ablenkung folgt aus ihr, und das
+   * liest sich von oben nach unten -, kostet aber nur noch eine Zeile.
+   */
+  { id: 'trasse', titel: 'Trasse und Fahrleitung', zugeklappt: true },
   { id: 'anbau', titel: 'Anbauteile' },
-  { id: 'ein',   titel: 'Verteilte Einwirkungen' },
+  { id: 'ein',   titel: 'Verteilte Einwirkungen',
+    feinTitel: 'Zuschlag und Wind auf den Masten' },
   { id: 'komb',  titel: 'Lastfälle' },
   { id: 'ansicht', titel: 'Modellansicht' },
 ];
@@ -1151,34 +1165,7 @@ export const FELDER = [
                   && !['gelenkig', 'voll'].includes(w.endbedingung),
     hinweis: 'Die Drehfeder wird iterativ herabgesetzt, bis die Grenzlast der '
            + 'Gurtschrauben eingehalten ist.'},
-  { key: 'wMast', gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
-    sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
-    ausLast: true,
-    wertAus: amMast('wMast', 'wMast'),
-    sichtbar: (w) => mastDa(w),
-    hinweis: 'Aus der Lasttabelle je Profil, Einwirkungsklasse und Stegrichtung. '
-           + '«Werte bearbeiten» gibt das Feld frei.'},
-  // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
-  // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
-  // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
-  /*
-   * STARTWERT AUS (Weisung, 27. August).
-   *
-   * Der Ersatzbalken kann den Mastwind nur als AUFGEZWUNGENE
-   * Auflagerverdrehung fassen - eine Ersatzgrösse für etwas, das im
-   * Stabmodell schlicht eine Last auf dem Masten ist. Sobald der Mast im
-   * Modell steht (Auflagermodell «Mast»), trägt er sie selbst, und die
-   * Ersatzgrösse würde sie ein zweites Mal ansetzen.
-   *
-   * Deshalb aus, bis sie ausdrücklich gewollt ist. Wer ohne Mast im Modell
-   * rechnet und den Anteil trotzdem braucht, schaltet sie ein.
-   */
-  { key: 'mastWindAufJoch', gruppe: 'ein', typ: 'schalter',
-    label: 'Mastwind wirkt auf das Joch', standard: false,
-    sichtbar: (w) => mastDa(w),
-    hinweis: 'Wind in Jochachse verdreht den Mastkopf um θ₀ = w·H³/(6·E·I). Die '
-           + 'Verdrehung wird dem Jochende aufgezwungen. Wind in Gleisrichtung '
-           + 'bleibt aussen vor. Handbuch.'},
+
 
   // --- Gurtprofile ---------------------------------------------------------
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',
@@ -1335,9 +1322,7 @@ export const FELDER = [
   { key: 'schneeKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Schneelast',
     standard: '1.25', optionen: opt(SCHNEE_KLASSEN),
     sichtbar: (w) => w.lastHerkunft === 'tabelle' && w.schneeAktiv },
-  { key: 'gZusatz', gruppe: 'ein', typ: 'zahl', label: 'Zuschlag ständige Last',
-    sym: 'Δg_k', einheit: 'kN/m', standard: 0.0, schritt: 0.05, min: 0,
-    sichtbar: (w) => w.lastHerkunft === 'tabelle' },
+
   // Die drei charakteristischen Einwirkungen sind IMMER sichtbar. Solange die
   // Tabellenwerte gelten, stehen sie gesperrt darin - man sieht also stets,
   // womit gerechnet wird. Der Knopf "Werte bearbeiten" entsperrt sie und
@@ -1352,6 +1337,64 @@ export const FELDER = [
   { key: 'skManuell', gruppe: 'ein', typ: 'zahl', label: 'Schneelast',
     sym: 's_k', einheit: 'kN/m', standard: 0.27, schritt: 0.05, min: 0,
     ausLast: true, sichtbar: (w) => w.schneeAktiv },
+
+  { key: 'gZusatz', fein: true, gruppe: 'ein', typ: 'zahl',
+    label: 'Zuschlag ständige Last',
+    sym: 'Δg_k', einheit: 'kN/m', standard: 0.0, schritt: 0.05, min: 0,
+    sichtbar: (w) => w.lastHerkunft === 'tabelle',
+    hinweis: 'Kommt zur Tabellenlast g_k dazu — Leitungen, Beschilderung, '
+           + 'was das Sortiment nicht kennt.' },
+  /* =========================================================================
+   * >>> ZUSCHLAG UND MASTWIND STEHEN HINTER DEN GRUNDLASTEN. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «bauteile optimieren und der lasten.»
+   *
+   * Die Gruppe begann mit dem Wind auf den MASTEN - einem Sonderfall, der
+   * nur bei stehendem Masten ueberhaupt gilt -, dann kam der Schalter dazu,
+   * dann die Klassenwahl, dann der Zuschlag, und erst danach die drei
+   * charakteristischen Grundlasten. Also von hinten nach vorn.
+   *
+   * JETZT IN DER REIHENFOLGE, IN DER SIE ENTSTEHEN:
+   *
+   *   1  was gewaehlt wird     Windbelastung, Schnee ja/nein, Schneelast
+   *   2  was daraus folgt      g_k, w_k, s_k  (gesperrt, aus der Tabelle)
+   *   3  was dazukommt         Zuschlag, Mastwind        <- zweite Ebene
+   *
+   * Die drei Grundlasten bleiben in der ERSTEN Ebene, obwohl sie gesperrt
+   * sind: man soll stets sehen, womit gerechnet wird (siehe den Vermerk
+   * darueber). Das ist der Unterschied zu den Katalogmassen im Reiter
+   * System - die sagen, wie das Bauteil aussieht, diese hier sagen, was auf
+   * ihm liegt.
+   * ======================================================================= */
+  { key: 'wMast', fein: true, gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
+    sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
+    ausLast: true,
+    wertAus: amMast('wMast', 'wMast'),
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Aus der Lasttabelle je Profil, Einwirkungsklasse und Stegrichtung. '
+           + '«Werte bearbeiten» gibt das Feld frei.'},
+  // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
+  // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
+  // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
+  /*
+   * STARTWERT AUS (Weisung, 27. August).
+   *
+   * Der Ersatzbalken kann den Mastwind nur als AUFGEZWUNGENE
+   * Auflagerverdrehung fassen - eine Ersatzgrösse für etwas, das im
+   * Stabmodell schlicht eine Last auf dem Masten ist. Sobald der Mast im
+   * Modell steht (Auflagermodell «Mast»), trägt er sie selbst, und die
+   * Ersatzgrösse würde sie ein zweites Mal ansetzen.
+   *
+   * Deshalb aus, bis sie ausdrücklich gewollt ist. Wer ohne Mast im Modell
+   * rechnet und den Anteil trotzdem braucht, schaltet sie ein.
+   */
+  { key: 'mastWindAufJoch', fein: true, gruppe: 'ein', typ: 'schalter',
+    label: 'Mastwind wirkt auf das Joch', standard: false,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Wind in Jochachse verdreht den Mastkopf um θ₀ = w·H³/(6·E·I). Die '
+           + 'Verdrehung wird dem Jochende aufgezwungen. Wind in Gleisrichtung '
+           + 'bleibt aussen vor. Handbuch.'},
 
   // --- Beiwerte ------------------------------------------------------------
   // VORGABE RTE, nicht SIA 260. Im geprüften Referenzprojekt sind alle

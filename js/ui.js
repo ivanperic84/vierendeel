@@ -347,9 +347,25 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
               `${fein.length}`,
               Boolean(werte.bearbeiten && fein.some((f) => f.ausDB)))
       : '';
-    return abschnitt(g.titel, knopf) +
-           haupt.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
-           + feinBlock + (feinExtra ? '' : zusatz);
+    /*
+     * >>> EINE GANZE GRUPPE KANN ZUGEKLAPPT ANFANGEN. <<<
+     *
+     * Weisung vom 13. September: «bauteile optimieren». Die Trasse ist so
+     * ein Fall - drei Felder, die man einmal einstellt, vor dem eigentlichen
+     * Arbeitsbereich. `zugeklappt` macht aus der Ueberschrift einen
+     * Klappabschnitt; er merkt sich seinen Zustand wie jeder andere, und die
+     * Gruppe bleibt an ihrem Platz.
+     *
+     * DAS IST NICHT DASSELBE WIE `fein`. Fein trennt INNERHALB einer Gruppe
+     * das Haeufige vom Seltenen; zugeklappt legt die ganze Gruppe beiseite,
+     * samt ihrer zweiten Ebene.
+     */
+    const inhalt = haupt.map((f) => feldHtml(f, feldWert(f, werte), werte))
+      .join('') + feinBlock + (feinExtra ? '' : zusatz);
+    if (g.zugeklappt) {
+      return klapp(`gruppe-${gid}`, g.titel, inhalt, `${felder.length}`, false);
+    }
+    return abschnitt(g.titel, knopf) + inhalt;
   }).join('');
 
   container.querySelectorAll('[data-feld]').forEach((inp) => {

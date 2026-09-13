@@ -397,6 +397,46 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Lasten und Anbauteile aufgeräumt (13. September)
+
+Weisung: «bauteile optimieren und der lasten.»
+
+**Die Lasten standen von hinten nach vorn.** Die Gruppe begann mit dem Wind auf
+den *Masten* — einem Sonderfall, der nur bei stehendem Masten gilt —, dann kam
+sein Schalter, dann die Klassenwahl, dann der Zuschlag, und erst danach die
+drei charakteristischen Grundlasten. Jetzt in der Reihenfolge, in der sie
+entstehen:
+
+| | |
+|---|---|
+| 1 · was gewählt wird | Windbelastung, Schnee ja/nein, Schneelast |
+| 2 · was daraus folgt | g_k, w_k, s_k — gesperrt, aus der Tabelle |
+| 3 · was dazukommt | Zuschlag, Mastwind → **zweite Ebene** |
+
+**Die drei Grundlasten bleiben in der ersten Ebene**, obwohl sie `ausLast`
+tragen und gesperrt sind. Das ist die bewusste Ausnahme zur Regel aus dem
+Reiter System: die Katalogmasse dort sagen, wie das Bauteil *aussieht* — diese
+hier sagen, was auf ihm *liegt*, und man soll stets sehen, womit gerechnet
+wird, ohne einen Block aufzuklappen. Der Vermerk stand seit jeher im Schema;
+jetzt steht er als Kontrolle. **1410 → 1245 px.**
+
+**Der Reiter Anbauteile fängt mit den Bauteilen an.** Er begann mit drei
+Feldern, die man einmal einstellt — Spannweite, Radius, Ablenkwinkel —, und
+erst darunter kam, worum es geht. Neu ist dafür `zugeklappt` am Gruppeneintrag:
+die Gruppe wird zum **Klappabschnitt** statt zur Überschrift. Sie bleibt oben
+(die Ablenkung folgt aus ihr, und das liest sich von oben nach unten), kostet
+aber nur noch eine Zeile.
+
+Das ist **nicht dasselbe wie `fein`**: fein trennt *innerhalb* einer Gruppe das
+Häufige vom Seltenen, zugeklappt legt die ganze Gruppe beiseite — samt ihrer
+zweiten Ebene.
+
+**Offen geblieben: die Bauteil-Karte selbst.** Gemessen bei einem Teil mit zwei
+Modulen: **1237 px**, davon 576 für die Modulliste (174 + 397) und rund 300 für
+die Skizze aus Querschnitt und Lage. Sie klappbar zu machen wäre der nächste
+Schritt — aber sie ist zugleich die Orientierung, *wo* das Teil sitzt, und das
+ist eine Entscheidung des Auftraggebers, keine Aufräumarbeit.
+
 ### Der Reiter System hat zwei Ebenen (13. September)
 
 Weisung: «sidebar system aufräumen und eine bessere übersicht schaffen.»
