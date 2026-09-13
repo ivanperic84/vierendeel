@@ -404,13 +404,23 @@ export function konstruktionsChecks(m, ab = null) {
    * koennen Rechenkern und ausgeleitetes Modell ZWEI VERSCHIEDENE TRAGWERKE
    * beschreiben, ohne dass es jemand merkt.
    *
-   * Gemessen an einem J100 / 15 m mit HEB 260:
+   * Nachgemessen am 13. September an einem J90 / 20.00 m mit HEB 260 - die
+   * Tabelle, die hier stand, war falsch: sie behauptete, «mast» und die
+   * Vorgabebedingung lieferten dasselbe.
    *
-   *   Endauflager   Bedingung                 Kern        Modell
-   *   gelenkig      Vorgabe (OG laengs frei)  0           0            gleich
-   *   mast          Vorgabe                   15'666      15'666       gleich
-   *   gelenkig      beide Gurte gehalten      0           eingespannt  ANDERS
-   *   voll          Vorgabe                   unendlich   15'666       ANDERS
+   *   Endauflager   Bedingung (Vorgabe: OG laengs frei)   Kern     Modell
+   *   gelenkig      Vorgabe                               0        0
+   *   links         Vorgabe                               0        0
+   *   mast          Vorgabe                          16'710        0   ANDERS
+   *   voll          Vorgabe                       unendlich        0   ANDERS
+   *
+   * WARUM DAS MODELL RECHT HAT: ein Jochende wird ueber das KRAEFTEPAAR der
+   * beiden Gurtebenen eingespannt. Gibt eine Ebene laengs nach, gibt es kein
+   * Paar - und dann traegt auch der steifste Mast kein Moment ins Joch.
+   *
+   * Seit dem 13. September ist `links` die VORGABE (siehe `endbedingung` im
+   * Schema); die Pruefung greift damit nur noch, wenn jemand bewusst eine
+   * andere Endbedingung waehlt.
    *
    * >>> DIE PRUEFUNG ENTSCHEIDET NICHTS, SIE SAGT ES. <<<
    *

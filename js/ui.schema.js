@@ -519,11 +519,47 @@ export const FELDER = [
    * die Schranke `arten: ['joch']`; seit sie das Auflager aller Arten
    * fuehrt, steht sie am Feld.
    */
+  /* =========================================================================
+   * >>> DIE VORGABE FOLGT DER AUFLAGERBEDINGUNG. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die
+   * Frage, ob `links` zur Vorgabe werden soll.
+   *
+   * Sie soll. Gemessen am J90 / 20.00 m mit HEB 260:
+   *
+   *   Endauflager   c_A [kNm/rad]   eta      Pruefung A2
+   *   mast              16'710      0.4567   WARNT
+   *   links                  0      0.5086   -
+   *   gelenkig               0      0.5086   ok
+   *   voll             unendlich    0.4913   WARNT
+   *
+   * >>> DIE ALTE VORGABE WARNTE IM REGELFALL. <<<
+   *
+   * `mast` setzt die Drehfeder des Mastes an - 16'710 kNm/rad. Das
+   * ausgeleitete Modell ist zugleich GELENKIG, weil die Auflagerbedingung
+   * den Obergurt laengs freigibt. Zwei verschiedene Tragwerke, und man sieht
+   * es keiner Zahl an.
+   *
+   * DAS MODELL HAT RECHT, nicht der Kern. Ein Jochende wird ueber das
+   * KRAEFTEPAAR der beiden Gurtebenen eingespannt; gibt eine Ebene laengs
+   * nach, gibt es kein Paar, und dann traegt auch der steifste Mast kein
+   * Moment ins Joch. Die Mastfeder in Reihe dahinter ist wirkungslos - sie
+   * stand bisher allein da und spannte ein Ende ein, das konstruktiv nicht
+   * eingespannt ist.
+   *
+   * >>> DAS KOSTET ELF PROZENT, UND ZWAR AUF DER SICHEREN SEITE. <<<
+   *
+   * eta 0.4567 -> 0.5086. Wer die alte Rechnung will, waehlt «teilweise.
+   * Steifigkeit aus Mast» - die Wahl bleibt, nur die Vorgabe wechselt.
+   */
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
-    standard: 'mast', optionen: opt(ENDBEDINGUNGEN),
+    standard: 'links', optionen: opt(ENDBEDINGUNGEN),
     sichtbar: (w) => tragwerksart(w).key === 'joch',
     hinweis: 'Wirkt auf die Vertikalbiegung; für Wind bleiben die Enden '
-           + 'gelenkig.'},
+           + 'gelenkig. Die Vorgabe nimmt die Feder aus der '
+           + 'Auflagerbedingung am Masten — dann rechnen Kern und '
+           + 'ausgeleitetes Modell dasselbe Tragwerk.'},
   { key: 'cPhi', fein: true, gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
     sichtbar: (w) => tragwerksart(w).key === 'joch'
@@ -976,8 +1012,19 @@ export const FELDER = [
      * weiterhin dem Ersatzbalken: die Endbedingung «Mast» steht in der
      * Bedingung mit drin.
      */
+    /*
+     * >>> AUCH BEI «links» - DIE MASTFEDER GEHT DORT MIT EIN. <<<
+     *
+     * Hier stand `w.endbedingung === 'mast'`. Mit der neuen Vorgabe vom
+     * 13. September waere das Feld damit verschwunden, obwohl es weiter
+     * wirkt: `federAusLinks` schaltet die Gurtfedern in Reihe mit der
+     * MASTFEDER, und die haengt an dieser Wahl. Nur wenn die Gurtebene
+     * laengs nachgibt, faellt der Mast heraus - dann ist das Ende ohnehin
+     * gelenkig, und das Feld steht wirkungslos, aber nicht falsch da.
+     */
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
-                  && (tragwerksart(w).key !== 'joch' || w.endbedingung === 'mast'),
+                  && (tragwerksart(w).key !== 'joch'
+                      || w.endbedingung === 'mast' || w.endbedingung === 'links'),
     hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
            + 'Längskräften. Für Vertikallast und Wind in Gleisrichtung gilt der '
            + 'Rahmenwert 4.00·E·I/H. Wie der Mast am Joch endet, zeigt das '

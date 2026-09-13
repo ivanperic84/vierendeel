@@ -6339,15 +6339,18 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      * Bedingung unbeachtet - waehrend das AUSGELEITETE Modell immer ihr
      * folgt. Damit koennen beide zwei verschiedene Tragwerke beschreiben.
      *
-     * >>> DIE VORGABE IST EINER DIESER FAELLE. <<<
+     * >>> BIS ZUM 13. SEPTEMBER WAR DIE VORGABE EINER DIESER FAELLE. <<<
      *
      * `endbedingung: 'mast'` und die Vorgabe-Bedingung (Obergurt laengs
-     * frei) stehen beide als Standard da. Die Bedingung LOEST das
+     * frei) standen beide als Standard da. Die Bedingung LOEST das
      * Kraeftepaar der beiden Gurtebenen - im ausgeleiteten Modell kann das
      * Jochende sich um y drehen, ohne dass der Mast etwas dagegen haelt.
-     * Der Rechenkern setzt dort die Mastfeder an.
+     * Der Rechenkern setzte dort die Mastfeder an: 16'710 kNm/rad gegen
+     * null, eta 0.4567 gegen 0.5086.
      *
-     * Die Pruefung entscheidet das nicht, sie sagt es - mit beiden Zahlen.
+     * Jetzt ist `links` die Vorgabe - siehe die Kontrollen unten. Die
+     * Pruefung greift nur noch, wenn jemand bewusst eine andere
+     * Endbedingung waehlt; sie entscheidet nichts, sie sagt es.
      */
     const a2Fall = (zus) => {
       const b2 = bau({ mastVorhanden: true, mastProfil: 'HEB 260', mastH: 8.0,
@@ -6375,6 +6378,53 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      */
     wahr('Bei «aus der Auflagerbedingung» entfaellt die Pruefung',
          !a2Fall({ endbedingung: 'links', auflagerLinks: beideFest }));
+
+    /* =====================================================================
+     * >>> DIE VORGABE NIMMT DIE FEDER AUS DER BEDINGUNG. <<<
+     * =====================================================================
+     *
+     * Weisung vom 13. September: «offene fragen umsetzen» - darunter die
+     * Frage, ob `links` zur Vorgabe werden soll.
+     *
+     * Sie soll, und zwar aus dem Grund, der A2 ueberhaupt entstehen liess:
+     * ein Jochende wird ueber das KRAEFTEPAAR der beiden Gurtebenen
+     * eingespannt. Gibt eine Ebene laengs nach - und genau das ist die
+     * Vorgabe, Obergurt laengs frei -, gibt es kein Paar, und dann traegt
+     * auch der steifste Mast kein Moment ins Joch.
+     *
+     * >>> DAS IST EINE AENDERUNG AN DER RECHNUNG, UND SIE STEHT HIER. <<<
+     *
+     * Gemessen am J90 / 20.00 m mit HEB 260: eta 0.4567 -> 0.5086, elf
+     * Prozent, auf der sicheren Seite. Wer die alte Rechnung will, waehlt
+     * «teilweise. Steifigkeit aus Mast» - die Wahl bleibt.
+     */
+    {
+      const SCH = await import(J('ui.schema.js'));
+      const std = SCH.standardwerte();
+      wahr('Die Vorgabe des Endauflagers ist «links»',
+           std.endbedingung === 'links', String(std.endbedingung));
+      // Mit ihr gibt es nichts mehr zu vergleichen - A2 entfaellt.
+      wahr('Mit der Vorgabe entfaellt A2', !a2Fall({}));
+      /*
+       * UND DAS FELD «Anschluss ans Joch» BLEIBT SICHTBAR. Es haengt an der
+       * MASTFEDER, und die geht bei `links` in die Reihenschaltung ein -
+       * nur wenn die Gurtebene laengs nachgibt, faellt sie heraus. Eine
+       * Vorgabenaenderung, die still ein Feld verschwinden laesst, waere
+       * die schlechtere Art von Aufraeumen.
+       */
+      const sicht = SCH.sichtbareFelder('aufl', { ...std, mastVorhanden: true })
+        .map((f) => f.key);
+      wahr('«Anschluss ans Joch» steht weiterhin da',
+           sicht.includes('mastAnschluss'), sicht.join(', '));
+      const mitMast = SCH.sichtbareFelder('aufl',
+        { ...std, mastVorhanden: true, endbedingung: 'mast' }).map((f) => f.key);
+      wahr('… und bei «Steifigkeit aus Mast» auch',
+           mitMast.includes('mastAnschluss'));
+      const gel = SCH.sichtbareFelder('aufl',
+        { ...std, mastVorhanden: true, endbedingung: 'gelenkig' })
+        .map((f) => f.key);
+      wahr('Bei gelenkig dagegen nicht', !gel.includes('mastAnschluss'));
+    }
 
     // Voll eingespannt ist eine Idealisierung, keine Verbindung - dort nicht.
     const voll = bau({ endbedingung: 'voll', schraubenFgrenz: 24 });
