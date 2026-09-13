@@ -17285,6 +17285,53 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
          hA.includes('qp-ankerstrich'));
     wahr('… aber nicht in einer eigenen Zeile',
          zeilen(hA, 'qp-mastzeile') === 2);
+    /* =====================================================================
+     * >>> DIE MASSKETTE: WAS ZWISCHEN DEN MASTEN LIEGT. <<<
+     * =====================================================================
+     *
+     * Weisung vom 13. September: «offene fragen umsetzen» - darunter die
+     * angebotene Masskette mit den Feldweiten.
+     *
+     * Jede Zeile schreibt ihre LAGE an. Im Querprofil ist aber meist der
+     * ABSTAND die gesuchte Zahl, und der war von Hand aus zwei Lagen zu
+     * bilden.
+     */
+    const felder = (s) => [...s.matchAll(
+      /class="qp-kette-feld[^"]*"[^>]*>([\d.]*)</g)].map((x) => x[1]);
+    wahr('Zwei Masten geben ein Feld', felder(h).length === 1,
+         felder(h).join(', '));
+    wahr('… und es misst die Stuetzweite', felder(h)[0] === '15.00');
+    const hR = UIF.querprofilLeisteHtml({
+      ...joch(), L: 20,
+      weitere: [{ id: 'T2', tragwerksart: 'joch', typ: 'J90', L: 15,
+                  xLage: 20, mastH: 7.5, jd: 500, mastProfil: 'HEB 240',
+                  mastVorhanden: true }] });
+    wahr('Drei Masten geben zwei Felder', felder(hR).length === 2,
+         felder(hR).join(', '));
+    wahr('… und beide messen ihr eigenes', felder(hR).join('|') === '20.00|15.00');
+    /*
+     * EIN ABSTAND BRAUCHT ZWEI PUNKTE. Der Einzelmast hat einen - und seit
+     * heute nicht einmal eine eigene Zeile.
+     */
+    wahr('Ein einzelner Mast gibt keine Kette',
+         felder(UIF.querprofilLeisteHtml({
+           ...standardwerte(), tragwerksart: 'einzelmast', xLage: 4,
+           mastH: 7.5, jd: 0, mastProfil: 'HEB 260',
+           mastVorhanden: true })).length === 0);
+    /*
+     * ZU SCHMAL FUER IHRE ZAHL: dann steht der Strich allein, und die Zahl
+     * bleibt im Titel. Ein Feld, das stumm verschwindet, waere schlechter
+     * als eines ohne Beschriftung.
+     */
+    const hEng = UIF.querprofilLeisteHtml({
+      ...joch(), L: 40,
+      weitere: [{ id: 'T2', tragwerksart: 'joch', typ: 'J90', L: 1.5,
+                  xLage: 40, mastH: 7.5, jd: 500, mastProfil: 'HEB 240',
+                  mastVorhanden: true }] });
+    wahr('Ein enges Feld laesst seine Zahl weg',
+         hEng.includes('qp-kette-feld eng'));
+    wahr('… sagt sie aber im Titel', hEng.includes('1.50 m von 40.00'));
+
     /*
      * 6b - EIN EINZELMAST IST SEIN TRAGWERK - KEINE ZWEITE ZEILE.
      *

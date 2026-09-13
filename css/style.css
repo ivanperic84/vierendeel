@@ -1733,6 +1733,35 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
   background: var(--ol);
 }
 
+/* ===========================================================================
+   DIE MASSKETTE UNTER DER GELAENDELINIE
+
+   Weisung vom 13. September. Jede Zeile schreibt ihre LAGE an; im
+   Querprofil ist aber meist der ABSTAND die gesuchte Zahl. Die Kette zeigt
+   ihn dort, wo eine Vermassung auf einer Zeichnung steht: unter dem Bild.
+
+   Jedes Feld ist ein Kaestchen mit Strichen an beiden Enden und der Zahl in
+   der Mitte - dieselbe Zeichensprache wie die Masskette des Jochs. */
+.qp-kette { display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+.qp-kette-kopf {
+  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dim); padding: 0 3px;
+}
+.qp-kette .qp-bahn { height: 13px; }
+.qp-kette-feld {
+  position: absolute; top: 0; height: 11px; line-height: 11px;
+  text-align: center; font-size: 8.5px; color: var(--dim);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden;
+  border-left: 1px solid var(--ol); border-right: 1px solid var(--ol);
+}
+/* Der Strich in der Mitte, hinter der Zahl - er macht aus zwei Marken ein
+   Mass. Bei engen Feldern faellt die Zahl weg, der Strich bleibt. */
+.qp-kette-feld::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 5px;
+  border-top: 1px dashed var(--ol); z-index: -1;
+}
+.qp-kette-feld.eng { color: transparent; }
+
 /* Die Handlungen am Gewaehlten - eine Zeile, keine Knopfwand. */
 .qp-tun { display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
   margin-top: 6px; }
