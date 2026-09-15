@@ -11138,6 +11138,14 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * ohnehin drinstehen (F_z positiv nach unten). Ein blosses Vertauschen
      * der beiden Felder haette den zweiten Fehler durch einen dritten
      * ersetzt: das Moment zoege ab, statt sich aufzuaddieren.
+     *
+     * >>> SEIT DER UMSTELLUNG AUF GLOBALE GROESSEN STEHT DAS IM RECHENWEG. <<<
+     *
+     * Weisung vom 15. September: "konvention app global nachziehen." Der
+     * Mastnachweis fuehrt jetzt selbst F_x/F_y/F_z und M_xx/M_yy/M_zz -
+     * dieselben Namen wie das Joch, der Anbauteilsatz und die Ausleitung.
+     * Ein eingepraegtes Moment wandert unveraendert durch; die Minuszeichen
+     * sitzen an den Anteilen, wo sie hingehoeren, statt in der Anschrift.
      */
     {
       const CM = await import(J('core.mast.js'));
@@ -11160,14 +11168,16 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * Vorzeichen, nicht der nackte Zahlenwert: 7 / 11 / 5 mit demselben
        * Beiwert bleiben 7 : 11 : 5.
        */
-      const bw = lastM.Mq / 11;
+      const bw = lastM.Myy / 11;
       wahr('Ein Beiwert ist im Spiel, und er ist positiv', bw > 0,
            `${bw.toFixed(3)}`);
-      pruef('M_yy wird zur Querbiegung', lastM.Mq / bw, 11, 1e-9, 'kNm');
-      pruef('M_xx wird zur Laengsbiegung - mit umgekehrtem Drehsinn',
-            lastM.Ml / bw, -7, 1e-9, 'kNm');
-      pruef('M_zz wird zur Torsion um die Mastachse',
-            (lastM.Mt ?? 0) / bw, -5, 1e-9, 'kNm');
+      /*
+       * KEINE UMRECHNUNG MEHR: die Last traegt die globalen Groessen, und
+       * die drei stehen unveraendert da, wo sie hingehoeren.
+       */
+      pruef('M_yy kommt als M_yy an', lastM.Myy / bw, 11, 1e-9, 'kNm');
+      pruef('M_xx als M_xx', lastM.Mxx / bw, 7, 1e-9, 'kNm');
+      pruef('M_zz als M_zz', (lastM.Mzz ?? 0) / bw, 5, 1e-9, 'kNm');
       /*
        * >>> UND ES KOMMT IN DEN SCHNITTGROESSEN AN. <<<
        *
@@ -11178,8 +11188,24 @@ titel('42  Der lange Mast mit Zusatzleitern');
       const st2 = CM.mastSchnitt(mM2, 'A')?.stationen ?? [];
       const unten = st2.find((s) => Math.abs(s.z) < 1e-9);
       wahr('Die Torsion steht in den Schnittgroessen',
-           Math.abs(unten?.Mt ?? 0) > 1e-9,
-           `${(unten?.Mt ?? 0).toFixed(3)} kNm`);
+           Math.abs(unten?.Mzz ?? 0) > 1e-9,
+           `${(unten?.Mzz ?? 0).toFixed(3)} kNm`);
+      /*
+       * >>> UND DIE STATION FUEHRT DIE GLOBALEN NAMEN. <<<
+       *
+       * Die alten Ebenenfelder gibt es nicht mehr. Das ist die haerteste
+       * Kontrolle der ganzen Umstellung: wer sie noch liest, bekommt
+       * `undefined` und schreibt NaN in eine Tabelle, statt laut zu
+       * scheitern - genau so stand die Torsionsspalte des Berichts lange
+       * auf null, weil dort `st.T` gelesen wurde.
+       */
+      wahr('Die Station fuehrt F_x, F_y, F_z',
+           ['Fx', 'Fy', 'Fz'].every((f) => Number.isFinite(unten?.[f])));
+      wahr('\u2026 und M_xx, M_yy, M_zz',
+           ['Mxx', 'Myy', 'Mzz'].every((f) => Number.isFinite(unten?.[f])));
+      wahr('\u2026 und keine Ebenenfelder mehr',
+           ['Mq', 'Ml', 'Mt', 'Vq', 'Vl'].every((f) => unten?.[f] === undefined),
+           Object.keys(unten ?? {}).join(' '));
       /*
        * SIE LAEUFT UEBER DIE GANZE HOEHE DURCH - eine Torsion wird nach
        * unten nicht kleiner, anders als ein Biegemoment aus einer
@@ -11187,7 +11213,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
        */
       const oben = st2.find((s) => Math.abs(s.z - 5.0) < 1e-6);
       pruef('Sie ist am Fuss dieselbe wie am Anschluss',
-            unten?.Mt ?? 0, oben?.Mt ?? 0, 1e-9, 'kNm');
+            unten?.Mzz ?? 0, oben?.Mzz ?? 0, 1e-9, 'kNm');
 
       /* ===================================================================
        * >>> DURCHGAENGIG ZU AXISVM: DIESELBE EINGABE, DIESELBE ACHSE. <<<
@@ -11216,15 +11242,16 @@ titel('42  Der lange Mast mit Zusatzleitern');
       pruef('\u2026 und M_zz als Mz', holM('Mz') / bwA, 5, 1e-6, 'kNm');
       /*
        * DIE PROBE, DIE BEIDE SEITEN ZUSAMMENHAELT. Was die Ausleitung als
-       * Mx/My/Mz schreibt, muss die App als -Ml/Mq/-Mt fuehren - dieselbe
-       * Groesse, nur in Ebenen statt in Achsen ausgedrueckt.
+       * Mx/My/Mz schreibt, muss die App unter demselben Namen fuehren.
+       * Seit der Umstellung auf globale Groessen ist das eine GLEICHHEIT,
+       * kein Vorzeichentausch - vorher hiess es -Ml/Mq/-Mt.
        */
-      pruef('App und Ausleitung fuehren dasselbe M um x',
-            -lastM.Ml / bw, holM('Mx') / bwA, 1e-6, 'kNm');
-      pruef('\u2026 dasselbe M um y', lastM.Mq / bw, holM('My') / bwA,
+      pruef('App und Ausleitung fuehren dasselbe M_xx',
+            lastM.Mxx / bw, holM('Mx') / bwA, 1e-6, 'kNm');
+      pruef('\u2026 dasselbe M_yy', lastM.Myy / bw, holM('My') / bwA,
             1e-6, 'kNm');
-      pruef('\u2026 und dasselbe M um z',
-            -(lastM.Mt ?? 0) / bw, holM('Mz') / bwA, 1e-6, 'kNm');
+      pruef('\u2026 und dasselbe M_zz',
+            (lastM.Mzz ?? 0) / bw, holM('Mz') / bwA, 1e-6, 'kNm');
       /*
        * >>> DIE MASKE SAGT ES AM RICHTIGEN ORT. <<<
        *
@@ -11246,20 +11273,29 @@ titel('42  Der lange Mast mit Zusatzleitern');
        */
       wahr('Die Mastreihe hat eine zweite Kopfzeile',
            uiQ2.includes('<tr class="kopf-achse">'));
-      wahr('… mit den globalen Achsen, Vorzeichen inbegriffen',
-           uiQ2.includes('<th class="num">M_yy</th><th class="num">−M_xx</th>')
-           && uiQ2.includes('<th class="num">−M_zz</th>'));
+      /*
+       * SIE STEHT JETZT OBEN: die Spalte heisst nach der globalen Groesse,
+       * die zweite Zeile sagt, was sie am stehenden Masten anrichtet.
+       * Vorher war es umgekehrt, und die Anschrift trug Minuszeichen.
+       */
+      wahr('… mit den globalen Groessen als Spaltennamen',
+           uiQ2.includes('<th class="num">M_yy [kNm]</th>'
+                         + '<th class="num">M_xx [kNm]</th>')
+           && uiQ2.includes('<th class="num">M_zz [kNm]</th>'));
       wahr('… und den Kraeften dazu',
-           uiQ2.includes('<th class="num">F_z</th>')
-           && uiQ2.includes('<th class="num">F_x</th><th class="num">F_y</th>'));
+           uiQ2.includes('<th class="num">F_z [kN]</th>')
+           && uiQ2.includes('<th class="num">F_x [kN]</th>'
+                            + '<th class="num">F_y [kN]</th>'));
+      wahr('… und keinem Minuszeichen in der Ueberschrift',
+           !uiQ2.includes('<th class="num">−M_xx'));
       /*
        * WAS GEFUEHRT, ABER NICHT NACHGEWIESEN IST, STEHT DA. Eine Zahl in
        * einer Tabelle sieht sonst aus wie eine gefuehrte Groesse.
        */
       wahr('Die Tabelle nennt die Torsion als nicht nachgewiesen',
-           uiQ2.includes('M_t wird geführt, aber nicht nachgewiesen'));
+           uiQ2.includes('M_zz wird geführt, aber nicht nachgewiesen'));
       wahr('… aber nur, wenn es eine gibt',
-           /n\.stationen\.some\(\(st\) => Math\.abs\(st\.Mt \?\? 0\) > 0\.005\)/
+           /n\.stationen\.some\(\(st\) => Math\.abs\(st\.Mzz \?\? 0\) > 0\.005\)/
              .test(uiQ2));
       wahr('Der Momenthinweis unterscheidet den Ort',
            uiQ2.includes('function momentHinweis(a)')
@@ -11483,8 +11519,8 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * Kunstreihe reicht - geprueft wird die Anschrift, nicht die Rechnung.
        */
       const md = CH.mastDiagramme({ stationen: [
-        { z: 0, Mq: 3, Ml: 4, N: 5, Vq: 6, eta: 0.3 },
-        { z: 8, Mq: 0, Ml: 0, N: 1, Vq: 0, eta: 0.1 },
+        { z: 0, Myy: 3, Mxx: 4, Fz: 5, Fx: 6, eta: 0.3 },
+        { z: 8, Myy: 0, Mxx: 0, Fz: 1, Fx: 0, eta: 0.1 },
       ] }, { breite: 860, name: 'Probe' });
       const kurz = (h) => [...h.matchAll(
         /class="legende-kurz"[^>]*>([^<]*)<tspan[^>]*>([^<]*)</g)]
@@ -11495,12 +11531,13 @@ titel('42  Der lange Mast mit Zusatzleitern');
       wahr('M quer ist M_yy - das Moment um die Gleisachse',
            kM[0] === 'M_yy', kM[0]);
       /*
-       * MIT VORZEICHEN: die Ebene "laengs" ist positiv, wenn die Last
-       * positiv ist - das Moment um x ist dann negativ. Ohne das Minus
-       * laese man die Anschrift als Gleichheit.
+       * OHNE VORZEICHEN, SEIT DER UMSTELLUNG: die Kurve traegt das globale
+       * Moment selbst. Bis dahin stand hier "-M_xx", weil der Nachweis in
+       * Ebenen rechnete und die Rechte-Hand-Regel fuer x und y
+       * gegenlaeufige Drehsinne gibt.
        */
-      wahr('M laengs ist -M_xx - um die Jochachse, gegenlaeufig',
-           kM[1] === '−M_xx', kM[1]);
+      wahr('M laengs ist M_xx - um die Jochachse',
+           kM[1] === 'M_xx', kM[1]);
       wahr('Die Normalkraft des stehenden Masten ist global F_z',
            kM[2] === 'F_z', kM[2]);
       wahr('Und seine Querkraft F_x, in der Jochachse',
@@ -11557,6 +11594,14 @@ titel('42  Der lange Mast mit Zusatzleitern');
            dm.serien.length === 4 && dm.serien[2].kurz === 'F_z'
            && dm.serien[2].einheit === 'kN' && dm.serien[2].werte[0] === 5,
            JSON.stringify(dm.serien[2]));
+      /*
+       * UND SIE LIEST DIE GLOBALEN FELDER DER STATION. Die Kunstreihe oben
+       * traegt nur `Myy/Mxx/Fz/Fx`; laese eine Serie noch einen alten
+       * Ebenennamen, stuende ihre Kurve auf null - stumm, nicht laut.
+       */
+      wahr('Die Kurve liest die globalen Felder der Station',
+           dm.serien.every((s) => s.werte.some((v) => Math.abs(v) > 0)),
+           dm.serien.map((s) => `${s.kurz}:${s.werte[0]}`).join(' '));
       wahr('Die Achsenlage steht dabei - ohne sie kein Faden',
            [dm.mL, dm.mT, dm.x0, dm.x1].every(Number.isFinite)
            && dm.y1 > dm.y0);
@@ -12867,8 +12912,8 @@ titel('49  Der Mastnachweis');
          Math.abs(w - 0.5) < 1e-9, `${w} kN/m`);
     const f = fuss(r);
     const zK = md.ueberstand > 0 ? md.laenge : md.H;
-    pruef('Querkraft quer = w·H', f.Vq, w * zK, 1e-6, 'kN');
-    pruef('Moment quer = w·H²/2', f.Mq, (w * zK * zK) / 2, 1e-6, 'kNm');
+    pruef('Querkraft quer = w·H', f.Fx, w * zK, 1e-6, 'kN');
+    pruef('Moment quer = w·H²/2', f.Myy, (w * zK * zK) / 2, 1e-6, 'kNm');
     // Auf halber Hoehe ist es ein Viertel.
     const halb = MA.mastSchnitt(r.modell, 'A');
     void halb;
@@ -12894,16 +12939,16 @@ titel('49  Der Mastnachweis');
      * er seit dem 5. September 9.00 m lang (8.00 + 0.25 + 0.50, aufgerundet
      * auf das Halbmeterraster), und die Handrechnung lautet w·L²/2.
      */
-    pruef('Kurz: w·9²/2', fuss(kurz).Mq, (0.5 * 81) / 2, 1e-6, 'kNm');
-    pruef('Lang: w·12.5²/2', fuss(lang).Mq, (0.5 * 156.25) / 2, 1e-6, 'kNm');
+    pruef('Kurz: w·9²/2', fuss(kurz).Myy, (0.5 * 81) / 2, 1e-6, 'kNm');
+    pruef('Lang: w·12.5²/2', fuss(lang).Myy, (0.5 * 156.25) / 2, 1e-6, 'kNm');
     /*
      * DER UEBERSTAND WIEGT SCHWER: 12.50 m gegen 9.00 m sind 39 gegen 20
      * kNm - fast das Doppelte, obwohl der Mast nur um ein Drittel laenger
      * ist. Das Moment waechst quadratisch.
      */
     wahr('Der Ueberstand waechst quadratisch',
-         fuss(lang).Mq > 1.8 * fuss(kurz).Mq,
-         `${fuss(lang).Mq.toFixed(2)} gegen ${fuss(kurz).Mq.toFixed(2)} kNm`);
+         fuss(lang).Myy > 1.8 * fuss(kurz).Myy,
+         `${fuss(lang).Myy.toFixed(2)} gegen ${fuss(kurz).Myy.toFixed(2)} kNm`);
   }
 
   // --- Ein Anbauteil mit Ausladung ----------------------------------------
@@ -12923,7 +12968,7 @@ titel('49  Der Mastnachweis');
     });
     const ohne = rechne2({ anbauteile: [teil(0)] });
     const mit = rechne2({ anbauteile: [teil(1.5)] });
-    pruef('Ohne Ausladung kein Zusatzmoment', fuss(mit).Mq - fuss(ohne).Mq,
+    pruef('Ohne Ausladung kein Zusatzmoment', fuss(mit).Myy - fuss(ohne).Myy,
           2.0 * 1.5, 1e-6, 'kNm');
     pruef('Die Normalkraft ist in beiden Faellen dieselbe',
           fuss(mit).N, fuss(ohne).N, 1e-9, 'kN');
@@ -12933,7 +12978,7 @@ titel('49  Der Mastnachweis');
       lasten: [{ einwirkung: 'G', x: 0, y: 0, z: 0,
                  Fx: 1.0, Fy: 0, Fz: 0, Mxx: 0, Myy: 0, Mzz: 0 }] }] });
     pruef('Eine Querkraft auf 6.00 m gibt 6.00 kNm',
-          quer.mast.A.stationen[0].Mq - rechne2({}).mast.A.stationen[0].Mq,
+          quer.mast.A.stationen[0].Myy - rechne2({}).mast.A.stationen[0].Myy,
           1.0 * 6.0, 1e-6, 'kNm');
   }
 
@@ -13026,8 +13071,8 @@ titel('49  Der Mastnachweis');
     const f = n.stationen[0];
     // sigma = N/A + M_q/W_q + M_l/W_l, Betraege addiert.
     const soll = (Math.abs(f.N) * 10) / n.A
-               + (Math.abs(f.Mq) * 1000) / n.Wq
-               + (Math.abs(f.Ml) * 1000) / n.Wl;
+               + (Math.abs(f.Myy) * 1000) / n.Wq
+               + (Math.abs(f.Mxx) * 1000) / n.Wl;
     pruef('Die Spannung ist die Summe der drei Anteile', f.sig, soll, 1e-9, 'N/mm²');
     pruef('Und eta ist sigma durch f_yd', f.eta, f.sig / n.fyd, 1e-12, '–');
     wahr('Massgebend ist der Fuss', n.massgebend.z === 0,
@@ -14740,15 +14785,22 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   {
     const e = mitBw({ G: 1, WindX: 1.5, WindY: 0, Schnee: 0 });
     const fuss = e.mast.A.stationen[0];
-    wahr('Wind quer erzeugt Querkraft am Fuss', fuss.Vq > 0.1);
-    pruef('M_q = V_q · H/2 am Kragarm', fuss.Mq, fuss.Vq * 12 / 2, 1e-9, 'kNm');
-    wahr('… und in Gleisrichtung nichts', Math.abs(fuss.Vl) < 1e-9);
+    wahr('Wind quer erzeugt Querkraft am Fuss', fuss.Fx > 0.1);
+    pruef('M_q = V_q · H/2 am Kragarm', fuss.Myy, fuss.Fx * 12 / 2, 1e-9, 'kNm');
+    wahr('… und in Gleisrichtung nichts', Math.abs(fuss.Fy) < 1e-9);
   }
   {
     const e = mitBw({ G: 1, WindX: 0, WindY: 1.5, Schnee: 0 });
     const fuss = e.mast.A.stationen[0];
-    wahr('Wind laengs erzeugt Querkraft in Gleisrichtung', fuss.Vl > 0.1);
-    pruef('… mit demselben Hebelarm', fuss.Ml, fuss.Vl * 12 / 2, 1e-9, 'kNm');
+    wahr('Wind laengs erzeugt Querkraft in Gleisrichtung', fuss.Fy > 0.1);
+    /*
+     * DAS MINUS GEHOERT ZUR GLOBALEN GROESSE: `M_xx` dreht um die Jochachse,
+     * und eine Kraft in +y ueber die Hoehe erzeugt ein Moment um -x. Seit
+     * der Umstellung (15. September) fuehrt der Nachweis die globale Groesse,
+     * nicht mehr die Ebene.
+     */
+    pruef('… mit demselben Hebelarm', -fuss.Mxx, fuss.Fy * 12 / 2,
+          1e-9, 'kNm');
   }
   /*
    * DIE SCHWACHE ACHSE IST DIE UNGUENSTIGERE. Steg quer zum Gleis heisst:
@@ -14771,7 +14823,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('Eigengewicht steht als Normalkraft am Fuss',
          fuss.N > 9 && fuss.N < 13);
     wahr('… und erzeugt kein Moment',
-         Math.abs(fuss.Mq) < 1e-9 && Math.abs(fuss.Ml) < 1e-9);
+         Math.abs(fuss.Myy) < 1e-9 && Math.abs(fuss.Mxx) < 1e-9);
   }
 
   /*
@@ -17442,7 +17494,7 @@ const CH9x = await import(J('core.checks.js'));
        * Biegelinie, dieselbe Halterung. M am Kopf, Halterung am Kopf:
        * X = -3M/(2L).
        */
-      const mom = g({ lasten: [{ z: 10, Fx: 0, Fz: 0, Mq: 20, ex: 0 }] });
+      const mom = g({ lasten: [{ z: 10, Fx: 0, Fz: 0, Myy: 20, ex: 0 }] });
       pruef('Ein Moment am Kopf: 3M/(2L)',
             MA.ankerHaltekraft(mom, 10), -(3 * 20) / (2 * 10), 1e-9, 'kN');
       /*
@@ -17580,7 +17632,7 @@ const CH9x = await import(J('core.checks.js'));
       const ohneAnker = MA.mastSchnitt(
         { ...m3, federn: { ...f3, mastB: { ...f3.mastB, anker: null } } },
         'B');
-      const MqFuss = (x) => Math.abs(x.stationen[0].Mq);
+      const MqFuss = (x) => Math.abs(x.stationen[0].Myy);
       wahr('Der Anker entlastet den Mastfuss',
            MqFuss(sB) < MqFuss(ohneAnker),
            `${MqFuss(sB).toFixed(1)} statt ${MqFuss(ohneAnker).toFixed(1)} kNm`);
@@ -17591,9 +17643,9 @@ const CH9x = await import(J('core.checks.js'));
       const beiZ = (x, z) => x.stationen.reduce(
         (a2, b2) => (Math.abs(b2.z - z) < Math.abs(a2.z - z) ? b2 : a2));
       wahr('Ueber dem Anker aendert er nichts',
-           Math.abs(beiZ(sB, 6).Mq - beiZ(ohneAnker, 6).Mq) < 1e-9);
+           Math.abs(beiZ(sB, 6).Myy - beiZ(ohneAnker, 6).Myy) < 1e-9);
       wahr('… darunter sehr wohl',
-           Math.abs(beiZ(sB, 2).Mq - beiZ(ohneAnker, 2).Mq) > 1e-6);
+           Math.abs(beiZ(sB, 2).Myy - beiZ(ohneAnker, 2).Myy) > 1e-6);
     }
   }
 
@@ -17886,11 +17938,17 @@ const CH9x = await import(J('core.checks.js'));
       gammaM0: 1, mastLast: { A: { xd: 0, yd: 0 }, B: { xd: 0, yd: 0 } },
       anbauMastFlach: [], abfangAuflager: aufl });
     const gTors = MA9.mastLasten(m9(mitV.auflager), 'A');
-    pruef('Der Mast bekommt das Moment laengs',
-          gTors.lasten[0].Ml,
+    /*
+     * DIE TORSION DES JOCHS KOMMT ALS BIEGUNG UM DIE JOCHACHSE AN - und
+     * die zaehlt negativ, wenn die Ebene "laengs" positiv zaehlte. Seit dem
+     * 15. September fuehrt der Mastnachweis die globale Groesse `M_xx`;
+     * das Mass ist dasselbe geblieben.
+     */
+    pruef('Der Mast bekommt das Moment um die Jochachse',
+          -gTors.lasten[0].Mxx,
           mitV.auflager.A.Ptors * 2 * mitV.auflager.ey, 1e-9, 'kNm');
     pruef('Ohne Torsion bekommt er keines',
-          MA9.mastLasten(m9(ohneV.auflager), 'A').lasten[0].Ml,
+          MA9.mastLasten(m9(ohneV.auflager), 'A').lasten[0].Mxx,
           0, 1e-12, 'kNm');
   }
 
@@ -17942,7 +18000,7 @@ const CH9x = await import(J('core.checks.js'));
           gA.lasten[0].Fz, abS.auflager.A.Fz, 1e-9, 'kN');
     wahr('Kein Wert aus dem Tragjoch-Ersatzbalken',
          Math.abs(gA.lasten[0].Fz - 99) > 1
-         && gA.lasten[0].Mq === 0 && gA.lasten[0].Ml === 0);
+         && gA.lasten[0].Myy === 0 && gA.lasten[0].Mxx === 0);
     wahr('Ohne Abfangjoch bleibt es beim Tragjoch',
          MA8.mastLasten(modell8, 'A').quelle === 'tragjoch');
 
@@ -17996,9 +18054,9 @@ const CH9x = await import(J('core.checks.js'));
      */
     const stB = MA8.mastSchnitt(mE, 'B').stationen[0];
     pruef('Sie erzeugt das Moment laengs',
-          Math.abs(stB.Ml),
+          Math.abs(stB.Mxx),
           Math.abs(einseitig.auflager.B.Fy) * 7.5, 0.6, 'kNm');
-    wahr('… und quer bleibt es klein', Math.abs(stB.Mq) < 1e-9);
+    wahr('… und quer bleibt es klein', Math.abs(stB.Myy) < 1e-9);
 
     /*
      * >>> DIE KRAFT IN JOCHACHSE WIRD NACH KOPFSTEIFIGKEIT VERTEILT. <<<
@@ -18021,7 +18079,7 @@ const CH9x = await import(J('core.checks.js'));
      */
     const stFx = MA8.mastSchnitt(mFx, 'A').stationen[0];
     pruef('Die Torsion kommt aus der Exzentrizitaet',
-          Math.abs(stFx.Mt), 5 * abS.auflager.ey, 1e-9, 'kNm');
+          Math.abs(stFx.Mzz), 5 * abS.auflager.ey, 1e-9, 'kNm');
   }
 
   /*

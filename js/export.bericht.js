@@ -298,8 +298,14 @@ function blattMast(erg) {
     rows.push([K('z [m]'), K('N [kN]'), K('V_quer [kN]'), K('V_längs [kN]'),
                K('M_quer [kNm]'), K('M_längs [kNm]'), K('T [kNm]'), K('η')]);
     (n.stationen ?? []).forEach((st) => {
-      rows.push([N3(st.z), N3(st.N), N3(st.Vq), N3(st.Vl),
-                 N3(st.Mq), N3(st.Ml), N3(st.T ?? 0), N3(st.eta ?? 0)]);
+      /*
+       * DIE TORSIONSSPALTE STAND IMMER AUF NULL. Hier wurde `st.T` gelesen -
+       * ein Feld, das der Mastnachweis nie gefuehrt hat; es heisst `Mzz`
+       * (bis zum 15. September `Mt`). Gefunden beim Umstellen auf die
+       * globalen Groessen.
+       */
+      rows.push([N3(st.z), N3(st.Fz), N3(st.Fx), N3(st.Fy),
+                 N3(st.Myy), N3(st.Mxx), N3(st.Mzz ?? 0), N3(st.eta ?? 0)]);
     });
     rows.push([]);
   });

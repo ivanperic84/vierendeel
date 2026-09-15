@@ -692,19 +692,19 @@ export function mastDiagramme(mn, opt = {}) {
        * Zuordnung M quer -> M_yy fuehrt `core.mast.js` seit den Anbauteilen
        * selbst (`Mq: k.Myy`).
        *
-       * >>> UND DAS MINUS BEI M LAENGS IST KEIN SCHMUCK. <<<
+       * >>> SEIT DEM 15. SEPTEMBER RECHNET DER MAST SELBST GLOBAL. <<<
        *
-       * Nachgerechnet am 15. September: "quer" und "laengs" sind als EBENEN
-       * definiert, positiv wenn die Last positiv ist - und die
-       * Rechte-Hand-Regel gibt fuer x und y gegenlaeufige Drehsinne. Also
-       * M_q = +M_yy, aber M_l = -M_xx. Ohne das Vorzeichen laese man die
-       * Anschrift als Gleichheit, und sie ist es nicht.
+       * Weisung: "konvention app global nachziehen." Vorher fuehrte er
+       * Ebenen (Mq/Ml/Mt), und weil die Rechte-Hand-Regel fuer x und y
+       * gegenlaeufige Drehsinne gibt, trug die Anschrift Minuszeichen
+       * ("M laengs ist -M_xx"). Jetzt sind die Werte selbst global, und
+       * die Anschrift ist wieder eine Gleichheit.
        */
       serien: [
-        { name: 'M quer', werte: w('Mq'), kurz: 'M_yy', einheit: 'kNm' },
-        { name: 'M längs', werte: w('Ml'), kurz: '-M_xx', einheit: 'kNm' },
-        { name: 'N', werte: w('N'), kurz: 'F_z', einheit: 'kN' },
-        { name: 'V quer', werte: w('Vq'), cls: 'serie-4',
+        { name: 'M quer', werte: w('Myy'), kurz: 'M_yy', einheit: 'kNm' },
+        { name: 'M längs', werte: w('Mxx'), kurz: 'M_xx', einheit: 'kNm' },
+        { name: 'N', werte: w('Fz'), kurz: 'F_z', einheit: 'kN' },
+        { name: 'V quer', werte: w('Fx'), cls: 'serie-4',
           kurz: 'F_x', einheit: 'kN' },
       ],
     }),

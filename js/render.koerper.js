@@ -385,8 +385,10 @@ export function mastKoerper(o) {
           sig_v: schlimmer.sig,
           sig: Math.abs(schlimmer.sigN ?? 0),
           N: schlimmer.N,
-          M: Math.max(arg('Mq'), arg('Ml')),
-          V: Math.max(arg('Vq'), arg('Vl')),
+          // Seit dem 15. September fuehrt der Mastnachweis globale Groessen:
+          // M_yy quer, M_xx laengs, F_x/F_y die Querkraefte dazu.
+          M: Math.max(arg('Myy'), arg('Mxx')),
+          V: Math.max(arg('Fx'), arg('Fy')),
         },
         label: `${grund} · ${u.z.toFixed(2)} bis ${ob.z.toFixed(2)} m`
              + ` über Fuss · η ${schlimmer.eta.toFixed(3)}`,

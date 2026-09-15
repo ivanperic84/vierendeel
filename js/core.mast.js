@@ -147,27 +147,34 @@ export function mastKlasse(p, fy, nEd = 0) {
  * VORZEICHEN
  *   Fz  positiv = Druck in den Masten (Last nach unten)
  *   Fx  in Jochachse, Fy in Gleisrichtung, beide global
- *   Mq  Moment in der Ebene «quer» (aus Kräften in x)
- *   Ml  Moment in der Ebene «längs» (aus Kräften in y)
- *   Mt  Torsion um die Mastachse
+ *   Myy Moment um y — biegt den Masten QUER zum Gleis
+ *   Mxx Moment um die Jochachse — biegt ihn in GLEISRICHTUNG
+ *   Mzz Moment um die Lotrechte — TORSION um die Mastachse
  *
- * >>> UND IHR VORZEICHEN GEGEN DIE GLOBALEN ACHSEN. <<<
+ * >>> DIE GRÖSSEN SIND GLOBAL, NICHT EBENENBEZOGEN (15. September). <<<
  *
- * Gebraucht wird es, sobald ein EINGEPRÄGTES Moment dazukommt: das führt der
- * Anbauteilsatz global (`M_xx` um die Jochachse, `M_yy` um y, `M_zz` um die
- * Lotrechte), diese Reihe hier in Ebenen. Nachgerechnet an den Anteilen, die
- * ohnehin drinstehen — F_z zählt positiv nach unten:
+ * Weisung: «konvention app global nachziehen.»
  *
- *      Mq = +M_y     F_x·arm und F_z·e_x drehen beide um +y
- *      Ml = −M_x     F_y·arm und F_z·e_y drehen beide um −x
- *      Mt = −M_z     F_x·e_y und −F_y·e_x drehen beide um −z
+ * Bis dahin führte der Mastnachweis EBENEN — `Mq` quer, `Ml` längs, `Mt`
+ * Torsion —, jede positiv, wenn die Last positiv ist. Das liest sich am
+ * stehenden Masten gut, aber es passt zu nichts sonst: der Anbauteilsatz,
+ * das Joch, die AxisVM-Ausleitung und die Mastfusstabelle führen alle
+ * `F_x/F_y/F_z` und `M_xx/M_yy/M_zz` um die globalen Achsen. Und weil die
+ * Rechte-Hand-Regel für x und y gegenläufige Drehsinne gibt, hiess das
  *
- * Die gemischten Vorzeichen sind keine Nachlässigkeit: «quer» und «längs»
- * sind als Ebenen definiert, positiv wenn die Last positiv ist — und die
- * Rechte-Hand-Regel gibt für x und y gegenläufige Drehsinne. Für den
- * Spannungsnachweis ist das gleichgültig (dort stehen Beträge), für die
- * ÜBERLAGERUNG mit einem eingeprägten Moment nicht: mit falschem Vorzeichen
- * zöge es ab, statt sich aufzuaddieren.
+ *      Mq = +M_yy      aber      Ml = −M_xx,   Mt = −M_zz
+ *
+ * — eine Anschrift mit Minuszeichen, die man bei jedem Ablesen mitdenken
+ * musste. Jetzt rechnet diese Datei selbst in den globalen Grössen; die
+ * Minuszeichen sitzen dort, wo sie hingehören: an den Anteilen.
+ *
+ *      Myy += F_x·arm + F_z·e_x                drehen beide um +y
+ *      Mxx -= F_y·arm + F_z·e_y                drehen beide um −x
+ *      Mzz -= F_x·e_y − F_y·e_x                dasselbe für die Torsion
+ *
+ * FÜR DEN NACHWEIS ÄNDERT SICH NICHTS: dort stehen Beträge. Was sich ändert,
+ * ist das Vorzeichen in Tabelle, Bericht und Kurve — und dass ein
+ * eingeprägtes Moment ohne Umrechnung ankommt.
  *
  * @returns {{H:number, zKopf:number, lasten:object[], wQuer:number, wLaengs:number}}
  */
@@ -250,7 +257,7 @@ export function mastLasten(m, ende = 'A') {
   const Fy = abE ? abE.Fy
                  : ((m.wd ?? 0) * L) / 2
                    + (m.H ?? []).reduce((a, p) => a + p.w * hQuer(p), 0);
-  const Mq = abE ? 0 : (seite === 'A' ? (m.MA ?? 0) : (m.MB ?? 0));
+  const Myy = abE ? 0 : (seite === 'A' ? (m.MA ?? 0) : (m.MB ?? 0));
   /*
    * >>> DIE TORSION DES JOCHS KOMMT ALS MOMENT LAENGS AN. <<<
    *
@@ -266,9 +273,11 @@ export function mastLasten(m, ende = 'A') {
    * hat: «wo sie auftritt, steht der Mast zu guenstig da». Jetzt steht er
    * nicht mehr zu guenstig da.
    */
-  const Ml = abE
+  // Das Minus macht daraus ein Moment um die JOCHACHSE im globalen
+  // Drehsinn - die Grösse selbst ist dieselbe wie vorher als `Ml`.
+  const Mxx = -(abE
     ? (abE.Ptors ?? 0) * 2 * (ab?.ey ?? 0)
-    : (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0);
+    : (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0));
   const Fx = (abE ? (abE.Fxges ?? 0) : (m.N ?? []).reduce((a, n) => a + n.w, 0))
              * anteil;
   /*
@@ -292,7 +301,7 @@ export function mastLasten(m, ende = 'A') {
    */
   const lasten = [{
     art: 'joch', name: `Joch, Anschluss Ende ${seite}`, z: H, zAnschluss: H,
-    Fz, Fx, Fy, Mq, Ml, ex: 0, ey: eyAnschluss,
+    Fz, Fx, Fy, Myy, Mxx, Mzz: 0, ex: 0, ey: eyAnschluss,
   }];
 
   // --- Eigengewicht des Mastes --------------------------------------------
@@ -346,19 +355,18 @@ export function mastLasten(m, ende = 'A') {
      * gar nicht erst aufsummiert — es fiel ersatzlos aus dem Nachweis. Das
      * ist die unangenehme Richtung.
      *
-     * DIE VORZEICHEN stehen im Kopf dieser Datei: Mq = +M_y, Ml = −M_x,
-     * Mt = −M_z. Ein blosses Vertauschen der beiden Felder hätte den
-     * zweiten Fehler durch einen dritten ersetzt.
-     *
-     * DASSELBE BAUT DIE AXISVM-AUSLEITUNG (`export.axisvm.js`): sie gibt
-     * M_xx/M_yy/M_zz als Mx/My/Mz am Anschlussknoten weiter, global und
-     * unverändert. Seit dieser Zeile zeigen beide dasselbe.
+     * SEIT DER UMSTELLUNG AUF GLOBALE GRÖSSEN (15. September) steht hier
+     * keine Umrechnung mehr: der Anbauteilsatz führt M_xx/M_yy/M_zz, diese
+     * Datei rechnet in denselben Grössen, und die drei Momente wandern
+     * unverändert durch. Genau so gibt sie auch die AxisVM-Ausleitung
+     * weiter (`export.axisvm.js`) — beide zeigen dasselbe, ohne dass es
+     * jemand umdrehen muss.
      */
     lasten.push({
       art: 'anbau', name: t.name, z: (t.hMast ?? 0) + (t.z ?? 0),
       zAnschluss: t.hMast ?? 0,
       Fz: k.Fz, Fx: k.Fx, Fy: k.Fy,
-      Mq: k.Myy, Ml: -k.Mxx, Mt: -k.Mzz,
+      Mxx: k.Mxx, Myy: k.Myy, Mzz: k.Mzz,
       ex: t.x ?? 0, ey: t.y ?? 0,
     });
   });
@@ -482,8 +490,14 @@ export function ankerHaltekraft(g, aH, richtung = 'x') {
    * Rechnungen nebeneinander.
    */
   const momente = g.lasten.map((l) => ({
-    M: (y ? (l.Ml ?? 0) + (l.Fz ?? 0) * (l.ey ?? 0)
-          : (l.Mq ?? 0) + (l.Fz ?? 0) * (l.ex ?? 0)), z: l.z }));
+    /*
+     * IN DER EBENE GERECHNET, WEIL DIE VERSCHIEBUNG EINE EBENE HAT. `M_xx`
+     * dreht um −x, die Auslenkung in y geht aber mit +F_y — deshalb das
+     * Minus. Es ist dieselbe Umrechnung wie früher, nur jetzt hier statt
+     * über die ganze Datei verteilt.
+     */
+    M: (y ? -(l.Mxx ?? 0) + (l.Fz ?? 0) * (l.ey ?? 0)
+          : (l.Myy ?? 0) + (l.Fz ?? 0) * (l.ex ?? 0)), z: l.z }));
   const d10 = kragarmVerschiebung(a, { q: y ? g.wLaengs : g.wQuer,
                                        L: g.zKopf, kraefte, momente });
   const d11 = (a * a * a) / 3;
@@ -592,33 +606,39 @@ export function mastSchnitt(m, ende = 'A') {
     // Streckenlasten oberhalb z
     const dz = Math.max(0, zKopf - z);
     let N = gd * dz;
-    let Vq = wQuer * dz;
-    let Vl = wLaengs * dz;
-    let Mq = (wQuer * dz * dz) / 2;
-    let Ml = (wLaengs * dz * dz) / 2;
-    let Mt = 0;
+    let Fx = wQuer * dz;
+    let Fy = wLaengs * dz;
+    let Myy = (wQuer * dz * dz) / 2;
+    // Die Streckenlast in y biegt um −x; dasselbe Mass, anderes Vorzeichen.
+    let Mxx = -(wLaengs * dz * dz) / 2;
+    let Mzz = 0;
     lasten.forEach((l) => {
       if (l.z < z - 1e-9) return;                  // liegt unterhalb
       const arm = l.z - z;
       N += l.Fz;
-      Vq += l.Fx;
-      Vl += l.Fy;
+      Fx += l.Fx;
+      Fy += l.Fy;
       /*
        * ZWEI ANTEILE JE MOMENT: die Horizontalkraft ueber die HOEHE und die
        * Vertikalkraft ueber die AUSLADUNG. Der zweite fehlte, solange die
        * Anbauteile am Masten ohne Hebelarm gefuehrt wurden - und er ist bei
        * einer Traverse der groessere von beiden.
        */
-      Mq += l.Fx * arm + l.Fz * l.ex + l.Mq;
-      Ml += l.Fy * arm + l.Fz * l.ey + l.Ml;
+      Myy += l.Fx * arm + l.Fz * l.ex + (l.Myy ?? 0);
+      Mxx += -(l.Fy * arm + l.Fz * l.ey) + (l.Mxx ?? 0);
       /*
        * Torsion um die Mastachse: Querkraft mal Versatz quer dazu - und das
        * eingepraegte Glied. Bis zum 15. September fehlte es hier ganz: ein
        * `M_zz` am Masten wurde stattdessen als Laengsbiegung gefuehrt.
        */
-      Mt += l.Fx * l.ey - l.Fy * l.ex + (l.Mt ?? 0);
+      Mzz += -(l.Fx * l.ey - l.Fy * l.ex) + (l.Mzz ?? 0);
     });
-    return { z, N, Vq, Vl, Mq, Ml, Mt };
+    /*
+     * `N` BLEIBT ALS NAME STEHEN - eine Normalkraft heisst am Stab N, und
+     * `F_z` daneben sagt dasselbe. Beide sind hier dieselbe Zahl, positiv
+     * als Druck, positiv nach unten.
+     */
+    return { z, N, Fz: N, Fx, Fy, Myy, Mxx, Mzz };
   });
 
   return { ...g, stationen, ankerkraft: ank?.kraft ?? null };
@@ -651,7 +671,8 @@ function ankerImMast(g) {
              befestigung: a.befestigung ?? 'ankerplatte',
              ueberKopf: a.h > g.zKopf + 1e-9 },
     last: { art: 'anker', name: `Anker ${a.typ}`, z: zA, zAnschluss: zA,
-            Fz: k.Fz, Fx: k.Fx, Fy: k.Fy, Mq: 0, Ml: 0, ex: 0, ey: 0 },
+            Fz: k.Fz, Fx: k.Fx, Fy: k.Fy,
+            Myy: 0, Mxx: 0, Mzz: 0, ex: 0, ey: 0 },
   };
 }
 
@@ -1006,8 +1027,9 @@ export function mastStabilitaet(s, m, o = {}) {
    * soll nur dastehen, statt anders benannt zu sein.
    */
   const NEd = Math.max(...s.stationen.map((st) => Math.abs(st.N)));
-  const MqEd = Math.max(...s.stationen.map((st) => Math.abs(st.Mq)));
-  const MlEd = Math.max(...s.stationen.map((st) => Math.abs(st.Ml)));
+  // Beträge - für den Nachweis ist der Drehsinn gleichgültig.
+  const MqEd = Math.max(...s.stationen.map((st) => Math.abs(st.Myy)));
+  const MlEd = Math.max(...s.stationen.map((st) => Math.abs(st.Mxx)));
 
   /*
    * >>> ERST IN DIE PROFILACHSEN, DANN IN DIE GLEICHUNG. <<<
@@ -1188,8 +1210,8 @@ export function mastNachweis(m, ende = 'A', o = {}) {
   const stationen = s.stationen.map((st) => {
     // kN, kNm, cm², cm³ -> N/mm²
     const sigN = (Math.abs(st.N) * 10) / A;
-    const sigQ = (Math.abs(st.Mq) * 1000) / Wq;
-    const sigL = (Math.abs(st.Ml) * 1000) / Wl;
+    const sigQ = (Math.abs(st.Myy) * 1000) / Wq;
+    const sigL = (Math.abs(st.Mxx) * 1000) / Wl;
     const sig = sigN + sigQ + sigL;
     return { ...st, sigN, sigQ, sigL, sig, eta: sig / fyd };
   });

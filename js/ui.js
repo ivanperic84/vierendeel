@@ -5674,12 +5674,12 @@ function mastblattHtml(erg) {
     const zeile = (st) => `
       <tr class="${st.z === n.massgebend.z ? 'aktiv' : ''}">
         <td class="num">${f2(st.z)}</td>
-        <td class="num">${f2(st.N)}</td>
-        <td class="num">${f2(st.Vq)}</td>
-        <td class="num">${f2(st.Vl)}</td>
-        <td class="num">${f2(st.Mq)}</td>
-        <td class="num">${f2(st.Ml)}</td>
-        <td class="num">${f3(st.Mt)}</td>
+        <td class="num">${f2(st.Fz)}</td>
+        <td class="num">${f2(st.Fx)}</td>
+        <td class="num">${f2(st.Fy)}</td>
+        <td class="num">${f2(st.Myy)}</td>
+        <td class="num">${f2(st.Mxx)}</td>
+        <td class="num">${f3(st.Mzz)}</td>
         <td class="num">${f0(st.sig)}</td>
         <td class="num ${st.eta > 1 ? 'fail' : ''}">${f3(st.eta)}</td>
       </tr>`;
@@ -5702,28 +5702,28 @@ function mastblattHtml(erg) {
              Weisung vom 15. September: «berichtigen und durchgängigkeit zu
              axisvm schaffen.»
 
-             Die obere Zeile nennt die Grösse, wie der Mastnachweis sie führt
-             — in EBENEN: quer, längs, Torsion. Die untere, wie sie global
-             heisst und wie sie im Statikprogramm ankommt. Wer eine Zahl von
-             hier ins Modell trägt oder von dort zurückliest, braucht beides.
+             Seit der Umstellung auf globale Grössen (15. September, «konvention
+             app global nachziehen») nennt die OBERE Zeile die Grösse selbst —
+             F_x/F_y/F_z, M_xx/M_yy/M_zz um die globalen Achsen, dieselben
+             Namen wie am Joch, im Anbauteilsatz und in der AxisVM-Ausleitung.
+             Die UNTERE sagt, was sie am stehenden Masten anrichtet.
 
-             DIE MINUSZEICHEN SIND KEIN SCHMUCK. «quer» und «längs» sind als
-             Ebenen definiert, positiv wenn die Last positiv ist; die
-             Rechte-Hand-Regel gibt für x und y gegenläufige Drehsinne. Also
-             M_q = +M_yy, aber M_l = −M_xx und M_t = −M_zz. Ohne das Vorzeichen
-             läse man die Anschrift als Gleichheit, und sie ist es nicht.
+             Vorher stand es umgekehrt, und die Anschrift trug Minuszeichen:
+             der Nachweis rechnete in Ebenen, und die Rechte-Hand-Regel gibt
+             für x und y gegenläufige Drehsinne. Die Minuszeichen sitzen jetzt
+             im Rechenweg, wo sie hingehören, statt in der Überschrift.
              ============================================================= -->
         <thead><tr>
-          <th class="num">z [m]</th><th class="num">N [kN]</th>
-          <th class="num">V_q [kN]</th><th class="num">V_l [kN]</th>
-          <th class="num">M_q [kNm]</th><th class="num">M_l [kNm]</th>
-          <th class="num">M_t [kNm]</th>
+          <th class="num">z [m]</th><th class="num">F_z [kN]</th>
+          <th class="num">F_x [kN]</th><th class="num">F_y [kN]</th>
+          <th class="num">M_yy [kNm]</th><th class="num">M_xx [kNm]</th>
+          <th class="num">M_zz [kNm]</th>
           <th class="num">σ [N/mm²]</th><th class="num">η</th>
         </tr><tr class="kopf-achse">
-          <th></th><th class="num">F_z</th>
-          <th class="num">F_x</th><th class="num">F_y</th>
-          <th class="num">M_yy</th><th class="num">−M_xx</th>
-          <th class="num">−M_zz</th>
+          <th></th><th class="num">Normalkraft</th>
+          <th class="num">quer</th><th class="num">längs</th>
+          <th class="num">Biegung quer</th><th class="num">Biegung längs</th>
+          <th class="num">Torsion</th>
           <th></th><th></th>
         </tr></thead>
         <tbody>${[...n.stationen].reverse().map(zeile).join('')}</tbody>
@@ -5748,9 +5748,9 @@ function mastblattHtml(erg) {
          * dass sie nicht nachgewiesen ist - eine Zahl in einer Tabelle
          * sieht sonst aus wie eine gefuehrte Groesse.
          */
-        n.stationen.some((st) => Math.abs(st.Mt ?? 0) > 0.005)
-          ? ` · <b>M_t wird geführt, aber nicht nachgewiesen</b> — σ und η
-              kommen aus N, M_q und M_l` : ''}</p>`;
+        n.stationen.some((st) => Math.abs(st.Mzz ?? 0) > 0.005)
+          ? ` · <b>M_zz wird geführt, aber nicht nachgewiesen</b> — σ und η
+              kommen aus F_z, M_yy und M_xx` : ''}</p>`;
   };
   return `${abschnitt('Mast', 'Bemessungswerte des gewählten Lastfalls')}
     ${ende(mn.A)}${ende(mn.B)}
