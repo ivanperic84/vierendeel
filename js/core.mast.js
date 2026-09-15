@@ -1187,6 +1187,110 @@ export function mastStabilitaet(s, m, o = {}) {
   };
 }
 
+/* ===========================================================================
+ * >>> DIE TORSION AM OFFENEN PROFIL - WÖLBKRAFTTORSION. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 15. September: den Torsionsnachweis am Masten nachziehen,
+ * «Vlasov, wie gerechnet».
+ *
+ * >>> WARUM NICHT EINFACH τ = M_t·t/I_t. <<<
+ *
+ * Weil ein I-Profil offen ist. Die Torsion zerfällt in zwei Anteile: den
+ * ST.-VENANT-Anteil (umlaufender Schub in den Blechen) und die
+ * WÖLBKRAFTTORSION (die beiden Flansche biegen sich gegenläufig aus). Wie
+ * sie sich teilen, hängt von der Stelle ab — und am EINGESPANNTEN FUSS, wo
+ * der Nachweis massgebend wird, ist die Verdrillung θ′ = 0. Dort trägt
+ * St. Venant NICHTS; die ganze Torsion läuft über die Wölbung.
+ *
+ * Ein Nachweis mit τ_t allein wäre ausgerechnet am kritischen Schnitt leer.
+ *
+ * >>> DER WÖLBWIDERSTAND KOMMT AUS DEM SORTIMENT, OHNE NEUE ZAHL. <<<
+ *
+ * Für ein doppelt-symmetrisches I-Profil ist
+ *
+ *      I_w = I_z · h_m² / 4          h_m = h − t_f   (Flanschmittenabstand)
+ *
+ * Beim HEB 240 gibt das 487 700 cm⁶ gegen 486 900 cm⁶ der Profiltabelle —
+ * genau genug, und `I_z` steht ohnehin im Mastsortiment. Eine Spalte mehr
+ * in `data.masten.js` hätte gepflegt werden müssen; diese Formel nicht.
+ *
+ * >>> DIE LÖSUNG. <<<
+ *
+ * Kragarm, am Fuss wölbeingespannt (θ = θ′ = 0), am Kopf wölbfrei (B = 0).
+ * Mit dem Abklingbeiwert k = √(G·I_t / (E·I_w)) ist das Bimoment
+ *
+ *      B(z) = (M_zz / k) · sinh(k·(z_o − z)) / cosh(k·z_o)
+ *
+ * — am Fuss (M_zz/k)·tanh(k·z_o), am Kopf null. Daraus die Flanschbiegung
+ * B/h_m und mit dem Widerstandsmoment EINES Flansches W_f = t_f·b²/6 die
+ * Normalspannung σ_ω.
+ *
+ * >>> ZWEI ANNAHMEN, DIE MAN KENNEN MUSS. <<<
+ *
+ * 1. DER FUSS IST WÖLBEINGESPANNT. Ein einbetonierter Mast ist es
+ *    praktisch; bewiesen ist es nicht. Ohne Wölbeinspannung gäbe es kein
+ *    Bimoment — und der Mast könnte die Torsion gar nicht abtragen.
+ * 2. DER KOPF IST WÖLBFREI. Das Joch hält ihn in der Lage, nicht in der
+ *    Verwölbung.
+ *
+ * >>> UND WIE GROSS DAS WIRD. <<<
+ *
+ * HEB 240 über 8 m, M_zz = 5 kNm: 1/k = 111 cm Abklinglänge, B = 55 600
+ * kNcm², σ_ω = 153 N/mm². Bei f_y = 235 allein η ≈ 0.65. Die Torsion am
+ * offenen Profil ist keine Nebengrösse.
+ *
+ * @param {object} p   Mastprofil - h, b, t_f in MILLIMETERN, I_z und I_t
+ *                     in cm (so fuehrt sie `data.masten.js`)
+ * @param {number} zO  Höhe der obersten Lasteinleitung [m]
+ * @returns {object|null} {k, Iw, hm, Wf, sigma(Mzz, z)} — null ohne Werte
+ * ========================================================================= */
+export function woelbtorsion(p, zO) {
+  const Iz = Number(p?.Iz), It = Number(p?.It);
+  const h = Number(p?.h), b = Number(p?.b), tf = Number(p?.tf);
+  if (!(Iz > 0) || !(It > 0) || !(h > 0) || !(b > 0) || !(tf > 0)) return null;
+  if (!(zO > 0)) return null;
+  /*
+   * >>> DAS SORTIMENT MISCHT DIE EINHEITEN. <<<
+   *
+   * `data.masten.js` fuehrt h, b, t_w, t_f in MILLIMETERN, Flaeche und
+   * Traegheitsmomente in cm - so, wie die Profiltabelle sie schreibt.
+   * `plastischeWiderstaende` daneben rechnet deshalb mm3 durch 1000.
+   * Ungerechnet stuende hier ein Flanschabstand von 223 cm.
+   */
+  const hm = (h - tf) / 10;                           // mm -> cm
+  const Iw = (Iz * hm * hm) / 4;                      // cm^6
+  /*
+   * G = E / (2·(1+ν)) mit ν = 0.3, also G/E = 1/2.6 - und der E-Modul
+   * kuerzt sich heraus. Die Abklinglaenge haengt allein an der Geometrie;
+   * eine Stahlsorte aendert sie nicht.
+   */
+  const k = Math.sqrt(It / (2.6 * Iw));                         // 1/cm
+  const Wf = (tf * b * b) / 6 / 1000;                 // mm3 -> cm3, EIN Flansch
+  const zOcm = zO * 100;
+  return {
+    Iw, hm, Wf, k,
+    /** Bimoment an der Stelle z [m] aus M_zz [kNm] -> kNcm². */
+    bimoment: (Mzz, z) => {
+      const zcm = Math.min(Math.max(z * 100, 0), zOcm);
+      /*
+       * `cosh` waechst schnell - bei k·z_o = 7 sind es schon 550, bei 30
+       * ueberlaeuft es. Oberhalb von 20 ist tanh praktisch 1 und der
+       * Quotient e^(-k·z); dann wird direkt so gerechnet.
+       */
+      const a = k * zOcm;
+      const f = a > 20 ? Math.exp(-k * zcm)
+                       : Math.sinh(a - k * zcm) / Math.cosh(a);
+      return ((Math.abs(Mzz) * 100) / k) * f;
+    },
+    /** Woelbnormalspannung an der Flanschspitze [N/mm²]. */
+    sigma(Mzz, z) {
+      // kNcm² / (cm · cm³) = kN/cm² -> mal 10 sind N/mm²
+      return (this.bimoment(Mzz, z) / (hm * Wf)) * 10;
+    },
+  };
+}
+
 export function mastNachweis(m, ende = 'A', o = {}) {
   const s = mastSchnitt(m, ende);
   if (!s) return null;
@@ -1207,13 +1311,28 @@ export function mastNachweis(m, ende = 'A', o = {}) {
   const Wl = plastischWirksam
     ? (stegQuer ? plWerte.Wplz : plWerte.Wply) : s.Wq;
 
+  /* =======================================================================
+   * >>> DIE WÖLBSPANNUNG GEHÖRT DAZU (15. September). <<<
+   * =======================================================================
+   *
+   * Sie ist eine NORMALSPANNUNG im Flansch, kein Schub — deshalb addiert
+   * sie sich zu den übrigen, und es braucht keine Vergleichsspannung. Die
+   * ungünstigste Stelle ist die Flanschspitze, an der auch die Biegung
+   * ihren Randwert hat; die Beträge zu addieren ist die sichere Seite.
+   *
+   * `zO` ist die oberste Stelle, an der etwas eingeleitet wird — bis dahin
+   * läuft das Bimoment, darüber ist der Mast torsionsfrei.
+   */
+  const zO = Math.max(...s.stationen.map((st) => st.z), 0);
+  const wt = woelbtorsion(s.profil, zO);
   const stationen = s.stationen.map((st) => {
     // kN, kNm, cm², cm³ -> N/mm²
     const sigN = (Math.abs(st.N) * 10) / A;
     const sigQ = (Math.abs(st.Myy) * 1000) / Wq;
     const sigL = (Math.abs(st.Mxx) * 1000) / Wl;
-    const sig = sigN + sigQ + sigL;
-    return { ...st, sigN, sigQ, sigL, sig, eta: sig / fyd };
+    const sigW = wt ? wt.sigma(st.Mzz ?? 0, st.z) : 0;
+    const sig = sigN + sigQ + sigL + sigW;
+    return { ...st, sigN, sigQ, sigL, sigW, sig, eta: sig / fyd };
   });
 
   const massgebend = stationen.reduce((a, b) => (b.eta > a.eta ? b : a),
@@ -1253,6 +1372,12 @@ export function mastNachweis(m, ende = 'A', o = {}) {
     ende, ...s, stationen, massgebend, eta: massgebend.eta,
     knickenGefuehrt,
     fy, fyd, A, Wq, Wl, klasse: kl, plastisch: plWerte,
+    /*
+     * DER WOELBSATZ WANDERT MIT - die Tabelle nennt die Abklinglaenge, und
+     * ohne sie sieht die Spalte sigma_omega aus wie eine Zahl ohne Herkunft.
+     * `null`, wo das Profil keine Werte hergibt.
+     */
+    woelb: wt ? { k: wt.k, Iw: wt.Iw, hm: wt.hm, Wf: wt.Wf } : null,
     plastischGewuenscht: gewuenschtPlastisch, plastischWirksam,
     stabil,
     /*

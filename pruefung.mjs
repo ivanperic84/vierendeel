@@ -11292,11 +11292,21 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * WAS GEFUEHRT, ABER NICHT NACHGEWIESEN IST, STEHT DA. Eine Zahl in
        * einer Tabelle sieht sonst aus wie eine gefuehrte Groesse.
        */
-      wahr('Die Tabelle nennt die Torsion als nicht nachgewiesen',
-           uiQ2.includes('M_zz wird geführt, aber nicht nachgewiesen'));
-      wahr('… aber nur, wenn es eine gibt',
-           /n\.stationen\.some\(\(st\) => Math\.abs\(st\.Mzz \?\? 0\) > 0\.005\)/
+      /*
+       * SEIT DEM WOELBKRAFTTORSIONSNACHWEIS sagt die Tabelle nicht mehr,
+       * dass die Torsion nicht gefuehrt werde - sie sagt, WIE sie gefuehrt
+       * wird. Der Ansatz steckt eine Annahme (woelbeingespannter Fuss), und
+       * die darf nicht in einer Zahl verschwinden.
+       */
+      wahr('Die Tabelle nennt den Woelbkrafttorsionsnachweis',
+           uiQ2.includes('M_zz als Wölbkrafttorsion nachgewiesen')
+           && uiQ2.includes('wölbeingespannten Fuss'));
+      wahr('… aber nur, wo eine Woelbspannung da ist',
+           /n\.stationen\.some\(\(st\) => Math\.abs\(st\.sigW \?\? 0\) > 0\.5\)/
              .test(uiQ2));
+      wahr('Und die Tabelle hat eine Spalte dafuer',
+           uiQ2.includes('${f0(st.sigW ?? 0)}')
+           && uiQ2.includes('σ_ω [N/mm²]'));
       wahr('Der Momenthinweis unterscheidet den Ort',
            uiQ2.includes('function momentHinweis(a)')
            && /if \(!amMast\(a\)\)/.test(uiQ2));
@@ -11304,6 +11314,112 @@ titel('42  Der lange Mast mit Zusatzleitern');
            uiQ2.includes('M_zz Torsion um die '));
       wahr('\u2026 samt dem, was mit ihr nicht geschieht',
            uiQ2.includes('nicht nachgewiesen'));
+    }
+
+    /* =====================================================================
+     * >>> DIE TORSION AM OFFENEN PROFIL - WOELBKRAFTTORSION. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: den Torsionsnachweis am Masten nachziehen,
+     * "Vlasov, wie gerechnet".
+     *
+     * >>> WARUM NICHT tau = M_t*t/I_t. <<<
+     *
+     * Weil ein I-Profil offen ist. Am EINGESPANNTEN FUSS - dem massgebenden
+     * Schnitt - ist die Verdrillung theta' = 0; dort traegt St. Venant
+     * NICHTS, und die ganze Torsion laeuft ueber die Woelbung. Ein Nachweis
+     * mit tau allein waere ausgerechnet dort leer.
+     *
+     * >>> OHNE NEUE ZAHL IM SORTIMENT. <<<
+     *
+     * I_w = I_z * h_m^2 / 4 fuer das doppelt-symmetrische I. Die Kontrolle
+     * haelt fest, dass die Formel den Tabellenwert trifft - sonst waere es
+     * eine Herleitung an die Stelle einer Angabe, und die ist nicht
+     * zulaessig.
+     */
+    {
+      const MP = await import(J('data.masten.js'));
+      const MA2 = await import(J('core.mast.js'));
+      const heb = MP.MASTPROFILE.find((p) => p.name === 'HEB 240');
+      const wt = MA2.woelbtorsion(heb, 8.0);
+      wahr('Es gibt einen Woelbsatz zum Profil', Boolean(wt));
+      /*
+       * DER TABELLENWERT DES HEB 240 ist 486900 cm^6. Die Formel darf ihn
+       * nicht mehr als ein Prozent verfehlen - dann ist sie brauchbar.
+       */
+      pruef('I_w trifft den Tabellenwert', wt.Iw, 486900, 3e-3, 'cm^6');
+      pruef('Der Flanschmittenabstand ist h - t_f', wt.hm, 22.3, 1e-9, 'cm');
+      pruef('W_f ist t_f*b^2/6 eines Flansches', wt.Wf, (1.7 * 24 * 24) / 6,
+            1e-9, 'cm^3');
+      /*
+       * DIE ABKLINGLAENGE ist die Aussage des ganzen Ansatzes: ueber gut
+       * einen Meter faellt die Woelbspannung auf ein Drittel. Wer sie nicht
+       * kennt, rechnet das Kraeftepaar in den Flanschen ueber die ganze
+       * Hoehe - beim HEB 240 ueber 8 m ist das Faktor 7 zu hoch.
+       */
+      pruef('Die Abklinglaenge 1/k', 1 / wt.k, 111.1, 1e-3, 'cm');
+      /*
+       * >>> DAS BIMOMENT: AM FUSS GROSS, AM KOPF NULL. <<<
+       *
+       * Genau umgekehrt zum St.-Venant-Anteil. Die Randbedingungen sind
+       * woelbeingespannter Fuss und woelbfreier Kopf.
+       */
+      pruef('Am Fuss ist B = M_zz/k * tanh(k*L)',
+            wt.bimoment(5, 0), (5 * 100 / wt.k) * Math.tanh(wt.k * 800),
+            1e-9, 'kNcm^2');
+      pruef('Am Kopf ist es null', wt.bimoment(5, 8), 0, 1e-9, 'kNcm^2');
+      wahr('Und dazwischen faellt es ab',
+           wt.bimoment(5, 1) < wt.bimoment(5, 0)
+           && wt.bimoment(5, 4) < wt.bimoment(5, 1));
+      /*
+       * DIE SPANNUNG, NACHGERECHNET VON HAND: HEB 240 ueber 8 m, M_zz = 5
+       * kNm gibt B = 55600 kNcm^2, M_Fl = B/h_m = 2490 kNcm, und mit
+       * W_f = 163.2 cm^3 sind das 153 N/mm^2. Bei f_y = 235 allein eta 0.65
+       * - die Torsion am offenen Profil ist keine Nebengroesse.
+       */
+      pruef('sigma_omega am Fuss', wt.sigma(5, 0), 152.7, 1e-3, 'N/mm^2');
+      pruef('Sie waechst linear mit M_zz', wt.sigma(10, 0), 2 * wt.sigma(5, 0),
+            1e-9, 'N/mm^2');
+      /*
+       * OHNE WERTE KEIN SATZ. Ein Profil ohne I_z oder I_t - oder ein Mast
+       * ohne Hoehe - gibt null zurueck, nicht NaN.
+       */
+      wahr('Ohne Profilwerte gibt es keinen Satz',
+           MA2.woelbtorsion({ Iz: 0, It: 0 }, 8) === null
+           && MA2.woelbtorsion(heb, 0) === null);
+      /*
+       * >>> UND SIE STECKT IM NACHWEIS. <<<
+       *
+       * Die Kunstlast von oben traegt M_zz; mit ihr muss eta steigen, ohne
+       * sie darf sich nichts aendern. Das ist die Probe, dass der Ansatz
+       * angeschlossen ist und nicht neben dem Nachweis herlaeuft.
+       */
+      const teilTors = {
+        id: 'MT', name: 'Traverse', vorlage: 'direkt', ort: 'mastA',
+        hMast: 5.0, x: 0.8, y: 0.3, raster: 0, aktiv: true,
+        lasten: [block({ einwirkung: 'G', Mxx: 7, Myy: 11, Mzz: 5 })],
+      };
+      const wTors = basis({ endbedingung: 'mast', mastProfil: 'HEB 240',
+                            mastH: 7.0, mastSteg: 'jochachse',
+                            anbauteile: [teilTors] });
+      const mTors = modell(wTors, getProfil(wTors.profOG),
+                           getProfil(wTors.profUG), getStahl(wTors.stahl),
+                           T.getTragjoch('J90'));
+      const nwMitM = MA2.mastNachweis(mTors, 'A');
+      wahr('Der Nachweis fuehrt eine Woelbspannung',
+           (nwMitM?.massgebend?.sigW ?? 0) > 1,
+           `${(nwMitM?.massgebend?.sigW ?? 0).toFixed(1)} N/mm2`);
+      wahr('Sie steckt in der Gesamtspannung',
+           Math.abs(nwMitM.massgebend.sig
+                    - (nwMitM.massgebend.sigN + nwMitM.massgebend.sigQ
+                       + nwMitM.massgebend.sigL + nwMitM.massgebend.sigW))
+             < 1e-9);
+      wahr('Der Woelbsatz wandert an den Nachweis',
+           Number.isFinite(nwMitM?.woelb?.k));
+      const ohneM = rechne(basis({ endbedingung: 'mast',
+                                   mastProfil: 'HEB 240', mastH: 7.0 }));
+      wahr('Ohne Torsion bleibt die Woelbspannung null',
+           (ohneM.mast?.A?.massgebend?.sigW ?? 0) < 1e-9);
     }
 
     /* =====================================================================

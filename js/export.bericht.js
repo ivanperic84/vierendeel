@@ -295,8 +295,14 @@ function blattMast(erg) {
     if (!n) return;
     rows.push([B(`Mast ${ende} · ${n.profil?.name ?? ''}`
       + `  ·  η = ${n.eta.toFixed(3)}`)]);
-    rows.push([K('z [m]'), K('N [kN]'), K('V_quer [kN]'), K('V_längs [kN]'),
-               K('M_quer [kNm]'), K('M_längs [kNm]'), K('T [kNm]'), K('η')]);
+    /*
+     * DIE GLOBALEN NAMEN, seit der Mastnachweis in ihnen rechnet
+     * (15. September). Die Ebenenbezeichnung stand hier bis dahin, und
+     * die Torsionsspalte hiess `T` - genau wie das Feld, das es nie gab.
+     */
+    rows.push([K('z [m]'), K('F_z [kN]'), K('F_x [kN]'), K('F_y [kN]'),
+               K('M_yy [kNm]'), K('M_xx [kNm]'), K('M_zz [kNm]'),
+               K('sigma_omega [N/mm2]'), K('η')]);
     (n.stationen ?? []).forEach((st) => {
       /*
        * DIE TORSIONSSPALTE STAND IMMER AUF NULL. Hier wurde `st.T` gelesen -
@@ -305,7 +311,8 @@ function blattMast(erg) {
        * globalen Groessen.
        */
       rows.push([N3(st.z), N3(st.Fz), N3(st.Fx), N3(st.Fy),
-                 N3(st.Myy), N3(st.Mxx), N3(st.Mzz ?? 0), N3(st.eta ?? 0)]);
+                 N3(st.Myy), N3(st.Mxx), N3(st.Mzz ?? 0),
+                 N3(st.sigW ?? 0), N3(st.eta ?? 0)]);
     });
     rows.push([]);
   });

@@ -2897,8 +2897,8 @@ function momentHinweis(a) {
    */
   return `${achsen} Am stehenden Masten heisst das: M_xx Biegung längs `
        + '(in Gleisrichtung), M_yy Biegung quer, M_zz Torsion um die '
-       + 'Mastachse. Die Torsion wird in der Auflagertabelle geführt, aber '
-       + 'nicht nachgewiesen.';
+       + 'Mastachse — sie geht als Wölbkrafttorsion in den Nachweis ein '
+       + 'und wirkt am offenen Profil stark.';
 }
 
 function lastblockListeHtml(a, i) {
@@ -5680,6 +5680,7 @@ function mastblattHtml(erg) {
         <td class="num">${f2(st.Myy)}</td>
         <td class="num">${f2(st.Mxx)}</td>
         <td class="num">${f3(st.Mzz)}</td>
+        <td class="num">${f0(st.sigW ?? 0)}</td>
         <td class="num">${f0(st.sig)}</td>
         <td class="num ${st.eta > 1 ? 'fail' : ''}">${f3(st.eta)}</td>
       </tr>`;
@@ -5718,13 +5719,14 @@ function mastblattHtml(erg) {
           <th class="num">F_x [kN]</th><th class="num">F_y [kN]</th>
           <th class="num">M_yy [kNm]</th><th class="num">M_xx [kNm]</th>
           <th class="num">M_zz [kNm]</th>
+          <th class="num">σ_ω [N/mm²]</th>
           <th class="num">σ [N/mm²]</th><th class="num">η</th>
         </tr><tr class="kopf-achse">
           <th></th><th class="num">Normalkraft</th>
           <th class="num">quer</th><th class="num">längs</th>
           <th class="num">Biegung quer</th><th class="num">Biegung längs</th>
           <th class="num">Torsion</th>
-          <th></th><th></th>
+          <th class="num">aus Torsion</th><th class="num">gesamt</th><th></th>
         </tr></thead>
         <tbody>${[...n.stationen].reverse().map(zeile).join('')}</tbody>
       </table></div>
@@ -5748,9 +5750,20 @@ function mastblattHtml(erg) {
          * dass sie nicht nachgewiesen ist - eine Zahl in einer Tabelle
          * sieht sonst aus wie eine gefuehrte Groesse.
          */
-        n.stationen.some((st) => Math.abs(st.Mzz ?? 0) > 0.005)
-          ? ` · <b>M_zz wird geführt, aber nicht nachgewiesen</b> — σ und η
-              kommen aus F_z, M_yy und M_xx` : ''}</p>`;
+        /*
+         * >>> DIE TORSION STECKT JETZT IM NACHWEIS (15. September). <<<
+         *
+         * Bis dahin stand hier, dass sie gefuehrt, aber nicht nachgewiesen
+         * werde. Seit dem Woelbkrafttorsionsnachweis ist sie eine
+         * NORMALSPANNUNG im Flansch und addiert sich zu den uebrigen. Wo
+         * eine da ist, gehoert dazugesagt, WIE sie gerechnet ist - der
+         * Ansatz steckt eine Annahme (woelbeingespannter Fuss), und die
+         * darf nicht in einer Zahl verschwinden.
+         */
+        n.stationen.some((st) => Math.abs(st.sigW ?? 0) > 0.5)
+          ? ` · <b>M_zz als Wölbkrafttorsion nachgewiesen</b> — σ_ω aus dem
+              Bimoment am wölbeingespannten Fuss, Abklinglänge
+              ${f0(100 / (n.woelb?.k ?? 1))} cm` : ''}</p>`;
   };
   return `${abschnitt('Mast', 'Bemessungswerte des gewählten Lastfalls')}
     ${ende(mn.A)}${ende(mn.B)}

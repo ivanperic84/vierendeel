@@ -397,6 +397,106 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Der Mastnachweis führt globale Grössen (15. September)
+
+Weisung: «konvention app global nachziehen.»
+
+Bis hierher rechnete der Mast in **Ebenen** — `Mq` quer, `Ml` längs, `Mt`
+Torsion —, jede positiv, wenn die Last positiv ist. Das liest sich am
+stehenden Masten gut, passt aber zu nichts sonst: Joch, Anbauteilsatz,
+AxisVM-Ausleitung und Mastfusstabelle führen alle `F_x/F_y/F_z` und
+`M_xx/M_yy/M_zz` um die globalen Achsen. Und weil die Rechte-Hand-Regel für x
+und y gegenläufige Drehsinne gibt, hiess das
+
+```
+Mq = +M_yy    aber    Ml = −M_xx,   Mt = −M_zz
+```
+
+— eine Anschrift mit Minuszeichen, die man bei jedem Ablesen mitdenken musste.
+Jetzt rechnet der Nachweis selbst in den globalen Grössen; die Minuszeichen
+sitzen an den Anteilen, wo sie hingehören:
+
+```
+Myy += F_x·arm + F_z·e_x
+Mxx -= F_y·arm + F_z·e_y
+Mzz -= F_x·e_y − F_y·e_x
+```
+
+Mitgezogen: Tabelle (die Spalte heisst nach der globalen Grösse, die zweite
+Kopfzeile sagt, was sie am Masten anrichtet), Bericht, Kurve, Modellansicht,
+Prüfstand.
+
+**Kein Nachweis ändert sich.** Vier Fälle vorher und nachher gerechnet — η, σ
+und alle Beträge Zahl für Zahl identisch. Was sich ändert, ist das Vorzeichen
+in Tabelle, Bericht und Kurve.
+
+Dabei gefunden: **die Torsionsspalte des Berichts stand immer auf null** —
+dort wurde `st.T` gelesen, ein Feld, das der Mastnachweis nie geführt hat.
+
+### Die Torsion am offenen Profil — Wölbkrafttorsion (15. September)
+
+Weisung: den Torsionsnachweis am Masten nachziehen, «Vlasov, wie gerechnet».
+
+**Warum nicht τ = M_t·t/I_t.** Weil ein I-Profil offen ist. Die Torsion
+zerfällt in St. Venant (umlaufender Schub) und Wölbkrafttorsion (die Flansche
+biegen sich gegenläufig aus). Am **eingespannten Fuss** — dem massgebenden
+Schnitt — ist die Verdrillung θ′ = 0; dort trägt St. Venant **nichts**, und
+die ganze Torsion läuft über die Wölbung. Ein Nachweis mit τ allein wäre
+ausgerechnet dort leer.
+
+**Ohne neue Zahl im Sortiment.** Für das doppelt-symmetrische I ist
+`I_w = I_z · h_m²/4` mit `h_m = h − t_f`. Beim HEB 240 gibt das 487 717 cm⁶
+gegen 486 900 cm⁶ der Profiltabelle — 0.17 % daneben, und `I_z` steht ohnehin
+im Mastsortiment.
+
+**Die Lösung.** Kragarm, Fuss wölbeingespannt, Kopf wölbfrei:
+
+```
+k    = √(I_t / (2.6·I_w))              der E-Modul kürzt sich heraus
+B(z) = (M_zz/k) · sinh(k(z_o − z)) / cosh(k·z_o)
+σ_ω  = B / (h_m · W_f)                 W_f = t_f·b²/6, EIN Flansch
+```
+
+**Gemessen, HEB 240 über 8 m, M_zz = 5 kNm:**
+
+| | |
+|---|---|
+| Abklinglänge 1/k | 111 cm |
+| Bimoment am Fuss | 55 600 kNcm² |
+| σ_ω am Fuss | **153 N/mm²** |
+| σ_ω 1 m darüber | 62 N/mm² |
+| σ_ω am Kopf | 0 |
+
+Bei f_y = 235 wären 5 kNm allein η ≈ 0.65. **Die Torsion am offenen Profil ist
+keine Nebengrösse.** Zum Vergleich: das Kräftepaar in den Flanschen ohne
+Abklingen läge hier um den Faktor 7 zu hoch.
+
+**Was das an echten Fällen bewirkt.** Von den 14 Vorlagen des Sortiments
+erzeugen am Masten nur zwei überhaupt eine Torsion:
+
+| Vorlage | M_zz | σ_ω | η |
+|---|---|---|---|
+| hs-nt-ausleger | 0.73 kNm | 22.3 N/mm² | 0.971 (vorher ≈ 0.876) |
+| ausleger-rohr | 0.41 kNm | 12.4 N/mm² | 0.915 (vorher ≈ 0.862) |
+
+Die übrigen zwölf bleiben unverändert. Spürbar, nicht ruinös — dramatisch wird
+es erst mit einem von Hand eingeprägten `M_zz`.
+
+**Zwei Annahmen stecken im Ansatz**, und sie stehen in Tabelle und Maske:
+
+1. **Der Fuss ist wölbeingespannt.** Ein einbetonierter Mast ist es praktisch;
+   bewiesen ist es nicht. Ohne Wölbeinspannung gäbe es kein Bimoment — und der
+   Mast könnte die Torsion gar nicht abtragen.
+2. **Der Kopf ist wölbfrei.** Das Joch hält ihn in der Lage, nicht in der
+   Verwölbung.
+
+Die Wölbspannung ist eine **Normalspannung im Flansch**, kein Schub: sie
+addiert sich zu σ aus N, M_yy und M_xx, und es braucht keine
+Vergleichsspannung. Die Beträge zu addieren ist die sichere Seite.
+
+**Noch nicht entschieden:** ob der Torsionsnachweis abschaltbar sein soll wie
+der Knicknachweis seit dem 15. September.
+
 ### Ein eingeprägtes Moment am Masten landet auf seiner Achse (15. September)
 
 Weisung: «berichtigen und durchgängigkeit zu axisvm schaffen.»
