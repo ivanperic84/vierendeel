@@ -7,7 +7,53 @@
  */
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Wie `esc`, aber auch für Attributwerte - dort sind Anführungszeichen tödlich. */
+const att = (s) => esc(s).replace(/"/g, '&quot;');
 const n = (v) => (Math.round(v * 1000) / 1000).toString();
+
+/* ===========================================================================
+ * >>> JEDE SCHNITTGRÖSSE TRÄGT IHRE STATISCHE BENENNUNG. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 15. September: «bei allen schnittkräften anschrift neben dem
+ * quer längs vertikal etc. die statischen benennung aufführen wie Fx Fy Fz
+ * und das gleiche mit den Momenten Mxx Myy Mzz.»
+ *
+ * Es gibt nichts zu erfinden: die Schreibweise steht seit den Anbauteilen im
+ * Werkzeug (`core.anbauteile.js`) und sie ist GLOBAL, nicht örtlich:
+ *
+ *   F_x  in der Jochachse (quer zum Gleis)   M_xx  um die Jochachse (Torsion)
+ *   F_y  in Gleisrichtung                    M_yy  um y - biegt quer
+ *   F_z  lotrecht                            M_zz  um z - biegt im Grundriss
+ *
+ * >>> WARUM GLOBAL UND NICHT ÖRTLICH. <<<
+ *
+ * Weil dieselbe Anschrift über alle Bauteile laufen muss. Der Ersatzbalken
+ * des Jochs liegt in der Jochachse - dort fallen örtliche und globale Achsen
+ * zusammen, und `M_y,ed` IST `M_yy`. Der Mast steht senkrecht: seine
+ * Normalkraft ist örtlich `N`, global aber `F_z`, und sein «M quer» ist
+ * `M_yy`. Wer beides nebeneinander liest, sieht die Verbindung - zwei
+ * örtliche Systeme nebeneinander verdecken sie.
+ *
+ * DIE DRUCKSTÜTZE BEKOMMT KEINS: sie steht schräg, ihre Normalkraft läuft
+ * auf keiner globalen Achse. Eine Anschrift wäre dort falsch.
+ * ========================================================================= */
+
+/**
+ * Das Kürzel mit tiefgestelltem Index: `M_yy` wird zu M mit kleinem yy.
+ * Ohne Unterstrich unverändert.
+ */
+function kuerzelSvg(k) {
+  const m = /^([A-Za-z]+)_(.+)$/.exec(String(k));
+  if (!m) return esc(k);
+  // `dy` statt `baseline-shift`: das eine koennen alle Browser, das andere
+  // nicht. Das tspan steht am Zeilenende - es muss nichts zurueckgesetzt
+  // werden.
+  return `${esc(m[1])}<tspan class="sub" dy="2.2">${esc(m[2])}</tspan>`;
+}
+
+/** Die Länge des Kürzels in Zeichen - der Unterstrich zählt nicht mit. */
+const kuerzelBreit = (k) => String(k).replace('_', '').length;
 
 /** "Schöne" Achsenschrittweite. */
 function schritt(spanne, ziel = 5) {
@@ -25,7 +71,34 @@ function schritt(spanne, ziel = 5) {
  */
 export function linienDiagramm(o) {
   const W = o.breite ?? 900, H = o.hoehe ?? 240;
-  const mL = 62, mR = 16, mT = 26, mB = 42;
+  const mL = 62, mR = 16, mB = 42;
+  /* =======================================================================
+   * >>> DIE LEGENDE WIRD VORAB AUFGETEILT. <<<
+   * =======================================================================
+   *
+   * Sie stand bisher in EINER Zeile und lief beim Abfangjoch knapp am Rand
+   * vorbei - «M Gurt lotrecht (halbe Last + Torsion)» ist ein langer Name.
+   * Mit dem statischen Kuerzel daneben (15. September) waere sie darueber
+   * hinausgelaufen, und was aus dem viewBox faellt, ist einfach weg.
+   *
+   * Also zuerst aufteilen, dann den oberen Rand danach bemessen: jede
+   * zusaetzliche Zeile hebt `mT` um 13. Die Zeichenbreite ist geschaetzt
+   * (6.6 px je Zeichen der Monoschrift) - dieselbe Schaetzung wie bisher.
+   */
+  const legBr = (s) => 32 + s.name.length * 6.6
+    + (s.kurz ? kuerzelBreit(s.kurz) * 6.6 + 10 : 0);
+  const legPos = [];
+  {
+    let lx = mL, zeile = 0;
+    o.serien.forEach((s) => {
+      const br = legBr(s);
+      if (lx > mL && lx + br > W - mR) { lx = mL; zeile += 1; }
+      legPos.push({ x: lx, zeile });
+      lx += br;
+    });
+  }
+  const legZeilen = legPos.length ? legPos[legPos.length - 1].zeile + 1 : 1;
+  const mT = 26 + (legZeilen - 1) * 13;
   const xs = o.punkte;
   const alle = o.serien
     .flatMap((s) => [...s.werte, ...(s.band ? [...s.band[0], ...s.band[1]] : [])])
@@ -142,23 +215,221 @@ export function linienDiagramm(o) {
    * Wo das Zusammenspiel der Groessen erklaert gehoert, steht es im
    * Handbuch; dort laesst es sich auch am Fall nachrechnen.
    */
-  let lx = mL;
   o.serien.forEach((s, k) => {
+    const { x: lx, zeile } = legPos[k];
+    // Die LETZTE Zeile sitzt auf mT - 12; jede darueber 13 hoeher.
+    const ly = 26 + zeile * 13;
     g += '<g>';
-    g += `<line class="serie ${s.cls ?? 'serie-' + (k + 1)}" x1="${n(lx)}" y1="${n(mT - 12)}" x2="${n(lx + 18)}" y2="${n(mT - 12)}"/>`;
-    g += `<text class="legende" x="${n(lx + 23)}" y="${n(mT - 8)}">${esc(s.name)}</text>`;
+    g += `<line class="serie ${s.cls ?? 'serie-' + (k + 1)}" x1="${n(lx)}" y1="${n(ly - 12)}" x2="${n(lx + 18)}" y2="${n(ly - 12)}"/>`;
+    g += `<text class="legende" x="${n(lx + 23)}" y="${n(ly - 8)}">${esc(s.name)}</text>`;
+    /*
+     * DAS KUERZEL STEHT DANEBEN, NICHT ANSTELLE. Der beschreibende Name sagt,
+     * WAS die Groesse am Bauteil anrichtet; das Kuerzel sagt, WIE sie im
+     * Nachweis und im Statikprogramm heisst. Beides zusammen ist die
+     * Auskunft - das eine allein ist die halbe.
+     */
+    if (s.kurz) {
+      // Der Name beginnt bei lx + 23 - das Kuerzel also hinter seinem Ende,
+      // mit fuenf Punkten Luft. Ohne sie klebt «F_z» an einem kurzen «N».
+      g += `<text class="legende-kurz" x="${n(lx + 28 + s.name.length * 6.6)}"`
+         + ` y="${n(ly - 8)}">${kuerzelSvg(s.kurz)}</text>`;
+    }
     g += '</g>';
-    lx += 32 + s.name.length * 6.6;
   });
 
   g += `<text class="achse" x="${n((W + mL) / 2)}" y="${n(H - 6)}" text-anchor="middle">${esc(o.xLabel ?? 'x [m]')}</text>`;
   g += `<text class="achse" x="14" y="${n((H) / 2)}" text-anchor="middle" transform="rotate(-90 14 ${n(H / 2)})">${esc(o.yLabel ?? '')}</text>`;
 
-  return `<figure class="diagramm">
+  /* =======================================================================
+   * >>> DIE MESSSTELLE: DAS BILD TRAEGT SEINE ZAHLEN MIT. <<<
+   * =======================================================================
+   *
+   * Weisung vom 15. September: «zudem wenn die diagramme gross sind
+   * messstelle definieren könen mit zahlenoutput.»
+   *
+   * Ein Diagramm zeigt den VERLAUF - wo es steigt, wo es knickt, wo das
+   * Vorzeichen kippt. Was es nicht kann, ist die Zahl an einer bestimmten
+   * Stelle hergeben; dafuer musste man bisher in die Tabelle wechseln und
+   * die Stelle dort wiederfinden.
+   *
+   * Der Datensatz haengt als `data-mess` am Bild: Achsenlage, Stuetzstellen,
+   * je Serie die Werte mit Einheit und Nachkommastellen. Gezeichnet wird
+   * nichts davon - erst `verdrahteMessung` macht daraus einen Faden, den man
+   * ueber das Bild zieht. OHNE diese Verdrahtung ist das Bild unveraendert.
+   *
+   * DIE SPANNE WANDERT MIT, wo es eine gibt. Bei einer Umhuellenden ist
+   * gerade sie die Auskunft: der Wert der massgebenden Kombination sagt
+   * wenig, wenn man nicht weiss, wie weit die anderen davon abliegen.
+   * ===================================================================== */
+  const r4 = (v) => (Number.isFinite(v) ? Math.round(v * 1e4) / 1e4 : 0);
+  const mess = {
+    W, H, mL, mR, mT, mB, x0, x1, y0, y1,
+    xLabel: o.xLabel ?? 'x [m]',
+    xEinheit: (/\[([^\]]+)\]/.exec(o.xLabel ?? 'x [m]') ?? [, 'm'])[1],
+    punkte: xs.map(r4),
+    serien: o.serien.map((s, k) => ({
+      name: s.name, kurz: s.kurz ?? '', cls: s.cls ?? 'serie-' + (k + 1),
+      einheit: s.einheit ?? '', nk: s.nk ?? 2,
+      werte: s.werte.map(r4),
+      band: s.band ? [s.band[0].map(r4), s.band[1].map(r4)] : null,
+    })),
+  };
+  return `<figure class="diagramm" data-mess="${att(JSON.stringify(mess))}">
     <figcaption>${esc(o.titel)}</figcaption>
     <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
          aria-label="${esc(o.titel)}">${g}</svg>
   </figure>`;
+}
+
+/* ===========================================================================
+ * >>> DER FADEN UEBER DEM BILD. <<<
+ * ===========================================================================
+ *
+ * Die zweite Haelfte der Weisung vom 15. September. `linienDiagramm` legt die
+ * Zahlen ans Bild, hier werden sie bedienbar.
+ *
+ * >>> ER RASTET AUF DIE STUETZSTELLEN EIN. <<<
+ *
+ * Nicht aus Bequemlichkeit: die Stuetzstellen SIND die Nachweisstellen -
+ * Blechstationen, Lasteinleitungen, Auflager. Zwischen zweien liegt eine
+ * gerade Verbindung, die niemand gerechnet hat. Ein Faden, der dort einen
+ * Zwischenwert ausweist, gaebe eine Zahl aus, die im Nachweis nicht vorkommt.
+ * Derselbe Grund, aus dem `abfangDiagramme` kein feineres Raster zeichnet.
+ *
+ * >>> UND ER LAESST SICH FESTHALTEN. <<<
+ *
+ * Ein Wert, der beim Wegziehen der Maus verschwindet, laesst sich nicht
+ * abschreiben und nicht mit dem Nachbarbild vergleichen. Ein Klick haelt ihn,
+ * der naechste loest ihn; die Pfeiltasten gehen von Stelle zu Stelle.
+ *
+ * @param {Element} wurzel  Teilbaum, in dem Bilder verdrahtet werden
+ * @returns {number} Anzahl verdrahteter Bilder
+ * ========================================================================= */
+export function verdrahteMessung(wurzel) {
+  if (!wurzel || typeof wurzel.querySelectorAll !== 'function') return 0;
+  const bilder = [...wurzel.querySelectorAll('figure.diagramm[data-mess]')]
+    .filter((f) => !f.classList.contains('messbar'));
+  bilder.forEach(messFaden);
+  return bilder.length;
+}
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+/** Ein Kuerzel als HTML - `M_yy` wird zu M mit tiefgestelltem yy. */
+function kuerzelHtml(k) {
+  const m = /^([A-Za-z]+)_(.+)$/.exec(String(k));
+  return m ? `${esc(m[1])}<sub>${esc(m[2])}</sub>` : esc(k);
+}
+
+function messFaden(fig) {
+  let d;
+  try { d = JSON.parse(fig.dataset.mess); } catch { return; }
+  const svg = fig.querySelector('svg');
+  if (!svg || !Array.isArray(d.punkte) || d.punkte.length < 2) return;
+  fig.classList.add('messbar');
+
+  const X = (v) => d.mL + ((v - d.x0) / (d.x1 - d.x0 || 1)) * (d.W - d.mL - d.mR);
+  const Y = (v) => d.H - d.mB
+                 - ((v - d.y0) / (d.y1 - d.y0 || 1)) * (d.H - d.mT - d.mB);
+
+  const g = document.createElementNS(SVGNS, 'g');
+  g.setAttribute('class', 'messung');
+  svg.appendChild(g);
+  const leiste = document.createElement('div');
+  leiste.className = 'mess-leiste';
+  leiste.hidden = true;
+  fig.appendChild(leiste);
+
+  let fest = null;               // festgehaltener Index, null = frei
+
+  const aus = () => { g.textContent = ''; leiste.hidden = true; };
+
+  function zeige(i) {
+    const x = d.punkte[i];
+    const px = X(x);
+    g.textContent = '';
+    const li = document.createElementNS(SVGNS, 'line');
+    li.setAttribute('class', 'mess-faden');
+    li.setAttribute('x1', px); li.setAttribute('y1', d.mT);
+    li.setAttribute('x2', px); li.setAttribute('y2', d.H - d.mB);
+    g.appendChild(li);
+    d.serien.forEach((s) => {
+      const v = s.werte[i];
+      if (!Number.isFinite(v)) return;
+      const c = document.createElementNS(SVGNS, 'circle');
+      c.setAttribute('class', `mess-punkt ${s.cls}`);
+      c.setAttribute('cx', px); c.setAttribute('cy', Y(v));
+      c.setAttribute('r', '3.4');
+      g.appendChild(c);
+    });
+    const zeilen = d.serien.map((s) => {
+      const v = s.werte[i];
+      const zahl = Number.isFinite(v) ? v.toFixed(s.nk) : '–';
+      // DIE SPANNE NUR, WO ES EINE GIBT - bei einem einzelnen Lastfall
+      // waere sie eine Wiederholung des Wertes.
+      const sp = s.band
+        ? `${s.band[0][i].toFixed(s.nk)} … ${s.band[1][i].toFixed(s.nk)}`
+        : '';
+      return `<tr>
+        <td><i class="mess-farbe ${s.cls}"></i>${esc(s.name)}</td>
+        <td class="mess-kurz">${s.kurz ? kuerzelHtml(s.kurz) : ''}</td>
+        <td class="zahl">${zahl}</td>
+        <td class="mess-eh">${esc(s.einheit)}</td>
+        <td class="mess-spanne">${sp}</td>
+      </tr>`;
+    }).join('');
+    leiste.innerHTML = `<div class="mess-kopf">
+        <b>${d.xLabel.replace(/\s*\[.*\]$/, '')} = ${x.toFixed(3)}`
+      + ` ${esc(d.xEinheit)}</b>
+        <span class="mess-hinweis">${fest === null
+          ? 'Klick hält die Stelle fest'
+          : 'festgehalten · Klick löst, ← → wandert'}</span>
+      </div><table class="mess-tab">${zeilen}</table>`;
+    leiste.hidden = false;
+  }
+
+  /** Vom Zeigergerät zur nächstgelegenen Stützstelle. */
+  function stelle(ev) {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    let p;
+    try {
+      p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
+    } catch {
+      const q2 = svg.createSVGPoint();
+      q2.x = ev.clientX; q2.y = ev.clientY;
+      p = q2.matrixTransform(ctm.inverse());
+    }
+    const v = d.x0 + ((p.x - d.mL) / (d.W - d.mL - d.mR || 1)) * (d.x1 - d.x0);
+    let b = 0;
+    d.punkte.forEach((x, i) => {
+      if (Math.abs(x - v) < Math.abs(d.punkte[b] - v)) b = i;
+    });
+    return b;
+  }
+
+  svg.addEventListener('pointermove', (ev) => {
+    if (fest !== null) return;
+    const i = stelle(ev);
+    if (i !== null) zeige(i);
+  });
+  svg.addEventListener('pointerleave', () => { if (fest === null) aus(); });
+  svg.addEventListener('click', (ev) => {
+    if (fest !== null) { fest = null; aus(); return; }
+    const i = stelle(ev);
+    if (i === null) return;
+    fest = i; zeige(i);
+  });
+  // Ohne tabindex nimmt ein SVG keine Tastatur an.
+  svg.setAttribute('tabindex', '0');
+  svg.addEventListener('keydown', (ev) => {
+    const schritt2 = ev.key === 'ArrowLeft' ? -1 : ev.key === 'ArrowRight' ? 1 : 0;
+    if (!schritt2) return;
+    ev.preventDefault();
+    const von = fest === null ? 0 : fest;
+    fest = Math.min(d.punkte.length - 1, Math.max(0, von + schritt2));
+    zeige(fest);
+  });
 }
 
 /* ===========================================================================
@@ -238,11 +509,20 @@ export function abfangDiagramme(ab, breite = 900) {
        * des liegenden Traegers.
        */
       serien: [
-        { name: 'M Rahmenebene', werte: sn('Mrahmen')  },
-        { name: 'V Rahmenebene', werte: sn('Vrahmen')  },
-        { name: 'M quer (lotrecht)', werte: sn('Mvert')  },
+        /*
+         * DAS ABFANGJOCH LIEGT WAAGRECHT - seine Rahmenebene auch. Die
+         * Biegung darin dreht um die LOTRECHTE Achse, ist also M_zz; die
+         * Querkraft darin laeuft in Gleisrichtung, F_y. Beim Tragjoch ist
+         * es umgekehrt, und genau deshalb steht das Kuerzel da.
+         */
+        { name: 'M Rahmenebene', werte: sn('Mrahmen'),
+          kurz: 'M_zz', einheit: 'kNm' },
+        { name: 'V Rahmenebene', werte: sn('Vrahmen'),
+          kurz: 'F_y', einheit: 'kN' },
+        { name: 'M quer (lotrecht)', werte: sn('Mvert'),
+          kurz: 'M_yy', einheit: 'kNm' },
         { name: 'M Torsion', werte: sn('Mtors'), cls: 'serie-4',
-           },
+          kurz: 'M_xx', einheit: 'kNm' },
       ],
     }),
     ebene: linienDiagramm({
@@ -251,12 +531,13 @@ export function abfangDiagramme(ab, breite = 900) {
       yLabel: 'N [kN] / M [kNm]', punkte: x,
       serien: [
         { name: `N Kräftepaar (e = ${(ab.q?.e ?? 0).toFixed(1)} cm)`,
-          werte: r.map((s) => s.N ?? 0)  },
+          werte: r.map((s) => s.N ?? 0), kurz: 'F_x', einheit: 'kN' },
         { name: 'M Gurt lotrecht (halbe Last + Torsion)',
-          werte: r.map((s) => s.MgurtVert ?? 0)  },
+          werte: r.map((s) => s.MgurtVert ?? 0), kurz: 'M_yy', einheit: 'kNm' },
+        // Oertlich biegt die Querkraft der RAHMENEBENE - also im Grundriss.
         { name: 'M örtlich zwischen zwei Blechen',
           werte: r.map((s) => s.Moertl ?? 0), cls: 'serie-4',
-           },
+          kurz: 'M_zz', einheit: 'kNm' },
       ],
     }),
     ausnutzung: linienDiagramm({
@@ -264,9 +545,9 @@ export function abfangDiagramme(ab, breite = 900) {
       yLabel: 'η [–]', punkte: x, grenze: 1.0,
       serien: [
         { name: `Gurt ${gurt}`, werte: r.map((s) => s.eta ?? 0),
-           },
+          einheit: '', nk: 3 },
         { name: 'Bindeblech (nächstgelegenes)', werte: etaBlech,
-           },
+          einheit: '', nk: 3 },
       ],
     }),
   };
@@ -320,8 +601,13 @@ export function ankerDiagramm(e, sortiment, opt = {}) {
   if (!L || !N || L.length !== N.length || L.length < 2) return null;
 
   const vorh = Math.abs(nw.N);
+  /*
+   * KEIN ACHSENKUERZEL AN DER STUETZE. Sie steht schraeg; ihre Normalkraft
+   * laeuft auf keiner globalen Achse, und `F_x` oder `F_z` daneben waere
+   * schlicht falsch. Was hier zaehlt, ist die Stabkraft N.
+   */
   const serien = [{ name: `zulässig nach Blatt · ${nw.typ}`, werte: N,
-                     }];
+                    einheit: 'kN' }];
   /*
    * DIE KONTROLLKURVE wird auf DENSELBEN Stuetzstellen ausgewertet - zwei
    * x-Achsen in einem Bild waeren keine Auskunft. Sie ist ein
@@ -332,7 +618,7 @@ export function ankerDiagramm(e, sortiment, opt = {}) {
     const k = L.map((l) => opt.knickKurve(l));
     if (k.every(Number.isFinite)) {
       serien.push({ name: 'N_b,Rd senkrecht zur Spreizebene (Kontrolle)',
-                    werte: k, cls: 'serie-4'  });
+                    werte: k, cls: 'serie-4', einheit: 'kN' });
     }
   }
   return linienDiagramm({
@@ -397,18 +683,27 @@ export function mastDiagramme(mn, opt = {}) {
        * Kurven erklaert - wo das Moment knickt und die Normalkraft springt.
        * Vier verschiedene waeren vier Wege zu derselben Aussage.
        */
+      /*
+       * AM MASTEN STEHT DIE STABACHSE LOTRECHT - hier gehen oertliche und
+       * globale Benennung auseinander. «N» ist oertlich die Normalkraft,
+       * global F_z; «M quer» biegt in der Querebene, dreht also um y. Die
+       * Zuordnung M quer -> M_yy fuehrt `core.mast.js` seit den Anbauteilen
+       * selbst (`Mq: k.Myy`).
+       */
       serien: [
-        { name: 'M quer', werte: w('Mq')  },
-        { name: 'M längs', werte: w('Ml')  },
-        { name: 'N', werte: w('N')  },
-        { name: 'V quer', werte: w('Vq'), cls: 'serie-4'  },
+        { name: 'M quer', werte: w('Mq'), kurz: 'M_yy', einheit: 'kNm' },
+        { name: 'M längs', werte: w('Ml'), kurz: 'M_xx', einheit: 'kNm' },
+        { name: 'N', werte: w('N'), kurz: 'F_z', einheit: 'kN' },
+        { name: 'V quer', werte: w('Vq'), cls: 'serie-4',
+          kurz: 'F_x', einheit: 'kN' },
       ],
     }),
     ausnutzung: linienDiagramm({
       titel: `Ausnutzung über die Masthöhe${nm}`,
       breite, hoehe: 200, xLabel: 'z über Mastfuss [m]',
       yLabel: 'η [–]', punkte: z, grenze: 1.0,
-      serien: [{ name: 'η Querschnitt', werte: w('eta')  }],
+      serien: [{ name: 'η Querschnitt', werte: w('eta'),
+                 einheit: '', nk: 3 }],
     }),
   };
 }
@@ -458,30 +753,48 @@ export function diagramme(erg, breite = 900) {
       titel: `Schnittgrössen Ersatzbalken${zusatz}`, breite,
       yLabel: 'M [kNm] / V [kN]', punkte: x,
       serien: [
-        { name: 'M_y,ed', werte: k.map((r) => r.My), band: band('My') },
-        { name: 'V_z,ed', werte: k.map((r) => r.Vz), band: band('Vz') },
-        { name: 'M_z,ed', werte: k.map((r) => r.Mz), band: band('Mz') },
+        /*
+         * AM ERSATZBALKEN FALLEN BEIDE SYSTEME ZUSAMMEN: seine Stabachse IST
+         * die Jochachse. `M_y,ed` und `M_yy` sind dieselbe Groesse - und dass
+         * das so ist, ist selbst eine Auskunft. Am Masten daneben ist es
+         * nicht so.
+         */
+        { name: 'M_y,ed', werte: k.map((r) => r.My), band: band('My'),
+          kurz: 'M_yy', einheit: 'kNm' },
+        { name: 'V_z,ed', werte: k.map((r) => r.Vz), band: band('Vz'),
+          kurz: 'F_z', einheit: 'kN' },
+        { name: 'M_z,ed', werte: k.map((r) => r.Mz), band: band('Mz'),
+          kurz: 'M_zz', einheit: 'kNm' },
         { name: 'T_x,ed', werte: k.map((r) => r.Tx), cls: 'serie-4',
-          band: band('Tx') },
+          band: band('Tx'), kurz: 'M_xx', einheit: 'kNm' },
       ],
     }),
     ebene: linienDiagramm({
       titel: 'Ebenenquerkräfte – Balkenanteil und Torsionsanteil überlagert', breite, hoehe: 210,
       yLabel: 'V [kN] / M [kNm]', punkte: x,
       serien: [
-        { name: 'V Vertikalebene', werte: k.map((r) => r.VzEbene1)  },
-        { name: 'davon aus Torsion', werte: k.map((r) => r.q.vertikal.anteilTorsion)  },
-        { name: 'V Horizontalebene', werte: k.map((r) => r.VyEbene1)  },
-        { name: 'M_y,L,lokal', werte: k.map((r) => r.My_lokal), cls: 'serie-4'  },
+        { name: 'V Vertikalebene', werte: k.map((r) => r.VzEbene1),
+          kurz: 'F_z', einheit: 'kN' },
+        { name: 'davon aus Torsion',
+          werte: k.map((r) => r.q.vertikal.anteilTorsion),
+          kurz: 'F_z', einheit: 'kN' },
+        { name: 'V Horizontalebene', werte: k.map((r) => r.VyEbene1),
+          kurz: 'F_y', einheit: 'kN' },
+        // Die oertliche Biegung des Gurtes zwischen zwei Blechen: lotrecht.
+        { name: 'M_y,L,lokal', werte: k.map((r) => r.My_lokal), cls: 'serie-4',
+          kurz: 'M_yy', einheit: 'kNm' },
       ],
     }),
     ausnutzung: linienDiagramm({
       titel: 'Ausnutzungsgrad η(x)', breite, hoehe: 240,
       yLabel: 'η [–]', punkte: x, grenze: 1.0,
       serien: [
-        { name: `Obergurt ${erg.modell.profOG.name}`, werte: k.map((r) => r.og.eta)  },
-        { name: `Untergurt ${erg.modell.profUG.name}`, werte: k.map((r) => r.ug.eta)  },
-        { name: 'Bindeblech', werte: k.map((r) => r.etaB)  },
+        { name: `Obergurt ${erg.modell.profOG.name}`,
+          werte: k.map((r) => r.og.eta), einheit: '', nk: 3 },
+        { name: `Untergurt ${erg.modell.profUG.name}`,
+          werte: k.map((r) => r.ug.eta), einheit: '', nk: 3 },
+        { name: 'Bindeblech', werte: k.map((r) => r.etaB),
+          einheit: '', nk: 3 },
       ],
     }),
   };

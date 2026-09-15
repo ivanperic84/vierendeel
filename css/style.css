@@ -1280,6 +1280,64 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .serie-3 { stroke: var(--ok); }
 .serie-4 { stroke: var(--warn); }
 
+/* --- Die statische Benennung neben der Kurve ------------------------------ */
+/* Weisung, 15. September: neben «M quer» steht, wie die Grösse im Nachweis
+   und im Statikprogramm heisst. Gedämpfter als der Name - sie erklärt ihn,
+   sie ersetzt ihn nicht. */
+text.legende-kurz {
+  fill: var(--dim); font-size: 9.5px; font-family: var(--f-mono);
+}
+text.legende-kurz .sub, text.legende .sub { font-size: 7.5px; }
+
+/* --- Die Messstelle im grossen Diagramm ----------------------------------- */
+/* Sie wird nur auf der Bühne verdrahtet; `figure.messbar` bekommt die Klasse
+   erst dort. In der Seitenleiste bleibt das Bild, was es war. */
+figure.messbar svg { cursor: crosshair; }
+figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
+.mess-faden { stroke: var(--acc); stroke-width: 1; stroke-dasharray: 2 2; }
+.mess-punkt { stroke-width: 1.4; fill: var(--s1); }
+.mess-punkt.serie-1 { stroke: var(--acc); }
+.mess-punkt.serie-2 { stroke: var(--fail); }
+.mess-punkt.serie-3 { stroke: var(--ok); }
+.mess-punkt.serie-4 { stroke: var(--warn); }
+
+.mess-leiste {
+  margin: 4px 0 2px; border-top: 1px solid var(--ol); padding-top: 5px;
+  font-family: var(--f-mono); font-size: 10px;
+}
+.mess-leiste[hidden] { display: none; }
+.mess-kopf {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px;
+}
+.mess-kopf b { color: var(--acc); font-size: 10.5px; }
+.mess-hinweis { color: var(--xdim); font-size: 9px; }
+.mess-tab { border-collapse: collapse; width: 100%; }
+.mess-tab td { padding: 1px 6px 1px 0; vertical-align: baseline; }
+/* Alle Spalten auf ihren Inhalt, nur die Spanne bekommt den Rest - sonst
+   schiebt die Namensspalte die Zahlen an den rechten Rand und man liest
+   quer ueber das halbe Fenster. */
+.mess-tab td { width: 1%; white-space: nowrap; }
+.mess-tab td:first-child { color: var(--on2); padding-right: 14px; }
+.mess-tab td:last-child { width: auto; }
+.mess-farbe {
+  display: inline-block; width: 11px; height: 2.5px; margin-right: 5px;
+  vertical-align: middle; border-radius: 1px;
+}
+.mess-farbe.serie-1 { background: var(--acc); }
+.mess-farbe.serie-2 { background: var(--fail); }
+.mess-farbe.serie-3 { background: var(--ok); }
+.mess-farbe.serie-4 { background: var(--warn); }
+.mess-kurz { color: var(--dim); white-space: nowrap; }
+.mess-kurz sub { font-size: .76em; }
+/* Die Zahl rechtsbündig - so stehen die Kommastellen untereinander und der
+   Sprung zwischen zwei Grössenordnungen fällt auf. */
+.mess-tab td.zahl {
+  text-align: right; color: var(--on); font-variant-numeric: tabular-nums;
+  width: 1%; white-space: nowrap;
+}
+.mess-eh { color: var(--xdim); width: 1%; white-space: nowrap; }
+.mess-spanne { color: var(--xdim); white-space: nowrap; }
+
 /* --- Fussleiste ----------------------------------------------------------- */
 
 .statusbar {

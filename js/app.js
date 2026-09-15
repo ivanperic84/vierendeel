@@ -17,7 +17,7 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion,
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm,
-         mastDiagramme } from './render.charts.js';
+         mastDiagramme, verdrahteMessung } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
@@ -838,6 +838,16 @@ function zeichneBuehne() {
       <button class="btn btn-mini" data-zurueck>Zurück zum Modell</button>
     </div><div class="buehne-koerper">${bild.svg}</div>`;
   n.querySelector('[data-zurueck]').onclick = () => { buehne = null; zeichneBuehne(); };
+  /*
+   * DER MESSFADEN NUR HIER (Weisung, 15. September: «wenn die diagramme
+   * gross sind messstelle definieren könen mit zahlenoutput»).
+   *
+   * In der Seitenleiste haben die Bilder 860 px auf einer schmalen Spalte -
+   * dort liegen die Stuetzstellen so dicht, dass der Faden mehr raet als
+   * misst. Auf der Buehne hat er die Breite des Modellfensters. Die Daten
+   * haengen an JEDEM Bild; verdrahtet wird nur dieses.
+   */
+  verdrahteMessung(n);
 }
 
 function zeichneAuswertung() {

@@ -397,6 +397,84 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Jede Schnittgrösse trägt ihre statische Benennung (15. September)
+
+Weisung: «bei allen schnittkräften anschrift neben dem quer längs vertikal
+etc. die statischen benennung aufführen wie Fx Fy Fz und das gleiche mit den
+Momenten Mxx Myy Mzz.»
+
+Zu erfinden war nichts: die Schreibweise steht seit den Anbauteilen im
+Werkzeug (`core.anbauteile.js`) und sie ist **global**, nicht örtlich.
+
+| | | | |
+|---|---|---|---|
+| `F_x` | in der Jochachse (quer zum Gleis) | `M_xx` | um die Jochachse — Torsion |
+| `F_y` | in Gleisrichtung | `M_yy` | um y — biegt quer |
+| `F_z` | lotrecht | `M_zz` | um z — biegt im Grundriss |
+
+**Warum global.** Damit dieselbe Anschrift über alle Bauteile läuft. Am
+Ersatzbalken des Jochs fällt sie mit der örtlichen zusammen — seine Stabachse
+*ist* die Jochachse, `M_y,ed` ist `M_yy`. **Am Masten nicht:** dort steht die
+Stabachse lotrecht, seine Normalkraft ist örtlich `N` und global `F_z`, sein
+«M quer» ist `M_yy`. Wer die Werte ins Statikprogramm oder in die
+Mastfusstabelle trägt, braucht die globale.
+
+Die Zuordnung ist abgelesen, nicht gesetzt: `core.mast.js` schreibt beim
+Anbauteil-Moment selbst `Mq: k.Myy`.
+
+**Am Abfangjoch ist es verdreht** — es liegt waagrecht, seine Rahmenebene
+auch: die Biegung darin dreht um die lotrechte Achse, ist also `M_zz`, und
+ihre Querkraft läuft in Gleisrichtung, `F_y`. Beim Tragjoch ist es umgekehrt.
+Genau dafür steht das Kürzel da.
+
+**Die Druckstütze bekommt keines.** Sie steht schräg; ihre Normalkraft läuft
+auf keiner globalen Achse, und `F_x` daneben wäre schlicht falsch.
+
+Die Legende **bricht jetzt um**. Sie stand in einer Zeile und lief beim
+Abfangjoch knapp am Rand vorbei; mit dem Kürzel daneben wäre sie darüber
+hinausgelaufen, und was aus dem viewBox fällt, ist einfach weg. Der obere
+Rand wächst mit jeder Zeile um 13.
+
+### Die Messstelle im grossen Diagramm (15. September)
+
+Zweite Hälfte derselben Weisung: «zudem wenn die diagramme gross sind
+messstelle definieren könen mit zahlenoutput.»
+
+Ein Diagramm zeigt den **Verlauf** — wo es steigt, wo es knickt, wo das
+Vorzeichen kippt. Was es nicht kann, ist die Zahl an einer bestimmten Stelle
+hergeben; dafür musste man bisher in die Tabelle wechseln und die Stelle dort
+wiederfinden.
+
+Jedes Bild trägt seinen Datensatz als `data-mess` mit: Achsenlage,
+Stützstellen, je Serie die Werte mit Einheit und Nachkommastellen. Gezeichnet
+wird davon nichts — erst `verdrahteMessung(wurzel)` macht daraus einen Faden.
+**Verdrahtet wird nur die Bühne**; in der Seitenleiste liegen die Stützstellen
+auf schmaler Spalte so dicht, dass der Faden mehr raten als messen würde.
+
+**Er rastet auf die Stützstellen ein.** Nicht aus Bequemlichkeit: die
+Stützstellen *sind* die Nachweisstellen — Blechstationen, Lasteinleitungen,
+Auflager. Zwischen zweien liegt eine gerade Verbindung, die niemand gerechnet
+hat; ein Faden, der dort einen Zwischenwert ausweist, gäbe eine Zahl aus, die
+im Nachweis nicht vorkommt. Derselbe Grund, aus dem `abfangDiagramme` kein
+feineres Raster zeichnet.
+
+**Er lässt sich festhalten.** Ein Wert, der beim Wegziehen der Maus
+verschwindet, lässt sich nicht abschreiben und nicht mit dem Nachbarbild
+vergleichen. Ein Klick hält ihn, der nächste löst ihn, die Pfeiltasten gehen
+von Stelle zu Stelle.
+
+**Die Spanne wandert mit**, wo es eine gibt. Bei einer Umhüllenden ist gerade
+sie die Auskunft: der Wert der massgebenden Kombination sagt wenig, wenn man
+nicht weiss, wie weit die anderen davon abliegen. Gemessen am J90:
+
+```
+x = 7.900 m
+M_y,ed   M_yy   43.25 kNm   41.60 … 44.89
+V_z,ed   F_z     2.45 kN     2.24 …  2.66
+M_z,ed   M_zz   29.54 kNm  -29.54 … 29.54
+T_x,ed   M_xx    0.56 kNm    0.00 …  0.56
+```
+
 ### Die Bühne zeigt jedes Diagramm (15. September)
 
 Befund: «die diagramme der masten laden im mittleren fenster wenn man

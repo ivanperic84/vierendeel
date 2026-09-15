@@ -11112,6 +11112,196 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> JEDE SCHNITTGROESSE TRAEGT IHRE STATISCHE BENENNUNG. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: "bei allen schnittkraeften anschrift neben
+     * dem quer laengs vertikal etc. die statischen benennung auffuehren wie
+     * Fx Fy Fz und das gleiche mit den Momenten Mxx Myy Mzz."
+     *
+     * Die Schreibweise stand schon im Werkzeug - `core.anbauteile.js` fuehrt
+     * die eingepraegten Lasten der Anbauteile seit jeher so:
+     *
+     *   F_x  in der Jochachse    M_xx  um die Jochachse (Torsion)
+     *   F_y  in Gleisrichtung    M_yy  um y - biegt quer
+     *   F_z  lotrecht            M_zz  um z - biegt im Grundriss
+     *
+     * >>> SIE IST GLOBAL, UND DAS IST DER PUNKT. <<<
+     *
+     * Am Ersatzbalken des Jochs faellt sie mit der oertlichen zusammen -
+     * seine Stabachse IST die Jochachse, `M_y,ed` ist `M_yy`. AM MASTEN
+     * NICHT: dort steht die Stabachse lotrecht, seine Normalkraft ist
+     * oertlich `N` und global `F_z`. Wer die Werte ins Statikprogramm oder
+     * in die Mastfusstabelle traegt, braucht die globale.
+     *
+     * Die Zuordnung ist nicht erfunden: `core.mast.js` setzt beim
+     * Anbauteil-Moment selbst `Mq: k.Myy`.
+     */
+    {
+      const CH = await import(J('render.charts.js'));
+      const cq = readFileSync(
+        new URL('./js/render.charts.js', import.meta.url), 'utf8');
+      /*
+       * AM MASTEN GEPRUEFT, weil dort beide Systeme auseinandergehen. Eine
+       * Kunstreihe reicht - geprueft wird die Anschrift, nicht die Rechnung.
+       */
+      const md = CH.mastDiagramme({ stationen: [
+        { z: 0, Mq: 3, Ml: 4, N: 5, Vq: 6, eta: 0.3 },
+        { z: 8, Mq: 0, Ml: 0, N: 1, Vq: 0, eta: 0.1 },
+      ] }, { breite: 860, name: 'Probe' });
+      const kurz = (h) => [...h.matchAll(
+        /class="legende-kurz"[^>]*>([^<]*)<tspan[^>]*>([^<]*)</g)]
+        .map((m) => `${m[1]}_${m[2]}`);
+      const kM = kurz(md.schnitt);
+      wahr('Der Mast fuehrt vier statische Benennungen',
+           kM.length === 4, kM.join(' '));
+      wahr('M quer ist M_yy - das Moment um die Gleisachse',
+           kM[0] === 'M_yy', kM[0]);
+      wahr('M laengs ist M_xx - um die Jochachse',
+           kM[1] === 'M_xx', kM[1]);
+      wahr('Die Normalkraft des stehenden Masten ist global F_z',
+           kM[2] === 'F_z', kM[2]);
+      wahr('Und seine Querkraft F_x, in der Jochachse',
+           kM[3] === 'F_x', kM[3]);
+      /*
+       * DIE DRUCKSTUETZE BEKOMMT KEINE. Sie steht schraeg; ihre Normalkraft
+       * laeuft auf keiner globalen Achse, und `F_x` daneben waere falsch.
+       */
+      wahr('Die Stuetze traegt kein Achsenkuerzel',
+           /const serien = \[\{ name: `zul/.test(cq)
+           && /KEIN ACHSENKUERZEL AN DER STUETZE/.test(cq));
+      /*
+       * DIE ZUORDNUNG AM JOCH steht im Quelltext - sie an einem gerechneten
+       * Ergebnis abzulesen hiesse, den halben Prueflauf davorzuhaengen.
+       */
+      wahr('Am Ersatzbalken gehoert M_y,ed zu M_yy',
+           /r\.My\), band: band\('My'\),\s*\n\s*kurz: 'M_yy'/.test(cq));
+      wahr('\u2026 V_z,ed zu F_z',
+           /r\.Vz\), band: band\('Vz'\),\s*\n\s*kurz: 'F_z'/.test(cq));
+      wahr('\u2026 M_z,ed zu M_zz',
+           /r\.Mz\), band: band\('Mz'\),\s*\n\s*kurz: 'M_zz'/.test(cq));
+      wahr('\u2026 und die Torsion T_x,ed zu M_xx',
+           /band: band\('Tx'\), kurz: 'M_xx'/.test(cq));
+      /*
+       * UND AM ABFANGJOCH IST ES VERDREHT: es liegt waagrecht, seine
+       * Rahmenebene auch - die Biegung darin dreht um die LOTRECHTE Achse.
+       * Genau dafuer steht das Kuerzel da.
+       */
+      wahr('Die Rahmenebene des Abfangjochs biegt um z',
+           /sn\('Mrahmen'\),\s*\n\s*kurz: 'M_zz'/.test(cq));
+      wahr('\u2026 und ihre Querkraft laeuft in Gleisrichtung',
+           /sn\('Vrahmen'\),\s*\n\s*kurz: 'F_y'/.test(cq));
+
+      /* ===================================================================
+       * >>> DIE MESSSTELLE IM GROSSEN DIAGRAMM. <<<
+       * ===================================================================
+       *
+       * Zweite Haelfte derselben Weisung: "zudem wenn die diagramme gross
+       * sind messstelle definieren koenen mit zahlenoutput."
+       *
+       * Das Bild traegt seine Zahlen mit - Achsenlage, Stuetzstellen, je
+       * Serie die Werte mit Einheit. Gezeichnet wird davon nichts; erst
+       * `verdrahteMessung` macht daraus einen Faden. Hier laesst sich nur
+       * der Datensatz pruefen, nicht die Bedienung: der Pruefstand hat kein
+       * Fenster.
+       */
+      const roh = /data-mess="([^"]*)"/.exec(md.schnitt);
+      wahr('Das Bild traegt seinen Datensatz mit', !!roh);
+      const dm = JSON.parse(roh[1].replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
+      wahr('Er kennt die Stuetzstellen', dm.punkte.length === 2
+           && dm.punkte[1] === 8, dm.punkte.join(' '));
+      wahr('\u2026 und je Serie Werte, Kuerzel und Einheit',
+           dm.serien.length === 4 && dm.serien[2].kurz === 'F_z'
+           && dm.serien[2].einheit === 'kN' && dm.serien[2].werte[0] === 5,
+           JSON.stringify(dm.serien[2]));
+      wahr('Die Achsenlage steht dabei - ohne sie kein Faden',
+           [dm.mL, dm.mT, dm.x0, dm.x1].every(Number.isFinite)
+           && dm.y1 > dm.y0);
+      wahr('Und die Einheit der x-Achse',
+           dm.xEinheit === 'm', dm.xEinheit);
+      /*
+       * DER FADEN RASTET AUF DIE STUETZSTELLEN EIN. Sie SIND die
+       * Nachweisstellen; zwischen zweien liegt eine gerade Verbindung, die
+       * niemand gerechnet hat. Derselbe Grund, aus dem `abfangDiagramme`
+       * kein feineres Raster zeichnet.
+       */
+      wahr('Der Faden sucht die naechstgelegene Stuetzstelle',
+           /if \(Math\.abs\(x - v\) < Math\.abs\(d\.punkte\[b\] - v\)\) b = i;/
+             .test(cq));
+      wahr('\u2026 und er laesst sich festhalten',
+           cq.includes("svg.addEventListener('click'")
+           && cq.includes('let fest = null;'));
+      wahr('\u2026 auch mit den Pfeiltasten',
+           cq.includes("ev.key === 'ArrowLeft'"));
+      /*
+       * DIE SPANNE WANDERT MIT, wo es eine gibt: bei einer Umhuellenden ist
+       * gerade sie die Auskunft.
+       */
+      wahr('Wo ein Band steht, traegt der Datensatz die Spanne',
+           /band: s\.band \? \[s\.band\[0\]\.map\(r4\), s\.band\[1\]\.map\(r4\)\]/
+             .test(cq));
+      /*
+       * VERDRAHTET WIRD NUR DIE BUEHNE. In der Seitenleiste liegen die
+       * Stuetzstellen auf schmaler Spalte so dicht, dass der Faden mehr
+       * raet als misst.
+       */
+      const appQ2 = readFileSync(
+        new URL('./js/app.js', import.meta.url), 'utf8');
+      wahr('Die Buehne verdrahtet den Faden', appQ2.includes('verdrahteMessung(n);'));
+      wahr('\u2026 und sonst niemand',
+           (appQ2.match(/verdrahteMessung\(/g) ?? []).length === 1);
+      wahr('Ohne DOM tut die Verdrahtung nichts',
+           CH.verdrahteMessung(null) === 0
+           && CH.verdrahteMessung({}) === 0);
+
+      /* ===================================================================
+       * >>> UND DIE LEGENDE LAEUFT NICHT AUS DEM BILD. <<<
+       * ===================================================================
+       *
+       * Sie stand in EINER Zeile. Mit dem Kuerzel daneben waere sie beim
+       * Abfangjoch darueber hinausgelaufen - "M Gurt lotrecht (halbe Last +
+       * Torsion)" ist ein langer Name -, und was aus dem viewBox faellt,
+       * ist einfach weg. Jetzt bricht sie um, und der obere Rand waechst
+       * mit.
+       */
+      const lang = [
+        { name: 'N Kraeftepaar (e = 12.3 cm)', werte: [0, 1],
+          kurz: 'F_x', einheit: 'kN' },
+        { name: 'M Gurt lotrecht (halbe Last + Torsion)', werte: [0, 1],
+          kurz: 'M_yy', einheit: 'kNm' },
+        { name: 'M oertlich zwischen zwei Blechen', werte: [0, 1],
+          cls: 'serie-4', kurz: 'M_zz', einheit: 'kNm' },
+      ];
+      [860, 566].forEach((br) => {
+        const h = CH.linienDiagramm({ titel: 'Probe', breite: br,
+                                      punkte: [0, 10], serien: lang });
+        const xs = [...h.matchAll(/class="legende(?:-kurz)?" x="([\d.]+)"/g)]
+          .map((m) => Number(m[1]));
+        wahr(`Bei ${br} px bleibt die Legende im Bild`,
+             Math.max(...xs) + 30 < br - 16,
+             `bis ${Math.max(...xs).toFixed(0)} von ${br - 16}`);
+        const ys = [...new Set([...h.matchAll(/class="legende" [^>]*y="([\d.]+)"/g)]
+          .map((m) => m[1]))];
+        wahr(`\u2026 auf mehreren Zeilen (${br} px)`, ys.length > 1,
+             ys.join(' '));
+      });
+      /*
+       * UND DER OBERE RAND WAECHST MIT: sonst liegt die zweite Zeile im
+       * Gitter.
+       */
+      const eng = CH.linienDiagramm({ titel: 'Probe', breite: 566,
+                                      punkte: [0, 10], serien: lang });
+      const gitterY = [...eng.matchAll(/class="grid" x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" y2="[\d.]+"/g)]
+        .map((m) => Number(m[1]));
+      const legY = [...eng.matchAll(/class="legende" [^>]*y="([\d.]+)"/g)]
+        .map((m) => Number(m[1]));
+      wahr('Die oberste Legendenzeile liegt ueber dem Gitter',
+           Math.max(...legY) < Math.min(...gitterY.filter((y) => y > 20)) + 1,
+           `Legende bis ${Math.max(...legY)}, Gitter ab ${Math.min(...gitterY)}`);
+    }
+
+    /* =====================================================================
      * >>> DIE KRAFTBILDER AN DEN KURVEN SIND WEG. <<<
      * =====================================================================
      *
