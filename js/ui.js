@@ -40,7 +40,6 @@ import { massketteLesen, fangeAufMasskette } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
-import { skizzeFuer } from './render.skizzen.js';
 // Fuer die Profiluebersicht: die Querschnittswerte des Ankers und
 // die Stahlguete stehen in ihren eigenen Datenmodulen.
 import { ankerQuerschnitt } from './data.anker.js';
@@ -5053,54 +5052,31 @@ export function klassenTabelle(kl) {
  * braucht kein Zielen auf ein Symbol von zwölf Pixeln. Der Knopf oben rechts
  * bleibt trotzdem stehen: er sagt, DASS das geht.
  *
- * Darunter hängt ein leerer Platz für das Kraftbild einer Kurve - siehe
- * render.skizzen.js. Er füllt sich erst auf Klick in die Legende.
+ * DIE KRAFTBILDER AN DEN KURVEN SIND WEG (15. September). Hier hing unter
+ * jedem Diagramm ein leerer Platz, der sich auf Klick in die Legende mit
+ * einer kleinen Skizze fuellte. Weisung: \u00abnimm diese sekundaeren erklaer
+ * skizzen zu den einzelnen kurven weg, diese sind meist nicht ganz korrekt
+ * und verwirren mehr als sie helfen.\u00bb
  */
 function diagrammBlock(id, titel, svg) {
   return abschnitt(titel,
     `<button class="btn btn-mini" data-gross="${esc(id)}"
       title="Im Modellfenster gross zeigen">${icon('aufziehen', 15)}</button>`) +
-    `<div class="dia" data-dia="${esc(id)}" title="anklicken: gross im Modellfenster">${svg}</div>
-     <div class="dia-skizze" data-skizze-fuer="${esc(id)}" hidden></div>`;
+    `<div class="dia" data-dia="${esc(id)}" title="anklicken: gross im Modellfenster">${svg}</div>`;
 }
 
 /** Knöpfe zum Vergrössern verdrahten. */
 let beiDiagrammGross = null;
 export function setzeDiagrammBuehne(fn) { beiDiagrammGross = fn; }
 
-/** Das zuletzt geöffnete Kraftbild je Diagramm - überlebt das Neuzeichnen. */
-const SKIZZE_OFFEN = new Map();
-
-function zeigeSkizze(node, id, key) {
-  const ziel = node.querySelector(`[data-skizze-fuer="${CSS.escape(id)}"]`);
-  if (!ziel) return;
-  const s = key ? skizzeFuer(key) : null;
-  if (!s) { ziel.hidden = true; ziel.innerHTML = ''; SKIZZE_OFFEN.delete(id); return; }
-  SKIZZE_OFFEN.set(id, key);
-  ziel.hidden = false;
-  ziel.innerHTML = `${s.svg}<div class="dia-skizze-t">${esc(s.text)}</div>`
-    + '<button class="btn btn-mini dia-skizze-zu" type="button">schliessen</button>';
-  ziel.querySelector('.dia-skizze-zu').onclick = () => zeigeSkizze(node, id, null);
-}
-
 function verdrahteDiagramme(node) {
   node.querySelectorAll('[data-gross]').forEach((b) => {
     b.onclick = (e) => { e.stopPropagation(); beiDiagrammGross?.(b.dataset.gross); };
   });
   node.querySelectorAll('.dia[data-dia]').forEach((d) => {
-    const id = d.dataset.dia;
-    d.onclick = (e) => {
-      // Ein Klick auf einen Legendeneintrag zeigt das Kraftbild, jeder andere
-      // holt das Diagramm ins Modellfenster.
-      const eintrag = e.target.closest('.legende-eintrag');
-      if (eintrag) {
-        const key = eintrag.dataset.skizze;
-        zeigeSkizze(node, id, SKIZZE_OFFEN.get(id) === key ? null : key);
-        return;
-      }
-      beiDiagrammGross?.(id);
-    };
-    if (SKIZZE_OFFEN.has(id)) zeigeSkizze(node, id, SKIZZE_OFFEN.get(id));
+    // Das ganze Bild ist der Knopf - seit dem 15. September ohne Ausnahme:
+    // die Legende traegt kein Kraftbild mehr, an dem ein Klick haengen bleibt.
+    d.onclick = () => beiDiagrammGross?.(d.dataset.dia);
   });
 }
 

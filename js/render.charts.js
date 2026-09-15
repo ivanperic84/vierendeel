@@ -126,18 +126,25 @@ export function linienDiagramm(o) {
     }
   }
 
-  // Legende - ANKLICKBAR, wo es ein Kraftbild dazu gibt.
-  // Der unsichtbare Rechteckdeckel ist die Trefferfläche: eine Textzeile von
-  // acht Pixeln Höhe trifft man sonst nicht.
+  /*
+   * DIE LEGENDE IST EINE BESCHRIFTUNG, KEIN KNOPF (15. September).
+   *
+   * Hier hing ein Kraftbild an jedem Eintrag: ein Klick, und darunter stand
+   * eine kleine Skizze, was die Groesse am Joch anrichtet. Weisung: \u00abnimm
+   * diese sekundaeren erklaer skizzen zu den einzelnen kurven weg, diese sind
+   * meist nicht ganz korrekt und verwirren mehr als sie helfen.\u00bb
+   *
+   * Sie hatte recht: die Bilder waren aus den Formeln GEBAUT, nicht aus dem
+   * gerechneten Zustand - sie zeigten den Regelfall, auch wo das Vorzeichen
+   * gerade andersherum stand. Ein Bild, das neben der Kurve steht und
+   * manchmal das Gegenteil sagt, ist schlimmer als keines.
+   *
+   * Wo das Zusammenspiel der Groessen erklaert gehoert, steht es im
+   * Handbuch; dort laesst es sich auch am Fall nachrechnen.
+   */
   let lx = mL;
   o.serien.forEach((s, k) => {
-    const breite = 30 + s.name.length * 6.6;
-    const auf = s.skizze ? ` class="legende-eintrag" data-skizze="${esc(s.skizze)}"` : '';
-    g += `<g${auf}>`;
-    if (s.skizze) {
-      g += `<rect class="legende-treffer" x="${n(lx - 3)}" y="${n(mT - 21)}"`
-         + ` width="${n(breite)}" height="17" rx="3"/>`;
-    }
+    g += '<g>';
     g += `<line class="serie ${s.cls ?? 'serie-' + (k + 1)}" x1="${n(lx)}" y1="${n(mT - 12)}" x2="${n(lx + 18)}" y2="${n(mT - 12)}"/>`;
     g += `<text class="legende" x="${n(lx + 23)}" y="${n(mT - 8)}">${esc(s.name)}</text>`;
     g += '</g>';
@@ -231,11 +238,11 @@ export function abfangDiagramme(ab, breite = 900) {
        * des liegenden Traegers.
        */
       serien: [
-        { name: 'M Rahmenebene', werte: sn('Mrahmen'), skizze: 'abfN' },
-        { name: 'V Rahmenebene', werte: sn('Vrahmen'), skizze: 'abfV' },
-        { name: 'M quer (lotrecht)', werte: sn('Mvert'), skizze: 'abfMvert' },
+        { name: 'M Rahmenebene', werte: sn('Mrahmen')  },
+        { name: 'V Rahmenebene', werte: sn('Vrahmen')  },
+        { name: 'M quer (lotrecht)', werte: sn('Mvert')  },
         { name: 'M Torsion', werte: sn('Mtors'), cls: 'serie-4',
-          skizze: 'abfTors' },
+           },
       ],
     }),
     ebene: linienDiagramm({
@@ -244,12 +251,12 @@ export function abfangDiagramme(ab, breite = 900) {
       yLabel: 'N [kN] / M [kNm]', punkte: x,
       serien: [
         { name: `N Kräftepaar (e = ${(ab.q?.e ?? 0).toFixed(1)} cm)`,
-          werte: r.map((s) => s.N ?? 0), skizze: 'abfN' },
+          werte: r.map((s) => s.N ?? 0)  },
         { name: 'M Gurt lotrecht (halbe Last + Torsion)',
-          werte: r.map((s) => s.MgurtVert ?? 0), skizze: 'abfTors' },
+          werte: r.map((s) => s.MgurtVert ?? 0)  },
         { name: 'M örtlich zwischen zwei Blechen',
           werte: r.map((s) => s.Moertl ?? 0), cls: 'serie-4',
-          skizze: 'abfOertl' },
+           },
       ],
     }),
     ausnutzung: linienDiagramm({
@@ -257,9 +264,9 @@ export function abfangDiagramme(ab, breite = 900) {
       yLabel: 'η [–]', punkte: x, grenze: 1.0,
       serien: [
         { name: `Gurt ${gurt}`, werte: r.map((s) => s.eta ?? 0),
-          skizze: 'eta' },
+           },
         { name: 'Bindeblech (nächstgelegenes)', werte: etaBlech,
-          skizze: 'eta' },
+           },
       ],
     }),
   };
@@ -314,7 +321,7 @@ export function ankerDiagramm(e, sortiment, opt = {}) {
 
   const vorh = Math.abs(nw.N);
   const serien = [{ name: `zulässig nach Blatt · ${nw.typ}`, werte: N,
-                    skizze: 'ankerKurve' }];
+                     }];
   /*
    * DIE KONTROLLKURVE wird auf DENSELBEN Stuetzstellen ausgewertet - zwei
    * x-Achsen in einem Bild waeren keine Auskunft. Sie ist ein
@@ -325,7 +332,7 @@ export function ankerDiagramm(e, sortiment, opt = {}) {
     const k = L.map((l) => opt.knickKurve(l));
     if (k.every(Number.isFinite)) {
       serien.push({ name: 'N_b,Rd senkrecht zur Spreizebene (Kontrolle)',
-                    werte: k, cls: 'serie-4', skizze: 'ankerKnick' });
+                    werte: k, cls: 'serie-4'  });
     }
   }
   return linienDiagramm({
@@ -391,17 +398,17 @@ export function mastDiagramme(mn, opt = {}) {
        * Vier verschiedene waeren vier Wege zu derselben Aussage.
        */
       serien: [
-        { name: 'M quer', werte: w('Mq'), skizze: 'mastM' },
-        { name: 'M längs', werte: w('Ml'), skizze: 'mastM' },
-        { name: 'N', werte: w('N'), skizze: 'mastM' },
-        { name: 'V quer', werte: w('Vq'), cls: 'serie-4', skizze: 'mastM' },
+        { name: 'M quer', werte: w('Mq')  },
+        { name: 'M längs', werte: w('Ml')  },
+        { name: 'N', werte: w('N')  },
+        { name: 'V quer', werte: w('Vq'), cls: 'serie-4'  },
       ],
     }),
     ausnutzung: linienDiagramm({
       titel: `Ausnutzung über die Masthöhe${nm}`,
       breite, hoehe: 200, xLabel: 'z über Mastfuss [m]',
       yLabel: 'η [–]', punkte: z, grenze: 1.0,
-      serien: [{ name: 'η Querschnitt', werte: w('eta'), skizze: 'eta' }],
+      serien: [{ name: 'η Querschnitt', werte: w('eta')  }],
     }),
   };
 }
@@ -451,10 +458,10 @@ export function diagramme(erg, breite = 900) {
       titel: `Schnittgrössen Ersatzbalken${zusatz}`, breite,
       yLabel: 'M [kNm] / V [kN]', punkte: x,
       serien: [
-        { name: 'M_y,ed', werte: k.map((r) => r.My), skizze: 'My', band: band('My') },
-        { name: 'V_z,ed', werte: k.map((r) => r.Vz), skizze: 'Vz', band: band('Vz') },
-        { name: 'M_z,ed', werte: k.map((r) => r.Mz), skizze: 'Mz', band: band('Mz') },
-        { name: 'T_x,ed', werte: k.map((r) => r.Tx), cls: 'serie-4', skizze: 'Tx',
+        { name: 'M_y,ed', werte: k.map((r) => r.My), band: band('My') },
+        { name: 'V_z,ed', werte: k.map((r) => r.Vz), band: band('Vz') },
+        { name: 'M_z,ed', werte: k.map((r) => r.Mz), band: band('Mz') },
+        { name: 'T_x,ed', werte: k.map((r) => r.Tx), cls: 'serie-4',
           band: band('Tx') },
       ],
     }),
@@ -462,19 +469,19 @@ export function diagramme(erg, breite = 900) {
       titel: 'Ebenenquerkräfte – Balkenanteil und Torsionsanteil überlagert', breite, hoehe: 210,
       yLabel: 'V [kN] / M [kNm]', punkte: x,
       serien: [
-        { name: 'V Vertikalebene', werte: k.map((r) => r.VzEbene1), skizze: 'Vebene' },
-        { name: 'davon aus Torsion', werte: k.map((r) => r.q.vertikal.anteilTorsion), skizze: 'Tx' },
-        { name: 'V Horizontalebene', werte: k.map((r) => r.VyEbene1), skizze: 'Vebene' },
-        { name: 'M_y,L,lokal', werte: k.map((r) => r.My_lokal), cls: 'serie-4', skizze: 'Mlokal' },
+        { name: 'V Vertikalebene', werte: k.map((r) => r.VzEbene1)  },
+        { name: 'davon aus Torsion', werte: k.map((r) => r.q.vertikal.anteilTorsion)  },
+        { name: 'V Horizontalebene', werte: k.map((r) => r.VyEbene1)  },
+        { name: 'M_y,L,lokal', werte: k.map((r) => r.My_lokal), cls: 'serie-4'  },
       ],
     }),
     ausnutzung: linienDiagramm({
       titel: 'Ausnutzungsgrad η(x)', breite, hoehe: 240,
       yLabel: 'η [–]', punkte: x, grenze: 1.0,
       serien: [
-        { name: `Obergurt ${erg.modell.profOG.name}`, werte: k.map((r) => r.og.eta), skizze: 'eta' },
-        { name: `Untergurt ${erg.modell.profUG.name}`, werte: k.map((r) => r.ug.eta), skizze: 'eta' },
-        { name: 'Bindeblech', werte: k.map((r) => r.etaB), skizze: 'eta' },
+        { name: `Obergurt ${erg.modell.profOG.name}`, werte: k.map((r) => r.og.eta)  },
+        { name: `Untergurt ${erg.modell.profUG.name}`, werte: k.map((r) => r.ug.eta)  },
+        { name: 'Bindeblech', werte: k.map((r) => r.etaB)  },
       ],
     }),
   };

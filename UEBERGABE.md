@@ -397,6 +397,36 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Kraftbilder an den Kurven sind weg (15. September)
+
+Weisung: «nimm diese sekundären erklär skizzen zu den einzelnen kurven weg,
+diese sind meist nicht ganz korrekt und verwirren mehr als sie helfen.»
+
+Ein Klick auf einen Legendeneintrag zeigte unter dem Diagramm eine kleine
+Skizze: welche Kräfte die Grösse am Joch meint. Gebaut waren sie aus den
+**Formeln**, nicht aus dem gerechneten Zustand — sie zeigten den Regelfall,
+auch wo das Vorzeichen gerade andersherum stand.
+
+> Derselbe Mangel war schon am 11. September gemeldet: «die verdrahtung der
+> sekundären diagramme unter verläufe sind nicht korrekt» — damals trugen die
+> Kurven des Abfangjochs die Bilder des Tragjochs. Damals wurde die
+> Verdrahtung berichtigt. Jetzt fällt der ganze Zweig, und das ist die
+> ehrlichere Antwort: **ein Bild, das neben der Kurve steht und manchmal das
+> Gegenteil sagt, ist schlimmer als keines.**
+
+**Was entfallen ist:** `js/render.skizzen.js` (450 Zeilen, gelöscht), die 27
+Skizzenschlüssel an den Serien in `render.charts.js`, die Trefferfläche und
+die Klickbarkeit der Legende, der Platzhalter unter jedem Diagramm in `ui.js`
+und die zugehörigen Stilregeln. Netto **−557 Zeilen**.
+
+**Was bleibt:** die Legende ist wieder eine Beschriftung, und das ganze Bild
+ist der Knopf — ein Klick irgendwo ins Diagramm holt es ins Modellfenster,
+ohne Ausnahme. Die übrigen Skizzen sind etwas anderes und bleiben: die
+**Optionsskizzen** erklären ein Eingabefeld, die **Massskizze** zeigt die Lage
+eines Anbauteils, die **Bauformskizze** den Querschnitt. Keine davon behauptet
+etwas über einen gerechneten Verlauf. Wo das Zusammenspiel der Grössen erklärt
+gehört, steht es im **Handbuch** — dort lässt es sich am Fall nachrechnen.
+
 ### Wo ein Blech steht, braucht es keinen Riegel (15. September)
 
 Befund am aufgebauten Modell: «warum hat es hier noch zwei starrelemente beim

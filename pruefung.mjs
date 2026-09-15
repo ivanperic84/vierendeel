@@ -10993,119 +10993,70 @@ titel('42  Der lange Mast mit Zusatzleitern');
          AN.ankerNachweis('SA20', -10, 8).lieferbar === true);
 
     /* =====================================================================
-     * JEDE KURVE ZEIGT DAS BILD IHRES EIGENEN TRAGWERKS
+     * >>> DIE KRAFTBILDER AN DEN KURVEN SIND WEG. <<<
      * =====================================================================
      *
-     * Weisung vom 11. September: «die verdrahtung der sekundären diagramme
-     * unter verläufe sind nicht korrekt.»
+     * Weisung vom 15. September: "nimm diese sekundaeren erklaer skizzen zu
+     * den einzelnen kurven weg, diese sind meist nicht ganz korrekt und
+     * verwirren mehr als sie helfen."
      *
-     * Die Kurven des Abfangjochs trugen die Kraftbilder des TRAGJOCHS:
-     * unter «M Rahmenebene» stand «M_y biegt das Joch lotrecht … oben
-     * Druck, unten Zug», unter «N Kräftepaar» das Bild der Ebenenquerkraft,
-     * unter «M Torsion» der umlaufende Schubfluss eines geschlossenen
-     * Kastens. Das Abfangjoch hat weder Ober- und Untergurt noch vier
-     * Ebenen - und seine Rahmenebene liegt waagrecht.
+     * >>> WAS SIE WAREN, UND WARUM SIE NICHT STIMMEN KONNTEN. <<<
      *
-     * Gepruef wird BEIDES: dass jeder Schluessel ein Bild hat (ein Tippfehler
-     * bliebe sonst stumm - der Klick zeigte einfach nichts), und dass die
-     * Bilder des Abfangjochs nicht die des Tragjochs sind.
-     * =================================================================== */
+     * Ein Klick auf einen Legendeneintrag zeigte unter dem Diagramm eine
+     * kleine Skizze: welche Kraefte die Groesse am Joch meint. Gebaut waren
+     * sie aus den FORMELN, nicht aus dem gerechneten Zustand - sie zeigten
+     * den Regelfall, auch wo das Vorzeichen gerade andersherum stand.
+     *
+     * Schon am 11. September war derselbe Mangel gemeldet worden ("die
+     * verdrahtung der sekundaeren diagramme unter verlaeufe sind nicht
+     * korrekt"): die Kurven des Abfangjochs trugen damals die Bilder des
+     * TRAGJOCHS. Damals wurde die Verdrahtung berichtigt; jetzt faellt der
+     * ganze Zweig, und das ist die ehrlichere Antwort. Ein Bild, das neben
+     * der Kurve steht und manchmal das Gegenteil sagt, ist schlimmer als
+     * keines.
+     *
+     * >>> WO DIE ERKLAERUNG JETZT STEHT. <<<
+     *
+     * Im Handbuch - dort laesst sie sich am Fall nachrechnen, statt als
+     * Piktogramm neben einer Zahl zu stehen.
+     *
+     * Diese Kontrolle haelt fest, dass nichts davon zurueckkommt: weder das
+     * Modul, noch ein Schluessel an einer Serie, noch der Platz in der Maske.
+     */
     {
-      const SK = await import(J('render.skizzen.js'));
-      const CH = await import(J('render.charts.js'));
       const quelle = readFileSync(
         new URL('./js/render.charts.js', import.meta.url), 'utf8');
-      const benutzt = [...quelle.matchAll(/skizze: '([a-zA-Z]+)'/g)]
-        .map((m2) => m2[1]);
-      wahr('Alle benutzten Skizzenschluessel gibt es',
-           benutzt.every((k) => SK.skizzeFuer(k)),
-           benutzt.filter((k) => !SK.skizzeFuer(k)).join(', ') || 'alle da');
+      const uiQ = readFileSync(
+        new URL('./js/ui.js', import.meta.url), 'utf8');
+      wahr('Keine Serie traegt mehr einen Skizzenschluessel',
+           !/skizze: '[A-Za-z]+'/.test(quelle),
+           (quelle.match(/skizze: '[A-Za-z]+'/g) ?? []).join(' '));
+      wahr('Die Legende ist kein Knopf mehr',
+           !quelle.includes('legende-eintrag')
+           && !quelle.includes('legende-treffer'));
+      wahr('Unter dem Diagramm haengt kein Platz dafuer',
+           !uiQ.includes('dia-skizze'));
+      wahr('Und die Maske laedt das Modul nicht mehr',
+           !uiQ.includes('render.skizzen.js'));
       /*
-       * DIE KURVEN DES ABFANGJOCHS zeigen `abf`-Bilder, keine des
-       * Tragjochs. `eta` ist die eine Ausnahme: die Ausnutzung ist bei
-       * beiden dieselbe Frage.
+       * DAS MODUL SELBST IST FORT. Ein Modul, das niemand laedt, faellt aus
+       * dem Buendel und bleibt im Ordner liegen - der Bericht des Buendlers
+       * nennt es dann unter "nicht eingebundene Module". Besser ganz weg.
        */
-      const AB11 = await import(J('core.abfangjoch.js'));
-      const rAb = AB11.abfangAuswertung({
-        typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24,
-        anbauteile: [], gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38,
-        ek: 'EK2', L_FL: 40 });
-      const abD = CH.abfangDiagramme(rAb, 600);
-      const jochBilder = ['My', 'Vz', 'Mz', 'Tx', 'Vebene', 'Mlokal'];
-      const imAbfang = [...String(abD.schnittgroessen + abD.ebene)
-        .matchAll(/data-skizze="([a-zA-Z]+)"/g)].map((m2) => m2[1]);
-      wahr('Das Abfangjoch zeigt kein Tragjoch-Bild',
-           imAbfang.length > 0
-           && imAbfang.every((k) => !jochBilder.includes(k)),
-           imAbfang.join(', '));
-      wahr('… sondern seine eigenen',
-           imAbfang.every((k) => /^abf/.test(k)));
+      let da = true;
+      try { await import(J('render.skizzen.js')); } catch { da = false; }
+      wahr('Das Modul render.skizzen.js gibt es nicht mehr', da === false);
       /*
-       * UND JEDES BILD TRAEGT SEINEN TEXT. Ein Bild ohne Erklaerung ist
-       * Dekoration; genau das sollen diese Skizzen nicht sein.
+       * DIE UEBRIGEN SKIZZEN BLEIBEN - sie sind etwas anderes: die
+       * Optionsskizzen erklaeren ein EINGABEFELD, die Massskizze zeigt die
+       * Lage eines Anbauteils, die Bauformskizze den Querschnitt. Keine
+       * davon behauptet etwas ueber einen gerechneten Verlauf.
        */
-      /* ===================================================================
-       * ZUG ZIEHT NACH AUSSEN, DRUCK DRUECKT NACH INNEN
-       * ===================================================================
-       *
-       * Weisung vom 11. September: «sollte der zug nich pfeile zeigen die
-       * entgegen gerichtet sind als anders als beim druck. checke bei allen
-       * diagrammen noch die pfeilrichtungen der vektoren, ob richtig.»
-       *
-       * Er sollte, und er tat es nicht: in `My` und `abfN` liefen BEIDE
-       * Reihen von aussen nach innen. Fuer den gedrueckten Gurt ist das
-       * richtig, fuer den gezogenen das Gegenteil dessen, was geschieht -
-       * und in `My` stand der Fehler, seit es das Bild gibt.
-       *
-       * Gepruef wird am gezeichneten SVG, nicht am Quelltext: nur dort
-       * steht, wohin ein Pfeil am Ende zeigt.
-       * ================================================================= */
-      Object.keys(SK.SKIZZEN).forEach((k) => {
-        const svg = SK.skizzeFuer(k).svg;
-        /*
-         * NUR DIE WAAGRECHTEN. Die Kraefte im Gurt laufen laengs des
-         * Traegers; senkrechte und schraege Linien derselben Klasse sind
-         * etwas anderes - die beiden Striche eines ⊗ etwa, das eine Kraft
-         * SENKRECHT zur Bildebene zeigt. Sie nach innen oder aussen zu
-         * pruefen ergaebe keinen Sinn.
-         */
-        const paare = [...svg.matchAll(
-          /class="(sk-(?:zug|druck))" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
-          .filter((m2) => m2[3] === m2[5]);
-        if (!paare.length) return;
-        /*
-         * JE PAAR: zwei Pfeile auf derselben Hoehe. Zeigen sie AUFEINANDER
-         * ZU, ist es Druck; VONEINANDER WEG, ist es Zug. Die Mitte des
-         * Bildes ist x = 100.
-         */
-        const nachInnen = (x1, x2) => (x1 < 100 ? x2 > x1 : x2 < x1);
-        paare.forEach((m2) => {
-          const art = m2[1], x1 = +m2[2], x2 = +m2[4];
-          const innen = nachInnen(x1, x2);
-          wahr(`${k}: ${art} zeigt nach ${art === 'sk-druck'
-                 ? 'innen' : 'aussen'}`,
-               art === 'sk-druck' ? innen : !innen,
-               `x ${x1} → ${x2}`);
-        });
-      });
-      /*
-       * UND KEIN PFEIL HAT LAENGE NULL. `Math.atan2(0, 0)` gibt null, die
-       * Spitze faellt auf den Schaft, und im Bild bleibt ein Fleck ohne
-       * Bedeutung stehen - genau das stand in `abfV`.
-       */
-      Object.keys(SK.SKIZZEN).forEach((k) => {
-        const svg = SK.skizzeFuer(k).svg;
-        const nix = [...svg.matchAll(
-          /x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)]
-          .filter((m2) => m2[1] === m2[3] && m2[2] === m2[4]);
-        wahr(`${k}: kein Pfeil der Laenge null`, nix.length === 0,
-             nix.length ? `${nix.length} Stueck` : '');
-      });
-      wahr('Jede Skizze hat Bild und Text',
-           Object.keys(SK.SKIZZEN).every((k) => {
-             const s = SK.skizzeFuer(k);
-             return s?.svg?.includes('<svg') && (s.text ?? '').length > 40;
-           }));
+      const OS = await import(J('doku.optionsskizzen.js'));
+      wahr('Die Optionsskizzen stehen weiter da',
+           OS.SKIZZEN_FELDER.length > 0, `${OS.SKIZZEN_FELDER.length} Felder`);
+      wahr('Und die Massskizze der Anbauteile auch',
+           uiQ.includes('at-skizze'));
     }
   }
 
