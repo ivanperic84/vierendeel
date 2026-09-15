@@ -1157,10 +1157,25 @@ export function mastNachweis(m, ende = 'A', o = {}) {
    * wird mit k_yy = 0.93 hochgesetzt. Die Vermutung war gut begruendet und
    * trotzdem knapp daneben - genau dafuer rechnet man es aus.
    */
-  const stabil = mastStabilitaet(s, m, {
-    beta: o.knickBeiwert, gammaM1: o.gammaM1 });
+  /*
+   * >>> UND ER WIRD GEFUEHRT ODER NICHT (15. September). <<<
+   *
+   * Weisung: «das knicken des masten deaktivierbar machen. der nachweis ist
+   * zu konservativ, da die Leiter (Rückleiter an Mast und die Kettenwerke am
+   * Joch) den Masten stabilisieren und somit sich ein andere Lk und Moment
+   * einstellt.»
+   *
+   * Nicht gefuehrt heisst NICHT GERECHNET: eine Zahl, die dastuende und
+   * nicht zaehlte, wuerde gelesen. Was fehlt, steht in der Nachweisgruppe
+   * `knickenMast` - im Urteil, im Bericht und im Mastblatt.
+   */
+  const knickenGefuehrt = o.knicken !== false;
+  const stabil = knickenGefuehrt
+    ? mastStabilitaet(s, m, { beta: o.knickBeiwert, gammaM1: o.gammaM1 })
+    : null;
   return {
     ende, ...s, stationen, massgebend, eta: massgebend.eta,
+    knickenGefuehrt,
     fy, fyd, A, Wq, Wl, klasse: kl, plastisch: plWerte,
     plastischGewuenscht: gewuenschtPlastisch, plastischWirksam,
     stabil,
@@ -1206,6 +1221,9 @@ export function mastNachweise(m, o = {}) {
     eta: Math.max(...beide.map((x) => x.eta)),
     etaStabil: Math.max(...beide.map((x) => x.stabil?.eta ?? 0)),
     etaNachweis: Math.max(...beide.map((x) => x.etaMitStabilitaet ?? x.eta)),
+    // Ob das Knicken ueberhaupt gefuehrt wurde - die Anzeige soll den
+    // Unterschied zwischen «haelt» und «nicht geprueft» zeigen koennen.
+    knickenGefuehrt: beide.every((x) => x.knickenGefuehrt !== false),
     massgebendesEnde: beide.reduce((a, b) => (b.eta > a.eta ? b : a)).ende,
   };
 }

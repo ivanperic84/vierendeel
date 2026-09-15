@@ -4172,12 +4172,22 @@ export function zeichneEinzelmast(node, letzte) {
    * steht im Nachweisbericht, nicht in dieser Zeile.
    */
   const knickt = (mn?.stabil?.eta ?? 0) > (mn?.eta ?? 0);
+  /*
+   * >>> OHNE KNICKNACHWEIS IST «TRAGSICHERHEIT ERFÜLLT» EINE HALBE AUSSAGE.
+   *
+   * Weisung vom 15. September: das Knicken abschaltbar. Beim Joch faengt das
+   * die Liste der nicht gefuehrten Nachweise auf; der Einzelmast hat keine -
+   * er zeigt Urteil, Hinweise und das Mastblatt. Also steht es hier.
+   */
+  const ohneKnicken = mn?.knickenGefuehrt === false;
   const stufe = e > 1 ? 'fail' : 'ok';
   const kopf = `<div class="urteil ${stufe}">
       <div class="urteil-eta">η ${f3(e)}</div>
       <div class="urteil-text">${e > 1
         ? 'Nachweis nicht erfüllt'
-        : `Tragsicherheit erfüllt · ${knickt
+        : ohneKnicken
+          ? 'Querschnitt erfüllt · Biegeknicken nicht geführt'
+          : `Tragsicherheit erfüllt · ${knickt
             ? 'Biegeknicken massgebend' : 'Querschnitt massgebend'}`}</div>
     </div>`;
 
@@ -5521,6 +5531,23 @@ export function zeichneAbfangAuflager(node, ab, erg) {
  * Zeile hervorgehoben.
  * ========================================================================= */
 function knickblatt(kS, n) {
+  /*
+   * >>> NICHT GEFUEHRT IST EINE AUSSAGE, KEINE LEERSTELLE. <<<
+   *
+   * Weisung vom 15. September: das Knicken des Masten abschaltbar. Hier
+   * stand `return ''` - dann fehlte der Abschnitt einfach, und wer das Blatt
+   * liest, haelt den Mast fuer nachgewiesen. Der Grund gehoert an die Stelle,
+   * an der sonst die Zahl steht.
+   */
+  if (!kS && n?.knickenGefuehrt === false) {
+    return `<p class="notiz stark" style="margin:6px 0 0">
+      <b>Biegeknicken nicht geführt</b> — der Nachweis ist im Reiter
+      «Nachweise» abgeschaltet. Gerechnet ist allein der Querschnitt;
+      η oben sagt nichts über die Stabilität. Halten die Leiter den Masten
+      — Rückleiter am Masten, Kettenwerke am Joch —, stellen sich eine
+      andere Knicklänge und andere Momente ein als beim freistehenden
+      Kragarm, den diese Rechnung ansetzt.</p>`;
+  }
   if (!kS) return '';
   const kur = kS.knicklinie ?? {};
   /*
@@ -5692,12 +5719,16 @@ function mastblattHtml(erg) {
         Länge, Anbauteile am Masten mit ihren Ausladungen und das Eigengewicht
         des Mastes. Die Längskraft F_x des Jochs teilt sich nach der
         Steifigkeit k = 3EI/H³ auf die beiden Maste.</p>
+      ${mn.knickenGefuehrt === false ? `
+      <p class="notiz stark"><b>Das Biegeknicken ist NICHT geführt</b> —
+        im Reiter «Nachweise» abgeschaltet. η ist die
+        Querschnittsausnutzung und kein Stabilitätsurteil.</p>` : `
       <p class="notiz"><b>Das Biegeknicken ist enthalten</b> — SIA 263,
         Ziffer 4.5.1 für die Knickkurve und 5.1.10.1, Gleichung (50), für
         Druck mit zweiachsiger Biegung. Die Knicklänge ist β · z_eq; die
         Ersatzhöhe z_eq folgt aus dem Rayleigh-Quotienten über alle Massen
         (Einzelheiten im Knicknachweis je Mast). β steht in den Optionen
-        (Vorgabe 2.0, Kragarm).</p>
+        (Vorgabe 2.0, Kragarm).</p>`}
       <p class="notiz"><b>NICHT enthalten: das Kippen</b> (Ziffer 4.5.2,
         χ_LT = 1.0). Beim eingespannten Stiel mit Momenten um beide Achsen
         ist das die übliche Annahme; sie steht hier, damit sie nachgeprüft
@@ -5844,6 +5875,18 @@ export function datenbasisHtml() {
  */
 export function nachweiseHtml(werte) {
   const nw = nachweiseAuswahl(werte.nachweise);
+  /*
+   * >>> `was` DARF EINE FUNKTION SEIN. <<<
+   *
+   * Seit dem 11. September haengt der Text der Gruppe `knickenJoch` an der
+   * Tragwerksart - beim Abfangjoch steht dort der Druckgurt, beim Tragjoch
+   * Gesamtstab und Einzelwinkel. `urteilKonstruktion` ruft sie auf, diese
+   * Liste nicht: sie reichte die FUNKTION an `esc` weiter und druckte deren
+   * Quelltext in die Maske. Gefunden am 15. September beim Einbau der
+   * Gruppe `knickenMast`.
+   */
+  const art = tragwerksart(werte).key;
+  const wasVon = (g) => (typeof g.was === 'function' ? g.was(art) : g.was);
   return `<p class="notiz">Ein nicht geführter Nachweis zählt <b>nie als
     erfüllt</b>. Er wird im Urteil, im Bericht und in der Ausleitung
     ausdrücklich als nicht geführt genannt.</p>`
@@ -5854,7 +5897,7 @@ export function nachweiseHtml(werte) {
           ${nw[g.key] ? 'checked' : ''}${g.vorhanden ? '' : ' disabled'}>
         <span class="nw-titel">${esc(g.titel)}</span>
       </label>
-      <p class="notiz">${esc(g.was)}</p>
+      <p class="notiz">${esc(wasVon(g))}</p>
       ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
         + 'enthalten, separat zu führen.</p>'}
     </div>`).join('');

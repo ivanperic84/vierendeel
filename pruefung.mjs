@@ -9711,29 +9711,54 @@ titel('41  Welche Nachweise gefuehrt werden');
   // --- Die Gruppen -------------------------------------------------------
   {
     const g = CH.NACHWEISGRUPPEN.map((x) => x.key);
-    wahr('Vier Gruppen, in der Reihenfolge der Weisung',
-         g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast', g.join(','));
+    /*
+     * FUENF SEIT DEM 15. SEPTEMBER: das Knicken des Masten ist eine eigene
+     * Gruppe geworden, damit es sich abschalten laesst, ohne den
+     * Querschnittsnachweis mitzunehmen (Weisung, siehe unten).
+     */
+    wahr('Fuenf Gruppen, in der Reihenfolge der Weisung',
+         g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,knickenMast',
+         g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Drei davon gibt es',
-         da.join(',') === 'jochtragwerk,auflagerJoch,mast', da.join(','));
+    wahr('Vier davon gibt es',
+         da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast',
+         da.join(','));
     wahr('Knicken ist nicht enthalten',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').vorhanden === false);
     // Der Mast seit dem 28. August schon - und sein `was` sagt, was FEHLT.
     wahr('Der Mast ist enthalten',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').vorhanden === true);
     /*
-     * SEIT DEM 2. SEPTEMBER MIT STABILITAET.
+     * SEIT DEM 2. SEPTEMBER MIT STABILITAET - UND SEIT DEM 15. SEPTEMBER
+     * ALS EIGENE GRUPPE.
      *
-     * Hier stand, `was` muesse die Stabilitaet als NICHT enthalten nennen.
-     * Das Biegeknicken wird jetzt gefuehrt (EN 1993-1-1, 6.3.3); was aussen
-     * vor bleibt, ist das Biegedrillknicken - und auch das steht dort, statt
-     * still angenommen zu werden.
+     * Weisung: "das knicken des masten deaktivierbar machen. der nachweis
+     * ist zu konservativ, da die Leiter (Rueckleiter an Mast und die
+     * Kettenwerke am Joch) den Masten stabilisieren und somit sich ein
+     * andere Lk und Moment einstellt."
+     *
+     * Abschaltbar ist, was eine eigene Gruppe ist: der Schalter der Gruppe
+     * `mast` wuerde den Querschnitt mitnehmen, und der bleibt zu fuehren.
      */
-    wahr('Das Biegeknicken ist enthalten',
-         /Biegeknicken/.test(CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').was));
-    wahr('… und das Biegedrillknicken ausdruecklich nicht',
-         /Biegedrillknicken bleibt aussen vor/
-           .test(CH.NACHWEISGRUPPEN.find((x) => x.key === 'mast').was));
+    const grp = (k) => CH.NACHWEISGRUPPEN.find((x) => x.key === k);
+    wahr('Das Knicken des Masten ist eine eigene Gruppe',
+         grp('knickenMast')?.vorhanden === true);
+    wahr('\u2026 und voreingestellt gefuehrt - der strengere Fall',
+         grp('knickenMast')?.standard === true);
+    wahr('\u2026 der Mast selbst nennt es nicht mehr',
+         !/Biegeknicken/.test(grp('mast').was));
+    wahr('\u2026 dafuer die eigene Gruppe',
+         /Biegeknicken/.test(grp('knickenMast').was));
+    wahr('\u2026 und das Biegedrillknicken ausdruecklich nicht',
+         /Biegedrillknicken bleibt in beiden F\u00e4llen aussen vor/
+           .test(grp('knickenMast').was));
+    /*
+     * DER GRUND STEHT DABEI. Ein Schalter, dessen Begruendung nur im
+     * Sitzungsprotokoll steht, wird beim naechsten Mal falsch gestellt.
+     */
+    wahr('\u2026 und der Grund, warum man ihn ausschaltet',
+         /R\u00fcckleiter/.test(grp('knickenMast').was)
+         && /Kettenwerke/.test(grp('knickenMast').was));
     wahr('Das Auflager ist vorhanden, aber nicht voreingestellt',
          CH.NACHWEISGRUPPEN.find((g) => g.key === 'auflagerJoch').vorhanden === true);
   }
@@ -14735,6 +14760,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 }
 
 // ===========================================================================
+const CH9x = await import(J('core.checks.js'));
 // PRUEFUNG 74: Biegeknicken des Mastes, EN 1993-1-1, 6.3. Weisung vom
 // 2. September: «nimm noch die stabilitätsnachweis mit ein in die app».
 {
@@ -15083,12 +15109,75 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   {
     const { e } = mast();
     wahr('Der Nachweis wird gefuehrt', Number.isFinite(e.mast.etaStabil));
-    wahr('… und liegt in derselben Groessenordnung',
+    wahr('\u2026 und liegt in derselben Groessenordnung',
          e.mast.etaStabil > e.mast.eta * 0.5
          && e.mast.etaStabil < e.mast.eta * 2);
     // Das URTEIL zaehlt beides, die Farbskala nur den Querschnitt.
     wahr('etaNachweis ist das groessere der beiden',
          e.mast.etaNachweis === Math.max(e.mast.eta, e.mast.etaStabil));
+  }
+
+  /* =======================================================================
+   * >>> UND ER LAESST SICH ABSCHALTEN. <<<
+   * =======================================================================
+   *
+   * Weisung vom 15. September: "das knicken des masten deaktivierbar machen.
+   * der nachweis ist zu konservativ, da die Leiter (Rueckleiter an Mast und
+   * die Kettenwerke am Joch) den Masten stabilisieren und somit sich ein
+   * andere Lk und Moment einstellt."
+   *
+   * NICHT GEFUEHRT HEISST NICHT GERECHNET. Eine Zahl, die dastuende und
+   * nicht zaehlte, wuerde gelesen - deshalb steht `stabil` dann auf null
+   * und nicht auf einem Wert, den man uebersehen muss.
+   *
+   * GEMESSEN am J90 / 20.00 m mit HEB 260 und H = 8.00 m:
+   *
+   *   gefuehrt      eta 0.7793 Querschnitt, 0.8344 Knicken -> 0.8344
+   *   abgeschaltet  eta 0.7793 Querschnitt,   -   Knicken -> 0.7793
+   *
+   * Also 6.6 % - und genau darum geht die Weisung: der freistehende Kragarm
+   * beschreibt einen Masten, den die Leiter in Wirklichkeit halten.
+   */
+  {
+    const jochMast = (nachweise) => {
+      const w = { ...basis(), endbedingung: 'mast', mastVorhanden: true,
+                  mastProfil: 'HEB 260', mastH: 8.0, L: 20, nachweise };
+      return rechne(w);
+    };
+    const an = jochMast({ knickenMast: true });
+    const aus = jochMast({ knickenMast: false });
+    const vor = jochMast(undefined);
+
+    wahr('Abgeschaltet wird die Stabilitaet gar nicht erst gerechnet',
+         aus.mast.A.stabil === null && aus.mast.B.stabil === null);
+    wahr('\u2026 und das Merkmal sagt es',
+         aus.mast.knickenGefuehrt === false && an.mast.knickenGefuehrt === true);
+    pruef('Der Querschnitt bleibt unberuehrt', aus.mast.eta, an.mast.eta,
+          1e-12, '-');
+    pruef('Der Nachweis faellt auf ihn zurueck', aus.mast.etaNachweis,
+          aus.mast.eta, 1e-12, '-');
+    wahr('\u2026 und das ist weniger als mit Knicken',
+         aus.mast.etaNachweis < an.mast.etaNachweis,
+         `${aus.mast.etaNachweis.toFixed(4)} gegen ${an.mast.etaNachweis.toFixed(4)}`);
+    /*
+     * OHNE ANGABE GILT DIE VORGABE, und die ist AN. Wer nichts einstellt,
+     * bekommt den strengeren Fall - eine alte Datei ohne das Feld ebenso.
+     */
+    pruef('Ohne Angabe wird gefuehrt', vor.mast.etaNachweis,
+          an.mast.etaNachweis, 1e-12, '-');
+    /*
+     * UND ES STEHT IM URTEIL. Ein abgeschalteter Nachweis, den niemand
+     * sieht, waere die gefaehrlichste Zeile dieser Anwendung.
+     */
+    const ch = CH9x.konstruktionsChecks(aus.modell);
+    const uAus = CH9x.urteilKonstruktion(ch, { knickenMast: false }, 'joch');
+    const uAn = CH9x.urteilKonstruktion(ch, { knickenMast: true }, 'joch');
+    wahr('Abgeschaltet steht er unter den nicht gefuehrten',
+         uAus.nichtGefuehrt.some((g) => g.key === 'knickenMast'
+                                     && g.grund === 'ausgeschaltet'),
+         uAus.nichtGefuehrt.map((g) => g.key).join(' '));
+    wahr('\u2026 und eingeschaltet nicht',
+         !uAn.nichtGefuehrt.some((g) => g.key === 'knickenMast'));
   }
 
   /*

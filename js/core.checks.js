@@ -145,9 +145,45 @@ export const NACHWEISGRUPPEN = [
    */
   { key: 'mast', titel: 'Mast', vorhanden: true, standard: true,
     was: 'Querschnitt am Mastfuss und an jeder Anbaustelle — σ aus N, M_quer '
-       + 'und M_längs — sowie Biegeknicken nach EN 1993-1-1, 6.3.3. '
-       + 'Biegedrillknicken bleibt aussen vor (χ_LT = 1.0, eingespannter '
-       + 'Stiel)' },
+       + 'und M_längs' },
+  /* =========================================================================
+   * >>> DAS KNICKEN DES MASTEN IST EIN EIGENER NACHWEIS - UND ABSCHALTBAR.
+   * =========================================================================
+   *
+   * Weisung vom 15. September: «zuerst noch das knicken des masten
+   * deaktivierbar machen. der nachweis ist zu konservativ, da die Leiter
+   * (Rückleiter an Mast und die Kettenwerke am Joch) den Masten
+   * stabilisieren und somit sich ein andere Lk und Moment einstellt.»
+   *
+   * >>> WARUM ER NICHT EINFACH ÜBER β GEHT. <<<
+   *
+   * Den Knicklängenbeiwert gibt es seit dem 2. September als Eingabe, und
+   * wer den Mastkopf gehalten weiß, könnte 1.0 oder weniger eintragen. Das
+   * trifft die Sache aber nur halb: die Leiter ändern nicht bloss L_cr,
+   * sondern auch die MOMENTE - sie halten den Kopf zurück, während das
+   * Werkzeug einen freistehenden Kragarm rechnet. Dann beschreibt die
+   * Rechnung ein anderes Tragwerk, und ein kleineres β wäre eine
+   * Ausrede dafür statt einer Antwort darauf.
+   *
+   * Deshalb ein eigener NACHWEIS, den man nicht führt - keine Zahl, die
+   * man zurechtbiegt. Nicht geführt heißt hier wie überall: er zählt nie
+   * als erfüllt, steht im Urteil und im Bericht ausdrücklich da, und η
+   * fällt auf den Querschnitt zurück.
+   *
+   * ER BLEIBT VOREINGESTELLT AN. Wer nichts einstellt, bekommt den
+   * strengeren Fall - das ist beim Auflagernachweis umgekehrt (der ist ab
+   * Werk aus), und zwar aus demselben Grund: dort ist die Grenzlast der
+   * Schrauben eine Angabe, die stimmen muss, hier ist der Kragarm die
+   * übliche Annahme.
+   * ======================================================================= */
+  { key: 'knickenMast', titel: 'Knicken Mast', vorhanden: true, standard: true,
+    was: 'Biegeknicken nach SIA 263, Ziffer 4.5.1 und 5.1.10.1 — '
+       + 'L_cr = β · Ersatzhöhe, β in den Optionen (Vorgabe 2.0, Kragarm). '
+       + 'Abschaltbar: halten die Leiter den Masten — Rückleiter am Masten, '
+       + 'Kettenwerke am Joch —, stellen sich eine andere Knicklänge und '
+       + 'andere Momente ein, und der freistehende Kragarm überschätzt das '
+       + 'Knicken. Biegedrillknicken bleibt in beiden Fällen aussen vor '
+       + '(χ_LT = 1.0, eingespannter Stiel)' },
 ];
 
 /** Voreinstellung je Gruppe. */

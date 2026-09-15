@@ -354,8 +354,16 @@ export function modellEinzelmast(inp, stahl) {
  */
 export function berechneEinzelmast(inp, stahl) {
   const m = modellEinzelmast(inp, stahl);
+  /*
+   * `knicken` FOLGT DER NACHWEISAUSWAHL (15. September). Fehlt die Angabe,
+   * gilt die Voreinstellung der Gruppe `knickenMast` - und die ist AN.
+   * Geschrieben steht das hier als `!== false`, nicht ueber
+   * `nachweiseAuswahl`: core.checks.js dafuer hereinzuholen hiesse, den
+   * Rechenkern von der Nachweisliste abhaengig zu machen.
+   */
   const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true,
-                                  knickBeiwert: inp.knickBeiwert });
+                                  knickBeiwert: inp.knickBeiwert,
+                                  knicken: inp.nachweise?.knickenMast !== false });
   /*
    * >>> DAS URTEIL DES EINZELMASTEN IST DER NACHWEIS, nicht der Querschnitt.
    *
@@ -926,7 +934,8 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
     modell: m, knoten: rows, extrem: extremwerte(m),
     stationen: n,
     mast: mastNachweise(m, { plastisch: inp.mastPlastisch === true,
-                                  knickBeiwert: inp.knickBeiwert }),
+                                  knickBeiwert: inp.knickBeiwert,
+                                  knicken: inp.nachweise?.knickenMast !== false }),
     schnitt: auswertungAn(m.xNachweis ?? m.L / 2, m),
     max: {
       etaOG: argMax((r) => r.og.eta),

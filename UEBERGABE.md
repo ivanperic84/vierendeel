@@ -397,6 +397,54 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Das Knicken des Masten lässt sich abschalten (15. September)
+
+Weisung: «zuerst noch das knicken des masten deaktivierbar machen. der
+nachweis ist zu konservativ, da die Leiter (Rückleiter an Mast und die
+Kettenwerke am Joch) den Masten stabilisieren und somit sich ein andere Lk und
+Moment einstellt.»
+
+**Warum nicht über β.** Den Knicklängenbeiwert gibt es seit dem 2. September
+als Eingabe, und wer den Mastkopf gehalten weiss, könnte 1.0 eintragen. Das
+trifft die Sache nur halb: die Leiter ändern nicht bloss L_cr, sondern auch
+die **Momente** — sie halten den Kopf zurück, während das Werkzeug einen
+freistehenden Kragarm rechnet. Ein kleineres β wäre eine Ausrede dafür statt
+einer Antwort darauf.
+
+Deshalb ein eigener **Nachweis**, den man nicht führt — keine Zahl, die man
+zurechtbiegt. Das Knicken ist aus der Gruppe *Mast* herausgelöst und steht als
+fünfte Gruppe `knickenMast` in `NACHWEISGRUPPEN`; die Gruppe *Mast* führt
+seither den Querschnitt allein. Den Schalter der Gruppe *Mast* umzulegen hätte
+den Querschnittsnachweis mitgenommen, und der bleibt zu führen.
+
+**Nicht geführt heisst nicht gerechnet.** `stabil` steht dann auf `null`, nicht
+auf einem Wert, den man übersehen muss. Was fehlt, steht an drei Stellen: in
+der Liste der nicht geführten Nachweise (Urteil, Bericht, Ausleitung), im
+Mastblatt an der Stelle, an der sonst das Knickblatt steht, und beim
+Einzelmasten im Urteil selbst («Querschnitt erfüllt · Biegeknicken nicht
+geführt»).
+
+**Gemessen** am J90 / 20.00 m mit HEB 260, H 8.00 m:
+
+| | Querschnitt | Knicken | Nachweis |
+|---|---|---|---|
+| geführt | 0.7793 | 0.8344 | **0.8344** |
+| abgeschaltet | 0.7793 | — | **0.7793** |
+
+Am Modell in der Anwendung (HEB 240): η M1 **0.885 → 0.817**, und «Knicken
+Mast» erscheint unter den nicht geführten Nachweisen.
+
+**Voreingestellt bleibt er an.** Wer nichts einstellt, bekommt den strengeren
+Fall — beim Auflagernachweis ist es umgekehrt (der ist ab Werk aus), und zwar
+aus demselben Grund: dort ist die Schraubengrenze eine Angabe, die stimmen
+muss, hier ist der Kragarm die übliche Annahme.
+
+**Nebenbefund.** Die Liste im Reiter *Nachweise* gab `g.was` unbesehen an
+`esc()` weiter. Seit dem 11. September ist `was` bei der Gruppe *Knicken Joch*
+eine **Funktion** der Tragwerksart — dort stand also der Quelltext der Funktion
+in der Maske. `urteilKonstruktion` ruft sie richtig auf, diese Liste nicht.
+Behoben.
+
 ### Das Auflager des Tragjochs ist das des Abfangjochs (15. September)
 
 Weisung: «das auflger für das tragjoch angleichen an abfangjoch, wie
@@ -5290,6 +5338,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
 | **Mastnachweis im Gesamturteil** | **offen, und es ist ein Entscheid.** `etaGesamt` und `urteilKonstruktion` kennen ihn nicht; die Fussleiste meldet «Alle Nachweise erfüllt», während der Mast dreifach überschritten sein kann — siehe *Befund: das Gesamturteil kennt den Mastnachweis nicht* |
 | **Abfangjoch** | **gebaut.** Sortiment seit dem 3. September vollständig (17 Typen), Rechenkern seit dem 10. September eigen (`core.abfangjoch.js`): zweigurtiger Träger mit Sprossen, eigene Auswertung über Schnitt, Verläufe und Auflager |
+| **Druckstütze im AxisVM als zwei Profile** («Stufe 1») | **Backlog**, Weisung vom 15. September. Heute geht EIN Stab hinaus — ein Ersatzrechteck mit der richtigen Fläche, gelenkig an beiden Enden, mit der Vorsatzkonsole als Starrelement; im 3D sind die zwei gespreizten Profile bereits gezeichnet (`ankerSpreizungAn`). Zu bauen sind zwei Stabzüge, die Bindelaschen und der Anschluss an beiden Enden. Für die Kräfte ändert das nichts — der Pendelstab trägt schon das richtige E·A. **Blockiert durch zwei Angaben:** der Bezug des Spreizmasses (lichtes Mass, Achsabstand oder Aussenmass — `bezug: null` seit dem 11. September; I_z geht mit dem Quadrat des Achsabstands) und die **Bindelaschen** (Abstand und Profil stehen im Sortiment nicht) |
 
 ## Das Sortiment der Abfangjoche (3. September)
 
