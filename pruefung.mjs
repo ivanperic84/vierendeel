@@ -6609,22 +6609,87 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     const schraege = alleGlieder.filter((s) => achse3(s.name) === 'schräg');
     wahr('Kein Glied der Auflagerkette läuft schräg',
          schraege.length === 0, schraege.map((s) => s.name).join(', '));
-    /*
-     * >>> DER VERSATZ IN z, MIT MASS. <<<
+    /* =====================================================================
+     * >>> DER VERSATZ IN z ZEIGT NACH AUSSEN. <<<
+     * =====================================================================
      *
-     * Er ist das, was am 13. September fehlte. Halber Schenkel plus 50 mm,
-     * nach innen - unter dem horizontalen Blech des Obergurts durch.
+     * Weisung vom 15. September: "in der hoehe die link elemente ausserhalb
+     * des vierendeel traegers anbringen. sonst koennten wir ueberlagerungen
+     * bekommen wenn das linkelement genau auf ein stehendes blech trifft."
+     *
+     * Sie nimmt die Loesung vom selben Tag zurueck: ich hatte den Versatz
+     * nach INNEN gelegt, zwischen die Gurtebenen. Dort stehen aber die
+     * Bleche - und der Anschlusspunkt der Kette faellt mit der Konsolspitze
+     * auf eine Station, an der eines stehen kann. Zwei Bauteile am selben
+     * Ort sind im Modell nicht mehr auseinanderzuhalten.
+     *
+     * AUSSEN ist nichts: kein Blech, kein Riegel, kein Anbauteil.
+     *
+     * Das Mass bleibt: halber Schenkel plus 50 mm Luft, beim L 90x9 also
+     * 95 mm. Der Obergurt hinauf, der Untergurt hinunter.
      */
     const kKons = kn3(st3('KONSOLE_A_OG').bis);
     const kGurt = kn3(st3('LINK_A_OGL').bis);
-    pruef('Die Konsole liegt unter der Gurtebene',
-          kGurt.z - kKons.z, 0.090 / 2 + 0.05, 1e-9, 'm');
+    pruef('Die Konsole liegt ueber der Obergurtebene',
+          kKons.z - kGurt.z, 0.090 / 2 + 0.05, 1e-9, 'm');
     const kKonsU = kn3(st3('KONSOLE_A_UG').bis);
     const kGurtU = kn3(st3('LINK_A_UGL').bis);
-    pruef('Und beim Untergurt darüber, gleich weit',
-          kKonsU.z - kGurtU.z, 0.090 / 2 + 0.05, 1e-9, 'm');
-    wahr('Beide Ansätze liegen zwischen den Gurtebenen',
-         kKons.z < kGurt.z && kKonsU.z > kGurtU.z);
+    pruef('Und unter der Untergurtebene, gleich weit',
+          kGurtU.z - kKonsU.z, 0.090 / 2 + 0.05, 1e-9, 'm');
+    wahr('Beide Ansaetze liegen ausserhalb der Gurtebenen',
+         kKons.z > kGurt.z && kKonsU.z < kGurtU.z);
+    /*
+     * UND DAS LINK KOMMT VON AUSSEN. Sein Anschlusspunkt sitzt 50 mm ueber
+     * dem Obergurt bzw. unter dem Untergurt - nicht dazwischen.
+     */
+    const kAnsO = kn3(st3('LINK_A_OGL').von);
+    const kAnsU = kn3(st3('LINK_A_UGL').von);
+    pruef('Das Link haengt 50 mm ueber dem Obergurt',
+          kAnsO.z - kGurt.z, 0.05, 1e-9, 'm');
+    pruef('… und 50 mm unter dem Untergurt', kGurtU.z - kAnsU.z, 0.05,
+          1e-9, 'm');
+    /*
+     * >>> UND DAMIT LIEGT DIE GANZE KETTE FREI. <<<
+     *
+     * Die Probe, die den Grund der Weisung festhaelt: kein Glied der Kette
+     * liegt zwischen den beiden Gurtebenen, wo die Bleche stehen. Die
+     * Gurtknoten selbst sind der Rand und zaehlen nicht mit.
+     */
+    {
+      const zO = kGurt.z, zU = kGurtU.z;
+      const drin = b3.staebe
+        .filter((x) => /^(KONSOLE|KONSARM|LINKSTIEL|LINK)_[AB]_/.test(x.name))
+        .filter((x) => [kn3(x.von), kn3(x.bis)].some(
+          (p) => p.z < zO - 1e-9 && p.z > zU + 1e-9));
+      wahr('Kein Glied der Kette liegt zwischen den Gurtebenen',
+           drin.length === 0, drin.map((x) => x.name).join(', '));
+    }
+    /*
+     * >>> UEBER DEM OBERGURT REICHT DER MAST NICHT IMMER HIN. <<<
+     *
+     * Unter dem Untergurt schon - dort laeuft er zum Fundament. Oben nur mit
+     * Ueberstand; ohne einen traegt ein kurzes starres Stueck den Ansatz.
+     * Seit dem 5. September haengt die Mastlaenge an der Anschlusshoehe
+     * (H + 0.50 m), es gibt ihn also im Regelfall. Der Rueckfall wird
+     * trotzdem geprueft - er ist der Fall, den niemand einstellt und der
+     * dann doch vorkommt.
+     */
+    {
+      const { m: mOhne } = bau({ mastVorhanden: true, mastProfil: 'HEB 260',
+                                 mastH: 8.0, mastLaenge: 8.0 });
+      const bOhne = AX.stabmodell(mOhne, { knotenmodell: 'anschnitt' });
+      const stueck = bOhne.staebe.filter((x) => /^KONSANSATZ_/.test(x.name));
+      wahr('Ohne Ueberstand traegt ein Ansatzstueck den Obergurtarm',
+           stueck.length === 2, `${stueck.length}`);
+      wahr('… und keines den Untergurtarm - dort ist der Mast',
+           stueck.every((x) => /_OG$/.test(x.name)),
+           stueck.map((x) => x.name).join(' '));
+      const mit = bau({ mastVorhanden: true, mastProfil: 'HEB 260',
+                        mastH: 8.0 }).m;
+      wahr('Mit Ueberstand sitzt der Ansatz auf dem Masten',
+           AX.stabmodell(mit, { knotenmodell: 'anschnitt' }).staebe
+             .every((x) => !/^KONSANSATZ_/.test(x.name)));
+    }
     /*
      * >>> DIE KONSOLE MISST DIE HALBE MASTBREITE. <<<
      *

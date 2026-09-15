@@ -397,6 +397,47 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Auflagerkette liegt ausserhalb des Trägers (15. September)
+
+Weisung: «in der höhe die link elemente ausserhalb des vierendeel trägers
+anbringen. sonst könnten wir überlagerungen bekommen wenn das linkelement
+genau auf ein stehendes blech trifft.»
+
+Sie nimmt meine Lösung vom selben Tag zurück. Ich hatte den z-Versatz nach
+**innen** gelegt, zwischen die beiden Gurtebenen, mit dem Argument, über dem
+Obergurt ende der Mast. Der Einwand ist der bessere: **innen stehen die
+Bleche.** Der Anschlusspunkt der Kette liegt an der Konsolspitze, und die
+fällt mit der Blecheinteilung zusammen, sobald die Konsolenlänge zur Teilung
+passt — dann liegen zwei Bauteile an derselben Stelle und sind im Modell nicht
+mehr auseinanderzuhalten.
+
+Aussen ist dagegen nichts: über dem Obergurt und unter dem Untergurt steht
+kein Blech, kein Riegel, kein Anbauteil.
+
+**Gemessen** am J90 (L 90×9, Gurtebenen auf ±0.2246):
+
+| Glied | von | nach |
+|---|---|---|
+| `KONSOLE_A_OG` | 0.000, 0.000, **+0.320** | 0.130, 0.000, +0.320 |
+| `KONSARM_A_OGL` | 0.130, 0.000, +0.320 | 0.130, −0.195, +0.320 |
+| `LINKSTIEL_A_OGL` | 0.130, −0.195, +0.320 | 0.130, −0.195, +0.275 |
+| `LINK_A_OGL` | 0.130, −0.195, +0.275 | 0.130, −0.195, **+0.225** |
+
+Das Mass bleibt das des Abfangjochs — halber Schenkel plus 50 mm Luft, also
+95 mm —, nur die Richtung kehrt sich um: der Obergurt hinauf, der Untergurt
+hinunter. Das Linkelement hängt 50 mm über dem Obergurt und kommt von dort auf
+ihn herunter.
+
+**Der Mast reicht nicht immer so weit.** Unter dem Untergurt schon — dort
+läuft er zum Fundament, und er wird dort geteilt. Über dem Obergurt nur mit
+Überstand; seit dem 5. September hängt die Mastlänge an der Anschlusshöhe
+(H + 0.50 m), es gibt ihn also im Regelfall. Ohne einen trägt ein **kurzes
+starres Stück** (`KONSANSATZ_A_OG`, 95 mm) den Ansatz über dem Mastkopf. Beide
+Fälle stehen als Kontrolle.
+
+Eine Probe hält den Grund der Weisung fest: **kein Glied der Kette liegt
+zwischen den Gurtebenen.**
+
 ### Die Kraftbilder an den Kurven sind weg (15. September)
 
 Weisung: «nimm diese sekundären erklär skizzen zu den einzelnen kurven weg,

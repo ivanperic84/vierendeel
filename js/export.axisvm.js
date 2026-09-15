@@ -1767,15 +1767,33 @@ export function stabmodell(m, opt = {}) {
        * -, und der Mast wird dort GETEILT statt einen zweiten Stab daneben
        * zu bekommen: die Konsole ist angeschweisst, nicht angehaengt.
        *
-       * >>> WOHIN DER VERSATZ ZEIGT. <<<
+       * >>> WOHIN DER VERSATZ ZEIGT: NACH AUSSEN. <<<
        *
-       * Beim Abfangjoch nach UNTEN, unter die Gurtebene. Hier liegen ZWEI
-       * Gurtebenen uebereinander, und ausserhalb ist kein Platz: ueber dem
-       * Obergurt endet der Mast, wo kein Ueberstand angegeben ist. Der freie
-       * Raum liegt ZWISCHEN den Ebenen - der Obergurt weicht nach unten aus,
-       * der Untergurt nach oben. Damit laeuft die Konsole unter dem
-       * horizontalen Blech des Obergurts durch statt hindurch, und der
-       * Ansatz sitzt immer auf dem Mast.
+       * Weisung vom 15. September: \u00abin der hoehe die link elemente
+       * ausserhalb des vierendeel traegers anbringen. sonst koennten wir
+       * ueberlagerungen bekommen wenn das linkelement genau auf ein
+       * stehendes blech trifft.\u00bb
+       *
+       * Sie nimmt meine Loesung vom selben Tag zurueck. Ich hatte den Versatz
+       * nach INNEN gelegt, zwischen die beiden Gurtebenen, mit dem Argument,
+       * ueber dem Obergurt ende der Mast. Der Einwand ist der bessere: INNEN
+       * stehen die Bleche. Der Anschlusspunkt der Kette liegt an der
+       * Konsolspitze, und die faellt mit der Blecheinteilung zusammen, sobald
+       * die Konsolenlaenge zur Teilung passt - dann liegen zwei Bauteile an
+       * derselben Stelle, und im Modell sind sie nicht mehr auseinander-
+       * zuhalten.
+       *
+       * AUSSERHALB ist dagegen nichts: ueber dem Obergurt und unter dem
+       * Untergurt steht kein Blech, kein Riegel, kein Anbauteil. Das
+       * Linkelement kommt von dort auf den Gurt herunter bzw. herauf, und die
+       * ganze Kette liegt frei.
+       *
+       * >>> UND DER MAST REICHT NICHT IMMER SO WEIT. <<<
+       *
+       * Unter dem Untergurt schon - dort laeuft er zum Fundament. Ueber dem
+       * Obergurt nur, wenn ein Ueberstand angegeben ist. Wo er hinreicht,
+       * wird er GETEILT (die Konsole ist angeschweisst, nicht danebengehaengt);
+       * wo nicht, traegt ein kurzes starres Stueck ueber dem Mastkopf.
        *
        * Das Mass ist das des Abfangjochs: halbe Profilhoehe plus 50 mm Luft.
        * Beim Winkel ist die Profilhoehe der stehende Schenkel `aV`.
@@ -1787,14 +1805,30 @@ export function stabmodell(m, opt = {}) {
       const hK = m.verlauf ? m.verlauf.hAn(xK) : m.h;
       const zGurtK = { OG: zOben, UG: r6(zOben - hK) };
       const zAnsatz = {};
+      const ansatzKn = {};
+      const ansatzAus = [];
       ['OG', 'UG'].forEach((gurt) => {
         const pG = gurt === 'OG' ? m.profOG : m.profUG;
         const versatz = Math.max((Number(pG?.aV) || 0) / 2000, 0.025)
                       + AUFL_Z_LUFT;
-        const zv = r6(zGurtK[gurt] - (gurt === 'OG' ? +1 : -1) * versatz);
+        // NACH AUSSEN: der Obergurt hinauf, der Untergurt hinunter.
+        const zv = r6(zGurtK[gurt] + (gurt === 'OG' ? +1 : -1) * versatz);
         zAnsatz[gurt] = zv;
-        if (!mastKn.has(zv)) {
-          mastKn.set(zv, s.kn(`MAST_${an(ende)}_A_${gurt}`, x, 0, zv));
+        if (zv <= zKopf + 1e-9 && zv >= zFuss - 1e-9) {
+          // Der Mast reicht hin - er wird dort geteilt.
+          if (!mastKn.has(zv)) {
+            mastKn.set(zv, s.kn(`MAST_${an(ende)}_A_${gurt}`, x, 0, zv));
+          }
+          ansatzKn[gurt] = mastKn.get(zv);
+        } else {
+          /*
+           * UEBER DEM MASTKOPF. Ohne Ueberstand endet der Mast am Obergurt;
+           * der Ansatz haengt dann an einem kurzen starren Stueck darueber
+           * statt an einem Mast, den es nicht gibt. Der Stab entsteht weiter
+           * unten - der oberste Mastknoten steht erst nach der Teilung fest.
+           */
+          ansatzKn[gurt] = s.kn(`MAST_${an(ende)}_A_${gurt}`, x, 0, zv);
+          ansatzAus.push(gurt);
         }
       });
 
@@ -1804,6 +1838,16 @@ export function stabmodell(m, opt = {}) {
                mastKn.get(zStufen[i]), mastKn.get(zStufen[i + 1]),
                { lcsZ: lcsMast });
       }
+      /*
+       * DER ANSATZ UEBER DEM MASTKOPF - ein starres Stueck, kein Mast. Es
+       * traegt die Konsole dort, wo der Mast nicht mehr hinreicht. Mit
+       * Ueberstand gibt es ihn nicht: dann sitzt der Ansatz auf dem Mast.
+       */
+      ansatzAus.forEach((gurt) => {
+        s.stab(`KONSANSATZ_${an(ende)}_${gurt}`, qsStarr,
+               mastKn.get(zStufen[zStufen.length - 1]), ansatzKn[gurt],
+               { starrRolle: 'verbindung' });
+      });
 
       /*
        * >>> JEDE GURTEBENE HAT IHRE EIGENE BEDINGUNG. <<<
@@ -1891,13 +1935,18 @@ export function stabmodell(m, opt = {}) {
         const vzG = gurt === 'OG' ? +1 : -1;
         const kKons = s.kn(`KONS_${an(ende)}_${gurt}`, xK, 0, zAnsatz[gurt]);
         s.stab(`KONSOLE_${an(ende)}_${gurt}`, qsStarr,
-               mastKn.get(zAnsatz[gurt]), kKons, { starrRolle: 'verbindung' });
+               ansatzKn[gurt], kKons, { starrRolle: 'verbindung' });
         ['L', 'R'].forEach((seite) => {
           const yG = yGurt(gurt, seite, xK);
           const kArm = s.kn(`ARM_${an(ende)}_${gurt}${seite}`,
                             xK, yG, zAnsatz[gurt]);
+          /*
+           * DAS LINK HAENGT AUSSEN: 50 mm ueber dem Obergurt, 50 mm unter dem
+           * Untergurt. Hier stand ein Minus - damit sass sein Anschlusspunkt
+           * INNEN, zwischen den Gurtebenen, wo die Bleche stehen.
+           */
           const kAns = s.kn(`ANS_${an(ende)}_${gurt}${seite}`, xK, yG,
-                            r6(zGurtK[gurt] - vzG * AUFL_LINK_LAENGE));
+                            r6(zGurtK[gurt] + vzG * AUFL_LINK_LAENGE));
           s.stab(`KONSARM_${an(ende)}_${gurt}${seite}`, qsStarr, kKons, kArm,
                  { starrRolle: 'verbindung' });
           s.stab(`LINKSTIEL_${an(ende)}_${gurt}${seite}`, qsStarr, kArm, kAns,
