@@ -663,8 +663,43 @@ export function expandiereAnbauteile(liste, o = {}) {
        */
       const ohneFd = (ganz, anteil) => (wFd ? ganz - anteil : 0);
 
+      /* =====================================================================
+       * >>> DAS GEWICHT GILT BEIDEN LEITERN, DIE UEBRIGEN DEM FAHRDRAHT. <<<
+       * =====================================================================
+       *
+       * Frage vom 15. September: «es gibt auch abzugsmasten, diese lenken nur
+       * die leiter um, dies gilt dann fuer tragseil und fahrdraht. das heisst
+       * hier wirken nur ablenk und wind lasten.»
+       *
+       * Zwei Faelle, und sie ziehen in verschiedene Richtungen:
+       *
+       *   FAHRDRAHTABZUG an der Haengestuetze - Ablenkung und Wind des
+       *   FAHRDRAHTS gehen dorthin, sein Gewicht haengt weiter am Tragseil.
+       *
+       *   ABZUGSMAST - der lenkt nur um: kein Gewicht, weder vom Tragseil
+       *   noch vom Fahrdraht, aber Ablenkung und Wind von BEIDEN.
+       *
+       * >>> EIN FELD MEHR BRAUCHT ES DAFUER NICHT. <<<
+       *
+       * Die Haken haben verschiedene Bezuege, und zwar aus der Sache heraus:
+       *
+       *   Gewicht      gilt BEIDEN Leitern - es haengt am Tragseil, und
+       *                das gilt fuer beide (Weisung vom 28. August: «Die
+       *                staendigen aber beide zum Tragseil gehen»).
+       *   Ablenkung    gilt dem FAHRDRAHT - seine geht in die Drueckstuetze
+       *                oder in einen Fahrdrahtabzug.
+       *   Wind         ebenso.
+       *
+       * Damit deckt dieselbe Zeile beide Faelle:
+       *
+       *   Fahrdrahtabzug   Ablenkung und Wind ab   -> nur der Fahrdraht faellt
+       *   Abzugsmast       Gewicht ab              -> beide Leiter, nur Umlenkung
+       *
+       * Die Maske schreibt den Bezug an jeden Haken (siehe `WIRKUNGEN` in
+       * ui.js) - drei Haken mit zwei Bezuegen sind sonst eine Falle.
+       * =================================================================== */
       const kraefte = leereKraefte();
-      kraefte.G.Fz = wirkt('wirktG') ? w.Gz : ohneFd(w.Gz, wFd?.Gz ?? 0);
+      kraefte.G.Fz = wirkt('wirktG') ? w.Gz : 0;
       kraefte.G.Fx = wirkt('wirktAblenk') ? Gx : ohneFd(Gx, GxFd);
       if (wirkt('wirktQ')) {
         kraefte.WindX.Fx = w.Qx;
@@ -696,7 +731,13 @@ export function expandiereAnbauteile(liste, o = {}) {
                * Ausleitung und die Maske sollen es benennen koennen. Ohne
                * Fahrdraht-Eintrag gibt es keinen Anteil zum Abziehen.
                */
-              fdTrennbar: Boolean(wFd), fahrdraht: zKw?.fd ?? null } : null,
+              fdTrennbar: Boolean(wFd), fahrdraht: zKw?.fd ?? null,
+              /*
+               * WELCHER HAKEN WELCHEN BEZUG HAT - das Gewicht gilt beiden
+               * Leitern, Ablenkung und Wind dem Fahrdraht. Die Maske und die
+               * Ausleitung sollen es benennen koennen, statt es zu wissen.
+               */
+              bezug: { G: 'beide', ablenk: 'fahrdraht', Q: 'fahrdraht' } } : null,
         // Die Klammer ueber Tragseil und Fahrdraht. Sie geht in keine
         // Rechnung ein - noch nicht: der Havariefall (Bruch eines
         // Kettenwerks) waehlt spaeter darueber aus.

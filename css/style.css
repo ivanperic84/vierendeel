@@ -639,6 +639,16 @@ input[type=range].rng {
    25 px Hoehe - das Partnerfeld stand ausserhalb von `.modul-kopf` und
    bekam deshalb die allgemeine Feldformatierung. Die Regel gilt jetzt
    beiden. */
+/* DIE MARKE AM HAKEN: wem er gilt (Frage vom 15. September zum Abzugsmast).
+   Drei Kaestchen nebeneinander, von denen eines etwas anderes meint als die
+   beiden anderen, waeren sonst eine Falle. */
+.wirk-bez {
+  font-style: normal; font-size: 8px; letter-spacing: .04em;
+  margin-left: 3px; padding: 0 3px; border-radius: 3px;
+  background: var(--s2); color: var(--dim); vertical-align: 1px;
+}
+.wirk-bez.fd { color: var(--acc); }
+
 .modul-kopf select, .modul-partner select { font-size: 11px; padding: 3px 5px; min-width: 0; }
 /* Der Spiegelknopf steht neben der Bauteilwahl und darf nicht umbrechen -
    «x ⇄» auf zwei Zeilen liest sich wie zwei Knöpfe. */

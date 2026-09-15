@@ -397,6 +397,69 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Der Abzugsmast: drei Haken, zwei Bezüge (15. September)
+
+Frage: «es gibt auch abzugsmasten, diese lenken nur die leiter um, dies gilt
+dann für tragseil und fahrdraht. das heisst hier wirken nur ablenk und wind
+lasten. wie könnte man das am elegantesten umsetzen?»
+
+Zwei Fälle, die in verschiedene Richtungen ziehen:
+
+| | Gewicht | Ablenkung | Wind | gilt für |
+|---|---|---|---|---|
+| **Fahrdrahtabzug** an der Hängestütze | bleibt | ab | ab | Fahrdraht |
+| **Abzugsmast** | ab | bleibt | bleibt | beide Leiter |
+
+**Ein zusätzliches Feld braucht es dafür nicht** — die Bezüge folgen aus der
+Sache:
+
+* **Gewicht** gilt *beiden* Leitern. Es hängt am Tragseil, und das gilt für
+  beide — so schon die Weisung vom 28. August: «Die ständigen aber beide zum
+  Tragseil gehen».
+* **Ablenkung** und **Wind** gelten dem *Fahrdraht* — seine Ablenkung geht in
+  die Drückstütze oder in einen Fahrdrahtabzug.
+
+Damit trifft dieselbe Zeile beide Fälle: **Ablenkung und Wind ab** ist der
+Fahrdrahtabzug, **Gewicht ab** ist der Abzugsmast. Nachgemessen am
+N-FL Ts: StCu 50 / Fd: Cu 107, EK2, 40 m, R = 600 m:
+
+```
+                    G_z      G_x       Q_x
+alles an          0.8000   0.9933    0.9600
+Abzugsmast        0.0000   0.9933    0.9600   Gewicht ab
+Fahrdrahtabzug    0.8000   0.4267    0.5440   Ablenkung + Wind ab
+```
+
+**Der Bezug steht an jedem Haken** — «Gewicht (beide)», «Ablenkung (Fd)»,
+«Wind/Schnee (Fd)». Drei Kästchen nebeneinander, von denen eines etwas anderes
+meint als die beiden anderen, wären sonst eine Falle. Bei einem *einzelnen*
+Leiter fällt die Marke weg: dort gibt es nichts zu unterscheiden.
+
+Das nimmt einen Teil der Weisung vom 13. September zurück («ausschliesslich auf
+den fahrdraht beziehen»): sie bleibt für Ablenkung und Wind, beim **Gewicht**
+gilt wieder der 28. August. Sonst trüge ein Mast, der die Leiter nur umlenkt,
+weiterhin ihr halbes Gewicht.
+
+### Woher «hängt an Hängestütze» kommt (15. September)
+
+Frage: «wann kommt der hinweis zum drahtwerk hängt an hängestütze oder
+hängerohr?»
+
+Die Zeile ist **keine Einstellung**, sie wird gerechnet — in `anbauKette`
+(core.anbauteile.js), aus zwei Dingen:
+
+1. **Die Rolle aus der Bauteiltabelle** gibt den Rang: `traeger` (0) hängt am
+   Joch, `aufbau` (1) sitzt auf dem Träger, `drahtwerk` (2) hängt am Aufbau.
+   Ohne Rolle bleibt ein Teil auf Stufe 0, also unmittelbar am Joch — «wo die
+   Daten keine Kette nennen, wird auch keine erfunden».
+2. **Die Angriffspunkte** entscheiden, *welcher* Träger es ist, wenn mehrere in
+   Frage kommen: die Kette verbindet Lastpunkte, und das Glied, das den Punkt
+   geschaffen hat, an dem ein Teil sitzt, wird beim Namen genannt.
+
+Sie erscheint deshalb bei **jedem** Modul — nur steht dort «hängt an Joch»,
+solange nichts darüber liegt. Ein Drahtwerk in einer Baugruppe mit Hängestütze
+hängt an ihr, weil die Stütze Rang 0 hat und das Drahtwerk Rang 2.
+
 ### Die Vielfachen sind eine Anzahl (13. September)
 
 Weisung: «die x2 x3 varianten durch anzahl ersetzen.»

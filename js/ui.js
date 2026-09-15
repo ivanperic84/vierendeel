@@ -2927,35 +2927,58 @@ function modFeld(i, k, feld, label, wert, einheit, schritt, hinweis = '') {
  * Nur bei DRAHTWERKEN. Ein Träger hat keine Ablenkkraft, und wer sein Gewicht
  * nicht will, schaltet das Modul ab.
  */
+/* ===========================================================================
+ * >>> DREI HAKEN, ZWEI BEZUEGE. <<<
+ * ===========================================================================
+ *
+ * Frage vom 15. September: «es gibt auch abzugsmasten, diese lenken nur die
+ * leiter um, dies gilt dann fuer tragseil und fahrdraht. das heisst hier
+ * wirken nur ablenk und wind lasten.»
+ *
+ * Zwei Faelle, die in verschiedene Richtungen ziehen - und sie brauchen kein
+ * zusaetzliches Feld, weil die Bezuege aus der Sache folgen:
+ *
+ *   Gewicht      gilt BEIDEN Leitern. Es haengt am Tragseil, und das gilt
+ *                fuer beide (Weisung vom 28. August).
+ *   Ablenkung    gilt dem FAHRDRAHT - seine geht in die Drueckstuetze oder
+ *                in einen Fahrdrahtabzug an der Haengestuetze.
+ *   Wind         ebenso.
+ *
+ *   Fahrdrahtabzug   Ablenkung und Wind ab  ->  nur der Fahrdraht faellt weg
+ *   Abzugsmast       Gewicht ab             ->  beide Leiter, nur Umlenkung
+ *
+ * >>> UND DAS MUSS AN JEDEM HAKEN STEHEN. <<<
+ *
+ * Drei Kaestchen nebeneinander, von denen eines etwas anderes meint als die
+ * beiden anderen, sind sonst eine Falle - man hakt «Gewicht» ab und erwartet,
+ * dass es dem Fahrdraht gilt wie daneben.
+ * ========================================================================= */
 const WIRKUNGEN = [
-  { key: 'wirktG', label: 'Gewicht',
-    titel: 'Eigengewicht des Leiters, ständig, Gruppe G' },
-  { key: 'wirktAblenk', label: 'Ablenkung',
+  { key: 'wirktG', label: 'Gewicht', bezug: 'beide',
+    titel: 'Eigengewicht des Leiters, ständig, Gruppe G. Gilt BEIDEN Leitern: '
+         + 'das Gewicht hängt am Tragseil. Abwählen beim Abzugsmast, der die '
+         + 'Leiter nur umlenkt.' },
+  { key: 'wirktAblenk', label: 'Ablenkung', bezug: 'fahrdraht',
     titel: 'Ablenkkraft aus dem Kurvenzug (Z·c/R), ebenfalls ständig. '
          + 'Abwählen, wenn dieser Anteil anderswo hingeht: beim Fahrdraht '
          + 'am Joch in die Drückstütze oder in einen Fahrdrahtabzug an der '
          + 'Hängestütze, am Ausleger in die Spurhaltertraverse.' },
-  { key: 'wirktQ', label: 'Wind/Schnee',
+  { key: 'wirktQ', label: 'Wind/Schnee', bezug: 'fahrdraht',
     titel: 'Wind auf den Leiter und Schnee, veränderlich' },
 ];
 
 function wirkungHtml(i, k, m) {
-  /* =========================================================================
-   * >>> ER STEHT UNTER DEM FAHRDRAHT, UND ER SAGT, WEM ER GILT. <<<
-   * =========================================================================
+  /*
+   * >>> ER STEHT UNTER DEM FAHRDRAHT, UND JEDER HAKEN SAGT, WEM ER GILT. <<<
    *
-   * Weisung vom 13. September: «der Titel wirkt hier kettenwerk ist etwas
-   * missverstaendlich. zudem sollte dies unterhalb von fahrdraht stehen
-   * damit man die zugehoerigkeit (nur auf fahrdraht angewendet) versteht.»
+   * Weisung vom 13. September: unterhalb des Fahrdrahts, weil die
+   * Zugehoerigkeit sonst nicht zu sehen ist. Frage vom 15. September: der
+   * Abzugsmast lenkt nur um - dort faellt das Gewicht BEIDER Leiter weg,
+   * waehrend Ablenkung und Wind beider wirken.
    *
-   * Beides traf zu. «Wirkt hier · Kettenwerk KW1» las sich, als ginge es um
-   * das Kettenwerk als Ganzes - und der Block stand drei Abschnitte weiter
-   * unten, hinter Angriffspunkt und Ablenkung, wo ihn nichts mehr mit der
-   * Wahl darueber verband.
-   *
-   * Jetzt: unmittelbar unter dem Fahrdraht, und die Ueberschrift nennt ihn
-   * beim Namen. Die Klammer «Kettenwerk» steht als Feld darin, nicht mehr
-   * als Beischrift in der Zeile - sie ist eine Eingabe, keine Auskunft.
+   * Die Bezuege stehen in `WIRKUNGEN`; hier werden sie angeschrieben. Bei
+   * einem EINZELNEN Leiter gibt es nichts zu unterscheiden - dann faellt
+   * die Beischrift weg, statt «(beide)» an einen einzigen Leiter zu haengen.
    */
   let b = null;
   try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
@@ -2964,42 +2987,40 @@ function wirkungHtml(i, k, m) {
   // Gibt es den Fahrdraht auch einzeln? Nur dann laesst sich sein Anteil
   // abziehen - «N-FL Cu 150» steht nur in der Paarung.
   const trennbar = kw && Boolean(flPaarung(null, z.fd, z.anzahl ?? 1));
-  const titel = kw && trennbar ? `Davon wirkt am Fahrdraht ${z.fd}`
-    : kw ? 'Davon wirkt hier'
-    : 'Davon wirkt hier';
-  const rechts = !kw ? 'abgewählt = dieser Leiter fällt ganz weg'
-    : trennbar ? 'abgewählt = ohne den Fahrdraht'
-    : `abgewählt = alles (${z.fd} gibt es nicht einzeln)`;
+  const marke = (x) => {
+    if (!kw) return '';
+    if (x.bezug === 'beide') return '<i class="wirk-bez">beide</i>';
+    return trennbar ? '<i class="wirk-bez fd">Fd</i>'
+                    : '<i class="wirk-bez">beide</i>';
+  };
+  const rechts = !kw ? 'einzelner Leiter'
+    : trennbar ? `Fd = ${z.fd}`
+    : `${z.fd} gibt es nicht einzeln — die Haken gelten beiden`;
   /*
-   * DER HINWEIS IST EINGEKLAPPT UND KURZ (Weisung, gleicher Satz: «den
+   * DER HINWEIS IST EINGEKLAPPT UND KURZ (Weisung, 13. September: «den
    * infotext unterhalb einklappbar machen und auf ein minimum reduzieren»).
-   *
-   * Er stand als zehn Zeilen Fliesstext unter jedem Drahtwerk - bei drei
-   * Modulen dreissig Zeilen, die dasselbe sagen. `hinweisHtml` klappt ihn
-   * zu: der erste Satz steht da, der Rest kommt auf Klick.
    */
   const kurz = kw && trennbar
-    ? `Die Haken gelten dem Fahrdraht ${z.fd}. Abgewählt bleibt, was das `
-      + 'Kettenwerk ohne ihn abgibt — Tragseil samt Hängern, nicht der blosse '
-      + 'Tabellenwert des Tragseils. Gewicht und Ablenkung sind beide ständig, '
-      + 'gehen aber oft verschiedene Wege: das Gewicht kommt am Joch an, die '
-      + 'Ablenkung des Fahrdrahts in der Drückstütze oder in einem '
-      + 'Fahrdrahtabzug an der Hängestütze.'
+    ? `Gewicht gilt beiden Leitern — es hängt am Tragseil. Ablenkung und Wind `
+      + `gelten dem Fahrdraht ${z.fd}; abgewählt bleibt, was das Kettenwerk `
+      + 'ohne ihn abgibt, also Tragseil samt Hängern. So trifft dieselbe Zeile '
+      + 'beide Fälle: den Fahrdrahtabzug an der Hängestütze (Ablenkung und '
+      + 'Wind ab) und den Abzugsmast, der nur umlenkt (Gewicht ab).'
     : kw
       ? `${z.fd} steht nur in der Paarung, nicht als eigener Eintrag — sein `
-        + 'Anteil lässt sich nicht abziehen. Die Haken nehmen deshalb das ganze '
-        + 'Kettenwerk weg.'
-      : 'Abgewählt fällt dieser Leiter ganz weg. Gewicht und Ablenkung sind '
-        + 'beide ständig, gehen aber oft verschiedene Wege: die Ablenkung des '
-        + 'Fahrdrahts etwa in die Drückstütze.';
-  return `<div class="sec-klein">${esc(titel)}<span class="sec-r">${
+        + 'Anteil lässt sich nicht abziehen. Alle drei Haken gelten deshalb '
+        + 'dem ganzen Kettenwerk.'
+      : 'Abgewählt fällt dieser Anteil ganz weg. Beim Abzugsmast, der die '
+        + 'Leiter nur umlenkt, ist das Gewicht abzuwählen; Ablenkung und Wind '
+        + 'bleiben.';
+  return `<div class="sec-klein">Davon wirkt hier<span class="sec-r">${
       esc(rechts)}</span></div>
     <div class="wirkung">
       ${WIRKUNGEN.map((x) => `<label class="schalter" title="${esc(
-        `${x.titel}\n\n${rechts}`)}">
+        `${x.titel}`)}">
         <input class="mod" data-mk="${x.key}" data-idx="${i}" data-mod="${k}"
                type="checkbox" ${m[x.key] === false ? '' : 'checked'}>
-        <span>${esc(x.label)}</span></label>`).join('')}
+        <span>${esc(x.label)}${marke(x)}</span></label>`).join('')}
       <label class="at-feld kette-feld" data-feldname="kettenwerk">
         <span>Kettenwerk</span>
         <input class="mod" data-mk="kettenwerk" data-idx="${i}" data-mod="${k}"

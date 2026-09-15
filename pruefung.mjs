@@ -7019,19 +7019,63 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     /*
      * 2 - ABGEHAKT HEISST: OHNE DEN FAHRDRAHT-ANTEIL.
      */
+    /* =====================================================================
+     * >>> DREI HAKEN, ZWEI BEZUEGE - UND ZWAR AUS DER SACHE HERAUS. <<<
+     * =====================================================================
+     *
+     * Frage vom 15. September: «es gibt auch abzugsmasten, diese lenken nur
+     * die leiter um, dies gilt dann fuer tragseil und fahrdraht. das heisst
+     * hier wirken nur ablenk und wind lasten.»
+     *
+     * Zwei Faelle, die in verschiedene Richtungen ziehen:
+     *
+     *   FAHRDRAHTABZUG   Ablenkung und Wind des FAHRDRAHTS gehen an die
+     *                    Haengestuetze, sein Gewicht haengt am Tragseil.
+     *   ABZUGSMAST       lenkt nur um: kein Gewicht, weder vom Tragseil
+     *                    noch vom Fahrdraht - aber Ablenkung und Wind
+     *                    von BEIDEN.
+     *
+     * Ein zusaetzliches Feld braucht es dafuer nicht. Das GEWICHT gilt
+     * beiden Leitern (es haengt am Tragseil - Weisung vom 28. August),
+     * ABLENKUNG und WIND dem Fahrdraht. Damit trifft dieselbe Zeile beide
+     * Faelle.
+     */
     pruef('Ohne Ablenkung bleibt die des Tragseils',
           s(KW, { wirktAblenk: false }).Gx, ts.Gx, 1e-9, 'kN');
-    pruef('Ohne Gewicht bleibt das des Tragseils',
-          s(KW, { wirktG: false }).Gz, ts.Gz, 1e-9, 'kN');
     pruef('Ohne Wind bleibt Kettenwerk minus Fahrdraht',
           s(KW, { wirktQ: false }).Qx, ganz.Qx - fd.Qx, 1e-9, 'kN');
     /*
-     * >>> UND DAS IST MEHR ALS DAS TRAGSEIL ALLEIN. <<<
+     * >>> DAS GEWICHT ABER FAELLT FUER BEIDE. <<<
+     *
+     * Das ist der Abzugsmast. Bliebe hier das Tragseilgewicht stehen, haette
+     * man einen Masten, der die Leiter nur umlenkt - und trotzdem ihr halbes
+     * Gewicht traegt.
      */
-    wahr('Der Wind-Rest traegt die Haenger mit',
-         s(KW, { wirktQ: false }).Qx > ts.Qx + 1e-9,
-         `${s(KW, { wirktQ: false }).Qx.toFixed(4)} gegen ${ts.Qx.toFixed(4)}`);
-
+    pruef('Ohne Gewicht faellt es fuer beide Leiter',
+          s(KW, { wirktG: false }).Gz, 0, 1e-12, 'kN');
+    /*
+     * >>> DER ABZUGSMAST, IN EINER ZEILE. <<<
+     *
+     * Gewicht ab, Ablenkung und Wind an: dann wirken beide Leiter mit ihrer
+     * ganzen Umlenkkraft und ihrem ganzen Wind, und nichts haengt vertikal.
+     */
+    const abzug = s(KW, { wirktG: false });
+    pruef('Abzugsmast: kein Gewicht', abzug.Gz, 0, 1e-12, 'kN');
+    pruef('… aber die ganze Ablenkung beider Leiter', abzug.Gx, ganz.Gx,
+          1e-12, 'kN');
+    pruef('… und der ganze Wind', abzug.Qx, ganz.Qx, 1e-12, 'kN');
+    /*
+     * UND DER FAHRDRAHTABZUG, zum Vergleich: das Gewicht bleibt ganz, weil
+     * es am Tragseil haengt; nur Ablenkung und Wind des Fahrdrahts fallen.
+     */
+    const fdAbzug = s(KW, { wirktAblenk: false, wirktQ: false });
+    pruef('Fahrdrahtabzug: das Gewicht bleibt ganz', fdAbzug.Gz, ganz.Gz,
+          1e-12, 'kN');
+    pruef('… die Ablenkung nur die des Tragseils', fdAbzug.Gx, ts.Gx,
+          1e-9, 'kN');
+    wahr('… und der Wind traegt die Haenger mit',
+         fdAbzug.Qx > ts.Qx + 1e-9,
+         `${fdAbzug.Qx.toFixed(4)} gegen ${ts.Qx.toFixed(4)}`);
     /*
      * 3 - BEI EINEM EINZELNEN LEITER FAELLT ER GANZ WEG - wie bisher. Es
      * gibt keinen Fahrdraht-Anteil abzuziehen.
@@ -12111,8 +12155,19 @@ titel('51  Was ein Leiter an dieser Stelle abgibt');
      * DER TITEL NENNT DEN FAHRDRAHT (Weisung: «der Titel wirkt hier
      * kettenwerk ist etwas missverstaendlich»).
      */
-    wahr('Die Ueberschrift nennt den Fahrdraht',
-         roh.includes('`Davon wirkt am Fahrdraht ${z.fd}`'));
+    /*
+     * DIE UEBERSCHRIFT NENNT KEINEN EINZELNEN LEITER MEHR - seit dem
+     * 15. September haben die drei Haken ZWEI Bezuege (Gewicht beiden,
+     * Ablenkung und Wind dem Fahrdraht). Eine Ueberschrift, die «am
+     * Fahrdraht» sagt, waere fuer den Gewichtshaken falsch. Der Bezug steht
+     * jetzt an jedem Haken.
+     */
+    wahr('Jeder Haken traegt seinen Bezug',
+         roh.includes("bezug: 'beide'") && roh.includes("bezug: 'fahrdraht'"));
+    wahr('… und die Maske schreibt ihn an',
+         roh.includes('wirk-bez') && roh.includes('const marke = (x)'));
+    wahr('Bei einem einzelnen Leiter faellt die Marke weg',
+         roh.includes("if (!kw) return '';"));
     wahr('… und «Wirkt hier · Kettenwerk» ist weg',
          !roh.includes("`Kettenwerk ${m.kettenwerk}`"));
     /*
