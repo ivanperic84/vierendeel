@@ -428,6 +428,19 @@ Ein gesperrtes **leeres** Feld gehört weg. Wer eine fünfte Sperre einbaut,
 fällt im Prüfstand auf: die Kontrolle zählt die Stellen mit `disabled` und
 nagelt jede einzeln fest.
 
+**Die mittleren beiden sind ausdrücklich bestätigt** (15. September, auf die
+Frage, ob auch sie verschwinden sollen: «beide so lassen»). Der Grund, den die
+Antwort bestätigt: beide tragen eine Auskunft, die beim Ausblenden verloren
+ginge. Die **Option** stand in einer Liste — wäre sie weg, fragte sich der
+Anwender, wo die Wahl hin ist; ausgegraut sagt sie, dass es sie gibt und warum
+sie hier nicht geht. Die **Nachweisgruppe** sagt, dass dieser Nachweis im
+Werkzeug *nicht* enthalten und separat zu führen ist — ausgeblendet wüsste
+niemand, dass er fehlt, und das ist die gefährlichere Lücke.
+
+Zwei Kontrollen halten ausserdem fest, dass beide ihre **Begründung** behalten:
+eine ausgegraute Zeile ohne sie wäre das Schlechteste von beidem — sie nimmt
+Platz und sagt nichts.
+
 ### Der Abzugsmast: drei Haken, zwei Bezüge (15. September)
 
 Frage: «es gibt auch abzugsmasten, diese lenken nur die leiter um, dies gilt

@@ -7167,10 +7167,40 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          `${sperren} Stellen`);
     wahr('1 - der Katalogwert, den «Werte bearbeiten» freigibt',
          uq4.includes("const dis = gesperrt ? ' disabled' : '';"));
-    wahr('2 - die Option, die ihren Grund im Text traegt',
+    /*
+     * >>> ZWEI DAVON SIND AM 15. SEPTEMBER AUSDRUECKLICH BESTAETIGT. <<<
+     *
+     * Vorgelegt wurde die Frage, ob auch die Option «Kragarm - nur ohne
+     * Masten im Modell» und die Nachweisgruppe «Knicken Joch» verschwinden
+     * sollen, statt ausgegraut dazustehen. Antwort: «beide so lassen.»
+     *
+     * DER GRUND, den die Antwort bestaetigt: beide tragen eine Auskunft, die
+     * beim Ausblenden verloren ginge.
+     *
+     *   Die OPTION steht in einer Liste. Waere sie weg, fragte sich der
+     *   Anwender, wo die Wahl hin ist - ausgegraut sagt sie, dass es sie
+     *   gibt und warum sie hier nicht geht.
+     *
+     *   Die NACHWEISGRUPPE sagt, dass dieser Nachweis im Werkzeug NICHT
+     *   enthalten ist und separat zu fuehren waere. Ausgeblendet wuesste
+     *   niemand, dass er fehlt - und das ist die gefaehrlichere Luecke.
+     *
+     * Wer sie beim naechsten Aufraeumen wegnimmt, faellt hier auf.
+     */
+    wahr('2 - die Option, die ihren Grund im Text traegt (bestaetigt 15.9.)',
          uq4.includes("o.aus ? ' disabled' : ''"));
-    wahr('3 - die Nachweisgruppe, die es nicht gibt',
+    wahr('3 - die Nachweisgruppe, die es nicht gibt (bestaetigt 15.9.)',
          uq4.includes("g.vorhanden ? '' : ' disabled'"));
+    /*
+     * UND DIE AUSKUNFT, DIE BEIDE TRAGEN, MUSS STEHEN BLEIBEN. Eine
+     * ausgegraute Zeile ohne Begruendung waere das Schlechteste von beidem:
+     * sie nimmt Platz und sagt nichts.
+     */
+    const sq = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+    wahr('… die Option nennt ihren Grund',
+         sq.includes('nur ohne Masten im Modell'));
+    wahr('… und die Gruppe sagt, dass sie separat zu fuehren ist',
+         uq4.includes('separat zu führen'));
     wahr('4 - der Name eines vorgegebenen Lastfalls',
          uq4.includes("lf.eigen || !lf.key ? '' : 'disabled'"));
     /*
