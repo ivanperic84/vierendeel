@@ -607,10 +607,9 @@ input[type=range].rng {
   text-transform: uppercase; color: var(--dim); margin-bottom: 1px;
 }
 .modul-partner select { grid-column: 1; min-width: 0; }
-/* Gesperrt heisst: es gibt hier nichts zu waehlen - aber die Zeile bleibt
-   stehen, damit nichts springt (Weisung: «zudem springt die anzeige»). */
-.modul-partner.aus { opacity: .55; }
-.modul-partner.aus select { cursor: not-allowed; }
+/* Die gesperrte Fassung ist am 15. September entfallen - «dynamisch
+   einblenden nicht abgehakt». Ein leeres Feld, das nichts zeigt und nichts
+   kann, ist kein Platzhalter, sondern eine Attrappe. */
 
 /* --- Die Kette, in der Karte lesbar --------------------------------------
    Was auf was sitzt, entsteht aus den ROLLEN der Bauteile - und die standen

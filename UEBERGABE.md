@@ -397,6 +397,37 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Was nicht gilt, verschwindet (15. September)
+
+Weisung: «die fahrdraht auswahl nur aufführen, wenn stcu 50 oder 92
+(Tragseile) ausgewählt ist. dynamisch einblenden nicht abgehakt, das gilt für
+alle elemente in dieser app.»
+
+Sie nimmt eine Lösung vom 13. September zurück: dort stand das Partnerfeld
+**gesperrt** da, damit beim Wechsel des Bauteils nichts springt. Die Abwägung
+war falsch — ein leeres Feld, das nichts zeigt und nichts kann, ist kein
+Platzhalter, sondern eine Attrappe. Die Linie des Hauses steht ohnehin seit dem
+1. September in `zeichneMaske`: «wenn nicht aktiv Eingabe ausblenden, sonst
+verwirrend».
+
+Nachgemessen im Browser: Kettenwerk → Feld da, Cu 95 → weg, N-FL StCu 50 →
+wieder da, und **null** gesperrte Elemente in der Karte.
+
+**Die Regel, die daraus folgt — und sie gilt der ganzen Anwendung.** Gesperrt
+darf ein Bedienelement nur dastehen, wenn es etwas **zeigt**. Die Anwendung hat
+vier solche Stellen, und der Prüfstand zählt sie:
+
+| | was es zeigt |
+|---|---|
+| **Katalogwert** — jd, jbb, g_k | den Wert, mit dem gerechnet wird; «Werte bearbeiten» gibt ihn frei |
+| **Option mit Grund** — «nur ohne Masten im Modell» | die Wahl, die es gibt, samt dem Grund, warum sie hier nicht geht |
+| **Nachweisgruppe** — «In diesem Werkzeug nicht enthalten» | dass es sie gibt und wer sie führen muss |
+| **Lastfallname** — vorgegebene Bezeichnung | den Namen, der nicht zu ändern ist |
+
+Ein gesperrtes **leeres** Feld gehört weg. Wer eine fünfte Sperre einbaut,
+fällt im Prüfstand auf: die Kontrolle zählt die Stellen mit `disabled` und
+nagelt jede einzeln fest.
+
 ### Der Abzugsmast: drei Haken, zwei Bezüge (15. September)
 
 Frage: «es gibt auch abzugsmasten, diese lenken nur die leiter um, dies gilt

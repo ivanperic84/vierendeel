@@ -2629,25 +2629,29 @@ function modulListeHtml(a, i, werte) {
   };
 
   /* =========================================================================
-   * >>> DER PARTNER HAENGT AM TRAGSEIL, NICHT UMGEKEHRT. <<<
+   * >>> DER PARTNER HAENGT AM TRAGSEIL - UND ERSCHEINT NUR DORT. <<<
    * =========================================================================
    *
    * Weisung vom 13. September: «die sekundaere eingabe hirarchisch
    * verstehen. nur wenn ein tragseil eingegeben wird dann zusatzauswahl
    * moeglich machen.»
    *
-   * Das trifft die Bauweise: ein Kettenwerk HAENGT am Tragseil - der
-   * Fahrdraht kommt dazu, nicht umgekehrt. Die erste Fassung bot deshalb
-   * beides an («mit Tragseil» an einem Fahrdraht), und das stellte die
-   * Sache auf den Kopf.
+   * Weisung vom 15. September, und sie nimmt meine Loesung zurueck: «die
+   * fahrdraht auswahl nur auffuehren, wenn stcu 50 oder 92 (Tragseile)
+   * ausgewaehlt ist. dynamisch einblenden nicht abgehakt, das gilt fuer alle
+   * elemente in dieser app.»
    *
-   * >>> UND ES STEHT IMMER DA, AUCH WENN ES NICHT WAEHLBAR IST. <<<
+   * Ich hatte das Feld stehen lassen und GESPERRT, damit beim Wechsel des
+   * Bauteils nichts springt. Das war die falsche Abwaegung: ein leeres Feld,
+   * das nichts zeigt und nichts kann, ist kein Platzhalter, sondern eine
+   * Attrappe. Die Linie des Hauses steht seit dem 1. September in
+   * `zeichneMaske`: «wenn nicht aktiv Eingabe ausblenden, sonst verwirrend».
    *
-   * Weisung, gleicher Satz: «zudem springt die anzeige wenn es eingeblendet
-   * wird.» Ein Feld, das beim Wechsel des Bauteils erscheint und
-   * verschwindet, verschiebt alles darunter - man klickt auf das, was
-   * gerade weggerutscht ist. Bei jedem Drahtwerk steht es deshalb da; wo es
-   * keinen Partner geben kann, ist es gesperrt und sagt, warum.
+   * >>> DIE REGEL, DIE DARAUS FOLGT. <<<
+   *
+   * Gesperrt darf ein Feld nur dastehen, wenn es etwas ZEIGT - einen Wert
+   * aus dem Katalog, eine Option mit ihrem Grund, eine Aussage. Ein
+   * gesperrtes LEERES Feld gehoert weg. Der Pruefstand haelt das fest.
    */
   const partnerFeld = (m, k, i) => {
     let b = null;
@@ -2656,26 +2660,22 @@ function modulListeHtml(a, i, werte) {
     const z = flZerlegung(b);
     const kw = istKettenwerk(b);
     const istTs = kw || flTragseile().some((x) => x.name === z.leiter);
+    if (!istTs) return '';
     const eigen = kw ? z.ts : z.leiter;
     const gewaehlt = kw ? z.fd : '';
     /*
      * NUR WAS ES IN DER TABELLE GIBT. Eine Paarung ohne Eintrag waere eine
      * Summe, und die faellt beim Wind fuenfzehn Prozent zu klein aus.
      */
-    const moeglich = istTs
-      ? flFahrdraehte().filter((x) => flPaarung(eigen, x.name, z.anzahl ?? 1))
-      : [];
-    const aus = !istTs || !moeglich.length;
-    return `<label class="modul-partner${aus ? ' aus' : ''}">
+    const moeglich = flFahrdraehte()
+      .filter((x) => flPaarung(eigen, x.name, z.anzahl ?? 1));
+    if (!moeglich.length) return '';
+    return `<label class="modul-partner">
       <span class="modul-partner-t">mit Fahrdraht</span>
-      <select class="mod" data-mk="partner" data-idx="${i}" data-mod="${k}"${
-        aus ? ' disabled' : ''}
-        title="${esc(aus
-          ? 'Ein Fahrdraht kommt zum TRAGSEIL dazu — wählen Sie oben eines aus.'
-          : 'Der Fahrdraht dieses Kettenwerks. Gerechnet wird mit dem '
-            + 'Tabelleneintrag der Paarung, nicht mit der Summe beider Leiter.')}">
-        <option value=""${gewaehlt ? '' : ' selected'}>${
-          aus ? '— nur mit Tragseil' : '— keiner, einzelner Leiter'}</option>
+      <select class="mod" data-mk="partner" data-idx="${i}" data-mod="${k}"
+        title="${esc('Der Fahrdraht dieses Kettenwerks. Gerechnet wird mit dem '
+          + 'Tabelleneintrag der Paarung, nicht mit der Summe beider Leiter.')}">
+        <option value=""${gewaehlt ? '' : ' selected'}>— keiner, einzelner Leiter</option>
         ${moeglich.map((x) => `<option value="${esc(x.name)}"${
           x.name === gewaehlt ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
       </select></label>`;

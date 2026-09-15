@@ -7131,9 +7131,58 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     const uq4 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
     wahr('Der Partner gilt nur am Tragseil',
          uq4.includes('const istTs = kw || flTragseile()'));
-    wahr('… und das Feld steht auch dann da, wenn es gesperrt ist',
-         uq4.includes("aus ? ' disabled' : ''")
-         && uq4.includes('— nur mit Tragseil'));
+    /* =====================================================================
+     * >>> WAS NICHT GILT, VERSCHWINDET - ES STEHT NICHT GESPERRT DA. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: «die fahrdraht auswahl nur auffuehren, wenn
+     * stcu 50 oder 92 (Tragseile) ausgewaehlt ist. dynamisch einblenden
+     * nicht abgehakt, das gilt fuer alle elemente in dieser app.»
+     *
+     * Sie nimmt eine Loesung vom 13. September zurueck: dort stand das Feld
+     * gesperrt da, damit beim Wechsel des Bauteils nichts springt. Die
+     * Abwaegung war falsch - ein leeres Feld, das nichts zeigt und nichts
+     * kann, ist kein Platzhalter, sondern eine Attrappe.
+     *
+     * Die Linie des Hauses steht seit dem 1. September in `zeichneMaske`:
+     * «wenn nicht aktiv Eingabe ausblenden, sonst verwirrend».
+     *
+     * >>> DIE REGEL, DIE DARAUS FOLGT - UND SIE GILT DER GANZEN ANWENDUNG.
+     *
+     * Gesperrt darf ein Bedienelement nur dastehen, wenn es etwas ZEIGT:
+     *
+     *   ein KATALOGWERT       jd, jbb, g_k - «Werte bearbeiten» gibt sie
+     *                         frei, und man soll sehen, womit gerechnet wird
+     *   eine OPTION mit Grund «nur ohne Masten im Modell» - wer sie sucht,
+     *                         faende sie sonst nicht mehr
+     *   eine AUSSAGE          «In diesem Werkzeug nicht enthalten»
+     *   ein fester NAME       die Bezeichnung eines vorgegebenen Lastfalls
+     *
+     * Ein gesperrtes LEERES Feld gehoert weg. Diese Kontrolle zaehlt die
+     * Stellen mit `disabled` und nagelt fest, dass jede davon zu einer der
+     * vier Sorten gehoert - wer eine fuenfte einbaut, faellt hier auf.
+     */
+    const sperren = [...uq4.matchAll(/disabled/g)].length;
+    wahr('Es gibt genau vier Stellen mit einer Sperre', sperren === 4,
+         `${sperren} Stellen`);
+    wahr('1 - der Katalogwert, den «Werte bearbeiten» freigibt',
+         uq4.includes("const dis = gesperrt ? ' disabled' : '';"));
+    wahr('2 - die Option, die ihren Grund im Text traegt',
+         uq4.includes("o.aus ? ' disabled' : ''"));
+    wahr('3 - die Nachweisgruppe, die es nicht gibt',
+         uq4.includes("g.vorhanden ? '' : ' disabled'"));
+    wahr('4 - der Name eines vorgegebenen Lastfalls',
+         uq4.includes("lf.eigen || !lf.key ? '' : 'disabled'"));
+    /*
+     * UND DAS PARTNERFELD IST KEINE FUENFTE: es erscheint, wo es gilt, und
+     * verschwindet sonst.
+     */
+    wahr('Das Partnerfeld steht nur beim Tragseil',
+         uq4.includes('if (!istTs) return \'\';'));
+    wahr('… und auch nur, wenn es eine Paarung gibt',
+         uq4.includes("if (!moeglich.length) return '';"));
+    wahr('… gesperrt steht es nirgends mehr',
+         !uq4.includes('— nur mit Tragseil'));
     const cssP = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
     const rP = /\.modul-partner \{([^}]*)\}/.exec(cssP)?.[1] ?? '';
     wahr('Es traegt dasselbe Raster wie der Kopf',
