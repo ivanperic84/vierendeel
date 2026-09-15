@@ -397,6 +397,42 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Wo ein Blech steht, braucht es keinen Riegel (15. September)
+
+Befund am aufgebauten Modell: «warum hat es hier noch zwei starrelemente beim
+letzten stehenden blech?» — und auf den Vorschlag: «ja so umsetzen wie
+beschrieben.»
+
+An der Station x = 0 standen **zwei Bauteile übereinander**, je Seite:
+
+| | |
+|---|---|
+| `RIEGEL_L_0.000` | Starrelement auf den Gurtachsen, über die ganze Jochhöhe |
+| `BV_L_0_1…3` | das **Endblech**, 21 mm daneben auf der Schenkelflucht |
+
+**Und der starre gewinnt.** Zwei parallele Bauteile teilen sich die Kraft nach
+ihrer Steifigkeit — gegen ein Starrelement trägt das Blech nichts. Wer die
+Blechkraft am Jochende ablesen will, liest eine Null, und das Endblech ist das
+am stärksten beanspruchte des Jochs.
+
+**Wofür es den Riegel gibt, bleibt.** Weisung vom 5. September: «starrelemente
+(vertikale) an den enden und beim übergang zum knick hin». Der Grund stand
+beim **verjüngten** Ende: dort laufen die Gurte zusammen, zwischen den Ebenen
+steht nichts als der schräge Gurt, und das Endstück wäre in seiner Ebene ein
+Gelenkviereck. Genau dort gibt es aber auch **kein Blech** — die
+Blecheinteilung beginnt erst hinter der Voute.
+
+> **Die Regel, die beide Fälle trägt:** der Riegel steht, wo **kein stehendes
+> Blech** steht. Am geraden Jochende ist das Endblech die Scheibe, am
+> verjüngten Ende der Riegel.
+
+Gemessen:
+
+| | vorher | jetzt |
+|---|---|---|
+| J90, gerade, 20 m | 4 Riegel (beide Enden) | **keiner** — Endbleche bei 0.000 und 20.000 |
+| J90-alt, verjüngt | 8 Riegel (Enden + Knick) | **4** — nur die Enden; am Knick (3.000 m) steht ein Blech |
+
 ### Das Blech misst die lichte Weite (15. September)
 
 Weisung: «die bleche einkürzen so dass diese der lichten breite entsprechen.

@@ -7885,31 +7885,54 @@ titel('34b Die Auflagerbedingung je Gurtebene');
         j2.staebe.find((x) => x.name === 'LINK_A_UGL').kraftuebertragung.z,
         25000, 1e-9, 'kN/m');
 
-  /*
+  /* =====================================================================
    * =================== STEHENDE STARRELEMENTE ==========================
+   * =====================================================================
    *
-   * Weisung, 5. September: «beachte noch beim tragjoch alt das man noch
+   * Weisung, 5. September: "beachte noch beim tragjoch alt das man noch
    * starrelemente (vertikale) an den enden und beim uebergang zum knick hin
-   * anbringen.»
+   * anbringen."
    *
    * Am verjuengten Ende laufen die Gurte zusammen; ohne Riegel dazwischen
    * ist das Endstueck in seiner Ebene ein Gelenkviereck, und die beiden
    * Linkelemente haengen an einem weichen Gebilde statt an einer Scheibe.
+   *
+   * >>> WO EIN BLECH STEHT, BRAUCHT ES KEINEN (15. September). <<<
+   *
+   * Befund am aufgebauten Modell: "warum hat es hier noch zwei
+   * starrelemente beim letzten stehenden blech?" - und auf den Vorschlag:
+   * "ja so umsetzen wie beschrieben."
+   *
+   * An der Station x = 0 standen zwei Bauteile uebereinander: der Riegel auf
+   * den Gurtachsen und, 21 mm daneben auf der Schenkelflucht, das ENDBLECH.
+   * Zwei parallele Bauteile teilen sich die Kraft nach ihrer Steifigkeit -
+   * gegen ein Starrelement traegt das Blech NICHTS. Wer die Blechkraft am
+   * Jochende ablesen will, liest eine Null, und das Endblech ist das am
+   * staerksten beanspruchte des Jochs.
+   *
+   * Die Regel traegt beide Faelle: am geraden Jochende ist das Endblech die
+   * Scheibe, am verjuengten Ende - wo kein Blech steht - der Riegel.
    */
   const riegel = (jm) => jm.staebe.filter((x) => /^RIEGEL_/.test(x.name));
   const xVon = (n) => Number(n.split('_')[2]);
-  const rNeu = riegel(j1);
-  wahr('Das gerade Joch bekommt Riegel an beiden Enden',
-       new Set(rNeu.map((x) => xVon(x.name))).size === 2);
-  wahr('… und zwar links und rechts, also vier', rNeu.length === 4);
-  wahr('Alle sind Starrkoerper', rNeu.every((x) => x.art === 'starr'));
-  wahr('Sie verbinden Ober- und Untergurt',
-       rNeu.every((x) => /^OG/.test(x.von) && /^UG/.test(x.bis)));
+  const blechStellen = (mm2) => (mm2.stationsListe ?? [])
+    .filter((s2) => (s2.vertikal?.breite ?? 0) > 0).map((s2) => s2.x);
 
   /*
-   * DAS ALTE JOCH IST VERJUENGT - dort kommen die beiden Knickstellen dazu.
-   * Die Voute laeuft 900 gerade und 2100 schraeg, der Knick liegt also bei
-   * 3.000 m vom Jochende.
+   * DAS GERADE JOCH traegt an beiden Enden ein Blech - also keinen Riegel.
+   */
+  const rNeu = riegel(j1);
+  wahr('Das gerade Joch bekommt keine Riegel mehr', rNeu.length === 0,
+       rNeu.map((x) => x.name).join(' '));
+  wahr('\u2026 weil an beiden Enden ein Blech steht',
+       blechStellen(mLb).some((x) => Math.abs(x) < 1e-9)
+       && blechStellen(mLb).some((x) => Math.abs(x - 20) < 1e-9),
+       blechStellen(mLb).slice(0, 3).join(' '));
+
+  /*
+   * DAS ALTE JOCH IST VERJUENGT. Dort beginnt die Blecheinteilung erst hinter
+   * der Voute - am Jochende steht keines, und genau dort bleibt der Riegel.
+   * Am KNICK dagegen steht eines (3.000 m), also faellt er dort weg.
    */
   let wAlt = basis({ typ: 'J90-alt', L: 20, endbedingung: 'mast',
                      mastProfil: 'HEB 240', mastH: 7.0,
@@ -7919,13 +7942,20 @@ titel('34b Die Auflagerbedingung je Gurtebene');
                       getStahl(wAlt.stahl), T.getTragjoch('J90-alt'));
   const rAlt = riegel(AX.stabmodellJson(mAlt, { auflagerModell: 'mast' }));
   const stellen = [...new Set(rAlt.map((x) => xVon(x.name)))]
-    .sort((a, b) => a - b);
-  wahr('Das verjuengte Joch bekommt vier Stellen',
-       stellen.length === 4, stellen.join(' '));
-  pruef('Enden bei 0 und L', stellen[0] + stellen[3], 20, 1e-6, 'm');
-  pruef('Der Knick liegt 3.000 m vom Ende', stellen[1], 3.0, 1e-6, 'm');
-  pruef('… und spiegelbildlich am anderen', stellen[2], 17.0, 1e-6, 'm');
-  wahr('Acht Riegel, zwei je Stelle', rAlt.length === 8);
+    .sort((a2, b2) => a2 - b2);
+  wahr('Das verjuengte Joch behaelt die beiden Enden',
+       stellen.length === 2, stellen.join(' '));
+  pruef('Enden bei 0 und L', stellen[0] + stellen[1], 20, 1e-6, 'm');
+  wahr('Vier Riegel, zwei je Ende', rAlt.length === 4, `${rAlt.length}`);
+  wahr('Alle sind Starrkoerper', rAlt.every((x) => x.art === 'starr'));
+  wahr('Sie verbinden Ober- und Untergurt',
+       rAlt.every((x) => /^OG/.test(x.von) && /^UG/.test(x.bis)));
+  wahr('Am verjuengten Ende steht kein Blech',
+       !blechStellen(mAlt).some((x) => Math.abs(x) < 1e-9),
+       blechStellen(mAlt).slice(0, 3).join(' '));
+  wahr('Am Knick dagegen schon - deshalb dort kein Riegel',
+       blechStellen(mAlt).some((x) => Math.abs(x - 3.0) < 1e-6)
+       && !stellen.some((x) => Math.abs(x - 3.0) < 1e-6));
 }
 
 titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');

@@ -1365,10 +1365,43 @@ export function stabmodell(m, opt = {}) {
       if (xk > 1e-6 && xk < m.L - 1e-6) schottX.add(r6(xk));
     });
   }
+  /* =========================================================================
+   * >>> WO EIN BLECH STEHT, BRAUCHT ES KEINEN RIEGEL. <<<
+   * =========================================================================
+   *
+   * Befund vom 15. September am aufgebauten Modell: \u00abwarum hat es hier noch
+   * zwei starrelemente beim letzten stehenden blech?\u00bb
+   *
+   * An der Station x = 0 standen ZWEI Bauteile uebereinander, je Seite: der
+   * Riegel auf den Gurtachsen und, 21 mm daneben auf der Schenkelflucht, das
+   * ENDBLECH. Beide verbinden denselben Ober- mit demselben Untergurt.
+   *
+   * >>> UND DER STARRE GEWINNT. <<<
+   *
+   * Zwei Bauteile parallel teilen sich die Kraft nach ihrer Steifigkeit -
+   * gegen ein Starrelement traegt das Blech nichts. Wer die Blechkraft am
+   * Jochende ablesen will, liest eine Null. Das ist keine Kleinigkeit: das
+   * Endblech ist das am staerksten beanspruchte des Jochs.
+   *
+   * >>> WOFUER ES DEN RIEGEL GIBT - UND DA BLEIBT ER. <<<
+   *
+   * Weisung vom 5. September: \u00abstarrelemente (vertikale) an den enden und
+   * beim uebergang zum knick hin\u00bb. Der Grund stand beim VERJUENGTEN Ende:
+   * dort laufen die Gurte zusammen, zwischen den Ebenen steht nichts als der
+   * schraege Gurt, und das Endstueck waere in seiner Ebene ein
+   * Gelenkviereck. Genau dort gibt es aber auch KEIN Blech.
+   *
+   * Also die Regel, die beide Faelle traegt: der Riegel steht, wo kein
+   * stehendes Blech steht. Am geraden Jochende ist das Endblech die
+   * Scheibe; am Voutenknick ist es der Riegel.
+   * ======================================================================= */
+  const blechDa = (xk) => st.some((station) =>
+    Math.abs(station.x - xk) < 1e-9 && (station.vertikal?.breite ?? 0) > 0);
   [...schottX].forEach((xk) => {
     // Nur wo der Schnitt wirklich existiert - sonst hinge der Riegel
     // zwischen zwei Gurtstaeben statt an ihren Knoten.
     if (!xs.some((v) => Math.abs(v - xk) < 1e-9)) return;
+    if (blechDa(xk)) return;
     ['L', 'R'].forEach((seite) => {
       /*
        * DER NAME IST NICHT `SCHOTT`. Den tragen schon die Starrstaebe des
