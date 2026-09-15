@@ -39,7 +39,7 @@ import { querschnitt } from './geometry.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
-import { ankerSpreizung } from './data.anker.js';
+import { ankerSpreizung, ankerQuerschnitt } from './data.anker.js';
 /*
  * DIE BAUSTEINE STEHEN SEIT DEM 4. SEPTEMBER IN `render.koerper.js`.
  *
@@ -715,6 +715,10 @@ export function erzeugeSzene(m, erg) {
            */
           ankerSpreiz: mast.anker?.typ
             ? (() => { try { return ankerSpreizung(mast.anker.typ); }
+                       catch { return null; } })() : null,
+          // e_y fuer den Achsabstand der beiden Koerper - siehe dort.
+          ankerEy: mast.anker?.typ
+            ? (() => { try { return ankerQuerschnitt(mast.anker.typ)?.ey ?? null; }
                        catch { return null; } })() : null,
         });
         flaechen.push(...mk.flaechen);

@@ -51,7 +51,7 @@ import { prisma, prismaY, platte, prismaZ, stab, quader,
          mastKoerper } from './render.koerper.js';
 
 import { getMastprofil, getStegrichtung } from './data.masten.js';
-import { ankerSpreizung } from './data.anker.js';
+import { ankerSpreizung, ankerQuerschnitt } from './data.anker.js';
 import { linkEinspannung } from './core.auflager.js';
 
 /*
@@ -638,6 +638,10 @@ export function abfangSzene(typ, jt, opt = {}) {
         // Wie in `render.3d.js`: das Sortiment gehoert nicht in die Szene.
         ankerSpreiz: md.anker?.typ
           ? (() => { try { return ankerSpreizung(md.anker.typ); }
+                     catch { return null; } })() : null,
+        // e_y fuer den Achsabstand der beiden Koerper - siehe render.koerper.js.
+        ankerEy: md.anker?.typ
+          ? (() => { try { return ankerQuerschnitt(md.anker.typ)?.ey ?? null; }
                      catch { return null; } })() : null,
       });
       flaechen.push(...mk.flaechen);

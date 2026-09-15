@@ -423,34 +423,38 @@ export function ankerSpreizungAn(id, L, x) {
 }
 
 /* ===========================================================================
- * DER ACHSABSTAND DER BEIDEN PROFILE - EINE STELLE FUER BILD UND MODELL
+ * DER ACHSABSTAND DER BEIDEN PROFILE
  * ===========================================================================
  *
  * Weisung vom 15. September: die Druckstuetze im AxisVM als zwei Profile
- * statt als Ersatzrechteck («Stufe 1»).
+ * (\u00abStufe 1\u00bb) - und danach, auf die Frage nach dem Bezug des Spreizmasses:
+ * \u00abgem\u00e4ss zeichnung im grundlagen ordner\u00bb.
  *
- * `ankerSpreizungAn` gibt das Mass der ZEICHNUNG. Was ein Stabmodell
- * braucht, ist der Abstand der beiden SCHWERACHSEN - und dazwischen liegt
- * genau die Frage, die das Blatt offen laesst (`bezug: null`).
+ * >>> DIE ZEICHNUNG BEANTWORTET ES, UND SIE BERICHTIGT EINE ANNAHME. <<<
  *
- * >>> DIE LESART, UND SIE STEHT SEIT DEM 11. SEPTEMBER IM BILD. <<<
+ * Schnitt B-B der Werkstattzeichnung zeigt die beiden U mit den STEGEN
+ * GEGENEINANDER, die Flansche nach aussen. Das Mass 104 (U12) bzw. 124
+ * (U14) steht zwischen den beiden STEGRUECKEN - es ist die lichte Weite,
+ * und die Bindebleche sind genau dort eingeschweisst.
  *
- * Gelesen wird das Mass als LICHTE WEITE zwischen den Profilen. Dafuer
- * spricht die Flachlasche, die den Spalt ueberbrueckt: ueber 104 mm liegt
- * sie beidseits auf. Der Achsabstand ist dann die lichte Weite plus EINE
- * Profilbreite - jede Achse liegt eine halbe Breite hinter ihrer Kante.
+ * Bis zum 15. September stand hier die Lesart \u00ablichte Weite plus eine
+ * PROFILBREITE\u00bb (b = 55 mm) - 159 mm am engen Ende. Das war falsch: die
+ * Schwerachse eines U liegt `ey` = 16 mm hinter dem Stegruecken, nicht eine
+ * halbe Breite. Richtig sind
  *
- * >>> EINE HALBE BREITE IST BEIM U NICHT DIE SCHWERACHSE. <<<
+ *     Achsabstand = lichte Weite + 2 * ey
  *
- * Beim UNP 120 liegt sie `ey` = 16 mm hinter dem Stegruecken, nicht 27.5.
- * Welche Seite aussen liegt - Steg oder Flanschoeffnung -, sagt das Blatt
- * nicht; deshalb bleibt es bei der halben Breite, wie im Bild. Der Fehler
- * ist beidseits derselbe und betraegt rund 11 mm je Profil.
+ * also 104 + 32 = 136 mm am engen und 225 + 32 = 257 mm am weiten Ende.
+ * Der Unterschied betraegt 23 mm je Stuetze; fuer die Normalkraft ist er
+ * ohne Belang, fuer das Bild und fuer jede Steifigkeit in der Spreizebene
+ * nicht.
  *
- * DAS IST EINE LESART, KEINE ANGABE. Faellt der Bezug spaeter, wird er HIER
- * eingesetzt - und eine zweite Stelle mit: `render.koerper.js` rechnet den
- * Abstand seiner beiden KOERPER selbst, weil diese Datei reine Geometrie ist
- * und keine Datenbank laedt. Beide Stellen stehen gegenseitig angeschrieben.
+ * >>> UND DAS ENGE ENDE IST EIN QUADRATISCHER KASTEN. <<<
+ *
+ * Aus der Zeichnung faellt eine Probe ab, die den Zusammenhang festnagelt:
+ * die lichte Weite ist h - 2*t des Blechs. U12: 120 - 16 = 104. U14:
+ * 140 - 16 = 124. Am engen Ende bilden die beiden Profile und die beiden
+ * Bleche also einen Kasten von der Hoehe des Profils.
  * ========================================================================= */
 
 /**
@@ -463,11 +467,116 @@ export function ankerSpreizungAn(id, L, x) {
 export function ankerAchsabstandAn(id, L, x) {
   const s = ankerSpreizungAn(id, L, x);
   if (s === null) return null;
-  const b = Number(ankerQuerschnitt(id)?.b);
-  return b > 0 ? s + b : null;
+  const ey = Number(ankerQuerschnitt(id)?.ey);          // cm
+  return ey > 0 ? s + 2 * ey * 10 : null;
 }
 
 /* ===========================================================================
+ * DIE BINDEBLECHE - AUS DER BINDEBLECHEINTEILUNG DER ZEICHNUNG
+ * ===========================================================================
+ *
+ * Befund vom 15. September am aufgebauten Modell: \u00abdie verbindungsbleche
+ * sind nicht modelliert.\u00bb Sie stehen in der Werkstattzeichnung, und zwar
+ * vollstaendig - Lage, Mass und Anzahl.
+ *
+ * >>> DIE REGEL, ABGELESEN AN VIER LAENGEN. <<<
+ *
+ * Das erste Blech sitzt 990 mm vom ENGEN Ende, das letzte 1610 mm vom
+ * WEITEN - dieselben Masse, an denen auch der Keil beginnt und endet. Was
+ * dazwischen liegt, wird gleichmaessig geteilt, und zwar so fein, dass der
+ * Abstand hoechstens 1200 mm betraegt.
+ *
+ *   L        Felder   Abstand   Stationen ab dem engen Ende
+ *   5.00 m     2      1200.0    990, 2190, 3390
+ *   7.00 m     4      1100.0    990, 2090, 3190, 4290, 5390
+ *   9.00 m     6      1066.7    990, 2056, 3123, 4190, 5257, 6324, 7390
+ *  11.00 m     7      1200.0    990, 2190, ... , 9390     (nur U14)
+ *
+ * Alle vier Tabellen der beiden Zeichnungen werden von dieser Regel exakt
+ * getroffen - der Pruefstand haelt jede einzeln fest. Sie ist damit keine
+ * Ableitung, sondern die abgelesene Einteilung.
+ *
+ * >>> ZWEI BLECHE JE STATION. <<<
+ *
+ * Schnitt B-B zeigt sie oben und unten zwischen den Stegen, je 8 mm dick
+ * und 140 mm lang in Stuetzenrichtung. Ihr lichter Abstand ist h - 2*t,
+ * also dasselbe Mass wie die lichte Weite quer. Die Mitte jedes Blechs
+ * liegt damit (h - t)/2 von der Profilachse entfernt - beim U12 56 mm.
+ *
+ * Ihre Form ist ein TRAPEZ: im Keil ist die eine Kante schmaler als die
+ * andere. Die Zeichnung fuehrt beide Masse (A und B) je Blech; sie folgen
+ * aus `ankerSpreizungAn` an den beiden Blechkanten.
+ * ========================================================================= */
+
+/** Die Angaben zum Bindeblech, oder null. */
+export function ankerBlechSatz(id) {
+  const a = typeof id === 'string' ? getAnkerTyp(id) : id;
+  return a?.bindeblech ?? null;
+}
+
+/**
+ * DIE STATIONEN DER BINDEBLECHE [m], gemessen vom ENGEN Ende.
+ *
+ * @param {string} id  Typ
+ * @param {number} L   Laenge der Stuetze [m]
+ * @returns {Array<{x, A, B}>} x in m, A und B (lichte Weite an den beiden
+ *          Blechkanten) in mm - oder eine leere Liste
+ */
+export function ankerBindebleche(id, L) {
+  const bl = ankerBlechSatz(id);
+  if (!bl || !Number.isFinite(L) || !(L > 0)) return [];
+  const eng = (bl.vonEng ?? 0) / 1000;
+  const breit = (bl.vonBreit ?? 0) / 1000;
+  const letzte = L - breit;
+  /*
+   * ZU KURZ FUER EINE EINTEILUNG. Ueberlappen die beiden Randmasse, zeigt
+   * die Zeichnung diesen Fall nicht - dann bleibt es beim einen Blech in
+   * der Mitte. Dieselbe Zurueckhaltung wie bei `ankerSpreizungAn`.
+   */
+  if (!(letzte > eng + 1e-9)) {
+    return L > 2 * eng ? [{ x: L / 2, ...kanten(id, L, L / 2, bl) }] : [];
+  }
+  /*
+   * DIE TOLERANZ IM AUFRUNDEN ist nicht Kosmetik. Beim U14 ueber 11.00 m
+   * geht die Teilung genau auf - 8400 / 1200 = 7 -, und in Fliesskomma
+   * kommt 7.000000000000001 heraus. Ohne das Epsilon stuende dort ein Feld
+   * zuviel, und die Zeichnung sagt acht Bleche, nicht neun.
+   */
+  const felder = Math.max(1, Math.ceil((letzte - eng)
+                                       / ((bl.abstandMax ?? 1200) / 1000)
+                                       - 1e-9));
+  const schritt = (letzte - eng) / felder;
+  const liste = [];
+  for (let i = 0; i <= felder; i += 1) {
+    const x = Math.round((eng + i * schritt) * 1e6) / 1e6;
+    liste.push({ x, ...kanten(id, L, x, bl) });
+  }
+  return liste;
+}
+
+/** Die lichte Weite an den beiden Kanten eines Blechs [mm]. */
+function kanten(id, L, x, bl) {
+  const halb = ((bl.laenge ?? 0) / 1000) / 2;
+  return { A: ankerSpreizungAn(id, L, Math.max(0, x - halb)),
+           B: ankerSpreizungAn(id, L, Math.min(L, x + halb)) };
+}
+
+/**
+ * Abstand der Blechmitte von der Profilachse [mm].
+ *
+ * Die beiden Bleche liegen oben und unten zwischen den Stegen, buendig mit
+ * dem Profil: ihr lichter Abstand ist h - 2*t, die Mitte also (h - t)/2 von
+ * der Achse. Beim U12 sind das 56 mm.
+ */
+export function ankerBlechVersatz(id) {
+  const bl = ankerBlechSatz(id);
+  const h = Number(ankerQuerschnitt(id)?.h);
+  if (!bl || !(h > 0)) return null;
+  return (h - (bl.dicke ?? 0)) / 2;
+}
+
+/* ===========================================================================
+ * DAS KNICKEN DER STUETZE - ALS KONTROLLRECHNUNG/* ===========================================================================
  * DAS KNICKEN DER STUETZE - ALS KONTROLLRECHNUNG
  * ===========================================================================
  *

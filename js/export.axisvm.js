@@ -52,8 +52,9 @@ import { verortung, verortungKurz, tragwerksart,
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge } from './core.auflager.js';
-import { ankerQuerschnitt, ankerSpreizung,
-         ankerAchsabstandAn } from './data.anker.js';
+import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
+         ankerBindebleche, ankerBlechSatz,
+         ankerBlechVersatz } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -2105,12 +2106,34 @@ export function stabmodell(m, opt = {}) {
          * Gleisrichtung, spreizt er in der Jochachse - und umgekehrt.
          * Dieselbe Regel wie im Bild (`render.koerper.js`).
          *
-         * >>> DIE DREHLAGE DES PROFILS. <<<
+         * >>> DIE DREHLAGE DES PROFILS - UND SIE IST SPIEGELBILDLICH. <<<
          *
-         * Die lokale z-Achse steht senkrecht auf Stabachse UND Spreizung -
-         * dann liegt die Profilhoehe in der Ankerebene und der Steg quer
-         * dazu, so wie die beiden U die Lasche zwischen sich fassen. Ein
-         * gedrehtes Profil saehe im Modell aus wie ein anderes Bauteil.
+         * Die lokale z-Achse steht senkrecht auf Stabachse UND Spreizung.
+         * Dann liegt die Profilhoehe (120 mm beim UNP 120) in der Ankerebene
+         * und die Flansche zeigen in die Spreizrichtung - dieselbe Lage wie
+         * beim Abfangjoch, wo die beiden Gurte quer nebeneinander laufen und
+         * `lcsZ` senkrecht steht.
+         *
+         * >>> BEFUND VOM 15. SEPTEMBER, AM MODELL GESEHEN. <<<
+         *
+         * Weisung: "die ausrichtung der c stimmt nicht, aehnlich wie bei
+         * abfangjoch."
+         *
+         * Hier stand EINE Drehlage fuer beide Reihen - damit standen die
+         * zwei U gleichsinnig statt spiegelbildlich, wie zwei Haken in
+         * dieselbe Richtung. Ein Bauteil ist es erst, wenn sie sich
+         * gegenueberstehen.
+         *
+         * AxisVM kann ein U-Profil NICHT spiegeln. Die Referenz dreht es um
+         * 180 Grad um die Stabachse, und beim U vertauscht das genau die
+         * Oeffnungsrichtung - dieselbe Loesung wie am Abfangjoch seit dem
+         * 4. September ("gurte spiegelsymetrisch ... c ist gegen aussen
+         * offen"): `lcsGurt` gibt dort [0,0,1] und [0,0,-1].
+         *
+         * DIE RICHTUNG IST DIE DES ABFANGJOCHS: das Profil auf der PLUS-Seite
+         * der Spreizung bekommt die Gegenrichtung, das auf der Minus-Seite
+         * die Richtung selbst. Dort steht der vordere Gurt (+y) auf [0,0,1],
+         * waehrend das Kreuzprodukt [0,0,-1] gibt.
          *
          * >>> DIE GELENKE SITZEN AN DEN ENDEN, NICHT DAZWISCHEN. <<<
          *
@@ -2145,27 +2168,53 @@ export function stabmodell(m, opt = {}) {
                          eS[2] * d[0] - eS[0] * d[2],
                          eS[0] * d[1] - eS[1] * d[0]];
           const lg = Math.hypot(...kreuz) || 1;
-          const lcsAnker = kreuz.map((v) => r6(v / lg));
-          /*
-           * DIE STATIONEN. `ankerAchsabstandAn` misst vom ENGEN Ende, also
-           * vom Fundament her; `s` laeuft vom Masten. Die eine Umrechnung
-           * steht hier, damit sie nicht zweimal irgendwo steht.
+          const lcsRoh = kreuz.map((v) => v / lg);
+          // Spiegelbildlich: die Plus-Seite bekommt die Gegenrichtung.
+          const lcsAnker = (vz) => lcsRoh.map((v) => r6(-vz * v));
+          /* =================================================================
+           * >>> DIE STATIONEN SIND DIE DER BINDEBLECHEINTEILUNG. <<<
+           * =================================================================
+           *
+           * Weisung vom 15. September: die Bindebleche \u00abgem\u00e4ss zeichnung im
+           * grundlagen ordner\u00bb. `ankerBindebleche` liest die Einteilung aus
+           * dem Sortiment - erstes Blech 990 mm vom engen Ende, letztes
+           * 1610 mm vom weiten, dazwischen gleichmaessig mit hoechstens
+           * 1200 mm. Das sind zugleich die beiden KNICKSTELLEN des Keils:
+           * die Randmasse der Einteilung und die der Spreizung sind
+           * dieselben.
+           *
+           * `ankerBindebleche` misst vom ENGEN Ende, also vom Fundament her;
+           * `s` laeuft vom Masten. Die eine Umrechnung steht hier.
            */
+          const blSatz = ankerBlechSatz(ak.typ);
+          const bleche = ankerBindebleche(ak.typ, LAnk);
           const sp2 = spreiz;
           const par = [0];
-          const sBreit = (sp2.parallelBreit ?? 0) / 1000;
-          const sSchmal = (sp2.parallelSchmal ?? 0) / 1000;
-          if (LAnk > sBreit + sSchmal + 1e-9) {
-            par.push(sBreit / LAnk, 1 - sSchmal / LAnk);
+          if (bleche.length) {
+            // Vom Masten aus: die hinterste Station zuerst.
+            bleche.slice().reverse()
+              .forEach((bl2) => par.push(r6(1 - bl2.x / LAnk)));
+          } else {
+            const sBreit = (sp2.parallelBreit ?? 0) / 1000;
+            const sSchmal = (sp2.parallelSchmal ?? 0) / 1000;
+            if (LAnk > sBreit + sSchmal + 1e-9) {
+              par.push(sBreit / LAnk, 1 - sSchmal / LAnk);
+            }
           }
           par.push(1);
-          const punkt = (sv, vz) => {
+          const punkt = (sv, vz, quer = 0) => {
             const abst = ankerAchsabstandAn(ak.typ, LAnk, (1 - sv) * LAnk);
             const e2 = ((abst ?? 0) / 1000) / 2 * vz;
-            return { x: r6(pK.x + (pF2.x - pK.x) * sv + eS[0] * e2),
-                     y: r6(pK.y + (pF2.y - pK.y) * sv + eS[1] * e2),
-                     z: r6(pK.z + (pF2.z - pK.z) * sv + eS[2] * e2) };
+            const f2 = quer / 1000;
+            return { x: r6(pK.x + (pF2.x - pK.x) * sv + eS[0] * e2 + lcsRoh[0] * f2),
+                     y: r6(pK.y + (pF2.y - pK.y) * sv + eS[1] * e2 + lcsRoh[1] * f2),
+                     z: r6(pK.z + (pF2.z - pK.z) * sv + eS[2] * e2 + lcsRoh[2] * f2) };
           };
+          /*
+           * DIE BEIDEN REIHEN. Jede laeuft durch - das Profil ist an den
+           * Blechstationen geteilt, aber nicht gelenkig; geloest sind
+           * allein die beiden Anschluesse.
+           */
           const reihen = {};
           [['L', -1], ['R', +1]].forEach(([seite, vz]) => {
             reihen[seite] = par.map((sv, i2) => {
@@ -2175,7 +2224,7 @@ export function stabmodell(m, opt = {}) {
             for (let i2 = 0; i2 < reihen[seite].length - 1; i2 += 1) {
               s.stab(`ANKERPROFIL_${mn(ende)}_${seite}${i2 + 1}`, qsProfil,
                      reihen[seite][i2], reihen[seite][i2 + 1],
-                     { lcsZ: lcsAnker });
+                     { lcsZ: lcsAnker(vz) });
             }
             // Die beiden Anschluesse - hier sitzt das Gelenk.
             s.stab(`ANKERKOPF_${mn(ende)}_${seite}`, qsStarr,
@@ -2186,35 +2235,91 @@ export function stabmodell(m, opt = {}) {
                    { starrRolle: 'verbindung', gelenkAnfang: 'M' });
           });
           /* =================================================================
-           * >>> DIE LASCHEN STEHEN DORT, WO DAS BLATT SIE VERMASST. <<<
+           * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
            * =================================================================
            *
-           * Weisung vom 11. September: «diese verlaufen zuerst parallel bis
-           * zur ersten vermassung ... von da an verlaeuft der abstand
-           * variabel, da verbindungen der beiden enden.»
+           * Befund vom 15. September am aufgebauten Modell: \u00abdie
+           * verbindungsbleche sind nicht modelliert.\u00bb Sie standen als zwei
+           * Starrelemente an den Knickstellen da - eine Andeutung, kein
+           * Bauteil. Die Werkstattzeichnung fuehrt sie vollstaendig.
            *
-           * Also an den beiden Knickstellen. WIE VIELE es dazwischen gibt
-           * und in welchem Abstand, sagt das Sortiment NICHT - und genau
-           * daran haengt der Nachweis des mehrteiligen Druckstabs (S_v,
-           * Einzelstab zwischen zwei Laschen, EN 1993-1-1 6.4).
+           * SCHNITT B-B: zwei Bleche je Station, oben und unten ZWISCHEN
+           * den Stegen eingeschweisst, 8 mm dick und 140 mm lang in
+           * Stuetzenrichtung. Ihr lichter Abstand ist h - 2*t, die Mitte
+           * also (h - t)/2 von der Profilachse - beim U12 56 mm.
            *
-           * Sie stehen als STARRELEMENT da, nicht als Flachstahl: die
-           * Lasche ist im Blatt zu sehen, ihr Mass steht nicht im
-           * Sortiment. Starr ist die STEIFERE Annahme - ein Knicknachweis
-           * in AxisVM darf darauf nicht gegruendet werden, und der Bericht
-           * sagt das. Massgebend bleibt das Bemessungsdiagramm.
+           * >>> SIE LIEGEN NICHT IN DER ACHSE, UND DARAUF KOMMT ES AN. <<<
+           *
+           * Ein einzelnes Blech auf der Profilachse waere die halbe
+           * Wahrheit: was den mehrteiligen Druckstab steif macht, ist das
+           * PAAR mit seinem Hebelarm. Die beiden Bleche und die beiden
+           * Stege bilden einen Rahmen - dasselbe Tragverhalten wie beim
+           * Tragjoch, nur zwei Nummern kleiner. Deshalb bekommt jedes Blech
+           * seinen eigenen Knoten und einen kurzen starren Stiel zur
+           * Profilachse.
+           *
+           * >>> DAS BLECH LIEGT FLACH - UEBER DEN QUERSCHNITT. <<<
+           *
+           * h = Dicke, b = Breite, wie beim Abfangjoch seit dem
+           * 4. September: \u00abdie bleche sind stehen anstatt liegend\u00bb. Die
+           * Referenz griff dort nicht, und AxisVM legte seine lokale z nach
+           * eigener Regel. Traegt der QUERSCHNITT die Lage, liegt das Blech
+           * flach, gleich ob die Referenz ankommt.
            * =============================================================== */
-          for (let i2 = 1; i2 < par.length - 1; i2 += 1) {
-            s.stab(`ANKERLASCHE_${mn(ende)}_${i2}`, qsStarr,
-                   reihen.L[i2], reihen.R[i2], { starrRolle: 'verbindung' });
+          if (bleche.length && blSatz) {
+            const vBlech = ankerBlechVersatz(ak.typ) ?? 0;        // mm
+            const qsBlech = s.qs({
+              ...rechteck({ name: `ANKERBLECH_${String(ak.typ).replace(/\s+/g, '')}`,
+                            h: blSatz.dicke, b: blSatz.laenge }),
+              profil: `FLA ${blSatz.laenge}/${blSatz.dicke} \u2014 Bindeblech`,
+              A: (blSatz.dicke * blSatz.laenge) / 1e6,
+              Iy: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
+              Iz: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
+              It: (blSatz.laenge * blSatz.dicke ** 3) / 3 / 1e12,
+            });
+            // Die Blechstationen sind die Stabteilung ohne die beiden Enden.
+            bleche.forEach((bl2, j) => {
+              const sv = r6(1 - bl2.x / LAnk);
+              ['O', 'U'].forEach((lage) => {
+                const vzL = lage === 'O' ? +1 : -1;
+                const ecken = ['L', 'R'].map((seite) => {
+                  const vz2 = seite === 'L' ? -1 : +1;
+                  const p4 = punkt(sv, vz2, vzL * vBlech);
+                  const kn2 = s.kn(`ANKBL_${mn(ende)}_${seite}${lage}${j + 1}`,
+                                   p4.x, p4.y, p4.z);
+                  // Der kurze Stiel von der Profilachse zum Blech.
+                  /*
+                   * DER STIEL GEHOERT AN SEINE STATION. `par` laeuft vom
+                   * MASTEN (weites Ende), `bleche` vom FUNDAMENT - die
+                   * beiden Listen sind gegenlaeufig. Mit `j + 1` sassen die
+                   * Stiele quer durch die halbe Stuetze; sie massen 2.31 m
+                   * statt 56 mm, und genau daran war es zu sehen.
+                   */
+                  s.stab(`ANKERSTIEL_${mn(ende)}_${seite}${lage}${j + 1}`,
+                         qsStarr, reihen[seite][bleche.length - j], kn2,
+                         { starrRolle: 'verbindung' });
+                  return kn2;
+                });
+                s.stab(`ANKERBLECH_${mn(ende)}_${lage}${j + 1}`, qsBlech,
+                       ecken[0], ecken[1], { lcsZ: lcsAnker(+1) });
+              });
+            });
           }
         }
+        /*
+         * DAS ANKERFUNDAMENT haelt die drei Verschiebungen und gibt die drei
+         * Drehungen frei - ein eingespanntes Ankerfundament waere ein
+         * anderes Bauteil (Weisung vom 9. September: "diese sind gelenkig
+         * gelagert"). Der Mastfuss daneben bleibt voll eingespannt.
+         */
         auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
                         ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
                         fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null });
         ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
                         h: ak.h, a: ak.a, qs: qw ?? null,
-                        spreiz: spreiz ?? null, zweiProfile: einzeln });
+                        spreiz: spreiz ?? null, zweiProfile: einzeln,
+                        bleche: einzeln ? ankerBindebleche(ak.typ,
+                          Math.hypot(xF - x, yF, zAnk - zFuss)).length : 0 });
       }
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
@@ -3433,21 +3538,24 @@ export function stabmodellJson(m, opt = {}) {
          *   das GELENK                  um die Bolzenachse, nicht um beide
          */
         zweiProfile: v.zweiProfile === true,
+        // Die Zahl der Blechstationen - je Station zwei Bleche.
+        bleche: v.bleche ?? 0,
         vermerk: !v.qs
           ? 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt'
           : v.zweiProfile
             ? `${v.qs.anzahl ?? 2}× ${v.qs.profil} nach ${v.qs.quelle}, `
               + 'einzeln ausgeleitet und keilförmig gespreizt '
-              + `(${v.spreiz.schmal}→${v.spreiz.breit} mm). Der Achsabstand `
-              + 'ist die LESART «lichte Weite plus eine Profilbreite» — der '
-              + 'Bezug des Masses steht im Sortiment offen. Die Laschen '
-              + 'stehen als Starrelement an den beiden vermassten '
-              + 'Knickstellen; Anzahl, Abstand und Profil der übrigen führt '
-              + 'das Sortiment nicht. Ein Knicknachweis in AxisVM ist darauf '
-              + 'NICHT zu gründen — massgebend bleibt das '
-              + 'Bemessungsdiagramm. Der Anschluss ist um die Bolzenachse '
+              + `(${v.spreiz.schmal}→${v.spreiz.breit} mm lichte Weite `
+              + `zwischen den Stegen, Achsabstand je 2·e_y mehr). `
+              + `${v.bleche ?? 0} Bindeblech-Stationen nach der `
+              + 'Blecheinteilung der Werkstattzeichnung, je zwei Bleche oben '
+              + 'und unten zwischen den Stegen — erstes 990 mm vom engen, '
+              + 'letztes 1610 mm vom weiten Ende, dazwischen gleichmässig mit '
+              + 'höchstens 1200 mm. Der Anschluss ist um die Bolzenachse '
               + '(Spreizrichtung) gelenkig, quer dazu tragen die beiden '
-              + 'Profile ein Kräftepaar'
+              + 'Profile ein Kräftepaar. Der NACHWEIS läuft unverändert über '
+              + 'das Bemessungsdiagramm — es kennt den Keil und die '
+              + 'Blecheinteilung bereits'
             : `${v.qs.anzahl ?? 1}× ${v.qs.profil} nach ${v.qs.quelle}; `
               + 'als Rechteck gleicher Fläche ausgeleitet'
               + (v.spreiz

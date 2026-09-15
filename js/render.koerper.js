@@ -279,6 +279,8 @@ export function schraegerStab(p0, p1, b, h, opt = {}) {
  *   farbeBauteil  Farbe, wenn kein Nachweis vorliegt
  *   anker         {typ, h, a, richtung, seite} am Masten, oder null
  *   ankerSpreiz   Spreizmass der Stuetze aus dem Sortiment (oder null)
+ *   ankerEy       Schwerachsabstand e_y des U-Profils [cm], fuer den
+ *                 Achsabstand der beiden Koerper (oder null)
  * @returns {{flaechen:object[], linien:object[]}}
  */
 export function mastKoerper(o) {
@@ -521,23 +523,26 @@ function ankerTeile(o, halb, zFuss, zKopf) {
       : xx <= a2 ? sp.breit
         : xx >= b2 ? sp.schmal
           : sp.breit + (sp.schmal - sp.breit) * ((xx - a2) / (b2 - a2));
-    /*
-     * Lichtes Mass + eine Profilbreite = Achsabstand der beiden Koerper;
-     * der sichtbare Spalt ist dann genau das Mass der Zeichnung.
+    /* =====================================================================
+     * >>> DER ABSTAND IST DER DER ZEICHNUNG. <<<
+     * =====================================================================
      *
-     * >>> DIESELBE LESART GILT SEIT DEM 15. SEPTEMBER IM MODELL. <<<
+     * Das Mass der Zeichnung ist die LICHTE WEITE zwischen den Stegruecken
+     * (Schnitt B-B; Weisung vom 15. September: "gemaess zeichnung im
+     * grundlagen ordner"). Der Abstand der beiden Koerperachsen ist eine
+     * Schwerachse weiter je Seite: `ey` des U-Profils, beim UNP 120 16 mm.
      *
-     * Die AxisVM-Ausleitung baut die Stuetze als zwei Profile und braucht
-     * dafuer denselben Abstand; sie holt ihn aus `ankerAchsabstandAn`
-     * (data.anker.js), wo die Lesart begruendet steht. Hier wird sie ein
-     * zweites Mal gerechnet, und das mit Absicht: diese Datei ist reine
-     * Geometrie und laedt keine Datenbank (siehe Kopf). Was sie hier
-     * verwendet, ist die Breite des KOERPERS (`dick`), dort die wirkliche
-     * Profilbreite - zwei verwandte, aber nicht gleiche Masse.
+     * Bis zum 15. September stand hier "lichtes Mass plus eine
+     * KOERPERBREITE" - das traf den sichtbaren Spalt, nicht die Achsen.
+     * Seit die AxisVM-Ausleitung dieselbe Geometrie baut, muessen beide
+     * dasselbe zeigen; `ankerAchsabstandAn` (data.anker.js) rechnet dort
+     * dasselbe.
      *
-     * AENDERT SICH DER BEZUG, sind es zwei Stellen. Sie stehen hier
-     * gegenseitig angeschrieben, damit die zweite nicht vergessen wird.
+     * `ey` kommt vom Aufrufer - diese Datei ist reine Geometrie und laedt
+     * keine Datenbank (siehe Kopf). Fehlt es, bleibt es beim alten Bild.
      */
+    const ey = Number(o.ankerEy);
+    if (ey > 0) return (mm2 / 1000 + 2 * ey / 100) / 2;
     return (mm2 / 1000 + dick) / 2;
   };
   const punktAuf = (s, vzP) => {

@@ -10211,8 +10211,23 @@ titel('42  Der lange Mast mit Zusatzleitern');
      *             2 Laschen
      */
     const prof = (jA.staebe ?? []).filter((x) => /^ANKERPROFIL_/.test(x.name));
-    wahr('Zwoelf Profilstaebe - zwei Anker, je zwei Reihen zu dreien',
-         prof.length === 12, `${prof.length}`);
+    /*
+     * >>> DIE REIHEN SIND AN JEDER BLECHSTATION GETEILT. <<<
+     *
+     * Seit dem 15. September stehen die Bindebleche im Modell (Befund:
+     * "die verbindungsbleche sind nicht modelliert"), und wo ein Blech
+     * sitzt, braucht das Profil einen Knoten. Je Reihe also ein Abschnitt
+     * mehr als Bleche.
+     *
+     *   Anker A  U12, L = 5.000 m  ->  3 Bleche, 4 Abschnitte je Reihe
+     *   Anker B  U14, L = 6.403 m  ->  5 Bleche, 6 Abschnitte je Reihe
+     */
+    const zahlA = AN.ankerBindebleche('U12', 5).length;
+    const zahlB = AN.ankerBindebleche('U14', Math.hypot(4, 5)).length;
+    pruef('Drei Bleche am kurzen Anker', zahlA, 3, 1e-12, 'Stk');
+    wahr('Je Reihe ein Abschnitt mehr als Bleche',
+         prof.length === 2 * ((zahlA + 1) + (zahlB + 1)),
+         `${prof.length} gegen ${2 * ((zahlA + 1) + (zahlB + 1))}`);
     wahr('Sie sind Staebe, keine Starrkoerper',
          prof.every((x) => x.art === 'stab'));
     /*
@@ -10241,10 +10256,54 @@ titel('42  Der lange Mast mit Zusatzleitern');
          ansch.every((x) => x.gelenkAnfang === 'M'));
     wahr('\u2026 und als Linkelement ausgeleitet, nicht als Starrkoerper',
          ansch.every((x) => x.art === 'link'));
-    const lasch = (jA.staebe ?? []).filter((x) => /^ANKERLASCHE_/.test(x.name));
-    wahr('Vier Laschen - je Anker eine an jeder Knickstelle',
-         lasch.length === 4, `${lasch.length}`);
-    wahr('Sie stehen starr da', lasch.every((x) => x.art === 'starr'));
+    /* =====================================================================
+     * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
+     * =====================================================================
+     *
+     * Befund vom 15. September am aufgebauten Modell: "die verbindungsbleche
+     * sind nicht modelliert." Es standen zwei Starrelemente an den
+     * Knickstellen da - eine Andeutung. Die Werkstattzeichnung fuehrt sie
+     * vollstaendig: zwei Bleche je Station, oben und unten zwischen den
+     * Stegen, FLA 140/8.
+     */
+    const blech = (jA.staebe ?? []).filter((x) => /^ANKERBLECH_/.test(x.name));
+    wahr('Zwei Bleche je Station',
+         blech.length === 2 * (zahlA + zahlB),
+         `${blech.length} gegen ${2 * (zahlA + zahlB)}`);
+    wahr('Sie sind Staebe, keine Starrkoerper',
+         blech.every((x) => x.art === 'stab'));
+    wahr('Keine Laschen mehr',
+         !(jA.staebe ?? []).some((x) => /^ANKERLASCHE_/.test(x.name)));
+    /*
+     * >>> UND SIE LIEGEN NICHT IN DER ACHSE. <<<
+     *
+     * Das Paar mit seinem Hebelarm macht den mehrteiligen Druckstab steif;
+     * ein einzelnes Blech auf der Profilachse waere die halbe Wahrheit.
+     * Jedes Blech haengt deshalb ueber einen kurzen starren Stiel an der
+     * Achse - (h - t)/2 lang, beim U12 also 56 mm.
+     */
+    const stiel = (jA.staebe ?? []).filter((x) => /^ANKERSTIEL_/.test(x.name));
+    wahr('Vier Stiele je Station', stiel.length === 4 * (zahlA + zahlB),
+         `${stiel.length}`);
+    pruef('Der Stiel misst (h - t)/2', AN.ankerBlechVersatz('U12'), 56,
+          1e-12, 'mm');
+    pruef('… und beim U14 entsprechend', AN.ankerBlechVersatz('U14'), 66,
+          1e-12, 'mm');
+    {
+      const knV2 = new Map((jA.knoten ?? []).map((k) => [k.name, k]));
+      const lg2 = (nm2) => {
+        const st2 = (jA.staebe ?? []).find((x) => x.name === nm2);
+        const p1 = knV2.get(st2.von), p2 = knV2.get(st2.bis);
+        return Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+      };
+      // Die Toleranz ist RELATIV (siehe pruef): 56 mm auf Mikrometer
+      // gerundete Knoten geben rund 2e-6 Abweichung.
+      pruef('Im Modell gemessen', lg2('ANKERSTIEL_A_LO1'), 0.056, 1e-5, 'm');
+      wahr('Oben und unten gegenlaeufig',
+           knV2.get('ANKBL_A_LO1').z > knV2.get('ANKBL_A_LU1').z
+           || Math.abs(knV2.get('ANKBL_A_LO1').x
+                       - knV2.get('ANKBL_A_LU1').x) > 1e-9);
+    }
     // Und der alte Einzelstab ist weg.
     wahr('Kein Ersatzstab mehr',
          !(jA.staebe ?? []).some((x) => /^ANKER_[AB]$/.test(x.name)));
@@ -10284,39 +10343,89 @@ titel('42  Der lange Mast mit Zusatzleitern');
           kn('MAST_A_ANK').z - fA.z, 4, 1e-6, 'm');
 
     /* =====================================================================
-     * >>> DER KEIL, MIT MASS. <<<
+     * >>> DER KEIL, MIT DEN MASSEN DER ZEICHNUNG. <<<
      * =====================================================================
      *
      * Der Anker A steht QUER zum Gleis (Jochachse), also spreizt er in
-     * GLEISRICHTUNG - quer zur Ankerebene. Das Sortiment fuehrt fuer den
-     * U12 104 mm am engen und 225 mm am weiten Ende, lichtes Mass; der
-     * Achsabstand ist eine Profilbreite mehr (UNP 120: 55 mm).
+     * GLEISRICHTUNG - quer zur Ankerebene.
      *
-     *   am Masten (weit)      225 + 55 = 280 mm  ->  je +-0.140 m
-     *   am Fundament (eng)    104 + 55 = 159 mm  ->  je +-0.0795 m
+     * >>> DER BEZUG IST BEANTWORTET (15. September). <<<
      *
-     * DAS IST DIE LESART, NICHT DAS BLATT. Der Bezug der Masslinie steht im
-     * Sortiment offen (`bezug: null`); gelesen wird sie als lichte Weite,
-     * weil die Flachlasche den Spalt ueberbrueckt. Faellt die Angabe, ist
-     * `ankerAchsabstandAn` die Stelle - und diese Kontrolle faellt mit.
+     * Weisung auf die Rueckfrage: "gemaess zeichnung im grundlagen ordner."
+     * Schnitt B-B zeigt die beiden U mit den STEGEN GEGENEINANDER; das Mass
+     * steht zwischen den Stegruecken, ist also die lichte Weite. Der
+     * Achsabstand ist eine SCHWERACHSE weiter je Seite - beim UNP 120
+     * ey = 16 mm, nicht eine halbe Profilbreite:
+     *
+     *   am Fundament (eng)   104 + 2*16 = 136 mm
+     *   am Masten (weit)     225 + 2*16 = 257 mm
+     *
+     * Bis zum 15. September stand hier 159 bzw. 280 mm - die Lesart "plus
+     * eine Profilbreite". Sie war falsch, und die Zeichnung sagt es.
+     *
+     * >>> UND DAS ENGE ENDE IST EIN QUADRATISCHER KASTEN. <<<
+     *
+     * Die lichte Weite ist h - 2*t des Blechs: U12 120 - 16 = 104, U14
+     * 140 - 16 = 124. Diese Probe nagelt den Zusammenhang fest - faellt
+     * sie, ist entweder das Profil oder das Blech vertauscht.
      */
     const kL0 = kn('ANK_A_L0'), kR0 = kn('ANK_A_R0');
-    const kL3 = kn('ANK_A_L3'), kR3 = kn('ANK_A_R3');
-    pruef('Am Masten stehen die Profile 280 mm auseinander',
-          kR0.y - kL0.y, 0.280, 1e-9, 'm');
-    pruef('Am Fundament 159 mm', kR3.y - kL3.y, 0.159, 1e-9, 'm');
+    const letzteA = AN.ankerBindebleche('U12', 5).length + 1;
+    const kLn = kn(`ANK_A_L${letzteA}`), kRn = kn(`ANK_A_R${letzteA}`);
+    pruef('Am Masten stehen die Profile 257 mm auseinander',
+          kR0.y - kL0.y, 0.257, 1e-9, 'm');
+    pruef('Am Fundament 136 mm', kRn.y - kLn.y, 0.136, 1e-9, 'm');
     wahr('Sie liegen symmetrisch zur Ankerebene',
-         Math.abs(kL0.y + kR0.y) < 1e-9 && Math.abs(kL3.y + kR3.y) < 1e-9);
+         Math.abs(kL0.y + kR0.y) < 1e-9 && Math.abs(kLn.y + kRn.y) < 1e-9);
+    pruef('Die lichte Weite ist h - 2t des Blechs',
+          AN.ankerSpreizung('U12').schmal,
+          AN.ankerQuerschnitt('U12').h - 2 * AN.ankerBlechSatz('U12').dicke,
+          1e-12, 'mm');
+    pruef('… und beim U14 ebenso',
+          AN.ankerSpreizung('U14').schmal,
+          AN.ankerQuerschnitt('U14').h - 2 * AN.ankerBlechSatz('U14').dicke,
+          1e-12, 'mm');
     /*
-     * DIE PARALLELEN STUECKE: 1610 mm am weiten Ende, 990 mm am engen -
-     * so vermasst das Blatt sie. Dazwischen laeuft der Keil.
+     * DIE PARALLELEN STUECKE: 1610 mm am weiten Ende, 990 mm am engen - so
+     * vermasst das Blatt sie, und dort sitzen zugleich das erste und das
+     * letzte Bindeblech. Die Stationen der Einteilung SIND die Knickstellen
+     * des Keils.
      */
     const lg3 = (a2, b2) => Math.hypot(b2.x - a2.x, b2.y - a2.y, b2.z - a2.z);
     pruef('Oben laeuft er 1610 mm parallel',
-          lg3(kn('ANK_A_L0'), kn('ANK_A_L1')), 1.610, 1e-6, 'm');
-    pruef('Unten 990 mm', lg3(kn('ANK_A_L2'), kn('ANK_A_L3')), 0.990, 1e-6, 'm');
+          lg3(kn('ANK_A_L0'), kn('ANK_A_L1')), 1.610, 1e-5, 'm');
+    pruef('Unten 990 mm',
+          lg3(kn(`ANK_A_L${letzteA - 1}`), kLn), 0.990, 1e-5, 'm');
     pruef('Im parallelen Stueck aendert sich nichts',
-          kn('ANK_A_R1').y - kn('ANK_A_L1').y, 0.280, 1e-9, 'm');
+          kn('ANK_A_R1').y - kn('ANK_A_L1').y, 0.257, 1e-9, 'm');
+
+    /* =====================================================================
+     * >>> DIE EINTEILUNG IST DIE DER ZEICHNUNG - ALLE VIER TABELLEN. <<<
+     * =====================================================================
+     *
+     * Erstes Blech 990 mm vom engen Ende, letztes 1610 mm vom weiten,
+     * dazwischen gleichmaessig mit hoechstens 1200 mm. Die beiden
+     * Werkstattzeichnungen fuehren vier Laengen; die Regel trifft jede.
+     */
+    const stat = (typ, L2) => AN.ankerBindebleche(typ, L2)
+      .map((x) => Math.round(x.x * 1000));
+    wahr('U12 / 5.00 m: drei Bleche wie gezeichnet',
+         stat('U12', 5).join(' ') === '990 2190 3390', stat('U12', 5).join(' '));
+    wahr('U12 / 7.00 m: fuenf',
+         stat('U12', 7).join(' ') === '990 2090 3190 4290 5390',
+         stat('U12', 7).join(' '));
+    wahr('U12 / 9.00 m: sieben',
+         stat('U12', 9).join(' ') === '990 2057 3123 4190 5257 6323 7390',
+         stat('U12', 9).join(' '));
+    /*
+     * BEIM U14 UEBER 11.00 m GEHT DIE TEILUNG GENAU AUF - 8400 / 1200 = 7.
+     * In Fliesskomma kommt 7.000000000000001 heraus; ohne Epsilon im
+     * Aufrunden stuende dort ein Feld zuviel. Die Zeichnung sagt acht
+     * Bleche, und diese Kontrolle haelt es fest.
+     */
+    wahr('U14 / 11.00 m: acht, mit genau 1200 mm Teilung',
+         stat('U14', 11).join(' ') === '990 2190 3390 4590 5790 6990 8190 9390',
+         stat('U14', 11).join(' '));
 
     /*
      * >>> UND DIE LUECKE STEHT IM BERICHT. <<<
@@ -10339,22 +10448,32 @@ titel('42  Der lange Mast mit Zusatzleitern');
     wahr('Der Bericht sagt, dass zwei Profile dastehen',
          bA.every((v) => v.zweiProfile === true));
     wahr('\u2026 und nennt den Keil mit seinen Massen',
-         bA.every((v) => /keilf\u00f6rmig gespreizt \(\d+\u2192\d+ mm\)/.test(v.vermerk)));
-    wahr('\u2026 nennt den Achsabstand eine Lesart',
-         bA.every((v) => /LESART/.test(v.vermerk)
-                      && /Bezug des Masses steht im Sortiment offen/
-                           .test(v.vermerk)));
-    wahr('\u2026 sagt, was an den Laschen fehlt',
-         bA.every((v) => /Anzahl, Abstand und Profil/.test(v.vermerk)));
+         bA.every((v) => /keilf\u00f6rmig gespreizt \(\d+\u2192\d+ mm /.test(v.vermerk)));
     /*
-     * UND DIE WARNUNG, DIE DEN GANZEN SCHRITT EINRAHMT: das Modell sieht
-     * jetzt aus wie ein mehrteiliger Druckstab, und es ist keiner, auf den
-     * man einen Knicknachweis gruenden darf. Starre Laschen sind die
-     * STEIFERE Annahme.
+     * >>> SEIT DEM 15. SEPTEMBER STEHT DORT KEINE LESART MEHR. <<<
+     *
+     * Hier stand, der Vermerk muesse den Achsabstand eine LESART nennen und
+     * sagen, dass Anzahl und Abstand der Laschen fehlen. Beides war richtig,
+     * solange nur das Bemessungsblatt vorlag. Die Werkstattzeichnung fuehrt
+     * den Bezug (Schnitt B-B) und die Blecheinteilung vollstaendig - jetzt
+     * nennt der Vermerk die MASSE, nicht die Luecke.
      */
-    wahr('\u2026 und verbietet den Knicknachweis darauf',
-         bA.every((v) => /NICHT zu gr\u00fcnden/.test(v.vermerk)
-                      && /Bemessungsdiagramm/.test(v.vermerk)));
+    wahr('\u2026 nennt die lichte Weite zwischen den Stegen',
+         bA.every((v) => /lichte Weite zwischen den Stegen/.test(v.vermerk)),
+         bA[0]?.vermerk ?? '');
+    wahr('\u2026 und die Zahl der Blechstationen',
+         bA.every((v) => /\d+ Bindeblech-Stationen/.test(v.vermerk)
+                      && v.bleche > 0));
+    wahr('\u2026 mit den Randmassen der Einteilung',
+         bA.every((v) => /990 mm vom engen/.test(v.vermerk)
+                      && /1610 mm vom weiten/.test(v.vermerk)));
+    /*
+     * MASSGEBEND BLEIBT DAS BEMESSUNGSDIAGRAMM - daran aendert auch ein
+     * vollstaendiges Modell nichts. Die Kurve kennt Keil und Blecheinteilung
+     * bereits; sie ist die gepruefte Angabe, das Modell die Darstellung.
+     */
+    wahr('\u2026 und nennt das Bemessungsdiagramm massgebend',
+         bA.every((v) => /Bemessungsdiagramm/.test(v.vermerk)));
     /*
      * >>> DER VERMERK NENNT DEN KEIL, NICHT MEHR EINE LUECKE. <<<
      *
@@ -10369,8 +10488,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
     wahr('Die Spreizung steht als eigenes Feld im Bericht',
          bA.every((v) => v.spreizung?.schmal_mm > 0
                       && v.spreizung.breit_mm > v.spreizung.schmal_mm));
-    wahr('… und sagt, dass der Bezug der Masslinie offen ist',
-         bA.every((v) => v.spreizung.bezug === 'offen'));
+    wahr('… und nennt den Bezug der Masslinie',
+         bA.every((v) => /lichte Weite/.test(v.spreizung.bezug)),
+         bA.map((v) => v.spreizung.bezug).join(' | '));
     /*
      * >>> UND DER QUERSCHNITT TRAEGT DIE WERTE, NICHT MEHR EINEN
      * PLATZHALTER. <<<
@@ -10479,17 +10599,35 @@ titel('42  Der lange Mast mit Zusatzleitern');
     pruef('U12: parallel am weiten Ende', spU12.parallelBreit, 1610, 1e-9, 'mm');
     pruef('U14: das enge Ende ist weiter', AN.ankerSpreizung('U14').schmal,
           124, 1e-9, 'mm');
-    /*
-     * >>> WAS NICHT DASTEHT, WIRD NICHT ANGENOMMEN. <<<
+    /* =====================================================================
+     * >>> DER BEZUG STAND OFFEN - UND IST BEANTWORTET. <<<
+     * =====================================================================
      *
-     * Die Masslinie steht zwischen den beiden Profilen; ob sie die lichte
-     * Weite, den Achsabstand oder das Aussenmass misst, sagt das Blatt
-     * nicht. Beim UNP 120 liegen dazwischen rund 120 mm, und I_z des
-     * Verbunds geht mit dem QUADRAT des Achsabstands. Solange der Nachweis
-     * ueber das Bemessungsdiagramm laeuft, ist das unerheblich - fuer eine
-     * eigene Knickrechnung nicht, und dann ist zuerst zu fragen.
+     * Bis zum 15. September stand hier: "Die Masslinie steht zwischen den
+     * beiden Profilen; ob sie die lichte Weite, den Achsabstand oder das
+     * Aussenmass misst, sagt das Blatt nicht." Richtig - das
+     * BEMESSUNGSBLATT sagt es nicht.
+     *
+     * Die WERKSTATTZEICHNUNG sagt es. Auf die Rueckfrage kam die Weisung
+     * "gemaess zeichnung im grundlagen ordner", und Schnitt B-B zeigt die
+     * beiden U mit den Stegen gegeneinander: das Mass steht zwischen den
+     * Stegruecken, und die Bindebleche sind genau dort eingeschweisst.
+     *
+     * DIE LEHRE steht in der Sache selbst: die Angabe fehlte nicht, sie lag
+     * in einer anderen Unterlage. Vier Tage lang rechnete das Werkzeug mit
+     * einer Lesart, wo eine Zeichnung danebenlag.
      */
-    wahr('Der Bezug der Masslinie bleibt offen', spU12.bezug === null);
+    wahr('Der Bezug der Masslinie steht fest',
+         /lichte Weite/.test(spU12.bezug ?? ''), String(spU12.bezug));
+    /*
+     * UND ER TRAEGT: der Achsabstand ist die lichte Weite plus zwei
+     * Schwerachsabstaende. Beim UNP 120 ey = 16 mm, also 104 + 32 = 136 mm
+     * am engen Ende - nicht 159, wie die verworfene Lesart gab.
+     */
+    pruef('Der Achsabstand am engen Ende',
+          AN.ankerAchsabstandAn('U12', 5, 0), 136, 1e-9, 'mm');
+    pruef('… und am weiten', AN.ankerAchsabstandAn('U12', 5, 5), 257,
+          1e-9, 'mm');
     wahr('Das Seil hat kein Spreizmass', AN.ankerSpreizung('SA20') === null);
 
     // Der Verlauf ueber eine Stuetze von 5.00 m, Stelle fuer Stelle.

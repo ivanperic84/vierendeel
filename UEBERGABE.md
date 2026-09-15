@@ -397,6 +397,81 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Werkstattzeichnung beantwortet beides (15. September)
+
+Befund am aufgebauten Modell: «die ausrichtung der c stimmt nicht, ähnlich wie
+bei abfangjoch. die verbindungsbleche sind nicht modelliert.» Auf die
+Rückfrage: «gemäss zeichnung im grundlagen ordner.»
+
+**Die Zeichnung lag da.** `Grundlagen/Anker/` führt die Werkstattzeichnungen
+beider Typen. Bis dahin hatte das Werkzeug nur das **Bemessungsblatt** — und
+das sagt den Bezug des Spreizmasses tatsächlich nicht. Die Werkstattzeichnung
+sagt ihn, und noch einiges mehr.
+
+**1 · Die beiden C standen gleichsinnig.** AxisVM kann ein U-Profil nicht
+spiegeln; die Referenz dreht es um 180° um die Stabachse, und beim U vertauscht
+das genau die Öffnungsrichtung. Dieselbe Lösung wie am Abfangjoch seit dem
+4. September (`lcsGurt` gibt dort `[0,0,1]` und `[0,0,-1]`). Jetzt bekommt die
+Plus-Seite der Spreizung die Gegenrichtung — **Stege gegeneinander, Flansche
+nach aussen**, wie Schnitt B-B es zeigt.
+
+**2 · Der Achsabstand war falsch.** Ich hatte gelesen «lichte Weite plus eine
+Profilbreite». Schnitt B-B zeigt das Mass zwischen den **Stegrücken**, und die
+Schwerachse eines U liegt `e_y` = 16 mm dahinter, nicht eine halbe Breite:
+
+| | vorher (Lesart) | jetzt (Zeichnung) |
+|---|---|---|
+| enges Ende | 159 mm | **136 mm** |
+| weites Ende | 280 mm | **257 mm** |
+
+23 mm je Stütze. Für die Normalkraft ohne Belang, für das Bild und für jede
+Steifigkeit in der Spreizebene nicht.
+
+> **Eine Probe fällt dabei ab**, und sie nagelt den Zusammenhang fest: die
+> lichte Weite ist `h − 2·t` des Blechs. U12: 120 − 16 = 104. U14:
+> 140 − 16 = 124. Am engen Ende bilden die beiden Profile und die beiden
+> Bleche einen **quadratischen Kasten** von der Höhe des Profils.
+
+**3 · Die Bindebleche stehen jetzt da**, und zwar vollständig. Die Zeichnung
+führt die Einteilung für vier Längen; eine Regel trifft alle vier:
+
+> Erstes Blech **990 mm** vom engen Ende, letztes **1610 mm** vom weiten,
+> dazwischen gleichmässig mit höchstens **1200 mm**.
+
+| | Felder | Teilung | Stationen ab dem engen Ende |
+|---|---|---|---|
+| 5.00 m | 2 | 1200.0 | 990, 2190, 3390 |
+| 7.00 m | 4 | 1100.0 | 990, 2090, 3190, 4290, 5390 |
+| 9.00 m | 6 | 1066.7 | 990, 2056, 3123, 4190, 5257, 6324, 7390 |
+| 11.00 m | 7 | 1200.0 | 990, 2190, … , 9390 (nur U14) |
+
+Das sind zugleich die **Knickstellen des Keils**: die Randmasse der Einteilung
+und die der Spreizung sind dieselben. Beim U14 über 11.00 m geht die Teilung
+genau auf — 8400/1200 = 7 —, und in Fliesskomma kommt 7.000000000000001
+heraus; ohne Toleranz im Aufrunden stünde dort ein Feld zuviel.
+
+**Zwei Bleche je Station**, oben und unten zwischen den Stegen eingeschweisst,
+**FLA 140/8**. Ihr lichter Abstand ist `h − 2·t`, die Mitte also `(h − t)/2`
+von der Profilachse — beim U12 56 mm. Jedes Blech hängt über einen kurzen
+starren Stiel an der Achse: **das Paar mit seinem Hebelarm** macht den
+mehrteiligen Druckstab steif, ein einzelnes Blech auf der Achse wäre die halbe
+Wahrheit. Die beiden Bleche und die beiden Stege bilden einen Rahmen — dasselbe
+Tragverhalten wie beim Tragjoch, zwei Nummern kleiner.
+
+Das Blech liegt **flach über den Querschnitt** (h = Dicke, b = Breite), nicht
+über die Referenz — die Lehre vom 4. September am Abfangjoch: «die bleche sind
+stehen anstatt liegend», weil die Referenz nicht ankam.
+
+**Das Sortiment führt beides jetzt** (`data/anker.json`): `bezug` ist von
+`null` auf «lichte Weite zwischen den Stegrücken» gesetzt, und ein Satz
+`bindeblech` trägt Länge, Dicke, Regelabstand und die beiden Randmasse.
+
+> **Die Lehre steht in der Sache selbst.** Die Angabe fehlte nicht — sie lag in
+> einer anderen Unterlage. Vier Tage lang rechnete das Werkzeug mit einer
+> Lesart, wo eine Zeichnung danebenlag. Wo im Quelltext «steht nicht im
+> Sortiment» steht, ist die nächste Frage nicht «was nehmen wir an», sondern
+> «wo steht es».
+
 ### Die Druckstütze steht als zwei Profile im Modell (15. September)
 
 Weisung: «weiter mit stufe 1 der druckstütze.»
