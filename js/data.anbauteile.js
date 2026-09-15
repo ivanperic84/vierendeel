@@ -243,6 +243,28 @@ export const amMast = (a) => ortVon(a) !== 'joch';
 export const traegerImTeil = (teile) =>
   (teile ?? []).find((t) => (t.rolle ?? '') === 'traeger') ?? null;
 
+/**
+ * Der einfache Eintrag hinter einem «(xN)» - oder null.
+ *
+ * Gesucht wird ueber die ZERLEGUNG, nicht ueber den Namen: «Cu 95 (x2)» ist
+ * Cu 95 mit Faktor zwei, «N-FL Ts: StCu 50 / Fd: Cu 107 (x2)» dasselbe
+ * Kettenwerk doppelt. Gibt es den einfachen Eintrag nicht, bleibt alles wie
+ * es ist - lieber ein Eintrag mit (xN) im Namen als eine Anzahl, die auf ein
+ * Bauteil zeigt, das die Tabelle nicht fuehrt.
+ */
+function einfacherLeiter(id) {
+  if (!id) return null;
+  let b = null;
+  try { b = getFlBauteil(id); } catch { return null; }
+  if (b.rolle !== 'drahtwerk') return null;
+  const z = flZerlegung(b);
+  const n = z.anzahl ?? 1;
+  if (n <= 1) return null;
+  const eins = istKettenwerk(b)
+    ? flPaarung(z.ts, z.fd, 1) : flPaarung(z.leiter, null, 1);
+  return eins ? { id: eins.id, faktor: n } : null;
+}
+
 export function normalisiereAnbauteil(a) {
   const t = { ...a };
   // Der Ort gehört zur Baugruppe, nicht zu ihren Teilen: eine Traverse am
@@ -253,6 +275,35 @@ export function normalisiereAnbauteil(a) {
     const n = { ...m };
     n.z = zVon(n); n.y = yVon(n);
     delete n.ev; delete n.ex;
+    /* =====================================================================
+     * >>> «(x2)» IST KEINE BAUART, SONDERN EINE ANZAHL. <<<
+     * =====================================================================
+     *
+     * Weisung vom 13. September: «die x2 x3 varianten durch anzahl
+     * ersetzen.»
+     *
+     * Die Tabelle fuehrt «Cu 95», «Cu 95 (x2)», «(x3)», «(x4)» als vier
+     * Eintraege - und daneben gibt es das Feld `anzahl`, das dasselbe
+     * leistet. Vier Zeilen in der Auswahlliste fuer eine Zahl, die einen
+     * Klick weiter steht.
+     *
+     * NACHGEMESSEN (Kontrolle im Pruefstand): die Vielfachen sind EXAKTE
+     * Vielfache - Eigengewicht, Leiterzug und Wind in jeder
+     * Einwirkungsklasse. Die Umrechnung aendert deshalb keine Zahl.
+     *
+     * >>> SIE GESCHIEHT BEIM LADEN, NICHT BEIM ZEICHNEN. <<<
+     *
+     * Ein gespeicherter Stand zeigt auf «Cu 95 (x2)»; die Maske zeigte
+     * dann «Cu 95» und daneben die Anzahl 1 - eine Zeile, die das Doppelte
+     * rechnet, ohne es zu sagen. `normalisiereAnbauteil` laeuft ueber jedes
+     * geladene Anbauteil und legt den Satz einheitlich ab: einfacher
+     * Eintrag, Anzahl mal N.
+     */
+    const kurz = einfacherLeiter(n.bauteil);
+    if (kurz && kurz.id !== n.bauteil) {
+      n.bauteil = kurz.id;
+      n.anzahl = (Number(n.anzahl) || 1) * kurz.faktor;
+    }
     return n;
   });
 

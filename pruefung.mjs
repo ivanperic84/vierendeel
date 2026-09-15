@@ -7113,6 +7113,75 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          uq4.includes('werWeg ? null'));
   }
 
+  /* =========================================================================
+   * >>> «(x2)» IST KEINE BAUART, SONDERN EINE ANZAHL. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «die x2 x3 varianten durch anzahl ersetzen.»
+   *
+   * Die Tabelle fuehrt «Cu 95», «Cu 95 (x2)», «(x3)», «(x4)» als vier
+   * Eintraege - und daneben gibt es das Feld `anzahl`, das dasselbe leistet.
+   *
+   * >>> DIE UMRECHNUNG AENDERT KEINE ZAHL, UND DAS IST NACHGEMESSEN. <<<
+   *
+   * Die Voraussetzung steht weiter oben als eigene Kontrolle: die Vielfachen
+   * sind EXAKTE Vielfache in Gewicht, Leiterzug und Wind je Klasse. Hier
+   * wird geprueft, dass die Umrechnung sie auch trifft.
+   *
+   * SIE GESCHIEHT BEIM LADEN. Ein gespeicherter Stand zeigt auf «Cu 95
+   * (x2)»; zeigte die Maske dann «Cu 95» und die Anzahl 1, staende dort eine
+   * Zeile, die das Doppelte rechnet, ohne es zu sagen.
+   * ======================================================================= */
+  {
+    const AB2 = await import(J('data.anbauteile.js'));
+    const trasse2 = { ek: 'EK2', spannweite: 40, R: 600 };
+    const roh = (bauteil, anzahl = 1) => ({
+      id: 'AT9', name: 'Probe', x: 0, ort: 'joch', lasten: [],
+      module: [{ bauteil, x: 0, y: 0, z: -2.7, anzahl }] });
+    const norm = (bauteil, anzahl) =>
+      AB2.normalisiereAnbauteil(roh(bauteil, anzahl)).module[0];
+
+    const m2 = norm('drahtwerk-cu-95-x2');
+    wahr('Cu 95 (x2) wird zu Cu 95', m2.bauteil === 'drahtwerk-cu-95',
+         m2.bauteil);
+    pruef('… mit Anzahl zwei', m2.anzahl, 2, 1e-12, '–');
+    const m3 = norm('drahtwerk-cu-95-x3', 2);
+    pruef('Eine vorhandene Anzahl wird vervielfacht', m3.anzahl, 6, 1e-12, '–');
+    const kwX = norm('drahtwerk-n-fl-ts-stcu-50-fd-cu-107-x2');
+    wahr('Auch das doppelte Kettenwerk',
+         kwX.bauteil === 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107', kwX.bauteil);
+    pruef('… mit Anzahl zwei', kwX.anzahl, 2, 1e-12, '–');
+    const m1 = norm('drahtwerk-cu-95');
+    wahr('Der einfache Eintrag bleibt, wie er ist',
+         m1.bauteil === 'drahtwerk-cu-95' && (m1.anzahl ?? 1) === 1);
+    /*
+     * >>> UND DIE KRAEFTE BLEIBEN GLEICH. <<<
+     *
+     * Das ist der eigentliche Nachweis: dieselbe Baugruppe, einmal ueber den
+     * (x2)-Eintrag und einmal ueber Anzahl zwei - Zahl fuer Zahl dasselbe.
+     */
+    const s2 = (a) => AB2.baugruppeSumme(AB2.normalisiereAnbauteil(a), trasse2);
+    const ueber = s2(roh('drahtwerk-cu-95-x2'));
+    const direkt = s2(roh('drahtwerk-cu-95', 2));
+    for (const f of ['Gz', 'Gx', 'Qx', 'Qy']) {
+      pruef(`Cu 95 doppelt: ${f}`, ueber[f], direkt[f], 1e-12, 'kN');
+    }
+    const kwUeber = s2(roh('drahtwerk-n-fl-ts-stcu-50-fd-cu-107-x2'));
+    const kwDirekt = s2(roh('drahtwerk-n-fl-ts-stcu-50-fd-cu-107', 2));
+    for (const f of ['Gz', 'Gx', 'Qx']) {
+      pruef(`Kettenwerk doppelt: ${f}`, kwUeber[f], kwDirekt[f], 1e-12, 'kN');
+    }
+    /*
+     * IN DER AUSWAHL STEHEN SIE NICHT MEHR. Ein geladener Satz wird
+     * umgerechnet, also bleibt nichts uebrig, worauf noch etwas zeigt.
+     */
+    const uq5 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Liste laesst die Vielfachen weg',
+         uq5.includes('const einfach = (b) => (flZerlegung(b).anzahl ?? 1) <= 1'));
+    wahr('… zeigt aber einen gespeicherten Eintrag weiter an',
+         uq5.includes('(einfach(b) || b.id === wert)'));
+  }
+
   // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
@@ -12021,9 +12090,41 @@ titel('51  Was ein Leiter an dieser Stelle abgibt');
     wahr('Die drei Haken stehen in der Maske',
          /wirktG/.test(roh) && /wirktAblenk/.test(roh) && /wirktQ/.test(roh));
     wahr('Und das Kettenwerksfeld', /data-mk="kettenwerk"/.test(roh));
-    // Sie erscheinen NUR beim Drahtwerk.
+    /*
+     * SIE ERSCHEINEN NUR BEIM DRAHTWERK - und seit dem 13. September
+     * unmittelbar unter dem Fahrdrahtfeld (Weisung: «zudem sollte dies
+     * unterhalb von fahrdraht stehen damit man die zugehoerigkeit (nur auf
+     * fahrdraht angewendet) versteht»). Vorher standen sie drei Abschnitte
+     * weiter unten, hinter Angriffspunkt und Ablenkung.
+     *
+     * Geprueft wird die AUSSAGE, nicht die Zeilennummer: der Aufruf haengt
+     * am Drahtwerk, und er folgt dem Partnerfeld.
+     */
     wahr('Nur im Drahtwerkzweig',
-         roh.indexOf('wirkungHtml(i, k, m)') > roh.indexOf('drahtwerk ? `<div class="sec-klein">Ablenkung'));
+         roh.includes("${drahtwerk ? wirkungHtml(i, k, m) : ''}"));
+    wahr('… und unmittelbar unter dem Fahrdrahtfeld',
+         roh.includes("${partnerFeld(m, k, i)}${drahtwerk ? wirkungHtml"));
+    wahr('… nicht mehr hinter der Ablenkung',
+         roh.indexOf('wirkungHtml(i, k, m)')
+           < roh.indexOf('drahtwerk ? `<div class="sec-klein">Ablenkung'));
+    /*
+     * DER TITEL NENNT DEN FAHRDRAHT (Weisung: «der Titel wirkt hier
+     * kettenwerk ist etwas missverstaendlich»).
+     */
+    wahr('Die Ueberschrift nennt den Fahrdraht',
+         roh.includes('`Davon wirkt am Fahrdraht ${z.fd}`'));
+    wahr('… und «Wirkt hier · Kettenwerk» ist weg',
+         !roh.includes("`Kettenwerk ${m.kettenwerk}`"));
+    /*
+     * DER HINWEIS IST EINGEKLAPPT (Weisung: «den infotext unterhalb
+     * einklappbar machen und auf ein minimum reduzieren»). `hinweisHtml`
+     * klappt alles ueber HINWEIS_KURZ zu; geprueft wird, dass der Text
+     * durch diese Funktion laeuft und nicht als fester Absatz dasteht.
+     */
+    wahr('Der Hinweis laeuft durch hinweisHtml',
+         roh.includes('hinweisHtml(`wirk-${i}-${k}`, kurz)'));
+    wahr('… und steht nicht mehr als fester Absatz da',
+         !roh.includes('class="hinweis wirk-bezug"'));
   }
 }
 

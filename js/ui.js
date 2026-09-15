@@ -2610,10 +2610,22 @@ function modulListeHtml(a, i, werte) {
      * hingehoert, als ein Feld, das etwas anderes zeigt, als gespeichert ist.
      */
     const fremd = zeigt === wert && istKettenwerkId(wert);
+    /*
+     * >>> UND OHNE DIE VIELFACHEN. <<<
+     *
+     * Weisung vom 13. September: «die x2 x3 varianten durch anzahl
+     * ersetzen.» Sie stehen daneben im Feld `anzahl`; in der Liste waren
+     * sie vier Zeilen fuer eine Zahl, die einen Klick weiter steht. Ein
+     * geladener Satz wird beim Normalisieren umgerechnet (siehe
+     * `einfacherLeiter` in data.anbauteile.js), sodass hier nichts
+     * uebrigbleibt, worauf noch etwas zeigt.
+     */
+    const einfach = (b) => (flZerlegung(b).anzahl ?? 1) <= 1;
     return gruppe('traeger', 'Träger am Joch') +
            gruppe('aufbau', 'Aufbauten') +
            gruppe('drahtwerk', 'Leiter',
-                  (b) => !istKettenwerk(b) || (fremd && b.id === wert));
+                  (b) => (einfach(b) || b.id === wert)
+                      && (!istKettenwerk(b) || (fremd && b.id === wert)));
   };
 
   /* =========================================================================
@@ -2696,7 +2708,7 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
         <button class="loeschen" data-mod-weg="${k}" data-idx="${i}"
                 title="Modul entfernen">×</button>
       </div>
-      ${partnerFeld(m, k, i)}
+      ${partnerFeld(m, k, i)}${drahtwerk ? wirkungHtml(i, k, m) : ''}
       ${kt ? `<div class="modul-kette">
         ${kt.rolle ? `<span class="rollen-marke r-${esc(kt.rolle)}"
             title="Rolle aus der Lasttabelle, sie bestimmt, was auf was sitzt"
@@ -2720,8 +2732,7 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
         <span class="at-feld lesbar"><span>Spannweite <i>m</i></span>
           <b>${f2(m.laenge ?? trasse.spannweite ?? 0)}</b>
           <small class="hinweis">global, Gruppe «Trasse»</small></span>
-      </div>
-      ${wirkungHtml(i, k, m)}` : streckenlast ? `<div class="at-gitter">
+      </div>` : streckenlast ? `<div class="at-gitter">
         ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
       ${b?.freieFlaeche ? `<div class="sec-klein">Angriffsfläche</div>
@@ -2930,18 +2941,21 @@ const WIRKUNGEN = [
 
 function wirkungHtml(i, k, m) {
   /* =========================================================================
-   * >>> DER HAKEN NIMMT DEN FAHRDRAHT WEG, NICHT DAS KETTENWERK. <<<
+   * >>> ER STEHT UNTER DEM FAHRDRAHT, UND ER SAGT, WEM ER GILT. <<<
    * =========================================================================
    *
-   * Weisung vom 13. September: «Die Auswahl der einwirkungen bei den leitern
-   * die auswaehlbar sind, sollten sich ausschliesslich auf den fahrdraht
-   * beziehen, da es vorkommt, dass die ablenkung und der wind separat durch
-   * einen fahrdrahtabzug der an einer haengestuetze befestigt ist aufgenommen
-   * wird.»
+   * Weisung vom 13. September: «der Titel wirkt hier kettenwerk ist etwas
+   * missverstaendlich. zudem sollte dies unterhalb von fahrdraht stehen
+   * damit man die zugehoerigkeit (nur auf fahrdraht angewendet) versteht.»
    *
-   * Das muss DASTEHEN, sonst liest sich derselbe Haken wie frueher. Die
-   * Zeile sagt jetzt, worauf er sich bezieht - und bei einem einzelnen
-   * Leiter sagt sie, dass er alles wegnimmt.
+   * Beides traf zu. «Wirkt hier · Kettenwerk KW1» las sich, als ginge es um
+   * das Kettenwerk als Ganzes - und der Block stand drei Abschnitte weiter
+   * unten, hinter Angriffspunkt und Ablenkung, wo ihn nichts mehr mit der
+   * Wahl darueber verband.
+   *
+   * Jetzt: unmittelbar unter dem Fahrdraht, und die Ueberschrift nennt ihn
+   * beim Namen. Die Klammer «Kettenwerk» steht als Feld darin, nicht mehr
+   * als Beischrift in der Zeile - sie ist eine Eingabe, keine Auskunft.
    */
   let b = null;
   try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
@@ -2950,15 +2964,39 @@ function wirkungHtml(i, k, m) {
   // Gibt es den Fahrdraht auch einzeln? Nur dann laesst sich sein Anteil
   // abziehen - «N-FL Cu 150» steht nur in der Paarung.
   const trennbar = kw && Boolean(flPaarung(null, z.fd, z.anzahl ?? 1));
-  const bezug = !kw ? 'abgewählt = dieser Leiter fällt ganz weg'
-    : trennbar ? `abgewählt = ohne ${z.fd}`
+  const titel = kw && trennbar ? `Davon wirkt am Fahrdraht ${z.fd}`
+    : kw ? 'Davon wirkt hier'
+    : 'Davon wirkt hier';
+  const rechts = !kw ? 'abgewählt = dieser Leiter fällt ganz weg'
+    : trennbar ? 'abgewählt = ohne den Fahrdraht'
     : `abgewählt = alles (${z.fd} gibt es nicht einzeln)`;
-  return `<div class="sec-klein">Wirkt hier<span class="sec-r">${
-      esc(m.kettenwerk ? `Kettenwerk ${m.kettenwerk}` : bezug)
-    }</span></div>
+  /*
+   * DER HINWEIS IST EINGEKLAPPT UND KURZ (Weisung, gleicher Satz: «den
+   * infotext unterhalb einklappbar machen und auf ein minimum reduzieren»).
+   *
+   * Er stand als zehn Zeilen Fliesstext unter jedem Drahtwerk - bei drei
+   * Modulen dreissig Zeilen, die dasselbe sagen. `hinweisHtml` klappt ihn
+   * zu: der erste Satz steht da, der Rest kommt auf Klick.
+   */
+  const kurz = kw && trennbar
+    ? `Die Haken gelten dem Fahrdraht ${z.fd}. Abgewählt bleibt, was das `
+      + 'Kettenwerk ohne ihn abgibt — Tragseil samt Hängern, nicht der blosse '
+      + 'Tabellenwert des Tragseils. Gewicht und Ablenkung sind beide ständig, '
+      + 'gehen aber oft verschiedene Wege: das Gewicht kommt am Joch an, die '
+      + 'Ablenkung des Fahrdrahts in der Drückstütze oder in einem '
+      + 'Fahrdrahtabzug an der Hängestütze.'
+    : kw
+      ? `${z.fd} steht nur in der Paarung, nicht als eigener Eintrag — sein `
+        + 'Anteil lässt sich nicht abziehen. Die Haken nehmen deshalb das ganze '
+        + 'Kettenwerk weg.'
+      : 'Abgewählt fällt dieser Leiter ganz weg. Gewicht und Ablenkung sind '
+        + 'beide ständig, gehen aber oft verschiedene Wege: die Ablenkung des '
+        + 'Fahrdrahts etwa in die Drückstütze.';
+  return `<div class="sec-klein">${esc(titel)}<span class="sec-r">${
+      esc(rechts)}</span></div>
     <div class="wirkung">
       ${WIRKUNGEN.map((x) => `<label class="schalter" title="${esc(
-        `${x.titel}\n\n${bezug}`)}">
+        `${x.titel}\n\n${rechts}`)}">
         <input class="mod" data-mk="${x.key}" data-idx="${i}" data-mod="${k}"
                type="checkbox" ${m[x.key] === false ? '' : 'checked'}>
         <span>${esc(x.label)}</span></label>`).join('')}
@@ -2966,25 +3004,10 @@ function wirkungHtml(i, k, m) {
         <span>Kettenwerk</span>
         <input class="mod" data-mk="kettenwerk" data-idx="${i}" data-mod="${k}"
                type="text" value="${esc(m.kettenwerk ?? '')}"
-               placeholder="z. B. KW1">
+               placeholder="${esc(kw ? 'KW1' : '— erst mit Fahrdraht')}">
       </label>
     </div>
-    ${kw ? `<p class="hinweis wirk-bezug">${esc(trennbar
-      ? `Die drei Haken beziehen sich auf den FAHRDRAHT ${z.fd}. `
-        + 'Abgewählt bleibt, was das Kettenwerk ohne ihn abgibt — Tragseil '
-        + 'samt Hängern und Y-Beiseil, nicht der blosse Tabellenwert des '
-        + 'Tragseils.'
-      : `${z.fd} steht nur in der Paarung, nicht als eigener Eintrag — sein `
-        + 'Anteil lässt sich nicht abziehen. Die Haken nehmen deshalb das '
-        + 'ganze Kettenwerk weg.')}</p>` : ''}
-    ${hinweisHtml(`wirk-${i}-${k}`,
-      'Gewicht und Ablenkung sind BEIDE ständig, sie gehen trotzdem oft '
-      + 'verschiedene Wege: das Gewicht beider Leiter hängt am Tragseil und '
-      + 'kommt am Joch an, die Ablenkung des Fahrdrahts dagegen in der '
-      + 'Drückstütze. Das Kettenwerk ist die Klammer über Tragseil und '
-      + 'Fahrdraht; es geht in keine Rechnung ein, sondern hält zusammen, was '
-      + 'zusammengehört, der Havariefall (Bruch eines Kettenwerks) wählt '
-      + 'später darüber aus.')}`;
+    ${hinweisHtml(`wirk-${i}-${k}`, kurz)}`;
 }
 
 /** Zahlenfeld eines freien Lastblocks. */

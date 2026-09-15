@@ -397,6 +397,56 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Vielfachen sind eine Anzahl (13. September)
+
+Weisung: «die x2 x3 varianten durch anzahl ersetzen.»
+
+Die Tabelle führt «Cu 95», «Cu 95 (x2)», «(x3)», «(x4)» als vier Einträge — und
+daneben gibt es das Feld `anzahl`, das dasselbe leistet. Vier Zeilen in der
+Auswahlliste für eine Zahl, die einen Klick weiter steht. **21 → 18 Einträge.**
+
+**Die Umrechnung geschieht beim Laden**, nicht beim Zeichnen: ein gespeicherter
+Stand zeigt auf «Cu 95 (x2)»; zählte die Maske ihn als «Cu 95» mit Anzahl 1,
+stünde dort eine Zeile, die das Doppelte rechnet, ohne es zu sagen.
+`normalisiereAnbauteil` legt den Satz einheitlich ab — einfacher Eintrag, Anzahl
+mal N.
+
+**Es ändert keine Zahl**, und das ist nachgemessen: die Vielfachen sind exakte
+Vielfache in Eigengewicht, Leiterzug und Wind je Einwirkungsklasse. Eine
+Kontrolle rechnet beide Wege gegeneinander — über den (x2)-Eintrag und über
+Anzahl zwei —, Zahl für Zahl.
+
+### Der Wirkungsblock steht beim Fahrdraht (13. September)
+
+Drei weitere Sätze derselben Weisung:
+
+**«der Titel wirkt hier kettenwerk ist etwas missverständlich»** — «Wirkt hier ·
+Kettenwerk KW1» las sich, als ginge es um das Kettenwerk als Ganzes. Jetzt:
+**«Davon wirkt am Fahrdraht N-FL Cu 107»**, und rechts steht, was das Abwählen
+bedeutet. Die Klammer «Kettenwerk» steht als Feld darin, nicht als Beischrift in
+der Überschrift — sie ist eine Eingabe, keine Auskunft.
+
+**«zudem sollte dies unterhalb von fahrdraht stehen»** — der Block stand drei
+Abschnitte weiter unten, hinter Angriffspunkt und Ablenkung, wo ihn nichts mehr
+mit der Wahl darüber verband. Jetzt unmittelbar darunter.
+
+**«den infotext unterhalb einklappbar machen und auf ein minimum reduzieren»** —
+er stand als zehn Zeilen Fliesstext unter jedem Drahtwerk; bei drei Modulen
+dreissig Zeilen, die dasselbe sagen. Jetzt läuft er durch `hinweisHtml`: der
+erste Satz steht da («Die Haken gelten dem Fahrdraht N-FL Cu 107.»), der Rest
+kommt auf Klick.
+
+**«Das feld für den fahrdraht ist höher und der text grösser»** — nachgemessen
+12.5 px gegen 11 px Schrift und 33 px gegen 25 px Höhe: das Partnerfeld stand
+ausserhalb von `.modul-kopf` und bekam die allgemeine Feldformatierung. Die
+Regel gilt jetzt beiden.
+
+**Nebenbefund, im Browser gesehen:** in der schmalen Seitenspalte klebte die
+Beischrift am letzten Wort der Überschrift — «ANGRIFFSPUNKTab Schwerachse»,
+«N-FL CU 107abgewählt». `.sec-klein` ist jetzt ein Flex mit Umbruch und Lücke:
+nebeneinander, solange es reicht, sonst untereinander — und in beiden Fällen mit
+Abstand. Das betrifft jede Abschnittszeile der Karte, nicht nur diese.
+
 ### Die Haken schalten den Fahrdraht (13. September)
 
 Weisung: «Die Auswahl der einwirkungen bei den leitern die auswählbar sind,

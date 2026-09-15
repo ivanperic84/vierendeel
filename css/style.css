@@ -632,7 +632,14 @@ input[type=range].rng {
 .kette-an { color: var(--xdim); }
 .kette-an b { color: var(--dim); font-weight: 500; }
 .kette-warn { color: var(--warn); cursor: help; }
-.modul-kopf select { font-size: 11px; padding: 3px 5px; min-width: 0; }
+/* >>> DIESELBE SCHRIFT UND HOEHE WIE DIE HAUPTAUSWAHL. <<<
+
+   Weisung vom 13. September: «Das feld fuer den fahrdraht ist hoeher und der
+   text groesser.» Nachgemessen: 12.5 px gegen 11 px Schrift, 33 px gegen
+   25 px Hoehe - das Partnerfeld stand ausserhalb von `.modul-kopf` und
+   bekam deshalb die allgemeine Feldformatierung. Die Regel gilt jetzt
+   beiden. */
+.modul-kopf select, .modul-partner select { font-size: 11px; padding: 3px 5px; min-width: 0; }
 /* Der Spiegelknopf steht neben der Bauteilwahl und darf nicht umbrechen -
    «x ⇄» auf zwei Zeilen liest sich wie zwei Knöpfe. */
 .modul-kopf [data-mod-spiegeln] {
@@ -678,11 +685,26 @@ input[type=range].rng {
 /* Zwischenüberschrift innerhalb einer Karte: Angriffspunkt / Kraft / Moment.
    Ohne sie stünden neun gleich aussehende Zahlenfelder untereinander und man
    müsste die Beschriftung jedes einzelnen lesen, um sich zurechtzufinden. */
+/* >>> DIE BEISCHRIFT BRAUCHT LUFT. <<<
+
+   Die Zeile traegt links die Ueberschrift und rechts eine Beischrift
+   (`.sec-r`). In der schmalen Seitenspalte bricht sie um - und dann klebte
+   die Beischrift am letzten Wort: «ANGRIFFSPUNKTab Schwerachse»,
+   «N-FL CU 107abgewaehlt = ohne den Fahrdraht». Im Browser gesehen, am
+   13. September.
+
+   `flex` mit `wrap` und einer Luecke: nebeneinander, solange es reicht,
+   sonst untereinander - und in beiden Faellen mit Abstand. */
 .sec-klein {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 2px 8px;
   font-family: var(--f-mono); font-size: 8.5px; font-weight: 600;
   letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
   margin: 7px 0 3px;
 }
+/* Die Beischrift darf schrumpfen, die Ueberschrift nicht - sie ist das,
+   wonach man sucht. */
+.sec-klein > .sec-r { margin-left: auto; text-align: right; }
 .modul > .sec-klein:first-of-type { margin-top: 2px; }
 
 /* Ein freier Lastblock: eine vollständig beschriebene Last. */
