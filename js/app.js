@@ -725,22 +725,118 @@ function zeigeDiagrammGross(id) {
   zeichneBuehne();
 }
 
+/* ===========================================================================
+ * DIE DIAGRAMME DER MASTEN UND STUETZEN
+ * ===========================================================================
+ *
+ * Je Ende ein Satz: die Schnittgroessen ueber die Hoehe, die Ausnutzung, und
+ * - wenn eine Druckstuetze daran haengt - deren Bemessungsdiagramm mit dem
+ * Arbeitspunkt.
+ *
+ * DIE BREITE IST EIN ARGUMENT, keine feste Zahl: in der Seitenleiste sind es
+ * 860, auf der Buehne die Breite des Modellfensters. Bis zum 15. September
+ * standen die 860 fest darin - und die Buehne konnte sie deshalb gar nicht
+ * erst bauen.
+ */
+function weitereDiagramme(erg, breite) {
+  const liste = [];
+  ['A', 'B'].forEach((ende) => {
+    const mn = erg.mast?.[ende] ?? null;
+    const ak = erg.anker?.[ende] ?? null;
+    if (!mn && !ak) return;
+    // Der Mastnachweis fuehrt kein `name` - sein Schluessel ist das Ende.
+    const name = `Ende ${ende}`;
+    const md = mn ? mastDiagramme(mn, { breite, name }) : null;
+    let bem = null;
+    if (ak?.nachweis) {
+      const typ = ankerTypen().find((t) => t.id === ak.nachweis.typ);
+      bem = ankerDiagramm(ak, typ?.druck ?? null, {
+        breite, name,
+        knickKurve: (l) => ankerKnickenSicher(ak.nachweis.typ, l)?.NbRd,
+      });
+    }
+    if (!md && !bem) return;
+    liste.push({ titel: `Mast ${name}`, bemessung: bem,
+                 schnitt: md?.schnitt ?? null,
+                 ausnutzung: md?.ausnutzung ?? null });
+  });
+  return liste;
+}
+
+/* ===========================================================================
+ * >>> DIE BUEHNE ZEIGT JEDES DIAGRAMM, NICHT NUR DIE DREI DES JOCHS. <<<
+ * ===========================================================================
+ *
+ * Befund vom 15. September: «die diagramme der masten laden im mittleren
+ * fenster wenn man draufdrückt.»
+ *
+ * Hier stand eine Titelliste mit drei Eintraegen und `dia[buehne]` aus
+ * `diagramme()` - dem Satz des JOCHS. Ein Klick auf ein Mastdiagramm setzte
+ * `buehne` auf `mast-schnitt-0`, und weil es den Schluessel dort nicht gibt,
+ * oeffnete sich das Modellfenster mit LEEREM Koerper und ohne Titel. Das
+ * Modell war weg, das Diagramm kam nicht - die schlechteste beider Welten.
+ *
+ * DASSELBE GALT DEM ABFANGJOCH: die Seitenleiste zeichnet seine Kurven mit
+ * `abfangDiagramme`, die Buehne rief unbesehen `diagramme()`. Sie zeigte
+ * damit die Kurven eines Ersatzbalkens, den es dort nicht gibt.
+ *
+ * Jetzt baut EINE Stelle den ganzen Satz - Joch oder Abfangjoch, dazu die
+ * Masten und Stuetzen -, und die Buehne sucht darin ihren Schluessel. Was
+ * die Seitenleiste zeigt, kann sie seither auch gross zeigen.
+ * ========================================================================= */
+
+/** Die Titel der Bauteildiagramme - dieselben wie in der Seitenleiste. */
+const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
+                       'mast-schnitt': 'Schnittgrössen über die Höhe',
+                       'mast-eta': 'Ausnutzung über die Höhe' };
+
+/** Jedes Diagramm unter seinem Schluessel, mit Titel. */
+function diagrammSatz(erg, breite) {
+  const abD = erg.abfang ? abfangDiagramme(erg.abfang, breite) : null;
+  const haupt = abD ?? diagramme(erg, breite);
+  const satz = {
+    schnittgroessen: { svg: haupt.schnittgroessen,
+                       titel: abD ? 'Schnittgrössen'
+                                  : 'Schnittgrössen Ersatzbalken' },
+    ebene: { svg: haupt.ebene, titel: 'Ebenenquerkräfte' },
+    ausnutzung: { svg: haupt.ausnutzung, titel: 'Ausnutzung' },
+  };
+  weitereDiagramme(erg, breite).forEach((w, i) => {
+    const setz = (art, svg) => {
+      if (!svg) return;
+      satz[`${art}-${i}`] = { svg, titel: `${w.titel} · ${BUEHNE_TITEL[art]}` };
+    };
+    setz('anker-bem', w.bemessung);
+    setz('mast-schnitt', w.schnitt);
+    setz('mast-eta', w.ausnutzung);
+  });
+  return satz;
+}
+
 function zeichneBuehne() {
   const n = ui.el('diagramm-buehne');
-  const titel = { schnittgroessen: 'Schnittgrössen Ersatzbalken',
-                  ebene: 'Ebenenquerkräfte', ausnutzung: 'Ausnutzung' };
   if (!buehne || !letzte) {
     n.hidden = true; n.innerHTML = '';
     return;
   }
   // Breite aus dem Fenster ableiten, damit das SVG die Fläche wirklich nutzt
   const breite = Math.max(520, Math.round(ui.el('viewer').clientWidth - 36));
-  const dia = diagramme(letzte.anzeige, breite);
+  const bild = diagrammSatz(letzte.anzeige, breite)[buehne];
+  /*
+   * WAS ES NICHT GIBT, WIRD AUCH NICHT AUFGEZOGEN. Ein leeres Modellfenster
+   * ist schlechter als gar keine Reaktion: das Modell waere weg und nichts
+   * an seiner Stelle.
+   */
+  if (!bild?.svg) {
+    buehne = null;
+    n.hidden = true; n.innerHTML = '';
+    return;
+  }
   n.hidden = false;
   n.innerHTML = `<div class="buehne-kopf">
-      <span class="panel-titel">${esc(titel[buehne] ?? '')}</span>
+      <span class="panel-titel">${esc(bild.titel)}</span>
       <button class="btn btn-mini" data-zurueck>Zurück zum Modell</button>
-    </div><div class="buehne-koerper">${dia[buehne] ?? ''}</div>`;
+    </div><div class="buehne-koerper">${bild.svg}</div>`;
   n.querySelector('[data-zurueck]').onclick = () => { buehne = null; zeichneBuehne(); };
 }
 
@@ -819,29 +915,8 @@ function zeichneAuswertung() {
      * Kontrollkurve daneben wird mit denselben Beiwerten gerechnet wie die
      * Kachel - `ankerKnickenSicher` ist dieselbe Funktion.
      */
-    const weitere = [];
-    ['A', 'B'].forEach((ende) => {
-      const mn = erg.mast?.[ende] ?? null;
-      const ak = erg.anker?.[ende] ?? null;
-      if (!mn && !ak) return;
-      // Der Mastnachweis fuehrt kein `name` - sein Schluessel ist das Ende.
-      const name = `Ende ${ende}`;
-      const md = mn ? mastDiagramme(mn, { breite: 860, name }) : null;
-      let bem = null;
-      if (ak?.nachweis) {
-        const typ = ankerTypen().find((t) => t.id === ak.nachweis.typ);
-        bem = ankerDiagramm(ak, typ?.druck ?? null, {
-          breite: 860, name,
-          knickKurve: (l) => ankerKnickenSicher(ak.nachweis.typ, l)?.NbRd,
-        });
-      }
-      if (!md && !bem) return;
-      weitere.push({ titel: `Mast ${name}`, bemessung: bem,
-                     schnitt: md?.schnitt ?? null,
-                     ausnutzung: md?.ausnutzung ?? null });
-    });
     ui.zeichneVerlauf(node, abD ?? diagramme(erg, 860),
-                      abD ? null : vergleich, weitere);
+                      abD ? null : vergleich, weitereDiagramme(erg, 860));
   }
 }
 

@@ -397,6 +397,44 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Bühne zeigt jedes Diagramm (15. September)
+
+Befund: «die diagramme der masten laden im mittleren fenster wenn man
+draufdrückt.»
+
+`zeichneBuehne` führte eine Titelliste mit **drei** Einträgen und holte das
+Bild aus `diagramme()` — dem Satz des Jochs. Ein Klick auf ein Mastdiagramm
+setzte die Bühne auf `mast-schnitt-0`; den Schlüssel gibt es dort nicht, also
+öffnete sich das Modellfenster mit **leerem Körper und ohne Titel**. Das Modell
+war weg, das Diagramm kam nicht — die schlechteste beider Welten.
+
+**Derselbe Fehler traf das Abfangjoch.** Die Seitenleiste zeichnet seine Kurven
+mit `abfangDiagramme`, die Bühne rief unbesehen `diagramme()` — sie zeigte die
+Kurven eines Ersatzbalkens, den es dort nicht gibt. Aufgefallen ist das nie,
+weil beide Sätze dieselben drei Schlüssel tragen.
+
+**Jetzt baut eine Stelle den ganzen Satz.** `diagrammSatz(erg, breite)` liefert
+jedes Bild unter seinem Schlüssel, mit Titel:
+
+| Schlüssel | |
+|---|---|
+| `schnittgroessen`, `ebene`, `ausnutzung` | Joch **oder** Abfangjoch, je nachdem was gerechnet ist |
+| `mast-schnitt-i`, `mast-eta-i` | Schnittgrössen und Ausnutzung über die Höhe, je Mast |
+| `anker-bem-i` | Bemessungsdiagramm der Stütze mit dem Arbeitspunkt |
+
+Die Bühne sucht darin ihren Schlüssel. **Was die Seitenleiste zeigt, kann sie
+seither auch gross zeigen** — im Browser nachgesehen: «Mast Ende A ·
+Schnittgrössen über die Höhe», «Mast Ende B · Ausnutzung über die Höhe», beide
+566 px breit im Modellfenster.
+
+Zwei Nebensachen, die dazugehören:
+
+* Die **Breite** ist ein Argument geworden. Sie stand als 860 fest in der
+  Diagrammbildung — die Bühne konnte die Bilder deshalb gar nicht in ihrer
+  eigenen Breite bauen.
+* **Was es nicht gibt, zieht nichts auf.** Findet die Bühne ihren Schlüssel
+  nicht, bleibt das Modell stehen, statt einem leeren Fenster zu weichen.
+
 ### Die Auflagerkette liegt ausserhalb des Trägers (15. September)
 
 Weisung: «in der höhe die link elemente ausserhalb des vierendeel trägers

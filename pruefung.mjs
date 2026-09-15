@@ -11058,6 +11058,60 @@ titel('42  Der lange Mast mit Zusatzleitern');
          AN.ankerNachweis('SA20', -10, 8).lieferbar === true);
 
     /* =====================================================================
+     * >>> DIE BUEHNE ZEIGT JEDES DIAGRAMM, NICHT NUR DIE DREI DES JOCHS. <<<
+     * =====================================================================
+     *
+     * Befund vom 15. September: "die diagramme der masten laden im mittleren
+     * fenster wenn man draufdrueckt."
+     *
+     * `zeichneBuehne` fuehrte eine Titelliste mit DREI Eintraegen und holte
+     * das Bild aus `diagramme()` - dem Satz des Jochs. Ein Klick auf ein
+     * Mastdiagramm setzte die Buehne auf `mast-schnitt-0`; den Schluessel
+     * gibt es dort nicht, also oeffnete sich das Modellfenster mit leerem
+     * Koerper und ohne Titel. Das Modell war weg, das Diagramm kam nicht.
+     *
+     * DASSELBE GALT DEM ABFANGJOCH: die Seitenleiste zeichnet seine Kurven
+     * mit `abfangDiagramme`, die Buehne rief unbesehen `diagramme()` - sie
+     * zeigte die Kurven eines Ersatzbalkens, den es dort nicht gibt.
+     *
+     * Geprueft wird am QUELLTEXT: app.js laesst sich ohne Fenster nicht
+     * laden. Die Aussage ist trotzdem festzunageln - sie war vier Tage lang
+     * falsch, ohne dass eine Kontrolle etwas gemerkt haette.
+     */
+    {
+      const appQ = readFileSync(
+        new URL('./js/app.js', import.meta.url), 'utf8');
+      wahr('Es gibt eine Stelle, die jedes Diagramm kennt',
+           appQ.includes('function diagrammSatz(erg, breite)'));
+      wahr('Die Buehne holt ihr Bild von dort',
+           /const bild = diagrammSatz\(letzte\.anzeige, breite\)\[buehne\]/
+             .test(appQ));
+      wahr('\u2026 und nicht mehr unbesehen aus diagramme()',
+           !/const dia = diagramme\(letzte\.anzeige, breite\)/.test(appQ));
+      wahr('Der Satz kennt das Abfangjoch',
+           /const abD = erg\.abfang \? abfangDiagramme\(erg\.abfang, breite\)/
+             .test(appQ));
+      wahr('\u2026 und die Diagramme der Masten',
+           appQ.includes("setz('mast-schnitt', w.schnitt)")
+           && appQ.includes("setz('mast-eta', w.ausnutzung)")
+           && appQ.includes("setz('anker-bem', w.bemessung)"));
+      /*
+       * DIE BREITE IST EIN ARGUMENT. Sie stand als 860 fest in der
+       * Diagrammbildung - deshalb konnte die Buehne die Bilder gar nicht in
+       * ihrer eigenen Breite bauen.
+       */
+      wahr('Die Breite der Bauteildiagramme ist ein Argument',
+           appQ.includes('function weitereDiagramme(erg, breite)')
+           && appQ.includes('mastDiagramme(mn, { breite, name })'));
+      /*
+       * UND WAS ES NICHT GIBT, ZIEHT NICHTS AUF. Ein leeres Modellfenster
+       * ist schlechter als gar keine Reaktion.
+       */
+      wahr('Ohne Bild bleibt das Modell stehen',
+           appQ.includes('if (!bild?.svg) {'));
+    }
+
+    /* =====================================================================
      * >>> DIE KRAFTBILDER AN DEN KURVEN SIND WEG. <<<
      * =====================================================================
      *
