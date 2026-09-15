@@ -10272,6 +10272,43 @@ titel('42  Der lange Mast mit Zusatzleitern');
          `${blech.length} gegen ${2 * (zahlA + zahlB)}`);
     wahr('Sie sind Staebe, keine Starrkoerper',
          blech.every((x) => x.art === 'stab'));
+    /* =====================================================================
+     * >>> BREITE ZUERST, DICKE ZWEITENS - AN ALLEN DREI BLECHSORTEN. <<<
+     * =====================================================================
+     *
+     * Befund vom 15. September am aufgebauten Modell: "die verbindungsbleche
+     * sind nicht richtig ausgerichtet" - verdreht um die Stabachse. Das
+     * Ankerblech stand als [8, 140] da, also [Dicke, Breite].
+     *
+     * DIE REGEL steht an zwei Stellen, die in AxisVM nachgemessen richtig
+     * stehen: `blechQuerschnitt` (Tragjoch) schreibt [breite, dicke],
+     * `blechQs` (Abfangjoch) schreibt [b, t]. Ein Rechteck legt seine ERSTE
+     * Zahl quer zur Referenzrichtung, die zweite IN sie.
+     *
+     * Diese Kontrolle vergleicht die drei Sorten miteinander - faellt eine
+     * aus der Reihe, faellt sie hier auf. Am Ankerblech ist der Unterschied
+     * nicht Kosmetik: 140 gegen 8 mm heisst Faktor (140/8)^2 = 306 in der
+     * Biegesteifigkeit, und das Modell rechnete klaglos weiter.
+     */
+    const qsBl = (jA.querschnitte ?? []).find((x) => /^ANKERBLECH_/.test(x.name));
+    const qsJoch = (jA.querschnitte ?? []).find((x) => /^BLECH_V_/.test(x.name));
+    wahr('Das Ankerblech steht als [Breite, Dicke] da',
+         qsBl.parameter[0] > qsBl.parameter[1],
+         JSON.stringify(qsBl.parameter));
+    wahr('\u2026 wie das Bindeblech des Jochs',
+         qsJoch.parameter[0] > qsJoch.parameter[1],
+         JSON.stringify(qsJoch.parameter));
+    pruef('Und zwar mit den Massen des Blatts: Breite',
+          qsBl.parameter[0], AN.ankerBlechSatz('U12').laenge, 1e-12, 'mm');
+    pruef('\u2026 und Dicke',
+          qsBl.parameter[1], AN.ankerBlechSatz('U12').dicke, 1e-12, 'mm');
+    /*
+     * UND I_y IST DIE STARKE ACHSE - dieselbe Zuordnung wie bei `blechQs`.
+     * Ein vertauschtes Traegheitsmoment faellt in AxisVM nicht auf: die
+     * Bruecke misst die FLAECHE zurueck, und die ist bei beiden gleich.
+     */
+    wahr('I_y ist die starke Achse des Blechs', qsBl.Iy > qsBl.Iz,
+         `${qsBl.Iy} gegen ${qsBl.Iz}`);
     wahr('Keine Laschen mehr',
          !(jA.staebe ?? []).some((x) => /^ANKERLASCHE_/.test(x.name)));
     /*
@@ -20090,7 +20127,18 @@ const CH9x = await import(J('core.checks.js'));
      * bleche sind stehen anstatt liegend»): die Referenz griff nicht, und
      * AxisVM legte seine lokale z in die Vertikalebene.
      *
-     * Jetzt traegt der QUERSCHNITT die Lage - h = Dicke, b = Breite - und
+     * Jetzt traegt der QUERSCHNITT die Lage - BREITE zuerst, DICKE
+     * zweitens (`parameter: [m.b, m.t]`, siehe `blechQs`) - und
+     *
+     * >>> DIESER SATZ STAND HIER FALSCH HERUM, BIS ZUM 15. SEPTEMBER. <<<
+     *
+     * Er sagte "h = Dicke, b = Breite" - das Gegenteil dessen, was
+     * `blechQs` und `blechQuerschnitt` beide schreiben. Beim Bindeblech der
+     * Druckstuetze habe ich ihn geglaubt statt die Zeile zu lesen, und das
+     * Blech stand im Modell um 90 Grad verdreht (Befund: "die
+     * verbindungsbleche sind nicht richtig ausgerichtet"). Ein Kommentar,
+     * der dem Quelltext widerspricht, ist schlimmer als keiner - er wird
+     * geglaubt.
      * die Referenz zeigt nach oben. Damit liegt das Blech flach, gleich ob
      * die Referenz ankommt oder nicht.
      */

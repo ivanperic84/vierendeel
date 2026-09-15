@@ -397,6 +397,48 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Breite zuerst, Dicke zweitens (15. September)
+
+Befund am aufgebauten Modell: «die verbindungsbleche sind nicht richtig
+ausgerichtet» — auf Rückfrage: **verdreht um die Stabachse**.
+
+Es war kein Fehler von AxisVM und keiner der Referenz. Die Probe mit den
+Blechen zuoberst in der Stabliste zeigt, dass sie ankommt:
+
+```
+ANKERBLECH_A_O1  Referenz gesetzt 1  gelesen 1   z nach [0.844819 0 -0.535052]
+```
+
+**Der Fehler stand im Querschnitt.** Ich hatte ihn als `[8, 140]` geschrieben —
+Dicke zuerst. Beide geprüften Stellen im Haus schreiben es umgekehrt:
+
+| | |
+|---|---|
+| `blechQuerschnitt` (Tragjoch) | `[bl.breite, bl.dicke]`, z. B. `[100, 10]` |
+| `blechQs` (Abfangjoch) | `[m.b, m.t]` |
+
+> **Die Regel, an zwei nachgemessenen Modellen abgelesen:** ein Rechteck legt
+> seine **erste** Zahl quer zur Referenzrichtung, die **zweite** in sie.
+
+Beim Ankerblech heisst das 140 mm längs der Stütze, 8 mm in Dickenrichtung —
+so wie die Schnitte B-B und C-C es zeigen. Der Unterschied ist nicht
+kosmetisch: (140/8)² = **306** in der Biegesteifigkeit, und das Modell rechnet
+klaglos weiter. Die Flächenprobe der Brücke findet so etwas **nie** — die
+Fläche ist bei beiden dieselbe. Eine Kontrolle vergleicht jetzt die drei
+Blechsorten miteinander.
+
+> **Woran ich hängengeblieben bin.** Im Prüfstand stand seit dem 4. September:
+> «Jetzt trägt der Querschnitt die Lage — h = Dicke, b = Breite». Das ist das
+> Gegenteil dessen, was beide Funktionen schreiben. Ich habe den Kommentar
+> gelesen und nicht die Zeile. Er ist berichtigt. **Ein Kommentar, der dem
+> Quelltext widerspricht, ist schlimmer als keiner — er wird geglaubt.**
+
+**Offen aus Schnitt D-D:** der Bemassungszug dort liest sich 6 / 8 / (92) /
+8 / 6 — zusammen 120, die Profilhöhe. B-B und C-C dagegen 8 / 104 / 8. Das
+hiesse: die Bleche der Positionen 5–9 sitzen **6 mm zurückgesetzt**, die
+ersten beiden bündig; der Hebelarm des Paars wäre dort 100 statt 112 mm. Im
+Modell sitzen zurzeit alle bündig.
+
 ### Die Werkstattzeichnung beantwortet beides (15. September)
 
 Befund am aufgebauten Modell: «die ausrichtung der c stimmt nicht, ähnlich wie

@@ -2258,23 +2258,45 @@ export function stabmodell(m, opt = {}) {
            * seinen eigenen Knoten und einen kurzen starren Stiel zur
            * Profilachse.
            *
-           * >>> DAS BLECH LIEGT FLACH - UEBER DEN QUERSCHNITT. <<<
+           * >>> DIE REIHENFOLGE IM RECHTECK: BREITE, DANN DICKE. <<<
            *
-           * h = Dicke, b = Breite, wie beim Abfangjoch seit dem
-           * 4. September: \u00abdie bleche sind stehen anstatt liegend\u00bb. Die
-           * Referenz griff dort nicht, und AxisVM legte seine lokale z nach
-           * eigener Regel. Traegt der QUERSCHNITT die Lage, liegt das Blech
-           * flach, gleich ob die Referenz ankommt.
+           * Befund vom 15. September am aufgebauten Modell: \u00abdie
+           * verbindungsbleche sind nicht richtig ausgerichtet\u00bb - und auf die
+           * Rueckfrage: verdreht um die Stabachse. Hier stand
+           * `{ h: dicke, b: laenge }`, also [8, 140]; richtig ist
+           * [140, 8].
+           *
+           * >>> DIE REGEL, AN ZWEI GEPRUEFTEN STELLEN ABGELESEN. <<<
+           *
+           * `blechQuerschnitt` (Tragjoch) schreibt `[bl.breite, bl.dicke]`,
+           * `blechQs` (Abfangjoch) schreibt `[m.b, m.t]`. Beide Modelle
+           * stehen in AxisVM richtig. Also gilt:
+           *
+           *   parameter[0]  BREITE  - quer zur Referenzrichtung
+           *   parameter[1]  DICKE   - IN der Referenzrichtung
+           *
+           * Fuer das Ankerblech heisst das: 140 mm laengs der Stuetze
+           * (quer zur Referenz, die auf der Stabachse und der Spreizung
+           * senkrecht steht), 8 mm in Referenzrichtung.
+           *
+           * >>> WAS MICH IN DIE IRRE GEFUEHRT HAT. <<<
+           *
+           * Im Pruefstand stand \u00abh = Dicke, b = Breite\u00bb - das Gegenteil
+           * dessen, was `blechQs` und `blechQuerschnitt` beide schreiben.
+           * Ich habe den Kommentar gelesen und nicht die Zeile. Er ist dort
+           * jetzt berichtigt: ein Kommentar, der dem Quelltext
+           * widerspricht, ist schlimmer als keiner - er wird geglaubt.
            * =============================================================== */
           if (bleche.length && blSatz) {
             const vBlech = ankerBlechVersatz(ak.typ) ?? 0;        // mm
             const qsBlech = s.qs({
               ...rechteck({ name: `ANKERBLECH_${String(ak.typ).replace(/\s+/g, '')}`,
-                            h: blSatz.dicke, b: blSatz.laenge }),
+                            h: blSatz.laenge, b: blSatz.dicke }),
               profil: `FLA ${blSatz.laenge}/${blSatz.dicke} \u2014 Bindeblech`,
               A: (blSatz.dicke * blSatz.laenge) / 1e6,
-              Iy: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
-              Iz: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
+              // Wie `blechQs` beim Abfangjoch: I_y um die starke Achse.
+              Iy: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
+              Iz: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
               It: (blSatz.laenge * blSatz.dicke ** 3) / 3 / 1e12,
             });
             // Die Blechstationen sind die Stabteilung ohne die beiden Enden.
