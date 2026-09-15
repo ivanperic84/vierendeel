@@ -1758,6 +1758,32 @@ export function stabmodell(m, opt = {}) {
       });
       anbauMastAus.push(...ausserhalb);
       /* =================================================================
+       * >>> DER ANSCHLUSSPUNKT DER STUETZE AUCH. <<<
+       * =================================================================
+       *
+       * Befund vom 15. September aus dem aufgebauten Modell: «die
+       * druckstütze hat im axis keinen knoten am masten, dieser ging
+       * durch.»
+       *
+       * Der Ankerblock weiter unten setzte den Knoten zwar — und sein
+       * Kommentar sagte sogar, warum er in die Stabteilung gehört. Nur kam
+       * er ZU SPÄT: `zStufen` wird gleich hier gebildet, und die Maststäbe
+       * stehen, bevor der Anker überhaupt an die Reihe kommt. Der Knoten
+       * entstand, lag aber auf keinem Stabende — der Mast lief daran
+       * vorbei, und die Stütze hing an nichts.
+       *
+       * EIN KOMMENTAR IST KEINE REIHENFOLGE. Er stand richtig da und hat
+       * nichts genützt; deshalb steht die Eintragung jetzt dort, wo sie
+       * wirkt, und eine Kontrolle misst, dass zwei Maststäbe an diesem
+       * Knoten enden.
+       * ================================================================= */
+      const akV = md.anker;
+      const zAnkV = (akV?.typ && akV.h > 0 && akV.a > 0)
+        ? r6(zFuss + Math.min(akV.h, zOben - h / 2 - zFuss)) : null;
+      if (zAnkV !== null && !mastKn.has(zAnkV)) {
+        mastKn.set(zAnkV, s.kn(`MAST_${mn(ende)}_ANK`, x, 0, zAnkV));
+      }
+      /* =================================================================
        * >>> DER KONSOLANSATZ IST EIN KNOTEN DES MASTES. <<<
        * =================================================================
        *
@@ -2027,9 +2053,10 @@ export function stabmodell(m, opt = {}) {
         const xF = laengsA ? x : r6(x + vzA * ak.a);
         const yF = laengsA ? r6(vzA * ak.a) : 0;
         /*
-         * DER ANSCHLUSSKNOTEN AM MASTEN gehoert in die Stabteilung - sonst
-         * haengt der Anker an einem Punkt, den der Maststab nicht kennt.
-         * Dieselbe Regel wie bei den Anbauteilen am Masten.
+         * DER ANSCHLUSSKNOTEN STEHT SCHON - er wird oben gesetzt, VOR der
+         * Stabteilung (siehe dort). Hier bleibt der Rueckfall stehen, falls
+         * die beiden Rechnungen je auseinanderlaufen; dann entstuende
+         * wieder ein Knoten neben dem Stab, und die Kontrolle faende es.
          */
         if (!mastKn.has(zAnk)) {
           mastKn.set(zAnk, s.kn(`MAST_${mn(ende)}_ANK`, x, 0, zAnk));

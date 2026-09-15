@@ -11321,6 +11321,49 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> DIE STUETZE HAENGT AN EINEM KNOTEN DES MASTEN. <<<
+     * =====================================================================
+     *
+     * Befund vom 15. September aus dem aufgebauten Modell: "die
+     * druckstuetze hat im axis keinen knoten am masten, dieser ging durch."
+     *
+     * Der Ankerblock setzte den Knoten - und sein Kommentar sagte sogar,
+     * warum er in die Stabteilung gehoert. Nur kam er ZU SPAET: `zStufen`
+     * wird frueher gebildet, und die Maststaebe standen, bevor der Anker
+     * an die Reihe kam. Der Knoten entstand, lag aber auf keinem Stabende.
+     *
+     * EIN KOMMENTAR IST KEINE REIHENFOLGE. Deshalb wird hier GEMESSEN, was
+     * er behauptet: zwei Maststaebe enden an diesem Knoten.
+     */
+    {
+      const mAnk = rechne(basis({
+        endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+        mastAnkerA: { typ: 'U12', h: 5.0, a: 3.5, richtung: 'x', seite: 1,
+                      befestigung: 'ankerplatte' } })).modell;
+      const bAnk = AX.stabmodell(mAnk, { knotenmodell: 'anschnitt' });
+      const knAnk = [...(bAnk.knoten?.values?.() ?? [])]
+        .find((k) => /^MAST_.*_ANK$/.test(k.name));
+      wahr('Es gibt einen Ankerknoten am Masten', Boolean(knAnk),
+           knAnk?.name ?? 'keiner');
+      const dran = bAnk.staebe.filter((x) => x.von === knAnk?.name
+                                          || x.bis === knAnk?.name);
+      const mastdran = dran.filter((x) => /^MAST_[AB]_S\d+$/.test(x.name));
+      pruef('Zwei Maststaebe enden dort - der Mast ist geteilt',
+            mastdran.length, 2, 1e-12, 'Staebe');
+      wahr('… und die Ankerkonsole haengt daran',
+           dran.some((x) => /^ANKERKONSOLE_/.test(x.name)),
+           dran.map((x) => x.name).join(' '));
+      /*
+       * UND DER KNOTEN SITZT AUF DER ANSCHLUSSHOEHE. Ohne diese Probe
+       * koennte er irgendwo liegen und die Kontrolle darueber waere
+       * trotzdem gruen.
+       */
+      pruef('Er liegt auf der Anschlusshoehe des Ankers',
+            knAnk.z - (mAnk.federn?.mastA?.zFuss ?? -mAnk.federn?.mastA?.H ?? 0),
+            5.0, 1e-6, 'm');
+    }
+
+    /* =====================================================================
      * >>> DIE TORSION AM OFFENEN PROFIL - WOELBKRAFTTORSION. <<<
      * =====================================================================
      *
