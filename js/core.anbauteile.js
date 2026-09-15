@@ -240,17 +240,41 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
      * und die ist zufällig; das Kettenwerk hing am Anschlusspunkt statt am
      * Ende des Arms.
      *
-     * GRENZE: zwei WIRKLICH nebeneinanderstehende Teile derselben Stufe -
-     * zwei Ausleger an einer Stütze - würden hier als Reihe gezeichnet statt
-     * als Gabel. Solange alle Glieder Starrkörper sind, ändert das an den
-     * Kräften nichts (dieselbe Resultante am Anschluss); mit einem Gelenk
-     * täte es das. In den Vorlagen kommt keine Gabel vor.
+     * >>> UND WER NICHT WEITER AUSSEN LIEGT, BEKOMMT EINE GABEL. <<<
+     *
+     * Befund vom 15. September aus dem aufgebauten Modell: «ich habe die
+     * traverse mittig genommen und die beiden bündelleiter jeweils einen
+     * meter in x richtung angesetzt, links und rechts. diese wurden aber im
+     * axis hintereinander angesetzt.»
+     *
+     * Hier stand, zwei wirklich nebeneinanderstehende Teile derselben Stufe
+     * würden als Reihe gezeichnet, und das komme in den Vorlagen nicht vor.
+     * Beides ist überholt: der Fall kam vor, sobald jemand ihn eingab — und
+     * die Kette legte einen Starrstab von x = −1 quer durch den Masten nach
+     * x = +1.
+     *
+     * An den KRÄFTEN ändert das bei lauter Starrkörpern nichts (dieselbe
+     * Resultante an der Wurzel). An der GEOMETRIE ändert es alles, und wer
+     * das Modell ansieht, glaubt der Geometrie. Ein Bild, das ein Bauteil an
+     * einer Stelle zeigt, an der es nicht steht, ist schlimmer als keines.
+     *
+     * DIE REGEL: angereiht wird nur, was in Richtung des tragenden Glieds
+     * WEITER AUSSEN liegt. Führt der Weg zurück oder zur Seite, zweigt das
+     * Teil am Stufenanfang ab. Der NT-Ausleger (Anschluss 0.3 m, Kragarm
+     * 1.5 m) bleibt damit eine Reihe, die beiden Leiter werden eine Gabel.
      */
     const abstand = (teil) => {
       const dx = (teil.x ?? 0) - (teil.stationX ?? teil.x ?? 0);
       return Math.hypot(x0 + dx - traeger.x, (teil.y ?? 0) - traeger.y,
                         zAn + (teil.z ?? 0) - traeger.z);
     };
+    /*
+     * DER ANFANG DER STUFE - dorthin springt die Kette zurueck, wenn das
+     * naechste Teil nicht weiter aussen liegt. Ohne ihn haenge das zweite
+     * Teil am ersten, gleichgueltig wohin es zeigt.
+     */
+    const stufenTraeger = traeger;
+    const stufenRichtung = richtung;
     [...stufen.get(rg)].sort((p, q) => abstand(p) - abstand(q)).forEach((teil) => {
       // Versatz gegenüber der Station der Baugruppe, nicht die Station selbst:
       // die Wurzel darf aus einem steifen Knotenbereich gerückt worden sein,
@@ -264,6 +288,22 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
             && gleich(p0.z, traeger.z)) {
           punkt = traeger;                       // sitzt auf seinem Träger
         } else {
+          /*
+           * >>> REIHE ODER GABEL. <<<
+           *
+           * `t` ist die Projektion des naechsten Punktes auf die Achse des
+           * tragenden Glieds - dieselbe Rechnung wie im Knick darunter.
+           * Ist sie positiv, liegt das Teil weiter aussen und wird
+           * angereiht. Ist sie es nicht, fuehrt der Weg zurueck oder zur
+           * Seite: dann haengt das Teil am ANFANG der Stufe, nicht am
+           * Nachbarn.
+           */
+          if (richtung && traeger !== stufenTraeger) {
+            const t = (p0.x - traeger.x) * richtung.x
+                    + (p0.y - traeger.y) * richtung.y
+                    + (p0.z - traeger.z) * richtung.z;
+            if (t <= 1e-9) { traeger = stufenTraeger; richtung = stufenRichtung; }
+          }
           // Erst dem tragenden Glied bis zu seinem Ende folgen, dann abbiegen.
           const knick = knickPunkt(traeger, richtung, p0);
           if (knick) {

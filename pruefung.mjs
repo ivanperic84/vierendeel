@@ -11321,6 +11321,60 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> ZWEI TEILE NEBENEINANDER SIND EINE GABEL, KEINE REIHE. <<<
+     * =====================================================================
+     *
+     * Befund vom 15. September aus dem aufgebauten Modell: "ich habe die
+     * traverse mittig genommen und die beiden buendelleiter jeweils einen
+     * meter in x richtung angesetzt, links und rechts. diese wurden aber im
+     * axis hintereinander angesetzt."
+     *
+     * `anbauKette` machte jedes Teil zum Traeger des naechsten - und legte
+     * damit einen Starrstab von x = -1 quer durch den Masten nach x = +1.
+     * Der Kommentar dort nannte diese Grenze und hielt fest, in den
+     * Vorlagen komme keine Gabel vor. Beides war ueberholt, sobald jemand
+     * den Fall eingab.
+     *
+     * DIE REGEL: angereiht wird nur, was in Richtung des tragenden Glieds
+     * WEITER AUSSEN liegt. Sonst zweigt das Teil am Stufenanfang ab.
+     */
+    {
+      const CA2 = await import(J('core.anbauteile.js'));
+      const tl = (id, x, rolle) => ({ id, name: id, x, y: 0, z: 0, rolle,
+                                      stationX: 0 });
+      const gab = CA2.anbauKette(
+        [tl('TRAV', 0, 'traverse'), tl('L_LI', -1, 'leiter'),
+         tl('L_RE', 1, 'leiter')], { x0: 0, zAn: 0 });
+      const von = (id) => gab.glieder.find((g) => g.teil?.id === id)?.von;
+      wahr('Beide Leiter haengen an der Wurzel, nicht aneinander',
+           von('L_LI')?.x === 0 && von('L_RE')?.x === 0,
+           gab.glieder.map((g) => `${g.von.x}->${g.bis.x}`).join(' '));
+      wahr('Kein Glied laeuft quer durch den Masten',
+           !gab.glieder.some((g) => g.von.x * g.bis.x < -1e-9));
+      /*
+       * UND DIE REIHE BLEIBT EINE REIHE. Beim NT-Ausleger stehen zwei
+       * Punkte desselben Bauteils hintereinander - Anschluss 0.3 m,
+       * Kragarm 1.5 m. Wer daraus eine Gabel machte, haengte das Kettenwerk
+       * an den Anschlusspunkt statt ans Ende des Arms.
+       */
+      const reihe = CA2.anbauKette(
+        [tl('ANS', 0.3, 'aufbau'), tl('ARM', 1.5, 'aufbau')],
+        { x0: 0, zAn: 0 });
+      wahr('Was weiter aussen liegt, wird angereiht',
+           reihe.glieder.find((g) => g.teil?.id === 'ARM')?.von?.x === 0.3,
+           reihe.glieder.map((g) => `${g.von.x}->${g.bis.x}`).join(' '));
+      /*
+       * DIE RESULTANTE BLEIBT DIESELBE. Bei lauter Starrkoerpern aendert
+       * die Reihenfolge an den Kraeften nichts - das war das Argument, mit
+       * dem die Grenze stehenblieb. Es stimmt, und es reicht nicht: wer das
+       * Modell ansieht, glaubt der Geometrie.
+       */
+      wahr('Jedes Teil hat weiterhin genau einen Punkt',
+           gab.belegung.length === 3
+           && new Set(gab.belegung.map((b) => b.teil.id)).size === 3);
+    }
+
+    /* =====================================================================
      * >>> DIE STUETZE HAENGT AN EINEM KNOTEN DES MASTEN. <<<
      * =====================================================================
      *
