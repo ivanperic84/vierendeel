@@ -235,6 +235,66 @@ export function schraegerStab(p0, p1, b, h, opt = {}) {
 }
 
 /* ===========================================================================
+ * >>> EIN QUERSCHNITT ENTLANG EINER SCHRAEGEN ACHSE. <<<
+ * ===========================================================================
+ *
+ * `schraegerStab` daneben legt ein RECHTECK um die Achse - fuer einen Zuganker
+ * genug. Die Druckstuetze ist aber «2x UNP 120», und ein U ist kein Rechteck:
+ * der Steg steht auf einer Seite, die Flansche greifen zur anderen. Im Bild
+ * neben einem HEB 240 sieht man den Unterschied, und er sagt etwas - an der
+ * Lage der offenen Seite erkennt man, wo die Bindebleche sitzen.
+ *
+ * Das Polygon kommt in METERN und in den beiden Querrichtungen der Achse:
+ * die erste Koordinate laeuft auf `q1`, die zweite auf `q2`. `querAchse`
+ * richtet `q1` auf eine globale Achse aus - ohne das kaeme das Profil je
+ * nach Neigungsrichtung gespiegelt heraus.
+ *
+ * @param {number[]} p0  Anfang [x,y,z] in m
+ * @param {number[]} p1  Ende
+ * @param {number[][]} poly  Umriss [[u,v], ...] in m, gegen den Uhrzeigersinn
+ * @param {object} opt   {querAchse?: 0|1|2, ...} - der Rest wandert an jede
+ *                       Flaeche
+ * ========================================================================= */
+export function schraegesProfil(p0, p1, poly, opt = {}) {
+  const { querAchse, ...rest } = opt;
+  const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+  const L = Math.hypot(d[0], d[1], d[2]);
+  if (!(L > 1e-9) || !Array.isArray(poly) || poly.length < 3) return [];
+  const e = d.map((v) => v / L);
+  const kreuz = (a, c) => [a[1] * c[2] - a[2] * c[1],
+                           a[2] * c[0] - a[0] * c[2],
+                           a[0] * c[1] - a[1] * c[0]];
+  const norm = (v) => {
+    const nn = Math.hypot(v[0], v[1], v[2]);
+    return nn > 1e-9 ? v.map((x) => x / nn) : null;
+  };
+  let q1 = norm(kreuz(e, [0, 0, 1])) ?? norm(kreuz(e, [1, 0, 0])) ?? [1, 0, 0];
+  /*
+   * DIE QUERRICHTUNG BEKOMMT EIN VORZEICHEN. Das Kreuzprodukt liefert eine
+   * Senkrechte, nicht die gewuenschte: neigt sich die Stuetze zur anderen
+   * Seite, kippt `q1` mit, und das C zeigte dann nach innen statt nach
+   * aussen. Wer eine Achse nennt, bekommt `q1` in deren Richtung.
+   */
+  if (querAchse !== undefined && q1[querAchse] < 0) q1 = q1.map((v) => -v);
+  const q2 = norm(kreuz(e, q1)) ?? [0, 1, 0];
+
+  const auf = (p, [u, v]) => [p[0] + u * q1[0] + v * q2[0],
+                              p[1] + u * q1[1] + v * q2[1],
+                              p[2] + u * q1[2] + v * q2[2]];
+  const A = poly.map((uv) => auf(p0, uv));
+  const B = poly.map((uv) => auf(p1, uv));
+  const xMitte = (p0[0] + p1[0]) / 2;
+  const flaechen = [];
+  for (let i = 0; i < poly.length; i += 1) {
+    const j = (i + 1) % poly.length;
+    flaechen.push({ punkte: [A[i], A[j], B[j], B[i]], xMitte, ...rest });
+  }
+  flaechen.push({ punkte: A, xMitte: p0[0], ...rest });
+  flaechen.push({ punkte: [...B].reverse(), xMitte: p1[0], ...rest });
+  return flaechen;
+}
+
+/* ===========================================================================
  * DER MAST - EIN BAUSTEIN FUER BEIDE SZENEN
  * ===========================================================================
  *
@@ -279,6 +339,11 @@ export function schraegerStab(p0, p1, b, h, opt = {}) {
  *   farbeBauteil  Farbe, wenn kein Nachweis vorliegt
  *   anker         {typ, h, a, richtung, seite} am Masten, oder null
  *   ankerSpreiz   Spreizmass der Stuetze aus dem Sortiment (oder null)
+ *   ankerProfil   Querschnitt der Stuetze {h,b,tw,tf,ey} in cm - damit
+ *                 werden aus den beiden Staeben zwei C
+ *   ankerBleche   (L) => [{x, A, B}] - die Bindebleche ueber die Stablaenge,
+ *                 x vom ENGEN Ende, A/B die lichte Weite an den Kanten [mm]
+ *   ankerBlechMass {laenge, dicke, versatz} des Bindeblechs [mm]
  *   ankerEy       Schwerachsabstand e_y des U-Profils [cm], fuer den
  *                 Achsabstand der beiden Koerper (oder null)
  * @returns {{flaechen:object[], linien:object[]}}
@@ -570,19 +635,137 @@ function ankerTeile(o, halb, zFuss, zKopf) {
     const sB = Math.max(0, 1 - ((sp.parallelSchmal ?? 0) / 1000) / LStab);
     const stuetz = (sB > sA ? [0, sA, sB, 1] : [0, 1])
       .filter((s, i2, arr) => i2 === 0 || s - arr[i2 - 1] > 1e-6);
+    /* =====================================================================
+     * >>> UND DER QUERSCHNITT IST EIN C, KEIN QUADRAT. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: «die detailierte modellierung der
+     * druckstütze in der app nachziehen.»
+     *
+     * Die AxisVM-Ausleitung baut die Stuetze seit dem 15. September als
+     * zwei U-Profile mit ihren Bindeblechen - im Bild standen weiter zwei
+     * glatte Quader. Beide sollen dasselbe Bauteil zeigen.
+     *
+     * DIE OFFENE SEITE ZEIGT NACH AUSSEN. Schnitt B-B der Werkstattzeichnung
+     * hat die STEGE GEGENEINANDER, die Flansche nach aussen; das Spreizmass
+     * steht zwischen den Stegruecken, und die Bindebleche sind genau dort
+     * eingeschweisst. `uProfilPoly` legt den Stegruecken auf 0 und die
+     * Schwerachse um `ey` davor - mit `oeffnung = vzP` faellt beides
+     * richtig herum, weil `schraegesProfil` seine erste Querrichtung auf
+     * die Spreizachse ausrichtet.
+     *
+     * Ohne Profilangabe bleibt es beim Quader: ein Seilanker hat keinen.
+     */
+    const pf = o.ankerProfil;
+    const poly = pf && pf.h > 0 && pf.b > 0
+      ? (vzP) => uProfilPoly(pf, vzP).map(([u, v]) => [u / 1000, v / 1000])
+      : null;
     [-1, +1].forEach((vzP) => {
+      const uv = poly ? poly(vzP) : null;
       for (let i2 = 1; i2 < stuetz.length; i2 += 1) {
-        flaechen.push(...schraegerStab(
-          punktAuf(stuetz[i2 - 1], vzP), punktAuf(stuetz[i2], vzP),
-          dick, dick, {
-            gruppe: 'mast', teil: `ANKER_${name}`,
-            label: `Anker ${name} · ${wie}`,
-          }));
+        const a2 = punktAuf(stuetz[i2 - 1], vzP);
+        const b3 = punktAuf(stuetz[i2], vzP);
+        const opt2 = { gruppe: 'mast', teil: `ANKER_${name}`,
+                       label: `Anker ${name} · ${wie}` };
+        flaechen.push(...(uv
+          ? schraegesProfil(a2, b3, uv, { ...opt2, querAchse: spreizAchse })
+          : schraegerStab(a2, b3, dick, dick, opt2)));
       }
       linien.push({ gruppe: 'mast', anker: true, stark: true,
                     label: `Anker ${name} · ${wie}`,
                     punkte: stuetz.map((s) => punktAuf(s, vzP)) });
     });
+    /* =====================================================================
+     * >>> DIE BINDEBLECHE - SIE MACHEN AUS ZWEI STAEBEN EIN BAUTEIL. <<<
+     * =====================================================================
+     *
+     * Ohne sie sind es zwei Profile nebeneinander; mit ihnen ist es eine
+     * Stuetze. Sie erklaeren auch, warum der Knicknachweis ueber das
+     * Bemessungsdiagramm laeuft: die Teilung bestimmt die Knicklaenge des
+     * Einzelprofils zwischen zwei Blechen.
+     *
+     * >>> IHRE STELLEN KOMMEN VON AUSSEN. <<<
+     *
+     * Diese Datei ist reine Geometrie und laedt keine Datenbank (siehe
+     * Kopf). Die Einteilung steht in der Werkstattzeichnung und wird von
+     * `ankerBindebleche` gefuehrt - der Aufrufer reicht die Funktion
+     * herein, hier wird sie mit der Stablaenge des Bildes aufgerufen.
+     * Dieselbe Einteilung baut die AxisVM-Ausleitung.
+     *
+     * >>> ZWEI JE STELLE, OBEN UND UNTEN. <<<
+     *
+     * Bundig mit den Profilkanten: ihre Mitte liegt `versatz` = (h - t)/2
+     * von der Profilachse, beim U12 also 56 mm. Sie spannen ueber die
+     * LICHTE Weite zwischen den Stegruecken - nicht ueber den Achsabstand;
+     * `A` und `B` geben sie an den beiden Blechkanten, und weil der Keil
+     * dazwischen weiterlaeuft, ist das Blech leicht trapezfoermig.
+     */
+    const bm = o.ankerBlechMass;
+    const bleche = typeof o.ankerBleche === 'function'
+      ? (o.ankerBleche(LStab) ?? []) : [];
+    if (bm && bm.laenge > 0 && bm.versatz > 0 && bleche.length) {
+      const halbL = (bm.laenge / 1000) / 2;
+      const vsz = bm.versatz / 1000, tB = (bm.dicke ?? 8) / 1000;
+      // Die Stationen zaehlen vom ENGEN Ende, das Bild von der Mastseite -
+      // dort ist die Stuetze weit. Also kehrt sich der Lauf um.
+      const sVon = (xB) => 1 - Math.min(Math.max(xB, 0), LStab) / LStab;
+      bleche.forEach((bl) => {
+        const s1 = sVon(bl.x + halbL);       // naeher am Masten
+        const s2 = sVon(bl.x - halbL);
+        const wA = ((bl.A ?? bl.B ?? 0) / 1000) / 2;
+        const wB = ((bl.B ?? bl.A ?? 0) / 1000) / 2;
+        if (!(wA > 0) || !(wB > 0)) return;
+        /*
+         * Das Blech liegt in der Ebene aus Spreizachse und Stabachse. Die
+         * Dicke steht senkrecht dazu - dieselbe Richtung, in der die Bleche
+         * oben und unten auseinanderliegen.
+         */
+        const eS = [(pF[0] - pM[0]) / LStab, (pF[1] - pM[1]) / LStab,
+                    (pF[2] - pM[2]) / LStab];
+        const hoch = [0, 0, 0];
+        // Die Hochrichtung des Profils: senkrecht auf Stabachse und
+        // Spreizachse. Bei einem Anker in der Jochebene ist das die
+        // Gleisrichtung und umgekehrt - dasselbe, was `schraegesProfil`
+        // als zweite Querrichtung bildet.
+        const sp2 = [0, 0, 0]; sp2[spreizAchse] = 1;
+        hoch[0] = eS[1] * sp2[2] - eS[2] * sp2[1];
+        hoch[1] = eS[2] * sp2[0] - eS[0] * sp2[2];
+        hoch[2] = eS[0] * sp2[1] - eS[1] * sp2[0];
+        const hn = Math.hypot(hoch[0], hoch[1], hoch[2]);
+        if (!(hn > 1e-9)) return;
+        const hE = hoch.map((v) => v / hn);
+        const mitteBlech = (s, w) => ({
+          p: [pM[0] + (pF[0] - pM[0]) * s, pM[1] + (pF[1] - pM[1]) * s,
+              pM[2] + (pF[2] - pM[2]) * s], w });
+        const e1 = mitteBlech(s1, wA);
+        const e2 = mitteBlech(s2, wB);
+        [-1, +1].forEach((vzB) => {
+          const eck = (m, vzS, vzT) => {
+            const r = [...m.p];
+            r[spreizAchse] += vzS * m.w;
+            return [r[0] + (vzB * vsz + vzT * tB / 2) * hE[0],
+                    r[1] + (vzB * vsz + vzT * tB / 2) * hE[1],
+                    r[2] + (vzB * vsz + vzT * tB / 2) * hE[2]];
+          };
+          const optB = { gruppe: 'mast', teil: `ANKER_${name}`,
+                         label: `Bindeblech ${name} · FLA ${bm.laenge}/`
+                              + `${bm.dicke ?? 8}` };
+          const xM = (e1.p[0] + e2.p[0]) / 2;
+          const A1 = [eck(e1, -1, -1), eck(e1, +1, -1),
+                      eck(e1, +1, +1), eck(e1, -1, +1)];
+          const B1 = [eck(e2, -1, -1), eck(e2, +1, -1),
+                      eck(e2, +1, +1), eck(e2, -1, +1)];
+          for (let i3 = 0; i3 < 4; i3 += 1) {
+            const j3 = (i3 + 1) % 4;
+            flaechen.push({ punkte: [A1[i3], A1[j3], B1[j3], B1[i3]],
+                            xMitte: xM, ...optB });
+          }
+          flaechen.push({ punkte: A1, xMitte: e1.p[0], ...optB });
+          flaechen.push({ punkte: [...B1].reverse(), xMitte: e2.p[0],
+                          ...optB });
+        });
+      });
+    }
   } else {
     flaechen.push(...schraegerStab(pM, pF, dick, dick, {
       gruppe: 'mast', teil: `ANKER_${name}`,

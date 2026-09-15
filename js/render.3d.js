@@ -39,7 +39,8 @@ import { querschnitt } from './geometry.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
-import { ankerSpreizung, ankerQuerschnitt } from './data.anker.js';
+import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
+         ankerBindebleche, ankerBlechVersatz } from './data.anker.js';
 /*
  * DIE BAUSTEINE STEHEN SEIT DEM 4. SEPTEMBER IN `render.koerper.js`.
  *
@@ -331,6 +332,49 @@ function grenzenVon(m, qs, flaechen, z) {
   return { xMin: x0, xMax: x1, yMin: y0, yMax: y1, zMin, zMax };
 }
 
+
+/* ===========================================================================
+ * DIE DETAILS DER DRUCKSTUETZE FUER DIE SZENE
+ * ===========================================================================
+ *
+ * Weisung vom 15. September: «die detailierte modellierung der druckstütze
+ * in der app nachziehen.»
+ *
+ * `render.koerper.js` ist reine Geometrie und laedt keine Datenbank - alles,
+ * was aus dem Sortiment kommt, wird hier geholt und hereingereicht. Die
+ * Blecheinteilung braucht die Stablaenge, und die steht erst in der Szene
+ * fest: deshalb eine Funktion statt einer Liste.
+ *
+ * Ohne Typ, ohne Blatt oder beim Seilanker bleibt alles leer - und im Bild
+ * beim einfachen Stab.
+ */
+function ankerDetail(typ) {
+  if (!typ) return {};
+  const hol = (f) => { try { return f(); } catch { return null; } };
+  const qs = hol(() => ankerQuerschnitt(typ));
+  const bl = hol(() => ankerBlechSatz(typ));
+  const vs = hol(() => ankerBlechVersatz(typ));
+  /*
+   * >>> DIE EINHEITEN SIND GEMISCHT, UND DAS MUSS HIER AUFGELOEST WERDEN. <<<
+   *
+   * `data/anker.json` fuehrt den Querschnitt so, wie das Blatt ihn schreibt:
+   * h, b, t_w, t_f in MILLIMETERN (UNP 120: 120/55/7/9), Flaeche und
+   * Traegheitsmomente in cm, und e_y in ZENTIMETERN (1.6). `uProfilPoly`
+   * erwartet dagegen alles in cm - wie jedes andere Profil im Werkzeug.
+   *
+   * Ungerechnet stuende im Bild ein U von 1.20 m Hoehe.
+   */
+  const inCm = (v) => (Number.isFinite(Number(v)) ? Number(v) / 10 : 0);
+  return {
+    ankerProfil: qs && qs.h > 0
+      ? { h: inCm(qs.h), b: inCm(qs.b), tw: inCm(qs.tw), tf: inCm(qs.tf),
+          ey: Number(qs.ey) || 0 }
+      : null,
+    ankerBlechMass: bl && vs > 0
+      ? { laenge: bl.laenge, dicke: bl.dicke, versatz: vs } : null,
+    ankerBleche: (L) => hol(() => ankerBindebleche(typ, L)) ?? [],
+  };
+}
 export function erzeugeSzene(m, erg) {
   // Ohne Joch gibt es keinen Jochquerschnitt - der Ersatz laesst die
   // Schleifen leer laufen, damit der REST wie immer entsteht (core.vierendeel.js,
@@ -720,6 +764,17 @@ export function erzeugeSzene(m, erg) {
           ankerEy: mast.anker?.typ
             ? (() => { try { return ankerQuerschnitt(mast.anker.typ)?.ey ?? null; }
                        catch { return null; } })() : null,
+        /*
+         * >>> UND DIE DETAILS DER STUETZE (15. September). <<<
+         *
+         * Weisung: «die detailierte modellierung der druckstütze in der app
+         * nachziehen.» Querschnitt, Blechmass und Einteilung stehen im
+         * Sortiment - die Szene holt sie und reicht sie herein, weil
+         * `render.koerper.js` keine Datenbank laedt. Die Einteilung braucht
+         * die Stablaenge, die erst dort feststeht: deshalb eine Funktion,
+         * kein Feld.
+         */
+          ...ankerDetail(mast.anker?.typ),
         });
         flaechen.push(...mk.flaechen);
         linien.push(...mk.linien);

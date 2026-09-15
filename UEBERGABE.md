@@ -397,6 +397,59 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Druckstütze im Bild ist das Bauteil (15. September)
+
+Weisung: «die detailierte modellierung der druckstütze in der app
+nachziehen.»
+
+Die AxisVM-Ausleitung baut sie seit demselben Tag als zwei U-Profile mit
+ihren Bindeblechen — im Bild standen weiter zwei glatte Quader. Beide sollen
+dasselbe Bauteil zeigen; sonst prüft man am Modell etwas anderes, als man auf
+dem Schirm hat.
+
+**Der Querschnitt ist ein C.** `schraegesProfil` legt ein beliebiges Polygon
+um eine schräge Achse — `schraegerStab` daneben kann nur ein Rechteck. Die
+offene Seite zeigt nach aussen: Schnitt B-B der Werkstattzeichnung hat die
+Stege gegeneinander, die Flansche nach aussen, und das Spreizmass steht
+zwischen den Stegrücken.
+
+Am engen Ende nachgerechnet (U12, Achsabstand 104 + 2·16 = 136 mm):
+
+| | |
+|---|---|
+| halber Achsabstand | 68 mm |
+| Stegrücken, nach innen | 68 − e_y = **52 mm** |
+| Flanschspitze, nach aussen | 68 + (b − e_y) = **107 mm** |
+
+**Die Bindebleche machen aus zwei Stäben ein Bauteil.** Ihre Einteilung ist
+die der Werkstattzeichnung — dieselbe, die `ankerBindebleche` führt und die
+AxisVM-Ausleitung baut. Zwei je Stelle, oben und unten, ihre Mitte
+(h − t)/2 = 56 mm von der Profilachse, bündig mit den Profilkanten. Sie
+spannen die **lichte** Weite zwischen den Stegrücken, nicht den Achsabstand.
+
+**Die Stellen kommen von aussen.** `render.koerper.js` ist reine Geometrie und
+lädt keine Datenbank; die beiden Szenen holen Querschnitt, Blechmass und
+Einteilung und reichen sie herein (`ankerDetail`). Die Einteilung braucht die
+Stablänge, und die steht erst in der Szene fest — deshalb eine **Funktion**,
+kein Feld.
+
+Dabei ist eine Falle aufgefallen: **`data/anker.json` mischt die Einheiten.**
+h, b, t_w, t_f stehen in Millimetern (120/55/7/9), e_y aber in Zentimetern
+(1.6) — so, wie das Blatt sie schreibt. `uProfilPoly` erwartet alles in cm.
+Ungerechnet stünde im Bild ein U von 1.20 m Höhe; `ankerDetail` rechnet um.
+
+**Gemessen an `erzeugeSzene`** — der Funktion, die das Bild zeichnet: ein Joch
+mit Stütze U12 (h 6.00 m, a 4.00 m, Stablänge 7.21 m) liefert **120
+Ankerflächen**, davon 60 für die beiden Profile (2 × 3 Abschnitte × 10
+Flächen eines Achtecks) und 60 für **10 Bindebleche** an 5 Stellen. Ohne
+Stütze steht nichts davon im Bild; ohne Profilangabe — beim Seilanker —
+bleibt es beim Quader.
+
+Eine Kleinigkeit, die stimmt und zunächst nach Fehler aussieht: im Keil steht
+die Flanschspitze 1 mm weiter aussen als der Achsabstand plus b − e_y. Das ist
+richtig — der Querschnitt steht senkrecht auf der **geneigten Profilachse**,
+nicht auf der Mittellinie der Stütze.
+
 ### Jede Schnittgrösse trägt ihre statische Benennung (15. September)
 
 Weisung: «bei allen schnittkräften anschrift neben dem quer längs vertikal

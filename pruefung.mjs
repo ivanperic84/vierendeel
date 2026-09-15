@@ -11112,6 +11112,184 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> DIE DRUCKSTUETZE IM BILD IST DAS BAUTEIL, NICHT ZWEI QUADER. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: "die detailierte modellierung der
+     * druckstuetze in der app nachziehen."
+     *
+     * Die AxisVM-Ausleitung baut sie seit demselben Tag als zwei U-Profile
+     * mit ihren Bindeblechen - im Bild standen weiter zwei glatte Quader.
+     * Beide sollen dasselbe Bauteil zeigen; sonst prueft man am Modell
+     * etwas anderes, als man auf dem Schirm hat.
+     *
+     * Gemessen wird am Baustein `mastKoerper`, mit den Daten des Sortiments
+     * von Hand hereingereicht - genau so, wie es die beiden Szenen tun.
+     */
+    {
+      const KO = await import(J('render.koerper.js'));
+      const typ = 'U12';
+      const qs = AN.ankerQuerschnitt(typ);
+      const bl = AN.ankerBlechSatz(typ);
+      const vs = AN.ankerBlechVersatz(typ);
+      /*
+       * DIE EINHEITEN SIND GEMISCHT - und das ist die Falle, in die ich beim
+       * Bauen zuerst gelaufen bin. `data/anker.json` fuehrt h, b, t_w, t_f in
+       * MILLIMETERN (120/55/7/9), e_y aber in ZENTIMETERN (1.6). Ungerechnet
+       * stuende im Bild ein U von 1.20 m Hoehe.
+       */
+      const inCm = (v) => Number(v) / 10;
+      const prof = { h: inCm(qs.h), b: inCm(qs.b), tw: inCm(qs.tw),
+                     tf: inCm(qs.tf), ey: Number(qs.ey) };
+      const baueAnker = (zusatz = {}) => KO.mastKoerper({
+        profil: { h: 24, b: 24, tw: 1, tf: 1.7, reihe: 'HEB', name: 'HEB 240' },
+        x: 0, H: 8.0, zFuss: -1.5, zKopf: 8.5, name: 'A',
+        anker: { typ, h: 6.0, a: 4.0, richtung: 'quer', seite: +1 },
+        ankerSpreiz: AN.ankerSpreizung(typ), ankerEy: qs.ey,
+        ankerProfil: prof,
+        ankerBlechMass: { laenge: bl.laenge, dicke: bl.dicke, versatz: vs },
+        ankerBleche: (L) => AN.ankerBindebleche(typ, L),
+        ...zusatz,
+      });
+      const mk = baueAnker();
+      const ff = mk.flaechen.filter((x) => /^ANKER_/.test(x.teil ?? ''));
+      const pfl = ff.filter((x) => /^Anker /.test(x.label ?? ''));
+      const bfl = ff.filter((x) => /^Bindeblech/.test(x.label ?? ''));
+      /*
+       * >>> ZWEI PROFILE, DREI ABSCHNITTE, EIN ACHTECK. <<<
+       *
+       * Der Verlauf hat zwei Knicke - dort, wo das parallele Stueck am
+       * Masten endet und dort, wo das andere vor dem Fundament beginnt.
+       * Ein U hat acht Ecken, ein Abschnitt also acht Seiten und zwei
+       * Deckel: 2 * 3 * 10 = 60.
+       */
+      pruef('Die Stuetze ist ein Achteck, kein Quadrat',
+            pfl.length, 60, 1e-9, 'Flaechen');
+      /*
+       * >>> DIE OFFENE SEITE ZEIGT NACH AUSSEN. <<<
+       *
+       * Schnitt B-B der Werkstattzeichnung: die STEGE gegeneinander, die
+       * Flansche nach aussen; das Spreizmass steht zwischen den
+       * Stegruecken, und dort sind die Bindebleche eingeschweisst.
+       *
+       * Am ENGEN Ende (Fundament) laesst sich das nachrechnen: der halbe
+       * Achsabstand ist (104 + 2*16)/2 = 68 mm, der Stegruecken liegt e_y
+       * = 16 mm INNERHALB davon, die Flanschspitze b - e_y = 39 mm
+       * ausserhalb. Also 52 bis 107 mm - und spiegelbildlich auf der
+       * anderen Seite.
+       */
+      const amFuss = pfl.flatMap((x) => x.punkte)
+        .filter((p) => Math.abs(p[2] + 1.5) < 0.2).map((p) => p[1]);
+      pruef('Die Flanschspitze steht 107 mm von der Mitte',
+            Math.max(...amFuss) * 1000, 107, 1e-4, 'mm');
+      pruef('\u2026 und der Stegruecken 52 mm - er zeigt nach innen',
+            Math.min(...amFuss.filter((v) => v > 0)) * 1000, 52, 1e-4, 'mm');
+      wahr('Das zweite Profil steht spiegelbildlich',
+           Math.abs(Math.min(...amFuss) + Math.max(...amFuss)) < 1e-9,
+           `${Math.min(...amFuss).toFixed(4)} / ${Math.max(...amFuss).toFixed(4)}`);
+      /*
+       * >>> UND DIE BINDEBLECHE MACHEN AUS ZWEI STAEBEN EIN BAUTEIL. <<<
+       *
+       * Die Einteilung ist die der Werkstattzeichnung, dieselbe, die
+       * `ankerBindebleche` fuehrt und die AxisVM-Ausleitung baut. Zwei je
+       * Stelle - oben und unten, buendig mit den Profilkanten.
+       */
+      const LSt = Math.hypot(4.0, 6.0);
+      const stat = AN.ankerBindebleche(typ, LSt);
+      wahr('Es gibt eine Blecheinteilung', stat.length >= 4,
+           `${stat.length} Stellen`);
+      pruef('Zwei Bleche je Stelle, je sechs Flaechen',
+            bfl.length, stat.length * 2 * 6, 1e-9, 'Flaechen');
+      /*
+       * DAS BLECH SPANNT DIE LICHTE WEITE, NICHT DEN ACHSABSTAND. Es liegt
+       * zwischen den Stegruecken - 104 mm am engen Ende, nicht 136.
+       */
+      const eins = bfl.slice(0, 6).flatMap((x) => x.punkte).map((p) => p[1]);
+      const weite = (Math.max(...eins) - Math.min(...eins)) * 1000;
+      wahr('Das erste Blech spannt die lichte Weite',
+           weite > 103.9 && weite < 106.5, `${weite.toFixed(1)} mm`);
+      /*
+       * SEINE MITTE LIEGT (h - t)/2 VON DER PROFILACHSE - beim U12 56 mm,
+       * die Aussenkante also buendig mit dem Profil bei 60 mm. Gemessen an
+       * beiden Blechen einer Stelle: ihr Abstand ist 2 * 56 = 112 mm.
+       */
+      pruef('Der Versatz der Bleche ist (h - t)/2', vs, 56, 1e-9, 'mm');
+      /*
+       * >>> OHNE PROFIL BLEIBT ES BEIM QUADER. <<<
+       *
+       * Ein Seilanker hat keinen Querschnitt und keine Bindebleche. Ein
+       * Bild, das ihm welche andichtet, waere schlimmer als das alte.
+       */
+      const ohne = baueAnker({ ankerProfil: null, ankerBlechMass: null });
+      const oF = ohne.flaechen.filter((x) => /^ANKER_/.test(x.teil ?? ''));
+      pruef('Ohne Profilangabe bleiben es Quader',
+            oF.filter((x) => /^Anker /.test(x.label ?? '')).length,
+            2 * 3 * 6, 1e-9, 'Flaechen');
+      wahr('\u2026 und es gibt keine Bindebleche',
+           !oF.some((x) => /^Bindeblech/.test(x.label ?? '')));
+      /*
+       * >>> UND BEIDE SZENEN REICHEN DIE DATEN HEREIN. <<<
+       *
+       * `render.koerper.js` ist reine Geometrie und laedt keine Datenbank -
+       * die Szene holt Querschnitt, Blechmass und Einteilung. Die
+       * Einteilung braucht die Stablaenge, die erst dort feststeht: deshalb
+       * eine Funktion, kein Feld.
+       */
+      /*
+       * >>> UND DIE KETTE TRAEGT BIS IN DIE ECHTE SZENE. <<<
+       *
+       * Bis hierher ist am BAUSTEIN gemessen, mit von Hand
+       * hereingereichten Daten. Das beweist die Geometrie, nicht die
+       * Verdrahtung: ein `ankerDetail`, das die Szene gar nicht ruft, faellt
+       * dabei nicht auf. Also einmal durch `erzeugeSzene` - so, wie die
+       * Maske es tut.
+       */
+      {
+        const R3 = await import(J('render.3d.js'));
+        /*
+         * DIE MASKE FUEHRT `ankerTyp/ankerH/ankerA`, DAS MODELL
+         * `mastAnkerA` - zwei Namen fuer dieselbe Sache, und die Maske
+         * setzt sie um (`ANKERFELDER` in app.js). Hier wird das Modell
+         * gefuellt, nicht die Maske.
+         */
+        const mitAnk = rechne(basis({
+          mastVorhanden: true, mastProfil: 'HEB 240', mastH: 8.0,
+          mastAnkerA: { typ, h: 6.0, a: 4.0, richtung: 'x', seite: 1,
+                        befestigung: 'ankerplatte' } }));
+        const sz = R3.erzeugeSzene(mitAnk.modell, mitAnk);
+        const szA = sz.flaechen.filter((x) => /^ANKER_/.test(x.teil ?? ''));
+        const szB = szA.filter((x) => /^Bindeblech/.test(x.label ?? ''));
+        wahr('Die Szene zeichnet die Stuetze als Profil',
+             szA.some((x) => /^Anker /.test(x.label ?? '')),
+             `${szA.length} Flaechen`);
+        wahr('\u2026 und ihre Bindebleche gleich mit',
+             szB.length > 0 && szB.length % 6 === 0,
+             `${szB.length / 6} Bleche`);
+        /*
+         * OHNE STUETZE KEINE BLECHE. Der Fall, den niemand einstellt und
+         * der trotzdem der haeufigste ist.
+         */
+        const ohneAnk = rechne(basis({ mastVorhanden: true,
+                                       mastProfil: 'HEB 240', mastH: 8.0 }));
+        const szO = R3.erzeugeSzene(ohneAnk.modell, ohneAnk);
+        wahr('Ohne Stuetze steht nichts davon im Bild',
+             !szO.flaechen.some((x) => /^ANKER_/.test(x.teil ?? '')));
+      }
+      ['render.3d.js', 'render.abfang.js'].forEach((datei) => {
+        const sq = readFileSync(
+          new URL(`./js/${datei}`, import.meta.url), 'utf8');
+        wahr(`${datei} reicht die Stuetzendetails herein`,
+             /\.\.\.ankerDetail\(/.test(sq) && sq.includes('function ankerDetail'));
+        wahr(`${datei} rechnet den Querschnitt in cm um`,
+             sq.includes('const inCm = (v) =>')
+             && /h: inCm\(qs\.h\)/.test(sq));
+        wahr(`${datei} reicht die Einteilung als Funktion`,
+             /ankerBleche: \(L\) => hol\(\(\) => ankerBindebleche\(typ, L\)\)/
+               .test(sq));
+      });
+    }
+
+    /* =====================================================================
      * >>> JEDE SCHNITTGROESSE TRAEGT IHRE STATISCHE BENENNUNG. <<<
      * =====================================================================
      *
