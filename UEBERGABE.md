@@ -397,6 +397,93 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Befunde aus dem aufgebauten AxisVM-Modell (16. September)
+
+Vier Beobachtungen des Auftraggebers am gebauten Modell, der Reihe nach.
+
+#### Die Stütze hing an nichts
+
+«die druckstütze hat im axis keinen knoten am masten, dieser ging durch.»
+
+Der Ankerblock setzte den Mastknoten — und sein Kommentar sagte sogar, warum
+er in die Stabteilung gehört. Nur kam er **zu spät**: `zStufen` wird früher
+gebildet, und die Maststäbe standen, bevor der Anker an die Reihe kam. Der
+Knoten entstand und lag auf keinem Stabende.
+
+*Ein Kommentar ist keine Reihenfolge.* Jetzt steht die Eintragung dort, wo sie
+wirkt, und eine Kontrolle misst, was er behauptet: zwei Maststäbe enden an
+`MAST_A_ANK`, die Ankerkonsole hängt daran, und er sitzt auf der
+Anschlusshöhe.
+
+#### Zwei Teile nebeneinander sind eine Gabel
+
+«ich habe die traverse mittig genommen und die beiden bündelleiter jeweils
+einen meter in x richtung angesetzt, links und rechts. diese wurden aber im
+axis hintereinander angesetzt.»
+
+Reproduziert: `anbauKette` machte jedes Teil zum Träger des nächsten und legte
+einen Starrstab von x = −1 quer durch den Masten nach x = +1.
+
+```
+vorher   (0) -> (-1) -> (+1)
+jetzt    (0) -> (-1)   und   (0) -> (+1)
+```
+
+Der Kommentar dort nannte diese Grenze und hielt fest, in den Vorlagen komme
+keine Gabel vor — beides war überholt, sobald jemand den Fall eingab. Die
+Regel jetzt: **angereiht wird nur, was in Richtung des tragenden Glieds weiter
+aussen liegt.** Der NT-Ausleger (Anschluss 0.3 m, Kragarm 1.5 m) bleibt damit
+eine Reihe; das ist gemessen, nicht angenommen.
+
+#### Die Übergänge an der Stütze sind bereits Linkelemente
+
+Nachgemessen am ausgeleiteten Modell: `ANKERKOPF` und `ANKERFUSS` — die
+Übergänge in der Stützenflucht — tragen `starrRolle: 'verbindung'` mit
+`gelenkAnfang: 'M'` und werden als **LinkElement mit freien Momenten**
+ausgeleitet. Der Aufbau zählt 12 Verbindungselemente: acht an der
+Auflagerkette, vier an der Stütze.
+
+Starr bleibt allein `ANKERKONSOLE` (Mastknoten → Konsolspitze). Sie **auch**
+gelenkig zu machen gäbe zwei Momentengelenke hintereinander an einem starren
+Stück — ein Mechanismus.
+
+#### Die Auflagerpunkte am Untergurt — die Ursache ist gefunden
+
+«die auflagerpunkte an den untergurten ergaben in axis viel grössere
+spannungen als in der app. wird dieser umstand beachtet?»
+
+**Nein.** Gemessen am Fall des Auftraggebers (J90, L 20 m, einseitige
+Auskragung bei halber Jochlänge — Auflager A bei x = 10, Stützweite 10 m):
+
+| | |
+|---|---|
+| Auflagerreaktion A | 14.33 kN |
+| Einspannmoment A | 26.91 kNm |
+| Gurtnormalkraft am Auflager | ± 29.95 kN (Kräftepaar über die Jochhöhe) |
+| `M_y,L,lokal` der App | 0.517 kNm → **29 N/mm²** |
+| Modell: N · Hebel des Linkstiels (50 mm) | 1.498 kNm → **83 N/mm²** |
+| | **Faktor 2.9** |
+
+**Der Hebel ist die Ursache.** Das Linkelement sitzt seit dem 15. September
+50 mm ausserhalb der Gurtebene (Weisung: «in der höhe die link elemente
+ausserhalb des vierendeel trägers anbringen»), und der `LINKSTIEL` dorthin ist
+starr. Die grosse **Gurtnormalkraft** aus dem Einspannmoment greift damit mit
+50 mm Hebel am Gurtknoten an — und erzeugt ein örtliches Moment, das dreimal
+so gross ist wie das, was die App als Vierendeel-Rahmenmoment führt.
+
+Die Einleitung der **Vertikalkraft** allein ist dagegen klein: der
+Anschlusspunkt liegt bei x = 10.12, 80 mm neben dem Blechanschnitt (10.04),
+und gibt dort nur 0.217 kNm (12 N/mm²).
+
+Die App rechnet die örtliche Gurtbiegung ausschliesslich als
+Vierendeel-Rahmenmoment aus der Ebenenquerkraft (`V·a/2` am Anschnitt). Weder
+die Exzentrizität der Kette noch die Einleitung zwischen zwei Blechen kommen
+darin vor.
+
+**Noch nicht entschieden:** ob die 50 mm eine Modellhilfe ohne bauliche
+Entsprechung sind — dann gehört der Hebel aus dem Modell — oder ob sie den
+wirklichen Anschluss abbilden — dann gehört der Anteil in den Nachweis.
+
 ### Der Mastnachweis führt globale Grössen (15. September)
 
 Weisung: «konvention app global nachziehen.»
