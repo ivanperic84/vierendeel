@@ -2616,10 +2616,26 @@ function modulListeHtml(a, i, werte) {
                   (b) => !istKettenwerk(b) || (fremd && b.id === wert));
   };
 
-  /*
-   * DER PARTNER: zu einem Tragseil der Fahrdraht, zu einem Fahrdraht das
-   * Tragseil. Die Liste kommt aus den KETTENWERKEN der Tabelle - damit
-   * steht jede waehlbare Paarung auch wirklich darin.
+  /* =========================================================================
+   * >>> DER PARTNER HAENGT AM TRAGSEIL, NICHT UMGEKEHRT. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «die sekundaere eingabe hirarchisch
+   * verstehen. nur wenn ein tragseil eingegeben wird dann zusatzauswahl
+   * moeglich machen.»
+   *
+   * Das trifft die Bauweise: ein Kettenwerk HAENGT am Tragseil - der
+   * Fahrdraht kommt dazu, nicht umgekehrt. Die erste Fassung bot deshalb
+   * beides an («mit Tragseil» an einem Fahrdraht), und das stellte die
+   * Sache auf den Kopf.
+   *
+   * >>> UND ES STEHT IMMER DA, AUCH WENN ES NICHT WAEHLBAR IST. <<<
+   *
+   * Weisung, gleicher Satz: «zudem springt die anzeige wenn es eingeblendet
+   * wird.» Ein Feld, das beim Wechsel des Bauteils erscheint und
+   * verschwindet, verschiebt alles darunter - man klickt auf das, was
+   * gerade weggerutscht ist. Bei jedem Drahtwerk steht es deshalb da; wo es
+   * keinen Partner geben kann, ist es gesperrt und sagt, warum.
    */
   const partnerFeld = (m, k, i) => {
     let b = null;
@@ -2627,24 +2643,27 @@ function modulListeHtml(a, i, werte) {
     if (b.rolle !== 'drahtwerk') return '';
     const z = flZerlegung(b);
     const kw = istKettenwerk(b);
-    // Welcher der beiden Plaetze ist besetzt - und welcher ist zu fuellen?
-    const alsTs = kw ? z.ts : flTragseile().some((x) => x.name === z.leiter);
-    const alsFd = kw ? z.fd : flFahrdraehte().some((x) => x.name === z.leiter);
-    if (!alsTs && !alsFd) return '';          // ein einzelner Leiter, Cu 95
-    const suchtFd = kw ? true : Boolean(alsTs);
-    const liste = suchtFd ? flFahrdraehte() : flTragseile();
-    const gewaehlt = kw ? (suchtFd ? z.fd : z.ts) : '';
-    const eigen = kw ? (suchtFd ? z.ts : z.fd) : z.leiter;
+    const istTs = kw || flTragseile().some((x) => x.name === z.leiter);
+    const eigen = kw ? z.ts : z.leiter;
+    const gewaehlt = kw ? z.fd : '';
     /*
      * NUR WAS ES IN DER TABELLE GIBT. Eine Paarung ohne Eintrag waere eine
      * Summe, und die faellt beim Wind fuenfzehn Prozent zu klein aus.
      */
-    const moeglich = liste.filter((x) => flPaarung(
-      suchtFd ? eigen : x.name, suchtFd ? x.name : eigen, z.anzahl ?? 1));
-    if (!moeglich.length) return '';
-    return `<label class="modul-partner">${suchtFd ? 'mit Fahrdraht' : 'mit Tragseil'}
-      <select class="mod" data-mk="partner" data-idx="${i}" data-mod="${k}">
-        <option value=""${gewaehlt ? '' : ' selected'}>— keiner, einzelner Leiter</option>
+    const moeglich = istTs
+      ? flFahrdraehte().filter((x) => flPaarung(eigen, x.name, z.anzahl ?? 1))
+      : [];
+    const aus = !istTs || !moeglich.length;
+    return `<label class="modul-partner${aus ? ' aus' : ''}">
+      <span class="modul-partner-t">mit Fahrdraht</span>
+      <select class="mod" data-mk="partner" data-idx="${i}" data-mod="${k}"${
+        aus ? ' disabled' : ''}
+        title="${esc(aus
+          ? 'Ein Fahrdraht kommt zum TRAGSEIL dazu — wählen Sie oben eines aus.'
+          : 'Der Fahrdraht dieses Kettenwerks. Gerechnet wird mit dem '
+            + 'Tabelleneintrag der Paarung, nicht mit der Summe beider Leiter.')}">
+        <option value=""${gewaehlt ? '' : ' selected'}>${
+          aus ? '— nur mit Tragseil' : '— keiner, einzelner Leiter'}</option>
         ${moeglich.map((x) => `<option value="${esc(x.name)}"${
           x.name === gewaehlt ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
       </select></label>`;
@@ -2903,17 +2922,43 @@ const WIRKUNGEN = [
   { key: 'wirktAblenk', label: 'Ablenkung',
     titel: 'Ablenkkraft aus dem Kurvenzug (Z·c/R), ebenfalls ständig. '
          + 'Abwählen, wenn dieser Anteil anderswo hingeht: beim Fahrdraht '
-         + 'am Joch in die Drückstütze, am Ausleger in die Spurhaltertraverse.' },
+         + 'am Joch in die Drückstütze oder in einen Fahrdrahtabzug an der '
+         + 'Hängestütze, am Ausleger in die Spurhaltertraverse.' },
   { key: 'wirktQ', label: 'Wind/Schnee',
     titel: 'Wind auf den Leiter und Schnee, veränderlich' },
 ];
 
 function wirkungHtml(i, k, m) {
+  /* =========================================================================
+   * >>> DER HAKEN NIMMT DEN FAHRDRAHT WEG, NICHT DAS KETTENWERK. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «Die Auswahl der einwirkungen bei den leitern
+   * die auswaehlbar sind, sollten sich ausschliesslich auf den fahrdraht
+   * beziehen, da es vorkommt, dass die ablenkung und der wind separat durch
+   * einen fahrdrahtabzug der an einer haengestuetze befestigt ist aufgenommen
+   * wird.»
+   *
+   * Das muss DASTEHEN, sonst liest sich derselbe Haken wie frueher. Die
+   * Zeile sagt jetzt, worauf er sich bezieht - und bei einem einzelnen
+   * Leiter sagt sie, dass er alles wegnimmt.
+   */
+  let b = null;
+  try { b = getFlBauteil(m.bauteil); } catch { /* unbekannt */ }
+  const kw = b ? istKettenwerk(b) : false;
+  const z = kw ? flZerlegung(b) : null;
+  // Gibt es den Fahrdraht auch einzeln? Nur dann laesst sich sein Anteil
+  // abziehen - «N-FL Cu 150» steht nur in der Paarung.
+  const trennbar = kw && Boolean(flPaarung(null, z.fd, z.anzahl ?? 1));
+  const bezug = !kw ? 'abgewählt = dieser Leiter fällt ganz weg'
+    : trennbar ? `abgewählt = ohne ${z.fd}`
+    : `abgewählt = alles (${z.fd} gibt es nicht einzeln)`;
   return `<div class="sec-klein">Wirkt hier<span class="sec-r">${
-      esc(m.kettenwerk ? `Kettenwerk ${m.kettenwerk}` : 'ohne Kettenwerk')
+      esc(m.kettenwerk ? `Kettenwerk ${m.kettenwerk}` : bezug)
     }</span></div>
     <div class="wirkung">
-      ${WIRKUNGEN.map((x) => `<label class="schalter" title="${esc(x.titel)}">
+      ${WIRKUNGEN.map((x) => `<label class="schalter" title="${esc(
+        `${x.titel}\n\n${bezug}`)}">
         <input class="mod" data-mk="${x.key}" data-idx="${i}" data-mod="${k}"
                type="checkbox" ${m[x.key] === false ? '' : 'checked'}>
         <span>${esc(x.label)}</span></label>`).join('')}
@@ -2924,6 +2969,14 @@ function wirkungHtml(i, k, m) {
                placeholder="z. B. KW1">
       </label>
     </div>
+    ${kw ? `<p class="hinweis wirk-bezug">${esc(trennbar
+      ? `Die drei Haken beziehen sich auf den FAHRDRAHT ${z.fd}. `
+        + 'Abgewählt bleibt, was das Kettenwerk ohne ihn abgibt — Tragseil '
+        + 'samt Hängern und Y-Beiseil, nicht der blosse Tabellenwert des '
+        + 'Tragseils.'
+      : `${z.fd} steht nur in der Paarung, nicht als eigener Eintrag — sein `
+        + 'Anteil lässt sich nicht abziehen. Die Haken nehmen deshalb das '
+        + 'ganze Kettenwerk weg.')}</p>` : ''}
     ${hinweisHtml(`wirk-${i}-${k}`,
       'Gewicht und Ablenkung sind BEIDE ständig, sie gehen trotzdem oft '
       + 'verschiedene Wege: das Gewicht beider Leiter hängt am Tragseil und '
@@ -3598,6 +3651,24 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   });
 
   // --- Module der Baugruppe -------------------------------------------------
+  /**
+   * Der naechste freie Kettenwerk-Name in dieser Baugruppe: KW1, KW2, ...
+   *
+   * Gezaehlt wird ueber die MODULE, nicht ueber eine laufende Nummer im
+   * Satz: wer ein Kettenwerk entfernt und ein neues anlegt, soll dessen
+   * Nummer wiederbekommen, nicht die naechsthoehere.
+   */
+  const naechsteKwNummer = (module, ausser) => {
+    const belegt = new Set((module ?? [])
+      .filter((_, k) => k !== ausser)
+      .map((x) => String(x?.kettenwerk ?? '').trim())
+      .filter(Boolean));
+    for (let n = 1; n <= 99; n += 1) {
+      if (!belegt.has(`KW${n}`)) return `KW${n}`;
+    }
+    return 'KW';
+  };
+
   const setzeModul = (idx, mod, feld, wert) => {
     const l = liste();
     if (!l[idx]) return;
@@ -3651,16 +3722,31 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       const z = flZerlegung(b);
       const kw = istKettenwerk(b);
       const eigen = kw ? z.ts : z.leiter;
-      const eigenIstTs = kw
-        ? true : flTragseile().some((x) => x.name === z.leiter);
-      const neuB = !wert
-        // Partner weg: zurueck auf den einzelnen Leiter.
-        ? flPaarung(eigenIstTs ? eigen : null, eigenIstTs ? null : eigen,
-                    z.anzahl ?? 1)
-        : flPaarung(eigenIstTs ? eigen : wert, eigenIstTs ? wert : eigen,
-                    z.anzahl ?? 1);
+      // Hierarchisch: der Fahrdraht kommt zum TRAGSEIL dazu (Weisung).
+      if (!kw && !flTragseile().some((x) => x.name === z.leiter)) return;
+      const neuB = wert ? flPaarung(eigen, wert, z.anzahl ?? 1)
+                        : flPaarung(eigen, null, z.anzahl ?? 1);
       if (!neuB) return;
-      m[mod] = { ...m[mod], bauteil: neuB.id };
+      /* =====================================================================
+       * >>> MIT DEM FAHRDRAHT ENTSTEHT EIN KETTENWERK - UND ES HEISST SO.
+       * =====================================================================
+       *
+       * Weisung vom 13. September: «wenn fahrdraht zusaetzlich eingegeben
+       * wird automatisch eine kw benennung vornehmen.»
+       *
+       * Die Klammer `kettenwerk` stand als freies Textfeld da («z. B. KW1»)
+       * und blieb deshalb meistens leer - sie geht in keine Rechnung ein,
+       * noch nicht: der Havariefall waehlt spaeter darueber aus, welches
+       * Kettenwerk reisst. Eine leere Klammer macht diesen Fall unbrauchbar.
+       *
+       * Gezaehlt wird ueber die ganze Baugruppe: KW1, KW2 - was noch nicht
+       * vergeben ist. Wer einen eigenen Namen tippt, behaelt ihn; der
+       * Vorschlag kommt nur, wo nichts steht.
+       */
+      const werWeg = !wert;
+      m[mod] = { ...m[mod], bauteil: neuB.id,
+                 kettenwerk: werWeg ? null
+                   : (m[mod].kettenwerk || naechsteKwNummer(m, mod)) };
       l[idx] = { ...l[idx], module: m };
       onAnbau(l);
       return;

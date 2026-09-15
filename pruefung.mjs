@@ -6964,6 +6964,155 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          uq3.includes("if (feld === 'bauteil')"));
   }
 
+  /* =========================================================================
+   * >>> DER HAKEN NIMMT DEN FAHRDRAHT WEG, NICHT DAS KETTENWERK. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September: «Die Auswahl der einwirkungen bei den leitern
+   * die auswaehlbar sind, sollten sich ausschliesslich auf den fahrdraht
+   * beziehen, da es vorkommt, dass die ablenkung und der wind separat durch
+   * einen fahrdrahtabzug der an einer haengestuetze befestigt ist aufgenommen
+   * wird.»
+   *
+   * Sie schaerft die Weisung vom 28. August: dort ging es um den Fahrdraht,
+   * der seine Ablenkung in die Drueckstuetze abgibt. Bis dahin nahm ein
+   * abgehakter Anteil aber das GANZE Modul weg - bei einem Kettenwerk also
+   * Tragseil UND Fahrdraht.
+   *
+   * GEMESSEN am N-FL Ts: StCu 50 / Fd: Cu 107, EK2, 40 m, R = 600 m:
+   *
+   *                        G_z       G_x (Ablenkung)   Q_x (Wind)
+   *   alles an            0.8000         0.9933          0.9600
+   *   ohne Ablenkung      0.8000         0.4267          0.9600
+   *   ohne Wind           0.8000         0.9933          0.5440
+   *   ohne Gewicht        0.4000         0.9933          0.9600
+   *   Tragseil allein     0.4000         0.4267          0.4160
+   *   Fahrdraht allein    0.4000         0.5667          0.4160
+   *
+   * >>> DIE DIFFERENZ, NICHT DER TABELLENWERT DES TRAGSEILS. <<<
+   *
+   * Beim WIND bleibt 0.5440 stehen, waehrend das Tragseil allein nur 0.4160
+   * traegt: die Haenger und das Y-Beiseil bleiben beim Rest, wo sie
+   * hingehoeren. Wer stattdessen den Tragseil-Eintrag naehme, liesse sie
+   * unter den Tisch fallen.
+   * ======================================================================= */
+  {
+    const AB = await import(J('data.anbauteile.js'));
+    const trasse = { ek: 'EK2', spannweite: 40, R: 600 };
+    const bau = (bauteil, wirk = {}) => AB.normalisiereAnbauteil({
+      id: 'AT1', name: 'Probe', x: 0, ort: 'joch', lasten: [],
+      module: [{ bauteil, x: 0, y: 0, z: -2.7, anzahl: 1, ...wirk }] });
+    const s = (bauteil, wirk) => AB.baugruppeSumme(bau(bauteil, wirk), trasse);
+    const KW = 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107';
+    const TS = 'drahtwerk-n-fl-stcu-50';
+    const FD = 'drahtwerk-n-fl-cu-107';
+    const ganz = s(KW), ts = s(TS), fd = s(FD);
+
+    /*
+     * 1 - MIT ALLEN HAKEN AENDERT SICH NICHTS. Die Vorgabe ist unveraendert;
+     * wer nichts abwaehlt, rechnet wie vorher.
+     */
+    pruef('Kettenwerk, alles an: Gewicht', ganz.Gz, 0.8, 1e-9, 'kN');
+    pruef('… Ablenkung', ganz.Gx, 0.9933, 1e-3, 'kN');
+    pruef('… Wind', ganz.Qx, 0.96, 1e-9, 'kN');
+
+    /*
+     * 2 - ABGEHAKT HEISST: OHNE DEN FAHRDRAHT-ANTEIL.
+     */
+    pruef('Ohne Ablenkung bleibt die des Tragseils',
+          s(KW, { wirktAblenk: false }).Gx, ts.Gx, 1e-9, 'kN');
+    pruef('Ohne Gewicht bleibt das des Tragseils',
+          s(KW, { wirktG: false }).Gz, ts.Gz, 1e-9, 'kN');
+    pruef('Ohne Wind bleibt Kettenwerk minus Fahrdraht',
+          s(KW, { wirktQ: false }).Qx, ganz.Qx - fd.Qx, 1e-9, 'kN');
+    /*
+     * >>> UND DAS IST MEHR ALS DAS TRAGSEIL ALLEIN. <<<
+     */
+    wahr('Der Wind-Rest traegt die Haenger mit',
+         s(KW, { wirktQ: false }).Qx > ts.Qx + 1e-9,
+         `${s(KW, { wirktQ: false }).Qx.toFixed(4)} gegen ${ts.Qx.toFixed(4)}`);
+
+    /*
+     * 3 - BEI EINEM EINZELNEN LEITER FAELLT ER GANZ WEG - wie bisher. Es
+     * gibt keinen Fahrdraht-Anteil abzuziehen.
+     */
+    pruef('Einzelleiter, ohne Gewicht', s(FD, { wirktG: false }).Gz,
+          0, 1e-12, 'kN');
+    pruef('… ohne Ablenkung', s(FD, { wirktAblenk: false }).Gx, 0, 1e-12, 'kN');
+    pruef('… ohne Wind', s(FD, { wirktQ: false }).Qx, 0, 1e-12, 'kN');
+
+    /*
+     * 4 - UND WENN ES DEN FAHRDRAHT NICHT EINZELN GIBT.
+     *
+     * «N-FL Cu 150» steht nur in der Paarung. Dann laesst sich kein Anteil
+     * abziehen, und der Haken wirkt wie frueher auf das ganze Modul. Still
+     * die Haelfte zu rechnen waere die schlechteste der drei Antworten.
+     */
+    const KW150 = 'drahtwerk-n-fl-ts-stcu-50-fd-cu-150';
+    const FLB = await import(J('data.fl.js'));
+    wahr('Cu 150 gibt es nicht einzeln',
+         FLB.flPaarung(null, 'N-FL Cu 150') === null);
+    pruef('Dann nimmt der Haken alles weg',
+          s(KW150, { wirktQ: false }).Qx, 0, 1e-12, 'kN');
+    /*
+     * DIE WIRKUNG SAGT ES AUCH: `fdTrennbar` steht am Teil, damit Maske und
+     * Ausleitung es benennen koennen.
+     */
+    const t1 = s(KW).teile[0];
+    const t2 = s(KW150).teile[0];
+    wahr('Beim Cu 107 ist der Anteil trennbar', t1.wirkung?.fdTrennbar === true);
+    wahr('… beim Cu 150 nicht', t2.wirkung?.fdTrennbar === false);
+    wahr('Und der Fahrdraht steht beim Teil',
+         t1.wirkung?.fahrdraht === 'N-FL Cu 107', String(t1.wirkung?.fahrdraht));
+  }
+
+  /* =========================================================================
+   * >>> DAS PARTNERFELD: HIERARCHISCH, BUENDIG, OHNE SPRUNG. <<<
+   * =========================================================================
+   *
+   * Weisung vom 13. September, drei Saetze auf einmal:
+   *
+   *   «die sekundaere eingabe hirarchisch verstehen. nur wenn ein tragseil
+   *    eingegeben wird dann zusatzauswahl moeglich machen.»
+   *   «das feld fuer die zusatzauswahl ist zur zeit versetzt und etwas
+   *    groesser als die hauptauswahl.»
+   *   «zudem springt die anzeige wenn es eingeblendet wird.»
+   *
+   * Im Browser nachgemessen: der Kopf ist 296 px breit, darin die Auswahl
+   * 271 px, 5 px Abstand, der Knopf «x» 20 px. Das Partnerfeld stand mit
+   * einer Beschriftung von 62 px davor - 67 px eingerueckt, 42 px schmaler.
+   * Nach dem Umbau: 0 und 0.
+   */
+  {
+    const uq4 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Der Partner gilt nur am Tragseil',
+         uq4.includes('const istTs = kw || flTragseile()'));
+    wahr('… und das Feld steht auch dann da, wenn es gesperrt ist',
+         uq4.includes("aus ? ' disabled' : ''")
+         && uq4.includes('— nur mit Tragseil'));
+    const cssP = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    const rP = /\.modul-partner \{([^}]*)\}/.exec(cssP)?.[1] ?? '';
+    wahr('Es traegt dasselbe Raster wie der Kopf',
+         /grid-template-columns:\s*1fr 20px/.test(rP), rP.trim().slice(0, 70));
+    wahr('Die Beschriftung steht darueber, nicht davor',
+         /grid-column:\s*1 \/ -1/.test(
+           /\.modul-partner-t \{([^}]*)\}/.exec(cssP)?.[1] ?? ''));
+    /*
+     * >>> MIT DEM FAHRDRAHT ENTSTEHT EIN KETTENWERK - UND ES HEISST SO. <<<
+     *
+     * Weisung: «wenn fahrdraht zusaetzlich eingegeben wird automatisch eine
+     * kw benennung vornehmen.» Die Klammer stand als freies Textfeld da und
+     * blieb deshalb meistens leer - und der Havariefall waehlt spaeter
+     * darueber aus, welches Kettenwerk reisst.
+     */
+    wahr('Der Kettenwerk-Name wird vergeben',
+         uq4.includes('naechsteKwNummer'));
+    wahr('… und ein eigener bleibt stehen',
+         uq4.includes('m[mod].kettenwerk || naechsteKwNummer'));
+    wahr('… und faellt mit dem Fahrdraht wieder weg',
+         uq4.includes('werWeg ? null'));
+  }
+
   // --- Was die Bruecke koennen muss ---------------------------------------
   {
     const PS1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');

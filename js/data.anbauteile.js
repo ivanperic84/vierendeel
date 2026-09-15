@@ -37,7 +37,8 @@
  */
 
 import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
-         windAusFlaeche } from './data.fl.js';
+         windAusFlaeche, istKettenwerk, flZerlegung,
+         flPaarung } from './data.fl.js';
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
 import { LEERE_KRAFT } from './core.anbauteile.js';
@@ -559,13 +560,71 @@ export function expandiereAnbauteile(liste, o = {}) {
        */
       const drahtwerk = b.rolle === 'drahtwerk';
       const wirkt = (k) => !drahtwerk || m[k] !== false;
+
+      /* =====================================================================
+       * >>> DER HAKEN NIMMT DEN FAHRDRAHT WEG, NICHT DAS KETTENWERK. <<<
+       * =====================================================================
+       *
+       * Weisung vom 13. September: «Die Auswahl der einwirkungen bei den
+       * leitern die auswaehlbar sind, sollten sich ausschliesslich auf den
+       * fahrdraht beziehen, da es vorkommt, dass die ablenkung und der wind
+       * separat durch einen fahrdrahtabzug der an einer haengestuetze
+       * befestigt ist aufgenommen wird.»
+       *
+       * Sie schaerft die Weisung vom 28. August (oben im Kommentar): dort
+       * ging es um den Fahrdraht, der seine Ablenkung in die Drueckstuetze
+       * abgibt. Bis heute nahm ein abgehakter Anteil aber das GANZE Modul
+       * weg - bei einem Kettenwerk also Tragseil UND Fahrdraht. Wer nur den
+       * Fahrdraht anderswo abtrug, verlor das Tragseil gleich mit.
+       *
+       * JETZT: abgehakt heisst «der Fahrdraht-Anteil faellt weg». Was
+       * bleibt, ist das Kettenwerk MINUS Fahrdraht - also Tragseil samt
+       * Haengern und Y-Beiseil. Genau das kommt am Joch an, wenn der
+       * Fahrdrahtabzug den Rest uebernimmt.
+       *
+       * >>> DIE DIFFERENZ, NICHT DER TABELLENWERT DES TRAGSEILS. <<<
+       *
+       * Das Kettenwerk traegt beim Wind rund fuenfzehn Prozent mehr als
+       * seine beiden Leiter zusammen - die Haenger haben auch eine Flaeche.
+       * Wer stattdessen den Tragseil-Eintrag naehme, liesse sie unter den
+       * Tisch fallen. Die Differenz behaelt sie.
+       *
+       * >>> UND WENN ES DEN FAHRDRAHT NICHT EINZELN GIBT. <<<
+       *
+       * «N-FL Cu 150» steht nur in der Paarung, nicht als eigener Eintrag.
+       * Dann laesst sich kein Anteil abziehen, und der Haken wirkt wie
+       * frueher auf das ganze Modul. Die Maske sagt es (siehe
+       * `wirkungsHinweis` in ui.js) - still die Haelfte zu rechnen waere die
+       * schlechtere Antwort.
+       * =================================================================== */
+      const kw = drahtwerk && istKettenwerk(b);
+      const zKw = kw ? flZerlegung(b) : null;
+      const fdTeil = kw ? flPaarung(null, zKw.fd, zKw.anzahl ?? 1) : null;
+      const wFd = fdTeil
+        ? flLastwerte(fdTeil.id, { ek, laenge, anzahl: n }) : null;
+      const GxFd = fdTeil
+        ? umlenkkraft({ Z: leiterzug(fdTeil.id) * n,
+                        L: laenge, R, winkel: m.winkel ?? null }).U
+        : 0;
+      /*
+       * `ohneFd` ist der Rest. Ohne Fahrdraht-Eintrag gibt es keinen Rest -
+       * dann bleibt es bei null, also beim alten Verhalten.
+       */
+      const ohneFd = (ganz, anteil) => (wFd ? ganz - anteil : 0);
+
       const kraefte = leereKraefte();
-      if (wirkt('wirktG')) kraefte.G.Fz = w.Gz;
-      if (wirkt('wirktAblenk')) kraefte.G.Fx = Gx;
+      kraefte.G.Fz = wirkt('wirktG') ? w.Gz : ohneFd(w.Gz, wFd?.Gz ?? 0);
+      kraefte.G.Fx = wirkt('wirktAblenk') ? Gx : ohneFd(Gx, GxFd);
       if (wirkt('wirktQ')) {
         kraefte.WindX.Fx = w.Qx;
         kraefte.WindY.Fy = w.Qy;
         kraefte.Schnee.Fz = m.Qz ?? 0;
+      } else {
+        kraefte.WindX.Fx = ohneFd(w.Qx, wFd?.Qx ?? 0);
+        kraefte.WindY.Fy = ohneFd(w.Qy, wFd?.Qy ?? 0);
+        // Der Schnee steht am Modul, nicht in der Tabelle - er laesst sich
+        // nicht in Tragseil und Fahrdraht zerlegen und faellt ganz weg.
+        kraefte.Schnee.Fz = 0;
       }
 
       const z = m.z ?? 0, y = m.y ?? 0;
@@ -580,7 +639,13 @@ export function expandiereAnbauteile(liste, o = {}) {
         // Darstellung sollen es benennen koennen, nicht nur die Summe sehen.
         wirkung: drahtwerk
           ? { G: wirkt('wirktG'), ablenk: wirkt('wirktAblenk'),
-              Q: wirkt('wirktQ') } : null,
+              Q: wirkt('wirktQ'),
+              /*
+               * OB DER HAKEN DEN FAHRDRAHT ODER ALLES WEGNIMMT - die
+               * Ausleitung und die Maske sollen es benennen koennen. Ohne
+               * Fahrdraht-Eintrag gibt es keinen Anteil zum Abziehen.
+               */
+              fdTrennbar: Boolean(wFd), fahrdraht: zKw?.fd ?? null } : null,
         // Die Klammer ueber Tragseil und Fahrdraht. Sie geht in keine
         // Rechnung ein - noch nicht: der Havariefall (Bruch eines
         // Kettenwerks) waehlt spaeter darueber aus.

@@ -397,6 +397,71 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Haken schalten den Fahrdraht (13. September)
+
+Weisung: «Die Auswahl der einwirkungen bei den leitern die auswählbar sind,
+sollten sich ausschliesslich auf den fahrdraht beziehen, da es vorkommt, dass
+die ablenkung und der wind separat durch einen fahrdrahtabzug der an einer
+hängestütze befestigt ist aufgenommen wird.»
+
+Sie **schärft die Weisung vom 28. August** — dort ging es um den Fahrdraht, der
+seine Ablenkung in die Drückstütze abgibt. Bis jetzt nahm ein abgehakter Anteil
+aber das *ganze* Modul weg: bei einem Kettenwerk also Tragseil **und**
+Fahrdraht. Wer nur den Fahrdraht anderswo abtrug, verlor das Tragseil gleich
+mit.
+
+Gemessen am N-FL Ts: StCu 50 / Fd: Cu 107, EK2, 40 m, R = 600 m:
+
+| | G_z | G_x (Ablenkung) | Q_x (Wind) |
+|---|---|---|---|
+| alles an | 0.8000 | 0.9933 | 0.9600 |
+| ohne Ablenkung | 0.8000 | **0.4267** | 0.9600 |
+| ohne Wind | 0.8000 | 0.9933 | **0.5440** |
+| ohne Gewicht | **0.4000** | 0.9933 | 0.9600 |
+| Tragseil allein | 0.4000 | 0.4267 | 0.4160 |
+| Fahrdraht allein | 0.4000 | 0.5667 | 0.4160 |
+
+**Die Differenz, nicht der Tabellenwert des Tragseils.** Beim Wind bleibt
+0.5440 stehen, während das Tragseil allein nur 0.4160 trägt: die Hänger und das
+Y-Beiseil bleiben beim Rest, wo sie hingehören. Würde man den Tragseil-Eintrag
+nehmen, fielen sie unter den Tisch.
+
+**Die Vorgabe ändert sich nicht** — wer nichts abwählt, rechnet wie vorher. Und
+das Abwählen lässt jetzt *mehr* stehen als zuvor, nicht weniger.
+
+**Wenn es den Fahrdraht nicht einzeln gibt** («N-FL Cu 150» steht nur in der
+Paarung), lässt sich kein Anteil abziehen: dann wirkt der Haken wie früher auf
+das ganze Kettenwerk, und die Maske sagt das. Still die Hälfte zu rechnen wäre
+die schlechteste der drei Antworten.
+
+### Das Partnerfeld: hierarchisch, bündig, ohne Sprung (13. September)
+
+Drei Sätze derselben Weisung, drei Befunde:
+
+**«nur wenn ein tragseil eingegeben wird dann zusatzauswahl möglich machen»** —
+ein Kettenwerk *hängt* am Tragseil, der Fahrdraht kommt dazu. Die erste Fassung
+bot beides an («mit Tragseil» an einem Fahrdraht) und stellte die Sache auf den
+Kopf.
+
+**«zudem springt die anzeige wenn es eingeblendet wird»** — ein Feld, das beim
+Wechsel des Bauteils erscheint und verschwindet, verschiebt alles darunter.
+Jetzt steht es bei **jedem** Drahtwerk da; wo es keinen Partner geben kann, ist
+es gesperrt und sagt warum («— nur mit Tragseil»).
+
+**«versetzt und etwas grösser als die hauptauswahl»** — im Browser nachgemessen:
+der Kopf ist 296 px breit, darin die Auswahl 271 px, 5 px Abstand, der Knopf «×»
+20 px. Das Partnerfeld stand mit einer Beschriftung von 62 px davor: **67 px
+eingerückt, 42 px schmaler**. Jetzt trägt es dasselbe Raster (`1fr 20px`), die
+Beschriftung steht darüber statt davor — nachgemessen **0 und 0**.
+
+**«wenn fahrdraht zusätzlich eingegeben wird automatisch eine kw benennung
+vornehmen»** — die Klammer `kettenwerk` stand als freies Textfeld da («z. B.
+KW1») und blieb deshalb meistens leer. Sie geht in keine Rechnung ein, *noch
+nicht*: der Havariefall wählt später darüber aus, welches Kettenwerk reisst —
+eine leere Klammer macht diesen Fall unbrauchbar. Jetzt vergibt der Fahrdraht
+sie: KW1, KW2, was frei ist. Ein selbst getippter Name bleibt stehen; mit dem
+Fahrdraht fällt sie wieder weg.
+
 ### Tragseil und Fahrdraht, getrennt gewählt (13. September)
 
 Weisung: «wir wollten die kettenwerke ts + fd separieren bei der voreingabe der

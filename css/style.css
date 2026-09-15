@@ -573,15 +573,44 @@ input[type=range].rng {
   background: var(--s1); padding: 6px 7px;
 }
 .modul-kopf { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
-/* DER PARTNER ZUM LEITER (Weisung, 13. September: «die kettenwerke ts + fd
-   separieren»). Zu einem Tragseil der Fahrdraht, zu einem Fahrdraht das
-   Tragseil - eine Zeile unter der Bauteilwahl, eingerueckt, damit man sieht,
-   dass sie zu ihr gehoert und keine zweite Wahl derselben Art ist. */
+/* DER PARTNER ZUM TRAGSEIL (Weisung, 13. September: «die kettenwerke ts + fd
+   separieren», und gleich darauf: «das feld fuer die zusatzauswahl ist zur
+   zeit versetzt und etwas groesser als die hauptauswahl»).
+
+   Es war eingerueckt und sein Feld breiter als die Wahl darueber - zwei
+   Fehler mit derselben Wirkung: es sah aus wie eine Wahl anderer Art statt
+   wie die zweite Haelfte derselben. Jetzt BUENDIG und gleich breit; die
+   Zugehoerigkeit sagt die Beschriftung davor, nicht ein Versatz.
+
+   Die Beschriftung hat eine FESTE Breite - sonst richtete sich die Kante des
+   Feldes nach der Laenge des Wortes, und beim Wechsel des Bauteils
+   verschoebe sich alles darunter. */
+/* >>> DECKUNGSGLEICH MIT DER HAUPTAUSWAHL. <<<
+
+   Im Browser nachgemessen: der Kopf ist 296 px breit, darin die Auswahl
+   271 px, 5 px Abstand und der Knopf «x» mit 20 px. Das Partnerfeld stand
+   daneben mit einer Beschriftung von 62 px davor - also 67 px eingerueckt
+   und 42 px schmaler. Zwei Fehler mit derselben Wirkung: es sah aus wie
+   eine Wahl anderer Art statt wie die zweite Haelfte derselben.
+
+   DASSELBE RASTER wie der Kopf (1fr und 20 px) setzt beide Felder auf
+   dieselbe Kante und dieselbe Breite. Die Beschriftung steht darueber und
+   nicht davor - davor verschoebe sie das Feld um ihre eigene Laenge, und
+   die aendert sich mit dem Wort. */
 .modul-partner {
-  display: flex; align-items: center; gap: 5px;
-  margin: -2px 0 5px 10px; font-size: 10.5px; color: var(--dim);
+  display: grid; grid-template-columns: 1fr 20px; column-gap: 5px;
+  align-items: center; margin: -2px 0 5px 0;
+  font-size: 10.5px; color: var(--dim);
 }
-.modul-partner select { flex: 1; min-width: 0; }
+.modul-partner-t {
+  grid-column: 1 / -1; font-size: 9px; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 1px;
+}
+.modul-partner select { grid-column: 1; min-width: 0; }
+/* Gesperrt heisst: es gibt hier nichts zu waehlen - aber die Zeile bleibt
+   stehen, damit nichts springt (Weisung: «zudem springt die anzeige»). */
+.modul-partner.aus { opacity: .55; }
+.modul-partner.aus select { cursor: not-allowed; }
 
 /* --- Die Kette, in der Karte lesbar --------------------------------------
    Was auf was sitzt, entsteht aus den ROLLEN der Bauteile - und die standen
