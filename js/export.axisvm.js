@@ -2202,9 +2202,17 @@ export function stabmodell(m, opt = {}) {
             }
           }
           par.push(1);
-          const punkt = (sv, vz, quer = 0) => {
+          /*
+           * EIN PUNKT AUF DER STUETZE.
+           *
+           *   sv     Stelle laengs, 0 am Masten bis 1 am Fundament
+           *   vz     welche Reihe, -1 oder +1 quer zur Ankerebene
+           *   quer   Versatz in der Profilhoehe [mm] - fuer die Bleche
+           *   ein    Einzug in der Spreizrichtung [mm], nach INNEN positiv
+           */
+          const punkt = (sv, vz, quer = 0, ein = 0) => {
             const abst = ankerAchsabstandAn(ak.typ, LAnk, (1 - sv) * LAnk);
-            const e2 = ((abst ?? 0) / 1000) / 2 * vz;
+            const e2 = ((abst ?? 0) / 1000) / 2 * vz - (vz * ein) / 1000;
             const f2 = quer / 1000;
             return { x: r6(pK.x + (pF2.x - pK.x) * sv + eS[0] * e2 + lcsRoh[0] * f2),
                      y: r6(pK.y + (pF2.y - pK.y) * sv + eS[1] * e2 + lcsRoh[1] * f2),
@@ -2289,6 +2297,9 @@ export function stabmodell(m, opt = {}) {
            * =============================================================== */
           if (bleche.length && blSatz) {
             const vBlech = ankerBlechVersatz(ak.typ) ?? 0;        // mm
+            // Schwerachse hinter dem Stegruecken [mm] - so weit ist das
+            // Blech kuerzer als der Achsabstand, je Seite.
+            const ey = (Number(qw?.ey) || 0) * 10;
             const qsBlech = s.qs({
               ...rechteck({ name: `ANKERBLECH_${String(ak.typ).replace(/\s+/g, '')}`,
                             h: blSatz.laenge, b: blSatz.dicke }),
@@ -2306,10 +2317,39 @@ export function stabmodell(m, opt = {}) {
                 const vzL = lage === 'O' ? +1 : -1;
                 const ecken = ['L', 'R'].map((seite) => {
                   const vz2 = seite === 'L' ? -1 : +1;
-                  const p4 = punkt(sv, vz2, vzL * vBlech);
+                  /* =========================================================
+                   * >>> DAS BLECH MISST DIE LICHTE WEITE. <<<
+                   * =========================================================
+                   *
+                   * Weisung vom 15. September: \u00abdie bleche eink\u00fcrzen so dass
+                   * diese der lichten breite entsprechen. momentan sind sie
+                   * auf die schwerelinie der u-Tr\u00e4ger ausgerichtet.\u00bb
+                   *
+                   * Richtig: das Blech ist zwischen die STEGE geschweisst,
+                   * nicht zwischen die Schwerachsen. Es misst 104 mm am
+                   * engen und 225 am weiten Ende - der Achsabstand ist um
+                   * 2*ey = 32 mm groesser, und genau die standen zuviel.
+                   *
+                   * >>> DER ANSCHLUSS GEHT UEBER EINE ECKE. <<<
+                   *
+                   * Zwei Glieder, jedes in einer Achse - dieselbe Regel wie
+                   * an der Auflagerkette (Weisung vom 12. September: \u00abdie
+                   * starrelemente rechtwinklig machen\u00bb):
+                   *
+                   *   STIEL  (h - t)/2 in der Profilhoehe, bis auf die
+                   *          Hoehe des Blechs
+                   *   KANTE  ey quer, von der Schwerachse auf den
+                   *          Stegruecken - dort beginnt das Blech
+                   *
+                   * Eine Diagonale von 58 mm taete dasselbe und liesse sich
+                   * nicht nachmessen; so steht jedes Mass fuer sich.
+                   * ======================================================= */
+                  const pE = punkt(sv, vz2, vzL * vBlech);
+                  const kEck = s.kn(`ANKEK_${mn(ende)}_${seite}${lage}${j + 1}`,
+                                    pE.x, pE.y, pE.z);
+                  const p4 = punkt(sv, vz2, vzL * vBlech, ey);
                   const kn2 = s.kn(`ANKBL_${mn(ende)}_${seite}${lage}${j + 1}`,
                                    p4.x, p4.y, p4.z);
-                  // Der kurze Stiel von der Profilachse zum Blech.
                   /*
                    * DER STIEL GEHOERT AN SEINE STATION. `par` laeuft vom
                    * MASTEN (weites Ende), `bleche` vom FUNDAMENT - die
@@ -2318,8 +2358,10 @@ export function stabmodell(m, opt = {}) {
                    * statt 56 mm, und genau daran war es zu sehen.
                    */
                   s.stab(`ANKERSTIEL_${mn(ende)}_${seite}${lage}${j + 1}`,
-                         qsStarr, reihen[seite][bleche.length - j], kn2,
+                         qsStarr, reihen[seite][bleche.length - j], kEck,
                          { starrRolle: 'verbindung' });
+                  s.stab(`ANKERKANTE_${mn(ende)}_${seite}${lage}${j + 1}`,
+                         qsStarr, kEck, kn2, { starrRolle: 'verbindung' });
                   return kn2;
                 });
                 s.stab(`ANKERBLECH_${mn(ende)}_${lage}${j + 1}`, qsBlech,

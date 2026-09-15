@@ -397,6 +397,36 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Das Blech misst die lichte Weite (15. September)
+
+Weisung: «die bleche einkürzen so dass diese der lichten breite entsprechen.
+momentan sind sie auf die schwerelinie der u-Träger ausgerichtet.»
+
+Richtig. Das Blech ist zwischen die **Stege** geschweisst, nicht zwischen die
+Schwerachsen — und dazwischen liegt `e_y` = 16 mm je Seite. Das Blech war
+also 32 mm zu lang: am engen Ende 136 statt **104 mm**, ein knappes Drittel.
+
+| | Achsabstand | Blech |
+|---|---|---|
+| enges Ende | 136 mm | **104 mm** |
+| Keilmitte | 165 mm | **133 mm** |
+| weites Ende | 257 mm | **225 mm** |
+
+**Der Anschluss geht seither über eine Ecke**, zwei Glieder, jedes in einer
+Achse — dieselbe Regel wie an der Auflagerkette:
+
+| | |
+|---|---|
+| `ANKERSTIEL` | `(h − t)/2` = 56 mm in der Profilhöhe, bis auf die Höhe des Blechs |
+| `ANKERKANTE` | `e_y` = 16 mm quer, von der Schwerachse auf den Stegrücken |
+
+Eine Diagonale von 58 mm täte dasselbe und liesse sich nicht nachmessen; so
+steht jedes Mass für sich.
+
+Vier Kontrollen halten es fest — die Länge am engen und am weiten Ende, die
+Gleichheit von oberem und unterem Blech, und ausdrücklich, dass es **nicht**
+der Achsabstand ist.
+
 ### Breite zuerst, Dicke zweitens (15. September)
 
 Befund am aufgebauten Modell: «die verbindungsbleche sind nicht richtig

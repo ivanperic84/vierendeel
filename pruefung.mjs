@@ -10322,6 +10322,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
     const stiel = (jA.staebe ?? []).filter((x) => /^ANKERSTIEL_/.test(x.name));
     wahr('Vier Stiele je Station', stiel.length === 4 * (zahlA + zahlB),
          `${stiel.length}`);
+    const kante = (jA.staebe ?? []).filter((x) => /^ANKERKANTE_/.test(x.name));
+    wahr('\u2026 und zu jedem eine Kante', kante.length === stiel.length,
+         `${kante.length}`);
     pruef('Der Stiel misst (h - t)/2', AN.ankerBlechVersatz('U12'), 56,
           1e-12, 'mm');
     pruef('… und beim U14 entsprechend', AN.ankerBlechVersatz('U14'), 66,
@@ -10336,6 +10339,42 @@ titel('42  Der lange Mast mit Zusatzleitern');
       // Die Toleranz ist RELATIV (siehe pruef): 56 mm auf Mikrometer
       // gerundete Knoten geben rund 2e-6 Abweichung.
       pruef('Im Modell gemessen', lg2('ANKERSTIEL_A_LO1'), 0.056, 1e-5, 'm');
+      /* =====================================================================
+       * >>> DAS BLECH MISST DIE LICHTE WEITE, NICHT DEN ACHSABSTAND. <<<
+       * =====================================================================
+       *
+       * Befund vom 15. September am Modell: "die bleche einkuerzen so dass
+       * diese der lichten breite entsprechen. momentan sind sie auf die
+       * schwerelinie der u-Traeger ausgerichtet."
+       *
+       * Das Blech ist zwischen die STEGE geschweisst. Zwischen Stegruecken
+       * und Schwerachse liegt ey = 16 mm, je Seite - das Blech war also
+       * 32 mm zu lang. Am engen Ende sind das 136 statt 104 mm, ein
+       * Drittel.
+       *
+       * Der Anschluss geht seither ueber eine ECKE: Stiel in der
+       * Profilhoehe, Kante quer auf den Stegruecken. Jedes Glied in einer
+       * Achse, wie an der Auflagerkette.
+       */
+      pruef('Die Kante misst ey', lg2('ANKERKANTE_A_LO1'),
+            AN.ankerQuerschnitt('U12').ey / 100, 1e-5, 'm');
+      pruef('Das Blech misst die lichte Weite am engen Ende',
+            lg2('ANKERBLECH_A_O1'), AN.ankerSpreizung('U12').schmal / 1000,
+            1e-5, 'm');
+      pruef('\u2026 und am weiten',
+            lg2('ANKERBLECH_A_O3'), AN.ankerSpreizung('U12').breit / 1000,
+            1e-5, 'm');
+      wahr('\u2026 also nicht den Achsabstand',
+           Math.abs(lg2('ANKERBLECH_A_O1')
+                    - AN.ankerAchsabstandAn('U12', 5, 0) / 1000) > 0.03,
+           `${lg2('ANKERBLECH_A_O1').toFixed(3)} gegen `
+           + `${(AN.ankerAchsabstandAn('U12', 5, 0) / 1000).toFixed(3)} m`);
+      /*
+       * UND OBEN WIE UNTEN DASSELBE - ein Blechpaar, das auseinanderliefe,
+       * waere keines.
+       */
+      pruef('Oben und unten gleich lang', lg2('ANKERBLECH_A_U1'),
+            lg2('ANKERBLECH_A_O1'), 1e-9, 'm');
       wahr('Oben und unten gegenlaeufig',
            knV2.get('ANKBL_A_LO1').z > knV2.get('ANKBL_A_LU1').z
            || Math.abs(knV2.get('ANKBL_A_LO1').x
