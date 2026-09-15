@@ -397,6 +397,43 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Bauteil-Karte, zweiter Durchgang (15. September)
+
+Weisung: «weiter mit der bauteil karte optimieren.» Gemessen vor dem Eingriff:
+**1220 px**, davon Modulliste 560, Felder 211, Skizze 173.
+
+**Die Skizze ist klappbar** — «Lage im Querschnitt». Sie bleibt als Vorgabe
+offen: sie zeigt, *wo* das Teil sitzt, und das ist beim ersten Blick auf ein
+fremdes Bauteil die Frage. Wer sein eigenes Teil zum zwanzigsten Mal aufmacht,
+klappt sie zu, und sie bleibt zu.
+
+**Raster und Gleiszuordnung sind zweite Ebene** — dieselbe Regel wie im Reiter
+System: was einen Regelwert hat, den man selten verlässt, steht nicht oben. Das
+Raster ist 0.40 m, die Gleiszuordnung 0, und die setzt der Lastgenerator
+ohnehin selbst.
+
+**Kein leerer Block für «keine freien Lasten»** — der Abschnitt nahm drei
+Zeilen (Überschrift, «Keine freien Lasten.», Knopf), um zu sagen, dass nichts da
+ist. Der Knopf sagt es kürzer. Die Überschrift kommt zurück, sobald welche da
+sind.
+
+**1220 → 1183 px, mit zugeklappter Skizze 998 px** (−18 %).
+
+> **Ein Versuch, der zurückgenommen wurde.** Die Spannweite ist keine Eingabe —
+> sie gilt global und steht im Reiter zuoberst. Also in den Hinweis unter dem
+> Winkel damit, dachte ich. Nachgemessen:
+>
+> | | |
+> |---|---|
+> | mit Anzeigefeld | **1183 px** |
+> | im Hinweis, lang | 1216 px |
+> | im Hinweis, kurz («L_FL 40.00 m») | 1194 px |
+>
+> Das Feld `at-feld lesbar` ist kompakter als eine zusätzliche Hinweiszeile: es
+> teilt sich die Gitterzeile mit dem Winkel, während der Hinweis darunter immer
+> eine eigene Zeile bekommt. Der Vermerk steht im Quelltext, damit der Gedanke
+> nicht ein zweites Mal Arbeit macht — er sieht richtig aus und ist es nicht.
+
 ### Was nicht gilt, verschwindet (15. September)
 
 Weisung: «die fahrdraht auswahl nur aufführen, wenn stcu 50 oder 92

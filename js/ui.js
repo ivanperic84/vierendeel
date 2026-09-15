@@ -2210,7 +2210,21 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         <div class="at-kopf">
           <input class="at breit" data-k="name" type="text" value="${esc(a.name)}">
         </div>
-        ${anbauteilSkizzeFuer(a, werte)}
+        ${/*
+           * >>> DIE SKIZZE IST KLAPPBAR. <<<
+           *
+           * Weisung vom 15. September: «weiter mit der bauteil karte
+           * optimieren.» Nachgemessen: die Karte ist 1220 px hoch, davon
+           * 173 die Skizze - nach der Modulliste (560) und den Feldern
+           * (211) der dritte Posten.
+           *
+           * Sie bleibt OFFEN als Vorgabe: sie zeigt, WO das Teil sitzt, und
+           * das ist beim ersten Blick auf ein fremdes Bauteil die Frage.
+           * Wer sein eigenes Teil zum zwanzigsten Mal aufmacht, klappt sie
+           * zu - und sie bleibt zu, wie jeder andere Klappabschnitt.
+           */''}
+        ${klapp(`at-skizze-${i}`, 'Lage im Querschnitt',
+                anbauteilSkizzeFuer(a, werte), '', true)}
         <div class="at-gitter">
           ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte),
                    'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
@@ -2244,9 +2258,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
             ? atWahl(i, 'befestigung', 'Befestigung', befestigungsArt(a), BEFESTIGUNGEN,
                      BEFESTIGUNG_WIRKUNG[befestigungsArt(a)])
             : ''}
-          ${ortVon(a) === 'joch'
-            ? atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05)
-            : ''}
+
           ${/*
              * >>> AM ABFANGJOCH ENTSCHEIDET DIE ANBINDUNG. <<<
              *
@@ -2316,12 +2328,28 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                    + 'zieht dieser Leiter nicht mehr. Der Nachweis rechnet den '
                    + 'Fall mit und nimmt den ungünstigeren.')}
                </label>` : ''}
-          ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
-                   'Nach welchem Gleis die Baugruppe gruppiert wird. '
-                   + '0 = ohne Zuordnung. Der Lastgenerator setzt die Nummer '
-                   + 'selbst; von Hand eingesetzte Teile blieben bisher '
-                   + 'dauerhaft ohne, weil das Feld fehlte.')}
         </div>
+        ${/*
+           * >>> RASTER UND GLEIS SIND ZWEITE EBENE. <<<
+           *
+           * Dieselbe Regel wie im Reiter System: was einen Regelwert hat,
+           * den man selten verlaesst, steht nicht in der ersten Ebene. Das
+           * Raster ist 0.40 m, die Gleiszuordnung 0 - und die setzt der
+           * Lastgenerator ohnehin selbst.
+           *
+           * Sie sind nicht GESPERRT, sie sind ZUGEKLAPPT: was gilt, ist
+           * erreichbar (Weisung vom 15. September zu den Attrappen).
+           */''}
+        ${klapp(`at-fein-${i}`, 'Raster und Gleiszuordnung',
+          `<div class="at-gitter">
+            ${ortVon(a) === 'joch'
+              ? atFeld(i, 'raster', 'Raster', a.raster, 'm', 0.05) : ''}
+            ${atFeld(i, 'gleis', 'Gleis', a.gleis ?? 0, '–', 1,
+                     'Nach welchem Gleis die Baugruppe gruppiert wird. '
+                     + '0 = ohne Zuordnung. Der Lastgenerator setzt die Nummer '
+                     + 'selbst; von Hand eingesetzte Teile blieben bisher '
+                     + 'dauerhaft ohne, weil das Feld fehlte.')}
+          </div>`, '', false)}
         ${modulListeHtml(a, i, werte)}
         ${windVersatzHtml(a, i)}
         ${lastblockListeHtml(a, i)}
@@ -2725,6 +2753,30 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
         ${modFeld(i, k, 'z', 'z', modWert(m, 'z'), 'm', 0.05)}
         ${modFeld(i, k, 'anzahl', 'Anzahl', modWert(m, 'anzahl'), '–', 1)}
       </div>
+      ${/* =====================================================================
+         * >>> DIE SPANNWEITE BLEIBT EIN ANZEIGEFELD - NACHGEMESSEN. <<<
+         * =====================================================================
+         *
+         * Weisung vom 15. September: «weiter mit der bauteil karte
+         * optimieren.» Der Gedanke lag nahe: die Spannweite ist keine
+         * Eingabe - sie gilt global fuer die ganze Trasse und steht im
+         * Reiter zuoberst. Was man nicht einstellt, ist kein Feld; also in
+         * den Hinweis unter dem Winkel damit.
+         *
+         * IM BROWSER NACHGEMESSEN, und der Gedanke war falsch:
+         *
+         *   mit Anzeigefeld                            1183 px
+         *   im Hinweis, lang («global aus der Gruppe») 1216 px
+         *   im Hinweis, kurz («L_FL 40.00 m»)          1194 px
+         *
+         * Das Feld `at-feld lesbar` ist kompakter als eine zusaetzliche
+         * Hinweiszeile: es teilt sich die Gitterzeile mit dem Winkel,
+         * waehrend der Hinweis darunter immer eine eigene Zeile bekommt.
+         *
+         * ALSO BLEIBT ES. Der Vermerk steht hier, damit der Gedanke nicht
+         * ein zweites Mal Arbeit macht - er sieht richtig aus und ist es
+         * nicht.
+         * =================================================================== */''}
       ${drahtwerk ? `<div class="sec-klein">Ablenkung</div>
       <div class="at-gitter">
         ${modFeld(i, k, 'winkel', 'Winkel α', modWert(m, 'winkel'), '°', 0.01,
@@ -2835,10 +2887,24 @@ function lastblockListeHtml(a, i) {
     </div>`;
   }).join('');
 
+  /*
+   * >>> KEIN LEERER BLOCK FUER «KEINE FREIEN LASTEN». <<<
+   *
+   * Weisung vom 15. September: «weiter mit der bauteil karte optimieren.»
+   * Der Abschnitt nahm drei Zeilen - Ueberschrift, «Keine freien Lasten.»
+   * und den Knopf -, um zu sagen, dass nichts da ist. Der Knopf sagt es
+   * kuerzer: wo «+ Freie Last» steht, gibt es keine.
+   *
+   * Die Ueberschrift bleibt, sobald WELCHE da sind - dann zaehlt sie und
+   * trennt sie von den Bauteilen darueber.
+   */
+  if (!bloecke.length) {
+    return `<button class="btn btn-zufuegen" data-last-neu="${i}" type="button"
+      >${icon('neu', 13)} Freie Last</button>`;
+  }
   return `<div class="sec">Freie Lasten<span class="sec-r"
       >${bloecke.length} Block${bloecke.length === 1 ? '' : 'e'}</span></div>
-    <div class="modul-liste">${zeilen ||
-      '<p class="notiz">Keine freien Lasten.</p>'}</div>
+    <div class="modul-liste">${zeilen}</div>
     <button class="btn btn-zufuegen" data-last-neu="${i}" type="button"
       >${icon('neu', 13)} Freie Last</button>`;
 }
