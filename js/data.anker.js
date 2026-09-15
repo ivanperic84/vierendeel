@@ -423,6 +423,51 @@ export function ankerSpreizungAn(id, L, x) {
 }
 
 /* ===========================================================================
+ * DER ACHSABSTAND DER BEIDEN PROFILE - EINE STELLE FUER BILD UND MODELL
+ * ===========================================================================
+ *
+ * Weisung vom 15. September: die Druckstuetze im AxisVM als zwei Profile
+ * statt als Ersatzrechteck («Stufe 1»).
+ *
+ * `ankerSpreizungAn` gibt das Mass der ZEICHNUNG. Was ein Stabmodell
+ * braucht, ist der Abstand der beiden SCHWERACHSEN - und dazwischen liegt
+ * genau die Frage, die das Blatt offen laesst (`bezug: null`).
+ *
+ * >>> DIE LESART, UND SIE STEHT SEIT DEM 11. SEPTEMBER IM BILD. <<<
+ *
+ * Gelesen wird das Mass als LICHTE WEITE zwischen den Profilen. Dafuer
+ * spricht die Flachlasche, die den Spalt ueberbrueckt: ueber 104 mm liegt
+ * sie beidseits auf. Der Achsabstand ist dann die lichte Weite plus EINE
+ * Profilbreite - jede Achse liegt eine halbe Breite hinter ihrer Kante.
+ *
+ * >>> EINE HALBE BREITE IST BEIM U NICHT DIE SCHWERACHSE. <<<
+ *
+ * Beim UNP 120 liegt sie `ey` = 16 mm hinter dem Stegruecken, nicht 27.5.
+ * Welche Seite aussen liegt - Steg oder Flanschoeffnung -, sagt das Blatt
+ * nicht; deshalb bleibt es bei der halben Breite, wie im Bild. Der Fehler
+ * ist beidseits derselbe und betraegt rund 11 mm je Profil.
+ *
+ * DAS IST EINE LESART, KEINE ANGABE. Faellt der Bezug spaeter, wird er HIER
+ * eingesetzt - und eine zweite Stelle mit: `render.koerper.js` rechnet den
+ * Abstand seiner beiden KOERPER selbst, weil diese Datei reine Geometrie ist
+ * und keine Datenbank laedt. Beide Stellen stehen gegenseitig angeschrieben.
+ * ========================================================================= */
+
+/**
+ * Abstand der beiden Profilachsen an einer Stelle [mm].
+ *
+ * `x` misst vom ENGEN Ende aus, wie bei `ankerSpreizungAn`.
+ *
+ * @returns {number|null} mm - oder null (Seil, Typ ohne Blatt, ohne Profil)
+ */
+export function ankerAchsabstandAn(id, L, x) {
+  const s = ankerSpreizungAn(id, L, x);
+  if (s === null) return null;
+  const b = Number(ankerQuerschnitt(id)?.b);
+  return b > 0 ? s + b : null;
+}
+
+/* ===========================================================================
  * DAS KNICKEN DER STUETZE - ALS KONTROLLRECHNUNG
  * ===========================================================================
  *

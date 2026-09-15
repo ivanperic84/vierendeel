@@ -10191,19 +10191,63 @@ titel('42  Der lange Mast mit Zusatzleitern');
     wahr('Alle Querschnitte tragen eine bekannte Form',
          fremd.length === 0, fremd.map((q) => `${q.name}:${q.form}`).join(', '));
 
-    /*
-     * >>> DER ANKER IST EIN PENDELSTAB. <<<
+    /* =====================================================================
+     * >>> DIE STUETZE IST ZWEI PROFILE, KEIN ERSATZRECHTECK. <<<
+     * =====================================================================
      *
-     * An beiden Enden gelenkig - er traegt nur Normalkraft. Im Modell
-     * gemessen: «4 Freigaben gesetzt als rtHinged», zwei Anker mal zwei
-     * Enden.
+     * Weisung vom 15. September: "weiter mit stufe 1 der druckstuetze."
+     *
+     * Bis dahin ging EIN Stab hinaus - ein Rechteck gleicher Flaeche,
+     * gelenkig an beiden Enden. Fuer die Normalkraft war das genug, fuer
+     * das Bild nicht: der Keil ist das Kennzeichen des Bauteils, und im
+     * Modell stand ein Balken.
+     *
+     * JETZT: zwei Stabzuege aus dem Einzelprofil, keilfoermig gespreizt,
+     * je Ende ein Starrelement zum gemeinsamen Anschlusspunkt, und an den
+     * beiden vermassten Knickstellen eine Lasche.
+     *
+     *   je Anker  2 Reihen x 3 Abschnitte  = 6 Profilstaebe
+     *             2 Kopf- + 2 Fussanschluesse
+     *             2 Laschen
      */
-    const stA = (jA.staebe ?? []).filter((x) => /^ANKER_/.test(x.name));
-    wahr('Zwei Ankerstaebe im Modell', stA.length === 2);
-    wahr('Beide an beiden Enden gelenkig',
-         stA.every((x) => x.gelenkAnfang === 'M' && x.gelenkEnde === 'M'));
-    wahr('… und als Stab, nicht als Starrkoerper',
-         stA.every((x) => x.art === 'stab'));
+    const prof = (jA.staebe ?? []).filter((x) => /^ANKERPROFIL_/.test(x.name));
+    wahr('Zwoelf Profilstaebe - zwei Anker, je zwei Reihen zu dreien',
+         prof.length === 12, `${prof.length}`);
+    wahr('Sie sind Staebe, keine Starrkoerper',
+         prof.every((x) => x.art === 'stab'));
+    /*
+     * >>> UND ZWAR DURCHLAUFEND. <<<
+     *
+     * Das Gelenk sitzt am ANSCHLUSS, nicht zwischen zwei Abschnitten
+     * desselben Profils. Eine Kette gelenkiger Staebe waere ein
+     * Gelenkviereck - es gaebe keinen Keil mehr, sondern einen Mechanismus.
+     */
+    wahr('\u2026 und durchlaufend, ohne Gelenk dazwischen',
+         prof.every((x) => !x.gelenkAnfang && !x.gelenkEnde));
+    const ansch = (jA.staebe ?? [])
+      .filter((x) => /^ANKER(KOPF|FUSS)_/.test(x.name));
+    wahr('Acht Anschluesse - je Anker zwei oben und zwei unten',
+         ansch.length === 8, `${ansch.length}`);
+    /*
+     * >>> DAS GELENK LIEGT AM GEMEINSAMEN KNOTEN. <<<
+     *
+     * Beide Starrelemente eines Endes gehen VOM Anschlusspunkt aus und sind
+     * dort momentenfrei. Damit dreht die Stuetze um die Bolzenachse - sie
+     * liegt in der Spreizrichtung - und traegt das Kraeftepaar quer dazu
+     * ueber die beiden Profile. Genau das tut ein Verbundstab, und genau
+     * das konnte der eine Pendelstab nicht.
+     */
+    wahr('Jeder Anschluss ist momentenfrei',
+         ansch.every((x) => x.gelenkAnfang === 'M'));
+    wahr('\u2026 und als Linkelement ausgeleitet, nicht als Starrkoerper',
+         ansch.every((x) => x.art === 'link'));
+    const lasch = (jA.staebe ?? []).filter((x) => /^ANKERLASCHE_/.test(x.name));
+    wahr('Vier Laschen - je Anker eine an jeder Knickstelle',
+         lasch.length === 4, `${lasch.length}`);
+    wahr('Sie stehen starr da', lasch.every((x) => x.art === 'starr'));
+    // Und der alte Einzelstab ist weg.
+    wahr('Kein Ersatzstab mehr',
+         !(jA.staebe ?? []).some((x) => /^ANKER_[AB]$/.test(x.name)));
     /*
      * DAS FUNDAMENT HAELT DIE VERSCHIEBUNGEN UND GIBT DIE DREHUNGEN FREI -
      * ein eingespanntes Ankerfundament waere ein anderes Bauteil. Der
@@ -10239,6 +10283,41 @@ titel('42  Der lange Mast mit Zusatzleitern');
     pruef('Der Anschluss sitzt auf der Ankerhoehe ueber dem Fuss',
           kn('MAST_A_ANK').z - fA.z, 4, 1e-6, 'm');
 
+    /* =====================================================================
+     * >>> DER KEIL, MIT MASS. <<<
+     * =====================================================================
+     *
+     * Der Anker A steht QUER zum Gleis (Jochachse), also spreizt er in
+     * GLEISRICHTUNG - quer zur Ankerebene. Das Sortiment fuehrt fuer den
+     * U12 104 mm am engen und 225 mm am weiten Ende, lichtes Mass; der
+     * Achsabstand ist eine Profilbreite mehr (UNP 120: 55 mm).
+     *
+     *   am Masten (weit)      225 + 55 = 280 mm  ->  je +-0.140 m
+     *   am Fundament (eng)    104 + 55 = 159 mm  ->  je +-0.0795 m
+     *
+     * DAS IST DIE LESART, NICHT DAS BLATT. Der Bezug der Masslinie steht im
+     * Sortiment offen (`bezug: null`); gelesen wird sie als lichte Weite,
+     * weil die Flachlasche den Spalt ueberbrueckt. Faellt die Angabe, ist
+     * `ankerAchsabstandAn` die Stelle - und diese Kontrolle faellt mit.
+     */
+    const kL0 = kn('ANK_A_L0'), kR0 = kn('ANK_A_R0');
+    const kL3 = kn('ANK_A_L3'), kR3 = kn('ANK_A_R3');
+    pruef('Am Masten stehen die Profile 280 mm auseinander',
+          kR0.y - kL0.y, 0.280, 1e-9, 'm');
+    pruef('Am Fundament 159 mm', kR3.y - kL3.y, 0.159, 1e-9, 'm');
+    wahr('Sie liegen symmetrisch zur Ankerebene',
+         Math.abs(kL0.y + kR0.y) < 1e-9 && Math.abs(kL3.y + kR3.y) < 1e-9);
+    /*
+     * DIE PARALLELEN STUECKE: 1610 mm am weiten Ende, 990 mm am engen -
+     * so vermasst das Blatt sie. Dazwischen laeuft der Keil.
+     */
+    const lg3 = (a2, b2) => Math.hypot(b2.x - a2.x, b2.y - a2.y, b2.z - a2.z);
+    pruef('Oben laeuft er 1610 mm parallel',
+          lg3(kn('ANK_A_L0'), kn('ANK_A_L1')), 1.610, 1e-6, 'm');
+    pruef('Unten 990 mm', lg3(kn('ANK_A_L2'), kn('ANK_A_L3')), 0.990, 1e-6, 'm');
+    pruef('Im parallelen Stueck aendert sich nichts',
+          kn('ANK_A_R1').y - kn('ANK_A_L1').y, 0.280, 1e-9, 'm');
+
     /*
      * >>> UND DIE LUECKE STEHT IM BERICHT. <<<
      *
@@ -10249,8 +10328,33 @@ titel('42  Der lange Mast mit Zusatzleitern');
      */
     const bA = jA.tragwerk?.anker ?? [];
     wahr('Der Bericht nennt beide Anker', bA.length === 2);
-    wahr('… mit ihrem Vermerk',
-         bA.every((v) => /Rechteck gleicher Fläche/.test(v.vermerk)));
+    /*
+     * >>> DER VERMERK SAGT, WAS DASTEHT - UND WAS DARAN LESART IST. <<<
+     *
+     * Seit dem 15. September zwei Profile statt eines Rechtecks. Drei Dinge
+     * muessen im Bericht stehen, weil sie Annahmen sind und keine Angaben:
+     * der BEZUG des Spreizmasses, die LASCHEN (nur an den vermassten
+     * Stellen, starr statt Flachstahl) und das GELENK um die Bolzenachse.
+     */
+    wahr('Der Bericht sagt, dass zwei Profile dastehen',
+         bA.every((v) => v.zweiProfile === true));
+    wahr('\u2026 und nennt den Keil mit seinen Massen',
+         bA.every((v) => /keilf\u00f6rmig gespreizt \(\d+\u2192\d+ mm\)/.test(v.vermerk)));
+    wahr('\u2026 nennt den Achsabstand eine Lesart',
+         bA.every((v) => /LESART/.test(v.vermerk)
+                      && /Bezug des Masses steht im Sortiment offen/
+                           .test(v.vermerk)));
+    wahr('\u2026 sagt, was an den Laschen fehlt',
+         bA.every((v) => /Anzahl, Abstand und Profil/.test(v.vermerk)));
+    /*
+     * UND DIE WARNUNG, DIE DEN GANZEN SCHRITT EINRAHMT: das Modell sieht
+     * jetzt aus wie ein mehrteiliger Druckstab, und es ist keiner, auf den
+     * man einen Knicknachweis gruenden darf. Starre Laschen sind die
+     * STEIFERE Annahme.
+     */
+    wahr('\u2026 und verbietet den Knicknachweis darauf',
+         bA.every((v) => /NICHT zu gr\u00fcnden/.test(v.vermerk)
+                      && /Bemessungsdiagramm/.test(v.vermerk)));
     /*
      * >>> DER VERMERK NENNT DEN KEIL, NICHT MEHR EINE LUECKE. <<<
      *
@@ -10261,9 +10365,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * das Richtige: I_z ist VERAENDERLICH und im Ersatzrechteck nicht
      * abgebildet - das ist eine andere Aussage als "nicht erfasst".
      */
-    wahr('… und der Vermerk nennt den Keil',
-         bA.every((v) => /gespreizt \d+→\d+ mm/.test(v.vermerk)
-                      && /veränderlich/.test(v.vermerk)));
+
     wahr('Die Spreizung steht als eigenes Feld im Bericht',
          bA.every((v) => v.spreizung?.schmal_mm > 0
                       && v.spreizung.breit_mm > v.spreizung.schmal_mm));
@@ -10287,12 +10389,36 @@ titel('42  Der lange Mast mit Zusatzleitern');
          qsA.every((q) => !/PLATZHALTER/.test(q.name)));
     wahr('Der Querschnitt nennt Profil und Quelle',
          qsA.every((q) => /UNP/.test(q.profil) && /C5|EN /.test(q.profil)));
-    pruef('U12: die Flaeche des Verbunds, in m2',
+    /*
+     * >>> UND ER IST DAS EINZELPROFIL, NICHT DER VERBUND. <<<
+     *
+     * Zwei Staebe tragen zusammen die Verbundflaeche; jeder einzelne traegt
+     * seine eigene. `Iz` des Verbunds steht im Blatt auf null - er haengt am
+     * Spreizmass, und das ist ein Keil, kein fester Wert. Im Modell kommt
+     * er jetzt aus der GEOMETRIE: zwei Profile im Abstand, nicht eine Zahl.
+     */
+    pruef('U12: die Flaeche des EINZELPROFILS, in m2',
           qsA.find((q) => /U12/.test(q.name)).A,
-          AN.ankerQuerschnitt('U12').A / 1e4, 1e-12, 'm2');
-    wahr('… und das Rechteck hat genau diese Flaeche',
-         qsA.every((q) => Math.abs(q.parameter[0] * q.parameter[1] / 1e6
-                                   - q.A) < 1e-9));
+          AN.ankerQuerschnitt('U12').AEinzel / 1e4, 1e-12, 'm2');
+    pruef('\u2026 und sein I_y', qsA.find((q) => /U12/.test(q.name)).Iy,
+          AN.ankerQuerschnitt('U12').IyEinzel / 1e8, 1e-15, 'm4');
+    wahr('Der Querschnitt ist ein U, kein Rechteck',
+         qsA.every((q) => q.form === 'Channel'));
+    /*
+     * DIE PARAMETER STEHEN IN DER REIHENFOLGE DER BRUECKE: [h, b, tw, tf, R],
+     * STEG VOR FLANSCH. Am 4. September gemessen, dass die naheliegende
+     * Lesart den Abfangjochgurt 21 % zu weich machte - und die
+     * Flaechenprobe fand es nicht, weil vertauschte Dicken fast dieselbe
+     * Flaeche geben.
+     */
+    {
+      const qU = qsA.find((q) => /U12/.test(q.name));
+      const qwU = AN.ankerQuerschnitt('U12');
+      wahr('Die Parameter stehen in der Reihenfolge der Bruecke',
+           qU.parameter[0] === qwU.h && qU.parameter[1] === qwU.b
+           && qU.parameter[2] === qwU.tw && qU.parameter[3] === qwU.tf,
+           JSON.stringify(qU.parameter));
+    }
     wahr('Ohne Anker steht nichts davon da',
          (laufA([{ id: 'M1', x: 0, profil: 'HEB 240' }])
            .staebe ?? []).every((x) => !/^ANKER_/.test(x.name)));

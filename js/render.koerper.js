@@ -521,8 +521,23 @@ function ankerTeile(o, halb, zFuss, zKopf) {
       : xx <= a2 ? sp.breit
         : xx >= b2 ? sp.schmal
           : sp.breit + (sp.schmal - sp.breit) * ((xx - a2) / (b2 - a2));
-    // Lichtes Mass + eine Profilbreite = Achsabstand der beiden Koerper;
-    // der sichtbare Spalt ist dann genau das Mass der Zeichnung.
+    /*
+     * Lichtes Mass + eine Profilbreite = Achsabstand der beiden Koerper;
+     * der sichtbare Spalt ist dann genau das Mass der Zeichnung.
+     *
+     * >>> DIESELBE LESART GILT SEIT DEM 15. SEPTEMBER IM MODELL. <<<
+     *
+     * Die AxisVM-Ausleitung baut die Stuetze als zwei Profile und braucht
+     * dafuer denselben Abstand; sie holt ihn aus `ankerAchsabstandAn`
+     * (data.anker.js), wo die Lesart begruendet steht. Hier wird sie ein
+     * zweites Mal gerechnet, und das mit Absicht: diese Datei ist reine
+     * Geometrie und laedt keine Datenbank (siehe Kopf). Was sie hier
+     * verwendet, ist die Breite des KOERPERS (`dick`), dort die wirkliche
+     * Profilbreite - zwei verwandte, aber nicht gleiche Masse.
+     *
+     * AENDERT SICH DER BEZUG, sind es zwei Stellen. Sie stehen hier
+     * gegenseitig angeschrieben, damit die zweite nicht vergessen wird.
+     */
     return (mm2 / 1000 + dick) / 2;
   };
   const punktAuf = (s, vzP) => {

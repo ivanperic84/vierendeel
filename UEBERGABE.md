@@ -397,6 +397,71 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Druckstütze steht als zwei Profile im Modell (15. September)
+
+Weisung: «weiter mit stufe 1 der druckstütze.»
+
+Bis hierher ging **ein** Stab hinaus — ein Rechteck gleicher Fläche, gelenkig
+an beiden Enden. Für die Normalkraft war das genug; für das Bild nicht, und
+der Keil ist das Kennzeichen des Bauteils.
+
+**Was jetzt dasteht**, je Anker:
+
+| | |
+|---|---|
+| 2 × 3 `ANKERPROFIL` | die beiden U-Profile, keilförmig gespreizt, **durchlaufend** |
+| 2 × 2 `ANKERKOPF` / `ANKERFUSS` | die Anschlüsse an Konsole und Ankerplatte, momentenfrei |
+| 2 `ANKERLASCHE` | an den beiden vermassten Knickstellen |
+
+Der Querschnitt ist das **Einzelprofil** als `Channel` (UNP 120: A 17 cm²,
+I_y 364, I_z 43.2 cm⁴), nicht mehr ein Rechteck mit der Verbundfläche. I_z des
+Verbunds steht im Blatt auf `null` — er hängt am Spreizmass, und das ist ein
+Keil. Im Modell kommt er jetzt aus der **Geometrie** statt aus einer Zahl.
+
+**Gemessen** am U12 über 5.00 m (Ankerhöhe 4.0 m, Ausladung 3.0 m):
+
+| Stelle | lichtes Mass | Achsabstand |
+|---|---|---|
+| am Masten (weit) | 225 mm | **280 mm** |
+| am Fundament (eng) | 104 mm | **159 mm** |
+
+Oben 1.610 m parallel, unten 0.990 m, dazwischen der Keil — so vermasst es das
+Blatt.
+
+**Drei Dinge sind Lesart und keine Angabe.** Sie stehen deshalb im Bericht der
+Ausleitung, nicht in einem Kommentar:
+
+1. **Der Achsabstand** ist «lichte Weite plus eine Profilbreite». Der Bezug
+   der Masslinie steht im Sortiment offen (`bezug: null`). Gelesen wird sie als
+   lichte Weite, weil die Flachlasche den Spalt überbrückt. Die neue Funktion
+   `ankerAchsabstandAn` ist die eine Stelle, an der die Angabe eingesetzt wird,
+   wenn sie fällt — `render.koerper.js` rechnet den Abstand seiner **Körper**
+   weiter selbst (die Datei lädt keine Datenbank; beide Stellen sind
+   gegenseitig angeschrieben).
+2. **Die Laschen** stehen nur an den beiden vermassten Knickstellen, und zwar
+   als **Starrelement**. Anzahl, Abstand und Profil der übrigen führt das
+   Sortiment nicht. Starr ist die **steifere** Annahme — ein Knicknachweis in
+   AxisVM ist darauf **nicht** zu gründen. Massgebend bleibt das
+   Bemessungsdiagramm.
+3. **Das Gelenk** liegt um die **Bolzenachse** (Spreizrichtung). Quer dazu
+   tragen die beiden Profile jetzt ein Kräftepaar — das konnte der eine
+   Pendelstab nicht, und genau das tut ein Verbundstab. Am Masten ändert das
+   die Anschlusskräfte geringfügig; der Nachweis der Stütze rechnet
+   unverändert über das Bemessungsdiagramm und weiss davon nichts.
+
+**Kein Katalogname.** Der Einzelquerschnitt geht **parametrisch** hinaus, ohne
+`katalog`-Feld: UNP heisst in EN 10365 UPN, und ein Name, der zufällig ein
+anderes Profil trifft, fällt nirgends auf. Die Brücke baut ihn über
+`AddC`/`AddU` — derselbe Weg wie die Abfangjochgurte, mit der Parameterfolge
+`[h, b, tw, tf, R]`, **Steg vor Flansch**.
+
+**Das Rechteck bleibt als Rückfall** — für den Seilanker und für jeden Typ
+ohne Einzelwerte im Blatt. Ein Seil ist kein Keil.
+
+**Was offen bleibt** (und damit auch «Stufe 2»): der Bezug des Spreizmasses
+und die Bindelaschen. Ohne sie gibt es kein S_v, kein I_eff und keinen
+Nachweis des Einzelstabs zwischen zwei Laschen nach EN 1993-1-1, 6.4.
+
 ### Das Knicken des Masten lässt sich abschalten (15. September)
 
 Weisung: «zuerst noch das knicken des masten deaktivierbar machen. der
@@ -5338,7 +5403,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
 | **Mastnachweis im Gesamturteil** | **offen, und es ist ein Entscheid.** `etaGesamt` und `urteilKonstruktion` kennen ihn nicht; die Fussleiste meldet «Alle Nachweise erfüllt», während der Mast dreifach überschritten sein kann — siehe *Befund: das Gesamturteil kennt den Mastnachweis nicht* |
 | **Abfangjoch** | **gebaut.** Sortiment seit dem 3. September vollständig (17 Typen), Rechenkern seit dem 10. September eigen (`core.abfangjoch.js`): zweigurtiger Träger mit Sprossen, eigene Auswertung über Schnitt, Verläufe und Auflager |
-| **Druckstütze im AxisVM als zwei Profile** («Stufe 1») | **Backlog**, Weisung vom 15. September. Heute geht EIN Stab hinaus — ein Ersatzrechteck mit der richtigen Fläche, gelenkig an beiden Enden, mit der Vorsatzkonsole als Starrelement; im 3D sind die zwei gespreizten Profile bereits gezeichnet (`ankerSpreizungAn`). Zu bauen sind zwei Stabzüge, die Bindelaschen und der Anschluss an beiden Enden. Für die Kräfte ändert das nichts — der Pendelstab trägt schon das richtige E·A. **Blockiert durch zwei Angaben:** der Bezug des Spreizmasses (lichtes Mass, Achsabstand oder Aussenmass — `bezug: null` seit dem 11. September; I_z geht mit dem Quadrat des Achsabstands) und die **Bindelaschen** (Abstand und Profil stehen im Sortiment nicht) |
+| **Druckstütze im AxisVM als zwei Profile** («Stufe 1») | **gebaut** am 15. September — zwei Stabzüge aus dem Einzelprofil (`Channel`), keilförmig gespreizt, Anschlüsse momentenfrei, Laschen an den vermassten Knickstellen. Siehe *Die Druckstütze steht als zwei Profile im Modell*. **Offen bleibt** der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen (Anzahl, Abstand, Profil) — daran hängt «Stufe 2», der Nachweis des mehrteiligen Druckstabs nach EN 1993-1-1, 6.4 |
 
 ## Das Sortiment der Abfangjoche (3. September)
 

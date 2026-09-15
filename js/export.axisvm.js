@@ -52,7 +52,8 @@ import { verortung, verortungKurz, tragwerksart,
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge } from './core.auflager.js';
-import { ankerQuerschnitt, ankerSpreizung } from './data.anker.js';
+import { ankerQuerschnitt, ankerSpreizung,
+         ankerAchsabstandAn } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
 /** Wählbare Knotenmodelle. */
@@ -1967,6 +1968,19 @@ export function stabmodell(m, opt = {}) {
         try { qw = ankerQuerschnitt(ak.typ); } catch { qw = null; }
         let spreiz = null;
         try { spreiz = ankerSpreizung(ak.typ); } catch { spreiz = null; }
+        /* ===================================================================
+         * >>> ZWEI PROFILE, WENN DAS SORTIMENT SIE FUEHRT. <<<
+         * ===================================================================
+         *
+         * Weisung vom 15. September: die Druckstuetze im AxisVM als zwei
+         * Profile statt als Ersatzrechteck - «Stufe 1» aus der Frage, wie
+         * aufwaendig es waere, sie wie ein Joch zu modellieren.
+         *
+         * Das Rechteck bleibt als RUECKFALL: fuer den Seilanker, und fuer
+         * jeden Typ ohne Einzelwerte im Blatt. Ein Seil ist kein Keil.
+         */
+        const einzeln = Number(qw?.AEinzel) > 0 && Number(qw?.IyEinzel) > 0
+                     && spreiz && (qw?.anzahl ?? 0) === 2;
         /*
          * DIE KANTEN DES ERSATZRECHTECKS folgen der Flaeche und der
          * Profilhoehe: h aus dem Profil, b so, dass b*h die Flaeche des
@@ -1976,7 +1990,7 @@ export function stabmodell(m, opt = {}) {
         const A_cm2 = Number(qw?.A) || 0;
         const hQ = Number(qw?.h) || 120;                     // mm
         const bQ = A_cm2 > 0 ? (A_cm2 * 100) / hQ : 60;      // mm
-        const qsAnker = s.qs({
+        const qsAnker = einzeln ? null : s.qs({
           ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`,
                         h: r6(hQ), b: r6(bQ) }),
           profil: qw?.profil
@@ -1987,6 +2001,38 @@ export function stabmodell(m, opt = {}) {
           Iz: qw?.Iz ? qw.Iz / 1e8 : 1e-6,
           It: qw?.It ? qw.It / 1e8 : 1e-6,
         });
+        /*
+         * >>> DER EINZELQUERSCHNITT IST EIN U, KEIN RECHTECK. <<<
+         *
+         * `Channel` baut die Bruecke ueber AddC/AddU - vermessen am
+         * 3. September fuer die Abfangjochgurte. Die Reihenfolge der
+         * Parameter ist [h, b, tw, tf, R], STEG VOR FLANSCH: am
+         * 4. September gemessen, dass die naheliegende Lesart den Gurt
+         * 21 % zu weich machte.
+         *
+         * Die Kennwerte sind die des EINZELPROFILS (`AEinzel`, `IyEinzel`,
+         * `IzEinzel`). `Iz` des Verbunds steht im Blatt auf null, und das
+         * ist richtig: er haengt am Spreizmass, und das ist hier kein
+         * fester Wert, sondern ein Keil.
+         */
+        const qsProfil = einzeln ? s.qs({
+          name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}_EINZEL`,
+          form: 'Channel',
+          parameter: [Number(qw.h), Number(qw.b), Number(qw.tw),
+                      Number(qw.tf), Number(qw.r) || 0],
+          profil: `${qw.profil} (${qw.quelle})`,
+          /*
+           * KEIN KATALOGNAME. Die Bruecke versucht ihn vor dem
+           * parametrischen Weg, und ein Name, der zufaellig ein ANDERES
+           * Profil trifft, faellt nirgends auf. UNP steht in EN 10365 als
+           * UPN, das alte DIN-Profil heisst anders als das europaeische -
+           * das ist zu vermessen, nicht zu raten (com/LIESMICH.md).
+           */
+          A: qw.AEinzel / 1e4,
+          Iy: qw.IyEinzel / 1e8,
+          Iz: qw.IzEinzel / 1e8,
+          It: (Number(qw.It) || 0) / (qw.anzahl || 2) / 1e8,
+        }) : null;
         /* ===================================================================
          * >>> DIE VORSATZKONSOLE STEHT ALS STARRELEMENT DA. <<<
          * ===================================================================
@@ -2030,14 +2076,145 @@ export function stabmodell(m, opt = {}) {
          */
         s.stab(`ANKERKONSOLE_${mn(ende)}`, qsStarr, mastKn.get(zAnk), kKons,
                { starrRolle: 'verbindung' });
-        s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
-               { gelenkAnfang: 'M', gelenkEnde: 'M' });
+        /* ===================================================================
+         * >>> DER KEIL STEHT IM MODELL - ZWEI STABZUEGE STATT EINES STABES.
+         * ===================================================================
+         *
+         * Weisung vom 15. September, «Stufe 1». Bis hierher ging EIN Stab
+         * hinaus: ein Rechteck gleicher Flaeche, gelenkig an beiden Enden.
+         * Fuer die Normalkraft war das genug - fuer das Bild nicht, und der
+         * Keil ist das Kennzeichen des Bauteils.
+         *
+         * >>> DIE GEOMETRIE. <<<
+         *
+         * Vier Stationen ueber die Laenge, wie das Blatt sie vermasst:
+         *
+         *   s = 0            am Masten, weites Ende (225 mm)
+         *   s = 1610/L       Ende des parallelen Stuecks oben
+         *   s = 1 - 990/L    Anfang des parallelen Stuecks unten
+         *   s = 1            am Fundament, enges Ende (104 bzw. 124 mm)
+         *
+         * Ist die Stuetze kuerzer als die beiden parallelen Stuecke
+         * zusammen (2.60 m), laeuft der Abstand linear durch - dieselbe
+         * Regel wie in `ankerSpreizungAn`, und mehr gibt das Blatt nicht
+         * her.
+         *
+         * >>> QUER WOZU. <<<
+         *
+         * Die Spreizung steht QUER zur Ankerebene: liegt der Anker in
+         * Gleisrichtung, spreizt er in der Jochachse - und umgekehrt.
+         * Dieselbe Regel wie im Bild (`render.koerper.js`).
+         *
+         * >>> DIE DREHLAGE DES PROFILS. <<<
+         *
+         * Die lokale z-Achse steht senkrecht auf Stabachse UND Spreizung -
+         * dann liegt die Profilhoehe in der Ankerebene und der Steg quer
+         * dazu, so wie die beiden U die Lasche zwischen sich fassen. Ein
+         * gedrehtes Profil saehe im Modell aus wie ein anderes Bauteil.
+         *
+         * >>> DIE GELENKE SITZEN AN DEN ENDEN, NICHT DAZWISCHEN. <<<
+         *
+         * Das Profil laeuft durch; geloest sind die beiden ANSCHLUESSE.
+         * Zwei Starrelemente je Ende, beide am gemeinsamen Knoten
+         * momentenfrei: damit dreht die Stuetze um die Bolzenachse - die
+         * liegt in der Spreizrichtung - und traegt das Kraeftepaar quer
+         * dazu ueber die beiden Profile. Das ist mehr, als der eine
+         * Pendelstab konnte, und es ist das, was ein Verbundstab tut.
+         *
+         * >>> UND WAS DER BOLZEN NICHT IST. <<<
+         *
+         * Das Modell traegt jetzt ein Moment um die Achse quer zur
+         * Spreizung, wo vorher keines war. Am Masten aendert das die
+         * Anschlusskraefte geringfuegig; der NACHWEIS der Stuetze rechnet
+         * unveraendert ueber das Bemessungsdiagramm (`ankerNachweis`) und
+         * weiss davon nichts. Der Bericht sagt es.
+         * ================================================================= */
+        if (!einzeln) {
+          s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
+                 { gelenkAnfang: 'M', gelenkEnde: 'M' });
+        } else {
+          const pK = s.knoten.get(kKons);
+          const pF2 = s.knoten.get(kAnkF);
+          const LAnk = Math.hypot(pF2.x - pK.x, pF2.y - pK.y, pF2.z - pK.z);
+          // Der Einheitsvektor der Spreizung - quer zur Ankerebene.
+          const eS = laengsA ? [1, 0, 0] : [0, 1, 0];
+          // Die Stabachse, und daraus die lokale z-Richtung (Kreuzprodukt).
+          const d = [(pF2.x - pK.x) / LAnk, (pF2.y - pK.y) / LAnk,
+                     (pF2.z - pK.z) / LAnk];
+          const kreuz = [eS[1] * d[2] - eS[2] * d[1],
+                         eS[2] * d[0] - eS[0] * d[2],
+                         eS[0] * d[1] - eS[1] * d[0]];
+          const lg = Math.hypot(...kreuz) || 1;
+          const lcsAnker = kreuz.map((v) => r6(v / lg));
+          /*
+           * DIE STATIONEN. `ankerAchsabstandAn` misst vom ENGEN Ende, also
+           * vom Fundament her; `s` laeuft vom Masten. Die eine Umrechnung
+           * steht hier, damit sie nicht zweimal irgendwo steht.
+           */
+          const sp2 = spreiz;
+          const par = [0];
+          const sBreit = (sp2.parallelBreit ?? 0) / 1000;
+          const sSchmal = (sp2.parallelSchmal ?? 0) / 1000;
+          if (LAnk > sBreit + sSchmal + 1e-9) {
+            par.push(sBreit / LAnk, 1 - sSchmal / LAnk);
+          }
+          par.push(1);
+          const punkt = (sv, vz) => {
+            const abst = ankerAchsabstandAn(ak.typ, LAnk, (1 - sv) * LAnk);
+            const e2 = ((abst ?? 0) / 1000) / 2 * vz;
+            return { x: r6(pK.x + (pF2.x - pK.x) * sv + eS[0] * e2),
+                     y: r6(pK.y + (pF2.y - pK.y) * sv + eS[1] * e2),
+                     z: r6(pK.z + (pF2.z - pK.z) * sv + eS[2] * e2) };
+          };
+          const reihen = {};
+          [['L', -1], ['R', +1]].forEach(([seite, vz]) => {
+            reihen[seite] = par.map((sv, i2) => {
+              const p3 = punkt(sv, vz);
+              return s.kn(`ANK_${mn(ende)}_${seite}${i2}`, p3.x, p3.y, p3.z);
+            });
+            for (let i2 = 0; i2 < reihen[seite].length - 1; i2 += 1) {
+              s.stab(`ANKERPROFIL_${mn(ende)}_${seite}${i2 + 1}`, qsProfil,
+                     reihen[seite][i2], reihen[seite][i2 + 1],
+                     { lcsZ: lcsAnker });
+            }
+            // Die beiden Anschluesse - hier sitzt das Gelenk.
+            s.stab(`ANKERKOPF_${mn(ende)}_${seite}`, qsStarr,
+                   kKons, reihen[seite][0],
+                   { starrRolle: 'verbindung', gelenkAnfang: 'M' });
+            s.stab(`ANKERFUSS_${mn(ende)}_${seite}`, qsStarr,
+                   kAnkF, reihen[seite][reihen[seite].length - 1],
+                   { starrRolle: 'verbindung', gelenkAnfang: 'M' });
+          });
+          /* =================================================================
+           * >>> DIE LASCHEN STEHEN DORT, WO DAS BLATT SIE VERMASST. <<<
+           * =================================================================
+           *
+           * Weisung vom 11. September: «diese verlaufen zuerst parallel bis
+           * zur ersten vermassung ... von da an verlaeuft der abstand
+           * variabel, da verbindungen der beiden enden.»
+           *
+           * Also an den beiden Knickstellen. WIE VIELE es dazwischen gibt
+           * und in welchem Abstand, sagt das Sortiment NICHT - und genau
+           * daran haengt der Nachweis des mehrteiligen Druckstabs (S_v,
+           * Einzelstab zwischen zwei Laschen, EN 1993-1-1 6.4).
+           *
+           * Sie stehen als STARRELEMENT da, nicht als Flachstahl: die
+           * Lasche ist im Blatt zu sehen, ihr Mass steht nicht im
+           * Sortiment. Starr ist die STEIFERE Annahme - ein Knicknachweis
+           * in AxisVM darf darauf nicht gegruendet werden, und der Bericht
+           * sagt das. Massgebend bleibt das Bemessungsdiagramm.
+           * =============================================================== */
+          for (let i2 = 1; i2 < par.length - 1; i2 += 1) {
+            s.stab(`ANKERLASCHE_${mn(ende)}_${i2}`, qsStarr,
+                   reihen.L[i2], reihen.R[i2], { starrRolle: 'verbindung' });
+          }
+        }
         auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
                         ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
                         fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null });
         ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
                         h: ak.h, a: ak.a, qs: qw ?? null,
-                        spreiz: spreiz ?? null });
+                        spreiz: spreiz ?? null, zweiProfile: einzeln });
       }
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
@@ -3242,14 +3419,41 @@ export function stabmodellJson(m, opt = {}) {
               parallelBreit_mm: v.spreiz.parallelBreit,
               bezug: v.spreiz.bezug ?? 'offen' }
           : null,
-        vermerk: v.qs
-          ? `${v.qs.anzahl ?? 1}× ${v.qs.profil} nach ${v.qs.quelle}; `
-            + 'als Rechteck gleicher Fläche ausgeleitet'
-            + (v.spreiz
-                ? `, Verbund gespreizt ${v.spreiz.schmal}→${v.spreiz.breit} mm `
-                  + '— I_z veränderlich, im Rechteck nicht abgebildet'
-                : ', I_z des Verbunds (Spreizmass) nicht erfasst')
-          : 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt',
+        /*
+         * >>> SEIT DEM 15. SEPTEMBER STEHEN ZWEI PROFILE IM MODELL. <<<
+         *
+         * Weisung: «weiter mit stufe 1 der druckstütze.» Der Vermerk sagt
+         * jetzt, WAS dasteht - und vor allem, was daran Lesart ist und was
+         * Angabe. Drei Dinge gehoeren in den Bericht und nicht in einen
+         * Kommentar:
+         *
+         *   der BEZUG des Spreizmasses  gelesen als lichte Weite
+         *   die LASCHEN                 nur an den vermassten Stellen,
+         *                               starr statt als Flachstahl
+         *   das GELENK                  um die Bolzenachse, nicht um beide
+         */
+        zweiProfile: v.zweiProfile === true,
+        vermerk: !v.qs
+          ? 'Querschnittswerte nicht erfasst — Platzhalterquerschnitt'
+          : v.zweiProfile
+            ? `${v.qs.anzahl ?? 2}× ${v.qs.profil} nach ${v.qs.quelle}, `
+              + 'einzeln ausgeleitet und keilförmig gespreizt '
+              + `(${v.spreiz.schmal}→${v.spreiz.breit} mm). Der Achsabstand `
+              + 'ist die LESART «lichte Weite plus eine Profilbreite» — der '
+              + 'Bezug des Masses steht im Sortiment offen. Die Laschen '
+              + 'stehen als Starrelement an den beiden vermassten '
+              + 'Knickstellen; Anzahl, Abstand und Profil der übrigen führt '
+              + 'das Sortiment nicht. Ein Knicknachweis in AxisVM ist darauf '
+              + 'NICHT zu gründen — massgebend bleibt das '
+              + 'Bemessungsdiagramm. Der Anschluss ist um die Bolzenachse '
+              + '(Spreizrichtung) gelenkig, quer dazu tragen die beiden '
+              + 'Profile ein Kräftepaar'
+            : `${v.qs.anzahl ?? 1}× ${v.qs.profil} nach ${v.qs.quelle}; `
+              + 'als Rechteck gleicher Fläche ausgeleitet'
+              + (v.spreiz
+                  ? `, Verbund gespreizt ${v.spreiz.schmal}→${v.spreiz.breit} mm `
+                    + '— I_z veränderlich, im Rechteck nicht abgebildet'
+                  : ', I_z des Verbunds (Spreizmass) nicht erfasst'),
       })),
       // WO DAS TRAGWERK STEHT. Eigene Felder, damit sie maschinell lesbar
       // bleiben, und zusaetzlich in der Bezeichnung - die traegt der Bericht
