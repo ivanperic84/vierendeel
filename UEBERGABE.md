@@ -397,6 +397,99 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Das Auflager des Tragjochs ist das des Abfangjochs (15. September)
+
+Weisung: «das auflger für das tragjoch angleichen an abfangjoch, wie
+beschrieben. die auskragung kann frei gewählt werden nicht nur innerhalb des
+endfeldes.»
+
+Am 13. September hatte das Tragjoch die **rechten Winkel** des Abfangjochs
+übernommen und war in drei Punkten anders geblieben. Alle drei sind jetzt
+angeglichen.
+
+**1 · Der Versatz in z.** Ich hatte ihn weggelassen, mit der Begründung, die
+Mastknoten sässen beim Tragjoch ja schon auf den Gurthöhen — ein Versatz wäre
+eine Erfindung. Das Argument war falsch herum: *weil* die Kette auf Gurthöhe
+lief, lief sie in der Ebene des **horizontalen Bindeblechs**, also mitten
+hindurch. Genau davor warnte die Weisung vom 12. September («um nicht mit den
+elementen zu kollidieren»).
+
+Der Versatz zeigt **nach innen**, zwischen die beiden Gurtebenen: über dem
+Obergurt endet der Mast, wo kein Überstand angegeben ist, und dort gäbe es
+keinen Ansatzpunkt. Das Mass ist das des Abfangjochs — halbe Profilhöhe plus
+50 mm Luft; beim Winkel ist die Profilhöhe der stehende Schenkel. Am J90 mit
+L 90×9 sind das 95 mm.
+
+**2 · Das Link misst in z.** Seine 50 mm laufen jetzt lotrecht zum Gurt statt
+in der Jochachse. Die Bedingung ändert das nicht: die Steifigkeiten stehen in
+der COM-Brücke auf `SystemGLR = sysGlobal`, also global — welche Richtung der
+Stab selbst hat, ist ihr gleich.
+
+**3 · Die Konsolenlänge kommt aus dem Mastprofil.** Die Weisung vom
+12. September («konsolenlänge abhängig vom Masttyp, halbe mastbreite») hatte
+`konsolLaenge` gebaut, und der Kommentar dort sagt «EINE STELLE FÜR BEIDE» —
+aber nur das Abfangjoch rief sie. Beim Tragjoch standen weiter pauschale
+150 mm, beim HEB 200 also 50 mm zu viel. Damit das ankommt, trägt das Modell
+jetzt `auflagerKonsole` mit (wie `auflagerLinks` seit dem 12. September).
+
+**Die Kette, gemessen** am J90 / 20.00 m mit HEB 260, Ende A, Obergurt links:
+
+| Glied | von | nach | Achse |
+|---|---|---|---|
+| `KONSOLE_A_OG` | 0.000, 0.000, 0.130 | 0.130, 0.000, 0.130 | x |
+| `KONSARM_A_OGL` | 0.130, 0.000, 0.130 | 0.130, −0.195, 0.130 | y |
+| `LINKSTIEL_A_OGL` | 0.130, −0.195, 0.130 | 0.130, −0.195, 0.175 | z |
+| `LINK_A_OGL` | 0.130, −0.195, 0.175 | 0.130, −0.195, 0.225 | z |
+
+Je Gurt **ein** Link, nicht je Gurtebene eines — «der obere ausschnitt ist die
+halterung der **zwei** obergurte» (Weisung vom 5. September, Plural). Acht
+Linkelemente statt vier, 28 Glieder statt 24.
+
+> **Das bewegt etwas, und es gehört gesagt.** Bis hierher lief das letzte
+> Glied in x auf die **Mastachse zurück** — genau das, was die Weisung vom
+> 12. September untersagt hatte. Jetzt hält das Link dort, wo die Konsole
+> endet: an der Flanschkante. Die Stützweite des ausgeleiteten Modells wird
+> dadurch **2·a_K kürzer** als die des Ersatzbalkens — beim HEB 260 also
+> 19.74 gegen 20.00 m, und das Feldmoment fällt rund **2.6 %** kleiner aus.
+> Der Ersatzbalken liegt damit auf der **sicheren Seite**. Wer die alte
+> Übereinstimmung auf ein Promille (Messung vom 27. August) braucht, sagt es
+> — dann kehrt das Rückglied zurück.
+
+**Die Auskragung ist frei.** `mastFreiraum` suchte das **erste** Blech vom
+Jochende her und machte dessen Kante zur Grenze; damit endete die zulässige
+Lage vor dem ersten Bindeblech, obwohl zwischen je zwei Blechen dieselbe Lücke
+steht. Jetzt gilt nur noch: der **Fussabdruck** des Mastes (Achse ± halbe
+Tiefe in Jochrichtung) darf kein Blech überschneiden. Am J90 / 15.50 m mit
+HEB 260:
+
+| Mastachse | vorher | jetzt |
+|---|---|---|
+| 0.40 m | zulässig, 170 mm frei | zulässig, 170 mm frei |
+| 1.20 m | *gefallen* | zulässig, 120 mm frei |
+| 2.00 m | *gefallen* | zulässig, 70 mm frei |
+| 2.20 m | gefallen | gefallen, 130 mm im Blech |
+| 2.50 m | *gefallen* | zulässig, Grenze bindet von **aussen** |
+
+Die Grenze bindet seither auf beiden Seiten; `mastFreiraum` gibt mit `op`
+zurück, in welche Richtung der kürzere Ausweg zeigt, und P9 prüft in dieser
+Richtung. Die Stationsliste konnte das immer schon — `kragA` setzt einen
+eigenen Gurtknoten, auch mitten im Feld.
+
+### Die Ablenkung ist zweite Ebene (15. September)
+
+Weisung: «bauteil karte ablenkung in zweite ebene. angriffspunkt nicht, diese
+eingabe wird oft verwendet, angepasst.»
+
+Die Trennlinie liegt also nicht bei «wie wichtig ist die Zahl», sondern bei
+**wie oft fasst man sie an**. Der Ablenkwinkel steht im Regelfall auf leer und
+rechnet sich aus R und L_FL selbst; wer ihn setzt, tut es einmal. Die Lage
+x/y/z ist an jedem Bauteil eine andere.
+
+Zugeklappt zeigt die Zeile den **wirksamen** Winkel — den gesetzten oder den
+gerechneten. Ein Klappabschnitt, der verbirgt, womit gerechnet wird, wäre ein
+Versteck; einer, der es anschreibt, ist eine Zusammenfassung. Gemessen an der
+Vorlage «Hängestütze mit Fahrleitung»: **1399 → 1305 px**.
+
 ### Die Bauteil-Karte, zweiter Durchgang (15. September)
 
 Weisung: «weiter mit der bauteil karte optimieren.» Gemessen vor dem Eingriff:

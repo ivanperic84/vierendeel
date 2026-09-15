@@ -697,6 +697,16 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * meldete jedes Mal "gelenkig".
      */
     auflagerLinks: inp.auflagerLinks ?? null,
+    /*
+     * UND DIE KONSOLENLAENGE EBENSO (15. September).
+     *
+     * `konsolLaenge` liest das Feld `auflagerKonsole` und faellt sonst auf
+     * die halbe Mastbreite zurueck. Die Ausleitung des Abfangjochs bekommt
+     * die Eingabe unmittelbar, die des Tragjochs nur das Modell - ohne
+     * diese Zeile las sie dort eine leere Angabe und nahm immer die halbe
+     * Mastbreite, auch wo jemand ein eigenes Mass eingetragen hatte.
+     */
+    auflagerKonsole: inp.auflagerKonsole ?? null,
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
     // Hebelarm des einseitigen Kräftepaars, je Gurt [m] - er folgt der
     // Massvariante und steht deshalb neben h und b im Modell.

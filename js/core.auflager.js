@@ -742,9 +742,10 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
  * bis zum 1. September starr auf x = 0 und x = L.
  *
  * DIE GRENZE IST BERUEHRUNG, GEMESSEN AM FLANSCHRAND (Weisung): der Mast
- * darf so weit nach innen, bis sein Flansch am Bindeblech anliegt. Kein
- * Mindestabstand, kein Spiel - anliegend ist zulaessig, ueberschneidend
- * nicht.
+ * darf so weit, bis sein Flansch am Bindeblech anliegt. Kein Mindestabstand,
+ * kein Spiel - anliegend ist zulaessig, ueberschneidend nicht. WIE WEIT
+ * INNEN er steht, ist seit dem 15. September keine Frage mehr: "die
+ * auskragung kann frei gewaehlt werden nicht nur innerhalb des endfeldes".
  *
  * Massgebend ist die Ausdehnung des Mastes IN DER JOCHACHSE. Sie haengt an
  * der Stegrichtung: steht der Steg in Jochachse, ist es die Profilhoehe h,
@@ -773,12 +774,40 @@ export function mastAchse(m, ende = 'A') {
                       : L - Math.max(0, m?.kragB ?? 0);
 }
 
-/**
- * Freiraum der Mastachse zwischen Jochende und erstem Bindeblech.
+/* ===========================================================================
+ * >>> DIE AUSKRAGUNG IST FREI - DER MAST DARF NUR NICHT IM BLECH STEHEN. <<<
+ * ===========================================================================
  *
- * @returns {null|{achse, tiefe, grenze, blech, frei, ueberschnitt}}
- *   grenze       weiteste zulaessige Lage der Achse [m]
- *   blech        Kante des ersten stoerenden Blechs [m], oder null
+ * Weisung vom 15. September: "die auskragung kann frei gewaehlt werden nicht
+ * nur innerhalb des endfeldes."
+ *
+ * Hier stand eine Suche nach dem ERSTEN Blech, auf das der Mast trifft, wenn
+ * er vom Jochende nach innen wandert - und dessen Kante war die Grenze.
+ * Damit endete die zulaessige Lage vor dem ersten Bindeblech, obwohl
+ * zwischen je zwei Blechen dieselbe Luecke steht. Ein Mast im dritten Feld
+ * fiel durch, ohne irgendetwas zu beruehren.
+ *
+ * >>> WAS JETZT GILT, UND NUR DAS. <<<
+ *
+ * Der Fussabdruck des Mastes - Achse plus/minus halbe Tiefe in Jochrichtung -
+ * darf kein Blech ueberschneiden. In welchem Feld er steht, ist seine Sache.
+ * Die Grenze bleibt BERUEHRUNG, gemessen am Flanschrand (Weisung vom
+ * 11. September): anliegend ist zulaessig, ueberschneidend nicht.
+ *
+ * >>> GEMELDET WIRD DER KUERZERE AUSWEG. <<<
+ *
+ * Steht der Mast im Blech, gibt es zwei Wege heraus - nach aussen und nach
+ * innen. Genannt wird der kuerzere, und `op` sagt, in welche Richtung er
+ * zeigt. Vorher war es immer "weiter aussen", weil es nur eine Richtung gab.
+ * ========================================================================= */
+
+/**
+ * Freiraum der Mastachse zwischen den Bindeblechen.
+ *
+ * @returns {null|{achse, tiefe, grenze, blech, frei, op, ueberschnitt}}
+ *   grenze       naechstgelegene noch zulaessige Lage der Achse [m]
+ *   op           '<=' oder '>=' - auf welcher Seite `grenze` bindet
+ *   blech        Kante des massgebenden Blechs [m], oder null
  *   frei         Weg, der noch bleibt [m]; negativ heisst Ueberschneidung
  *   ueberschnitt true, wenn der Flansch im Blech steht
  */
@@ -787,26 +816,48 @@ export function mastFreiraum(m, ende = 'A', sperren = null) {
   if (!md?.profil) return null;
   const halb = mastTiefe(m, ende) / 2;
   const achse = mastAchse(m, ende);
-  const innen = ende === 'A' ? +1 : -1;          // Richtung nach Feldmitte
   // Bleche in Jochachse, ohne Zugabe: anliegend ist zulaessig.
   const liste = sperren ?? (m.stationsListe ?? []).map((s) => {
     const b = ((s.vertikal?.breite ?? 0) / 1000) / 2;
     return b > 0 ? { von: s.x - b, bis: s.x + b } : null;
   }).filter(Boolean);
 
-  // Das erste Blech, auf das der Mast trifft, wenn er nach innen wandert.
-  const kanten = liste
-    .map((s) => (innen > 0 ? s.von : s.bis))
-    .filter((k) => (innen > 0 ? k >= -1e-9 : k <= m.L + 1e-9));
-  if (!kanten.length) return { achse, tiefe: halb * 2, grenze: null,
-                               blech: null, frei: Infinity, ueberschnitt: false };
-  // Nach innen: die kleinste Kante rechts der Stirn; nach aussen umgekehrt.
-  const blech = innen > 0 ? Math.min(...kanten) : Math.max(...kanten);
-  const grenze = blech - innen * halb;
-  const frei = innen > 0 ? grenze - achse : achse - grenze;
-  return { achse, tiefe: halb * 2, grenze, blech, frei,
-           ueberschnitt: frei < -1e-9 };
+  const fussVon = achse - halb;
+  const fussBis = achse + halb;
+  let frei = Infinity, grenze = null, blech = null, op = '<=';
+  const merke = (d, g, k, o) => {
+    if (d >= frei - 1e-15) return;
+    frei = d; grenze = g; blech = k; op = o;
+  };
+  liste.forEach((s) => {
+    // Abstand des Blechs zum Fussabdruck - positiv, solange nichts beruehrt.
+    const nachInnen = s.von - fussBis;     // Blech liegt bei groesserem x
+    const nachAussen = fussVon - s.bis;    // Blech liegt bei kleinerem x
+    if (Math.max(nachInnen, nachAussen) >= -1e-12) {
+      if (nachInnen >= nachAussen) merke(nachInnen, s.von - halb, s.von, '<=');
+      else merke(nachAussen, s.bis + halb, s.bis, '>=');
+      return;
+    }
+    /*
+     * UEBERSCHNITTEN. Zwei Auswege, der kuerzere zaehlt: zurueck, bis der
+     * Flansch an der vorderen Kante anliegt - oder vor, bis er an der
+     * hinteren anliegt.
+     */
+    const zurueck = fussBis - s.von;
+    const vor = s.bis - fussVon;
+    if (zurueck <= vor) merke(-zurueck, s.von - halb, s.von, '<=');
+    else merke(-vor, s.bis + halb, s.bis, '>=');
+  });
+  if (grenze === null) {
+    return { achse, tiefe: halb * 2, grenze: null, blech: null,
+             frei: Infinity, op: '<=', ueberschnitt: false };
+  }
+  return { achse, tiefe: halb * 2, grenze: r3(grenze), blech: r3(blech), frei,
+           op, ueberschnitt: frei < -1e-9 };
 }
+
+/** Auf Mikrometer - sonst traegt eine Kante ihre Fliesskomma-Ausfransung. */
+const r3 = (v) => Math.round(v * 1e6) / 1e6;
 
 /* ===========================================================================
  * DIE AUFLAGERBEDINGUNG AM MASTEN - JE GURTEBENE EINE

@@ -586,10 +586,18 @@ export function konstruktionsChecks(m, ab = null) {
   /*
    * P9 - DER MAST MUSS AN DEN BINDEBLECHEN VORBEI.
    *
-   * Das Auflager darf innerhalb des Endfelds liegen: rueckt der Mast nach
+   * Das Auflager darf innerhalb der Gurtenden liegen: rueckt der Mast nach
    * innen, sitzen die Anschlusspunkte auf den Gurten statt an der Stirn.
    * Die Grenze ist BERUEHRUNG, gemessen am Flanschrand (Weisung) - anliegend
    * ist zulaessig, ueberschneidend nicht.
+   *
+   * >>> UND ZWAR IN JEDEM FELD. <<<
+   *
+   * Weisung vom 15. September: "die auskragung kann frei gewaehlt werden
+   * nicht nur innerhalb des endfeldes." Bis dahin endete die zulaessige Lage
+   * vor dem ERSTEN Bindeblech - zwischen je zwei Blechen steht aber dieselbe
+   * Luecke. `mastFreiraum` prueft jetzt den Fussabdruck gegen ALLE Bleche
+   * und nennt den kuerzeren Ausweg; `op` sagt, wohin er zeigt.
    *
    * Massgebend ist die Ausdehnung des Mastes IN JOCHACHSE; sie haengt an der
    * Stegrichtung. Beim HEB 260 ist sie in beiden Lagen gleich, beim HEM 240
@@ -604,7 +612,7 @@ export function konstruktionsChecks(m, ab = null) {
       Math.round(fr.achse * 1000) / 1000,
       Math.round(fr.grenze * 1000) / 1000,
       'm',
-      ende === 'A' ? '<=' : '>=',
+      fr.op,
       fr.frei > 0.001
         ? `OK, noch ${(fr.frei * 1000).toFixed(0)} mm bis zum Blech`
         : 'OK, Flansch liegt am Blech an',
@@ -1292,8 +1300,8 @@ export function hinweise(m) {
       + 'Blecheinteilung hängt an der Gurtlänge und bleibt unberührt.');
   } else if (m.endbedingung !== 'gelenkig') {
     h.push('Auflager an den Gurtenden, keine Kragarme. Steht der Mast weiter '
-      + 'innen, ist das unter «Kragarm» einzugeben. 5 % Stützweite sind rund '
-      + '11 % auf jedes globale Moment.');
+      + 'innen, ist das unter «Kragarm» einzugeben - frei, nicht nur im '
+      + 'Endfeld. 5 % Stützweite sind rund 11 % auf jedes globale Moment.');
   }
   /*
    * «STEIFIGKEIT AUS MAST» GEWAEHLT, ABER KEINER DA.

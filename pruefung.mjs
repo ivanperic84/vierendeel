@@ -6532,27 +6532,40 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
   }
 
   /* =========================================================================
-   * >>> AUCH BEIM TRAGJOCH LAEUFT JEDES GLIED IN EINER ACHSE. <<<
+   * >>> DIE KETTE DES TRAGJOCHS IST DIE DES ABFANGJOCHS. <<<
    * =========================================================================
    *
-   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die, ob
-   * die rechten Winkel auch beim Tragjoch gelten sollen.
+   * Weisung vom 15. September: "das auflger fuer das tragjoch angleichen an
+   * abfangjoch, wie beschrieben."
    *
-   * Beim Abfangjoch ist die Kette seit dem 12. September zerlegt (siehe die
-   * Kontrollen dort). Das Tragjoch blieb als einziges bei EINEM schraegen
-   * Stab vom Sammelknoten zum Winkel - in x zurueck und zugleich in y nach
-   * aussen, quer durch das Jochende hindurch.
+   * Am 13. September hatte das Tragjoch die rechten Winkel uebernommen und
+   * war in drei Punkten anders geblieben. Alle drei sind jetzt angeglichen:
    *
-   * DIE KETTE, GEMESSEN am J90 / 20.00 m mit HEB 260 (Ende A, Obergurt):
+   *   1  DER VERSATZ IN z      Ich hatte ihn weggelassen mit der Begruendung,
+   *                            die Mastknoten saessen ja schon auf den
+   *                            Gurthoehen. Das stimmt - und genau deshalb lief
+   *                            die Konsole in der Ebene des horizontalen
+   *                            Blechs, also mitten hindurch.
+   *   2  DAS LINK IN z         Es misst seine 50 mm lotrecht zum Gurt, nicht
+   *                            mehr in der Jochachse.
+   *   3  DIE KONSOLENLAENGE    Aus dem Mastprofil (halbe Mastbreite), wie es
+   *                            die Weisung vom 12. September verlangt hatte.
+   *                            `konsolLaenge` stand seit damals bereit, aber
+   *                            nur das Abfangjoch rief sie; hier standen
+   *                            weiter pauschale 150 mm.
    *
-   *   KONSOLE_A_OG    (0.000, 0.000, 0.225) -> (0.150, 0.000, 0.225)   x
-   *   LINK_A_OG       (0.150, 0.000, 0.225) -> (0.200, 0.000, 0.225)   x
-   *   KONSARM_A_OGL   (0.200, 0.000, 0.225) -> (0.200,-0.195, 0.225)   y
-   *   STARR_A_OGL     (0.200,-0.195, 0.225) -> (0.000,-0.195, 0.225)   x
+   * DIE KETTE, GEMESSEN am J90 / 20.00 m mit HEB 260 (Ende A, Obergurt
+   * links; Jochachse z = 0, Gurte auf +-0.2246, Winkel L90):
    *
-   * Ein Starrelement uebertraegt alles; die Geometrie aendert an den
-   * Auflagerkraeften nichts. Sie aendert, WAS MAN SIEHT: am Knick liest man
-   * ab, welches Glied welche Exzentrizitaet traegt.
+   *   KONSOLE_A_OG    (0.000, 0.000, 0.130) -> (0.130, 0.000, 0.130)   x
+   *   KONSARM_A_OGL   (0.130, 0.000, 0.130) -> (0.130,-0.195, 0.130)   y
+   *   LINKSTIEL_A_OGL (0.130,-0.195, 0.130) -> (0.130,-0.195, 0.175)   z
+   *   LINK_A_OGL      (0.130,-0.195, 0.175) -> (0.130,-0.195, 0.225)   z
+   *
+   * Der Versatz misst 0.095 m: halber Winkelschenkel (90/2 mm) plus 50 mm
+   * Luft - dasselbe Mass wie beim Abfangjoch. Er zeigt nach INNEN, zwischen
+   * die beiden Gurtebenen: ueber dem Obergurt endet der Mast, wo kein
+   * Ueberstand angegeben ist, und dort waere kein Ansatzpunkt.
    * ======================================================================= */
   {
     const { m: m3 } = bau({ mastVorhanden: true, mastProfil: 'HEB 260',
@@ -6572,35 +6585,80 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     };
     wahr('Die Konsole läuft in x', achse3('KONSOLE_A_OG') === 'x',
          achse3('KONSOLE_A_OG'));
-    wahr('Das Linkelement auch', achse3('LINK_A_OG') === 'x');
     wahr('Der Arm zur Gurtachse läuft in y',
          achse3('KONSARM_A_OGL') === 'y' && achse3('KONSARM_A_OGR') === 'y',
          `${achse3('KONSARM_A_OGL')} / ${achse3('KONSARM_A_OGR')}`);
-    wahr('Und der Stab auf den Winkel wieder in x',
-         achse3('STARR_A_OGL') === 'x' && achse3('STARR_A_OGR') === 'x');
+    wahr('Der Stiel darunter läuft in z',
+         achse3('LINKSTIEL_A_OGL') === 'z' && achse3('LINKSTIEL_A_UGR') === 'z');
+    wahr('Und das Linkelement ebenso',
+         achse3('LINK_A_OGL') === 'z' && achse3('LINK_B_UGR') === 'z');
     /*
      * >>> UND ZWAR AN BEIDEN ENDEN UND IN BEIDEN GURTEBENEN. <<<
      *
      * Vier Ecken, zwei Seiten - wer nur eine prueft, laesst die anderen
      * sieben laufen. Das ist genau die Art Fehler, die erst im Modell
      * auffaellt.
+     *
+     * Je Ende und Gurtebene sieben Glieder: eine Konsole, dann je Seite Arm,
+     * Stiel und Link. Macht 2 * 2 * 7 = 28.
      */
     const alleGlieder = b3.staebe.filter((s) =>
-      /^(KONSOLE|LINK|KONSARM|STARR)_[AB]_/.test(s.name));
+      /^(KONSOLE|LINK|LINKSTIEL|KONSARM)_[AB]_/.test(s.name));
     wahr('Die Kette hat an beiden Enden alle Glieder',
-         alleGlieder.length === 24, `${alleGlieder.length} Stäbe`);
+         alleGlieder.length === 28, `${alleGlieder.length} Stäbe`);
     const schraege = alleGlieder.filter((s) => achse3(s.name) === 'schräg');
     wahr('Kein Glied der Auflagerkette läuft schräg',
          schraege.length === 0, schraege.map((s) => s.name).join(', '));
     /*
-     * DER Z-VERSATZ BLEIBT AUS - anders als beim Abfangjoch. Dort liegt der
-     * Anschluss unter der Mastachse, weil ein Gabelbereich dazwischen sitzt;
-     * hier sitzen die Mastknoten bereits auf den Gurthoehen. Ein Versatz in
-     * z waere eine Erfindung, und die Kontrolle haelt das fest.
+     * >>> DER VERSATZ IN z, MIT MASS. <<<
+     *
+     * Er ist das, was am 13. September fehlte. Halber Schenkel plus 50 mm,
+     * nach innen - unter dem horizontalen Blech des Obergurts durch.
      */
     const kKons = kn3(st3('KONSOLE_A_OG').bis);
+    const kGurt = kn3(st3('LINK_A_OGL').bis);
+    pruef('Die Konsole liegt unter der Gurtebene',
+          kGurt.z - kKons.z, 0.090 / 2 + 0.05, 1e-9, 'm');
+    const kKonsU = kn3(st3('KONSOLE_A_UG').bis);
+    const kGurtU = kn3(st3('LINK_A_UGL').bis);
+    pruef('Und beim Untergurt darüber, gleich weit',
+          kKonsU.z - kGurtU.z, 0.090 / 2 + 0.05, 1e-9, 'm');
+    wahr('Beide Ansätze liegen zwischen den Gurtebenen',
+         kKons.z < kGurt.z && kKonsU.z > kGurtU.z);
+    /*
+     * >>> DIE KONSOLE MISST DIE HALBE MASTBREITE. <<<
+     *
+     * HEB 260 -> 130 mm. Vorher standen hier pauschale 150 mm - beim HEB 200
+     * endete die Konsole damit weit hinter der Flanschkante, beim HEB 300
+     * genau darauf. Das Feld `auflagerKonsole` schlaegt die Ableitung.
+     */
     const kMast = kn3(st3('KONSOLE_A_OG').von);
-    pruef('Die Konsole bleibt auf ihrer Gurthöhe', kKons.z, kMast.z, 1e-12, 'm');
+    pruef('Die Konsole misst die halbe Mastbreite',
+          kKons.x - kMast.x, 0.130, 1e-9, 'm');
+    const { m: m3b } = bau({ mastVorhanden: true, mastProfil: 'HEB 260',
+                             mastH: 8.0, auflagerKonsole: 90 });
+    const b3b = AX.stabmodell(m3b, { knotenmodell: 'anschnitt' });
+    pruef('… und das eigene Mass schlägt sie',
+          b3b.knoten.get('KONS_A_OG').x - b3b.knoten.get('MAST_A_OG').x,
+          0.090, 1e-9, 'm');
+    /*
+     * >>> DER GURT WIRD AN DER KONSOLSPITZE GEHALTEN. <<<
+     *
+     * Das ist die Aenderung, die im Modell etwas bewegt: die Kette laeuft
+     * nicht mehr auf die Mastachse zurueck (Weisung vom 12. September:
+     * "nicht zurueckfuehren auf die mastachse lage"). Die Stuetzweite des
+     * ausgeleiteten Modells wird dadurch um 2*a_K kuerzer als die des
+     * Ersatzbalkens - hier 19.740 gegen 20.000 m.
+     *
+     * Der Ersatzbalken liegt damit auf der SICHEREN Seite; der Unterschied
+     * gehoert in den Bericht, nicht in die Stille.
+     */
+    pruef('Das Link hält den Gurt an der Konsolspitze',
+          kGurt.x, 0.130, 1e-9, 'm');
+    const kGurtB = kn3(st3('LINK_B_OGL').bis);
+    pruef('Am anderen Ende spiegelbildlich', kGurtB.x, 20 - 0.130, 1e-9, 'm');
+    pruef('Die Stützweite des Modells ist um 2·a_K kürzer',
+          kGurtB.x - kGurt.x, m3.stuetzweite - 0.260, 1e-9, 'm');
   }
 
   /* =========================================================================
@@ -6717,35 +6775,34 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
   }
 
   /* =========================================================================
-   * >>> DAS AUFLAGER LIEGT FREI IM ENDFELD. <<<
+   * >>> DIE AUSKRAGUNG IST FREI - NICHT NUR IM ENDFELD. <<<
    * =========================================================================
    *
-   * Weisung vom 13. September: «offene fragen umsetzen» - darunter die, ob
-   * das Auflager beim Jochende frei im Endfeld aufliegen soll.
+   * Weisung vom 15. September: "die auskragung kann frei gewaehlt werden
+   * nicht nur innerhalb des endfeldes."
    *
-   * NACHGEMESSEN: es tut es bereits. `kragA` ruecken die Mastachse nach
-   * innen, und der Gurt bekommt an dieser Stelle einen EIGENEN Knoten -
-   * auch mitten im Endfeld, zwischen zwei Bindeblechen:
+   * Am 13. September hatte ich festgehalten, das Auflager liege frei IM
+   * ENDFELD - und genau darin lag die Grenze: `mastFreiraum` suchte das
+   * ERSTE Blech, auf das der Mast trifft, wenn er vom Jochende nach innen
+   * wandert. Damit endete die zulaessige Lage vor dem ersten Bindeblech,
+   * obwohl zwischen je zwei Blechen dieselbe Luecke steht.
    *
-   *   kragA 0.00   Mast bei 0.000   Gurtstationen 0.00 0.05 0.70 0.75
-   *   kragA 0.40   Mast bei 0.400   Gurtstationen 0.00 0.05 0.40 0.70
-   *   kragA 1.20   Mast bei 1.200   Knoten bei 1.200
+   * JETZT GILT NUR NOCH: der Mast darf in keinem Blech stehen. In welchem
+   * Feld er steht, ist seine Sache.
    *
-   * Bei 0.40 steht die Station zwischen 0.05 und 0.70 - sie ist neu, nicht
-   * gerundet. Genau darum ging die Frage: ein Auflager, das auf die
-   * naechste Blechstation springt, verschiebt die Stuetzweite um bis zu
-   * einer halben Teilung, ohne dass es jemand sieht.
-   *
-   * Umzusetzen ist also nichts. Festzuhalten schon - sonst faellt es beim
-   * naechsten Umbau der Stationsliste still wieder heraus.
+   * Die Stationsliste kann das seit je - `kragA` ruecken die Mastachse nach
+   * innen, und der Gurt bekommt dort einen eigenen Knoten, auch mitten im
+   * Feld zwischen zwei Blechen.
    * ======================================================================= */
   {
     const frei = bau({ mastVorhanden: true, mastProfil: 'HEB 260', L: 20,
                        kragA: 0.4 });
     const bF = AX.stabmodell(frei.m, { knotenmodell: 'anschnitt' });
-    const stF = bF.staebe.find((s) => s.name === 'STARR_A_OGL');
+    const stF = bF.staebe.find((s) => s.name === 'LINK_A_OGL');
     const kF = bF.knoten.get(stF.bis);
-    pruef('Der Auflagerknoten sitzt auf der Mastachse', kF.x, 0.4, 1e-9, 'm');
+    // Seit dem 15. September haelt das Link an der Konsolspitze, also eine
+    // halbe Mastbreite innerhalb der Mastachse.
+    pruef('Der Auflagerknoten sitzt an der Konsolspitze', kF.x, 0.53, 1e-9, 'm');
     /*
      * UND ER IST EINE EIGENE STATION, keine gerundete. Die Nachbarn liegen
      * bei 0.05 und 0.70 - waere gerundet worden, laege er auf einem davon.
@@ -6755,8 +6812,10 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
       .map((n) => Number(n.split('_')[1]))
       .sort((a, b) => a - b);
     wahr('… und steht als eigene Station in der Liste',
-         stationen.some((v) => Math.abs(v - 0.4) < 1e-9),
-         stationen.slice(0, 5).map((v) => v.toFixed(2)).join(', '));
+         stationen.some((v) => Math.abs(v - 0.53) < 1e-9),
+         stationen.slice(0, 6).map((v) => v.toFixed(2)).join(', '));
+    wahr('Die Mastachse bleibt ebenfalls eine Station',
+         stationen.some((v) => Math.abs(v - 0.4) < 1e-9));
     const nachbarn = stationen.filter((v) => Math.abs(v - 0.4) > 1e-9);
     wahr('… zwischen zwei Blechstationen, nicht auf einer',
          nachbarn.some((v) => v < 0.4) && nachbarn.some((v) => v > 0.4));
@@ -6764,8 +6823,32 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     const frei2 = bau({ mastVorhanden: true, mastProfil: 'HEB 260', L: 20,
                         kragB: 0.4 });
     const bF2 = AX.stabmodell(frei2.m, { knotenmodell: 'anschnitt' });
-    const st2 = bF2.staebe.find((s) => s.name === 'STARR_B_OGL');
-    pruef('Am Ende B ebenso', bF2.knoten.get(st2.bis).x, 19.6, 1e-9, 'm');
+    const st2 = bF2.staebe.find((s) => s.name === 'LINK_B_OGL');
+    pruef('Am Ende B ebenso', bF2.knoten.get(st2.bis).x, 19.47, 1e-9, 'm');
+    /* =====================================================================
+     * >>> UND JETZT WEIT INNERHALB, DRITTES FELD. <<<
+     * =====================================================================
+     *
+     * Das ist die Weisung vom 15. September. Beim J90 sitzt das erste Blech
+     * bei 0.75, danach laeuft die Regelteilung; ein Mast bei 2.20 m steht
+     * mehrere Felder weit innen. Er muss dort genauso zulaessig sein wie im
+     * Endfeld - es sei denn, er stuende in einem Blech.
+     */
+    const tief = bau({ mastVorhanden: true, mastProfil: 'HEB 260', L: 20,
+                       kragA: 2.2 });
+    const bT = AX.stabmodell(tief.m, { knotenmodell: 'anschnitt' });
+    const stT = bT.staebe.find((s) => s.name === 'LINK_A_OGL');
+    pruef('Auch im dritten Feld haelt das Link den Gurt',
+          bT.knoten.get(stT.bis).x, 2.33, 1e-9, 'm');
+    const stationenT = [...bT.knoten.keys()]
+      .filter((n) => /^OGL_/.test(n))
+      .map((n) => Number(n.split('_')[1]))
+      .sort((a, b) => a - b);
+    wahr('Die Mastachse steht auch dort als eigene Station',
+         stationenT.some((v) => Math.abs(v - 2.2) < 1e-9),
+         stationenT.slice(0, 8).map((v) => v.toFixed(2)).join(', '));
+    pruef('Und die Stützweite folgt der Auskragung',
+          tief.m.stuetzweite, 17.8, 1e-9, 'm');
   }
 
   /* =========================================================================
@@ -7626,7 +7709,7 @@ titel('34b Die Auflagerbedingung je Gurtebene');
     const jD = AX.stabmodellJson({ ...mD, ...mitDreh }, { auflagerModell: 'mast' });
     wahr('Das Linkelement traegt keine Drehfeder',
          ['xx', 'yy', 'zz'].every((g) => jD.staebe
-           .find((x) => x.name === 'LINK_A_OG').kraftuebertragung[g] === 'Free'));
+           .find((x) => x.name === 'LINK_A_OGL').kraftuebertragung[g] === 'Free'));
   }
 
   /*
@@ -7788,18 +7871,18 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   const mLb = modell(wL, getProfil(wL.profOG), getProfil(wL.profUG),
                      getStahl(wL.stahl), T.getTragjoch('J90'));
   const j1 = AX.stabmodellJson(mLb, { auflagerModell: 'mast' });
-  const lOG = j1.staebe.find((x) => x.name === 'LINK_A_OG');
-  const lUG = j1.staebe.find((x) => x.name === 'LINK_A_UG');
+  const lOG = j1.staebe.find((x) => x.name === 'LINK_A_OGL');
+  const lUG = j1.staebe.find((x) => x.name === 'LINK_A_UGL');
   wahr('Der Obergurt-Link ist laengs frei', lOG.kraftuebertragung.x === 'Free');
   wahr('Der Untergurt-Link haelt', lUG.kraftuebertragung.x === 'Rigid');
   const j2 = AX.stabmodellJson(
     { ...mLb, auflagerLinks: { OG: { x: 'Rigid' }, UG: { z: 25000 } } },
     { auflagerModell: 'mast' });
   wahr('Eine Aenderung kommt im Modell an',
-       j2.staebe.find((x) => x.name === 'LINK_A_OG')
+       j2.staebe.find((x) => x.name === 'LINK_A_OGL')
          .kraftuebertragung.x === 'Rigid');
   pruef('Auch eine Feder',
-        j2.staebe.find((x) => x.name === 'LINK_A_UG').kraftuebertragung.z,
+        j2.staebe.find((x) => x.name === 'LINK_A_UGL').kraftuebertragung.z,
         25000, 1e-9, 'kN/m');
 
   /*
@@ -7893,7 +7976,6 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
 
   // --- Anschluss je Gurtebene ---------------------------------------------
   ['A', 'B'].forEach((e) => ['OG', 'UG'].forEach((g) => {
-    const k = stabVon(`STARR_${e}_${g}L`), r = stabVon(`STARR_${e}_${g}R`);
     /* =====================================================================
      * DIE KETTE LAEUFT VOM MASTEN ZUM GURT
      * =====================================================================
@@ -7907,45 +7989,41 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
      * Sammelknoten, von dort ein Link ZUM Masten. Der starre Teil gehoerte
      * damit dem Joch, und die Konsole am Masten war gar nicht abgebildet.
      *
-     *   MAST --[KONSOLE starr 150]--> KONS --[LINK 50]--> ANS --[starr]--> Gurt
+     * >>> SEIT DEM 15. SEPTEMBER IST ES DIE KETTE DES ABFANGJOCHS. <<<
+     *
+     * Weisung: "das auflger fuer das tragjoch angleichen an abfangjoch, wie
+     * beschrieben." Der Ansatz sitzt versetzt am Masten, und je Gurt - nicht
+     * je Gurtebene - haelt ein eigenes Link:
+     *
+     *   MAST_A_A_OG --[KONSOLE in x, a_K]--> KONS_A_OG
+     *   KONS_A_OG   --[KONSARM in y]-------> ARM_A_OGL
+     *   ARM_A_OGL   --[LINKSTIEL in z]-----> ANS_A_OGL
+     *   ANS_A_OGL   --[LINK in z, 50 mm]---> Gurt OG links
+     *
+     * "der obere ausschnitt ist die halterung der ZWEI obergurte" (Weisung
+     * vom 5. September, Plural) - zwei Gurte, zwei Linkelemente.
      * =================================================================== */
     const kons = stabVon(`KONSOLE_${e}_${g}`);
     wahr(`Ende ${e}, ${g}: die Konsole geht starr vom Masten aus`,
          kons && kons.art === 'starr'
-         && kons.von === `MAST_${e}_${g}` && kons.bis === `KONS_${e}_${g}`);
-    const l = stabVon(`LINK_${e}_${g}`);
-    wahr(`Ende ${e}, ${g}: von der Konsole ein Linkelement zum Gurt`,
-         l && l.art === 'link'
-         && l.von === `KONS_${e}_${g}` && l.bis === `ANS_${e}_${g}`);
-    /*
-     * >>> UND ZWAR UEBER EINE ECKE, SEIT DEM 13. SEPTEMBER. <<<
-     *
-     * Hier lief EIN schraeger Stab vom Sammelknoten auf den Winkel - in x
-     * zurueck und zugleich in y nach aussen. Jetzt zwei Glieder mit einem
-     * rechten Winkel dazwischen, wie beim Abfangjoch:
-     *
-     *   ANS --[KONSARM in y]--> ECK --[STARR in x]--> Winkel
-     */
-    const armL = stabVon(`KONSARM_${e}_${g}L`);
-    const armR = stabVon(`KONSARM_${e}_${g}R`);
-    wahr(`Ende ${e}, ${g}: von dort ein Arm zu jeder Gurtachse`,
-         armL && armR && armL.art === 'starr' && armR.art === 'starr'
-         && armL.von === `ANS_${e}_${g}` && armR.von === `ANS_${e}_${g}`);
-    wahr(`Ende ${e}, ${g}: und von der Ecke starr auf beide Winkel`,
-         k && r && k.art === 'starr' && r.art === 'starr'
-         && k.von === armL.bis && r.von === armR.bis);
-    /*
-     * >>> JEDE GURTEBENE HAT IHRE EIGENE BEDINGUNG. <<<
-     *
-     * Weisung vom 5. September, nach zwei Ausschnitten aus AxisVM: der
-     * OBERGURT laesst die Jochachse los (K_X = 0), der UNTERGURT haelt alle
-     * drei Kraefte. Hier stand fuer beide Ebenen dasselbe - und damit war
-     * die Endverdrehung um y gesperrt, die Ober- und Untergurt gegenlaeufig
-     * in x verschiebt.
-     *
-     * Die drei Momente sind bei beiden frei; das Kraeftepaar der beiden
-     * Ebenen traegt die Einspannung, nicht eine Feder im Link.
-     */
+         && kons.von === `MAST_${e}_A_${g}` && kons.bis === `KONS_${e}_${g}`,
+         kons && `${kons.von} -> ${kons.bis}`);
+    const glied = (art, seite) => stabVon(`${art}_${e}_${g}${seite}`);
+    ['L', 'R'].forEach((seite) => {
+      const arm = glied('KONSARM', seite);
+      const stiel = glied('LINKSTIEL', seite);
+      wahr(`Ende ${e}, ${g}${seite}: von der Konsole ein Arm zur Gurtachse`,
+           arm && arm.art === 'starr' && arm.von === `KONS_${e}_${g}`
+           && arm.bis === `ARM_${e}_${g}${seite}`);
+      wahr(`Ende ${e}, ${g}${seite}: und von dort ein Stiel zum Gurt hin`,
+           stiel && stiel.art === 'starr'
+           && stiel.von === `ARM_${e}_${g}${seite}`
+           && stiel.bis === `ANS_${e}_${g}${seite}`);
+      const lk = glied('LINK', seite);
+      wahr(`Ende ${e}, ${g}${seite}: die letzten 50 mm sind das Link`,
+           lk && lk.art === 'link' && lk.von === `ANS_${e}_${g}${seite}`);
+    });
+    const l = glied('LINK', 'L');
     const sollX = g === 'OG' ? 'Free' : 'Rigid';
     wahr(`Ende ${e}, ${g}: laengs ${sollX === 'Free' ? 'frei' : 'starr'}`,
          l.kraftuebertragung.x === sollX, JSON.stringify(l.kraftuebertragung));
@@ -7953,6 +8031,14 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
          ['y', 'z'].every((f) => l.kraftuebertragung[f] === 'Rigid'));
     wahr(`Ende ${e}, ${g}: alle drei Momente frei`,
          ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'));
+    /*
+     * UND BEIDE GURTE DER EBENE TRAGEN DIESELBE BEDINGUNG. Sie kommt aus
+     * derselben Maske; zwei Links, die auseinanderliefen, waeren ein Ende,
+     * das sich links anders lagert als rechts.
+     */
+    wahr(`Ende ${e}, ${g}: beide Gurte gleich gelagert`,
+         JSON.stringify(glied('LINK', 'R').kraftuebertragung)
+         === JSON.stringify(l.kraftuebertragung));
   }));
   /*
    * DIE BEIDEN LAENGEN, EINZELN GEPRUEFT (Weisung, 11. September). Verschoben
@@ -8258,16 +8344,35 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
          !(jm.merkmale ?? []).includes('anbau-kette'));
   }
 
-  pruef('Die Konsole misst 150 mm',
-        knotenVon('KONS_A_OG').x - knotenVon('MAST_A_OG').x, 0.15, 1e-9, 'm');
-  pruef('Das Linkelement misst 50 mm',
-        knotenVon('ANS_A_OG').x - knotenVon('KONS_A_OG').x, 0.05, 1e-9, 'm');
-  pruef('Der Anschlusspunkt sitzt damit 200 mm einwaerts',
-        knotenVon('ANS_A_OG').x - knotenVon('MAST_A_OG').x, 0.20, 1e-9, 'm');
+  /*
+   * DIE MASSE DER KETTE (Weisung vom 11. September, angeglichen am
+   * 15. September). Das Modell steht auf HEB 240, die Konsole misst also
+   * die halbe Mastbreite: 120 mm. Das Link misst seine 50 mm in z.
+   */
+  pruef('Die Konsole misst die halbe Mastbreite',
+        knotenVon('KONS_A_OG').x - knotenVon('MAST_A_OG').x, 0.12, 1e-9, 'm');
   pruef('Am anderen Ende ebenso, spiegelbildlich',
-        knotenVon('MAST_B_OG').x - knotenVon('ANS_B_OG').x, 0.20, 1e-9, 'm');
-  wahr('Und er liegt auf der Jochachse',
-       Math.abs(knotenVon('ANS_A_OG').y) < 1e-9);
+        knotenVon('MAST_B_OG').x - knotenVon('KONS_B_OG').x, 0.12, 1e-9, 'm');
+  wahr('Der Konsolknoten liegt auf der Jochachse',
+       Math.abs(knotenVon('KONS_A_OG').y) < 1e-9);
+  {
+    const laenge = (n) => {
+      const s = stabVon(n);
+      if (!s) return NaN;
+      const p1 = knotenVon(s.von), p2 = knotenVon(s.bis);
+      return Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+    };
+    pruef('Das Linkelement misst 50 mm', laenge('LINK_A_OGL'), 0.05, 1e-9, 'm');
+    pruef('… auch am Untergurt', laenge('LINK_A_UGR'), 0.05, 1e-9, 'm');
+    /*
+     * UND ES LIEGT LOTRECHT UEBER DEM GURTKNOTEN - der Anschlusspunkt
+     * verschiebt sich in der Jochachse nicht mehr gegen den Gurt.
+     */
+    const lk = stabVon('LINK_A_OGL');
+    wahr('Das Link steht lotrecht über dem Gurt',
+         Math.abs(knotenVon(lk.von).x - knotenVon(lk.bis).x) < 1e-9
+         && Math.abs(knotenVon(lk.von).y - knotenVon(lk.bis).y) < 1e-9);
+  }
   pruef('Die Mastachse steht in der Jochendebene',
         knotenVon('MAST_A_OG').x, 0, 1e-9, 'm');
   pruef('Und am anderen Ende auf der Stuetzweite',
@@ -8592,12 +8697,23 @@ titel('36  Der Weg von der Ausleitung in AxisVM');
     const jM = AXN.stabmodellJson(mM, { knotenmodell: 'anschnitt', auflagerModell: 'mast' });
     const qM = jM.lasten.strecke.filter((q) => q.stab.startsWith('MAST_'));
     /*
-     * SECHS STUECKE STATT VIER. Seit dem 5. September ist die Mastlaenge an
-     * die Anschlusshoehe gekoppelt - H + 0.50 m -, und damit hat JEDER Mast
-     * einen Kopfknoten ueber dem Obergurt. Er teilt den Schaft ein weiteres
-     * Mal; die Zahl der Querschnitte je Richtung bleibt.
+     * ZEHN STUECKE, JE ZWEI RICHTUNGEN.
+     *
+     * Der Schaft wird geteilt, wo etwas an ihm haengt. Je Mast sind das
+     * fuenf Stuecke: Fuss - Konsolansatz Untergurt - Untergurt - Obergurt -
+     * Konsolansatz Obergurt - Kopf.
+     *
+     * Die beiden KONSOLANSAETZE kamen am 15. September dazu (Weisung: "das
+     * auflger fuer das tragjoch angleichen an abfangjoch"). Die Konsole
+     * setzt seither versetzt an, damit sie nicht in der Ebene des
+     * horizontalen Blechs laeuft - und der Mast wird dort GETEILT, statt
+     * einen zweiten Stab neben sich zu bekommen: sie ist angeschweisst.
+     *
+     * Vorher waren es sechs Stuecke (zwei Maste zu dreien). Die Windlast
+     * aendert sich dadurch nicht - sie steht auf jedem Stueck mit demselben
+     * Wert -, wohl aber ihre Zahl.
      */
-    pruef('Sechs Maststaebe, je zwei Richtungen', qM.length, 12, 1e-12, 'Stk');
+    pruef('Zehn Maststaebe, je zwei Richtungen', qM.length, 20, 1e-12, 'Stk');
     wahr('Jochachse im Lastfall WindX',
          qM.filter((q) => q.lastfall === 'WindX')
            .every((q) => q.richtung === 'X' && Math.abs(q.wert - 0.38) < 1e-9));
@@ -8681,12 +8797,14 @@ titel('37  Anbauteile am Masten');
   const knV = new Map(jM.knoten.map((k) => [k.name, k]));
   /*
    * Der Mast wird dort geteilt, wo etwas an ihm haengt: Fuss, Anbauhoehe,
-   * Untergurt, Obergurt - und seit dem 5. September zusaetzlich am KOPF, der
-   * durch die Kopplung an die Anschlusshoehe (H + 0.50 m) immer da ist.
-   * Also vier Stuecke.
+   * Untergurt, Obergurt - seit dem 5. September zusaetzlich am KOPF, der
+   * durch die Kopplung an die Anschlusshoehe (H + 0.50 m) immer da ist, und
+   * seit dem 15. September an den beiden KONSOLANSAETZEN (siehe dort: die
+   * Konsole setzt versetzt an und ist angeschweisst, nicht angehaengt).
+   * Also sechs Stuecke.
    */
   const stA = jM.staebe.filter((x) => /^MAST_A_S/.test(x.name));
-  pruef('Der Mast A ist an der Anbauhoehe geteilt', stA.length, 4, 1e-12, 'Stk');
+  pruef('Der Mast A ist an der Anbauhoehe geteilt', stA.length, 6, 1e-12, 'Stk');
   pruef('Und der Knoten liegt auf der eingegebenen Hoehe',
         knV.get('MAST_A_H1').z - knV.get('MAST_A_F').z, 5.0, 1e-9, 'm');
   wahr('Die Kette haengt am Mastknoten',
@@ -12227,9 +12345,15 @@ titel('51  Was ein Leiter an dieser Stelle abgibt');
          roh.includes("${drahtwerk ? wirkungHtml(i, k, m) : ''}"));
     wahr('… und unmittelbar unter dem Fahrdrahtfeld',
          roh.includes("${partnerFeld(m, k, i)}${drahtwerk ? wirkungHtml"));
+    /*
+     * DIE ABLENKUNG IST SEIT DEM 15. SEPTEMBER EIN KLAPPABSCHNITT (Weisung:
+     * "bauteil karte ablenkung in zweite ebene"). Der Marker heisst deshalb
+     * nicht mehr `sec-klein`, sondern `at-abl-` - die AUSSAGE der Kontrolle
+     * bleibt dieselbe: der Wirkungsblock steht davor, nicht dahinter.
+     */
     wahr('… nicht mehr hinter der Ablenkung',
          roh.indexOf('wirkungHtml(i, k, m)')
-           < roh.indexOf('drahtwerk ? `<div class="sec-klein">Ablenkung'));
+           < roh.indexOf('klapp(`at-abl-'));
     /*
      * DER TITEL NENNT DEN FAHRDRAHT (Weisung: «der Titel wirkt hier
      * kettenwerk ist etwas missverstaendlich»).
@@ -12625,10 +12749,15 @@ titel('54  Projektsteuerung: Auswahl, Vorschau, Ersatzspeicher');
 
 // ===========================================================================
 titel('55  Der Mast darf nach innen ruecken');
-// Weisung: das Auflager kann INNERHALB des Endfelds liegen. Rueckt der Mast
-// nach innen, sitzen die Anschlusspunkte auf den Gurten statt an der Stirn,
-// und das Joch kragt darueber hinaus. Grenze ist BERUEHRUNG, gemessen am
-// FLANSCHRAND - anliegend zulaessig, ueberschneidend nicht.
+// Weisung vom 11. September: das Auflager kann INNERHALB der Gurtenden
+// liegen. Rueckt der Mast nach innen, sitzen die Anschlusspunkte auf den
+// Gurten statt an der Stirn, und das Joch kragt darueber hinaus. Grenze ist
+// BERUEHRUNG, gemessen am FLANSCHRAND - anliegend zulaessig, ueberschneidend
+// nicht.
+//
+// Weisung vom 15. September: "die auskragung kann frei gewaehlt werden nicht
+// nur innerhalb des endfeldes." Damit faellt die letzte Schranke: geprueft
+// wird der Fussabdruck gegen ALLE Bleche, nicht nur gegen das erste.
 {
   const AU = await import(J('core.auflager.js'));
   const AXM = await import(J('export.axisvm.js'));
@@ -12668,8 +12797,57 @@ titel('55  Der Mast darf nach innen ruecken');
   wahr('P9 meldet den freien Weg', /noch 170 mm/.test(p9(m4).status), p9(m4).status);
   wahr('P9 ist erfuellt, solange nichts ueberschneidet', p9(m4).ok === true);
   wahr('P9 faellt beim Ueberschnitt', p9(mach(0.7)).ok === false);
-  wahr('… und sagt, wie weit er im Blech steht',
+  wahr('\u2026 und sagt, wie weit er im Blech steht',
        /130 mm im Bindeblech/.test(p9(mach(0.7)).status), p9(mach(0.7)).status);
+
+  /* =======================================================================
+   * >>> UND ZWAR IN JEDEM FELD, NICHT NUR IM ENDFELD. <<<
+   * =======================================================================
+   *
+   * Weisung vom 15. September: "die auskragung kann frei gewaehlt werden
+   * nicht nur innerhalb des endfeldes."
+   *
+   * Bis dahin suchte `mastFreiraum` das ERSTE Blech vom Jochende her und
+   * machte dessen Kante zur Grenze. Ein Mast bei 1.20 m stand damit
+   * rechnerisch "im Blech", obwohl er zwischen den Blechen bei 0.75 und 1.50
+   * frei in der Luecke steht - 120 mm Luft auf jeder Seite.
+   *
+   * DIE STATIONEN des J90 / 15.50 m, in den ersten Metern:
+   *
+   *   0.000  0.750  1.500  2.250  3.000   (je 100 mm breit)
+   *
+   * Der HEB 260 misst 260 mm, also 130 mm je Seite.
+   */
+  wahr('Im zweiten Feld steht er frei', p9(mach(1.2)).ok === true,
+       p9(mach(1.2)).status);
+  pruef('Die Grenze ist dort die naechste Blechkante',
+        AU.mastFreiraum(mach(1.2), 'A').grenze, 1.45 - 0.13, 1e-9, 'm');
+  pruef('Und es bleiben 120 mm', AU.mastFreiraum(mach(1.2), 'A').frei,
+        0.12, 1e-9, 'm');
+  wahr('Auch im vierten Feld', p9(mach(2.0)).ok === true, p9(mach(2.0)).status);
+  /*
+   * >>> DIE GRENZE BINDET JETZT AUF BEIDEN SEITEN. <<<
+   *
+   * Steht der Mast dicht HINTER einem Blech, ist der kuerzere Ausweg der
+   * nach innen - und die Grenze ist eine untere Schranke. Vorher gab es nur
+   * eine Richtung, weil nur das erste Blech zaehlte.
+   */
+  {
+    const fr25 = AU.mastFreiraum(mach(2.5), 'A');
+    wahr('Hinter dem Blech bindet sie von aussen', fr25.op === '>=', fr25.op);
+    pruef('\u2026 an dessen hinterer Kante', fr25.grenze, 2.30 + 0.13, 1e-9, 'm');
+    wahr('\u2026 und P9 prueft in dieser Richtung',
+         p9(mach(2.5)).richtung === '>=' && p9(mach(2.5)).ok === true,
+         `${p9(mach(2.5)).richtung} ${p9(mach(2.5)).status}`);
+  }
+  /*
+   * MITTEN IM INNEREN BLECH fallt er weiterhin durch - das ist der Sinn der
+   * Pruefung. Bei 2.20 m ueberschneidet der Flansch das Blech bei 2.25 um
+   * 130 mm; der kuerzere Ausweg zeigt nach aussen.
+   */
+  wahr('Im inneren Blech faellt er', p9(mach(2.2)).ok === false);
+  wahr('\u2026 und die Meldung nennt das Mass',
+       /130 mm im Bindeblech/.test(p9(mach(2.2)).status), p9(mach(2.2)).status);
 
   // --- Ausleitung --------------------------------------------------------
   // DAS EIGENTLICHE ZIEL: Ersatzbalken und FEM-Modell muessen dasselbe

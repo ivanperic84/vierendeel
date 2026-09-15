@@ -51,7 +51,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
-import { mastAchse, linkBedingung } from './core.auflager.js';
+import { mastAchse, linkBedingung, konsolLaenge } from './core.auflager.js';
 import { ankerQuerschnitt, ankerSpreizung } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 
@@ -285,6 +285,19 @@ const AUFL_LINK_LAENGE = 0.05;
 
 /** Vertikales Linkelement Gurt -> Anbauteil [m]. */
 const LINK_LAENGE = 0.10;
+
+/*
+ * LUFT ZWISCHEN STARRELEMENT UND GURT [m].
+ *
+ * Weisung vom 12. September, beim Abfangjoch: "um nicht mit den elementen zu
+ * kollidieren, die starrelemente versetzt in der z achse ansetzen." Weisung
+ * vom 15. September: "das auflager fuer das tragjoch angleichen an
+ * abfangjoch, wie beschrieben."
+ *
+ * Gemessen vom Gurt weg, dazu die halbe Hoehe des stehenden Winkelschenkels
+ * - dasselbe Mass wie dort ("eine halbe Profilhoehe plus 50 mm Luft").
+ */
+const AUFL_Z_LUFT = 0.05;
 
 /*
  * DIE STÄNDIGE LAST WIRD AUFGETEILT (Weisung).
@@ -1145,6 +1158,13 @@ export function stabmodell(m, opt = {}) {
   // braucht dort Knoten, sonst hängen die Stummel im Leeren.
   const imFeld = (x) => r6(Math.min(Math.max(x, 0), m.L));
 
+  /*
+   * DAS AUFLAGERMODELL STEHT SCHON HIER. Es stand bis zum 15. September
+   * weiter unten, bei den Auflagern selbst; seit die Konsolspitze ein
+   * fester Schnitt ist, entscheidet es schon ueber die Stationsliste.
+   */
+  const am = opt.auflagerModell ?? auflagerVorgabe(m);
+
   // FEST: was das Tragwerk bestimmt - Enden, Stationen, Blechkanten.
   const fest = new Set([0, r6(m.L)]);
   /*
@@ -1160,9 +1180,31 @@ export function stabmodell(m, opt = {}) {
    * trotzdem starr auf x = 0 und x = L - Ersatzbalken und FEM-Modell
    * beschrieben also zwei verschiedene Tragwerke.
    */
+  /*
+   * >>> UND DIE KONSOLSPITZE AUCH. <<<
+   *
+   * Weisung vom 15. September: "das auflager fuer das tragjoch angleichen an
+   * abfangjoch." Dort haelt das Linkelement den Gurt an der SPITZE der
+   * Konsole, nicht an der Mastachse; die Kette laeuft nicht dorthin zurueck
+   * (Weisung vom 12. September: "nicht zurueckfuehren auf die mastachse
+   * lage"). Ohne Knoten an dieser Stelle haengte das Link zwischen zwei
+   * Gurtstaeben.
+   */
+  const mastVon = (ende) => (ende === 'A' ? (m.federn?.mastA ?? m.federn?.mast)
+                                          : (m.federn?.mastB ?? m.federn?.mast));
+  /** Station, an der die Konsole den Gurt haelt [m]. */
+  const konsolX = (ende) => {
+    const md = mastVon(ende);
+    if (!md?.profil) return null;
+    const xm = r6(mastAchse(m, ende));
+    return r6(xm + (ende === 'A' ? +1 : -1) * konsolLaenge(m, md.profil));
+  };
   ['A', 'B'].forEach((ende) => {
     const xm = r6(mastAchse(m, ende));
     if (xm > 1e-9 && xm < m.L - 1e-9) fest.add(xm);
+    if (am !== 'mast') return;
+    const xk = konsolX(ende);
+    if (xk !== null && xk > 1e-9 && xk < m.L - 1e-9) fest.add(xk);
   });
   st.forEach((station) => {
     fest.add(r6(station.x));
@@ -1467,7 +1509,6 @@ export function stabmodell(m, opt = {}) {
   //          an die vier Gurte gehängt, mit der Drehfeder des Mastkopfes.
   //          Das ist der Ersatzbalken des Rechenkerns - die Vergleichsbasis
   //          der Kalibrierung, nicht das Bauwerk.
-  const am = opt.auflagerModell ?? auflagerVorgabe(m);
   const auflager = [];
   // Baugruppen, deren Masthöhe ausserhalb des Mastes liegt - sie werden
   // NICHT gebaut, und das Modell soll es sagen statt sie stillschweigend
@@ -1681,6 +1722,47 @@ export function stabmodell(m, opt = {}) {
         }
       });
       anbauMastAus.push(...ausserhalb);
+      /* =================================================================
+       * >>> DER KONSOLANSATZ IST EIN KNOTEN DES MASTES. <<<
+       * =================================================================
+       *
+       * Weisung vom 15. September: das Auflager des Tragjochs wird das des
+       * Abfangjochs. Dort setzt die Konsole nicht am Gurtknoten an, sondern
+       * um ein Stueck versetzt - "um nicht mit den elementen zu kollidieren"
+       * -, und der Mast wird dort GETEILT statt einen zweiten Stab daneben
+       * zu bekommen: die Konsole ist angeschweisst, nicht angehaengt.
+       *
+       * >>> WOHIN DER VERSATZ ZEIGT. <<<
+       *
+       * Beim Abfangjoch nach UNTEN, unter die Gurtebene. Hier liegen ZWEI
+       * Gurtebenen uebereinander, und ausserhalb ist kein Platz: ueber dem
+       * Obergurt endet der Mast, wo kein Ueberstand angegeben ist. Der freie
+       * Raum liegt ZWISCHEN den Ebenen - der Obergurt weicht nach unten aus,
+       * der Untergurt nach oben. Damit laeuft die Konsole unter dem
+       * horizontalen Blech des Obergurts durch statt hindurch, und der
+       * Ansatz sitzt immer auf dem Mast.
+       *
+       * Das Mass ist das des Abfangjochs: halbe Profilhoehe plus 50 mm Luft.
+       * Beim Winkel ist die Profilhoehe der stehende Schenkel `aV`.
+       */
+      const lKons = konsolLaenge(m, md.profil);
+      const xK = r6(x + (ende === 'A' ? +1 : -1) * lKons);
+      // Die Gurthoehen AN DER KONSOLSPITZE - am verjuengten Ende sind sie
+      // andere als an der Mastachse.
+      const hK = m.verlauf ? m.verlauf.hAn(xK) : m.h;
+      const zGurtK = { OG: zOben, UG: r6(zOben - hK) };
+      const zAnsatz = {};
+      ['OG', 'UG'].forEach((gurt) => {
+        const pG = gurt === 'OG' ? m.profOG : m.profUG;
+        const versatz = Math.max((Number(pG?.aV) || 0) / 2000, 0.025)
+                      + AUFL_Z_LUFT;
+        const zv = r6(zGurtK[gurt] - (gurt === 'OG' ? +1 : -1) * versatz);
+        zAnsatz[gurt] = zv;
+        if (!mastKn.has(zv)) {
+          mastKn.set(zv, s.kn(`MAST_${an(ende)}_A_${gurt}`, x, 0, zv));
+        }
+      });
+
       const zStufen = [...mastKn.keys()].sort((p1, p2) => p1 - p2);
       for (let i = 0; i < zStufen.length - 1; i++) {
         s.stab(`MAST_${mn(ende)}_S${i + 1}`, qsMast,
@@ -1710,83 +1792,96 @@ export function stabmodell(m, opt = {}) {
        * der Maske steht, und fällt sonst auf die Vorgabe der Tragwerksart
        * zurück - beim Tragjoch also Untergurt fest, Obergurt längs frei.
        */
-      /*
-       * >>> DIE KETTE LAEUFT VOM MASTEN ZUM GURT. <<<
+      /* =====================================================================
+       * >>> DIE KETTE LAEUFT VOM MASTEN ZUM GURT - WIE BEIM ABFANGJOCH. <<<
+       * =====================================================================
        *
-       * Weisung vom 11. September - siehe KONSOL_LAENGE oben. Drei Glieder
-       * je Gurtebene, und jedes hat seine eigene Aufgabe:
+       * Weisung vom 15. September: "das auflager fuer das tragjoch angleichen
+       * an abfangjoch, wie beschrieben."
        *
-       *   KONSOLE  starr, 150 mm vom Mastknoten nach innen. Sie ist das
-       *            Bauteil, auf dem das Joch aufliegt, und sie traegt die
-       *            Exzentrizitaet zwischen Mastachse und Anschluss.
-       *   LINK      50 mm weiter, von der Konsole zum Gurtsammelknoten.
-       *            HIER sitzt die Freigabe - dort wird geschraubt.
-       *   STARR    vom Sammelknoten auf die beiden Winkel, wie bisher.
+       * Beim Abfangjoch steht die Kette seit dem 12. September so da; das
+       * Tragjoch hatte am 13. September nur die rechten Winkel uebernommen
+       * und war in zwei Punkten anders geblieben. Beide sind jetzt angeglichen:
        *
-       * DIE RICHTUNG: nach INNEN, also ins Joch hinein. Am Ende B kehrt sie
-       * sich um; die Konsole ragt nie ueber das Jochende hinaus.
-       */
-      const vzE = ende === 'A' ? +1 : -1;
-      [['OG', kOG, zOben], ['UG', kUG, zUnten]].forEach(([gurt, kMast, zG]) => {
-        const xKons = r6(x + vzE * KONSOL_LAENGE);
-        const xAns = r6(x + vzE * (KONSOL_LAENGE + AUFL_LINK_LAENGE));
-        const kKons = s.kn(`KONS_${an(ende)}_${gurt}`, xKons, 0, zG);
-        const ans = s.kn(`ANS_${an(ende)}_${gurt}`, xAns, 0, zG);
-        // 1 - die Konsole, starr am Masten.
-        s.stab(`KONSOLE_${an(ende)}_${gurt}`, qsStarr, kMast, kKons,
-               { starrRolle: 'verbindung' });
-        /*
-         * 2 - das Linkelement. Was es uebertraegt, steht in der MASKE
-         * (Weisung vom 11. September: «die einstellungen der lagerung
-         * erfolgt ueber die sidebar auflager») - `linkBedingung` liest sie
-         * und faellt sonst auf die Vorgabe der Tragwerksart zurueck.
-         */
-        s.stab(`LINK_${an(ende)}_${gurt}`, qsStarr, kKons, ans,
-               { starrRolle: 'uebergang',
-                 kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
-        /* =================================================================
-         * >>> 3 - UND ZWAR RECHTWINKLIG, IN ZWEI GLIEDERN. <<<
-         * =================================================================
-         *
-         * Weisung vom 13. September: «offene fragen umsetzen» - darunter
-         * die, ob die rechten Winkel und der z-Versatz auch beim Tragjoch
-         * gelten sollen.
-         *
-         * Hier stand EIN Stab vom Sammelknoten (xAns, 0, zG) zum Winkel
-         * (x, ±b/2, zG). Der lief SCHRAEG - in x zurueck und zugleich in y
-         * nach aussen -, und zwar quer durch das Jochende hindurch. Beim
-         * Abfangjoch ist die Kette seit dem 12. September in rechtwinklige
-         * Glieder zerlegt (KONSOLE in x, KONSARM in y, LINKSTIEL in z); das
-         * Tragjoch blieb als einziges bei der Diagonale.
-         *
-         * ZWEI GLIEDER, JEDES IN EINER ACHSE:
-         *
-         *   KONSARM  in y, vom Sammelknoten zur Gurtachse ±b/2
-         *   STARR    in x, von dort auf die Station des Winkels
-         *
-         * >>> WARUM DAS NICHT NUR SCHOENER IST. <<<
-         *
-         * Ein Starrelement uebertraegt alles; die Geometrie aendert an den
-         * Auflagerkraeften nichts. Sie aendert, WAS MAN SIEHT: im Modell
-         * liest man am Knick ab, welches Glied welche Exzentrizitaet
-         * traegt - die Auskragung aus der Mastachse (x) und den Abstand zur
-         * Gurtachse (y). Bei der Diagonale waren beide in einem Stab
-         * vermengt, und wer die Kette nachmisst, misst zwei Masse auf
-         * einmal.
-         *
-         * DER Z-VERSATZ dagegen bleibt aus: beim Abfangjoch liegt der
-         * Anschluss unter der Mastachse, weil dort ein Gabelbereich sitzt.
-         * Hier sitzen kOG und kUG bereits auf den Gurthoehen - ein
-         * zusaetzlicher Versatz in z waere eine Erfindung.
-         * ================================================================= */
+       *   DER VERSATZ IN z         "um nicht mit den elementen zu
+       *                            kollidieren" - siehe `zAnsatz` oben. Ich
+       *                            hatte ihn am 13. September mit der
+       *                            Begruendung weggelassen, die Mastknoten
+       *                            saessen ja schon auf den Gurthoehen. Das
+       *                            stimmt - und genau deshalb lief die
+       *                            Konsole in der Ebene des horizontalen
+       *                            Blechs.
+       *   DAS LINK IN z            Es misst seine 50 mm jetzt lotrecht zum
+       *                            Gurt hinauf (bzw. hinunter), nicht mehr
+       *                            in der Jochachse.
+       *
+       * DIE KETTE, JE GURT UND SEITE:
+       *
+       *   MAST_A_A_OG (x,   0,  z_V)   Ansatz am Masten, versetzt
+       *     -- KONSOLE   in x, a_K -->  KONS_A_OG (x_K, 0, z_V)
+       *     -- KONSARM   in y       -->  ARM_A_OGL (x_K, -b/2, z_V)
+       *     -- LINKSTIEL in z       -->  ANS_A_OGL (x_K, -b/2, z_G - 50mm)
+       *     -- LINK      in z, 50mm -->  Gurt      (x_K, -b/2, z_G)
+       *
+       * >>> DIE KONSOLENLAENGE KOMMT JETZT AUS DEM MASTPROFIL. <<<
+       *
+       * Weisung vom 12. September: "mach noch die konsolenlaenge abhaengig
+       * vom Masttyp (halbe mastbreite) und ein feld wo man diesen wert auch
+       * ueberschreiben kann." `konsolLaenge` tut das seit damals - aber nur
+       * das Abfangjoch rief sie; hier standen weiter pauschale 150 mm, auch
+       * beim HEB 200 (100 mm) und beim HEB 300 (150 mm). Der Kommentar in
+       * core.auflager.js sagte "EINE STELLE FUER BEIDE", und eine der beiden
+       * las nicht dort.
+       *
+       * >>> UND DER GURT WIRD AN DER KONSOLSPITZE GEHALTEN. <<<
+       *
+       * Das ist die Aenderung, die im Modell etwas BEWEGT. Bis hierher lief
+       * das letzte Glied in x auf die Mastachse ZURUECK - genau das, was die
+       * Weisung vom 12. September fuer das Abfangjoch untersagt hatte. Damit
+       * war die Stuetzweite des ausgeleiteten Modells die des Rechenkerns.
+       *
+       * Jetzt haelt das Link dort, wo die Konsole endet: an der Flanschkante
+       * des Mastes. Die Stuetzweite des Modells wird dadurch um 2*a_K
+       * kuerzer als die des Ersatzbalkens - beim HEB 260 also 0.26 m auf
+       * 20.00 m, ein knappes Prozent, und das Feldmoment faellt um rund
+       * 2.6 % kleiner aus. Der Ersatzbalken liegt damit auf der SICHEREN
+       * Seite, und der Bericht nennt den Unterschied.
+       *
+       * Je Gurt EIN Link - "der obere ausschnitt ist die halterung der zwei
+       * obergurte" (Weisung vom 5. September, Plural). Vorher hing ein
+       * einziges Link je Ebene, und zwei Starrstaebe verteilten von dort auf
+       * die beiden Winkel.
+       * =================================================================== */
+      ['OG', 'UG'].forEach((gurt) => {
+        const vzG = gurt === 'OG' ? +1 : -1;
+        const kKons = s.kn(`KONS_${an(ende)}_${gurt}`, xK, 0, zAnsatz[gurt]);
+        s.stab(`KONSOLE_${an(ende)}_${gurt}`, qsStarr,
+               mastKn.get(zAnsatz[gurt]), kKons, { starrRolle: 'verbindung' });
         ['L', 'R'].forEach((seite) => {
-          const gk = gurtKnoten(gurt, seite, x);
-          const eck = s.kn(`ECK_${an(ende)}_${gurt}${seite}`,
-                           xAns, yGurt(gurt, seite, x), zG);
-          s.stab(`KONSARM_${an(ende)}_${gurt}${seite}`, qsStarr,
-                 ans, eck, { starrRolle: 'verbindung' });
-          s.stab(`STARR_${an(ende)}_${gurt}${seite}`, qsStarr,
-                 eck, gk, { starrRolle: 'verbindung' });
+          const yG = yGurt(gurt, seite, xK);
+          const kArm = s.kn(`ARM_${an(ende)}_${gurt}${seite}`,
+                            xK, yG, zAnsatz[gurt]);
+          const kAns = s.kn(`ANS_${an(ende)}_${gurt}${seite}`, xK, yG,
+                            r6(zGurtK[gurt] - vzG * AUFL_LINK_LAENGE));
+          s.stab(`KONSARM_${an(ende)}_${gurt}${seite}`, qsStarr, kKons, kArm,
+                 { starrRolle: 'verbindung' });
+          s.stab(`LINKSTIEL_${an(ende)}_${gurt}${seite}`, qsStarr, kArm, kAns,
+                 { starrRolle: 'verbindung' });
+          /*
+           * HIER SITZT DIE FREIGABE - dort wird geschraubt. Was das Link
+           * uebertraegt, steht in der MASKE (Weisung vom 11. September:
+           * "die einstellungen der lagerung erfolgt ueber die sidebar
+           * auflager"); `linkBedingung` liest sie und faellt sonst auf die
+           * Vorgabe der Tragwerksart zurueck.
+           *
+           * Die Steifigkeiten gelten GLOBAL (`SystemGLR = sysGlobal` in der
+           * COM-Bruecke) - dass das Link jetzt in z statt in x misst, aendert
+           * an der Bedingung darum nichts.
+           */
+          s.stab(`LINK_${an(ende)}_${gurt}${seite}`, qsStarr, kAns,
+                 gurtKnoten(gurt, seite, xK),
+                 { starrRolle: 'uebergang',
+                   kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
         });
       });
 

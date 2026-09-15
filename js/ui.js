@@ -2777,14 +2777,37 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
          * ein zweites Mal Arbeit macht - er sieht richtig aus und ist es
          * nicht.
          * =================================================================== */''}
-      ${drahtwerk ? `<div class="sec-klein">Ablenkung</div>
-      <div class="at-gitter">
+      ${/* =====================================================================
+         * >>> DIE ABLENKUNG IST ZWEITE EBENE, DER ANGRIFFSPUNKT NICHT. <<<
+         * =====================================================================
+         *
+         * Weisung vom 15. September: «bauteil karte ablenkung in zweite
+         * ebene. angriffspunkt nicht, diese eingabe wird oft verwendet,
+         * angepasst.»
+         *
+         * Die Trennlinie liegt also nicht bei «wie wichtig ist die Zahl»,
+         * sondern bei «wie oft fasst man sie an». Der Winkel steht im
+         * Regelfall auf leer und rechnet sich aus R und L_FL selbst; wer ihn
+         * setzt, tut es einmal. Die Lage x/y/z dagegen ist an jedem Bauteil
+         * eine andere und wird bei jedem Durchgang nachgezogen.
+         *
+         * >>> DIE ZAHL STEHT AM DECKEL. <<<
+         *
+         * Zugeklappt zeigt die Zeile den WIRKSAMEN Winkel - den gesetzten
+         * oder den gerechneten. Ein Klappabschnitt, der verbirgt, womit
+         * gerechnet wird, waere ein Versteck; einer, der es anschreibt, ist
+         * eine Zusammenfassung.
+         * =================================================================== */''}
+      ${drahtwerk ? klapp(`at-abl-${i}-${k}`, 'Ablenkung',
+        `<div class="at-gitter">
         ${modFeld(i, k, 'winkel', 'Winkel α', modWert(m, 'winkel'), '°', 0.01,
                   `aus R/L_FL: ${f3(alphaAuto)}°`)}
         <span class="at-feld lesbar"><span>Spannweite <i>m</i></span>
           <b>${f2(m.laenge ?? trasse.spannweite ?? 0)}</b>
           <small class="hinweis">global, Gruppe «Trasse»</small></span>
-      </div>` : streckenlast ? `<div class="at-gitter">
+      </div>`,
+        `α ${f3(m.winkel ?? alphaAuto)}°`, false)
+      : streckenlast ? `<div class="at-gitter">
         ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
       ${b?.freieFlaeche ? `<div class="sec-klein">Angriffsfläche</div>
