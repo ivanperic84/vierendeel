@@ -462,6 +462,53 @@ ohne Einzelwerte im Blatt. Ein Seil ist kein Keil.
 und die Bindelaschen. Ohne sie gibt es kein S_v, kein I_eff und keinen
 Nachweis des Einzelstabs zwischen zwei Laschen nach EN 1993-1-1, 6.4.
 
+**In AxisVM aufgebaut und gemessen** (18 r1k, Weisung: «im axis aufbauen und
+testen»). Prüfmodell: J90 über 20.00 m auf zwei HEB 260, an Mast A eine U12
+quer zum Gleis, an Mast B eine U14 längs — beide Spreizrichtungen in einem
+Modell. 850 Knoten, 972 Stäbe, 11 Querschnitte, Rückgabe 0.
+
+**Das U-Profil kommt an.** Die Brücke baut es über
+
+```
+CrossSections.AddU(Name, h, b, e, tw, R, cspOther)
+```
+
+— also mit **cspOther**, nicht mit `cspRolled`. Das war der zweite Kandidat
+der Liste; der erste wird abgewiesen, weil ein U-Profil den Prozess
+«gewalzt» nicht annimmt (`cseNotAllowedProcessForCrossSectionType`, gemessen
+am 3. September). Geraten wurde nichts — die Brücke probiert der Reihe nach
+und schreibt auf, was getragen hat.
+
+**Die Flächenprobe** misst am gebauten Querschnitt zurück:
+
+| | gebaut | Tabelle | |
+|---|---|---|---|
+| ANKER_U12_EINZEL | 0.001704 m² | 0.001700 | **+0.2 %** |
+| ANKER_U14_EINZEL | 0.002040 m² | 0.002040 | **+0.0 %** |
+
+Die zwei Promille beim U12 sind die Ausrundung, die das parametrische Profil
+führt und die Tabelle nicht. Der Querschnitt ist damit das **Einzelprofil**
+und kein Platzhalter mehr.
+
+**16 Verbindungselemente** stehen im Modell: acht am Joch (die Gurtlinks) und
+acht an den Stützen — je Anker zwei oben und zwei unten, alle
+«fest fest fest / frei frei frei». Das Gelenk um die Bolzenachse ist also
+angekommen.
+
+**972 Stäbe** haben eine lokale Achse bekommen, in **7 Richtungen**; die
+beiden Drehlagen der Stützenprofile sind darunter.
+
+**Gerechnet wurde nicht** — Lastkombinationen und Berechnung bleiben die
+Entscheidung des Auftraggebers im Programm. Die 18 Kombinationen sind
+angelegt.
+
+> **Eine Lücke bleibt, und sie ist alt:** die Lagerbedingungen der
+> Verbindungselemente lassen sich nicht zurücklesen. `GetRec` meldet Erfolg
+> und gibt den Satz leer zurück (`LineId 0`) — ein Marshaller, der den
+> Verbund-Typ nicht zurückreicht, kein leeres Lager. Der Bericht nennt
+> deshalb den **Sollwert aus der Datei**, nicht das Gemessene. Nachsehen
+> lässt es sich in AxisVM am Element selbst.
+
 ### Das Knicken des Masten lässt sich abschalten (15. September)
 
 Weisung: «zuerst noch das knicken des masten deaktivierbar machen. der
