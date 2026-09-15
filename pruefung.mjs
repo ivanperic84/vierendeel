@@ -11112,6 +11112,165 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> EIN EINGEPRAEGTES MOMENT AM MASTEN LANDET AUF SEINER ACHSE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: "berichtigen und durchgaengigkeit zu axisvm
+     * schaffen."
+     *
+     * >>> WAS FALSCH WAR. <<<
+     *
+     * `core.mast.js` schrieb `Mq: k.Myy, Ml: k.Mzz` - und davon war nur das
+     * erste richtig. Der Anbauteilsatz fuehrt die Momente GLOBAL (M_xx um
+     * die Jochachse, M_yy um y, M_zz um die Lotrechte); am JOCH fallen die
+     * Ebenen damit zusammen, am stehenden MASTEN nicht:
+     *
+     *   M_xx  →  Laengsbiegung (Ml)      war: gar nicht aufsummiert
+     *   M_yy  →  Querbiegung   (Mq)      war: richtig
+     *   M_zz  →  Torsion       (Mt)      war: als Laengsbiegung gefuehrt
+     *
+     * Zwei Fehler in entgegengesetzte Richtung. Der zweite war der
+     * unangenehme: ein M_xx fiel ersatzlos aus dem Nachweis.
+     *
+     * >>> UND DIE VORZEICHEN. <<<
+     *
+     * Mq = +M_y, Ml = -M_x, Mt = -M_z - nachgerechnet an den Anteilen, die
+     * ohnehin drinstehen (F_z positiv nach unten). Ein blosses Vertauschen
+     * der beiden Felder haette den zweiten Fehler durch einen dritten
+     * ersetzt: das Moment zoege ab, statt sich aufzuaddieren.
+     */
+    {
+      const CM = await import(J('core.mast.js'));
+      const teilMitM = {
+        id: 'MM', name: 'Traverse', vorlage: 'direkt', ort: 'mastA',
+        hMast: 5.0, x: 0.8, y: 0.3, raster: 0, aktiv: true,
+        lasten: [block({ einwirkung: 'G', Mxx: 7, Myy: 11, Mzz: 5 })],
+      };
+      const wM2 = basis({
+        endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+        mastSteg: 'jochachse', anbauteile: [teilMitM] });
+      const mM2 = modell(wM2, getProfil(wM2.profOG), getProfil(wM2.profUG),
+                         getStahl(wM2.stahl), T.getTragjoch('J90'));
+      const lastM = (CM.mastLasten(mM2, 'A')?.lasten ?? [])
+        .find((l) => l.art === 'anbau');
+      wahr('Das Teil am Masten kommt mit seinen Momenten an', Boolean(lastM));
+      /*
+       * DIE BEIWERTE STEHEN SCHON DRIN - `proGruppe` traegt Bemessungswerte.
+       * Geprueft wird deshalb das VERHAELTNIS der drei zueinander und ihr
+       * Vorzeichen, nicht der nackte Zahlenwert: 7 / 11 / 5 mit demselben
+       * Beiwert bleiben 7 : 11 : 5.
+       */
+      const bw = lastM.Mq / 11;
+      wahr('Ein Beiwert ist im Spiel, und er ist positiv', bw > 0,
+           `${bw.toFixed(3)}`);
+      pruef('M_yy wird zur Querbiegung', lastM.Mq / bw, 11, 1e-9, 'kNm');
+      pruef('M_xx wird zur Laengsbiegung - mit umgekehrtem Drehsinn',
+            lastM.Ml / bw, -7, 1e-9, 'kNm');
+      pruef('M_zz wird zur Torsion um die Mastachse',
+            (lastM.Mt ?? 0) / bw, -5, 1e-9, 'kNm');
+      /*
+       * >>> UND ES KOMMT IN DEN SCHNITTGROESSEN AN. <<<
+       *
+       * Die Zuordnung an der Last nuetzt nichts, wenn die Stationsschleife
+       * das Glied nicht aufnimmt - genau daran fehlte es bei der Torsion:
+       * `Mt` hatte ueberhaupt kein eingepraegtes Glied.
+       */
+      const st2 = CM.mastSchnitt(mM2, 'A')?.stationen ?? [];
+      const unten = st2.find((s) => Math.abs(s.z) < 1e-9);
+      wahr('Die Torsion steht in den Schnittgroessen',
+           Math.abs(unten?.Mt ?? 0) > 1e-9,
+           `${(unten?.Mt ?? 0).toFixed(3)} kNm`);
+      /*
+       * SIE LAEUFT UEBER DIE GANZE HOEHE DURCH - eine Torsion wird nach
+       * unten nicht kleiner, anders als ein Biegemoment aus einer
+       * Horizontalkraft.
+       */
+      const oben = st2.find((s) => Math.abs(s.z - 5.0) < 1e-6);
+      pruef('Sie ist am Fuss dieselbe wie am Anschluss',
+            unten?.Mt ?? 0, oben?.Mt ?? 0, 1e-9, 'kNm');
+
+      /* ===================================================================
+       * >>> DURCHGAENGIG ZU AXISVM: DIESELBE EINGABE, DIESELBE ACHSE. <<<
+       * ===================================================================
+       *
+       * Die Ausleitung gibt die Momente GLOBAL weiter - Mx/My/Mz am
+       * Anschlussknoten, unveraendert, gleichgueltig ob das Teil am Joch
+       * oder am Masten sitzt. Das war schon richtig; falsch war die
+       * App-Seite. Diese Kontrolle haelt beide zusammen: waeren sie je
+       * wieder verschieden, prueft man am Modell etwas anderes, als die
+       * App rechnet.
+       */
+      const AX2 = await import(J('export.axisvm.js'));
+      const erg2 = berechne(wM2, getProfil(wM2.profOG), getProfil(wM2.profUG),
+                            getStahl(wM2.stahl), T.getTragjoch('J90'));
+      const bau2 = AX2.stabmodell(erg2.modell, { knotenmodell: 'anschnitt' });
+      const satz = AX2.lasten(erg2.modell, bau2, { anbau: 'mast' });
+      const mom2 = (satz?.moment ?? []).filter((x) => /_G_/.test(x.name));
+      const holM = (r) => mom2.filter((x) => x.richtung === r)
+        .reduce((s, x) => s + x.wert, 0);
+      wahr('Die Ausleitung setzt Momente am Masten', mom2.length >= 3,
+           mom2.map((x) => `${x.richtung} ${x.wert}`).join(' '));
+      const bwA = holM('My') / 11;
+      pruef('AxisVM: M_yy geht als My hinaus', holM('My') / bwA, 11, 1e-6, 'kNm');
+      pruef('\u2026 M_xx als Mx', holM('Mx') / bwA, 7, 1e-6, 'kNm');
+      pruef('\u2026 und M_zz als Mz', holM('Mz') / bwA, 5, 1e-6, 'kNm');
+      /*
+       * DIE PROBE, DIE BEIDE SEITEN ZUSAMMENHAELT. Was die Ausleitung als
+       * Mx/My/Mz schreibt, muss die App als -Ml/Mq/-Mt fuehren - dieselbe
+       * Groesse, nur in Ebenen statt in Achsen ausgedrueckt.
+       */
+      pruef('App und Ausleitung fuehren dasselbe M um x',
+            -lastM.Ml / bw, holM('Mx') / bwA, 1e-6, 'kNm');
+      pruef('\u2026 dasselbe M um y', lastM.Mq / bw, holM('My') / bwA,
+            1e-6, 'kNm');
+      pruef('\u2026 und dasselbe M um z',
+            -(lastM.Mt ?? 0) / bw, holM('Mz') / bwA, 1e-6, 'kNm');
+      /*
+       * >>> DIE MASKE SAGT ES AM RICHTIGEN ORT. <<<
+       *
+       * Der Hinweis unter den Momentfeldern erklaerte die Achsen AM JOCH -
+       * auch unter einem Teil am Masten, wo er das Falsche mitsagte
+       * ("Biegung im Grundriss", "treten ins Joch ein"). Und er sagt jetzt,
+       * dass die Torsion am Masten zwar gefuehrt, aber nicht nachgewiesen
+       * wird: lautlos aus dem Nachweis fallen darf nichts.
+       */
+      const uiQ2 = readFileSync(
+        new URL('./js/ui.js', import.meta.url), 'utf8');
+      /*
+       * >>> UND DIE TABELLE SAGT ES, WO MAN DIE ZAHLEN ABLIEST. <<<
+       *
+       * Die Mastreihe fuehrt ihre Groessen in EBENEN (quer, laengs,
+       * Torsion). Wer eine Zahl von dort ins Statikprogramm traegt oder
+       * von dort zurueckliest, braucht die globale Achse daneben - mit
+       * ihrem Vorzeichen: M_q = +M_yy, M_l = -M_xx, M_t = -M_zz.
+       */
+      wahr('Die Mastreihe hat eine zweite Kopfzeile',
+           uiQ2.includes('<tr class="kopf-achse">'));
+      wahr('… mit den globalen Achsen, Vorzeichen inbegriffen',
+           uiQ2.includes('<th class="num">M_yy</th><th class="num">−M_xx</th>')
+           && uiQ2.includes('<th class="num">−M_zz</th>'));
+      wahr('… und den Kraeften dazu',
+           uiQ2.includes('<th class="num">F_z</th>')
+           && uiQ2.includes('<th class="num">F_x</th><th class="num">F_y</th>'));
+      /*
+       * WAS GEFUEHRT, ABER NICHT NACHGEWIESEN IST, STEHT DA. Eine Zahl in
+       * einer Tabelle sieht sonst aus wie eine gefuehrte Groesse.
+       */
+      wahr('Die Tabelle nennt die Torsion als nicht nachgewiesen',
+           uiQ2.includes('M_t wird geführt, aber nicht nachgewiesen'));
+      wahr('… aber nur, wenn es eine gibt',
+           /n\.stationen\.some\(\(st\) => Math\.abs\(st\.Mt \?\? 0\) > 0\.005\)/
+             .test(uiQ2));
+      wahr('Der Momenthinweis unterscheidet den Ort',
+           uiQ2.includes('function momentHinweis(a)')
+           && /if \(!amMast\(a\)\)/.test(uiQ2));
+      wahr('\u2026 und nennt am Masten die Torsion beim Namen',
+           uiQ2.includes('M_zz Torsion um die '));
+      wahr('\u2026 samt dem, was mit ihr nicht geschieht',
+           uiQ2.includes('nicht nachgewiesen'));
+    }
+
+    /* =====================================================================
      * >>> DIE DRUCKSTUETZE IM BILD IST DAS BAUTEIL, NICHT ZWEI QUADER. <<<
      * =====================================================================
      *
@@ -11335,8 +11494,13 @@ titel('42  Der lange Mast mit Zusatzleitern');
            kM.length === 4, kM.join(' '));
       wahr('M quer ist M_yy - das Moment um die Gleisachse',
            kM[0] === 'M_yy', kM[0]);
-      wahr('M laengs ist M_xx - um die Jochachse',
-           kM[1] === 'M_xx', kM[1]);
+      /*
+       * MIT VORZEICHEN: die Ebene "laengs" ist positiv, wenn die Last
+       * positiv ist - das Moment um x ist dann negativ. Ohne das Minus
+       * laese man die Anschrift als Gleichheit.
+       */
+      wahr('M laengs ist -M_xx - um die Jochachse, gegenlaeufig',
+           kM[1] === '−M_xx', kM[1]);
       wahr('Die Normalkraft des stehenden Masten ist global F_z',
            kM[2] === 'F_z', kM[2]);
       wahr('Und seine Querkraft F_x, in der Jochachse',

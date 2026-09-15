@@ -149,6 +149,25 @@ export function mastKlasse(p, fy, nEd = 0) {
  *   Fx  in Jochachse, Fy in Gleisrichtung, beide global
  *   Mq  Moment in der Ebene «quer» (aus Kräften in x)
  *   Ml  Moment in der Ebene «längs» (aus Kräften in y)
+ *   Mt  Torsion um die Mastachse
+ *
+ * >>> UND IHR VORZEICHEN GEGEN DIE GLOBALEN ACHSEN. <<<
+ *
+ * Gebraucht wird es, sobald ein EINGEPRÄGTES Moment dazukommt: das führt der
+ * Anbauteilsatz global (`M_xx` um die Jochachse, `M_yy` um y, `M_zz` um die
+ * Lotrechte), diese Reihe hier in Ebenen. Nachgerechnet an den Anteilen, die
+ * ohnehin drinstehen — F_z zählt positiv nach unten:
+ *
+ *      Mq = +M_y     F_x·arm und F_z·e_x drehen beide um +y
+ *      Ml = −M_x     F_y·arm und F_z·e_y drehen beide um −x
+ *      Mt = −M_z     F_x·e_y und −F_y·e_x drehen beide um −z
+ *
+ * Die gemischten Vorzeichen sind keine Nachlässigkeit: «quer» und «längs»
+ * sind als Ebenen definiert, positiv wenn die Last positiv ist — und die
+ * Rechte-Hand-Regel gibt für x und y gegenläufige Drehsinne. Für den
+ * Spannungsnachweis ist das gleichgültig (dort stehen Beträge), für die
+ * ÜBERLAGERUNG mit einem eingeprägten Moment nicht: mit falschem Vorzeichen
+ * zöge es ab, statt sich aufzuaddieren.
  *
  * @returns {{H:number, zKopf:number, lasten:object[], wQuer:number, wLaengs:number}}
  */
@@ -302,13 +321,44 @@ export function mastLasten(m, ende = 'A') {
     if ((t.ort === 'mastB' ? 'B' : 'A') !== seite) return;
     const k = Object.values(t.proGruppe ?? {}).reduce((s, q) => ({
       Fx: s.Fx + (q.Fx ?? 0), Fy: s.Fy + (q.Fy ?? 0), Fz: s.Fz + (q.Fz ?? 0),
+      Mxx: s.Mxx + (q.Mxx ?? 0),
       Myy: s.Myy + (q.Myy ?? 0), Mzz: s.Mzz + (q.Mzz ?? 0),
-    }), { Fx: 0, Fy: 0, Fz: 0, Myy: 0, Mzz: 0 });
-    if (!k.Fx && !k.Fy && !k.Fz && !k.Myy && !k.Mzz) return;
+    }), { Fx: 0, Fy: 0, Fz: 0, Mxx: 0, Myy: 0, Mzz: 0 });
+    if (!k.Fx && !k.Fy && !k.Fz && !k.Mxx && !k.Myy && !k.Mzz) return;
+    /* =====================================================================
+     * >>> JEDES EINGEPRÄGTE MOMENT AUF SEINE ACHSE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 15. September: «berichtigen und durchgängigkeit zu axisvm
+     * schaffen.»
+     *
+     * Hier stand `Mq: k.Myy, Ml: k.Mzz` — und davon war nur das erste
+     * richtig. Am JOCH liegt die Stabachse in x, dort fallen die Ebenen mit
+     * den globalen Achsen zusammen; der MAST steht lotrecht, und damit
+     * gehen sie auseinander:
+     *
+     *   M_xx  um die Jochachse   →  am stehenden Masten LÄNGSBIEGUNG (Ml)
+     *   M_yy  um y               →  Querbiegung (Mq)
+     *   M_zz  um die Lotrechte   →  TORSION um die Mastachse (Mt)
+     *
+     * Zwei Fehler, in entgegengesetzte Richtung: ein `M_zz` wurde als
+     * Längsbiegung nachgewiesen (falsche Achse, aber wirksam), ein `M_xx`
+     * gar nicht erst aufsummiert — es fiel ersatzlos aus dem Nachweis. Das
+     * ist die unangenehme Richtung.
+     *
+     * DIE VORZEICHEN stehen im Kopf dieser Datei: Mq = +M_y, Ml = −M_x,
+     * Mt = −M_z. Ein blosses Vertauschen der beiden Felder hätte den
+     * zweiten Fehler durch einen dritten ersetzt.
+     *
+     * DASSELBE BAUT DIE AXISVM-AUSLEITUNG (`export.axisvm.js`): sie gibt
+     * M_xx/M_yy/M_zz als Mx/My/Mz am Anschlussknoten weiter, global und
+     * unverändert. Seit dieser Zeile zeigen beide dasselbe.
+     */
     lasten.push({
       art: 'anbau', name: t.name, z: (t.hMast ?? 0) + (t.z ?? 0),
       zAnschluss: t.hMast ?? 0,
-      Fz: k.Fz, Fx: k.Fx, Fy: k.Fy, Mq: k.Myy, Ml: k.Mzz,
+      Fz: k.Fz, Fx: k.Fx, Fy: k.Fy,
+      Mq: k.Myy, Ml: -k.Mxx, Mt: -k.Mzz,
       ex: t.x ?? 0, ey: t.y ?? 0,
     });
   });
@@ -561,8 +611,12 @@ export function mastSchnitt(m, ende = 'A') {
        */
       Mq += l.Fx * arm + l.Fz * l.ex + l.Mq;
       Ml += l.Fy * arm + l.Fz * l.ey + l.Ml;
-      // Torsion um die Mastachse: Querkraft mal Versatz quer dazu.
-      Mt += l.Fx * l.ey - l.Fy * l.ex;
+      /*
+       * Torsion um die Mastachse: Querkraft mal Versatz quer dazu - und das
+       * eingepraegte Glied. Bis zum 15. September fehlte es hier ganz: ein
+       * `M_zz` am Masten wurde stattdessen als Laengsbiegung gefuehrt.
+       */
+      Mt += l.Fx * l.ey - l.Fy * l.ex + (l.Mt ?? 0);
     });
     return { z, N, Vq, Vl, Mq, Ml, Mt };
   });

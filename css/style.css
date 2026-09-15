@@ -1280,6 +1280,13 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 .serie-3 { stroke: var(--ok); }
 .serie-4 { stroke: var(--warn); }
 
+/* Die zweite Kopfzeile der Mastreihe: wie die Grösse global heisst. Gedämpft
+   und kleiner - sie erklärt die Spalte, sie benennt sie nicht neu. */
+.dt thead tr.kopf-achse th {
+  font-weight: 400; color: var(--xdim); font-size: 8.5px;
+  padding-top: 0; border-top: 0; letter-spacing: .02em;
+}
+
 /* --- Die statische Benennung neben der Kurve ------------------------------ */
 /* Weisung, 15. September: neben «M quer» steht, wie die Grösse im Nachweis
    und im Statikprogramm heisst. Gedämpfter als der Name - sie erklärt ihn,

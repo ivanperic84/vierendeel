@@ -44,7 +44,9 @@ const n = (v) => (Math.round(v * 1000) / 1000).toString();
  * Ohne Unterstrich unverändert.
  */
 function kuerzelSvg(k) {
-  const m = /^([A-Za-z]+)_(.+)$/.exec(String(k));
+  // Das fuehrende Minus gehoert zum Zeichen, nicht zum Namen: `-M_xx` wird
+  // zu Minus, M, tiefgestelltem xx.
+  const m = /^(−?[A-Za-z]+)_(.+)$/.exec(String(k).replace(/^-/, '−'));
   if (!m) return esc(k);
   // `dy` statt `baseline-shift`: das eine koennen alle Browser, das andere
   // nicht. Das tspan steht am Zeilenende - es muss nichts zurueckgesetzt
@@ -317,7 +319,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 
 /** Ein Kuerzel als HTML - `M_yy` wird zu M mit tiefgestelltem yy. */
 function kuerzelHtml(k) {
-  const m = /^([A-Za-z]+)_(.+)$/.exec(String(k));
+  const m = /^(−?[A-Za-z]+)_(.+)$/.exec(String(k).replace(/^-/, '−'));
   return m ? `${esc(m[1])}<sub>${esc(m[2])}</sub>` : esc(k);
 }
 
@@ -689,10 +691,18 @@ export function mastDiagramme(mn, opt = {}) {
        * global F_z; «M quer» biegt in der Querebene, dreht also um y. Die
        * Zuordnung M quer -> M_yy fuehrt `core.mast.js` seit den Anbauteilen
        * selbst (`Mq: k.Myy`).
+       *
+       * >>> UND DAS MINUS BEI M LAENGS IST KEIN SCHMUCK. <<<
+       *
+       * Nachgerechnet am 15. September: "quer" und "laengs" sind als EBENEN
+       * definiert, positiv wenn die Last positiv ist - und die
+       * Rechte-Hand-Regel gibt fuer x und y gegenlaeufige Drehsinne. Also
+       * M_q = +M_yy, aber M_l = -M_xx. Ohne das Vorzeichen laese man die
+       * Anschrift als Gleichheit, und sie ist es nicht.
        */
       serien: [
         { name: 'M quer', werte: w('Mq'), kurz: 'M_yy', einheit: 'kNm' },
-        { name: 'M längs', werte: w('Ml'), kurz: 'M_xx', einheit: 'kNm' },
+        { name: 'M längs', werte: w('Ml'), kurz: '-M_xx', einheit: 'kNm' },
         { name: 'N', werte: w('N'), kurz: 'F_z', einheit: 'kN' },
         { name: 'V quer', werte: w('Vq'), cls: 'serie-4',
           kurz: 'F_x', einheit: 'kN' },

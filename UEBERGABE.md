@@ -397,6 +397,74 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Ein eingeprägtes Moment am Masten landet auf seiner Achse (15. September)
+
+Weisung: «berichtigen und durchgängigkeit zu axisvm schaffen.»
+
+`core.mast.js` schrieb `Mq: k.Myy, Ml: k.Mzz` — und davon war nur das erste
+richtig. Der Anbauteilsatz führt die Momente **global** (`M_xx` um die
+Jochachse, `M_yy` um y, `M_zz` um die Lotrechte). Am **Joch** fallen die Ebenen
+damit zusammen, denn seine Stabachse *ist* die Jochachse. Am stehenden
+**Masten** nicht:
+
+| global | am Masten | war |
+|---|---|---|
+| `M_xx` um die Jochachse | Längsbiegung `Ml` | gar nicht aufsummiert |
+| `M_yy` um y | Querbiegung `Mq` | richtig |
+| `M_zz` um die Lotrechte | Torsion `Mt` | als Längsbiegung geführt |
+
+Zwei Fehler in entgegengesetzte Richtung. Der zweite war der unangenehme: ein
+`M_xx` fiel **ersatzlos aus dem Nachweis**. Dazu hatte `Mt` überhaupt kein
+eingeprägtes Glied — die Stationsschleife kannte nur die Anteile aus
+Hebelarmen.
+
+**Die Vorzeichen, nachgerechnet** an den Anteilen, die ohnehin drinstehen
+(F_z positiv nach unten):
+
+```
+Mq = +M_y     F_x·arm und F_z·e_x drehen beide um +y
+Ml = −M_x     F_y·arm und F_z·e_y drehen beide um −x
+Mt = −M_z     F_x·e_y und −F_y·e_x drehen beide um −z
+```
+
+Die gemischten Vorzeichen sind keine Nachlässigkeit: «quer» und «längs» sind
+als **Ebenen** definiert, positiv wenn die Last positiv ist — und die
+Rechte-Hand-Regel gibt für x und y gegenläufige Drehsinne. Ein blosses
+Vertauschen der beiden Felder hätte den zweiten Fehler durch einen dritten
+ersetzt: das Moment zöge ab, statt sich aufzuaddieren.
+
+**Durchgängigkeit zu AxisVM.** Die Ausleitung war schon richtig — sie gibt
+`M_xx/M_yy/M_zz` als `Mx/My/Mz` am Anschlussknoten weiter, global und
+unverändert, gleichgültig ob das Teil am Joch oder am Masten sitzt. Falsch war
+die App-Seite. Eine Kontrolle hält beide jetzt zusammen: dieselbe Eingabe
+(M_xx 7, M_yy 11, M_zz 5 kNm an einem Teil am Mast A) durch beide Wege, und die
+Probe `−Ml / Mq / −Mt` gegen `Mx / My / Mz`.
+
+**Wo man es liest.** Die Auflagertabelle hat eine zweite Kopfzeile bekommen —
+die obere nennt die Ebene, die untere die globale Achse mit ihrem Vorzeichen:
+
+```
+z   N     V_q   V_l   M_q    M_l     M_t
+    F_z   F_x   F_y   M_yy   −M_xx   −M_zz
+```
+
+Dieselbe Anschrift trägt die Kurve: «M längs ▸ −M_xx».
+
+Und der Hinweis unter den Momentfeldern der Maske **unterscheidet jetzt den
+Ort**. Er erklärte die Achsen am Joch, auch unter einem Teil am Masten, wo er
+das Falsche mitsagte («Biegung im Grundriss», «treten ins Joch ein»).
+
+**Ein offener Punkt, der dabei sichtbar wird:** `M_t` geht in **kein** η ein —
+σ kommt aus N, M_q und M_l. Solange die Torsion aus Hebelarmen entstand, war
+sie am Masten klein; seit ein eingeprägtes `M_zz` dort ankommt, kann sie es
+nicht mehr sein. Die Tabelle sagt es jetzt, wo eine vorhanden ist («M_t wird
+geführt, aber nicht nachgewiesen»), und die Maske ebenso. Ein Torsionsnachweis
+am Masten ist damit **nicht** erledigt, sondern benannt.
+
+**Tragweite heute:** `data/anbauteile.json` führt kein einziges eingeprägtes
+Moment ≠ 0. Der Fehler schlummerte also — er wurde erst wach, wenn jemand in
+der Maske von Hand eines eintrug und das Teil am Masten sass.
+
 ### Die Druckstütze im Bild ist das Bauteil (15. September)
 
 Weisung: «die detailierte modellierung der druckstütze in der app

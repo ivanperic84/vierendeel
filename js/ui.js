@@ -2865,6 +2865,42 @@ function modulLastenHtml(l, b) {
  * Die Gliederung in drei Zeilen ist kein Schmuck: zehn gleich aussehende
  * Zahlenfelder nebeneinander sagen nicht, welche Zahl wohin gehört.
  */
+/* ===========================================================================
+ * >>> WAS DIE DREI MOMENTE BEDEUTEN, HÄNGT AM ORT DES TEILS. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 15. September: «berichtigen und durchgängigkeit zu axisvm
+ * schaffen.»
+ *
+ * Die Achsen sind global und ändern sich nicht — M_xx um die Jochachse,
+ * M_yy um y, M_zz um die Lotrechte. Was sich ändert, ist ihre WIRKUNG am
+ * Bauteil: das Joch liegt in der Jochachse, der Mast steht lotrecht.
+ * Dasselbe M_zz biegt das eine im Grundriss und tordiert den anderen.
+ *
+ * Hier stand nur der Jochtext, auch unter einem Teil am Masten — und er
+ * sagte dort das Falsche mit («Biegung im Grundriss», «treten ins Joch
+ * ein»). Ein Hinweis, der am halben Bestand die Unwahrheit sagt, ist
+ * schlechter als keiner.
+ * ========================================================================= */
+function momentHinweis(a) {
+  const achsen = 'M_xx um die Jochachse · M_yy um y · '
+               + 'M_zz um die Lotrechte.';
+  if (!amMast(a)) {
+    return `${achsen} Am Joch heisst das: M_xx Torsion, M_yy Biegung `
+         + 'lotrecht, M_zz Biegung im Grundriss. Sie treten über den '
+         + 'Anschlussraster ins Joch ein.';
+  }
+  /*
+   * AM MASTEN STEHT DIE TORSION NUR IN DER TABELLE. Sie wird geführt, aber
+   * nicht nachgewiesen - und das gehört dorthin gesagt, wo man die Zahl
+   * einträgt. Lautlos aus dem Nachweis fallen darf nichts.
+   */
+  return `${achsen} Am stehenden Masten heisst das: M_xx Biegung längs `
+       + '(in Gleisrichtung), M_yy Biegung quer, M_zz Torsion um die '
+       + 'Mastachse. Die Torsion wird in der Auflagertabelle geführt, aber '
+       + 'nicht nachgewiesen.';
+}
+
 function lastblockListeHtml(a, i) {
   const bloecke = a.lasten ?? [];
   const zeilen = bloecke.map((l, k) => {
@@ -2895,10 +2931,7 @@ function lastblockListeHtml(a, i) {
           ${lastFeld(i, k, 'Myy', 'M_yy', l.Myy, 'kNm', 0.5)}
           ${lastFeld(i, k, 'Mzz', 'M_zz', l.Mzz, 'kNm', 0.5)}
         </div>
-        <p class="hinweis" style="margin:6px 0 0">
-          M_xx um die Jochachse (Torsion) · M_yy um y (Biegung des Jochs) ·
-          M_zz um die Lotrechte (Biegung im Grundriss). Eingeprägte Momente
-          treten über den Anschlussraster ins Joch ein.</p>`,
+        <p class="hinweis" style="margin:6px 0 0">${momentHinweis(a)}</p>`,
         hatMoment ? 'gesetzt' : '–', hatMoment)}
       <div class="modul-lasten">
         <span class="ablage-meta">Gruppe ${esc(g.label)}</span>
@@ -5662,12 +5695,36 @@ function mastblattHtml(erg) {
         `η ${f3(n.eta)} Querschnitt bei ${f2(n.massgebend.z)} m`
         + (kS ? ` · η ${f3(kS.eta)} Knicken` : ''))}
       <div class="tabellenrahmen"><table class="dt">
+        <!-- =================================================================
+             >>> ZWEI KOPFZEILEN: DIE EBENE UND DIE ACHSE. <<<
+             =================================================================
+
+             Weisung vom 15. September: «berichtigen und durchgängigkeit zu
+             axisvm schaffen.»
+
+             Die obere Zeile nennt die Grösse, wie der Mastnachweis sie führt
+             — in EBENEN: quer, längs, Torsion. Die untere, wie sie global
+             heisst und wie sie im Statikprogramm ankommt. Wer eine Zahl von
+             hier ins Modell trägt oder von dort zurückliest, braucht beides.
+
+             DIE MINUSZEICHEN SIND KEIN SCHMUCK. «quer» und «längs» sind als
+             Ebenen definiert, positiv wenn die Last positiv ist; die
+             Rechte-Hand-Regel gibt für x und y gegenläufige Drehsinne. Also
+             M_q = +M_yy, aber M_l = −M_xx und M_t = −M_zz. Ohne das Vorzeichen
+             läse man die Anschrift als Gleichheit, und sie ist es nicht.
+             ============================================================= -->
         <thead><tr>
           <th class="num">z [m]</th><th class="num">N [kN]</th>
           <th class="num">V_q [kN]</th><th class="num">V_l [kN]</th>
           <th class="num">M_q [kNm]</th><th class="num">M_l [kNm]</th>
           <th class="num">M_t [kNm]</th>
           <th class="num">σ [N/mm²]</th><th class="num">η</th>
+        </tr><tr class="kopf-achse">
+          <th></th><th class="num">F_z</th>
+          <th class="num">F_x</th><th class="num">F_y</th>
+          <th class="num">M_yy</th><th class="num">−M_xx</th>
+          <th class="num">−M_zz</th>
+          <th></th><th></th>
         </tr></thead>
         <tbody>${[...n.stationen].reverse().map(zeile).join('')}</tbody>
       </table></div>
@@ -5680,7 +5737,20 @@ function mastblattHtml(erg) {
         n.plastischGewuenscht && !n.plastischWirksam
           ? ` — <b>plastisch verlangt, aber Klasse ${kl.klasse}</b>: dort ist die
               Fliessgelenkschnittgrösse nicht erreichbar` : ''} ·
-        Anteil an F_x nach k = 3EI/H³: <b>${f0(n.anteilFx * 100)} %</b></p>`;
+        Anteil an F_x nach k = 3EI/H³: <b>${f0(n.anteilFx * 100)} %</b>${
+        /*
+         * >>> WAS DIE TABELLE FUEHRT UND DER NACHWEIS NICHT KENNT. <<<
+         *
+         * M_t steht in der Spalte, geht aber in kein η ein - σ kommt aus
+         * N, M_q und M_l. Solange die Torsion aus Hebelarmen entsteht, ist
+         * sie am Rundmasten klein; seit ein eingepraegtes M_zz dort ankommt
+         * (15. September), kann sie es nicht mehr sein. Dann muss dastehen,
+         * dass sie nicht nachgewiesen ist - eine Zahl in einer Tabelle
+         * sieht sonst aus wie eine gefuehrte Groesse.
+         */
+        n.stationen.some((st) => Math.abs(st.Mt ?? 0) > 0.005)
+          ? ` · <b>M_t wird geführt, aber nicht nachgewiesen</b> — σ und η
+              kommen aus N, M_q und M_l` : ''}</p>`;
   };
   return `${abschnitt('Mast', 'Bemessungswerte des gewählten Lastfalls')}
     ${ende(mn.A)}${ende(mn.B)}
