@@ -397,6 +397,55 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Der Reiter Auflager: Mastfuss zuerst (16. September)
+
+Weisung: «bei den reaktionskräfte die mastfuss als primären output nehmen,
+falls diese nicht modelliert sind die jochauflager. wie könnte man bei
+mehreren Masten / Jochenden eine bessere übersicht in der sidebar
+ermöglichen. gehe die sidebar auflager durch und optimiere und vereinfache so
+weit wie möglich, ähnliches vorgehen wie bei der karte Anbauteile.»
+
+**Der Mastfuss ist die Zahl, die das Haus weitergibt.** Die
+Bestandesschutz-Prüfung fragt nach F_z, F_x, F_y, M_yy und M_xx *am Fuss*; das
+Jochauflager ist eine Zwischengrösse auf dem Weg dorthin. Bisher stand es oben
+und der Mastfuss unten in der letzten Zeile einer Tabelle über die ganze Höhe.
+
+**Ohne Mast rückt das Jochauflager nach oben.** Es ist derselbe Reiter, und er
+zeigt in beiden Fällen die Kraft, die aus dem Tragwerk herausgeht.
+
+**Die Übersicht steht quer.** Zuerst hatte die Fusstabelle eine Zeile je Mast
+und sieben Zahlenspalten — in der schmalen Sidebar lief sie rechts hinaus, und
+man verglich zwei Masten durch waagrechtes Schieben. Gedreht braucht sie *eine
+Spalte je Mast*:
+
+```
+GRÖSSE                        M1       M2
+F_z [kN] lotrecht           17.52    17.52
+F_x [kN] in der Jochachse    0.00     0.00
+F_y [kN] in Gleisrichtung    9.26     9.26
+M_yy [kNm] biegt quer        0.00     0.00
+M_xx [kNm] biegt längs     −59.26   −59.26
+M_zz [kNm] Torsion           0.000    0.000
+η                            0.885    0.885
+```
+
+**Und was einen Regelwert hat, ist zugeklappt** — dieselbe Regel wie in der
+Karte Anbauteile: nicht gesperrt, zugeklappt. Aus fünf offenen Blöcken wurden
+vier Klappen: je Mast der Verlauf über die Höhe (mit η und der massgebenden
+Stelle im Kopf), das Jochauflager je Einwirkungsgruppe, und die Erläuterungen
+— vorher fünf Absätze, jetzt vier und knapper.
+
+**Zwei Einheitenwelten, und sie stehen auseinander.** Der Mastfuss trägt
+Bemessungswerte des gewählten Lastfalls, das Jochauflager charakteristische
+Werte je Gruppe. Beides nebeneinander ohne Anschrift wäre eine Falle — die
+Zahlen sehen gleich aus und sind es nicht. Jeder Abschnitt sagt in seiner
+Überschrift, was seine Zahlen sind.
+
+`mastEndeHtml` ist aus `mastblattHtml` herausgelöst und nimmt einen Schalter
+für den eigenen Kopf: in der Klappe steht der Name schon oben, und zweimal
+dasselbe untereinander sieht nach einem Fehler aus. Eine Funktion, drei
+Verwendungen.
+
 ### Befunde aus dem aufgebauten AxisVM-Modell (16. September)
 
 Vier Beobachtungen des Auftraggebers am gebauten Modell, der Reihe nach.

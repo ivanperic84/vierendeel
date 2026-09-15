@@ -11321,6 +11321,69 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> DER REITER AUFLAGER ZEIGT DEN MASTFUSS ZUERST. <<<
+     * =====================================================================
+     *
+     * Weisung vom 16. September: "bei den reaktionskraefte die mastfuss als
+     * primaeren output nehmen, falls diese nicht modelliert sind die
+     * jochauflager. wie koennte man bei mehreren Masten / Jochenden eine
+     * bessere uebersicht in der sidebar ermoeglichen. gehe die sidebar
+     * auflager durch und optimiere und vereinfache so weit wie moeglich,
+     * aehnliches vorgehen wie bei der karte Anbauteile."
+     *
+     * Der Mastfuss ist die Zahl, die das Haus weitergibt - die
+     * Bestandesschutz-Pruefung fragt nach F_z, F_x, F_y, M_yy und M_xx AM
+     * FUSS. Bisher stand das Jochauflager oben und der Mastfuss unten in
+     * der letzten Zeile einer Tabelle ueber die ganze Hoehe.
+     *
+     * Geprueft wird am QUELLTEXT: `ui.js` laesst sich ohne Fenster nicht
+     * laden. Die Aussagen sind trotzdem festzunageln - eine Sidebar, die
+     * still wieder umfaellt, merkt niemand.
+     */
+    {
+      const uq = readFileSync(
+        new URL('./js/ui.js', import.meta.url), 'utf8');
+      wahr('Der Mastfuss steht oben',
+           uq.includes("abschnitt('Reaktionskräfte am Mastfuss'"));
+      wahr('… mit den Bemessungswerten angeschrieben',
+           /Bemessungswerte des gewählten Lastfalls/.test(uq));
+      /*
+       * OHNE MAST RUECKT DAS JOCHAUFLAGER NACH OBEN - es ist derselbe
+       * Reiter, und er zeigt in beiden Faellen die Kraft, die aus dem
+       * Tragwerk herausgeht.
+       */
+      wahr('Ohne Mast steht das Jochauflager oben',
+           uq.includes("abschnitt('Reaktionskräfte am Jochauflager'")
+           && /if \(!masten\.length\) \{/.test(uq));
+      /*
+       * DIE UEBERSICHT IST EINE SPALTE JE MAST. Mit einer Zeile je Mast und
+       * sieben Zahlenspalten lief die Tabelle rechts aus der schmalen
+       * Sidebar hinaus; gedreht braucht sie bei zwei Masten drei Spalten.
+       */
+      wahr('Die Fusstabelle steht quer - eine Spalte je Mast',
+           uq.includes("masten.map((mm) => `<th class=\"num\">${esc(mm.name)}</th>`)"));
+      wahr('… und fuehrt alle sechs Groessen plus eta',
+           ['F_z', 'F_x', 'F_y', 'M_yy', 'M_xx', 'M_zz']
+             .every((g) => uq.includes(`{ g: '${g}'`)));
+      /*
+       * UND WAS EINEN REGELWERT HAT, IST ZUGEKLAPPT - dieselbe Regel wie in
+       * der Karte Anbauteile.
+       */
+      ['auflager-mast-', 'auflager-joch', 'auflager-hinweis'].forEach((k) => {
+        wahr(`Zugeklappt: ${k}`, uq.includes(`'${k}`) || uq.includes(`\`${k}`));
+      });
+      /*
+       * KEIN DOPPELTER KOPF. In der Klappe steht der Name schon oben;
+       * zweimal dasselbe untereinander sieht nach einem Fehler aus.
+       */
+      wahr('Die Klappe ruft das Mastblatt ohne eigenen Kopf',
+           /mastEndeHtml\(mm\.n, \{ \[mm\.ende\]: mm\.name \}, false\)/
+             .test(uq));
+      wahr('… und das Mastblatt kann beides',
+           uq.includes('function mastEndeHtml(n, namenVon = {}, mitKopf = true)'));
+    }
+
+    /* =====================================================================
      * >>> ZWEI TEILE NEBENEINANDER SIND EINE GABEL, KEINE REIHE. <<<
      * =====================================================================
      *

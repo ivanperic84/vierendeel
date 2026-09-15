@@ -5203,8 +5203,93 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null) {
  * Vorzeichenregel folgen dem Blatt «Zusammenfassung» des Regelwerks:
  * negative Vertikalkräfte sind abhebend.
  */
+/* ===========================================================================
+ * >>> DER REITER AUFLAGER - MASTFUSS ZUERST. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «bei den reaktionskräfte die mastfuss als
+ * primären output nehmen, falls diese nicht modelliert sind die jochauflager.
+ * wie könnte man bei mehreren Masten / Jochenden eine bessere übersicht in
+ * der sidebar ermöglichen. gehe die sidebar auflager durch und optimiere und
+ * vereinfache so weit wie möglich, ähnliches vorgehen wie bei der karte
+ * Anbauteile.»
+ *
+ * >>> WARUM DER MASTFUSS UND NICHT DAS JOCHAUFLAGER. <<<
+ *
+ * Weil er die Zahl ist, die das Haus weitergibt. Die Bestandesschutz-Prüfung
+ * fragt nach F_z, F_x, F_y, M_yy und M_xx AM MASTFUSS; das Jochauflager ist
+ * eine Zwischengrösse auf dem Weg dorthin. Bisher stand es oben und der
+ * Mastfuss unten in einer Tabelle über die ganze Höhe — man musste die
+ * gesuchte Zahl in der untersten Zeile suchen.
+ *
+ * OHNE MAST gibt es keinen Mastfuss: dann rückt das Jochauflager nach oben.
+ * Es ist derselbe Reiter, und er zeigt in beiden Fällen die Kraft, die aus
+ * dem Tragwerk herausgeht.
+ *
+ * >>> DIE ÜBERSICHT IST EINE ZEILE JE MAST. <<<
+ *
+ * Bei zwei Masten standen zwei volle Tabellen untereinander, jede mit einer
+ * Zeile je Höhenstation — zwei Bildschirmlängen für zwei Zahlensätze, die man
+ * vergleichen will. Jetzt steht oben EINE Tabelle mit einer Zeile je Mast;
+ * die Stationstabelle jedes Masten liegt darunter in einer Klappe.
+ *
+ * >>> UND WAS EINEN REGELWERT HAT, IST ZUGEKLAPPT. <<<
+ *
+ * Dieselbe Regel wie in der Karte Anbauteile: was man selten aufmacht, steht
+ * nicht in der ersten Ebene — es ist nicht gesperrt, es ist zugeklappt. Das
+ * betrifft die Stationstabellen, das Jochauflager (wo ein Mast da ist) und
+ * die Erläuterungen, die vorher als fünf Absätze offen dastanden.
+ *
+ * >>> ZWEI EINHEITENWELTEN, UND SIE STEHEN AUSEINANDER. <<<
+ *
+ * Der Mastfuss trägt BEMESSUNGSWERTE des gewählten Lastfalls, das
+ * Jochauflager CHARAKTERISTISCHE Werte je Einwirkungsgruppe. Beides
+ * nebeneinander ohne Anschrift wäre eine Falle: die Zahlen sehen gleich aus
+ * und sind es nicht. Jeder Abschnitt sagt deshalb in seiner Überschrift, was
+ * seine Zahlen sind.
+ * ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+ * EIN MAST IN SEINER KLAPPE.
+ *
+ * Der Kopf traegt, was man beim Ueberfliegen braucht: Profil und das
+ * groessere der beiden η. Was darunter liegt - die Tabelle ueber die ganze
+ * Hoehe - macht man auf, wenn man den Verlauf sucht. Dieselbe Regel wie in
+ * der Karte Anbauteile: nicht gesperrt, zugeklappt.
+ * ------------------------------------------------------------------------- */
+function mastKlappe(mm) {
+  const kS = mm.n.stabil;
+  return klapp(`auflager-mast-${mm.ende}`,
+    `Mast ${mm.name} · ${mm.n.profil?.name ?? ''} — Verlauf über die Höhe`,
+    mastEndeHtml(mm.n, { [mm.ende]: mm.name }, false),
+    `η ${f3(mm.n.eta ?? 0)} bei ${f2(mm.n.massgebend?.z ?? 0)} m`
+    + `${kS ? ` · Knicken ${f3(kS.eta)}` : ''}`);
+}
+
+/** Die Fussstation eines Mastnachweises - z = 0 über dem Fundament. */
+function mastFussStation(n) {
+  const st = n?.stationen ?? [];
+  return st.find((s) => Math.abs(s.z) < 1e-9) ?? st[0] ?? null;
+}
+
+/** Die Masten eines Ergebnisses als Liste, mit Namen und Fussstation. */
+function mastListe(erg) {
+  const namen = erg?.modell?.federn?.namen ?? {};
+  return ['A', 'B'].map((ende) => {
+    const n = erg?.mast?.[ende];
+    if (!n) return null;
+    return { ende, n, fuss: mastFussStation(n),
+             name: namen?.[ende] || `Ende ${ende}` };
+  }).filter(Boolean);
+}
+
 export function zeichneAuflager(node, blatt, erg) {
   const m = erg.modell;
+  const masten = mastListe(erg);
+
+  /* ---------------------------------------------------------------------
+   * DAS JOCHAUFLAGER - dieselbe Tabelle wie bisher, nur an anderer Stelle.
+   * ------------------------------------------------------------------- */
   const zeile = (bez, z, seite, stark = false) => `
     <tr class="${stark ? 'aktiv' : ''}">
       <td>${esc(bez)}</td>
@@ -5213,55 +5298,142 @@ export function zeichneAuflager(node, blatt, erg) {
       <td class="num">${f2(z[seite].My)}</td>
       <td class="num">${f3(z[seite].Mx)}</td>
     </tr>`;
-
   const tabelle = (seite, titel) => `
     ${abschnitt(titel)}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>Einwirkung</th>
         <th class="num">F_z [kN]</th><th class="num">F_y [kN]</th>
-        <th class="num">M_y [kNm]</th><th class="num">M_x [kNm]</th></tr></thead>
+        <th class="num">M_yy [kNm]</th><th class="num">M_xx [kNm]</th></tr></thead>
       <tbody>
         ${blatt.zeilen.map((z) => zeile(z.label, z, seite)).join('')}
         ${zeile('Summe aller Gruppen', blatt.total, seite, true)}
-      </tbody></table></div>
-    <p class="notiz" style="margin:4px 0 0">Die Summenzeile addiert ALLE Gruppen,
-      auch die beiden Windrichtungen. Das ist keine Lastkombination: Wind x und
-      Wind y treten nicht gleichzeitig auf. Massgebend ist je Richtung eine der
-      beiden Zeilen.</p>`;
-
-  node.innerHTML = `
-    ${abschnitt('Reaktionskräfte', 'charakteristisch, ohne Beiwerte')}
-    <div class="kennzahlen">
-      ${kachel('F_z Auflager A', f2(blatt.total.A.Fz), 'kN')}
-      ${kachel('F_z Auflager B', f2(blatt.total.B.Fz), 'kN')}
-      ${kachel('F_y je Auflager', f2(blatt.total.A.Fy), 'kN · quer zur Jochachse')}
-      ${kachel('F_x total', f2(blatt.total.Fx), 'kN · in Jochachse')}
-    </div>
+      </tbody></table></div>`;
+  const jochTabellen = `
     ${tabelle('A', 'Auflager A (x = 0)')}
     ${tabelle('B', `Auflager B (x = ${f2(m.L)} m)`)}
-    ${klapp('auflager-hinweis', 'Achsen, Vorzeichen und was nicht enthalten ist', `
-      <p class="notiz" style="margin-top:0">
-        <b>F_z</b> vertikal, positiv nach unten. Negative Werte sind
-        <b>abhebend</b>. <b>F_y</b> längs zum Gleis, aus Wind auf Joch und
-        Anbauteile. <b>M_y</b> Moment quer zum Gleis aus der Einspannung des
-        Jochendes. <b>M_x</b> Moment längs zum Gleis, also die Torsion des Jochs.</p>
-      <p class="notiz"><b>F_x = ${f2(blatt.total.Fx)} kN</b> wirkt IN der Jochachse
-        (Umlenkkraft aus dem Leiterzug und Wind quer zum Gleis). Wie sie sich auf
-        die beiden Maste verteilt, hängt von deren Steifigkeit ab. Das ist hier
-        nicht modelliert, deshalb steht nur die Summe da.</p>
-      <p class="notiz">Der Wind ist in zwei Gruppen geführt: <b>Wind x</b> in
-        Jochachse und <b>Wind y</b> in Gleisrichtung. Das sind zwei
-        WINDRICHTUNGEN, keine gleichzeitigen Einwirkungen. Sie sind einzeln
-        anzusetzen, und zwar mit beiden Vorzeichen. Die ständigen Anteile
-        behalten ihre Wirkrichtung.</p>
-      <p class="notiz">Die Werte sind <b>charakteristisch</b>. Die Beiwerte des
-        gewählten Normensatzes sind bewusst nicht angewendet, damit die Gruppen
-        einzeln kombinierbar bleiben.</p>
-      <p class="notiz">Nicht enthalten: Eigengewicht und Windlast der Maste
-        selbst, sowie die Gebrauchstauglichkeitsnachweise. <b>Beides steht im
-        Mastnachweis darunter</b> – dort mit den Beiwerten des gewählten
-        Lastfalls.</p>`)}
-    ${mastblattHtml(erg)}`;
+    <p class="notiz" style="margin:4px 0 0">Die Summenzeile addiert ALLE
+      Gruppen, auch die beiden Windrichtungen. Das ist keine Lastkombination:
+      Wind x und Wind y treten nicht gleichzeitig auf. Massgebend ist je
+      Richtung eine der beiden Zeilen. <b>F_x = ${f2(blatt.total.Fx)} kN</b>
+      wirkt in der Jochachse; wie sie sich auf die Maste verteilt, hängt von
+      deren Steifigkeit ab — deshalb steht nur die Summe da.</p>`;
+
+  /* ---------------------------------------------------------------------
+   * DIE ERLAEUTERUNG - aus fuenf offenen Absaetzen eine Klappe.
+   * ------------------------------------------------------------------- */
+  const hinweise = klapp('auflager-hinweis',
+    'Achsen, Vorzeichen und was nicht enthalten ist', `
+      <p class="notiz" style="margin-top:0">Die Achsen sind global, wie
+        überall im Werkzeug: <b>F_x</b> in der Jochachse, <b>F_y</b> in
+        Gleisrichtung, <b>F_z</b> lotrecht und positiv nach unten — negative
+        Werte sind <b>abhebend</b>. <b>M_xx</b> dreht um die Jochachse,
+        <b>M_yy</b> um y, <b>M_zz</b> um die Lotrechte.</p>
+      <p class="notiz"><b>Der Mastfuss trägt Bemessungswerte</b> des oben
+        gewählten Lastfalls — mit Beiwerten, fertig zum Weitergeben. Das
+        Jochauflager darunter ist <b>charakteristisch</b> und je
+        Einwirkungsgruppe getrennt, damit es kombinierbar bleibt. Die beiden
+        Zahlensätze sind nicht zu vermischen.</p>
+      <p class="notiz">Der Wind steht in zwei Gruppen: <b>Wind x</b> in
+        Jochachse, <b>Wind y</b> in Gleisrichtung. Das sind zwei
+        Windrichtungen, keine gleichzeitigen Einwirkungen — einzeln
+        anzusetzen, und zwar mit beiden Vorzeichen.</p>
+      <p class="notiz">Im Jochauflager nicht enthalten: Eigengewicht und
+        Windlast der Maste selbst. Beides steckt im Mastfuss darüber.</p>`);
+
+  /* =====================================================================
+   * >>> OHNE MAST RUECKT DAS JOCHAUFLAGER NACH OBEN. <<<
+   * ===================================================================== */
+  if (!masten.length) {
+    node.innerHTML = `
+      ${abschnitt('Reaktionskräfte am Jochauflager',
+                  'charakteristisch, ohne Beiwerte · kein Mast im Modell')}
+      <div class="kennzahlen">
+        ${kachel('F_z Auflager A', f2(blatt.total.A.Fz), 'kN')}
+        ${kachel('F_z Auflager B', f2(blatt.total.B.Fz), 'kN')}
+        ${kachel('F_y je Auflager', f2(blatt.total.A.Fy), 'kN · in Gleisrichtung')}
+        ${kachel('F_x total', f2(blatt.total.Fx), 'kN · in der Jochachse')}
+      </div>
+      ${jochTabellen}
+      ${hinweise}`;
+    verdrahteKlapp(node);
+    return;
+  }
+
+  /* =====================================================================
+   * >>> MIT MAST: EINE ZEILE JE MASTFUSS. <<<
+   * ===================================================================== */
+  const eines = masten.length === 1;
+  /* =====================================================================
+   * >>> DIE TABELLE STEHT QUER: GROESSEN UNTEN, MASTEN NEBENEINANDER. <<<
+   * =====================================================================
+   *
+   * Zuerst hatte sie eine Zeile je Mast und sieben Zahlenspalten - in der
+   * schmalen Sidebar lief sie rechts hinaus, und man verglich zwei Masten
+   * durch waagrechtes Schieben. Gedreht braucht sie EINE Spalte je Mast:
+   * bei zweien sind das drei Spalten, und die sieben Groessen stehen
+   * untereinander, wo man sie sowieso liest.
+   *
+   * Es ist dieselbe Tabelle. Nur passt sie so in die Spalte, in der sie
+   * steht - und das war der Punkt der Weisung.
+   */
+  const ZEILEN = [
+    { g: 'F_z', e: 'kN', f: (x) => f2(x.Fz ?? 0), stark: true,
+      was: 'lotrecht' },
+    { g: 'F_x', e: 'kN', f: (x) => f2(x.Fx ?? 0), was: 'in der Jochachse' },
+    { g: 'F_y', e: 'kN', f: (x) => f2(x.Fy ?? 0), was: 'in Gleisrichtung' },
+    { g: 'M_yy', e: 'kNm', f: (x) => f2(x.Myy ?? 0), stark: true,
+      was: 'biegt quer' },
+    { g: 'M_xx', e: 'kNm', f: (x) => f2(x.Mxx ?? 0), stark: true,
+      was: 'biegt längs' },
+    { g: 'M_zz', e: 'kNm', f: (x) => f3(x.Mzz ?? 0), was: 'Torsion' },
+  ];
+  const etaVon = (mm) => Math.max(mm.n.eta ?? 0, mm.n.etaMitStabilitaet ?? 0);
+  const fussTabelle = `
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Grösse</th>
+        ${masten.map((mm) => `<th class="num">${esc(mm.name)}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${ZEILEN.map((r) => `
+          <tr><td>${r.g} [${r.e}]<small class="dim"> ${esc(r.was)}</small></td>
+            ${masten.map((mm) => `<td class="num${r.stark ? ' stark' : ''}">`
+              + `${r.f(mm.fuss ?? {})}</td>`).join('')}
+          </tr>`).join('')}
+        <tr class="aktiv"><td>η</td>
+          ${masten.map((mm) => {
+            const et = etaVon(mm);
+            return `<td class="num ${et > 1 ? 'fail' : ''}">${f3(et)}</td>`;
+          }).join('')}
+        </tr>
+      </tbody>
+    </table></div>`;
+  /*
+   * DIE KACHELN NUR BEIM EINZELNEN MASTEN. Bei zweien sagt die Tabelle
+   * dasselbe in einem Zug, und vier Kacheln fuer den einen der beiden waeren
+   * eine willkuerliche Auswahl.
+   */
+  const kacheln = eines ? `
+    <div class="kennzahlen">
+      ${kachel('F_z', f2(masten[0].fuss?.Fz ?? 0), 'kN · lotrecht')}
+      ${kachel('F_y', f2(masten[0].fuss?.Fy ?? 0), 'kN · in Gleisrichtung')}
+      ${kachel('M_yy', f2(masten[0].fuss?.Myy ?? 0), 'kNm · biegt quer')}
+      ${kachel('M_xx', f2(masten[0].fuss?.Mxx ?? 0), 'kNm · biegt längs')}
+    </div>` : '';
+
+  node.innerHTML = `
+    ${abschnitt('Reaktionskräfte am Mastfuss',
+                `Bemessungswerte des gewählten Lastfalls · ${
+                  masten.length === 1 ? 'ein Mast' : `${masten.length} Masten`}`)}
+    ${kacheln}
+    ${fussTabelle}
+    <p class="notiz" style="margin:4px 0 0">η ist das grössere aus
+      Querschnitt und Stabilität. Die Kraft steht hier am <b>Fuss</b> — den
+      Verlauf über die Höhe zeigt die Klappe des Masten.</p>
+    ${masten.map((mm) => mastKlappe(mm)).join('')}
+    ${klapp('auflager-joch', 'Jochauflager, charakteristisch je Gruppe',
+            jochTabellen,
+            `F_z ${f2(blatt.total.A.Fz)} / ${f2(blatt.total.B.Fz)} kN`)}
+    ${hinweise}`;
   verdrahteKlapp(node);
 }
 
@@ -5670,11 +5842,17 @@ function knickblatt(kS, n) {
       geführt wird die strengere und bedingungslose (50).</p>`)}`;
 }
 
-function mastblattHtml(erg) {
-  const mn = erg?.mast;
-  if (!mn) return '';
-  const namenVon = erg?.modell?.federn?.namen ?? {};
-  const ende = (n) => {
+/* ===========================================================================
+ * DAS BLATT EINES MASTEN - die Tabelle ueber seine Hoehe.
+ * ===========================================================================
+ *
+ * Seit dem 16. September EINZELN aufrufbar: der Reiter Auflager packt jeden
+ * Masten in seine eigene Klappe (Weisung: «wie könnte man bei mehreren
+ * Masten / Jochenden eine bessere übersicht in der sidebar ermöglichen»),
+ * waehrend Uebersicht und Abfangjoch weiter das ganze Blatt nehmen. Eine
+ * Funktion, drei Verwendungen - statt dreier Tabellen, die auseinanderlaufen.
+ */
+function mastEndeHtml(n, namenVon = {}, mitKopf = true) {
     if (!n) return '';
     const kl = n.klasse;
     const zeile = (st) => `
@@ -5698,9 +5876,14 @@ function mastblattHtml(erg) {
      */
     const name = namenVon?.[n.ende] || `Ende ${n.ende}`;
     const kS = n.stabil;
-    return `${abschnitt(`Mast ${name} · ${n.profil.name}`,
+    /*
+     * DER EIGENE KOPF ENTFAELLT IN EINER KLAPPE (16. September). Dort steht
+     * der Name schon im Klappenkopf, und zweimal dasselbe untereinander
+     * liest niemand als zwei Angaben - es sieht nach einem Fehler aus.
+     */
+    return `${mitKopf ? abschnitt(`Mast ${name} · ${n.profil.name}`,
         `η ${f3(n.eta)} Querschnitt bei ${f2(n.massgebend.z)} m`
-        + (kS ? ` · η ${f3(kS.eta)} Knicken` : ''))}
+        + (kS ? ` · η ${f3(kS.eta)} Knicken` : '')) : ''}
       <div class="tabellenrahmen"><table class="dt">
         <!-- =================================================================
              >>> ZWEI KOPFZEILEN: DIE EBENE UND DIE ACHSE. <<<
@@ -5770,7 +5953,13 @@ function mastblattHtml(erg) {
           ? ` · <b>M_zz als Wölbkrafttorsion nachgewiesen</b> — σ_ω aus dem
               Bimoment am wölbeingespannten Fuss, Abklinglänge
               ${f0(100 / (n.woelb?.k ?? 1))} cm` : ''}</p>`;
-  };
+}
+
+function mastblattHtml(erg) {
+  const mn = erg?.mast;
+  if (!mn) return '';
+  const namenVon = erg?.modell?.federn?.namen ?? {};
+  const ende = (n) => mastEndeHtml(n, namenVon);
   return `${abschnitt('Mast', 'Bemessungswerte des gewählten Lastfalls')}
     ${ende(mn.A)}${ende(mn.B)}
     ${klapp('mast-hinweis', 'Achsen und was der Nachweis nicht enthält', `
