@@ -517,13 +517,13 @@ export function abfangDiagramme(ab, breite = 900) {
          * Querkraft darin laeuft in Gleisrichtung, F_y. Beim Tragjoch ist
          * es umgekehrt, und genau deshalb steht das Kuerzel da.
          */
-        { name: 'M Rahmenebene', werte: sn('Mrahmen'),
+        { name: 'M Rahmenebene', werte: sn('Mzz'),
           kurz: 'M_zz', einheit: 'kNm' },
-        { name: 'V Rahmenebene', werte: sn('Vrahmen'),
+        { name: 'V Rahmenebene', werte: sn('Fy'),
           kurz: 'F_y', einheit: 'kN' },
-        { name: 'M quer (lotrecht)', werte: sn('Mvert'),
+        { name: 'M quer (lotrecht)', werte: sn('Myy'),
           kurz: 'M_yy', einheit: 'kNm' },
-        { name: 'M Torsion', werte: sn('Mtors'), cls: 'serie-4',
+        { name: 'M Torsion', werte: sn('Mxx'), cls: 'serie-4',
           kurz: 'M_xx', einheit: 'kNm' },
       ],
     }),

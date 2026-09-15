@@ -9807,16 +9807,20 @@ titel('41  Welche Nachweise gefuehrt werden');
   {
     const g = CH.NACHWEISGRUPPEN.map((x) => x.key);
     /*
-     * FUENF SEIT DEM 15. SEPTEMBER: das Knicken des Masten ist eine eigene
-     * Gruppe geworden, damit es sich abschalten laesst, ohne den
-     * Querschnittsnachweis mitzunehmen (Weisung, siehe unten).
+     * SECHS SEIT DEM 15. SEPTEMBER: erst wurde das Knicken des Masten eine
+     * eigene Gruppe, damit es sich abschalten laesst, ohne den
+     * Querschnittsnachweis mitzunehmen - dann die Torsion, aus demselben
+     * Grund und mit derselben Begruendung: der Ansatz rechnet einen
+     * freistehenden Kragarm, und die Leiter halten den Kopf.
      */
-    wahr('Fuenf Gruppen, in der Reihenfolge der Weisung',
-         g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,knickenMast',
+    wahr('Sechs Gruppen, in der Reihenfolge der Weisungen',
+         g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,'
+                       + 'knickenMast,torsionMast',
          g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Vier davon gibt es',
-         da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast',
+    wahr('Fuenf davon gibt es',
+         da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast,'
+                        + 'torsionMast',
          da.join(','));
     wahr('Knicken ist nicht enthalten',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').vorhanden === false);
@@ -11420,6 +11424,44 @@ titel('42  Der lange Mast mit Zusatzleitern');
                                    mastProfil: 'HEB 240', mastH: 7.0 }));
       wahr('Ohne Torsion bleibt die Woelbspannung null',
            (ohneM.mast?.A?.massgebend?.sigW ?? 0) < 1e-9);
+      /* ===================================================================
+       * >>> UND ER LAESST SICH ABSCHALTEN. <<<
+       * ===================================================================
+       *
+       * Weisung vom 15. September: "torsionsnachweis abschalbar machen."
+       * Dieselbe Ueberlegung wie beim Knicken: der Ansatz rechnet einen
+       * FREISTEHENDEN Kragarm, der seine Torsion allein ueber die Woelbung
+       * am Fuss abtraegt. Halten die Leiter den Mastkopf, dreht er sich
+       * dort nicht frei.
+       *
+       * NICHT GEFUEHRT HEISST NICHT GERECHNET: sigma_omega faellt auf null,
+       * statt als Zahl dazustehen, die niemand zaehlt.
+       */
+      const nwAus = MA2.mastNachweis(mTors, 'A', { torsion: false });
+      pruef('Abgeschaltet ist die Woelbspannung null',
+            nwAus.massgebend.sigW, 0, 1e-12, 'N/mm2');
+      wahr('Und der Nachweis sagt es',
+           nwAus.torsionGefuehrt === false && nwMitM.torsionGefuehrt === true);
+      wahr('Abgeschaltet faellt eta auf den Rest zurueck',
+           nwAus.massgebend.eta < nwMitM.massgebend.eta,
+           `${nwAus.massgebend.eta.toFixed(3)} gegen `
+           + `${nwMitM.massgebend.eta.toFixed(3)}`);
+      /*
+       * DIE EINGABE REICHT DIE GRUPPE DURCH. Ohne das waere der Schalter
+       * eine Angabe ohne Wirkung - und das ist schlimmer als kein Schalter.
+       */
+      const eAus = rechne(basis({ endbedingung: 'mast',
+                                  mastProfil: 'HEB 240', mastH: 7.0,
+                                  anbauteile: [teilTors],
+                                  nachweise: { torsionMast: false } }));
+      wahr('Die Nachweisauswahl kommt am Masten an',
+           (eAus.mast?.A?.massgebend?.sigW ?? 0) < 1e-12
+           && eAus.mast?.A?.torsionGefuehrt === false);
+      const eAn = rechne(basis({ endbedingung: 'mast',
+                                 mastProfil: 'HEB 240', mastH: 7.0,
+                                 anbauteile: [teilTors] }));
+      wahr('Ohne Angabe ist er an - der strengere Fall',
+           (eAn.mast?.A?.massgebend?.sigW ?? 0) > 1);
     }
 
     /* =====================================================================
@@ -11683,9 +11725,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * Genau dafuer steht das Kuerzel da.
        */
       wahr('Die Rahmenebene des Abfangjochs biegt um z',
-           /sn\('Mrahmen'\),\s*\n\s*kurz: 'M_zz'/.test(cq));
+           /sn\('Mzz'\),\s*\n\s*kurz: 'M_zz'/.test(cq));
       wahr('\u2026 und ihre Querkraft laeuft in Gleisrichtung',
-           /sn\('Vrahmen'\),\s*\n\s*kurz: 'F_y'/.test(cq));
+           /sn\('Fy'\),\s*\n\s*kurz: 'F_y'/.test(cq));
 
       /* ===================================================================
        * >>> DIE MESSSTELLE IM GROSSEN DIAGRAMM. <<<
@@ -18010,14 +18052,14 @@ const CH9x = await import(J('core.checks.js'));
     const ohneV = rechneT([teilT('a', 6, 0, -1.5)]);
     const mitV = rechneT([teilT('a', 6, 1.0, -1.5)]);
     pruef('Ohne Versatz kein Zusatzmoment',
-          ohneV.gurt.Mtors, 0, 1e-12, 'kNm');
+          ohneV.gurt.Mxx, 0, 1e-12, 'kNm');
     wahr('Mit Versatz waechst das Moment im Gurt',
          mitV.gurt.MgurtVert > ohneV.gurt.MgurtVert,
          `${mitV.gurt.MgurtVert.toFixed(2)} statt `
          + `${ohneV.gurt.MgurtVert.toFixed(2)} kNm`);
     pruef('… und zwar genau um das Torsionsmoment',
           mitV.gurt.MgurtVert,
-          Math.abs(mitV.gurt.schnitt.Mvert) / 2 + mitV.gurt.Mtors,
+          Math.abs(mitV.gurt.schnitt.Myy) / 2 + mitV.gurt.Mxx,
           1e-9, 'kNm');
     wahr('Die Ausnutzung folgt', mitV.gurt.eta > ohneV.gurt.eta);
     /*
@@ -18026,7 +18068,7 @@ const CH9x = await import(J('core.checks.js'));
      * doppelt gezaehlt.
      */
     pruef('Die lotrechte Biegung bleibt dieselbe',
-          mitV.gurt.schnitt.Mvert, ohneV.gurt.schnitt.Mvert, 1e-9, 'kNm');
+          mitV.gurt.schnitt.Myy, ohneV.gurt.schnitt.Myy, 1e-9, 'kNm');
 
     /*
      * >>> UND AM AUFLAGER STEHT DAS KRAEFTEPAAR. <<<
@@ -20432,7 +20474,7 @@ const CH9x = await import(J('core.checks.js'));
       const q = AK.abfangQuerschnitt('A160');
       const fyd = 23.5 / 1.05;                  // S235, kN/cm2
       const nw = AK.abfangGurtnachweis(
-        q, { Mrahmen: 50, Mvert: 8, Vrahmen: 20 }, 0.5, fyd);
+        q, { Mzz: 50, Myy: 8, Fy: 20 }, 0.5, fyd);
 
       /*
        * Von Hand: N = M / e auf die Gurtflaeche.
@@ -20471,15 +20513,15 @@ const CH9x = await import(J('core.checks.js'));
        * anderen davon ab. Massgebend ist der eine.
        */
       const nwT = AK.abfangGurtnachweis(
-        q, { Mrahmen: 50, Mvert: 8, Mtors: 2, Vrahmen: 20 }, 0.5, fyd);
+        q, { Mzz: 50, Myy: 8, Mxx: 2, Fy: 20 }, 0.5, fyd);
       pruef('Torsion kommt zum halben Moment dazu',
             nwT.MgurtVert, 4 + 2, 1e-9, 'kNm');
       wahr('… und ihr Vorzeichen aendert nichts',
            AK.abfangGurtnachweis(
-             q, { Mrahmen: 50, Mvert: 8, Mtors: -2, Vrahmen: 20 },
+             q, { Mzz: 50, Myy: 8, Mxx: -2, Fy: 20 },
              0.5, fyd).MgurtVert === nwT.MgurtVert);
       wahr('Ohne Torsion bleibt es beim halben Moment',
-           nw.Mtors === 0);
+           nw.Mxx === 0);
       // oertlich: V/2 * a/2 = 10 * 0.25 = 2.5 kNm auf W_z = 18.3 cm3
       pruef('Oertliche Biegung zwischen den Blechen',
             nw.sigOertl, (nw.Moertl * 100) / q.Wgurtz, 1e-9, 'kN/cm2')
@@ -20507,12 +20549,12 @@ const CH9x = await import(J('core.checks.js'));
 
       // Ein groesserer Blechabstand erhoeht den oertlichen Anteil - linear.
       const weit = AK.abfangGurtnachweis(
-        q, { Mrahmen: 50, Mvert: 8, Vrahmen: 20 }, 1.0, fyd);
+        q, { Mzz: 50, Myy: 8, Fy: 20 }, 1.0, fyd);
       pruef('Doppelter Blechabstand, doppelter oertlicher Anteil',
             weit.sigOertl, 2 * nw.sigOertl, 1e-9, 'kN/cm2');
       // Ohne Querkraft faellt er weg.
       const ohneV = AK.abfangGurtnachweis(
-        q, { Mrahmen: 50, Mvert: 8, Vrahmen: 0 }, 0.5, fyd);
+        q, { Mzz: 50, Myy: 8, Fy: 0 }, 0.5, fyd);
       pruef('Ohne Querkraft kein oertlicher Anteil', ohneV.sigOertl, 0, 1e-9,
             'kN/cm2');
     }
@@ -22143,7 +22185,7 @@ const CH9x = await import(J('core.checks.js'));
      */
     const q = AK.abfangQuerschnitt('A160');
     const F = 22, L = sw.bis;
-    const s0 = { Mrahmen: (F * L) / 4, Mvert: 0, Vrahmen: F / 2 };
+    const s0 = { Mzz: (F * L) / 4, Myy: 0, Fy: F / 2 };
     const mitTeilung = AK.abfangGurtnachweis(q, s0, rf.teilung, 21.8);
     const mitRand = AK.abfangGurtnachweis(q, s0, rf.a, 21.8);
     wahr('Mit dem Randfeld faellt der Nachweis strenger aus',

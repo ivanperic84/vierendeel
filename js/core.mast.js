@@ -1324,7 +1324,17 @@ export function mastNachweis(m, ende = 'A', o = {}) {
    * läuft das Bimoment, darüber ist der Mast torsionsfrei.
    */
   const zO = Math.max(...s.stationen.map((st) => st.z), 0);
-  const wt = woelbtorsion(s.profil, zO);
+  /*
+   * >>> GEFÜHRT ODER NICHT (15. September). <<<
+   *
+   * Weisung: «torsionsnachweis abschalbar machen.» Wie beim Knicken heisst
+   * nicht geführt NICHT GERECHNET: σ_ω fällt auf null, statt als Zahl
+   * dazustehen, die niemand zählt. Der Grund steht in der Nachweisgruppe
+   * `torsionMast` — halten die Leiter den Mastkopf, dreht er sich dort
+   * nicht frei, und das Bimoment am Fuss fällt kleiner aus.
+   */
+  const torsionGefuehrt = o.torsion !== false;
+  const wt = torsionGefuehrt ? woelbtorsion(s.profil, zO) : null;
   const stationen = s.stationen.map((st) => {
     // kN, kNm, cm², cm³ -> N/mm²
     const sigN = (Math.abs(st.N) * 10) / A;
@@ -1370,7 +1380,7 @@ export function mastNachweis(m, ende = 'A', o = {}) {
     : null;
   return {
     ende, ...s, stationen, massgebend, eta: massgebend.eta,
-    knickenGefuehrt,
+    knickenGefuehrt, torsionGefuehrt,
     fy, fyd, A, Wq, Wl, klasse: kl, plastisch: plWerte,
     /*
      * DER WOELBSATZ WANDERT MIT - die Tabelle nennt die Abklinglaenge, und

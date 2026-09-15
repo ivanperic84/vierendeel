@@ -184,6 +184,37 @@ export const NACHWEISGRUPPEN = [
        + 'andere Momente ein, und der freistehende Kragarm überschätzt das '
        + 'Knicken. Biegedrillknicken bleibt in beiden Fällen aussen vor '
        + '(χ_LT = 1.0, eingespannter Stiel)' },
+  /* =======================================================================
+   * >>> DIE TORSION DES MASTEN - GEFÜHRT ODER NICHT. <<<
+   * =======================================================================
+   *
+   * Weisung vom 15. September: «torsionsnachweis abschalbar machen.»
+   *
+   * Dieselbe Überlegung wie beim Knicken, und aus demselben Grund: der
+   * Ansatz rechnet einen FREISTEHENDEN Kragarm, der seine Torsion allein
+   * über die Wölbung am Fuss abträgt. Halten die Leiter den Mastkopf — und
+   * sie tun es —, dreht er sich dort nicht frei, und das Bimoment am Fuss
+   * fällt kleiner aus als gerechnet.
+   *
+   * >>> ER IST STRENG, UND ER IST VOREINGESTELLT AN. <<<
+   *
+   * Streng, weil ein offenes I-Profil gegen Torsion schwach ist: beim
+   * HEB 240 über 8 m geben 5 kNm bereits 153 N/mm². An den Vorlagen des
+   * Sortiments bleibt es massvoll — nur zwei von vierzehn erzeugen am
+   * Masten überhaupt eine Torsion, und dort steigt η um 0.05 bis 0.10.
+   *
+   * An: wer nichts einstellt, bekommt den strengeren Fall. Nicht geführt
+   * heisst wie überall NICHT GERECHNET — σ_ω fällt auf null, und es steht
+   * im Urteil, im Bericht und im Mastblatt.
+   * ===================================================================== */
+  { key: 'torsionMast', titel: 'Torsion Mast', vorhanden: true, standard: true,
+    was: 'Wölbkrafttorsion des offenen Profils — Bimoment am '
+       + 'wölbeingespannten Fuss, σ_ω = B/(h_m·W_f) als Normalspannung im '
+       + 'Flansch, I_w = I_z·h_m²/4. Abschaltbar: halten die Leiter den '
+       + 'Mastkopf, dreht er sich dort nicht frei, und das Bimoment am Fuss '
+       + 'fällt kleiner aus als am freistehenden Kragarm. Der '
+       + 'St.-Venant-Anteil bleibt in beiden Fällen aussen vor — am '
+       + 'eingespannten Fuss trägt er nichts' },
 ];
 
 /** Voreinstellung je Gruppe. */

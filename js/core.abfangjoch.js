@@ -607,18 +607,18 @@ export function abfangRahmenfeld(typ, jt) {
  * gefährlichste Zahl dieser Anwendung.
  *
  * @param {object} q     aus abfangQuerschnitt
- * @param {object} s     Schnittgrössen {Mrahmen [kNm], Mvert [kNm], Vrahmen [kN]}
+ * @param {object} s     Schnittgrössen {Mzz [kNm], Myy [kNm], Fy [kN]}
  * @param {number} a     Bindeblechabstand [m]
  * @param {number} fyd   Bemessungsfestigkeit [kN/cm²]
  */
 export function abfangGurtnachweis(q, s, a, fyd, opt = {}) {
-  const N = abfangGurtkraefte(s.Mrahmen ?? 0, q.e).N;         // kN
+  const N = abfangGurtkraefte(s.Mzz ?? 0, q.e).N;         // kN
   /*
    * Die örtliche Biegung: die Querkraft verteilt sich auf beide Gurte, und
    * jeder Gurt biegt zwischen zwei Blechen wie ein beidseitig eingespannter
    * Stab - Moment V/2 · a/2 an den Enden.
    */
-  const Voertl = (Math.abs(s.Vrahmen ?? 0) / 2) * (a / 2);    // kNm
+  const Voertl = (Math.abs(s.Fy ?? 0) / 2) * (a / 2);    // kNm
   /*
    * >>> DER STEIFE KNOTENBEREICH - WIE BEIM TRAGJOCH. <<<
    *
@@ -673,7 +673,7 @@ export function abfangGurtnachweis(q, s, a, fyd, opt = {}) {
    *
    *      M_Gurt = |M_vert| / 2  +  |M_tors|
    * ======================================================================= */
-  const MgurtVert = Math.abs(s.Mvert ?? 0) / 2 + Math.abs(s.Mtors ?? 0);
+  const MgurtVert = Math.abs(s.Myy ?? 0) / 2 + Math.abs(s.Mxx ?? 0);
 
   // kNm -> kNcm für die Widerstandsmomente in cm³
   const sigN = N / q.Agurt;
@@ -682,7 +682,7 @@ export function abfangGurtnachweis(q, s, a, fyd, opt = {}) {
   const sigma = sigN + sigVert + sigOertl;
 
   return {
-    N, Moertl, MgurtVert, Mtors: Math.abs(s.Mtors ?? 0),
+    N, Moertl, MgurtVert, Mxx: Math.abs(s.Mxx ?? 0),
     /** Minderung aus dem steifen Knotenbereich - 1.0 heisst: keine. */
     anschnitt, bBl,
     sigN, sigVert, sigOertl, sigma,
@@ -1501,10 +1501,33 @@ export function abfangAuswertung(o = {}) {
       const Gv = b.vertG.M(x), Sv = b.vertS.M(x);
       const ZrV = b.rahmenZ.V(x), WrV = b.rahmenW.V(x);
       const GvV = b.vertG.V(x), SvV = b.vertS.V(x);
-      const Mrahmen = gGf * Zr + wF * Math.abs(Wr) * Math.sign(Zr || 1);
-      const Vrahmen = gGf * ZrV + wF * Math.abs(WrV) * Math.sign(ZrV || 1);
-      const Mvert = gGf * Gv + sF * Sv;
-      const Vvert = gGf * GvV + sF * SvV;
+      const Mzz = gGf * Zr + wF * Math.abs(Wr) * Math.sign(Zr || 1);
+      const Fy = gGf * ZrV + wF * Math.abs(WrV) * Math.sign(ZrV || 1);
+      const Myy = gGf * Gv + sF * Sv;
+      const Fz = gGf * GvV + sF * SvV;
+      /* =================================================================
+       * >>> DIE GROESSEN HEISSEN GLOBAL (15. September). <<<
+       * =================================================================
+       *
+       * Weisung: «die konvention auch beim abfangjoch durchziehen.»
+       *
+       * Das Abfangjoch liegt WAAGRECHT in der Jochachse — und damit sitzen
+       * seine Ebenen anders als beim Tragjoch:
+       *
+       *   Rahmenebene (waagrecht)  Biegung um die Lotrechte  M_zz
+       *                            Querkraft in Gleisrichtung F_y
+       *   quer dazu (lotrecht)     Biegung um y              M_yy
+       *                            Querkraft lotrecht        F_z
+       *   Torsion                  um die Jochachse          M_xx
+       *
+       * >>> ZWEI DAVON SIND BETRAEGE, UND DAS BLEIBT SO. <<<
+       *
+       * `M_xx` und `V_xx` werden als Summe von Betraegen gebildet (siehe
+       * gleich darunter): ein Vorzeichenwechsel macht die Kombination nicht
+       * guenstiger. Das ist eine Entscheidung ueber die UEBERLAGERUNG, nicht
+       * ueber die Achse — der Name sagt, um welche Achse es geht, der
+       * Kommentar, dass kein Drehsinn gefuehrt wird.
+       * ================================================================= */
       /*
        * >>> DIE TORSION KOMMT IM GURT AN. <<<
        *
@@ -1517,14 +1540,14 @@ export function abfangAuswertung(o = {}) {
        * BETRAG. Ein Vorzeichenwechsel macht die Kombination nicht
        * guenstiger, hier so wenig wie beim Wind.
        */
-      const Mtors = Math.abs(gGf * b.torG.M(x)) + Math.abs(sF * b.torS.M(x))
+      const Mxx = Math.abs(gGf * b.torG.M(x)) + Math.abs(sF * b.torS.M(x))
                   + Math.abs(wF * b.torW.M(x));
-      const Vtors = Math.abs(gGf * b.torG.V(x)) + Math.abs(sF * b.torS.V(x))
+      const Vxx = Math.abs(gGf * b.torG.V(x)) + Math.abs(sF * b.torS.V(x))
                   + Math.abs(wF * b.torW.V(x));
-      const kenn = Math.abs(Mrahmen) / (q.e / 100)
-                 + Math.abs(Mvert) + Mtors;
+      const kenn = Math.abs(Mzz) / (q.e / 100)
+                 + Math.abs(Myy) + Mxx;
       if (!beste || kenn > beste.kenn) {
-        beste = { Mrahmen, Vrahmen, Mvert, Vvert, Mtors, Vtors, kenn,
+        beste = { Mzz, Fy, Myy, Fz, Mxx, Vxx, kenn,
                   fall: b.fall.key };
       }
     });
@@ -1669,7 +1692,7 @@ export function abfangAuswertung(o = {}) {
                                 gurtReihe[0]);
 
   // --- Bleche und Quersteifen ---------------------------------------------
-  const bleche = abfangBlechnachweise(typ, jt, (x) => bemessung(x).Vrahmen, fyd);
+  const bleche = abfangBlechnachweise(typ, jt, (x) => bemessung(x).Fy, fyd);
   const blech = (bleche?.bleche ?? []).reduce(
     (a2, b2) => (!a2 || (b2.eta ?? 0) > (a2.eta ?? 0) ? b2 : a2), null);
 

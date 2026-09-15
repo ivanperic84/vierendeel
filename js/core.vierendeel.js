@@ -363,7 +363,8 @@ export function berechneEinzelmast(inp, stahl) {
    */
   const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true,
                                   knickBeiwert: inp.knickBeiwert,
-                                  knicken: inp.nachweise?.knickenMast !== false });
+                                  knicken: inp.nachweise?.knickenMast !== false,
+                                  torsion: inp.nachweise?.torsionMast !== false });
   /*
    * >>> DAS URTEIL DES EINZELMASTEN IST DER NACHWEIS, nicht der Querschnitt.
    *
@@ -935,7 +936,8 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
     stationen: n,
     mast: mastNachweise(m, { plastisch: inp.mastPlastisch === true,
                                   knickBeiwert: inp.knickBeiwert,
-                                  knicken: inp.nachweise?.knickenMast !== false }),
+                                  knicken: inp.nachweise?.knickenMast !== false,
+                                  torsion: inp.nachweise?.torsionMast !== false }),
     schnitt: auswertungAn(m.xNachweis ?? m.L / 2, m),
     max: {
       etaOG: argMax((r) => r.og.eta),

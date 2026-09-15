@@ -4549,11 +4549,17 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
         { x: e === 'A' ? (ab.ueberstand ?? 0) : ab.jt - (ab.ueberstand ?? 0) });
     };
     return [
-      kachel('M Rahmenebene', f2(g.Mrahmen ?? 0),
+      /*
+       * DIE ACHSE STEHT DABEI (15. September, «konvention auch beim
+       * abfangjoch durchziehen»). Das Abfangjoch liegt waagrecht - seine
+       * Rahmenebene biegt um die LOTRECHTE Achse, beim Tragjoch ist es
+       * umgekehrt. Ohne die Anschrift muss man das jedesmal neu herleiten.
+       */
+      kachel('M Rahmenebene · M_zz', f2(g.Mzz ?? 0),
              `kNm · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
-      kachel('V Rahmenebene', f2(g.Vrahmen ?? 0),
+      kachel('V Rahmenebene · F_y', f2(g.Fy ?? 0),
              `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
-      kachel('M quer (lotrecht)', f2(g.Mvert ?? 0),
+      kachel('M quer (lotrecht) · M_yy', f2(g.Myy ?? 0),
              `kNm · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
       /*
        * DAS MOMENT IM EINZELNEN GURT ist die Zahl, die in den Nachweis
@@ -4562,9 +4568,9 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
        * die eine Zahl nicht in der anderen steckt.
        */
       kachel('M Gurt lotrecht', f2(ab.gurt?.MgurtVert ?? 0),
-             `kNm · davon Torsion ${f2(ab.gurt?.Mtors ?? 0)}`, '',
+             `kNm · davon Torsion ${f2(ab.gurt?.Mxx ?? 0)}`, '',
              { x: ab.gurt?.x ?? 0 }),
-      kachel('V quer (lotrecht)', f2(g.Vvert ?? 0),
+      kachel('V quer (lotrecht)', f2(g.Fz ?? 0),
              `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
       zeileAuflager('A'), zeileAuflager('B'),
     ].filter(Boolean);
@@ -4702,7 +4708,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${nichtGefuehrtHtml(urteil)}
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
-            ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mrahmen ?? 0)} kNm`
+            ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mzz ?? 0)} kNm`
                : `max M_y ${f2(x.MyMax)} kNm`)}
     ${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
@@ -5296,7 +5302,7 @@ export function zeichneAbfangSchnitt(node, ab) {
   const zeileStelle = (r) => `
     <tr class="${r.x === g?.x ? 'aktiv' : ''}${(r.eta ?? 0) > 1 ? ' nok' : ''}">
       <td class="num">${f2(r.x)}</td>
-      <td class="num">${f2(r.schnitt?.Mrahmen ?? 0)}</td>
+      <td class="num">${f2(r.schnitt?.Mzz ?? 0)}</td>
       <td class="num stark">${f2(r.N ?? 0)}</td>
       <td class="num">${f2(r.MgurtVert ?? 0)}</td>
       <td class="num">${f3(r.Moertl ?? 0)}</td>
@@ -5330,7 +5336,7 @@ export function zeichneAbfangSchnitt(node, ab) {
       ${kachel('N Kräftepaar', `${f2(g?.N ?? 0)} kN`,
                `M/e · e = ${f1(q.e ?? 0)} cm`)}
       ${kachel('M Gurt lotrecht', `${f2(g?.MgurtVert ?? 0)} kNm`,
-               `davon Torsion ${f2(g?.Mtors ?? 0)}`)}
+               `davon Torsion ${f2(g?.Mxx ?? 0)}`)}
       ${kachel('M örtlich', `${f3(g?.Moertl ?? 0)} kNm`,
                `Rahmenfeld ${f2(ab.rahmenfeld?.a ?? 0)} m`)}
       ${kachel('σ gesamt', `${f1(g?.sigma ?? 0)}`,
@@ -5341,11 +5347,11 @@ export function zeichneAbfangSchnitt(node, ab) {
 
     ${abschnitt('Schnittgrössen an dieser Stelle')}
     <div class="kennzahlen">
-      ${kachel('M Rahmenebene', `${f2(s.Mrahmen ?? 0)} kNm`, 'waagrecht')}
-      ${kachel('V Rahmenebene', `${f2(s.Vrahmen ?? 0)} kN`, 'waagrecht')}
-      ${kachel('M quer', `${f2(s.Mvert ?? 0)} kNm`, 'lotrecht, ganzer Träger')}
-      ${kachel('V quer', `${f2(s.Vvert ?? 0)} kN`, 'lotrecht')}
-      ${kachel('M Torsion', `${f2(s.Mtors ?? 0)} kNm`, 'im Gurt, aus T/e')}
+      ${kachel('M Rahmenebene · M_zz', `${f2(s.Mzz ?? 0)} kNm`, 'waagrecht')}
+      ${kachel('V Rahmenebene', `${f2(s.Fy ?? 0)} kN`, 'waagrecht')}
+      ${kachel('M quer', `${f2(s.Myy ?? 0)} kNm`, 'lotrecht, ganzer Träger')}
+      ${kachel('V quer', `${f2(s.Fz ?? 0)} kN`, 'lotrecht')}
+      ${kachel('M Torsion', `${f2(s.Mxx ?? 0)} kNm`, 'im Gurt, aus T/e')}
     </div>
 
     ${abschnitt('Gurtnachweis, Stelle für Stelle',
