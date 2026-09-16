@@ -87,8 +87,36 @@ Lotrechter Halt an beiden Flanschkanten zwängt den Gurt mit der
 Mastverdrehung - deshalb hält die Option nur quer. Das Feld (Blechstoss
 x = 5.25 m) bleibt bei rund 177 N/mm², unabhängig von der Lagerung.
 
-**Offen - Entscheid des Auftraggebers:** K_XX als Vorgabe halten? Sie
-senkt die Spitze am Kragarm-Mast von 249 auf 190 N/mm².
+**Entschieden (Weisung):** K_XX gehalten ist Vorgabe - «die version 1
+umsetzen als lagerung».
+
+**Abfangjoch, dieselbe Studie** (A240 / 8.00 m, Masten HEB 240, 7.00 m,
+Leiterzug 22 kN, Kombination «Tragsicherheit»; N/mm², Mast am Fuss):
+
+| Variante | Auflager | Feld | Torsion Mast | Moment Mast |
+|---|---|---|---|---|
+| Vorgabe (V y z, H x y z) | 140 | 114 | 1.3 | 116 |
+| **Vorgabe, K_XX gehalten** | **96** | 103 | 1.2 | 116 |
+| beide Gurte längs gehalten | 149 | 119 | 0.3 | 116 |
+| lotrecht nur hinten | 484 | 328 | 17.6 | 1067 |
+| quer nur hinten | 223 | 122 | 1.3 | 116 |
+| Federn 20 MN/m | 140 | 114 | 1.3 | 116 |
+| wie Tragjoch (V x y, H y z), K_XX | 105 | 111 | 1.3 | 116 |
+| K_XX, zweite Flanschkante nur quer | 114 | 107 | 0.1 | 116 |
+
+Nur der eine Lastfall der Regelausleitung (ohne Anbauteile, ohne Wind).
+**Offen - Entscheid des Auftraggebers:** K_XX auch beim Abfangjoch als
+Vorgabe halten (140 -> 96 N/mm²)?
+
+**Zwei Befunde an der COM-Brücke beim Abfangjoch mit Mast:**
+- Die Ausleitung gab dem lotrechten Masten eine Referenz parallel zur
+  Stabachse - behoben (`69d8a62`).
+- **Mit `-Unsichtbar` rechnet AxisVM das Abfangjoch mit Mast nicht**:
+  LinearAnalysis gibt 0 zurueck, keine Ergebnisse, keine Fehlerliste
+  (auch `LinearAnalysis2` nicht). Sichtbar rechnet dasselbe Modell. Das
+  Tragjoch rechnet auch unsichtbar. Ursache nicht gefunden.
+- Nebenbefund: zwei Gurtknoten (`V_1.380`, `H_1.380`, Gabelbereich) haengen
+  an keinem Stab.
 
 ### Menüband, Name Vierendeel, Seilanker nur Zug (16. September)
 
