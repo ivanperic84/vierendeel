@@ -2601,6 +2601,21 @@ if ($Rechnen) {
     }
     $gefunden.Add('Rechnen -> Calculation.LinearAnalysis(ECalculationUserInteraction)')
 
+    <#  DIE ERGEBNISSE AUF DIE PLATTE (16. September).
+        Sie stehen im laufenden Modell; ohne zweites Sichern kennt ein
+        spaeterer Lauf nur die Geometrie. Mit der .axs schreibt AxisVM die
+        .axe daneben - die liest AxisVM_auslesen.cmd oder ein Leseskript
+        auch aus einer anderen Instanz.                                   #>
+    try {
+        $ok2 = $m.SaveToFile($axs, $lbFalsch)
+        $axe = [IO.Path]::ChangeExtension($axs, '.axe')
+        if (Test-Path -LiteralPath $axe) {
+            Schreib "  Ergebnisse gesichert: $axe"
+        } else {
+            Schreib "  >>> Nach dem Rechnen gesichert (Rueckgabe $ok2), aber keine .axe daneben."
+        }
+    } catch { Schreib "  >>> Sichern nach dem Rechnen fehlgeschlagen: $($_.Exception.Message)" }
+
     # IM SELBEN LAUF LESEN. Eine neue Instanz kennt nur die gespeicherte
     # Datei - Geometrie ja, Ergebnisse nein.
     if ($Ziel) {

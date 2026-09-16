@@ -339,6 +339,17 @@ const AUFL_Z_LUFT = 0.05;
 const G_JOCH = 'G';
 const G_ANBAU = 'G_Anbau';
 const G_ABLENK = 'G_Ablenk';
+/** Welche ständigen Teillastfälle ein Lastfall mit `nur` umfasst. */
+function gTeileVon(nur) {
+  switch (nur) {
+    case 'tragwerk':   return [G_JOCH, G_ANBAU];
+    case 'ablenk':     return [G_ABLENK];
+    case 'joch':       return [G_JOCH];
+    case 'anbauteile': return [G_ANBAU, G_ABLENK];
+    default:           return G_TEILE.map((g) => g.key);
+  }
+}
+
 const G_TEILE = [
   { key: G_JOCH,   label: 'Ständig · Joch' },
   { key: G_ANBAU,  label: 'Ständig · Anbauteile' },
@@ -2889,7 +2900,15 @@ export function stabmodell(m, opt = {}) {
 
       // Der Anschlusskörper zwischen den Reihen, mit einem Knoten in der
       // Mitte - dort hängt die Stütze.
-      const nm = s.kn(`AT${k}_${gurt}`, x0, 0, zK);
+      /*
+       * LIEGT EINE REIHE IN DER MITTE, IST IHR KNOTEN DIE MITTE
+       * (16. September). Bei nur einer Reihe fallen beide Punkte zusammen;
+       * hier standen dann zwei Knoten an derselben Stelle und nichts
+       * dazwischen. AxisVM verschmolz sie stillschweigend (741 statt 744
+       * Knoten) - jedes andere Programm haette dort einen Mechanismus.
+       */
+      const deckt = knRe.find(({ x: xr }) => Math.abs(xr - x0) < 1e-9);
+      const nm = deckt ? deckt.n : s.kn(`AT${k}_${gurt}`, x0, 0, zK);
       mitte[gurt] = nm;
       knRe.forEach(({ x: xr, n }, j) => {
         if (Math.abs(xr - x0) < 1e-9) return;
@@ -3179,7 +3198,28 @@ export function lasten(m, bau, opt = {}) {
     });
   });
 
-  return { punkt, moment, strecke };
+  /*
+   * >>> JE KNOTEN, LASTFALL UND RICHTUNG NUR EINE LAST (16. September). <<<
+   *
+   * Zwei Anbauteile am selben Mastpunkt ergaben zwei Knotenlasten gleicher
+   * Richtung im selben Lastfall - und AxisVM behielt davon EINE. Am
+   * Beispiel fehlten so 1.60 kN von 8.25 kN, ohne jede Meldung; erst die
+   * Summe der Auflagerkraefte hat es gezeigt. Summiert wird deshalb hier,
+   * bevor irgendein Programm die Lasten sieht.
+   */
+  return { punkt: zusammenfassen(punkt), moment: zusammenfassen(moment), strecke };
+}
+
+/** Lasten gleichen Knotens, Lastfalls und gleicher Richtung addieren. */
+function zusammenfassen(liste) {
+  const je = new Map();
+  liste.forEach((p) => {
+    const k = `${p.knoten}|${p.lastfall}|${p.richtung}`;
+    const da = je.get(k);
+    if (da) da.wert = r6(da.wert + p.wert);
+    else je.set(k, { ...p });
+  });
+  return [...je.values()].filter((p) => p.wert !== 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -4006,9 +4046,12 @@ export function stabmodellJson(m, opt = {}) {
       anteile: EINWIRKUNGEN
         .flatMap((e) => {
           const f = r6(l.beiwerte?.[e.key] ?? 0);
-          // Das eine G des Rechenkerns wirkt auf alle drei Untergruppen.
+          // Das eine G des Rechenkerns wirkt auf alle drei Untergruppen -
+          // ausser ein charakteristischer Fall zeigt nur einen Teil davon
+          // (16. September; vorher kamen «Joch» und «Anbauteile» als
+          // dieselbe Kombination an).
           return e.key === 'G'
-            ? G_TEILE.map((g) => ({ lastfall: g.key, faktor: f }))
+            ? gTeileVon(l.nur).map((g) => ({ lastfall: g, faktor: f }))
             : [{ lastfall: e.key, faktor: f }];
         })
         .filter((a) => Math.abs(a.faktor) > 1e-9),

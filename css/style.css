@@ -2537,6 +2537,13 @@ body.datei-ueber::after {
   border-radius: var(--m-r1); font-size: 10.5px; line-height: 1.5;
 }
 
+/* K_XX wirkt nur im FEM - ein Hinweis, keine Warnung (16. September). */
+.al-fem-hinweis {
+  margin: 6px 0 0; padding: 5px 8px; border-left: 3px solid var(--warn);
+  background: var(--warn-s); border-radius: var(--m-r1);
+  font-size: 10.5px; line-height: 1.5;
+}
+
 /*
  * DIE SCHALTFLAECHEN. Sechs je Gurtebene, gross genug zum Treffen, und der
  * Zustand steht als WORT darin - nicht als Farbe allein.

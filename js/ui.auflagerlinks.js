@@ -337,6 +337,8 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    * braucht, findet sie; wer nicht, sieht sie nicht.
    */
   const wege = LINK_GRADE.filter((g) => g.art === 'kraft');
+  // Unter den Federwerten dazu die Torsion um x (16. September).
+  const federGrade = LINK_GRADE.filter((g) => g.art === 'kraft' || g.einstellbar);
 
   // Die Ebenen liegen in z auseinander (Tragjoch) oder in y (Abfangjoch).
   const inY = gelenk.paarAchse === 'y';
@@ -651,7 +653,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
      * bei `LINK_DREH_FREI` in core.auflager.js.
      */
     return `<div class="al-federn"><b>${esc(ebene.label)}</b>${
-      wege.map((g) => {
+      federGrade.map((g) => {
         const v = b[g.key];
         /*
          * DIE EINHEIT LIEGT IM FELD (Weisung, 9. September: «die einheit für
@@ -760,6 +762,18 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
       + '. Ein Stabwerksprogramm bricht damit ab.</p>'
     : '';
 
+  /*
+   * K_XX WIRKT NUR IM FEM (Weisung vom 16. September: «hinweis, dass es für
+   * das fem auswirkungen hat»). Der Ersatzbalken rechnet ohne sie; wer sie
+   * haelt, rechnet in AxisVM ein anderes System als in der Anwendung.
+   */
+  const femHinweis = federGrade.some((g) => g.einstellbar)
+    ? `<p class="al-fem-hinweis"><b>K_XX wirkt nur im FEM-Modell</b> (AxisVM, SAF,
+       PyNite), nicht im Ersatzbalken der Anwendung. Gehalten klemmt sie jeden
+       Gurt am Anschluss gegen Verdrehen; die Torsion des Jochs und die
+       Spannungen am Auflager verteilen sich dann anders. Leer heisst frei.</p>`
+    : '';
+
   return `<div class="auflager-links" data-al-feld="${esc(feld)}"
        data-al-art="${esc(art)}">
     ${bild}
@@ -769,7 +783,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
       <span class="al-e-wert">${eWert}</span>
       <span class="al-e-text">${eText}${eWirkung}</span></p>
     ${klapp(`auflager-federn-${feld}`, 'Federwerte von Hand',
-            federKreuz + federn,
+            federKreuz + federn + femHinweis,
             vorgabefeld ? 'Voreinstellung'
               : (linkAbweichend(werte, art) ? 'von der Vorgabe abweichend'
                                             : 'Vorgabe'),

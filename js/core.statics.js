@@ -56,13 +56,33 @@ export function bemessungslasten(i, anbauteile, h, bGurt = null) {
   // Feld `nur`). Die Beiwerte bleiben dieselben - es wird nur weggelassen,
   // was nicht zur Lastart gehört.
   const nur = i.nurLast ?? null;
-  const jochAn = nur !== 'anbauteile' ? 1 : 0;
+  // 'ablenk' zeigt nur die Ablenkkraft der Anbauteile, 'tragwerk' alle
+  // Gewichte ohne sie (16. September). 'joch' und 'anbauteile' bleiben fuer
+  // gespeicherte Staende lesbar.
+  const jochAn = nur !== 'anbauteile' && nur !== 'ablenk' ? 1 : 0;
   const qd_g = jochAn * b.G * i.gk;
   const qd_s = i.schneeAktiv ? jochAn * b.Schnee * i.sk : 0;
   const wd = jochAn * (b.WindY ?? 0) * i.wk;
-  const at = anbauteilLasten(nur === 'joch' ? [] : anbauteile,
+  const at = anbauteilLasten(nur === 'joch' ? [] : nurTeil(anbauteile, nur),
                              { ...i, beiwerte: b }, h, bGurt);
   return { qd_g, qd_s, qd: qd_g + qd_s, wd, beiwerte: b, nurLast: nur, ...at };
+}
+
+/**
+ * Die ständige Last eines Anbauteils in Gewicht und Ablenkung teilen.
+ *
+ * Die Ablenkkraft ist der Anteil G.Fx - die einzige ständige Kraft in der
+ * Jochachse (data.anbauteile.js, `wirktAblenk`). Dieselbe Trennung macht
+ * die AxisVM-Ausleitung mit ihren Lastfällen G_Anbau und G_Ablenk.
+ */
+function nurTeil(teile, nur) {
+  if (nur !== 'tragwerk' && nur !== 'ablenk') return teile;
+  return (teile ?? []).map((a) => {
+    const g = a.kraefte?.G;
+    if (!g) return nur === 'ablenk' ? { ...a, kraefte: {} } : a;
+    const G = nur === 'ablenk' ? { Fx: g.Fx ?? 0 } : { ...g, Fx: 0 };
+    return { ...a, kraefte: nur === 'ablenk' ? { G } : { ...a.kraefte, G } };
+  });
 }
 
 /** Auflagerkräfte vertikal. Stützmomente erzeugen den Zusatzanteil (M_A-M_B)/L. */

@@ -249,11 +249,25 @@ export function standardLastfaelle(inp) {
   const bw = (o) => ({ ...NULLBEIWERTE(), ...o });
   const begleitS = s ? q * p : 0;
 
+  /*
+   * >>> DAS GANZE TRAGWERK STAENDIG, DIE ABLENKUNG FUER SICH
+   *     (Weisung vom 16. September). <<<
+   *
+   * «bei den ständigen alle tragwerksteile zusammen nehmen nicht nur joch,
+   *  die ablenkkräfte können separat aufgeführt werden. dies auch in den
+   *  kombinationen nachführen.»
+   *
+   * Bis hierher standen «Ständig (Joch)» und «Anbauteile ständig» getrennt
+   * - und die AxisVM-Ausleitung kannte die Trennung nicht, beide kamen dort
+   * als dieselbe Kombination an. Jetzt: alle Gewichte zusammen, die
+   * Ablenkkraft aus dem Kurvenzug als eigener Fall. Sie ist die einzige
+   * staendige Last in der Jochachse und die, deren Richtung zaehlt.
+   */
   const lf = [
-    { key: 'gk', bez: 'Ständig (Joch)', art: 'charakteristisch', nachweis: false,
-      nur: 'joch', beiwerte: bw({ G: 1 }) },
-    { key: 'ak', bez: 'Anbauteile ständig', art: 'charakteristisch',
-      nachweis: false, nur: 'anbauteile', beiwerte: bw({ G: 1 }) },
+    { key: 'gk', bez: 'Ständig (Tragwerk)', art: 'charakteristisch', nachweis: false,
+      nur: 'tragwerk', beiwerte: bw({ G: 1 }) },
+    { key: 'ablk', bez: 'Ablenkkräfte ständig', art: 'charakteristisch',
+      nachweis: false, nur: 'ablenk', beiwerte: bw({ G: 1 }) },
   ];
   if (s) {
     lf.push({ key: 'sk', bez: 'Schnee', art: 'charakteristisch',

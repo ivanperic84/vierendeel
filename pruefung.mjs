@@ -785,14 +785,16 @@ titel('15  Lastfälle');
   const chars = lf.filter((x) => x.art === 'charakteristisch');
   wahr('Die charakteristischen Lastfälle stehen zuoberst',
        lf.slice(0, chars.length).every((x) => x.art === 'charakteristisch'));
-  wahr('Ständig, Anbauteile, Schnee, Wind y, Wind x, Ständig + Wind',
-       chars.map((x) => x.key).join(',') === 'gk,ak,sk,wyk,wxk,gwk',
+  wahr('Ständig, Ablenkkräfte, Schnee, Wind y, Wind x, Ständig + Wind',
+       chars.map((x) => x.key).join(',') === 'gk,ablk,sk,wyk,wxk,gwk',
        chars.map((x) => x.bez).join(' · '));
   wahr('Jede Einzellastart trägt genau eine Gruppe',
        ['sk', 'wyk', 'wxk'].every((k) => Object.values(holen(k).beiwerte)
          .filter((v) => v !== 0).length === 1));
-  wahr('Ständig zeigt das Joch, Anbauteile die Anbauteile',
-       holen('gk').nur === 'joch' && holen('ak').nur === 'anbauteile'
+  // Weisung vom 16. September: alle Tragwerksteile zusammen, die
+  // Ablenkkraft fuer sich.
+  wahr('Ständig zeigt das Tragwerk, der zweite Fall die Ablenkkräfte',
+       holen('gk').nur === 'tragwerk' && holen('ablk').nur === 'ablenk'
        && holen('gwk').nur === undefined);
   wahr('Gebrauchstauglichkeit ist kein Nachweis',
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
@@ -864,8 +866,8 @@ titel('15  Lastfälle');
           L.lastfaelle(w).length + 2, 1e-12, 'Stk');
     // Ständig (Joch) und Anbauteile haben dieselben Beiwerte und sind trotzdem
     // nicht doppelt - sie unterscheiden sich im Feld `nur`.
-    wahr('Ständig und Anbauteile gelten nicht als doppelt',
-         alle.find((x) => x.key === 'ak').doppeltZu === undefined);
+    wahr('Ständig und Ablenkkräfte gelten nicht als doppelt',
+         alle.find((x) => x.key === 'ablk').doppeltZu === undefined);
   }
 
   // --- Ständig und Anbauteile ergänzen sich zur vollen ständigen Last -------
@@ -899,8 +901,28 @@ titel('15  Lastfälle');
           feldMy({}), 1e-6, 'kNm');
     // Der Lastfall bringt den Filter selbst mit - ohne dass ihn jemand setzt.
     wahr('Der Lastfall trägt den Filter selbst',
-         rechne({ ...mitTeil, lastfall: 'ak' }).modell.qd === 0
+         rechne({ ...mitTeil, lastfall: 'ablk' }).modell.qd === 0
          && rechne({ ...mitTeil, lastfall: 'gk' }).modell.qd === alles.qd);
+
+    /*
+     * TRAGWERK UND ABLENKUNG ERGAENZEN SICH EBENSO (16. September). Die
+     * Ablenkkraft ist der Anteil G·F_x; «Tragwerk» traegt alles andere.
+     */
+    const mitAbl = basis({ lastHerkunft: 'manuell', gkManuell: 2, wkManuell: 0,
+                           skManuell: 0, schneeAktiv: false,
+                           anbauteile: [teil({ name: 'P', x: 8, Gz: 6, Gx: 3, ev: 1.2 })] });
+    const nx = (mm) => (mm.N ?? []).reduce((a, x) => a + x.w, 0);
+    const gAll = rechne({ ...mitAbl, beiwerteFest: bw1 }).modell;
+    const gTw = rechne({ ...mitAbl, beiwerteFest: bw1, nurLast: 'tragwerk' }).modell;
+    const gAb = rechne({ ...mitAbl, beiwerteFest: bw1, nurLast: 'ablenk' }).modell;
+    pruef('Tragwerk: die Laufmeterlast bleibt', gTw.qd, gAll.qd, 1e-12, 'kN/m');
+    pruef('Tragwerk: keine Kraft in der Jochachse', nx(gTw), 0, 1e-12, 'kN');
+    pruef('Ablenkkräfte: keine Laufmeterlast, kein Gewicht',
+          gAb.qd + (gAb.P ?? []).reduce((a, x) => a + x.w, 0), 0, 1e-12, 'kN');
+    pruef('Ablenkkräfte: die ganze Kraft in der Jochachse', nx(gAb), nx(gAll), 1e-12, 'kN');
+    wahr('… und sie ist nicht null', Math.abs(nx(gAll)) > 1, `${nx(gAll)} kN`);
+    pruef('Tragwerk + Ablenkkräfte = alles (Auflagerkraft)', gTw.RA + gAb.RA,
+          gAll.RA, 1e-9, 'kN');
   }
 
   // Normensätze
@@ -7597,10 +7619,17 @@ titel('34b Die Auflagerbedingung je Gurtebene');
 
   const og = AUF.linkBedingung({}, 'joch', 'OG');
   const ug = AUF.linkBedingung({}, 'joch', 'UG');
-  wahr('Der Obergurt laesst die Jochachse los', og.x === 'Free');
-  wahr('… haelt aber quer und lotrecht', og.y === 'Rigid' && og.z === 'Rigid');
-  wahr('Der Untergurt haelt alle drei Kraefte',
-       ug.x === 'Rigid' && ug.y === 'Rigid' && ug.z === 'Rigid');
+  /*
+   * SEIT DEM 16. SEPTEMBER LIEGT DAS JOCH AUF DEM UNTERGURT (Weisung, am
+   * auskragenden Joch in AxisVM so gestellt): Obergurt x y, Untergurt y z.
+   */
+  wahr('Der Obergurt haelt laengs und quer', og.x === 'Rigid' && og.y === 'Rigid');
+  wahr('… und laesst lotrecht los', og.z === 'Free');
+  wahr('Der Untergurt haelt quer und lotrecht',
+       ug.y === 'Rigid' && ug.z === 'Rigid');
+  wahr('… und laesst die Jochachse los', ug.x === 'Free');
+  wahr('Die Vorgabe bleibt ein Gelenk',
+       AUF.linkEinspannung({}, 'joch', 0.3).art === 'gelenk');
   wahr('Beide geben alle drei Momente frei',
        ['xx', 'yy', 'zz'].every((f) => og[f] === 'Free' && ug[f] === 'Free'));
   wahr('Ohne Eingabe steht die Vorgabe', !AUF.linkAbweichend({}, 'joch'));
@@ -7609,9 +7638,9 @@ titel('34b Die Auflagerbedingung je Gurtebene');
    * DIE EINSTELLUNG SCHLAEGT DIE VORGABE - aber nur, wo eine steht. Eine
    * halb gefuellte Eingabe darf nicht in eine halbe Lagerung fallen.
    */
-  const w1 = { auflagerLinks: { OG: { x: 'Rigid' } } };
+  const w1 = { auflagerLinks: { OG: { z: 'Rigid' } } };
   wahr('Ein gesetzter Grad gilt',
-       AUF.linkBedingung(w1, 'joch', 'OG').x === 'Rigid');
+       AUF.linkBedingung(w1, 'joch', 'OG').z === 'Rigid');
   wahr('… die uebrigen kommen aus der Vorgabe',
        AUF.linkBedingung(w1, 'joch', 'OG').y === 'Rigid'
        && AUF.linkBedingung(w1, 'joch', 'OG').xx === 'Free');
@@ -7813,13 +7842,24 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   {
     const mitDreh = { auflagerLinks: { OG: { x: 'Rigid', yy: 50000, xx: 'Rigid' },
                                        UG: { x: 'Rigid', zz: 1234 } } };
+    /*
+     * AUSGENOMMEN K_XX (Weisung vom 16. September): die Torsion um die
+     * Jochachse ist wieder einstellbar. Die beiden Biegegrade nicht.
+     */
     ['OG', 'UG'].forEach((eb) => {
       const b = AUF.linkBedingung(mitDreh, 'joch', eb);
-      wahr(`${eb}: die drei Drehungen bleiben frei`,
-           ['xx', 'yy', 'zz'].every((g) => b[g] === 'Free'),
+      wahr(`${eb}: die beiden Biegegrade bleiben frei`,
+           ['yy', 'zz'].every((g) => b[g] === 'Free'),
            ['xx', 'yy', 'zz'].map((g) => `${g}=${b[g]}`).join(' '));
       wahr(`${eb}: die Wegfedern gelten weiter`, b.x === 'Rigid');
     });
+    wahr('K_XX kommt an, wo sie steht',
+         AUF.linkBedingung(mitDreh, 'joch', 'OG').xx === 'Rigid'
+         && AUF.linkBedingung(mitDreh, 'joch', 'UG').xx === 'Free');
+    wahr('… auch als Zahl, und aus den Optionen',
+         AUF.linkBedingung({ auflagerLinks: { UG: { xx: 500 } } }, 'joch', 'UG').xx === 500
+         && AUF.linkVorgabe({ auflagerVorgabe: { joch: { OG: { xx: 'Rigid' } } } },
+                            'joch', 'OG').xx === 'Rigid');
     // Auch aus den Optionen kommt keine durch.
     const ausOpt = { auflagerVorgabe: { joch: { OG: { yy: 9999 } } } };
     wahr('Die Voreinstellung bringt auch keine mit',
@@ -7830,9 +7870,15 @@ titel('34b Die Auflagerbedingung je Gurtebene');
     const mD = modell(wD, getProfil(wD.profOG), getProfil(wD.profUG),
                       getStahl(wD.stahl), T.getTragjoch('J90'));
     const jD = AX.stabmodellJson({ ...mD, ...mitDreh }, { auflagerModell: 'mast' });
-    wahr('Das Linkelement traegt keine Drehfeder',
-         ['xx', 'yy', 'zz'].every((g) => jD.staebe
-           .find((x) => x.name === 'LINK_A_OGL').kraftuebertragung[g] === 'Free'));
+    const kuD = jD.staebe.find((x) => x.name === 'LINK_A_OGL').kraftuebertragung;
+    wahr('Das Linkelement traegt keine Biegefeder',
+         ['yy', 'zz'].every((g) => kuD[g] === 'Free'));
+    wahr('… wohl aber die gesetzte Torsionsfeder', kuD.xx === 'Rigid',
+         JSON.stringify(kuD));
+    wahr('Die Maske fuehrt K_XX unter den Federwerten, mit dem FEM-Hinweis',
+         /data-grad="xx"/.test((await import(J("ui.auflagerlinks.js"))).auflagerDiagrammHtml({}, 'joch'))
+         && /K_XX wirkt nur im FEM-Modell/.test((await import(J("ui.auflagerlinks.js"))).auflagerDiagrammHtml({}, 'joch'))
+         && !/data-grad="yy"/.test((await import(J("ui.auflagerlinks.js"))).auflagerDiagrammHtml({}, 'joch')));
   }
 
   /*
@@ -7948,10 +7994,10 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   wahr('… und die Verschiebung in y wird benannt',
        ohneY.moden.some((m) => m.achse === 'y' && m.art === 'verschiebung'));
   /*
-   * LAENGS: die Vorgabe haelt x nur am Untergurt. Laesst auch der los,
+   * LAENGS: die Vorgabe haelt x nur am Obergurt (seit dem 16. September). Laesst auch der los,
    * fehlt die Jochachse - eine einzige Bewegung, nicht mehr.
    */
-  const ohneX = labil({ auflagerLinks: { UG: { x: 'Free' } } });
+  const ohneX = labil({ auflagerLinks: { OG: { x: 'Free' } } });
   wahr('Ohne Halt in x ebenfalls labil', ohneX.labil === true);
   wahr('… und zwar genau eine Bewegung', ohneX.fehlend === 1);
   wahr('… naemlich die Jochachse',
@@ -7961,7 +8007,8 @@ titel('34b Die Auflagerbedingung je Gurtebene');
    * der Drehung um diese Linie. Das ist die Torsion - und der Grund, warum
    * der Anschluss ueberhaupt zwei Ebenen hat.
    */
-  const eine = labil({ auflagerLinks: { OG: { x: 'Free', y: 'Free', z: 'Free' } } });
+  const eine = labil({ auflagerLinks: { OG: { x: 'Free', y: 'Free', z: 'Free' },
+                                      UG: { x: 'Rigid' } } });
   wahr('Nur eine tragende Ebene laesst die Torsion frei',
        eine.labil === true && eine.moden[0].achse === 'xx');
   /*
@@ -7996,8 +8043,11 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   const j1 = AX.stabmodellJson(mLb, { auflagerModell: 'mast' });
   const lOG = j1.staebe.find((x) => x.name === 'LINK_A_OGL');
   const lUG = j1.staebe.find((x) => x.name === 'LINK_A_UGL');
-  wahr('Der Obergurt-Link ist laengs frei', lOG.kraftuebertragung.x === 'Free');
-  wahr('Der Untergurt-Link haelt', lUG.kraftuebertragung.x === 'Rigid');
+  // Vorgabe seit dem 16. September: Obergurt x y, Untergurt y z.
+  wahr('Der Obergurt-Link haelt laengs und laesst lotrecht los',
+       lOG.kraftuebertragung.x === 'Rigid' && lOG.kraftuebertragung.z === 'Free');
+  wahr('Der Untergurt-Link traegt lotrecht und laesst laengs los',
+       lUG.kraftuebertragung.x === 'Free' && lUG.kraftuebertragung.z === 'Rigid');
   const j2 = AX.stabmodellJson(
     { ...mLb, auflagerLinks: { OG: { x: 'Rigid' }, UG: { z: 25000 } } },
     { auflagerModell: 'mast' });
@@ -8177,11 +8227,13 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
            lk && lk.art === 'link' && lk.von === `ANS_${e}_${g}${seite}`);
     });
     const l = glied('LINK', 'L');
-    const sollX = g === 'OG' ? 'Free' : 'Rigid';
+    // Vorgabe seit dem 16. September: Obergurt x y, Untergurt y z.
+    const sollX = g === 'OG' ? 'Rigid' : 'Free';
+    const sollZ = g === 'OG' ? 'Free' : 'Rigid';
     wahr(`Ende ${e}, ${g}: laengs ${sollX === 'Free' ? 'frei' : 'starr'}`,
          l.kraftuebertragung.x === sollX, JSON.stringify(l.kraftuebertragung));
-    wahr(`Ende ${e}, ${g}: quer und lotrecht starr`,
-         ['y', 'z'].every((f) => l.kraftuebertragung[f] === 'Rigid'));
+    wahr(`Ende ${e}, ${g}: quer starr, lotrecht ${sollZ === 'Free' ? 'frei' : 'starr'}`,
+         l.kraftuebertragung.y === 'Rigid' && l.kraftuebertragung.z === sollZ);
     wahr(`Ende ${e}, ${g}: alle drei Momente frei`,
          ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'));
     /*
@@ -23702,6 +23754,123 @@ titel('68  Das Menueband und der Name der Anwendung');
        && /'tragjoch-eingelesen-v1'/.test(readFileSync(join(HIER, 'js', 'data.einlesen.js'), 'utf8')));
   wahr('Das Bauteil heisst weiterhin Tragjoch',
        CCn.TRAGWERKSARTEN.find((a) => a.key === 'joch')?.label === 'Tragjoch');
+}
+
+titel('69  Das auskragende Joch: was die Maste bekommen');
+/* ===========================================================================
+ * Befund vom 16. September am Testtragwerk (J70-alt, L = 16.50 m, Mast B
+ * 7.30 m vor dem Jochende): «der Mast auf Seite auskragendes Joch hatte zu
+ * niedrige Momente und zu kleine Ausnutzung im Vergleich zur App.»
+ *
+ * Gegen AxisVM nachgerechnet. Die Anwendung verteilte die Querkraefte ueber
+ * die ganze Jochlaenge und gab das Stuetzmoment des Feldes in den Masten
+ * statt des Anschlussmoments. Beides ist hier festgehalten, dazu der Hebel
+ * der Konsole und die Bereinigung der Ausleitung.
+ * ========================================================================= */
+{
+  const CCk = await import(J('core.constants.js'));
+  const MAk = await import(J('core.mast.js'));
+  const AUk = await import(J('core.auflager.js'));
+  const AXk = await import(J('export.axisvm.js'));
+  const { getMastprofil } = await import(J('data.masten.js'));
+  const satz = (krag, zusatz = {}) => CCk.rechensatz({
+    ...standardwerte(), typ: 'J90', L: 16.5, kragA: 0, kragB: krag, xLage: 0,
+    mastVorhanden: true, endbedingung: 'mast', mastProfil: 'HEB 220', mastH: 7.4,
+    mastSteg: 'jochachse',
+    masten: [{ id: 'M1', x: 0, profil: 'HEB 220' },
+             { id: 'M2', x: 16.5 - krag, profil: 'HEB 220' }], ...zusatz });
+  const lauf = (w) => berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                               getStahl(w.stahl), T.getTragjoch(w.typ));
+  const joch = (m, e) => MAk.mastLasten(m, e).lasten[0];
+
+  // --- ohne Kragarm: wie bisher, nur B global gezaehlt --------------------
+  const m0 = lauf(satz(0)).modell;
+  pruef('Ohne Kragarm: F_y je Mast die Haelfte', joch(m0, 'B').Fy,
+        (m0.wd * 16.5 + (m0.H ?? []).reduce((s, p) => s + p.w, 0)) / 2, 1e-9, 'kN');
+  const eK = AUk.konsolLaenge(m0, getMastprofil('HEB 220'));
+  pruef('Die Konsole ist eine halbe Mastbreite lang', eK, 0.11, 1e-12, 'm');
+  pruef('Mast A: Anschlussmoment plus F_z mal Konsole', joch(m0, 'A').Myy,
+        m0.MA + joch(m0, 'A').Fz * eK, 1e-9, 'kNm');
+  pruef('Mast B: dasselbe, global mit umgekehrtem Drehsinn', joch(m0, 'B').Myy,
+        -m0.MB - joch(m0, 'B').Fz * eK, 1e-9, 'kNm');
+  wahr('Die Konsole gibt F_y keinen Arm - keine Torsion aus dem Joch',
+       joch(m0, 'A').ex === 0 && joch(m0, 'A').eKonsole === eK);
+
+  // --- mit Kragarm ---------------------------------------------------------
+  const m1 = lauf(satz(7.3)).modell;
+  const Ls = 9.2;
+  const Hsum = (m1.H ?? []).reduce((s, p) => s + p.w, 0);
+  const FyB = m1.wd * 16.5 * (8.25 / Ls)
+            + (m1.H ?? []).reduce((s, p) => s + p.w * (p.x / Ls), 0);
+  pruef('Mit Kragarm: F_y nach dem Hebelgesetz um die Mastachsen',
+        joch(m1, 'B').Fy, FyB, 1e-9, 'kN');
+  pruef('… und beide zusammen sind die ganze Kraft',
+        joch(m1, 'A').Fy + joch(m1, 'B').Fy, m1.wd * 16.5 + Hsum, 1e-9, 'kN');
+  wahr('… der innere Mast traegt deutlich mehr als die Haelfte',
+       joch(m1, 'B').Fy > 0.8 * (m1.wd * 16.5 + Hsum),
+       `${joch(m1, 'B').Fy.toFixed(2)} kN`);
+  const MkB = m1.feldmodell.MkB;
+  wahr('Das Kragarmmoment ist da', MkB > 10, `${MkB.toFixed(2)} kNm`);
+  pruef('In den Masten geht das Anschlussmoment M_B − M_kB', joch(m1, 'B').Myy,
+        -(m1.MB - MkB) - joch(m1, 'B').Fz * eK, 1e-9, 'kNm');
+  const an = AUk.jochAnteile(m1);
+  pruef('jochAnteile rechnet dasselbe', an.B.Man, m1.MB - MkB, 1e-12, 'kNm');
+
+  // Gelenkig: der Mast bekommt nur F_z mal Konsole - nicht das Kragarmmoment.
+  const mg = lauf(satz(7.3, { endbedingung: 'gelenkig' })).modell;
+  pruef('Gelenkig mit Kragarm: M_B ist das Kragarmmoment', mg.MB,
+        mg.feldmodell.MkB, 1e-9, 'kNm');
+  pruef('… und der Mast bekommt davon nichts, nur F_z·e', joch(mg, 'B').Myy,
+        -joch(mg, 'B').Fz * eK, 1e-9, 'kNm');
+
+  // Die Federbegrenzung liest das Anschlussmoment.
+  const bf = AUk.begrenzeFeder({ L: 9.2, qd: 0, P: [], M: [], EI: 2e4,
+                                 cA: 5000, cB: 5000, h: 0.3, Fgrenz: 50,
+                                 MkA: 0, MkB: 20 });
+  wahr('Ein Kragarm allein drueckt die Feder nicht auf null',
+       bf.cB > 0 && bf.FB <= 50 + 1e-6,
+       `c_B ${bf.cB.toFixed(0)}, F_B ${bf.FB.toFixed(2)} kN`);
+
+  // --- die Ausleitung ------------------------------------------------------
+  const w2 = satz(7.3);
+  const j2 = AXk.stabmodellJson(lauf(w2).modell, { eingabe: w2, auflagerModell: 'mast' });
+  const lage = new Map();
+  j2.knoten.forEach((k) => {
+    const s = `${k.x.toFixed(6)}|${k.y.toFixed(6)}|${k.z.toFixed(6)}`;
+    lage.set(s, (lage.get(s) ?? []).concat(k.name));
+  });
+  const doppelt = [...lage.values()].filter((v) => v.length > 1);
+  wahr('Kein Knoten liegt auf einem anderen', doppelt.length === 0,
+       doppelt.slice(0, 3).map((v) => v.join('=')).join(', '));
+  const schl = j2.lasten.punkt.map((p) => `${p.knoten}|${p.lastfall}|${p.richtung}`);
+  wahr('Je Knoten, Lastfall und Richtung hoechstens eine Last',
+       new Set(schl).size === schl.length);
+  const kombi = (k) => (j2.kombinationen.find((x) => x.key === k)?.anteile ?? [])
+    .map((a) => a.lastfall).sort().join(',');
+  wahr('«Ständig (Tragwerk)» umfasst Joch und Anbauteile, ohne Ablenkung',
+       kombi('gk') === 'G,G_Anbau', kombi('gk'));
+  wahr('«Ablenkkräfte ständig» nur die Ablenkung', kombi('ablk') === 'G_Ablenk',
+       kombi('ablk'));
+  wahr('Ein Nachweisfall traegt alle drei staendigen Teile',
+       kombi('windYp').startsWith('G,G_Ablenk,G_Anbau'), kombi('windYp'));
+
+  // Zwei Lasten am selben Mastpunkt werden eine.
+  const zweiAmMast = ['T1', 'T2'].map((id, i) => ({
+    id, name: `Teil ${i + 1}`, vorlage: 'direkt', ort: 'mastA', hMast: 5.0,
+    x: 0, y: 0, raster: 0, aktiv: true,
+    lasten: [block({ einwirkung: 'G', Fz: i ? 1.6 : 0.15 })] }));
+  const w3 = satz(0, { anbauteile: zweiAmMast });
+  const j3 = AXk.stabmodellJson(lauf(w3).modell, { eingabe: w3, auflagerModell: 'mast' });
+  const amMast = j3.lasten.punkt.filter((p) => p.richtung === 'Z'
+                                           && /^MAST_A/.test(p.knoten));
+  wahr('Zwei Teile am selben Mastpunkt: eine Last', amMast.length === 1,
+       JSON.stringify(amMast));
+  pruef('… mit der Summe', amMast[0]?.wert ?? 0, -1.75, 1e-9, 'kN');
+
+  // Die Bruecke sichert nach dem Rechnen.
+  const ps1k = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('Die Bruecke sichert die Ergebnisse nach dem Rechnen',
+       /Ergebnisse gesichert/.test(ps1k) && /^[\x00-\x7F]*$/.test(ps1k));
 }
 
 // ===========================================================================

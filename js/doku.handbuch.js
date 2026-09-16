@@ -229,21 +229,23 @@ wäre falsch, und sie kehrt sich auch nicht mit dem Wind um.`)}
 
 <h4>3.4 Lastfälle</h4>
 <p><b>Zuoberst stehen die einzelnen Lastarten, jede für sich und
-charakteristisch</b> – Ständig, Anbauteile, Schnee, Wind y, Wind x, dazu alles
+charakteristisch</b> – Ständig, Ablenkkräfte, Schnee, Wind y, Wind x, dazu alles
 zusammen. Alle Beiwerte 1.00. Sie sind kein Nachweis, sondern der Massstab: nur
 an einer einzelnen Lastart lässt sich ablesen, ob der Lastweg stimmt, und nur so
 ist die Rechnung gegen ein FEM-Modell zu halten, das seine Lastfälle ebenfalls
 einzeln ausweist.</p>
 
 <table><tr><th>Lastfall</th><th>zeigt</th></tr>
-<tr><td>Ständig (Joch)</td><td>Eigengewicht des Jochs, ohne Anbauteile</td></tr>
-<tr><td>Anbauteile ständig</td><td>nur die ständigen Lasten der Anbauteile</td></tr>
+<tr><td>Ständig (Tragwerk)</td><td>alle Gewichte: Joch, Masten und Anbauteile, ohne Ablenkkräfte</td></tr>
+<tr><td>Ablenkkräfte ständig</td><td>nur die Ablenkkräfte aus dem Kurvenzug, in der Jochachse</td></tr>
 <tr><td>Schnee · Wind y · Wind x</td><td>je eine Einwirkung allein</td></tr>
 <tr><td>Ständig + Wind</td><td>alles zusammen, ohne Beiwerte</td></tr></table>
 
-<p>Die ersten beiden ergänzen sich zur vollen ständigen Last; getrennt geführt,
-weil ihr Lastweg verschieden ist – die Laufmeterlast liegt auf den Gurten, die
-Anbauteillast hängt an vier Punkten und bringt Torsion mit.</p>
+<p>Die ersten beiden ergänzen sich zur vollen ständigen Last. Getrennt geführt
+ist die Ablenkkraft, weil sie als einzige ständige Last in der Jochachse zieht
+und ihre Richtung zählt: gegen den Wind in Jochachse kann sie entlasten oder
+belasten. In der AxisVM-Ausleitung sind es die Lastfälle «Ständig · Joch» und
+«Ständig · Anbauteile» gegen «Ständig · Ablenkkräfte».</p>
 
 <p>Darauf folgen die <b>Nachweislastfälle</b>: je Windrichtung sowie für Schnee
 ein leitender Fall mit beiden Vorzeichen.</p>

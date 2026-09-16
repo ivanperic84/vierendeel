@@ -23,7 +23,7 @@ import { expandiereAnbauteile, amMast, ortVon } from './data.anbauteile.js';
 import { mastNachweise } from './core.mast.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
-         mastKoepfe } from './core.auflager.js';
+         mastKoepfe, jochAnteile } from './core.auflager.js';
 import { schnittAuswertung, eigenanteil,
          ENDFELD_STATIONEN } from './core.querschnitt.js';
 import { blechAnStation, hatBleche, teilung, voute, bauhoeheAn, breiteAn,
@@ -599,10 +599,12 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     // verschiedene Kräfte für dieselbe Verbindung aus.
     const kraft = (Mst) => Math.abs(Mst) / (2 * v.hT);
     const Fgrenz = inp.schraubenFgrenz ?? 0;
-    const FA = kraft(geo.MA), FB = kraft(geo.MB);
+    // Das ANSCHLUSSMOMENT, nicht das Stuetzmoment: mit Kragarm gehen die
+    // beiden auseinander (16. September, core.auflager.js jochAnteile).
+    const FA = kraft(geo.MAan), FB = kraft(geo.MBan);
     return {
       cA: federnRoh.cA, cB: federnRoh.cB,
-      MA: geo.MA, MB: geo.MB, h: v.hT,
+      MA: geo.MAan, MB: geo.MBan, h: v.hT,
       FA, FB, F: Math.max(FA, FB), Fgrenz,
       // Ohne Grenzwert gibt es nichts nachzuweisen - dann steht nur die Kraft.
       ok: Fgrenz > 0 ? Math.max(FA, FB) <= Fgrenz * (1 + 1e-9) : null,
@@ -1110,18 +1112,15 @@ export function auflagerBlatt(inp, profOG, profUG, stahl, joch) {
 
   const zeilen = saetze.map((s) => {
     const m = modell({ ...inp, beiwerteFest: s.bw }, profOG, profUG, stahl, joch);
-    const L = m.L;
-    // Horizontale Auflagerkraft in Gleisrichtung: Gleichlast plus Einzellasten
-    const hA = (m.wd * L) / 2 + (m.H ?? []).reduce((a, p) => a + (p.w * (L - p.x)) / L, 0);
-    const hB = (m.wd * L) / 2 + (m.H ?? []).reduce((a, p) => a + (p.w * p.x) / L, 0);
-    // Torsion: gabelgelagert, Aufteilung nach dem Hebelarm zum Auflager
-    const tA = (m.T ?? []).reduce((a, t) => a + (t.w * (L - t.x)) / L, 0);
-    const tB = (m.T ?? []).reduce((a, t) => a + (t.w * t.x) / L, 0);
+    // Querkraefte und Torsion nach dem Hebelarm um die MASTACHSEN, das
+    // Moment als ANSCHLUSSMOMENT - mit Kragarm geht beides sonst fehl
+    // (16. September, core.auflager.js jochAnteile).
+    const an = jochAnteile(m);
     const fx = (m.N ?? []).reduce((a, n) => a + n.w, 0);
     return {
       ...s,
-      A: { Fz: m.RA, Fy: hA, My: m.MA, Mx: tA },
-      B: { Fz: m.RB, Fy: hB, My: m.MB, Mx: tB },
+      A: { Fz: m.RA, Fy: an.A.Fy, My: an.A.Man, Mx: an.A.T },
+      B: { Fz: m.RB, Fy: an.B.Fy, My: an.B.Man, Mx: an.B.T },
       Fx: fx,
       qd: m.qd, wd: m.wd,
     };

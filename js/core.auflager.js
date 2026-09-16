@@ -670,13 +670,19 @@ export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz,
   let a = cA, b = cB, durchgaenge = 0, begrenzt = false;
   let auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B, MkA, MkB });
 
+  /*
+   * DIE SCHRAUBEN TRAGEN DAS ANSCHLUSSMOMENT, nicht das Stuetzmoment
+   * (16. September). Mit Kragarm strebt MB bei weicher Feder gegen MkB und
+   * nie gegen null - die Schleife drueckte die Feder dann bis auf null
+   * herunter, obwohl die Verbindung laengst entlastet war.
+   */
   if (!(Fgrenz > 0) || !(h > 0)) {
-    return { cA: a, cB: b, MA: auf.MA, MB: auf.MB, FA: kraft(auf.MA),
-             FB: kraft(auf.MB), begrenzt: false, durchgaenge: 0 };
+    return { cA: a, cB: b, MA: auf.MA, MB: auf.MB, FA: kraft(auf.MAan),
+             FB: kraft(auf.MBan), begrenzt: false, durchgaenge: 0 };
   }
 
   for (let i = 0; i < 60; i++) {
-    const FA = kraft(auf.MA), FB = kraft(auf.MB);
+    const FA = kraft(auf.MAan), FB = kraft(auf.MBan);
     if (FA <= Fgrenz * (1 + 1e-6) && FB <= Fgrenz * (1 + 1e-6)) break;
     if (FA > Fgrenz) a = Math.max(0, a * (Fgrenz / FA));
     if (FB > Fgrenz) b = Math.max(0, b * (Fgrenz / FB));
@@ -685,7 +691,7 @@ export function begrenzeFeder({ L, qd, P, M, EI, cA, cB, h, Fgrenz,
     auf = auflagermomente({ L, qd, P, M, EI, cA: a, cB: b, theta0A, theta0B, MkA, MkB });
   }
   return { cA: a, cB: b, MA: auf.MA, MB: auf.MB,
-           FA: kraft(auf.MA), FB: kraft(auf.MB), begrenzt, durchgaenge };
+           FA: kraft(auf.MAan), FB: kraft(auf.MBan), begrenzt, durchgaenge };
 }
 
 export function auflagermomente({ L, qd, P, M, EI, cA, cB,
@@ -724,6 +730,9 @@ export function auflagermomente({ L, qd, P, M, EI, cA, cB,
   const M0B = cB * (theta0B ?? 0);
   return {
     MA, MB,
+    // Was die VERBINDUNG uebertraegt: das Stuetzmoment ohne den Kragarm
+    // (16. September). Ohne Kragarm gleich MA/MB. Siehe jochAnteile().
+    MAan: MA - (MkA ?? 0), MBan: MB - (MkB ?? 0),
     kappaA: Math.abs(MAvoll) > 1e-12 ? MA / MAvoll : 0,
     kappaB: Math.abs(MBvoll) > 1e-12 ? MB / MBvoll : 0,
     thetaA, thetaB, MAvoll, MBvoll,
@@ -772,6 +781,57 @@ export function mastAchse(m, ende = 'A') {
   const L = m?.L ?? 0;
   return ende === 'A' ? Math.max(0, m?.kragA ?? 0)
                       : L - Math.max(0, m?.kragB ?? 0);
+}
+
+/* ===========================================================================
+ * >>> WAS DAS JOCH AN JEDEN MASTEN ABGIBT - MIT KRAGARM. <<<
+ * ===========================================================================
+ *
+ * Befund vom 16. September am auskragenden Joch (Mast B 7.30 m vor dem
+ * Jochende): «der Mast auf Seite auskragendes Joch hatte zu niedrige Momente
+ * und zu kleine Ausnutzung im Vergleich zur App.»
+ *
+ * Zwei Fehler, beide an genau einer Stelle zu beheben:
+ *
+ * 1. DIE KRAEFTE QUER ZUR JOCHACHSE wurden ueber die GANZE Jochlaenge
+ *    aufgeteilt, als staenden die Maste an den Enden (wd·L/2 und p.x/L).
+ *    Mit Kragarm traegt der innere Mast mehr als die Haelfte - im Beispiel
+ *    9.3 statt 6.5 kN Wind in Gleisrichtung. Die unsichere Seite.
+ *    Jetzt: Hebelgesetz um die beiden MASTACHSEN.
+ *
+ * 2. DAS MOMENT IN DEN MASTEN war das Stuetzmoment des FELDES. In den
+ *    Masten geht aber nur, was die Verbindung uebertraegt - die Differenz
+ *    zum Kragarmmoment, also genau das Federmoment:
+ *
+ *        M_Anschluss,A = M_A − M_kA        M_Anschluss,B = M_B − M_kB
+ *
+ *    Ohne Kragarm ist das dasselbe wie bisher. Mit Kragarm bekam ein
+ *    gelenkig angeschlossener Mast das volle Kragarmmoment (zu viel), ein
+ *    steif angeschlossener fast nichts (zu wenig).
+ *
+ * Das Auflagerblatt und der Mastnachweis lesen beide hier.
+ * ========================================================================= */
+export function jochAnteile(m) {
+  const L = m?.L ?? 0;
+  const xA = mastAchse(m, 'A');
+  const xB = mastAchse(m, 'B');
+  const Ls = xB - xA;
+  // Anteil einer Kraft bei x, der zum Masten B geht. Liegt x auf einem
+  // Kragarm, ist er groesser als 1 oder negativ - so will es das Gleichgewicht.
+  const nachB = (x) => (Ls > 1e-9 ? (x - xA) / Ls : (L > 0 ? x / L : 0.5));
+  const summe = (liste, f) => (liste ?? []).reduce((s, p) => s + f(p), 0);
+  const wd = m?.wd ?? 0;
+  const FyGes = wd * L + summe(m?.H, (p) => p.w);
+  const FyB = wd * L * nachB(L / 2) + summe(m?.H, (p) => p.w * nachB(p.x));
+  const TGes = summe(m?.T, (t) => t.w);
+  const TB = summe(m?.T, (t) => t.w * nachB(t.x));
+  const MkA = m?.feldmodell?.MkA ?? 0;
+  const MkB = m?.feldmodell?.MkB ?? 0;
+  return {
+    xA, xB, stuetzweite: Ls,
+    A: { Fy: FyGes - FyB, T: TGes - TB, Mk: MkA, Man: (m?.MA ?? 0) - MkA },
+    B: { Fy: FyB, T: TB, Mk: MkB, Man: (m?.MB ?? 0) - MkB },
+  };
 }
 
 /* ===========================================================================
@@ -917,10 +977,20 @@ export const LINK_GRADE = [
   { key: 'z', sym: 'K_Z', art: 'kraft', einheit: 'kN/m',
     label: 'Lotrecht',
     hinweis: 'Trägt Eigengewicht und Schnee ab.' },
-  { key: 'xx', sym: 'K_XX', art: 'moment', einheit: 'kNm/rad',
+  /*
+   * K_XX IST WIEDER EINSTELLBAR (Weisung vom 16. September): «die
+   * drehsteifigkeit um x auch aufnehmen, unter federwerte einstellung
+   * ermöglichen und hinweis, dass es für das fem auswirkungen hat.»
+   * Am auskragenden Joch wurde sie in AxisVM am inneren Masten gehalten.
+   * Sie wirkt NUR im ausgeleiteten Stabmodell - der Ersatzbalken kennt sie
+   * nicht. Die beiden Biegegrade bleiben fest frei (LINK_DREH_FREI).
+   */
+  { key: 'xx', sym: 'K_XX', art: 'moment', einheit: 'kNm/rad', einstellbar: true,
     label: 'Torsion um die Jochachse',
-    hinweis: 'Zwei Anschlüsse im Abstand der Jochhöhe halten die Torsion '
-           + 'schon über ihr Kräftepaar — hier gehalten wäre sie doppelt.' },
+    hinweis: 'Wirkt nur im FEM-Modell (AxisVM, SAF, PyNite), nicht im '
+           + 'Ersatzbalken: gehalten klemmt sie den einzelnen Gurt gegen '
+           + 'Verdrehen und verteilt die Torsion anders. Zwei Anschlüsse im '
+           + 'Abstand der Jochhöhe halten die Torsion schon über ihr Kräftepaar.' },
   { key: 'yy', sym: 'K_YY', art: 'moment', einheit: 'kNm/rad',
     label: 'Biegung um die Querachse',
     hinweis: 'Die teilweise Einspannung entsteht aus dem Kräftepaar der '
@@ -1078,8 +1148,24 @@ const VOLL = { x: 'Rigid', y: 'Rigid', z: 'Rigid',
                xx: 'Free', yy: 'Free', zz: 'Free' };
 const LAENGS_FREI = { ...VOLL, x: 'Free' };
 
+/*
+ * >>> DAS TRAGJOCH LIEGT AUF DEM UNTERGURT (Weisung vom 16. September). <<<
+ *
+ * Am auskragenden Joch in AxisVM so gestellt, weil die bisherige Vorgabe
+ * im Gurt am Link hohe oertliche Spannungen ergab, und danach als
+ * Voreinstellung verlangt:
+ *
+ *   Obergurt   x  y  gehalten, z frei   - traegt die Laengskraft
+ *   Untergurt     y  z gehalten, x frei - traegt das Gewicht
+ *
+ * Eine Ebene laesst weiter laengs los; das Jochende bleibt ein Gelenk
+ * (linkEinspannung), wie zuvor.
+ */
+const OG_TRAGJOCH = { ...VOLL, z: 'Free' };
+const UG_TRAGJOCH = { ...VOLL, x: 'Free' };
+
 export const LINK_VORGABEN = {
-  joch: { OG: LAENGS_FREI, UG: VOLL },
+  joch: { OG: OG_TRAGJOCH, UG: UG_TRAGJOCH },
   tragausleger: { OG: LAENGS_FREI, UG: VOLL },
   abfangjoch: { V: LAENGS_FREI, H: VOLL },
 };
@@ -1148,9 +1234,9 @@ export function linkBedingung(inp, art, ebene) {
   const gesetzt = inp?.auflagerLinks?.[ebene] ?? null;
   if (!gesetzt) return { ...vorgabe };
   const o = {};
-  LINK_GRADE.forEach(({ key, art: a }) => {
-    // Die Drehungen sind keine Eingabe mehr - siehe LINK_DREH_FREI.
-    if (a === 'moment') { o[key] = 'Free'; return; }
+  LINK_GRADE.forEach(({ key, art: a, einstellbar }) => {
+    // Die Biegegrade sind keine Eingabe - siehe LINK_DREH_FREI. K_XX schon.
+    if (a === 'moment' && !einstellbar) { o[key] = 'Free'; return; }
     const v = gesetzt[key];
     o[key] = (v === 'Rigid' || v === 'Free' || Number.isFinite(v))
       ? v : vorgabe[key];
@@ -1228,8 +1314,8 @@ export function linkVorgabe(inp, art, ebene) {
                    ?? inp?.auflagerVorgabe?.[ebene] ?? null;
   if (!ausOptionen) return { ...eingebaut };
   const o = {};
-  LINK_GRADE.forEach(({ key, art: a }) => {
-    if (a === 'moment') { o[key] = 'Free'; return; }
+  LINK_GRADE.forEach(({ key, art: a, einstellbar }) => {
+    if (a === 'moment' && !einstellbar) { o[key] = 'Free'; return; }
     const v = ausOptionen[key];
     o[key] = (v === 'Rigid' || v === 'Free' || Number.isFinite(v))
       ? v : eingebaut[key];

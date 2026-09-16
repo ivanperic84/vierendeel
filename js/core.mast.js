@@ -75,7 +75,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { mastSteifigkeit } from './core.auflager.js';
+import { mastSteifigkeit, jochAnteile, konsolLaenge } from './core.auflager.js';
 import { ankerGeometrie, ankerTraegtDruck } from './data.anker.js';
 
 /** Erdbeschleunigung für das Eigengewicht des Mastes [m/s²]. */
@@ -183,7 +183,6 @@ export function mastLasten(m, ende = 'A') {
   if (!md) return null;
   const H = md.H;
   const zKopf = md.ueberstand > 0 ? md.laenge : H;
-  const L = m.L;
   const seite = ende === 'A' ? 'A' : 'B';
 
   // --- Was das Joch abgibt, am Anschluss auf der Höhe H --------------------
@@ -192,7 +191,13 @@ export function mastLasten(m, ende = 'A') {
    * Werten des AKTIVEN Lastfalls statt gruppenweise. Zwei Wege zu derselben
    * Reaktion waeren zwei Gelegenheiten, sich zu irren.
    */
-  const hQuer = (p) => (seite === 'A' ? (L - p.x) / L : p.x / L);
+  /*
+   * Seit dem 16. September nach dem HEBELGESETZ UM DIE MASTACHSEN, nicht
+   * mehr ueber die ganze Jochlaenge (core.auflager.js, jochAnteile). Ohne
+   * Kragarm ist das dieselbe Zahl.
+   */
+  const anteile = jochAnteile(m);
+  const an = anteile[seite];
   /*
    * ========================================================================
    * >>> DAS ABFANGJOCH GIBT ANDERE KRAEFTE AB. <<<
@@ -254,10 +259,18 @@ export function mastLasten(m, ende = 'A') {
   const kSum = kA + kB;
   const anteil = kSum > 0 ? (seite === 'A' ? kA : kB) / kSum : 0.5;
   const Fz = abE ? abE.Fz : (seite === 'A' ? (m.RA ?? 0) : (m.RB ?? 0));
-  const Fy = abE ? abE.Fy
-                 : ((m.wd ?? 0) * L) / 2
-                   + (m.H ?? []).reduce((a, p) => a + p.w * hQuer(p), 0);
-  const Myy = abE ? 0 : (seite === 'A' ? (m.MA ?? 0) : (m.MB ?? 0));
+  const Fy = abE ? abE.Fy : an.Fy;
+  /*
+   * >>> DAS ANSCHLUSSMOMENT, UND GLOBAL GEZAEHLT (16. September). <<<
+   *
+   * `Man` ist das Stuetzmoment ohne den Kragarm - das, was die Verbindung
+   * wirklich uebertraegt. Positiv heisst Zug oben im Joch. Am Ende A liegt
+   * das Feld auf der +x-Seite des Masten, eine Last darin dreht ihn um +y;
+   * am Ende B liegt es auf der −x-Seite und dreht ihn um −y. Bis hierher
+   * stand an beiden Enden dasselbe Vorzeichen - fuer den Betrag ohne
+   * Belang, gegen die staendige Umlenkkraft F_x aber nicht.
+   */
+  const Myy = abE ? 0 : (seite === 'A' ? an.Man : -an.Man);
   /*
    * >>> DIE TORSION DES JOCHS KOMMT ALS MOMENT LAENGS AN. <<<
    *
@@ -277,7 +290,7 @@ export function mastLasten(m, ende = 'A') {
   // Drehsinn - die Grösse selbst ist dieselbe wie vorher als `Ml`.
   const Mxx = -(abE
     ? (abE.Ptors ?? 0) * 2 * (ab?.ey ?? 0)
-    : (m.T ?? []).reduce((a, t) => a + t.w * hQuer(t), 0));
+    : an.T);
   const Fx = (abE ? (abE.Fxges ?? 0) : (m.N ?? []).reduce((a, n) => a + n.w, 0))
              * anteil;
   /*
@@ -286,6 +299,24 @@ export function mastLasten(m, ende = 'A') {
    * fuer ihre Richtung im Bild nicht.
    */
   const eyAnschluss = ab ? -(ab.ey ?? 0) : 0;
+  /*
+   * >>> DIE KONSOLE STEHT VOR DEM MASTEN (16. September). <<<
+   *
+   * Das Joch haengt an der Konsole, eine halbe Mastbreite (oder das Mass
+   * `auflagerKonsole`) neben der Achse - zum Feld hin. Die Ausleitung baut
+   * es seit dem 12. September so; der Nachweis setzte die Last bis heute in
+   * die Achse. Bei gelenkigem Anschluss ist F_z·e das GANZE Moment aus dem
+   * Joch. Bei steifem liegt der Zuschlag etwas auf der sicheren Seite: der
+   * Ersatzbalken misst seine Stuetzweite von Achse zu Achse.
+   *
+   * NUR FUER F_z. Der Hebel steht deshalb im Moment und nicht in `ex`:
+   * ueber `ex` bekaeme auch F_y einen Arm und damit eine Torsion im Masten.
+   * Die haelt in Wirklichkeit das Joch - es liegt mit beiden Gurten in x an
+   * und ist quer viel steifer als der Mast verdrehweich. AxisVM zeigt am
+   * Beispiel 0.09 kNm statt F_y·e = 0.5 kNm.
+   */
+  const exAnschluss = ab ? 0
+    : (seite === 'A' ? +1 : -1) * konsolLaenge(m, md.profil);
 
   /*
    * `zAnschluss` IST NICHT DASSELBE WIE `z`.
@@ -301,7 +332,8 @@ export function mastLasten(m, ende = 'A') {
    */
   const lasten = [{
     art: 'joch', name: `Joch, Anschluss Ende ${seite}`, z: H, zAnschluss: H,
-    Fz, Fx, Fy, Myy, Mxx, Mzz: 0, ex: 0, ey: eyAnschluss,
+    Fz, Fx, Fy, Myy: Myy + Fz * exAnschluss, Mxx, Mzz: 0,
+    ex: 0, eKonsole: exAnschluss, ey: eyAnschluss,
   }];
 
   // --- Eigengewicht des Mastes --------------------------------------------
