@@ -87,6 +87,9 @@ com/AxisVM_aufbau_bericht.txt
 # Die COM-Bruecke legt ihren Bericht unter dem Namen des Tragwerks ab -
 # und der traegt Verortung und Jochtyp. Beides bleibt draussen.
 com/AxisVM_*_bericht.txt
+# Seit der Bericht neben dem Modell liegt, auch in jedem Projektordner - er
+# nennt dort zusaetzlich den Ablagepfad des Rechners.
+AxisVM_*_bericht.txt
 com/AxisVM_aufbau_protokoll.txt
 com/*.json
 
