@@ -76,7 +76,7 @@
  */
 
 import { mastSteifigkeit } from './core.auflager.js';
-import { ankerGeometrie } from './data.anker.js';
+import { ankerGeometrie, ankerTraegtDruck } from './data.anker.js';
 
 /** Erdbeschleunigung für das Eigengewicht des Mastes [m/s²]. */
 const G_ERD = 9.81;
@@ -575,7 +575,8 @@ export function mastSchnitt(m, ende = 'A') {
    * Normalkraft.
    */
   const ank = ankerImMast(g);
-  const lasten = ank ? [...g.lasten, ank.last] : g.lasten;
+  // Ein schlaffes Seil traegt nichts - dann steht der Mast allein.
+  const lasten = ank?.last ? [...g.lasten, ank.last] : g.lasten;
 
   /*
    * WO GERECHNET WIRD.
@@ -665,6 +666,44 @@ function ankerImMast(g) {
   const X = ankerHaltekraft(g, zA, ri);
   const k = ankerStabkraftAus(X, geo, a.seite, ri);
   if (!k) return null;
+  /* =======================================================================
+   * >>> EIN SEIL TRAEGT NUR ZUG. <<<
+   * =======================================================================
+   *
+   * Befund vom 16. September: «der zugstab wirkt nicht nur auf zug.» Auf
+   * Rueckfrage: gemeint ist der Seilanker; muesste er in einer Kombination
+   * druecken, FAELLT ER AUS - der Mast traegt diese Kombination allein, und
+   * der Ankernachweis sagt es als Hinweis.
+   *
+   * Bis dahin stand hier die Haltekraft unbedingt als Last am Masten: das
+   * Seil hielt ihn auch dann, wenn es dazu haette druecken muessen. Der
+   * Ankernachweis meldete zwar «traegt keinen Druck», aber der Mast war
+   * schon entlastet - er wurde gegen ein Tragwerk nachgewiesen, das es so
+   * nicht gibt, und zwar auf der unsicheren Seite.
+   *
+   * >>> EINE KOMBINATION, EINE ENTSCHEIDUNG. <<<
+   *
+   * Diese Funktion laeuft je Lastbild. Ob das Seil traegt, entscheidet
+   * deshalb jede Kombination fuer sich - so, wie ein Seil es auch tut.
+   * Weil das System damit einfach unbestimmt bleibt, genuegt das
+   * Vorzeichen: faellt das Seil aus, ist der Mast ein Kragarm, und der
+   * rechnet sich ohne Iteration.
+   *
+   * Die Stuetzen (U12, U14) sind davon nicht beruehrt: sie tragen Zug UND
+   * Druck.
+   */
+  let traegtDruck = true;
+  try { traegtDruck = ankerTraegtDruck(a.typ); } catch { /* unbekannt: wie bisher */ }
+  if (!traegtDruck && k.N < 0) {
+    return {
+      kraft: { typ: a.typ, N: 0, X: 0, z: zA, geo,
+               seite: a.seite ?? 'plus', richtung: ri,
+               befestigung: a.befestigung ?? 'ankerplatte',
+               ueberKopf: a.h > g.zKopf + 1e-9,
+               schlaff: true, NohneAusfall: k.N },
+      last: null,
+    };
+  }
   return {
     kraft: { typ: a.typ, N: k.N, X, z: zA, geo,
              seite: a.seite ?? 'plus', richtung: ri,

@@ -1694,7 +1694,13 @@ function StabArt($sb) {
 function LinkSetzen([int]$li, $sb, [int]$master) {
     $rec = NeuerSatz 'RNNLinkElementRec'
     $rec = SatzSetzen $rec @('LineId') $li
-    $rec = SatzSetzen $rec @('SystemGLR') 'sysGlobal'
+    <#  DAS SYSTEM KOMMT AUS DER DATEI (16. September). Der Seilkopf steht
+        im ORTSSYSTEM seiner Linie - nur dort heisst x "in der Seilachse",
+        und nur dort ist "nur Zug" eine Aussage ueber das Seil. Alle
+        anderen Links bleiben global, wie bisher. Die Namen sysGlobal,
+        sysLocal, sysReference sind an ESystem vermessen.                 #>
+    $sys = if ([string]$sb.system -eq 'lokal') { 'sysLocal' } else { 'sysGlobal' }
+    $rec = SatzSetzen $rec @('SystemGLR') $sys
     $rec = SatzSetzen $rec @('MasterPoint') $master
     # Lage der Verbindung auf halber Laenge (Weisung). Im Dialog von AxisVM
     # ist das "Lage der Verbindung"; ohne Angabe stuende sie auf 0, also am
@@ -1709,7 +1715,19 @@ function LinkSetzen([int]$li, $sb, [int]$master) {
                        ($g -eq 'M' -and $f -match '^(xx|yy|zz)$')) { 'Free' } else { 'Rigid' }
                }
         $rec = SatzSetzen $rec @('Stiffnesses', $f) $(if ($wie -eq 'Free') { 0.0 } else { $script:STARR_FEDER })
-        $rec = SatzSetzen $rec @('NonLinearity', $f) 'lnlTensionAndCompression'
+        <#  NUR ZUG, WO DIE DATEI ES SAGT (16. September: "der zugstab wirkt
+            nicht nur auf zug"). Die drei Namen stehen an ELineNonLinearity
+            vermessen: lnlTensionAndCompression, lnlTensionOnly,
+            lnlCompressionOnly. Sie wirken NUR in einer nichtlinearen
+            Berechnung - das sagt der Bericht.                            #>
+        $nl = if ($sb.nichtlinear) { [string]$sb.nichtlinear.$f } else { '' }
+        $nlName = switch ($nl) {
+            'nurZug'   { 'lnlTensionOnly' }
+            'nurDruck' { 'lnlCompressionOnly' }
+            default    { 'lnlTensionAndCompression' }
+        }
+        if ($nlName -ne 'lnlTensionAndCompression') { $script:nNurZug++ }
+        $rec = SatzSetzen $rec @('NonLinearity', $f) $nlName
         $rec = SatzSetzen $rec @('Resistances', $f) 0.0
     }
     if ($null -eq $rec) { return 0 }
@@ -1722,6 +1740,8 @@ function LinkSetzen([int]$li, $sb, [int]$master) {
 
 # Gehalten heisst hier dieselbe Zahl wie bei den starren Auflagern.
 $STARR_FEDER = 1e10
+# Wie viele Freiheitsgrade nur Zug (oder nur Druck) tragen - fuer den Bericht.
+$nNurZug = 0
 
 # --- 6 - Staebe --------------------------------------------------------------
 Abschnitt '6 - Staebe'
@@ -1795,6 +1815,14 @@ foreach ($sb in $d.staebe) {
     $erste = $false
 }
 Schreib "  $nStab Staebe, $($starrLinien.Count) Starrelemente, $nLink Verbindungselemente"
+if ($script:nNurZug -gt 0) {
+    Schreib ''
+    Schreib "  >>> HINWEIS: $($script:nNurZug) Freiheitsgrad(e) in Verbindungselementen tragen NUR ZUG"
+    Schreib '  >>> (Seilanker, lnlTensionOnly, Ortssystem der Linie). Das wirkt NUR in einer'
+    Schreib '  >>> NICHTLINEAREN Berechnung - linear gerechnet traegt auch dieser Link Druck.'
+    Schreib '  >>> Welche Berechnung laeuft, entscheidet der Auftraggeber im Programm.'
+    $gefunden.Add('Nur Zug -> RNNLinkElementRec.NonLinearity = lnlTensionOnly, SystemGLR = sysLocal')
+}
 
 <#  STARRKOERPER AUS DEN GESAMMELTEN LINIEN.
     Je Stummel ein eigener Koerper - das ist die unmittelbare Entsprechung

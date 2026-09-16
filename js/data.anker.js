@@ -174,16 +174,24 @@ export function ankerNachweis(id, N, L, opt = {}) {
   const zul = zug ? ankerZulZug(id, opt.befestigung ?? 'ankerplatte')
                   : ankerZulDruck(id, L);
   /*
-   * EIN SEIL AUF DRUCK IST KEIN NACHWEIS, SONDERN EIN FEHLER IM MODELL.
-   * Es haengt durch und traegt nichts; wer es auf der Druckseite einsetzt,
-   * hat den Stab auf der falschen Seite des Masten. Das wird gemeldet, nicht
-   * mit eta = 0 weggerechnet.
+   * >>> EIN SCHLAFFES SEIL IST KEIN VERSAGEN, SONDERN KEIN TRAGEN. <<<
+   *
+   * Bis zum 16. September stand hier «Fehler im Modell», mit eta = ∞. Auf
+   * Rueckfrage entschieden: muesste das Seil druecken, faellt es aus, und
+   * der Nachweis sagt es als HINWEIS - ohne eta, ohne Urteil. Der Mast
+   * traegt diese Kombination dann allein (core.mast.js), und SEIN Nachweis
+   * sagt, ob er das kann.
+   *
+   * `opt.schlaff` kommt vom Rechenkern, der die Kraft schon auf null
+   * gesetzt hat; ein negatives N von aussen heisst dasselbe.
    */
-  if (!zug && a.art === 'seil') {
-    return { art: a.art, typ: id, N, L, zul: 0, eta: Infinity, ok: false,
-             lieferbar: true, warnung: null,
-             grund: 'seilAufDruck',
-             text: 'Ein Seilanker trägt keinen Druck — er hängt durch.',
+  if (a.art === 'seil' && (opt.schlaff || !zug)) {
+    return { art: a.art, typ: id, N: 0, L, zul: ankerZulZug(id), eta: null,
+             ok: true, lieferbar: true, warnung: null,
+             grund: 'schlaff', schlaff: true,
+             NohneAusfall: opt.NohneAusfall ?? (zug ? null : N),
+             text: 'Das Seil hängt durch und trägt nichts — der Mast trägt '
+                 + 'diese Kombination allein.',
              vergleichsbasis: 'zulaessigeKraft' };
   }
   if (zul === null) {

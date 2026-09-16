@@ -4540,15 +4540,33 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
        * VERGLEICHEN zweier Zahlen braucht man die Auskunft, und genau dort
        * war sie eingeklappt.
        */
+      /*
+       * Traegt das Seil massgebend, haengt aber in anderen Lastfaellen
+       * durch, sagt die Kachel auch das - dort steht der Mast allein.
+       */
+      const schlaffAuch = !nw.schlaff && e.schlaffIn?.length
+        ? ` · hängt durch in ${e.schlaffIn.length} Lastfall/-fällen` : '';
       const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
-        + `${Math.abs(nw.N).toFixed(1)} kN char.`;
+        + `${Math.abs(nw.N).toFixed(1)} kN char.${schlaffAuch}`;
       /*
        * OHNE URTEIL KEINE AMPEL. Ueber der groessten lieferbaren Laenge
        * gibt es die Stuetze nicht - dort steht ein Strich, keine Zahl.
        */
+      /*
+       * DAS SCHLAFFE SEIL: ein Hinweis, keine Ampel (Entscheid vom
+       * 16. September). Der Mast traegt diese Kombination allein; ob er es
+       * kann, sagt seine eigene Kachel.
+       */
+      if (nw.grund === 'schlaff') {
+        const ohne = Number.isFinite(nw.NohneAusfall)
+          ? ` (müsste ${Math.abs(nw.NohneAusfall).toFixed(1)} kN drücken)` : '';
+        kz.push(kachel(`η Anker ${name}`, '–',
+          `${nw.typ} · hängt durch${ohne} · Mast trägt allein`, '',
+          { titel: nw.text }));
+        return;
+      }
       if (nw.eta === null || !Number.isFinite(nw.eta)) {
-        kz.push(kachel(`η Anker ${name}`, '–', `${wie} · ${nw.grund === 'seilAufDruck'
-          ? 'Seil trägt keinen Druck' : 'über dem Sortiment'}`, 'nok'));
+        kz.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok'));
         return;
       }
       /*

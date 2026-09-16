@@ -3218,17 +3218,22 @@ function ankerAuswertung(kombi) {
   const proEnde = {};
   ['A', 'B'].forEach((ende) => {
     let beste = null;
+    // Wo das Seil durchhaengt - gesagt wird es, auch wenn es anderswo traegt.
+    const schlaffIn = [];
     lf.forEach((l) => {
       const k = kombi.ergebnisse?.[l.key]?.mast?.[ende]?.ankerkraft;
       if (!k) return;
-      if (!beste || Math.abs(k.N) > Math.abs(beste.kraft.N)) {
+      if (k.schlaff) schlaffIn.push(l.bez ?? l.key);
+      if (!beste || Math.abs(k.N) > Math.abs(beste.kraft.N)
+          || (beste.kraft.schlaff && !k.schlaff)) {
         beste = { kraft: k, lastfall: l.key, bez: l.bez };
       }
     });
     if (!beste) return;
     const k = beste.kraft;
     const nw = ankerNachweis(k.typ, k.N, k.geo.L,
-                             { befestigung: k.befestigung });
+                             { befestigung: k.befestigung, schlaff: k.schlaff,
+                               NohneAusfall: k.NohneAusfall });
     /*
      * >>> DAS KNICKEN DANEBEN - ALS AUSKUNFT, NICHT ALS NACHWEIS. <<<
      *
@@ -3245,7 +3250,7 @@ function ankerAuswertung(kombi) {
      */
     const knick = k.N < 0 ? ankerKnickenSicher(k.typ, k.geo.L) : null;
     proEnde[ende] = { ...beste, geo: k.geo, nachweis: nw, knick,
-                      ueberKopf: k.ueberKopf === true };
+                      ueberKopf: k.ueberKopf === true, schlaffIn };
   });
   const enden = Object.values(proEnde);
   if (!enden.length) return null;
@@ -3286,7 +3291,9 @@ function ankerAmAbfangjoch(modell, auflager) {
       kraft: k, lastfall: 'abfang', bez: 'Abfangjoch, charakteristisch',
       geo: k.geo, ueberKopf: k.ueberKopf === true,
       nachweis: ankerNachweis(k.typ, k.N, k.geo.L,
-                              { befestigung: k.befestigung }),
+                              { befestigung: k.befestigung, schlaff: k.schlaff,
+                                NohneAusfall: k.NohneAusfall }),
+      schlaffIn: k.schlaff ? ['Abfangjoch, charakteristisch'] : [],
       // Dieselbe Kontrollrechnung wie am Tragjoch - nur auf DRUCK, ein
       // Zugstab knickt nicht. Siehe `ankerKnicken`.
       knick: k.N < 0 ? ankerKnickenSicher(k.typ, k.geo.L) : null,

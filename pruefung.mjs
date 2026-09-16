@@ -17955,12 +17955,13 @@ const CH9x = await import(J('core.checks.js'));
     wahr('Zug: die Befestigung begrenzt',
          AN.ankerNachweis('U12', 40, 9.0).grund === 'befestigung');
     /*
-     * EIN SEIL AUF DRUCK IST EIN FEHLER IM MODELL, kein Nachweis: es haengt
-     * durch. Das wird gemeldet, nicht mit eta = 0 weggerechnet.
+     * EIN SEIL AUF DRUCK HAENGT DURCH. Bis zum 16. September galt das als
+     * Fehler im Modell (eta = unendlich); seither faellt es aus und wird als
+     * Hinweis gemeldet - siehe Abschnitt 66.
      */
     const nS = AN.ankerNachweis('SA20', -10, 8.0);
-    wahr('Ein Seil auf Druck faellt durch', nS.ok === false
-         && nS.grund === 'seilAufDruck');
+    wahr('Ein Seil auf Druck haengt durch', nS.ok === true
+         && nS.grund === 'schlaff' && nS.eta === null);
     /*
      * UEBER DEM SORTIMENT GIBT ES KEIN URTEIL - weder ja noch nein.
      */
@@ -23473,6 +23474,178 @@ titel('65  Bauteildaten einlesen: Abgleich mit Vorschau');
     wahr('Der bestehende Befund der Lasttabelle sperrt nichts',
          /bestehende/.test(html) && !/so lässt sich der Stand nicht übernehmen/.test(html));
   }
+}
+
+titel('66  Der Seilanker traegt nur Zug');
+/* ===========================================================================
+ * >>> MUESSTE DAS SEIL DRUECKEN, FAELLT ES AUS. <<<
+ * ===========================================================================
+ *
+ * Befund vom 16. September: «der zugstab wirkt nicht nur auf zug.» Auf
+ * Rückfrage: gemeint ist der Seilanker; in einer Kombination, in der er
+ * drücken müsste, fällt er aus, der Mast trägt allein, und der
+ * Ankernachweis sagt es als Hinweis ohne eta.
+ *
+ * Geprüft wird an demselben Lastbild wie in Abschnitt 44: einmal liegt das
+ * Seil auf der Zugseite, einmal auf der Druckseite.
+ * ========================================================================= */
+{
+  const MK = await import(J('core.mast.js'));
+  const CC6 = await import(J('core.constants.js'));
+  const AU6 = await import(J('core.auflager.js'));
+  const mitAnker = (anker) => {
+    const w = {
+      typ: 'J90', L: 20, xLage: 0, twId: 'T1',
+      mastVorhanden: true, endbedingung: 'mast',
+      mastProfil: 'HEB 240', mastH: 7.5, mastSteg: 'quer',
+      masten: [
+        { id: 'M1', x: 0, profil: 'HEB 240' },
+        { id: 'M2', x: 20, profil: 'HEB 240', ...(anker ? { anker } : {}) },
+      ],
+    };
+    const f = AU6.drehfedern(CC6.rechensatz(w));
+    return {
+      L: 20, federn: f, RA: 20, RB: 20, MA: 5, MB: 5,
+      wd: 0, H: [], T: [], N: [{ x: 10, w: 20 }],
+      beiwerte: { G: 1 }, stahl: { fy: 235 }, gammaM0: 1,
+      mastLast: { A: { xd: 0, yd: 0 }, B: { xd: 0, yd: 0 } },
+      anbauMastFlach: [],
+    };
+  };
+  const anker = (typ, seite) => ({ typ, h: 4, a: 3, seite, befestigung: 'ankerplatte' });
+  const ohne = MK.mastSchnitt(mitAnker(null), 'B');
+
+  // Welche Seite drückt? Die Stütze trägt beides und sagt es am Vorzeichen.
+  const uPlus = MK.mastSchnitt(mitAnker(anker('U12', 'plus')), 'B').ankerkraft;
+  const uMinus = MK.mastSchnitt(mitAnker(anker('U12', 'minus')), 'B').ankerkraft;
+  wahr('Die Stuetze traegt auf beiden Seiten - einmal Zug, einmal Druck',
+       Math.sign(uPlus.N) === -Math.sign(uMinus.N) && uPlus.N !== 0,
+       `plus ${uPlus.N.toFixed(2)}, minus ${uMinus.N.toFixed(2)} kN`);
+  const zugSeite = uPlus.N > 0 ? 'plus' : 'minus';
+  const druckSeite = zugSeite === 'plus' ? 'minus' : 'plus';
+
+  // Das Seil auf der Zugseite: es trägt wie die Stütze
+  const sZ = MK.mastSchnitt(mitAnker(anker('SA20', zugSeite)), 'B');
+  wahr('Das Seil auf der Zugseite traegt', sZ.ankerkraft.N > 0 && !sZ.ankerkraft.schlaff,
+       `${sZ.ankerkraft.N.toFixed(2)} kN`);
+  pruef('… mit derselben Kraft wie die Stuetze dort', sZ.ankerkraft.N,
+        (zugSeite === 'plus' ? uPlus : uMinus).N, 1e-9, 'kN');
+  wahr('… und entlastet den Mastfuss',
+       Math.abs(sZ.stationen[0].Myy) < Math.abs(ohne.stationen[0].Myy));
+
+  // Das Seil auf der Druckseite: es fällt aus
+  const sD = MK.mastSchnitt(mitAnker(anker('SA20', druckSeite)), 'B');
+  wahr('Das Seil auf der Druckseite haengt durch', sD.ankerkraft.schlaff === true);
+  pruef('… seine Kraft ist null', sD.ankerkraft.N, 0, 1e-12, 'kN');
+  wahr('… und es sagt, was es haette druecken muessen',
+       sD.ankerkraft.NohneAusfall < 0, `${sD.ankerkraft.NohneAusfall?.toFixed(2)} kN`);
+  /*
+   * DER MAST STEHT DANN ALLEIN - Station fuer Station dieselben
+   * Schnittgroessen wie ganz ohne Anker. Bis zum 16. September hielt ihn
+   * das Seil auch hier, und der Mastfuss war auf der unsicheren Seite
+   * entlastet.
+   */
+  const gleich = sD.stationen.length === ohne.stationen.length
+    && sD.stationen.every((s, i) => ['N', 'Myy', 'Mxx', 'Fx', 'Fy']
+      .every((k) => Math.abs((s[k] ?? 0) - (ohne.stationen[i][k] ?? 0)) < 1e-9));
+  wahr('Der Mast traegt allein - wie ohne Anker', gleich);
+  const stD = MK.mastSchnitt(mitAnker(anker('U12', druckSeite)), 'B');
+  wahr('Die Stuetze auf derselben Seite haelt dagegen weiter',
+       Math.abs(stD.stationen[0].Myy) < Math.abs(ohne.stationen[0].Myy));
+
+  // Der Nachweis
+  const nS = AN.ankerNachweis('SA20', 0, 5, { schlaff: true, NohneAusfall: -7 });
+  wahr('Der Nachweis sagt «haengt durch» - ohne eta, ohne Versagen',
+       nS.grund === 'schlaff' && nS.eta === null && nS.ok === true, JSON.stringify(nS));
+  wahr('… und nennt die Kraft, die es haette druecken muessen', nS.NohneAusfall === -7);
+  const nRoh = AN.ankerNachweis('SA20', -10, 8.0);
+  wahr('Ein negatives N von aussen heisst dasselbe',
+       nRoh.grund === 'schlaff' && nRoh.ok === true && nRoh.NohneAusfall === -10);
+  wahr('Die Stuetze auf Druck bleibt ein Knicknachweis',
+       AN.ankerNachweis('U12', -40, 9.0).grund === 'knicken');
+  const nZ = AN.ankerNachweis('SA20', 30, 8.0);
+  wahr('Das Seil auf Zug wird gegen seine Betriebslast nachgewiesen',
+       nZ.grund === 'befestigung' && Math.abs(nZ.eta - 30 / 67) < 1e-9, JSON.stringify(nZ));
+}
+
+titel('67  Der Seilanker in der AxisVM-Ausleitung');
+/* ===========================================================================
+ * >>> NUR ZUG - UEBER DAS LINKELEMENT AM MASTEN. <<<
+ * ===========================================================================
+ *
+ * Befund vom 16. September: «dies noch beim export zum axis vm auch beachten
+ * und verbindungs anpassen.» Das Seil war ein Balken mit Momentengelenken
+ * an beiden Enden, also ein Pendelstab für Zug UND Druck.
+ *
+ * Jetzt: Konsole -- Seilkopf (Link, Ortssystem, x nur Zug) -- Seil -- Gelenk
+ * -- Fundament. Die Nichtlinearität steht nur am Link, weil sie nur dort
+ * an der Schnittstelle vermessen ist.
+ * ========================================================================= */
+{
+  const AXs = await import(J('export.axisvm.js'));
+  const CCs = await import(J('core.constants.js'));
+  const lauf = (anker) => {
+    const w = CCs.rechensatz({
+      ...standardwerte(), typ: 'J90', L: 20, xLage: 0, twId: 'T1',
+      mastVorhanden: true, endbedingung: 'mast', mastProfil: 'HEB 240',
+      mastH: 7.5, mastSteg: 'jochachse',
+      masten: [{ id: 'M1', x: 0, profil: 'HEB 240', anker },
+               { id: 'M2', x: 20, profil: 'HEB 240' }] });
+    const erg = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
+                         getStahl(w.stahl), T.getTragjoch(w.typ));
+    return AXs.stabmodellJson(erg.modell, { eingabe: w, auflagerModell: 'mast' });
+  };
+  const j = lauf({ typ: 'SA20', h: 4, a: 3, richtung: 'x', seite: 'minus',
+                   befestigung: 'ankerplatte' });
+  const st = (n) => (j.staebe ?? []).find((x) => new RegExp(n).test(x.name));
+  const kopf = st('^SEILKOPF_');
+  const seil = st('^ANKER_[^_]+$');
+
+  wahr('Der Seilkopf steht im Modell', Boolean(kopf), (j.staebe ?? [])
+    .filter((x) => /ANKER|SEIL/.test(x.name)).map((x) => x.name).join(', '));
+  wahr('… als Linkelement', kopf?.art === 'link');
+  wahr('… im Ortssystem seiner Linie', kopf?.system === 'lokal');
+  wahr('… und in der Achse nur Zug', kopf?.nichtlinear?.x === 'nurZug'
+       && Object.keys(kopf?.nichtlinear ?? {}).length === 1);
+  const k = kopf?.kraftuebertragung ?? {};
+  wahr('Quer und in Torsion gehalten, beide Biegemomente frei',
+       k.x === 'Rigid' && k.y === 'Rigid' && k.z === 'Rigid' && k.xx === 'Rigid'
+       && k.yy === 'Free' && k.zz === 'Free', JSON.stringify(k));
+  wahr('Das Seil schliesst an den Seilkopf an',
+       Boolean(seil) && seil.von === kopf?.bis, `${seil?.von} / ${kopf?.bis}`);
+  wahr('… ist ein Stab mit Gelenk nur am Fundament',
+       seil?.art === 'stab' && seil.gelenkEnde === 'M' && !seil.gelenkAnfang);
+  const kn = (n) => (j.knoten ?? []).find((x) => x.name === n);
+  const a = kn(kopf?.von), b = kn(kopf?.bis), f = kn(seil?.bis);
+  const lg = (p, q2) => Math.hypot(q2.x - p.x, q2.y - p.y, q2.z - p.z);
+  pruef('Der Seilkopf ist 50 mm lang', lg(a, b), 0.05, 1e-5, 'm');
+  wahr('… und liegt in der Seilachse',
+       Math.abs(lg(a, b) + lg(b, f) - lg(a, f)) < 1e-6);
+  const qs = (j.querschnitte ?? []).find((x) => x.name === seil?.querschnitt);
+  wahr('Das Seil ist ein Quadrat gleicher Flaeche, kein Blech',
+       qs && Math.abs(qs.parameter[0] - qs.parameter[1]) < 1e-6
+       && Math.abs(qs.parameter[0] * qs.parameter[1]
+                   - AN.ankerQuerschnitt('SA20').A * 100) < 1e-3,
+       JSON.stringify(qs?.parameter));
+  wahr('Der Bericht nennt den Anker «nur Zug»',
+       (j.anker ?? []).some((x) => x.typ === 'SA20' && x.nurZug === true)
+       || JSON.stringify(j).includes('"nurZug":true'));
+
+  // Die Stütze bleibt, wie sie war
+  const jU = lauf({ typ: 'U12', h: 4, a: 3, richtung: 'x', seite: 'minus',
+                    befestigung: 'ankerplatte' });
+  wahr('Die Stuetze hat keinen Seilkopf und nichts «nur Zug»',
+       !(jU.staebe ?? []).some((x) => /^SEILKOPF_/.test(x.name) || x.nichtlinear));
+  wahr('Kein anderes Linkelement steht im Ortssystem',
+       (j.staebe ?? []).filter((x) => x.system === 'lokal').length === 1);
+
+  // Die Brücke kennt die Felder
+  const ps1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('Die Bruecke setzt lnlTensionOnly aus der Datei',
+       /'nurZug'\s*\{\s*'lnlTensionOnly'\s*\}/.test(ps1));
+  wahr('… und das Ortssystem', /sysLocal/.test(ps1) && /\$sb\.system/.test(ps1));
+  wahr('… und sagt, dass es nur nichtlinear wirkt', /NICHTLINEAREN Berechnung/.test(ps1));
+  wahr('Die Bruecke ist reines ASCII', /^[\x00-\x7F]*$/.test(ps1));
 }
 
 // ===========================================================================

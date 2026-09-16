@@ -52,6 +52,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
 import { mastAchse, linkBedingung, konsolLaenge } from './core.auflager.js';
+import { ankerTraegtDruck } from './data.anker.js';
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBindebleche, ankerBlechSatz,
          ankerBlechVersatz } from './data.anker.js';
@@ -2121,7 +2122,17 @@ export function stabmodell(m, opt = {}) {
          * er traegt, und die Flaeche stimmt auf den Quadratmillimeter.
          */
         const A_cm2 = Number(qw?.A) || 0;
-        const hQ = Number(qw?.h) || 120;                     // mm
+        let seil = false;
+        try { seil = !ankerTraegtDruck(ak.typ); } catch { seil = false; }
+        /*
+         * DAS SEIL HAT KEINE PROFILHOEHE. Mit dem Rueckfall von 120 mm
+         * wurde es ein Rechteck von 120 x 0.4 mm - die Flaeche stimmte, die
+         * Form war ein Blech. Ein QUADRAT gleicher Flaeche ist die ehrlichere
+         * Naeherung eines Rundlitzenseils: dieselbe Dehnsteifigkeit, und
+         * keine Biegesteifigkeit, die in einer Richtung aus dem Rahmen faellt.
+         */
+        const hQ = seil && A_cm2 > 0 ? Math.sqrt(A_cm2 * 100)
+                                     : (Number(qw?.h) || 120);        // mm
         const bQ = A_cm2 > 0 ? (A_cm2 * 100) / hQ : 60;      // mm
         const qsAnker = einzeln ? null : s.qs({
           ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`,
@@ -2284,7 +2295,61 @@ export function stabmodell(m, opt = {}) {
          * unveraendert ueber das Bemessungsdiagramm (`ankerNachweis`) und
          * weiss davon nichts. Der Bericht sagt es.
          * ================================================================= */
-        if (!einzeln) {
+        if (!einzeln && seil) {
+          /* ===============================================================
+           * >>> DER SEILANKER TRAEGT NUR ZUG. <<<
+           * ===============================================================
+           *
+           * Befund vom 16. September: «der zugstab wirkt nicht nur auf zug.
+           * dies noch beim export zum axis vm auch beachten und verbindungs
+           * anpassen.»
+           *
+           * Bis dahin war das Seil ein gewoehnlicher Balken mit
+           * Momentengelenken an beiden Enden - ein Pendelstab, der Zug UND
+           * Druck traegt.
+           *
+           * >>> DIE VERBINDUNG AM MASTEN IST JETZT EIN LINKELEMENT. <<<
+           *
+           *   Konsole --[SEILKOPF: Link, 50 mm]--> Seil --[Gelenk]--> Fundament
+           *
+           * Der Link steht im ORTSSYSTEM seiner Linie, also mit x in der
+           * Seilachse. In x ist er gehalten und traegt NUR ZUG
+           * (lnlTensionOnly); quer gehalten, Torsion gehalten, beide
+           * Biegemomente frei. Weil Link und Seil hintereinander liegen,
+           * kann die Kette als Ganzes keinen Druck mehr tragen.
+           *
+           * Warum ueber den Link und nicht am Stab selbst: die
+           * Nichtlinearitaet je Freiheitsgrad ist an RNNLinkElementRec
+           * vermessen (ELineNonLinearity = lnlTensionAndCompression,
+           * lnlTensionOnly, lnlCompressionOnly). Ein Fachwerkstab «nur Zug»
+           * ist es nicht - und die Schnittstelle wird vermessen, nicht
+           * geraten.
+           *
+           * >>> ES WIRKT NUR IN EINER NICHTLINEAREN BERECHNUNG. <<<
+           *
+           * Linear gerechnet traegt auch dieser Link Druck. Welche Rechnung
+           * laeuft, entscheidet der Auftraggeber im Programm; die Bruecke
+           * schreibt es in den Bericht.
+           * ============================================================= */
+          const pK = s.knoten.get(kKons);
+          const pF = s.knoten.get(kAnkF);
+          const LS = Math.hypot(pF.x - pK.x, pF.y - pK.y, pF.z - pK.z);
+          const sG = LS > 4 * ANKER_GELENK ? ANKER_GELENK / LS : 0.02;
+          const kSeil = s.kn(`ANKER_${mn(ende)}_S`,
+                             r6(pK.x + sG * (pF.x - pK.x)),
+                             r6(pK.y + sG * (pF.y - pK.y)),
+                             r6(pK.z + sG * (pF.z - pK.z)));
+          s.stab(`SEILKOPF_${mn(ende)}`, qsStarr, kKons, kSeil, {
+            starrRolle: 'verbindung',
+            // Fuer die Wege ohne Linkelement (PyNite, SAF): ein Pendel.
+            gelenkAnfang: 'M',
+            kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+                     xx: 'Rigid', yy: 'Free', zz: 'Free' },
+            nichtlinear: { x: 'nurZug' },
+            linkSystem: 'lokal',
+          });
+          s.stab(`ANKER_${mn(ende)}`, qsAnker, kSeil, kAnkF, { gelenkEnde: 'M' });
+        } else if (!einzeln) {
           s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
                  { gelenkAnfang: 'M', gelenkEnde: 'M' });
         } else {
@@ -2616,6 +2681,7 @@ export function stabmodell(m, opt = {}) {
                         fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
                         feder: null });
         ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
+                        nurZug: seil,
                         h: ak.h, a: ak.a, qs: qw ?? null,
                         spreiz: spreiz ?? null, zweiProfile: einzeln,
                         bleche: einzeln ? ankerBindebleche(ak.typ,
@@ -3621,6 +3687,17 @@ function starrArt(s, starrModell) {
     return { art: 'link', kraftuebertragung: s.kraft };
   }
   if (!STARR_ALS_KOERPER.includes(s.starrRolle)) return { art: 'stab' };
+  /*
+   * EINE VERBINDUNG, DIE IHRE KRAFTUEBERTRAGUNG SELBST MITBRINGT - der
+   * Seilkopf: quer und in Torsion gehalten, in der Achse nur Zug, im
+   * Ortssystem. Sie geht vor der Regel aus dem Gelenk, das fuer die Wege
+   * ohne Linkelement dasteht.
+   */
+  if (s.kraft) {
+    return { art: 'link', kraftuebertragung: s.kraft,
+             ...(s.nichtlinear ? { nichtlinear: s.nichtlinear } : {}),
+             ...(s.linkSystem ? { system: s.linkSystem } : {}) };
+  }
 
   const g = s.gelenkAnfang ?? s.gelenkEnde ?? null;
   if (!g) return { art: 'starr' };
@@ -3796,6 +3873,8 @@ export function stabmodellJson(m, opt = {}) {
        */
       anker: (bau.ankerAus ?? []).map((v) => ({
         ende: v.ende, typ: v.typ, richtung: v.richtung,
+        // Der Seilanker traegt nur Zug - ueber den Seilkopf, nur nichtlinear.
+        nurZug: v.nurZug === true,
         h: r6(v.h), a: r6(v.a),
         profil: v.qs?.profil ?? null, quelle: v.qs?.quelle ?? null,
         A_cm2: v.qs?.A ?? null, Iy_cm4: v.qs?.Iy ?? null,
