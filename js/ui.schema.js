@@ -1137,6 +1137,26 @@ export const FELDER = [
     hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung. '
            + '0 = eine halbe Mastbreite (HEB 240 → 120 mm). Gilt für die '
            + 'AxisVM-Ausleitung; der Ersatzbalken kennt sie nicht.' },
+  /*
+   * >>> ZWEITE FLANSCHKANTE, ALS OPTION (Weisung vom 16. September). <<<
+   *
+   * «als option ermöglichen, wobei ich nicht genau sagen kann wie sich die
+   *  spannungen im axisvm verhalten, falls es hier zu unlogischen oder
+   *  spannungspizen kommt lieber weglassen.»
+   *
+   * Die Studie am auskragenden Joch (J70-alt, Mast 7.30 m vor dem Ende) hat
+   * es entschieden: haelt die zweite Kante auch lotrecht, zwaengt die
+   * Mastverdrehung den Gurt (bis 978 statt 190 N/mm²). Haelt sie NUR QUER,
+   * sinkt die Spitze am Anschluss auf 168 N/mm². Deshalb nur so.
+   */
+  { key: 'auflagerZweiFlansche', fein: true, gruppe: 'aufl', typ: 'schalter',
+    label: 'Zweite Flanschkante quer halten', standard: false,
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).key === 'joch'
+                  && ((Number(w.kragA) || 0) > 0 || (Number(w.kragB) || 0) > 0),
+    hinweis: 'Nur für einen Masten, über den das Joch hinausragt. Eine zweite '
+           + 'Konsole an der anderen Flanschkante hält die Gurte quer (y) und '
+           + 'lässt längs und lotrecht frei. Wirkt nur im FEM-Modell. Lotrecht '
+           + 'gehalten zwängte die Mastverdrehung den Gurt.' },
   { key: 'schraubenFgrenz', fein: true, gruppe: 'aufl', typ: 'zahl',
     label: 'Grenzlast der Gurtverbindung', sym: 'F_Grenz', einheit: 'kN',
     standard: 24, schritt: 1, min: 0,

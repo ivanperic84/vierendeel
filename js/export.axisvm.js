@@ -339,6 +339,21 @@ const AUFL_Z_LUFT = 0.05;
 const G_JOCH = 'G';
 const G_ANBAU = 'G_Anbau';
 const G_ABLENK = 'G_Ablenk';
+/**
+ * Station der zweiten Konsole an der anderen Flanschkante [m], oder null.
+ * Nur mit der Option, nur mit Mast, und nur wo sie im Joch liegt - also
+ * an einem Masten, ueber den das Joch hinausragt.
+ */
+function zweiteKonsoleX(m, ende) {
+  if (m?.auflagerZweiFlansche !== true) return null;
+  const md = ende === 'A' ? (m.federn?.mastA ?? m.federn?.mast)
+                          : (m.federn?.mastB ?? m.federn?.mast);
+  if (!md?.profil) return null;
+  const x = r6(mastAchse(m, ende)
+               + (ende === 'A' ? -1 : +1) * konsolLaenge(m, md.profil));
+  return x > 1e-6 && x < m.L - 1e-6 ? x : null;
+}
+
 /** Welche ständigen Teillastfälle ein Lastfall mit `nur` umfasst. */
 function gTeileVon(nur) {
   switch (nur) {
@@ -1242,6 +1257,8 @@ export function stabmodell(m, opt = {}) {
     if (am !== 'mast') return;
     const xk = konsolX(ende);
     if (xk !== null && xk > 1e-9 && xk < m.L - 1e-9) fest.add(xk);
+    const x2 = zweiteKonsoleX(m, ende);
+    if (x2 !== null) fest.add(x2);
   });
   st.forEach((station) => {
     fest.add(r6(station.x));
@@ -2029,6 +2046,43 @@ export function stabmodell(m, opt = {}) {
                    kraft: linkBedingung(m, tragwerksart(m).key, gurt) });
         });
       });
+
+      /*
+       * >>> DIE ZWEITE FLANSCHKANTE, NUR QUER (16. September). <<<
+       *
+       * Option fuer einen Masten, ueber den das Joch hinausragt. Dieselbe
+       * Kette an der anderen Flanschkante; das Link haelt nur y (und K_XX,
+       * wie das erste). Laengs und lotrecht frei: die Studie am auskragenden
+       * Joch zeigte, dass ein lotrechter Halt an beiden Kanten den Gurt mit
+       * der Mastverdrehung zwaengt (bis 978 statt 190 N/mm²); nur quer
+       * gehalten sinkt die Spitze auf 168 N/mm².
+       */
+      const x2 = zweiteKonsoleX(m, ende);
+      if (x2 !== null) {
+        const hK2 = m.verlauf ? m.verlauf.hAn(x2) : m.h;
+        const zGurt2 = { OG: zOben, UG: r6(zOben - hK2) };
+        ['OG', 'UG'].forEach((gurt) => {
+          const vzG = gurt === 'OG' ? +1 : -1;
+          const k2 = s.kn(`KONS2_${an(ende)}_${gurt}`, x2, 0, zAnsatz[gurt]);
+          s.stab(`KONSOLE2_${an(ende)}_${gurt}`, qsStarr, ansatzKn[gurt], k2,
+                 { starrRolle: 'verbindung' });
+          const erste = linkBedingung(m, tragwerksart(m).key, gurt);
+          const kraft = { ...erste, x: 'Free', z: 'Free' };
+          ['L', 'R'].forEach((seite) => {
+            const yG = yGurt(gurt, seite, x2);
+            const kArm = s.kn(`ARM2_${an(ende)}_${gurt}${seite}`, x2, yG, zAnsatz[gurt]);
+            const kAns = s.kn(`ANS2_${an(ende)}_${gurt}${seite}`, x2, yG,
+                              r6(zGurt2[gurt] + vzG * AUFL_LINK_LAENGE));
+            s.stab(`KONSARM2_${an(ende)}_${gurt}${seite}`, qsStarr, k2, kArm,
+                   { starrRolle: 'verbindung' });
+            s.stab(`LINKSTIEL2_${an(ende)}_${gurt}${seite}`, qsStarr, kArm, kAns,
+                   { starrRolle: 'verbindung' });
+            s.stab(`LINK2_${an(ende)}_${gurt}${seite}`, qsStarr, kAns,
+                   gurtKnoten(gurt, seite, x2),
+                   { starrRolle: 'uebergang', kraft });
+          });
+        });
+      }
 
       /* =====================================================================
        * DER ZUGANKER ODER DIE DRUCKSTUETZE

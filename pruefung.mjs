@@ -23872,6 +23872,32 @@ titel('69  Das auskragende Joch: was die Maste bekommen');
   wahr('Die Bruecke sichert die Ergebnisse nach dem Rechnen',
        /Ergebnisse gesichert/.test(ps1k) && /^[\x00-\x7F]*$/.test(ps1k));
   /*
+   * DIE ZWEITE FLANSCHKANTE (Option, 16. September) haelt nur quer. Die
+   * Lagerungsstudie in AxisVM: lotrecht an beiden Kanten gehalten zwaengt
+   * die Mastverdrehung den Gurt (978 statt 190 N/mm²), nur quer 168.
+   */
+  const w5 = satz(7.3, { auflagerZweiFlansche: true });
+  const j5 = AXk.stabmodellJson(lauf(w5).modell, { eingabe: w5, auflagerModell: 'mast' });
+  const l2 = j5.staebe.filter((x) => /^LINK2_/.test(x.name));
+  wahr('Mit der Option: vier Links an der zweiten Kante, nur am inneren Mast',
+       l2.length === 4 && l2.every((x) => /^LINK2_B_/.test(x.name)),
+       l2.map((x) => x.name).join(', '));
+  wahr('… sie halten nur quer',
+       l2.every((x) => x.kraftuebertragung.y === 'Rigid'
+         && x.kraftuebertragung.x === 'Free' && x.kraftuebertragung.z === 'Free'),
+       JSON.stringify(l2[0]?.kraftuebertragung));
+  const kn5 = new Map(j5.knoten.map((k) => [k.name, k]));
+  pruef('… an der anderen Flanschkante', kn5.get(l2[0]?.bis)?.x ?? 0,
+        16.5 - 7.3 + 0.11, 1e-9, 'm');
+  const j6 = AXk.stabmodellJson(lauf(satz(7.3)).modell, { eingabe: satz(7.3), auflagerModell: 'mast' });
+  wahr('Ohne die Option bleibt es bei einer Konsole',
+       !j6.staebe.some((x) => /^LINK2_/.test(x.name)));
+  wahr('Die Option steht in der Maske, nur mit Kragarm',
+       FELDER.find((f) => f.key === 'auflagerZweiFlansche')
+         ?.sichtbar({ ...satz(7.3), mastVorhanden: true }) === true
+       && FELDER.find((f) => f.key === 'auflagerZweiFlansche')
+         ?.sichtbar({ ...satz(0), mastVorhanden: true }) === false);
+  /*
    * EINE FEDERZAHL AM LINK KOMMT ALS FEDER AN. Bis zum 16. September
    * setzte die Bruecke alles ausser 'Free' auf starr - die Maske bot
    * Federwerte an, AxisVM rechnete ohne sie.

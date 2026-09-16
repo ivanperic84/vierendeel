@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4403 Kontrollen
+node pruefung.mjs           # Prüfstand, 4444 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,69 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Auskragendes Joch, Lagerungsstudie in AxisVM (16. September)
+
+Anlass: ein Testtragwerk (J70-alt, L = 16.50 m, Mast B 7.30 m vor dem
+Jochende), in AxisVM mit angepassten Links gerechnet, weil die Vorgabe «sehr
+hohe lokale Spannungen» im Gurt am Link ergab. Befund dazu: «der Mast auf
+Seite auskragendes Joch hatte zu niedrige Momente und zu kleine Ausnutzung
+im Vergleich zur App».
+
+**Rechenkern** (`core.auflager.js` `jochAnteile`, `core.mast.js`):
+- Querkräfte und Torsion gehen nach dem **Hebelgesetz um die Mastachsen**
+  auf die Maste, nicht über die ganze Jochlänge. Der innere Mast bekam
+  30 % zu wenig Wind in Gleisrichtung (unsichere Seite).
+- In den Mast geht das **Anschlussmoment M − M_k**, nicht das Stützmoment des
+  Feldes. Gelenkig mit Kragarm bekam der Mast bisher das volle
+  Kragarmmoment, steif fast nichts. Mast B zählt global mit umgekehrtem
+  Drehsinn. Dasselbe im Gurtanschluss (A1) und in `begrenzeFeder`, die mit
+  Kragarm die Feder sonst bis auf null drückte.
+- Die Jochlast greift an der **Konsole** an: F_z · a_K ins Moment (nicht über
+  `ex`, sonst bekäme F_y eine Torsion, die das Joch hält).
+
+**Ausleitung** (`export.axisvm.js`):
+- Knotenlasten gleicher Richtung am selben Knoten werden addiert. AxisVM
+  behielt von zweien eine - am Beispiel fehlten 1.60 kN ohne Meldung.
+- Zweipunkt-Anbauteile ohne doppelten Knoten (AxisVM verschmolz still).
+- Weisung: «bei den ständigen alle tragwerksteile zusammen … die
+  ablenkkräfte separat». Charakteristisch jetzt **Ständig (Tragwerk)**
+  (`nur: 'tragwerk'`, G_Joch + G_Anbau) und **Ablenkkräfte ständig**
+  (`nur: 'ablenk'`, G_Ablenk); die Kombinationen folgen (`gTeileVon`).
+- Option **Zweite Flanschkante quer halten** (`auflagerZweiFlansche`): zweite
+  Konsole am inneren Mast, Link nur y (und K_XX).
+
+**Lagerung** (Weisung, als Voreinstellung): Tragjoch **Obergurt x y,
+Untergurt y z**. **K_XX** ist unter den Federwerten wieder einstellbar, mit
+Hinweis, dass sie nur im FEM wirkt; K_YY/K_ZZ bleiben fest frei.
+
+**COM-Brücke:** nach `-Rechnen` wird mit Ergebnissen gesichert (`.axe`);
+Federzahlen an Links kommen als Feder an (vorher starr).
+
+**Studie** (13 Varianten, gebaut, gerechnet und über
+`Results.Stresses.GetLineStressByLoadCombinationId` gelesen; grösste
+Spannung im Gurt am Anschluss, Wind leitend, N/mm²):
+
+| Variante | Mast A | Mast B |
+|---|---|---|
+| Vorgabe bis heute (OG y z, UG x y z) | 132 | 568 |
+| OG x y, UG y z, K_XX an B gehalten | 111 | 190 |
+| dasselbe, K_XX frei | 97 | 249 |
+| dasselbe, K_XX an beiden Masten | 108 | 191 |
+| dasselbe mit Federn 20 MN/m statt starr | 109 | 189 |
+| lotrecht an beiden Ebenen, K_XX an B | 117 | 188 |
+| **zweite Flanschkante nur quer, K_XX an B** | 110 | **168** |
+| zweite Flanschkante auch lotrecht | 91 | 694 |
+| dasselbe, Klemmstück versteift | 96 | 978 |
+| Anschluss an der Kante der Blechzone | 97–109 | 286–369 |
+| Joch hängt am Obergurt | 146 | 275 |
+
+Lotrechter Halt an beiden Flanschkanten zwängt den Gurt mit der
+Mastverdrehung - deshalb hält die Option nur quer. Das Feld (Blechstoss
+x = 5.25 m) bleibt bei rund 177 N/mm², unabhängig von der Lagerung.
+
+**Offen - Entscheid des Auftraggebers:** K_XX als Vorgabe halten? Sie
+senkt die Spitze am Kragarm-Mast von 249 auf 190 N/mm².
 
 ### Menüband, Name Vierendeel, Seilanker nur Zug (16. September)
 

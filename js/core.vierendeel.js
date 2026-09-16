@@ -718,6 +718,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * Mastbreite, auch wo jemand ein eigenes Mass eingetragen hatte.
      */
     auflagerKonsole: inp.auflagerKonsole ?? null,
+    // Zweite Flanschkante, nur quer gehalten (16. September).
+    auflagerZweiFlansche: inp.auflagerZweiFlansche === true,
     feldmodell: fm, kragA, kragB, stuetzweite: sp.L,
     // Hebelarm des einseitigen Kräftepaars, je Gurt [m] - er folgt der
     // Massvariante und steht deshalb neben h und b im Modell.
