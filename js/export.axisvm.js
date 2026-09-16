@@ -2578,14 +2578,43 @@ export function stabmodell(m, opt = {}) {
           }
         }
         /*
-         * DAS ANKERFUNDAMENT haelt die drei Verschiebungen und gibt die drei
-         * Drehungen frei - ein eingespanntes Ankerfundament waere ein
-         * anderes Bauteil (Weisung vom 9. September: "diese sind gelenkig
-         * gelagert"). Der Mastfuss daneben bleibt voll eingespannt.
+         * >>> DAS ANKERFUNDAMENT HAELT AUCH DIE DREHUNGEN. <<<
+         *
+         * Befund des Auftraggebers vom 16. September, nach zwei Laeufen:
+         * «das auflager bei der druckstütze muss gehalten sein.»
+         *
+         * >>> WARUM DAS KEIN WIDERSPRUCH ZUR GELENKIGEN LAGERUNG IST. <<<
+         *
+         * Weisung vom 9. September: «diese sind gelenkig gelagert» - und
+         * das bleibt so. Das Gelenk ist nur UMGEZOGEN: bis zum
+         * 16. September war das Auflager die einzige Stelle, an der die
+         * Stuetze drehen konnte, seither sitzt es 50 mm weiter oben im
+         * Gelenkstueck, wo die Schraube ist (`ANKER_GELENK`).
+         *
+         * ZWEI GELENKE HINTEREINANDER SIND EINES ZUVIEL. Genau daran
+         * scheiterten die beiden Laeufe davor:
+         *
+         *   erst   «Knoten hat keine Steifigkeit (YY)» - der Lagerknoten
+         *          trug nur Links ohne Momentenuebertragung
+         *   dann   «numerische Instabilitaeten», Verformung 1.5e8 mm - der
+         *          Starrkoerper zwischen zwei momentenfreien Knoten konnte
+         *          um seine eigene Achse drehen
+         *
+         * Beide Male war die Ursache dieselbe: an diesem Knoten leitete
+         * NICHTS ein Moment ein. Mit gehaltenem Auflager tut es das
+         * Fundament - und die Stuetze bleibt trotzdem gelenkig
+         * angeschlossen, weil ihr Gelenk jetzt im Stab sitzt.
+         *
+         * WAS DAS FUNDAMENT WIRKLICH HAELT, ist damit nicht behauptet: es
+         * haelt den kurzen Starrkoerper, nicht die Stuetze. Ueber das
+         * Gelenkstueck kommt kein Moment an.
+         *
+         * Der Mastfuss daneben bleibt voll eingespannt.
          */
         auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
                         ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
-                        fix: 'Free', fiy: 'Free', fiz: 'Free', feder: null });
+                        fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
+                        feder: null });
         ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
                         h: ak.h, a: ak.a, qs: qw ?? null,
                         spreiz: spreiz ?? null, zweiProfile: einzeln,

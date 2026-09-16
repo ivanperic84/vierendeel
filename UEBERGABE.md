@@ -397,6 +397,37 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Das Ankerfundament hält auch die Drehungen (16. September)
+
+Nach dem Umbau der Anschlusskette kam der zweite Lauf: **«Das Modell enthält
+numerische Instabilitäten»**, Verformung 1.5·10⁸ mm, die Stütze drehte um den
+Mastanschluss weg.
+
+Befund des Auftraggebers: «das auflager bei der druckstütze muss gehalten
+sein.»
+
+**Und das ist kein Widerspruch zur gelenkigen Lagerung.** Die Weisung vom
+9. September — «diese sind gelenkig gelagert» — gilt weiter. Das Gelenk ist nur
+**umgezogen**: bis zum 16. September war das Auflager die einzige Stelle, an
+der die Stütze drehen konnte, seither sitzt es 50 mm weiter oben im
+Gelenkstück, wo die Schraube ist.
+
+**Zwei Gelenke hintereinander sind eines zuviel.** Daran scheiterten beide
+Läufe davor, und beide Male aus demselben Grund — an diesem Knoten leitete
+*nichts* ein Moment ein:
+
+| Lauf | Meldung | Ursache |
+|---|---|---|
+| 1 | «Knoten hat keine Steifigkeit (YY)» | Lagerknoten trug nur Links ohne Momentenübertragung |
+| 2 | «numerische Instabilitäten», 1.5·10⁸ mm | Starrkörper zwischen zwei momentenfreien Knoten, um seine eigene Achse frei |
+
+Über das Gelenkstück kommt trotzdem kein Moment in die Stütze: das Fundament
+hält den kurzen Starrkörper, nicht den Stab. Eine Kontrolle hält beides
+zusammen — fällt sie, wäre die Stütze eingespannt statt gelenkig.
+
+**Im Bericht nachgelesen:** `ANKER_A_F` trägt jetzt alle sechs Steifigkeiten
+auf 10¹⁰ — x/y/z **und** xx/yy/zz. Der Mastfuss daneben bleibt wie er war.
+
 ### Die Lagerung der Druckstütze (16. September)
 
 Befund aus AxisVM: **«Knoten hat keine Steifigkeit. (1×) — YY (1×)»**, die

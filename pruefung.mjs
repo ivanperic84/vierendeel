@@ -10540,19 +10540,48 @@ titel('42  Der lange Mast mit Zusatzleitern');
     // Und der alte Einzelstab ist weg.
     wahr('Kein Ersatzstab mehr',
          !(jA.staebe ?? []).some((x) => /^ANKER_[AB]$/.test(x.name)));
-    /*
-     * DAS FUNDAMENT HAELT DIE VERSCHIEBUNGEN UND GIBT DIE DREHUNGEN FREI -
-     * ein eingespanntes Ankerfundament waere ein anderes Bauteil. Der
-     * Mastfuss daneben bleibt voll eingespannt.
+    /* =====================================================================
+     * >>> DAS ANKERFUNDAMENT HAELT AUCH DIE DREHUNGEN. <<<
+     * =====================================================================
+     *
+     * Befund des Auftraggebers vom 16. September, nach zwei Laeufen: "das
+     * auflager bei der druckstütze muss gehalten sein."
+     *
+     * >>> UND DAS IST KEIN WIDERSPRUCH ZUR GELENKIGEN LAGERUNG. <<<
+     *
+     * Weisung vom 9. September: "diese sind gelenkig gelagert" - das gilt
+     * weiter. Das Gelenk ist nur UMGEZOGEN: bis zum 16. September war das
+     * Auflager die einzige Stelle, an der die Stuetze drehen konnte,
+     * seither sitzt es 50 mm weiter oben im Gelenkstueck, wo die Schraube
+     * ist.
+     *
+     * ZWEI GELENKE HINTEREINANDER SIND EINES ZUVIEL. Daran scheiterten die
+     * beiden Laeufe davor: erst "Knoten hat keine Steifigkeit (YY)", dann
+     * "numerische Instabilitaeten" mit 1.5e8 mm Verformung. Beide Male
+     * leitete an diesem Knoten NICHTS ein Moment ein.
+     *
+     * Ueber das Gelenkstueck kommt trotzdem kein Moment in die Stuetze -
+     * das Fundament haelt den kurzen Starrkoerper, nicht den Stab.
      */
     const aufA = (jA.auflager ?? []).filter((x) => /^ANKER_/.test(x.knoten));
     wahr('Zwei Ankerfundamente', aufA.length === 2);
     wahr('Sie halten die Verschiebungen',
          aufA.every((x) => x.ux === 'Rigid' && x.uy === 'Rigid'
                         && x.uz === 'Rigid'));
-    wahr('… und geben die Drehungen frei',
-         aufA.every((x) => x.fix === 'Free' && x.fiy === 'Free'
-                        && x.fiz === 'Free'));
+    wahr('… und seit dem 16. September auch die Drehungen',
+         aufA.every((x) => x.fix === 'Rigid' && x.fiy === 'Rigid'
+                        && x.fiz === 'Rigid'));
+    /*
+     * DAS GELENK DER STUETZE IST DAMIT NICHT VERSCHWUNDEN, es sitzt im
+     * Gelenkstueck. Diese Probe haelt beides zusammen - faellt sie, ist die
+     * Stuetze eingespannt statt gelenkig.
+     */
+    wahr('Und das Gelenk sitzt im Gelenkstueck, nicht im Auflager',
+         (jA.staebe ?? []).filter((x) => /^ANKERGELENK_/.test(x.name))
+           .every((x) => x.art === 'link'
+                      && x.kraftuebertragung?.xx === 'Free'
+                      && x.kraftuebertragung?.yy === 'Free'
+                      && x.kraftuebertragung?.zz === 'Free'));
     wahr('Der Mastfuss bleibt dagegen eingespannt',
          (jA.auflager ?? []).filter((x) => /^MAST_/.test(x.knoten))
            .every((x) => x.fix === 'Rigid'));
