@@ -64,7 +64,7 @@ export const mastenDbDa = () => Boolean(SORT?.typen?.length);
  * >>> ZWEI QUELLEN FUER EINEN MASTEN. <<<
  * ===========================================================================
  *
- * Weisung vom 16. September: «die ui und die sbb daten sollen getrennt
+ * Weisung vom 16. September: «die ui und die [Betreiber]daten sollen getrennt
  * sein.» Beim Masten verläuft diese Grenze MITTEN DURCH DEN DATENSATZ, und
  * das ist kein Schoenheitsfehler, sondern die Sache selbst:
  *

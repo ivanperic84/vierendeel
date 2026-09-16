@@ -8,7 +8,7 @@
 
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
-         datenbankStand, laengenbereich } from './data.tragjoche.js';
+         datenbank, datenbankStand, laengenbereich } from './data.tragjoche.js';
 import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
@@ -58,8 +58,8 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, entdoppelteVorlagen,
          erzeugeGleislasten, neuesModul,
-         baugruppeSumme } from './data.anbauteile.js';
-import { ladeFlBauteile, flBauteile, getFlBauteil } from './data.fl.js';
+         baugruppeSumme, anbauteilDB } from './data.anbauteile.js';
+import { ladeFlBauteile, flBauteile, getFlBauteil, flDB } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
@@ -67,7 +67,7 @@ import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { mastNachweise, mastSchnitt } from './core.mast.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
-         getAbfangjoch } from './data.abfangjoche.js';
+         getAbfangjoch, abfangDB } from './data.abfangjoche.js';
 /*
  * DAS ANKERSORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten. Wie das
  * Abfangjoch-Sortiment ist es keine Voraussetzung: wer keinen Anker hat,
@@ -76,12 +76,15 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
 import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
          ankerKnicken,
          ankerTypen, ankerTraegtDruck,
-         ANKER_BEFESTIGUNGEN } from './data.anker.js';
-import { ladeNormen, normenDbDa } from './data.normen.js';
+         ANKER_BEFESTIGUNGEN, ankerDB } from './data.anker.js';
+import { ladeNormen, normenDbDa, normen } from './data.normen.js';
+import { zeichneDaten, ersterAbschnitt,
+         blaetter as datenBlaetter } from './ui.daten.js';
+import { arbeitsmappe, STIL } from './export.xlsx.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
-         ladeMasten } from './data.masten.js';
+         ladeMasten, mastenDB } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
@@ -4381,6 +4384,8 @@ const TASTEN = [
   { gruppe: 'Fenster' },
   { id: 'ablage', taste: 'p', text: 'Projektablage', tun: () => schubladeUmschalten() },
   { id: 'optionen', taste: 'o', text: 'Optionen', tun: () => dialogOptionen() },
+  { id: 'bauteildaten', taste: 'k', text: 'Bauteildaten',
+    tun: () => dialogBauteildaten() },
   { id: 'handbuch', taste: 'h', text: 'Handbuch', tun: () => dialogHandbuch() },
 ];
 
@@ -4394,6 +4399,76 @@ function tasteVon(t) {
   if (!t?.id) return t?.taste ?? '';
   const eigen = werte?.tasten?.[t.id];
   return eigen === undefined ? t.taste : eigen;
+}
+
+/* ===========================================================================
+ * >>> DAS FENSTER DER BAUTEILDATEN. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «kannst du noch für die hinterlegten bauteile
+ * anbauteile alle relevanten parameter werte in tabellen aufführen … diese
+ * datenbank in der app sollte demnach ein separates modul sein, das
+ * verdrahtet ist.»
+ *
+ * DIE FORM STEHT IN ui.daten.js, die Handlung hier - dieselbe Trennung wie
+ * zwischen ui.js und app.js. Dieses Fenster tut genau drei Dinge: einen
+ * Abschnitt wählen, die Tabelle zeigen, alles als Excel ausleiten.
+ *
+ * ES BEARBEITET NICHTS. Die stehende Vorgabe lautet, dass die Geometrie der
+ * Jochträger im Detail zu übernehmen ist und eine Anpassung der
+ * Blecheinteilung nicht zulässig; eine Maske zum Überschreiben stünde quer
+ * dazu. Wer etwas ändert, ändert die Datei und liest sie als Paket wieder
+ * ein - dann läuft die Änderung durch die Prüfung des Feldkatalogs.
+ * ========================================================================= */
+
+/**
+ * Alles, was an Datenbanken geladen ist, in EINEM Satz.
+ *
+ * Jede einzeln in `try`: das Sortiment darf fehlen, und ein fehlender Teil
+ * soll die übrigen nicht mitnehmen. Die Ansicht sagt dann, was fehlt.
+ */
+function datenBestand() {
+  const nimm = (fn) => { try { return fn() ?? null; } catch { return null; } };
+  return {
+    normen: nimm(normen),
+    masten: nimm(mastenDB),
+    tragjoche: nimm(datenbank),
+    abfangjoche: nimm(abfangDB),
+    anker: nimm(ankerDB),
+    fl_bauteile: nimm(flDB),
+    anbauteile: nimm(anbauteilDB),
+  };
+}
+
+let datenAbschnitt = null;
+
+function dialogBauteildaten() {
+  const best = datenBestand();
+  if (!datenAbschnitt) datenAbschnitt = ersterAbschnitt(best);
+
+  const d = dialog('Bauteildaten',
+    zeichneDaten(best, datenAbschnitt),
+    `<button class="btn" data-daten-excel>Alle Tabellen als Excel</button>
+     <button class="btn" data-zu>Schliessen</button>`, 'dialog-breit');
+
+  const verdrahte = () => {
+    d.node.querySelectorAll('[data-abschnitt]').forEach((b) => {
+      b.onclick = () => {
+        datenAbschnitt = b.dataset.abschnitt;
+        d.node.querySelector('.dialog-koerper').innerHTML =
+          zeichneDaten(best, datenAbschnitt);
+        verdrahte();
+      };
+    });
+  };
+  verdrahte();
+
+  d.node.querySelector('[data-daten-excel]').onclick = () => {
+    const bl = datenBlaetter(best, STIL);
+    store.dateiSpeichern(arbeitsmappe(bl),
+      `Tragjoch_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+  return d;
 }
 
 /**

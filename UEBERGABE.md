@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 1670 Kontrollen
+node pruefung.mjs           # Prüfstand, 4237 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,68 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Die Tragwerksdaten stehen in der Datenbank (16. September)
+
+Weisung: «alle relevanten tragwerksdaten werden ausschliesslich über die
+datenbank gesteuert, es soll nichts hardcoded in der app sein. die ui und die
+[Betreiber]daten sollen getrennt sein.» Dazu die vorangehende: die Parameter der
+hinterlegten Bauteile in Tabellen, als eigenes, verdrahtetes Modul.
+
+**Die Trennlinie läuft zwischen Norm und Sortiment**, nicht zwischen Code und
+Daten — dort lief sie schon:
+
+| Ablage | Inhalt | verfolgt? |
+|---|---|---|
+| `data/normen.json` | Winkel-, Walz- und Mastprofile (Querschnittswerte), Stahlgüten | **ja** — `.gitignore` nimmt sie aus |
+| `data/masten.json` | welche Mastprofile das Sortiment führt, Windlast je EK | nein |
+| übrige `data/*.json` | Joch-, Abfangjochtypen, Anker, Lasttabelle, Anbauteil-Vorlagen | nein |
+
+Beim Masten geht die Grenze mitten durch den Satz: I_y ist Norm, die Windlast
+ist Festlegung des Betreibers. `mastprofile()` fügt beides wieder zusammen;
+fehlt `masten.json`, gelten alle Normprofile ohne Windlast.
+
+**Neue Module.**
+
+* `js/data.normen.js` besitzt die Normwerte. Ihr Fehlen ist ein Fehler, kein
+  erlaubter Zustand — `app.js` zeigt dann ein Fenster statt leerer Wähler.
+* `js/data.katalog.js` beschreibt jedes Feld einmal: Anschrift, Einheit,
+  Art, Pflicht, Bereich, Herkunft. Daraus kommen Tabelle, Excel-Kopf und
+  Prüfung. Bereich verletzt = Warnung, Pflicht/Art verletzt = Fehler.
+* `js/ui.daten.js` zeichnet das Fenster **Bauteildaten** (Taste `k`) und
+  liefert die Excel-Blätter (Übersicht + zehn Tabellen). Sätze mit bekannten
+  Feldern werden in Spalten aufgefaltet («Windlast · quer · EK2»), freie
+  Listen gezählt.
+
+**Das Fenster bearbeitet nichts** — wegen der stehenden Vorgabe zur
+Blecheinteilung. Geändert wird die Datei, eingelesen als Paket.
+
+**Das Datenpaket trägt sechs Sortimente statt drei** (dazu Abfangjoche,
+Anker, Masten). Die Normwerte sind nicht darin und werden auch bei
+`--ohne-daten` eingebettet; sie stehen in der Offline-Schale von `sw.js`.
+
+**Zahlen erzeugt, nicht abgeschrieben.** `normen.json` und `masten.json` sind
+aus den damaligen Modulen generiert; der Durchlauf vor und nach dem Umbau ist
+zeilengleich. 4237 Kontrollen grün (Abschnitt 61 neu).
+
+**Befund des Katalogs, nicht behoben:** `abfangjoch-a200` steht in der
+Lasttabelle zweimal (0.66 kN/m «altes Bausortiment», 0.58 kN/m). Beide Sätze
+sind `stumm`, heute liest sie niemand; `getFlBauteil` bekäme den ersten.
+Berichtigung ist Sache des Auftraggebers (Betreiberdaten) — die Kontrolle in
+Abschnitt 61 hält den Befund fest und fällt, sobald er erledigt ist.
+
+**Noch im Quelltext, bewusst oder offen:**
+
+* `STEGRICHTUNGEN` — eine Verzweigung im Rechenweg, kein Datum. Bleibt.
+* `NORMENSAETZE` (γ_G, γ_Q, ψ₀), `WIND_KLASSEN`, `SCHNEE_KLASSEN`,
+  `EINWIRKUNGEN` in `core.lasten.js`; `GRENZEN_AUSKRAGEND/WINKEL` in
+  `core.klassen.js`. Normbeiwerte — **offen**, gehören nach `normen.json`,
+  sobald entschieden ist, ob sie dort pflegbar sein sollen.
+* Einlesen einzelner Sortimente mit Katalogprüfung und Excel-Rücklesen —
+  **offen** (Excel wird heute nur geschrieben; `entpacke` liest nur
+  unverdichtete ZIP).
+* Die Einheiten bleiben, wie der Rechenkern sie führt: Walzprofile h/b in
+  **cm**, Mastprofile in **mm**. Der Katalog nennt es je Feld.
 
 ### Regliertemperatur an der Kombination, Bruchfall (9. September)
 

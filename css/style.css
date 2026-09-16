@@ -2638,3 +2638,70 @@ body.datei-ueber::after {
    Ausgabedialog, der nur beim PyNite-Weg erscheinen soll.
    ========================================================================= */
 .feld[hidden] { display: none; }
+
+/* ===========================================================================
+   DAS FENSTER DER BAUTEILDATEN
+
+   Weisung vom 16. September: die hinterlegten Bauteile in Tabellen auffuehren.
+
+   ZWEI SPALTEN, und die linke ist die schmale: links die Abschnitte, rechts
+   die Tabelle. Die Tabelle scrollt fuer sich - sonst wanderte bei einem
+   Sortiment mit zwanzig Spalten die Abschnittsliste aus dem Bild.
+   ========================================================================= */
+.dat-rahmen { display: grid; grid-template-columns: 210px 1fr;
+              gap: 0; min-height: 420px; max-height: 74vh; }
+.dat-leiste { border-right: 1px solid var(--ol); overflow-y: auto;
+              padding: 10px 8px; background: var(--s2); }
+.dat-inhalt { overflow: auto; padding: 12px 14px; min-width: 0; }
+
+.dat-gruppe + .dat-gruppe { margin-top: 14px; }
+.dat-gruppe-kopf { font-weight: 600; font-size: 12px; letter-spacing: .04em;
+                   text-transform: uppercase; opacity: .75; }
+.dat-gruppe-hinweis { font-size: 11px; opacity: .6; margin: 2px 0 6px;
+                      line-height: 1.35; }
+
+.dat-eintrag { display: flex; justify-content: space-between; gap: 8px;
+               width: 100%; text-align: left; padding: 5px 7px; border: 0;
+               border-radius: 5px; background: none; color: inherit;
+               cursor: pointer; font: inherit; font-size: 13px; }
+.dat-eintrag:hover { background: var(--s3); }
+.dat-eintrag.an { background: var(--acc-s);
+                  font-weight: 600; }
+.dat-eintrag.leer { opacity: .45; cursor: default; }
+.dat-zahl { opacity: .6; font-variant-numeric: tabular-nums; }
+
+.dat-kopf h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+/* Die Herkunft steht als Marke am Titel: sie entscheidet, ob die Zahlen in
+   eine oeffentliche Ablage duerfen. Das gehoert nicht in eine Fussnote. */
+.dat-herkunft { font-size: 11px; font-weight: 500; padding: 1px 7px;
+                border-radius: 9px; border: 1px solid var(--ol); }
+.dat-herkunft.norm { opacity: .7; }
+.dat-herkunft.sortiment { border-color: var(--warn);
+                          color: var(--warn); }
+
+.dat-meldung { margin: 6px 0; font-size: 12px; }
+.dat-meldung summary { cursor: pointer; }
+.dat-meldung.fehler summary { color: var(--fail); }
+.dat-meldung ul { margin: 4px 0 0 18px; padding: 0; line-height: 1.5; }
+
+.dat-tabelle-rahmen { overflow: auto; margin-top: 10px;
+                      border: 1px solid var(--ol); border-radius: 6px; }
+.dat-tabelle { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.dat-tabelle th, .dat-tabelle td { padding: 3px 8px;
+                                   border-bottom: 1px solid var(--ol); }
+.dat-tabelle thead th { position: sticky; top: 0; text-align: left;
+                        background: var(--s1); font-weight: 600; }
+/* Die Einheitenzeile klebt unter der Kopfzeile - sonst weiss man beim
+   Scrollen nicht mehr, ob eine Hoehe in mm oder in cm steht. Genau diese
+   Verwechslung hat hier zweimal zugeschlagen. */
+.dat-tabelle thead tr.dat-einheit th { top: 22px; font-weight: 400;
+                                       opacity: .65; font-size: 11px; }
+.dat-tabelle tbody tr:hover { background: var(--s2); }
+.dat-tabelle td.zahl { text-align: right; font-family: var(--f-mono); }
+.dat-tabelle td.leer { opacity: .3; text-align: center; }
+
+@media (max-width: 640px) {
+  .dat-rahmen { grid-template-columns: 1fr; max-height: 80vh; }
+  .dat-leiste { border-right: 0; border-bottom: 1px solid var(--ol);
+                max-height: 150px; }
+}

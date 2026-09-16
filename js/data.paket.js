@@ -47,7 +47,7 @@ const SPEICHER = 'tragjoch-daten-v1';
  * ===========================================================================
  *
  * Weisung vom 16. September: «alle relevanten tragwerksdaten werden
- * ausschliesslich über die datenbank gesteuert … die ui und die sbb daten
+ * ausschliesslich über die datenbank gesteuert … die ui und die [Betreiber]daten
  * sollen getrennt sein.»
  *
  * Bis dahin trug das Paket DREI Teile, obwohl die Anwendung sechs

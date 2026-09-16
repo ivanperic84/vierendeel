@@ -5084,11 +5084,20 @@ titel('28  Installierbare Fassung: Manifest, Dienstarbeiter, Dateien');
   wahr('Er liefert sich selbst nie aus der Ablage',
        sw.includes("endsWith('/sw.js')"));
   wahr('Er übernimmt erst auf Zuruf', sw.includes("=== 'uebernehmen'"));
-  // OHNE data/: die drei Datenbanken sind keine Startvoraussetzung, sie
-  // können als Datenpaket im Browser hinterlegt sein.
-  wahr('Die Datenbanken stehen NICHT in der Ablageliste',
-       !/'data\//.test(sw.slice(sw.indexOf('const SCHALE'),
-                               sw.indexOf('Ende erzeugter Block'))));
+  // OHNE das SORTIMENT: die Betreiberdatenbanken sind keine
+  // Startvoraussetzung, sie können als Datenpaket im Browser hinterlegt sein.
+  // MIT den Normwerten: seit dem 16. September stehen die Querschnittswerte
+  // in data/normen.json statt im Quelltext - ohne sie rechnet nichts, und
+  // anders als das Sortiment liegen sie immer bei.
+  {
+    const schale = sw.slice(sw.indexOf('const SCHALE'),
+                            sw.indexOf('Ende erzeugter Block'));
+    const daten = [...schale.matchAll(/'(data\/[^']+)'/g)].map((m) => m[1]);
+    wahr('Kein Sortiment steht in der Ablageliste',
+         daten.every((d) => d === 'data/normen.json'), daten.join(', '));
+    wahr('Die Normwerte stehen in der Ablageliste',
+         daten.includes('data/normen.json'));
+  }
 
   // --- Modul ----------------------------------------------------------------
   const P = await import(J('pwa.js'));
@@ -22773,6 +22782,189 @@ const CH9x = await import(J('core.checks.js'));
          schieb.call(stand, NaN, 0) === false);
     pruef('… und laesst die Lage stehen', stand.zeichnung.kalibrierung.x0,
           -9.70, 1e-12, 'm');
+  }
+}
+
+titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
+/* ===========================================================================
+ * >>> DER KATALOG IST DIE PRUEFREGEL, NICHT NUR EINE ANSCHRIFT. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: alle Tragwerksdaten aus der Datenbank, und die
+ * Parameter in Tabellen. Beides haengt an js/data.katalog.js: er sagt, wie
+ * ein Feld heisst, in welcher Einheit es steht, ob es Pflicht ist und wo
+ * sein Wert plausibel liegt.
+ *
+ * DIESE KONTROLLEN PRUEFEN DEN KATALOG GEGEN DIE WIRKLICHEN DATEN. Weichen
+ * beide voneinander ab, faellt es hier auf - und nicht im Nachweis. Beim
+ * ersten Lauf fand er auf Anhieb eine doppelte Kennung in der Lasttabelle,
+ * die `find` stillschweigend auf den ersten Satz aufloest.
+ * ========================================================================= */
+{
+  const K = await import(J('data.katalog.js'));
+  const D = await import(J('ui.daten.js'));
+  const X = await import(J('export.xlsx.js'));
+  const lies = (n) => JSON.parse(
+    readFileSync(join(HIER, 'data', n + '.json'), 'utf8'));
+  const best = {
+    normen: lies('normen'), masten: lies('masten'), tragjoche: lies('tragjoche'),
+    abfangjoche: lies('abfangjoche'), anker: lies('anker'),
+    fl_bauteile: lies('fl_bauteile'), anbauteile: lies('anbauteile'),
+  };
+
+  pruef('Zehn Abschnitte', K.ABSCHNITTE.length, 10, 1e-12, 'Stk');
+  wahr('Jeder Abschnitt nennt Datenbank, Liste und Schluessel',
+       K.ABSCHNITTE.every((a) => a.db && a.liste && a.schluessel));
+  wahr('Jeder Abschnitt ist Norm oder Sortiment',
+       K.ABSCHNITTE.every((a) => ['norm', 'sortiment'].includes(a.herkunft)));
+  wahr('Jedes Feld traegt Schluessel, Anschrift und Art',
+       K.ABSCHNITTE.every((a) => a.felder.every((f) => f.k && f.label && f.typ)));
+  /*
+   * EINE ZAHL OHNE EINHEIT IST DIE FALLE, um die es hier geht. Genau diese
+   * Verwechslung - mm gegen cm - hat in dieser Anwendung zweimal
+   * zugeschlagen. Ausgenommen sind die reinen Verhaeltniszahlen; sie tragen
+   * `einheit: null` ausdruecklich.
+   */
+  {
+    const ohne = [];
+    const gehe = (a, f, pfad) => {
+      if (f.typ === 'zahl' && f.einheit === undefined) ohne.push(`${a.titel}: ${pfad}`);
+      (f.unter ?? []).forEach((u) => gehe(a, u, `${pfad} · ${u.label}`));
+    };
+    K.ABSCHNITTE.forEach((a) => a.felder.forEach((f) => gehe(a, f, f.label)));
+    wahr('Jede Zahl im Katalog nennt ihre Einheit oder sagt ausdruecklich keine',
+         ohne.length === 0, ohne.join(' | '));
+  }
+
+  // --- Der Bestand gegen den Katalog ---------------------------------------
+  {
+    const r = K.pruefeBestand(best);
+    pruef('Alle zehn Abschnitte liegen vor', r.abschnitte.length, 10, 1e-12, 'Stk');
+    const n = r.abschnitte.reduce((s, a) => s + a.anzahl, 0);
+    wahr('Der Bestand traegt weit ueber hundert Saetze', n > 140, `${n} Saetze`);
+    /*
+     * >>> EIN EINZIGER FEHLER, UND ER IST ECHT. <<<
+     *
+     * «abfangjoch-a200» steht zweimal in der Lasttabelle, einmal mit 0.66
+     * und einmal mit 0.58 kN/m - altes und neues Bausortiment unter
+     * derselben Kennung. Beide Saetze tragen `rolle: stumm`, werden also
+     * heute von niemandem nachgeschlagen; der Tag, an dem es einer tut,
+     * bekaeme stillschweigend den ersten.
+     *
+     * DIESE KONTROLLE HAELT DEN BEFUND FEST, statt ihn zu uebergehen. Wird
+     * die Kennung berichtigt, faellt sie - und das ist dann die richtige
+     * Meldung: hier ist etwas erledigt worden.
+     */
+    pruef('Genau ein Fehler im Bestand', r.fehler.length, 1, 1e-12, 'Stk');
+    wahr('… und es ist die doppelte Kennung in der Lasttabelle',
+         r.fehler[0]?.includes('abfangjoch-a200'), r.fehler[0] ?? '-');
+  }
+
+  // --- Was die Pruefung abweisen muss --------------------------------------
+  {
+    const a = K.abschnitt('stahlgueten');
+    wahr('Ein fehlendes Pflichtfeld ist ein Fehler',
+         K.pruefeSatz(a, { name: 'X', fy: 235 }, 0).fehler.length === 1);
+    wahr('Eine Zahl, die keine ist, ist ein Fehler',
+         K.pruefeSatz(a, { name: 'X', fy: 'viel', fu: 360 }, 0).fehler.length === 1);
+    /*
+     * EIN WERT AUSSERHALB DES BEREICHS WIRD GEMELDET, NICHT ABGELEHNT. Ein
+     * Bereich, der abweist, verboete genau das, wofuer die Datenbank da ist:
+     * einen neuen Typ.
+     */
+    const r = K.pruefeSatz(a, { name: 'X', fy: 900, fu: 360 }, 0);
+    wahr('Ein Wert ausserhalb des Bereichs ist nur eine Warnung',
+         r.fehler.length === 0 && r.warnung.length === 1, r.warnung.join(' '));
+    const w = K.abschnitt('winkelprofile');
+    wahr('Eine unerlaubte Auswahl ist ein Fehler',
+         K.pruefeSatz(w, { name: 'L', form: 'rund' }, 0)
+           .fehler.some((x) => x.includes('«Form»')));
+  }
+
+  // --- Die Spalten des Fensters -------------------------------------------
+  {
+    /*
+     * >>> EIN SATZ MIT BEKANNTEN FELDERN WIRD AUFGEFALTET. <<<
+     *
+     * Die Windlast des Masten steht als quer/laengs mal EK1..EK3 - das sind
+     * sechs Zahlen. Als EINE Spalte «Windlast» waeren sie eine Zeichenkette
+     * und in Excel nicht zu rechnen; als sechs Spalten steht in jeder Zelle
+     * eine Zahl.
+     */
+    const sp = D.spalten(K.abschnitt('masttypen'));
+    pruef('Masttypen: Profil und sechs Windwerte', sp.length, 7, 1e-12, 'Spalten');
+    wahr('Die Kopfzeile nennt den Weg dorthin',
+         sp[1].kopf === 'Windlast · quer zum Gleis · EK1', sp[1].kopf);
+    wahr('Und die Einheit steht daneben', sp[1].einheit === 'kN/m');
+    wahr('Der Wert wird ueber beide Ebenen geholt',
+         sp[1].hol(best.masten.typen[0]) === best.masten.typen[0].wind.quer.EK1);
+
+    const z = D.zeilen(best, 'stahlgueten');
+    pruef('Stahlgueten: Kopf, Einheit und drei Saetze', z.length, 5, 1e-12, 'Zeilen');
+    wahr('Die zweite Zeile traegt die Einheiten', z[1][1] === 'N/mm²', z[1].join('|'));
+    wahr('Die Werte stehen als Text bereit', z[2][0] === 'S235' && z[2][1] === '235',
+         z[2].join('|'));
+
+    /*
+     * WAS SICH NICHT AUFFALTEN LAESST, WIRD GEZAEHLT. Eine Blechliste in
+     * eine Tabellenzelle zu quetschen hiesse, sie unlesbar zu machen und
+     * zugleich vorzutaeuschen, man koenne sie dort pflegen.
+     */
+    const jt = best.tragjoche.typen.find((t) => t.bleche);
+    wahr('Eine Blechliste wird gezaehlt, nicht ausgeschrieben',
+         /Felder|Eintr/.test(K.alsText(jt.bleche, { typ: 'frei' })),
+         K.alsText(jt.bleche, { typ: 'frei' }));
+    wahr('Ein Zahlenpaar wird ausgeschrieben',
+         K.alsText([8, 16], { typ: 'liste' }) === '8 … 16');
+  }
+
+  // --- Die Excel-Blaetter --------------------------------------------------
+  {
+    const bl = D.blaetter(best, X.STIL);
+    pruef('Uebersicht und zehn Tabellen', bl.length, 11, 1e-12, 'Blaetter');
+    wahr('Das erste Blatt ist die Uebersicht', bl[0].name === 'Übersicht');
+    wahr('Kein Blattname ist laenger als einunddreissig Zeichen',
+         bl.every((b) => b.name.length <= 31),
+         bl.map((b) => b.name.length).join(' '));
+    const mappe = X.arbeitsmappe(bl);
+    wahr('Die Mappe entsteht und ist keine leere Huelle',
+         mappe instanceof Uint8Array && mappe.length > 50000,
+         `${mappe?.length} Bytes`);
+    /*
+     * DAS BLATT ZEIGT, WAS DER SCHIRM ZEIGT - beide aus derselben
+     * Spaltenliste. Sonst waere die Ausleitung eine zweite Wahrheit.
+     */
+    const a = K.abschnitt('mastprofile');
+    const sp = D.spalten(a);
+    const blatt = bl.find((b) => b.name === a.titel.slice(0, 31));
+    wahr('Die Kopfzeile des Blattes ist die des Schirms',
+         blatt.rows[4].length === sp.length
+         && blatt.rows[4][0].v === sp[0].kopf,
+         `${blatt.rows[4].length} gegen ${sp.length}`);
+  }
+
+  // --- Die Trennung von Norm und Sortiment --------------------------------
+  {
+    /*
+     * >>> DIE TRENNLINIE IST DIE EIGENTLICHE WEISUNG. <<<
+     *
+     * «die ui und die [Betreiber]daten sollen getrennt sein.» Was als Norm gilt,
+     * darf in einer oeffentlichen Ablage liegen; was Sortiment ist, nicht.
+     * Diese Kontrolle haelt fest, welcher Abschnitt auf welcher Seite steht
+     * - eine spaetere Verschiebung faellt damit auf.
+     */
+    const norm = K.abschnitteVon('norm').map((a) => a.key);
+    const sort = K.abschnitteVon('sortiment').map((a) => a.key);
+    wahr('Norm: Stahlgueten und die drei Profiltabellen',
+         norm.join(',') === 'stahlgueten,winkelprofile,walzprofile,mastprofile',
+         norm.join(','));
+    wahr('Sortiment: die sechs Teile des Datenpakets',
+         sort.length === 6 && sort.includes('masttypen')
+         && sort.includes('tragjoche'), sort.join(','));
+    wahr('Alle Normabschnitte stehen in derselben Datenbank',
+         K.abschnitteVon('norm').every((a) => a.db === 'normen'));
+    wahr('Kein Sortimentsabschnitt steht in der Normdatenbank',
+         K.abschnitteVon('sortiment').every((a) => a.db !== 'normen'));
   }
 }
 

@@ -6,7 +6,7 @@
  *
  * Weisung vom 16. September: «alle relevanten tragwerksdaten werden
  * ausschliesslich über die datenbank gesteuert, es soll nichts hardcoded in
- * der app sein. die ui und die sbb daten sollen getrennt sein.»
+ * der app sein. die ui und die [Betreiber]daten sollen getrennt sein.»
  *
  * >>> WARUM EIN KATALOG UND NICHT NUR TABELLEN. <<<
  *

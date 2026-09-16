@@ -17,7 +17,7 @@ data/*.json
 # ---------------------------------------------------------------------------
 # AUSGENOMMEN: DIE NORMWERTE.
 #
-# Weisung vom 16. September: «die ui und die sbb daten sollen getrennt sein.»
+# Weisung vom 16. September: «die ui und die [Betreiber]daten sollen getrennt sein.»
 #
 # data/normen.json trägt die Querschnittswerte der Profile (EN 10056-1,
 # EN 10365, DIN 1026-2) und die Stahlgüten (SIA 263). Diese Zahlen gehören
