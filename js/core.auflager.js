@@ -1175,7 +1175,12 @@ const UG_TRAGJOCH = { ...VOLL, x: 'Free', xx: 'Rigid' };
 export const LINK_VORGABEN = {
   joch: { OG: OG_TRAGJOCH, UG: UG_TRAGJOCH },
   tragausleger: { OG: LAENGS_FREI, UG: VOLL },
-  abfangjoch: { V: LAENGS_FREI, H: VOLL },
+  /*
+   * K_XX GEHALTEN AUCH HIER (Weisung vom 17. September: «ja halten»).
+   * Lagerungsstudie A240 / 8.00 m mit Masten: 96 statt 140 N/mm² im Gurt
+   * am Auflager, die Torsion im Masten bleibt klein (1.2 kNm).
+   */
+  abfangjoch: { V: { ...LAENGS_FREI, xx: 'Rigid' }, H: { ...VOLL, xx: 'Rigid' } },
 };
 
 /**

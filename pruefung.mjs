@@ -23935,6 +23935,11 @@ titel('69  Das auskragende Joch: was die Maste bekommen');
       wahr(`… der Mast folgt der Stegrichtung (${steg})`,
            JSON.stringify(mst.lcsZ) === JSON.stringify(steg === 'jochachse' ? [1, 0, 0] : [0, 1, 0]),
            JSON.stringify(mst.lcsZ));
+      // K_XX gehalten auch beim Abfangjoch (Weisung vom 17. September).
+      const lk = ma.staebe.filter((st) => /^LINK_/.test(st.name));
+      wahr(`… die Links halten K_XX (${steg})`,
+           lk.length === 4 && lk.every((st) => st.kraftuebertragung.xx === 'Rigid'),
+           lk.map((st) => st.kraftuebertragung.xx).join(','));
     }
   }
   /*

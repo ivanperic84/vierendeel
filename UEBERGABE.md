@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4444 Kontrollen
+node pruefung.mjs           # Prüfstand, 4452 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -105,8 +105,8 @@ Leiterzug 22 kN, Kombination «Tragsicherheit»; N/mm², Mast am Fuss):
 | K_XX, zweite Flanschkante nur quer | 114 | 107 | 0.1 | 116 |
 
 Nur der eine Lastfall der Regelausleitung (ohne Anbauteile, ohne Wind).
-**Offen - Entscheid des Auftraggebers:** K_XX auch beim Abfangjoch als
-Vorgabe halten (140 -> 96 N/mm²)?
+**Entschieden (Weisung vom 17. September, «ja halten»):** K_XX ist auch
+beim Abfangjoch Vorgabe (140 -> 96 N/mm²).
 
 **Zwei Befunde an der COM-Brücke beim Abfangjoch mit Mast:**
 - Die Ausleitung gab dem lotrechten Masten eine Referenz parallel zur
