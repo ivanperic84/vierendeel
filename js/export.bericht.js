@@ -20,6 +20,13 @@ const N2 = (v) => ({ v, s: STIL.N2 });
 const N1 = (v) => ({ v, s: STIL.N1 });
 const AMPEL = (ok, t) => ({ v: t, s: ok ? STIL.OK : STIL.NOK });
 
+/** Projektnummer, Bearbeiter und Datum als eine Zeile - leer, wenn nichts steht. */
+const kopfzeile = (w) => [
+  w?.projektNr ? `Projekt-Nr. ${String(w.projektNr).trim()}` : null,
+  w?.bearbeiter ? `Bearbeiter ${String(w.bearbeiter).trim()}` : null,
+  w?.datum ? `Datum ${String(w.datum).trim()}` : null,
+].filter(Boolean).join(' · ');
+
 /** Blatt 1: Eingabewerte, so wie sie in der Maske stehen. */
 function blattEingabe(werte, erg) {
   const wo = verortung(werte);
@@ -28,6 +35,9 @@ function blattEingabe(werte, erg) {
     // Wo das Tragwerk steht, gleich unter den Titel: ein Projekt hat viele
     // Joche, und das Blatt wird ausgedruckt und weitergereicht.
     ...(wo ? [[{ v: wo, s: STIL.NOTIZ }]] : []),
+    // Projektnummer, Bearbeiter, Datum (17. September) - dieselbe Zeile,
+    // die die Projektliste fuehrt.
+    ...(kopfzeile(werte) ? [[{ v: kopfzeile(werte), s: STIL.NOTIZ }]] : []),
     [{ v: 'Erzeugt aus dem HTML-Tool. Werte, keine Formeln.', s: STIL.NOTIZ }],
     [],
   ];

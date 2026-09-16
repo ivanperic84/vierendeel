@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4452 Kontrollen
+node pruefung.mjs           # Prüfstand, 4477 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,43 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Projektablage nach BlockCalc (17. September)
+
+Weisung: «checke nochmals die projektmanagement funktionalität von der app
+block calc und übertrage diese in diese app … checke noch den import
+einzelner und ganzer projekte», dann auf die Liste: «alles umsetzen».
+
+**Befund:** JSON einlesen und JSON ausleiten brachen mit «will is not
+defined» ab (`store.js`), die Wahl «Vorlagen» im Ausleiten wirkte nicht.
+Beides behoben.
+
+**Umgesetzt** (`store.js`, `app.js`, `ui.schema.js`, `style.css`):
+1. Ausleiten mit Auswahl je Tragwerk, dazu Vorlagen, Zeichnungen,
+   Einstellungen; Knöpfe je Projekt und je Eintrag (`alsPaket(wahl, ids)`).
+2. Einlesen immer über eine Vorschau (`paketInhalt`, `einlesen`) für .zip und
+   .json: Auswahl je Eintrag, bei gleichem Namen im Projekt Kopie / ersetzen
+   / überspringen, wahlweise ein Zielprojekt. Ein einzelnes Tragwerk wird
+   danach gleich geladen. Auch eine blosse Liste und eine Datei mit BOM.
+3. .zip auch durch Hineinziehen und «Öffnen mit» (Manifest).
+4. Komplettsicherung mit Einstellungen (`alsSicherung`, localStorage
+   `tragjoch-*`); Einstellungen nur auf ausdrückliche Wahl, danach Neustart.
+5. Projekt und Tragwerk als Auswahlfelder mit «+ Neu»; Verortung um
+   Projekt-Nr., Bearbeiter, Datum ergänzt (Bericht: Kopfzeile). Datum wird
+   beim Speichern gesetzt, wenn leer; der Bearbeiter wird vorgeschlagen.
+6. Ablage als Tabelle je Projekt, Bezeichnung / Linie / KM / Ortschaft /
+   Bemerkung direkt bearbeitbar (`eintragFeld`, Rechenwerte gesperrt),
+   Projektname im Gruppenkopf, Dialog «Zuordnen», Suche und Sortierung.
+7. «Speichern» überschreibt ohne Dialog, wenn ein Eintrag geladen ist.
+8. Der wiederhergestellte Arbeitsstand wird beim Start gemeldet, samt
+   Hinweis, ob er von der Ablage abweicht.
+9. Projektliste drucken (A4 quer), jedes Tragwerk neu gerechnet.
+
+Handbuch: Kapitel 16. Prüfstand: Abschnitt 70 (Ablage am Speicher mit
+nachgebildetem localStorage), **4477 Kontrollen** grün.
+
+Bekannte Kante: enthält eine Datei zwei Einträge mit gleichem Namen und wird
+für beide «ersetzen» gewählt, ersetzt der zweite den ersten.
 
 ### Auskragendes Joch, Lagerungsstudie in AxisVM (16. September)
 

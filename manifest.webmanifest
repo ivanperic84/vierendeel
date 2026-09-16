@@ -36,7 +36,7 @@
     {
       "action": "./",
       "name": "Tragjoch-Datei",
-      "accept": { "application/json": [".json"] },
+      "accept": { "application/json": [".json"], "application/zip": [".zip"] },
       "launch_type": "single-client",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }

@@ -335,34 +335,24 @@ export async function alsJson() {
     art: 'tragjoch-ablage', version: 2,
     erzeugt: new Date().toISOString(),
     eintraege: await liste(),
-    vorlagen: will('vorlagen') ? await vorlagenListe().catch(() => []) : [],
+    vorlagen: await vorlagenListe().catch(() => []),
   }, null, 2);
 }
 
 /**
  * JSON einlesen. Bestehende Einträge bleiben erhalten; gleiche Namen
  * erzeugen neue Einträge, damit nichts unbemerkt überschrieben wird.
- * @returns {Promise<number>} Anzahl übernommener Einträge
+ *
+ * Hier stand bis zum 17. September `will('vorlagen')` - eine Hilfsfunktion,
+ * die es nur in `alsPaket` gab. Jede JSON-Sicherung brach deshalb mit
+ * «will is not defined» ab, NACHDEM ihre Tragwerke schon geschrieben waren.
+ * Der Weg laeuft jetzt ueber `einlesen`, denselben wie beim Paket.
+ *
+ * @returns {Promise<number>} Anzahl übernommener Einträge und Vorlagen
  */
 export async function ausJson(text) {
-  const d = JSON.parse(text);
-  const eintraege = Array.isArray(d) ? d : d.eintraege;
-  if (!Array.isArray(eintraege)) {
-    throw new Error('Datei enthält keine Liste von Einträgen.');
-  }
-  let n = 0;
-  for (const e of eintraege) {
-    if (!e || !e.werte) continue;
-    await sichern({ ...e, id: undefined });
-    n++;
-  }
-  // Tragwerkvorlagen einer Datei aus Fassung 2 kommen mit.
-  for (const v of (will('vorlagen') && Array.isArray(d.vorlagen) ? d.vorlagen : [])) {
-    if (!v || !v.werte) continue;
-    await vorlageSichern({ ...v, id: undefined });
-    n++;
-  }
-  return n;
+  const r = await einlesen(new TextEncoder().encode(text));
+  return r.eintraege + r.vorlagen;
 }
 
 // --- Hinterlegte Zeichnungen ------------------------------------------------
@@ -430,16 +420,49 @@ export const PAKETTEILE = [
   { key: 'eintraege', label: 'Tragwerke' },
   { key: 'vorlagen', label: 'Vorlagen' },
   { key: 'zeichnungen', label: 'Hinterlegte Zeichnungen' },
+  { key: 'einstellungen', label: 'Einstellungen und Datenbasis' },
 ];
+
+/*
+ * >>> DIE EINSTELLUNGEN DER ANWENDUNG (17. September). <<<
+ *
+ * Nach dem Vorbild von BlockCalc («Backup erstellen»): eine Sicherung soll
+ * ALLES tragen, was dieses Geraet ausmacht - Optionen, Tastenbelegung,
+ * eingelesene Datenbasis, Arbeitsstand. All das liegt im localStorage unter
+ * `tragjoch-…`. Ausgenommen ist der Ersatzspeicher der Ablage: er IST die
+ * Ablage und kommt als Tragwerke mit.
+ */
+const EINSTELLUNG_PRAEFIX = 'tragjoch-';
+
+function einstellungenLesen() {
+  const o = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(EINSTELLUNG_PRAEFIX) || k === ERSATZ_KEY) continue;
+      o[k] = localStorage.getItem(k);
+    }
+  } catch { /* kein localStorage */ }
+  return o;
+}
+
+function einstellungenSchreiben(o) {
+  let n = 0;
+  Object.entries(o ?? {}).forEach(([k, v]) => {
+    if (!k.startsWith(EINSTELLUNG_PRAEFIX) || k === ERSATZ_KEY || typeof v !== 'string') return;
+    try { localStorage.setItem(k, v); n++; } catch { /* voll */ }
+  });
+  return n;
+}
 
 /**
  * Paket schreiben.
- * @param {object} wahl {eintraege, vorlagen, zeichnungen} - fehlt sie, geht
- *        alles hinaus wie bisher.
+ * @param {object} wahl {eintraege, vorlagen, zeichnungen, einstellungen} -
+ *        fehlt sie, geht alles ausser den Einstellungen hinaus.
  * @param {string[]} ids nur diese Tragwerke; leer oder fehlend heisst alle.
  */
 export async function alsPaket(wahl = null, ids = null) {
-  const will = (k) => !wahl || wahl[k] !== false;
+  const will = (k) => (wahl ? Boolean(wahl[k]) : k !== 'einstellungen');
   const alle = await liste();
   const eintraege = will('eintraege')
     ? (Array.isArray(ids) && ids.length ? alle.filter((e) => ids.includes(e.id)) : alle)
@@ -460,82 +483,198 @@ export async function alsPaket(wahl = null, ids = null) {
     art: 'tragjoch-ablage', version: 3,
     erzeugt: new Date().toISOString(),
     eintraege,
-    vorlagen: await vorlagenListe().catch(() => []),
+    // Die Wahl «Vorlagen» wirkt jetzt - bis zum 17. September gingen sie
+    // immer mit.
+    vorlagen: will('vorlagen') ? await vorlagenListe().catch(() => []) : [],
     zeichnungen: verzeichnis,
+    ...(will('einstellungen') ? { einstellungen: einstellungenLesen() } : {}),
   }, null, 2);
   dateien.unshift({ name: 'ablage.json', inhalt: json });
   return zip(dateien);
 }
 
+/** Die ganze Ablage mit allem - die Komplettsicherung. */
+export function alsSicherung() {
+  return alsPaket({ eintraege: true, vorlagen: true, zeichnungen: true,
+                    einstellungen: true });
+}
+
+/*
+ * >>> EIN LESER FUER BEIDE FORMATE (17. September). <<<
+ *
+ * Ein Paket ist ein ZIP mit `ablage.json`, eine alte Sicherung die JSON
+ * selbst - oder nur eine Liste von Eintraegen. Bis hierher hatte jede Form
+ * ihren eigenen Weg, und nur einer davon zeigte vorher, was kommt.
+ */
+function datenLesen(daten) {
+  const roh = daten instanceof Uint8Array ? daten : new Uint8Array(daten);
+  const istZip = roh.length > 1 && roh[0] === 0x50 && roh[1] === 0x4b;
+  let d;
+  let inhalt = new Map();
+  if (istZip) {
+    const dateien = entpacke(roh);
+    const jsonDatei = dateien.find((f) => f.name === 'ablage.json');
+    if (!jsonDatei) throw new Error('Im Paket fehlt ablage.json.');
+    d = JSON.parse(new TextDecoder().decode(jsonDatei.inhalt));
+    inhalt = new Map(dateien.map((f) => [f.name, f.inhalt]));
+  } else {
+    let text = new TextDecoder().decode(roh);
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+    d = JSON.parse(text);
+  }
+  if (!Array.isArray(d) && !Array.isArray(d?.eintraege)) {
+    throw new Error('Die Datei ist keine Ablage dieser Anwendung.');
+  }
+  const liste_ = Array.isArray(d) ? d : d.eintraege;
+  return {
+    zip: istZip,
+    erzeugt: Array.isArray(d) ? null : (d.erzeugt ?? null),
+    version: Array.isArray(d) ? null : (d.version ?? null),
+    eintraege: liste_.filter((e) => e && e.werte),
+    vorlagen: (Array.isArray(d?.vorlagen) ? d.vorlagen : []).filter((v) => v && v.werte),
+    verzeichnis: new Map((d?.zeichnungen ?? []).map((z) => [z.id, z])),
+    inhalt,
+    einstellungen: d?.einstellungen && typeof d.einstellungen === 'object'
+      ? d.einstellungen : null,
+  };
+}
+
+const schluesselVon = (e) => `${(e.projekt ?? '').trim()}|${(e.name ?? '').trim()}`;
+
 /**
  * WAS IN EINER DATEI STEHT, BEVOR SIE GESCHRIEBEN WIRD.
- *
- * Der Import schrieb bisher sofort. Man sah erst hinterher, was hereinkam,
- * und ein zweites Einlesen derselben Datei legte alles ein zweites Mal an.
- * `paketInhalt` liest nur und meldet, was drin ist und was mit dem
- * kollidiert, was schon da liegt.
  *
  * KOLLISION heisst hier: gleicher Name im gleichen Projekt. Die Ids taugen
  * dafür nicht, denn sie werden beim Einlesen ohnehin neu vergeben; für den
  * Anwender ist ein zweites «Joch Nord» im selben Projekt der Konflikt.
+ *
+ * Seit dem 17. September fuer Paket UND JSON, und je Eintrag - der Dialog
+ * laesst jeden einzeln waehlen.
  */
 export async function paketInhalt(daten) {
-  const dateien = entpacke(daten);
-  const jsonDatei = dateien.find((f) => f.name === 'ablage.json');
-  if (!jsonDatei) throw new Error('Im Paket fehlt ablage.json.');
-  const d = JSON.parse(new TextDecoder().decode(jsonDatei.inhalt));
-  const eintraege = (d.eintraege ?? []).filter((e) => e && e.werte);
-  const vorlagen = (Array.isArray(d.vorlagen) ? d.vorlagen : []).filter((v) => v && v.werte);
-  const bilder = (d.zeichnungen ?? []).length;
-
-  const schluessel = (e) => `${(e.projekt ?? '').trim()}|${(e.name ?? '').trim()}`;
-  const vorhanden = new Set((await liste()).map(schluessel));
-  const doppelt = eintraege.filter((e) => vorhanden.has(schluessel(e)));
-
+  const p = datenLesen(daten);
+  const vorhanden = new Map((await liste()).map((e) => [schluesselVon(e), e]));
+  const zeilen = p.eintraege.map((e) => {
+    const da = vorhanden.get(schluesselVon(e)) ?? null;
+    return {
+      id: e.id ?? null, name: e.name ?? '', projekt: (e.projekt ?? '').trim(),
+      geaendert: e.geaendert ?? null,
+      linie: e.werte?.linie ?? '', km: e.werte?.km ?? '',
+      ortschaft: e.werte?.ortschaft ?? '',
+      zeichnung: p.verzeichnis.has(e.id),
+      doppeltZu: da ? da.id : null,
+    };
+  });
   return {
-    erzeugt: d.erzeugt ?? null,
-    version: d.version ?? null,
-    eintraege: eintraege.length,
-    vorlagen: vorlagen.length,
-    zeichnungen: bilder,
-    doppelt: doppelt.map((e) => `${e.projekt ? e.projekt + ' · ' : ''}${e.name}`),
+    zip: p.zip,
+    erzeugt: p.erzeugt,
+    version: p.version,
+    eintraege: zeilen.length,
+    liste: zeilen,
+    vorlagen: p.vorlagen.length,
+    zeichnungen: p.verzeichnis.size,
+    einstellungen: p.einstellungen ? Object.keys(p.einstellungen).length : 0,
+    doppelt: zeilen.filter((e) => e.doppeltZu)
+      .map((e) => `${e.projekt ? e.projekt + ' · ' : ''}${e.name}`),
   };
 }
 
 /**
- * Paket einlesen. Die Bilder finden über das Verzeichnis zu ihren Tragwerken
- * zurück - die Ids sind beim Einlesen neu, also wird umgeschlüsselt.
- * @param {object} wahl {eintraege, vorlagen, zeichnungen}; fehlt sie, kommt alles.
+ * Einlesen mit Auswahl.
+ *
+ * @param {Uint8Array|ArrayBuffer} daten  ZIP oder JSON
+ * @param {object} o
+ *   ids            nur diese Eintraege (Ids AUS DER DATEI); fehlt: alle
+ *   vorlagen       Vorlagen mitnehmen (Vorgabe ja)
+ *   zeichnungen    Zeichnungen mitnehmen (Vorgabe ja)
+ *   einstellungen  Einstellungen uebernehmen (Vorgabe nein)
+ *   doppelt        je Datei-Id 'kopie' | 'ersetzen' | 'ueberspringen'
+ *   doppeltAlle    Vorgabe fuer alle Doppelten, sonst 'kopie'
+ *   zielProjekt    alle eingelesenen Eintraege in dieses Projekt legen
  */
-export async function ausPaket(daten, wahl = null) {
-  const will = (k) => !wahl || wahl[k] !== false;
-  const dateien = entpacke(daten);
-  const jsonDatei = dateien.find((f) => f.name === 'ablage.json');
-  if (!jsonDatei) throw new Error('Im Paket fehlt ablage.json.');
-  const d = JSON.parse(new TextDecoder().decode(jsonDatei.inhalt));
-  const inhalt = new Map(dateien.map((f) => [f.name, f.inhalt]));
-  const verzeichnis = new Map((d.zeichnungen ?? []).map((z) => [z.id, z]));
-  let n = 0, bilder = 0;
-  for (const e of (will('eintraege') ? (d.eintraege ?? []) : [])) {
-    if (!e || !e.werte) continue;
-    const alteId = e.id;
-    const neu = await sichern({ ...e, id: undefined });
-    n++;
-    const z = will('zeichnungen') ? verzeichnis.get(alteId) : null;
-    const roh = z ? inhalt.get(z.datei) : null;
+export async function einlesen(daten, o = {}) {
+  const p = datenLesen(daten);
+  const wahl = Array.isArray(o.ids) ? new Set(o.ids) : null;
+  const vorhanden = new Map((await liste()).map((e) => [schluesselVon(e), e]));
+  const r = { eintraege: 0, ersetzt: 0, uebersprungen: 0, vorlagen: 0,
+              bilder: 0, einstellungen: 0, neueIds: [] };
+  for (const e of p.eintraege) {
+    if (wahl && !wahl.has(e.id)) continue;
+    const ziel = typeof o.zielProjekt === 'string' ? o.zielProjekt.trim() : (e.projekt ?? '');
+    const da = vorhanden.get(schluesselVon({ ...e, projekt: ziel }));
+    // Eine ausdrueckliche Wahl «ueberspringen» gilt immer - auch wenn im
+    // Zielprojekt nichts kollidiert: wer die Zeile so stellt, will sie nicht.
+    const was = o.doppelt?.[e.id] === 'ueberspringen' ? 'ueberspringen'
+      : (da ? (o.doppelt?.[e.id] ?? o.doppeltAlle ?? 'kopie') : 'neu');
+    if (was === 'ueberspringen') { r.uebersprungen++; continue; }
+    const neu = await sichern({
+      ...e,
+      id: was === 'ersetzen' ? da.id : undefined,
+      erstellt: was === 'ersetzen' ? da.erstellt : e.erstellt,
+      projekt: ziel,
+    });
+    if (was === 'ersetzen') r.ersetzt++; else r.eintraege++;
+    r.neueIds.push(neu.id);
+    const z = o.zeichnungen !== false ? p.verzeichnis.get(e.id) : null;
+    const roh = z ? p.inhalt.get(z.datei) : null;
     if (!roh) continue;
     await zeichnungSichern(neu.id, {
       daten: new Uint8Array(roh), breite: z.breite, hoehe: z.hoehe,
       art: 'image/jpeg', name: z.name, kalibrierung: z.kalibrierung,
     });
-    bilder++;
+    r.bilder++;
   }
-  for (const v of (Array.isArray(d.vorlagen) ? d.vorlagen : [])) {
-    if (!v || !v.werte) continue;
-    await vorlageSichern({ ...v, id: undefined });
-    n++;
+  if (o.vorlagen !== false) {
+    for (const v of p.vorlagen) {
+      await vorlageSichern({ ...v, id: undefined });
+      r.vorlagen++;
+    }
   }
-  return { eintraege: n, bilder };
+  if (o.einstellungen === true && p.einstellungen) {
+    r.einstellungen = einstellungenSchreiben(p.einstellungen);
+  }
+  return r;
+}
+
+/**
+ * Paket einlesen - der alte Aufruf, jetzt ueber `einlesen`.
+ * @param {object} wahl {eintraege, vorlagen, zeichnungen}; fehlt sie, kommt alles.
+ */
+export async function ausPaket(daten, wahl = null) {
+  const will = (k) => !wahl || wahl[k] !== false;
+  const r = await einlesen(daten, {
+    ids: will('eintraege') ? undefined : [],
+    vorlagen: will('vorlagen'), zeichnungen: will('zeichnungen'),
+  });
+  return { eintraege: r.eintraege + r.ersetzt + r.vorlagen, bilder: r.bilder };
+}
+
+/*
+ * EINZELNE ANGABEN EINES EINTRAGS AENDERN (17. September) - fuer die
+ * Tabelle der Ablage, in der Name, Linie, Kilometer und Bemerkung
+ * unmittelbar bearbeitet werden. Nur Beschriftungen, nie Rechenwerte.
+ */
+export const DIREKT_FELDER = ['linie', 'km', 'ortschaft', 'projektNr', 'bearbeiter', 'datum'];
+
+export async function eintragFeld(id, feld, wert) {
+  const s = await laden(id);
+  const satz = { ...s, geaendert: new Date().toISOString() };
+  if (feld === 'name') satz.name = String(wert ?? '').trim() || 'Ohne Namen';
+  else if (feld === 'projekt') satz.projekt = String(wert ?? '').trim();
+  else if (feld === 'bemerkung') satz.bemerkung = String(wert ?? '');
+  else if (DIREKT_FELDER.includes(feld)) {
+    satz.werte = { ...s.werte, [feld]: String(wert ?? '').trim() };
+  } else {
+    throw new Error(`Feld ${feld} ist in der Ablage nicht bearbeitbar.`);
+  }
+  await tx('readwrite', (st) => st.put(satz));
+  return satz;
+}
+
+/** Alle Projektnamen, alphabetisch - fuer die Auswahlfelder. */
+export async function projektNamen() {
+  const namen = new Set((await liste()).map((e) => (e.projekt ?? '').trim()).filter(Boolean));
+  return [...namen].sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
 }
 
 // --- Datei-Hilfen -----------------------------------------------------------

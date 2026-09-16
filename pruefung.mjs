@@ -2062,7 +2062,7 @@ titel('29  Handbuch');
    *
    * Die Zahl steht hier, damit ein verlorenes Kapitel auffaellt.
    */
-  wahr('Handbuch hat alle fuenfzehn Abschnitte', HB.HANDBUCH.length === 15,
+  wahr('Handbuch hat alle sechzehn Abschnitte', HB.HANDBUCH.length === 16,
        `${HB.HANDBUCH.length} Abschnitte`);
   /*
    * UND DIE DREI NEUEN STEHEN NAMENTLICH DA. Ein blosser Zaehler faellt
@@ -5171,8 +5171,9 @@ titel('28  Installierbare Fassung: Manifest, Dienstarbeiter, Dateien');
   wahr('Alle drei Dateiarten werden unterschieden',
        ['PAKET_FORMAT', 'tragjoch-ablage', 'tragjoch-stabmodell']
          .every((s) => aq.includes(s)));
+  // Seit dem 17. September laeuft die Ablage ueber den Einlesedialog.
   wahr('Eingelesen wird nie ungefragt',
-       aq.includes("dialog('Ablage einlesen'") &&
+       aq.includes("dialog(sicherung ? 'Sicherung einspielen' : 'Einlesen'") &&
        aq.includes("dialog('Datenpaket laden'"));
   wahr('Der Wunsch aus der Sprungliste wird ausgeführt',
        aq.includes('switch (startWunsch())'));
@@ -23955,6 +23956,118 @@ titel('69  Das auskragende Joch: was die Maste bekommen');
   wahr('… und die Ausleitung schreibt sie als Zahl',
        k4('LINK_B_UGR').z === 25000 && k4('LINK_A_OGL').xx === 800,
        `${JSON.stringify(k4('LINK_B_UGR'))} ${JSON.stringify(k4('LINK_A_OGL'))}`);
+}
+
+titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
+/* ===========================================================================
+ * Weisung vom 17. September: «checke nochmals die projektmanagement
+ * funktionalität von der app block calc und übertrage diese in diese app …
+ * checke noch den import einzelner und ganzer projekte» - und auf die Liste:
+ * «alles umsetzen».
+ *
+ * Befund dabei: JSON einlesen und ausleiten brachen mit «will is not
+ * defined» ab. Geprueft wird die Ablage deshalb am Speicher selbst, mit
+ * einem nachgebildeten localStorage - ohne IndexedDB nimmt sie den
+ * Ersatzspeicher, und der ist dieselbe Schnittstelle.
+ * ========================================================================= */
+{
+  const merk = globalThis.localStorage;
+  const mem = new Map();
+  globalThis.localStorage = {
+    get length() { return mem.size; },
+    key: (i) => [...mem.keys()][i] ?? null,
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k),
+  };
+  try {
+    const S = await import(J('store.js') + '?ablage70');
+    await S.sichern({ name: 'Joch A', projekt: 'P1', werte: { linie: '600', km: '1.000' } });
+    await S.sichern({ name: 'Joch B', projekt: 'P1', werte: { linie: '600' } });
+    await S.vorlageSichern({ name: 'V1', werte: { typ: 'J90' } });
+    localStorage.setItem('tragjoch-tasten', '{"a":1}');
+
+    const json = await S.alsJson();
+    wahr('JSON ausleiten laeuft', JSON.parse(json).eintraege.length === 2);
+
+    const paket = await S.alsPaket({ eintraege: true, vorlagen: false, zeichnungen: true });
+    const inh = await S.paketInhalt(paket);
+    wahr('Abgewaehlte Vorlagen bleiben draussen', inh.vorlagen === 0);
+    wahr('Die Vorschau nennt jeden Eintrag und seine Kollision',
+         inh.liste.length === 2 && inh.liste.every((e) => e.doppeltZu));
+    const inhJ = await S.paketInhalt(new TextEncoder().encode(json));
+    wahr('… auch fuer eine JSON', inhJ.liste.length === 2 && !inhJ.zip);
+
+    const vorher = (await S.liste()).length;
+    const ids = inh.liste.map((e) => e.id);
+    const r = await S.einlesen(paket, { doppelt: { [ids[0]]: 'ueberspringen' },
+                                        doppeltAlle: 'ersetzen' });
+    wahr('Je Eintrag: ueberspringen und ersetzen',
+         r.uebersprungen === 1 && r.ersetzt === 1 && r.eintraege === 0, JSON.stringify(r));
+    wahr('… ohne neue Eintraege', (await S.liste()).length === vorher);
+    const r2 = await S.einlesen(paket, { ids: [ids[1]], zielProjekt: 'P2' });
+    wahr('Nur die gewaehlten, in ein anderes Projekt',
+         r2.eintraege === 1 && (await S.projektNamen()).join() === 'P1,P2');
+
+    const sich = await S.alsSicherung();
+    const inhS = await S.paketInhalt(sich);
+    wahr('Die Sicherung traegt Einstellungen und Vorlagen',
+         inhS.einstellungen >= 1 && inhS.vorlagen === 1);
+    mem.delete('tragjoch-tasten');
+    const r3 = await S.einlesen(sich, { ids: [], vorlagen: false, einstellungen: true });
+    wahr('… und spielt sie zurueck',
+         localStorage.getItem('tragjoch-tasten') === '{"a":1}' && r3.einstellungen >= 1);
+    wahr('Ohne ausdrueckliche Wahl keine Einstellungen',
+         (await S.einlesen(sich, { ids: [] })).einstellungen === 0);
+
+    // Erst hier: das Einlesen legt Kopien an und haette die Paketproben
+    // oben verfaelscht.
+    const n = await S.ausJson(json);
+    pruef('JSON einlesen laeuft - Tragwerke und Vorlage', n, 3, 0, 'Stk');
+    const r4 = await S.einlesen(new TextEncoder().encode(
+      '﻿' + JSON.stringify([{ name: 'Alt', werte: {} }])));
+    wahr('Eine blosse Liste mit BOM wird gelesen', r4.eintraege === 1);
+
+    const e = (await S.liste()).find((x) => x.name === 'Alt');
+    await S.eintragFeld(e.id, 'km', ' 12.345 ');
+    wahr('Die Tabelle schreibt Beschriftungen in die Werte',
+         (await S.laden(e.id)).werte.km === '12.345');
+    let fehler = null;
+    try { await S.eintragFeld(e.id, 'L', 3); } catch (x) { fehler = x; }
+    wahr('… aber nie Rechenwerte', Boolean(fehler));
+  } finally {
+    globalThis.localStorage = merk;
+  }
+
+  // Die Oberflaeche
+  const aq70 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const sq70 = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
+  const man70 = JSON.parse(readFileSync(join(HIER, 'manifest.webmanifest'), 'utf8'));
+  wahr('Projekt und Tragwerk sind Auswahlfelder',
+       aq70.includes('id="bs-projekt"') && aq70.includes('id="bs-tragwerk"')
+       && aq70.includes('+ Neues Projekt') && aq70.includes('+ Neues Tragwerk'));
+  wahr('Die Ablage ist eine Tabelle mit Suche und Sortierung',
+       aq70.includes('class="ab-tabelle"') && aq70.includes('id="bs-suche"')
+       && aq70.includes('id="bs-sort"'));
+  wahr('Beschriftungen sind unmittelbar bearbeitbar',
+       aq70.includes('data-ed-feld') && aq70.includes('store.eintragFeld('));
+  wahr('Ausleiten je Projekt und je Eintrag',
+       aq70.includes('data-projekt-aus') && aq70.includes('data-eintrag-aus'));
+  wahr('Sicherung erstellen und einspielen',
+       aq70.includes('store.alsSicherung()') && aq70.includes('ablageEinlesenWaehlen(true)'));
+  wahr('Die Projektliste laesst sich drucken',
+       aq70.includes('function projektlisteDrucken') && aq70.includes("classList.add('druck-liste')"));
+  wahr('Speichern ueberschreibt ohne Dialog, wenn ein Eintrag geladen ist',
+       aq70.includes("ui.el('btn-speichern').onclick = () => ablageSpeichern(false)"));
+  wahr('Die Wiederherstellung wird gemeldet',
+       aq70.includes('wiederhergestellt') && aq70.includes('gesichert: gesicherteSignatur'));
+  wahr('Ein hineingezogenes Paket geht in den Einlesedialog',
+       /0x50 && roh\[1\] === 0x4b\) \{\s*try \{ await dialogEinlesen/.test(aq70));
+  wahr('Das Manifest nimmt auch .zip an',
+       JSON.stringify(man70.file_handlers).includes('.zip'));
+  wahr('Projektnummer, Bearbeiter und Datum sind Felder der Verortung',
+       ['projektNr', 'bearbeiter', 'datum'].every((k) =>
+         new RegExp(`key: '${k}', gruppe: 'ort'`).test(sq70)));
 }
 
 // ===========================================================================

@@ -2228,6 +2228,62 @@ ist damit nicht abgebildet; der Bericht sagt es.</p>
 </table>
 `,
 },
+// ===========================================================================
+{
+  id: 'ablage',
+  titel: '16 · Projekte, Ablage und Datenaustausch',
+  html: `
+${q(`Weisung vom 17. September: «checke nochmals die projektmanagement
+funktionalität von der app block calc und übertrage diese in diese app …
+checke noch den import einzelner und ganzer projekte.»`)}
+
+<h4>16.1 Wo gespeichert wird</h4>
+<table class="dt">
+<tr><th>Stand</th><th>wann</th><th>wo</th></tr>
+<tr><td>Arbeitsstand</td><td>bei jeder Eingabe, ein Stand</td>
+    <td>Browser; kommt beim nächsten Start zurück und wird gemeldet</td></tr>
+<tr><td>Ablage</td><td>auf «Speichern»</td>
+    <td>Browser dieses Geräts, benannte Einträge je Projekt</td></tr>
+<tr><td>Paket / Sicherung</td><td>auf «Ausleiten» bzw. «Sicherung erstellen»</td>
+    <td>Datei (.zip) - der einzige Weg auf ein anderes Gerät</td></tr>
+</table>
+<p>Ist ein Eintrag geladen, <b>überschreibt «Speichern» ihn</b>. Sonst entsteht
+ein neuer Eintrag im gewählten Projekt. Der Punkt am Projektknopf zeigt, dass
+der Stand von der Ablage abweicht.</p>
+
+<h4>16.2 Die Ablage</h4>
+<p>Oben links stehen <b>Projekt</b> und <b>Tragwerk im Projekt</b> als
+Auswahl; «+ Neues Projekt» und «+ Neues Tragwerk» legen ohne Dialog an. Darunter
+die Angaben zum Tragwerk: Linie, Ortschaft, KM, Projektnummer, Bearbeiter,
+Datum. Sie gehen in keine Rechnung ein, aber in Dateinamen, Bericht und
+Projektliste.</p>
+<p>Die Liste zeigt je Projekt eine Tabelle. <b>Bezeichnung, Linie, KM,
+Ortschaft und Bemerkung</b> lassen sich direkt in der Zeile ändern, der
+Projektname im Gruppenkopf (betrifft alle Einträge). Suchen und Sortieren
+stehen darüber. η ist der beim Speichern vermerkte Wert.</p>
+
+<h4>16.3 Ausleiten und Einlesen</h4>
+<table class="dt">
+<tr><th>Weg</th><th>was hinausgeht</th></tr>
+<tr><td>Knopf in der Zeile</td><td>dieses eine Tragwerk</td></tr>
+<tr><td>«Ausleiten» im Projektkopf</td><td>das Projekt, im Dialog anpassbar</td></tr>
+<tr><td>«Ausleiten …»</td><td>Auswahl je Tragwerk, dazu Vorlagen, Zeichnungen, Einstellungen</td></tr>
+<tr><td>«Sicherung erstellen»</td><td>alles, einschliesslich Optionen, Tastenbelegung und Datenbasis</td></tr>
+</table>
+<p>Eingelesen werden Pakete (.zip) und die JSON-Dateien früherer Fassungen -
+über den Knopf, durch Hineinziehen oder «Öffnen mit». Vorher zeigt ein Dialog
+jeden Eintrag. <b>Gibt es im selben Projekt schon einen gleichen Namen</b>,
+steht die Wahl daneben: als Kopie, ersetzen oder überspringen. Ein
+Zielprojekt legt alles gesammelt ab. Kommt genau ein Tragwerk herein, wird es
+gleich geladen. Einstellungen werden nur auf ausdrückliche Wahl übernommen;
+die Anwendung startet danach neu.</p>
+
+<h4>16.4 Projektliste</h4>
+<p>«Liste» im Projektkopf druckt alle Tragwerke des Projekts mit Typ, Länge,
+Masten und Ausnutzung. Jedes wird dafür <b>neu gerechnet</b>; lässt sich
+eines nicht rechnen, steht der vermerkte Wert mit einem Stern da.</p>
+`,
+},
 ];
 
 /** Das ganze Handbuch als HTML, mit Inhaltsverzeichnis. */

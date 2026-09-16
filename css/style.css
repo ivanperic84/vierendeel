@@ -1994,6 +1994,72 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 }
 
 .ablage-gruppe { margin-bottom: 14px; }
+
+/* --- Ablage als Tabelle je Projekt (17. September, nach BlockCalc) --------- */
+.bs-drei { grid-template-columns: minmax(220px, 0.7fr) 2fr minmax(200px, 0.8fr); }
+@media (max-width: 1200px) { .bs-drei { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .bs-drei { grid-template-columns: 1fr; } }
+.ab-suche { display: flex; gap: 8px; margin-bottom: 8px; }
+.ab-suche input { flex: 1; min-width: 120px; }
+/* Die Auswahl erbt width: 100% und liesse dem Suchfeld keinen Platz. */
+.ab-suche select { width: auto; flex: 0 0 auto; }
+.ab-gruppe {
+  border: 1px solid var(--ol); border-radius: var(--m-r1); margin-bottom: 10px;
+  background: var(--s2);
+}
+.ab-gruppe.aktiv { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
+.ab-gruppe > summary {
+  display: flex; align-items: center; gap: 8px; padding: 6px 9px;
+  cursor: pointer; list-style: none;
+}
+.ab-gruppe > summary::-webkit-details-marker { display: none; }
+.ab-projekt {
+  font-weight: 500; font-size: 12px; outline: none; cursor: text;
+  border-radius: 3px; padding: 1px 3px; min-width: 40px;
+}
+.ab-projekt:focus { background: var(--s1); box-shadow: 0 0 0 1px var(--acc); }
+.ab-gruppe .sec-r { margin-left: auto; }
+.ab-rollen { overflow-x: auto; }
+.ab-tabelle {
+  width: 100%; border-collapse: collapse; font-family: var(--f-mono);
+  font-size: 10px; min-width: 620px;
+}
+.ab-tabelle th {
+  text-align: left; font-weight: 500; font-size: 8.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--xdim); padding: 4px 6px;
+  border-bottom: 1px solid var(--ol); white-space: nowrap;
+}
+.ab-tabelle td { padding: 4px 6px; border-bottom: 1px solid var(--ol); vertical-align: middle; }
+.ab-tabelle tr.aktiv td { background: color-mix(in srgb, var(--acc) 12%, transparent); }
+.ab-tabelle .ab-ed { outline: none; cursor: text; min-width: 30px; }
+.ab-tabelle .ab-ed:focus { background: var(--s1); box-shadow: inset 0 0 0 1px var(--acc); }
+.ab-tabelle .ab-name { color: var(--on); font-weight: 500; min-width: 110px; }
+.ab-tabelle td:nth-child(5), .ab-tabelle td:nth-child(7) { white-space: nowrap; }
+.ab-leise { color: var(--xdim); }
+.ab-zahl { text-align: right; }
+.ab-zahl.ok { color: var(--ok); }
+.ab-zahl.nok { color: var(--fail); font-weight: 600; }
+.ab-knoepfe { white-space: nowrap; text-align: right; }
+.ab-knoepfe .btn { margin-left: 2px; }
+.ab-ein { min-width: 480px; }
+.ab-auswahl { max-height: 46vh; overflow-y: auto; margin-bottom: 8px; }
+.lf-fuss { flex-wrap: wrap; }
+
+/* Projektliste: nur auf Papier. */
+#druck-liste { display: none; }
+@media print {
+  body.druck-liste > *:not(#druck-liste) { display: none !important; }
+  body.druck-liste #druck-liste { display: block; color: #000; font: 9pt/1.35 sans-serif; }
+  #druck-liste h1 { font-size: 14pt; margin: 0 0 4pt; }
+  #druck-liste table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+  #druck-liste th, #druck-liste td { border-bottom: .5pt solid #999; padding: 3pt 4pt; text-align: left; }
+  #druck-liste th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .04em; }
+  #druck-liste td.z { text-align: right; font-variant-numeric: tabular-nums; }
+  #druck-liste .ok { color: #1d7a3e; font-weight: 600; }
+  #druck-liste .nok { color: #a02020; font-weight: 600; }
+  #druck-liste .fuss { font-size: 7.5pt; color: #555; margin-top: 8pt; }
+  @page { size: A4 landscape; margin: 12mm; }
+}
 .ablage-zeile {
   display: flex; align-items: center; gap: 10px; padding: 7px 9px;
   border: 1px solid var(--ol); border-radius: var(--m-r1); margin-bottom: 5px;

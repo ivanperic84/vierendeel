@@ -101,6 +101,8 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
+// Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
+const BEARBEITER = 'tragjoch-bearbeiter';
 const VERSION = 'v2.0';
 
 let werte = null;
@@ -187,6 +189,15 @@ function laden() {
     const d = JSON.parse(roh);
     if (d.projekt) projekt = d.projekt;
     if (d.thema) thema = d.thema;
+    /*
+     * >>> DER WIEDERHERGESTELLTE STAND SAGT ES (17. September). <<<
+     *
+     * Nach BlockCalc («Letzter Stand wiederhergestellt»): der Arbeitsstand
+     * kam schon immer zurueck, nur wortlos - und mit ihm nicht, ob er der
+     * Ablage entspricht. Beides wird jetzt mitgefuehrt und beim Start
+     * gemeldet.
+     */
+    wiederhergestellt = { ts: d.ts ?? null, gesichert: d.gesichert ?? null };
     const w = { ...std, ...(d.werte ?? d) };
     // Stände aus der Zeit vor den Anbauteilen kennen das Feld nicht.
     // Statt mit einem leeren Joch zu starten, wird der Beispielzustand geladen.
@@ -302,11 +313,15 @@ function entwurfZeit() {
 /** Zeitpunkt des zuletzt abgelegten Entwurfs. */
 let entwurfTs = null;
 
+/** Was beim Start aus dem Arbeitsstand zurueckkam - fuer die Meldung. */
+let wiederhergestellt = null;
+
 function speichern() {
   try {
     entwurfTs = Date.now();
     localStorage.setItem(SPEICHER,
-      JSON.stringify({ werte, projekt, thema, ts: entwurfTs }));
+      JSON.stringify({ werte, projekt, thema, ts: entwurfTs,
+                       gesichert: gesicherteSignatur }));
   } catch { /* Ablage nicht verfügbar, kein Grund abzubrechen */ }
 }
 
@@ -4325,7 +4340,7 @@ function baueKopf() {
   ui.el('btn-export').onclick = exportKlick;
   ui.el('btn-axisvm').onclick = dialogAxisvm;
   ui.el('btn-drucken').onclick = () => handlung('Drucken', () => window.print());
-  ui.el('btn-speichern').onclick = () => dialogSpeichern();
+  ui.el('btn-speichern').onclick = () => ablageSpeichern(false);
   ui.el('btn-optionen').onclick = dialogOptionen;
   /*
    * DER BEZUGSPUNKT WIRD NUR EINMAL GESETZT.
@@ -4335,8 +4350,17 @@ function baueKopf() {
    * Eingabe auf den eben getippten Stand, und nichts waere je ungesichert.
    * Beim ersten Durchgang ist sie null; nur dann greift die Zeile.
    */
-  if (gesicherteSignatur === null) markiereGesichert();
-  else zeigeSpeicherstand();
+  if (gesicherteSignatur === null) {
+    if (wiederhergestellt?.gesichert) {
+      // Der Bezugspunkt aus der letzten Sitzung - sonst gaelte ein
+      // ungesicherter Stand nach dem Neustart als gesichert.
+      gesicherteSignatur = wiederhergestellt.gesichert;
+      ungesichert = standSignatur() !== gesicherteSignatur;
+      zeigeSpeicherstand();
+    } else {
+      markiereGesichert();
+    }
+  } else zeigeSpeicherstand();
 }
 
 function aktualisiereProjektKnopf() {
@@ -4810,6 +4834,79 @@ function schubladeSchliessen() {
   schubladeZufahren();
 }
 
+/* ===========================================================================
+ * >>> DIE ABLAGE NACH DEM VORBILD VON BLOCKCALC (17. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «checke nochmals die projektmanagement funktionalität von der app
+ * block calc und übertrage diese in diese app» - und auf die Liste der
+ * Punkte: «alles umsetzen».
+ *
+ * Was von dort kommt:
+ *   - Projekt und Tragwerk als AUSWAHLFELDER, «+ Neu» ohne Dialog
+ *   - die Liste als TABELLE je Projekt, Beschriftungen unmittelbar
+ *     bearbeitbar, Projektname im Gruppenkopf
+ *   - SUCHEN und SORTIEREN
+ *   - AUSLEITEN MIT AUSWAHL je Tragwerk, je Projekt, je Eintrag
+ *   - EINLESEN MIT VORSCHAU fuer Paket und JSON, je Eintrag waehlbar
+ *   - KOMPLETTSICHERUNG mit den Einstellungen
+ *   - die PROJEKTLISTE zum Drucken
+ *
+ * Was hier bleibt, wie es war: die Ablage in IndexedDB mit Ersatzspeicher,
+ * die Vorlagen, die hinterlegten Zeichnungen.
+ * ========================================================================= */
+
+/** Suchbegriff und Sortierung der Ablage - ueberleben das Neuzeichnen. */
+const ablageSicht = { suche: '', sort: 'neu' };
+
+/** Wenn «+ Neues Projekt» gewaehlt ist, steht das Namensfeld offen. */
+let neuesProjektOffen = false;
+
+const heute = () => new Date().toLocaleDateString('de-CH',
+  { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+/** Kurzangaben der Rechnung eines Eintrags. */
+function eintragRechnung(e) {
+  return [
+    e.kennwerte?.typ,
+    Number.isFinite(e.kennwerte?.L) ? `${e.kennwerte.L.toFixed(2)} m` : '',
+  ].filter(Boolean).join(' · ');
+}
+
+const eintragEta = (e) => (Number.isFinite(e.kennwerte?.eta) ? e.kennwerte.eta : null);
+
+/** Passt der Eintrag zur Suche? Gesucht wird in allem, was ihn benennt. */
+function passtZurSuche(e, q) {
+  if (!q) return true;
+  const w = e.werte ?? {};
+  return [e.name, e.projekt, e.bemerkung, w.linie, w.km, w.ortschaft,
+          w.projektNr, w.bearbeiter, e.kennwerte?.typ]
+    .some((v) => String(v ?? '').toLowerCase().includes(q));
+}
+
+const SORTIERUNGEN = [
+  { key: 'neu', label: 'Neueste zuerst' },
+  { key: 'name', label: 'Bezeichnung' },
+  { key: 'linie', label: 'Linie' },
+  { key: 'km', label: 'KM' },
+  { key: 'ortschaft', label: 'Ortschaft' },
+  { key: 'eta', label: 'Ausnutzung' },
+];
+
+function sortiere(liste, art) {
+  const t = (v) => String(v ?? '');
+  const vgl = (a, b) => a.localeCompare(b, 'de', { numeric: true });
+  const f = {
+    neu: (a, b) => t(b.geaendert).localeCompare(t(a.geaendert)),
+    name: (a, b) => vgl(t(a.name), t(b.name)),
+    linie: (a, b) => vgl(t(a.werte?.linie), t(b.werte?.linie)),
+    km: (a, b) => vgl(t(a.werte?.km), t(b.werte?.km)),
+    ortschaft: (a, b) => vgl(t(a.werte?.ortschaft), t(b.werte?.ortschaft)),
+    eta: (a, b) => (eintragEta(b) ?? -1) - (eintragEta(a) ?? -1),
+  }[art] ?? (() => 0);
+  return [...liste].sort(f);
+}
+
 async function zeichneSchublade() {
   const n = ui.el('bannerschublade');
   n.classList.remove('zu');      // falls sie noch am Zufahren war
@@ -4817,64 +4914,106 @@ async function zeichneSchublade() {
   ui.el('btn-projekt').classList.add('offen');
   n.innerHTML = '<p class="notiz">Ablage wird gelesen …</p>';
 
-  let gruppen = [], vorlagen = [], fehler = '';
+  let alle = [], vorlagen = [], fehler = '';
   try {
-    gruppen = await store.nachProjekt();
+    alle = await store.liste();
     vorlagen = await store.vorlagenListe();
   } catch (e) { fehler = e.message; }
   if (!schubladeOffen) return;
 
-  /*
-   * WORAN MAN EIN TRAGWERK WIEDERERKENNT.
-   *
-   * Die Zeile trug Typ, Laenge, Ausnutzung und Datum. Das beschreibt die
-   * RECHNUNG; gesucht wird aber nach dem ORT. Ein J90 ueber 15.5 m gibt es
-   * dutzendfach, den Kilometer 16.661 auf Linie 600 genau einmal.
-   *
-   * Voran stehen deshalb Linie und Kilometer, dann die Ortschaft, danach
-   * erst die Rechenwerte. Sie kommen aus den Eingabewerten des Eintrags -
-   * `liste()` liefert sie ohnehin mit, es braucht keinen zweiten Zugriff.
-   */
-  const ort = (e) => {
-    const w = e.werte ?? {};
-    const km = String(w.km ?? '').trim();
-    return [String(w.linie ?? '').trim(),
-            km ? `km ${km}` : '',
-            String(w.ortschaft ?? '').trim()].filter(Boolean).join(' · ');
-  };
-  const rechnung = (e) => [
-    e.kennwerte?.typ,
-    e.kennwerte?.L ? `${e.kennwerte.L.toFixed(2)} m` : '',
-    e.kennwerte?.eta ? `η ${e.kennwerte.eta.toFixed(3)}` : '',
-    new Date(e.geaendert).toLocaleDateString('de-CH'),
-  ].filter(Boolean).join(' · ');
-  const meta = (e) => [ort(e), rechnung(e)].filter(Boolean).join('  |  ');
+  const projekte = [...new Set(alle.map((e) => (e.projekt ?? '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
+  const imProjekt = alle.filter((e) => (e.projekt ?? '') === (projekt.projekt ?? ''));
 
+  // --- Spalte 1: dieses Tragwerk --------------------------------------------
+  const projektWahl = `
+    <div class="feld"><label for="bs-projekt">Projekt</label>
+      <select id="bs-projekt">
+        <option value="">(ohne Projekt)</option>
+        ${projekte.map((p) => `<option value="${esc(p)}"${p === projekt.projekt ? ' selected' : ''}>${esc(p)}</option>`).join('')}
+        ${projekt.projekt && !projekte.includes(projekt.projekt)
+          ? `<option value="${esc(projekt.projekt)}" selected>${esc(projekt.projekt)} (neu)</option>` : ''}
+        <option value="__neu__"${neuesProjektOffen ? ' selected' : ''}>+ Neues Projekt</option>
+      </select></div>
+    ${neuesProjektOffen ? `<div class="feld"><label for="bs-projekt-neu">Name des neuen Projekts</label>
+      <input id="bs-projekt-neu" type="text" placeholder="z. B. Bahnhof Nord, Fahrleitung"></div>` : ''}`;
+  const tragwerkWahl = `
+    <div class="feld"><label for="bs-tragwerk">Tragwerk im Projekt</label>
+      <select id="bs-tragwerk">
+        ${imProjekt.map((e) => `<option value="${esc(e.id)}"${e.id === projekt.id ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}
+        <option value="__neu__"${projekt.id && imProjekt.some((e) => e.id === projekt.id) ? '' : ' selected'}>+ Neues Tragwerk</option>
+      </select></div>
+    <div class="feld"><label for="bs-name">Bezeichnung</label>
+      <input id="bs-name" type="text" value="${esc(projekt.name)}"
+             placeholder="z. B. Joch Achse 12"></div>`;
+
+  // --- Spalte 2: Projekte und Tragwerke -------------------------------------
+  const q = ablageSicht.suche.trim().toLowerCase();
+  const gefiltert = sortiere(alle.filter((e) => passtZurSuche(e, q)), ablageSicht.sort);
+  const gruppen = new Map();
+  gefiltert.forEach((e) => {
+    const k = (e.projekt ?? '').trim();
+    if (!gruppen.has(k)) gruppen.set(k, []);
+    gruppen.get(k).push(e);
+  });
+  // Projekte alphabetisch, «Ohne Projekt» zuletzt; das geladene zuerst.
+  const reihe = [...gruppen.keys()].sort((a, b) => {
+    if (a === projekt.projekt) return -1;
+    if (b === projekt.projekt) return 1;
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b, 'de', { numeric: true });
+  });
+  const ed = (id, feld, wert, klasse = '') =>
+    `<td class="ab-ed ${klasse}" contenteditable="true" spellcheck="false"
+         data-ed-id="${esc(id)}" data-ed-feld="${esc(feld)}">${esc(wert ?? '')}</td>`;
+  const etaZelle = (e) => {
+    const v = eintragEta(e);
+    if (v === null) return '<td class="ab-zahl">–</td>';
+    return `<td class="ab-zahl ${v > 1 ? 'nok' : 'ok'}">${v.toFixed(2)}</td>`;
+  };
+  const tabelle = (k, liste) => `
+    <details class="ab-gruppe${k === projekt.projekt ? ' aktiv' : ''}" open>
+      <summary>
+        <span class="ab-projekt" contenteditable="true" spellcheck="false"
+              data-projekt-name="${esc(k)}" title="Klicken zum Umbenennen - betrifft alle Einträge">${esc(k || 'Ohne Projekt')}</span>
+        <span class="sec-r">${liste.length} Tragwerk${liste.length === 1 ? '' : 'e'}</span>
+        <button class="btn btn-mini" data-projekt-aus="${esc(k)}" title="Dieses Projekt als Paket ausleiten">Ausleiten</button>
+        <button class="btn btn-mini" data-projekt-druck="${esc(k)}" title="Liste aller Tragwerke dieses Projekts drucken">Liste</button>
+      </summary>
+      <div class="ab-rollen"><table class="ab-tabelle">
+        <thead><tr><th>Bezeichnung</th><th>Linie</th><th>KM</th><th>Ortschaft</th>
+          <th>Tragwerk</th><th>η</th><th>Datum</th><th>Bemerkung</th><th></th></tr></thead>
+        <tbody>${liste.map((e) => `
+          <tr class="${e.id === projekt.id ? 'aktiv' : ''}" data-id="${esc(e.id)}">
+            ${ed(e.id, 'name', e.name, 'ab-name')}
+            ${ed(e.id, 'linie', e.werte?.linie)}
+            ${ed(e.id, 'km', e.werte?.km)}
+            ${ed(e.id, 'ortschaft', e.werte?.ortschaft)}
+            <td class="ab-leise">${esc(eintragRechnung(e))}</td>
+            ${etaZelle(e)}
+            <td class="ab-leise">${esc(e.werte?.datum || new Date(e.geaendert).toLocaleDateString('de-CH'))}</td>
+            ${ed(e.id, 'bemerkung', e.bemerkung, 'ab-leise')}
+            <td class="ab-knoepfe">
+              <button class="btn btn-mini" data-laden="${esc(e.id)}">Laden</button>
+              <button class="btn btn-mini" data-zuordnen="${esc(e.id)}" title="Einem Projekt zuordnen">${icon('projekte', 11)}</button>
+              <button class="btn btn-mini" data-kopie="${esc(e.id)}" title="Kopie anlegen">Kopie</button>
+              <button class="btn btn-mini" data-eintrag-aus="${esc(e.id)}" title="Nur dieses Tragwerk ausleiten">${icon('export', 11)}</button>
+              <button class="btn btn-mini btn-fail" data-loeschen="${esc(e.id)}" title="Löschen">×</button>
+            </td></tr>`).join('')}
+        </tbody></table></div>
+    </details>`;
   const projekteHtml = fehler
     ? `<div class="fehlerbox">Ablage nicht verfügbar: ${esc(fehler)}</div>`
-    : (gruppen.length ? gruppen.map((g) => `
-        <div class="ablage-gruppe">
-          <div class="sec">${esc(g.projekt)}
-            <button class="btn btn-mini sec-btn" data-projekt-um="${esc(g.projekt)}"
-                    title="Projekt umbenennen, alle ${g.eintraege.length} Einträge">${icon('bearbeiten', 11)}</button>
-            <span class="sec-r">${g.eintraege.length}</span></div>
-          ${g.eintraege.map((e) => `
-            <div class="ablage-zeile${e.id === projekt.id ? ' aktiv' : ''}" data-id="${e.id}">
-              <div class="ablage-name"><b>${esc(e.name)}</b>
-                <div class="ablage-meta">${esc(meta(e))}</div></div>
-              <button class="btn btn-mini" data-laden="${e.id}">Laden</button>
-              <button class="btn btn-mini" data-um="${e.id}"
-                      title="Umbenennen oder anderem Projekt zuordnen">${icon('bearbeiten', 11)}</button>
-              <button class="btn btn-mini" data-kopie="${e.id}">Kopie</button>
-              <button class="btn btn-mini btn-fail" data-loeschen="${e.id}">×</button>
-            </div>`).join('')}
-        </div>`).join('')
+    : (alle.length
+      ? (reihe.length ? reihe.map((k) => tabelle(k, gruppen.get(k))).join('')
+                      : `<p class="notiz">Keine Treffer für «${esc(ablageSicht.suche)}».</p>`)
       : '<p class="notiz">Noch keine Einträge in der Ablage.</p>');
 
   const vorlagenHtml = vorlagen.length ? vorlagen.map((v) => `
       <div class="ablage-zeile" data-id="${v.id}">
         <div class="ablage-name"><b>${esc(v.name)}</b>
-          <div class="ablage-meta">${esc(v.bemerkung || meta(v))}</div></div>
+          <div class="ablage-meta">${esc(v.bemerkung || eintragRechnung(v))}</div></div>
         <button class="btn btn-mini" data-vorlage-an="${v.id}">Anwenden</button>
         <button class="btn btn-mini btn-fail" data-vorlage-weg="${v.id}">×</button>
       </div>`).join('')
@@ -4883,29 +5022,37 @@ async function zeichneSchublade() {
 
   n.innerHTML = `
     <div class="bs-kopf">
-      <button class="btn" data-neu>${icon('neu', 13)} Neues Tragjoch</button>
-      <button class="btn btn-acc" data-speichern>${icon('speichern', 13)} In Ablage speichern</button>
+      <button class="btn" data-neu>${icon('neu', 13)} Neues Tragwerk</button>
+      <button class="btn btn-acc" data-speichern>${icon('speichern', 13)} ${projekt.id ? 'Speichern' : 'In Ablage speichern'}</button>
+      <button class="btn" data-speichern-neu>Als neues Tragwerk speichern</button>
       <button class="btn" data-vorlage-neu>Als Vorlage sichern</button>
       <button class="btn btn-mini bs-zu" data-zu>Schliessen</button>
     </div>
     <div class="bs-spalten bs-drei">
       <div>
-        ${abschnitt('Dieses Tragwerk', 'wo es steht. Geht in keine Rechnung ein')}
-        <div class="bs-jetzt">
-          <div class="bs-jetzt-name">${icon('projekte', 13)}
-            <span>${esc(projekt.projekt || 'Ohne Projekt')}</span>
-            · <b>${esc(projekt.name)}</b></div>
-        </div>
+        ${abschnitt('Dieses Tragwerk', 'Projekt, Bezeichnung und Angaben')}
+        ${projektWahl}
+        ${tragwerkWahl}
         <div id="bs-verortung">${ui.verortungHtml(werte)}</div>
         <p class="notiz">Linie, Ortschaft und Kilometer stehen im Dateinamen der
-          AxisVM-Ausleitung und in der Kopfzeile des Berichts, in dieser
-          Reihenfolge.</p>
+          AxisVM-Ausleitung; Projektnummer, Bearbeiter und Datum in der
+          Kopfzeile des Berichts und in der Projektliste.</p>
       </div>
-      <div>${abschnitt('Projekte und gespeicherte Joche',
-                       'laden ersetzt den jetzigen Stand')}${projekteHtml}
+      <div>${abschnitt('Projekte und gespeicherte Tragwerke',
+                       'Laden ersetzt den jetzigen Stand')}
+        <div class="ab-suche">
+          <input id="bs-suche" type="search" value="${esc(ablageSicht.suche)}"
+                 placeholder="Suchen: Bezeichnung, Linie, KM, Ortschaft, Projekt">
+          <select id="bs-sort" title="Sortierung">
+            ${SORTIERUNGEN.map((s) => `<option value="${s.key}"${s.key === ablageSicht.sort ? ' selected' : ''}>${esc(s.label)}</option>`).join('')}
+          </select>
+        </div>
+        ${projekteHtml}
         <div class="lf-fuss">
-          <button class="btn btn-mini" data-import>Datei einlesen</button>
-          <button class="btn btn-mini" data-export>Alles ausleiten</button>
+          <button class="btn btn-mini" data-import>Einlesen …</button>
+          <button class="btn btn-mini" data-export>Ausleiten …</button>
+          <button class="btn btn-mini" data-sicherung title="Alles: Tragwerke, Vorlagen, Zeichnungen, Einstellungen">Sicherung erstellen</button>
+          <button class="btn btn-mini" data-sicherung-ein>Sicherung einspielen</button>
         </div>
       </div>
       <div>${abschnitt('Vorlagen ganzer Tragwerke', 'anwenden legt sich auf den Stand')}
@@ -4937,40 +5084,132 @@ async function zeichneSchublade() {
     zeichneSchublade();
   });
 
-  const auf = (wahl, fn) => n.querySelectorAll(wahl).forEach((b) => { b.onclick = () => fn(b); });
+  // --- Auswahlfelder ---------------------------------------------------------
+  ui.el('bs-projekt').onchange = (ev) => {
+    const v = ev.target.value;
+    if (v === '__neu__') {
+      neuesProjektOffen = true;
+      zeichneSchublade().then(() => ui.el('bs-projekt-neu')?.focus());
+      return;
+    }
+    neuesProjektOffen = false;
+    // Ein anderes Projekt heisst: das Tragwerk wird dort NEU abgelegt -
+    // es sei denn, es gehoert schon dorthin.
+    projekt = { ...projekt, projekt: v };
+    if (projekt.id && !alle.some((e) => e.id === projekt.id && (e.projekt ?? '') === v)) {
+      projekt.id = null;
+    }
+    aktualisiereProjektKnopf();
+    zeichneSchublade();
+  };
+  const neuFeld = ui.el('bs-projekt-neu');
+  if (neuFeld) {
+    const fertig = () => {
+      const v = neuFeld.value.trim();
+      if (!v) return;
+      neuesProjektOffen = false;
+      projekt = { ...projekt, projekt: v, id: null };
+      aktualisiereProjektKnopf();
+      zeichneSchublade();
+    };
+    neuFeld.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); fertig(); } };
+    neuFeld.onblur = fertig;
+  }
+  ui.el('bs-tragwerk').onchange = async (ev) => {
+    const v = ev.target.value;
+    if (v === '__neu__') {
+      // Wie in BlockCalc: der Stand bleibt, er wird beim Speichern ein
+      // NEUER Eintrag in diesem Projekt.
+      projekt = { ...projekt, id: null, name: `Neues ${tragwerksart(werte).label}` };
+      ungesichert = true;
+      aktualisiereProjektKnopf();
+      zeichneSchublade().then(() => ui.el('bs-name')?.select());
+      return;
+    }
+    await eintragLaden(v);
+  };
+  ui.el('bs-name').onchange = (ev) => {
+    projekt = { ...projekt, name: ev.target.value.trim() || 'Ohne Namen' };
+    aktualisiereProjektKnopf();
+  };
+
+  // --- Suche und Sortierung ----------------------------------------------------
+  const suche = ui.el('bs-suche');
+  suche.oninput = () => {
+    ablageSicht.suche = suche.value;
+    const pos = suche.selectionStart;
+    zeichneSchublade().then(() => {
+      const s = ui.el('bs-suche');
+      if (s) { s.focus(); s.setSelectionRange(pos, pos); }
+    });
+  };
+  ui.el('bs-sort').onchange = (ev) => { ablageSicht.sort = ev.target.value; zeichneSchublade(); };
+
+  // --- Unmittelbar bearbeiten --------------------------------------------------
+  n.querySelectorAll('[data-ed-id]').forEach((z) => {
+    const vorher = z.textContent;
+    z.onkeydown = (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); z.blur(); }
+      if (ev.key === 'Escape') { z.textContent = vorher; z.blur(); }
+    };
+    z.onblur = async () => {
+      const wert = z.textContent.trim();
+      if (wert === vorher.trim()) return;
+      const s = await store.eintragFeld(z.dataset.edId, z.dataset.edFeld, wert);
+      // Der geladene Stand traegt dieselbe Angabe - sie wandert mit.
+      if (projekt.id === s.id) {
+        if (z.dataset.edFeld === 'name') projekt = { ...projekt, name: s.name };
+        else if (store.DIREKT_FELDER.includes(z.dataset.edFeld)) {
+          werte = { ...werte, [z.dataset.edFeld]: s.werte[z.dataset.edFeld] };
+          ui.el('bs-verortung').innerHTML = ui.verortungHtml(werte);
+        }
+        aktualisiereProjektKnopf();
+      }
+    };
+  });
+  n.querySelectorAll('[data-projekt-name]').forEach((z) => {
+    const alt = z.dataset.projektName;
+    z.onclick = (ev) => ev.preventDefault();      // nicht auf-/zuklappen
+    z.onkeydown = (ev) => {
+      if (ev.key === ' ') ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); z.blur(); }
+    };
+    z.onblur = async () => {
+      const neu = z.textContent.trim();
+      if (neu === (alt || 'Ohne Projekt') || (!alt && !neu)) return;
+      await store.projektUmbenennen(alt, neu === 'Ohne Projekt' ? '' : neu);
+      if ((projekt.projekt ?? '') === alt) {
+        projekt = { ...projekt, projekt: neu === 'Ohne Projekt' ? '' : neu };
+        aktualisiereProjektKnopf();
+      }
+      zeichneSchublade();
+    };
+  });
+
+  // --- Knoepfe -------------------------------------------------------------------
+  const auf = (wahl, fn) => n.querySelectorAll(wahl).forEach((b) => {
+    b.onclick = (ev) => { ev.stopPropagation(); ev.preventDefault(); fn(b); };
+  });
   auf('[data-zu]', schubladeSchliessen);
   auf('[data-neu]', () => { schubladeSchliessen(); neuesTragjoch(); });
-  auf('[data-speichern]', () => { schubladeSchliessen(); dialogSpeichern(); });
+  auf('[data-speichern]', () => ablageSpeichern(false));
+  auf('[data-speichern-neu]', () => ablageSpeichern(true));
   auf('[data-vorlage-neu]', dialogTragwerkVorlage);
-  auf('[data-laden]', async (b) => {
-    const s = await store.laden(b.dataset.laden);
-    werte = { ...standardwerte(), ...s.werte, bearbeiten: false };
-    werte.anbauteile = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
-    projekt = { id: s.id, name: s.name, projekt: s.projekt };
-    station = null;
-    // Frisch geladen heisst: der Stand entspricht der Ablage.
-    markiereGesichert();
-    schubladeSchliessen();
-    // Die hinterlegte Zeichnung gehört zum Tragwerk und kommt mit ihm.
-    await zeichnungHolen(s.id);
-    neuRechnen();
-    zeichneModellWerkzeuge();
-    ansicht.ganzesJoch();
-  });
+  auf('[data-laden]', (b) => eintragLaden(b.dataset.laden, true));
   auf('[data-kopie]', async (b) => {
     await store.duplizieren(b.dataset.kopie); zeichneSchublade();
   });
-  auf('[data-um]', async (b) => {
-    const s = await store.laden(b.dataset.um);
-    dialogUmbenennen(s);
-  });
-  auf('[data-projekt-um]', (b) => dialogProjektUmbenennen(b.dataset.projektUm));
+  auf('[data-zuordnen]', async (b) => dialogZuordnen(await store.laden(b.dataset.zuordnen)));
   auf('[data-loeschen]', async (b) => {
     if (!confirm('Diesen Eintrag löschen?')) return;
     await store.loeschen(b.dataset.loeschen);
     if (projekt.id === b.dataset.loeschen) projekt.id = null;
     zeichneSchublade();
   });
+  auf('[data-eintrag-aus]', (b) => ablageAusleiten([b.dataset.eintragAus]));
+  auf('[data-projekt-aus]', (b) => dialogAusleiten(
+    alle.filter((e) => (e.projekt ?? '') === b.dataset.projektAus).map((e) => e.id)));
+  auf('[data-projekt-druck]', (b) => projektlisteDrucken(b.dataset.projektDruck));
   auf('[data-vorlage-an]', async (b) => {
     const v = await store.vorlageLaden(b.dataset.vorlageAn);
     if (!confirm(`Vorlage «${v.name}» anwenden? Profile, Trasse, Anbauteile und ` +
@@ -4988,86 +5227,364 @@ async function zeichneSchublade() {
     await store.vorlageLoeschen(b.dataset.vorlageWeg);
     zeichneSchublade();
   });
-  /*
-   * AUSGELEITET WIRD EIN PAKET, NICHT NUR EINE JSON (Weisung).
-   *
-   * Die hinterlegten Zeichnungen sind Bilder; sie gehören als eigene Dateien
-   * in den Ablageordner, nicht als Zahlenkolonne in die JSON. Das Paket ist
-   * ein ZIP mit `ablage.json` und einem Ordner `zeichnungen/`.
-   */
-  auf('[data-export]', async () => {
-    /*
-     * AUSGEWAEHLT WIRD, WAS HINAUSGEHT.
-     *
-     * Bisher ging immer alles: wer zwei Tragwerke schicken wollte, schickte
-     * die ganze Ablage mit jedem hinterlegten Bild. Die Bilder machen den
-     * Grossteil der Datei aus.
-     */
-    const wahlId = (k) => `pk-${k}`;
-    const d = dialog('Ablage ausleiten',
-      `<p class="notiz">Was in das Paket soll. Die Zeichnungen machen den
-         Grossteil der Dateigrösse aus.</p>
-       ${store.PAKETTEILE.map((t) => `
-         <label class="feld-kurz"><input type="checkbox" id="${wahlId(t.key)}" checked>
-           <span>${esc(t.label)}</span></label>`).join('')}`,
-      '<button class="btn btn-acc" data-ok>Ausleiten</button>');
-    d.node.querySelector('[data-ok]').onclick = async () => {
-      const wahl = {};
-      store.PAKETTEILE.forEach((t) => { wahl[t.key] = ui.el(wahlId(t.key)).checked; });
-      d.zu();
-      const tag = new Date().toISOString().slice(0, 10);
-      store.dateiSpeichern(await store.alsPaket(wahl),
-        `${APP_NAME}-Ablage-${tag}.zip`, 'application/zip');
-    };
+  auf('[data-export]', () => dialogAusleiten(null));
+  auf('[data-import]', () => ablageEinlesenWaehlen(false));
+  auf('[data-sicherung]', async () => {
+    const tag = new Date().toISOString().slice(0, 10);
+    store.dateiSpeichern(await store.alsSicherung(),
+      `${APP_NAME}-Sicherung-${tag}.zip`, 'application/zip');
   });
-  /*
-   * EINGELESEN WIRD BEIDES. Pakete dieser Fassung UND die reinen JSON der
-   * früheren - wer eine alte Sicherung liegen hat, soll sie nicht verlieren.
-   * Unterschieden wird an den ersten zwei Zeichen: eine ZIP beginnt mit PK.
-   */
-  auf('[data-import]', async () => {
+  auf('[data-sicherung-ein]', () => ablageEinlesenWaehlen(true));
+}
+
+/**
+ * Einen Ablageeintrag laden.
+ *
+ * `fragen`: ungesicherte Aenderungen vorher bestaetigen lassen. Die
+ * Auswahlliste fragt immer - dort ist der Wechsel ein Handgriff und kein
+ * Knopfdruck.
+ */
+async function eintragLaden(id, fragen = true) {
+  if (fragen && ungesichert
+      && !confirm('Der jetzige Stand ist nicht in der Ablage gesichert. Trotzdem laden?')) {
+    zeichneSchublade();
+    return;
+  }
+  const s = await store.laden(id);
+  werte = { ...standardwerte(), ...s.werte, bearbeiten: false };
+  werte.anbauteile = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
+  projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung ?? '' };
+  neuesProjektOffen = false;
+  station = null;
+  // Frisch geladen heisst: der Stand entspricht der Ablage.
+  markiereGesichert();
+  schubladeSchliessen();
+  // Die hinterlegte Zeichnung gehört zum Tragwerk und kommt mit ihm.
+  await zeichnungHolen(s.id);
+  neuRechnen();
+  zeichneModellWerkzeuge();
+  ansicht.ganzesJoch();
+  meldeImBalken(`Geladen: ${s.projekt ? `${s.projekt} · ` : ''}${s.name}`);
+}
+
+/**
+ * >>> SPEICHERN OHNE DIALOG, WO KLAR IST, WOHIN (17. September). <<<
+ *
+ * Wie in BlockCalc: ist ein Eintrag geladen, ueberschreibt «Speichern» ihn.
+ * Sonst wird ein neuer Eintrag im gewaehlten Projekt angelegt. Der Dialog
+ * kommt nur, wenn noch nichts benannt ist.
+ */
+async function ablageSpeichern(neu = false) {
+  if (!projekt.id && !neu && /^Neues /.test(projekt.name ?? '') && !projekt.projekt) {
+    schubladeSchliessen();
+    dialogSpeichern();
+    return;
+  }
+  const s = await sichereAktuell(neu);
+  meldeImBalken(`Gespeichert: ${s.projekt ? `${s.projekt} · ` : ''}${s.name}`);
+  if (schubladeOffen) zeichneSchublade();
+}
+
+/** Den jetzigen Stand in die Ablage legen - ueberschreiben oder neu. */
+async function sichereAktuell(neu = false, bemerkung = undefined) {
+  // Ohne Datum gilt der Tag der Ablage; der Bearbeiter wird vorgemerkt.
+  if (!String(werte.datum ?? '').trim()) werte = { ...werte, datum: heute() };
+  if (String(werte.bearbeiter ?? '').trim()) {
+    try { localStorage.setItem(BEARBEITER, String(werte.bearbeiter).trim()); } catch { /* egal */ }
+  }
+  let alt = null;
+  if (!neu && projekt.id) alt = await store.laden(projekt.id).catch(() => null);
+  const s = await store.sichern({
+    id: neu ? undefined : (projekt.id ?? undefined),
+    name: projekt.name, projekt: projekt.projekt ?? '',
+    bemerkung: bemerkung ?? projekt.bemerkung ?? alt?.bemerkung ?? '',
+    erstellt: alt?.erstellt,
+    werte,
+    kennwerte: letzte ? {
+      typ: werte.typ, L: werte.L, eta: letzte.anzeige?.max?.etaGesamt ?? letzte.erg.max.etaGesamt,
+    } : null,
+  });
+  projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung };
+  // Erst jetzt hat das Tragwerk eine Id - und erst jetzt kann eine vorher
+  // eingefügte Zeichnung zu ihm gelegt werden.
+  await zeichnungSichernFallsMoeglich();
+  markiereGesichert();
+  speichern();
+  return s;
+}
+
+/** Datei waehlen und einlesen - fuer beide Knoepfe. */
+async function ablageEinlesenWaehlen(sicherung) {
+  try {
+    const roh = await store.dateiLesenRoh();
+    await dialogEinlesen(roh, { sicherung });
+  } catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
+}
+
+/**
+ * >>> EINLESEN MIT VORSCHAU, JE EINTRAG (17. September). <<<
+ *
+ * Fuer Paket und JSON derselbe Dialog. Jeder Eintrag laesst sich abwaehlen;
+ * wo es im selben Projekt schon einen gleichen Namen gibt, steht die Wahl
+ * daneben - Kopie, ersetzen, ueberspringen. Ein Zielprojekt legt alles
+ * zusammen ab. Kommt genau ein Tragwerk herein, wird es gleich geladen.
+ */
+async function dialogEinlesen(roh, { sicherung = false, dateiname = '' } = {}) {
+  const i = await store.paketInhalt(roh);
+  const projekte = await store.projektNamen();
+  const vorgabeDoppelt = sicherung ? 'ersetzen' : 'kopie';
+  const zeilen = i.liste.map((e, k) => `
+    <tr>
+      <td><input type="checkbox" data-ein="${k}" checked></td>
+      <td>${esc(e.projekt || 'Ohne Projekt')}</td>
+      <td><b>${esc(e.name)}</b>${e.zeichnung ? ' <span class="ab-leise">+ Zeichnung</span>' : ''}</td>
+      <td class="ab-leise">${esc([e.linie && `Linie ${e.linie}`, e.km && `KM ${e.km}`, e.ortschaft].filter(Boolean).join(' · '))}</td>
+      <td>${e.doppeltZu ? `<select data-doppelt="${k}">
+            <option value="kopie"${vorgabeDoppelt === 'kopie' ? ' selected' : ''}>als Kopie</option>
+            <option value="ersetzen"${vorgabeDoppelt === 'ersetzen' ? ' selected' : ''}>ersetzen</option>
+            <option value="ueberspringen">überspringen</option></select>`
+          : '<span class="ab-leise">neu</span>'}</td>
+    </tr>`).join('');
+  const teil = (key, label, anzahl, an) => (anzahl
+    ? `<label class="feld-kurz"><input type="checkbox" data-teil="${key}"${an ? ' checked' : ''}>
+         <span>${esc(label)} (${anzahl})</span></label>` : '');
+  const d = dialog(sicherung ? 'Sicherung einspielen' : 'Einlesen', `
+    <p class="notiz">${esc(dateiname)}${i.zip ? ' · Paket' : ' · JSON'}${
+      i.erzeugt ? ` · erzeugt am ${new Date(i.erzeugt).toLocaleDateString('de-CH')}` : ''}</p>
+    ${i.liste.length ? `<div class="ab-rollen"><table class="ab-tabelle ab-ein">
+      <thead><tr><th><input type="checkbox" data-alle checked title="alle"></th>
+        <th>Projekt</th><th>Tragwerk</th><th>Verortung</th><th>Vorhanden</th></tr></thead>
+      <tbody>${zeilen}</tbody></table></div>` : '<p>Die Datei enthält keine Tragwerke.</p>'}
+    ${i.doppelt.length ? `<div class="hinweisbox">${i.doppelt.length} Tragwerk(e) gibt es im
+      selben Projekt schon. Je Zeile wählbar: als Kopie, ersetzen oder überspringen.</div>` : ''}
+    ${i.liste.length ? `<div class="feld"><label for="ein-ziel">Ablegen in</label>
+      <select id="ein-ziel">
+        <option value="__datei__">Projekt aus der Datei</option>
+        ${projekte.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+        <option value="__neu__">+ Neues Projekt …</option>
+      </select>
+      <input id="ein-ziel-neu" type="text" placeholder="Name des Projekts" hidden></div>` : ''}
+    ${teil('vorlagen', 'Vorlagen', i.vorlagen, true)}
+    ${teil('zeichnungen', 'Hinterlegte Zeichnungen', i.zeichnungen, true)}
+    ${teil('einstellungen', 'Einstellungen und Datenbasis - die Anwendung startet danach neu',
+           i.einstellungen, sicherung)}
+    <p class="notiz">Nichts wird ohne Wahl ersetzt.</p>`,
+    `<button class="btn btn-acc" data-ok>Einlesen</button>
+     <button class="btn" data-zu>Abbrechen</button>`);
+  const alleCb = d.node.querySelector('[data-alle]');
+  if (alleCb) {
+    alleCb.onchange = () => d.node.querySelectorAll('[data-ein]')
+      .forEach((c) => { c.checked = alleCb.checked; });
+  }
+  const ziel = d.node.querySelector('#ein-ziel');
+  const zielNeu = d.node.querySelector('#ein-ziel-neu');
+  if (ziel) ziel.onchange = () => { zielNeu.hidden = ziel.value !== '__neu__'; if (!zielNeu.hidden) zielNeu.focus(); };
+  d.node.querySelector('[data-ok]').onclick = async () => {
+    const ids = [...d.node.querySelectorAll('[data-ein]')]
+      .filter((c) => c.checked).map((c) => i.liste[Number(c.dataset.ein)].id);
+    const doppelt = {};
+    d.node.querySelectorAll('[data-doppelt]').forEach((s) => {
+      doppelt[i.liste[Number(s.dataset.doppelt)].id] = s.value;
+    });
+    const teilAn = (k) => Boolean(d.node.querySelector(`[data-teil="${k}"]`)?.checked);
+    let zielProjekt;
+    if (ziel && ziel.value === '__neu__') zielProjekt = zielNeu.value.trim();
+    else if (ziel && ziel.value !== '__datei__') zielProjekt = ziel.value;
+    d.zu();
     try {
-      const roh = await store.dateiLesenRoh();
-      const ist = roh.length > 1 && roh[0] === 0x50 && roh[1] === 0x4b;
-      if (ist) {
-        /*
-         * ERST ZEIGEN, DANN SCHREIBEN.
-         *
-         * Der Import schrieb sofort. Man sah erst hinterher, was hereinkam,
-         * und ein zweites Einlesen derselben Datei legte alles ein zweites
-         * Mal an. Jetzt steht die Uebersicht vorweg, samt Warnung, welche
-         * Namen es im selben Projekt schon gibt.
-         */
-        const i = await store.paketInhalt(roh);
-        const zeile = (k, n) => (n ? `<tr><td>${esc(k)}</td><td>${n}</td></tr>` : '');
-        const warnung = i.doppelt.length
-          ? `<div class="hinweisbox">Schon vorhanden, wird ein zweites Mal
-               angelegt: ${esc(i.doppelt.slice(0, 6).join(', '))}${
-               i.doppelt.length > 6 ? ` und ${i.doppelt.length - 6} weitere` : ''}.</div>`
-          : '';
-        const d = dialog('Paket einlesen',
-          `<table class="dt">${zeile('Tragwerke', i.eintraege)}
-             ${zeile('Vorlagen', i.vorlagen)}
-             ${zeile('Zeichnungen', i.zeichnungen)}</table>
-           ${i.erzeugt ? `<p class="notiz">Erzeugt am
-             ${new Date(i.erzeugt).toLocaleDateString('de-CH')}.</p>` : ''}
-           ${warnung}
-           <p class="notiz">Eingelesen wird zusätzlich; nichts wird ersetzt.</p>`,
-          '<button class="btn btn-acc" data-ok>Einlesen</button>');
-        d.node.querySelector('[data-ok]').onclick = async () => {
-          d.zu();
-          const r = await store.ausPaket(roh);
-          zeichneSchublade();
-          alert(`${r.eintraege} Eintrag/Einträge übernommen`
-              + `${r.bilder ? `, dazu ${r.bilder} Zeichnung(en)` : ''}.`);
-        };
-      } else {
-        const anzahl = await store.ausJson(new TextDecoder().decode(roh));
-        zeichneSchublade();
-        alert(`${anzahl} Eintrag/Einträge übernommen.`);
+      const r = await store.einlesen(roh, {
+        ids, doppelt, zielProjekt,
+        vorlagen: teilAn('vorlagen'), zeichnungen: teilAn('zeichnungen'),
+        einstellungen: teilAn('einstellungen'),
+      });
+      const text = [
+        r.eintraege ? `${r.eintraege} neu` : '',
+        r.ersetzt ? `${r.ersetzt} ersetzt` : '',
+        r.uebersprungen ? `${r.uebersprungen} übersprungen` : '',
+        r.vorlagen ? `${r.vorlagen} Vorlage(n)` : '',
+        r.bilder ? `${r.bilder} Zeichnung(en)` : '',
+        r.einstellungen ? `${r.einstellungen} Einstellung(en)` : '',
+      ].filter(Boolean).join(', ') || 'nichts übernommen';
+      if (r.einstellungen) {
+        alert(`Eingelesen: ${text}. Die Anwendung startet neu.`);
+        location.reload();
+        return;
       }
+      // Genau ein Tragwerk: gleich laden, wie in BlockCalc.
+      if (r.neueIds.length === 1) {
+        await eintragLaden(r.neueIds[0], true);
+        meldeImBalken(`Eingelesen und geladen: ${text}`);
+        return;
+      }
+      meldeImBalken(`Eingelesen: ${text}`);
+      if (!schubladeOffen) schubladeUmschalten(); else zeichneSchublade();
     } catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
+  };
+}
+
+/**
+ * >>> AUSLEITEN MIT AUSWAHL (17. September). <<<
+ *
+ * Wie «Exportieren» in BlockCalc: die Tragwerke nach Projekt gruppiert zum
+ * Anhaken. Vorgewaehlt ist, womit der Dialog geoeffnet wurde - ein Projekt
+ * aus seinem Gruppenkopf, alles aus dem Fuss der Ablage.
+ */
+async function dialogAusleiten(vorwahl) {
+  const alle = await store.liste();
+  const gruppen = new Map();
+  alle.forEach((e) => {
+    const k = (e.projekt ?? '').trim();
+    if (!gruppen.has(k)) gruppen.set(k, []);
+    gruppen.get(k).push(e);
   });
+  const an = (id) => !vorwahl || vorwahl.includes(id);
+  const d = dialog('Ausleiten', `
+    <p class="notiz">Was in das Paket soll. Die Zeichnungen machen den
+      Grossteil der Dateigrösse aus.</p>
+    <div class="ab-auswahl">${[...gruppen.entries()].map(([k, liste]) => `
+      <div class="sec"><label><input type="checkbox" data-gruppe="${esc(k)}"
+        ${liste.every((e) => an(e.id)) ? 'checked' : ''}> ${esc(k || 'Ohne Projekt')}</label></div>
+      ${liste.map((e) => `<label class="feld-kurz"><input type="checkbox" data-aus="${esc(e.id)}"
+          data-in="${esc(k)}"${an(e.id) ? ' checked' : ''}>
+        <span>${esc(e.name)} <span class="ab-leise">${esc(eintragRechnung(e))}</span></span></label>`).join('')}`).join('')}
+    </div>
+    <div class="sec">Dazu</div>
+    ${store.PAKETTEILE.filter((t) => t.key !== 'eintraege').map((t) => `
+      <label class="feld-kurz"><input type="checkbox" data-teil="${t.key}"${
+        t.key === 'zeichnungen' ? ' checked' : ''}>
+        <span>${esc(t.label)}</span></label>`).join('')}`,
+    `<button class="btn btn-acc" data-ok>Ausleiten</button>
+     <button class="btn" data-zu>Abbrechen</button>`);
+  d.node.querySelectorAll('[data-gruppe]').forEach((g) => {
+    g.onchange = () => d.node.querySelectorAll(`[data-in="${CSS.escape(g.dataset.gruppe)}"]`)
+      .forEach((c) => { c.checked = g.checked; });
+  });
+  d.node.querySelector('[data-ok]').onclick = async () => {
+    const ids = [...d.node.querySelectorAll('[data-aus]')]
+      .filter((c) => c.checked).map((c) => c.dataset.aus);
+    const teil = (k) => Boolean(d.node.querySelector(`[data-teil="${k}"]`)?.checked);
+    if (!ids.length && !teil('vorlagen') && !teil('einstellungen')) {
+      alert('Nichts ausgewählt.');
+      return;
+    }
+    d.zu();
+    await ablageAusleiten(ids, { vorlagen: teil('vorlagen'),
+      zeichnungen: teil('zeichnungen'), einstellungen: teil('einstellungen') });
+  };
+}
+
+/** Paket schreiben und herunterladen - benannt nach dem, was drin ist. */
+async function ablageAusleiten(ids, teile = { zeichnungen: true }) {
+  const alle = await store.liste();
+  const drin = alle.filter((e) => ids.includes(e.id));
+  const projekte = [...new Set(drin.map((e) => e.projekt || 'Ohne-Projekt'))];
+  const rein = (t) => String(t).trim().replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '');
+  const tag = new Date().toISOString().slice(0, 10);
+  const teilName = drin.length === 1 ? `${rein(drin[0].projekt || 'Ohne-Projekt')}_${rein(drin[0].name)}`
+    : (projekte.length === 1 ? `${rein(projekte[0])}_${drin.length}x` : 'Ablage');
+  const daten = await store.alsPaket({ eintraege: ids.length > 0, ...teile }, ids);
+  store.dateiSpeichern(daten, `${APP_NAME}-${teilName}-${tag}.zip`, 'application/zip');
+}
+
+/** Ein Tragwerk einem Projekt zuordnen - Auswahl der vorhandenen oder neu. */
+async function dialogZuordnen(s) {
+  const projekte = await store.projektNamen();
+  const d = dialog('Projekt zuordnen', `
+    <p class="notiz">${esc(s.name)} · jetzt in ${esc(s.projekt || 'Ohne Projekt')}</p>
+    <div class="feld"><label for="z-wahl">Projekt</label>
+      <select id="z-wahl">
+        <option value="">(ohne Projekt)</option>
+        ${projekte.map((p) => `<option value="${esc(p)}"${p === s.projekt ? ' selected' : ''}>${esc(p)}</option>`).join('')}
+      </select></div>
+    <div class="feld"><label for="z-frei">oder neuer Name</label>
+      <input id="z-frei" type="text" value="${esc(s.projekt ?? '')}"></div>`,
+    `<button class="btn btn-acc" data-ok>Zuordnen</button>
+     <button class="btn" data-zu>Abbrechen</button>`);
+  const wahl = ui.el('z-wahl');
+  const frei = ui.el('z-frei');
+  wahl.oninput = () => { frei.value = wahl.value; };
+  d.node.querySelector('[data-ok]').onclick = async () => {
+    const ziel = frei.value.trim();
+    await store.umbenennen(s.id, { projekt: ziel });
+    if (projekt.id === s.id) {
+      projekt = { ...projekt, projekt: ziel };
+      aktualisiereProjektKnopf();
+    }
+    d.zu();
+    zeichneSchublade();
+  };
+}
+
+/**
+ * >>> DIE PROJEKTLISTE ZUM DRUCKEN (17. September). <<<
+ *
+ * Nach «Fundamentliste PDF» in BlockCalc: alle Tragwerke eines Projekts mit
+ * Typ, Laenge, Masten und Ausnutzung. Wie dort wird jeder Eintrag NEU
+ * gerechnet - die bei der Ablage vermerkte Ausnutzung koennte aus einer
+ * aelteren Fassung stammen. Laesst sich einer nicht rechnen, steht der
+ * vermerkte Wert mit Kennzeichnung da.
+ */
+async function projektlisteDrucken(projektName) {
+  const eintraege = (await store.liste())
+    .filter((e) => (e.projekt ?? '') === projektName)
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'de', { numeric: true }));
+  if (!eintraege.length) { alert('Das Projekt hat keine Tragwerke.'); return; }
+  const zeilen = eintraege.map((e) => {
+    const w = { ...standardwerte(), ...e.werte };
+    let eta = null, etaMast = null, frisch = false;
+    try {
+      const joch = w.typ && w.typ !== 'frei' ? getTragjoch(w.typ) : null;
+      const erg = berechne(rechensatz(w), getProfil(w.profOG), getProfil(w.profUG),
+                           getStahl(w.stahl), joch);
+      eta = erg.max?.etaGesamt ?? null;
+      const m = erg.mast ?? {};
+      const em = ['A', 'B'].map((k) => m[k]?.etaMitStabilitaet ?? m[k]?.eta)
+        .filter(Number.isFinite);
+      etaMast = em.length ? Math.max(...em) : null;
+      frisch = Number.isFinite(eta);
+    } catch { /* bleibt beim vermerkten Wert */ }
+    if (!frisch) eta = eintragEta(e);
+    const masten = mastenVon(w).map((x) => [x.name ?? x.id, x.profil].filter(Boolean).join(' '))
+      .join(', ');
+    const zahl = (v) => (Number.isFinite(v)
+      ? `<span class="${v > 1 ? 'nok' : 'ok'}">${v.toFixed(2)}</span>` : '–');
+    return `<tr>
+      <td>${esc(e.name)}</td>
+      <td>${esc(w.linie ?? '')}</td><td>${esc(w.km ?? '')}</td><td>${esc(w.ortschaft ?? '')}</td>
+      <td>${esc(tragwerksart(w).label)} ${esc(w.typ ?? '')}</td>
+      <td class="z">${Number.isFinite(Number(w.L)) ? Number(w.L).toFixed(2) : ''}</td>
+      <td>${esc(w.mastVorhanden === false ? '–' : masten)}</td>
+      <td class="z">${zahl(eta)}${frisch ? '' : ' *'}</td>
+      <td class="z">${zahl(etaMast)}</td>
+      <td>${esc(e.bemerkung ?? '')}</td></tr>`;
+  }).join('');
+  const w0 = eintraege[0].werte ?? {};
+  const blatt = document.createElement('div');
+  blatt.id = 'druck-liste';
+  blatt.innerHTML = `
+    <h1>${esc(APP_NAME)} – Projektliste</h1>
+    <p><b>${esc(projektName || 'Ohne Projekt')}</b>${w0.projektNr ? ` · Nr. ${esc(w0.projektNr)}` : ''}
+       · ${eintraege.length} Tragwerk${eintraege.length === 1 ? '' : 'e'}
+       · Stand ${esc(heute())}${w0.bearbeiter ? ` · ${esc(w0.bearbeiter)}` : ''}</p>
+    <table>
+      <thead><tr><th>Bezeichnung</th><th>Linie</th><th>KM</th><th>Ortschaft</th>
+        <th>Tragwerk</th><th>L [m]</th><th>Masten</th><th>η Tragwerk</th>
+        <th>η Mast</th><th>Bemerkung</th></tr></thead>
+      <tbody>${zeilen}</tbody>
+    </table>
+    <p class="fuss">η aus einer Rechnung beim Drucken. * vermerkter Wert der Ablage,
+      das Tragwerk liess sich nicht neu rechnen.</p>`;
+  document.body.appendChild(blatt);
+  document.body.classList.add('druck-liste');
+  const weg = () => {
+    document.body.classList.remove('druck-liste');
+    blatt.remove();
+    window.removeEventListener('afterprint', weg);
+  };
+  window.addEventListener('afterprint', weg);
+  window.print();
+  // Manche Umgebungen melden afterprint nicht - dann nach dem Dialog.
+  setTimeout(() => { if (document.body.contains(blatt)) weg(); }, 1500);
 }
 
 /** Den jetzigen Aufbau als Vorlage eines ganzen Tragwerks ablegen. */
@@ -7386,37 +7903,33 @@ function dialogSpeichern() {
   const d = dialog('In Ablage speichern', `
     <div class="feld"><label for="d-projekt">Projekt</label>
       <input id="d-projekt" type="text" value="${esc(projekt.projekt)}"
-             placeholder="z. B. Bahnhof Musterstadt"></div>
+             list="d-projekte" placeholder="z. B. Bahnhof Musterstadt">
+      <datalist id="d-projekte"></datalist></div>
     <div class="feld"><label for="d-name">Bezeichnung</label>
       <input id="d-name" type="text" value="${esc(projekt.name)}"
              placeholder="z. B. Joch Achse 12"></div>
     <div class="feld"><label for="d-bem">Bemerkung</label>
-      <textarea id="d-bem" rows="3"></textarea></div>
+      <textarea id="d-bem" rows="3">${esc(projekt.bemerkung ?? '')}</textarea></div>
     <p class="notiz">Die Ablage liegt im Browser dieses Geräts. Für die
       Aufbewahrung den Stand zusätzlich als Datei ausleiten.</p>`,
     `<button class="btn" data-neu>Als neuen Eintrag</button>
      <button class="btn btn-acc" data-ok>${projekt.id ? 'Überschreiben' : 'Speichern'}</button>`);
+  // Die vorhandenen Projekte zur Auswahl - getippt werden darf trotzdem.
+  store.projektNamen().then((namen) => {
+    const dl = ui.el('d-projekte');
+    if (dl) dl.innerHTML = namen.map((p) => `<option value="${esc(p)}">`).join('');
+  }).catch(() => {});
 
   const sichere = async (neu) => {
     projekt = {
-      id: neu ? null : projekt.id,
+      ...projekt,
       name: ui.el('d-name').value.trim() || 'Ohne Namen',
       projekt: ui.el('d-projekt').value.trim(),
     };
-    const s = await store.sichern({
-      id: projekt.id ?? undefined, name: projekt.name, projekt: projekt.projekt,
-      bemerkung: ui.el('d-bem').value, werte,
-      kennwerte: letzte ? {
-        typ: werte.typ, L: werte.L, eta: letzte.erg.max.etaGesamt,
-      } : null,
-    });
-    projekt.id = s.id;
-    // Erst jetzt hat das Tragwerk eine Id - und erst jetzt kann eine vorher
-    // eingefügte Zeichnung zu ihm gelegt werden.
-    await zeichnungSichernFallsMoeglich();
-    speichern();
-    markiereGesichert();
+    const s = await sichereAktuell(neu, ui.el('d-bem').value);
     d.zu();
+    meldeImBalken(`Gespeichert: ${s.projekt ? `${s.projekt} · ` : ''}${s.name}`);
+    if (schubladeOffen) zeichneSchublade();
   };
   d.node.querySelector('[data-ok]').onclick = () => sichere(false);
   d.node.querySelector('[data-neu]').onclick = () => sichere(true);
@@ -7450,6 +7963,10 @@ function neuesTragjoch() {
 function beginneNeu(art) {
   const bez = TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? 'Tragjoch';
   werte = frisch(art);
+  try {
+    const b = localStorage.getItem(BEARBEITER);
+    if (b) werte.bearbeiter = b;
+  } catch { /* kein Speicher */ }
   projekt = { id: null, name: `Neues ${bez}`, projekt: projekt.projekt };
   station = null;
   // Die Zeichnung des vorigen Tragwerks geht mit ihm - sie zeigte ein
@@ -7791,9 +8308,21 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
  * Beides darf nicht dadurch geschehen, dass jemand danebengreift.
  */
 async function dateiAnnehmen(datei) {
-  let text = null;
-  try { text = await datei.text(); }
+  let roh = null;
+  try { roh = new Uint8Array(await datei.arrayBuffer()); }
   catch (e) { alert(`Datei nicht lesbar: ${e.message}`); return; }
+  /*
+   * EIN PAKET IST EIN ZIP (17. September). Bis hierher wurde jede Datei als
+   * Text gelesen - ein hineingezogenes Paket meldete sich als «kein
+   * lesbares JSON». Es geht jetzt in denselben Einlesedialog wie ueber den
+   * Knopf.
+   */
+  if (roh.length > 1 && roh[0] === 0x50 && roh[1] === 0x4b) {
+    try { await dialogEinlesen(roh, { dateiname: datei.name }); }
+    catch (e) { alert(`Paket nicht lesbar: ${e.message}`); }
+    return;
+  }
+  const text = new TextDecoder().decode(roh).replace(/^﻿/, '');
 
   let obj = null;
   try { obj = JSON.parse(text); } catch { /* wird gleich gemeldet */ }
@@ -7835,25 +8364,11 @@ async function dateiAnnehmen(datei) {
   }
 
   // --- Ablage: gespeicherte Tragwerke ---
-  if (obj.art === 'tragjoch-ablage' || Array.isArray(obj.eintraege)) {
-    const n = (obj.eintraege ?? []).length;
-    const v = (obj.vorlagen ?? []).length;
-    const d = dialog('Ablage einlesen', kopf +
-      `<p>Enthalten: <b>${n}</b> Tragwerk${n === 1 ? '' : 'e'}`
-      + `${v ? ` und <b>${v}</b> Vorlage${v === 1 ? '' : 'n'}` : ''}.</p>`
-      + '<p class="notiz">Bestehende Einträge bleiben stehen. Gleiche Namen '
-      + 'erzeugen neue Einträge, damit nichts unbemerkt überschrieben wird.</p>',
-      '<button class="btn btn-acc" data-ok>Übernehmen</button>'
-      + '<button class="btn" data-zu>Abbrechen</button>');
-    d.node.querySelector('[data-ok]').onclick = async () => {
-      try {
-        const anzahl = await store.ausJson(text);
-        d.zu();
-        schubladeOffen = false;
-        schubladeUmschalten();          // zeigt, was angekommen ist
-        alert(`${anzahl} Eintrag/Einträge übernommen.`);
-      } catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
-    };
+  // Derselbe Dialog wie beim Knopf «Einlesen …» - mit Auswahl je Eintrag.
+  if (obj.art === 'tragjoch-ablage' || Array.isArray(obj.eintraege)
+      || (Array.isArray(obj) && obj.some((e) => e && e.werte))) {
+    try { await dialogEinlesen(roh, { dateiname: datei.name }); }
+    catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
     return;
   }
 
@@ -8201,6 +8716,15 @@ export async function start() {
   // Sprungliste der installierten Anwendung (shortcuts im Manifest). Zuletzt,
   // damit der gewünschte Dialog über einem fertigen Arbeitsblatt steht und
   // nicht über einem halben.
+  if (wiederhergestellt?.ts) {
+    const z = new Date(wiederhergestellt.ts);
+    const hhmm = `${String(z.getHours()).padStart(2, '0')}:${String(z.getMinutes()).padStart(2, '0')}`;
+    const tag = z.toDateString() === new Date().toDateString()
+      ? '' : ` vom ${z.toLocaleDateString('de-CH')}`;
+    meldeImBalken(`Letzter Stand${tag} von ${hhmm} wiederhergestellt`
+      + (projekt.id ? ` · ${projekt.projekt ? `${projekt.projekt} · ` : ''}${projekt.name}` : '')
+      + (ungesichert ? ' · nicht in der Ablage gesichert' : ''));
+  }
   switch (startWunsch()) {
     case 'neu': zuruecksetzen(); break;
     case 'ablage': schubladeUmschalten(); break;

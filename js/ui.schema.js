@@ -353,6 +353,28 @@ export const FELDER = [
     standard: '', platzhalter: 'z. B. 012.345', laenge: 14,
     hinweis: 'Streckenkilometer wie im Querprofil.',
   },
+  /*
+   * >>> DIE PROJEKTANGABEN (17. September, nach BlockCalc). <<<
+   *
+   * Projektnummer, Bearbeiter und Datum stehen am Tragwerk wie die
+   * Verortung: in der Ablage, im Bericht, in der Projektliste. Auch sie
+   * gehen in keine Rechnung ein.
+   */
+  {
+    key: 'projektNr', gruppe: 'ort', typ: 'text', label: 'Projektnummer',
+    standard: '', platzhalter: 'z. B. P-2026-014', laenge: 20,
+    hinweis: 'Nummer des Projekts. Steht in der Kopfzeile des Berichts.',
+  },
+  {
+    key: 'bearbeiter', gruppe: 'ort', typ: 'text', label: 'Bearbeiter',
+    standard: '', platzhalter: 'Kürzel oder Name', laenge: 24,
+    hinweis: 'Wird für das nächste neue Tragwerk vorgeschlagen.',
+  },
+  {
+    key: 'datum', gruppe: 'ort', typ: 'text', label: 'Datum',
+    standard: '', platzhalter: 'TT.MM.JJJJ', laenge: 12,
+    hinweis: 'Datum der Bearbeitung. Leer beim Speichern: heute.',
+  },
 
   // --- Typ und Rechenmasse -------------------------------------------------
   {
