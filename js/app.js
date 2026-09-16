@@ -79,7 +79,7 @@ import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
          ANKER_BEFESTIGUNGEN } from './data.anker.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
-import { mastWind } from './data.masten.js';
+import { mastWind, MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
@@ -5971,6 +5971,20 @@ function kontextTragwerk(id) {
   const sichtbar = alle.filter((x) => !versteckt(x));
   const aktiv = (werte.twId ?? 'T1') === id;
   const p = [];
+  /* =======================================================================
+   * >>> DAS FENSTER STEHT ZUOBERST. <<<
+   * =======================================================================
+   *
+   * Weisung vom 16. September: «diese maske auch über das kontextmenue
+   * aufrufbar machen.»
+   *
+   * Sie war nur ueber den zweiten Klick auf ein angewaehltes Tragwerk zu
+   * erreichen - ein Weg, den man kennen muss. Im Menue steht sie jetzt an
+   * erster Stelle: was man am haeufigsten will, wenn man ein Bauteil
+   * anklickt, ist es zu aendern.
+   */
+  p.push({ text: `${tragwerkName(t)} bearbeiten …`,
+           tun: () => dialogTragwerk(id) });
   if (!aktiv && !versteckt(t)) {
     p.push({ text: `${tragwerkName(t)} rechnen`,
              tun: () => aendern('tragwerkAktiv', id) });
@@ -6144,7 +6158,23 @@ function kontextMast(mastId, twId) {
   const t = tragwerkeSortiert(werte).find((x) => x.id === wer)
          ?? tragwerkeVon(werte)[0];
   const p = [
-    { text: `${mastName(werte, m)} bearbeiten`, tun: () => {
+    /*
+     * >>> DAS FENSTER STATT DES SPRUNGS (16. September). <<<
+     *
+     * Weisung: «diese fenster auch für die maste anzeigen ... diese maske
+     * auch über das kontextmenue aufrufbar machen.»
+     *
+     * Hier stand ein Sprung in die Seitenleiste - er waehlte den Masten an
+     * und scrollte zum Profilfeld. Das ist ein Umweg ueber eine Liste, in
+     * der man dann weitersucht; das Fenster zeigt, was den Masten ausmacht,
+     * auf einmal.
+     *
+     * DER SPRUNG BLEIBT DARUNTER: was das Fenster nicht fuehrt - Fusspunkt,
+     * Zuganker, Windbeiwerte - steht weiterhin nur dort.
+     */
+    { text: `${mastName(werte, m)} bearbeiten …`,
+      tun: () => dialogMast(mastId) },
+    { text: 'In der Seitenleiste bearbeiten', tun: () => {
       aendern('mastAktiv', mastId);
       zeigeFeld('mastProfil');
     } },
@@ -6657,6 +6687,168 @@ function dialogAnker(mastId = null) {
  * Fenster. So bleibt das schnelle Umschalten zwischen zwei Tragwerken, was
  * es war, und die Bearbeitung ist einen Klick entfernt.
  * ========================================================================= */
+/* ===========================================================================
+ * >>> DAS FENSTER DES MASTEN. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «diese fenster auch für die maste anzeigen.»
+ *
+ * Dasselbe Muster wie beim Tragwerk: was ein Bauteil AUSMACHT, steht in
+ * einem Fenster beisammen - nicht verteilt über eine Seitenleiste, in der
+ * man scrollt. Beim Masten sind das fünf Zahlen: Profil, Stegrichtung,
+ * Anschlusshöhe, Gesamtlänge und die Stelle auf dem Querprofil.
+ *
+ * >>> WAS NICHT HINEINGEHOERT. <<<
+ *
+ * Alles, was einen Regelwert hat, den man selten verlässt: Fusspunkt,
+ * Zuganker, Windbeiwerte, die zweite Mastreihe. Sie bleiben in der
+ * Seitenleiste - dieselbe Regel wie in der Karte Anbauteile, nur hier
+ * strenger, weil ein Fenster kein Scrollen verträgt.
+ *
+ * >>> DIE HOEHE IST DIESELBE ZAHL WIE IM TRAGWERKSFENSTER. <<<
+ *
+ * Dort heisst sie «Anschlusshöhe, gemessen an M1», hier gehört sie dem
+ * Masten, den man angeklickt hat. Zwei Fenster auf dieselbe Zahl - deshalb
+ * lesen und schreiben beide über denselben Weg (`mastAktiv`, dann `mastH`).
+ * ========================================================================= */
+function dialogMast(mastId) {
+  const alle = mastenVon(werte);
+  const m = alle.find((x) => x.id === mastId) ?? alle[0];
+  if (!m) return null;
+  let e = {
+    profil: m.profil ?? werte.mastProfil ?? 'HEB 240',
+    steg: m.steg ?? werte.mastSteg ?? 'jochachse',
+    H: Number(m.H) > 0 ? Number(m.H) : (Number(werte.mastH) || 7.5),
+    laenge: Number(m.laenge) > 0 ? Number(m.laenge)
+                                 : (Number(werte.mastLaenge) || 0),
+    x: Number(m.x) || 0,
+  };
+  /*
+   * DIE LAENGE FOLGT DER HOEHE, solange niemand sie eigens setzt: seit dem
+   * 5. September ist die Vorgabe H + 0.50 m. Das Feld zeigt deshalb, was
+   * gilt - und sagt daneben, woher es kommt.
+   */
+  const laengeVorgabe = () => Math.round((e.H + 0.5) * 100) / 100;
+
+  const koerper = () => `
+    <div class="feld"><label for="dlg-m-profil">Mastprofil</label>
+      <select id="dlg-m-profil">${MASTPROFILE.map((p) =>
+        `<option value="${esc(p.name)}"${p.name === e.profil ? ' selected' : ''}
+          >${esc(p.name)}</option>`).join('')}</select>
+      <small class="hinweis">Er bestimmt die Drehfeder am Jochende und trägt
+        den Nachweis über die ganze Höhe.</small></div>
+
+    <div class="feld"><label>Stegrichtung</label>
+      <div class="ank-lagen" role="radiogroup" aria-label="Stegrichtung">
+        ${STEGRICHTUNGEN.map((s) => `
+          <button type="button" class="btn btn-mini${
+              s.key === e.steg ? ' an' : ''}"
+            data-m-steg="${esc(s.key)}" role="radio"
+            aria-checked="${s.key === e.steg}"
+            title="${esc(s.kurz ?? s.label)}">${esc(s.label)}</button>`).join('')}
+      </div>
+      <small class="hinweis">Welche Achse quer zum Gleis steht — sie
+        entscheidet, ob die starke oder die schwache Achse das Joch
+        hält.</small></div>
+
+    <div class="feld"><label for="dlg-m-h">Anschlusshöhe</label>
+      <input id="dlg-m-h" type="number" step="0.1" min="2" max="20"
+             value="${e.H.toFixed(2)}">
+      <small class="hinweis">m · über dem Mastfuss. Dieselbe Zahl steht im
+        Fenster des Tragwerks.</small></div>
+
+    <div class="feld"><label for="dlg-m-l">Mastlänge gesamt</label>
+      <input id="dlg-m-l" type="number" step="0.1" min="2" max="25"
+             value="${(e.laenge > 0 ? e.laenge : laengeVorgabe()).toFixed(2)}">
+      <small class="hinweis">m · Fuss bis Kopf. Ohne eigene Angabe gilt
+        Anschlusshöhe + 0.50 m, hier also
+        ${laengeVorgabe().toFixed(2)} m.</small></div>
+
+    <div class="feld"><label for="dlg-m-x">Lage auf dem Querprofil</label>
+      <input id="dlg-m-x" type="number" step="0.05" value="${e.x.toFixed(2)}">
+      <small class="hinweis">m · quer zum Gleis, ab dem Nullpunkt der
+        Zeichnung.${(m.traegt ?? []).length > 1
+          ? ' Dieser Mast trägt zwei Tragwerke — die Stelle verschiebt beide.'
+          : ''}</small></div>
+
+    <p class="notiz">Fusspunkt, Zuganker und Windbeiwerte bleiben in der
+      Seitenleiste — sie haben Regelwerte, die man selten verlässt.</p>`;
+
+  const d = dialog(`${mastName(werte, m)} bearbeiten`, koerper(),
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-m-ok>Übernehmen</button>`);
+
+  const neu = () => {
+    d.node.querySelector('.dialog-koerper').innerHTML = koerper();
+    verdrahte();
+  };
+  function verdrahte() {
+    const n = d.node;
+    n.querySelectorAll('[data-m-steg]').forEach((b) => {
+      b.onclick = () => {
+        if (b.dataset.mSteg === e.steg) return;
+        e = { ...e, steg: b.dataset.mSteg };
+        neu();
+      };
+    });
+    const s = n.querySelector('#dlg-m-profil');
+    if (s) s.onchange = () => { e = { ...e, profil: s.value }; };
+    const zahl = (sel, feld) => {
+      const el = n.querySelector(sel);
+      if (!el) return;
+      el.oninput = () => {
+        const v = Number(el.value);
+        if (Number.isFinite(v)) e = { ...e, [feld]: v };
+      };
+    };
+    zahl('#dlg-m-h', 'H');
+    zahl('#dlg-m-l', 'laenge');
+    zahl('#dlg-m-x', 'x');
+    n.querySelector('[data-m-ok]').onclick = () => {
+      d.zu();
+      /*
+       * ERST DEN MASTEN WAEHLEN, DANN SCHREIBEN. `mastProfil`, `mastH` und
+       * die uebrigen gehoeren dem GEWAEHLTEN Masten - ohne diesen Schritt
+       * landeten sie bei einem anderen.
+       */
+      aendern('mastAktiv', m.id);
+      if (e.profil !== (m.profil ?? werte.mastProfil)) {
+        aendern('mastProfil', e.profil);
+      }
+      if (e.steg !== (m.steg ?? werte.mastSteg)) aendern('mastSteg', e.steg);
+      if (Math.abs(e.H - (Number(m.H) || Number(werte.mastH) || 0)) > 1e-9) {
+        aendern('mastH', e.H);
+      }
+      if (Number.isFinite(e.laenge) && e.laenge > 0
+          && Math.abs(e.laenge - (Number(m.laenge) || 0)) > 1e-9) {
+        aendern('mastLaenge', e.laenge);
+      }
+      if (Math.abs(e.x - (Number(m.x) || 0)) > 1e-9) aendern('mastX', e.x);
+    };
+  }
+  verdrahte();
+  return d;
+}
+
+/** Der erste Mast eines Tragwerks - an ihm haengt die Anschlusshoehe. */
+function erstenMastVon(t) {
+  if (!t?.id) return null;
+  return mastenVon(werte).find((m) => (m.traegt ?? []).includes(t.id)) ?? null;
+}
+
+/**
+ * Die Anschlusshoehe eines Tragwerks, gelesen an seinem ersten Masten.
+ *
+ * Steht sie dort nicht, gilt die des Satzes - so liest es die Maske auch
+ * (`amMast('H', 'mastH')` in ui.schema.js). Zwei Leseregeln fuer dieselbe
+ * Zahl waeren zwei Gelegenheiten, sich zu irren.
+ */
+function hoeheVonM1(t) {
+  const m = erstenMastVon(t);
+  const h = Number(m?.H);
+  return Number.isFinite(h) && h > 0 ? h : (Number(werte.mastH) || 7.5);
+}
+
 function dialogTragwerk(id = null, artVor = null) {
   const neuesTragwerk = !id;
   const alle = tragwerkeSortiert(werte);
@@ -6676,6 +6868,23 @@ function dialogTragwerk(id = null, artVor = null) {
     L: Number(vorlage?.L ?? werte.L) || 20,
     x0: neuesTragwerk ? (lageVon(vorlage) || 0) + (Number(vorlage?.L) || 0)
                       : lageVon(t),
+    /* =====================================================================
+     * >>> DIE ANSCHLUSSHOEHE GEHOERT INS FENSTER. <<<
+     * =====================================================================
+     *
+     * Weisung vom 16. September: «bei den jochen noch die anschlusshöhe
+     * (bezogen auf m1) ergänzen als feld.»
+     *
+     * Sie ist die dritte Zahl, die ein Joch beschreibt - Typ, Stützweite,
+     * Höhe -, und sie stand als einzige nicht hier. Wer ein Joch einrichtet,
+     * musste dafür in die Seitenleiste wechseln.
+     *
+     * BEZOGEN AUF M1, wie die Weisung sagt: die Höhe gehört dem MASTEN,
+     * nicht dem Tragwerk, und ein Joch hat zwei davon. Der erste ist der,
+     * an dem man sie ansetzt; der zweite folgt ihm, solange er nicht
+     * eigens verstellt ist. Das Feld sagt das auch.
+     */
+    H: hoeheVonM1(t ?? vorlage),
   };
   /*
    * KOMMT DIE ART AUS DEM MENUE, bringt sie ihr eigenes Sortiment mit - die
@@ -6755,6 +6964,14 @@ function dialogTragwerk(id = null, artVor = null) {
       <small class="hinweis">m${b.text
         ? ` · das Sortiment führt ${esc(b.text)}` : ''}</small></div>` : ''}
 
+    ${artDef().masten >= 1 ? `<div class="feld">
+      <label for="dlg-tw-h">Anschlusshöhe</label>
+      <input id="dlg-tw-h" type="number" step="0.1" min="2" max="20"
+             value="${e.H.toFixed(2)}">
+      <small class="hinweis">m · über dem Mastfuss, gemessen an
+        ${esc(erstenMastVon(t)?.id ?? 'M1')}. Der zweite Mast folgt ihr,
+        solange er nicht eigens verstellt ist.</small></div>` : ''}
+
     <div class="feld"><label for="dlg-tw-x">Lage auf dem Querprofil</label>
       <input id="dlg-tw-x" type="number" step="0.05" value="${e.x0.toFixed(2)}">
       <small class="hinweis">m · quer zum Gleis, in der Jochachse, ab dem
@@ -6815,6 +7032,7 @@ function dialogTragwerk(id = null, artVor = null) {
       };
     };
     zahl('#dlg-tw-l', 'L');
+    zahl('#dlg-tw-h', 'H');
     zahl('#dlg-tw-x', 'x0');
     n.querySelector('[data-tw-ok]').onclick = () => {
       d.zu();
@@ -6840,6 +7058,16 @@ function dialogTragwerk(id = null, artVor = null) {
       }
       if (mitLaenge()) aendern('L', e.L);
       aendern('tragwerkLage', { id, x: e.x0 });
+      /*
+       * DIE HOEHE ZULETZT, und ueber den MASTEN: `mastH` gehoert dem
+       * gewaehlten Masten, nicht dem Tragwerk. Erst M1 anwaehlen, dann
+       * schreiben - derselbe Weg, den die Seitenleiste geht.
+       */
+      const m1 = erstenMastVon(t);
+      if (m1 && Number.isFinite(e.H) && Math.abs(e.H - hoeheVonM1(t)) > 1e-9) {
+        aendern('mastAktiv', m1.id);
+        aendern('mastH', e.H);
+      }
     };
   }
   verdrahte();

@@ -11429,6 +11429,70 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> DAS FENSTER GIBT ES AUCH FUER DEN MASTEN. <<<
+     * =====================================================================
+     *
+     * Weisung vom 16. September: "diese fenster auch für die maste anzeigen.
+     * bei den jochen noch die anschlusshöhe (bezogen auf m1) ergänzen als
+     * feld. diese maske auch über das kontextmenue aufrufbar machen."
+     *
+     * Dasselbe Muster wie beim Tragwerk: was ein Bauteil AUSMACHT, steht in
+     * einem Fenster beisammen. Beim Masten sind das fuenf Zahlen - Profil,
+     * Stegrichtung, Anschlusshoehe, Gesamtlaenge, Stelle.
+     *
+     * Geprueft wird am Quelltext: `app.js` laesst sich ohne Fenster nicht
+     * laden.
+     */
+    {
+      const aq2 = readFileSync(
+        new URL('./js/app.js', import.meta.url), 'utf8');
+      wahr('Es gibt ein Fenster fuer den Masten',
+           aq2.includes('function dialogMast(mastId)'));
+      ['dlg-m-profil', 'dlg-m-h', 'dlg-m-l', 'dlg-m-x'].forEach((f) => {
+        wahr(`Es fuehrt ${f}`, aq2.includes(f));
+      });
+      wahr('… und die Stegrichtung als Knopfreihe',
+           aq2.includes('data-m-steg='));
+      /*
+       * ERST DEN MASTEN WAEHLEN, DANN SCHREIBEN - `mastProfil` und `mastH`
+       * gehoeren dem GEWAEHLTEN Masten. Ohne diesen Schritt landeten sie
+       * bei einem anderen.
+       */
+      const iOk = aq2.indexOf("n.querySelector('[data-m-ok]').onclick");
+      const blockOk = aq2.slice(iOk, iOk + 1200);
+      wahr('Das Fenster waehlt erst den Masten, dann schreibt es',
+           iOk > 0
+           && blockOk.indexOf("aendern('mastAktiv', m.id)")
+              < blockOk.indexOf("aendern('mastProfil'"));
+      /*
+       * >>> DIE ANSCHLUSSHOEHE STEHT AUCH IM TRAGWERKSFENSTER. <<<
+       *
+       * Sie ist die dritte Zahl, die ein Joch beschreibt - Typ, Stuetzweite,
+       * Hoehe -, und sie stand als einzige nicht dort. Bezogen auf M1: die
+       * Hoehe gehoert dem MASTEN, und ein Joch hat zwei davon.
+       */
+      wahr('Das Tragwerksfenster fuehrt die Anschlusshoehe',
+           aq2.includes('dlg-tw-h')
+           && aq2.includes('function hoeheVonM1(t)'));
+      wahr('… gelesen am ersten Masten des Tragwerks',
+           aq2.includes('function erstenMastVon(t)'));
+      wahr('… und geschrieben ueber ihn',
+           /aendern\('mastAktiv', m1\.id\)/.test(aq2));
+      /*
+       * >>> UND BEIDE FENSTER STEHEN IM KONTEXTMENUE. <<<
+       *
+       * Sie waren nur ueber den zweiten Klick auf ein angewaehltes Bauteil
+       * zu erreichen - ein Weg, den man kennen muss.
+       */
+      wahr('Das Tragwerksfenster steht im Kontextmenue',
+           /tun: \(\) => dialogTragwerk\(id\)/.test(aq2));
+      wahr('Das Mastfenster ebenso',
+           /tun: \(\) => dialogMast\(mastId\)/.test(aq2));
+      wahr('… und der Sprung in die Seitenleiste bleibt daneben',
+           aq2.includes("{ text: 'In der Seitenleiste bearbeiten', tun: () => {"));
+    }
+
+    /* =====================================================================
      * >>> EIN EINZELLASTFALL IST KEIN NACHWEIS. <<<
      * =====================================================================
      *
@@ -17510,9 +17574,25 @@ const CH9x = await import(J('core.checks.js'));
          r3.includes('this.opt.beiMass?.(mt.feld, mt.tab, mt.bt ?? null)'));
     wahr('Auch ein gedaempfter Titel ist anklickbar',
          r3.includes('ANKLICKBAR IST ER TROTZDEM'));
-    wahr('Die Anwendung waehlt erst das Tragwerk, dann den Masten',
-         rA.indexOf("aendern('tragwerkAktiv', bt.twId)")
-           < rA.indexOf("aendern('mastAktiv', m.id)"));
+    /*
+     * DIE REIHENFOLGE IM BLOCK, nicht in der Datei.
+     *
+     * Hier stand `rA.indexOf(...)` ueber die GANZE Datei - und fiel am
+     * 16. September, als das Mastfenster dazukam: dessen `mastAktiv` steht
+     * weiter oben, hat mit dem Masttitel aber nichts zu tun. Eine Kontrolle,
+     * die am falschen Ort misst, meldet einen Fehler, den es nicht gibt -
+     * und uebersieht den, den es geben koennte.
+     *
+     * Gemessen wird deshalb der Block `beiMass` selbst.
+     */
+    {
+      const i0 = rA.indexOf('beiMass: (feld, tab, bt) => {');
+      const blockM = rA.slice(i0, i0 + 800);
+      wahr('Die Anwendung waehlt erst das Tragwerk, dann den Masten',
+           i0 > 0
+           && blockM.indexOf("aendern('tragwerkAktiv', bt.twId)")
+              < blockM.indexOf("aendern('mastAktiv', m.id)"));
+    }
   }
 
   /*

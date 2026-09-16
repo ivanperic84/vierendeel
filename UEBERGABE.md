@@ -472,6 +472,33 @@ eine Verabredung ohne Zeugen* — jetzt ist die Station selbst der Schlüssel.
 führt jetzt `ANKERGELENK_A_LK/LF/RK/RF` mit «fest fest fest frei frei frei» —
 `ANKERKOPF` und `ANKERFUSS` stehen nicht mehr darin, sie sind Starrkörper.
 
+### Ein Fenster für den Masten, und die Anschlusshöhe beim Joch (16. September)
+
+Weisung: «diese fenster auch für die maste anzeigen. bei den jochen noch die
+anschlusshöhe (bezogen auf m1) ergänzen als feld. diese maske auch über das
+kontextmenue aufrufbar machen.»
+
+**`dialogMast`** führt fünf Zahlen: Profil, Stegrichtung, Anschlusshöhe,
+Gesamtlänge, Stelle auf dem Querprofil. Dasselbe Muster wie beim Tragwerk —
+was ein Bauteil *ausmacht*, steht beisammen statt verteilt über eine
+Seitenleiste, in der man scrollt.
+
+**Was nicht hineingehört:** Fusspunkt, Zuganker, Windbeiwerte, zweite
+Mastreihe. Sie haben Regelwerte, die man selten verlässt — dieselbe Regel wie
+in der Karte Anbauteile, hier strenger, weil ein Fenster kein Scrollen
+verträgt. Der Sprung in die Seitenleiste bleibt als zweiter Menüeintrag.
+
+**Die Anschlusshöhe im Tragwerksfenster** ist die dritte Zahl, die ein Joch
+beschreibt — Typ, Stützweite, Höhe —, und sie stand als einzige nicht dort.
+Bezogen auf M1, wie die Weisung sagt: die Höhe gehört dem *Masten*, und ein
+Joch hat zwei davon. Gelesen und geschrieben wird sie über denselben Weg wie
+in der Maske (`mastAktiv`, dann `mastH`); zwei Leseregeln für dieselbe Zahl
+wären zwei Gelegenheiten, sich zu irren.
+
+**Beide Fenster stehen jetzt zuoberst im Kontextmenü.** Sie waren nur über den
+zweiten Klick auf ein bereits angewähltes Bauteil zu erreichen — ein Weg, den
+man kennen muss.
+
 ### Der Reiter Auflager: Mastfuss zuerst (16. September)
 
 Weisung: «bei den reaktionskräfte die mastfuss als primären output nehmen,
