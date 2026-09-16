@@ -5024,8 +5024,6 @@ async function zeichneSchublade() {
     <div class="bs-kopf">
       <button class="btn" data-neu>${icon('neu', 13)} Neues Tragwerk</button>
       <button class="btn btn-acc" data-speichern>${icon('speichern', 13)} ${projekt.id ? 'Speichern' : 'In Ablage speichern'}</button>
-      <button class="btn" data-speichern-neu>Als neues Tragwerk speichern</button>
-      <button class="btn" data-vorlage-neu>Als Vorlage sichern</button>
       <button class="btn btn-mini bs-zu" data-zu>Schliessen</button>
     </div>
     <div class="bs-spalten bs-drei">
@@ -5057,6 +5055,9 @@ async function zeichneSchublade() {
       </div>
       <div>${abschnitt('Vorlagen ganzer Tragwerke', 'anwenden legt sich auf den Stand')}
         ${vorlagenHtml}
+        <div class="lf-fuss">
+          <button class="btn btn-mini" data-vorlage-neu>Als Vorlage sichern</button>
+        </div>
         <p class="notiz" style="margin-top:8px">Eine Vorlage bringt Typ, Profile,
           Trasse, Anbauteile und Lastfälle mit. Die <b>Jochlänge</b> bleibt, wie
           sie ist, sonst würde das Anwenden das Bauteil umbauen.</p>
@@ -5193,7 +5194,6 @@ async function zeichneSchublade() {
   auf('[data-zu]', schubladeSchliessen);
   auf('[data-neu]', () => { schubladeSchliessen(); neuesTragjoch(); });
   auf('[data-speichern]', () => ablageSpeichern(false));
-  auf('[data-speichern-neu]', () => ablageSpeichern(true));
   auf('[data-vorlage-neu]', dialogTragwerkVorlage);
   auf('[data-laden]', (b) => eintragLaden(b.dataset.laden, true));
   auf('[data-kopie]', async (b) => {
