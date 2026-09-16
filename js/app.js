@@ -872,7 +872,36 @@ function zeichneAuswertung() {
   });
   const node = ui.el('auswertung');
   if (tabAuswertung === 'uebersicht') {
-    ui.zeichneUebersicht(node, erg, urteil, springeZu, station, hinw);
+    /* =====================================================================
+     * >>> DIE UEBERSICHT URTEILT AUF DER BEMESSUNG, NICHT AUF DER ANZEIGE.
+     * =====================================================================
+     *
+     * Weisung vom 16. September: «die ausnutzung sollte sich immer auf die
+     * bemessung aller relevanten kombinationen beziehen. in der übersicht
+     * müsste ein schalter noch sein ob man den aktuellen lastfall oder die
+     * bemessungswerte global anzeigen will, sonst geht man gefahr, beim
+     * versehentlichen umschalten auf einen lastfall grüne kacheln zu sehen
+     * und in der hauptkachel heisst noch zusätzlich Tragsicherheit erfüllt,
+     * was nicht korrekt ist nach sia, da nicht massgebende kombination
+     * beachtet.»
+     *
+     * Das ist keine Kosmetik. Ein einzelner Lastfall ist KEIN Nachweis: die
+     * Norm verlangt die ungünstigste Kombination, und die steht in der
+     * Hüllkurve. Wer versehentlich umschaltet, bekam bisher kleinere Zahlen,
+     * grüne Kacheln und «Tragsicherheit erfüllt» daneben - drei Aussagen,
+     * von denen die dritte falsch war.
+     *
+     * Die Hüllkurve wandert deshalb IMMER mit, gleichgültig was die Anzeige
+     * gerade zeigt. Was die Kacheln zeigen, entscheidet ein Schalter in der
+     * Übersicht; was das Urteil sagt, entscheidet die Hüllkurve.
+     */
+    ui.zeichneUebersicht(node, erg, urteil, springeZu, station, hinw,
+                         { bemessung: kombi.huellkurve ?? null,
+                           quelle: anzeigeKombi,
+                           lastfallName: anzeigeKombi === 'umhuellend' ? null
+                             : (kombi.lastfaelle
+                                 ?.find((k) => k.key === anzeigeKombi)?.bez
+                                ?? anzeigeKombi) });
   } else if (tabAuswertung === 'schnitt') {
     /*
      * >>> DAS ABFANGJOCH HAT SEINEN EIGENEN SCHNITT. <<<

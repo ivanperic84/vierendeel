@@ -339,6 +339,8 @@ export function schraegesProfil(p0, p1, poly, opt = {}) {
  *   farbeBauteil  Farbe, wenn kein Nachweis vorliegt
  *   anker         {typ, h, a, richtung, seite} am Masten, oder null
  *   ankerSpreiz   Spreizmass der Stuetze aus dem Sortiment (oder null)
+ *   ankerEta      Ausnutzung der Stuetze [-] - damit sie im Plot ihre
+ *                 Farbe bekommt statt grau zu bleiben
  *   ankerProfil   Querschnitt der Stuetze {h,b,tw,tf,ey} in cm - damit
  *                 werden aus den beiden Staeben zwei C
  *   ankerBleche   (L) => [{x, A, B}] - die Bindebleche ueber die Stablaenge,
@@ -667,8 +669,26 @@ function ankerTeile(o, halb, zFuss, zKopf) {
       for (let i2 = 1; i2 < stuetz.length; i2 += 1) {
         const a2 = punktAuf(stuetz[i2 - 1], vzP);
         const b3 = punktAuf(stuetz[i2], vzP);
+        /*
+         * >>> DIE STUETZE TRAEGT IHRE AUSNUTZUNG. <<<
+         *
+         * Weisung vom 16. September: «kann man noch die druckstütze bei der
+         * ausnutzung in der entsprechender farbe darstellen und nicht
+         * einfach nur grau im 3d.»
+         *
+         * Sie hatte kein `werte`-Feld, und die Einfärbung liest genau das -
+         * also blieb sie grau, während Gurte und Masten längst farbig
+         * waren. Ihr η steht auf CHARAKTERISTISCHEN Kräften (Blattkurve
+         * gegen vorhandene Kraft); auf derselben Skala wie das Joch gezeigt
+         * ist das eine Näherung, aber eine, die man sieht - und grau sagte
+         * gar nichts.
+         */
         const opt2 = { gruppe: 'mast', teil: `ANKER_${name}`,
-                       label: `Anker ${name} · ${wie}` };
+                       ...(Number.isFinite(o.ankerEta)
+                         ? { werte: { eta: o.ankerEta } } : {}),
+                       label: `Anker ${name} · ${wie}`
+                            + (Number.isFinite(o.ankerEta)
+                               ? ` · η ${o.ankerEta.toFixed(3)}` : '') };
         flaechen.push(...(uv
           ? schraegesProfil(a2, b3, uv, { ...opt2, querAchse: spreizAchse })
           : schraegerStab(a2, b3, dick, dick, opt2)));
@@ -750,6 +770,8 @@ function ankerTeile(o, halb, zFuss, zKopf) {
                     r[2] + (vzB * vsz + vzT * tB / 2) * hE[2]];
           };
           const optB = { gruppe: 'mast', teil: `ANKER_${name}`,
+                         ...(Number.isFinite(o.ankerEta)
+                           ? { werte: { eta: o.ankerEta } } : {}),
                          label: `Bindeblech ${name} · FLA ${bm.laenge}/`
                               + `${bm.dicke ?? 8}` };
           const xM = (e1.p[0] + e2.p[0]) / 2;

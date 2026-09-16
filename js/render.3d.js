@@ -753,6 +753,16 @@ export function erzeugeSzene(m, erg) {
           nachweis: erg?.mast?.[name] ?? null,
           anker: mast.anker ?? null,
           /*
+           * >>> UND IHRE AUSNUTZUNG (16. September). <<<
+           *
+           * Weisung: «kann man noch die druckstütze bei der ausnutzung in
+           * der entsprechender farbe darstellen und nicht einfach nur grau
+           * im 3d.» Der Nachweis steht in `erg.anker[ende]`; die Szene
+           * reicht nur die Zahl weiter, denn `render.koerper.js` kennt
+           * keinen Nachweis.
+           */
+          ankerEta: erg?.anker?.[name]?.nachweis?.eta ?? null,
+          /*
            * DAS SPREIZMASS KOMMT AUS DEM SORTIMENT, nicht aus der Szene:
            * `render.koerper.js` ist reine Geometrie und laedt keine
            * Datenbank. Derselbe Weg, den `ankerText` vor ihm ging.

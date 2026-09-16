@@ -11429,6 +11429,76 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> EIN EINZELLASTFALL IST KEIN NACHWEIS. <<<
+     * =====================================================================
+     *
+     * Weisung vom 16. September: "die ausnutzung sollte sich immer auf die
+     * bemessung aller relevanten kombinationen beziehen ... sonst geht man
+     * gefahr, beim versehentlichen umschalten auf einen lastfall gruene
+     * kacheln zu sehen und in der hauptkachel heisst noch zusaetzlich
+     * Tragsicherheit erfuellt, was nicht korrekt ist nach sia, da nicht
+     * massgebende kombination beachtet."
+     *
+     * Die Norm verlangt die unguenstigste Kombination. Ein Lastfall zeigt,
+     * WAS eine einzelne Einwirkung anrichtet - er beantwortet nicht die
+     * Frage, ob das Bauteil haelt. Bis hierher stand "Tragsicherheit
+     * erfuellt" auch dann da.
+     *
+     * Geprueft wird am Quelltext: `ui.js` laesst sich ohne Fenster nicht
+     * laden. Die Aussage ist trotzdem festzunageln - sie ist die einzige
+     * im Werkzeug, bei der ein Fehler als GRUENE Kachel erscheint.
+     */
+    {
+      const uq3 = readFileSync(
+        new URL('./js/ui.js', import.meta.url), 'utf8');
+      wahr('Die Uebersicht kennt die Quelle ihrer Zahlen',
+           uq3.includes('const einzelLastfall = opt.quelle')
+           && uq3.includes('function quellSchalter(opt, einzel, eBem)'));
+      wahr('Beim Einzellastfall faellt das Tragsicherheitsurteil weg',
+           uq3.includes('Einzellastfall — kein Tragsicherheitsurteil'));
+      wahr('… und die Zeile nennt die Bemessung daneben',
+           uq3.includes('Die Bemessung über alle Kombinationen gibt'));
+      /*
+       * DIE BEMESSUNG WANDERT IMMER MIT - sonst haette die Uebersicht keine
+       * Zahl, gegen die sie den Lastfall stellen koennte.
+       */
+      const aq = readFileSync(
+        new URL('./js/app.js', import.meta.url), 'utf8');
+      wahr('Die Huellkurve kommt unabhaengig von der Anzeige an',
+           /bemessung: kombi\.huellkurve \?\? null/.test(aq)
+           && /quelle: anzeigeKombi/.test(aq));
+      /*
+       * >>> DIE KNICKEN-KACHEL FOLGT DER NACHWEISAUSWAHL. <<<
+       *
+       * Weisung: "die kachel knicken mast ausblenden wenn der nachweis in
+       * den optionen nicht aktiv geschalten ist." Wer das Knicken
+       * abschaltet, tut es mit Grund - eine Knickzahl, die daneben
+       * stehenbliebe, waere eine Auskunft ueber eine Rechnung, die man
+       * ausdruecklich nicht fuehrt.
+       */
+      wahr('Die Knicken-Kachel steht nur bei gefuehrtem Nachweis',
+           /if \(e\.knick && urteil\.nachweise\?\.knickenMast !== false\)/
+             .test(uq3));
+      wahr('… und heisst nach dem Bauteil, nicht nach dem Masten',
+           uq3.includes('`Knicken Stütze ${name}`'));
+      /*
+       * >>> UND DIE STUETZE TRAEGT IHRE AUSNUTZUNG. <<<
+       *
+       * Weisung: "kann man noch die druckstuetze bei der ausnutzung in der
+       * entsprechender farbe darstellen und nicht einfach nur grau im 3d."
+       * Sie hatte kein `werte`-Feld, und die Einfaerbung liest genau das.
+       */
+      const kq = readFileSync(
+        new URL('./js/render.koerper.js', import.meta.url), 'utf8');
+      wahr('Der Ankerkoerper traegt ein eta, wenn eines da ist',
+           kq.includes('{ werte: { eta: o.ankerEta } }'));
+      const rq = readFileSync(
+        new URL('./js/render.3d.js', import.meta.url), 'utf8');
+      wahr('… und die Szene reicht es herein',
+           rq.includes('ankerEta: erg?.anker?.[name]?.nachweis?.eta ?? null'));
+    }
+
+    /* =====================================================================
      * >>> DER REITER AUFLAGER ZEIGT DEN MASTFUSS ZUERST. <<<
      * =====================================================================
      *

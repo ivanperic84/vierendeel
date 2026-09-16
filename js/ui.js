@@ -4235,9 +4235,67 @@ export function zeichneEinzelmast(node, letzte) {
           : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>');
 }
 
-export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, hinweise = []) {
-  const m = erg.modell, x = erg.extrem;
-  const e = erg.max.etaGesamt;
+/* ===========================================================================
+ * >>> EIN EINZELNER LASTFALL IST KEIN NACHWEIS. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «die ausnutzung sollte sich immer auf die
+ * bemessung aller relevanten kombinationen beziehen ... sonst geht man
+ * gefahr, beim versehentlichen umschalten auf einen lastfall grüne kacheln zu
+ * sehen und in der hauptkachel heisst noch zusätzlich Tragsicherheit erfüllt,
+ * was nicht korrekt ist nach sia, da nicht massgebende kombination beachtet.»
+ *
+ * Die Norm verlangt die ungünstigste Kombination. Ein Lastfall zeigt, WAS
+ * eine einzelne Einwirkung anrichtet - er beantwortet nicht die Frage, ob das
+ * Bauteil hält.
+ *
+ * >>> DAS URTEIL STEHT DESHALB IMMER AUF DER HUELLKURVE. <<<
+ *
+ * `bemessung` wandert unabhängig von der Anzeige mit. Zeigen die Kacheln
+ * einen Lastfall, steht daneben nicht «Tragsicherheit erfüllt», sondern was
+ * dann zutrifft: dass hier kein Urteil steht. Die Zahl bleibt richtig, nur
+ * ihre Bedeutung wird nicht überdehnt.
+ *
+ * @param {object} opt {bemessung, quelle, lastfallName}
+ * ========================================================================= */
+/* ---------------------------------------------------------------------------
+ * DER SCHALTER ÜBER DER ÜBERSICHT.
+ *
+ * Er zeigt, worauf die Zahlen darunter stehen, und führt zurück. Umgeschaltet
+ * wird oben im Lastfallwähler - dort gehört die Wahl hin; hier steht, was sie
+ * bedeutet. Ein zweiter Wähler an zweiter Stelle wäre eine zweite Wahrheit.
+ * ------------------------------------------------------------------------- */
+function quellSchalter(opt, einzel, eBem) {
+  if (!einzel) {
+    return `<p class="notiz quellzeile" style="margin:0 0 6px">
+      <b>Bemessung</b> — umhüllend über alle Kombinationen. Das ist die
+      Grundlage des Urteils.</p>`;
+  }
+  return `<p class="notiz quellzeile warn" style="margin:0 0 6px">
+    <b>Einzellastfall${opt.lastfallName ? `: ${esc(opt.lastfallName)}` : ''}</b>
+    — die Zahlen darunter gelten NUR für diesen Fall und sind kein Nachweis.
+    Die Bemessung über alle Kombinationen gibt
+    <b>η ${f3(eBem)}</b>. Oben im Lastfallwähler auf «umhüllend»
+    zurückschalten.</p>`;
+}
+
+export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
+                                  hinweise = [], opt = {}) {
+  /*
+   * WAS DIE KACHELN ZEIGEN, und was das Urteil trägt: zwei Dinge, seit dem
+   * 16. September auseinandergehalten. `zeig` ist die Anzeige, `bem` die
+   * Bemessung - beim Regelfall dasselbe Objekt.
+   */
+  const einzelLastfall = opt.quelle && opt.quelle !== 'umhuellend';
+  const bem = (einzelLastfall && opt.bemessung) ? opt.bemessung : erg;
+  const zeig = erg;
+  const m = zeig.modell, x = zeig.extrem;
+  const e = zeig.max.etaGesamt;
+  /*
+   * DAS GROESSERE VON BEIDEM STEHT IN DER HAUPTKACHEL, wenn ein Lastfall
+   * gezeigt wird - sonst läse man die kleinere Zahl als Ergebnis.
+   */
+  const eBem = bem?.max?.etaGesamt ?? e;
   /*
    * OHNE DEN TRAGWERKSNACHWEIS IST η KEIN URTEIL MEHR.
    *
@@ -4505,9 +4563,24 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
        * zulässigen Kräften - nebeneinander grün und grün zu färben hiesse,
        * sie seien dasselbe.
        */
-      if (e.knick) {
+      /*
+       * >>> UND SIE STEHT NUR DA, WENN KNICKEN GEFUEHRT WIRD. <<<
+       *
+       * Weisung vom 16. September: «die kachel knicken mast ausblenden wenn
+       * der nachweis in den optionen nicht aktiv geschalten ist.»
+       *
+       * Wer das Knicken abschaltet, tut es mit Grund - die Leiter halten den
+       * Masten (siehe Nachweisgruppe `knickenMast`). Eine Knickzahl, die
+       * daneben stehenbliebe, wäre dann eine Auskunft über eine Rechnung,
+       * die man ausdrücklich nicht führt.
+       *
+       * DIE KACHEL HEISST JETZT NACH DEM BAUTEIL, nicht nach dem Masten:
+       * sie gehört der STÜTZE an diesem Masten. «Knicken M2» las sich wie
+       * eine Angabe über M2 selbst.
+       */
+      if (e.knick && urteil.nachweise?.knickenMast !== false) {
         const k = e.knick;
-        kz.push(kachel(`Knicken ${name}`, `${f0(k.NbRd)} kN`,
+        kz.push(kachel(`Knicken Stütze ${name}`, `${f0(k.NbRd)} kN`,
           `N_b,Rd · λ̄ ${f2(k.lambda)} · χ ${f3(k.chi)}`, '', {
             titel: `Euler und Knicklinie c SENKRECHT zur Spreizebene — dort `
                  + `ist der Querschnitt konstant (I = ${f0(k.I)} cm⁴, ohne `
@@ -4633,18 +4706,36 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation, h
       }))
       .sort((a, b) => b.eta - a.eta).slice(0, 12);
 
-  node.innerHTML = `
-    <div class="urteil ${zustand}">
-      <span class="urteil-zahl">η ${f3(eAn)}</span>
-      <span>${!gefuehrt
+  /* =======================================================================
+   * >>> DIE ZEILE SAGT, WORAUF SIE STEHT. <<<
+   * =======================================================================
+   *
+   * Zeigen die Kacheln einen einzelnen Lastfall, gibt es hier KEIN
+   * Tragsicherheitsurteil - die Norm verlangt die ungünstigste Kombination,
+   * und die steht in der Hüllkurve. Bis zum 16. September stand «Tragsicherheit
+   * erfüllt» auch dann da, und das war schlicht falsch.
+   *
+   * Die Zahl bleibt die des gezeigten Lastfalls; daneben steht die der
+   * Bemessung, damit man sieht, wie weit die beiden auseinanderliegen.
+   */
+  const urteilText = einzelLastfall
+    ? `Einzellastfall — kein Tragsicherheitsurteil`
+    : (!gefuehrt
         ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
         : (eAn <= 1
             ? (mastUeber
                 ? `Joch erfüllt, MAST NICHT (η ${f3(mastEta)})`
                 : 'Tragsicherheit erfüllt')
-            : 'Tragsicherheit NICHT erfüllt')}${
-        urteil.alleOk ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`}${
-        offeneNw ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
+            : 'Tragsicherheit NICHT erfüllt'));
+  node.innerHTML = `
+    ${quellSchalter(opt, einzelLastfall, eBem)}
+    <div class="urteil ${einzelLastfall ? 'warn' : zustand}">
+      <span class="urteil-zahl">η ${f3(eAn)}</span>
+      <span>${urteilText}${
+        einzelLastfall ? '' : (urteil.alleOk
+          ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`)}${
+        (!einzelLastfall && offeneNw)
+          ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
       ${/*
          * DER MASSGEBENDE FALL steht neben der Zahl (Weisung, 9. September:
          * die Regliertemperatur haengt an der Kombination). «η 0.72» sagt
