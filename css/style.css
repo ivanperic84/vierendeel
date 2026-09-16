@@ -1138,6 +1138,14 @@ button.wz-haupt:hover { color: var(--on); }
 .urteil.ok   { background: var(--ok-s);   color: var(--ok);   border-color: var(--ok); }
 .urteil.nok  { background: var(--fail-s); color: var(--fail); border-color: var(--fail); }
 .urteil.warn { background: var(--warn-s); color: var(--warn); border-color: var(--warn); }
+/* >>> OHNE URTEIL KEINE FARBE (Weisung, 16. September). <<<
+   Beim Einzellastfall wird nicht geurteilt - und eine Farbe, die kein Urteil
+   trägt, gibt es nicht. Auch Gelb wäre eine Aussage («Vorsicht, aber
+   gerechnet»); gemeint ist, dass hier gar nichts entschieden wird. */
+.urteil.ohne {
+  background: var(--s2); color: var(--on2); border-color: var(--ol);
+}
+.urteil.ohne .urteil-zahl { color: var(--dim); }
 .urteil-zahl { font-family: var(--f-mono); font-size: 21px; font-weight: 600; }
 /* Die nicht gefuehrten Nachweise stehen direkt unter dem Urteil, in der
    Warnfarbe: sie sind kein Fehler, aber auch nichts, was man uebersieht. */
@@ -2428,11 +2436,16 @@ body.datei-ueber::after {
    wie eine Steigerung, mit einem Trenner dazwischen liest man zwei Gruppen.
    Die Gruppe erbt das Flex-Verhalten, damit die Pillen weiter die Hoehe
    fuellen - sonst saessen sie oben und der Rest bliebe leer. */
-.nw-gruppe {
-  display: flex; flex-direction: column; gap: 4px;
-  flex: 1 1 auto; min-height: 0;
-}
-.nw-gruppe > div { flex: 1 1 auto; min-height: 0; }
+/* >>> ALLE PILLEN GLEICH LANG (Weisung, 16. September). <<<
+   Die Gruppe war ein eigener Flexcontainer mit `flex: 1 1 auto` - damit
+   bekam JEDE GRUPPE gleich viel Raum, gleichgültig ob drei Pillen darin
+   standen oder eine. Die einzelne Ankerpille wurde so dreimal so lang wie
+   eine Gurtpille.
+   `display: contents` löst die Gruppe auf: ihre Pillen werden direkte Kinder
+   der Schiene und teilen sich den Raum untereinander. Verloren geht nichts -
+   der Gruppentitel steht ohnehin im `title` jeder einzelnen Pille. */
+.nw-gruppe { display: contents; }
+.schiene-nw > div, .nw-gruppe > div { flex: 1 1 0; min-height: 0; }
 .nw-gruppe-trenner {
   flex: 0 0 auto; height: 1px; margin: 3px 4px;
   background: var(--ol);

@@ -11429,6 +11429,60 @@ titel('42  Der lange Mast mit Zusatzleitern');
     }
 
     /* =====================================================================
+     * >>> DIE PILLEN SIND GLEICH LANG, UND OHNE URTEIL OHNE FARBE. <<<
+     * =====================================================================
+     *
+     * Weisung vom 16. September: "bei den pillen, alle gleich lang machen,
+     * beim anker noch ergaenzung anschreiben, damit es nicht gleich ist wie
+     * beim mast m2. bei der kachel, wenn kein tragsicherheitsurteil, dann
+     * ohne farbe, das gleiche gilt auch fuer die einzelnen bauteil kacheln."
+     *
+     * >>> WARUM SIE UNGLEICH WAREN. <<<
+     *
+     * `.nw-gruppe` war ein eigener Flexcontainer mit `flex: 1 1 auto` -
+     * damit bekam jede GRUPPE gleich viel Raum, gleichgueltig ob drei
+     * Pillen darin standen oder eine. Die einzelne Ankerpille wurde so
+     * dreimal so lang wie eine Gurtpille. `display: contents` loest die
+     * Gruppe auf; verloren geht nichts, denn der Gruppentitel steht ohnehin
+     * im `title` jeder Pille.
+     *
+     * >>> UND WARUM AUCH GELB EINE AUSSAGE WAERE. <<<
+     *
+     * Mein erster Anlauf faerbte die Hauptkachel beim Einzellastfall GELB.
+     * Das heisst "Vorsicht, aber gerechnet" - gemeint ist etwas anderes:
+     * hier wird NICHT geurteilt. Eine Farbe, die kein Urteil traegt, gibt
+     * es nicht.
+     */
+    {
+      const cq = readFileSync(
+        new URL('./css/style.css', import.meta.url), 'utf8');
+      wahr('Die Pillengruppe teilt den Raum nicht mehr auf',
+           /\.nw-gruppe \{ display: contents; \}/.test(cq));
+      wahr('… und jede Pille bekommt denselben Anteil',
+           cq.includes('.schiene-nw > div, .nw-gruppe > div { flex: 1 1 0;'));
+      wahr('Ohne Urteil traegt die Kachel keine Farbe',
+           /\.urteil\.ohne \{/.test(cq));
+      const uq4 = readFileSync(
+        new URL('./js/ui.js', import.meta.url), 'utf8');
+      wahr('Die Uebersicht schaltet die Ampel ab, wo sie nicht urteilt',
+           uq4.includes("const ampelU = (v) => (einzelLastfall ? '' : ampel(v))"));
+      wahr('… und benutzt sie auch',
+           (uq4.match(/ampelU\(/g) ?? []).length >= 8);
+      wahr('Die Hauptkachel ist dann farblos, nicht gelb',
+           uq4.includes("einzelLastfall ? 'ohne' : zustand"));
+      const aq3 = readFileSync(
+        new URL('./js/app.js', import.meta.url), 'utf8');
+      wahr('Die Pillen ebenso',
+           aq3.includes("anzeigeKombi === 'umhuellend' ? stufe(v) : ''"));
+      /*
+       * DIE ANKERPILLE HEISST NICHT WIE DER MAST. In der Schiene standen
+       * zwei Pillen "M2" untereinander, eine mit 0.95 und eine mit 0.11.
+       */
+      wahr('Die Ankerpille traegt ihre eigene Anschrift',
+           aq3.includes('teile.push([`Ank ${name}`,'));
+    }
+
+    /* =====================================================================
      * >>> DAS FENSTER GIBT ES AUCH FUER DEN MASTEN. <<<
      * =====================================================================
      *

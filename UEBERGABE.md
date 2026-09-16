@@ -472,6 +472,38 @@ eine Verabredung ohne Zeugen* — jetzt ist die Station selbst der Schlüssel.
 führt jetzt `ANKERGELENK_A_LK/LF/RK/RF` mit «fest fest fest frei frei frei» —
 `ANKERKOPF` und `ANKERFUSS` stehen nicht mehr darin, sie sind Starrkörper.
 
+### Gleich lange Pillen, und ohne Urteil keine Farbe (16. September)
+
+Weisung: «bei den pillen, alle gleich lang machen, beim anker noch ergänzung
+anschreiben, damit es nicht gleich ist wie beim mast m2. bei der kachel, wenn
+kein tragsicherheitsurteil, dann ohne farbe, das gleiche gilt auch für die
+einzelnen bauteil kacheln.»
+
+**Warum sie ungleich waren.** `.nw-gruppe` war ein eigener Flexcontainer mit
+`flex: 1 1 auto` — damit bekam jede *Gruppe* gleich viel Raum, gleichgültig ob
+drei Pillen darin standen oder eine. Die einzelne Ankerpille wurde so dreimal
+so lang wie eine Gurtpille. `display: contents` löst die Gruppe auf; ihre
+Pillen werden direkte Kinder der Schiene und teilen sich den Raum
+untereinander. Verloren geht nichts — der Gruppentitel steht ohnehin im
+`title` jeder Pille. **Gemessen: sechs Pillen, alle 95 px, Spanne 0.**
+
+**Die Ankerpille trug den Mastnamen.** In der Schiene standen zwei Pillen
+«M2» untereinander, eine mit 0.95 und eine mit 0.11 — und nichts sagte, dass
+die zweite der Stütze gehört. Sie heisst jetzt «Ank M2».
+
+**Und auch Gelb wäre eine Aussage gewesen.** Mein erster Anlauf färbte die
+Hauptkachel beim Einzellastfall gelb — das heisst «Vorsicht, aber gerechnet».
+Gemeint ist etwas anderes: hier wird *nicht* geurteilt. Eine Farbe, die kein
+Urteil trägt, gibt es nicht; also keine. `ampelU` schweigt beim Einzellastfall
+an allen zehn Stellen der Übersicht, die Hauptkachel bekommt `urteil ohne`.
+
+**Die Pillen gehörten mit dazu**, auch ohne dass es in der Weisung stand: sie
+zeigen dieselben Zahlen wie die Kacheln, und beim Einzellastfall waren sie
+grün, während die Übersicht daneben grau war — zwei Aussagen über dieselbe
+Sache. Einheitlich für alle sechs, auch die des Ankers: seine Zahl hängt zwar
+nicht an der Anzeigewahl, aber eine farbige Pille zwischen fünf grauen liesse
+sich als Urteil über das ganze Tragwerk lesen.
+
 ### Ein Fenster für den Masten, und die Anschlusshöhe beim Joch (16. September)
 
 Weisung: «diese fenster auch für die maste anzeigen. bei den jochen noch die

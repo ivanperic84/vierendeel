@@ -5712,7 +5712,19 @@ function zeichneSchienen() {
         const wie = `${name} · ${nw.typ} · ${nw.N >= 0 ? 'Zug' : 'Druck'} `
           + `${Math.abs(nw.N).toFixed(1)} kN charakteristisch`
           + (nw.lieferbar === false ? ' · ÜBER DEM SORTIMENT' : '');
-        teile.push([name, Number.isFinite(nw.eta) ? nw.eta : null, wie]);
+        /*
+         * >>> DIE PILLE HEISST NICHT WIE DER MAST. <<<
+         *
+         * Weisung vom 16. September: «beim anker noch ergänzung anschreiben,
+         * damit es nicht gleich ist wie beim mast m2.»
+         *
+         * Sie trug den MASTNAMEN - in der Schiene standen dann zwei Pillen
+         * «M2» untereinander, eine mit 0.95 und eine mit 0.11, und nichts
+         * sagte, dass die zweite der Stütze gehört. Der Gruppentitel steht
+         * nur im Tooltip, und den liest niemand im Vorbeigehen.
+         */
+        teile.push([`Ank ${name}`,
+                    Number.isFinite(nw.eta) ? nw.eta : null, wie]);
       });
       if (teile.length) gruppen.push({ titel: 'Anker · char.', teile });
     }
@@ -5729,8 +5741,23 @@ function zeichneSchienen() {
          `<div class="schiene-nw">${gruppen.map((g, i) =>
            (i ? '<span class="nw-gruppe-trenner"></span>' : '') +
            `<span class="nw-gruppe" title="${esc(g.titel)}">${
+             /*
+              * >>> OHNE URTEIL KEINE FARBE - AUCH HIER. <<<
+              *
+              * Weisung vom 16. September zur Uebersicht: «wenn kein
+              * tragsicherheitsurteil, dann ohne farbe.» Die Pillen zeigen
+              * dieselben Zahlen wie die Kacheln, und beim Einzellastfall
+              * waren sie gruen, waehrend die Uebersicht daneben grau war -
+              * zwei Aussagen ueber dieselbe Sache.
+              *
+              * EINHEITLICH FUER ALLE PILLEN, auch die des Ankers: seine
+              * Zahl haengt zwar nicht an der Anzeigewahl (er rechnet auf
+              * charakteristischen Lastfaellen), aber eine farbige Pille
+              * zwischen fuenf grauen laese sich als Urteil ueber das ganze
+              * Tragwerk lesen. Der Tooltip sagt weiterhin, was sie ist.
+              */
              g.teile.map(([k, v, titel]) =>
-               `<div class="${stufe(v)}"
+               `<div class="${anzeigeKombi === 'umhuellend' ? stufe(v) : ''}"
                      title="${esc(`${g.titel} · ${titel}`)}: η = ${
                        Number.isFinite(v) ? v.toFixed(3)
                          : 'nicht geführt'}">

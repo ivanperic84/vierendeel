@@ -4296,6 +4296,25 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * gezeigt wird - sonst läse man die kleinere Zahl als Ergebnis.
    */
   const eBem = bem?.max?.etaGesamt ?? e;
+  /* =======================================================================
+   * >>> OHNE URTEIL KEINE FARBE. <<<
+   * =======================================================================
+   *
+   * Weisung vom 16. September: «bei der kachel, wenn kein
+   * tragsicherheitsurteil, dann ohne farbe, das gleiche gilt auch für die
+   * einzelnen bauteil kacheln.»
+   *
+   * Sie hat recht, und sie geht weiter als mein erster Anlauf: ich hatte die
+   * Hauptkachel beim Einzellastfall GELB gemacht - auch das ist eine
+   * Aussage, und zwar «Vorsicht, aber gerechnet». Gemeint ist etwas anderes:
+   * hier wird NICHT geurteilt. Eine Farbe, die kein Urteil trägt, gibt es
+   * nicht; also keine.
+   *
+   * `ampelU` steht deshalb überall dort, wo bisher `ampel` stand - sie gibt
+   * dieselbe Farbe, solange die Bemessung gezeigt wird, und nichts, wenn es
+   * ein einzelner Lastfall ist.
+   */
+  const ampelU = (v) => (einzelLastfall ? '' : ampel(v));
   /*
    * OHNE DEN TRAGWERKSNACHWEIS IST η KEIN URTEIL MEHR.
    *
@@ -4399,20 +4418,20 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    */
   const kz = ab ? [
     kachel('η Gurt', f3(ab.gurt?.eta ?? 0), ab.q.gurt.name,
-           ampel(ab.gurt?.eta ?? 0), { x: ab.gurt?.x ?? 0 }),
+           ampelU(ab.gurt?.eta ?? 0), { x: ab.gurt?.x ?? 0 }),
     kachel('η Bindeblech', f3(ab.blech?.eta ?? 0),
            ab.blech ? `Station ${(ab.blech.x ?? 0).toFixed(2)} m` : 'kein Blech',
-           ampel(ab.blech?.eta ?? 0), { x: ab.blech?.x ?? 0 }),
+           ampelU(ab.blech?.eta ?? 0), { x: ab.blech?.x ?? 0 }),
     kachel('N Gurt', `${(ab.gurt?.N ?? 0).toFixed(0)} kN`,
            `Kräftepaar · e = ${(ab.q.e).toFixed(1)} cm`, 'ok',
            { x: ab.gurt?.x ?? 0 }),
   ] : [
     kachel('η Obergurt', f3(erg.max.etaOG.og.eta), m.profOG.name,
-           ampel(erg.max.etaOG.og.eta), bei(erg.max.etaOG)),
+           ampelU(erg.max.etaOG.og.eta), bei(erg.max.etaOG)),
     kachel('η Untergurt', f3(erg.max.etaUG.ug.eta), m.profUG.name,
-           ampel(erg.max.etaUG.ug.eta), bei(erg.max.etaUG)),
+           ampelU(erg.max.etaUG.ug.eta), bei(erg.max.etaUG)),
     kachel('η Bindeblech', f3(erg.max.etaB.etaB), 'massgebende Ebene',
-           ampel(erg.max.etaB.etaB), bei(erg.max.etaB)),
+           ampelU(erg.max.etaB.etaB), bei(erg.max.etaB)),
   ];
   /*
    * DER MAST BEKOMMT SEINE EIGENE KACHEL (Weisung, 28. August: «in der
@@ -4474,7 +4493,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
       const wodurch = (n.stabil?.eta ?? 0) > n.eta
         ? 'Knicken' : (n.plastischWirksam ? 'plastisch' : 'elastisch');
       kz.push(kachel(`η ${name}`, f3(eN),
-        `${n.profil.name} · ${wodurch}`, ampel(eN)));
+        `${n.profil.name} · ${wodurch}`, ampelU(eN)));
     });
   }
   /*
@@ -4545,7 +4564,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
           `${wie} · ÜBER DEM SORTIMENT`, 'nok', { titel: nw.warnung ?? '' }));
         return;
       }
-      kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampel(nw.eta), {
+      kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
         titel: `Charakteristische Kraft gegen die zulässige des `
              + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
              + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
@@ -4729,7 +4748,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
             : 'Tragsicherheit NICHT erfüllt'));
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
-    <div class="urteil ${einzelLastfall ? 'warn' : zustand}">
+    <div class="urteil ${einzelLastfall ? 'ohne' : zustand}">
       <span class="urteil-zahl">η ${f3(eAn)}</span>
       <span>${urteilText}${
         einzelLastfall ? '' : (urteil.alleOk
@@ -4810,7 +4829,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
         <tr class="klick${s.i === aktiveStation ? ' aktiv' : ''}" data-station="${s.i}" data-x="${s.x}">
           <td>${s.i}</td><td class="num">${f2(s.x)}</td><td>${esc(s.teil)}</td>
           <td class="num">${f3(s.etaEcken)}</td><td class="num">${f3(s.etaBleche)}</td>
-          <td class="num stark ${ampel(s.eta)}">${f3(s.eta)}</td>
+          <td class="num stark ${ampelU(s.eta)}">${f3(s.eta)}</td>
         </tr>`).join('')}</tbody>
     </table></div>
     ${pruefungenHtml(urteil)}
@@ -4862,7 +4881,7 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <td class="num stark">${f2(e.N)} <span class="ablage-meta">${esc(e.art)}</span></td>
       <td class="num">${f1(e.sig_N)}</td><td class="num">${f1(e.sig_My)}</td>
       <td class="num">${f1(e.sig_Mz)}</td><td class="num stark">${f1(e.sig_v)}</td>
-      <td class="num ${ampel(e.eta)}">${f3(e.eta)}</td>
+      <td class="num ${ampelU(e.eta)}">${f3(e.eta)}</td>
     </tr>`;
 
   const zeileEbene = (e, seite) => e.blechFehlt ? `
@@ -4876,7 +4895,7 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <td class="num">${f3(e.M_Knoten)}</td><td class="num stark">${f3(e.M)}</td>
       <td class="num">${f2(e.V)}</td><td class="num">${f1(e.sig)}</td>
       <td class="num">${f1(e.tau)}</td><td class="num stark">${f1(e.sig_v)}</td>
-      <td class="num ${ampel(e.eta)}">${f3(e.eta)}</td>
+      <td class="num ${ampelU(e.eta)}">${f3(e.eta)}</td>
     </tr>`;
 
   /*
