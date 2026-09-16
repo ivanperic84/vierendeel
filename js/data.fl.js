@@ -19,9 +19,13 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
+
 let DB = null;
 
 export function setzeFlDB(obj) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  obj = ausTabellen(obj, 'fl_bauteile');
   if (!obj || !Array.isArray(obj.bauteile)) {
     throw new Error('Bauteil-Datenbank ungültig: Feld "bauteile" fehlt.');
   }

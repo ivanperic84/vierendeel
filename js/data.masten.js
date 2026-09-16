@@ -26,12 +26,17 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
 import { mastprofileNorm } from './data.normen.js';
 
 let SORT = null;
 
 /** Das Masten-Sortiment setzen (aus data/masten.json). */
-export function setzeMastenDB(obj) { SORT = obj; return SORT; }
+export function setzeMastenDB(obj) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  SORT = ausTabellen(obj, 'masten');
+  return SORT;
+}
 
 /** Der ganze Bestand - fuer das Datenpaket. */
 export const mastenDB = () => SORT;

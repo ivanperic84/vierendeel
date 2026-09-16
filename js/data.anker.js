@@ -47,6 +47,8 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
+
 let DB = null;
 
 /**
@@ -70,7 +72,11 @@ export async function ladeAnker(pfad = 'data/anker.json') {
 }
 
 /** Die Datenbank setzen (aus data/anker.json). */
-export function setzeAnkerDB(db) { DB = db; return db; }
+export function setzeAnkerDB(db) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  DB = ausTabellen(db, 'anker');
+  return DB;
+}
 
 /** Der ganze Bestand - fuer das Datenpaket. */
 export const ankerDB = () => DB;

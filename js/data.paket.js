@@ -31,6 +31,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { zerlege, ausTabellen } from './data.tabellen.js';
 import { setzeDatenbank, datenbank } from './data.tragjoche.js';
 import { setzeAnbauteilDB, anbauteilDB } from './data.anbauteile.js';
 import { setzeFlDB, flDB } from './data.fl.js';
@@ -39,7 +40,12 @@ import { setzeAnkerDB, ankerDB } from './data.anker.js';
 import { setzeMastenDB, mastenDB } from './data.masten.js';
 
 export const PAKET_FORMAT = 'tragjoch-daten';
-export const PAKET_VERSION = 1;
+/*
+ * VERSION 2 seit dem 16. September: die Teile stehen in TABELLENFORM
+ * (js/data.tabellen.js). Pakete der Version 1 - Teile in Baumform - werden
+ * weiterhin gelesen; ein im Browser hinterlegtes Paket bleibt also gültig.
+ */
+export const PAKET_VERSION = 2;
 const SPEICHER = 'tragjoch-daten-v1';
 
 /* ===========================================================================
@@ -97,9 +103,18 @@ export function pruefePaket(obj) {
     fehler.push(`Paketversion ${obj.version} ist neuer als diese Anwendung `
                 + `(${PAKET_VERSION}).`);
   }
-  const teile = TEILE
-    .filter((t) => obj[t.key])
-    .map((t) => ({ ...t, anzahl: t.zaehle(obj[t.key]) }));
+  const teile = [];
+  for (const t of TEILE.filter((x) => obj[x.key])) {
+    /*
+     * GEZAEHLT WIRD AM BAUM. Ein Teil in Tabellenform wird dafuer erst
+     * zusammengesetzt - und scheitert das, ist das Paket kaputt, nicht leer.
+     */
+    try {
+      teile.push({ ...t, anzahl: t.zaehle(ausTabellen(obj[t.key], t.key)) });
+    } catch (e) {
+      fehler.push(`Teil «${t.key}» lässt sich nicht lesen: ${e.message}`);
+    }
+  }
   if (!teile.length) {
     fehler.push('Das Paket enthält keinen der Teile '
                 + `(${TEILE.map((t) => t.key).join(', ')}).`);
@@ -144,7 +159,8 @@ export function paketAus(bezeichnung = '') {
   };
   for (const t of TEILE) {
     const d = nimm(holer[t.key]);
-    if (d && t.zaehle(d) > 0) paket[t.key] = d;
+    // Geschrieben wird in Tabellenform - dieselbe wie die Dateien in data/.
+    if (d && t.zaehle(d) > 0) paket[t.key] = zerlege(t.key, d);
   }
   return paket;
 }

@@ -63,6 +63,22 @@ import { tmpdir } from 'node:os';
 
 const J = (f) => new URL(`./js/${f}`, import.meta.url).href;
 
+/*
+ * DIE NORMWERTE ZUERST (seit dem 16. September): die Querschnittswerte
+ * stehen in data/normen.json, nicht mehr im Quelltext. Ohne sie wirft jeder
+ * Profilzugriff. Das Masten-Sortiment darf fehlen.
+ */
+{
+  const { readFileSync: lies } = await import('node:fs');
+  const datei = (n) => new URL(`./data/${n}`, import.meta.url);
+  (await import(J('data.normen.js'))).setzeNormen(
+    JSON.parse(lies(datei('normen.json'), 'utf8')));
+  try {
+    (await import(J('data.masten.js'))).setzeMastenDB(
+      JSON.parse(lies(datei('masten.json'), 'utf8')));
+  } catch { /* ohne Masten-Sortiment - dann ohne Windlast */ }
+}
+
 const T = await import(J('data.tragjoche.js'));
 const P = await import(J('data.profiles.js'));
 const A = await import(J('data.anbauteile.js'));
@@ -74,8 +90,9 @@ const QS = await import(J('core.querschnitt.js'));
 const LA = await import(J('core.lasten.js'));
 
 T.setzeDatenbank(JSON.parse(readFileSync('data/tragjoche.json', 'utf8')));
-const ANBAU_DB = JSON.parse(readFileSync('data/anbauteile.json', 'utf8'));
-A.setzeAnbauteilDB(ANBAU_DB);
+// Gelesen wird der Baum - die Datei steht seit dem 16. September in Tabellenform.
+const ANBAU_DB = A.setzeAnbauteilDB(
+  JSON.parse(readFileSync('data/anbauteile.json', 'utf8')));
 FL.setzeFlDB(JSON.parse(readFileSync('data/fl_bauteile.json', 'utf8')));
 
 const argv = process.argv.slice(2);

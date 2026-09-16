@@ -31,6 +31,10 @@ data/*.json
 # ---------------------------------------------------------------------------
 !data/normen.json
 
+# Sicherung der Datendateien vor dem Umbau in die Tabellenform (16. September).
+# Betreiberdaten - bleibt draussen wie die Dateien selbst.
+data/sicherung/
+
 # Projektunterlagen des Betreibers
 Grundlagen/
 *.axs

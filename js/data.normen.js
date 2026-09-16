@@ -46,10 +46,14 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
+
 let DB = null;
 
 /** Die Normwerte setzen (aus data/normen.json). */
 export function setzeNormen(obj) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  obj = ausTabellen(obj, 'normen');
   if (!obj || !Array.isArray(obj.winkelprofile) || !obj.winkelprofile.length) {
     throw new Error('Normwerte ungültig: Feld "winkelprofile" fehlt oder ist leer.');
   }

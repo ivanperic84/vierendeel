@@ -59,6 +59,8 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
+
 let DB = null;
 
 /**
@@ -86,7 +88,11 @@ export async function ladeAbfangjoche(pfad = 'data/abfangjoche.json') {
 }
 
 /** Die Datenbank setzen (aus data/abfangjoche.json). */
-export function setzeAbfangDB(db) { DB = db; return db; }
+export function setzeAbfangDB(db) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  DB = ausTabellen(db, 'abfangjoche');
+  return DB;
+}
 
 /** Der ganze Bestand - fuer das Datenpaket. */
 export const abfangDB = () => DB;

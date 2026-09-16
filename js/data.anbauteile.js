@@ -36,6 +36,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
 import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche, istKettenwerk, flZerlegung,
          flPaarung } from './data.fl.js';
@@ -46,6 +47,8 @@ import { LEERE_KRAFT } from './core.anbauteile.js';
 let DB = null;
 
 export function setzeAnbauteilDB(obj) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  obj = ausTabellen(obj, 'anbauteile');
   if (!obj || !Array.isArray(obj.vorlagen)) {
     throw new Error('Anbauteil-Datenbank ungültig: Feld "vorlagen" fehlt.');
   }

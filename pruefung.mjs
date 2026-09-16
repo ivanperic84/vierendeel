@@ -31,6 +31,8 @@ const J = (n) => new URL(`./js/${n}`, import.meta.url).href;
  * jeder Zugriff auf ein Profil. Sie sind keine Betreiberdaten und liegen
  * deshalb auch in einer oeffentlichen Ablage bei.
  */
+// Die Tabellenform der Dateien (seit dem 16. September).
+const TBF = await import(J('data.tabellen.js'));
 const NO = await import(J('data.normen.js'));
 NO.setzeNormen(JSON.parse(readFileSync(join(HIER, 'data', 'normen.json'), 'utf8')));
 const MA_SORT = await import(J('data.masten.js'));
@@ -2635,6 +2637,24 @@ titel('18f  Datenpaket');
   wahr('Leerer Teil wird abgelehnt',
        !P.pruefePaket({ tragjoche: { typen: [] } }).ok);
 
+  /*
+   * SEIT DEM 16. SEPTEMBER SCHREIBT DAS PAKET TABELLEN. Ein Paket, das
+   * vorher im Browser hinterlegt wurde, traegt seine Teile noch als Baum -
+   * und muss sich weiterhin oeffnen lassen.
+   */
+  wahr('Das Paket schreibt Tabellenform',
+       TBF.istTabellenform(paket.tragjoche) && TBF.istTabellenform(paket.masten));
+  {
+    const alt = { format: P.PAKET_FORMAT, version: 1,
+                  tragjoche: TBF.setzeZusammen(paket.tragjoche) };
+    const pa = P.pruefePaket(alt);
+    wahr('Ein Paket in Baumform wird weiterhin gelesen', pa.ok, pa.fehler.join(' '));
+    pruef('… und seine Typen werden gezaehlt', pa.teile[0]?.anzahl,
+          paket.tragjoche.tabellen.typen.length, 1e-12, 'Typen');
+  }
+  wahr('Ein Teil des falschen Sortiments wird abgelehnt',
+       !P.pruefePaket({ format: P.PAKET_FORMAT, tragjoche: paket.masten }).ok);
+
   // Nur ein Teil: der Rest bleibt stehen
   const nurTypen = { format: P.PAKET_FORMAT, version: 1, tragjoche: paket.tragjoche };
   wahr('Ein einzelner Teil genügt', P.pruefePaket(nurTypen).ok);
@@ -2643,7 +2663,8 @@ titel('18f  Datenpaket');
   P.speichern(paket);
   const zurueck = P.ausSpeicher();
   pruef('Hinterlegt und wieder geholt: gleich viele Typen',
-        zurueck.tragjoche.typen.length, paket.tragjoche.typen.length, 1e-12, 'Typen');
+        zurueck.tragjoche.tabellen.typen.length,
+        paket.tragjoche.tabellen.typen.length, 1e-12, 'Typen');
   P.speicherLeeren();
   wahr('Nach dem Leeren ist nichts mehr hinterlegt', P.ausSpeicher() === null);
 
@@ -5937,7 +5958,9 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
    * frueher muessen sich oeffnen lassen.
    */
   {
-    const roh = JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8'));
+    // Seit dem 16. September in Tabellenform - geprueft wird der Baum.
+    const roh = TBF.ausTabellen(JSON.parse(
+      readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8')));
     const altReste = roh.vorlagen.flatMap((v) => [v, ...(v.module ?? [])])
       .filter((o) => 'ev' in o || 'ex' in o);
     wahr('Keine Vorlage schreibt mehr ev/ex', altReste.length === 0,
@@ -22804,8 +22827,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   const K = await import(J('data.katalog.js'));
   const D = await import(J('ui.daten.js'));
   const X = await import(J('export.xlsx.js'));
-  const lies = (n) => JSON.parse(
-    readFileSync(join(HIER, 'data', n + '.json'), 'utf8'));
+  const lies = (n) => TBF.ausTabellen(JSON.parse(
+    readFileSync(join(HIER, 'data', n + '.json'), 'utf8')));
   const best = {
     normen: lies('normen'), masten: lies('masten'), tragjoche: lies('tragjoche'),
     abfangjoche: lies('abfangjoche'), anker: lies('anker'),
@@ -22965,6 +22988,134 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
     wahr('Kein Sortimentsabschnitt steht in der Normdatenbank',
          K.abschnitteVon('sortiment').every((a) => a.db !== 'normen'));
+  }
+}
+
+titel('62  Die Tabellenform der Datendateien');
+/* ===========================================================================
+ * >>> VERLUSTFREI ODER GAR NICHT. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: die JSON-Dateien selbst werden in Tabellen
+ * umgebaut. Der Rechenkern sieht weiterhin den Baum - also muss der Weg
+ * Tabelle -> Baum -> Tabelle jede Zahl, jede Luecke und jede Reihenfolge
+ * der Bleche tragen. Ein Verlust hier waere ein Verlust im Nachweis, und er
+ * fiele nirgends sonst auf.
+ * ========================================================================= */
+{
+  const kanon = (v) => (Array.isArray(v) ? v.map(kanon)
+    : (v && typeof v === 'object')
+      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, kanon(v[k])]))
+      : v);
+  const gleich = (a, b) => JSON.stringify(kanon(a)) === JSON.stringify(kanon(b));
+
+  // --- Die wirklichen Dateien ---------------------------------------------
+  for (const s of TBF.SORTIMENTE) {
+    const roh = JSON.parse(readFileSync(join(HIER, 'data', s + '.json'), 'utf8'));
+    wahr(`${s}: die Datei steht in Tabellenform`,
+         TBF.istTabellenform(roh) && roh.sortiment === s);
+    const baum = TBF.setzeZusammen(roh);
+    const wieder = TBF.zerlege(s, baum);
+    wahr(`${s}: Tabelle -> Baum -> Tabelle ist verlustfrei`,
+         gleich(wieder.tabellen, roh.tabellen) && gleich(wieder.angaben, roh.angaben));
+    wahr(`${s}: der Dateitext liest sich zurueck`,
+         gleich(JSON.parse(TBF.alsDateitext(wieder)), roh));
+  }
+  {
+    const tj = JSON.parse(readFileSync(join(HIER, 'data', 'tragjoche.json'), 'utf8'));
+    /*
+     * ZWEI LISTEN GLEICHER FORM WERDEN EINE TABELLE. Die vertikalen und die
+     * horizontalen Bleche standen getrennt; jetzt ist es eine Blechliste mit
+     * der Spalte `ebene`.
+     */
+    const ebenen = new Set(tj.tabellen.bleche.map((z) => z.ebene));
+    wahr('Eine Blechtabelle traegt beide Ebenen',
+         ebenen.has('vertikal') && ebenen.has('horizontal'), [...ebenen].join(','));
+    wahr('Jedes Blech nennt seinen Typ',
+         tj.tabellen.bleche.every((z) => typeof z.typ === 'string'));
+    wahr('Die Staffelung je Ausfuehrung verweist auf ihre Ausfuehrung',
+         tj.tabellen.ausfuehrung_staffelung.every((z) =>
+           Number.isFinite(z.ausfuehrung) && z.typ && z.ebene));
+    pruef('Die Masstabelle hat eine Zeile je Laenge',
+          tj.tabellen.masstabelle.length, 54, 1e-12, 'Zeilen');
+    wahr('Die Laenge bleibt Text - sie ist ein Schluessel',
+         tj.tabellen.masstabelle.every((z) => typeof z.L === 'string'));
+  }
+
+  // --- Die Sonderfaelle, an einem erfundenen Baum ---------------------------
+  {
+    const baum = {
+      _hinweis: 'frei',
+      _leer: {},
+      typen: [
+        { typ: 'A', og: { ja: 60, jf: 6 },
+          bleche: { vertikal: [{ pos: 1 }, { pos: 2 }], horizontal: [] },
+          staffelung: {}, liste: [1, null, 3],
+          ausfuehrungen: [{ bez: 'I',
+                            staffelung: { vertikal: [{ pos: 1, anzahl: null }] } }] },
+        { typ: 'B', bleche: null, ausfuehrungen: [] },
+      ],
+      masstabelle: { _kommentar: 'x', zeilen: { '8.00': [750, 750], '8.50': [] } },
+    };
+    const tab = TBF.zerlege('tragjoche', baum);
+    const zurueck = TBF.setzeZusammen(tab);
+    wahr('Sonderfaelle: zurueck derselbe Baum', gleich(zurueck, baum),
+         JSON.stringify(zurueck).slice(0, 200));
+    wahr('Eine leere Liste bleibt eine leere Liste',
+         Array.isArray(zurueck.typen[0].bleche.horizontal)
+         && zurueck.typen[0].bleche.horizontal.length === 0);
+    wahr('null bleibt null, nicht «fehlt»', zurueck.typen[1].bleche === null);
+    wahr('Ein leerer Satz bleibt ein leerer Satz',
+         gleich(zurueck.typen[0].staffelung, {}));
+
+    /*
+     * WER IN EXCEL SORTIERT, VERSCHIEBT KEINE BLECHE. Die Reihenfolge kommt
+     * aus `nr`, nicht aus der Lage der Zeile.
+     */
+    const umgestellt = JSON.parse(JSON.stringify(tab));
+    umgestellt.tabellen.bleche.reverse();
+    wahr('Umgestellte Zeilen ergeben dieselbe Reihenfolge',
+         TBF.setzeZusammen(umgestellt).typen[0].bleche.vertikal[0].pos === 1);
+
+    let fehler = null;
+    try { TBF.zerlege('masten', { typen: [{ profil: 'X', 'a/b': 1 }] }); }
+    catch (e) { fehler = e.message; }
+    wahr('Ein Schluessel mit «/» wird abgewiesen', /Pfadzeichen/.test(fehler ?? ''),
+         fehler);
+
+    const doppelt = JSON.parse(JSON.stringify(tab));
+    doppelt.tabellen.typen.push({ ...doppelt.tabellen.typen[0] });
+    fehler = null;
+    try { TBF.setzeZusammen(doppelt); } catch (e) { fehler = e.message; }
+    wahr('Ein doppelter Typ mit Untertabellen wird abgewiesen',
+         /zweimal/.test(fehler ?? ''), fehler);
+
+    const waise = JSON.parse(JSON.stringify(tab));
+    waise.tabellen.bleche.push({ typ: 'Z', ebene: 'vertikal', nr: 1, pos: 9 });
+    fehler = null;
+    try { TBF.setzeZusammen(waise); } catch (e) { fehler = e.message; }
+    wahr('Ein Blech ohne seinen Typ wird abgewiesen', /keine Zeile/.test(fehler ?? ''),
+         fehler);
+
+    fehler = null;
+    try { TBF.ausTabellen(tab, 'masten'); } catch (e) { fehler = e.message; }
+    wahr('Eine Datei des falschen Sortiments wird abgewiesen',
+         /erwartet/.test(fehler ?? ''), fehler);
+    wahr('Ein Baum geht unveraendert durch', TBF.ausTabellen(baum) === baum);
+  }
+
+  // --- Excel-Zellen -----------------------------------------------------------
+  {
+    const faelle = [0.37, 0, true, false, 'HEB 240', '[kein Satz]', "'zitiert",
+                    [4.51, 5], [], {}, [null, 12.5], { a: 1 }];
+    for (const v of faelle) {
+      wahr(`Zelle hin und zurueck: ${JSON.stringify(v)}`,
+           JSON.stringify(TBF.zelleEin(TBF.zelleAus(v))) === JSON.stringify(v),
+           JSON.stringify(TBF.zelleAus(v)));
+    }
+    wahr('null wird eine leere Zelle', TBF.zelleAus(null) === null);
+    wahr('Eine leere Zelle heisst «fehlt»',
+         TBF.zelleEin('') === undefined && TBF.zelleEin(null) === undefined);
   }
 }
 

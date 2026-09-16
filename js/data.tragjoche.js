@@ -28,10 +28,14 @@
  * ---------------------------------------------------------------------------
  */
 
+import { ausTabellen } from './data.tabellen.js';
+
 let DB = null;
 
 /** Datenbank direkt setzen (Node, Tests, Bündel). */
 export function setzeDatenbank(obj) {
+  // Tabellenform (seit 16. September) oder Baumform - beides wird gelesen.
+  obj = ausTabellen(obj, 'tragjoche');
   if (!obj || !Array.isArray(obj.typen)) {
     throw new Error('Typendatenbank ungültig: Feld "typen" fehlt.');
   }

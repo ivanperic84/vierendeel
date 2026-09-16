@@ -17,6 +17,22 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 const J = (f) => new URL(`./js/${f}`, import.meta.url).href;
 
+/*
+ * DIE NORMWERTE ZUERST (seit dem 16. September): die Querschnittswerte
+ * stehen in data/normen.json, nicht mehr im Quelltext. Ohne sie wirft jeder
+ * Profilzugriff. Das Masten-Sortiment darf fehlen.
+ */
+{
+  const { readFileSync: lies } = await import('node:fs');
+  const datei = (n) => new URL(`./data/${n}`, import.meta.url);
+  (await import(J('data.normen.js'))).setzeNormen(
+    JSON.parse(lies(datei('normen.json'), 'utf8')));
+  try {
+    (await import(J('data.masten.js'))).setzeMastenDB(
+      JSON.parse(lies(datei('masten.json'), 'utf8')));
+  } catch { /* ohne Masten-Sortiment - dann ohne Windlast */ }
+}
+
 const T = await import(J('data.tragjoche.js'));
 const P = await import(J('data.profiles.js'));
 const S = P;
