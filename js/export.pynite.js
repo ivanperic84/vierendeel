@@ -355,7 +355,7 @@ export function pyniteSkript(m, opt = {}) {
   const zAchse = py((bau.zOben ?? 0) - (m.h ?? 0) / 2);
 
   const kopfText = [
-    `# Erzeugt vom Tragjoch-Werkzeug - PyNite-Gegenrechnung`,
+    `# Erzeugt von Vierendeel - PyNite-Gegenrechnung`,
     `# Joch ${m.typ ?? 'frei'} · L = ${m.L} m · Knotenmodell '${km}'`,
     `#`,
     `# ACHSEN: PyNite rechnet mit Y nach oben. Die Koordinaten sind hier`,

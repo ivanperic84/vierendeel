@@ -40,6 +40,19 @@ export const RECHTECK = {
 /** Numerische Toleranz für Knotenvergleiche [m]. */
 export const TOL = 1e-7;
 
+/*
+ * >>> DER NAME DER ANWENDUNG. <<<
+ *
+ * Weisung vom 16. September: «den appnamen auf Vierendeel umschreiben».
+ *
+ * Er steht hier an EINER Stelle. «Tragjoch» bleibt, wo das BAUTEIL gemeint
+ * ist - «Tragjoch J90», die Tragwerksart, die Tragjochtypen -, und in den
+ * Kennungen des Browserspeichers (`tragjoch-…`) und der Dateiformate
+ * (`tragjoch-daten`, `tragjoch-tabellen`): sie umzubenennen hiesse, jede
+ * gespeicherte Ablage und jedes Paket unlesbar zu machen.
+ */
+export const APP_NAME = 'Vierendeel';
+
 /**
  * DIE TRAGWERKSART — die erste Entscheidung, weil sie alle anderen bestimmt.
  *

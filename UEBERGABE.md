@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4358 Kontrollen
+node pruefung.mjs           # Prüfstand, 4403 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,36 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Menüband, Name Vierendeel, Seilanker nur Zug (16. September)
+
+Weisung: «wo ist die tabelle aufrufbar? und noch das menueband allgemein
+überarbeiten ordnen und den appnamen auf Vierendeel umschreiben. … der
+zugstab wirkt nicht nur auf zug. dies noch beim export zum axis vm auch
+beachten und verbindungs anpassen».
+
+**Menüband** in vier Gruppen: Ausgabe (AxisVM ganz links, Excel, Drucken) ·
+Bearbeiten (Rückgängig, Wiederherstellen, Speichern) · Daten
+(**Bauteildaten**, beschriftet - vorher nur Taste k) · Hilfe (Handbuch,
+Tastenkürzel, Optionen); Installieren ganz rechts. Titel nennen das Kürzel
+aus der Belegung. Der Projektknopf gibt im schmalen Fenster nach.
+
+**Name:** `APP_NAME = 'Vierendeel'` (core.constants.js) - Titel, Logo,
+Manifest, Fusszeile, Dateinamen. «Tragjoch» bleibt fürs Bauteil und in den
+Kennungen (`tragjoch-…` im Browserspeicher, Dateiformate).
+
+**Seilanker nur Zug.** Auf Rückfrage: gemeint ist der Seilanker; müsste er
+drücken, fällt er aus, der Mast trägt allein, Ankernachweis als Hinweis ohne
+η. Vorher hielt die Haltekraft den Masten unbedingt - auf der unsicheren
+Seite. AxisVM: Konsole - SEILKOPF (Link 50 mm, Ortssystem, x
+`lnlTensionOnly`, yy/zz frei) - Seil (Quadrat gleicher Fläche) - Gelenk -
+Fundament. **Wirkt nur in einer nichtlinearen Berechnung**; die Brücke sagt
+es im Bericht. Die lokale x-Richtung des NN-Links ist nicht vermessen -
+im ersten aufgebauten Modell prüfen. PyNite/SAF rechnen das Seil weiter auf
+Zug und Druck.
+
+**Offen:** Seilkopf im nächsten AxisVM-Aufbau ansehen (Achse, «nur Zug»);
+Klick durch den Dateiwähler beim Einlesen.
 
 ### Tabellenform, Blechregel, Einlesen (16. September)
 

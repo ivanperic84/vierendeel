@@ -165,6 +165,10 @@ export const ICONS = {
   schnitt: 'M10 2v16M6 6l8 8M14 6l-8 8',
   ansichtReset: 'M10 3a7 7 0 107 7M10 3v4M10 3h4',
   info: 'M10 3a7 7 0 100 14 7 7 0 000-14zM10 9v5M10 6.5v.01',
+  // Ein Raster mit Kopfzeile - die Bauteildaten.
+  tabelle: 'M3 4h14v12H3zM3 8h14M3 12h14M8 4v12',
+  // Eine Tastatur - die Tastenkuerzel.
+  tastatur: 'M2.5 6h15v8h-15zM5 8.5h1M8 8.5h1M11 8.5h1M14 8.5h1M6.5 11.5h7',
   optionen: 'M8.2 3.4l.5-1.4h2.6l.5 1.4 1.3.55 1.35-.65 1.85 1.85-.65 1.35.55 1.3 1.4.5v2.6l-1.4.5-.55 1.3.65 1.35-1.85 1.85-1.35-.65-1.3.55-.5 1.4H8.7l-.5-1.4-1.3-.55-1.35.65-1.85-1.85.65-1.35-.55-1.3-1.4-.5V8.7l1.4-.5.55-1.3-.65-1.35 1.85-1.85 1.35.65 1.3-.55zM10 7.6a2.4 2.4 0 100 4.8 2.4 2.4 0 000-4.8z',
   links: 'M12 4l-5 6 5 6',
   rechts: 'M8 4l5 6-5 6',

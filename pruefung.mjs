@@ -15061,7 +15061,9 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   wahr('Der Projektknopf holt die Verortung', koerper.includes('verortung(werte)'));
   // WAS FEHLT, FAELLT WEG: drei leere Trennzeichen sagen nichts.
   wahr('… und zeigt sie nur, wenn es sie gibt', koerper.includes('ort ?'));
-  wahr('Die Einfuhr steht wieder', aq63.includes("import { verortung,"));
+  // Gelesen wird, ob der Name im Import steht - nicht an welcher Stelle.
+  wahr('Die Einfuhr steht wieder',
+       /import \{[^}]*\bverortung\b[^}]*\}\s*from '\.\/core\.constants\.js'/.test(aq63));
   wahr('Und der Stil daempft sie', css63.includes('.tb-ort'));
 
   /*
@@ -23646,6 +23648,60 @@ titel('67  Der Seilanker in der AxisVM-Ausleitung');
   wahr('… und das Ortssystem', /sysLocal/.test(ps1) && /\$sb\.system/.test(ps1));
   wahr('… und sagt, dass es nur nichtlinear wirkt', /NICHTLINEAREN Berechnung/.test(ps1));
   wahr('Die Bruecke ist reines ASCII', /^[\x00-\x7F]*$/.test(ps1));
+}
+
+titel('68  Das Menueband und der Name der Anwendung');
+/*
+ * Weisung vom 16. September: «wo ist die tabelle aufrufbar? und noch das
+ * menueband allgemein überarbeiten ordnen und den appnamen auf Vierendeel
+ * umschreiben.» Die Bauteildaten waren nur über die Taste k erreichbar.
+ *
+ * Geprüft wird der Quelltext: der Prüfstand zeichnet keine Oberfläche.
+ */
+{
+  const app = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const html = readFileSync(join(HIER, 'index.html'), 'utf8');
+  const man = JSON.parse(readFileSync(join(HIER, 'manifest.webmanifest'), 'utf8'));
+  const CCn = await import(J('core.constants.js'));
+
+  const kopf = app.slice(app.indexOf('function baueKopf'),
+                         app.indexOf('\nfunction aktualisiereProjektKnopf'));
+  const gruppen = [...kopf.matchAll(/gruppe\('([^']+)'/g)].map((m) => m[1]);
+  wahr('Vier Gruppen in dieser Reihenfolge',
+       gruppen.join(' | ') === 'Ausgabe | Bearbeiten | Daten | Hilfe und Einstellungen',
+       gruppen.join(' | '));
+  const lage = (id) => kopf.indexOf(`id="${id}"`) >= 0 ? kopf.indexOf(`id="${id}"`)
+                                                        : kopf.indexOf(`'${id}'`);
+  wahr('AxisVM steht ganz links', lage('btn-axisvm') >= 0
+       && ['btn-export', 'btn-drucken', 'btn-zurueck', 'btn-bauteildaten', 'btn-optionen']
+         .every((id) => lage(id) > lage('btn-axisvm')));
+  wahr('Die Bauteildaten stehen im Band, mit Namen',
+       /id="btn-bauteildaten"[\s\S]*?<span>Bauteildaten<\/span>/.test(kopf));
+  wahr('… und oeffnen ihr Fenster',
+       /btn-bauteildaten'\)\.onclick = \(\) => dialogBauteildaten\(\)/.test(kopf));
+  wahr('Die Tastenkuerzel haben einen Knopf',
+       /btn-tasten'\)\.onclick = \(\) => dialogTasten\(\)/.test(kopf));
+  wahr('Die Titel lesen das Kuerzel aus der Belegung, nicht aus dem Text',
+       /tasteVon\(t\)/.test(kopf));
+  wahr('Die Datenbasis in den Optionen fuehrt zum Fenster',
+       /data-daten-fenster/.test(readFileSync(join(HIER, 'js', 'ui.js'), 'utf8'))
+       && /\[data-daten-fenster\][\s\S]{0,80}dialogBauteildaten/.test(app));
+
+  wahr('Die Anwendung heisst Vierendeel', CCn.APP_NAME === 'Vierendeel');
+  wahr('… im Fenstertitel und im Logo',
+       /<title>Vierendeel<\/title>/.test(html) && /tb-logo">VIERENDEEL</.test(html));
+  wahr('… im Manifest', man.short_name === 'Vierendeel' && /^Vierendeel/.test(man.name));
+  wahr('… in der Fusszeile', /st-version'\)\.textContent = `\$\{APP_NAME\}/.test(app));
+  wahr('Kein Dateiname beginnt mehr mit «Tragjoch_»', !/`Tragjoch[_-]/.test(app));
+  /*
+   * DIE KENNUNGEN BLEIBEN. Der Browserspeicher und die Dateiformate tragen
+   * «tragjoch» - umbenannt waeren alle gespeicherten Staende weg.
+   */
+  wahr('Die Kennungen im Browserspeicher bleiben',
+       /'tragjoch-daten-v1'/.test(readFileSync(join(HIER, 'js', 'data.paket.js'), 'utf8'))
+       && /'tragjoch-eingelesen-v1'/.test(readFileSync(join(HIER, 'js', 'data.einlesen.js'), 'utf8')));
+  wahr('Das Bauteil heisst weiterhin Tragjoch',
+       CCn.TRAGWERKSARTEN.find((a) => a.key === 'joch')?.label === 'Tragjoch');
 }
 
 // ===========================================================================

@@ -2266,7 +2266,7 @@ export function handbuchHtml() {
  * @returns {string} vollständiges HTML-Dokument
  */
 export function handbuchDatei(o = {}) {
-  const titel = o.titel ?? 'Tragjoch – Handbuch';
+  const titel = o.titel ?? 'Vierendeel – Handbuch';
   const stand = o.stand ?? new Date().toLocaleDateString('de-CH');
 
   let css = '';

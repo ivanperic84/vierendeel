@@ -75,7 +75,7 @@ export function blaetter(tabBestand, STIL, pruefung = null) {
   const N = (v) => ({ v, s: STIL.NOTIZ });
 
   const deck = [
-    [B('Bauteildaten des Tragjoch-Werkzeugs')],
+    [B('Bauteildaten · Vierendeel')],
     [N(`Ausgeleitet am ${new Date().toISOString().slice(0, 10)}. Jedes Blatt `
        + 'trägt über den Daten Anschrift, Einheit und Spaltenpfad; die Pfadzeile '
        + 'braucht das Einlesen - bitte nicht löschen. Zeilen und Spalten dürfen '

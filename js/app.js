@@ -29,7 +29,7 @@ import { exportiereAxisvm, exportiereDxf, exportiereJson,
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { abfangSzene } from './render.abfang.js';
 import { exportierePynite } from './export.pynite.js';
-import { verortung, fangeAufMasskette,
+import { APP_NAME, verortung, fangeAufMasskette,
          tauscheAktives, tragwerkAendern, tragwerkHinzu, tragwerkWeg,
          tragwerksart,
          tragwerkTeil,
@@ -2338,9 +2338,9 @@ function dialogHandbuch() {
   // dass die ganze Anwendung mitgeschickt werden muss.
   d.node.querySelector('[data-datei]').onclick = () => {
     // Helles Thema: die Datei wird gelesen, beigelegt und gedruckt.
-    const html = handbuchDatei({ fussnote: `Tragjoch ${VERSION}`,
+    const html = handbuchDatei({ fussnote: `${APP_NAME} ${VERSION}`,
                                  tokens: farbtokens('hell') });
-    store.dateiSpeichern(html, `Tragjoch_Handbuch_${new Date().toISOString().slice(0, 10)}.html`,
+    store.dateiSpeichern(html, `${APP_NAME}_Handbuch_${new Date().toISOString().slice(0, 10)}.html`,
                          'text/html;charset=utf-8');
   };
 
@@ -2453,12 +2453,14 @@ function dialogOptionen() {
         stand(`Datei nicht lesbar: ${fehler.message}`, true);
       }
     };
+    const fenster = rahmen.querySelector('[data-daten-fenster]');
+    if (fenster) fenster.onclick = () => dialogBauteildaten();
     const sichern = rahmen.querySelector('[data-daten-sichern]');
     if (sichern) sichern.onclick = () => {
       try {
         const paket = paketAus(projekt.projekt || '');
         store.dateiSpeichern(JSON.stringify(paket, null, 1),
-                             `Tragjoch_Datenpaket_${paket.stand}.json`);
+                             `${APP_NAME}_Datenpaket_${paket.stand}.json`);
       } catch (fehler) {
         stand(`Nichts zu sichern: ${fehler.message}`, true);
       }
@@ -4241,40 +4243,82 @@ function baueKopf() {
   // einstellen. Neu, Speichern und die Ablage sind in die Bannerschublade
   // gewandert - sie gehören zum Projekt, nicht zum Werkzeugkasten, und dort
   // stehen sie gemeinsam mit den Vorlagen.
+  /* =======================================================================
+   * >>> DAS MENUEBAND, IN VIER GRUPPEN. <<<
+   * =======================================================================
+   *
+   * Weisung vom 16. September: «das menueband allgemein überarbeiten
+   * ordnen» - und die Frage, wo die Tabelle der Bauteildaten aufzurufen
+   * sei. Sie war nur über die Taste k erreichbar; im Band stand sie nicht.
+   *
+   * Bis dahin standen neun Knöpfe in einer Reihe, in der Reihenfolge ihres
+   * Hinzukommens: Handbuch zwischen Wiederherstellen und Excel, Speichern
+   * zwischen Drucken und Optionen. Jetzt gilt: was zusammengehört, steht
+   * zusammen, und ein Strich trennt die Gruppen.
+   *
+   *   AUSGABE      AxisVM · Excel · Drucken   was den Stand hinausträgt
+   *   BEARBEITEN   Rückgängig · Wiederherstellen · Speichern
+   *   DATEN        Bauteildaten                die Sortimente und Normwerte
+   *   HILFE        Handbuch · Tastenkürzel · Optionen
+   *
+   * AXISVM BLEIBT GANZ LINKS (Weisung vom 1. September): der meistbegangene
+   * Weg der Anwendung. Die Bauteildaten tragen ihren Namen neben dem
+   * Symbol - ein Raster ohne Wort sagt nicht, dass dahinter die Tabellen
+   * liegen. Der Installieren-Knopf steht nur, solange der Browser ihn
+   * anbietet, und zwar ganz rechts: er kommt und geht und soll dabei nichts
+   * verschieben.
+   *
+   * Jeder Titel nennt sein Tastenkürzel, soweit es eines gibt - die
+   * Belegung ist einstellbar, also wird sie gelesen, nicht hingeschrieben.
+   * ===================================================================== */
+  const kuerzel = (id) => {
+    const t = TASTEN.find((x) => x.id === id);
+    const k = t ? tasteVon(t) : '';
+    return k ? ` (Taste ${k})` : '';
+  };
+  const knopf = (id, name, titel, taste = null) =>
+    iconKnopf(id, name, `${titel}${taste ? kuerzel(taste) : ''}`);
+  const gruppe = (name, inhalt) =>
+    `<div class="tb-gruppe" role="group" aria-label="${esc(name)}">${inhalt}</div>`;
+  const strich = '<span class="tb-sep" aria-hidden="true"></span>';
+
   n.innerHTML =
-    // GANZ LINKS, VOR ALLEM ANDEREN (Weisung). Beschriftet und hervorgehoben
-    // war er schon; als eines von sieben gleich aussehenden Symbolen war er
-    // vorher gar nicht zu finden. Der meistbegangene Weg dieser Anwendung
-    // steht jetzt an erster Stelle - auch vor dem Installieren-Knopf, der
-    // ohnehin nur zeitweise da ist und ihn sonst verschieben würde.
-    `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
-       title="Modell nach AxisVM ausleiten, COM-Brücke, SAF, DXF oder PyNite"
-       aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>` +
-    // Der Installieren-Knopf steht nur da, solange der Browser ihn anbietet:
-    // nicht angemeldet, schon installiert oder abgelehnt - dann fehlt er.
-    (kannInstallieren()
-      ? iconKnopf('btn-install', 'installieren',
-                  'Auf diesem Gerät installieren - läuft danach auch ohne Netz')
-      : '') +
-    // Rueckgaengig / Wiederherstellen. Sie stehen bei den Werkzeugen und nicht
-    // in einem Menue: man greift danach, ohne hinzusehen.
-    `<button class="btn-icon" id="btn-zurueck" type="button" title="Rückgängig (Strg+Z)"
-       aria-label="Rückgängig"${hist.kannZurueck() ? '' : ' disabled'}
-       >${icon('links')}</button>` +
-    `<button class="btn-icon" id="btn-vor" type="button"
-       title="Wiederherstellen (Strg+Umschalt+Z)" aria-label="Wiederherstellen"${
-       hist.kannVor() ? '' : ' disabled'}>${icon('rechts')}</button>` +
-    iconKnopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen') +
-    iconKnopf('btn-export', 'export', 'Excel-Ausleitung (.xlsx)') +
-    iconKnopf('btn-drucken', 'drucken', 'Drucken / PDF') +
-    // SPEICHERN, nicht Datenbasis (Weisung, 1. September): das Zeichen war
-    // eine Diskette und stand fuer den Austausch der Typendatenbank. Wer
-    // in einer Anwendung auf eine Diskette drueckt, will sein Modell
-    // sichern. Die Datenbasis steht jetzt unter Optionen.
-    iconKnopf('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern') +
-    iconKnopf('btn-optionen', 'optionen', 'Optionen und Darstellung');
+    gruppe('Ausgabe',
+      `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
+         title="Modell nach AxisVM ausleiten, COM-Brücke, SAF, DXF oder PyNite"
+         aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>`
+      + knopf('btn-export', 'export', 'Excel-Ausleitung der Berechnung (.xlsx)')
+      + knopf('btn-drucken', 'drucken', 'Drucken / PDF'))
+    + strich
+    + gruppe('Bearbeiten',
+      `<button class="btn-icon" id="btn-zurueck" type="button" title="Rückgängig (Strg+Z)"
+         aria-label="Rückgängig"${hist.kannZurueck() ? '' : ' disabled'}
+         >${icon('links')}</button>`
+      + `<button class="btn-icon" id="btn-vor" type="button"
+         title="Wiederherstellen (Strg+Umschalt+Z)" aria-label="Wiederherstellen"${
+         hist.kannVor() ? '' : ' disabled'}>${icon('rechts')}</button>`
+      // SPEICHERN, nicht Datenbasis (Weisung, 1. September): wer auf eine
+      // Diskette drückt, will sein Modell sichern.
+      + knopf('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern'))
+    + strich
+    + gruppe('Daten',
+      `<button class="btn-icon btn-icon-text" id="btn-bauteildaten" type="button"
+         title="Bauteildaten: Tabellen, Blecheinteilung, Excel, Einlesen${kuerzel('bauteildaten')}"
+         aria-label="Bauteildaten">${icon('tabelle')}<span>Bauteildaten</span></button>`)
+    + strich
+    + gruppe('Hilfe und Einstellungen',
+      knopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen', 'handbuch')
+      + knopf('btn-tasten', 'tastatur', 'Tastenkürzel', 'hilfe')
+      + knopf('btn-optionen', 'optionen', 'Optionen, Darstellung und Datenbasis', 'optionen'))
+    // Nur solange der Browser es anbietet - ganz rechts, damit nichts springt.
+    + (kannInstallieren()
+      ? strich + knopf('btn-install', 'installieren',
+                       'Auf diesem Gerät installieren - läuft danach auch ohne Netz')
+      : '');
 
   if (kannInstallieren()) ui.el('btn-install').onclick = () => installiere();
+  ui.el('btn-bauteildaten').onclick = () => dialogBauteildaten();
+  ui.el('btn-tasten').onclick = () => dialogTasten();
   ui.el('btn-zurueck').onclick = () => rueckgaengig();
   ui.el('btn-vor').onclick = () => wiederherstellen();
   ui.el('btn-handbuch').onclick = dialogHandbuch;
@@ -4537,7 +4581,7 @@ function dialogBauteildaten() {
   d.node.querySelector('[data-daten-excel]').onclick = () => {
     const bl = datenBlaetter(tabellen, STIL, { blech: befunde });
     herunterladen(arbeitsmappe(bl),
-      `Tragjoch_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      `${APP_NAME}_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
   d.node.querySelector('[data-daten-einlesen]').onclick = () => datenEinlesen(tabellen);
   return d;
@@ -4973,7 +5017,7 @@ async function zeichneSchublade() {
       d.zu();
       const tag = new Date().toISOString().slice(0, 10);
       store.dateiSpeichern(await store.alsPaket(wahl),
-        `Tragjoch-Ablage-${tag}.zip`, 'application/zip');
+        `${APP_NAME}-Ablage-${tag}.zip`, 'application/zip');
     };
   });
   /*
@@ -8022,7 +8066,7 @@ export async function start() {
   // Als eigenes Fenster gestartet fehlt die Adressleiste - dann ist in der
   // Fusszeile das Einzige, woran sich die Herkunft noch ablesen lässt.
   const zeigeFuss = () => {
-    ui.el('st-version').textContent = `Tragjoch ${VERSION}`
+    ui.el('st-version').textContent = `${APP_NAME} ${VERSION}`
       + (alsProgramm() ? ' · installiert' : '')
       + (netzZustand() ? ' · ohne Netz' : '');
   };

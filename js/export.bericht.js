@@ -24,7 +24,7 @@ const AMPEL = (ok, t) => ({ v: t, s: ok ? STIL.OK : STIL.NOK });
 function blattEingabe(werte, erg) {
   const wo = verortung(werte);
   const rows = [
-    [{ v: 'Tragjoch – Eingabewerte', s: STIL.TITEL }],
+    [{ v: 'Vierendeel – Eingabewerte', s: STIL.TITEL }],
     // Wo das Tragwerk steht, gleich unter den Titel: ein Projekt hat viele
     // Joche, und das Blatt wird ausgedruckt und weitergereicht.
     ...(wo ? [[{ v: wo, s: STIL.NOTIZ }]] : []),
@@ -351,7 +351,7 @@ export function exportiere(werte, erg, checks, hinw, warn, vergleich, urteil) {
   const name = einzeln
     ? `Einzelmast${wo ? `_${wo}` : ''}_${md?.profil?.name?.replace(/\s+/g, '') ?? 'Mast'}`
       + `_H${(md?.H ?? 0).toFixed(1)}m.xlsx`
-    : `Tragjoch${wo ? `_${wo}` : ''}`
+    : `Vierendeel${wo ? `_${wo}` : ''}`
       + `_${erg.modell.typ ?? 'frei'}_L${erg.modell.L.toFixed(1)}m.xlsx`;
   herunterladen(arbeitsmappe(blaetter), name);
   return name;
