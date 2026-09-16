@@ -397,6 +397,50 @@ Bericht und Excel zugleich und ist ein Entscheid des Auftraggebers. Der
 Ist-Zustand ist als Kontrolle festgehalten: fällt sie, ist die Entscheidung
 umgesetzt worden, und dann gehört sie umgeschrieben.
 
+### Die Lagerung der Druckstütze (16. September)
+
+Befund aus AxisVM: **«Knoten hat keine Steifigkeit. (1×) — YY (1×)»**, die
+Berechnung brach ab.
+
+Der Lagerknoten trug ein Auflager mit allen drei Drehungen frei, und daran
+hingen zwei Linkelemente, die keine Momente übertragen. Beide lagen
+**kollinear in der Spreizrichtung** — eine Drehung um diese Gerade bewegt
+keinen der drei Punkte, also hielt sie niemand. Daher genau eine Meldung, und
+genau YY.
+
+Weisung: «wir sollten hier über ein starrelement gehen und in der achse der
+c-Profile einen kurzen teil als link ausbilden. das gleiche dann auch beim
+knoten beim anschluss masten» — 50 mm, innerhalb der Stützenlänge, alle drei
+Momente frei.
+
+Die Kette ist seither an jedem Ende dreiteilig:
+
+```
+Lagerknoten  ──STARR──  s = s_L  ──LINK──  s = 2·s_L  ──PROFIL──
+```
+
+**Das starre Stück misst dasselbe, und das ist keine Symmetrie um ihrer selbst
+willen.** Es muss in die *Achse* hineinreichen: ginge es nur quer vom
+Lagerknoten zum Profilende, läge sein Endpunkt wieder auf der Spreizgeraden,
+und der Nullmodus bliebe. Mit 50 mm Versatz in der Profilachse liegt der
+Anschlusspunkt daneben, die Drehung verschiebt ihn, das Gelenkstück spannt.
+Eine Kontrolle misst genau das: **50 mm neben der Spreizgeraden**.
+
+Je Ende gehen damit 100 mm vom Profil ab. Die Stützenlänge bleibt unverändert,
+und der Nachweis rechnet ohnehin mit ihr.
+
+**Dabei eine zweite Falle geschlossen:** die Bindebleche hingen über
+`reihen[seite][bleche.length − j]` an ihrer Station — eine Rechnung, die davon
+ausging, dass die Stationsliste mit 0 beginnt. Mit den beiden neuen
+Gelenkstellen stimmte sie nicht mehr, und die Stiele wuchsen von 56 mm auf
+1.16 m. *Ein Index in eine Liste, deren Aufbau anderswo festgelegt wird, ist
+eine Verabredung ohne Zeugen* — jetzt ist die Station selbst der Schlüssel.
+
+**Im Modell nachgemessen** (J90, L 20 m, U12): 879 Knoten, 485 Stäbe,
+505 Starrelemente, 12 Verbindungselemente. Die Liste der Verbindungselemente
+führt jetzt `ANKERGELENK_A_LK/LF/RK/RF` mit «fest fest fest frei frei frei» —
+`ANKERKOPF` und `ANKERFUSS` stehen nicht mehr darin, sie sind Starrkörper.
+
 ### Der Reiter Auflager: Mastfuss zuerst (16. September)
 
 Weisung: «bei den reaktionskräfte die mastfuss als primären output nehmen,

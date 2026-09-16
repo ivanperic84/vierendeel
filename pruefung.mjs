@@ -10342,19 +10342,77 @@ titel('42  Der lange Mast mit Zusatzleitern');
       .filter((x) => /^ANKER(KOPF|FUSS)_/.test(x.name));
     wahr('Acht Anschluesse - je Anker zwei oben und zwei unten',
          ansch.length === 8, `${ansch.length}`);
-    /*
-     * >>> DAS GELENK LIEGT AM GEMEINSAMEN KNOTEN. <<<
+    /* =====================================================================
+     * >>> DAS GELENK LIEGT IN DER PROFILACHSE, NICHT AM LAGER. <<<
+     * =====================================================================
      *
-     * Beide Starrelemente eines Endes gehen VOM Anschlusspunkt aus und sind
-     * dort momentenfrei. Damit dreht die Stuetze um die Bolzenachse - sie
-     * liegt in der Spreizrichtung - und traegt das Kraeftepaar quer dazu
-     * ueber die beiden Profile. Genau das tut ein Verbundstab, und genau
-     * das konnte der eine Pendelstab nicht.
+     * Befund vom 16. September aus AxisVM: "Knoten hat keine Steifigkeit.
+     * (1x) - YY (1x)". Der Lagerknoten trug ein Auflager mit allen drei
+     * Drehungen frei, und daran hingen zwei Linkelemente, die keine Momente
+     * uebertragen. Beide lagen KOLLINEAR in der Spreizrichtung: eine
+     * Drehung um diese Gerade bewegt keinen der drei Punkte, also hielt sie
+     * niemand.
+     *
+     * Weisung: "ich denke wir koennen nicht direkt einen linkelement an das
+     * lager setzen, wir sollten hier ueber ein starrelement gehen und in der
+     * achse der c-Profile einen kurzen teil als link ausbilden. das gleiche
+     * dann auch beim knoten beim anschluss masten." 50 mm, innerhalb der
+     * Stuetzenlaenge, alle drei Momente frei.
+     *
+     * Die Kette ist seither dreiteilig:
+     *
+     *   Lagerknoten --STARR-- s = sL --LINK-- s = 2*sL --PROFIL--
+     *
+     * Und das starre Stueck muss IN DIE ACHSE hineinreichen: ginge es nur
+     * quer, laege sein Endpunkt wieder auf der Geraden, und der Nullmodus
+     * bliebe. Genau das nagelt die Kontrolle unten fest.
      */
-    wahr('Jeder Anschluss ist momentenfrei',
-         ansch.every((x) => x.gelenkAnfang === 'M'));
-    wahr('\u2026 und als Linkelement ausgeleitet, nicht als Starrkoerper',
-         ansch.every((x) => x.art === 'link'));
+    wahr('Die Anschluesse ans Lager sind STARR, nicht gelenkig',
+         ansch.every((x) => !x.gelenkAnfang),
+         ansch.map((x) => x.gelenkAnfang ?? '-').join(' '));
+    wahr('\u2026 und werden als Starrkoerper ausgeleitet',
+         ansch.every((x) => x.art === 'starr'),
+         [...new Set(ansch.map((x) => x.art))].join(' '));
+    const gelenke = (jA.staebe ?? [])
+      .filter((x) => /^ANKERGELENK_/.test(x.name));
+    wahr('Acht Gelenkstuecke - je Anker zwei oben und zwei unten',
+         gelenke.length === 8, `${gelenke.length}`);
+    wahr('Jedes gibt alle drei Momente frei',
+         gelenke.every((x) => x.gelenkAnfang === 'M'));
+    wahr('\u2026 und wird als Linkelement ausgeleitet',
+         gelenke.every((x) => x.art === 'link'),
+         [...new Set(gelenke.map((x) => x.art))].join(' '));
+    /*
+     * >>> SIE MESSEN 50 mm UND LIEGEN IN DER ACHSE. <<<
+     *
+     * In der Achse, weil das Profil dort weiterlaeuft - ein Gelenkstueck
+     * quer dazu waere ein zweiter Hebel, kein Bolzen.
+     */
+    {
+      const knG = new Map((jA.knoten ?? []).map((k) => [k.name, k]));
+      const lgG = (st3) => {
+        const p1 = knG.get(st3.von), p2 = knG.get(st3.bis);
+        return Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+      };
+      gelenke.slice(0, 2).forEach((g2, i4) => {
+        pruef(`Gelenkstueck ${i4 + 1} misst 50 mm`, lgG(g2), 0.05, 1e-4, 'm');
+      });
+      /*
+       * >>> UND DAS STARRE STUECK REICHT IN DIE ACHSE. <<<
+       *
+       * Die Probe auf den Nullmodus: der Endpunkt des Starrelements darf
+       * NICHT auf der Geraden durch den Lagerknoten in Spreizrichtung
+       * liegen. Am Anker in der Jochachse heisst das: er muss sich in x
+       * oder z vom Lagerknoten unterscheiden.
+       */
+      const fuss = ansch.find((x) => /^ANKERFUSS_A_L$/.test(x.name));
+      const pLager = knG.get(fuss.von), pEnde = knG.get(fuss.bis);
+      const dQuer = Math.hypot(pEnde.x - pLager.x, pEnde.z - pLager.z);
+      wahr('Das Starrelement reicht in die Profilachse hinein',
+           dQuer > 0.02,
+           `${(dQuer * 1000).toFixed(0)} mm neben der Spreizgeraden`);
+      pruef('\u2026 und zwar um das Gelenkmass', dQuer, 0.05, 2e-2, 'm');
+    }
     /* =====================================================================
      * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
      * =====================================================================
@@ -10545,7 +10603,13 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * sie, ist entweder das Profil oder das Blech vertauscht.
      */
     const kL0 = kn('ANK_A_L0'), kR0 = kn('ANK_A_R0');
-    const letzteA = AN.ankerBindebleche('U12', 5).length + 1;
+    /*
+     * ZWEI STELLEN MEHR JE ENDE seit dem 16. September: die Reihe beginnt
+     * nicht mehr am Stuetzenende, sondern 50 mm davor (Gelenk) und 100 mm
+     * davor (Starrelement). Der letzte Knoten liegt entsprechend 50 mm vor
+     * dem Fundament.
+     */
+    const letzteA = AN.ankerBindebleche('U12', 5).length + 3;
     const kLn = kn(`ANK_A_L${letzteA}`), kRn = kn(`ANK_A_R${letzteA}`);
     pruef('Am Masten stehen die Profile 257 mm auseinander',
           kR0.y - kL0.y, 0.257, 1e-9, 'm');
@@ -10567,10 +10631,25 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * des Keils.
      */
     const lg3 = (a2, b2) => Math.hypot(b2.x - a2.x, b2.y - a2.y, b2.z - a2.z);
-    pruef('Oben laeuft er 1610 mm parallel',
-          lg3(kn('ANK_A_L0'), kn('ANK_A_L1')), 1.610, 1e-5, 'm');
-    pruef('Unten 990 mm',
-          lg3(kn(`ANK_A_L${letzteA - 1}`), kLn), 0.990, 1e-5, 'm');
+    /*
+     * DIE ERSTEN UND LETZTEN 100 mm GEHOEREN DEM ANSCHLUSS (16. September):
+     * 50 mm Starrelement, 50 mm Gelenkstueck. Die Masse des Blattes zaehlen
+     * weiter ab dem STUETZENENDE - im Modell bleiben davon 1610 - 100 =
+     * 1510 mm zwischen dem Gelenk und dem ersten Blech.
+     */
+    pruef('Oben bleiben vom parallelen Stueck 1510 mm',
+          lg3(kn('ANK_A_L1'), kn('ANK_A_L2')), 1.510, 1e-4, 'm');
+    /*
+     * DIE REIHE: 0 und 1 sind der Anschluss oben, dann die Bleche, dann
+     * letzteA-1 und letzteA der Anschluss unten. Das letzte Blech liegt
+     * also bei letzteA-2.
+     */
+    pruef('Unten 890 mm', lg3(kn(`ANK_A_L${letzteA - 2}`),
+                              kn(`ANK_A_L${letzteA - 1}`)), 0.890, 1e-4, 'm');
+    wahr('\u2026 und zusammen mit dem Anschluss sind es wieder 1610 und 990',
+         Math.abs(lg3(kn('ANK_A_L1'), kn('ANK_A_L2')) + 2 * 0.05 - 1.610) < 1e-4
+         && Math.abs(lg3(kn(`ANK_A_L${letzteA - 2}`),
+                         kn(`ANK_A_L${letzteA - 1}`)) + 2 * 0.05 - 0.990) < 1e-4);
     pruef('Im parallelen Stueck aendert sich nichts',
           kn('ANK_A_R1').y - kn('ANK_A_L1').y, 0.257, 1e-9, 'm');
 

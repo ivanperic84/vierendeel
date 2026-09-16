@@ -211,6 +211,29 @@ const STARR = { name: 'STARR', h: 500, b: 500 };
  * Auftraggeber dafuer gesetzt hat.
  */
 const ANKER_KONSOLE = 0.15;
+/* ===========================================================================
+ * >>> DIE SCHRAUBVERBINDUNG DER STUETZE - LAENGE DES GELENKSTUECKS. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «wir sollten hier über ein starrelement gehen
+ * und in der achse der c-Profile einen kurzen teil als link ausbilden»,
+ * 50 mm, innerhalb der Stuetzenlaenge, alle drei Momente frei.
+ *
+ * DAS STARRE STUECK MISST DASSELBE, und das ist keine Symmetrie um ihrer
+ * selbst willen: es muss in die ACHSE hineinreichen. Ginge das Starrelement
+ * nur quer vom Lagerknoten zum Profilende, laegen Lagerknoten und beide
+ * Profilenden auf EINER Geraden in Spreizrichtung - und eine Drehung um
+ * diese Gerade bewegt keinen der drei Punkte. Genau das war der Fehler
+ * «Knoten hat keine Steifigkeit (YY)»: der Starrkoerper haette den Nullmodus
+ * behalten.
+ *
+ * Mit 50 mm Versatz in der Profilachse liegt der Anschlusspunkt neben der
+ * Geraden, die Drehung verschiebt ihn, das Gelenkstueck spannt - und der
+ * Knoten hat seine Steifigkeit. Je Ende gehen damit 100 mm vom PROFIL ab;
+ * die Stuetzenlaenge selbst bleibt unveraendert, und der Nachweis rechnet
+ * ohnehin mit ihr.
+ * ========================================================================= */
+const ANKER_GELENK = 0.05;
 
 /**
  * Merkmale des Aufbaus, die man der Datei nicht ansieht.
@@ -2298,7 +2321,31 @@ export function stabmodell(m, opt = {}) {
           const blSatz = ankerBlechSatz(ak.typ);
           const bleche = ankerBindebleche(ak.typ, LAnk);
           const sp2 = spreiz;
-          const par = [0];
+          /* ===============================================================
+           * >>> VIER STELLEN MEHR: DIE BEIDEN ANSCHLUESSE. <<<
+           * ===============================================================
+           *
+           * `par` lief bisher von 0 (Mast) bis 1 (Fundament), und an beiden
+           * Enden sass EIN Element, das zugleich starr und momentenfrei war.
+           * AxisVM machte daraus ein Linkelement direkt am Lagerknoten - und
+           * der hatte dann keine Drehsteifigkeit mehr.
+           *
+           * Jetzt ist die Kette an jedem Ende dreiteilig:
+           *
+           *   Lagerknoten  --STARR--  s = sL   --LINK--  s = 2*sL  --PROFIL--
+           *
+           * Das Starrelement laeuft schraeg (quer zum Profil UND 50 mm in
+           * seine Achse), das Gelenkstueck liegt in der Achse. Beide Masse
+           * stehen in `ANKER_GELENK`.
+           *
+           * ZU KURZ FUER DIE KETTE: unter 400 mm Stuetzenlaenge blieben vom
+           * Profil keine 200 mm uebrig. Dann bleibt es beim alten Aufbau -
+           * eine Stuetze dieser Laenge gibt es nicht, aber ein Modell, das
+           * bei einem Grenzfall Knoten uebereinanderlegt, waere schlimmer
+           * als eines, das ihn auslaesst.
+           * ============================================================= */
+          const sL = LAnk > 8 * ANKER_GELENK ? ANKER_GELENK / LAnk : 0;
+          const par = sL > 0 ? [r6(sL), r6(2 * sL)] : [0];
           if (bleche.length) {
             // Vom Masten aus: die hinterste Station zuerst.
             bleche.slice().reverse()
@@ -2310,7 +2357,8 @@ export function stabmodell(m, opt = {}) {
               par.push(sBreit / LAnk, 1 - sSchmal / LAnk);
             }
           }
-          par.push(1);
+          if (sL > 0) par.push(r6(1 - 2 * sL), r6(1 - sL));
+          else par.push(1);
           /*
            * EIN PUNKT AUF DER STUETZE.
            *
@@ -2333,23 +2381,73 @@ export function stabmodell(m, opt = {}) {
            * allein die beiden Anschluesse.
            */
           const reihen = {};
+          // Station -> Knoten, je Seite (siehe unten).
+          const stationKn = {};
           [['L', -1], ['R', +1]].forEach(([seite, vz]) => {
             reihen[seite] = par.map((sv, i2) => {
               const p3 = punkt(sv, vz);
               return s.kn(`ANK_${mn(ende)}_${seite}${i2}`, p3.x, p3.y, p3.z);
             });
-            for (let i2 = 0; i2 < reihen[seite].length - 1; i2 += 1) {
-              s.stab(`ANKERPROFIL_${mn(ende)}_${seite}${i2 + 1}`, qsProfil,
-                     reihen[seite][i2], reihen[seite][i2 + 1],
-                     { lcsZ: lcsAnker(vz) });
+            const rr = reihen[seite];
+            const letzte = rr.length - 1;
+            /*
+             * >>> DER STATIONSSCHLUESSEL, NICHT DER INDEX. <<<
+             *
+             * Die Bindebleche haengten ueber `reihen[seite][bleche.length-j]`
+             * an ihrer Station - eine Rechnung, die davon ausging, dass
+             * `par` mit 0 beginnt und die Bleche gleich danach kommen. Mit
+             * den beiden Gelenkstellen am Anfang (16. September) stimmte sie
+             * nicht mehr, und die Stiele wuchsen von 56 mm auf 1.16 m.
+             *
+             * Ein Index in eine Liste, deren Aufbau anderswo festgelegt
+             * wird, ist eine Verabredung ohne Zeugen. Die Station selbst ist
+             * der Schluessel: sie steht in `par` und wird beim Blech
+             * identisch gerechnet.
+             */
+            stationKn[seite] = new Map(par.map((sv2, i3) => [sv2, rr[i3]]));
+            /* =============================================================
+             * >>> DAS PROFIL LAEUFT DURCH, DIE ENDEN SIND GELENKE. <<<
+             * =============================================================
+             *
+             * Weisung vom 16. September: «ich denke wir können nicht direkt
+             * einen linkelement an das lager setzen, wir sollten hier über
+             * ein starrelement gehen und in der achse der c-Profile einen
+             * kurzen teil als link ausbilden. das gleiche dann auch beim
+             * knoten beim anschluss masten.»
+             *
+             * Das erste und das letzte Stueck der Reihe sind keine
+             * Profilstaebe mehr, sondern die GELENKSTUECKE - 50 mm in der
+             * Profilachse, alle drei Momente frei. Was dazwischen liegt,
+             * ist das C-Profil.
+             */
+            for (let i2 = 1; i2 < letzte - 1; i2 += 1) {
+              s.stab(`ANKERPROFIL_${mn(ende)}_${seite}${i2}`, qsProfil,
+                     rr[i2], rr[i2 + 1], { lcsZ: lcsAnker(vz) });
             }
-            // Die beiden Anschluesse - hier sitzt das Gelenk.
+            /*
+             * DIE GELENKSTUECKE. Sie sind kurz und starr im Querschnitt -
+             * was sie ausmacht, ist die Freigabe: `gelenkAnfang: 'M'` loest
+             * alle drei Momente, und die Ausleitung macht daraus ein
+             * LinkElement (`starrArt`). Der Bolzen dreht in jede Richtung;
+             * das war die Entscheidung des Auftraggebers.
+             */
+            const gel = { starrRolle: 'verbindung', gelenkAnfang: 'M' };
+            s.stab(`ANKERGELENK_${mn(ende)}_${seite}K`, qsStarr,
+                   rr[0], rr[1], gel);
+            s.stab(`ANKERGELENK_${mn(ende)}_${seite}F`, qsStarr,
+                   rr[letzte], rr[letzte - 1], gel);
+            /*
+             * UND DIE BEIDEN STARREN ANSCHLUESSE - sie tragen die Momente
+             * in den Lagerknoten und den Mastknoten. Ohne sie haetten beide
+             * keine Drehsteifigkeit; MIT ihnen reicht der Starrkoerper 50 mm
+             * in die Profilachse hinein und faengt die Drehung um die
+             * Spreizachse. Siehe `ANKER_GELENK`.
+             */
+            const fest = { starrRolle: 'verbindung' };
             s.stab(`ANKERKOPF_${mn(ende)}_${seite}`, qsStarr,
-                   kKons, reihen[seite][0],
-                   { starrRolle: 'verbindung', gelenkAnfang: 'M' });
+                   kKons, rr[0], fest);
             s.stab(`ANKERFUSS_${mn(ende)}_${seite}`, qsStarr,
-                   kAnkF, reihen[seite][reihen[seite].length - 1],
-                   { starrRolle: 'verbindung', gelenkAnfang: 'M' });
+                   kAnkF, rr[letzte], fest);
           });
           /* =================================================================
            * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
@@ -2467,7 +2565,7 @@ export function stabmodell(m, opt = {}) {
                    * statt 56 mm, und genau daran war es zu sehen.
                    */
                   s.stab(`ANKERSTIEL_${mn(ende)}_${seite}${lage}${j + 1}`,
-                         qsStarr, reihen[seite][bleche.length - j], kEck,
+                         qsStarr, stationKn[seite].get(sv), kEck,
                          { starrRolle: 'verbindung' });
                   s.stab(`ANKERKANTE_${mn(ende)}_${seite}${lage}${j + 1}`,
                          qsStarr, kEck, kn2, { starrRolle: 'verbindung' });
