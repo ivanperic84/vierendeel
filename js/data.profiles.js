@@ -1,7 +1,8 @@
 /**
  * data.profiles.js
  * ---------------------------------------------------------------------------
- * REINE DATEN. Keine Logik, kein DOM.
+ * DER ZUGRIFF auf die Profiltabellen. Die ZAHLEN stehen in data/normen.json
+ * und werden dort gepflegt (siehe js/data.normen.js).
  *
  * Winkelprofile (L) nach EN 10056-1 / SZS C5 sowie Stahlgüten.
  *
@@ -32,77 +33,46 @@
  * ---------------------------------------------------------------------------
  */
 
-/** Hilfsfunktion: gleichschenkliger Winkel -> volles Feldschema. */
-const gl = (a, t, g, A, iy, imin, zs, W) => ({
-  name: `L ${a}x${a}x${t}`, form: 'gleichschenklig',
-  aH: a, aV: a, t, g, A, iy, iz: iy, imin, zsH: zs, zsV: zs, Wy: W, Wz: W,
-});
+import { winkelprofile, walzprofile,
+         stahlgueten } from './data.normen.js';
 
-/** @type {object[]} */
-export const PROFILE = [
-  //  a    t     g      A     iy   imin   zs     W
-  gl( 45,  5,  3.38,  4.30, 1.38, 0.88, 1.28,   2.53),
-  gl( 50,  5,  3.77,  4.80, 1.51, 0.97, 1.40,   3.05),
-  gl( 60,  6,  5.42,  6.91, 1.82, 1.17, 1.69,   5.29),
-  gl( 60,  8,  7.09,  9.03, 1.80, 1.16, 1.77,   6.88),
-  gl( 70,  7,  7.38,  9.40, 2.12, 1.36, 1.97,   8.43),
-  gl( 80,  8,  9.63, 12.30, 2.42, 1.56, 2.26,  12.58),
-  gl( 80, 10, 11.90, 15.10, 2.41, 1.55, 2.34,  15.46),
-  gl( 90,  9, 12.20, 15.50, 2.74, 1.75, 2.54,  17.96),
-  gl(100, 10, 15.10, 19.20, 3.04, 1.95, 2.82,  24.65),
-  gl(100, 12, 17.80, 22.70, 3.02, 1.94, 2.90,  29.15),
-  gl(120, 12, 21.60, 27.50, 3.63, 2.33, 3.40,  42.21),
-  gl(130, 12, 23.60, 30.00, 3.97, 2.56, 3.64,  50.43),
-  gl(150, 15, 33.80, 43.00, 4.57, 2.93, 4.25,  83.53),
-  gl(150, 18, 40.10, 51.00, 4.54, 2.92, 4.37,  98.78),
-  gl(200, 20, 59.90, 76.30, 6.11, 3.93, 5.52, 196.82),
+/* ===========================================================================
+ * >>> DIE ZAHLEN STEHEN NICHT MEHR HIER. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «alle relevanten tragwerksdaten werden
+ * ausschliesslich über die datenbank gesteuert, es soll nichts hardcoded in
+ * der app sein.»
+ *
+ * Bis dahin stand die Tabelle als Literal an dieser Stelle - siebzehn
+ * Winkel, dazu Stahlgüten und Walzprofile weiter unten. Sie liegen jetzt in
+ * data/normen.json und kommen über js/data.normen.js.
+ *
+ * WAS HIER BLEIBT, ist die Bedeutung der Felder (der Kasten oben) und der
+ * Zugriff darauf. Das ist kein Rest, sondern die Aufgabe dieses Moduls: die
+ * Datenbank führt Zahlen, dieses Modul sagt, was sie heissen und wie man
+ * mit ihnen rechnet.
+ * ========================================================================= */
 
-  // --- ungleichschenklig -------------------------------------------------
-  // Einbaulage im Tragjoch J130 Untergurt: LANGER Schenkel liegend (120 mm
-  // horizontal), kurzer Schenkel stehend (80 mm vertikal).
-  {
-    name: 'L 120x80x12', form: 'ungleichschenklig',
-    aH: 120, aV: 80, t: 12, g: 17.80, A: 22.70,
-    iy: 2.24, iz: 3.77, imin: 1.73,
-    zsH: 2.05, zsV: 4.05,
-    Wy: 18.90, Wz: 40.40,
-    hinweis: 'Ungleichschenklig. Die Widerstandsmomente beziehen sich auf die ' +
-             'schenkelparallelen Achsen bei liegendem 120-mm-Schenkel. Der ' +
-             'Nachweis um die Hauptachsen ist gesondert zu führen.',
-  },
-  // Einbaulage im Tragjoch J130 der ALTBAUWEISE: LANGER Schenkel
-  // liegend (130 mm horizontal), kurzer Schenkel stehend (80 mm vertikal).
-  {
-    name: 'L 130x80x12', form: 'ungleichschenklig',
-    aH: 130, aV: 80, t: 12, g: 18.65, A: 23.76,
-    iy: 2.24, iz: 4.14, imin: 1.73,
-    zsH: 1.97, zsV: 4.47,
-    Wy: 19.75, Wz: 47.76,
-    hinweis: 'Ungleichschenklig, in den aktuellen Normprofilreihen nicht mehr ' +
-             'enthalten. Die Querschnittswerte sind aus der Sollgeometrie ' +
-             'gerechnet (zwei Rechtecke, ohne Ausrundungen) und liegen damit ' +
-             'rund 2 % unter den Walzwerten – auf der sicheren Seite. Die ' +
-             'Widerstandsmomente gelten für die schenkelparallelen Achsen bei ' +
-             'liegendem 130-mm-Schenkel; der Nachweis um die Hauptachsen ist ' +
-             'gesondert zu führen.',
-  },
-];
+/**
+ * ALLE WINKELPROFILE - die vier Gurte eines Tragjochs.
+ *
+ * Eine Funktion und keine Konstante: geladen wird dieses Modul, bevor die
+ * Datei da ist. Eine Konstante stünde damit leer fest.
+ */
+export const PROFILE = () => winkelprofile();
 
-/** Stahlgüten nach SIA 263, Erzeugnisdicke t <= 40 mm. */
-export const STAHLGUETEN = [
-  { name: 'S235', fy: 235, fu: 360 },
-  { name: 'S275', fy: 275, fu: 430 },
-  { name: 'S355', fy: 355, fu: 490 },
-];
+/** Alle Stahlgüten. Nach SIA 263, Erzeugnisdicke t <= 40 mm. */
+export const STAHLGUETEN = () => stahlgueten();
 
 export function getProfil(name) {
-  const p = PROFILE.find((x) => x.name === name);
+  const p = winkelprofile().find((x) => x.name === name);
   if (!p) throw new Error(`Unbekanntes Profil: ${name}`);
   return p;
 }
 
 export function getStahl(name) {
-  const s = STAHLGUETEN.find((x) => x.name === name);
+  const s = stahlgueten().find((x) => x.name === name);
   if (!s) throw new Error(`Unbekannte Stahlgüte: ${name}`);
   return s;
 }
@@ -191,37 +161,18 @@ export function getStahl(name) {
  * Masse in cm, cm2, cm4 - wie im Winkelkatalog darueber.
  * ---------------------------------------------------------------------------
  */
-const wp = (name, reihe, h, b, tw, tf, r, A, G, Iy, Wy, iy, Iz, Wz, iz, It, ey) =>
-  ({ name, reihe, h, b, tw, tf, r, A, G, Iy, Wy, iy, Iz, Wz, iz, It,
-     // Nur das U-Profil kennt eine Schwerpunktverschiebung; beim I liegt
-     // die Achse mittig, und `ey` bleibt null.
-     ey: ey ?? 0 });
+/*
+ * Auch diese Tabelle steht seit dem 16. September in data/normen.json. Die
+ * Prüfvermerke zu UPE 160, 200 und 240 sind dort als `hinweis` mitgezogen -
+ * sie gehören zu den Zahlen, nicht zum Zugriff auf sie.
+ */
 
-export const GURTPROFILE = [
-  //   name       reihe     h     b    t_w   t_f    r     A     G      I_y    W_y   i_y     I_z   W_z   i_z    I_t   e_y
-  // UPE 160 am 3. September gegen den AxisVM-Querschnittseditor geprueft
-  // und berichtigt - siehe den Kasten unter der Tabelle.
-  wp('UPE 160', 'UPE', 16.0,  7.0, 0.55, 0.95, 1.00, 21.67, 17.0,  911.1, 113.9, 6.48, 106.83, 22.58, 2.22, 5.23, 1.84),
-  // UPE 200 und UPE 240 am 4. September im AxisVM-Querschnittseditor
-  // vermessen - dieselbe Abweichung wie bei UPE 160, siehe unten.
-  wp('UPE 200', 'UPE', 20.0,  8.0, 0.60, 1.10, 1.10, 29.01, 22.8, 1909.3, 190.93, 8.11, 187.30, 34.43, 2.54, 8.95, 2.56),
-  wp('UPE 240', 'UPE', 24.0,  9.0, 0.70, 1.25, 1.20, 38.52, 30.2, 3598.9, 299.90, 9.67, 310.94, 50.08, 2.84, 15.24, 2.79),
-  /*
-   * IPE 240 ist KEIN Gurtprofil - A240 traegt UPE 240. Es steht hier als
-   * QUERSTEIFE: die Konstruktionszeichnung fuehrt bei A240 ein IPE 240 x 600
-   * unter der Position «Querversteifung». Ohne seine Werte liesse sich der
-   * Riegel an den QV-Grenzen nicht nachweisen.
-   */
-  wp('IPE 240', 'IPE', 24.0, 12.0, 0.62, 0.98, 1.50, 39.1, 30.7,  3892, 324.0, 9.97, 283.6, 47.3, 2.69, 12.9, 0),
-  wp('IPE 270', 'IPE', 27.0, 13.5, 0.66, 1.02, 1.50, 45.9, 36.1,  5790, 429.0, 11.2, 420.0, 62.2, 3.02, 15.9, 0),
-  wp('IPE 300', 'IPE', 30.0, 15.0, 0.71, 1.07, 1.50, 53.8, 42.2,  8356, 557.0, 12.5, 604.0, 80.5, 3.35, 20.1, 0),
-  wp('IPE 330', 'IPE', 33.0, 16.0, 0.75, 1.15, 1.80, 62.6, 49.1, 11770, 713.0, 13.7, 788.0, 98.5, 3.55, 28.2, 0),
-  wp('IPE 360', 'IPE', 36.0, 17.0, 0.80, 1.27, 1.80, 72.7, 57.1, 16270, 904.0, 15.0, 1043.0, 123.0, 3.79, 37.3, 0),
-];
+/** Alle Walzprofile der Abfangjoche. Masse in cm - anders als beim Masten. */
+export const GURTPROFILE = () => walzprofile();
 
 /** Ein Gurtprofil nach Namen. */
 export function getGurtprofil(name) {
-  const p = GURTPROFILE.find((x) => x.name === name);
+  const p = walzprofile().find((x) => x.name === name);
   if (!p) throw new Error(`Unbekanntes Gurtprofil: ${name}`);
   return p;
 }

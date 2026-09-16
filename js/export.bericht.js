@@ -39,7 +39,15 @@ function blattEingabe(werte, erg) {
     felder.forEach((f) => {
       let w = werte[f.key];
       if (f.typ === 'auswahl') {
-        w = f.optionen.find((o) => o.wert === w)?.text ?? w;
+        /*
+         * DIE LISTE KANN ERST BEIM ZEICHNEN ENTSTEHEN. Felder, deren
+         * Auswahl aus der Datenbank kommt (Jochtyp, Profil, Stahlguete),
+         * tragen `optionenAus` statt `optionen` - seit dem 16. September
+         * auch die Profilwaehler. Wer den Bericht baut, ohne dass die
+         * Maske je gezeichnet wurde, faende `optionen` sonst nicht vor.
+         */
+        const liste = f.optionen ?? f.optionenAus?.(werte) ?? [];
+        w = liste.find((o) => o.wert === w)?.text ?? w;
       } else if (f.typ === 'schalter') {
         w = w ? 'ja' : 'nein';
       }

@@ -14,6 +14,23 @@
 # beisammen und `python3 build_html.py` bettet die Zahlen wieder ein.
 data/*.json
 
+# ---------------------------------------------------------------------------
+# AUSGENOMMEN: DIE NORMWERTE.
+#
+# Weisung vom 16. September: «die ui und die sbb daten sollen getrennt sein.»
+#
+# data/normen.json trägt die Querschnittswerte der Profile (EN 10056-1,
+# EN 10365, DIN 1026-2) und die Stahlgüten (SIA 263). Diese Zahlen gehören
+# keinem Betreiber - ein HEB 240 hat überall dasselbe I_y - und sie sind
+# VORAUSSETZUNG: ohne sie rechnet die Anwendung nicht. Sie gehören deshalb
+# in die Ablage, obwohl sie in data/ liegen.
+#
+# Vor dem 16. September standen sie im Quelltext (js/data.profiles.js,
+# js/data.masten.js). Sie waren also ohnehin schon öffentlich - nur eben
+# nicht pflegbar.
+# ---------------------------------------------------------------------------
+!data/normen.json
+
 # Projektunterlagen des Betreibers
 Grundlagen/
 *.axs

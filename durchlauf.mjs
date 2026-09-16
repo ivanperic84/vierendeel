@@ -29,6 +29,20 @@ import { fileURLToPath } from 'node:url';
 const HIER = dirname(fileURLToPath(import.meta.url));
 const J = (f) => new URL(`./js/${f}`, import.meta.url).href;
 
+/*
+ * DIE NORMWERTE ZUERST. Seit dem 16. September stehen die Querschnittswerte
+ * nicht mehr im Quelltext, sondern in data/normen.json - ohne sie wirft
+ * jeder Zugriff auf ein Profil. Sie sind keine Betreiberdaten und liegen
+ * deshalb auch in einer oeffentlichen Ablage bei.
+ */
+const NO = await import(J('data.normen.js'));
+NO.setzeNormen(JSON.parse(readFileSync(join(HIER, 'data', 'normen.json'), 'utf8')));
+const MA_SORT = await import(J('data.masten.js'));
+try {
+  MA_SORT.setzeMastenDB(JSON.parse(
+    readFileSync(join(HIER, 'data', 'masten.json'), 'utf8')));
+} catch { /* ohne Masten-Sortiment weiter - dann ohne Windlast */ }
+
 const T = await import(J('data.tragjoche.js'));
 const P = await import(J('data.profiles.js'));
 const A = await import(J('data.anbauteile.js'));

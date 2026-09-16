@@ -31,6 +31,9 @@ JS = WURZEL / "js"
 CSS = WURZEL / "css" / "style.css"
 QUELLE_HTML = WURZEL / "index.html"
 DB_JSON = WURZEL / "data" / "tragjoche.json"
+# Die Normwerte sind KEINE Betreiberdaten - sie werden immer eingebettet,
+# auch bei --ohne-daten. Ohne sie gibt es keine Querschnittswerte.
+NORMEN_JSON = WURZEL / "data" / "normen.json"
 AT_JSON = WURZEL / "data" / "anbauteile.json"
 FL_JSON = WURZEL / "data" / "fl_bauteile.json"
 ZIEL = WURZEL / "vierendeel_tool.html"
@@ -199,14 +202,23 @@ def schale():
     """
     Alles, was die Anwendung zum Starten braucht - in Ladereihenfolge.
 
-    OHNE data/. Die drei Datenbanken sind KEINE Voraussetzung für den Start:
-    sie können als Datenpaket im Browser hinterlegt sein und dann gibt es die
-    Dateien gar nicht (öffentliche Ablage). Sie hier aufzuführen hiesse, bei
-    jeder Einrichtung drei Fehlschläge zu erzeugen. Liegen sie doch daneben,
-    nimmt der Dienstarbeiter sie beim ersten Gebrauch von selbst auf - danach
-    ist auch dieser Weg offline vollständig.
+    OHNE das SORTIMENT in data/. Die Betreiberdatenbanken sind KEINE
+    Voraussetzung für den Start: sie können als Datenpaket im Browser
+    hinterlegt sein und dann gibt es die Dateien gar nicht (öffentliche
+    Ablage). Sie hier aufzuführen hiesse, bei jeder Einrichtung
+    Fehlschläge zu erzeugen. Liegen sie doch daneben, nimmt der
+    Dienstarbeiter sie beim ersten Gebrauch von selbst auf - danach ist
+    auch dieser Weg offline vollständig.
+
+    MIT data/normen.json. Seit dem 16. September sind die Querschnittswerte
+    keine Literale mehr im Quelltext, sondern eine Datei - und ohne sie
+    rechnet die Anwendung nicht. Anders als das Sortiment liegt sie IMMER
+    daneben (sie ist von der .gitignore ausgenommen), also erzeugt sie auch
+    keinen Fehlschlag. Sie gehört damit zur Schale wie das Stilblatt.
     """
     dateien = ["./", "index.html", "css/style.css", "manifest.webmanifest"]
+    if (WURZEL / "data" / "normen.json").is_file():
+        dateien.append("data/normen.json")
     dateien += ["js/" + p.name for p in sorted(JS.glob("*.js"))]
     dateien += ["icons/" + p.name for p in sorted(ICONS.glob("*"))
                 if p.suffix in (".png", ".svg")]
@@ -366,6 +378,40 @@ def main(ohne_daten=False):
         html = html.replace(
             TAG_AN,
             '<script type="application/json" id="anker-db">\n' + antext + "\n</script>")
+
+    # Das Masten-Sortiment (welche Profile gefuehrt werden und welche
+    # Windlast auf sie wirkt). Betreiberdaten - also nicht bei --ohne-daten.
+    TAG_MA = '<script type="application/json" id="masten-db"></script>'
+    MA_JSON = DB_JSON.parent / "masten.json"
+    if TAG_MA in html and MA_JSON.exists() and not ohne_daten:
+        matext = MA_JSON.read_text(encoding="utf-8")
+        if "</script" in matext:
+            raise SystemExit("masten.json enthaelt '</script' - das bricht die Einbettung.")
+        html = html.replace(
+            TAG_MA,
+            '<script type="application/json" id="masten-db">\n' + matext + "\n</script>")
+
+    # ---------------------------------------------------------------------
+    # DIE NORMWERTE - IMMER, AUCH OHNE DATEN.
+    #
+    # Weisung vom 16. September: die Oberflaeche und die Betreiberdaten
+    # gehoeren getrennt. Querschnittswerte und Stahlgueten stehen in Normen
+    # und gehoeren keinem Betreiber; sie duerfen deshalb auch in der
+    # datenfreien Ausgabe mitgehen - und sie MUESSEN es, sonst rechnet diese
+    # Ausgabe gar nicht mehr, sondern zeigt nur leere Waehler.
+    # ---------------------------------------------------------------------
+    TAG_NO = '<script type="application/json" id="normen-db"></script>'
+    if TAG_NO not in html:
+        raise SystemExit("Platzhalter fehlt in index.html:\n  " + TAG_NO)
+    if not NORMEN_JSON.exists():
+        raise SystemExit("data/normen.json fehlt - ohne Querschnittswerte "
+                         "laesst sich nichts nachweisen.")
+    notext = NORMEN_JSON.read_text(encoding="utf-8")
+    if "</script" in notext:
+        raise SystemExit("normen.json enthaelt '</script' - das bricht die Einbettung.")
+    html = html.replace(
+        TAG_NO,
+        '<script type="application/json" id="normen-db">\n' + notext + "\n</script>")
 
     # Die Einzeldatei hat keine Nachbardateien: kein Manifest, keine Symbole,
     # kein Dienstarbeiter. Ohne diese Zeile meldet der Browser nur ein

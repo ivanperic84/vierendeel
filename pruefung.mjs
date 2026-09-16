@@ -25,10 +25,27 @@ const NL = String.fromCharCode(10);
 // ausleiten.mjs und vergleich_werkzeug.mjs.
 const J = (n) => new URL(`./js/${n}`, import.meta.url).href;
 
+/*
+ * DIE NORMWERTE ZUERST. Seit dem 16. September stehen die Querschnittswerte
+ * nicht mehr im Quelltext, sondern in data/normen.json - ohne sie wirft
+ * jeder Zugriff auf ein Profil. Sie sind keine Betreiberdaten und liegen
+ * deshalb auch in einer oeffentlichen Ablage bei.
+ */
+const NO = await import(J('data.normen.js'));
+NO.setzeNormen(JSON.parse(readFileSync(join(HIER, 'data', 'normen.json'), 'utf8')));
+const MA_SORT = await import(J('data.masten.js'));
+try {
+  MA_SORT.setzeMastenDB(JSON.parse(
+    readFileSync(join(HIER, 'data', 'masten.json'), 'utf8')));
+} catch { /* ohne Masten-Sortiment weiter - dann ohne Windlast */ }
+
 const T = await import(J('data.tragjoche.js'));
 T.setzeDatenbank(JSON.parse(readFileSync(join(HIER, 'data', 'tragjoche.json'), 'utf8')));
 
 const { getProfil, getStahl, PROFILE } = await import(J('data.profiles.js'));
+// PROFILE ist seit dem 16. September eine FUNKTION: die Tabelle steht in
+// data/normen.json und ist beim Laden des Moduls noch nicht da.
+const PROFILE_LISTE = () => PROFILE();
 const { berechne, modell, auswertungAn } = await import(J('core.vierendeel.js'));
 const { torsionsSchubfluss } = await import(J('core.querschnitt.js'));
 const { schnittgroessen, knotenraster, pruefeAbstaende } = await import(J('core.statics.js'));
@@ -1732,7 +1749,7 @@ titel('23  Windlast auf den Mast aus der Lasttabelle');
        MA.mastWind('HEM 240', 'EK2', 'quer') === 0.42,
        'Steg in Jochachse 0.38 · Steg gedreht 0.42 kN/m');
   wahr('Jedes Mastprofil hat Windwerte',
-       MA.MASTPROFILE.every((p) => p.wind?.quer?.EK2 > 0));
+       MA.mastprofile().every((p) => p.wind?.quer?.EK2 > 0));
 }
 
 // ===========================================================================
@@ -2590,12 +2607,21 @@ titel('18f  Datenpaket');
   const paket = P.paketAus('Prüfstand');
   wahr('Paket führt Format und Version',
        paket.format === P.PAKET_FORMAT && paket.version === P.PAKET_VERSION);
-  wahr('Paket enthält alle drei Teile',
+  /*
+   * SECHS TEILE SEIT DEM 16. SEPTEMBER, nicht drei. Abfangjoche und Anker
+   * lagen zwar schon als Datei daneben, waren aber nicht im Paket; die
+   * Masten standen überhaupt nur im Quelltext. Ein Paket, das nur die
+   * Hälfte der Sortimente trägt, kann eine datenfreie Ausgabe nicht
+   * vollständig versorgen.
+   */
+  wahr('Paket enthält die drei Pflichtteile',
        Boolean(paket.tragjoche && paket.anbauteile && paket.fl_bauteile));
+  wahr('Paket enthält auch die drei übrigen Sortimente',
+       Boolean(paket.abfangjoche && paket.anker && paket.masten));
 
   const p = P.pruefePaket(paket);
   wahr('Eigenes Paket besteht die Prüfung', p.ok, p.fehler.join(' '));
-  pruef('Drei Teile erkannt', p.teile.length, 3, 1e-12, 'Stk');
+  pruef('Sechs Teile erkannt', p.teile.length, 6, 1e-12, 'Stk');
   wahr('Die Teile sind gezählt', p.teile.every((t) => t.anzahl > 0),
        p.teile.map((t) => `${t.label} ${t.anzahl}`).join(' · '));
 
@@ -11800,7 +11826,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
     {
       const MP = await import(J('data.masten.js'));
       const MA2 = await import(J('core.mast.js'));
-      const heb = MP.MASTPROFILE.find((p) => p.name === 'HEB 240');
+      const heb = MP.mastprofile().find((p) => p.name === 'HEB 240');
       const wt = MA2.woelbtorsion(heb, 8.0);
       wahr('Es gibt einen Woelbsatz zum Profil', Boolean(wt));
       /*
@@ -13628,8 +13654,8 @@ titel('49  Der Mastnachweis');
    * Tabellenwert und liegt damit auf der sicheren Seite.
    */
   {
-    const { MASTPROFILE } = await import(J('data.masten.js'));
-    MASTPROFILE.forEach((p) => {
+    const { mastprofile } = await import(J('data.masten.js'));
+    mastprofile().forEach((p) => {
       const pl = MA.plastischeWiderstaende(p);
       wahr(`${p.name}: W_pl,y groesser als W_el,y`, pl.Wply > p.Wy,
            `${pl.Wply.toFixed(1)} gegen ${p.Wy} cm³`);
@@ -13661,14 +13687,14 @@ titel('49  Der Mastnachweis');
 
   // --- Querschnittsklasse --------------------------------------------------
   {
-    const { MASTPROFILE } = await import(J('data.masten.js'));
-    MASTPROFILE.forEach((p) => {
+    const { mastprofile } = await import(J('data.masten.js'));
+    mastprofile().forEach((p) => {
       const k = MA.mastKlasse(p, 235, 0);
       wahr(`${p.name}: unter Biegung Klasse 1`, k.klasse === 1,
            `Flansch ${k.flansch.ct.toFixed(1)} / Steg ${k.steg.ct.toFixed(1)}`);
     });
     // Hohe Normalkraft schiebt den Steg - das ist der Sinn von alpha.
-    const p = MASTPROFILE.find((x) => x.name === 'HEB 260');
+    const p = mastprofile().find((x) => x.name === 'HEB 260');
     const hoch = MA.mastKlasse(p, 235, 2000);
     wahr('Unter hoher Normalkraft steigt alpha', hoch.steg.alpha > 0.5,
          `${hoch.steg.alpha.toFixed(3)}`);
@@ -13761,7 +13787,7 @@ titel('50  Der Winkel bekommt seine Ausrundung');
   const { PROFILE } = await import(J('data.profiles.js'));
   const c = 1 - Math.PI / 4;
 
-  PROFILE.forEach((p) => {
+  PROFILE().forEach((p) => {
     const r = AX.winkelRadien(p);
     // >>> DIE FLAECHE MUSS GENAU STIMMEN. Das ist der Zweck der Rechnung.
     const A = (p.t * (p.aH + p.aV - p.t) + c * (r.r1 * r.r1 - 2 * r.r2 * r.r2)) / 100;
@@ -13806,7 +13832,7 @@ titel('50  Der Winkel bekommt seine Ausrundung');
     const norm = { 'L 80x80x8': 10, 'L 90x90x9': 11, 'L 100x100x10': 12,
                    'L 120x120x12': 13, 'L 130x130x12': 14 };
     Object.entries(norm).forEach(([nm, rn]) => {
-      const p = PROFILE.find((q) => q.name === nm);
+      const p = PROFILE().find((q) => q.name === nm);
       if (!p) return;
       const r = AX.winkelRadien(p);
       wahr(`${nm}: nahe am Normradius, aber nicht gleich`,
@@ -16425,7 +16451,7 @@ const CH9x = await import(J('core.checks.js'));
   {
     const { s, m } = mast();
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
-    const p = MP.MASTPROFILE.find((x) => x.name === 'HEB 260');
+    const p = MP.mastprofile().find((x) => x.name === 'HEB 260');
     /*
      * L_cr = beta * z_eq, und z_eq ist die Ersatzhoehe nach Rayleigh. Der
      * Einzelmast der Probe traegt nur sein Eigengewicht, und das ist
@@ -16550,7 +16576,7 @@ const CH9x = await import(J('core.checks.js'));
      * beta = 0.4 + N_Ed/N_Rd + b/(h - t_f), jedoch beta >= 1. Beim HEB 260
      * ist b/(h - t_f) = 260/242.5 = 1.0722, also beta rund 1.48.
      */
-    const pM = MP.MASTPROFILE.find((x) => x.name === 'HEB 260');
+    const pM = MP.mastprofile().find((x) => x.name === 'HEB 260');
     pruef('beta nach 5.1.10.2', k.beta51,
           Math.max(1, 0.4 + k.NEd / k.NRd + pM.b / (pM.h - pM.tf)), 1e-12, '–');
     wahr('… und es ist mindestens eins', k.beta51 >= 1);
@@ -20377,15 +20403,15 @@ const CH9x = await import(J('core.checks.js'));
      * QUERSTEIFE von A240. Die Tabelle traegt beide Rollen, weil beide
      * dieselben Werte brauchen.
      */
-    wahr('Acht Walzprofile', PR.GURTPROFILE.length === 8);
+    wahr('Acht Walzprofile', PR.GURTPROFILE().length === 8);
     wahr('IPE 240 ist dabei - die Quersteife von A240',
-         PR.GURTPROFILE.some((p) => p.name === 'IPE 240'));
+         PR.GURTPROFILE().some((p) => p.name === 'IPE 240'));
     /*
      * DIE SCHAERFSTE PLAUSIBILITAETSPRUEFUNG, DIE ES HIER GIBT:
      * Flaeche mal Wichte muss das Laufmetergewicht ergeben. Ein Tippfehler
      * in A oder G faellt damit sofort auf - und beide gehen in den Nachweis.
      */
-    for (const p of PR.GURTPROFILE) {
+    for (const p of PR.GURTPROFILE()) {
       pruef(`${p.name}: A x 7.85 ergibt G`, p.A * 0.785, p.G, p.G * 0.005,
             'kg/m');
     }

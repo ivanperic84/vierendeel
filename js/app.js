@@ -77,9 +77,11 @@ import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
          ankerKnicken,
          ankerTypen, ankerTraegtDruck,
          ANKER_BEFESTIGUNGEN } from './data.anker.js';
+import { ladeNormen, normenDbDa } from './data.normen.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
-import { mastWind, MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
+import { mastWind, mastprofile, STEGRICHTUNGEN,
+         ladeMasten } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
@@ -6759,7 +6761,7 @@ function dialogMast(mastId) {
 
   const koerper = () => `
     <div class="feld"><label for="dlg-m-profil">Mastprofil</label>
-      <select id="dlg-m-profil">${MASTPROFILE.map((p) =>
+      <select id="dlg-m-profil">${mastprofile().map((p) =>
         `<option value="${esc(p.name)}"${p.name === e.profil ? ' selected' : ''}
           >${esc(p.name)}</option>`).join('')}</select>
       <small class="hinweis">Er bestimmt die Drehfeder am Jochende und trägt
@@ -7724,11 +7726,38 @@ export async function start() {
   // Daten kommen entweder mit der Datei (eingebettet bzw. nachgeladen) oder
   // aus einem örtlich geladenen Datenpaket. Fehlt beides, ist das kein
   // Fehler, sondern der Normalfall der datenfreien Ausgabe.
+  /* =======================================================================
+   * >>> DIE NORMWERTE ZUERST, UND OHNE AUSWEICHEN. <<<
+   * =======================================================================
+   *
+   * Weisung vom 16. September: «alle relevanten tragwerksdaten werden
+   * ausschliesslich über die datenbank gesteuert.» Seither stehen auch die
+   * Querschnittswerte in einer Datei (data/normen.json) statt im Quelltext.
+   *
+   * Sie sind KEIN Teil des Datenpakets - sie gehören keinem Betreiber, und
+   * die gleiche Trennung gilt für die Ablage. Darum auch kein Ausweichen
+   * auf den Browserspeicher: fällt diese Datei aus, hilft kein Paket. Dann
+   * sagt es die Anwendung, statt mit leeren Wählern dazustehen.
+   */
+  try {
+    await ladeNormen();
+  } catch (fehler) {
+    dialog('Normwerte fehlen',
+      `<p>${esc(String(fehler.message ?? fehler))}</p>`
+      + '<p class="notiz">Die Datei <code>data/normen.json</code> trägt die '
+      + 'Querschnittswerte der Profile und die Stahlgüten. Sie gehört neben '
+      + 'die Anwendung und steht in der Ablage — anders als das Sortiment '
+      + 'enthält sie keine Betreiberdaten.</p>',
+      '<button class="btn" data-zu>Schliessen</button>');
+    return;
+  }
   const daten = await datenBereitstellen([ladeDatenbank, ladeAnbauteile, ladeFlBauteile]);
-  // Getrennt und ohne Abbruch: die drei oben sind Voraussetzung, dieses
-  // eine ist es nicht.
+  // Getrennt und ohne Abbruch: die drei oben sind Voraussetzung, diese
+  // drei sind es nicht.
   await ladeAbfangjoche().catch(() => null);
   await ladeAnker().catch(() => null);
+  // Ohne Masten-Sortiment gelten alle Normprofile, nur ohne Windlast.
+  await ladeMasten().catch(() => null);
   if (daten.quelle === 'keine') {
     dialogDaten();
     return;

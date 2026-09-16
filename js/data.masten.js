@@ -1,7 +1,8 @@
 /**
  * data.masten.js
  * ---------------------------------------------------------------------------
- * REINE DATEN: H-Profile für Tragjochmaste (HEB / HEM) nach EN 10365.
+ * DER ZUGRIFF auf die Mastprofile. Die Querschnittswerte stehen in
+ * data/normen.json (Norm), die Windlasten in data/masten.json (Sortiment).
  *
  *   h, b   Profilhöhe / Profilbreite                     [mm]
  *   A      Querschnittsfläche                            [cm2]
@@ -25,28 +26,79 @@
  * ---------------------------------------------------------------------------
  */
 
-export const MASTPROFILE = [
-  { name: 'HEB 200', h: 200, b: 200, tw:  9.0, tf: 15.0, g:  61.3, A:  78.1,
-    Iy:  5696, Wy:  570.0, iy:  8.54, Iz: 2003, Wz: 200.3, iz: 5.07, It: 59.3,
-    wind: { quer: { EK1: 0.25, EK2: 0.31, EK3: 0.36 },
-            laengs: { EK1: 0.25, EK2: 0.31, EK3: 0.36 } } },
-  { name: 'HEB 220', h: 220, b: 220, tw:  9.5, tf: 16.0, g:  71.5, A:  91.0,
-    Iy:  8091, Wy:  735.5, iy:  9.43, Iz: 2843, Wz: 258.5, iz: 5.59, It: 76.6,
-    wind: { quer: { EK1: 0.28, EK2: 0.34, EK3: 0.40 },
-            laengs: { EK1: 0.28, EK2: 0.34, EK3: 0.40 } } },
-  { name: 'HEB 240', h: 240, b: 240, tw: 10.0, tf: 17.0, g:  83.2, A: 106.0,
-    Iy: 11260, Wy:  938.3, iy: 10.31, Iz: 3923, Wz: 326.9, iz: 6.08, It: 102.7,
-    wind: { quer: { EK1: 0.30, EK2: 0.37, EK3: 0.44 },
-            laengs: { EK1: 0.30, EK2: 0.37, EK3: 0.44 } } },
-  { name: 'HEB 260', h: 260, b: 260, tw: 10.0, tf: 17.5, g:  93.0, A: 118.4,
-    Iy: 14920, Wy: 1148.0, iy: 11.22, Iz: 5135, Wz: 395.0, iz: 6.58, It: 123.8,
-    wind: { quer: { EK1: 0.33, EK2: 0.40, EK3: 0.47 },
-            laengs: { EK1: 0.33, EK2: 0.40, EK3: 0.47 } } },
-  { name: 'HEM 240', h: 270, b: 248, tw: 18.0, tf: 32.0, g: 157.0, A: 199.6,
-    Iy: 24290, Wy: 1799.0, iy: 11.03, Iz: 8153, Wz: 657.5, iz: 6.39, It: 627.9,
-    wind: { quer: { EK1: 0.31, EK2: 0.38, EK3: 0.45 },
-            laengs: { EK1: 0.34, EK2: 0.42, EK3: 0.49 } } },
-];
+import { mastprofileNorm } from './data.normen.js';
+
+let SORT = null;
+
+/** Das Masten-Sortiment setzen (aus data/masten.json). */
+export function setzeMastenDB(obj) { SORT = obj; return SORT; }
+
+/** Der ganze Bestand - fuer das Datenpaket. */
+export const mastenDB = () => SORT;
+
+/**
+ * Das Sortiment laden - eingebettet oder daneben liegend.
+ *
+ * Sein Fehlen ist KEIN Fehler: ohne Sortiment bleiben die Querschnittswerte
+ * aus normen.json, nur die Windlast fehlt dann. `mastWind` sagt es (null),
+ * statt eine Last zu erfinden.
+ */
+export async function ladeMasten(pfad = 'data/masten.json') {
+  if (SORT) return SORT;
+  if (typeof document !== 'undefined') {
+    const eingebettet = document.getElementById('masten-db');
+    const roh = eingebettet?.textContent?.trim();
+    if (roh) return setzeMastenDB(JSON.parse(roh));
+  }
+  try {
+    const antwort = await fetch(pfad);
+    if (antwort.ok) return setzeMastenDB(await antwort.json());
+  } catch { /* ohne Sortiment weiter */ }
+  return null;
+}
+
+/** Ob ein Masten-Sortiment geladen ist. */
+export const mastenDbDa = () => Boolean(SORT?.typen?.length);
+
+/* ===========================================================================
+ * >>> ZWEI QUELLEN FUER EINEN MASTEN. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «die ui und die sbb daten sollen getrennt
+ * sein.» Beim Masten verläuft diese Grenze MITTEN DURCH DEN DATENSATZ, und
+ * das ist kein Schoenheitsfehler, sondern die Sache selbst:
+ *
+ *   I_y, I_t, A, h, b   stehen in EN 10365. Ein HEB 240 hat sie überall.
+ *                       -> data/normen.json, verfolgt, oeffentlich
+ *   Windlast je EK      ist eine Festlegung des Betreibers.
+ *                       -> data/masten.json, oertlich
+ *
+ * Bis zum 16. September standen beide in EINEM Literal in dieser Datei -
+ * die Normwerte also mitten in den Betreiberdaten, und die Betreiberdaten
+ * mitten im Quelltext. Beides ist jetzt getrennt und wird hier wieder
+ * zusammengefügt.
+ *
+ * DIE REIHENFOLGE KOMMT AUS DEM SORTIMENT. Welche Profile es gibt, sagt der
+ * Betreiber; die Normtabelle darf mehr führen, ohne dass sie im Wähler
+ * auftauchen. Fehlt das Sortiment ganz, gelten alle Normprofile - ohne
+ * Wind. So bleibt die Anwendung bedienbar, statt mit leerem Wähler
+ * dazustehen.
+ * ========================================================================= */
+export function mastprofile() {
+  const norm = mastprofileNorm();
+  if (!mastenDbDa()) return norm;
+  const aus = [];
+  for (const t of SORT.typen) {
+    const p = norm.find((x) => x.name === t.profil);
+    /*
+     * EIN SORTIMENTSTYP OHNE QUERSCHNITTSWERTE WIRD UEBERGANGEN, nicht
+     * erfunden. Er taucht dann im Wähler nicht auf - und der Feldkatalog
+     * meldet die Luecke beim Pruefen des Bestandes.
+     */
+    if (p) aus.push({ ...p, wind: t.wind ?? null });
+  }
+  return aus.length ? aus : norm;
+}
 
 /**
  * Ausrichtung des Maststegs relativ zur Jochachse.
@@ -81,7 +133,7 @@ export function mastWind(name, ek = 'EK2', steg = 'jochachse') {
 }
 
 export function getMastprofil(name) {
-  const p = MASTPROFILE.find((x) => x.name === name);
+  const p = mastprofile().find((x) => x.name === name);
   if (!p) throw new Error(`Unbekanntes Mastprofil: ${name}`);
   return p;
 }

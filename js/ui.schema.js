@@ -28,7 +28,7 @@ import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
          abfangMasse } from './data.abfangjoche.js';
-import { MASTPROFILE, STEGRICHTUNGEN } from './data.masten.js';
+import { mastprofile, STEGRICHTUNGEN } from './data.masten.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
          getAnkerTyp } from './data.anker.js';
@@ -707,7 +707,7 @@ export const FELDER = [
            + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
            + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
-    standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name'),
+    standard: 'HEB 240', optionenAus: () => opt(mastprofile(), 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),
     sichtbar: (w) => mastDa(w) },
   /*
@@ -838,7 +838,7 @@ export const FELDER = [
     label: 'Zweiter Mast am Ende B abweichend', standard: false },
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Mastprofil Ende B',
-    standard: 'HEB 240', optionen: opt(MASTPROFILE, 'name', 'name') },
+    standard: 'HEB 240', optionenAus: () => opt(mastprofile(), 'name', 'name') },
   { key: 'mastHZwei', fein: true, gruppe: 'mast', typ: 'schalter',
     label: (w) => `Anschlusshöhe am Ende B (Mast ${mastNameAmEnde(w, null, 'B')}) abweichend`,
     standard: false,
@@ -1172,16 +1172,18 @@ export const FELDER = [
     // Die Winkelgurte gibt es nur am Vierendeeltraeger; das Abfangjoch
     // fuehrt seine Gurte im Sortiment, der Einzelmast hat keine.
     sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
-    standard: 'L 90x90x9', optionen: opt(PROFILE, 'name', 'name'), ausDB: true },
+    standard: 'L 90x90x9',
+    optionenAus: () => opt(PROFILE(), 'name', 'name'), ausDB: true },
   { key: 'profUG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Untergurt',
     sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
-    standard: 'L 90x90x9', optionen: opt(PROFILE, 'name', 'name'), ausDB: true },
+    standard: 'L 90x90x9',
+    optionenAus: () => opt(PROFILE(), 'name', 'name'), ausDB: true },
   { key: 'ausrOG', optionenDialog: true, gruppe: 'prof', typ: 'auswahl',
     label: 'Ausrichtung Obergurt', standard: 'LA_SI', optionen: opt(AUSRICHTUNGEN) },
   { key: 'ausrUG', optionenDialog: true, gruppe: 'prof', typ: 'auswahl',
     label: 'Ausrichtung Untergurt', standard: 'LA_SI', optionen: opt(AUSRICHTUNGEN) },
   { key: 'stahl', gruppe: 'prof', typ: 'auswahl', label: 'Stahlgüte',
-    standard: 'S235', optionen: opt(STAHLGUETEN, 'name', 'name') },
+    standard: 'S235', optionenAus: () => opt(STAHLGUETEN(), 'name', 'name') },
   { key: 'gammaM0', optionenDialog: true, gruppe: 'prof', typ: 'zahl', label: 'Teilsicherheitsbeiwert',
     sym: 'γ_M0', einheit: '–', standard: 1.05, schritt: 0.05, min: 1 },
 

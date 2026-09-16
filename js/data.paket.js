@@ -34,19 +34,48 @@
 import { setzeDatenbank, datenbank } from './data.tragjoche.js';
 import { setzeAnbauteilDB, anbauteilDB } from './data.anbauteile.js';
 import { setzeFlDB, flDB } from './data.fl.js';
+import { setzeAbfangDB, abfangDB } from './data.abfangjoche.js';
+import { setzeAnkerDB, ankerDB } from './data.anker.js';
+import { setzeMastenDB, mastenDB } from './data.masten.js';
 
 export const PAKET_FORMAT = 'tragjoch-daten';
 export const PAKET_VERSION = 1;
 const SPEICHER = 'tragjoch-daten-v1';
 
-/** Die drei Teile mit ihren Setzern und einer Kurzbeschreibung. */
+/* ===========================================================================
+ * >>> DIE TEILE DES PAKETS. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «alle relevanten tragwerksdaten werden
+ * ausschliesslich über die datenbank gesteuert … die ui und die sbb daten
+ * sollen getrennt sein.»
+ *
+ * Bis dahin trug das Paket DREI Teile, obwohl die Anwendung sechs
+ * Sortimente kennt: Abfangjoche und Anker lagen zwar schon als Datei
+ * daneben, waren aber nicht im Paket - wer die Anwendung ohne Daten
+ * weitergab, konnte sie nicht nachliefern. Die Masten standen überhaupt
+ * nur im Quelltext.
+ *
+ * WAS HIER NICHT STEHT, sind die Normwerte (data/normen.json). Sie gehören
+ * keinem Betreiber, liegen in der Ablage und kommen ohne Paket - genau die
+ * Trennung, die die Weisung verlangt.
+ *
+ * `pflicht` sagt, ob das Fehlen ein Fehler ist. Ohne Jochtypen lässt sich
+ * nichts bemessen; ohne Ankersortiment fehlt nur der Anker.
+ * ========================================================================= */
 const TEILE = [
-  { key: 'tragjoche', label: 'Jochtypen', setze: setzeDatenbank,
+  { key: 'tragjoche', label: 'Jochtypen', setze: setzeDatenbank, pflicht: true,
     zaehle: (d) => d?.typen?.length ?? 0, einheit: 'Typen' },
   { key: 'anbauteile', label: 'Anbauteil-Vorlagen', setze: setzeAnbauteilDB,
-    zaehle: (d) => d?.vorlagen?.length ?? 0, einheit: 'Vorlagen' },
-  { key: 'fl_bauteile', label: 'Lasttabelle', setze: setzeFlDB,
+    pflicht: true, zaehle: (d) => d?.vorlagen?.length ?? 0, einheit: 'Vorlagen' },
+  { key: 'fl_bauteile', label: 'Lasttabelle', setze: setzeFlDB, pflicht: true,
     zaehle: (d) => d?.bauteile?.length ?? 0, einheit: 'Bauteile' },
+  { key: 'abfangjoche', label: 'Abfangjochtypen', setze: setzeAbfangDB,
+    zaehle: (d) => d?.typen?.length ?? 0, einheit: 'Typen' },
+  { key: 'anker', label: 'Zug- und Druckstützen', setze: setzeAnkerDB,
+    zaehle: (d) => d?.typen?.length ?? 0, einheit: 'Typen' },
+  { key: 'masten', label: 'Masttypen', setze: setzeMastenDB,
+    zaehle: (d) => d?.typen?.length ?? 0, einheit: 'Typen' },
 ];
 
 /**
@@ -72,7 +101,7 @@ export function pruefePaket(obj) {
     .filter((t) => obj[t.key])
     .map((t) => ({ ...t, anzahl: t.zaehle(obj[t.key]) }));
   if (!teile.length) {
-    fehler.push('Das Paket enthält keinen der drei Teile '
+    fehler.push('Das Paket enthält keinen der Teile '
                 + `(${TEILE.map((t) => t.key).join(', ')}).`);
   }
   teile.forEach((t) => {
@@ -104,10 +133,19 @@ export function paketAus(bezeichnung = '') {
     stand: new Date().toISOString().slice(0, 10),
     ...(bezeichnung ? { bezeichnung } : {}),
   };
-  const tj = nimm(datenbank), at = nimm(anbauteilDB), fl = nimm(flDB);
-  if (tj) paket.tragjoche = tj;
-  if (at) paket.anbauteile = at;
-  if (fl) paket.fl_bauteile = fl;
+  /*
+   * WAS GELADEN IST, KOMMT MIT. Ein Teil, den diese Sitzung nie hatte, darf
+   * das Paket nicht als leeres Feld tragen - beim Einlesen wäre er dann
+   * «vorhanden, aber leer» und damit ein Fehler.
+   */
+  const holer = {
+    tragjoche: datenbank, anbauteile: anbauteilDB, fl_bauteile: flDB,
+    abfangjoche: abfangDB, anker: ankerDB, masten: mastenDB,
+  };
+  for (const t of TEILE) {
+    const d = nimm(holer[t.key]);
+    if (d && t.zaehle(d) > 0) paket[t.key] = d;
+  }
   return paket;
 }
 

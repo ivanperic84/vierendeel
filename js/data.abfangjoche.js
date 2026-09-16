@@ -88,6 +88,9 @@ export async function ladeAbfangjoche(pfad = 'data/abfangjoche.json') {
 /** Die Datenbank setzen (aus data/abfangjoche.json). */
 export function setzeAbfangDB(db) { DB = db; return db; }
 
+/** Der ganze Bestand - fuer das Datenpaket. */
+export const abfangDB = () => DB;
+
 /** Ob eine Datenbank geladen ist - die Anwendung läuft auch ohne. */
 export const abfangDbDa = () => Boolean(DB?.typen?.length);
 
