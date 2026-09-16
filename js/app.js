@@ -8,7 +8,8 @@
 
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
-         datenbank, datenbankStand, laengenbereich } from './data.tragjoche.js';
+         datenbank, datenbankStand, laengenbereich,
+         setzeDatenbank } from './data.tragjoche.js';
 import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
@@ -58,8 +59,10 @@ import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, entdoppelteVorlagen,
          erzeugeGleislasten, neuesModul,
-         baugruppeSumme, anbauteilDB } from './data.anbauteile.js';
-import { ladeFlBauteile, flBauteile, getFlBauteil, flDB } from './data.fl.js';
+         baugruppeSumme, anbauteilDB,
+         setzeAnbauteilDB } from './data.anbauteile.js';
+import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
+         setzeFlDB } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
@@ -67,7 +70,7 @@ import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { mastNachweise, mastSchnitt } from './core.mast.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
-         getAbfangjoch, abfangDB } from './data.abfangjoche.js';
+         getAbfangjoch, abfangDB, setzeAbfangDB } from './data.abfangjoche.js';
 /*
  * DAS ANKERSORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten. Wie das
  * Abfangjoch-Sortiment ist es keine Voraussetzung: wer keinen Anker hat,
@@ -76,15 +79,18 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
 import { ladeAnker, ankerDbDa, ankerGeometrie, ankerNachweis,
          ankerKnicken,
          ankerTypen, ankerTraegtDruck,
-         ANKER_BEFESTIGUNGEN, ankerDB } from './data.anker.js';
-import { ladeNormen, normenDbDa, normen } from './data.normen.js';
-import { zeichneDaten, ersterAbschnitt,
+         ANKER_BEFESTIGUNGEN, ankerDB, setzeAnkerDB } from './data.anker.js';
+import { ladeNormen, normenDbDa, normen, setzeNormen } from './data.normen.js';
+import { zeichneDaten, ersteAnsicht, alsTabellen, zeichneAbgleich,
          blaetter as datenBlaetter } from './ui.daten.js';
-import { arbeitsmappe, STIL } from './export.xlsx.js';
+import { arbeitsmappe, herunterladen, STIL } from './export.xlsx.js';
+import { leseDatei, abgleich, eingelesen, eingelesenSpeichern,
+         eingelesenVerwerfen, eingelesenAnwenden, alsDatei } from './data.einlesen.js';
+import { pruefeAlle as blechregelPruefen } from './core.blechregel.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
-         ladeMasten, mastenDB } from './data.masten.js';
+         ladeMasten, mastenDB, setzeMastenDB } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
@@ -4440,35 +4446,183 @@ function datenBestand() {
   };
 }
 
-let datenAbschnitt = null;
+/** Je Sortiment die Setzfunktion - für das Übernehmen eines Einlesens. */
+const DATEN_SETZER = {
+  normen: setzeNormen, masten: setzeMastenDB, tragjoche: setzeDatenbank,
+  abfangjoche: setzeAbfangDB, anker: setzeAnkerDB, fl_bauteile: setzeFlDB,
+  anbauteile: setzeAnbauteilDB,
+};
+
+const datenAnsicht = { aktiv: null, filter: '', regel: {} };
 
 function dialogBauteildaten() {
   const best = datenBestand();
-  if (!datenAbschnitt) datenAbschnitt = ersterAbschnitt(best);
+  const tabellen = alsTabellen(best);
+  if (!datenAnsicht.aktiv) datenAnsicht.aktiv = ersteAnsicht(best);
+  /*
+   * DIE BLECHREGEL WIRD EINMAL JE OEFFNEN GEPRUEFT. Sie läuft über alle Typen
+   * und alle Längen - rund tausend Einteilungen. Das dauert einen Moment
+   * und soll nicht bei jedem Klick in der Leiste wiederkehren.
+   */
+  let befunde = null;
+  try { befunde = blechregelPruefen(); } catch { befunde = []; }
+  const nimm = (fn) => { try { return fn(); } catch { return []; } };
+  const opt = () => ({
+    tabellen, filter: datenAnsicht.filter, regel: datenAnsicht.regel,
+    eingelesen: eingelesen(), befunde,
+    tragjoche: nimm(tragjoche), abfangjoche: nimm(abfangjoche),
+  });
 
   const d = dialog('Bauteildaten',
-    zeichneDaten(best, datenAbschnitt),
-    `<button class="btn" data-daten-excel>Alle Tabellen als Excel</button>
+    zeichneDaten(best, datenAnsicht.aktiv, opt()),
+    `<button class="btn" data-daten-einlesen>Einlesen …</button>
+     <button class="btn" data-daten-excel>Alle Tabellen als Excel</button>
      <button class="btn" data-zu>Schliessen</button>`, 'dialog-breit');
 
-  const verdrahte = () => {
-    d.node.querySelectorAll('[data-abschnitt]').forEach((b) => {
-      b.onclick = () => {
-        datenAbschnitt = b.dataset.abschnitt;
-        d.node.querySelector('.dialog-koerper').innerHTML =
-          zeichneDaten(best, datenAbschnitt);
-        verdrahte();
+  const neu = () => {
+    d.node.querySelector('.dialog-koerper').innerHTML =
+      zeichneDaten(best, datenAnsicht.aktiv, opt());
+    verdrahte();
+  };
+  function verdrahte() {
+    const n = d.node;
+    n.querySelectorAll('[data-ansicht]').forEach((b) => {
+      b.onclick = () => { datenAnsicht.aktiv = b.dataset.ansicht; datenAnsicht.filter = ''; neu(); };
+    });
+    const such = n.querySelector('.dat-suche');
+    if (such) {
+      // Gefiltert wird im Bild, nicht neu gezeichnet - sonst verlöre das Feld den Fokus.
+      such.oninput = () => {
+        datenAnsicht.filter = such.value;
+        const f = such.value.trim().toLowerCase();
+        n.querySelectorAll('tr[data-such]').forEach((tr) => {
+          tr.hidden = Boolean(f) && !tr.dataset.such.includes(f);
+        });
+      };
+    }
+    n.querySelectorAll('[data-regel-wahl]').forEach((s) => {
+      s.onchange = () => {
+        if (s.dataset.regelWahl === 'typ') datenAnsicht.regel = { typ: s.value };
+        else datenAnsicht.regel = { ...datenAnsicht.regel, L: Number(s.value) };
+        neu();
       };
     });
-  };
+    n.querySelectorAll('[data-regel-typ]').forEach((tr) => {
+      tr.onclick = () => { datenAnsicht.regel = { typ: tr.dataset.regelTyp }; neu(); };
+    });
+    const sichern = n.querySelector('[data-eingelesen="sichern"]');
+    if (sichern) sichern.onclick = () => eingelesenAlsDateien();
+    const weg = n.querySelector('[data-eingelesen="verwerfen"]');
+    if (weg) weg.onclick = () => {
+      const w = dialog('Eingelesenen Stand verwerfen?',
+        '<p>Danach gelten wieder die Dateien neben der Anwendung bzw. das '
+        + 'hinterlegte Datenpaket. Die Anwendung wird neu gestartet.</p>',
+        `<button class="btn" data-zu>Abbrechen</button>
+         <button class="btn btn-acc" data-ja>Verwerfen</button>`);
+      w.node.querySelector('[data-ja]').onclick = () => {
+        eingelesenVerwerfen();
+        location.reload();
+      };
+    };
+  }
   verdrahte();
 
   d.node.querySelector('[data-daten-excel]').onclick = () => {
-    const bl = datenBlaetter(best, STIL);
-    store.dateiSpeichern(arbeitsmappe(bl),
+    const bl = datenBlaetter(tabellen, STIL, { blech: befunde });
+    herunterladen(arbeitsmappe(bl),
       `Tragjoch_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
+  d.node.querySelector('[data-daten-einlesen]').onclick = () => datenEinlesen(tabellen);
   return d;
+}
+
+/** Den eingelesenen Stand als Dateien sichern - eine je Sortiment. */
+function eingelesenAlsDateien() {
+  const e = eingelesen();
+  if (!e?.teile) return;
+  const namen = Object.keys(e.teile);
+  const d = dialog('Als Dateien sichern',
+    `<p>Je Sortiment eine Datei in Tabellenform. Sie ersetzt die gleichnamige
+      Datei in <code>data/</code> - danach gilt der Stand auch ohne Browser.</p>
+     <div class="dat-dateien">${namen.map((db) =>
+       `<button type="button" class="btn" data-sichern="${esc(db)}">data/${esc(db)}.json</button>`).join('')}</div>
+     <p class="notiz">Die Browser laden mehrere Dateien nicht auf einmal
+      herunter - daher je Datei ein Knopf.</p>`,
+    '<button class="btn" data-zu>Fertig</button>');
+  d.node.querySelectorAll('[data-sichern]').forEach((b) => {
+    b.onclick = () => {
+      const db = b.dataset.sichern;
+      store.dateiSpeichern(alsDatei(e.teile[db]), `${db}.json`);
+      b.classList.add('an');
+    };
+  });
+}
+
+/**
+ * >>> EINLESEN: WAEHLEN, LESEN, ABGLEICHEN, ZEIGEN, UEBERNEHMEN. <<<
+ *
+ * Übernommen wird nur ein fehlerfreier Stand, und nur auf Bestätigung.
+ */
+function datenEinlesen(tabellen) {
+  const i = document.createElement('input');
+  i.type = 'file';
+  i.accept = '.xlsx,.json,application/json,'
+    + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  i.onchange = async () => {
+    const f = i.files?.[0];
+    if (!f) return;
+    let gelesen;
+    try {
+      gelesen = await leseDatei(f.name, new Uint8Array(await f.arrayBuffer()));
+    } catch (fehler) {
+      const d = dialog('Datei nicht lesbar', `<p>${esc(fehler.message)}</p>`,
+        '<button class="btn" data-zurueck>Zurück</button>');
+      d.node.querySelector('[data-zurueck]').onclick = () => dialogBauteildaten();
+      return;
+    }
+    const ausExcel = gelesen.quelle === 'excel';
+    const leer = (db) => ({ sortiment: db, tabellen: {}, angaben: [] });
+    const ergebnisse = Object.entries(gelesen.teile).map(([db, neu]) =>
+      abgleich(db, tabellen[db] ?? leer(db), neu, { ausExcel }));
+    /*
+     * GESPERRT WIRD NUR, WAS SICH AENDERT. Eine vollständige Mappe trägt alle
+     * Sortimente; hat eines davon schon vorher einen Befund (die doppelte
+     * Kennung in der Lasttabelle etwa), darf das eine Änderung an den Jochen
+     * nicht aufhalten.
+     */
+    const fehlerfrei = ergebnisse.filter((r) => r.aenderungen)
+      .every((r) => r.pruefung.ok);
+    const aenderungen = ergebnisse.reduce((s, r) => s + r.aenderungen, 0);
+    const d = dialog('Einlesen - Abgleich',
+      zeichneAbgleich(ergebnisse, { datei: f.name, quelle: gelesen.quelle,
+                                    hinweise: gelesen.hinweise }),
+      `<button class="btn" data-zurueck>Zurück</button>
+       <button class="btn btn-acc" data-uebernehmen${fehlerfrei && aenderungen
+         ? '' : ' disabled'}>${fehlerfrei ? (aenderungen ? 'Übernehmen und neu starten'
+           : 'Nichts zu übernehmen') : 'Fehler beheben, dann erneut einlesen'}</button>`,
+      'dialog-breit');
+    d.node.querySelector('[data-zurueck]').onclick = () => dialogBauteildaten();
+    const ok = d.node.querySelector('[data-uebernehmen]');
+    if (ok && fehlerfrei && aenderungen) ok.onclick = () => {
+      /*
+       * Ein bereits eingelesener Stand wird ergänzt, nicht ersetzt: wer erst
+       * die Lasttabelle und dann die Joche einliest, behält beides.
+       */
+      const vorher = eingelesen()?.teile ?? {};
+      const teile = { ...vorher };
+      for (const r of ergebnisse) if (r.aenderungen) teile[r.db] = r.ergebnis;
+      try {
+        eingelesenSpeichern(teile, f.name);
+      } catch (fehler) {
+        dialog('Nicht übernommen', `<p>Der Browser nimmt den Stand nicht auf
+          (${esc(fehler.message)}). Sichern Sie ihn stattdessen als Dateien.</p>`,
+          '<button class="btn" data-zu>Schliessen</button>');
+        return;
+      }
+      location.reload();
+    };
+  };
+  i.click();
 }
 
 /**
@@ -7833,7 +7987,19 @@ export async function start() {
   await ladeAnker().catch(() => null);
   // Ohne Masten-Sortiment gelten alle Normprofile, nur ohne Windlast.
   await ladeMasten().catch(() => null);
-  if (daten.quelle === 'keine') {
+  /*
+   * >>> DER EINGELESENE STAND LEGT SICH UEBER DIE DATEIEN. <<<
+   *
+   * Übernommen wird ein Einlesen, indem es im Browser hinterlegt und die
+   * Anwendung neu gestartet wird (Fenster Bauteildaten). Hier greift es -
+   * nach den Dateien, damit es sie überdeckt, und vor der ersten Rechnung.
+   * Das Fenster sagt, dass ein solcher Stand gilt.
+   */
+  const eingelesenErgebnis = eingelesenAnwenden(DATEN_SETZER);
+  if (eingelesenErgebnis.fehler.length) {
+    console.warn('Eingelesener Stand nicht anwendbar:', eingelesenErgebnis.fehler);
+  }
+  if (daten.quelle === 'keine' && !eingelesenErgebnis.angewendet.includes('tragjoche')) {
     dialogDaten();
     return;
   }

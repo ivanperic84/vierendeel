@@ -22813,180 +22813,201 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
  * >>> DER KATALOG IST DIE PRUEFREGEL, NICHT NUR EINE ANSCHRIFT. <<<
  * ===========================================================================
  *
- * Weisung vom 16. September: alle Tragwerksdaten aus der Datenbank, und die
- * Parameter in Tabellen. Beides haengt an js/data.katalog.js: er sagt, wie
- * ein Feld heisst, in welcher Einheit es steht, ob es Pflicht ist und wo
- * sein Wert plausibel liegt.
+ * Weisung vom 16. September: alle Tragwerksdaten aus der Datenbank, die
+ * Parameter in Tabellen, die Daten strukturierter. Der Katalog beschreibt
+ * JEDE Spalte JEDER Tabelle der Dateien - mit Einheit, Pflicht und Bereich.
  *
- * DIESE KONTROLLEN PRUEFEN DEN KATALOG GEGEN DIE WIRKLICHEN DATEN. Weichen
- * beide voneinander ab, faellt es hier auf - und nicht im Nachweis. Beim
- * ersten Lauf fand er auf Anhieb eine doppelte Kennung in der Lasttabelle,
- * die `find` stillschweigend auf den ersten Satz aufloest.
+ * DIESE KONTROLLEN PRUEFEN DEN KATALOG GEGEN DIE WIRKLICHEN DATEIEN. Eine
+ * Spalte ohne Eintrag fällt hier auf, nicht erst, wenn jemand eine Höhe in
+ * der falschen Einheit pflegt.
  * ========================================================================= */
 {
   const K = await import(J('data.katalog.js'));
   const D = await import(J('ui.daten.js'));
   const X = await import(J('export.xlsx.js'));
-  const lies = (n) => TBF.ausTabellen(JSON.parse(
-    readFileSync(join(HIER, 'data', n + '.json'), 'utf8')));
-  const best = {
-    normen: lies('normen'), masten: lies('masten'), tragjoche: lies('tragjoche'),
-    abfangjoche: lies('abfangjoche'), anker: lies('anker'),
-    fl_bauteile: lies('fl_bauteile'), anbauteile: lies('anbauteile'),
-  };
+  const roh = (n) => JSON.parse(readFileSync(join(HIER, 'data', n + '.json'), 'utf8'));
+  const tab = {};
+  for (const s of TBF.SORTIMENTE) tab[s] = roh(s);
+  const baum = Object.fromEntries(Object.entries(tab)
+    .map(([s, t]) => [s, TBF.setzeZusammen(t)]));
 
-  pruef('Zehn Abschnitte', K.ABSCHNITTE.length, 10, 1e-12, 'Stk');
-  wahr('Jeder Abschnitt nennt Datenbank, Liste und Schluessel',
-       K.ABSCHNITTE.every((a) => a.db && a.liste && a.schluessel));
+  pruef('Elf Abschnitte', K.ABSCHNITTE.length, 11, 1e-12, 'Stk');
+  wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
+       K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
        K.ABSCHNITTE.every((a) => ['norm', 'sortiment'].includes(a.herkunft)));
-  wahr('Jedes Feld traegt Schluessel, Anschrift und Art',
-       K.ABSCHNITTE.every((a) => a.felder.every((f) => f.k && f.label && f.typ)));
+  wahr('Jede Haupttabelle des Aufbaus hat ihren Abschnitt',
+       TBF.SORTIMENTE.every((s) => TBF.AUFBAU[s].listen.every((l) =>
+         K.ABSCHNITTE.some((a) => a.db === s && a.tabelle === l.name))));
+  wahr('Jede Untertabelle des Aufbaus hat ihre Beschreibung',
+       TBF.SORTIMENTE.every((s) => TBF.tabellenVon(s).filter((t) => !t.haupt)
+         .every((t) => K.ABSCHNITTE.some((a) => a.db === s && a.tabellen?.[t.name]))),
+       TBF.SORTIMENTE.flatMap((s) => TBF.tabellenVon(s).filter((t) => !t.haupt
+         && !K.ABSCHNITTE.some((a) => a.db === s && a.tabellen?.[t.name]))
+         .map((t) => `${s}/${t.name}`)).join(', '));
   /*
-   * EINE ZAHL OHNE EINHEIT IST DIE FALLE, um die es hier geht. Genau diese
-   * Verwechslung - mm gegen cm - hat in dieser Anwendung zweimal
-   * zugeschlagen. Ausgenommen sind die reinen Verhaeltniszahlen; sie tragen
-   * `einheit: null` ausdruecklich.
+   * EINE ZAHL OHNE EINHEIT IST DIE FALLE, um die es hier geht. Ausgenommen
+   * sind reine Zählwerte; sie tragen `einheit: null` ausdrücklich.
    */
   {
     const ohne = [];
-    const gehe = (a, f, pfad) => {
-      if (f.typ === 'zahl' && f.einheit === undefined) ohne.push(`${a.titel}: ${pfad}`);
-      (f.unter ?? []).forEach((u) => gehe(a, u, `${pfad} · ${u.label}`));
-    };
-    K.ABSCHNITTE.forEach((a) => a.felder.forEach((f) => gehe(a, f, f.label)));
+    for (const s of TBF.SORTIMENTE) {
+      for (const t of K.tabellenKatalog(s)) {
+        for (const sp of t.spalten) {
+          if (sp.feld.typ === 'zahl' && sp.feld.einheit === undefined) {
+            ohne.push(`${s}/${t.name}/${sp.pfad}`);
+          }
+        }
+      }
+    }
     wahr('Jede Zahl im Katalog nennt ihre Einheit oder sagt ausdruecklich keine',
          ohne.length === 0, ohne.join(' | '));
   }
 
-  // --- Der Bestand gegen den Katalog ---------------------------------------
+  // --- Die Dateien gegen den Katalog ----------------------------------------
   {
-    const r = K.pruefeBestand(best);
-    pruef('Alle zehn Abschnitte liegen vor', r.abschnitte.length, 10, 1e-12, 'Stk');
-    const n = r.abschnitte.reduce((s, a) => s + a.anzahl, 0);
-    wahr('Der Bestand traegt weit ueber hundert Saetze', n > 140, `${n} Saetze`);
+    let unbekannt = 0;
+    let bereich = 0;
+    const fehler = [];
+    for (const s of TBF.SORTIMENTE) {
+      const r = K.pruefeTabellen(s, tab[s]);
+      fehler.push(...r.fehler);
+      unbekannt += r.warnung.filter((w) => /ohne Katalogeintrag/.test(w)).length;
+      bereich += r.warnung.filter((w) => /erwartet/.test(w)).length;
+    }
+    wahr('Jede Spalte jeder Datei steht im Katalog', unbekannt === 0, `${unbekannt}`);
+    wahr('Kein Wert liegt ausserhalb seines Bereichs', bereich === 0, `${bereich}`);
     /*
      * >>> EIN EINZIGER FEHLER, UND ER IST ECHT. <<<
      *
      * «abfangjoch-a200» steht zweimal in der Lasttabelle, einmal mit 0.66
      * und einmal mit 0.58 kN/m - altes und neues Bausortiment unter
-     * derselben Kennung. Beide Saetze tragen `rolle: stumm`, werden also
-     * heute von niemandem nachgeschlagen; der Tag, an dem es einer tut,
-     * bekaeme stillschweigend den ersten.
+     * derselben Kennung. Beide Sätze sind `stumm`, heute schlägt sie also
+     * niemand nach; der Tag, an dem es einer tut, bekäme stillschweigend
+     * den ersten.
      *
-     * DIESE KONTROLLE HAELT DEN BEFUND FEST, statt ihn zu uebergehen. Wird
-     * die Kennung berichtigt, faellt sie - und das ist dann die richtige
-     * Meldung: hier ist etwas erledigt worden.
+     * Diese Kontrolle hält den Befund fest. Wird die Kennung berichtigt,
+     * fällt sie - und das ist dann die richtige Meldung.
      */
-    pruef('Genau ein Fehler im Bestand', r.fehler.length, 1, 1e-12, 'Stk');
+    pruef('Genau ein Fehler im Bestand', fehler.length, 1, 1e-12, 'Stk');
     wahr('… und es ist die doppelte Kennung in der Lasttabelle',
-         r.fehler[0]?.includes('abfangjoch-a200'), r.fehler[0] ?? '-');
+         /abfangjoch-a200/.test(fehler[0] ?? ''), fehler[0] ?? '-');
+    const gesamt = K.pruefeBestand(baum);
+    pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 1, 1e-12, 'Stk');
+    pruef('… ueber alle elf Abschnitte', gesamt.abschnitte.length, 11, 1e-12, 'Stk');
   }
 
-  // --- Was die Pruefung abweisen muss --------------------------------------
+  // --- Was die Pruefung abweisen muss -----------------------------------------
   {
-    const a = K.abschnitt('stahlgueten');
+    const st = (z) => K.pruefeTabelle('normen', 'stahlgueten', [z]);
     wahr('Ein fehlendes Pflichtfeld ist ein Fehler',
-         K.pruefeSatz(a, { name: 'X', fy: 235 }, 0).fehler.length === 1);
+         st({ name: 'X', fy: 235 }).fehler.length === 1);
     wahr('Eine Zahl, die keine ist, ist ein Fehler',
-         K.pruefeSatz(a, { name: 'X', fy: 'viel', fu: 360 }, 0).fehler.length === 1);
+         st({ name: 'X', fy: 'viel', fu: 360 }).fehler.length === 1);
     /*
-     * EIN WERT AUSSERHALB DES BEREICHS WIRD GEMELDET, NICHT ABGELEHNT. Ein
-     * Bereich, der abweist, verboete genau das, wofuer die Datenbank da ist:
-     * einen neuen Typ.
+     * EIN WERT AUSSERHALB DES BEREICHS WIRD GEMELDET, NICHT ABGELEHNT - sonst
+     * verböte der Katalog genau das, wofür die Datenbank da ist: einen
+     * neuen Typ.
      */
-    const r = K.pruefeSatz(a, { name: 'X', fy: 900, fu: 360 }, 0);
+    const r = st({ name: 'X', fy: 900, fu: 360 });
     wahr('Ein Wert ausserhalb des Bereichs ist nur eine Warnung',
          r.fehler.length === 0 && r.warnung.length === 1, r.warnung.join(' '));
-    const w = K.abschnitt('winkelprofile');
     wahr('Eine unerlaubte Auswahl ist ein Fehler',
-         K.pruefeSatz(w, { name: 'L', form: 'rund' }, 0)
+         K.pruefeTabelle('normen', 'winkelprofile', [{ name: 'L', form: 'rund' }])
            .fehler.some((x) => x.includes('«Form»')));
+    wahr('Eine Spalte ohne Katalogeintrag wird gemeldet',
+         st({ name: 'X', fy: 235, fu: 360, zaehigkeit: 27 }).warnung
+           .some((x) => /zaehigkeit/.test(x)));
+    wahr('Ein Wahrheitswert, der keiner ist, ist ein Fehler',
+         K.pruefeTabelle('tragjoche', 'typen', [{ ...tab.tragjoche.tabellen.typen[1],
+           sortiment: 'ja' }]).fehler.some((x) => /ja noch nein/.test(x)));
+    // Ein Blech, dessen Typ es nicht gibt
+    const waise = JSON.parse(JSON.stringify(tab.tragjoche));
+    waise.tabellen.bleche.push({ typ: 'J999', ebene: 'vertikal', nr: 1, pos: 1,
+                                 breite: 100, dicke: 8, laenge: 300 });
+    wahr('Ein Blech ohne seinen Typ ist ein Fehler',
+         K.pruefeTabellen('tragjoche', waise).fehler.some((x) => /J999/.test(x)));
+    // Die Abkürzung für einen einzelnen Satz in Baumform
+    const a = K.abschnitt('stahlgueten');
+    wahr('Ein Satz in Baumform laesst sich pruefen',
+         K.pruefeSatz(a, { name: 'X', fy: 235 }).fehler.length === 1);
   }
 
-  // --- Die Spalten des Fensters -------------------------------------------
+  // --- Die Spalten des Fensters ---------------------------------------------
   {
     /*
      * >>> EIN SATZ MIT BEKANNTEN FELDERN WIRD AUFGEFALTET. <<<
      *
-     * Die Windlast des Masten steht als quer/laengs mal EK1..EK3 - das sind
-     * sechs Zahlen. Als EINE Spalte «Windlast» waeren sie eine Zeichenkette
-     * und in Excel nicht zu rechnen; als sechs Spalten steht in jeder Zelle
-     * eine Zahl.
+     * Die Windlast des Masten steht als quer/längs mal EK1..EK3 - sechs
+     * Spalten, in jeder eine Zahl.
      */
-    const sp = D.spalten(K.abschnitt('masttypen'));
+    const sp = K.spaltenVon('masten', 'typen', tab.masten.tabellen.typen);
     pruef('Masttypen: Profil und sechs Windwerte', sp.length, 7, 1e-12, 'Spalten');
-    wahr('Die Kopfzeile nennt den Weg dorthin',
+    wahr('Die Anschrift nennt den Weg dorthin',
          sp[1].kopf === 'Windlast · quer zum Gleis · EK1', sp[1].kopf);
-    wahr('Und die Einheit steht daneben', sp[1].einheit === 'kN/m');
-    wahr('Der Wert wird ueber beide Ebenen geholt',
-         sp[1].hol(best.masten.typen[0]) === best.masten.typen[0].wind.quer.EK1);
+    wahr('Der Pfad ist der der Datei', sp[1].pfad === 'wind/quer/EK1', sp[1].pfad);
+    wahr('Und die Einheit steht daneben', sp[1].feld.einheit === 'kN/m');
 
-    const z = D.zeilen(best, 'stahlgueten');
-    pruef('Stahlgueten: Kopf, Einheit und drei Saetze', z.length, 5, 1e-12, 'Zeilen');
-    wahr('Die zweite Zeile traegt die Einheiten', z[1][1] === 'N/mm²', z[1].join('|'));
-    wahr('Die Werte stehen als Text bereit', z[2][0] === 'S235' && z[2][1] === '235',
-         z[2].join('|'));
+    const bl = K.spaltenVon('tragjoche', 'bleche', tab.tragjoche.tabellen.bleche);
+    wahr('Die Bleche fuehren zuerst ihre Schluessel: Typ, Ebene, Nr.',
+         bl.slice(0, 3).map((s) => s.pfad).join(',') === 'typ,ebene,nr',
+         bl.slice(0, 3).map((s) => s.pfad).join(','));
+    wahr('Die Blechdicke steht in mm',
+         bl.find((s) => s.pfad === 'dicke')?.feld.einheit === 'mm');
+    wahr('Ein leerer Behaelter hat seine Spalte',
+         K.spaltenVon('tragjoche', 'typen', tab.tragjoche.tabellen.typen)
+           .some((s) => s.pfad === 'bleche'));
 
-    /*
-     * WAS SICH NICHT AUFFALTEN LAESST, WIRD GEZAEHLT. Eine Blechliste in
-     * eine Tabellenzelle zu quetschen hiesse, sie unlesbar zu machen und
-     * zugleich vorzutaeuschen, man koenne sie dort pflegen.
-     */
-    const jt = best.tragjoche.typen.find((t) => t.bleche);
     wahr('Eine Blechliste wird gezaehlt, nicht ausgeschrieben',
-         /Felder|Eintr/.test(K.alsText(jt.bleche, { typ: 'frei' })),
-         K.alsText(jt.bleche, { typ: 'frei' }));
+         K.alsText([{ pos: 1 }, { pos: 2 }], { typ: 'frei' }) === '2 Einträge');
     wahr('Ein Zahlenpaar wird ausgeschrieben',
-         K.alsText([8, 16], { typ: 'liste' }) === '8 … 16');
+         K.alsText([8, 16], { typ: 'liste' }) === '8 · 16');
+    wahr('Eine Luecke in einer Liste bleibt sichtbar',
+         K.alsText([null, 12.5], { typ: 'liste' }) === '– · 12.5');
   }
 
-  // --- Die Excel-Blaetter --------------------------------------------------
+  // --- Die Excel-Blaetter -----------------------------------------------------
   {
-    const bl = D.blaetter(best, X.STIL);
-    pruef('Uebersicht und zehn Tabellen', bl.length, 11, 1e-12, 'Blaetter');
+    const bl = D.blaetter(tab, X.STIL);
+    const anzahl = TBF.SORTIMENTE.reduce((s, db) => s + K.tabellenKatalog(db).length, 0);
+    pruef('Uebersicht und ein Blatt je Tabelle', bl.length, anzahl + 1, 1e-12, 'Blaetter');
     wahr('Das erste Blatt ist die Uebersicht', bl[0].name === 'Übersicht');
     wahr('Kein Blattname ist laenger als einunddreissig Zeichen',
-         bl.every((b) => b.name.length <= 31),
-         bl.map((b) => b.name.length).join(' '));
-    const mappe = X.arbeitsmappe(bl);
-    wahr('Die Mappe entsteht und ist keine leere Huelle',
-         mappe instanceof Uint8Array && mappe.length > 50000,
-         `${mappe?.length} Bytes`);
+         bl.every((b) => b.name.length <= 31));
+    wahr('Kein Blattname traegt ein Zeichen, das Excel verbietet',
+         bl.every((b) => !/[:\\/?*[\]]/.test(b.name)),
+         bl.filter((b) => /[:\\/?*[\]]/.test(b.name)).map((b) => b.name).join(', '));
+    wahr('Die Blattnamen sind eindeutig', new Set(bl.map((b) => b.name)).size === bl.length);
     /*
-     * DAS BLATT ZEIGT, WAS DER SCHIRM ZEIGT - beide aus derselben
-     * Spaltenliste. Sonst waere die Ausleitung eine zweite Wahrheit.
+     * DIE FUENFTE ZEILE TRAEGT DIE PFADE - das Einlesen findet an ihnen die
+     * Spalten, auch wenn jemand sie umstellt.
      */
-    const a = K.abschnitt('mastprofile');
-    const sp = D.spalten(a);
-    const blatt = bl.find((b) => b.name === a.titel.slice(0, 31));
-    wahr('Die Kopfzeile des Blattes ist die des Schirms',
-         blatt.rows[4].length === sp.length
-         && blatt.rows[4][0].v === sp[0].kopf,
-         `${blatt.rows[4].length} gegen ${sp.length}`);
+    const blech = bl.find((b) => b.name === 'Trag · Bindebleche');
+    wahr('Das Blechblatt steht in der Mappe', Boolean(blech));
+    wahr('Zeile fuenf traegt die Spaltenpfade',
+         blech?.rows[D.PFADZEILE - 1].map((c) => c.v).slice(0, 3).join(',') === 'typ,ebene,nr');
+    const mappe = X.arbeitsmappe(bl);
+    wahr('Die Mappe entsteht', mappe instanceof Uint8Array && mappe.length > 50000,
+         `${mappe?.length} Bytes`);
+    const mitPruefung = D.blaetter(tab, X.STIL, { blech: [{ typ: 'J1', fehler: ['x'],
+                                                               warnung: [], hinweis: [] }] });
+    wahr('Auf Wunsch kommt das Pruefblatt ans Ende',
+         mitPruefung[mitPruefung.length - 1].name === 'Prüfung');
   }
 
-  // --- Die Trennung von Norm und Sortiment --------------------------------
+  // --- Die Trennung von Norm und Sortiment ----------------------------------
   {
-    /*
-     * >>> DIE TRENNLINIE IST DIE EIGENTLICHE WEISUNG. <<<
-     *
-     * «die ui und die [Betreiber]daten sollen getrennt sein.» Was als Norm gilt,
-     * darf in einer oeffentlichen Ablage liegen; was Sortiment ist, nicht.
-     * Diese Kontrolle haelt fest, welcher Abschnitt auf welcher Seite steht
-     * - eine spaetere Verschiebung faellt damit auf.
-     */
     const norm = K.abschnitteVon('norm').map((a) => a.key);
     const sort = K.abschnitteVon('sortiment').map((a) => a.key);
     wahr('Norm: Stahlgueten und die drei Profiltabellen',
          norm.join(',') === 'stahlgueten,winkelprofile,walzprofile,mastprofile',
          norm.join(','));
-    wahr('Sortiment: die sechs Teile des Datenpakets',
-         sort.length === 6 && sort.includes('masttypen')
-         && sort.includes('tragjoche'), sort.join(','));
-    wahr('Alle Normabschnitte stehen in derselben Datenbank',
+    wahr('Sortiment: sieben Abschnitte in sechs Dateien',
+         sort.length === 7 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+         sort.join(','));
+    wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
-    wahr('Kein Sortimentsabschnitt steht in der Normdatenbank',
+    wahr('Kein Sortimentsabschnitt steht in der Normdatei',
          K.abschnitteVon('sortiment').every((a) => a.db !== 'normen'));
   }
 }
@@ -23116,6 +23137,341 @@ titel('62  Die Tabellenform der Datendateien');
     wahr('null wird eine leere Zelle', TBF.zelleAus(null) === null);
     wahr('Eine leere Zelle heisst «fehlt»',
          TBF.zelleEin('') === undefined && TBF.zelleEin(null) === undefined);
+  }
+}
+
+titel('63  Die Farbe ohne Urteil bleibt in der Uebersicht');
+/*
+ * `ampelU` ist innerhalb von `zeichneUebersicht` definiert - sie schweigt,
+ * wenn ein Einzellastfall gezeigt wird. Am 16. September stand sie nach
+ * einem Suchen-und-Ersetzen auch in `zeichneSchnitt`, wo es sie nicht gibt:
+ * der Reiter «Schnitt» brach beim Zeichnen ab, und kein Pruefstandlauf
+ * merkte es, weil hier nichts gezeichnet wird. Diese Kontrolle liest den
+ * Quelltext statt ihn auszufuehren.
+ */
+{
+  const src = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const von = src.indexOf('export function zeichneUebersicht(');
+  const bis = src.indexOf('\nexport function ', von + 10);
+  const stellen = [...src.matchAll(/\bampelU\(/g)].map((m) => m.index);
+  wahr('ampelU wird verwendet', stellen.length > 0);
+  wahr('ampelU steht nur innerhalb von zeichneUebersicht',
+       stellen.every((i) => i > von && i < bis),
+       stellen.filter((i) => !(i > von && i < bis))
+         .map((i) => `Zeile ${src.slice(0, i).split('\n').length}`).join(', '));
+}
+
+titel('64  Die Regel der Blecheinteilung');
+/* ===========================================================================
+ * >>> SICHTBAR GEMACHT, NICHT HERGELEITET. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September, auf Rückfrage entschieden: die Regel der
+ * Blecheinteilung wird sichtbar gemacht und geprüft, sie erzeugt keine
+ * Geometrie. Die erste Kontrolle ist deshalb die wichtigste: was die Regel
+ * zeigt, ist GENAU die Stationsliste, mit der der Rechenkern rechnet.
+ * ========================================================================= */
+{
+  const BR = await import(J('core.blechregel.js'));
+  const j80 = T.getTragjoch('J80');
+
+  // Dieselben Stationen und Bleche wie im Modell
+  {
+    const e = BR.einteilung(j80, 12);
+    const w = { ...basis(), ...typUebernehmen({ ...standardwerte(), bearbeiten: false }, j80),
+                typ: 'J80', L: 12 };
+    const sl = rechne(w).modell.stationsListe;
+    pruef('Gleich viele Stationen wie im Modell', e.anzahl, sl.length, 1e-12, 'Stk');
+    wahr('An denselben Stellen',
+         e.stationen.every((s, i) => Math.abs(s.x - sl[i].x) < 1e-6),
+         e.stationen.slice(0, 4).map((s, i) => `${s.x}/${sl[i].x}`).join(' '));
+    wahr('Mit denselben Blechen',
+         e.stationen.every((s, i) => (s.vertikal?.pos ?? null) === (sl[i].vertikal?.pos ?? null)
+           && (s.horizontal?.pos ?? null) === (sl[i].horizontal?.pos ?? null)));
+    wahr('Die Feldweiten stammen aus der Masstabelle', e.quelle === 'masstabelle');
+    wahr('Am Jochende liegt kein horizontales Blech (Gabel)',
+         e.stationen[0].horizontal === null && e.stationen.at(-1).horizontal === null);
+    const sv = Object.values(e.stueck.vertikal).reduce((a, b) => a + b, 0);
+    const sh = Object.values(e.stueck.horizontal).reduce((a, b) => a + b, 0);
+    pruef('Vertikal zwei Bleche mehr als horizontal - die beiden Jochenden',
+          sv - sh, 2, 1e-12, 'Stk');
+  }
+
+  // Die Prüfung am wirklichen Sortiment
+  {
+    const alle = BR.pruefeAlle();
+    const f = alle.reduce((s, p) => s + p.fehler.length, 0);
+    pruef('Keine Widersprueche in den Blechdaten', f, 0, 1e-12, 'Stk');
+    const ms = alle.find((p) => p.art === 'masstabelle');
+    wahr('Die Masstabelle wird einmal geprueft, nicht je Typ', Boolean(ms)
+         && alle.filter((p) => p.art === 'masstabelle').length === 1);
+    /*
+     * DREI ZEILEN GEHEN NICHT AUF - 26.50, 29.00, 29.50 m. Die Datei vermerkt
+     * sie selbst als unschlüssig; die Regel rechnet es nach.
+     */
+    wahr('Die drei unschluessigen Zeilen werden genannt',
+         /26\.50[\s\S]*29\.00[\s\S]*29\.50/.test(ms.warnung.join(' ')), ms.warnung.join(' '));
+    const j120 = alle.find((p) => p.typ === 'J120');
+    /*
+     * J120, VERTIKAL: die festen Stufen reichen bis 25.50 m über die
+     * Feldmitte, der Normbereich beginnt bei 23 m. Dort sollte das
+     * Feldblech vorkommen - deshalb eine Warnung, keine blosse Auskunft.
+     */
+    wahr('J120: die Staffelung ueber die Mitte im Normbereich ist eine Warnung',
+         j120.warnung.some((w) => /vertikal/.test(w) && /Normbereich/.test(w)),
+         j120.warnung.join(' | '));
+    const j100 = alle.find((p) => p.typ === 'J100');
+    wahr('J100: ausserhalb des Normbereichs nur ein Hinweis',
+         j100.warnung.length === 0 && j100.hinweis.some((h) => /Feldmitte/.test(h)));
+    wahr('J60 ohne Bleche wird genannt, nicht bemaengelt',
+         alle.find((p) => p.typ === 'J60').hinweis.some((h) => /keine Bindebleche/.test(h)));
+    const aj = alle.filter((p) => p.art === 'abfangjoch' && p.laengen.length);
+    wahr('Abfangjoche: Schema und Stueckliste stimmen ueberein',
+         aj.length > 0 && aj.every((p) => p.laengen.every((l) => l.stimmt !== false)));
+  }
+
+  // Die Prüfung erkennt, was sie erkennen soll
+  {
+    const kaputt = JSON.parse(JSON.stringify(j80));
+    kaputt.staffelung.vertikal[0].pos = 99;
+    wahr('Ein Blech der Staffelung, das es nicht gibt, ist ein Fehler',
+         BR.pruefeTragjoch(kaputt).fehler.some((x) => /Pos\. 99/.test(x)));
+    const offen = JSON.parse(JSON.stringify(j80));
+    offen.staffelung.horizontal[1].anzahl = null;
+    wahr('Eine offene Stufe vor dem Schluss ist ein Fehler',
+         BR.pruefeTragjoch(offen).fehler.some((x) => /offene Stufe/.test(x)));
+    const doppelt = JSON.parse(JSON.stringify(j80));
+    doppelt.bleche.vertikal.push({ ...doppelt.bleche.vertikal[0] });
+    wahr('Eine Blech-Pos. zweimal ist ein Fehler',
+         BR.pruefeTragjoch(doppelt).fehler.some((x) => /zweimal/.test(x)));
+    const luecke = JSON.parse(JSON.stringify(T.getTragjoch('J80-alt')));
+    luecke.ausfuehrungen.splice(1, 1);
+    wahr('Eine Luecke zwischen den Ausfuehrungen wird genannt',
+         BR.pruefeTragjoch(luecke).warnung.some((x) => /fehlt der Bereich/.test(x)),
+         BR.pruefeTragjoch(luecke).warnung.join(' | '));
+  }
+
+  // Das Abfangjoch
+  {
+    const e = BR.einteilungAbfang('A240', AJ.abfangLaengen('A240')[3]);
+    wahr('A240: eine Einteilung entsteht', Boolean(e) && e.anzahl > 5);
+    wahr('… mit Endblechen und Quersteifen, wo das Schema sie fuehrt',
+         e.stationen[0].art === 'endeL' && e.quersteifen >= 0);
+  }
+}
+
+titel('65  Bauteildaten einlesen: Abgleich mit Vorschau');
+/* ===========================================================================
+ * >>> EINE UNVERAENDERTE MAPPE MELDET NICHTS. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «den import auch umsetzen», auf Rückfrage
+ * entschieden: Abgleich mit Vorschau. Die Grundprobe ist der Leerlauf:
+ * ausleiten, einlesen, abgleichen - und keine einzige Änderung. Jede
+ * Meldung dort wäre ein Fehler der Hin- oder Rückrichtung und würde
+ * wirkliche Änderungen in der Vorschau verdecken.
+ * ========================================================================= */
+{
+  const E = await import(J('data.einlesen.js'));
+  const D = await import(J('ui.daten.js'));
+  const X = await import(J('export.xlsx.js'));
+  const roh = (n) => JSON.parse(readFileSync(join(HIER, 'data', n + '.json'), 'utf8'));
+  const tab = {};
+  for (const s of TBF.SORTIMENTE) tab[s] = roh(s);
+  const kopie = (o) => JSON.parse(JSON.stringify(o));
+
+  const vergleiche = async (bytes, name = 'mappe.xlsx', basisTab = tab) => {
+    const g = await E.leseDatei(name, bytes);
+    const r = Object.entries(g.teile).map(([db, neu]) =>
+      E.abgleich(db, basisTab[db], neu, { ausExcel: g.quelle === 'excel' }));
+    return { g, r, n: r.reduce((s, x) => s + x.aenderungen, 0) };
+  };
+
+  /*
+   * EINE MAPPE, WIE EXCEL SIE SPEICHERT: verdichtet. Der eigene Schreiber
+   * legt unverdichtet ab; hier wird dieselbe Mappe mit Deflate neu gepackt,
+   * damit der Leser den Weg geht, den eine gespeicherte Datei nimmt.
+   */
+  const verdichtet = async (bytes) => {
+    const crcT = new Uint32Array(256).map((_, i) => {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      return c >>> 0;
+    });
+    const crc = (b) => {
+      let c = 0xffffffff;
+      for (const x of b) c = crcT[(c ^ x) & 0xff] ^ (c >>> 8);
+      return (c ^ 0xffffffff) >>> 0;
+    };
+    const teile = [];
+    const zentral = [];
+    let ofs = 0;
+    for (const e of await X.entpackeAlle(bytes)) {
+      const strom = new Blob([e.inhalt]).stream()
+        .pipeThrough(new CompressionStream('deflate-raw'));
+      const dicht = new Uint8Array(await new Response(strom).arrayBuffer());
+      const name = new TextEncoder().encode(e.name);
+      const k = new DataView(new ArrayBuffer(30));
+      k.setUint32(0, 0x04034b50, true); k.setUint16(4, 20, true);
+      k.setUint16(8, 8, true); k.setUint32(14, crc(e.inhalt), true);
+      k.setUint32(18, dicht.length, true); k.setUint32(22, e.inhalt.length, true);
+      k.setUint16(26, name.length, true);
+      const z = new DataView(new ArrayBuffer(46));
+      z.setUint32(0, 0x02014b50, true); z.setUint16(4, 20, true); z.setUint16(6, 20, true);
+      z.setUint16(10, 8, true); z.setUint32(16, crc(e.inhalt), true);
+      z.setUint32(20, dicht.length, true); z.setUint32(24, e.inhalt.length, true);
+      z.setUint16(28, name.length, true); z.setUint32(42, ofs, true);
+      teile.push(new Uint8Array(k.buffer), name, dicht);
+      zentral.push(new Uint8Array(z.buffer), name);
+      ofs += 30 + name.length + dicht.length;
+    }
+    const zl = zentral.reduce((s, b) => s + b.length, 0);
+    const ende = new DataView(new ArrayBuffer(22));
+    ende.setUint32(0, 0x06054b50, true);
+    ende.setUint16(8, zentral.length / 2, true); ende.setUint16(10, zentral.length / 2, true);
+    ende.setUint32(12, zl, true); ende.setUint32(16, ofs, true);
+    const alle = [...teile, ...zentral, new Uint8Array(ende.buffer)];
+    const aus = new Uint8Array(alle.reduce((s, b) => s + b.length, 0));
+    let p = 0;
+    for (const b of alle) { aus.set(b, p); p += b.length; }
+    return aus;
+  };
+
+  const mappe = X.arbeitsmappe(D.blaetter(tab, X.STIL));
+
+  // --- Der Leerlauf ----------------------------------------------------------
+  {
+    const a = await vergleiche(mappe);
+    pruef('Eigene Mappe: alle sieben Sortimente gelesen',
+          Object.keys(a.g.teile).length, 7, 1e-12, 'Stk');
+    pruef('Eigene Mappe: keine Aenderung', a.n, 0, 1e-12, 'Stk');
+    const dicht = await verdichtet(mappe);
+    wahr('Die verdichtete Mappe ist wirklich verdichtet',
+         dicht.length < mappe.length / 3, `${dicht.length} gegen ${mappe.length} Bytes`);
+    const b = await vergleiche(dicht);
+    pruef('Verdichtete Mappe: keine Aenderung', b.n, 0, 1e-12, 'Stk');
+    for (const s of ['tragjoche', 'anbauteile']) {
+      const c = await vergleiche(new TextEncoder().encode(JSON.stringify(tab[s])), s + '.json');
+      pruef(`JSON in Tabellenform (${s}): keine Aenderung`, c.n, 0, 1e-12, 'Stk');
+      const d = await vergleiche(new TextEncoder().encode(
+        JSON.stringify(TBF.setzeZusammen(tab[s]))), s + '.json');
+      pruef(`JSON in Baumform (${s}): keine Aenderung`, d.n, 0, 1e-12, 'Stk');
+    }
+    const paket = { format: 'tragjoch-daten', version: 2,
+                    tragjoche: tab.tragjoche, masten: TBF.setzeZusammen(tab.masten) };
+    const e = await vergleiche(new TextEncoder().encode(JSON.stringify(paket)), 'paket.json');
+    wahr('Ein Datenpaket liefert seine Teile, gleich welcher Form',
+         Object.keys(e.g.teile).sort().join(',') === 'masten,tragjoche' && e.n === 0);
+  }
+
+  // --- Eine bearbeitete Mappe ---------------------------------------------------
+  {
+    const t2 = kopie(tab);
+    const bl = t2.tragjoche.tabellen.bleche.find((z) => z.typ === 'J80'
+      && z.ebene === 'vertikal' && z.nr === 1);
+    bl.dicke += 2;
+    t2.normen.tabellen.stahlgueten.push({ name: 'S460', fy: 460, fu: 540 });
+    t2.anbauteile.tabellen.module.shift();
+    // Ein Wert wird geleert, und ein leerer bleibt leer
+    const bt = t2.fl_bauteile.tabellen.bauteile.find((z) => z.id === 'anbauteil-ausleger-typ-rohr');
+    delete bt.eigengewicht;
+    const a = await vergleiche(X.arbeitsmappe(D.blaetter(t2, X.STIL)));
+    const nach = (db) => a.r.find((x) => x.db === db);
+    pruef('Vier Eingriffe, vier Aenderungen', a.n, 4, 1e-12, 'Stk');
+    const tj = nach('tragjoche');
+    const g = tj.tabellen.find((t) => t.name === 'bleche').geaendert[0];
+    wahr('Die Blechdicke wird Feld fuer Feld gezeigt',
+         g?.felder.length === 1 && g.felder[0].pfad === 'dicke'
+         && g.felder[0].neu === g.felder[0].alt + 2, JSON.stringify(g?.felder));
+    wahr('J80 ist geprueft - die Aenderung wird eigens genannt',
+         tj.geprueft.includes('J80'), tj.geprueft.join(','));
+    wahr('Die neue Stahlguete ist neu',
+         nach('normen').tabellen.find((t) => t.name === 'stahlgueten').neu.length === 1);
+    wahr('Das geloeschte Modul ist entfernt',
+         nach('anbauteile').tabellen.find((t) => t.name === 'module').entfernt.length === 1);
+    const fl = nach('fl_bauteile').tabellen.find((t) => t.name === 'bauteile').geaendert[0];
+    wahr('Eine geleerte Zelle wird null', fl?.felder[0].pfad === 'eigengewicht'
+         && fl.felder[0].neu === null, JSON.stringify(fl?.felder));
+    wahr('… und die Pruefung faellt: das Eigengewicht ist Pflicht',
+         !nach('fl_bauteile').pruefung.ok
+         && nach('fl_bauteile').pruefung.fehler.some((x) => /Eigengewicht/.test(x)));
+    wahr('Das Ergebnis traegt die neue Dicke',
+         tj.ergebnis.tabellen.bleche.some((z) => z.typ === 'J80' && z.ebene === 'vertikal'
+           && z.nr === 1 && z.dicke === bl.dicke));
+    wahr('Und laesst sich zusammensetzen',
+         TBF.setzeZusammen(tj.ergebnis).typen.find((x) => x.typ === 'J80')
+           .bleche.vertikal[0].dicke === bl.dicke);
+    wahr('Unveraenderte Sortimente bleiben ohne Aenderung',
+         nach('anker').aenderungen === 0 && nach('masten').aenderungen === 0);
+  }
+
+  // --- Teile, die fehlen ---------------------------------------------------------
+  {
+    const bl = D.blaetter(tab, X.STIL).filter((b) => b.name !== 'Trag · Bindebleche');
+    const a = await vergleiche(X.arbeitsmappe(bl));
+    const t = a.r.find((x) => x.db === 'tragjoche').tabellen.find((x) => x.name === 'bleche');
+    wahr('Ein fehlendes Blatt laesst seine Tabelle stehen', t.uebernommen
+         && a.r.find((x) => x.db === 'tragjoche').ergebnis.tabellen.bleche.length
+            === tab.tragjoche.tabellen.bleche.length);
+    wahr('… und die Datei sagt es', a.g.hinweise.some((h) => /Bindebleche/.test(h)));
+    pruef('… ohne Aenderung', a.n, 0, 1e-12, 'Stk');
+  }
+
+  // --- Was abgewiesen werden muss --------------------------------------------------
+  {
+    const wirft = async (bytes, name, muster) => {
+      try { await E.leseDatei(name, bytes); return false; }
+      catch (e) { return muster.test(e.message); }
+    };
+    const fremd = X.arbeitsmappe([{ name: 'Tabelle1', rows: [['a', 'b'], [1, 2]] }]);
+    wahr('Eine fremde Mappe wird abgewiesen',
+         await wirft(fremd, 'fremd.xlsx', /Übersicht/));
+    wahr('Unlesbares wird abgewiesen',
+         await wirft(new TextEncoder().encode('kein json'), 'x.json', /weder/));
+    wahr('Ein JSON ohne Sortiment wird abgewiesen',
+         await wirft(new TextEncoder().encode('{"a":1}'), 'x.json', /keinem Sortiment/));
+  }
+
+  // --- Der hinterlegte Stand ---------------------------------------------------------
+  {
+    E.eingelesenVerwerfen();
+    wahr('Ohne Einlesen ist nichts hinterlegt', E.eingelesen() === null);
+    const t2 = kopie(tab.masten);
+    t2.tabellen.typen[0]['wind/quer/EK2'] = 0.99;
+    E.eingelesenSpeichern({ masten: t2 }, 'probe.xlsx');
+    wahr('Der Stand ist hinterlegt, mit Quelle und Zeit',
+         E.eingelesen()?.quelle === 'probe.xlsx' && Boolean(E.eingelesen()?.stand));
+    const gesetzt = {};
+    const r = E.eingelesenAnwenden({ masten: (b) => { gesetzt.masten = b; } });
+    wahr('Beim Start wird er angewendet', r.angewendet.join() === 'masten'
+         && gesetzt.masten.typen[0].wind.quer.EK2 === 0.99);
+    const kaputt = kopie(tab.masten);
+    delete kaputt.tabellen.typen[0].profil;
+    E.eingelesenSpeichern({ masten: kaputt }, 'kaputt.xlsx');
+    const r2 = E.eingelesenAnwenden({ masten: () => { throw new Error('darf nicht'); } });
+    wahr('Ein fehlerhafter Stand wird nicht angewendet, sondern gemeldet',
+         r2.angewendet.length === 0 && r2.fehler.length === 1, r2.fehler.join(' '));
+    E.eingelesenVerwerfen();
+    wahr('Verworfen ist er weg', E.eingelesen() === null);
+    wahr('Als Datei geschrieben ist er wieder Tabellenform',
+         TBF.istTabellenform(JSON.parse(E.alsDatei(t2))));
+  }
+
+  // --- Die Vorschau ------------------------------------------------------------------
+  {
+    const t2 = kopie(tab);
+    t2.tragjoche.tabellen.bleche[0].dicke += 1;
+    const a = await vergleiche(X.arbeitsmappe(D.blaetter(t2, X.STIL)));
+    const html = D.zeichneAbgleich(a.r, { datei: 'probe.xlsx', quelle: 'excel' });
+    wahr('Die Vorschau nennt die Aenderung', /1<\/b> Änderung/.test(html));
+    wahr('Sie nennt den geprueften Satz', /Geprüfte Sätze ändern sich/.test(html));
+    /*
+     * GESPERRT WIRD NUR, WAS SICH AENDERT. Die doppelte Kennung in der
+     * Lasttabelle steht in der Vorschau als bestehender Befund, hält aber
+     * die Änderung an den Jochen nicht auf.
+     */
+    wahr('Der bestehende Befund der Lasttabelle sperrt nichts',
+         /bestehende/.test(html) && !/so lässt sich der Stand nicht übernehmen/.test(html));
   }
 }
 

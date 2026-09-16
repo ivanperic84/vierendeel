@@ -44,7 +44,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4237 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4358 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
@@ -58,7 +58,8 @@ Eingabe, Rechnung, Szene, Ausleitung, Bericht — für Joch, Einzelmast und
 Jochreihe. Nach einem Umbau an Datenstruktur oder Rechenweg beides laufen
 lassen; am 2. September standen 2290 Kontrollen grün, während der
 Excel-Knopf am Einzelmasten wortlos nichts tat. `pruefung.mjs` braucht die `data/*.json`
-daneben; ohne sie laufen die Kontrollen nicht. `data/normen.json`
+daneben; ohne sie laufen die Kontrollen nicht. Alle Datendateien stehen in Tabellenform (js/data.tabellen.js).
+`data/normen.json`
 (Querschnittswerte, Stahlgüten) ist verfolgt — sie ist keine Betreiberdatei
 und ohne sie rechnet die Anwendung nicht.
 

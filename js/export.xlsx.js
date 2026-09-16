@@ -174,6 +174,11 @@ function zelle(wert, zeile, spalteIdx) {
   if (typeof v === 'number' && Number.isFinite(v)) {
     return `<c r="${ref}"${attrS}><v>${v}</v></c>`;
   }
+  // Wahr/falsch als Wahrheitswert, nicht als Text «true» - sonst liest die
+  // Einlesung der Bauteildaten eine Zeichenkette zurueck.
+  if (typeof v === 'boolean') {
+    return `<c r="${ref}"${attrS} t="b"><v>${v ? 1 : 0}</v></c>`;
+  }
   return `<c r="${ref}"${attrS} t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
 }
 
@@ -232,6 +237,19 @@ export function entpacke(daten) {
   return aus;
 }
 
+/**
+ * EIN BLATTNAME, DEN EXCEL ANNIMMT.
+ *
+ * Excel verbietet : \\ / ? * [ ] im Namen und begrenzt ihn auf 31 Zeichen.
+ * Bis zum 16. September wurde nur gekuerzt - und das erst NACH dem
+ * Maskieren, sodass ein «&amp;» zerschnitten werden konnte. Das Blatt
+ * «Walzprofile (UPE/IPE)» trug einen Schraegstrich; Excel musste die Mappe
+ * beim Oeffnen «reparieren».
+ */
+export function blattname(name) {
+  return String(name).replace(/[:\\/?*[\]]/g, '-').slice(0, 31);
+}
+
 export function arbeitsmappe(blaetter) {
   const dateien = [
     {
@@ -257,7 +275,7 @@ ${blaetter.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" 
       inhalt: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets>${blaetter.map((b, i) => `<sheet name="${x(b.name).slice(0, 31)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>
+<sheets>${blaetter.map((b, i) => `<sheet name="${x(blattname(b.name))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>
 </workbook>`,
     },
     {
@@ -291,4 +309,167 @@ export function herunterladen(bytes, dateiname, typ = null) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* ===========================================================================
+ * >>> EINE MAPPE LESEN. <<<
+ * ===========================================================================
+ *
+ * Weisung vom 16. September: «den import auch umsetzen» - die Bauteildaten
+ * sollen sich in Excel pflegen und wieder einlesen lassen.
+ *
+ * `entpacke` oben liest nur, was `zip` schreibt: unverdichtet. Eine Mappe,
+ * die Excel gespeichert hat, ist VERDICHTET (Deflate). Hier wird sie ohne
+ * Fremdbibliothek geöffnet: `DecompressionStream('deflate-raw')` gibt es in
+ * jedem heutigen Browser und in Node ab Version 18.
+ *
+ * Gelesen wird über das ZENTRALE VERZEICHNIS, nicht über die lokalen Köpfe:
+ * Programme, die mit Datendeskriptor schreiben, lassen dort die Grössen leer.
+ *
+ * Das XML wird mit regulären Ausdrücken gelesen, nicht mit einem Parser.
+ * Das genügt für die festen Formen von SpreadsheetML, und es läuft im
+ * Prüfstand ohne DOM.
+ * ========================================================================= */
+
+async function inflate(bytes) {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Dieser Browser kann verdichtete Dateien nicht öffnen.');
+  }
+  const strom = new Blob([bytes]).stream()
+    .pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(strom).arrayBuffer());
+}
+
+/** Alle Einträge einer ZIP - verdichtet oder nicht. */
+export async function entpackeAlle(daten) {
+  const dv = new DataView(daten.buffer, daten.byteOffset, daten.byteLength);
+  const dec = new TextDecoder();
+  let ende = -1;
+  for (let i = daten.length - 22; i >= Math.max(0, daten.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { ende = i; break; }
+  }
+  if (ende < 0) throw new Error('Die Datei ist keine Excel-Mappe (kein ZIP).');
+  const anzahl = dv.getUint16(ende + 10, true);
+  let p = dv.getUint32(ende + 16, true);
+  if (p === 0xffffffff) throw new Error('ZIP64 wird nicht unterstützt.');
+  const aus = [];
+  for (let k = 0; k < anzahl; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) {
+      throw new Error('Das Inhaltsverzeichnis der Mappe ist beschädigt.');
+    }
+    const methode = dv.getUint16(p + 10, true);
+    const csize = dv.getUint32(p + 20, true);
+    const nLen = dv.getUint16(p + 28, true);
+    const eLen = dv.getUint16(p + 30, true);
+    const cLen = dv.getUint16(p + 32, true);
+    const lokal = dv.getUint32(p + 42, true);
+    const name = dec.decode(daten.subarray(p + 46, p + 46 + nLen));
+    const lnLen = dv.getUint16(lokal + 26, true);
+    const leLen = dv.getUint16(lokal + 28, true);
+    const von = lokal + 30 + lnLen + leLen;
+    const roh = daten.subarray(von, von + csize);
+    let inhalt;
+    if (methode === 0) inhalt = roh;
+    else if (methode === 8) inhalt = await inflate(roh);
+    else throw new Error(`«${name}» ist mit Verfahren ${methode} verdichtet.`);
+    aus.push({ name, inhalt });
+    p += 46 + nLen + eLen + cLen;
+  }
+  return aus;
+}
+
+const ENT = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+function xmlText(s) {
+  return s.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (m, e) => {
+    if (e[0] === '#') {
+      return String.fromCodePoint(e[1] === 'x' || e[1] === 'X'
+        ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+    }
+    return ENT[e] ?? m;
+  });
+}
+function attribute(s) {
+  const a = {};
+  for (const m of s.matchAll(/([\w:]+)\s*=\s*"([^"]*)"/g)) a[m[1]] = xmlText(m[2]);
+  return a;
+}
+/** Der Text eines Elements: alle <t>, ohne Lautschrift (<rPh>). */
+function texte(s) {
+  return [...s.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '')
+    .matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((m) => xmlText(m[1])).join('');
+}
+function spaltenNr(ref) {
+  const b = /^([A-Z]+)/.exec(ref)?.[1] ?? 'A';
+  let n = 0;
+  for (const c of b) n = n * 26 + (c.charCodeAt(0) - 64);
+  return n - 1;
+}
+
+/**
+ * Eine Mappe lesen.
+ *
+ * @param {Uint8Array} bytes
+ * @returns {Promise<{name:string, zeilen:Array<Array>}[]>}  Werte als Zahl,
+ *          Text oder Wahrheitswert; leere Zellen undefined
+ */
+export async function leseMappe(bytes) {
+  const dateien = await entpackeAlle(bytes);
+  const dec = new TextDecoder();
+  const datei = (n) => {
+    const d = dateien.find((e) => e.name.replace(/^\//, '') === n);
+    return d ? dec.decode(d.inhalt) : null;
+  };
+  const wb = datei('xl/workbook.xml');
+  if (!wb) throw new Error('Die Datei ist keine Excel-Mappe (workbook.xml fehlt).');
+  const rels = datei('xl/_rels/workbook.xml.rels') ?? '';
+  const ziel = {};
+  for (const m of rels.matchAll(/<Relationship\b([^>]*)\/?>/g)) {
+    const a = attribute(m[1]);
+    let t = a.Target ?? '';
+    t = t.startsWith('/') ? t.slice(1) : `xl/${t}`;
+    ziel[a.Id] = t;
+  }
+  const geteilt = [];
+  const sst = datei('xl/sharedStrings.xml');
+  if (sst) for (const m of sst.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)) geteilt.push(texte(m[1]));
+
+  const aus = [];
+  for (const m of wb.matchAll(/<sheet\b([^>]*)\/?>/g)) {
+    const a = attribute(m[1]);
+    const pfad = ziel[a['r:id']];
+    const xml = pfad ? datei(pfad) : null;
+    if (!xml) continue;
+    const zeilen = [];
+    for (const r of xml.matchAll(/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g)) {
+      const ra = attribute(r[1]);
+      const zi = (Number(ra.r) || zeilen.length + 1) - 1;
+      const zeile = [];
+      for (const c of (r[2] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const ca = attribute(c[1]);
+        const innen = c[2] ?? '';
+        const v = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(innen)?.[1];
+        let w;
+        switch (ca.t) {
+          case 's': w = v === undefined ? undefined : geteilt[Number(v)]; break;
+          case 'inlineStr': w = texte(innen); break;
+          case 'str': w = v === undefined ? undefined : xmlText(v); break;
+          case 'b': w = v === undefined ? undefined : v === '1'; break;
+          case 'e': w = undefined; break;
+          default:
+            if (v === undefined || v === '') w = undefined;
+            else {
+              // Excel speichert 15 gültige Stellen; 0.37000000000000005 ist 0.37.
+              const z = Number(v);
+              w = Number.isFinite(z) ? Number(z.toPrecision(15)) : undefined;
+            }
+        }
+        const si = ca.r ? spaltenNr(ca.r) : zeile.length;
+        zeile[si] = w === '' ? undefined : w;
+      }
+      zeilen[zi] = zeile;
+    }
+    for (let i = 0; i < zeilen.length; i++) if (!zeilen[i]) zeilen[i] = [];
+    aus.push({ name: a.name, zeilen });
+  }
+  return aus;
 }

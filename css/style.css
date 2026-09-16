@@ -2705,3 +2705,64 @@ body.datei-ueber::after {
   .dat-leiste { border-right: 0; border-bottom: 1px solid var(--ol);
                 max-height: 150px; }
 }
+
+/* ---------------------------------------------------------------------------
+   BAUTEILDATEN: Sortimente mit ihren Tabellen, Blecheinteilung, Einlesen
+   (16. September). Die Untertabellen stehen eingerückt unter ihrem
+   Sortiment - so sieht man, dass «Bindebleche» zu den Tragjochen gehört.
+   ------------------------------------------------------------------------- */
+.dat-sortiment + .dat-sortiment { margin-top: 8px; }
+.dat-sortiment-kopf { font-size: 12px; font-weight: 600; margin: 2px 0 1px 2px; }
+.dat-sortiment.leer { opacity: .45; font-size: 13px; padding: 4px 7px;
+                      display: flex; justify-content: space-between; }
+.dat-eintrag.unter, .dat-eintrag.neben { padding-left: 18px; font-size: 12px; }
+.dat-eintrag.neben { opacity: .7; }
+.dat-eintrag.schlecht .dat-zahl { color: var(--fail); opacity: 1; }
+.dat-eintrag.warn .dat-zahl { color: var(--warn); opacity: 1; }
+
+.dat-datei { font-family: var(--f-mono); font-size: 11px; font-weight: 400;
+             opacity: .55; margin-left: auto; }
+.dat-werkzeug { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+                margin: 6px 0; font-size: 12px; }
+.dat-werkzeug label { display: flex; gap: 6px; align-items: center; }
+.dat-suche { min-width: 200px; }
+.dat-tabelle th.schl, .dat-tabelle td.schl { background: var(--s2); }
+.dat-tabelle tr[hidden] { display: none; }
+.dat-tabelle td.neu { color: var(--ok); font-weight: 600; }
+.dat-tabelle td.warn { color: var(--warn); font-weight: 600; }
+.dat-tabelle td.schlecht { color: var(--fail); font-weight: 600; }
+.dat-tabelle tr.an td { background: var(--acc-s); }
+.dat-tabelle tr[data-regel-typ] { cursor: pointer; }
+
+.dat-banner { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center;
+              padding: 8px 14px; font-size: 12px;
+              border-bottom: 1px solid var(--warn); background: var(--warn-s); }
+.dat-banner-knoepfe { margin-left: auto; display: flex; gap: 6px; }
+
+.dat-regel { display: grid; grid-template-columns: max-content 1fr;
+             gap: 2px 12px; font-size: 12px; margin: 8px 0; }
+.dat-regel dt { opacity: .65; }
+.dat-regel dd { margin: 0; }
+
+.dat-befunde { margin: 6px 0; padding-left: 18px; font-size: 12px; line-height: 1.5; }
+.dat-befunde li.fehler b, .dat-einzeln li.schlecht { color: var(--fail); }
+.dat-befunde li.warnung b, .dat-einzeln li.warn { color: var(--warn); }
+.dat-befunde li.hinweis b { opacity: .7; }
+.dat-einzeln li.neu { color: var(--ok); }
+.dat-einzeln { margin: 4px 0; font-size: 12px; }
+.dat-einzeln ul ul { margin: 2px 0 4px; }
+.dat-alle { margin-top: 12px; font-size: 12px; }
+.dat-alle summary { cursor: pointer; font-weight: 600; }
+.dat-meldung.offen { padding: 6px 10px; border-radius: 6px; margin: 8px 0;
+                     border: 1px solid var(--ol); }
+.dat-meldung.fehler.offen { border-color: var(--fail); background: var(--fail-s); }
+.dat-meldung.warnung.offen { border-color: var(--warn); background: var(--warn-s); }
+.dat-abgleich-kopf { display: flex; gap: 10px; align-items: baseline;
+                     margin: 14px 0 4px; font-size: 14px; }
+.dialog-breit .dialog-koerper > p, .dialog-breit .dialog-koerper > .dat-meldung,
+.dialog-breit .dialog-koerper > details, .dialog-breit .dialog-koerper > h3,
+.dialog-breit .dialog-koerper > ul, .dialog-breit .dialog-koerper > table {
+  margin-left: 14px; margin-right: 14px; }
+.dat-dateien { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.dat-dateien .btn { font-family: var(--f-mono); font-size: 12px; }
+.dat-dateien .btn.an { border-color: var(--ok); }

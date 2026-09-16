@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4237 Kontrollen
+node pruefung.mjs           # Prüfstand, 4358 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,59 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Tabellenform, Blechregel, Einlesen (16. September)
+
+Weisung: «ist es möglich die daten strukturierter zu machen und eine logik der
+blech einteilung zu erstellen? den import auch umsetzen». Auf Rückfrage
+entschieden: **Regel sichtbar machen und prüfen** (keine Geometrie erzeugen),
+**die JSON-Dateien selbst umbauen**, **Abgleich mit Vorschau**.
+
+**Tabellenform** (`js/data.tabellen.js`). Alle sieben Dateien sind verknüpfte
+Tabellen; `AUFBAU` sagt je Sortiment, welche Listen Tabellen werden
+(`bleche/*` mit Spalte `ebene`, `ausfuehrungen` mit Enkeltabelle
+`ausfuehrung_staffelung`, Karte `masstabelle` je Länge). Verlustfrei
+(Abschnitt 62), der Durchlauf mit den alten Baumdateien ist zeilengleich.
+**Der Rechenkern sieht weiterhin den Baum** - die Setzer rufen `ausTabellen`.
+Das war eine bewusste Auslegung von «Leser anpassen»: umgebaut ist die Datei,
+nicht die über siebzig Zugriffe im Kern. Die alten Dateien liegen in
+`data/sicherung/baumform/` (ausgenommen). Das Datenpaket schreibt Version 2.
+
+**Feldkatalog neu.** Er beschreibt die Tabellen der Dateien, jede Spalte mit
+Einheit - kein Wert ausserhalb seines Bereichs, keine Spalte ohne Eintrag.
+Pflichtspalten werden auch geprüft, wenn sie ganz fehlen.
+
+**Blechregel** (`js/core.blechregel.js`). Ruft `knotenraster`,
+`blechAnStation`, `abfangBlechstationen` - dieselbe Einteilung wie im Modell
+(Abschnitt 64 vergleicht J80/12 m Station für Station). Befunde am Bestand:
+
+* **Masstabelle** geht bei 26.50, 29.00, 29.50 m nicht auf (bekannt, jetzt
+  nachgerechnet: 25 240 / 28 800 / 29 360 mm) - dort wird gleichmässig geteilt.
+* **J120 vertikal:** die festen Stufen reichen bis 25.50 m über die
+  Feldmitte, im Normbereich (ab 23 m) kommt das Feldblech Pos. 9 nicht vor.
+  **Warnung - offen beim Auftraggeber.** Die Staffelung ist als ungeprüft
+  vermerkt.
+* J100, J130: dieselbe Erscheinung nur im kurzen Bereich - Hinweis.
+* J60 ohne Bleche; Abfangjoche: Schema und Stückliste stimmen überall.
+
+**Einlesen** (`js/data.einlesen.js`, Excel-Leser in `export.xlsx.js` über
+`DecompressionStream`). Excel-Mappe aus der Ausleitung (Blatt «Übersicht»,
+Pfadzeile 5), JSON in Tabellen- oder Baumform, Datenpaket. Abgleich je
+Schlüssel; leere Zelle = null. Geprüfte Sätze werden eigens genannt. Gesperrt
+wird nur, was sich ändert. Übernommen wird als «eingelesener Stand» im Browser,
+der sich beim Start über die Dateien legt - sichtbar im Fenster, mit
+«Als Dateien sichern» und «Verwerfen». Der Klick durch den Dateiwähler ist
+**nicht** im Browser getestet; der Ablauf dahinter im Prüfstand (Abschnitt 65).
+
+**Nebenbei behoben.**
+* `ampelU` stand seit `3e8c19b` auch in `zeichneSchnitt` - **der Reiter
+  «Schnitt» brach beim Zeichnen ab**. Kontrolle in Abschnitt 63.
+* Excel-Blattnamen mit «/» (Walzprofile) - `blattname()` bereinigt.
+* `core.winkel.js` merkte sich Winkelwerte am Profilnamen - jetzt am Satz.
+* Die Hilfsskripte laden die Normwerte (seit `b8d46d7` brachen sie ab).
+
+**Befund in den Betreiberdaten:** `anker.json` sagt in `_querschnitt`
+«Laengen cm», die Werte stehen aber in mm (e_y in cm). Nicht geändert.
 
 ### Die Tragwerksdaten stehen in der Datenbank (16. September)
 
@@ -68,7 +121,7 @@ Anker, Masten). Die Normwerte sind nicht darin und werden auch bei
 
 **Zahlen erzeugt, nicht abgeschrieben.** `normen.json` und `masten.json` sind
 aus den damaligen Modulen generiert; der Durchlauf vor und nach dem Umbau ist
-zeilengleich. 4237 Kontrollen grün (Abschnitt 61 neu).
+zeilengleich. Damals 4237 Kontrollen grün (Abschnitt 61 neu).
 
 **Befund des Katalogs, nicht behoben:** `abfangjoch-a200` steht in der
 Lasttabelle zweimal (0.66 kN/m «altes Bausortiment», 0.58 kN/m). Beide Sätze

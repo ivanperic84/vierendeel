@@ -54,13 +54,20 @@ import { U } from './core.constants.js';
  *
  * @param {object} p Profil aus data.profiles.js
  */
-const SPEICHER = new Map();
+/*
+ * Werte je Profil nur einmal rechnen.
+ *
+ * GEMERKT AM SATZ, NICHT AM NAMEN. Bis zum 16. September hiess es hier «sie
+ * hängen an nichts sonst» - und der Schlüssel war der Profilname. Seit die
+ * Querschnittswerte aus einer Datei kommen und sich einlesen lassen, kann
+ * derselbe Name andere Zahlen tragen; ein Speicher nach Namen lieferte dann
+ * die alten. Am Satz selbst gemerkt, gilt ein neuer Stand von selbst.
+ */
+const SPEICHER = new WeakMap();
 
-/** Werte je Profil nur einmal rechnen - sie hängen an nichts sonst. */
 export function winkelwerteFuer(p) {
-  const k = p.name;
-  if (!SPEICHER.has(k)) SPEICHER.set(k, winkelwerte(p));
-  return SPEICHER.get(k);
+  if (!SPEICHER.has(p)) SPEICHER.set(p, winkelwerte(p));
+  return SPEICHER.get(p);
 }
 
 export function winkelwerte(p) {

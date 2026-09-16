@@ -833,6 +833,56 @@ unabhängig bestätigt.
 
 ---
 
+## Bauteildaten: Tabellen, Blecheinteilung, Einlesen
+
+**Alle Tragwerksdaten stehen in Dateien, nicht im Code.** Die Trennlinie
+verläuft zwischen dem, was allgemein gilt, und dem, was einem Betreiber gehört:
+
+| Datei | Inhalt | in der Ablage |
+|---|---|---|
+| `data/normen.json` | Winkel-, Walz- und Mastprofile (Querschnittswerte), Stahlgüten | ja |
+| `data/masten.json` | Masttypen des Sortiments, Windlast je EK | nein |
+| `data/tragjoche.json` | Tragjochtypen, Bleche, Staffelung, Masstabelle | nein |
+| `data/abfangjoche.json` | Abfangjochtypen, Bindebleche, Längen | nein |
+| `data/anker.json` | Zug- und Druckstützen, Seilanker | nein |
+| `data/fl_bauteile.json` | Lasttabelle der Fahrleitungsbauteile | nein |
+| `data/anbauteile.json` | Anbauteil-Vorlagen und ihre Module | nein |
+
+**Tabellenform.** Jede Datei besteht aus verknüpften Tabellen
+(`js/data.tabellen.js`): eine Haupttabelle je Satzliste, verschachtelte Sätze
+als Pfadspalten (`og/ja`, `wind/quer/EK2`), Listen gleicher Form als eine
+Tabelle mit unterscheidender Spalte (`bleche` mit `ebene`), dazu `angaben` für
+Erläuterungen. Eine Tabellenzeile steht auf einer Textzeile:
+
+```json
+{ "format": "tragjoch-tabellen", "version": 2, "sortiment": "tragjoche",
+  "tabellen": { "typen": [ … ], "bleche": [ {"typ":"J80","ebene":"vertikal","nr":1,…} ], … },
+  "angaben": [ {"pfad":"_masskonventionen/jd","wert":"…"} ] }
+```
+
+Der Rechenkern sieht weiterhin den Baum: die Datenmodule setzen die Tabellen
+beim Laden zusammen und lesen auch die alte Baumform.
+
+**Feldkatalog.** `js/data.katalog.js` beschreibt jede Spalte jeder Tabelle mit
+Anschrift, Einheit, Pflicht und plausiblem Bereich. Daraus kommen die Ansicht,
+die Excel-Kopfzeilen und die Prüfung beim Einlesen.
+
+**Fenster «Bauteildaten»** (Taste `k`): alle Tabellen mit Einheitenzeile und
+Filter; die **Blecheinteilung** je Typ und Länge mit Prüfung aller Typen
+(`js/core.blechregel.js` - sie ruft die Funktionen des Rechenkerns auf und
+leitet nichts her); **Alle Tabellen als Excel**; **Einlesen …**.
+
+**Einlesen.** Eine Mappe aus «Alle Tabellen als Excel» (auch nach dem Speichern
+in Excel), eine Datei `data/<sortiment>.json` in Tabellen- oder Baumform oder
+ein Datenpaket. Die Vorschau zeigt je Tabelle neu / geändert (Feld für Feld) /
+entfernt, nennt geänderte **geprüfte** Sätze eigens und sperrt die Übernahme,
+solange ein geändertes Sortiment Fehler trägt. Übernommen wird der Stand im
+Browser; er legt sich beim Start über die Dateien, das Fenster sagt es und
+bietet an, ihn als `data/<sortiment>.json` zu sichern oder zu verwerfen.
+
+In Excel gilt: die fünfte Zeile jedes Blatts (Spaltenpfade) nicht löschen;
+eine geleerte Zelle heisst «kein Wert».
+
 ## Datenpaket: Anwendung und Daten trennen
 
 Die Oberfläche und der Rechenkern sind allgemein; die Zahlen darin — das
@@ -848,12 +898,15 @@ erzeugt `vierendeel_tool_ohne_daten.html` (671 kB statt 842 kB) mit **leeren**
 Datenblöcken. Diese Ausgabe enthält keine Zahlen des Betreibers und kann
 weitergegeben oder öffentlich abgelegt werden.
 
-Beim Start fragt sie nach einem **Datenpaket** — einer JSON-Datei mit allen
-drei Datenbanken:
+Beim Start fragt sie nach einem **Datenpaket** — einer JSON-Datei mit den
+sechs Sortimenten in Tabellenform (Version 2; Pakete der Version 1 werden
+weiterhin gelesen). Die Normwerte gehören nicht ins Paket, sie werden immer
+mitgeliefert:
 
 ```json
-{ "format": "tragjoch-daten", "version": 1, "stand": "2026-08-20",
-  "tragjoche": { … }, "anbauteile": { … }, "fl_bauteile": { … } }
+{ "format": "tragjoch-daten", "version": 2, "stand": "2026-09-16",
+  "tragjoche": { "format": "tragjoch-tabellen", … }, "anbauteile": { … },
+  "fl_bauteile": { … }, "abfangjoche": { … }, "anker": { … }, "masten": { … } }
 ```
 
 Fehlt ein Teil, bleibt der bisherige stehen — so lässt sich auch nur das
@@ -891,9 +944,10 @@ dann `· installiert`. Auf iOS gibt es keinen Knopf — dort geht es über
 
 **Was abgelegt wird.** Alles, was zum Starten nötig ist: `index.html`, das
 Stylesheet, sämtliche Module aus `js/` und die Symbole — beim Schreiben dieser
-Zeilen 43 Dateien. Die drei `data/*.json` stehen bewusst **nicht** in der
-Liste: sie sind keine Startvoraussetzung, denn die Datenbasis kann auch als
-Datenpaket im Browser hinterlegt sein. Liegen sie doch daneben, nimmt der
+Zeilen 43 Dateien. Die Sortimentsdateien in `data/` stehen bewusst **nicht**
+in der Liste: sie sind keine Startvoraussetzung, denn die Datenbasis kann auch
+als Datenpaket im Browser hinterlegt sein. `data/normen.json` dagegen steht
+darin - ohne Querschnittswerte rechnet nichts. Liegen sie doch daneben, nimmt der
 Dienstarbeiter sie beim ersten Gebrauch von selbst auf. Die Liste erzeugt `build_html.py`
 selbst und trägt sie zusammen mit einem Kurzabdruck über den Inhalt in `sw.js`
 ein. Deshalb gilt: **nach jeder Änderung `python3 build_html.py` laufen
@@ -981,14 +1035,25 @@ vergleich_excel_js.py             rechnet Excel und JS durch und vergleicht
 pruefung.mjs                      Prüfstand: node pruefung.mjs
 UEBERGABE.md                      Stand der Arbeit und offene Punkte
 
+data/normen.json                  Querschnittswerte und Stahlgüten (verfolgt)
 data/tragjoche.json               TYPENDATENBANK – hier pflegen, ohne Code
+data/abfangjoche.json             Abfangjochtypen
+data/anker.json                   Zug- und Druckstützen, Seilanker
+data/masten.json                  Masttypen und ihre Windlast
 data/anbauteile.json              Vorlagen für Anbauteile
 data/fl_bauteile.json             Lasttabelle der Fahrleitungsbauteile
+                                  (alle in Tabellenform, siehe «Bauteildaten»)
 
 js/
-  data.profiles.js       Winkelprofile, Stahlgüten          reine Daten
-  data.tragjoche.js      Sortiment J60–J130                 reine Daten
-  data.masten.js         HEB/HEM-Profile                    reine Daten
+  data.normen.js         Normwerte laden (data/normen.json)
+  data.tabellen.js       Tabellenform: zerlegen und zusammensetzen
+  data.katalog.js        Feldkatalog: Anschrift, Einheit, Prüfung je Spalte
+  data.einlesen.js       Bauteildaten einlesen, abgleichen, hinterlegen
+  data.profiles.js       Zugriff auf Winkelprofile, Stahlgüten
+  data.tragjoche.js      Zugriff auf das Sortiment J60–J130
+  data.masten.js         Zugriff auf Mastprofile und Masttypen
+  core.blechregel.js     Regel der Blecheinteilung zeigen und prüfen
+  ui.daten.js            Fenster «Bauteildaten»
   data.anbauteile.js     Zugriff auf die Anbauteil-Vorlagen  reine Daten
   data.fl.js             Zugriff auf die FL-Lasttabelle      reine Daten
   data.paket.js          Datenpaket laden, sichern, hinterlegen
