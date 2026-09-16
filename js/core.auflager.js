@@ -1160,9 +1160,17 @@ const LAENGS_FREI = { ...VOLL, x: 'Free' };
  *
  * Eine Ebene laesst weiter laengs los; das Jochende bleibt ein Gelenk
  * (linkEinspannung), wie zuvor.
+ *
+ * >>> UND K_XX GEHALTEN (Weisung vom 16. September, nach der Studie). <<<
+ *
+ * «torsion um x halten als voreinstellung. die version 1 umsetzen als
+ *  lagerung.» Die Lagerungsstudie in AxisVM am auskragenden Joch: mit
+ * gehaltener K_XX 190 N/mm² im Gurt am Link, frei 249, die bisherige
+ * Vorgabe 568. An beiden Masten gehalten aendert gegenueber nur dem
+ * inneren nichts (191). Wirkt nur im FEM - der Ersatzbalken kennt sie nicht.
  */
-const OG_TRAGJOCH = { ...VOLL, z: 'Free' };
-const UG_TRAGJOCH = { ...VOLL, x: 'Free' };
+const OG_TRAGJOCH = { ...VOLL, z: 'Free', xx: 'Rigid' };
+const UG_TRAGJOCH = { ...VOLL, x: 'Free', xx: 'Rigid' };
 
 export const LINK_VORGABEN = {
   joch: { OG: OG_TRAGJOCH, UG: UG_TRAGJOCH },

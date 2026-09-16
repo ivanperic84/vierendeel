@@ -7630,8 +7630,10 @@ titel('34b Die Auflagerbedingung je Gurtebene');
   wahr('… und laesst die Jochachse los', ug.x === 'Free');
   wahr('Die Vorgabe bleibt ein Gelenk',
        AUF.linkEinspannung({}, 'joch', 0.3).art === 'gelenk');
-  wahr('Beide geben alle drei Momente frei',
-       ['xx', 'yy', 'zz'].every((f) => og[f] === 'Free' && ug[f] === 'Free'));
+  // K_XX gehalten, die Biegegrade frei (Weisung vom 16. September).
+  wahr('Beide halten K_XX und geben die Biegegrade frei',
+       og.xx === 'Rigid' && ug.xx === 'Rigid'
+       && ['yy', 'zz'].every((f) => og[f] === 'Free' && ug[f] === 'Free'));
   wahr('Ohne Eingabe steht die Vorgabe', !AUF.linkAbweichend({}, 'joch'));
 
   /*
@@ -7643,7 +7645,7 @@ titel('34b Die Auflagerbedingung je Gurtebene');
        AUF.linkBedingung(w1, 'joch', 'OG').z === 'Rigid');
   wahr('… die uebrigen kommen aus der Vorgabe',
        AUF.linkBedingung(w1, 'joch', 'OG').y === 'Rigid'
-       && AUF.linkBedingung(w1, 'joch', 'OG').xx === 'Free');
+       && AUF.linkBedingung(w1, 'joch', 'OG').xx === 'Rigid');
   wahr('Und die Abweichung wird gemeldet', AUF.linkAbweichend(w1, 'joch'));
   const w2 = { auflagerLinks: { UG: { z: 25000, y: 'was?' } } };
   pruef('Eine Zahl bleibt eine Feder',
@@ -7855,7 +7857,8 @@ titel('34b Die Auflagerbedingung je Gurtebene');
     });
     wahr('K_XX kommt an, wo sie steht',
          AUF.linkBedingung(mitDreh, 'joch', 'OG').xx === 'Rigid'
-         && AUF.linkBedingung(mitDreh, 'joch', 'UG').xx === 'Free');
+         && AUF.linkBedingung(mitDreh, 'joch', 'UG').xx === 'Rigid'
+         && AUF.linkBedingung({ auflagerLinks: { UG: { xx: 'Free' } } }, 'joch', 'UG').xx === 'Free');
     wahr('… auch als Zahl, und aus den Optionen',
          AUF.linkBedingung({ auflagerLinks: { UG: { xx: 500 } } }, 'joch', 'UG').xx === 500
          && AUF.linkVorgabe({ auflagerVorgabe: { joch: { OG: { xx: 'Rigid' } } } },
@@ -8007,8 +8010,12 @@ titel('34b Die Auflagerbedingung je Gurtebene');
    * der Drehung um diese Linie. Das ist die Torsion - und der Grund, warum
    * der Anschluss ueberhaupt zwei Ebenen hat.
    */
-  const eine = labil({ auflagerLinks: { OG: { x: 'Free', y: 'Free', z: 'Free' },
-                                      UG: { x: 'Rigid' } } });
+  // Mit freier K_XX - die gehaltene haelt die Torsion auch an EINER Ebene.
+  const eine = labil({ auflagerLinks: { OG: { x: 'Free', y: 'Free', z: 'Free', xx: 'Free' },
+                                      UG: { x: 'Rigid', xx: 'Free' } } });
+  wahr('Mit gehaltener K_XX haelt auch eine Ebene die Torsion',
+       labil({ auflagerLinks: { OG: { x: 'Free', y: 'Free', z: 'Free' },
+                                UG: { x: 'Rigid' } } }).labil === false);
   wahr('Nur eine tragende Ebene laesst die Torsion frei',
        eine.labil === true && eine.moden[0].achse === 'xx');
   /*
@@ -8234,8 +8241,9 @@ titel('35  Der Mast im Modell: Starrkoerper, Linkelement, Fundament');
          l.kraftuebertragung.x === sollX, JSON.stringify(l.kraftuebertragung));
     wahr(`Ende ${e}, ${g}: quer starr, lotrecht ${sollZ === 'Free' ? 'frei' : 'starr'}`,
          l.kraftuebertragung.y === 'Rigid' && l.kraftuebertragung.z === sollZ);
-    wahr(`Ende ${e}, ${g}: alle drei Momente frei`,
-         ['xx', 'yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'));
+    wahr(`Ende ${e}, ${g}: K_XX gehalten, die Biegegrade frei`,
+         l.kraftuebertragung.xx === 'Rigid'
+         && ['yy', 'zz'].every((f) => l.kraftuebertragung[f] === 'Free'));
     /*
      * UND BEIDE GURTE DER EBENE TRAGEN DIESELBE BEDINGUNG. Sie kommt aus
      * derselben Maske; zwei Links, die auseinanderliefen, waeren ein Ende,

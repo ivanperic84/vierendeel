@@ -82,6 +82,14 @@ export function verdrahteAuflagerLinks(container, werte, onChange) {
       const rahmen = alRahmen(inp);
       if (!rahmen) return;
       const roh = inp.value.trim().replace(',', '.');
+      // «frei» und «starr» als Wort - K_XX hat keine Schaltflaeche, und seit
+      // sie gehalten vorgegeben ist, muss sie sich auch freigeben lassen.
+      const wort = roh.toLowerCase();
+      if (wort === 'frei' || wort === 'starr') {
+        linkSetzen(rahmen, inp.dataset.alFeder, inp.dataset.grad,
+                   wort === 'frei' ? 'Free' : 'Rigid');
+        return;
+      }
       const z = Number(roh);
       // Leer heisst: zurueck auf den Schaltzustand. Eine Zahl heisst Feder.
       if (!roh) {
@@ -771,7 +779,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     ? `<p class="al-fem-hinweis"><b>K_XX wirkt nur im FEM-Modell</b> (AxisVM, SAF,
        PyNite), nicht im Ersatzbalken der Anwendung. Gehalten klemmt sie jeden
        Gurt am Anschluss gegen Verdrehen; die Torsion des Jochs und die
-       Spannungen am Auflager verteilen sich dann anders. Leer heisst frei.</p>`
+       Spannungen am Auflager verteilen sich dann anders. Vorgabe: gehalten
+       (Lagerungsstudie: 190 statt 249 N/mm² im Gurt am Link). «frei» oder 0
+       gibt sie frei, «starr» hält sie, eine Zahl ist eine Feder.</p>`
     : '';
 
   return `<div class="auflager-links" data-al-feld="${esc(feld)}"
