@@ -4881,7 +4881,7 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <td class="num stark">${f2(e.N)} <span class="ablage-meta">${esc(e.art)}</span></td>
       <td class="num">${f1(e.sig_N)}</td><td class="num">${f1(e.sig_My)}</td>
       <td class="num">${f1(e.sig_Mz)}</td><td class="num stark">${f1(e.sig_v)}</td>
-      <td class="num ${ampelU(e.eta)}">${f3(e.eta)}</td>
+      <td class="num ${ampel(e.eta)}">${f3(e.eta)}</td>
     </tr>`;
 
   const zeileEbene = (e, seite) => e.blechFehlt ? `
@@ -4895,7 +4895,7 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       <td class="num">${f3(e.M_Knoten)}</td><td class="num stark">${f3(e.M)}</td>
       <td class="num">${f2(e.V)}</td><td class="num">${f1(e.sig)}</td>
       <td class="num">${f1(e.tau)}</td><td class="num stark">${f1(e.sig_v)}</td>
-      <td class="num ${ampelU(e.eta)}">${f3(e.eta)}</td>
+      <td class="num ${ampel(e.eta)}">${f3(e.eta)}</td>
     </tr>`;
 
   /*
