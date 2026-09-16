@@ -23871,6 +23871,19 @@ titel('69  Das auskragende Joch: was die Maste bekommen');
   const ps1k = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
   wahr('Die Bruecke sichert die Ergebnisse nach dem Rechnen',
        /Ergebnisse gesichert/.test(ps1k) && /^[\x00-\x7F]*$/.test(ps1k));
+  /*
+   * EINE FEDERZAHL AM LINK KOMMT ALS FEDER AN. Bis zum 16. September
+   * setzte die Bruecke alles ausser 'Free' auf starr - die Maske bot
+   * Federwerte an, AxisVM rechnete ohne sie.
+   */
+  wahr('Die Bruecke uebernimmt Federzahlen der Links',
+       /TryParse\(\$wie/.test(ps1k) && /\$script:nFeder\+\+; \$zahl/.test(ps1k));
+  const w4 = satz(0, { auflagerLinks: { UG: { z: 25000 }, OG: { xx: 800 } } });
+  const j4 = AXk.stabmodellJson(lauf(w4).modell, { eingabe: w4, auflagerModell: 'mast' });
+  const k4 = (n) => j4.staebe.find((x) => x.name === n).kraftuebertragung;
+  wahr('… und die Ausleitung schreibt sie als Zahl',
+       k4('LINK_B_UGR').z === 25000 && k4('LINK_A_OGL').xx === 800,
+       `${JSON.stringify(k4('LINK_B_UGR'))} ${JSON.stringify(k4('LINK_A_OGL'))}`);
 }
 
 // ===========================================================================

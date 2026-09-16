@@ -1714,7 +1714,18 @@ function LinkSetzen([int]$li, $sb, [int]$master) {
                    if (($g -eq 'axial' -and $f -eq 'x') -or
                        ($g -eq 'M' -and $f -match '^(xx|yy|zz)$')) { 'Free' } else { 'Rigid' }
                }
-        $rec = SatzSetzen $rec @('Stiffnesses', $f) $(if ($wie -eq 'Free') { 0.0 } else { $script:STARR_FEDER })
+        <#  EINE ZAHL IST EINE FEDER (16. September). Die Maske der Anwendung
+            nimmt Federwerte in kN/m bzw. kNm/rad, und die Datei traegt sie
+            als Zahl. Hier wurde bis dahin alles, was nicht 'Free' hiess,
+            starr gesetzt - die Anwendung rechnete mit der Feder, AxisVM
+            ohne. Einheiten wie in der Datei: kN/m, kNm/rad.            #>
+        $zahl = 0.0
+        $steif = if ($wie -eq 'Free') { 0.0 }
+                 elseif ([double]::TryParse($wie, [Globalization.NumberStyles]::Float,
+                                            [Globalization.CultureInfo]::InvariantCulture, [ref]$zahl)) {
+                     $script:nFeder++; $zahl }
+                 else { $script:STARR_FEDER }
+        $rec = SatzSetzen $rec @('Stiffnesses', $f) $steif
         <#  NUR ZUG, WO DIE DATEI ES SAGT (16. September: "der zugstab wirkt
             nicht nur auf zug"). Die drei Namen stehen an ELineNonLinearity
             vermessen: lnlTensionAndCompression, lnlTensionOnly,
@@ -1742,6 +1753,8 @@ function LinkSetzen([int]$li, $sb, [int]$master) {
 $STARR_FEDER = 1e10
 # Wie viele Freiheitsgrade nur Zug (oder nur Druck) tragen - fuer den Bericht.
 $nNurZug = 0
+# Wie viele Freiheitsgrade eine Federzahl tragen - fuer den Bericht.
+$nFeder = 0
 
 # --- 6 - Staebe --------------------------------------------------------------
 Abschnitt '6 - Staebe'
@@ -1815,6 +1828,9 @@ foreach ($sb in $d.staebe) {
     $erste = $false
 }
 Schreib "  $nStab Staebe, $($starrLinien.Count) Starrelemente, $nLink Verbindungselemente"
+if ($script:nFeder -gt 0) {
+    Schreib "  $($script:nFeder) Freiheitsgrad(e) in Verbindungselementen tragen eine Federzahl aus der Datei."
+}
 if ($script:nNurZug -gt 0) {
     Schreib ''
     Schreib "  >>> HINWEIS: $($script:nNurZug) Freiheitsgrad(e) in Verbindungselementen tragen NUR ZUG"
