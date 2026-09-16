@@ -66,7 +66,7 @@ import { getGurtprofil } from './data.profiles.js';
 import { linkBedingung, konsolLaenge } from './core.auflager.js';
 // Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
 // demselben Katalog wie beim Tragjoch.
-import { getMastprofil } from './data.masten.js';
+import { getMastprofil, getStegrichtung } from './data.masten.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
 const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
@@ -1142,13 +1142,27 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
           kraftuebertragung: linkBedingung(opt, 'abfangjoch', g),
         });
       }
+      /*
+       * >>> DER MAST STEHT LOTRECHT - SEINE REFERENZ DARF ES NICHT. <<<
+       *
+       * Befund vom 16. September: AxisVM rechnete das Abfangjoch mit Mast
+       * nicht - Rueckgabe 0, keine Ergebnisse, keine Meldung. Hier stand
+       * `lcsZ: [0, 0, 1]`, also eine Referenz PARALLEL zur Stabachse; das
+       * lokale System war unbestimmt. Ohne Mast rechnete dasselbe Joch.
+       *
+       * Jetzt wie beim Tragjoch aus der Stegrichtung (export.axisvm.js).
+       */
       if (mastGeteilt) {
+        let sr = null;
+        try { sr = getStegrichtung(mastD.stegrichtung ?? 'jochachse'); }
+        catch { sr = getStegrichtung('jochachse'); }
+        const lcsMast = sr.achse === 'y' ? [1, 0, 0] : [0, 1, 0];
         staebe.push({ name: `MAST_${ende}_O`, von: kKopf, bis: kAnsatz,
                       querschnitt: mastQs.name, steifesMaterial: false,
-                      lcsZ: [0, 0, 1] });
+                      lcsZ: lcsMast });
         staebe.push({ name: `MAST_${ende}`, von: kAnsatz, bis: kFuss,
                       querschnitt: mastQs.name, steifesMaterial: false,
-                      lcsZ: [0, 0, 1] });
+                      lcsZ: lcsMast });
       }
       // Der Mastfuss traegt das Auflager - nicht mehr das Jochende.
       auflager.push({

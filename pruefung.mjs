@@ -23906,6 +23906,38 @@ titel('69  Das auskragende Joch: was die Maste bekommen');
        && FELDER.find((f) => f.key === 'auflagerZweiFlansche')
          ?.sichtbar({ ...satz(0), mastVorhanden: true }) === false);
   /*
+   * KEINE REFERENZ PARALLEL ZUR STABACHSE (16. September). Das Abfangjoch
+   * mit Mast gab dem lotrechten Masten lcsZ = [0, 0, 1]; AxisVM rechnete
+   * darauf wortlos nicht. Geprueft wird jeder Stab beider Ausleitungen.
+   */
+  const parallel = (mm) => {
+    const K = new Map(mm.knoten.map((k) => [k.name, k]));
+    return mm.staebe.filter((st) => {
+      const a = K.get(st.von), b = K.get(st.bis);
+      const d = [b.x - a.x, b.y - a.y, b.z - a.z];
+      const n = Math.hypot(...d);
+      const z = st.lcsZ ?? [0, 0, 1];
+      const k = [d[1] * z[2] - d[2] * z[1], d[2] * z[0] - d[0] * z[2], d[0] * z[1] - d[1] * z[0]];
+      return Math.hypot(...k) / (n || 1) < 1e-6;
+    }).map((st) => st.name);
+  };
+  wahr('Tragjoch mit Mast: keine Stabachse parallel zur Referenz',
+       parallel(j5).length === 0, parallel(j5).join(', '));
+  const AJk = await import(J('data.abfangjoche.js'));
+  if (AJk.abfangDbDa()) {
+    const XAk = await import(J('export.axisvm.abfang.js'));
+    for (const steg of ['jochachse', 'quer']) {
+      const ma = XAk.abfangAxisvmModell('A240', 8.0,
+        { mast: { profil: 'HEB 240', hoehe: 7.0, stegrichtung: steg } });
+      wahr(`Abfangjoch mit Mast (${steg}): keine Stabachse parallel zur Referenz`,
+           parallel(ma).length === 0, parallel(ma).join(', '));
+      const mst = ma.staebe.find((st) => st.name === 'MAST_A');
+      wahr(`… der Mast folgt der Stegrichtung (${steg})`,
+           JSON.stringify(mst.lcsZ) === JSON.stringify(steg === 'jochachse' ? [1, 0, 0] : [0, 1, 0]),
+           JSON.stringify(mst.lcsZ));
+    }
+  }
+  /*
    * EINE FEDERZAHL AM LINK KOMMT ALS FEDER AN. Bis zum 16. September
    * setzte die Bruecke alles ausser 'Free' auf starr - die Maske bot
    * Federwerte an, AxisVM rechnete ohne sie.

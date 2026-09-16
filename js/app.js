@@ -7721,7 +7721,10 @@ function axisvmKlick(knotenmodell, format = 'saf', schottAusblenden = false,
       const m0 = mst[0];
       if (!m0?.profil) return null;
       const hoehe = Number(satz?.H ?? werte.H) || 0;
-      return hoehe > 0 ? { profil: m0.profil, hoehe } : null;
+      // Die Stegrichtung gehoert dazu - ohne sie hatte der lotrechte Mast
+      // im Modell keine lokale Achse (16. September).
+      const stegrichtung = satz?.mastSteg ?? werte.mastSteg ?? 'jochachse';
+      return hoehe > 0 ? { profil: m0.profil, hoehe, stegrichtung } : null;
     };
     return handlung('COM-Ausleitung',
       () => exportiereAbfangJson(typ, jt, {
