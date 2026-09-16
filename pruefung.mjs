@@ -23728,20 +23728,24 @@ titel('68  Das Menueband und der Name der Anwendung');
   const kopf = app.slice(app.indexOf('function baueKopf'),
                          app.indexOf('\nfunction aktualisiereProjektKnopf'));
   const gruppen = [...kopf.matchAll(/gruppe\('([^']+)'/g)].map((m) => m[1]);
-  wahr('Vier Gruppen in dieser Reihenfolge',
-       gruppen.join(' | ') === 'Ausgabe | Bearbeiten | Daten | Hilfe und Einstellungen',
+  wahr('Drei Gruppen in dieser Reihenfolge',
+       gruppen.join(' | ') === 'Ausgabe | Bearbeiten | Hilfe und Einstellungen',
        gruppen.join(' | '));
   const lage = (id) => kopf.indexOf(`id="${id}"`) >= 0 ? kopf.indexOf(`id="${id}"`)
                                                         : kopf.indexOf(`'${id}'`);
   wahr('AxisVM steht ganz links', lage('btn-axisvm') >= 0
-       && ['btn-export', 'btn-drucken', 'btn-zurueck', 'btn-bauteildaten', 'btn-optionen']
+       && ['btn-export', 'btn-drucken', 'btn-zurueck', 'btn-optionen']
          .every((id) => lage(id) > lage('btn-axisvm')));
-  wahr('Die Bauteildaten stehen im Band, mit Namen',
-       /id="btn-bauteildaten"[\s\S]*?<span>Bauteildaten<\/span>/.test(kopf));
-  wahr('… und oeffnen ihr Fenster',
-       /btn-bauteildaten'\)\.onclick = \(\) => dialogBauteildaten\(\)/.test(kopf));
-  wahr('Die Tastenkuerzel haben einen Knopf',
-       /btn-tasten'\)\.onclick = \(\) => dialogTasten\(\)/.test(kopf));
+  // Weisung vom 17. September: «bauteildaten und tastenkürzel unter optionen führen».
+  wahr('Bauteildaten und Tastenkuerzel stehen nicht mehr im Band',
+       !kopf.includes('btn-bauteildaten') && !kopf.includes('btn-tasten'));
+  const opt = app.slice(app.indexOf('function dialogOptionen'),
+                        app.indexOf('function dialogOptionen') + 12000);
+  wahr('… sondern im Optionen-Fenster',
+       /\[data-bauteildaten\]'\)\.onclick = \(\) => \{ d\.zu\(\); dialogBauteildaten\(\)/.test(opt)
+       && /\[data-tasten\]'\)\.onclick = \(\) => \{ d\.zu\(\); dialogTasten\(\)/.test(opt));
+  wahr('… und bleiben ueber die Tasten erreichbar',
+       /id: 'bauteildaten', taste: 'k'/.test(app));
   wahr('Die Titel lesen das Kuerzel aus der Belegung, nicht aus dem Text',
        /tasteVon\(t\)/.test(kopf));
   wahr('Die Datenbasis in den Optionen fuehrt zum Fenster',

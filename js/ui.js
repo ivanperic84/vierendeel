@@ -6242,7 +6242,7 @@ export function datenbasisHtml() {
       : 'Zurzeit ist kein Paket im Browser hinterlegt.'}</p>
     <p class="notiz">Die einzelnen Tabellen, die Blecheinteilung, die
       Excel-Ausleitung und das Einlesen einzelner Sortimente stehen im Fenster
-      <b>Bauteildaten</b> im Menüband.</p>
+      <b>Bauteildaten</b> (Knopf unten im Optionen-Fenster).</p>
     <div class="opt-knoepfe">
       <button class="btn" type="button" data-daten-fenster>Bauteildaten öffnen</button>
       <button class="btn" type="button" data-daten-sichern>Aktuelle Daten sichern</button>

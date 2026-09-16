@@ -2419,7 +2419,9 @@ function dialogOptionen() {
   // viel Inhalt, und der Scrim zentriert. Ohne feste Hoehe sprang das Fenster
   // bei jedem Reiterwechsel.
   const d = dialog('Optionen', `<div id="opt-rahmen">${koerper()}</div>`,
-    `<button class="btn" data-thema>${thema === 'dunkel' ? 'Helle' : 'Dunkle'} Darstellung</button>
+    `<button class="btn" data-bauteildaten>${icon('tabelle', 13)} Bauteildaten</button>
+     <button class="btn" data-tasten>${icon('tastatur', 13)} Tastenkürzel</button>
+     <button class="btn" data-thema>${thema === 'dunkel' ? 'Helle' : 'Dunkle'} Darstellung</button>
      <button class="btn btn-fail" data-reset>Eingaben zurücksetzen</button>
      <button class="btn" data-zu>Fertig</button>`, 'dialog-reiter');
 
@@ -2577,6 +2579,8 @@ function dialogOptionen() {
   };
   verdrahte();
   d.node.querySelector('[data-thema]').onclick = () => { d.zu(); themaWechseln(); };
+  d.node.querySelector('[data-bauteildaten]').onclick = () => { d.zu(); dialogBauteildaten(); };
+  d.node.querySelector('[data-tasten]').onclick = () => { d.zu(); dialogTasten(); };
   d.node.querySelector('[data-reset]').onclick = () => { d.zu(); zuruecksetzen(); };
 }
 
@@ -4273,13 +4277,15 @@ function baueKopf() {
    *
    *   AUSGABE      AxisVM · Excel · Drucken   was den Stand hinausträgt
    *   BEARBEITEN   Rückgängig · Wiederherstellen · Speichern
-   *   DATEN        Bauteildaten                die Sortimente und Normwerte
-   *   HILFE        Handbuch · Tastenkürzel · Optionen
+   *   HILFE        Handbuch · Optionen
+   *
+   * BAUTEILDATEN UND TASTENKUERZEL STEHEN UNTER OPTIONEN (Weisung vom
+   * 17. September: «bauteildaten und tastenkürzel unter optionen führen»).
+   * Beide sind Nachschlagen und Einrichten, nicht Arbeiten am Tragwerk; die
+   * Tasten k und ? bleiben.
    *
    * AXISVM BLEIBT GANZ LINKS (Weisung vom 1. September): der meistbegangene
-   * Weg der Anwendung. Die Bauteildaten tragen ihren Namen neben dem
-   * Symbol - ein Raster ohne Wort sagt nicht, dass dahinter die Tabellen
-   * liegen. Der Installieren-Knopf steht nur, solange der Browser ihn
+   * Weg der Anwendung. Der Installieren-Knopf steht nur, solange der Browser ihn
    * anbietet, und zwar ganz rechts: er kommt und geht und soll dabei nichts
    * verschieben.
    *
@@ -4316,15 +4322,10 @@ function baueKopf() {
       // Diskette drückt, will sein Modell sichern.
       + knopf('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern'))
     + strich
-    + gruppe('Daten',
-      `<button class="btn-icon btn-icon-text" id="btn-bauteildaten" type="button"
-         title="Bauteildaten: Tabellen, Blecheinteilung, Excel, Einlesen${kuerzel('bauteildaten')}"
-         aria-label="Bauteildaten">${icon('tabelle')}<span>Bauteildaten</span></button>`)
-    + strich
     + gruppe('Hilfe und Einstellungen',
       knopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen', 'handbuch')
-      + knopf('btn-tasten', 'tastatur', 'Tastenkürzel', 'hilfe')
-      + knopf('btn-optionen', 'optionen', 'Optionen, Darstellung und Datenbasis', 'optionen'))
+      + knopf('btn-optionen', 'optionen',
+              'Optionen, Bauteildaten, Tastenkürzel und Darstellung', 'optionen'))
     // Nur solange der Browser es anbietet - ganz rechts, damit nichts springt.
     + (kannInstallieren()
       ? strich + knopf('btn-install', 'installieren',
@@ -4332,8 +4333,6 @@ function baueKopf() {
       : '');
 
   if (kannInstallieren()) ui.el('btn-install').onclick = () => installiere();
-  ui.el('btn-bauteildaten').onclick = () => dialogBauteildaten();
-  ui.el('btn-tasten').onclick = () => dialogTasten();
   ui.el('btn-zurueck').onclick = () => rueckgaengig();
   ui.el('btn-vor').onclick = () => wiederherstellen();
   ui.el('btn-handbuch').onclick = dialogHandbuch;
