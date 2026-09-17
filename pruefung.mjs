@@ -24040,6 +24040,26 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
       '﻿' + JSON.stringify([{ name: 'Alt', werte: {} }])));
     wahr('Eine blosse Liste mit BOM wird gelesen', r4.eintraege === 1);
 
+    /*
+     * ZWEIMAL DERSELBE NAME IN EINER DATEI (17. September): beide auf
+     * «ersetzen» - der zweite darf den ersten nicht ueberschreiben.
+     */
+    const zwei = new TextEncoder().encode(JSON.stringify({ format: 'tragjoch-ablage',
+      eintraege: [
+        { id: 'd1', name: 'Joch A', projekt: 'P1', werte: { km: 'erster' } },
+        { id: 'd2', name: 'Joch A', projekt: 'P1', werte: { km: 'zweiter' } }] }));
+    const vorZwei = (await S.liste()).length;
+    const inhZ = await S.paketInhalt(zwei);
+    wahr('Die Vorschau kennzeichnet den wiederholten Namen',
+         inhZ.liste[0].wiederholt === false && inhZ.liste[1].wiederholt === true);
+    const rZ = await S.einlesen(zwei, { doppeltAlle: 'ersetzen' });
+    const aNamen = (await S.liste()).filter((x) => x.name === 'Joch A' && x.projekt === 'P1');
+    wahr('Zweimal «ersetzen»: der erste ersetzt, der zweite kommt als Kopie',
+         rZ.ersetzt === 1 && rZ.alsKopie === 1 && rZ.eintraege === 1
+         && (await S.liste()).length === vorZwei + 1
+         && ['erster', 'zweiter'].every((k) => aNamen.some((x) => x.werte?.km === k)),
+         JSON.stringify(rZ));
+
     const e = (await S.liste()).find((x) => x.name === 'Alt');
     await S.eintragFeld(e.id, 'km', ' 12.345 ');
     wahr('Die Tabelle schreibt Beschriftungen in die Werte',
@@ -24075,6 +24095,13 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
        aq70.includes('wiederhergestellt') && aq70.includes('gesichert: gesicherteSignatur'));
   wahr('Ein hineingezogenes Paket geht in den Einlesedialog',
        /0x50 && roh\[1\] === 0x4b\) \{\s*try \{ await dialogEinlesen/.test(aq70));
+  const st70 = readFileSync(join(HIER, 'js', 'store.js'), 'utf8');
+  wahr('Der Dateiwaehler haengt im Dokument, nennt den Namen und bricht still ab',
+       /document\.body\.appendChild\(i\)/.test(st70)
+       && /mitName \? \{ daten, name: f\.name \}/.test(st70)
+       && /addEventListener\('cancel'/.test(st70)
+       && /dateiLesenRoh\(\{ mitName: true \}\)/.test(aq70)
+       && /if \(!e\?\.abgebrochen\)/.test(aq70));
   wahr('Das Manifest nimmt auch .zip an',
        JSON.stringify(man70.file_handlers).includes('.zip'));
   wahr('Projektnummer, Bearbeiter und Datum sind Felder der Verortung',

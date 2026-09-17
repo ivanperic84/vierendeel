@@ -554,9 +554,16 @@ const schluesselVon = (e) => `${(e.projekt ?? '').trim()}|${(e.name ?? '').trim(
 export async function paketInhalt(daten) {
   const p = datenLesen(daten);
   const vorhanden = new Map((await liste()).map((e) => [schluesselVon(e), e]));
+  const inDatei = new Map();
   const zeilen = p.eintraege.map((e) => {
     const da = vorhanden.get(schluesselVon(e)) ?? null;
+    // Derselbe Name ein zweites Mal IN DER DATEI - er wird als Kopie
+    // abgelegt, nie ueber den ersten (siehe `einlesen`).
+    const k = schluesselVon(e);
+    const wiederholt = inDatei.has(k);
+    inDatei.set(k, true);
     return {
+      wiederholt,
       id: e.id ?? null, name: e.name ?? '', projekt: (e.projekt ?? '').trim(),
       geaendert: e.geaendert ?? null,
       linie: e.werte?.linie ?? '', km: e.werte?.km ?? '',
@@ -597,16 +604,29 @@ export async function einlesen(daten, o = {}) {
   const wahl = Array.isArray(o.ids) ? new Set(o.ids) : null;
   const vorhanden = new Map((await liste()).map((e) => [schluesselVon(e), e]));
   const r = { eintraege: 0, ersetzt: 0, uebersprungen: 0, vorlagen: 0,
-              bilder: 0, einstellungen: 0, neueIds: [] };
+              bilder: 0, einstellungen: 0, neueIds: [], alsKopie: 0 };
+  /*
+   * >>> ZWEIMAL DERSELBE NAME IN EINER DATEI (17. September). <<<
+   *
+   * Beide auf «ersetzen» gestellt, ersetzte der zweite den ersten - und vom
+   * ersten blieb nichts. Was in diesem Durchgang geschrieben wurde, wird
+   * deshalb nie ein zweites Mal ersetzt: der zweite kommt als Kopie dazu.
+   */
+  const diesmal = new Set();
   for (const e of p.eintraege) {
     if (wahl && !wahl.has(e.id)) continue;
     const ziel = typeof o.zielProjekt === 'string' ? o.zielProjekt.trim() : (e.projekt ?? '');
-    const da = vorhanden.get(schluesselVon({ ...e, projekt: ziel }));
+    const schl = schluesselVon({ ...e, projekt: ziel });
+    const da = vorhanden.get(schl);
     // Eine ausdrueckliche Wahl «ueberspringen» gilt immer - auch wenn im
     // Zielprojekt nichts kollidiert: wer die Zeile so stellt, will sie nicht.
-    const was = o.doppelt?.[e.id] === 'ueberspringen' ? 'ueberspringen'
+    let was = o.doppelt?.[e.id] === 'ueberspringen' ? 'ueberspringen'
       : (da ? (o.doppelt?.[e.id] ?? o.doppeltAlle ?? 'kopie') : 'neu');
     if (was === 'ueberspringen') { r.uebersprungen++; continue; }
+    if (was === 'ersetzen' && diesmal.has(da.id)) {
+      was = 'kopie';
+      r.alsKopie++;
+    }
     const neu = await sichern({
       ...e,
       id: was === 'ersetzen' ? da.id : undefined,
@@ -615,6 +635,8 @@ export async function einlesen(daten, o = {}) {
     });
     if (was === 'ersetzen') r.ersetzt++; else r.eintraege++;
     r.neueIds.push(neu.id);
+    diesmal.add(neu.id);
+    if (!vorhanden.has(schl)) vorhanden.set(schl, neu);
     const z = o.zeichnungen !== false ? p.verzeichnis.get(e.id) : null;
     const roh = z ? p.inhalt.get(z.datei) : null;
     if (!roh) continue;
@@ -695,16 +717,31 @@ export function dateiSpeichern(text, name, typ = 'application/json') {
  * jedes Byte, das kein gültiges UTF-8 ist. Gelesen wird deshalb roh, und
  * unterschieden wird an den ersten zwei Zeichen (PK).
  */
-export function dateiLesenRoh() {
+/*
+ * >>> DER DATEIWAEHLER (17. September, im Bedienlauf geprueft). <<<
+ *
+ * Das Feld haengt jetzt im Dokument, solange gewaehlt wird: ein losgeloestes
+ * `input` feuert in manchen Browsern kein `change`. Der Name der Datei geht
+ * mit - der Einlesedialog nennt ihn. Ein Abbruch endet still.
+ */
+export function dateiLesenRoh({ mitName = false } = {}) {
   return new Promise((fertig, fehler) => {
     const i = document.createElement('input');
     i.type = 'file'; i.accept = 'application/zip,.zip,application/json,.json';
+    i.style.display = 'none';
+    document.body.appendChild(i);
+    const weg = () => { try { i.remove(); } catch { /* schon weg */ } };
     i.onchange = async () => {
       const f = i.files?.[0];
+      weg();
       if (!f) { fehler(new Error('Keine Datei gewählt.')); return; }
-      try { fertig(new Uint8Array(await f.arrayBuffer())); }
-      catch (e) { fehler(e); }
+      try {
+        const daten = new Uint8Array(await f.arrayBuffer());
+        fertig(mitName ? { daten, name: f.name } : daten);
+      } catch (e) { fehler(e); }
     };
+    i.addEventListener('cancel', () => { weg(); fehler(Object.assign(
+      new Error('Abgebrochen.'), { abgebrochen: true })); });
     i.click();
   });
 }

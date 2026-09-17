@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4498 Kontrollen
+node pruefung.mjs           # Prüfstand, 4501 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -78,7 +78,20 @@ Faktor 19 — im Stabmodell tragen die Bleche dort kaum etwas.
 **Offen, Entscheid des Auftraggebers:** ob und wie weit der örtliche Anteil
 abgemindert werden darf. Messwerte in `kalibrierung_oertlich.json/.txt`.
 
-Prüfstand: Abschnitte 71 und 72, **4498 Kontrollen** grün.
+**Doppelte Namen beim Einlesen.** Zweimal derselbe Name in einer Datei,
+beide auf «ersetzen»: der zweite ersetzte den ersten. Jetzt wird, was im
+selben Durchgang geschrieben wurde, nie ein zweites Mal ersetzt — der zweite
+kommt als Kopie dazu (`alsKopie`), die Vorschau kennzeichnet ihn
+(`wiederholt`), die Meldung nennt es.
+
+**Dateiwähler.** Im Bedienlauf durchgespielt (Datei über das Eingabefeld
+gereicht, Dialog erscheint mit Dateiname, Abbrechen liest nichts ein). Dabei
+nachgebessert: das Feld hängt während der Wahl im Dokument (ein losgelöstes
+feuert in manchen Browsern kein `change`), der Dateiname geht mit, ein
+Abbruch endet ohne Meldung. Den nativen Dialog selbst kann das Werkzeug nicht
+bedienen.
+
+Prüfstand: Abschnitte 71 und 72, **4501 Kontrollen** grün.
 
 ### Projektablage nach BlockCalc (17. September)
 

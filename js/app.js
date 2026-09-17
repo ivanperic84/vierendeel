@@ -5338,9 +5338,11 @@ async function sichereAktuell(neu = false, bemerkung = undefined) {
 /** Datei waehlen und einlesen - fuer beide Knoepfe. */
 async function ablageEinlesenWaehlen(sicherung) {
   try {
-    const roh = await store.dateiLesenRoh();
-    await dialogEinlesen(roh, { sicherung });
-  } catch (e) { alert('Einlesen fehlgeschlagen: ' + e.message); }
+    const { daten, name } = await store.dateiLesenRoh({ mitName: true });
+    await dialogEinlesen(daten, { sicherung, dateiname: name });
+  } catch (e) {
+    if (!e?.abgebrochen) alert('Einlesen fehlgeschlagen: ' + e.message);
+  }
 }
 
 /**
@@ -5365,7 +5367,8 @@ async function dialogEinlesen(roh, { sicherung = false, dateiname = '' } = {}) {
             <option value="kopie"${vorgabeDoppelt === 'kopie' ? ' selected' : ''}>als Kopie</option>
             <option value="ersetzen"${vorgabeDoppelt === 'ersetzen' ? ' selected' : ''}>ersetzen</option>
             <option value="ueberspringen">überspringen</option></select>`
-          : '<span class="ab-leise">neu</span>'}</td>
+          : '<span class="ab-leise">neu</span>'}${e.wiederholt
+          ? '<div class="ab-leise">zweimal in der Datei – kommt als Kopie dazu</div>' : ''}</td>
     </tr>`).join('');
   const teil = (key, label, anzahl, an) => (anzahl
     ? `<label class="feld-kurz"><input type="checkbox" data-teil="${key}"${an ? ' checked' : ''}>
@@ -5422,6 +5425,7 @@ async function dialogEinlesen(roh, { sicherung = false, dateiname = '' } = {}) {
       const text = [
         r.eintraege ? `${r.eintraege} neu` : '',
         r.ersetzt ? `${r.ersetzt} ersetzt` : '',
+        r.alsKopie ? `${r.alsKopie} davon als Kopie (Name zweimal in der Datei)` : '',
         r.uebersprungen ? `${r.uebersprungen} übersprungen` : '',
         r.vorlagen ? `${r.vorlagen} Vorlage(n)` : '',
         r.bilder ? `${r.bilder} Zeichnung(en)` : '',
