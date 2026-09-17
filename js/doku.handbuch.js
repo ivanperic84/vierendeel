@@ -247,8 +247,17 @@ und ihre Richtung zählt: gegen den Wind in Jochachse kann sie entlasten oder
 belasten. In der AxisVM-Ausleitung sind es die Lastfälle «Ständig · Joch» und
 «Ständig · Anbauteile» gegen «Ständig · Ablenkkräfte».</p>
 
-<p>Darauf folgen die <b>Nachweislastfälle</b>: je Windrichtung sowie für Schnee
-ein leitender Fall mit beiden Vorzeichen.</p>
+<p>Darauf folgen die <b>Nachweislastfälle</b>: je Windrichtung ein leitender
+Fall mit beiden Vorzeichen, und Schnee leitend mit begleitendem Wind in ±y
+und in ±x.</p>
+
+${q(`Weisung vom 17. September: «der wind in y und x sollte immer auf beide
+seiten angesetzt werden … es können überlagerungen mit den ständigen
+(abfangungen) resultieren.» Seither stehen auch die charakteristischen Fälle
+(Wind ±y, Wind ±x, Ständig + Wind in allen vier Vorzeichen) und die
+Gebrauchsfälle mit beiden Richtungen da. Am <b>Abfangjoch</b> läuft jeder Fall
+mit Wind in vier Richtungen; Mast und Anker werden über alle gerechnet, mit
+dem Mastwind in derselben Richtung.`)}
 
 ${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; γ_Q · ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
 γ_G · G &nbsp;±&nbsp; γ_Q · ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}

@@ -1485,7 +1485,16 @@ export function mastNachweise(m, o = {}) {
   const A = mastNachweis(m, 'A', o);
   const B = mastNachweis(m, 'B', o);
   if (!A && !B) return null;
+  return mastZusammen(A, B);
+}
+
+/**
+ * Die beiden Enden zu einem Ergebnis - aus einer Rechnung oder aus einer
+ * Huellkurve ueber mehrere (siehe `mastNachweiseHuelle`).
+ */
+function mastZusammen(A, B) {
   const beide = [A, B].filter(Boolean);
+  if (!beide.length) return null;
   return {
     A, B,
     /*
@@ -1508,4 +1517,25 @@ export function mastNachweise(m, o = {}) {
     knickenGefuehrt: beide.every((x) => x.knickenGefuehrt !== false),
     massgebendesEnde: beide.reduce((a, b) => (b.eta > a.eta ? b : a)).ende,
   };
+}
+
+/**
+ * >>> DIE HUELLKURVE UEBER MEHRERE LASTBILDER (17. September). <<<
+ *
+ * Am Abfangjoch wird der Mast je Fall gerechnet - der Wind in beiden
+ * Richtungen, und das Seil entscheidet je Fall, ob es traegt. Massgebend
+ * ist je Ende der Fall mit dem groessten Nachweis; er traegt seinen Namen
+ * in `fall`.
+ *
+ * @param {{fall:string, erg:object}[]} liste  Ergebnisse von mastNachweise
+ */
+export function mastNachweiseHuelle(liste) {
+  let A = null, B = null;
+  const wert = (n) => n?.etaMitStabilitaet ?? n?.eta ?? -1;
+  (liste ?? []).forEach(({ fall, erg }) => {
+    if (!erg) return;
+    if (erg.A && wert(erg.A) > wert(A)) A = { ...erg.A, fall };
+    if (erg.B && wert(erg.B) > wert(B)) B = { ...erg.B, fall };
+  });
+  return mastZusammen(A, B);
 }

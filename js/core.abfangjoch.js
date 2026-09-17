@@ -1604,7 +1604,20 @@ export function abfangAuswertung(o = {}) {
   const auflagerAn = (ende) => {
     const k = (bal) => (ende === 'A' ? bal.A : bal.B);
     let beste = null;
-    const faelle = bilder.map((b) => {
+    /* =====================================================================
+     * >>> DER WIND AUF BEIDE SEITEN (Weisung vom 17. September). <<<
+     * =====================================================================
+     *
+     * «der wind in y und x sollte immer auf beide seiten angesetzt werden
+     * … es können überlagerungen mit den ständigen (abfangungen)
+     * resultieren.» Bis hierher ging der Wind «in der ungünstigen Richtung
+     * zum Leiterzug» ein - fuer den Betrag der Auflagerkraft richtig, fuer
+     * den Masten und seinen Anker nicht: der Gegenwind kann ein Seil
+     * schlaff machen oder eine Stuetze auf Druck bringen. Jeder Fall mit
+     * Wind steht deshalb in vier Richtungen da (±y, ±x); Mast und Anker
+     * werden ueber alle gerechnet (app.js).
+     */
+    const faelle = bilder.flatMap((b) => {
       const bw = beiwerteVon(b.fall);
       const Gz = k(b.vertG), Sz = k(b.vertS);
       const Zy = k(b.rahmenZ), Wy = k(b.rahmenW);
@@ -1614,44 +1627,44 @@ export function abfangAuswertung(o = {}) {
        *
        * Die beiden Gurte druecken gegenlaeufig nach unten und oben; ueber
        * ihren Achsabstand ist das ein MOMENT UM DIE JOCHACHSE, und der Mast
-       * bekommt es als Biegung in Gleisrichtung. Genau der Anteil, der bis
-       * heute fehlte - und er fehlte auf der unsicheren Seite.
+       * bekommt es als Biegung in Gleisrichtung.
        */
       const kT = (bal) => Math.abs(ende === 'A' ? bal.A : bal.B);
       const Ptors = bw.g * kT(b.torG) + bw.s * kT(b.torS)
                   + bw.w * kT(b.torW);
-      /*
-       * DER WIND GEHT MIT DEM BETRAG in die Kombination - er hat keine feste
-       * Richtung, und ein Vorzeichenwechsel macht sie nicht guenstiger. Der
-       * Leiterzug dagegen behaelt sein Vorzeichen: wohin er zieht, sagt die
-       * Anlage.
-       */
-      const Fy = bw.g * Zy + bw.w * Math.abs(Wy) * Math.sign(Zy || 1);
-      /*
-       * >>> DIE CHARAKTERISTISCHE KOMBINATION STEHT DANEBEN. <<<
-       *
-       * Alle Anteile mit Beiwert 1. Sie wird gebraucht, wo eine ZULAESSIGE
-       * Kraft gegenuebersteht statt eines Bemessungswiderstandes - beim
-       * Zuganker am Masten (Weisung vom 10. September). Sie hier zu bilden
-       * ist billiger, als sie spaeter aus dem Bemessungswert
-       * zurueckzurechnen: die drei Beiwerte sind verschieden, und der Weg
-       * zurueck waere nicht eindeutig.
-       */
       const PtorsK = kT(b.torG) + kT(b.torS) + kT(b.torW);
-      const e = { key: b.fall.key, label: b.fall.label, Fz, Fy,
-                  Fxges: bw.w ? b.Fx : 0,
-                  /** Lotrechtes Kraeftepaar aus der Torsion [kN je Gurt]. */
-                  Ptors,
-                  char: { Fz: Gz + Sz,
-                          Fy: Zy + Math.abs(Wy) * Math.sign(Zy || 1),
-                          Fxges: b.Fx, Ptors: PtorsK },
-                  anteile: { G: Gz, S: Sz, Z: Zy, W: Wy },
-                  beiwerte: bw };
-      // Massgebend ist, was den Masten am staerksten beansprucht: die
-      // Querkraft am Kopf mit ihrem Hebel und die Auflast zusammen.
-      const kenn = Math.abs(Fy) + Math.abs(Fz) / 10;
+      const richtungen = bw.w
+        ? [[+1, +1], [-1, +1], [+1, -1], [-1, -1]]
+        : [[+1, +1]];
+      return richtungen.map(([sy, sx]) => ({
+        key: bw.w ? `${b.fall.key}${sy > 0 ? '+y' : '-y'}${sx > 0 ? '+x' : '-x'}` : b.fall.key,
+        fall: b.fall.key,
+        label: bw.w
+          ? `${b.fall.label}, Wind ${sy > 0 ? '+' : '−'}y ${sx > 0 ? '+' : '−'}x`
+          : b.fall.label,
+        windY: sy, windX: sx,
+        Fz,
+        // Der Leiterzug behaelt sein Vorzeichen, der Wind nimmt beide.
+        Fy: bw.g * Zy + bw.w * sy * Wy,
+        Fxges: bw.w * sx * b.Fx,
+        /** Lotrechtes Kraeftepaar aus der Torsion [kN je Gurt]. */
+        Ptors,
+        /*
+         * DIE CHARAKTERISTISCHE KOMBINATION STEHT DANEBEN - alle Anteile mit
+         * Beiwert 1, der Wind in derselben Richtung. Gebraucht fuer den
+         * Anker (zulaessige Kraft gegen charakteristische).
+         */
+        char: { Fz: Gz + Sz, Fy: Zy + (bw.w ? sy : 1) * Wy,
+                Fxges: (bw.w ? sx : 1) * b.Fx, Ptors: PtorsK },
+        anteile: { G: Gz, S: Sz, Z: Zy, W: (bw.w ? sy : 1) * Wy },
+        beiwerte: bw,
+      }));
+    });
+    faelle.forEach((e) => {
+      // Massgebend fuer die ANZEIGE ist, was den Masten am staerksten
+      // beansprucht: die Querkraft am Kopf mit ihrem Hebel und die Auflast.
+      const kenn = Math.abs(e.Fy) + Math.abs(e.Fz) / 10;
       if (!beste || kenn > beste.kenn) beste = { ...e, kenn };
-      return e;
     });
     return { ende, Fz: beste.Fz, Fy: beste.Fy, Fxges: beste.Fxges,
              Ptors: beste.Ptors,

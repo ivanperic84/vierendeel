@@ -324,13 +324,31 @@ export function standardLastfaelle(inp) {
     lf.push({ key: 'sk', bez: 'Schnee', art: 'charakteristisch',
               nachweis: false, beiwerte: bw({ Schnee: 1 }) });
   }
+  /*
+   * >>> DER WIND AUF BEIDE SEITEN - AUCH CHARAKTERISTISCH (17. September). <<<
+   *
+   * Weisung: «der wind in y und x sollte immer auf beide seiten angesetzt
+   * werden, gemäss den kombinationen für die berechnung in der app, nicht
+   * nur im axisvm. es können überlagerungen mit den ständigen (abfangungen)
+   * resultieren.» Die Einzelfaelle und «Ständig + Wind» stehen deshalb mit
+   * beiden Vorzeichen da; der Ankernachweis, der auf ihnen steht, sieht so
+   * auch den Gegenwind. Die bisherigen Schluessel bleiben fuer die
+   * +-Richtung.
+   */
   lf.push(
-    { key: 'wyk', bez: 'Wind y (Gleisrichtung)', art: 'charakteristisch',
-      nachweis: false, leit: 'WindY', beiwerte: bw({ WindY: 1 }) },
-    { key: 'wxk', bez: 'Wind x (Jochachse)', art: 'charakteristisch',
-      nachweis: false, leit: 'WindX', beiwerte: bw({ WindX: 1 }) },
-    { key: 'gwk', bez: 'Ständig + Wind', art: 'charakteristisch', nachweis: false,
-      beiwerte: bw({ G: 1, WindX: 1, WindY: 1 }) },
+    { key: 'wyk', bez: 'Wind +y (Gleisrichtung)', art: 'charakteristisch',
+      nachweis: false, leit: 'WindY', vorzeichen: +1, beiwerte: bw({ WindY: 1 }) },
+    { key: 'wykm', bez: 'Wind −y (Gleisrichtung)', art: 'charakteristisch',
+      nachweis: false, leit: 'WindY', vorzeichen: -1, beiwerte: bw({ WindY: -1 }) },
+    { key: 'wxk', bez: 'Wind +x (Jochachse)', art: 'charakteristisch',
+      nachweis: false, leit: 'WindX', vorzeichen: +1, beiwerte: bw({ WindX: 1 }) },
+    { key: 'wxkm', bez: 'Wind −x (Jochachse)', art: 'charakteristisch',
+      nachweis: false, leit: 'WindX', vorzeichen: -1, beiwerte: bw({ WindX: -1 }) },
+    ...[[+1, +1, 'gwk'], [+1, -1, 'gwkpm'], [-1, +1, 'gwkmp'], [-1, -1, 'gwkmm']]
+      .map(([sx, sy, key]) => ({
+        key, bez: `Ständig + Wind ${sx > 0 ? '+' : '−'}x ${sy > 0 ? '+' : '−'}y`,
+        art: 'charakteristisch', nachweis: false,
+        beiwerte: bw({ G: 1, WindX: sx, WindY: sy }) })),
   );
 
   // Wind leitend, je Richtung mit beiden Vorzeichen
@@ -353,6 +371,15 @@ export function standardLastfaelle(inp) {
         bez: `Schnee leitend, Wind ${zeichen}y`,
         art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
         beiwerte: bw({ G: g, WindY: vz * q * p, Schnee: q }),
+      });
+    });
+    // Der begleitende Wind auch in der Jochachse, beide Seiten (17. Sept.).
+    [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+      lf.push({
+        key: `schneeX${suffix}`,
+        bez: `Schnee leitend, Wind ${zeichen}x`,
+        art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
+        beiwerte: bw({ G: g, WindX: vz * q * p, Schnee: q }),
       });
     });
   }
@@ -408,6 +435,15 @@ export function standardLastfaelle(inp) {
         art: 'gebrauchstauglichkeit', nachweis: false,
         leit: 'Schnee', vorzeichen: vz, stufe: 'selten',
         beiwerte: bw({ G: 1, WindY: vz * p, Schnee: 1 }),
+      });
+    });
+    [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+      lf.push({
+        key: `gtseltenSX${suffix}`,
+        bez: `Gebrauchstauglichkeit selten: Schnee, Wind ${zeichen}x`,
+        art: 'gebrauchstauglichkeit', nachweis: false,
+        leit: 'Schnee', vorzeichen: vz, stufe: 'selten',
+        beiwerte: bw({ G: 1, WindX: vz * p, Schnee: 1 }),
       });
     });
   }

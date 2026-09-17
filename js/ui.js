@@ -5838,7 +5838,7 @@ export function zeichneAbfangAuflager(node, ab, erg) {
 
   const A = ab.auflager.A, B = ab.auflager.B;
   node.innerHTML = `
-    ${abschnitt('Reaktionskräfte', 'Bemessungswerte, Hüllkurve über die drei Fälle')}
+    ${abschnitt('Reaktionskräfte', 'Bemessungswerte, Hüllkurve über alle Fälle, Wind in beiden Richtungen')}
     <div class="kennzahlen">
       ${kachel(`F_y ${nam('A')}`, f2(A?.Fy ?? 0), 'kN · in Gleisrichtung')}
       ${kachel(`F_y ${nam('B')}`, f2(B?.Fy ?? 0), 'kN · in Gleisrichtung')}

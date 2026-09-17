@@ -771,12 +771,19 @@ titel('15  Lastfälle');
   const lf = L.lastfaelle(w);
   const holen = (k) => lf.find((x) => x.key === k);
 
-  // 4 Wind (je Richtung ±) + 2 Schnee (Begleitwind ±)
-  const nw = lf.filter((x) => x.nachweis);
-  pruef('Sechs Nachweislastfälle mit Schnee', nw.length, 6, 1e-12, 'Stk');
-  // NUR die seltene Stufe: 4 Wind + 2 Schnee. Die häufige ist entfallen.
-  pruef('Sechs Lastfälle der Gebrauchstauglichkeit',
-        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 6, 1e-12, 'Stk');
+  // 4 Wind (je Richtung ±) + 4 Schnee (Begleitwind ±y und, seit dem
+  // 17. September, ±x). Dazu die zwei Havariefaelle, falls Leiter haengen.
+  const nw = lf.filter((x) => x.nachweis && x.art === 'tragsicherheit');
+  pruef('Acht Nachweislastfälle mit Schnee', nw.length, 8, 1e-12, 'Stk');
+  // NUR die seltene Stufe: 4 Wind + 4 Schnee. Die häufige ist entfallen.
+  pruef('Acht Lastfälle der Gebrauchstauglichkeit',
+        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 8, 1e-12, 'Stk');
+  wahr('Der Wind steht in jeder Kombinationsart mit beiden Vorzeichen',
+       ['WindX', 'WindY'].every((g) => ['charakteristisch', 'tragsicherheit',
+         'gebrauchstauglichkeit'].every((art) => {
+         const v = lf.filter((x) => x.art === art).map((x) => Math.sign(x.beiwerte[g]));
+         return v.includes(1) && v.includes(-1);
+       })));
   wahr('Nur die seltene Stufe, keine häufige',
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
          .every((x) => x.stufe === 'selten'));
@@ -785,8 +792,9 @@ titel('15  Lastfälle');
   const chars = lf.filter((x) => x.art === 'charakteristisch');
   wahr('Die charakteristischen Lastfälle stehen zuoberst',
        lf.slice(0, chars.length).every((x) => x.art === 'charakteristisch'));
-  wahr('Ständig, Ablenkkräfte, Schnee, Wind y, Wind x, Ständig + Wind',
-       chars.map((x) => x.key).join(',') === 'gk,ablk,sk,wyk,wxk,gwk',
+  wahr('Ständig, Ablenkkräfte, Schnee, Wind ±y, Wind ±x, Ständig + Wind (4)',
+       chars.map((x) => x.key).join(',')
+         === 'gk,ablk,sk,wyk,wykm,wxk,wxkm,gwk,gwkpm,gwkmp,gwkmm',
        chars.map((x) => x.bez).join(' · '));
   wahr('Jede Einzellastart trägt genau eine Gruppe',
        ['sk', 'wyk', 'wxk'].every((k) => Object.values(holen(k).beiwerte)
@@ -842,7 +850,7 @@ titel('15  Lastfälle');
                         anbauteile: [teil({ name: 'P', x: 10, Qz: 5 })] });
   const flachQz = A.expandiereAnbauteile(mitQz.anbauteile, {});
   wahr('Q_z am Anbauteil hält die Gruppe Schnee aktiv',
-       zaehl({ ...mitQz, anbauteileFlach: flachQz }, 'tragsicherheit') === 6);
+       zaehl({ ...mitQz, anbauteileFlach: flachQz }, 'tragsicherheit') === 8);
 
   // --- Doppelte Lastfälle werden gekennzeichnet -----------------------------
   // Mit den charakteristischen Einzellastfaellen sind fuenf Faelle dazu-
@@ -18496,7 +18504,7 @@ const CH9x = await import(J('core.checks.js'));
      */
     const einer = rechne7([
       leiter7('vorn', 3, 'vorn', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107')]);
-    const wind = (e) => einer.auflager[e].faelle.find((f) => f.key === 'wind');
+    const wind = (e) => einer.auflager[e].faelle.find((f) => f.key === 'wind+y+x');
     pruef('Ein Leiter, zwei Auflager: die Summe ist die Zugkraft',
           wind('A').anteile.Z + wind('B').anteile.Z, 14.9, 1e-6, 'kN');
     wahr('Der naehere Mast bekommt mehr',
@@ -18513,8 +18521,19 @@ const CH9x = await import(J('core.checks.js'));
     /*
      * >>> JEDER FALL STEHT DA, UND EINER IST MASSGEBEND. <<<
      */
-    wahr('Alle drei Faelle sind ausgewiesen',
-         einer.auflager.A.faelle.length === AB7.ABFANG_FAELLE.length);
+    // Seit dem 17. September der Wind in vier Richtungen: 4 + 4 + Havarie.
+    wahr('Alle Faelle sind ausgewiesen, jeder mit Wind in beiden Richtungen',
+         einer.auflager.A.faelle.length === 9
+         && AB7.ABFANG_FAELLE.every((f) => einer.auflager.A.faelle.some((x) => x.fall === f.key)));
+    {
+      const w4 = einer.auflager.A.faelle.filter((f) => f.fall === 'wind');
+      wahr('Wind leitend in ±y und ±x',
+           w4.length === 4 && new Set(w4.map((f) => `${f.windY}${f.windX}`)).size === 4);
+      const plusY = w4.find((f) => f.windY > 0 && f.windX > 0);
+      const minusY = w4.find((f) => f.windY < 0 && f.windX > 0);
+      pruef('Der Gegenwind aendert nur den Windanteil',
+            plusY.Fy - minusY.Fy, 2 * plusY.beiwerte.w * plusY.anteile.W, 1e-9, 'kN');
+    }
     wahr('Der massgebende ist einer davon',
          einer.auflager.A.faelle.some((f) => f.key === einer.auflager.A.fall));
     /*
@@ -18550,7 +18569,7 @@ const CH9x = await import(J('core.checks.js'));
      * Beiwert 1. Sie wird gebraucht, wo eine ZULAESSIGE Kraft
      * gegenuebersteht: beim Zuganker am Masten.
      */
-    const wA = paar.auflager.A.faelle.find((f) => f.key === 'wind');
+    const wA = paar.auflager.A.faelle.find((f) => f.key === 'wind+y+x');
     pruef('Charakteristisch: das Gewicht ohne Beiwert',
           wA.char.Fz, wA.anteile.G + wA.anteile.S, 1e-9, 'kN');
     wahr('… und kleiner als der Bemessungswert', wA.char.Fz < wA.Fz);
@@ -24258,16 +24277,36 @@ titel('74  Seilanker: der Wind aus beiden Richtungen');
   wahr('Die charakteristischen Faelle kennen den Wind nur in einer Richtung',
        plus('wyk').schlaff === true && minus('wyk').N > 0);
   const aq74 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
-  wahr('Der Ankernachweis spiegelt den Wind aus den Einzelfaellen',
-       /key: 'wykm', bez: 'Wind −y \(gespiegelt\)', kraft: bau\(-lin\(kWy\)\)/.test(aq74)
-       && /nG \+ sx \* lin\(kWx\) \+ sy \* lin\(kWy\)/.test(aq74)
-       && /!druck && N < 0/.test(aq74));
-  pruef('… und der gespiegelte Zug ist der, der sonst fehlte',
-        -(plus('wyk').NohneAusfall), minus('wyk').N, 1e-9, 'kN');
+  wahr('Der Ankernachweis sieht den Gegenwind in den charakteristischen Faellen',
+       minus('wykm').schlaff === true && plus('wykm').N > 0);
+  pruef('… und der Zug aus dem Gegenwind ist der gespiegelte',
+        plus('wykm').N, minus('wyk').N, 1e-9, 'kN');
   const ui74 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Die Seitenwahl folgt der Ebene: Optionstexte stehen in der Signatur',
        /const feldSignatur = \(werte\) => \(f\) =>/.test(ui74)
        && /sichtbareFelder\(gid, werte\)\.map\(feldSignatur\(werte\)\)/.test(ui74));
+}
+
+titel('75  Abfangjoch: Mast und Anker ueber alle Windrichtungen');
+/* Weisung vom 17. September: «der wind in y und x sollte immer auf beide
+ * seiten angesetzt werden» - «die masten und anker nicht vergessen». */
+{
+  const aq75 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Der Mast am Abfangjoch ist die Huellkurve ueber alle Faelle',
+       /erg\.mast = mastNachweiseHuelle\(abfangVarianten\(erg\.abfang\.auflager\)/.test(aq75));
+  wahr('… mit Mastwind und Mast-Anbauteilen im selben Fall',
+       /xd: bw\.w \* wx \* \(s\.x \?\? 0\)/.test(aq75)
+       && /WindY: bw\.w \* wy/.test(aq75));
+  wahr('Der Anker am Abfangjoch sieht jeden Fall charakteristisch',
+       /abfangModell\(modell, auflager, fa, fb, true\)/.test(aq75));
+  const MK75 = await import(J('core.mast.js'));
+  const h = MK75.mastNachweiseHuelle([
+    { fall: 'a', erg: { A: { eta: 0.3, etaMitStabilitaet: 0.4, ende: 'A' },
+                        B: { eta: 0.9, etaMitStabilitaet: 0.9, ende: 'B' } } },
+    { fall: 'b', erg: { A: { eta: 0.5, etaMitStabilitaet: 0.6, ende: 'A' },
+                        B: { eta: 0.2, etaMitStabilitaet: 0.2, ende: 'B' } } }]);
+  wahr('Die Huellkurve nimmt je Ende den groessten Nachweis und nennt den Fall',
+       h.A.fall === 'b' && h.B.fall === 'a' && h.etaNachweis === 0.9);
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

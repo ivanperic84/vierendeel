@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4519 Kontrollen
+node pruefung.mjs           # Prüfstand, 4526 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -51,6 +51,23 @@ eigenständige Datei wird sonst still veraltet.
   statt nichts) wurde nie nachgewiesen. Jetzt setzt `ankerAuswertung` die
   gespiegelten Fälle aus den Einzelfällen zusammen (linear): Wind −x, −y und
   Ständig + Wind in allen vier Vorzeichen.
+- **Wind auf beide Seiten, überall.** Weisung: «der wind in y und x sollte
+  immer auf beide seiten angesetzt werden … es können überlagerungen mit
+  den ständigen (abfangungen) resultieren» – «die masten und anker nicht
+  vergessen».
+  - Tragjoch: charakteristisch Wind ±y, ±x (`wykm`, `wxkm`), Ständig + Wind
+    in vier Vorzeichen (`gwk`, `gwkpm`, `gwkmp`, `gwkmm`); Schnee leitend
+    zusätzlich mit Wind ±x (`schneeXp/m`), ebenso die Gebrauchsfälle. Die
+    am Nachmittag zusammengesetzten Spiegelfälle im Ankernachweis sind
+    damit überflüssig und entfernt. 21 Lastfälle statt 15 (ohne Schnee).
+  - Abfangjoch: `auflagerAn` führt jeden Fall mit Wind in ±y/±x (Schlüssel
+    `wind+y+x` usw., 9 je Ende). Der Mast wird über alle gerechnet
+    (`mastNachweiseHuelle`), mit Mastwind und Mast-Anbauteilen im selben
+    Fall (`abfangModell` in app.js) – vorher kam der Mastwind aus dem
+    Tragjoch-Lastfall. Der Anker ebenso, charakteristisch.
+  - Im Browser (A240/12.50 m, Leiter vorn bei 4 m, SA20 längs): Fundament
+    «+» – das Seil hängt in allen Fällen durch (der Leiterzug überwiegt);
+    «−» – Zug 35.1 kN (ohne Wind 32.5), Mast M1 0.571.
 - **Seite des Ankerfundaments** bot bei «längs» weiter «in −x» an - die
   Maske wurde nicht neu gebaut. Die Texte von `optionenAus` stehen jetzt in
   der Maskensignatur.
