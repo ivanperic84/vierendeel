@@ -131,16 +131,37 @@ const mastSteg = (wert) => {
     : r(cx - tw / 2, cy - h / 2, tw, h)
       + r(cx - b / 2, cy - h / 2, b, tf)
       + r(cx - b / 2, cy + h / 2 - tf, b, tf);
+  /*
+   * >>> DAS JOCH STATT DER LAST (Weisung vom 17. September). <<<
+   *
+   * «bei dieser abbildung die last wegnehmen und dafür das joch anzeigen für
+   * die bessere orientierung.» Gezeichnet in der Draufsicht: die beiden
+   * Gurte laengs der Jochachse, dazwischen die Bindebleche, angeschlossen an
+   * der Mastseite, die zum Joch zeigt.
+   */
+  const xAn = cx + (inJochachse ? h / 2 : b / 2) + 4;
+  const xEnde = 470, halb = 17;
+  const bleche = [];
+  for (let x = xAn + 34; x < xEnde - 6; x += 44) {
+    bleche.push(`<rect class="blech" x="${x - 5}" y="${cy - halb}" width="10" height="${2 * halb}"/>`);
+  }
+  const joch = `
+    ${bleche.join('')}
+    <line class="b" x1="${xAn}" y1="${cy - halb}" x2="${xEnde}" y2="${cy - halb}"/>
+    <line class="b" x1="${xAn}" y1="${cy + halb}" x2="${xEnde}" y2="${cy + halb}"/>
+    <line class="link" x1="${xAn - 4}" y1="${cy - halb}" x2="${xAn}" y2="${cy - halb}"/>
+    <line class="link" x1="${xAn - 4}" y1="${cy + halb}" x2="${xAn}" y2="${cy + halb}"/>
+    <text class="acc" x="${xEnde}" y="${cy - halb - 8}" text-anchor="end">Joch</text>
+    <text class="dim" x="${cx - 42}" y="${cy + 46}" text-anchor="end">Mast</text>`;
   return skizze(
     inJochachse ? 'Steg quer zum Gleis, starke Achse quer zum Gleis'
                 : 'Steg laengs zum Gleis, schwache Achse quer zum Gleis',
     '0 0 520 160', `
     <line class="d" x1="40" y1="${cy}" x2="480" y2="${cy}"/>
-    <text class="dim" x="46" y="${cy - 8}">Jochachse · quer zum Gleis</text>
+    <text class="dim" x="40" y="${cy - 22}">Jochachse</text>
+    <text class="dim" x="40" y="${cy - 8}">quer zum Gleis</text>
+    ${joch}
     ${I}
-    <line class="k" x1="330" y1="${cy}" x2="266" y2="${cy}" stroke-width="2.2"/>
-    <path class="kf" d="M266 ${cy}L276 ${cy - 4.5}L276 ${cy + 4.5}z"/>
-    <text class="acc" x="338" y="${cy + 4}">Wind quer</text>
     <text class="dim" x="${cx}" y="146" text-anchor="middle">${
       inJochachse ? 'Steg quer zum Gleis, h waagrecht · starke Achse'
                   : 'Steg längs zum Gleis, b waagrecht · schwache Achse'}</text>

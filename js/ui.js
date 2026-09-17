@@ -82,6 +82,26 @@ export function setzeModellFuerLage(m) { modellFuerLage = m ?? null; }
 let etaLeiste = null;
 export function setzeEtaFuerLeiste(o) { etaLeiste = o ?? null; }
 
+/*
+ * >>> DER ANKER ALS STREBE (Weisung vom 17. September). <<<
+ *
+ * «die anker / Druckstütze klarer darstellen, es wirkt momentan wie ein
+ * fragment neben dem masten.» Bis dahin ein gestrichelter Rahmenstrich am
+ * Fuss. Jetzt eine Strebe: Gelenk am Masten oben, Fundament am Boden.
+ * Quer zum Gleis liegt sie in der Bildebene; laengs steht sie aus dem Blatt
+ * heraus - dann traegt ihr Fuss das Zeichen «aus der Ebene» statt des
+ * Fundamentklotzes. Gezeichnet nach rechts; `.minus` spiegelt.
+ */
+function ankerGlyphe(laengs) {
+  return `<svg viewBox="0 0 20 17" width="20" height="17" aria-hidden="true">
+    <line x1="1" y1="5" x2="${laengs ? 11 : 15}" y2="14.5" class="qa-strebe${laengs ? ' laengs' : ''}"/>
+    <circle cx="1" cy="5" r="1.7" class="qa-gelenk"/>
+    ${laengs
+      ? '<circle cx="13.5" cy="14" r="2.6" class="qa-aus"/><circle cx="13.5" cy="14" r="0.9" class="qa-punkt"/>'
+      : '<rect x="12" y="14" width="7" height="2.6" rx="0.6" class="qa-fund"/>'}
+  </svg>`;
+}
+
 export const el = (id) => document.getElementById(id);
 
 /**
@@ -1737,10 +1757,10 @@ export function querprofilLeisteHtml(werte) {
             <span class="qp-mast-fuss"></span>
           </button>
           ${hatAnker ? `<button type="button" class="qp-ankerstrich${
-              laengsA ? ' laengs' : (vzA > 0 ? ' plus' : ' minus')}"
+              laengsA ? ' laengs' : ''}${vzA > 0 ? ' plus' : ' minus'}${an ? ' an' : ''}"
             data-qp-anker="${esc(m.id)}"
             title="${esc(`Zuganker / Druckstütze am Masten M${i + 1} · `
-              + ankTitel + ' · anklicken zum Ändern')}"></button>` : ''}
+              + ankTitel + ' · anklicken zum Ändern')}">${ankerGlyphe(laengsA)}</button>` : ''}
           <span class="qp-mastmass${an ? ' an' : ''}">${m.x.toFixed(2)}</span>
         </span>
       </span>

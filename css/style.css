@@ -1702,7 +1702,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .qp-mastzeile .qp-mast-marke { top: 0; height: 12px; }
 .qp-mastzeile .qp-mast-fuss { top: 12px; }
 .qp-mastzeile .qp-mastmass { padding-top: 16px; }
-.qp-mastzeile .qp-ankerstrich { top: 9px; }
+.qp-mastzeile .qp-ankerstrich { top: 0; }
 /* Die Gruppe haelt Symbol, Ankerstrich und Masszahl auf EINER Stelle
    zusammen - sie ist auf ihren Prozentwert zentriert, alles darin auf sie. */
 .qp-mastgruppe { position: absolute; top: 0; transform: translateX(-50%);
@@ -1719,26 +1719,27 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
    Masten, hat aber keine eigene Zeile mehr (Weisung, 11. September). */
 .qp-mastlang { font-size: 9px; color: var(--dim); }
 
-/* DER ANKER ALS STRICH am Fuss des Dreiecks, in Richtung seines Fundaments.
-   Quer zum Gleis liegt er in der Bahnebene und zeigt nach links oder rechts;
-   laengs steht er aus dem Blatt heraus und ist ein Stummel nach unten. Der
-   Unterschied muss zu sehen sein - ein Anker in der falschen Ebene haelt
-   rechnerisch nichts. */
+/* DER ANKER ALS STREBE (17. September; vorher ein gestrichelter Strich am
+   Fuss, «wirkt wie ein fragment»). Gelenk am Masten, Strebe zum Boden,
+   Fundament am Fuss; laengs das Zeichen «aus der Ebene». Die Glyphe steht
+   mit ihrem Gelenk auf der Mastachse und zeigt zur Seite des Fundaments. */
 .qp-ankerstrich {
-  position: absolute; top: 13px; width: 16px; height: 8px; padding: 0;
-  background: none; border: 0; cursor: pointer;
-  border-bottom: 2px dashed var(--on2); opacity: .8;
+  position: absolute; top: 0; width: 20px; height: 17px; padding: 0;
+  background: none; border: 0; cursor: pointer; color: var(--on2);
+  line-height: 0;
 }
-.qp-ankerstrich.plus  { left: 50%; transform: rotate(20deg);
-  transform-origin: left center; }
-.qp-ankerstrich.minus { right: 50%; transform: rotate(-20deg);
-  transform-origin: right center; }
-/* Laengs: er zeigt aus dem Blatt - ein kurzer Strich nach unten. */
-.qp-ankerstrich.laengs {
-  left: 50%; width: 8px; transform: translateX(-50%) rotate(72deg);
-  transform-origin: center top;
-}
-.qp-ankerstrich:hover { border-bottom-color: var(--acc); opacity: 1; }
+.qp-ankerstrich svg { display: block; overflow: visible; }
+.qp-ankerstrich.plus  { left: calc(50% - 1px); }
+.qp-ankerstrich.minus { right: calc(50% - 1px); }
+.qp-ankerstrich.minus svg { transform: scaleX(-1); }
+.qp-ankerstrich .qa-strebe { stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.qp-ankerstrich .qa-strebe.laengs { stroke-dasharray: 2.4 1.6; }
+.qp-ankerstrich .qa-gelenk { fill: var(--s1); stroke: currentColor; stroke-width: 1.2; }
+.qp-ankerstrich .qa-fund { fill: currentColor; }
+.qp-ankerstrich .qa-aus { fill: none; stroke: currentColor; stroke-width: 1.1; }
+.qp-ankerstrich .qa-punkt { fill: currentColor; }
+.qp-ankerstrich.an { color: var(--acc); }
+.qp-ankerstrich:hover { color: var(--acc); }
 .qp-zeile {
   display: flex; align-items: center; gap: 5px;
   padding: 1px 2px; border-radius: var(--m-r1);

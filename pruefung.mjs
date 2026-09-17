@@ -19395,6 +19395,10 @@ const CH9x = await import(J('core.checks.js'));
          r.includes('data-qp-mast='));
     wahr('… und sein Anker haengt daran',
          r.includes('qp-ankerstrich') && r.includes('data-qp-anker='));
+    // Seit dem 17. September als Strebe mit Gelenk und Fundament gezeichnet.
+    wahr('… als Strebe mit Gelenk und Fundament',
+         r.includes('qa-strebe') && r.includes('qa-gelenk')
+         && (r.includes('qa-fund') || r.includes('qa-aus')));
   }
 
   /*
