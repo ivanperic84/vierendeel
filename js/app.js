@@ -595,9 +595,15 @@ function neuRechnen(neuZeichnen = true) {
      * brach sie mit «Cannot read properties of undefined (reading map)» ab.
      * Leer heisst hier: nur die Umhuellende steht zur Wahl.
      */
-    const kombi = mitJoch
-      ? vergleichKombinationen(rs, profOG, profUG, stahl, joch)
-      : { huellkurve: null, ergebnisse: {}, lastfaelle: [] };
+    /*
+     * SEIT DEM 17. SEPTEMBER AUCH BEIM EINZELMASTEN. Er wurde bis dahin in
+     * EINEM Lastfall gerechnet - dem ersten Nachweisfall, Wind +y leitend.
+     * Der Wind in Gegenrichtung fehlte, und mit einem Seilanker, der dort
+     * durchhaengt, stand der Mast zu guenstig da (Meldung: «der wind in die
+     * gegenrichtung wird nicht angesetzt»). `huellkurve` bildet fuer ihn den
+     * Mastnachweis ueber alle Faelle.
+     */
+    const kombi = vergleichKombinationen(rs, profOG, profUG, stahl, joch);
     /*
      * >>> DER ANKERNACHWEIS RECHNET CHARAKTERISTISCH. <<<
      *
@@ -611,11 +617,10 @@ function neuRechnen(neuZeichnen = true) {
      * charakteristischen Lastfaelle laufen daneben mit, und aus ihnen kommt
      * die Zahl.
      */
-    erg.anker = mitJoch
-      ? (erg.abfang?.auflager
-          ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager)
-          : ankerAuswertung(kombi))
-      : null;
+    // Auch der Einzelmast traegt einen Anker - und bekommt seinen Nachweis.
+    erg.anker = erg.abfang?.auflager
+      ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager)
+      : ankerAuswertung(kombi);
     const checks = mitJoch ? konstruktionsChecks(erg.modell, erg.abfang) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
@@ -5649,8 +5654,12 @@ async function projektlisteDrucken(projektName) {
     let eta = null, etaMast = null, frisch = false;
     try {
       const joch = w.typ && w.typ !== 'frei' ? getTragjoch(w.typ) : null;
-      const erg = berechne(rechensatz(w), getProfil(w.profOG), getProfil(w.profUG),
-                           getStahl(w.stahl), joch);
+      // Ueber alle Kombinationen, wie in der Auswertung - ein einzelner
+      // Lastfall liesse den Gegenwind aus (17. September).
+      const kb = vergleichKombinationen(rechensatz(w), getProfil(w.profOG),
+                                        getProfil(w.profUG), getStahl(w.stahl), joch);
+      const erg = kb.huellkurve ?? berechne(rechensatz(w), getProfil(w.profOG),
+                                            getProfil(w.profUG), getStahl(w.stahl), joch);
       eta = erg.max?.etaGesamt ?? null;
       const m = erg.mast ?? {};
       const em = ['A', 'B'].map((k) => m[k]?.etaMitStabilitaet ?? m[k]?.eta)

@@ -20,7 +20,7 @@ import { mastWind } from './data.masten.js';
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile, amMast, ortVon } from './data.anbauteile.js';
-import { mastNachweise } from './core.mast.js';
+import { mastNachweise, mastNachweiseHuelle } from './core.mast.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
          mastKoepfe, jochAnteile } from './core.auflager.js';
@@ -1021,6 +1021,24 @@ export function vergleichKombinationen(inp, profOG, profUG, stahl, joch) {
  * unabhängig davon, welche Kombination ihn erzeugt.
  */
 export function huellkurve(liste) {
+  /*
+   * >>> DER EINZELMAST HAT KEINE KNOTEN - UND TROTZDEM EINE HUELLKURVE
+   * (17. September). <<<
+   *
+   * Bis hierher gab es fuer ihn keine: die App rechnete ihn in EINEM
+   * Lastfall, dem ersten Nachweisfall (Wind +y leitend). Mit einem Seil,
+   * das bei Gegenwind durchhaengt, stand er damit zu guenstig da (0.215
+   * statt 0.289 am HEB 260). Seine Huellkurve ist der Mastnachweis je Ende
+   * ueber alle Faelle.
+   */
+  const nurMast = (liste ?? []).filter((e) => e && !e.knoten?.length && e.mast);
+  if (nurMast.length && !(liste ?? []).some((e) => e?.knoten?.length)) {
+    const mast = mastNachweiseHuelle(nurMast.map((e) => ({
+      fall: e.modell?.lastfall ?? null, erg: e.mast })));
+    const eta = mast?.etaNachweis ?? mast?.eta ?? 0;
+    return { ...nurMast[0], mast, max: { ...nurMast[0].max, etaGesamt: eta },
+             istHuellkurve: true };
+  }
   const gueltig = (liste ?? []).filter((e) => e?.knoten?.length);
   if (!gueltig.length) return null;
   const erste = gueltig[0];
@@ -1073,6 +1091,21 @@ export function huellkurve(liste) {
     // Der Sammelwert ist bereits ein Schnitt, nicht ein ganzes Ergebnis.
     schnitt: gueltig.reduce((a, e) => (e.schnitt.eta > a.eta ? e.schnitt : a),
                             erste.schnitt),
+    /*
+     * >>> DER MAST: JE ENDE DER UNGUENSTIGSTE FALL (17. September). <<<
+     *
+     * Hier stand nichts - `...erste` gab den Mastnachweis des ERSTEN
+     * Nachweisfalls weiter (Wind +y). Solange der Wind in beiden Richtungen
+     * dasselbe tat, fiel das nicht auf. Mit einem Seilanker nicht: in
+     * Gegenrichtung haengt er durch, der Mast traegt allein - gemessen am
+     * J90/15 m mit HEB 260: 0.922 statt der gezeigten 0.206. Gemeldet:
+     * «in diesem fall wirkt immernoch der zuganker stabilisierend oder der
+     * wind in die gegenrichtung wird nicht angesetzt».
+     */
+    mast: gueltig.some((e) => e.mast)
+      ? mastNachweiseHuelle(gueltig.map((e) => ({
+          fall: e.modell?.lastfall ?? null, erg: e.mast })))
+      : erste.mast,
     max: {
       ...erste.max,
       etaOG: argMax((r) => r.og.eta), etaUG: argMax((r) => r.ug.eta),

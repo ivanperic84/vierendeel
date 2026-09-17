@@ -791,9 +791,17 @@ function ankerTeile(o, halb, zFuss, zKopf) {
       });
     }
   } else {
+    /*
+     * DER SEILANKER TRAEGT SEINE AUSNUTZUNG WIE DIE STUETZE (Weisung vom
+     * 17. September: «beim zuganker die resultat farben anwenden, so wie bei
+     * der druckstütze»). Er blieb grau, weil nur der Stuetzenzweig `werte`
+     * setzte.
+     */
     flaechen.push(...schraegerStab(pM, pF, dick, dick, {
       gruppe: 'mast', teil: `ANKER_${name}`,
-      label: `Anker ${name} · ${wie}`,
+      ...(Number.isFinite(o.ankerEta) ? { werte: { eta: o.ankerEta } } : {}),
+      label: `Anker ${name} · ${wie}`
+           + (Number.isFinite(o.ankerEta) ? ` · η ${o.ankerEta.toFixed(3)}` : ''),
     }));
     [-0.5, +0.5].forEach((d) => {
       const dx = laengs ? d * halb : 0;

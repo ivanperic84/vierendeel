@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4526 Kontrollen
+node pruefung.mjs           # Prüfstand, 4531 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -68,6 +68,19 @@ eigenständige Datei wird sonst still veraltet.
   - Im Browser (A240/12.50 m, Leiter vorn bei 4 m, SA20 längs): Fundament
     «+» – das Seil hängt in allen Fällen durch (der Leiterzug überwiegt);
     «−» – Zug 35.1 kN (ohne Wind 32.5), Mast M1 0.571.
+- **Die Hüllkurve kannte den Masten nur aus dem ersten Fall.** Meldung:
+  «in diesem fall wirkt immernoch der zuganker stabilisierend oder der wind
+  in die gegenrichtung wird nicht angesetzt». `huellkurve` gab mit
+  `...erste` den Mastnachweis von «Wind +y leitend» weiter – mit einem
+  Seil, das bei Gegenwind durchhängt, stand der Mast zu günstig da
+  (J90/15 m, HEB 260: 0.206 statt 0.922 im Node, 0.603 im Browserfall).
+  Jetzt `mastNachweiseHuelle` je Ende über alle Fälle. Dasselbe in der
+  Projektliste.
+- **Der Einzelmast wurde nur in einem Lastfall gerechnet** (erster
+  Nachweisfall) und bekam keinen Ankernachweis. Jetzt läuft er durch
+  `vergleichKombinationen`; `huellkurve` bildet für ihn den Mastnachweis
+  über alle Fälle, und `ankerAuswertung` gilt auch für ihn.
+- **Der Seilanker** trägt im 3D die Ergebnisfarbe wie die Druckstütze.
 - **Seite des Ankerfundaments** bot bei «längs» weiter «in −x» an - die
   Maske wurde nicht neu gebaut. Die Texte von `optionenAus` stehen jetzt in
   der Maskensignatur.

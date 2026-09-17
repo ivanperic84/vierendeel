@@ -24309,6 +24309,52 @@ titel('75  Abfangjoch: Mast und Anker ueber alle Windrichtungen');
        h.A.fall === 'b' && h.B.fall === 'a' && h.etaNachweis === 0.9);
 }
 
+titel('76  Die Huellkurve nimmt den Masten aus jedem Fall');
+/* Meldung vom 17. September: «in diesem fall wirkt immernoch der zuganker
+ * stabilisierend oder der wind in die gegenrichtung wird nicht angesetzt».
+ * Die Huellkurve gab den Mast des ERSTEN Nachweisfalls weiter; der
+ * Einzelmast wurde nur in einem Fall gerechnet. */
+{
+  const A76 = await import(J('data.anbauteile.js'));
+  const { vergleichKombinationen: vgl76 } = await import(J('core.vierendeel.js'));
+  const seil = { typ: 'SA20', h: 7.79, a: 4.5, richtung: 'y', seite: 'minus',
+                 befestigung: 'ankerplatte' };
+  const joch = { ...standardwerte(), typ: 'J90', L: 15, mastVorhanden: true,
+    mastProfil: 'HEB 260', mastH: 8, trasseRadius: 600, mastAnkerA: seil,
+    anbauteile: [{ ...A76.neuesAnbauteil('hs-fahrdraht', 7.5), name: 'FL' }] };
+  const r = vgl76(joch, getProfil(joch.profOG), getProfil(joch.profUG),
+                  getStahl(joch.stahl), T.getTragjoch('J90'));
+  const jeFall = r.lastfaelle.filter((l) => l.nachweis)
+    .map((l) => r.ergebnisse[l.key].mast.A.etaMitStabilitaet);
+  pruef('Tragjoch: der Mast in der Huellkurve ist das Maximum der Faelle',
+        r.huellkurve.mast.A.etaMitStabilitaet, Math.max(...jeFall), 1e-12, '–');
+  wahr('… und das ist der Gegenwind mit schlaffem Seil',
+       r.ergebnisse.windYm.mast.A.ankerkraft.schlaff === true
+       && r.huellkurve.mast.A.fall === 'windYm',
+       `Fall ${r.huellkurve.mast.A.fall}`);
+  const em = { ...standardwerte(), tragwerksart: 'einzelmast', mastVorhanden: true,
+    mastProfil: 'HEB 260', mastH: 8, trasseRadius: 600, mastAnkerA: seil,
+    anbauteile: [{ ...A76.neuesAnbauteil('hs-fahrdraht', 0), name: 'FL',
+                   ort: 'mastA', hMast: 7 }] };
+  const re = vgl76(em, null, null, getStahl(em.stahl), null);
+  const jeFallE = re.lastfaelle.filter((l) => l.nachweis)
+    .map((l) => re.ergebnisse[l.key].max.etaGesamt);
+  pruef('Einzelmast: die Huellkurve gibt es, und sie ist das Maximum',
+        re.huellkurve?.max?.etaGesamt, Math.max(...jeFallE), 1e-12, '–');
+  const aq76 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Die App rechnet auch den Einzelmast ueber alle Kombinationen',
+       /const kombi = vergleichKombinationen\(rs, profOG, profUG, stahl, joch\);/.test(aq76)
+       && /erg\.anker = erg\.abfang\?\.auflager\s*\? ankerAmAbfangjoch/.test(aq76));
+}
+
+titel('77  Der Seilanker in Ergebnisfarben');
+{
+  const rk77 = readFileSync(join(HIER, 'js', 'render.koerper.js'), 'utf8');
+  const zweig = rk77.slice(rk77.indexOf('DER SEILANKER TRAEGT SEINE AUSNUTZUNG'));
+  wahr('Auch der Seilanker traegt sein η fuer die Einfaerbung',
+       /werte: \{ eta: o\.ankerEta \}/.test(zweig.slice(0, 600)));
+}
+
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
 /* ===========================================================================
  * Weisung vom 17. September: «örtlicher anteil umsetzen», nur im Weg
