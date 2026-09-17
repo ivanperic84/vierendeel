@@ -32,7 +32,8 @@ eigenständige Datei wird sonst still veraltet.
 - **Projekttitel im Kopf** in der Akzentfarbe.
 - **Stegskizze** zeigt das Joch statt des Windpfeils: Draufsicht im
   gemeinsamen Massstab 1 px = 5 mm (HEB 260, J90 mit 520 mm über die
-  Winkel), die Gurte fassen den Masten als Gabel ein, Bleche grau.
+  Winkel), die Gurte fassen den Masten als Gabel ein. Joch als Linien wie
+  in den Auflagerskizzen, ohne Beschriftungen.
 - **Anker in der Tragwerksleiste** als Strebe mit Gelenk und Fundament;
   längs gestrichelt, das Fundament ein einfacher Strich.
 - **Anker/Druckstütze** kommen neu **längs** (`ankerRichtungVor`); alte Anker

@@ -12832,20 +12832,21 @@ titel('44  Skizzen an den Eingabefeldern');
      * zwar im selben Massstab: die Gurte liegen aussen, der Mast dazwischen.
      */
     const g = OS.optionsSkizze('mastSteg', 'jochachse');
+    // Seit dem 17. September als Linien, wie in den Auflagerskizzen.
     const gurte = [...g.matchAll(
-      /<rect class="gurt-grau" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
-      .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
+      /<line class="b gurt" x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/g)]
+      .map((m) => ({ x: +m[1], y: +m[2] }));
     const st = [...g.matchAll(/<rect class="st" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
       .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
     const mastOben = Math.min(...st.map((r) => r.y));
     const mastUnten = Math.max(...st.map((r) => r.y + r.h));
     const mastLinks = Math.min(...st.map((r) => r.x));
-    wahr('Zwei Gurte, beidseits am Masten vorbei',
+    wahr('Zwei Gurtlinien, beidseits am Masten vorbei',
          gurte.length === 2 && gurte.every((r) => r.x < mastLinks)
-         && Math.min(...gurte.map((r) => r.y + r.h)) <= mastOben
-         && Math.max(...gurte.map((r) => r.y)) >= mastUnten);
-    wahr('Keine Windlast mehr, die Bleche grau',
-         !/Wind/.test(g) && g.includes('blech-grau') && !g.includes('class="blech"'));
+         && Math.min(...gurte.map((r) => r.y)) < mastOben
+         && Math.max(...gurte.map((r) => r.y)) > mastUnten);
+    wahr('Ohne Beschriftung und ohne Flaechen fuer das Joch',
+         !/<text/.test(g) && !/Wind/.test(g) && !g.includes('blech'));
   }
 
   /*
