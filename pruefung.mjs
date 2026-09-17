@@ -18206,9 +18206,11 @@ const CH9x = await import(J('core.checks.js'));
        * Voreinstellwerten 4.50 m / 60 Grad: eta M3 von 2.205 auf 0.234,
        * der Anker selbst bei 0.509.
        */
-      wahr('Die voreingestellte Ebene folgt der Tragwerksart',
-           /const ankerRichtungVor = /.test(aq60)
-           && /abfangjoch' \? 'y' : 'x'/.test(aq60));
+      // Seit dem 17. September ueberall laengs (Weisung: «beim anker /
+      // druckstütze als voreingabewert längs einstellen»).
+      wahr('Die voreingestellte Ebene ist laengs',
+           /const ankerRichtungVor = \(\) => 'y'/.test(aq60)
+           && /richtung: 'y', seite: 'plus', befestigung: 'ankerplatte'/.test(aq60));
       wahr('… und sie wird beim Setzen angewandt',
            /richtung: ankerRichtungVor\(werte\)/.test(aq60));
     }
@@ -24185,6 +24187,25 @@ titel('71  Havariefall am Tragjoch und am Masten');
        /data-k="bruch"/.test(ui71) && /hatDrahtwerk\(a\)/.test(ui71));
   wahr('… und die Maske fuehrt jedes Kaestchen mit seinem eigenen Wert nach',
        /inp\.checked = k === 'aktiv' \? a\.aktiv !== false : a\[k\] === true/.test(ui71));
+}
+
+titel('73  Ablenkwinkel null ist ein Winkel');
+/* Weisung vom 17. September: «wenn man hier 0 einsetzt hat es keine auswirkung». */
+{
+  const TR73 = await import(J('core.trasse.js'));
+  const A73 = await import(J('data.anbauteile.js'));
+  pruef('Winkel 0: keine Umlenkung', TR73.umlenkkraft({ Z: 10, L: 30, R: 600, winkel: 0 }).U,
+        0, 1e-12, 'kN');
+  wahr('Leer: aus Radius und Spannweite',
+       TR73.umlenkkraft({ Z: 10, L: 30, R: 600, winkel: null }).U > 0);
+  pruef('Der Modulwinkel meldet die Null', A73.modulWinkel({ winkel: 0 }, { R: 600, spannweite: 30 }),
+        0, 1e-12, '°');
+  const at = { ...A73.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' };
+  const mitNull = { ...at, module: at.module.map((m) => ({ ...m, winkel: 0 })) };
+  const gx = (a) => A73.expandiereAnbauteile([a], { ek: 'EK2', R: 600, spannweite: 30 })
+    .filter((t) => t.rolle === 'drahtwerk').reduce((s, t) => s + t.kraefte.G.Fx, 0);
+  wahr('Am Bauteil: mit 0 keine Ablenkkraft, leer eine',
+       Math.abs(gx(mitNull)) < 1e-12 && Math.abs(gx(at)) > 0, `${gx(at).toFixed(3)} kN`);
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

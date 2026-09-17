@@ -72,7 +72,13 @@ export function ablenkwinkel(L, R) {
  * @param {object} o {L, R, winkel} winkel [°] überschreibt den Bogen
  */
 export function umlenkfaktor({ L, R, winkel = null }) {
-  if (Number.isFinite(winkel) && winkel !== 0) {
+  /*
+   * EIN GESETZTER WINKEL GILT - AUCH NULL (Weisung vom 17. September: «wenn
+   * man hier 0 einsetzt hat es keine auswirkung»). Null hiess bis dahin
+   * «nicht gesetzt», und es wurde weiter aus R und L gerechnet. Leer ist
+   * `null`; 0 ist ein gerader Leiter ohne Ablenkung.
+   */
+  if (Number.isFinite(winkel)) {
     // Von Hand gesetzter Ablenkwinkel: dieselbe Formel, nur mit diesem Winkel.
     return 2 * Math.sin((winkel * Math.PI) / 180 / 2);
   }
@@ -90,7 +96,7 @@ export function umlenkfaktor({ L, R, winkel = null }) {
  */
 export function umlenkkraft({ Z, L, R, winkel = null, anteil = 1 }) {
   const faktor = umlenkfaktor({ L, R, winkel });
-  const alphaRad = Number.isFinite(winkel) && winkel !== 0
+  const alphaRad = Number.isFinite(winkel)
     ? (winkel * Math.PI) / 180 : ablenkwinkel(L, R);
   return {
     U: (Z ?? 0) * faktor * (anteil ?? 1),

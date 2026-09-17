@@ -3192,7 +3192,7 @@ const ANKER_STANDARD = {
   a: ANKER_ABSTAND_VOR,
   h: Math.round(ANKER_ABSTAND_VOR
                 * Math.tan((ANKER_WINKEL_VOR * Math.PI) / 180) * 100) / 100,
-  richtung: 'x', seite: 'plus', befestigung: 'ankerplatte',
+  richtung: 'y', seite: 'plus', befestigung: 'ankerplatte',
 };
 
 /**
@@ -3211,8 +3211,12 @@ const ANKER_STANDARD = {
  * Es bleibt eine VOREINSTELLUNG: wer den Anker anders stellen will, stellt
  * ihn anders. Sie soll nur nicht dort anfangen, wo er nutzlos ist.
  */
-const ankerRichtungVor = (w) =>
-  (tragwerksart(w).key === 'abfangjoch' ? 'y' : 'x');
+/*
+ * SEIT DEM 17. SEPTEMBER UEBERALL LAENGS (Weisung: «beim anker /
+ * druckstütze als voreingabewert längs einstellen»). Die Ebene bleibt
+ * waehlbar; der Hinweis am Feld sagt, wann quer gehoert.
+ */
+const ankerRichtungVor = () => 'y';
 
 /**
  * DER NACHWEIS DER ANKER UND DRUCKSTUETZEN.

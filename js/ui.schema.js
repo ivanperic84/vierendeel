@@ -975,7 +975,9 @@ export const FELDER = [
    * NULL und entlastet den Masten nicht.
    */
   { key: 'ankerRichtung', gruppe: 'mast', typ: 'auswahl',
-    label: 'Ebene des Ankers', standard: 'x',
+    // Neue Anker kommen laengs (17. September); ein alter ohne Angabe
+    // rechnet der Kern quer - die Anzeige sagt dasselbe.
+    label: 'Ebene des Ankers', standard: 'y',
     wertAus: amAnker('richtung', 'x'),
     optionen: [
       { wert: 'x', text: 'Jochachse (quer zum Gleis)' },

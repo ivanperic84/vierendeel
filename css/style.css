@@ -555,7 +555,10 @@ input[type=range].rng {
 .at-kopf { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .at-kopf input[type=text] { flex: 1; padding: 4px 6px; font-size: 11.5px; }
 .at-gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-.at-feld { display: grid; gap: 2px; }
+/* Oben ausgerichtet (17. September): ein Nachbar mit zweizeiligem Hinweis
+   streckte sonst die Zeilen, und die Eingabe stand hoeher als das Feld
+   daneben («die beiden felder auf gleicher höhe anordnen»). */
+.at-feld { display: grid; gap: 2px; align-content: start; }
 .at-feld > span {
   font-family: var(--f-mono); font-size: 9px; color: var(--dim);
 }
@@ -740,6 +743,7 @@ input[type=range].rng {
 /* Wert, der nicht hier eingegeben wird, aber zum Verständnis dazugehört. */
 .at-feld.lesbar > b {
   font-family: var(--f-mono); font-size: 11px; padding: 4px 5px;
+  line-height: normal; box-sizing: border-box;
   border: 1px dashed var(--ol); border-radius: var(--m-r1); color: var(--dim);
 }
 .at-feld .hinweis { font-size: 8.5px; line-height: 1.3; }

@@ -449,7 +449,8 @@ const leereKraefte = () => Object.fromEntries(
  * Ein am Modul gesetzter Winkel überschreibt Radius und Spannweite.
  */
 export function modulWinkel(m, { R, spannweite, laenge } = {}) {
-  if (Number.isFinite(m?.winkel) && m.winkel !== 0) return m.winkel;
+  // Null ist ein gesetzter Winkel (17. September) - leer ist null.
+  if (Number.isFinite(m?.winkel)) return m.winkel;
   const L = laenge ?? m?.laenge ?? spannweite ?? 0;
   return (ablenkwinkel(L, R) * 180) / Math.PI;
 }
