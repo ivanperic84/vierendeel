@@ -514,16 +514,20 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
       if (bef === 'durchgehend') {
         dFy = h > 0 ? Td / h : 0;
         [x1, x2].forEach((x) => {
-          lokal.push({ x, teil: a.name, ebene: 'horizontal', gurt: 'OG', dF: +dFy / 2 });
-          lokal.push({ x, teil: a.name, ebene: 'horizontal', gurt: 'UG', dF: -dFy / 2 });
+          lokal.push({ x, teil: a.name, ebene: 'horizontal', gurt: 'OG', dF: +dFy / 2,
+                       torsion: true, ebeneId: 'H_O' });
+          lokal.push({ x, teil: a.name, ebene: 'horizontal', gurt: 'UG', dF: -dFy / 2,
+                       torsion: true, ebeneId: 'H_U' });
         });
       } else {
         const gurt = anschlussGurt(a);
         const bq = bAn(xs, gurt) || 0;
         dFz = bq > 0 ? Td / bq : 0;
         [x1, x2].forEach((x) => {
-          lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'L', dF: +dFz / 2 });
-          lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'R', dF: -dFz / 2 });
+          lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'L', dF: +dFz / 2,
+                       torsion: true, ebeneId: 'V_L' });
+          lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'R', dF: -dFz / 2,
+                       torsion: true, ebeneId: 'V_R' });
         });
       }
     }
@@ -623,6 +627,30 @@ export function lokaleQuerkraft(lokal, x, ebene, stationen) {
   return (lokal ?? [])
     .filter((l) => l.ebene === ebene && l.dF > 0)
     .reduce((s, l) => s + l.dF * stationsAnteil(l.x, x, stationen), 0);
+}
+
+/**
+ * Der Torsionsanteil der oertlichen Einleitung, MIT VORZEICHEN, fuer eine
+ * bestimmte Ebene (V_L, V_R, H_O, H_U) - und der Rest ohne.
+ *
+ * Das Kraeftepaar aus T_d wirkt auf den beiden Ebenen einer Richtung
+ * gegensinnig; sein Vorzeichen steckt in `dF`. Die Anteile aus eingepraegten
+ * Momenten (M_yy, M_zz ueber den Raster) haben mit der Torsion nichts zu
+ * tun und bleiben additiv.
+ */
+export function lokaleQuerkraftEbene(lokal, x, ebene, ebeneId, stationen) {
+  let torsion = 0, rest = 0;
+  (lokal ?? []).forEach((l) => {
+    if (l.ebene !== ebene) return;
+    const f = stationsAnteil(l.x, x, stationen);
+    if (!f) return;
+    if (l.torsion) {
+      if (l.ebeneId === ebeneId) torsion += l.dF * f;
+    } else if (l.dF > 0) {
+      rest += l.dF * f;
+    }
+  });
+  return { torsion, rest };
 }
 
 /** Charakteristisches Eigengewicht aller Anbauteile [kN]. */

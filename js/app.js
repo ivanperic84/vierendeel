@@ -13,7 +13,7 @@ import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
 import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
-import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion,
+import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
          klassifizierung } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
@@ -677,6 +677,22 @@ function neuRechnen(neuZeichnen = true) {
      * nichts.
      */
     if (erg.anker) anzeige.anker = erg.anker;
+    /*
+     * >>> DAS URTEIL UEBER ALLE BAUTEILE (Entscheid vom 17. September). <<<
+     *
+     * Es steht auf der BEMESSUNG, nicht auf dem gezeigten Lastfall - ein
+     * Einzellastfall traegt kein Urteil. Abfangjoch, Mast und Anker haengen
+     * an `erg`; sie werden dazugelegt wie oben bei `anzeige`.
+     */
+    {
+      const bem = kombi.huellkurve ?? erg;
+      urteil.bauteile = bauteilUrteil({
+        ...bem,
+        abfang: erg.abfang ?? bem.abfang,
+        mast: (erg.abfang?.auflager && erg.mast) ? erg.mast : (bem.mast ?? erg.mast),
+        anker: erg.anker ?? bem.anker,
+      }, werte.nachweise, tragwerksart(werte).key);
+    }
 
     // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
     // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
@@ -1207,16 +1223,23 @@ function aktualisiereFuss(erg, urteil, joch) {
    * ein zweites Mal.
    */
   const ab = erg.abfang ?? null;
-  const e = ab ? ab.max.eta : erg.max.etaGesamt;
+  /*
+   * SEIT DEM 17. SEPTEMBER DAS MAXIMUM UEBER ALLE BAUTEILE, mit Namen
+   * (`bauteilUrteil`). Vorher stand hier nur das Joch - und «Alle Nachweise
+   * erfüllt» neben einem Mast mit η = 3.14.
+   */
+  const bt = urteil.bauteile;
+  const e = bt ? bt.eta : (ab ? ab.max.eta : erg.max.etaGesamt);
   // DIESELBE REGEL WIE OBEN IM URTEIL. Sie liefen auseinander: die Fussleiste
   // sagte «Nachweis nicht erfuellt», waehrend das Urteil gruen dastand - eine
   // Klemme zehn Zentimeter zu weit rechts genuegte. Zwei Anzeigen derselben
   // Sache, die einander widersprechen, sind schlimmer als eine.
-  const gut = e <= 1 && urteil.bindendVerletzt !== true;
+  const gut = e <= 1 && !bt?.ueber && urteil.bindendVerletzt !== true;
   const farbe = gut ? 'var(--ok)' : 'var(--fail)';
+  const wer = bt?.massgebend && bt.liste.length > 1 ? ` (${esc(bt.massgebend.name)})` : '';
   ui.el('st-urteil').innerHTML =
     `<span class="pkt" style="background:${farbe}"></span>` +
-    `${gut ? 'Alle Nachweise erfüllt' : 'Nachweis nicht erfüllt'} · η = ${e.toFixed(3)}`;
+    `${gut ? 'Alle Nachweise erfüllt' : 'Nachweis nicht erfüllt'} · η = ${e.toFixed(3)}${wer}`;
   /*
    * DIE ZEILE BESCHREIBT DAS TRAGWERK, DAS DASTEHT.
    *

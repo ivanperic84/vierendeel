@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4477 Kontrollen
+node pruefung.mjs           # Prüfstand, 4498 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,59 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Gesamturteil, Havariefall, örtlicher Anteil (17. September)
+
+Weisung: «mastnachweis im gesamturteil und havariefall und örtlicher anteil
+umsetzen», die Entscheide vorher erfragt.
+
+**Gesamturteil — «Maximum, mit Bauteil».** `bauteilUrteil` (core.checks.js)
+nimmt Joch bzw. Abfangjoch, jeden Mast (`etaMitStabilitaet`), Zuganker und
+Druckstützen, soweit ihr Nachweis geführt wird. Fussleiste («η = 0.890
+(Mast M1)»), Hauptkachel und Excel-Bericht (Block «Gesamturteil» im Blatt
+Konstruktion) zeigen es; eine Druckstütze über der lieferbaren Länge gilt als
+nicht erfüllt. `max.etaGesamt` bleibt die Zahl des Jochs (Farbskala). Die
+Kontrolle, die den alten Zustand festhielt, ist umgeschrieben.
+
+**Havariefall am Tragjoch und am Masten.** Weisung: «der Ablenkwinkel kann
+zur hälfte angewendet werden … die volle leiterzugkraft wird beim abfangjoch
+angesezt. bei den übrigen tragwerken tragjoch mast, wird … nur ein anteil von
+10% der leiterzugkraft angesetzt»; Bruch über den Schalter an der Karte.
+- Zwei interne Einwirkungsgruppen `HavarieX` (Ablenkkraft bei −20 °C statt
+  +5 °C, beim Bruch zur Hälfte) und `HavarieY` (Längszug 10 % von Z(−20 °C)),
+  gerechnet in `havarieAnteile` (data.anbauteile.js).
+- Zwei Nachweisfälle `havariep`/`havariem`: 1.0·G + HavarieX ± HavarieY,
+  Art `aussergewoehnlich`, sobald ein Drahtwerk am Tragwerk hängt.
+- Die COM-Brücke legt sie als `ctULSExceptional` an (vermessen, Wert 6), bei
+  Ablehnung durch die Norm als ULS mit Warnung.
+- Fehlt die Reglagetabelle, steht Z bei +5 °C, und die Hinweisliste sagt es.
+- Die Huellkurve bekommt damit eine untere Schranke mit γ_G = 1.0 (Feldmitte
+  J90/20 m: 35.80 statt 44.46 kNm) - die Kontrolle ist nachgeführt.
+- Das Abfangjoch bleibt bei seinem eigenen Havariefall.
+
+**Befund dabei:** die Maske setzte JEDES Kästchen einer Bauteilkarte auf
+`aktiv` — der Bruchschalter (auch am Abfangjoch) zeigte nach dem Ausschalten
+weiter «an». Behoben (ui.js, `zeichneMaske`-Nachführung).
+
+**Örtlicher Anteil — gemessen, NICHT übernommen.** Eingebaut sind die Wege
+`OERTLICH_WEGE` (additiv, fest, fest-, mit, gegen) im Weg «vorzeichenrichtig»,
+das Kräftepaar trägt jetzt Ebene und Vorzeichen. `kalibrieren.mjs --nur
+oertlich` (72 Stellen, J90–J130, Einleitung über alle Gurte und nur oben):
+
+| Weg | max. Ebene Werkzeug/FEM Mittel | Minimum | unter 0.95 |
+|---|---|---|---|
+| additiv | 4.67 | 1.03 | 0 |
+| fest | 3.68 | 0.55 | 10 |
+| fest- | 3.61 | 0.47 | 10 |
+| gegen | 2.62 | 0.47 | 20 |
+
+Die vorzeichenrichtigen Formen wären stellenweise unsicher; `OERTLICH_WEG`
+bleibt `'additiv'`. Die additive Form überschätzt neben der Klemme bis
+Faktor 19 — im Stabmodell tragen die Bleche dort kaum etwas.
+**Offen, Entscheid des Auftraggebers:** ob und wie weit der örtliche Anteil
+abgemindert werden darf. Messwerte in `kalibrierung_oertlich.json/.txt`.
+
+Prüfstand: Abschnitte 71 und 72, **4498 Kontrollen** grün.
 
 ### Projektablage nach BlockCalc (17. September)
 
@@ -6575,14 +6628,14 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **AxisVM über COM** | Modell wird vollständig aufgebaut und gespeichert. Offen: die lokalen Stabachsen (Abschnitt 6b), nächster Lauf vorbereitet |
 | **Ergebnisse zurücklesen** | **gebaut** (`-Auslesen`, ab Zeile 767). Am 3. September vermessen und der Rechenweg durchgestochen: `Calculation.LinearAnalysis(cuiNoUserInteractionWithAutoCorrectNoShow)` läuft, 25 Ergebnisfälle. Offen: ein sauberer Durchstich des Auslesens — siehe *AxisVM rechnet über COM*|
 | **Prüffähiger Nachweisbericht** | pendent. Excel, Druckansicht und Handbuch decken es nicht — siehe *Pendent: der prüffähige Nachweisbericht* |
-| **Havariefall** | Bruch einzelner Leiter oder ganzer Kettenwerke: aussergewöhnliche Einwirkung, ständige Lasten **charakteristisch**, Leiterzug bei **−20 °C** (Basiskraft). Die Klammer «Kettenwerk» am Drahtwerk ist seit dem 28. August da; die Lastfälle und die Basiskraft fehlen |
+| **Havariefall** | **gebaut** am 17. September — Tragjoch und Mast mit halber Ablenkung und 10 % Längszug beim Bruch, Abfangjoch mit eigenem Fall. Offen bleibt die Reglagetabelle für weitere fix abgespannte Leiter |
 | **Spannweitenkategorien** | Tabelle Radius ↔ zulässige Spannweite in Abhängigkeit der EK (zulässiger Windabtrieb des Fahrdrahts). Die Spannweite steht seit dem 28. August als erstes Feld der Trassegruppe; die Tabelle kommt darüber |
 | **Einzelmast, Tragausleger, Zuganker** | **gebaut.** Vier Tragwerksarten stehen zur Wahl (`TRAGWERKSARTEN`), Zuganker und Druckstützen sind Tragglieder am Masten mit eigenem Katalog (`data.anker.js`) und eigenem Nachweis |
 | **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). Am 1. September kam ein vierter dazu: `SCHIEFE_DAEMPFUNG` = **0,70** (509 Messstellen, Gegenprobe 0,994) — siehe *SCHIEFE_DAEMPFUNG*. `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. `MAST_UNVERSCHIEBLICH` steht seit dem 31. August auf **4,00** (vorher 3,10) — siehe *Die Drehfeder des Mastes*. Damit sind alle drei Kennwerte entschieden |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
-| **Örtlicher Anteil vorzeichenrichtig** | offen — er wird weiter auf beiden Ebenen addiert |
-| **Mastnachweis im Gesamturteil** | **offen, und es ist ein Entscheid.** `etaGesamt` und `urteilKonstruktion` kennen ihn nicht; die Fussleiste meldet «Alle Nachweise erfüllt», während der Mast dreifach überschritten sein kann — siehe *Befund: das Gesamturteil kennt den Mastnachweis nicht* |
+| **Örtlicher Anteil vorzeichenrichtig** | **gemessen** am 17. September, nicht übernommen (stellenweise unsicher). Offen: Abminderung der additiven Form — Entscheid |
+| **Mastnachweis im Gesamturteil** | **gebaut** am 17. September — Maximum über alle geführten Bauteile, mit Namen |
 | **Abfangjoch** | **gebaut.** Sortiment seit dem 3. September vollständig (17 Typen), Rechenkern seit dem 10. September eigen (`core.abfangjoch.js`): zweigurtiger Träger mit Sprossen, eigene Auswertung über Schnitt, Verläufe und Auflager |
 | **Druckstütze im AxisVM als zwei Profile** («Stufe 1») | **gebaut** am 15. September — zwei Stabzüge aus dem Einzelprofil (`Channel`), keilförmig gespreizt, Anschlüsse momentenfrei, Laschen an den vermassten Knickstellen. Siehe *Die Druckstütze steht als zwei Profile im Modell*. **Offen bleibt** der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen (Anzahl, Abstand, Profil) — daran hängt «Stufe 2», der Nachweis des mehrteiligen Druckstabs nach EN 1993-1-1, 6.4 |
 

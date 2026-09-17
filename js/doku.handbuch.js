@@ -263,6 +263,31 @@ kommen nur 1.0 und 1.30 vor, auf veränderliche 1.30 und 0.65 = 1.30 · 0.50.
 Nie 1.35 oder 1.50. <b>γ_Q 1.50 gegen 1.30 sind 15 % auf jede veränderliche
 Einwirkung</b> – über den Katalog gerechnet 7.5 bis 9.6 % auf die Ausnutzung.`)}
 
+<p><b>Havariefall</b> – sobald ein Leiter am Tragwerk hängt, zwei weitere
+Nachweisfälle als aussergewöhnliche Bemessungssituation:</p>
+
+${f(`1.0 · G &nbsp;+&nbsp; ΔA_x(−20 °C) &nbsp;±&nbsp; A_y(Bruch) &nbsp;&nbsp;(keine veränderlichen)`)}
+
+${q(`Weisung vom 17. September: «der Ablenkwinkel kann zur hälfte angewendet
+werden, da der weiterführende leiter abgelenkt ist. die volle leiterzugkraft
+wird beim abfangjoch angesezt. bei den übrigen tragwerken tragjoch mast, wird
+bei den leitern direkt an joch oder am masten nur ein anteil von 10% der
+leiterzugkraft angesetzt, da man ausgehen kann das die kraft durch die
+benachbarten tragwerke kompensiert wird.»`)}
+
+<table class="dt">
+<tr><th>Leiter</th><th>Ablenkkraft</th><th>Längszug (Gleisrichtung)</th></tr>
+<tr><td>unversehrt</td><td>mit Z bei −20 °C</td><td>–</td></tr>
+<tr><td>gebrochen (Schalter an der Karte)</td><td>zur Hälfte, mit Z bei −20 °C</td>
+    <td>10 % von Z(−20 °C), beide Richtungen</td></tr>
+</table>
+<p>Z bei −20 °C kommt aus der Reglagetabelle; fehlt sie für einen fix
+abgespannten Leiter, steht der Wert von +5 °C, und die Hinweisliste sagt es.
+Das <b>Abfangjoch</b> rechnet seinen Havariefall selbst (Abschnitt 13.6), mit
+der vollen Leiterzugkraft. In der AxisVM-Ausleitung erscheinen die beiden
+Anteile als Lastfälle «Havarie Ablenkung» und «Havarie Längszug», die
+Kombination als aussergewöhnliche.</p>
+
 <h4>3.5 Regliertemperatur und Leiterzug</h4>
 <p>Die Zugkraft eines Leiters hängt davon ab, <b>wie er abgefangen</b> ist.
 Über eine Nachspannung – <i>beweglich</i> – hält ein Gewicht die Kraft
@@ -751,6 +776,17 @@ am Anbauteil fälschlich auf die andere Seite.`)}
 gleichsinnig läuft, ist |V + V_T| = |V| + V_T – genau die Hüllkurve.
 Vorzeichenrichtig zu rechnen entlastet nur die andere Ebene. Der örtliche
 Anteil bleibt in beiden Formen additiv auf beiden Ebenen.</p>
+
+${q(`Weisung vom 17. September: den örtlichen Anteil im Weg «vorzeichenrichtig»
+mit Vorzeichen führen, den Drehsinn am Stabmodell bestimmen. <b>Gemessen, nicht
+übernommen:</b> an 72 Stellen neben einer Einleitung (J90 bis J130, über alle
+vier Gurte und nur oben) liegen die vorzeichenrichtigen Formen im Mittel näher
+am Stabmodell, aber an 10 bzw. 20 Stellen <b>darunter</b> – bis auf 47 %. Die
+additive Form ist überall auf der sicheren Seite (mindestens 103 %),
+überschätzt dort aber bis Faktor 19: im Stabmodell tragen die Bleche neben der
+Klemme kaum etwas, das Kräftepaar geht über die Gurte. Die Form bleibt
+deshalb additiv, bis entschieden ist, wie weit sie abgemindert werden darf
+(kalibrieren.mjs --nur oertlich).`)}
 
 ${q(`Die Drehsinne sind an einem Stabmodell kalibriert, nicht hergeleitet. Ohne
 Drehsinn kein Vorzeichen: rechnet man die Torsion selbst als Hüllkurve
@@ -1383,7 +1419,18 @@ ungünstigste und eine Umhüllende, die je Station den ungünstigsten Knoten
 übernimmt. Die beiden charakteristischen Lastfälle laufen mit, gehen aber weder
 in die Umhüllende noch in die Wahl des massgebenden Falls ein.</p>
 
-<p class="hb-quelle">core.querschnitt.js · core.klassen.js · core.vierendeel.js</p>
+<h4>8.6 Das Gesamturteil</h4>
+${q(`Entscheid vom 17. September: «Maximum, mit Bauteil».`)}
+<p>Das Urteil in der Fussleiste, in der Übersicht und im Bericht nimmt das
+<b>grösste η aller geführten Bauteile</b> – Joch bzw. Abfangjoch, jeder Mast
+(mit Knicken, wenn geführt), Zuganker und Druckstützen – und nennt das
+massgebende: «η = 0.890 (Mast M1)». Ein abgeschalteter Nachweis zählt nicht
+mit; eine Druckstütze über der lieferbaren Länge gilt als nicht erfüllt. Die
+Kacheln darunter zeigen jedes Bauteil einzeln, und die Farbskala im Modell
+bleibt die des Jochs.</p>
+
+<p class="hb-quelle">core.querschnitt.js · core.klassen.js · core.vierendeel.js ·
+core.checks.js <code>bauteilUrteil</code></p>
 `,
 },
 

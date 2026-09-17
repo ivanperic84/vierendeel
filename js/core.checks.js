@@ -1448,6 +1448,30 @@ export function hinweise(m) {
            'abgelesen, gegen das Schemablatt zu prüfen.');
   }
   h.push('Kein Knicknachweis, Gesamtstab und Einzelwinkel separat nachzuweisen.');
+  /*
+   * DER HAVARIEFALL AM TRAGJOCH (17. September) rechnet mit Z bei -20 °C.
+   * Fehlt die Reglagetabelle fuer einen fix abgespannten Leiter, steht der
+   * Wert von +5 °C - zu guenstig, und das gehoert in die Liste.
+   */
+  const ohneTabH = (m.anbauteile ?? [])
+    .filter((t2) => t2 && t2.aktiv !== false)
+    .filter((t2) => (Array.isArray(t2.module) ? t2.module : []).some((mo) => {
+      if (!/^drahtwerk-/.test(String(mo?.bauteil ?? ''))) return false;
+      try { return abfangkraft(mo.bauteil, { tempFall: 'havarie' }).ohneTabelle; }
+      catch { return false; }
+    }));
+  if (ohneTabH.length) {
+    h.push('Havariefall (−20 °C): für diese fix abgespannten Leiter fehlt die '
+      + 'REGLAGETABELLE, gerechnet wird mit der Zugkraft von +5 °C: '
+      + `${ohneTabH.map((t2) => t2.name ?? 'Leiter').join(', ')}. `
+      + 'Kalt zieht der Leiter stärker — der Havariefall steht zu günstig da.');
+  }
+  if ((m.anbauteile ?? []).some((t2) => t2?.aktiv !== false && t2?.bruch === true)) {
+    h.push('Havariefall mit Bruch: beim gebrochenen Leiter wirkt die '
+      + 'Ablenkkraft zur Hälfte, und 10 % seiner Leiterzugkraft ziehen in '
+      + 'Gleisrichtung (beide Richtungen gerechnet); den Rest nehmen die '
+      + 'Nachbartragwerke auf.');
+  }
   return h;
 }
 
@@ -1495,6 +1519,72 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
     // Trägt das Joch selbst keinen Nachweis mehr, ist η keine Aussage über
     // die Tragsicherheit mehr - und darf auch nicht als eine auftreten.
     tragwerkGefuehrt: nw.jochtragwerk === true,
+  };
+}
+
+/* ===========================================================================
+ * >>> DAS URTEIL GILT DEM GANZEN TRAGWERK. <<<
+ * ===========================================================================
+ *
+ * Entscheid vom 17. September auf den Befund vom 13.: «Maximum, mit
+ * Bauteil». Bis dahin war η das Maximum ueber die Knoten des
+ * Ersatzbalkens, und die Fussleiste meldete «Alle Nachweise erfuellt ·
+ * η = 0.387», waehrend der Mast bei 3.14 stand.
+ *
+ * Jetzt zaehlt jedes GEFUEHRTE Bauteil - Joch, Masten, Zuganker und
+ * Druckstuetzen -, und das Urteil nennt, welches massgebend ist. Die Zahl
+ * des Jochs selbst (`max.etaGesamt`) bleibt, was sie war: daran haengen
+ * Farbskala und Verlaeufe.
+ *
+ * Der Anker steht auf charakteristischen Kraeften gegen eine zulaessige
+ * Kraft; fuer «haelt es» zaehlt er trotzdem. Ueber der lieferbaren Laenge
+ * hat er kein η - er gilt dann als nicht erfuellt.
+ *
+ * @returns {{eta:number, massgebend:object|null, ueber:boolean,
+ *            liste:{key:string, name:string, eta:number|null, ueber:boolean}[]}}
+ */
+export function bauteilUrteil(erg, nachweise, art = null) {
+  const nw = nachweiseAuswahl(nachweise);
+  const liste = [];
+  const namen = erg?.modell?.federn?.namen ?? {};
+  const tw = art ?? erg?.modell?.tragwerksart ?? 'joch';
+  const dazu = (key, name, eta, ueber = null) => {
+    if (liste.some((x) => x.name === name)) return;
+    const e = Number.isFinite(eta) ? eta : null;
+    liste.push({ key, name, eta: e, ueber: ueber ?? (e !== null && e > 1) });
+  };
+  if (erg?.abfang?.max) {
+    dazu('joch', 'Abfangjoch', erg.abfang.max.eta);
+  } else if (tw !== 'einzelmast' && erg?.max && nw.jochtragwerk) {
+    dazu('joch', 'Joch', erg.max.etaGesamt);
+  }
+  if (erg?.mast && nw.mast) {
+    ['A', 'B'].forEach((ende) => {
+      const n = erg.mast[ende];
+      if (!n) return;
+      dazu('mast', namen[ende] ? `Mast ${namen[ende]}` : `Mast ${ende}`,
+           n.etaMitStabilitaet ?? n.eta);
+    });
+  }
+  ['A', 'B'].forEach((ende) => {
+    const a = erg?.anker?.[ende]?.nachweis;
+    if (!a || a.grund === 'schlaff') return;
+    const name = `${a.typ ?? 'Anker'} ${namen[ende] || ende}`;
+    dazu('anker', name, a.eta, a.lieferbar === false ? true : null);
+  });
+  // Das massgebende: ein nicht lieferbares Bauteil vor jeder Zahl.
+  const massgebend = liste.reduce((best, x) => {
+    if (!best) return x;
+    if (x.ueber && x.eta === null) return best.ueber && best.eta === null ? best : x;
+    if (best.ueber && best.eta === null) return best;
+    return (x.eta ?? 0) > (best.eta ?? 0) ? x : best;
+  }, null);
+  const zahlen = liste.map((x) => x.eta).filter((v) => v !== null);
+  return {
+    eta: zahlen.length ? Math.max(...zahlen) : (erg?.max?.etaGesamt ?? 0),
+    massgebend,
+    ueber: liste.some((x) => x.ueber),
+    liste,
   };
 }
 

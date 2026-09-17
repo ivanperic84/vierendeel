@@ -33,7 +33,7 @@
  */
 
 import { U, RECHTECK } from './core.constants.js';
-import { lokaleQuerkraft } from './core.anbauteile.js';
+import { lokaleQuerkraft, lokaleQuerkraftEbene } from './core.anbauteile.js';
 import { winkelwerteFuer, randspannung } from './core.winkel.js';
 
 /**
@@ -500,6 +500,26 @@ export function torsionsSchubfluss(Tx, b, h, modell = 'schubfluss') {
  * Ohne Drehsinn kein Vorzeichen: die Torsions-Hüllkurve summiert Beträge, dort
  * fällt der Weg 'vorzeichen' auf 'huellkurve' zurück.
  */
+/* ===========================================================================
+ * >>> DER OERTLICHE ANTEIL IM WEG «VORZEICHENRICHTIG» (17. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «örtlicher anteil umsetzen», auf Nachfrage: nur im Weg
+ * «vorzeichenrichtig»; die Vorgabe Huellkurve bleibt additiv. Der Drehsinn
+ * wird am PyNite-Stabmodell bestimmt (kalibrieren.mjs --nur oertlich),
+ * nicht geraten. Die Wege:
+ *
+ *   'additiv'  wie bisher, |V/2 ± V_T| + V_lokal
+ *   'fest'     das Kraeftepaar mit dem Vorzeichen des Anbauteils:
+ *              |V/2 ± V_T + s·V_lokal|, s aus T_d und der Ebene
+ *   'fest-'    dasselbe, Gegensinn
+ *   'mit'      der Anteil laeuft mit dem Schubfluss des Abschnitts:
+ *              |V/2 + d·(V_T + |V_lokal|)|
+ *   'gegen'    dasselbe, Gegensinn
+ * ========================================================================= */
+export const OERTLICH_WEGE = ['additiv', 'fest', 'fest-', 'mit', 'gegen'];
+export const OERTLICH_WEG = 'additiv';
+
 export function ebenenQuerkraefte(sg, m, x = null) {
   const sf = torsionsSchubfluss(sg.Tx, m.b, m.h, m.torsionsverteilung);
   const vzHalb = Math.abs(sg.Vz) / 2;
@@ -535,9 +555,19 @@ export function ebenenQuerkraefte(sg, m, x = null) {
     // symmetrisch, wie es sein muss.
     const balkenVz = istV ? (sg.Vz ?? 0) / 2 : (sg.Vy ?? 0) / 2;
     const balken = istV ? vzHalb : vyHalb;
-    const V_Ebene = vorzeichentreu
+    let V_Ebene = vorzeichentreu
       ? Math.abs(balkenVz + drehsinn * e.vorz * torsion) + lokal
       : balken + torsion + lokal;
+    const weg = m.oertlichWeg ?? OERTLICH_WEG;
+    if (vorzeichentreu && weg !== 'additiv' && x !== null && m.lokal?.length) {
+      const l = lokaleQuerkraftEbene(m.lokal, x, e.art, e.id, stationen);
+      const d = drehsinn * e.vorz;
+      const mitT = weg === 'fest' ? l.torsion
+        : weg === 'fest-' ? -l.torsion
+          : weg === 'mit' ? d * Math.abs(l.torsion)
+            : -d * Math.abs(l.torsion);
+      V_Ebene = Math.abs(balkenVz + d * torsion + mitT) + l.rest;
+    }
     jeEbene[e.id] = { anteilBalken: balken, anteilTorsion: torsion,
                       anteilLokal: lokal, vorzeichentreu,
                       dreht: vorzeichentreu ? drehsinn * e.vorz : +1, V_Ebene };

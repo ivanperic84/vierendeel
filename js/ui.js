@@ -545,8 +545,14 @@ export function aktualisiereMaske(container, werte, extras = {}) {
       : k === 'anbindung' ? abfangAnbindung(a).art
       : k === 'verlauf' ? abfangAnbindung(a).verlauf
       : a[k];
-    if (inp.type === 'checkbox') inp.checked = a.aktiv !== false;
-    else if (String(inp.value) !== String(v ?? 0)) inp.value = v ?? 0;
+    /*
+     * JEDES KAESTCHEN SEINEN EIGENEN WERT (17. September). Hier stand
+     * `a.aktiv !== false` fuer alle - der Bruchschalter zeigte damit nach
+     * dem Ausschalten weiter «an», obwohl nicht mehr gerechnet wurde.
+     */
+    if (inp.type === 'checkbox') {
+      inp.checked = k === 'aktiv' ? a.aktiv !== false : a[k] === true;
+    } else if (String(inp.value) !== String(v ?? 0)) inp.value = v ?? 0;
   });
   // Die aus der Tabelle gerechneten Lasten der Module hängen an Trasse,
   // Spannweite und Einwirkungsklasse - sie müssen mitgeführt werden, auch wenn
@@ -2316,6 +2322,22 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
              * ohnehin nicht, und ein vertikales Element bricht nicht in
              * diesem Sinne.
              */''}
+          ${/*
+             * AUCH AM TRAGJOCH UND AM MASTEN (Weisung vom 17. September):
+             * dort zieht der gebrochene Leiter mit 10 % seines Zugs laengs,
+             * und seine Ablenkung wirkt zur Haelfte.
+             */''}
+          ${tragwerksart(werte).key !== 'abfangjoch' && hatDrahtwerk(a)
+            ? `<label class="at-feld breit2 schalter" data-feldname="bruch">
+                 <input class="at" data-k="bruch" data-idx="${i}"
+                        type="checkbox"${a.bruch === true ? ' checked' : ''}>
+                 <span>Bruch im Havariefall untersuchen</span>
+                 ${hinweisHtml(`at-${i}-bruch`,
+                   'Im Havariefall (−20 °C, ohne veränderliche Einwirkungen) '
+                   + 'wirkt die Ablenkkraft dieser Leiter nur zur Hälfte, und '
+                   + '10 % ihrer Leiterzugkraft ziehen in Gleisrichtung — den '
+                   + 'Rest nehmen die Nachbartragwerke auf.')}
+               </label>` : ''}
           ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
             && abfangAnbindung(a).abgefangen
             ? `<label class="at-feld breit2 schalter" data-feldname="bruch">
@@ -2909,7 +2931,8 @@ function lastblockListeHtml(a, i) {
     return `<div class="modul lastblock" data-last="${k}">
       <div class="modul-kopf">
         ${lastWahl(i, k, 'einwirkung', l.einwirkung,
-                   EINWIRKUNGEN.map((e) => ({ key: e.key, label: e.label })))}
+                   EINWIRKUNGEN.filter((e) => !e.intern)
+                     .map((e) => ({ key: e.key, label: e.label })))}
         <button class="loeschen" data-last-weg="${k}" data-idx="${i}"
                 title="Last entfernen">×</button>
       </div>
@@ -4279,6 +4302,12 @@ function quellSchalter(opt, einzel, eBem) {
     zurückschalten.</p>`;
 }
 
+/** Traegt die Baugruppe einen Leiter? Nur dann gibt es einen Bruch. */
+function hatDrahtwerk(a) {
+  return (a?.module ?? []).some((m) => m.aktiv !== false
+    && /^drahtwerk-/.test(String(m.bauteil ?? '')));
+}
+
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
                                   hinweise = [], opt = {}) {
   /*
@@ -4397,6 +4426,18 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Wind, Schnee oder ein Bruch massgebend war, gehoert daneben.
    */
   const abFall = ab?.faelle?.find((f) => f.key === ab.fall) ?? null;
+  /*
+   * >>> DIE KOPFZAHL IST DAS MAXIMUM UEBER ALLE BAUTEILE (Entscheid vom
+   * 17. September: «Maximum, mit Bauteil»). <<<
+   *
+   * Bis dahin stand hier ausdruecklich die Zahl des Jochs und der Mast nur
+   * in Farbe und Zeile. Jetzt traegt die Zahl das Urteil, und daneben steht,
+   * welches Bauteil sie liefert. Beim Einzellastfall bleibt es bei der Zahl
+   * des gezeigten Falls - dort wird nicht geurteilt.
+   */
+  const bt = einzelLastfall ? null : urteil.bauteile;
+  const eKopf = bt ? bt.eta : eAn;
+  const werKopf = bt?.massgebend && bt.liste.length > 1 ? bt.massgebend.name : null;
   const zustand = !gefuehrt ? 'warn'
     /*
      * DER MAST ZAEHLT AUCH AM ABFANGJOCH INS URTEIL. Hier stand `!ab &&` -
@@ -4404,7 +4445,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
      * Seit er auf den eigenen Auflagerkraeften steht, ist ein
      * ueberschrittener Mast ein ueberschrittener Mast.
      */
-    : (eAn > 1 || mastUeber || urteil.bindendVerletzt === true
+    : (eAn > 1 || mastUeber || bt?.ueber || urteil.bindendVerletzt === true
        ? 'nok' : 'ok');
 
   // Jede Kachel kennt die Stelle, an der ihr Wert auftritt - ein Klick fährt
@@ -4759,15 +4800,14 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
     ? `Einzellastfall — kein Tragsicherheitsurteil`
     : (!gefuehrt
         ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
-        : (eAn <= 1
-            ? (mastUeber
-                ? `Joch erfüllt, MAST NICHT (η ${f3(mastEta)})`
-                : 'Tragsicherheit erfüllt')
+        : (zustand === 'ok'
+            ? 'Tragsicherheit erfüllt'
             : 'Tragsicherheit NICHT erfüllt'));
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
     <div class="urteil ${einzelLastfall ? 'ohne' : zustand}">
-      <span class="urteil-zahl">η ${f3(eAn)}</span>
+      <span class="urteil-zahl">η ${f3(eKopf)}</span>
+      ${werKopf ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(werKopf)}</span>` : ''}
       <span>${urteilText}${
         einzelLastfall ? '' : (urteil.alleOk
           ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`)}${

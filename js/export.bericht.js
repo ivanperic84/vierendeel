@@ -151,6 +151,22 @@ function blattChecks(checks, hinw, warn, urteil) {
    * nicht in einer Fussnote - ein fehlender Nachweis sieht sonst aus wie ein
    * bestandener.
    */
+  /*
+   * DAS GESAMTURTEIL ZUERST - ueber alle gefuehrten Bauteile, mit dem
+   * massgebenden (Entscheid vom 17. September).
+   */
+  const bt = urteil?.bauteile;
+  if (bt?.liste?.length) {
+    const gut = !bt.ueber && urteil.bindendVerletzt !== true;
+    rows.push([B('Gesamturteil'), AMPEL(gut, gut ? 'ALLE NACHWEISE ERFÜLLT'
+      : 'NACHWEIS NICHT ERFÜLLT'),
+      T(`η = ${bt.eta.toFixed(3)}${bt.massgebend ? ` · massgebend: ${bt.massgebend.name}` : ''}`)]);
+    rows.push([K('Bauteil'), K('η'), K('Status')]);
+    bt.liste.forEach((x) => rows.push([T(x.name),
+      x.eta === null ? T('–') : N3(x.eta),
+      AMPEL(!x.ueber, x.ueber ? (x.eta === null ? 'NICHT LIEFERBAR' : 'ÜBERSCHRITTEN') : 'OK')]));
+    rows.push([]);
+  }
   const offen = urteil?.nichtGefuehrt ?? [];
   if (offen.length) {
     rows.push([{ v: 'NICHT GEFÜHRTE NACHWEISE', s: STIL.NOK }]);
@@ -216,7 +232,7 @@ function blattBerechnung(erg) {
     rows.push(sp.map((s) => ({ v: s[2](r), s: s[3] })));
   });
   rows.push([]);
-  rows.push([T('Status'), AMPEL(erg.max.alleOk,
+  rows.push([T('Status Joch'), AMPEL(erg.max.alleOk,
     erg.max.alleOk ? 'ALLE NACHWEISE ERFÜLLT' : 'NACHWEIS NICHT ERFÜLLT')]);
   return { name: 'Berechnung', rows, breiten: sp.map(() => 13) };
 }

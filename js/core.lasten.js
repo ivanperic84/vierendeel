@@ -193,7 +193,58 @@ export const EINWIRKUNGEN = [
                               'auf das Joch und Q_y der Anbauteile' },
   { key: 'Schnee', label: 'Schnee',   kurz: 'S',      art: 'veraenderlich',
     richtung: 'z' },
+  /*
+   * >>> DER HAVARIEFALL ALS ZWEI EIGENE GRUPPEN (17. September). <<<
+   *
+   * Sie tragen nur, was der Havariefall GEGENUEBER DEM STAENDIGEN aendert
+   * (siehe `havarieAnteile` in data.anbauteile.js):
+   *
+   *   HavarieX   die Ablenkkraft bei -20 °C statt +5 °C, beim gebrochenen
+   *              Leiter zur Haelfte
+   *   HavarieY   der Laengszug des gebrochenen Leiters, 10 % von Z(-20 °C)
+   *
+   * Getrennt, weil der Laengszug in beide Richtungen gerechnet wird, die
+   * Ablenkung aber ihre feste Richtung hat. `intern`: sie sind keine Wahl
+   * fuer einen frei eingegebenen Lastblock.
+   */
+  { key: 'HavarieX', label: 'Havarie Ablenkung', kurz: 'A_x', art: 'aussergewoehnlich',
+    richtung: 'x', intern: true,
+    bemerkung: 'Änderung der Ablenkkraft bei −20 °C, gebrochener Leiter zur Hälfte' },
+  { key: 'HavarieY', label: 'Havarie Längszug', kurz: 'A_y', art: 'aussergewoehnlich',
+    richtung: 'y', intern: true,
+    bemerkung: 'Längszug des gebrochenen Leiters, 10 % der Leiterzugkraft bei −20 °C' },
 ];
+
+/* ===========================================================================
+ * >>> DIE BEIWERTE DES BRUCHS (Weisung vom 17. September). <<<
+ * ===========================================================================
+ *
+ * «der Ablenkwinkel kann zur hälfte angewendet werden, da der
+ *  weiterführende leiter abgelenkt ist. die volle leiterzugkraft wird beim
+ *  abfangjoch angesezt. bei den übrigen tragwerken tragjoch mast, wird bei
+ *  den leitern direkt an joch oder am masten nur ein anteil von 10% der
+ *  leiterzugkraft angesetzt, da man ausgehen kann das die kraft durch die
+ *  benachbarten tragwerke kompensiert wird.»
+ *
+ * Das Abfangjoch rechnet seinen Havariefall selbst (core.abfangjoch.js).
+ * ========================================================================= */
+export const HAVARIE_ABLENKUNG_BRUCH = 0.5;
+export const HAVARIE_LAENGSZUG = 0.10;
+
+/**
+ * Fuehrt das Tragwerk einen Leiter, dessen Havariefall zu rechnen ist?
+ * Gezaehlt wird am BAUTEIL, nicht an der Kraft - sonst verschwaenden die
+ * Lastfaelle in der Geraden, und die Liste der Anwendung und die des
+ * Rechenkerns liefen auseinander.
+ */
+export function havarieVorhanden(inp) {
+  if (inp.anbauteileFlach) {
+    return inp.anbauteileFlach.some((t) => t.rolle === 'drahtwerk');
+  }
+  return (inp.anbauteile ?? []).filter((a) => a.aktiv !== false)
+    .some((a) => (a.module ?? []).some((m) => m.aktiv !== false
+      && /^drahtwerk-/.test(String(m.bauteil ?? ''))));
+}
 
 /** Beiwertsatz mit allen Gruppen auf 0 - Grundlage jedes Lastfalls. */
 export const NULLBEIWERTE = () =>
@@ -302,6 +353,24 @@ export function standardLastfaelle(inp) {
         bez: `Schnee leitend, Wind ${zeichen}y`,
         art: 'tragsicherheit', nachweis: true, leit: 'Schnee', vorzeichen: vz,
         beiwerte: bw({ G: g, WindY: vz * q * p, Schnee: q }),
+      });
+    });
+  }
+
+  /*
+   * >>> HAVARIE: 1.0 · G, OHNE VERAENDERLICHE, LEITERZUG BEI -20 °C. <<<
+   *
+   * Aussergewoehnliche Bemessungssituation. Der Laengszug des gebrochenen
+   * Leiters hat keine vorab bekannte Richtung - also beide.
+   */
+  if (havarieVorhanden(inp)) {
+    [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+      lf.push({
+        key: `havarie${suffix}`,
+        bez: `Havarie (−20 °C), Längszug ${zeichen}y`,
+        art: 'aussergewoehnlich', nachweis: true, leit: 'HavarieY', vorzeichen: vz,
+        tempFall: 'havarie',
+        beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: vz }),
       });
     });
   }

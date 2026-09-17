@@ -1,0 +1,43 @@
+KALIBRIERUNG DER GEFITTETEN KENNWERTE
+Arbeitsordner: <Temp>/vierendeel_kalibrierung
+ierendeel_kalibrierung
+
+============================================================================================================
+OERTLICHER ANTEIL  -  Blechmoment je Ebene neben der Einleitung, FEM gegen Werkzeug
+============================================================================================================
+
+Weg        max-Ebene Werkzeug/FEM:  Mittel   Minimum   Maximum   unter 0.95   n=72
+additiv                           4.671     1.033    19.146           0
+fest                              3.675     0.555    19.146          10
+fest-                             3.612     0.467    15.438          10
+mit                               4.671     1.033    19.146           0
+gegen                             2.616     0.467    13.134          20
+
+Bester Weg: additiv (heute angesetzt: additiv)
+  links: additiv 3.88 (1.03…13.47)  fest 2.09 (0.55…5.71)  fest- 3.88 (1.03…13.47)  mit 3.88 (1.03…13.47)  gegen 2.09 (0.55…5.71)
+  rechts: additiv 5.47 (1.07…19.15)  fest 5.26 (1.07…19.15)  fest- 3.35 (0.47…15.44)  mit 5.47 (1.07…19.15)  gegen 3.14 (0.47…13.13)
+  J90 L=14 durchgehend + x=4.34 links  FEM 0.728/1.404  additiv 0.806/1.656  fest 0.661/1.512  fest- 0.806/1.656  mit 0.806/1.656  gegen 0.661/1.512
+  J90 L=14 durchgehend + x=5.01 links  FEM 0.000/0.000  additiv 2.329/2.678  fest 2.258/1.909  fest- 2.329/2.678  mit 2.329/2.678  gegen 2.258/1.909
+  J90 L=14 durchgehend + x=5.68 rechts FEM 0.333/0.433  additiv 1.496/1.648  fest 1.496/1.648  fest- 0.454/0.302  mit 1.496/1.648  gegen 0.454/0.302
+  J90 L=14 durchgehend - x=4.34 links  FEM 0.987/1.145  additiv 1.127/1.336  fest 0.982/1.191  fest- 1.127/1.336  mit 1.127/1.336  gegen 0.982/1.191
+  J90 L=14 durchgehend - x=5.01 links  FEM 0.000/0.000  additiv 2.569/2.438  fest 2.019/2.149  fest- 2.569/2.438  mit 2.569/2.438  gegen 2.019/2.149
+  J90 L=14 durchgehend - x=5.68 rechts FEM 0.258/0.509  additiv 1.337/1.807  fest 1.337/1.807  fest- 0.613/0.142  mit 1.337/1.807  gegen 0.613/0.142
+  J90 L=14 oben        + x=4.34 links  FEM 0.275/0.689  additiv 0.283/0.734  fest 0.221/0.672  fest- 0.283/0.734  mit 0.283/0.734  gegen 0.221/0.672
+  J90 L=14 oben        + x=5.01 links  FEM 0.048/0.228  additiv 1.029/1.122  fest 0.942/0.849  fest- 1.029/1.122  mit 1.029/1.122  gegen 0.942/0.849
+  J90 L=14 oben        + x=5.68 rechts FEM 0.181/0.324  additiv 0.528/0.793  fest 0.528/0.793  fest- 0.282/0.030  mit 0.528/0.793  gegen 0.282/0.030
+  J90 L=14 oben        - x=4.34 links  FEM 0.296/0.710  additiv 0.283/0.734  fest 0.221/0.672  fest- 0.283/0.734  mit 0.283/0.734  gegen 0.221/0.672
+  J90 L=14 oben        - x=5.01 links  FEM 0.066/0.245  additiv 1.029/1.122  fest 0.942/0.849  fest- 1.029/1.122  mit 1.029/1.122  gegen 0.942/0.849
+  J90 L=14 oben        - x=5.68 rechts FEM 0.203/0.347  additiv 0.528/0.793  fest 0.528/0.793  fest- 0.282/0.030  mit 0.528/0.793  gegen 0.282/0.030
+  J90 L=23.5 durchgehend + x=8.11 links  FEM 0.544/1.227  additiv 1.565/2.620  fest 0.405/0.982  fest- 1.565/2.620  mit 1.565/2.620  gegen 0.405/0.982
+  J90 L=23.5 durchgehend + x=8.84 rechts FEM 0.001/0.001  additiv 2.610/3.066  fest 2.610/2.109  fest- 2.565/3.066  mit 2.565/3.066  gegen 2.610/2.109
+  J90 L=23.5 durchgehend + x=9.57 rechts FEM 0.601/0.656  additiv 0.866/0.919  fest 0.866/0.919  fest- 0.577/0.630  mit 0.866/0.919  gegen 0.577/0.630
+  J90 L=23.5 durchgehend - x=8.11 links  FEM 0.863/0.908  additiv 2.043/2.142  fest 0.405/0.504  fest- 2.043/2.142  mit 2.043/2.142  gegen 0.405/0.504
+  J90 L=23.5 durchgehend - x=8.84 rechts FEM 0.001/0.000  additiv 2.947/2.684  fest 2.228/2.491  fest- 2.947/2.684  mit 2.947/2.684  gegen 2.228/2.491
+  J90 L=23.5 durchgehend - x=9.57 rechts FEM 0.368/0.889  additiv 0.580/1.206  fest 0.580/1.206  fest- 0.291/0.917  mit 0.580/1.206  gegen 0.291/0.917
+  J90 L=23.5 oben        + x=8.11 links  FEM 0.277/0.648  additiv 0.634/1.125  fest 0.177/0.424  fest- 0.634/1.125  mit 0.634/1.125  gegen 0.177/0.424
+  J90 L=23.5 oben        + x=8.84 rechts FEM 0.017/0.100  additiv 1.164/1.265  fest 1.070/0.969  fest- 1.164/1.265  mit 1.164/1.265  gegen 1.070/0.969
+  J90 L=23.5 oben        + x=9.57 rechts FEM 0.186/0.444  additiv 0.229/0.517  fest 0.229/0.517  fest- 0.105/0.394  mit 0.229/0.517  gegen 0.105/0.394
+  J90 L=23.5 oben        - x=8.11 links  FEM 0.341/0.712  additiv 0.634/1.125  fest 0.177/0.424  fest- 0.634/1.125  mit 0.634/1.125  gegen 0.177/0.424
+  J90 L=23.5 oben        - x=8.84 rechts FEM 0.102/0.058  additiv 1.164/1.265  fest 1.070/0.969  fest- 1.164/1.265  mit 1.164/1.265  gegen 1.070/0.969
+  J90 L=23.5 oben        - x=9.57 rechts FEM 0.223/0.482  additiv 0.229/0.517  fest 0.229/0.517  fest- 0.105/0.394  mit 0.229/0.517  gegen 0.105/0.394
+Messwerte: kalibrierung_oertlich.json (84 Zeilen)

@@ -39,9 +39,9 @@
 import { ausTabellen } from './data.tabellen.js';
 import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche, istKettenwerk, flZerlegung,
-         flPaarung } from './data.fl.js';
+         flPaarung, abfangkraft } from './data.fl.js';
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
-import { EINWIRKUNGEN } from './core.lasten.js';
+import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG } from './core.lasten.js';
 import { LEERE_KRAFT } from './core.anbauteile.js';
 
 let DB = null;
@@ -527,6 +527,38 @@ export function windAufTraeger(teile, a) {
 }
 
 /**
+ * >>> WAS DER HAVARIEFALL AN EINEM LEITER AENDERT (17. September). <<<
+ *
+ *   dFx   Ablenkkraft bei -20 °C minus die staendige bei +5 °C. Die
+ *         Ablenkung waechst mit dem Zug; bricht der Leiter, wirkt sie nur
+ *         noch zur Haelfte - der weiterfuehrende Leiter ist noch abgelenkt.
+ *   Fy    der Laengszug des gebrochenen Leiters: 10 % von Z(-20 °C), der
+ *         Rest wird von den Nachbartragwerken aufgenommen.
+ *
+ * `GxHier` ist die Ablenkkraft, die HIER ankommt (nach den Haken der
+ * Karte), `zugHier` der Anteil des Leiterzugs, der hier haengt - ohne
+ * Fahrdraht nur das Tragseil.
+ *
+ * Die Zugkraft bei -20 °C kommt aus der Reglagetabelle, wo es sie gibt;
+ * sonst bleibt es bei +5 °C, und die Hinweisliste sagt es
+ * (`abfangkraft(...).ohneTabelle`).
+ */
+export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier = 1 }) {
+  let Z5 = 0, Z20 = 0;
+  try {
+    Z5 = leiterzug(id);
+    Z20 = abfangkraft(id, { tempFall: 'havarie' }).Z;
+  } catch { return { dFx: 0, Fy: 0, Z20: 0, faktor: 1 }; }
+  const faktor = Z5 > 0 ? Z20 / Z5 : 1;
+  const f = bruch ? HAVARIE_ABLENKUNG_BRUCH : 1;
+  return {
+    dFx: GxHier * (faktor * f - 1),
+    Fy: bruch ? HAVARIE_LAENGSZUG * Z20 * n * Math.max(0, zugHier) : 0,
+    Z20, faktor,
+  };
+}
+
+/**
  * Baugruppen in Einzellasten auflösen.
  *
  * @param {object[]} liste Anbauteile (Baugruppen und/oder freie Lastblöcke)
@@ -714,6 +746,16 @@ export function expandiereAnbauteile(liste, o = {}) {
         // Der Schnee steht am Modul, nicht in der Tabelle - er laesst sich
         // nicht in Tragseil und Fahrdraht zerlegen und faellt ganz weg.
         kraefte.Schnee.Fz = 0;
+      }
+      if (drahtwerk) {
+        const h = havarieAnteile({
+          id: m.bauteil, n, GxHier: kraefte.G.Fx,
+          bruch: (roh.bruch ?? a.bruch) === true,
+          zugHier: wirkt('wirktAblenk') ? 1
+            : (fdTeil ? 1 - leiterzug(fdTeil.id) / (leiterzug(m.bauteil) || 1) : 0),
+        });
+        kraefte.HavarieX.Fx = h.dFx;
+        kraefte.HavarieY.Fy = h.Fy;
       }
 
       const z = m.z ?? 0, y = m.y ?? 0;

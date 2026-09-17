@@ -2449,6 +2449,11 @@ if ($komb.Count -eq 0) {
 } else {
     $ctULS = Aufzaehlung 'ECombinationType' 'ctULS'
     $ctSLS = Aufzaehlung 'ECombinationType' 'ctSLSChar'
+    # Havariefall (17. September): aussergewoehnliche Bemessungssituation.
+    # ctULSExceptional steht in der vermessenen Aufzaehlung (Wert 6); lehnt
+    # die eingestellte Norm ihn ab, faellt die Kombination auf ULS zurueck -
+    # und der Bericht sagt es.
+    $ctAUS = Aufzaehlung 'ECombinationType' 'ctULSExceptional'
     if ($null -eq $ctULS) { $ctULS = 0 }
     if ($null -eq $ctSLS) { $ctSLS = 0 }
     $nK = 0; $nKnein = 0
@@ -2461,7 +2466,10 @@ if ($komb.Count -eq 0) {
             $ids += [int]$nr
         }
         if ($ids.Count -eq 0) { continue }
-        $typ = if ($kb.art -eq 'tragsicherheit') { $ctULS } else { $ctSLS }
+        $typ = if ($kb.art -eq 'tragsicherheit') { $ctULS }
+               elseif ($kb.art -eq 'aussergewoehnlich' -and $null -ne $ctAUS) { $ctAUS }
+               elseif ($kb.art -eq 'aussergewoehnlich') { $ctULS }
+               else { $ctSLS }
         $nr = 0
         try { $nr = $m.LoadCombinations.Add([string]$kb.bez, $typ, [double[]]$fk, [int[]]$ids) }
         catch {
@@ -2469,6 +2477,13 @@ if ($komb.Count -eq 0) {
                 Schreib "  >>> LoadCombinations.Add: $($_.Exception.Message -replace "`r?`n", ' ')"
             }
             $nr = 0
+        }
+        if ($nr -le 0 -and $kb.art -eq 'aussergewoehnlich' -and $typ -ne $ctULS) {
+            try { $nr = $m.LoadCombinations.Add([string]$kb.bez, $ctULS, [double[]]$fk, [int[]]$ids) }
+            catch { $nr = 0 }
+            if ($nr -gt 0) {
+                Schreib "  >>> WARNUNG: '$($kb.bez)' als ULS angelegt - die Norm nimmt den Typ 'aussergewoehnlich' nicht an."
+            }
         }
         if ($nr -gt 0) { $nK++; $kbId[[string]$kb.bez] = [int]$nr } else { $nKnein++ }
     }

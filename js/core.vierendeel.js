@@ -682,6 +682,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     torsionModell: inp.torsionModell,
     torsionsverteilung: inp.torsionsverteilung,
     ebenenUeberlagerung: inp.ebenenUeberlagerung ?? 'huellkurve',
+    // Nur fuer die Kalibrierung verstellbar - sonst gilt OERTLICH_WEG.
+    oertlichWeg: inp.oertlichWeg,
     gurtaufteilung: inp.gurtaufteilung ?? 'gemessen',
     spannungsmodell: inp.spannungsmodell ?? 'schenkel',
     knotenbereich: inp.knotenbereich ?? 'anschnitt',

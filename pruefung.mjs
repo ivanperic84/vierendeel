@@ -799,8 +799,10 @@ titel('15  Lastfälle');
   wahr('Gebrauchstauglichkeit ist kein Nachweis',
        lf.filter((x) => x.art === 'gebrauchstauglichkeit')
          .every((x) => x.nachweis === false && x.beiwerte.G === 1));
-  wahr('Vier Gruppen: G, Wind x, Wind y, Schnee',
-       L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee',
+  // Seit dem 17. September zwei mehr: der Havariefall (intern).
+  wahr('Sechs Gruppen: G, Wind x, Wind y, Schnee, Havarie x, Havarie y',
+       L.EINWIRKUNGEN.map((e) => e.key).join(',') === 'G,WindX,WindY,Schnee,HavarieX,HavarieY'
+       && L.EINWIRKUNGEN.filter((e) => e.intern).length === 2,
        L.EINWIRKUNGEN.map((e) => e.label).join(' · '));
 
   // Die charakteristischen Lastfälle: alle Beiwerte 1.00 bzw. 0
@@ -6886,7 +6888,9 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      */
     const mitte = hFL.knoten[Math.floor(hFL.knoten.length / 2)];
     pruef('Feldmitte: der Nachweiswert', mitte.My, 46.54, 2e-3, 'kNm');
-    pruef('… die untere Schranke', mitte.spanne.My[0], 44.46, 2e-3, 'kNm');
+    // Seit dem 17. September geht der Havariefall mit γ_G = 1.0 in die
+    // Huellkurve ein - er liefert die untere Schranke (vorher 44.46).
+    pruef('… die untere Schranke', mitte.spanne.My[0], 35.80, 2e-3, 'kNm');
     pruef('… die obere', mitte.spanne.My[1], 48.62, 2e-3, 'kNm');
     wahr('… und er liegt zwischen beiden, nicht am Rand',
          mitte.My > mitte.spanne.My[0] + 1e-6
@@ -7021,13 +7025,11 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
    * KEIN `gilt` - es gibt keine Pruefung, die ihm zugeordnet waere. Damit
    * geht er weder in `etaGesamt` noch in `urteilKonstruktion` ein.
    *
-   * >>> DIESE KONTROLLE HAELT DEN IST-ZUSTAND FEST, NICHT DAS WUNSCHBILD.
+   * >>> ENTSCHIEDEN AM 17. SEPTEMBER: «Maximum, mit Bauteil». <<<
    *
-   * Wie das Urteil gebildet wird - Maximum ueber alle Bauteile, oder ein
-   * eigenes Urteil je Bauteil - ist eine Entscheidung des Auftraggebers und
-   * greift in Fussleiste, Bericht und Excel zugleich. Bis sie gefallen ist,
-   * steht hier, was gilt: faellt diese Kontrolle, ist die Entscheidung
-   * umgesetzt worden, und dann gehoert sie umgeschrieben.
+   * `bauteilUrteil` (core.checks.js) nimmt Joch, Masten und Anker; die
+   * Fussleiste, die Hauptkachel und der Bericht nennen das massgebende.
+   * `etaGesamt` bleibt die Zahl des Jochs.
    * ======================================================================= */
   {
     const { m: mSchlank } = bau({ mastVorhanden: true, mastProfil: 'HEB 200',
@@ -7045,21 +7047,27 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          `etaGesamt = ${eSchlank.max.etaGesamt.toFixed(3)}`);
     const ckS = CH2.konstruktionsChecks(eSchlank.modell);
     const urt = CH2.urteilKonstruktion(ckS, standardwerte().nachweise, 'joch');
-    wahr('… und das Konstruktionsurteil auch nicht',
-         urt.bindendVerletzt !== true,
-         `bindendVerletzt = ${urt.bindendVerletzt}`);
-    /*
-     * DIE GRUPPE STEHT IM VERZEICHNIS, ABER OHNE PRUEFUNG. Das ist der Ort,
-     * an dem die Entscheidung ansetzen wuerde.
-     */
-    const gMast = CH2.NACHWEISGRUPPEN.find((g) => g.key === 'mast');
-    wahr('Die Nachweisgruppe «Mast» ist vorhanden und voreingestellt an',
-         gMast?.vorhanden === true && gMast?.standard === true);
-    wahr('… traegt aber keine Pruefung', typeof gMast.gilt !== 'function');
-    /*
-     * WAS ES SCHON GIBT: die Zahl steht in der Auswertung und seit heute in
-     * der Leiste. Wer hinsieht, sieht sie - das Urteil sagt sie nur nicht.
-     */
+    const bt = CH2.bauteilUrteil(eSchlank, standardwerte().nachweise, 'joch');
+    pruef('Das Urteil nimmt den Mast', bt.eta, etaMast, 1e-12, '–');
+    wahr('… nennt ihn als massgebend und gilt als nicht erfuellt',
+         bt.massgebend?.key === 'mast' && bt.ueber === true,
+         `${bt.massgebend?.name} · ${bt.liste.map((x) => `${x.name} ${x.eta?.toFixed(3)}`).join(', ')}`);
+    wahr('… und fuehrt das Joch daneben mit seiner eigenen Zahl',
+         bt.liste.some((x) => x.key === 'joch' && x.eta === eSchlank.max.etaGesamt));
+    const ohneMast = CH2.bauteilUrteil(eSchlank,
+      { ...standardwerte().nachweise, mast: false }, 'joch');
+    wahr('Ein abgeschalteter Mastnachweis zaehlt nicht',
+         !ohneMast.liste.some((x) => x.key === 'mast') && !ohneMast.ueber);
+    wahr('Ein nicht lieferbarer Anker gilt als nicht erfuellt',
+         CH2.bauteilUrteil({ ...eSchlank, anker: { A: { nachweis:
+           { typ: 'Druckstütze', lieferbar: false, eta: null, N: -5 } } } },
+         { ...standardwerte().nachweise, mast: false }, 'joch').ueber === true);
+    const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    wahr('Die Fussleiste urteilt ueber alle Bauteile',
+         /urteil\.bauteile = bauteilUrteil\(/.test(aq)
+         && /const gut = e <= 1 && !bt\?\.ueber/.test(aq));
+    wahr('Der Bericht fuehrt das Gesamturteil',
+         readFileSync(join(HIER, 'js', 'export.bericht.js'), 'utf8').includes("B('Gesamturteil')"));
     wahr('Der Mastnachweis steht im Ergebnis', Number.isFinite(etaMast));
   }
 
@@ -24072,6 +24080,102 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
   wahr('Projektnummer, Bearbeiter und Datum sind Felder der Verortung',
        ['projektNr', 'bearbeiter', 'datum'].every((k) =>
          new RegExp(`key: '${k}', gruppe: 'ort'`).test(sq70)));
+}
+
+titel('71  Havariefall am Tragjoch und am Masten');
+/* ===========================================================================
+ * Weisung vom 17. September: «der Ablenkwinkel kann zur hälfte angewendet
+ * werden … bei den übrigen tragwerken tragjoch mast, wird bei den leitern
+ * direkt an joch oder am masten nur ein anteil von 10% der leiterzugkraft
+ * angesetzt» - Bruch ueber den Schalter an der Bauteilkarte.
+ * ========================================================================= */
+{
+  const L71 = await import(J('core.lasten.js'));
+  const A71 = await import(J('data.anbauteile.js'));
+  const FL71 = await import(J('data.fl.js'));
+  const grund = { ...standardwerte(), typ: 'J90', L: 20, trasseRadius: 600,
+    anbauteile: [{ ...A71.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }] };
+  const lf = L71.lastfaelle(grund);
+  const hav = lf.filter((l) => l.art === 'aussergewoehnlich');
+  wahr('Mit Leiter gibt es zwei Havariefaelle, beide Richtungen',
+       hav.length === 2 && hav.every((l) => l.nachweis && l.beiwerte.G === 1
+         && l.beiwerte.WindX === 0 && l.beiwerte.WindY === 0 && l.beiwerte.Schnee === 0)
+       && hav[0].beiwerte.HavarieY === 1 && hav[1].beiwerte.HavarieY === -1,
+       hav.map((l) => l.bez).join(' | '));
+  wahr('Ohne Leiter keiner',
+       !L71.lastfaelle({ ...grund, anbauteile: [] })
+         .some((l) => l.art === 'aussergewoehnlich'));
+  const flach = (bruch) => A71.expandiereAnbauteile(
+    grund.anbauteile.map((a) => ({ ...a, bruch })), { ek: 'EK2', R: 600, spannweite: 60 });
+  const dw = (liste) => liste.find((t) => t.rolle === 'drahtwerk');
+  const heil = dw(flach(false)), weg = dw(flach(true));
+  const Gx = heil.kraefte.G.Fx;
+  const h = A71.havarieAnteile({ id: heil.bauteil, n: heil.anzahl ?? 1, GxHier: Gx });
+  pruef('Ohne Bruch: Ablenkung bei −20 °C', Gx + heil.kraefte.HavarieX.Fx,
+        Gx * h.faktor, 1e-9, 'kN');
+  pruef('… und kein Laengszug', heil.kraefte.HavarieY.Fy, 0, 1e-12, 'kN');
+  pruef('Mit Bruch: die halbe Ablenkung', Gx + weg.kraefte.HavarieX.Fx,
+        0.5 * Gx * h.faktor, 1e-9, 'kN');
+  pruef('… und 10 % des Leiterzugs laengs', weg.kraefte.HavarieY.Fy,
+        0.10 * h.Z20 * (heil.anzahl ?? 1), 1e-9, 'kN');
+  wahr('Z(−20 °C) kommt aus der Reglagetabelle oder sagt, dass sie fehlt',
+       (() => { const k = FL71.abfangkraft(heil.bauteil, { tempFall: 'havarie' });
+                return k.Z === h.Z20 && (k.ausTabelle || k.ohneTabelle || !k.temperaturabhaengig); })());
+  const { vergleichKombinationen: vgl } = await import(J('core.vierendeel.js'));
+  const r = vgl({ ...grund, anbauteile: grund.anbauteile.map((a) => ({ ...a, bruch: true })) },
+    getProfil(grund.profOG), getProfil(grund.profUG), getStahl(grund.stahl), T.getTragjoch('J90'));
+  wahr('Der Havariefall wird gerechnet und geht in die Huellkurve',
+       hav.every((l) => r.ergebnisse?.[l.key]) && Number.isFinite(r.huellkurve.max.etaGesamt));
+  const tx = Math.max(...r.ergebnisse.havariep.knoten.map((k) => Math.abs(k.Tx ?? 0)));
+  wahr('Der Laengszug erzeugt Torsion bzw. Querbiegung im Joch',
+       tx > 0 || Math.max(...r.ergebnisse.havariep.knoten.map((k) => Math.abs(k.Mz ?? 0))) > 0);
+  const ui71 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Der Bruchschalter steht auch am Tragjoch und am Masten',
+       /data-k="bruch"/.test(ui71) && /hatDrahtwerk\(a\)/.test(ui71));
+  wahr('… und die Maske fuehrt jedes Kaestchen mit seinem eigenen Wert nach',
+       /inp\.checked = k === 'aktiv' \? a\.aktiv !== false : a\[k\] === true/.test(ui71));
+}
+
+titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
+/* ===========================================================================
+ * Weisung vom 17. September: «örtlicher anteil umsetzen», nur im Weg
+ * «vorzeichenrichtig», Drehsinn am Stabmodell bestimmt.
+ *
+ * GEMESSEN (kalibrieren.mjs --nur oertlich, 72 Stellen, J90 bis J130):
+ * die vorzeichenrichtigen Wege liegen im Mittel naeher am FEM, aber an
+ * 10 bzw. 20 Stellen UNTER ihm (bis 0.47). Additiv bleibt ueberall sicher
+ * (Minimum 1.03), ueberschaetzt neben der Einleitung aber bis Faktor 19.
+ * Deshalb bleibt OERTLICH_WEG auf 'additiv' - bis zum Entscheid.
+ * ========================================================================= */
+{
+  const QS72 = await import(J('core.querschnitt.js'));
+  wahr('Die Vorgabe bleibt additiv', QS72.OERTLICH_WEG === 'additiv');
+  wahr('Die Messwege stehen bereit',
+       ['additiv', 'fest', 'fest-', 'mit', 'gegen'].every((w) => QS72.OERTLICH_WEGE.includes(w)));
+  const e72 = { ...standardwerte(), typ: 'J90', L: 14, mastVorhanden: false,
+    torsionModell: 'verteilt',
+    anbauteile: [teil({ id: 'S', x: 5.18, raster: 0.4, befestigung: 'durchgehend',
+      lasten: [block({ einwirkung: 'WindY', x: 0, z: -1.5, Fy: 3 })] })] };
+  const r72 = (o) => berechne({ ...e72, ...o,
+    beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0 } },
+    getProfil(e72.profOG), getProfil(e72.profUG), getStahl(e72.stahl), T.getTragjoch('J90'));
+  const hk = r72({ ebenenUeberlagerung: 'huellkurve', oertlichWeg: 'fest' });
+  const hk0 = r72({ ebenenUeberlagerung: 'huellkurve' });
+  pruef('In der Huellkurve wirkt der Weg nicht', hk.max.etaGesamt, hk0.max.etaGesamt, 1e-12, '–');
+  const vz0 = r72({ ebenenUeberlagerung: 'vorzeichen' });
+  const vzF = r72({ ebenenUeberlagerung: 'vorzeichen', oertlichWeg: 'fest' });
+  const ho = (r) => r.knoten.map((k) => k.ebenen.find((e) => e.id === 'H_O')?.V_Ebene ?? 0);
+  wahr('Vorzeichenrichtig veraendert er die Ebenen neben der Einleitung',
+       ho(vz0).some((v, i) => Math.abs(v - ho(vzF)[i]) > 1e-6));
+  wahr('Das Kraeftepaar traegt seine Ebene und sein Vorzeichen',
+       vz0.modell.lokal.filter((l) => l.torsion).every((l) => ['H_O', 'H_U', 'V_L', 'V_R'].includes(l.ebeneId))
+       && vz0.modell.lokal.some((l) => l.torsion && l.dF < 0));
+  const mess = JSON.parse(readFileSync(join(HIER, 'kalibrierung_oertlich.json'), 'utf8'));
+  const add = mess.bewertung.find((b) => b.weg === 'additiv');
+  wahr('Die Messung belegt: additiv ist ueberall auf der sicheren Seite',
+       add.min >= 1 && mess.bewertung.filter((b) => b.weg !== 'additiv' && b.weg !== 'mit')
+         .every((b) => b.min < 0.95),
+       mess.bewertung.map((b) => `${b.weg} ${b.min.toFixed(2)}`).join(' · '));
 }
 
 // ===========================================================================

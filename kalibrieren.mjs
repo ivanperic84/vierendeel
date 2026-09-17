@@ -965,6 +965,126 @@ if (NUR === 'schief') {
   console.log('');
 }
 
+/* ===========================================================================
+ * 6 · DER OERTLICHE ANTEIL, VORZEICHENRICHTIG  ->  OERTLICH_WEG
+ * ===========================================================================
+ *
+ * Weisung vom 17. September: «örtlicher anteil umsetzen» - nur im Weg
+ * «vorzeichenrichtig», der Drehsinn gemessen, nicht geraten.
+ *
+ * Gerechnet wird eine Torsion aus einem Anbauteil - einmal ueber alle vier
+ * Gurte eingeleitet (Horizontalebenen), einmal nur oben (Vertikalebenen) -
+ * und je Ebene das Blechmoment neben der Einleitung abgelesen. Das Werkzeug
+ * rechnet jeden Weg aus OERTLICH_WEGE; der, dessen Verteilung auf die beiden
+ * Ebenen einer Richtung das FEM trifft, gilt.
+ * ========================================================================= */
+if (NUR === 'oertlich') {
+  console.log('='.repeat(108));
+  console.log('OERTLICHER ANTEIL  -  Blechmoment je Ebene neben der Einleitung, FEM gegen Werkzeug');
+  console.log('='.repeat(108));
+  const block = (befestigung, x, z, Fy, Fz = 0, y = 0) => ({
+    id: `S_${befestigung}`, vorlage: 'direkt', name: `Last ${befestigung}`, x,
+    raster: 0.4, befestigung, aktiv: true, module: [],
+    lasten: [{ einwirkung: 'WindY', x: 0, y, z, Fx: 0, Fy, Fz, Mxx: 0, Myy: 0, Mzz: 0 }],
+  });
+  const faelle = [];
+  for (const { typ } of TYPEN) {
+    const joch = T.getTragjoch(typ);
+    for (const L of laengenFuer(joch)) {
+      for (const [bef, z, zeichen] of [['durchgehend', -1.5, 1], ['durchgehend', -1.5, -1],
+                                        ['oben', 0, 1], ['oben', 0, -1]]) {
+        // Die Last sitzt in einem Feld, nicht auf einem Blech.
+        const x = Math.round((L * 0.37) * 100) / 100;
+        const teil = bef === 'oben'
+          ? block(bef, x, 0.3, 0, 0, 0)            // Torsion aus Fz · y
+          : block(bef, x, z, 3 * zeichen);          // Torsion aus Fy · z
+        if (bef === 'oben') teil.lasten[0] = { ...teil.lasten[0], Fz: 3 * zeichen, y: 0.6 };
+        const w = { ...eingabe(typ, L, 'leer'), anbauteile: [teil],
+                    ebenenUeberlagerung: 'vorzeichen', torsionModell: 'verteilt' };
+        const name = `oertlich_${typ}_L${L}_${bef}_${zeichen > 0 ? 'p' : 'm'}`;
+        let lauf;
+        try { lauf = rechne(name, w); } catch (e) {
+          console.log(`  ${name}: FEHLER ${String(e.message).slice(0, 80)}`); continue;
+        }
+        const orte = stabOrte(lauf.bau);
+        const fem = new Map();
+        for (const s of lauf.staebe) {
+          const mm = /^B(V|H)_([LROU])_/.exec(String(s.Stab));
+          if (!mm || String(s.Querschnitt).startsWith('STARR') || s.Lastfall !== 'WindY') continue;
+          const id = `${mm[1]}_${mm[2]}`;
+          const art = mm[1] === 'V' ? 'vertikal' : 'horizontal';
+          const M = art === 'vertikal'
+            ? Math.max(Math.abs(s.Mz_i), Math.abs(s.Mz_j))
+            : Math.max(Math.abs(s.My_i), Math.abs(s.My_j));
+          const xs = orte.get(s.Stab);
+          if (xs === undefined) continue;
+          const k = `${id}|${xs.toFixed(3)}`;
+          fem.set(k, Math.max(fem.get(k) ?? 0, M));
+        }
+        const jeWeg = {};
+        for (const weg of QS.OERTLICH_WEGE) {
+          const e = V.berechne({ ...w, oertlichWeg: weg, endfeldZuschlag: false,
+            beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0 } },
+          P.getProfil(w.profOG), P.getProfil(w.profUG), P.getStahl(w.stahl), joch);
+          jeWeg[weg] = e;
+        }
+        // Stationen mit oertlichem Anteil: aus dem additiven Lauf.
+        const basis = jeWeg.additiv;
+        basis.knoten.forEach((kn, i) => {
+          const art = bef === 'oben' ? 'vertikal' : 'horizontal';
+          const ids = art === 'vertikal' ? ['V_L', 'V_R'] : ['H_O', 'H_U'];
+          const eb = kn.ebenen.filter((x) => ids.includes(x.id));
+          if (!eb.length || !(eb[0].anteilLokal > 1e-6)) return;
+          const f = ids.map((id) => fem.get(`${id}|${kn.x.toFixed(3)}`));
+          if (f.some((v) => v === undefined)) return;
+          const zeile = { typ, L, bef, zeichen, x: kn.x, seite: kn.x < x ? 'links' : 'rechts',
+                          fem: f, werkzeug: {} };
+          for (const weg of QS.OERTLICH_WEGE) {
+            const k2 = jeWeg[weg].knoten[i];
+            zeile.werkzeug[weg] = ids.map((id) => k2.ebenen.find((y) => y.id === id)?.M ?? 0);
+          }
+          faelle.push(zeile);
+        });
+      }
+    }
+  }
+  // Bewertung: was fuer η zaehlt, ist die GROESSERE der beiden Ebenen.
+  // Stellen, an denen das FEM nichts abgibt (Stab an der Klemme), bleiben weg.
+  const gueltig = faelle.filter((z) => Math.max(...z.fem) > 0.02);
+  console.log('');
+  console.log(`Weg        max-Ebene Werkzeug/FEM:  Mittel   Minimum   Maximum   unter 0.95   n=${gueltig.length}`);
+  const bewertung = QS.OERTLICH_WEGE.map((weg) => {
+    const r = gueltig.map((z) => Math.max(...z.werkzeug[weg]) / Math.max(...z.fem));
+    const s = statistik(r);
+    const unter = r.filter((v) => v < 0.95).length;
+    console.log(`${weg.padEnd(10)} ${s.mittel.toFixed(3).padStart(28)}`
+      + `${s.min.toFixed(3).padStart(10)}${s.max.toFixed(3).padStart(10)}${String(unter).padStart(12)}`);
+    return { weg, mittel: s.mittel, min: s.min, max: s.max, unter };
+  });
+  // Massgebend: nicht unsicher (Minimum), dann so nah an 1 wie moeglich.
+  const sicher = bewertung.filter((b) => b.min >= 0.95);
+  const best = (sicher.length ? sicher : bewertung)
+    .reduce((a, b) => (Math.abs(b.mittel - 1) < Math.abs(a.mittel - 1) ? b : a));
+  console.log('');
+  console.log(`Bester Weg: ${best.weg}${sicher.length ? '' : ' (KEINER ist ueberall sicher)'}`
+    + ` (heute angesetzt: ${QS.OERTLICH_WEG})`);
+  // Nach Seite der Einleitung getrennt - dort unterscheiden sich die Wege.
+  for (const seite of ['links', 'rechts']) {
+    const g = gueltig.filter((z) => z.seite === seite);
+    console.log(`  ${seite}: ` + QS.OERTLICH_WEGE.map((weg) => {
+      const s = statistik(g.map((z) => Math.max(...z.werkzeug[weg]) / Math.max(...z.fem)));
+      return `${weg} ${s ? `${s.mittel.toFixed(2)} (${s.min.toFixed(2)}…${s.max.toFixed(2)})` : '–'}`;
+    }).join('  '));
+  }
+  // Einzelzeilen fuer die Nachsicht
+  faelle.slice(0, 24).forEach((z) => console.log(
+    `  ${z.typ} L=${z.L} ${z.bef.padEnd(11)} ${z.zeichen > 0 ? '+' : '-'} x=${z.x.toFixed(2)} ${z.seite.padEnd(6)}`
+    + ` FEM ${z.fem.map((v) => v.toFixed(3)).join('/')}`
+    + QS.OERTLICH_WEGE.map((wg) => `  ${wg} ${z.werkzeug[wg].map((v) => v.toFixed(3)).join('/')}`).join('')));
+  writeFileSync('kalibrierung_oertlich.json', JSON.stringify({ bewertung, faelle }, null, 1));
+  console.log(`Messwerte: kalibrierung_oertlich.json (${faelle.length} Zeilen)`);
+}
+
 // Nur schreiben, wenn dieser Lauf ueberhaupt gemessen hat: sonst leert
 // `--nur endfeld` die Messwerte des Daempfungslaufs, der Stunden gekostet hat.
 if (ergebnisse.length) {
