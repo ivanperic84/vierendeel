@@ -298,11 +298,27 @@ export function maskenSignatur(werte, tab) {
        * und der Pfeil blieb, wie er war: die Zahl richtig, das Bild falsch.
        */
       : (gid === 'aufl' && werte.auflagerLinks
-          ? [...sichtbareFelder(gid, werte).map((f) => f.key),
+          ? [...sichtbareFelder(gid, werte).map(feldSignatur(werte)),
              JSON.stringify(werte.auflagerLinks)]
-          : sichtbareFelder(gid, werte).map((f) => f.key)))),
+          : sichtbareFelder(gid, werte).map(feldSignatur(werte))))),
   ]);
 }
+
+/*
+ * >>> AUCH DIE OPTIONEN EINES FELDES KOENNEN VON DEN WERTEN ABHAENGEN. <<<
+ *
+ * Gefunden am 17. September: «Ebene des Ankers» auf längs gestellt, und
+ * «Seite des Ankerfundaments» bot weiter «in −x (zum Gleis hin)» an - die
+ * Beschriftung zur Querebene. `optionenAus` rechnet die richtigen, aber die
+ * Maske wurde nicht neu gebaut, weil sich an ihrer Signatur nichts aenderte.
+ * Die Texte gehoeren deshalb dazu.
+ */
+const feldSignatur = (werte) => (f) => (typeof f.optionenAus === 'function'
+  ? `${f.key}:${(() => {
+      try { return (f.optionenAus(werte) ?? []).map((o) => o.text).join('|'); }
+      catch { return ''; }
+    })()}`
+  : f.key);
 
 export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = {}) {
   aktuelleWerte = werte;

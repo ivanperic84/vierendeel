@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4514 Kontrollen
+node pruefung.mjs           # Prüfstand, 4519 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -41,6 +41,18 @@ eigenständige Datei wird sonst still veraltet.
   gerader Leiter, leer heisst aus R und L_FL. Bis dahin galt 0 als leer.
 - **Felder einer Bauteilkarte** oben ausgerichtet (`.at-feld`), der Winkel
   stand neben der Spannweite versetzt.
+- **Seilanker und Gegenwind.** Frage: «wirkt der anker auch als
+  druckelement?» Im Mastnachweis nicht - das Seil fällt je Kombination aus,
+  wo es drücken müsste (nachgerechnet, J90/15 m, SA20 längs). Aber der
+  **Ankernachweis** sah nur die charakteristischen Fälle, und die führen den
+  Wind in einer Richtung: stand das Fundament auf der anderen Seite, hing
+  das Seil überall durch, und sein Zug aus dem Gegenwind (dort 11.0 kN
+  statt nichts) wurde nie nachgewiesen. Jetzt setzt `ankerAuswertung` die
+  gespiegelten Fälle aus den Einzelfällen zusammen (linear): Wind −x, −y und
+  Ständig + Wind in allen vier Vorzeichen.
+- **Seite des Ankerfundaments** bot bei «längs» weiter «in −x» an - die
+  Maske wurde nicht neu gebaut. Die Texte von `optionenAus` stehen jetzt in
+  der Maskensignatur.
 
 ### Gesamturteil, Havariefall, örtlicher Anteil (17. September)
 

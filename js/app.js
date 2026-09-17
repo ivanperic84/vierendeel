@@ -3268,8 +3268,55 @@ function ankerAuswertung(kombi) {
     let beste = null;
     // Wo das Seil durchhaengt - gesagt wird es, auch wenn es anderswo traegt.
     const schlaffIn = [];
-    lf.forEach((l) => {
-      const k = kombi.ergebnisse?.[l.key]?.mast?.[ende]?.ankerkraft;
+    const kVon = (key) => kombi.ergebnisse?.[key]?.mast?.[ende]?.ankerkraft ?? null;
+    /* =====================================================================
+     * >>> DER WIND KOMMT AUS BEIDEN RICHTUNGEN (17. September). <<<
+     * =====================================================================
+     *
+     * Befund auf die Frage «bei zuganker auswahl -x ausrichtung wirkt der
+     * anker auch als druckelement, denke ich»: im Mastnachweis faellt das
+     * Seil richtig aus, wo es druecken muesste. Der ANKERnachweis sah aber
+     * nur die charakteristischen Faelle - und die fuehren den Wind in EINER
+     * Richtung. Stand das Fundament auf der anderen Seite, hing das Seil in
+     * allen durch, und sein Zug aus dem Gegenwind wurde nie nachgewiesen.
+     *
+     * Die Ankerkraft ist linear in den Lasten (solange das Seil traegt).
+     * Die gespiegelten Faelle lassen sich deshalb aus den Einzelfaellen
+     * zusammensetzen, ohne neu zu rechnen:
+     *
+     *   Wind −y, Wind −x          −N(Wind)
+     *   Ständig + Wind (±x, ±y)   N(G) ± N(Wind x) ± N(Wind y)
+     *
+     * mit N(G) = N(Ständig Tragwerk) + N(Ablenkkräfte). Ein Seil, das dabei
+     * drücken muesste, faellt aus - wie im Mastnachweis.
+     */
+    const lin = (k) => (k ? (k.schlaff ? (k.NohneAusfall ?? 0) : k.N) : null);
+    const kWx = kVon('wxk'), kWy = kVon('wyk'), kG = kVon('gk'), kA = kVon('ablk');
+    const basisK = kWy ?? kWx ?? kG;
+    const gespiegelt = [];
+    if (basisK && [kWx, kWy, kG, kA].every(Boolean)) {
+      let druck = true;
+      try { druck = ankerTraegtDruck(basisK.typ); } catch { /* wie bisher */ }
+      const s = basisK.seite === 'minus' ? -1 : 1;
+      const bau = (N) => (!druck && N < 0
+        ? { ...basisK, N: 0, X: 0, schlaff: true, NohneAusfall: N }
+        : { ...basisK, N, X: N * s * (basisK.geo?.cos ?? 0), schlaff: false,
+            NohneAusfall: undefined });
+      const nG = lin(kG) + lin(kA);
+      gespiegelt.push(
+        { key: 'wykm', bez: 'Wind −y (gespiegelt)', kraft: bau(-lin(kWy)) },
+        { key: 'wxkm', bez: 'Wind −x (gespiegelt)', kraft: bau(-lin(kWx)) },
+        ...[[+1, -1], [-1, +1], [-1, -1]].map(([sx, sy]) => ({
+          key: `gwk${sx > 0 ? 'p' : 'm'}${sy > 0 ? 'p' : 'm'}`,
+          bez: `Ständig + Wind ${sx > 0 ? '+' : '−'}x ${sy > 0 ? '+' : '−'}y (gespiegelt)`,
+          kraft: bau(nG + sx * lin(kWx) + sy * lin(kWy)) })));
+    }
+    const faelle = [
+      ...lf.map((l) => ({ key: l.key, bez: l.bez, kraft: kVon(l.key) })),
+      ...gespiegelt,
+    ];
+    faelle.forEach((l) => {
+      const k = l.kraft;
       if (!k) return;
       if (k.schlaff) schlaffIn.push(l.bez ?? l.key);
       if (!beste || Math.abs(k.N) > Math.abs(beste.kraft.N)

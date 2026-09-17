@@ -24231,6 +24231,44 @@ titel('73  Ablenkwinkel null ist ein Winkel');
        Math.abs(gx(mitNull)) < 1e-12 && Math.abs(gx(at)) > 0, `${gx(at).toFixed(3)} kN`);
 }
 
+titel('74  Seilanker: der Wind aus beiden Richtungen');
+/* Frage vom 17. September: «bei zuganker auswahl -x ausrichtung wirkt der
+ * anker auch als druckelement, denke ich». Im Mastnachweis faellt das Seil
+ * aus, wo es druecken muesste; der Ankernachweis sah aber den Gegenwind
+ * nicht. */
+{
+  const MK = await import(J('core.mast.js'));
+  const A74 = await import(J('data.anbauteile.js'));
+  const basis = { ...standardwerte(), typ: 'J90', L: 15, mastVorhanden: true,
+    mastProfil: 'HEB 260', mastH: 8, trasseRadius: 600,
+    anbauteile: [{ ...A74.neuesAnbauteil('hs-fahrdraht', 7.5), name: 'FL' }] };
+  const { vergleichKombinationen: vgl74 } = await import(J('core.vierendeel.js'));
+  const kraft = (seite) => {
+    const w = { ...basis, mastAnkerA: { typ: 'SA20', h: 7.79, a: 4.5, richtung: 'y',
+                                        seite, befestigung: 'ankerplatte' } };
+    const r = vgl74(w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                    T.getTragjoch('J90'));
+    return (key) => r.ergebnisse[key]?.mast?.A?.ankerkraft;
+  };
+  const plus = kraft('plus'), minus = kraft('minus');
+  wahr('Im Mastnachweis faellt das Seil aus, wo es druecken muesste',
+       plus('windYp').schlaff === true && plus('windYm').N > 0
+       && minus('windYm').schlaff === true && minus('windYp').N > 0);
+  wahr('Die charakteristischen Faelle kennen den Wind nur in einer Richtung',
+       plus('wyk').schlaff === true && minus('wyk').N > 0);
+  const aq74 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Der Ankernachweis spiegelt den Wind aus den Einzelfaellen',
+       /key: 'wykm', bez: 'Wind −y \(gespiegelt\)', kraft: bau\(-lin\(kWy\)\)/.test(aq74)
+       && /nG \+ sx \* lin\(kWx\) \+ sy \* lin\(kWy\)/.test(aq74)
+       && /!druck && N < 0/.test(aq74));
+  pruef('… und der gespiegelte Zug ist der, der sonst fehlte',
+        -(plus('wyk').NohneAusfall), minus('wyk').N, 1e-9, 'kN');
+  const ui74 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Seitenwahl folgt der Ebene: Optionstexte stehen in der Signatur',
+       /const feldSignatur = \(werte\) => \(f\) =>/.test(ui74)
+       && /sichtbareFelder\(gid, werte\)\.map\(feldSignatur\(werte\)\)/.test(ui74));
+}
+
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
 /* ===========================================================================
  * Weisung vom 17. September: «örtlicher anteil umsetzen», nur im Weg
