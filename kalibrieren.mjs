@@ -988,6 +988,7 @@ if (NUR === 'oertlich') {
     lasten: [{ einwirkung: 'WindY', x: 0, y, z, Fx: 0, Fy, Fz, Mxx: 0, Myy: 0, Mzz: 0 }],
   });
   const faelle = [];
+  const FAKTOREN = Array.from({ length: 21 }, (_, i) => Math.round(i * 5) / 100);
   for (const { typ } of TYPEN) {
     const joch = T.getTragjoch(typ);
     for (const L of laengenFuer(joch)) {
@@ -1028,6 +1029,17 @@ if (NUR === 'oertlich') {
           P.getProfil(w.profOG), P.getProfil(w.profUG), P.getStahl(w.stahl), joch);
           jeWeg[weg] = e;
         }
+        // Die Abminderung: additiver Weg, Faktor 0 bis 1, beide Ueberlagerungen.
+        const jeK = {};
+        for (const ueb of ['huellkurve', 'vorzeichen']) {
+          jeK[ueb] = {};
+          for (const k of FAKTOREN) {
+            jeK[ueb][k] = V.berechne({ ...w, ebenenUeberlagerung: ueb, oertlichWeg: 'additiv',
+              oertlichFaktor: k, endfeldZuschlag: false,
+              beiwerteFest: { G: 0, WindX: 0, WindY: 1, Schnee: 0 } },
+            P.getProfil(w.profOG), P.getProfil(w.profUG), P.getStahl(w.stahl), joch);
+          }
+        }
         // Stationen mit oertlichem Anteil: aus dem additiven Lauf.
         const basis = jeWeg.additiv;
         basis.knoten.forEach((kn, i) => {
@@ -1042,6 +1054,14 @@ if (NUR === 'oertlich') {
           for (const weg of QS.OERTLICH_WEGE) {
             const k2 = jeWeg[weg].knoten[i];
             zeile.werkzeug[weg] = ids.map((id) => k2.ebenen.find((y) => y.id === id)?.M ?? 0);
+          }
+          zeile.faktor = {};
+          for (const ueb of ['huellkurve', 'vorzeichen']) {
+            zeile.faktor[ueb] = {};
+            for (const k of FAKTOREN) {
+              const k3 = jeK[ueb][k].knoten[i];
+              zeile.faktor[ueb][k] = ids.map((id) => k3.ebenen.find((y) => y.id === id)?.M ?? 0);
+            }
           }
           faelle.push(zeile);
         });
@@ -1076,12 +1096,51 @@ if (NUR === 'oertlich') {
       return `${weg} ${s ? `${s.mittel.toFixed(2)} (${s.min.toFixed(2)}…${s.max.toFixed(2)})` : '–'}`;
     }).join('  '));
   }
+  /*
+   * DIE ABMINDERUNG: je Faktor das Verhaeltnis der groesseren Ebene. Gewaehlt
+   * wird der KLEINSTE Faktor, bei dem keine Stelle unter dem Stabmodell
+   * liegt - in beiden Ueberlagerungen und je Einleitungsart.
+   */
+  console.log('');
+  console.log('ABMINDERUNG  k_L  (additiv, max-Ebene Werkzeug/FEM)');
+  const kWahl = {};
+  for (const ueb of ['huellkurve', 'vorzeichen']) {
+    for (const bef of ['alle', 'durchgehend', 'oben']) {
+      const g = gueltig.filter((z) => bef === 'alle' || z.bef === bef);
+      const zeilenK = FAKTOREN.map((k) => {
+        const r = g.map((z) => Math.max(...z.faktor[ueb][k]) / Math.max(...z.fem));
+        return { k, ...statistik(r) };
+      });
+      const ok = zeilenK.filter((s) => s.min >= 1.0);
+      const wahl = ok.length ? ok[0] : zeilenK[zeilenK.length - 1];
+      kWahl[`${ueb}|${bef}`] = wahl;
+      console.log(`  ${ueb.padEnd(11)} ${bef.padEnd(12)} k_L = ${wahl.k.toFixed(2)}`
+        + `   Mittel ${wahl.mittel.toFixed(2)}  Minimum ${wahl.min.toFixed(3)}  Maximum ${wahl.max.toFixed(2)}`
+        + `   (k=1: Mittel ${zeilenK[zeilenK.length - 1].mittel.toFixed(2)})`);
+    }
+  }
+  console.log('');
+  for (const bef of ['durchgehend', 'oben']) {
+    console.log(`Verlauf (vorzeichen, ${bef}):`);
+    const g = gueltig.filter((z) => z.bef === bef);
+    FAKTOREN.forEach((k) => {
+      const r = g.map((z) => Math.max(...z.faktor.vorzeichen[k]) / Math.max(...z.fem));
+      const s = statistik(r);
+      // Median dazu: das Mittel haengt an den Stellen dicht an der Klemme.
+      console.log(`   k=${k.toFixed(2)}  Mittel ${s.mittel.toFixed(2)}  Median ${s.median.toFixed(2)}`
+        + `  Min ${s.min.toFixed(3)}  unter 1: ${r.filter((v) => v < 1).length}  n=${r.length}`);
+    });
+  }
+  const kL = Math.max(kWahl['huellkurve|alle'].k, kWahl['vorzeichen|alle'].k);
+  console.log(`
+OERTLICH_FAKTOR gemessen: ${kL.toFixed(2)} (heute angesetzt ${QS.OERTLICH_FAKTOR})`);
   // Einzelzeilen fuer die Nachsicht
   faelle.slice(0, 24).forEach((z) => console.log(
     `  ${z.typ} L=${z.L} ${z.bef.padEnd(11)} ${z.zeichen > 0 ? '+' : '-'} x=${z.x.toFixed(2)} ${z.seite.padEnd(6)}`
     + ` FEM ${z.fem.map((v) => v.toFixed(3)).join('/')}`
     + QS.OERTLICH_WEGE.map((wg) => `  ${wg} ${z.werkzeug[wg].map((v) => v.toFixed(3)).join('/')}`).join('')));
-  writeFileSync('kalibrierung_oertlich.json', JSON.stringify({ bewertung, faelle }, null, 1));
+  writeFileSync('kalibrierung_oertlich.json', JSON.stringify({ bewertung, kWahl, kL,
+    faelle: faelle.map(({ faktor, ...rest }) => rest) }, null, 1));
   console.log(`Messwerte: kalibrierung_oertlich.json (${faelle.length} Zeilen)`);
 }
 

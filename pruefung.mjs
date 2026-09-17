@@ -1108,8 +1108,10 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
   const { ebenenQuerkraefte } = await import(J('core.querschnitt.js'));
   // Stationen so gelegt, dass beide Einleitungsstellen auf x = 10 fallen -
   // dann trägt dieses eine Blech das ganze Kräftepaar.
+  // Faktor 1: geprueft wird hier der Mechanismus des VOLLEN Kraeftepaars;
+  // die Abminderung (17. September) folgt darunter.
   const mLok = { b: 0.4, h: 0.5, a1eff: 0.75, torsionsverteilung: 'schubfluss',
-                 lokal: durch.lokal, stationsX: [0, 10, 20] };
+                 lokal: durch.lokal, stationsX: [0, 10, 20], oertlichFaktor: 1 };
   const sg0 = { Vz: 0, Vy: 0, Tx: 0 };
   const fern = ebenenQuerkraefte(sg0, mLok, 0);          // weit weg vom Teil
   const nah = ebenenQuerkraefte(sg0, mLok, 10);          // am Teil
@@ -1119,6 +1121,12 @@ titel('16  Anbauteile: Befestigung und Einwirkungsgruppen');
         nah.horizontal.anteilLokal, T / hArm, 1e-12, 'kN');
   pruef('Die Vertikalebene bleibt davon unberührt', nah.vertikal.anteilLokal,
         0, 1e-12, 'kN');
+  {
+    const QSo = await import(J('core.querschnitt.js'));
+    const ab = ebenenQuerkraefte(sg0, { ...mLok, oertlichFaktor: undefined }, 10);
+    pruef('Abgemindert: durchgehend befestigt mit dem gemessenen Faktor',
+          ab.horizontal.anteilLokal, QSo.OERTLICH_FAKTOR.durchgehend * T / hArm, 1e-12, 'kN');
+  }
 
   // Wirkung im vollständigen Nachweis: die Befestigungsart ändert η
   const mitAT = (bef) => rechne(basis({
@@ -2006,6 +2014,9 @@ titel('27  Lasteinleitung: Verteilung auf die Nachbarbleche');
                    raster: r,
                    lasten: [block({ einwirkung: 'G', z: -1.5, Fz: 5 }),
                             block({ einwirkung: 'WindY', z: -1.5, Fy: 4 })] }],
+    // Das volle Kraeftepaar: abgemindert massgebt es hier nicht mehr, und
+    // die Stetigkeit liesse sich nicht mehr ablesen.
+    oertlichFaktor: 1,
   })).max.etaGesamt;
 
   const a1 = rechne(basis({})).modell.a1eff;
@@ -24207,6 +24218,20 @@ titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
        vz0.modell.lokal.filter((l) => l.torsion).every((l) => ['H_O', 'H_U', 'V_L', 'V_R'].includes(l.ebeneId))
        && vz0.modell.lokal.some((l) => l.torsion && l.dF < 0));
   const mess = JSON.parse(readFileSync(join(HIER, 'kalibrierung_oertlich.json'), 'utf8'));
+  /*
+   * DIE ABMINDERUNG (Weisung vom 17. September: «abminderung soweit wie
+   * sinnvoll um so nahe wie möglich an die fem berechnung zu kommen»).
+   */
+  wahr('Einseitig: der Faktor ist die gemessene Grenze',
+       QS72.OERTLICH_FAKTOR.einseitig === mess.kWahl['vorzeichen|oben'].k
+       && QS72.OERTLICH_FAKTOR.einseitig === mess.kWahl['huellkurve|oben'].k,
+       `${QS72.OERTLICH_FAKTOR.einseitig} / gemessen ${mess.kWahl['vorzeichen|oben'].k}`);
+  wahr('Durchgehend: der Faktor liegt nicht unter der gemessenen Grenze',
+       QS72.OERTLICH_FAKTOR.durchgehend >= mess.kWahl['vorzeichen|durchgehend'].k
+       && QS72.OERTLICH_FAKTOR.durchgehend >= mess.kWahl['huellkurve|durchgehend'].k,
+       `${QS72.OERTLICH_FAKTOR.durchgehend} / gemessen ${mess.kWahl['vorzeichen|durchgehend'].k}`);
+  wahr('… und an keiner Messstelle liegt das Werkzeug damit unter dem Stabmodell',
+       mess.kWahl['vorzeichen|alle'].min >= 1 && mess.kWahl['huellkurve|alle'].min >= 1);
   const add = mess.bewertung.find((b) => b.weg === 'additiv');
   wahr('Die Messung belegt: additiv ist ueberall auf der sicheren Seite',
        add.min >= 1 && mess.bewertung.filter((b) => b.weg !== 'additiv' && b.weg !== 'mit')

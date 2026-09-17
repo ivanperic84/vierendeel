@@ -504,10 +504,12 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
     // ------------------------------------------------------------------
     const bef = befestigungsArt(a);
     let dFy = 0, dFz = 0;
+    // Die Befestigung wandert mit - die Abminderung haengt an ihr.
+    const befL = bef === 'durchgehend' ? 'durchgehend' : 'einseitig';
     const zufuegen = (ebene, gurt, wert, seite) => {
       if (!wert) return;
-      lokal.push({ x: x1, teil: a.name, ebene, gurt, seite, dF: +wert / 2 });
-      lokal.push({ x: x2, teil: a.name, ebene, gurt, seite, dF: -wert / 2 });
+      lokal.push({ x: x1, teil: a.name, ebene, gurt, seite, dF: +wert / 2, bef: befL });
+      lokal.push({ x: x2, teil: a.name, ebene, gurt, seite, dF: -wert / 2, bef: befL });
     };
 
     if (Td) {
@@ -515,9 +517,9 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
         dFy = h > 0 ? Td / h : 0;
         [x1, x2].forEach((x) => {
           lokal.push({ x, teil: a.name, ebene: 'horizontal', gurt: 'OG', dF: +dFy / 2,
-                       torsion: true, ebeneId: 'H_O' });
+                       torsion: true, ebeneId: 'H_O', bef: befL });
           lokal.push({ x, teil: a.name, ebene: 'horizontal', gurt: 'UG', dF: -dFy / 2,
-                       torsion: true, ebeneId: 'H_U' });
+                       torsion: true, ebeneId: 'H_U', bef: befL });
         });
       } else {
         const gurt = anschlussGurt(a);
@@ -525,9 +527,9 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
         dFz = bq > 0 ? Td / bq : 0;
         [x1, x2].forEach((x) => {
           lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'L', dF: +dFz / 2,
-                       torsion: true, ebeneId: 'V_L' });
+                       torsion: true, ebeneId: 'V_L', bef: befL });
           lokal.push({ x, teil: a.name, ebene: 'vertikal', gurt, seite: 'R', dF: -dFz / 2,
-                       torsion: true, ebeneId: 'V_R' });
+                       torsion: true, ebeneId: 'V_R', bef: befL });
         });
       }
     }
@@ -623,10 +625,10 @@ export function stationsAnteil(p, x, stationen) {
  * @param {string} ebene   'vertikal' | 'horizontal'
  * @param {number[]} stationen Blechstationen [m]
  */
-export function lokaleQuerkraft(lokal, x, ebene, stationen) {
+export function lokaleQuerkraft(lokal, x, ebene, stationen, gewicht = () => 1) {
   return (lokal ?? [])
     .filter((l) => l.ebene === ebene && l.dF > 0)
-    .reduce((s, l) => s + l.dF * stationsAnteil(l.x, x, stationen), 0);
+    .reduce((s, l) => s + gewicht(l) * l.dF * stationsAnteil(l.x, x, stationen), 0);
 }
 
 /**
@@ -638,11 +640,12 @@ export function lokaleQuerkraft(lokal, x, ebene, stationen) {
  * Momenten (M_yy, M_zz ueber den Raster) haben mit der Torsion nichts zu
  * tun und bleiben additiv.
  */
-export function lokaleQuerkraftEbene(lokal, x, ebene, ebeneId, stationen) {
+export function lokaleQuerkraftEbene(lokal, x, ebene, ebeneId, stationen,
+                                     gewicht = () => 1) {
   let torsion = 0, rest = 0;
   (lokal ?? []).forEach((l) => {
     if (l.ebene !== ebene) return;
-    const f = stationsAnteil(l.x, x, stationen);
+    const f = gewicht(l) * stationsAnteil(l.x, x, stationen);
     if (!f) return;
     if (l.torsion) {
       if (l.ebeneId === ebeneId) torsion += l.dF * f;

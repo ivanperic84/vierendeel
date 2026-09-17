@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4503 Kontrollen
+node pruefung.mjs           # Prüfstand, 4507 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -75,8 +75,21 @@ oertlich` (72 Stellen, J90–J130, Einleitung über alle Gurte und nur oben):
 Die vorzeichenrichtigen Formen wären stellenweise unsicher; `OERTLICH_WEG`
 bleibt `'additiv'`. Die additive Form überschätzt neben der Klemme bis
 Faktor 19 — im Stabmodell tragen die Bleche dort kaum etwas.
-**Offen, Entscheid des Auftraggebers:** ob und wie weit der örtliche Anteil
-abgemindert werden darf. Messwerte in `kalibrierung_oertlich.json/.txt`.
+
+**Abminderung (Weisung: «abminderung soweit wie sinnvoll um so nahe wie
+möglich an die fem berechnung zu kommen»).** `OERTLICH_FAKTOR` je
+Befestigung, gemessen über k = 0 … 1 in beiden Überlagerungen:
+
+| Befestigung | k_L | Grenze gemessen | Median Werkzeug/FEM vorher → nachher |
+|---|---|---|---|
+| einseitig (oben/unten) | **0.45** | 0.45 (bei 0.40 eine Stelle bei 0.996) | 3.60 → 2.40 |
+| durchgehend | **0.25** | 0 (Minimum dort 1.10) | 3.31 → 2.21 |
+
+Durchgehend nicht 0: die Messung steht auf EINER Laststellung (0.37·L, Wind
+quer). Gesamt-η der Vorlagen (J90, 20 m): bis −3.1 % (Jochaufsatz doppelt),
+meist unverändert. Die verbleibende Überschätzung sitzt an der Klemme — eine
+Frage der Verteilung nach Hebelarm, nicht des Faktors.
+Messwerte in `kalibrierung_oertlich.json/.txt`.
 
 **Doppelte Namen beim Einlesen.** Zweimal derselbe Name in einer Datei,
 beide auf «ersetzen»: der zweite ersetzte den ersten. Jetzt wird, was im
@@ -114,7 +127,7 @@ Dabei behoben:
 - Die Kombination «Tragsicherheit» des Abfangjochs trug die Art
   «Bemessung» und kam in AxisVM als **SLS** an; jetzt `tragsicherheit` → ULS.
 
-Prüfstand: Abschnitte 71 und 72, **4503 Kontrollen** grün.
+Prüfstand: Abschnitte 71 und 72, **4507 Kontrollen** grün.
 
 ### Projektablage nach BlockCalc (17. September)
 
@@ -6670,7 +6683,7 @@ Der Gesprächsverlauf zieht nicht mit um. Was zählt, steht deshalb im Projekt:
 | **Kennwerte nachziehen** | `GURT_DAEMPFUNG` und `ENDFELD_ZUSCHLAG` sind seit dem 29. August **gemessen** (80 PyNite-Laeufe, `kalibrieren.mjs`) — siehe *Die Kalibrierung der beiden gefitteten Kennwerte*. `GURT_DAEMPFUNG` ist am 31. August auf **0,45** nachgezogen (gemessen 0,449). Am 1. September kam ein vierter dazu: `SCHIEFE_DAEMPFUNG` = **0,70** (509 Messstellen, Gegenprobe 0,994) — siehe *SCHIEFE_DAEMPFUNG*. `ENDFELD_ZUSCHLAG` am 31. August auf **0,50** gesetzt (gemessen 0,48, Spanne 0,41–0,64) — er mindert jetzt ab, statt zu erhöhen. `MAST_UNVERSCHIEBLICH` steht seit dem 31. August auf **4,00** (vorher 3,10) — siehe *Die Drehfeder des Mastes*. Damit sind alle drei Kennwerte entschieden |
 | **AxisVM-Export über SAF** | gebaut, aber vom COM-Weg überholt. Der SAF-Import ist nie gelaufen |
 | **Vorzeichenrichtige Überlagerung je Blechebene** | gebaut als Option, an PyNite kalibriert — Vorgabe bleibt die Hüllkurve |
-| **Örtlicher Anteil vorzeichenrichtig** | **gemessen** am 17. September, nicht übernommen (stellenweise unsicher). Offen: Abminderung der additiven Form — Entscheid |
+| **Örtlicher Anteil** | vorzeichenrichtig gemessen und nicht übernommen; additiv **abgemindert** (0.45 einseitig, 0.25 durchgehend) am 17. September. Offen: die Verteilung dicht an der Klemme |
 | **Mastnachweis im Gesamturteil** | **gebaut** am 17. September — Maximum über alle geführten Bauteile, mit Namen |
 | **Abfangjoch** | **gebaut.** Sortiment seit dem 3. September vollständig (17 Typen), Rechenkern seit dem 10. September eigen (`core.abfangjoch.js`): zweigurtiger Träger mit Sprossen, eigene Auswertung über Schnitt, Verläufe und Auflager |
 | **Druckstütze im AxisVM als zwei Profile** («Stufe 1») | **gebaut** am 15. September — zwei Stabzüge aus dem Einzelprofil (`Channel`), keilförmig gespreizt, Anschlüsse momentenfrei, Laschen an den vermassten Knickstellen. Siehe *Die Druckstütze steht als zwei Profile im Modell*. **Offen bleibt** der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen (Anzahl, Abstand, Profil) — daran hängt «Stufe 2», der Nachweis des mehrteiligen Druckstabs nach EN 1993-1-1, 6.4 |

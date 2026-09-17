@@ -520,6 +520,39 @@ export function torsionsSchubfluss(Tx, b, h, modell = 'schubfluss') {
 export const OERTLICH_WEGE = ['additiv', 'fest', 'fest-', 'mit', 'gegen'];
 export const OERTLICH_WEG = 'additiv';
 
+/*
+ * >>> DIE ABMINDERUNG DES OERTLICHEN ANTEILS (17. September). <<<
+ *
+ * Weisung: «abminderung soweit wie sinnvoll um so nahe wie möglich an die
+ * fem berechnung zu kommen». Gemessen (kalibrieren.mjs --nur oertlich):
+ * im Stabmodell tragen die Bleche neben der Klemme weit weniger, als das
+ * volle Kraeftepaar sagt. «Sinnvoll» heisst: so weit, wie das Werkzeug an
+ * KEINER Messstelle unter das Stabmodell faellt.
+ */
+export const OERTLICH_FAKTOR = { durchgehend: 0.25, einseitig: 0.45 };
+
+/*
+ * GEMESSEN (72 Stellen, J90 bis J130, max. Ebene Werkzeug/FEM):
+ *
+ *   einseitig (nur oben/unten)   k = 0.45 ist die Grenze: darunter faellt
+ *                                eine Stelle unter das Stabmodell (0.996
+ *                                bei 0.40). Median 3.60 -> 2.40.
+ *   durchgehend (alle Gurte)     auch k = 0 bleibt ueberall sicher (Minimum
+ *                                1.10) - das Kraeftepaar zeigt sich im
+ *                                Stabmodell kaum in den Blechen. Angesetzt
+ *                                0.25, nicht 0: die Messung stuetzt sich auf
+ *                                EINE Laststellung im Feld. Median 3.31 ->
+ *                                2.21.
+ *
+ * Der Rest der Ueberschaetzung liegt NICHT am Faktor: er sitzt an den
+ * Stellen dicht an der Klemme, wo die Aufteilung nach Hebelarm mehr auf ein
+ * Blech legt, als das Stabmodell dort zeigt.
+ */
+export function oertlichGewicht(m) {
+  if (Number.isFinite(m?.oertlichFaktor)) return () => m.oertlichFaktor;
+  return (l) => OERTLICH_FAKTOR[l.bef === 'durchgehend' ? 'durchgehend' : 'einseitig'];
+}
+
 export function ebenenQuerkraefte(sg, m, x = null) {
   const sf = torsionsSchubfluss(sg.Tx, m.b, m.h, m.torsionsverteilung);
   const vzHalb = Math.abs(sg.Vz) / 2;
@@ -532,7 +565,7 @@ export function ebenenQuerkraefte(sg, m, x = null) {
   const stationen = m.stationsX
     ?? (m.stationsListe ? m.stationsListe.map((s) => s.x) : null);
   const oertlich = (ebene) => (x === null || !m.lokal?.length
-    ? 0 : lokaleQuerkraft(m.lokal, x, ebene, stationen));
+    ? 0 : lokaleQuerkraft(m.lokal, x, ebene, stationen, oertlichGewicht(m)));
   const lokV = oertlich('vertikal');
   const lokH = oertlich('horizontal');
 
@@ -560,7 +593,7 @@ export function ebenenQuerkraefte(sg, m, x = null) {
       : balken + torsion + lokal;
     const weg = m.oertlichWeg ?? OERTLICH_WEG;
     if (vorzeichentreu && weg !== 'additiv' && x !== null && m.lokal?.length) {
-      const l = lokaleQuerkraftEbene(m.lokal, x, e.art, e.id, stationen);
+      const l = lokaleQuerkraftEbene(m.lokal, x, e.art, e.id, stationen, oertlichGewicht(m));
       const d = drehsinn * e.vorz;
       const mitT = weg === 'fest' ? l.torsion
         : weg === 'fest-' ? -l.torsion

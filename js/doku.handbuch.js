@@ -778,15 +778,30 @@ Vorzeichenrichtig zu rechnen entlastet nur die andere Ebene. Der örtliche
 Anteil bleibt in beiden Formen additiv auf beiden Ebenen.</p>
 
 ${q(`Weisung vom 17. September: den örtlichen Anteil im Weg «vorzeichenrichtig»
-mit Vorzeichen führen, den Drehsinn am Stabmodell bestimmen. <b>Gemessen, nicht
-übernommen:</b> an 72 Stellen neben einer Einleitung (J90 bis J130, über alle
-vier Gurte und nur oben) liegen die vorzeichenrichtigen Formen im Mittel näher
-am Stabmodell, aber an 10 bzw. 20 Stellen <b>darunter</b> – bis auf 47 %. Die
-additive Form ist überall auf der sicheren Seite (mindestens 103 %),
-überschätzt dort aber bis Faktor 19: im Stabmodell tragen die Bleche neben der
-Klemme kaum etwas, das Kräftepaar geht über die Gurte. Die Form bleibt
-deshalb additiv, bis entschieden ist, wie weit sie abgemindert werden darf
-(kalibrieren.mjs --nur oertlich).`)}
+mit Vorzeichen führen, den Drehsinn am Stabmodell bestimmen – und danach:
+«abminderung soweit wie sinnvoll um so nahe wie möglich an die fem berechnung
+zu kommen».`)}
+
+<p><b>Vorzeichenrichtig gemessen, nicht übernommen.</b> An 72 Stellen neben
+einer Einleitung (J90 bis J130) lag die vorzeichenrichtige Form an 10 bzw. 20
+Stellen unter dem Stabmodell, bis auf 47 %. Der örtliche Anteil bleibt
+additiv – aber <b>abgemindert</b>:</p>
+
+${f(`V_lokal = k_L · ΔF &nbsp;&nbsp; k_L = 0.45 (einseitig befestigt) · 0.25 (über alle vier Gurte)`)}
+
+<table class="dt">
+<tr><th>Befestigung</th><th>k_L</th><th>Messung</th></tr>
+<tr><td>nur oben oder unten</td><td>0.45</td><td>die Grenze: darunter liegt eine Stelle
+    unter dem Stabmodell</td></tr>
+<tr><td>über alle vier Gurte</td><td>0.25</td><td>auch 0 bliebe überall sicher; ein Rest
+    bleibt, weil die Messung auf einer Laststellung steht</td></tr>
+</table>
+<p>Im Stabmodell tragen die Bleche neben der Klemme weit weniger, als das volle
+Kräftepaar sagt – es geht über die Gurte. An den Vorlagen (J90, 20 m) sinkt
+das Gesamt-η um bis zu 3 %. Die verbleibende Überschätzung sitzt dicht an der
+Klemme, wo die Aufteilung nach Hebelarm (7.3) mehr auf ein Blech legt, als das
+Stabmodell zeigt; sie ist Sache der Verteilung, nicht des Faktors
+(kalibrieren.mjs --nur oertlich).</p>
 
 ${q(`Die Drehsinne sind an einem Stabmodell kalibriert, nicht hergeleitet. Ohne
 Drehsinn kein Vorzeichen: rechnet man die Torsion selbst als Hüllkurve

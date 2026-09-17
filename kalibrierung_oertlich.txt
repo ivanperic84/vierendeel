@@ -1,6 +1,5 @@
 KALIBRIERUNG DER GEFITTETEN KENNWERTE
 Arbeitsordner: <Temp>/vierendeel_kalibrierung
-ierendeel_kalibrierung
 
 ============================================================================================================
 OERTLICHER ANTEIL  -  Blechmoment je Ebene neben der Einleitung, FEM gegen Werkzeug
@@ -16,6 +15,61 @@ gegen                             2.616     0.467    13.134          20
 Bester Weg: additiv (heute angesetzt: additiv)
   links: additiv 3.88 (1.03…13.47)  fest 2.09 (0.55…5.71)  fest- 3.88 (1.03…13.47)  mit 3.88 (1.03…13.47)  gegen 2.09 (0.55…5.71)
   rechts: additiv 5.47 (1.07…19.15)  fest 5.26 (1.07…19.15)  fest- 3.35 (0.47…15.44)  mit 5.47 (1.07…19.15)  gegen 3.14 (0.47…13.13)
+
+ABMINDERUNG  k_L  (additiv, max-Ebene Werkzeug/FEM)
+  huellkurve  alle         k_L = 0.45   Mittel 3.20  Minimum 1.003  Maximum 13.10   (k=1: Mittel 4.67)
+  huellkurve  durchgehend  k_L = 0.00   Mittel 2.23  Minimum 1.103  Maximum 5.49   (k=1: Mittel 4.58)
+  huellkurve  oben         k_L = 0.45   Mittel 3.14  Minimum 1.003  Maximum 13.10   (k=1: Mittel 4.74)
+  vorzeichen  alle         k_L = 0.45   Mittel 3.20  Minimum 1.003  Maximum 13.10   (k=1: Mittel 4.67)
+  vorzeichen  durchgehend  k_L = 0.00   Mittel 2.22  Minimum 1.103  Maximum 5.45   (k=1: Mittel 4.58)
+  vorzeichen  oben         k_L = 0.45   Mittel 3.14  Minimum 1.003  Maximum 13.10   (k=1: Mittel 4.74)
+
+Verlauf (vorzeichen, durchgehend):
+   k=0.00  Mittel 2.22  Median 1.80  Min 1.103  unter 1: 0  n=30
+   k=0.05  Mittel 2.34  Median 1.89  Min 1.106  unter 1: 0  n=30
+   k=0.10  Mittel 2.45  Median 1.97  Min 1.109  unter 1: 0  n=30
+   k=0.15  Mittel 2.57  Median 2.06  Min 1.112  unter 1: 0  n=30
+   k=0.20  Mittel 2.69  Median 2.15  Min 1.116  unter 1: 0  n=30
+   k=0.25  Mittel 2.81  Median 2.21  Min 1.119  unter 1: 0  n=30
+   k=0.30  Mittel 2.93  Median 2.28  Min 1.122  unter 1: 0  n=30
+   k=0.35  Mittel 3.04  Median 2.35  Min 1.125  unter 1: 0  n=30
+   k=0.40  Mittel 3.16  Median 2.42  Min 1.128  unter 1: 0  n=30
+   k=0.45  Mittel 3.28  Median 2.49  Min 1.131  unter 1: 0  n=30
+   k=0.50  Mittel 3.40  Median 2.58  Min 1.134  unter 1: 0  n=30
+   k=0.55  Mittel 3.52  Median 2.66  Min 1.138  unter 1: 0  n=30
+   k=0.60  Mittel 3.63  Median 2.75  Min 1.141  unter 1: 0  n=30
+   k=0.65  Mittel 3.75  Median 2.83  Min 1.144  unter 1: 0  n=30
+   k=0.70  Mittel 3.87  Median 2.91  Min 1.147  unter 1: 0  n=30
+   k=0.75  Mittel 3.99  Median 2.99  Min 1.150  unter 1: 0  n=30
+   k=0.80  Mittel 4.11  Median 3.05  Min 1.153  unter 1: 0  n=30
+   k=0.85  Mittel 4.22  Median 3.12  Min 1.157  unter 1: 0  n=30
+   k=0.90  Mittel 4.34  Median 3.18  Min 1.160  unter 1: 0  n=30
+   k=0.95  Mittel 4.46  Median 3.25  Min 1.163  unter 1: 0  n=30
+   k=1.00  Mittel 4.58  Median 3.31  Min 1.166  unter 1: 0  n=30
+Verlauf (vorzeichen, oben):
+   k=0.00  Mittel 1.83  Median 1.35  Min 0.622  unter 1: 6  n=42
+   k=0.05  Mittel 1.98  Median 1.39  Min 0.820  unter 1: 4  n=42
+   k=0.10  Mittel 2.12  Median 1.49  Min 0.958  unter 1: 2  n=42
+   k=0.15  Mittel 2.27  Median 1.59  Min 0.964  unter 1: 2  n=42
+   k=0.20  Mittel 2.41  Median 1.70  Min 0.970  unter 1: 2  n=42
+   k=0.25  Mittel 2.56  Median 1.73  Min 0.977  unter 1: 1  n=42
+   k=0.30  Mittel 2.70  Median 1.94  Min 0.983  unter 1: 1  n=42
+   k=0.35  Mittel 2.85  Median 2.05  Min 0.990  unter 1: 1  n=42
+   k=0.40  Mittel 2.99  Median 2.21  Min 0.996  unter 1: 1  n=42
+   k=0.45  Mittel 3.14  Median 2.40  Min 1.003  unter 1: 0  n=42
+   k=0.50  Mittel 3.29  Median 2.60  Min 1.009  unter 1: 0  n=42
+   k=0.55  Mittel 3.43  Median 2.80  Min 1.013  unter 1: 0  n=42
+   k=0.60  Mittel 3.58  Median 2.97  Min 1.016  unter 1: 0  n=42
+   k=0.65  Mittel 3.72  Median 3.05  Min 1.018  unter 1: 0  n=42
+   k=0.70  Mittel 3.87  Median 3.13  Min 1.020  unter 1: 0  n=42
+   k=0.75  Mittel 4.01  Median 3.20  Min 1.022  unter 1: 0  n=42
+   k=0.80  Mittel 4.16  Median 3.28  Min 1.024  unter 1: 0  n=42
+   k=0.85  Mittel 4.30  Median 3.36  Min 1.026  unter 1: 0  n=42
+   k=0.90  Mittel 4.45  Median 3.44  Min 1.029  unter 1: 0  n=42
+   k=0.95  Mittel 4.59  Median 3.52  Min 1.031  unter 1: 0  n=42
+   k=1.00  Mittel 4.74  Median 3.60  Min 1.033  unter 1: 0  n=42
+
+OERTLICH_FAKTOR gemessen: 0.45 (heute angesetzt 1)
   J90 L=14 durchgehend + x=4.34 links  FEM 0.728/1.404  additiv 0.806/1.656  fest 0.661/1.512  fest- 0.806/1.656  mit 0.806/1.656  gegen 0.661/1.512
   J90 L=14 durchgehend + x=5.01 links  FEM 0.000/0.000  additiv 2.329/2.678  fest 2.258/1.909  fest- 2.329/2.678  mit 2.329/2.678  gegen 2.258/1.909
   J90 L=14 durchgehend + x=5.68 rechts FEM 0.333/0.433  additiv 1.496/1.648  fest 1.496/1.648  fest- 0.454/0.302  mit 1.496/1.648  gegen 0.454/0.302

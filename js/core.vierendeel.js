@@ -684,6 +684,7 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     ebenenUeberlagerung: inp.ebenenUeberlagerung ?? 'huellkurve',
     // Nur fuer die Kalibrierung verstellbar - sonst gilt OERTLICH_WEG.
     oertlichWeg: inp.oertlichWeg,
+    oertlichFaktor: inp.oertlichFaktor,
     gurtaufteilung: inp.gurtaufteilung ?? 'gemessen',
     spannungsmodell: inp.spannungsmodell ?? 'schenkel',
     knotenbereich: inp.knotenbereich ?? 'anschnitt',
