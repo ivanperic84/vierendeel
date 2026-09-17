@@ -86,8 +86,12 @@ body {
   max-width: min(58vw, 700px); overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tb-proj:hover { background: var(--s2); color: var(--on); }
-.tb-proj b { font-weight: 500; color: var(--on); }
+/* In Farbe (Weisung vom 17. September): Projekt und Name stehen in der
+   Akzentfarbe, damit auf einen Blick zu sehen ist, welches Tragwerk offen
+   ist. Die Verortung bleibt leiser. */
+.tb-proj { color: var(--acc); }
+.tb-proj:hover { background: var(--acc-s); color: var(--acc); }
+.tb-proj b { font-weight: 600; color: var(--acc); }
 /* Die Verortung benennt das Tragwerk, ist aber nicht sein Name: leiser als
    dieser, und beim Einklappen des Kopfes gibt sie als Erstes nach.
    min-width: 0 hebt den Boden auf, den flex jedem Kind als min-content legt -
@@ -110,7 +114,7 @@ body {
   #kopf-werkzeuge .tb-sep { margin: 0 2px; }
   .tb-gruppe { gap: 3px; }
 }
-.tb-proj.offen { background: var(--acc-s); color: var(--on); }
+.tb-proj.offen { background: var(--acc-s); color: var(--acc); }
 
 /* --- Bannerschublade ------------------------------------------------------
    Projektablage und Vorlagen ganzer Tragwerke. Sie fährt unter dem Banner
