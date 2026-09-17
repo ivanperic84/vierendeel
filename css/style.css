@@ -1520,6 +1520,11 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .skizze .kasten { stroke: var(--stahl); stroke-width: 2; fill: none; }
 .skizze .am { fill: var(--acc-s); stroke: none; }
 .skizze .blech { fill: var(--blech); fill-opacity: .32; stroke: var(--blech); stroke-width: 1.2; }
+/* Stegskizze (17. September): Gurte und Bleche grau wie der Stahl, die
+   Gurte kraeftiger, damit sie den Masten sichtbar einfassen. */
+.skizze .gurt-grau  { fill: var(--stahl); fill-opacity: .75; stroke: none; }
+.skizze .blech-grau { fill: var(--stahl); fill-opacity: .30; stroke: var(--stahl);
+                      stroke-width: .8; }
 .skizze .steif { fill: var(--dim); fill-opacity: .22; stroke: none; }
 .skizze .kn { fill: var(--on2); stroke: none; }
 /* Masslinie und Kraft */
@@ -1740,8 +1745,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .qp-ankerstrich .qa-strebe.laengs { stroke-dasharray: 2.4 1.6; }
 .qp-ankerstrich .qa-gelenk { fill: var(--s1); stroke: currentColor; stroke-width: 1.2; }
 .qp-ankerstrich .qa-fund { fill: currentColor; }
-.qp-ankerstrich .qa-aus { fill: none; stroke: currentColor; stroke-width: 1.1; }
-.qp-ankerstrich .qa-punkt { fill: currentColor; }
+.qp-ankerstrich .qa-strich { stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .qp-ankerstrich.an { color: var(--acc); }
 .qp-ankerstrich:hover { color: var(--acc); }
 .qp-zeile {

@@ -89,15 +89,16 @@ export function setzeEtaFuerLeiste(o) { etaLeiste = o ?? null; }
  * fragment neben dem masten.» Bis dahin ein gestrichelter Rahmenstrich am
  * Fuss. Jetzt eine Strebe: Gelenk am Masten oben, Fundament am Boden.
  * Quer zum Gleis liegt sie in der Bildebene; laengs steht sie aus dem Blatt
- * heraus - dann traegt ihr Fuss das Zeichen «aus der Ebene» statt des
- * Fundamentklotzes. Gezeichnet nach rechts; `.minus` spiegelt.
+ * heraus - dann ist sie gestrichelt, und ihr Fuss ist ein einfacher Strich.
+ * Gezeichnet nach rechts; `.minus` spiegelt.
  */
 function ankerGlyphe(laengs) {
   return `<svg viewBox="0 0 20 17" width="20" height="17" aria-hidden="true">
     <line x1="1" y1="5" x2="${laengs ? 11 : 15}" y2="14.5" class="qa-strebe${laengs ? ' laengs' : ''}"/>
     <circle cx="1" cy="5" r="1.7" class="qa-gelenk"/>
     ${laengs
-      ? '<circle cx="13.5" cy="14" r="2.6" class="qa-aus"/><circle cx="13.5" cy="14" r="0.9" class="qa-punkt"/>'
+      // Laengs: ein einfacher Strich als Fundament (Weisung vom 17. September).
+      ? '<line x1="8" y1="15.3" x2="15" y2="15.3" class="qa-strich"/>'
       : '<rect x="12" y="14" width="7" height="2.6" rx="0.6" class="qa-fund"/>'}
   </svg>`;
 }

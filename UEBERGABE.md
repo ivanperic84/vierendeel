@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4512 Kontrollen
+node pruefung.mjs           # Prüfstand, 4514 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -30,10 +30,11 @@ eigenständige Datei wird sonst still veraltet.
 ### Kleinere Weisungen (17. September, nachmittags)
 
 - **Projekttitel im Kopf** in der Akzentfarbe.
-- **Stegskizze** zeigt das Joch (Draufsicht, zwei Gurte mit Blechen) statt
-  des Windpfeils.
+- **Stegskizze** zeigt das Joch statt des Windpfeils: Draufsicht im
+  gemeinsamen Massstab 1 px = 5 mm (HEB 260, J90 mit 520 mm über die
+  Winkel), die Gurte fassen den Masten als Gabel ein, Bleche grau.
 - **Anker in der Tragwerksleiste** als Strebe mit Gelenk und Fundament;
-  längs gestrichelt mit dem Zeichen «aus der Ebene».
+  längs gestrichelt, das Fundament ein einfacher Strich.
 - **Anker/Druckstütze** kommen neu **längs** (`ankerRichtungVor`); alte Anker
   ohne Angabe rechnen und zeigen weiter quer.
 - **Ablenkwinkel 0** wirkt jetzt (`umlenkfaktor`, `modulWinkel`): 0 heisst

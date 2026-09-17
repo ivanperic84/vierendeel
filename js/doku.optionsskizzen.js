@@ -116,53 +116,52 @@ const knotenbereich = (wert) => {
  */
 const mastSteg = (wert) => {
   const inJochachse = wert !== 'quer';
-  const cx = 210, cy = 78;
-  // Profilmasse im Bild: h entlang des Stegs, b quer dazu.
-  const h = 68, b = 60, tf = 7, tw = 10;
-  const r = (x, y, w, hh) =>
-    `<rect class="st" x="${x}" y="${y}" width="${w}" height="${hh}"/>`;
+  /*
+   * >>> EIN MASSSTAB FUER MAST UND JOCH (Weisung vom 17. September). <<<
+   *
+   * «der mast wird durch die gurte eingefasst (gabel). man sollte die
+   * masstäbe von mast und joch angleichen.» Gezeichnet 1 px = 5 mm, am
+   * Beispiel HEB 260 und J90 (Aussenmass ueber die Winkel 520 mm, Schenkel
+   * 90 mm, Blechraster 750 mm). Die Gurte laufen BEIDSEITS am Masten vorbei
+   * und fassen ihn ein; die Bleche liegen dazwischen, grau wie der Stahl.
+   */
+  const px = (mm) => mm / 5;
+  const cx = 200, cy = 86;
+  const h = px(260), b = px(260), tf = Math.max(3, px(17.5)), tw = Math.max(2.5, px(10));
+  const aussen = px(520) / 2, schenkel = px(90);
+  const r = (x, y, w, hh, cls = 'st') =>
+    `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${hh}"/>`;
   const I = inJochachse
-    // Steg WAAGRECHT, also in der Jochachse. Die Flansche stehen senkrecht
-    // an seinen Enden; h misst damit waagrecht.
+    // Steg WAAGRECHT, also in der Jochachse; h misst waagrecht.
     ? r(cx - h / 2, cy - tw / 2, h, tw)
       + r(cx - h / 2, cy - b / 2, tf, b)
       + r(cx + h / 2 - tf, cy - b / 2, tf, b)
-    // Steg SENKRECHT, also laengs zum Gleis. Waagrecht misst jetzt b.
+    // Steg SENKRECHT, also laengs zum Gleis; waagrecht misst jetzt b.
     : r(cx - tw / 2, cy - h / 2, tw, h)
       + r(cx - b / 2, cy - h / 2, b, tf)
       + r(cx - b / 2, cy + h / 2 - tf, b, tf);
-  /*
-   * >>> DAS JOCH STATT DER LAST (Weisung vom 17. September). <<<
-   *
-   * «bei dieser abbildung die last wegnehmen und dafür das joch anzeigen für
-   * die bessere orientierung.» Gezeichnet in der Draufsicht: die beiden
-   * Gurte laengs der Jochachse, dazwischen die Bindebleche, angeschlossen an
-   * der Mastseite, die zum Joch zeigt.
-   */
-  const xAn = cx + (inJochachse ? h / 2 : b / 2) + 4;
-  const xEnde = 470, halb = 17;
+  const xVon = cx - px(260) / 2 - px(100);     // Gurtende 100 mm vor dem Masten
+  const xBis = 500;
   const bleche = [];
-  for (let x = xAn + 34; x < xEnde - 6; x += 44) {
-    bleche.push(`<rect class="blech" x="${x - 5}" y="${cy - halb}" width="10" height="${2 * halb}"/>`);
+  for (let x = cx + px(750) / 2; x < xBis - 8; x += px(750)) {
+    bleche.push(r(x - px(50), cy - aussen + schenkel, px(100),
+                  2 * (aussen - schenkel), 'blech-grau'));
   }
-  const joch = `
-    ${bleche.join('')}
-    <line class="b" x1="${xAn}" y1="${cy - halb}" x2="${xEnde}" y2="${cy - halb}"/>
-    <line class="b" x1="${xAn}" y1="${cy + halb}" x2="${xEnde}" y2="${cy + halb}"/>
-    <line class="link" x1="${xAn - 4}" y1="${cy - halb}" x2="${xAn}" y2="${cy - halb}"/>
-    <line class="link" x1="${xAn - 4}" y1="${cy + halb}" x2="${xAn}" y2="${cy + halb}"/>
-    <text class="acc" x="${xEnde}" y="${cy - halb - 8}" text-anchor="end">Joch</text>
-    <text class="dim" x="${cx - 42}" y="${cy + 46}" text-anchor="end">Mast</text>`;
+  const gurt = (seite) => r(xVon, seite > 0 ? cy + aussen - schenkel : cy - aussen,
+                            xBis - xVon, schenkel, 'gurt-grau');
   return skizze(
     inJochachse ? 'Steg quer zum Gleis, starke Achse quer zum Gleis'
                 : 'Steg laengs zum Gleis, schwache Achse quer zum Gleis',
-    '0 0 520 160', `
-    <line class="d" x1="40" y1="${cy}" x2="480" y2="${cy}"/>
-    <text class="dim" x="40" y="${cy - 22}">Jochachse</text>
-    <text class="dim" x="40" y="${cy - 8}">quer zum Gleis</text>
-    ${joch}
+    '0 0 520 190', `
+    <line class="d" x1="20" y1="${cy}" x2="510" y2="${cy}"/>
+    <text class="dim" x="20" y="${cy - aussen - 20}">Jochachse</text>
+    <text class="dim" x="20" y="${cy - aussen - 7}">quer zum Gleis</text>
+    ${bleche.join('')}
+    ${gurt(-1)}${gurt(+1)}
     ${I}
-    <text class="dim" x="${cx}" y="146" text-anchor="middle">${
+    <text class="acc" x="${xBis}" y="${cy - aussen - 7}" text-anchor="end">Joch · Gurte fassen den Mast ein</text>
+    <text class="dim" x="${cx}" y="${cy + aussen + 16}" text-anchor="middle">Mast</text>
+    <text class="dim" x="260" y="182" text-anchor="middle">${
       inJochachse ? 'Steg quer zum Gleis, h waagrecht · starke Achse'
                   : 'Steg längs zum Gleis, b waagrecht · schwache Achse'}</text>
   `);

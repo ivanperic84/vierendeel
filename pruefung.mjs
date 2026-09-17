@@ -12801,7 +12801,10 @@ titel('44  Skizzen an den Eingabefeldern');
       const rechtecke = [...html.matchAll(
         /<rect class="st" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
         .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
-      const steg = rechtecke.find((r) => r.b === 10 || r.h === 10);
+      // Der Steg ist das duennste der drei Rechtecke (seit dem 17. September
+      // massstaeblich: HEB 260, 1 px = 5 mm).
+      const dicke = (r) => Math.min(r.b, r.h);
+      const steg = rechtecke.reduce((a, r) => (dicke(r) < dicke(a) ? r : a));
       return {
         anzahl: rechtecke.length,
         stegWaagrecht: steg.b > steg.h,
@@ -12821,8 +12824,28 @@ titel('44  Skizzen an den Eingabefeldern');
     // Flanschbreite - genau der Fehler, der gemeldet wurde.
     pruef('Quer zum Gleis misst die Jochachse die Profilhoehe',
           q.inJochachse, q.stegLaenge, 1e-12, 'px');
-    wahr('Laengs zum Gleis misst sie weniger, naemlich die Flanschbreite',
-         l.inJochachse < l.stegLaenge, `${l.inJochachse} < ${l.stegLaenge}`);
+    // HEB 260 ist quadratisch - die Flanschbreite ist hier nicht kleiner.
+    wahr('Laengs zum Gleis misst sie die Flanschbreite',
+         l.inJochachse <= l.stegLaenge + 1e-9, `${l.inJochachse} / ${l.stegLaenge}`);
+    /*
+     * DIE GURTE FASSEN DEN MASTEN EIN (Weisung vom 17. September) - und
+     * zwar im selben Massstab: die Gurte liegen aussen, der Mast dazwischen.
+     */
+    const g = OS.optionsSkizze('mastSteg', 'jochachse');
+    const gurte = [...g.matchAll(
+      /<rect class="gurt-grau" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+      .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
+    const st = [...g.matchAll(/<rect class="st" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+      .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
+    const mastOben = Math.min(...st.map((r) => r.y));
+    const mastUnten = Math.max(...st.map((r) => r.y + r.h));
+    const mastLinks = Math.min(...st.map((r) => r.x));
+    wahr('Zwei Gurte, beidseits am Masten vorbei',
+         gurte.length === 2 && gurte.every((r) => r.x < mastLinks)
+         && Math.min(...gurte.map((r) => r.y + r.h)) <= mastOben
+         && Math.max(...gurte.map((r) => r.y)) >= mastUnten);
+    wahr('Keine Windlast mehr, die Bleche grau',
+         !/Wind/.test(g) && g.includes('blech-grau') && !g.includes('class="blech"'));
   }
 
   /*
@@ -19400,7 +19423,7 @@ const CH9x = await import(J('core.checks.js'));
     // Seit dem 17. September als Strebe mit Gelenk und Fundament gezeichnet.
     wahr('… als Strebe mit Gelenk und Fundament',
          r.includes('qa-strebe') && r.includes('qa-gelenk')
-         && (r.includes('qa-fund') || r.includes('qa-aus')));
+         && (r.includes('qa-fund') || r.includes('qa-strich')));
   }
 
   /*
