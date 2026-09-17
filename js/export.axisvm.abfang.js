@@ -1460,6 +1460,20 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       }
     });
 
+  /*
+   * >>> NUR KNOTEN, AN DENEN ETWAS HAENGT (17. September). <<<
+   *
+   * Im Gabelbereich traegt die Gabel; der Gurt beginnt erst hinter ihr,
+   * sein Stationsknoten davor blieb aber stehen (V_1.380, H_1.380 am A240)
+   * - ein Knoten ohne Stab und ohne Steifigkeit. Er faellt weg.
+   */
+  const benutzt = new Set([
+    ...staebe.flatMap((s2) => [s2.von, s2.bis]),
+    ...auflager.map((a2) => a2.knoten),
+    ...punkt.map((p2) => p2.knoten),
+  ]);
+  const knotenBenutzt = knoten.filter((k2) => benutzt.has(k2.name));
+
   return {
     format: 'tragjoch-stabmodell',
     version: 1,
@@ -1511,7 +1525,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     material: { name: 'S235', art: 'Steel', rho: 7850, E: 210000, G: 81000,
                 nu: 0.3, alpha: 1.2e-5, fy: 235 },
     materialSteif: { name: 'S235 steif', faktor: 1000 },
-    querschnitte, knoten, staebe, auflager,
+    querschnitte, knoten: knotenBenutzt, staebe, auflager,
     /*
      * DIE WINDLASTFAELLE STEHEN DA, ABER IN KEINER KOMBINATION - die
      * gehoert dem Auftraggeber im Programm. Geschrieben werden sie
@@ -1530,7 +1544,9 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       { key: 'gk', bez: 'Staendig', art: 'charakteristisch', nachweis: false,
         anteile: [{ lastfall: 'G', faktor: 1 },
                   { lastfall: 'G_Anbau', faktor: 1 }] },
-      { key: 'ULS', bez: 'Tragsicherheit', art: 'Bemessung', nachweis: true,
+      // Art wie am Tragjoch - die Bruecke legt 'tragsicherheit' als ULS an.
+      // Hier stand 'Bemessung', und die Kombination kam als SLS an.
+      { key: 'ULS', bez: 'Tragsicherheit', art: 'tragsicherheit', nachweis: true,
         anteile: [{ lastfall: 'G', faktor: 1.35 },
                   { lastfall: 'G_Anbau', faktor: 1.35 },
                   { lastfall: 'Leiterzug', faktor: 1.5 }] },

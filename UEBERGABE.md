@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4501 Kontrollen
+node pruefung.mjs           # Prüfstand, 4503 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -91,7 +91,30 @@ feuert in manchen Browsern kein `change`), der Dateiname geht mit, ein
 Abbruch endet ohne Meldung. Den nativen Dialog selbst kann das Werkzeug nicht
 bedienen.
 
-Prüfstand: Abschnitte 71 und 72, **4501 Kontrollen** grün.
+**Abfangjoch mit Mast, unsichtbar gerechnet.** A240 / 8.00 m, HEB 240,
+7.00 m, `-Rechnen -Stapel -Unsichtbar`, vier Läufe - alle mit Rückgabe 1
+und 10 Ergebnisfällen:
+
+| Lauf | Unterschied |
+|---|---|
+| neu ausgeleitet | ohne freie Knoten, ULS als Tragsicherheit |
+| Gegenprobe 1 | die beiden freien Knoten wieder eingesetzt |
+| Gegenprobe 2 | Kombinationsart wieder «Bemessung» |
+| Gegenprobe 3 | K_XX der Links wieder frei |
+
+Die Ursache vom 16. September ist damit nicht belegt. Wahrscheinlich war sie
+äusserlich: während der Studie standen noch Leseinstanzen von AxisVM offen
+(sie wurden damals nicht geschlossen). Einmal blieb im Stapelbetrieb die
+Instanz nach dem Sichern stehen, und das Skript kehrte nicht zurück - von
+Hand beendet; dreimal schloss sie sich regulär.
+
+Dabei behoben:
+- Die Abfang-Ausleitung schreibt nur noch Knoten, an denen ein Stab, ein
+  Lager oder eine Last hängt (vorher `V_1.380`, `H_1.380` frei).
+- Die Kombination «Tragsicherheit» des Abfangjochs trug die Art
+  «Bemessung» und kam in AxisVM als **SLS** an; jetzt `tragsicherheit` → ULS.
+
+Prüfstand: Abschnitte 71 und 72, **4503 Kontrollen** grün.
 
 ### Projektablage nach BlockCalc (17. September)
 
@@ -215,11 +238,11 @@ beim Abfangjoch Vorgabe (140 -> 96 N/mm²).
 - Die Ausleitung gab dem lotrechten Masten eine Referenz parallel zur
   Stabachse - behoben (`69d8a62`).
 - **Mit `-Unsichtbar` rechnet AxisVM das Abfangjoch mit Mast nicht**:
-  LinearAnalysis gibt 0 zurueck, keine Ergebnisse, keine Fehlerliste
-  (auch `LinearAnalysis2` nicht). Sichtbar rechnet dasselbe Modell. Das
-  Tragjoch rechnet auch unsichtbar. Ursache nicht gefunden.
+  LinearAnalysis gab 0 zurueck, keine Ergebnisse, keine Fehlerliste
+  (auch `LinearAnalysis2` nicht). Sichtbar rechnete dasselbe Modell.
+  **Am 17. September nicht mehr nachstellbar** (siehe unten).
 - Nebenbefund: zwei Gurtknoten (`V_1.380`, `H_1.380`, Gabelbereich) haengen
-  an keinem Stab.
+  an keinem Stab - **behoben** am 17. September.
 
 ### Menüband, Name Vierendeel, Seilanker nur Zug (16. September)
 

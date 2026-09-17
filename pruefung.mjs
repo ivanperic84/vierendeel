@@ -21545,10 +21545,19 @@ const CH9x = await import(J('core.checks.js'));
      * einmal fuer sich und einmal im Verbund. Gezaehlt wird deshalb die
      * Summe aus beiden: sie deckt jedes Feld genau einmal.
      */
-    const gk = m.knoten.filter((k) => /^V_/.test(k.name)).length;
+    // Stationen aus Gurt- UND Gabelknoten: vor der Gabel gibt es seit dem
+    // 17. September keinen Gurtknoten mehr, der an keinem Stab haengt.
+    const gk = new Set(m.knoten.filter((k) => /^G?V_/.test(k.name))
+      .map((k) => Math.round(k.x * 1e6))).size;
     const laengs = m.staebe.filter((x) => /^[VH]_S\d+$/.test(x.name)
                                        || /^GABEL_[VH]\d+$/.test(x.name));
     pruef('Je Feld zwei Laengsstaebe', laengs.length, (gk - 1) * 2, 1e-9, 'Stk');
+    wahr('Kein Knoten ohne Stab',
+         m.knoten.every((k) => m.staebe.some((s2) => s2.von === k.name || s2.bis === k.name)),
+         m.knoten.filter((k) => !m.staebe.some((s2) => s2.von === k.name || s2.bis === k.name))
+           .map((k) => k.name).join(', '));
+    wahr('Die Bemessungskombination kommt als Tragsicherheit an',
+         m.kombinationen.some((k) => k.key === 'ULS' && k.art === 'tragsicherheit'));
     /*
      * DIE LINIENLAST LAEUFT UEBER ALLE ABSCHNITTE (Weisung, 3. September:
      * «achte darauf dass die linienlast durchgeht, wie bei tragjoch»).
