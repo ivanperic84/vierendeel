@@ -6453,14 +6453,38 @@ function zeichneModellWerkzeuge() {
 function zeichneEinwirkungswahl() {
   const n = ui.el('einwirkung-wahl');
   if (!n || !letzte) return;
-  const lf = [{ wert: 'umhuellend', text: 'umhüllend' },
-              ...letzte.kombi.lastfaelle.map((k, i) =>
-                ({ wert: k.key, text: `LF${i + 1} · ${k.bez}` }))];
-  const wahl = (id, beschriftung, punkte, jetzt) =>
-    `<label for="${id}">${esc(beschriftung)}</label>
-     <select id="${id}">${punkte.map((o) =>
-       `<option value="${esc(o.wert)}"${o.wert === jetzt ? ' selected' : ''}
-         >${esc(o.text)}</option>`).join('')}</select>`;
+  /*
+   * >>> NACH ART GEGLIEDERT (Durchsicht vom 18. September, Punkt U6). <<<
+   *
+   * Zwanzig Faelle standen in einer Reihe; die Frage «welcher ist ein
+   * Nachweis?» musste man aus dem Namen lesen. Jetzt in Gruppen: was
+   * nachgewiesen wird, was nur eine Einwirkung zeigt, was die Verformung
+   * betrifft. Die Nummern LF1 … bleiben - sie stehen so im Bericht und in
+   * der Ausleitung.
+   */
+  const GRUPPE = [
+    ['tragsicherheit', 'Tragsicherheit'],
+    ['aussergewoehnlich', 'Aussergewöhnlich (Havarie)'],
+    ['charakteristisch', 'Charakteristisch — kein Nachweis'],
+    ['gebrauchstauglichkeit', 'Gebrauchstauglichkeit — kein Nachweis'],
+  ];
+  const lf = [{ wert: 'umhuellend', text: 'umhüllend', gruppe: '' },
+              ...letzte.kombi.lastfaelle.map((k, i) => ({
+                wert: k.key,
+                text: `LF${i + 1} · ${k.bez.replace(/^Gebrauchstauglichkeit /, '')}`,
+                gruppe: k.eigen ? 'Eigene Lastfälle'
+                  : (GRUPPE.find(([a]) => a === k.art)?.[1] ?? 'Weitere') }))];
+  const wahl = (id, beschriftung, punkte, jetzt) => {
+    const opt = (o) => `<option value="${esc(o.wert)}"${o.wert === jetzt ? ' selected' : ''}
+         >${esc(o.text)}</option>`;
+    const namen = [...GRUPPE.map(([, n]) => n), 'Eigene Lastfälle', 'Weitere'];
+    return `<label for="${id}">${esc(beschriftung)}</label>
+     <select id="${id}">${punkte.filter((o) => !o.gruppe).map(opt).join('')}${
+       namen.map((g) => {
+         const drin = punkte.filter((o) => o.gruppe === g);
+         return drin.length ? `<optgroup label="${esc(g)}">${drin.map(opt).join('')}</optgroup>` : '';
+       }).join('')}</select>`;
+  };
 
   // NICHT NEU BAUEN, WENN DIESELBE LISTE DASTEHT.
   //

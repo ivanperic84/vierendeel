@@ -225,7 +225,7 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 **Laufende Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
 Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
 aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
-~~A6~~ → ~~A5~~ → ~~U7~~ → U6 → U3 → U5 → U4 → A2 → A1 → A3; A4 nur nach Rückfrage.
+~~A6~~ → ~~A5~~ → ~~U7~~ → ~~U6~~ → U3 → U5 → U4 → A2 → A1 → A3; A4 nur nach Rückfrage.
 
 | # | Auftrag |
 |---|---|
