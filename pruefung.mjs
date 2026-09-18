@@ -18704,7 +18704,7 @@ const CH9x = await import(J('core.checks.js'));
      */
     const einer = rechne7([
       leiter7('vorn', 3, 'vorn', 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107')]);
-    const wind = (e) => einer.auflager[e].faelle.find((f) => f.key === 'wind+y+x');
+    const wind = (e) => einer.auflager[e].faelle.find((f) => f.key === 'wind+y');
     pruef('Ein Leiter, zwei Auflager: die Summe ist die Zugkraft',
           wind('A').anteile.Z + wind('B').anteile.Z, 14.9, 1e-6, 'kN');
     wahr('Der naehere Mast bekommt mehr',
@@ -18729,8 +18729,11 @@ const CH9x = await import(J('core.checks.js'));
       const w4 = einer.auflager.A.faelle.filter((f) => f.fall === 'wind');
       wahr('Wind leitend in ±y und ±x',
            w4.length === 4 && new Set(w4.map((f) => `${f.windY}${f.windX}`)).size === 4);
-      const plusY = w4.find((f) => f.windY > 0 && f.windX > 0);
-      const minusY = w4.find((f) => f.windY < 0 && f.windX > 0);
+      // Seit dem 18. September je eine Richtung, nicht diagonal.
+      wahr('… je eine Richtung, nie beide zugleich',
+           w4.every((f) => (f.windY === 0) !== (f.windX === 0)));
+      const plusY = w4.find((f) => f.windY > 0);
+      const minusY = w4.find((f) => f.windY < 0);
       pruef('Der Gegenwind aendert nur den Windanteil',
             plusY.Fy - minusY.Fy, 2 * plusY.beiwerte.w * plusY.anteile.W, 1e-9, 'kN');
     }
@@ -18769,7 +18772,11 @@ const CH9x = await import(J('core.checks.js'));
      * Beiwert 1. Sie wird gebraucht, wo eine ZULAESSIGE Kraft
      * gegenuebersteht: beim Zuganker am Masten.
      */
-    const wA = paar.auflager.A.faelle.find((f) => f.key === 'wind+y+x');
+    const wA = paar.auflager.A.faelle.find((f) => f.key === 'wind+y');
+    // Weisung vom 18. September: Wind nie in x und y zugleich.
+    wahr('Abfangjoch: kein Windfall traegt x und y zugleich',
+         paar.auflager.A.faelle.every((f) => !(f.windX && f.windY) || f.key === f.fall),
+         paar.auflager.A.faelle.map((f) => f.key).join(','));
     pruef('Charakteristisch: das Gewicht ohne Beiwert',
           wA.char.Fz, wA.anteile.G + wA.anteile.S, 1e-9, 'kN');
     wahr('… und kleiner als der Bemessungswert', wA.char.Fz < wA.Fz);

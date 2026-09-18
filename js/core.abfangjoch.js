@@ -1633,15 +1633,23 @@ export function abfangAuswertung(o = {}) {
       const Ptors = bw.g * kT(b.torG) + bw.s * kT(b.torS)
                   + bw.w * kT(b.torW);
       const PtorsK = kT(b.torG) + kT(b.torS) + kT(b.torW);
+      /*
+       * >>> JE EINE RICHTUNG, NICHT DIAGONAL (Weisung vom 18. September). <<<
+       *
+       * «da wind sich nicht in x und y überlagern kann» - zuerst fuer die
+       * Lastfaelle des Tragjochs, am selben Tag «beim abfangjoch auch
+       * angleichen». Hier standen ±y und ±x ZUGLEICH (vier Diagonalen);
+       * jetzt ±y oder ±x, je mit dem vollen Wind.
+       */
       const richtungen = bw.w
-        ? [[+1, +1], [-1, +1], [+1, -1], [-1, -1]]
+        ? [[+1, 0], [-1, 0], [0, +1], [0, -1]]
         : [[+1, +1]];
+      const rtext = (sy, sx) => (sy ? `${sy > 0 ? '+' : '−'}y` : `${sx > 0 ? '+' : '−'}x`);
+      const rkey = (sy, sx) => (sy ? (sy > 0 ? '+y' : '-y') : (sx > 0 ? '+x' : '-x'));
       return richtungen.map(([sy, sx]) => ({
-        key: bw.w ? `${b.fall.key}${sy > 0 ? '+y' : '-y'}${sx > 0 ? '+x' : '-x'}` : b.fall.key,
+        key: bw.w ? `${b.fall.key}${rkey(sy, sx)}` : b.fall.key,
         fall: b.fall.key,
-        label: bw.w
-          ? `${b.fall.label}, Wind ${sy > 0 ? '+' : '−'}y ${sx > 0 ? '+' : '−'}x`
-          : b.fall.label,
+        label: bw.w ? `${b.fall.label}, Wind ${rtext(sy, sx)}` : b.fall.label,
         windY: sy, windX: sx,
         Fz,
         // Der Leiterzug behaelt sein Vorzeichen, der Wind nimmt beide.

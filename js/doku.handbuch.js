@@ -256,7 +256,7 @@ seiten angesetzt werden … es können überlagerungen mit den ständigen
 (abfangungen) resultieren.» Seither stehen auch die charakteristischen Fälle
 (Wind ±y, Wind ±x, Ständig + Wind je Richtung) und die
 Gebrauchsfälle mit beiden Richtungen da. Am <b>Abfangjoch</b> läuft jeder Fall
-mit Wind in vier Richtungen; Mast und Anker werden über alle gerechnet, mit
+mit Wind in vier Richtungen (±y, ±x, je für sich — seit 18. September nicht mehr diagonal); Mast und Anker werden über alle gerechnet, mit
 dem Mastwind in derselben Richtung.`)}
 
 ${q(`Weisung vom 18. September: «die lastfälle l7 bis l10 weglassen, da wind

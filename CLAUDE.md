@@ -146,7 +146,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Artwechsel auf Einzelmast | die **Anbauteile des Jochs werden gelöscht**, die am Masten bleiben; auch die Vorlage «Einzelmast» ohne Jochteil. Ein alter Stand mit Jochteilen: der Kern rechnet sie nicht und sagt es |
 | Lagerangabe im 3D (18. Sept.) | nur die Lagerung des Jochs am Masten (c_φ, κ), eine Zeile unter dem Fundamentklotz; Profil und Höhe stehen im Mast-Titel. Am Einzelmast keine («gelenkig» wäre falsch) |
 | Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
-| Ständig + Wind (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: statt ±x ±y diagonal **je eine Richtung** (Ständig + Wind ±y, ±x); ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen |
+| Wind nie diagonal (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: **je eine Richtung**, ±y oder ±x. Tragjoch/Einzelmast: Ständig + Wind ±y, ±x statt LF7–LF10 (ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen). Abfangjoch («beim abfangjoch auch angleichen»): Fälle `wind+y`, `-y`, `+x`, `-x`; η des Trägers unverändert, F_x fällt aus den y-Fällen |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Tragausleger (18. Sept.) | bis zum Kragarm-Modell **Warnung statt Sperre**: «Tragausleger NICHT nachgewiesen», gelb, kein Urteil, Bericht nimmt ihn nicht |
 | Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
@@ -161,7 +161,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4718 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4720 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -212,8 +212,8 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   bearbeiten». Dazu: kein doppeltes x-Feld am Einzelmast, Stegskizze mit
   Gleis statt Joch, «Mast plastisch» unter den Nachweiskacheln, Knick-
   Kontrollrechnung der Stütze im Nachweisbericht. Ständig + Wind je
-  Richtung statt diagonal; Lastgenerator nur mit Träger; Tragausleger
-  «NICHT nachgewiesen».
+  Richtung statt diagonal, auch am Abfangjoch; Lastgenerator nur mit
+  Träger; Tragausleger «NICHT nachgewiesen».
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -234,11 +234,6 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **Abfangjoch: Wind diagonal.** `core.abfangjoch.js` setzt jeden
-  Windfall in vier Richtungen ±y **und** ±x zugleich an. Nach der Weisung
-  vom 18. Sept. («wind kann sich nicht in x und y überlagern») wären es
-  ±y und ±x je für sich — nicht ungefragt geändert (Entscheid 17. Sept.
-  «Wind ±x/±y überall» betrifft auch das Abfangjoch).
 - **Nachweisbericht:** Tragausleger fehlt noch (wartet auf die Modellfrage
   unten); die Systemskizze ist die Längsansicht des Modells, keine
   vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt.
@@ -304,7 +299,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4718 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4720 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
