@@ -4055,13 +4055,23 @@ function setzeVorwahlAnStelle() {
  * gibt nur eine Stelle ueber dem Modell, auf die man schaut, und zwei
  * konkurrierende Meldewege waeren einer zu viel.
  */
-function meldeImBalken(text) {
+function meldeImBalken(text, { dauer = 0 } = {}) {
   const n = ui.el('viewer-balken');
   if (!n) return;
   n.hidden = false;
   n.innerHTML = `<span>${esc(text)}</span>`
     + '<button class="btn btn-mini" data-meldung-zu>Schliessen</button>';
   n.querySelector('[data-meldung-zu]').onclick = () => zeichneBalken();
+  /*
+   * EINE AUSKUNFT DARF VON SELBST GEHEN (Durchsicht vom 18. September,
+   * Punkt U5): «Letzter Stand wiederhergestellt» lag auf dem Laptop ueber
+   * Modell und Werkzeugen, bis man ihn wegklickte. Geschlossen wird nur,
+   * wenn noch DIESE Meldung dasteht - eine spaetere bleibt.
+   */
+  if (dauer > 0) {
+    const inhalt = n.innerHTML;
+    setTimeout(() => { if (n.innerHTML === inhalt) zeichneBalken(); }, dauer);
+  }
 }
 
 function zeichneBalken() {
@@ -6713,9 +6723,20 @@ function baueLayout() {
   const setze = (name, px) => ws.style.setProperty(name, px + 'px');
 
   /** Wieviel Platz die Schubladen zusammen höchstens einnehmen dürfen. */
+  /*
+   * >>> DAS MODELL BEKOMMT MINDESTENS 42 % DER BREITE (Durchsicht vom
+   *     18. September, Punkt U5). <<<
+   *
+   * Mit festen 320 px blieben ihm auf einem Laptop (1280 px) 486 px - ein
+   * Streifen neben zwei vollen Schubladen. Jetzt geben die Schubladen im
+   * Verhaeltnis nach, bis das Modell 42 % hat: bei 1280 px 538 px, die
+   * Schubladen rund 360/355 px. Ab etwa 1830 px bleibt alles wie bisher.
+   */
+  const modellMin = () =>
+    Math.max(MODELL_MIN, Math.round(0.42 * document.documentElement.clientWidth));
   const platzFuerSchubladen = () =>
     Math.max(2 * SCHIENE,
-             document.documentElement.clientWidth - 2 * SPLIT_PX - MODELL_MIN);
+             document.documentElement.clientWidth - 2 * SPLIT_PX - modellMin());
 
   let links = 386, rechts = 380;
   // Auf schmalen Fenstern beide Schubladen im Verhältnis zurücknehmen, statt
@@ -6744,12 +6765,22 @@ function baueLayout() {
    * 5. September vorsieht; er wurde nur nie von selbst erreicht.
    */
   const ARBEITSBREITE = 260;
+  /*
+   * ERST DIE RECHTE EINKLAPPEN, NICHT BEIDE. Reicht der Platz fuer zwei
+   * Schubladen nicht, bekommt die Eingabe ihn allein - die rechte Schiene
+   * zeigt die Hauptnachweise ja weiter.
+   */
+  if (links < ARBEITSBREITE || rechts < ARBEITSBREITE) {
+    const nurLinks = Math.min(386, frei - SCHIENE);
+    if (nurLinks >= ARBEITSBREITE) { links = nurLinks; rechts = SCHIENE; }
+  }
   if (links < ARBEITSBREITE) links = SCHIENE;
   if (rechts < ARBEITSBREITE) rechts = SCHIENE;
   setze('--sp-links', links); setze('--sp-rechts', rechts);
 
   // Zuletzt offene Breite je Seite, damit das Einklappen umkehrbar bleibt
-  const offen = { links: links, rechts: rechts };
+  // Beim Start eingeklappt: aufgeklappt wird auf die Vorgabebreite, nicht auf die Schiene.
+  const offen = { links: links > SCHIENE ? links : 386, rechts: rechts > SCHIENE ? rechts : 380 };
 
   const setzeSeite = (seite, v) => {
     if (seite === 'links') { links = v; setze('--sp-links', v); }
@@ -6761,6 +6792,13 @@ function baueLayout() {
     if (zu) zeichneSchienen();
     ansicht?.passeGroesseAn();
   };
+  /*
+   * AUCH BEIM START EINGEKLAPPT, NICHT NUR SCHMAL. Hier wurde bisher nur die
+   * Breite auf die Schiene gesetzt, die Klasse `zu-…` fehlte - der ganze
+   * Inhalt stand dann in 42 px zusammengequetscht (gesehen bei 800 px).
+   */
+  if (links <= SCHIENE) setzeSeite('links', SCHIENE);
+  if (rechts <= SCHIENE) setzeSeite('rechts', SCHIENE);
 
   // Beim KLICKEN weich fahren, beim ZIEHEN nicht: eine Übergangszeit am
   // Mauszeiger fühlt sich wie Verzögerung an, nicht wie Führung.
@@ -9397,7 +9435,7 @@ export async function start() {
       ? '' : ` vom ${z.toLocaleDateString('de-CH')}`;
     meldeImBalken(`Letzter Stand${tag} von ${hhmm} wiederhergestellt`
       + (projekt.id ? ` · ${projekt.projekt ? `${projekt.projekt} · ` : ''}${projekt.name}` : '')
-      + (ungesichert ? ' · nicht in der Ablage gesichert' : ''));
+      + (ungesichert ? ' · nicht in der Ablage gesichert' : ''), { dauer: 8000 });
   }
   switch (startWunsch()) {
     case 'neu': zuruecksetzen(); break;
