@@ -12,15 +12,20 @@ Regelwerksnummern stehen dort, nicht in diesem Dokument und nicht im Code.
 
 ---
 
-## Die zwei Werkzeuge
+## Das Werkzeug und seine Abgabe
 
 | | Zweck |
 |---|---|
-| **`vierendeel_tool.html`** | Eigenständige Datei für Variantenstudien. Doppelklick genügt, es wird nichts nachgeladen. Enthält Zeichnungen, Diagramme und einen `.xlsx`-Export. |
-| **`Vierendeel_L_Profil_SZS_C5.xlsx`** | Prüffähige Abgabe. Alle Ergebniszellen sind **lebende Excel-Formeln** – jede Eingabeänderung rechnet in Excel nach, und der Prüfer sieht jede Formel in der Zelle. |
+| **`vierendeel_tool.html`** / **`index.html`** | Die Anwendung: eigenständig per Doppelklick bzw. als Modulversion (GitHub Pages, Entwicklung). Tragjoch, Einzelmast, Mast mit Tragausleger, Abfangjoch; Masten, Anker, Anbauteile. |
+| **Nachweisbericht** | Die Abgabe: Knopf im Menüband, A4-Seiten zum Drucken als PDF — Hauptteil und Anhang, Umfang und Bilder einstellbar. Er rechnet nicht selbst; jede Formel trägt die Zwischenwerte des Kerns, und der Prüfstand rechnet sie nach. Tragjoch und Einzelmast. |
+| **AxisVM-Ausleitung** | Das Modell für die Gegenrechnung im Statikprogramm (COM, siehe [com/LIESMICH.md](com/LIESMICH.md)). |
 
-Beide rechnen dasselbe Modell. Dass sie identische Zahlen liefern, wird mit
-`vergleich_excel_js.py` nachgewiesen (siehe unten).
+> **Veraltet: `Vierendeel_L_Profil_SZS_C5.xlsx`** und sein Erzeuger
+> `generate_vierendeel_L_SZS_C5.py` stammen aus der Anfangszeit und folgen dem
+> heutigen Rechenkern nicht mehr (Masten, Lastfälle, Hüllkurve, örtlicher
+> Anteil). Auch `vergleich_excel_js.py` ruft den Kern noch im alten
+> Eingabeformat auf und bricht ab (geprüft am 18. September 2026). Die Mappe ist
+> **keine prüffähige Abgabe** — dafür gibt es den Nachweisbericht.
 
 ---
 
@@ -1015,9 +1020,9 @@ Bilddatei — sonst laufen die Fassungen auseinander.
 ```
 vierendeel_tool.html              eigenständiges Werkzeug (gebündelt, Doppelklick)
 index.html                        Modulversion für die Entwicklung (braucht Server)
-Vierendeel_L_Profil_SZS_C5.xlsx   prüffähige Mappe mit lebenden Formeln
+Vierendeel_L_Profil_SZS_C5.xlsx   VERALTET, siehe oben
 
-generate_vierendeel_L_SZS_C5.py   erzeugt die Excel-Mappe
+generate_vierendeel_L_SZS_C5.py   erzeugt die Excel-Mappe (veraltet)
 build_html.py                     bündelt js/ + css/ zu vierendeel_tool.html
                                   und schreibt Dateiliste + Fassung in sw.js
 make_icons.py                     erzeugt icons/ (PNG und SVG) aus einer Vorschrift
@@ -1030,9 +1035,10 @@ manifest.webmanifest              Name, Farben, Symbole der installierbaren Fass
 sw.js                             Dienstarbeiter: Ablage und Auslieferung ohne Netz
 icons/                            Symbole für Reiter, Home-Bildschirm und Fenster
 validate_xlsx.py                  prüft alle Excel-Formeln auf #NAME?-Fehler
-vergleich_excel_js.py             rechnet Excel und JS durch und vergleicht
+vergleich_excel_js.py             Excel gegen JS (veraltet, bricht ab)
 
 pruefung.mjs                      Prüfstand: node pruefung.mjs
+durchlauf.mjs                     Durchgang durch alle Wege je Tragwerksart
 CLAUDE.md                         Vorgaben, Entschiedenes, offene Punkte
 
 data/normen.json                  Querschnittswerte und Stahlgüten (verfolgt)
@@ -1148,8 +1154,9 @@ Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf.
 node pruefung.mjs
 ```
 
-Prüfstand über den Rechenkern: 1670 Kontrollen, ohne Browser und ohne Bündeln.
-Nach jedem Eingriff in `core.*.js` laufen lassen.
+Prüfstand über den Rechenkern: rund 4700 Kontrollen (die aktuelle Zahl steht
+in CLAUDE.md), ohne Browser und ohne Bündeln. Nach jedem Eingriff in
+`core.*.js` laufen lassen, danach `node durchlauf.mjs`.
 
 ```bash
 python3 generate_vierendeel_L_SZS_C5.py
@@ -1158,7 +1165,7 @@ python3 vergleich_excel_js.py
 ```
 
 Excel-Mappe erzeugen, Formeln auf nicht auflösbare Bezeichner prüfen und beide
-Implementierungen gegeneinander halten. Der Vergleich braucht `node` und
+Implementierungen gegeneinander halten — **veraltet**, siehe oben. Der Vergleich braucht `node` und
 
 ```bash
 pip3 install openpyxl formulas

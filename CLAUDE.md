@@ -222,7 +222,24 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
-**Laufende Arbeit:** keine.
+**Laufende Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
+Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
+aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
+A6 → A5 → U7 → U6 → U3 → U5 → U4 → A2 → A1 → A3; A4 nur nach Rückfrage.
+
+| # | Auftrag |
+|---|---|
+| U3 | Schrift klein und blass: 7.5–11.5 px in 15 Grössen, Erklärtexte ≈ 2:1 Kontrast (Ziel ≥ 4.5:1) |
+| U4 | Sehr viel auf einmal: 87 Knöpfe, 39 Felder sichtbar, Erklärtext unter fast jedem Feld |
+| U5 | Laptopbreite (≤ 1280 px): 3D-Bild wird ein Streifen, Leisten und Meldung liegen darüber |
+| U6 | 20 Lastfälle ungegliedert — nach Art gliedern (charakteristisch, Tragsicherheit, Havarie, Gebrauch) |
+| U7 | Excel, Drucken, Speichern im Kopf nur als Symbole |
+| A1 | `app.js` (≈ 9300 Zeilen) in Module teilen: Dialoge, Ablage, Zeichnung — reiner Umbau |
+| A2 | Ergebnisse von Hand in `anzeige` übertragen (dreimal vergessen) → eine Funktion + Kontrolle |
+| A3 | Prüfstand braucht Betreiberdaten → erfundener Testdatensatz, danach CI möglich |
+| A4 | 38–45 % Kommentare, 711 Weisungszitate — Chronik gehört in Git (Geschmackssache, erst fragen) |
+| A5 | Versionsanzeige immer «v2.0» → Datum und Commit aus dem Bündeln |
+| A6 | README veraltet (Kontrollenzahl, Excel-Skript) |
 
 **Datenstand:** `data/tragjoche.json` trägt seit 18. Sept. die J60-Bleche
 (Sicherung davor: `data/sicherung/tragjoche_vor_J60_2026-09-18.json`). Wer
