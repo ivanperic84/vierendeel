@@ -1556,6 +1556,25 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
                     * nicht: der ist ab Werk aus.
                     */
                    grund: g.vorhanden ? 'ausgeschaltet' : 'nicht enthalten' }));
+  /*
+   * >>> DER TRAGAUSLEGER IST NICHT NACHGEWIESEN (Entscheid vom 18. Sept.). <<<
+   *
+   * Der Kern rechnet ihn als Einfeldtraeger mit einem zweiten Auflager am
+   * freien Ende. Gemessen an der Vorlage (L = 8 m, Fahrleitung an der
+   * Spitze, G charakteristisch): M_A = 0 statt 28.6 kNm von Hand, der Mast
+   * bekommt kein Einspannmoment. Das liegt auf der unsicheren Seite. Bis zu
+   * einem eigenen Kragarm-Modell bleibt die Art waehlbar, aber ohne Urteil:
+   * «nicht nachgewiesen», gelb, und der Bericht nimmt ihn nicht.
+   */
+  const ausleger = art === 'tragausleger';
+  if (ausleger) {
+    nichtGefuehrt.unshift({
+      key: 'tragausleger', titel: 'Tragausleger (Kragarm)', grund: 'nicht enthalten',
+      was: 'Der Ausleger wird als Einfeldträger mit einem Auflager am freien Ende '
+         + 'gerechnet; Kragmoment und Einspannung in den Mast fehlen (L = 8 m: '
+         + 'M_A 0 statt 28.6 kNm). Die Ergebnisse liegen auf der unsicheren '
+         + 'Seite — der Tragausleger ist nicht nachgewiesen.' });
+  }
   return {
     alleOk: harte.every((c) => c.ok),
     anzahlVerletzt: harte.filter((c) => !c.ok).length,
@@ -1575,7 +1594,9 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
     bindendVerletzt: harte.some((c) => !c.ok && c.urteilBindend === true),
     // Trägt das Joch selbst keinen Nachweis mehr, ist η keine Aussage über
     // die Tragsicherheit mehr - und darf auch nicht als eine auftreten.
-    tragwerkGefuehrt: nw.jochtragwerk === true,
+    tragwerkGefuehrt: nw.jochtragwerk === true && !ausleger,
+    /** Welches Tragwerk ohne gesichertes Modell ist - fuer Kachel und Fussleiste. */
+    nichtNachgewiesen: ausleger ? 'Tragausleger' : null,
   };
 }
 
@@ -1590,7 +1611,9 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
  * @param {object} o {gut, eta, wer, urteil}
  */
 export function urteilFusszeile({ gut, eta, wer = '', urteil = {} }) {
-  const kopf = urteil.tragwerkGefuehrt === false
+  const kopf = urteil.nichtNachgewiesen
+    ? `${urteil.nichtNachgewiesen} NICHT nachgewiesen`
+    : urteil.tragwerkGefuehrt === false
     ? 'Jochtragwerk nicht geführt'
     : (gut ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt');
   const n = urteil.anzahlVerletzt ?? 0;

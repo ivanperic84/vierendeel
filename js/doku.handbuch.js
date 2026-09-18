@@ -239,7 +239,7 @@ einzeln ausweist.</p>
 <tr><td>Ständig (Tragwerk)</td><td>alle Gewichte: Joch, Masten und Anbauteile, ohne Ablenkkräfte</td></tr>
 <tr><td>Ablenkkräfte ständig</td><td>nur die Ablenkkräfte aus dem Kurvenzug, in der Jochachse</td></tr>
 <tr><td>Schnee · Wind y · Wind x</td><td>je eine Einwirkung allein</td></tr>
-<tr><td>Ständig + Wind</td><td>alles zusammen, ohne Beiwerte</td></tr></table>
+<tr><td>Ständig + Wind ±y · Ständig + Wind ±x</td><td>ständige Last mit dem Wind in EINER Richtung, ohne Beiwerte — die Grundlage des Ankernachweises</td></tr></table>
 
 <p>Die ersten beiden ergänzen sich zur vollen ständigen Last. Getrennt geführt
 ist die Ablenkkraft, weil sie als einzige ständige Last in der Jochachse zieht
@@ -254,10 +254,16 @@ und in ±x.</p>
 ${q(`Weisung vom 17. September: «der wind in y und x sollte immer auf beide
 seiten angesetzt werden … es können überlagerungen mit den ständigen
 (abfangungen) resultieren.» Seither stehen auch die charakteristischen Fälle
-(Wind ±y, Wind ±x, Ständig + Wind in allen vier Vorzeichen) und die
+(Wind ±y, Wind ±x, Ständig + Wind je Richtung) und die
 Gebrauchsfälle mit beiden Richtungen da. Am <b>Abfangjoch</b> läuft jeder Fall
 mit Wind in vier Richtungen; Mast und Anker werden über alle gerechnet, mit
 dem Mastwind in derselben Richtung.`)}
+
+${q(`Weisung vom 18. September: «die lastfälle l7 bis l10 weglassen, da wind
+sich nicht in x und y überlagern kann.» Dort stand «Ständig + Wind ±x ±y» mit
+beiden Richtungen zugleich. Seither je eine Richtung: «Ständig + Wind ±y» und
+«Ständig + Wind ±x». Ersatzlos gestrichen hätte der Ankernachweis ständige
+Last und Wind nie zusammen gesehen.`)}
 
 ${f(`γ_G · G &nbsp;±&nbsp; γ_Q · W &nbsp;+&nbsp; γ_Q · ψ₀ · S &nbsp;&nbsp;(Wind leitend)<br>
 γ_G · G &nbsp;±&nbsp; γ_Q · ψ₀ · W_y &nbsp;+&nbsp; γ_Q · S &nbsp;&nbsp;(Schnee leitend)`)}

@@ -344,11 +344,22 @@ export function standardLastfaelle(inp) {
       nachweis: false, leit: 'WindX', vorzeichen: +1, beiwerte: bw({ WindX: 1 }) },
     { key: 'wxkm', bez: 'Wind −x (Jochachse)', art: 'charakteristisch',
       nachweis: false, leit: 'WindX', vorzeichen: -1, beiwerte: bw({ WindX: -1 }) },
-    ...[[+1, +1, 'gwk'], [+1, -1, 'gwkpm'], [-1, +1, 'gwkmp'], [-1, -1, 'gwkmm']]
-      .map(([sx, sy, key]) => ({
-        key, bez: `Ständig + Wind ${sx > 0 ? '+' : '−'}x ${sy > 0 ? '+' : '−'}y`,
-        art: 'charakteristisch', nachweis: false,
-        beiwerte: bw({ G: 1, WindX: sx, WindY: sy }) })),
+    /*
+     * >>> STAENDIG + WIND JE RICHTUNG, NICHT DIAGONAL (18. September). <<<
+     *
+     * Weisung: «die lastfälle l7 bis l10 weglassen, da wind sich nicht in x
+     * und y überlagern kann.» Dort standen «Ständig + Wind ±x ±y» - beide
+     * Richtungen zugleich mit 1.00. Ersatzlos gestrichen haette der
+     * Ankernachweis, der auf den charakteristischen Faellen steht, G und
+     * Wind nie mehr zusammen gesehen. Entscheid vom selben Tag: je eine
+     * Richtung, vier Faelle. `gwk` bleibt der Schluessel fuer +y.
+     */
+    ...[['WindY', +1, 'gwk', '+y (Gleisrichtung)'], ['WindY', -1, 'gwkm', '−y (Gleisrichtung)'],
+        ['WindX', +1, 'gwkx', '+x (Jochachse)'], ['WindX', -1, 'gwkxm', '−x (Jochachse)']]
+      .map(([gruppe, vz, key, text]) => ({
+        key, bez: `Ständig + Wind ${text}`,
+        art: 'charakteristisch', nachweis: false, leit: gruppe, vorzeichen: vz,
+        beiwerte: bw({ G: 1, [gruppe]: vz }) })),
   );
 
   // Wind leitend, je Richtung mit beiden Vorzeichen
@@ -492,7 +503,15 @@ function markiereDoppelte(liste) {
   return liste.map((l) => {
     const schluessel = JSON.stringify(l.beiwerte) + '|' + (l.nur ?? '');
     const erster = gesehen.get(schluessel);
+    /*
+     * NUR EIGENE FAELLE WERDEN GEKENNZEICHNET. Seit dem 18. September
+     * tragen «Ständig + Wind ±y» ohne Schnee dieselben Beiwerte wie die
+     * seltene Gebrauchstauglichkeit - zwei vorgegebene Faelle mit
+     * verschiedenem Zweck (Anker hier, Verformung dort). Die Kennzeichnung
+     * gilt dem, was jemand von Hand doppelt angelegt hat.
+     */
     if (erster === undefined) { gesehen.set(schluessel, l); return l; }
+    if (!l.eigen) return l;
     return { ...l, doppeltZu: erster.key, doppeltBez: erster.bez };
   });
 }

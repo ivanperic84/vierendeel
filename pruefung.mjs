@@ -794,7 +794,7 @@ titel('15  Lastfälle');
        lf.slice(0, chars.length).every((x) => x.art === 'charakteristisch'));
   wahr('Ständig, Ablenkkräfte, Schnee, Wind ±y, Wind ±x, Ständig + Wind (4)',
        chars.map((x) => x.key).join(',')
-         === 'gk,ablk,sk,wyk,wykm,wxk,wxkm,gwk,gwkpm,gwkmp,gwkmm',
+         === 'gk,ablk,sk,wyk,wykm,wxk,wxkm,gwk,gwkm,gwkx,gwkxm',
        chars.map((x) => x.bez).join(' · '));
   wahr('Jede Einzellastart trägt genau eine Gruppe',
        ['sk', 'wyk', 'wxk'].every((k) => Object.values(holen(k).beiwerte)
@@ -819,7 +819,13 @@ titel('15  Lastfälle');
   pruef('LF ständig: Wind y = 0', gk.beiwerte.WindY, 0, 1e-12, '–');
   pruef('LF ständig + Wind: γ_G = 1.00', gwk.beiwerte.G, 1, 1e-12, '–');
   pruef('LF ständig + Wind: Wind y = 1.00', gwk.beiwerte.WindY, 1, 1e-12, '–');
-  pruef('LF ständig + Wind: Wind x = 1.00', gwk.beiwerte.WindX, 1, 1e-12, '–');
+  // Weisung vom 18. September: Wind nie in x und y zugleich.
+  pruef('LF ständig + Wind +y: Wind x = 0', gwk.beiwerte.WindX, 0, 1e-12, '–');
+  pruef('LF ständig + Wind +x: Wind x = 1.00, Wind y = 0',
+        holen('gwkx').beiwerte.WindX + 10 * holen('gwkx').beiwerte.WindY, 1, 1e-12, '–');
+  wahr('Kein vorgegebener Fall traegt Wind x und Wind y zugleich',
+       lf.every((x) => !(x.beiwerte.WindX !== 0 && x.beiwerte.WindY !== 0
+                         && x.art === 'charakteristisch')));
   wahr('Charakteristische Lastfälle sind kein Nachweis',
        gk.nachweis === false && gwk.nachweis === false);
 
@@ -1940,10 +1946,17 @@ titel('26  Lastarten im Modell und Vorlagen ganzer Tragwerke');
   wahr('Die Umlenkkraft steht als eigene Lastart da',
        pfeile.some((v) => v.lastart === 'leiterzug'),
        pfeile.filter((v) => v.lastart === 'leiterzug').map((v) => v.text).join(' · '));
+  // Seit dem 18. September traegt kein Fall beide Richtungen zugleich -
+  // Wind x steht im Fall «Ständig + Wind +x».
+  const pfeileX = R.erzeugeSzene(...(() => {
+    const ex = rechne(basis({ trasseRadius: 300, flSpannweite: 50, schneeAktiv: true,
+                              lastfall: 'gwkx', anbauteile: [bg] }));
+    return [ex.modell, ex];
+  })()).vektoren.filter((v) => v.art === 'last');
   wahr('Wind x und Wind y sind getrennt aufgetragen',
-       pfeile.some((v) => v.lastart === 'windX') &&
-       pfeile.some((v) => v.lastart === 'windY'),
-       [...new Set(pfeile.map((v) => v.lastart))].join(' · '));
+       pfeileX.some((v) => v.lastart === 'windX') && !pfeileX.some((v) => v.lastart === 'windY')
+       && pfeile.some((v) => v.lastart === 'windY') && !pfeile.some((v) => v.lastart === 'windX'),
+       [...new Set([...pfeile, ...pfeileX].map((v) => v.lastart))].join(' · '));
   // Im Lastfall «Wind y leitend» darf gar kein Wind-x-Pfeil stehen: dort ist
   // die Gruppe ausgeschaltet.
   const eY = rechne(basis({ trasseRadius: 300, flSpannweite: 50,
@@ -25174,6 +25187,21 @@ titel('87  Einzelmast: Gleis in der Stegskizze, ein x-Feld, plastisch in der Nac
   wahr('… und steht am Joch', fX.sichtbar(joch) === true);
   wahr('«Mast plastisch» steht nicht mehr im System',
        FELDER.find((f) => f.key === 'mastPlastisch').versteckt === true);
+}
+
+titel('89  Tragausleger: nicht nachgewiesen, bis ein Kragarm-Modell steht');
+// Entscheid vom 18. September: Warnung statt Sperre.
+{
+  const CH = await import(J('core.checks.js'));
+  const u = CH.urteilKonstruktion([], {}, 'tragausleger');
+  wahr('Tragausleger: kein Tragwerksurteil', u.tragwerkGefuehrt === false
+       && u.nichtNachgewiesen === 'Tragausleger');
+  wahr('… und er steht zuoberst unter «nicht geführt»', u.nichtGefuehrt[0]?.key === 'tragausleger');
+  const z = CH.urteilFusszeile({ gut: true, eta: 0.4, urteil: u });
+  wahr('Die Fussleiste sagt «NICHT nachgewiesen», nicht «erfüllt»',
+       /NICHT nachgewiesen/.test(z) && !/erfüllt/.test(z), z);
+  wahr('Das Tragjoch bleibt unberuehrt',
+       CH.urteilKonstruktion([], { jochtragwerk: true }, 'joch').nichtNachgewiesen === null);
 }
 
 titel('88  Seitenleiste: die Knick-Kachel der Druckstuetze');

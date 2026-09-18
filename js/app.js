@@ -1314,7 +1314,9 @@ function aktualisiereFuss(erg, urteil, joch) {
   // Klemme zehn Zentimeter zu weit rechts genuegte. Zwei Anzeigen derselben
   // Sache, die einander widersprechen, sind schlimmer als eine.
   const gut = e <= 1 && !bt?.ueber && urteil.bindendVerletzt !== true;
-  const farbe = gut ? 'var(--ok)' : 'var(--fail)';
+  // Ohne Urteil (nicht geführt, nicht nachgewiesen) gelb wie die Kachel.
+  const farbe = urteil.tragwerkGefuehrt === false ? 'var(--warn)'
+    : (gut ? 'var(--ok)' : 'var(--fail)');
   const wer = bt?.massgebend && bt.liste.length > 1 ? ` (${esc(bt.massgebend.name)})` : '';
   ui.el('st-urteil').innerHTML =
     `<span class="pkt" style="background:${farbe}"></span>` +

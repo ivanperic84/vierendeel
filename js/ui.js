@@ -2532,14 +2532,20 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
          den Nachweis ein. Über die ABFANGKRAFT entscheidet die Anbindung:
          nur «Mitte Träger» leitet den Leiterzug ein.
        </small>` : '';
+  /*
+   * DER LASTGENERATOR NUR MIT TRAEGER (Entscheid vom 18. September): er
+   * verteilt Teile auf die Gleise UEBER einem Joch. Am Einzelmast gibt es
+   * keine Strecke dafuer, und meist wird nur ein Gleis daneben bedient -
+   * die Teile setzt dort die Vorlage bzw. der Vorrat.
+   */
   return abschnitt(g.titel, `<span class="sec-r">${liste.length} Stück</span>`) +
     nichtGetragen +
     `<div class="at-werkzeuge">
        <button class="btn btn-mini" data-vorlage-direkt="frei" type="button"
          title="Freies Bauteil setzen — Typ, Länge und Lasten selbst eintragen"
          >${icon('anbau', 12)} Bauteil zuweisen</button>
-       <button class="btn btn-mini" data-generator type="button"
-         title="Anbauteile über die Gleise verteilen">Lastgenerator</button>
+       ${tragwerksart(werte).traeger ? `<button class="btn btn-mini" data-generator type="button"
+         title="Anbauteile über die Gleise verteilen">Lastgenerator</button>` : ''}
      </div>` +
     klapp('anbau-vorrat', 'Anbauteil hinzufügen', `
       <p class="hinweis" style="margin:0 0 7px">Kachel anklicken oder ins
@@ -4968,7 +4974,9 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
   const urteilText = einzelLastfall
     ? `Einzellastfall — kein Tragsicherheitsurteil`
     : (!gefuehrt
-        ? 'Jochtragwerk NICHT geführt — η ist kein Urteil'
+        ? (urteil.nichtNachgewiesen
+            ? `${urteil.nichtNachgewiesen} NICHT nachgewiesen — Modell nicht gesichert, η ist kein Urteil`
+            : 'Jochtragwerk NICHT geführt — η ist kein Urteil')
         : (zustand === 'ok'
             ? 'Tragsicherheit erfüllt'
             : 'Tragsicherheit NICHT erfüllt'));

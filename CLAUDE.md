@@ -146,6 +146,9 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Artwechsel auf Einzelmast | die **Anbauteile des Jochs werden gelöscht**, die am Masten bleiben; auch die Vorlage «Einzelmast» ohne Jochteil. Ein alter Stand mit Jochteilen: der Kern rechnet sie nicht und sagt es |
 | Lagerangabe im 3D (18. Sept.) | nur die Lagerung des Jochs am Masten (c_φ, κ), eine Zeile unter dem Fundamentklotz; Profil und Höhe stehen im Mast-Titel. Am Einzelmast keine («gelenkig» wäre falsch) |
 | Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
+| Ständig + Wind (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: statt ±x ±y diagonal **je eine Richtung** (Ständig + Wind ±y, ±x); ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen |
+| Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
+| Tragausleger (18. Sept.) | bis zum Kragarm-Modell **Warnung statt Sperre**: «Tragausleger NICHT nachgewiesen», gelb, kein Urteil, Bericht nimmt ihn nicht |
 | Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
@@ -158,7 +161,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4712 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4718 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -208,7 +211,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   ihm die Kopfverschiebung) — gespeichert gilt er nur noch bei «Werte
   bearbeiten». Dazu: kein doppeltes x-Feld am Einzelmast, Stegskizze mit
   Gleis statt Joch, «Mast plastisch» unter den Nachweiskacheln, Knick-
-  Kontrollrechnung der Stütze im Nachweisbericht.
+  Kontrollrechnung der Stütze im Nachweisbericht. Ständig + Wind je
+  Richtung statt diagonal; Lastgenerator nur mit Träger; Tragausleger
+  «NICHT nachgewiesen».
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -217,11 +222,7 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
-**Laufende Arbeit:** Weisungsliste vom 18. Sept. abends. Erledigt: Stütze am
-Einzelmast (Absturz), Bericht mit Knicken der Stütze, doppeltes x-Feld,
-Windklasse am Masten, Stegskizze mit Gleis, «plastisch» in die
-Nachweisleiste. **Offen, mit Rückfrage:** LF7–LF10 weglassen (siehe
-Offene Punkte), Lastgenerator am Einzelmast.
+**Laufende Arbeit:** keine.
 
 **Datenstand:** `data/tragjoche.json` trägt seit 18. Sept. die J60-Bleche
 (Sicherung davor: `data/sicherung/tragjoche_vor_J60_2026-09-18.json`). Wer
@@ -233,27 +234,24 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **LF7–LF10 «Ständig + Wind ±x ±y» weglassen** (Weisung 18. Sept.:
-  «da wind sich nicht in x und y überlagern kann»). Es sind die einzigen
-  charakteristischen Fälle mit G und Wind zusammen, und der Ankernachweis
-  steht auf ihnen. Ersatzlos gestrichen sähe der Anker G und Wind nur
-  getrennt (unsichere Seite). Vorschlag: ersetzen durch «Ständig + Wind ±x»
-  und «Ständig + Wind ±y» — Entscheid ausstehend.
-- ⚠ **Lastgenerator am Einzelmast** verteilt Teile über die Gleise eines
-  Jochs (L = 0 → nichts). Ausblenden oder auf ein Gleis neben dem Masten
-  umbauen — Entscheid ausstehend.
+- ⚠ **Abfangjoch: Wind diagonal.** `core.abfangjoch.js` setzt jeden
+  Windfall in vier Richtungen ±y **und** ±x zugleich an. Nach der Weisung
+  vom 18. Sept. («wind kann sich nicht in x und y überlagern») wären es
+  ±y und ±x je für sich — nicht ungefragt geändert (Entscheid 17. Sept.
+  «Wind ±x/±y überall» betrifft auch das Abfangjoch).
 - **Nachweisbericht:** Tragausleger fehlt noch (wartet auf die Modellfrage
   unten); die Systemskizze ist die Längsansicht des Modells, keine
   vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt.
-- ⚠ **Mast mit Tragausleger — Ergebnisse auf der unsicheren Seite.** Der
+- **Mast mit Tragausleger — Ergebnisse auf der unsicheren Seite** (seit
+  18. Sept. als «NICHT nachgewiesen» gekennzeichnet, gelb, ohne Urteil;
+  offen bleibt das Kragarm-Modell). Der
   Kern rechnet den Ausleger als Einfeldträger mit einem zweiten Auflager am
   freien Ende (Phantom «Mast B»). Gemessen an der Vorlage, Fahrleitung an
   der Spitze, G charakteristisch: L = 8 m → Kern M_A = 0, max M_y 5.0 kNm;
   Kragarm von Hand M_A = 28.6 kNm, R_A 6.0 statt 2.4 kN. L = 12 m: 10.9
   gegen 57.3 kNm. Der Mast bekommt kein Einspannmoment aus dem Ausleger.
   Dazu besteht der Tragausleger nach Sortiment aus zwei UPE 140, nicht aus
-  vier Winkeln. Braucht ein eigenes Kragarm-Modell; bis dahin ist über
-  eine Sperre oder Warnung zu entscheiden.
+  vier Winkeln. Braucht ein eigenes Kragarm-Modell.
 - **Druckstütze Stufe 2** (mehrteiliger Druckstab, EN 1993-1-1, 6.4): ⚠ es
   fehlen der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen
   (Anzahl, Abstand, Profil).
@@ -306,7 +304,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4712 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4718 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
