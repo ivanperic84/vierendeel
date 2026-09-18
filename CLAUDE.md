@@ -55,8 +55,26 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
 
 - Windows 10, Git Bash und PowerShell; Node 24, Python 3.12 (`python3`).
 - AxisVM auf demselben Rechner, angesprochen über COM (`com/`).
-- `origin` zeigt auf die öffentliche GitHub-Ablage; der Zweig
-  `github-stand-vor-push` ist ein alter Stand, nur örtlich von Wert.
+- **GitHub:** `origin` ist die öffentliche Ablage `vierendeel` (Zweig
+  `main`), mit **GitHub Pages** — die Modulversion `index.html` läuft dort
+  ohne Daten und fragt beim Start nach einem Datenpaket. Keine Actions,
+  keine `gh`-CLI; Anmeldung über den Git Credential Manager von Windows.
+  Seit dem 24. August wurde auf Weisung laufend gepusht (zuletzt
+  18. September). Der Zweig `github-stand-vor-push` ist der alte, von Hand
+  hochgeladene Stand, nur örtlich von Wert.
+- **`Grundlagen/`** (im Projekt, nicht in der Ablage) — die fachliche
+  Quelle der Daten: Sortimentsblätter und Werkstattzeichnungen der Tragjoche
+  J60–J130, Konstruktions- und Schemazeichnungen der Abfangjoche A160–A360
+  (neu und alt), Zeichnungen der Tragausleger, Bemessungsblätter der Zug-/
+  Druckstützen und Seilanker, unter `Einwirkungen` zulässige Standardlasten
+  auf Fundamente, Gewichtslasten und die Reglagetabelle der Leiterzugkräfte,
+  eine Excel-Mappe der Einwirkungen auf Fahrleitungstragwerke, eine
+  Sammelmappe der Joche in Altbauweise, unter `QP` Beispiel-Querprofile
+  und Kursaufgaben, unter `AxisVM` Testjoche (DXF, Zuordnungstabellen,
+  PyNite-Skripte) und unter `Blockcalc` die Schwester-App, deren
+  Projektablage übernommen wurde. **Zahlen daraus gehören in `data/*.json`,
+  nie in verfolgte Dateien.** Die Excel-Rechenwerkzeuge für Masten und Joche
+  liegen ausserhalb dieses Projekts im übergeordneten `Statiktools`.
 - **Nicht in der Ablage und bei einem Rechnerwechsel von Hand
   mitzunehmen:** `data/*.json` (Betreiberdaten; ohne sie läuft der
   Prüfstand nicht — sie lassen sich aus einem Datenpaket
@@ -241,6 +259,52 @@ abzulegen. Er schreibt auch `sw.js` neu (Dateiliste und Fassung) — diese
 | Bild | `geometry`, `render.*`, `bild.*`, `design` | Geometrie, 3D, Diagramme, Abfangjoch, hinterlegte Zeichnung und Erkennung |
 | Ausleitung | `export.axisvm*`, `export.pynite`, `export.bericht`, `export.xlsx` | AxisVM (COM-JSON), PyNite, Bericht, Excel |
 | Oberfläche | `app` (Verdrahtung), `ui*`, `store` (Projektablage), `verlauf` (Rückgängig), `pwa`, `doku.*` (Handbuch, Skizzen) | |
+
+### Architektur
+
+- **Keine Abhängigkeiten, kein Framework.** Reine ES-Module im Browser, DOM
+  von Hand (`ui.js`), 3D auf Canvas 2D (`render.3d.js`), Diagramme als SVG.
+  Node führt dieselben Module für Prüfstand und Kalibrierung aus.
+- **Zwei Auslieferungen aus einer Quelle:** `index.html` lädt `js/` als
+  Module (Entwicklung, GitHub Pages); `build_html.py` sortiert die Module
+  topologisch, schreibt die `import`-Zeilen auf eine Modultabelle um und
+  legt `vierendeel_tool.html` ab (Doppelklick, `file://`). `--ohne-daten`
+  lässt die Betreiberdaten weg; `data/normen.json` ist immer eingebettet.
+  Nur **statische** Importe — `import()` sieht der Bündler nicht.
+- **Hauptzyklus** (`app.js`, rund 9100 Zeilen, nur Verdrahtung): jede
+  Eingabe → `aendern(key, wert)` → `neuRechnen()`. Dort, in dieser
+  Reihenfolge: Verlauf melden (Rückgängig hängt nur hier) → Grenzen aus dem
+  Sortiment → `berechne(rechensatz(werte))` (Kern des Tragjochs, läuft
+  immer, weil Bild und Masken an seiner Gestalt hängen) → beim Abfangjoch
+  zusätzlich `abfangAuswertung` und der Mast über alle Fälle → ohne Joch
+  (Einzelmast) werden Jochschritte **übersprungen, nicht abgesichert** →
+  `vergleichKombinationen` (Hüllkurve) → Anker (charakteristisch) →
+  Kontrollen, Hinweise, `bauteilUrteil` → `letzte = {…}` → Maske, Auswertung,
+  Schienen, Modell, Fussleiste → `speichern()`.
+- **`erg` und `anzeige`:** `erg` ist der Bemessungsdurchgang, `anzeige` die
+  gewählte Kombination bzw. die Hüllkurve. Abfangjoch, Mast und Anker hängen
+  an `erg` und werden in `anzeige` **hinübergelegt** — wer ein neues
+  Bauteilergebnis einführt, muss es dort ebenso mitgeben, sonst erscheint es
+  nicht in der Spalte (ist dreimal passiert).
+- **Datenmodell eines Blattes:** ein flacher Satz `werte` ist das **aktive**
+  Tragwerk (`twId`), die übrigen stehen in `werte.weitere`. `tragwerkeVon`,
+  `tragwerkSatz`, `tauscheAktives` (ersetzen, nicht überlagern),
+  `tragwerkHinzu`/`tragwerkWeg` in `core.constants.js`. Masten sind eine
+  eigene Liste (`mastenVon`), Tragwerke teilen sich Masten nach Lage;
+  `rechensatz` projiziert Masten und Anbauteile in den Satz, den der Kern
+  rechnet. Gerechnet wird nur das aktive Tragwerk (Hüllkurve ≈ 32 ms).
+- **Speicher im Browser:** Arbeitsstand in localStorage
+  (`tragjoch-stand-v2`, bei jeder Eingabe); Projektablage in IndexedDB
+  `tragjoch` (`store.js`, Ersatz über localStorage ohne Zeichnungen);
+  Datenpaket in localStorage (`tragjoch-daten-v1`, Format
+  `tragjoch-daten` v2 in Tabellenform). Alles unter dem Präfix `tragjoch-`
+  — der App-Name wurde «Vierendeel», die Kennungen blieben, damit alte Stände
+  laden.
+- **Alte Stände rechnen unverändert:** `laden()` hebt ältere Sätze an
+  (Windgruppen, Anbauteilform, fehlende Tragwerksart = Joch). Jede
+  Formatänderung braucht einen solchen Übergang.
+- **Offline/PWA:** `sw.js` mit versionierter Ablage, neue Fassung erst auf
+  Zuruf (`pwa.js`); Manifest mit Dateiannahme und Sprungliste.
 
 Prüfwerkzeuge im Stamm: `pruefung.mjs` (Bausteine), `durchlauf.mjs`
 (Durchgang), `kalibrieren.mjs` / `kalibrieren_abfang.mjs` (Messung gegen
