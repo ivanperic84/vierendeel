@@ -943,9 +943,56 @@ export function mastenVon(w, tol = 0.1, mitVersteckten = false) {
    */
   const sichtbar = (l) => (mitVersteckten
     ? l : l.filter((m) => !m.versteckt && !m.ohneMast));
+  const { soll, treffer } = mastPaarung(w, tol);
+  if (!treffer) return sichtbar(soll);
+
+  // Erst die Angaben zuordnen, DANN die versteckten weglassen: die
+  // Zuordnung laeuft ueber die Stelle, und ein ausgeblendeter Mast darf
+  // seine Angaben nicht verlieren, nur weil er gerade nicht im Bild ist.
+  return sichtbar(soll.map((m) => {
+    const q = treffer.get(m.id);
+    if (!q) return m;
+    const o = { ...m };
+    MASTFELDER.forEach((f) => {
+      // Ein leeres Profil ist keine Angabe - siehe setzeMastAngabe.
+      const v = q[f.am];
+      if (v === undefined || v === null) return;
+      if (f.am === 'profil' && !String(v).trim()) return;
+      /*
+       * >>> DIE WINDLAST DES MASTEN KOMMT AUS DER TABELLE (18. September). <<<
+       *
+       * «die lastwerte beim ändern der ek bleiben beim masten gleich
+       * angezeigt.» Jedes Schreiben der Mastliste legte `wMast` mit dem Wert
+       * der DAMALIGEN Windklasse ab, und dieser Wert ging hier dem
+       * nachgefuehrten vor: EK1 → EK3 liess w_Mast bei 0.30 kN/m stehen,
+       * und mit ihm die Kopfverschiebung des Jochs. Gespeichert gilt er nur,
+       * wenn die Lastwerte von Hand freigegeben sind.
+       */
+      if (f.am === 'wMast' && w?.lastenBearbeiten !== true) return;
+      o[f.am] = v;
+    });
+    /*
+     * WAS NUR DEM MASTEN GEHOERT, WANDERT UNVERAENDERT MIT. Es gibt keinen
+     * abgeleiteten Wert daneben, den es ergaenzen koennte - ein Anker steht
+     * da oder nicht.
+     */
+    MAST_EIGEN.forEach((k) => {
+      if (q[k] !== undefined && q[k] !== null) o[k] = q[k];
+    });
+    return o;
+  }));
+}
+
+/**
+ * Welcher gespeicherte Eintrag zu welchem Masten gehoert.
+ *
+ * @returns {{soll: object[], treffer: Map<string, object>|null}}
+ *          `treffer`: Id des heutigen Masten -> gespeicherter Eintrag
+ */
+function mastPaarung(w, tol = 0.1) {
   const soll = mastenAbgeleitet(w, tol);
   const alt = Array.isArray(w?.masten) ? w.masten : null;
-  if (!alt || !alt.length) return sichtbar(soll);
+  if (!alt || !alt.length) return { soll, treffer: null };
   /*
    * >>> DIE STELLE ENTSCHEIDET, NICHT DIE NUMMER. <<<
    *
@@ -999,31 +1046,49 @@ export function mastenVon(w, tol = 0.1, mitVersteckten = false) {
     if (!e.frei || treffer.has(m.id)) return;
     nimm(m, e);
   });
+  return { soll, treffer };
+}
 
-  // Erst die Angaben zuordnen, DANN die versteckten weglassen: die
-  // Zuordnung laeuft ueber die Stelle, und ein ausgeblendeter Mast darf
-  // seine Angaben nicht verlieren, nur weil er gerade nicht im Bild ist.
-  return sichtbar(soll.map((m) => {
-    const q = treffer.get(m.id);
-    if (!q) return m;
-    const o = { ...m };
-    MASTFELDER.forEach((f) => {
-      // Ein leeres Profil ist keine Angabe - siehe setzeMastAngabe.
-      const v = q[f.am];
-      if (v === undefined || v === null) return;
-      if (f.am === 'profil' && !String(v).trim()) return;
-      o[f.am] = v;
-    });
-    /*
-     * WAS NUR DEM MASTEN GEHOERT, WANDERT UNVERAENDERT MIT. Es gibt keinen
-     * abgeleiteten Wert daneben, den es ergaenzen koennte - ein Anker steht
-     * da oder nicht.
-     */
-    MAST_EIGEN.forEach((k) => {
-      if (q[k] !== undefined && q[k] !== null) o[k] = q[k];
-    });
-    return o;
-  }));
+/*
+ * >>> AUCH DIE TEILE AM MASTEN FOLGEN DER STELLE (18. September). <<<
+ *
+ * Die Nummer eines Masten ist eine Laufnummer (siehe oben). Die Teile am
+ * Masten hingen aber an ihr (`mastId`) - und wanderten mit, sobald ein
+ * Tragwerk dazukam oder wegfiel. Gesehen im Browser: Joch P1 mit M1/M2,
+ * Einzelmast P2 bei x 10 (gespeichert als M3) mit Traverse und Rueckleiter,
+ * dann ein zweites Joch rechts. Die Laufnummern wurden neu vergeben, der
+ * Mast bei x 10 hiess M2 - und seine Traverse hing am Masten bei x 20, den
+ * sich zwei Joche teilen. P2 stand ohne Teile da, P1 und P3 trugen eine
+ * fremde Last.
+ *
+ * Die gespeicherte Mastliste und die Teile stammen aus DERSELBEN Vergabe:
+ * `mastId` meint den Eintrag in `w.masten`. Dieser Eintrag findet seinen
+ * heutigen Masten ueber die Stelle (`mastPaarung`) - und damit auch das
+ * Teil. Wer eines von beiden neu schreibt, schreibt beide (`mastenFest`).
+ */
+function mastIdUmsetzung(w, tol = 0.1) {
+  const { treffer } = mastPaarung(w, tol);
+  const um = new Map();
+  if (!treffer) return um;
+  treffer.forEach((e, heute) => { if (e?.id) um.set(e.id, heute); });
+  /*
+   * EIN EINTRAG OHNE MASTEN - sein Tragwerk ist weg. Seine Teile duerfen
+   * nicht ueber die gleichlautende Laufnummer an einem FREMDEN Masten
+   * landen; sie haengen dann an keinem.
+   */
+  (w.masten ?? []).forEach((e) => {
+    if (e?.id && !um.has(e.id)) um.set(e.id, null);
+  });
+  return um;
+}
+
+/**
+ * Mastliste und Teile am Masten auf die heutigen Nummern schreiben.
+ * Beide zugleich - siehe oben.
+ */
+export function mastenFest(w) {
+  if (!Array.isArray(w?.masten) || !w.masten.length) return w;
+  return { ...w, mastAnbauteile: mastAnbauVon(w), masten: mastenVon(w, 0.1, true) };
 }
 
 /**
@@ -1242,8 +1307,12 @@ const istMastteil = (a) => a?.ort === 'mastA' || a?.ort === 'mastB';
  * Ablageformen steht.
  */
 export function mastAnbauVon(w) {
+  const um = mastIdUmsetzung(w);
   const alle = (Array.isArray(w?.mastAnbauteile) ? w.mastAnbauteile : [])
-    .filter((a) => a && a.mastId);
+    .filter((a) => a && a.mastId)
+    .map((a) => (um.has(a.mastId) && um.get(a.mastId) !== a.mastId
+      ? { ...a, mastId: um.get(a.mastId) } : a))
+    .filter((a) => a.mastId);
   const da = new Set(alle.map((a) => a.id));
   const raus = [...alle];
   tragwerkeVon(w).forEach((t) => {
@@ -1290,6 +1359,8 @@ export function anbauteileFuer(w, t, aus = null) {
  * koennte, entfaellt.
  */
 export function setzeAnbauteileAn(w, liste) {
+  // Die neuen Teile bekommen heutige Nummern - die Liste also auch.
+  w = mastenFest(w);
   const t = tragwerkeVon(w)[0];
   const [a, b] = mastenFuer(w, t);
   const joch = (liste ?? []).filter((x) => !istMastteil(x));
@@ -1393,6 +1464,8 @@ export function setzeMastAngabe(w, ziel, flachKey, wert) {
    * ersten Lauf passiert.
    */
   if (feld.am === 'profil' && !String(wert ?? '').trim()) return w;
+  // Die Liste wird mit heutigen Nummern geschrieben - die Teile auch.
+  w = mastenFest(w);
   /*
    * DIE ID GEHT VOR DEM ENDE.
    *
@@ -1428,6 +1501,7 @@ export function setzeMastAngabe(w, ziel, flachKey, wert) {
  * @param {object|null} wert  {typ, h, a, seite, befestigung} oder null
  */
 export function setzeMastAnker(w, ziel, wert) {
+  w = mastenFest(w);
   const alle = mastenVon(w);
   const mast = alle.find((m) => m.id === ziel);
   if (!mast) return w;

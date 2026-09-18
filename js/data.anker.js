@@ -694,6 +694,8 @@ export function ankerKnicken(id, L, opt = {}) {
     /** Traegheitsmoment der Ebene [cm4] - konstant, ohne Steiner-Anteil. */
     I: qs.Iy,
     A: qs.A, fy, gammaM1: gM1,
+    /** E-Modul [kN/cm2] - fuer den Bericht, der die Formel nachrechnet. */
+    E: E_ANKER,
     /** Ideale Knicklast [kN]. */
     Ncr,
     /** Vollplastische Normalkraft [kN]. */

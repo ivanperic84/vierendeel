@@ -145,6 +145,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Joch entfernen (18. Sept.) | Kontextmenü «… entfernen, Masten als Einzelmasten behalten»: an jeder freien Maststelle ein Einzelmast mit **derselben Länge** (ausdrücklich eingetragen), Profil/Anker/Teile am Masten bleiben, die Teile des Jochs gehen mit (`jochZuEinzelmasten`) |
 | Artwechsel auf Einzelmast | die **Anbauteile des Jochs werden gelöscht**, die am Masten bleiben; auch die Vorlage «Einzelmast» ohne Jochteil. Ein alter Stand mit Jochteilen: der Kern rechnet sie nicht und sagt es |
 | Lagerangabe im 3D (18. Sept.) | nur die Lagerung des Jochs am Masten (c_φ, κ), eine Zeile unter dem Fundamentklotz; Profil und Höhe stehen im Mast-Titel. Am Einzelmast keine («gelenkig» wäre falsch) |
+| Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
 | Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
@@ -157,7 +158,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4694 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4712 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -194,6 +195,20 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   passiven Tragwerk; kein «L = 0.00 m» am Einzelmast. Neuer Einzelmast
   (Vorlage und «+ Tragwerk») ohne Jochteile, mit Traverse (L − 0.5) und
   Rückleiter (L − 2.0) am Masten.
+  **Befunde aus der Bedienung:** (1) Jede Druckstütze unter Druck brach
+  die Seitenleiste ab («k.push is not a function») — selbst eingeschleppt
+  beim Herauslösen von `bauteilKacheln` (c8011d7); das war «Stütze am
+  Einzelmast nicht möglich» und sehr wahrscheinlich auch «bei mehreren
+  Masten crasht der Nachweis». (2) **Teile am Masten hingen an der
+  Laufnummer** und wanderten beim Hinzufügen/Entfernen von Tragwerken an
+  einen fremden Masten (Last beim falschen Tragwerk) — jetzt über die Stelle
+  (`mastIdUmsetzung`, `mastenFest`), alte Stände werden beim Laden neu
+  projiziert. (3) **w_Mast klebte** an der Windklasse, unter der die
+  Mastliste zuletzt geschrieben wurde (EK1 → EK3 blieb 0.30 kN/m, und mit
+  ihm die Kopfverschiebung) — gespeichert gilt er nur noch bei «Werte
+  bearbeiten». Dazu: kein doppeltes x-Feld am Einzelmast, Stegskizze mit
+  Gleis statt Joch, «Mast plastisch» unter den Nachweiskacheln, Knick-
+  Kontrollrechnung der Stütze im Nachweisbericht.
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -202,7 +217,11 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
-**Laufende Arbeit:** keine.
+**Laufende Arbeit:** Weisungsliste vom 18. Sept. abends. Erledigt: Stütze am
+Einzelmast (Absturz), Bericht mit Knicken der Stütze, doppeltes x-Feld,
+Windklasse am Masten, Stegskizze mit Gleis, «plastisch» in die
+Nachweisleiste. **Offen, mit Rückfrage:** LF7–LF10 weglassen (siehe
+Offene Punkte), Lastgenerator am Einzelmast.
 
 **Datenstand:** `data/tragjoche.json` trägt seit 18. Sept. die J60-Bleche
 (Sicherung davor: `data/sicherung/tragjoche_vor_J60_2026-09-18.json`). Wer
@@ -214,6 +233,15 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **LF7–LF10 «Ständig + Wind ±x ±y» weglassen** (Weisung 18. Sept.:
+  «da wind sich nicht in x und y überlagern kann»). Es sind die einzigen
+  charakteristischen Fälle mit G und Wind zusammen, und der Ankernachweis
+  steht auf ihnen. Ersatzlos gestrichen sähe der Anker G und Wind nur
+  getrennt (unsichere Seite). Vorschlag: ersetzen durch «Ständig + Wind ±x»
+  und «Ständig + Wind ±y» — Entscheid ausstehend.
+- ⚠ **Lastgenerator am Einzelmast** verteilt Teile über die Gleise eines
+  Jochs (L = 0 → nichts). Ausblenden oder auf ein Gleis neben dem Masten
+  umbauen — Entscheid ausstehend.
 - **Nachweisbericht:** Tragausleger fehlt noch (wartet auf die Modellfrage
   unten); die Systemskizze ist die Längsansicht des Modells, keine
   vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt.
@@ -278,7 +306,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4694 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4712 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

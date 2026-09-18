@@ -532,7 +532,7 @@ export function aktualisiereMaske(container, werte, extras = {}) {
     const inp = n.querySelector('[data-feld]');
     if (!inp || !SKIZZEN_FELDER.includes(inp.dataset.feld)) return;
     const soll = optionsSkizze(inp.dataset.feld, feldWert(
-      FELDER.find((x) => x.key === inp.dataset.feld) ?? {}, werte));
+      FELDER.find((x) => x.key === inp.dataset.feld) ?? {}, werte), werte);
     const alt = n.querySelector('.opt-skizze');
     if (!soll) { alt?.remove(); return; }
     if (!alt) { inp.insertAdjacentHTML('afterend', soll); return; }
@@ -2060,7 +2060,7 @@ export function feldHtml(f, wert, werte) {
    */
   return `<div class="feld${gesperrt ? ' gesperrt' : ''}">
     <label for="${id}">${esc(label)}${f.sym ? ` <em>${esc(f.sym)}</em>` : ''}</label>
-    ${inhalt}${optionsSkizze(f.key, wert)}${notizHtml}${hinweis}</div>`;
+    ${inhalt}${optionsSkizze(f.key, wert, werte)}${notizHtml}${hinweis}</div>`;
 }
 
 // --- Anbauteile -------------------------------------------------------------
@@ -4180,6 +4180,28 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
  * aus wie ein bestandener. Er steht deshalb hier - mit dem Unterschied, ob
  * der Benutzer ihn abgewählt hat oder ob das Werkzeug ihn gar nicht führt.
  */
+/**
+ * DER SCHALTER «MAST PLASTISCH» - unter den Nachweiskacheln.
+ *
+ * Weisung vom 18. September: «das plastische nachweisen sollte nicht im
+ * system sondern unter dem nachweis sidebar stehen.» Er aendert keine
+ * Geometrie, sondern die Art des Nachweises - und steht deshalb dort, wo
+ * dessen Ergebnis steht.
+ */
+function plastischHtml(opt, mitMast) {
+  if (!mitMast || typeof opt?.beiFeld !== 'function') return '';
+  return `<div class="nw-plastisch">
+    <label class="schalter"><input type="checkbox" data-nw-plastisch${
+      opt.plastisch ? ' checked' : ''}><span>Mast plastisch nachweisen</span></label>
+    <p class="notiz">W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2.
+      Interaktion linear: N/N_Rd + M_q/M_q,Rd + M_l/M_l,Rd.</p></div>`;
+}
+
+function verdrahtePlastisch(node, opt) {
+  node.querySelector('[data-nw-plastisch]')?.addEventListener('change', (e) =>
+    opt.beiFeld('mastPlastisch', e.target.checked));
+}
+
 function nichtGefuehrtHtml(urteil) {
   const liste = urteil?.nichtGefuehrt ?? [];
   if (!liste.length) return '';
@@ -4346,7 +4368,8 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
         : ''}
     </div>
     ${mn ? `${abschnitt('Nachweise')}
-      <div class="kennzahlen">${bauteilKacheln(zeig, urteil ?? {}, ampelU).join('')}</div>`
+      <div class="kennzahlen">${bauteilKacheln(zeig, urteil ?? {}, ampelU).join('')}</div>
+      ${plastischHtml(opt, true)}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
     ${nichtGefuehrtHtml(urteil)}
     ${fuss.length ? klapp('einzelmast-fuss', 'Kräfte am Mastfuss',
@@ -4358,6 +4381,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
         hinw.length === 1 ? '1 Hinweis' : `${hinw.length} Hinweise`) : ''}
     ${mn ? mastblattHtml(zeig) : ''}`;
   verdrahteKlapp(node);
+  verdrahtePlastisch(node, opt);
 }
 
 /**
@@ -4444,7 +4468,7 @@ function hatDrahtwerk(a) {
  * Einzelmast. Vorher standen sie nur in der Uebersicht des Jochs; der
  * Einzelmast zeigte eine eigene, kuerzere Seite mit anderen Zahlen.
  */
-function bauteilKacheln(erg, urteil, ampelU) {
+export function bauteilKacheln(erg, urteil, ampelU) {
   const k = [];
   if (erg.mast && urteil.nachweise?.mast !== false) {
     /*
@@ -4605,14 +4629,17 @@ function bauteilKacheln(erg, urteil, ampelU) {
        * eine Angabe über M2 selbst.
        */
       if (e.knick && urteil.nachweise?.knickenMast !== false) {
-        const k = e.knick;
-        k.push(kachel(`Knicken Stütze ${name}`, `${f0(k.NbRd)} kN`,
-          `N_b,Rd · λ̄ ${f2(k.lambda)} · χ ${f3(k.chi)}`, '', {
+        // `kn`, nicht `k`: `k` ist die Kachelliste. So hiess es bis zum
+        // 18. September, und jede Druckstuetze unter Druck brach die
+        // Seitenleiste mit «k.push is not a function» ab.
+        const kn = e.knick;
+        k.push(kachel(`Knicken Stütze ${name}`, `${f0(kn.NbRd)} kN`,
+          `N_b,Rd · λ̄ ${f2(kn.lambda)} · χ ${f3(kn.chi)}`, '', {
             titel: `Euler und Knicklinie c SENKRECHT zur Spreizebene — dort `
-                 + `ist der Querschnitt konstant (I = ${f0(k.I)} cm⁴, ohne `
+                 + `ist der Querschnitt konstant (I = ${f0(kn.I)} cm⁴, ohne `
                  + `Steiner-Anteil) und der Stab einteilig. `
-                 + `N_cr ${k.Ncr.toFixed(0)} kN. `
-                 + `KONTROLLRECHNUNG, kein zweiter Nachweis: ${k.nichtEnthalten}`,
+                 + `N_cr ${kn.Ncr.toFixed(0)} kN. `
+                 + `KONTROLLRECHNUNG, kein zweiter Nachweis: ${kn.nichtEnthalten}`,
           }));
       }
     });
@@ -5015,6 +5042,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
        */''}
     ${abschnitt('Nachweise')}
     <div class="kennzahlen">${kz.join('')}</div>
+    ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
@@ -5054,6 +5082,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
   const so = node.querySelector('[data-sortiment]');
   if (so && beiSortiment) so.addEventListener('click', () => beiSortiment());
   verdrahteKlapp(node);
+  verdrahtePlastisch(node, opt);
 }
 
 /**

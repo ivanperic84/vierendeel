@@ -114,8 +114,9 @@ const knotenbereich = (wert) => {
  * waagrecht; die Biegung in dieser Ebene laeuft dann ueber die starke Achse.
  * Das ist der Normalfall: der Steg bildet die Normale zum Gleis.
  */
-const mastSteg = (wert) => {
+const mastSteg = (wert, w) => {
   const inJochachse = wert !== 'quer';
+  if (w?.tragwerksart === 'einzelmast') return mastStegAmGleis(inJochachse);
   /*
    * >>> EIN MASSSTAB FUER MAST UND JOCH (Weisung vom 17. September). <<<
    *
@@ -163,6 +164,51 @@ const mastSteg = (wert) => {
     <line class="d" x1="20" y1="${cy}" x2="510" y2="${cy}"/>
     ${bleche.join('')}
     ${gurt(-1)}${gurt(+1)}
+    ${I}
+  `);
+};
+
+/*
+ * >>> AM EINZELMAST IST DAS GLEIS DIE ORIENTIERUNG (18. September). <<<
+ *
+ * Weisung: «die darstellung bei der stegausrichtung überarbeiten, es hat
+ * kein joch als orientierung, man könnte die struktur als gleise annehmen.»
+ *
+ * Dieselbe Draufsicht, dieselbe Richtung: quer zum Gleis waagrecht, das
+ * Gleis selbst laeuft senkrecht durchs Bild. Das Gleis steht 1 px = 10 mm
+ * (Spur 1435 mm, Schwellen 2.60 m im Raster 0.60 m, Achse 3.0 m neben dem
+ * Masten), der Mast 1 px = 4 mm - im Gleismassstab waere ein HEB 260 ein
+ * Punkt, und seine Stegrichtung ist die Aussage des Bildes. Der Abstand
+ * ist ein Beispiel, kein Mass des Projekts.
+ */
+const mastStegAmGleis = (inJochachse) => {
+  const px = (mm) => mm / 10;
+  const pm = (mm) => mm / 4;                 // Mast groesser, siehe oben
+  const cx = 450, cy = 58;
+  const h = pm(260), b = pm(260), tf = pm(17.5), tw = pm(10);
+  const r = (x, y, ww, hh, cls = 'st') =>
+    `<rect class="${cls}" x="${x}" y="${y}" width="${ww}" height="${hh}"/>`;
+  const I = inJochachse
+    ? r(cx - h / 2, cy - tw / 2, h, tw)
+      + r(cx - h / 2, cy - b / 2, tf, b)
+      + r(cx + h / 2 - tf, cy - b / 2, tf, b)
+    : r(cx - tw / 2, cy - h / 2, tw, h)
+      + r(cx - b / 2, cy - h / 2, b, tf)
+      + r(cx - b / 2, cy + h / 2 - tf, b, tf);
+  const xG = cx - px(3000);                  // Gleisachse
+  const spur = px(1435) / 2;
+  const schwellen = [cy - px(600) * 1.5, cy - px(600) / 2, cy + px(600) / 2, cy + px(600) * 1.5]
+    .map((y) => r(xG - px(1300), y - 4, px(2600), 8, 'steif')).join('');
+  const schiene = (x) => `<line class="b" x1="${x}" y1="4" x2="${x}" y2="112"/>`;
+  return skizze(
+    inJochachse ? 'Steg quer zum Gleis, starke Achse quer zum Gleis'
+                : 'Steg laengs zum Gleis, schwache Achse quer zum Gleis',
+    '0 0 520 116', `
+    ${schwellen}
+    ${schiene(xG - spur)}${schiene(xG + spur)}
+    <line class="d" x1="${xG}" y1="2" x2="${xG}" y2="114"/>
+    <line class="d" x1="${xG}" y1="${cy}" x2="${cx}" y2="${cy}"/>
+    <text class="dim" x="${xG + spur + 8}" y="14">Gleis</text>
     ${I}
   `);
 };
@@ -295,9 +341,9 @@ const SKIZZEN = {
  * Gibt eine leere Zeichenkette statt null, damit der Aufrufer sie ohne
  * Fallunterscheidung einsetzen kann.
  */
-export function optionsSkizze(key, wert) {
+export function optionsSkizze(key, wert, w = null) {
   const f = SKIZZEN[key];
-  return f ? f(wert) : '';
+  return f ? f(wert, w) : '';
 }
 
 /** Für den Prüfstand: welche Felder eine Skizze haben. */

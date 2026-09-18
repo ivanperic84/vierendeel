@@ -24887,6 +24887,25 @@ titel('82  Nachweisbericht: jede Formel geht mit ihren Zahlen auf');
   wahr('Der Hinweis nennt den Mast als nachgewiesenes Bauteil',
        CH.hinweise(erg.modell).some((h) => /Auflager und Bauteil/.test(h))
        && !CH.hinweise(erg.modell).some((h) => /nachgewiesen wird nur das Joch/.test(h)));
+  /*
+   * Die Knick-Kontrollrechnung der Stuetze steht im Bericht (Weisung vom
+   * 18. September: «die nachweise dieser auch übernehmen im
+   * nachweisbericht») - und ihre Kette geht auf.
+   */
+  {
+    const AN = await import(J('data.anker.js'));
+    const kn = AN.ankerDbDa() ? AN.ankerKnicken('U12', 6) : null;
+    if (kn) {
+      const dk = { ...d, erg: { ...bem, anker: { A: {
+        nachweis: { typ: 'U12', N: -10, zul: 50, L: 6, eta: 0.2, text: 'Druck' }, knick: kn } } } };
+      const hk = NB.nachweisbericht(dk);
+      const nb = Number(hk.match(/data-pruef="NbRd">([\d.]+)/)?.[1]);
+      wahr('Bericht: die Knick-Kontrolle der Stuetze steht da', Number.isFinite(nb));
+      pruef('… N_b,Rd = χ·N_pl/γ_M1 geht auf', nb, kn.chi * kn.Npl / kn.gammaM1, 0.06, 'kN');
+      pruef('… N_cr = π²·E·I/L² geht auf', kn.Ncr,
+            Math.PI ** 2 * kn.E * kn.I / (kn.L * 100) ** 2, 1e-9, 'kN');
+    }
+  }
 }
 
 titel('83  Einzelmast: kein Phantom-Ende B, Leiste und Bericht auf der Bemessung');
@@ -25073,6 +25092,114 @@ titel('84  Joch weg, Masten bleiben; nichts unter der Fundamentkote');
        h.some((x) => /Tief: Last UNTER der Fundamentkote \(z = −?-?2\.70/.test(x)), h.join(' | '));
 }
 
+
+titel('85  Teile am Masten folgen der Stelle, nicht der Laufnummer');
+/*
+ * Gesehen am 18. September im Browser: Joch P1, Einzelmast P2 bei x 10 mit
+ * Traverse, dann ein zweites Joch rechts und P1 entfernt. Die Laufnummern
+ * wurden neu vergeben, und die Traverse hing danach am geteilten Masten bei
+ * x 20 - P2 ohne Teile, das Joch mit einer fremden Last.
+ */
+{
+  const C = await import(J('core.constants.js'));
+  let w = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                              T.getTragjoch('J90')),
+            L: 20, xLage: 0, mastVorhanden: true, anbauteile: [] };
+  w = C.tragwerkHinzu(w, 'einzelmast', { xLage: 10 });
+  const idEm = w.twId;
+  w = C.setzeAnbauteileAn(w, [{ ...A.neuesAnbauteil('leiter-traverse', 0),
+                                name: 'Trav', ort: 'mastA', hMast: 8 }]);
+  const bei = (x) => C.mastenVon(w).find((m) => Math.abs(m.x - x) < 0.01);
+  w = C.setzeMastAngabe(w, bei(10).id, 'mastProfil', 'HEB 260');
+  w = C.tragwerkHinzu(w, 'joch', { xLage: 20 });
+  w = C.tauscheAktives(w, 'T1');
+  w = C.jochZuEinzelmasten(w, 'T1', () => 8.5);
+  const teileVon = (t) => C.anbauteileFuer(w, t).filter((a) => /^mast/.test(a.ort ?? ''))
+    .map((a) => a.name);
+  const alle = C.tragwerkeVon(w);
+  const em = alle.find((t) => t.id === idEm);
+  wahr('Die Traverse bleibt am Einzelmast bei x 10', teileVon(em).includes('Trav'),
+       alle.map((t) => `${t.id}:${teileVon(t).join('+')}`).join(' '));
+  wahr('… und haengt an keinem anderen Tragwerk',
+       alle.filter((t) => t.id !== idEm).every((t) => !teileVon(t).includes('Trav')));
+  wahr('Das Profil bleibt ebenfalls an seiner Stelle', bei(10).profil === 'HEB 260');
+  // Neu geschrieben stehen Liste und Teile auf denselben Nummern.
+  const fest = C.mastenFest(w);
+  wahr('Nach dem Festschreiben zeigt mastId auf den Masten bei x 10',
+       fest.mastAnbauteile.every((a) => fest.masten.find((m) => m.id === a.mastId)?.x === 10));
+}
+
+titel('86  Die Windlast des Masten folgt der Windklasse');
+/*
+ * Gemeldet am 18. September: «die lastwerte beim ändern der ek bleiben
+ * beim masten gleich angezeigt». Die Mastliste hielt w_Mast der Windklasse
+ * fest, unter der sie zuletzt geschrieben wurde.
+ */
+{
+  const C = await import(J('core.constants.js'));
+  const MW = MA_SORT.mastWind;
+  let w = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                              T.getTragjoch('J90')),
+            L: 20, mastVorhanden: true, anbauteile: [], windKlasse: '0.9' };
+  const nachfuehren = (x) => ({ ...x, wMast: MW(x.mastProfil ?? 'HEB 240', x.windKlasse === '1.3' ? 'EK3' : 'EK1', x.mastSteg ?? 'jochachse') });
+  w = nachfuehren(w);
+  w = C.setzeMastAngabe(w, C.mastenVon(w)[0].id, 'mastProfil', 'HEB 240');
+  const ek1 = C.rechensatz(w).wMast;
+  w = nachfuehren({ ...w, windKlasse: '1.3' });
+  const ek3 = C.rechensatz(w).wMast;
+  wahr('w_Mast wechselt mit der Windklasse', ek3 > ek1 + 1e-6, `${ek1} → ${ek3}`);
+  pruef('… auf den Tabellenwert von EK3', ek3, MW('HEB 240', 'EK3', 'jochachse'), 1e-9, 'kN/m');
+  // Von Hand freigegeben gilt der gespeicherte Wert.
+  let h = C.setzeMastAngabe({ ...w, lastenBearbeiten: true }, C.mastenVon(w)[0].id, 'wMast', 0.77);
+  pruef('Von Hand gesetzt bleibt w_Mast stehen', C.rechensatz(h).wMast, 0.77, 1e-12, 'kN/m');
+}
+
+titel('87  Einzelmast: Gleis in der Stegskizze, ein x-Feld, plastisch in der Nachweisleiste');
+// Weisungen vom 18. September.
+{
+  const OS = await import(J('doku.optionsskizzen.js'));
+  const em = { tragwerksart: 'einzelmast' };
+  const g1 = OS.optionsSkizze('mastSteg', 'jochachse', em);
+  const g2 = OS.optionsSkizze('mastSteg', 'quer', em);
+  wahr('Stegskizze am Einzelmast zeigt das Gleis', /Gleis</.test(g1) && /Gleis</.test(g2));
+  wahr('… und unterscheidet die beiden Stellungen', g1 !== g2);
+  wahr('Am Joch bleibt das Joch die Orientierung',
+       !/Gleis</.test(OS.optionsSkizze('mastSteg', 'jochachse', { tragwerksart: 'joch' })));
+  const C = await import(J('core.constants.js'));
+  const joch = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                                    T.getTragjoch('J90')), L: 20, mastVorhanden: true, anbauteile: [] };
+  const wE = C.tragwerkWeg(C.tragwerkHinzu(joch, 'einzelmast', { xLage: 5 }), 'T1');
+  const fX = FELDER.find((f) => f.key === 'mastX');
+  wahr('Das Feld «Stelle des Masten» fehlt am Einzelmast (x₀ genuegt)', !fX.sichtbar(wE));
+  wahr('… und steht am Joch', fX.sichtbar(joch) === true);
+  wahr('«Mast plastisch» steht nicht mehr im System',
+       FELDER.find((f) => f.key === 'mastPlastisch').versteckt === true);
+}
+
+titel('88  Seitenleiste: die Knick-Kachel der Druckstuetze');
+/*
+ * Gemeldet am 18. September: «das einfügen einer druckstütze / anker ist
+ * nicht möglich beim einzelmast». Der Grund lag nicht am Einzelmast: beim
+ * Herausloesen von `bauteilKacheln` hiess die Kachelliste `k`, und die
+ * Knick-Kachel ueberdeckte sie mit `const k = e.knick`. Jede Stuetze unter
+ * Druck brach die Seitenleiste mit «k.push is not a function» ab.
+ */
+{
+  const U = await import(J('ui.js'));
+  const erg = {
+    modell: { federn: { namen: { A: 'M1' } } },
+    anker: { A: {
+      nachweis: { typ: 'U12', N: -20, eta: 0.4, grund: null, lieferbar: true },
+      knick: { NbRd: 120, lambda: 1.1, chi: 0.5, I: 100, Ncr: 300, nichtEnthalten: '' },
+    } },
+  };
+  let kacheln = null, fehler = null;
+  try { kacheln = U.bauteilKacheln(erg, { nachweise: {} }, () => 'ok'); }
+  catch (e) { fehler = e.message; }
+  wahr('Eine Stuetze unter Druck bricht die Kacheln nicht ab', fehler === null, fehler);
+  wahr('… und ihre Knick-Kachel steht da',
+       (kacheln ?? []).some((x) => /Knicken Stütze M1/.test(x)), String(kacheln?.length));
+}
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
 /* ===========================================================================
  * Weisung vom 17. September: «örtlicher anteil umsetzen», nur im Weg

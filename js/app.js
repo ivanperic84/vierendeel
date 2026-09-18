@@ -977,6 +977,8 @@ function zeichneAuswertung() {
     } else {
       ui.zeichneEinzelmast(knoten, letzte, {
         quelle: anzeigeKombi,
+        plastisch: werte.mastPlastisch === true,
+        beiFeld: (k, v) => aendern(k, v),
         lastfallName: anzeigeKombi === 'umhuellend' ? null
           : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
       });
@@ -1015,6 +1017,8 @@ function zeichneAuswertung() {
     ui.zeichneUebersicht(node, erg, urteil, springeZu, station, hinw,
                          { bemessung: kombi.huellkurve ?? null,
                            quelle: anzeigeKombi,
+                           plastisch: werte.mastPlastisch === true,
+                           beiFeld: (k, v) => aendern(k, v),
                            lastfallName: anzeigeKombi === 'umhuellend' ? null
                              : (kombi.lastfaelle
                                  ?.find((k) => k.key === anzeigeKombi)?.bez
@@ -5707,6 +5711,7 @@ async function eintragLaden(id, fragen = true) {
   const s = await store.laden(id);
   werte = { ...standardwerte(), ...s.werte, bearbeiten: false };
   werte.anbauteile = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
+  mastNachfuehrenGlobal();   // siehe beim Start
   projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung ?? '' };
   neuesProjektOffen = false;
   station = null;
@@ -9197,6 +9202,10 @@ export async function start() {
   }
   setzeTypOptionen();
   werte = laden();
+  // Die Teile am Masten neu projizieren: ein Stand von vor dem
+  // 18. September traegt eine Liste, in der sie am falschen Masten hingen
+  // (Laufnummer statt Stelle, siehe `mastIdUmsetzung`).
+  mastNachfuehrenGlobal();
   werte.eigeneVorlagen = vorlagenZusammenfuehren(werte);
   setzeEigeneVorlagen(werte.eigeneVorlagen);
   uebertrageTokens(thema);

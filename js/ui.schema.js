@@ -724,7 +724,14 @@ export const FELDER = [
     label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
     sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
     wertAus: (w) => gewaehlterMast(w)?.x ?? 0,
-    sichtbar: (w) => mastDa(w) && Boolean(gewaehlterMast(w)),
+    /*
+     * NUR, WO ES ZWEI MASTEN GIBT (Weisung vom 18. September: «die eingabe
+     * der x koordinaten bei den einzelmasten wird doppelt aufgeführt»).
+     * Ein Tragwerk mit einem Masten steht mit diesem an seiner Lage x₀ -
+     * das Feld darunter war dieselbe Zahl ein zweites Mal.
+     */
+    sichtbar: (w) => mastDa(w) && Boolean(gewaehlterMast(w))
+      && (tragwerksart(w).masten ?? 2) >= 2,
     hinweis: 'Folgt aus der Lage des Tragwerks und der Jochlänge. Am linken '
            + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
            + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
@@ -894,7 +901,13 @@ export const FELDER = [
    * W_pl wird aus der Profilgeometrie gerechnet, ohne Ausrundung, also auf
    * der sicheren Seite (core.mast.js).
    */
-  { key: 'mastPlastisch', fein: true, gruppe: 'mast', typ: 'schalter',
+  /*
+   * IN DER NACHWEISLEISTE, NICHT IM SYSTEM (Weisung vom 18. September: «das
+   * plastische nachweisen sollte nicht im system sondern unter dem nachweis
+   * sidebar stehen»). Das Feld bleibt im Schema - Wert, Vorgabe und alte
+   * Staende -, gezeigt wird es unter den Nachweiskacheln (`plastischHtml`).
+   */
+  { key: 'mastPlastisch', fein: true, gruppe: 'mast', typ: 'schalter', versteckt: true,
     label: 'Mast plastisch nachweisen', standard: false,
     sichtbar: (w) => mastDa(w),
     hinweis: 'W_pl statt W_el, nur bei Querschnittsklasse 1 oder 2. Interaktion '

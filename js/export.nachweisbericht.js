@@ -453,9 +453,33 @@ function nachweise(d) {
             zahl(a.L, 2), esc(a.text ?? ''), a.eta === null ? '—' : zahl(a.eta, 3),
             urteilMarke(a.eta, a.lieferbar === false)];
   }).filter(Boolean);
+  /*
+   * >>> DIE KNICK-KONTROLLRECHNUNG DER STUETZE (Weisung vom 18. September:
+   *     «die nachweise dieser auch übernehmen im nachweisbericht»). <<<
+   *
+   * Dieselbe Rechnung wie die Kachel «Knicken Stütze» - senkrecht zur
+   * Spreizebene, einteilig, Knicklinie c. Sie ist eine KONTROLLE, kein
+   * zweiter Nachweis: die massgebende Richtung steckt im Bemessungsblatt.
+   * Die Zahlen kommen aus `ankerKnicken`; hier wird nichts gerechnet.
+   */
+  const knick = ['A', 'B'].map((e) => {
+    const k = erg.anker?.[e]?.knick;
+    if (!k || d.urteil?.nachweise?.knickenMast === false) return '';
+    const Phi = 0.5 * (1 + 0.49 * (k.lambda - 0.2) + k.lambda * k.lambda);
+    return `<p><b>Knicken ${esc(k.typ ?? '')} ${esc(namen[e] ?? e)}</b>
+      (senkrecht zur Spreizebene, Knicklinie c, Kontrollrechnung):<br>
+      N<sub>cr</sub> = π²·E·I/L² = π² · ${zahl(k.E, 0)} · ${zahl(k.I, 1)} / ${zahl(k.L * 100, 1)}² = ${zahl(k.Ncr, 1)} kN ·
+      N<sub>pl</sub> = A·f<sub>y</sub> = ${zahl(k.A, 2)} · ${zahl(k.fy, 2)} = ${zahl(k.Npl, 1)} kN<br>
+      λ̄ = √(N<sub>pl</sub>/N<sub>cr</sub>) = ${zahl(k.lambda, 3)} ·
+      Φ = ${zahl(Phi, 3)} · χ = ${zahl(k.chi, 3)} ·
+      N<sub>b,Rd</sub> = χ·N<sub>pl</sub>/γ<sub>M1</sub> = ${zahl(k.chi, 3)} · ${zahl(k.Npl, 1)} / ${zahl(k.gammaM1, 2)}
+      = <span data-pruef="NbRd">${zahl(k.NbRd, 1)}</span> kN</p>
+      <p class="klein">${esc(k.nichtEnthalten ?? '')}</p>`;
+  }).join('');
   const ankerBlock = (nr) => (anker.length ? `<h3>§.${nr} Zuganker und Druckstützen</h3>
       <p>Charakteristische Kraft gegen die zulässige Kraft des Bemessungsblatts.</p>
-      ${tabelle(['Bauteil', 'N<sub>k</sub> [kN]', 'zul [kN]', 'L [m]', 'Grundlage', 'η', ''], anker)}` : '');
+      ${tabelle(['Bauteil', 'N<sub>k</sub> [kN]', 'zul [kN]', 'L [m]', 'Grundlage', 'η', ''], anker)}
+      ${knick}` : '');
   if (istMast(d)) {
     return `<section><h2>§ Nachweise</h2>
     <p>f<sub>yd</sub> = ${zahl(fyd, 2)} N/mm². Je Nachweis die Zwischenwerte der für den Mast

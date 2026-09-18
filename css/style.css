@@ -1183,6 +1183,9 @@ button.wz-haupt:hover { color: var(--on); }
 /* Ein Nachweis im Optionen-Reiter: Schalter, was er fuehrt, und - wo es ihn
    nicht gibt - warum nicht. */
 .nw-wahl { border-top: 1px solid var(--ol); padding: 8px 0 6px; }
+/* Mast plastisch - unter den Nachweiskacheln (18. September) */
+.nw-plastisch { margin: 6px 0 10px; }
+.nw-plastisch .notiz { margin: 2px 0 0 28px; }
 .nw-wahl label { display: flex; gap: 7px; align-items: center; cursor: pointer; }
 .nw-wahl.fehlt label { cursor: default; opacity: .72; }
 .nw-titel { font-weight: 600; color: var(--on); }
