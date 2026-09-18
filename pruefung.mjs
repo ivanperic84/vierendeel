@@ -9273,26 +9273,70 @@ titel('38  Hinterlegte Querprofil-Zeichnung');
          !!BZ.bildAusEreignis({ dataTransfer: { files: [{ type: 'image/jpeg' }] } }));
   }
 
-  // --- Die beiden Bezugsmasse --------------------------------------------
+  // --- Die Bezugsmasse ---------------------------------------------------
   {
+    const R = await import(J('render.3d.js'));
     const wB = basis({ L: 24, mastVorhanden: false });
     const mB = modell(wB, getProfil(wB.profOG), getProfil(wB.profUG),
                       getStahl(wB.stahl), T.getTragjoch('J90'));
+    const eB = rechne(wB);
+    const szB = R.erzeugeSzene(eB.modell, eB);
     const j = BZ.bezugPunkte('joch', mB);
     pruef('Der Jochbezug spannt ueber die ganze Laenge', j[1].x - j[0].x, 24, 1e-9, 'm');
     wahr('Beide Punkte auf der Jochachse', j[0].z === 0 && j[1].z === 0);
+    const jS = BZ.bezugPunkte('joch', mB, szB);
+    wahr('Aus der Szene dieselben Jochenden',
+         jS[0].x === 0 && jS[1].x === 24 && jS[0].z === 0 && jS[1].z === 0);
     wahr('Ohne Mast gibt es keinen Mastbezug',
-         BZ.bezugPunkte('mast', mB) === null);
+         BZ.bezugPunkte('mast', mB, szB) === null
+         && BZ.bezugPunkte('mastLaenge', mB, szB) === null);
     const wM = basis({ endbedingung: 'mast', mastProfil: 'HEB 240', mastH: 7.0,
+                       mastLaenge: 9.0,
                        mastSteg: 'jochachse', mastAnschluss: 'durchlaufend' });
-    const mM = modell(wM, getProfil(wM.profOG), getProfil(wM.profUG),
-                      getStahl(wM.stahl), T.getTragjoch('J90'));
-    const mb = BZ.bezugPunkte('mast', mM);
+    const eM = rechne(wM);
+    const mM = eM.modell;
+    const szM = R.erzeugeSzene(mM, eM);
+    const mb = BZ.bezugPunkte('mast', mM, szM);
     pruef('Mit Mast reicht der Bezug ueber die Masthoehe',
           mb[1].z - mb[0].z, 7, 1e-9, 'm');
-    wahr('Und beide stehen am linken Masten', mb[0].x === 0 && mb[1].x === 0);
+    wahr('Und beide stehen am linken Masten',
+         mb[0].x === mb[1].x && mb[0].x === szM.bezug.masten.A.x);
     wahr('Jeder Punkt sagt, was anzuklicken ist',
          [...j, ...mb].every((x) => typeof x.text === 'string' && x.text.length > 10));
+
+    /* =====================================================================
+     * >>> DER BEZUG SITZT, WO DER MAST GEZEICHNET IST (18. September). <<<
+     * =====================================================================
+     *
+     * Gemeldet: ueber die Mastlaenge eingemessen, stimmte der Massstab nicht.
+     * Der Bezug rechnete den Masten selbst nach - Fuss bei -H, oben die
+     * Jochachse. Gezeichnet steht der Fuss H unter der UNTERKANTE, und das
+     * Blatt hebt alles um H an. Gemessen wird deshalb an der Schwerachse,
+     * die im Bild steht.
+     * =================================================================== */
+    const achseA = szM.linien.filter((l) => l.gruppe === 'mast' && l.schwerachse
+      && Math.abs(l.punkte[0][0] - szM.bezug.masten.A.x) < 1e-9);
+    const zs = achseA.flatMap((l) => l.punkte.map((p) => p[2]));
+    pruef('Der Mastfuss des Bezugs ist der gezeichnete', mb[0].z, Math.min(...zs),
+          1e-9, 'm');
+    wahr('Der Anschluss liegt an der Unterkante, nicht auf der Jochachse',
+         mb[1].z < -0.05, `z = ${mb[1].z.toFixed(3)}`);
+    const ml = BZ.bezugPunkte('mastLaenge', mM, szM);
+    pruef('Die Mastlaenge spannt Fuss bis Kopf', ml[1].z - ml[0].z, 9.0, 1e-9, 'm');
+    wahr('… vom selben Fuss', ml[0].z === mb[0].z);
+    {
+      // Auf dem Blatt ist die Szene um H angehoben (blattSzene) - der Bezug
+      // wandert mit, und in einer vereinten Szene gilt der des gerechneten.
+      const v = R.szeneVerschieben(szM, 5, {}, 7);
+      pruef('Verschoben wandert der Fuss mit', v.bezug.masten.A.zF,
+            szM.bezug.masten.A.zF + 7, 1e-9, 'm');
+      pruef('… und die Lage in x', v.bezug.masten.A.x, szM.bezug.masten.A.x + 5, 1e-9, 'm');
+      pruef('… und das Joch', v.bezug.joch.xB, szM.bezug.joch.xB + 5, 1e-9, 'm');
+      const nb = R.szeneVerschieben(szB, 40, {}, 0);
+      const ver = R.szenenVereinen([{ ...nb, aktiv: false }, { ...v, aktiv: true }]);
+      wahr('Vereint gilt der Bezug des gerechneten Tragwerks',
+           ver.bezug === v.bezug);
+    }
 
     /* =====================================================================
      * >>> WAS ZUR WAHL STEHT, HAENGT AM MODELL. <<<
@@ -9302,42 +9346,106 @@ titel('38  Hinterlegte Querprofil-Zeichnung');
      * ein mast (vertikal) oder ein joch (horizontal) als referenz dient. und
      * die zeichnung muesste dann entsprechend positioniert werden."
      *
-     * Bisher begann jedes Einmessen beim Joch. `bezuegeFuer` liefert die
-     * Liste, aus der gefragt werden kann - und sie fuehrt nur, was es im
-     * Modell wirklich gibt. Ein Bezug, den man anbietet und der dann null
-     * liefert, ist schlimmer als keiner: das Einmessen bricht still ab.
+     * `bezuegeFuer` fuehrt nur, was es im Modell wirklich gibt - und das
+     * freie Mass, das es immer gibt.
      * =================================================================== */
-    wahr('Ohne Mast steht nur der Jochbezug zur Wahl',
-         BZ.bezuegeFuer(mB).map((b) => b.key).join() === 'joch');
-    wahr('Mit Mast stehen beide zur Wahl',
-         BZ.bezuegeFuer(mM).map((b) => b.key).sort().join() === 'joch,mast');
-    wahr('Jeder gefuehrte Bezug bringt seine zwei Punkte gleich mit',
-         BZ.bezuegeFuer(mM).every((b) => Array.isArray(b.welt) && b.welt.length === 2
-                                      && typeof b.label === 'string'));
+    wahr('Ohne Mast stehen Joch und freies Mass zur Wahl',
+         BZ.bezuegeFuer(mB, szB).map((b) => b.key).join() === 'joch,frei');
+    wahr('Mit Mast dazu Masthoehe und Mastlaenge',
+         BZ.bezuegeFuer(mM, szM).map((b) => b.key).join()
+           === 'joch,mast,mastLaenge,frei');
+    wahr('Jeder gemessene Bezug bringt seine zwei Punkte gleich mit',
+         BZ.bezuegeFuer(mM, szM).every((b) => b.frei
+           || (Array.isArray(b.welt) && b.welt.length === 2
+               && typeof b.label === 'string')));
     wahr('Ohne Modell steht nichts zur Wahl', BZ.bezuegeFuer(null).length === 0);
     /*
-     * UND DIE ZEICHNUNG WIRD ENTSPRECHEND GESETZT. Derselbe Bildausschnitt,
-     * einmal ueber das Joch eingemessen und einmal ueber den Masten: der
-     * Massstab muss beide Male derselbe sein, sonst passt nur eine der
-     * beiden Richtungen.
-     *
-     * Das Blatt: 20 m Joch auf 800 Punkte, 7 m Mast auf 280 Punkte - beides
-     * 0.025 m je Punkt, und beide Male liegt der Bildpunkt (100 | 400) auf
-     * dem linken Mastkopf.
+     * UND DIE ZEICHNUNG WIRD ENTSPRECHEND GESETZT. Ein Blatt in bekannter
+     * Lage (0.025 m je Punkt): die Bildpunkte der Bezuege aus der Umkehrung,
+     * dann ueber jeden Bezug eingemessen - jedes Mal muss dieselbe Lage
+     * herauskommen, sonst passt nur eine der Richtungen.
      */
     {
-      const wJ = BZ.bezuegeFuer(mM).find((b) => b.key === 'joch').welt;
-      const wM2 = BZ.bezuegeFuer(mM).find((b) => b.key === 'mast').welt;
-      const ueberJoch = BZ.kalibriere({ px: 100, py: 400 }, { px: 900, py: 400 },
-                                      wJ[0], wJ[1]);
-      const ueberMast = BZ.kalibriere({ px: 100, py: 680 },
-                                      { px: 100, py: 400 }, wM2[0], wM2[1]);
-      pruef('Ueber das Joch eingemessen: 0.025 m je Punkt',
-            ueberJoch.s, 0.025, 1e-9, 'm/Punkt');
-      pruef('Ueber den Masten eingemessen: derselbe Massstab',
-            ueberMast.s, 0.025, 1e-9, 'm/Punkt');
-      pruef('… und dieselbe Lage in x', ueberMast.x0, ueberJoch.x0, 1e-9, 'm');
-      pruef('… und dieselbe Lage in z', ueberMast.z0, ueberJoch.z0, 1e-9, 'm');
+      const wahrK = { s: 0.025, x0: -6, z0: 3 };
+      const bild = (w) => BZ.weltNachBild(wahrK, w.x, w.z);
+      for (const b of BZ.bezuegeFuer(mM, szM).filter((x) => !x.frei)) {
+        const k = BZ.kalibriere(bild(b.welt[0]), bild(b.welt[1]), b.welt[0], b.welt[1]);
+        pruef(`Ueber «${b.label}» eingemessen: 0.025 m je Punkt`, k.s, 0.025, 1e-9,
+              'm/Punkt');
+        wahr(`… und dieselbe Lage`, Math.abs(k.x0 - wahrK.x0) < 1e-9
+             && Math.abs(k.z0 - wahrK.z0) < 1e-9);
+      }
+      // Die Erkennung findet Mastachsen auf der JOCHACHSE und den Mastfuss.
+      const eJ = BZ.erkennungsWelt('joch', mM, szM);
+      const eMa = BZ.erkennungsWelt('mast', mM, szM);
+      wahr('Die Erkennung misst waagrecht zwischen den Mastachsen',
+           eJ[0].x === szM.bezug.masten.A.x && eJ[1].x === szM.bezug.masten.B.x
+           && eJ[0].z === 0);
+      wahr('… und lotrecht vom Fuss zur Jochachse',
+           eMa[0].z === mb[0].z && eMa[1].z === 0);
+    }
+
+    /* =====================================================================
+     * >>> FREIES MASS UND AUSRICHTEN (18. September). <<<
+     * =====================================================================
+     *
+     * «die referenz ist starr am mastfuss» - der Bezugspunkt ist jetzt
+     * waehlbar: ein Modellpunkt oder ein frei angeklickter. Ausrichten
+     * verschiebt nur; das freie Mass setzt nur den Massstab und haelt den
+     * ersten Punkt fest.
+     * =================================================================== */
+    {
+      const alt = { s: 0.02, x0: -3, z0: 8 };
+      const p1 = { px: 100, py: 200 }, p2 = { px: 400, py: 600 };
+      const f = BZ.kalibriereFrei(p1, p2, 10, alt);
+      pruef('Freies Mass: Laenge durch den Abstand im Bild', f.s, 10 / 500, 1e-12,
+            'm/Punkt');
+      const w1a = BZ.bildNachWelt(alt, p1.px, p1.py);
+      const w1n = BZ.bildNachWelt(f, p1.px, p1.py);
+      wahr('… und der erste Punkt bleibt, wo er war',
+           Math.abs(w1a.x - w1n.x) < 1e-9 && Math.abs(w1a.z - w1n.z) < 1e-9);
+      wahr('Ohne Laenge kein Massstab', BZ.kalibriereFrei(p1, p2, 0, alt) === null);
+      wahr('Zwei gleiche Punkte ebenso', BZ.kalibriereFrei(p1, p1, 5, alt) === null);
+
+      const pk = BZ.ausrichtPunkte(szM);
+      const keys = pk.map((p) => p.key).join();
+      wahr('Ausrichten bietet Fuss, Anschluss und Kopf beider Masten und die Jochenden',
+           keys === 'fussA,anA,kopfA,fussB,anB,kopfB,jochA,jochB', keys);
+      const kopf = pk.find((p) => p.key === 'kopfA');
+      pruef('Der Kopf liegt auf der Mastlaenge', kopf.z - mb[0].z, 9.0, 1e-9, 'm');
+      const ziel = pk.find((p) => p.key === 'kopfA');
+      const a = BZ.ausrichten(alt, { px: 321, py: 77 }, ziel);
+      const w = BZ.bildNachWelt(a, 321, 77);
+      wahr('Ausgerichtet liegt der Bildpunkt auf dem Modellpunkt',
+           Math.abs(w.x - ziel.x) < 1e-9 && Math.abs(w.z - ziel.z) < 1e-9);
+      wahr('… und der Massstab bleibt', a.s === alt.s);
+    }
+
+    /* =====================================================================
+     * >>> DIE VORLAEUFIGE LAGE: UM DAS MODELL, NICHT DOPPELTE JOCHLAENGE. <<<
+     * =====================================================================
+     *
+     * Gemeldet am 18. September: die Zeichnung lag viel zu gross da. Beim
+     * Einzelmast wurde das Bild auf 40 m gestreckt, gegen einen Masten von
+     * zehn. Jetzt nimmt das Modell rund zwei Drittel des Bildes ein.
+     * =================================================================== */
+    {
+      const g = { xMin: -0.5, xMax: 0.5, zMin: -10, zMax: 1 };
+      const k = BZ.vorlaeufigeLage(g, 2000, 1400);
+      const r = BZ.bildRahmen(k, 2000, 1400);
+      pruef('Einzelmast: das Modell fuellt zwei Drittel der Bildhoehe',
+            11 / (r.zBis - r.zVon), BZ.VORLAEUFIG_ANTEIL, 1e-9, '');
+      wahr('… und das Bild ist nicht breiter als 30 m', r.xBis - r.xVon < 30,
+           `${(r.xBis - r.xVon).toFixed(1)} m`);
+      wahr('… mittig um das Modell',
+           Math.abs((r.xVon + r.xBis) / 2) < 1e-9
+           && Math.abs((r.zVon + r.zBis) / 2 - (-4.5)) < 1e-9);
+      const kJ = BZ.vorlaeufigeLage({ xMin: 0, xMax: 20, zMin: 0, zMax: 9 }, 2000, 1400);
+      const rJ = BZ.bildRahmen(kJ, 2000, 1400);
+      pruef('Joch: zwei Drittel der Bildbreite', 20 / (rJ.xBis - rJ.xVon),
+            BZ.VORLAEUFIG_ANTEIL, 1e-9, '');
+      wahr('Ohne Grenzen trotzdem eine Lage',
+           BZ.vorlaeufigeLage(null, 2000, 1400).s > 0);
     }
   }
 
@@ -24413,6 +24521,43 @@ titel('78  Einzelmast: die Anbauteile stehen im Bild');
     x: undefined, ort: 'mastA', hMast: 5 }], { ek: 'EK2' });
   wahr('Eine Baugruppe ohne Lage rechnet mit x = 0, nicht mit NaN',
        ohneX.every((t) => Number.isFinite(t.x)));
+
+  /*
+   * DIE ZEICHNUNG AM EINZELMASTEN EINMESSEN (18. September).
+   *
+   * Er hat kein Joch - also kein waagrechtes Mass. Masthoehe, Mastlaenge und
+   * das freie Mass bleiben; die Hoehe H reicht vom gezeichneten Fuss.
+   */
+  const BZ78 = await import(J('bild.zeichnung.js'));
+  const wahl78 = BZ78.bezuegeFuer(e.modell, sz).map((b) => b.key).join();
+  wahr('Einzelmast: eingemessen wird am Masten oder frei', wahl78 === 'mast,mastLaenge,frei',
+       wahl78);
+  const mb78 = BZ78.bezugPunkte('mast', e.modell, sz);
+  pruef('… vom gezeichneten Fuss', mb78[0].z, fuss, 1e-6, 'm');
+  pruef('… ueber die Hoehe H', mb78[1].z - mb78[0].z, 7.5, 1e-9, 'm');
+  wahr('… und ohne Joch keine Jochenden zum Ausrichten',
+       !BZ78.ausrichtPunkte(sz).some((p) => /^joch/.test(p.key))
+       && BZ78.ausrichtPunkte(sz)[0].label.startsWith('Mast:'));
+
+  // Das Abfangjoch legt seine Bezuege ebenso bei - der Mast endet dort an
+  // der Jochachse.
+  const RA78 = await import(J('render.abfang.js'));
+  const AJ78 = await import(J('data.abfangjoche.js'));
+  if (AJ78.abfangDbDa?.() ?? true) {
+    let szA = null;
+    try {
+      szA = RA78.abfangSzene('A330', 20, { anbauteile: [],
+        mast: { profil: 'HEB 240', hoehe: 7.0, stegrichtung: 'jochachse', ueberstand: 1.5 } });
+    } catch { szA = null; }
+    if (szA) {
+      const mA = BZ78.bezugPunkte('mast', null, szA);
+      pruef('Abfangjoch: Masthoehe bis zum Anschluss', mA[1].z - mA[0].z, 7.0, 1e-9, 'm');
+      const lA = BZ78.bezugPunkte('mastLaenge', null, szA);
+      pruef('… und die Mastlaenge mit dem Ueberstand', lA[1].z - lA[0].z, 8.5, 1e-9, 'm');
+      wahr('… und das Joch ueber die ganze Laenge',
+           BZ78.bezugPunkte('joch', null, szA)[1].x === 20);
+    }
+  }
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

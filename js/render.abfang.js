@@ -654,6 +654,7 @@ export function abfangSzene(typ, jt, opt = {}) {
    * Feldern des Satzes. Profil, Hoehe und Anker koennen sich zwischen den
    * Enden unterscheiden - `opt.masten` traegt sie einzeln, wo sie da sind.
    */
+  const mastBezug = {};
   if (opt.mast?.profil && opt.mast.hoehe > 0) {
     const enden = [['A', ue], ['B', jt - ue]];
     for (const [name, x] of enden) {
@@ -699,6 +700,13 @@ export function abfangSzene(typ, jt, opt = {}) {
          */
         ...ankerDetail(md.anker?.typ),
       });
+      // Fuer das Einmessen der Zeichnung: Fuss, Anschluss und Kopf, wie sie
+      // hier gezeichnet sind. Die Laenge nur mit Ueberstand - ohne ihn endet
+      // der Mast am Anschluss, und das Mass waere dasselbe wie H.
+      mastBezug[name] = { x, zF: -md.hoehe, zAn: 0, zAchse: 0,
+                          zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
+                          laenge: (md.ueberstand ?? 0) > 0
+                            ? md.hoehe + md.ueberstand : null };
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);
       bauteiltitel.push(...(mk.bauteiltitel ?? []));
@@ -956,5 +964,7 @@ export function abfangSzene(typ, jt, opt = {}) {
     // Der Nachweisschnitt liegt im Randfeld - dort fällt er (Randfeld ist
     // das längste Feld, siehe abfangRahmenfeld).
     xNachweis: stationen[0] ?? null,
+    // Die Masse zum Einmessen der Zeichnung (bild.zeichnung.js, BEZUEGE).
+    bezug: { joch: jt > 0 ? { xA: 0, xB: jt, z: 0 } : null, masten: mastBezug },
   };
 }

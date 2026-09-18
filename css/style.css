@@ -852,6 +852,13 @@ input[type=range].rng {
 .viewer-balken[hidden] { display: none; }
 .viewer-balken b { color: var(--acc); }
 .viewer-balken .btn { padding: 3px 8px; }
+/* Die Wahl des Ausrichtpunkts fuehrt bis zu acht Punkte - in einer Zeile
+   liefen sie ueber den Rand des Modells hinaus. */
+.viewer-balken.wickeln { flex-wrap: wrap; }
+.viewer-balken input[type=number] {
+  width: 6em; padding: 2px 4px; font: inherit; color: var(--on);
+  background: var(--s1); border: 1px solid var(--ol); border-radius: 3px;
+}
 /* Die Vorlagenwahl im Balken: eine Spalte je Rolle, darin gleich breite
    Knoepfe untereinander. Als einzelner Fluss verschieden breiter Knoepfe war
    die Ordnung zwar da, aber nicht zu sehen. */

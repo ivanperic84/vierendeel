@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4540 Kontrollen
+node pruefung.mjs           # Prüfstand, 4573 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,38 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Hintergrundzeichnung: Massstab, Grösse, Bezugspunkt (18. September)
+
+Meldung: die eingelegte Zeichnung lag viel zu gross da, über die Mastlänge
+eingemessen stimmte der Massstab nicht, und die Lage hing starr am Mastfuss.
+
+- **Der Mastbezug rechnete den Masten selbst nach** - Fuss bei −H, oben die
+  Jochachse. Gezeichnet steht der Fuss H unter dem Anschluss an der
+  **Unterkante**, und `blattSzene` hebt die Szene um H an. Massstab um die
+  halbe Jochhöhe verzogen, Lage um H daneben. Jetzt legen `erzeugeSzene` und
+  `abfangSzene` die gezeichneten Punkte bei (`szene.bezug`: Jochenden, je
+  Mast Fuss, Anschluss, Kopf, Jochachse, Länge); `szeneVerschieben` und
+  `szenenVereinen` führen sie mit. `bezuegeFuer(m, szene)` liest nur noch
+  dort.
+- **Neue Bezüge:** «Mast, lotrecht (ganze Länge)» misst Fuss bis Fuss + Länge
+  (die Eingabe, nicht der gezeichnete Kopf, der mindestens 0.50 m über dem
+  Obergurt steht); «Freies Mass» nimmt zwei Punkte und eine eingetippte
+  Länge (schräg erlaubt), hält den ersten Punkt fest und geht gleich ins
+  Ausrichten.
+- **Ausrichten** (Zeichnungsmenü, Kontextmenü): Mastfuss, Anschluss,
+  Mastkopf je Mast, Jochenden oder ein freier Punkt (erst Zeichnung, dann
+  Modellstelle). Nur Verschiebung, der Massstab bleibt. Esc bricht ab.
+- **Die Erkennung** findet Mastachsen auf der Jochachse und den Mastfuss;
+  ihre Modellpunkte stehen in `erkennungsWelt` (vorher die Jochenden, die
+  beim Abfangjoch nicht auf den Mastachsen liegen).
+- **Vorläufige Lage** aus den Grenzen der Szene: das Modell füllt rund zwei
+  Drittel des Bildes (`VORLAEUFIG_ANTEIL`), mittig. Vorher doppelte
+  Jochlänge, beim Einzelmast 40 m.
+- Im Browser nachgeprüft (Testblatt 0.02 m/Punkt, J90/20 m, HEB 240 8.50 m):
+  Selbsterkennung deckungsgleich; über die Mastlänge neu eingemessen bleibt
+  der Bildrahmen gleich; Ausrichten am Mastfuss schiebt um genau 20 m;
+  freier Punkt zurück; freies Mass schlägt 19.99 m vor.
 
 ### Kleinere Weisungen (17. September, nachmittags)
 

@@ -164,12 +164,35 @@ export function bildRahmen(k, breite, hoehe) {
 }
 
 /**
- * DIE BEIDEN BEZUGSMASSE, aus denen sich kalibrieren lässt.
+ * DIE BEZUGSMASSE, aus denen sich kalibrieren lässt.
  *
- * Beide stehen in der Eingabe. Mehr braucht es nicht: ein waagrechtes und ein
- * lotrechtes Mass decken beide Fälle ab, je nachdem, was auf der Zeichnung
- * gut zu treffen ist.
+ * Ein waagrechtes und zwei lotrechte Masse aus der Eingabe, dazu ein freies:
+ * je nachdem, was auf der Zeichnung gut zu treffen ist.
+ *
+ * >>> DIE PUNKTE KOMMEN AUS DER SZENE, NICHT AUS DER EINGABE. <<<
+ *
+ * Gemeldet am 18. September: über die Mastlänge eingemessen, sass die
+ * Zeichnung im falschen Massstab und am falschen Ort. Der Bezug rechnete den
+ * Masten hier selbst nach - Fuss bei -H, oben die Jochachse bei 0. Gezeichnet
+ * steht der Fuss aber H unter dem ANSCHLUSS an der Unterkante des Jochs, und
+ * auf dem Blatt ist die ganze Szene um die Masthöhe angehoben. Zwei
+ * Rechnungen desselben Masten, die um die halbe Jochhöhe im Massstab und um
+ * H in der Lage auseinanderlagen.
+ *
+ * `erzeugeSzene` und `abfangSzene` legen die Punkte jetzt so bei, wie sie
+ * gezeichnet sind (`szene.bezug`), und das Blatt verschiebt sie mit. Was man
+ * anklickt, ist damit genau das, was man im Modell sieht.
  */
+const linkerMast = (sz) => {
+  const ms = sz?.bezug?.masten ?? {};
+  return ms.A ?? Object.values(ms)[0] ?? null;
+};
+
+/** Das Joch: aus der Szene, ohne Szene aus der Eingabe (0 bis L auf der Achse). */
+const jochVon = (m, sz) => (sz
+  ? sz.bezug?.joch ?? null
+  : (m?.L > 0 && !m.qsErsatz ? { xA: 0, xB: m.L, z: 0 } : null));
+
 export const BEZUEGE = [
   /*
    * DIE RICHTUNG STEHT IM NAMEN (Weisung, 12. September: "ob ein mast
@@ -180,20 +203,56 @@ export const BEZUEGE = [
   { key: 'joch', label: 'Joch, waagrecht (Länge L)',
     hinweis: 'Links und rechts das Ende des Jochs anklicken. Waagrecht – '
            + 'meist am besten zu treffen.',
-    punkte: (m) => (m?.L > 0
-      ? [{ x: 0, z: 0, text: 'linkes Jochende, Höhe der Jochachse' },
-         { x: m.L, z: 0, text: 'rechtes Jochende, Höhe der Jochachse' }]
-      : null) },
-  { key: 'mast', label: 'Mast, lotrecht (Höhe H)',
-    hinweis: 'Fundamentoberkante und Jochachse am linken Masten anklicken. '
-           + 'Lotrecht – gut, wenn das Joch angeschnitten ist.',
-    punkte: (m) => {
-      const H = m?.federn?.mastA?.H ?? m?.federn?.mast?.H ?? 0;
-      return H > 0
-        ? [{ x: 0, z: -H, text: 'Fundamentoberkante am linken Masten' },
-           { x: 0, z: 0, text: 'Jochachse am linken Masten' }]
+    punkte: (m, sz) => {
+      const j = jochVon(m, sz);
+      return j && j.xB > j.xA
+        ? [{ x: j.xA, z: j.z, text: 'linkes Jochende, Höhe der Jochachse' },
+           { x: j.xB, z: j.z, text: 'rechtes Jochende, Höhe der Jochachse' }]
         : null;
     } },
+  { key: 'mast', label: 'Mast, lotrecht (Höhe H)',
+    hinweis: 'Fundamentoberkante und Anschluss am linken Masten anklicken. '
+           + 'Lotrecht – gut, wenn das Joch angeschnitten ist.',
+    punkte: (m, sz) => {
+      const g = linkerMast(sz);
+      return g && g.zAn - g.zF > 0
+        ? [{ x: g.x, z: g.zF, text: 'Fundamentoberkante am linken Masten' },
+           { x: g.x, z: g.zAn, text: 'Anschluss am linken Masten (Höhe H)' }]
+        : null;
+    } },
+  /*
+   * >>> DIE GANZE MASTLÄNGE. <<<
+   *
+   * Auf dem Querprofil ist der Mast von Fundament bis Kopf gezeichnet und mit
+   * seiner Länge angeschrieben - das ist das Mass, das man sicher trifft.
+   *
+   * GEMESSEN WIRD DIE LÄNGE, NICHT DER GEZEICHNETE KOPF. Das Bild hebt den
+   * Kopf auf mindestens einen halben Meter über den Obergurt; die Länge aus
+   * der Eingabe kann darunter bleiben. Auf dem Blatt steht die wirkliche -
+   * nähme man den gezeichneten Kopf, wäre der Massstab um den Unterschied
+   * verzogen. Ohne Überstand fehlt das Mass: es wäre dasselbe wie H.
+   */
+  { key: 'mastLaenge', label: 'Mast, lotrecht (ganze Länge)',
+    hinweis: 'Fundamentoberkante und Mastkopf am linken Masten anklicken.',
+    punkte: (m, sz) => {
+      const g = linkerMast(sz);
+      return g?.laenge > 0 && g.zF + g.laenge > g.zAn + 1e-6
+        ? [{ x: g.x, z: g.zF, text: 'Fundamentoberkante am linken Masten' },
+           { x: g.x, z: g.zF + g.laenge, text: 'Mastkopf am linken Masten' }]
+        : null;
+    } },
+  /*
+   * >>> EIN FREIES MASS. <<<
+   *
+   * Nicht jede Zeichnung zeigt Jochende oder Mastfuss - ein Ausschnitt, ein
+   * Detail. Dann nimmt man eine Bemassung, die auf dem Blatt steht: zwei
+   * Punkte, die Länge dazu. Das Mass legt nur den Massstab fest; wohin das
+   * Bild gehört, sagt danach «Ausrichten».
+   */
+  { key: 'frei', label: 'Freies Mass (Länge eingeben)', frei: true,
+    hinweis: 'Zwei Punkte mit bekanntem Abstand anklicken, dann die Länge '
+           + 'eingeben.',
+    punkte: () => null },
 ];
 
 /**
@@ -202,9 +261,9 @@ export const BEZUEGE = [
  * Gibt null, wenn das Mass im Modell nicht vorkommt - ohne Mast als Auflager
  * gibt es keine Masthöhe, und dann ist der Bezug nicht wählbar.
  */
-export function bezugPunkte(key, m) {
+export function bezugPunkte(key, m, sz = null) {
   const b = BEZUEGE.find((x) => x.key === key);
-  return b ? b.punkte(m) : null;
+  return b ? b.punkte(m, sz) : null;
 }
 
 /**
@@ -216,17 +275,137 @@ export function bezugPunkte(key, m) {
  * mast (vertikal) oder ein joch (horizontal) als referenz dient. und die
  * zeichnung muesste dann entsprechend positioniert werden."
  *
- * Bisher begann jedes Einmessen beim Joch, und das andere Mass lag hinter
- * einem Knopf namens "anderes Mass" - zu finden erst, wenn man schon im
- * Fadenkreuz stand. Ein Einzelmast hat aber gar kein Joch: `punkte(m)` gab
- * null, das Einmessen brach still ab, und die Zeichnung blieb vorlaeufig
- * liegen.
- *
  * Wer die Liste hat, kann fragen, statt zu raten - und hat nichts anzubieten,
- * wo es nichts gibt.
+ * wo es nichts gibt. Das freie Mass gibt es immer, sobald ein Modell dasteht.
  */
-export function bezuegeFuer(m) {
+export function bezuegeFuer(m, sz = null) {
+  if (!m && !sz) return [];
   return BEZUEGE
-    .map((b) => ({ ...b, welt: b.punkte(m) }))
-    .filter((b) => Array.isArray(b.welt) && b.welt.length === 2);
+    .map((b) => ({ ...b, welt: b.punkte(m, sz) }))
+    .filter((b) => b.frei || (Array.isArray(b.welt) && b.welt.length === 2));
+}
+
+/**
+ * Die Modellpunkte zu dem, was die ERKENNUNG findet (bild.erkennung.js).
+ *
+ * Sie findet die Mastachsen auf der Jochachse und den Fuss des linken
+ * Masten - nicht die Jochenden und nicht den Anschluss an der Unterkante.
+ * Die Punkte des Einmessens von Hand passen deshalb nicht; hier stehen die
+ * passenden. Ohne zwei Masten nimmt das waagrechte Paar die Jochenden:
+ * dort stehen die Masten der Zeichnung gewöhnlich.
+ */
+export function erkennungsWelt(key, m, sz = null) {
+  const ms = sz?.bezug?.masten ?? {};
+  const a = ms.A, b = ms.B;
+  if (key === 'mast') {
+    const g = linkerMast(sz);
+    return g && Number.isFinite(g.zAchse) && g.zAchse > g.zF
+      ? [{ x: g.x, z: g.zF }, { x: g.x, z: g.zAchse }] : null;
+  }
+  if (key === 'joch') {
+    if (a && b && Number.isFinite(a.zAchse) && Number.isFinite(b.zAchse)
+        && b.x > a.x) {
+      return [{ x: a.x, z: a.zAchse }, { x: b.x, z: b.zAchse }];
+    }
+    return bezugPunkte('joch', m, sz);
+  }
+  return null;
+}
+
+/**
+ * DER MASSSTAB AUS EINEM FREIEN MASS.
+ *
+ * Anders als beim Einmessen über zwei Modellpunkte zählt hier der wirkliche
+ * Abstand im Bild, nicht die längere Richtung: eine schräge Bemassung ist
+ * erlaubt, und ihre Länge ist die Diagonale.
+ *
+ * >>> DER ERSTE PUNKT BLEIBT, WO ER IST. <<< Das Bild wächst oder schrumpft
+ * um ihn herum. So springt es nicht davon, und das Ausrichten danach ist
+ * ein kurzer Weg statt einer Suche.
+ *
+ * @param {{px,py}} p1 @param {{px,py}} p2 Bildpunkte
+ * @param {number} laenge wirklicher Abstand [m]
+ * @param {{s,x0,z0}|null} kAlt die Lage bisher
+ */
+export function kalibriereFrei(p1, p2, laenge, kAlt = null) {
+  if (!p1 || !p2 || !(laenge > 0)) return null;
+  const d = Math.hypot(p2.px - p1.px, p2.py - p1.py);
+  if (!(d > 0)) return null;
+  const s = laenge / d;
+  const w = kAlt ? bildNachWelt(kAlt, p1.px, p1.py) : { x: 0, z: 0 };
+  return { s, x0: w.x - s * p1.px, z0: w.z + s * p1.py };
+}
+
+/**
+ * AUSRICHTEN: ein Bildpunkt auf einen Modellpunkt, der Massstab bleibt.
+ *
+ * Gemeldet am 18. September: die Lage hing starr am Mastfuss. Wer die
+ * Zeichnung am Mastkopf oder an einem Jochende deckungsgleich haben will,
+ * wählt den Punkt im Modell und klickt ihn auf der Zeichnung an - das Bild
+ * wird nur verschoben, nicht neu gemessen.
+ */
+export function ausrichten(k, p, w) {
+  if (!k || !p || !w || !(k.s > 0)) return null;
+  return { s: k.s, x0: w.x - k.s * p.px, z0: w.z + k.s * p.py };
+}
+
+/**
+ * Die Modellpunkte, an denen sich ausrichten lässt.
+ *
+ * Fuss, Anschluss und Kopf je Mast, dazu die Jochenden - so, wie sie in
+ * der Szene stehen. Der Kopf liegt auf der Länge ab Fundament, wie beim
+ * Einmessen; ohne Länge dort, wo er gezeichnet ist.
+ */
+export function ausrichtPunkte(sz) {
+  const out = [];
+  const ms = sz?.bezug?.masten ?? {};
+  const namen = Object.keys(ms);
+  const wer = (k) => (namen.length < 2 ? 'Mast'
+    : k === 'A' ? 'linker Mast' : 'rechter Mast');
+  for (const k of namen) {
+    const g = ms[k];
+    out.push({ key: `fuss${k}`, label: `${wer(k)}: Fundamentoberkante`, x: g.x, z: g.zF });
+    if (g.zAn > g.zF + 1e-9) {
+      out.push({ key: `an${k}`, label: `${wer(k)}: Anschluss (Höhe H)`, x: g.x, z: g.zAn });
+    }
+    const kopf = g.laenge > 0 ? g.zF + g.laenge : g.zKopf;
+    if (kopf > g.zAn + 1e-9) {
+      out.push({ key: `kopf${k}`, label: `${wer(k)}: Mastkopf`, x: g.x, z: kopf });
+    }
+  }
+  const j = sz?.bezug?.joch;
+  if (j && j.xB > j.xA) {
+    out.push({ key: 'jochA', label: 'Jochende links (Achse)', x: j.xA, z: j.z });
+    out.push({ key: 'jochB', label: 'Jochende rechts (Achse)', x: j.xB, z: j.z });
+  }
+  return out;
+}
+
+/**
+ * DIE VORLÄUFIGE LAGE eines frisch eingelegten Bildes.
+ *
+ * Gemeldet am 18. September: das Bild lag viel zu gross da. Es wurde auf die
+ * doppelte Jochlänge gestreckt - und ohne Joch, beim Einzelmast, auf 40 m,
+ * gegen einen Masten von zehn. Man musste es erst suchen, bevor man es
+ * einmessen konnte.
+ *
+ * Genommen werden jetzt die GRENZEN DES MODELLS, so wie es dasteht: das Bild
+ * wird so gross, dass das Modell etwa zwei Drittel davon einnimmt - in der
+ * Richtung, die knapper ist. Ein Querprofil zeigt ringsum Gleise, Profile und
+ * Schriftfeld; das Tragwerk füllt das Blatt nie ganz. Mittig darum gelegt,
+ * sieht man beides gleich und setzt die zwei Klicks ohne Suche.
+ *
+ * @param {{xMin,xMax,zMin,zMax}|null} g Grenzen der Szene
+ * @param {number} breite @param {number} hoehe Bildgrösse [Punkte]
+ */
+export const VORLAEUFIG_ANTEIL = 0.65;
+export function vorlaeufigeLage(g, breite, hoehe) {
+  const ok = g && [g.xMin, g.xMax, g.zMin, g.zMax].every(Number.isFinite);
+  const w = ok ? Math.max(g.xMax - g.xMin, 0.5) : 10;
+  const h = ok ? Math.max(g.zMax - g.zMin, 0.5) : 10;
+  const cx = ok ? (g.xMin + g.xMax) / 2 : 0;
+  const cz = ok ? (g.zMin + g.zMax) / 2 : 0;
+  const s = Math.max(w / (VORLAEUFIG_ANTEIL * breite),
+                     h / (VORLAEUFIG_ANTEIL * hoehe));
+  return { s, x0: cx - (s * breite) / 2, z0: cz + (s * hoehe) / 2 };
 }

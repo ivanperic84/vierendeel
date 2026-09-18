@@ -187,6 +187,16 @@ function teilVersch(t, dx, zusatz, dz = 0) {
  * tief - zwei Abfangjoche uebereinander (H 9.00 und 10.50) standen dann auf
  * derselben Hoehe, mit zwei Fundamenten in verschiedenen Tiefen.
  */
+function bezugVerschieben(b, dx, dz) {
+  const z = (v) => (Number.isFinite(v) ? v + dz : v);
+  return {
+    joch: b.joch ? { xA: b.joch.xA + dx, xB: b.joch.xB + dx, z: b.joch.z + dz } : null,
+    masten: Object.fromEntries(Object.entries(b.masten ?? {}).map(([k, g]) => [k, {
+      ...g, x: g.x + dx, zF: z(g.zF), zAn: z(g.zAn), zKopf: z(g.zKopf),
+      zAchse: z(g.zAchse) }])),
+  };
+}
+
 export function szeneVerschieben(sz, dx, zusatz = {}, dz = 0) {
   if (!sz) return sz;
   const l = (a) => (a ?? []).map((t) => teilVersch(t, dx, zusatz, dz));
@@ -233,6 +243,14 @@ export function szeneVerschieben(sz, dx, zusatz = {}, dz = 0) {
       ...(Number.isFinite(b.zMax) ? { zMax: b.zMax + dz } : {}),
     })),
     stationen: (sz.stationen ?? []).map((x) => x + dx),
+    /*
+     * >>> UND DIE BEZUGSPUNKTE DER ZEICHNUNG. <<<
+     *
+     * Dieselbe Falle ein drittes Mal: das Blatt hebt jede Szene um die
+     * Masthoehe an, und das Einmessen rechnete mit dem Fuss bei -H. Die
+     * Zeichnung sass danach um genau diese Hoehe zu tief.
+     */
+    bezug: sz.bezug ? bezugVerschieben(sz.bezug, dx, dz) : sz.bezug,
     grenzen: { ...g, xMin: (g.xMin ?? 0) + dx, xMax: (g.xMax ?? 0) + dx,
                ...(Number.isFinite(g.zMin) ? { zMin: g.zMin + dz } : {}),
                ...(Number.isFinite(g.zMax) ? { zMax: g.zMax + dz } : {}) },
@@ -290,6 +308,8 @@ export function szenenVereinen(teile) {
      * Tragwerks, also gehoeren seine Bereiche hierher.
      */
     anbauteile: (da.find((s) => s.aktiv) ?? da[0]).anbauteile ?? [],
+    // Eingemessen wird am gerechneten Tragwerk - dessen Masse stehen im Kopf.
+    bezug: (da.find((s) => s.aktiv) ?? da[0]).bezug ?? null,
     legende: [...legende.values()], bereiche,
     grenzen: { xMin: min('xMin'), xMax: max('xMax'),
                yMin: min('yMin'), yMax: max('yMax'),
@@ -690,7 +710,14 @@ export function erzeugeSzene(m, erg) {
        */
       const zKopf = Math.max(qs.huelle.z1 * MM + MAST_UEBERSTAND,
                              zF + (mast?.laenge > 0 ? mast.laenge : 0));
-      mastGeo[name] = { x, zF, zKopf, H, koerper: Boolean(mast?.profil) };
+      mastGeo[name] = { x, zF, zKopf, H, koerper: Boolean(mast?.profil),
+                        // Fuer das Einmessen der Zeichnung (18. September):
+                        // der Anschluss an der Unterkante und die Laenge ab
+                        // Fundament, wie sie auf dem Querprofil steht.
+                        zAn: z0, laenge: mast?.laenge > 0 ? mast.laenge : null,
+                        // Ohne eingegebene Hoehe ist der Mast ein Stummel
+                        // der Zeichnung und taugt nicht als Mass.
+                        echt: mast?.H > 0 };
       if (mast?.profil) {
         mastFussZ = Math.min(mastFussZ, zF);
         mastKopfZ = Math.max(mastKopfZ, zKopf);
@@ -1745,6 +1772,27 @@ export function erzeugeSzene(m, erg) {
     stationen: stationen.map((s) => s.x),
     xNachweis: xN, schnittAktiv,
     anbauteile: detailBereiche,
+    /*
+     * DIE MASSE, AN DENEN SICH DIE ZEICHNUNG EINMESSEN LAESST - so, wie sie
+     * HIER gezeichnet sind (bild.zeichnung.js, BEZUEGE). Rechnete das
+     * Einmessen sie selbst nach, laege die Zeichnung um jeden Unterschied
+     * daneben: beim Mast war es die halbe Bauhoehe des Jochs.
+     *
+     * `zAchse` ist die Jochachse am Masten - dort sucht die Erkennung das
+     * Joch (bild.erkennung.js). Ein Einzelmast hat keine.
+     */
+    bezug: {
+      joch: m.qsErsatz || !(m.L > 0) ? null : { xA: 0, xB: m.L, z: 0 },
+      // Der Einzelmast baut beide Enden an derselben Stelle - einer genuegt,
+      // sonst stuende jeder Punkt zweimal zur Wahl.
+      masten: Object.fromEntries(Object.entries(mastGeo)
+        .filter(([, g2]) => g2.echt)
+        .filter(([k2, g2], i, alle) => !alle.some(([k3, g3], i3) => i3 < i
+          && Math.abs(g3.x - g2.x) < 1e-6))
+        .map(([k2, g2]) => [k2, {
+          x: g2.x, zF: g2.zF, zAn: g2.zAn, zKopf: g2.zKopf,
+          zAchse: m.qsErsatz ? null : 0, laenge: g2.laenge }])),
+    },
   };
 }
 
