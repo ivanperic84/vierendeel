@@ -23266,8 +23266,10 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
          bl.slice(0, 3).map((s) => s.pfad).join(','));
     wahr('Die Blechdicke steht in mm',
          bl.find((s) => s.pfad === 'dicke')?.feld.einheit === 'mm');
+    // Seit J60 seine Bleche hat (18. September), fuehrt kein Typ mehr einen
+    // leeren Behaelter - geprueft wird der Mechanismus an einer eigenen Zeile.
     wahr('Ein leerer Behaelter hat seine Spalte',
-         K.spaltenVon('tragjoche', 'typen', tab.tragjoche.tabellen.typen)
+         K.spaltenVon('tragjoche', 'typen', [{ typ: 'X', bleche: null }])
            .some((s) => s.pfad === 'bleche'));
 
     wahr('Eine Blechliste wird gezaehlt, nicht ausgeschrieben',
@@ -23535,8 +23537,20 @@ titel('64  Die Regel der Blecheinteilung');
     const j100 = alle.find((p) => p.typ === 'J100');
     wahr('J100: ausserhalb des Normbereichs nur ein Hinweis',
          j100.warnung.length === 0 && j100.hinweis.some((h) => /Feldmitte/.test(h)));
-    wahr('J60 ohne Bleche wird genannt, nicht bemaengelt',
-         alle.find((p) => p.typ === 'J60').hinweis.some((h) => /keine Bindebleche/.test(h)));
+    /*
+     * J60 HAT SEINE BLECHE (18. September, aus der Konstruktionszeichnung,
+     * Index c). Bis dahin stand hier «ohne Bleche wird genannt»; jetzt muss
+     * er aufgehen wie J80 - jede Laenge gegen die Stueckliste.
+     */
+    {
+      const j60 = alle.find((p) => p.typ === 'J60');
+      wahr('J60: keine Warnung und kein Hinweis mehr',
+           j60.warnung.length === 0 && j60.hinweis.length === 0,
+           [...j60.warnung, ...j60.hinweis].join(' | '));
+      wahr('J60: alle 17 Laengen stimmen mit der Stueckliste',
+           j60.laengen.length === 17 && j60.laengen.every((l) => l.stimmt !== false),
+           `${j60.laengen.length} Laengen`);
+    }
     const aj = alle.filter((p) => p.art === 'abfangjoch' && p.laengen.length);
     wahr('Abfangjoche: Schema und Stueckliste stimmen ueberein',
          aj.length > 0 && aj.every((p) => p.laengen.every((l) => l.stimmt !== false)));
@@ -24740,6 +24754,13 @@ titel('81  Der Mast trifft nur liegende Bleche und die Gurte');
   wahr('… und P10 meldet die Kollision mit den Gurten', p(mQ, 'P10A').ok === false,
        p(mQ, 'P10A').status);
   wahr('Am Ende passt derselbe Mast', p(mach('J90', 20, 0, 'HEM 240', 'quer'), 'P10A').ok === true);
+  // J60 fiel bis zu seinen Blechen durch: der Ersatz legte am Ende auch
+  // ein liegendes Blech.
+  [8, 12, 16].forEach((L) => {
+    const m = mach('J60', L, 0);
+    wahr(`J60 / ${L} m: Mast am Jochende besteht P9`,
+         p(m, 'P9A').ok === true && p(m, 'P9B').ok === true, p(m, 'P9A').status);
+  });
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

@@ -149,7 +149,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4610 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4614 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -162,7 +162,11 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Ausrichten an Punkt. UEBERGABE.md in diese Datei überführt.
   Fussleiste sagt dasselbe wie die Hauptkachel; P9 nur gegen liegende
   Bleche, neu P10 (Mast zwischen den Gurten) — jedes neue Joch J70–J130
-  startete vorher mit zwei verletzten Prüfungen.
+  startete vorher mit zwei verletzten Prüfungen. **J60-Bleche erfasst** aus
+  der Konstruktionszeichnung (Index c): 5 Blechpositionen, 7 Ausführungen
+  je Längenbereich; alle 17 Längen gehen gegen die Stückliste auf. η steigt
+  dadurch um 7–8 % (J60/16 m: 0.503 → 0.539), weil der Ersatz mit 100×10
+  statt 6 mm dicken, in der Mitte 80 mm breiten Blechen rechnete.
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -171,11 +175,12 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
-**Laufende Arbeit:** J60-Bleche erfassen (Weisung 18. Sept.). J60 hat in
-`data/tragjoche.json` keine Blechangaben und rechnet mit Ersatzblechen, die
-am Ende auch ein liegendes Blech setzen — P9 fällt dort deshalb noch. Weg:
-Werkstattzeichnung J60 aus `Grundlagen/` lesen, Tabelle dem Auftraggeber
-vorlegen, erst nach Freigabe eintragen.
+**Laufende Arbeit:** keine.
+
+**Datenstand:** `data/tragjoche.json` trägt seit 18. Sept. die J60-Bleche
+(Sicherung davor: `data/sicherung/tragjoche_vor_J60_2026-09-18.json`). Wer
+die Anwendung mit einem Datenpaket nutzt (GitHub Pages, andere Rechner),
+braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 
 ## Offene Punkte
 
@@ -234,7 +239,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4610 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4614 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
