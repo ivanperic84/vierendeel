@@ -344,7 +344,12 @@ export function mastLasten(m, ende = 'A') {
    * mit demselben Beiwert wie jedes andere staendige Gewicht.
    */
   const gk = (md.profil.g * G_ERD) / 1000;         // kg/m -> kN/m
-  const gd = gk * (m.beiwerte?.G ?? 1);
+  /*
+   * Im charakteristischen Fall «Ablenkkraefte staendig» (`nur: 'ablenk'`)
+   * steht das Gewicht NICHT - es gehoert zu «Staendig (Tragwerk)». Bis zum
+   * 18. September stand es in beiden, am Fuss doppelt gezaehlt.
+   */
+  const gd = m.nurLast === 'ablenk' ? 0 : gk * (m.beiwerte?.G ?? 1);
 
   // --- Wind auf den Masten -------------------------------------------------
   const w = m.mastLast?.[seite];
@@ -1473,7 +1478,16 @@ export function mastNachweis(m, ende = 'A', o = {}) {
 export function mastNachweise(m, o = {}) {
   if (!m?.federn?.mast && !m?.federn?.mastA) return null;
   const A = mastNachweis(m, 'A', o);
-  const B = mastNachweis(m, 'B', o);
+  /*
+   * >>> DER EINZELMAST HAT KEIN ENDE B (Befund vom 18. September). <<<
+   *
+   * Die Federn tragen auch dort ein `mastB` - die Maske des Tragjochs
+   * laeuft mit. Nachgewiesen wurde damit ein zweiter Mast, den es nicht
+   * gibt: derselbe Mast noch einmal, aber OHNE seinen Anker. Mit einer
+   * Druckstuetze U12 stand dieses Phantom mit 0.191 im Urteil, der wirkliche
+   * Mast mit 0.129.
+   */
+  const B = m?.tragwerksart === 'einzelmast' ? null : mastNachweis(m, 'B', o);
   if (!A && !B) return null;
   return mastZusammen(A, B);
 }

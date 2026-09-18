@@ -75,7 +75,7 @@ export function bemessungslasten(i, anbauteile, h, bGurt = null) {
  * Jochachse (data.anbauteile.js, `wirktAblenk`). Dieselbe Trennung macht
  * die AxisVM-Ausleitung mit ihren Lastfällen G_Anbau und G_Ablenk.
  */
-function nurTeil(teile, nur) {
+export function nurTeil(teile, nur) {
   if (nur !== 'tragwerk' && nur !== 'ablenk') return teile;
   return (teile ?? []).map((a) => {
     const g = a.kraefte?.G;

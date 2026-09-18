@@ -1513,7 +1513,15 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
    * wäre die gefährlichste Zeile, die diese Anwendung schreiben könnte -
    * deshalb steht die Zahl daneben und die Namen darunter.
    */
-  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => !nw[g.key])
+  /*
+   * OHNE JOCH GIBT ES KEINEN JOCHNACHWEIS, auch keinen fehlenden. Beim
+   * Einzelmast stand «Auflager Joch, Knicken Joch» unter «nicht geführt»,
+   * und die Fussleiste zaehlte zwei offene Nachweise, die es an diesem
+   * Tragwerk nicht geben kann (Befund vom 18. September).
+   */
+  const gibtEs = (g) => art !== 'einzelmast'
+    || !['jochtragwerk', 'auflagerJoch', 'knickenJoch'].includes(g.key);
+  const nichtGefuehrt = NACHWEISGRUPPEN.filter((g) => gibtEs(g) && !nw[g.key])
     .map((g) => ({ key: g.key, titel: g.titel,
                    // `was` darf von der Tragwerksart abhaengen - siehe
                    // `knickenJoch` in NACHWEISGRUPPEN.

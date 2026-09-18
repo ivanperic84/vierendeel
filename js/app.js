@@ -922,8 +922,30 @@ function zeichneAuswertung() {
    * waehlen gibt.
    */
   if (!letzte.mitJoch) {
-    ui.el('tabs-auswertung').innerHTML = '';
-    ui.zeichneEinzelmast(ui.el('auswertung'), letzte);
+    /*
+     * Seit dem 18. September mit Reitern wie das Joch - ohne den Schnitt,
+     * den es ohne Joch nicht gibt (Weisung: «entsprechend wie beim
+     * tragjoch gestalten»).
+     */
+    if (!ui.EINZELMAST_TABS.some((t) => t.id === tabAuswertung)) tabAuswertung = 'uebersicht';
+    ui.zeichneTabs(ui.el('tabs-auswertung'), ui.EINZELMAST_TABS, tabAuswertung, (t) => {
+      tabAuswertung = t; zeichneAuswertung();
+    });
+    const knoten = ui.el('auswertung');
+    if (tabAuswertung === 'verlauf') {
+      const bem = { ...(letzte.kombi?.huellkurve ?? letzte.erg), anker: letzte.erg.anker };
+      const zeig = anzeigeKombi === 'umhuellend' ? bem
+        : { ...letzte.anzeige, anker: letzte.erg.anker };
+      ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860));
+    } else if (tabAuswertung === 'auflager') {
+      ui.zeichneMastfuss(knoten, letzte.kombi);
+    } else {
+      ui.zeichneEinzelmast(knoten, letzte, {
+        quelle: anzeigeKombi,
+        lastfallName: anzeigeKombi === 'umhuellend' ? null
+          : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
+      });
+    }
     return;
   }
   const { anzeige: erg, vergleich, kombi, checks, hinw, kl, urteil } = letzte;
@@ -8412,8 +8434,8 @@ function dialogBericht() {
   if (!letzte) return;
   const art = tragwerksart(werte);
   if (!BERICHT_ARTEN.includes(art.key)) {
-    meldeImBalken(`Der Nachweisbericht deckt in dieser Fassung das Tragjoch mit Masten ab — `
-      + `für «${art.label}» folgt er.`);
+    meldeImBalken(`Der Nachweisbericht deckt das Tragjoch mit Masten und den Einzelmast ab — `
+      + `«${art.label}» ist nicht enthalten.`);
     return;
   }
   const w = berichtWahl();
@@ -8450,15 +8472,43 @@ function berichtOeffnen(wahl) {
   const bem0 = letzte.kombi?.huellkurve ?? letzte.erg;
   const bem = { ...bem0, anker: letzte.erg.anker ?? bem0.anker };
   const b = wahl.bilder;
-  const satz = (b.verlaeufe || b.eta) ? diagrammSatz(bem, 900) : {};
+  const mitJoch = letzte.mitJoch !== false;
+  /*
+   * OHNE JOCH NUR DIE MASTDIAGRAMME: `diagrammSatz` legt die Kurven des
+   * Traeger-Ersatzbalkens dazu, und die rechnet beim Einzelmast ein Joch,
+   * das es nicht gibt.
+   */
+  const satz = (b.verlaeufe || b.eta)
+    ? (mitJoch ? diagrammSatz(bem, 900)
+      : Object.fromEntries(weitereDiagramme(bem, 900).flatMap((w, i) => [
+        [`mast-schnitt-${i}`, { svg: w.schnitt }],
+        [`mast-eta-${i}`, { svg: w.ausnutzung }],
+        [`anker-bem-${i}`, { svg: w.bemessung }]])))
+    : {};
   const reihe = (schluessel) => Object.entries(satz)
     .filter(([k, v]) => v.svg && schluessel.some((s) => k === s || k.startsWith(`${s}-`)))
     // Jedes Diagramm traegt seinen Titel selbst - ein zweiter waere doppelt.
     .map(([, v]) => `<div class="dia">${v.svg}</div>`).join('');
+  /*
+   * DIE BILDER IM HELLEN DESIGN (Weisung vom 18. September: «bei den
+   * skizzen abbildungen das helle appdesign nehmen»). Fuer die Aufnahme
+   * wird kurz umgeschaltet und danach zurueck - wer dunkel arbeitet, merkt
+   * davon nichts.
+   */
+  const aufnahme = (key) => {
+    if (!ansicht) return null;
+    const vorher = thema;
+    if (vorher !== 'hell') uebertrageTokens('hell');
+    try {
+      return ansicht.momentaufnahme(key);
+    } finally {
+      if (vorher !== 'hell') { uebertrageTokens(vorher); ansicht.zeichneJetzt(); }
+    }
+  };
   const bilder = {
-    skizze: b.skizze ? ansicht?.momentaufnahme('laengs') : null,
-    modell3d: b.modell3d ? ansicht?.momentaufnahme('iso') : null,
-    verlaeufe: b.verlaeufe ? reihe(['schnittgroessen', 'ebene', 'mast-schnitt']) : null,
+    skizze: b.skizze ? aufnahme('laengs') : null,
+    modell3d: b.modell3d ? aufnahme('iso') : null,
+    verlaeufe: b.verlaeufe ? reihe(['schnittgroessen', 'ebene', 'mast-schnitt', 'anker-bem']) : null,
     eta: b.eta ? reihe(['ausnutzung', 'mast-eta']) : null,
   };
   const html = nachweisbericht({

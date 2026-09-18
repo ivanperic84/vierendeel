@@ -45,7 +45,9 @@ export const BILDER = [
 ];
 
 /** Tragwerksarten, die diese Fassung des Berichts abdeckt. */
-export const BERICHT_ARTEN = ['joch'];
+// Das Abfangjoch bleibt draussen (Weisung vom 18. September: «den
+// abfangjoch weglassen»), der Tragausleger folgt nach seiner Modellfrage.
+export const BERICHT_ARTEN = ['joch', 'einzelmast'];
 
 export function berichtVorgabe() {
   return { umfang: 'anhang',
@@ -95,6 +97,21 @@ const bild = (inhalt, titel) => inhalt
 
 // --- Kapitel ---------------------------------------------------------------
 
+/** Einzelmast: kein Joch, nur der Mast und sein Anker. */
+const istMast = (d) => tragwerksart(d.werte).key === 'einzelmast';
+
+/*
+ * Die Rechenoptionen, die nur den Traeger betreffen - beim Einzelmast stehen
+ * sie nicht im Bericht, weil nichts mit ihnen gerechnet wird.
+ */
+const NUR_JOCH = ['massVariante', 'ausrOG', 'ausrUG', 'blechQuelle', 'lastHerkunft',
+  'auflagerVorgabe', 'torsionModell', 'torsionsverteilung', 'gurtaufteilung',
+  'knotenbereich', 'endfeldZuschlag', 'schiefeBiegung', 'spannungsmodell',
+  'ebenenUeberlagerung'];
+
+/** Bezeichnung einer Kombination aus ihrem Schluessel. */
+const fallText = (kombi, k) => (kombi?.lastfaelle ?? []).find((l) => l.key === k)?.bez ?? k ?? '—';
+
 function deckblatt(d) {
   const { werte, urteil, fassung, datum } = d;
   const bt = urteil?.bauteile;
@@ -106,7 +123,9 @@ function deckblatt(d) {
     ${ort ? `<p class="ort">${esc(ort)}</p>` : ''}
     ${angaben([
       ['Tragwerksart', esc(art.label)],
-      ['Tragwerk', esc(`${werte.typ ?? ''} · L = ${zahl(werte.L, 2)} m`)],
+      ['Tragwerk', istMast(d)
+        ? esc(`${d.erg.mast?.A?.profil?.name ?? ''} · Länge ${zahl(d.erg.mast?.A?.laenge, 2)} m`)
+        : esc(`${werte.typ ?? ''} · L = ${zahl(werte.L, 2)} m`)],
       werte.projektNr ? ['Projekt-Nr.', esc(werte.projektNr)] : null,
       werte.bearbeiter ? ['Bearbeiter', esc(werte.bearbeiter)] : null,
       ['Datum', esc(werte.datum || datum || '')],
@@ -116,8 +135,8 @@ function deckblatt(d) {
       <div class="gz">η = ${zahl(bt?.eta, 3)}</div>
       <div>${bt && !bt.ueber && bt.eta <= 1 ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt'}
         ${bt?.massgebend ? ` · massgebend: ${esc(bt.massgebend.name)}` : ''}</div>
-      ${urteil?.anzahlVerletzt ? `<div class="klein">${urteil.anzahlVerletzt} Konstruktionsprüfung(en) verletzt — siehe Kapitel 8</div>` : ''}
-      ${urteil?.nichtGefuehrt?.length ? `<div class="klein">${urteil.nichtGefuehrt.length} Nachweis(e) nicht geführt — siehe Kapitel 9</div>` : ''}
+      ${urteil?.anzahlVerletzt ? `<div class="klein">${urteil.anzahlVerletzt} Konstruktionsprüfung(en) verletzt — siehe Kapitel {{K_PRUEF}}</div>` : ''}
+      ${urteil?.nichtGefuehrt?.length ? `<div class="klein">${urteil.nichtGefuehrt.length} Nachweis(e) nicht geführt — siehe Kapitel {{K_NG}}</div>` : ''}
     </div>
     ${bt?.liste?.length ? tabelle(['Bauteil', 'η', 'Urteil'],
       bt.liste.map((x) => [esc(x.name), zahl(x.eta, 3), urteilMarke(x.eta, x.ueber)])) : ''}
@@ -142,28 +161,33 @@ function grundlagen(d) {
   // Nur was die Rechnung beruehrt - die Anzeigeoptionen (Gruppe «ansicht»)
   // gehoeren nicht in einen Nachweis.
   const optionen = FELDER.filter((f) => f.optionenDialog && f.gruppe !== 'ansicht'
-                                     && werte[f.key] !== undefined);
-  return `<section><h2>2 Grundlagen</h2>
-    <h3>2.1 Normen</h3>
+                                     && werte[f.key] !== undefined
+                                     && !(istMast(d) && NUR_JOCH.includes(f.key)));
+  return `<section><h2>§ Grundlagen</h2>
+    <h3>§.1 Normen</h3>
     <ul>
       <li>Werkstoff und Querschnitt: EN 1993-1-1 (Eurocode 3)</li>
       <li>Stabilität der Masten: SIA 263, Ziffer 5.1.10.1, Gleichung (50); das Kippen wird nicht geführt</li>
       <li>Fahrleitungen: EN 50119</li>
     </ul>
-    <h3>2.2 Werkstoff und Beiwerte</h3>
+    <h3>§.2 Werkstoff und Beiwerte</h3>
     ${angaben([
       ['Stahl', `${esc(m.stahl?.name)} · f<sub>y</sub> = ${zahl(m.stahl?.fy, 0)} N/mm²`],
       ['γ<sub>M0</sub>', zahl(m.gammaM0, 2)],
       ['f<sub>yd</sub> = f<sub>y</sub> / γ<sub>M0</sub>', `${zahl(m.stahl?.fy, 0)} / ${zahl(m.gammaM0, 2)} = ${zahl(m.stahl?.fy / m.gammaM0, 1)} N/mm²`],
       ['γ<sub>G</sub> · γ<sub>Q</sub> · ψ<sub>0</sub>', `${zahl(werte.gammaG, 2)} · ${zahl(werte.gammaQ, 2)} · ${zahl(werte.psi0, 2)}`],
     ])}
-    <h3>2.3 Rechenmodell</h3>
-    <p>Das Joch wird als Ersatzbalken gerechnet; die Schnittgrössen werden über
+    <h3>§.3 Rechenmodell</h3>
+    ${istMast(d) ? `<p>Der Mast wird als Kragarm im Fundament gerechnet. Er trägt
+    seinen Wind über die ganze Länge und die Anbauteile auf ihrer eigenen
+    Befestigungshöhe; ein Zuganker oder eine Druckstütze wirkt als
+    Normalkraftstab, ein Seilanker nur auf Zug. Die Herleitung steht im
+    Handbuch der Anwendung.</p>` : `<p>Das Joch wird als Ersatzbalken gerechnet; die Schnittgrössen werden über
     die Hebelarme h und b auf die vier Winkelgurte und die Bindebleche
     aufgeteilt (Vierendeelwirkung). Die Masten werden mit den Auflagerkräften
     des Jochs, ihrem Wind und ihren Anbauteilen nachgewiesen. Die Herleitung
-    steht im Handbuch der Anwendung.</p>
-    <h3>2.4 Womit gerechnet wurde</h3>
+    steht im Handbuch der Anwendung.</p>`}
+    <h3>§.4 Womit gerechnet wurde</h3>
     ${tabelle(['Einstellung', 'gewählt'], optionen.map((f) => [esc(f.label), esc(feldText(f, werte))]))}
   </section>`;
 }
@@ -195,8 +219,24 @@ function system(d) {
   }).filter(Boolean);
   const bl = (ebene) => blechUebersicht(m.stationsListe, ebene)
     .map((b) => [esc(b.pos), `${zahl(b.breite, 0)} × ${zahl(b.dicke, 0)}${b.laenge ? ` × ${zahl(b.laenge, 0)}` : ''}`, String(b.n)]);
-  return `<section><h2>3 System</h2>
-    <h3>3.1 Joch</h3>
+  if (istMast(d)) {
+    const n = erg.mast?.A;
+    const a = n?.anker;
+    return `<section><h2>§ System</h2>
+    <h3>§.1 Mast</h3>
+    ${n ? angaben([
+      ['Profil', `${esc(n.profil?.name)} · A = ${zahl(n.A, 1)} cm² · W<sub>quer</sub> = ${zahl(n.Wq, 1)} cm³ · W<sub>längs</sub> = ${zahl(n.Wl, 1)} cm³`],
+      ['Länge (Fuss bis Kopf)', `${zahl(n.laenge, 2)} m`],
+      ['Stegrichtung', esc(n.stegrichtung?.label ?? '')],
+      ['Lagerung', 'im Fundament eingespannt, Kopf frei'],
+      a ? ['Anker', esc(`${a.typ ?? ''}${a.richtung ? ` · Ebene ${a.richtung}` : ''}${a.seite ? ` · Seite ${a.seite}` : ''}`
+        + `${Number.isFinite(a.h) ? ` · Anschluss ${zahl(a.h, 2)} m` : ''}${Number.isFinite(a.a) ? ` · Abstand ${zahl(a.a, 2)} m` : ''}`)] : null,
+    ]) : '<p>Kein Mast im Modell.</p>'}
+    ${opt.bilder.skizze ? bild(bilder?.skizze, 'Systemskizze') : ''}
+  </section>`;
+  }
+  return `<section><h2>§ System</h2>
+    <h3>§.1 Joch</h3>
     ${angaben([
       ['Typ', `${esc(m.typ ?? '')} · Blechangaben aus ${m.blechQuelle === 'datenbank' ? 'der Typendatenbank' : 'Ersatzwerten'}`],
       ['Länge L', `${zahl(m.L, 2)} m`],
@@ -207,12 +247,12 @@ function system(d) {
       ['Untergurt', `${esc(m.profUG?.name)} · A = ${zahl(m.profUG?.A, 2)} cm² · W = ${zahl(m.profUG?.Wy, 2)} cm³`],
       ['Stationen', String(m.stationsListe?.length ?? '—')],
     ])}
-    <h3>3.2 Bindebleche</h3>
+    <h3>§.2 Bindebleche</h3>
     <p>Stehende Bleche (Seitenebenen), je Ebene:</p>
     ${tabelle(['Pos.', 'b × t × l [mm]', 'Anzahl'], bl('vertikal'))}
     <p>Liegende Bleche (Gurtebenen), je Ebene:</p>
     ${tabelle(['Pos.', 'b × t × l [mm]', 'Anzahl'], bl('horizontal'))}
-    <h3>3.3 Masten und Lagerung</h3>
+    <h3>§.3 Masten und Lagerung</h3>
     ${mastZeilen.length ? tabelle(['Mast', 'Profil', 'Länge [m]', 'Anschluss H [m]', 'Stegrichtung', 'Anker'], mastZeilen) : '<p>Ohne Masten gerechnet.</p>'}
     ${opt.bilder.skizze ? bild(bilder?.skizze, 'Systemskizze') : ''}
   </section>`;
@@ -223,17 +263,35 @@ function einwirkungen(d) {
   const m = erg.modell;
   const at = (m.anbauteileFlach ?? []).filter((t) => t.aktiv !== false);
   const summe = (t, g, k) => t.kraefte?.[g]?.[k] ?? 0;
-  return `<section><h2>4 Einwirkungen</h2>
-    <h3>4.1 Einwirkungsgruppen</h3>
+  if (istMast(d)) {
+    const n = erg.mast?.A;
+    const am = (m.anbauMastFlach ?? []).filter((t) => t.aktiv !== false);
+    return `<section><h2>§ Einwirkungen</h2>
+    <h3>§.1 Wind auf den Masten</h3>
+    ${angaben([
+      ['quer zum Gleis (in x)', `${zahl(Math.abs(n?.wQuer ?? 0), 3)} kN/m`],
+      ['in Gleisrichtung (in y)', `${zahl(Math.abs(n?.wLaengs ?? 0), 3)} kN/m`],
+    ])}
+    <p class="klein">Bemessungswerte der massgebenden Kombination, über die ganze Mastlänge.</p>
+    <h3>§.2 Anbauteile am Masten (charakteristisch)</h3>
+    ${am.length ? tabelle(['Bezeichnung', 'Höhe [m]', 'Ausladung [m]', 'G: F<sub>z</sub> [kN]',
+      'Wind: F<sub>x</sub> [kN]', 'Wind: F<sub>y</sub> [kN]'],
+      am.map((t) => [esc(t.name), zahl(t.hMast, 2), zahl(t.x, 2), zahl(summe(t, 'G', 'Fz'), 3),
+        zahl(summe(t, 'WindX', 'Fx'), 3), zahl(summe(t, 'WindY', 'Fy'), 3)]), 'eng')
+      : '<p>Keine Anbauteile am Masten.</p>'}
+  </section>`;
+  }
+  return `<section><h2>§ Einwirkungen</h2>
+    <h3>§.1 Einwirkungsgruppen</h3>
     ${tabelle(['Gruppe', 'Wert', 'Bemerkung'], (kombi?.einwirkungen ?? []).map((e) =>
       [esc(e.label), `${zahl(e.wert, 3)} ${esc(e.einheit ?? '')}`, esc(e.bemerkung ?? '')]))}
-    <h3>4.2 Lasten am Joch (charakteristisch)</h3>
+    <h3>§.2 Lasten am Joch (charakteristisch)</h3>
     ${angaben([
       ['Eigengewicht g<sub>k</sub>', `${zahl(m.char?.gk, 3)} kN/m`],
       ['Wind w<sub>k</sub>', `${zahl(m.char?.wk, 3)} kN/m`],
       ['Schnee s<sub>k</sub>', `${zahl(m.char?.sk, 3)} kN/m${m.schneeAktiv ? '' : ' (nicht angesetzt)'}`],
     ])}
-    <h3>4.3 Anbauteile, aufgelöst (charakteristisch)</h3>
+    <h3>§.3 Anbauteile, aufgelöst (charakteristisch)</h3>
     ${at.length ? tabelle(['Bezeichnung', 'x [m]', 'y [m]', 'z [m]', 'G: F<sub>z</sub> [kN]', 'G: F<sub>y</sub> [kN]', 'Wind: F<sub>y</sub> [kN]'],
       at.map((t) => [esc(t.name), zahl(t.x, 2), zahl(t.y, 2), zahl(t.z, 2),
         zahl(summe(t, 'G', 'Fz'), 3), zahl(summe(t, 'G', 'Fy'), 3), zahl(summe(t, 'WindY', 'Fy'), 3)]), 'eng')
@@ -246,12 +304,14 @@ function kombinationen(d) {
   const gruppen = ['G', 'WindX', 'WindY', 'Schnee', 'HavarieX', 'HavarieY'];
   const ART = { charakteristisch: 'char.', tragsicherheit: 'Tragsicherheit',
                 aussergewoehnlich: 'aussergew.', gebrauchstauglichkeit: 'Gebrauch' };
-  return `<section><h2>5 Lastfälle und Kombinationen</h2>
+  return `<section><h2>§ Lastfälle und Kombinationen</h2>
     <p>Beiwerte je Einwirkungsgruppe. Nachgewiesen wird mit den Fällen der
     Tragsicherheit und den aussergewöhnlichen; die Umhüllende über diese ist
-    die Grundlage des Urteils. Massgebend für das Joch:
-    <b>${esc(lf.find((l) => l.key === d.kombi?.massgebend)?.bez ?? '—')}</b>.</p>
-    ${tabelle(['Nr.', 'Kombination', 'Art', ...gruppen.map((g) => g.replace('Havarie', 'Hav. ')), 'η Joch'],
+    die Grundlage des Urteils. Massgebend für ${istMast(d) ? 'den Mast' : 'das Joch'}:
+    <b>${esc(istMast(d) ? fallText(d.kombi, d.erg.mast?.A?.fall)
+                        : fallText(d.kombi, d.kombi?.massgebend))}</b>.</p>
+    ${tabelle(['Nr.', 'Kombination', 'Art', ...gruppen.map((g) => g.replace('Havarie', 'Hav. ')),
+               istMast(d) ? 'η Mast' : 'η Joch'],
       lf.map((l, i) => [`LF${i + 1}`, esc(l.bez), esc(ART[l.art] ?? l.art),
         ...gruppen.map((g) => zahl(l.beiwerte?.[g] ?? 0, 2)),
         l.nachweis ? `<b>${zahl(l.eta, 3)}</b>` : zahl(l.eta, 3)]), 'eng')}
@@ -261,7 +321,16 @@ function kombinationen(d) {
 function schnittgroessen(d) {
   const { erg, bilder, opt } = d;
   const x = erg.extrem ?? {};
-  return `<section><h2>6 Schnittgrössen (Umhüllende, Bemessung)</h2>
+  if (istMast(d)) {
+    const n = erg.mast?.A;
+    return `<section><h2>§ Schnittgrössen am Masten (massgebende Kombination)</h2>
+    <p>Kombination ${esc(fallText(d.kombi, n?.fall))}; z ab Fundament, globale Achsen.</p>
+    ${mastStationen(n)}
+    ${opt.bilder.verlaeufe ? bild(bilder?.verlaeufe, 'Schnittgrössen über die Masthöhe') : ''}
+    ${opt.bilder.eta ? bild(bilder?.eta, 'Ausnutzung über die Masthöhe') : ''}
+  </section>`;
+  }
+  return `<section><h2>§ Schnittgrössen (Umhüllende, Bemessung)</h2>
     ${tabelle(['Grösse', 'Grösstwert', 'bei x [m]'], [
       ['M<sub>y</sub> max [kNm]', zahl(x.MyMax, 2), zahl(x.xMyMax, 2)],
       ['M<sub>y</sub> min [kNm]', zahl(x.MyMin, 2), zahl(x.xMyMin, 2)],
@@ -274,6 +343,15 @@ function schnittgroessen(d) {
     ${opt.bilder.verlaeufe ? bild(bilder?.verlaeufe, 'Schnittgrössenverläufe, Umhüllende') : ''}
     ${opt.bilder.eta ? bild(bilder?.eta, 'Ausnutzung entlang des Jochs') : ''}
   </section>`;
+}
+
+/** Die Schnittgroessen des Masten ueber die Hoehe, wie der Kern sie fuehrt. */
+function mastStationen(n) {
+  if (!n?.stationen?.length) return '<p>Keine Werte.</p>';
+  return tabelle(['z [m]', 'F<sub>z</sub> [kN]', 'F<sub>x</sub> [kN]', 'F<sub>y</sub> [kN]',
+    'M<sub>yy</sub> [kNm]', 'M<sub>xx</sub> [kNm]', 'M<sub>zz</sub> [kNm]', 'σ [N/mm²]', 'η'],
+    n.stationen.map((st) => [zahl(st.z, 2), zahl(st.Fz, 2), zahl(st.Fx, 2), zahl(st.Fy, 2),
+      zahl(st.Myy, 2), zahl(st.Mxx, 2), zahl(st.Mzz, 3), zahl(st.sig, 1), zahl(st.eta, 3)]), 'eng');
 }
 
 /**
@@ -349,7 +427,7 @@ export function mastNachweis(n, name, fallText) {
     <p class="klein">Zum Vergleich Gleichung (51): η = ${zahl(s.eta51, 3)} (ausgewiesen, nicht geführt).
     Massgebend: ${esc(s.massgebend ?? '')}.</p>`
     : '<p>Stabilitätsnachweis nicht geführt.</p>';
-  return `<h3>${esc(name)} — ${esc(n.profil?.name)}</h3>
+  return `<h3>${name.startsWith('§') ? name : esc(name)} — ${esc(n.profil?.name)}</h3>
     ${fallText ? `<p class="klein">Massgebende Kombination: ${esc(fallText)}</p>` : ''}
     ${quer}${stab}
     <p>η = max(Querschnitt ${zahl(n.eta, 3)}; Stabilität ${zahl(s?.eta, 3)}) = <b>${zahl(n.etaMitStabilitaet ?? n.eta, 3)}</b>
@@ -375,20 +453,30 @@ function nachweise(d) {
             zahl(a.L, 2), esc(a.text ?? ''), a.eta === null ? '—' : zahl(a.eta, 3),
             urteilMarke(a.eta, a.lieferbar === false)];
   }).filter(Boolean);
-  return `<section><h2>7 Nachweise</h2>
+  const ankerBlock = (nr) => (anker.length ? `<h3>§.${nr} Zuganker und Druckstützen</h3>
+      <p>Charakteristische Kraft gegen die zulässige Kraft des Bemessungsblatts.</p>
+      ${tabelle(['Bauteil', 'N<sub>k</sub> [kN]', 'zul [kN]', 'L [m]', 'Grundlage', 'η', ''], anker)}` : '');
+  if (istMast(d)) {
+    return `<section><h2>§ Nachweise</h2>
+    <p>f<sub>yd</sub> = ${zahl(fyd, 2)} N/mm². Je Nachweis die Zwischenwerte der für den Mast
+    massgebenden Kombination; ihr η ist das der Umhüllenden über alle Kombinationen.</p>
+    ${erg.mast?.A ? mastNachweis(erg.mast.A, namen.A ? `§.1 Mast ${namen.A}` : '§.1 Mast',
+                                 fallBez(erg.mast.A.fall)) : '<p>Kein Mast im Modell.</p>'}
+    ${ankerBlock(2)}
+  </section>`;
+  }
+  return `<section><h2>§ Nachweise</h2>
     <p>f<sub>yd</sub> = ${zahl(fyd, 2)} N/mm². Zwischenwerte aus der massgebenden Kombination
     <b>${esc(fallBez(kk))}</b>; ihr η ist das der Umhüllenden.</p>
-    <h3>7.1 Joch — Winkelgurte</h3>
+    <h3>§.1 Joch — Winkelgurte</h3>
     ${gurtNachweis(stGurt, fyd)}
-    <h3>7.2 Joch — Bindebleche</h3>
+    <h3>§.2 Joch — Bindebleche</h3>
     ${blechNachweis(stBlech, fyd)}
-    <h3>7.3 Masten</h3>
+    <h3>§.3 Masten</h3>
     ${['A', 'B'].map((e) => erg.mast?.[e]
       ? mastNachweis(erg.mast[e], namen[e] ? `Mast ${namen[e]}` : `Mast ${e}`, fallBez(erg.mast[e].fall))
       : '').join('') || '<p>Ohne Masten.</p>'}
-    ${anker.length ? `<h3>7.4 Zuganker und Druckstützen</h3>
-      <p>Charakteristische Kraft gegen die zulässige Kraft des Bemessungsblatts.</p>
-      ${tabelle(['Bauteil', 'N<sub>k</sub> [kN]', 'zul [kN]', 'L [m]', 'Grundlage', 'η', ''], anker)}` : ''}
+    ${ankerBlock(4)}
   </section>`;
 }
 
@@ -397,7 +485,8 @@ const stellen = (einheit) => (['mm', 'Stk'].includes(einheit) ? 0 : 2);
 
 function pruefungen(d) {
   const ch = d.checks ?? [];
-  return `<section><h2>8 Konstruktionsprüfungen</h2>
+  if (!ch.length) return '';
+  return `<section><h2>§ Konstruktionsprüfungen</h2>
     ${tabelle(['Nr.', 'Prüfung', 'vorhanden', '', 'verlangt', 'Einheit', 'Befund'],
       ch.map((c) => [esc(c.id), esc(c.text), zahl(c.vorhanden, stellen(c.einheit)), esc(c.richtung ?? ''),
         zahl(c.erforderlich, stellen(c.einheit)), esc(c.einheit ?? ''),
@@ -408,7 +497,7 @@ function pruefungen(d) {
 function nichtGefuehrt(d) {
   const ng = d.urteil?.nichtGefuehrt ?? [];
   const hw = d.hinweise ?? [];
-  return `<section><h2>9 Nicht geführte Nachweise und Gültigkeit</h2>
+  return `<section><h2>§ Nicht geführte Nachweise und Gültigkeit</h2>
     ${ng.length ? tabelle(['Nachweis', 'Was fehlt', 'Grund'], ng.map((g) =>
       [esc(g.titel), esc(g.was ?? ''), g.grund === 'ausgeschaltet' ? 'in der Eingabe ausgeschaltet' : 'im Werkzeug nicht enthalten']))
       : '<p>Alle Nachweisgruppen werden geführt.</p>'}
@@ -429,7 +518,7 @@ function auflagerkraefte(d) {
   const { erg } = d;
   const namen = erg.modell?.federn?.namen ?? {};
   const z = mastFussZeilen(erg.mast, namen);
-  return `<section><h2>10 Kräfte am Mastfuss</h2>
+  return `<section><h2>§ Kräfte am Mastfuss</h2>
     <p>Bemessungswerte der massgebenden Kombination je Mast — Übergabe an den Fundamentnachweis.
     Die Werte je Kombination stehen im Anhang.</p>
     ${z.length ? tabelle(['Mast', 'F<sub>z</sub> [kN]', 'F<sub>x</sub> [kN]', 'F<sub>y</sub> [kN]',
@@ -449,6 +538,20 @@ function anhang(d) {
       zahl(k.Vy, 2), zahl(k.Tx, 2), zahl(k.etaL, 3), zahl(k.etaB, 3), zahl(k.eta, 3)]), 'eng');
   const fuss = nachweisFaelle.flatMap((l) => mastFussZeilen(kombi.ergebnisse?.[l.key]?.mast, namen)
     .map((z) => [esc(l.bez), ...z]));
+  const fussTab = fuss.length ? tabelle(['Kombination', 'Mast', 'F<sub>z</sub>', 'F<sub>x</sub>', 'F<sub>y</sub>',
+      'M<sub>quer</sub>', 'M<sub>längs</sub>', 'M<sub>t</sub>'], fuss, 'eng') : '<p>Ohne Masten.</p>';
+  if (istMast(d)) {
+    return `<section class="anhang"><h2>Anhang</h2>
+    <h3>A1 η des Masten je Kombination</h3>
+    ${tabelle(['Kombination', 'η Mast'], (kombi?.lastfaelle ?? []).map((l) =>
+      [esc(l.bez), zahl(kombi.ergebnisse?.[l.key]?.mast?.A?.etaMitStabilitaet
+                        ?? kombi.ergebnisse?.[l.key]?.mast?.A?.eta, 3)]), 'eng')}
+    <h3>A2 Kräfte am Mastfuss je Nachweiskombination</h3>
+    ${fussTab}
+    ${opt.umfang === 'vollstaendig' ? nachweisFaelle.map((l, i) =>
+      `<h3>A${3 + i} Mast über die Höhe: ${esc(l.bez)}</h3>${mastStationen(kombi.ergebnisse?.[l.key]?.mast?.A)}`).join('') : ''}
+  </section>`;
+  }
   return `<section class="anhang"><h2>Anhang</h2>
     <h3>A1 η je Kombination</h3>
     ${tabelle(['Kombination', 'η Obergurt', 'η Untergurt', 'η Blech', 'η', 'bei x [m]'],
@@ -457,8 +560,7 @@ function anhang(d) {
     <h3>A2 Stationen der Umhüllenden (kNm, kN)</h3>
     ${stTab(hk.knoten)}
     <h3>A3 Kräfte am Mastfuss je Nachweiskombination</h3>
-    ${fuss.length ? tabelle(['Kombination', 'Mast', 'F<sub>z</sub>', 'F<sub>x</sub>', 'F<sub>y</sub>',
-      'M<sub>quer</sub>', 'M<sub>längs</sub>', 'M<sub>t</sub>'], fuss, 'eng') : '<p>Ohne Masten.</p>'}
+    ${fussTab}
     ${opt.umfang === 'vollstaendig' ? nachweisFaelle.map((l, i) =>
       `<h3>A${4 + i} Stationen: ${esc(l.bez)}</h3>${stTab(kombi.ergebnisse?.[l.key]?.knoten)}`).join('') : ''}
   </section>`;
@@ -514,6 +616,32 @@ const STIL = `
   @media print { .blatt { padding: 0; } }
 `;
 
+/*
+ * DIE KAPITEL WERDEN GEZAEHLT, NICHT HINGESCHRIEBEN. Beim Einzelmast gibt es
+ * keine Konstruktionspruefungen, ohne 3D-Bild keine Uebersicht - feste
+ * Nummern haetten Luecken. Die Kapitel tragen «§»; hier bekommen sie ihre
+ * Zahl, und das Deckblatt verweist auf die Zahl, die sie wirklich haben.
+ */
+function nummeriert(dd, o) {
+  const teile = [
+    ['uebersicht', o.bilder.modell3d && dd.bilder?.modell3d
+      ? `<section><h2>§ Übersicht</h2>${bild(dd.bilder.modell3d, '3D-Ansicht mit Ausnutzung')}</section>` : ''],
+    ['grundlagen', grundlagen(dd)], ['system', system(dd)], ['einwirkungen', einwirkungen(dd)],
+    ['kombinationen', kombinationen(dd)], ['schnittgroessen', schnittgroessen(dd)],
+    ['nachweise', nachweise(dd)], ['pruefungen', pruefungen(dd)],
+    ['nichtGefuehrt', nichtGefuehrt(dd)], ['auflager', auflagerkraefte(dd)],
+  ].filter(([, html]) => html);
+  const nr = {};
+  const kapitel = teile.map(([key, html], i) => {
+    nr[key] = i + 1;
+    return html.replace(/<h2>§ /g, `<h2>${i + 1} `).replace(/<h3>§\./g, `<h3>${i + 1}.`);
+  });
+  const deck = deckblatt(dd)
+    .replace('{{K_PRUEF}}', String(nr.pruefungen ?? '—'))
+    .replace('{{K_NG}}', String(nr.nichtGefuehrt ?? '—'));
+  return [deck, ...kapitel, anhang(dd)].join('\n');
+}
+
 /**
  * Den ganzen Bericht als eigenständiges HTML-Dokument.
  *
@@ -525,8 +653,8 @@ const STIL = `
 export function nachweisbericht(d, opt = berichtVorgabe()) {
   const art = tragwerksart(d.werte).key;
   if (!BERICHT_ARTEN.includes(art)) {
-    throw new Error(`Der Nachweisbericht deckt in dieser Fassung das Tragjoch mit Masten ab — `
-      + `nicht «${tragwerksart(d.werte).label}».`);
+    throw new Error(`Der Nachweisbericht deckt in dieser Fassung das Tragjoch mit Masten `
+      + `und den Einzelmast ab — nicht «${tragwerksart(d.werte).label}».`);
   }
   const o = { ...berichtVorgabe(), ...opt,
               bilder: { ...berichtVorgabe().bilder, ...(opt?.bilder ?? {}) } };
@@ -535,18 +663,7 @@ export function nachweisbericht(d, opt = berichtVorgabe()) {
   return `<!DOCTYPE html><html lang="de-CH"><head><meta charset="utf-8">
 <title>${esc(titel)}</title><style>${FARBEN_DRUCK}${d.stil ?? ''}${STIL}</style></head><body>
 <div class="blatt">
-${deckblatt(dd)}
-${o.bilder.modell3d && d.bilder?.modell3d ? `<section><h2>1 Übersicht</h2>${bild(d.bilder.modell3d, '3D-Ansicht mit Ausnutzung')}</section>` : ''}
-${grundlagen(dd)}
-${system(dd)}
-${einwirkungen(dd)}
-${kombinationen(dd)}
-${schnittgroessen(dd)}
-${nachweise(dd)}
-${pruefungen(dd)}
-${nichtGefuehrt(dd)}
-${auflagerkraefte(dd)}
-${anhang(dd)}
+${nummeriert(dd, o)}
 </div></body></html>`;
 }
 

@@ -14,7 +14,7 @@
 
 import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, geteilteMasten, engeJochenden }
   from './core.constants.js';
-import { bemessungslasten, auflagerkraefte, schnittgroessen,
+import { bemessungslasten, nurTeil, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
 import { mastWind } from './data.masten.js';
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
@@ -272,10 +272,13 @@ export function modellEinzelmast(inp, stahl) {
   const amJoch = alle.filter((a) => ortVon(a) === 'joch');
   const amMasten = alle.map((a) => ({ ...a, ort: 'mastA' }));
 
-  const flach = expandiereAnbauteile(amMasten, {
+  // Die charakteristischen Einzelfaelle trennen Gewicht und Ablenkkraft
+  // (`nur`), wie am Joch - vorher standen beim Einzelmast beide identisch da.
+  const nurLast = inp.nurLast ?? lfAktiv?.nur ?? null;
+  const flach = nurTeil(expandiereAnbauteile(amMasten, {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
-  }).map((t) => {
+  }), nurLast).map((t) => {
     const proGruppe = {};
     Object.entries(t.kraefte ?? {}).forEach(([g, k]) => {
       const b = beiwerte[g] ?? 0;
@@ -320,6 +323,10 @@ export function modellEinzelmast(inp, stahl) {
 
   return {
     tragwerksart: 'einzelmast',
+    nurLast,
+    // Welcher Fall das ist - die Huellkurve nennt damit die massgebende
+    // Kombination des Masten. Fehlte, und die Leiste konnte sie nicht nennen.
+    lastfall: inp.lastfall ?? null,
     // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
@@ -763,10 +770,19 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * deshalb hier dieselbe Multiplikation, die `anbauteilLasten` am Joch
      * vornimmt.
      */
-    anbauMastFlach: expandiereAnbauteile(amMasten, {
+    /*
+     * >>> AUCH AM MASTEN NACH `nur` GETRENNT (18. September). <<<
+     *
+     * Die charakteristischen Faelle «Staendig (Tragwerk)» und
+     * «Ablenkkraefte staendig» trennen Gewicht und Ablenkkraft - am Joch
+     * seit dem 16. September, an den Teilen am Masten nicht: dort standen
+     * beide in beiden Faellen, wer sie addierte, zaehlte doppelt.
+     */
+    nurLast,
+    anbauMastFlach: nurTeil(expandiereAnbauteile(amMasten, {
       ek: ekVonWindklasse(inp.windKlasse),
       R: inp.trasseRadius, spannweite: inp.flSpannweite,
-      }).map((t) => {
+      }), nurLast).map((t) => {
       const proGruppe = {};
       Object.entries(t.kraefte ?? {}).forEach(([g, k]) => {
         const b = beiwerte[g] ?? 0;

@@ -23469,10 +23469,24 @@ titel('63  Die Farbe ohne Urteil bleibt in der Uebersicht');
   const bis = src.indexOf('\nexport function ', von + 10);
   const stellen = [...src.matchAll(/\bampelU\(/g)].map((m) => m.index);
   wahr('ampelU wird verwendet', stellen.length > 0);
-  wahr('ampelU steht nur innerhalb von zeichneUebersicht',
-       stellen.every((i) => i > von && i < bis),
-       stellen.filter((i) => !(i > von && i < bis))
-         .map((i) => `Zeile ${src.slice(0, i).split('\n').length}`).join(', '));
+  /*
+   * Seit dem 18. September teilen sich Tragjoch und Einzelmast die Kacheln
+   * (`bauteilKacheln` bekommt ampelU als Parameter, `zeichneEinzelmast`
+   * definiert sein eigenes). Geprueft wird deshalb der eigentliche Fehler:
+   * jede Funktion, die ampelU ruft, hat es selbst - als Konstante oder als
+   * Parameter.
+   */
+  const ohne = stellen.filter((i) => {
+    const kopf = Math.max(src.lastIndexOf('\nfunction ', i),
+                          src.lastIndexOf('\nexport function ', i));
+    const stueck = src.slice(kopf, i);
+    const parameter = stueck.slice(0, stueck.indexOf('{'));
+    return !/\bampelU\b/.test(parameter) && !/const ampelU\b/.test(stueck);
+  });
+  wahr('ampelU wird nur gerufen, wo es definiert ist', ohne.length === 0,
+       ohne.map((i) => `Zeile ${src.slice(0, i).split('\n').length}`).join(', '));
+  wahr('… und die Uebersicht des Jochs definiert es',
+       /const ampelU\b/.test(src.slice(von, bis)));
 }
 
 titel('64  Die Regel der Blecheinteilung');
@@ -24843,14 +24857,119 @@ titel('82  Nachweisbericht: jede Formel geht mit ihren Zahlen auf');
   wahr('Jedes Bild einzeln abschaltbar', !eins.includes('t-verl') && eins.includes('t-skizze'));
 
   // --- Grenzen dieser Fassung ----------------------------------------------
+  // Weisung vom 18. September: «den abfangjoch weglassen».
   let fehler = null;
-  try { NB.nachweisbericht({ ...d, werte: { ...w, tragwerksart: 'einzelmast' } }); }
+  try { NB.nachweisbericht({ ...d, werte: { ...w, tragwerksart: 'abfangjoch' } }); }
   catch (x) { fehler = x.message; }
-  wahr('Einzelmast: der Bericht sagt, dass er ihn noch nicht abdeckt',
-       /Tragjoch mit Masten/.test(fehler ?? ''), fehler);
+  wahr('Abfangjoch: der Bericht sagt, dass er es nicht enthält',
+       /Einzelmast ab/.test(fehler ?? ''), fehler);
+  wahr('Die Kapitel sind lückenlos nummeriert (Tragjoch)',
+       [...html.matchAll(/<h2>(\d+) /g)].every((m2, i) => Number(m2[1]) === i + 1));
   wahr('Der Hinweis nennt den Mast als nachgewiesenes Bauteil',
        CH.hinweise(erg.modell).some((h) => /Auflager und Bauteil/.test(h))
        && !CH.hinweise(erg.modell).some((h) => /nachgewiesen wird nur das Joch/.test(h)));
+}
+
+titel('83  Einzelmast: kein Phantom-Ende B, Leiste und Bericht auf der Bemessung');
+// Meldung vom 18. September: «die rechte sidebar beim einzelmast … schien
+// nicht genau richtige werte wiederzuspiegeln». Die Leiste las einen
+// Lastfall; der Kern rechnete dazu einen zweiten Masten B, den es nicht gibt.
+{
+  const NB = await import(J('export.nachweisbericht.js'));
+  const CH = await import(J('core.checks.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const C = await import(J('core.constants.js'));
+  const joch = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                                    T.getTragjoch('J90')), L: 20, mastVorhanden: true,
+                 anbauteile: [] };
+  let w0 = C.tragwerkWeg(C.tragwerkHinzu(joch, 'einzelmast',
+    { mastProfil: 'HEB 260', mastLaenge: 8.5 }), 'T1');
+  w0.anbauteile = [{ ...A.neuesAnbauteil('hs-nt-ausleger', 0), name: 'Ausleger',
+                     ort: 'mastA', hMast: 6.5 }];
+  const mit = (anker) => C.rechensatz(C.setzeMastAnker(w0, C.mastenVon(w0)[0].id, anker));
+  const lauf = (w) => {
+    const args = [w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                  T.getTragjoch(w.typ ?? 'J90')];
+    return { erg: berechne(...args), kombi: V.vergleichKombinationen(...args) };
+  };
+
+  // Druckstuetze: das Phantom ohne Anker war massgebend (0.191 statt 0.129).
+  const u12 = mit({ typ: 'U12', a: 4.5, h: 7.79, richtung: 'y', seite: 'plus',
+                    befestigung: 'ankerplatte' });
+  const r1 = lauf(u12);
+  wahr('Einzelmast: kein Mastnachweis am Ende B', !r1.kombi.huellkurve.mast?.B && !r1.erg.mast?.B);
+  const bt1 = CH.bauteilUrteil(r1.kombi.huellkurve, u12.nachweise, 'einzelmast');
+  wahr('Das Urteil kennt nur Mast M1', bt1.liste.length === 1 && bt1.liste[0].name === 'Mast M1',
+       bt1.liste.map((x) => x.name).join(', '));
+  pruef('… mit dem η der Umhüllenden', bt1.eta,
+        r1.kombi.huellkurve.mast.A.etaMitStabilitaet, 1e-12, '');
+
+  // Seilanker auf der Gegenwindseite: der erste Fall ist nicht massgebend.
+  const sa = mit({ typ: 'SA20', a: 4.5, h: 7.79, richtung: 'y', seite: 'minus',
+                   befestigung: 'ankerplatte' });
+  const r2 = lauf(sa);
+  const hk = r2.kombi.huellkurve.mast.A;
+  wahr('Die Umhüllende nennt ihre massgebende Kombination', typeof hk.fall === 'string', hk.fall);
+  wahr('… und sie ist nicht der erste Nachweisfall',
+       hk.etaMitStabilitaet > (r2.erg.mast.A.etaMitStabilitaet + 0.05),
+       `${hk.etaMitStabilitaet.toFixed(3)} gegen ${r2.erg.mast.A.etaMitStabilitaet.toFixed(3)}`);
+
+  const urteil = CH.urteilKonstruktion([], sa.nachweise, 'einzelmast');
+  wahr('Beim Einzelmast fehlt kein Jochnachweis',
+       !urteil.nichtGefuehrt.some((g) => /joch/i.test(g.key)),
+       urteil.nichtGefuehrt.map((g) => g.key).join(', '));
+  urteil.bauteile = CH.bauteilUrteil(r2.kombi.huellkurve, sa.nachweise, 'einzelmast');
+
+  // --- Der Bericht des Einzelmasts ----------------------------------------
+  const html = NB.nachweisbericht({ werte: sa, erg: { ...r2.kombi.huellkurve },
+    kombi: r2.kombi, checks: [], urteil, hinweise: CH.hinweise(r2.erg.modell),
+    fassung: 'Test', datum: '18.09.2026', bilder: {} });
+  wahr('Einzelmast: der Bericht entsteht', html.includes('Statischer Nachweis'));
+  wahr('… ohne Joch-Kapitel', !/Winkelgurte|Bindebleche|Konstruktionsprüfungen/.test(html));
+  wahr('… mit dem Mast und Gleichung (50)',
+       html.includes('§') === false && html.includes('Stabilität nach SIA 263')
+       && html.includes(`<b>${NB.zahl(hk.stabil.eta50, 3)}</b>`));
+  wahr('… lückenlos nummeriert', [...html.matchAll(/<h2>(\d+) /g)]
+    .every((m2, i) => Number(m2[1]) === i + 1));
+  wahr('… massgebend ist die Kombination der Umhüllenden',
+       html.includes(r2.kombi.lastfaelle.find((l) => l.key === hk.fall).bez));
+  wahr('Kein «undefined», «NaN» oder «[object Object]»',
+       !/undefined|NaN|\[object Object\]/.test(html),
+       (html.match(/.{30}(undefined|NaN|\[object Object\]).{30}/) ?? [''])[0]);
+
+  /*
+   * >>> STAENDIG (TRAGWERK) + ABLENKKRAEFTE = GANZES G, OHNE DOPPELTES. <<<
+   *
+   * Befund vom 18. September am neuen Auflagerreiter: beim Einzelmast waren
+   * beide Faelle gleich, beim Joch stand das Masteigengewicht in beiden.
+   * Geprueft an beiden Arten, mit Bogen (Ablenkkraft ungleich null).
+   */
+  const fussVon = (w, key) => {
+    const args = [w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                  T.getTragjoch(w.typ ?? 'J90')];
+    return V.vergleichKombinationen(...args).ergebnisse[key]?.mast?.A?.stationen?.[0];
+  };
+  const nurG = (w) => {
+    const args = [{ ...w, beiwerteFest: { G: 1, WindX: 0, WindY: 0, Schnee: 0,
+                                          HavarieX: 0, HavarieY: 0 } },
+                  getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl),
+                  T.getTragjoch(w.typ ?? 'J90')];
+    return berechne(...args).mast?.A?.stationen?.[0];
+  };
+  const mitBogen = (w) => C.rechensatz({ ...w, trasseRadius: 600 });
+  const faelle = [['Einzelmast', mitBogen(w0)],
+    ['Tragjoch', mitBogen({ ...joch,
+      anbauteile: [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }] })]];
+  faelle.forEach(([name, w]) => {
+    const gk = fussVon(w, 'gk'), ab = fussVon(w, 'ablk'), g = nurG(w);
+    ['Fz', 'Fx', 'Myy', 'Mxx'].forEach((k) => {
+      pruef(`${name}: ${k} aus Tragwerk + Ablenkung = ganzes G`,
+            (gk?.[k] ?? 0) + (ab?.[k] ?? 0), g?.[k] ?? 0, 1e-6, '');
+    });
+    wahr(`${name}: das Masteigengewicht steht nicht bei den Ablenkkräften`,
+         Math.abs(ab?.Fz ?? 0) < Math.abs(gk?.Fz ?? 0) * 0.1,
+         `ablk Fz ${ab?.Fz?.toFixed(2)} gegen gk ${gk?.Fz?.toFixed(2)}`);
+  });
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

@@ -193,6 +193,9 @@ export const AUSWERTUNG_TABS = [
   { id: 'auflager', titel: 'Auflager', icon: 'auflager' },
 ];
 
+/** Der Einzelmast hat keinen Schnitt durch ein Joch - die übrigen drei Reiter. */
+export const EINZELMAST_TABS = AUSWERTUNG_TABS.filter((t) => t.id !== 'schnitt');
+
 export function zeichneTabs(node, tabs, aktiv, beiWahl) {
   node.innerHTML = tabs.map((t) =>
     `<button class="tab${t.id === aktiv ? ' on' : ''}" data-tab="${t.id}" type="button">${esc(t.titel)}</button>`
@@ -4281,60 +4284,109 @@ export function mastenUebersichtHtml(werte) {
  * den Schnittgroessen ueber die Hoehe - dieselbe Tabelle, die beim Joch unter
  * den Auflagerreaktionen steht.
  */
-export function zeichneEinzelmast(node, letzte) {
-  const { erg, hinw = [] } = letzte;
-  const mn = erg?.mast;
-  const e = erg?.max?.etaGesamt ?? 0;
-  /*
-   * DIE STABILITAET IST NICHT GEFUEHRT, also ist eta kein volles Urteil.
-   *
-   * Dieselbe Regel wie beim Joch: die Zahl steht da, sie ist gerechnet und
-   * richtig - aber «Tragsicherheit erfuellt» darf nicht danebenstehen, wenn
-   * ein Nachweis fehlt, der das entscheidet. Bei einem schlanken Kragmast
-   * kann das Knicken massgebend werden.
-   */
-  /*
-   * DER SATZ DARUNTER STAND SEIT DEM 2. SEPTEMBER FALSCH DA.
-   *
-   * «Stabilitaet nicht gefuehrt» war richtig, solange sie es nicht war -
-   * seit dem Biegeknicknachweis (core.mast.js, mastStabilitaet) ist sie
-   * gefuehrt, und der Satz behauptete eine Luecke, die es nicht mehr gibt.
-   * Ein stehengebliebener Vorbehalt ist so irrefuehrend wie ein fehlender.
-   *
-   * Genannt wird jetzt, WAS massgebend war - Querschnitt oder Knicken. Das
-   * Biegedrillknicken bleibt ausdruecklich aussen vor (chi_LT = 1.0); es
-   * steht im Nachweisbericht, nicht in dieser Zeile.
-   */
-  const knickt = (mn?.stabil?.eta ?? 0) > (mn?.eta ?? 0);
-  /*
-   * >>> OHNE KNICKNACHWEIS IST «TRAGSICHERHEIT ERFÜLLT» EINE HALBE AUSSAGE.
-   *
-   * Weisung vom 15. September: das Knicken abschaltbar. Beim Joch faengt das
-   * die Liste der nicht gefuehrten Nachweise auf; der Einzelmast hat keine -
-   * er zeigt Urteil, Hinweise und das Mastblatt. Also steht es hier.
-   */
+/* ===========================================================================
+ * >>> DER EINZELMAST WIE DAS TRAGJOCH (18. September). <<<
+ * ===========================================================================
+ *
+ * Meldung: «die rechte sidebar beim einzelmast wurde auf die resultate
+ * reduziert, aber auch die schien nicht genau richtige werte
+ * wiederzuspiegeln … entsprechend wie beim tragjoch gestalten.»
+ *
+ * Sie las `letzte.erg` - EINEN Lastfall, den ersten Nachweisfall - und
+ * dessen `max.etaGesamt`. Das Urteil ueber alle Kombinationen stand in der
+ * Fussleiste, hier nicht: mit einem Seilanker auf der Gegenwindseite zeigte
+ * die Leiste 0.191, massgebend waren 0.272. Jetzt steht die Seite auf
+ * derselben Bemessung wie beim Joch - Umhuellende, Urteil ueber alle
+ * Bauteile, der Schalter fuer den Einzellastfall -, mit denselben Kacheln.
+ *
+ * @param {object} opt {quelle, lastfallName} - wie bei zeichneUebersicht
+ * ========================================================================= */
+export function zeichneEinzelmast(node, letzte, opt = {}) {
+  const { erg, anzeige, kombi, urteil, hinw = [] } = letzte;
+  const einzelLastfall = opt.quelle && opt.quelle !== 'umhuellend';
+  const bem = { ...(kombi?.huellkurve ?? erg), anker: erg?.anker };
+  const zeig = einzelLastfall ? { ...(anzeige ?? erg), anker: erg?.anker } : bem;
+  const ampelU = (v) => (einzelLastfall ? '' : ampel(v));
+  const mn = zeig?.mast?.A ?? null;
+  const bt = urteil?.bauteile ?? null;
+  const eBem = bt?.eta ?? (bem?.mast?.A?.etaMitStabilitaet ?? 0);
+  const eKopf = einzelLastfall ? (mn?.etaMitStabilitaet ?? mn?.eta ?? 0) : eBem;
+  const werKopf = !einzelLastfall && bt?.massgebend ? bt.massgebend.name : null;
+  const zustand = (bt?.ueber || eBem > 1) ? 'nok' : 'ok';
+  const offeneNw = urteil?.nichtGefuehrt?.length ?? 0;
   const ohneKnicken = mn?.knickenGefuehrt === false;
-  const stufe = e > 1 ? 'fail' : 'ok';
-  const kopf = `<div class="urteil ${stufe}">
-      <div class="urteil-eta">η ${f3(e)}</div>
-      <div class="urteil-text">${e > 1
-        ? 'Nachweis nicht erfüllt'
-        : ohneKnicken
-          ? 'Querschnitt erfüllt · Biegeknicken nicht geführt'
-          : `Tragsicherheit erfüllt · ${knickt
-            ? 'Biegeknicken massgebend' : 'Querschnitt massgebend'}`}</div>
-    </div>`;
+  const urteilText = einzelLastfall
+    ? 'Einzellastfall — kein Tragsicherheitsurteil'
+    : (zustand === 'ok' ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt')
+      + (ohneKnicken ? ' · Biegeknicken nicht geführt' : '');
+  const fallKey = bem?.mast?.A?.fall;
+  const fallBez = fallKey
+    ? (kombi?.lastfaelle?.find((l) => l.key === fallKey)?.bez ?? fallKey) : null;
 
-  const hinweise = hinw.length
-    ? `<details class="klapp" open><summary>Hinweise zur Gültigkeit
-         <span class="zahl">${hinw.length}</span></summary>
-       <ul class="hinweisliste">${hinw.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-       </details>`
-    : '';
+  // Die Kräfte am Fuss - was das Fundament bekommt.
+  const f = mn?.stationen?.[0];
+  const fuss = f ? [
+    kachel('N · F_z', f2(f.Fz), 'kN am Fuss'),
+    kachel('V quer · F_x', f2(f.Fx), 'kN am Fuss'),
+    kachel('V längs · F_y', f2(f.Fy), 'kN am Fuss'),
+    kachel('M quer · M_yy', f2(f.Myy), 'kNm am Fuss'),
+    kachel('M längs · M_xx', f2(f.Mxx), 'kNm am Fuss'),
+    kachel('M_t · M_zz', f2(f.Mzz), 'kNm am Fuss'),
+  ] : [];
 
-  node.innerHTML = kopf + hinweise
-    + (mn ? mastblattHtml(erg)
-          : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>');
+  node.innerHTML = `
+    ${quellSchalter(opt, einzelLastfall, eBem)}
+    <div class="urteil ${einzelLastfall ? 'ohne' : zustand}">
+      <span class="urteil-zahl">η ${f3(eKopf)}</span>
+      ${werKopf ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(werKopf)}</span>` : ''}
+      <span>${urteilText}${(!einzelLastfall && offeneNw)
+        ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
+      ${!einzelLastfall && fallBez
+        ? `<span class="urteil-fall" title="Massgebende Kombination des Masten">massgebend: ${esc(fallBez)}</span>`
+        : ''}
+    </div>
+    ${mn ? `${abschnitt('Nachweise')}
+      <div class="kennzahlen">${bauteilKacheln(zeig, urteil ?? {}, ampelU).join('')}</div>`
+      : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
+    ${nichtGefuehrtHtml(urteil)}
+    ${fuss.length ? klapp('einzelmast-fuss', 'Kräfte am Mastfuss',
+        `<div class="kennzahlen">${fuss.join('')}</div>`,
+        `M längs ${f2(f.Mxx)} kNm`) : ''}
+    ${hinw.length ? klapp('uebersicht-hinweise', 'Hinweise zur Gültigkeit',
+        `<div class="hinweisliste">${hinw.map((h) =>
+          `<p class="notiz">${esc(h)}</p>`).join('')}</div>`,
+        hinw.length === 1 ? '1 Hinweis' : `${hinw.length} Hinweise`) : ''}
+    ${mn ? mastblattHtml(zeig) : ''}`;
+  verdrahteKlapp(node);
+}
+
+/**
+ * Die Kräfte am Mastfuss je Kombination - der Reiter «Auflager» des
+ * Einzelmasts. Charakteristisch je Einwirkung für den, der selbst
+ * kombiniert, und die Bemessungsfälle darunter.
+ */
+export function zeichneMastfuss(node, kombi) {
+  const zeile = (l) => {
+    const f = kombi?.ergebnisse?.[l.key]?.mast?.A?.stationen?.[0];
+    if (!f) return '';
+    return `<tr><td>${esc(l.bez)}</td><td class="num">${f2(f.Fz)}</td>
+      <td class="num">${f2(f.Fx)}</td><td class="num">${f2(f.Fy)}</td>
+      <td class="num">${f2(f.Myy)}</td><td class="num">${f2(f.Mxx)}</td>
+      <td class="num">${f2(f.Mzz)}</td></tr>`;
+  };
+  const tab = (titel, liste) => (liste.length ? `${abschnitt(titel)}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Fall</th><th class="num">F_z</th><th class="num">F_x</th>
+        <th class="num">F_y</th><th class="num">M_yy</th><th class="num">M_xx</th>
+        <th class="num">M_zz</th></tr></thead>
+      <tbody>${liste.map(zeile).join('')}</tbody></table></div>` : '');
+  const lf = kombi?.lastfaelle ?? [];
+  node.innerHTML = `
+    <p class="notiz">Kräfte am Mastfuss in kN und kNm, globale Achsen: x quer
+    (Jochachse), y längs (Gleisrichtung), z lotrecht.</p>
+    ${tab('Charakteristisch je Einwirkung', lf.filter((l) => l.art === 'charakteristisch'))}
+    ${tab('Bemessung', lf.filter((l) => l.nachweis))}
+    ${tab('Gebrauchstauglichkeit', lf.filter((l) => l.art === 'gebrauchstauglichkeit'))}`;
 }
 
 /* ===========================================================================
@@ -4385,6 +4437,187 @@ function quellSchalter(opt, einzel, eBem) {
 function hatDrahtwerk(a) {
   return (a?.module ?? []).some((m) => m.aktiv !== false
     && /^drahtwerk-/.test(String(m.bauteil ?? '')));
+}
+
+/**
+ * Die Kacheln der Masten und ihrer Anker - dieselben beim Tragjoch und beim
+ * Einzelmast. Vorher standen sie nur in der Uebersicht des Jochs; der
+ * Einzelmast zeigte eine eigene, kuerzere Seite mit anderen Zahlen.
+ */
+function bauteilKacheln(erg, urteil, ampelU) {
+  const k = [];
+  if (erg.mast && urteil.nachweise?.mast !== false) {
+    /*
+     * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
+     *
+     * Weisung vom 2. September: «beide masten in die nachweise aufnehmen
+     * nicht nur den massgebenden».
+     *
+     * Hier stand EINE Kachel mit dem groesseren der beiden eta. Das
+     * beantwortet «haelt es?», aber nicht «wie weit ist der andere?» - und
+     * genau das ist die Frage, mit der man ein Sortiment waehlt. Zwei
+     * Masten, die gemeinsam ein Joch tragen, sind zwei Bauteile mit zwei
+     * Nachweisen; einer davon zu verschweigen macht die Auswertung kuerzer,
+     * nicht besser.
+     *
+     * Sie stehen unter ihrem NAMEN da (M1, M2), nicht unter «Ende A/B» -
+     * auf einer Jochreihe ist das der Unterschied zwischen einem Bauteil mit
+     * einem Namen und einem mit zweien.
+     *
+     * SIND BEIDE DERSELBE MAST - ein Joch ohne abweichendes Ende B rechnet
+     * zweimal dasselbe -, steht er einmal da. Zwei gleiche Kacheln
+     * nebeneinander waeren keine Auskunft, sondern ein Verdacht.
+     */
+    const namen = erg.modell.federn?.namen ?? {};
+    const gesehen = new Set();
+    ['A', 'B'].forEach((ende) => {
+      const n = erg.mast[ende];
+      if (!n) return;
+      const name = namen[ende] || `Ende ${ende}`;
+      if (gesehen.has(name)) return;
+      gesehen.add(name);
+      const eN = n.etaMitStabilitaet ?? n.eta;
+      // Die Kachel nennt, WAS massgebend ist - Querschnitt oder Knicken.
+      // Ohne das stuende dort eine Zahl, deren Herkunft man raten muesste.
+      const wodurch = (n.stabil?.eta ?? 0) > n.eta
+        ? 'Knicken' : (n.plastischWirksam ? 'plastisch' : 'elastisch');
+      k.push(kachel(`η ${name}`, f3(eN),
+        `${n.profil.name} · ${wodurch}`, ampelU(eN)));
+    });
+  }
+  /*
+   * >>> DER ANKER BEKOMMT SEINE EIGENE KACHEL. <<<
+   *
+   * Weisung vom 9./10. September: Zuganker und Druckstuetzen am Masten,
+   * nachgewiesen ueber das Bemessungsdiagramm, mit der charakteristischen
+   * Kraft.
+   *
+   * Sie steht NEBEN der Mastkachel, nicht darin: der Anker ist ein eigenes
+   * Bauteil mit einem eigenen Nachweis, und sein eta bezieht sich auf eine
+   * ZULAESSIGE KRAFT, nicht auf einen Bemessungswiderstand. Zwei Zahlen mit
+   * verschiedener Bedeutung zusammenzuziehen hiesse, beide unbrauchbar zu
+   * machen.
+   *
+   * Die Kachel nennt den TYP und die Kraft mit ihrem Vorzeichen - «Zug» oder
+   * «Druck» ist die Auskunft, an der man sieht, ob der Stab auf der
+   * richtigen Seite steht.
+   */
+  if (erg.anker) {
+    const namenA = erg.modell.federn?.namen ?? {};
+    const gesehenA = new Set();
+    ['A', 'B'].forEach((ende) => {
+      const e = erg.anker[ende];
+      const nw = e?.nachweis;
+      if (!nw) return;
+      const name = namenA[ende] || `Ende ${ende}`;
+      if (gesehenA.has(name)) return;
+      gesehenA.add(name);
+      const zug = nw.N >= 0;
+      /*
+       * >>> DIE KACHEL SAGT, WORAUF IHR η STEHT. <<<
+       *
+       * Weisung vom 10. September: «nimm variante 3 und die charakteristische
+       * kraft.» Der Anker vergleicht seither eine CHARAKTERISTISCHE Kraft mit
+       * der zulässigen des Bemessungsdiagramms - beides ohne
+       * Teilsicherheitsbeiwerte -, während Gurt, Blech und Mast daneben auf
+       * Bemessungswerten stehen.
+       *
+       * Das stand nur im aufklappbaren Gültigkeitshinweis. Gefunden am
+       * 11. September in einem Bedienlauf: die Masttabelle zeigte am
+       * Ankerpunkt 17.39 kN, die Kachel daneben 16.8 - und der Unterschied
+       * sah aus wie ein Fehler, bis der Hinweis ihn aufklärte. Genau beim
+       * VERGLEICHEN zweier Zahlen braucht man die Auskunft, und genau dort
+       * war sie eingeklappt.
+       */
+      /*
+       * Traegt das Seil massgebend, haengt aber in anderen Lastfaellen
+       * durch, sagt die Kachel auch das - dort steht der Mast allein.
+       */
+      const schlaffAuch = !nw.schlaff && e.schlaffIn?.length
+        ? ` · hängt durch in ${e.schlaffIn.length} Lastfall/-fällen` : '';
+      const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
+        + `${Math.abs(nw.N).toFixed(1)} kN char.${schlaffAuch}`;
+      /*
+       * OHNE URTEIL KEINE AMPEL. Ueber der groessten lieferbaren Laenge
+       * gibt es die Stuetze nicht - dort steht ein Strich, keine Zahl.
+       */
+      /*
+       * DAS SCHLAFFE SEIL: ein Hinweis, keine Ampel (Entscheid vom
+       * 16. September). Der Mast traegt diese Kombination allein; ob er es
+       * kann, sagt seine eigene Kachel.
+       */
+      if (nw.grund === 'schlaff') {
+        const ohne = Number.isFinite(nw.NohneAusfall)
+          ? ` (müsste ${Math.abs(nw.NohneAusfall).toFixed(1)} kN drücken)` : '';
+        k.push(kachel(`η Anker ${name}`, '–',
+          `${nw.typ} · hängt durch${ohne} · Mast trägt allein`, '',
+          { titel: nw.text }));
+        return;
+      }
+      if (nw.eta === null || !Number.isFinite(nw.eta)) {
+        k.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok'));
+        return;
+      }
+      /*
+       * >>> EIN NACHWEIS AN EINEM BAUTEIL, DAS ES NICHT GIBT. <<<
+       *
+       * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
+       * dann warnung angeben.» Auf Zug wird der Nachweis geführt - gegen die
+       * Befestigung ist nichts einzuwenden -, aber die Kachel darf dann
+       * nicht grün danebenstehen: das Sortiment führt diese Länge nicht.
+       */
+      if (nw.lieferbar === false) {
+        k.push(kachel(`η Anker ${name}`, f3(nw.eta),
+          `${wie} · ÜBER DEM SORTIMENT`, 'nok', { titel: nw.warnung ?? '' }));
+        return;
+      }
+      k.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
+        titel: `Charakteristische Kraft gegen die zulässige des `
+             + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
+             + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
+             + `vergleichbar, die auf Bemessungswerten stehen.`,
+      }));
+      /*
+       * >>> UND DAS KNICKEN DANEBEN, ALS AUSKUNFT. <<<
+       *
+       * Weisung vom 11. September: ein Knicknachweis, «falls einfach
+       * umsetzbar.» Einfach ist die Ebene SENKRECHT zur Spreizung; die
+       * andere steckt im Bemessungsdiagramm (siehe `ankerKnicken`).
+       *
+       * Die Kachel steht bewusst OHNE Ampel: sie ist kein zweites Urteil.
+       * Ihre Zahl ist ein Bemessungswert und das η daneben einer aus
+       * zulässigen Kräften - nebeneinander grün und grün zu färben hiesse,
+       * sie seien dasselbe.
+       */
+      /*
+       * >>> UND SIE STEHT NUR DA, WENN KNICKEN GEFUEHRT WIRD. <<<
+       *
+       * Weisung vom 16. September: «die kachel knicken mast ausblenden wenn
+       * der nachweis in den optionen nicht aktiv geschalten ist.»
+       *
+       * Wer das Knicken abschaltet, tut es mit Grund - die Leiter halten den
+       * Masten (siehe Nachweisgruppe `knickenMast`). Eine Knickzahl, die
+       * daneben stehenbliebe, wäre dann eine Auskunft über eine Rechnung,
+       * die man ausdrücklich nicht führt.
+       *
+       * DIE KACHEL HEISST JETZT NACH DEM BAUTEIL, nicht nach dem Masten:
+       * sie gehört der STÜTZE an diesem Masten. «Knicken M2» las sich wie
+       * eine Angabe über M2 selbst.
+       */
+      if (e.knick && urteil.nachweise?.knickenMast !== false) {
+        const k = e.knick;
+        k.push(kachel(`Knicken Stütze ${name}`, `${f0(k.NbRd)} kN`,
+          `N_b,Rd · λ̄ ${f2(k.lambda)} · χ ${f3(k.chi)}`, '', {
+            titel: `Euler und Knicklinie c SENKRECHT zur Spreizebene — dort `
+                 + `ist der Querschnitt konstant (I = ${f0(k.I)} cm⁴, ohne `
+                 + `Steiner-Anteil) und der Stab einteilig. `
+                 + `N_cr ${k.Ncr.toFixed(0)} kN. `
+                 + `KONTROLLRECHNUNG, kein zweiter Nachweis: ${k.nichtEnthalten}`,
+          }));
+      }
+    });
+  }
+  return k;
 }
 
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
@@ -4577,177 +4810,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Auflagerkraefte abgibt, wird der Nachweis mit IHNEN gebildet
    * (`quelle: 'abfangjoch'`), und die Kachel gehoert wieder her.
    */
-  if (erg.mast && urteil.nachweise?.mast !== false) {
-    /*
-     * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
-     *
-     * Weisung vom 2. September: «beide masten in die nachweise aufnehmen
-     * nicht nur den massgebenden».
-     *
-     * Hier stand EINE Kachel mit dem groesseren der beiden eta. Das
-     * beantwortet «haelt es?», aber nicht «wie weit ist der andere?» - und
-     * genau das ist die Frage, mit der man ein Sortiment waehlt. Zwei
-     * Masten, die gemeinsam ein Joch tragen, sind zwei Bauteile mit zwei
-     * Nachweisen; einer davon zu verschweigen macht die Auswertung kuerzer,
-     * nicht besser.
-     *
-     * Sie stehen unter ihrem NAMEN da (M1, M2), nicht unter «Ende A/B» -
-     * auf einer Jochreihe ist das der Unterschied zwischen einem Bauteil mit
-     * einem Namen und einem mit zweien.
-     *
-     * SIND BEIDE DERSELBE MAST - ein Joch ohne abweichendes Ende B rechnet
-     * zweimal dasselbe -, steht er einmal da. Zwei gleiche Kacheln
-     * nebeneinander waeren keine Auskunft, sondern ein Verdacht.
-     */
-    const namen = erg.modell.federn?.namen ?? {};
-    const gesehen = new Set();
-    ['A', 'B'].forEach((ende) => {
-      const n = erg.mast[ende];
-      if (!n) return;
-      const name = namen[ende] || `Ende ${ende}`;
-      if (gesehen.has(name)) return;
-      gesehen.add(name);
-      const eN = n.etaMitStabilitaet ?? n.eta;
-      // Die Kachel nennt, WAS massgebend ist - Querschnitt oder Knicken.
-      // Ohne das stuende dort eine Zahl, deren Herkunft man raten muesste.
-      const wodurch = (n.stabil?.eta ?? 0) > n.eta
-        ? 'Knicken' : (n.plastischWirksam ? 'plastisch' : 'elastisch');
-      kz.push(kachel(`η ${name}`, f3(eN),
-        `${n.profil.name} · ${wodurch}`, ampelU(eN)));
-    });
-  }
-  /*
-   * >>> DER ANKER BEKOMMT SEINE EIGENE KACHEL. <<<
-   *
-   * Weisung vom 9./10. September: Zuganker und Druckstuetzen am Masten,
-   * nachgewiesen ueber das Bemessungsdiagramm, mit der charakteristischen
-   * Kraft.
-   *
-   * Sie steht NEBEN der Mastkachel, nicht darin: der Anker ist ein eigenes
-   * Bauteil mit einem eigenen Nachweis, und sein eta bezieht sich auf eine
-   * ZULAESSIGE KRAFT, nicht auf einen Bemessungswiderstand. Zwei Zahlen mit
-   * verschiedener Bedeutung zusammenzuziehen hiesse, beide unbrauchbar zu
-   * machen.
-   *
-   * Die Kachel nennt den TYP und die Kraft mit ihrem Vorzeichen - «Zug» oder
-   * «Druck» ist die Auskunft, an der man sieht, ob der Stab auf der
-   * richtigen Seite steht.
-   */
-  if (erg.anker) {
-    const namenA = erg.modell.federn?.namen ?? {};
-    const gesehenA = new Set();
-    ['A', 'B'].forEach((ende) => {
-      const e = erg.anker[ende];
-      const nw = e?.nachweis;
-      if (!nw) return;
-      const name = namenA[ende] || `Ende ${ende}`;
-      if (gesehenA.has(name)) return;
-      gesehenA.add(name);
-      const zug = nw.N >= 0;
-      /*
-       * >>> DIE KACHEL SAGT, WORAUF IHR η STEHT. <<<
-       *
-       * Weisung vom 10. September: «nimm variante 3 und die charakteristische
-       * kraft.» Der Anker vergleicht seither eine CHARAKTERISTISCHE Kraft mit
-       * der zulässigen des Bemessungsdiagramms - beides ohne
-       * Teilsicherheitsbeiwerte -, während Gurt, Blech und Mast daneben auf
-       * Bemessungswerten stehen.
-       *
-       * Das stand nur im aufklappbaren Gültigkeitshinweis. Gefunden am
-       * 11. September in einem Bedienlauf: die Masttabelle zeigte am
-       * Ankerpunkt 17.39 kN, die Kachel daneben 16.8 - und der Unterschied
-       * sah aus wie ein Fehler, bis der Hinweis ihn aufklärte. Genau beim
-       * VERGLEICHEN zweier Zahlen braucht man die Auskunft, und genau dort
-       * war sie eingeklappt.
-       */
-      /*
-       * Traegt das Seil massgebend, haengt aber in anderen Lastfaellen
-       * durch, sagt die Kachel auch das - dort steht der Mast allein.
-       */
-      const schlaffAuch = !nw.schlaff && e.schlaffIn?.length
-        ? ` · hängt durch in ${e.schlaffIn.length} Lastfall/-fällen` : '';
-      const wie = `${nw.typ} · ${zug ? 'Zug' : 'Druck'} `
-        + `${Math.abs(nw.N).toFixed(1)} kN char.${schlaffAuch}`;
-      /*
-       * OHNE URTEIL KEINE AMPEL. Ueber der groessten lieferbaren Laenge
-       * gibt es die Stuetze nicht - dort steht ein Strich, keine Zahl.
-       */
-      /*
-       * DAS SCHLAFFE SEIL: ein Hinweis, keine Ampel (Entscheid vom
-       * 16. September). Der Mast traegt diese Kombination allein; ob er es
-       * kann, sagt seine eigene Kachel.
-       */
-      if (nw.grund === 'schlaff') {
-        const ohne = Number.isFinite(nw.NohneAusfall)
-          ? ` (müsste ${Math.abs(nw.NohneAusfall).toFixed(1)} kN drücken)` : '';
-        kz.push(kachel(`η Anker ${name}`, '–',
-          `${nw.typ} · hängt durch${ohne} · Mast trägt allein`, '',
-          { titel: nw.text }));
-        return;
-      }
-      if (nw.eta === null || !Number.isFinite(nw.eta)) {
-        kz.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok'));
-        return;
-      }
-      /*
-       * >>> EIN NACHWEIS AN EINEM BAUTEIL, DAS ES NICHT GIBT. <<<
-       *
-       * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
-       * dann warnung angeben.» Auf Zug wird der Nachweis geführt - gegen die
-       * Befestigung ist nichts einzuwenden -, aber die Kachel darf dann
-       * nicht grün danebenstehen: das Sortiment führt diese Länge nicht.
-       */
-      if (nw.lieferbar === false) {
-        kz.push(kachel(`η Anker ${name}`, f3(nw.eta),
-          `${wie} · ÜBER DEM SORTIMENT`, 'nok', { titel: nw.warnung ?? '' }));
-        return;
-      }
-      kz.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
-        titel: `Charakteristische Kraft gegen die zulässige des `
-             + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
-             + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
-             + `vergleichbar, die auf Bemessungswerten stehen.`,
-      }));
-      /*
-       * >>> UND DAS KNICKEN DANEBEN, ALS AUSKUNFT. <<<
-       *
-       * Weisung vom 11. September: ein Knicknachweis, «falls einfach
-       * umsetzbar.» Einfach ist die Ebene SENKRECHT zur Spreizung; die
-       * andere steckt im Bemessungsdiagramm (siehe `ankerKnicken`).
-       *
-       * Die Kachel steht bewusst OHNE Ampel: sie ist kein zweites Urteil.
-       * Ihre Zahl ist ein Bemessungswert und das η daneben einer aus
-       * zulässigen Kräften - nebeneinander grün und grün zu färben hiesse,
-       * sie seien dasselbe.
-       */
-      /*
-       * >>> UND SIE STEHT NUR DA, WENN KNICKEN GEFUEHRT WIRD. <<<
-       *
-       * Weisung vom 16. September: «die kachel knicken mast ausblenden wenn
-       * der nachweis in den optionen nicht aktiv geschalten ist.»
-       *
-       * Wer das Knicken abschaltet, tut es mit Grund - die Leiter halten den
-       * Masten (siehe Nachweisgruppe `knickenMast`). Eine Knickzahl, die
-       * daneben stehenbliebe, wäre dann eine Auskunft über eine Rechnung,
-       * die man ausdrücklich nicht führt.
-       *
-       * DIE KACHEL HEISST JETZT NACH DEM BAUTEIL, nicht nach dem Masten:
-       * sie gehört der STÜTZE an diesem Masten. «Knicken M2» las sich wie
-       * eine Angabe über M2 selbst.
-       */
-      if (e.knick && urteil.nachweise?.knickenMast !== false) {
-        const k = e.knick;
-        kz.push(kachel(`Knicken Stütze ${name}`, `${f0(k.NbRd)} kN`,
-          `N_b,Rd · λ̄ ${f2(k.lambda)} · χ ${f3(k.chi)}`, '', {
-            titel: `Euler und Knicklinie c SENKRECHT zur Spreizebene — dort `
-                 + `ist der Querschnitt konstant (I = ${f0(k.I)} cm⁴, ohne `
-                 + `Steiner-Anteil) und der Stab einteilig. `
-                 + `N_cr ${k.Ncr.toFixed(0)} kN. `
-                 + `KONTROLLRECHNUNG, kein zweiter Nachweis: ${k.nichtEnthalten}`,
-          }));
-      }
-    });
-  }
+  kz.push(...bauteilKacheln(erg, urteil, ampelU));
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
   // Profilen; als «Kennzahl» hatten sie hier nichts verloren.
@@ -5433,9 +5496,9 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null) {
   }).join('');
 
   node.innerHTML = `
-    ${diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen)}
-    ${diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene)}
-    ${diagrammBlock('ausnutzung', 'Ausnutzung', dia.ausnutzung)}
+    ${dia ? diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen) : ''}
+    ${dia ? diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene) : ''}
+    ${dia ? diagrammBlock('ausnutzung', 'Ausnutzung', dia.ausnutzung) : ''}
     ${massBlock}
     ${extra}`;
   verdrahteDiagramme(node);
