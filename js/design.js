@@ -13,13 +13,20 @@
  * ---------------------------------------------------------------------------
  */
 
-/** Farbtokens. Dunkel ist die Leitdarstellung, hell die Umkehrung. */
+/**
+ * Farbtokens. Dunkel ist die Leitdarstellung, hell die Umkehrung.
+ *
+ * `dim` IST DIE SCHRIFT DER ERKLAERTEXTE und haelt mindestens 4.5:1 auf
+ * allen Flaechen bis s3 (Durchsicht vom 18. September, Punkt U3: Hinweise
+ * standen mit `xdim` bei 2.1:1). `xdim` bleibt fuer Grafik - Umrisse,
+ * passive Tragwerke im 3D -, nicht fuer Text.
+ */
 export const FARBEN = {
   dunkel: {
     bg: '#0e0f11',
     s1: '#15161a', s2: '#1c1d22', s3: '#232428', s4: '#2a2c32',
     ol: '#353740', ol2: '#44464f',
-    on: '#e1e2e8', on2: '#b8bac4', dim: '#787a84', xdim: '#4e5058',
+    on: '#e1e2e8', on2: '#b8bac4', dim: '#8b8d97', xdim: '#4e5058',
     acc: '#7c8de0', accS: 'rgba(124,141,224,0.14)',
     ok: '#6fcf8e', okS: 'rgba(111,207,142,0.10)',
     warn: '#c9a84c', warnS: 'rgba(201,168,76,0.10)',
@@ -34,7 +41,7 @@ export const FARBEN = {
     bg: '#f2f3f6',
     s1: '#ffffff', s2: '#f7f8fa', s3: '#eef0f4', s4: '#e4e7ec',
     ol: '#d5d9e0', ol2: '#c2c7d1',
-    on: '#111218', on2: '#3a3c48', dim: '#70727e', xdim: '#9497a1',
+    on: '#111218', on2: '#3a3c48', dim: '#5f616c', xdim: '#9497a1',
     acc: '#4a5cb8', accS: 'rgba(74,92,184,0.10)',
     ok: '#2f9e54', okS: 'rgba(47,158,84,0.09)',
     warn: '#9a7b1a', warnS: 'rgba(154,123,26,0.10)',

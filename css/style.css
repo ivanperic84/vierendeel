@@ -256,7 +256,7 @@ body {
   font-family: var(--f-mono); letter-spacing: .04em;
 }
 .schiene-nw i {
-  font-style: normal; font-size: 8.5px; color: var(--dim);
+  font-style: normal; font-size: 9px; color: var(--dim);
 }
 .schiene-nw b { font-size: 11px; }
 .schiene-nw div.ok   { border-left-color: var(--ok); }
@@ -335,7 +335,7 @@ body {
 .feld > label em { font-style: normal; color: var(--on2); font-family: var(--f-mono); font-size: 10.5px; }
 .zahlfeld { display: flex; align-items: center; gap: 6px; }
 .zahlfeld .einheit {
-  font-family: var(--f-mono); font-size: 10px; color: var(--xdim);
+  font-family: var(--f-mono); font-size: 10px; color: var(--dim);
   min-width: 42px; flex-shrink: 0;
 }
 
@@ -367,8 +367,8 @@ input:disabled, select:disabled {
   cursor: not-allowed; opacity: .85;
 }
 .gesperrt > label::after {
-  content: 'DB'; font-family: var(--f-mono); font-size: 8px; letter-spacing: .08em;
-  color: var(--xdim); border: 1px solid var(--ol); border-radius: 3px;
+  content: 'DB'; font-family: var(--f-mono); font-size: 9px; letter-spacing: .08em;
+  color: var(--dim); border: 1px solid var(--ol); border-radius: 3px;
   padding: 0 3px; margin-left: auto;
 }
 
@@ -377,7 +377,7 @@ input:disabled, select:disabled {
 /* Ein Modell, das die Eingabe noch nicht hergibt: sichtbar, aber nicht
    waehlbar - so ist zu sehen, dass es existiert. */
 .schalter.aus { opacity: .5; }
-.hinweis { font-size: 10.5px; color: var(--xdim); line-height: 1.45; }
+.hinweis { font-size: 11px; color: var(--dim); line-height: 1.45; }
 /*
  * DIE NOTIZ AM FELD - eine gerechnete Groesse zu dem, was gerade dasteht
  * (der Ablenkwinkel zu Radius und Spannweite). Sie steht IMMER offen, im
@@ -413,9 +413,9 @@ input:disabled, select:disabled {
 .lasttabelle input[type=number] { width: 58px; padding: 4px 5px; font-size: 11px; }
 .lasttabelle input.breit { width: 110px; }
 .lasttabelle select { width: 50px; padding: 4px; font-size: 11px; }
-.lasttabelle .leer { text-align: center; color: var(--xdim); padding: 14px; }
+.lasttabelle .leer { text-align: center; color: var(--dim); padding: 14px; }
 .loeschen {
-  padding: 1px 6px; background: none; border: none; color: var(--xdim);
+  padding: 1px 6px; background: none; border: none; color: var(--dim);
   cursor: pointer; font-size: 14px; line-height: 1;
 }
 .loeschen:hover { color: var(--fail); }
@@ -430,7 +430,7 @@ input[type=range].rng {
 .zahlfeld input.kurz { width: 74px; flex-shrink: 0; text-align: right; }
 .rng-skala {
   display: flex; justify-content: space-between;
-  font-family: var(--f-mono); font-size: 8.5px; color: var(--xdim);
+  font-family: var(--f-mono); font-size: 9px; color: var(--dim);
   margin-top: -1px;
 }
 
@@ -484,7 +484,7 @@ input[type=range].rng {
 .kachel:active { cursor: grabbing; }
 .kachel-punkt { width: 8px; height: 8px; border-radius: 2px; grid-row: 1 / span 2; }
 .kachel-name { font-size: 11px; font-weight: 500; line-height: 1.25; }
-.kachel-meta { font-family: var(--f-mono); font-size: 8.5px; color: var(--xdim); }
+.kachel-meta { font-family: var(--f-mono); font-size: 9px; color: var(--dim); }
 
 .at-karte {
   border: 1px solid var(--ol); border-radius: var(--m-r1);
@@ -567,7 +567,7 @@ input[type=range].rng {
 .at-feld > span {
   font-family: var(--f-mono); font-size: 9px; color: var(--dim);
 }
-.at-feld > span i { font-style: normal; color: var(--xdim); }
+.at-feld > span i { font-style: normal; color: var(--dim); }
 .at-feld input, .at-feld select { padding: 4px 5px; font-size: 11px; }
 /* Die Befestigungsart braucht mehr Platz als ein Zahlenfeld. */
 .at-feld.breit2 { grid-column: span 3; }
@@ -652,7 +652,7 @@ input[type=range].rng {
 .rollen-marke.r-traeger   { border-color: var(--acc); color: var(--acc); }
 .rollen-marke.r-aufbau    { border-color: var(--warn); color: var(--warn); }
 .rollen-marke.r-drahtwerk { border-color: var(--ok); color: var(--ok); }
-.kette-an { color: var(--xdim); }
+.kette-an { color: var(--dim); }
 .kette-an b { color: var(--dim); font-weight: 500; }
 .kette-warn { color: var(--warn); cursor: help; }
 /* >>> DIESELBE SCHRIFT UND HOEHE WIE DIE HAUPTAUSWAHL. <<<
@@ -666,7 +666,7 @@ input[type=range].rng {
    Drei Kaestchen nebeneinander, von denen eines etwas anderes meint als die
    beiden anderen, waeren sonst eine Falle. */
 .wirk-bez {
-  font-style: normal; font-size: 8px; letter-spacing: .04em;
+  font-style: normal; font-size: 9px; letter-spacing: .04em;
   margin-left: 3px; padding: 0 3px; border-radius: 3px;
   background: var(--s2); color: var(--dim); vertical-align: 1px;
 }
@@ -708,7 +708,7 @@ input[type=range].rng {
 /* Kleiner Stift auf der Vorlagenkachel: Vorlage anpassen. */
 .kachel-stift {
   position: absolute; bottom: 2px; right: 2px; width: 16px; height: 16px;
-  border: none; background: none; color: var(--xdim); cursor: pointer;
+  border: none; background: none; color: var(--dim); cursor: pointer;
   border-radius: 3px; line-height: 1; padding: 0; display: grid;
   place-items: center;
 }
@@ -731,7 +731,7 @@ input[type=range].rng {
 .sec-klein {
   display: flex; flex-wrap: wrap; align-items: baseline;
   gap: 2px 8px;
-  font-family: var(--f-mono); font-size: 8.5px; font-weight: 600;
+  font-family: var(--f-mono); font-size: 9px; font-weight: 600;
   letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
   margin: 7px 0 3px;
 }
@@ -751,7 +751,7 @@ input[type=range].rng {
   line-height: normal; box-sizing: border-box;
   border: 1px dashed var(--ol); border-radius: var(--m-r1); color: var(--dim);
 }
-.at-feld .hinweis { font-size: 8.5px; line-height: 1.3; }
+.at-feld .hinweis { font-size: 9px; line-height: 1.3; }
 
 /* --- Massskizze des Anbauteils -------------------------------------------- */
 /* Sie beantwortet die Frage, die zehn Zahlenfelder offenlassen: wo gehört
@@ -768,14 +768,14 @@ input[type=range].rng {
 .at-skizze .sk-teil circle { fill: var(--acc); }
 .at-skizze .sk-mass line { stroke: var(--dim); stroke-width: 0.8; }
 .at-skizze .sk-mass text,
-.at-skizze .sk-kraft text { font-family: var(--f-mono); font-size: 8px; fill: var(--dim); }
+.at-skizze .sk-kraft text { font-family: var(--f-mono); font-size: 9px; fill: var(--dim); }
 .at-skizze .sk-kraft line { stroke: var(--achse); stroke-width: 1.2; }
 .at-skizze .sk-kraft polygon { fill: var(--achse); }
 .at-skizze .sk-titel {
-  font-family: var(--f-mono); font-size: 8px; fill: var(--xdim);
+  font-family: var(--f-mono); font-size: 9px; fill: var(--dim);
   letter-spacing: .08em; text-transform: uppercase;
 }
-.at-skizze .sk-notiz { font-family: var(--f-mono); font-size: 7.5px; fill: var(--xdim); }
+.at-skizze .sk-notiz { font-family: var(--f-mono); font-size: 9px; fill: var(--dim); }
 /* Hervorhebung des gerade bearbeiteten Masses */
 .at-skizze [data-zu].hell line { stroke: var(--acc); stroke-width: 1.8; }
 .at-skizze [data-zu].hell text { fill: var(--acc); font-weight: 600; }
@@ -912,7 +912,7 @@ input[type=range].rng {
   white-space: nowrap;
 }
 .wahl-t {
-  font-family: var(--f-mono); font-size: 8px; letter-spacing: .12em;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--dim); padding: 0 2px 2px;
   border-bottom: 1px solid var(--ol); margin-bottom: 3px;
 }
@@ -956,7 +956,7 @@ input[type=range].rng {
 }
 .wz-gruppe:hover { opacity: 1; }
 .wz-t {
-  font-family: var(--f-mono); font-size: 7.5px; letter-spacing: .1em;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin-bottom: 3px; text-align: center;
 }
 /* Hauptschalter der Gruppe: der Titel selbst schaltet sie ein und aus. */
@@ -1017,7 +1017,7 @@ button.wz-haupt:hover { color: var(--on); }
 }
 .haken input { accent-color: var(--acc); width: 12px; height: 12px; margin: 0; }
 .tafel-fuss {
-  font-size: 9.5px; color: var(--xdim); line-height: 1.35; margin-top: 6px;
+  font-size: 9.5px; color: var(--dim); line-height: 1.35; margin-top: 6px;
   border-top: 1px solid var(--ol); padding-top: 5px;
 }
 .legende-liste { display: grid; gap: 2px; max-height: 190px; overflow: auto; }
@@ -1085,7 +1085,7 @@ button.wz-haupt:hover { color: var(--on); }
     radial-gradient(circle, currentColor 1px, transparent 1.2px) 0 0/4px 4px;
 }
 .legende-griff span { flex: 1; }
-.legende-griff small { font-size: 8px; color: var(--xdim); }
+.legende-griff small { font-size: 9px; color: var(--dim); }
 /* Der Farbbalken war fest 132 px breit, die Legende dagegen so breit wie ihr
    breitestes Kind - bei Plots MIT Fussnote also gut 200 px. Der Balken sass
    dann kurz in einem breiten Kasten, und die Skalenwerte darunter (die sich
@@ -1102,7 +1102,7 @@ button.wz-haupt:hover { color: var(--on); }
    FESTE Breite, nicht max-width: sonst ist die Legende bei jedem Plot anders
    breit und springt beim Umschalten. */
 .legende-fuss {
-  margin-top: 5px; width: 190px; line-height: 1.4; color: var(--xdim);
+  margin-top: 5px; width: 190px; line-height: 1.4; color: var(--dim);
   font-family: var(--f-ui); font-size: 9.5px;
 }
 /* Schalter für den Nachweisschnitt, direkt über dem Schieber */
@@ -1217,7 +1217,7 @@ button.wz-haupt:hover { color: var(--on); }
 .kz.klick:hover::after { border-color: var(--acc); opacity: 1; }
 .kz-t { font-size: 9px; color: var(--dim); letter-spacing: .02em; line-height: 1.2; }
 .kz-w { font-family: var(--f-mono); font-size: 14px; font-weight: 500; margin: 1px 0 0; }
-.kz-e { font-family: var(--f-mono); font-size: 8.5px; color: var(--xdim); line-height: 1.25; }
+.kz-e { font-family: var(--f-mono); font-size: 9px; color: var(--dim); line-height: 1.25; }
 
 /* Kurzes Aufleuchten, wenn ein Mass im Modell sein Eingabefeld aufruft */
 @keyframes blitz { 0%, 100% { box-shadow: 0 0 0 0 transparent; }
@@ -1263,7 +1263,7 @@ tr.nok td { color: var(--fail); }
 details.hinweise { margin-top: 10px; font-size: 11px; color: var(--dim); }
 details.hinweise summary { cursor: pointer; color: var(--acc); font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 details.hinweise li { margin-bottom: 5px; line-height: 1.5; }
-.notiz { font-size: 10.5px; color: var(--xdim); margin: 0 0 8px; line-height: 1.5; }
+.notiz { font-size: 11px; color: var(--dim); margin: 0 0 8px; line-height: 1.5; }
 .untertitel {
   font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin: 14px 0 6px;
@@ -1296,7 +1296,7 @@ figure svg { width: 100%; height: auto; display: block; }
 .dim line { stroke: var(--xdim); stroke-width: .7; }
 .dim text { fill: var(--dim); font-size: 9px; font-family: var(--f-mono); }
 .lbl { fill: var(--on2); font-size: 10px; font-family: var(--f-mono); }
-.micro { fill: var(--xdim); font-size: 8px; font-family: var(--f-mono); }
+.micro { fill: var(--dim); font-size: 9px; font-family: var(--f-mono); }
 .schnitt line { stroke: var(--acc); stroke-width: 1.5; stroke-dasharray: 6 3; }
 .schnitt text { fill: var(--acc); font-size: 9.5px; font-family: var(--f-mono); }
 
@@ -1326,7 +1326,7 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 /* Die zweite Kopfzeile der Mastreihe: wie die Grösse global heisst. Gedämpft
    und kleiner - sie erklärt die Spalte, sie benennt sie nicht neu. */
 .dt thead tr.kopf-achse th {
-  font-weight: 400; color: var(--xdim); font-size: 8.5px;
+  font-weight: 400; color: var(--dim); font-size: 9px;
   padding-top: 0; border-top: 0; letter-spacing: .02em;
 }
 
@@ -1337,7 +1337,7 @@ text.legende { fill: var(--on2); font-size: 9.5px; font-family: var(--f-mono); }
 text.legende-kurz {
   fill: var(--dim); font-size: 9.5px; font-family: var(--f-mono);
 }
-text.legende-kurz .sub, text.legende .sub { font-size: 7.5px; }
+text.legende-kurz .sub, text.legende .sub { font-size: 9px; }
 
 /* --- Die Messstelle im grossen Diagramm ----------------------------------- */
 /* Sie wird nur auf der Bühne verdrahtet; `figure.messbar` bekommt die Klasse
@@ -1360,7 +1360,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px;
 }
 .mess-kopf b { color: var(--acc); font-size: 10.5px; }
-.mess-hinweis { color: var(--xdim); font-size: 9px; }
+.mess-hinweis { color: var(--dim); font-size: 9px; }
 .mess-tab { border-collapse: collapse; width: 100%; }
 .mess-tab td { padding: 1px 6px 1px 0; vertical-align: baseline; }
 /* Alle Spalten auf ihren Inhalt, nur die Spanne bekommt den Rest - sonst
@@ -1385,15 +1385,15 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   text-align: right; color: var(--on); font-variant-numeric: tabular-nums;
   width: 1%; white-space: nowrap;
 }
-.mess-eh { color: var(--xdim); width: 1%; white-space: nowrap; }
-.mess-spanne { color: var(--xdim); white-space: nowrap; }
+.mess-eh { color: var(--dim); width: 1%; white-space: nowrap; }
+.mess-spanne { color: var(--dim); white-space: nowrap; }
 
 /* --- Fussleiste ----------------------------------------------------------- */
 
 .statusbar {
   background: var(--s1); border-top: 1px solid var(--ol); padding: 0 12px;
   display: flex; align-items: center; gap: 14px;
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim);
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
 }
 .statusbar .rechts { margin-left: auto; }
 .statusbar .pkt { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
@@ -1466,7 +1466,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 }
 .hb-toc-t {
   font-size: 9px; letter-spacing: .09em; text-transform: uppercase;
-  color: var(--xdim); margin-bottom: 5px;
+  color: var(--dim); margin-bottom: 5px;
 }
 .hb-toc-e {
   font-size: 11px; color: var(--dim); padding: 4px 7px; cursor: pointer;
@@ -1507,7 +1507,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   padding: 9px 12px; margin: 10px 0 12px !important; border-radius: 0 var(--m-r1) var(--m-r1) 0;
 }
 .hb-quelle {
-  font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim);
+  font-family: var(--f-mono); font-size: 9.5px; color: var(--dim);
   margin-top: 12px !important; padding-top: 6px; border-top: 1px dashed var(--ol);
 }
 /* --- Skizzen ---------------------------------------------------------------
@@ -1523,7 +1523,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .hb-skizze { margin: 12px 0 16px; }
 .skizze svg { width: 100%; height: auto; display: block; }
 .skizze figcaption {
-  font-size: 10px; color: var(--xdim); margin-top: 5px; line-height: 1.45;
+  font-size: 10px; color: var(--dim); margin-top: 5px; line-height: 1.45;
   padding-left: 2px;
 }
 /* Bauteil, Achse, Hilfslinie */
@@ -1666,19 +1666,19 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 }
 .qp-kopf-name {
   flex: 0 0 96px; padding: 0 3px;
-  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim);
 }
 .qp-kopf-bahn { height: auto; display: flex; align-items: baseline;
   justify-content: space-between; gap: 4px; }
 .qp-kopf-titel {
-  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis;
 }
 /* DIE SKALA macht aus der Bahn ein Mass. Ohne die beiden Zahlen ist eine
    Linie auf ihr nur eine Linie. */
-.qp-kopf-skala { font-size: 8px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.qp-kopf-skala { font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums; }
 
 /* DIE ANKERZEILE ist eingerueckt: sie gehoert dem Masten darueber, nicht dem
    Querprofil. Gestrichelt, weil der Stab schraeg aus der Blattebene laeuft -
@@ -1729,7 +1729,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 /* DIE LAGE DES MASTEN, WAAGRECHT UNTER SEINEM FUSS (Weisung, 13. September:
    «noch x wert anschreiben in abbildung»). */
 .qp-mastmass {
-  font-size: 8.5px; line-height: 1; color: var(--dim);
+  font-size: 9px; line-height: 1; color: var(--dim);
   font-variant-numeric: tabular-nums; white-space: nowrap;
   pointer-events: none;
 }
@@ -1790,7 +1790,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 }
 .qp-zeile.an .qp-name { color: var(--acc); }
 .qp-art {
-  font-size: 8px; letter-spacing: .06em; text-transform: uppercase;
+  font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--dim);
 }
 .qp-zeile.an .qp-art { color: var(--acc); }
@@ -1800,7 +1800,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .qp-art { display: flex; align-items: baseline; justify-content: space-between;
   gap: 4px; }
 .qp-eta {
-  font-size: 8px; letter-spacing: 0; text-transform: none;
+  font-size: 9px; letter-spacing: 0; text-transform: none;
   font-variant-numeric: tabular-nums; white-space: nowrap;
   padding: 0 3px; border-radius: 3px;
 }
@@ -1860,7 +1860,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
    auf der Linie liegt, liest sich nicht. */
 .qp-bahn-mass { height: 26px; }
 .qp-mass {
-  position: absolute; top: 13px; font-size: 8.5px; line-height: 1;
+  position: absolute; top: 13px; font-size: 9px; line-height: 1;
   color: var(--dim); font-variant-numeric: tabular-nums;
   white-space: nowrap; pointer-events: none;
 }
@@ -2043,8 +2043,8 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   font-size: 10px; min-width: 620px;
 }
 .ab-tabelle th {
-  text-align: left; font-weight: 500; font-size: 8.5px; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--xdim); padding: 4px 6px;
+  text-align: left; font-weight: 500; font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--dim); padding: 4px 6px;
   border-bottom: 1px solid var(--ol); white-space: nowrap;
 }
 .ab-tabelle td { padding: 4px 6px; border-bottom: 1px solid var(--ol); vertical-align: middle; }
@@ -2053,7 +2053,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .ab-tabelle .ab-ed:focus { background: var(--s1); box-shadow: inset 0 0 0 1px var(--acc); }
 .ab-tabelle .ab-name { color: var(--on); font-weight: 500; min-width: 110px; }
 .ab-tabelle td:nth-child(5), .ab-tabelle td:nth-child(7) { white-space: nowrap; }
-.ab-leise { color: var(--xdim); }
+.ab-leise { color: var(--dim); }
 .ab-zahl { text-align: right; }
 .ab-zahl.ok { color: var(--ok); }
 .ab-zahl.nok { color: var(--fail); font-weight: 600; }
@@ -2086,7 +2086,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
 .ablage-zeile:hover { border-color: var(--acc); }
 .ablage-name { flex: 1; min-width: 0; }
 .ablage-name b { font-weight: 500; }
-.ablage-meta { font-family: var(--f-mono); font-size: 9.5px; color: var(--xdim); }
+.ablage-meta { font-family: var(--f-mono); font-size: 9.5px; color: var(--dim); }
 /* Doppelter Lastfall: ein Hinweis, keine Warnung - er rechnet richtig,
    nur eben zweimal dasselbe. */
 .ablage-meta.warnton { color: var(--warn); }
@@ -2135,7 +2135,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   font-family: var(--f-mono); font-size: 12px; background: var(--s3);
 }
 /* Ein Beiwert 0 heisst: diese Einwirkung wirkt im Lastfall nicht mit. */
-.dt.kombi td.beiwert.null { color: var(--xdim); background: transparent; }
+.dt.kombi td.beiwert.null { color: var(--dim); background: transparent; }
 /* Ein negativer Beiwert kehrt die Einwirkung um - das muss man sehen, ohne
    das Minuszeichen zu suchen. */
 .dt.kombi td.beiwert.minus { color: var(--warn); }
@@ -2266,7 +2266,7 @@ body.datei-ueber::after {
 .hinweis-klapp[open] > summary::after { content: 'weniger'; }
 .hinweis-klapp > summary:hover .hinweis { color: var(--dim); }
 .hinweis-klapp > .hinweis { display: block; margin-top: 3px; }
-.at-feld .hinweis-klapp > summary::after { font-size: 8px; }
+.at-feld .hinweis-klapp > summary::after { font-size: 9px; }
 
 /* Lage-Schieber in der Anbauteil-Karte: über die ganze Kartenbreite, weil ein
    Schieber auf einem Drittel nichts taugt. */
@@ -2713,7 +2713,7 @@ body.datei-ueber::after {
 .al-feld input { width: 100%; text-align: right; padding-right: 46px; }
 .al-feld small {
   position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
-  font-size: 9.5px; color: var(--xdim); pointer-events: none;
+  font-size: 9.5px; color: var(--dim); pointer-events: none;
 }
 
 /* ===========================================================================
