@@ -11866,7 +11866,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
       const aq = readFileSync(
         new URL('./js/app.js', import.meta.url), 'utf8');
       wahr('Die Huellkurve kommt unabhaengig von der Anzeige an',
-           /bemessung: kombi\.huellkurve \?\? null/.test(aq)
+           /bemessung: kombi\.huellkurve \? letzte\.bemessung : null/.test(aq)
            && /quelle: anzeigeKombi/.test(aq));
       /*
        * >>> DIE KNICKEN-KACHEL FOLGT DER NACHWEISAUSWAHL. <<<
@@ -25209,6 +25209,31 @@ titel('89  Tragausleger: nicht nachgewiesen, bis ein Kragarm-Modell steht');
        /NICHT nachgewiesen/.test(z) && !/erfüllt/.test(z), z);
   wahr('Das Tragjoch bleibt unberuehrt',
        CH.urteilKonstruktion([], { jochtragwerk: true }, 'joch').nichtNachgewiesen === null);
+}
+
+titel('90  mitBauteilen: ein Ergebnis mit Abfangjoch, Mast und Anker');
+// Durchsicht vom 18. September, Punkt A2: sechs Stellen legten die Bauteile
+// von Hand hinueber; dreimal fehlte eines.
+{
+  const CH = await import(J('core.checks.js'));
+  const huelle = { max: { eta: 0.5 }, mast: { A: { eta: 0.3 } } };
+  const erg = { mast: { A: { eta: 0.9 } }, anker: { A: { nachweis: { eta: 0.2 } } } };
+  const t = CH.mitBauteilen(huelle, erg);
+  wahr('Der Anker kommt aus dem Bemessungsdurchgang', t.anker === erg.anker);
+  wahr('Am Tragjoch bleibt der Mast der Huellkurve', t.mast === huelle.mast);
+  wahr('Die Huellkurve selbst bleibt unberuehrt', huelle.anker === undefined);
+  const ab = { ...erg, abfang: { auflager: { A: {} } } };
+  const a = CH.mitBauteilen(huelle, ab);
+  wahr('Am Abfangjoch: Abfangnachweis und Mast aus dem Durchgang',
+       a.abfang === ab.abfang && a.mast === ab.mast);
+  wahr('Fehlt der Huellkurve der Mast, ersatzweise der des Durchgangs (nur auf Wunsch)',
+       CH.mitBauteilen({ max: {} }, erg, { mastErsatz: true }).mast === erg.mast
+       && CH.mitBauteilen({ max: {} }, erg).mast === undefined);
+  // Keine Handuebertragung mehr in app.js und ui.js.
+  const quelle = readFileSync(join(HIER, 'js', 'app.js'), 'utf8')
+    + readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Keine Stelle legt Anker oder Abfangjoch mehr von Hand dazu',
+       !/anker: (letzte\.)?erg\??\.anker|anzeige\.(abfang|anker|mast) =/.test(quelle));
 }
 
 titel('88  Seitenleiste: die Knick-Kachel der Druckstuetze');

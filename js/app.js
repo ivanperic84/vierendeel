@@ -15,7 +15,7 @@ import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
-         klassifizierung, urteilFusszeile } from './core.checks.js';
+         klassifizierung, urteilFusszeile, mitBauteilen } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm,
@@ -701,8 +701,11 @@ function neuRechnen(neuZeichnen = true) {
     const kl = mitJoch ? klassifizierung(erg.modell) : null;
 
     // Für Modell und Auswertung gilt die gewählte Anzeigequelle
-    const anzeige = anzeigeKombi === 'umhuellend'
-      ? (kombi.huellkurve ?? erg) : (kombi.ergebnisse?.[anzeigeKombi] ?? erg);
+    // Abfangjoch, Mast und Anker legt `mitBauteilen` dazu - siehe dort.
+    const anzeige = mitBauteilen(anzeigeKombi === 'umhuellend'
+      ? (kombi.huellkurve ?? erg) : (kombi.ergebnisse?.[anzeigeKombi] ?? erg), erg);
+    /** Die Bemessung mit allen Bauteilen - Urteil, Leiste, Bericht. */
+    const bemessung = mitBauteilen(kombi.huellkurve ?? erg, erg, { mastErsatz: true });
     /*
      * >>> DIE AUSWERTUNG SIEHT `anzeige`, NICHT `erg`. <<<
      *
@@ -716,27 +719,11 @@ function neuRechnen(neuZeichnen = true) {
      * (γ_G, γ_Q, ψ₀ ueber zwei Leitfaelle) - die Huellkurve des Tragjochs
      * hat darauf keinen Einfluss.
      */
-    if (erg.abfang) anzeige.abfang = erg.abfang;
     /*
-     * >>> UND DER MASTNACHWEIS MIT IHM. <<<
-     *
-     * `anzeige` ist beim Regelfall die Huellkurve der Tragjoch-
-     * Kombinationen, und die traegt ihren eigenen Mastnachweis - gerechnet
-     * aus dem Ersatzbalken. Am Abfangjoch gilt der nicht; er wird deshalb
-     * ersetzt, wie der Jochnachweis daneben.
+     * (Vormals hier drei Zuweisungen an anzeige - Abfangjoch, Mast,
+     * Anker - von Hand und in die Huellkurve hinein. Seit dem
+     * 18. September in `mitBauteilen`.)
      */
-    if (erg.abfang?.auflager && erg.mast) anzeige.mast = erg.mast;
-    /*
-     * >>> UND DER ANKER AUS DEMSELBEN GRUND. <<<
-     *
-     * Er hing an `erg` und kam in der Spalte nie an - derselbe Weg, den der
-     * Abfangjoch-Nachweis schon einmal gegangen ist. Seine Kombination
-     * steckt in ihm selbst: er rechnet auf den CHARAKTERISTISCHEN
-     * Lastfaellen, nicht auf der Huellkurve des Tragsicherheitsnachweises.
-     * Welche Kombination die rechte Spalte gerade zeigt, aendert daran
-     * nichts.
-     */
-    if (erg.anker) anzeige.anker = erg.anker;
     /*
      * >>> DAS URTEIL UEBER ALLE BAUTEILE (Entscheid vom 17. September). <<<
      *
@@ -744,22 +731,14 @@ function neuRechnen(neuZeichnen = true) {
      * Einzellastfall traegt kein Urteil. Abfangjoch, Mast und Anker haengen
      * an `erg`; sie werden dazugelegt wie oben bei `anzeige`.
      */
-    {
-      const bem = kombi.huellkurve ?? erg;
-      urteil.bauteile = bauteilUrteil({
-        ...bem,
-        abfang: erg.abfang ?? bem.abfang,
-        mast: (erg.abfang?.auflager && erg.mast) ? erg.mast : (bem.mast ?? erg.mast),
-        anker: erg.anker ?? bem.anker,
-      }, werte.nachweise, tragwerksart(werte).key);
-    }
+    urteil.bauteile = bauteilUrteil(bemessung, werte.nachweise, tragwerksart(werte).key);
 
     // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
     // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
     const auflager = mitJoch
       ? auflagerBlatt(werte, profOG, profUG, stahl, joch) : null;
 
-    letzte = { erg, anzeige, vergleich, kombi, checks, auflager, mitJoch,
+    letzte = { erg, anzeige, bemessung, vergleich, kombi, checks, auflager, mitJoch,
                warn: flucht.warnungen, hinw, kl, urteil };
 
   /* =========================================================================
@@ -975,9 +954,7 @@ function zeichneAuswertung() {
     });
     const knoten = ui.el('auswertung');
     if (tabAuswertung === 'verlauf') {
-      const bem = { ...(letzte.kombi?.huellkurve ?? letzte.erg), anker: letzte.erg.anker };
-      const zeig = anzeigeKombi === 'umhuellend' ? bem
-        : { ...letzte.anzeige, anker: letzte.erg.anker };
+      const zeig = anzeigeKombi === 'umhuellend' ? letzte.bemessung : letzte.anzeige;
       ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860));
     } else if (tabAuswertung === 'auflager') {
       ui.zeichneMastfuss(knoten, letzte.kombi);
@@ -1022,7 +999,7 @@ function zeichneAuswertung() {
      * Übersicht; was das Urteil sagt, entscheidet die Hüllkurve.
      */
     ui.zeichneUebersicht(node, erg, urteil, springeZu, station, hinw,
-                         { bemessung: kombi.huellkurve ?? null,
+                         { bemessung: kombi.huellkurve ? letzte.bemessung : null,
                            quelle: anzeigeKombi,
                            plastisch: werte.mastPlastisch === true,
                            beiFeld: (k, v) => aendern(k, v),
@@ -8652,8 +8629,7 @@ function berichtOeffnen(wahl) {
    * DIE BEMESSUNG, nicht die Anzeige: gleich welcher Lastfall oben gewaehlt
    * ist, der Bericht steht auf der Umhuellenden - wie das Urteil.
    */
-  const bem0 = letzte.kombi?.huellkurve ?? letzte.erg;
-  const bem = { ...bem0, anker: letzte.erg.anker ?? bem0.anker };
+  const bem = letzte.bemessung;
   const b = wahl.bilder;
   const mitJoch = letzte.mitJoch !== false;
   /*

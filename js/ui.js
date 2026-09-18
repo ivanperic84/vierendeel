@@ -4332,8 +4332,9 @@ export function mastenUebersichtHtml(werte) {
 export function zeichneEinzelmast(node, letzte, opt = {}) {
   const { erg, anzeige, kombi, urteil, hinw = [] } = letzte;
   const einzelLastfall = opt.quelle && opt.quelle !== 'umhuellend';
-  const bem = { ...(kombi?.huellkurve ?? erg), anker: erg?.anker };
-  const zeig = einzelLastfall ? { ...(anzeige ?? erg), anker: erg?.anker } : bem;
+  // Beide mit allen Bauteilen aus `mitBauteilen` (app.js, neuRechnen).
+  const bem = letzte.bemessung ?? kombi?.huellkurve ?? erg;
+  const zeig = einzelLastfall ? (anzeige ?? erg) : bem;
   const ampelU = (v) => (einzelLastfall ? '' : ampel(v));
   const mn = zeig?.mast?.A ?? null;
   const bt = urteil?.bauteile ?? null;

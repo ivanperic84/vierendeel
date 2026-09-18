@@ -1610,6 +1610,36 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
  *
  * @param {object} o {gut, eta, wer, urteil}
  */
+/* ===========================================================================
+ * >>> EIN ERGEBNIS MIT ALLEN BAUTEILEN - an EINER Stelle zusammengesetzt. <<<
+ * ===========================================================================
+ *
+ * Durchsicht vom 18. September, Punkt A2. Die Huellkurve und die einzelnen
+ * Lastfaelle kommen aus dem Kombinationsapparat des Tragjochs; Abfangjoch,
+ * Mast (am Abfangjoch) und Anker haengen am Bemessungsdurchgang `erg`. Sie
+ * wurden an sechs Stellen von Hand hinuebergelegt, jede ein wenig anders -
+ * und dreimal fehlte eines, und die Spalte zeigte ein Bauteil nicht, dessen
+ * Nachweis laengst gerechnet war. Dazu schrieb `anzeige.abfang = …` still in
+ * die Huellkurve selbst hinein.
+ *
+ * Die Regeln, unveraendert:
+ *   abfang  kommt immer aus `erg` (eigene Kombination im Abfangjoch)
+ *   mast    am Abfangjoch aus `erg` (auf den eigenen Auflagerkraeften);
+ *           sonst bleibt der der Basis, mit `mastErsatz` ersatzweise `erg`
+ *   anker   immer aus `erg` (charakteristische Faelle, nicht die Huellkurve)
+ *
+ * Gibt ein NEUES Objekt; die Basis bleibt unberuehrt.
+ */
+export function mitBauteilen(basis, erg, { mastErsatz = false } = {}) {
+  if (!basis) return basis;
+  const o = { ...basis };
+  if (erg?.abfang) o.abfang = erg.abfang;
+  if (erg?.abfang?.auflager && erg.mast) o.mast = erg.mast;
+  else if (mastErsatz && !o.mast && erg?.mast) o.mast = erg.mast;
+  if (erg?.anker) o.anker = erg.anker;
+  return o;
+}
+
 export function urteilFusszeile({ gut, eta, wer = '', urteil = {} }) {
   const kopf = urteil.nichtNachgewiesen
     ? `${urteil.nichtNachgewiesen} NICHT nachgewiesen`
