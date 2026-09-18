@@ -137,6 +137,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Wind (17. Sept.) | in **±x und ±y**, überall, auch für Masten und Anker; Überlagerung mit den ständigen Abfangkräften |
 | Seilanker (16. Sept.) | trägt **nur Zug**; müsste er drücken, fällt er aus und der Mast trägt allein |
 | Gesamturteil (17. Sept.) | **Maximum über alle geführten Bauteile, mit Namen** |
+| Urteilsfarbe | folgt allein der Tragsicherheit; verletzte Konstruktionsprüfungen färben nicht, werden aber in Kachel **und** Fussleiste genannt (18. Sept., `urteilFusszeile`) |
+| Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
 | NT- und Rohrausleger (26. Aug.) | **Kragarm**, Versatz in Jochachse (NT 1.20/2.40 m, Rohr 1.5/3.0 m), 50 % Wind auf den Anschluss |
 | Abfangjoch-Kern (3. Sept.) | einfacher Balken, Umrechnung auf die Gurte, Hebelarm **k**; Leiterzug in der Trägermittelebene; jeder Träger für sich nachgewiesen; die Gabel am Ende zählt im Nachweisschnitt |
@@ -147,7 +149,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4590 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4610 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -158,6 +160,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Standortauswahl nur für vorhandene Bauteile. Hintergrundzeichnung:
   Bezugspunkte aus der Szene, Einmessen über Mastlänge oder freies Mass,
   Ausrichten an Punkt. UEBERGABE.md in diese Datei überführt.
+  Fussleiste sagt dasselbe wie die Hauptkachel; P9 nur gegen liegende
+  Bleche, neu P10 (Mast zwischen den Gurten) — jedes neue Joch J70–J130
+  startete vorher mit zwei verletzten Prüfungen.
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -166,7 +171,11 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
-**Laufende Arbeit:** keine.
+**Laufende Arbeit:** J60-Bleche erfassen (Weisung 18. Sept.). J60 hat in
+`data/tragjoche.json` keine Blechangaben und rechnet mit Ersatzblechen, die
+am Ende auch ein liegendes Blech setzen — P9 fällt dort deshalb noch. Weg:
+Werkstattzeichnung J60 aus `Grundlagen/` lesen, Tabelle dem Auftraggeber
+vorlegen, erst nach Freigabe eintragen.
 
 ## Offene Punkte
 
@@ -225,7 +234,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4590 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4610 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

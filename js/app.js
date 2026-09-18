@@ -14,7 +14,7 @@ import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
-         klassifizierung } from './core.checks.js';
+         klassifizierung, urteilFusszeile } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm,
@@ -1255,7 +1255,7 @@ function aktualisiereFuss(erg, urteil, joch) {
   const wer = bt?.massgebend && bt.liste.length > 1 ? ` (${esc(bt.massgebend.name)})` : '';
   ui.el('st-urteil').innerHTML =
     `<span class="pkt" style="background:${farbe}"></span>` +
-    `${gut ? 'Alle Nachweise erfüllt' : 'Nachweis nicht erfüllt'} · η = ${e.toFixed(3)}${wer}`;
+    urteilFusszeile({ gut, eta: e, wer, urteil });
   /*
    * DIE ZEILE BESCHREIBT DAS TRAGWERK, DAS DASTEHT.
    *

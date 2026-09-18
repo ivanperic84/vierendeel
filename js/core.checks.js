@@ -15,7 +15,7 @@ import { querschnitt } from './geometry.js';
 import { klassifizierung, klassifiziereBlech,
          klassifiziereGurtprofil } from './core.klassen.js';
 import { ENDFELD_ZUSCHLAG, SCHIEFE_DAEMPFUNG } from './core.querschnitt.js';
-import { MAST_UNVERSCHIEBLICH, mastFreiraum, linkLabilitaet,
+import { MAST_UNVERSCHIEBLICH, mastFreiraum, mastLichteWeite, linkLabilitaet,
          mastImModell, federAusLinks, C_STARR } from './core.auflager.js';
 import { getFlBauteil, istKettenwerk,
          abfangkraft } from './data.fl.js';
@@ -675,7 +675,7 @@ export function konstruktionsChecks(m, ab = null) {
     if (!fr || fr.grenze === null) return;
     checks.push(pruef(
       `P9${ende}`,
-      `Mast ${ende} neben den Bindeblechen`,
+      `Mast ${ende} neben den liegenden Bindeblechen`,
       Math.round(fr.achse * 1000) / 1000,
       Math.round(fr.grenze * 1000) / 1000,
       'm',
@@ -683,7 +683,25 @@ export function konstruktionsChecks(m, ab = null) {
       fr.frei > 0.001
         ? `OK, noch ${(fr.frei * 1000).toFixed(0)} mm bis zum Blech`
         : 'OK, Flansch liegt am Blech an',
-      `Mast steht ${Math.abs(fr.frei * 1000).toFixed(0)} mm im Bindeblech`));
+      `Mast steht ${Math.abs(fr.frei * 1000).toFixed(0)} mm im liegenden Bindeblech`));
+  });
+  /*
+   * P10 - DER MAST PASST ZWISCHEN DIE GURTE (Weisung vom 18. September).
+   * Wo sich der Grundriss verjuengt, wird die Gabel enger; rueckt der Mast
+   * mit dem Kragarm nach innen, kann er an den Gurten anstehen.
+   */
+  ['A', 'B'].forEach((ende) => {
+    const lw = mastLichteWeite(m, ende);
+    if (!lw) return;
+    checks.push(pruef(
+      `P10${ende}`,
+      `Mast ${ende} zwischen den Gurten`,
+      Math.round(lw.noetig * 1000),
+      Math.round(lw.licht * 1000),
+      'mm',
+      '<=',
+      `OK, ${(lw.frei * 1000).toFixed(0)} mm Luft`,
+      `Mast steht ${Math.abs(lw.frei * 1000).toFixed(0)} mm in den Gurten`));
   });
 
   const traegerTeile = (m.anbauteile ?? []).filter((a) => {
@@ -1520,6 +1538,27 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
     // die Tragsicherheit mehr - und darf auch nicht als eine auftreten.
     tragwerkGefuehrt: nw.jochtragwerk === true,
   };
+}
+
+/**
+ * Die Urteilszeile der Fussleiste - dieselbe Aussage wie die Hauptkachel.
+ *
+ * Die Fussleiste sagte «Alle Nachweise erfüllt», während die Kachel darüber
+ * «2 Prüfung(en) verletzt · 2 Nachweis(e) nicht geführt» meldete. Die Farbe
+ * folgt weiter allein der Tragsicherheit (Weisung: verletzte
+ * Konstruktionsregeln färben nicht); verschwiegen wird aber nichts.
+ *
+ * @param {object} o {gut, eta, wer, urteil}
+ */
+export function urteilFusszeile({ gut, eta, wer = '', urteil = {} }) {
+  const kopf = urteil.tragwerkGefuehrt === false
+    ? 'Jochtragwerk nicht geführt'
+    : (gut ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt');
+  const n = urteil.anzahlVerletzt ?? 0;
+  const offen = urteil.nichtGefuehrt?.length ?? 0;
+  return `${kopf} · η = ${eta.toFixed(3)}${wer}`
+    + (n ? ` · ${n} ${n === 1 ? 'Prüfung' : 'Prüfungen'} verletzt` : '')
+    + (offen ? ` · ${offen} nicht geführt` : '');
 }
 
 /* ===========================================================================

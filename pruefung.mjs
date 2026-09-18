@@ -14758,7 +14758,7 @@ titel('55  Der Mast darf nach innen ruecken');
   wahr('P9 ist erfuellt, solange nichts ueberschneidet', p9(m4).ok === true);
   wahr('P9 faellt beim Ueberschnitt', p9(mach(0.7)).ok === false);
   wahr('\u2026 und sagt, wie weit er im Blech steht',
-       /130 mm im Bindeblech/.test(p9(mach(0.7)).status), p9(mach(0.7)).status);
+       /130 mm im liegenden Bindeblech/.test(p9(mach(0.7)).status), p9(mach(0.7)).status);
 
   /* =======================================================================
    * >>> UND ZWAR IN JEDEM FELD, NICHT NUR IM ENDFELD. <<<
@@ -14807,7 +14807,7 @@ titel('55  Der Mast darf nach innen ruecken');
    */
   wahr('Im inneren Blech faellt er', p9(mach(2.2)).ok === false);
   wahr('\u2026 und die Meldung nennt das Mass',
-       /130 mm im Bindeblech/.test(p9(mach(2.2)).status), p9(mach(2.2)).status);
+       /130 mm im liegenden Bindeblech/.test(p9(mach(2.2)).status), p9(mach(2.2)).status);
 
   // --- Ausleitung --------------------------------------------------------
   // DAS EIGENTLICHE ZIEL: Ersatzbalken und FEM-Modell muessen dasselbe
@@ -24675,6 +24675,71 @@ titel('79  Einzelmast: keine Anschlusshoehe, Standorte nur was da ist');
   wahr('Mast mit Tragausleger: Ausleger und sein Mast',
        orte({ ...standardwerte(), tragwerksart: 'tragausleger', mastVorhanden: true })
          === 'joch,mastA');
+}
+
+titel('80  Die Fussleiste sagt dasselbe wie die Hauptkachel');
+// Befund vom 18. September: unten «Alle Nachweise erfüllt», oben
+// «2 Prüfung(en) verletzt · 2 Nachweis(e) nicht geführt».
+{
+  const { urteilFusszeile } = await import(J('core.checks.js'));
+  const u = { anzahlVerletzt: 2, nichtGefuehrt: [{}, {}], tragwerkGefuehrt: true };
+  const z = urteilFusszeile({ gut: true, eta: 0.89, wer: ' (Mast M1)', urteil: u });
+  wahr('Kein «Alle Nachweise erfüllt» mehr', !/Alle Nachweise/.test(z), z);
+  wahr('Verletzte Prüfungen stehen in der Zeile', /2 Prüfungen verletzt/.test(z), z);
+  wahr('Nicht geführte Nachweise stehen in der Zeile', /2 nicht geführt/.test(z), z);
+  wahr('Das massgebende Bauteil bleibt', /η = 0\.890 \(Mast M1\)/.test(z), z);
+  const leer = urteilFusszeile({ gut: true, eta: 0.5,
+    urteil: { anzahlVerletzt: 0, nichtGefuehrt: [], tragwerkGefuehrt: true } });
+  wahr('Ohne Befund keine Anhängsel', leer === 'Tragsicherheit erfüllt · η = 0.500', leer);
+  wahr('Einzahl bei einer Prüfung',
+       /1 Prüfung verletzt/.test(urteilFusszeile({ gut: true, eta: 0.5,
+         urteil: { anzahlVerletzt: 1 } })));
+  wahr('Überschritten heisst NICHT erfüllt',
+       /Tragsicherheit NICHT erfüllt/.test(urteilFusszeile({ gut: false, eta: 1.2, urteil: u })));
+  wahr('Ohne Jochnachweis kein Tragsicherheitsurteil',
+       /^Jochtragwerk nicht geführt/.test(urteilFusszeile({ gut: true, eta: 0.5,
+         urteil: { tragwerkGefuehrt: false } })));
+}
+
+titel('81  Der Mast trifft nur liegende Bleche und die Gurte');
+// Weisung vom 18. September: «am jochende sind nur die stehenden vertikalen
+// bindebleche vorhanden … als voreingabe sollte die mastachse genau auf die
+// jochlänge ausgerichtet sein … beachtet werden, dass der masten nicht auf
+// ein liegendes blech trifft, oder bei den kleinen jochtypen wo sich die
+// breite verjüngt nicht mit den gurten kollidiert.»
+{
+  const CH = await import(J('core.checks.js'));
+  const AU = await import(J('core.auflager.js'));
+  const mach = (typ, L, kragA, mastProfil = 'HEB 240', mastSteg = 'jochachse') => rechne({
+    ...basis(), ...typUebernehmen({ ...standardwerte() }, T.getTragjoch(typ)),
+    typ, L, kragA, kragB: 0, anbauteile: [], mastVorhanden: true,
+    endbedingung: 'mast', mastProfil, mastSteg, mastH: 7.5,
+  }).modell;
+  const p = (m, id) => CH.konstruktionsChecks(m).find((c) => c.id === id);
+
+  const m0 = mach('J90', 20, 0);
+  wahr('Am Jochende steht ein stehendes Blech …',
+       (m0.stationsListe[0].vertikal?.breite ?? 0) > 0);
+  wahr('… aber kein liegendes', !(m0.stationsListe[0].horizontal?.breite > 0));
+  wahr('Die Vorgabe (Mastachse am Jochende) besteht P9', p(m0, 'P9A').ok === true,
+       p(m0, 'P9A').status);
+  wahr('Ebenso am Ende B', p(m0, 'P9B').ok === true, p(m0, 'P9B').status);
+  wahr('Ins erste liegende Blech (0.75 m) gerückt, fällt er',
+       p(mach('J90', 20, 0.75), 'P9A').ok === false);
+
+  // Lichte Weite: aussen 520 - 2 x 90 = 340 mm am Ende, 260 mm im Feld.
+  const lw0 = AU.mastLichteWeite(m0, 'A');
+  pruef('Lichte Weite am Jochende J90', lw0.licht, 0.34, 1e-9, 'm');
+  wahr('P10 am Ende erfüllt', p(m0, 'P10A').ok === true, p(m0, 'P10A').status);
+  const lw2 = AU.mastLichteWeite(mach('J90', 20, 2.0, 'HEB 260'), 'A');
+  pruef('Im Feld verjüngt auf 260 mm', lw2.licht, 0.26, 1e-9, 'm');
+  wahr('HEB 260 liegt dort an und besteht', lw2.ok === true);
+  // HEM 240 mit Steg längs zum Gleis: 270 mm quer - zu breit für das Feld.
+  const mQ = mach('J90', 20, 2.0, 'HEM 240', 'quer');
+  pruef('HEM 240, Steg längs: 270 mm quer', AU.mastBreiteQuer(mQ, 'A'), 0.27, 1e-9, 'm');
+  wahr('… und P10 meldet die Kollision mit den Gurten', p(mQ, 'P10A').ok === false,
+       p(mQ, 'P10A').status);
+  wahr('Am Ende passt derselbe Mast', p(mach('J90', 20, 0, 'HEM 240', 'quer'), 'P10A').ok === true);
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

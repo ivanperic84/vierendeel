@@ -892,10 +892,20 @@ export function jochAnteile(m) {
  * Steht der Mast im Blech, gibt es zwei Wege heraus - nach aussen und nach
  * innen. Genannt wird der kuerzere, und `op` sagt, in welche Richtung er
  * zeigt. Vorher war es immer "weiter aussen", weil es nur eine Richtung gab.
+ *
+ * >>> NUR DIE LIEGENDEN BLECHE (Weisung vom 18. September). <<<
+ *
+ * «am jochende sind nur die stehenden vertikalen bindebleche vorhanden …
+ * da sollte dann beachtet werden, dass der masten nicht auf ein liegendes
+ * blech trifft.» Die stehenden Bleche liegen in den Seitenebenen, in der
+ * Flucht der Schenkel; der Mast steht zwischen ihnen wie in einer Gabel.
+ * Kreuzen kann seinen Weg nur ein liegendes Blech. Bis hierher wurden die
+ * stehenden gezaehlt - und das stehende Blech am Ende jedes neuen Jochs
+ * J70-J130 liess P9 bei der Vorgabe (Mastachse am Jochende) immer fallen.
  * ========================================================================= */
 
 /**
- * Freiraum der Mastachse zwischen den Bindeblechen.
+ * Freiraum der Mastachse zwischen den liegenden Bindeblechen.
  *
  * @returns {null|{achse, tiefe, grenze, blech, frei, op, ueberschnitt}}
  *   grenze       naechstgelegene noch zulaessige Lage der Achse [m]
@@ -909,9 +919,9 @@ export function mastFreiraum(m, ende = 'A', sperren = null) {
   if (!md?.profil) return null;
   const halb = mastTiefe(m, ende) / 2;
   const achse = mastAchse(m, ende);
-  // Bleche in Jochachse, ohne Zugabe: anliegend ist zulaessig.
+  // Liegende Bleche in Jochachse, ohne Zugabe: anliegend ist zulaessig.
   const liste = sperren ?? (m.stationsListe ?? []).map((s) => {
-    const b = ((s.vertikal?.breite ?? 0) / 1000) / 2;
+    const b = ((s.horizontal?.breite ?? 0) / 1000) / 2;
     return b > 0 ? { von: s.x - b, bis: s.x + b } : null;
   }).filter(Boolean);
 
@@ -951,6 +961,44 @@ export function mastFreiraum(m, ende = 'A', sperren = null) {
 
 /** Auf Mikrometer - sonst traegt eine Kante ihre Fliesskomma-Ausfransung. */
 const r3 = (v) => Math.round(v * 1e6) / 1e6;
+
+/** Ausdehnung des Mastes quer zur Jochachse [m] - das Gegenstueck zu mastTiefe. */
+export function mastBreiteQuer(m, ende = 'A') {
+  const md = mastVon(m, ende);
+  if (!md?.profil) return 0;
+  const p = md.profil;
+  return ((md.stegrichtung?.achse === 'y' ? p.b : p.h) ?? 0) / 1000;
+}
+
+/**
+ * Passt der Mast zwischen die Gurte? (Weisung vom 18. September)
+ *
+ * «bei den kleinen jochtypen wo sich die breite verjüngt nicht mit den
+ * gurten kollidiert.» Die lichte Weite ist die Aussenbreite am Ort minus
+ * zwei Schenkelbreiten (wie `schwerpunktsabstaende`); sie wird ueber den
+ * Fussabdruck des Mastes innerhalb des Jochs abgesucht, an Ober- und
+ * Untergurt, und die engste Stelle zaehlt.
+ *
+ * @returns {null|{noetig, licht, frei, ok}} [m]; null ohne Mast oder Typ
+ */
+export function mastLichteWeite(m, ende = 'A') {
+  const md = mastVon(m, ende);
+  const j = m?.joch;
+  if (!md?.profil || !j?.og?.ja || !j?.ug?.ja || typeof m.jbbAn !== 'function') return null;
+  const L = m.L ?? 0;
+  const achse = mastAchse(m, ende);
+  const halb = mastTiefe(m, ende) / 2;
+  const von = Math.max(0, achse - halb), bis = Math.min(L, achse + halb);
+  let licht = Infinity;
+  const schritte = 20;
+  for (let k = 0; k <= schritte; k++) {
+    const w = m.jbbAn(von + ((bis - von) * k) / schritte);
+    licht = Math.min(licht, (w.og - 2 * j.og.ja) / 1000, (w.ug - 2 * j.ug.ja) / 1000);
+  }
+  const noetig = mastBreiteQuer(m, ende);
+  return { noetig: r3(noetig), licht: r3(licht), frei: r3(licht - noetig),
+           ok: licht - noetig >= -1e-9 };
+}
 
 /* ===========================================================================
  * DIE AUFLAGERBEDINGUNG AM MASTEN - JE GURTEBENE EINE
