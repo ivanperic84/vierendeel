@@ -103,8 +103,10 @@ function blattEingabe(werte, erg) {
     rows.push([K('Grösse'), K('Wert'), K('Einheit'), K('Bemerkung')]);
     const md = m.federn?.mastA ?? m.federn?.mast;
     if (md) {
-      [['Profil', md.profil.name], ['Höhe bis Anschluss H', md.H, 'm'],
-       ['Gesamtlänge', md.laenge, 'm'], ['Überstand', md.ueberstand, 'm'],
+      // Keine Anschlusshoehe und kein Ueberstand beim Einzelmasten (18.
+      // September): er rechnet frei vom Fuss bis zum Kopf.
+      [['Profil', md.profil.name],
+       ['Gesamtlänge', md.laenge, 'm', 'Fuss bis Kopf'],
        ['Stegrichtung', md.stegrichtung.label ?? md.stegrichtung.key],
        ['Trägheitsmoment I', md.I_cm4, 'cm⁴', 'starke Achse quer'],
        ['Widerstandsmoment W', md.W_cm3, 'cm³', 'starke Achse quer'],

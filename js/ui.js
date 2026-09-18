@@ -21,7 +21,7 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
 // Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
 // Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
 // einen Wert zeigt.
-import { mastLaengeVorgabe } from './core.auflager.js';
+import { mastLaengeVorgabe, mastImModell } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich } from './data.abfangjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
@@ -1296,7 +1296,7 @@ return querprofilLeisteHtml(werte)
       ? `<button type="button" class="btn-icon btn-icon-weg"
            data-tw-weg="${esc(aktiv.id)}"
            aria-label="Entfernen"
-           title="${esc(`${tragwerkName(aktiv)} vom Blatt nehmen`)}"
+           title="${esc(`${tragwerkName(aktiv, werte)} vom Blatt nehmen`)}"
            >${icon('loeschen', 14)}</button>` : '')
     + '</span>'
     + '</div>';
@@ -1532,7 +1532,7 @@ export function querprofilLeisteHtml(werte) {
         ><span class="qp-art">${esc(tragwerkPos(werte, t))} · ${
             esc(art.kuerzel)}${
             t.id === etaLeiste?.twId ? etaMarke(etaLeiste.tragwerk)
-              : etaMarke(NaN)}</span>${esc(tragwerkName(t))}</button>
+              : etaMarke(NaN)}</span>${esc(tragwerkName(t, werte))}</button>
       <span class="qp-bahn${massLinks || massRechts ? ' qp-bahn-mass' : ''}">
         <button type="button" class="qp-linie${an ? ' an' : ''}"
           data-qp-tw="${esc(t.id)}"
@@ -1737,8 +1737,12 @@ export function querprofilLeisteHtml(werte) {
      * nichts sagt, macht die Zeile nur laenger.
      */
     const mm = mastMasse(m);
+    // Traegt er nur Einzelmasten, schliesst nichts an - H waere eine Zahl
+    // ohne Bedeutung (Weisung, 18. September).
+    const nurEinzel = traegt.length > 0 && traegt.every((id) =>
+      tragwerksart(alle.find((y) => y.id === id)).key === 'einzelmast');
     const untenZeile = [
-      mm.H > 0 ? `H ${mm.H.toFixed(2)} m` : null,
+      mm.H > 0 && !nurEinzel ? `H ${mm.H.toFixed(2)} m` : null,
       Math.abs(mm.fuss) > 1e-9
         ? `Fuss ${mm.fuss > 0 ? '+' : '−'}${Math.abs(mm.fuss).toFixed(2)} m`
         : null,
@@ -2068,13 +2072,44 @@ export function feldHtml(f, wert, werte) {
  *
  * Hier bekommen sie den Namen, unter dem der Mast ueberall sonst steht.
  */
-function anbauOrte(werte) {
+/*
+ * >>> NUR WAS DA IST (Weisung, 18. September). <<<
+ *
+ * «Die Standortauswahl nur auf vorhandene Elemente beziehen.» Der Einzelmast
+ * bot «am Joch» und «am Mast Ende B» an - er hat weder das eine noch das
+ * andere. Ein Teil dort hinzuhaengen, rechnete still an einer Stelle, die es
+ * nicht gibt.
+ *
+ *   Joch          jede Art mit Traeger (Tragjoch, Abfangjoch, Tragausleger)
+ *   Mast Ende A   sobald das Tragwerk auf Masten steht, beim Einzelmast immer
+ *   Mast Ende B   nur mit zwei Masten
+ *
+ * Steht ein Teil schon an einer Stelle, die es nicht mehr gibt - das
+ * Tragwerk wurde umgestellt -, bleibt sie in der Liste, als solche
+ * bezeichnet. Sonst zeigte die Auswahl einen anderen Ort, als gerechnet wird.
+ */
+export function anbauOrteVorhanden(werte) {
+  const art = tragwerksart(werte);
+  const masten = art.key === 'einzelmast' ? 1
+    : (mastImModell(werte) ? art.masten : 0);
+  return ANBAU_ORTE.filter((o) => (o.key === 'joch' ? art.traeger === true
+    : o.key === 'mastA' ? masten >= 1 : masten >= 2)).map((o) => o.key);
+}
+
+function anbauOrte(werte, aktuell = null) {
   const t = tragwerkeVon(werte)[0];
-  return ANBAU_ORTE.map((o) => {
-    if (o.key === 'joch') return o;
-    const n = mastNameAmEnde(werte, t, o.key === 'mastB' ? 'B' : 'A');
-    return n ? { ...o, label: `am Masten ${n}` } : o;
-  });
+  const da = anbauOrteVorhanden(werte);
+  return ANBAU_ORTE
+    .filter((o) => da.includes(o.key) || o.key === aktuell)
+    .map((o) => {
+      const fehlt = !da.includes(o.key);
+      let label = o.label;
+      if (o.key !== 'joch') {
+        const n = mastNameAmEnde(werte, t, o.key === 'mastB' ? 'B' : 'A');
+        if (n) label = `am Masten ${n}`;
+      }
+      return { ...o, label: fehlt ? `${label} (nicht vorhanden)` : label };
+    });
 }
 
 /** Farbmarke je Vorlagenart, passend zur 3D-Darstellung. */
@@ -2117,7 +2152,14 @@ const BEFESTIGUNG_WIRKUNG = {
 };
 
 function anbauteileHtml(g, werte) {
-  const liste = (werte.anbauteile ?? []).map(normalisiereAnbauteil);
+  /*
+   * BEIM EINZELMAST HAENGT ALLES AM MASTEN - so rechnet ihn der Kern
+   * (core.vierendeel.js, modellEinzelmast), auch wenn im Teil noch «am Joch»
+   * steht. Die Karte zeigt, was gerechnet wird: den Masten und die Hoehe.
+   */
+  const einzelmast = tragwerksart(werte).key === 'einzelmast';
+  const liste = (werte.anbauteile ?? []).map(normalisiereAnbauteil)
+    .map((a) => (einzelmast && ortVon(a) === 'joch' ? { ...a, ort: 'mastA' } : a));
   /*
    * >>> VIERZEHN GLEICHE KACHELN SIND EINE LISTE, KEINE AUSWAHL. <<<
    *
@@ -2268,7 +2310,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         ${klapp(`at-skizze-${i}`, 'Lage im Querschnitt',
                 anbauteilSkizzeFuer(a, werte), '', true)}
         <div class="at-gitter">
-          ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte),
+          ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte, ortVon(a)),
                    'Am Joch zählt die Lage x, am Masten die Höhe über Fundament. '
                    + 'Was am Masten hängt, geht NICHT in den Ersatzbalken ein — '
                    + 'es steht nur im Stabmodell mit Auflagermodell «Mast».')}

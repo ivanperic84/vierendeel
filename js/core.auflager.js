@@ -279,6 +279,35 @@ export function mastLaengeVorgabe(H, jd = 0) {
   return Math.round(Math.ceil(roh / MAST_RASTER) * MAST_RASTER * 1000) / 1000;
 }
 
+/**
+ * >>> BEIM EINZELMAST REGIERT DIE LAENGE. <<<
+ *
+ * Weisung vom 18. September: die Anschlusshoehe ist beim Einzelmasten «nicht
+ * relevant, ausblenden». Es gibt kein Joch, das irgendwo anschliesst; der
+ * Mast ist ein Kragarm vom Fuss bis zum Kopf, und seine Anbauteile stehen
+ * mit ihrer eigenen Hoehe ueber Fundament.
+ *
+ * Die Hoehe H blieb trotzdem im Satz stehen (Vorgabe 7.50 m) und wirkte an
+ * zwei Stellen weiter: war sie groesser als die Laenge, rechnete der Mast
+ * still mit H statt mit seiner Laenge, und im Stabilitaetsnachweis setzte
+ * sie die Massen auf ihre Hoehe. Hier wird sie deshalb aus der Laenge
+ * genommen - Fuss bis Kopf, gemessen vom Fuss.
+ *
+ * Ohne eingegebene Laenge gilt die Vorgabe aus der alten Hoehe: eine Datei,
+ * in der nie eine Laenge stand, rechnet mit derselben Laenge wie bisher.
+ *
+ * @returns {number} Laenge Fuss bis Kopf [m]
+ */
+export function einzelmastLaenge(inp) {
+  const roh = Number(inp?.mastLaenge) || 0;
+  if (roh > 0) return roh;
+  const fuss = Number(inp?.mastFuss) || 0;
+  return mastLaengeVorgabe((Number(inp?.mastH) || 0) - fuss, inp?.jd);
+}
+
+/** Ist dieser Satz ein Einzelmast? (ohne core.constants - kein Kreis) */
+export const istEinzelmast = (inp) => inp?.tragwerksart === 'einzelmast';
+
 export const MASTANSCHLUESSE = [
   { key: 'durchlaufend', faktor: 1.45,
     label: 'Mast durchlaufend, Anschluss über die Jochhöhe (c_φ = 1.45·E·I/H)' },
@@ -385,14 +414,18 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    */
   const rohLaenge = zwei ? (inp.mastLaengeB || inp.mastLaenge || 0)
                          : (inp.mastLaenge || 0);
-  const laenge = rohLaenge > 0 ? rohLaenge : mastLaengeVorgabe(H, inp?.jd);
-  const ueberstand = Math.max(0, laenge - H);
+  let laenge = rohLaenge > 0 ? rohLaenge : mastLaengeVorgabe(H, inp?.jd);
+  // Einzelmast: frei vom Fuss bis zum Kopf, kein Anschluss dazwischen.
+  const einzel = istEinzelmast(inp);
+  if (einzel) laenge = einzelmastLaenge(inp);
+  const Hfrei = einzel ? laenge : H;
+  const ueberstand = Math.max(0, laenge - Hfrei);
   const I_cm4 = sr.achse === 'y' ? p.Iy : p.Iz;
   const W_cm3 = sr.achse === 'y' ? p.Wy : p.Wz;
   const I = I_cm4 * 1e-8;                       // cm4 -> m4
   const an = MASTANSCHLUESSE.find((a) => a.key === (inp.mastAnschluss ?? 'durchlaufend'))
     ?? MASTANSCHLUESSE[0];
-  const cKragarm = (E_STAHL * I) / H;           // kNm/rad
+  const cKragarm = (E_STAHL * I) / Hfrei;       // kNm/rad
   // Die ANDERE Achse: sie trägt die Biegung des Mastes in GLEISRICHTUNG und
   // bestimmt damit, wie der Mastkopf sich um die JOCHACHSE verdrehen kann.
   const Iq_cm4 = sr.achse === 'y' ? p.Iz : p.Iy;
@@ -412,10 +445,10 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    * sind die SCHNITTGROESSEN im Masten - und die stehen in core.mast.js.
    */
   const anker = (ende === 'B' ? inp.mastAnkerB : inp.mastAnkerA) ?? null;
-  return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H, laenge, ueberstand, ende,
+  return { profil: p, stegrichtung: sr, I_cm4, W_cm3, I, H: Hfrei, laenge, ueberstand, ende,
            // Die Anschlusshoehe steht daneben - sie beschriftet das Bild und
            // traegt den Hoehenversatz der Jochreihe (siehe oben).
-           HAnschluss: HAn, fuss,
+           HAnschluss: einzel ? laenge + fuss : HAn, fuss, einzel,
            anker,
            anschluss: an.key, faktor: an.faktor,
            cKragarm,

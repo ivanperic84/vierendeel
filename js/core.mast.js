@@ -951,7 +951,18 @@ export function mastStabilitaet(s, m, o = {}) {
    * 0.561 L. Gesetzt ist der Schwerpunkt, weil die Weisung ihn nennt; hier
    * steht, was das bedeutet.
    * ===================================================================== */
-  const zAnschluss = (s.H > 0 ? s.H : L);
+  /*
+   * >>> BEIM EINZELMAST JEDES AUF SEINER HOEHE (Entscheid, 18. September). <<<
+   *
+   * Die Weisung vom 13. September weist die Massen beim Einzelmasten «den
+   * auslegern (anschlusshöhe)» zu. Eine Anschlusshoehe des Masten gibt es
+   * dort nicht - die Eingabe ist ausgeblendet, weil kein Joch anschliesst -,
+   * wohl aber die des Auslegers: die Hoehe, auf der er am Masten befestigt
+   * ist. Auf Nachfrage entschieden: jede Masse auf der Hoehe ihres
+   * Anbauteils, nicht gesammelt auf dem hoechsten und nicht auf dem Kopf.
+   */
+  const einzel = m?.tragwerksart === 'einzelmast';
+  const zAnschluss = einzel ? 0 : (s.H > 0 ? s.H : L);
   /*
    * >>> AUF DIE ANSCHLUSSHOEHE - ABER NIE NACH UNTEN. <<<
    *
@@ -985,12 +996,17 @@ export function mastStabilitaet(s, m, o = {}) {
   const darueber = punkte.filter((x) => x.z > zAnschluss + 1e-9)
     .sort((a, b) => b.z - a.z);
   const PAn = aufAnschluss.reduce((a, x) => a + x.P, 0);
-  if (PAn > 1e-9) {
+  if (einzel) {
+    punkte.forEach((x) => massen.push({
+      name: x.name, z: x.z, P: x.P, herkunft: 'eigene Befestigungshöhe' }));
+  } else if (PAn > 1e-9) {
     massen.push({ name: 'Anbauteile und Jochlast', z: Math.min(zAnschluss, L),
                   P: PAn, herkunft: 'Anschlusshöhe' });
   }
-  darueber.forEach((x) => massen.push({
-    name: x.name, z: x.z, P: x.P, herkunft: 'eigene Höhe, über dem Anschluss' }));
+  if (!einzel) {
+    darueber.forEach((x) => massen.push({
+      name: x.name, z: x.z, P: x.P, herkunft: 'eigene Höhe, über dem Anschluss' }));
+  }
   /*
    * >>> WAS ÜBER DEM ANSCHLUSS SITZT, WIRD HERUNTERGESETZT. <<<
    *
@@ -1005,7 +1021,8 @@ export function mastStabilitaet(s, m, o = {}) {
    * Auftraggebers, und eine stille Abweichung davon wäre schlimmer als die
    * Abweichung selbst.
    */
-  const ueberAnschluss = darueber
+  // Beim Einzelmast gibt es keinen Anschluss, ueber dem etwas stehen koennte.
+  const ueberAnschluss = einzel ? [] : darueber
     .map((x) => ({ name: x.name, z: x.z, Fz: x.P }));
   /* =======================================================================
    * >>> DAS EIGENGEWICHT BLEIBT VERTEILT. <<<
@@ -1235,7 +1252,7 @@ export function mastStabilitaet(s, m, o = {}) {
      * stehen. Der Bericht fuehrt genau diese Liste auf; ohne sie waere
      * `zN` eine Zahl ohne Herkunft.
      */
-    massen, zAnschluss, ueberAnschluss,
+    massen, zAnschluss: einzel ? null : zAnschluss, ueberAnschluss,
     NEd, MqEd, MlEd, MyEd, MzEd, NRk, MRq, MRl, MRy, MRz,
     NcrY, NcrZ, lamY, lamZ, chiY, chiZ, alphaY, alphaZ,
     knicklinie: { y: schlank ? 'a' : 'b', z: schlank ? 'b' : 'c' },

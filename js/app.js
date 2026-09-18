@@ -92,7 +92,7 @@ import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
          ladeMasten, mastenDB, setzeMastenDB } from './data.masten.js';
-import { mastImModell, mastLaengeVorgabe } from './core.auflager.js';
+import { mastImModell, mastLaengeVorgabe, einzelmastLaenge } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
 import { pwaEinrichten, kannInstallieren, installiere, alsProgramm,
@@ -1268,7 +1268,8 @@ function aktualisiereFuss(erg, urteil, joch) {
   const mast = erg.modell.federn?.mastA ?? erg.modell.federn?.mast;
   if (erg.modell.tragwerksart === 'einzelmast') {
     ui.el('st-modell').textContent = mast
-      ? `${mast.profil.name} · ${mast.H.toFixed(2)} m bis Anschluss`
+      // Ohne Anschlusshoehe (18. September): die Laenge, Fuss bis Kopf.
+      ? `${mast.profil.name} · ${mast.laenge.toFixed(2)} m Fuss bis Kopf`
         + ` · ${mast.stegrichtung.label ?? mast.stegrichtung.key}`
       : 'Kein Mastprofil gewählt';
     return;
@@ -3260,7 +3261,18 @@ let setzen = null;
  * waeren zwei Orte, an denen dieselbe Festlegung steht - und genau das ist
  * schiefgegangen (siehe dort).
  */
-const hebungVon = (t) => Number(tragwerkSatz(werte, t?.id).mastH) || 0;
+/*
+ * BEIM EINZELMAST DIE LAENGE (18. September): seine Szene steht mit dem Kopf
+ * auf z = 0 und dem Fuss bei -Laenge (core.auflager.js, einzelmastLaenge).
+ * Mit der ausgeblendeten Hoehe angehoben, stuende er um den Unterschied
+ * neben dem Fuss.
+ */
+const hebungVon = (t) => {
+  const s = tragwerkSatz(werte, t?.id);
+  return tragwerksart(s).key === 'einzelmast'
+    ? einzelmastLaenge(s) + (Number(s.mastFuss) || 0)
+    : Number(s.mastH) || 0;
+};
 
 /**
  * >>> DIE EIGENEN KACHELN AUS EINEM ALTEN STAND EINSAMMELN. <<<
@@ -7139,10 +7151,10 @@ function kontextTragwerk(id) {
    * erster Stelle: was man am haeufigsten will, wenn man ein Bauteil
    * anklickt, ist es zu aendern.
    */
-  p.push({ text: `${tragwerkName(t)} bearbeiten …`,
+  p.push({ text: `${tragwerkName(t, werte)} bearbeiten …`,
            tun: () => dialogTragwerk(id) });
   if (!aktiv && !versteckt(t)) {
-    p.push({ text: `${tragwerkName(t)} rechnen`,
+    p.push({ text: `${tragwerkName(t, werte)} rechnen`,
              tun: () => aendern('tragwerkAktiv', id) });
   }
   if (versteckt(t)) {
@@ -7227,7 +7239,7 @@ function kontextTragwerk(id) {
   p.push({ feld: { art: 'zahl', label: 'Lage x₀', einheit: 'm', schritt: 0.05,
                    wert: lageVon(t) },
            tun: (v) => aendern('tragwerkLage', { id, x: v }) });
-  p.push({ text: `${tragwerkName(t)} kopieren`, tun: () => tragwerkKopieren(id) });
+  p.push({ text: `${tragwerkName(t, werte)} kopieren`, tun: () => tragwerkKopieren(id) });
   p.push({ text: 'Auf dieses zoomen', tun: () => zoomAufTragwerk(id) });
   if (alle.length > 1) {
     p.push({ text: 'Vom Blatt nehmen', warn: true,
@@ -7345,7 +7357,7 @@ function kontextMast(mastId, twId) {
    */
   if (t && tragwerksart(t).traeger) {
     p.push('-');
-    p.push({ text: `Masten von ${tragwerkPos(werte, t)} (${tragwerkName(t)}) `
+    p.push({ text: `Masten von ${tragwerkPos(werte, t)} (${tragwerkName(t, werte)}) `
       + (t.mastVorhanden === false ? 'einschalten' : 'ausschalten'),
       tun: () => aendern('tragwerkMasten', t.id) });
   }
@@ -7885,7 +7897,18 @@ function dialogMast(mastId) {
    * 5. September ist die Vorgabe H + 0.50 m. Das Feld zeigt deshalb, was
    * gilt - und sagt daneben, woher es kommt.
    */
-  const laengeVorgabe = () => Math.round((e.H + 0.5) * 100) / 100;
+  /*
+   * EIN MAST, DER NUR EINZELMASTEN TRAEGT, hat keine Anschlusshoehe
+   * (Weisung, 18. September) - es schliesst kein Joch an. Er rechnet mit
+   * seiner Laenge; ohne eigene Angabe mit der, die der Kern nimmt.
+   */
+  const traegt = (m.traegt ?? []).map((id) => tragwerkeSortiert(werte)
+    .find((t) => t.id === id)).filter(Boolean);
+  const nurEinzel = traegt.length > 0
+    && traegt.every((t) => tragwerksart(t).key === 'einzelmast');
+  const laengeVorgabe = () => (nurEinzel
+    ? einzelmastLaenge({ ...werte, mastH: e.H, mastLaenge: 0 })
+    : Math.round((e.H + 0.5) * 100) / 100);
 
   const koerper = () => `
     <div class="feld"><label for="dlg-m-profil">Mastprofil</label>
@@ -7908,18 +7931,21 @@ function dialogMast(mastId) {
         entscheidet, ob die starke oder die schwache Achse das Joch
         hält.</small></div>
 
-    <div class="feld"><label for="dlg-m-h">Anschlusshöhe</label>
+    ${nurEinzel ? '' : `<div class="feld"><label for="dlg-m-h">Anschlusshöhe</label>
       <input id="dlg-m-h" type="number" step="0.1" min="2" max="20"
              value="${e.H.toFixed(2)}">
       <small class="hinweis">m · über dem Mastfuss. Dieselbe Zahl steht im
-        Fenster des Tragwerks.</small></div>
+        Fenster des Tragwerks.</small></div>`}
 
     <div class="feld"><label for="dlg-m-l">Mastlänge gesamt</label>
       <input id="dlg-m-l" type="number" step="0.1" min="2" max="25"
              value="${(e.laenge > 0 ? e.laenge : laengeVorgabe()).toFixed(2)}">
-      <small class="hinweis">m · Fuss bis Kopf. Ohne eigene Angabe gilt
+      <small class="hinweis">${nurEinzel
+        ? 'm · Fuss bis Kopf. Der Einzelmast rechnet mit dieser Länge; die '
+          + 'Anbauteile stehen mit ihrer Höhe über Fundament.'
+        : `m · Fuss bis Kopf. Ohne eigene Angabe gilt
         Anschlusshöhe + 0.50 m, hier also
-        ${laengeVorgabe().toFixed(2)} m.</small></div>
+        ${laengeVorgabe().toFixed(2)} m.`}</small></div>
 
     <div class="feld"><label for="dlg-m-x">Lage auf dem Querprofil</label>
       <input id="dlg-m-x" type="number" step="0.05" value="${e.x.toFixed(2)}">
@@ -8143,7 +8169,7 @@ function dialogTragwerk(id = null, artVor = null) {
   };
 
   const d = dialog(neuesTragwerk ? 'Neues Tragwerk'
-                                 : `${tragwerkName(t)} bearbeiten`,
+                                 : `${tragwerkName(t, werte)} bearbeiten`,
     koerper(),
     `<button class="btn" data-zu>Abbrechen</button>
      <button class="btn btn-acc" data-tw-ok>${

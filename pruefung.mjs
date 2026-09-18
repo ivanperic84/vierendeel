@@ -16480,8 +16480,14 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * Sonst staende ein Einzelmast neben einem Joch um H versetzt in der Luft.
      */
     const zs = [...bau.knoten.values()].map((k) => k.z);
-    pruef('Der Fuss liegt bei -H', Math.min(...zs), -8, 1e-9, 'm');
-    pruef('… und der Kopf beim Ueberstand', Math.max(...zs), 4, 1e-9, 'm');
+    /*
+     * SEIT DEM 18. SEPTEMBER hat der Einzelmast keine Anschlusshoehe mehr:
+     * sie ist ausgeblendet, und der Mast ist frei vom Fuss bis zum Kopf. Die
+     * Hoehennull liegt damit am Kopf, und die Laenge (12 m) reicht nach unten.
+     * Ein H im Satz, das niemand mehr sieht, verschiebt nichts.
+     */
+    pruef('Der Fuss liegt eine Mastlaenge unter dem Kopf', Math.min(...zs), -12, 1e-9, 'm');
+    pruef('… und der Kopf auf der Hoehennull', Math.max(...zs), 0, 1e-9, 'm');
   }
 
   // PYNITE: das Skript entsteht, auch ohne Feldmitten. Nur die
@@ -16720,6 +16726,16 @@ const CH9x = await import(J('core.checks.js'));
     const e = V74.berechneEinzelmast(w, getStahl('S235'));
     return { e, s: M74.mastSchnitt(e.modell, 'A'), m: e.modell };
   };
+  /*
+   * DIE ANSCHLUSSREGEL (13. September) gilt fuer Joch und Tragausleger. Der
+   * Einzelmast hat seit dem 18. September keine Anschlusshoehe mehr und
+   * rechnet jede Masse auf ihrer eigenen Hoehe (Entscheid auf Nachfrage).
+   * Geprueft wird die Regel deshalb am selben Masten, mit Anschluss auf 9 m.
+   */
+  const mitAnschluss = (o = {}) => {
+    const r = mast(o);
+    return { ...r, s: { ...r.s, H: 9 }, m: { ...r.m, tragwerksart: 'tragausleger' } };
+  };
 
   /*
    * DIE EULERLAST GEGEN DIE HANDRECHNUNG.
@@ -16941,7 +16957,7 @@ const CH9x = await import(J('core.checks.js'));
       raster: 0, module: [{ z: 0 }],
       lasten: [{ einwirkung: 'G', z: 0, Fz }],
     });
-    const mitPunkten = mast({ anbauteile: [
+    const mitPunkten = mitAnschluss({ anbauteile: [
       traverse('oben', 11.0, 3), traverse('mitte', 7.0, 8),
       traverse('unten', 3.0, 5)] });
     const kp = M74.mastStabilitaet(mitPunkten.s, mitPunkten.m, {});
@@ -16983,7 +16999,7 @@ const CH9x = await import(J('core.checks.js'));
      * eine kuerzere Knicklaenge und ein groesseres chi. Das ist die Probe
      * auf die Richtung - ohne Zahl aus dem Buch.
      */
-    const tiefer = mast({ anbauteile: [
+    const tiefer = mitAnschluss({ anbauteile: [
       traverse('oben', 6.0, 3), traverse('mitte', 5.0, 8),
       traverse('unten', 3.0, 5)] });
     const kt = M74.mastStabilitaet(tiefer.s, tiefer.m, {});
@@ -17244,7 +17260,7 @@ const CH9x = await import(J('core.checks.js'));
      */
     const teil = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
                    hMast: 7 };
-    const { s, m } = mast({ anbauteile: [teil] });
+    const { s, m } = mitAnschluss({ anbauteile: [teil] });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
     wahr('Mit Anbauteil sind es zwei Massen', k.massen.length === 2);
     wahr('… die eine auf der Anschlusshoehe',
@@ -17255,14 +17271,25 @@ const CH9x = await import(J('core.checks.js'));
     wahr('… und sie liegt zwischen Schwerpunkt und Anschluss',
          k.zN > 6.0 && k.zN < 9.0, `${k.zN.toFixed(3)} m`);
     pruef('Die Gesamtlaenge steht daneben', k.L, 12, 1e-9, 'm');
+    {
+      // Der Einzelmast selbst: dasselbe Teil bleibt auf seinen 7.00 m.
+      const eM = mast({ anbauteile: [teil] });
+      const kE = M74.mastStabilitaet(eM.s, eM.m, { beta: 2.0 });
+      wahr('Einzelmast: das Teil rechnet auf seiner eigenen Hoehe',
+           kE.massen.some((x) => Math.abs(x.z - 7.0) < 1e-9
+                              && x.herkunft === 'eigene Befestigungshöhe')
+           && !kE.massen.some((x) => x.herkunft === 'Anschlusshöhe'));
+      wahr('… und tiefer als mit Anschluss, also mit kleinerer Ersatzhoehe',
+           kE.zN < k.zN, `${kE.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
+    }
     /*
      * DIE RICHTUNG: mehr Last oben hebt die Ersatzhoehe. Das ist die Probe,
      * die ohne jede Zahl auskommt.
      */
     const schwer = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
                      hMast: 7 };
-    const kS2 = M74.mastStabilitaet(mast({ anbauteile: [schwer, schwer] }).s,
-                                    mast({ anbauteile: [schwer, schwer] }).m,
+    const kS2 = M74.mastStabilitaet(mitAnschluss({ anbauteile: [schwer, schwer] }).s,
+                                    mitAnschluss({ anbauteile: [schwer, schwer] }).m,
                                     { beta: 2.0 });
     wahr('Mehr Last auf der Anschlusshoehe hebt die Ersatzhoehe',
          kS2.zN > k.zN, `${kS2.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
@@ -17278,8 +17305,8 @@ const CH9x = await import(J('core.checks.js'));
      */
     const oben = { ...A.neuesAnbauteil('hs-fahrdraht', 0), ort: 'mastA',
                    hMast: 11 };
-    const kU = M74.mastStabilitaet(mast({ anbauteile: [oben] }).s,
-                                   mast({ anbauteile: [oben] }).m, { beta: 2.0 });
+    const kU = M74.mastStabilitaet(mitAnschluss({ anbauteile: [oben] }).s,
+                                   mitAnschluss({ anbauteile: [oben] }).m, { beta: 2.0 });
     /*
      * EINE Baugruppe bringt MEHRERE Lastpunkte mit - die Haengestuetze und
      * die Fahrleitung daran. Gezaehlt werden die Punkte, nicht die Teile.
@@ -24525,19 +24552,22 @@ titel('78  Einzelmast: die Anbauteile stehen im Bild');
   /*
    * DIE ZEICHNUNG AM EINZELMASTEN EINMESSEN (18. September).
    *
-   * Er hat kein Joch - also kein waagrechtes Mass. Masthoehe, Mastlaenge und
-   * das freie Mass bleiben; die Hoehe H reicht vom gezeichneten Fuss.
+   * Er hat kein Joch und keine Anschlusshoehe - also weder das waagrechte
+   * Mass noch die Hoehe H. Es bleiben die Mastlaenge vom gezeichneten Fuss
+   * und das freie Mass.
    */
   const BZ78 = await import(J('bild.zeichnung.js'));
   const wahl78 = BZ78.bezuegeFuer(e.modell, sz).map((b) => b.key).join();
-  wahr('Einzelmast: eingemessen wird am Masten oder frei', wahl78 === 'mast,mastLaenge,frei',
-       wahl78);
-  const mb78 = BZ78.bezugPunkte('mast', e.modell, sz);
+  wahr('Einzelmast: eingemessen wird ueber die Mastlaenge oder frei',
+       wahl78 === 'mastLaenge,frei', wahl78);
+  const mb78 = BZ78.bezugPunkte('mastLaenge', e.modell, sz);
   pruef('… vom gezeichneten Fuss', mb78[0].z, fuss, 1e-6, 'm');
-  pruef('… ueber die Hoehe H', mb78[1].z - mb78[0].z, 7.5, 1e-9, 'm');
-  wahr('… und ohne Joch keine Jochenden zum Ausrichten',
-       !BZ78.ausrichtPunkte(sz).some((p) => /^joch/.test(p.key))
-       && BZ78.ausrichtPunkte(sz)[0].label.startsWith('Mast:'));
+  pruef('… ueber die Mastlaenge', mb78[1].z - mb78[0].z,
+        e.modell.federn.mast.laenge, 1e-9, 'm');
+  const ap78 = BZ78.ausrichtPunkte(sz).map((p) => p.key).join();
+  wahr('… und ausgerichtet an Fuss und Kopf, ohne Joch und Anschluss',
+       ap78 === 'fussA,kopfA' && BZ78.ausrichtPunkte(sz)[0].label.startsWith('Mast:'),
+       ap78);
 
   // Das Abfangjoch legt seine Bezuege ebenso bei - der Mast endet dort an
   // der Jochachse.
@@ -24558,6 +24588,61 @@ titel('78  Einzelmast: die Anbauteile stehen im Bild');
            BZ78.bezugPunkte('joch', null, szA)[1].x === 20);
     }
   }
+}
+
+titel('79  Einzelmast: keine Anschlusshoehe, Standorte nur was da ist');
+/* Weisung vom 18. September: «diese eingabe beim einzelmast ohne
+ * tragausleger ist nicht relevant, ausblenden. Die Standortauswahl nur auf
+ * vorhandene Elemente beziehen.» Auf Nachfrage entschieden: die Massen der
+ * Anbauteile sitzen im Stabilitaetsnachweis je auf ihrer eigenen Hoehe. */
+{
+  const A79 = await import(J('data.anbauteile.js'));
+  const R79 = await import(J('render.3d.js'));
+  const U79 = await import(J('ui.js'));
+  const { mastLaengeVorgabe } = await import(J('core.auflager.js'));
+  const feldH = FELDER.find((f) => f.key === 'mastH');
+  const em = (H, L) => ({ ...standardwerte(), tragwerksart: 'einzelmast', mastVorhanden: true,
+    mastProfil: 'HEB 240', mastH: H, mastLaenge: L,
+    anbauteile: [{ ...A79.neuesAnbauteil('hs-nt-ausleger', 0), name: 'Ausleger',
+                   ort: 'mastA', hMast: 6.5 }] });
+  wahr('Die Anschlusshoehe ist beim Einzelmast ausgeblendet',
+       feldH.sichtbar(em(7.5, 8.5)) === false);
+  wahr('… beim Tragjoch mit Masten steht sie da',
+       feldH.sichtbar({ ...standardwerte(), mastVorhanden: true }) === true);
+
+  const rechne79 = (w) => berechne(w, null, null, getStahl(w.stahl), null);
+  const e5 = rechne79(em(5.0, 8.5)), e9 = rechne79(em(9.0, 8.5));
+  const m5 = e5.mast.A ?? e5.mast, m9 = e9.mast.A ?? e9.mast;
+  pruef('Der Mast ist so lang, wie eingegeben - auch mit H darueber',
+        m9.zKopf, 8.5, 1e-9, 'm');
+  pruef('Die ausgeblendete Hoehe aendert den Spannungsnachweis nicht',
+        m9.eta, m5.eta, 1e-12, '');
+  pruef('… und den Stabilitaetsnachweis nicht',
+        m9.etaMitStabilitaet, m5.etaMitStabilitaet, 1e-12, '');
+  const ms = m5.stabil.massen.find((x) => /Ausleger/.test(x.name));
+  pruef('Die Masse des Auslegers sitzt auf seiner Befestigungshoehe', ms?.z, 6.5, 1e-9, 'm');
+  wahr('… und nichts steht «ueber dem Anschluss»',
+       m5.stabil.ueberAnschluss.length === 0 && m5.stabil.zAnschluss === null);
+  const ohneL = rechne79(em(7.5, 0));
+  pruef('Ohne Laenge gilt die Vorgabe aus der alten Hoehe wie bisher',
+        (ohneL.mast.A ?? ohneL.mast).zKopf, mastLaengeVorgabe(7.5, standardwerte().jd), 1e-9, 'm');
+
+  const sz79 = R79.erzeugeSzene(e5.modell, e5);
+  const achse = sz79.linien.filter((l) => l.gruppe === 'mast' && l.schwerachse)
+    .flatMap((l) => l.punkte.map((p) => p[2]));
+  pruef('Im Bild reicht der Mast vom Fuss genau ueber seine Laenge',
+        Math.max(...achse) - Math.min(...achse), 8.5, 1e-9, 'm');
+
+  // --- Standorte -----------------------------------------------------------
+  const orte = (w) => U79.anbauOrteVorhanden(w).join();
+  wahr('Einzelmast: nur am Masten', orte(em(7.5, 8.5)) === 'mastA', orte(em(7.5, 8.5)));
+  wahr('Tragjoch mit Masten: Joch und beide Masten',
+       orte({ ...standardwerte(), mastVorhanden: true }) === 'joch,mastA,mastB');
+  wahr('Tragjoch ohne Masten: nur am Joch',
+       orte({ ...standardwerte(), mastVorhanden: false }) === 'joch');
+  wahr('Mast mit Tragausleger: Ausleger und sein Mast',
+       orte({ ...standardwerte(), tragwerksart: 'tragausleger', mastVorhanden: true })
+         === 'joch,mastA');
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');

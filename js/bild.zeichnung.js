@@ -213,9 +213,11 @@ export const BEZUEGE = [
   { key: 'mast', label: 'Mast, lotrecht (Höhe H)',
     hinweis: 'Fundamentoberkante und Anschluss am linken Masten anklicken. '
            + 'Lotrecht – gut, wenn das Joch angeschnitten ist.',
+    // Nicht beim Einzelmast: es schliesst kein Joch an, und die Hoehe H ist
+    // dort ausgeblendet (18. September). Er misst sich ueber seine Laenge.
     punkte: (m, sz) => {
       const g = linkerMast(sz);
-      return g && g.zAn - g.zF > 0
+      return g && Number.isFinite(g.zAchse) && g.zAn - g.zF > 0
         ? [{ x: g.x, z: g.zF, text: 'Fundamentoberkante am linken Masten' },
            { x: g.x, z: g.zAn, text: 'Anschluss am linken Masten (Höhe H)' }]
         : null;
@@ -236,7 +238,8 @@ export const BEZUEGE = [
     hinweis: 'Fundamentoberkante und Mastkopf am linken Masten anklicken.',
     punkte: (m, sz) => {
       const g = linkerMast(sz);
-      return g?.laenge > 0 && g.zF + g.laenge > g.zAn + 1e-6
+      const ohneJoch = g && !Number.isFinite(g.zAchse);
+      return g?.laenge > 0 && (ohneJoch || g.zF + g.laenge > g.zAn + 1e-6)
         ? [{ x: g.x, z: g.zF, text: 'Fundamentoberkante am linken Masten' },
            { x: g.x, z: g.zF + g.laenge, text: 'Mastkopf am linken Masten' }]
         : null;
@@ -365,11 +368,13 @@ export function ausrichtPunkte(sz) {
   for (const k of namen) {
     const g = ms[k];
     out.push({ key: `fuss${k}`, label: `${wer(k)}: Fundamentoberkante`, x: g.x, z: g.zF });
-    if (g.zAn > g.zF + 1e-9) {
+    // Ohne Joch kein Anschluss - der Einzelmast hat nur Fuss und Kopf.
+    const ohneJoch = !Number.isFinite(g.zAchse);
+    if (!ohneJoch && g.zAn > g.zF + 1e-9) {
       out.push({ key: `an${k}`, label: `${wer(k)}: Anschluss (Höhe H)`, x: g.x, z: g.zAn });
     }
     const kopf = g.laenge > 0 ? g.zF + g.laenge : g.zKopf;
-    if (kopf > g.zAn + 1e-9) {
+    if (kopf > g.zF + 1e-9 && (ohneJoch || kopf > g.zAn + 1e-9)) {
       out.push({ key: `kopf${k}`, label: `${wer(k)}: Mastkopf`, x: g.x, z: kopf });
     }
   }

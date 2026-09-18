@@ -741,7 +741,13 @@ export const FELDER = [
   { key: 'mastH', gruppe: 'mast', typ: 'schieber',
     label: (w) => `Anschlusshöhe Ende A · Mast ${mastNameAmEnde(w, null, 'A')}`,
     sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
-    sichtbar: (w) => mastDa(w) },
+    /*
+     * NICHT BEIM EINZELMAST (Weisung, 18. September: «beim einzelmast ohne
+     * tragausleger ist nicht relevant, ausblenden»). Es schliesst kein Joch
+     * an; der Mast rechnet mit seiner Laenge (core.auflager.js,
+     * einzelmastLaenge).
+     */
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).key !== 'einzelmast' },
   /*
    * DER LANGE MAST MIT ZUSATZLEITERN.
    *

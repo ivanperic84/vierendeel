@@ -8,6 +8,10 @@
  * ---------------------------------------------------------------------------
  */
 
+// Nur fuer die Anschrift des Einzelmasten (tragwerkName) - core.auflager
+// haengt allein an den Datentabellen, ein Kreis entsteht nicht.
+import { einzelmastLaenge } from './core.auflager.js';
+
 /** Einheitenumrechnung. Alle Spannungen im Kern in N/mm². */
 export const U = {
   /** kN / cm²  ->  N/mm² */
@@ -303,8 +307,19 @@ export function tragwerkTeil(w) {
  * dasteht, «Tragwerk 2» sagt nur, dass es ein zweites gibt. Wer drei Masten
  * auf einem Blatt hat, unterscheidet sie am Profil, nicht am Zaehler.
  */
-export function tragwerkName(t) {
+export function tragwerkName(t, w = null) {
   const art = tragwerksart(t);
+  /*
+   * DER EINZELMAST HEISST NACH SEINER LAENGE (18. September). Seine
+   * Anschlusshoehe ist ausgeblendet; die Zeile «HEB 240 · 7.50 m» nannte sie
+   * trotzdem, weil die Laenge am Masten steht und nicht am Tragwerk. Mit dem
+   * Satz `w` wird sie von dort geholt - dieselbe Zahl, mit der gerechnet wird.
+   */
+  if (art.key === 'einzelmast' && w) {
+    const s = tragwerkSatz(w, t?.id);
+    return [s.mastProfil || art.label, `${einzelmastLaenge(s).toFixed(2)} m`]
+      .join(' · ');
+  }
   if (art.traeger && art.key === 'joch') {
     return [t?.typ ?? 'frei', t?.L ? `${Number(t.L).toFixed(2)} m` : null]
       .filter(Boolean).join(' · ');

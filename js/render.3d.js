@@ -708,8 +708,12 @@ export function erzeugeSzene(m, erg) {
        * Laenge, die unter dem Mindestueberstand bliebe, waere keine
        * Zeichnung, sondern ein Tippfehler.
        */
-      const zKopf = Math.max(qs.huelle.z1 * MM + MAST_UEBERSTAND,
-                             zF + (mast?.laenge > 0 ? mast.laenge : 0));
+      // Der Einzelmast hat keinen Obergurt, ueber den er ragen muesste: er
+      // ist so lang, wie er ist.
+      const zKopf = m.qsErsatz && mast?.laenge > 0
+        ? zF + mast.laenge
+        : Math.max(qs.huelle.z1 * MM + MAST_UEBERSTAND,
+                   zF + (mast?.laenge > 0 ? mast.laenge : 0));
       mastGeo[name] = { x, zF, zKopf, H, koerper: Boolean(mast?.profil),
                         // Fuer das Einmessen der Zeichnung (18. September):
                         // der Anschluss an der Unterkante und die Laenge ab

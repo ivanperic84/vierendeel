@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4573 Kontrollen
+node pruefung.mjs           # Prüfstand, 4588 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,35 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Einzelmast ohne Anschlusshöhe, Standorte nur was da ist (18. September)
+
+Weisung: «diese eingabe beim einzelmast ohne tragausleger ist nicht relevant,
+ausblenden. Die Standortauswahl nur auf vorhandene Elemente beziehen.»
+
+- **H ausgeblendet**: im Fenster (`mastH`), im Mastdialog, in der
+  Tragwerksleiste (Mastzeile und Name, jetzt «HEB 240 · 8.50 m» aus der
+  Länge), in der Fusszeile und im Excel-Bericht.
+- **Die Länge regiert** (`einzelmastLaenge`, core.auflager.js): beim
+  Einzelmast ist H = Länge, kein Überstand. Ohne eingegebene Länge gilt die
+  Vorgabe aus der alten Höhe, alte Dateien rechnen also mit derselben Länge.
+  Vorher rechnete der Mast mit H, wenn H über der Länge lag (H 9 / L 8.5 → 9 m).
+  Die Szene zeichnet ihn genau über seine Länge, `hebungVon` hebt um Länge +
+  Fuss. In der AxisVM-Ausleitung liegt die Höhennull jetzt am Mastkopf
+  (vorher an H).
+- **Stabilität: jede Masse auf ihrer Höhe** (auf Nachfrage entschieden, statt
+  «höchster Ausleger» oder «Mastkopf»): `mastStabilitaet` setzt beim
+  Einzelmast keine Anschlusshöhe (`zAnschluss: null`), jedes Anbauteil rechnet
+  auf seiner Befestigungshöhe. Beispiel HEB 240, 8.50 m, Ausleger auf 6.50 m:
+  η mit Stabilität 0.310 (vorher 0.313 bei H 7.5). Die Anschlussregel vom 13.
+  September gilt weiter für Joch und Tragausleger; ihre Prüfungen laufen jetzt
+  an einem Masten mit Anschluss (`mitAnschluss`).
+- **Standorte** (`anbauOrteVorhanden`, ui.js): Joch nur mit Träger, Mast A mit
+  Masten (Einzelmast immer), Mast B nur mit zwei Masten. Ein schon gesetzter,
+  nicht mehr vorhandener Ort bleibt als «(nicht vorhanden)» sichtbar. Beim
+  Einzelmast zeigt die Karte Teile ohne Ort am Masten, wie der Kern rechnet.
+- Zeichnung: beim Einzelmast gibt es Einmessen nur noch über die Mastlänge
+  oder ein freies Mass; Ausrichten an Fuss und Kopf.
 
 ### Hintergrundzeichnung: Massstab, Grösse, Bezugspunkt (18. September)
 
