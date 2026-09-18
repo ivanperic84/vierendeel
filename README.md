@@ -8,7 +8,7 @@ Geometrie und Lastdaten kommen aus dem **Datenpaket** (siehe unten) — Sortimen
 Anbauteil-Vorlagen und Lasttabelle des Betreibers. Die Zeichnungs- und
 Regelwerksnummern stehen dort, nicht in diesem Dokument und nicht im Code.
 
-> **Stand der Arbeit und offene Punkte:** [UEBERGABE.md](UEBERGABE.md)
+> **Vorgaben, Entschiedenes und offene Punkte:** [CLAUDE.md](CLAUDE.md)
 
 ---
 
@@ -400,7 +400,7 @@ Der **örtliche Anteil** aus der Lasteinleitung der Anbauteile bleibt in beiden
 Wegen additiv auf beiden Ebenen.
 
 Die Vorzeichen sind an einem PyNite-Stabmodell kalibriert, nicht hergeleitet —
-Einzelheiten in [UEBERGABE.md](UEBERGABE.md).
+die Messung steht in `kalibrieren.mjs`.
 
 ---
 
@@ -1033,7 +1033,7 @@ validate_xlsx.py                  prüft alle Excel-Formeln auf #NAME?-Fehler
 vergleich_excel_js.py             rechnet Excel und JS durch und vergleicht
 
 pruefung.mjs                      Prüfstand: node pruefung.mjs
-UEBERGABE.md                      Stand der Arbeit und offene Punkte
+CLAUDE.md                         Vorgaben, Entschiedenes, offene Punkte
 
 data/normen.json                  Querschnittswerte und Stahlgüten (verfolgt)
 data/tragjoche.json               TYPENDATENBANK – hier pflegen, ohne Code

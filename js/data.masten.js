@@ -17,7 +17,7 @@
  * Der Bauteilsatz kennt einen Masttyp mit 0,512 kN/m, also HEB 180. Das
  * Profil hier zu ergaenzen waere eine Kleinigkeit; der Auftraggeber hat am
  * 28. August entschieden, es NOCH NICHT aufzunehmen. Wer die Luecke findet,
- * soll wissen, dass sie bekannt ist (UEBERGABE.md, «Entschieden - nicht
+ * soll wissen, dass sie bekannt ist (CLAUDE.md, «Entschieden - nicht
  * wieder aufmachen»).
  *
  * DER NAME IST DER PROFILNAME. Die Zuordnung zu den DP-Bezeichnungen des

@@ -109,8 +109,7 @@ export const TRAGWERKSARTEN = [
  *
  * ALTE DATEIEN RECHNEN UNVERÄNDERT: fehlt die Angabe, ist es ein Tragjoch —
  * das war bis zum 2. September der einzige Fall. Dasselbe Vorgehen wie bei
- * `mastVorhanden` (siehe UEBERGABE.md, «Masten und Auflagerung sind zwei
- * Fragen»).
+ * `mastVorhanden`, das seit dem 28. August Masten und Auflagerung trennt.
  */
 export function tragwerksart(w) {
   const k = w?.tragwerksart;

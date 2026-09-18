@@ -3664,7 +3664,7 @@ titel('22  Ausleger: Wind über die Fahrleitung');
 titel('23  Vorzeichenrichtige Überlagerung je Blechebene');
 // Der Schubfluss läuft um: er addiert sich auf einer Ebene und zieht auf der
 // gegenüberliegenden ab. Die Vorzeichen sind an einem PyNite-Stabmodell
-// festgelegt worden (siehe UEBERGABE.md) - hier stehen die Eigenschaften,
+// festgelegt worden (kalibrieren.mjs) - hier stehen die Eigenschaften,
 // die daraus folgen und die kein Umbau verletzen darf.
 {
   const L = 10, x0 = 5;
