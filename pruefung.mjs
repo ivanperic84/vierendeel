@@ -25032,6 +25032,19 @@ titel('84  Joch weg, Masten bleiben; nichts unter der Fundamentkote');
   const h = CH.hinweise(m);
   wahr('… und der Hinweis sagt, dass es nicht gerechnet wird',
        h.some((x) => /stehen noch am Joch/.test(x) && /NICHT gerechnet/.test(x)), h.join(' | '));
+  // Weisung vom 18. September: «die darstellung der farben im 3d des
+  // einzelmasten gleich gestalten wie beim mast beim tragjoch.» Ein zweiter,
+  // grauer Mast B lag ueber dem gefaerbten.
+  {
+    const R3 = await import(J('render.3d.js'));
+    const e3 = berechne(rs, getProfil(rs.profOG), getProfil(rs.profUG), getStahl(rs.stahl),
+                        T.getTragjoch(rs.typ ?? 'J90'));
+    const f3 = R3.erzeugeSzene(e3.modell, e3).flaechen.filter((x) => x.gruppe === 'mast');
+    wahr('3D-Einzelmast: nur ein Mast, kein grauer Mast B darüber',
+         !f3.some((x) => /_B$/.test(x.teil ?? '')), [...new Set(f3.map((x) => x.teil))].join(' '));
+    wahr('… und er trägt seine Ausnutzung wie am Joch',
+         f3.filter((x) => x.teil === 'MAST_A' && x.werte?.eta !== undefined).length > 10);
+  }
   wahr('Eine Last unter der Fundamentkote wird gemeldet',
        h.some((x) => /Tief: Last UNTER der Fundamentkote \(z = −?-?2\.70/.test(x)), h.join(' | '));
 }

@@ -156,7 +156,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4689 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4691 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -186,6 +186,8 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   entfernen → zwei Einzelmasten; Artwechsel löscht die Jochteile; keine
   Last unter der Fundamentkote. Tragausleger untersucht: unsichere Seite
   (siehe Offene Punkte).
+  3D-Einzelmast: ein grauer zweiter Mast B lag über dem gefärbten — weg,
+  der Mast zeigt seine Ausnutzung wie am Joch.
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -249,6 +251,8 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Nachbarn fehlt seine Last.
 - Der Anbauteile-Reiter nennt sein Tragwerk nicht; `+ Tragwerk` kopiert die
   Anbauteile ohne Umbenennung.
+- 3D: «Isometrie» rückt ein Blatt mit zwei Einzelmasten nicht ganz ins
+  Bild (der aktive liegt am Rand).
 - ⚠ Bauteil-Karte klappbar machen (1237 px hoch, zugleich die Orientierung).
 
 ## Die Ablage wird öffentlich
@@ -268,7 +272,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4689 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4691 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

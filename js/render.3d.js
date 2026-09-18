@@ -678,6 +678,16 @@ export function erzeugeSzene(m, erg) {
        * ein einzelnes Tragwerk unveraendert bleibt.
        */
       if (m.mastZeichnen && m.mastZeichnen[name] === false) return;
+      /*
+       * >>> DER EINZELMAST HAT KEIN ENDE B (18. September). <<<
+       *
+       * Weisung: «die darstellung der farben im 3d des einzelmasten gleich
+       * gestalten wie beim mast beim tragjoch.» Gezeichnet wurde hier ein
+       * zweiter Mast am selben Ort - ohne Nachweis, also grau -, und er lag
+       * ueber dem gefaerbten. Seit das Ende B auch im Nachweis fehlt, sah man
+       * nur noch ihn.
+       */
+      if (name === 'B' && m.tragwerksart === 'einzelmast') return;
       const z0 = zu(x);
       /*
        * DER MAST ALS KOERPER, UEBER SEINE GANZE HOEHE (Weisung).
