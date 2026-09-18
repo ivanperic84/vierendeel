@@ -24381,6 +24381,40 @@ titel('77  Der Seilanker in Ergebnisfarben');
        /werte: \{ eta: o\.ankerEta \}/.test(zweig.slice(0, 600)));
 }
 
+titel('78  Einzelmast: die Anbauteile stehen im Bild');
+/* Gemeldet am 18. September: beim Einzelmasten werden die Anbauteile im
+ * Modell nicht dargestellt, obwohl sie gerechnet werden. */
+{
+  const R78 = await import(J('render.3d.js'));
+  const A78 = await import(J('data.anbauteile.js'));
+  const em = { ...standardwerte(), tragwerksart: 'einzelmast', mastVorhanden: true,
+    mastProfil: 'HEB 240', mastH: 7.5,
+    anbauteile: [
+      { ...A78.neuesAnbauteil('hs-nt-ausleger', 0), name: 'Ausleger', ort: 'mastA', hMast: 6.5 },
+      { ...A78.neuesAnbauteil('hs-fahrdraht', 0), name: 'Aus', ort: 'mastA', hMast: 5, aktiv: false }] };
+  const e = berechne(em, null, null, getStahl(em.stahl), null);
+  wahr('Das Modell fuehrt die ganze Liste, am Masten',
+       e.modell.anbauteile.length === 2 && e.modell.anbauteile.every((a) => a.ort === 'mastA'));
+  const sz = R78.erzeugeSzene(e.modell, e);
+  const koerper = sz.flaechen.filter((f) => f.gruppe === 'anbau');
+  wahr('Die Szene zeichnet das Anbauteil', koerper.length > 0,
+       `${koerper.length} Flaechen`);
+  wahr('… mit Marke A1 und ohne das ausgeschaltete',
+       sz.marken.some((m2) => m2.text === 'A1') && !sz.marken.some((m2) => m2.text === 'A2'));
+  // Die Szene misst z ab der Jochachse; der Anschluss sitzt hMast ueber
+  // dem Mastfuss.
+  const fuss = Math.min(...sz.flaechen.filter((f) => /^MAST_/.test(f.teil ?? ''))
+    .flatMap((f) => f.punkte.map((p) => p[2])));
+  const anschluss = koerper.filter((f) => /Anschluss am Mast/.test(f.label ?? ''));
+  const zAn = anschluss.length
+    ? Math.max(...anschluss.flatMap((f) => f.punkte.map((p) => p[2]))) - 0.045 : NaN;
+  pruef('… an seiner Hoehe ueber dem Mastfuss', zAn - fuss, 6.5, 1e-6, 'm');
+  const ohneX = A78.expandiereAnbauteile([{ ...A78.neuesAnbauteil('hs-fahrdraht', 0),
+    x: undefined, ort: 'mastA', hMast: 5 }], { ek: 'EK2' });
+  wahr('Eine Baugruppe ohne Lage rechnet mit x = 0, nicht mit NaN',
+       ohneX.every((t) => Number.isFinite(t.x)));
+}
+
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
 /* ===========================================================================
  * Weisung vom 17. September: «örtlicher anteil umsetzen», nur im Weg

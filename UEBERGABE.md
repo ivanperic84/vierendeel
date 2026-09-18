@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4535 Kontrollen
+node pruefung.mjs           # Prüfstand, 4540 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -81,6 +81,13 @@ eigenständige Datei wird sonst still veraltet.
   `vergleichKombinationen`; `huellkurve` bildet für ihn den Mastnachweis
   über alle Fälle, und `ankerAuswertung` gilt auch für ihn.
 - **Der Seilanker** trägt im 3D die Ergebnisfarbe wie die Druckstütze.
+- **Schwerachsen** von Mast (abschnittsweise), Stütze und Seil in der
+  Ergebnisfarbe; der Mast hatte keine.
+- **Einzelmast: die Anbauteile fehlten im Bild.** Das Modell führte sie nur
+  als `anbauMast`/`anbauMastFlach`; `erzeugeSzene` läuft über
+  `m.anbauteile`. Jetzt trägt das Einzelmast-Modell die ganze Liste (mit den
+  ausgeschalteten, der Nummer wegen) am Masten. Dazu: eine Baugruppe ohne
+  `x` rechnet mit 0 statt NaN.
 - **Seite des Ankerfundaments** bot bei «längs» weiter «in −x» an - die
   Maske wurde nicht neu gebaut. Die Texte von `optionenAus` stehen jetzt in
   der Maskensignatur.

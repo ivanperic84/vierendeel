@@ -336,6 +336,16 @@ export function modellEinzelmast(inp, stahl) {
     mastLast: mastWindSatz(inp, federnRoh, beiwerte, bwX),
     anbauMast: amMasten.map((a) => ({ ...a, ort: 'mastA' })),
     anbauMastFlach: flach,
+    /*
+     * >>> FUER DAS BILD: DIE GANZE LISTE, AM MASTEN (18. September). <<<
+     *
+     * Gemeldet: beim Einzelmasten stehen die Anbauteile nicht im Modell,
+     * obwohl sie gerechnet werden. `erzeugeSzene` laeuft ueber
+     * `m.anbauteile` - und das gab es hier nicht; die Teile standen nur in
+     * `anbauMast`/`anbauMastFlach`. Die Liste bleibt VOLLSTAENDIG, mit den
+     * ausgeschalteten: die Marke A{k+1} zaehlt ueber die ganze Eingabe.
+     */
+    anbauteile: (inp.anbauteile ?? []).map((a) => ({ ...a, ort: 'mastA' })),
     anbauUmgesetzt: amJoch.length,
     // DIE JOCHGRÖSSEN STEHEN AUF NULL, nicht auf undefined: `mastLasten`
     // addiert sie, und `undefined` würde daraus NaN machen.

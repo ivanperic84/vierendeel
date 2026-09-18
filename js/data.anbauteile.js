@@ -573,6 +573,9 @@ export function expandiereAnbauteile(liste, o = {}) {
   (liste ?? []).forEach((roh) => {
     if (roh.aktiv === false) return;
     const a = normalisiereAnbauteil(roh);
+    // Ohne Lage keine NaN (18. September): am Masten fehlt `x` manchmal ganz,
+    // und `a.x + m.x` verdarb dann jede Kraft dahinter.
+    if (!Number.isFinite(a.x)) a.x = 0;
     // stationX ist die Stelle, an der die BAUGRUPPE am Joch hängt; x eines
     // Teils kann davon abweichen (Kragarm). Beide werden gebraucht: die
     // Station für den Anschluss, x für den Angriffspunkt.
