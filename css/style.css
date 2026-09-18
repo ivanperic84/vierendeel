@@ -110,6 +110,11 @@ body {
    er so breit wie sein Text, und das Band lief im schmalen Fenster rechts
    hinaus - die Optionen waren dann nicht mehr zu sehen. */
 .tb-mitte > .tb-proj { min-width: 0; }
+/* Die Woerter im Band (U7) nur, wo Platz ist - sonst bleibt das Symbol. */
+@media (max-width: 1400px) {
+  #kopf-werkzeuge .tb-wort { display: none; }
+  #kopf-werkzeuge .btn-icon-text:has(.tb-wort) { width: 30px; padding: 0; }
+}
 @media (max-width: 900px) {
   #kopf-werkzeuge .tb-sep { margin: 0 2px; }
   .tb-gruppe { gap: 3px; }

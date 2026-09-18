@@ -4765,6 +4765,15 @@ function baueKopf() {
   };
   const knopf = (id, name, titel, taste = null) =>
     iconKnopf(id, name, `${titel}${taste ? kuerzel(taste) : ''}`);
+  /*
+   * MIT WORT (Durchsicht vom 18. September, Punkt U7): Bericht, Excel,
+   * Drucken und Speichern standen nur als Symbole da - eine Diskette und
+   * ein Drucker sind eindeutig, ein Blatt und ein Pfeil nicht. Im schmalen
+   * Fenster faellt das Wort wieder weg (css: .tb-wort), das Symbol bleibt.
+   */
+  const knopfWort = (id, name, titel, wort) =>
+    `<button class="btn-icon btn-icon-text" id="${esc(id)}" type="button"
+       title="${esc(titel)}" aria-label="${esc(titel)}">${icon(name)}<span class="tb-wort">${esc(wort)}</span></button>`;
   const gruppe = (name, inhalt) =>
     `<div class="tb-gruppe" role="group" aria-label="${esc(name)}">${inhalt}</div>`;
   const strich = '<span class="tb-sep" aria-hidden="true"></span>';
@@ -4774,9 +4783,9 @@ function baueKopf() {
       `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
          title="Modell nach AxisVM ausleiten, COM-Brücke, SAF, DXF oder PyNite"
          aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>`
-      + knopf('btn-bericht', 'bericht', 'Nachweisbericht: A4-Seiten zum Drucken als PDF')
-      + knopf('btn-export', 'export', 'Excel-Ausleitung der Berechnung (.xlsx)')
-      + knopf('btn-drucken', 'drucken', 'Drucken / PDF'))
+      + knopfWort('btn-bericht', 'bericht', 'Nachweisbericht: A4-Seiten zum Drucken als PDF', 'Bericht')
+      + knopfWort('btn-export', 'export', 'Excel-Ausleitung der Berechnung (.xlsx)', 'Excel')
+      + knopfWort('btn-drucken', 'drucken', 'Drucken / PDF', 'Drucken'))
     + strich
     + gruppe('Bearbeiten',
       `<button class="btn-icon" id="btn-zurueck" type="button" title="Rückgängig (Strg+Z)"
@@ -4787,7 +4796,7 @@ function baueKopf() {
          hist.kannVor() ? '' : ' disabled'}>${icon('rechts')}</button>`
       // SPEICHERN, nicht Datenbasis (Weisung, 1. September): wer auf eine
       // Diskette drückt, will sein Modell sichern.
-      + knopf('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern'))
+      + knopfWort('btn-speichern', 'speichern', 'Tragwerk in der Ablage speichern', 'Speichern'))
     + strich
     + gruppe('Hilfe und Einstellungen',
       knopf('btn-handbuch', 'info', 'Handbuch: Herleitung und Modellgrenzen', 'handbuch')
