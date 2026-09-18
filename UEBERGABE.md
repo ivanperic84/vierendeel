@@ -16,7 +16,7 @@ des Rechenwegs im **Handbuch in der Anwendung** (Knopf `ⓘ` im Banner, Quelle
 python3 serve.py            # Modulversion:  http://localhost:8731/index.html
 python3 build_html.py       # bündelt js/ + css/ -> vierendeel_tool.html
                             # und frischt sw.js auf (Ablageliste + Fassung)
-node pruefung.mjs           # Prüfstand, 4588 Kontrollen
+node pruefung.mjs           # Prüfstand, 4590 Kontrollen
 ```
 
 Der Port kommt aus der Umgebungsvariablen `PORT`, sonst aus dem Aufruf, sonst
@@ -26,6 +26,21 @@ eigenständige Datei wird sonst still veraltet.
 ---
 
 ## Diese Sitzung
+
+### Stabilität: Massen am Masten auf ihrer eigenen Höhe, überall (18. September)
+
+Frage: «werden die mast massen beim stabilitätsnachweis bei den
+jochtragwerken auf höhe joch gesetzt? … falls es auf höhe joch ist, anpassen
+entsprechend einzelmast logik.»
+
+Befund: Das Eigengewicht des Mastes ging schon verteilt ein (Punktmasse-
+Äquivalent ≈ 0.60 L). Die Anbauteile am Masten wurden aber nach der Weisung
+vom 13. September auf die Anschlusshöhe gehoben (`z = max(H, eigene Höhe)`).
+Jetzt gilt für alle Tragwerke die Einzelmast-Regel: Jochlast auf H, jedes
+Anbauteil am Masten auf seiner Befestigungshöhe, Eigengewicht verteilt.
+`ueberAnschluss` bleibt leer, weil nichts mehr verschoben wird. Beispiel J90,
+HEB 240, H 7.50 m, NT-Ausleger am Masten auf 4.00 m: Ersatzhöhe 6.52 → 6.01 m,
+η mit Stabilität 0.993 → 0.980.
 
 ### Einzelmast ohne Anschlusshöhe, Standorte nur was da ist (18. September)
 

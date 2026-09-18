@@ -16976,11 +16976,17 @@ const CH9x = await import(J('core.checks.js'));
      * Aufteilung: was unter dem Anschluss sitzt, wird zusammengefasst; was
      * darueber steht, bleibt einzeln.
      */
-    const anschlussZeile = kp.massen.find((x) => x.herkunft === 'Anschlusshöhe');
-    wahr('Was unter dem Anschluss sitzt, rechnet auf ihm',
-         anschlussZeile && Math.abs(anschlussZeile.z - 9.0) < 1e-9
-         && Math.abs(anschlussZeile.P - 13.0) < 1e-9,
-         `${anschlussZeile?.P} kN auf ${anschlussZeile?.z} m`);
+    /*
+     * SEIT DEM 18. SEPTEMBER jede auf ihrer eigenen Hoehe, auch unter dem
+     * Anschluss: «falls es auf höhe joch ist, anpassen entsprechend
+     * einzelmast logik». Nichts wird mehr auf 9 m hochgesetzt.
+     */
+    const traversenZ = (h, P) => kp.massen.some((x) => Math.abs(x.z - h) < 1e-9
+      && Math.abs(x.P - P) < 1e-9 && x.herkunft === 'eigene Befestigungshöhe');
+    wahr('Jede Traverse rechnet auf ihrer eigenen Hoehe, auch unter dem Anschluss',
+         traversenZ(7, 8) && traversenZ(3, 5)
+         && !kp.massen.some((x) => x.herkunft === 'Anschlusshöhe'),
+         kp.massen.map((x) => `${x.name} ${x.P} kN @ ${x.z} m`).join(', '));
     wahr('… und die oberste Traverse bleibt auf 11 m',
          kp.massen.some((x) => Math.abs(x.z - 11) < 1e-9
                             && Math.abs(x.P - 3.0) < 1e-9));
@@ -17262,10 +17268,13 @@ const CH9x = await import(J('core.checks.js'));
                    hMast: 7 };
     const { s, m } = mitAnschluss({ anbauteile: [teil] });
     const k = M74.mastStabilitaet(s, m, { beta: 2.0 });
-    wahr('Mit Anbauteil sind es zwei Massen', k.massen.length === 2);
-    wahr('… die eine auf der Anschlusshoehe',
-         k.massen[0].herkunft === 'Anschlusshöhe'
-         && Math.abs(k.massen[0].z - 9.0) < 1e-9);
+    // Seit dem 18. September auf der eigenen Hoehe, nicht auf 9 m.
+    const teilM = k.massen.filter((x) => x.herkunft === 'eigene Befestigungshöhe');
+    wahr('Mit Anbauteil stehen seine Lastpunkte neben dem Eigengewicht',
+         teilM.length >= 1 && k.massen.length === teilM.length + 1);
+    wahr('… und zwar auf seiner Befestigungshoehe, nicht auf dem Anschluss',
+         teilM.every((x) => Math.abs(x.z - 7.0) < 1e-9),
+         teilM.map((x) => `${x.z} m`).join(', '));
     pruef('Die Ersatzhoehe stimmt mit der Formel ueberein',
           k.zN, zEq(k.massen, k.L), 1e-6, 'm');
     wahr('… und sie liegt zwischen Schwerpunkt und Anschluss',
@@ -17279,8 +17288,8 @@ const CH9x = await import(J('core.checks.js'));
            kE.massen.some((x) => Math.abs(x.z - 7.0) < 1e-9
                               && x.herkunft === 'eigene Befestigungshöhe')
            && !kE.massen.some((x) => x.herkunft === 'Anschlusshöhe'));
-      wahr('… und tiefer als mit Anschluss, also mit kleinerer Ersatzhoehe',
-           kE.zN < k.zN, `${kE.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
+      wahr('… und genau wie am Masten mit Anschluss - eine Regel fuer alle',
+           Math.abs(kE.zN - k.zN) < 1e-9, `${kE.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
     }
     /*
      * DIE RICHTUNG: mehr Last oben hebt die Ersatzhoehe. Das ist die Probe,
@@ -17291,9 +17300,10 @@ const CH9x = await import(J('core.checks.js'));
     const kS2 = M74.mastStabilitaet(mitAnschluss({ anbauteile: [schwer, schwer] }).s,
                                     mitAnschluss({ anbauteile: [schwer, schwer] }).m,
                                     { beta: 2.0 });
-    wahr('Mehr Last auf der Anschlusshoehe hebt die Ersatzhoehe',
-         kS2.zN > k.zN, `${kS2.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
-    wahr('… und macht das Knicken damit ungünstiger', kS2.chiZ < k.chiZ);
+    wahr('Mehr Last auf 7 m zieht die Ersatzhoehe dorthin',
+         Math.abs(kS2.zN - 7) < Math.abs(k.zN - 7),
+         `${kS2.zN.toFixed(3)} gegen ${k.zN.toFixed(3)} m`);
+    wahr('… und die Normalkraft steigt', kS2.NEd > k.NEd);
 
     /*
      * >>> WAS ÜBER DEM ANSCHLUSS SITZT, WIRD GENANNT. <<<
@@ -17320,10 +17330,10 @@ const CH9x = await import(J('core.checks.js'));
      * unsichere; auf Nachfrage entschieden gilt deshalb
      * z = max(Anschlusshoehe, eigene Hoehe).
      */
-    wahr('Was ueber dem Anschluss sitzt, wird ausgewiesen',
-         (kU.ueberAnschluss ?? []).length >= 1
-         && kU.ueberAnschluss.every((l) => Math.abs(l.z - 11) < 1e-9),
-         kU.ueberAnschluss.map((l) => `${l.z} m`).join(', '));
+    // Seit dem 18. September wird nichts mehr verschoben - also auch nichts
+    // als Abweichung ausgewiesen.
+    wahr('Ohne Verschiebung gibt es keine Abweichung auszuweisen',
+         (kU.ueberAnschluss ?? []).length === 0);
     wahr('… und rechnet auf seiner eigenen Hoehe mit',
          kU.massen.some((x) => Math.abs(x.z - 11) < 1e-9
                             && x.herkunft.startsWith('eigene')));
@@ -24632,6 +24642,28 @@ titel('79  Einzelmast: keine Anschlusshoehe, Standorte nur was da ist');
     .flatMap((l) => l.punkte.map((p) => p[2]));
   pruef('Im Bild reicht der Mast vom Fuss genau ueber seine Laenge',
         Math.max(...achse) - Math.min(...achse), 8.5, 1e-9, 'm');
+
+  /*
+   * UND AM TRAGJOCH DIESELBE REGEL (18. September): «werden die mast massen
+   * ... bei den jochtragwerken auf höhe joch gesetzt? ... anpassen
+   * entsprechend einzelmast logik.» Die Jochlast bleibt auf H, ein Teil am
+   * Masten rechnet auf seiner Befestigungshoehe.
+   */
+  {
+    const wj = basis({ endbedingung: 'mast', mastVorhanden: true, mastProfil: 'HEB 240',
+      mastH: 7.5, mastSteg: 'jochachse', mastAnschluss: 'durchlaufend',
+      anbauteile: [{ ...A79.neuesAnbauteil('hs-nt-ausleger', 0),
+        name: 'Ausleger am Masten', ort: 'mastA', hMast: 4.0 }] });
+    const ej = rechne(wj);
+    const kj = (ej.mast.A ?? ej.mast).stabil;
+    const jl = kj.massen.find((x) => x.name === 'Jochlast');
+    pruef('Tragjoch: die Jochlast auf der Anschlusshoehe', jl?.z, (ej.mast.A ?? ej.mast).H,
+          1e-9, 'm');
+    const am = kj.massen.filter((x) => x.herkunft === 'eigene Befestigungshöhe');
+    wahr('… das Teil am Masten auf seinen 4.00 m, nicht auf der Jochhoehe',
+         am.length > 0 && am.every((x) => Math.abs(x.z - 4.0) < 1e-9),
+         am.map((x) => `${x.name} @ ${x.z}`).join(', '));
+  }
 
   // --- Standorte -----------------------------------------------------------
   const orte = (w) => U79.anbauOrteVorhanden(w).join();

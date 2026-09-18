@@ -6004,11 +6004,10 @@ function knickblatt(kS, n) {
           <td class="num"><b>${f2(kS.zN)}</b></td>
           <td class="num">${f2(mp.reduce((a, x) => a + x.P, 0))}</td></tr>
       </tbody></table></div>
-    <p class="notiz" style="margin:4px 0 0">Die Anbauteile und die Jochlast
-      sitzen auf der <b>Anschlusshöhe</b> (Joch, Tragausleger oder Ausleger) —
-      nach oben verschoben wirkt eine Masse ungünstiger, für alles darunter ist
-      das also die sichere Seite. Was <b>höher</b> steht, behält seine eigene
-      Höhe. Das Eigengewicht des Mastes geht <b>verteilt</b> ein; die Höhe in
+    <p class="notiz" style="margin:4px 0 0">Die Jochlast sitzt auf der
+      <b>Anschlusshöhe</b>, jedes Anbauteil am Masten auf seiner eigenen
+      <b>Befestigungshöhe</b> — dort tritt es in den Masten ein. Das
+      Eigengewicht des Mastes geht <b>verteilt</b> ein; die Höhe in
       der Tabelle ist die, auf der eine Punktmasse dasselbe täte — sie liegt bei
       0.60 der Länge, nicht beim Schwerpunkt.</p>
     <p class="notiz">Mehrere Massen auf mehreren Höhen lassen sich nicht durch

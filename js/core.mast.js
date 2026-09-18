@@ -906,13 +906,14 @@ export function mastStabilitaet(s, m, o = {}) {
    * masseschwerpunkt zu setzen. falls es mit dieser definition noch den
    * rayleigh braucht, dann einbauen.»
    *
-   * Damit sind es ZWEI Massen auf zwei Höhen, und eine einzige «oberste
-   * Krafteinleitung» genügt nicht mehr:
+   * Damit sind es MEHRERE Massen auf verschiedenen Höhen, und eine einzige
+   * «oberste Krafteinleitung» genügt nicht mehr:
    *
-   *   P_A   alle Anbauteile und die Jochlast, gemeinsam auf der
-   *         ANSCHLUSSHÖHE H - dort hängt das Joch, der Tragausleger oder
-   *         beim Einzelmasten der Ausleger, und dort treten sie ein
-   *   P_M   das Eigengewicht des Mastes, in seinem SCHWERPUNKT L/2
+   *   P_J   die Jochlast auf der ANSCHLUSSHÖHE H
+   *   P_i   jedes Anbauteil am Masten auf SEINER Befestigungshöhe - seit
+   *         dem 18. September auch am Joch- und Abfangjochmasten, nicht
+   *         mehr auf H hochgesetzt (siehe unten)
+   *   P_M   das Eigengewicht des Mastes, VERTEILT über die Länge
    *
    * >>> DESHALB RAYLEIGH. <<<
    *
@@ -952,78 +953,50 @@ export function mastStabilitaet(s, m, o = {}) {
    * steht, was das bedeutet.
    * ===================================================================== */
   /*
-   * >>> BEIM EINZELMAST JEDES AUF SEINER HOEHE (Entscheid, 18. September). <<<
+   * >>> JEDE MASSE AUF IHRER EIGENEN HOEHE (Weisung, 18. September). <<<
    *
-   * Die Weisung vom 13. September weist die Massen beim Einzelmasten «den
-   * auslegern (anschlusshöhe)» zu. Eine Anschlusshoehe des Masten gibt es
-   * dort nicht - die Eingabe ist ausgeblendet, weil kein Joch anschliesst -,
-   * wohl aber die des Auslegers: die Hoehe, auf der er am Masten befestigt
-   * ist. Auf Nachfrage entschieden: jede Masse auf der Hoehe ihres
-   * Anbauteils, nicht gesammelt auf dem hoechsten und nicht auf dem Kopf.
+   * Bis hierher galt die Weisung vom 13. September: die Anbauteile am
+   * Masten wurden der Anschlusshoehe zugewiesen, nie nach unten -
+   * z = max(H, eigene Hoehe). Ein Rueckleiter auf 5 m rechnete damit, als
+   * haenge er am Joch auf 9 m.
+   *
+   * Am Einzelmasten gibt es keine Anschlusshoehe; dort wurde auf Nachfrage
+   * entschieden, jede Masse auf der Hoehe ihres Anbauteils zu rechnen. Frage
+   * vom 18. September: «werden die mast massen beim stabilitätsnachweis bei
+   * den jochtragwerken auf höhe joch gesetzt? ... falls es auf höhe joch
+   * ist, anpassen entsprechend einzelmast logik.»
+   *
+   * Jetzt also ueberall dieselbe Regel:
+   *
+   *   Jochlast         auf der Anschlusshoehe H - dort tritt sie ein
+   *   Anbauteil        auf seiner Befestigungshoehe am Masten
+   *   Eigengewicht     verteilt ueber die Laenge (siehe unten)
+   *
+   * Nichts wird mehr verschoben, also gibt es auch keine Abweichung mehr
+   * auszuweisen: `ueberAnschluss` bleibt leer und steht nur noch fuer die
+   * Leser alter Ergebnisse da.
    */
   const einzel = m?.tragwerksart === 'einzelmast';
   const zAnschluss = einzel ? 0 : (s.H > 0 ? s.H : L);
-  /*
-   * >>> AUF DIE ANSCHLUSSHOEHE - ABER NIE NACH UNTEN. <<<
-   *
-   * Weisung vom 13. September: die Anbauteile sind der Anschlusshoehe
-   * zuzuweisen. Fuer alles, was DARUNTER sitzt, ist das die sichere Seite -
-   * nach oben verschoben wirkt eine Masse unguenstiger.
-   *
-   * Fuer eine Traverse UEBER dem Anschluss waere es die unsichere: sie saesse
-   * rechnerisch tiefer, als sie steht. Auf Nachfrage entschieden (13.
-   * September, «kannst du die abweichungen so anpassen das es aus deiner
-   * sicht stimmt»), gilt deshalb
-   *
-   *     z = max(Anschlusshoehe, eigene Eintrittshoehe)
-   *
-   * Damit folgt die Zuweisung der Weisung ueberall dort, wo sie sicher ist,
-   * und nur dort weicht sie ab, wo die Weisung selbst unsicher waere.
-   */
   const punkte = mitFz.map((l) => {
     const eigen = Math.min(L, l.zAnschluss ?? l.z ?? 0);
-    return { name: l.name, P: Math.abs(l.Fz), zEigen: eigen,
-             z: Math.min(L, Math.max(zAnschluss, eigen)) };
+    return { name: l.name, P: Math.abs(l.Fz), zEigen: eigen, z: eigen,
+             joch: l.art === 'joch' };
   }).filter((x) => x.P > 1e-9);
   const PA = punkte.reduce((a, x) => a + x.P, 0);
   const PM = Math.abs((s.gd ?? 0) * L);
   const massen = [];
-  /*
-   * ZUSAMMENGEFASST, WO SIE AUF DERSELBEN HOEHE SITZEN - der Bericht soll
-   * die Anschlusshoehe als EINE Zeile zeigen und jede hoehere einzeln.
-   */
-  const aufAnschluss = punkte.filter((x) => x.z <= zAnschluss + 1e-9);
-  const darueber = punkte.filter((x) => x.z > zAnschluss + 1e-9)
-    .sort((a, b) => b.z - a.z);
-  const PAn = aufAnschluss.reduce((a, x) => a + x.P, 0);
-  if (einzel) {
-    punkte.forEach((x) => massen.push({
+  // Die Jochlast als eine Zeile auf der Anschlusshoehe, jedes Anbauteil
+  // einzeln mit seiner Hoehe.
+  const PJ = punkte.filter((x) => x.joch).reduce((a, x) => a + x.P, 0);
+  if (PJ > 1e-9) {
+    massen.push({ name: 'Jochlast', z: Math.min(zAnschluss, L), P: PJ,
+                  herkunft: 'Anschlusshöhe' });
+  }
+  punkte.filter((x) => !x.joch).sort((x, y) => y.z - x.z)
+    .forEach((x) => massen.push({
       name: x.name, z: x.z, P: x.P, herkunft: 'eigene Befestigungshöhe' }));
-  } else if (PAn > 1e-9) {
-    massen.push({ name: 'Anbauteile und Jochlast', z: Math.min(zAnschluss, L),
-                  P: PAn, herkunft: 'Anschlusshöhe' });
-  }
-  if (!einzel) {
-    darueber.forEach((x) => massen.push({
-      name: x.name, z: x.z, P: x.P, herkunft: 'eigene Höhe, über dem Anschluss' }));
-  }
-  /*
-   * >>> WAS ÜBER DEM ANSCHLUSS SITZT, WIRD HERUNTERGESETZT. <<<
-   *
-   * Die Weisung weist die Anbauteile der Anschlusshöhe zu. Eine Traverse
-   * ÜBER dem Joch - Speiseleitung, Beleuchtung - sitzt damit rechnerisch
-   * tiefer, als sie steht, und wirkt weniger destabilisierend als in
-   * Wirklichkeit. Das ist die unsichere Seite, und deshalb wird sie
-   * ausgewiesen statt verschwiegen: der Bericht nennt jedes Teil, das
-   * höher steht, mit beiden Höhen.
-   *
-   * Gerechnet wird trotzdem nach der Weisung - sie ist die Festlegung des
-   * Auftraggebers, und eine stille Abweichung davon wäre schlimmer als die
-   * Abweichung selbst.
-   */
-  // Beim Einzelmast gibt es keinen Anschluss, ueber dem etwas stehen koennte.
-  const ueberAnschluss = einzel ? [] : darueber
-    .map((x) => ({ name: x.name, z: x.z, Fz: x.P }));
+  const ueberAnschluss = [];
   /* =======================================================================
    * >>> DAS EIGENGEWICHT BLEIBT VERTEILT. <<<
    * =======================================================================
