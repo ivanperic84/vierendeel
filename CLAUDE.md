@@ -225,7 +225,7 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 **Laufende Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
 Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
 aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
-A6 → A5 → U7 → U6 → U3 → U5 → U4 → A2 → A1 → A3; A4 nur nach Rückfrage.
+~~A6~~ → ~~A5~~ → U7 → U6 → U3 → U5 → U4 → A2 → A1 → A3; A4 nur nach Rückfrage.
 
 | # | Auftrag |
 |---|---|
@@ -337,8 +337,9 @@ und ohne sie rechnet die Anwendung nicht.
 
 Was in Modulen läuft, läuft nicht zwangsläufig gebündelt. Der Bündler prüft
 das Ergebnis mit `node --check` und bricht ab, statt eine kaputte Datei
-abzulegen. Er schreibt auch `sw.js` neu (Dateiliste und Fassung) — diese
-Änderung gehört mit in den Commit.
+abzulegen. Er schreibt auch `sw.js` neu (Dateiliste und Fassung) und `js/version.js`
+(Datum und Fassung für Fussleiste und Bericht, «v2.0 · 18.09.2026 ·
+d3f95be») — beide Änderungen gehören mit in den Commit.
 
 ### Wo was steht (`js/`, rund 58 000 Zeilen)
 

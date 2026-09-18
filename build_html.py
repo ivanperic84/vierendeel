@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 WURZEL = Path(__file__).resolve().parent
@@ -261,6 +262,45 @@ def schreibe_sw():
     print(f"Dienstarbeiter: sw.js, Fassung {fassung}, {len(liste)} Dateien abgelegt")
 
 
+STAND = JS / "version.js"
+
+
+def schreibe_stand():
+    """
+    Schreibt js/version.js: Datum und Fassung des Codes (Durchsicht vom
+    18. September, Punkt A5 - «überall steht v2.0, obwohl es seither 340
+    Commits gab»).
+
+    Die Fassung ist derselbe Abdruck wie in sw.js, aber OHNE version.js
+    selbst - sonst hinge die Datei von sich selbst ab. Das Datum wechselt
+    nur, wenn sich die Fassung wechselt: ein erneutes Bauen am naechsten Tag
+    ohne Aenderung laesst die Datei unberuehrt.
+    """
+    h = hashlib.sha256()
+    for rel in schale():
+        if rel == "js/version.js":
+            continue
+        pfad = WURZEL / rel
+        if pfad.is_file():
+            h.update(rel.encode("utf-8"))
+            h.update(pfad.read_bytes())
+    fassung = h.hexdigest()[:12]
+    alt = STAND.read_text(encoding="utf-8") if STAND.exists() else ""
+    m = re.search(r"datum: '([0-9-]+)', fassung: '([0-9a-f]+)'", alt)
+    datum = m.group(1) if m and m.group(2) == fassung else date.today().isoformat()
+    neu = ("/**\n"
+           " * version.js - VON build_html.py ERZEUGT, nicht von Hand aendern.\n"
+           " *\n"
+           " * Datum und Fassung (Kurzabdruck ueber den Inhalt der Anwendung) des\n"
+           " * gebauten Stands. Die Fussleiste und der Bericht nennen sie, damit\n"
+           " * sichtbar ist, welcher Stand bei wem laeuft.\n"
+           " */\n"
+           f"export const STAND = {{ datum: '{datum}', fassung: '{fassung}' }};\n")
+    if neu != alt:
+        STAND.write_text(neu, encoding="utf-8")
+    print(f"Stand: {datum}, Fassung {fassung}")
+
+
 def main(ohne_daten=False):
     """
     ohne_daten: die drei Datenbanken NICHT einbetten. Ergibt eine Ausgabe, die
@@ -447,5 +487,6 @@ def main(ohne_daten=False):
 if __name__ == "__main__":
     # Der Dienstarbeiter gehört zur Modulversion (index.html) und wird bei
     # jedem Bauen aufgefrischt, unabhängig davon, welche Einzeldatei entsteht.
+    schreibe_stand()
     schreibe_sw()
     sys.exit(main(ohne_daten="--ohne-daten" in sys.argv))

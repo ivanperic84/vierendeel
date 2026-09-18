@@ -6,6 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
          datenbank, datenbankStand, laengenbereich,
@@ -107,7 +108,13 @@ import * as ui from './ui.js';
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
 const BEARBEITER = 'tragjoch-bearbeiter';
-const VERSION = 'v2.0';
+/*
+ * DIE FASSUNG SAGT, WELCHER STAND LAEUFT (Durchsicht vom 18. September,
+ * Punkt A5). «v2.0» stand unveraendert ueber Hunderten von Commits. Datum
+ * und Kurzabdruck schreibt der Bündler (js/version.js); gleiche Fassung
+ * heisst gleicher Code, bei jedem und auf GitHub Pages.
+ */
+const VERSION = `v2.0 · ${STAND.datum.split('-').reverse().join('.')} · ${STAND.fassung.slice(0, 7)}`;
 
 let werte = null;
 let letzte = null;

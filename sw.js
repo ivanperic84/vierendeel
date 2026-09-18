@@ -29,7 +29,7 @@
 /* eslint-env serviceworker */
 
 // === von build_html.py erzeugt - nicht von Hand ändern ======================
-const VERSION = 'faaca1dc0100';
+const VERSION = '45bd3a9a5feb';
 const SCHALE = [
   './',
   'index.html',
@@ -88,6 +88,7 @@ const SCHALE = [
   'js/ui.js',
   'js/ui.schema.js',
   'js/verlauf.js',
+  'js/version.js',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-32.png',
