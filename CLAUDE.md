@@ -138,6 +138,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Seilanker (16. Sept.) | trägt **nur Zug**; müsste er drücken, fällt er aus und der Mast trägt allein |
 | Gesamturteil (17. Sept.) | **Maximum über alle geführten Bauteile, mit Namen** |
 | Urteilsfarbe | folgt allein der Tragsicherheit; verletzte Konstruktionsprüfungen färben nicht, werden aber in Kachel **und** Fussleiste genannt (18. Sept., `urteilFusszeile`) |
+| Nachweisbericht (18. Sept.) | **Druckbericht → PDF**, Hauptteil + Anhang, Umfang einstellbar (nur massgebend / mit Anhang / vollständig), vier Bilder einzeln abschaltbar; zuerst Tragjoch mit Masten. Der Bericht **rechnet nicht**: `export.nachweisbericht.js` schreibt die Zwischenwerte des Kerns in die Formeln, der Prüfstand (Abschnitt 82) rechnet jede Formel nach |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
 | NT- und Rohrausleger (26. Aug.) | **Kragarm**, Versatz in Jochachse (NT 1.20/2.40 m, Rohr 1.5/3.0 m), 50 % Wind auf den Anschluss |
@@ -149,7 +150,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4614 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4652 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -167,6 +168,10 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   je Längenbereich; alle 17 Längen gehen gegen die Stückliste auf. η steigt
   dadurch um 7–8 % (J60/16 m: 0.503 → 0.539), weil der Ersatz mit 100×10
   statt 6 mm dicken, in der Mitte 80 mm breiten Blechen rechnete.
+  **Nachweisbericht, erste Fassung** (Tragjoch mit Masten): Knopf im
+  Menüband, Dialog für Umfang und Bilder, Bericht als Ebene mit
+  eingebettetem Dokument, gedruckt als PDF. Der Hinweis «Mast ist Auflager,
+  nicht Bauteil» war seit dem 28. Aug. falsch und ist berichtigt.
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -187,8 +192,11 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- **Prüffähiger Nachweisbericht:** noch nicht begonnen; Excel, Druckansicht
-  und Handbuch decken ihn nicht ab.
+- **Nachweisbericht, weitere Schritte:** Einzelmast, Mast mit Tragausleger
+  und Abfangjoch (heute meldet der Knopf, dass sie folgen); die 3D-Bilder
+  stehen auf dunklem Grund, wenn die Anwendung dunkel eingestellt ist; die
+  Systemskizze ist die Längsansicht des Modells, keine vermasste Zeichnung.
+  Ein Handbuchkapitel zum Bericht fehlt.
 - **Druckstütze Stufe 2** (mehrteiliger Druckstab, EN 1993-1-1, 6.4): ⚠ es
   fehlen der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen
   (Anzahl, Abstand, Profil).
@@ -239,7 +247,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4614 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4652 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

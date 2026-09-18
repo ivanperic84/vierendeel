@@ -1354,11 +1354,21 @@ export function hinweise(m) {
   }
   if (m.federn?.mast) {
     const ma = m.federn.mastA ?? m.federn.mast;
-    // Der Mast steht hier als AUFLAGER, nicht als nachzuweisendes Bauteil.
-    h.push('Der Mast ist Auflager, nicht Bauteil: nachgewiesen wird nur das '
-      + 'Joch. Sein Profil bestimmt die Drehfeder und den Mastwind auf das '
-      + 'Jochende; sein eigener Nachweis gehört in ein Rahmenmodell mit '
-      + 'beiden Masten, Fusspunkten und Gründung.');
+    /*
+     * Seit dem 28. August hat der Mast seinen eigenen Nachweis - der alte
+     * Satz «nachgewiesen wird nur das Joch» stand trotzdem weiter in der
+     * Liste und widersprach der Kachel daneben (gefunden am 18. September
+     * im Nachweisbericht). Er gilt nur noch, wenn der Mastnachweis aus ist.
+     */
+    h.push(m.nachweise?.mast === false
+      ? 'Der Mast ist Auflager, nicht Bauteil: nachgewiesen wird nur das '
+        + 'Joch. Sein Profil bestimmt die Drehfeder und den Mastwind auf das '
+        + 'Jochende; sein eigener Nachweis ist ausgeschaltet.'
+      : 'Der Mast ist Auflager und Bauteil: sein Profil bestimmt die '
+        + 'Drehfeder und den Mastwind auf das Jochende, und er wird mit den '
+        + 'Auflagerkräften des Jochs selbst nachgewiesen (Querschnitt und '
+        + 'Stabilität). Fusspunkt und Gründung sind nicht Teil dieses '
+        + 'Nachweises.');
     h.push(m.federn.verschieblich
       ? 'Wind in Jochachse: beide Mastköpfe wollen in dieselbe Richtung, der '
         + 'Rahmen VERSCHIEBT sich. Gerechnet wird deshalb mit dem Kragmast, '

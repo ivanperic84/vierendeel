@@ -24763,6 +24763,96 @@ titel('81  Der Mast trifft nur liegende Bleche und die Gurte');
   });
 }
 
+titel('82  Nachweisbericht: jede Formel geht mit ihren Zahlen auf');
+// Weisung vom 18. September: Druckbericht -> PDF, Hauptteil mit Anhang,
+// Bilder ausschaltbar, Umfang einstellbar, zuerst das Tragjoch mit Masten.
+// Der Bericht rechnet nicht - geprueft wird, dass die Formel, die er
+// hinschreibt, mit den eingesetzten Werten die Zahl daneben ergibt.
+{
+  const NB = await import(J('export.nachweisbericht.js'));
+  const CH = await import(J('core.checks.js'));
+  const V = await import(J('core.vierendeel.js'));
+  const C = await import(J('core.constants.js'));
+  const w0 = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                                  T.getTragjoch('J90')),
+               L: 20, mastVorhanden: true,
+               anbauteile: [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL Gleis 1' }] };
+  const w = C.rechensatz(w0);
+  const args = [w, getProfil(w.profOG), getProfil(w.profUG), getStahl(w.stahl), T.getTragjoch('J90')];
+  const erg = berechne(...args);
+  const kombi = V.vergleichKombinationen(...args);
+  const checks = CH.konstruktionsChecks(erg.modell);
+  const urteil = CH.urteilKonstruktion(checks, w.nachweise, 'joch');
+  const bem = { ...kombi.huellkurve, anker: erg.anker };
+  urteil.bauteile = CH.bauteilUrteil(bem, w.nachweise, 'joch');
+  const d = { werte: w, erg: bem, kombi, checks, urteil, hinweise: CH.hinweise(erg.modell),
+              fassung: 'Test', datum: '18.09.2026',
+              bilder: { skizze: '<svg id="t-skizze"></svg>', verlaeufe: '<svg id="t-verl"></svg>',
+                        eta: '<svg id="t-eta"></svg>', modell3d: 'data:image/png;base64,AAAA' } };
+  const html = NB.nachweisbericht(d);
+
+  ['2 Grundlagen', '3 System', '4 Einwirkungen', '5 Lastfälle', '6 Schnittgrössen',
+   '7 Nachweise', '8 Konstruktionsprüfungen', '9 Nicht geführte', '10 Kräfte am Mastfuss',
+   'Anhang'].forEach((k) => wahr(`Kapitel «${k}» steht da`, html.includes(k)));
+  wahr('Kein «undefined», «NaN» oder «[object Object]» im Bericht',
+       !/undefined|NaN|\[object Object\]/.test(html),
+       (html.match(/.{30}(undefined|NaN|\[object Object\]).{30}/) ?? [''])[0]);
+  wahr('Keine Anzeigeoption unter «womit gerechnet»', !/Blickwinkel|Projektion/.test(html));
+
+  // --- Die Ketten gegen ihre eigenen Zahlen --------------------------------
+  const m = erg.modell;
+  const fyd = m.stahl.fy / m.gammaM0;
+  const km = kombi.ergebnisse[kombi.massgebend];
+  const e = km.max.eta.massgebendeEcke;
+  pruef('Gurt: σ_N = |N| / A', Math.abs(e.N) * 10 / e.A, e.sig_N, 1e-6, 'N/mm²');
+  pruef('Gurt: σ_My = M_y,lok / W_y', e.My_lokal * 1000 / e.Wy, e.sig_My, 1e-6, 'N/mm²');
+  pruef('Gurt: σ_Mz = M_z,lok / W_z', e.Mz_lokal * 1000 / e.Wz, e.sig_Mz, 1e-6, 'N/mm²');
+  pruef('Gurt: σ = Summe der Teile', e.sig_N + e.sig_My + e.sig_Mz, e.sig_v, 1e-6, 'N/mm²');
+  pruef('Gurt: η = σ / f_yd', e.sig_v / fyd, e.eta, 1e-9, '');
+  pruef('Gurt: N_My = M_y / (2h)', Math.abs(km.max.eta.My) / (2 * km.max.eta.h),
+        Math.abs(e.N_My), 1e-6, 'kN');
+  pruef('Die Kette steht auf dem η der Umhüllenden', e.eta, kombi.huellkurve.max.etaGesamt, 1e-9, '');
+  const b = km.max.etaB;
+  pruef('Blech: W = t·b²/6', b.tBB * b.hBB ** 2 / 6, b.W_Blech, 1e-6, 'mm³');
+  pruef('Blech: σ = M / W', b.M_Blech * 1e6 / b.W_Blech, b.sig_B, 1e-6, 'N/mm²');
+  pruef('Blech: τ = 1.5·V/(t·b)', 1.5 * b.V_Blech * 1000 / (b.tBB * b.hBB), b.tau_B, 1e-6, 'N/mm²');
+  pruef('Blech: σ_v = √(σ² + 3τ²)', Math.sqrt(b.sig_B ** 2 + 3 * b.tau_B ** 2), b.sig_vB, 1e-6, 'N/mm²');
+  pruef('Blech: η = σ_v / f_yd', b.sig_vB / fyd, b.etaB, 1e-9, '');
+  const n = bem.mast.A, q = n.massgebend, s = n.stabil;
+  pruef('Mast: σ_N = N / A', q.N * 10 / n.A, q.sigN, 1e-6, 'N/mm²');
+  pruef('Mast: σ_längs = M_längs / W_längs', Math.abs(q.Mxx) * 1000 / n.Wl, q.sigL, 1e-6, 'N/mm²');
+  pruef('Mast: σ = Summe der Teile', q.sigN + q.sigQ + q.sigL + q.sigW, q.sig, 1e-6, 'N/mm²');
+  pruef('Mast: Gleichung (50) aus den gedruckten Werten',
+        s.NEd / s.NKRd + s.omega * s.vy * s.MyEd / s.MyRd + s.omega * s.vz * s.MzEd / s.MzRd,
+        s.eta50, 1e-9, '');
+  pruef('Mast: 1/(1 − N_Ed/N_cr,y)', 1 / (1 - s.NEd / s.NcrY), s.vy, 1e-9, '');
+  wahr('Die Zahl der Gurtkette steht im Bericht', html.includes(`<b>${NB.zahl(e.eta, 3)}</b>`));
+  wahr('η(50) steht im Bericht', html.includes(`<b>${NB.zahl(s.eta50, 3)}</b>`));
+
+  // --- Umfang und Bilder ---------------------------------------------------
+  const nur = NB.nachweisbericht(d, { umfang: 'massgebend' });
+  wahr('«Nur massgebend» hat keinen Anhang', !nur.includes('<h2>Anhang</h2>'));
+  const voll = NB.nachweisbericht(d, { umfang: 'vollstaendig' });
+  wahr('«Vollständig» schreibt die Stationen je Kombination aus', /A4 Stationen:/.test(voll));
+  wahr('Alle Bilder stehen, wenn eingeschaltet',
+       ['t-skizze', 't-verl', 't-eta', 'data:image/png'].every((k) => html.includes(k)));
+  const ohne = NB.nachweisbericht(d, { bilder: { skizze: false, verlaeufe: false, eta: false, modell3d: false } });
+  wahr('Kein Bild, wenn alle ausgeschaltet',
+       !['t-skizze', 't-verl', 't-eta', 'data:image/png'].some((k) => ohne.includes(k)));
+  const eins = NB.nachweisbericht(d, { bilder: { verlaeufe: false } });
+  wahr('Jedes Bild einzeln abschaltbar', !eins.includes('t-verl') && eins.includes('t-skizze'));
+
+  // --- Grenzen dieser Fassung ----------------------------------------------
+  let fehler = null;
+  try { NB.nachweisbericht({ ...d, werte: { ...w, tragwerksart: 'einzelmast' } }); }
+  catch (x) { fehler = x.message; }
+  wahr('Einzelmast: der Bericht sagt, dass er ihn noch nicht abdeckt',
+       /Tragjoch mit Masten/.test(fehler ?? ''), fehler);
+  wahr('Der Hinweis nennt den Mast als nachgewiesenes Bauteil',
+       CH.hinweise(erg.modell).some((h) => /Auflager und Bauteil/.test(h))
+       && !CH.hinweise(erg.modell).some((h) => /nachgewiesen wird nur das Joch/.test(h)));
+}
+
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
 /* ===========================================================================
  * Weisung vom 17. September: «örtlicher anteil umsetzen», nur im Weg

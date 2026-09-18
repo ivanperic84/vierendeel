@@ -133,6 +133,7 @@ export const ICONS = {
   installieren: 'M10 2v8M6.5 7l3.5 3 3.5-3M4 12v3a2 2 0 002 2h8a2 2 0 002-2v-3',
   export: 'M10 13V4M6 8l4-4 4 4M3 16h14',
   drucken: 'M6 8V3h8v5M6 15H4v-5h12v5h-2M6 12h8v5H6z',
+  bericht: 'M5 2h7l4 4v11a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1zM12 2v4h4M7 10h6M7 13h6M7 16h4',
   zuruecksetzen: 'M4 10a6 6 0 106-6 6 6 0 00-4.2 1.8L4 7M4 4v3h3',
   hell: 'M10 3v2M10 15v2M3 10h2M15 10h2M5.5 5.5l1.4 1.4M13.1 13.1l1.4 1.4M5.5 14.5l1.4-1.4M13.1 6.9l1.4-1.4M10 7a3 3 0 100 6 3 3 0 000-6z',
   dunkel: 'M15 11.5A6 6 0 018.5 5a6 6 0 106.5 6.5z',

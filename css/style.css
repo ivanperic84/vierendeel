@@ -2866,3 +2866,12 @@ body.datei-ueber::after {
 .dat-dateien { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .dat-dateien .btn { font-family: var(--f-mono); font-size: 12px; }
 .dat-dateien .btn.an { border-color: var(--ok); }
+
+/* --- Der Nachweisbericht als Ebene über der Anwendung (18. September) ---- */
+/* Eine Ebene statt eines Fensters: die Pop-up-Sperre hielt das Fenster auf. */
+#bericht-ebene { position: fixed; inset: 0; z-index: 1000; display: flex;
+  flex-direction: column; background: var(--s0, #111); }
+#bericht-ebene .bericht-leiste { display: flex; gap: 10px; align-items: center;
+  padding: 8px 14px; border-bottom: 1px solid var(--ol); color: var(--on); }
+#bericht-ebene .bericht-leiste b { margin-right: auto; }
+#bericht-ebene iframe { flex: 1; border: 0; background: #fff; width: 100%; }

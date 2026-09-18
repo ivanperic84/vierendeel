@@ -3278,6 +3278,39 @@ export class Modellansicht {
     });
   }
 
+  /**
+   * Das ganze Modell aus einer Blickrichtung als Bild - fuer den
+   * Nachweisbericht. Kamera, Ausschnitt und Fokus werden danach genau so
+   * zurueckgestellt, wie sie waren; wer arbeitet, merkt nichts davon.
+   *
+   * @param {string} key  Schluessel aus ANSICHTEN
+   * @returns {string|null} PNG als Daten-URL
+   */
+  momentaufnahme(key = 'iso') {
+    const a = ANSICHTEN.find((x) => x.key === key) ?? ANSICHTEN[0];
+    const alt = { kamera: structuredClone(this.kamera), fokus: this.fokus,
+                  station: this.station, ansichtKey: this.ansichtKey };
+    let url = null;
+    try {
+      const g = this.szene?.grenzen;
+      this.kamera.az = a.az; this.kamera.el = a.el;
+      this.fokus = null; this.station = null; this.ansichtKey = key;
+      if (g) {
+        this.kamera.ziel = [(g.xMin + g.xMax) / 2, 0, (g.zMin + g.zMax) / 2];
+        this.kamera.pan = [0, 0, 0];
+        const d = this._noetigerAbstand(0.9);
+        if (d) this.kamera.dist = d;
+      }
+      this.zeichneJetzt();
+      url = this.cv.toDataURL('image/png');
+    } finally {
+      Object.assign(this, { kamera: alt.kamera, fokus: alt.fokus,
+                            station: alt.station, ansichtKey: alt.ansichtKey });
+      this.zeichneJetzt();
+    }
+    return url;
+  }
+
   /** Sofort zeichnen, ohne auf den nächsten Bildwechsel zu warten. */
   zeichneJetzt() {
     if (this._angefordert) { cancelAnimationFrame(this._angefordert); this._angefordert = 0; }

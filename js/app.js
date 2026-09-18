@@ -23,6 +23,8 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
+import { nachweisbericht, berichtVorgabe, UMFAENGE, BILDER,
+         BERICHT_ARTEN } from './export.nachweisbericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -4643,6 +4645,7 @@ function baueKopf() {
       `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
          title="Modell nach AxisVM ausleiten, COM-Brücke, SAF, DXF oder PyNite"
          aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>`
+      + knopf('btn-bericht', 'bericht', 'Nachweisbericht: A4-Seiten zum Drucken als PDF')
       + knopf('btn-export', 'export', 'Excel-Ausleitung der Berechnung (.xlsx)')
       + knopf('btn-drucken', 'drucken', 'Drucken / PDF'))
     + strich
@@ -4672,6 +4675,7 @@ function baueKopf() {
   ui.el('btn-vor').onclick = () => wiederherstellen();
   ui.el('btn-handbuch').onclick = dialogHandbuch;
   ui.el('btn-export').onclick = exportKlick;
+  ui.el('btn-bericht').onclick = dialogBericht;
   ui.el('btn-axisvm').onclick = dialogAxisvm;
   ui.el('btn-drucken').onclick = () => handlung('Drucken', () => window.print());
   ui.el('btn-speichern').onclick = () => ablageSpeichern(false);
@@ -8373,6 +8377,120 @@ function exportKlick() {
   handlung('Excel-Ausleitung', () =>
     exportiere(werte, letzte.erg, letzte.checks, letzte.hinw, letzte.warn,
                letzte.vergleich, letzte.urteil));
+}
+
+/* ===========================================================================
+ * >>> DER NACHWEISBERICHT (Weisung vom 18. September). <<<
+ * ===========================================================================
+ *
+ * «die bilder ausschaltbar und den umfang der nachweise einstellbar
+ * machen.» Der Dialog fragt beides; die Wahl bleibt fuer das naechste Mal
+ * im Browser stehen. Der Bericht selbst entsteht in
+ * export.nachweisbericht.js aus dem, was `letzte` schon traegt - hier
+ * werden nur die Bilder gemacht, die ein Browser braucht.
+ * ========================================================================= */
+const BERICHT_WAHL = 'tragjoch-bericht';
+
+function berichtWahl() {
+  try {
+    const w = JSON.parse(localStorage.getItem(BERICHT_WAHL) ?? 'null');
+    if (w?.umfang) return { ...berichtVorgabe(), ...w, bilder: { ...berichtVorgabe().bilder, ...w.bilder } };
+  } catch { /* ohne Speicher die Vorgabe */ }
+  return berichtVorgabe();
+}
+
+/** Die Regeln der Diagrammklassen aus dem eigenen Stylesheet. */
+function diagrammStil() {
+  const muster = /\.(grid|nulllinie|grenze|tick|achse|legende|serie|band|marke|lbl|micro)\b/;
+  return [...document.styleSheets].flatMap((s) => {
+    try { return [...s.cssRules]; } catch { return []; }
+  }).filter((r) => r.selectorText && muster.test(r.selectorText))
+    .map((r) => r.cssText).join('\n');
+}
+
+function dialogBericht() {
+  if (!letzte) return;
+  const art = tragwerksart(werte);
+  if (!BERICHT_ARTEN.includes(art.key)) {
+    meldeImBalken(`Der Nachweisbericht deckt in dieser Fassung das Tragjoch mit Masten ab — `
+      + `für «${art.label}» folgt er.`);
+    return;
+  }
+  const w = berichtWahl();
+  const koerper = `
+    <p>Der Bericht öffnet sich in einem eigenen Fenster; dort als PDF drucken.
+    Die Bilder zeigen die Modellansicht in ihrer jetzigen Darstellung.</p>
+    <h3>Umfang der Nachweise</h3>
+    ${UMFAENGE.map((u) => `<label class="schalter"><input type="radio" name="umfang"
+      value="${u.key}"${u.key === w.umfang ? ' checked' : ''}>
+      <span><b>${esc(u.label)}</b> — ${esc(u.text)}</span></label>`).join('')}
+    <h3>Bilder</h3>
+    ${BILDER.map((b) => `<label class="schalter"><input type="checkbox" name="bild"
+      value="${b.key}"${w.bilder[b.key] ? ' checked' : ''}><span>${esc(b.label)}</span></label>`).join('')}`;
+  const { node, zu } = dialog('Nachweisbericht', koerper,
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" id="bericht-los">Bericht erzeugen</button>`);
+  node.querySelector('#bericht-los').onclick = () => {
+    const wahl = {
+      umfang: node.querySelector('input[name=umfang]:checked')?.value ?? 'anhang',
+      bilder: Object.fromEntries(BILDER.map((b) => [b.key,
+        !!node.querySelector(`input[name=bild][value=${b.key}]`)?.checked])),
+    };
+    try { localStorage.setItem(BERICHT_WAHL, JSON.stringify(wahl)); } catch { /* egal */ }
+    zu();
+    handlung('Nachweisbericht', () => berichtOeffnen(wahl));
+  };
+}
+
+function berichtOeffnen(wahl) {
+  /*
+   * DIE BEMESSUNG, nicht die Anzeige: gleich welcher Lastfall oben gewaehlt
+   * ist, der Bericht steht auf der Umhuellenden - wie das Urteil.
+   */
+  const bem0 = letzte.kombi?.huellkurve ?? letzte.erg;
+  const bem = { ...bem0, anker: letzte.erg.anker ?? bem0.anker };
+  const b = wahl.bilder;
+  const satz = (b.verlaeufe || b.eta) ? diagrammSatz(bem, 900) : {};
+  const reihe = (schluessel) => Object.entries(satz)
+    .filter(([k, v]) => v.svg && schluessel.some((s) => k === s || k.startsWith(`${s}-`)))
+    // Jedes Diagramm traegt seinen Titel selbst - ein zweiter waere doppelt.
+    .map(([, v]) => `<div class="dia">${v.svg}</div>`).join('');
+  const bilder = {
+    skizze: b.skizze ? ansicht?.momentaufnahme('laengs') : null,
+    modell3d: b.modell3d ? ansicht?.momentaufnahme('iso') : null,
+    verlaeufe: b.verlaeufe ? reihe(['schnittgroessen', 'ebene', 'mast-schnitt']) : null,
+    eta: b.eta ? reihe(['ausnutzung', 'mast-eta']) : null,
+  };
+  const html = nachweisbericht({
+    werte: { ...rechensatz(werte), name: projekt.name },
+    erg: bem, kombi: letzte.kombi, checks: letzte.checks, urteil: letzte.urteil,
+    hinweise: letzte.hinw, fassung: `${APP_NAME} ${VERSION}`,
+    datum: new Date().toLocaleDateString('de-CH'), bilder, stil: diagrammStil(),
+  }, wahl);
+  berichtZeigen(html);
+}
+
+/*
+ * IN DER ANWENDUNG, NICHT IN EINEM NEUEN FENSTER. Der erste Anlauf oeffnete
+ * ein Fenster - und die Pop-up-Sperre des Browsers hielt es auf. Eine Ebene
+ * mit eingebettetem Dokument braucht keine Erlaubnis, laeuft auch in der
+ * installierten und der eigenstaendigen Fassung, und gedruckt wird nur das
+ * eingebettete Dokument, nicht die Anwendung dahinter.
+ */
+function berichtZeigen(html) {
+  document.getElementById('bericht-ebene')?.remove();
+  const ebene = document.createElement('div');
+  ebene.id = 'bericht-ebene';
+  ebene.innerHTML = `<div class="bericht-leiste">
+      <b>Nachweisbericht</b>
+      <button class="btn btn-acc" id="bericht-drucken">Drucken / als PDF sichern</button>
+      <button class="btn" id="bericht-zu">Schliessen</button></div>
+    <iframe title="Nachweisbericht"></iframe>`;
+  document.body.appendChild(ebene);
+  const rahmen = ebene.querySelector('iframe');
+  rahmen.srcdoc = html;
+  ebene.querySelector('#bericht-drucken').onclick = () => rahmen.contentWindow?.print();
+  ebene.querySelector('#bericht-zu').onclick = () => ebene.remove();
 }
 
 /**
