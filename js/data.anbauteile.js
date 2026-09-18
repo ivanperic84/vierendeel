@@ -566,6 +566,19 @@ export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier =
  * @param {object} o {ek, R, spannweite}
  * @returns {object[]} flache Liste für core.anbauteile.js
  */
+/**
+ * Wie tief ein Teil am Masten unter seine Befestigung haengt [m] - die
+ * kleinste Befestigungshoehe, bei der nichts unter die Fundamentkote kommt.
+ * Weisung vom 18. September: «eine last unterhalb der fundamentkote sollte
+ * nicht möglich sein, da dies dann unter terrain wäre.»
+ */
+export function haengeTiefe(a) {
+  if (a?.ort !== 'mastA' && a?.ort !== 'mastB') return 0;
+  const flach = expandiereAnbauteile([{ ...a, aktiv: true, hMast: 0 }], {});
+  const zMin = Math.min(0, ...flach.map((t) => Number(t.z) || 0));
+  return Math.round(-zMin * 1000) / 1000;
+}
+
 export function expandiereAnbauteile(liste, o = {}) {
   const { ek = 'EK2', R = 0, spannweite = 0 } = o;
   const flach = [];

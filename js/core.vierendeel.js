@@ -260,17 +260,19 @@ export function modellEinzelmast(inp, stahl) {
   const bwX = beiwerte.WindX ?? 0;
 
   /*
-   * ALLE ANBAUTEILE HÄNGEN AM MASTEN — es gibt nichts anderes.
+   * >>> TEILE AM JOCH GEHOEREN NICHT AN DEN EINZELMAST (18. September). <<<
    *
-   * Ein Teil, das am Joch stünde, hinge in der Luft. Statt es stillschweigend
-   * fallen zu lassen, wird es dem Masten zugeschlagen und die Sache
-   * angeschrieben (`anbauUmgesetzt`): der Hinweis sagt, wieviele es waren.
-   * Wer vom Joch auf den Einzelmast umschaltet, verliert so keine Last —
-   * er sieht, dass sie umgezogen ist.
+   * Bis hierher wurden sie dem Masten zugeschlagen - mit Befestigungshoehe
+   * 0, ihre Lasten hingen also UNTER dem Fundament (z = −1.35 / −2.70 m),
+   * und ihr Wind minderte das Fussmoment. Weisung: «wenn ich aus einem
+   * jochtragwerk einen einzelmasten mache … diese sollten gelöscht werden
+   * mit dem joch.» Die Eingabe loescht sie seither beim Wechsel; stehen in
+   * einem alten Stand noch welche, rechnet der Kern sie nicht und sagt es
+   * (`anbauAmJoch`).
    */
   const alle = (inp.anbauteile ?? []).filter((a) => a.aktiv !== false);
   const amJoch = alle.filter((a) => ortVon(a) === 'joch');
-  const amMasten = alle.map((a) => ({ ...a, ort: 'mastA' }));
+  const amMasten = alle.filter((a) => ortVon(a) !== 'joch').map((a) => ({ ...a, ort: 'mastA' }));
 
   // Die charakteristischen Einzelfaelle trennen Gewicht und Ablenkkraft
   // (`nur`), wie am Joch - vorher standen beim Einzelmast beide identisch da.
@@ -353,7 +355,7 @@ export function modellEinzelmast(inp, stahl) {
      * ausgeschalteten: die Marke A{k+1} zaehlt ueber die ganze Eingabe.
      */
     anbauteile: (inp.anbauteile ?? []).map((a) => ({ ...a, ort: 'mastA' })),
-    anbauUmgesetzt: amJoch.length,
+    anbauAmJoch: amJoch.length,
     // DIE JOCHGRÖSSEN STEHEN AUF NULL, nicht auf undefined: `mastLasten`
     // addiert sie, und `undefined` würde daraus NaN machen.
     L: 0, RA: 0, RB: 0, MA: 0, MB: 0, wd: 0, H: [], T: [], N: [],

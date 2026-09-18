@@ -1624,6 +1624,38 @@ export function tragwerkHinzu(w, art, vorlage = {}) {
  * kein Zustand, in den man geraten können soll — die halbe Maske hätte
  * nichts mehr, worüber sie spricht.
  */
+/**
+ * >>> DAS JOCH GEHT, DIE MASTEN BLEIBEN (Weisung vom 18. September). <<<
+ *
+ * «es sollte möglich sein ein joch zu löschen und zwei einzelmasten zu haben
+ * die auf der identischen höhe ausgelegt sind.» An jede Maststelle des
+ * Tragwerks kommt ein Einzelmast - ausser dort, wo ein anderes Tragwerk den
+ * Masten weiter traegt. Die Mastangaben (Profil, Steg, Fuss, Anker) liegen
+ * beim Masten und bleiben ueber die Lage erhalten; die LAENGE wird
+ * ausdruecklich eingetragen, denn beim Joch stand sie oft auf «Vorgabe aus
+ * der Anschlusshoehe», und die haengt am Joch. Die Anbauteile des Jochs
+ * gehen mit dem Joch; die am Masten bleiben am Masten.
+ *
+ * @param {function} laengeVon (mast, t, ende) -> wirksame Laenge [m]
+ */
+export function jochZuEinzelmasten(w, id, laengeVon) {
+  const alle = tragwerkeVon(w);
+  const t = alle.find((x) => x.id === id);
+  if (!t || !tragwerksart(t).traeger) return w;
+  const [a, b] = mastenFuer(w, t);
+  const andere = alle.filter((x) => x.id !== id);
+  const traegtNoch = (m) => andere.some((o) => mastenFuer(w, o).some((x) => x?.id === m.id));
+  const frei = [[a, 'A'], [b, 'B']].filter(([m]) => m && !traegtNoch(m));
+  if (!frei.length && !andere.length) return w;
+  let neu = w;
+  frei.forEach(([m, ende]) => {
+    const laenge = laengeVon(m, t, ende);
+    neu = tragwerkHinzu(neu, 'einzelmast', { xLage: m.x, anbauteile: [] });
+    if (laenge > 0) neu = setzeMastAngabe(neu, m.id, 'mastLaenge', laenge);
+  });
+  return tragwerkWeg(neu, id);
+}
+
 export function tragwerkWeg(w, id) {
   const rest = w?.weitere ?? [];
   if (!rest.length) return w;

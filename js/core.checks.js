@@ -767,6 +767,27 @@ export function hinweise(m) {
   const h = [];
 
   /*
+   * >>> KEINE LAST UNTER DER FUNDAMENTKOTE (Weisung vom 18. September). <<<
+   *
+   * «eine last unterhalb der fundamentkote sollte nicht möglich sein, da
+   * dies dann unter terrain wäre.» Die Eingabe hebt ein solches Teil an;
+   * steht es in einem alten Stand noch darunter, sagt es der Hinweis - die
+   * Last wird gerechnet, wo sie steht, und ihr Wind mindert das Fussmoment.
+   */
+  const unter = new Map();
+  (m.anbauMastFlach ?? []).forEach((t) => {
+    const z = (Number(t.hMast) || 0) + (Number(t.z) || 0);
+    if (t.aktiv === false || z >= -1e-9) return;
+    const name = String(t.name ?? '').split(' · ')[0] || 'Anbauteil';
+    unter.set(name, Math.min(unter.get(name) ?? 0, z));
+  });
+  unter.forEach((z, name) => {
+    h.push(`${name}: Last UNTER der Fundamentkote (z = ${z.toFixed(2)} m) — `
+      + 'Befestigungshöhe am Masten anheben; so liegt das Ergebnis auf der '
+      + 'unsicheren Seite.');
+  });
+
+  /*
    * >>> DER ANKER RECHNET NACH EINER ANDEREN REGEL ALS DAS UEBRIGE. <<<
    *
    * Weisung vom 10. September: «nimm variante 3 und die charakteristische
@@ -1189,10 +1210,10 @@ export function hinweise(m) {
    * sagen ist, sagt sein eigener Nachweis.
    */
   if (art.key === 'einzelmast') {
-    if (m.anbauUmgesetzt > 0) {
-      h.push(`${m.anbauUmgesetzt} Anbauteil(e) standen am Joch und hängen `
-        + 'jetzt am Masten — ein Einzelmast hat kein Joch, an dem etwas '
-        + 'stehen könnte. Ihre Höhe über Fundament ist zu prüfen.');
+    if (m.anbauAmJoch > 0) {
+      h.push(`${m.anbauAmJoch} Anbauteil(e) stehen noch am Joch — ein `
+        + 'Einzelmast hat kein Joch; sie werden NICHT gerechnet. Löschen '
+        + 'oder als Teil am Masten neu setzen.');
     }
     /*
      * DER HINWEIS IST WEG, WEIL DER NACHWEIS DA IST.

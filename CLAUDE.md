@@ -142,6 +142,9 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Nachweisbericht, Umfang (18. Sept.) | **Tragjoch und Einzelmast**; das **Abfangjoch bleibt draussen** («den abfangjoch weglassen»). Bilder im **hellen** Design, auch wenn die Anwendung dunkel steht. Kapitel fortlaufend nummeriert |
 | Einzelmast (18. Sept.) | Seitenleiste wie beim Tragjoch: Urteil auf der Bemessung über alle Kombinationen, Reiter Übersicht/Verläufe/Auflager. **Kein Ende B** im Mastnachweis; keine Joch-Nachweise unter «nicht geführt» |
 | Charakteristische Einzelfälle | «Ständig (Tragwerk)» + «Ablenkkräfte ständig» = ganzes G: Masteigengewicht nur im ersten, Ablenkkraft nur im zweiten — auch an den Teilen am Masten |
+| Joch entfernen (18. Sept.) | Kontextmenü «… entfernen, Masten als Einzelmasten behalten»: an jeder freien Maststelle ein Einzelmast mit **derselben Länge** (ausdrücklich eingetragen), Profil/Anker/Teile am Masten bleiben, die Teile des Jochs gehen mit (`jochZuEinzelmasten`) |
+| Artwechsel auf Einzelmast | die **Anbauteile des Jochs werden gelöscht**, die am Masten bleiben; auch die Vorlage «Einzelmast» ohne Jochteil. Ein alter Stand mit Jochteilen: der Kern rechnet sie nicht und sagt es |
+| Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
 | NT- und Rohrausleger (26. Aug.) | **Kragarm**, Versatz in Jochachse (NT 1.20/2.40 m, Rohr 1.5/3.0 m), 50 % Wind auf den Anschluss |
@@ -153,7 +156,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4676 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4689 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -179,7 +182,10 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   statt der Bemessung (Seilanker Gegenseite: 0.096/0.191 statt 0.272);
   Phantom-Mast B aus dem Urteil entfernt; Joch-Nachweise nicht mehr «nicht
   geführt»; Bericht für den Einzelmast; Bilder hell. Charakteristische
-  Fälle Tragwerk/Ablenkung an Joch und Einzelmast entdoppelt.
+  Fälle Tragwerk/Ablenkung an Joch und Einzelmast entdoppelt. Joch
+  entfernen → zwei Einzelmasten; Artwechsel löscht die Jochteile; keine
+  Last unter der Fundamentkote. Tragausleger untersucht: unsichere Seite
+  (siehe Offene Punkte).
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -203,15 +209,15 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - **Nachweisbericht:** Tragausleger fehlt noch (wartet auf die Modellfrage
   unten); die Systemskizze ist die Längsansicht des Modells, keine
   vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt.
-- ⚠ **Mast mit Tragausleger:** der Kern rechnet ihn wie ein Tragjoch mit
-  einem zweiten Auflager am Auslegerende; dieses Phantom «Mast B» (η 0.706
-  gegen 0.154 am wirklichen Masten, Beispiel J90/20 m, HEB 260, U12) steht
-  im Urteil. Modell des Auslegers ist zu klären, bevor daran gebaut wird.
-- ⚠ **Einzelmast, umgesetzte Anbauteile:** ein Teil vom Joch (Vorlage des
-  neuen Einzelmasts, Wechsel Joch → Einzelmast) kommt mit Befestigungshöhe
-  0 an den Mast; seine Lasten sitzen unter dem Fundament (z = −1.35 /
-  −2.70 m), der Wind darauf mindert das Fussmoment — unsichere Seite.
-  Wohin das Teil gehört, entscheidet der Auftraggeber.
+- ⚠ **Mast mit Tragausleger — Ergebnisse auf der unsicheren Seite.** Der
+  Kern rechnet den Ausleger als Einfeldträger mit einem zweiten Auflager am
+  freien Ende (Phantom «Mast B»). Gemessen an der Vorlage, Fahrleitung an
+  der Spitze, G charakteristisch: L = 8 m → Kern M_A = 0, max M_y 5.0 kNm;
+  Kragarm von Hand M_A = 28.6 kNm, R_A 6.0 statt 2.4 kN. L = 12 m: 10.9
+  gegen 57.3 kNm. Der Mast bekommt kein Einspannmoment aus dem Ausleger.
+  Dazu besteht der Tragausleger nach Sortiment aus zwei UPE 140, nicht aus
+  vier Winkeln. Braucht ein eigenes Kragarm-Modell; bis dahin ist über
+  eine Sperre oder Warnung zu entscheiden.
 - **Druckstütze Stufe 2** (mehrteiliger Druckstab, EN 1993-1-1, 6.4): ⚠ es
   fehlen der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen
   (Anzahl, Abstand, Profil).
@@ -262,7 +268,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4676 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4689 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

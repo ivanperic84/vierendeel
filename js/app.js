@@ -40,6 +40,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          tragwerkeVon, mastenFuer,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
+         jochZuEinzelmasten,
          mastenVon, mastName, mastNameAmEnde, tragwerkName, tragwerkPos, aufRaster,
          TRAGWERKSARTEN,
          mastZeichenplan,
@@ -58,7 +59,7 @@ import { standardwerte, typUebernehmen, setzeTypOptionen,
          setzeGrenzen, FELDER } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
          MASS, FARBEN as farben } from './design.js';
-import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage,
+import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haengeTiefe,
          normalisiereAnbauteil,
          setzeEigeneVorlagen, entdoppelteVorlagen,
          erzeugeGleislasten, neuesModul,
@@ -162,6 +163,11 @@ function frisch(art = 'joch') {
     const alt = w.twId ?? 'T1';
     w = tragwerkHinzu(w, art, artVorgabe(art, w));
     w = tragwerkWeg(w, alt);
+    // Ein Einzelmast bekommt das Beispielteil des Jochs nicht - es hinge
+    // sonst mit Hoehe 0 unter dem Fundament.
+    if (!TRAGWERKSARTEN.find((a) => a.key === art)?.traeger) {
+      w = setzeAnbauteileAn(w, nurMastteile(w.anbauteile));
+    }
   }
   return w;
 }
@@ -1599,7 +1605,29 @@ function aendern(key, wert) {
     const t = tragwerkeSortiert(werte).find((x) => x.id === id);
     if (!t || tragwerksart(t).key === art) { neuRechnen(); return; }
     werte = { ...werte, tragwerksart: art, ...artVorgabe(art, werte) };
+    /*
+     * OHNE TRAEGER KEINE TEILE AM TRAEGER (Weisung vom 18. September):
+     * «wenn ich aus einem jochtragwerk einen einzelmasten mache, dann
+     * bleiben alle anbauteile bestehen, diese sollten gelöscht werden mit
+     * dem joch.» Was am Masten haengt, bleibt.
+     */
+    if (!TRAGWERKSARTEN.find((a) => a.key === art)?.traeger) {
+      werte = setzeAnbauteileAn(werte, nurMastteile(rechensatz(werte).anbauteile));
+    }
     werte = rechensatz(werte);
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  /*
+   * >>> DAS JOCH GEHT, DIE MASTEN BLEIBEN (Weisung vom 18. September). <<<
+   * An jeder freien Maststelle ein Einzelmast mit derselben Laenge.
+   */
+  if (key === 'jochZuEinzelmasten') {
+    const laengeVon = (m, t, ende) => ((Number(m.laenge) || 0) > 0 ? Number(m.laenge)
+      : mastLaengeVorgabe((Number(ende === 'B' ? (t.mastHB ?? t.mastH) : t.mastH) || 0)
+                          - (Number(m.fuss) || 0), t.jd));
+    werte = jochZuEinzelmasten(werte, wert, laengeVon);
     mastNachfuehren();
     neuRechnen();
     return;
@@ -2173,7 +2201,30 @@ function aendern(key, wert) {
   }
 }
 
+/** Nur die Teile, die an einem Masten haengen - die des Jochs gehen mit ihm. */
+const nurMastteile = (liste) => (liste ?? []).filter((a) => a?.ort === 'mastA' || a?.ort === 'mastB');
+
 function setzeAnbauteile(liste) {
+  /*
+   * >>> NICHTS UNTER DIE FUNDAMENTKOTE (Weisung vom 18. September). <<<
+   *
+   * «eine last unterhalb der fundamentkote sollte nicht möglich sein, da
+   * dies dann unter terrain wäre.» Alle Eingabewege laufen hier durch -
+   * Schieber, Kontextmenue, Setzen, Kopieren. Ein Teil, das tiefer haengt,
+   * als es befestigt ist, wird auf die kleinste zulaessige Hoehe gehoben,
+   * und der Balken sagt es.
+   */
+  const gehoben = [];
+  liste = (liste ?? []).map((a) => {
+    const tief = haengeTiefe(a);
+    if (!(tief > 0) || (Number(a.hMast) || 0) >= tief - 1e-9) return a;
+    const h = Math.ceil(tief * 20 - 1e-9) / 20;
+    gehoben.push(`${a.name ?? 'Anbauteil'} auf ${h.toFixed(2)} m`);
+    return { ...a, hMast: h };
+  });
+  if (gehoben.length) {
+    meldeImBalken(`Nicht unter die Fundamentkote: ${gehoben.join(', ')} angehoben`);
+  }
   /*
    * WAS AM MASTEN HAENGT, WIRD AM MASTEN ABGELEGT.
    *
@@ -7267,6 +7318,10 @@ function kontextTragwerk(id) {
            tun: (v) => aendern('tragwerkLage', { id, x: v }) });
   p.push({ text: `${tragwerkName(t, werte)} kopieren`, tun: () => tragwerkKopieren(id) });
   p.push({ text: 'Auf dieses zoomen', tun: () => zoomAufTragwerk(id) });
+  if (tragwerksart(t).traeger && mastenFuer(werte, t).some(Boolean)) {
+    p.push({ text: `${tragwerkName(t, werte)} entfernen, Masten als Einzelmasten behalten`,
+             tun: () => aendern('jochZuEinzelmasten', id) });
+  }
   if (alle.length > 1) {
     p.push({ text: 'Vom Blatt nehmen', warn: true,
              tun: () => aendern('tragwerkWeg', id) });

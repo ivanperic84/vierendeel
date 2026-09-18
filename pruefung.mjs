@@ -16953,7 +16953,7 @@ const CH9x = await import(J('core.checks.js'));
      * jetzt hier.
      */
     const traverse = (id, h, Fz) => ({
-      id, name: `Traverse ${id}`, ort: 'mast', hMast: h, aktiv: true,
+      id, name: `Traverse ${id}`, ort: 'mastA', hMast: h, aktiv: true,
       raster: 0, module: [{ z: 0 }],
       lasten: [{ einwirkung: 'G', z: 0, Fz }],
     });
@@ -17027,7 +17027,7 @@ const CH9x = await import(J('core.checks.js'));
      * angreift, darf die Knicklaenge nicht verkuerzen.
      */
     const haenge = {
-      id: 'hs', name: 'Haengestuetze', ort: 'mast', hMast: 9.0, aktiv: true,
+      id: 'hs', name: 'Haengestuetze', ort: 'mastA', hMast: 9.0, aktiv: true,
       raster: 0, module: [{ z: -1.5 }],
       lasten: [{ einwirkung: 'G', z: -1.5, Fz: 6 }],
     };
@@ -24970,6 +24970,70 @@ titel('83  Einzelmast: kein Phantom-Ende B, Leiste und Bericht auf der Bemessung
          Math.abs(ab?.Fz ?? 0) < Math.abs(gk?.Fz ?? 0) * 0.1,
          `ablk Fz ${ab?.Fz?.toFixed(2)} gegen gk ${gk?.Fz?.toFixed(2)}`);
   });
+}
+
+titel('84  Joch weg, Masten bleiben; nichts unter der Fundamentkote');
+// Weisung vom 18. September: «es sollte möglich sein ein joch zu löschen und
+// zwei einzelmasten zu haben die auf der identischen höhe ausgelegt sind.
+// eine last unterhalb der fundamentkote sollte nicht möglich sein … wenn ich
+// aus einem jochtragwerk einen einzelmasten mache, dann bleiben alle
+// anbauteile bestehen, diese sollten gelöscht werden mit dem joch.»
+{
+  const C = await import(J('core.constants.js'));
+  const AU = await import(J('core.auflager.js'));
+  const CH = await import(J('core.checks.js'));
+  const V = await import(J('core.vierendeel.js'));
+  let w = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
+                               T.getTragjoch('J90')), L: 20, mastVorhanden: true,
+            anbauteile: [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL am Joch' }] };
+  const [m1, m2] = C.mastenVon(w);
+  w = C.setzeAnbauteileAn(w, [...w.anbauteile,
+    { ...A.neuesAnbauteil('hs-nt-ausleger', 0), name: 'Ausleger M2', ort: 'mastB', hMast: 6.5 }]);
+  w = C.setzeMastAnker(w, m1.id, { typ: 'U12', a: 4.5, h: 7.79, richtung: 'y', seite: 'plus',
+                                   befestigung: 'ankerplatte' });
+  const laengeVon = (m, t, ende) => ((Number(m.laenge) || 0) > 0 ? Number(m.laenge)
+    : AU.mastLaengeVorgabe((Number(ende === 'B' ? (t.mastHB ?? t.mastH) : t.mastH) || 0)
+                           - (Number(m.fuss) || 0), t.jd));
+  const sollL = laengeVon(m1, C.tragwerkeVon(w)[0], 'A');
+  const neu = C.jochZuEinzelmasten(w, C.tragwerkeVon(w)[0].id, laengeVon);
+  const tw = C.tragwerkeVon(neu);
+  wahr('Aus dem Joch werden zwei Einzelmasten',
+       tw.length === 2 && tw.every((t) => C.tragwerksart(t).key === 'einzelmast'),
+       tw.map((t) => C.tragwerksart(t).key).join(', '));
+  const masten = C.mastenVon(neu);
+  wahr('… an den beiden Maststellen', masten.map((m) => m.x).sort((a, b) => a - b).join() === '0,20',
+       masten.map((m) => m.x).join());
+  wahr('… mit derselben Länge wie am Joch',
+       masten.every((m) => Math.abs(m.laenge - sollL) < 1e-9), `${masten.map((m) => m.laenge)} / ${sollL}`);
+  wahr('… und demselben Profil', masten.every((m) => m.profil === m1.profil));
+  wahr('Der Anker bleibt an seinem Masten',
+       masten.find((m) => Math.abs(m.x - m1.x) < 1e-9)?.anker?.typ === 'U12');
+  const alleTeile = tw.flatMap((t) => C.anbauteileFuer(neu, t));
+  wahr('Das Teil am Joch geht mit dem Joch', !alleTeile.some((a) => a.name === 'FL am Joch'),
+       alleTeile.map((a) => a.name).join(', '));
+  wahr('Das Teil am Masten bleibt am Masten', alleTeile.some((a) => a.name === 'Ausleger M2'));
+  const e1 = C.jochZuEinzelmasten(neu, tw[0].id, laengeVon);
+  wahr('Ein Einzelmast ist kein Joch - dort ändert sich nichts', e1 === neu);
+
+  // --- Nichts unter der Fundamentkote ------------------------------------
+  const nt = { ...A.neuesAnbauteil('hs-nt-ausleger', 0), ort: 'mastA', hMast: 0 };
+  pruef('Der NT-Ausleger hängt 2.70 m unter seine Befestigung', A.haengeTiefe(nt), 2.7, 1e-9, 'm');
+  wahr('Am Joch zählt keine Tiefe', A.haengeTiefe({ ...nt, ort: 'joch' }) === 0);
+  let em = C.tragwerkWeg(C.tragwerkHinzu(w, 'einzelmast', { mastProfil: 'HEB 240' }),
+                         C.tragwerkeVon(w)[0].id);
+  em = { ...em, anbauteile: [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'Altlast' },
+                             { ...nt, name: 'Tief' }] };
+  const rs = C.rechensatz(em);
+  const m = V.modellEinzelmast
+    ? V.modellEinzelmast(rs, getStahl(rs.stahl))
+    : berechne(rs, getProfil(rs.profOG), getProfil(rs.profUG), getStahl(rs.stahl), T.getTragjoch('J90')).modell;
+  wahr('Ein Teil am Joch hängt beim Einzelmast nicht mehr am Masten',
+       !(m.anbauMastFlach ?? []).some((t) => /Altlast/.test(t.name)));
+  const h = CH.hinweise(m);
+  wahr('… und der Hinweis sagt, dass es nicht gerechnet wird',
+       h.some((x) => /stehen noch am Joch/.test(x) && /NICHT gerechnet/.test(x)), h.join(' | '));
+  wahr('Eine Last unter der Fundamentkote wird gemeldet',
+       h.some((x) => /Tief: Last UNTER der Fundamentkote \(z = −?-?2\.70/.test(x)), h.join(' | '));
 }
 
 titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
