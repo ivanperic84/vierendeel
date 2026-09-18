@@ -655,6 +655,7 @@ export function abfangSzene(typ, jt, opt = {}) {
    * Enden unterscheiden - `opt.masten` traegt sie einzeln, wo sie da sind.
    */
   const mastBezug = {};
+  const fussUnten = {};   // Unterkante der Fundamentkloetze, fuer die Lagerangabe
   if (opt.mast?.profil && opt.mast.hoehe > 0) {
     const enden = [['A', ue], ['B', jt - ue]];
     for (const [name, x] of enden) {
@@ -707,6 +708,7 @@ export function abfangSzene(typ, jt, opt = {}) {
                           zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
                           laenge: (md.ueberstand ?? 0) > 0
                             ? md.hoehe + md.ueberstand : null };
+      fussUnten[name] = mk.fussUnten;
       flaechen.push(...mk.flaechen);
       linien.push(...mk.linien);
       bauteiltitel.push(...(mk.bauteiltitel ?? []));
@@ -876,19 +878,17 @@ export function abfangSzene(typ, jt, opt = {}) {
      * OHNE MAST GIBT ES KEINEN FUSS - dann bleibt die Marke am Joch, wie
      * beim Tragjoch auch.
      */
-    const zMarke = mastDa ? -md.hoehe : -hG / 2 - 0.15;
+    // Unter den Fundamentklotz, wie beim Tragjoch (18. September).
+    const zMarke = mastDa ? (fussUnten[name] ?? -md.hoehe) : -hG / 2 - 0.15;
     marken.push({ gruppe: 'auflager', art: 'auflager',
                   p: [x, 0, zMarke], text: name,
                   // Mit Mast steht die Fussschraffur da - siehe render.3d.js.
                   ohneSymbol: mastDa });
-    if (mastDa || lz) {
+    // Nur die Lagerung - Profil und Hoehe stehen im Titel und am Mass des
+    // Masten (Weisung vom 18. September, wie beim Tragjoch).
+    if (lz) {
       marken.push({ gruppe: 'auflager', art: 'auflagertext',
-                    p: [x, 0, zMarke],
-                    zeilen: [
-                      mastDa ? `${md.profil} · ${md.hoehe.toFixed(1)} m`
-                             : null,
-                      lz,
-                    ].filter(Boolean) });
+                    p: [x, 0, zMarke], zeilen: [lz] });
     }
   }
 

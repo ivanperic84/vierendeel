@@ -829,6 +829,7 @@ export function erzeugeSzene(m, erg) {
         });
         flaechen.push(...mk.flaechen);
         linien.push(...mk.linien);
+        mastGeo[name].fussUnten = mk.fussUnten;
         // Der Anker traegt seine Anschrift und seine beiden Masse selbst -
         // sie kommen aus demselben Baustein wie sein Koerper.
         bauteiltitel.push(...(mk.bauteiltitel ?? []));
@@ -863,8 +864,20 @@ export function erzeugeSzene(m, erg) {
        *
        * Ohne Mast gibt es keinen Fuss - dann bleibt die Marke am Joch.
        */
+      /*
+       * >>> AM EINZELMAST KEINE LAGERANGABE (Weisung vom 18. September). <<<
+       *
+       * «hier ist das gelenkig eh falsch, da einzelmast.» Die Angabe
+       * beschreibt den ANSCHLUSS DES JOCHS an den Masten (c_φ, κ) - einen
+       * Einzelmast schliesst nichts an. Sein Fuss ist eingespannt, und das
+       * zeigt der Fundamentklotz.
+       */
+      if (m.tragwerksart === 'einzelmast') return;
+      // Unter dem Fundamentklotz, nicht auf ihm - sonst liegt die Schrift
+      // ueber dem Klotz und dem untersten Stueck Mast.
+      const zMarke = mast?.profil ? (mastGeo[name].fussUnten ?? zF) : z0;
       marken.push({ gruppe: 'auflager', art: 'auflager',
-                    p: [x, 0, mast?.profil ? zF : z0], text: name,
+                    p: [x, 0, zMarke], text: name,
                     /*
                      * MIT MAST STEHT DIE FUSSSCHRAFFUR DA - das Dreieck
                      * daneben waere das zweite Zeichen fuer dieselbe Sache.
@@ -916,20 +929,22 @@ export function erzeugeSzene(m, erg) {
           });
         }
       }
-      // ZWEIZEILIG UND KURZ. Als eine Zeile war die Angabe breiter als das
-      // halbe Bild und überdeckte das Joch: oben das Bauteil, unten die
-      // Lagerung, beides ohne ausgeschriebene Wörter.
-      marken.push({ gruppe: 'auflager', art: 'auflagertext', p: [x, 0, zF],
+      /*
+       * NUR DIE LAGERUNG, NICHT DAS BAUTEIL (Weisung vom 18. September).
+       *
+       * «es stellt sich die frage ob es diesen text überhaupt braucht, da
+       * der mast schon angeschrieben ist.» Profil und Laenge stehen im
+       * Bauteiltitel des Masten, die Hoehe an seinem Mass - hier standen sie
+       * ein drittes Mal. Was nur hier steht, ist die Lagerung des Jochs am
+       * Masten: c_φ und der Einspanngrad κ. Die bleibt, eine Zeile.
+       */
+      marken.push({ gruppe: 'auflager', art: 'auflagertext', p: [x, 0, zMarke],
                     zeilen: [
-                      mast ? `${mast.profil.name} · ${mast.H.toFixed(1)} m`
-                           + (Math.abs(mast.fuss ?? 0) > 1e-9
-                               ? ` · Fuss ${mast.fuss > 0 ? '+' : ''}${
-                                   mast.fuss.toFixed(2)} m` : '') : null,
                       [cText(cPhi ?? 0),
                        Number.isFinite(kappa)
                          ? `κ ${(100 * Math.max(0, Math.min(1, kappa))).toFixed(0)} %`
                          : null].filter(Boolean).join(' · '),
-                    ].filter(Boolean) });
+                    ] });
     });
 
   // Kragarme: die Strecke zwischen Gurtende und Auflager, damit sichtbar ist,
@@ -1552,12 +1567,16 @@ export function erzeugeSzene(m, erg) {
    * bleibt sie dicht am Joch, statt im Leeren zu schweben.
    */
   const massTief = Number.isFinite(mastFussZ) ? 4.0 : 0.95;
-  masse.push({
-    feld: 'L', tab: 'geo', achse: 'x',
-    p0: [0, 0, zUnten - massTief], p1: [m.L, 0, zUnten - massTief],
-    ab: [0, 0, -1], d: 0,
-    text: `L = ${m.L.toFixed(2)} m`,
-  });
+  // Ein Einzelmast hat keine Jochlaenge - dort stand «L = 0.00 m» quer
+  // ueber dem Masten (gesehen am 18. September).
+  if (m.tragwerksart !== 'einzelmast') {
+    masse.push({
+      feld: 'L', tab: 'geo', achse: 'x',
+      p0: [0, 0, zUnten - massTief], p1: [m.L, 0, zUnten - massTief],
+      ab: [0, 0, -1], d: 0,
+      text: `L = ${m.L.toFixed(2)} m`,
+    });
+  }
   if (schnittAktiv) {
     masse.push({
       feld: 'xNachweis', tab: 'geo', achse: 'x', zu: 'schnitt',
@@ -4071,11 +4090,18 @@ export class Modellansicht {
         // Die Lagerungsangaben unter dem Mastfuss, eine Angabe je Zeile. Mit
         // Saum statt Kasten - ein Rahmen um zwei Zeilen wiegt schwerer als
         // die zwei Zeilen selbst.
+        /*
+         * EINE ANGABE DES GERECHNETEN TRAGWERKS. Am Nachbarn faellt sie weg -
+         * aus demselben Grund wie seine Masse: sie ist eine Angabe, keine
+         * Lage, und stand am passiven Masten ueber dessen Fundament.
+         */
+        if (mk.passiv) return;
         c.lineJoin = 'round';
         (mk.zeilen ?? [mk.text]).forEach((txt, i) => {
           if (!txt) return;
           const b = this._textBreite(c, txt);
-          const bx = p[0] - b / 2, by = p[1] + (16 + i * 12) * s;
+          // Unter dem Namen des Auflagers (der steht bei +26), nicht darauf.
+          const bx = p[0] - b / 2, by = p[1] + (40 + i * 12) * s;
           c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
           c.strokeText(txt, bx, by);
           c.fillStyle = t.dim;

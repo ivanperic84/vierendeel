@@ -144,6 +144,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Charakteristische Einzelfälle | «Ständig (Tragwerk)» + «Ablenkkräfte ständig» = ganzes G: Masteigengewicht nur im ersten, Ablenkkraft nur im zweiten — auch an den Teilen am Masten |
 | Joch entfernen (18. Sept.) | Kontextmenü «… entfernen, Masten als Einzelmasten behalten»: an jeder freien Maststelle ein Einzelmast mit **derselben Länge** (ausdrücklich eingetragen), Profil/Anker/Teile am Masten bleiben, die Teile des Jochs gehen mit (`jochZuEinzelmasten`) |
 | Artwechsel auf Einzelmast | die **Anbauteile des Jochs werden gelöscht**, die am Masten bleiben; auch die Vorlage «Einzelmast» ohne Jochteil. Ein alter Stand mit Jochteilen: der Kern rechnet sie nicht und sagt es |
+| Lagerangabe im 3D (18. Sept.) | nur die Lagerung des Jochs am Masten (c_φ, κ), eine Zeile unter dem Fundamentklotz; Profil und Höhe stehen im Mast-Titel. Am Einzelmast keine («gelenkig» wäre falsch) |
 | Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
@@ -156,7 +157,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4691 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4694 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -187,7 +188,12 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Last unter der Fundamentkote. Tragausleger untersucht: unsichere Seite
   (siehe Offene Punkte).
   3D-Einzelmast: ein grauer zweiter Mast B lag über dem gefärbten — weg,
-  der Mast zeigt seine Ausnutzung wie am Joch.
+  der Mast zeigt seine Ausnutzung wie am Joch. Fundamentklotz **unter** dem
+  Mastfuss (vorher deckte er das unterste Stück zu); Lagerangabe nur noch
+  c_φ · κ unter dem Klotz, ohne Profilzeile, nicht am Einzelmast, nicht am
+  passiven Tragwerk; kein «L = 0.00 m» am Einzelmast. Neuer Einzelmast
+  (Vorlage und «+ Tragwerk») ohne Jochteile, mit Traverse (L − 0.5) und
+  Rückleiter (L − 2.0) am Masten.
 - **17. Sept.** Wind ±x/±y überall; Hüllkurve nimmt den Masten aus jedem
   Fall; Einzelmast über alle Kombinationen mit Ankernachweis; Gesamturteil
   mit Bauteil; Havariefall Tragjoch/Mast; örtlicher Anteil abgemindert;
@@ -272,7 +278,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4691 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4694 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

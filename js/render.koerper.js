@@ -451,15 +451,18 @@ export function mastKoerper(o) {
    * Seine Hoehe folgt der Breite - ein flacher Teller sieht aus wie eine
    * Platte, ein hoher Klotz wie ein Fundament.
    *
-   * ER STEHT AUF DER FUSSLINIE UND RAGT NACH OBEN. Der Mast steckt damit im
-   * Fundament, was er tut. Ihn nach UNTEN zu setzen hiesse, das Modell
-   * reichte tiefer als der Mastfuss - und genau daran haengen zwei
-   * Kontrollen: das Stabmodell endet am Fundament, nicht darunter.
+   * >>> ER STEHT UNTER DEM MASTFUSS (Weisung vom 18. September). <<<
+   *
+   * «den block unterhalb des masten ansetzen, keine überschneidung.» Bis
+   * dahin ragte er von der Fusslinie nach oben und deckte das unterste
+   * Stueck des Mastes zu - gerade dort, wo die Ausnutzung am groessten ist
+   * und die Farbe etwas sagen soll. Das STABMODELL endet weiterhin am
+   * Mastfuss; der Klotz ist nur Bild und reicht darunter.
    */
   const fkHalb = halb * 2;
   const fkHoch = Math.max(0.35, fkHalb * 1.1);
   flaechen.push(...quader(
-    [x, 0, zFuss + fkHoch / 2], [2 * fkHalb, 2 * fkHalb, fkHoch], {
+    [x, 0, zFuss - fkHoch / 2], [2 * fkHalb, 2 * fkHalb, fkHoch], {
       gruppe: 'mast', teil: `FUNDAMENT_${name}`,
       label: `Fundamentkopf ${name}`,
     }));
@@ -467,7 +470,8 @@ export function mastKoerper(o) {
   const ank = ankerTeile(o, halb, zFuss, zKopf);
   linien.push(...ank.linien);
   flaechen.push(...ank.flaechen);
-  return { flaechen, linien,
+  // `fussUnten`: dort setzen die Szenen ihre Lagerangaben an, unter den Klotz.
+  return { flaechen, linien, fussUnten: zFuss - fkHoch,
            bauteiltitel: ank.bauteiltitel, masse: ank.masse };
 }
 

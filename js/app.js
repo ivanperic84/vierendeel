@@ -164,12 +164,37 @@ function frisch(art = 'joch') {
     w = tragwerkHinzu(w, art, artVorgabe(art, w));
     w = tragwerkWeg(w, alt);
     // Ein Einzelmast bekommt das Beispielteil des Jochs nicht - es hinge
-    // sonst mit Hoehe 0 unter dem Fundament.
+    // sonst mit Hoehe 0 unter dem Fundament -, sondern seine eigenen.
     if (!TRAGWERKSARTEN.find((a) => a.key === art)?.traeger) {
-      w = setzeAnbauteileAn(w, nurMastteile(w.anbauteile));
+      w = setzeAnbauteileAn(w, einzelmastTeile(rechensatz(w)));
     }
   }
   return w;
+}
+
+/**
+ * DIE BEISPIELTEILE EINES NEUEN EINZELMASTS.
+ *
+ * Weisung vom 18. September: «die anbauteile sind entsprechend dem
+ * einzelmast sinnvoll zu setzen beim template.»
+ *
+ * Am Masten ist nur zulaessig, was nicht selbst traegt (siehe
+ * `vorlagenFuer`): keine Haengestuetze, kein Jochaufsatz. Was an einem
+ * freistehenden Masten typischerweise haengt, ist eine Traverse mit
+ * Zusatzleiter oben und ein Rueckleiter darunter. Beide stehen auf Hoehen
+ * relativ zur Mastlaenge, damit sie auch an einem kurzen Masten am Masten
+ * bleiben - und nie unter der Fundamentkote.
+ */
+function einzelmastTeile(satz) {
+  const L = einzelmastLaenge(satz) || 8.5;
+  const teil = (id, name, h) => {
+    try {
+      return { ...neuesAnbauteil(id, 0), name, ort: 'mastA',
+               hMast: Math.max(0.5, Math.round(h * 20) / 20) };
+    } catch { return null; }   // Vorlage fehlt im Datenpaket
+  };
+  return [teil('leiter-traverse', 'Traverse mit Zusatzleiter', L - 0.5),
+          teil('leiter-rl', 'Rückleiter', L - 2.0)].filter(Boolean);
 }
 
 /**
@@ -210,7 +235,11 @@ function laden() {
     const w = { ...std, ...(d.werte ?? d) };
     // Stände aus der Zeit vor den Anbauteilen kennen das Feld nicht.
     // Statt mit einem leeren Joch zu starten, wird der Beispielzustand geladen.
-    if (!Array.isArray(w.anbauteile) || !w.anbauteile.length) {
+    // Nur ein Tragwerk mit Traeger - ein leerer Einzelmast bekaeme sonst
+    // die Haengestuetze des Jochs an den Fuss.
+    if (!Array.isArray(w.anbauteile)
+        || (!w.anbauteile.length
+            && TRAGWERKSARTEN.find((a) => a.key === (w.tragwerksart ?? 'joch'))?.traeger)) {
       w.anbauteile = frisch().anbauteile;
     }
     delete w.lastfaelle;
@@ -1679,6 +1708,20 @@ function aendern(key, wert) {
       ? tragwerkHinzu(werte, wert, vorgabe)
       : tragwerkHinzu(werte, wert.art, { ...vorgabe, xLage: wert.xLage });
     mastNachfuehren();
+    /*
+     * >>> EIN NEUER EINZELMAST NIMMT DIE JOCHTEILE NICHT MIT. <<<
+     *
+     * `tragwerkHinzu` uebernimmt den bisherigen Satz - samt den Teilen am
+     * Joch. Am Einzelmast gibt es kein Joch; die Haengestuetze hing dann mit
+     * Hoehe 0 am Mastfuss (gesehen am 18. September: ein zweites «A1» am
+     * Fundament). Steht der neue Mast auf einem bestehenden, behaelt er
+     * dessen Teile; sonst bekommt er die Beispielteile.
+     */
+    if (!TRAGWERKSARTEN.find((a) => a.key === art)?.traeger) {
+      const amMast = nurMastteile(rechensatz(werte).anbauteile);
+      werte = setzeAnbauteileAn(werte, amMast.length ? amMast : einzelmastTeile(rechensatz(werte)));
+      mastNachfuehren();
+    }
     neuRechnen();
     return;
   }

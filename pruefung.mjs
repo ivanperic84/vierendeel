@@ -4596,11 +4596,19 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
     wahr('Der Kopf steht mindestens einen halben Meter ueber dem Obergurt',
          Math.max(...zs) >= zOG + 0.5 - 1e-9,
          `${(Math.max(...zs) - zOG).toFixed(3)} m`);
-    // Der Fuss und die Auflagermarke muessen dieselbe Stelle sein.
+    /*
+     * Die Auflagermarke steht UNTER dem Fundamentklotz (Weisung vom
+     * 18. September: «den block unterhalb des masten ansetzen, keine
+     * überschneidung») - der Klotz selbst schliesst oben am Mastfuss an.
+     */
     const fussMarke = mAuf.find((k) => k.art === 'auflager'
                                     && Math.abs(k.p[0] - 0.35) < 1e-9);
-    pruef('Der Fuss trifft die Auflagermarke', Math.min(...zs), fussMarke.p[2],
-          1e-9, 'm');
+    const fkZ = sz.flaechen.filter((f) => f.teil === 'FUNDAMENT_A')
+      .flatMap((f) => f.punkte.map((p) => p[2]));
+    pruef('Der Klotz schliesst oben am Mastfuss an', Math.max(...fkZ),
+          Math.min(...zs), 1e-9, 'm');
+    pruef('Die Auflagermarke sitzt unter dem Klotz', fussMarke.p[2],
+          Math.min(...fkZ), 1e-9, 'm');
     wahr('Die Masthoehe H selbst bleibt davon unberuehrt',
          Math.abs(e.modell.federn.mastA.H - 7.5) < 1e-12, `${e.modell.federn.mastA.H} m`);
     // Der wirkliche Querschnitt, nicht ein Kasten: die y-Ausdehnung ist bei
@@ -4669,7 +4677,8 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
     const mastZ = sz.flaechen
       .filter((f) => f.gruppe === 'mast' && !/FUNDAMENT/.test(f.teil ?? ''))
       .flatMap((f) => f.punkte.map((p2) => p2[2]));
-    pruef('… und steht AUF dem Mastfuss', Math.min(...zs),
+    // Seit dem 18. September UNTER dem Mastfuss, ohne Ueberschneidung.
+    pruef('… und steht UNTER dem Mastfuss', Math.max(...zs),
           Math.min(...mastZ), 1e-9, 'm');
   }
   /*
@@ -4686,11 +4695,17 @@ titel('30a Modellebenen: Schwerachsen eingefaerbt, Auflager als eigene Ebene');
   wahr('Die Kragarme sind ausgewiesen', auf.filter((l) => l.kragarm).length === 2);
   const txt = mAuf.filter((k) => k.art === 'auflagertext')
     .map((k) => k.zeilen.join(' / ')).join(' | ');
-  wahr('Profil, Feder und Einspanngrad stehen dabei',
-       txt.includes('HEB 240') && txt.includes('c_φ') && txt.includes('κ'), txt);
-  // Zweizeilig: oben das Bauteil, unten die Lagerung.
-  wahr('Die Angabe steht zweizeilig',
-       mAuf.filter((k) => k.art === 'auflagertext').every((k) => k.zeilen.length === 2));
+  /*
+   * Nur noch die Lagerung (Weisung vom 18. September): «es stellt sich die
+   * frage ob es diesen text überhaupt braucht, da der mast schon
+   * angeschrieben ist.» Profil und Hoehe stehen im Titel des Masten.
+   */
+  wahr('Feder und Einspanngrad stehen dabei',
+       txt.includes('c_φ') && txt.includes('κ'), txt);
+  wahr('… das Profil nicht mehr - es steht im Titel des Masten',
+       !txt.includes('HEB 240'), txt);
+  wahr('Die Angabe steht einzeilig',
+       mAuf.filter((k) => k.art === 'auflagertext').every((k) => k.zeilen.length === 1));
   wahr('Keine Zeile ist länger als 30 Zeichen',
        mAuf.filter((k) => k.art === 'auflagertext')
          .every((k) => k.zeilen.every((z) => z.length <= 30)), txt);
@@ -7845,7 +7860,8 @@ titel('34b Die Auflagerbedingung je Gurtebene');
           mast: { profil: 'HEB 240', hoehe: 7.0, stegrichtung: 'jochachse' } });
       const zA = zeilenVon(szA(undefined));
       wahr('Das Abfangjoch schreibt seine Lagerung an', zA.length === 2, zA[0]);
-      wahr('… mit dem Masten davor', zA.every((z) => /HEB 240/.test(z)));
+      // Der Mast steht im Titel, nicht in der Lagerangabe (18. September).
+      wahr('… ohne den Masten davor', zA.every((z) => !/HEB 240/.test(z)));
       wahr('… und der Vorgabe als Gelenk um z',
            zA.every((z) => /Gelenk um z/.test(z)));
       const zS = zeilenVon(szA({ V: { x: 'Rigid' }, H: { x: 'Rigid' } }));
@@ -22085,8 +22101,10 @@ const CH9x = await import(J('core.checks.js'));
       wahr('… und je einen Fundamentkopf',
            new Set(mst.map((f) => f.teil)
              .filter((t) => /^FUNDAMENT/.test(t ?? ''))).size === 2);
+      // Der Mast endet am Fuss, der Klotz liegt darunter (18. September).
+      const mstOhneFk = mst.filter((f) => !/^(ANKER)?FUNDAMENT/.test(f.teil ?? ''));
       pruef('Sie reichen bis zum Fundament',
-            Math.min(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
+            Math.min(...mstOhneFk.flatMap((f) => f.punkte.map((p2) => p2[2]))),
             -7.5, 1e-9, 'm');
       /*
        * >>> UND SIE RAGEN UEBER DEN ANSCHLUSS. <<<
@@ -22118,13 +22136,14 @@ const CH9x = await import(J('core.checks.js'));
        */
       const aufM = szM.marken.filter((k) => k.art === 'auflager');
       wahr('Zwei Auflagermarken', aufM.length === 2);
-      pruef('Sie sitzen am Mastfuss', aufM[0].p[2], -7.5, 1e-9, 'm');
-      pruef('… also auf der Hoehe des Mastendes',
+      wahr('Sie sitzen unter dem Mastfuss', aufM[0].p[2] < -7.5, `${aufM[0].p[2]}`);
+      pruef('… an der Unterkante des Fundamentklotzes',
             Math.min(...mst.flatMap((f) => f.punkte.map((p2) => p2[2]))),
             aufM[0].p[2], 1e-9, 'm');
+      // Ohne Lagerangabe kein Text: Profil und Hoehe stehen im Titel.
       const txtM = szM.marken.filter((k) => k.art === 'auflagertext');
-      wahr('Der Text steht bei der Marke',
-           txtM.length > 0 && Math.abs(txtM[0].p[2] - aufM[0].p[2]) < 1e-9);
+      wahr('Ohne Lagerangabe steht kein Text', txtM.length === 0,
+           txtM.map((k) => k.zeilen.join(' / ')).join(' | '));
       /*
        * OHNE MAST GIBT ES KEINEN FUSS - dann bleibt die Marke am Joch, wie
        * beim Tragjoch auch. Eine Marke im Nichts waere schlimmer als eine
@@ -25044,6 +25063,11 @@ titel('84  Joch weg, Masten bleiben; nichts unter der Fundamentkote');
          !f3.some((x) => /_B$/.test(x.teil ?? '')), [...new Set(f3.map((x) => x.teil))].join(' '));
     wahr('… und er trägt seine Ausnutzung wie am Joch',
          f3.filter((x) => x.teil === 'MAST_A' && x.werte?.eta !== undefined).length > 10);
+    // «hier ist das gelenkig eh falsch, da einzelmast» (18. September).
+    const mk3 = R3.erzeugeSzene(e3.modell, e3).marken;
+    wahr('3D-Einzelmast: keine Lagerangabe des Jochs am Fuss',
+         !mk3.some((x) => x.art === 'auflagertext' || x.art === 'auflager'),
+         mk3.filter((x) => x.gruppe === 'auflager').map((x) => (x.zeilen ?? [x.text]).join('/')).join(' | '));
   }
   wahr('Eine Last unter der Fundamentkote wird gemeldet',
        h.some((x) => /Tief: Last UNTER der Fundamentkote \(z = −?-?2\.70/.test(x)), h.join(' | '));
