@@ -3744,7 +3744,17 @@ export class Modellansicht {
       // und mit denselben Kennwerten wie die Volumenkörper. Nur so ist das
       // Bild ohne Körper dasselbe wie mit ihnen.
       const traegt = l.gurt || l.blechachse;
-      if (l.gruppe === 'auflager' || l.gruppe === 'mast') {
+      if (l.schwerachse) {
+        /*
+         * SCHWERACHSEN VON MAST, STUETZE UND SEIL tragen die Farbe des
+         * Resultats wie die Gurtachsen (Weisung vom 17. September). Ohne
+         * Kennwert bleiben sie im Ton des Masten.
+         */
+        c.strokeStyle = l.werte ? this._grundfarbe(l, t) : t.on2;
+        c.setLineDash([]);
+        c.lineWidth = 1.8 * s;
+        c.globalAlpha = 1;
+      } else if (l.gruppe === 'auflager' || l.gruppe === 'mast') {
         c.strokeStyle = l.kragarm ? t.acc : t.on2;
         c.setLineDash(l.kragarm ? [6 * s, 4 * s] : []);
         c.lineWidth = (l.mast ? 1.8 : 1.2) * s;

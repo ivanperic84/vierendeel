@@ -380,21 +380,29 @@ export function mastKoerper(o) {
       if (!(zo2 > zu2 + 1e-9)) continue;
       const arg = (f) => Math.max(Math.abs(u[f] ?? 0), Math.abs(ob[f] ?? 0));
       const schlimmer = u.eta >= ob.eta ? u : ob;
+      const werte = {
+        eta: schlimmer.eta,
+        sig_v: schlimmer.sig,
+        sig: Math.abs(schlimmer.sigN ?? 0),
+        N: schlimmer.N,
+        // Seit dem 15. September fuehrt der Mastnachweis globale Groessen:
+        // M_yy quer, M_xx laengs, F_x/F_y die Querkraefte dazu.
+        M: Math.max(arg('Myy'), arg('Mxx')),
+        V: Math.max(arg('Fx'), arg('Fy')),
+      };
+      const label = `${grund} · ${u.z.toFixed(2)} bis ${ob.z.toFixed(2)} m`
+                  + ` über Fuss · η ${schlimmer.eta.toFixed(3)}`;
       flaechen.push(...prismaZ(poly, x, zu2, zo2, {
-        gruppe: 'mast', teil,
-        werte: {
-          eta: schlimmer.eta,
-          sig_v: schlimmer.sig,
-          sig: Math.abs(schlimmer.sigN ?? 0),
-          N: schlimmer.N,
-          // Seit dem 15. September fuehrt der Mastnachweis globale Groessen:
-          // M_yy quer, M_xx laengs, F_x/F_y die Querkraefte dazu.
-          M: Math.max(arg('Myy'), arg('Mxx')),
-          V: Math.max(arg('Fx'), arg('Fy')),
-        },
-        label: `${grund} · ${u.z.toFixed(2)} bis ${ob.z.toFixed(2)} m`
-             + ` über Fuss · η ${schlimmer.eta.toFixed(3)}`,
+        gruppe: 'mast', teil, werte, label,
       }));
+      /*
+       * DIE SCHWERACHSE DES MASTEN, abschnittsweise in der Farbe des
+       * Resultats wie die Gurtachsen (Weisung vom 17. September: «die
+       * schwerelinien beim Masten fehlt»).
+       */
+      linien.push({ gruppe: 'mast', schwerachse: true, werte,
+                    label: `Schwerachse ${grund}`,
+                    punkte: [[x, 0, zu2], [x, 0, zo2]] });
     }
     /*
      * DER MAST REICHT WEITER ALS DER NACHWEIS. Er endet am Mastkopf, wie
@@ -409,6 +417,9 @@ export function mastKoerper(o) {
         gruppe: 'mast', teil,
         label: `${grund} · Überstand über den Nachweis`,
       }));
+      linien.push({ gruppe: 'mast', schwerachse: true,
+                    label: `Schwerachse ${grund}`,
+                    punkte: [[x, 0, zLetzt], [x, 0, zKopf]] });
     }
   } else {
     // Ohne Nachweis bleibt er ein Koerper ohne Kennwert - neutral
@@ -417,6 +428,9 @@ export function mastKoerper(o) {
       gruppe: 'mast', teil, farbeBauteil: o.farbeBauteil,
       label: `${grund} · ${(zKopf - zFuss).toFixed(2)} m`,
     }));
+    linien.push({ gruppe: 'mast', schwerachse: true,
+                  label: `Schwerachse ${grund}`,
+                  punkte: [[x, 0, zFuss], [x, 0, zKopf]] });
   }
 
   const halb = ((achse === 'y' ? profil.b : profil.h) / 2) * MM;
@@ -693,7 +707,10 @@ function ankerTeile(o, halb, zFuss, zKopf) {
           ? schraegesProfil(a2, b3, uv, { ...opt2, querAchse: spreizAchse })
           : schraegerStab(a2, b3, dick, dick, opt2)));
       }
-      linien.push({ gruppe: 'mast', anker: true, stark: true,
+      // Die Schwerachse jedes Profils - eingefaerbt wie der Koerper
+      // (Weisung vom 17. September).
+      linien.push({ gruppe: 'mast', anker: true, stark: true, schwerachse: true,
+                    ...(Number.isFinite(o.ankerEta) ? { werte: { eta: o.ankerEta } } : {}),
                     label: `Anker ${name} · ${wie}`,
                     punkte: stuetz.map((s) => punktAuf(s, vzP)) });
     });
@@ -806,7 +823,8 @@ function ankerTeile(o, halb, zFuss, zKopf) {
     [-0.5, +0.5].forEach((d) => {
       const dx = laengs ? d * halb : 0;
       const dy = laengs ? 0 : d * halb;
-      linien.push({ gruppe: 'mast', anker: true, stark: true,
+      linien.push({ gruppe: 'mast', anker: true, stark: true, schwerachse: true,
+                    ...(Number.isFinite(o.ankerEta) ? { werte: { eta: o.ankerEta } } : {}),
                     label: `Anker ${name} · ${wie}`,
                     punkte: [[x + dx, dy, zA], [xF + dx, yF + dy, zFuss]] });
     });

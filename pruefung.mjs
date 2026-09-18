@@ -12108,6 +12108,32 @@ titel('42  Der lange Mast mit Zusatzleitern');
       });
       const mk = baueAnker();
       const ff = mk.flaechen.filter((x) => /^ANKER_/.test(x.teil ?? ''));
+      /*
+       * SCHWERACHSEN IN DER FARBE DES RESULTATS (17. September): «die
+       * schwerelinien auch einfärben bei der druckstütze und dem seilanker.
+       * die schwerelinien beim Masten fehlt.»
+       */
+      {
+        const mitEta = baueAnker({ ankerEta: 0.4, nachweis: { stationen: [
+          { z: 0, eta: 0.6, sig: 100, N: 10 }, { z: 4, eta: 0.3, sig: 50, N: 5 }] } });
+        const achsen = mitEta.linien.filter((l) => l.schwerachse);
+        wahr('Der Mast hat seine Schwerachse, abschnittsweise mit Kennwert',
+             achsen.some((l) => /^Schwerachse/.test(l.label) && l.werte?.eta === 0.6));
+        wahr('Die Profilachsen der Stuetze tragen das η des Ankers',
+             achsen.filter((l) => l.anker).length >= 2
+             && achsen.filter((l) => l.anker).every((l) => l.werte?.eta === 0.4));
+        const seil = KO.mastKoerper({
+          profil: { h: 24, b: 24, tw: 1, tf: 1.7, reihe: 'HEB', name: 'HEB 240' },
+          x: 0, H: 8.0, zFuss: -1.5, zKopf: 8.5, name: 'A', ankerEta: 0.2,
+          anker: { typ: 'SA20', h: 6.0, a: 4.0, richtung: 'quer', seite: +1 } });
+        wahr('… und die Achsen des Seilankers ebenso',
+             seil.linien.filter((l) => l.anker && l.schwerachse)
+               .every((l) => l.werte?.eta === 0.2)
+             && seil.linien.some((l) => l.anker && l.schwerachse));
+        const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+        wahr('Das 3D faerbt Schwerachsen mit Kennwert ein',
+             /if \(l\.schwerachse\) \{[\s\S]{0,400}this\._grundfarbe\(l, t\)/.test(r3));
+      }
       const pfl = ff.filter((x) => /^Anker /.test(x.label ?? ''));
       const bfl = ff.filter((x) => /^Bindeblech/.test(x.label ?? ''));
       /*
