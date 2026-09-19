@@ -8,7 +8,7 @@
  * siehe das Kontextobjekt in app.js. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { mastenVon, tragwerkSatz, tragwerksart } from './core.constants.js';
+import { mastenVon, rechensatz, tragwerkSatz, tragwerksart } from './core.constants.js';
 import { berechne, modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
@@ -287,10 +287,19 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
   // Alle vier Wege durch dieselbe Klammer: was hier bricht, bricht sichtbar.
   const name = { json: 'COM-Ausleitung', dxf: 'DXF-Ausleitung',
                  pynite: 'PyNite-Ausleitung' }[format] ?? 'SAF-Ausleitung';
+  /*
+   * DER RECHENSATZ, NICHT DIE ROHEN WERTE (COM-Pruefung vom 19. September).
+   * Masten, Anker und Teile am Masten stehen seit dem 18. September in der
+   * Mastliste an ihrer Stelle; erst `rechensatz` legt sie in den Satz, den
+   * Kern und Ausleitung lesen. Mit `app.werte` fehlten in der Datei am
+   * Einzelmast Anker und alle Teile am Masten (2 Knoten statt 83), am Joch
+   * der Seilanker - das Modell in AxisVM lag auf der unsicheren Seite.
+   */
+  const satz = rechensatz(app.werte);
   return app.handlung(name, () => {
-    if (format === 'json') return exportiereJson(app.werte, deps, o);
-    if (format === 'dxf') return exportiereDxf(app.werte, deps, o);
-    if (format === 'pynite') return exportierePynite(app.werte, deps, o);
-    return exportiereAxisvm(app.werte, deps, o);
+    if (format === 'json') return exportiereJson(satz, deps, o);
+    if (format === 'dxf') return exportiereDxf(satz, deps, o);
+    if (format === 'pynite') return exportierePynite(satz, deps, o);
+    return exportiereAxisvm(satz, deps, o);
   });
 }

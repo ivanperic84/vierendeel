@@ -25363,6 +25363,109 @@ titel('72  Oertlicher Anteil: vorzeichenrichtig gemessen, additiv belassen');
        mess.bewertung.map((b) => `${b.weg} ${b.min.toFixed(2)}`).join(' · '));
 }
 
+titel('93  COM-Ausleitung: was die Bruecke liest, steht in der Datei');
+/*
+ * Weisung vom 19. September: «checke die com schnittstelle». Geprueft wird
+ * die Datei, die `com/AxisVM_aufbauen.ps1` liest - AxisVM wird dafuer nicht
+ * gestartet. Befunde der Pruefung, alle auf der unsicheren Seite:
+ *  - die App gab `app.werte` roh weiter: am Einzelmast fehlten Anker und
+ *    Teile am Masten (2 Knoten statt 83), am Joch der Seilanker;
+ *  - die Einzelmast-Ausleitung baute weder Anker noch Teile am Masten;
+ *  - in der Jochreihe fehlten die Streckenlasten (Wind, Schnee auf dem Joch,
+ *    Mastwind), die steifen Gurtabschnitte zeigten auf einen Querschnitt
+ *    ohne Praefix, und der geteilte Mast stand zweimal im Modell.
+ */
+{
+  const V93 = await import(J('core.vierendeel.js'));
+  const C93 = await import(J('core.constants.js'));
+  const AX93 = await import(J('export.axisvm.js'));
+  const ps1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  const modellVon = (s) => V93.modell({ ...s, beiwerteFest: null }, getProfil(s.profOG),
+    getProfil(s.profUG), getStahl(s.stahl), T.getTragjoch(s.typ));
+  const jsonVon = (w, o) => AX93.stabmodellJson(modellVon(w),
+    { ...o, eingabe: w, bau: AX93.blattWennMehrere(w, { modellVon }, o) });
+  const joch = (x = {}) => Object.assign(
+    typUebernehmen({ ...standardwerte(), typ: 'J90', bearbeiten: false }, T.getTragjoch('J90')),
+    { L: 20, xLage: 0, mastVorhanden: true,
+      anbauteile: [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }] }, x);
+  const o = { knotenmodell: 'anschnitt', auflagerModell: 'mast' };
+
+  // Was die Bruecke erwartet - aus ihrem Quelltext, nicht aus dem Gedaechtnis.
+  wahr('Die Bruecke liest das Format «tragjoch-stabmodell»',
+       ps1.includes("'tragjoch-stabmodell'"));
+  wahr('… und die Listen knoten, staebe, querschnitte, auflager, lasten.*',
+       ['$d.knoten', '$d.staebe', '$d.querschnitte', '$d.auflager',
+        '$d.lasten.punkt', '$d.lasten.strecke'].every((t) => ps1.includes(t)));
+
+  /** Querverweise einer Datei: jeder Name zeigt auf etwas, das da ist. */
+  const fehler = (d) => {
+    const f = [];
+    const kn = new Set(d.knoten.map((k) => k.name));
+    const qs = new Set(d.querschnitte.map((q) => q.name));
+    const st = new Set(d.staebe.map((s) => s.name));
+    const lf = new Set(d.lastfaelle.map((l) => l.key));
+    if (d.format !== 'tragjoch-stabmodell') f.push('Format');
+    if (!(d.merkmale ?? []).includes('anbau-kette')) f.push('Merkmal anbau-kette');
+    d.staebe.forEach((s) => {
+      if (!kn.has(s.von) || !kn.has(s.bis)) f.push(`Stab ${s.name}: Knoten`);
+      if (!qs.has(s.querschnitt)) f.push(`Stab ${s.name}: Querschnitt ${s.querschnitt}`);
+    });
+    d.auflager.forEach((a) => { if (!kn.has(a.knoten)) f.push(`Auflager ${a.knoten}`); });
+    ['punkt', 'moment', 'strecke'].forEach((art) => (d.lasten[art] ?? []).forEach((l) => {
+      if (!lf.has(l.lastfall)) f.push(`Last: Lastfall ${l.lastfall}`);
+      if (art === 'strecke' ? !st.has(l.stab) : !kn.has(l.knoten)) f.push(`Last ${art}: Ort`);
+      if (!Number.isFinite(l.wert)) f.push(`Last ${art}: Wert`);
+    }));
+    d.knoten.forEach((k) => { if (![k.x, k.y, k.z].every(Number.isFinite)) f.push(`Knoten ${k.name}`); });
+    (d.kombinationen ?? []).forEach((kb) => (kb.anteile ?? []).forEach((a) => {
+      if (!lf.has(a.lastfall)) f.push(`Kombination ${kb.bez}`);
+    }));
+    const dop = (a) => a.length !== new Set(a).size;
+    if (dop(d.knoten.map((k) => k.name))) f.push('doppelte Knotennamen');
+    if (dop(d.staebe.map((s) => s.name))) f.push('doppelte Stabnamen');
+    return [...new Set(f)];
+  };
+
+  const dJ = jsonVon(joch(), o);
+  wahr('Joch mit Masten: Datei stimmig', fehler(dJ).length === 0, fehler(dJ).slice(0, 4).join(' | '));
+
+  let em = C93.tragwerkWeg(C93.tragwerkHinzu(joch(), 'einzelmast',
+    { mastProfil: 'HEB 260', mastLaenge: 10 }), 'T1');
+  em = C93.setzeMastAnker(em, C93.mastenVon(em)[0].id, { typ: 'U12', a: 4.5, h: 7.79,
+    richtung: 'y', seite: 'plus', befestigung: 'ankerplatte' });
+  const dE = jsonVon(C93.rechensatz(em), o);
+  wahr('Einzelmast mit Anker: Datei stimmig', fehler(dE).length === 0, fehler(dE).slice(0, 4).join(' | '));
+  wahr('… mit Anker (zweites Auflager) und den Teilen am Masten',
+       dE.auflager.length === 2 && dE.staebe.length > 20, `${dE.auflager.length} Auflager, ${dE.staebe.length} Staebe`);
+
+  const dR = jsonVon(C93.tragwerkHinzu(joch(), 'joch', { L: 15, xLage: 20 }), o);
+  wahr('Jochreihe: Datei stimmig', fehler(dR).length === 0, fehler(dR).slice(0, 4).join(' | '));
+  wahr('… mit Streckenlasten auf den Jochen und am geteilten Masten',
+       dR.lasten.strecke.some((l) => /^T\d+_/.test(l.stab))
+       && dR.lasten.strecke.some((l) => /^MAST_M2_S/.test(l.stab)));
+
+  // Zwei Joche auf verschiedener Hoehe am selben Masten: EIN Zug, lueckenlos.
+  let wH = joch({ mastH: 8, mastLaenge: 8.5 });
+  wH = C93.tragwerkHinzu(wH, 'joch', { L: 15, xLage: 20, mastH: 8.5, mastLaenge: 9.0 });
+  const dH = jsonVon(wH, o);
+  const zug = dH.staebe.filter((s) => /^MAST_M2_S\d+$/.test(s.name));
+  const zH = (n) => dH.knoten.find((k) => k.name === n).z;
+  wahr('Verschiedene Anschlusshoehen: Datei stimmig', fehler(dH).length === 0,
+       fehler(dH).slice(0, 4).join(' | '));
+  wahr('… der geteilte Mast ist ein lueckenloser Zug durch beide Anschluesse',
+       zug.every((s, i) => i === 0 || s.von === zug[i - 1].bis)
+       && zug.every((s) => zH(s.bis) > zH(s.von))
+       && zug.some((s) => s.bis.includes('k0_')) && zug.some((s) => s.bis.includes('k500_')),
+       zug.map((s) => s.bis).join(' → '));
+  wahr('… und jeder Abschnitt traegt seinen Mastwind',
+       zug.every((s) => dH.lasten.strecke.some((l) => l.stab === s.name)));
+
+  const quelle93 = readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8');
+  wahr('Die App leitet den Rechensatz aus, nicht die rohen Werte',
+       quelle93.includes('const satz = rechensatz(app.werte);')
+       && !/exportiere\w*\(app\.werte/.test(quelle93));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

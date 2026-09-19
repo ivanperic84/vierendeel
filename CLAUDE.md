@@ -167,12 +167,24 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4730 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4741 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **19. Sept.** COM-Schnittstelle geprüft («checke die com schnittstelle»,
+  ohne AxisVM zu starten; Prüfstand Abschnitt 93). Vier Befunde, alle auf
+  der unsicheren Seite: (1) die App leitete `app.werte` roh aus statt
+  `rechensatz` — am Einzelmast fehlten Anker und Teile am Masten (2 Knoten
+  statt 83), am Joch der Seilanker; (2) die Einzelmast-Ausleitung baute
+  Anker und Teile am Masten gar nicht (jetzt `ankerBauen`,
+  `mastTeileAnhaengen`, gemeinsam mit dem Joch); (3) Jochreihe ohne
+  Streckenlasten (Wind/Schnee auf dem Joch, Mastwind) und steife Gurt-
+  abschnitte mit Querschnitt ohne Präfix; (4) der geteilte Mast stand
+  doppelt im Modell — jetzt einmal, bei verschiedenen Anschlusshöhen aus
+  allen Teilpunkten neu aufgereiht (`mastNeuAufreihen`). Davor: Verbesse-
+  rungsliste abgeschlossen (U4 Erklärtexte, A3 Testdaten und CI, A1 Umbau).
 - **18. Sept.** Stabilität: Anbauteile am Masten auf ihrer eigenen Höhe, bei
   allen Tragwerken. Einzelmast ohne Anschlusshöhe, die Länge regiert.
   Standortauswahl nur für vorhandene Bauteile. Hintergrundzeichnung:
@@ -293,6 +305,12 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   (wirkt nur nichtlinear).
 - Ergebnisse zurücklesen ist gebaut, ein sauberer Durchstich fehlt; lokale
   Stabachsen offen.
+- Abfangjoch-Ausleitung führt das Merkmal `anbau-kette` bewusst nicht
+  (Anbauteile als Punktlasten am Gurt); die Brücke meldet deshalb «ältere
+  Fassung». Die Meldung stimmt, ihr Rat «neu ausleiten» hilft aber nicht.
+- Geteilter Mast mit zwei verschiedenen Mastlängen (je Tragwerk
+  eingetragen): der Kopf des ersten gilt, der Zug reicht bis zum höheren
+  Anschluss. Die Mastliste kennt nur eine Länge je Stelle — Eingabe prüfen.
 - «Abfangjoch mit Mast rechnet unsichtbar nicht» liess sich am 17. September
   nicht nachstellen — beobachten.
 - Gurtabschnitte als Starrkörper (Umlegung ihrer Streckenlasten) — nur auf
@@ -330,7 +348,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4730 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4741 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

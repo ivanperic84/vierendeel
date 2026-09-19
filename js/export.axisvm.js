@@ -465,7 +465,15 @@ function sammler(praefixStart = '') {
     stab(rohName, qs, von, bis, opt = null) {
       if (von === bis) return null;         // entartet: kommt bei L_c = h vor
       const name = voll(rohName);
-      staebe.push({ name, qs, von, bis, ...(opt ?? {}) });
+      /*
+       * DER ROHNAME REIST MIT (COM-Pruefung vom 19. September). In der
+       * Blatt-Ausleitung heisst ein Stab «T1_OGL_S0»; wer ihn am Namen
+       * erkennt («OGL_S…», «OG…»), muss den Rohnamen fragen. Genau das
+       * fehlte: Wind, Schnee und Zuschlag auf das Joch und die steifen
+       * Obergurtabschnitte gingen bei einer Jochreihe verloren.
+       */
+      staebe.push({ name, roh: String(rohName), praefix: name === rohName ? '' : praefix,
+                    qs, von, bis, ...(opt ?? {}) });
       return name;
     },
 
@@ -679,6 +687,677 @@ function schenkelVersatz(p, ecke, ausr, tBlech = 0) {
 }
 
 /**
+ * DER ANKER AM MASTEN - Zug-/Druckstuetze oder Seil mit eigenem Fundament.
+ *
+ * Herausgeloest am 19. September (COM-Pruefung): er stand im Mastbau des
+ * Tragjochs, und der Einzelmast baute keinen - seine COM-Datei trug den
+ * nackten Mast, obwohl der Nachweis mit Anker rechnet. Jetzt bauen beide
+ * denselben. Der Knoten am Ankerpunkt muss VOR der Stabteilung in `mastKn`
+ * stehen (siehe dort); hier bleibt nur der Rueckfall.
+ */
+function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
+                      auflager, ankerAus }) {
+  const ak = md.anker;
+  if (ak?.typ && ak.h > 0 && ak.a > 0) {
+    const vzA = ak.seite === 'minus' ? -1 : 1;
+    const laengsA = ak.richtung === 'y';
+    const zAnk = r6(zFuss + Math.min(ak.h, zOben - h / 2 - zFuss));
+    const xF = laengsA ? x : r6(x + vzA * ak.a);
+    const yF = laengsA ? r6(vzA * ak.a) : 0;
+    /*
+     * DER ANSCHLUSSKNOTEN STEHT SCHON - er wird oben gesetzt, VOR der
+     * Stabteilung (siehe dort). Hier bleibt der Rueckfall stehen, falls
+     * die beiden Rechnungen je auseinanderlaufen; dann entstuende
+     * wieder ein Knoten neben dem Stab, und die Kontrolle faende es.
+     */
+    if (!mastKn.has(zAnk)) {
+      mastKn.set(zAnk, s.kn(`MAST_${mn(ende)}_ANK`, x, 0, zAnk));
+    }
+    const kAnkF = s.kn(`ANKER_${mn(ende)}_F`, xF, yF, zFuss);
+    /*
+     * >>> DER FORMSCHLUESSEL HEISST `Rectangle`, NICHT `R`. <<<
+     *
+     * Gemessen am 11. September beim ersten Aufbau in AxisVM: «ABBRUCH:
+     * Querschnitt ANKER_U12_PLATZHALTER nicht anlegbar». Die Bruecke
+     * probiert ihre Kandidaten der Reihe nach durch und prueft je den
+     * Formschluessel; `R` traf keinen, und sie hielt an - richtig so,
+     * denn ein geratener Querschnitt waere schlimmer.
+     *
+     * `rechteck` schreibt ihn richtig, und sie steht seit den Blechen
+     * da. Ihn von Hand ein zweites Mal zu schreiben war der Fehler.
+     */
+    let qw = null;
+    try { qw = ankerQuerschnitt(ak.typ); } catch { qw = null; }
+    let spreiz = null;
+    try { spreiz = ankerSpreizung(ak.typ); } catch { spreiz = null; }
+    /* ===================================================================
+     * >>> ZWEI PROFILE, WENN DAS SORTIMENT SIE FUEHRT. <<<
+     * ===================================================================
+     *
+     * Weisung vom 15. September: die Druckstuetze im AxisVM als zwei
+     * Profile statt als Ersatzrechteck - «Stufe 1» aus der Frage, wie
+     * aufwaendig es waere, sie wie ein Joch zu modellieren.
+     *
+     * Das Rechteck bleibt als RUECKFALL: fuer den Seilanker, und fuer
+     * jeden Typ ohne Einzelwerte im Blatt. Ein Seil ist kein Keil.
+     */
+    const einzeln = Number(qw?.AEinzel) > 0 && Number(qw?.IyEinzel) > 0
+                 && spreiz && (qw?.anzahl ?? 0) === 2;
+    /*
+     * DIE KANTEN DES ERSATZRECHTECKS folgen der Flaeche und der
+     * Profilhoehe: h aus dem Profil, b so, dass b*h die Flaeche des
+     * VERBUNDS ergibt. Damit sieht der Stab im Modell aus wie das, was
+     * er traegt, und die Flaeche stimmt auf den Quadratmillimeter.
+     */
+    const A_cm2 = Number(qw?.A) || 0;
+    let seil = false;
+    try { seil = !ankerTraegtDruck(ak.typ); } catch { seil = false; }
+    /*
+     * DAS SEIL HAT KEINE PROFILHOEHE. Mit dem Rueckfall von 120 mm
+     * wurde es ein Rechteck von 120 x 0.4 mm - die Flaeche stimmte, die
+     * Form war ein Blech. Ein QUADRAT gleicher Flaeche ist die ehrlichere
+     * Naeherung eines Rundlitzenseils: dieselbe Dehnsteifigkeit, und
+     * keine Biegesteifigkeit, die in einer Richtung aus dem Rahmen faellt.
+     */
+    const hQ = seil && A_cm2 > 0 ? Math.sqrt(A_cm2 * 100)
+                                 : (Number(qw?.h) || 120);        // mm
+    const bQ = A_cm2 > 0 ? (A_cm2 * 100) / hQ : 60;      // mm
+    const qsAnker = einzeln ? null : s.qs({
+      ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`,
+                    h: r6(hQ), b: r6(bQ) }),
+      profil: qw?.profil
+        ? `${ak.typ} — ${qw.anzahl ?? 1}× ${qw.profil} (${qw.quelle})`
+        : `${ak.typ} — Querschnittswerte nicht erfasst`,
+      A: A_cm2 > 0 ? A_cm2 / 1e4 : 120 * 60 / 1e6,       // cm2 -> m2
+      Iy: qw?.Iy ? qw.Iy / 1e8 : 1e-6,
+      Iz: qw?.Iz ? qw.Iz / 1e8 : 1e-6,
+      It: qw?.It ? qw.It / 1e8 : 1e-6,
+    });
+    /*
+     * >>> DER EINZELQUERSCHNITT IST EIN U, KEIN RECHTECK. <<<
+     *
+     * `Channel` baut die Bruecke ueber AddC/AddU - vermessen am
+     * 3. September fuer die Abfangjochgurte. Die Reihenfolge der
+     * Parameter ist [h, b, tw, tf, R], STEG VOR FLANSCH: am
+     * 4. September gemessen, dass die naheliegende Lesart den Gurt
+     * 21 % zu weich machte.
+     *
+     * Die Kennwerte sind die des EINZELPROFILS (`AEinzel`, `IyEinzel`,
+     * `IzEinzel`). `Iz` des Verbunds steht im Blatt auf null, und das
+     * ist richtig: er haengt am Spreizmass, und das ist hier kein
+     * fester Wert, sondern ein Keil.
+     */
+    const qsProfil = einzeln ? s.qs({
+      name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}_EINZEL`,
+      form: 'Channel',
+      parameter: [Number(qw.h), Number(qw.b), Number(qw.tw),
+                  Number(qw.tf), Number(qw.r) || 0],
+      profil: `${qw.profil} (${qw.quelle})`,
+      /*
+       * KEIN KATALOGNAME. Die Bruecke versucht ihn vor dem
+       * parametrischen Weg, und ein Name, der zufaellig ein ANDERES
+       * Profil trifft, faellt nirgends auf. UNP steht in EN 10365 als
+       * UPN, das alte DIN-Profil heisst anders als das europaeische -
+       * das ist zu vermessen, nicht zu raten (com/LIESMICH.md).
+       */
+      A: qw.AEinzel / 1e4,
+      Iy: qw.IyEinzel / 1e8,
+      Iz: qw.IzEinzel / 1e8,
+      It: (Number(qw.It) || 0) / (qw.anzahl || 2) / 1e8,
+    }) : null;
+    /* ===================================================================
+     * >>> DIE VORSATZKONSOLE STEHT ALS STARRELEMENT DA. <<<
+     * ===================================================================
+     *
+     * Weisung vom 11. September: «das weite ende der Druckstuetze liegt
+     * auf seite Mast. dieses wird dann direkt an den flanschen oder mit
+     * einer vorsatzkonsole befestigt. wir koennen es idealisiert mit
+     * einem pauschalen abstand (starrelement) von ca. 0.15m
+     * modellieren.»
+     *
+     * Bis hierher sass der Anker AUF der Mastachse. Er sitzt aber nicht
+     * dort, sondern am Flansch - eine Konsole davor, und die beiden
+     * U-Profile fassen sie von beiden Seiten. Zwischen Mastachse und
+     * Anschlusspunkt liegen rund 150 mm.
+     *
+     * >>> WAS DAS AENDERT: EIN MOMENT AM MASTEN. <<<
+     *
+     * Die Stabkraft greift jetzt EXZENTRISCH an. Bei 20 kN und 0.15 m
+     * sind das 3 kNm, die der Mast zusaetzlich traegt - klein gegen sein
+     * Fussmoment, aber vorhanden, und in einem Rahmenmodell will man sie
+     * sehen. Genau dafuer ist die Ausleitung da.
+     *
+     * >>> DER ARM ZEIGT DORTHIN, WO DER ANKER STEHT. <<<
+     *
+     * Zum Fundament hin, in der Ebene des Ankers: quer zum Gleis in x,
+     * laengs in y. Ein Arm auf der falschen Seite kehrte das Moment um.
+     *
+     * DER NACHWEIS im Werkzeug rechnet weiter ohne diese Exzentrizitaet
+     * (`ankerHaltekraft` setzt am Mastpunkt an). Das ist eine Aussage
+     * ueber das AUSGELEITETE Modell, keine ueber den Nachweis - und der
+     * Bericht sagt es.
+     * ================================================================= */
+    const kKons = s.kn(`ANKER_${mn(ende)}_K`,
+                       laengsA ? x : r6(x + vzA * ANKER_KONSOLE),
+                       laengsA ? r6(vzA * ANKER_KONSOLE) : 0, zAnk);
+    /*
+     * ANKERKONSOLE, nicht KONSOLE: seit dem 11. September heisst die
+     * Auflagerkonsole am Jochende `KONSOLE_A_OG`, und ein Filter auf
+     * `KONSOLE_` traefe beide. Namen im Modell sind Adressen - zwei
+     * Bauteile duerfen sich keine teilen.
+     */
+    s.stab(`ANKERKONSOLE_${mn(ende)}`, qsStarr, mastKn.get(zAnk), kKons,
+           { starrRolle: 'verbindung' });
+    /* ===================================================================
+     * >>> DER KEIL STEHT IM MODELL - ZWEI STABZUEGE STATT EINES STABES.
+     * ===================================================================
+     *
+     * Weisung vom 15. September, «Stufe 1». Bis hierher ging EIN Stab
+     * hinaus: ein Rechteck gleicher Flaeche, gelenkig an beiden Enden.
+     * Fuer die Normalkraft war das genug - fuer das Bild nicht, und der
+     * Keil ist das Kennzeichen des Bauteils.
+     *
+     * >>> DIE GEOMETRIE. <<<
+     *
+     * Vier Stationen ueber die Laenge, wie das Blatt sie vermasst:
+     *
+     *   s = 0            am Masten, weites Ende (225 mm)
+     *   s = 1610/L       Ende des parallelen Stuecks oben
+     *   s = 1 - 990/L    Anfang des parallelen Stuecks unten
+     *   s = 1            am Fundament, enges Ende (104 bzw. 124 mm)
+     *
+     * Ist die Stuetze kuerzer als die beiden parallelen Stuecke
+     * zusammen (2.60 m), laeuft der Abstand linear durch - dieselbe
+     * Regel wie in `ankerSpreizungAn`, und mehr gibt das Blatt nicht
+     * her.
+     *
+     * >>> QUER WOZU. <<<
+     *
+     * Die Spreizung steht QUER zur Ankerebene: liegt der Anker in
+     * Gleisrichtung, spreizt er in der Jochachse - und umgekehrt.
+     * Dieselbe Regel wie im Bild (`render.koerper.js`).
+     *
+     * >>> DIE DREHLAGE DES PROFILS - UND SIE IST SPIEGELBILDLICH. <<<
+     *
+     * Die lokale z-Achse steht senkrecht auf Stabachse UND Spreizung.
+     * Dann liegt die Profilhoehe (120 mm beim UNP 120) in der Ankerebene
+     * und die Flansche zeigen in die Spreizrichtung - dieselbe Lage wie
+     * beim Abfangjoch, wo die beiden Gurte quer nebeneinander laufen und
+     * `lcsZ` senkrecht steht.
+     *
+     * >>> BEFUND VOM 15. SEPTEMBER, AM MODELL GESEHEN. <<<
+     *
+     * Weisung: "die ausrichtung der c stimmt nicht, aehnlich wie bei
+     * abfangjoch."
+     *
+     * Hier stand EINE Drehlage fuer beide Reihen - damit standen die
+     * zwei U gleichsinnig statt spiegelbildlich, wie zwei Haken in
+     * dieselbe Richtung. Ein Bauteil ist es erst, wenn sie sich
+     * gegenueberstehen.
+     *
+     * AxisVM kann ein U-Profil NICHT spiegeln. Die Referenz dreht es um
+     * 180 Grad um die Stabachse, und beim U vertauscht das genau die
+     * Oeffnungsrichtung - dieselbe Loesung wie am Abfangjoch seit dem
+     * 4. September ("gurte spiegelsymetrisch ... c ist gegen aussen
+     * offen"): `lcsGurt` gibt dort [0,0,1] und [0,0,-1].
+     *
+     * DIE RICHTUNG IST DIE DES ABFANGJOCHS: das Profil auf der PLUS-Seite
+     * der Spreizung bekommt die Gegenrichtung, das auf der Minus-Seite
+     * die Richtung selbst. Dort steht der vordere Gurt (+y) auf [0,0,1],
+     * waehrend das Kreuzprodukt [0,0,-1] gibt.
+     *
+     * >>> DIE GELENKE SITZEN AN DEN ENDEN, NICHT DAZWISCHEN. <<<
+     *
+     * Das Profil laeuft durch; geloest sind die beiden ANSCHLUESSE.
+     * Zwei Starrelemente je Ende, beide am gemeinsamen Knoten
+     * momentenfrei: damit dreht die Stuetze um die Bolzenachse - die
+     * liegt in der Spreizrichtung - und traegt das Kraeftepaar quer
+     * dazu ueber die beiden Profile. Das ist mehr, als der eine
+     * Pendelstab konnte, und es ist das, was ein Verbundstab tut.
+     *
+     * >>> UND WAS DER BOLZEN NICHT IST. <<<
+     *
+     * Das Modell traegt jetzt ein Moment um die Achse quer zur
+     * Spreizung, wo vorher keines war. Am Masten aendert das die
+     * Anschlusskraefte geringfuegig; der NACHWEIS der Stuetze rechnet
+     * unveraendert ueber das Bemessungsdiagramm (`ankerNachweis`) und
+     * weiss davon nichts. Der Bericht sagt es.
+     * ================================================================= */
+    if (!einzeln && seil) {
+      /* ===============================================================
+       * >>> DER SEILANKER TRAEGT NUR ZUG. <<<
+       * ===============================================================
+       *
+       * Befund vom 16. September: «der zugstab wirkt nicht nur auf zug.
+       * dies noch beim export zum axis vm auch beachten und verbindungs
+       * anpassen.»
+       *
+       * Bis dahin war das Seil ein gewoehnlicher Balken mit
+       * Momentengelenken an beiden Enden - ein Pendelstab, der Zug UND
+       * Druck traegt.
+       *
+       * >>> DIE VERBINDUNG AM MASTEN IST JETZT EIN LINKELEMENT. <<<
+       *
+       *   Konsole --[SEILKOPF: Link, 50 mm]--> Seil --[Gelenk]--> Fundament
+       *
+       * Der Link steht im ORTSSYSTEM seiner Linie, also mit x in der
+       * Seilachse. In x ist er gehalten und traegt NUR ZUG
+       * (lnlTensionOnly); quer gehalten, Torsion gehalten, beide
+       * Biegemomente frei. Weil Link und Seil hintereinander liegen,
+       * kann die Kette als Ganzes keinen Druck mehr tragen.
+       *
+       * Warum ueber den Link und nicht am Stab selbst: die
+       * Nichtlinearitaet je Freiheitsgrad ist an RNNLinkElementRec
+       * vermessen (ELineNonLinearity = lnlTensionAndCompression,
+       * lnlTensionOnly, lnlCompressionOnly). Ein Fachwerkstab «nur Zug»
+       * ist es nicht - und die Schnittstelle wird vermessen, nicht
+       * geraten.
+       *
+       * >>> ES WIRKT NUR IN EINER NICHTLINEAREN BERECHNUNG. <<<
+       *
+       * Linear gerechnet traegt auch dieser Link Druck. Welche Rechnung
+       * laeuft, entscheidet der Auftraggeber im Programm; die Bruecke
+       * schreibt es in den Bericht.
+       * ============================================================= */
+      const pK = s.knoten.get(kKons);
+      const pF = s.knoten.get(kAnkF);
+      const LS = Math.hypot(pF.x - pK.x, pF.y - pK.y, pF.z - pK.z);
+      const sG = LS > 4 * ANKER_GELENK ? ANKER_GELENK / LS : 0.02;
+      const kSeil = s.kn(`ANKER_${mn(ende)}_S`,
+                         r6(pK.x + sG * (pF.x - pK.x)),
+                         r6(pK.y + sG * (pF.y - pK.y)),
+                         r6(pK.z + sG * (pF.z - pK.z)));
+      s.stab(`SEILKOPF_${mn(ende)}`, qsStarr, kKons, kSeil, {
+        starrRolle: 'verbindung',
+        // Fuer die Wege ohne Linkelement (PyNite, SAF): ein Pendel.
+        gelenkAnfang: 'M',
+        kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+                 xx: 'Rigid', yy: 'Free', zz: 'Free' },
+        nichtlinear: { x: 'nurZug' },
+        linkSystem: 'lokal',
+      });
+      s.stab(`ANKER_${mn(ende)}`, qsAnker, kSeil, kAnkF, { gelenkEnde: 'M' });
+    } else if (!einzeln) {
+      s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
+             { gelenkAnfang: 'M', gelenkEnde: 'M' });
+    } else {
+      const pK = s.knoten.get(kKons);
+      const pF2 = s.knoten.get(kAnkF);
+      const LAnk = Math.hypot(pF2.x - pK.x, pF2.y - pK.y, pF2.z - pK.z);
+      // Der Einheitsvektor der Spreizung - quer zur Ankerebene.
+      const eS = laengsA ? [1, 0, 0] : [0, 1, 0];
+      // Die Stabachse, und daraus die lokale z-Richtung (Kreuzprodukt).
+      const d = [(pF2.x - pK.x) / LAnk, (pF2.y - pK.y) / LAnk,
+                 (pF2.z - pK.z) / LAnk];
+      const kreuz = [eS[1] * d[2] - eS[2] * d[1],
+                     eS[2] * d[0] - eS[0] * d[2],
+                     eS[0] * d[1] - eS[1] * d[0]];
+      const lg = Math.hypot(...kreuz) || 1;
+      const lcsRoh = kreuz.map((v) => v / lg);
+      // Spiegelbildlich: die Plus-Seite bekommt die Gegenrichtung.
+      const lcsAnker = (vz) => lcsRoh.map((v) => r6(-vz * v));
+      /* =================================================================
+       * >>> DIE STATIONEN SIND DIE DER BINDEBLECHEINTEILUNG. <<<
+       * =================================================================
+       *
+       * Weisung vom 15. September: die Bindebleche \u00abgem\u00e4ss zeichnung im
+       * grundlagen ordner\u00bb. `ankerBindebleche` liest die Einteilung aus
+       * dem Sortiment - erstes Blech 990 mm vom engen Ende, letztes
+       * 1610 mm vom weiten, dazwischen gleichmaessig mit hoechstens
+       * 1200 mm. Das sind zugleich die beiden KNICKSTELLEN des Keils:
+       * die Randmasse der Einteilung und die der Spreizung sind
+       * dieselben.
+       *
+       * `ankerBindebleche` misst vom ENGEN Ende, also vom Fundament her;
+       * `s` laeuft vom Masten. Die eine Umrechnung steht hier.
+       */
+      const blSatz = ankerBlechSatz(ak.typ);
+      const bleche = ankerBindebleche(ak.typ, LAnk);
+      const sp2 = spreiz;
+      /* ===============================================================
+       * >>> VIER STELLEN MEHR: DIE BEIDEN ANSCHLUESSE. <<<
+       * ===============================================================
+       *
+       * `par` lief bisher von 0 (Mast) bis 1 (Fundament), und an beiden
+       * Enden sass EIN Element, das zugleich starr und momentenfrei war.
+       * AxisVM machte daraus ein Linkelement direkt am Lagerknoten - und
+       * der hatte dann keine Drehsteifigkeit mehr.
+       *
+       * Jetzt ist die Kette an jedem Ende dreiteilig:
+       *
+       *   Lagerknoten  --STARR--  s = sL   --LINK--  s = 2*sL  --PROFIL--
+       *
+       * Das Starrelement laeuft schraeg (quer zum Profil UND 50 mm in
+       * seine Achse), das Gelenkstueck liegt in der Achse. Beide Masse
+       * stehen in `ANKER_GELENK`.
+       *
+       * ZU KURZ FUER DIE KETTE: unter 400 mm Stuetzenlaenge blieben vom
+       * Profil keine 200 mm uebrig. Dann bleibt es beim alten Aufbau -
+       * eine Stuetze dieser Laenge gibt es nicht, aber ein Modell, das
+       * bei einem Grenzfall Knoten uebereinanderlegt, waere schlimmer
+       * als eines, das ihn auslaesst.
+       * ============================================================= */
+      const sL = LAnk > 8 * ANKER_GELENK ? ANKER_GELENK / LAnk : 0;
+      const par = sL > 0 ? [r6(sL), r6(2 * sL)] : [0];
+      if (bleche.length) {
+        // Vom Masten aus: die hinterste Station zuerst.
+        bleche.slice().reverse()
+          .forEach((bl2) => par.push(r6(1 - bl2.x / LAnk)));
+      } else {
+        const sBreit = (sp2.parallelBreit ?? 0) / 1000;
+        const sSchmal = (sp2.parallelSchmal ?? 0) / 1000;
+        if (LAnk > sBreit + sSchmal + 1e-9) {
+          par.push(sBreit / LAnk, 1 - sSchmal / LAnk);
+        }
+      }
+      if (sL > 0) par.push(r6(1 - 2 * sL), r6(1 - sL));
+      else par.push(1);
+      /*
+       * EIN PUNKT AUF DER STUETZE.
+       *
+       *   sv     Stelle laengs, 0 am Masten bis 1 am Fundament
+       *   vz     welche Reihe, -1 oder +1 quer zur Ankerebene
+       *   quer   Versatz in der Profilhoehe [mm] - fuer die Bleche
+       *   ein    Einzug in der Spreizrichtung [mm], nach INNEN positiv
+       */
+      const punkt = (sv, vz, quer = 0, ein = 0) => {
+        const abst = ankerAchsabstandAn(ak.typ, LAnk, (1 - sv) * LAnk);
+        const e2 = ((abst ?? 0) / 1000) / 2 * vz - (vz * ein) / 1000;
+        const f2 = quer / 1000;
+        return { x: r6(pK.x + (pF2.x - pK.x) * sv + eS[0] * e2 + lcsRoh[0] * f2),
+                 y: r6(pK.y + (pF2.y - pK.y) * sv + eS[1] * e2 + lcsRoh[1] * f2),
+                 z: r6(pK.z + (pF2.z - pK.z) * sv + eS[2] * e2 + lcsRoh[2] * f2) };
+      };
+      /*
+       * DIE BEIDEN REIHEN. Jede laeuft durch - das Profil ist an den
+       * Blechstationen geteilt, aber nicht gelenkig; geloest sind
+       * allein die beiden Anschluesse.
+       */
+      const reihen = {};
+      // Station -> Knoten, je Seite (siehe unten).
+      const stationKn = {};
+      [['L', -1], ['R', +1]].forEach(([seite, vz]) => {
+        reihen[seite] = par.map((sv, i2) => {
+          const p3 = punkt(sv, vz);
+          return s.kn(`ANK_${mn(ende)}_${seite}${i2}`, p3.x, p3.y, p3.z);
+        });
+        const rr = reihen[seite];
+        const letzte = rr.length - 1;
+        /*
+         * >>> DER STATIONSSCHLUESSEL, NICHT DER INDEX. <<<
+         *
+         * Die Bindebleche haengten ueber `reihen[seite][bleche.length-j]`
+         * an ihrer Station - eine Rechnung, die davon ausging, dass
+         * `par` mit 0 beginnt und die Bleche gleich danach kommen. Mit
+         * den beiden Gelenkstellen am Anfang (16. September) stimmte sie
+         * nicht mehr, und die Stiele wuchsen von 56 mm auf 1.16 m.
+         *
+         * Ein Index in eine Liste, deren Aufbau anderswo festgelegt
+         * wird, ist eine Verabredung ohne Zeugen. Die Station selbst ist
+         * der Schluessel: sie steht in `par` und wird beim Blech
+         * identisch gerechnet.
+         */
+        stationKn[seite] = new Map(par.map((sv2, i3) => [sv2, rr[i3]]));
+        /* =============================================================
+         * >>> DAS PROFIL LAEUFT DURCH, DIE ENDEN SIND GELENKE. <<<
+         * =============================================================
+         *
+         * Weisung vom 16. September: «ich denke wir können nicht direkt
+         * einen linkelement an das lager setzen, wir sollten hier über
+         * ein starrelement gehen und in der achse der c-Profile einen
+         * kurzen teil als link ausbilden. das gleiche dann auch beim
+         * knoten beim anschluss masten.»
+         *
+         * Das erste und das letzte Stueck der Reihe sind keine
+         * Profilstaebe mehr, sondern die GELENKSTUECKE - 50 mm in der
+         * Profilachse, alle drei Momente frei. Was dazwischen liegt,
+         * ist das C-Profil.
+         */
+        for (let i2 = 1; i2 < letzte - 1; i2 += 1) {
+          s.stab(`ANKERPROFIL_${mn(ende)}_${seite}${i2}`, qsProfil,
+                 rr[i2], rr[i2 + 1], { lcsZ: lcsAnker(vz) });
+        }
+        /*
+         * DIE GELENKSTUECKE. Sie sind kurz und starr im Querschnitt -
+         * was sie ausmacht, ist die Freigabe: `gelenkAnfang: 'M'` loest
+         * alle drei Momente, und die Ausleitung macht daraus ein
+         * LinkElement (`starrArt`). Der Bolzen dreht in jede Richtung;
+         * das war die Entscheidung des Auftraggebers.
+         */
+        const gel = { starrRolle: 'verbindung', gelenkAnfang: 'M' };
+        s.stab(`ANKERGELENK_${mn(ende)}_${seite}K`, qsStarr,
+               rr[0], rr[1], gel);
+        s.stab(`ANKERGELENK_${mn(ende)}_${seite}F`, qsStarr,
+               rr[letzte], rr[letzte - 1], gel);
+        /*
+         * UND DIE BEIDEN STARREN ANSCHLUESSE - sie tragen die Momente
+         * in den Lagerknoten und den Mastknoten. Ohne sie haetten beide
+         * keine Drehsteifigkeit; MIT ihnen reicht der Starrkoerper 50 mm
+         * in die Profilachse hinein und faengt die Drehung um die
+         * Spreizachse. Siehe `ANKER_GELENK`.
+         */
+        const fest = { starrRolle: 'verbindung' };
+        s.stab(`ANKERKOPF_${mn(ende)}_${seite}`, qsStarr,
+               kKons, rr[0], fest);
+        s.stab(`ANKERFUSS_${mn(ende)}_${seite}`, qsStarr,
+               kAnkF, rr[letzte], fest);
+      });
+      /* =================================================================
+       * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
+       * =================================================================
+       *
+       * Befund vom 15. September am aufgebauten Modell: \u00abdie
+       * verbindungsbleche sind nicht modelliert.\u00bb Sie standen als zwei
+       * Starrelemente an den Knickstellen da - eine Andeutung, kein
+       * Bauteil. Die Werkstattzeichnung fuehrt sie vollstaendig.
+       *
+       * SCHNITT B-B: zwei Bleche je Station, oben und unten ZWISCHEN
+       * den Stegen eingeschweisst, 8 mm dick und 140 mm lang in
+       * Stuetzenrichtung. Ihr lichter Abstand ist h - 2*t, die Mitte
+       * also (h - t)/2 von der Profilachse - beim U12 56 mm.
+       *
+       * >>> SIE LIEGEN NICHT IN DER ACHSE, UND DARAUF KOMMT ES AN. <<<
+       *
+       * Ein einzelnes Blech auf der Profilachse waere die halbe
+       * Wahrheit: was den mehrteiligen Druckstab steif macht, ist das
+       * PAAR mit seinem Hebelarm. Die beiden Bleche und die beiden
+       * Stege bilden einen Rahmen - dasselbe Tragverhalten wie beim
+       * Tragjoch, nur zwei Nummern kleiner. Deshalb bekommt jedes Blech
+       * seinen eigenen Knoten und einen kurzen starren Stiel zur
+       * Profilachse.
+       *
+       * >>> DIE REIHENFOLGE IM RECHTECK: BREITE, DANN DICKE. <<<
+       *
+       * Befund vom 15. September am aufgebauten Modell: \u00abdie
+       * verbindungsbleche sind nicht richtig ausgerichtet\u00bb - und auf die
+       * Rueckfrage: verdreht um die Stabachse. Hier stand
+       * `{ h: dicke, b: laenge }`, also [8, 140]; richtig ist
+       * [140, 8].
+       *
+       * >>> DIE REGEL, AN ZWEI GEPRUEFTEN STELLEN ABGELESEN. <<<
+       *
+       * `blechQuerschnitt` (Tragjoch) schreibt `[bl.breite, bl.dicke]`,
+       * `blechQs` (Abfangjoch) schreibt `[m.b, m.t]`. Beide Modelle
+       * stehen in AxisVM richtig. Also gilt:
+       *
+       *   parameter[0]  BREITE  - quer zur Referenzrichtung
+       *   parameter[1]  DICKE   - IN der Referenzrichtung
+       *
+       * Fuer das Ankerblech heisst das: 140 mm laengs der Stuetze
+       * (quer zur Referenz, die auf der Stabachse und der Spreizung
+       * senkrecht steht), 8 mm in Referenzrichtung.
+       *
+       * >>> WAS MICH IN DIE IRRE GEFUEHRT HAT. <<<
+       *
+       * Im Pruefstand stand \u00abh = Dicke, b = Breite\u00bb - das Gegenteil
+       * dessen, was `blechQs` und `blechQuerschnitt` beide schreiben.
+       * Ich habe den Kommentar gelesen und nicht die Zeile. Er ist dort
+       * jetzt berichtigt: ein Kommentar, der dem Quelltext
+       * widerspricht, ist schlimmer als keiner - er wird geglaubt.
+       * =============================================================== */
+      if (bleche.length && blSatz) {
+        const vBlech = ankerBlechVersatz(ak.typ) ?? 0;        // mm
+        // Schwerachse hinter dem Stegruecken [mm] - so weit ist das
+        // Blech kuerzer als der Achsabstand, je Seite.
+        const ey = (Number(qw?.ey) || 0) * 10;
+        const qsBlech = s.qs({
+          ...rechteck({ name: `ANKERBLECH_${String(ak.typ).replace(/\s+/g, '')}`,
+                        h: blSatz.laenge, b: blSatz.dicke }),
+          profil: `FLA ${blSatz.laenge}/${blSatz.dicke} \u2014 Bindeblech`,
+          A: (blSatz.dicke * blSatz.laenge) / 1e6,
+          // Wie `blechQs` beim Abfangjoch: I_y um die starke Achse.
+          Iy: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
+          Iz: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
+          It: (blSatz.laenge * blSatz.dicke ** 3) / 3 / 1e12,
+        });
+        // Die Blechstationen sind die Stabteilung ohne die beiden Enden.
+        bleche.forEach((bl2, j) => {
+          const sv = r6(1 - bl2.x / LAnk);
+          ['O', 'U'].forEach((lage) => {
+            const vzL = lage === 'O' ? +1 : -1;
+            const ecken = ['L', 'R'].map((seite) => {
+              const vz2 = seite === 'L' ? -1 : +1;
+              /* =========================================================
+               * >>> DAS BLECH MISST DIE LICHTE WEITE. <<<
+               * =========================================================
+               *
+               * Weisung vom 15. September: \u00abdie bleche eink\u00fcrzen so dass
+               * diese der lichten breite entsprechen. momentan sind sie
+               * auf die schwerelinie der u-Tr\u00e4ger ausgerichtet.\u00bb
+               *
+               * Richtig: das Blech ist zwischen die STEGE geschweisst,
+               * nicht zwischen die Schwerachsen. Es misst 104 mm am
+               * engen und 225 am weiten Ende - der Achsabstand ist um
+               * 2*ey = 32 mm groesser, und genau die standen zuviel.
+               *
+               * >>> DER ANSCHLUSS GEHT UEBER EINE ECKE. <<<
+               *
+               * Zwei Glieder, jedes in einer Achse - dieselbe Regel wie
+               * an der Auflagerkette (Weisung vom 12. September: \u00abdie
+               * starrelemente rechtwinklig machen\u00bb):
+               *
+               *   STIEL  (h - t)/2 in der Profilhoehe, bis auf die
+               *          Hoehe des Blechs
+               *   KANTE  ey quer, von der Schwerachse auf den
+               *          Stegruecken - dort beginnt das Blech
+               *
+               * Eine Diagonale von 58 mm taete dasselbe und liesse sich
+               * nicht nachmessen; so steht jedes Mass fuer sich.
+               * ======================================================= */
+              const pE = punkt(sv, vz2, vzL * vBlech);
+              const kEck = s.kn(`ANKEK_${mn(ende)}_${seite}${lage}${j + 1}`,
+                                pE.x, pE.y, pE.z);
+              const p4 = punkt(sv, vz2, vzL * vBlech, ey);
+              const kn2 = s.kn(`ANKBL_${mn(ende)}_${seite}${lage}${j + 1}`,
+                               p4.x, p4.y, p4.z);
+              /*
+               * DER STIEL GEHOERT AN SEINE STATION. `par` laeuft vom
+               * MASTEN (weites Ende), `bleche` vom FUNDAMENT - die
+               * beiden Listen sind gegenlaeufig. Mit `j + 1` sassen die
+               * Stiele quer durch die halbe Stuetze; sie massen 2.31 m
+               * statt 56 mm, und genau daran war es zu sehen.
+               */
+              s.stab(`ANKERSTIEL_${mn(ende)}_${seite}${lage}${j + 1}`,
+                     qsStarr, stationKn[seite].get(sv), kEck,
+                     { starrRolle: 'verbindung' });
+              s.stab(`ANKERKANTE_${mn(ende)}_${seite}${lage}${j + 1}`,
+                     qsStarr, kEck, kn2, { starrRolle: 'verbindung' });
+              return kn2;
+            });
+            s.stab(`ANKERBLECH_${mn(ende)}_${lage}${j + 1}`, qsBlech,
+                   ecken[0], ecken[1], { lcsZ: lcsAnker(+1) });
+          });
+        });
+      }
+    }
+    /*
+     * >>> DAS ANKERFUNDAMENT HAELT AUCH DIE DREHUNGEN. <<<
+     *
+     * Befund des Auftraggebers vom 16. September, nach zwei Laeufen:
+     * «das auflager bei der druckstütze muss gehalten sein.»
+     *
+     * >>> WARUM DAS KEIN WIDERSPRUCH ZUR GELENKIGEN LAGERUNG IST. <<<
+     *
+     * Weisung vom 9. September: «diese sind gelenkig gelagert» - und
+     * das bleibt so. Das Gelenk ist nur UMGEZOGEN: bis zum
+     * 16. September war das Auflager die einzige Stelle, an der die
+     * Stuetze drehen konnte, seither sitzt es 50 mm weiter oben im
+     * Gelenkstueck, wo die Schraube ist (`ANKER_GELENK`).
+     *
+     * ZWEI GELENKE HINTEREINANDER SIND EINES ZUVIEL. Genau daran
+     * scheiterten die beiden Laeufe davor:
+     *
+     *   erst   «Knoten hat keine Steifigkeit (YY)» - der Lagerknoten
+     *          trug nur Links ohne Momentenuebertragung
+     *   dann   «numerische Instabilitaeten», Verformung 1.5e8 mm - der
+     *          Starrkoerper zwischen zwei momentenfreien Knoten konnte
+     *          um seine eigene Achse drehen
+     *
+     * Beide Male war die Ursache dieselbe: an diesem Knoten leitete
+     * NICHTS ein Moment ein. Mit gehaltenem Auflager tut es das
+     * Fundament - und die Stuetze bleibt trotzdem gelenkig
+     * angeschlossen, weil ihr Gelenk jetzt im Stab sitzt.
+     *
+     * WAS DAS FUNDAMENT WIRKLICH HAELT, ist damit nicht behauptet: es
+     * haelt den kurzen Starrkoerper, nicht die Stuetze. Ueber das
+     * Gelenkstueck kommt kein Moment an.
+     *
+     * Der Mastfuss daneben bleibt voll eingespannt.
+     */
+    auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
+                    ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                    fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
+                    feder: null });
+    ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
+                    nurZug: seil,
+                    h: ak.h, a: ak.a, qs: qw ?? null,
+                    spreiz: spreiz ?? null, zweiProfile: einzeln,
+                    bleche: einzeln ? ankerBindebleche(ak.typ,
+                      Math.hypot(xF - x, yF, zAnk - zFuss)).length : 0 });
+  }
+}
+
+/**
+ * DIE TEILE AM MASTEN: Kette von der Mastachse zum Angriffspunkt, und die
+ * Arme, an denen `lasten()` ihre Kraefte ansetzt.
+ *
+ * Herausgeloest am 19. September (COM-Pruefung): der Einzelmast legte die
+ * Knoten auf der Mastachse an, haengte aber nichts daran - seine COM-Datei
+ * hatte keine einzige Last aus Traverse, Leiter oder Lampe.
+ */
+function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
+  // Gruppiert wie am Joch: die Baugruppe haelt zusammen, was zusammengehoert.
+  const mastGruppen = new Map();
+  (m.anbauMastFlach ?? []).forEach((t) => {
+    const schluessel = t.baugruppe ?? t.id;
+    const da = mastGruppen.get(schluessel);
+    if (da) { da.teile.push(t); return; }
+    mastGruppen.set(schluessel, { ...t, teile: [t] });
+  });
+  [...mastGruppen.values()].forEach((a, k) => {
+    const ende = a.ort === 'mastB' ? 'B' : 'A';
+    const xM = ende === 'A' ? 0 : r6(m.L);
+    const wurzelKn = [...s.knoten.entries()].find(([nm, kn]) =>
+      nm.startsWith(`MAST_${mn(ende)}_`)
+      && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
+    if (!wurzelKn) return;               // ausserhalb - schon vermerkt
+    // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
+    const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0 });
+    const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
+    kette.glieder.forEach((g) => {
+      const kn = s.kn(`AM${k}_${g.bis.nr}`,
+                      r6(xM + g.bis.x), r6(g.bis.y),
+                      r6(wurzelKn[1].z + g.bis.z));
+      knotenVon.set(g.bis, kn);
+      s.stab(`ARMM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
+             opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
+                             : { starrRolle: 'anbauteil' });
+    });
+    kette.belegung.forEach(({ teil, punkt }) =>
+      arme.push({ teil, knoten: knotenVon.get(punkt) }));
+  });}
+
+/**
  * Baut das Stabmodell.
  *
  * @param {object} m       Modell aus core.vierendeel.modell()
@@ -743,6 +1422,22 @@ function stabmodellEinzelmast(m, opt = {}) {
       mastKn.set(zA, s.kn(`MAST_A_H${mastKn.size - 1}`, x, 0, zA));
     }
   });
+  /*
+   * >>> DER ANKER UND DIE TEILE - wie am Joch (COM-Pruefung, 19. Sept.). <<<
+   *
+   * Bis hierher endete der Einzelmast hier: ein nackter Mast mit Wind. Der
+   * Nachweis rechnet ihn mit Stuetze oder Seil und mit den Lasten seiner
+   * Teile; das AxisVM-Modell kannte beides nicht. Der Ankerpunkt wird VOR
+   * der Stabteilung Knoten des Mastes (sonst liefe der Mast an ihm vorbei),
+   * gebaut wird mit denselben Funktionen wie am Tragjoch. Oberkante ist der
+   * Mastkopf; eine Jochhoehe gibt es nicht (h = 0).
+   */
+  const zOberkante = Math.max(zKopf, 0);
+  const ak = md.anker;
+  if (ak?.typ && ak.h > 0 && ak.a > 0) {
+    const zAnk = r6(zFuss + Math.min(ak.h, zOberkante - zFuss));
+    if (!mastKn.has(zAnk)) mastKn.set(zAnk, s.kn('MAST_A_ANK', x, 0, zAnk));
+  }
   const zStufen = [...mastKn.keys()].sort((a, b) => a - b);
   for (let i = 0; i < zStufen.length - 1; i++) {
     s.stab(`MAST_A_S${i + 1}`, qsMast,
@@ -753,10 +1448,17 @@ function stabmodellEinzelmast(m, opt = {}) {
   // Volleinspannung im Fundament - dieselbe Festlegung wie beim Joch.
   const auflager = [{ ende: 'A', x, h: 0, modell: 'mast', knoten: kFuss,
                       art: 'eingespannt' }];
+  const qsStarr = s.qs(rechteck(STARR));
+  const qsArm = s.qs(rechteck(ARM));
+  const ankerAus = [];
+  ankerBauen({ s, md, ende: 'A', mn: (e) => e, x, h: 0, zFuss, zOben: zOberkante,
+               mastKn, qsStarr, auflager, ankerAus });
+  const arme = [];
+  mastTeileAnhaengen({ s, m, mn: (e) => e, mastFuss: { A: zFuss }, qsArm, arme, opt });
 
-  return { ...s, auflager, arme: [], knotenmodell: opt.knotenmodell ?? 'anschnitt',
+  return { ...s, auflager, arme, knotenmodell: opt.knotenmodell ?? 'anschnitt',
            zOben: 0, verschoben: [], ausKnotenVermerk: [],
-           zweiPunktAnschluss: [], anbauMastAus,
+           zweiPunktAnschluss: [], anbauMastAus, ankerAus,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -877,6 +1579,57 @@ function hoehenversatz(t, gesetzt, mastenJe) {
     }
   }
   return 0;
+}
+
+/**
+ * DEN GETEILTEN MAST AUS ALLEN TEILPUNKTEN NEU AUFREIHEN
+ * (COM-Pruefung vom 19. September).
+ *
+ * Haengen zwei Joche auf verschiedener Hoehe am selben Masten, teilt jedes
+ * ihn an seinem eigenen Anschluss: T1 hat MAST_M2_S1..S5 von Fuss bis
+ * Kopf ueber seine Anschlussknoten, T2 dieselben Namen ueber andere. Bis
+ * zum 19. September standen beide Zuege im Modell - zwei deckungsgleiche
+ * Masten mit gleichen Stabnamen. Hier wird aus allen Knoten beider Zuege,
+ * der Hoehe nach sortiert, EIN Zug gebaut; die Eigenschaften kommen vom
+ * ersten Abschnitt, die Streckenlasten (Mastwind) vom alten Abschnitt,
+ * der die Mitte des neuen enthaelt.
+ *
+ * Gibt eine Abbildung fuer Streckenlasten zurueck: alte Last -> Lasten auf
+ * den neuen Abschnitten.
+ */
+function mastNeuAufreihen(staebe, knoten, mastZuege) {
+  const umbau = new Map();   // Mast-Id -> { alt: [Abschnitte], neu: [Abschnitte] }
+  mastZuege.forEach((weitere, id) => {
+    const re = new RegExp(`^MAST_${id}_S\\d+$`);
+    const erste = staebe.filter((st) => re.test(st.name));
+    const alt = [...erste, ...weitere];
+    const z = (n) => knoten.get(n)?.z ?? 0;
+    const namen = [...new Set(alt.flatMap((st) => [st.von, st.bis]))]
+      .sort((a, b) => z(a) - z(b));
+    const vorlage = erste[0];
+    const neu = namen.slice(1).map((bis, i) => {
+      const { roh, praefix, ...rest } = vorlage;
+      return { ...rest, name: `MAST_${id}_S${i + 1}`, von: namen[i], bis };
+    });
+    // Alte Abschnitte raus, der neue Zug an die Stelle des ersten.
+    const stelle = staebe.indexOf(vorlage);
+    for (let i = staebe.length - 1; i >= 0; i--) if (re.test(staebe[i].name)) staebe.splice(i, 1);
+    staebe.splice(Math.min(stelle, staebe.length), 0, ...neu);
+    umbau.set(id, { alt: alt.map((st) => ({ name: st.name, u: z(st.von), o: z(st.bis) })),
+                    neu: neu.map((st) => ({ name: st.name, m: (z(st.von) + z(st.bis)) / 2 })) });
+  });
+  if (!umbau.size) return (l) => [l];
+  return (l) => {
+    const t = /^MAST_([^_]+)_S\d+$/.exec(l.stab);
+    const u = t && umbau.get(t[1]);
+    if (!u) return [l];
+    // Die Last eines alten Abschnitts geht auf jeden neuen, dessen Mitte er
+    // enthaelt. Gleichnamige alte Abschnitte (beide Zuege) liefern dieselbe
+    // Last doppelt - die Entdopplung dahinter nimmt sie einmal.
+    const alte = u.alt.filter((a) => a.name === l.stab);
+    return u.neu.filter((n) => alte.some((a) => n.m > a.u - 1e-9 && n.m < a.o + 1e-9))
+      .map((n) => ({ ...l, stab: n.name }));
+  };
 }
 
 /**
@@ -1019,6 +1772,9 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
   const punktmomente = [];
   const streckenlasten = [];
   const widerspruch = [];
+  const stabNamen = new Map();
+  // Mast-Id -> Abschnitte, die ein weiteres Tragwerk anders geteilt hat.
+  const mastZuege = new Map();
 
   /*
    * >>> DER GETEILTE MAST STEHT MITTIG ZWISCHEN DEN BEIDEN BLECHEN. <<<
@@ -1062,7 +1818,25 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
           a: [da.x, da.y, da.z], b: [neu.x, neu.y, neu.z] });
       }
     });
-    bau.staebe.forEach((st) => staebe.push(st));
+    /*
+     * DER GETEILTE MAST NUR EINMAL (COM-Pruefung vom 19. September).
+     * Beide Tragwerke bauen den Zwischenmasten - T1 als Ende B, T2 als
+     * Ende A - mit denselben Namen und Knoten. Bis hierher standen seine
+     * Staebe zweimal im Modell: in AxisVM zwei deckungsgleiche Stabzuege,
+     * doppelt so steif und doppelt so schwer. Gleicher Name, gleiche Enden:
+     * einmal. Gleicher Name, andere Enden - der Mast traegt zwei Joche auf
+     * verschiedener Hoehe, jedes hat ihn an seinem Anschluss geteilt -: er
+     * wird unten aus allen Teilpunkten NEU AUFGEREIHT (`mastNeuAufreihen`).
+     * Nur ein Stab, der kein Mastabschnitt ist, zaehlt als Widerspruch.
+     */
+    bau.staebe.forEach((st) => {
+      const da = stabNamen.get(st.name);
+      if (!da) { stabNamen.set(st.name, st); staebe.push(st); return; }
+      if (da.von === st.von && da.bis === st.bis) return;
+      const mast = /^MAST_([^_]+)_S\d+$/.exec(st.name);
+      if (mast) { mastZuege.set(mast[1], [...(mastZuege.get(mast[1]) ?? []), st]); return; }
+      widerspruch.push({ stab: st.name, a: [da.von, da.bis], b: [st.von, st.bis] });
+    });
     bau.querschnitte.forEach((q, name) => {
       if (!querschnitte.has(name)) querschnitte.set(name, q);
     });
@@ -1081,10 +1855,20 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * Knotennamen tragen das Praefix und bleiben damit eindeutig.
    */
   const lastTeile = teile.map(({ bau, m }) => lasten(m, bau, opt));
+  const mastUmbenannt = mastNeuAufreihen(staebe, knoten, mastZuege);
+  // Streckenlasten auf demselben Stab, im selben Fall und derselben
+  // Richtung stammen vom geteilten Masten, den jedes Tragwerk belastet -
+  // einmal genuegt (siehe oben).
+  const gesehen = new Set();
   const alleLasten = {
     punkt: lastTeile.flatMap((l) => l.punkt),
     moment: lastTeile.flatMap((l) => l.moment),
-    strecke: lastTeile.flatMap((l) => l.strecke),
+    strecke: lastTeile.flatMap((l) => l.strecke).flatMap(mastUmbenannt).filter((l) => {
+      const k = `${l.stab}|${l.lastfall}|${l.richtung}`;
+      if (gesehen.has(k)) return false;
+      gesehen.add(k);
+      return true;
+    }),
   };
 
   const erstes = teile[0]?.bau ?? {};
@@ -2134,624 +2918,8 @@ export function stabmodell(m, opt = {}) {
        * Bemessungsdiagramm, und dessen Kurve kennt den Keil bereits. Der
        * Bericht sagt beides.
        * =================================================================== */
-      const ak = md.anker;
-      if (ak?.typ && ak.h > 0 && ak.a > 0) {
-        const vzA = ak.seite === 'minus' ? -1 : 1;
-        const laengsA = ak.richtung === 'y';
-        const zAnk = r6(zFuss + Math.min(ak.h, zOben - h / 2 - zFuss));
-        const xF = laengsA ? x : r6(x + vzA * ak.a);
-        const yF = laengsA ? r6(vzA * ak.a) : 0;
-        /*
-         * DER ANSCHLUSSKNOTEN STEHT SCHON - er wird oben gesetzt, VOR der
-         * Stabteilung (siehe dort). Hier bleibt der Rueckfall stehen, falls
-         * die beiden Rechnungen je auseinanderlaufen; dann entstuende
-         * wieder ein Knoten neben dem Stab, und die Kontrolle faende es.
-         */
-        if (!mastKn.has(zAnk)) {
-          mastKn.set(zAnk, s.kn(`MAST_${mn(ende)}_ANK`, x, 0, zAnk));
-        }
-        const kAnkF = s.kn(`ANKER_${mn(ende)}_F`, xF, yF, zFuss);
-        /*
-         * >>> DER FORMSCHLUESSEL HEISST `Rectangle`, NICHT `R`. <<<
-         *
-         * Gemessen am 11. September beim ersten Aufbau in AxisVM: «ABBRUCH:
-         * Querschnitt ANKER_U12_PLATZHALTER nicht anlegbar». Die Bruecke
-         * probiert ihre Kandidaten der Reihe nach durch und prueft je den
-         * Formschluessel; `R` traf keinen, und sie hielt an - richtig so,
-         * denn ein geratener Querschnitt waere schlimmer.
-         *
-         * `rechteck` schreibt ihn richtig, und sie steht seit den Blechen
-         * da. Ihn von Hand ein zweites Mal zu schreiben war der Fehler.
-         */
-        let qw = null;
-        try { qw = ankerQuerschnitt(ak.typ); } catch { qw = null; }
-        let spreiz = null;
-        try { spreiz = ankerSpreizung(ak.typ); } catch { spreiz = null; }
-        /* ===================================================================
-         * >>> ZWEI PROFILE, WENN DAS SORTIMENT SIE FUEHRT. <<<
-         * ===================================================================
-         *
-         * Weisung vom 15. September: die Druckstuetze im AxisVM als zwei
-         * Profile statt als Ersatzrechteck - «Stufe 1» aus der Frage, wie
-         * aufwaendig es waere, sie wie ein Joch zu modellieren.
-         *
-         * Das Rechteck bleibt als RUECKFALL: fuer den Seilanker, und fuer
-         * jeden Typ ohne Einzelwerte im Blatt. Ein Seil ist kein Keil.
-         */
-        const einzeln = Number(qw?.AEinzel) > 0 && Number(qw?.IyEinzel) > 0
-                     && spreiz && (qw?.anzahl ?? 0) === 2;
-        /*
-         * DIE KANTEN DES ERSATZRECHTECKS folgen der Flaeche und der
-         * Profilhoehe: h aus dem Profil, b so, dass b*h die Flaeche des
-         * VERBUNDS ergibt. Damit sieht der Stab im Modell aus wie das, was
-         * er traegt, und die Flaeche stimmt auf den Quadratmillimeter.
-         */
-        const A_cm2 = Number(qw?.A) || 0;
-        let seil = false;
-        try { seil = !ankerTraegtDruck(ak.typ); } catch { seil = false; }
-        /*
-         * DAS SEIL HAT KEINE PROFILHOEHE. Mit dem Rueckfall von 120 mm
-         * wurde es ein Rechteck von 120 x 0.4 mm - die Flaeche stimmte, die
-         * Form war ein Blech. Ein QUADRAT gleicher Flaeche ist die ehrlichere
-         * Naeherung eines Rundlitzenseils: dieselbe Dehnsteifigkeit, und
-         * keine Biegesteifigkeit, die in einer Richtung aus dem Rahmen faellt.
-         */
-        const hQ = seil && A_cm2 > 0 ? Math.sqrt(A_cm2 * 100)
-                                     : (Number(qw?.h) || 120);        // mm
-        const bQ = A_cm2 > 0 ? (A_cm2 * 100) / hQ : 60;      // mm
-        const qsAnker = einzeln ? null : s.qs({
-          ...rechteck({ name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}`,
-                        h: r6(hQ), b: r6(bQ) }),
-          profil: qw?.profil
-            ? `${ak.typ} — ${qw.anzahl ?? 1}× ${qw.profil} (${qw.quelle})`
-            : `${ak.typ} — Querschnittswerte nicht erfasst`,
-          A: A_cm2 > 0 ? A_cm2 / 1e4 : 120 * 60 / 1e6,       // cm2 -> m2
-          Iy: qw?.Iy ? qw.Iy / 1e8 : 1e-6,
-          Iz: qw?.Iz ? qw.Iz / 1e8 : 1e-6,
-          It: qw?.It ? qw.It / 1e8 : 1e-6,
-        });
-        /*
-         * >>> DER EINZELQUERSCHNITT IST EIN U, KEIN RECHTECK. <<<
-         *
-         * `Channel` baut die Bruecke ueber AddC/AddU - vermessen am
-         * 3. September fuer die Abfangjochgurte. Die Reihenfolge der
-         * Parameter ist [h, b, tw, tf, R], STEG VOR FLANSCH: am
-         * 4. September gemessen, dass die naheliegende Lesart den Gurt
-         * 21 % zu weich machte.
-         *
-         * Die Kennwerte sind die des EINZELPROFILS (`AEinzel`, `IyEinzel`,
-         * `IzEinzel`). `Iz` des Verbunds steht im Blatt auf null, und das
-         * ist richtig: er haengt am Spreizmass, und das ist hier kein
-         * fester Wert, sondern ein Keil.
-         */
-        const qsProfil = einzeln ? s.qs({
-          name: `ANKER_${String(ak.typ).replace(/\s+/g, '')}_EINZEL`,
-          form: 'Channel',
-          parameter: [Number(qw.h), Number(qw.b), Number(qw.tw),
-                      Number(qw.tf), Number(qw.r) || 0],
-          profil: `${qw.profil} (${qw.quelle})`,
-          /*
-           * KEIN KATALOGNAME. Die Bruecke versucht ihn vor dem
-           * parametrischen Weg, und ein Name, der zufaellig ein ANDERES
-           * Profil trifft, faellt nirgends auf. UNP steht in EN 10365 als
-           * UPN, das alte DIN-Profil heisst anders als das europaeische -
-           * das ist zu vermessen, nicht zu raten (com/LIESMICH.md).
-           */
-          A: qw.AEinzel / 1e4,
-          Iy: qw.IyEinzel / 1e8,
-          Iz: qw.IzEinzel / 1e8,
-          It: (Number(qw.It) || 0) / (qw.anzahl || 2) / 1e8,
-        }) : null;
-        /* ===================================================================
-         * >>> DIE VORSATZKONSOLE STEHT ALS STARRELEMENT DA. <<<
-         * ===================================================================
-         *
-         * Weisung vom 11. September: «das weite ende der Druckstuetze liegt
-         * auf seite Mast. dieses wird dann direkt an den flanschen oder mit
-         * einer vorsatzkonsole befestigt. wir koennen es idealisiert mit
-         * einem pauschalen abstand (starrelement) von ca. 0.15m
-         * modellieren.»
-         *
-         * Bis hierher sass der Anker AUF der Mastachse. Er sitzt aber nicht
-         * dort, sondern am Flansch - eine Konsole davor, und die beiden
-         * U-Profile fassen sie von beiden Seiten. Zwischen Mastachse und
-         * Anschlusspunkt liegen rund 150 mm.
-         *
-         * >>> WAS DAS AENDERT: EIN MOMENT AM MASTEN. <<<
-         *
-         * Die Stabkraft greift jetzt EXZENTRISCH an. Bei 20 kN und 0.15 m
-         * sind das 3 kNm, die der Mast zusaetzlich traegt - klein gegen sein
-         * Fussmoment, aber vorhanden, und in einem Rahmenmodell will man sie
-         * sehen. Genau dafuer ist die Ausleitung da.
-         *
-         * >>> DER ARM ZEIGT DORTHIN, WO DER ANKER STEHT. <<<
-         *
-         * Zum Fundament hin, in der Ebene des Ankers: quer zum Gleis in x,
-         * laengs in y. Ein Arm auf der falschen Seite kehrte das Moment um.
-         *
-         * DER NACHWEIS im Werkzeug rechnet weiter ohne diese Exzentrizitaet
-         * (`ankerHaltekraft` setzt am Mastpunkt an). Das ist eine Aussage
-         * ueber das AUSGELEITETE Modell, keine ueber den Nachweis - und der
-         * Bericht sagt es.
-         * ================================================================= */
-        const kKons = s.kn(`ANKER_${mn(ende)}_K`,
-                           laengsA ? x : r6(x + vzA * ANKER_KONSOLE),
-                           laengsA ? r6(vzA * ANKER_KONSOLE) : 0, zAnk);
-        /*
-         * ANKERKONSOLE, nicht KONSOLE: seit dem 11. September heisst die
-         * Auflagerkonsole am Jochende `KONSOLE_A_OG`, und ein Filter auf
-         * `KONSOLE_` traefe beide. Namen im Modell sind Adressen - zwei
-         * Bauteile duerfen sich keine teilen.
-         */
-        s.stab(`ANKERKONSOLE_${mn(ende)}`, qsStarr, mastKn.get(zAnk), kKons,
-               { starrRolle: 'verbindung' });
-        /* ===================================================================
-         * >>> DER KEIL STEHT IM MODELL - ZWEI STABZUEGE STATT EINES STABES.
-         * ===================================================================
-         *
-         * Weisung vom 15. September, «Stufe 1». Bis hierher ging EIN Stab
-         * hinaus: ein Rechteck gleicher Flaeche, gelenkig an beiden Enden.
-         * Fuer die Normalkraft war das genug - fuer das Bild nicht, und der
-         * Keil ist das Kennzeichen des Bauteils.
-         *
-         * >>> DIE GEOMETRIE. <<<
-         *
-         * Vier Stationen ueber die Laenge, wie das Blatt sie vermasst:
-         *
-         *   s = 0            am Masten, weites Ende (225 mm)
-         *   s = 1610/L       Ende des parallelen Stuecks oben
-         *   s = 1 - 990/L    Anfang des parallelen Stuecks unten
-         *   s = 1            am Fundament, enges Ende (104 bzw. 124 mm)
-         *
-         * Ist die Stuetze kuerzer als die beiden parallelen Stuecke
-         * zusammen (2.60 m), laeuft der Abstand linear durch - dieselbe
-         * Regel wie in `ankerSpreizungAn`, und mehr gibt das Blatt nicht
-         * her.
-         *
-         * >>> QUER WOZU. <<<
-         *
-         * Die Spreizung steht QUER zur Ankerebene: liegt der Anker in
-         * Gleisrichtung, spreizt er in der Jochachse - und umgekehrt.
-         * Dieselbe Regel wie im Bild (`render.koerper.js`).
-         *
-         * >>> DIE DREHLAGE DES PROFILS - UND SIE IST SPIEGELBILDLICH. <<<
-         *
-         * Die lokale z-Achse steht senkrecht auf Stabachse UND Spreizung.
-         * Dann liegt die Profilhoehe (120 mm beim UNP 120) in der Ankerebene
-         * und die Flansche zeigen in die Spreizrichtung - dieselbe Lage wie
-         * beim Abfangjoch, wo die beiden Gurte quer nebeneinander laufen und
-         * `lcsZ` senkrecht steht.
-         *
-         * >>> BEFUND VOM 15. SEPTEMBER, AM MODELL GESEHEN. <<<
-         *
-         * Weisung: "die ausrichtung der c stimmt nicht, aehnlich wie bei
-         * abfangjoch."
-         *
-         * Hier stand EINE Drehlage fuer beide Reihen - damit standen die
-         * zwei U gleichsinnig statt spiegelbildlich, wie zwei Haken in
-         * dieselbe Richtung. Ein Bauteil ist es erst, wenn sie sich
-         * gegenueberstehen.
-         *
-         * AxisVM kann ein U-Profil NICHT spiegeln. Die Referenz dreht es um
-         * 180 Grad um die Stabachse, und beim U vertauscht das genau die
-         * Oeffnungsrichtung - dieselbe Loesung wie am Abfangjoch seit dem
-         * 4. September ("gurte spiegelsymetrisch ... c ist gegen aussen
-         * offen"): `lcsGurt` gibt dort [0,0,1] und [0,0,-1].
-         *
-         * DIE RICHTUNG IST DIE DES ABFANGJOCHS: das Profil auf der PLUS-Seite
-         * der Spreizung bekommt die Gegenrichtung, das auf der Minus-Seite
-         * die Richtung selbst. Dort steht der vordere Gurt (+y) auf [0,0,1],
-         * waehrend das Kreuzprodukt [0,0,-1] gibt.
-         *
-         * >>> DIE GELENKE SITZEN AN DEN ENDEN, NICHT DAZWISCHEN. <<<
-         *
-         * Das Profil laeuft durch; geloest sind die beiden ANSCHLUESSE.
-         * Zwei Starrelemente je Ende, beide am gemeinsamen Knoten
-         * momentenfrei: damit dreht die Stuetze um die Bolzenachse - die
-         * liegt in der Spreizrichtung - und traegt das Kraeftepaar quer
-         * dazu ueber die beiden Profile. Das ist mehr, als der eine
-         * Pendelstab konnte, und es ist das, was ein Verbundstab tut.
-         *
-         * >>> UND WAS DER BOLZEN NICHT IST. <<<
-         *
-         * Das Modell traegt jetzt ein Moment um die Achse quer zur
-         * Spreizung, wo vorher keines war. Am Masten aendert das die
-         * Anschlusskraefte geringfuegig; der NACHWEIS der Stuetze rechnet
-         * unveraendert ueber das Bemessungsdiagramm (`ankerNachweis`) und
-         * weiss davon nichts. Der Bericht sagt es.
-         * ================================================================= */
-        if (!einzeln && seil) {
-          /* ===============================================================
-           * >>> DER SEILANKER TRAEGT NUR ZUG. <<<
-           * ===============================================================
-           *
-           * Befund vom 16. September: «der zugstab wirkt nicht nur auf zug.
-           * dies noch beim export zum axis vm auch beachten und verbindungs
-           * anpassen.»
-           *
-           * Bis dahin war das Seil ein gewoehnlicher Balken mit
-           * Momentengelenken an beiden Enden - ein Pendelstab, der Zug UND
-           * Druck traegt.
-           *
-           * >>> DIE VERBINDUNG AM MASTEN IST JETZT EIN LINKELEMENT. <<<
-           *
-           *   Konsole --[SEILKOPF: Link, 50 mm]--> Seil --[Gelenk]--> Fundament
-           *
-           * Der Link steht im ORTSSYSTEM seiner Linie, also mit x in der
-           * Seilachse. In x ist er gehalten und traegt NUR ZUG
-           * (lnlTensionOnly); quer gehalten, Torsion gehalten, beide
-           * Biegemomente frei. Weil Link und Seil hintereinander liegen,
-           * kann die Kette als Ganzes keinen Druck mehr tragen.
-           *
-           * Warum ueber den Link und nicht am Stab selbst: die
-           * Nichtlinearitaet je Freiheitsgrad ist an RNNLinkElementRec
-           * vermessen (ELineNonLinearity = lnlTensionAndCompression,
-           * lnlTensionOnly, lnlCompressionOnly). Ein Fachwerkstab «nur Zug»
-           * ist es nicht - und die Schnittstelle wird vermessen, nicht
-           * geraten.
-           *
-           * >>> ES WIRKT NUR IN EINER NICHTLINEAREN BERECHNUNG. <<<
-           *
-           * Linear gerechnet traegt auch dieser Link Druck. Welche Rechnung
-           * laeuft, entscheidet der Auftraggeber im Programm; die Bruecke
-           * schreibt es in den Bericht.
-           * ============================================================= */
-          const pK = s.knoten.get(kKons);
-          const pF = s.knoten.get(kAnkF);
-          const LS = Math.hypot(pF.x - pK.x, pF.y - pK.y, pF.z - pK.z);
-          const sG = LS > 4 * ANKER_GELENK ? ANKER_GELENK / LS : 0.02;
-          const kSeil = s.kn(`ANKER_${mn(ende)}_S`,
-                             r6(pK.x + sG * (pF.x - pK.x)),
-                             r6(pK.y + sG * (pF.y - pK.y)),
-                             r6(pK.z + sG * (pF.z - pK.z)));
-          s.stab(`SEILKOPF_${mn(ende)}`, qsStarr, kKons, kSeil, {
-            starrRolle: 'verbindung',
-            // Fuer die Wege ohne Linkelement (PyNite, SAF): ein Pendel.
-            gelenkAnfang: 'M',
-            kraft: { x: 'Rigid', y: 'Rigid', z: 'Rigid',
-                     xx: 'Rigid', yy: 'Free', zz: 'Free' },
-            nichtlinear: { x: 'nurZug' },
-            linkSystem: 'lokal',
-          });
-          s.stab(`ANKER_${mn(ende)}`, qsAnker, kSeil, kAnkF, { gelenkEnde: 'M' });
-        } else if (!einzeln) {
-          s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
-                 { gelenkAnfang: 'M', gelenkEnde: 'M' });
-        } else {
-          const pK = s.knoten.get(kKons);
-          const pF2 = s.knoten.get(kAnkF);
-          const LAnk = Math.hypot(pF2.x - pK.x, pF2.y - pK.y, pF2.z - pK.z);
-          // Der Einheitsvektor der Spreizung - quer zur Ankerebene.
-          const eS = laengsA ? [1, 0, 0] : [0, 1, 0];
-          // Die Stabachse, und daraus die lokale z-Richtung (Kreuzprodukt).
-          const d = [(pF2.x - pK.x) / LAnk, (pF2.y - pK.y) / LAnk,
-                     (pF2.z - pK.z) / LAnk];
-          const kreuz = [eS[1] * d[2] - eS[2] * d[1],
-                         eS[2] * d[0] - eS[0] * d[2],
-                         eS[0] * d[1] - eS[1] * d[0]];
-          const lg = Math.hypot(...kreuz) || 1;
-          const lcsRoh = kreuz.map((v) => v / lg);
-          // Spiegelbildlich: die Plus-Seite bekommt die Gegenrichtung.
-          const lcsAnker = (vz) => lcsRoh.map((v) => r6(-vz * v));
-          /* =================================================================
-           * >>> DIE STATIONEN SIND DIE DER BINDEBLECHEINTEILUNG. <<<
-           * =================================================================
-           *
-           * Weisung vom 15. September: die Bindebleche \u00abgem\u00e4ss zeichnung im
-           * grundlagen ordner\u00bb. `ankerBindebleche` liest die Einteilung aus
-           * dem Sortiment - erstes Blech 990 mm vom engen Ende, letztes
-           * 1610 mm vom weiten, dazwischen gleichmaessig mit hoechstens
-           * 1200 mm. Das sind zugleich die beiden KNICKSTELLEN des Keils:
-           * die Randmasse der Einteilung und die der Spreizung sind
-           * dieselben.
-           *
-           * `ankerBindebleche` misst vom ENGEN Ende, also vom Fundament her;
-           * `s` laeuft vom Masten. Die eine Umrechnung steht hier.
-           */
-          const blSatz = ankerBlechSatz(ak.typ);
-          const bleche = ankerBindebleche(ak.typ, LAnk);
-          const sp2 = spreiz;
-          /* ===============================================================
-           * >>> VIER STELLEN MEHR: DIE BEIDEN ANSCHLUESSE. <<<
-           * ===============================================================
-           *
-           * `par` lief bisher von 0 (Mast) bis 1 (Fundament), und an beiden
-           * Enden sass EIN Element, das zugleich starr und momentenfrei war.
-           * AxisVM machte daraus ein Linkelement direkt am Lagerknoten - und
-           * der hatte dann keine Drehsteifigkeit mehr.
-           *
-           * Jetzt ist die Kette an jedem Ende dreiteilig:
-           *
-           *   Lagerknoten  --STARR--  s = sL   --LINK--  s = 2*sL  --PROFIL--
-           *
-           * Das Starrelement laeuft schraeg (quer zum Profil UND 50 mm in
-           * seine Achse), das Gelenkstueck liegt in der Achse. Beide Masse
-           * stehen in `ANKER_GELENK`.
-           *
-           * ZU KURZ FUER DIE KETTE: unter 400 mm Stuetzenlaenge blieben vom
-           * Profil keine 200 mm uebrig. Dann bleibt es beim alten Aufbau -
-           * eine Stuetze dieser Laenge gibt es nicht, aber ein Modell, das
-           * bei einem Grenzfall Knoten uebereinanderlegt, waere schlimmer
-           * als eines, das ihn auslaesst.
-           * ============================================================= */
-          const sL = LAnk > 8 * ANKER_GELENK ? ANKER_GELENK / LAnk : 0;
-          const par = sL > 0 ? [r6(sL), r6(2 * sL)] : [0];
-          if (bleche.length) {
-            // Vom Masten aus: die hinterste Station zuerst.
-            bleche.slice().reverse()
-              .forEach((bl2) => par.push(r6(1 - bl2.x / LAnk)));
-          } else {
-            const sBreit = (sp2.parallelBreit ?? 0) / 1000;
-            const sSchmal = (sp2.parallelSchmal ?? 0) / 1000;
-            if (LAnk > sBreit + sSchmal + 1e-9) {
-              par.push(sBreit / LAnk, 1 - sSchmal / LAnk);
-            }
-          }
-          if (sL > 0) par.push(r6(1 - 2 * sL), r6(1 - sL));
-          else par.push(1);
-          /*
-           * EIN PUNKT AUF DER STUETZE.
-           *
-           *   sv     Stelle laengs, 0 am Masten bis 1 am Fundament
-           *   vz     welche Reihe, -1 oder +1 quer zur Ankerebene
-           *   quer   Versatz in der Profilhoehe [mm] - fuer die Bleche
-           *   ein    Einzug in der Spreizrichtung [mm], nach INNEN positiv
-           */
-          const punkt = (sv, vz, quer = 0, ein = 0) => {
-            const abst = ankerAchsabstandAn(ak.typ, LAnk, (1 - sv) * LAnk);
-            const e2 = ((abst ?? 0) / 1000) / 2 * vz - (vz * ein) / 1000;
-            const f2 = quer / 1000;
-            return { x: r6(pK.x + (pF2.x - pK.x) * sv + eS[0] * e2 + lcsRoh[0] * f2),
-                     y: r6(pK.y + (pF2.y - pK.y) * sv + eS[1] * e2 + lcsRoh[1] * f2),
-                     z: r6(pK.z + (pF2.z - pK.z) * sv + eS[2] * e2 + lcsRoh[2] * f2) };
-          };
-          /*
-           * DIE BEIDEN REIHEN. Jede laeuft durch - das Profil ist an den
-           * Blechstationen geteilt, aber nicht gelenkig; geloest sind
-           * allein die beiden Anschluesse.
-           */
-          const reihen = {};
-          // Station -> Knoten, je Seite (siehe unten).
-          const stationKn = {};
-          [['L', -1], ['R', +1]].forEach(([seite, vz]) => {
-            reihen[seite] = par.map((sv, i2) => {
-              const p3 = punkt(sv, vz);
-              return s.kn(`ANK_${mn(ende)}_${seite}${i2}`, p3.x, p3.y, p3.z);
-            });
-            const rr = reihen[seite];
-            const letzte = rr.length - 1;
-            /*
-             * >>> DER STATIONSSCHLUESSEL, NICHT DER INDEX. <<<
-             *
-             * Die Bindebleche haengten ueber `reihen[seite][bleche.length-j]`
-             * an ihrer Station - eine Rechnung, die davon ausging, dass
-             * `par` mit 0 beginnt und die Bleche gleich danach kommen. Mit
-             * den beiden Gelenkstellen am Anfang (16. September) stimmte sie
-             * nicht mehr, und die Stiele wuchsen von 56 mm auf 1.16 m.
-             *
-             * Ein Index in eine Liste, deren Aufbau anderswo festgelegt
-             * wird, ist eine Verabredung ohne Zeugen. Die Station selbst ist
-             * der Schluessel: sie steht in `par` und wird beim Blech
-             * identisch gerechnet.
-             */
-            stationKn[seite] = new Map(par.map((sv2, i3) => [sv2, rr[i3]]));
-            /* =============================================================
-             * >>> DAS PROFIL LAEUFT DURCH, DIE ENDEN SIND GELENKE. <<<
-             * =============================================================
-             *
-             * Weisung vom 16. September: «ich denke wir können nicht direkt
-             * einen linkelement an das lager setzen, wir sollten hier über
-             * ein starrelement gehen und in der achse der c-Profile einen
-             * kurzen teil als link ausbilden. das gleiche dann auch beim
-             * knoten beim anschluss masten.»
-             *
-             * Das erste und das letzte Stueck der Reihe sind keine
-             * Profilstaebe mehr, sondern die GELENKSTUECKE - 50 mm in der
-             * Profilachse, alle drei Momente frei. Was dazwischen liegt,
-             * ist das C-Profil.
-             */
-            for (let i2 = 1; i2 < letzte - 1; i2 += 1) {
-              s.stab(`ANKERPROFIL_${mn(ende)}_${seite}${i2}`, qsProfil,
-                     rr[i2], rr[i2 + 1], { lcsZ: lcsAnker(vz) });
-            }
-            /*
-             * DIE GELENKSTUECKE. Sie sind kurz und starr im Querschnitt -
-             * was sie ausmacht, ist die Freigabe: `gelenkAnfang: 'M'` loest
-             * alle drei Momente, und die Ausleitung macht daraus ein
-             * LinkElement (`starrArt`). Der Bolzen dreht in jede Richtung;
-             * das war die Entscheidung des Auftraggebers.
-             */
-            const gel = { starrRolle: 'verbindung', gelenkAnfang: 'M' };
-            s.stab(`ANKERGELENK_${mn(ende)}_${seite}K`, qsStarr,
-                   rr[0], rr[1], gel);
-            s.stab(`ANKERGELENK_${mn(ende)}_${seite}F`, qsStarr,
-                   rr[letzte], rr[letzte - 1], gel);
-            /*
-             * UND DIE BEIDEN STARREN ANSCHLUESSE - sie tragen die Momente
-             * in den Lagerknoten und den Mastknoten. Ohne sie haetten beide
-             * keine Drehsteifigkeit; MIT ihnen reicht der Starrkoerper 50 mm
-             * in die Profilachse hinein und faengt die Drehung um die
-             * Spreizachse. Siehe `ANKER_GELENK`.
-             */
-            const fest = { starrRolle: 'verbindung' };
-            s.stab(`ANKERKOPF_${mn(ende)}_${seite}`, qsStarr,
-                   kKons, rr[0], fest);
-            s.stab(`ANKERFUSS_${mn(ende)}_${seite}`, qsStarr,
-                   kAnkF, rr[letzte], fest);
-          });
-          /* =================================================================
-           * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
-           * =================================================================
-           *
-           * Befund vom 15. September am aufgebauten Modell: \u00abdie
-           * verbindungsbleche sind nicht modelliert.\u00bb Sie standen als zwei
-           * Starrelemente an den Knickstellen da - eine Andeutung, kein
-           * Bauteil. Die Werkstattzeichnung fuehrt sie vollstaendig.
-           *
-           * SCHNITT B-B: zwei Bleche je Station, oben und unten ZWISCHEN
-           * den Stegen eingeschweisst, 8 mm dick und 140 mm lang in
-           * Stuetzenrichtung. Ihr lichter Abstand ist h - 2*t, die Mitte
-           * also (h - t)/2 von der Profilachse - beim U12 56 mm.
-           *
-           * >>> SIE LIEGEN NICHT IN DER ACHSE, UND DARAUF KOMMT ES AN. <<<
-           *
-           * Ein einzelnes Blech auf der Profilachse waere die halbe
-           * Wahrheit: was den mehrteiligen Druckstab steif macht, ist das
-           * PAAR mit seinem Hebelarm. Die beiden Bleche und die beiden
-           * Stege bilden einen Rahmen - dasselbe Tragverhalten wie beim
-           * Tragjoch, nur zwei Nummern kleiner. Deshalb bekommt jedes Blech
-           * seinen eigenen Knoten und einen kurzen starren Stiel zur
-           * Profilachse.
-           *
-           * >>> DIE REIHENFOLGE IM RECHTECK: BREITE, DANN DICKE. <<<
-           *
-           * Befund vom 15. September am aufgebauten Modell: \u00abdie
-           * verbindungsbleche sind nicht richtig ausgerichtet\u00bb - und auf die
-           * Rueckfrage: verdreht um die Stabachse. Hier stand
-           * `{ h: dicke, b: laenge }`, also [8, 140]; richtig ist
-           * [140, 8].
-           *
-           * >>> DIE REGEL, AN ZWEI GEPRUEFTEN STELLEN ABGELESEN. <<<
-           *
-           * `blechQuerschnitt` (Tragjoch) schreibt `[bl.breite, bl.dicke]`,
-           * `blechQs` (Abfangjoch) schreibt `[m.b, m.t]`. Beide Modelle
-           * stehen in AxisVM richtig. Also gilt:
-           *
-           *   parameter[0]  BREITE  - quer zur Referenzrichtung
-           *   parameter[1]  DICKE   - IN der Referenzrichtung
-           *
-           * Fuer das Ankerblech heisst das: 140 mm laengs der Stuetze
-           * (quer zur Referenz, die auf der Stabachse und der Spreizung
-           * senkrecht steht), 8 mm in Referenzrichtung.
-           *
-           * >>> WAS MICH IN DIE IRRE GEFUEHRT HAT. <<<
-           *
-           * Im Pruefstand stand \u00abh = Dicke, b = Breite\u00bb - das Gegenteil
-           * dessen, was `blechQs` und `blechQuerschnitt` beide schreiben.
-           * Ich habe den Kommentar gelesen und nicht die Zeile. Er ist dort
-           * jetzt berichtigt: ein Kommentar, der dem Quelltext
-           * widerspricht, ist schlimmer als keiner - er wird geglaubt.
-           * =============================================================== */
-          if (bleche.length && blSatz) {
-            const vBlech = ankerBlechVersatz(ak.typ) ?? 0;        // mm
-            // Schwerachse hinter dem Stegruecken [mm] - so weit ist das
-            // Blech kuerzer als der Achsabstand, je Seite.
-            const ey = (Number(qw?.ey) || 0) * 10;
-            const qsBlech = s.qs({
-              ...rechteck({ name: `ANKERBLECH_${String(ak.typ).replace(/\s+/g, '')}`,
-                            h: blSatz.laenge, b: blSatz.dicke }),
-              profil: `FLA ${blSatz.laenge}/${blSatz.dicke} \u2014 Bindeblech`,
-              A: (blSatz.dicke * blSatz.laenge) / 1e6,
-              // Wie `blechQs` beim Abfangjoch: I_y um die starke Achse.
-              Iy: (blSatz.dicke * blSatz.laenge ** 3) / 12 / 1e12,
-              Iz: (blSatz.laenge * blSatz.dicke ** 3) / 12 / 1e12,
-              It: (blSatz.laenge * blSatz.dicke ** 3) / 3 / 1e12,
-            });
-            // Die Blechstationen sind die Stabteilung ohne die beiden Enden.
-            bleche.forEach((bl2, j) => {
-              const sv = r6(1 - bl2.x / LAnk);
-              ['O', 'U'].forEach((lage) => {
-                const vzL = lage === 'O' ? +1 : -1;
-                const ecken = ['L', 'R'].map((seite) => {
-                  const vz2 = seite === 'L' ? -1 : +1;
-                  /* =========================================================
-                   * >>> DAS BLECH MISST DIE LICHTE WEITE. <<<
-                   * =========================================================
-                   *
-                   * Weisung vom 15. September: \u00abdie bleche eink\u00fcrzen so dass
-                   * diese der lichten breite entsprechen. momentan sind sie
-                   * auf die schwerelinie der u-Tr\u00e4ger ausgerichtet.\u00bb
-                   *
-                   * Richtig: das Blech ist zwischen die STEGE geschweisst,
-                   * nicht zwischen die Schwerachsen. Es misst 104 mm am
-                   * engen und 225 am weiten Ende - der Achsabstand ist um
-                   * 2*ey = 32 mm groesser, und genau die standen zuviel.
-                   *
-                   * >>> DER ANSCHLUSS GEHT UEBER EINE ECKE. <<<
-                   *
-                   * Zwei Glieder, jedes in einer Achse - dieselbe Regel wie
-                   * an der Auflagerkette (Weisung vom 12. September: \u00abdie
-                   * starrelemente rechtwinklig machen\u00bb):
-                   *
-                   *   STIEL  (h - t)/2 in der Profilhoehe, bis auf die
-                   *          Hoehe des Blechs
-                   *   KANTE  ey quer, von der Schwerachse auf den
-                   *          Stegruecken - dort beginnt das Blech
-                   *
-                   * Eine Diagonale von 58 mm taete dasselbe und liesse sich
-                   * nicht nachmessen; so steht jedes Mass fuer sich.
-                   * ======================================================= */
-                  const pE = punkt(sv, vz2, vzL * vBlech);
-                  const kEck = s.kn(`ANKEK_${mn(ende)}_${seite}${lage}${j + 1}`,
-                                    pE.x, pE.y, pE.z);
-                  const p4 = punkt(sv, vz2, vzL * vBlech, ey);
-                  const kn2 = s.kn(`ANKBL_${mn(ende)}_${seite}${lage}${j + 1}`,
-                                   p4.x, p4.y, p4.z);
-                  /*
-                   * DER STIEL GEHOERT AN SEINE STATION. `par` laeuft vom
-                   * MASTEN (weites Ende), `bleche` vom FUNDAMENT - die
-                   * beiden Listen sind gegenlaeufig. Mit `j + 1` sassen die
-                   * Stiele quer durch die halbe Stuetze; sie massen 2.31 m
-                   * statt 56 mm, und genau daran war es zu sehen.
-                   */
-                  s.stab(`ANKERSTIEL_${mn(ende)}_${seite}${lage}${j + 1}`,
-                         qsStarr, stationKn[seite].get(sv), kEck,
-                         { starrRolle: 'verbindung' });
-                  s.stab(`ANKERKANTE_${mn(ende)}_${seite}${lage}${j + 1}`,
-                         qsStarr, kEck, kn2, { starrRolle: 'verbindung' });
-                  return kn2;
-                });
-                s.stab(`ANKERBLECH_${mn(ende)}_${lage}${j + 1}`, qsBlech,
-                       ecken[0], ecken[1], { lcsZ: lcsAnker(+1) });
-              });
-            });
-          }
-        }
-        /*
-         * >>> DAS ANKERFUNDAMENT HAELT AUCH DIE DREHUNGEN. <<<
-         *
-         * Befund des Auftraggebers vom 16. September, nach zwei Laeufen:
-         * «das auflager bei der druckstütze muss gehalten sein.»
-         *
-         * >>> WARUM DAS KEIN WIDERSPRUCH ZUR GELENKIGEN LAGERUNG IST. <<<
-         *
-         * Weisung vom 9. September: «diese sind gelenkig gelagert» - und
-         * das bleibt so. Das Gelenk ist nur UMGEZOGEN: bis zum
-         * 16. September war das Auflager die einzige Stelle, an der die
-         * Stuetze drehen konnte, seither sitzt es 50 mm weiter oben im
-         * Gelenkstueck, wo die Schraube ist (`ANKER_GELENK`).
-         *
-         * ZWEI GELENKE HINTEREINANDER SIND EINES ZUVIEL. Genau daran
-         * scheiterten die beiden Laeufe davor:
-         *
-         *   erst   «Knoten hat keine Steifigkeit (YY)» - der Lagerknoten
-         *          trug nur Links ohne Momentenuebertragung
-         *   dann   «numerische Instabilitaeten», Verformung 1.5e8 mm - der
-         *          Starrkoerper zwischen zwei momentenfreien Knoten konnte
-         *          um seine eigene Achse drehen
-         *
-         * Beide Male war die Ursache dieselbe: an diesem Knoten leitete
-         * NICHTS ein Moment ein. Mit gehaltenem Auflager tut es das
-         * Fundament - und die Stuetze bleibt trotzdem gelenkig
-         * angeschlossen, weil ihr Gelenk jetzt im Stab sitzt.
-         *
-         * WAS DAS FUNDAMENT WIRKLICH HAELT, ist damit nicht behauptet: es
-         * haelt den kurzen Starrkoerper, nicht die Stuetze. Ueber das
-         * Gelenkstueck kommt kein Moment an.
-         *
-         * Der Mastfuss daneben bleibt voll eingespannt.
-         */
-        auflager.push({ ende, x: xF, h: 0, modell: 'anker', knoten: kAnkF,
-                        ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
-                        fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
-                        feder: null });
-        ankerAus.push({ ende, typ: ak.typ, richtung: laengsA ? 'y' : 'x',
-                        nurZug: seil,
-                        h: ak.h, a: ak.a, qs: qw ?? null,
-                        spreiz: spreiz ?? null, zweiProfile: einzeln,
-                        bleche: einzeln ? ankerBindebleche(ak.typ,
-                          Math.hypot(xF - x, yF, zAnk - zFuss)).length : 0 });
-      }
+      ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
+                   auflager, ankerAus });
 
       // Volleinspannung im Fundament (Weisung: Mast bis Fundament, starr).
       auflager.push({ ende, x, h: r6(h), modell: am, knoten: kFuss,
@@ -3084,41 +3252,13 @@ export function stabmodell(m, opt = {}) {
    * sagt es.
    */
   if (am === 'mast') {
-    // Gruppiert wie am Joch: die Baugruppe haelt zusammen, was zusammengehoert.
-    const mastGruppen = new Map();
-    (m.anbauMastFlach ?? []).forEach((t) => {
-      const schluessel = t.baugruppe ?? t.id;
-      const da = mastGruppen.get(schluessel);
-      if (da) { da.teile.push(t); return; }
-      mastGruppen.set(schluessel, { ...t, teile: [t] });
-    });
-    [...mastGruppen.values()].forEach((a, k) => {
-      const ende = a.ort === 'mastB' ? 'B' : 'A';
-      const xM = ende === 'A' ? 0 : r6(m.L);
-      const wurzelKn = [...s.knoten.entries()].find(([nm, kn]) =>
-        nm.startsWith(`MAST_${mn(ende)}_`)
-        && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
-      if (!wurzelKn) return;               // ausserhalb - schon vermerkt
-      // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
-      const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0 });
-      const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
-      kette.glieder.forEach((g) => {
-        const kn = s.kn(`AM${k}_${g.bis.nr}`,
-                        r6(xM + g.bis.x), r6(g.bis.y),
-                        r6(wurzelKn[1].z + g.bis.z));
-        knotenVon.set(g.bis, kn);
-        s.stab(`ARMM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
-               opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
-                               : { starrRolle: 'anbauteil' });
-      });
-      kette.belegung.forEach(({ teil, punkt }) =>
-        arme.push({ teil, knoten: knotenVon.get(punkt) }));
-    });
+    mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt });
   }
+
 
   return { ...s, auflager, arme, knotenmodell: km, zOben, verschoben,
            ausKnotenVermerk, zweiPunktAnschluss, anbauMastAus,
-           ankerAus,
+           ankerAus, mastNamen: opt.mastNamen ?? null,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -3179,7 +3319,7 @@ export function lasten(m, bau, opt = {}) {
   verteilt.forEach((v) => {
     if (!v.wert) return;
     const anteil = v.wert / v.auf.length;
-    bau.staebe.filter((stab) => v.auf.some((g) => stab.name.startsWith(`${g}_S`)))
+    bau.staebe.filter((stab) => v.auf.some((g) => (stab.roh ?? stab.name).startsWith(`${g}_S`)))
       .forEach((stab, i) => {
         strecke.push({ name: `Q_${v.gruppe}_${i}`, stab: stab.name,
                        richtung: v.richtung, wert: r6(anteil),
@@ -3205,8 +3345,17 @@ export function lasten(m, bau, opt = {}) {
   const mastStaebe = bau.staebe.filter((st) => /^MAST_[^_]+_/.test(st.name));
   if (mastStaebe.length && m.mastLast) {
     mastStaebe.forEach((st) => {
-      const ende = st.name[5];                       // MAST_A_... / MAST_B_...
-      const w = m.mastLast[ende];
+      /*
+       * DAS ENDE AUS DER ZUORDNUNG, NICHT AUS DEM FUENFTEN ZEICHEN.
+       * «MAST_A_…» traegt es im Namen; in der Blatt-Ausleitung heissen die
+       * Masten nach ihrer Kennung («MAST_M1_…») - dort ergab st.name[5]
+       * ein «M», und der Wind auf die Masten fehlte (COM-Pruefung,
+       * 19. September).
+       */
+      const id = /^MAST_([^_]+)_/.exec(st.name)[1];
+      const ende = (id === 'A' || id === 'B') ? id
+        : Object.keys(bau.mastNamen ?? {}).find((k) => bau.mastNamen[k] === id);
+      const w = ende ? m.mastLast[ende] : null;
       if (!w) return;
       [['WindX', 'X', w.x], ['WindY', 'Y', w.y]].forEach(([gruppe, richtung, wert]) => {
         if (!(wert > 0)) return;
@@ -3763,8 +3912,10 @@ function gurtSteif(s, starrModell) {
   if (s.starrRolle !== 'gurtabschnitt' || starrModell === 'staebe') {
     return { querschnitt: s.qs };
   }
-  const gurt = s.name.startsWith('OG') ? 'OG' : 'UG';
-  return { querschnitt: `GURT_${gurt}`, steifesMaterial: true };
+  // Am Rohnamen, mit dem Praefix des Tragwerks: «T1_OGL_S0» ist ein
+  // Obergurt von T1 (bis 19. September wurde er zu «GURT_UG» ohne Praefix).
+  const gurt = (s.roh ?? s.name).startsWith('OG') ? 'OG' : 'UG';
+  return { querschnitt: `${s.praefix ?? ''}GURT_${gurt}`, steifesMaterial: true };
 }
 
 function starrArt(s, starrModell) {
