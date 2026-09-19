@@ -24,6 +24,14 @@ const NL = String.fromCharCode(10);
 // der blosse Pfad zufällig durch. Dieselbe Schreibweise wie in
 // ausleiten.mjs und vergleich_werkzeug.mjs.
 const J = (n) => new URL(`./js/${n}`, import.meta.url).href;
+/*
+ * DER QUELLTEXT DER VERDRAHTUNG. Seit dem 19. September ist app.js in
+ * Module geteilt (Durchsicht, Punkt A1): app.*.js und core.anker.js. Die
+ * Kontrollen, die den Quelltext lesen, sehen alle zusammen - app.js zuerst.
+ */
+const APP_QUELLE = () => ['app.js',
+  ...readdirSync(join(HIER, 'js')).filter((f) => /^app\..+\.js$/.test(f)).sort(),
+  'core.anker.js'].map((f) => readFileSync(join(HIER, 'js', f), 'utf8')).join('\n');
 
 /*
  * DIE NORMWERTE ZUERST. Seit dem 16. September stehen die Querschnittswerte
@@ -5206,7 +5214,7 @@ titel('28  Installierbare Fassung: Manifest, Dienstarbeiter, Dateien');
        pq.includes('e.preventDefault()'));
 
   // --- Anwendung ------------------------------------------------------------
-  const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const aq = APP_QUELLE();
   wahr('Die Anwendung nimmt Dateien entgegen',
        aq.includes('dateiEmpfang(dateiAnnehmen)'));
   // Fehlt die Datenbasis, steigt start() aus. Der Empfang muss VORHER stehen -
@@ -5522,7 +5530,7 @@ titel('30  Hauptschalter der Werkzeuggruppen');
     wahr('Sie lassen sich auch einzeln abschalten',
          !sicht({ anbau: false }, {})._ebeneAn('anbau'));
 
-    const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    const aq = APP_QUELLE();
     const wz = aq.slice(aq.indexOf('const WZ_MODELL'), aq.indexOf('const WZ_LASTEN'));
     wahr('Der Schalter steht in der Gruppe Modell', wz.includes("key: 'anbau'"));
   }
@@ -5602,7 +5610,7 @@ titel('31  Bewegung: nichts springt');
 
 {
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
-  const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const aq = APP_QUELLE();
 
   // --- Wer keine Bewegung will, bekommt keine ------------------------------
   wahr('Das Stylesheet achtet auf «Bewegung reduzieren»',
@@ -6279,7 +6287,7 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
  */
 {
   const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
-  const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const aq = APP_QUELLE();
   const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   const rq = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   const kq = readFileSync(join(HIER, 'js', 'core.anbauteile.js'), 'utf8');
@@ -7109,7 +7117,7 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
          CH2.bauteilUrteil({ ...eSchlank, anker: { A: { nachweis:
            { typ: 'Druckstütze', lieferbar: false, eta: null, N: -5 } } } },
          { ...standardwerte().nachweise, mast: false }, 'joch').ueber === true);
-    const aq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    const aq = APP_QUELLE();
     wahr('Die Fussleiste urteilt ueber alle Bauteile',
          /urteil\.bauteile = bauteilUrteil\(/.test(aq)
          && /const gut = e <= 1 && !bt\?\.ueber/.test(aq));
@@ -11474,8 +11482,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * falsch, ohne dass eine Kontrolle etwas gemerkt haette.
      */
     {
-      const appQ = readFileSync(
-        new URL('./js/app.js', import.meta.url), 'utf8');
+      const appQ = APP_QUELLE();
       wahr('Es gibt eine Stelle, die jedes Diagramm kennt',
            appQ.includes('function diagrammSatz(erg, breite)'));
       wahr('Die Buehne holt ihr Bild von dort',
@@ -11753,8 +11760,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
            (uq4.match(/ampelU\(/g) ?? []).length >= 8);
       wahr('Die Hauptkachel ist dann farblos, nicht gelb',
            uq4.includes("einzelLastfall ? 'ohne' : zustand"));
-      const aq3 = readFileSync(
-        new URL('./js/app.js', import.meta.url), 'utf8');
+      const aq3 = APP_QUELLE();
       wahr('Die Pillen ebenso',
            aq3.includes("anzeigeKombi === 'umhuellend' ? stufe(v) : ''"));
       /*
@@ -11781,8 +11787,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
      * laden.
      */
     {
-      const aq2 = readFileSync(
-        new URL('./js/app.js', import.meta.url), 'utf8');
+      const aq2 = APP_QUELLE();
       wahr('Es gibt ein Fenster fuer den Masten',
            aq2.includes('function dialogMast(mastId)'));
       ['dlg-m-profil', 'dlg-m-h', 'dlg-m-l', 'dlg-m-x'].forEach((f) => {
@@ -11863,8 +11868,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * DIE BEMESSUNG WANDERT IMMER MIT - sonst haette die Uebersicht keine
        * Zahl, gegen die sie den Lastfall stellen koennte.
        */
-      const aq = readFileSync(
-        new URL('./js/app.js', import.meta.url), 'utf8');
+      const aq = APP_QUELLE();
       wahr('Die Huellkurve kommt unabhaengig von der Anzeige an',
            /bemessung: kombi\.huellkurve \? letzte\.bemessung : null/.test(aq)
            && /quelle: anzeigeKombi/.test(aq));
@@ -12556,8 +12560,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * Stuetzstellen auf schmaler Spalte so dicht, dass der Faden mehr
        * raet als misst.
        */
-      const appQ2 = readFileSync(
-        new URL('./js/app.js', import.meta.url), 'utf8');
+      const appQ2 = APP_QUELLE();
       wahr('Die Buehne verdrahtet den Faden', appQ2.includes('verdrahteMessung(n);'));
       wahr('\u2026 und sonst niemand',
            (appQ2.match(/verdrahteMessung\(/g) ?? []).length === 1);
@@ -14929,7 +14932,7 @@ titel('57  Tastenkuerzel lassen sich abschalten');
    * DIE VIER SPERREN, am Quelltext festgehalten - ausfuehren laesst sich der
    * Handler ohne DOM nicht.
    */
-  const aq57 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const aq57 = APP_QUELLE();
   const ab = aq57.indexOf('function tastendruck');
   const bis = aq57.indexOf('function dialogTasten');
   const koerper = aq57.slice(ab, bis > ab ? bis : undefined);
@@ -15047,7 +15050,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 // Frage des Auftraggebers: funktioniert die Animation beim Umschalten der
 // Themenbereiche? Sie tat es NICHT, und der Grund ist lehrreich.
 {
-  const aq60 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const aq60 = APP_QUELLE();
   const css60 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
 
   /*
@@ -15105,7 +15108,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 // PRUEFUNG 61: die Skala umfasst nur, was zu sehen ist - und die Legende
 // sagt es auch. Weisung vom 1. September, nachdem der zweite Teil fehlte.
 {
-  const aq61 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const aq61 = APP_QUELLE();
   const r61 = readFileSync(new URL('./js/render.3d.js', import.meta.url), 'utf8');
   const idx61 = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const css61 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
@@ -15253,7 +15256,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 // jetzt im Projektknopf - neben Projekt und Name, bei den uebrigen Angaben,
 // die das Tragwerk benennen statt es zu beschreiben.
 {
-  const aq63 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const aq63 = APP_QUELLE();
   const css63 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
 
   wahr('Der Kopf holt die Verortung aus der einen Stelle',
@@ -15328,7 +15331,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 // PRUEFUNG 63: die Verortung steht im Kopf. Sie unterscheidet die Tragwerke
 // eines Projekts - der Jochtyp tut das nicht, ein Projekt hat viele J90.
 {
-  const aq63 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const aq63 = APP_QUELLE();
   const css63 = readFileSync(new URL('./css/style.css', import.meta.url), 'utf8');
 
   const ab = aq63.indexOf('function aktualisiereProjektKnopf');
@@ -16399,7 +16402,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
 // ===========================================================================
 // PRUEFUNG 70: eine Handlung, die nicht geht, sagt es.
 {
-  const aq70 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const aq70 = APP_QUELLE();
 
   /*
    * DAS SCHWEIGEN IST SCHLIMMER ALS DER FEHLER.
@@ -16428,7 +16431,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
   wahr('Die Excel-Ausleitung ist umklammert',
        /handlung\('Excel-Ausleitung'/.test(aq70));
   wahr('Die AxisVM-Wege sind es auch',
-       /return handlung\(name, \(\) => \{/.test(aq70));
+       /return (app\.)?handlung\(name, \(\) => \{/.test(aq70));
   wahr('… und zwar alle vier',
        /json: 'COM-Ausleitung'/.test(aq70) && /dxf: 'DXF-Ausleitung'/.test(aq70)
        && /pynite: 'PyNite-Ausleitung'/.test(aq70) && /'SAF-Ausleitung'/.test(aq70));
@@ -17861,7 +17864,7 @@ const CH9x = await import(J('core.checks.js'));
    * lebt und keinen Einstieg von aussen hat.
    */
   {
-    const r = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+    const r = APP_QUELLE();
     const ab = r.indexOf('const zu = (e) => {');
     // Das Fenster wurde groesser: seit dem 3. September steht davor der
     // Grund, warum `e.target` ein Node SEIN MUSS (wheel und blur liefern
@@ -17994,7 +17997,7 @@ const CH9x = await import(J('core.checks.js'));
    */
   {
     const r3 = readFileSync(new URL('./js/render.3d.js', import.meta.url), 'utf8');
-    const rA = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+    const rA = APP_QUELLE();
     wahr('Der Masttitel nennt sein Ende', r3.includes('mastEnde: name,'));
     wahr('Der Treffer geht an die Anwendung',
          r3.includes('this.opt.beiMass?.(mt.feld, mt.tab, mt.bt ?? null)'));
@@ -18040,7 +18043,7 @@ const CH9x = await import(J('core.checks.js'));
    * unverschoben da, ging jeder Klick um x0 daneben.
    */
   {
-    const rA = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+    const rA = APP_QUELLE();
     const ab = rA.indexOf('function blattSzene(erg) {');
     const koerper = ab > 0 ? rA.slice(ab, rA.indexOf('\nfunction ', ab + 10)) : '';
     /*
@@ -18387,7 +18390,7 @@ const CH9x = await import(J('core.checks.js'));
        * genau doppelt so lang wie der Abstand - das ist die Probe, die
        * beide Angaben zugleich prueft.
        */
-      const aq60 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+      const aq60 = APP_QUELLE();
       const zahl = (n) => {
         const m2 = aq60.match(new RegExp(`const ${n} = ([0-9.]+);`));
         return m2 ? Number(m2[1]) : NaN;
@@ -18836,7 +18839,7 @@ const CH9x = await import(J('core.checks.js'));
      * seine eigene Auswertung gezeichnet, sonst die des Tragjochs.
      */
     {
-      const aq59 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+      const aq59 = APP_QUELLE();
       const uq59 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
       wahr('Der Schnittreiter kennt das Abfangjoch',
            /if \(erg\.abfang\) ui\.zeichneAbfangSchnitt/.test(aq59));
@@ -19226,7 +19229,7 @@ const CH9x = await import(J('core.checks.js'));
    * Fangbereich rechnet mit ihr.
    */
   {
-    const aq58 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    const aq58 = APP_QUELLE();
     wahr('Die Hebung steht an EINER Stelle',
          (aq58.match(/const hebungVon = /g) ?? []).length === 1);
     wahr('Die Blattszene hebt damit an', aq58.includes('const dz = hebungVon(t)'));
@@ -24035,7 +24038,7 @@ titel('68  Das Menueband und der Name der Anwendung');
  * Geprüft wird der Quelltext: der Prüfstand zeichnet keine Oberfläche.
  */
 {
-  const app = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const app = APP_QUELLE();
   const html = readFileSync(join(HIER, 'index.html'), 'utf8');
   const man = JSON.parse(readFileSync(join(HIER, 'manifest.webmanifest'), 'utf8'));
   const CCn = await import(J('core.constants.js'));
@@ -24379,7 +24382,7 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
   }
 
   // Die Oberflaeche
-  const aq70 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const aq70 = APP_QUELLE();
   const sq70 = readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8');
   const man70 = JSON.parse(readFileSync(join(HIER, 'manifest.webmanifest'), 'utf8'));
   wahr('Projekt und Tragwerk sind Auswahlfelder',
@@ -24514,7 +24517,7 @@ titel('74  Seilanker: der Wind aus beiden Richtungen');
        && minus('windYm').schlaff === true && minus('windYp').N > 0);
   wahr('Die charakteristischen Faelle kennen den Wind nur in einer Richtung',
        plus('wyk').schlaff === true && minus('wyk').N > 0);
-  const aq74 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const aq74 = APP_QUELLE();
   wahr('Der Ankernachweis sieht den Gegenwind in den charakteristischen Faellen',
        minus('wykm').schlaff === true && plus('wykm').N > 0);
   pruef('… und der Zug aus dem Gegenwind ist der gespiegelte',
@@ -24530,8 +24533,7 @@ titel('75  Abfangjoch: Mast und Anker ueber alle Windrichtungen');
  * seiten angesetzt werden» - «die masten und anker nicht vergessen». */
 {
   // Seit dem 19. September steht die Ankerrechnung in core.anker.js (A1).
-  const aq75 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8')
-    + readFileSync(join(HIER, 'js', 'core.anker.js'), 'utf8');
+  const aq75 = APP_QUELLE();
   wahr('Der Mast am Abfangjoch ist die Huellkurve ueber alle Faelle',
        /erg\.mast = mastNachweiseHuelle\(abfangVarianten\(erg\.abfang\.auflager\)/.test(aq75));
   wahr('… mit Mastwind und Mast-Anbauteilen im selben Fall',
@@ -24581,7 +24583,7 @@ titel('76  Die Huellkurve nimmt den Masten aus jedem Fall');
     .map((l) => re.ergebnisse[l.key].max.etaGesamt);
   pruef('Einzelmast: die Huellkurve gibt es, und sie ist das Maximum',
         re.huellkurve?.max?.etaGesamt, Math.max(...jeFallE), 1e-12, '–');
-  const aq76 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const aq76 = APP_QUELLE();
   wahr('Die App rechnet auch den Einzelmast ueber alle Kombinationen',
        /const kombi = vergleichKombinationen\(rs, profOG, profUG, stahl, joch\);/.test(aq76)
        && /erg\.anker = erg\.abfang\?\.auflager\s*\? ankerAmAbfangjoch/.test(aq76));
@@ -25232,7 +25234,7 @@ titel('90  mitBauteilen: ein Ergebnis mit Abfangjoch, Mast und Anker');
        CH.mitBauteilen({ max: {} }, erg, { mastErsatz: true }).mast === erg.mast
        && CH.mitBauteilen({ max: {} }, erg).mast === undefined);
   // Keine Handuebertragung mehr in app.js und ui.js.
-  const quelle = readFileSync(join(HIER, 'js', 'app.js'), 'utf8')
+  const quelle = APP_QUELLE()
     + readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Keine Stelle legt Anker oder Abfangjoch mehr von Hand dazu',
        !/anker: (letzte\.)?erg\??\.anker|anzeige\.(abfang|anker|mast) =/.test(quelle));
