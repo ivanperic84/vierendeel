@@ -401,7 +401,39 @@ export function standardLastfaelle(inp) {
    * Aussergewoehnliche Bemessungssituation. Der Laengszug des gebrochenen
    * Leiters hat keine vorab bekannte Richtung - also beide.
    */
-  if (havarieVorhanden(inp)) {
+  /*
+   * >>> JE LEITER EIN EIGENER FALL - NUR EINER REISST (19. September). <<<
+   *
+   * Weisung: «beachte das nur ein leiter im havariefall rissen kann und
+   * nicht mehrer.» Bis hierher rissen alle als «Bruch» markierten Leiter
+   * im selben Fall. Jetzt steht die Auswahl am Tragwerk (`havarie`), und
+   * jeder angehakte Leiter bekommt seine zwei Faelle (±y); massgebend ist
+   * die Huelle. Dazu EIN Fall ohne Bruch - die Ablenkung aller Leiter bei
+   * -20 °C, die ein Bruch am gerissenen halbiert.
+   *
+   * Ohne Auswahl bleibt es beim alten Paar (havariep / havariem).
+   */
+  const kandidaten = Object.entries(inp.havarie ?? {})
+    .filter(([, v]) => v?.reisst === true);
+  if (havarieVorhanden(inp) && kandidaten.length) {
+    lf.push({
+      key: 'havariep', bez: 'Havarie (−20 °C), ohne Leiterbruch',
+      art: 'aussergewoehnlich', nachweis: true, leit: 'HavarieY', vorzeichen: 1,
+      tempFall: 'havarie',
+      beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: 1 }),
+    });
+    kandidaten.forEach(([key, v]) => {
+      [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+        lf.push({
+          key: `havarie|${key}|${suffix}`,
+          bez: `Havarie: ${v.name ?? key} reisst, Längszug ${zeichen}y`,
+          art: 'aussergewoehnlich', nachweis: true, leit: 'HavarieY', vorzeichen: vz,
+          tempFall: 'havarie', bruchLeiter: key,
+          beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: vz }),
+        });
+      });
+    });
+  } else if (havarieVorhanden(inp)) {
     [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
       lf.push({
         key: `havarie${suffix}`,

@@ -305,6 +305,7 @@ export const GRUPPEN = [
   { id: 'anbau', titel: 'Anbauteile' },
   { id: 'ein',   titel: 'Verteilte Einwirkungen',
     feinTitel: 'Zuschlag und Wind auf den Masten' },
+  { id: 'havarie', titel: 'Havarie: welcher Leiter reisst' },
   { id: 'komb',  titel: 'Lastfälle' },
   { id: 'ansicht', titel: 'Modellansicht' },
 ];

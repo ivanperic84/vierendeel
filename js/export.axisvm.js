@@ -41,6 +41,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { havarieKandidaten } from './data.anbauteile.js';
 import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
 import { verortung, verortungKurz, tragwerksart,
@@ -3399,6 +3400,32 @@ export function lasten(m, bau, opt = {}) {
                       richtung, wert: r6(wert), lastfall: fallM });
       });
     });
+    /*
+     * >>> JE REISSENDEM LEITER EIGENE LASTFAELLE (19. September). <<<
+     *
+     * «die lastfälle müssten dann im axis gebildet werden für die
+     * nachrechnung». Was ein Bruch aendert, haengt davon ab, WELCHER Leiter
+     * reisst: je Kandidat ein Lastfall fuer die Ablenkung (HavarieX|…) und
+     * zwei fuer den Laengszug (HavarieY|…|p und …|m - der Zug kann in den
+     * beiden Richtungen verschieden sein). Die Kombination des Falls greift
+     * genau diese (siehe `kombinationen`).
+     */
+    havarieKandidaten(m.havarie).forEach((c) => {
+      const je = (arm.teil.teile ?? [arm.teil])
+        .filter((t) => t.havarieJe?.[c.key])
+        .map((t) => ({ ...t.havarieJe[c.key], basisX: t.kraefte?.HavarieX?.Fx ?? 0 }));
+      if (!je.length) return;
+      const s2 = (f) => je.reduce((a2, x) => a2 + f(x), 0);
+      // Ablenkung: nur die KORREKTUR am gerissenen Leiter - die Aenderung
+      // bei -20 °C an allen Leitern steht im gemeinsamen Fall HavarieX.
+      [[`HavarieX|${c.key}`, 'X', s2((x) => x.p.dFx - x.basisX)],
+       [`HavarieY|${c.key}|p`, 'Y', s2((x) => x.p.Fy)],
+       [`HavarieY|${c.key}|m`, 'Y', s2((x) => x.m.Fy)]].forEach(([fall, richtung, wert]) => {
+        if (!wert) return;
+        punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: arm.knoten,
+                     richtung, wert: r6(wert), lastfall: fall });
+      });
+    });
   });
 
   /*
@@ -4229,6 +4256,14 @@ export function stabmodellJson(m, opt = {}) {
       ...G_TEILE.map((g) => ({ key: g.key, label: g.label, art: 'Others' })),
       ...EINWIRKUNGEN.filter((e) => e.key !== 'G')
         .map((e) => ({ key: e.key, label: e.label, art: 'Others' })),
+      // Je reissendem Leiter: Ablenkung und Laengszug in beide Richtungen.
+      // Kurze Namen (AxisVM legt den Lastfall unter `label` an); der Leiter
+      // steht ausgeschrieben in `leiter`.
+      ...havarieKandidaten(m.havarie).flatMap((c, i) => [
+        { key: `HavarieX|${c.key}`, label: `Havarie L${i + 1} Ablenkung`, art: 'Others', leiter: c.name },
+        { key: `HavarieY|${c.key}|p`, label: `Havarie L${i + 1} Zug +y`, art: 'Others', leiter: c.name },
+        { key: `HavarieY|${c.key}|m`, label: `Havarie L${i + 1} Zug -y`, art: 'Others', leiter: c.name },
+      ]),
     ],
     /*
      * DIE KOMBINATIONEN DER ANWENDUNG, damit AxisVM dieselben rechnet.
@@ -4245,7 +4280,12 @@ export function stabmodellJson(m, opt = {}) {
      */
     kombinationen: (opt.eingabe ? lastfaelle(opt.eingabe) : []).map((l) => ({
       key: l.key,
-      bez: l.bez,
+      // Der Havariefall eines Leiters heisst kurz nach seiner Nummer (L1 …),
+      // wie seine Lastfaelle; der Leiter steht in `leiter`.
+      bez: l.bruchLeiter
+        ? `Havarie L${havarieKandidaten(m.havarie).findIndex((c) => c.key === l.bruchLeiter) + 1} ${(l.vorzeichen ?? 1) < 0 ? '-y' : '+y'}`
+        : l.bez,
+      ...(l.bruchLeiter ? { leiter: havarieKandidaten(m.havarie).find((c) => c.key === l.bruchLeiter)?.name ?? null } : {}),
       art: l.art,
       nachweis: l.nachweis !== false,
       anteile: EINWIRKUNGEN
@@ -4255,9 +4295,16 @@ export function stabmodellJson(m, opt = {}) {
           // ausser ein charakteristischer Fall zeigt nur einen Teil davon
           // (16. September; vorher kamen «Joch» und «Anbauteile» als
           // dieselbe Kombination an).
-          return e.key === 'G'
-            ? gTeileVon(l.nur).map((g) => ({ lastfall: g, faktor: f }))
-            : [{ lastfall: e.key, faktor: f }];
+          if (e.key === 'G') return gTeileVon(l.nur).map((g) => ({ lastfall: g, faktor: f }));
+          // Der Havariefall eines Leiters greift SEINE Lastfaelle.
+          if (l.bruchLeiter && e.key === 'HavarieX') {
+            return [{ lastfall: 'HavarieX', faktor: f },
+                    { lastfall: `HavarieX|${l.bruchLeiter}`, faktor: f }];
+          }
+          if (l.bruchLeiter && e.key === 'HavarieY') {
+            return [{ lastfall: `HavarieY|${l.bruchLeiter}|${(l.vorzeichen ?? 1) < 0 ? 'm' : 'p'}`, faktor: f }];
+          }
+          return [{ lastfall: e.key, faktor: f }];
         })
         .filter((a) => Math.abs(a.faktor) > 1e-9),
     })).filter((l) => l.anteile.length > 0),

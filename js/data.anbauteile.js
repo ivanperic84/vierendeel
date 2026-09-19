@@ -573,17 +573,25 @@ export function windAufTraeger(teile, a) {
  * sonst bleibt es bei +5 °C, und die Hinweisliste sagt es
  * (`abfangkraft(...).ohneTabelle`).
  */
-export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier = 1 }) {
+export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier = 1,
+                                 zug20 = null }) {
   let Z5 = 0, Z20 = 0;
   try {
     Z5 = leiterzug(id);
     Z20 = abfangkraft(id, { tempFall: 'havarie' }).Z;
   } catch { return { dFx: 0, Fy: 0, Z20: 0, faktor: 1 }; }
+  /*
+   * DER ZUG IN DIESE RICHTUNG, WO ER ANGEGEBEN IST (19. September): «diese
+   * können unterschiedliche leiterzugkräfte haben in die beiden y
+   * richtungen». Er gilt dem Laengszug des Bruchs, nicht der Ablenkung -
+   * die kommt weiter aus der Tabelle.
+   */
+  const Zbruch = Number(zug20) > 0 ? Number(zug20) : Z20;
   const faktor = Z5 > 0 ? Z20 / Z5 : 1;
   const f = bruch ? HAVARIE_ABLENKUNG_BRUCH : 1;
   return {
     dFx: GxHier * (faktor * f - 1),
-    Fy: bruch ? HAVARIE_LAENGSZUG * Z20 * n * Math.max(0, zugHier) : 0,
+    Fy: bruch ? HAVARIE_LAENGSZUG * Zbruch * n * Math.max(0, zugHier) : 0,
     Z20, faktor,
   };
 }
@@ -608,8 +616,138 @@ export function haengeTiefe(a) {
   return Math.round(-zMin * 1000) / 1000;
 }
 
+/* ===========================================================================
+ * >>> DER HAVARIEFALL JE LEITER (19. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «eine übersicht mit allen leitern ermöglichen wo man die leiter
+ * bestimmen kann die reissen und die berechnung durchführen mit den regeln
+ * voll und 10%. beachte das nur ein leiter im havariefall rissen kann und
+ * nicht mehrer. als einzelner leiter zählt auch das kettenwerk Fd + Ts.»
+ * Auf Rueckfrage: «da man das nicht so gut abschätzen kann wählt man die
+ * leiter die relevant sein könnten und das system rechnet diese dann
+ * einzeln durch».
+ *
+ * EIN LEITER ist ein Drahtwerk-Modul - oder alle Module mit derselben
+ * Kettenwerk-Bezeichnung (Fahrdraht und Tragseil, die an verschiedenen
+ * Stellen haengen koennen). `leiterKennung` gibt ihm seinen Schluessel.
+ *
+ * Die Auswahl steht am Tragwerk (`havarie`: Schluessel -> {reisst, name,
+ * zugP, zugM}). Aufgeloest wird hier fuer JEDEN Kandidaten, was sein Bruch
+ * an seinen Modulen aendert (`havarieJe`); welcher Kandidat gerade reisst,
+ * sagt der Lastfall (`havarieEinsetzen`). Die Bruchmerker der alten Form
+ * (`bruch` an der Baugruppe) gelten nur noch, wo keine Auswahl steht.
+ * ========================================================================= */
+export function leiterKennung(a, m, i) {
+  const kw = String(m?.kettenwerk ?? '').trim();
+  return kw ? `kw:${kw}` : `${a?.id}#${i}`;
+}
+
+/** Die Havarie-Kandidaten eines Satzes: die angehakten Leiter. */
+export function havarieKandidaten(havarie) {
+  return Object.entries(havarie ?? {})
+    .filter(([, v]) => v?.reisst === true)
+    .map(([key, v]) => ({ key, name: v.name ?? key, zugP: v.zugP ?? null, zugM: v.zugM ?? null }));
+}
+
+/**
+ * Alle Leiter der Baugruppen - fuer die Uebersicht. Ein Kettenwerk mit
+ * mehreren Modulen steht einmal da.
+ */
+export function leiterListe(anbauteile) {
+  const liste = new Map();
+  (anbauteile ?? []).filter((a) => a?.aktiv !== false).forEach((a) => {
+    (a.module ?? []).forEach((m, i) => {
+      if (m?.aktiv === false || !m?.bauteil) return;
+      let b;
+      try { b = getFlBauteil(m.bauteil); } catch { return; }
+      if (b.rolle !== 'drahtwerk') return;
+      const key = leiterKennung(a, m, i);
+      const ort = ortVon(a);
+      let z20 = null;
+      try { z20 = abfangkraft(m.bauteil, { tempFall: 'havarie' }).Z; } catch { /* ohne Tabelle */ }
+      const e = liste.get(key) ?? { key, teile: [], kettenwerk: key.startsWith('kw:') ? key.slice(3) : null };
+      e.teile.push({ baugruppe: a.id, modul: i, name: a.name, bauteil: b.name, ort,
+                     hMast: a.hMast ?? null, x: a.x ?? null, zug20: z20 });
+      liste.set(key, e);
+    });
+  });
+  return [...liste.values()].map((e) => ({
+    ...e,
+    name: e.kettenwerk
+      ? `Kettenwerk ${e.kettenwerk} (${e.teile.map((t) => t.bauteil).join(' + ')})`
+      : `${e.teile[0].name} · ${e.teile[0].bauteil}`,
+    zug20: Math.max(0, ...e.teile.map((t) => t.zug20 ?? 0)) || null,
+  }));
+}
+
+/**
+ * >>> ALTE STAENDE: DER MERKER «BRUCH» WIRD ZUR AUSWAHL (19. September). <<<
+ *
+ * Bis hierher stand der Bruch als Haken an der Baugruppe. Ein alter Stand
+ * behaelt seine Wahl: jeder Leiter einer so markierten Baugruppe steht in
+ * der Uebersicht als «kann reissen» - dann aber einzeln gerechnet, nicht
+ * mehr alle zugleich. Die Merker selbst verschwinden. Auch die Teile am
+ * Masten (`mastAnbauteile`) des Blattes; ihre Wahl geht an das gerechnete
+ * Tragwerk.
+ */
+export function havarieAnheben(w) {
+  if (!w) return w;
+  const umsetzen = (liste, hav) => {
+    let geaendert = false;
+    const neu = (liste ?? []).map((a) => {
+      if (a?.bruch !== true) return a;
+      geaendert = true;
+      (a.module ?? []).forEach((m, i) => {
+        let b;
+        try { b = getFlBauteil(m.bauteil); } catch { return; }
+        if (b.rolle !== 'drahtwerk') return;
+        const key = leiterKennung(a, m, i);
+        hav[key] = { ...(hav[key] ?? {}), reisst: true,
+                     name: hav[key]?.name ?? `${a.name} · ${b.name}` };
+      });
+      const { bruch, ...ohne } = a;
+      return ohne;
+    });
+    return { neu, geaendert };
+  };
+  const eins = (t, zusatz = null) => {
+    const hav = { ...(t?.havarie ?? {}) };
+    const r = umsetzen(t?.anbauteile, hav);
+    const z = zusatz ? umsetzen(zusatz, hav) : { neu: zusatz, geaendert: false };
+    if (!r.geaendert && !z.geaendert) return { t, mast: zusatz };
+    return { t: { ...t, anbauteile: r.neu, havarie: hav }, mast: z.neu };
+  };
+  const haupt = eins(w, w.mastAnbauteile ?? null);
+  const erg = { ...haupt.t };
+  if (w.mastAnbauteile) erg.mastAnbauteile = haupt.mast;
+  if (Array.isArray(w.weitere)) erg.weitere = w.weitere.map((t) => eins(t).t);
+  return erg;
+}
+
+/**
+ * Die Havariekraefte des gerissenen Leiters in die aufgeloesten Teile
+ * setzen - fuer DIESEN Lastfall. Ohne Kandidat im Fall bleibt alles, wie es
+ * aufgeloest wurde (kein Leiter gerissen).
+ */
+export function havarieEinsetzen(flach, lf) {
+  const k = lf?.bruchLeiter;
+  if (!k) return flach;
+  const richtung = (lf.vorzeichen ?? 1) < 0 ? 'm' : 'p';
+  return (flach ?? []).map((t) => {
+    const je = t.havarieJe?.[k]?.[richtung];
+    if (!je) return t;
+    return { ...t, kraefte: { ...t.kraefte,
+      HavarieX: { ...LEERE_KRAFT(), ...t.kraefte?.HavarieX, Fx: je.dFx },
+      HavarieY: { ...LEERE_KRAFT(), ...t.kraefte?.HavarieY, Fy: je.Fy } } };
+  });
+}
+
 export function expandiereAnbauteile(liste, o = {}) {
   const { ek = 'EK2', R = 0, spannweite = 0 } = o;
+  // Die Auswahl der reissenden Leiter; ohne sie gelten die alten Merker.
+  const auswahl = o.havarie ?? null;
+  const kandidaten = havarieKandidaten(auswahl);
   const flach = [];
 
   (liste ?? []).forEach((roh) => {
@@ -793,15 +931,24 @@ export function expandiereAnbauteile(liste, o = {}) {
         // nicht in Tragseil und Fahrdraht zerlegen und faellt ganz weg.
         kraefte.Schnee.Fz = 0;
       }
+      let havarieJe = null;
+      const leiter = drahtwerk ? leiterKennung(a, m, i) : null;
       if (drahtwerk) {
-        const h = havarieAnteile({
-          id: m.bauteil, n, GxHier: kraefte.G.Fx,
-          bruch: (roh.bruch ?? a.bruch) === true,
-          zugHier: wirkt('wirktAblenk') ? 1
-            : (fdTeil ? 1 - leiterzug(fdTeil.id) / (leiterzug(m.bauteil) || 1) : 0),
-        });
+        const zugHier = wirkt('wirktAblenk') ? 1
+          : (fdTeil ? 1 - leiterzug(fdTeil.id) / (leiterzug(m.bauteil) || 1) : 0);
+        const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier };
+        // Mit Auswahl: aufgeloest ohne Bruch - der Lastfall setzt ihn ein.
+        const h = havarieAnteile({ ...basis,
+          bruch: auswahl ? false : (roh.bruch ?? a.bruch) === true });
         kraefte.HavarieX.Fx = h.dFx;
         kraefte.HavarieY.Fy = h.Fy;
+        const eigen = kandidaten.find((c) => c.key === leiter);
+        if (eigen) {
+          const hP = havarieAnteile({ ...basis, bruch: true, zug20: eigen.zugP });
+          const hM = havarieAnteile({ ...basis, bruch: true, zug20: eigen.zugM });
+          havarieJe = { [leiter]: { p: { dFx: hP.dFx, Fy: hP.Fy },
+                                    m: { dFx: hM.dFx, Fy: hM.Fy } } };
+        }
       }
 
       const z = m.z ?? 0, y = m.y ?? 0;
@@ -809,6 +956,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         ...gemein,
         id: `${a.id}#${i}`, modulIndex: i, art: 'modul',
         bauteil: m.bauteil, bauteilName: b.name, rolle: b.rolle,
+        ...(leiter ? { leiter } : {}), ...(havarieJe ? { havarieJe } : {}),
         name: `${a.name} · ${b.name}`,
         x: a.x + (m.x ?? 0), y, z, ev: -z, ex: y,
         anzahl: n, laenge, alpha, einheit: b.einheit,

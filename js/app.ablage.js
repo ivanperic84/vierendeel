@@ -9,6 +9,7 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
+import { havarieAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
@@ -487,7 +488,7 @@ async function eintragLaden(app, id, fragen = true) {
     return;
   }
   const s = await store.laden(id);
-  app.werte = { ...standardwerte(), ...s.werte, bearbeiten: false };
+  app.werte = havarieAnheben({ ...standardwerte(), ...s.werte, bearbeiten: false });
   app.werte.anbauteile = (app.werte.anbauteile ?? []).map(normalisiereAnbauteil);
   app.mastNachfuehrenGlobal();   // siehe beim Start
   app.projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung ?? '' };

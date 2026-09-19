@@ -24495,8 +24495,10 @@ titel('71  Havariefall am Tragjoch und am Masten');
   wahr('Der Laengszug erzeugt Torsion bzw. Querbiegung im Joch',
        tx > 0 || Math.max(...r.ergebnisse.havariep.knoten.map((k) => Math.abs(k.Mz ?? 0))) > 0);
   const ui71 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
-  wahr('Der Bruchschalter steht auch am Tragjoch und am Masten',
-       /data-k="bruch"/.test(ui71) && /hatDrahtwerk\(a\)/.test(ui71));
+  // Seit dem 19. September in der Uebersicht unter Lasten, die Karte verweist.
+  wahr('Die Bruchwahl steht in der Übersicht, die Karte verweist darauf',
+       /data-hav="reisst"/.test(ui71) && /hatDrahtwerk\(a\)/.test(ui71)
+       && ui71.includes('steht unter <b>Lasten → Havarie</b>'));
   wahr('… und die Maske fuehrt jedes Kaestchen mit seinem eigenen Wert nach',
        /inp\.checked = k === 'aktiv' \? a\.aktiv !== false : a\[k\] === true/.test(ui71));
 }
@@ -25910,6 +25912,86 @@ titel('100  Anbauteil-Vorlagen nach Ort: Joch, Mast, beide');
   wahr('Die Kachelliste zeigt am Einzelmast nur, was an den Masten passt',
        ui100.includes("&& (!ohneJoch || vorlagePasstAn(v, 'mast')));")
        && ui100.includes("['mast', 'Am Masten', 'grpUebrige'],"));
+}
+
+titel('101  Havarie je Leiter: nur einer reisst, Uebersicht, Ausleitung');
+/*
+ * Weisung vom 19. September: «eine übersicht mit allen leitern ermöglichen
+ * wo man die leiter bestimmen kann die reissen und die berechnung
+ * durchführen mit den regeln voll und 10%. beachte das nur ein leiter im
+ * havariefall rissen kann und nicht mehrer. als einzelner leiter zählt auch
+ * das kettenwerk Fd + Ts.» Rueckfrage: je Richtung eigener Zug; «die
+ * lastfälle müssten dann im axis gebildet werden für die nachrechnung».
+ */
+{
+  const A101 = await import(J('data.anbauteile.js'));
+  const C101 = await import(J('core.constants.js'));
+  const V101 = await import(J('core.vierendeel.js'));
+  const N101 = await import(J('core.nachbarn.js'));
+  const L101 = await import(J('core.lasten.js'));
+  const AX101 = await import(J('export.axisvm.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+  w.anbauteile = [{ ...A101.neuesAnbauteil('hs-fahrdraht', 6), name: 'FL 1' },
+                  { ...A101.neuesAnbauteil('hs-fahrdraht', 14), name: 'FL 2' }];
+  const leiter = A101.leiterListe(w.anbauteile);
+  wahr('Die Uebersicht findet beide Leiter', leiter.length === 2, leiter.map((l) => l.name).join(' | '));
+  // Kettenwerk: zwei Module mit derselben Bezeichnung sind EIN Leiter.
+  const kw = A101.leiterListe([{ id: 'X', name: 'KW', aktiv: true, module: [
+    { bauteil: leiter[0].teile.length ? w.anbauteile[0].module.find((m) => /^drahtwerk-/.test(m.bauteil)).bauteil : '', kettenwerk: 'KW1' },
+    { bauteil: w.anbauteile[0].module.find((m) => /^drahtwerk-/.test(m.bauteil)).bauteil, kettenwerk: 'KW1' }] }]);
+  wahr('Ein Kettenwerk (gleiche Bezeichnung) zaehlt als EIN Leiter', kw.length === 1 && kw[0].key === 'kw:KW1');
+
+  w.havarie = Object.fromEntries(leiter.map((l, i) => [l.key, { reisst: true, name: l.name,
+    ...(i === 1 ? { zugM: 30 } : {}) }]));
+  const s = C101.rechensatz(w);
+  const hav = L101.lastfaelle(s).filter((l) => l.art === 'aussergewoehnlich');
+  wahr('Je angehaktem Leiter zwei Faelle, dazu einer ohne Bruch',
+       hav.length === 5 && hav.filter((l) => l.bruchLeiter).length === 4);
+  const zug = (lf) => {
+    const e = V101.berechne({ ...s, lastfall: lf.key }, ...N101.kernArgumente(s));
+    return (e.modell.anbauteileFlach ?? []).filter((t) => Math.abs(t.kraefte?.HavarieY?.Fy ?? 0) > 1e-9);
+  };
+  const jeFall = hav.filter((l) => l.bruchLeiter).map((lf) => ({ lf, z: zug(lf) }));
+  wahr('In jedem Fall zieht NUR der gerissene Leiter laengs',
+       jeFall.every(({ lf, z }) => z.length === 1 && z[0].leiter === lf.bruchLeiter));
+  const z20 = leiter[1].zug20;
+  const m2 = jeFall.find(({ lf }) => lf.bruchLeiter === leiter[1].key && lf.vorzeichen < 0);
+  const p2 = jeFall.find(({ lf }) => lf.bruchLeiter === leiter[1].key && lf.vorzeichen > 0);
+  wahr('10 % des Zugs; in -y der angegebene Zug (30 kN), in +y die Tabelle',
+       Math.abs(m2.z[0].kraefte.HavarieY.Fy - 3.0) < 1e-9
+       && Math.abs(p2.z[0].kraefte.HavarieY.Fy - 0.1 * z20) < 1e-9,
+       `${p2.z[0].kraefte.HavarieY.Fy} / ${m2.z[0].kraefte.HavarieY.Fy}`);
+  const ohne = hav.find((l) => !l.bruchLeiter);
+  wahr('… und im Fall ohne Bruch zieht keiner', zug(ohne).length === 0);
+
+  // Ausleitung: je Kandidat eigene Lastfaelle, die Kombination greift sie.
+  const modellVon = (x) => V101.modell({ ...x, beiwerteFest: null },
+    ...N101.kernArgumente(x).slice(0, 3), T.getTragjoch(x.typ));
+  const dat = AX101.stabmodellJson(modellVon(s), { knotenmodell: 'anschnitt', eingabe: s });
+  const lfKeys = dat.lastfaelle.map((l) => l.key);
+  wahr('AxisVM: je Leiter Ablenkung und Zug +y / -y als eigene Lastfaelle',
+       leiter.every((l) => [`HavarieX|${l.key}`, `HavarieY|${l.key}|p`, `HavarieY|${l.key}|m`]
+         .every((k) => lfKeys.includes(k))));
+  const summe = (fall) => dat.lasten.punkt.filter((p) => p.lastfall === fall && p.richtung === 'Y')
+    .reduce((a, p) => a + p.wert, 0);
+  const kb = dat.kombinationen.find((k) => k.key === m2.lf.key);
+  const fy = kb.anteile.reduce((a, an) => a + an.faktor * summe(an.lastfall), 0);
+  wahr('… und die Kombination L2 -y ergibt -3.00 kN in Gleisrichtung wie der Kern',
+       Math.abs(fy + 3.0) < 1e-9 && kb.anteile.some((an) => an.lastfall === `HavarieY|${leiter[1].key}|m`),
+       `${fy.toFixed(3)} kN · ${kb.bez}`);
+  wahr('… mit kurzen Namen fuer AxisVM', dat.lastfaelle.filter((l) => l.leiter).every((l) => l.label.length <= 30));
+
+  // Alter Stand: Merker «Bruch» an beiden Baugruppen -> Auswahl, Merker weg.
+  const alt = { ...w, havarie: undefined,
+    anbauteile: w.anbauteile.map((a) => ({ ...a, bruch: true })) };
+  const neu = A101.havarieAnheben(alt);
+  wahr('Alte Merker werden zur Auswahl, einzeln gerechnet',
+       Object.keys(neu.havarie ?? {}).length === 2 && neu.anbauteile.every((a) => a.bruch === undefined));
+
+  const ui101 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Uebersicht steht unter Lasten', ui101.includes("gruppen: ['ein', 'havarie', 'komb']")
+       && ui101.includes('data-hav="reisst"'));
 }
 
 // ===========================================================================

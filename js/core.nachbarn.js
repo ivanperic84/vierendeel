@@ -40,6 +40,7 @@ import { lastfaelle } from './core.lasten.js';
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
 import { abfangVarianten, abfangModell } from './core.anker.js';
 import { getAbfangjoch, abfangDbDa } from './data.abfangjoche.js';
+import { havarieKandidaten, leiterKennung } from './data.anbauteile.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
 
@@ -59,6 +60,42 @@ export function kernArgumente(s) {
 export function abfangAuswertungFuer(w, stahl) {
   if (tragwerksart(w).key !== 'abfangjoch' || !abfangDbDa()) return null;
   const satzA = tragwerkSatz(w);
+  /*
+   * >>> HAVARIE JE LEITER AUCH HIER (19. September). <<<
+   *
+   * «nur ein leiter [kann] im havariefall rissen». Das Abfangjoch rechnet
+   * seinen Havariefall selbst, mit dem VOLLEN Leiterzug des gerissenen
+   * (Weisung vom 17. September) - es kennt dafuer den Bruch an der
+   * Baugruppe. Steht eine Auswahl, wird je Kandidat einmal gerechnet, nur
+   * seine Baugruppe bricht; massgebend ist die ungünstigste Auswertung, und
+   * die Havariefaelle aller Laeufe gehen in den Mast.
+   */
+  const kandidaten = havarieKandidaten(satzA.havarie);
+  if (kandidaten.length) {
+    const mitBruch = (key) => (satzA.anbauteile ?? []).map((a) => ({ ...a,
+      bruch: key !== null && (a.module ?? []).some((m, i) => leiterKennung(a, m, i) === key) }));
+    const lauf = (key) => { try { return abfangEinmal(w, satzA, stahl, mitBruch(key)); } catch { return null; } };
+    const basis = lauf(null);
+    const laeufe = kandidaten.map((c) => ({ c, r: lauf(c.key) })).filter((x) => x.r);
+    if (!basis) return null;
+    const alle = [basis, ...laeufe.map((x) => x.r)];
+    const haupt = alle.reduce((a2, b2) => ((b2.max?.eta ?? 0) > (a2.max?.eta ?? 0) ? b2 : a2));
+    const zusatz = (ende) => laeufe.flatMap(({ c, r }) => (r.auflager?.[ende]?.faelle ?? [])
+      .filter((f) => f.fall === 'havarie')
+      .map((f) => ({ ...f, key: `havarie|${c.key}`, label: `Havarie: ${c.name} reisst` })));
+    const ohneHav = (ende) => (basis.auflager?.[ende]?.faelle ?? []);
+    const auflager = { ...haupt.auflager };
+    ['A', 'B'].forEach((ende) => {
+      if (!auflager[ende]) return;
+      auflager[ende] = { ...auflager[ende], faelle: [...ohneHav(ende), ...zusatz(ende)] };
+    });
+    return { ...haupt, auflager,
+             havarieLaeufe: laeufe.map(({ c, r }) => ({ key: c.key, name: c.name, eta: r.max?.eta ?? null })) };
+  }
+  return abfangEinmal(w, satzA, stahl, satzA.anbauteile ?? []);
+}
+
+function abfangEinmal(w, satzA, stahl, anbauteile) {
   const a2 = getAbfangjoch(w.abfangTyp);
   const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[satzA.ek] ?? '1.1';
   const sKl = String(satzA.schneeKlasse ?? '1.25');
@@ -68,7 +105,7 @@ export function abfangAuswertungFuer(w, stahl) {
     gk: (a2?.gewicht ?? 0) * 9.81 / 1000,
     wk: a2?.wind?.[qpEk] ?? 0,
     sk: satzA.schneeAktiv === false ? 0 : (a2?.schnee?.[sKl] ?? 0),
-    anbauteile: satzA.anbauteile ?? [],
+    anbauteile,
     gammaG: w.gammaG, gammaQ: w.gammaQ, psi0: w.psi0,
     /*
      * f_yd AUS STAHL UND γ_M0 (Weisung, 9. September). Hier stand

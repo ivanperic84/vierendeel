@@ -6,6 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
+import { havarieAnheben } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -336,6 +337,9 @@ function laden() {
       w.anbauteile = frisch().anbauteile;
     }
     delete w.lastfaelle;
+    // Der Merker «Bruch» an der Baugruppe wird zur Havarie-Auswahl
+    // (19. September) - je Leiter ein Fall statt alle zugleich.
+    Object.assign(w, havarieAnheben(w));
     // Stände vor der Lastfall-Umstellung: die Leiteinwirkung und die drei
     // getrennten ψ₀ sind ersatzlos entfallen. Der Schalter für die
     // Wirkungsweise der Umlenkung ebenso - die Richtung steckt jetzt im

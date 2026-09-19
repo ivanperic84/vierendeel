@@ -19,7 +19,7 @@ import { bemessungslasten, nurTeil, auflagerkraefte, schnittgroessen,
 import { mastWind } from './data.masten.js';
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
-import { expandiereAnbauteile, amMast, ortVon } from './data.anbauteile.js';
+import { expandiereAnbauteile, amMast, ortVon, havarieEinsetzen } from './data.anbauteile.js';
 import { mastNachweise, mastNachweiseHuelle } from './core.mast.js';
 import { getAusrichtung } from './geometry.js';
 import { biegesteifigkeitJoch, drehfedern, auflagermomente, begrenzeFeder,
@@ -242,7 +242,8 @@ export function modellEinzelmast(inp, stahl) {
   const anbauFuerLf = expandiereAnbauteile(
     (inp.anbauteile ?? []).filter((a) => a.aktiv !== false),
     { ek: ekVonWindklasse(inp.windKlasse),
-      R: inp.trasseRadius, spannweite: inp.flSpannweite });
+      R: inp.trasseRadius, spannweite: inp.flSpannweite,
+      havarie: inp.havarie });
   const lfAktiv = inp.beiwerteFest
     ? null : lastfallFuer({ ...inp, anbauteileFlach: anbauFuerLf }, inp.lastfall);
   const beiwerte = inp.beiwerteFest ?? { ...lfAktiv.beiwerte };
@@ -277,10 +278,12 @@ export function modellEinzelmast(inp, stahl) {
   // Die charakteristischen Einzelfaelle trennen Gewicht und Ablenkkraft
   // (`nur`), wie am Joch - vorher standen beim Einzelmast beide identisch da.
   const nurLast = inp.nurLast ?? lfAktiv?.nur ?? null;
-  const flach = nurTeil(expandiereAnbauteile(amMasten, {
+  // Im Havariefall reisst der Leiter DIESES Falls (havarieEinsetzen).
+  const flach = nurTeil(havarieEinsetzen(expandiereAnbauteile(amMasten, {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
-  }), nurLast).map((t) => {
+      havarie: inp.havarie,
+  }), lfAktiv), nurLast).map((t) => {
     const proGruppe = {};
     Object.entries(t.kraefte ?? {}).forEach(([g, k]) => {
       const b = beiwerte[g] ?? 0;
@@ -333,6 +336,8 @@ export function modellEinzelmast(inp, stahl) {
     // die Jochkraefte der Nachbarn am geteilten Masten (core.nachbarn.js).
     lastfallKey: lfAktiv?.key ?? inp.lastfall ?? null,
     nachbarJochlasten: inp.nachbarJochlasten ?? null,
+    // Die Havarie-Auswahl - die Ausleitung legt je Kandidat Lastfaelle an.
+    havarie: inp.havarie ?? null,
     // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
@@ -465,15 +470,18 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
    */
   const amJoch = (inp.anbauteile ?? []).filter((a) => !amMast(a));
   const amMasten = (inp.anbauteile ?? []).filter((a) => amMast(a));
-  const anbauteile = expandiereAnbauteile(amJoch, {
+  let anbauteile = expandiereAnbauteile(amJoch, {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
+      havarie: inp.havarie,
   });
   // Der gewählte Lastfall liefert die Beiwerte je Einwirkungsgruppe.
   // beiwerteFest übergeht ihn - gebraucht für das Auflagerblatt, das die
   // Gruppen einzeln und ohne Beiwerte ausweist.
   const lfAktiv = inp.beiwerteFest
     ? null : lastfallFuer({ ...inp, anbauteileFlach: anbauteile }, inp.lastfall);
+  // Im Havariefall reisst der Leiter DIESES Falls - nur er (19. September).
+  anbauteile = havarieEinsetzen(anbauteile, lfAktiv);
   const beiwerte = inp.beiwerteFest ?? { ...lfAktiv.beiwerte };
   // Charakteristische Einzellastfälle blenden das Joch oder die Anbauteile aus.
   const nurLast = inp.nurLast ?? lfAktiv?.nur ?? null;
@@ -785,10 +793,11 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * beide in beiden Faellen, wer sie addierte, zaehlte doppelt.
      */
     nurLast,
-    anbauMastFlach: nurTeil(expandiereAnbauteile(amMasten, {
+    anbauMastFlach: nurTeil(havarieEinsetzen(expandiereAnbauteile(amMasten, {
       ek: ekVonWindklasse(inp.windKlasse),
       R: inp.trasseRadius, spannweite: inp.flSpannweite,
-      }), nurLast).map((t) => {
+      havarie: inp.havarie,
+      }), lfAktiv), nurLast).map((t) => {
       const proGruppe = {};
       Object.entries(t.kraefte ?? {}).forEach(([g, k]) => {
         const b = beiwerte[g] ?? 0;
@@ -809,6 +818,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     lastfallKey: lfAktiv?.key ?? inp.lastfall ?? null,
     // Die Jochkraefte der Nachbarn am geteilten Masten (core.nachbarn.js).
     nachbarJochlasten: inp.nachbarJochlasten ?? null,
+    // Die Havarie-Auswahl - die Ausleitung legt je Kandidat Lastfaelle an.
+    havarie: inp.havarie ?? null,
   };
 
   // Stationsliste mit den tatsächlichen Blechen - die Zeichenmodule lesen sie,
@@ -1011,6 +1022,7 @@ export function vergleichKombinationen(inp, profOG, profUG, stahl, joch) {
   const flach = expandiereAnbauteile(inp.anbauteile, {
     ek: ekVonWindklasse(inp.windKlasse),
     R: inp.trasseRadius, spannweite: inp.flSpannweite,
+      havarie: inp.havarie,
   });
   const uebersicht = lastfallUebersicht({ ...inp, anbauteileFlach: flach },
                                         char, flach);

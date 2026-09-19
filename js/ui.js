@@ -29,14 +29,14 @@ import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
-         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn } from './data.anbauteile.js';
+         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe, leiterKennung } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger } from './core.anbauteile.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
-import { massketteLesen, fangeAufMasskette } from './core.constants.js';
+import { massketteLesen, fangeAufMasskette, rechensatz } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
@@ -182,7 +182,7 @@ export const EINGABE_TABS = [
   // stand sie weit weg von der Entscheidung, die sie beeinflusst.
   { id: 'profil', titel: 'Profile', icon: 'profil', gruppen: ['prof', 'blech', 'stueck'] },
   { id: 'anbau', titel: 'Anbauteile', icon: 'anbau', gruppen: ['trasse', 'anbau'] },
-  { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['ein', 'komb'] },
+  { id: 'lasten', titel: 'Lasten', icon: 'lastpfeil', gruppen: ['ein', 'havarie', 'komb'] },
 ];
 
 /** Reiter der Auswertung. */
@@ -253,6 +253,11 @@ export function maskenSignatur(werte, tab) {
      * Kachel erst mit dem naechsten Neubau.
      */
     (werte.eigeneVorlagen ?? []).map((v) => `${v.id}:${v.name}`),
+    // Die Havarie-Uebersicht: welche Leiter es gibt und welche reissen.
+    gruppen.includes('havarie')
+      ? [havarieLeiter(werte).map((l) => l.key),
+         Object.entries(werte.havarie ?? {}).filter(([, v]) => v?.reisst).map(([k]) => k)]
+      : null,
     /*
      * >>> DIE SIGNATUR ENTHAELT NUR, WAS DIE STRUKTUR AENDERT. <<<
      *
@@ -331,6 +336,100 @@ const feldSignatur = (werte) => (f) => (typeof f.optionenAus === 'function'
     })()}`
   : f.key);
 
+/* ===========================================================================
+ * >>> HAVARIE: WELCHER LEITER REISST (19. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «den button havariefall müsste man entweder unter lasten global
+ * führen oder eine übersicht mit allen leitern ermöglichen wo man die
+ * leiter bestimmen kann die reissen und die berechnung durchführen mit den
+ * regeln voll und 10%. beachte das nur ein leiter im havariefall rissen kann
+ * und nicht mehrer. als einzelner leiter zählt auch das kettenwerk Fd + Ts.»
+ * Gewaehlt: die Uebersicht - «da man das nicht so gut abschätzen kann wählt
+ * man die leiter die relevant sein könnten und das system rechnet diese
+ * dann einzeln durch», und die Zugkraft kann «in die beiden y richtungen»
+ * verschieden sein.
+ *
+ * Hier stand bis dahin ein Haken «Bruch» je Baugruppe in der Karte - und
+ * wer zwei setzte, liess beide im selben Fall reissen.
+ */
+export function havarieLeiter(werte) {
+  // Mit den Teilen am Masten (rechensatz): auch ihre Leiter koennen reissen.
+  try { return leiterListe(rechensatz(werte).anbauteile ?? []); } catch { return []; }
+}
+
+function havarieHtml(g, werte) {
+  const leiter = havarieLeiter(werte);
+  const wahl = werte.havarie ?? {};
+  const abfang = tragwerksart(werte).key === 'abfangjoch';
+  const n = leiter.filter((l) => wahl[l.key]?.reisst === true).length;
+  const t0 = tragwerkeVon(werte)[0];
+  const wo = (t) => (t.ort === 'joch' ? `x = ${f2(t.x ?? 0)} m`
+    : `${mastNameAmEnde(werte, t0, t.ort === 'mastB' ? 'B' : 'A') || 'Mast'} · h = ${f2(t.hMast ?? 0)} m`);
+  const regel = abfang
+    ? 'Abfangjoch: der gerissene Leiter zieht nicht mehr, der volle Leiterzug der übrigen bleibt.'
+    : 'Tragjoch und Mast: 10 % der Leiterzugkraft bei −20 °C ziehen in Gleisrichtung, die Ablenkung des gerissenen Leiters wirkt zur Hälfte.';
+  const zeilen = leiter.map((l) => {
+    const e = wahl[l.key] ?? {};
+    const zahl = (feld) => (abfang ? '' : `<td><input class="hav-zahl" type="number" step="0.1" min="0"
+        data-hav-key="${esc(l.key)}" data-hav="${feld}" value="${e[feld] ?? ''}"
+        placeholder="${l.zug20 ? f1(l.zug20) : '–'}"
+        title="Leiterzugkraft bei −20 °C in ${feld === 'zugP' ? '+y' : '−y'} [kN] — leer: aus der Reglagetabelle"></td>`);
+    return `<tr>
+      <td><input type="checkbox" data-hav-key="${esc(l.key)}" data-hav="reisst"
+        data-hav-name="${esc(l.name)}"${e.reisst === true ? ' checked' : ''}
+        title="Dieser Leiter kann reissen — er wird als eigener Havariefall gerechnet"></td>
+      <td class="hav-name">${esc(l.name)}<span class="hav-wo">${esc(l.teile.map(wo).join(' · '))}</span></td>
+      <td class="num">${l.zug20 ? f1(l.zug20) : '–'}</td>
+      ${zahl('zugP')}${zahl('zugM')}
+    </tr>`;
+  }).join('');
+  return abschnitt(g.titel, `<span class="sec-r">${n} von ${leiter.length}</span>`)
+    + (leiter.length ? `
+    <p class="notiz">Angehakte Leiter werden <b>einzeln</b> gerechnet — je Leiter ein Fall
+      +y und −y, in dem nur er reisst; ein Kettenwerk (Fahrdraht + Tragseil) zählt als ein
+      Leiter. Massgebend ist die Hülle. ${esc(regel)}</p>
+    <table class="hav-tab">
+      <thead><tr><th title="kann reissen">reisst</th><th>Leiter</th><th>Z −20 °C</th>
+        ${abfang ? '' : '<th>Z +y</th><th>Z −y</th>'}</tr></thead>
+      <tbody>${zeilen}</tbody>
+    </table>
+    <div class="hav-tun">
+      <button class="btn btn-mini" type="button" data-hav-alle="1">alle</button>
+      <button class="btn btn-mini" type="button" data-hav-alle="0">keine</button>
+    </div>`
+      : '<p class="notiz">Noch kein Leiter eingegeben — die Liste füllt sich mit den Anbauteilen.</p>');
+}
+
+function verdrahteHavarie(container, werte, onChange) {
+  const wahl = () => ({ ...(werte.havarie ?? {}) });
+  container.querySelectorAll('[data-hav]').forEach((inp) => {
+    const ev = inp.type === 'checkbox' ? 'change' : 'change';
+    inp.addEventListener(ev, () => {
+      const w = wahl();
+      const k = inp.dataset.havKey;
+      const e = { ...(w[k] ?? {}) };
+      if (inp.dataset.hav === 'reisst') {
+        e.reisst = inp.checked;
+        e.name = inp.dataset.havName ?? e.name;
+      } else {
+        const v = parseFloat(inp.value);
+        if (Number.isFinite(v) && v > 0) e[inp.dataset.hav] = v; else delete e[inp.dataset.hav];
+      }
+      w[k] = e;
+      onChange('havarie', w);
+    });
+  });
+  container.querySelectorAll('[data-hav-alle]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const an = b.dataset.havAlle === '1';
+      const w = wahl();
+      havarieLeiter(werte).forEach((l) => { w[l.key] = { ...(w[l.key] ?? {}), reisst: an, name: l.name }; });
+      onChange('havarie', w);
+    });
+  });
+}
+
 export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = {}) {
   aktuelleWerte = werte;
   /*
@@ -347,6 +446,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     if (!g) return '';
     const zusatz = extras[gid] ? `<div data-extra="${gid}">${extras[gid]}</div>` : '';
     if (gid === 'anbau') return anbauteileHtml(g, werte) + zusatz;
+    if (gid === 'havarie') return havarieHtml(g, werte) + zusatz;
     const felder = sichtbareFelder(gid, werte);
     // Eine Gruppe kann ohne eigenes Eingabefeld auskommen und nur aus einem
     // Zusatzstück bestehen - die Lastfallmatrix ist so ein Fall.
@@ -416,6 +516,7 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
     return abschnitt(g.titel, knopf) + inhalt;
   }).join('');
 
+  verdrahteHavarie(container, werte, onChange);
   container.querySelectorAll('[data-feld]').forEach((inp) => {
     const key = inp.dataset.feld;
     const feld = FELDER.find((f) => f.key === key);
@@ -2393,28 +2494,20 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
              * dort zieht der gebrochene Leiter mit 10 % seines Zugs laengs,
              * und seine Ablenkung wirkt zur Haelfte.
              */''}
-          ${tragwerksart(werte).key !== 'abfangjoch' && hatDrahtwerk(a)
-            ? `<label class="at-feld breit2 schalter" data-feldname="bruch">
-                 <input class="at" data-k="bruch" data-idx="${i}"
-                        type="checkbox"${a.bruch === true ? ' checked' : ''}>
-                 <span>Bruch im Havariefall untersuchen</span>
-                 ${hinweisHtml(`at-${i}-bruch`,
-                   'Im Havariefall (−20 °C, ohne veränderliche Einwirkungen) '
-                   + 'wirkt die Ablenkkraft dieser Leiter nur zur Hälfte, und '
-                   + '10 % ihrer Leiterzugkraft ziehen in Gleisrichtung — den '
-                   + 'Rest nehmen die Nachbartragwerke auf.')}
-               </label>` : ''}
-          ${tragwerksart(werte).key === 'abfangjoch' && ortVon(a) === 'joch'
-            && abfangAnbindung(a).abgefangen
-            ? `<label class="at-feld breit2 schalter" data-feldname="bruch">
-                 <input class="at" data-k="bruch" data-idx="${i}"
-                        type="checkbox"${a.bruch === true ? ' checked' : ''}>
-                 <span>Bruch im Havariefall untersuchen</span>
-                 ${hinweisHtml(`at-${i}-bruch`,
-                   'Im Havariefall (−20 °C, ohne veränderliche Einwirkungen) '
-                   + 'zieht dieser Leiter nicht mehr. Der Nachweis rechnet den '
-                   + 'Fall mit und nimmt den ungünstigeren.')}
-               </label>` : ''}
+          ${/*
+             * >>> DER HAKEN «BRUCH» IST IN DIE UEBERSICHT GEWANDERT
+             * (19. September). <<< Mit einem Haken je Baugruppe rissen zwei
+             * angehakte Leiter im selben Fall - «nur ein leiter [kann] im
+             * havariefall rissen». Die Auswahl steht jetzt unter Lasten →
+             * Havarie, je Leiter ein eigener Fall; hier nur der Verweis.
+             */''}
+          ${hatDrahtwerk(a)
+            ? `<p class="notiz at-feld breit2">Ob ein Leiter dieses Teils im Havariefall
+                 reisst, steht unter <b>Lasten → Havarie</b>${(() => {
+                   const k = Object.entries(werte.havarie ?? {}).filter(([key, v]) => v?.reisst
+                     && (a.module ?? []).some((m, j) => leiterKennung(a, m, j) === key));
+                   return k.length ? ' — angehakt.' : '.';
+                 })()}</p>` : ''}
         </div>
         ${/*
            * >>> RASTER UND GLEIS SIND ZWEITE EBENE. <<<
