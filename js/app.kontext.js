@@ -13,6 +13,7 @@ import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, ta
 import { flBauteile, getFlBauteil } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { esc } from './design.js';
+import * as ui from './ui.js';
 
 /** Das offene Menue, damit ein zweiter Klick es schliesst. */
 let kontextMenue = null;
@@ -505,7 +506,11 @@ export function anbauteilDuplizieren(app, i) {
       kopie = { ...rasterGesetzt(kopie, an), x: an.x };
     }
   } else {
-    kopie.hMast = (Number(a.hMast) || 0) + 0.5;
+    // Am Masten eine Stufe hoeher - am Kopf eine tiefer, sonst stuende die
+    // Kopie ueber dem Masten (Befund vom 19. September am Einzelmast).
+    const h = Number(a.hMast) || 0;
+    const kopf = ui.mastKopfHoehe(app.werte, a.ort === 'mastB' ? 'B' : 'A');
+    kopie.hMast = Math.round((h + 0.5 <= kopf + 1e-9 ? h + 0.5 : Math.max(0, h - 0.5)) * 100) / 100;
   }
   liste.splice(i + 1, 0, kopie);
   app.setzeAnbauteile(liste);

@@ -21,7 +21,7 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
 // Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
 // Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
 // einen Wert zeigt.
-import { mastLaengeVorgabe, mastImModell } from './core.auflager.js';
+import { mastLaengeVorgabe, mastImModell, einzelmastLaenge } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich } from './data.abfangjoche.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
@@ -2238,10 +2238,13 @@ function anbauteileHtml(g, werte) {
     // Jochanfang.
     const amMasten = amMast(a);
     const mEnde = ortVon(a) === 'mastB' ? 'B' : 'A';
+    // Der Mast beim NAMEN (M1, M2 …), nicht «MA» / «Ende A» - seit dem
+    // 19. September heissen Masten und Tragwerke nach ihrem Typ.
+    const mName = mastNameAmEnde(werte, tragwerkeVon(werte)[0], mEnde) || `M${mEnde}`;
     const lage = amMasten
-      ? `M${mEnde} ${f2(a.hMast ?? 0)} m` : `${f2(a.x)} m`;
+      ? `${mName} ${f2(a.hMast ?? 0)} m` : `${f2(a.x)} m`;
     const lageLang = amMasten
-      ? `Mast Ende ${mEnde} · ${f2(a.hMast ?? 0)} m über Fundament`
+      ? `Mast ${mName} · ${f2(a.hMast ?? 0)} m über Fundament`
       : `x = ${f2(a.x)} m`;
     const suchtext = `${a.name} ${a.vorlage ?? ''} ${amMasten
       ? `mast ${mEnde} ${a.hMast ?? 0}` : a.x}`.toLowerCase();
@@ -2298,9 +2301,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                          // Bis zum MASTKOPF, nicht bis zur Jochachse: ein
                          // langer Mast traegt oben Traversen mit
                          // Zusatzleitern, und der Regler muss dorthin reichen.
-                         0.05, 0, Math.max(werte.mastH ?? 12,
-                                           werte.mastLaenge ?? 0,
-                                           werte.mastLaengeB ?? 0))}
+                         0.05, 0, mastKopfHoehe(werte, ortVon(a) === 'mastB' ? 'B' : 'A'))}
           ${/*
              * >>> DAS ABFANGJOCH HAT KEINE GURTEBENEN. <<<
              *
@@ -3117,6 +3118,24 @@ const MODUL_VORGABE = {
 function modWert(m, feld) {
   const v = m?.[feld];
   return v === null || v === undefined ? MODUL_VORGABE[feld] : v;
+}
+
+/**
+ * >>> WIE HOCH REICHT DIESER MAST? (19. September) <<<
+ *
+ * Der Regler «Höhe über Fundament» reichte bis max(mastH, mastLaenge) - am
+ * Einzelmast ist mastH aber die ausgeblendete Anschlusshoehe (7.50), und
+ * ohne eingetragene Laenge steht mastLaenge auf null. Ein neuer Einzelmast
+ * von 8.50 m liess sich damit nur bis 7.50 m bestuecken; Traverse (L - 0.5)
+ * und Rueckleiter oben waren mit dem Regler nicht erreichbar. Jetzt die
+ * Laenge, mit der gerechnet wird: am Einzelmast `einzelmastLaenge`, am Joch
+ * die eingetragene oder die Vorgabe des Feldes.
+ */
+export function mastKopfHoehe(werte, ende = 'A') {
+  if (tragwerksart(werte).key === 'einzelmast') return einzelmastLaenge(werte) || 12;
+  const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;
+  const L = Number(ende === 'B' ? (werte.mastLaengeB || werte.mastLaenge) : werte.mastLaenge) || 0;
+  return L || (H > 0 ? mastLaengeVorgabe(H, werte.jd ?? 0) : 12);
 }
 
 /** Anzahl eines Moduls: ganze Stück, nie negativ. */

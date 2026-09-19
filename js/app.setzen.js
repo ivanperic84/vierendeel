@@ -12,7 +12,7 @@
 import { baueModellWerkzeuge } from './app.layout.js';
 import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
-import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon } from './core.constants.js';
+import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { getVorlage, neuesAnbauteil, vorlagen } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
@@ -84,7 +84,20 @@ export function stelleAus(app, w) {
    * auf den im BLATT gezeigt wurde.
    */
   const zl = w.z - app.hebungVon(t);
-  if (xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
+  /*
+   * >>> AM EINZELMAST GIBT ES KEIN JOCH (19. September). <<<
+   *
+   * Weisung: «checke die eingabe der anbauteile am einzelmasten über all
+   * die verschiedene möglichkeiten. insobesondere über den button im 3d
+   * fenster.» Befund: seine Szene steht mit dem KOPF auf z = 0, und L ist
+   * null - der Fangbereich des Jochs (|z| < 0.8 m um die «Jochachse»)
+   * lag damit auf den obersten 80 cm des Masten. Genau dort sitzt die
+   * Traverse (L - 0.5); ein Klick dorthin setzte ein Jochteil, und das
+   * rechnet ein Einzelmast nicht - still weggefallen. Alle Wege ueber das
+   * Bild laufen hier durch (Knopf, Kontextmenue, Kachel ziehen, Vorwahl).
+   */
+  const einzel = m.tragwerksart === 'einzelmast';
+  if (!einzel && xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
     const xb = fangeAufMasskette(
       lokalNachBlatt(t, Math.max(0, Math.min(L, xl))), m.masskette ?? []);
     const x = Math.max(0, Math.min(L, blattNachLokal(t, xb)));
@@ -107,7 +120,10 @@ export function stelleAus(app, w) {
    * nichts.
    */
   const oben = H + (md?.ueberstand ?? 0);
-  if (H > 0 && (nahA || nahB) && zl < oben - H - (h / 2) + 1e-9) {
+  // Am Einzelmast ist H seine Laenge und z = 0 sein Kopf: gefangen wird
+  // bis dorthin, mit 30 cm Spiel darueber - wer auf den Kopf zielt, meint ihn.
+  const grenze = einzel ? 0.3 : oben - H - (h / 2);
+  if (H > 0 && (nahA || nahB) && zl < grenze + 1e-9) {
     // AUF DEN SCHRITT DES REGLERS GERUNDET (5 cm). Sonst zeigt die Karte
     // eine andere Zahl an, als der Klick gesetzt hat - der Regler rastet
     // auf seinen Schritt, und der Anwender sieht 5.20, wo 5.15 steht.
@@ -213,9 +229,14 @@ function setzeBaugruppeAnStelle(app, roh) {
    * geben kann - lautlos, denn gezeichnet wird sie ja.
    */
   if (st.ort !== 'joch' && traegerDrin(app, roh)) {
+    // Am Einzelmast gibt es kein Joch - der Rat «ans Joch damit» fuehrte
+    // ins Leere (Befund vom 19. September).
+    const ohneJoch = tragwerksart(app.werte).traeger !== true;
     app.setzen = { stelle: null, vorwahl: null,
                hinweis: `«${roh.name}» hängt an einem Träger, am Masten gibt`
-                        + ' es keinen. Ans Joch damit, oder abbrechen.' };
+                        + (ohneJoch
+                          ? ' es keinen, und dieses Tragwerk hat kein Joch. Ein Teil ohne Träger wählen, oder abbrechen.'
+                          : ' es keinen. Ans Joch damit, oder abbrechen.') };
     app.zeichneBalken();
     return;
   }

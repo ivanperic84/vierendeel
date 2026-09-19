@@ -19248,7 +19248,9 @@ const CH9x = await import(J('core.checks.js'));
     wahr('Der Fangbereich vergleicht nicht mehr gegen die Blatthoehe',
          !/Math\.abs\(w\.z\)/.test(fang) && !/w\.z \+ H/.test(fang));
     wahr('… und der Mast wird auf derselben Hoehe gefangen',
-         fang.includes('zl + H') && fang.includes('zl < oben - H'));
+         // seit dem 19. September ueber `grenze` (am Einzelmast bis zum Kopf)
+         fang.includes('zl + H') && fang.includes(': oben - H - (h / 2)')
+         && fang.includes('zl < grenze'));
     /*
      * BEIDE WEGE GEHEN DURCH DIESELBE FUNKTION - der Knopf im Modellfenster
      * und das Ablegen per Kachel. Waeren es zwei, waere einer davon beim
@@ -25797,6 +25799,69 @@ titel('98  Geteilter Mast: Jochkraefte der Nachbarn (Sofortmassnahme)');
   const hin = CH98.hinweise(e.modell).map((x) => (typeof x === 'string' ? x : x?.text ?? '')).join(' ');
   wahr('Der Hinweis nennt den Nachbarn und die fehlende Rahmenwirkung',
        hin.includes('Jochkräfte von T2') && hin.includes('Rahmenwirkung'));
+}
+
+titel('99  Anbauteile am Einzelmast: alle Eingabewege');
+/*
+ * Weisung vom 19. September: «checke die eingabe der anbauteile am
+ * einzelmasten über all die verschiedene möglichkeiten. insobesondere über
+ * den button im 3d fenster.» Knopf, Kontextmenue, Kachel ziehen und
+ * Vorwahl laufen alle ueber `stelleAus`.
+ */
+{
+  const C99 = await import(J('core.constants.js'));
+  const N99 = await import(J('core.nachbarn.js'));
+  const V99 = await import(J('core.vierendeel.js'));
+  const AU99 = await import(J('core.auflager.js'));
+  const SZ99 = await import(J('app.setzen.js'));
+  const U99 = await import(J('ui.js'));
+  const K99 = await import(J('app.kontext.js'));
+  const basis = () => {
+    const w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true; w.anbauteile = [];
+    return w;
+  };
+  // Einzelmast ohne eingetragene Laenge - so, wie «+ Tragwerk» ihn anlegt.
+  const wE = C99.tragwerkWeg(C99.tragwerkHinzu(basis(), 'einzelmast', { xLage: 5 }), 'T1');
+  const sE = C99.rechensatz(wE);
+  const eE = V99.berechne(sE, ...N99.kernArgumente(sE));
+  const lang = AU99.einzelmastLaenge(sE);
+  const tE = C99.tragwerkeVon(wE)[0];
+  const appE = { letzte: { erg: eE }, werte: wE, hebungVon: () => lang + (Number(sE.mastFuss) || 0) };
+  const klick = (app, x, z) => SZ99.stelleAus(app, { x, y: 0, z });
+  const kopf = klick(appE, C99.lageVon(tE), lang - 0.3);
+  wahr('Einzelmast: ein Klick knapp unter dem Kopf trifft den Masten, nicht ein «Joch»',
+       kopf?.ort === 'mastA' && Math.abs(kopf.hMast - (lang - 0.3)) < 0.03, JSON.stringify(kopf));
+  wahr('… auch genau auf dem Kopf', klick(appE, C99.lageVon(tE), lang)?.ort === 'mastA');
+  wahr('… weit darueber nichts', klick(appE, C99.lageVon(tE), lang + 0.6) === null);
+  wahr('… und unten am Masten wie bisher', klick(appE, C99.lageVon(tE), 2)?.hMast === 2);
+
+  // Gegenprobe am Joch: Jochachse -> Joch, Mast darunter -> Mast.
+  const wJ = basis();
+  const sJ = C99.rechensatz(wJ);
+  const eJ = V99.berechne(sJ, ...N99.kernArgumente(sJ));
+  const appJ = { letzte: { erg: eJ }, werte: wJ, hebungVon: () => Number(sJ.mastH) || 0 };
+  const H = Number(sJ.mastH);
+  wahr('Joch: die Jochachse trifft weiter das Joch', klick(appJ, 10, H)?.ort === 'joch');
+  wahr('… der Mast darunter den Masten', klick(appJ, 0, H - 3)?.ort === 'mastA');
+
+  wahr('Der Hoehenregler reicht am Einzelmast bis zum Kopf (nicht bis zur Anschlusshoehe)',
+       Math.abs(U99.mastKopfHoehe(sE, 'A') - lang) < 1e-9 && lang > (Number(sE.mastH) || 0),
+       `${U99.mastKopfHoehe(sE, 'A')} m, Anschlusshoehe ${sE.mastH} m`);
+
+  // Duplizieren am Kopf: die Kopie rutscht nach unten, nicht darueber.
+  const teil = { id: 'AT-k', name: 'RL', ort: 'mastA', hMast: lang - 0.3, x: 0, module: [], lasten: [] };
+  let gesetzt = null;
+  K99.anbauteilDuplizieren({ werte: { ...sE, anbauteile: [teil] }, letzte: null,
+    setzeAnbauteile: (l) => { gesetzt = l; }, meldeImBalken: () => {} }, 0);
+  wahr('Duplizieren am Mastkopf: die Kopie steht darunter', gesetzt?.[1]?.hMast <= lang + 1e-9
+       && Math.abs(gesetzt[1].hMast - (lang - 0.8)) < 1e-9, `${gesetzt?.[1]?.hMast} m`);
+
+  const q99 = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
+  wahr('Ein Traeger am Einzelmast: kein Rat «ans Joch»',
+       q99.includes('dieses Tragwerk hat kein Joch'));
+  const ui99 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Karte nennt den Masten beim Namen (M1), nicht «MA»', ui99.includes('`${mName} ${f2(a.hMast ?? 0)} m`'));
 }
 
 // ===========================================================================

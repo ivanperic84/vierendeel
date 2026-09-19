@@ -1085,7 +1085,7 @@ export function erzeugeSzene(m, erg) {
     // Der Anschluss an der Mastachse - das Gegenstueck zu den vier
     // Anschlusspunkten am Joch. Am Masten ist es einer.
     flaechen.push(...quader([g.x, 0, zWurzel], [0.09, 0.09, 0.09],
-      opt(`Anschluss am Mast ${ende} · ${(a.hMast ?? 0).toFixed(2)} m über Fundament`)));
+      opt(`Anschluss am Mast ${m.federn?.namen?.[ende] || ende} · ${(a.hMast ?? 0).toFixed(2)} m über Fundament`)));
 
     const kette = anbauKette(meine, { x0: 0, zAn: 0, amMast: true });
     kette.glieder.forEach((gl) => {

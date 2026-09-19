@@ -177,7 +177,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4790 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4800 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -195,7 +195,13 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   unverändert. Bauteile duplizieren: Knopf in der Karte, Rechtsklick auf
   die Zeile, Kontextmenü (`anbauteilDuplizieren`). 3D: kein «A»/«B» mehr
   unter den Mastfüssen (die Masten heissen M1, M2 …), Achsen passiver
-  Tragwerke grau wie ihre Körper. Danach (Abschnitt 95): Kette fährt
+  Tragwerke grau wie ihre Körper. **Einzelmast, Eingabewege** (Abschnitt
+  99): ein Klick im 3D auf die obersten 0.8 m eines Einzelmasts setzte ein
+  **Jochteil** (still nicht gerechnet) — `stelleAus` kennt am Einzelmast
+  kein Joch mehr; der Höhenregler reichte nur bis zur ausgeblendeten
+  Anschlusshöhe (7.50 statt 8.50 m, `mastKopfHoehe`); Duplizieren am Kopf
+  setzt darunter; Masten beim Namen (M1) in Karte, Setzdialog, 3D-Titel;
+  Träger am Einzelmast ohne Rat «ans Joch». Danach (Abschnitt 95): Kette fährt
   **erst y, dann x** ab (kein Glied waagrecht schräg), schräge Glieder als
   `schraegerStab` statt Platte; neue eigene Vorlage erscheint sofort
   (Maskensignatur); Knopf «Alle entfernen» in der Anbauteilliste (Rückfrage,
@@ -411,7 +417,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4790 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4800 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

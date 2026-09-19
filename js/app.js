@@ -2828,7 +2828,8 @@ function zeichneBalken() {
     }
     const wo = st.ort === 'joch'
       ? `am Joch bei <b>x = ${st.x.toFixed(2)} m</b>`
-      : `am <b>Mast Ende ${st.ort === 'mastA' ? 'A' : 'B'}</b>, `
+      : `am <b>Mast ${mastNameAmEnde(werte, tragwerkeVon(werte)[0], st.ort === 'mastA' ? 'A' : 'B')
+          || (st.ort === 'mastA' ? 'Ende A' : 'Ende B')}</b>, `
         + `<b>${st.hMast.toFixed(2)} m</b> über Fundament`;
     /*
      * GEORDNET STATT GESCHUETTET (Weisung).
