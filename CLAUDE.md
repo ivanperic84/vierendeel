@@ -161,7 +161,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4720 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4727 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -225,7 +225,7 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 **Laufende Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
 Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
 aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
-~~A6~~ → ~~A5~~ → ~~U7~~ → ~~U6~~ → ~~U3~~ → ~~U5~~ → U4 (Rückfrage) → ~~A2~~ → A1 → A3; A4 nur nach Rückfrage.
+~~A6~~ → ~~A5~~ → ~~U7~~ → ~~U6~~ → ~~U3~~ → ~~U5~~ → U4 (Rückfrage) → ~~A2~~ → ~~A1~~ → A3; A4 nur nach Rückfrage.
 
 | # | Auftrag |
 |---|---|
@@ -316,7 +316,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4720 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4727 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
@@ -350,7 +350,8 @@ d3f95be») — beide Änderungen gehören mit in den Commit.
 | Daten | `data.*` | Zugriff auf Sortimente (Tabellenform `data.tabellen`), Normwerte, Anker, Leiter (`data.fl`, Reglage), Datenpaket, Einlesen |
 | Bild | `geometry`, `render.*`, `bild.*`, `design` | Geometrie, 3D, Diagramme, Abfangjoch, hinterlegte Zeichnung und Erkennung |
 | Ausleitung | `export.axisvm*`, `export.pynite`, `export.bericht`, `export.xlsx` | AxisVM (COM-JSON), PyNite, Bericht, Excel |
-| Oberfläche | `app` (Verdrahtung), `ui*`, `store` (Projektablage), `verlauf` (Rückgängig), `pwa`, `doku.*` (Handbuch, Skizzen) | |
+| Oberfläche | `app` (Verdrahtung: `aendern`, `neuRechnen`, Kopf, Balken, Start), `app.*` (ausgelagert, siehe unten), `ui*`, `store` (Projektablage), `verlauf` (Rückgängig), `pwa`, `doku.*` (Handbuch, Skizzen) | |
+| Ausgelagerte Verdrahtung (A1, 19. Sept.) | `app.ablage` (Schublade, Laden/Speichern/Einlesen), `app.axisvm`, `app.bericht`, `app.dialoge` (Mast, Anker, Tragwerk), `app.kontext` (Kontextmenüs), `app.layout` (Werkzeugleisten, Lastfallwahl, Legende, Schubladen), `app.optionen` (Optionen, Sortiment, Handbuch, Lastfälle), `app.setzen` (Bauteil setzen), `app.zeichnung` (hinterlegte Zeichnung); `core.anker` (Anker-/Abfangauswertung) | |
 
 ### Architektur
 
@@ -363,7 +364,7 @@ d3f95be») — beide Änderungen gehören mit in den Commit.
   legt `vierendeel_tool.html` ab (Doppelklick, `file://`). `--ohne-daten`
   lässt die Betreiberdaten weg; `data/normen.json` ist immer eingebettet.
   Nur **statische** Importe — `import()` sieht der Bündler nicht.
-- **Hauptzyklus** (`app.js`, rund 9100 Zeilen, nur Verdrahtung): jede
+- **Hauptzyklus** (`app.js`, rund 4600 Zeilen, nur Verdrahtung): jede
   Eingabe → `aendern(key, wert)` → `neuRechnen()`. Dort, in dieser
   Reihenfolge: Verlauf melden (Rückgängig hängt nur hier) → Grenzen aus dem
   Sortiment → `berechne(rechensatz(werte))` (Kern des Tragjochs, läuft

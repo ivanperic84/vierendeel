@@ -114,6 +114,7 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen } from './app.layout.js';
+import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle } from './app.setzen.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
@@ -156,7 +157,9 @@ const app = {
   VERSION,
   get BEARBEITER() { return BEARBEITER; },
   get ANKER_STANDARD() { return ANKER_STANDARD; },
-  get setzen() { return setzen; },
+  get setzen() { return setzen; }, set setzen(v) { setzen = v; },
+  blattVersatz: (...a) => blattVersatz(...a),
+  hebungVon: (...a) => hebungVon(...a),
   get zuSeite() { return zuSeite; },
   get buehne() { return buehne; }, set buehne(v) { buehne = v; },
   get tabAuswertung() { return tabAuswertung; }, set tabAuswertung(v) { tabAuswertung = v; },
@@ -177,8 +180,8 @@ const app = {
   ausrichtenStarten: (...a) => ausrichtenStarten(app, ...a),
   bildSchiebenStarten: (...a) => bildSchiebenStarten(app, ...a),
   setzeAnbauteile: (...a) => setzeAnbauteile(...a),
-  setzenEnde: (...a) => setzenEnde(...a),
-  setzenStarten: (...a) => setzenStarten(...a),
+  setzenEnde: (...a) => setzenEnde(app, ...a),
+  setzenStarten: (...a) => setzenStarten(app, ...a),
   zeichneAuswertung: (...a) => zeichneAuswertung(...a),
   zeigeAnbauteil: (...a) => zeigeAnbauteil(...a),
   zeigeFeld: (...a) => zeigeFeld(app, ...a),
@@ -2585,327 +2588,6 @@ const ANKER_STANDARD = {
 const ankerRichtungVor = () => 'y';
 
 
-function setzenStarten(vorwahl = null) {
-  if (kalibrierung) kalibrierenEnde(app);
-  if (ausrichtung) ausrichtenEnde(app, false);
-  setzen = { stelle: null, vorwahl };
-  ansicht.beiStelle = (w) => stelleGewaehlt(w);
-  ui.el('canvas3d').style.cursor = 'crosshair';
-  // Der Knopf sagt jetzt «Abbrechen» - er muss deshalb mitgezeichnet werden.
-  baueModellWerkzeuge(app);
-  zeichneBalken();
-}
-
-function setzenEnde() {
-  setzen = null;
-  ansicht.beiStelle = null;
-  ui.el('canvas3d')?.style.removeProperty('cursor');
-  baueModellWerkzeuge(app);
-  zeichneBalken();
-}
-
-/**
- * WO IM TRAGWERK LIEGT DIESER PUNKT?
- *
- * Entschieden wird an der Stelle, an der ein Bauteil ANGESCHLOSSEN wird -
- * darauf zielt man. Am Joch ist das die Jochachse ueber ihre ganze Laenge, am
- * Masten die Mastachse unterhalb des Jochs.
- *
- * Die Fangbereiche sind bewusst grosszuegig: ein halber Meter neben der
- * Jochachse ist immer noch eindeutig gemeint, und wer daneben klickt, bekommt
- * eine Meldung statt eines Bauteils an falscher Stelle.
- */
-function stelleAus(w) {
-  const m = letzte?.erg?.modell;
-  if (!m || !w) return null;
-  const L = m.L, h = m.h ?? 0.4;
-  /*
-   * >>> ERST INS TRAGWERK RECHNEN, DANN VERGLEICHEN. <<<
-   *
-   * `w.x` kommt aus der Ansicht und ist eine BLATTKOORDINATE - die Szene
-   * zeigt jedes Tragwerk an seiner Lage. Die Bauteillage zaehlt dagegen ab
-   * dem linken Ende des Tragwerks. Hier wurde beides gleichgesetzt, und bei
-   * einer Jochreihe landete das Bauteil damit am falschen Joch (siehe
-   * blattNachLokal in core.constants.js).
-   *
-   * DIE MASSKETTE FAENGT IM BLATT. Sie beschreibt die Zeichnung, gilt dem
-   * ganzen Querprofil und wird auch dort gezeichnet; gefangen wird deshalb
-   * in Blattkoordinaten, und erst das Ergebnis wandert ins Tragwerk.
-   */
-  const t = tragwerkeVon(werte)[0];
-  const xl = blattNachLokal(t, w.x);
-  /*
-   * >>> AUCH DIE HOEHE GEHOERT UMGERECHNET. <<<
-   *
-   * Weisung vom 9. September: «anbauteile lassen sich nicht zuweisen ueber
-   * den button im 3d fenster und auch nicht ueber drag and drop per kachel.»
-   *
-   * Sie liessen sich nicht setzen, seit die Blattszene jedes Tragwerk um
-   * seine Anschlusshoehe ANHEBT (`hebungVon`): auf dem Blatt liegt die
-   * Jochachse bei z = H, im Tragwerk bei z = 0. Gefangen wurde weiter um 0 -
-   * also 7.50 m UNTER dem Joch, in Fusshoehe. Wer aufs Joch zeigte, bekam
-   * «daneben»; getroffen haette nur, wer in die Luft darunter klickt.
-   *
-   * Fuer x stand die Umrechnung laengst da (`blattNachLokal`); fuer z
-   * fehlte sie. Beides ist dieselbe Frage: wo im TRAGWERK liegt der Punkt,
-   * auf den im BLATT gezeigt wurde.
-   */
-  const zl = w.z - hebungVon(t);
-  if (xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
-    const xb = fangeAufMasskette(
-      lokalNachBlatt(t, Math.max(0, Math.min(L, xl))), m.masskette ?? []);
-    const x = Math.max(0, Math.min(L, blattNachLokal(t, xb)));
-    return { ort: 'joch', x: Math.round(x * 1000) / 1000 };
-  }
-  // Am Masten nur, wenn einer im Modell steht - sonst gibt es dort nichts,
-  // woran etwas haengen koennte.
-  const mA = m.federn?.mastA ?? m.federn?.mast;
-  const mB = m.federn?.mastB ?? m.federn?.mast;
-  const nahA = Math.abs(xl) <= 0.8;
-  const nahB = Math.abs(xl - L) <= 0.8;
-  const md = nahA ? mA : mB;
-  const H = md?.H ?? 0;
-  /*
-   * AUCH UEBER DEM JOCH. Ein langer Mast traegt oben Traversen mit
-   * Zusatzleitern - genau die sollen sich ansetzen lassen. Die obere Grenze
-   * ist deshalb nicht mehr die Jochachse, sondern der Mastkopf: H plus dem
-   * angegebenen Ueberstand. Ohne Laengenangabe bleibt es bei H, denn dann
-   * ragt der Mast nur den knappen halben Meter hinaus, und darauf sitzt
-   * nichts.
-   */
-  const oben = H + (md?.ueberstand ?? 0);
-  if (H > 0 && (nahA || nahB) && zl < oben - H - (h / 2) + 1e-9) {
-    // AUF DEN SCHRITT DES REGLERS GERUNDET (5 cm). Sonst zeigt die Karte
-    // eine andere Zahl an, als der Klick gesetzt hat - der Regler rastet
-    // auf seinen Schritt, und der Anwender sieht 5.20, wo 5.15 steht.
-    const hM = Math.max(0, Math.min(oben, zl + H));
-    return { ort: nahA ? 'mastA' : 'mastB', hMast: Math.round(hM * 20) / 20 };
-  }
-  return null;
-}
-
-function stelleGewaehlt(w) {
-  let st = stelleAus(w);
-  /*
-   * >>> WER AUF EIN ANDERES JOCH ZEIGT, MEINT DIESES JOCH. <<<
-   *
-   * Weisung vom 2. September: «Die eingabe der bauteile auf die tragwerke
-   * funktioniert nicht ganz.»
-   *
-   * Auf dem Blatt stehen alle Tragwerke, und man zielt auf eines davon.
-   * Gerechnet wird immer nur EINES - das angeklickte in der Liste -, und
-   * ein Bauteil gehoert dem Tragwerk, an dem es haengt. Bisher hiess das:
-   * erst in der Liste umschalten, dann setzen. Wer es vergass, bekam
-   * «daneben», obwohl der Zeiger mitten auf einem Joch stand.
-   *
-   * Jetzt schaltet der Klick selbst um. Das ist derselbe Weg, den ein Klick
-   * ausserhalb des Setzens schon geht (beiTragwerk) - und dieselbe Antwort
-   * auf dieselbe Geste.
-   *
-   * NEU GERECHNET WIRD DABEI SOFORT: `stelleAus` liest das gerechnete
-   * Modell (Laenge, Masthoehen), und das ist nach dem Wechsel ein anderes.
-   */
-  if (!st) {
-    const ziel = tragwerkBeiX(werte, w.x);
-    if (ziel && ziel.id !== (werte.twId ?? 'T1')) {
-      aendern('tragwerkAktiv', ziel.id);
-      st = stelleAus(w);
-    }
-  }
-  if (!st) {
-    // WO MAN GELANDET IST, statt nur «daneben». Wer zwei Meter neben dem
-    // Joch klickt, sieht am Wert, in welche Richtung er zielen muss - und
-    // ob überhaupt das Modell gemeint ist oder eine leere Stelle im Raum.
-    // Die VORWAHL ueberlebt einen Fehlklick. Sie hier fallen zu lassen hiess:
-    // wer neben das Joch klickt, faengt von vorn an - und bekommt beim
-    // naechsten Treffer wieder das ganze Menue, obwohl er laengst gewaehlt hat.
-    setzen = { ...setzen, stelle: null, daneben: w };
-    zeichneBalken();
-    return;
-  }
-  setzen = { ...setzen, stelle: st };
-  // Ist das Bauteil schon gewaehlt, wird jetzt gesetzt statt gefragt.
-  if (setzen.vorwahl) { setzeVorwahlAnStelle(); return; }
-  zeichneBalken();
-}
-
-/**
- * WAS AN DIESER STELLE SEIN KANN.
- *
- * Am Masten gibt es keinen TRAEGER - ein Traeger ist das, was auf dem Joch
- * sitzt oder daran haengt, und genau vier Bauteile tragen diese Rolle: die
- * drei Jochaufsaetze und die Haengestuetze (siehe P6). Die Regel steht in den
- * Daten; hier wird sie nur vorwaerts angewandt statt nur pruefend.
- *
- * SORTIERT NACH ROLLE. Was traegt, steht vorn - man baut von unten nach oben.
- * Innerhalb der Rolle bleibt die Reihenfolge der Datenbank; sie ist die des
- * Sortiments.
- */
-function vorlagenFuer(ort) {
-  const rolleVon = (v) => {
-    const ids = (v.module ?? []).map((x) => x.bauteil).filter(Boolean);
-    for (const id of ids) {
-      try { if (getFlBauteil(id).rolle === 'traeger') return 'traeger'; } catch { /* unbekannt */ }
-    }
-    for (const id of ids) {
-      try { if (getFlBauteil(id).rolle === 'aufbau') return 'aufbau'; } catch { /* unbekannt */ }
-    }
-    return 'drahtwerk';
-  };
-  const rang = { traeger: 0, aufbau: 1, drahtwerk: 2 };
-  return vorlagen()
-    .map((v) => ({ v, rolle: rolleVon(v) }))
-    .filter((e) => ort === 'joch' || e.rolle !== 'traeger')
-    .sort((a, b) => rang[a.rolle] - rang[b.rolle]);
-}
-
-/**
- * Eine fertige Baugruppe an die gemerkte Stelle setzen.
- *
- * Der Weg ist derselbe, ob das Teil aus einer Vorlage kommt oder als Kopie
- * einer schon eingegebenen Baugruppe: die STELLE bestimmt Ort, Lage und
- * Hoehe, und sie ueberschreibt, was die Quelle darueber mitbrachte. Sonst
- * traegt eine Kopie ihre alte Station in die neue Stelle hinein.
- */
-function setzeBaugruppeAnStelle(roh) {
-  const st = setzen?.stelle;
-  if (!st || !roh) return;
-  /*
-   * DIE REGEL GILT AUCH BEIM ZIEHEN.
-   *
-   * Die Knopfspalten fragen sie vorher ab - was am Masten nichts zu suchen
-   * hat, steht dort gar nicht erst. Beim Ablegen gibt es aber keine Spalte:
-   * dort kommt eine Baugruppe herein, und die Stelle steht erst danach fest.
-   * Ohne diese Sperre landete eine Haengestuette am Masten, wo es keine
-   * geben kann - lautlos, denn gezeichnet wird sie ja.
-   */
-  if (st.ort !== 'joch' && traegerDrin(roh)) {
-    setzen = { stelle: null, vorwahl: null,
-               hinweis: `«${roh.name}» hängt an einem Träger, am Masten gibt`
-                        + ' es keinen. Ans Joch damit, oder abbrechen.' };
-    zeichneBalken();
-    return;
-  }
-  const gesetzt = st.ort === 'joch'
-    ? { ...roh, ort: 'joch', x: st.x, hMast: 0 }
-    : { ...roh, ort: st.ort, x: 0, hMast: st.hMast };
-  // Erst jetzt ist das Raster der Vorlage bekannt - und damit, wo die
-  // beiden Klemmen sitzen. Ein Traeger weicht den Blechen aus.
-  const t = st.ort === 'joch'
-        && hatTraeger(gesetzt.module, (id) => getFlBauteil(id).rolle)
-    ? (() => {
-        const an = passeTraegerAn(gesetzt.x, gesetzt.raster, letzte?.erg?.modell);
-        return { ...gesetzt, x: an.x, raster: an.raster };
-      })()
-    : gesetzt;
-  setzenEnde();
-  tabEingabe = 'anbau';
-  /*
-   * DIE KARTE GEHT AUF (Weisung: das Absetzen war fummelig).
-   *
-   * Quer ueber ein perspektivisches Bild trifft man keine Station auf den
-   * Zentimeter - und muss es auch nicht, wenn die Zahl gleich danach im
-   * Feld steht. Der Klick setzt grob, die Karte stellt genau.
-   */
-  (werte.anbauteile ?? []).forEach((x) => ui.setzeKlapp(`at-${x.id}`, false));
-  ui.setzeKlapp(`at-${t.id}`, true);
-  setzeAnbauteile([...(werte.anbauteile ?? []), t]);
-  if (st.ort === 'joch') {
-    // Im Blatt, nicht im Tragwerk - siehe `blattVersatz`.
-    ansicht.zoomAuf(blattVersatz() + t.x, null, Math.max(2, werte.L / 8));
-  }
-  else ansicht.zeigeAnbauteil((werte.anbauteile ?? []).length - 1);
-}
-
-/**
- * WAS SCHON IM MODELL STEHT - als Knopfspalte neben den Vorlagen.
- *
- * ZUSAMMENGEFASST, NICHT AUFGEZAEHLT. Auf einem langen Joch stehen zwanzig
- * Baugruppen, und fuenfzehn davon sind dasselbe Teil an anderer Stelle.
- * Zwanzig Knoepfe waeren keine Auswahl mehr, sondern eine zweite Liste.
- * Gleich ist, was in Name, Vorlage, Modulen und Lasten uebereinstimmt - die
- * Stelle zaehlt ausdruecklich nicht dazu, denn sie ist ja das, was neu
- * gewaehlt wird.
- */
-/**
- * TRAEGT DIESE BAUGRUPPE EINEN TRAEGER?
- *
- * Ein Traeger ist das, was auf dem Joch sitzt oder daran haengt - die drei
- * Jochaufsaetze und die Haengestuetze. Am Masten gibt es ihn nicht. Die
- * Regel steht in den Daten (Rolle `traeger`), hier wird sie nur gelesen.
- */
-function traegerDrin(a) {
-  try { return hatTraeger(a?.module, (id) => getFlBauteil(id).rolle); }
-  catch { return false; }
-}
-
-function kopierbare(ort) {
-  const raus = new Map();
-  (werte.anbauteile ?? []).forEach((a) => {
-    // Dieselbe Regel wie bei den Vorlagen: am Masten gibt es keinen Traeger.
-    if (ort !== 'joch' && traegerDrin(a)) return;
-    const kennung = JSON.stringify([a.name, a.vorlage ?? '', a.raster ?? null,
-                                    a.befestigung ?? null, a.module ?? [],
-                                    a.lasten ?? []]);
-    if (!raus.has(kennung)) raus.set(kennung, { a, anzahl: 0 });
-    raus.get(kennung).anzahl += 1;
-  });
-  return [...raus.values()];
-}
-
-/** Die Spalte dazu, oder '' wenn noch nichts dasteht. */
-function kopierbareHtml(ort) {
-  const liste = kopierbare(ort);
-  if (!liste.length) return '';
-  return `<div class="wahl-spalte">
-      <div class="wahl-t">Schon im Modell</div>
-      ${liste.map(({ a, anzahl }) => `<button class="btn btn-mini"
-         data-setz-kopie="${esc(a.id)}"
-         title="Kopie von «${esc(a.name)}» — mit allen Zahlen, die daran von
-Hand geändert wurden. Steht ${anzahl}× im Modell."
-         >${esc(a.name)}${anzahl > 1 ? ` <small>${anzahl}×</small>` : ''}</button>`).join('')}
-    </div>`;
-}
-
-/** Name der Vorwahl - fuer den Balken beim Ziehen. */
-function vorwahlName(vw) {
-  if (!vw) return null;
-  if (vw.art === 'kopie') {
-    return (werte.anbauteile ?? []).find((a) => a.id === vw.id)?.name ?? null;
-  }
-  try { return getVorlage(vw.id)?.name ?? null; } catch { return null; }
-}
-
-/** Das gewaehlte Bauteil an die gemerkte Stelle setzen. */
-function setzeVorlageAnStelle(vorlageId) {
-  setzeBaugruppeAnStelle(neuesAnbauteil(vorlageId, 0));
-}
-
-/**
- * EINE SCHON EINGEGEBENE BAUGRUPPE NOCHMALS SETZEN (Weisung).
- *
- * Der zweite Rueckleiter am anderen Mastende ist derselbe wie der erste -
- * mit denselben Modulen, denselben Lasten, demselben Namen. Ihn ueber die
- * Vorlage neu aufzubauen hiesse, jede von Hand geaenderte Zahl noch einmal
- * einzugeben. Kopiert wird deshalb die BAUGRUPPE, nicht ihre Vorlage; nur
- * die Kennung ist neu, damit beide nebeneinander bestehen koennen.
- */
-function setzeKopieAnStelle(id) {
-  const quelle = (werte.anbauteile ?? []).find((a) => a.id === id);
-  if (!quelle) return;
-  const kopie = JSON.parse(JSON.stringify(quelle));
-  kopie.id = `AT-${Math.random().toString(36).slice(2, 8)}`;
-  kopie.aktiv = true;
-  setzeBaugruppeAnStelle(kopie);
-}
-
-/** Die Vorwahl - Vorlage oder Kopie - an die gemerkte Stelle setzen. */
-function setzeVorwahlAnStelle() {
-  const v = setzen?.vorwahl;
-  if (!v) return;
-  if (v.art === 'kopie') setzeKopieAnStelle(v.id);
-  else setzeVorlageAnStelle(v.id);
-}
 
 /**
  * Der Balken ueber dem Modell: was jetzt anzuklicken ist.
@@ -3144,7 +2826,7 @@ function zeichneBalken() {
       const d = setzen.daneben;
       // Steht die Wahl schon fest, sagt der Balken ihren NAMEN - sonst weiss
       // man nach dem Ziehen nicht mehr, was gleich abgesetzt wird.
-      const vw = setzen.vorwahl ? vorwahlName(setzen.vorwahl) : null;
+      const vw = setzen.vorwahl ? vorwahlName(app, setzen.vorwahl) : null;
       n.innerHTML = `<span>${setzen.hinweis
         ? esc(setzen.hinweis)
         : d
@@ -3154,7 +2836,7 @@ function zeichneBalken() {
           ? `<b>${esc(vw)}</b> setzen — <b>ins Modell klicken</b>, wohin es gehört`
           : 'Bauteil setzen — <b>ins Modell klicken</b>, wohin es gehört'}</span>`
         + '<button class="btn btn-mini" data-setz-ab>Abbrechen</button>';
-      n.querySelector('[data-setz-ab]').onclick = () => setzenEnde();
+      n.querySelector('[data-setz-ab]').onclick = () => setzenEnde(app);
       return;
     }
     const wo = st.ort === 'joch'
@@ -3175,7 +2857,7 @@ function zeichneBalken() {
      */
     const ROLLENTITEL = { traeger: 'Träger', aufbau: 'Aufbau', drahtwerk: 'Drahtwerk' };
     const nachRolle = new Map();
-    vorlagenFuer(st.ort).forEach(({ v, rolle }) => {
+    vorlagenFuer(app, st.ort).forEach(({ v, rolle }) => {
       if (!nachRolle.has(rolle)) nachRolle.set(rolle, []);
       nachRolle.get(rolle).push(v);
     });
@@ -3193,7 +2875,7 @@ function zeichneBalken() {
        * die von Hand daran geaendert wurde. Ueber die Vorlage neu aufgebaut
        * waere er es NICHT: die Vorlage kennt die Aenderungen nicht.
        */
-      + kopierbareHtml(st.ort);
+      + kopierbareHtml(app, st.ort);
     n.hidden = false;
     /*
      * >>> DIE BEIDEN KNOEPFE STEHEN LINKS, UNTER DEM TITEL. <<<
@@ -3213,15 +2895,15 @@ function zeichneBalken() {
       + '<button class="btn btn-mini" data-setz-ab>Abbrechen</button>'
       + `</div><div class="balken-wahl">${spalten}</div>`;
     n.querySelectorAll('[data-setz-vorlage]').forEach((b) => {
-      b.onclick = () => setzeVorlageAnStelle(b.dataset.setzVorlage);
+      b.onclick = () => setzeVorlageAnStelle(app, b.dataset.setzVorlage);
     });
     n.querySelectorAll('[data-setz-kopie]').forEach((b) => {
-      b.onclick = () => setzeKopieAnStelle(b.dataset.setzKopie);
+      b.onclick = () => setzeKopieAnStelle(app, b.dataset.setzKopie);
     });
     n.querySelector('[data-setz-neu]').onclick = () => {
       setzen = { stelle: null }; zeichneBalken();
     };
-    n.querySelector('[data-setz-ab]').onclick = () => setzenEnde();
+    n.querySelector('[data-setz-ab]').onclick = () => setzenEnde(app);
     return;
   }
   n.hidden = true; n.innerHTML = '';
@@ -3810,7 +3492,7 @@ const TASTEN = [
 
   { gruppe: 'Bauen' },
   { id: 'setzen', taste: 'b', text: 'Bauteil setzen',
-    tun: () => (setzen ? setzenEnde() : setzenStarten()) },
+    tun: () => (setzen ? setzenEnde(app) : setzenStarten(app)) },
   { id: 'naechstes', taste: 'n', text: 'Nächstes Tragwerk rechnen',
     tun: () => naechstesTragwerk() },
 
@@ -4199,10 +3881,10 @@ function verdrahteAblegen() {
      * ("am Masten kein Traeger"), koennte man danach nicht mehr klicken:
      * Meldung im Balken, Modell tot.
      */
-    setzenStarten({ art, id });
+    setzenStarten(app, { art, id });
     const w = ansicht.weltAusZeiger(e);
-    const st = w ? stelleAus(w) : null;
-    if (st) { setzen = { ...setzen, stelle: st }; setzeVorwahlAnStelle(); }
+    const st = w ? stelleAus(app, w) : null;
+    if (st) { setzen = { ...setzen, stelle: st }; setzeVorwahlAnStelle(app); }
     else zeichneBalken();
   });
 }
@@ -4815,7 +4497,7 @@ export async function start() {
      * gibt es kein x. Jetzt fuehrt er dorthin, wo auch das Ziehen hinfuehrt:
      * Bauteil vorgewaehlt, ein Klick ins Modell setzt es.
      */
-    wahl: (id) => setzenStarten({ art: 'vorlage', id }),
+    wahl: (id) => setzenStarten(app, { art: 'vorlage', id }),
     weg: vorlageEntfernen,
     sichern: vorlageSichern,
     generator: dialogGenerator,

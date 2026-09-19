@@ -19234,7 +19234,7 @@ const CH9x = await import(J('core.checks.js'));
          (aq58.match(/const hebungVon = /g) ?? []).length === 1);
     wahr('Die Blattszene hebt damit an', aq58.includes('const dz = hebungVon(t)'));
     wahr('Und der Fangbereich rechnet sie heraus',
-         aq58.includes('const zl = w.z - hebungVon(t)'));
+         /const zl = w\.z - (app\.)?hebungVon\(t\)/.test(aq58));
     /*
      * KEIN ROHES w.z MEHR IM FANGBEREICH. Genau das war der Fehler; eine
      * Kontrolle auf das Vorhandensein von `zl` allein wuerde ihn nicht
@@ -19252,7 +19252,7 @@ const CH9x = await import(J('core.checks.js'));
      * naechsten Mal wieder falsch.
      */
     wahr('Das Ablegen fragt dieselbe Stelle wie der Klick',
-         /v\.addEventListener\('drop'[\s\S]{0,900}?stelleAus\(w\)/.test(aq58));
+         /v\.addEventListener\('drop'[\s\S]{0,900}?stelleAus\((app, )?w\)/.test(aq58));
   }
 
   /*
