@@ -12273,7 +12273,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
              && seil.linien.some((l) => l.anker && l.schwerachse));
         const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
         wahr('Das 3D faerbt Schwerachsen mit Kennwert ein',
-             /if \(l\.schwerachse\) \{[\s\S]{0,400}this\._grundfarbe\(l, t\)/.test(r3));
+             /if \(l\.schwerachse\) \{[\s\S]{0,700}this\._grundfarbe\(l, t\)/.test(r3));
       }
       const pfl = ff.filter((x) => /^Anker /.test(x.label ?? ''));
       const bfl = ff.filter((x) => /^Bindeblech/.test(x.label ?? ''));
@@ -25576,6 +25576,15 @@ titel('94  Befunde aus der Bedienung vom 19. September');
   wahr('… Knopf in der Karte, Rechtsklick auf die Zeile, Eintrag im Kontextmenue',
        ui94.includes('data-at-dup="${i}"') && ui94.includes('beiAnbauKontext?.(')
        && q94('app.kontext.js').includes("text: 'Duplizieren', tun: () => anbauteilDuplizieren(app, i)"));
+
+  // «hier die mastbezeichnungen a b weglassen» · «die weissen schwereachsen
+  // bei den inaktiven elementen grau machen wie die körper»
+  const r94 = q94('render.3d.js');
+  const aufl = r94.slice(r94.indexOf("if (mk.art === 'auflager') {"),
+                         r94.indexOf("if (mk.art === 'auflagertext') {"));
+  wahr('3D: unter dem Mastfuss steht kein A/B mehr', aufl.length > 0 && !aufl.includes('fillText'));
+  wahr('3D: Achsen am passiven Tragwerk grau wie seine Koerper',
+       (r94.match(/l\.passiv \? \(t\.xdim \?\? t\.dim\)/g) ?? []).length === 2);
 }
 
 // ===========================================================================

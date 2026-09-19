@@ -170,7 +170,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4754 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4756 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -186,7 +186,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Jochaufsatz bis auf Leiterhöhe — an einem Aufbau (Traverse, Ausleger)
   läuft der Weg jetzt waagrecht, dann senkrecht; Stütze/NT-Ausleger
   unverändert. Bauteile duplizieren: Knopf in der Karte, Rechtsklick auf
-  die Zeile, Kontextmenü (`anbauteilDuplizieren`).
+  die Zeile, Kontextmenü (`anbauteilDuplizieren`). 3D: kein «A»/«B» mehr
+  unter den Mastfüssen (die Masten heissen M1, M2 …), Achsen passiver
+  Tragwerke grau wie ihre Körper.
 - **19. Sept.** COM-Schnittstelle geprüft («checke die com schnittstelle»,
   ohne AxisVM zu starten; Prüfstand Abschnitt 93). Vier Befunde, alle auf
   der unsicheren Seite: (1) die App leitete `app.werte` roh aus statt
@@ -363,7 +365,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4754 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4756 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

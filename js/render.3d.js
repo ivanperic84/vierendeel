@@ -3864,12 +3864,16 @@ export class Modellansicht {
          * Resultats wie die Gurtachsen (Weisung vom 17. September). Ohne
          * Kennwert bleiben sie im Ton des Masten.
          */
-        c.strokeStyle = l.werte ? this._grundfarbe(l, t) : t.on2;
+        // Am passiven Tragwerk grau wie seine Koerper (Weisung vom
+        // 19. September: «die weissen schwereachsen bei den inaktiven
+        // elementen grau machen wie die körper»).
+        c.strokeStyle = l.passiv ? (t.xdim ?? t.dim)
+          : l.werte ? this._grundfarbe(l, t) : t.on2;
         c.setLineDash([]);
         c.lineWidth = 1.8 * s;
         c.globalAlpha = 1;
       } else if (l.gruppe === 'auflager' || l.gruppe === 'mast') {
-        c.strokeStyle = l.kragarm ? t.acc : t.on2;
+        c.strokeStyle = l.passiv ? (t.xdim ?? t.dim) : l.kragarm ? t.acc : t.on2;
         c.setLineDash(l.kragarm ? [6 * s, 4 * s] : []);
         c.lineWidth = (l.mast ? 1.8 : 1.2) * s;
         c.globalAlpha = l.kragarm ? 0.9 : 0.8;
@@ -4071,8 +4075,12 @@ export class Modellansicht {
          * Lager» und laesst offen, welches. Zwei Symbole nebeneinander sind
          * keine doppelte Auskunft, sondern eine unklare.
          *
-         * DER NAME BLEIBT. «A» und «B» unterscheiden die beiden Enden, und
-         * das tut sonst nichts an dieser Stelle.
+         * >>> DER NAME FAELLT WEG (Weisung vom 19. September). <<<
+         *
+         * «hier die mastbezeichnungen a b weglassen, die masten sind schon
+         * mit m1 m2 ... beschrieben.» In einer Reihe stand unter jedem
+         * Masten ein A oder B - dieselbe Auskunft wie der Titel M1, M2 …,
+         * nur mehrdeutig, weil jedes Tragwerk sein eigenes A hat.
          */
         if (!mk.ohneSymbol) {
           c.fillStyle = t.on2;
@@ -4082,8 +4090,6 @@ export class Modellansicht {
           c.lineTo(p[0] + 7 * s, p[1] + 12 * s);
           c.closePath(); c.fill();
         }
-        c.fillStyle = t.on2;
-        c.fillText(mk.text ?? '', p[0] - 3 * s, p[1] + 26 * s);
         return;
       }
       if (mk.art === 'auflagertext') {
@@ -4100,8 +4106,8 @@ export class Modellansicht {
         (mk.zeilen ?? [mk.text]).forEach((txt, i) => {
           if (!txt) return;
           const b = this._textBreite(c, txt);
-          // Unter dem Namen des Auflagers (der steht bei +26), nicht darauf.
-          const bx = p[0] - b / 2, by = p[1] + (40 + i * 12) * s;
+          // Gleich unter dem Fuss - der Name A/B, der hier stand, ist weg.
+          const bx = p[0] - b / 2, by = p[1] + (26 + i * 12) * s;
           c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
           c.strokeText(txt, bx, by);
           c.fillStyle = t.dim;
