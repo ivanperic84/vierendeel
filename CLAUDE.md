@@ -63,7 +63,7 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
   bündelt ohne Daten. Keine `gh`-CLI; Anmeldung über den Git Credential
   Manager von Windows.
   Seit dem 24. August wurde auf Weisung laufend gepusht (zuletzt
-  20. September, b394d06). Der Zweig `github-stand-vor-push` ist der alte, von Hand
+  20. September, 91a871d). Der Zweig `github-stand-vor-push` ist der alte, von Hand
   hochgeladene Stand, nur örtlich von Wert.
 - **`Grundlagen/`** (im Projekt, nicht in der Ablage) — die fachliche
   Quelle der Daten: Sortimentsblätter und Werkstattzeichnungen der Tragjoche
