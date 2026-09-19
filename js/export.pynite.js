@@ -101,11 +101,24 @@ const s = (v) => `'${String(v).replace(/'/g, "\\'")}'`;
 const SCHUB_NU = 0.3;
 const SCHUB_KAPPA = 5 / 6;                     // Schubfläche des Rechtecks
 
+/*
+ * DAS BLECH AM NAMEN - UND IM BLATT TRAEGT ER EIN PRAEFIX.
+ *
+ * Im Blattmodell heisst der Querschnitt «T1_BLECH_V_100x10» statt
+ * «BLECH_V_100x10» (20. September, derselbe Befund wie in der
+ * AxisVM-Ausleitung). Ohne das fuehrende Tragwerkskuerzel fiel die
+ * Erkennung durch: die Bleche bekamen die Drehlage und die Schubweichheit
+ * eines quadratischen Ersatzquerschnitts.
+ */
+const istBlech = (n) => /(?:^|_)BLECH/.test(String(n));
+const istBlechV = (n) => /(?:^|_)BLECH_V/.test(String(n));
+const istBlechH = (n) => /(?:^|_)BLECH_H/.test(String(n));
+
 function blechlaengen(bau) {
   const nach = new Map();                      // Querschnittsname -> Set Längen
   const abst = (a, b) => Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   bau.staebe.forEach((st) => {
-    if (!String(st.qs).startsWith('BLECH')) return;
+    if (!istBlech(st.qs)) return;
     const a = bau.knoten.get(st.von), b = bau.knoten.get(st.bis);
     if (!a || !b) return;
     const l = abst(a, b);
@@ -175,8 +188,8 @@ function querschnitte(bau, schubweich = true, gurteSchief = false) {
     }
     const [a, b] = q.parameter;
     const r = rechteckWerte(a, b);
-    const blechV = q.name.startsWith('BLECH_V');
-    const blechH = q.name.startsWith('BLECH_H');
+    const blechV = istBlechV(q.name);
+    const blechH = istBlechH(q.name);
     if (!blechV && !blechH) {
       // STARR und ARM sind quadratisch - die Drehlage spielt keine Rolle
       zeilen.push({ name: q.name, A: r.A, Iy: r.stark, Iz: r.stark, J: r.J });
@@ -204,7 +217,7 @@ function querschnitte(bau, schubweich = true, gurteSchief = false) {
 
 /** Welcher Querschnittsname gilt für diesen Stab? (Länge entscheidet.) */
 function qsName(st, bau, zeilen) {
-  if (!String(st.qs).startsWith('BLECH')) return st.qs;
+  if (!istBlech(st.qs)) return st.qs;
   const a = bau.knoten.get(st.von), b = bau.knoten.get(st.bis);
   if (!a || !b) return st.qs;
   const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);

@@ -180,12 +180,28 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**20. September 2026** · Prüfstand 4831 Kontrollen grün · `durchlauf.mjs`
+**20. September 2026** · Prüfstand 4836 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., Blattmodell verlor Starrelemente und Stabachsen** (Prüfstand
+  Abschnitt 104). Am aufgebauten AxisVM-Modell gesehen: «das jochmodell sieht
+  nicht korrekt aus, hat es die querschnitte verworfen?» Verworfen war
+  nichts — aber **sobald mehr als ein Tragwerk auf dem Blatt steht**, tragen
+  Stab und Querschnitt das Präfix des Tragwerks («T1_STARR», «T1_OGL_S0»).
+  `starrArt` verglich mit «STARR», `lcs` mit «GURT_OG» und «OG…», PyNite mit
+  «BLECH…» — alle fielen durch (`gurtSteif` war am 19. Sept. schon so
+  berichtigt worden, die übrigen nicht). Folge bei J90/20 m + Einzelmast:
+  **476 Starrelemente wurden gewöhnliche Stäbe** mit dem Ersatzquerschnitt
+  500×500 mm, samt **327 kN Eigengewicht** (≈ 33 t) im ständigen Lastfall,
+  statt 470 Starrkörper; die Gurtwinkel und die Bleche standen **ungedreht**
+  (2 statt 5 Achsrichtungen); in PyNite waren stehende und liegende Bleche
+  nicht mehr zu unterscheiden. Erkannt wird jetzt am **Rohnamen**
+  (`rohName`, `rohQs`, `istBlech`). Die neue Kontrolle vergleicht dasselbe
+  Joch **allein und im Blatt**, Stab für Stab: 904 Stäbe, vorher 818
+  verschieden, jetzt keiner.
 - **20. Sept., Einzelmast: Ausleitung brach ab** (Prüfstand Abschnitt 103).
   Gemeldet: «Die com funktioniert nicht.» — mit einem **Einzelmasten als
   aktivem Tragwerk** meldete die Anwendung «COM-Ausleitung nicht möglich:
@@ -454,7 +470,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 4831 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 4836 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

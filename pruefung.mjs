@@ -26105,6 +26105,82 @@ titel('103  Einzelmast: Ausleitung baut das Mastmodell, nicht den Jochweg');
        /export function modell\([^)]*\)\s*\{[\s\S]{0,1200}?tragwerksart\(inp\)\.key === 'einzelmast'[\s\S]{0,80}?return modellEinzelmast\(inp, stahl\);/.test(q103));
 }
 
+titel('104  Blattmodell: Praefix darf Starrelemente und Stabachsen nicht verlieren');
+/*
+ * Am 20. September am aufgebauten AxisVM-Modell gesehen: «das jochmodell
+ * sieht nicht korrekt aus, hat es die querschnitte verworfen?» - im
+ * Blattmodell heissen Stab und Querschnitt «T1_OGL_S0» / «T1_STARR».
+ * `starrArt` verglich mit «STARR», `lcs` mit «GURT_OG» und «OG…»; beide
+ * fielen durch. Folge: die Starrelemente wurden gewoehnliche Staebe mit
+ * dem Ersatzquerschnitt 500x500 mm (327 kN Eigengewicht im Lastfall G bei
+ * J90/20 m), und Gurtwinkel wie Bleche standen ungedreht.
+ *
+ * Die Kontrolle vergleicht DASSELBE Tragwerk allein und im Blatt: was der
+ * Einzelweg baut, muss der Blattweg auch bauen.
+ */
+{
+  const C104 = await import(J('core.constants.js'));
+  const V104 = await import(J('core.vierendeel.js'));
+  const N104 = await import(J('core.nachbarn.js'));
+  const AX104 = await import(J('export.axisvm.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+  const modellVon = (satz) => V104.modell({ ...satz, beiwerteFest: null },
+    getProfil(satz.profOG), getProfil(satz.profUG),
+    getStahl(satz.stahl), T.getTragjoch(satz.typ));
+  const deps = { berechne: V104.berechne, modell: V104.modell, modellVon };
+
+  const allein = AX104.stabmodellJson(modellVon(N104.rechensatzMitNachbarn(w)),
+    { knotenmodell: 'anschnitt' });
+  // Dasselbe Joch, aber ein zweites Tragwerk daneben: jetzt mit Praefix.
+  const reihe = C104.tragwerkHinzu(w, 'joch', { xLage: 25, L: 15 });
+  const satzR = N104.rechensatzMitNachbarn(reihe);
+  const blatt = AX104.stabmodellJson(modellVon(satzR),
+    { knotenmodell: 'anschnitt', eingabe: satzR,
+      bau: AX104.blattWennMehrere(satzR, deps, { knotenmodell: 'anschnitt' }) });
+
+  const starr = (dat) => dat.staebe.filter((s) => s.art === 'starr').length;
+  wahr('Das Blatt fuehrt Starrelemente wie der Einzelweg',
+       starr(blatt) > 0 && starr(allein) > 0,
+       `allein ${starr(allein)} · Blatt ${starr(blatt)}`);
+  const richtungen = (dat) => new Set(dat.staebe.map((s) => (s.lcsZ ?? []).join(','))).size;
+  wahr('… und dieselben Stabachsrichtungen (Gurtwinkel, Bleche gedreht)',
+       richtungen(blatt) >= richtungen(allein) && richtungen(blatt) > 2,
+       `allein ${richtungen(allein)} · Blatt ${richtungen(blatt)}`);
+
+  // Stab fuer Stab: der Rohname ist in beiden Dateien derselbe.
+  const jeRoh = (dat, praefix) => new Map(dat.staebe
+    .filter((s) => s.name.startsWith(praefix))
+    .map((s) => [s.name.slice(praefix.length), `${s.art}|${(s.lcsZ ?? []).join(',')}`]));
+  const a1 = jeRoh(allein, ''), b1 = jeRoh(blatt, 'T1_');
+  const gemeinsam = [...a1.keys()].filter((k) => b1.has(k));
+  const anders = gemeinsam.filter((k) => a1.get(k) !== b1.get(k));
+  wahr('Jeder Stab des Jochs wird im Blatt gleich gebaut wie allein',
+       gemeinsam.length > 300 && anders.length === 0,
+       `${gemeinsam.length} verglichen, ${anders.length} verschieden`
+       + (anders.length ? `: ${anders.slice(0, 3).map((k) => `${k} ${a1.get(k)} statt ${b1.get(k)}`).join(' ; ')}` : ''));
+
+  // PyNite erkennt die Bleche ebenfalls am Namen - auch dort mit Praefix.
+  const PY104 = await import(J('export.pynite.js'));
+  const satzR2 = N104.rechensatzMitNachbarn(reihe);
+  const pyText = PY104.pyniteSkript(modellVon(satzR2), { knotenmodell: 'anschnitt',
+    bau: AX104.blattWennMehrere(satzR2, deps, { knotenmodell: 'anschnitt' }) }).text;
+  // add_section('T1_BLECH_V_100x10', A, Iy, Iz, J) - stehend und liegend
+  // muessen sich in Iy/Iz unterscheiden, sonst ist die Drehlage verloren.
+  const qsZeile = (kenn) => {
+    const z = pyText.split('\n').find((r) => r.startsWith('M.add_section(') && r.includes(kenn));
+    return z ? z.replace(/^[^,]*,/, '').split(',').map((x) => parseFloat(x)) : null;
+  };
+  const zV = qsZeile('BLECH_V_100x10'), zH = qsZeile('BLECH_H_100x10');
+  wahr('PyNite: stehende und liegende Bleche bleiben auch im Blatt unterschiedlich',
+       !!zV && !!zH && zV[1] !== zH[1] && zV[2] !== zH[2],
+       zV && zH ? `V Iy ${zV[1]} Iz ${zV[2]} · H Iy ${zH[1]} Iz ${zH[2]}` : 'Zeile nicht gefunden');
+
+  // Und kein Starrelement traegt im Blatt den 500x500-Ersatzquerschnitt.
+  const klotz = blatt.staebe.filter((s) => /(^|_)STARR$/.test(s.querschnitt) && s.art === 'stab').length;
+  wahr('Kein Starrelement bleibt als 500x500-Stab stehen (Eigengewicht!)', klotz === 0, `${klotz}`);
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

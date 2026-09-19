@@ -3941,6 +3941,25 @@ const STARR_ALS_KOERPER = ['verbindung', 'blechende'];
  */
 const STEIF_FAKTOR = 1000;
 
+/*
+ * >>> IM BLATTMODELL TRAGEN NAME UND QUERSCHNITT EIN PRAEFIX. <<<
+ *
+ * «T1_STARR», «T1_OGL_S0» - wer ein Bauteil an seinem Namen erkennt, muss
+ * den ROHNAMEN fragen. `gurtSteif` tut das seit dem 19. September; die
+ * uebrigen Erkennungen taten es nicht, und bei einer Jochreihe (oder einem
+ * Blatt mit mehr als einem Tragwerk) fielen sie durch: die Starrelemente
+ * wurden gewoehnliche Staebe mit dem Ersatzquerschnitt 500x500 mm - samt
+ * Eigengewicht -, und die lokalen Achsen der Gurtwinkel und der Bleche
+ * blieben ungedreht (20. September, am aufgebauten Modell gesehen:
+ * «das jochmodell sieht nicht korrekt aus, hat es die querschnitte
+ * verworfen?»).
+ */
+const rohName = (s) => String(s.roh ?? s.name ?? '');
+const rohQs = (s) => {
+  const q = String(s.qs ?? '');
+  return s.praefix && q.startsWith(s.praefix) ? q.slice(s.praefix.length) : q;
+};
+
 function gurtSteif(s, starrModell) {
   if (s.starrRolle !== 'gurtabschnitt' || starrModell === 'staebe') {
     return { querschnitt: s.qs };
@@ -3958,7 +3977,7 @@ function starrArt(s, starrModell) {
   if (s.starrRolle === 'anbauteil') {
     return (s.gelenkAnfang || s.gelenkEnde) ? { art: 'stab' } : { art: 'starr' };
   }
-  if (s.qs !== STARR.name) return { art: 'stab' };
+  if (rohQs(s) !== STARR.name) return { art: 'stab' };
   // Der Übergang Gurt -> Anbauteil ist immer ein Link: er trägt seine
   // Kraftübertragung schon fertig bei sich.
   if (s.starrRolle === 'uebergang') {
@@ -4040,11 +4059,12 @@ export function stabmodellJson(m, opt = {}) {
     // Winkel und muss gleich herum stehen. Sein Querschnitt heisst hier
     // noch STARR - ersetzt wird er erst in gurtSteif() -, deshalb zählt
     // die Rolle und nicht der Querschnittsname.
-    const gurt = (stab.qs === 'GURT_OG' || stab.qs === 'GURT_UG'
+    const qsR = rohQs(stab), nameR = rohName(stab);
+    const gurt = (qsR === 'GURT_OG' || qsR === 'GURT_UG'
                   || stab.starrRolle === 'gurtabschnitt')
-                 ? (stab.name.startsWith('OG') ? 'OG' : 'UG') : null;
+                 ? (nameR.startsWith('OG') ? 'OG' : 'UG') : null;
     if (gurt) {
-      const seite = stab.name.startsWith(`${gurt}L`) ? 'L' : 'R';
+      const seite = nameR.startsWith(`${gurt}L`) ? 'L' : 'R';
       const ecke = eckeVon(`${gurt}_${seite}`);
       const ausr = gurt === 'OG' ? ausrOG : ausrUG;
       const dy = ecke.sy * ausr.lg;
@@ -4054,7 +4074,7 @@ export function stabmodellJson(m, opt = {}) {
       if (dy < 0 && dz < 0) return [0, 0, -1];
       return [0, 1, 0];
     }
-    if (!stab.qs.startsWith('BLECH')) return z;
+    if (!qsR.startsWith('BLECH')) return z;
 
     // DIE BLECHE STEHEN UM 90° GEDREHT (Weisung, am Modell gesehen).
     // Gedreht wird um die LOKALE x-Achse, also um die Stabachse selbst: die
