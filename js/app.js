@@ -70,6 +70,7 @@ import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
+import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
@@ -586,8 +587,11 @@ function neuRechnen(neuZeichnen = true) {
       werte.wMastB = Number.isFinite(wB) ? wB : null;
     }
 
-    // Der Kern bekommt die Mastangaben aus der Liste, nicht aus dem Satz.
-    const erg = berechne(rechensatz(werte), profOG, profUG, stahl, joch);
+    // Der Kern bekommt die Mastangaben aus der Liste, nicht aus dem Satz -
+    // und am geteilten Masten die Jochkraefte der Nachbarn (19. September,
+    // core.nachbarn.js). Einmal gerechnet, fuer Hauptdurchgang und Vergleiche.
+    const rs = rechensatzMitNachbarn(werte);
+    const erg = berechne(rs, profOG, profUG, stahl, joch);
 
     /*
      * >>> DAS ABFANGJOCH RECHNET SEINEN EIGENEN NACHWEIS. <<<
@@ -613,28 +617,10 @@ function neuRechnen(neuZeichnen = true) {
      * die Kraftpfeile im Bild kommen.
      */
     if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
-      const satzA = tragwerkSatz(werte);
-      const a2 = getAbfangjoch(werte.abfangTyp);
-      const qpEk = { EK1: '0.9', EK2: '1.1', EK3: '1.3' }[satzA.ek] ?? '1.1';
-      const sKl = String(satzA.schneeKlasse ?? '1.25');
       try {
-        erg.abfang = abfangAuswertung({
-          typ: werte.abfangTyp, jt: Number(werte.L),
-          // kg/m -> kN/m; die Sortimentstabelle führt das Gewicht in kg.
-          gk: (a2?.gewicht ?? 0) * 9.81 / 1000,
-          wk: a2?.wind?.[qpEk] ?? 0,
-          sk: satzA.schneeAktiv === false ? 0 : (a2?.schnee?.[sKl] ?? 0),
-          anbauteile: satzA.anbauteile ?? [],
-          gammaG: werte.gammaG, gammaQ: werte.gammaQ, psi0: werte.psi0,
-          /*
-           * f_yd AUS STAHL UND γ_M0 (Weisung, 9. September). Hier stand
-           * `stahl.fyd` - das Feld gibt es am Stahlobjekt nicht, und die
-           * Auswertung fiel still auf 21.8 kN/cm² zurueck.
-           */
-          fyd: abfangFyd(stahl, werte.gammaM0),
-          ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
-          knotenbereich: 'anschnitt',
-        });
+        // Die Eingaben stehen jetzt im Kern (core.nachbarn.js), weil auch
+        // ein Nachbar-Abfangjoch sie braucht.
+        erg.abfang = abfangAuswertungFuer(werte, stahl);
       } catch (e2) {
         // Ein Typ ohne erfasste Blechlage ist nicht rechenbar - dann steht
         // dort nichts, statt einer Zahl aus dem falschen Modell.
@@ -715,7 +701,6 @@ function neuRechnen(neuZeichnen = true) {
      * einen Nebeneffekt zu verlassen: jede Angabe, die NUR in der Liste
      * steht, fehlte hier still.
      */
-    const rs = rechensatz(werte);
     const vergleich = mitJoch
       ? vergleichMassvarianten(rs, profOG, profUG, stahl, joch) : null;
     /*

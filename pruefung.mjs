@@ -25745,6 +25745,60 @@ titel('97  Teile am Masten: Weg und Skizze (Ansicht x-z, Draufsicht x-y)');
        !q97('ui.js').includes('weist dabei ins Feld'));
 }
 
+titel('98  Geteilter Mast: Jochkraefte der Nachbarn (Sofortmassnahme)');
+/*
+ * Gemessen am 19. September: am geteilten HEB 240 einer Reihe J90/20 +
+ * J90/20 fehlte die Jochkraft der Nachbarseite (Laengsmoment 59.3 statt
+ * 104.4 kNm, Biegespannung 182 statt 319 N/mm²). Weisung: «ja
+ * sofortmassnahme zuerst». Havarie oertlich: der Nachbar nur staendig.
+ */
+{
+  const C98 = await import(J('core.constants.js'));
+  const N98 = await import(J('core.nachbarn.js'));
+  const V98 = await import(J('core.vierendeel.js'));
+  const M98 = await import(J('core.mast.js'));
+  const A98 = await import(J('data.anbauteile.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+  w.anbauteile = [{ ...A98.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL 1' }];
+  w = C98.tragwerkHinzu(w, 'joch', { L: 20, xLage: 20 });
+  w = C98.setzeAnbauteileAn(w, [{ ...A98.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL 2' }]);
+  const [t1, t2] = C98.tragwerkeSortiert(w);
+  const satz = (t, mit) => (mit ? N98.rechensatzMitNachbarn : C98.rechensatz)(C98.tauscheAktives(w, t.id));
+  const hk = (s) => V98.vergleichKombinationen(s, ...N98.kernArgumente(s)).huellkurve.mast;
+  const etaVon = (m, e) => m[e].etaNachweis ?? m[e].eta;
+  const alt1 = hk(satz(t1, false)), neu1 = hk(satz(t1, true)), neu2 = hk(satz(t2, true));
+  wahr('Der geteilte Mast (T1 Ende B) wird ungünstiger', etaVon(neu1, 'B') > etaVon(alt1, 'B') * 1.5,
+       `${etaVon(alt1, 'B').toFixed(3)} -> ${etaVon(neu1, 'B').toFixed(3)}`);
+  wahr('… und hat von beiden Seiten dieselbe Ausnutzung',
+       Math.abs(etaVon(neu1, 'B') - etaVon(neu2, 'A')) < 1e-9,
+       `${etaVon(neu1, 'B').toFixed(3)} / ${etaVon(neu2, 'A').toFixed(3)}`);
+  wahr('Der Aussenmast bleibt unverändert', Math.abs(etaVon(neu1, 'A') - etaVon(alt1, 'A')) < 1e-9);
+
+  // Das gemessene Laengsmoment am Fuss: 104.4 kNm bei Wind +y.
+  const s1 = satz(t1, true);
+  const e = V98.berechne({ ...s1, lastfall: 'windYp' }, ...N98.kernArgumente(s1));
+  const fuss = M98.mastSchnitt(e.modell, 'B').stationen.find((st) => Math.abs(st.z) < 1e-9);
+  wahr('Längsmoment am Fuss wie gemessen (104.4 kNm)', Math.abs(Math.abs(fuss.Mxx) - 104.4) < 0.1,
+       `${fuss.Mxx.toFixed(1)} kNm`);
+  const lasten = M98.mastLasten(e.modell, 'B').lasten;
+  wahr('Die Nachbarkraft steht mit Namen in der Lastliste',
+       lasten.some((l) => l.art === 'nachbarjoch' && l.nachbar === C98.tragwerkPos(w, t2)));
+
+  // Havarie oertlich: im Havariefall rechnet der Nachbar ohne Havarie-Beiwerte.
+  const q98 = readFileSync(join(HIER, 'js', 'core.nachbarn.js'), 'utf8');
+  wahr('Havarie örtlich: der Nachbar ohne Havarie-Beiwerte',
+       q98.includes('HavarieX: 0, HavarieY: 0') && q98.includes('const fest = havarie || !ziel.key;'));
+  // Ohne geteilten Mast bleibt alles wie es war.
+  const einzel = N98.rechensatzMitNachbarn(typUebernehmen({ ...standardwerte(), typ: 'J90' },
+    T.getTragjoch('J90')));
+  wahr('Ein einzelnes Joch bekommt keine Nachbarn', einzel.nachbarJochlasten === undefined);
+  const CH98 = await import(J('core.checks.js'));
+  const hin = CH98.hinweise(e.modell).map((x) => (typeof x === 'string' ? x : x?.text ?? '')).join(' ');
+  wahr('Der Hinweis nennt den Nachbarn und die fehlende Rahmenwirkung',
+       hin.includes('Jochkräfte von T2') && hin.includes('Rahmenwirkung'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

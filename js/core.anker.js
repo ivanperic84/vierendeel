@@ -174,6 +174,8 @@ export function abfangModell(modell, auflager, fa, fb, charakteristisch) {
     mastLast: ml ? { ...ml, A: wind(ml.A), B: wind(ml.B) } : ml,
     anbauMastFlach,
     abfangAuflager: { ey: auflager.ey, A: nimm(fa), B: nimm(fb) },
+    // Der Fall, unter dem die Nachbarkraefte am geteilten Masten stehen.
+    nachbarFall: fa.key,
   };
 }
 

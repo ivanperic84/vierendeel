@@ -335,6 +335,17 @@ export function mastLasten(m, ende = 'A') {
     Fz, Fx, Fy, Myy: Myy + Fz * exAnschluss, Mxx, Mzz: 0,
     ex: 0, eKonsole: exAnschluss, ey: eyAnschluss,
   }];
+  /*
+   * >>> DIE NACHBARSEITE DES GETEILTEN MASTEN (19. September). <<<
+   *
+   * Gemessen: ohne sie stand der Zwischenmast einer Jochreihe mit der
+   * halben Laengsbiegung da (59.3 statt 104.4 kNm). Die Jochkraft des
+   * Nachbarn im selben Fall kommt aus core.nachbarn.js; sie steht auf SEINER
+   * Anschlusshoehe und mit SEINER Konsole - global gezaehlt wie die eigene.
+   * Mastkoepfe starr, ohne Rahmenwirkung (Sofortmassnahme).
+   */
+  const nachbarn = m.nachbarJochlasten?.faelle?.[m.nachbarFall ?? m.lastfallKey]?.[seite] ?? [];
+  lasten.push(...nachbarn);
 
   // --- Eigengewicht des Mastes --------------------------------------------
   /*

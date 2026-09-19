@@ -9,6 +9,7 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
+import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
 import { normalisiereAnbauteil, setzeEigeneVorlagen, vorlagen } from './data.anbauteile.js';
@@ -776,9 +777,11 @@ async function projektlisteDrucken(app, projektName) {
       const joch = w.typ && w.typ !== 'frei' ? getTragjoch(w.typ) : null;
       // Ueber alle Kombinationen, wie in der Auswertung - ein einzelner
       // Lastfall liesse den Gegenwind aus (17. September).
-      const kb = vergleichKombinationen(rechensatz(w), getProfil(w.profOG),
+      // Mit den Nachbarkraeften am geteilten Masten, wie in der Auswertung.
+      const rsw = rechensatzMitNachbarn(w);
+      const kb = vergleichKombinationen(rsw, getProfil(w.profOG),
                                         getProfil(w.profUG), getStahl(w.stahl), joch);
-      const erg = kb.huellkurve ?? berechne(rechensatz(w), getProfil(w.profOG),
+      const erg = kb.huellkurve ?? berechne(rsw, getProfil(w.profOG),
                                             getProfil(w.profUG), getStahl(w.stahl), joch);
       eta = erg.max?.etaGesamt ?? null;
       const m = erg.mast ?? {};

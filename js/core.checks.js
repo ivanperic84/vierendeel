@@ -1188,14 +1188,27 @@ export function hinweise(m) {
       + 'aus einer älteren Datei und ist zu bereinigen.');
   }
 
+  /*
+   * SEIT DEM 19. SEPTEMBER TRAEGT ER AUCH DIE NACHBARSEITE (Sofortmassnahme,
+   * core.nachbarn.js): die Jochkraefte der Nachbarn im selben Fall liegen
+   * im Mastnachweis. Der Hinweis sagt jetzt, was davon noch fehlt - die
+   * Rahmenwirkung -, und welcher Nachbar nicht mitgerechnet werden konnte.
+   */
   if (gm.length) {
-    h.push(`${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
+    const nb = m.nachbarJochlasten;
+    const stelle = `${gm.length === 1 ? 'Ein Mast steht' : `${gm.length} Masten stehen`}`
       + ` an einer Stelle, an der zwei Tragwerke zusammentreffen (x₀ = `
-      + `${gm.map((p) => p.x.toFixed(2)).join(', ')} m). `
-      + 'Seine Anbauteile trägt er in beiden Rechnungen — die JOCHREAKTION '
-      + 'der Nachbarseite jedoch nicht: gerechnet ist eine. Auch die '
-      + 'Rahmenwirkung fehlt: sein Kopf ist in Wirklichkeit nicht '
-      + 'unverschieblich, sondern gibt Last ans Nachbartragwerk weiter.');
+      + `${gm.map((p) => p.x.toFixed(2)).join(', ')} m). `;
+    h.push(nb?.nachbarn?.length
+      ? stelle + `Sein Nachweis enthält die Jochkräfte von ${nb.nachbarn.join(', ')} `
+        + 'im selben Lastfall (Havarie örtlich: der Nachbar nur ständig). Die '
+        + 'Mastköpfe gelten dabei als starr — die Rahmenwirkung der Reihe '
+        + 'fehlt noch und kommt mit dem gekoppelten Modell.'
+        + (nb.ohne?.length ? ` Nicht mitgerechnet: ${nb.ohne.join('; ')}.` : '')
+      : stelle + 'Seine Anbauteile trägt er in beiden Rechnungen — die JOCHREAKTION '
+        + 'der Nachbarseite jedoch nicht: gerechnet ist eine. Auch die '
+        + 'Rahmenwirkung fehlt: sein Kopf ist in Wirklichkeit nicht '
+        + 'unverschieblich, sondern gibt Last ans Nachbartragwerk weiter.');
   }
 
   /*

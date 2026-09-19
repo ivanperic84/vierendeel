@@ -157,6 +157,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Namen nach dem Typ (19. Sept.) | «mach die bennenung entsprechend dem typ T A M MT»: **T** Tragjoch, **A** Abfangjoch, **M** Einzelmast, **MT** Mast mit Tragausleger, je Typ von links gezählt (`tragwerkPos`). Ein Einzelmast heisst wie sein Mast (eine M-Zählung für Einzel- und Jochmasten), der Mast des Tragauslegers MT… (`mastName`). P1… ist weg |
 | Tragwerksliste (19. Sept.) | «A mit dem Band»: **ein Lageband** für alle Lagen (Joche in Bahnen, Masten mit Namen), darunter **Baum** — je Tragwerk eine Zeile, seine Masten eingerückt, geteilter Mast einmal beim ersten mit «auch …», Lage als Zahl rechts. Löst die Mastzeilen vom 13. Sept. ab (Typ, Länge, H, η bleiben je Mast); die x-Anschrift unter dem Mast (13. Sept.) steht jetzt in der Lagespalte, im Band steht der Name |
 | Jochreihe gesamtheitlich (19. Sept.) | «die zusammenhängenden jochtragwerke sind als gesamtheitliches tragwerk zu betrachten». Gewählt: **gekoppelt** (ein Stabwerk: Joche und Masten der Reihe, Mastköpfe verschieblich, jeder Mast mit den Kräften aller anschliessenden Joche); ständig, Wind, Schnee **gleichzeitig** auf der ganzen Reihe; **Havarie örtlich**: «dieser kann entweder auf die joche wirken und die kraft teilt sich dann auf die beiden masten, oder wenn es zu einem leiterbruch am masten kommt ist dann nur dieser selbst betroffen»; Seitenleiste mit **Urteil der Reihe** (Maximum mit Namen). **Auch das Einzeljoch** läuft künftig über das Stabwerk («ja einzeljoch auch übers stabwerk»), ein Rechenweg. Umsetzung offen, siehe *Laufende Arbeit* |
+| Geteilter Mast, Sofortmassnahme (19. Sept.) | «ja sofortmassnahme zuerst»: bis zum gekoppelten Modell trägt der geteilte Mast die **Jochkräfte aller anschliessenden Tragwerke** im selben Lastfall (`core.nachbarn.js`, `rechensatzMitNachbarn`, in `mastLasten` als `nachbarjoch`); Mastköpfe starr. Havarie örtlich: der Nachbar nur ständig. Nachbar-Abfangjoch über Leiteinwirkung und Windrichtung zugeordnet |
+| `MAST_UNVERSCHIEBLICH` (19. Sept.) | **entfällt im gekoppelten Modell** («mast_unverschieblich entfällt»); bis dahin bleibt er im Einzelfeld-Kern |
 | Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
@@ -175,7 +177,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4782 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4790 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -278,8 +280,8 @@ der ganzen Reihe, Havarie je Aufhängung, (5) Schnittgrössen in die
 Gurt-/Blechauswertung, Masten aus dem Stabwerk, Urteil der Reihe,
 (6) Bericht/Excel/Ausleitung, Vergleich mit AxisVM. Der Kern kennt heute
 nur das Einzelfeld (Ersatzbalken mit Drehfedern, `core.statics`/
-`core.auflager`). ⚠ Offen: `MAST_UNVERSCHIEBLICH` im gekoppelten Modell
-entfallen lassen?
+`core.auflager`). `MAST_UNVERSCHIEBLICH` entfällt dort. **Sofortmassnahme
+erledigt** (Nachbarkräfte am geteilten Masten, siehe *Entschieden*).
 
 **Messung 19. Sept.** (Überlagerung bei starren Mastköpfen, also noch
 ohne Rahmenwirkung; Nachrechnung = `mastSchnitt` exakt): am geteilten
@@ -351,9 +353,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Positionen 5–9, die 6 mm zurückgesetzt sind (Hebelarm 100 statt 112 mm).
   Im Modell sitzen alle bündig.
 
-- ⚠ **Geteilter Mast auf der unsicheren Seite** (gemessen 19. Sept., siehe
-  *Laufende Arbeit*): Längsmoment bis +76 %, Spannung über f_y, die
-  Anwendung zeigt «erfüllt».
+- **Geteilter Mast:** seit der Sofortmassnahme (19. Sept.) mit den
+  Jochkräften der Nachbarn; es fehlt noch die Rahmenwirkung (gekoppeltes
+  Modell). Rechenzeit je Eingabe mit zwei Nachbarn ≈ 80 ms.
 - **Geteilter Mast im Nachweis** (19. Sept. nachgeprüft): seine Teile am
   Masten zählen in **beiden** Rechnungen (seit 2./18. Sept., `mastAnbauteile`
   mit `mastId`) — der frühere offene Punkt «Bauteil gehört nur einem
@@ -409,7 +411,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4782 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4790 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

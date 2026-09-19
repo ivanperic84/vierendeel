@@ -60,6 +60,7 @@ const A = await import(J('data.anbauteile.js'));
 const FL = await import(J('data.fl.js'));
 const V = await import(J('core.vierendeel.js'));
 const C = await import(J('core.constants.js'));
+const NACH = await import(J('core.nachbarn.js'));
 const CH = await import(J('core.checks.js'));
 const AX = await import(J('export.axisvm.js'));
 const PY = await import(J('export.pynite.js'));
@@ -123,7 +124,8 @@ const FAELLE = [['Joch', joch], ['Einzelmast', einzelmast], ['Jochreihe', reihe]
  * =========================================================================== */
 for (const [name, bau] of FAELLE) {
   const w0 = bau();
-  const w = C.rechensatz(w0);
+  // Der Satz der App: mit den Jochkraeften der Nachbarn am geteilten Masten.
+  const w = NACH.rechensatzMitNachbarn(w0);
   const art = C.tragwerksart(w).key;
   const ohneJoch = art === 'einzelmast';
   console.log(`\n=== ${name}  (${art}, ${C.anzahlTragwerke(w0)} Tragwerk(e)) ===`);

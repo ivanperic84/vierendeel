@@ -329,6 +329,10 @@ export function modellEinzelmast(inp, stahl) {
     // Welcher Fall das ist - die Huellkurve nennt damit die massgebende
     // Kombination des Masten. Fehlte, und die Leiste konnte sie nicht nennen.
     lastfall: inp.lastfall ?? null,
+    // Der AUFGELOESTE Fall (ohne Angabe gilt der erste Nachweisfall) und
+    // die Jochkraefte der Nachbarn am geteilten Masten (core.nachbarn.js).
+    lastfallKey: lfAktiv?.key ?? inp.lastfall ?? null,
+    nachbarJochlasten: inp.nachbarJochlasten ?? null,
     // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
@@ -802,6 +806,9 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     schnittAktiv: inp.schnittAktiv === true,
     schnittOrientierung: inp.schnittOrientierung ?? 'quer',
     lastfall: inp.lastfall ?? null,
+    lastfallKey: lfAktiv?.key ?? inp.lastfall ?? null,
+    // Die Jochkraefte der Nachbarn am geteilten Masten (core.nachbarn.js).
+    nachbarJochlasten: inp.nachbarJochlasten ?? null,
   };
 
   // Stationsliste mit den tatsächlichen Blechen - die Zeichenmodule lesen sie,
