@@ -156,6 +156,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Raster weiten (19. Sept.) | immer vom **Normalmass** der Baugruppe aus (`rasterNorm`), frei sitzend gilt wieder das Normalmass. Von Hand gesetztes Raster ist das neue Normalmass |
 | Namen nach dem Typ (19. Sept.) | «mach die bennenung entsprechend dem typ T A M MT»: **T** Tragjoch, **A** Abfangjoch, **M** Einzelmast, **MT** Mast mit Tragausleger, je Typ von links gezählt (`tragwerkPos`). Ein Einzelmast heisst wie sein Mast (eine M-Zählung für Einzel- und Jochmasten), der Mast des Tragauslegers MT… (`mastName`). P1… ist weg |
 | Tragwerksliste (19. Sept.) | «A mit dem Band»: **ein Lageband** für alle Lagen (Joche in Bahnen, Masten mit Namen), darunter **Baum** — je Tragwerk eine Zeile, seine Masten eingerückt, geteilter Mast einmal beim ersten mit «auch …», Lage als Zahl rechts. Löst die Mastzeilen vom 13. Sept. ab (Typ, Länge, H, η bleiben je Mast); die x-Anschrift unter dem Mast (13. Sept.) steht jetzt in der Lagespalte, im Band steht der Name |
+| Jochreihe gesamtheitlich (19. Sept.) | «die zusammenhängenden jochtragwerke sind als gesamtheitliches tragwerk zu betrachten». Gewählt: **gekoppelt** (ein Stabwerk: Joche und Masten der Reihe, Mastköpfe verschieblich, jeder Mast mit den Kräften aller anschliessenden Joche); ständig, Wind, Schnee **gleichzeitig** auf der ganzen Reihe; **Havarie örtlich**: «dieser kann entweder auf die joche wirken und die kraft teilt sich dann auf die beiden masten, oder wenn es zu einem leiterbruch am masten kommt ist dann nur dieser selbst betroffen»; Seitenleiste mit **Urteil der Reihe** (Maximum mit Namen). Umsetzung offen, siehe *Laufende Arbeit* |
+| Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
@@ -173,7 +175,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4773 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4782 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -268,7 +270,14 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
-**Laufende Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
+**Laufende Arbeit (19. Sept.): Jochreihe als gekoppeltes Tragwerk.**
+Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Noch nicht
+begonnen; Bauplan dem Auftraggeber vorgelegt. Der Kern kennt heute nur das
+Einzelfeld (Ersatzbalken mit Drehfedern, `core.statics`/`core.auflager`),
+kein allgemeines Stabwerk. Erster Schritt: den Fehlbetrag am geteilten
+Masten messen (Jochreihe J90/20 + J90/15).
+
+**Frühere Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
 Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
 aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
 ~~A6~~ → ~~A5~~ → ~~U7~~ → ~~U6~~ → ~~U3~~ → ~~U5~~ → U4 (Rückfrage) → ~~A2~~ → ~~A1~~ → A3; A4 nur nach Rückfrage.
@@ -334,7 +343,8 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Tragwerk» war veraltet. Es fehlt aber die **Jochreaktion der Nachbarseite**
   im Mastnachweis und die Rahmenwirkung über die Reihe (Hinweis in
   `core.checks.js`). ⚠ Vorschlag «Mast als eigenständiges Element»
-  vorgelegt, Entscheid offen.
+  vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
+  *Laufende Arbeit*).
 
 **AxisVM / COM**
 - Seilkopf im nächsten Aufbau prüfen: lokale x-Achse des NN-Links, «nur Zug»
@@ -382,7 +392,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4773 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4782 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

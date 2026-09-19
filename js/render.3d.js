@@ -1087,7 +1087,7 @@ export function erzeugeSzene(m, erg) {
     flaechen.push(...quader([g.x, 0, zWurzel], [0.09, 0.09, 0.09],
       opt(`Anschluss am Mast ${ende} · ${(a.hMast ?? 0).toFixed(2)} m über Fundament`)));
 
-    const kette = anbauKette(meine, { x0: 0, zAn: 0 });
+    const kette = anbauKette(meine, { x0: 0, zAn: 0, amMast: true });
     kette.glieder.forEach((gl) => {
       const p1 = welt(gl.von), p2 = welt(gl.bis);
       const laenge = Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]);

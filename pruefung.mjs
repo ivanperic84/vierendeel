@@ -13304,7 +13304,8 @@ titel('45  Baugruppen am Masten haengen am Mastfuss');
     wahr('Die Jochskizze nennt die Jochachse', /Lage in Jochachse/.test(svgJoch));
     wahr('Die Mastskizze nicht', !/Jochachse/.test(svgMast));
     wahr('Sie nennt den Masten und das Fundament',
-         /Lage am Masten/.test(svgMast) && /ab Fundament/.test(svgMast));
+         // seit dem 19. September: Ansicht x-z und Draufsicht x-y
+         /Ansicht x–z/.test(svgMast) && /ab Fundament/.test(svgMast));
     wahr('Und die eingegebene Hoehe', /h 7\.00 m/.test(svgMast));
     wahr('Das Mass haengt am Feld hMast', /data-zu="hMast"/.test(svgMast));
     wahr('Keine unberechnete Zahl darin', !/NaN|undefined/.test(svgMast));
@@ -25701,6 +25702,47 @@ titel('96  Tragwerksliste: Baum mit Lageband, Namen nach dem Typ');
        && new Set([...h.matchAll(/qp-bandlinie[^"]*"[\s\S]*?top:(\d+)px/g)].map((m) => m[1])).size === 2);
   wahr('Der Tragausleger traegt «nicht nachgewiesen» in seiner Zeile',
        h.includes('>nicht nachgewiesen<'));
+}
+
+titel('97  Teile am Masten: Weg und Skizze (Ansicht x-z, Draufsicht x-y)');
+/*
+ * Weisung vom 19. September: «prüfe diese darstellung auf deren richtigkeit»
+ * und «mach eine ansicht in xz und eine draufsicht in xy».
+ */
+{
+  const A97 = await import(J('core.anbauteile.js'));
+  const U97 = await import(J('ui.js'));
+  const kette = (teile) => A97.anbauKette(teile, { x0: 0, zAn: 0, amMast: true }).glieder
+    .map((g) => [g.von.x, g.von.y, g.von.z, g.bis.x, g.bis.y, g.bis.z]);
+  const k = kette([{ rolle: 'drahtwerk', x: 1, y: 0.5, stationX: 0, z: -0.6 }]);
+  wahr('Am Masten: erst waagrecht auf der Anschlusshoehe (y, dann x), dann lotrecht',
+       JSON.stringify(k) === JSON.stringify([[0, 0, 0, 0, 0.5, 0], [0, 0.5, 0, 1, 0.5, 0],
+                                             [1, 0.5, 0, 1, 0.5, -0.6]]), JSON.stringify(k));
+  const k0 = kette([{ rolle: 'drahtwerk', x: 0, y: 0, stationX: 0, z: -0.6 }]);
+  wahr('… ohne Ausladung genau ein lotrechtes Glied', k0.length === 1
+       && k0[0][3] === 0 && k0[0][5] === -0.6, JSON.stringify(k0));
+  const q97 = (d) => readFileSync(join(HIER, 'js', d), 'utf8');
+  wahr('Modell, 3D und Karte bilden die Mastkette gleich (amMast)',
+       q97('export.axisvm.js').includes('{ x0: 0, zAn: 0, amMast: true }')
+       && q97('render.3d.js').includes('{ x0: 0, zAn: 0, amMast: true }')
+       && q97('ui.js').includes('amMast: amMast(a) }'));
+
+  const w97 = { ...standardwerte(), tragwerksart: 'joch', typ: 'J90', L: 20, xLage: 0,
+                mastH: 7.5, jd: 500, mastProfil: 'HEB 240', mastVorhanden: true };
+  const svg = U97.anbauteilSkizzeFuer({ name: 'RL', ort: 'mastA', hMast: 7.2,
+    module: [{ bauteil: 'x', x: 0, y: 0, z: -0.6 }], lasten: [] }, w97);
+  wahr('Skizze: Ansicht x-z und Draufsicht x-y', svg.includes('Ansicht x–z')
+       && svg.includes('Draufsicht x–y'));
+  wahr('… nennt den Masten beim Namen, nicht «Mast A»', svg.includes('· M1<') && !svg.includes('Mast A'));
+  wahr('… ohne x kein Arm (kein x-Mass)', !svg.includes('data-zu="x"'));
+  wahr('… die Mastlaenge steht da, auch wenn sie nur die Vorgabe ist', /L \d+\.\d\d m/.test(svg));
+  const svgX = U97.anbauteilSkizzeFuer({ name: 'T', ort: 'mastB', hMast: 7,
+    module: [{ bauteil: 'x', x: 1, y: 0.5, z: 0.35 }], lasten: [] }, w97);
+  wahr('… mit x und y: beide Masse, F_x und F_y in der Draufsicht',
+       (svgX.match(/data-zu="x"/g) ?? []).length >= 2 && svgX.includes('data-zu="y"')
+       && (svgX.match(/data-zu="Fy"/g) ?? []).length === 2);
+  wahr('Der Erklaertext sagt «x global», nicht mehr «ins Feld»',
+       !q97('ui.js').includes('weist dabei ins Feld'));
 }
 
 // ===========================================================================

@@ -2955,3 +2955,6 @@ body.datei-ueber::after {
    («MT1 HEB 240 · 7» - gemeldet am 19. September). */
 .qp-haupt .qp-name { overflow: visible; }
 .qp-haupt .qp-txt { white-space: normal; }
+/* Mast-Skizze: Profil in der Draufsicht und Trennlinie der beiden Ansichten */
+.at-skizze .sk-profil rect { fill: var(--dim); }
+.at-skizze .sk-trenn { stroke: var(--ol); stroke-width: 1; stroke-dasharray: 2 3; }

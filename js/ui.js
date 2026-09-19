@@ -2285,7 +2285,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
            * Wer sein eigenes Teil zum zwanzigsten Mal aufmacht, klappt sie
            * zu - und sie bleibt zu, wie jeder andere Klappabschnitt.
            */''}
-        ${klapp(`at-skizze-${i}`, 'Lage im Querschnitt',
+        ${klapp(`at-skizze-${i}`, amMast(a) ? 'Ansicht und Draufsicht' : 'Lage im Querschnitt',
                 anbauteilSkizzeFuer(a, werte), '', true)}
         <div class="at-gitter">
           ${atWahl(i, 'ort', 'Standort', ortVon(a), anbauOrte(werte, ortVon(a)),
@@ -2547,8 +2547,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
           Lage x die <b>Höhe über Fundament</b>, und x, y, z eines Teils
           zählen ab dem Anschlusspunkt auf der Mastachse, nicht ab dem Joch.
           Ein Rückleiter 0.35 m unter dem Anschluss auf 7.00 m Höhe steht
-          also als h = 7.00 und z = −0.35. <b>x</b> weist dabei ins Feld
-          hinein, an beiden Enden.</p>`)}`,
+          also als h = 7.00 und z = −0.35. <b>x</b> ist an beiden Enden
+          global, positiv nach rechts. Der Weg läuft auf der
+          Anschlusshöhe zuerst waagrecht (y, dann x), dann lotrecht auf z.</p>`)}`,
       `${vorlagen().length} Vorlagen`) +
     // Das Suchfeld filtert im Browser, ohne die Maske neu zu bauen - sonst
     // verlöre das Feld bei jedem Tastendruck den Fokus.
@@ -2597,7 +2598,8 @@ function ketteJeModul(a, werte) {
   try {
     flach = expandiereAnbauteile([{ ...a, aktiv: true, lasten: [] }], trasseVon(werte));
   } catch { return info; }
-  const kette = anbauKette(flach, { x0: amMast(a) ? 0 : (a.x ?? 0), zAn: 0 });
+  const kette = anbauKette(flach, { x0: amMast(a) ? 0 : (a.x ?? 0), zAn: 0,
+                                    amMast: amMast(a) });
   // Woran das erste Teil haengt. Am Masten ist es der Mast, nicht das Joch -
   // die Kette beginnt dort, wo `hMast` sie ansetzt.
   const wurzelName = amMast(a)
@@ -3299,76 +3301,159 @@ function lastWahl(i, k, feld, wert, optionen) {
 function anbauteilSkizzeMast(a, werte) {
   const ende = ortVon(a) === 'mastB' ? 'B' : 'A';
   const hMast = a.hMast ?? 0;
-  const hoch = Math.max(werte.mastH ?? 12, werte.mastLaenge ?? 0,
-                        werte.mastLaengeB ?? 0, hMast, 1);
+  /*
+   * >>> ANSICHT x-z UND DRAUFSICHT x-y (19. September). <<<
+   *
+   * Nachgeprueft auf Weisung («prüfe diese darstellung auf deren
+   * richtigkeit»): die Skizze hiess «Lage im Querschnitt», zeichnete
+   * waagrecht aber y - die Gleisrichtung - und liess die Ausladung x ganz
+   * weg. Der Arm war immer 40 px lang, auch bei x = y = 0; F_y stand als
+   * Pfeil IN der Ebene, F_x fehlte. Rechts ragte die Notiz ueber den Rand,
+   * und der Mast stand immer bis ganz oben.
+   *
+   * Danach die Weisung: «mach eine ansicht in xz und eine draufsicht in xy».
+   *
+   *   LINKS   Ansicht x-z: der Mast in seiner Laenge, massstaeblich in der
+   *           Hoehe; der Anschluss auf h, von dort waagrecht x, dann
+   *           lotrecht z - der Weg des Modells (anbauKette, `amMast`).
+   *           F_x und F_z in der Ebene, F_y aus der Ebene.
+   *   RECHTS  Draufsicht x-y: das Profil mit seiner Stegrichtung, der Arm
+   *           erst in y, dann in x - wieder wie das Modell. F_x und F_y in
+   *           der Ebene, F_z in die Ebene hinein.
+   *
+   * x ist an beiden Enden GLOBAL, positiv nach rechts (Weisung vom
+   * 28. August); y positiv in Gleisrichtung, in der Draufsicht nach oben.
+   * Die Versaetze sind schematisch: massstaeblich waere das Teil neben
+   * einem zwoelf Meter hohen Masten unsichtbar.
+   */
+  const t0 = tragwerkeVon(werte)[0];
+  const mast = t0 ? (mastenFuer(werte, t0) ?? [])[ende === 'B' ? 1 : 0] : null;
+  const name = mastNameAmEnde(werte, t0, ende) || `Mast ${ende}`;
+  // Dieselbe Laenge wie in der Leiste: eingetragen, sonst die Vorgabe des
+  // Feldes aus der freien Hoehe.
+  const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;
+  const laenge = Number(mast?.laenge) || Number(ende === 'B'
+    ? (werte.mastLaengeB ?? werte.mastLaenge) : werte.mastLaenge)
+    || (H > 0 ? mastLaengeVorgabe(H - (Number(mast?.fuss) || 0), werte.jd ?? 0) : 0);
+  const hoch = Math.max(laenge, hMast, 1);
+  const steg = mast?.steg ?? (ende === 'B' ? (werte.mastStegB ?? werte.mastSteg)
+                                           : werte.mastSteg) ?? 'jochachse';
+
   const punkte = [...(a.module ?? []), ...(a.lasten ?? [])];
-  const zWahl = punkte.length
-    ? punkte.reduce((s, p) => (Math.abs(p.z ?? 0) > Math.abs(s) ? (p.z ?? 0) : s), 0)
-    : 0;
-  const yWahl = punkte.reduce((s, p) => (Math.abs(p.y ?? 0) > Math.abs(s) ? (p.y ?? 0) : s), 0);
+  const groesst = (k) => punkte.reduce(
+    (s, p) => (Math.abs(p[k] ?? 0) > Math.abs(s) ? (p[k] ?? 0) : s), 0);
+  const xW = groesst('x'), yW = groesst('y'), zW = groesst('z');
+  const da = (v) => Math.abs(v) > 1e-9;
+  const schema = (v, grund, max) => (da(v) ? Math.sign(v) * Math.min(max, grund + Math.abs(v) * 14) : 0);
+  const sx = da(xW) ? Math.sign(xW) : 1;          // wohin der Arm zeigt
+  const steht = zW > 1e-9;
 
-  // --- Anschluss links -----------------------------------------------------
-  const cx = 58, cyAn = 66, yKopf = 22, yFuss = 132, halb = 5;
-  const anY = zWahl >= 0 ? Math.max(30, cyAn - 30) : Math.min(120, cyAn + 30);
-  const anX = cx + 40 + Math.max(-22, Math.min(22, yWahl * 34));
-
-  const schraffur = (x0) => [0, 1, 2, 3, 4].map((i) =>
-    `<line class="sk-steg" x1="${x0 - 12 + i * 6}" y1="${yFuss}"
-       x2="${x0 - 16 + i * 6}" y2="${yFuss + 8}"/>`).join('');
-
-  const zMass = zWahl ? `
-    <g class="sk-mass" data-zu="z">
-      <line x1="${anX + 16}" y1="${cyAn}" x2="${anX + 16}" y2="${anY}"/>
-      <text x="${anX + 20}" y="${(cyAn + anY) / 2 + 3}">z ${zWahl.toFixed(2)}</text>
-    </g>` : '';
-  const yMass = yWahl ? `
-    <g class="sk-mass" data-zu="y">
-      <line x1="${cx}" y1="${anY - 12}" x2="${anX}" y2="${anY - 12}"/>
-      <text x="${(cx + anX) / 2}" y="${anY - 16}" text-anchor="middle">y ${yWahl.toFixed(2)}</text>
-    </g>` : '';
-
-  const kraft = (feld, x1, y1, dx, dy, txt) => `
+  const pfeil = (feld, x1, y1, dx, dy, txt, anker = null) => `
     <g class="sk-kraft" data-zu="${feld}">
       <line x1="${x1}" y1="${y1}" x2="${x1 + dx}" y2="${y1 + dy}"/>
       <polygon points="${x1 + dx},${y1 + dy} ${x1 + dx - dy * 0.18 - dx * 0.22},${y1 + dy + dx * 0.18 - dy * 0.22} ${x1 + dx + dy * 0.18 - dx * 0.22},${y1 + dy - dx * 0.18 - dy * 0.22}"/>
-      <text x="${x1 + dx + 4}" y="${y1 + dy + (dy ? 10 : -4)}">${esc(txt)}</text>
+      <text x="${x1 + dx + (dx < 0 ? -4 : dx > 0 ? 4 : 5)}" y="${y1 + dy + (dy > 0 ? 10 : dy < 0 ? -3 : -4)}"
+        text-anchor="${anker ?? (dx < 0 ? 'end' : 'start')}">${esc(txt)}</text>
     </g>`;
+  // Kraft senkrecht zur Ebene: aus der Ebene ⊙ (Punkt), in die Ebene ⊗ (Kreuz).
+  const senkrecht = (feld, cx, cy, heraus, txt, rechts = true) => `
+    <g class="sk-kraft" data-zu="${feld}">
+      <circle cx="${cx}" cy="${cy}" r="4" fill="none" stroke="var(--achse)" stroke-width="1.2"/>
+      ${heraus ? `<circle cx="${cx}" cy="${cy}" r="1.2" fill="var(--achse)"/>`
+        : `<line x1="${cx - 2.6}" y1="${cy - 2.6}" x2="${cx + 2.6}" y2="${cy + 2.6}" stroke="var(--achse)" stroke-width="1.1"/>
+           <line x1="${cx - 2.6}" y1="${cy + 2.6}" x2="${cx + 2.6}" y2="${cy - 2.6}" stroke="var(--achse)" stroke-width="1.1"/>`}
+      <text x="${cx + (rechts ? 6 : -6)}" y="${cy + 3}" text-anchor="${rechts ? 'start' : 'end'}">${esc(txt)}</text>
+    </g>`;
+  const schraffur = (x0, y0) => [0, 1, 2, 3, 4].map((i) =>
+    `<line class="sk-steg" x1="${x0 - 12 + i * 6}" y1="${y0}"
+       x2="${x0 - 16 + i * 6}" y2="${y0 + 8}"/>`).join('');
 
-  // --- Ganzer Mast rechts --------------------------------------------------
-  const mx = 232;
-  const py = yFuss - Math.max(0, Math.min(1, hMast / hoch)) * (yFuss - yKopf);
+  // --- Ansicht x-z ---------------------------------------------------------
+  const yKopf = 24, yFuss = 136, halb = 4;
+  const cx = sx < 0 ? 118 : 60;
+  const skala = (h) => yFuss - Math.max(0, Math.min(1, h / hoch)) * (yFuss - yKopf);
+  const yTop = skala(hoch > hMast ? laenge || hoch : hoch);
+  const py = skala(hMast);
+  const ax = cx + schema(xW, 18, 44);
+  const az = Math.max(16, Math.min(yFuss - 4, py - schema(zW, 12, 28)));
+  const hSeite = -sx;                              // h steht auf der Gegenseite
+  // Das z-Mass steht hinter dem F_x-Pfeil; ohne Arm liegt der Pfeil davor.
+  const zAb = ax === cx ? 48 : 36;
+  const hX = cx + hSeite * 20;
+  const ansicht = `
+    <text class="sk-titel" x="6" y="12">Ansicht x–z · ${esc(name)}</text>
+    <line class="sk-gurt" x1="${cx - halb}" y1="${yTop}" x2="${cx - halb}" y2="${yFuss}"/>
+    <line class="sk-gurt" x1="${cx + halb}" y1="${yTop}" x2="${cx + halb}" y2="${yFuss}"/>
+    <line class="sk-steg" x1="${cx - 14}" y1="${yFuss}" x2="${cx + 14}" y2="${yFuss}"/>
+    ${schraffur(cx, yFuss)}
+    <line class="sk-an" x1="${cx - halb - 4}" y1="${py}" x2="${cx + halb + 4}" y2="${py}"/>
+    <g class="sk-teil">
+      ${ax !== cx ? `<line x1="${cx}" y1="${py}" x2="${ax}" y2="${py}"/>` : ''}
+      ${az !== py ? `<line x1="${ax}" y1="${py}" x2="${ax}" y2="${az}"/>` : ''}
+      <circle cx="${ax}" cy="${az}" r="2.6"/>
+    </g>
+    <g class="sk-mass" data-zu="hMast">
+      <line x1="${hX}" y1="${yFuss}" x2="${hX}" y2="${py}"/>
+      <text x="${hX + hSeite * 3}" y="${(yFuss + py) / 2 + 3}"
+        text-anchor="${hSeite < 0 ? 'end' : 'start'}">h ${hMast.toFixed(2)} m</text>
+    </g>
+    ${ax !== cx ? `<g class="sk-mass" data-zu="x">
+      <line x1="${cx}" y1="${py + (steht ? 8 : -8)}" x2="${ax}" y2="${py + (steht ? 8 : -8)}"/>
+      <text x="${(cx + ax) / 2}" y="${py + (steht ? 17 : -11)}" text-anchor="middle">x ${xW.toFixed(2)}</text>
+    </g>` : ''}
+    ${az !== py ? `<g class="sk-mass" data-zu="z">
+      <line x1="${ax + sx * zAb}" y1="${py}" x2="${ax + sx * zAb}" y2="${az}"/>
+      <text x="${ax + sx * (zAb + 3)}" y="${(py + az) / 2 + 3}"
+        text-anchor="${sx > 0 ? 'start' : 'end'}">z ${zW.toFixed(2)}</text>
+    </g>` : ''}
+    ${pfeil('Fx', ax, az, sx * 18, 0, 'F_x')}
+    ${pfeil('Fz', ax + (steht ? sx * 5 : 0), az, 0, 14, 'F_z')}
+    ${steht
+      ? senkrecht('Fy', ax - sx * 12, az - 10, true, 'F_y', sx < 0)
+      : senkrecht('Fy', ax + sx * 12, az + 12, true, 'F_y', sx > 0)}
+    <text class="sk-notiz" x="6" y="158">h ab Fundament${
+      laenge > 0 ? ` · L ${laenge.toFixed(2)} m` : ''}</text>`;
+
+  // --- Draufsicht x-y ------------------------------------------------------
+  const ox = sx < 0 ? 246 : 212, oy = 86;
+  const px = ox + schema(xW, 16, 44);
+  const pyD = oy - schema(yW, 14, 38);             // y nach oben
+  // HEB als Umriss: Flansche parallel zum Gleis, wenn der Steg quer steht.
+  const b = 9, t = 1.6;
+  const profil = steg === 'quer'
+    ? `<rect x="${ox - b}" y="${oy - b}" width="${2 * b}" height="${t * 2}"/>
+       <rect x="${ox - b}" y="${oy + b - t * 2}" width="${2 * b}" height="${t * 2}"/>
+       <rect x="${ox - t / 2}" y="${oy - b}" width="${t}" height="${2 * b}"/>`
+    : `<rect x="${ox - b}" y="${oy - b}" width="${t * 2}" height="${2 * b}"/>
+       <rect x="${ox + b - t * 2}" y="${oy - b}" width="${t * 2}" height="${2 * b}"/>
+       <rect x="${ox - b}" y="${oy - t / 2}" width="${2 * b}" height="${t}"/>`;
+  const draufsicht = `
+    <text class="sk-titel" x="176" y="12">Draufsicht x–y</text>
+    <g class="sk-profil">${profil}</g>
+    <g class="sk-teil">
+      ${pyD !== oy ? `<line x1="${ox}" y1="${oy}" x2="${ox}" y2="${pyD}"/>` : ''}
+      ${px !== ox ? `<line x1="${ox}" y1="${pyD}" x2="${px}" y2="${pyD}"/>` : ''}
+      <circle cx="${px}" cy="${pyD}" r="2.6"/>
+    </g>
+    ${px !== ox ? `<g class="sk-mass" data-zu="x">
+      <line x1="${ox}" y1="${pyD + (pyD <= oy ? -9 : 9)}" x2="${px}" y2="${pyD + (pyD <= oy ? -9 : 9)}"/>
+      <text x="${(ox + px) / 2}" y="${pyD + (pyD <= oy ? -12 : 18)}" text-anchor="middle">x ${xW.toFixed(2)}</text>
+    </g>` : ''}
+    ${pyD !== oy ? `<g class="sk-mass" data-zu="y">
+      <line x1="${ox - sx * 16}" y1="${oy}" x2="${ox - sx * 16}" y2="${pyD}"/>
+      <text x="${ox - sx * 19}" y="${(oy + pyD) / 2 + 3}"
+        text-anchor="${sx > 0 ? 'end' : 'start'}">y ${yW.toFixed(2)}</text>
+    </g>` : ''}
+    ${pfeil('Fx', px, pyD, sx * 18, 0, 'F_x')}
+    ${pfeil('Fy', px, pyD, 0, -16, 'F_y', 'middle')}
+    ${senkrecht('Fz', px + sx * 12, pyD + 12, false, 'F_z', sx > 0)}
+    <text class="sk-notiz" x="176" y="158">y in Gleisrichtung ↑</text>`;
 
   return `<svg class="at-skizze" viewBox="0 0 300 165" role="img"
-     aria-label="Massskizze am Masten">
-    <!-- Anschluss -->
-    <text class="sk-titel" x="8" y="12">Anschluss am Mast ${ende}</text>
-    <line class="sk-gurt" x1="${cx - halb}" y1="${yKopf}" x2="${cx - halb}" y2="${yFuss}"/>
-    <line class="sk-gurt" x1="${cx + halb}" y1="${yKopf}" x2="${cx + halb}" y2="${yFuss}"/>
-    <line class="sk-steg" x1="${cx - 14}" y1="${yFuss}" x2="${cx + 14}" y2="${yFuss}"/>
-    ${schraffur(cx)}
-    <line class="sk-an" x1="${cx - halb - 4}" y1="${cyAn}" x2="${cx + halb + 4}" y2="${cyAn}"/>
-    <g class="sk-teil">
-      <line x1="${cx}" y1="${cyAn}" x2="${anX}" y2="${cyAn}"/>
-      <line x1="${anX}" y1="${cyAn}" x2="${anX}" y2="${anY}"/>
-      <circle cx="${anX}" cy="${anY}" r="2.6"/>
-    </g>
-    ${zMass}${yMass}
-    ${kraft('Fy', anX, anY, 20, 0, 'F_y')}
-    ${kraft('Fz', anX, anY, 0, 14, 'F_z')}
-
-    <!-- Ganzer Mast -->
-    <text class="sk-titel" x="186" y="12">Lage am Masten</text>
-    <line class="sk-gurt" x1="${mx - halb}" y1="${yKopf}" x2="${mx - halb}" y2="${yFuss}"/>
-    <line class="sk-gurt" x1="${mx + halb}" y1="${yKopf}" x2="${mx + halb}" y2="${yFuss}"/>
-    <line class="sk-steg" x1="${mx - 14}" y1="${yFuss}" x2="${mx + 14}" y2="${yFuss}"/>
-    ${schraffur(mx)}
-    <g class="sk-teil"><line x1="${mx - 12}" y1="${py}" x2="${mx + 12}" y2="${py}"/>
-      <circle cx="${mx + 12}" cy="${py}" r="2.6"/></g>
-    <g class="sk-mass" data-zu="hMast">
-      <line x1="${mx - 24}" y1="${yFuss}" x2="${mx - 24}" y2="${py}"/>
-      <text x="${mx - 28}" y="${(yFuss + py) / 2 + 3}" text-anchor="end">h ${hMast.toFixed(2)} m</text>
-    </g>
-    <text class="sk-notiz" x="186" y="152">ab Fundament · 0 … ${hoch.toFixed(1)} m</text>
+     aria-label="Massskizze am Masten: Ansicht x-z und Draufsicht x-y">
+    ${ansicht}
+    <line class="sk-trenn" x1="168" y1="6" x2="168" y2="160"/>
+    ${draufsicht}
   </svg>`;
 }
 

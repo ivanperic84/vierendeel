@@ -1342,7 +1342,7 @@ function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
       && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
     if (!wurzelKn) return;               // ausserhalb - schon vermerkt
     // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
-    const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0 });
+    const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0, amMast: true });
     const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
     kette.glieder.forEach((g) => {
       const kn = s.kn(`AM${k}_${g.bis.nr}`,

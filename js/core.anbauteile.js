@@ -173,7 +173,7 @@ export const KETTENRANG = { traeger: 0, aufbau: 1, drahtwerk: 2 };
  *   glieder   [{von, bis, rang, teil}] je NEUEM Punkt ein steifes Glied
  *   belegung  [{teil, punkt}] wo jedes Teil seine Last einträgt
  */
-export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
+export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
   const r6 = (v) => Math.round(v * 1e6) / 1e6;
   const gleich = (a, b) => Math.abs(a - b) < 1e-9;
 
@@ -256,6 +256,24 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
       return weg;
     }
     let von = a;
+    /*
+     * >>> AM MASTEN: ERST WAAGRECHT AUF DER ANSCHLUSSHOEHE, DANN LOTRECHT
+     * (19. September). <<<
+     *
+     * Die Wurzel sitzt auf der Mastachse, und dort geht kein Glied voraus -
+     * das erste Teil hing deshalb an einer SCHRAEGEN vom Anschluss zu
+     * seinem Punkt. Gebaut ist es so: der Ausleger oder Isolatortraeger
+     * geht auf der Hoehe h waagrecht ab (y vor x), der Leiter haengt bzw.
+     * steht an seinem Ende. Den Masten entlang zu laufen waere falsch - in
+     * AxisVM laege dann ein Starrstab AUF der Mastachse und versteifte den
+     * Mast zwischen h und h + z. Aufgefallen beim Nachpruefen der Skizze
+     * «Lage im Querschnitt».
+     */
+    if (amMast && a === wurzel) {
+      dazu({ x: a.x, y: p.y, z: a.z });
+      dazu({ x: p.x, y: p.y, z: a.z });
+      return weg;
+    }
     if (d) {
       const t = (p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z;
       if (t > 1e-9) {                          // dem Träger bis zum Ende folgen
