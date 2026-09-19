@@ -25482,6 +25482,102 @@ titel('93  COM-Ausleitung: was die Bruecke liest, steht in der Datei');
        && !/exportiere\w*\(app\.werte/.test(quelle93));
 }
 
+titel('94  Befunde aus der Bedienung vom 19. September');
+/*
+ * Fuenf Weisungen, im Wortlaut:
+ *  «Bei anzahl keine negativ eingabe ermöglichen»
+ *  «Bei den modalen dafür sorgen das es nicht schliesst wenn man mit der maus
+ *   den klick loslässt und nicht innerhalb des modals ist»
+ *  «Raster (befestigung an joch) nicht zuverlässig beim automatischem setzen
+ *   neben den knotenbereichen, die zahl wird immer grösser.»
+ *  «Wenn leiter koordinate x und z wert haben, dann extrudiert der arm auf
+ *   den z wert.»
+ *  «Bei der eingabe der bauteile ein dubplizieren mit rechtsklick oder button
+ *   ermöglichen.»
+ */
+{
+  const U94 = await import(J('ui.js'));
+  const A94 = await import(J('core.anbauteile.js'));
+  wahr('Anzahl: negativ wird null, halbe Stueck werden gerundet',
+       U94.anzahlZulaessig(-3) === 0 && U94.anzahlZulaessig(2.4) === 2
+       && U94.anzahlZulaessig('x') === 0 && U94.anzahlZulaessig(4) === 4);
+  const q94 = (d) => readFileSync(join(HIER, 'js', d), 'utf8');
+  const ui94 = q94('ui.js'), app94 = q94('app.js');
+  wahr('… beide Anzahlfelder (Karte, Vorlage) tragen min="0" und werden begrenzt',
+       ui94.includes(`feld === 'anzahl' ? ' min="0"' : ''`)
+       && /data-vk="anzahl"[^>]*\n\s*min="0"/.test(ui94)
+       && app94.includes("if (inp.dataset.vk === 'anzahl') wert = ui.anzahlZulaessig(wert);"));
+
+  wahr('Dialog schliesst nur, wenn Druecken UND Loslassen auf dem Schleier liegen',
+       app94.includes('scrim.onpointerdown = (e) => { aufSchleierGedrueckt = e.target === scrim; };')
+       && app94.includes('const zuMachen = aufSchleierGedrueckt && e.target === scrim;'));
+
+  // Raster: dasselbe Teil, fuenfmal an dieselbe Stelle neben einem Blech.
+  const m94 = { L: 10, stationsListe: [{ x: 5, vertikal: { breite: 100 } }] };
+  let teil = { raster: 0.4 };
+  const folge = [];
+  for (let k = 0; k < 5; k++) {
+    const an = A94.passeTraegerAn(5.2, A94.rasterNormVon(teil), m94);
+    teil = { ...A94.rasterGesetzt(teil, an), x: an.x };
+    folge.push(teil.raster);
+  }
+  wahr('Raster: wiederholtes Setzen neben dem Knoten waechst nicht',
+       folge.every((r) => r === folge[0]) && folge[0] > 0.4 && teil.rasterNorm === 0.4,
+       folge.join(' / '));
+  const frei = A94.passeTraegerAn(3, A94.rasterNormVon(teil), m94);
+  const zurueck = A94.rasterGesetzt(teil, frei);
+  wahr('… und faellt an freier Stelle aufs Normalmass zurueck',
+       zurueck.raster === 0.4 && zurueck.rasterNorm === undefined);
+  // Der gemeldete Fall: Blechteilung 0.80 m, das Teil wandert von Lage zu
+  // Lage. Vom letzten Raster aus gerechnet wuchs es auf 2.52 m.
+  const mR = { L: 12, stationsListe: [0.3, 1.1, 1.9, 2.7, 3.5, 4.3, 5.1, 5.9, 6.7, 7.5]
+    .map((x) => ({ x, vertikal: { breite: 120 } })) };
+  let altR = 0.4, neuMax = 0, teilR = { raster: 0.4 };
+  for (let k = 0; k < 40; k++) {
+    const x = Math.round((1 + ((k * 0.37) % 6)) * 10) / 10;
+    const a1 = A94.passeTraegerAn(x, altR, mR);
+    if (a1.geweitet) altR = a1.raster;
+    const a2 = A94.passeTraegerAn(x, A94.rasterNormVon(teilR), mR);
+    teilR = A94.rasterGesetzt(teilR, a2);
+    neuMax = Math.max(neuMax, teilR.raster);
+  }
+  wahr('… 40 Lagen hintereinander: das Raster bleibt unter Normalmass + 0.40 m',
+       neuMax <= 0.8 + 1e-9 && altR > 2, `neu hoechstens ${neuMax} m, vorher ${altR} m`);
+
+  // Kette: Leiter aussen UND hoeher als die Traverse.
+  const kette = (teile, zAn) => A94.anbauKette(teile, { x0: 5, zAn }).glieder
+    .map((g) => [g.von.x, g.von.z, g.bis.x, g.bis.z]);
+  const k1 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: 1 },
+                    { rolle: 'aufbau', x: 5, stationX: 5, z: 2 },
+                    { rolle: 'drahtwerk', x: 6, stationX: 5, z: 2.3 }], 0.2);
+  const zMaxSenkrecht = Math.max(...k1.filter((g) => g[0] === 5 && g[2] === 5).map((g) => g[3]));
+  wahr('Kette: der Jochaufsatz endet an der Traverse, nicht auf Leiterhoehe',
+       Math.abs(zMaxSenkrecht - 2.2) < 1e-9
+       && k1.some((g) => g[0] === 5 && g[2] === 6 && g[1] === 2.2 && g[3] === 2.2)
+       && k1.some((g) => g[0] === 6 && g[2] === 6 && g[3] === 2.5),
+       JSON.stringify(k1));
+  const k2 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: -1.35 },
+                    { rolle: 'aufbau', x: 6.25, stationX: 5, z: -2.7 },
+                    { rolle: 'drahtwerk', x: 7.5, stationX: 5, z: -2.7 }], -0.2);
+  wahr('… der NT-Ausleger bleibt: Stuetze bis zum Ausleger, dann waagrecht',
+       JSON.stringify(k2) === JSON.stringify([[5, -0.2, 5, -1.55], [5, -1.55, 5, -2.9],
+                                              [5, -2.9, 6.25, -2.9], [6.25, -2.9, 7.5, -2.9]]),
+       JSON.stringify(k2));
+
+  const K94 = await import(J('app.kontext.js'));
+  const liste94 = [{ id: 'AT-a', name: 'Test', ort: 'joch', x: 9.8, module: [], lasten: [] }];
+  let gesetzt = null;
+  const app94x = { werte: { L: 10, anbauteile: liste94 }, letzte: null,
+                   setzeAnbauteile: (l) => { gesetzt = l; }, meldeImBalken: () => {} };
+  K94.anbauteilDuplizieren(app94x, 0);
+  wahr('Duplizieren: Kopie steht daneben, am Jochende nach innen, mit neuer Kennung',
+       gesetzt?.length === 2 && Math.abs(gesetzt[1].x - 9.3) < 1e-9
+       && gesetzt[1].id !== 'AT-a' && gesetzt[1].module !== liste94[0].module);
+  wahr('… Knopf in der Karte, Rechtsklick auf die Zeile, Eintrag im Kontextmenue',
+       ui94.includes('data-at-dup="${i}"') && ui94.includes('beiAnbauKontext?.(')
+       && q94('app.kontext.js').includes("text: 'Duplizieren', tun: () => anbauteilDuplizieren(app, i)"));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

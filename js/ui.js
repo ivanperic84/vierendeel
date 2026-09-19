@@ -33,7 +33,7 @@ import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
-import { befestigungsArt, anbauKette, passeTraegerAn,
+import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger } from './core.anbauteile.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette } from './core.constants.js';
@@ -2287,6 +2287,8 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       <span class="at-tasten">
         <button class="btn btn-mini" data-at-zoom="${i}"
                 title="Im Modell anfahren">${icon('zoom', 12)}</button>
+        <button class="btn btn-mini" data-at-dup="${i}"
+                title="Duplizieren - die Kopie steht 0.50 m daneben (auch per Rechtsklick auf die Zeile)">${icon('kopie', 12)}</button>
         <button class="btn btn-mini" data-at-vorlage="${i}"
                 title="Als eigene Vorlage speichern">${icon('speichern', 12)}</button>
         <label class="schalter" title="Teil mitrechnen"><input class="at" data-k="aktiv"
@@ -3133,11 +3135,17 @@ function modWert(m, feld) {
   return v === null || v === undefined ? MODUL_VORGABE[feld] : v;
 }
 
+/** Anzahl eines Moduls: ganze Stück, nie negativ. */
+export function anzahlZulaessig(v) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 function modFeld(i, k, feld, label, wert, einheit, schritt, hinweis = '') {
   return `<label class="at-feld" data-feldname="${feld}">
     <span>${esc(label)} <i>${esc(einheit)}</i></span>
     <input class="mod" data-mk="${feld}" data-idx="${i}" data-mod="${k}"
-           type="number" step="${schritt}"
+           type="number" step="${schritt}"${feld === 'anzahl' ? ' min="0"' : ''}
            value="${wert === '' || wert === null || wert === undefined ? '' : wert}"
            ${hinweis ? `placeholder="${esc(hinweis)}"` : ''}>
     ${hinweisHtml(`mod-${i}-${k}-${feld}`, hinweis)}
@@ -3710,7 +3718,7 @@ export function setzeTastenliste(liste) { tastenListe = liste; }
 
 let beiVorlageWahl = null, beiVorlageWeg = null, beiVorlageSichern = null;
 let beiGenerator = null, beiAnbauZoom = null, beiVorlageBearbeiten = null;
-let beiAnbauOeffnen = null;
+let beiAnbauOeffnen = null, beiAnbauDuplizieren = null, beiAnbauKontext = null;
 
 /** Rückrufe der Anbauteil-Oberfläche registrieren (einmalig beim Start). */
 export function setzeAnbauHandler(h) {
@@ -3718,6 +3726,7 @@ export function setzeAnbauHandler(h) {
   beiVorlageSichern = h.sichern; beiGenerator = h.generator;
   beiAnbauZoom = h.zoom; beiVorlageBearbeiten = h.bearbeiten;
   beiAnbauOeffnen = h.oeffnen;
+  beiAnbauDuplizieren = h.duplizieren; beiAnbauKontext = h.kontext;
 }
 
 /**
@@ -3753,7 +3762,7 @@ export function vorlageFormular(v, istKopie) {
                  value="${m.z ?? -(m.ev ?? 0)}"></label>
         <label class="at-feld"><span>Anzahl <i>–</i></span>
           <input class="vm" data-vk="anzahl" data-vm="${k}" type="number" step="1"
-                 value="${m.anzahl ?? 1}"></label>
+                 min="0" value="${m.anzahl ?? 1}"></label>
       </div>
     </div>`).join('');
 
@@ -3872,6 +3881,16 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('[data-at-vorlage]').forEach((b) => {
     b.addEventListener('click', () => beiVorlageSichern?.(+b.dataset.atVorlage));
   });
+  container.querySelectorAll('[data-at-dup]').forEach((b) => {
+    b.addEventListener('click', () => beiAnbauDuplizieren?.(+b.dataset.atDup));
+  });
+  // Rechtsklick auf die Zeile: dasselbe Menü wie im Modell, mit «Duplizieren».
+  container.querySelectorAll('.at-zeile').forEach((z) => {
+    z.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      beiAnbauKontext?.(+z.closest('.at-karte').dataset.idx, [e.clientX, e.clientY]);
+    });
+  });
   // Ein Klick in eine Karte fährt das Modell auf dieses Teil - man sieht
   // sofort, welches Teil man gerade bearbeitet.
   container.querySelectorAll('.at-karte').forEach((k) => {
@@ -3909,12 +3928,17 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
         const teil = l[idx];
         if (modellFuerLage && teil
             && hatTraeger(teil.module, (id) => getFlBauteil(id).rolle)) {
-          const an = passeTraegerAn(v, teil.raster, modellFuerLage);
+          const an = passeTraegerAn(v, rasterNormVon(teil), modellFuerLage);
           v = an.x;
           // Wird das Raster geweitet, wandert es mit in die Baugruppe -
           // sonst stünde in der Karte ein Wert, mit dem nicht gerechnet wird.
-          if (an.geweitet) l[idx] = { ...l[idx], raster: an.raster };
+          l[idx] = rasterGesetzt(l[idx], an);
         }
+      }
+      // Wer das Raster von Hand setzt, setzt damit das Normalmass.
+      if (inp.dataset.k === 'raster') {
+        const { rasterNorm, ...ohne } = l[idx];
+        l[idx] = ohne;
       }
       l[idx][inp.dataset.k] = v;
       onAnbau(l);
@@ -4084,11 +4108,20 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       // leeres Feld zeigt.
       const leer = inp.value.trim() === '';
       const vorgabe = MODUL_VORGABE[inp.dataset.mk];
-      const wert = !zahl ? inp.value
+      let wert = !zahl ? inp.value
         : leer ? (vorgabe === undefined ? null : vorgabe)
         : (parseFloat(inp.value) || 0);
+      // Weisung vom 19. September: «Bei anzahl keine negativ eingabe
+      // ermöglichen» - und keine halben Stück.
+      if (inp.dataset.mk === 'anzahl' && wert !== null) wert = anzahlZulaessig(wert);
       setzeModul(+inp.dataset.idx, +inp.dataset.mod, inp.dataset.mk, wert);
     });
+    if (inp.dataset.mk === 'anzahl') {
+      // Das Feld zeigt nach dem Verlassen, was abgelegt ist.
+      inp.addEventListener('change', () => {
+        if (inp.value.trim() !== '') inp.value = anzahlZulaessig(parseFloat(inp.value) || 0);
+      });
+    }
   });
   container.querySelectorAll('[data-mod-weg]').forEach((b) => {
     b.addEventListener('click', () => {

@@ -109,7 +109,7 @@ import { dialogAxisvm } from './app.axisvm.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
-import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
+import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
          kontextOffen } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
@@ -3033,9 +3033,15 @@ function dialogVorlageBearbeiten(id) {
       const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
       inp.addEventListener(ev, () => {
         const k = +inp.dataset.vm;
-        const wert = inp.type === 'number' ? (parseFloat(inp.value) || 0) : inp.value;
+        let wert = inp.type === 'number' ? (parseFloat(inp.value) || 0) : inp.value;
+        if (inp.dataset.vk === 'anzahl') wert = ui.anzahlZulaessig(wert);
         w.module[k] = { ...w.module[k], [inp.dataset.vk]: wert };
       });
+      if (inp.dataset.vk === 'anzahl') {
+        inp.addEventListener('change', () => {
+          inp.value = ui.anzahlZulaessig(parseFloat(inp.value) || 0);
+        });
+      }
     });
     n.querySelectorAll('[data-vm-weg]').forEach((b) => {
       b.onclick = () => { w.module.splice(+b.dataset.vmWeg, 1); zeichnen(); };
@@ -4040,7 +4046,22 @@ function dialog(titel, koerper, knoepfe, klasse = '') {
   // ALLE, nicht nur den ersten: der erste ist immer das Kreuz in der
   // Kopfzeile, und ein «Abbrechen» im Fuss blieb bisher ohne Wirkung.
   n.querySelectorAll('[data-zu]').forEach((b) => { b.onclick = zu; });
-  n.querySelector('.scrim').onclick = (e) => { if (e.target.classList.contains('scrim')) zu(); };
+  /*
+   * Weisung vom 19. September: «dafür sorgen das es nicht schliesst wenn man
+   * mit der maus den klick loslässt und nicht innerhalb des modals ist».
+   * Ein `click` trifft den gemeinsamen Vorfahren von Drücken und Loslassen -
+   * wer in einem Feld Text markiert und die Maus über den Rand hinauszieht,
+   * löste damit einen Klick auf den Schleier aus und verlor den Dialog.
+   * Geschlossen wird nur, wenn Drücken UND Loslassen auf dem Schleier liegen.
+   */
+  const scrim = n.querySelector('.scrim');
+  let aufSchleierGedrueckt = false;
+  scrim.onpointerdown = (e) => { aufSchleierGedrueckt = e.target === scrim; };
+  scrim.onclick = (e) => {
+    const zuMachen = aufSchleierGedrueckt && e.target === scrim;
+    aufSchleierGedrueckt = false;
+    if (zuMachen) zu();
+  };
   return { node: n, zu };
 }
 
@@ -4555,6 +4576,8 @@ export async function start() {
     generator: dialogGenerator,
     zoom: zoomAufAnbauteil,
     bearbeiten: dialogVorlageBearbeiten,
+    duplizieren: (i) => anbauteilDuplizieren(app, i),
+    kontext: (i, bei) => kontextZeigen(app, bei, kontextAnbauteil(app, i)),
     oeffnen: (i) => {
       const a = (werte.anbauteile ?? [])[i];
       if (!a) return;

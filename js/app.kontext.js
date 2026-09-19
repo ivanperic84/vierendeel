@@ -11,6 +11,7 @@
 import { dialogMast, dialogTragwerk } from './app.dialoge.js';
 import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, tauscheAktives, tragwerkHinzu, tragwerkName, tragwerkPos, tragwerkTeil, tragwerkeSortiert, tragwerkeVon, tragwerksart, versteckt } from './core.constants.js';
 import { flBauteile, getFlBauteil } from './data.fl.js';
+import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { esc } from './design.js';
 
 /** Das offene Menue, damit ein zweiter Klick es schliesst. */
@@ -467,20 +468,48 @@ export function kontextAnbauteil(app, i) {
    * Gleis dasselbe, nur eine Spannweite weiter. Die Kopie sitzt einen
    * halben Meter daneben, damit sie nicht im Original verschwindet.
    */
-  p.push({ text: 'Kopieren', tun: () => {
-    const liste = [...(app.werte.anbauteile ?? [])];
-    const kopie = { ...a, id: `AT-${Math.random().toString(36).slice(2, 8)}`,
-                    module: (a.module ?? []).map((m) => ({ ...m })),
-                    lasten: (a.lasten ?? []).map((l) => ({ ...l })) };
-    if ((a.ort ?? 'joch') === 'joch') kopie.x = (Number(a.x) || 0) + 0.5;
-    else kopie.hMast = (Number(a.hMast) || 0) + 0.5;
-    liste.splice(i + 1, 0, kopie);
-    app.setzeAnbauteile(liste);
-  } });
+  p.push({ text: 'Duplizieren', tun: () => anbauteilDuplizieren(app, i) });
   p.push({ text: 'Entfernen', warn: true,
            tun: () => app.setzeAnbauteile(
              (app.werte.anbauteile ?? []).filter((_, j) => j !== i)) });
   return p;
+}
+
+/**
+ * >>> DUPLIZIEREN - aus dem Modell, der Karte und ihrem Rechtsklick. <<<
+ *
+ * Weisung vom 5. September (Kopieren im Modell) und vom 19. September: «Bei
+ * der eingabe der bauteile ein dubplizieren mit rechtsklick oder button
+ * ermöglichen.» Eine Funktion für alle drei Wege.
+ *
+ * Die Kopie sitzt einen halben Meter daneben, damit sie nicht im Original
+ * verschwindet - am Joch in x (am Jochende nach innen), am Masten höher.
+ * Ein Träger weicht wie beim Setzen den Bindeblechen aus, das Raster vom
+ * Normalmass aus.
+ */
+export function anbauteilDuplizieren(app, i) {
+  const liste = [...(app.werte.anbauteile ?? [])];
+  const a = liste[i];
+  if (!a) return;
+  let kopie = { ...a, id: `AT-${Math.random().toString(36).slice(2, 8)}`,
+                module: (a.module ?? []).map((m) => ({ ...m })),
+                lasten: (a.lasten ?? []).map((l) => ({ ...l })) };
+  if ((a.ort ?? 'joch') === 'joch') {
+    const x = Number(a.x) || 0;
+    const L = Number(app.werte.L) || Infinity;
+    // Die Module stehen relativ zur Baugruppe (a.x + m.x) und rücken mit.
+    kopie.x = x + 0.5 <= L ? x + 0.5 : Math.max(0, x - 0.5);
+    const modell = app.letzte?.erg?.modell;
+    if (modell && hatTraeger(kopie.module, (id) => getFlBauteil(id).rolle)) {
+      const an = passeTraegerAn(kopie.x, rasterNormVon(kopie), modell);
+      kopie = { ...rasterGesetzt(kopie, an), x: an.x };
+    }
+  } else {
+    kopie.hMast = (Number(a.hMast) || 0) + 0.5;
+  }
+  liste.splice(i + 1, 0, kopie);
+  app.setzeAnbauteile(liste);
+  app.meldeImBalken?.(`«${a.name ?? 'Bauteil'}» dupliziert als A${i + 2}`);
 }
 
 /**

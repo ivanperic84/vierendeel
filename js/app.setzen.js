@@ -11,7 +11,7 @@
  */
 import { baueModellWerkzeuge } from './app.layout.js';
 import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
-import { hatTraeger, passeTraegerAn } from './core.anbauteile.js';
+import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon } from './core.constants.js';
 import { getVorlage, neuesAnbauteil, vorlagen } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
@@ -227,8 +227,10 @@ function setzeBaugruppeAnStelle(app, roh) {
   const t = st.ort === 'joch'
         && hatTraeger(gesetzt.module, (id) => getFlBauteil(id).rolle)
     ? (() => {
-        const an = passeTraegerAn(gesetzt.x, gesetzt.raster, app.letzte?.erg?.modell);
-        return { ...gesetzt, x: an.x, raster: an.raster };
+        // Vom Normalmass aus - eine kopierte Baugruppe bringt sonst ihr
+        // schon geweitetes Raster mit, und es wuechse bei jedem Setzen.
+        const an = passeTraegerAn(gesetzt.x, rasterNormVon(gesetzt), app.letzte?.erg?.modell);
+        return { ...rasterGesetzt(gesetzt, an), x: an.x };
       })()
     : gesetzt;
   setzenEnde(app);

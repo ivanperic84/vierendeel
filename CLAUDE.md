@@ -151,6 +151,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
 | Wind nie diagonal (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: **je eine Richtung**, ±y oder ±x. Tragjoch/Einzelmast: Ständig + Wind ±y, ±x statt LF7–LF10 (ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen). Abfangjoch («beim abfangjoch auch angleichen»): Fälle `wind+y`, `-y`, `+x`, `-x`; η des Trägers unverändert, F_x fällt aus den y-Fällen |
 | Export-Knopf (19. Sept.) | «lege alle relevanten buttons in einen export»: **ein Knopf «Export» mit Aufklappmenü** ganz links im Band — AxisVM (COM-Brücke, SAF, DXF), PyNite, Nachweisbericht, Excel, Drucken (`exportMenue`). Die AxisVM-Formate öffnen den bisherigen Dialog, das Format vorgewählt |
+| Kette am Aufbau (19. Sept.) | «wenn leiter koordinate x und z wert haben, dann extrudiert der arm auf den z wert»: nur ein **Träger** (Stütze, Aufsatz) wird bis zum nächsten Punkt verlängert; an einem **Aufbau** (Traverse, Ausleger) zuerst waagrecht, dann senkrecht. Starre Glieder — Kräfte an der Wurzel unverändert |
+| Raster weiten (19. Sept.) | immer vom **Normalmass** der Baugruppe aus (`rasterNorm`), frei sitzend gilt wieder das Normalmass. Von Hand gesetztes Raster ist das neue Normalmass |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
@@ -168,12 +170,23 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4744 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4754 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **19. Sept., Bedienung** (Prüfstand Abschnitt 94): Anzahl nie negativ,
+  ganze Stück (`anzahlZulaessig`); Dialoge schliessen nur, wenn Drücken
+  **und** Loslassen auf dem Schleier liegen (Text markieren und über den
+  Rand ziehen schloss sie); **Raster wuchs** beim Setzen neben Knoten
+  (vom letzten, schon geweiteten Wert aus geweitet — 40 Lagen: 0.40 →
+  2.52 m); jetzt vom Normalmass aus (`rasterNorm`, `rasterGesetzt`);
+  **Kette:** ein Leiter aussen und höher als die Traverse verlängerte den
+  Jochaufsatz bis auf Leiterhöhe — an einem Aufbau (Traverse, Ausleger)
+  läuft der Weg jetzt waagrecht, dann senkrecht; Stütze/NT-Ausleger
+  unverändert. Bauteile duplizieren: Knopf in der Karte, Rechtsklick auf
+  die Zeile, Kontextmenü (`anbauteilDuplizieren`).
 - **19. Sept.** COM-Schnittstelle geprüft («checke die com schnittstelle»,
   ohne AxisVM zu starten; Prüfstand Abschnitt 93). Vier Befunde, alle auf
   der unsicheren Seite: (1) die App leitete `app.werte` roh aus statt
@@ -350,7 +363,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4744 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4754 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

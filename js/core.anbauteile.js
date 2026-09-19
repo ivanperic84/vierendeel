@@ -214,13 +214,31 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
    * Liegt der nächste Punkt schon auf dieser Achse (Jochaufsatz und Traverse
    * übereinander), entsteht kein Knick.
    */
+  /*
+   * >>> AN EINEM AUFBAU WIRD NICHT WEITERGESTRECKT. <<<
+   *
+   * Befund vom 19. September: «Wenn leiter koordinate x und z wert haben,
+   * dann extrudiert der arm auf den z wert.» Ein Leiter 1 m aussen und
+   * 0.45 m über der Traverse verlängerte den senkrechten Jochaufsatz ÜBER
+   * die Traverse hinaus bis auf die Leiterhöhe und bog erst dort ab - als
+   * stünde der Aufsatz höher, als er steht. Die Projektion auf die Achse
+   * ist nur bei einem TRÄGER richtig (die Stütze läuft bis zum Ausleger
+   * hinunter). Eine Traverse, ein Ausleger ist ein liegendes Teil: der Weg
+   * läuft auf seiner Höhe waagrecht bis unter bzw. über den Leiter und von
+   * dort senkrecht zu ihm. An den Kräften ändert das bei starren Gliedern
+   * nichts, nur am Bild und an der Geometrie der Ausleitung.
+   */
   const knickPunkt = (a, d, p) => {
     if (!d) return null;                       // erstes Glied ab dem Joch
+    const wie = (q, o) => gleich(q.x, o.x) && gleich(q.y, o.y) && gleich(q.z, o.z);
+    if (a.rolle === 'aufbau') {
+      const q = { x: r6(p.x), y: r6(p.y), z: r6(a.z) };
+      return wie(q, a) || wie(q, p) ? null : q;
+    }
     const t = (p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z;
     if (t <= 1e-9) return null;                // der Weg führt nicht weiter
     const q = { x: r6(a.x + t * d.x), y: r6(a.y + t * d.y), z: r6(a.z + t * d.z) };
-    const wie = (o) => gleich(q.x, o.x) && gleich(q.y, o.y) && gleich(q.z, o.z);
-    return wie(a) || wie(p) ? null : q;        // kein Umweg um nichts
+    return wie(q, a) || wie(q, p) ? null : q;  // kein Umweg um nichts
   };
   const richtungVon = (a, b) => {
     const v = [b.x - a.x, b.y - a.y, b.z - a.z];
@@ -317,7 +335,7 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
             richtung = richtungVon(traeger, kp) ?? richtung;
             traeger = kp;
           }
-          punkt = { ...p0, nr: nr++ };
+          punkt = { ...p0, nr: nr++, rolle: teil.rolle };
           glieder.push({ von: traeger, bis: punkt, rang: rg, teil });
           richtung = richtungVon(traeger, punkt) ?? richtung;
         }
@@ -849,4 +867,26 @@ export function passeTraegerAn(x, raster, m) {
   // Sitzt es schon frei, bleibt alles - freieLageAmJoch sagt es.
   const l = freieLageAmJoch(x, raster, m);
   return { x: l.x, raster, geweitet: false, verschoben: l.verschoben };
+}
+
+/**
+ * DAS RASTER WIRD VOM NORMALMASS AUS GEWEITET, NICHT VOM LETZTEN.
+ *
+ * Befund vom 19. September: «Raster (befestigung an joch) nicht zuverlässig
+ * beim automatischem setzen neben den knotenbereichen, die zahl wird immer
+ * grösser.» Die Weitung ging vom Raster aus, das in der Baugruppe stand -
+ * und das war nach der ersten Weitung schon das geweitete. Jede neue Lage
+ * legte nochmals zu, und an einer freien Stelle fiel es nie zurück.
+ * Deshalb merkt sich die Baugruppe ihr Normalmass (`rasterNorm`), solange
+ * das Raster geweitet ist; frei sitzend gilt wieder das Normalmass.
+ */
+export function rasterNormVon(teil) {
+  return teil?.rasterNorm ?? teil?.raster;
+}
+export function rasterGesetzt(teil, an) {
+  const norm = rasterNormVon(teil);
+  const { rasterNorm, ...ohne } = teil;
+  return an.geweitet
+    ? { ...ohne, raster: an.raster, rasterNorm: norm }
+    : { ...ohne, raster: norm };
 }
