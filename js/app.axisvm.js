@@ -233,7 +233,7 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
      */
     const mastFuerAbfang = (satz) => {
       if (satz?.mastVorhanden === false) return null;
-      const mst = mastenVon({ ...werte, ...satz });
+      const mst = mastenVon({ ...app.werte, ...satz });
       const m0 = mst[0];
       if (!m0?.profil) return null;
       const hoehe = Number(satz?.H ?? app.werte.H) || 0;
