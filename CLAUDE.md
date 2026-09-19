@@ -154,6 +154,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Kette am Aufbau (19. Sept.) | «wenn leiter koordinate x und z wert haben, dann extrudiert der arm auf den z wert»: nur ein **Träger** (Stütze, Aufsatz) wird bis zum nächsten Punkt verlängert; an einem **Aufbau** (Traverse, Ausleger) zuerst waagrecht, dann senkrecht. Starre Glieder — Kräfte an der Wurzel unverändert |
 | Kette y vor x (19. Sept.) | «dass der y wert zuerst abgefahren wird falls eingegeben vor dem x»: liegt ein Punkt in x **und** y versetzt, fährt die Kette zuerst y, dann x ab — an Stütze, Aufbau und direkt am Joch |
 | Raster weiten (19. Sept.) | immer vom **Normalmass** der Baugruppe aus (`rasterNorm`), frei sitzend gilt wieder das Normalmass. Von Hand gesetztes Raster ist das neue Normalmass |
+| Namen nach dem Typ (19. Sept.) | «mach die bennenung entsprechend dem typ T A M MT»: **T** Tragjoch, **A** Abfangjoch, **M** Einzelmast, **MT** Mast mit Tragausleger, je Typ von links gezählt (`tragwerkPos`). Ein Einzelmast heisst wie sein Mast (eine M-Zählung für Einzel- und Jochmasten), der Mast des Tragauslegers MT… (`mastName`). P1… ist weg |
+| Tragwerksliste (19. Sept.) | «A mit dem Band»: **ein Lageband** für alle Lagen (Joche in Bahnen, Masten mit Namen), darunter **Baum** — je Tragwerk eine Zeile, seine Masten eingerückt, geteilter Mast einmal beim ersten mit «auch …», Lage als Zahl rechts. Löst die Mastzeilen vom 13. Sept. ab (Typ, Länge, H, η bleiben je Mast); die x-Anschrift unter dem Mast (13. Sept.) steht jetzt in der Lagespalte, im Band steht der Name |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
@@ -171,7 +173,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4765 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4772 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -195,7 +197,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Maskensignatur); Knopf «Alle entfernen» in der Anbauteilliste (Rückfrage,
   «Nur die am Joch»); Ebenen am Einzelmast: keine Systemachse ohne Joch,
   Mast-Schwerachse folgt auch «Schwerachsen», Schalter ohne Inhalt
-  ausgegraut (`ebenenVorhanden`).
+  ausgegraut (`ebenenVorhanden`). **Tragwerksliste neu** (Abschnitt 96):
+  Lageband oben, darunter Baum (Masten unter ihrem Tragwerk, geteilter
+  einmal mit «auch A1»); Namen nach dem Typ T/A/M/MT statt P1…
 - **19. Sept.** COM-Schnittstelle geprüft («checke die com schnittstelle»,
   ohne AxisVM zu starten; Prüfstand Abschnitt 93). Vier Befunde, alle auf
   der unsicheren Seite: (1) die App leitete `app.werte` roh aus statt
@@ -372,7 +376,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4765 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4772 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

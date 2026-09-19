@@ -17,7 +17,7 @@ import { auflagerDiagrammHtml, verdrahteAuflagerLinks }
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt, anschlusshoehe,
-         aufRaster, mastNameAmEnde, tragwerkPos } from './core.constants.js';
+         aufRaster, mastNameAmEnde, tragwerkPos, mastName } from './core.constants.js';
 // Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
 // Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
 // einen Wert zeigt.
@@ -1412,32 +1412,6 @@ export function qpBereich(werte) {
  *
  * @param {object} werte
  */
-/**
- * DIE SPALTENKOEPFE DER MATRIX.
- *
- * Weisung vom 11. September: «kannst du diese modellabbildung im matrix art
- * darstellen und beschriften.»
- *
- * Die Leiste war eine Liste aus Zeilen ohne Kopf: links ein Name, rechts
- * eine Linie auf einer Bahn. Was die Linie bedeutet - eine Lage in Metern
- * auf dem Querprofil - stand nirgends, und die Spalte mit dem Haken schon
- * gar nicht.
- *
- * Der Kopf sagt es, einmal, und die Bahn bekommt ihre Skala: links der
- * Anfang des Blatts, rechts das Ende. Ohne die beiden Zahlen ist eine
- * Position ohne Massstab.
- */
-function qpKopfHtml(von, bis) {
-  return `<div class="qp-kopf">
-      <span class="qp-auge-platz" aria-hidden="true"></span>
-      <span class="qp-kopf-name">Bauteil</span>
-      <span class="qp-bahn qp-kopf-bahn">
-        <span class="qp-kopf-skala qp-kopf-links">${von.toFixed(1)} m</span>
-        <span class="qp-kopf-titel">Lage auf dem Querprofil</span>
-        <span class="qp-kopf-skala qp-kopf-rechts">${bis.toFixed(1)} m</span>
-      </span>
-    </div>`;
-}
 
 
 /*
@@ -1497,68 +1471,6 @@ export function querprofilLeisteHtml(werte) {
    * Strich braucht eine Bahn - dann steht die Zeile wieder da. Und sobald
    * der Mast ein Joch traegt (zwei Masten), gilt sie ohnehin.
    */
-  const eigeneZeile = (m) => Boolean(m.anker?.typ)
-    || !(m.traegt ?? []).every((id) => {
-      const t = alle.find((x) => x.id === id);
-      return t && tragwerksart(t).masten < 2;
-    });
-  const mastenMitZeile = masten.filter(eigeneZeile);
-
-  /*
-   * Gezaehlt wird, wer seine Lage SELBST anschreibt. Der Einzelmast ohne
-   * eigene Zeile tut das nicht - dort schreibt sie die Tragwerkslinie an.
-   */
-  const mastBei = (x) => mastenMitZeile.some((m) => Math.abs(m.x - x) < 0.05);
-
-  const zeilen = alle.map((t) => {
-    const art = tragwerksart(t);
-    const x0 = lageVon(t);
-    const L = art.masten >= 2 ? (Number(t.L) || 0) : 0;
-    const links = qpPct(x0, von, bis);
-    // Ein Einzelmast hat keine Laenge - seine Linie waere ein Punkt. Sie
-    // bekommt eine Mindestbreite, damit man sie trifft.
-    const breit = Math.max(qpPct(x0 + L, von, bis) - links, 2.5);
-    const an = t.id === aktivId;
-    const aus = versteckt(t);
-    /*
-     * Die acht Pixel fuer die Masszahl kosten nur, wo eine steht. Steht das
-     * Joch auf Masten, schreiben die ihre Lage selbst an - dann bleibt die
-     * Zeile so flach wie zuvor.
-     */
-    const massLinks = !mastBei(x0);
-    const massRechts = Boolean(L) && breit >= MASS_PLATZ && !mastBei(x0 + L);
-    return `<div class="qp-zeile${an ? ' an' : ''}${aus ? ' aus' : ''}">
-      <button type="button" class="qp-auge${aus ? '' : ' an'}"
-              data-qp-sicht="${esc(t.id)}"
-              role="checkbox" aria-checked="${!aus}"
-              title="${esc(aus
-                ? 'Einblenden — zählt dann wieder in Bild, Bauteilliste, '
-                  + 'Ausleitung und Nachweis'
-                : 'Ausblenden — bleibt gespeichert, zählt aber nicht mehr')}"
-        ></button>
-      <button type="button" class="qp-name" data-qp-tw="${esc(t.id)}"
-              title="${esc(`${tragwerkPos(werte, t)} — ${art.label}, `
-                + `x₀ = ${x0.toFixed(2)} m`
-                + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen'))}"
-        ><span class="qp-art">${esc(tragwerkPos(werte, t))} · ${
-            esc(art.kuerzel)}${
-            t.id === etaLeiste?.twId ? etaMarke(etaLeiste.tragwerk)
-              : etaMarke(NaN)}</span>${esc(tragwerkName(t, werte))}</button>
-      <span class="qp-bahn${massLinks || massRechts ? ' qp-bahn-mass' : ''}">
-        <button type="button" class="qp-linie${an ? ' an' : ''}"
-          data-qp-tw="${esc(t.id)}"
-          style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%"
-          title="${esc(`x₀ = ${x0.toFixed(2)} m${L ? ` · ${L.toFixed(2)} m lang` : ''}`
-            + ' · Rechtsklick öffnet das Kontextmenü')}"></button>
-        ${massLinks ? `<span class="qp-mass qp-mass-links"
-              style="left:${links.toFixed(3)}%">${x0.toFixed(2)}</span>` : ''}${
-        massRechts ? `<span class="qp-mass qp-mass-rechts"
-              style="right:${(100 - links - breit).toFixed(3)}%">${
-                (x0 + L).toFixed(2)}</span>` : ''}
-      </span>
-    </div>`;
-  }).join('');
-
   /*
    * DIE MASTEN: Schaft, Fundament, Gelaendelinie - ein kleiner Aufriss unter
    * der Liste. Der geteilte hat ein breiteres Fundament: er traegt zwei.
@@ -1709,123 +1621,174 @@ export function querprofilLeisteHtml(werte) {
     return [mastProfil(m), l > 0 ? `${l.toFixed(2)} m` : null]
       .filter(Boolean).join(' · ');
   };
-  const mastZeilen = masten.map((m, i) => {
-    if (!eigeneZeile(m)) return '';
+  /* =========================================================================
+   * >>> BAUM MIT LAGEBAND (Weisung vom 19. September). <<<
+   * =========================================================================
+   *
+   * «das hier sieht unübersichtlich aus. wie können wir das optimieren?» -
+   * gewaehlt: «A mit dem Band». Vorher stand je Tragwerk UND je Mast eine
+   * Zeile mit eigener kleiner Lageskizze: die Symbole sprangen quer ueber
+   * die Spalte, Masten und Tragwerke standen gemischt, und welcher Mast zu
+   * welchem Joch gehoerte, las man aus «M3 · Mast · P3 + P4».
+   *
+   *   OBEN   EIN Lageband fuer alle: Joche als Linien (uebereinander, wo sie
+   *          sich decken - Abfangjoch ueber Tragjoch), Masten als Striche
+   *          auf dem Boden, jedes anklickbar, mit seinem Kuerzel.
+   *   DARUNTER der Baum: je Tragwerk eine Zeile, seine Masten eingerueckt
+   *          darunter. Ein geteilter Mast steht EINMAL, beim ersten Tragwerk,
+   *          mit «auch A1». Ein Einzelmast ist seine eigene Zeile - er ist
+   *          sein Mast. Die Lage steht als Zahl rechts.
+   *
+   * Das nimmt die Weisung vom 13. September («gleichwertig», je Mast eine
+   * Zeile mit Typ und Laenge) nicht zurueck: jeder Mast behaelt seine Zeile
+   * mit Profil, Laenge, H und η - nur steht sie jetzt unter ihrem Tragwerk.
+   * ======================================================================= */
+  const mastVon = (id) => masten.find((m) => m.id === id);
+  const heimat = new Map();          // Mast -> erstes Tragwerk, das ihn traegt
+  alle.forEach((t) => (mastenFuer(werte, t) ?? []).filter(Boolean).forEach((m) => {
+    if (!heimat.has(m.id)) heimat.set(m.id, t.id);
+  }));
+  const f2q = (v) => Number(v).toFixed(2);
+  // Am Rand des Bandes steht die Anschrift nach innen, sonst schnitte der
+  // Rand sie ab (MT1 bei 60 m auf einem Blatt bis 63.6 m).
+  const anker = (pct) => (pct > 92 ? 'rechts' : pct < 8 ? 'links' : '');
+
+  const ankerDaten = (m) => {
+    const ak = m?.anker;
+    if (!(ak?.typ && ak.h > 0 && ak.a > 0)) return null;
+    const laengs = ak.richtung === 'y';
+    return { ak, laengs, vz: ak.seite === 'minus' ? -1 : 1,
+             titel: `${ak.typ} · ${laengs ? 'längs' : 'quer'} · `
+               + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m` };
+  };
+  const ankerChip = (m) => {
+    const d = ankerDaten(m);
+    return d ? `<button type="button" class="qp-chip qp-chip-knopf" data-qp-anker="${esc(m.id)}"
+        title="${esc(`Anker am Masten ${mastName(werte, m)} · ${d.titel} · anklicken zum Ändern`)}"
+        >${esc(d.ak.typ)} ${d.laengs ? 'längs' : 'quer'}</button>` : '';
+  };
+
+  // --- Der Baum ------------------------------------------------------------
+  const mastZeile = (m, t) => {
     const an = m.id === gewMast?.id;
-    const traegt = m.traegt ?? [];
-    const geteilt = traegt.length > 1;
-    const wessen = traegt.map((id) => alle.find((y) => y.id === id))
-      .filter(Boolean).map((y) => tragwerkPos(werte, y)).join(' + ');
-    const ak = m.anker;
-    const hatAnker = Boolean(ak?.typ && ak.h > 0 && ak.a > 0);
-    /*
-     * DER ANKER ALS KURZER STRICH am Fuss des Masten, in die Richtung
-     * seines Fundaments. Quer zum Gleis liegt er in der Jochachse und hat
-     * auf der Bahn eine Laenge; laengs steht er aus dem Blatt heraus, und
-     * dann ist er ein Stummel. Beides unterscheidet sich im Bild, und genau
-     * darauf kommt es an: ein Anker in der falschen Ebene haelt nichts.
-     */
-    const laengsA = ak?.richtung === 'y';
-    const vzA = ak?.seite === 'minus' ? -1 : 1;
-    const ankTitel = hatAnker
-      ? `${ak.typ} · ${laengsA ? 'längs' : 'quer'} · `
-        + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m`
-      : '';
-    /* =====================================================================
-     * >>> DIE DRITTE ZEILE: WORAUF ES IM QUERPROFIL ANKOMMT. <<<
-     * =====================================================================
-     *
-     * Frage vom 13. September: «was koennte eine uebersicht verbessern?»
-     *
-     * Die Zeile zeigte Profil und GESAMTLAENGE. Im Querprofil gefragt ist
-     * aber die ANSCHLUSSHOEHE - die Unterkante des Jochs -, und seit dem
-     * 12. September gibt es dazu den FUSSPUNKT: ein Mast, dessen Fuss
-     * vierzig Zentimeter tiefer steht, ist vierzig Zentimeter laenger, und
-     * man sah es der Uebersicht nicht an.
-     *
-     * Der Fusspunkt steht nur da, wenn er NICHT null ist. Null ist der
-     * Regelfall und hiesse «Fuss auf der Bezugshoehe» - eine Zahl, die
-     * nichts sagt, macht die Zeile nur laenger.
-     */
+    const andere = (m.traegt ?? []).filter((id) => id !== t.id)
+      .map((id) => alle.find((y) => y.id === id)).filter(Boolean)
+      .map((y) => tragwerkPos(werte, y));
     const mm = mastMasse(m);
-    // Traegt er nur Einzelmasten, schliesst nichts an - H waere eine Zahl
-    // ohne Bedeutung (Weisung, 18. September).
-    const nurEinzel = traegt.length > 0 && traegt.every((id) =>
-      tragwerksart(alle.find((y) => y.id === id)).key === 'einzelmast');
-    const untenZeile = [
-      mm.H > 0 && !nurEinzel ? `H ${mm.H.toFixed(2)} m` : null,
+    const lang = [mm.H > 0 ? `H ${f2q(mm.H)} m` : null,
       Math.abs(mm.fuss) > 1e-9
-        ? `Fuss ${mm.fuss > 0 ? '+' : '−'}${Math.abs(mm.fuss).toFixed(2)} m`
-        : null,
-      hatAnker ? `${ak.typ} ${laengsA ? 'längs' : 'quer'}` : null,
-    ].filter(Boolean).join(' · ');
-    const links = qpPct(m.x, von, bis).toFixed(3);
-    return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}${
-        i === 0 ? ' erste' : ''}">
+        ? `Fuss ${mm.fuss > 0 ? '+' : '−'}${f2q(Math.abs(mm.fuss))} m` : null]
+      .filter(Boolean).join(' · ');
+    const name = mastName(werte, m);
+    return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}">
       <span class="qp-auge-platz"></span>
-      <button type="button" class="qp-name" data-qp-mast="${esc(m.id)}"
-              aria-pressed="${an}"
-              title="${esc(`M${i + 1} · ${mastText(m)}`
-                + ` bei x = ${m.x.toFixed(2)} m`
-                + (wessen ? ` · trägt ${wessen}` : '')
-                + (geteilt ? ' · von zwei Tragwerken geteilt' : '')
-                + (hatAnker ? ` · Anker ${ankTitel}` : '')
-                + ' · Rechtsklick öffnet das Kontextmenü')}"
-        ><span class="qp-art">M${i + 1} · Mast${
-            wessen && alle.length > 1 ? ` · ${esc(wessen)}` : ''}${
-            etaMarke(etaLeiste?.masten?.[m.id],
-                     'nicht gerechnet — er gehört keinem gerechneten Tragwerk')
-          }</span>${
-        esc(mastText(m))}${untenZeile
-          ? `<span class="qp-mastlang">${esc(untenZeile)}</span>` : ''}</button>
-      <span class="qp-bahn qp-bahn-mass">
-        <span class="qp-mastgruppe" style="left:${links}%">
-          <button type="button" class="qp-mast${an ? ' an' : ''}${
-              geteilt ? ' geteilt' : ''}" data-qp-mast="${esc(m.id)}"
-            title="${esc(`M${i + 1} bei x = ${m.x.toFixed(2)} m`
-              + ' · Rechtsklick öffnet das Kontextmenü')}"
-            aria-pressed="${an}">
-            <span class="qp-mast-marke"></span>
-            <span class="qp-mast-fuss"></span>
-          </button>
-          ${hatAnker ? `<button type="button" class="qp-ankerstrich${
-              laengsA ? ' laengs' : ''}${vzA > 0 ? ' plus' : ' minus'}${an ? ' an' : ''}"
-            data-qp-anker="${esc(m.id)}"
-            title="${esc(`Zuganker / Druckstütze am Masten M${i + 1} · `
-              + ankTitel + ' · anklicken zum Ändern')}">${ankerGlyphe(laengsA)}</button>` : ''}
-          <span class="qp-mastmass${an ? ' an' : ''}">${m.x.toFixed(2)}</span>
-        </span>
-      </span>
+      <span class="qp-haupt"><button type="button" class="qp-name" data-qp-mast="${esc(m.id)}" aria-pressed="${an}"
+        title="${esc(`${name} · ${mastText(m)} bei x = ${f2q(m.x)} m`
+          + (andere.length ? ` · auch von ${andere.join(', ')} getragen` : '')
+          + ' · Rechtsklick öffnet das Kontextmenü')}"
+        ><span class="qp-ast" aria-hidden="true">└</span><b class="qp-kz">${esc(name)}</b>
+        <span class="qp-txt">${esc(mastText(m))}${lang
+          ? `<span class="qp-mastlang">${esc(lang)}</span>` : ''}</span></button>
+      <span class="qp-marken">${andere.length
+          ? `<span class="qp-chip" title="Geteilter Mast">auch ${esc(andere.join(', '))}</span>` : ''}${
+        ankerChip(m)}${etaMarke(etaLeiste?.masten?.[m.id],
+          'nicht gerechnet — er gehört keinem gerechneten Tragwerk')}</span></span>
+      <span class="qp-lage">${f2q(m.x)}</span>
     </div>`;
+  };
+
+  const baum = alle.map((t) => {
+    const art = tragwerksart(t);
+    const x0 = lageVon(t);
+    const L = art.masten >= 2 ? (Number(t.L) || 0) : 0;
+    const an = t.id === aktivId;
+    const aus = versteckt(t);
+    const kz = tragwerkPos(werte, t);
+    const eigeneMasten = (mastenFuer(werte, t) ?? []).filter(Boolean);
+    const einMast = art.masten < 2 ? eigeneMasten[0] : null;
+    const marken = [
+      einMast ? ankerChip(einMast) : '',
+      art.key === 'tragausleger'
+        ? '<span class="qp-chip warn" title="Kragarm-Modell fehlt - siehe Warnung in der Auswertung">nicht nachgewiesen</span>' : '',
+      t.id === etaLeiste?.twId ? etaMarke(etaLeiste.tragwerk) : etaMarke(NaN),
+    ].join('');
+    const zeile = `<div class="qp-zeile qp-twzeile${an ? ' an' : ''}${aus ? ' aus' : ''}">
+      <button type="button" class="qp-auge${aus ? '' : ' an'}" data-qp-sicht="${esc(t.id)}"
+              role="checkbox" aria-checked="${!aus}"
+              title="${esc(aus
+                ? 'Einblenden — zählt dann wieder in Bild, Bauteilliste, '
+                  + 'Ausleitung und Nachweis'
+                : 'Ausblenden — bleibt gespeichert, zählt aber nicht mehr')}"></button>
+      <span class="qp-haupt"><button type="button" class="qp-name" data-qp-tw="${esc(t.id)}"
+              title="${esc(`${kz} — ${art.label}, x₀ = ${f2q(x0)} m`
+                + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen')
+                + ' · Rechtsklick öffnet das Kontextmenü')}"
+        ><b class="qp-kz">${esc(kz)}</b><span class="qp-txt">${esc(tragwerkName(t, werte))}</span></button>
+      <span class="qp-marken">${marken}</span></span>
+      <span class="qp-lage">${L ? `${f2q(x0)}–${f2q(x0 + L)}` : f2q(x0)}</span>
+    </div>`;
+    // Die Masten eines Jochs darunter - jeder nur einmal, bei seinem ersten.
+    const unter = art.masten >= 2
+      ? eigeneMasten.filter((m, k, a) => a.indexOf(m) === k && heimat.get(m.id) === t.id)
+        .map((m) => mastZeile(mastVon(m.id) ?? m, t)).join('')
+      : '';
+    return zeile + unter;
+  }).join('');
+  // Masten ohne Tragwerk (sollte es nicht geben) - nicht verschweigen.
+  const lose = masten.filter((m) => !heimat.has(m.id))
+    .map((m) => mastZeile(m, { id: null })).join('');
+
+  // --- Das Lageband --------------------------------------------------------
+  // Joche in Bahnen: was sich deckt, kommt eine Bahn hoeher.
+  const bahnen = [];
+  const linien = alle.filter((t) => tragwerksart(t).masten >= 2).map((t) => {
+    const x0 = lageVon(t), x1 = x0 + (Number(t.L) || 0);
+    let b = bahnen.findIndex((ende) => ende <= x0 + 1e-6);
+    if (b < 0) { bahnen.push(x1); b = bahnen.length - 1; } else bahnen[b] = x1;
+    return { t, x0, x1, b };
+  });
+  const BAHN = 15;
+  const hoehe = bahnen.length * BAHN;
+  const bandLinien = linien.map(({ t, x0, x1, b }) => {
+    const links = qpPct(x0, von, bis), breit = Math.max(qpPct(x1, von, bis) - links, 2.5);
+    const an = t.id === aktivId, aus = versteckt(t);
+    const top = hoehe - (b + 1) * BAHN;
+    return `<button type="button" class="qp-linie qp-bandlinie${an ? ' an' : ''}${aus ? ' aus' : ''}"
+        data-qp-tw="${esc(t.id)}"
+        style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;top:${top + 7}px"
+        title="${esc(`${tragwerkPos(werte, t)} · ${tragwerkName(t, werte)} · x ${f2q(x0)}–${f2q(x1)} m`)}"
+        ></button><span class="qp-bandname${an ? ' an' : ''}"
+        style="left:${(links + breit / 2).toFixed(3)}%;top:${top - 3}px"
+        data-rand="${anker(links + breit / 2)}">${esc(tragwerkPos(werte, t))}</span>`;
+  }).join('');
+  const bandMasten = masten.map((m) => {
+    const an = m.id === gewMast?.id;
+    const d = ankerDaten(m);
+    const name = mastName(werte, m);
+    const pct = qpPct(m.x, von, bis);
+    return `<span class="qp-mastgruppe" data-rand="${anker(pct)}" style="left:${pct.toFixed(3)}%;top:${hoehe}px">
+        <button type="button" class="qp-mast${an ? ' an' : ''}${(m.traegt ?? []).length > 1 ? ' geteilt' : ''}"
+          data-qp-mast="${esc(m.id)}" aria-pressed="${an}"
+          title="${esc(`${name} bei x = ${f2q(m.x)} m · Rechtsklick öffnet das Kontextmenü`)}">
+          <span class="qp-mast-marke"></span><span class="qp-mast-fuss"></span></button>
+        ${d ? `<button type="button" class="qp-ankerstrich${d.laengs ? ' laengs' : ''}${
+            d.vz > 0 ? ' plus' : ' minus'}${an ? ' an' : ''}" data-qp-anker="${esc(m.id)}"
+          title="${esc(`Anker am Masten ${name} · ${d.titel} · anklicken zum Ändern`)}"
+          >${ankerGlyphe(d.laengs)}</button>` : ''}
+        <span class="qp-mastmass${an ? ' an' : ''}">${esc(name)}</span>
+      </span>`;
   }).join('');
 
-  /*
-   * DIE GELAENDELINIE SCHLIESST DIE LISTE AB. Sie ist das, worauf die
-   * Masten stehen - ohne sie schwebten die Dreiecke.
-   */
-  /*
-   * >>> DIE FELDWEITEN STANDEN HIER EINEN TAG LANG. <<<
-   *
-   * Angeboten und am 13. September gebaut: unter der Gelaendelinie eine
-   * Kette mit dem Abstand zwischen den Masten. Am selben Tag wieder
-   * herausgenommen - Weisung: «feldweite angabe ueberfluessig.»
-   *
-   * Sie war es. Die Weite zwischen zwei Masten IST die Stuetzweite ihres
-   * Jochs, und die steht eine Zeile hoeher im Namen: «J90 · 20.00 m». Auf
-   * einer Jochreihe steht sie an jedem Joch. Die Kette hat dieselbe Zahl
-   * ein zweites Mal gezeichnet und dafuer dreizehn Pixel genommen.
-   *
-   * Der Vermerk bleibt, damit sie nicht ein drittes Mal vorgeschlagen wird.
-   */
-
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      ${qpKopfHtml(von, bis)}
-      <div class="qp-liste">${zeilen}${mastZeilen}</div>
-      <div class="qp-achse"><span class="qp-bahn"
-        ><span class="qp-boden"></span></span></div>
+      <div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
+        <span class="qp-boden" style="top:${hoehe + 18}px"></span>
+        ${bandLinien}${bandMasten}
+      </div>
+      <div class="qp-skala"><span>${von.toFixed(1)} m</span>
+        <span>Lage auf dem Querprofil</span><span>${bis.toFixed(1)} m</span></div>
+      <div class="qp-liste qp-baum">${baum}${lose}</div>
     </div>`;
 }
-
 
 /*
  * Ausgefuehrt, damit der Pruefstand die Beschriftung festnageln kann:

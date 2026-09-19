@@ -1159,10 +1159,36 @@ export function gewaehlterMast(w) {
  * links nach rechts zaehlen. Die Id bleibt, was sie ist, und wird nicht
  * angezeigt.
  */
+/*
+ * >>> DIE ANSCHRIFT FOLGT DEM TYP (Weisung vom 19. September). <<<
+ *
+ * «warum braucht man die p und m bennenung bei den masten, mach die
+ * bennenung entsprechend dem typ T A M MT». Die Laufnummer P1, P2 … sagte
+ * nur die Stelle, nicht was dort steht, und ein Mast hiess zugleich «M3»
+ * und «P3 + P4». Jetzt zaehlt jede Art fuer sich von links:
+ *
+ *   T   Tragjoch              A   Abfangjoch
+ *   M   Einzelmast            MT  Mast mit Tragausleger
+ *
+ * Ein EINZELMAST IST SEIN MAST: er heisst wie dieser (mastName), aus
+ * derselben M-Zaehlung wie die Masten der Joche - sonst hiesse dasselbe
+ * Bauteil zweimal verschieden. Der Mast eines Tragauslegers heisst wie
+ * sein Tragwerk, MT1.
+ */
+export const TYP_KUERZEL = { joch: 'T', abfangjoch: 'A', einzelmast: 'M', tragausleger: 'MT' };
+const typKuerzel = (t) => TYP_KUERZEL[tragwerksart(t).key] ?? 'T';
+
 export function tragwerkPos(w, t) {
   if (!t) return '';
-  const i = tragwerkeSortiert(w).findIndex((x) => x.id === t.id);
-  return i < 0 ? '' : `P${i + 1}`;
+  const alle = tragwerkeSortiert(w);
+  if (!alle.some((x) => x.id === t.id)) return '';
+  if (tragwerksart(t).key === 'einzelmast') {
+    const [m] = mastenFuer(w, t);
+    if (m) return mastName(w, m);
+  }
+  const k = typKuerzel(t);
+  const i = alle.filter((x) => typKuerzel(x) === k).findIndex((x) => x.id === t.id);
+  return `${k}${i + 1}`;
 }
 
 /** Der Name eines Mastes: M1, M2, ... nach seiner Stelle von links. */
@@ -1176,11 +1202,20 @@ export function mastName(w, m) {
    * hiesse je nach Ansicht anders. Die Id traegt die Nummer schon; gesucht
    * wird sie hier nur noch, falls sie fehlt.
    */
+  const tw = tragwerkeVon(w);
+  // Der Mast eines Tragauslegers heisst wie sein Tragwerk (MT1).
+  const nurMT = (x) => (x.traegt ?? []).length > 0 && x.traegt.every((id) => {
+    const t = tw.find((y) => y.id === id);
+    return t && tragwerksart(t).key === 'tragausleger';
+  });
   const alle = mastenVon(w, 0.1, true);
-  let i = alle.findIndex((x) => x.id === m.id);
+  let j = alle.findIndex((x) => x.id === m.id);
   // Ersatzweise ueber die Stelle: ein Mast ist, WO ER STEHT.
-  if (i < 0) i = alle.findIndex((x) => Math.abs((x.x ?? NaN) - (m.x ?? NaN)) < 0.1);
-  return i < 0 ? (m.id ?? '') : `M${i + 1}`;
+  if (j < 0) j = alle.findIndex((x) => Math.abs((x.x ?? NaN) - (m.x ?? NaN)) < 0.1);
+  if (j < 0) return m.id ?? '';
+  if (nurMT(alle[j])) return tragwerkPos(w, tw.find((y) => y.id === alle[j].traegt[0]));
+  const i = alle.filter((x) => !nurMT(x)).indexOf(alle[j]);
+  return `M${i + 1}`;
 }
 
 /**

@@ -17973,8 +17973,10 @@ const CH9x = await import(J('core.checks.js'));
     w = C75.tragwerkHinzu(w, 'joch', {});          // T2, rechts daneben
     w = C75.tragwerkHinzu(w, 'abfangjoch', { xLage: 0, L: 20 });  // T3, links
     const sortiert = C75.tragwerkeSortiert(w);
-    wahr('Von links gezaehlt: P1, P2, P3',
-         sortiert.map((t) => C75.tragwerkPos(w, t)).join(',') === 'P1,P2,P3');
+    // Seit dem 19. September nach dem Typ («T A M MT»), je Typ von links.
+    wahr('Von links gezaehlt, je Typ: T1, A1, T2',
+         sortiert.map((t) => C75.tragwerkPos(w, t)).join(',') === 'T1,A1,T2',
+         sortiert.map((t) => C75.tragwerkPos(w, t)).join(','));
     // Die Id zaehlt anders - und genau darum wird sie nicht angezeigt.
     wahr('Die Id folgt der Anlegereihenfolge, nicht der Lage',
          sortiert.map((t) => t.id).join(',') !== 'T1,T2,T3');
@@ -20269,7 +20271,8 @@ const CH9x = await import(J('core.checks.js'));
      */
     const mastZeile = /<div class="qp-zeile qp-mastzeile[^>]*>([\s\S]*?)<\/div>/
       .exec(h)?.[1] ?? '';
-    for (const teil of ['qp-auge-platz', 'class="qp-name"', 'class="qp-bahn']) {
+    // Seit dem Baum (19. September) steht die Lage als Zahl, nicht als Bahn.
+    for (const teil of ['qp-auge-platz', 'class="qp-name"', 'class="qp-lage"']) {
       wahr(`Die Mastzeile traegt ${teil} wie die Jochzeile`,
            mastZeile.includes(teil));
     }
@@ -20277,7 +20280,7 @@ const CH9x = await import(J('core.checks.js'));
      * 2 - KUERZEL UND NAME, WIE BEIM JOCH.
      */
     wahr('Das Kuerzel nennt Nummer und Gattung',
-         h.includes('>M1 \u00b7 Mast<') && h.includes('>M2 \u00b7 Mast<'));
+         h.includes('>M1</b>') && h.includes('>M2</b>'));
     wahr('Der Name traegt Profil und Laenge',
          (h.match(/HEB 240 \u00b7 8\.50 m/g) ?? []).length >= 2);
     /*
@@ -20294,7 +20297,8 @@ const CH9x = await import(J('core.checks.js'));
     /*
      * 3 - DIE LAGE, ANGESCHRIEBEN.
      */
-    const masse = [...h.matchAll(/class="qp-mastmass[^"]*">([-\d.]+)</g)]
+    const masse = [...h.matchAll(
+      /<div class="qp-zeile qp-mastzeile[\s\S]*?class="qp-lage">([-\d.]+)</g)]
       .map((m) => m[1]);
     wahr('Jeder Mast traegt seine Lage', masse.length === 2, masse.join(', '));
     wahr('… und zwar seine eigene',
@@ -20314,10 +20318,9 @@ const CH9x = await import(J('core.checks.js'));
     wahr('… und die Jochzeile bleibt so flach wie zuvor',
          !jochZeile.includes('qp-bahn-mass'));
     const hO = UIF.querprofilLeisteHtml(joch({ mastVorhanden: false }));
-    wahr('Ohne Masten schreibt die Linie ihre Enden an',
-         hO.includes('qp-mass-links') && hO.includes('qp-mass-rechts'));
-    wahr('Die Zahlen sind Anfang und Ende',
-         hO.includes('>0.00</span>') && hO.includes('>15.00</span>'));
+    // Die Lage steht als Zahl rechts in der Zeile, von-bis.
+    wahr('Ohne Masten schreibt die Zeile ihre Enden an',
+         hO.includes('class="qp-lage">0.00–15.00<'));
     wahr('… und ohne Masten gibt es auch keine Mastzeile',
          zeilen(hO, 'qp-mastzeile') === 0);
     /*
@@ -20338,8 +20341,8 @@ const CH9x = await import(J('core.checks.js'));
       masten: [{ id: 'M1', x: 0, profil: 'HEB 240', laenge: 8.5,
                  anker: { typ: 'A160', h: 2, a: 3 } },
                { id: 'M2', x: 15, profil: 'HEB 240', laenge: 8.5 }] }));
-    wahr('Der Anker steht im Namen seines Masten',
-         hA.includes('Anker A160'));
+    wahr('Der Anker steht als Marke an seinem Masten',
+         hA.includes('>A160 quer<') && hA.includes('data-qp-anker="M1"'));
     wahr('… und als Strich auf der Bahn',
          hA.includes('qp-ankerstrich'));
     wahr('… aber nicht in einer eigenen Zeile',
@@ -20449,8 +20452,8 @@ const CH9x = await import(J('core.checks.js'));
     const hE = UIF.querprofilLeisteHtml(einz());
     wahr('Der Einzelmast bekommt keine zweite Zeile',
          zeilen(hE, 'qp-mastzeile') === 0);
-    wahr('… und seine Lage steht an der Tragwerkslinie',
-         hE.includes('qp-mass-links') && hE.includes('>4.00</span>'));
+    wahr('… und seine Lage steht in seiner Zeile',
+         hE.includes('class="qp-lage">4.00<'));
     /*
      * AUSNAHME ANKER: er haengt am Masten, nicht am Tragwerk, und sein
      * Strich braucht eine Bahn.
@@ -20458,8 +20461,9 @@ const CH9x = await import(J('core.checks.js'));
     const hEA = UIF.querprofilLeisteHtml(einz({
       masten: [{ id: 'M1', x: 4, profil: 'HEB 260', laenge: 8,
                  anker: { typ: 'A160', h: 2, a: 3 } }] }));
-    wahr('Mit Anker steht die Mastzeile wieder da',
-         zeilen(hEA, 'qp-mastzeile') === 1);
+    // Seit dem Baum: der Anker steht als Marke in der Zeile des Einzelmasts.
+    wahr('Mit Anker bleibt es eine Zeile, der Anker steht darin',
+         zeilen(hEA, 'qp-mastzeile') === 0 && hEA.includes('>A160 quer<'));
     wahr('… und traegt den Ankerstrich', hEA.includes('qp-ankerstrich'));
     /*
      * 7 - WAS NICHT VERLOREN GEHEN DARF: Name UND Symbol waehlen den
@@ -20501,9 +20505,14 @@ const CH9x = await import(J('core.checks.js'));
     /*
      * 1 - DIE TRAEGER STEHEN IM KUERZEL.
      */
-    wahr('Der linke Mast traegt P1', h.includes('M1 · Mast · P1<'));
-    wahr('Der Zwischenmast traegt beide', h.includes('M2 · Mast · P1 + P2<'));
-    wahr('Der rechte traegt P2', h.includes('M3 · Mast · P2<'));
+    // Seit dem Baum (19. September): die Masten stehen unter ihrem Tragwerk,
+    // der geteilte einmal, beim ersten, mit «auch T2».
+    const at = (s) => h.indexOf(s);
+    wahr('Die Masten stehen unter ihrem Tragwerk',
+         at('>T1</b>') < at('>M1</b>') && at('>M1</b>') < at('>M2</b>')
+         && at('>M2</b>') < at('>T2</b>') && at('>T2</b>') < at('>M3</b>'));
+    wahr('Der Zwischenmast steht einmal und nennt den Nachbarn',
+         (h.match(/>M2<\/b>/g) ?? []).length === 1 && h.includes('>auch T2<'));
     /*
      * DAS ZEICHEN ⊕ IST WEG - es sagte «geteilt», und das sagen jetzt die
      * Namen. Zwei Zeichen fuer dieselbe Aussage sind eines zuviel.
@@ -20516,8 +20525,8 @@ const CH9x = await import(J('core.checks.js'));
     const eines = UIF.querprofilLeisteHtml({
       ...standardwerte(), tragwerksart: 'joch', typ: 'J100', L: 15, xLage: 0,
       mastH: 7.5, jd: 500, mastProfil: 'HEB 240', mastVorhanden: true });
-    wahr('Steht nur ein Tragwerk da, nennt der Mast es nicht',
-         eines.includes('>M1 · Mast<'));
+    wahr('Steht nur ein Tragwerk da, nennt der Mast keinen Nachbarn',
+         eines.includes('>M1</b>') && !eines.includes('>auch '));
     /*
      * 2 - DIE ANSCHLUSSHOEHE, UND DER FUSSPUNKT NUR WENN ER EINER IST.
      */
@@ -25650,6 +25659,45 @@ titel('95  Anbauteile und Ebenen: Befunde vom 19. September (zweiter Teil)');
        && ['profil', 'blech', 'auflager', 'masse'].every((k) => !da.has(k))
        && q95('app.layout.js').includes('app.ansicht.ebenenVorhanden()'),
        [...da].join(', '));
+}
+
+titel('96  Tragwerksliste: Baum mit Lageband, Namen nach dem Typ');
+/*
+ * Weisung vom 19. September: «A mit dem Band warum braucht man die p und m
+ * bennenung bei den masten, mach die bennenung entsprechend dem typ T A M MT»
+ */
+{
+  const C96 = await import(J('core.constants.js'));
+  const U96 = await import(J('ui.js'));
+  let w = { ...standardwerte(), tragwerksart: 'joch', typ: 'J90', L: 20, xLage: 20,
+            mastH: 7.5, jd: 500, mastProfil: 'HEB 240', mastVorhanden: true, twId: 'T1' };
+  w = C96.tragwerkHinzu(w, 'einzelmast', { xLage: 0, mastProfil: 'HEB 240', mastLaenge: 8.5 });
+  w = C96.tragwerkHinzu(w, 'abfangjoch', { xLage: 20, L: 12.5 });
+  w = C96.tragwerkHinzu(w, 'tragausleger', { xLage: 60 });
+  const namen = C96.tragwerkeSortiert(w).map((t) => C96.tragwerkPos(w, t));
+  wahr('Je Typ gezaehlt: M (Einzelmast), T, A, MT', ['M1', 'T1', 'A1', 'MT1']
+       .every((n) => namen.includes(n)), namen.join(', '));
+  const em = C96.tragwerkeSortiert(w).find((t) => C96.tragwerksart(t).key === 'einzelmast');
+  wahr('Der Einzelmast heisst wie sein Mast',
+       C96.tragwerkPos(w, em) === C96.mastName(w, C96.mastenFuer(w, em)[0]));
+  const mt = C96.tragwerkeSortiert(w).find((t) => C96.tragwerksart(t).key === 'tragausleger');
+  wahr('Der Mast des Tragauslegers heisst MT1, nicht M…',
+       C96.mastName(w, C96.mastenFuer(w, mt)[0]) === 'MT1');
+  const mNamen = C96.mastenVon(w).map((m) => C96.mastName(w, m));
+  wahr('Die M-Zaehlung laeuft ohne Luecke ueber Einzel- und Jochmasten',
+       mNamen.filter((n) => /^M\d/.test(n)).every((n, i) => n === `M${i + 1}`),
+       mNamen.join(', '));
+  const h = U96.querprofilLeisteHtml(w);
+  wahr('Kein P-Kuerzel mehr in der Leiste', !/>P\d/.test(h));
+  wahr('Ein Lageband, darunter der Baum',
+       h.indexOf('class="qp-band') >= 0 && h.indexOf('class="qp-band') < h.indexOf('qp-baum'));
+  wahr('Der geteilte Mast bei 20 m steht einmal im Baum, mit «auch A1»',
+       h.includes('>auch A1<'));
+  wahr('Im Band liegen Tragjoch und Abfangjoch in zwei Bahnen',
+       (h.match(/qp-bandlinie/g) ?? []).length === 2
+       && new Set([...h.matchAll(/qp-bandlinie[^"]*"[\s\S]*?top:(\d+)px/g)].map((m) => m[1])).size === 2);
+  wahr('Der Tragausleger traegt «nicht nachgewiesen» in seiner Zeile',
+       h.includes('>nicht nachgewiesen<'));
 }
 
 // ===========================================================================
