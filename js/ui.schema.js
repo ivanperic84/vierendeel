@@ -1636,6 +1636,18 @@ export const FELDER = [
    * Escape und Strg+Z bleiben IMMER. Sie sind keine Erweiterung, sondern das,
    * was jede Anwendung kann, und ihr Verlust waere ein Verlust.
    */
+  /*
+   * DIE ERKLAERTEXTE ABSCHALTBAR (Durchsicht vom 18. September, Punkt U4:
+   * «sehr viel auf einmal»; Entscheid vom 19. September: ein Schalter in
+   * den Optionen, Vorgabe ein). Gerechnete Notizen bleiben immer - sie sind
+   * eine Auskunft ueber die Eingabe, kein Lehrtext.
+   */
+  { key: 'erklaertexte', gruppe: 'ansicht', optionenDialog: true,
+    typ: 'schalter', label: 'Erklärtexte unter den Feldern',
+    standard: true,
+    hinweis: 'Aus: die Seitenleisten zeigen nur Feld, Wert und gerechnete '
+           + 'Notizen - kürzer, für den, der die Eingaben kennt. Der Titel '
+           + 'am Feld bleibt.' },
   { key: 'tastenkuerzel', gruppe: 'ansicht', optionenDialog: true,
     typ: 'schalter', label: 'Tastenkürzel für Ansicht und Fenster',
     standard: true,
@@ -1767,7 +1779,7 @@ export const OPTIONEN_ABSCHNITTE = [
   { thema: 'ansicht', titel: 'Modellansicht',
     keys: ['projektion', 'blickwinkel', 'modellTransparenz', 'modellSchrift',
            'modellSchriftLast', 'modellSchriftMass'] },
-  { thema: 'ansicht', titel: 'Bedienung', keys: ['tastenkuerzel', 'tasten'] },
+  { thema: 'ansicht', titel: 'Bedienung', keys: ['erklaertexte', 'tastenkuerzel', 'tasten'] },
 ];
 
 /**

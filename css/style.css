@@ -378,6 +378,10 @@ input:disabled, select:disabled {
    waehlbar - so ist zu sehen, dass es existiert. */
 .schalter.aus { opacity: .5; }
 .hinweis { font-size: 11px; color: var(--dim); line-height: 1.45; }
+/* Erklaertexte abgeschaltet (Optionen, U4): nur in den Seitenleisten,
+   Dialoge erklaeren sich weiter selbst. Gerechnete Notizen bleiben. */
+body.ohne-erklaertexte .panel .feld > small.hinweis,
+body.ohne-erklaertexte .panel .feld > .hinweis-klapp { display: none; }
 /*
  * DIE NOTIZ AM FELD - eine gerechnete Groesse zu dem, was gerade dasteht
  * (der Ablenkwinkel zu Radius und Spannweite). Sie steht IMMER offen, im

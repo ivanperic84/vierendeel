@@ -25270,6 +25270,19 @@ titel('91  app.*.js: jede Funktion bekommt das Kontextobjekt');
        faelle.length === 0, faelle.join(', '));
 }
 
+titel('92  Erklaertexte abschaltbar (U4)');
+// Entscheid vom 19. September: Schalter in den Optionen, Vorgabe ein.
+{
+  const f92 = FELDER.find((f) => f.key === 'erklaertexte');
+  wahr('Der Schalter «Erklaertexte» steht in den Optionen, Vorgabe ein',
+       f92?.optionenDialog === true && f92.typ === 'schalter' && f92.standard === true);
+  const css92 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('… die Stilregel blendet nur die Erklaertexte der Seitenleisten aus',
+       css92.includes('body.ohne-erklaertexte .panel .feld > small.hinweis')
+       && !css92.includes('body.ohne-erklaertexte .feld-notiz'));
+  wahr('… und app.js setzt die Klasse', APP_QUELLE().includes("toggle('ohne-erklaertexte'"));
+}
+
 titel('88  Seitenleiste: die Knick-Kachel der Druckstuetze');
 /*
  * Gemeldet am 18. September: «das einfügen einer druckstütze / anker ist

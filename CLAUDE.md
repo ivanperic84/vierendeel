@@ -148,6 +148,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
 | Wind nie diagonal (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: **je eine Richtung**, ±y oder ±x. Tragjoch/Einzelmast: Ständig + Wind ±y, ±x statt LF7–LF10 (ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen). Abfangjoch («beim abfangjoch auch angleichen»): Fälle `wind+y`, `-y`, `+x`, `-x`; η des Trägers unverändert, F_x fällt aus den y-Fällen |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
+| Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
+| Erklärtexte (19. Sept., U4) | abschaltbar in Optionen → Darstellung → Bedienung, **Vorgabe ein**; gerechnete Notizen bleiben immer |
 | Tragausleger (18. Sept.) | bis zum Kragarm-Modell **Warnung statt Sperre**: «Tragausleger NICHT nachgewiesen», gelb, kein Urteil, Bericht nimmt ihn nicht |
 | Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
@@ -161,7 +163,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**18. September 2026** · Prüfstand 4727 Kontrollen grün · `durchlauf.mjs`
+**18. September 2026** · Prüfstand 4730 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -226,9 +228,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
 aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
 ~~A6~~ → ~~A5~~ → ~~U7~~ → ~~U6~~ → ~~U3~~ → ~~U5~~ → U4 (Rückfrage) → ~~A2~~ → ~~A1~~ → A3; A4 nur nach Rückfrage.
-Stand 19. Sept.: alles erledigt ausser **U4, A3, A4 — Rückfrage gestellt**
-(U4: wie stark reduzieren; A3: erfundener Datensatz öffentlich + Rauchtest,
-CI auf GitHub ja/nein; A4: Kommentare kürzen ja/nein).
+Entscheide vom 19. Sept.: **U4** Schalter «Erklärtexte» in den Optionen
+(Vorgabe ein) — erledigt. **A3** erfundener Datensatz (öffentlich) +
+Rauchtest + CI — in Arbeit. **A4** nicht kürzen, gestrichen.
 
 | # | Auftrag |
 |---|---|
@@ -319,7 +321,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4727 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4730 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

@@ -488,6 +488,8 @@ function wiederherstellen() {
 function neuRechnen(neuZeichnen = true) {
   // VOR der Rechnung: der Stand, der gleich gilt, gehoert in den Verlauf.
   if (hist.melde(werte)) baueKopf();
+  // Erklaertexte ein oder aus (U4) - eine Klasse, die Stilregel tut den Rest.
+  document.body?.classList.toggle('ohne-erklaertexte', werte.erklaertexte === false);
   const joch = jochVonTyp();
   /*
    * DIE SCHIEBERGRENZEN KOMMEN AUS DEM SORTIMENT DES TRAGWERKS (Weisung,
