@@ -156,7 +156,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Raster weiten (19. Sept.) | immer vom **Normalmass** der Baugruppe aus (`rasterNorm`), frei sitzend gilt wieder das Normalmass. Von Hand gesetztes Raster ist das neue Normalmass |
 | Namen nach dem Typ (19. Sept.) | «mach die bennenung entsprechend dem typ T A M MT»: **T** Tragjoch, **A** Abfangjoch, **M** Einzelmast, **MT** Mast mit Tragausleger, je Typ von links gezählt (`tragwerkPos`). Ein Einzelmast heisst wie sein Mast (eine M-Zählung für Einzel- und Jochmasten), der Mast des Tragauslegers MT… (`mastName`). P1… ist weg |
 | Tragwerksliste (19. Sept.) | «A mit dem Band»: **ein Lageband** für alle Lagen (Joche in Bahnen, Masten mit Namen), darunter **Baum** — je Tragwerk eine Zeile, seine Masten eingerückt, geteilter Mast einmal beim ersten mit «auch …», Lage als Zahl rechts. Löst die Mastzeilen vom 13. Sept. ab (Typ, Länge, H, η bleiben je Mast); die x-Anschrift unter dem Mast (13. Sept.) steht jetzt in der Lagespalte, im Band steht der Name |
-| Jochreihe gesamtheitlich (19. Sept.) | «die zusammenhängenden jochtragwerke sind als gesamtheitliches tragwerk zu betrachten». Gewählt: **gekoppelt** (ein Stabwerk: Joche und Masten der Reihe, Mastköpfe verschieblich, jeder Mast mit den Kräften aller anschliessenden Joche); ständig, Wind, Schnee **gleichzeitig** auf der ganzen Reihe; **Havarie örtlich**: «dieser kann entweder auf die joche wirken und die kraft teilt sich dann auf die beiden masten, oder wenn es zu einem leiterbruch am masten kommt ist dann nur dieser selbst betroffen»; Seitenleiste mit **Urteil der Reihe** (Maximum mit Namen). Umsetzung offen, siehe *Laufende Arbeit* |
+| Jochreihe gesamtheitlich (19. Sept.) | «die zusammenhängenden jochtragwerke sind als gesamtheitliches tragwerk zu betrachten». Gewählt: **gekoppelt** (ein Stabwerk: Joche und Masten der Reihe, Mastköpfe verschieblich, jeder Mast mit den Kräften aller anschliessenden Joche); ständig, Wind, Schnee **gleichzeitig** auf der ganzen Reihe; **Havarie örtlich**: «dieser kann entweder auf die joche wirken und die kraft teilt sich dann auf die beiden masten, oder wenn es zu einem leiterbruch am masten kommt ist dann nur dieser selbst betroffen»; Seitenleiste mit **Urteil der Reihe** (Maximum mit Namen). **Auch das Einzeljoch** läuft künftig über das Stabwerk («ja einzeljoch auch übers stabwerk»), ein Rechenweg. Umsetzung offen, siehe *Laufende Arbeit* |
 | Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
@@ -272,10 +272,24 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 
 **Laufende Arbeit (19. Sept.): Jochreihe als gekoppeltes Tragwerk.**
 Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Noch nicht
-begonnen; Bauplan dem Auftraggeber vorgelegt. Der Kern kennt heute nur das
-Einzelfeld (Ersatzbalken mit Drehfedern, `core.statics`/`core.auflager`),
-kein allgemeines Stabwerk. Erster Schritt: den Fehlbetrag am geteilten
-Masten messen (Jochreihe J90/20 + J90/15).
+begonnen; Bauplan: (1) messen ✔, (2) räumlicher Stabwerkslöser im Kern,
+gegen PyNite gemessen, (3) Reihenmodell aus dem Blatt, (4) Lastfälle auf
+der ganzen Reihe, Havarie je Aufhängung, (5) Schnittgrössen in die
+Gurt-/Blechauswertung, Masten aus dem Stabwerk, Urteil der Reihe,
+(6) Bericht/Excel/Ausleitung, Vergleich mit AxisVM. Der Kern kennt heute
+nur das Einzelfeld (Ersatzbalken mit Drehfedern, `core.statics`/
+`core.auflager`). ⚠ Offen: `MAST_UNVERSCHIEBLICH` im gekoppelten Modell
+entfallen lassen?
+
+**Messung 19. Sept.** (Überlagerung bei starren Mastköpfen, also noch
+ohne Rahmenwirkung; Nachrechnung = `mastSchnitt` exakt): am geteilten
+HEB 240 einer Reihe mit Fahrleitung je Feldmitte fehlt heute die Jochkraft
+der Nachbarseite. Längsmoment am Fuss bei Wind ±y: J90/20 + J90/15
+**59.3 → 93.9 kNm**, J90/20 + J90/20 **59.3 → 104.4 kNm** (+76 %);
+Biegespannung um die schwache Achse 182 → 319 N/mm² — über f_y. Quer
+(Wind ±x) 21.7 → 27.3 kNm. **Die Anwendung weist den geteilten Mast
+heute auf der unsicheren Seite nach.** Havarie ohne markierten Leiterbruch
+wirkt längs nicht (so gebaut: `bruch` je Leiter).
 
 **Frühere Arbeit:** Verbesserungsliste vom 18. Sept. (Durchsicht der
 Anwendung), Weisung «kragarm modell zurückstellen zuerst die a und u
@@ -337,6 +351,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Positionen 5–9, die 6 mm zurückgesetzt sind (Hebelarm 100 statt 112 mm).
   Im Modell sitzen alle bündig.
 
+- ⚠ **Geteilter Mast auf der unsicheren Seite** (gemessen 19. Sept., siehe
+  *Laufende Arbeit*): Längsmoment bis +76 %, Spannung über f_y, die
+  Anwendung zeigt «erfüllt».
 - **Geteilter Mast im Nachweis** (19. Sept. nachgeprüft): seine Teile am
   Masten zählen in **beiden** Rechnungen (seit 2./18. Sept., `mastAnbauteile`
   mit `mastId`) — der frühere offene Punkt «Bauteil gehört nur einem
