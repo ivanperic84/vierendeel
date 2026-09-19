@@ -6317,7 +6317,7 @@ titel('33  Bedienung: was in der Sitzung als Nutzer aufgefallen ist');
     wahr('Wird das Fenster schmaler, geben die Schubladen nach',
          /addEventListener\('resize'/.test(aq));
     wahr('Eingeklappte Seiten bleiben dabei eingeklappt',
-         /if \(!zuSeite\.links\) setzeSeite/.test(aq));
+         /if \(!(app\.)?zuSeite\.links\) setzeSeite/.test(aq));
   }
 
   // --- Nach dem Ein- und Ausfahren lief das Joch aus dem Bild --------------
@@ -15125,7 +15125,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     const koerper = ab > 0 ? aq61.slice(ab, aq61.indexOf('};', ab)) : '';
     wahr('Das Umschalten einer Ebene zeichnet neu',
          koerper.includes('ansicht.zeichne()'));
-    wahr('… und die Legende gleich mit', koerper.includes('zeichneLegende()'));
+    wahr('… und die Legende gleich mit', /zeichneLegende\((app)?\)/.test(koerper));
   }
   wahr('Die Skala zaehlt nur eingeschaltete Ebenen',
        r61.includes('_bereichSichtbar(feld)')
