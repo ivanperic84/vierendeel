@@ -111,6 +111,7 @@ import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeic
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
 import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
          kontextOffen } from './app.kontext.js';
+import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
@@ -154,8 +155,16 @@ const app = {
   get BEARBEITER() { return BEARBEITER; },
   get ANKER_STANDARD() { return ANKER_STANDARD; },
   get setzen() { return setzen; },
-  ausrichtenStarten: (...a) => ausrichtenStarten(...a),
-  bildSchiebenStarten: (...a) => bildSchiebenStarten(...a),
+  get kalibrierung() { return kalibrierung; }, set kalibrierung(v) { kalibrierung = v; },
+  get erkannt() { return erkannt; }, set erkannt(v) { erkannt = v; },
+  get zeichnungMenue() { return zeichnungMenue; }, set zeichnungMenue(v) { zeichnungMenue = v; },
+  get bildSchieben() { return bildSchieben; }, set bildSchieben(v) { bildSchieben = v; },
+  get ausrichtung() { return ausrichtung; }, set ausrichtung(v) { ausrichtung = v; },
+  get ERKENNUNG_GRENZE() { return ERKENNUNG_GRENZE; },
+  baueModellWerkzeuge: (...a) => baueModellWerkzeuge(...a),
+  zeichneBalken: (...a) => zeichneBalken(...a),
+  ausrichtenStarten: (...a) => ausrichtenStarten(app, ...a),
+  bildSchiebenStarten: (...a) => bildSchiebenStarten(app, ...a),
   setzeAnbauteile: (...a) => setzeAnbauteile(...a),
   setzenEnde: (...a) => setzenEnde(...a),
   setzenStarten: (...a) => setzenStarten(...a),
@@ -182,8 +191,8 @@ const app = {
   mastNachfuehrenGlobal: (...a) => mastNachfuehrenGlobal(...a),
   vorlagenZusammenfuehren: (...a) => vorlagenZusammenfuehren(...a),
   zeichneModellWerkzeuge: (...a) => zeichneModellWerkzeuge(...a),
-  zeichnungHolen: (...a) => zeichnungHolen(...a),
-  zeichnungSichernFallsMoeglich: (...a) => zeichnungSichernFallsMoeglich(...a),
+  zeichnungHolen: (...a) => zeichnungHolen(app, ...a),
+  zeichnungSichernFallsMoeglich: (...a) => zeichnungSichernFallsMoeglich(app, ...a),
   dialogSpeichern: (...a) => dialogSpeichern(...a),
 };
 // Welche Einwirkungskombination im Modell dargestellt wird.
@@ -2950,441 +2959,12 @@ let kalibrierung = null;      // { bezug, welt: [], punkte: [], schritt }
  */
 const ERKENNUNG_GRENZE = 0.25;
 let erkannt = null;           // { guete } - Vorschlag, noch nicht bestaetigt
-
-async function zeichnungEinlegen(blob, name = 'Zeichnung') {
-  try {
-    const roh = await verkleinere(blob);
-    const bild = await createImageBitmap(new Blob([roh.daten], { type: roh.art }));
-    const alt = ansicht.zeichnung?.kalibrierung ?? null;
-    ansicht.zeichnung = {
-      bild, breite: roh.breite, hoehe: roh.hoehe, daten: roh.daten,
-      art: roh.art, name,
-      // Eine bestehende Kalibrierung bleibt nur stehen, wenn das neue Bild
-      // dieselbe Grösse hat - sonst sässe sie auf einem anderen Ausschnitt.
-      kalibrierung: alt && ansicht.zeichnung
-        && ansicht.zeichnung.breite === roh.breite ? alt
-        : vorlaeufigeLage(ansicht.szene?.grenzen, roh.breite, roh.hoehe),
-      vorlaeufig: true,
-    };
-    ansicht.ebenen.zeichnung = true;
-    // Die Zeichnung gilt nur in der Laengsansicht - also gleich dorthin.
-    ansicht.blickrichtung('laengs');
-    zeichneModellWerkzeuge();
-    ansicht.zeichne();
-    /*
-     * SELBST EINMESSEN, WENN DAS TRAGWERK ZU ERKENNEN IST.
-     *
-     * Die Masten sind die längsten Senkrechten des Blattes, das Joch liegt
-     * auf ihnen - daraus ergeben sich genau die beiden Punkte, die das
-     * Einmessen braucht.
-     *
-     * >>> VORGELEGT, NICHT ÜBERNOMMEN. <<< Der Balken sagt, dass gerechnet
-     * und nicht gemessen wurde, und die zwei Klicks stehen einen Knopfdruck
-     * entfernt. Eine Vermutung, die sich als Messung ausgibt, wäre schlimmer
-     * als gar keine.
-     */
-    erkannt = null;
-    const t = roh.maske
-      ? erkenneTragwerk(roh.maske, roh.breite, roh.hoehe) : null;
-    /*
-     * >>> AUCH DIE SELBSTERKENNUNG BRAUCHT EINEN BEZUG. <<<
-     *
-     * Sie nahm bisher immer das Joch. Hat das Modell keines - ein
-     * Einzelmast -, gab `bezugPunkte('joch')` null, es wurde nichts
-     * eingemessen, und der Ruecksprung auf das Einmessen von Hand lief in
-     * dieselbe Wand: die Zeichnung blieb vorlaeufig liegen, ohne dass ein
-     * Wort darueber fiel.
-     *
-     * Dieselbe Erkennung traegt beide Paare. WAAGRECHT sind es die beiden
-     * Mastachsen auf der Jochachse, LOTRECHT Fundamentoberkante und
-     * Jochachse am linken Masten. Genommen wird der erste Bezug, den das
-     * Modell hergibt - das Joch, wo es eines gibt, sonst der Mast.
-     */
-    const moeglich = bezuegeFuer(letzte?.erg?.modell ?? null, ansicht.szene);
-    /*
-     * DIE MODELLPUNKTE PASSEND ZU DEM, WAS GEFUNDEN WIRD: die Erkennung
-     * findet Mastachsen auf der Jochachse und den Mastfuss, nicht Jochenden
-     * und Anschluss (bild.zeichnung.js, erkennungsWelt).
-     */
-    const bez = ['joch', 'mast']
-      .map((key) => ({ key, welt: erkennungsWelt(key, letzte?.erg?.modell ?? null,
-                                                  ansicht.szene),
-                       label: moeglich.find((b) => b.key === key)?.label }))
-      .find((b) => b.welt) ?? null;
-    const bildPaar = (key) => (key === 'mast'
-      ? [{ px: t.masten.links, py: t.fuesse.links },
-         { px: t.masten.links, py: t.jochY }]
-      : [t.p1, t.p2]);
-    const k = t && bez && t.guete >= ERKENNUNG_GRENZE
-      ? kalibriere(...bildPaar(bez.key), bez.welt[0], bez.welt[1]) : null;
-    // Der Zeichnungsknopf und die Ebenengruppe aendern sich mit dem Bild:
-    // vorher «Zeichnung…» und zwei graue Schalter, jetzt beides scharf. Ohne
-    // dieses Nachzeichnen behauptete der Knopf weiter, es gebe keine.
-    baueModellWerkzeuge();
-    if (k) {
-      ansicht.zeichnung.kalibrierung = k;
-      ansicht.zeichnung.vorlaeufig = false;
-      ansicht.zeichne();
-      erkannt = { guete: t.guete, label: bez.label };
-      zeichneBalken();
-      await zeichnungSichernFallsMoeglich();
-      return;
-    }
-    await zeichnungSichernFallsMoeglich();
-    kalibrierenStarten();
-  } catch (f) {
-    // Der Handlungsbalken ueber dem Modell: dort steht ohnehin, was als
-    // Naechstes zu tun ist, und dorthin schaut man beim Einlegen eines
-    // Bildes. Die Modellueberschrift, die das frueher trug, gibt es nicht
-    // mehr.
-    meldeImBalken(`Das Bild liess sich nicht einlesen: ${f.message}`);
-  }
-}
-
-/** In die Ablage, sobald das Tragwerk eine Id hat. */
-async function zeichnungSichernFallsMoeglich() {
-  const z = ansicht.zeichnung;
-  if (!z || !projekt.id) return;
-  await store.zeichnungSichern(projekt.id, {
-    daten: z.daten, breite: z.breite, hoehe: z.hoehe, art: z.art,
-    name: z.name, kalibrierung: z.kalibrierung,
-  }).catch(() => {});
-}
-
-/** Zeichnung eines geladenen Tragwerks holen. */
-async function zeichnungHolen(id) {
-  const s = await store.zeichnungLaden(id).catch(() => null);
-  if (!s) { ansicht.zeichnung = null; return; }
-  const bild = await createImageBitmap(new Blob([s.daten], { type: s.art }))
-    .catch(() => null);
-  if (!bild) { ansicht.zeichnung = null; return; }
-  ansicht.zeichnung = { bild, breite: s.breite, hoehe: s.hoehe, daten: s.daten,
-                        art: s.art, name: s.name, kalibrierung: s.kalibrierung,
-                        vorlaeufig: !s.kalibrierung };
-}
-
-/**
- * KALIBRIEREN: zwei Klicks auf ein bekanntes Mass.
- *
- * Die Modellpunkte stehen schon in der Eingabe - Jochlänge oder Masthöhe.
- * Eingetippt werden muss nichts; man klickt, was man ohnehin weiss.
- */
-/*
- * DIE ZEICHNUNG ALS HANDLUNG.
- *
- * Bis hierher fuehrten nur zwei Wege zu einer Zeichnung: Strg+V und
- * Hineinziehen. Beide unsichtbar. Und war sie einmal eingemessen, gab es
- * ueberhaupt keinen Weg zurueck - die Frage des Auftraggebers, wie man die
- * Punkte nachtraeglich aendert, hatte schlicht keine Antwort.
- *
- * Der Knopf traegt jetzt alles, was man mit ihr tun kann. Ohne Bild oeffnet
- * er die Dateiwahl, mit Bild fragt er, was zu tun ist.
- */
+// Zustaende der Zeichnung (Menue, Schieben, Ausrichten) - hier oben, damit
+// app.zeichnung.js sie ueber das Kontextobjekt lesen und schreiben kann.
 let zeichnungMenue = false;
-
-function zeichnungMenueUmschalten() {
-  if (bildSchieben) { bildSchiebenEnde(false); return; }
-  if (ausrichtung) { ausrichtenEnde(false); return; }
-  if (kalibrierung) kalibrierenEnde();
-  if (setzen) setzenEnde();
-  if (!ansicht.zeichnung) { zeichnungWaehlen(); return; }
-  zeichnungMenue = !zeichnungMenue;
-  baueModellWerkzeuge();
-  zeichneBalken();
-}
-
-function zeichnungMenueEnde() {
-  zeichnungMenue = false;
-  baueModellWerkzeuge();
-  zeichneBalken();
-}
-
-/** Dateiwahl fuer ein Bild - derselbe Weg wie Einfuegen und Ziehen. */
-function zeichnungWaehlen() {
-  const f = document.createElement('input');
-  f.type = 'file';
-  f.accept = 'image/*';
-  f.onchange = async () => {
-    const b = f.files?.[0];
-    if (b) await zeichnungEinlegen(b, b.name ?? 'Datei');
-    zeichnungMenueEnde();
-  };
-  f.click();
-}
-
-async function zeichnungEntfernen() {
-  ansicht.zeichnung = null;
-  ansicht.zeichne();
-  try { await store.zeichnungLoeschen(projekt.id); } catch { /* nie gesichert */ }
-  zeichnungMenueEnde();
-}
-
-/*
- * DAS ABGELEGTE BILD NACHTRAEGLICH VERSCHIEBEN.
- *
- * Weisung vom 2. September: «es waere daher noch gut das abgelegte QP Bild
- * schieben zu koennen nachtraeglich, falls die Lage der Abstraktion nicht
- * ganz gleicht bei einer Jochreihe.»
- *
- * >>> DIE ALTE LAGE WIRD FESTGEHALTEN, BEVOR ETWAS PASSIERT. <<<
- *
- * Verschieben ist eine Handlung, die man daneben treffen kann - und was
- * zwei Klicks eingemessen haben, darf ein ungeschickter Zug nicht wortlos
- * verbrauchen. Solange der Modus laeuft, steht «zurueck» daneben; er setzt
- * genau auf die Kalibrierung zurueck, die vorher galt.
- *
- * Gesichert wird erst am Ende. Waehrend des Ziehens liefen sonst dutzende
- * Schreibvorgaenge in die Ablage, je Bild einer.
- */
 let bildSchieben = null;     // { vorher: {s, x0, z0} }
-
-function bildSchiebenStarten() {
-  const z = ansicht.zeichnung;
-  if (!z?.kalibrierung) return;
-  if (kalibrierung) kalibrierenEnde();
-  if (ausrichtung) ausrichtenEnde(false);
-  if (setzen) setzenEnde();
-  zeichnungMenue = false;
-  bildSchieben = { vorher: { ...z.kalibrierung } };
-  // Die Zeichnung gilt nur in der Laengsansicht - dort wird auch geschoben.
-  if (ansicht.ansichtKey !== 'laengs') ansicht.blickrichtung('laengs');
-  ansicht.zeichnungSchieben = true;
-  ansicht.ebenen.zeichnung = true;
-  const cv = ui.el('canvas3d');
-  if (cv) cv.style.cursor = 'grab';
-  baueModellWerkzeuge();
-  zeichneBalken();
-  ansicht.zeichne();
-  /*
-   * DER FANG GEHOERT ANS ENDE, nicht an den Anfang.
-   *
-   * Die Pfeiltasten hoeren an der ZEICHENFLAECHE - ohne Fokus dort passiert
-   * beim Druecken nichts. Vorne gesetzt war er sofort wieder weg: der
-   * Balken wird gleich darauf neu gebaut, und der Knopf, ueber den man
-   * hierher kam, verschwindet dabei mitsamt dem Fokus. Gemessen am
-   * 2. September - Ziehen ging, die Pfeile taten nichts.
-   */
-  cv?.focus?.({ preventScroll: true });
-}
-
-async function bildSchiebenEnde(zurueck = false) {
-  if (!bildSchieben) return;
-  const z = ansicht.zeichnung;
-  if (zurueck && z) z.kalibrierung = { ...bildSchieben.vorher };
-  bildSchieben = null;
-  ansicht.zeichnungSchieben = false;
-  ui.el('canvas3d')?.style.removeProperty('cursor');
-  if (z && !zurueck) await zeichnungSichernFallsMoeglich();
-  baueModellWerkzeuge();
-  zeichneBalken();
-  ansicht.zeichne();
-}
-
-/**
- * Das Einmessen beginnen - mit der Frage, WONACH.
- *
- * >>> DIE WAHL GEHOERT VOR DIE KLICKS. <<<
- *
- * Weisung vom 12. September: "man muesste hier eine auswahl vornehmen ob ein
- * mast (vertikal) oder ein joch (horizontal) als referenz dient."
- *
- * Bisher begann jedes Einmessen beim Joch, und das lotrechte Mass lag hinter
- * einem Knopf namens "anderes Mass" - zu finden erst, wenn man schon im
- * Fadenkreuz stand und die erste Anweisung vom falschen Punkt sprach. Wer
- * eine angeschnittene Zeichnung einlegt, auf der kein Jochende zu sehen ist,
- * musste das erst merken und dann suchen.
- *
- * Ohne Schluessel wird gefragt; mit Schluessel geht es unmittelbar los. Gibt
- * es nur einen Bezug, wird nicht gefragt - eine Wahl mit einer Antwort ist
- * keine.
- */
-function kalibrierenStarten(bezugKey = null) {
-  if (ausrichtung) ausrichtenEnde(false);
-  const moeglich = bezuegeFuer(letzte?.erg?.modell ?? null, ansicht.szene);
-  if (!moeglich.length || !ansicht.zeichnung) { kalibrierenEnde(); return; }
-  const key = bezugKey ?? (moeglich.length === 1 ? moeglich[0].key : null);
-  if (!key) {
-    kalibrierung = { wahl: moeglich, punkte: [] };
-    ansicht.kalibrierPunkte = [];
-    ansicht.beiZeichnungsklick = null;
-    zeichneBalken();
-    return;
-  }
-  const b = moeglich.find((x) => x.key === key);
-  if (!b) { kalibrierenEnde(); return; }
-  const welt = b.frei
-    ? [{ text: 'Anfang des bekannten Masses' }, { text: 'Ende des bekannten Masses' }]
-    : b.welt;
-  kalibrierung = { bezug: b.key, label: b.label, wahlbar: moeglich.length > 1,
-                   welt, punkte: [], frei: Boolean(b.frei) };
-  // Der Geraetepunkt kommt als zweites Argument - er wird gebraucht, um den
-  // gesetzten Punkt stehen zu lassen, waehrend man den zweiten sucht.
-  ansicht.kalibrierPunkte = [];
-  ansicht.beiZeichnungsklick = (t, g) => kalibrierKlick(t, g);
-  ui.el('canvas3d').style.cursor = 'crosshair';
-  zeichneBalken();
-}
-
-function kalibrierenEnde() {
-  kalibrierung = null;
-  erkannt = null;
-  ansicht.beiZeichnungsklick = null;
-  ansicht.kalibrierPunkte = [];
-  ansicht._fadenkreuz = null;
-  ui.el('canvas3d')?.style.removeProperty('cursor');
-  baueModellWerkzeuge();
-  zeichneBalken();
-  ansicht.zeichne();
-}
-
-async function kalibrierKlick(t, geraet) {
-  if (!kalibrierung) return;
-  if (kalibrierung.frei && kalibrierung.punkte.length >= 2) return;
-  kalibrierung.punkte.push(t);
-  if (geraet) ansicht.kalibrierPunkte = [...ansicht.kalibrierPunkte, geraet];
-  if (kalibrierung.punkte.length < 2) { zeichneBalken(); ansicht.zeichne(); return; }
-  /*
-   * DAS FREIE MASS FRAGT NACH DEN ZWEI KLICKS NACH DER LAENGE.
-   *
-   * Weitere Klicks gehen ins Leere, bis sie eingegeben ist: ein dritter
-   * Punkt waere nicht gemeint und stuende sonst stumm in der Liste.
-   */
-  if (kalibrierung.frei) {
-    // Die Kreuze bleiben stehen, solange die Laenge fehlt - man sieht, was
-    // man gemessen hat.
-    zeichneBalken();
-    ansicht.zeichne();
-    ui.el('viewer-balken')?.querySelector('[data-kalib-laenge]')?.focus();
-    return;
-  }
-  const [p1, p2] = kalibrierung.punkte;
-  const [w1, w2] = kalibrierung.welt;
-  const k = kalibriere(p1, p2, w1, w2);
-  if (k && ansicht.zeichnung) {
-    ansicht.zeichnung.kalibrierung = k;
-    ansicht.zeichnung.vorlaeufig = false;
-    await zeichnungSichernFallsMoeglich();
-  }
-  kalibrierenEnde();
-}
-
-/**
- * Das freie Mass abschliessen: Laenge eingegeben, Massstab daraus.
- *
- * Danach geht es GLEICH ins Ausrichten. Ein freies Mass sagt nur, wie gross
- * das Bild ist, nicht wohin es gehoert - liesse man es hier stehen, laege es
- * im richtigen Massstab am falschen Ort, und das sieht aus wie ein Fehler.
- */
-async function freiesMassUebernehmen(laenge) {
-  const z = ansicht.zeichnung;
-  if (!kalibrierung?.frei || !z || kalibrierung.punkte.length < 2) return;
-  const [p1, p2] = kalibrierung.punkte;
-  const k = kalibriereFrei(p1, p2, laenge, z.kalibrierung);
-  // Ohne brauchbare Laenge bleibt die Frage stehen - die beiden Punkte
-  // sind gesetzt, und sie noch einmal zu klicken, waere verlorene Arbeit.
-  if (!k) {
-    ui.el('viewer-balken')?.querySelector('[data-kalib-laenge]')?.focus();
-    return;
-  }
-  z.kalibrierung = k;
-  z.vorlaeufig = false;
-  await zeichnungSichernFallsMoeglich();
-  kalibrierenEnde();
-  ausrichtenStarten({ nachMass: true });
-}
-
-/*
- * >>> AUSRICHTEN AN EINEM PUNKT (Weisung, 18. September). <<<
- *
- * «Die Referenz ist starr am Mastfuss» - das Einmessen legt Massstab UND
- * Lage in einem, und die Lage hing an den beiden Punkten, die man gerade
- * geklickt hatte. Wer die Zeichnung am Mastkopf oder am Jochende
- * deckungsgleich haben wollte, musste schieben und schaetzen.
- *
- * Jetzt waehlt man den Bezugspunkt: einen aus dem Modell - Mastfuss,
- * Anschluss, Mastkopf, Jochende - oder einen frei angeklickten. Dann klickt
- * man die Stelle auf der Zeichnung, die dorthin gehoert. Das Bild wird nur
- * VERSCHOBEN; der Massstab bleibt, wie er gemessen wurde.
- */
 let ausrichtung = null;   // { wahl, vorher, ziel?, frei?, punkte, nachMass? }
 
-function ausrichtenStarten(o = {}) {
-  const z = ansicht.zeichnung;
-  if (!z?.kalibrierung) return;
-  if (kalibrierung) kalibrierenEnde();
-  if (bildSchieben) bildSchiebenEnde(false);
-  if (setzen) setzenEnde();
-  zeichnungMenue = false;
-  if (ansicht.ansichtKey !== 'laengs') ansicht.blickrichtung('laengs');
-  ansicht.ebenen.zeichnung = true;
-  ausrichtung = { wahl: ausrichtPunkte(ansicht.szene), vorher: { ...z.kalibrierung },
-                  punkte: [], nachMass: o.nachMass === true };
-  ansicht.beiZeichnungsklick = null;
-  ansicht.kalibrierPunkte = [];
-  baueModellWerkzeuge();
-  zeichneBalken();
-  ansicht.zeichne();
-}
-
-function ausrichtenWaehlen(key) {
-  if (!ausrichtung) return;
-  if (key === 'frei') {
-    ausrichtung.frei = true;
-    ausrichtung.ziel = null;
-  } else {
-    const p = ausrichtung.wahl.find((w) => w.key === key);
-    if (!p) return;
-    ausrichtung.ziel = p;
-    ausrichtung.frei = false;
-  }
-  ausrichtung.punkte = [];
-  ansicht.kalibrierPunkte = [];
-  ansicht.beiZeichnungsklick = (t, g) => ausrichtKlick(t, g);
-  const cv = ui.el('canvas3d');
-  if (cv) cv.style.cursor = 'crosshair';
-  zeichneBalken();
-  ansicht.zeichne();
-}
-
-async function ausrichtKlick(t, geraet) {
-  const z = ansicht.zeichnung;
-  if (!ausrichtung || !z?.kalibrierung) return;
-  let ziel = ausrichtung.ziel;
-  if (ausrichtung.frei) {
-    // Erst der Punkt auf der Zeichnung, dann die Stelle im Modell, wohin er
-    // gehoert. Der zweite Klick zaehlt als Ort in der Welt, nicht im Bild.
-    if (!ausrichtung.punkte.length) {
-      ausrichtung.punkte.push(t);
-      if (geraet) ansicht.kalibrierPunkte = [geraet];
-      zeichneBalken();
-      ansicht.zeichne();
-      return;
-    }
-    ziel = bildNachWelt(z.kalibrierung, t.px, t.py);
-    t = ausrichtung.punkte[0];
-  }
-  const k = ausrichten(z.kalibrierung, t, ziel);
-  if (k) {
-    z.kalibrierung = k;
-    await zeichnungSichernFallsMoeglich();
-  }
-  ausrichtenEnde(false);
-}
-
-async function ausrichtenEnde(zurueck = false) {
-  const z = ansicht.zeichnung;
-  if (zurueck && z && ausrichtung?.vorher) z.kalibrierung = { ...ausrichtung.vorher };
-  const war = ausrichtung;
-  ausrichtung = null;
-  ansicht.beiZeichnungsklick = null;
-  ansicht.kalibrierPunkte = [];
-  ansicht._fadenkreuz = null;
-  ui.el('canvas3d')?.style.removeProperty('cursor');
-  if (zurueck && z && war) await zeichnungSichernFallsMoeglich();
-  baueModellWerkzeuge();
-  zeichneBalken();
-  ansicht.zeichne();
-}
 
 // --- Bauteil setzen: erst wohin, dann was -----------------------------------
 
@@ -3547,8 +3127,8 @@ const ankerRichtungVor = () => 'y';
 
 
 function setzenStarten(vorwahl = null) {
-  if (kalibrierung) kalibrierenEnde();
-  if (ausrichtung) ausrichtenEnde(false);
+  if (kalibrierung) kalibrierenEnde(app);
+  if (ausrichtung) ausrichtenEnde(app, false);
   setzen = { stelle: null, vorwahl };
   ansicht.beiStelle = (w) => stelleGewaehlt(w);
   ui.el('canvas3d').style.cursor = 'crosshair';
@@ -3922,9 +3502,9 @@ function zeichneBalken() {
           + ` title="${esc(b.hinweis)}">${esc(b.label)}</button>`).join('')
       + '<button class="btn btn-mini" data-kalib-ab>Abbrechen</button>';
     if (canvas) canvas.style.removeProperty('cursor');
-    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde();
+    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde(app);
     n.querySelectorAll('[data-kalib-w]').forEach((b) => {
-      b.onclick = () => kalibrierenStarten(b.dataset.kalibW);
+      b.onclick = () => kalibrierenStarten(app, b.dataset.kalibW);
     });
     return;
   }
@@ -3947,13 +3527,13 @@ function zeichneBalken() {
       + '<button class="btn btn-mini btn-acc" data-kalib-ok>übernehmen</button>'
       + '<button class="btn btn-mini" data-kalib-ab>Abbrechen</button>';
     const inp = n.querySelector('[data-kalib-laenge]');
-    const ok = () => freiesMassUebernehmen(Number(String(inp.value).replace(',', '.')));
+    const ok = () => freiesMassUebernehmen(app, Number(String(inp.value).replace(',', '.')));
     n.querySelector('[data-kalib-ok]').onclick = ok;
     inp.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); ok(); }
-      if (e.key === 'Escape') { e.preventDefault(); kalibrierenEnde(); }
+      if (e.key === 'Escape') { e.preventDefault(); kalibrierenEnde(app); }
     });
-    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde();
+    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde(app);
     return;
   }
   if (ausrichtung && ansicht.zeichnung) {
@@ -3971,9 +3551,9 @@ function zeichneBalken() {
         + '<button class="btn btn-mini" data-ausr-ab>Abbrechen</button>';
       if (canvas) canvas.style.removeProperty('cursor');
       n.querySelectorAll('[data-ausr-w]').forEach((b) => {
-        b.onclick = () => ausrichtenWaehlen(b.dataset.ausrW);
+        b.onclick = () => ausrichtenWaehlen(app, b.dataset.ausrW);
       });
-      n.querySelector('[data-ausr-ab]').onclick = () => ausrichtenEnde(false);
+      n.querySelector('[data-ausr-ab]').onclick = () => ausrichtenEnde(app, false);
       return;
     }
     const text = ausrichtung.frei
@@ -3990,7 +3570,7 @@ function zeichneBalken() {
       ansicht.beiZeichnungsklick = null; ansicht.kalibrierPunkte = [];
       zeichneBalken(); ansicht.zeichne();
     };
-    n.querySelector('[data-ausr-ab]').onclick = () => ausrichtenEnde(false);
+    n.querySelector('[data-ausr-ab]').onclick = () => ausrichtenEnde(app, false);
     return;
   }
   if (kalibrierung && ansicht.zeichnung) {
@@ -4003,11 +3583,11 @@ function zeichneBalken() {
           ? '<button class="btn btn-mini" data-kalib-bezug>anderes Mass</button>' : '')
       + '<button class="btn btn-mini" data-kalib-ab>Abbrechen</button>';
     if (canvas) canvas.style.cursor = 'crosshair';
-    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde();
+    n.querySelector('[data-kalib-ab]').onclick = () => kalibrierenEnde(app);
     // Zurueck zur Frage, nicht zum anderen Mass: bei drei Bezuegen waere ein
     // Umschalter eine Rateschleife.
     n.querySelector('[data-kalib-bezug]')?.addEventListener(
-      'click', () => kalibrierenStarten());
+      'click', () => kalibrierenStarten(app));
     return;
   }
   /*
@@ -4031,9 +3611,9 @@ function zeichneBalken() {
       + (bewegt ? '<button class="btn btn-mini" data-bs-zur>zurück</button>' : '')
       + '<button class="btn btn-mini btn-acc" data-bs-ok>fertig</button>';
     if (canvas) canvas.style.cursor = 'grab';
-    n.querySelector('[data-bs-ok]').onclick = () => bildSchiebenEnde(false);
+    n.querySelector('[data-bs-ok]').onclick = () => bildSchiebenEnde(app, false);
     n.querySelector('[data-bs-zur]')?.addEventListener(
-      'click', () => bildSchiebenEnde(true));
+      'click', () => bildSchiebenEnde(app, true));
     return;
   }
   /*
@@ -4062,7 +3642,7 @@ function zeichneBalken() {
       + '<button class="btn btn-mini" data-erk-hand>von Hand einmessen</button>';
     n.querySelector('[data-erk-ok]').onclick = () => { erkannt = null; zeichneBalken(); };
     n.querySelector('[data-erk-hand]').onclick = () => {
-      erkannt = null; kalibrierenStarten();
+      erkannt = null; kalibrierenStarten(app);
     };
     return;
   }
@@ -4089,13 +3669,13 @@ function zeichneBalken() {
       + '<button class="btn btn-mini btn-fail" data-z-weg>Entfernen</button>'
       + '<button class="btn btn-mini" data-z-ab>Abbrechen</button>';
     n.querySelector('[data-z-mess]').onclick = () => {
-      zeichnungMenue = false; kalibrierenStarten();
+      zeichnungMenue = false; kalibrierenStarten(app);
     };
-    n.querySelector('[data-z-schieb]').onclick = () => bildSchiebenStarten();
-    n.querySelector('[data-z-ausr]').onclick = () => ausrichtenStarten();
-    n.querySelector('[data-z-neu]').onclick = () => zeichnungWaehlen();
-    n.querySelector('[data-z-weg]').onclick = () => zeichnungEntfernen();
-    n.querySelector('[data-z-ab]').onclick = () => zeichnungMenueEnde();
+    n.querySelector('[data-z-schieb]').onclick = () => bildSchiebenStarten(app);
+    n.querySelector('[data-z-ausr]').onclick = () => ausrichtenStarten(app);
+    n.querySelector('[data-z-neu]').onclick = () => zeichnungWaehlen(app);
+    n.querySelector('[data-z-weg]').onclick = () => zeichnungEntfernen(app);
+    n.querySelector('[data-z-ab]').onclick = () => zeichnungMenueEnde(app);
     return;
   }
   if (setzen) {
@@ -4205,7 +3785,7 @@ function verdrahteZeichnung() {
     const blob = bildAusEreignis(ev);
     if (!blob) return;
     ev.preventDefault();
-    await zeichnungEinlegen(blob, 'eingefügt');
+    await zeichnungEinlegen(app, blob, 'eingefügt');
   });
   const v = ui.el('viewer');
   if (!v) return;
@@ -4225,7 +3805,7 @@ function verdrahteZeichnung() {
      * der Browser von sich aus taete.
      */
     ev.stopPropagation();
-    await zeichnungEinlegen(blob, blob.name ?? 'Datei');
+    await zeichnungEinlegen(app, blob, blob.name ?? 'Datei');
   });
 }
 
@@ -4423,11 +4003,11 @@ function abbrechen() {
    * das Bild liegt, wo es liegt. Wer die alte Lage zurueck will, druckt
    * «zurueck» im Balken - das steht daneben, solange etwas verschoben ist.
    */
-  if (bildSchieben) { bildSchiebenEnde(false); return; }
+  if (bildSchieben) { bildSchiebenEnde(app, false); return; }
   // Ausrichten und Einmessen haben einen halbfertigen Zustand - Esc nimmt
   // ihn zurueck, die Lage des Bildes bleibt, wie sie vorher war.
-  if (ausrichtung) { ausrichtenEnde(false); return; }
-  if (kalibrierung) { kalibrierenEnde(); return; }
+  if (ausrichtung) { ausrichtenEnde(app, false); return; }
+  if (kalibrierung) { kalibrierenEnde(app); return; }
   const dlg = ui.el('ueberlagerung')?.firstElementChild;
   if (dlg) { dlg.querySelector('[data-zu]')?.click(); return; }
   if (schubladeIstOffen()) { schubladeSchliessen(app); return; }
@@ -5253,7 +4833,7 @@ function baueModellWerkzeuge() {
        aria-label="Querprofil-Zeichnung"
        aria-pressed="${Boolean(zeichnungMenue)}">${icon('zeichnung')}</button>`;
   ui.el('v-setzen').onclick = () => (setzen ? setzenEnde() : setzenStarten());
-  ui.el('v-zeichnung').onclick = () => zeichnungMenueUmschalten();
+  ui.el('v-zeichnung').onclick = () => zeichnungMenueUmschalten(app);
   /*
    * >>> DIE BEIDEN SIND EIN PAAR: ALLES oder NUR DIESES. <<<
    *
@@ -6350,7 +5930,7 @@ function beginneNeu(art) {
   // Die Zeichnung des vorigen Tragwerks geht mit ihm - sie zeigte ein
   // anderes Bauwerk und wäre hinter dem neuen schlicht falsch.
   ansicht.zeichnung = null;
-  kalibrierenEnde();
+  kalibrierenEnde(app);
   neuRechnen();
   // Ein frisch begonnenes Tragwerk hat nichts Ungesichertes - es ist nur
   // noch nicht in der Ablage, und das sagt der Titel des Knopfes.
