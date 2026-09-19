@@ -23241,7 +23241,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
       unbekannt += r.warnung.filter((w) => /ohne Katalogeintrag/.test(w)).length;
       bereich += r.warnung.filter((w) => /erwartet/.test(w)).length;
     }
-    wahr('Jede Spalte jeder Datei steht im Katalog', unbekannt === 0, `${unbekannt}`);
+    wahr('Jede Spalte jeder Datei steht im Katalog', unbekannt === 0, `${unbekannt} ${TBF.SORTIMENTE.flatMap((s) => K.pruefeTabellen(s, tab[s]).warnung.filter((w) => /ohne Katalogeintrag/.test(w))).join(" | ")}`);
     wahr('Kein Wert liegt ausserhalb seines Bereichs', bereich === 0, `${bereich}`);
     /*
      * >>> EIN EINZIGER FEHLER, UND ER IST ECHT. <<<
@@ -25862,6 +25862,54 @@ titel('99  Anbauteile am Einzelmast: alle Eingabewege');
        q99.includes('dieses Tragwerk hat kein Joch'));
   const ui99 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Karte nennt den Masten beim Namen (M1), nicht «MA»', ui99.includes('`${mName} ${f2(a.hMast ?? 0)} m`'));
+}
+
+titel('100  Anbauteil-Vorlagen nach Ort: Joch, Mast, beide');
+/*
+ * Weisung vom 19. September: «wir sollten die anbauteile template auf die
+ * tragwerksarten anpassen. beim mast sind die ausleger relevant und die
+ * zusatzleiter an traversen.» Am Masten: Rueckleiter direkt, Lampe alt/LED
+ * mit Rohr, Fahrdrahtabzug mit Konsole 1 m, NT- und Rohrausleger, Traverse
+ * mit Zusatzleiter. «nach ort trennen».
+ */
+{
+  const A100 = await import(J('data.anbauteile.js'));
+  const SZ100 = await import(J('app.setzen.js'));
+  const alle = A100.vorlagen();
+  const ort = (id) => A100.vorlageOrt(alle.find((v) => v.id === id) ?? { id });
+  wahr('Ohne Spalte: mit Traeger ans Joch, sonst an beide',
+       A100.vorlageOrt({ module: [{ bauteil: alle.flatMap((v) => v.module ?? [])
+         .find((m) => { try { return FL.getFlBauteil(m.bauteil).rolle === 'traeger'; } catch { return false; } })?.bauteil }] }) === 'joch'
+       && A100.vorlageOrt({ module: [] }) === 'beide');
+  wahr('Die Spalte gilt, wo sie steht',
+       A100.vorlageOrt({ ort: 'mast', module: [] }) === 'mast');
+  wahr('Eine Mast-Vorlage passt an den Masten, nicht ans Joch',
+       A100.vorlagePasstAn({ ort: 'mast' }, 'mastA') && !A100.vorlagePasstAn({ ort: 'mast' }, 'joch'));
+  wahr('… eine Joch-Vorlage umgekehrt',
+       A100.vorlagePasstAn({ ort: 'joch' }, 'joch') && !A100.vorlagePasstAn({ ort: 'joch' }, 'mastB'));
+  const mastIds = alle.filter((v) => ort(v.id) === 'mast').map((v) => v.id);
+  if (mastIds.length) {
+    // Mit den Betreiberdaten: die fuenf angewiesenen Vorlagen am Masten.
+    wahr('Am Masten stehen die angewiesenen Vorlagen',
+         ['mast-nt-ausleger', 'mast-rohrausleger', 'mast-fd-abzug', 'mast-lampe-led-rohr',
+          'mast-lampe-alt-rohr'].every((id) => mastIds.includes(id))
+         && ['leiter-traverse', 'leiter-rl'].every((id) => ort(id) === 'beide'),
+         mastIds.join(', '));
+    const app100 = { werte: {}, letzte: null };
+    const amMast = SZ100.vorlagenFuer(app100, 'mastA').map((e) => e.v.id);
+    const amJoch = SZ100.vorlagenFuer(app100, 'joch').map((e) => e.v.id);
+    wahr('Beim Setzen am Masten keine Joch-Vorlage, am Joch keine Mast-Vorlage',
+         !amMast.some((id) => ort(id) === 'joch') && !amJoch.some((id) => ort(id) === 'mast')
+         && amMast.includes('mast-nt-ausleger') && amJoch.includes('hs-fahrdraht'));
+  }
+  const q100 = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
+  wahr('Ziehen/Vorwahl an die falsche Stelle wird abgewiesen, mit passendem Text',
+       q100.includes('if (vorl && !vorlagePasstAn(vorl, st.ort))')
+       && q100.includes('ist eine Vorlage fürs Joch, und dieses Tragwerk hat keines.'));
+  const ui100 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Kachelliste zeigt am Einzelmast nur, was an den Masten passt',
+       ui100.includes("&& (!ohneJoch || vorlagePasstAn(v, 'mast')));")
+       && ui100.includes("['mast', 'Am Masten', 'grpUebrige'],"));
 }
 
 // ===========================================================================

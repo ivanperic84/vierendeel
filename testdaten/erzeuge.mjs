@@ -130,6 +130,13 @@ schreibe('anbauteile.json', {
       beschreibung: 'Test', raster: 0.4, befestigung: 'unten', gruppe: 'leiter', rang: 3,
       module: [{ bauteil: 'drahtwerk-test-leiter', anzahl: 1, laenge: null, z: -0.35, y: 0,
                  umlenkung: true }] },
+    // Nach Ort getrennt (19. September): eine Vorlage nur fuer den Masten.
+    { id: 'test-mast-leiter', name: 'Test-Leiter am Mast', farbe: 'seitlich',
+      beschreibung: 'Test', raster: 0, befestigung: 'unten', gruppe: 'mast', rang: 2,
+      ort: 'mast',
+      module: [{ bauteil: 'test-traverse', anzahl: 1, laenge: 1, z: 0, y: 0, x: 0.5 },
+               { bauteil: 'drahtwerk-test-leiter', anzahl: 1, laenge: null, z: 0, y: 0,
+                 x: 1.0, umlenkung: true }] },
     { id: 'frei', name: 'Frei definiert', farbe: 'frei', beschreibung: 'Test',
       raster: 0, befestigung: 'unten', gruppe: 'frei', rang: 9, module: [] },
   ],

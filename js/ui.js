@@ -29,7 +29,7 @@ import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
-         modulWinkel, ANBAU_ORTE, ortVon, amMast } from './data.anbauteile.js';
+         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
@@ -2170,9 +2170,17 @@ function anbauteileHtml(g, werte) {
     ['haengestuetze', 'Hängestützen und Ausleger', 'grpHaengestuetze'],
     ['jochaufsatz', 'Jochaufsätze', 'grpJochaufsatz'],
     ['leiter', 'Leiter und Traversen', 'grpLeiter'],
+    ['mast', 'Am Masten', 'grpUebrige'],
     ['uebrige', 'Übrige', 'grpUebrige'],
   ];
-  const alleV = vorlagen().filter((v) => v.id !== 'frei');
+  /*
+   * NACH TRAGWERK (19. September, «nach ort trennen»): ohne Traeger - am
+   * Einzelmast - nur, was an einen Masten passt. Ein Joch steht auf Masten
+   * und bekommt beides; die Mast-Vorlagen stehen dort unter «Am Masten».
+   */
+  const ohneJoch = tragwerksart(werte).traeger !== true;
+  const alleV = vorlagen().filter((v) => v.id !== 'frei'
+    && (!ohneJoch || vorlagePasstAn(v, 'mast')));
   /*
    * WAS KEINE GRUPPE TRAEGT, VERSCHWINDET NICHT.
    *
@@ -2551,7 +2559,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
           also als h = 7.00 und z = −0.35. <b>x</b> ist an beiden Enden
           global, positiv nach rechts. Der Weg läuft auf der
           Anschlusshöhe zuerst waagrecht (y, dann x), dann lotrecht auf z.</p>`)}`,
-      `${vorlagen().length} Vorlagen`) +
+      `${alleV.length + 1} Vorlagen`) +
     // Das Suchfeld filtert im Browser, ohne die Maske neu zu bauen - sonst
     // verlöre das Feld bei jedem Tastendruck den Fokus.
     (liste.length > 3 ? `<div class="at-suche">

@@ -148,6 +148,35 @@ export function vorlagen() {
   return [...db().vorlagen, ...EIGENE];
 }
 
+/* ===========================================================================
+ * >>> WO EINE VORLAGE HINGEHOERT: JOCH, MAST ODER BEIDES (19. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «wir sollten die anbauteile template auf die tragwerksarten
+ * anpassen. beim mast sind die ausleger relevant und die zusatzleiter an
+ * traversen.» Am Masten: Rueckleiter direkt, Lampe alt/LED mit Rohr,
+ * Fahrdrahtabzug mit Konsole 1 m, NT- und Rohrausleger, Traverse mit
+ * Zusatzleiter; am Joch die Joch-Vorlagen - «nach ort trennen».
+ *
+ * Die Spalte `ort` im Katalog sagt es ('joch' | 'mast' | 'beide'). Fehlt
+ * sie (aeltere Daten, eigene Vorlagen), gilt: mit Traeger am Joch, sonst an
+ * beiden - dieselbe Regel, die das Setzen schon kannte (kein Traeger am
+ * Masten).
+ */
+export function vorlageOrt(v) {
+  if (v?.ort === 'joch' || v?.ort === 'mast' || v?.ort === 'beide') return v.ort;
+  const traeger = (v?.module ?? []).some((m) => {
+    try { return getFlBauteil(m.bauteil).rolle === 'traeger'; } catch { return false; }
+  });
+  return traeger ? 'joch' : 'beide';
+}
+
+/** Passt die Vorlage an diese Stelle? `ort`: 'joch' | 'mastA' | 'mastB' | 'mast'. */
+export function vorlagePasstAn(v, ort) {
+  const o = vorlageOrt(v);
+  return o === 'beide' || o === (ort === 'joch' ? 'joch' : 'mast');
+}
+
 export function getVorlage(id) {
   const v = vorlagen().find((x) => x.id === id);
   if (!v) throw new Error(`Unbekannte Anbauteil-Vorlage: ${id}`);

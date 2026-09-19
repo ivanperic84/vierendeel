@@ -13,7 +13,7 @@ import { baueModellWerkzeuge } from './app.layout.js';
 import { ausrichtenEnde, kalibrierenEnde } from './app.zeichnung.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { blattNachLokal, fangeAufMasskette, lokalNachBlatt, tragwerkBeiX, tragwerkeVon, tragwerksart } from './core.constants.js';
-import { getVorlage, neuesAnbauteil, vorlagen } from './data.anbauteile.js';
+import { getVorlage, neuesAnbauteil, vorlagen, vorlagePasstAn } from './data.anbauteile.js';
 import { getFlBauteil } from './data.fl.js';
 import { esc } from './design.js';
 import * as ui from './ui.js';
@@ -205,6 +205,8 @@ export function vorlagenFuer(app, ort) {
   return vorlagen()
     .map((v) => ({ v, rolle: rolleVon(v) }))
     .filter((e) => ort === 'joch' || e.rolle !== 'traeger')
+    // Nach Ort getrennt (19. September): der Ausleger am Masten nicht ans Joch.
+    .filter((e) => vorlagePasstAn(e.v, ort))
     .sort((a, b) => rang[a.rolle] - rang[b.rolle]);
 }
 
@@ -237,6 +239,24 @@ function setzeBaugruppeAnStelle(app, roh) {
                         + (ohneJoch
                           ? ' es keinen, und dieses Tragwerk hat kein Joch. Ein Teil ohne Träger wählen, oder abbrechen.'
                           : ' es keinen. Ans Joch damit, oder abbrechen.') };
+    app.zeichneBalken();
+    return;
+  }
+  /*
+   * DIE VORLAGE GEHOERT AN IHREN ORT (19. September): ein Ausleger am Masten
+   * nicht ans Joch, eine Joch-Vorlage nicht an den Masten. Die Knopfspalten
+   * bieten ohnehin nur Passendes an; beim Ziehen und bei der Vorwahl steht
+   * die Stelle erst danach fest.
+   */
+  const vorl = (() => { try { return roh.vorlage ? getVorlage(roh.vorlage) : null; } catch { return null; } })();
+  if (vorl && !vorlagePasstAn(vorl, st.ort)) {
+    const keinJoch = tragwerksart(app.werte).traeger !== true;
+    app.setzen = { stelle: null, vorwahl: null,
+               hinweis: st.ort !== 'joch' && keinJoch
+                 ? `«${roh.name}» ist eine Vorlage fürs Joch, und dieses Tragwerk hat keines.`
+                   + ' Eine Vorlage für den Masten wählen, oder abbrechen.'
+                 : `«${roh.name}» gehört ${st.ort === 'joch' ? 'an einen Masten' : 'ans Joch'}`
+                   + ' — dort setzen, oder abbrechen.' };
     app.zeichneBalken();
     return;
   }

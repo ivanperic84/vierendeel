@@ -76,6 +76,36 @@
    ]
   },
   {
+   "id": "test-mast-leiter",
+   "name": "Test-Leiter am Mast",
+   "farbe": "seitlich",
+   "beschreibung": "Test",
+   "raster": 0,
+   "befestigung": "unten",
+   "gruppe": "mast",
+   "rang": 2,
+   "ort": "mast",
+   "module": [
+    {
+     "bauteil": "test-traverse",
+     "anzahl": 1,
+     "laenge": 1,
+     "z": 0,
+     "y": 0,
+     "x": 0.5
+    },
+    {
+     "bauteil": "drahtwerk-test-leiter",
+     "anzahl": 1,
+     "laenge": null,
+     "z": 0,
+     "y": 0,
+     "x": 1,
+     "umlenkung": true
+    }
+   ]
+  },
+  {
    "id": "frei",
    "name": "Frei definiert",
    "farbe": "frei",

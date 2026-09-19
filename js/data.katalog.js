@@ -577,6 +577,9 @@ export const ABSCHNITTE = [
         notiz: 'Länge der Befestigung in Jochachse.' }),
       f('befestigung', 'Befestigung', 'wahl',
         { wahl: ['oben', 'unten', 'durchgehend'], pflicht: true }),
+      // Weisung vom 19. September: «nach ort trennen».
+      f('ort', 'Ort', 'wahl', { wahl: ['joch', 'mast', 'beide'],
+        notiz: 'Wo die Vorlage angeboten wird. Leer: mit Träger am Joch, sonst an beiden.' }),
       zahl('eigengewicht', 'Eigengewicht', 'kN', { von: 0, bis: 50 }),
       bool('windAufTraeger', 'Wind auf Träger',
         { notiz: 'Kragarm: nur ein Teil der Windlast erreicht das Joch.' }),
@@ -603,6 +606,11 @@ export const ABSCHNITTE = [
           zahl('y', 'Versatz y', 'm', { von: -20, bis: 20 }),
           zahl('z', 'Höhe z', 'm', { von: -20, bis: 20 }),
           bool('umlenkung', 'Umlenkkraft'),
+          // Die drei Wirkungshaken der Karte (was dieser Leiter hier abgibt) -
+          // der Fahrdrahtabzug am Masten fuehrt sein Gewicht nicht (19. Sept.).
+          bool('wirktG', 'Gewicht wirkt'),
+          bool('wirktAblenk', 'Ablenkung wirkt'),
+          bool('wirktQ', 'Wind wirkt'),
           zahl('eigengewicht', 'Eigengewicht', 'kN', { von: 0, bis: 50 }),
           zahl('aQuer', 'Fläche quer', 'm²', { von: 0, bis: 20 }),
           zahl('aLaengs', 'Fläche längs', 'm²', { von: 0, bis: 20 }),
