@@ -11789,7 +11789,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
     {
       const aq2 = APP_QUELLE();
       wahr('Es gibt ein Fenster fuer den Masten',
-           aq2.includes('function dialogMast(mastId)'));
+           aq2.includes('function dialogMast(app, mastId)'));
       ['dlg-m-profil', 'dlg-m-h', 'dlg-m-l', 'dlg-m-x'].forEach((f) => {
         wahr(`Es fuehrt ${f}`, aq2.includes(f));
       });
@@ -11815,9 +11815,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
        */
       wahr('Das Tragwerksfenster fuehrt die Anschlusshoehe',
            aq2.includes('dlg-tw-h')
-           && aq2.includes('function hoeheVonM1(t)'));
+           && aq2.includes('function hoeheVonM1(app, t)'));
       wahr('… gelesen am ersten Masten des Tragwerks',
-           aq2.includes('function erstenMastVon(t)'));
+           aq2.includes('function erstenMastVon(app, t)'));
       wahr('… und geschrieben ueber ihn',
            /aendern\('mastAktiv', m1\.id\)/.test(aq2));
       /*
@@ -11827,9 +11827,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * zu erreichen - ein Weg, den man kennen muss.
        */
       wahr('Das Tragwerksfenster steht im Kontextmenue',
-           /tun: \(\) => dialogTragwerk\(id\)/.test(aq2));
+           /tun: \(\) => dialogTragwerk\(app, id\)/.test(aq2));
       wahr('Das Mastfenster ebenso',
-           /tun: \(\) => dialogMast\(mastId\)/.test(aq2));
+           /tun: \(\) => dialogMast\(app, mastId\)/.test(aq2));
       wahr('… und der Sprung in die Seitenleiste bleibt daneben',
            aq2.includes("{ text: 'In der Seitenleiste bearbeiten', tun: () => {"));
     }
