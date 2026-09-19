@@ -150,6 +150,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Lagerangabe im 3D (18. Sept.) | nur die Lagerung des Jochs am Masten (c_φ, κ), eine Zeile unter dem Fundamentklotz; Profil und Höhe stehen im Mast-Titel. Am Einzelmast keine («gelenkig» wäre falsch) |
 | Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
 | Wind nie diagonal (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: **je eine Richtung**, ±y oder ±x. Tragjoch/Einzelmast: Ständig + Wind ±y, ±x statt LF7–LF10 (ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen). Abfangjoch («beim abfangjoch auch angleichen»): Fälle `wind+y`, `-y`, `+x`, `-x`; η des Trägers unverändert, F_x fällt aus den y-Fällen |
+| Export-Knopf (19. Sept.) | «lege alle relevanten buttons in einen export»: **ein Knopf «Export» mit Aufklappmenü** ganz links im Band — AxisVM (COM-Brücke, SAF, DXF), PyNite, Nachweisbericht, Excel, Drucken (`exportMenue`). Die AxisVM-Formate öffnen den bisherigen Dialog, das Format vorgewählt |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
@@ -167,7 +168,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4741 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4744 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -183,7 +184,8 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Streckenlasten (Wind/Schnee auf dem Joch, Mastwind) und steife Gurt-
   abschnitte mit Querschnitt ohne Präfix; (4) der geteilte Mast stand
   doppelt im Modell — jetzt einmal, bei verschiedenen Anschlusshöhen aus
-  allen Teilpunkten neu aufgereiht (`mastNeuAufreihen`). Davor: Verbesse-
+  allen Teilpunkten neu aufgereiht (`mastNeuAufreihen`). Menüband: die
+  vier Ausgabe-Knöpfe sind ein Knopf «Export» mit Aufklappmenü. Davor: Verbesse-
   rungsliste abgeschlossen (U4 Erklärtexte, A3 Testdaten und CI, A1 Umbau).
 - **18. Sept.** Stabilität: Anbauteile am Masten auf ihrer eigenen Höhe, bei
   allen Tragwerken. Einzelmast ohne Anschlusshöhe, die Länge regiert.
@@ -348,7 +350,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4741 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4744 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -17,7 +17,7 @@ Regelwerksnummern stehen dort, nicht in diesem Dokument und nicht im Code.
 | | Zweck |
 |---|---|
 | **`vierendeel_tool.html`** / **`index.html`** | Die Anwendung: eigenständig per Doppelklick bzw. als Modulversion (GitHub Pages, Entwicklung). Tragjoch, Einzelmast, Mast mit Tragausleger, Abfangjoch; Masten, Anker, Anbauteile. |
-| **Nachweisbericht** | Die Abgabe: Knopf im Menüband, A4-Seiten zum Drucken als PDF — Hauptteil und Anhang, Umfang und Bilder einstellbar. Er rechnet nicht selbst; jede Formel trägt die Zwischenwerte des Kerns, und der Prüfstand rechnet sie nach. Tragjoch und Einzelmast. |
+| **Nachweisbericht** | Die Abgabe: Menüband → Export → Nachweisbericht, A4-Seiten zum Drucken als PDF — Hauptteil und Anhang, Umfang und Bilder einstellbar. Er rechnet nicht selbst; jede Formel trägt die Zwischenwerte des Kerns, und der Prüfstand rechnet sie nach. Tragjoch und Einzelmast. |
 | **AxisVM-Ausleitung** | Das Modell für die Gegenrechnung im Statikprogramm (COM, siehe [com/LIESMICH.md](com/LIESMICH.md)). |
 
 > **Veraltet: `Vierendeel_L_Profil_SZS_C5.xlsx`** und sein Erzeuger

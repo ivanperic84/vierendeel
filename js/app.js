@@ -3282,6 +3282,58 @@ function springeZu(st, x) {
 
 // --- Werkzeugleisten --------------------------------------------------------
 
+/**
+ * DAS EXPORT-MENUE (Weisung vom 19. September: «checke die com
+ * schnittstelle lege alle relevanten buttons in einen export»).
+ *
+ * Vier Knoepfe - AxisVM, Bericht, Excel, Drucken - wurden einer. Das Menue
+ * ist das Kontextmenue der Anwendung, unter dem Knopf aufgeklappt: gleiches
+ * Schliessen, und es bleibt im Fenster. Die Formate von AxisVM oeffnen
+ * denselben Dialog wie bisher, das gewaehlte schon angewaehlt -
+ * Knotenmodell, Auflager und Starrelemente werden weiter dort gewaehlt.
+ */
+function exportMenue() {
+  const ax = (f) => () => dialogAxisvm(app, f);
+  return [
+    { kopf: 'AxisVM' },
+    { text: 'COM-Brücke (JSON), vollständig', tun: ax('json') },
+    { text: 'SAF-Mappe (.xlsx)', tun: ax('saf') },
+    { text: 'DXF + Zuordnungsmappe', tun: ax('dxf') },
+    '-',
+    { kopf: 'Gegenrechnung' },
+    { text: 'PyNite-Skript (.py)', tun: ax('pynite') },
+    '-',
+    { kopf: 'Dokumente' },
+    { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
+    { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
+    { text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
+  ];
+}
+
+/*
+ * EIN ZWEITER KLICK SCHLIESST. Das Menue geht schon beim Druecken
+ * ausserhalb zu - sein Horcher sitzt in der Einfangphase des DOKUMENTS und
+ * feuert vor jedem Horcher am Knopf. Gemerkt wird deshalb eine Stufe
+ * frueher, am FENSTER, und nur einmal angemeldet (`baueKopf` laeuft bei
+ * jeder Eingabe und baut den Knopf neu).
+ */
+let exportWarOffen = false;
+let exportHorcher = false;
+function exportMenueVerdrahten(knopf) {
+  if (!exportHorcher) {
+    exportHorcher = true;
+    window.addEventListener('pointerdown', (e) => {
+      exportWarOffen = e.target instanceof Element
+        && !!e.target.closest('#btn-ausleiten') && kontextOffen();
+    }, true);
+  }
+  knopf.onclick = () => {
+    if (exportWarOffen) { exportWarOffen = false; return; }
+    const r = knopf.getBoundingClientRect();
+    kontextZeigen(app, [r.left, r.bottom + 4], exportMenue());
+  };
+}
+
 function baueKopf() {
   const n = ui.el('kopf-werkzeuge');
   // Nur noch was mit dem AKTUELLEN Stand zu tun hat: ausleiten, drucken,
@@ -3301,7 +3353,7 @@ function baueKopf() {
    * zwischen Drucken und Optionen. Jetzt gilt: was zusammengehört, steht
    * zusammen, und ein Strich trennt die Gruppen.
    *
-   *   AUSGABE      AxisVM · Excel · Drucken   was den Stand hinausträgt
+   *   AUSGABE      Export ▾                   was den Stand hinausträgt
    *   BEARBEITEN   Rückgängig · Wiederherstellen · Speichern
    *   HILFE        Handbuch · Optionen
    *
@@ -3311,7 +3363,10 @@ function baueKopf() {
    * Tasten k und ? bleiben.
    *
    * AXISVM BLEIBT GANZ LINKS (Weisung vom 1. September): der meistbegangene
-   * Weg der Anwendung. Der Installieren-Knopf steht nur, solange der Browser ihn
+   * Weg der Anwendung. Seit dem 19. September («lege alle relevanten
+   * buttons in einen export») steht dort EIN Knopf «Export» mit
+   * Aufklappmenü - AxisVM (COM-Brücke, SAF, DXF), PyNite, Nachweisbericht,
+   * Excel, Drucken -, AxisVM darin zuoberst (`exportMenue`). Der Installieren-Knopf steht nur, solange der Browser ihn
    * anbietet, und zwar ganz rechts: er kommt und geht und soll dabei nichts
    * verschieben.
    *
@@ -3340,12 +3395,10 @@ function baueKopf() {
 
   n.innerHTML =
     gruppe('Ausgabe',
-      `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-axisvm" type="button"
-         title="Modell nach AxisVM ausleiten, COM-Brücke, SAF, DXF oder PyNite"
-         aria-label="AxisVM-Ausleitung">${icon('schnitt')}<span>AxisVM</span></button>`
-      + knopfWort('btn-bericht', 'bericht', 'Nachweisbericht: A4-Seiten zum Drucken als PDF', 'Bericht')
-      + knopfWort('btn-export', 'export', 'Excel-Ausleitung der Berechnung (.xlsx)', 'Excel')
-      + knopfWort('btn-drucken', 'drucken', 'Drucken / PDF', 'Drucken'))
+      `<button class="btn-icon btn-icon-text btn-icon-acc" id="btn-ausleiten" type="button"
+         title="Export: AxisVM (COM-Brücke, SAF, DXF), PyNite, Nachweisbericht, Excel, Drucken"
+         aria-label="Export" aria-haspopup="menu">${icon('export')}<span>Export</span
+         ><span class="tb-pfeil" aria-hidden="true">▾</span></button>`)
     + strich
     + gruppe('Bearbeiten',
       `<button class="btn-icon" id="btn-zurueck" type="button" title="Rückgängig (Strg+Z)"
@@ -3372,10 +3425,7 @@ function baueKopf() {
   ui.el('btn-zurueck').onclick = () => rueckgaengig();
   ui.el('btn-vor').onclick = () => wiederherstellen();
   ui.el('btn-handbuch').onclick = () => dialogHandbuch(app);
-  ui.el('btn-export').onclick = exportKlick;
-  ui.el('btn-bericht').onclick = () => dialogBericht(app);
-  ui.el('btn-axisvm').onclick = () => dialogAxisvm(app);
-  ui.el('btn-drucken').onclick = () => handlung('Drucken', () => window.print());
+  exportMenueVerdrahten(ui.el('btn-ausleiten'));
   ui.el('btn-speichern').onclick = () => ablageSpeichern(app, false);
   ui.el('btn-optionen').onclick = () => dialogOptionen(app);
   /*

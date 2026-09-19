@@ -24,7 +24,7 @@ import { exportierePynite } from './export.pynite.js';
  * auf den Schwerachsen oder am Anschnitt rechnet, und damit über die Momente,
  * die hinterher verglichen werden.
  */
-export function dialogAxisvm(app) {
+export function dialogAxisvm(app, format = 'json') {
   if (!app.letzte) return;
   /*
    * >>> DIESELBE MASKE FUER ALLE ARTEN. <<<
@@ -43,6 +43,13 @@ export function dialogAxisvm(app) {
    */
   const art = tragwerksart(app.werte).key;
   const istAbfang = art === 'abfangjoch';
+  /*
+   * DAS FORMAT KOMMT AUS DEM EXPORT-MENUE (19. September): wer dort «DXF»
+   * waehlt, soll im Dialog nicht noch einmal DXF anklicken muessen. Das
+   * Abfangjoch kennt nur die COM-Bruecke - dort bleibt es bei JSON.
+   */
+  const vorwahl = istAbfang || !['json', 'saf', 'dxf', 'pynite'].includes(format)
+    ? 'json' : format;
   const wahl = KNOTENMODELLE.map((k, i) => `
     <label class="schalter">
       <input type="radio" name="km" value="${k.key}"${i === 0 ? ' checked' : ''}>
@@ -107,7 +114,7 @@ export function dialogAxisvm(app) {
        eigenen. Gerechnet wird nicht; der Startknopf bleibt Ihre
        Entscheidung.</p>
     <div class="feld"><label>Format</label>
-      <label class="schalter"><input type="radio" name="fmt" value="json" checked>
+      <label class="schalter"><input type="radio" name="fmt" value="json"${vorwahl === 'json' ? ' checked' : ''}>
         <span>JSON für die COM-Brücke, vollständig, ohne Zusatzmodul.
               Datei neben <code>com/AxisVM_aufbauen.cmd</code> legen</span></label>
       ${['saf', 'dxf', 'pynite'].map((f) => {
@@ -123,7 +130,8 @@ export function dialogAxisvm(app) {
          * je nach Tragwerk verschwindet, laesst den Benutzer suchen.
          */
         return `<label class="schalter${istAbfang ? ' aus' : ''}">
-          <input type="radio" name="fmt" value="${f}"${istAbfang ? ' disabled' : ''}>
+          <input type="radio" name="fmt" value="${f}"${istAbfang ? ' disabled'
+            : (vorwahl === f ? ' checked' : '')}>
           <span>${t}${istAbfang ? ' — für das Abfangjoch noch nicht gebaut' : ''}</span>
         </label>`;
       }).join('')}

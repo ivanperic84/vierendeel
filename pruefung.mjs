@@ -24051,9 +24051,25 @@ titel('68  Das Menueband und der Name der Anwendung');
        gruppen.join(' | '));
   const lage = (id) => kopf.indexOf(`id="${id}"`) >= 0 ? kopf.indexOf(`id="${id}"`)
                                                         : kopf.indexOf(`'${id}'`);
-  wahr('AxisVM steht ganz links', lage('btn-axisvm') >= 0
-       && ['btn-export', 'btn-drucken', 'btn-zurueck', 'btn-optionen']
-         .every((id) => lage(id) > lage('btn-axisvm')));
+  // Seit dem 19. September («lege alle relevanten buttons in einen
+  // export»): ein Knopf «Export» ganz links, AxisVM darin zuoberst.
+  wahr('Der Export-Knopf steht ganz links', lage('btn-ausleiten') >= 0
+       && ['btn-zurueck', 'btn-speichern', 'btn-optionen']
+         .every((id) => lage(id) > lage('btn-ausleiten')));
+  wahr('… und die vier einzelnen Ausgabe-Knoepfe sind weg',
+       ['btn-axisvm', 'btn-bericht', 'btn-export', 'btn-drucken']
+         .every((id) => !app.includes(`'${id}'`) && !app.includes(`"${id}"`)));
+  const menue = app.slice(app.indexOf('function exportMenue()'),
+                          app.indexOf('function exportMenueVerdrahten'));
+  const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
+  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Excel, Drucken',
+       eintraege.length === 7 && /COM/.test(eintraege[0])
+       && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
+           'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
+       eintraege.join(' · '));
+  wahr('… und der AxisVM-Dialog nimmt das Format vorgewaehlt entgegen',
+       /export function dialogAxisvm\(app, format = 'json'\)/.test(
+         readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8')));
   // Weisung vom 17. September: «bauteildaten und tastenkürzel unter optionen führen».
   wahr('Bauteildaten und Tastenkuerzel stehen nicht mehr im Band',
        !kopf.includes('btn-bauteildaten') && !kopf.includes('btn-tasten'));

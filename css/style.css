@@ -106,6 +106,7 @@ body {
    zwischen den Gruppen ein Strich. */
 .tb-gruppe { display: flex; gap: 4px; align-items: center; }
 #kopf-werkzeuge .tb-sep { margin: 0 5px; }
+#kopf-werkzeuge .tb-pfeil { margin-left: 3px; font-size: 10px; opacity: .75; }
 /* DER PROJEKTKNOPF GIBT NACH, NICHT DIE WERKZEUGE. Ohne min-width: 0 blieb
    er so breit wie sein Text, und das Band lief im schmalen Fenster rechts
    hinaus - die Optionen waren dann nicht mehr zu sehen. */
