@@ -26043,6 +26043,68 @@ titel('102  Havariefall abschaltbar (Nachweis und Ausleitung)');
        && nb102.includes('satzA.havarieAus === true ? [] : havarieKandidaten'));
 }
 
+titel('103  Einzelmast: Ausleitung baut das Mastmodell, nicht den Jochweg');
+/*
+ * Gemeldet am 20. September: «Die com funktioniert nicht.» - mit einem
+ * Einzelmasten als aktivem Tragwerk brach die AxisVM-Ausleitung ab:
+ * «Cannot read properties of undefined (reading 'aH')» in `hebelarme`.
+ * Grund: `berechne` hat die Weiche fuer den Einzelmasten, `modell` hatte
+ * sie nicht - und die Ausleitung holt sich das Modell direkt. Sie bekam
+ * den Jochweg ohne Gurtprofile (der Einzelmast fuehrt keine).
+ */
+{
+  const C103 = await import(J('core.constants.js'));
+  const V103 = await import(J('core.vierendeel.js'));
+  const N103 = await import(J('core.nachbarn.js'));
+  const AX103 = await import(J('export.axisvm.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+  let mitEm = C103.tragwerkHinzu(w, 'einzelmast', { xLage: 40, L: 20 });
+  const idEm = C103.tragwerkeVon(mitEm).find((t) => t.tragwerksart === 'einzelmast').id;
+  const idJoch = C103.tragwerkeVon(mitEm).find((t) => t.id !== idEm).id;
+  mitEm = C103.tauscheAktives(mitEm, idEm);
+  const satzEm = N103.rechensatzMitNachbarn(mitEm);
+
+  // OHNE Profile - genau so ruft die Ausleitung, wenn das Ergebnis des
+  // aktiven Tragwerks ein Einzelmast ist (`erg.modell` fuehrt keine Gurte).
+  const mEm = V103.modell({ ...satzEm, beiwerteFest: null }, undefined, undefined,
+                          getStahl(satzEm.stahl), undefined);
+  wahr('modell() gibt am Einzelmast das Mastmodell zurueck, ohne Gurtprofile',
+       mEm.tragwerksart === 'einzelmast' && mEm.profOG === undefined);
+
+  // Und die Ausleitung laeuft damit durch - vorher warf sie in `hebelarme`.
+  const deps = { berechne: V103.berechne, modell: V103.modell,
+                 profOG: mEm.profOG, profUG: mEm.profUG, stahl: mEm.stahl, joch: mEm.joch,
+                 modellVon: (s2) => V103.modell({ ...s2, beiwerteFest: null },
+                   getProfil(s2.profOG), getProfil(s2.profUG),
+                   getStahl(s2.stahl), T.getTragjoch(s2.typ)) };
+  const bau = AX103.blattWennMehrere(satzEm, deps, { knotenmodell: 'anschnitt' });
+  const dat = AX103.stabmodellJson(mEm, { knotenmodell: 'anschnitt', eingabe: satzEm, bau });
+  wahr('… die COM-Ausleitung baut das Blatt (Joch und Einzelmast)',
+       dat.knoten.length > 100 && dat.staebe.length > 100 && dat.lastfaelle.length > 0);
+
+  // Allein auf dem Blatt: kein Joch, nur der Mast - und kein Abbruch.
+  const alleinSatz = N103.rechensatzMitNachbarn(C103.tragwerkWeg(mitEm, idJoch));
+  const mAllein = V103.modell({ ...alleinSatz, beiwerteFest: null }, undefined, undefined,
+                              getStahl(alleinSatz.stahl), undefined);
+  const datAllein = AX103.stabmodellJson(mAllein, { knotenmodell: 'anschnitt', eingabe: alleinSatz });
+  wahr('… und allein auf dem Blatt steht der Mast in der Datei',
+       datAllein.staebe.length >= 1 && datAllein.staebe.some((s) => /MAST/i.test(s.name ?? '')),
+       `${datAllein.knoten.length} Knoten · ${datAllein.staebe.length} Staebe`);
+
+  // Gegenprobe: am Joch aendert die Weiche nichts.
+  const satzJoch = N103.rechensatzMitNachbarn(C103.tauscheAktives(mitEm, idJoch));
+  const mJoch = V103.modell({ ...satzJoch, beiwerteFest: null }, getProfil(satzJoch.profOG),
+                            getProfil(satzJoch.profUG), getStahl(satzJoch.stahl),
+                            T.getTragjoch(satzJoch.typ));
+  wahr('Am Joch bleibt es beim Jochweg', mJoch.tragwerksart !== 'einzelmast'
+       && !!mJoch.profOG && mJoch.knotenLagen !== undefined || !!mJoch.profOG);
+
+  const q103 = readFileSync(join(HIER, 'js', 'core.vierendeel.js'), 'utf8');
+  wahr('Die Weiche steht in `modell`, wie in `berechne`',
+       /export function modell\([^)]*\)\s*\{[\s\S]{0,1200}?tragwerksart\(inp\)\.key === 'einzelmast'[\s\S]{0,80}?return modellEinzelmast\(inp, stahl\);/.test(q103));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

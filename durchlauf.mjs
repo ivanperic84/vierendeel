@@ -164,6 +164,36 @@ for (const [name, bau] of FAELLE) {
       + `, davon ${mast} Maststäbe`);
   }
 
+  /* =========================================================================
+   * >>> DER WEG DER ANWENDUNG, NICHT DER KURZE. <<<
+   * =========================================================================
+   *
+   * Oben steht `AX.stabmodell(erg.modell)` - das Modell fertig in der Hand.
+   * Die Anwendung geht anders: `app.axisvm.js` baut `deps` aus `erg.modell`
+   * und laesst die Ausleitung das Modell SELBST holen. Am Einzelmasten
+   * fuehrt `erg.modell` keine Gurtprofile, und genau dort brach die
+   * COM-Ausleitung am 20. September ab («Cannot read properties of
+   * undefined (reading 'aH')»), waehrend dieser Durchgang gruen blieb.
+   */
+  const depsApp = {
+    berechne: V.berechne, modell: V.modell,
+    profOG: erg.r.modell.profOG, profUG: erg.r.modell.profUG,
+    stahl: erg.r.modell.stahl, joch: erg.r.modell.joch,
+    modellVon: (satz) => V.modell({ ...satz, beiwerteFest: null },
+      P.getProfil(satz.profOG), P.getProfil(satz.profUG),
+      P.getStahl(satz.stahl), T.getTragjoch(satz.typ)),
+  };
+  const com = versuch(name, 'COM-Ausleitung (Weg der Anwendung)', () => {
+    const mApp = depsApp.modell({ ...w, beiwerteFest: null },
+      depsApp.profOG, depsApp.profUG, depsApp.stahl, depsApp.joch);
+    return AX.stabmodellJson(mApp, { knotenmodell: 'anschnitt', eingabe: w,
+      bau: AX.blattWennMehrere(w, depsApp, { knotenmodell: 'anschnitt' }) });
+  });
+  if (com.ok) {
+    zeig('com-json', `${com.r.knoten.length} Knoten, ${com.r.staebe.length} Stäbe`
+      + `, ${com.r.lastfaelle.length} Lastfälle, ${com.r.kombinationen.length} Kombinationen`);
+  }
+
   const py = versuch(name, 'pyniteSkript', () =>
     PY.pyniteSkript(erg.r.modell, { knotenmodell: 'anschnitt' }));
   if (py.ok) zeig('pynite', `${py.r.text.split('\n').length} Zeilen`);

@@ -419,6 +419,21 @@ export function berechneEinzelmast(inp, stahl) {
 }
 
 export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
+  /*
+   * >>> DIESELBE WEICHE WIE IN `berechne` (20. September). <<<
+   *
+   * Ein Einzelmast hat kein Joch und damit keine Gurtprofile. `berechne`
+   * biegt deshalb ganz vorn ab; `modell` tat es nicht - und wer das Modell
+   * direkt holte, bekam den Jochweg mit `profOG === undefined`.
+   *
+   * Gemeldet am 20. September: «Die com funktioniert nicht.» - mit einem
+   * Einzelmasten als aktivem Tragwerk brach die AxisVM-Ausleitung ab
+   * («Cannot read properties of undefined (reading 'aH')» in `hebelarme`),
+   * ebenso SAF, DXF und PyNite. Der Fehler lag nicht in der Bruecke.
+   */
+  if (tragwerksart(inp).key === 'einzelmast') {
+    return modellEinzelmast(inp, stahl);
+  }
   const variante = massVariante ?? inp.massVariante;
 
   const phys = { jd: inp.jd, jbbOG: inp.jbbOG, jbbUG: inp.jbbUG };

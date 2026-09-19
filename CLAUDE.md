@@ -180,12 +180,26 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**20. September 2026** · Prüfstand 4826 Kontrollen grün · `durchlauf.mjs`
+**20. September 2026** · Prüfstand 4831 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., Einzelmast: Ausleitung brach ab** (Prüfstand Abschnitt 103).
+  Gemeldet: «Die com funktioniert nicht.» — mit einem **Einzelmasten als
+  aktivem Tragwerk** meldete die Anwendung «COM-Ausleitung nicht möglich:
+  Cannot read properties of undefined (reading 'aH')». Der Fehler lag nicht
+  in der Brücke: `berechne` biegt für den Einzelmasten ganz vorn ab
+  (`berechneEinzelmast`), **`modell` tat es nicht**. `app.axisvm.js` baut
+  `deps` aus `erg.modell` — und das Einzelmast-Modell führt keine
+  Gurtprofile; `exportiereJson` holte sich damit den Jochweg und starb in
+  `hebelarme` (`pOG.aH`). Dieselbe Weiche steht jetzt in `modell`. Betroffen
+  waren alle vier Wege (COM, SAF, DXF, PyNite), alle laufen wieder; am Joch
+  und am Tragausleger ändert sich **keine Zahl** (830 Knoten / 943 Stäbe
+  vorher wie nachher). Der Durchgang prüft neu den **Weg der Anwendung**
+  (deps aus `erg.modell`, Ausleitung holt das Modell selbst) — der kurze Weg
+  `AX.stabmodell(erg.modell)` war grün, während der Knopf abbrach.
 - **20. Sept., Havariefall abschaltbar** (Prüfstand Abschnitt 102): ein
   Schalter unter *Lasten → Havarie* nimmt den Fall aus Nachweis **und**
   Ausleitung (siehe *Entschieden*). Gemessen an J90/20 m mit einer
@@ -389,6 +403,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - Havarie je Leiter: die **Abfangjoch-Ausleitung** (`export.axisvm.abfang.js`)
   legt die Fälle je Leiter noch nicht an (nur Tragjoch/Mast). Lastfallnamen
   «Havarie L1 …» in AxisVM nicht erprobt (AxisVM nicht gestartet).
+- Am Einzelmasten nennt die Kopfzeile der ausgeleiteten Datei das aktive
+  Tragwerk als «Tragjoch frei L=0.00 m», und der Dateiname folgt dem Joch
+  des Blattes. Der Inhalt stimmt, die Anschrift nicht.
 - Seilkopf im nächsten Aufbau prüfen: lokale x-Achse des NN-Links, «nur Zug»
   (wirkt nur nichtlinear).
 - Ergebnisse zurücklesen ist gebaut, ein sauberer Durchstich fehlt; lokale
@@ -405,6 +422,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Wunsch.
 
 **Bedienung**
+- Der Einzelmast des Durchgangs trägt weder Anbauteile noch Anker (2 Knoten,
+  1 Stab) — genau die Stelle, an der zweimal etwas fehlte. Ein Fall mit
+  Teilen am Masten wäre die bessere Wache.
 - Rauchtest (A3): der erfundene Datensatz führt noch **keinen Anker und
   kein Abfangjoch** — diese Wege laufen nur mit den Betreiberdaten durch.
 - Sammelaktionen in der Anbauteil-Übersicht (alle Teile einer Vorlage).
@@ -434,7 +454,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 4826 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 4831 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
