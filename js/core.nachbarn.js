@@ -70,7 +70,8 @@ export function abfangAuswertungFuer(w, stahl) {
    * seine Baugruppe bricht; massgebend ist die ungünstigste Auswertung, und
    * die Havariefaelle aller Laeufe gehen in den Mast.
    */
-  const kandidaten = havarieKandidaten(satzA.havarie);
+  // Abgeschaltet: kein Havarielauf, kein Havariefall (`ohneHavarie`).
+  const kandidaten = satzA.havarieAus === true ? [] : havarieKandidaten(satzA.havarie);
   if (kandidaten.length) {
     const mitBruch = (key) => (satzA.anbauteile ?? []).map((a) => ({ ...a,
       bruch: key !== null && (a.module ?? []).some((m, i) => leiterKennung(a, m, i) === key) }));
@@ -115,6 +116,7 @@ function abfangEinmal(w, satzA, stahl, anbauteile) {
     fyd: abfangFyd(stahl, w.gammaM0),
     ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
     knotenbereich: 'anschnitt',
+    ohneHavarie: satzA.havarieAus === true,
   });
 }
 

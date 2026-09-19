@@ -1528,6 +1528,10 @@ export function hinweise(m) {
       + `${ohneTabH.map((t2) => t2.name ?? 'Leiter').join(', ')}. `
       + 'Kalt zieht der Leiter stärker — der Havariefall steht zu günstig da.');
   }
+  if (m.havarieAus === true) {
+    h.push('Havariefall ABGESCHALTET (Lasten → Havarie): kein Havarienachweis, '
+      + 'und die AxisVM-Ausleitung führt keine Havarie-Lastfälle.');
+  }
   if ((m.anbauteile ?? []).some((t2) => t2?.aktiv !== false && t2?.bruch === true)) {
     h.push('Havariefall mit Bruch: beim gebrochenen Leiter wirkt die '
       + 'Ablenkkraft zur Hälfte, und 10 % seiner Leiterzugkraft ziehen in '

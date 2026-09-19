@@ -3437,7 +3437,13 @@ export function lasten(m, bau, opt = {}) {
    * Summe der Auflagerkraefte hat es gezeigt. Summiert wird deshalb hier,
    * bevor irgendein Programm die Lasten sieht.
    */
-  return { punkt: zusammenfassen(punkt), moment: zusammenfassen(moment), strecke };
+  /*
+   * HAVARIE ABGESCHALTET (19. September, «den havarielastfall deaktivierbar
+   * machen (nachweis / export)»): keine Last in einem Havarie-Lastfall.
+   */
+  const mitFall = (x) => !(m.havarieAus === true && /^Havarie/.test(String(x.lastfall ?? '')));
+  return { punkt: zusammenfassen(punkt.filter(mitFall)), moment: zusammenfassen(moment.filter(mitFall)),
+           strecke: strecke.filter(mitFall) };
 }
 
 /** Lasten gleichen Knotens, Lastfalls und gleicher Richtung addieren. */
@@ -4254,12 +4260,14 @@ export function stabmodellJson(m, opt = {}) {
     })),
     lastfaelle: [
       ...G_TEILE.map((g) => ({ key: g.key, label: g.label, art: 'Others' })),
+      // Havarie abgeschaltet: weder die gemeinsamen noch die Leiter-Faelle.
       ...EINWIRKUNGEN.filter((e) => e.key !== 'G')
+        .filter((e) => !(m.havarieAus === true && /^Havarie/.test(e.key)))
         .map((e) => ({ key: e.key, label: e.label, art: 'Others' })),
       // Je reissendem Leiter: Ablenkung und Laengszug in beide Richtungen.
       // Kurze Namen (AxisVM legt den Lastfall unter `label` an); der Leiter
       // steht ausgeschrieben in `leiter`.
-      ...havarieKandidaten(m.havarie).flatMap((c, i) => [
+      ...(m.havarieAus === true ? [] : havarieKandidaten(m.havarie)).flatMap((c, i) => [
         { key: `HavarieX|${c.key}`, label: `Havarie L${i + 1} Ablenkung`, art: 'Others', leiter: c.name },
         { key: `HavarieY|${c.key}|p`, label: `Havarie L${i + 1} Zug +y`, art: 'Others', leiter: c.name },
         { key: `HavarieY|${c.key}|m`, label: `Havarie L${i + 1} Zug -y`, art: 'Others', leiter: c.name },

@@ -1449,7 +1449,10 @@ export function abfangAuswertung(o = {}) {
     };
   };
 
-  const bilder = ABFANG_FAELLE.map(lastbild);
+  // Havarie abgeschaltet (19. September, «den havarielastfall deaktivierbar
+  // machen»): nur Wind und Schnee leitend.
+  const bilder = ABFANG_FAELLE.filter((f) => !(o.ohneHavarie === true && f.key === 'havarie'))
+    .map(lastbild);
   const teile = bilder[0].teile;
 
   /**

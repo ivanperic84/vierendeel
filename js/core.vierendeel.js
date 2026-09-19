@@ -338,6 +338,8 @@ export function modellEinzelmast(inp, stahl) {
     nachbarJochlasten: inp.nachbarJochlasten ?? null,
     // Die Havarie-Auswahl - die Ausleitung legt je Kandidat Lastfaelle an.
     havarie: inp.havarie ?? null,
+    // Havariefall abgeschaltet: die Ausleitung laesst seine Lastfaelle weg.
+    havarieAus: inp.havarieAus === true,
     // Gezaehlt wird, was ZAEHLT: ein ausgeblendetes Tragwerk steht
     // weder im Bild noch im Nachweis, und der Hinweis darf es nicht
     // mitzaehlen.
@@ -820,6 +822,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
     nachbarJochlasten: inp.nachbarJochlasten ?? null,
     // Die Havarie-Auswahl - die Ausleitung legt je Kandidat Lastfaelle an.
     havarie: inp.havarie ?? null,
+    // Havariefall abgeschaltet: die Ausleitung laesst seine Lastfaelle weg.
+    havarieAus: inp.havarieAus === true,
   };
 
   // Stationsliste mit den tatsächlichen Blechen - die Zeichenmodule lesen sie,

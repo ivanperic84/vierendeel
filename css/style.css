@@ -2959,6 +2959,7 @@ body.datei-ueber::after {
 .at-skizze .sk-profil rect { fill: var(--dim); }
 .at-skizze .sk-trenn { stroke: var(--ol); stroke-width: 1; stroke-dasharray: 2 3; }
 /* Havarie-Uebersicht (19. September): je Leiter «reisst» und der Zug in ±y */
+.hav-an { display: flex; align-items: center; gap: 6px; font-size: 11.5px; margin: 2px 0 6px; cursor: pointer; }
 .hav-tab { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
 .hav-tab th { font-size: 9.5px; color: var(--dim); font-weight: 500; text-align: left; padding: 2px 4px; }
 .hav-tab td { padding: 3px 4px; border-top: 1px solid var(--ol); vertical-align: middle; }

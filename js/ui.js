@@ -255,7 +255,7 @@ export function maskenSignatur(werte, tab) {
     (werte.eigeneVorlagen ?? []).map((v) => `${v.id}:${v.name}`),
     // Die Havarie-Uebersicht: welche Leiter es gibt und welche reissen.
     gruppen.includes('havarie')
-      ? [havarieLeiter(werte).map((l) => l.key),
+      ? [werte.havarieAus === true, havarieLeiter(werte).map((l) => l.key),
          Object.entries(werte.havarie ?? {}).filter(([, v]) => v?.reisst).map(([k]) => k)]
       : null,
     /*
@@ -384,8 +384,18 @@ function havarieHtml(g, werte) {
       ${zahl('zugP')}${zahl('zugM')}
     </tr>`;
   }).join('');
-  return abschnitt(g.titel, `<span class="sec-r">${n} von ${leiter.length}</span>`)
-    + (leiter.length ? `
+  /*
+   * Weisung vom 19. September: «den havarielastfall deaktivierbar machen
+   * (nachweis / export)». Ein Schalter fuer beides - die Ausleitung soll
+   * dieselben Faelle tragen, die der Nachweis rechnet.
+   */
+  const aus = werte.havarieAus === true;
+  const schalter = `<label class="hav-an" title="Ausgeschaltet: keine Havariefälle im Nachweis und in der AxisVM-Ausleitung">
+      <input type="checkbox" data-hav-an="1"${aus ? '' : ' checked'}> Havariefall rechnen (Nachweis und Export)</label>`;
+  return abschnitt(g.titel, `<span class="sec-r">${aus ? 'aus' : `${n} von ${leiter.length}`}</span>`)
+    + schalter
+    + (aus ? '<p class="notiz">Der Havariefall ist abgeschaltet — er wird weder nachgewiesen noch ausgeleitet.</p>'
+      : leiter.length ? `
     <p class="notiz">Angehakte Leiter werden <b>einzeln</b> gerechnet — je Leiter ein Fall
       +y und −y, in dem nur er reisst; ein Kettenwerk (Fahrdraht + Tragseil) zählt als ein
       Leiter. Massgebend ist die Hülle. ${esc(regel)}</p>
@@ -403,6 +413,9 @@ function havarieHtml(g, werte) {
 
 function verdrahteHavarie(container, werte, onChange) {
   const wahl = () => ({ ...(werte.havarie ?? {}) });
+  container.querySelectorAll('[data-hav-an]').forEach((inp) => {
+    inp.addEventListener('change', () => onChange('havarieAus', !inp.checked));
+  });
   container.querySelectorAll('[data-hav]').forEach((inp) => {
     const ev = inp.type === 'checkbox' ? 'change' : 'change';
     inp.addEventListener(ev, () => {

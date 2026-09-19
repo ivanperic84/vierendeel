@@ -25994,6 +25994,55 @@ titel('101  Havarie je Leiter: nur einer reisst, Uebersicht, Ausleitung');
        && ui101.includes('data-hav="reisst"'));
 }
 
+titel('102  Havariefall abschaltbar (Nachweis und Ausleitung)');
+/*
+ * Weisung vom 19. September: «den havarielastfall deaktivierbar machen
+ * (nachweis / export)». Ein Schalter `havarieAus` am Tragwerk.
+ */
+{
+  const A102 = await import(J('data.anbauteile.js'));
+  const C102 = await import(J('core.constants.js'));
+  const V102 = await import(J('core.vierendeel.js'));
+  const N102 = await import(J('core.nachbarn.js'));
+  const L102 = await import(J('core.lasten.js'));
+  const AX102 = await import(J('export.axisvm.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+  w.anbauteile = [{ ...A102.neuesAnbauteil('hs-fahrdraht', 6), name: 'FL 1' }];
+  const l1 = A102.leiterListe(w.anbauteile)[0];
+  w.havarie = { [l1.key]: { reisst: true, name: l1.name } };
+  const hav = (x) => L102.lastfaelle(C102.rechensatz(x)).filter((l) => l.art === 'aussergewoehnlich');
+  wahr('Vorgabe: der Havariefall wird gerechnet', hav(w).length === 3);
+  const aus = { ...w, havarieAus: true };
+  wahr('Abgeschaltet: kein Havariefall in der Liste', hav(aus).length === 0);
+  const s = C102.rechensatz(aus);
+  const e = V102.berechne(s, ...N102.kernArgumente(s));
+  wahr('… das Modell traegt den Schalter, der Hinweis sagt es',
+       e.modell.havarieAus === true);
+  const modellVon = (x) => V102.modell({ ...x, beiwerteFest: null },
+    ...N102.kernArgumente(x).slice(0, 3), T.getTragjoch(x.typ));
+  const dat = AX102.stabmodellJson(modellVon(s), { knotenmodell: 'anschnitt', eingabe: s });
+  wahr('Ausleitung: kein Havarie-Lastfall, keine Havarie-Last, keine Havarie-Kombination',
+       !dat.lastfaelle.some((l) => /^Havarie/.test(l.key))
+       && ![...dat.lasten.punkt, ...dat.lasten.moment, ...dat.lasten.strecke].some((p) => /^Havarie/.test(p.lastfall))
+       && !dat.kombinationen.some((k) => k.art === 'aussergewoehnlich')
+       && dat.kombinationen.length > 0);
+  const sAn = C102.rechensatz(w);
+  const datAn = AX102.stabmodellJson(modellVon(sAn), { knotenmodell: 'anschnitt', eingabe: sAn });
+  wahr('… eingeschaltet stehen sie da', datAn.lastfaelle.some((l) => l.key === `HavarieY|${l1.key}|p`)
+       && datAn.kombinationen.some((k) => k.art === 'aussergewoehnlich'));
+
+  const ui102 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Der Schalter steht in der Havarie-Gruppe', ui102.includes('data-hav-an="1"')
+       && ui102.includes("onChange('havarieAus', !inp.checked)"));
+  const ab102 = readFileSync(join(HIER, 'js', 'core.abfangjoch.js'), 'utf8');
+  const nb102 = readFileSync(join(HIER, 'js', 'core.nachbarn.js'), 'utf8');
+  wahr('Abfangjoch: abgeschaltet ohne den Fall «havarie» und ohne Laeufe je Leiter',
+       ab102.includes("!(o.ohneHavarie === true && f.key === 'havarie')")
+       && nb102.includes('ohneHavarie: satzA.havarieAus === true')
+       && nb102.includes('satzA.havarieAus === true ? [] : havarieKandidaten'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

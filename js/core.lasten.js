@@ -238,6 +238,15 @@ export const HAVARIE_LAENGSZUG = 0.10;
  * Rechenkerns liefen auseinander.
  */
 export function havarieVorhanden(inp) {
+  /*
+   * >>> ABSCHALTBAR (19. September). <<<
+   * Weisung vom 19. September: «den havarielastfall deaktivierbar machen
+   * (nachweis / export)». Ein Schalter am
+   * Tragwerk (`havarieAus`) nimmt die aussergewoehnlichen Faelle aus der
+   * Liste - damit fallen sie aus dem Nachweis, der Huelle, dem Bericht und
+   * den Kombinationen der Ausleitung zugleich. Vorgabe: gerechnet.
+   */
+  if (inp.havarieAus === true) return false;
   if (inp.anbauteileFlach) {
     return inp.anbauteileFlach.some((t) => t.rolle === 'drahtwerk');
   }
