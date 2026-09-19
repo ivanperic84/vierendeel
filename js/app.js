@@ -109,6 +109,8 @@ import { dialogAxisvm } from './app.axisvm.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
+import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
+         kontextOffen } from './app.kontext.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
 // Der zuletzt eingetragene Bearbeiter - Vorschlag fuer das naechste Tragwerk.
@@ -151,6 +153,16 @@ const app = {
   VERSION,
   get BEARBEITER() { return BEARBEITER; },
   get ANKER_STANDARD() { return ANKER_STANDARD; },
+  get setzen() { return setzen; },
+  ausrichtenStarten: (...a) => ausrichtenStarten(...a),
+  bildSchiebenStarten: (...a) => bildSchiebenStarten(...a),
+  setzeAnbauteile: (...a) => setzeAnbauteile(...a),
+  setzenEnde: (...a) => setzenEnde(...a),
+  setzenStarten: (...a) => setzenStarten(...a),
+  zeichneAuswertung: (...a) => zeichneAuswertung(...a),
+  zeigeAnbauteil: (...a) => zeigeAnbauteil(...a),
+  zeigeFeld: (...a) => zeigeFeld(...a),
+  zoomAufTragwerk: (...a) => zoomAufTragwerk(...a),
   ankerRichtungVor: (...a) => ankerRichtungVor(...a),
   artVorgabe: (...a) => artVorgabe(...a),
   // Gemeinsame Hilfen und Wege zurueck in die Verdrahtung.
@@ -1984,11 +1996,11 @@ function aendern(key, wert) {
     return;
   }
   if (key === 'kontextTragwerk') {
-    kontextZeigen(wert.bei, kontextTragwerk(wert.id));
+    kontextZeigen(app, wert.bei, kontextTragwerk(app, wert.id));
     return;
   }
   if (key === 'kontextMast') {
-    kontextZeigen(wert.bei, kontextMast(wert.id, werte.twId ?? 'T1'));
+    kontextZeigen(app, wert.bei, kontextMast(app, wert.id, werte.twId ?? 'T1'));
     return;
   }
   if (key === 'tragwerkAus') {
@@ -4403,7 +4415,7 @@ function zeigeAnbauteil(i) {
  */
 function abbrechen() {
   // Das Kontextmenue geht zuerst: es liegt ueber allem anderen.
-  if (kontextMenue) { kontextSchliessen(); return; }
+  if (kontextOffen()) { kontextSchliessen(app); return; }
   /*
    * ESC BEENDET DAS SCHIEBEN, ohne es zurueckzunehmen.
    *
@@ -5262,7 +5274,7 @@ function baueModellWerkzeuge() {
     station = null; ansicht.station = null;
     // Nur wenn wirklich etwas beiseitegelegt ist - sonst schriebe jeder
     // Klick auf «ganzes Querprofil» einen Schritt in den Verlauf.
-    if (tragwerkeSortiert(werte).some((t) => versteckt(t))) alleZeigen();
+    if (tragwerkeSortiert(werte).some((t) => versteckt(t))) alleZeigen(app);
     ansicht.ansichtZuruecksetzen(); zeichneAuswertung();
   };
   /*
@@ -5280,7 +5292,7 @@ function baueModellWerkzeuge() {
     // ERST beiseitelegen, DANN heranfahren: `nurDiesesZeigen` rechnet neu
     // und baut die Szene auf, der Zoom setzt nur die Kamera.
     if (tragwerkeSortiert(werte).some((x) => x.id !== t.id && !versteckt(x))) {
-      nurDiesesZeigen(t.id);
+      nurDiesesZeigen(app, t.id);
     }
     const x0 = lageVon(t);
     const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
@@ -6204,557 +6216,6 @@ const DIALOG_ZU_MS = 140;
  * schlimmer als keiner.
  * =========================================================================== */
 
-/** Das offene Menue, damit ein zweiter Klick es schliesst. */
-let kontextMenue = null;
-
-function kontextSchliessen() {
-  kontextMenue?.remove();
-  kontextMenue = null;
-}
-
-/**
- * Ein Menue an einer Bildschirmstelle.
- *
- * @param {[number,number]} bei   Punkt in CSS-Pixeln
- * @param {Array} punkte          {text, tun, warn} - null trennt Gruppen
- */
-function kontextZeigen(bei, punkte) {
-  kontextSchliessen();
-  const echte = punkte.filter(Boolean);
-  if (!echte.length) return;
-  const n = document.createElement('div');
-  n.className = 'kontext';
-  /*
-   * ZWEI ARTEN VON EINTRAG.
-   *
-   * Ein KNOPF tut etwas und schliesst das Menue. Ein FELD nimmt eine Angabe
-   * entgegen und laesst es offen - man aendert einen Typ und danach vielleicht
-   * noch die Laenge, ohne zweimal rechtszuklicken.
-   *
-   * Weisung vom 2. September: «beim kontextmenue bauteil parameter typ länge
-   * ausrichtung direkt eintragen können.» Genau das: nicht ein Menuepunkt,
-   * der die Karte in der Seitenleiste oeffnet, sondern die Angabe selbst,
-   * dort wo man auf das Bauteil zeigt.
-   */
-  n.innerHTML = echte.map((p, i) => {
-    if (p === '-') return '<hr>';
-    if (p.kopf) return `<div class="kontext-kopf">${esc(p.kopf)}</div>`;
-    if (p.feld) {
-      const f = p.feld;
-      const eingabe = f.art === 'auswahl'
-        ? `<select data-kf="${i}">${(f.optionen ?? []).map((o) =>
-            `<option value="${esc(o.wert)}"${String(o.wert) === String(f.wert)
-              ? ' selected' : ''}>${esc(o.text)}</option>`).join('')}</select>`
-        : `<input type="number" data-kf="${i}" value="${esc(String(f.wert ?? ''))}"
-             step="${f.schritt ?? 0.1}">`;
-      return `<label class="kontext-feld"><span>${esc(f.label)}</span>
-        ${eingabe}${f.einheit ? `<i>${esc(f.einheit)}</i>` : ''}</label>`;
-    }
-    return `<button type="button" class="kontext-p${p.warn ? ' warn' : ''}"
-         data-k="${i}">${esc(p.text)}</button>`;
-  }).join('');
-  document.body.appendChild(n);
-  kontextMenue = n;
-  /*
-   * DAS MENUE BLEIBT IM FENSTER.
-   *
-   * Am rechten oder unteren Rand aufgeklappt ragte es sonst hinaus, und die
-   * unteren Eintraege waeren nicht erreichbar - gerade dort, wo die
-   * gefaehrlichen stehen.
-   */
-  const r = n.getBoundingClientRect();
-  const x = Math.min(bei[0], window.innerWidth - r.width - 8);
-  const y = Math.min(bei[1], window.innerHeight - r.height - 8);
-  n.style.left = `${Math.max(4, x)}px`;
-  n.style.top = `${Math.max(4, y)}px`;
-  n.querySelectorAll('[data-k]').forEach((b2) => {
-    b2.addEventListener('click', () => {
-      const p = echte[+b2.dataset.k];
-      kontextSchliessen();
-      p?.tun?.();
-    });
-  });
-  n.querySelectorAll('[data-kf]').forEach((el) => {
-    const p = echte[+el.dataset.kf];
-    const ev = el.tagName === 'SELECT' ? 'change' : 'change';
-    el.addEventListener(ev, () => {
-      const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
-      if (el.tagName !== 'SELECT' && !Number.isFinite(v)) return;
-      // DAS MENUE BLEIBT OFFEN. Wer den Typ aendert, will oft gleich die
-      // Laenge nachziehen - zweimal rechtsklicken waere eine Zumutung.
-      p?.tun?.(v);
-    });
-  });
-  /*
-   * >>> EIN KLICK INS MENUE SCHLIESST ES NICHT. <<<
-   *
-   * Hier stand ein `pointerdown`-Horcher ohne diese Pruefung. Mit
-   * nachgestellten Klicks fiel das nicht auf - die feuern kein
-   * `pointerdown`. Mit einer echten Maus schon: das Menue verschwand beim
-   * Druecken, und der `click` landete auf nichts. Kein Eintrag haette
-   * funktioniert, und die Ursache waere schwer zu sehen gewesen.
-   */
-  const zu = (e) => {
-    /*
-     * NUR EIN ZEIGERDRUCK HAT EIN ZIEL IM BAUM.
-     *
-     * Derselbe Horcher bedient `pointerdown`, `wheel` und `blur`. Beim
-     * Fensterwechsel ist `e.target` das FENSTER, und `Node.contains(Window)`
-     * wirft - eine Ausnahme bei jedem Wechsel aus dem Fenster heraus,
-     * waehrend ein Menue offen steht. Gemessen am 3. September.
-     */
-    if (e?.target instanceof Node && n.contains(e.target)) return;
-    kontextSchliessen(); ab();
-  };
-  const ab = () => {
-    document.removeEventListener('pointerdown', zu, true);
-    window.removeEventListener('wheel', zu, true);
-    window.removeEventListener('blur', zu);
-  };
-  setTimeout(() => {
-    document.addEventListener('pointerdown', zu, true);
-    window.addEventListener('wheel', zu, true);
-    window.addEventListener('blur', zu);
-  }, 0);
-}
-
-/** Die Einträge zu einem Tragwerk - im Modell wie in der Leiste dieselben. */
-function kontextTragwerk(id) {
-  const alle = tragwerkeSortiert(werte);
-  const t = alle.find((x) => x.id === id);
-  if (!t) return [];
-  const sichtbar = alle.filter((x) => !versteckt(x));
-  const aktiv = (werte.twId ?? 'T1') === id;
-  const p = [];
-  /* =======================================================================
-   * >>> DAS FENSTER STEHT ZUOBERST. <<<
-   * =======================================================================
-   *
-   * Weisung vom 16. September: «diese maske auch über das kontextmenue
-   * aufrufbar machen.»
-   *
-   * Sie war nur ueber den zweiten Klick auf ein angewaehltes Tragwerk zu
-   * erreichen - ein Weg, den man kennen muss. Im Menue steht sie jetzt an
-   * erster Stelle: was man am haeufigsten will, wenn man ein Bauteil
-   * anklickt, ist es zu aendern.
-   */
-  p.push({ text: `${tragwerkName(t, werte)} bearbeiten …`,
-           tun: () => dialogTragwerk(app, id) });
-  if (!aktiv && !versteckt(t)) {
-    p.push({ text: `${tragwerkName(t, werte)} rechnen`,
-             tun: () => aendern('tragwerkAktiv', id) });
-  }
-  if (versteckt(t)) {
-    p.push({ text: 'Wieder einblenden', tun: () => aendern('tragwerkZeigen', id) });
-  } else if (sichtbar.length > 1) {
-    p.push({ text: 'Nur dieses zeigen', tun: () => nurDiesesZeigen(id) });
-    p.push({ text: 'Ausblenden', tun: () => aendern('tragwerkAus', id) });
-  }
-  if (alle.some(versteckt)) {
-    p.push({ text: 'Alle wieder einblenden', tun: () => alleZeigen() });
-  }
-  /*
-   * >>> EIN ABFANGJOCH GEHOERT UEBER EIN BESTIMMTES JOCH. <<<
-   *
-   * «Neues Tragwerk bei x = 18.50 m» auf dem leeren Grund setzt es an die
-   * Stelle, auf die man gezeigt hat - das ist richtig, aber ungenau: ein
-   * Abfangjoch sitzt nicht IRGENDWO, sondern auf DEN MASTEN des Jochs
-   * darunter, ueber dessen ganze Strecke. Hier gezeigt, hier uebernommen:
-   * Lage und Laenge kommen vom angeklickten Tragwerk.
-   *
-   * Was danach noch zu setzen bleibt, ist die Anschlusshoehe - die eine
-   * Angabe, die zwei uebereinanderstehende Abfangjoche unterscheidet.
-   */
-  if (tragwerksart(t).masten >= 2) {
-    p.push('-');
-    p.push({ text: 'Abfangjoch darüber setzen', tun: () => {
-      if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
-      aendern('tragwerkNeu', { art: 'abfangjoch', xLage: lageVon(t) });
-    } });
-  }
-  /* =========================================================================
-   * >>> DIE ART LAESST SICH WECHSELN. <<<
-   * =========================================================================
-   *
-   * Gefunden am 11. September in einem Bedienlauf: wer ein Tragjoch gesetzt
-   * hatte und ein Abfangjoch brauchte, musste ein zweites anlegen und das
-   * erste loeschen. Das Kontextmenue bot kopieren, zoomen, verschieben -
-   * nur nicht das, was man am haeufigsten will.
-   *
-   * >>> WAS DABEI BLEIBT UND WAS NICHT. <<<
-   *
-   * Lage, Laenge, Masten und Anbauteile gehoeren dem TRAGWERK und bleiben.
-   * Der TYP gehoert der Art: «J90» steht in keiner Abfangjoch-Liste, und
-   * «A240» in keiner Tragjoch-Liste. Ein stehengebliebener Typ waere derselbe
-   * Fehler, der beim Anlegen schon einmal aufgeschlagen ist - die
-   * Auswahlliste zeigt dann den ersten Eintrag, waehrend im Datensatz etwas
-   * anderes steht. `tragwerkNeu` setzt ihn deshalb neu, und diese Stelle
-   * benutzt denselben Weg.
-   *
-   * Die Laenge wandert mit: ein A160 fuehrt 5.5-12.5 m, ein J130 bis 34.5 m.
-   * Wer von einem 30-m-Joch auf A160 wechselt, bekommt die naechste Laenge,
-   * die der neue Typ wirklich fuehrt.
-   * ======================================================================= */
-  const andere = TRAGWERKSARTEN.filter((a) => a.key !== tragwerksart(t).key);
-  if (andere.length) {
-    p.push('-');
-    andere.forEach((a) => {
-      p.push({ text: `Art wechseln auf: ${a.label}`, tun: () => {
-        if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
-        aendern('tragwerkArt', { id, art: a.key });
-      } });
-    });
-  }
-  /*
-   * >>> VERSCHIEBEN UND KOPIEREN STEHEN HIER, NICHT AM ZEIGER. <<<
-   *
-   * Weisung vom 5. September: «nimm die funktion des drag and drop in der
-   * sidebar unter tragwerke raus, diese funktion ist zu unpraezise. nimm
-   * dafuer beim 3d unter dem kontextmenue die moeglichkeit elemente zu
-   * kopieren verschieben und zu loeschen, dies fuer tragwerke und
-   * anbauteile.»
-   *
-   * VERSCHIEBEN ist eine ZAHL, kein Zug: die Lage x₀ steht als Feld da und
-   * laesst sich auf den Zentimeter setzen. Was der Zeiger auf einer Bahn von
-   * vierzig Metern nie konnte, kostet hier eine Eingabe.
-   *
-   * KOPIEREN nimmt den ganzen Satz mit - Typ, Laenge, Profile, Bleche,
-   * Anbauteile - und setzt ihn um eine Jochlaenge weiter. Das ist die Geste
-   * einer Jochreihe: dasselbe Joch noch einmal, nur woanders.
-   */
-  p.push('-');
-  p.push({ feld: { art: 'zahl', label: 'Lage x₀', einheit: 'm', schritt: 0.05,
-                   wert: lageVon(t) },
-           tun: (v) => aendern('tragwerkLage', { id, x: v }) });
-  p.push({ text: `${tragwerkName(t, werte)} kopieren`, tun: () => tragwerkKopieren(id) });
-  p.push({ text: 'Auf dieses zoomen', tun: () => zoomAufTragwerk(id) });
-  if (tragwerksart(t).traeger && mastenFuer(werte, t).some(Boolean)) {
-    p.push({ text: `${tragwerkName(t, werte)} entfernen, Masten als Einzelmasten behalten`,
-             tun: () => aendern('jochZuEinzelmasten', id) });
-  }
-  if (alle.length > 1) {
-    p.push({ text: 'Vom Blatt nehmen', warn: true,
-             tun: () => aendern('tragwerkWeg', id) });
-  }
-  return p;
-}
-
-/**
- * >>> EIN TRAGWERK NOCH EINMAL, EINE JOCHLAENGE WEITER. <<<
- *
- * Weisung vom 5. September. Die Kopie traegt alles mit, was das Original
- * traegt - `tragwerkHinzu` bekommt den ganzen Satz als Vorlage. Nur die
- * LAGE ist eine andere: um seine eigene Laenge versetzt, damit die beiden
- * nicht uebereinanderstehen und man die Kopie sieht.
- *
- * Sie wird ausserdem zum GERECHNETEN - wer kopiert, will an der Kopie
- * weiterarbeiten, nicht am Original.
- */
-function tragwerkKopieren(id) {
-  handlung('Tragwerk kopieren', () => {
-    const t = tragwerkeSortiert(werte).find((x) => x.id === id);
-    if (!t) return;
-    const satz = { ...tragwerkTeil(t) };
-    delete satz.id;
-    delete satz.pos;
-    const L = Number(t.L) || 0;
-    werte = tragwerkHinzu(werte, tragwerksart(t).key,
-                          { ...satz, xLage: lageVon(t) + (L || 2) });
-    mastNachfuehrenGlobal();
-    neuRechnen();
-  });
-}
-
-/**
- * NUR EINES ZEIGEN - alle anderen beiseite.
- *
- * Auf einem Querprofil mit sechs Abschnitten ist das der Griff, den man
- * staendig braucht und der sonst fuenf einzelne Klicks kostet. Das
- * angeklickte wird dabei zum gerechneten: wer es allein sehen will, will
- * daran arbeiten.
- */
-function nurDiesesZeigen(id) {
-  handlung('Nur dieses zeigen', () => {
-    if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
-    werte = { ...werte, ausgeblendet: false,
-              weitere: (werte.weitere ?? []).map(
-                (t) => ({ ...t, ausgeblendet: true })) };
-    mastNachfuehrenGlobal();
-    neuRechnen();
-  });
-}
-
-/** Und alles wieder her. */
-function alleZeigen() {
-  handlung('Alle einblenden', () => {
-    werte = { ...werte, ausgeblendet: false,
-              weitere: (werte.weitere ?? []).map(
-                (t) => ({ ...t, ausgeblendet: false })) };
-    neuRechnen();
-  });
-}
-
-/**
- * Die Einträge zu einem Masten.
- *
- * >>> WELCHES TRAGWERK GEMEINT IST, SAGT DER MAST. <<<
- *
- * Weisung vom 9. September: «ich versteh die logik nicht beim ein ausblenden
- * der masten.» Hier lag ein Teil davon: `twId` war IMMER das gerechnete
- * Tragwerk, gleichgültig, welchen Masten man angeklickt hatte. Am linken
- * Masten stand «Masten von … ausschalten» und traf das rechte Joch — bei
- * zwei gleichen Jochen einer Reihe sah man dem Menütext nicht einmal an,
- * dass er den falschen meint.
- *
- * Gemeint ist, wer den Masten TRÄGT. Bei einem geteilten das gerechnete,
- * wenn es ihn trägt — dieselbe Regel wie in der Leiste; sonst der erste.
- */
-function kontextMast(mastId, twId) {
-  const m = mastenVon(werte).find((x) => x.id === mastId);
-  if (!m) return [];
-  const traegt = m.traegt ?? [];
-  const wer = traegt.includes(twId) ? twId : (traegt[0] ?? twId);
-  const t = tragwerkeSortiert(werte).find((x) => x.id === wer)
-         ?? tragwerkeVon(werte)[0];
-  const p = [
-    /*
-     * >>> DAS FENSTER STATT DES SPRUNGS (16. September). <<<
-     *
-     * Weisung: «diese fenster auch für die maste anzeigen ... diese maske
-     * auch über das kontextmenue aufrufbar machen.»
-     *
-     * Hier stand ein Sprung in die Seitenleiste - er waehlte den Masten an
-     * und scrollte zum Profilfeld. Das ist ein Umweg ueber eine Liste, in
-     * der man dann weitersucht; das Fenster zeigt, was den Masten ausmacht,
-     * auf einmal.
-     *
-     * DER SPRUNG BLEIBT DARUNTER: was das Fenster nicht fuehrt - Fusspunkt,
-     * Zuganker, Windbeiwerte - steht weiterhin nur dort.
-     */
-    { text: `${mastName(werte, m)} bearbeiten …`,
-      tun: () => dialogMast(app, mastId) },
-    { text: 'In der Seitenleiste bearbeiten', tun: () => {
-      aendern('mastAktiv', mastId);
-      zeigeFeld('mastProfil');
-    } },
-    { text: 'Auf den Masten zoomen',
-      tun: () => { station = null; ansicht.station = null;
-                   ansicht.zoomAuf(m.x, null, 2); } },
-  ];
-  /*
-   * DIE MASTEN EINES TRAGWERKS AB- ODER ANSCHALTEN - nur dort, wo es einen
-   * Traeger gibt. Beim Einzelmasten waere «Masten ausschalten» der Auftrag,
-   * das Tragwerk abzuschaffen.
-   */
-  if (t && tragwerksart(t).traeger) {
-    p.push('-');
-    p.push({ text: `Masten von ${tragwerkPos(werte, t)} (${tragwerkName(t, werte)}) `
-      + (t.mastVorhanden === false ? 'einschalten' : 'ausschalten'),
-      tun: () => aendern('tragwerkMasten', t.id) });
-  }
-  return p;
-}
-
-/**
- * DIE EINTRAEGE ZU EINEM ANBAUTEIL - mit den Angaben, nicht nur mit Wegen
- * dorthin.
- *
- * Weisung vom 2. September: «beim kontextmenue bauteil parameter typ länge
- * ausrichtung direkt eintragen können.»
- *
- * >>> WELCHE DREI. <<<
- *
- *   TYP          das Bauteil des ersten Moduls. Es traegt die Baugruppe;
- *                was daran haengt, bleibt haengen.
- *   LAGE/HOEHE   am Joch die Stelle x, am Masten die Hoehe ueber Fundament.
- *                Dieselbe Zahl, die der Klick beim Setzen bestimmt hat -
- *                und die man danach auf den Zentimeter nachzieht.
- *   AUSRICHTUNG  auf welche Seite der Jochachse das Teil ausgreift. Bei
- *                einem Ausleger ist das die haeufigste Korrektur ueberhaupt:
- *                man setzt ihn und sieht, dass er zum falschen Gleis zeigt.
- *
- * Nicht mehr. Ein Kontextmenue mit zwoelf Feldern waere die Bauteilkarte,
- * nur an einer schlechteren Stelle - die steht weiter in der Seitenleiste,
- * und «bearbeiten» fuehrt hin.
- */
-function kontextAnbauteil(i) {
-  const a = (werte.anbauteile ?? [])[i];
-  if (!a) return [];
-  const setz = (fn) => {
-    const liste = (werte.anbauteile ?? []).map((x, j) => (j === i ? fn(x) : x));
-    setzeAnbauteile(liste);
-  };
-  const mod0 = (a.module ?? [])[0];
-  const amMasten = a.ort === 'mastA' || a.ort === 'mastB';
-  const p = [{ kopf: a.name ?? 'Bauteil' }];
-
-  /*
-   * DER TYP: was die Datenbank an dieser Stelle ueberhaupt zulaesst.
-   *
-   * Gefiltert nach der ROLLE des jetzigen Bauteils - ein Traeger laesst sich
-   * gegen einen anderen Traeger tauschen, nicht gegen einen Fahrdraht. Sonst
-   * stuende eine Baugruppe da, deren Glieder nicht mehr aufeinanderpassen,
-   * und die Pruefungen meldeten es erst hinterher.
-   */
-  if (mod0) {
-    let rolle = null;
-    try { rolle = getFlBauteil(mod0.bauteil)?.rolle ?? null; } catch { /* unbekannt */ }
-    const wahl = flBauteile(rolle).map((b2) => ({ wert: b2.id, text: b2.name ?? b2.id }));
-    if (wahl.length > 1) {
-      p.push({ feld: { art: 'auswahl', label: 'Typ', wert: mod0.bauteil,
-                       optionen: wahl },
-               tun: (v) => setz((x) => ({ ...x,
-                 module: (x.module ?? []).map((m, k) => (k === 0
-                   ? { ...m, bauteil: v } : m)) })) });
-    }
-  }
-
-  // LAGE oder HOEHE - je nachdem, woran es haengt.
-  p.push(amMasten
-    ? { feld: { art: 'zahl', label: 'Höhe', einheit: 'm', schritt: 0.05,
-                wert: a.hMast ?? 0 },
-        tun: (v) => setz((x) => ({ ...x, hMast: v })) }
-    : { feld: { art: 'zahl', label: 'Lage x', einheit: 'm', schritt: 0.1,
-                wert: a.x ?? 0 },
-        tun: (v) => setz((x) => ({ ...x, x: v })) });
-
-  /*
-   * DIE AUSRICHTUNG: das Vorzeichen der Ausladung.
-   *
-   * Sie steht als AUSWAHL da, nicht als Kreuzchen - «links / rechts» sagt,
-   * was man sieht; «gespiegelt: ja» verlangt, dass man sich den
-   * Ausgangszustand merkt. Gespiegelt wird die ganze Baugruppe, damit das,
-   * was am Ausleger haengt, mitgeht.
-   */
-  const ausladung = (a.module ?? []).reduce(
-    (m, x) => (Math.abs(x.x ?? 0) > Math.abs(m) ? (x.x ?? 0) : m), 0);
-  if (Math.abs(ausladung) > 1e-9) {
-    p.push({ feld: { art: 'auswahl', label: 'Ausrichtung',
-                     wert: ausladung < 0 ? 'links' : 'rechts',
-                     optionen: [{ wert: 'links', text: 'nach links' },
-                                { wert: 'rechts', text: 'nach rechts' }] },
-             tun: (v) => {
-               const soll = v === 'links' ? -1 : 1;
-               if (Math.sign(ausladung) === soll) return;
-               setz((x) => ({ ...x, module: (x.module ?? []).map(
-                 (m) => ({ ...m, x: -(m.x ?? 0) })) }));
-             } });
-  }
-
-  p.push('-');
-  p.push({ text: 'In der Seitenleiste bearbeiten', tun: () => zeigeAnbauteil(i) });
-  p.push({ text: 'Auf das Bauteil zoomen', tun: () => ansicht.zeigeAnbauteil(i) });
-  /*
-   * ABSCHALTEN IST NICHT ENTFERNEN - dieselbe Trennung wie beim Tragwerk.
-   * Ein abgeschaltetes Bauteil bleibt in der Liste und zaehlt nicht mit;
-   * ein entferntes ist weg.
-   */
-  p.push({ text: a.aktiv === false ? 'Wieder mitrechnen' : 'Nicht mitrechnen',
-           tun: () => setz((x) => ({ ...x, aktiv: x.aktiv === false })) });
-  /*
-   * KOPIEREN (Weisung, 5. September). Ein Bauteil steht selten allein - je
-   * Gleis dasselbe, nur eine Spannweite weiter. Die Kopie sitzt einen
-   * halben Meter daneben, damit sie nicht im Original verschwindet.
-   */
-  p.push({ text: 'Kopieren', tun: () => {
-    const liste = [...(werte.anbauteile ?? [])];
-    const kopie = { ...a, id: `AT-${Math.random().toString(36).slice(2, 8)}`,
-                    module: (a.module ?? []).map((m) => ({ ...m })),
-                    lasten: (a.lasten ?? []).map((l) => ({ ...l })) };
-    if ((a.ort ?? 'joch') === 'joch') kopie.x = (Number(a.x) || 0) + 0.5;
-    else kopie.hMast = (Number(a.hMast) || 0) + 0.5;
-    liste.splice(i + 1, 0, kopie);
-    setzeAnbauteile(liste);
-  } });
-  p.push({ text: 'Entfernen', warn: true,
-           tun: () => setzeAnbauteile(
-             (werte.anbauteile ?? []).filter((_, j) => j !== i)) });
-  return p;
-}
-
-/**
- * Die Einträge auf leerem Grund.
- *
- * Hier steht, was das BILD betrifft und was man sonst unten links oder in
- * der Werkzeugleiste sucht. Kein zweites Hauptmenue - nur die drei Fahrten,
- * die man staendig braucht, und die beiden Handlungen, die im Modell
- * beginnen.
- */
-function kontextGrund(k) {
-  const p = [
-    { text: 'Ganzes Querprofil zeigen',
-      tun: () => { station = null; ansicht.station = null;
-                   ansicht.ansichtZuruecksetzen(); zeichneAuswertung(); } },
-    { text: 'Nur das gerechnete Tragwerk',
-      tun: () => zoomAufTragwerk(werte.twId ?? 'T1') },
-  ];
-  if (letzte?.erg?.schnitt) {
-    p.push({ text: 'Auf den Nachweisschnitt', tun: () => ansicht.zeigeSchnitt(2.5) });
-  }
-  /*
-   * >>> EIN TRAGWERK DORT ANLEGEN, WO MAN HINZEIGT. <<<
-   *
-   * Weisung vom 3. September: «ich könnte mir persönlich ein ähnliches
-   * vorgehen vorstellen wie bei den anbauteilen wo man diese in das modell
-   * zieht oder per rechtsklick ein neues tragelement hinzufügen könnte.»
-   *
-   * Genau so. Der Knopf «+ Tragwerk» in der Leiste haengt das naechste
-   * rechts an - der Regelfall einer Reihe. Wer es woanders haben will,
-   * zeigt hin: ein Abfangjoch UEBER ein bestehendes Tragjoch etwa laesst
-   * sich nur so setzen, denn es teilt sich dessen Strecke.
-   *
-   * Die Stelle wird auf den halben Meter gerastet - dieselbe Grobheit wie
-   * beim Ziehen, aus demselben Grund: ein Klick ins Bild trifft keinen
-   * Zentimeter.
-   */
-  if (Number.isFinite(k?.welt?.x)) {
-    const wo = aufRaster(k.welt.x);
-    p.push('-');
-    p.push({ kopf: `Neues Tragwerk bei x = ${wo.toFixed(2)} m` });
-    TRAGWERKSARTEN.forEach((a) => {
-      p.push({ text: a.label,
-               tun: () => aendern('tragwerkNeu', { art: a.key, xLage: wo }) });
-    });
-  }
-  p.push('-');
-  p.push({ text: setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',
-           tun: () => (setzen ? setzenEnde() : setzenStarten()) });
-  if (ansicht.zeichnung?.kalibrierung) {
-    p.push({ text: 'Zeichnung verschieben', tun: () => bildSchiebenStarten() });
-    p.push({ text: 'Zeichnung ausrichten', tun: () => ausrichtenStarten() });
-  }
-  if (tragwerkeSortiert(werte).some(versteckt)) {
-    p.push('-');
-    p.push({ text: 'Alle Tragwerke einblenden', tun: () => alleZeigen() });
-  }
-  return p;
-}
-
-/**
- * Der Rechtsklick im Modell.
- *
- * Die Ansicht meldet nur, WORAUF geklickt wurde; was dort angeboten wird,
- * entscheidet sich hier. So bleibt die Zeichenflaeche frei von Wissen ueber
- * Ausblenden und Bauteillisten.
- */
-function kontextImModell(k) {
-  const twId = k.twId ?? werte.twId ?? 'T1';
-  let punkte;
-  if (k.was === 'mast') {
-    // Das Ende gehoert dem Tragwerk, an dem der Mast gezeichnet wurde.
-    const t = tragwerkeSortiert(werte).find((x) => x.id === twId);
-    const [a, b] = t ? mastenFuer(werte, t) : [null, null];
-    const m = k.mastEnde === 'B' ? b : a;
-    punkte = m ? kontextMast(m.id, twId) : [];
-  } else if (k.was === 'anbauteil' && k.anbauteil !== null) {
-    punkte = kontextAnbauteil(k.anbauteil);
-  } else if (k.was === 'tragwerk') {
-    punkte = kontextTragwerk(twId);
-  } else {
-    punkte = kontextGrund(k);
-  }
-  kontextZeigen(k.bei, punkte);
-}
 
 /* ===========================================================================
  * >>> DIE KAMERA FAEHRT IM BLATT, NICHT IM TRAGWERK. <<<
@@ -7293,7 +6754,7 @@ export async function start() {
      * und genau waehrend des Ziehens will man sie lesen.
      */
     beiZeichnungVerschoben: () => { if (bildSchieben) zeichneBalken(); },
-    beiKontext: (k) => kontextImModell(k),
+    beiKontext: (k) => kontextImModell(app, k),
   });
 
   /*
