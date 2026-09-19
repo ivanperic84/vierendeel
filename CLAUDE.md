@@ -373,11 +373,19 @@ d3f95be») — beide Änderungen gehören mit in den Commit.
   `vergleichKombinationen` (Hüllkurve) → Anker (charakteristisch) →
   Kontrollen, Hinweise, `bauteilUrteil` → `letzte = {…}` → Maske, Auswertung,
   Schienen, Modell, Fussleiste → `speichern()`.
+- **`app.js` wird geteilt (A1, seit 19. Sept.):** Reine Rechnung wandert in
+  `core.*` (z. B. `core.anker.js`). Zustandsgebundene Teile werden `app.*.js`
+  (z. B. `app.bericht.js`) und bekommen das Kontextobjekt `app` aus
+  `app.js` als Parameter: Getter auf den Zustand (`app.werte`,
+  `app.letzte`, `app.projekt`, `app.thema`, `app.ansicht`) und die
+  gemeinsamen Hilfen (`app.dialog`, `app.handlung`, `app.meldeImBalken` …).
+  Sie **importieren `app.js` nie** — einen Kreis verträgt der Bündler nicht.
+  Wer einem Modul einen weiteren Namen gibt, trägt ihn in `app` ein.
 - **`erg` und `anzeige`:** `erg` ist der Bemessungsdurchgang, `anzeige` die
   gewählte Kombination bzw. die Hüllkurve. Abfangjoch, Mast und Anker hängen
-  an `erg` und werden in `anzeige` **hinübergelegt** — wer ein neues
-  Bauteilergebnis einführt, muss es dort ebenso mitgeben, sonst erscheint es
-  nicht in der Spalte (ist dreimal passiert).
+  an `erg`; `mitBauteilen` (core.checks) legt sie in `anzeige` und in
+  `letzte.bemessung` — ein neues Bauteilergebnis gehört **dort** hinein,
+  sonst erscheint es nicht in der Spalte (ist dreimal passiert, A2).
 - **Datenmodell eines Blattes:** ein flacher Satz `werte` ist das **aktive**
   Tragwerk (`twId`), die übrigen stehen in `werte.weitere`. `tragwerkeVon`,
   `tragwerkSatz`, `tauscheAktives` (ersetzen, nicht überlagern),

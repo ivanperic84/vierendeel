@@ -24,8 +24,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
-import { nachweisbericht, berichtVorgabe, UMFAENGE, BILDER,
-         BERICHT_ARTEN } from './export.nachweisbericht.js';
+import { dialogBericht } from './app.bericht.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -126,6 +125,29 @@ let projekt = { id: null, name: 'Neues Tragjoch', projekt: '' };
 let tabEingabe = 'system';
 let tabAuswertung = 'uebersicht';
 let thema = 'dunkel';
+
+/*
+ * >>> DER ARBEITSSTAND FUER DIE AUSGELAGERTEN TEILE (A1, 19. September). <<<
+ *
+ * Die Module app.*.js importieren app.js nicht zurueck - einen Kreis
+ * vertraegt der Buendler nicht. Sie bekommen dieses Objekt: Getter auf den
+ * Zustand (gelesen wird immer der aktuelle) und die gemeinsamen Hilfen.
+ * Funktionen sind gehoben, die Getter lesen erst beim Aufruf - die Stelle
+ * im Quelltext ist deshalb gleichgueltig.
+ */
+const app = {
+  get werte() { return werte; },
+  get letzte() { return letzte; },
+  get projekt() { return projekt; },
+  get thema() { return thema; },
+  get ansicht() { return ansicht; },
+  VERSION,
+  dialog: (...a) => dialog(...a),
+  handlung: (...a) => handlung(...a),
+  meldeImBalken: (...a) => meldeImBalken(...a),
+  diagrammSatz: (...a) => diagrammSatz(...a),
+  weitereDiagramme: (...a) => weitereDiagramme(...a),
+};
 // Welche Einwirkungskombination im Modell dargestellt wird.
 // 'umhuellend' = ungünstigster Wert je Station über alle Kombinationen.
 let anzeigeKombi = 'umhuellend';
@@ -4590,7 +4612,7 @@ function baueKopf() {
   ui.el('btn-vor').onclick = () => wiederherstellen();
   ui.el('btn-handbuch').onclick = dialogHandbuch;
   ui.el('btn-export').onclick = exportKlick;
-  ui.el('btn-bericht').onclick = dialogBericht;
+  ui.el('btn-bericht').onclick = () => dialogBericht(app);
   ui.el('btn-axisvm').onclick = dialogAxisvm;
   ui.el('btn-drucken').onclick = () => handlung('Drucken', () => window.print());
   ui.el('btn-speichern').onclick = () => ablageSpeichern(false);
@@ -8351,146 +8373,6 @@ function exportKlick() {
                letzte.vergleich, letzte.urteil));
 }
 
-/* ===========================================================================
- * >>> DER NACHWEISBERICHT (Weisung vom 18. September). <<<
- * ===========================================================================
- *
- * «die bilder ausschaltbar und den umfang der nachweise einstellbar
- * machen.» Der Dialog fragt beides; die Wahl bleibt fuer das naechste Mal
- * im Browser stehen. Der Bericht selbst entsteht in
- * export.nachweisbericht.js aus dem, was `letzte` schon traegt - hier
- * werden nur die Bilder gemacht, die ein Browser braucht.
- * ========================================================================= */
-const BERICHT_WAHL = 'tragjoch-bericht';
-
-function berichtWahl() {
-  try {
-    const w = JSON.parse(localStorage.getItem(BERICHT_WAHL) ?? 'null');
-    if (w?.umfang) return { ...berichtVorgabe(), ...w, bilder: { ...berichtVorgabe().bilder, ...w.bilder } };
-  } catch { /* ohne Speicher die Vorgabe */ }
-  return berichtVorgabe();
-}
-
-/** Die Regeln der Diagrammklassen aus dem eigenen Stylesheet. */
-function diagrammStil() {
-  const muster = /\.(grid|nulllinie|grenze|tick|achse|legende|serie|band|marke|lbl|micro)\b/;
-  return [...document.styleSheets].flatMap((s) => {
-    try { return [...s.cssRules]; } catch { return []; }
-  }).filter((r) => r.selectorText && muster.test(r.selectorText))
-    .map((r) => r.cssText).join('\n');
-}
-
-function dialogBericht() {
-  if (!letzte) return;
-  const art = tragwerksart(werte);
-  if (!BERICHT_ARTEN.includes(art.key)) {
-    meldeImBalken(`Der Nachweisbericht deckt das Tragjoch mit Masten und den Einzelmast ab — `
-      + `«${art.label}» ist nicht enthalten.`);
-    return;
-  }
-  const w = berichtWahl();
-  const koerper = `
-    <p>Der Bericht öffnet sich in einem eigenen Fenster; dort als PDF drucken.
-    Die Bilder zeigen die Modellansicht in ihrer jetzigen Darstellung.</p>
-    <h3>Umfang der Nachweise</h3>
-    ${UMFAENGE.map((u) => `<label class="schalter"><input type="radio" name="umfang"
-      value="${u.key}"${u.key === w.umfang ? ' checked' : ''}>
-      <span><b>${esc(u.label)}</b> — ${esc(u.text)}</span></label>`).join('')}
-    <h3>Bilder</h3>
-    ${BILDER.map((b) => `<label class="schalter"><input type="checkbox" name="bild"
-      value="${b.key}"${w.bilder[b.key] ? ' checked' : ''}><span>${esc(b.label)}</span></label>`).join('')}`;
-  const { node, zu } = dialog('Nachweisbericht', koerper,
-    `<button class="btn" data-zu>Abbrechen</button>
-     <button class="btn btn-acc" id="bericht-los">Bericht erzeugen</button>`);
-  node.querySelector('#bericht-los').onclick = () => {
-    const wahl = {
-      umfang: node.querySelector('input[name=umfang]:checked')?.value ?? 'anhang',
-      bilder: Object.fromEntries(BILDER.map((b) => [b.key,
-        !!node.querySelector(`input[name=bild][value=${b.key}]`)?.checked])),
-    };
-    try { localStorage.setItem(BERICHT_WAHL, JSON.stringify(wahl)); } catch { /* egal */ }
-    zu();
-    handlung('Nachweisbericht', () => berichtOeffnen(wahl));
-  };
-}
-
-function berichtOeffnen(wahl) {
-  /*
-   * DIE BEMESSUNG, nicht die Anzeige: gleich welcher Lastfall oben gewaehlt
-   * ist, der Bericht steht auf der Umhuellenden - wie das Urteil.
-   */
-  const bem = letzte.bemessung;
-  const b = wahl.bilder;
-  const mitJoch = letzte.mitJoch !== false;
-  /*
-   * OHNE JOCH NUR DIE MASTDIAGRAMME: `diagrammSatz` legt die Kurven des
-   * Traeger-Ersatzbalkens dazu, und die rechnet beim Einzelmast ein Joch,
-   * das es nicht gibt.
-   */
-  const satz = (b.verlaeufe || b.eta)
-    ? (mitJoch ? diagrammSatz(bem, 900)
-      : Object.fromEntries(weitereDiagramme(bem, 900).flatMap((w, i) => [
-        [`mast-schnitt-${i}`, { svg: w.schnitt }],
-        [`mast-eta-${i}`, { svg: w.ausnutzung }],
-        [`anker-bem-${i}`, { svg: w.bemessung }]])))
-    : {};
-  const reihe = (schluessel) => Object.entries(satz)
-    .filter(([k, v]) => v.svg && schluessel.some((s) => k === s || k.startsWith(`${s}-`)))
-    // Jedes Diagramm traegt seinen Titel selbst - ein zweiter waere doppelt.
-    .map(([, v]) => `<div class="dia">${v.svg}</div>`).join('');
-  /*
-   * DIE BILDER IM HELLEN DESIGN (Weisung vom 18. September: «bei den
-   * skizzen abbildungen das helle appdesign nehmen»). Fuer die Aufnahme
-   * wird kurz umgeschaltet und danach zurueck - wer dunkel arbeitet, merkt
-   * davon nichts.
-   */
-  const aufnahme = (key) => {
-    if (!ansicht) return null;
-    const vorher = thema;
-    if (vorher !== 'hell') uebertrageTokens('hell');
-    try {
-      return ansicht.momentaufnahme(key);
-    } finally {
-      if (vorher !== 'hell') { uebertrageTokens(vorher); ansicht.zeichneJetzt(); }
-    }
-  };
-  const bilder = {
-    skizze: b.skizze ? aufnahme('laengs') : null,
-    modell3d: b.modell3d ? aufnahme('iso') : null,
-    verlaeufe: b.verlaeufe ? reihe(['schnittgroessen', 'ebene', 'mast-schnitt', 'anker-bem']) : null,
-    eta: b.eta ? reihe(['ausnutzung', 'mast-eta']) : null,
-  };
-  const html = nachweisbericht({
-    werte: { ...rechensatz(werte), name: projekt.name },
-    erg: bem, kombi: letzte.kombi, checks: letzte.checks, urteil: letzte.urteil,
-    hinweise: letzte.hinw, fassung: `${APP_NAME} ${VERSION}`,
-    datum: new Date().toLocaleDateString('de-CH'), bilder, stil: diagrammStil(),
-  }, wahl);
-  berichtZeigen(html);
-}
-
-/*
- * IN DER ANWENDUNG, NICHT IN EINEM NEUEN FENSTER. Der erste Anlauf oeffnete
- * ein Fenster - und die Pop-up-Sperre des Browsers hielt es auf. Eine Ebene
- * mit eingebettetem Dokument braucht keine Erlaubnis, laeuft auch in der
- * installierten und der eigenstaendigen Fassung, und gedruckt wird nur das
- * eingebettete Dokument, nicht die Anwendung dahinter.
- */
-function berichtZeigen(html) {
-  document.getElementById('bericht-ebene')?.remove();
-  const ebene = document.createElement('div');
-  ebene.id = 'bericht-ebene';
-  ebene.innerHTML = `<div class="bericht-leiste">
-      <b>Nachweisbericht</b>
-      <button class="btn btn-acc" id="bericht-drucken">Drucken / als PDF sichern</button>
-      <button class="btn" id="bericht-zu">Schliessen</button></div>
-    <iframe title="Nachweisbericht"></iframe>`;
-  document.body.appendChild(ebene);
-  const rahmen = ebene.querySelector('iframe');
-  rahmen.srcdoc = html;
-  ebene.querySelector('#bericht-drucken').onclick = () => rahmen.contentWindow?.print();
-  ebene.querySelector('#bericht-zu').onclick = () => ebene.remove();
-}
 
 /**
  * AxisVM-Ausleitung (SAF).
