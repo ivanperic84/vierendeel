@@ -25590,8 +25590,11 @@ titel('94  Befunde aus der Bedienung vom 19. September');
   // bei den inaktiven elementen grau machen wie die körper»
   const r94 = q94('render.3d.js');
   const aufl = r94.slice(r94.indexOf("if (mk.art === 'auflager') {"),
-                         r94.indexOf("if (mk.art === 'auflagertext') {"));
+                         r94.indexOf("if (mk.art === 'auflagertext') return;"));
   wahr('3D: unter dem Mastfuss steht kein A/B mehr', aufl.length > 0 && !aufl.includes('fillText'));
+  // «die bennenung hier gelenkig und k weglassen» (19. September)
+  wahr('3D: auch «gelenkig · κ» steht nicht mehr unter dem Fuss',
+       r94.includes("if (mk.art === 'auflagertext') return;"));
   wahr('3D: Achsen am passiven Tragwerk grau wie seine Koerper',
        (r94.match(/l\.passiv \? \(t\.xdim \?\? t\.dim\)/g) ?? []).length === 2);
 }

@@ -4127,29 +4127,15 @@ export class Modellansicht {
         }
         return;
       }
-      if (mk.art === 'auflagertext') {
-        // Die Lagerungsangaben unter dem Mastfuss, eine Angabe je Zeile. Mit
-        // Saum statt Kasten - ein Rahmen um zwei Zeilen wiegt schwerer als
-        // die zwei Zeilen selbst.
-        /*
-         * EINE ANGABE DES GERECHNETEN TRAGWERKS. Am Nachbarn faellt sie weg -
-         * aus demselben Grund wie seine Masse: sie ist eine Angabe, keine
-         * Lage, und stand am passiven Masten ueber dessen Fundament.
-         */
-        if (mk.passiv) return;
-        c.lineJoin = 'round';
-        (mk.zeilen ?? [mk.text]).forEach((txt, i) => {
-          if (!txt) return;
-          const b = this._textBreite(c, txt);
-          // Gleich unter dem Fuss - der Name A/B, der hier stand, ist weg.
-          const bx = p[0] - b / 2, by = p[1] + (26 + i * 12) * s;
-          c.strokeStyle = t.viewerBg; c.lineWidth = 2.6 * s;
-          c.strokeText(txt, bx, by);
-          c.fillStyle = t.dim;
-          c.fillText(txt, bx, by);
-        });
-        return;
-      }
+      /*
+       * >>> DIE LAGERANGABE STEHT NICHT MEHR IM BILD (Weisung vom
+       * 19. September: «die bennenung hier gelenkig und k weglassen.»). <<<
+       *
+       * «gelenkig · κ 0 %» unter dem Mastfuss. Die Angabe bleibt in der
+       * Szene (Pruefstand) und steht in der Maske unter der Lagerung;
+       * gezeichnet wird sie nicht.
+       */
+      if (mk.art === 'auflagertext') return;
       if (mk.art === 'lastknoten') {
         // Knotenpunkt der Lasteinleitung: ein Ring, damit der Angriffspunkt
         // auch dann zu sehen ist, wenn der Ständer davorliegt.
