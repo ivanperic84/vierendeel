@@ -328,6 +328,14 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Positionen 5–9, die 6 mm zurückgesetzt sind (Hebelarm 100 statt 112 mm).
   Im Modell sitzen alle bündig.
 
+- **Geteilter Mast im Nachweis** (19. Sept. nachgeprüft): seine Teile am
+  Masten zählen in **beiden** Rechnungen (seit 2./18. Sept., `mastAnbauteile`
+  mit `mastId`) — der frühere offene Punkt «Bauteil gehört nur einem
+  Tragwerk» war veraltet. Es fehlt aber die **Jochreaktion der Nachbarseite**
+  im Mastnachweis und die Rahmenwirkung über die Reihe (Hinweis in
+  `core.checks.js`). ⚠ Vorschlag «Mast als eigenständiges Element»
+  vorgelegt, Entscheid offen.
+
 **AxisVM / COM**
 - Seilkopf im nächsten Aufbau prüfen: lokale x-Achse des NN-Links, «nur Zug»
   (wirkt nur nichtlinear).
@@ -351,8 +359,6 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - Angepasstes Joch als eigenen Typ speichern.
 - Excel-Generator (`js/export.xlsx.js`, Python-Skript) nicht synchron mit dem
   Kern.
-- Ein Bauteil am **geteilten Masten** gehört nur einem Tragwerk — beim
-  Nachbarn fehlt seine Last.
 - Der Anbauteile-Reiter nennt sein Tragwerk nicht; `+ Tragwerk` kopiert die
   Anbauteile ohne Umbenennung.
 - 3D: «Isometrie» rückt ein Blatt mit zwei Einzelmasten nicht ganz ins
