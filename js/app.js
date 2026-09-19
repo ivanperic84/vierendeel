@@ -4066,6 +4066,34 @@ function dialog(titel, koerper, knoepfe, klasse = '') {
 }
 
 
+/**
+ * ALLE ANBAUTEILE ENTFERNEN - mit Rückfrage, und getrennt nach Joch und
+ * Masten, wenn es beides gibt: wer das Joch neu bestücken will, will die
+ * Traverse am Masten meist behalten.
+ */
+function anbauteileAlleEntfernen() {
+  const liste = werte.anbauteile ?? [];
+  if (!liste.length) return;
+  const amMasten = (a) => (a.ort ?? 'joch') !== 'joch';
+  const nJoch = liste.filter((a) => !amMasten(a)).length;
+  const nMast = liste.length - nJoch;
+  const beides = nJoch > 0 && nMast > 0;
+  const d = dialog('Anbauteile entfernen', `
+    <p>${liste.length} Anbauteil(e) an diesem Tragwerk${beides
+      ? ` — ${nJoch} am Joch, ${nMast} am Masten` : ''}.</p>
+    <p class="notiz">Rückgängig (Strg+Z) holt sie zurück.</p>`,
+    `${beides ? '<button class="btn" data-joch>Nur die am Joch</button>' : ''}
+     <button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-alle>Alle entfernen</button>`);
+  const weg = (behalten) => {
+    d.zu();
+    handlung('Anbauteile entfernen', () => setzeAnbauteile(liste.filter(behalten)));
+  };
+  d.node.querySelector('[data-alle]').onclick = () => weg(() => false);
+  const j = d.node.querySelector('[data-joch]');
+  if (j) j.onclick = () => weg(amMasten);
+}
+
 function dialogSpeichern() {
   const d = dialog('In Ablage speichern', `
     <div class="feld"><label for="d-projekt">Projekt</label>
@@ -4577,6 +4605,7 @@ export async function start() {
     zoom: zoomAufAnbauteil,
     bearbeiten: dialogVorlageBearbeiten,
     duplizieren: (i) => anbauteilDuplizieren(app, i),
+    alleWeg: anbauteileAlleEntfernen,
     kontext: (i, bei) => kontextZeigen(app, bei, kontextAnbauteil(app, i)),
     oeffnen: (i) => {
       const a = (werte.anbauteile ?? [])[i];

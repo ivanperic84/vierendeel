@@ -2888,3 +2888,4 @@ body.datei-ueber::after {
   padding: 8px 14px; border-bottom: 1px solid var(--ol); color: var(--on); }
 #bericht-ebene .bericht-leiste b { margin-right: auto; }
 #bericht-ebene iframe { flex: 1; border: 0; background: #fff; width: 100%; }
+.at-leiste { display: flex; justify-content: flex-end; margin: 4px 0 6px; }

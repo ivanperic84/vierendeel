@@ -228,17 +228,44 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
    * dort senkrecht zu ihm. An den Kräften ändert das bei starren Gliedern
    * nichts, nur am Bild und an der Geometrie der Ausleitung.
    */
-  const knickPunkt = (a, d, p) => {
-    if (!d) return null;                       // erstes Glied ab dem Joch
+  /*
+   * >>> ERST y, DANN x (Weisung vom 19. September). <<<
+   *
+   * «Bei anbauteilen die koordinaten so steuern dass der y wert zuerst
+   * abgefahren wird falls eingegeben vor dem x. das bauteil wird nicht
+   * richtig dargestellt wenn x und y engegeben -> fläche anstatt stäbe.»
+   * Ein Glied schräg in der Waagrechten (x und y zugleich) gibt es an einem
+   * Fahrleitungsteil nicht - der Arm steht quer zum Gleis ab, oder er läuft
+   * längs. Liegt der nächste Punkt in beiden Richtungen versetzt, wird
+   * zuerst der Versatz in y abgefahren, dann der in x.
+   *
+   * @returns {object[]} Zwischenpunkte von a nach p, ohne a und p
+   */
+  const knickPunkte = (a, d, p) => {
     const wie = (q, o) => gleich(q.x, o.x) && gleich(q.y, o.y) && gleich(q.z, o.z);
-    if (a.rolle === 'aufbau') {
-      const q = { x: r6(p.x), y: r6(p.y), z: r6(a.z) };
-      return wie(q, a) || wie(q, p) ? null : q;
+    const weg = [];
+    const dazu = (q) => {
+      const r = { x: r6(q.x), y: r6(q.y), z: r6(q.z) };
+      const letzt = weg[weg.length - 1] ?? a;
+      if (!wie(r, letzt) && !wie(r, p)) weg.push(r);
+    };
+    if (d && a.rolle === 'aufbau') {
+      // Auf der Höhe des Aufbaus waagrecht, erst y, dann x - dann lotrecht.
+      dazu({ x: a.x, y: p.y, z: a.z });
+      dazu({ x: p.x, y: p.y, z: a.z });
+      return weg;
     }
-    const t = (p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z;
-    if (t <= 1e-9) return null;                // der Weg führt nicht weiter
-    const q = { x: r6(a.x + t * d.x), y: r6(a.y + t * d.y), z: r6(a.z + t * d.z) };
-    return wie(q, a) || wie(q, p) ? null : q;  // kein Umweg um nichts
+    let von = a;
+    if (d) {
+      const t = (p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z;
+      if (t > 1e-9) {                          // dem Träger bis zum Ende folgen
+        dazu({ x: a.x + t * d.x, y: a.y + t * d.y, z: a.z + t * d.z });
+        von = weg[weg.length - 1] ?? a;
+      }
+    }
+    // Waagrecht schräg (x und y zugleich): zuerst y.
+    if (!gleich(p.x, von.x) && !gleich(p.y, von.y)) dazu({ x: von.x, y: p.y, z: von.z });
+    return weg;
   };
   const richtungVon = (a, b) => {
     const v = [b.x - a.x, b.y - a.y, b.z - a.z];
@@ -323,8 +350,7 @@ export function anbauKette(teile, { x0 = 0, zAn = 0 } = {}) {
             if (t <= 1e-9) { traeger = stufenTraeger; richtung = stufenRichtung; }
           }
           // Erst dem tragenden Glied bis zu seinem Ende folgen, dann abbiegen.
-          const knick = knickPunkt(traeger, richtung, p0);
-          if (knick) {
+          for (const knick of knickPunkte(traeger, richtung, p0)) {
             const kSchluessel = `${knick.x}|${knick.y}|${knick.z}`;
             let kp = punkte.get(kSchluessel);
             if (!kp) {

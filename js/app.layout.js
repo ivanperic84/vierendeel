@@ -278,6 +278,9 @@ export function zeichneModellWerkzeuge(app) {
          aria-pressed="${an}">${esc(titel)}</button>
        <div class="wz-knoepfe">${inhalt}</div></div>`;
 
+  // Was das Bild nicht enthaelt, wird nicht angeboten (Einzelmast: keine
+  // Gurte, keine Bleche, kein Joch-Auflager).
+  const vorhanden = app.ansicht.szene ? app.ansicht.ebenenVorhanden() : null;
   const gM = app.ansicht.gruppen.modell, gL = app.ansicht.gruppen.lasten,
         gR = app.ansicht.gruppen.resultate, gZ = app.ansicht.gruppen.zeichnung;
 
@@ -286,9 +289,12 @@ export function zeichneModellWerkzeuge(app) {
       ANSICHTEN.map((a) => text(`wz-blick-${a.key}`, a.label.slice(0, 3), a.label,
                                 a.key === app.ansicht.ansichtKey)).join('')
     }</div></div>` +
-    gruppe('modell', 'Modell', gM, WZ_MODELL(app).map((s) =>
-      schalter(`wz-m-${s.key}`, s.icon, s.text,
-               app.ansicht.ebenen[s.key], !gM)).join('')) +
+    gruppe('modell', 'Modell', gM, WZ_MODELL(app).map((s) => {
+      const leer = vorhanden && !vorhanden.has(s.key);
+      return schalter(`wz-m-${s.key}`, s.icon,
+                      leer ? `${s.text} – in diesem Tragwerk nicht vorhanden` : s.text,
+                      app.ansicht.ebenen[s.key], !gM || leer);
+    }).join('')) +
     gruppe('zeichnung', 'Zeichnung', gZ, WZ_ZEICHNUNG(app).map((s) => {
       const weg = s.fehlt();
       return schalter(`wz-z-${s.key}`, s.icon,

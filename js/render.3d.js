@@ -50,7 +50,7 @@ import { ankerSpreizung, ankerQuerschnitt, ankerBlechSatz,
  * modulintern, und das Abfangjoch musste sich eigene bauen. Jetzt teilen
  * sich alle Tragwerksarten dieselben.
  */
-import { MM, prisma, prismaZ, platte, quader, stab,
+import { MM, prisma, prismaZ, platte, quader, stab, schraegerStab,
          iProfilPoly, mastKoerper } from './render.koerper.js';
 
 /**
@@ -597,8 +597,12 @@ export function erzeugeSzene(m, erg) {
       });
     });
   });
-  linien.push({ gruppe: 'achse', stark: true, punkte: [[0, 0, 0], [m.L, 0, 0]],
-                label: 'Systemachse' });
+  // Ohne Joch (Einzelmast) keine Systemachse: sie war ein Punkt am Fuss
+  // und hielt den Schalter «Schwerachsen» besetzt, der dort nichts zeigte.
+  if (m.L > 0) {
+    linien.push({ gruppe: 'achse', stark: true, punkte: [[0, 0, 0], [m.L, 0, 0]],
+                  label: 'Systemachse' });
+  }
 
   // Die Bindebleche als Achsen - ebenfalls mit ihren eigenen Kennwerten, sonst
   // wäre das Fachwerk halb eingefärbt und halb grau.
@@ -1260,10 +1264,15 @@ export function erzeugeSzene(m, erg) {
       const laenge = Math.hypot(g.bis.x - g.von.x, g.bis.y - g.von.y,
                                 g.bis.z - g.von.z);
       // Der Träger trägt alles, was danach kommt - er darf dicker sein.
-      flaechen.push(...stab([g.von.x, g.von.y, g.von.z],
-                            [g.bis.x, g.bis.y, g.bis.z],
-                            g.rang === 0 ? 0.045 : 0.038,
-                            opt(`${g.teil.bauteilName ?? g.teil.name} · ${laenge.toFixed(2)} m`)));
+      // Ein SCHRÄGES Glied als Stab um seine Achse: der achsparallele Quader
+      // von `stab` wurde dort zur Platte («fläche anstatt stäbe»).
+      const dk = g.rang === 0 ? 0.045 : 0.038;
+      const achsen = [g.bis.x - g.von.x, g.bis.y - g.von.y, g.bis.z - g.von.z]
+        .filter((v) => Math.abs(v) > 1e-6).length;
+      const o3 = opt(`${g.teil.bauteilName ?? g.teil.name} · ${laenge.toFixed(2)} m`);
+      const p0 = [g.von.x, g.von.y, g.von.z], p1 = [g.bis.x, g.bis.y, g.bis.z];
+      flaechen.push(...(achsen > 1 ? schraegerStab(p0, p1, dk, dk, o3)
+                                   : stab(p0, p1, dk, o3)));
     });
 
     // Spanne der Baugruppe - für den Blick auf ein einzelnes Teil. Bei einem
@@ -3804,6 +3813,23 @@ export class Modellansicht {
    * Ist diese Ebene sichtbar? Einzelschalter UND Hauptschalter ihrer Gruppe.
    * Siehe HAUPTSCHALTER.
    */
+  /**
+   * Welche Ebenen im Bild ueberhaupt vorkommen - fuer die Schalter. Ein
+   * Schalter, der nichts zeigt (Gurtprofile am Einzelmast), wird ausgegraut
+   * wie eine Lastart, die im Lastfall fehlt.
+   */
+  ebenenVorhanden() {
+    const da = new Set();
+    const sz = this.szene;
+    if (!sz) return da;
+    ['flaechen', 'linien', 'marken', 'vektoren'].forEach((k) =>
+      (sz[k] ?? []).forEach((x) => { if (x.gruppe) da.add(x.gruppe); }));
+    (sz.linien ?? []).forEach((l) => { if (l.schwerachse) da.add('achse'); });
+    if ((sz.masse ?? []).length) da.add('masse');
+    da.add('raster');
+    return da;
+  }
+
   _ebeneAn(key) {
     if (!this.ebenen[key]) return false;
     const g = HAUPTSCHALTER[key];
@@ -3847,6 +3873,15 @@ export class Modellansicht {
       // Einzelschalter nicht - der HAUPTSCHALTER der Gruppe aber sehr wohl.
       if (this.sparsam) { if (!this.gruppen.modell) return; }
       else if (!this._ebeneAn(l.gruppe)) return;
+      /*
+       * DIE SCHWERACHSE DES MASTEN IST STABMODELL (Befund vom 19. September,
+       * «die layersteuerung beim einzelmasten checken»). Sie hing allein am
+       * Schalter «Masten»; «Schwerachsen» liess sie stehen - am Einzelmast,
+       * der nur aus dem Masten besteht, tat der Schalter damit gar nichts.
+       * Jetzt braucht sie beide: den Masten und die Schwerachsen.
+       */
+      if (!this.sparsam && l.schwerachse && l.gruppe === 'mast'
+          && !this._ebeneAn('achse')) return;
       // Beim Stationszoom bleibt eine Linie stehen, sobald IRGENDEIN Ende im
       // Ausschnitt liegt - sonst verschwände die Systemachse, die von Ende zu
       // Ende läuft und deren erster Punkt fast immer draussen liegt.

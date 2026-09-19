@@ -25587,6 +25587,71 @@ titel('94  Befunde aus der Bedienung vom 19. September');
        (r94.match(/l\.passiv \? \(t\.xdim \?\? t\.dim\)/g) ?? []).length === 2);
 }
 
+titel('95  Anbauteile und Ebenen: Befunde vom 19. September (zweiter Teil)');
+/*
+ * Im Wortlaut:
+ *  «Anbauteile müssen einzeln gelöscht werden es wäre gut wenn man einen
+ *   button hätte für refresh»
+ *  «Bei anbauteilen die koordinaten so steuern dass der y wert zuerst
+ *   abgefahren wird falls eingegeben vor dem x. das bauteil wird nicht
+ *   richtig dargestellt wenn x und y engegeben -> fläche anstatt stäbe.»
+ *  «Nach dem abspeichern eines bauteils wir dieser nicht sofort in die liste
+ *   aufgenommen sonder man muss hin und herschalten in der sidebar»
+ *  «Die layersteuerung beim einzelmasten checken, insbesondere beim Modell»
+ */
+{
+  const A95 = await import(J('core.anbauteile.js'));
+  const U95 = await import(J('ui.js'));
+  const R95 = await import(J('render.3d.js'));
+  const q95 = (d) => readFileSync(join(HIER, 'js', d), 'utf8');
+  const kette = (teile, zAn) => A95.anbauKette(teile, { x0: 5, zAn }).glieder
+    .map((g) => [g.von.x, g.von.y, g.von.z, g.bis.x, g.bis.y, g.bis.z]);
+  const waagSchraeg = (gl) => gl.some((g) => Math.abs(g[3] - g[0]) > 1e-9
+                                         && Math.abs(g[4] - g[1]) > 1e-9);
+  const k1 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: -1.35 },
+                    { rolle: 'drahtwerk', x: 6, y: 0.5, stationX: 5, z: -2.7 }], -0.2);
+  wahr('Kette: an der Stuetze erst y, dann x - kein Glied schraeg in x und y',
+       !waagSchraeg(k1) && JSON.stringify(k1.slice(-2))
+         === JSON.stringify([[5, 0, -2.9, 5, 0.5, -2.9], [5, 0.5, -2.9, 6, 0.5, -2.9]]),
+       JSON.stringify(k1));
+  const k2 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: 1 },
+                    { rolle: 'aufbau', x: 5, stationX: 5, z: 2 },
+                    { rolle: 'drahtwerk', x: 6, y: 0.5, stationX: 5, z: 2.3 }], 0.2);
+  wahr('… an der Traverse: y, x, dann lotrecht zum Leiter',
+       !waagSchraeg(k2) && JSON.stringify(k2.slice(-3)) === JSON.stringify([
+         [5, 0, 2.2, 5, 0.5, 2.2], [5, 0.5, 2.2, 6, 0.5, 2.2], [6, 0.5, 2.2, 6, 0.5, 2.5]]),
+       JSON.stringify(k2));
+  const k3 = kette([{ rolle: 'drahtwerk', x: 6, y: 0.5, stationX: 5, z: -0.35 }], -0.2);
+  wahr('… ein Leiter allein am Joch: ebenfalls erst y', !waagSchraeg(k3), JSON.stringify(k3));
+  const r95 = q95('render.3d.js');
+  wahr('3D: ein schraeges Glied ist ein Stab um seine Achse, keine Platte',
+       /achsen > 1 \? schraegerStab\(p0, p1, dk, dk, o3\)/.test(r95));
+
+  const vl = (ev) => U95.maskenSignatur({ anbauteile: [], eigeneVorlagen: ev }, 'anbau');
+  wahr('Eine gespeicherte Vorlage baut die Maske neu (Signatur)',
+       vl([]) !== vl([{ id: 'EV-1', name: 'Neu' }]));
+
+  const ui95 = q95('ui.js'), app95 = q95('app.js');
+  wahr('Knopf «Alle entfernen» mit Rueckfrage, getrennt nach Joch und Masten',
+       ui95.includes('data-at-alle-weg') && app95.includes('function anbauteileAlleEntfernen()')
+       && app95.includes('<button class="btn" data-joch>Nur die am Joch</button>'));
+
+  wahr('Einzelmast: keine Systemachse ohne Joch',
+       /if \(m\.L > 0\) \{\s*linien\.push\(\{ gruppe: 'achse', stark: true/.test(r95));
+  wahr('… die Schwerachse des Masten folgt auch dem Schalter «Schwerachsen»',
+       r95.includes("if (!this.sparsam && l.schwerachse && l.gruppe === 'mast'")
+       && r95.includes("&& !this._ebeneAn('achse')) return;"));
+  const fake = { szene: { flaechen: [{ gruppe: 'mast' }, { gruppe: 'anbau' }],
+                          linien: [{ gruppe: 'mast', schwerachse: true }],
+                          marken: [], vektoren: [{ gruppe: 'last' }], masse: [] } };
+  const da = R95.Modellansicht.prototype.ebenenVorhanden.call(fake);
+  wahr('… Schalter ohne Inhalt werden ausgegraut (Profil, Bleche, Auflager, Masse)',
+       ['mast', 'anbau', 'achse', 'raster'].every((k) => da.has(k))
+       && ['profil', 'blech', 'auflager', 'masse'].every((k) => !da.has(k))
+       && q95('app.layout.js').includes('app.ansicht.ebenenVorhanden()'),
+       [...da].join(', '));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

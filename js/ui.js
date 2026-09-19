@@ -246,6 +246,14 @@ export function maskenSignatur(werte, tab) {
   return JSON.stringify([
     tab, Boolean(werte.bearbeiten), Boolean(werte.lastenBearbeiten),
     /*
+     * DIE EIGENEN VORLAGEN GEHOEREN DAZU (Befund vom 19. September: «Nach
+     * dem abspeichern eines bauteils wir dieser nicht sofort in die liste
+     * aufgenommen sonder man muss hin und herschalten in der sidebar»).
+     * Die Kacheln sind Struktur; ohne sie in der Signatur kam die neue
+     * Kachel erst mit dem naechsten Neubau.
+     */
+    (werte.eigeneVorlagen ?? []).map((v) => `${v.id}:${v.name}`),
+    /*
      * >>> DIE SIGNATUR ENTHAELT NUR, WAS DIE STRUKTUR AENDERT. <<<
      *
      * Sie entscheidet, ob die Maske NEU GEBAUT wird. Ein Neubau ersetzt
@@ -2583,6 +2591,15 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
       <input type="search" id="at-suche" placeholder="filtern nach Name, Vorlage, Lage …"
              autocomplete="off">
       <span class="at-suche-zahl"></span></div>` : '') +
+    /*
+     * ALLE AUF EINMAL (Weisung vom 19. September: «Anbauteile müssen
+     * einzeln gelöscht werden es wäre gut wenn man einen button hätte»).
+     * Der Knopf fragt nach; Rückgängig holt die Liste zurück.
+     */
+    (liste.length > 1 ? `<div class="at-leiste">
+      <button class="btn btn-mini" data-at-alle-weg type="button"
+              title="Alle Anbauteile dieses Tragwerks entfernen (fragt nach, Rückgängig mit Strg+Z)"
+              >Alle entfernen (${liste.length})</button></div>` : '') +
     `<div class="at-liste">${zeilen || '<p class="notiz">Noch keine Anbauteile.</p>'}</div>`;
 }
 
@@ -3719,6 +3736,7 @@ export function setzeTastenliste(liste) { tastenListe = liste; }
 let beiVorlageWahl = null, beiVorlageWeg = null, beiVorlageSichern = null;
 let beiGenerator = null, beiAnbauZoom = null, beiVorlageBearbeiten = null;
 let beiAnbauOeffnen = null, beiAnbauDuplizieren = null, beiAnbauKontext = null;
+let beiAnbauAlleWeg = null;
 
 /** Rückrufe der Anbauteil-Oberfläche registrieren (einmalig beim Start). */
 export function setzeAnbauHandler(h) {
@@ -3727,6 +3745,7 @@ export function setzeAnbauHandler(h) {
   beiAnbauZoom = h.zoom; beiVorlageBearbeiten = h.bearbeiten;
   beiAnbauOeffnen = h.oeffnen;
   beiAnbauDuplizieren = h.duplizieren; beiAnbauKontext = h.kontext;
+  beiAnbauAlleWeg = h.alleWeg;
 }
 
 /**
@@ -3881,6 +3900,8 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
   container.querySelectorAll('[data-at-vorlage]').forEach((b) => {
     b.addEventListener('click', () => beiVorlageSichern?.(+b.dataset.atVorlage));
   });
+  container.querySelector('[data-at-alle-weg]')?.addEventListener('click',
+    () => beiAnbauAlleWeg?.());
   container.querySelectorAll('[data-at-dup]').forEach((b) => {
     b.addEventListener('click', () => beiAnbauDuplizieren?.(+b.dataset.atDup));
   });

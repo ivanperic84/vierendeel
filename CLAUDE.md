@@ -152,6 +152,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Wind nie diagonal (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: **je eine Richtung**, ±y oder ±x. Tragjoch/Einzelmast: Ständig + Wind ±y, ±x statt LF7–LF10 (ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen). Abfangjoch («beim abfangjoch auch angleichen»): Fälle `wind+y`, `-y`, `+x`, `-x`; η des Trägers unverändert, F_x fällt aus den y-Fällen |
 | Export-Knopf (19. Sept.) | «lege alle relevanten buttons in einen export»: **ein Knopf «Export» mit Aufklappmenü** ganz links im Band — AxisVM (COM-Brücke, SAF, DXF), PyNite, Nachweisbericht, Excel, Drucken (`exportMenue`). Die AxisVM-Formate öffnen den bisherigen Dialog, das Format vorgewählt |
 | Kette am Aufbau (19. Sept.) | «wenn leiter koordinate x und z wert haben, dann extrudiert der arm auf den z wert»: nur ein **Träger** (Stütze, Aufsatz) wird bis zum nächsten Punkt verlängert; an einem **Aufbau** (Traverse, Ausleger) zuerst waagrecht, dann senkrecht. Starre Glieder — Kräfte an der Wurzel unverändert |
+| Kette y vor x (19. Sept.) | «dass der y wert zuerst abgefahren wird falls eingegeben vor dem x»: liegt ein Punkt in x **und** y versetzt, fährt die Kette zuerst y, dann x ab — an Stütze, Aufbau und direkt am Joch |
 | Raster weiten (19. Sept.) | immer vom **Normalmass** der Baugruppe aus (`rasterNorm`), frei sitzend gilt wieder das Normalmass. Von Hand gesetztes Raster ist das neue Normalmass |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
@@ -170,7 +171,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**19. September 2026** · Prüfstand 4756 Kontrollen grün · `durchlauf.mjs`
+**19. September 2026** · Prüfstand 4765 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -188,7 +189,13 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   unverändert. Bauteile duplizieren: Knopf in der Karte, Rechtsklick auf
   die Zeile, Kontextmenü (`anbauteilDuplizieren`). 3D: kein «A»/«B» mehr
   unter den Mastfüssen (die Masten heissen M1, M2 …), Achsen passiver
-  Tragwerke grau wie ihre Körper.
+  Tragwerke grau wie ihre Körper. Danach (Abschnitt 95): Kette fährt
+  **erst y, dann x** ab (kein Glied waagrecht schräg), schräge Glieder als
+  `schraegerStab` statt Platte; neue eigene Vorlage erscheint sofort
+  (Maskensignatur); Knopf «Alle entfernen» in der Anbauteilliste (Rückfrage,
+  «Nur die am Joch»); Ebenen am Einzelmast: keine Systemachse ohne Joch,
+  Mast-Schwerachse folgt auch «Schwerachsen», Schalter ohne Inhalt
+  ausgegraut (`ebenenVorhanden`).
 - **19. Sept.** COM-Schnittstelle geprüft («checke die com schnittstelle»,
   ohne AxisVM zu starten; Prüfstand Abschnitt 93). Vier Befunde, alle auf
   der unsicheren Seite: (1) die App leitete `app.werte` roh aus statt
@@ -365,7 +372,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Prüfstand, 4756 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Prüfstand, 4765 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
