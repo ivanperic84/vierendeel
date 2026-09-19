@@ -24060,8 +24060,8 @@ titel('68  Das Menueband und der Name der Anwendung');
   const opt = app.slice(app.indexOf('function dialogOptionen'),
                         app.indexOf('function dialogOptionen') + 12000);
   wahr('… sondern im Optionen-Fenster',
-       /\[data-bauteildaten\]'\)\.onclick = \(\) => \{ d\.zu\(\); dialogBauteildaten\(\)/.test(opt)
-       && /\[data-tasten\]'\)\.onclick = \(\) => \{ d\.zu\(\); dialogTasten\(\)/.test(opt));
+       /\[data-bauteildaten\]'\)\.onclick = \(\) => \{ d\.zu\(\); (app\.)?dialogBauteildaten\(\)/.test(opt)
+       && /\[data-tasten\]'\)\.onclick = \(\) => \{ d\.zu\(\); (app\.)?dialogTasten\(\)/.test(opt));
   wahr('… und bleiben ueber die Tasten erreichbar',
        /id: 'bauteildaten', taste: 'k'/.test(app));
   wahr('Die Titel lesen das Kuerzel aus der Belegung, nicht aus dem Text',
@@ -25238,6 +25238,36 @@ titel('90  mitBauteilen: ein Ergebnis mit Abfangjoch, Mast und Anker');
     + readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Keine Stelle legt Anker oder Abfangjoch mehr von Hand dazu',
        !/anker: (letzte\.)?erg\??\.anker|anzeige\.(abfang|anker|mast) =/.test(quelle));
+}
+
+titel('91  app.*.js: jede Funktion bekommt das Kontextobjekt');
+/*
+ * Seit dem 19. September ist app.js geteilt (Durchsicht, Punkt A1). Die
+ * Funktionen der Module nehmen «app» als ersten Parameter. Beim Schnitt der
+ * Optionen stand danach «onclick = dialogOptionen» - der Browser reichte
+ * das Klickereignis als «app» hinein, und der Dialog brach ab. Jede
+ * Erwaehnung einer solchen Funktion in app.js muss sie mit «(app» rufen
+ * (oder ist ein Schluessel des Kontextobjekts).
+ */
+{
+  const ohneKommentar = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const app91 = ohneKommentar(readFileSync(join(HIER, 'js', 'app.js'), 'utf8'))
+    .split('\n').filter((l) => !/^import |^\s+[\w$, ]+\} from '/.test(l)).join('\n');
+  const faelle = [];
+  readdirSync(join(HIER, 'js')).filter((f) => /^app\..+\.js$/.test(f)).forEach((f) => {
+    const t = readFileSync(join(HIER, 'js', f), 'utf8');
+    for (const m of t.matchAll(/^export (?:async )?function ([\w$]+)\(app\b/gm)) {
+      const n = m[1];
+      // Nicht in Anfuehrungszeichen: «key === 'kontextMast'» ist kein Aufruf.
+      for (const s of app91.matchAll(new RegExp(String.raw`(?<![\w$.'"])` + n + String.raw`\b(?!['"])`, 'g'))) {
+        const danach = app91.slice(s.index + n.length, s.index + n.length + 5);
+        if (danach.startsWith('(app') || /^\s*:/.test(danach)) continue;
+        faelle.push(`${f}: ${n}`);
+      }
+    }
+  });
+  wahr('Keine Funktion eines app.*.js wird ohne «app» gerufen oder uebergeben',
+       faelle.length === 0, faelle.join(', '));
 }
 
 titel('88  Seitenleiste: die Knick-Kachel der Druckstuetze');
