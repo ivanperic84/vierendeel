@@ -380,7 +380,14 @@ d3f95be») — beide Änderungen gehören mit in den Commit.
   `app.letzte`, `app.projekt`, `app.thema`, `app.ansicht`) und die
   gemeinsamen Hilfen (`app.dialog`, `app.handlung`, `app.meldeImBalken` …).
   Sie **importieren `app.js` nie** — einen Kreis verträgt der Bündler nicht.
-  Wer einem Modul einen weiteren Namen gibt, trägt ihn in `app` ein.
+  Wer einem Modul einen weiteren Namen gibt, trägt ihn in `app` ein; wo ein
+  Modul Zustand **schreibt**, hat `app` einen Setter (`app.werte = …`).
+  Teuer gelernt beim Verschieben: Namen nur im **Code** umschreiben, nie in
+  Zeichenketten oder Template-Text (`btn-projekt` wurde sonst
+  `btn-app.projekt`); Spread `...werte`, Kurzschreib-Schlüssel `{ werte }`
+  und gleichnamige lokale Variablen gesondert behandeln. `node --check`
+  prüft eine Datei nicht als Modul — erst der Bündler meldet solche
+  Fehler.
 - **`erg` und `anzeige`:** `erg` ist der Bemessungsdurchgang, `anzeige` die
   gewählte Kombination bzw. die Hüllkurve. Abfangjoch, Mast und Anker hängen
   an `erg`; `mitBauteilen` (core.checks) legt sie in `anzeige` und in

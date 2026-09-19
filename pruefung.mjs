@@ -15307,7 +15307,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('… und zeichnen erst beim Verlassen neu',
          koerper.indexOf('if (zwischenstand) return;') > 0
          && koerper.indexOf('if (zwischenstand) return;')
-            < koerper.indexOf('zeichneSchublade()'));
+            < koerper.indexOf('zeichneSchublade(app)'));
   }
 
   {
@@ -24396,11 +24396,11 @@ titel('70  Die Ablage nach BlockCalc: Einlesen, Ausleiten, Sicherung');
   wahr('Ausleiten je Projekt und je Eintrag',
        aq70.includes('data-projekt-aus') && aq70.includes('data-eintrag-aus'));
   wahr('Sicherung erstellen und einspielen',
-       aq70.includes('store.alsSicherung()') && aq70.includes('ablageEinlesenWaehlen(true)'));
+       aq70.includes('store.alsSicherung()') && aq70.includes('ablageEinlesenWaehlen(app, true)'));
   wahr('Die Projektliste laesst sich drucken',
        aq70.includes('function projektlisteDrucken') && aq70.includes("classList.add('druck-liste')"));
   wahr('Speichern ueberschreibt ohne Dialog, wenn ein Eintrag geladen ist',
-       aq70.includes("ui.el('btn-speichern').onclick = () => ablageSpeichern(false)"));
+       aq70.includes("ui.el('btn-speichern').onclick = () => ablageSpeichern(app, false)"));
   wahr('Die Wiederherstellung wird gemeldet',
        aq70.includes('wiederhergestellt') && aq70.includes('gesichert: gesicherteSignatur'));
   wahr('Ein hineingezogenes Paket geht in den Einlesedialog',
