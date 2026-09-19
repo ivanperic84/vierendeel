@@ -1237,7 +1237,9 @@ return querprofilLeisteHtml(werte)
      * gleich aussehende Knoepfe da und nahmen zwei Zeilen ein - obwohl man
      * sie selten braucht und nie zwei davon zugleich.
      */
-    + '<span class="qp-tun-neu"><button type="button" class="btn btn-mini"'
+    // Farbig (Weisung vom 19. September: «mach den tragerk+ button farbig,
+    // da wichtig») - der Weg zu jedem weiteren Tragwerk des Blattes.
+    + '<span class="qp-tun-neu"><button type="button" class="btn btn-mini btn-acc"'
     + ' data-qp-neu-auf>+ Tragwerk</button>'
     + '<span class="qp-neu-liste" hidden>'
     + TRAGWERKSARTEN.map((x) =>

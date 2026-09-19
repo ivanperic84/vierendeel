@@ -2951,3 +2951,7 @@ body.datei-ueber::after {
 .qp-haupt .qp-name { flex: 0 1 auto; white-space: normal; }
 .qp-haupt .qp-txt { white-space: nowrap; overflow: visible; }
 .qp-haupt .qp-marken { flex: 1 0 auto; }
+/* Bei schmaler Leiste bricht der Name um, statt abgeschnitten zu werden
+   («MT1 HEB 240 · 7» - gemeldet am 19. September). */
+.qp-haupt .qp-name { overflow: visible; }
+.qp-haupt .qp-txt { white-space: normal; }
