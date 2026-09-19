@@ -24529,7 +24529,9 @@ titel('75  Abfangjoch: Mast und Anker ueber alle Windrichtungen');
 /* Weisung vom 17. September: «der wind in y und x sollte immer auf beide
  * seiten angesetzt werden» - «die masten und anker nicht vergessen». */
 {
-  const aq75 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  // Seit dem 19. September steht die Ankerrechnung in core.anker.js (A1).
+  const aq75 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8')
+    + readFileSync(join(HIER, 'js', 'core.anker.js'), 'utf8');
   wahr('Der Mast am Abfangjoch ist die Huellkurve ueber alle Faelle',
        /erg\.mast = mastNachweiseHuelle\(abfangVarianten\(erg\.abfang\.auflager\)/.test(aq75));
   wahr('… mit Mastwind und Mast-Anbauteilen im selben Fall',
