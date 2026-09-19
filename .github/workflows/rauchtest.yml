@@ -1,0 +1,37 @@
+# Rauchtest ohne Betreiberdaten (Durchsicht vom 18. September, Punkt A3;
+# Entscheid vom 19. September: Datensatz, Rauchtest und CI).
+#
+# Die Sortimente des Betreibers (data/*.json) liegen nicht in der Ablage;
+# der Pruefstand (pruefung.mjs) braucht sie und laeuft deshalb nur oertlich.
+# Hier laeuft der Durchgang durch alle Wege - Rechnung, Kombinationen,
+# Szene, Ausleitung, Nachweisbericht - auf dem frei erfundenen Datensatz
+# in testdaten/, dazu der Buendler mit seiner Syntaxpruefung.
+name: Rauchtest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rauchtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Testdaten sind aktuell
+        run: |
+          node testdaten/erzeuge.mjs
+          git diff --exit-code testdaten/
+      - name: Durchgang auf den Testdaten
+        env:
+          VIERENDEEL_DATEN: testdaten
+        run: node durchlauf.mjs
+      - name: Buendeln ohne Daten (mit Syntaxpruefung)
+        run: python3 build_html.py --ohne-daten

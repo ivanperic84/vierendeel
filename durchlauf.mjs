@@ -37,10 +37,21 @@ const J = (f) => new URL(`./js/${f}`, import.meta.url).href;
  */
 const NO = await import(J('data.normen.js'));
 NO.setzeNormen(JSON.parse(readFileSync(join(HIER, 'data', 'normen.json'), 'utf8')));
+/*
+ * >>> DER DATENORDNER IST WAEHLBAR (A3, 19. September). <<<
+ *
+ * Vorgabe sind die Sortimente des Betreibers in data/. Mit
+ * VIERENDEEL_DATEN=testdaten laeuft derselbe Durchgang auf dem frei
+ * erfundenen Datensatz (testdaten/erzeuge.mjs) - der Rauchtest, der ohne
+ * Betreiberdaten auskommt und deshalb auch auf GitHub laufen kann.
+ * Die Normwerte kommen immer aus data/normen.json; sie liegen in der Ablage.
+ */
+const DATEN = process.env.VIERENDEEL_DATEN || 'data';
+console.log(`Datenordner: ${DATEN}`);
 const MA_SORT = await import(J('data.masten.js'));
 try {
   MA_SORT.setzeMastenDB(JSON.parse(
-    readFileSync(join(HIER, 'data', 'masten.json'), 'utf8')));
+    readFileSync(join(HIER, DATEN, 'masten.json'), 'utf8')));
 } catch { /* ohne Masten-Sortiment weiter - dann ohne Windlast */ }
 
 const T = await import(J('data.tragjoche.js'));
@@ -55,9 +66,12 @@ const PY = await import(J('export.pynite.js'));
 const R = await import(J('render.3d.js'));
 const S = await import(J('ui.schema.js'));
 const BE = await import(J('export.bericht.js'));
+const NB = await import(J('export.nachweisbericht.js'));
 
-const daten = (f) => JSON.parse(readFileSync(join(HIER, 'data', f), 'utf8'));
+const daten = (f) => JSON.parse(readFileSync(join(HIER, DATEN, f), 'utf8'));
 T.setzeDatenbank(daten('tragjoche.json'));
+// J90, wo es ihn gibt; sonst der erste Typ des Sortiments (Testdaten).
+const TYP = T.tragjoche().some((t) => t.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
 A.setzeAnbauteilDB(daten('anbauteile.json'));
 FL.setzeFlDB(daten('fl_bauteile.json'));
 
@@ -86,7 +100,7 @@ const versuch = (fall, weg, fn) => {
 const std = () => ({ ...S.standardwerte(), bearbeiten: false });
 
 const joch = () => {
-  const w = S.typUebernehmen({ ...std(), typ: 'J90' }, T.getTragjoch('J90'));
+  const w = S.typUebernehmen({ ...std(), typ: TYP }, T.getTragjoch(TYP));
   w.L = 20; w.xLage = 0; w.mastVorhanden = true;
   w.anbauteile = [{ ...A.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL Gleis 1' }];
   return w;
@@ -114,16 +128,20 @@ for (const [name, bau] of FAELLE) {
   const ohneJoch = art === 'einzelmast';
   console.log(`\n=== ${name}  (${art}, ${C.anzahlTragwerke(w0)} Tragwerk(e)) ===`);
 
-  const jd = ohneJoch ? null : T.getTragjoch(w.typ ?? 'J90');
+  const jd = ohneJoch ? null : T.getTragjoch(w.typ ?? TYP);
   const pOG = ohneJoch ? null : P.getProfil(w.profOG);
   const pUG = ohneJoch ? null : P.getProfil(w.profUG);
   const stahl = P.getStahl(w.stahl);
-  const zeig = (was, text) => console.log(`  ${was.padEnd(15)}${text}`);
+  const zeig = (was, text) => console.log(`  ${was.padEnd(17)}${text}`);
 
   const erg = versuch(name, 'berechne', () => V.berechne(w, pOG, pUG, stahl, jd));
   if (!erg.ok) continue;
   zeig('rechnen', `η = ${erg.r.max.etaGesamt.toFixed(3)}`
     + `  ·  ${erg.r.knoten.length} Knoten`);
+  // Nicht nur «bricht nicht»: eine Zahl, die keine ist, ist auch ein Bruch.
+  if (!(erg.r.max.etaGesamt > 0) || !Number.isFinite(erg.r.max.etaGesamt)) {
+    befunde.push({ fall: name, weg: 'berechne', text: `η = ${erg.r.max.etaGesamt}` });
+  }
 
   const h = versuch(name, 'hinweise', () => CH.hinweise(erg.r.modell));
   if (h.ok) zeig('hinweise', `${h.r.length} Stück`);
@@ -156,8 +174,37 @@ for (const [name, bau] of FAELLE) {
 
   const vgl = versuch(name, 'vergleichMassvarianten', () =>
     V.vergleichMassvarianten(w, pOG, pUG, stahl, jd));
-  versuch(name, 'vergleichKombinationen', () =>
+  const kombi = versuch(name, 'vergleichKombinationen', () =>
     V.vergleichKombinationen(w, pOG, pUG, stahl, jd));
+  if (kombi.ok) {
+    const hk = kombi.r.huellkurve ?? erg.r;
+    const eta = ohneJoch ? hk.mast?.A?.etaMitStabilitaet : hk.max?.etaGesamt;
+    zeig('kombinationen', `${kombi.r.lastfaelle.length} Fälle, η Hüllkurve ${Number(eta).toFixed(3)}`);
+    if (!Number.isFinite(eta)) {
+      befunde.push({ fall: name, weg: 'vergleichKombinationen', text: `η Hüllkurve = ${eta}` });
+    }
+    /*
+     * DER NACHWEISBERICHT - der Weg, den die Abgabe geht. Er rechnet nicht
+     * selbst; ein «NaN» oder «undefined» im Text heisst, dass ein Wert des
+     * Kerns fehlt, den er erwartet.
+     */
+    const nb = versuch(name, 'nachweisbericht', () => {
+      const ck2 = ck.ok ? ck.r : [];
+      const urteil = CH.urteilKonstruktion(ck2, w.nachweise, art);
+      const bem = CH.mitBauteilen(hk, erg.r, { mastErsatz: true });
+      urteil.bauteile = CH.bauteilUrteil(bem, w.nachweise, art);
+      return NB.nachweisbericht({ werte: w, erg: bem, kombi: kombi.r, checks: ck2, urteil,
+        hinweise: h.ok ? h.r : [], fassung: 'Durchlauf', datum: '-', bilder: {} });
+    });
+    if (nb.ok) {
+      const text = nb.r.replace(/<[^>]*>/g, ' ');
+      const schlecht = ['NaN', 'undefined', '[object Object]'].filter((x) => text.includes(x));
+      zeig('nachweisbericht', `${Math.round(nb.r.length / 1024)} kB${schlecht.length ? ' - ' + schlecht.join(', ') : ''}`);
+      if (schlecht.length) {
+        befunde.push({ fall: name, weg: 'nachweisbericht', text: `enthaelt ${schlecht.join(', ')}` });
+      }
+    }
+  }
 
   // Der Bericht bis zum Download - weiter kommt er ohne Browser nicht.
   const ex = versuch(name, 'exportiere (Excel)', () =>

@@ -1038,7 +1038,11 @@ validate_xlsx.py                  prüft alle Excel-Formeln auf #NAME?-Fehler
 vergleich_excel_js.py             Excel gegen JS (veraltet, bricht ab)
 
 pruefung.mjs                      Prüfstand: node pruefung.mjs
-durchlauf.mjs                     Durchgang durch alle Wege je Tragwerksart
+durchlauf.mjs                     Durchgang durch alle Wege je Tragwerksart;
+                                  mit VIERENDEEL_DATEN=testdaten ohne Betreiberdaten
+testdaten/                        frei erfundener Datensatz für diesen Rauchtest
+                                  (erzeugt von testdaten/erzeuge.mjs, keine Bemessung)
+.github/workflows/rauchtest.yml   fährt den Rauchtest bei jedem Push
 CLAUDE.md                         Vorgaben, Entschiedenes, offene Punkte
 
 data/normen.json                  Querschnittswerte und Stahlgüten (verfolgt)

@@ -1,0 +1,35 @@
+{
+ "_beschreibung": "Frei erfundener Testdatensatz (testdaten/erzeuge.mjs) - kein Bauteil, nicht zur Bemessung.",
+ "typen": [
+  {
+   "profil": "HEB 240",
+   "wind": {
+    "quer": {
+     "EK1": 0.3,
+     "EK2": 0.36,
+     "EK3": 0.43
+    },
+    "laengs": {
+     "EK1": 0.27,
+     "EK2": 0.33,
+     "EK3": 0.39
+    }
+   }
+  },
+  {
+   "profil": "HEB 260",
+   "wind": {
+    "quer": {
+     "EK1": 0.32,
+     "EK2": 0.38,
+     "EK3": 0.46
+    },
+    "laengs": {
+     "EK1": 0.29,
+     "EK2": 0.35,
+     "EK3": 0.42
+    }
+   }
+  }
+ ]
+}

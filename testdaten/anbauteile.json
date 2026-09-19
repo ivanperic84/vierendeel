@@ -1,0 +1,90 @@
+{
+ "_beschreibung": "Frei erfundener Testdatensatz (testdaten/erzeuge.mjs) - kein Bauteil, nicht zur Bemessung.",
+ "vorlagen": [
+  {
+   "id": "hs-fahrdraht",
+   "name": "Hängestütze mit Fahrleitung",
+   "farbe": "haengend",
+   "beschreibung": "Test",
+   "raster": 0.4,
+   "befestigung": "durchgehend",
+   "gruppe": "haengestuetze",
+   "rang": 1,
+   "module": [
+    {
+     "bauteil": "test-haengestuetze",
+     "anzahl": 1,
+     "laenge": null,
+     "z": -1.2,
+     "y": 0
+    },
+    {
+     "bauteil": "drahtwerk-test-fl",
+     "anzahl": 1,
+     "laenge": null,
+     "z": -2.4,
+     "y": 0,
+     "umlenkung": true
+    }
+   ]
+  },
+  {
+   "id": "leiter-traverse",
+   "name": "Leiter-Traverse",
+   "farbe": "aufbau",
+   "beschreibung": "Test",
+   "raster": 0.6,
+   "befestigung": "oben",
+   "gruppe": "leiter",
+   "rang": 2,
+   "module": [
+    {
+     "bauteil": "test-traverse",
+     "anzahl": 1,
+     "laenge": 1,
+     "z": 0.35,
+     "y": 0
+    },
+    {
+     "bauteil": "drahtwerk-test-leiter",
+     "anzahl": 1,
+     "laenge": null,
+     "z": 0.35,
+     "y": 0,
+     "umlenkung": true
+    }
+   ]
+  },
+  {
+   "id": "leiter-rl",
+   "name": "Leiter RL (Rückleiter)",
+   "farbe": "leiter",
+   "beschreibung": "Test",
+   "raster": 0.4,
+   "befestigung": "unten",
+   "gruppe": "leiter",
+   "rang": 3,
+   "module": [
+    {
+     "bauteil": "drahtwerk-test-leiter",
+     "anzahl": 1,
+     "laenge": null,
+     "z": -0.35,
+     "y": 0,
+     "umlenkung": true
+    }
+   ]
+  },
+  {
+   "id": "frei",
+   "name": "Frei definiert",
+   "farbe": "frei",
+   "beschreibung": "Test",
+   "raster": 0,
+   "befestigung": "unten",
+   "gruppe": "frei",
+   "rang": 9,
+   "module": []
+  }
+ ]
+}

@@ -57,8 +57,11 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
 - AxisVM auf demselben Rechner, angesprochen über COM (`com/`).
 - **GitHub:** `origin` ist die öffentliche Ablage `vierendeel` (Zweig
   `main`), mit **GitHub Pages** — die Modulversion `index.html` läuft dort
-  ohne Daten und fragt beim Start nach einem Datenpaket. Keine Actions,
-  keine `gh`-CLI; Anmeldung über den Git Credential Manager von Windows.
+  ohne Daten und fragt beim Start nach einem Datenpaket. Eine Action:
+  `.github/workflows/rauchtest.yml` (seit 19. Sept., A3) fährt bei jedem
+  Push den Durchgang auf den **erfundenen Testdaten** (`testdaten/`) und
+  bündelt ohne Daten. Keine `gh`-CLI; Anmeldung über den Git Credential
+  Manager von Windows.
   Seit dem 24. August wurde auf Weisung laufend gepusht (zuletzt
   18. September). Der Zweig `github-stand-vor-push` ist der alte, von Hand
   hochgeladene Stand, nur örtlich von Wert.
@@ -148,6 +151,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Teile am Masten (18. Sept.) | gehören dem Masten an seiner **Stelle**, nicht der Laufnummer `M…`; Mastliste und Teile werden nur gemeinsam geschrieben (`mastenFest`) |
 | Wind nie diagonal (18. Sept.) | «da wind sich nicht in x und y überlagern kann»: **je eine Richtung**, ±y oder ±x. Tragjoch/Einzelmast: Ständig + Wind ±y, ±x statt LF7–LF10 (ersatzlos gestrichen hätte der Anker G und Wind nie zusammen gesehen). Abfangjoch («beim abfangjoch auch angleichen»): Fälle `wind+y`, `-y`, `+x`, `-x`; η des Trägers unverändert, F_x fällt aus den y-Fällen |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
+| Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
 | Erklärtexte (19. Sept., U4) | abschaltbar in Optionen → Darstellung → Bedienung, **Vorgabe ein**; gerechnete Notizen bleiben immer |
 | Tragausleger (18. Sept.) | bis zum Kragarm-Modell **Warnung statt Sperre**: «Tragausleger NICHT nachgewiesen», gelb, kein Urteil, Bericht nimmt ihn nicht |
@@ -230,7 +234,10 @@ aufträge abarbeiten». Erledigt: U1, U2, W1. Reihenfolge des Abarbeitens:
 ~~A6~~ → ~~A5~~ → ~~U7~~ → ~~U6~~ → ~~U3~~ → ~~U5~~ → U4 (Rückfrage) → ~~A2~~ → ~~A1~~ → A3; A4 nur nach Rückfrage.
 Entscheide vom 19. Sept.: **U4** Schalter «Erklärtexte» in den Optionen
 (Vorgabe ein) — erledigt. **A3** erfundener Datensatz (öffentlich) +
-Rauchtest + CI — in Arbeit. **A4** nicht kürzen, gestrichen.
+Rauchtest + CI — erledigt (Anker und Abfangjoch fehlen im Testdatensatz,
+siehe Offene Punkte). **A4** nicht kürzen, gestrichen. Die ganze
+Verbesserungsliste ist damit abgearbeitet; nächster Punkt wäre das
+zurückgestellte Kragarm-Modell des Tragauslegers.
 
 | # | Auftrag |
 |---|---|
@@ -292,6 +299,8 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Wunsch.
 
 **Bedienung**
+- Rauchtest (A3): der erfundene Datensatz führt noch **keinen Anker und
+  kein Abfangjoch** — diese Wege laufen nur mit den Betreiberdaten durch.
 - Sammelaktionen in der Anbauteil-Übersicht (alle Teile einer Vorlage).
 - Angepasstes Joch als eigenen Typ speichern.
 - Excel-Generator (`js/export.xlsx.js`, Python-Skript) nicht synchron mit dem
@@ -323,6 +332,8 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ```bash
 node pruefung.mjs           # Prüfstand, 4730 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
+VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
+node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```

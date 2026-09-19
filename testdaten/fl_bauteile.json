@@ -1,0 +1,183 @@
+{
+ "_beschreibung": "Frei erfundener Testdatensatz (testdaten/erzeuge.mjs) - kein Bauteil, nicht zur Bemessung.",
+ "gruppen": [
+  {
+   "id": "anbauteil",
+   "titel": "Anbauteile"
+  },
+  {
+   "id": "drahtwerk",
+   "titel": "Drahtwerk"
+  }
+ ],
+ "bauteile": [
+  {
+   "id": "test-haengestuetze",
+   "gruppe": "anbauteil",
+   "name": "Test-Hängestütze",
+   "einheit": "kN",
+   "eigengewicht": 0.3,
+   "windQuer": {
+    "EK0": null,
+    "EK1": 0.05,
+    "EK2": 0.06,
+    "EK3": 0.07
+   },
+   "windLaengs": {
+    "EK0": null,
+    "EK1": 0.05,
+    "EK2": 0.06,
+    "EK3": 0.07
+   },
+   "rolle": "traeger"
+  },
+  {
+   "id": "test-traverse",
+   "gruppe": "anbauteil",
+   "name": "Test-Traverse",
+   "einheit": "kN/m",
+   "eigengewicht": 0.15,
+   "windQuer": {
+    "EK0": null,
+    "EK1": null,
+    "EK2": null,
+    "EK3": null
+   },
+   "windLaengs": {
+    "EK0": null,
+    "EK1": 0.1,
+    "EK2": 0.12,
+    "EK3": 0.14
+   },
+   "rolle": "aufbau"
+  },
+  {
+   "id": "drahtwerk-test-fl",
+   "gruppe": "drahtwerk",
+   "name": "Test-Fahrleitung",
+   "einheit": "kN/m",
+   "eigengewicht": 0.02,
+   "windQuer": {
+    "EK0": null,
+    "EK1": 0.012,
+    "EK2": 0.015,
+    "EK3": 0.018
+   },
+   "windLaengs": {
+    "EK0": null,
+    "EK1": null,
+    "EK2": null,
+    "EK3": null
+   },
+   "leiterzug": 20,
+   "reglage": {
+    "temps": [
+     -30,
+     -25,
+     -20,
+     -15,
+     -10,
+     -5,
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30
+    ],
+    "vals": [
+     23.2,
+     22.8,
+     22.4,
+     22,
+     21.6,
+     21.2,
+     20.8,
+     20.4,
+     20,
+     19.6,
+     19.2,
+     18.8,
+     18.4
+    ],
+    "zusatz": {
+     "T": -5,
+     "lasten": [
+      0,
+      1
+     ],
+     "vals": [
+      20,
+      24
+     ]
+    }
+   },
+   "rolle": "drahtwerk"
+  },
+  {
+   "id": "drahtwerk-test-leiter",
+   "gruppe": "drahtwerk",
+   "name": "Test-Leiter",
+   "einheit": "kN/m",
+   "eigengewicht": 0.01,
+   "windQuer": {
+    "EK0": null,
+    "EK1": 0.008,
+    "EK2": 0.01,
+    "EK3": 0.012
+   },
+   "windLaengs": {
+    "EK0": null,
+    "EK1": null,
+    "EK2": null,
+    "EK3": null
+   },
+   "leiterzug": 8,
+   "reglage": {
+    "temps": [
+     -30,
+     -25,
+     -20,
+     -15,
+     -10,
+     -5,
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30
+    ],
+    "vals": [
+     9.28,
+     9.12,
+     8.96,
+     8.8,
+     8.64,
+     8.48,
+     8.32,
+     8.16,
+     8,
+     7.84,
+     7.68,
+     7.52,
+     7.36
+    ],
+    "zusatz": {
+     "T": -5,
+     "lasten": [
+      0,
+      1
+     ],
+     "vals": [
+      8,
+      9.6
+     ]
+    }
+   },
+   "rolle": "drahtwerk"
+  }
+ ]
+}
