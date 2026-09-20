@@ -4291,9 +4291,31 @@ async function dateiAnnehmen(datei) {
              kopf + `<p>${esc(p.fehler.join(' '))}</p>`, zu);
       return;
     }
+    /*
+     * >>> WAS FEHLT, IST WICHTIGER ALS WAS DRIN IST (20. September). <<<
+     *
+     * Gemeldet: «hier im browser zeigt es die windlast an wenn ich aber die
+     * app über github laufen lasse nicht.» Auf GitHub Pages liegt kein
+     * `data/`; die Datenbasis kommt allein aus dem Paket. Ein ÄLTERES
+     * Paket ohne Masttypen laedt dann klaglos - und der Mastwind fehlt,
+     * weil die Normprofile keine Windzeile tragen.
+     *
+     * Der Dialog zaehlt bisher auf, was enthalten ist. Wer nicht weiss,
+     * dass es Masttypen geben muesste, sieht ihr Fehlen nicht.
+     */
+    const fehlend = ['masten', 'anker', 'abfangjoche']
+      .filter((k) => !p.teile.some((x) => x.key === k));
+    const fehltText = fehlend.length
+      ? '<p class="notiz warn">Nicht enthalten: '
+        + fehlend.map((k) => esc({ masten: 'Masttypen — dann fehlt die '
+            + 'Windlast auf den Masten', anker: 'Zug- und Druckstützen',
+            abfangjoche: 'Abfangjochtypen' }[k])).join(' · ')
+        + '. Ein neu gesichertes Paket enthält sie.</p>'
+      : '';
     const d = dialog('Datenpaket laden', kopf +
       `<p>Enthalten: ${p.teile.map((x) => `<b>${x.anzahl}</b> ${esc(x.einheit)}`)
-         .join(' · ')}${obj.stand ? ` · Stand ${esc(obj.stand)}` : ''}.</p>` +
+         .join(' · ')}${obj.stand ? ` · Stand ${esc(obj.stand)}` : ''}.</p>`
+      + fehltText +
       '<p class="notiz">Das Paket ersetzt die hinterlegte Datenbasis. Es wird '
       + 'allein in diesem Browser gespeichert und nirgends hingeschickt; die '
       + 'Anwendung startet danach neu.</p>',

@@ -1269,6 +1269,9 @@ details.hinweise { margin-top: 10px; font-size: 11px; color: var(--dim); }
 details.hinweise summary { cursor: pointer; color: var(--acc); font-family: var(--f-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 details.hinweise li { margin-bottom: 5px; line-height: 1.5; }
 .notiz { font-size: 11px; color: var(--dim); margin: 0 0 8px; line-height: 1.5; }
+/* Eine Notiz, die eine Luecke nennt - sie darf nicht blass sein (20. Sept.,
+   Datenpaket ohne Masttypen). */
+.notiz.warn { color: var(--warn); }
 .untertitel {
   font-family: var(--f-mono); font-size: 9px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--dim); margin: 14px 0 6px;
