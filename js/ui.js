@@ -6689,24 +6689,28 @@ export function optionenHtml(werte, thema = null) {
  */
 export function datenbasisHtml() {
   const v = ausSpeicher();
+  /*
+   * >>> EIN ORT, NICHT ZWEI (Weisung, 20. September). <<<
+   *
+   * Hier standen ein Dateifeld fuer das Datenpaket und ein Knopf zum
+   * Sichern - und im Fenster «Bauteildaten» stand das Einlesen je
+   * Sortiment. Zwei Tueren mit aehnlichen Namen, und keine sagte, wofuer
+   * die andere da ist. Alles das steht jetzt im Fenster; hier bleibt, was
+   * gilt, und der Weg dorthin.
+   */
   return `
-    <p class="notiz">Jochtypen, Anbauteil-Vorlagen und Lasttabelle liegen als
-      Datenpaket vor. Es lässt sich austauschen oder sichern; gespeichert wird
-      es allein in diesem Browser und nirgends hingeschickt.</p>
-    <div class="feld"><label for="d-paket">Datenpaket (.json)</label>
-      <input id="d-paket" type="file" accept=".json,application/json"></div>
+    <p class="notiz">Jochtypen, Abfangjoche, Anbauteil-Vorlagen, Lasttabelle,
+      Masttypen und Anker sind die Datenbasis. Sie liegt als Datenpaket im
+      Browser — gespeichert allein hier und nirgends hingeschickt.</p>
     <p class="notiz" id="d-paket-stand">${v
-      ? `Hinterlegt: ${esc(v.bezeichnung ?? 'ohne Bezeichnung')}`
+      ? `Hinterlegt: <b>${esc(v.bezeichnung ?? 'ohne Bezeichnung')}</b>`
         + `${v.stand ? ` · Stand ${esc(v.stand)}` : ''}`
-      : 'Zurzeit ist kein Paket im Browser hinterlegt.'}</p>
-    <p class="notiz">Die einzelnen Tabellen, die Blecheinteilung, die
-      Excel-Ausleitung und das Einlesen einzelner Sortimente stehen im Fenster
-      <b>Bauteildaten</b> (Knopf unten im Optionen-Fenster).</p>
+      : 'Zurzeit ist kein Paket im Browser hinterlegt — die Daten kommen aus '
+        + 'den Dateien neben der Anwendung.'}</p>
+    <p class="notiz">Ansehen, einlesen, laden und sichern steht beisammen im
+      Fenster <b>Bauteildaten</b>.</p>
     <div class="opt-knoepfe">
-      <button class="btn" type="button" data-daten-fenster>Bauteildaten öffnen</button>
-      <button class="btn" type="button" data-daten-sichern>Aktuelle Daten sichern</button>
-      ${v ? '<button class="btn btn-fail" type="button" data-daten-leeren>'
-          + 'Hinterlegtes löschen</button>' : ''}
+      <button class="btn btn-acc" type="button" data-daten-fenster>Bauteildaten öffnen</button>
     </div>`;
 }
 

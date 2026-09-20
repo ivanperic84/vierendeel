@@ -164,6 +164,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Abfangjoch im Blattmodell (20. Sept.) | «checke die abfangjoch ausleitung auf denselben fehler» → Befund: auf einem Blatt mit mehreren Tragwerken wurde ein Abfangjoch als **Tragjoch** gebaut (vier Winkel L 90×90×9 statt zweier liegender Walzprofile mit Gabel und Kröpfung). Entscheid: **richtig einbauen**. Es baut jetzt sein eigenes Modell (`abfangBau`), örtlich 0…jt, das Blatt verschiebt; Masten unter dem Blattnamen (`MAST_<Stelle>_S<n>`, damit ein geteilter Mast verschmilzt). Lastgruppen: **Leiterzug → G_Ablenk** (ständig und waagrecht wie die Ablenkkräfte), **WindJoch → WindY** («nur ±y, wie die eigene Ausleitung»), SchneeJoch → Schnee, G/G_Anbau/WindX/WindY unverändert. Havarie («gleich mit einbauen»): im Blatt bleibt der Nachbar ständig (örtliche Havarie, 19. Sept.); die **eigene** Abfangjoch-Ausleitung legt je Leiter einen Fall an — geschrieben wird die **Änderung** gegenüber dem ständigen Leiterzug (gerissener −Z(+5 °C), übrige Z(−20 °C) − Z(+5 °C)), die Kombination greift beides mit γ = 1.0 ohne veränderliche Lasten. Sie steht auch dann da, wenn die Änderung null ist (fehlende Reglagetabelle, pauschale Abfangkraft) — die Beiwerte unterscheiden sie von der Tragsicherheit |
 | Abfangjoch: Masten und Länge (20. Sept.) | «die masten werden nach innen gesetzt wenn primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig den nächst längeren joch auswählen.» Das Sortiment führt je Länge einen **Bereich zulässiger Stützweiten** (Überstand 0.25–0.495 m je Seite). Vorgabe ist die **grösste** Stützweite, also 25 cm Überstand je Seite (`abfangUeberstand`). Die **Lage eines Abfangjochs ist sein erster Mast** (`lageOrtsnull` = Lage − Überstand), der Träger kragt darüber hinaus — sonst könnte es nie einen Masten mit dem Nachbarjoch teilen. Mastabstand = js = jt − 2·ü. Passt der Abstand vorhandener Masten nicht in den Bereich, nennt ein Hinweis das passende Joch (`abfangFuerStuetzweite`, kürzeste Länge des Typs, sonst nächster Typ); geändert wird nichts von selbst («Warnen, Berichtigung auf Klick») |
 | Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
+| Daten: ein Fenster (20. Sept.) | «das einlesen der daten ist etwas komplizier, können wir dies vereinfachen.» Es gab zwei Türen mit ähnlichen Namen: das **Datenpaket** (Optionen → Datenbasis, ersetzt die ganze Basis) und das **Einlesen** je Sortiment (Fenster Bauteildaten, mit Abgleich). Gewählt: **ein Fenster für alles.** Ansehen, einlesen, laden und sichern stehen im Fenster *Bauteildaten*; der Knopf «Datenpaket laden …» nimmt **jede** Datei und erkennt selbst, was es ist (`dateiAnnehmen`). Der Reiter *Datenbasis* sagt nur noch, was hinterlegt ist, und führt dorthin. Der **Abgleichbericht** ist kurz: oben eine Zeile je geändertem Sortiment, die Tabellen klappen auf; Sortimente ohne Änderung stehen nur als Namen darunter. Fehler und «geprüfte Sätze ändern sich» bleiben offen — die soll niemand aufklappen müssen |
 | Vorlagen nach Ort (19. Sept.) | «die anbauteile template auf die tragwerksarten anpassen», «nach ort trennen»: Spalte `ort` (joch / mast / beide; leer: mit Träger Joch, sonst beide). **Am Masten:** Rückleiter direkt, Lampe LED/alt mit Rohr (Rohr vorläufig = Hängerohr, Baustein «Lampenrohr»), Fahrdrahtabzug mit Konsole 1 m (Fd ohne Gewicht), NT- und Rohrausleger (1.25 / 2.50 m wie am Joch), Traverse mit Zusatzleiter. Kachelliste am Einzelmast nur Mast-Vorlagen, am Joch alle (Gruppe «Am Masten») |
 | Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
@@ -189,6 +190,27 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., `APP_NAME` fehlte — zwei Knöpfe waren tot.** Gemeldet mit
+  dem Bild des Optionen-Fensters: «Nichts zu sichern: APP_NAME is not
+  defined». Der Knopf «Aktuelle Daten sichern» warf bei jedem Klick
+  einen ReferenceError — ausgerechnet der Weg, mit dem man ein
+  Datenpaket für eine Fassung ohne `data/` erzeugt. Derselbe Name trägt
+  «Handbuch als Datei»; der war ebenso tot. Ursache: beim Herauslösen
+  von `app.optionen.js` (A1, 19. Sept.) blieben `APP_NAME` und
+  `VERSION` im Text stehen, ohne mitzuwandern — `node --check` sieht das
+  nicht, der Bündler auch nicht. Danach **alle 64 Module abgesucht**
+  (Werkzeug im Arbeitsordner: grossgeschriebene Namen, die ein Modul
+  benutzt, aber weder importiert noch erklärt): 82 Treffer, alle
+  nachgesehen, bis auf diesen einen Fehlalarme.
+- **20. Sept., Daten: ein Fenster statt zwei** (Weisung, siehe
+  *Entschieden*). Dazu der kurze Abgleichbericht.
+- **20. Sept., GitHub Pages ohne Mastwind** — kein Fehler im Code: dort
+  liegt kein `data/`, die Datenbasis kommt allein aus dem Datenpaket,
+  und ein älteres Paket führt keine Masttypen. Der Ladedialog nennt
+  jetzt, **was fehlt**, und die Fussleiste schreibt «OHNE
+  Masten-Sortiment (kein Mastwind)». Gemessen: ein heute gesichertes
+  Paket trägt alle sechs Teile (215 kB), und die Windwerte überstehen
+  Hin- und Rückweg unverändert.
 - **20. Sept., Durchlauf über den Einzelmasten** (Prüfstand Abschnitt
   110). Weisung: «kannst du zudem ein paar durchläufe bei der
   modellieren und auswertung des einzelmasten vornehmen, es scheint,
@@ -433,6 +455,34 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 - **16. Sept.** Lagerungsstudie in AxisVM → K_XX gehalten; auskragendes Joch
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
+
+**Laufende Arbeit (20. Sept.): der Stabwerkslöser, Schritt 2 des Bauplans.**
+Ein Prototyp läuft — **im Arbeitsordner der Sitzung, nicht im Projekt**
+(`scratchpad/loeser/fem.mjs`, dazu `t1_analytisch`, `t2_joch`, `t3_diagnose`,
+`t4_starr`). Was er kann und was gemessen ist:
+
+- Er frisst **die vorhandene AxisVM-Datei** (`stabmodellJson`) — kein zweiter
+  Modellbauer. Räumliches Stabwerk, 6 Freiheitsgrade je Knoten,
+  Euler-Bernoulli, Linkelemente als Punkt-zu-Punkt-Federn, Auflager auch als
+  Drehfeder. Keine Abhängigkeit, reines ES-Modul.
+- **20 von 20 geschlossenen Lösungen exakt** (Kragarm in beiden Achsen,
+  Längskraft, Torsion, Gleichlast, Einfeldträger, Rahmen, Drehfeder, Link) —
+  Abweichung 1e-14.
+- Am **J90/20 m** (852 Knoten, 973 Stäbe, 483 starr): Gleichgewicht auf
+  **1e-7 %**, Auflagerkraft 7.12169 kN, Rechenzeit ≈ 140 ms für 8 Lastfälle.
+- **Teuer gelernt:** die Zerlegung brach zuerst ab («nicht positiv definit»).
+  Kein Mechanismus — die **Konditionierung**: ein 11 mm langes Starrelement
+  mit dem Ersatzquerschnitt 500×500 mm trägt 12EI/L³ = 1e17 bei, ein Gurtstab
+  1.2e4. Spanne 1e15, Doppelgenauigkeit endet bei 1e16. Zwei Griffe helfen:
+  **Jacobi-Skalierung** der Bandmatrix und **Nachiteration** (den Rest noch
+  einmal lösen und aufaddieren, K·u aus den Elementen statt einer zweiten
+  Matrixkopie). Der Steifigkeitsfaktor der Starrelemente gehört dann **klein**
+  (1 bis 10) — darüber wird es nur ungenauer, das Ergebnis ändert sich nicht
+  mehr.
+- **Nächster Schritt:** gegen PyNite messen (auf diesem Rechner nicht
+  installiert), dann das Blatt (11 868 Freiheitsgrade) auf Zeit prüfen, dann
+  entscheiden, ob Starrkörper als Zwangsbedingung statt als Ersatzsteifigkeit
+  gehören. ⚠ Offen: ob der Prototyp ins Projekt aufgenommen wird.
 
 **Laufende Arbeit (19. Sept.): Jochreihe als gekoppeltes Tragwerk.**
 Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Noch nicht

@@ -14,7 +14,8 @@ import { APP_NAME, tragwerkSatz, tragwerksart } from './core.constants.js';
 import { lastfaelle } from './core.lasten.js';
 import { berechne } from './core.vierendeel.js';
 import { abfangLaengenbereich, abfangjoche } from './data.abfangjoche.js';
-import { paketAnwenden, paketAus, pruefePaket, speicherLeeren } from './data.paket.js';
+// Das Datenpaket wird im Fenster «Bauteildaten» geladen und gesichert
+// (20. September) - hier wird nur noch dorthin verwiesen.
 import { getProfil, getStahl } from './data.profiles.js';
 import { laengenbereich, tragjoche } from './data.tragjoche.js';
 import { abschnitt, esc, FARBEN as farben, icon } from './design.js';
@@ -349,45 +350,13 @@ export function dialogOptionen(app) {
      * die Form zu Hause, hier die Handlung. Dateien lesen, das Paket
      * anwenden und die Anwendung neu starten gehoert in die Anwendung.
      */
-    const stand = (text, schlecht = false) => {
-      const n = ui.el('d-paket-stand');
-      if (!n) return;
-      n.textContent = text;
-      n.style.color = schlecht ? 'var(--fail, #c00)' : '';
-    };
-    const datei = rahmen.querySelector('#d-paket');
-    if (datei) datei.onchange = async (ev) => {
-      const f = ev.target.files?.[0];
-      if (!f) return;
-      try {
-        const obj = JSON.parse(await f.text());
-        const p = pruefePaket(obj);
-        if (!p.ok) { stand(p.fehler.join(' '), true); return; }
-        paketAnwenden(obj);
-        stand(`Geladen: ${p.teile.map((x) => `${x.anzahl} ${x.einheit}`).join(' · ')}`
-              + ' — die Anwendung wird neu gestartet.');
-        setTimeout(() => location.reload(), 900);
-      } catch (fehler) {
-        stand(`Datei nicht lesbar: ${fehler.message}`, true);
-      }
-    };
+    /*
+     * Laden, Sichern und Loeschen stehen seit dem 20. September im Fenster
+     * «Bauteildaten» - ein Ort fuer die Daten (Weisung). Hier bleibt der
+     * Weg dorthin.
+     */
     const fenster = rahmen.querySelector('[data-daten-fenster]');
     if (fenster) fenster.onclick = () => app.dialogBauteildaten();
-    const sichern = rahmen.querySelector('[data-daten-sichern]');
-    if (sichern) sichern.onclick = () => {
-      try {
-        const paket = paketAus(app.projekt.projekt || '');
-        store.dateiSpeichern(JSON.stringify(paket, null, 1),
-                             `${APP_NAME}_Datenpaket_${paket.stand}.json`);
-      } catch (fehler) {
-        stand(`Nichts zu sichern: ${fehler.message}`, true);
-      }
-    };
-    const leeren = rahmen.querySelector('[data-daten-leeren]');
-    if (leeren) leeren.onclick = () => {
-      speicherLeeren();
-      stand('Hinterlegtes Paket gelöscht, beim nächsten Start ist es weg.');
-    };
 
     // Die Nachweisschalter tragen keinen Feldschluessel: sie sitzen zusammen
     // in EINEM Wert. Einzeln geschrieben ginge die uebrige Auswahl verloren.

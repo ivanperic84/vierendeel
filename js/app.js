@@ -3665,19 +3665,46 @@ function dialogBauteildaten() {
     tragjoche: nimm(tragjoche), abfangjoche: nimm(abfangjoche),
   });
 
-  const d = dialog('Bauteildaten',
-    zeichneDaten(best, datenAnsicht.aktiv, opt()),
+  /*
+   * >>> EIN FENSTER FUER DIE DATEN (Weisung, 20. September). <<<
+   *
+   * «das einlesen der daten ist etwas komplizier, können wir dies
+   * vereinfachen.» Es gab zwei Tueren mit aehnlichen Namen: das
+   * DATENPAKET (Optionen -> Datenbasis, ersetzt die ganze Basis) und das
+   * EINLESEN (hier, je Sortiment mit Abgleich). Wer Daten hereinholen
+   * wollte, musste erst wissen, welche der beiden gemeint ist.
+   *
+   * Jetzt steht beides hier: ansehen, einlesen, laden, sichern. Die
+   * Optionen verweisen nur noch hierher.
+   */
+  const paketZeile = () => {
+    const v = ausSpeicher();
+    return `<p class="notiz dat-paket">${v
+      ? `Datenpaket hinterlegt: <b>${esc(v.bezeichnung || 'ohne Bezeichnung')}</b>`
+        + `${v.stand ? ` · Stand ${esc(v.stand)}` : ''}`
+        + ' <button class="btn btn-mini btn-fail" type="button" '
+        + 'data-paket-leeren>Hinterlegtes löschen</button>'
+      : 'Kein Datenpaket hinterlegt — die Daten kommen aus den Dateien neben '
+        + 'der Anwendung. Ohne sie (GitHub Pages, Bündel ohne Daten) braucht '
+        + 'es eines.'}</p>`;
+  };
+  const koerper = () => paketZeile() + zeichneDaten(best, datenAnsicht.aktiv, opt());
+
+  const d = dialog('Bauteildaten', koerper(),
     `<button class="btn" data-daten-einlesen>Einlesen …</button>
+     <button class="btn" data-paket-laden>Datenpaket laden …</button>
+     <button class="btn" data-paket-sichern>Datenpaket sichern</button>
      <button class="btn" data-daten-excel>Alle Tabellen als Excel</button>
      <button class="btn" data-zu>Schliessen</button>`, 'dialog-breit');
 
   const neu = () => {
-    d.node.querySelector('.dialog-koerper').innerHTML =
-      zeichneDaten(best, datenAnsicht.aktiv, opt());
+    d.node.querySelector('.dialog-koerper').innerHTML = koerper();
     verdrahte();
   };
   function verdrahte() {
     const n = d.node;
+    const leeren = n.querySelector('[data-paket-leeren]');
+    if (leeren) leeren.onclick = () => { speicherLeeren(); neu(); };
     n.querySelectorAll('[data-ansicht]').forEach((b) => {
       b.onclick = () => { datenAnsicht.aktiv = b.dataset.ansicht; datenAnsicht.filter = ''; neu(); };
     });
@@ -3725,6 +3752,31 @@ function dialogBauteildaten() {
       `${APP_NAME}_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
   d.node.querySelector('[data-daten-einlesen]').onclick = () => datenEinlesen(tabellen);
+  /*
+   * LADEN NIMMT JEDE DATEI. `dateiAnnehmen` erkennt selbst, was es ist -
+   * Datenpaket, Excel-Mappe, einzelnes Sortiment oder Projektablage - und
+   * zeigt den passenden Dialog. Ein Knopf statt einer Entscheidung vorweg.
+   */
+  d.node.querySelector('[data-paket-laden]').onclick = () => {
+    const i = document.createElement('input');
+    i.type = 'file';
+    i.accept = '.json,.xlsx,application/json,'
+      + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    i.onchange = () => {
+      const f = i.files?.[0];
+      if (f) { d.zu(); dateiAnnehmen(f); }
+    };
+    i.click();
+  };
+  d.node.querySelector('[data-paket-sichern]').onclick = () => {
+    try {
+      const paket = paketAus(projekt.projekt || '');
+      store.dateiSpeichern(JSON.stringify(paket, null, 1),
+                           `${APP_NAME}_Datenpaket_${paket.stand}.json`);
+    } catch (fehler) {
+      alert(`Nichts zu sichern: ${fehler.message}`);
+    }
+  };
   return d;
 }
 

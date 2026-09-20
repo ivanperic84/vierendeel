@@ -451,9 +451,27 @@ export function zeichneAbgleich(ergebnisse, info = {}) {
     try { return JSON.parse(e.id.replace(/#\d+$/, '')).filter((x) => x !== null).join(' · '); }
     catch { return e.id; }
   };
+  /*
+   * >>> KURZ OBEN, EINZELHEITEN AUF KLICK (Weisung, 20. September). <<<
+   *
+   * «das einlesen der daten ist etwas komplizier, können wir dies
+   * vereinfachen.» Der Bericht zeigte je Sortiment eine Tabelle, auch die
+   * mit null Aenderungen - bei einer vollen Mappe sieben Tabellen, durch
+   * die man scrollen musste, um die eine Zeile zu finden, die sich
+   * bewegt.
+   *
+   * Jetzt steht oben, WAS sich aendert, und darunter nur noch das. Was
+   * SPERRT (Fehler) und was die stehende Vorgabe beruehrt (geprüfte
+   * Saetze) bleibt offen - das soll niemand aufklappen muessen.
+   */
+  const mitAend = ergebnisse.filter((r) => r.aenderungen);
+  const ohneAend = ergebnisse.filter((r) => !r.aenderungen);
   return `
     <p>Datei <b>${esc(info.datei ?? '')}</b> (${info.quelle === 'excel' ? 'Excel' : 'JSON'}) ·
-      <b>${gesamt}</b> Änderung(en) in ${ergebnisse.length} Sortiment(en).</p>
+      <b>${gesamt}</b> Änderung(en) in ${mitAend.length} von
+      ${ergebnisse.length} Sortiment(en).</p>
+    ${mitAend.length ? `<p class="notiz">${mitAend.map((r) =>
+      `${esc(r.titel)} <b>${r.aenderungen}</b>`).join(' · ')}</p>` : ''}
     ${(info.hinweise ?? []).length ? `<ul class="dat-befunde">${info.hinweise.map((x) =>
       `<li class="hinweis">${esc(x)}</li>`).join('')}</ul>` : ''}
     ${fehler.length ? `<div class="dat-meldung fehler offen"><b>${fehler.length} Fehler -
@@ -467,8 +485,9 @@ export function zeichneAbgleich(ergebnisse, info = {}) {
       der Jochträger im Detail zu übernehmen - bitte gegen die Zeichnung prüfen.</div>` : ''}
     ${warn.length ? `<details class="dat-meldung warnung"><summary>${warn.length} Hinweis(e)
       aus der Prüfung</summary><ul>${warn.slice(0, 60).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
-    ${ergebnisse.map((r) => `
-      <h3 class="dat-abgleich-kopf">${esc(r.titel)} <span class="dat-zahl">${r.aenderungen} Änderung(en)</span></h3>
+    ${mitAend.map((r) => `
+      <details class="dat-abgleich-teil"${mitAend.length === 1 ? ' open' : ''}>
+      <summary class="dat-abgleich-kopf">${esc(r.titel)} <span class="dat-zahl">${r.aenderungen} Änderung(en)</span></summary>
       <table class="dat-tabelle dat-abgleich">
         <thead><tr><th>Tabelle</th><th>neu</th><th>geändert</th><th>entfernt</th><th>gleich</th></tr></thead>
         <tbody>${r.tabellen.map((t) => `<tr>
@@ -489,5 +508,8 @@ export function zeichneAbgleich(ergebnisse, info = {}) {
             ${t.neu.length + t.entfernt.length + t.geaendert.length > 3 * ZEIGEN
               ? '<li class="notiz">… weitere nicht gezeigt</li>' : ''}
           </ul></details>`).join('')}
-    `).join('')}`;
+      </details>
+    `).join('')}
+    ${ohneAend.length ? `<p class="notiz">Ohne Änderung: ${ohneAend.map((r) =>
+      esc(r.titel)).join(' · ')}.</p>` : ''}`;
 }
