@@ -46,7 +46,7 @@ import { ECKEN, getAusrichtung } from './geometry.js';
 import { EINWIRKUNGEN, lastfaelle } from './core.lasten.js';
 import { verortung, verortungKurz, tragwerksart,
          tragwerkeSortiert, sichtbareTragwerke, tragwerkSatz, mastenFuer, lageVon,
-         anzahlTragwerke, anschlusshoehe }
+         anzahlTragwerke, anschlusshoehe, lageOrtsnull }
   from './core.constants.js';
 // Die Kette steht im Rechenkern - dasselbe Stueck Wissen, das die
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
@@ -1387,7 +1387,24 @@ function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
  * keins.
  * =========================================================================== */
 function stabmodellEinzelmast(m, opt = {}) {
-  const s = sammler();
+  /* =======================================================================
+   * >>> AUCH DER EINZELMAST HEISST NACH SEINER STELLE (20. September). <<<
+   * =======================================================================
+   *
+   * Hier stand `sammler()` ohne Praefix, und der Mast hiess immer
+   * «MAST_A_*». Auf einem Blatt mit zwei Einzelmasten trugen damit BEIDE
+   * denselben Namen: der Sammler gab beim zweiten denselben Knoten zurueck,
+   * die Masten verschmolzen zu einem - und weil das Blatt die Lage eines
+   * geteilten Masten mittelt, stand der uebriggebliebene zwischen ihnen.
+   * Am aufgebauten Modell gesehen: zwei Einzelmasten bei x = 0 und x = 10
+   * wurden ein Mast bei x = 7.14.
+   *
+   * Der Jochweg macht es seit dem Blattumbau richtig (`mn`); hier fehlte es.
+   * Ohne Blatt (eigene Ausleitung) bleibt alles wie bisher: kein Praefix,
+   * Ende «A».
+   */
+  const s = opt.sammler ?? sammler(opt.praefix ?? '');
+  const mn = (e) => opt.mastNamen?.[e] ?? e;
   const md = m.federn?.mastA ?? m.federn?.mast;
   if (!md) {
     throw new Error('Einzelmast ohne Masten: unter «Masten» ein Profil wählen.');
@@ -1405,13 +1422,13 @@ function stabmodellEinzelmast(m, opt = {}) {
   const zKopf = md.ueberstand > 0 ? r6(zFuss + md.laenge) : 0;
   const x = 0;
 
-  const kFuss = s.kn('MAST_A_F', x, 0, zFuss);
-  const kAnschluss = s.kn('MAST_A_OG', x, 0, 0);
+  const kFuss = s.kn(`MAST_${mn('A')}_F`, x, 0, zFuss);
+  const kAnschluss = s.kn(`MAST_${mn('A')}_OG`, x, 0, 0);
   const lcsMast = md.stegrichtung.achse === 'y' ? [1, 0, 0] : [0, 1, 0];
 
   // Geteilt wird, wo etwas haengt - genau wie beim Joch.
   const mastKn = new Map([[zFuss, kFuss], [0, kAnschluss]]);
-  if (zKopf > 1e-9) mastKn.set(zKopf, s.kn('MAST_A_KOPF', x, 0, zKopf));
+  if (zKopf > 1e-9) mastKn.set(zKopf, s.kn(`MAST_${mn('A')}_KOPF`, x, 0, zKopf));
   const anbauMastAus = [];
   (m.anbauMast ?? []).forEach((a) => {
     const zA = r6(zFuss + (a.hMast ?? 0));
@@ -1421,7 +1438,7 @@ function stabmodellEinzelmast(m, opt = {}) {
       return;
     }
     if (!mastKn.has(zA)) {
-      mastKn.set(zA, s.kn(`MAST_A_H${mastKn.size - 1}`, x, 0, zA));
+      mastKn.set(zA, s.kn(`MAST_${mn('A')}_H${mastKn.size - 1}`, x, 0, zA));
     }
   });
   /*
@@ -1438,11 +1455,11 @@ function stabmodellEinzelmast(m, opt = {}) {
   const ak = md.anker;
   if (ak?.typ && ak.h > 0 && ak.a > 0) {
     const zAnk = r6(zFuss + Math.min(ak.h, zOberkante - zFuss));
-    if (!mastKn.has(zAnk)) mastKn.set(zAnk, s.kn('MAST_A_ANK', x, 0, zAnk));
+    if (!mastKn.has(zAnk)) mastKn.set(zAnk, s.kn(`MAST_${mn('A')}_ANK`, x, 0, zAnk));
   }
   const zStufen = [...mastKn.keys()].sort((a, b) => a - b);
   for (let i = 0; i < zStufen.length - 1; i++) {
-    s.stab(`MAST_A_S${i + 1}`, qsMast,
+    s.stab(`MAST_${mn('A')}_S${i + 1}`, qsMast,
            mastKn.get(zStufen[i]), mastKn.get(zStufen[i + 1]),
            { lcsZ: lcsMast });
   }
@@ -1453,14 +1470,15 @@ function stabmodellEinzelmast(m, opt = {}) {
   const qsStarr = s.qs(rechteck(STARR));
   const qsArm = s.qs(rechteck(ARM));
   const ankerAus = [];
-  ankerBauen({ s, md, ende: 'A', mn: (e) => e, x, h: 0, zFuss, zOben: zOberkante,
+  ankerBauen({ s, md, ende: 'A', mn, x, h: 0, zFuss, zOben: zOberkante,
                mastKn, qsStarr, auflager, ankerAus });
   const arme = [];
-  mastTeileAnhaengen({ s, m, mn: (e) => e, mastFuss: { A: zFuss }, qsArm, arme, opt });
+  mastTeileAnhaengen({ s, m, mn, mastFuss: { A: zFuss }, qsArm, arme, opt });
 
   return { ...s, auflager, arme, knotenmodell: opt.knotenmodell ?? 'anschnitt',
            zOben: 0, verschoben: [], ausKnotenVermerk: [],
            zweiPunktAnschluss: [], anbauMastAus, ankerAus,
+           mastNamen: opt.mastNamen ?? null,
            schottAusblenden: opt.schottAusblenden === true };
 }
 
@@ -1539,11 +1557,41 @@ export function lagenEntflechten(alle, mastenJe) {
   for (let i = 1; i < alle.length; i++) {
     const links = alle[i - 1], rechts = alle[i];
     versatz.set(rechts.id, { dx: nach, mastDx: 0, wegen: null });
-    // Nur wo sich zwei Tragwerke einen Masten teilen, treffen Endbleche
-    // aufeinander. Stehen sie für sich, gibt es nichts zu entflechten.
-    const geteilt = (mastenJe.get(links.id) ?? []).some(([, m]) => m
-      && (mastenJe.get(rechts.id) ?? []).some(([, n]) => n && n.id === m.id));
-    if (!geteilt) continue;
+    /*
+     * Nur wo sich zwei Tragwerke einen Masten teilen, treffen Endbleche
+     * aufeinander. Stehen sie für sich, gibt es nichts zu entflechten.
+     *
+     * >>> UND NUR, WENN SIE WIRKLICH ANEINANDERSTOSSEN (20. September). <<<
+     *
+     * Gemeint ist die Reihe: das linke Tragwerk endet mit seinem Ende B an
+     * dem Masten, an dem das rechte mit seinem Ende A beginnt. Teilen sie
+     * sich den Masten an DEMSELBEN Ende - ein Abfangjoch neben einem
+     * Tragjoch, beide am selben Masten beginnend -, stehen sie nicht
+     * hintereinander, sondern nebeneinander; dann gibt es keine Lücke zu
+     * weiten.
+     *
+     * Vorher wurde auch dieser Fall «entflochten»: bei einem Tragjoch
+     * 20–40 m und einem Abfangjoch 20–32.5 m ergab sich eine Lücke von
+     * −20 m, und das Abfangjoch wanderte um 20.1 m nach rechts - samt
+     * seinen Masten, die damit 12 m neben ihrem Anschluss standen. Am
+     * aufgebauten Modell als schiefer Mast zu sehen.
+     */
+    const paare = [];
+    (mastenJe.get(links.id) ?? []).forEach(([e1, m]) => {
+      if (!m) return;
+      (mastenJe.get(rechts.id) ?? []).forEach(([e2, n]) => {
+        if (n && n.id === m.id) paare.push([e1, e2]);
+      });
+    });
+    if (!paare.length) continue;
+    if (!paare.some(([e1, e2]) => e1 === 'B' && e2 === 'A')) {
+      // Nebeneinander: nicht schieben, aber vermerken - zwei Tragwerke am
+      // selben Masten stehen im Modell ineinander, und das soll man sehen.
+      versatz.set(rechts.id, { dx: nach, mastDx: 0, wegen: null,
+        nebeneinander: { mit: links.id,
+          enden: paare.map(([e1, e2]) => `${e1}/${e2}`).join(', ') } });
+      continue;
+    }
     const ende = lageVon(links) + (versatz.get(links.id)?.dx ?? 0)
                + (Number(links.L) || 0);
     const anfang = lageVon(rechts) + nach;
@@ -1780,7 +1828,8 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
                                // Fuer das Abfangjoch: es baut aus dem Satz,
                                // nicht aus dem Jochmodell (20. September).
                                satz: satzT, mast: mastFuerAbfang(t, satzT) });
-    teile.push({ id: t.id, bau, m, dz, x0: lageVon(t) + ent.dx, ent });
+    // Oertliche Null: beim Abfangjoch der Traegeranfang, nicht der Mast.
+    teile.push({ id: t.id, bau, m, dz, x0: lageOrtsnull(t) + ent.dx, ent });
     gesetzt.push({ t, dz });
   });
 
@@ -1951,6 +2000,14 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
        */
       entflochten: teile.filter((x) => x.ent?.wegen).map((x) => ({
         id: x.id, dx: x.ent.dx, mastDx: x.ent.mastDx, wegen: x.ent.wegen })),
+      /*
+       * ZWEI TRAGWERKE AM SELBEN MASTEN, NEBENEINANDER STATT HINTEREINANDER
+       * (20. September). Sie werden NICHT auseinandergeschoben - das waere
+       * ein Meter-Sprung, keine Entflechtung. Der Bericht nennt sie, damit
+       * niemand vor zwei ineinanderstehenden Tragwerken steht und raet.
+       */
+      nebeneinander: teile.filter((x) => x.ent?.nebeneinander).map((x) => ({
+        id: x.id, ...x.ent.nebeneinander })),
     },
   };
 }

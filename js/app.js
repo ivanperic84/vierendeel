@@ -38,7 +38,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          tragwerkTeil,
          MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
          tragwerkeSortiert, tragwerkSatz, lageVon,
-         tragwerkeVon, mastenFuer,
+         tragwerkeVon, mastenFuer, lageOrtsnull,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
          jochZuEinzelmasten,
@@ -70,7 +70,8 @@ import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
          setzeFlDB } from './data.fl.js';
 // Das Abfangjoch-Sortiment. Sein Fehlen ist kein Fehler - wer kein
 // Abfangjoch auf dem Blatt hat, braucht es nicht.
-import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
+import { abfangAuswertung, abfangFyd, abfangStuetzweite,
+         abfangFuerStuetzweite } from './core.abfangjoch.js';
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
@@ -772,6 +773,38 @@ function neuRechnen(neuZeichnen = true) {
               + ' damit nicht belegt.'));
       }
     });
+    /* =====================================================================
+     * >>> DAS ABFANGJOCH UND SEINE MASTEN (20. September). <<<
+     * =====================================================================
+     *
+     * Weisung: «die masten werden nach innen gesetzt wenn primär ein jochtyp
+     * und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind
+     * sollte sich der jochtyp daran richten und wenn notwendig den nächst
+     * längeren joch auswählen.»
+     *
+     * Der erste Fall steckt in der Geometrie (`abfangUeberstand`,
+     * core.constants.js): ein neues Abfangjoch setzt seine Masten 25 cm
+     * innerhalb der Jochenden. Hier steht der ZWEITE: die Masten stehen
+     * schon. Traegt die gewaehlte Laenge ihren Abstand nicht, sagt der
+     * Hinweis, welches Joch ihn traegt - geaendert wird nichts von selbst
+     * («Warnen, Berichtigung auf Klick», Entscheid 20. September).
+     */
+    if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
+      const tAkt = tragwerkeVon(werte).find((t) => t.id === (werte.twId ?? werte.id));
+      const [mA, mB] = tAkt ? mastenFuer(werte, tAkt) : [];
+      const sw = abfangStuetzweite(werte.abfangTyp, Number(werte.L));
+      if (mA && mB && sw) {
+        const js = Math.abs(mB.x - mA.x);
+        if (js < sw.von - 1e-6 || js > sw.bis + 1e-6) {
+          const v = abfangFuerStuetzweite(werte.abfangTyp, js);
+          hinw.push(`Abfangjoch ${werte.abfangTyp} / ${Number(werte.L).toFixed(2)} m: `
+            + `die Masten stehen ${js.toFixed(2)} m auseinander, dieses Joch trägt `
+            + `${sw.von.toFixed(2)}–${sw.bis.toFixed(2)} m (Überstand 0.25–0.50 m je Seite). `
+            + (v ? `Passend wäre ${v.typ} / ${v.L.toFixed(2)} m.`
+                 : 'Kein Joch des Sortiments trägt diese Stützweite.'));
+        }
+      }
+    }
     const urteil = urteilKonstruktion(checks, werte.nachweise,
                                       tragwerksart(werte).key);
     const kl = mitJoch ? klassifizierung(erg.modell) : null;
@@ -1254,7 +1287,8 @@ function blattSzene(erg) {
    * das soll er.
    */
   const teile = alle.map((t) => {
-    const dx = lageVon(t);
+    // Das Abfangjoch beginnt um seinen Ueberstand vor dem ersten Masten.
+    const dx = lageOrtsnull(t);
     const dz = hebungVon(t);
     if (t.id === aktivId) {
       return szeneVerschieben({ ...eigen, aktiv: true }, dx,
@@ -4000,14 +4034,14 @@ const DIALOG_ZU_MS = 140;
 function blattVersatz() {
   const t = tragwerkeSortiert(werte).find((x) => x.aktiv)
          ?? tragwerkeSortiert(werte)[0];
-  return t ? (Number(lageVon(t)) || 0) : 0;
+  return t ? (Number(lageOrtsnull(t)) || 0) : 0;
 }
 
 /** Auf ein Tragwerk fahren - dieselbe Rechnung wie der Knopf «Teilübersicht». */
 function zoomAufTragwerk(id) {
   const t = tragwerkeSortiert(werte).find((x) => x.id === id);
   if (!t) return;
-  const x0 = lageVon(t);
+  const x0 = lageOrtsnull(t);
   const L = tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0;
   station = null; ansicht.station = null;
   ansicht.zoomAuf(x0 + L / 2, null, Math.max(1, L / 2));

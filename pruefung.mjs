@@ -26383,6 +26383,74 @@ titel('106  Abfangjoch-Ausleitung: Havarie je Leiter');
           : 'fehlt');
 }
 
+titel('107  Abfangjoch: Masten nach innen, Laenge nach den Masten');
+/*
+ * Weisung vom 20. September: «die masten werden nach innen gesetzt wenn
+ * primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon
+ * vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig
+ * den nächst längeren joch auswählen.»
+ *
+ * Das Sortiment fuehrt je Laenge einen Bereich zulaessiger Stuetzweiten;
+ * Vorgabe ist die groesste, also 0.25 m Ueberstand je Seite (Entscheid).
+ */
+{
+  const C107 = await import(J('core.constants.js'));
+  const K107 = await import(J('core.abfangjoch.js'));
+  const V107 = await import(J('core.vierendeel.js'));
+  const N107 = await import(J('core.nachbarn.js'));
+  const AX107 = await import(J('export.axisvm.js'));
+
+  const t = { tragwerksart: 'abfangjoch', abfangTyp: 'A160', L: 12.5, xLage: 20 };
+  wahr('Der Ueberstand ist 0.25 m je Seite (groesste Stuetzweite)',
+       Math.abs(C107.abfangUeberstand(t) - 0.25) < 1e-9,
+       `${C107.abfangUeberstand(t)} m`);
+  const lagen = C107.mastLagen(t);
+  wahr('Die Lage ist der ERSTE MAST, der Traeger kragt darueber hinaus',
+       Math.abs(lagen[0] - 20) < 1e-9 && Math.abs(lagen[1] - 32) < 1e-9
+       && Math.abs(C107.lageOrtsnull(t) - 19.75) < 1e-9,
+       `Masten ${lagen.join(' / ')} · Traeger ab ${C107.lageOrtsnull(t)}`);
+  wahr('Beim Tragjoch bleibt die Mastachse am Jochende',
+       C107.mastLagen({ tragwerksart: 'joch', L: 20, xLage: 20 }).join() === '20,40'
+       && C107.abfangUeberstand({ tragwerksart: 'joch', L: 20 }) === 0);
+
+  // Die Laenge richtet sich nach vorhandenen Masten - naechst laengeres Joch.
+  wahr('12.00 m Mastabstand traegt das A160 / 12.50 m',
+       K107.abfangFuerStuetzweite('A160', 12.0)?.L === 12.5);
+  const v = K107.abfangFuerStuetzweite('A160', 12.5);
+  wahr('12.50 m braucht das naechst laengere Joch (A200 / 13.00 m)',
+       v?.typ === 'A200' && Math.abs(v.L - 13) < 1e-9,
+       v ? `${v.typ} / ${v.L}` : 'keines');
+  wahr('Was kein Joch traegt, wird nicht erfunden',
+       K107.abfangFuerStuetzweite('A160', 30) === null);
+
+  // Im Blatt faellt der geteilte Mast jetzt genau zusammen.
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 20; w.mastVorhanden = true;
+  const blatt = C107.tragwerkHinzu(w, 'abfangjoch',
+    { xLage: 20, L: 12.5, abfangTyp: 'A160', mastH: 7.5 });
+  const satz = N107.rechensatzMitNachbarn(blatt);
+  const modellVon = (s2) => V107.modell({ ...s2, beiwerteFest: null },
+    getProfil(s2.profOG), getProfil(s2.profUG), getStahl(s2.stahl), T.getTragjoch(s2.typ));
+  const bau = AX107.blattWennMehrere(satz, { berechne: V107.berechne, modell: V107.modell, modellVon },
+    { knotenmodell: 'anschnitt', auflagerModell: 'mast' });
+  const mastX = (id) => {
+    const xs = [];
+    bau.knoten.forEach((k, n) => { if (n.startsWith(`MAST_${id}`)) xs.push(+k.x.toFixed(3)); });
+    return [...new Set(xs)];
+  };
+  const m1 = mastX('M1');
+  wahr('Der geteilte Mast steht an EINER Stelle - Mast und Anschluss zusammen',
+       m1.length === 1 && Math.abs(m1[0] - 20) < 1e-6, `x ${m1.join(' / ')}`);
+  wahr('… und der zweite Mast des Abfangjochs steht auf seiner Stuetzweite',
+       mastX('M3').length === 1 && Math.abs(mastX('M3')[0] - 32) < 1e-6,
+       `x ${mastX('M3').join(' / ')}`);
+
+  const q107 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Passt die Laenge nicht zu den Masten, sagt es die Anwendung',
+       q107.includes('abfangFuerStuetzweite(werte.abfangTyp, js)')
+       && q107.includes('die Masten stehen ${js.toFixed(2)} m auseinander'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

@@ -51,7 +51,8 @@
 
 import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangEndverstaerkung, abfangMasse,
-         abfangRandmasse, abfangQuersteife } from './data.abfangjoche.js';
+         abfangRandmasse, abfangQuersteife,
+         abfangLaengen, abfangjoche } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { abfangkraft } from './data.fl.js';
 import { baugruppeSumme } from './data.anbauteile.js';
@@ -206,6 +207,45 @@ export function abfangStuetzweite(typ, jt) {
   if (!z?.js) return null;
   const [von, bis] = z.js;
   return { von, bis, mittel: (von + bis) / 2 };
+}
+
+/* ===========================================================================
+ * >>> WELCHES JOCH PASST ZU DIESEN MASTEN? (20. September) <<<
+ * ===========================================================================
+ *
+ * Weisung: «wenn aber die masten schon vorhanden sind sollte sich der
+ * jochtyp daran richten und wenn notwendig den nächst längeren joch
+ * auswählen.»
+ *
+ * Gesucht ist die KUERZESTE Laenge, deren Stuetzweitenbereich den
+ * Mastabstand traegt - zuerst im gewaehlten Typ, danach in den laengeren.
+ * Gibt es keine, sagt die Rueckgabe das (null); erfunden wird nichts.
+ *
+ * @param {string} typ Der gewuenschte Typ (A160 …)
+ * @param {number} js  Mastabstand [m]
+ * @returns {{typ:string, L:number, js:[number,number]}|null}
+ */
+export function abfangFuerStuetzweite(typ, js) {
+  const s = Number(js) || 0;
+  if (!(s > 0)) return null;
+  const passt = (t2) => (abfangLaengen(t2) ?? [])
+    .map((L) => ({ typ: t2, L, js: abfangMasse(t2, L)?.js }))
+    .filter((k) => k.js && s >= k.js[0] - 1e-9 && s <= k.js[1] + 1e-9)
+    .sort((x, y) => x.L - y.L)[0] ?? null;
+  const eigen = passt(typ);
+  if (eigen) return eigen;
+  /*
+   * DER NAECHST LAENGERE TYP. Die Reihenfolge des Sortiments ist die
+   * Reihenfolge der Tragfaehigkeit (A160 … A360); genommen wird der erste,
+   * der den Abstand traegt.
+   */
+  const alle = abfangjoche().map((x) => x.typ);
+  const ab = alle.indexOf(typ);
+  for (const t2 of alle.slice(ab + 1)) {
+    const k = passt(t2);
+    if (k) return k;
+  }
+  return null;
 }
 
 /**

@@ -11,6 +11,7 @@
 // Nur fuer die Anschrift des Einzelmasten (tragwerkName) - core.auflager
 // haengt allein an den Datentabellen, ein Kreis entsteht nicht.
 import { einzelmastLaenge } from './core.auflager.js';
+import { abfangMasse } from './data.abfangjoche.js';
 
 /** Einheitenumrechnung. Alle Spannungen im Kern in N/mm². */
 export const U = {
@@ -619,10 +620,67 @@ export const lokalNachBlatt = (t, x) => x + lageVon(t);
  * Ein Joch hat zwei — bei `xLage` und `xLage + L`. Ein Einzelmast oder ein
  * Mast mit Tragausleger hat einen.
  */
+/* ===========================================================================
+ * >>> DER UEBERSTAND DES ABFANGJOCHS (20. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «die masten werden nach innen gesetzt wenn primär ein jochtyp und
+ * länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte
+ * sich der jochtyp daran richten und wenn notwendig den nächst längeren joch
+ * auswählen.»
+ *
+ * Das Sortiment fuehrt je Laenge jt einen BEREICH zulaessiger Stuetzweiten
+ * js - der Traeger kragt an jedem Ende zwischen 0.25 und 0.495 m ueber sein
+ * Auflager hinaus. Beim Tragjoch steht die Mastachse genau am Jochende
+ * (Entscheid 18. Sept.); beim Abfangjoch kann sie das nicht.
+ *
+ * Vorgabe ist die GROESSTE Stuetzweite, also der kleinste Ueberstand von
+ * 0.25 m je Seite (Entscheid 20. Sept.). Innerhalb des Bereichs darf der
+ * Mast danach stehen, wo er steht - dann richtet sich die LAENGE nach ihm
+ * (`abfangFuerStuetzweite`, Hinweis in core.checks.js).
+ *
+ * Ohne Abfangdaten (Rauchtest) oder bei unbekannter Laenge bleibt es beim
+ * alten Verhalten: Mast am Jochende.
+ */
+export function abfangUeberstand(t) {
+  if (tragwerksart(t).key !== 'abfangjoch') return 0;
+  const L = Number(t?.L) || 0;
+  try {
+    const z = abfangMasse(t?.abfangTyp, L);
+    if (!z?.js) return 0;
+    return Math.max(0, Math.round((L - z.js[1]) / 2 * 1e6) / 1e6);
+  } catch { return 0; }
+}
+
+/**
+ * Wo die OERTLICHE Null eines Tragwerks auf dem Blatt liegt.
+ *
+ * Fuer alle Arten ist das die Lage selbst - das Tragwerk beginnt an seinem
+ * ersten Masten. Nur das Abfangjoch kragt ueber ihn hinaus: sein Traeger
+ * beginnt um den Ueberstand FRUEHER, damit sein Auflager auf dem Masten
+ * sitzt und ein geteilter Mast mit dem Nachbarjoch zusammenfaellt.
+ */
+export function lageOrtsnull(t) {
+  return lageVon(t) - abfangUeberstand(t);
+}
+
 export function mastLagen(t) {
   const x0 = lageVon(t);
   const art = tragwerksart(t);
-  if (art.masten >= 2) return [x0, x0 + (Number(t?.L) || 0)];
+  if (art.masten >= 2) {
+    const L = Number(t?.L) || 0;
+    /*
+     * >>> DIE LAGE IST DER ERSTE MAST. <<<
+     *
+     * Beim Tragjoch faellt er mit dem Jochende zusammen; beim Abfangjoch
+     * steht er um den Ueberstand INNERHALB des Traegers, und der Abstand
+     * der beiden Masten ist die Stuetzweite js = jt - 2*ue. Waere die Lage
+     * das Jochende, koennte ein Abfangjoch nie einen Masten mit dem
+     * Nachbarjoch teilen - es haenge immer 25 cm daneben.
+     */
+    const ue = abfangUeberstand(t);
+    return [x0, x0 + Math.max(0, L - 2 * ue)];
+  }
   return [x0];
 }
 
