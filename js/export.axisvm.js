@@ -4328,6 +4328,11 @@ export function stabmodellJson(m, opt = {}) {
       // parametrischen Weg. Fehlt er, bleibt es beim parametrischen.
       katalog: q.katalog ?? null,
       radienQuelle: q.radienQuelle ?? null,
+      // Der VERSATZ des Verbundquerschnitts (Gabel des Abfangjochs: zwei U,
+      // um eine Flanschbreite versetzt). Er fehlte hier - die Bruecke baute
+      // beide Profile uebereinander, und die Flaechenprobe meldete -51 %
+      // (20. September, am aufgebauten Modell).
+      ...(q.versatz !== undefined ? { versatz: q.versatz } : {}),
       A: q.A ?? null, Iy: q.Iy ?? null, Iz: q.Iz ?? null, It: q.It ?? null,
     })),
     knoten: [...bau.knoten.values()],

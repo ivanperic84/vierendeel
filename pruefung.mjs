@@ -26267,6 +26267,21 @@ titel('105  Abfangjoch im Blattmodell: eigener Traeger, nicht der Jochweg');
        !Object.keys(gruppen).some((g) => /Leiterzug|WindJoch|SchneeJoch/.test(g)),
        Object.keys(gruppen).join(', '));
 
+  /*
+   * DER VERSATZ DES VERBUNDQUERSCHNITTS MUSS MIT (20. September).
+   *
+   * Die Gabel des Abfangjochs ist ZWEI U-Profile, um eine Flanschbreite
+   * versetzt. Das Blattmodell schrieb das Feld `versatz` nicht mit - die
+   * COM-Bruecke baute beide uebereinander, und ihre Flaechenprobe meldete
+   * am aufgebauten Modell -51.4 % (0.002105 statt 0.004334 m2). Gefunden
+   * erst in AxisVM, nicht am Pruefstand.
+   */
+  const datV = AX105.stabmodellJson(modellVon(satz), { ...opt, eingabe: satz, bau });
+  const gabel = datV.querschnitte.find((q) => /GABEL$/.test(q.name));
+  wahr('Der Verbundquerschnitt traegt seinen Versatz in die Datei',
+       !!gabel && gabel.form === 'DoppelU' && gabel.versatz > 0,
+       gabel ? `${gabel.name} versatz ${gabel.versatz} mm, A ${gabel.A} m2` : 'keine Gabel');
+
   // Der geteilte Mast traegt EINEN Stabzug, nicht zwei uebereinander.
   const dat = AX105.stabmodellJson(modellVon(satz), { ...opt, eingabe: satz, bau });
   const knotenVon = new Map(dat.knoten.map((k) => [k.name, k]));

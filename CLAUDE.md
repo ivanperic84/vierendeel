@@ -181,12 +181,21 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**20. September 2026** · Prüfstand 4848 Kontrollen grün · `durchlauf.mjs`
+**20. September 2026** · Prüfstand 4849 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., Blatt mit Abfangjoch in AxisVM aufgebaut.** Dabei fiel auf:
+  das Blattmodell schrieb das Feld **`versatz`** des Verbundquerschnitts
+  nicht mit — die Brücke baute die beiden U der Gabel übereinander, und
+  ihre Flächenprobe brach ab (0.002105 statt 0.004334 m², −51.4 %). Mit dem
+  Feld stimmt es: 0.004211 m², −2.8 % wie beim Gurt (Ausrundungen, die das
+  Polygon nicht führt). Das Modell steht: 1976 Knoten, 2283 Stäbe, 1143
+  Starrkörper, 48 Verbindungselemente, 20 Kombinationen, nicht gerechnet.
+  **Lehre:** zuerst in die ausgeleitete Datei sehen, dann in die Brücke —
+  der erste Anlauf baute deren Polygonroutine um und traf das Falsche.
 - **20. Sept., Havarie je Leiter auch im Abfangjoch** (Prüfstand Abschnitt
   106). Damit ist der offene Punkt vom 19. September erledigt.
   Geschrieben wird die **Änderung** gegenüber dem ständigen Leiterzug.
@@ -486,7 +495,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 4848 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 4849 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
