@@ -10,7 +10,7 @@
  * ---------------------------------------------------------------------------
  */
 import { abfangAuswertung, abfangFyd } from './core.abfangjoch.js';
-import { tragwerkSatz, tragwerksart } from './core.constants.js';
+import { APP_NAME, tragwerkSatz, tragwerksart } from './core.constants.js';
 import { lastfaelle } from './core.lasten.js';
 import { berechne } from './core.vierendeel.js';
 import { abfangLaengenbereich, abfangjoche } from './data.abfangjoche.js';
@@ -254,7 +254,7 @@ export function dialogHandbuch(app) {
   // dass die ganze Anwendung mitgeschickt werden muss.
   d.node.querySelector('[data-datei]').onclick = () => {
     // Helles Thema: die Datei wird gelesen, beigelegt und gedruckt.
-    const html = handbuchDatei({ fussnote: `${APP_NAME} ${VERSION}`,
+    const html = handbuchDatei({ fussnote: `${APP_NAME} ${app.VERSION}`,
                                  tokens: farbtokens('hell') });
     store.dateiSpeichern(html, `${APP_NAME}_Handbuch_${new Date().toISOString().slice(0, 10)}.html`,
                          'text/html;charset=utf-8');
