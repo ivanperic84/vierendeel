@@ -2426,7 +2426,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                          // Bis zum MASTKOPF, nicht bis zur Jochachse: ein
                          // langer Mast traegt oben Traversen mit
                          // Zusatzleitern, und der Regler muss dorthin reichen.
-                         0.05, 0, mastKopfHoehe(werte, ortVon(a) === 'mastB' ? 'B' : 'A'))}
+                         // Und zwei Meter darueber hinaus - Lasten oberhalb
+                         // der Mastspitze sind zugelassen (20. September).
+                         0.05, 0, mastReglerHoehe(werte, ortVon(a) === 'mastB' ? 'B' : 'A'))}
           ${/*
              * >>> DAS ABFANGJOCH HAT KEINE GURTEBENEN. <<<
              *
@@ -3255,6 +3257,27 @@ export function mastKopfHoehe(werte, ende = 'A') {
   return L || (H > 0 ? mastLaengeVorgabe(H, werte.jd ?? 0) : 12);
 }
 
+/**
+ * >>> WIE WEIT DARF DER HOEHENREGLER UEBER DIE MASTSPITZE (20. September)? <<<
+ *
+ * Weisung: «lasten oberhalb mastspitze zulassen.» Bis hierher endete der
+ * Regler am Kopf - ein Aufsatz oder eine Traverse darueber liess sich gar
+ * nicht eingeben, und wer den Masten hinterher kuerzte, konnte das Teil
+ * nicht wieder erreichen.
+ *
+ * Gerechnet wird ein solches Teil auf seinem Hebelarm ueber dem Kopf, und
+ * das ausgeleitete Modell haengt es an ein starres Stueck dort hinauf
+ * (`MASTAUFSATZ_...` in export.axisvm.js). Die zwei Meter sind kein
+ * Rechenwert, sondern das Mass des Reglers: so weit reicht ein Aufsatz auf
+ * einem Fahrleitungsmasten. Eingetippt werden darf mehr - der Regler
+ * begrenzt nur sich selbst.
+ */
+export const UEBER_MASTSPITZE = 2.0;
+
+export function mastReglerHoehe(werte, ende = 'A') {
+  return Math.round((mastKopfHoehe(werte, ende) + UEBER_MASTSPITZE) * 100) / 100;
+}
+
 /** Anzahl eines Moduls: ganze Stück, nie negativ. */
 export function anzahlZulaessig(v) {
   const n = Math.round(Number(v));
@@ -3823,15 +3846,21 @@ function modulRolle(m) {
 /**
  * Schalter «Wind des Auslegers über die Fahrleitung».
  *
- * Erscheint nur, wo er etwas bedeutet: die Baugruppe braucht einen TRÄGER
- * (Hängestütze) und mindestens einen AUFBAU (Ausleger). Ohne beides gibt es
- * keinen Zweifeldträger, und der Schalter stünde wirkungslos da.
- * Was gerechnet wird, steht bei windAufTraeger in data.anbauteile.js.
+ * Erscheint, wo er etwas bedeutet: die Baugruppe braucht einen AUFBAU
+ * (Ausleger). Ohne ihn gibt es keinen Zweifeldträger, und der Schalter
+ * stünde wirkungslos da.
+ *
+ * >>> EIN TRAEGER IST NICHT MEHR BEDINGUNG (20. September). <<<
+ * Weisung: «bei den auslegern den windanteil auf den masten wirken lassen
+ * (ähnlich wie bei der hängestütze), da die leiter als quasi auflager
+ * wirken.» Ein Ausleger am Masten hat keine Hängestütze; der Anteil geht
+ * dann auf die Mastachse. Was gerechnet wird, steht bei windAufTraeger in
+ * data.anbauteile.js.
  */
 function windVersatzHtml(a, i) {
   const rollen = (a.module ?? []).map(modulRolle);
   const tr = (a.module ?? []).find((m, k) => rollen[k] === 'traeger');
-  if (!tr || !rollen.includes('aufbau')) return '';
+  if (!rollen.includes('aufbau')) return '';
   const an = a.windAufTraeger === true;
   const p = a.windAnteil ?? 50;
   return `<div class="sec-klein">Lasteintrag des Auslegers</div>
@@ -3839,19 +3868,21 @@ function windVersatzHtml(a, i) {
       type="checkbox"${an ? ' checked' : ''}><span>Fahrleitung als Auflager
       ansetzen</span></label>
     ${an ? `<div class="at-gitter">
-      ${atFeld(i, 'windAnteil', 'in den Träger', p, '%', 5)}
+      ${atFeld(i, 'windAnteil', `in ${tr ? 'den Träger' : 'den Masten'}`, p, '%', 5)}
       <span class="at-feld lesbar"><span>Fahrleitung trägt <i>%</i></span>
         <b>${f0(100 - p)}</b></span>
       <span class="at-feld lesbar"><span>Eintrag <i>–</i></span>
-        <b>Anschluss</b><small class="hinweis">Ausleger/Stütze</small></span>
+        <b>Anschluss</b><small class="hinweis">${tr ? 'Ausleger/Stütze'
+          : 'Ausleger/Mast'}</small></span>
     </div>` : ''}
     ${hinweisHtml(`windv-${a.id}`, 'Das äussere Ende des Auslegers hält die '
       + 'Fahrleitung, und die ist durch den Leiterzug seitlich gespannt - sie '
       + 'wirkt dort als Auflager. Der Wind auf den Ausleger verteilt sich '
       + 'damit auf zwei Auflager: die eine Hälfte nimmt die Fahrleitung auf '
       + 'und trägt sie längs zu den Nachbaraufhängungen ab, die andere geht '
-      + 'in den Träger. Nur dieser Anteil kommt am Joch an, und zwar am '
-      + 'ANSCHLUSSPUNKT Ausleger/Stütze: auf der Achse des Trägers, auf der '
+      + `in ${tr ? 'den Träger' : 'den Masten'}. Nur dieser `
+      + 'Anteil kommt am Tragwerk an, und zwar am ANSCHLUSSPUNKT: auf der '
+      + `Achse ${tr ? 'des Trägers' : 'des Mastes'}, auf der `
       + 'Höhe des Auslegers. Bei einem Kragarm rückt er damit auch in '
       + 'Jochachse zurück - beim NT um 1.2 m. '
       + 'Eigengewicht, Schnee, Wind in x und die Drahtwerke bleiben '

@@ -520,10 +520,31 @@ export function windAufTraeger(teile, a) {
   const anteil = Math.min(1, Math.max(0, (a.windAnteil ?? 50) / 100));
 
   // Träger = das Bauteil der Rolle «traeger», das dem Joch am nächsten sitzt.
-  // Ohne Träger gibt es keine Achse, auf die etwas abgesetzt werden könnte.
   const traeger = teile.reduce((b, x) => (x.rolle !== 'traeger' ? b
     : (b === null || Math.abs(x.z) < Math.abs(b.z) ? x : b)), null);
-  if (!traeger) return teile;
+  /*
+   * >>> OHNE TRAEGER: DIE ACHSE DES TRAGWERKS. <<<
+   *
+   * Weisung vom 20. September: «bei den auslegern den windanteil auf den
+   * masten wirken lassen (ähnlich wie bei der hängestütze), da die leiter
+   * als quasi auflager wirken.»
+   *
+   * Hier stand «ohne Träger gibt es keine Achse, auf die etwas abgesetzt
+   * werden könnte» - und die Funktion kehrte um. Das traf genau die
+   * Ausleger AM MASTEN («NT-Ausleger am Mast», «Rohrausleger am Mast»):
+   * sie sitzen ohne Hängestütze direkt am Masten, der Schalter stand da
+   * und tat nichts.
+   *
+   * Die Begruendung ist dieselbe wie mit Traeger und haengt nicht an ihm:
+   * das aeussere Ende haelt die Fahrleitung, und die ist durch den
+   * Leiterzug laengs gespannt - sie wirkt dort als Auflager. Was nicht in
+   * die Fahrleitung geht, geht in das, woran der Ausleger sitzt. Mit
+   * Stuetze ist das ihre Achse, ohne Stuetze die Achse des Tragwerks
+   * selbst: beim Teil am Masten die MASTACHSE (y = 0, Station der
+   * Baugruppe), beim Teil am Joch die Jochachse.
+   */
+  const achse = traeger ?? { x: a.x ?? 0, y: 0, ex: 0,
+                             bauteilName: 'Mast' };
 
   const zusatz = [];
   teile.forEach((x) => {
@@ -546,10 +567,10 @@ export function windAufTraeger(teile, a) {
       // KRAGARM IN JOCHACHSE: sein Angriffspunkt liegt um 1.2 m versetzt.
       // Bliebe der Anteil dort stehen, käme genau die Hälfte, die über die
       // Stütze ins Joch geht, an der falschen Stelle an.
-      x: traeger.x, y: traeger.y, ex: traeger.ex,
+      x: achse.x, y: achse.y, ex: achse.ex,
       // z und ev bleiben: die Höhe des Auslegers ändert sich nicht.
       id: `${x.id}~w`, art: 'windversatz', modulIndex: null, lastIndex: null,
-      name: `${x.name} · Wind über ${traeger.bauteilName ?? 'Träger'}`,
+      name: `${x.name} · Wind über ${achse.bauteilName ?? 'Träger'}`,
     });
   });
   teile.push(...zusatz);

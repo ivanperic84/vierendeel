@@ -9103,12 +9103,68 @@ titel('37  Anbauteile am Masten');
          new Set(lp.map((q) => q.lastfall)).size > 1,
          [...new Set(lp.map((q) => q.lastfall))].join(' '));
   }
-  // Eine Hoehe ausserhalb des Mastes wird NICHT gebaut - und gesagt.
+  /* =======================================================================
+   * >>> EINE HOEHE UEBER DER MASTSPITZE WIRD GEBAUT (20. September). <<<
+   * =======================================================================
+   *
+   * Weisung: «lasten oberhalb mastspitze zulassen.»
+   *
+   * Hier stand das Gegenteil - «ein Teil in der Luft wird nicht gebaut»,
+   * und die Datei fuehrte es in `anbauMastAus`. Das war die Stelle, an der
+   * Nachweis und Ausleitung auseinanderliefen: der Nachweis rechnete die
+   * Last auf ihrem Hebelarm, das Modell kannte sie nicht.
+   *
+   * Jetzt bekommt sie ihren Knoten auf der Mastachse und haengt an einem
+   * STARREN Stueck ueber der Spitze. Das Teil «in der Luft» sitzt auf
+   * h = 99 m an einem Masten von 7.50 m - absichtlich absurd: die Weisung
+   * setzt keine Grenze, und eine erfundene waere schlechter als der
+   * Hinweis, der die Stelle beim Namen nennt.
+   * ===================================================================== */
   {
     const aus = jM.tragwerk.anbauMastAus;
-    pruef('Ein Teil in der Luft wird nicht gebaut', aus.length, 1, 1e-12, 'Stk');
-    wahr('Und im Modell benannt', aus[0].name === 'in der Luft'
-         && aus[0].hMast === 99 && aus[0].mastH === 7, JSON.stringify(aus[0]));
+    pruef('Nichts faellt mehr aus dem Modell', aus.length, 0, 1e-12, 'Stk');
+    const kopf = Math.max(...jM.knoten.filter((k) => /^MAST_A_(KOPF|OG)$/.test(k.name))
+      .map((k) => k.z));
+    const hoch = jM.knoten.find((k) => /^MAST_A_H\d+$/.test(k.name)
+      && Math.abs(k.z - (knV.get('MAST_A_F').z + 99)) < 1e-9);
+    wahr('Das Teil ueber der Spitze hat seinen Knoten', !!hoch,
+         hoch ? `${hoch.name} auf z = ${hoch.z.toFixed(2)}` : 'keiner');
+    const auf = jM.staebe.filter((x) => /^MASTAUFSATZ_A_/.test(x.name));
+    pruef('Und ein starres Stueck traegt ihn', auf.length, 1, 1e-12, 'Stk');
+    wahr('Es beginnt an der Mastspitze und ist starr',
+         auf[0].art === 'starr'
+         && Math.abs((knV.get(auf[0].von)?.z ?? -9) - kopf) < 1e-9
+         && auf[0].bis === hoch?.name,
+         `${auf[0].von} -> ${auf[0].bis}, ${auf[0].art}`);
+    wahr('Die Kette haengt daran',
+         jM.staebe.some((x) => x.name.startsWith('ARMM') && x.von === hoch?.name));
+    const amHoch = new Set(jM.knoten
+      .filter((k) => k.name.startsWith('AM') && k.z > kopf + 1e-9).map((k) => k.name));
+    wahr('Und ihre Lasten stehen im Modell',
+         jM.lasten.punkt.some((q) => amHoch.has(q.knoten)),
+         `${jM.lasten.punkt.filter((q) => amHoch.has(q.knoten)).length} Punktlasten`);
+    const { hinweise } = await import(J('core.checks.js'));
+    const hz = hinweise(mM).join(' | ');
+    wahr('Der Hinweis nennt die Stelle, ohne sie zu verbieten',
+         /über der Mastspitze/.test(hz) && /zugelassen/.test(hz),
+         (hz.split(' | ').find((z) => /Mastspitze/.test(z)) ?? '-').slice(0, 90));
+  }
+  /*
+   * UNTER DER FUNDAMENTKOTE bleibt es beim Vermerk - das ist der andere
+   * Fall (Entscheid vom 18. September: keine Last unter Terrain). Ein
+   * eigenes Modell, damit die Zahlen oben unberuehrt bleiben.
+   */
+  {
+    const wU = { ...wM, anbauteile: [...wM.anbauteile,
+      bauTeil({ id: 'M4', name: 'unter Terrain', ort: 'mastA', hMast: -1 })] };
+    const mU = modell(wU, getProfil(wU.profOG), getProfil(wU.profUG),
+                      getStahl(wU.stahl), T.getTragjoch('J90'));
+    const jU = AXA.stabmodellJson(mU, { knotenmodell: 'anschnitt',
+                                        auflagerModell: 'mast', eingabe: wU });
+    const aus = jU.tragwerk.anbauMastAus;
+    pruef('Unter der Fundamentkote faellt es weiter heraus', aus.length, 1, 1e-12, 'Stk');
+    wahr('Und ist benannt', aus[0].name === 'unter Terrain' && aus[0].hMast === -1,
+         JSON.stringify(aus[0]));
   }
   // Ohne Mast im Modell gibt es nichts anzuhaengen.
   {
@@ -12686,7 +12742,9 @@ titel('42  Der lange Mast mit Zusatzleitern');
   /*
    * BIS HIERHER FIEL GENAU DAS HERAUS, was der Auftraggeber ansetzen will:
    * der Mast endete am Obergurt, und ein Bauteil darueber landete in
-   * `anbauMastAus` - "ein Anbauteil in der Luft".
+   * `anbauMastAus` - "ein Anbauteil in der Luft". Seit dem 20. September
+   * faellt auch das nicht mehr heraus (Weisung «lasten oberhalb mastspitze
+   * zulassen»): ein starres Stueck ueber der Spitze traegt es.
    */
   {
     const traverse = { id: 'TR', name: 'Traverse mit Zusatzleiter',
@@ -12704,9 +12762,12 @@ titel('42  Der lange Mast mit Zusatzleitern');
     const ohne = lauf({});
     const lang = lauf({ mastLaenge: 12.5 });
     const aus = (j) => j.tragwerk?.anbauMastAus ?? [];
-    wahr('Ohne Laengenangabe faellt der Zusatzleiter heraus',
-         aus(ohne).some((a) => /Traverse/.test(a.name)),
-         JSON.stringify(aus(ohne)));
+    wahr('Ohne Laengenangabe steht der Zusatzleiter trotzdem im Modell',
+         aus(ohne).length === 0, JSON.stringify(aus(ohne)));
+    wahr('… an einem starren Stueck ueber der Mastspitze',
+         ohne.staebe.some((x) => /^MASTAUFSATZ_/.test(x.name) && x.art === 'starr'),
+         ohne.staebe.filter((x) => /^MASTAUFSATZ_/.test(x.name))
+           .map((x) => x.name).join(' ') || 'keines');
     wahr('Mit langem Masten steht er im Modell',
          aus(lang).length === 0, JSON.stringify(aus(lang)));
     // Der Mast bekommt einen Kopfknoten, und der sitzt auf der Gesamtlaenge.
@@ -23248,22 +23309,43 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     wahr('Jede Spalte jeder Datei steht im Katalog', unbekannt === 0, `${unbekannt} ${TBF.SORTIMENTE.flatMap((s) => K.pruefeTabellen(s, tab[s]).warnung.filter((w) => /ohne Katalogeintrag/.test(w))).join(" | ")}`);
     wahr('Kein Wert liegt ausserhalb seines Bereichs', bereich === 0, `${bereich}`);
     /*
-     * >>> EIN EINZIGER FEHLER, UND ER IST ECHT. <<<
+     * >>> DER BESTAND IST FEHLERFREI - SEIT DEM 20. SEPTEMBER. <<<
      *
-     * «abfangjoch-a200» steht zweimal in der Lasttabelle, einmal mit 0.66
-     * und einmal mit 0.58 kN/m - altes und neues Bausortiment unter
-     * derselben Kennung. Beide Sätze sind `stumm`, heute schlägt sie also
-     * niemand nach; der Tag, an dem es einer tut, bekäme stillschweigend
-     * den ersten.
+     * Hier stand «genau EIN Fehler, und er ist echt»: «abfangjoch-a200»
+     * gab es zweimal in der Lasttabelle, mit 0.66 und mit 0.58 kN/m -
+     * altes und neues Bausortiment unter derselben Kennung. Beim Laden
+     * des Datenpakets fiel es auf («1 Fehler - so laesst sich der Stand
+     * nicht uebernehmen»), und im laufenden Betrieb gewann still der
+     * erste Treffer: das ALTE mit 0.66.
      *
-     * Diese Kontrolle hält den Befund fest. Wird die Kennung berichtigt,
-     * fällt sie - und das ist dann die richtige Meldung.
+     * Weisung: «nur abfangjoch mit 0.58 nehmen, so wie in den
+     * projektierungsdokumenten» und «in der bennenung sollte alt neu
+     * unterschieden werden». Die Typentabelle unterscheidet laengst - dort
+     * heisst die alte Reihe nach ihrem Profil (UAP 130 .. UAP 250), die
+     * neue A160..A360. Die Lasttabelle tut es jetzt auch; die Gewichte
+     * ordnen eindeutig zu (0.66 kN/m = UAP 200 mit 66 kg/m).
+     *
+     * Die alte Kontrolle hielt den Befund fest und sagte: «wird die
+     * Kennung berichtigt, faellt sie - und das ist dann die richtige
+     * Meldung.» Genau so ist es gekommen.
      */
-    pruef('Genau ein Fehler im Bestand', fehler.length, 1, 1e-12, 'Stk');
-    wahr('… und es ist die doppelte Kennung in der Lasttabelle',
-         /abfangjoch-a200/.test(fehler[0] ?? ''), fehler[0] ?? '-');
+    pruef('Kein Fehler im Bestand', fehler.length, 0, 1e-12, 'Stk');
+    {
+      // Die Lasttabelle war die Stelle: dort ist `id` der Schluessel.
+      const ids = (tab.fl_bauteile?.tabellen?.bauteile ?? []).map((z) => z.id);
+      const doppelt = [...new Set(ids.filter((k, i) => ids.indexOf(k) !== i))];
+      wahr('… keine Kennung der Lasttabelle steht zweimal da',
+           doppelt.length === 0, doppelt.join(' · ') || `${ids.length} Bauteile`);
+      // Und die beiden Abfangjochreihen sind auseinanderzuhalten.
+      const abf = (tab.fl_bauteile?.tabellen?.bauteile ?? [])
+        .filter((z) => /^abfangjoch-/.test(String(z.id)));
+      const alt2 = abf.filter((z) => /altes Bausortiment/.test(String(z.bemerkung ?? '')));
+      wahr('… und die alte Reihe heisst nach ihrem Profil',
+           alt2.length > 0 && alt2.every((z) => /^UAP |^IPE /.test(String(z.name))),
+           alt2.map((z) => z.name).join(', ') || 'keine alte Reihe');
+    }
     const gesamt = K.pruefeBestand(baum);
-    pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 1, 1e-12, 'Stk');
+    pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
     pruef('… ueber alle elf Abschnitte', gesamt.abschnitte.length, 11, 1e-12, 'Stk');
   }
 
@@ -23864,12 +23946,15 @@ titel('65  Bauteildaten einlesen: Abgleich mit Vorschau');
     wahr('Die Vorschau nennt die Aenderung', /1<\/b> Änderung/.test(html));
     wahr('Sie nennt den geprueften Satz', /Geprüfte Sätze ändern sich/.test(html));
     /*
-     * GESPERRT WIRD NUR, WAS SICH AENDERT. Die doppelte Kennung in der
-     * Lasttabelle steht in der Vorschau als bestehender Befund, hält aber
-     * die Änderung an den Jochen nicht auf.
+     * GESPERRT WIRD NUR, WAS SICH AENDERT - und seit der Berichtigung der
+     * doppelten Kennung (20. September) gibt es gar keinen bestehenden
+     * Befund mehr. Die Vorschau darf deshalb weder sperren noch einen
+     * melden.
      */
-    wahr('Der bestehende Befund der Lasttabelle sperrt nichts',
-         /bestehende/.test(html) && !/so lässt sich der Stand nicht übernehmen/.test(html));
+    wahr('Die Vorschau sperrt nichts',
+         !/so lässt sich der Stand nicht übernehmen/.test(html)
+         && !/bestehende/.test(html),
+         /bestehende/.test(html) ? 'es steht doch ein Befund da' : 'frei');
   }
 }
 
@@ -25498,6 +25583,48 @@ titel('93  COM-Ausleitung: was die Bruecke liest, steht in der Datei');
   wahr('Die App leitet den Rechensatz aus, nicht die rohen Werte',
        quelle93.includes('const satz = rechensatz(app.werte);')
        && !/exportiere\w*\(app\.werte/.test(quelle93));
+
+  /* =====================================================================
+   * >>> LASTEN UEBER DER MASTSPITZE - KOMMT DIE BRUECKE DAMIT ZURECHT?
+   * ===================================================================
+   * Weisung vom 20. September: «lasten oberhalb mastspitze zulassen», dazu
+   * «falls com schnittstelle betroffen ist, diese auch nachfuehren».
+   *
+   * GEMESSEN, NICHT BEHAUPTET: die Ausleitung schreibt den Aufsatz als
+   * gewoehnlichen STARREN Stab (`MASTAUFSATZ_...`, art 'starr'). Die
+   * Bruecke liest die Art aus dem Feld `art` (Funktion StabArt) und macht
+   * daraus einen Starrkoerper - sie braucht dafuer keinen neuen Namen zu
+   * kennen. Genau das haelt diese Kontrolle fest; ein kuenftiger Stab mit
+   * einer Art, die die Bruecke NICHT kennt, faellt hier auf.
+   *
+   * Der Ruckfall ueber den Querschnittsnamen ('STARR') gilt nur alten
+   * Dateien - auf ihn darf sich ein neuer Stab nicht verlassen.
+   * =================================================================== */
+  {
+    let wU = C93.tragwerkWeg(C93.tragwerkHinzu(joch(), 'einzelmast',
+      { mastProfil: 'HEB 260', mastLaenge: 8.5 }), 'T1');
+    wU = C93.setzeAnbauteileAn(wU, [
+      { ...A.neuesAnbauteil('leiter-traverse', 0), ort: 'mastA', hMast: 9.6 },
+      { ...A.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', hMast: 7.0 }]);
+    const dU = jsonVon(C93.rechensatz(wU), o);
+    wahr('Teil ueber der Mastspitze: Datei stimmig', fehler(dU).length === 0,
+         fehler(dU).slice(0, 4).join(' | '));
+    const auf = dU.staebe.filter((x) => /(^|_)MASTAUFSATZ_/.test(x.name));
+    pruef('… und der Aufsatz steht darin', auf.length, 1, 1e-12, 'Stk');
+    /*
+     * DIE BRUECKE VERZWEIGT AUF GENAU DREI ARTEN. Steht in der Datei eine
+     * vierte, legt sie den Stab als gewoehnlichen Stab an - mit dem
+     * Ersatzquerschnitt 500x500 mm und dessen Eigengewicht. Das ist der
+     * Fehler, der am 20. September das Blattmodell 33 t schwer machte.
+     */
+    const arten = [...new Set(dU.staebe.map((x) => x.art ?? 'stab'))];
+    wahr('Jede Stabart der Datei ist eine, die die Bruecke kennt',
+         arten.every((a) => ['stab', 'starr', 'link'].includes(a))
+         && ps1.includes("$art -eq 'starr'") && ps1.includes("$art -eq 'link'"),
+         arten.join(' '));
+    wahr('… und die Bruecke liest sie aus dem Feld, nicht aus dem Namen',
+         /function StabArt\(\$sb\) \{\s*\r?\n\s*if \(\$sb\.art\)/.test(ps1));
+  }
 }
 
 titel('94  Befunde aus der Bedienung vom 19. September');
@@ -25568,12 +25695,30 @@ titel('94  Befunde aus der Bedienung vom 19. September');
   const k1 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: 1 },
                     { rolle: 'aufbau', x: 5, stationX: 5, z: 2 },
                     { rolle: 'drahtwerk', x: 6, stationX: 5, z: 2.3 }], 0.2);
-  const zMaxSenkrecht = Math.max(...k1.filter((g) => g[0] === 5 && g[2] === 5).map((g) => g[3]));
-  wahr('Kette: der Jochaufsatz endet an der Traverse, nicht auf Leiterhoehe',
-       Math.abs(zMaxSenkrecht - 2.2) < 1e-9
-       && k1.some((g) => g[0] === 5 && g[2] === 6 && g[1] === 2.2 && g[3] === 2.2)
-       && k1.some((g) => g[0] === 6 && g[2] === 6 && g[3] === 2.5),
+  /* =======================================================================
+   * >>> ZUERST z, DANN y, DANN x (Weisung vom 20. September). <<<
+   * =======================================================================
+   *
+   * «bei den koordinaten der anbauteile, zuerst die z komponente afahren.»
+   *
+   * Hier stand die umgekehrte Folge vom 19. September: «der Jochaufsatz
+   * endet an der Traverse, nicht auf Leiterhoehe» - der Weg lief erst
+   * waagrecht bis unter den Leiter und dann senkrecht zu ihm.
+   *
+   * >>> WAS DAVON BLEIBT UND WAS NICHT. <<<
+   * Der BEFUND vom 19. September bleibt behoben: gestreckt wird weiterhin
+   * nur ein TRAEGER (`streckbar` in core.anbauteile.js). Der Jochaufsatz
+   * ist nach wie vor 1.0 m lang und nicht 1.3 - was hier senkrecht bis auf
+   * Leiterhoehe laeuft, ist das Glied DES LEITERS, nicht der verlaengerte
+   * Aufsatz. Im BILD sieht beides gleich aus; das ist der Preis der neuen
+   * Folge und dem Auftraggeber gemeldet.
+   * ===================================================================== */
+  wahr('Kette am Joch: zuerst z, dann y, dann x',
+       JSON.stringify(k1) === JSON.stringify([[5, 0.2, 5, 1.2], [5, 1.2, 5, 2.2],
+                                              [5, 2.2, 5, 2.5], [5, 2.5, 6, 2.5]]),
        JSON.stringify(k1));
+  wahr('… und der Traeger selbst wird nicht laenger',
+       Math.abs(k1[1][3] - 2.2) < 1e-9, `Aufsatz endet auf ${k1[1][3]}`);
   const k2 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: -1.35 },
                     { rolle: 'aufbau', x: 6.25, stationX: 5, z: -2.7 },
                     { rolle: 'drahtwerk', x: 7.5, stationX: 5, z: -2.7 }], -0.2);
@@ -25638,9 +25783,15 @@ titel('95  Anbauteile und Ebenen: Befunde vom 19. September (zweiter Teil)');
   const k2 = kette([{ rolle: 'traeger', x: 5, stationX: 5, z: 1 },
                     { rolle: 'aufbau', x: 5, stationX: 5, z: 2 },
                     { rolle: 'drahtwerk', x: 6, y: 0.5, stationX: 5, z: 2.3 }], 0.2);
-  wahr('… an der Traverse: y, x, dann lotrecht zum Leiter',
+  /*
+   * >>> SEIT DEM 20. SEPTEMBER: z, y, x. <<<
+   * Weisung: «bei den koordinaten der anbauteile, zuerst die z komponente
+   * afahren.» Hier stand die umgekehrte Folge. Was BLEIBT, ist der Grund
+   * dieses Abschnitts: kein Glied schraeg in x und y zugleich.
+   */
+  wahr('… an der Traverse: z, dann y, dann x zum Leiter',
        !waagSchraeg(k2) && JSON.stringify(k2.slice(-3)) === JSON.stringify([
-         [5, 0, 2.2, 5, 0.5, 2.2], [5, 0.5, 2.2, 6, 0.5, 2.2], [6, 0.5, 2.2, 6, 0.5, 2.5]]),
+         [5, 0, 2.2, 5, 0, 2.5], [5, 0, 2.5, 5, 0.5, 2.5], [5, 0.5, 2.5, 6, 0.5, 2.5]]),
        JSON.stringify(k2));
   const k3 = kette([{ rolle: 'drahtwerk', x: 6, y: 0.5, stationX: 5, z: -0.35 }], -0.2);
   wahr('… ein Leiter allein am Joch: ebenfalls erst y', !waagSchraeg(k3), JSON.stringify(k3));
@@ -25723,9 +25874,18 @@ titel('97  Teile am Masten: Weg und Skizze (Ansicht x-z, Draufsicht x-y)');
   const kette = (teile) => A97.anbauKette(teile, { x0: 0, zAn: 0, amMast: true }).glieder
     .map((g) => [g.von.x, g.von.y, g.von.z, g.bis.x, g.bis.y, g.bis.z]);
   const k = kette([{ rolle: 'drahtwerk', x: 1, y: 0.5, stationX: 0, z: -0.6 }]);
-  wahr('Am Masten: erst waagrecht auf der Anschlusshoehe (y, dann x), dann lotrecht',
-       JSON.stringify(k) === JSON.stringify([[0, 0, 0, 0, 0.5, 0], [0, 0.5, 0, 1, 0.5, 0],
-                                             [1, 0.5, 0, 1, 0.5, -0.6]]), JSON.stringify(k));
+  /*
+   * >>> AM MASTEN EBENSO: z, y, x (Weisung vom 20. September). <<<
+   *
+   * Hier stand «erst waagrecht auf der Anschlusshoehe» - mit der
+   * Begruendung, ein Starrstab auf der Mastachse versteife den Masten
+   * zwischen h und h + z. Er tut es nicht: die Kette haengt an EINEM
+   * Wurzelknoten, und ihr erster Punkt ist ein freier Kettenknoten, mit
+   * keinem zweiten Mastknoten verbunden.
+   */
+  wahr('Am Masten: zuerst lotrecht, dann y, dann x',
+       JSON.stringify(k) === JSON.stringify([[0, 0, 0, 0, 0, -0.6], [0, 0, -0.6, 0, 0.5, -0.6],
+                                             [0, 0.5, -0.6, 1, 0.5, -0.6]]), JSON.stringify(k));
   const k0 = kette([{ rolle: 'drahtwerk', x: 0, y: 0, stationX: 0, z: -0.6 }]);
   wahr('… ohne Ausladung genau ein lotrechtes Glied', k0.length === 1
        && k0[0][3] === 0 && k0[0][5] === -0.6, JSON.stringify(k0));
@@ -25855,13 +26015,31 @@ titel('99  Anbauteile am Einzelmast: alle Eingabewege');
        Math.abs(U99.mastKopfHoehe(sE, 'A') - lang) < 1e-9 && lang > (Number(sE.mastH) || 0),
        `${U99.mastKopfHoehe(sE, 'A')} m, Anschlusshoehe ${sE.mastH} m`);
 
-  // Duplizieren am Kopf: die Kopie rutscht nach unten, nicht darueber.
+  /*
+   * >>> UND ZWEI METER DARUEBER HINAUS (Weisung vom 20. September). <<<
+   * «lasten oberhalb mastspitze zulassen.» Der Regler endete am Kopf; ein
+   * Aufsatz darueber liess sich gar nicht eingeben.
+   */
+  pruef('Der Regler reicht zwei Meter ueber die Mastspitze hinaus',
+        U99.mastReglerHoehe(sE, 'A') - U99.mastKopfHoehe(sE, 'A'), 2.0, 1e-9, 'm');
+
+  // Duplizieren unterhalb der Reglerhoehe: die Kopie geht nach oben.
   const teil = { id: 'AT-k', name: 'RL', ort: 'mastA', hMast: lang - 0.3, x: 0, module: [], lasten: [] };
   let gesetzt = null;
   K99.anbauteilDuplizieren({ werte: { ...sE, anbauteile: [teil] }, letzte: null,
     setzeAnbauteile: (l) => { gesetzt = l; }, meldeImBalken: () => {} }, 0);
-  wahr('Duplizieren am Mastkopf: die Kopie steht darunter', gesetzt?.[1]?.hMast <= lang + 1e-9
-       && Math.abs(gesetzt[1].hMast - (lang - 0.8)) < 1e-9, `${gesetzt?.[1]?.hMast} m`);
+  wahr('Duplizieren nahe der Spitze: die Kopie darf darueber',
+       Math.abs(gesetzt?.[1]?.hMast - (lang + 0.2)) < 1e-9, `${gesetzt?.[1]?.hMast} m`);
+  {
+    // Ganz oben angelangt geht es wieder abwaerts - sonst wanderte die
+    // Kopie mit jedem Klick weiter in die Luft.
+    const oben = { ...teil, hMast: U99.mastReglerHoehe(sE, 'A') - 0.2 };
+    let g2 = null;
+    K99.anbauteilDuplizieren({ werte: { ...sE, anbauteile: [oben] }, letzte: null,
+      setzeAnbauteile: (l) => { g2 = l; }, meldeImBalken: () => {} }, 0);
+    wahr('… an der Reglerhoehe wieder darunter',
+         g2?.[1]?.hMast < oben.hMast, `${g2?.[1]?.hMast} m`);
+  }
 
   const q99 = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
   wahr('Ein Traeger am Einzelmast: kein Rat «ans Joch»',
@@ -26822,25 +27000,34 @@ titel('110  Einzelmast: Durchlauf ueber Modellierung und Auswertung');
   }
 
   /* =====================================================================
-   * b) EIN TEIL UEBER DEM MASTKOPF WIRD NICHT STILL WEGGELASSEN
+   * b) EIN TEIL UEBER DER MASTSPITZE WIRD GEBAUT (20. September)
    * ===================================================================
-   * Der Nachweis rechnet es (mit einem Hebelarm, den es nicht gibt), die
-   * Ausleitung laesst es weg (kein Knoten dort). Beides darf sein - aber
-   * nicht, ohne dass jemand es erfaehrt.
+   * Weisung: «lasten oberhalb mastspitze zulassen.»
+   *
+   * Hier stand der Befund davor: der Nachweis rechnete es auf einem
+   * Hebelarm, den das Modell nicht kannte - die Ausleitung liess es weg
+   * und vermerkte es. Jetzt bauen beide dasselbe: ein starres Stueck
+   * ueber der Spitze traegt die Last, und der Hinweis sagt, dass dort
+   * kein Mastprofil mehr steht.
    */
   {
     const { s, erg } = rechne110(einzelmast({ laenge: 8, hMast: 9.0 }));
     const dat = datei110(s, erg);
     const h = CH110.hinweise(erg.modell).join(' ');
-    wahr('Teil ueber dem Mastkopf: die Anwendung meldet es',
-         /ÜBER dem Mastkopf/.test(h), h.slice(0, 70) || 'kein Hinweis');
-    wahr('… und die Datei fuehrt den Vermerk',
-         (dat.tragwerk.anbauMastAus ?? []).length === 1,
+    wahr('Teil ueber der Mastspitze: die Anwendung nennt es',
+         /über der Mastspitze/.test(h) && /zugelassen/.test(h),
+         h.slice(0, 80) || 'kein Hinweis');
+    wahr('… und nichts faellt aus der Datei',
+         (dat.tragwerk.anbauMastAus ?? []).length === 0,
          JSON.stringify(dat.tragwerk.anbauMastAus));
+    const auf = dat.staebe.filter((x) => /^MASTAUFSATZ_/.test(x.name));
+    pruef('… ein starres Stueck traegt die Last', auf.length, 1, 1e-12, 'Stk');
+    wahr('… und es ist wirklich starr, kein Mastprofil',
+         auf[0].art === 'starr', `${auf[0].art} / ${auf[0].querschnitt}`);
     const drin = rechne110(einzelmast({ laenge: 12, hMast: 9.0 }));
     const hd = CH110.hinweise(drin.erg.modell).join(' ');
-    wahr('… und kein Fehlalarm, wenn es drin sitzt',
-         !/ÜBER dem Mastkopf/.test(hd)
+    wahr('… und kein Hinweis, wenn es unter der Spitze sitzt',
+         !/über der Mastspitze/.test(hd)
          && (datei110(drin.s, drin.erg).tragwerk.anbauMastAus ?? []).length === 0,
          'Mast 12 m, Teil auf 9 m');
   }
@@ -26898,6 +27085,252 @@ titel('110  Einzelmast: Durchlauf ueber Modellierung und Auswertung');
       .map((q) => q.name));
     wahr('… und jeder sein eigenes Profil', profile.size === 3,
          [...profile].join(', '));
+  }
+}
+
+
+titel('111  Stabwerksloeser (core.stabwerk.js)');
+/*
+ * Schritt 2 des Bauplans vom 19. September. Der Loeser frisst das Modell,
+ * das `stabmodellJson` ohnehin fuer AxisVM schreibt - ein Modellbauer fuer
+ * alle Wege.
+ *
+ * ER HAENGT AN KEINEM NACHWEIS. Diese Kontrollen pruefen ihn fuer sich:
+ * zuerst gegen geschlossene Loesungen (dort muss die Zahl EXAKT stimmen,
+ * sonst ist das Element falsch), dann am wirklichen Jochmodell gegen das
+ * Gleichgewicht.
+ */
+{
+  const FEM = await import(J('core.stabwerk.js'));
+  const V111 = await import(J('core.vierendeel.js'));
+  const AX111 = await import(J('export.axisvm.js'));
+  const NB111 = await import(J('core.nachbarn.js'));
+
+  const E = 210000, G = 81000;          // N/mm2, wie in der Datei
+  const Ek = E * 1000, Gk = G * 1000;   // kN/m2
+  const FEST = { ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                 fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' };
+  const REC = (name, b, h) => ({ name, form: 'Rectangle', parameter: [b, h],
+                                 A: null, Iy: null, Iz: null, It: null });
+  const modell111 = (o) => ({
+    material: { E, G }, materialSteif: { faktor: 1000 },
+    querschnitte: o.qs, knoten: o.knoten, staebe: o.staebe, auflager: o.auflager,
+    lastfaelle: [{ key: 'L', label: 'L', art: 'Others' }],
+    lasten: { punkt: o.punkt ?? [], moment: o.moment ?? [], strecke: o.strecke ?? [] },
+    kombinationen: [],
+  });
+
+  /* Rechteck 100 x 200 mm: b in lokaler y, h in lokaler z. */
+  const b0 = 0.1, h0 = 0.2;
+  const A0 = b0 * h0;
+  const Iy0 = (b0 * h0 ** 3) / 12;      // Biegung in der x-z-Ebene
+  const Iz0 = (h0 * b0 ** 3) / 12;      // Biegung in der x-y-Ebene
+  const L0 = 4, F0 = 10;
+  const kragarm = {
+    qs: [REC('R', 100, 200)],
+    knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: L0, y: 0, z: 0 }],
+    staebe: [{ name: 'S', von: 'A', bis: 'B', querschnitt: 'R', art: 'stab',
+               lcsZ: [0, 0, 1] }],
+    auflager: [{ knoten: 'A', ...FEST }],
+  };
+  const uVon = (r, kn, dof) => r.u.get('L')[r.knotenIdx.get(kn) * 6 + dof];
+
+  // --- a) Kragarm: jede Steifigkeit einzeln ------------------------------
+  {
+    let r = FEM.loese(modell111({ ...kragarm,
+      punkt: [{ knoten: 'B', richtung: 'Z', wert: -F0, lastfall: 'L' }] }));
+    pruef('Kragarm, Last z: Durchbiegung', uVon(r, 'B', 2),
+          -(F0 * L0 ** 3) / (3 * Ek * Iy0), 1e-12, 'm');
+    pruef('… Einspannmoment M_y', r.auflagerkraefte('L')[0].fiy, -F0 * L0, 1e-9, 'kNm');
+
+    r = FEM.loese(modell111({ ...kragarm,
+      punkt: [{ knoten: 'B', richtung: 'Y', wert: F0, lastfall: 'L' }] }));
+    pruef('Kragarm, Last y: Verschiebung', uVon(r, 'B', 1),
+          (F0 * L0 ** 3) / (3 * Ek * Iz0), 1e-12, 'm');
+
+    r = FEM.loese(modell111({ ...kragarm,
+      punkt: [{ knoten: 'B', richtung: 'X', wert: F0, lastfall: 'L' }] }));
+    pruef('Kragarm, Laengskraft', uVon(r, 'B', 0), (F0 * L0) / (Ek * A0), 1e-12, 'm');
+
+    const It0 = FEM.qsWerte(REC('R', 100, 200)).It;
+    r = FEM.loese(modell111({ ...kragarm,
+      moment: [{ knoten: 'B', richtung: 'Mx', wert: 5, lastfall: 'L' }] }));
+    pruef('Kragarm, Torsion', uVon(r, 'B', 3), (5 * L0) / (Gk * It0), 1e-12, 'rad');
+
+    const q0 = 3;
+    r = FEM.loese(modell111({ ...kragarm,
+      strecke: [{ stab: 'S', richtung: 'Z', wert: -q0, lastfall: 'L' }] }));
+    pruef('Kragarm, Gleichlast: Durchbiegung', uVon(r, 'B', 2),
+          -(q0 * L0 ** 4) / (8 * Ek * Iy0), 1e-12, 'm');
+    pruef('… und M am Fuss', r.auflagerkraefte('L')[0].fiy,
+          -(q0 * L0 ** 2) / 2, 1e-9, 'kNm');
+    wahr('… das freie Ende bleibt momentfrei',
+         Math.abs(r.stabkraft('L').get('S')[10]) < 1e-9);
+  }
+
+  // --- b) Einfeldtraeger, Rahmen, Drehfeder ------------------------------
+  {
+    const q1 = 5, Ls = 6;
+    const r = FEM.loese(modell111({
+      qs: [REC('R', 100, 200)],
+      knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'M', x: Ls / 2, y: 0, z: 0 },
+               { name: 'B', x: Ls, y: 0, z: 0 }],
+      staebe: [{ name: 'S1', von: 'A', bis: 'M', querschnitt: 'R', art: 'stab', lcsZ: [0, 0, 1] },
+               { name: 'S2', von: 'M', bis: 'B', querschnitt: 'R', art: 'stab', lcsZ: [0, 0, 1] }],
+      auflager: [
+        { knoten: 'A', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid', fix: 'Rigid', fiy: 'Free', fiz: 'Free' },
+        { knoten: 'B', ux: 'Free', uy: 'Rigid', uz: 'Rigid', fix: 'Rigid', fiy: 'Free', fiz: 'Free' }],
+      strecke: [{ stab: 'S1', richtung: 'Z', wert: -q1, lastfall: 'L' },
+                { stab: 'S2', richtung: 'Z', wert: -q1, lastfall: 'L' }],
+    }));
+    pruef('Einfeldtraeger: w in Feldmitte', uVon(r, 'M', 2),
+          -(5 * q1 * Ls ** 4) / (384 * Ek * Iy0), 1e-12, 'm');
+    pruef('… M in Feldmitte', -r.stabkraft('L').get('S1')[10],
+          (q1 * Ls ** 2) / 8, 1e-9, 'kNm');
+    pruef('… Auflagerkraft', r.auflagerkraefte('L')[0].uz, (q1 * Ls) / 2, 1e-9, 'kN');
+  }
+  {
+    // Eingespannter Stiel mit Kragriegel: das Moment geht um die Ecke.
+    const Fr = 8, hS = 5, lR = 3;
+    const r = FEM.loese(modell111({
+      qs: [REC('R', 200, 200)],
+      knoten: [{ name: 'F', x: 0, y: 0, z: 0 }, { name: 'K', x: 0, y: 0, z: hS },
+               { name: 'E', x: lR, y: 0, z: hS }],
+      staebe: [{ name: 'ST', von: 'F', bis: 'K', querschnitt: 'R', art: 'stab', lcsZ: [1, 0, 0] },
+               { name: 'RI', von: 'K', bis: 'E', querschnitt: 'R', art: 'stab', lcsZ: [0, 0, 1] }],
+      auflager: [{ knoten: 'F', ...FEST }],
+      punkt: [{ knoten: 'E', richtung: 'Z', wert: -Fr, lastfall: 'L' }],
+    }));
+    const a = r.auflagerkraefte('L')[0];
+    pruef('Rahmen: Auflagerkraft lotrecht', a.uz, Fr, 1e-9, 'kN');
+    pruef('… Einspannmoment am Fuss', a.fiy, -Fr * lR, 1e-9, 'kNm');
+    pruef('… Normalkraft im Stiel', r.stabkraft('L').get('ST')[0], Fr, 1e-9, 'kN');
+  }
+  {
+    const Fd = 12, c = 4000;   // kNm/rad
+    const r = FEM.loese(modell111({ ...kragarm,
+      auflager: [{ knoten: 'A', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                   fix: 'Rigid', fiy: 'Flexible', fiz: 'Rigid', cFiy_kNm: c }],
+      punkt: [{ knoten: 'B', richtung: 'Z', wert: -Fd, lastfall: 'L' }] }));
+    pruef('Drehfeder am Auflager', uVon(r, 'B', 2),
+          -((Fd * L0 ** 3) / (3 * Ek * Iy0) + ((Fd * L0) / c) * L0), 1e-11, 'm');
+  }
+
+  // --- c) Das Linkelement --------------------------------------------------
+  {
+    /*
+     * Der Link liegt laengs y: seine lokale x-Achse ist global y, also
+     * haelt «xx: Rigid» die BIEGEVERDREHUNG des Kragarms. z bleibt frei -
+     * senkrecht traegt nur der Kragarm, aber mit gefuehrtem Ende:
+     * w = F L^3 / (12 E I) statt / (3 E I).
+     */
+    const Fl = 6;
+    const r = FEM.loese(modell111({
+      qs: [REC('R', 100, 200), REC('STARR', 500, 500)],
+      knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 4, y: 0, z: 0 },
+               { name: 'C', x: 4, y: 0.05, z: 0 }],
+      staebe: [{ name: 'S', von: 'A', bis: 'B', querschnitt: 'R', art: 'stab', lcsZ: [0, 0, 1] },
+               { name: 'LK', von: 'B', bis: 'C', querschnitt: 'STARR', art: 'link',
+                 lcsZ: [0, 0, 1],
+                 kraftuebertragung: { x: 'Rigid', y: 'Rigid', z: 'Free',
+                                      xx: 'Rigid', yy: 'Free', zz: 'Free' } }],
+      auflager: [{ knoten: 'A', ...FEST }, { knoten: 'C', ...FEST }],
+      punkt: [{ knoten: 'B', richtung: 'Z', wert: -Fl, lastfall: 'L' }],
+    }));
+    // Toleranz 1e-4: «Rigid» ist im Link eine ZAHL (LINK_STARR), kein
+    // Zwang - der Rest ist das Verhaeltnis zur Stabsteifigkeit (1e-5).
+    pruef('Link: z frei, Ende gefuehrt', uVon(r, 'B', 2),
+          -(Fl * 4 ** 3) / (12 * Ek * Iy0), 1e-4, 'm');
+    wahr('… und das zweite Auflager traegt lotrecht nichts',
+         Math.abs(r.auflagerkraefte('L')[1].uz) < 1e-6);
+  }
+
+  // --- d) Am wirklichen Jochmodell: das Gleichgewicht ----------------------
+  /*
+   * Die geschlossenen Faelle oben sind klein und gut konditioniert. Das
+   * Joch ist es nicht: 483 Starrelemente, das kuerzeste 11 mm lang. Erst
+   * Jacobi-Skalierung und Nachiteration holen die Stellen zurueck - ohne
+   * sie lag das Gleichgewicht um bis zu 46 % daneben (20. September).
+   */
+  {
+    let w111 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w111.L = 20; w111.xLage = 0; w111.mastVorhanden = true;
+    const satz = NB111.rechensatzMitNachbarn(w111);
+    const erg = berechne(satz, getProfil(satz.profOG), getProfil(satz.profUG),
+                         getStahl(satz.stahl), T.getTragjoch(satz.typ));
+    const m = V111.modell({ ...satz, beiwerteFest: null }, erg.modell.profOG,
+                          erg.modell.profUG, erg.modell.stahl, erg.modell.joch);
+    const dat = AX111.stabmodellJson(m, { knotenmodell: 'anschnitt',
+                                          auflagerModell: 'mast', eingabe: satz });
+    const r = FEM.loese(dat);
+    wahr('Das Jochmodell laesst sich zerlegen',
+         r.n > 1000, `${r.n} Freiheitsgrade · Bandbreite ${r.bw}`);
+
+    const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+    const st = new Map(dat.staebe.map((x) => [x.name, x]));
+    const lastsumme = (fall) => {
+      const s2 = { X: 0, Y: 0, Z: 0 };
+      (dat.lasten.punkt ?? []).filter((l) => l.lastfall === fall)
+        .forEach((l) => { s2[l.richtung] += l.wert; });
+      (dat.lasten.strecke ?? []).filter((l) => l.lastfall === fall).forEach((l) => {
+        const bb = st.get(l.stab);
+        const p1 = kn.get(bb.von), p2 = kn.get(bb.bis);
+        s2[l.richtung] += l.wert * Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+      });
+      return s2;
+    };
+    let schlimm = 0; let woFall = '';
+    dat.lastfaelle.forEach((lf) => {
+      const p = lastsumme(lf.key);
+      const a = r.auflagerkraefte(lf.key);
+      const sum = { X: a.reduce((t, x) => t + x.ux, 0),
+                    Y: a.reduce((t, x) => t + x.uy, 0),
+                    Z: a.reduce((t, x) => t + x.uz, 0) };
+      const gross = Math.max(Math.abs(p.X), Math.abs(p.Y), Math.abs(p.Z));
+      if (gross < 1e-9) return;
+      const abw = Math.max(...['X', 'Y', 'Z'].map((d) => Math.abs(p[d] + sum[d]))) / gross;
+      if (abw > schlimm) { schlimm = abw; woFall = lf.key; }
+    });
+    wahr('Kraftgleichgewicht in jedem Lastfall',
+         schlimm < 1e-8, `groesste Abweichung ${(schlimm * 100).toExponential(2)} %`
+         + (woFall ? ` (${woFall})` : ''));
+    /*
+     * DER REST DER GLEICHUNG - RELATIV, NICHT ABSOLUT.
+     *
+     * K*u - p ueber die freien Freiheitsgrade muss null sein. Wie klein
+     * «null» hier werden kann, gibt die Konditionierung vor und nicht
+     * der Loeser: ein 11 mm langes Starrelement traegt 12EI/L^3 = 1e17
+     * bei, ein Gurtstab 1.2e4 - schon das Aufsummieren von K*u kostet
+     * die letzten Stellen. Gemessen am J90/20 m (Nachiterationen 0..12):
+     *
+     *     0 -> 4.76e-3 kN   1 -> 3.71e-3   2 -> 4.47e-3   3 -> 4.15e-3
+     *     5 -> 4.57e-3      8 -> 3.59e-3  12 -> 3.68e-3 kN
+     *
+     * Es SINKT NICHT WEITER, es rauscht um 1e-4 der groessten Knoten-
+     * kraft. Eine absolute Schranke (frueher 1e-6 kN) misst darum nicht
+     * den Loeser, sondern die Groesse des Modells. Gemessen wird deshalb
+     * gegen `bezug` - den groessten Betrag in K*u. Dass die Loesung
+     * trotzdem stimmt, sagt die Kontrolle darueber: das Gleichgewicht
+     * der Auflagerkraefte stimmt auf 1e-7 %.
+     */
+    {
+      const q = r.restkraft('WindY');
+      wahr('… und der Rest verschwindet gegen die Knotenkraefte',
+           q.gross / q.bezug < 1e-3,
+           `${(q.gross / q.bezug).toExponential(2)} von ${q.bezug.toFixed(1)} kN`
+           + ` (${q.gross.toExponential(2)} kN bei ${q.wo})`);
+    }
+
+    /*
+     * DIE ANTWORT HAENGT NICHT AN DER ERSATZSTEIFIGKEIT. Gemessen von
+     * Faktor 1 bis 10 - fuenf gleiche Stellen. Das ist die eigentliche
+     * Rechtfertigung fuer den kleinen Wert.
+     */
+    const ry = (f) => FEM.loese(dat, { starrFaktor: f }).auflagerkraefte('WindY')[0].uy;
+    const r1 = ry(1), r10 = ry(10);
+    wahr('Die Loesung haengt nicht am Starrfaktor (1 gegen 10)',
+         Math.abs(r1 - r10) / Math.abs(r1) < 1e-5,
+         `${r1.toFixed(5)} gegen ${r10.toFixed(5)} kN`);
   }
 }
 

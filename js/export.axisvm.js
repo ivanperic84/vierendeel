@@ -1430,15 +1430,36 @@ function stabmodellEinzelmast(m, opt = {}) {
   const mastKn = new Map([[zFuss, kFuss], [0, kAnschluss]]);
   if (zKopf > 1e-9) mastKn.set(zKopf, s.kn(`MAST_${mn('A')}_KOPF`, x, 0, zKopf));
   const anbauMastAus = [];
+  /*
+   * >>> LASTEN UEBER DER MASTSPITZE SIND ZUGELASSEN (20. September) <<< -
+   * derselbe Weg wie im Jochmodell, die lange Begruendung steht dort. Sie
+   * bekommen ihren Knoten auf der Mastachse und haengen an einem starren
+   * Stueck ueber dem Kopf; unter der Fundamentkote bleibt es beim Vermerk.
+   *
+   * >>> UND DER NAME ZAEHLT ANBAUHOEHEN, NICHT KNOTEN. <<<
+   * Hier stand `mastKn.size - 1` - dieselbe brueckige Zaehlung, die im
+   * Jochmodell am 20. September schon berichtigt wurde: sobald ein
+   * Kopfknoten dazukam, wurde aus MAST_A_H1 still MAST_A_H2.
+   */
+  const ueberKopf = new Map();
+  let anbauNr = 0;
   (m.anbauMast ?? []).forEach((a) => {
     const zA = r6(zFuss + (a.hMast ?? 0));
-    if (zA < zFuss - 1e-9 || zA > zKopf + 1e-9) {
+    if (zA < zFuss - 1e-9) {
       anbauMastAus.push({ name: a.name ?? a.id, ende: 'A',
                           hMast: a.hMast ?? 0, H: md.H });
       return;
     }
+    if (zA > zKopf + 1e-9) {
+      if (!ueberKopf.has(zA)) {
+        anbauNr += 1;
+        ueberKopf.set(zA, s.kn(`MAST_${mn('A')}_H${anbauNr}`, x, 0, zA));
+      }
+      return;
+    }
     if (!mastKn.has(zA)) {
-      mastKn.set(zA, s.kn(`MAST_${mn('A')}_H${mastKn.size - 1}`, x, 0, zA));
+      anbauNr += 1;
+      mastKn.set(zA, s.kn(`MAST_${mn('A')}_H${anbauNr}`, x, 0, zA));
     }
   });
   /*
@@ -1486,6 +1507,13 @@ function stabmodellEinzelmast(m, opt = {}) {
                       fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid', feder: null }];
   const qsStarr = s.qs(rechteck(STARR));
   const qsArm = s.qs(rechteck(ARM));
+  // Der Aufsatz ueber der Mastspitze - starr, kein Mastprofil.
+  [...ueberKopf.keys()].sort((p1, p2) => p1 - p2).forEach((zA, i, alle) => {
+    s.stab(`MASTAUFSATZ_${mn('A')}_${i + 1}`, qsStarr,
+           i === 0 ? mastKn.get(zStufen[zStufen.length - 1])
+                   : ueberKopf.get(alle[i - 1]),
+           ueberKopf.get(zA), { starrRolle: 'verbindung' });
+  });
   const ankerAus = [];
   ankerBauen({ s, md, ende: 'A', mn, x, h: 0, zFuss, zOben: zOberkante,
                mastKn, qsStarr, auflager, ankerAus });
@@ -2719,13 +2747,40 @@ export function stabmodell(m, opt = {}) {
         mastKn.set(zKopf, s.kn(`MAST_${mn(ende)}_KOPF`, x, 0, zKopf));
       }
       const ausserhalb = [];
+      /*
+       * >>> LASTEN UEBER DER MASTSPITZE SIND ZUGELASSEN (20. September). <<<
+       *
+       * Weisung: «lasten oberhalb mastspitze zulassen.»
+       *
+       * Bis hierher fielen sie aus dem Modell: der Mast endet dort, also
+       * fand das Teil keinen Knoten, und es wanderte in `anbauMastAus`. Der
+       * NACHWEIS rechnete es derweil auf seinem Hebelarm weiter - zwei
+       * Modelle aus einer Eingabe, und das ausgeleitete das guenstigere.
+       *
+       * Jetzt bekommt es seinen Knoten auf der Mastachse, angeschlossen mit
+       * einem STARREN Stueck an die Mastspitze (`MASTAUFSATZ_...` weiter
+       * unten) - kein Mastprofil, denn dort steht keines. Das Starrstueck
+       * traegt Kraft UND Moment in den Kopf: genau der Hebelarm, mit dem der
+       * Rechenkern rechnet. Beide Wege sagen damit dasselbe.
+       *
+       * UNTER DER FUNDAMENTKOTE bleibt es beim Vermerk - das ist der andere
+       * Fall (Entscheid vom 18. September: keine Last unter Terrain).
+       */
+      const ueberKopf = new Map();
       let anbauNr = 0;
       (m.anbauMast ?? []).forEach((a) => {
         if ((a.ort === 'mastB' ? 'B' : 'A') !== ende) return;
         const zA = r6(zFuss + (a.hMast ?? 0));
-        if (zA < zFuss - 1e-9 || zA > zKopf + 1e-9) {
+        if (zA < zFuss - 1e-9) {
           ausserhalb.push({ name: a.name ?? a.id, ende, hMast: a.hMast ?? 0,
                             H: md.H });
+          return;
+        }
+        if (zA > zKopf + 1e-9) {
+          if (!ueberKopf.has(zA)) {
+            anbauNr += 1;
+            ueberKopf.set(zA, s.kn(`MAST_${mn(ende)}_H${anbauNr}`, x, 0, zA));
+          }
           return;
         }
         if (!mastKn.has(zA)) {
@@ -2860,6 +2915,18 @@ export function stabmodell(m, opt = {}) {
         s.stab(`KONSANSATZ_${an(ende)}_${gurt}`, qsStarr,
                mastKn.get(zStufen[zStufen.length - 1]), ansatzKn[gurt],
                { starrRolle: 'verbindung' });
+      });
+      /*
+       * DER AUFSATZ UEBER DER MASTSPITZE - ein starres Stueck, kein Mast.
+       * Mehrere Hoehen werden aufsteigend gereiht, wie ein Aufsatzrohr auf
+       * dem Kopf steht; bei lauter Starrkoerpern ist das gleichwertig zu
+       * einem Faecher, aber es sieht aus wie das, was es ist.
+       */
+      [...ueberKopf.keys()].sort((p1, p2) => p1 - p2).forEach((zA, i, alle) => {
+        s.stab(`MASTAUFSATZ_${mn(ende)}_${i + 1}`, qsStarr,
+               i === 0 ? mastKn.get(zStufen[zStufen.length - 1])
+                       : ueberKopf.get(alle[i - 1]),
+               ueberKopf.get(zA), { starrRolle: 'verbindung' });
       });
 
       /*
@@ -3356,7 +3423,30 @@ export function stabmodell(m, opt = {}) {
      * massgenau daran, nicht an der urspruenglichen Station.
      */
     const kette = anbauKette(a.teile ?? [a], { x0, zAn });
-    const knotenVon = new Map([[kette.wurzel, anker]]);
+    /*
+     * >>> EIN TEIL AUF DER WURZEL BRAUCHT SEINEN EIGENEN KNOTEN. <<<
+     *
+     * Der Anschlusskoerper sitzt um LINK_LAENGE neben der Gurtebene (siehe
+     * oben: «der Lastpunkt bleibt, wo er ist»). Jedes Teil bekommt dafuer
+     * seinen eigenen Knoten - jedes ausser einem, das GENAU AUF DER WURZEL
+     * sitzt: das erbte bisher den Anschlusskoerper und damit dessen 0.1 m
+     * Versatz.
+     *
+     * Aufgefallen am 20. September, als der Windanteil des Auslegers auch
+     * ohne Haengestuetze auf die Achse zurueckgesetzt wurde (Weisung «den
+     * windanteil auf den masten wirken lassen»): sein Punkt faellt mit der
+     * Wurzel zusammen, und er stand im Modell 0.1 m unter der Hoehe, mit
+     * der der Rechenkern rechnet - beim NT-Ausleger -0.3246 statt -0.2246.
+     * Fuer die waagrechte Kraft ist das ein Hebelarm zur Jochachse.
+     */
+    let wurzelKn = anker;
+    if (kette.belegung.some(({ punkt }) => punkt === kette.wurzel)
+        && Math.abs((s.knoten.get(anker)?.z ?? kette.wurzel.z) - kette.wurzel.z) > 1e-9) {
+      wurzelKn = s.kn(`AL${k}_W`, r6(kette.wurzel.x), r6(kette.wurzel.y),
+                      r6(kette.wurzel.z));
+      s.stab(`ARM${k}_W`, qsArm, anker, wurzelKn, { starrRolle: 'anbauteil' });
+    }
+    const knotenVon = new Map([[kette.wurzel, wurzelKn]]);
     kette.glieder.forEach((g) => {
       const kn = s.kn(`AL${k}_${g.bis.nr}`, r6(g.bis.x), r6(g.bis.y), r6(g.bis.z));
       knotenVon.set(g.bis, kn);

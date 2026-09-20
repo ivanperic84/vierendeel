@@ -506,10 +506,13 @@ export function anbauteilDuplizieren(app, i) {
       kopie = { ...rasterGesetzt(kopie, an), x: an.x };
     }
   } else {
-    // Am Masten eine Stufe hoeher - am Kopf eine tiefer, sonst stuende die
-    // Kopie ueber dem Masten (Befund vom 19. September am Einzelmast).
+    // Am Masten eine Stufe hoeher - ganz oben eine tiefer, sonst rutschte
+    // die Kopie mit jedem Klick weiter in die Luft (Befund vom
+    // 19. September am Einzelmast). Die Grenze ist seit dem 20. September
+    // nicht mehr der Kopf, sondern die Reglerhoehe: Lasten oberhalb der
+    // Mastspitze sind zugelassen.
     const h = Number(a.hMast) || 0;
-    const kopf = ui.mastKopfHoehe(app.werte, a.ort === 'mastB' ? 'B' : 'A');
+    const kopf = ui.mastReglerHoehe(app.werte, a.ort === 'mastB' ? 'B' : 'A');
     kopie.hMast = Math.round((h + 0.5 <= kopf + 1e-9 ? h + 0.5 : Math.max(0, h - 0.5)) * 100) / 100;
   }
   liste.splice(i + 1, 0, kopie);

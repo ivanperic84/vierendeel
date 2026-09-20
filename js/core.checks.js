@@ -799,22 +799,20 @@ export function hinweise(m) {
    * Last wird gerechnet, wo sie steht, und ihr Wind mindert das Fussmoment.
    */
   /*
-   * >>> UND KEINE LAST UEBER DEM MASTKOPF (20. September). <<<
+   * >>> EINE LAST UEBER DER MASTSPITZE IST ZUGELASSEN (20. September). <<<
    *
-   * Beim Durchlauf ueber den Einzelmasten gefunden: eine Traverse auf
-   * h = 9.00 m an einem Masten von 8.00 m wird vom NACHWEIS gerechnet -
-   * mit dem Hebelarm 9.00 m, den es nicht gibt -, in der AUSLEITUNG aber
-   * weggelassen: dort findet sie keinen Knoten (`anbauMastAus` in
-   * export.axisvm.js, die Datei fuehrt den Vermerk). Zwei Modelle, eine
-   * Eingabe, kein Wort darueber.
+   * Weisung: «lasten oberhalb mastspitze zulassen.» Damit ist der Entscheid
+   * gefallen, der hier vorlag: das Teil wird NICHT auf den Kopf
+   * heruntergezogen, es bleibt, wo es eingegeben ist.
    *
-   * So entsteht es: der Hoehenregler reicht nur bis zum Kopf (19. Sept.,
-   * `mastKopfHoehe`), aber wer den Masten HINTERHER kuerzt, laesst das
-   * Teil oben stehen.
+   * Was davor war: der Nachweis rechnete es auf seinem Hebelarm, die
+   * Ausleitung liess es weg (`anbauMastAus`) - zwei Modelle aus einer
+   * Eingabe. Jetzt baut auch die Ausleitung es, an einem starren Stueck
+   * ueber der Spitze (`MASTAUFSATZ_...` in export.axisvm.js). Beide Wege
+   * rechnen dasselbe, und der Regler reicht zwei Meter darueber hinaus.
    *
-   * Der Hinweis nennt beides. Ob die Eingabe das Teil stattdessen auf den
-   * Kopf herunterziehen soll - wie sie es an der Fundamentkote nach oben
-   * tut - ist ein Entscheid des Auftraggebers und liegt ihm vor.
+   * Der Vermerk bleibt - nicht als Fehler, sondern damit im Nachweis steht,
+   * dass ueber dem Mastprofil kein Mastprofil mehr traegt.
    */
   const ueber = new Map();
   (m.anbauMastFlach ?? []).forEach((t) => {
@@ -832,11 +830,12 @@ export function hinweise(m) {
     if (!da || h > da.h) ueber.set(name, { h, kopf, ende });
   });
   ueber.forEach((v, name) => {
-    h.push(`${name}: sitzt ÜBER dem Mastkopf (h = ${v.h.toFixed(2)} m, `
-      + `Mast ${v.kopf.toFixed(2)} m). Der Nachweis rechnet die Last auf `
-      + 'diesem Hebelarm; im ausgeleiteten Modell fehlt sie, weil der Mast '
-      + 'dort nicht mehr steht. Höhe am Masten herabsetzen oder den Masten '
-      + 'verlängern.');
+    h.push(`${name}: sitzt über der Mastspitze (h = ${v.h.toFixed(2)} m, `
+      + `Mast ${v.kopf.toFixed(2)} m). Das ist zugelassen: Nachweis und `
+      + 'Ausleitung rechnen die Last auf diesem Hebelarm, im Modell trägt '
+      + `sie ein starres Stück ${(v.h - v.kopf).toFixed(2)} m über dem Kopf. `
+      + 'Ein Mastprofil steht dort nicht mehr - der Aufsatz selbst ist nicht '
+      + 'nachgewiesen.');
   });
 
   const unter = new Map();

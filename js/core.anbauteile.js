@@ -249,40 +249,56 @@ export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
       const letzt = weg[weg.length - 1] ?? a;
       if (!wie(r, letzt) && !wie(r, p)) weg.push(r);
     };
-    if (d && a.rolle === 'aufbau') {
-      // Auf der Höhe des Aufbaus waagrecht, erst y, dann x - dann lotrecht.
-      dazu({ x: a.x, y: p.y, z: a.z });
-      dazu({ x: p.x, y: p.y, z: a.z });
-      return weg;
-    }
-    let von = a;
     /*
-     * >>> AM MASTEN: ERST WAAGRECHT AUF DER ANSCHLUSSHOEHE, DANN LOTRECHT
-     * (19. September). <<<
+     * >>> ZUERST z, DANN y, DANN x (Weisung vom 20. September). <<<
      *
-     * Die Wurzel sitzt auf der Mastachse, und dort geht kein Glied voraus -
-     * das erste Teil hing deshalb an einer SCHRAEGEN vom Anschluss zu
-     * seinem Punkt. Gebaut ist es so: der Ausleger oder Isolatortraeger
-     * geht auf der Hoehe h waagrecht ab (y vor x), der Leiter haengt bzw.
-     * steht an seinem Ende. Den Masten entlang zu laufen waere falsch - in
-     * AxisVM laege dann ein Starrstab AUF der Mastachse und versteifte den
-     * Mast zwischen h und h + z. Aufgefallen beim Nachpruefen der Skizze
-     * «Lage im Querschnitt».
+     * «bei den koordinaten der anbauteile, zuerst die z komponente
+     * afahren.»
+     *
+     * Das kehrt die Reihenfolge vom 19. September um. Damals lief der Weg
+     * an einem Aufbau und am Masten ZUERST WAAGRECHT und erst am Ziel
+     * lotrecht; die Begruendungen von damals stehen unten und sind
+     * aufgehoben, nicht widerlegt:
+     *
+     *   «an einem Aufbau wird nicht weitergestreckt» (19. Sept.) - ein
+     *   Leiter ueber der Traverse verlaengerte den senkrechten Jochaufsatz
+     *   bis auf Leiterhoehe. Das bleibt behoben: gestreckt wird weiterhin
+     *   nur ein TRAEGER, ein Aufbau nicht. Nur die Reihenfolge der drei
+     *   Achsen ist jetzt z, y, x statt y, x, z.
+     *
+     *   «am Masten erst waagrecht auf der Anschlusshoehe» (19. Sept.) - mit
+     *   der Begruendung, ein Starrstab auf der Mastachse versteife den
+     *   Masten zwischen h und h + z. Er tut es nicht: die Kette haengt an
+     *   EINEM Wurzelknoten, ihr oberer Punkt ist ein freier Kettenknoten
+     *   und mit keinem zweiten Mastknoten verbunden - kurzgeschlossen wird
+     *   nichts. Geometrisch ist der Weg ueber die Achse der richtige: ein
+     *   Aufsatzrohr, ein Lampenrohr steht auf dem Masten, es haengt nicht
+     *   waagrecht in der Luft. Gemessen wird es unten mit.
+     *
+     * Ein Glied schraeg im Raum gibt es an einem Fahrleitungsteil nicht -
+     * darum bleibt es bei drei rechtwinkligen Schritten, nur in anderer
+     * Folge.
      */
-    if (amMast && a === wurzel) {
-      dazu({ x: a.x, y: p.y, z: a.z });
-      dazu({ x: p.x, y: p.y, z: a.z });
-      return weg;
-    }
-    if (d) {
+    const zyx = (von) => {
+      dazu({ x: von.x, y: von.y, z: p.z });   // 1. lotrecht
+      dazu({ x: von.x, y: p.y, z: p.z });     // 2. quer zum Gleis
+      // 3. in Jochachse - das ist p selbst und braucht keinen Zwischenpunkt.
+    };
+    /*
+     * GESTRECKT WIRD NUR EIN TRAEGER. An einem Aufbau (Traverse, Ausleger)
+     * und an der Wurzel am Masten geht kein tragendes Glied voraus, dem zu
+     * folgen waere; dort laeuft der Weg unmittelbar z, y, x.
+     */
+    const streckbar = d && a.rolle !== 'aufbau' && !(amMast && a === wurzel);
+    let von = a;
+    if (streckbar) {
       const t = (p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z;
       if (t > 1e-9) {                          // dem Träger bis zum Ende folgen
         dazu({ x: a.x + t * d.x, y: a.y + t * d.y, z: a.z + t * d.z });
         von = weg[weg.length - 1] ?? a;
       }
     }
-    // Waagrecht schräg (x und y zugleich): zuerst y.
-    if (!gleich(p.x, von.x) && !gleich(p.y, von.y)) dazu({ x: von.x, y: p.y, z: von.z });
+    zyx(von);
     return weg;
   };
   const richtungVon = (a, b) => {

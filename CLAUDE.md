@@ -164,9 +164,12 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Abfangjoch im Blattmodell (20. Sept.) | «checke die abfangjoch ausleitung auf denselben fehler» → Befund: auf einem Blatt mit mehreren Tragwerken wurde ein Abfangjoch als **Tragjoch** gebaut (vier Winkel L 90×90×9 statt zweier liegender Walzprofile mit Gabel und Kröpfung). Entscheid: **richtig einbauen**. Es baut jetzt sein eigenes Modell (`abfangBau`), örtlich 0…jt, das Blatt verschiebt; Masten unter dem Blattnamen (`MAST_<Stelle>_S<n>`, damit ein geteilter Mast verschmilzt). Lastgruppen: **Leiterzug → G_Ablenk** (ständig und waagrecht wie die Ablenkkräfte), **WindJoch → WindY** («nur ±y, wie die eigene Ausleitung»), SchneeJoch → Schnee, G/G_Anbau/WindX/WindY unverändert. Havarie («gleich mit einbauen»): im Blatt bleibt der Nachbar ständig (örtliche Havarie, 19. Sept.); die **eigene** Abfangjoch-Ausleitung legt je Leiter einen Fall an — geschrieben wird die **Änderung** gegenüber dem ständigen Leiterzug (gerissener −Z(+5 °C), übrige Z(−20 °C) − Z(+5 °C)), die Kombination greift beides mit γ = 1.0 ohne veränderliche Lasten. Sie steht auch dann da, wenn die Änderung null ist (fehlende Reglagetabelle, pauschale Abfangkraft) — die Beiwerte unterscheiden sie von der Tragsicherheit |
 | Abfangjoch: Masten und Länge (20. Sept.) | «die masten werden nach innen gesetzt wenn primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig den nächst längeren joch auswählen.» Das Sortiment führt je Länge einen **Bereich zulässiger Stützweiten** (Überstand 0.25–0.495 m je Seite). Vorgabe ist die **grösste** Stützweite, also 25 cm Überstand je Seite (`abfangUeberstand`). Die **Lage eines Abfangjochs ist sein erster Mast** (`lageOrtsnull` = Lage − Überstand), der Träger kragt darüber hinaus — sonst könnte es nie einen Masten mit dem Nachbarjoch teilen. Mastabstand = js = jt − 2·ü. Passt der Abstand vorhandener Masten nicht in den Bereich, nennt ein Hinweis das passende Joch (`abfangFuerStuetzweite`, kürzeste Länge des Typs, sonst nächster Typ); geändert wird nichts von selbst («Warnen, Berichtigung auf Klick») |
 | Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
+| Lasten über der Mastspitze (20. Sept.) | «lasten oberhalb mastspitze zulassen.» Damit ist der ⚠-Entscheid gefallen, der vorlag: ein Anbauteil über dem Mastkopf wird **nicht** heruntergezogen, es bleibt, wo es steht. Bis dahin liefen Nachweis und Ausleitung auseinander — der Nachweis rechnete die Last auf ihrem Hebelarm, das Modell liess sie weg (`anbauMastAus`). Jetzt bekommt sie ihren Knoten auf der Mastachse und hängt an einem **starren Stück** (`MASTAUFSATZ_<Ende>_<n>`, kein Mastprofil — dort steht keines); es trägt Kraft und Moment in den Kopf, also genau den Hebelarm des Kerns. Der Höhenregler reicht **zwei Meter** über die Spitze (`mastReglerHoehe`, `UEBER_MASTSPITZE` in ui.js); eingetippt werden darf mehr. Der Hinweis nennt die Stelle weiter, aber nicht mehr als Fehler: «das ist zugelassen … der Aufsatz selbst ist nicht nachgewiesen». **Unter** der Fundamentkote bleibt es beim Vermerk (Entscheid vom 18. September). Gemessen am Einzelmast 8.50 m mit Traverse auf 9.60 m: `anbauMastAus` leer, Knoten 1.10 m über dem Kopf, Last dort, Fussmoment 11.63 kNm bei Wind ±y |
+| Kette: zuerst z (20. Sept.) | «bei den koordinaten der anbauteile, zuerst die z komponente afahren.» Die Kette fährt die drei Achsen jetzt in der Folge **z, y, x** ab (`knickPunkte` in core.anbauteile.js), auch am Masten und an einem Aufbau. Das kehrt die Folge vom 19. September um («erst y, dann x», «am Masten erst waagrecht»). **Was bleibt:** gestreckt wird weiterhin nur ein *Träger* — der Jochaufsatz wird nicht länger, das war der Befund vom 19. September; und kein Glied läuft schräg in x und y zugleich. **Was aufgegeben ist:** die Sorge, ein Starrstab auf der Mastachse versteife den Masten — er tut es nicht, die Kette hängt an EINEM Wurzelknoten, und ihr erster Punkt ist mit keinem zweiten Mastknoten verbunden. ⚠ Im **Bild** sieht ein Leiter über der Traverse jetzt wieder so aus wie das, was am 19. September bemängelt wurde (senkrecht hinauf, dann hinaus) — nur ist es das Glied des Leiters, nicht der verlängerte Aufsatz. Gemeldet |
+| Auslegerwind auf den Masten (20. Sept.) | «bei den auslegern den windanteil auf den masten wirken lassen (ähnlich wie bei der hängestütze), da die leiter als quasi auflager wirken.» `windAufTraeger` setzte den halben Auslegerwind bisher nur auf die Achse einer **Hängestütze** ab und kehrte ohne sie um — genau die Ausleger **am Masten** haben keine, der Schalter stand da und tat nichts. Ohne Träger ist der Bezug jetzt die Achse des Tragwerks: am Masten die **Mastachse** (y = 0, Station der Baugruppe). Die beiden Vorlagen «NT-Ausleger am Mast» und «Rohrausleger am Mast» tragen `windAufTraeger` / 50 % wie die Hängestützen-Vorlagen (Sicherung `data/sicherung/anbauteile_vor_mastwind_2026-09-20.json`). Gemessen: NT 0.55 → 0.275 kN, und der Angriffspunkt rückt von 1.25 m aussen auf die Mastachse; Rohr 0.30 → 0.15 kN. Dabei fiel ein älterer Fehler auf: ein Teil, dessen Punkt **auf der Kettenwurzel** liegt, erbte den Anschlusskörper und damit dessen 0.1 m Versatz unter dem Gurt (−0.3246 statt −0.2246) — es bekommt jetzt seinen eigenen Knoten |
 | Daten: ein Fenster (20. Sept.) | «das einlesen der daten ist etwas komplizier, können wir dies vereinfachen.» Es gab zwei Türen mit ähnlichen Namen: das **Datenpaket** (Optionen → Datenbasis, ersetzt die ganze Basis) und das **Einlesen** je Sortiment (Fenster Bauteildaten, mit Abgleich). Gewählt: **ein Fenster für alles.** Ansehen, einlesen, laden und sichern stehen im Fenster *Bauteildaten*; der Knopf «Datenpaket laden …» nimmt **jede** Datei und erkennt selbst, was es ist (`dateiAnnehmen`). Der Reiter *Datenbasis* sagt nur noch, was hinterlegt ist, und führt dorthin. Der **Abgleichbericht** ist kurz: oben eine Zeile je geändertem Sortiment, die Tabellen klappen auf; Sortimente ohne Änderung stehen nur als Namen darunter. Fehler und «geprüfte Sätze ändern sich» bleiben offen — die soll niemand aufklappen müssen. **Weiter gebündelt** («kannst du die buttons weiter bündeln unter bauteildaten»): nur noch **«Daten laden …»** und **«Daten sichern ▾»**. Laden nimmt jede Datei — `leseDatei` liest Excel-Mappe, einzelne `data/…json` **und** ein ganzes Datenpaket, immer über den Abgleich. Sichern ist ein Aufklappmenü: *Datenpaket (.json)* zum Mitnehmen, *Alle Tabellen (Excel)* zum Bearbeiten. Über den Knöpfen steht in zwei Zeilen, wann man was nimmt — die Frage «wann muss man einlesen und datenpaket drücken» soll die Anwendung selbst beantworten. Die Datenbasis **rundweg zu ersetzen** bleibt der seltene Weg: beim Start ohne Daten und durch Hineinziehen der Datei |
 | Vorlagen nach Ort (19. Sept.) | «die anbauteile template auf die tragwerksarten anpassen», «nach ort trennen»: Spalte `ort` (joch / mast / beide; leer: mit Träger Joch, sonst beide). **Am Masten:** Rückleiter direkt, Lampe LED/alt mit Rohr (Rohr vorläufig = Hängerohr, Baustein «Lampenrohr»), Fahrdrahtabzug mit Konsole 1 m (Fd ohne Gewicht), NT- und Rohrausleger (1.25 / 2.50 m wie am Joch), Traverse mit Zusatzleiter. Kachelliste am Einzelmast nur Mast-Vorlagen, am Joch alle (Gruppe «Am Masten») |
-| Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
+| Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). **Am 20. September umgekehrt** (siehe «Kette: zuerst z»): z, dann y, dann x, auch am Masten. Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
@@ -184,12 +187,18 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**20. September 2026** · Prüfstand 4890 Kontrollen grün · `durchlauf.mjs`
+**20. September 2026** · Prüfstand 4929 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., drei Weisungen: über die Mastspitze, Kette zuerst z, Auslegerwind auf den Masten.** Alle drei stehen in *Entschieden*. Dazu zwei Befunde, die dabei auffielen:
+  (1) **Ein Teil auf der Kettenwurzel erbte den Anschlusskörper.** Der sitzt 0.1 m neben der Gurtebene (`LINK_LAENGE`), und der Kommentar sagte seit je «der Lastpunkt bleibt, wo er ist» — jedes Teil bekommt dafür seinen eigenen Knoten. Jedes ausser einem, das GENAU auf der Wurzel sitzt; das gab es bis zum neuen Windanteil ohne Träger nicht. Für die waagrechte Kraft ist das ein Hebelarm zur Jochachse.
+  (2) **Der Einzelmast zählte Anbauknoten an der Kartengrösse.** `MAST_A_H` plus `mastKn.size - 1` — dieselbe brüchige Zählung, die im Jochmodell schon berichtigt worden war: sobald ein Kopfknoten dazukam, wurde aus `MAST_A_H1` still `MAST_A_H2`.
+  **COM-Schnittstelle:** nicht betroffen, und das ist gemessen statt behauptet. Die Ausleitung schreibt den Aufsatz als gewöhnlichen starren Stab (`art: 'starr'`), und die Brücke liest die Art aus dem **Feld** (`StabArt` in AxisVM_aufbauen.ps1), nicht aus dem Namen — der Rückfall über den Querschnittsnamen «STARR» gilt nur alten Dateien. Prüfstand Abschnitt 93 hält es fest und schlägt an, sobald eine Stabart in der Datei steht, die die Brücke nicht kennt (sie würde daraus einen Stab mit dem Ersatzquerschnitt 500×500 mm samt Eigengewicht machen — der Fehler, der das Blattmodell einmal 33 t schwer machte).
+- **20. Sept., der Stabwerkslöser ist im Projekt** (`js/core.stabwerk.js`, Prüfstand Abschnitt 111). Er hängt noch an keinem Nachweis. Räumliches Stabwerk, 6 Freiheitsgrade je Knoten, Euler-Bernoulli; er liest **die vorhandene AxisVM-Datei** (`stabmodellJson`), kein zweiter Modellbauer. Starrelemente als Ersatzsteifigkeit (`STARR_FAKTOR = 10`), Linkelemente als Punkt-zu-Punkt-Federn, RCM-Nummerierung, Bandcholesky mit **Jacobi-Skalierung** und **Nachiteration**. Am J90/20 m (4956 Freiheitsgrade, Bandbreite 95): Gleichgewicht in jedem Lastfall auf 5.6·10⁻⁷ %, Lösung unabhängig vom Starrfaktor (1 gegen 10: −6.85053 gegen −6.85053 kN). Der **Rest der Gleichung** wird relativ gemessen, nicht absolut: er sinkt nicht unter rund 1·10⁻⁴ der grössten Knotenkraft (gemessen mit 0 bis 12 Nachiterationen), weil schon das Aufsummieren von K·u bei einer Steifigkeitsspanne von 1e15 die letzten Stellen kostet. Eine absolute Schranke misst dort die Modellgrösse, nicht den Löser.
+- **20. Sept., Abfangjoche: alt und neu auseinandergehalten.** Weisung: «nur abfangjoch mit 0.58 nehmen, so wie in den projektierungsdokumenten» und «in der bennenung sollte alt neu unterschieden werden». `abfangjoch-a200` stand **zweimal** in der Lasttabelle (0.66 und 0.58 kN/m) — beim Laden eines Datenpakets fiel es als Fehler auf, im laufenden Betrieb gewann still der erste Treffer. Die Typentabelle unterscheidet längst: neu A160…A360, alt nach dem Profil (UAP 130…250, IPE 270…). Die Lasttabelle tut es jetzt auch; die Gewichte ordnen eindeutig zu (0.66 kN/m = UAP 200 mit 66 kg/m). Sechs Einträge umbenannt, Sicherung `data/sicherung/fl_bauteile_vor_abfang_alt_2026-09-20.json`. Danach: `abfangjoch-a200` → 0.58 kN/m, `abfangjoch-uap200` → 0.66, keine doppelte Kennung mehr, Paket lädt ohne Befund.
 - **20. Sept., Datenfenster weiter gebündelt, und der Stand geht nach
   `Versand/`.** Aus vier Knöpfen wurden zwei (siehe *Entschieden*), und
   über ihnen steht, wann man welchen nimmt. Neu `datenpaket.mjs`: es
@@ -465,9 +474,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
 **Laufende Arbeit (20. Sept.): der Stabwerkslöser, Schritt 2 des Bauplans.**
-Ein Prototyp läuft — **im Arbeitsordner der Sitzung, nicht im Projekt**
-(`scratchpad/loeser/fem.mjs`, dazu `t1_analytisch`, `t2_joch`, `t3_diagnose`,
-`t4_starr`). Was er kann und was gemessen ist:
+Er steht seit dem 20. September **im Projekt** (`js/core.stabwerk.js`,
+Prüfstand Abschnitt 111) und **hängt noch an keinem Nachweis**. Was er
+kann und was gemessen ist:
 
 - Er frisst **die vorhandene AxisVM-Datei** (`stabmodellJson`) — kein zweiter
   Modellbauer. Räumliches Stabwerk, 6 Freiheitsgrade je Knoten,
@@ -487,10 +496,11 @@ Ein Prototyp läuft — **im Arbeitsordner der Sitzung, nicht im Projekt**
   Matrixkopie). Der Steifigkeitsfaktor der Starrelemente gehört dann **klein**
   (1 bis 10) — darüber wird es nur ungenauer, das Ergebnis ändert sich nicht
   mehr.
-- **Nächster Schritt:** gegen PyNite messen (auf diesem Rechner nicht
-  installiert), dann das Blatt (11 868 Freiheitsgrade) auf Zeit prüfen, dann
-  entscheiden, ob Starrkörper als Zwangsbedingung statt als Ersatzsteifigkeit
-  gehören. ⚠ Offen: ob der Prototyp ins Projekt aufgenommen wird.
+- **Nächster Schritt:** gegen PyNite messen — es **ist** installiert
+  (Fassung 3.0.0, Modulname `Pynite` mit kleinem n; meine frühere Aussage
+  «nicht installiert» war falsch, ich hatte nur `PyNite` geprüft). Danach
+  das Blatt (11 868 Freiheitsgrade) auf Zeit prüfen, dann entscheiden, ob
+  Starrkörper als Zwangsbedingung statt als Ersatzsteifigkeit gehören.
 
 **Laufende Arbeit (19. Sept.): Jochreihe als gekoppeltes Tragwerk.**
 Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Noch nicht
@@ -567,14 +577,10 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - **Druckstütze Stufe 2** (mehrteiliger Druckstab, EN 1993-1-1, 6.4): ⚠ es
   fehlen der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen
   (Anzahl, Abstand, Profil).
-- ⚠ **Anbauteil über dem Mastkopf:** der Nachweis rechnet es (auf einem
-  Hebelarm, den es nicht gibt), die Ausleitung lässt es weg (dort steht
-  kein Mast mehr). Beides steht jetzt in einem Hinweis und im Vermerk
-  `anbauMastAus` der Datei. Offen: ob die Eingabe es stattdessen auf den
-  Kopf **herunterziehen** soll — so, wie sie an der Fundamentkote nach
-  oben zieht (Entscheid vom 18. September). Das ändert η. Entsteht beim
-  nachträglichen Kürzen des Masten; der Höhenregler selbst reicht nur
-  bis zum Kopf.
+- **Aufsatz über der Mastspitze nicht nachgewiesen:** die Last wird seit
+  dem 20. September gerechnet und gebaut (siehe *Entschieden*), das
+  starre Stück selbst ist aber kein bemessenes Bauteil. Der Hinweis sagt
+  es; ein eigener Nachweis des Aufsatzes fehlt.
 - **Datenpaket ohne Masten-Sortiment:** ältere Pakete führen es nicht;
   dann fehlt der Mastwind ganz (siehe oben, der Hinweis sagt es). Ein
   neu gesichertes Paket enthält es.
@@ -683,7 +689,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 4890 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 4929 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
