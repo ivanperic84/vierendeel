@@ -1926,9 +1926,12 @@ export function feldHtml(f, wert, werte) {
    * Ganz oben, weil auch die Vorlesehilfe der Bauformwahl sie braucht.
    */
   const label = typeof f.label === 'function' ? f.label(werte) : f.label;
-  // Zwei Sperren: Katalogmasse (bearbeiten) und Tabellenlasten (lastenBearbeiten).
+  // Drei Sperren: Katalogmasse (bearbeiten), Tabellenlasten
+  // (lastenBearbeiten) und `nurAnzeige` - ein Feld, das eine gerechnete
+  // Groesse anschreibt und keine Eingabe ist (w_Mast,y seit 20. September).
   const gesperrt = (f.ausDB && !werte.bearbeiten) ||
-                   (f.ausLast && !werte.lastenBearbeiten);
+                   (f.ausLast && !werte.lastenBearbeiten) ||
+                   f.nurAnzeige === true;
   /*
    * DER HINWEIS DARF EINE FUNKTION SEIN - wie das Label darueber.
    *

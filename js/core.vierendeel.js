@@ -16,7 +16,7 @@ import { mastKollisionen, anzahlSichtbar, U, TOL, massketteLesen, tragwerksart, 
   from './core.constants.js';
 import { bemessungslasten, nurTeil, auflagerkraefte, schnittgroessen,
          extremwerte, knotenraster, feldweite, feldmodell } from './core.statics.js';
-import { mastWind } from './data.masten.js';
+import { mastWindBeide } from './data.masten.js';
 import { charakteristischeLasten, lastfallUebersicht, lastfallFuer,
          ekVonWindklasse } from './core.lasten.js';
 import { expandiereAnbauteile, amMast, ortVon, havarieEinsetzen } from './data.anbauteile.js';
@@ -172,12 +172,30 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
   // zwischen «stimmt, wenn der Aufrufer es vorher nachgeführt hat» und
   // «stimmt». Von Hand gesetzt wird nur übernommen, was ausdrücklich von
   // Hand gesetzt ist (wMastAusTabelle === false).
+  /*
+   * >>> DER MASTWIND KOMMT IMMER AUS DER TABELLE (nachgemessen, 20. Sept.). <<<
+   *
+   * `wMastAusTabelle` wird NIRGENDS gesetzt - den Schluessel gibt es nur
+   * hier und in der Liste der gespeicherten Felder. `vonHand` ist damit
+   * immer falsch, und das ist richtig so: es gibt genau EIN Eingabefeld
+   * fuer den Mastwind, aber auf einem Blatt mehrere Masten mit
+   * verschiedenen Profilen. Gemessen an einem Joch mit HEB 220 / HEM 240:
+   * aus der Tabelle 0.28 und 0.31 kN/m, aus dem flachen Feld beide 0.37 -
+   * eine Eingabe, die beide Masten gleichmacht, waere schlechter als keine.
+   *
+   * Die MASKE sagt das jetzt auch: die beiden Felder w_Mast,x und w_Mast,y
+   * sind angeschrieben und gesperrt (`nurAnzeige`, ui.schema.js). Vorher
+   * stand dort der in der Mastliste abgelegte Wert - am HEB 220 also 0.37,
+   * waehrend 0.28 gerechnet wurde -, und «Werte bearbeiten» gab ein Feld
+   * frei, dessen Inhalt niemand las. Offen und dem Auftraggeber vorgelegt:
+   * ob eine Eingabe je Mast gewuenscht ist.
+   */
   const vonHand = inp.wMastAusTabelle === false;
   const je = (mast, wManuell) => {
-    const eigen = mast.stegrichtung.key;
-    const gegen = eigen === 'quer' ? 'jochachse' : 'quer';
-    const wJoch = mastWind(mast.profil.name, ek, eigen);
-    const wGleis = mastWind(mast.profil.name, ek, gegen);
+    // Welche Tabellenspalte welche Richtung ist, sagt `mastWindBeide` -
+    // dieselbe Stelle, aus der die Maske ihre beiden Zeilen holt.
+    const { jochachse: wJoch, gleis: wGleis } =
+      mastWindBeide(mast.profil.name, ek, mast.stegrichtung.key);
     const x = vonHand ? (wManuell ?? 0)
             : (Number.isFinite(wJoch) ? wJoch : (wManuell ?? 0));
     const xk = Math.abs(x);
@@ -200,9 +218,6 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
       yd: yk === null ? null : (beiwerte.WindY ?? 0) * yk,
     };
   };
-  return { ek,
-           A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
-           B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };
   return { ek,
            A: je(federnRoh.mastA ?? federnRoh.mast, inp.wMast),
            B: je(federnRoh.mastB ?? federnRoh.mast, inp.wMastB ?? inp.wMast) };

@@ -28,7 +28,7 @@ import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
          abfangMasse } from './data.abfangjoche.js';
-import { mastprofile, STEGRICHTUNGEN } from './data.masten.js';
+import { mastprofile, STEGRICHTUNGEN, mastWindBeide } from './data.masten.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
          getAnkerTyp } from './data.anker.js';
@@ -42,7 +42,7 @@ import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
          mastImModell, mastLaengeVorgabe } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
-         NORMENSAETZE } from './core.lasten.js';
+         NORMENSAETZE, ekVonWindklasse } from './core.lasten.js';
 import { ablenkwinkel, istGerade, radiusAusWinkel,
          R_GERADE } from './core.trasse.js';
 
@@ -89,6 +89,40 @@ const anschlusshoeheVon = (w) => {
  * dem angeklickten. `mastAktiv` ist Bedienzustand wie `bearbeiten` - er
  * entscheidet, was die Maske zeigt, und nichts am Tragwerk.
  */
+/*
+ * >>> DIE MASKE ZEIGT, WAS GERECHNET WIRD - NICHT, WAS GESPEICHERT IST. <<<
+ *
+ * Gemeldet am 20. September: «hier ist die windlast in y nicht aufgefuehrt
+ * beim einzelmasten. auch die angabe in der sidebar passt nicht ganz.»
+ *
+ * Zwei Sachen steckten darin. Erstens fuehrte die Maske nur EINEN Mastwind,
+ * den in der Jochachse; der Kern rechnet seit dem 27. August mit beiden
+ * Richtungen, und am Einzelmasten ist die Gleisrichtung die interessante.
+ * Zweitens stand im Feld der in der Mastliste ABGELEGTE Wert, waehrend der
+ * Kern den Tabellenwert nimmt: an einem HEB 220 zeigte die Maske
+ * 0.37 kN/m (ein Rest vom HEB 240) und gerechnet wurden 0.28 kN/m.
+ *
+ * Deshalb steht hier dieselbe Herleitung wie in `mastWindSatz`
+ * (core.vierendeel.js) - Tabelle, es sei denn die Lasten sind von Hand
+ * freigegeben - und die Zuordnung der Spalten holt sich beides aus
+ * `mastWindBeide`.
+ */
+const mastWindAnzeige = (w) => {
+  const m = gewaehlterMast(w);
+  if (!m || !m.profil) return { x: null, y: null };
+  let tab = { jochachse: null, gleis: null };
+  try {
+    tab = mastWindBeide(m.profil, ekVonWindklasse(w.windKlasse),
+                        m.steg ?? w.mastSteg ?? 'jochachse');
+  } catch { /* Profil nicht im Sortiment - dann bleibt nur das Gespeicherte */ }
+  const vonHand = w.wMastAusTabelle === false;
+  const gespeichert = m.wMast ?? w.wMast ?? 0;
+  const x = vonHand ? gespeichert
+          : (Number.isFinite(tab.jochachse) ? tab.jochachse : gespeichert);
+  return { x: Math.abs(x),
+           y: Number.isFinite(tab.gleis) ? Math.abs(tab.gleis) : null };
+};
+
 /** Der Wert einer Mastangabe am angewaehlten Masten, ersatzweise flach. */
 const amMast = (feld, flach) => (w) => {
   const m = gewaehlterMast(w);
@@ -1381,13 +1415,24 @@ export const FELDER = [
   { key: 'windKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Windbelastung',
     standard: '0.9', optionen: opt(WIND_KLASSEN),
     sichtbar: (w) => w.lastHerkunft === 'tabelle',
-    hinweis: 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
-           + 'der Einordnung.'},
+    // Am Einzelmasten gibt es kein Joch - die Klasse waehlt dort trotzdem,
+    // und zwar die Zeile der Mastwindtabelle und die Windkraefte der
+    // Anbauteile. Der alte Text nannte nur das Joch und stand damit an
+    // einem Tragwerk, das keines hat.
+    hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
+      ? 'Wählt die Zeile der Lasttabelle für den Mastwind und die '
+      + 'Windkräfte der Anbauteile; der Staudruck dient der Einordnung.'
+      : 'Laufmeterlast auf das Joch aus der Tabelle; der Staudruck dient '
+      + 'der Einordnung.')},
   { key: 'schneeAktiv', gruppe: 'ein', typ: 'schalter', label: 'Schnee ansetzen',
-    standard: false },
+    standard: false,
+    hinweis: (w) => (tragwerksart(w).key === 'einzelmast'
+      ? 'Die Laufmeterlast liegt auf dem Joch — am Einzelmasten trägt sie '
+      + 'niemand. Schnee auf Anbauteilen zählt unabhängig davon.' : '') },
   { key: 'schneeKlasse', gruppe: 'ein', typ: 'auswahl', label: 'Schneelast',
     standard: '1.25', optionen: opt(SCHNEE_KLASSEN),
-    sichtbar: (w) => w.lastHerkunft === 'tabelle' && w.schneeAktiv },
+    sichtbar: (w) => w.lastHerkunft === 'tabelle' && w.schneeAktiv
+                  && tragwerksart(w).key !== 'einzelmast' },
 
   // Die drei charakteristischen Einwirkungen sind IMMER sichtbar. Solange die
   // Tabellenwerte gelten, stehen sie gesperrt darin - man sieht also stets,
@@ -1396,18 +1441,28 @@ export const FELDER = [
   { key: 'gkManuell', gruppe: 'ein', typ: 'zahl', label: 'Ständige Last',
     sym: 'g_k', einheit: 'kN/m', standard: 0.6, schritt: 0.05, min: 0,
     ausLast: true,
+    // >>> LAUFMETERLASTEN GEHOEREN DEM TRAEGER (20. September). <<<
+    // «auch die angabe in der sidebar passt nicht ganz»: am Einzelmasten
+    // standen g_k = 0.706 und w_k = 0.52 kN/m in der Maske, obwohl der Kern
+    // dort L = 0 und q_d = 0 rechnet - es gibt keinen Traeger, auf dem ein
+    // Laufmeter liegen koennte. Was den Masten trifft, steht darunter
+    // (w_Mast) und an den Anbauteilen.
+    sichtbar: (w) => tragwerksart(w).key !== 'einzelmast',
     hinweis: 'Eigengewicht nach Sortimentstabelle plus Zuschlag.'},
   { key: 'wkManuell', gruppe: 'ein', typ: 'zahl', label: 'Windlast',
     sym: 'w_k', einheit: 'kN/m', standard: 0.52, schritt: 0.05, min: 0,
-    ausLast: true },
+    ausLast: true,
+    sichtbar: (w) => tragwerksart(w).key !== 'einzelmast' },
   { key: 'skManuell', gruppe: 'ein', typ: 'zahl', label: 'Schneelast',
     sym: 's_k', einheit: 'kN/m', standard: 0.27, schritt: 0.05, min: 0,
-    ausLast: true, sichtbar: (w) => w.schneeAktiv },
+    ausLast: true,
+    sichtbar: (w) => w.schneeAktiv && tragwerksart(w).key !== 'einzelmast' },
 
   { key: 'gZusatz', fein: true, gruppe: 'ein', typ: 'zahl',
     label: 'Zuschlag ständige Last',
     sym: 'Δg_k', einheit: 'kN/m', standard: 0.0, schritt: 0.05, min: 0,
-    sichtbar: (w) => w.lastHerkunft === 'tabelle',
+    sichtbar: (w) => w.lastHerkunft === 'tabelle'
+                  && tragwerksart(w).key !== 'einzelmast',
     hinweis: 'Kommt zur Tabellenlast g_k dazu — Leitungen, Beschilderung, '
            + 'was das Sortiment nicht kennt.' },
   /* =========================================================================
@@ -1433,13 +1488,45 @@ export const FELDER = [
    * System - die sagen, wie das Bauteil aussieht, diese hier sagen, was auf
    * ihm liegt.
    * ======================================================================= */
-  { key: 'wMast', fein: true, gruppe: 'ein', typ: 'zahl', label: 'Windlast auf Mast',
-    sym: 'w_Mast', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
-    ausLast: true,
-    wertAus: amMast('wMast', 'wMast'),
+  /*
+   * >>> BEIDE RICHTUNGEN, BEIDE ANGESCHRIEBEN, KEINE EINGABE. <<<
+   *
+   * Der Hinweis versprach bisher «Werte bearbeiten gibt das Feld frei» -
+   * und das war nicht wahr: der Kern liest den eingetippten Wert nie
+   * (siehe `mastWindSatz`). Ein freigegebenes Feld, das niemand liest, ist
+   * schlimmer als ein gesperrtes.
+   *
+   * Eine Eingabe je Mast waere denkbar, aber es gibt nur EIN flaches Feld
+   * fuer ein Blatt mit mehreren Masten: an einem Joch HEB 220 / HEM 240
+   * gaebe es beiden 0.37 statt 0.28 und 0.31 kN/m. Dem Auftraggeber
+   * vorgelegt, bis dahin gilt die Tabelle.
+   */
+  { key: 'wMast', fein: true, gruppe: 'ein', typ: 'zahl',
+    label: 'Windlast auf Mast · Jochachse',
+    sym: 'w_Mast,x', einheit: 'kN/m', standard: 0.37, schritt: 0.01, min: 0,
+    nurAnzeige: true,
+    wertAus: (w) => mastWindAnzeige(w).x,
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Aus der Lasttabelle je Profil, Einwirkungsklasse und Stegrichtung. '
-           + '«Werte bearbeiten» gibt das Feld frei.'},
+    hinweis: 'Quer zum Gleis, aus der Lasttabelle je Profil, '
+           + 'Einwirkungsklasse und Stegrichtung des angewählten Masten.'},
+  /*
+   * DIE ZWEITE RICHTUNG - angeschrieben, nicht eingebbar.
+   *
+   * Sie folgt aus derselben Tabellenzeile wie die erste, nur aus der anderen
+   * Spalte; eine eigene Eingabe daneben waere eine zweite Wahrheit. Beim
+   * HEM 240 unterscheiden sich die beiden Spalten, bei den uebrigen Profilen
+   * nicht - sichtbar sein muessen sie trotzdem beide, sonst sieht man am
+   * Einzelmasten die massgebende Richtung gar nicht.
+   */
+  { key: 'wMastY', fein: true, gruppe: 'ein', typ: 'zahl',
+    label: 'Windlast auf Mast · Gleisrichtung',
+    sym: 'w_Mast,y', einheit: 'kN/m', standard: null, schritt: 0.01, min: 0,
+    nurAnzeige: true,
+    wertAus: (w) => mastWindAnzeige(w).y,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Längs zum Gleis, aus derselben Tabellenzeile. Sie wirkt in den '
+           + 'Lastfällen Wind ±y und ist am Einzelmasten die massgebende '
+           + 'Richtung — dort hält kein Joch den Mastkopf.'},
   // Der Wind auf den Mast wirkt nicht nur auf den Mast: er verdreht dessen
   // Kopf, und das Jochende macht die Verdrehung mit. Ohne diesen Anteil fehlt
   // dem Lastfall Wind in Jochachse die grössere Hälfte der Einwirkung.
@@ -1457,7 +1544,18 @@ export const FELDER = [
    */
   { key: 'mastWindAufJoch', fein: true, gruppe: 'ein', typ: 'schalter',
     label: 'Mastwind wirkt auf das Joch', standard: false,
-    sichtbar: (w) => mastDa(w),
+    /*
+     * NUR WO ES EIN JOCH GIBT, DAS SICH VERDREHEN LAESST (20. September).
+     *
+     * Der Schalter setzt die aufgezwungene Auflagerverdrehung des
+     * Ersatzbalkens. Am Einzelmasten gibt es kein Jochende, am Abfangjoch
+     * rechnet ein eigener Kern - gemessen: an beiden aendert er keine
+     * einzige Zahl. Am Tragjoch und am Tragausleger wirkt er, sobald das
+     * Ende ein Moment aufnehmen kann (J90/20 m, Wind in Jochachse, Ende
+     * voll eingespannt: M_A 15.0 -> 36.7 kNm).
+     */
+    sichtbar: (w) => mastDa(w) && !['einzelmast', 'abfangjoch']
+      .includes(tragwerksart(w).key),
     hinweis: 'Wind in Jochachse verdreht den Mastkopf um θ₀ = w·H³/(6·E·I). Die '
            + 'Verdrehung wird dem Jochende aufgezwungen. Wind in Gleisrichtung '
            + 'bleibt aussen vor. Handbuch.'},

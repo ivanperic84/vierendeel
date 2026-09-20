@@ -137,6 +137,29 @@ export function mastWind(name, ek = 'EK2', steg = 'jochachse') {
   return w[richtung]?.[ek] ?? null;
 }
 
+/**
+ * Der Wind auf den Masten in BEIDEN Richtungen [kN/m].
+ *
+ * >>> EINE STELLE, ZWEI ZAHLEN. <<<
+ *
+ * Der Kern rechnet den Masten seit dem 27. August in beiden Richtungen an:
+ * `x` in der Jochachse (quer zum Gleis), `y` in Gleisrichtung. Welche Spalte
+ * der Tabelle welche Richtung ist, entscheidet die STEGRICHTUNG - und diese
+ * Zuordnung stand bisher nur im Rechenkern (`mastWindSatz`). Die Maske
+ * zeigte deshalb nur den einen Wert, gemeldet am 20. September: «hier ist
+ * die windlast in y nicht aufgefuehrt beim einzelmasten.»
+ *
+ * Zwei Stellen, die dieselbe Zuordnung selbst herleiten, laufen frueher oder
+ * spaeter auseinander. Also steht sie hier, und Kern wie Maske fragen sie.
+ *
+ * @returns {{jochachse:number|null, gleis:number|null}} kN/m, `null` wenn
+ *          das Profil keine Windzeile in der Tabelle hat.
+ */
+export function mastWindBeide(name, ek = 'EK2', steg = 'jochachse') {
+  const gegen = steg === 'quer' ? 'jochachse' : 'quer';
+  return { jochachse: mastWind(name, ek, steg), gleis: mastWind(name, ek, gegen) };
+}
+
 export function getMastprofil(name) {
   const p = mastprofile().find((x) => x.name === name);
   if (!p) throw new Error(`Unbekanntes Mastprofil: ${name}`);

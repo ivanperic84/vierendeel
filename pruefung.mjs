@@ -14511,8 +14511,12 @@ titel('52  Masten und Auflagerung sind zwei Fragen');
     // ist weg. Steht ein Mast im Modell, faengt er Wind.
     wahr('Der Schalter "aus der Lasttabelle" ist entfallen',
          !feld2('wMastAusTabelle'));
-    wahr('Die Mastwindlast steht gesperrt wie die Jochlasten',
-         feld('wMast').ausLast === true);
+    // Seit dem 20. September GANZ gesperrt, nicht nur bis «Werte
+    // bearbeiten»: der Kern hat den eingetippten Wert nie gelesen, und ein
+    // flaches Feld kann mehrere Masten mit verschiedenen Profilen ohnehin
+    // nicht bedienen (Abschnitt 109).
+    wahr('Die Mastwindlast steht gesperrt, in beiden Richtungen',
+         feld('wMast').nurAnzeige === true && feld('wMastY').nurAnzeige === true);
     // Die Auflagerung behaelt, was Auflagerung ist.
     ['endbedingung', 'cPhi', 'kragA', 'kragB', 'mastAnschluss']
       .forEach((k) => wahr(`${k}: bleibt bei der Auflagerung`,
@@ -26547,6 +26551,182 @@ titel('108  COM-Schnittstelle: Mastfuss eingespannt, Datei in sich stimmig');
   wahr('Jede Kombination greift nur vorhandene Lastfaelle', fehl.length === 0,
        fehl.slice(0, 3).join(' · ') || `${dat.kombinationen.length} Kombinationen`);
 }
+
+titel('109  Mastwind: die Maske zeigt, was der Kern rechnet');
+/*
+ * Gemeldet am 20. September, mit dem Reiter LASTEN eines Einzelmasten:
+ * «hier ist die windlast in y nicht aufgefuehrt beim einzelmasten. auch die
+ * angabe in der sidebar passt nicht ganz.»
+ *
+ * Drei Sachen steckten darin, alle an derselben Naht:
+ *
+ *   1  Die Maske fuehrte nur EINEN Mastwind - den in der Jochachse. Der Kern
+ *      rechnet seit dem 27. August mit beiden Richtungen, und am Einzelmasten
+ *      ist die GLEISRICHTUNG die massgebende (in Jochachse steht dort nichts,
+ *      was den Kopf halten koennte).
+ *
+ *   2  Das Feld zeigte den in der Mastliste ABGELEGTEN Wert, der Kern nahm
+ *      den Tabellenwert: an einem HEB 220 stand 0.37 kN/m in der Maske (ein
+ *      Rest vom HEB 240 der Vorlage) und gerechnet wurden 0.28 kN/m.
+ *
+ *   3  «Werte bearbeiten» gab das Feld frei, aber der eingetragene Wert
+ *      wirkte NICHT: `wMastAusTabelle` wird nirgends gesetzt, also war
+ *      `vonHand` immer falsch und die Tabelle gewann stillschweigend.
+ *      Nachgemessen, ob die Eingabe wirken SOLL: nein. Es gibt ein flaches
+ *      Feld, aber mehrere Masten - an einem Joch HEB 220 / HEM 240 gaebe es
+ *      beiden 0.37 statt 0.28 und 0.31 kN/m. Die Tabelle bleibt, das Feld
+ *      wird gesperrt (`nurAnzeige`); eine Eingabe je Mast waere ein eigener
+ *      Entscheid und liegt dem Auftraggeber vor.
+ *
+ * Dazu die Laufmeterlasten des Jochs (g_k, w_k, s_k, Zuschlag): sie standen
+ * am Einzelmasten in der Maske, obwohl der Kern dort L = 0 rechnet.
+ */
+{
+  const DM = await import(J('data.masten.js'));
+  const LA109 = await import(J('core.lasten.js'));
+  const C109 = await import(J('core.constants.js'));
+  const V109 = await import(J('core.vierendeel.js'));
+  const S109 = await import(J('ui.schema.js'));
+  const NB109b = await import(J('core.nachbarn.js'));
+
+  const einzelmast = (extra = {}) => {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    w = C109.tragwerkWeg(C109.tragwerkHinzu(w, 'einzelmast',
+      { mastProfil: 'HEB 220', mastLaenge: 12 }), 'T1');
+    return { ...w, ...extra };
+  };
+
+  // a) Die Paarung der beiden Richtungen steht an EINER Stelle.
+  const paar = DM.mastWindBeide('HEM 240', 'EK2', 'jochachse');
+  wahr('mastWindBeide: Jochachse und Gleisrichtung getrennt',
+       paar.jochachse === DM.mastWind('HEM 240', 'EK2', 'jochachse')
+       && paar.gleis === DM.mastWind('HEM 240', 'EK2', 'quer'),
+       `HEM 240 EK2: ${paar.jochachse} / ${paar.gleis} kN/m`);
+  const gedreht = DM.mastWindBeide('HEM 240', 'EK2', 'quer');
+  wahr('mastWindBeide: die Stegrichtung tauscht die Spalten',
+       gedreht.jochachse === paar.gleis && gedreht.gleis === paar.jochachse,
+       `gedreht: ${gedreht.jochachse} / ${gedreht.gleis} kN/m`);
+
+  // b) Maske gegen Kern - ueber Profile, Klassen und Stegrichtungen.
+  const fX = S109.feld('wMast');
+  const fY = S109.feld('wMastY');
+  const abweichend = [];
+  ['HEB 200', 'HEB 220', 'HEB 260', 'HEM 240'].forEach((prof) => {
+    ['0.9', '1.1', '1.3'].forEach((wk) => {
+      ['jochachse', 'quer'].forEach((steg) => {
+        const w = einzelmast({ windKlasse: wk, mastProfil: prof, mastSteg: steg });
+        const m = V109.modellEinzelmast({ ...w, lastfall: 'wyk' }, getStahl(w.stahl));
+        const x = fX.wertAus(w), y = fY.wertAus(w);
+        if (Math.abs(x - m.mastLast.A.x) > 1e-12 || Math.abs(y - m.mastLast.A.y) > 1e-12) {
+          abweichend.push(`${prof}/${wk}/${steg}: Maske ${x}/${y} gegen Kern `
+                        + `${m.mastLast.A.x}/${m.mastLast.A.y}`);
+        }
+      });
+    });
+  });
+  wahr('Maske und Kern nennen denselben Mastwind (24 Faelle)',
+       abweichend.length === 0, abweichend[0] ?? 'keine Abweichung');
+
+  // c) Die zweite Richtung ist angeschrieben und keine Eingabe.
+  wahr('w_Mast,y steht in der Maske und ist gesperrt',
+       fY.nurAnzeige === true && fY.sichtbar(einzelmast()) === true,
+       `sym ${fY.sym}`);
+
+  // d) Die Tabelle gewinnt - und die Maske behauptet nichts anderes.
+  {
+    const w = einzelmast({ lastHerkunft: 'manuell', lastenBearbeiten: true, wMast: 0.61 });
+    const m = V109.modellEinzelmast({ ...w, lastfall: 'wyk' }, getStahl(w.stahl));
+    wahr('Auch freigegeben gilt die Tabelle, nicht das flache Feld',
+         Math.abs(m.mastLast.A.x - 0.28) < 1e-12, `x = ${m.mastLast.A.x} kN/m`);
+    wahr('… und die Maske zeigt denselben Wert',
+         Math.abs(fX.wertAus(w) - m.mastLast.A.x) < 1e-12, `Maske ${fX.wertAus(w)} kN/m`);
+    wahr('w_Mast,x ist deshalb gesperrt, nicht scheinbar frei',
+         fX.nurAnzeige === true && fX.ausLast === undefined, 'nurAnzeige');
+    /*
+     * ZWEI MASTEN, ZWEI PROFILE - der Grund, warum es kein Eingabefeld gibt.
+     * Ein flaches Feld gaebe beiden denselben Wert.
+     */
+    const NB109 = await import(J('core.nachbarn.js'));
+    let zwei = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    zwei.L = 20; zwei.xLage = 0; zwei.mastVorhanden = true; zwei.mastProfil = 'HEB 220';
+    zwei = { ...zwei, masten: C109.mastenVon(zwei)
+      .map((mm, i) => ({ ...mm, profil: i === 0 ? 'HEB 220' : 'HEM 240' })) };
+    // Ueber den Weg der Anwendung: erst der Rechensatz, dann das Modell -
+    // sonst kennt `drehfedern` die Mastliste nicht.
+    const rz = NB109.rechensatzMitNachbarn(zwei);
+    const mz = V109.modell({ ...rz, lastfall: 'wyk' }, getProfil(rz.profOG),
+      getProfil(rz.profUG), getStahl(rz.stahl), T.getTragjoch(rz.typ));
+    wahr('Jeder Mast bekommt den Wind SEINES Profils',
+         Math.abs(mz.mastLast.A.x - 0.28) < 1e-12
+         && Math.abs(mz.mastLast.B.x - 0.31) < 1e-12,
+         `A ${mz.mastLast.A.x} · B ${mz.mastLast.B.x} kN/m`);
+  }
+
+  // e) Laufmeterlasten des Jochs stehen nicht am Einzelmasten.
+  {
+    const em = einzelmast({ schneeAktiv: true });
+    const joch = typUebernehmen({ ...standardwerte(), typ: 'J90', schneeAktiv: true },
+                                T.getTragjoch('J90'));
+    const jochLasten = ['gkManuell', 'wkManuell', 'skManuell', 'gZusatz', 'schneeKlasse'];
+    const sichtbar = (f, w) => (f.sichtbar ? Boolean(f.sichtbar(w)) : true);
+    const amMasten = jochLasten.filter((k) => sichtbar(S109.feld(k), em));
+    const amJoch = jochLasten.filter((k) => sichtbar(S109.feld(k), joch));
+    wahr('Am Einzelmasten steht keine Laufmeterlast des Jochs',
+         amMasten.length === 0, amMasten.join(', ') || 'keine');
+    wahr('Am Joch stehen sie alle', amJoch.length === jochLasten.length,
+         amJoch.join(', '));
+    // Die Windklasse bleibt - sie waehlt die Zeile der Mastwindtabelle.
+    wahr('Die Windklasse bleibt am Einzelmasten sichtbar',
+         sichtbar(S109.feld('windKlasse'), em), 'waehlt die Zeile des Mastwinds');
+
+    /*
+     * >>> UND KEIN FELD DARF DA STEHEN, DAS NICHTS TUT. <<<
+     *
+     * Weisung vom 20. September: «man sollte die tragjoche und masten
+     * gleichwertig behandeln und nur die felder auflisten die auch im
+     * modell vorkommen.» Gemessen wird deshalb die WIRKUNG: jedes der
+     * ausgeblendeten Felder darf am Einzelmasten weder den Nachweis noch
+     * die Spalten der Lastfalltabelle veraendern.
+     */
+    const nachweisAbdruck = (w2) => {
+      const s2 = NB109b.rechensatzMitNachbarn(w2);
+      const v = V109.vergleichKombinationen(s2, getProfil(s2.profOG),
+        getProfil(s2.profUG), getStahl(s2.stahl), T.getTragjoch(s2.typ));
+      const e2 = V109.berechne(s2, getProfil(s2.profOG), getProfil(s2.profUG),
+        getStahl(s2.stahl), T.getTragjoch(s2.typ));
+      return JSON.stringify([e2.mast?.etaNachweis, e2.max?.etaGesamt,
+        v.lastfaelle.map((z) => [z.eta, z.qd, z.wd])]);
+    };
+    const ohneWirkung = [];
+    [['gkManuell', 0.6, 1.2], ['wkManuell', 0.52, 1.04], ['skManuell', 0.27, 0.54],
+     ['gZusatz', 0, 0.4], ['schneeKlasse', '0.9', '1.25'],
+     ['mastWindAufJoch', false, true]].forEach(([k, a, b]) => {
+      const gleich = nachweisAbdruck(einzelmast({ schneeAktiv: true, [k]: a }))
+                  === nachweisAbdruck(einzelmast({ schneeAktiv: true, [k]: b }));
+      if (!gleich) ohneWirkung.push(k);
+      if (sichtbar(S109.feld(k), em)) ohneWirkung.push(k + ' steht trotzdem da');
+    });
+    wahr('Die ausgeblendeten Felder aendern am Einzelmasten nichts',
+         ohneWirkung.length === 0, ohneWirkung.join(', ') || 'keines wirkt');
+  }
+
+  // f) Im Bild steht der Wind in y am Masten - er war der Anlass.
+  {
+    const R109 = await import(J('render.3d.js'));
+    const w = einzelmast();
+    const faelle = LA109.lastfaelle(w);
+    const wyk = faelle.find((f) => f.key === 'wyk');
+    const erg = berechne({ ...w, lastfall: wyk.key }, getProfil(w.profOG),
+                         getProfil(w.profUG), getStahl(w.stahl), T.getTragjoch(w.typ));
+    const sz = R109.erzeugeSzene(erg.modell, erg);
+    const amMast = (art) => (sz.vektoren ?? [])
+      .filter((v) => v.lastart === art && /^MAST_/.test(String(v.teil ?? ''))).length;
+    wahr('Wind in Gleisrichtung steht am Einzelmasten im Bild',
+         amMast('windY') > 0, `${amMast('windY')} Pfeile`);
+  }
+}
+
 
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
