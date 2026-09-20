@@ -3677,6 +3677,14 @@ function dialogBauteildaten() {
    * Jetzt steht beides hier: ansehen, einlesen, laden, sichern. Die
    * Optionen verweisen nur noch hierher.
    */
+  /*
+   * >>> WANN DRUECKT MAN WAS? DAS GEHOERT INS FENSTER. <<<
+   *
+   * Weisung vom 20. September: «wann muss man einlesen und datenpaket
+   * drücken und wann sichere ich die datepakete und wann excel.» Wenn die
+   * Frage entsteht, ist sie nicht beantwortet - also steht die Antwort
+   * jetzt ueber den Knoepfen, in zwei Zeilen.
+   */
   const paketZeile = () => {
     const v = ausSpeicher();
     return `<p class="notiz dat-paket">${v
@@ -3686,15 +3694,20 @@ function dialogBauteildaten() {
         + 'data-paket-leeren>Hinterlegtes löschen</button>'
       : 'Kein Datenpaket hinterlegt — die Daten kommen aus den Dateien neben '
         + 'der Anwendung. Ohne sie (GitHub Pages, Bündel ohne Daten) braucht '
-        + 'es eines.'}</p>`;
+        + 'es eines.'}</p>
+    <p class="notiz dat-wann"><b>Laden</b> nimmt jede Datei — Excel-Mappe,
+      einzelne <code>data/…json</code> oder ein ganzes Datenpaket — und zeigt
+      erst den Abgleich: Sie sehen jede Änderung, bevor sie gilt.
+      <b>Sichern</b> gibt es zweimal: das <b>Datenpaket</b> nimmt ALLES mit
+      (in einen anderen Browser, auf GitHub Pages, als Sicherung),
+      <b>Excel</b> nimmt die Tabellen zum Bearbeiten — geändert und wieder
+      geladen.</p>`;
   };
   const koerper = () => paketZeile() + zeichneDaten(best, datenAnsicht.aktiv, opt());
 
   const d = dialog('Bauteildaten', koerper(),
-    `<button class="btn" data-daten-einlesen>Einlesen …</button>
-     <button class="btn" data-paket-laden>Datenpaket laden …</button>
-     <button class="btn" data-paket-sichern>Datenpaket sichern</button>
-     <button class="btn" data-daten-excel>Alle Tabellen als Excel</button>
+    `<button class="btn btn-acc" data-daten-laden>Daten laden …</button>
+     <button class="btn" data-daten-sichern>Daten sichern ▾</button>
      <button class="btn" data-zu>Schliessen</button>`, 'dialog-breit');
 
   const neu = () => {
@@ -3746,36 +3759,43 @@ function dialogBauteildaten() {
   }
   verdrahte();
 
-  d.node.querySelector('[data-daten-excel]').onclick = () => {
-    const bl = datenBlaetter(tabellen, STIL, { blech: befunde });
-    herunterladen(arbeitsmappe(bl),
-      `${APP_NAME}_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  };
-  d.node.querySelector('[data-daten-einlesen]').onclick = () => datenEinlesen(tabellen);
   /*
-   * LADEN NIMMT JEDE DATEI. `dateiAnnehmen` erkennt selbst, was es ist -
-   * Datenpaket, Excel-Mappe, einzelnes Sortiment oder Projektablage - und
-   * zeigt den passenden Dialog. Ein Knopf statt einer Entscheidung vorweg.
+   * >>> EIN LADEKNOPF (Weisung, 20. September: «kannst du die buttons
+   * weiter bündeln unter bauteildaten»). <<<
+   *
+   * Es gab «Einlesen …» und «Datenpaket laden …» nebeneinander, und
+   * niemand konnte wissen, welcher gemeint ist. Sie brauchen einander
+   * nicht: `leseDatei` (data.einlesen.js) nimmt die Excel-Mappe, eine
+   * einzelne `data/…json` UND ein ganzes Datenpaket - und zeigt fuer
+   * jedes denselben Abgleich. Der ist der sichere Weg: er sagt vorher,
+   * was sich aendert, und laesst stehen, was die Datei nicht traegt.
+   *
+   * Die Datenbasis rundweg ERSETZEN bleibt moeglich - beim Start ohne
+   * Daten (`dialogDaten`) und indem man die Datei auf das Fenster zieht
+   * (`dateiAnnehmen`). Im taeglichen Weg ist sie die seltenere Antwort.
    */
-  d.node.querySelector('[data-paket-laden]').onclick = () => {
-    const i = document.createElement('input');
-    i.type = 'file';
-    i.accept = '.json,.xlsx,application/json,'
-      + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    i.onchange = () => {
-      const f = i.files?.[0];
-      if (f) { d.zu(); dateiAnnehmen(f); }
-    };
-    i.click();
-  };
-  d.node.querySelector('[data-paket-sichern]').onclick = () => {
-    try {
-      const paket = paketAus(projekt.projekt || '');
-      store.dateiSpeichern(JSON.stringify(paket, null, 1),
-                           `${APP_NAME}_Datenpaket_${paket.stand}.json`);
-    } catch (fehler) {
-      alert(`Nichts zu sichern: ${fehler.message}`);
-    }
+  d.node.querySelector('[data-daten-laden]').onclick = () => datenEinlesen(tabellen);
+  d.node.querySelector('[data-daten-sichern]').onclick = (ev) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    kontextZeigen(app, [r.left, r.bottom + 4], [
+      { kopf: 'Mitnehmen' },
+      { text: 'Datenpaket (.json) — alles, für einen anderen Browser',
+        tun: () => {
+          try {
+            const paket = paketAus(projekt.projekt || '');
+            store.dateiSpeichern(JSON.stringify(paket, null, 1),
+                                 `${APP_NAME}_Datenpaket_${paket.stand}.json`);
+          } catch (fehler) { alert(`Nichts zu sichern: ${fehler.message}`); }
+        } },
+      '-',
+      { kopf: 'Bearbeiten' },
+      { text: 'Alle Tabellen (Excel) — ändern und wieder laden',
+        tun: () => {
+          const bl = datenBlaetter(tabellen, STIL, { blech: befunde });
+          herunterladen(arbeitsmappe(bl),
+            `${APP_NAME}_Bauteildaten_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        } },
+    ]);
   };
   return d;
 }

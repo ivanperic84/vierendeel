@@ -164,7 +164,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Abfangjoch im Blattmodell (20. Sept.) | «checke die abfangjoch ausleitung auf denselben fehler» → Befund: auf einem Blatt mit mehreren Tragwerken wurde ein Abfangjoch als **Tragjoch** gebaut (vier Winkel L 90×90×9 statt zweier liegender Walzprofile mit Gabel und Kröpfung). Entscheid: **richtig einbauen**. Es baut jetzt sein eigenes Modell (`abfangBau`), örtlich 0…jt, das Blatt verschiebt; Masten unter dem Blattnamen (`MAST_<Stelle>_S<n>`, damit ein geteilter Mast verschmilzt). Lastgruppen: **Leiterzug → G_Ablenk** (ständig und waagrecht wie die Ablenkkräfte), **WindJoch → WindY** («nur ±y, wie die eigene Ausleitung»), SchneeJoch → Schnee, G/G_Anbau/WindX/WindY unverändert. Havarie («gleich mit einbauen»): im Blatt bleibt der Nachbar ständig (örtliche Havarie, 19. Sept.); die **eigene** Abfangjoch-Ausleitung legt je Leiter einen Fall an — geschrieben wird die **Änderung** gegenüber dem ständigen Leiterzug (gerissener −Z(+5 °C), übrige Z(−20 °C) − Z(+5 °C)), die Kombination greift beides mit γ = 1.0 ohne veränderliche Lasten. Sie steht auch dann da, wenn die Änderung null ist (fehlende Reglagetabelle, pauschale Abfangkraft) — die Beiwerte unterscheiden sie von der Tragsicherheit |
 | Abfangjoch: Masten und Länge (20. Sept.) | «die masten werden nach innen gesetzt wenn primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig den nächst längeren joch auswählen.» Das Sortiment führt je Länge einen **Bereich zulässiger Stützweiten** (Überstand 0.25–0.495 m je Seite). Vorgabe ist die **grösste** Stützweite, also 25 cm Überstand je Seite (`abfangUeberstand`). Die **Lage eines Abfangjochs ist sein erster Mast** (`lageOrtsnull` = Lage − Überstand), der Träger kragt darüber hinaus — sonst könnte es nie einen Masten mit dem Nachbarjoch teilen. Mastabstand = js = jt − 2·ü. Passt der Abstand vorhandener Masten nicht in den Bereich, nennt ein Hinweis das passende Joch (`abfangFuerStuetzweite`, kürzeste Länge des Typs, sonst nächster Typ); geändert wird nichts von selbst («Warnen, Berichtigung auf Klick») |
 | Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
-| Daten: ein Fenster (20. Sept.) | «das einlesen der daten ist etwas komplizier, können wir dies vereinfachen.» Es gab zwei Türen mit ähnlichen Namen: das **Datenpaket** (Optionen → Datenbasis, ersetzt die ganze Basis) und das **Einlesen** je Sortiment (Fenster Bauteildaten, mit Abgleich). Gewählt: **ein Fenster für alles.** Ansehen, einlesen, laden und sichern stehen im Fenster *Bauteildaten*; der Knopf «Datenpaket laden …» nimmt **jede** Datei und erkennt selbst, was es ist (`dateiAnnehmen`). Der Reiter *Datenbasis* sagt nur noch, was hinterlegt ist, und führt dorthin. Der **Abgleichbericht** ist kurz: oben eine Zeile je geändertem Sortiment, die Tabellen klappen auf; Sortimente ohne Änderung stehen nur als Namen darunter. Fehler und «geprüfte Sätze ändern sich» bleiben offen — die soll niemand aufklappen müssen |
+| Daten: ein Fenster (20. Sept.) | «das einlesen der daten ist etwas komplizier, können wir dies vereinfachen.» Es gab zwei Türen mit ähnlichen Namen: das **Datenpaket** (Optionen → Datenbasis, ersetzt die ganze Basis) und das **Einlesen** je Sortiment (Fenster Bauteildaten, mit Abgleich). Gewählt: **ein Fenster für alles.** Ansehen, einlesen, laden und sichern stehen im Fenster *Bauteildaten*; der Knopf «Datenpaket laden …» nimmt **jede** Datei und erkennt selbst, was es ist (`dateiAnnehmen`). Der Reiter *Datenbasis* sagt nur noch, was hinterlegt ist, und führt dorthin. Der **Abgleichbericht** ist kurz: oben eine Zeile je geändertem Sortiment, die Tabellen klappen auf; Sortimente ohne Änderung stehen nur als Namen darunter. Fehler und «geprüfte Sätze ändern sich» bleiben offen — die soll niemand aufklappen müssen. **Weiter gebündelt** («kannst du die buttons weiter bündeln unter bauteildaten»): nur noch **«Daten laden …»** und **«Daten sichern ▾»**. Laden nimmt jede Datei — `leseDatei` liest Excel-Mappe, einzelne `data/…json` **und** ein ganzes Datenpaket, immer über den Abgleich. Sichern ist ein Aufklappmenü: *Datenpaket (.json)* zum Mitnehmen, *Alle Tabellen (Excel)* zum Bearbeiten. Über den Knöpfen steht in zwei Zeilen, wann man was nimmt — die Frage «wann muss man einlesen und datenpaket drücken» soll die Anwendung selbst beantworten. Die Datenbasis **rundweg zu ersetzen** bleibt der seltene Weg: beim Start ohne Daten und durch Hineinziehen der Datei |
 | Vorlagen nach Ort (19. Sept.) | «die anbauteile template auf die tragwerksarten anpassen», «nach ort trennen»: Spalte `ort` (joch / mast / beide; leer: mit Träger Joch, sonst beide). **Am Masten:** Rückleiter direkt, Lampe LED/alt mit Rohr (Rohr vorläufig = Hängerohr, Baustein «Lampenrohr»), Fahrdrahtabzug mit Konsole 1 m (Fd ohne Gewicht), NT- und Rohrausleger (1.25 / 2.50 m wie am Joch), Traverse mit Zusatzleiter. Kachelliste am Einzelmast nur Mast-Vorlagen, am Joch alle (Gruppe «Am Masten») |
 | Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
@@ -190,6 +190,14 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., Datenfenster weiter gebündelt, und der Stand geht nach
+  `Versand/`.** Aus vier Knöpfen wurden zwei (siehe *Entschieden*), und
+  über ihnen steht, wann man welchen nimmt. Neu `datenpaket.mjs`: es
+  schreibt den Stand aus `data/` als Paket nach `Versand/` und sagt,
+  wenn ein Sortiment fehlt. Geschrieben und gegengeprüft:
+  `Vierendeel_Datenpaket_2026-09-20.json`, 344 kB, alle sechs
+  Sortimente; nach dem Laden steht der Mastwind wieder (HEB 220 EK1
+  0.28, HEM 240 EK1 längs 0.34 kN/m).
 - **20. Sept., `APP_NAME` fehlte — zwei Knöpfe waren tot.** Gemeldet mit
   dem Bild des Optionen-Fensters: «Nichts zu sichern: APP_NAME is not
   defined». Der Knopf «Aktuelle Daten sichern» warf bei jedem Klick
@@ -679,12 +687,22 @@ node pruefung.mjs           # Pruefstand, 4890 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
+node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```
 
 Nach **jeder** Änderung an `js/` oder `css/` neu bündeln — die eigenständige
 Datei veraltet sonst still.
+
+**Nach jeder Änderung an `data/*.json` `node datenpaket.mjs` laufen lassen**
+(Weisung, 20. September: «kannst du noch jeweils den aktuellen stand der
+daten ablegen nach der modfizierung unter versand»). Es legt den Stand als
+`Versand/Vierendeel_Datenpaket_<Datum>.json` ab — die Datei, die eine
+Fassung **ohne** `data/` braucht (GitHub Pages, Bündel ohne Daten, anderer
+Browser). Das Werkzeug baut sie mit demselben `paketAus` wie der Knopf in
+der Anwendung und meldet laut, wenn ein Sortiment fehlt. `Versand/` steht
+nicht in der Ablage.
 
 Der Prüfstand prüft **Bausteine**, `durchlauf.mjs` einen **Durchgang**:
 Eingabe, Rechnung, Szene, Ausleitung, Bericht — für Joch, Einzelmast und
