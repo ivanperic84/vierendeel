@@ -67,6 +67,7 @@ import { linkBedingung, konsolLaenge } from './core.auflager.js';
 // Der Mast am Abfangjoch (Weisung, 11. September): sein Profil kommt aus
 // demselben Katalog wie beim Tragjoch.
 import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { havarieKandidaten, leiterKennung } from './data.anbauteile.js';
 
 /** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
 const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
@@ -1397,6 +1398,73 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
                    wert: Qy, lastfall: 'WindY' });
     }
   });
+  /* =========================================================================
+   * >>> HAVARIE JE LEITER (20. September). <<<
+   * =========================================================================
+   *
+   * Weisung vom 19. September: «nur ein leiter [kann] im havariefall
+   * rissen»; fuer das Abfangjoch gilt seit dem 17. September der VOLLE
+   * Leiterzug - der gerissene zieht nicht mehr, die uebrigen ziehen bei
+   * -20 °C. Bis hierher legte diese Ausleitung dafuer keinen Lastfall an
+   * (offener Punkt); der Entscheid vom 20. September lautet «gleich mit
+   * einbauen».
+   *
+   * >>> GESCHRIEBEN WIRD DIE AENDERUNG, NICHT DIE GANZE KRAFT. <<<
+   *
+   * Der staendige Lastfall `Leiterzug` traegt den Zug bei +5 °C. Je
+   * Kandidat kommt ein Lastfall dazu, der nur die DIFFERENZ fuehrt: beim
+   * gerissenen Leiter -Z(+5 °C), bei den uebrigen Z(-20 °C) - Z(+5 °C).
+   * Die Kombination greift dann `Leiterzug` UND die Aenderung - so wie es
+   * die Tragjoch-Ausleitung mit `HavarieX` haelt, und so bleibt die Datei
+   * lesbar: man sieht, was die Havarie am staendigen Zustand aendert.
+   */
+  const havKandidaten = havarieKandidaten(opt.havarie);
+  const havBricht = (t2, key) => (t2?.module ?? [])
+    .some((mo, i) => leiterKennung(t2, mo, i) === key);
+  /** Legt den Aenderungs-Lastfall fuer einen Kandidaten an. Gibt es Zug? */
+  const havarieLastfall = (key) => {
+    const fall = key ? `HavarieY|${key}` : 'HavarieY';
+    let etwas = false;
+    anbauKnoten.forEach(({ name: knA, teil: t2 }, j) => {
+      const basis = abfangAnbauLasten(t2, lastOpt).Z ?? 0;
+      const kalt = key && havBricht(t2, key)
+        ? 0
+        : (abfangAnbauLasten(t2, { ...lastOpt, tempFall: 'havarie' }).Z ?? 0);
+      const dZ = kalt - basis;
+      if (Math.abs(dZ) < 1e-9) return;
+      etwas = true;
+      punkt.push({ name: `HAV_AT${j + 1}${key ? `_${key}` : ''}`, knoten: knA,
+                   richtung: 'Y', wert: dZ, lastfall: fall });
+    });
+    return etwas;
+  };
+  /*
+   * DIE KOMBINATION STEHT AUCH OHNE AENDERUNG DA.
+   *
+   * Fuehrt die Reglagetabelle fuer einen Leiter keine Zeile, ist sein Zug
+   * temperaturunabhaengig - die Aenderung ist null, und der Lastfall bleibt
+   * leer. Die KOMBINATION gehoert trotzdem in die Datei: sie unterscheidet
+   * sich von der Tragsicherheit in den Beiwerten (1.0 statt 1.35/1.5, keine
+   * veraenderlichen Lasten). Ohne sie fehlte der aussergewoehnliche Fall
+   * ganz, und niemand saehe es der Datei an.
+   */
+  // Gefragt ist, ob ueberhaupt ein Leiterzug im Modell steht - auch die
+  // pauschale Abfangkraft `Fh` zaehlt, wenn kein abgefangener Leiter
+  // erfasst ist. Sonst fehlte gerade dort der aussergewoehnliche Fall.
+  const hatZug = punkt.some((p2) => p2.lastfall === 'Leiterzug'
+    && Math.abs(p2.wert) > 1e-9);
+  const havFaelle = [];
+  if (havKandidaten.length) {
+    havKandidaten.forEach((c, i) => {
+      havFaelle.push({ key: c.key, name: c.name, nr: i + 1,
+                       mitLast: havarieLastfall(c.key) });
+    });
+  } else if (hatZug) {
+    // Ohne Auswahl: der Fall ohne Leiterbruch, alle Leiter bei -20 °C.
+    havFaelle.push({ key: null, name: 'ohne Leiterbruch', nr: 0,
+                     mitLast: havarieLastfall(null) });
+  }
+
   /*
    * >>> DIE LINIENLAST HAENGT AM STAB, NICHT AN DER STELLE. <<<
    *
@@ -1539,6 +1607,12 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
       { key: 'WindY', label: 'Wind in Gleisrichtung (Anbauteile)', art: 'Others' },
       { key: 'WindJoch', label: 'Wind auf den Jochtraeger', art: 'Others' },
       { key: 'SchneeJoch', label: 'Schnee auf den Jochtraeger', art: 'Others' },
+      // Je reissendem Leiter die AENDERUNG des Leiterzugs (siehe oben).
+      // Kurze Namen - AxisVM legt den Lastfall unter `label` an.
+      ...havFaelle.filter((h) => h.mitLast).map((h) => ({
+        key: h.key ? `HavarieY|${h.key}` : 'HavarieY',
+        label: h.key ? `Havarie L${h.nr} Zug` : 'Havarie Zug (-20 C)',
+        art: 'Others', leiter: h.name })),
     ],
     kombinationen: [
       { key: 'gk', bez: 'Staendig', art: 'charakteristisch', nachweis: false,
@@ -1550,6 +1624,27 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
         anteile: [{ lastfall: 'G', faktor: 1.35 },
                   { lastfall: 'G_Anbau', faktor: 1.35 },
                   { lastfall: 'Leiterzug', faktor: 1.5 }] },
+      /*
+       * HAVARIE: aussergewoehnlich, staendige Lasten charakteristisch
+       * (gamma = 1.0), keine veraenderlichen - dieselben Beiwerte, mit
+       * denen der Kern den Fall rechnet (`beiwerteVon` in
+       * core.abfangjoch.js). Dazu die Aenderung des Leiterzugs.
+       */
+      ...havFaelle.map((h) => ({
+        key: h.key ? `havarie|${h.key}` : 'havarie',
+        bez: h.key ? `Havarie L${h.nr}: ${h.name} reisst`
+                   : 'Havarie (-20 C), ohne Leiterbruch',
+        art: 'aussergewoehnlich', nachweis: true,
+        ...(h.key ? { leiter: h.name } : {}),
+        anteile: [{ lastfall: 'G', faktor: 1 },
+                  { lastfall: 'G_Anbau', faktor: 1 },
+                  { lastfall: 'Leiterzug', faktor: 1 },
+                  // Leer bleibt der Aenderungsfall, wenn die Reglagetabelle
+                  // fuer diesen Leiter keine Zeile fuehrt - dann steht er
+                  // hier auch nicht.
+                  ...(h.mitLast
+                    ? [{ lastfall: h.key ? `HavarieY|${h.key}` : 'HavarieY', faktor: 1 }]
+                    : [])] })),
     ],
     lasten: { punkt, strecke },
   };

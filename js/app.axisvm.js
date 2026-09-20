@@ -263,6 +263,9 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
         L_FL: Number(aktSatz.L_FL) || 0,
         R: Number(aktSatz.R) || 0,
         ek: aktSatz.ek,
+        // Welcher Leiter reissen kann (19./20. September) - je Kandidat ein
+        // Lastfall und eine Kombination in der Datei.
+        havarie: aktSatz.havarie,
         // Schnee und Wind auf den Traeger kommen aus der Sortimentstabelle;
         // welche Spalte gilt, sagt die Eingabe.
         schneeAktiv: aktSatz.schneeAktiv,

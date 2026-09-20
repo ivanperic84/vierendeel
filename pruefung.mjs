@@ -26281,6 +26281,93 @@ titel('105  Abfangjoch im Blattmodell: eigener Traeger, nicht der Jochweg');
        `${zug.length} Abschnitte, ${laenge.toFixed(2)} m, ${dopp.length} deckungsgleich`);
 }
 
+titel('106  Abfangjoch-Ausleitung: Havarie je Leiter');
+/*
+ * Entscheid vom 20. September: «Gleich mit einbauen». Damit faellt der
+ * offene Punkt vom 19. September weg - die Abfangjoch-Ausleitung legte
+ * keine Havariefaelle an. Regel seit dem 17. September: voller Leiterzug,
+ * der gerissene zieht nicht mehr, die uebrigen bei -20 °C.
+ *
+ * Geschrieben wird die AENDERUNG gegenueber dem staendigen Leiterzug; die
+ * Kombination greift beides.
+ */
+{
+  const C106 = await import(J('core.constants.js'));
+  const A106 = await import(J('data.anbauteile.js'));
+  const N106 = await import(J('core.nachbarn.js'));
+  const AXA106 = await import(J('export.axisvm.abfang.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 15; w.xLage = 0; w.mastVorhanden = true; w.anbauteile = [];
+  w = C106.tragwerkWeg(C106.tragwerkHinzu(w, 'abfangjoch',
+    { xLage: 0, L: 15, abfangTyp: 'A200', mastH: 8 }), 'T1');
+  w = C106.setzeAnbauteileAn(w, [
+    { ...A106.neuesAnbauteil('leiter-nfl', 4), name: 'N-FL vorn' },
+    { ...A106.neuesAnbauteil('leiter-rfl', 11), name: 'R-FL hinten' }]);
+  const leiter = A106.leiterListe(C106.rechensatz(w).anbauteile);
+  const bauen = (havarie) => {
+    const s2 = C106.rechensatz({ ...w, havarie });
+    return AXA106.abfangAxisvmModell('A200', 15, {
+      knotenmodell: 'anschnitt', anbauteile: s2.anbauteile ?? [],
+      L_FL: Number(s2.L_FL) || 0, R: Number(s2.R) || 0, ek: s2.ek,
+      schneeAktiv: s2.schneeAktiv, schneeKlasse: s2.schneeKlasse,
+      havarie: s2.havarie });
+  };
+  const wahl = Object.fromEntries(leiter.map((l) => [l.key, { reisst: true, name: l.name }]));
+  const dat = bauen(wahl);
+  const zug = (fall) => dat.lasten.punkt
+    .filter((p) => p.lastfall === fall && p.richtung === 'Y')
+    .reduce((a, p) => a + p.wert, 0);
+
+  wahr('Je angehaktem Leiter ein Lastfall und eine Kombination',
+       leiter.every((l) => dat.lastfaelle.some((x) => x.key === `HavarieY|${l.key}`)
+         && dat.kombinationen.some((k) => k.key === `havarie|${l.key}`)),
+       dat.lastfaelle.filter((x) => /^HavarieY/.test(x.key)).map((x) => x.label).join(' · '));
+  wahr('… die Havariekombination ist aussergewoehnlich, ohne veraenderliche Lasten',
+       dat.kombinationen.filter((k) => /^havarie/.test(k.key)).every((k) => k.art === 'aussergewoehnlich'
+         && k.anteile.every((an) => an.faktor === 1)
+         && !k.anteile.some((an) => /Wind|Schnee/.test(an.lastfall))));
+
+  // In jedem Fall zieht nur noch der andere Leiter - und der bei -20 °C.
+  const gesamt = (key) => {
+    const k = dat.kombinationen.find((x) => x.key === `havarie|${key}`);
+    return k.anteile.reduce((a, an) => a + an.faktor * zug(an.lastfall), 0);
+  };
+  const staendig = zug('Leiterzug');
+  const soll = leiter.map((l) => l.zug20 ?? 0);
+  wahr('In jedem Fall faellt genau ein Leiter aus, die uebrigen ziehen bei -20 °C',
+       Math.abs(gesamt(leiter[0].key) - soll[1]) < 1e-6
+       && Math.abs(gesamt(leiter[1].key) - soll[0]) < 1e-6,
+       `staendig ${staendig.toFixed(2)} · ohne L1 ${gesamt(leiter[0].key).toFixed(2)}`
+       + ` · ohne L2 ${gesamt(leiter[1].key).toFixed(2)} kN`);
+
+  // Und die Datei bringt dasselbe wie der Rechenkern.
+  const erg = N106.abfangAuswertungFuer({ ...w, havarie: wahl }, getStahl(w.stahl));
+  const je = (ende) => Object.fromEntries(
+    (erg?.auflager?.[ende]?.faelle ?? []).map((f) => [f.key, f.Fy ?? 0]));
+  const fa = je('A'), fb = je('B');
+  const paare = leiter.map((l) => [gesamt(l.key), (fa[`havarie|${l.key}`] ?? 0) + (fb[`havarie|${l.key}`] ?? 0)]);
+  wahr('Datei und Rechenkern tragen denselben Laengszug',
+       paare.every(([datei, kern]) => Math.abs(datei - kern) < 1e-6),
+       paare.map(([a2, b2]) => `${a2.toFixed(3)}/${b2.toFixed(3)}`).join(' · '));
+
+  // Auch ohne Reglagetabelle (Zug temperaturunabhaengig) muss die
+  // Kombination dastehen - sie unterscheidet sich in den Beiwerten.
+  const q106 = readFileSync(join(HIER, 'js', 'export.axisvm.abfang.js'), 'utf8');
+  wahr('Die Havariekombination steht auch ohne Aenderung des Zugs',
+       q106.includes("p2.lastfall === 'Leiterzug'") && q106.includes('h.mitLast'));
+
+  // Ohne Auswahl: ein Fall ohne Leiterbruch, alle bei -20 °C.
+  const ohne = bauen(undefined);
+  const zugO = (fall) => ohne.lasten.punkt
+    .filter((p) => p.lastfall === fall && p.richtung === 'Y').reduce((a, p) => a + p.wert, 0);
+  const kO = ohne.kombinationen.find((k) => k.key === 'havarie');
+  wahr('Ohne Auswahl: ein Fall «ohne Leiterbruch», alle Leiter bei -20 °C',
+       !!kO && Math.abs(kO.anteile.reduce((a, an) => a + an.faktor * zugO(an.lastfall), 0)
+                        - (soll[0] + soll[1])) < 1e-6,
+       kO ? `${kO.bez} = ${kO.anteile.reduce((a, an) => a + an.faktor * zugO(an.lastfall), 0).toFixed(2)} kN`
+          : 'fehlt');
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
