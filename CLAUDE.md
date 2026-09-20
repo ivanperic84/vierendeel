@@ -182,12 +182,33 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**20. September 2026** · Prüfstand 4858 Kontrollen grün · `durchlauf.mjs`
+**20. September 2026** · Prüfstand 4865 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., Einzelmast stand auf einem Gelenk** (Prüfstand Abschnitt
+  108). Gemeldet mit dem Auflagerdialog aus AxisVM: «der masten soll
+  eingespannt sein, dies wurde gebaut». Im aufgebauten Modell trugen die
+  beiden **Einzelmastfüsse yy = 0 und zz = 0**, während jeder Jochmastfuss
+  1e10 hatte. Grund: `stabmodellEinzelmast` schrieb nur
+  `art: 'eingespannt'`, und `stuetzung` kennt die Angabe nicht — es baute
+  den **Jochfall** (Auflager auf dem Mastkopf, Verdrehung um y als Feder
+  aus c_φ, Torsion frei). Am Einzelmast gibt es keine Jochfeder, also
+  c = 0: «frei». Jetzt schreibt er die Volleinspannung aus, und
+  `stuetzung` versteht `art: 'eingespannt'`.
+  **Dazu die Wachen** («checke die schnittstellen und checks für die com
+  schnittstelle modellaufbau»): Prüfstand und `durchlauf.mjs` prüfen jetzt
+  jeden Mastfuss auf Volleinspannung, jede Last auf einen vorhandenen
+  Stab/Knoten, jeden Stab auf einen vorhandenen Querschnitt und jede
+  Kombination auf vorhandene Lastfälle; die **Brücke** meldet einen
+  Mastfuss ohne Einspannung laut (Abschnitt 7). Der Feldabgleich
+  Datei ↔ Brücke ist vollständig (letzte Lücke war `versatz`).
+  **Wind in y am Einzelmast** («keine last generiert»): in der Datei steht
+  er, in x wie in y — im damals gebauten Modell hatten die beiden
+  Einzelmasten denselben Namen `MAST_A` und verschmolzen, der zweite
+  verlor damit seine Lasten (behoben, siehe Abschnitt 107).
 - **20. Sept., Abfangjoch: Masten nach innen** (Prüfstand Abschnitt 107).
   Siehe *Entschieden*. Am Blatt des Auftraggebers gemessen: der geteilte
   Mast M3 stand im Modell bei x = 20.15 statt 20 (Mast und Anschluss
@@ -513,7 +534,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 4858 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 4865 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

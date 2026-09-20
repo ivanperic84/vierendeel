@@ -26451,6 +26451,103 @@ titel('107  Abfangjoch: Masten nach innen, Laenge nach den Masten');
        && q107.includes('die Masten stehen ${js.toFixed(2)} m auseinander'));
 }
 
+titel('108  COM-Schnittstelle: Mastfuss eingespannt, Datei in sich stimmig');
+/*
+ * Gemeldet am 20. September mit dem Auflagerdialog aus AxisVM: «der masten
+ * soll eingespannt sein, dies wurde gebaut». Im aufgebauten Modell trugen
+ * die beiden EINZELMASTFUESSE yy = 0 und zz = 0 - der Mast stand auf einem
+ * Gelenk, waehrend jeder Jochmastfuss 1e10 hatte.
+ *
+ * Grund: `stabmodellEinzelmast` schrieb nur `art: 'eingespannt'`, und
+ * `stuetzung` kannte die Angabe nicht - es baute den JOCH-Fall (Auflager
+ * auf dem Mastkopf, Verdrehung um y als Feder aus c_phi). Am Einzelmasten
+ * gibt es keine Jochfeder, also c = 0: «frei».
+ *
+ * Dazu die Kontrollen, die eine Datei in sich stimmig halten - «checke die
+ * schnittstellen und checks für die com schnittstelle modellaufbau».
+ */
+{
+  const C108 = await import(J('core.constants.js'));
+  const V108 = await import(J('core.vierendeel.js'));
+  const N108 = await import(J('core.nachbarn.js'));
+  const AX108 = await import(J('export.axisvm.js'));
+  const A108 = await import(J('data.anbauteile.js'));
+  const modellVon = (s2) => V108.modell({ ...s2, beiwerteFest: null },
+    getProfil(s2.profOG), getProfil(s2.profUG), getStahl(s2.stahl), T.getTragjoch(s2.typ));
+
+  const datei = (w) => {
+    const satz = N108.rechensatzMitNachbarn(w);
+    const erg = V108.berechne(satz, getProfil(satz.profOG), getProfil(satz.profUG),
+                              getStahl(satz.stahl), T.getTragjoch(satz.typ));
+    const m0 = erg.modell;
+    const deps = { berechne: V108.berechne, modell: V108.modell,
+                   profOG: m0.profOG, profUG: m0.profUG, stahl: m0.stahl, joch: m0.joch,
+                   modellVon };
+    const m = deps.modell({ ...satz, beiwerteFest: null },
+                          deps.profOG, deps.profUG, deps.stahl, deps.joch);
+    const opt = { knotenmodell: 'anschnitt', auflagerModell: 'mast', eingabe: satz };
+    return AX108.stabmodellJson(m, { ...opt, bau: AX108.blattWennMehrere(satz, deps, opt) });
+  };
+
+  // a) Einzelmast allein, mit einem Teil am Masten
+  let em = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  em.L = 20; em.xLage = 0; em.mastVorhanden = true;
+  em = C108.tragwerkWeg(C108.tragwerkHinzu(em, 'einzelmast',
+    { mastProfil: 'HEB 260', mastH: 8, mastLaenge: 12 }), 'T1');
+  em = C108.setzeAnbauteileAn(em,
+    [{ ...A108.neuesAnbauteil('leiter-traverse', 0), hMast: 9.5, ort: 'mastA' }]);
+  // b) Blatt: Joch, Einzelmast
+  let bl = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  bl.L = 20; bl.xLage = 0; bl.mastVorhanden = true;
+  bl = C108.tragwerkHinzu(bl, 'einzelmast',
+    { xLage: 40, mastProfil: 'HEB 260', mastH: 8, mastLaenge: 12 });
+
+  const fest = (a) => ['ux', 'uy', 'uz', 'fix', 'fiy', 'fiz'].every((f) => a[f] === 'Rigid');
+  [['Einzelmast allein', em], ['Blatt mit Einzelmast', bl]].forEach(([name, w]) => {
+    const dat = datei(w);
+    const fuesse = dat.auflager.filter((a) => a.modell === 'mast');
+    const lose = fuesse.filter((a) => !fest(a));
+    wahr(`${name}: jeder Mastfuss ist voll eingespannt`,
+         fuesse.length > 0 && lose.length === 0,
+         `${fuesse.length} Fuesse` + (lose.length
+           ? `, lose: ${lose.map((a) => `${a.knoten} fiy ${a.fiy} fiz ${a.fiz}`).join(', ')}` : ''));
+
+    // Die Datei muss in sich stimmen: jede Last auf einem Stab/Knoten, den
+    // es gibt, und jeder Stab auf einem Querschnitt, den es gibt.
+    const knoten = new Set(dat.knoten.map((k) => k.name));
+    const staebe = new Set(dat.staebe.map((s) => s.name));
+    const qs = new Set(dat.querschnitte.map((q) => q.name));
+    const lose2 = [
+      ...dat.lasten.punkt.filter((l) => !knoten.has(l.knoten)).map((l) => `Punktlast ${l.knoten}`),
+      ...dat.lasten.moment.filter((l) => !knoten.has(l.knoten)).map((l) => `Moment ${l.knoten}`),
+      ...dat.lasten.strecke.filter((l) => !staebe.has(l.stab)).map((l) => `Strecke ${l.stab}`),
+      ...dat.staebe.filter((s) => !knoten.has(s.von) || !knoten.has(s.bis)).map((s) => `Stab ${s.name}`),
+      ...dat.staebe.filter((s) => !qs.has(s.querschnitt)).map((s) => `QS ${s.querschnitt}`),
+      ...dat.auflager.filter((a) => !knoten.has(a.knoten)).map((a) => `Auflager ${a.knoten}`),
+    ];
+    wahr(`${name}: jede Last und jeder Stab zeigt auf Vorhandenes`,
+         lose2.length === 0, lose2.slice(0, 4).join(' · ') || 'stimmig');
+
+    // Und der Wind steht in BEIDEN Richtungen am Masten - gemeldet am
+    // 20. September: «bei wind in y hat das modell keine last beim
+    // einzelmasten generiert» (damals hiessen beide Masten MAST_A und
+    // verschmolzen, siehe Abschnitt 107).
+    const amMast = (lf) => dat.lasten.strecke
+      .filter((l) => l.lastfall === lf && /^MAST_/.test(l.stab)).length;
+    wahr(`${name}: Mastwind steht in x UND in y`,
+         amMast('WindX') > 0 && amMast('WindY') > 0,
+         `WindX ${amMast('WindX')} · WindY ${amMast('WindY')}`);
+  });
+
+  // Jede Kombination greift nur Lastfaelle, die es gibt.
+  const dat = datei(bl);
+  const lfKeys = new Set(dat.lastfaelle.map((l) => l.key));
+  const fehl = dat.kombinationen.flatMap((k) => k.anteile
+    .filter((an) => !lfKeys.has(an.lastfall)).map((an) => `${k.key} -> ${an.lastfall}`));
+  wahr('Jede Kombination greift nur vorhandene Lastfaelle', fehl.length === 0,
+       fehl.slice(0, 3).join(' · ') || `${dat.kombinationen.length} Kombinationen`);
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

@@ -2142,6 +2142,8 @@ if ($refFehler -gt 0) {
 
 # --- 7 - Auflager ------------------------------------------------------------
 Abschnitt '7 - Auflager'
+# Mastfuesse ohne Einspannung - gesammelt, unten laut gemeldet (20. Sept.).
+$script:loseFuesse = @()
 <#  AddNodalGlobal nimmt FEDERZAHLEN unmittelbar - RStiffnesses mit x, y, z,
     xx, yy, zz. Der andere Weg, AddNodalGlobal_V153, verlangt den Index eines
     BENANNTEN Federsatzes; auf dieser Anlage heissen die deutsch ("Starr -
@@ -2194,6 +2196,31 @@ foreach ($a in $d.auflager) {
              $a.ende, $a.knoten, $stf.x, $stf.y, $stf.z)
     Schreib ("      {0,-16}  xx {1,11:N0}  yy {2,12:N1}  zz {3,11:N0}" -f
              '', $stf.xx, $stf.yy, $stf.zz)
+    <#  >>> EIN MASTFUSS OHNE EINSPANNUNG IST EIN GELENK. <<<
+
+        Am 20. September gemeldet, mit dem Auflagerdialog aus AxisVM: "der
+        masten soll eingespannt sein, dies wurde gebaut". Die beiden
+        Einzelmastfuesse trugen yy = 0 und zz = 0, waehrend jeder
+        Jochmastfuss 1e10 hatte - der Mast stand auf einem Kugelgelenk.
+
+        Der Kommentar in Abschnitt 7b behauptete das Gegenteil: die
+        nodalen Auflager stuenden am Mastfuss und seien "immer voll
+        eingespannt". Genau solche Annahmen gehoeren geprueft, nicht
+        geglaubt. Der Fehler lag in der Ausleitung; gemerkt haette ihn
+        hier eine Zeile.                                               #>
+    if ($a.knoten -match '^MAST_.+_F$' -and
+        ($stf.xx -le 0 -or $stf.yy -le 0 -or $stf.zz -le 0)) {
+        $script:loseFuesse += ,("{0}  xx {1:N0}  yy {2:N1}  zz {3:N0}" -f
+                                $a.knoten, $stf.xx, $stf.yy, $stf.zz)
+    }
+}
+
+if ($script:loseFuesse.Count -gt 0) {
+    Schreib ""
+    Schreib "  >>> ACHTUNG: $($script:loseFuesse.Count) Mastfuss/Mastfuesse OHNE"
+    Schreib "      Einspannung. Ein Mast, der sich am Fuss frei verdrehen kann,"
+    Schreib "      ist kein Mast - pruefen, bevor gerechnet wird:"
+    foreach ($z in $script:loseFuesse) { Schreib "        $z" }
 }
 
 # --- 7b - was die Verbindungselemente uebertragen ----------------------------

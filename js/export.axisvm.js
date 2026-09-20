@@ -1464,9 +1464,26 @@ function stabmodellEinzelmast(m, opt = {}) {
            { lcsZ: lcsMast });
   }
 
-  // Volleinspannung im Fundament - dieselbe Festlegung wie beim Joch.
+  /* =========================================================================
+   * >>> VOLLEINSPANNUNG IM FUNDAMENT - AUSGESCHRIEBEN (20. September). <<<
+   * =========================================================================
+   *
+   * Hier stand nur `art: 'eingespannt'`, und das las niemand: `stuetzung`
+   * kennt die Angabe nicht und baute den JOCH-Fall - Auflager auf dem
+   * Mastkopf, Verdrehung um y als Feder aus c_phi, Torsion frei. Am
+   * Einzelmasten gibt es keine Jochfeder, also c = 0, und daraus wurde
+   * «yy frei, zz frei»: der Mast stand im AxisVM-Modell auf einem GELENK.
+   *
+   * Gemeldet am 20. September mit dem Auflagerdialog aus AxisVM: «der
+   * masten soll eingespannt sein». Im aufgebauten Modell: yy 0.0, zz 0
+   * an beiden Einzelmastfuessen, waehrend jeder Jochmastfuss 1e10 trug.
+   *
+   * Geschrieben wird jetzt dasselbe wie beim Joch (siehe `mastFussLager`).
+   */
   const auflager = [{ ende: 'A', x, h: 0, modell: 'mast', knoten: kFuss,
-                      art: 'eingespannt' }];
+                      art: 'eingespannt',
+                      ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                      fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid', feder: null }];
   const qsStarr = s.qs(rechteck(STARR));
   const qsArm = s.qs(rechteck(ARM));
   const ankerAus = [];
@@ -3584,6 +3601,17 @@ export function stuetzung(m, lager) {
   if (lager && lager.fest === true) {
     const { ende: e2, knoten: k2, x: x2, modell: m2, fest, ...rest } = lager;
     return rest;
+  }
+  /*
+   * EINGESPANNT HEISST EINGESPANNT. Ein Lager, das sich so nennt, bekommt
+   * alle sechs Freiheitsgrade gehalten - auch wenn es seine Steifigkeiten
+   * nicht ausschreibt. Ohne diese Zeile fiel es in den Jochfall und stand
+   * mit freier Verdrehung da (20. September, Einzelmast).
+   */
+  if (lager && lager.art === 'eingespannt' && lager.ux === undefined) {
+    return { ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+             fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
+             cFiy_MNm: null, cFiy_kNm: null, cUz_MN: null, cUz_kNm: null };
   }
   const ende = lager.ende ?? lager;
   /*

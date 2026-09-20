@@ -192,6 +192,39 @@ for (const [name, bau] of FAELLE) {
   if (com.ok) {
     zeig('com-json', `${com.r.knoten.length} Knoten, ${com.r.staebe.length} Stäbe`
       + `, ${com.r.lastfaelle.length} Lastfälle, ${com.r.kombinationen.length} Kombinationen`);
+    /*
+     * >>> IST DIE DATEI IN SICH STIMMIG? (20. September) <<<
+     *
+     * Gemeldet mit dem Auflagerdialog aus AxisVM: «der masten soll
+     * eingespannt sein». Die beiden Einzelmastfuesse trugen yy = 0 und
+     * zz = 0 - ein Gelenk statt einer Einspannung, und niemand sah es der
+     * Datei an. Geprueft wird deshalb, was ein Modell tragfaehig macht:
+     * jeder Mastfuss eingespannt, jede Last auf einem Stab, den es gibt,
+     * jeder Stab auf einem Querschnitt, den es gibt.
+     */
+    const dat = com.r;
+    const knotenN = new Set(dat.knoten.map((k) => k.name));
+    const staebeN = new Set(dat.staebe.map((st) => st.name));
+    const qsN = new Set(dat.querschnitte.map((q) => q.name));
+    const festN = (x) => ['ux', 'uy', 'uz', 'fix', 'fiy', 'fiz'].every((f2) => x[f2] === 'Rigid');
+    const lose = (dat.auflager ?? []).filter((x) => x.modell === 'mast' && !festN(x));
+    if (lose.length) {
+      befunde.push({ fall: name, weg: 'COM-Ausleitung',
+        text: `${lose.length} Mastfuss/Mastfuesse nicht eingespannt: `
+            + lose.map((x) => `${x.knoten} fiy ${x.fiy} fiz ${x.fiz}`).join(', ') });
+    }
+    const zeigtInsLeere = [
+      ...dat.lasten.punkt.filter((l) => !knotenN.has(l.knoten)).map((l) => `Punktlast ${l.knoten}`),
+      ...dat.lasten.strecke.filter((l) => !staebeN.has(l.stab)).map((l) => `Strecke ${l.stab}`),
+      ...dat.staebe.filter((st) => !knotenN.has(st.von) || !knotenN.has(st.bis)).map((st) => `Stab ${st.name}`),
+      ...dat.staebe.filter((st) => !qsN.has(st.querschnitt)).map((st) => `QS ${st.querschnitt}`),
+    ];
+    if (zeigtInsLeere.length) {
+      befunde.push({ fall: name, weg: 'COM-Ausleitung',
+        text: `${zeigtInsLeere.length} Verweise ins Leere: ${zeigtInsLeere.slice(0, 3).join(', ')}` });
+    }
+    zeig('com-probe', `${(dat.auflager ?? []).length} Auflager, alle Verweise `
+      + `${zeigtInsLeere.length ? 'NICHT ' : ''}stimmig`);
   }
 
   const py = versuch(name, 'pyniteSkript', () =>
