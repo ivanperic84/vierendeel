@@ -116,10 +116,14 @@ const mastWindAnzeige = (w) => {
                         m.steg ?? w.mastSteg ?? 'jochachse');
   } catch { /* Profil nicht im Sortiment - dann bleibt nur das Gespeicherte */ }
   const vonHand = w.wMastAusTabelle === false;
-  const gespeichert = m.wMast ?? w.wMast ?? 0;
-  const x = vonHand ? gespeichert
-          : (Number.isFinite(tab.jochachse) ? tab.jochachse : gespeichert);
-  return { x: Math.abs(x),
+  /*
+   * Fehlt die Tabellenzeile, bleibt das Feld LEER - nicht der alte Wert aus
+   * der Mastliste. Er gehoert dem Profil, das dort einmal stand (20. Sept.,
+   * gemeldet an einem HEB 220, der 0.30 kN/m eines HEB 240 anzeigte).
+   */
+  const x = vonHand ? (m.wMast ?? w.wMast ?? 0)
+          : (Number.isFinite(tab.jochachse) ? tab.jochachse : null);
+  return { x: x === null ? null : Math.abs(x),
            y: Number.isFinite(tab.gleis) ? Math.abs(tab.gleis) : null };
 };
 

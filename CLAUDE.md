@@ -183,12 +183,44 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**20. September 2026** · Prüfstand 4878 Kontrollen grün · `durchlauf.mjs`
+**20. September 2026** · Prüfstand 4890 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **20. Sept., Durchlauf über den Einzelmasten** (Prüfstand Abschnitt
+  110). Weisung: «kannst du zudem ein paar durchläufe bei der
+  modellieren und auswertung des einzelmasten vornehmen, es scheint,
+  dass wir sehr viele bugs haben.» 367 Aufbauten gefahren (Profil ×
+  Länge × Einwirkungsklasse × Stegrichtung × Anbauteile), dazu Anker,
+  Schnee, Havarie je Leiter, Kette, Fundamentkote, jeder Lastfall
+  einzeln, Symmetrie ±y/±x, Bericht, PyNite und drei Einzelmasten auf
+  einem Blatt. **Drei Befunde:**
+  (1) **Ohne Masten-Sortiment erfand die Anwendung eine Windlast.**
+  Gemeldet: «dieser mast heb 220 zeigt immernochnicht eine windlast in
+  y.» Fehlt das Sortiment (altes Datenpaket, Bündel ohne Daten,
+  GitHub Pages), fällt `mastprofile()` auf die Normprofile zurück —
+  und die tragen keine Windzeile. Der Kern nahm dann den in der
+  **Mastliste abgelegten** Wert: am HEB 220 standen 0.30 kN/m, der
+  Tabellenwert eines HEB 240, in Gleisrichtung nichts, im Bild kein
+  Pfeil, und **kein Wort darüber**. Jetzt bleibt beides leer
+  (`fehlt`), und ein Hinweis nennt Ursache und Folge — am
+  Einzelmasten ist der Wind in Gleisrichtung die massgebende
+  Einwirkung, sein stilles Ausfallen liegt auf der unsicheren Seite.
+  (2) **Auf einem Blatt ging die Trennung von G verloren.** Die
+  COM-Ausleitung holt ihre Lasten mit `gTrennen` (G / G_Anbau /
+  G_Ablenk); lag ein fertiges Blattmodell vor, nahm sie dessen
+  `lasten` — ohne die Trennung. Das Gewicht eines Anbauteils stand
+  dann in `G`, die Ablenkkraft ebenso. Die Bemessung ändert das nicht
+  (alle drei mit demselben Beiwert), die charakteristischen
+  Einzelfälle schon. `stabmodellBlatt` führt jetzt beide Formen
+  (`lasten`, `lastenGetrennt`).
+  (3) **Das Auflager nannte die falsche Lage.** Jedes Tragwerk baut
+  bei x = 0, das Blatt schiebt es; das Feld `x` des Auflagers blieb
+  stehen — in der Datei stand x = 0 für einen Masten bei x = 60.
+  Gerechnet wird damit nichts, gelesen schon.
+  Nach den drei Berichtigungen: **kein Befund** in 367 Aufbauten.
 - **20. Sept., der Reiter Lasten zeigte Felder, die nichts tun**
   (Prüfstand Abschnitt 109). Gemeldet am Einzelmasten: «hier ist die
   windlast in y nicht aufgeführt … auch die angabe in der sidebar passt
@@ -477,6 +509,17 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - **Druckstütze Stufe 2** (mehrteiliger Druckstab, EN 1993-1-1, 6.4): ⚠ es
   fehlen der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen
   (Anzahl, Abstand, Profil).
+- ⚠ **Anbauteil über dem Mastkopf:** der Nachweis rechnet es (auf einem
+  Hebelarm, den es nicht gibt), die Ausleitung lässt es weg (dort steht
+  kein Mast mehr). Beides steht jetzt in einem Hinweis und im Vermerk
+  `anbauMastAus` der Datei. Offen: ob die Eingabe es stattdessen auf den
+  Kopf **herunterziehen** soll — so, wie sie an der Fundamentkote nach
+  oben zieht (Entscheid vom 18. September). Das ändert η. Entsteht beim
+  nachträglichen Kürzen des Masten; der Höhenregler selbst reicht nur
+  bis zum Kopf.
+- **Datenpaket ohne Masten-Sortiment:** ältere Pakete führen es nicht;
+  dann fehlt der Mastwind ganz (siehe oben, der Hinweis sagt es). Ein
+  neu gesichertes Paket enthält es.
 - ⚠ **Mastwind von Hand:** heute folgt er immer der Tabelle. Eine Eingabe
   müsste **je Mast** stehen (in der Mastkachel), nicht als ein flaches Feld
   für das ganze Blatt — sonst bekämen ein HEB 220 und ein HEM 240 densel-
@@ -582,7 +625,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 4878 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 4890 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

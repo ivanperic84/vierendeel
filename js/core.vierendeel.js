@@ -196,12 +196,34 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
     // dieselbe Stelle, aus der die Maske ihre beiden Zeilen holt.
     const { jochachse: wJoch, gleis: wGleis } =
       mastWindBeide(mast.profil.name, ek, mast.stegrichtung.key);
-    const x = vonHand ? (wManuell ?? 0)
-            : (Number.isFinite(wJoch) ? wJoch : (wManuell ?? 0));
-    const xk = Math.abs(x);
+    /*
+     * >>> OHNE TABELLENZEILE GIBT ES KEINEN MASTWIND (20. September). <<<
+     *
+     * Gemeldet mit einem HEB 220 / 12.00 m: «dieser mast heb 220 zeigt
+     * immernochnicht eine windlast in y.» Nachgestellt - es lag nicht an
+     * der Maske. Ist das MASTEN-SORTIMENT nicht geladen (altes Datenpaket,
+     * Bündel ohne Daten, GitHub Pages ohne Paket), fällt `mastprofile()`
+     * auf die Normprofile zurueck, und die tragen keine Windzeile:
+     * `mastWind` liefert null.
+     *
+     * Bis hierher sprang dann `wManuell` ein - der in der Mastliste
+     * ABGELEGTE Wert. Am gemeldeten HEB 220 waren das 0.30 kN/m, der
+     * Tabellenwert eines HEB 240; in Gleisrichtung stand gar nichts, und
+     * das Bild zeigte keinen Pfeil. Gerechnet wurde also mit der Windlast
+     * eines fremden Profils, ohne ein Wort.
+     *
+     * Jetzt bleibt beides leer, und `fehlt` sagt es weiter - `hinweise`
+     * (core.checks.js) meldet es ueber dem Ergebnis. Eine Last zu erfinden
+     * ist schlimmer als keine, solange man die fehlende SIEHT.
+     */
+    const xRoh = vonHand ? (wManuell ?? 0)
+               : (Number.isFinite(wJoch) ? wJoch : null);
+    const xk = xRoh === null ? null : Math.abs(xRoh);
     const yk = Number.isFinite(wGleis) ? Math.abs(wGleis) : null;
     return {
       profil: mast.profil.name, H: mast.H, ausTabelle: !vonHand,
+      // `fehlt`: die Tabelle hat fuer dieses Profil keine Windzeile.
+      fehlt: !vonHand && (xk === null || yk === null),
       x: xk, y: yk,
       /*
        * BEMESSUNGSWERTE DANEBEN, nicht anstelle.
@@ -214,7 +236,7 @@ function mastWindSatz(inp, federnRoh, beiwerte, bwX) {
        * Beiwert mit: ein negativer dreht den Pfeil, und genau das soll man
        * sehen.
        */
-      xd: bwX * xk,
+      xd: xk === null ? null : bwX * xk,
       yd: yk === null ? null : (beiwerte.WindY ?? 0) * yk,
     };
   };

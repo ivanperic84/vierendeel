@@ -26728,6 +26728,180 @@ titel('109  Mastwind: die Maske zeigt, was der Kern rechnet');
 }
 
 
+titel('110  Einzelmast: Durchlauf ueber Modellierung und Auswertung');
+/*
+ * Weisung vom 20. September: «kannst du zudem ein paar durchläufe bei der
+ * modellieren und auswertung des einzelmasten vornehmen, es scheint, dass
+ * wir sehr viele bugs haben.»
+ *
+ * 367 Aufbauten durchgefahren (Profil x Laenge x Einwirkungsklasse x
+ * Stegrichtung x Anbauteile, dazu Anker, Schnee, Havarie, Blatt). Drei
+ * Befunde blieben - sie stehen hier als Wache.
+ */
+{
+  const DM110 = await import(J('data.masten.js'));
+  const C110 = await import(J('core.constants.js'));
+  const V110 = await import(J('core.vierendeel.js'));
+  const CH110 = await import(J('core.checks.js'));
+  const AX110 = await import(J('export.axisvm.js'));
+  const NB110 = await import(J('core.nachbarn.js'));
+  const A110 = await import(J('data.anbauteile.js'));
+  const S110 = await import(J('ui.schema.js'));
+
+  const mv110 = (s) => V110.modell({ ...s, beiwerteFest: null },
+    getProfil(s.profOG), getProfil(s.profUG), getStahl(s.stahl), T.getTragjoch(s.typ));
+
+  const einzelmast = (o = {}) => {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    w = C110.tragwerkWeg(C110.tragwerkHinzu(w, 'einzelmast', {
+      mastProfil: o.profil ?? 'HEB 220', mastLaenge: o.laenge ?? 12 }), 'T1');
+    w.windKlasse = o.ek ?? '0.9';
+    if (o.hMast !== undefined) {
+      w = C110.setzeAnbauteileAn(w, [{ ...A110.neuesAnbauteil('leiter-traverse', 0),
+                                       hMast: o.hMast, ort: 'mastA' }]);
+    }
+    return w;
+  };
+  const rechne110 = (w) => {
+    const s = NB110.rechensatzMitNachbarn(w);
+    return { s, erg: V110.berechne(s, getProfil(s.profOG), getProfil(s.profUG),
+                                   getStahl(s.stahl), T.getTragjoch(s.typ)) };
+  };
+  const datei110 = (s, erg) => {
+    const m0 = erg.modell;
+    const deps = { berechne: V110.berechne, modell: V110.modell, profOG: m0.profOG,
+                   profUG: m0.profUG, stahl: m0.stahl, joch: m0.joch, modellVon: mv110 };
+    const m = deps.modell({ ...s, beiwerteFest: null },
+      deps.profOG, deps.profUG, deps.stahl, deps.joch);
+    const opt = { knotenmodell: 'anschnitt', auflagerModell: 'mast', eingabe: s };
+    return AX110.stabmodellJson(m, { ...opt, bau: AX110.blattWennMehrere(s, deps, opt) });
+  };
+
+  /* =====================================================================
+   * a) OHNE MASTEN-SORTIMENT WIRD KEINE WINDLAST ERFUNDEN
+   * ===================================================================
+   * Gemeldet mit einem HEB 220 / 12.00 m: «dieser mast heb 220 zeigt
+   * immernochnicht eine windlast in y.» In der Maske standen 0.30 kN/m -
+   * der Tabellenwert eines HEB 240, ein Rest in der Mastliste -, in
+   * Gleisrichtung nichts, und im Bild fehlte der Pfeil. Ursache: ohne
+   * Masten-Sortiment faellt `mastprofile()` auf die Normprofile zurueck,
+   * und die tragen keine Windzeile.
+   */
+  {
+    const gesichert = DM110.mastenDB();
+    try {
+      DM110.setzeMastenDB({ typen: [] });
+      wahr('Ohne Sortiment gibt es keine Windzeile',
+           !DM110.mastenDbDa() && DM110.mastWind('HEB 220', 'EK1', 'jochachse') === null,
+           'mastenDbDa ' + DM110.mastenDbDa());
+      let w = einzelmast({ profil: 'HEB 220', laenge: 12 });
+      // Ein Rest in der Mastliste, wie er beim Profilwechsel entsteht.
+      w = { ...w, wMast: 0.30,
+            masten: C110.mastenVon(w).map((m) => ({ ...m, wMast: 0.30 })) };
+      const { erg } = rechne110(w);
+      const ml = erg.modell.mastLast?.A;
+      wahr('… und der Kern erfindet keine',
+           ml?.x === null && ml?.y === null && ml?.fehlt === true,
+           `x ${ml?.x} · y ${ml?.y} · fehlt ${ml?.fehlt}`);
+      wahr('… die Maske zeigt nichts statt eines fremden Wertes',
+           S110.feld('wMast').wertAus(w) === null
+           && S110.feld('wMastY').wertAus(w) === null,
+           `Maske ${S110.feld('wMast').wertAus(w)} / ${S110.feld('wMastY').wertAus(w)}`);
+      const h = CH110.hinweise(erg.modell).join(' ');
+      wahr('… und die Anwendung sagt es laut',
+           /Mastwind fehlt/.test(h) && /unsicheren Seite/.test(h),
+           h.slice(0, 60) || 'kein Hinweis');
+    } finally {
+      // Der Prüfstand darf nicht mit halb geleerter Datenbasis weiterlaufen.
+      DM110.setzeMastenDB(gesichert);
+    }
+    wahr('Das Sortiment steht danach wieder', DM110.mastenDbDa()
+         && DM110.mastWind('HEB 220', 'EK1', 'jochachse') === 0.28,
+         'HEB 220 EK1 = ' + DM110.mastWind('HEB 220', 'EK1', 'jochachse'));
+  }
+
+  /* =====================================================================
+   * b) EIN TEIL UEBER DEM MASTKOPF WIRD NICHT STILL WEGGELASSEN
+   * ===================================================================
+   * Der Nachweis rechnet es (mit einem Hebelarm, den es nicht gibt), die
+   * Ausleitung laesst es weg (kein Knoten dort). Beides darf sein - aber
+   * nicht, ohne dass jemand es erfaehrt.
+   */
+  {
+    const { s, erg } = rechne110(einzelmast({ laenge: 8, hMast: 9.0 }));
+    const dat = datei110(s, erg);
+    const h = CH110.hinweise(erg.modell).join(' ');
+    wahr('Teil ueber dem Mastkopf: die Anwendung meldet es',
+         /ÜBER dem Mastkopf/.test(h), h.slice(0, 70) || 'kein Hinweis');
+    wahr('… und die Datei fuehrt den Vermerk',
+         (dat.tragwerk.anbauMastAus ?? []).length === 1,
+         JSON.stringify(dat.tragwerk.anbauMastAus));
+    const drin = rechne110(einzelmast({ laenge: 12, hMast: 9.0 }));
+    const hd = CH110.hinweise(drin.erg.modell).join(' ');
+    wahr('… und kein Fehlalarm, wenn es drin sitzt',
+         !/ÜBER dem Mastkopf/.test(hd)
+         && (datei110(drin.s, drin.erg).tragwerk.anbauMastAus ?? []).length === 0,
+         'Mast 12 m, Teil auf 9 m');
+  }
+
+  /* =====================================================================
+   * c) AUF DEM BLATT BLEIBT G GETRENNT - UND DIE LAGE STIMMT
+   * ===================================================================
+   * Gefunden beim Durchlauf: sobald ein zweites Tragwerk dastand, lag das
+   * Gewicht eines Anbauteils in `G` statt in `G_Anbau` (die COM-Ausleitung
+   * nahm die Lasten des fertigen Blattmodells, und die waren ohne
+   * `gTrennen` gebaut). Die Bemessung aenderte das nicht, die
+   * charakteristischen Einzelfaelle schon.
+   */
+  {
+    const jeFall = (dat) => {
+      const z = {};
+      [...(dat.lasten.punkt ?? []), ...(dat.lasten.moment ?? [])]
+        .forEach((l) => { z[l.lastfall] = (z[l.lastfall] ?? 0) + 1; });
+      return z;
+    };
+    const allein = einzelmast({ laenge: 12, hMast: 9.0 });
+    const a1 = rechne110(allein);
+    const zAllein = jeFall(datei110(a1.s, a1.erg));
+
+    const blatt = C110.tragwerkHinzu(allein, 'joch',
+      { L: 18, xLage: 25, typ: 'J90', mastVorhanden: true });
+    const b1 = rechne110(blatt);
+    const zBlatt = jeFall(datei110(b1.s, b1.erg));
+    wahr('Auf dem Blatt bleibt die Anbaulast in G_Anbau',
+         (zAllein.G_Anbau ?? 0) > 0 && (zBlatt.G_Anbau ?? 0) >= (zAllein.G_Anbau ?? 0)
+         && !(zBlatt.G > 0 && !(zAllein.G > 0)),
+         `allein ${JSON.stringify(zAllein)} · Blatt ${JSON.stringify(zBlatt)}`);
+
+    /* Drei Einzelmasten: eigene Fuesse, eigene Profile, richtige Lage. */
+    let drei = einzelmast({ laenge: 12, profil: 'HEB 260' });
+    drei = C110.tragwerkHinzu(drei, 'einzelmast',
+      { xLage: 10, mastProfil: 'HEB 220', mastLaenge: 10 });
+    drei = C110.tragwerkHinzu(drei, 'einzelmast',
+      { xLage: 25, mastProfil: 'HEM 240', mastLaenge: 14 });
+    const d3 = rechne110(drei);
+    const dat3 = datei110(d3.s, d3.erg);
+    const fuesse = dat3.auflager.filter((a) => a.modell === 'mast');
+    const kn3 = new Map(dat3.knoten.map((k) => [k.name, k]));
+    wahr('Drei Einzelmasten: drei eigene Fuesse',
+         fuesse.length === 3, fuesse.map((a) => a.knoten).join(', '));
+    // Das Feld `x` des Auflagers blieb beim oertlichen Nullpunkt stehen -
+    // in der Datei stand x = 0 fuer einen Masten weit draussen.
+    const schief = fuesse.filter((a) => Math.abs(a.x - (kn3.get(a.knoten)?.x ?? 0)) > 1e-9);
+    wahr('… und ihr Auflager nennt die Lage des Blattes',
+         schief.length === 0,
+         schief.length ? schief.map((a) => `${a.knoten}: Feld ${a.x} gegen Knoten `
+           + kn3.get(a.knoten)?.x).join(' · ')
+           : fuesse.map((a) => a.x).join(', '));
+    const profile = new Set(dat3.querschnitte.filter((q) => /^MAST_/.test(q.name))
+      .map((q) => q.name));
+    wahr('… und jeder sein eigenes Profil', profile.size === 3,
+         [...profile].join(', '));
+  }
+}
+
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

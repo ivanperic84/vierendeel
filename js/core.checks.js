@@ -767,6 +767,30 @@ export function hinweise(m) {
   const h = [];
 
   /*
+   * >>> EIN MAST OHNE WINDLAST IST NICHT NACHGEWIESEN (20. September). <<<
+   *
+   * Gemeldet: «dieser mast heb 220 zeigt immernochnicht eine windlast in
+   * y.» Ursache war das fehlende Masten-Sortiment - ohne es kennt
+   * `mastWind` keine Zeile, und der Kern rechnete mit dem in der Mastliste
+   * abgelegten Rest eines anderen Profils weiter (siehe `mastWindSatz`).
+   *
+   * Jetzt steht dort nichts, und das muss man SEHEN: am Einzelmasten ist
+   * der Wind in Gleisrichtung die massgebende Einwirkung - faellt er
+   * stillschweigend aus, liegt der Nachweis auf der unsicheren Seite.
+   */
+  const ohneWind = ['A', 'B']
+    .map((e) => m.mastLast?.[e])
+    .filter((x) => x && x.fehlt)
+    .map((x) => x.profil);
+  if (ohneWind.length) {
+    h.push(`Mastwind fehlt für ${[...new Set(ohneWind)].join(', ')} — das `
+      + 'Masten-Sortiment ist nicht geladen (Datenbasis → Datenpaket laden). '
+      + 'Der Wind auf den Masten wird NICHT gerechnet; am Einzelmasten ist '
+      + 'das die massgebende Einwirkung. Der Nachweis liegt auf der '
+      + 'unsicheren Seite.');
+  }
+
+  /*
    * >>> KEINE LAST UNTER DER FUNDAMENTKOTE (Weisung vom 18. September). <<<
    *
    * «eine last unterhalb der fundamentkote sollte nicht möglich sein, da
@@ -774,6 +798,47 @@ export function hinweise(m) {
    * steht es in einem alten Stand noch darunter, sagt es der Hinweis - die
    * Last wird gerechnet, wo sie steht, und ihr Wind mindert das Fussmoment.
    */
+  /*
+   * >>> UND KEINE LAST UEBER DEM MASTKOPF (20. September). <<<
+   *
+   * Beim Durchlauf ueber den Einzelmasten gefunden: eine Traverse auf
+   * h = 9.00 m an einem Masten von 8.00 m wird vom NACHWEIS gerechnet -
+   * mit dem Hebelarm 9.00 m, den es nicht gibt -, in der AUSLEITUNG aber
+   * weggelassen: dort findet sie keinen Knoten (`anbauMastAus` in
+   * export.axisvm.js, die Datei fuehrt den Vermerk). Zwei Modelle, eine
+   * Eingabe, kein Wort darueber.
+   *
+   * So entsteht es: der Hoehenregler reicht nur bis zum Kopf (19. Sept.,
+   * `mastKopfHoehe`), aber wer den Masten HINTERHER kuerzt, laesst das
+   * Teil oben stehen.
+   *
+   * Der Hinweis nennt beides. Ob die Eingabe das Teil stattdessen auf den
+   * Kopf herunterziehen soll - wie sie es an der Fundamentkote nach oben
+   * tut - ist ein Entscheid des Auftraggebers und liegt ihm vor.
+   */
+  const ueber = new Map();
+  (m.anbauMastFlach ?? []).forEach((t) => {
+    if (t.aktiv === false) return;
+    const ende = t.ort === 'mastB' ? 'B' : 'A';
+    const md = ende === 'B' ? (m.federn?.mastB ?? m.federn?.mast)
+                            : (m.federn?.mastA ?? m.federn?.mast);
+    // Ohne eingetragene Gesamtlaenge gibt es keinen gesicherten Kopf.
+    const kopf = md?.laenge > 0 ? md.laenge : null;
+    if (kopf === null) return;
+    const h = Number(t.hMast) || 0;
+    if (h <= kopf + 1e-9) return;
+    const name = String(t.name ?? '').split(' · ')[0] || 'Anbauteil';
+    const da = ueber.get(name);
+    if (!da || h > da.h) ueber.set(name, { h, kopf, ende });
+  });
+  ueber.forEach((v, name) => {
+    h.push(`${name}: sitzt ÜBER dem Mastkopf (h = ${v.h.toFixed(2)} m, `
+      + `Mast ${v.kopf.toFixed(2)} m). Der Nachweis rechnet die Last auf `
+      + 'diesem Hebelarm; im ausgeleiteten Modell fehlt sie, weil der Mast '
+      + 'dort nicht mehr steht. Höhe am Masten herabsetzen oder den Masten '
+      + 'verlängern.');
+  });
+
   const unter = new Map();
   (m.anbauMastFlach ?? []).forEach((t) => {
     const z = (Number(t.hMast) || 0) + (Number(t.z) || 0);

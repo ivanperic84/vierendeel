@@ -1947,27 +1947,57 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * Tragwerk, also wird je Tragwerk geholt und danach vereint. Die
    * Knotennamen tragen das Praefix und bleiben damit eindeutig.
    */
-  const lastTeile = teile.map(({ bau, m }) => lasten(m, bau, opt));
   const mastUmbenannt = mastNeuAufreihen(staebe, knoten, mastZuege);
-  // Streckenlasten auf demselben Stab, im selben Fall und derselben
-  // Richtung stammen vom geteilten Masten, den jedes Tragwerk belastet -
-  // einmal genuegt (siehe oben).
-  const gesehen = new Set();
-  const alleLasten = {
-    punkt: lastTeile.flatMap((l) => l.punkt),
-    moment: lastTeile.flatMap((l) => l.moment),
-    strecke: lastTeile.flatMap((l) => l.strecke).flatMap(mastUmbenannt).filter((l) => {
-      const k = `${l.stab}|${l.lastfall}|${l.richtung}`;
-      if (gesehen.has(k)) return false;
-      gesehen.add(k);
-      return true;
-    }),
+  /*
+   * >>> ZWEIMAL GEBAUT, WEIL ZWEI AUSLEITUNGEN VERSCHIEDEN FRAGEN. <<<
+   *
+   * Gemeldet am 20. September beim Durchlauf ueber den Einzelmasten: sobald
+   * ein zweites Tragwerk auf dem Blatt stand, lag das Gewicht eines
+   * Anbauteils im Lastfall `G` statt in `G_Anbau` - und die Ablenkkraft in
+   * `G` statt in `G_Ablenk`.
+   *
+   * Der Grund war eine Zeile: die COM-Ausleitung holt ihre Lasten mit
+   * `gTrennen: true` (drei staendige Teillastfaelle, damit ablesbar bleibt,
+   * welcher Anteil woher kommt - Entscheid vom 18. September zu den
+   * charakteristischen Einzelfaellen). Steht ein fertiges Blattmodell
+   * bereit, nahm sie dagegen dessen `lasten`, und die waren OHNE die
+   * Trennung gebaut. Die Bemessung aendert das nicht (alle drei gehen mit
+   * demselben Beiwert ein), die charakteristischen Faelle «Staendig
+   * (Tragwerk)» und «Ablenkkraefte staendig» aber sehr wohl: sie standen
+   * auf dem Blatt gleich da.
+   *
+   * Beide Formen stehen jetzt nebeneinander. SAF, DXF und PyNite fragen
+   * ohne Trennung, die COM-Datei mit - und keiner von beiden muss daran
+   * denken, ein Merkmal durchzureichen.
+   */
+  const lastenBauen = (o) => {
+    const teilLasten = teile.map(({ bau, m }) => lasten(m, bau, o));
+    // Streckenlasten auf demselben Stab, im selben Fall und derselben
+    // Richtung stammen vom geteilten Masten, den jedes Tragwerk belastet -
+    // einmal genuegt (siehe oben).
+    const gesehen = new Set();
+    return {
+      punkt: teilLasten.flatMap((l) => l.punkt),
+      moment: teilLasten.flatMap((l) => l.moment),
+      strecke: teilLasten.flatMap((l) => l.strecke).flatMap(mastUmbenannt)
+        .filter((l) => {
+          const k = `${l.stab}|${l.lastfall}|${l.richtung}`;
+          if (gesehen.has(k)) return false;
+          gesehen.add(k);
+          return true;
+        }),
+    };
   };
+  const alleLasten = lastenBauen(opt);
+  const alleLastenGetrennt = opt.gTrennen === true
+    ? alleLasten : lastenBauen({ ...opt, gTrennen: true });
 
   const erstes = teile[0]?.bau ?? {};
   return {
     knoten, staebe, querschnitte, punktlasten, punktmomente, streckenlasten,
     lasten: alleLasten,
+    // Dieselben Lasten mit getrenntem G - die COM-Datei nimmt diese.
+    lastenGetrennt: alleLastenGetrennt,
     /*
      * EIN FUNDAMENT JE MAST, nicht je Tragwerk.
      *
@@ -1976,7 +2006,15 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
      * AxisVM zwar harmlos, aber sie behauptet zwei Fundamente, wo eines
      * steht - und wer die Datei liest, muss raten, ob das Absicht war.
      */
-    auflager: teile.flatMap((x) => x.bau.auflager ?? [])
+    /*
+     * Die Lage GILT DEM BLATT, nicht dem einzelnen Tragwerk (20. Sept.):
+     * jedes baut bei x = 0, das Blatt schiebt es an seinen Ort. Das Feld `x`
+     * blieb dabei stehen - in der Datei stand x = 0 fuer einen Masten bei
+     * x = 60. Gerechnet wird damit nichts (`stuetzung` verwirft es), gelesen
+     * schon.
+     */
+    auflager: teile.flatMap((t) => (t.bau.auflager ?? []).map((a) => (
+      a.x === undefined ? a : { ...a, x: r6(a.x + (t.x0 ?? 0)) })))
       .filter((a, i, alle) => alle.findIndex((b) => b.knoten === a.knoten) === i),
     arme: teile.flatMap((x) => x.bau.arme ?? []),
     ausKnotenVermerk: teile.flatMap((x) => x.bau.ausKnotenVermerk ?? []),
@@ -4170,7 +4208,10 @@ export function stabmodellJson(m, opt = {}) {
    * nur das aktive Tragwerk zu sehen.
    */
   const bau = opt.bau ?? stabmodell(m, opt);
-  const l = opt.bau?.lasten ?? lasten(m, bau, { gTrennen: true });
+  // Vom Blatt die GETRENNTE Form (siehe stabmodellBlatt); ohne Blatt
+  // gleich so gebaut.
+  const l = opt.bau?.lastenGetrennt ?? opt.bau?.lasten
+         ?? lasten(m, bau, { gTrennen: true });
   const stahl = m.stahl.name;
   const starrModell = opt.starrModell ?? 'koerper';
   // Für die Drehlage der Gurtwinkel, siehe lcs(). Dieselben Werte wie in
