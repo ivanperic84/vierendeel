@@ -99,7 +99,8 @@ import { pruefeAlle as blechregelPruefen } from './core.blechregel.js';
 import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
          speicherLeeren, ausSpeicher, PAKET_FORMAT } from './data.paket.js';
 import { mastWind, mastprofile, STEGRICHTUNGEN,
-         ladeMasten, mastenDB, setzeMastenDB } from './data.masten.js';
+         ladeMasten, mastenDB, setzeMastenDB,
+         mastenDbDa } from './data.masten.js';
 import { mastImModell, mastLaengeVorgabe, einzelmastLaenge } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
@@ -4527,7 +4528,7 @@ export async function start() {
 
   const dbFehler = pruefeDatenbank(getProfil);
   const stand = datenbankStand();
-  ui.el('st-db').textContent = ui.datenbankText(stand, dbFehler);
+  ui.el('st-db').textContent = ui.datenbankText(stand, dbFehler, !mastenDbDa());
   // Als eigenes Fenster gestartet fehlt die Adressleiste - dann ist in der
   // Fusszeile das Einzige, woran sich die Herkunft noch ablesen lässt.
   const zeigeFuss = () => {

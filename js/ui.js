@@ -6970,9 +6970,17 @@ export function zeichneFehler(node, fehler) {
 }
 
 /** Pflegezustand der Typendatenbank für die Fussleiste. */
-export function datenbankText(stand, fehler) {
+export function datenbankText(stand, fehler, ohneMasten = false) {
   if (fehler.length) return `Datenbank: ${fehler.length} Beanstandung(en)`;
   const t = [];
+  /*
+   * >>> DAS FEHLENDE SORTIMENT GEHOERT IN DIE FUSSLEISTE (20. September).
+   *
+   * Ohne Masten-Sortiment gibt es keine Windlast auf den Masten - und das
+   * sah man bis dahin nirgends, bis auf den Hinweis ueber dem Ergebnis.
+   * Hier steht der Datenstand; hier gehoert es hin.
+   */
+  if (ohneMasten) t.push('OHNE Masten-Sortiment (kein Mastwind)');
   if (stand.ohneBleche.length) t.push(`ohne Bleche: ${stand.ohneBleche.join(',')}`);
   if (stand.staffelungUngeprueft.length) t.push('Staffelung ungeprüft');
   // Zeilen der Mass-Tabelle, die in der Zeichnung nicht aufgehen
