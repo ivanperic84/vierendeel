@@ -1554,3 +1554,167 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     lasten: { punkt, strecke },
   };
 }
+/* ===========================================================================
+ * >>> DAS ABFANGJOCH IM BLATTMODELL (20. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «checke die abfangjoch ausleitung auf denselben fehler». Diese
+ * Datei hatte ihn nicht - sie kennt kein Praefix. Beim Nachmessen kam aber
+ * Schlimmeres heraus: Stand ein Abfangjoch auf einem Blatt mit MEHREREN
+ * Tragwerken, baute `stabmodell` es als TRAGJOCH - vier Winkel L 90x90x9
+ * mit Blechebenen statt zweier liegender Walzprofile mit Gabel und
+ * Kroepfung. Die Datei sah vollstaendig aus und trug das falsche Tragwerk.
+ *
+ * Entscheid des Auftraggebers: «Richtig einbauen (groesserer Schritt)».
+ *
+ * Gebaut wird mit DEMSELBEN Bauer wie die Einzelausleitung, oertlich von 0
+ * bis jt; verschoben wird danach vom Blatt, wie bei jedem Tragwerk. Umgesetzt
+ * werden hier nur die NAMEN und die LASTGRUPPEN:
+ *
+ *   Namen    Praefix des Tragwerks fuer alles - ausser den Masten. Die
+ *            heissen im Blatt nach ihrer Stelle (MAST_M3_F), damit ein
+ *            geteilter Mast mit dem Nachbarjoch verschmilzt.
+ *   Lasten   Das Abfangjoch fuehrt eigene Gruppen; das Blatt rechnet in den
+ *            Einwirkungsgruppen des Tragjochs. Die Zuordnung ist ein
+ *            Entscheid vom 20. September (siehe ABFANG_BLATTGRUPPE).
+ *
+ * Was das Abfangjoch-Modell schon entschieden hat - Stabart (Starrkoerper,
+ * Linkelement), Drehlage der Stabachsen, Lagerbedingungen -, bleibt stehen:
+ * es ist am Modell gemessen. Dafuer tragen die Staebe `artFest`/`lcsFest`
+ * und die Lager `fest`, und der Jochweg laesst sie in Ruhe.
+ */
+
+/**
+ * Lastgruppe des Abfangjochs -> Einwirkungsgruppe des Blattes.
+ *
+ * Entscheide vom 20. September:
+ *   «Der staendige Leiterzug des Abfangjochs -> G_Ablenk» - staendig und
+ *   waagrecht wie die Ablenkkraefte, und die Kombinationen des Blattes
+ *   fuehren die Gruppe bereits mit gamma_G.
+ *   «Wind auf den Abfangtraeger: nur +-y, wie die eigene Ausleitung» -
+ *   WindJoch geht deshalb in WindY, nicht in eine eigene Gruppe.
+ */
+export const ABFANG_BLATTGRUPPE = {
+  G: 'G',
+  G_Anbau: 'G_Anbau',
+  Leiterzug: 'G_Ablenk',
+  WindX: 'WindX',
+  WindY: 'WindY',
+  WindJoch: 'WindY',
+  SchneeJoch: 'Schnee',
+};
+
+/**
+ * Das Abfangjoch als Baustein des Blattmodells.
+ *
+ * @param {object} satz Der Satz DIESES Tragwerks (tragwerkSatz/rechensatz)
+ * @param {object} opt  { praefix, mastNamen, knotenmodell, auflagerVorgabe,
+ *                        mast: {profil, hoehe, stegrichtung} }
+ * @returns {object} dieselbe Gestalt wie `stabmodell` sie liefert
+ */
+export function abfangBau(satz, opt = {}) {
+  const praefix = opt.praefix ?? '';
+  const mastNamen = opt.mastNamen ?? null;
+  const d = abfangAxisvmModell(satz.abfangTyp, Number(satz.L), {
+    knotenmodell: opt.knotenmodell ?? 'anschnitt',
+    anbauteile: satz.anbauteile ?? [],
+    auflagerLinks: satz.auflagerLinks,
+    auflagerVorgabe: opt.auflagerVorgabe,
+    L_FL: Number(satz.L_FL) || 0,
+    R: Number(satz.R) || 0,
+    ek: satz.ek,
+    schneeAktiv: satz.schneeAktiv,
+    schneeKlasse: satz.schneeKlasse,
+    mast: opt.mast ?? null,
+  });
+
+  /*
+   * DIE MASTEN HEISSEN WIE IM BLATT. Das Abfangjoch nennt sie nach seinem
+   * Ende (MAST_A_F); im Blatt heissen sie nach ihrer Stelle (MAST_M3_F) -
+   * nur so verschmilzt ein geteilter Mast mit dem Nachbarn, statt zweimal
+   * dazustehen.
+   */
+  const mastUm = (n) => {
+    const t = /^MAST_(A|B)(_.*)?$/.exec(String(n));
+    if (!t) return null;
+    const id = mastNamen?.[t[1]];
+    return id ? `MAST_${id}${t[2] ?? ''}` : String(n);
+  };
+  const voll = (n) => mastUm(n)
+    ?? (String(n).startsWith('MAST_') ? String(n) : praefix + String(n));
+
+  const knoten = new Map();
+  (d.knoten ?? []).forEach((k) => {
+    const name = voll(k.name);
+    knoten.set(name, { ...k, name });
+  });
+  const querschnitte = new Map();
+  (d.querschnitte ?? []).forEach((q) => {
+    const name = voll(q.name);
+    if (!querschnitte.has(name)) querschnitte.set(name, { ...q, name });
+  });
+  /*
+   * >>> DIE MASTABSCHNITTE HEISSEN WIE IM BLATT. <<<
+   *
+   * Das Abfangjoch nennt sie MAST_A (Ansatz bis Fuss) und MAST_A_O (Kopf
+   * bis Ansatz). Im Blatt heissen Mastabschnitte MAST_<Stelle>_S<n> - nur
+   * so erkennt sie `mastNeuAufreihen` und reiht den geteilten Masten aus
+   * ALLEN Teilpunkten neu auf. Ohne das staenden am gemeinsamen Masten
+   * zwei Stabzuege uebereinander: doppelt steif, doppelt schwer (derselbe
+   * Befund wie am 19. September zwischen zwei Jochen).
+   */
+  const mastZaehler = new Map();
+  const mastStabName = (n) => {
+    const t = /^MAST_(A|B)(_O)?$/.exec(String(n));
+    if (!t) return null;
+    const id = mastNamen?.[t[1]];
+    if (!id) return null;
+    const k = (mastZaehler.get(id) ?? 0) + 1;
+    mastZaehler.set(id, k);
+    return `MAST_${id}_S${k}`;
+  };
+  const staebe = (d.staebe ?? []).map((s) => {
+    const name = mastStabName(s.name) ?? voll(s.name);
+    return {
+      name, roh: String(s.name),
+      praefix: name === String(s.name) ? '' : praefix,
+      qs: voll(s.querschnitt), von: voll(s.von), bis: voll(s.bis),
+      steifesMaterial: s.steifesMaterial === true,
+      gelenkAnfang: s.gelenkAnfang ?? null,
+      gelenkEnde: s.gelenkEnde ?? null,
+      artFest: s.art ?? 'stab',
+      lcsFest: s.lcsZ ?? null,
+      ...(s.kraftuebertragung ? { kraft: s.kraftuebertragung } : {}),
+      ...(s.nichtlinear ? { nichtlinear: s.nichtlinear } : {}),
+      ...(s.system ? { linkSystem: s.system } : {}),
+    };
+  });
+  const auflager = (d.auflager ?? []).map((a) => ({
+    ...a, knoten: voll(a.knoten), fest: true }));
+
+  const umLast = (l, ortFeld) => ({
+    ...l,
+    name: praefix + String(l.name),
+    [ortFeld]: voll(l[ortFeld]),
+    lastfall: ABFANG_BLATTGRUPPE[l.lastfall] ?? l.lastfall,
+  });
+  const abfangLasten = {
+    punkt: (d.lasten?.punkt ?? []).map((l) => umLast(l, 'knoten')),
+    moment: (d.lasten?.moment ?? []).map((l) => umLast(l, 'knoten')),
+    strecke: (d.lasten?.strecke ?? []).map((l) => umLast(l, 'stab')),
+  };
+
+  return {
+    knoten, staebe, querschnitte, auflager, abfangLasten,
+    // Fuer den Bericht: was hier steht, ist ein Abfangjoch, kein Tragjoch.
+    abfang: { typ: satz.abfangTyp, L: Number(satz.L),
+              merkmale: d.merkmale ?? [] },
+    // Felder, die der Jochweg mitfuehrt; leer statt undefined, damit das
+    // Vereinen im Blatt nicht auf halbem Weg abbricht.
+    arme: [], ausKnotenVermerk: [], anbauMastAus: [], ankerAus: [],
+    verschoben: [], zweiPunktAnschluss: [],
+    knotenmodell: opt.knotenmodell ?? 'anschnitt',
+    zOben: Math.max(0, ...[...knoten.values()].map((k) => k.z ?? 0)),
+    mastNamen,
+  };
+}

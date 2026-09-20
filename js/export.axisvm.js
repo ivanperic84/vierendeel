@@ -58,6 +58,7 @@ import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBindebleche, ankerBlechSatz,
          ankerBlechVersatz } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
+import { abfangBau } from './export.axisvm.abfang.js';
 
 /** Wählbare Knotenmodelle. */
 export const KNOTENMODELLE = [
@@ -1664,7 +1665,8 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
      * Blattes, auf dem nie mehr stand. Ohne den Vermerk waere sie von einer
      * vollstaendigen nicht zu unterscheiden.
      */
-    const eins = stabmodell(deps.modellVon(tragwerkSatz(werte, alle[0]?.id)), opt);
+    const satzEins = tragwerkSatz(werte, alle[0]?.id);
+    const eins = stabmodell(deps.modellVon(satzEins), { ...opt, satz: satzEins });
     return ausgeblendet.length
       ? { ...eins, blatt: { ...(eins.blatt ?? {}),
                             versteckt: ausgeblendet.map((t) => t.id) } }
@@ -1674,6 +1676,27 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     const [a, b] = mastenFuer(werte, t);
     return [t.id, [['A', a], ['B', b]]];
   }));
+
+  /*
+   * DIE MASTANGABE FUER DAS ABFANGJOCH (20. September).
+   *
+   * Sein Bauer setzt Mast, Konsole und Link selbst - er braucht dafuer das
+   * Profil und die Anschlusshoehe. Genommen wird Ende A; abweichende
+   * Profile je Ende kennt das Abfangjoch-Modell nicht (wie in app.axisvm).
+   * Nur beim Auflagermodell «Mast»: sonst lagert es auf Punkten, wie die
+   * eigene Ausleitung.
+   */
+  const mastFuerAbfang = (t, satzT) => {
+    if (opt.auflagerModell !== 'mast' || satzT?.mastVorhanden === false) return null;
+    const a = (mastenJe.get(t.id) ?? [])[0];
+    const profil = a?.[1]?.profil;
+    // Die Anschlusshoehe steht in `mastH` (siehe app.axisvm.js).
+    const hoehe = Number(satzT?.mastH ?? werte.mastH) || 0;
+    return profil && hoehe > 0
+      ? { profil, hoehe,
+          stegrichtung: satzT?.mastSteg ?? werte.mastSteg ?? 'jochachse' }
+      : null;
+  };
 
   /*
    * ERST ENTFLECHTEN, DANN BAUEN.
@@ -1704,10 +1727,10 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
   alle.forEach((t) => {
     const dz = hoehenversatz(t, gesetzt, mastenJe);
     const ent = entflochten.get(t.id) ?? { dx: 0, mastDx: 0, wegen: null };
+    const satzT = tragwerkSatz(werte, t.id, { mastAnbauAus: mastAnbauVergeben });
     let m;
     try {
-      m = deps.modellVon(tragwerkSatz(werte, t.id,
-        { mastAnbauAus: mastAnbauVergeben }));
+      m = deps.modellVon(satzT);
     } catch (e) {
       /*
        * EIN TRAGWERK, DAS NICHT BAUT, FEHLT LAUT.
@@ -1753,7 +1776,10 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
      * doppelt anwenden.
      */
     const bau = stabmodell(m, { ...opt, praefix: `${t.id}_`,
-                               mastNamen, anschlussNamen });
+                               mastNamen, anschlussNamen,
+                               // Fuer das Abfangjoch: es baut aus dem Satz,
+                               // nicht aus dem Jochmodell (20. September).
+                               satz: satzT, mast: mastFuerAbfang(t, satzT) });
     teile.push({ id: t.id, bau, m, dz, x0: lageVon(t) + ent.dx, ent });
     gesetzt.push({ t, dz });
   });
@@ -1931,6 +1957,18 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
 
 export function stabmodell(m, opt = {}) {
   if (tragwerksart(m).key === 'einzelmast') return stabmodellEinzelmast(m, opt);
+  /*
+   * >>> DAS ABFANGJOCH IST KEIN TRAGJOCH (20. September). <<<
+   *
+   * Es ist ein LIEGENDER Vierendeeltraeger aus zwei Walzprofilen, mit Gabel
+   * und gekroepften Enden. Bis hierher lief es durch den Jochweg und kam
+   * als Joch aus vier Winkeln heraus - im Blattmodell, wo die eigene
+   * Ausleitung nicht greift. Gebaut wird es jetzt von seinem eigenen Bauer
+   * (`abfangBau`); der Satz des Tragwerks reicht das Blatt mit.
+   */
+  if (tragwerksart(m).key === 'abfangjoch' && opt.satz) {
+    return abfangBau(opt.satz, opt);
+  }
   const km = opt.knotenmodell ?? 'anschnitt';
   const s = opt.sammler ?? sammler(opt.praefix ?? '');
   /*
@@ -3275,6 +3313,13 @@ export function stabmodell(m, opt = {}) {
  * eigenen Rechnung vergleichen.
  */
 export function lasten(m, bau, opt = {}) {
+  /*
+   * DAS ABFANGJOCH RECHNET SEINE LASTEN SELBST (20. September). Sie stehen
+   * fertig im Baustein, schon in den Einwirkungsgruppen des Blattes
+   * (ABFANG_BLATTGRUPPE) - der Jochweg wuerde sie ein zweites Mal aus
+   * einem Modell holen, das dieses Tragwerk gar nicht beschreibt.
+   */
+  if (bau?.abfangLasten) return bau.abfangLasten;
   // Die Untergruppen der ständigen Last führt nur die COM-Ausleitung. Die
   // SAF-Mappe und die DXF-Zuordnung schreiben ihre Lastfallliste selbst;
   // dort verwiese eine Last sonst auf einen Fall, den es nicht gibt.
@@ -3474,6 +3519,15 @@ const kopf = (namen) => namen.map((n) => ({ v: n, s: STIL.KOPF }));
  * Wer danach gebaut hätte, bekäme eine tausendmal zu weiche Feder.
  */
 export function stuetzung(m, lager) {
+  /*
+   * EIN LAGER, DAS SEINE BEDINGUNGEN SCHON TRAEGT, BEHAELT SIE - das
+   * Abfangjoch im Blatt bringt sie aus seinem eigenen Bauer mit, samt
+   * Drehfedern (20. September).
+   */
+  if (lager && lager.fest === true) {
+    const { ende: e2, knoten: k2, x: x2, modell: m2, fest, ...rest } = lager;
+    return rest;
+  }
   const ende = lager.ende ?? lager;
   /*
    * DIE GEOMETRISCHE FEDER, NICHT DIE BEGRENZTE (Weisung).
@@ -3962,7 +4016,9 @@ const rohQs = (s) => {
 
 function gurtSteif(s, starrModell) {
   if (s.starrRolle !== 'gurtabschnitt' || starrModell === 'staebe') {
-    return { querschnitt: s.qs };
+    // Das Abfangjoch bringt seine steifen Abschnitte selbst mit (abfangBau).
+    return { querschnitt: s.qs,
+             ...(s.steifesMaterial ? { steifesMaterial: true } : {}) };
   }
   // Am Rohnamen, mit dem Praefix des Tragwerks: «T1_OGL_S0» ist ein
   // Obergurt von T1 (bis 19. September wurde er zu «GURT_UG» ohne Praefix).
@@ -3971,6 +4027,16 @@ function gurtSteif(s, starrModell) {
 }
 
 function starrArt(s, starrModell) {
+  /*
+   * WER SEINE ART SCHON KENNT, BEHAELT SIE. Das Abfangjoch entscheidet
+   * Starrkoerper und Linkelement selbst - am Modell gemessen (20. Sept.).
+   */
+  if (s.artFest) {
+    return { art: s.artFest,
+             ...(s.kraft ? { kraftuebertragung: s.kraft } : {}),
+             ...(s.nichtlinear ? { nichtlinear: s.nichtlinear } : {}),
+             ...(s.linkSystem ? { system: s.linkSystem } : {}) };
+  }
   if (starrModell === 'staebe') return { art: 'stab' };
   // Das Anbauteil ist ein Starrkörper, gleich welchen Ersatzquerschnitt es
   // trägt. Nur mit Gelenk bleibt es ein Stab.
@@ -4059,6 +4125,8 @@ export function stabmodellJson(m, opt = {}) {
     // Winkel und muss gleich herum stehen. Sein Querschnitt heisst hier
     // noch STARR - ersetzt wird er erst in gurtSteif() -, deshalb zählt
     // die Rolle und nicht der Querschnittsname.
+    // Die Drehlage des Abfangjochs steht schon fest (abfangBau).
+    if (stab.lcsFest) return stab.lcsFest;
     const qsR = rohQs(stab), nameR = rohName(stab);
     const gurt = (qsR === 'GURT_OG' || qsR === 'GURT_UG'
                   || stab.starrRolle === 'gurtabschnitt')

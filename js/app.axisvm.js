@@ -244,7 +244,11 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
       const mst = mastenVon({ ...app.werte, ...satz });
       const m0 = mst[0];
       if (!m0?.profil) return null;
-      const hoehe = Number(satz?.H ?? app.werte.H) || 0;
+      // DAS FELD HEISST mastH (20. September). Hier stand `H` - das gibt es
+      // nirgends, die Hoehe war damit immer 0 und der Mast fiel aus: die
+      // Abfangjoch-Ausleitung baute NIE einen Masten, auch wenn der Dialog
+      // «Mast im Modell» stand.
+      const hoehe = Number(satz?.mastH ?? app.werte.mastH) || 0;
       // Die Stegrichtung gehoert dazu - ohne sie hatte der lotrechte Mast
       // im Modell keine lokale Achse (16. September).
       const stegrichtung = satz?.mastSteg ?? app.werte.mastSteg ?? 'jochachse';

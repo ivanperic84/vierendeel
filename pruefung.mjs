@@ -26181,6 +26181,106 @@ titel('104  Blattmodell: Praefix darf Starrelemente und Stabachsen nicht verlier
   wahr('Kein Starrelement bleibt als 500x500-Stab stehen (Eigengewicht!)', klotz === 0, `${klotz}`);
 }
 
+titel('105  Abfangjoch im Blattmodell: eigener Traeger, nicht der Jochweg');
+/*
+ * Am 20. September gemessen: stand ein Abfangjoch auf einem Blatt mit
+ * mehreren Tragwerken, baute `stabmodell` es als TRAGJOCH - vier Winkel
+ * L 90x90x9 mit Blechebenen statt zweier liegender Walzprofile mit Gabel
+ * und Kroepfung. Entscheid: «Richtig einbauen».
+ *
+ * Die Kontrolle vergleicht DASSELBE Abfangjoch allein und im Blatt.
+ */
+{
+  const C105 = await import(J('core.constants.js'));
+  const V105 = await import(J('core.vierendeel.js'));
+  const N105 = await import(J('core.nachbarn.js'));
+  const AX105 = await import(J('export.axisvm.js'));
+  const AXA105 = await import(J('export.axisvm.abfang.js'));
+  const MA105 = await import(J('data.masten.js'));
+  const modellVon = (satz) => V105.modell({ ...satz, beiwerteFest: null },
+    getProfil(satz.profOG), getProfil(satz.profUG),
+    getStahl(satz.stahl), T.getTragjoch(satz.typ));
+  const deps = { berechne: V105.berechne, modell: V105.modell, modellVon };
+
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+  let blatt = C105.tragwerkHinzu(w, 'abfangjoch',
+    { xLage: 20, L: 15, abfangTyp: 'A200', mastH: 8 });
+  const tAb = C105.tragwerkeVon(blatt).find((t2) => t2.tragwerksart === 'abfangjoch');
+  blatt = C105.tauscheAktives(blatt, tAb.id);
+  blatt = C105.setzeAnbauteileAn(blatt,
+    [{ ...A.neuesAnbauteil('leiter-nfl', 5), name: 'N-FL 1' }]);
+  // Gerechnet wird das Tragjoch - das Abfangjoch ist der NACHBAR auf dem Blatt.
+  blatt = C105.tauscheAktives(blatt,
+    C105.tragwerkeVon(blatt).find((t2) => t2.id !== tAb.id).id);
+
+  const satz = N105.rechensatzMitNachbarn(blatt);
+  const satzAb = C105.tragwerkSatz(satz, tAb.id);
+  const opt = { knotenmodell: 'anschnitt', auflagerModell: 'mast' };
+  const bau = AX105.blattWennMehrere(satz, deps, opt);
+  const pre = `${tAb.id}_`;
+  const imBlatt = bau.staebe.filter((s) => s.name.startsWith(pre));
+
+  wahr('Das Abfangjoch steht mit SEINEN Querschnitten im Blatt, nicht mit Jochwinkeln',
+       imBlatt.some((s) => /_GURT$/.test(s.qs)) && imBlatt.some((s) => /_GABEL$/.test(s.qs))
+       && !imBlatt.some((s) => /GURT_OG|GURT_UG/.test(s.qs)),
+       [...new Set(imBlatt.map((s) => s.qs))].join(', '));
+
+  // Dieselbe Ausleitung wie allein - Stab fuer Stab.
+  const eigen = AXA105.abfangAxisvmModell(satzAb.abfangTyp, Number(satzAb.L), {
+    knotenmodell: 'anschnitt', anbauteile: satzAb.anbauteile ?? [],
+    auflagerLinks: satzAb.auflagerLinks, L_FL: Number(satzAb.L_FL) || 0,
+    R: Number(satzAb.R) || 0, ek: satzAb.ek,
+    schneeAktiv: satzAb.schneeAktiv, schneeKlasse: satzAb.schneeKlasse,
+    mast: { profil: satzAb.mastProfil, hoehe: Number(satzAb.mastH),
+            stegrichtung: satzAb.mastSteg },
+  });
+  const nE = new Set(eigen.staebe.filter((s) => !/^MAST_/.test(s.name)).map((s) => s.name));
+  const nB = new Set(imBlatt.map((s) => s.name.slice(pre.length)));
+  const anders = [...nE].filter((n) => !nB.has(n)).concat([...nB].filter((n) => !nE.has(n)));
+  wahr('Traeger im Blatt = Traeger allein (ohne die Masten, die das Blatt benennt)',
+       nE.size > 200 && anders.length === 0, `${nE.size} Staebe, ${anders.length} verschieden`);
+
+  // Die Knoten stehen an derselben Stelle, nur um die Lage verschoben.
+  const kE = new Map(eigen.knoten.map((k) => [k.name, k]));
+  let dx = new Set(), dy = 0;
+  bau.knoten.forEach((k, name) => {
+    if (!name.startsWith(pre)) return;
+    const e = kE.get(name.slice(pre.length));
+    if (!e) return;
+    dx.add(Math.round((k.x - e.x) * 1000)); dy = Math.max(dy, Math.abs(k.y - e.y));
+  });
+  wahr('… und sind nur verschoben, nicht verformt', dx.size === 1 && dy < 1e-9,
+       `Verschiebung ${[...dx].map((v) => (v / 1000).toFixed(3)).join('/')} m`);
+
+  // Die Lasten stehen in den Einwirkungsgruppen des Blattes (Entscheid 20. Sept.).
+  const gruppen = {};
+  [...bau.lasten.punkt, ...bau.lasten.strecke]
+    .filter((l) => String(l.name ?? '').startsWith(pre))
+    .forEach((l) => { gruppen[l.lastfall] = (gruppen[l.lastfall] ?? 0) + Math.abs(l.wert); });
+  const eigenLeiterzug = [...eigen.lasten.punkt, ...eigen.lasten.strecke]
+    .filter((l) => l.lastfall === 'Leiterzug').reduce((a, l) => a + Math.abs(l.wert), 0);
+  wahr('Der staendige Leiterzug steht in G_Ablenk, gleich gross wie allein',
+       Math.abs((gruppen.G_Ablenk ?? 0) - eigenLeiterzug) < 1e-6 && eigenLeiterzug > 0,
+       `${(gruppen.G_Ablenk ?? 0).toFixed(2)} gegen ${eigenLeiterzug.toFixed(2)} kN`);
+  wahr('… und keine Gruppe traegt einen Namen des Abfangjochs',
+       !Object.keys(gruppen).some((g) => /Leiterzug|WindJoch|SchneeJoch/.test(g)),
+       Object.keys(gruppen).join(', '));
+
+  // Der geteilte Mast traegt EINEN Stabzug, nicht zwei uebereinander.
+  const dat = AX105.stabmodellJson(modellVon(satz), { ...opt, eingabe: satz, bau });
+  const knotenVon = new Map(dat.knoten.map((k) => [k.name, k]));
+  const zug = dat.staebe.filter((s) => /^MAST_M2_S\d+$/.test(s.name));
+  const dopp = zug.filter((a, i) => zug.findIndex((b) => b.von === a.von && b.bis === a.bis) !== i);
+  const laenge = zug.reduce((a2, s) => {
+    const p = knotenVon.get(s.von), q = knotenVon.get(s.bis);
+    return a2 + (p && q ? Math.abs(q.z - p.z) : 0);
+  }, 0);
+  wahr('Der geteilte Mast (Joch und Abfangjoch) steht als EIN Zug da',
+       zug.length > 1 && dopp.length === 0 && laenge > 8 && laenge < 9,
+       `${zug.length} Abschnitte, ${laenge.toFixed(2)} m, ${dopp.length} deckungsgleich`);
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
