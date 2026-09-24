@@ -14,6 +14,13 @@ import { nachweisbericht, berichtVorgabe, UMFAENGE, BILDER,
          BERICHT_ARTEN } from './export.nachweisbericht.js';
 import { APP_NAME, tragwerksart, rechensatz } from './core.constants.js';
 import { esc, uebertrageTokens } from './design.js';
+/*
+ * Die drei neuen Balkenbilder (24. September). render.charts.js rechnet
+ * nichts und importiert nichts - die Ampelfarbe geht deshalb als Funktion
+ * hinein, siehe unten.
+ */
+import { bauteilDiagramm, fundamentDiagramm,
+         fussKraftDiagramm } from './render.charts.js';
 
 /* ===========================================================================
  * >>> DER NACHWEISBERICHT (Weisung vom 18. September). <<<
@@ -91,11 +98,14 @@ function berichtOeffnen(app, wahl) {
    * Traeger-Ersatzbalkens dazu, und die rechnet beim Einzelmast ein Joch,
    * das es nicht gibt.
    */
-  const satz = (b.verlaeufe || b.eta)
+  const satz = (b.verlaeufe || b.eta || b.verformung)
     ? (mitJoch ? app.diagrammSatz(bem, 900)
       : Object.fromEntries(app.weitereDiagramme(bem, 900).flatMap((w, i) => [
         [`mast-schnitt-${i}`, { svg: w.schnitt }],
         [`mast-eta-${i}`, { svg: w.ausnutzung }],
+        // Ohne Joch fehlte die Verformung im Bericht - sie ist gerade
+        // dort die Auskunft, wo kein Joch den Kopf haelt.
+        [`mast-verf-${i}`, { svg: w.verformung }],
         [`anker-bem-${i}`, { svg: w.bemessung }]])))
     : {};
   const reihe = (schluessel) => Object.entries(satz)
@@ -118,11 +128,60 @@ function berichtOeffnen(app, wahl) {
       if (vorher !== 'hell') { uebertrageTokens(vorher); app.ansicht.zeichneJetzt(); }
     }
   };
+  /* =========================================================================
+   * >>> VIER NEUE BILDER (Weisung vom 24. September). <<<
+   * =======================================================================
+   *
+   * «kann man noch zusätzliche diagramme ergänzen, die aber auch
+   * gegengeprüft werden müssen auf richtigkeit (vektor richtung etc.).»
+   *
+   * Sie entstehen HIER und nicht im Bericht: der rechnet nichts und
+   * zeichnet nichts, er bettet ein (siehe seinen Kopf). Die Ampelfarbe
+   * geht als Funktion mit - `render.charts.js` importiert nichts und
+   * kennt die Schwellen nicht.
+   */
+  const farbeVon = (eta) => (eta > 1 ? 'var(--fail)'
+    : (eta > 0.9 ? 'var(--warn)' : 'var(--ok)'));
+  const namenB = bem?.modell?.federn?.namen ?? {};
+
+  /*
+   * DIE FUNDAMENTBILDER JE ENDE - der Bericht holt sie unter `[e]`.
+   * Zwei Masten haben zwei Fundamente, und sie können verschiedene
+   * Typen sein (HEM 240 quer und längs).
+   */
+  const fundBilder = {};
+  if (b.fundament && bem?.fundament) {
+    ['A', 'B'].forEach((e) => {
+      const q = bem.fundament[e];
+      if (!q?.nachweise?.length) return;
+      fundBilder[e] = fundamentDiagramm(q, { breite: 860, farbeVon });
+    });
+  }
+
+  /*
+   * DIE FUSSKRAFT: das MOMENT QUER zum Gleis, je Lastfall, mit
+   * Vorzeichen. Quer und nicht längs, weil es am Fundament in aller
+   * Regel das massgebende ist - und weil ein zweites Bild daneben die
+   * Seite sprengte. Welche Richtung gemeint ist, steht in der
+   * Bildunterschrift.
+   */
+  const fussBild = b.fusskraft && app.letzte?.kombi
+    ? fussKraftDiagramm(app.letzte.kombi, {
+        breite: 860, ende: 'A', feld: 'Myy', einheit: 'kNm',
+        name: `M quer (M_yy) · Mast ${namenB.A ?? 'A'}`, nk: 2 })
+    : null;
+
   const bilder = {
     skizze: b.skizze ? aufnahme('laengs') : null,
     modell3d: b.modell3d ? aufnahme('iso') : null,
     verlaeufe: b.verlaeufe ? reihe(['schnittgroessen', 'ebene', 'mast-schnitt', 'anker-bem']) : null,
     eta: b.eta ? reihe(['ausnutzung', 'mast-eta']) : null,
+    // Das Verformungsbild steht schon im Diagrammsatz (24. September).
+    verformung: b.verformung ? reihe(['mast-verf']) : null,
+    bauteile: b.bauteile && app.letzte?.urteil?.bauteile
+      ? bauteilDiagramm(app.letzte.urteil.bauteile, { breite: 860, farbeVon }) : null,
+    fundament: Object.keys(fundBilder).length ? fundBilder : null,
+    fusskraft: fussBild,
   };
   const html = nachweisbericht({
     werte: { ...rechensatz(app.werte), name: app.projekt.name },

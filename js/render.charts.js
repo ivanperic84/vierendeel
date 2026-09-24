@@ -470,6 +470,213 @@ function messFaden(fig) {
  * @param {number} breite
  * @returns {object|null} null, wenn keine Reihe vorliegt
  */
+/* ===========================================================================
+ * >>> BALKEN STATT LINIEN (Weisung vom 24. September). <<<
+ * =========================================================================
+ *
+ * «kann man noch zusätzliche diagramme ergänzen, die aber auch
+ * gegengeprüft werden müssen auf richtigkeit (vektor richtung etc.).»
+ *
+ * `linienDiagramm` traegt einen VERLAUF ueber eine Achse auf - es braucht
+ * eine Ordnung der Stuetzstellen, und die gibt es hier nicht: Bauteile,
+ * Einzelnachweise und Lastfaelle sind eine Aufzaehlung, keine Strecke.
+ * Sie als Linie zu zeichnen hiesse, zwischen zwei Balken eine Steigung
+ * zu behaupten.
+ *
+ * >>> DIE NULLLINIE STEHT DA, WO SIE HINGEHOERT. <<<
+ *
+ * Das ist der Kern der Weisung. Ein Balken, dessen Vorzeichen verloren
+ * geht, ist schlimmer als keiner: bei den Mastfusskraeften ENTSCHEIDET
+ * die Richtung - ein Moment nach +x und eines nach -x kommen aus
+ * verschiedenen Windrichtungen und treffen verschiedene Fundamentseiten.
+ * Deshalb laeuft die Achse hier durch die Null, auch wenn alle Werte
+ * positiv sind, und jeder Balken beginnt dort.
+ *
+ *   o.reihen    [{ name, wert, einheit, nk, farbe, notiz }]
+ *   o.grenze    waagrechte Marke (z. B. η = 1.00)
+ *   o.einheit   Achsenbeschriftung
+ * ========================================================================= */
+export function balkenDiagramm(o) {
+  const reihen = (o.reihen ?? []).filter((r) => Number.isFinite(r.wert));
+  if (!reihen.length) return '';
+  const W = o.breite ?? 900;
+  const zeile = o.zeile ?? 22;
+  const mL = o.mL ?? 190, mR = 54, mT = 22, mB = 30;
+  const H = mT + mB + reihen.length * zeile;
+
+  /*
+   * DIE SPANNE SCHLIESST DIE NULL EIN - siehe oben. Und die Grenzmarke,
+   * sonst stuende sie ausserhalb des Bildes und man saehe nicht, wie weit
+   * der laengste Balken von ihr entfernt ist.
+   */
+  const werte = reihen.map((r) => r.wert);
+  if (Number.isFinite(o.grenze)) werte.push(o.grenze);
+  werte.push(0);
+  let v0 = Math.min(...werte), v1 = Math.max(...werte);
+  if (v0 === v1) { v0 -= 1; v1 += 1; }
+  const pad = (v1 - v0) * 0.06;
+  v0 -= pad; v1 += pad;
+  const X = (v) => mL + ((v - v0) / (v1 - v0)) * (W - mL - mR);
+  const xNull = X(0);
+
+  let g = '';
+  // Achsenkreuz: die Nulllinie als volle Linie, der Rahmen blass.
+  g += `<line x1="${mL}" y1="${mT}" x2="${mL}" y2="${H - mB}"
+        stroke="var(--ol)" stroke-width="1"/>`;
+  g += `<line x1="${xNull.toFixed(1)}" y1="${mT - 4}" x2="${xNull.toFixed(1)}"
+        y2="${H - mB + 4}" stroke="var(--on2)" stroke-width="1.2"/>`;
+
+  reihen.forEach((r, i) => {
+    const y = mT + i * zeile + zeile / 2;
+    const x = X(r.wert);
+    const links = Math.min(x, xNull), br = Math.abs(x - xNull);
+    const h = Math.max(6, zeile - 9);
+    g += `<rect x="${links.toFixed(1)}" y="${(y - h / 2).toFixed(1)}"
+          width="${Math.max(0.8, br).toFixed(1)}" height="${h}"
+          fill="${r.farbe ?? 'var(--acc)'}" opacity="0.85"/>`;
+    g += `<text x="${mL - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end"
+          font-size="10" fill="var(--dim)">${esc(r.name)}</text>`;
+    /*
+     * DIE ZAHL STEHT AM ENDE DES BALKENS, aussen - mit Vorzeichen. Sie
+     * ist die eigentliche Auskunft; der Balken sagt nur, wie er sich zu
+     * den anderen verhaelt.
+     */
+    const t = `${zahlMitMinus(r.wert, r.nk ?? 2)}${r.einheit ? ` ${r.einheit}` : ''}`;
+    const rechts = r.wert >= 0;
+    g += `<text x="${(rechts ? x + 5 : x - 5).toFixed(1)}" y="${(y + 3.5).toFixed(1)}"
+          text-anchor="${rechts ? 'start' : 'end'}" font-size="9.5"
+          fill="var(--on2)">${esc(t)}</text>`;
+  });
+
+  if (Number.isFinite(o.grenze)) {
+    const xg = X(o.grenze);
+    g += `<line x1="${xg.toFixed(1)}" y1="${mT - 4}" x2="${xg.toFixed(1)}"
+          y2="${H - mB + 4}" stroke="var(--fail)" stroke-width="1"
+          stroke-dasharray="4 3"/>`;
+    g += `<text x="${xg.toFixed(1)}" y="${H - mB + 18}" text-anchor="middle"
+          font-size="9" fill="var(--fail)">${esc(o.grenzText ?? 'Grenze')}</text>`;
+  }
+  g += `<text x="${W - mR}" y="${H - mB + 18}" text-anchor="end" font-size="9"
+        fill="var(--dim)">${esc(o.einheit ?? '')}</text>`;
+
+  /*
+   * DIE ZAHLEN HAENGEN AUCH ALS DATEN AM BILD - dieselbe Bauart wie bei
+   * `linienDiagramm` (data-mess). Der Pruefstand liest sie und rechnet
+   * gegen den Kern; ohne das waere ein Vorzeichenfehler im Bild nicht
+   * messbar, sondern nur zu sehen.
+   */
+  const daten = { art: 'balken', einheit: o.einheit ?? '',
+                  grenze: Number.isFinite(o.grenze) ? o.grenze : null,
+                  reihen: reihen.map((r) => ({ name: r.name,
+                    wert: Math.round(r.wert * 1e6) / 1e6,
+                    einheit: r.einheit ?? '' })) };
+  return `<figure class="diagramm" data-balken="${att(JSON.stringify(daten))}">
+    <figcaption>${esc(o.titel)}</figcaption>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="${esc(o.titel)}">${g}</svg>
+  </figure>`;
+}
+
+/** Zahl mit echtem Minuszeichen - wie im Bericht. */
+function zahlMitMinus(v, n) {
+  const t = Number(v).toFixed(n);
+  return t.startsWith('-') && Number(t) !== 0 ? `−${t.slice(1)}` : t.replace(/^-/, '');
+}
+
+/* ===========================================================================
+ * >>> DREI BILDER AUF DEM BALKEN-BAUSTEIN (24. September). <<<
+ * =========================================================================
+ *
+ * Diese Datei RECHNET NICHT und importiert nichts - deshalb kommt die
+ * Ampelfarbe als Funktion herein (`opt.farbeVon`). Sie hier nachzubilden
+ * hiesse, die Schwellen 0.90 und 1.00 ein zweites Mal hinzuschreiben, und
+ * zwei Wahrheiten ueber dieselbe Grenze sind eine zu viel.
+ * ========================================================================= */
+
+/**
+ * DIE AUSNUTZUNG ALLER BAUTEILE NEBENEINANDER.
+ *
+ * Weisung vom 24. September: «gesamtheitliche Tragwerksbetrachtung». Das
+ * Urteil nennt die groesste Zahl und ihr Bauteil; dieses Bild zeigt, wie
+ * weit die uebrigen davon entfernt sind - die Frage, mit der man ein
+ * Sortiment waehlt.
+ *
+ * @param {object} urteil Ergebnis aus `bauteilUrteil`
+ */
+export function bauteilDiagramm(urteil, opt = {}) {
+  const liste = (urteil?.liste ?? []).filter((b) => Number.isFinite(b.eta));
+  if (liste.length < 2) return '';   // Ein Balken ist kein Vergleich.
+  return balkenDiagramm({
+    titel: opt.titel ?? 'Ausnutzung je Bauteil (Tragsicherheit)',
+    breite: opt.breite ?? 900, einheit: 'η [–]',
+    grenze: 1.0, grenzText: 'η = 1.00',
+    reihen: liste.map((b) => ({
+      name: b.name, wert: b.eta, nk: 3,
+      farbe: opt.farbeVon ? opt.farbeVon(b.eta) : 'var(--acc)',
+    })),
+  });
+}
+
+/**
+ * DIE ACHT EINZELNACHWEISE DES FUNDAMENTS.
+ *
+ * Quer und laengs werden nicht ueberlagert (so die Quelle), also ist das
+ * Bild genau richtig: acht unabhaengige Nachweise nebeneinander, und man
+ * sieht auf einen Blick, WELCHER eng wird. Am Standardjoch ist es der
+ * veraenderliche Anteil der Horizontalkraft, nicht das Moment.
+ */
+export function fundamentDiagramm(q, opt = {}) {
+  if (!q?.nachweise?.length) return '';
+  return balkenDiagramm({
+    titel: opt.titel ?? `Mastfundament ${q.typ?.typ ?? ''} — Ausnutzung je Nachweis`,
+    breite: opt.breite ?? 900, einheit: 'η [–]',
+    grenze: 1.0, grenzText: 'η = 1.00', mL: 240,
+    reihen: q.nachweise.map((n) => ({
+      name: n.was, wert: n.eta, nk: 3,
+      farbe: opt.farbeVon ? opt.farbeVon(n.eta) : 'var(--acc)',
+    })),
+  });
+}
+
+/* ===========================================================================
+ * >>> DIE FUSSKRAFT JE LASTFALL - MIT VORZEICHEN. <<<
+ * =========================================================================
+ *
+ * Weisung: «die aber auch gegengeprueft werden muessen auf richtigkeit
+ * (vektor richtung etc.).» Genau hier entscheidet die Richtung: ein
+ * Moment nach +x und eines nach −x kommen aus verschiedenen
+ * Windrichtungen und treffen verschiedene Seiten des Fundaments. Ein
+ * Bild, das nur Betraege zeigte, verschwiege die halbe Auskunft.
+ *
+ * Deshalb laeuft die Achse durch die Null und jeder Balken traegt sein
+ * Vorzeichen. Dass es das RICHTIGE ist, misst der Pruefstand gegen den
+ * Kern - Balken fuer Balken, samt Vorzeichen.
+ *
+ * @param {object} kombi  Ergebnis aus `vergleichKombinationen`
+ * @param {object} opt    {ende, feld, name, einheit, breite, arten}
+ * ========================================================================= */
+export function fussKraftDiagramm(kombi, opt = {}) {
+  const ende = opt.ende ?? 'A';
+  const feld = opt.feld ?? 'Myy';
+  const arten = opt.arten ?? ['charakteristisch', 'aussergewoehnlich'];
+  const lf = (kombi?.lastfaelle ?? []).filter((l) => arten.includes(l.art));
+  const reihen = [];
+  lf.forEach((l) => {
+    const st = kombi.ergebnisse?.[l.key]?.mast?.[ende]?.stationen?.[0];
+    const v = Number(st?.[feld]);
+    if (!Number.isFinite(v)) return;
+    reihen.push({ name: l.bez ?? l.key, wert: v, nk: opt.nk ?? 2 });
+  });
+  if (reihen.length < 2) return '';
+  return balkenDiagramm({
+    titel: opt.titel ?? `${opt.name ?? feld} am Mastfuss je Lastfall`,
+    breite: opt.breite ?? 900, einheit: opt.einheit ?? '',
+    grenze: Number.isFinite(opt.grenze) ? opt.grenze : undefined,
+    grenzText: opt.grenzText, mL: opt.mL ?? 260,
+    reihen,
+  });
+}
+
 export function abfangDiagramme(ab, breite = 900) {
   const r = ab?.reihe;
   if (!Array.isArray(r) || r.length < 2) return null;

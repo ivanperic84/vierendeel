@@ -28662,6 +28662,233 @@ titel('116  Mastfundament: Zuordnung und Nachweis');
   }
 }
 
+titel('117  Neue Diagramme: Zahlen, Vorzeichen und Richtung');
+/* ===========================================================================
+ * Weisung vom 24. September, im Wortlaut:
+ *
+ *   «kann man noch zusätzliche diagramme ergänzen, die aber auch
+ *    gegengeprüft werden müssen auf richtigkeit (vektor richtung etc.).»
+ *
+ * Die Auflage ist der eigentliche Auftrag. Ein Bild, das eine Zahl falsch
+ * zeigt, ist schlimmer als keines - man glaubt ihm.
+ * ========================================================================= */
+{
+  const RC117 = await import(J('render.charts.js'));
+  const V117 = await import(J('core.vierendeel.js'));
+  const N117 = await import(J('core.nachbarn.js'));
+  const CH117 = await import(J('core.checks.js'));
+  const F117 = await import(J('core.fundament.js'));
+  const AK117 = await import(J('core.anker.js'));
+  const NB117 = await import(J('export.nachweisbericht.js'));
+
+  // Die Daten am Bild - so misst der Pruefstand, was gezeichnet wurde.
+  const daten = (svg) => {
+    const m = /data-balken="([^"]*)"/.exec(svg ?? '');
+    if (!m) return null;
+    return JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
+  };
+  // Die Rechtecke, in der Reihenfolge der Zeilen.
+  const rechtecke = (svg) => [...(svg ?? '').matchAll(
+    /<rect x="([\d.]+)" y="[\d.]+"\s+width="([\d.]+)"/g)]
+    .map((m) => ({ x: Number(m[1]), b: Number(m[2]) }));
+  // Die Nulllinie: die einzige volle Senkrechte in --on2.
+  const nullLinie = (svg) => {
+    const m = /<line x1="([\d.]+)"[^>]*stroke="var\(--on2\)"/.exec(svg ?? '');
+    return m ? Number(m[1]) : null;
+  };
+
+  // --- a) Der Baustein: wo die Null liegt, und auf welcher Seite ---------
+  /*
+   * >>> DAS IST DER KERN DER AUFLAGE. <<<
+   *
+   * Ein Balken mit negativem Wert muss LINKS der Nulllinie liegen, einer
+   * mit positivem rechts. Geht das verloren, sieht das Bild richtig aus
+   * und ist es nicht.
+   */
+  {
+    const svg = RC117.balkenDiagramm({
+      titel: 'Probe', einheit: 'kNm',
+      reihen: [{ name: 'plus', wert: 12.5, nk: 2 },
+               { name: 'minus', wert: -7.25, nk: 2 },
+               { name: 'null', wert: 0, nk: 2 }],
+    });
+    const d = daten(svg);
+    wahr('Das Bild traegt seine Zahlen als Daten', Boolean(d));
+    pruef('Drei Reihen', d.reihen.length, 3, 1e-12, 'Stk');
+    pruef('… mit ihren Werten', d.reihen[1].wert, -7.25, 1e-12, 'kNm');
+    const r = rechtecke(svg), x0 = nullLinie(svg);
+    wahr('Die Nulllinie steht im Bild', Number.isFinite(x0), `${x0}`);
+    pruef('Drei Balken', r.length, 3, 1e-12, 'Stk');
+    wahr('Der positive Balken beginnt an der Null und geht nach rechts',
+         Math.abs(r[0].x - x0) < 0.6 && r[0].b > 1,
+         `x ${r[0].x} gegen ${x0}`);
+    wahr('>>> Der negative Balken liegt LINKS der Null <<<',
+         r[1].x < x0 - 0.6 && Math.abs(r[1].x + r[1].b - x0) < 0.6,
+         `x ${r[1].x} + ${r[1].b} gegen ${x0}`);
+    /*
+     * DIE LAENGEN STEHEN IM RICHTIGEN VERHAELTNIS: 12.5 zu 7.25. Ohne
+     * diese Kontrolle koennte die Achse verzerrt sein und beide
+     * Vorzeichen trotzdem stimmen.
+     */
+    pruef('… und die Längen verhalten sich wie die Werte',
+          r[0].b / r[1].b, 12.5 / 7.25, 1e-3, '–');
+    // Das Minuszeichen im Text ist ein echtes, kein Bindestrich.
+    wahr('Die Zahl traegt ein echtes Minuszeichen',
+         svg.includes('−7.25'), 'U+2212');
+    // Eine Grenzmarke steht da, wo der Wert liegt.
+    const mitGrenze = RC117.balkenDiagramm({
+      titel: 'x', einheit: 'η', grenze: 1.0, grenzText: 'η = 1.00',
+      reihen: [{ name: 'a', wert: 0.5 }, { name: 'b', wert: 1.5 }] });
+    wahr('Die Grenzmarke ist angeschrieben', /η = 1\.00/.test(mitGrenze));
+    /*
+     * DIE SPANNE SCHLIESST DIE GRENZE EIN: bei zwei Werten unter 1.0
+     * muesste die Marke sonst ausserhalb des Bildes liegen.
+     */
+    const klein = RC117.balkenDiagramm({
+      titel: 'x', einheit: 'η', grenze: 1.0,
+      reihen: [{ name: 'a', wert: 0.2 }, { name: 'b', wert: 0.3 }] });
+    const xg = /stroke="var\(--fail\)"/.test(klein)
+      ? Number(/<line x1="([\d.]+)"[^>]*var\(--fail\)/.exec(klein)?.[1]) : null;
+    wahr('Die Grenzmarke bleibt im Bild',
+         Number.isFinite(xg) && xg > 0 && xg < 900, `${xg}`);
+    // Und ohne Werte kommt kein leeres Bild, sondern gar keines.
+    wahr('Ohne Zahlen kein Bild',
+         RC117.balkenDiagramm({ titel: 'x', reihen: [] }) === '');
+  }
+
+  const lauf117 = (w) => {
+    const s2 = N117.rechensatzMitNachbarn(w);
+    const k = V117.vergleichKombinationen(s2, ...N117.kernArgumente(s2));
+    const erg = V117.berechne(s2, ...N117.kernArgumente(s2));
+    erg.anker = AK117.ankerAuswertung(k, s2);
+    erg.fundament = F117.fundamentNachweis(k, s2);
+    const bem = CH117.mitBauteilen(k.huellkurve ?? erg, erg, { mastErsatz: true });
+    return { k, s2, erg, bem, urteil: CH117.bauteilUrteil(bem, null, w.tragwerksart) };
+  };
+
+  // --- b) Ausnutzung je Bauteil ------------------------------------------
+  {
+    const { bem, urteil } = lauf117({ ...standardwerte(), xLage: 0 });
+    const svg = RC117.bauteilDiagramm(urteil, { breite: 860 });
+    const d = daten(svg);
+    wahr('Das Bauteilbild steht da', Boolean(d));
+    /*
+     * JEDER BALKEN IST EIN BAUTEIL DES URTEILS - und zwar mit seinem
+     * Namen und seiner Zahl. Ginge die Reihenfolge verloren, stuende eine
+     * Zahl unter dem falschen Namen.
+     */
+    const soll = urteil.liste.filter((b) => Number.isFinite(b.eta));
+    pruef('Ein Balken je Bauteil', d.reihen.length, soll.length, 1e-12, 'Stk');
+    wahr('… Name und Zahl gehören zusammen',
+         d.reihen.every((r, i) => r.name === soll[i].name
+           && Math.abs(r.wert - soll[i].eta) < 1e-6),
+         d.reihen.map((r) => `${r.name}=${r.wert}`).join(' '));
+    wahr('Das Fundament ist dabei',
+         d.reihen.some((r) => /Fundament/.test(r.name)),
+         d.reihen.map((r) => r.name).join(' '));
+    pruef('Die Marke steht auf η = 1.00', d.grenze, 1.0, 1e-12, '–');
+    // Ein einzelnes Bauteil ergibt keinen Vergleich - dann kein Bild.
+    wahr('Ein Bauteil allein bekommt kein Bild',
+         RC117.bauteilDiagramm({ liste: [{ name: 'x', eta: 0.5 }] }) === '');
+  }
+
+  // --- c) Das Fundament je Nachweis --------------------------------------
+  {
+    const { erg } = lauf117({ ...standardwerte(), xLage: 0 });
+    const q = erg.fundament.A;
+    const d = daten(RC117.fundamentDiagramm(q, { breite: 860 }));
+    pruef('Acht Balken', d.reihen.length, q.nachweise.length, 1e-12, 'Stk');
+    wahr('… jeder mit dem η seines Nachweises',
+         d.reihen.every((r, i) => Math.abs(r.wert - q.nachweise[i].eta) < 1e-6),
+         d.reihen.map((r) => r.wert.toFixed(3)).join(' '));
+    wahr('… und unter dem Namen seines Nachweises',
+         d.reihen.every((r, i) => r.name === q.nachweise[i].was));
+  }
+
+  // --- d) Die Fusskraft je Lastfall: DIE RICHTUNG -------------------------
+  /*
+   * >>> HIER ENTSCHEIDET DAS VORZEICHEN. <<<
+   *
+   * Ein Moment nach +x und eines nach −x kommen aus entgegengesetzten
+   * Windrichtungen und treffen verschiedene Seiten des Fundaments. Das
+   * Bild muss das zeigen, und zwar richtig herum.
+   */
+  {
+    const { k } = lauf117({ ...standardwerte(), xLage: 0 });
+    const svg = RC117.fussKraftDiagramm(k, { breite: 860, ende: 'A',
+      feld: 'Myy', einheit: 'kNm', name: 'M quer' });
+    const d = daten(svg);
+    wahr('Das Fusskraftbild steht da', Boolean(d));
+
+    // Jede Zeile gegen den Kern - Zahl UND Vorzeichen.
+    const lf = k.lastfaelle.filter(
+      (l) => ['charakteristisch', 'aussergewoehnlich'].includes(l.art));
+    const soll = lf.map((l) => ({ name: l.bez,
+      wert: k.ergebnisse[l.key]?.mast?.A?.stationen?.[0]?.Myy }))
+      .filter((x) => Number.isFinite(x.wert));
+    pruef('Ein Balken je charakteristischem Lastfall',
+          d.reihen.length, soll.length, 1e-12, 'Stk');
+    wahr('>>> Jeder Balken traegt den Wert des Kerns, mit Vorzeichen <<<',
+         d.reihen.every((r, i) => r.name === soll[i].name
+           && Math.abs(r.wert - soll[i].wert) < 1e-6),
+         d.reihen.map((r) => `${r.wert.toFixed(2)}`).join(' '));
+
+    /*
+     * DIE PROBE AUFS EXEMPEL: Wind +x und Wind −x muessen einander
+     * entgegengesetzte Momente geben - und im Bild auf verschiedenen
+     * Seiten der Nulllinie stehen.
+     */
+    const iP = d.reihen.findIndex((r) => /Wind \+x/.test(r.name));
+    const iM = d.reihen.findIndex((r) => /Wind −x|Wind -x/.test(r.name));
+    wahr('Beide Windrichtungen sind im Bild', iP >= 0 && iM >= 0,
+         `${iP} / ${iM}`);
+    wahr('… und ihre Momente sind entgegengesetzt',
+         d.reihen[iP].wert * d.reihen[iM].wert < 0,
+         `${d.reihen[iP].wert.toFixed(2)} gegen ${d.reihen[iM].wert.toFixed(2)}`);
+    const r = rechtecke(svg), x0 = nullLinie(svg);
+    wahr('>>> Sie stehen auf verschiedenen Seiten der Nulllinie <<<',
+         (r[iP].x >= x0 - 0.6) !== (r[iM].x >= x0 - 0.6),
+         `x ${r[iP].x} und ${r[iM].x}, Null bei ${x0}`);
+
+    /*
+     * UND KEIN TRAGSICHERHEITSFALL: das Bild steht im Kapitel neben dem
+     * Fundamentnachweis, und der rechnet charakteristisch. Ein
+     * Bemessungswert daneben waere um 1.3 groesser und saehe aus wie ein
+     * Fehler.
+     */
+    wahr('Nur charakteristische und aussergewöhnliche Fälle',
+         d.reihen.every((r) => lf.some((l) => l.bez === r.name)));
+  }
+
+  // --- e) Der Bericht bettet sie ein -------------------------------------
+  {
+    const qq = [...NB117.BILDER.map((b) => b.key)];
+    wahr('Acht abschaltbare Bilder',
+         qq.join(',') === 'skizze,verlaeufe,modell3d,eta,bauteile,fundament,'
+                        + 'fusskraft,verformung', qq.join(','));
+    const bq = readFileSync(join(HIER, 'js', 'export.nachweisbericht.js'), 'utf8');
+    ['bauteile', 'fundament', 'fusskraft', 'verformung'].forEach((k) => {
+      wahr(`«${k}» wird eingebettet und ist abschaltbar`,
+           bq.includes(`d.bilder?.${k}`) && bq.includes(`bilder?.${k} !== false`));
+    });
+    // Und app.bericht.js erzeugt jedes davon.
+    const aq = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
+    ['bauteile:', 'fundament:', 'fusskraft:', 'verformung:'].forEach((k) => {
+      wahr(`… und app.bericht.js liefert «${k.slice(0, -1)}»`, aq.includes(k));
+    });
+    /*
+     * DIE AMPELFARBE KOMMT VON AUSSEN. `render.charts.js` importiert
+     * nichts; die Schwellen dort ein zweites Mal hinzuschreiben waere
+     * eine zweite Wahrheit ueber dieselbe Grenze.
+     */
+    wahr('Die Diagrammdatei kennt die Ampelschwellen nicht',
+         !/0\.9\d*\s*\?/.test(readFileSync(join(HIER, 'js', 'render.charts.js'), 'utf8')
+           .split('export function balkenDiagramm')[1] ?? ''));
+    wahr('… sie kommt als Funktion herein', aq.includes('farbeVon'));
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

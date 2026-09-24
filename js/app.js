@@ -969,8 +969,19 @@ function weitereDiagramme(erg, breite) {
     const mn = erg.mast?.[ende] ?? null;
     const ak = erg.anker?.[ende] ?? null;
     if (!mn && !ak) return;
-    // Der Mastnachweis fuehrt kein `name` - sein Schluessel ist das Ende.
-    const name = `Ende ${ende}`;
+    /*
+     * >>> DER MAST HEISST, WIE ER ÜBERALL SONST HEISST (24. September). <<<
+     *
+     * Hier stand `Ende ${ende}` mit der Begründung, der Mastnachweis
+     * führe keinen Namen. Er führt ihn nicht, aber das MODELL führt ihn
+     * (`federn.namen`) - und Kacheln, Urteil und Bericht nennen ihn
+     * seit dem 19. September M1, M2.
+     *
+     * Aufgefallen im Bericht: die Verformungstabelle nannte «Mast M1»,
+     * das Bild darunter «Ende A». Zwei Namen für dasselbe Bauteil auf
+     * derselben Seite - man sucht dann den dritten Masten.
+     */
+    const name = erg.modell?.federn?.namen?.[ende] || `Ende ${ende}`;
     /*
      * DIE GRENZLINIE IM VERFORMUNGSBILD ist die schaerfere der beiden
      * Spitzengrenzen (L/200, nur Wind) - in MILLIMETERN, wie die Kurve.

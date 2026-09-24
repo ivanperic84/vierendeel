@@ -42,6 +42,21 @@ export const BILDER = [
   { key: 'verlaeufe', label: 'Schnittgrössenverläufe' },
   { key: 'modell3d', label: '3D-Ansicht' },
   { key: 'eta', label: 'Ausnutzungsverlauf' },
+  /*
+   * >>> VIER NEUE (Weisung vom 24. September). <<<
+   *
+   * «kann man noch zusätzliche diagramme ergänzen, die aber auch
+   * gegengeprüft werden müssen auf richtigkeit (vektor richtung etc.).»
+   *
+   * Jedes steht in dem Kapitel, dessen Zahlen es zeigt - ein Bild am
+   * Ende des Berichts, das man mit einer Tabelle zwanzig Seiten davor
+   * vergleichen muss, ist keine Hilfe. Und jedes ist einzeln
+   * abschaltbar wie die vier davor.
+   */
+  { key: 'bauteile', label: 'Ausnutzung je Bauteil' },
+  { key: 'fundament', label: 'Fundament je Nachweis' },
+  { key: 'fusskraft', label: 'Mastfusskräfte je Lastfall' },
+  { key: 'verformung', label: 'Verformung über die Höhe' },
 ];
 
 /** Tragwerksarten, die diese Fassung des Berichts abdeckt. */
@@ -305,9 +320,21 @@ function kombinationen(d) {
   const ART = { charakteristisch: 'char.', tragsicherheit: 'Tragsicherheit',
                 aussergewoehnlich: 'aussergew.', gebrauchstauglichkeit: 'Gebrauch' };
   return `<section><h2>§ Lastfälle und Kombinationen</h2>
-    <p>Beiwerte je Einwirkungsgruppe. Nachgewiesen wird mit den Fällen der
-    Tragsicherheit und den aussergewöhnlichen; die Umhüllende über diese ist
-    die Grundlage des Urteils. Massgebend für ${istMast(d) ? 'den Mast' : 'das Joch'}:
+    ${/* >>> NICHT JEDER NACHWEIS STEHT AUF DENSELBEN FAELLEN (24. Sept.). <<<
+      *
+      * Hier stand nur «nachgewiesen wird mit den Faellen der Tragsicherheit
+      * und den aussergewoehnlichen». Das gilt fuer Joch und Mast - seit
+      * es Anker, Fundament und Verformung gibt, gilt es nicht mehr fuer
+      * den ganzen Bericht. Wer die Tabelle liest und im Fundamentkapitel
+      * einen Lastfall findet, der hier als «char.» steht, soll nicht
+      * raten muessen, warum. */''}
+    <p>Beiwerte je Einwirkungsgruppe. <b>Joch und Mast</b> werden mit den
+    Fällen der Tragsicherheit und den aussergewöhnlichen nachgewiesen; die
+    Umhüllende über diese ist die Grundlage des Urteils. <b>Anker und
+    Fundament</b> stehen dagegen auf den charakteristischen und den
+    aussergewöhnlichen Fällen — sie messen gegen zulässige Lasten, und die
+    tragen keine Teilsicherheitsbeiwerte. Die <b>Verformung</b> steht auf
+    dem Betriebswind (ψ 0.70). Massgebend für ${istMast(d) ? 'den Mast' : 'das Joch'}:
     <b>${esc(istMast(d) ? fallText(d.kombi, d.erg.mast?.A?.fall)
                         : fallText(d.kombi, d.kombi?.massgebend))}</b>.</p>
     ${tabelle(['Nr.', 'Kombination', 'Art', ...gruppen.map((g) => g.replace('Havarie', 'Hav. ')),
@@ -480,16 +507,26 @@ function nachweise(d) {
       <p>Charakteristische Kraft gegen die zulässige Kraft des Bemessungsblatts.</p>
       ${tabelle(['Bauteil', 'N<sub>k</sub> [kN]', 'zul [kN]', 'L [m]', 'Grundlage', 'η', ''], anker)}
       ${knick}` : '');
+  /*
+   * DAS UEBERSICHTSBILD ZUERST: es beantwortet «wie weit ist das
+   * Tragwerk ausgenutzt, und WO?», bevor die Formeln kommen.
+   */
+  const uebersichtBild = (d.opt?.bilder?.bauteile !== false && d.bilder?.bauteile)
+    ? bild(d.bilder.bauteile, 'Ausnutzung je Bauteil — Tragsicherheit, η = 1.00 als Marke')
+    : '';
   if (istMast(d)) {
     return `<section><h2>§ Nachweise</h2>
+    ${uebersichtBild}
     <p>f<sub>yd</sub> = ${zahl(fyd, 2)} N/mm². Je Nachweis die Zwischenwerte der für den Mast
     massgebenden Kombination; ihr η ist das der Umhüllenden über alle Kombinationen.</p>
     ${erg.mast?.A ? mastNachweis(erg.mast.A, namen.A ? `§.1 Mast ${namen.A}` : '§.1 Mast',
                                  fallBez(erg.mast.A.fall)) : '<p>Kein Mast im Modell.</p>'}
     ${ankerBlock(2)}
+    ${fundamentBlock(d, anker.length ? 3 : 2)}
   </section>`;
   }
   return `<section><h2>§ Nachweise</h2>
+    ${uebersichtBild}
     <p>f<sub>yd</sub> = ${zahl(fyd, 2)} N/mm². Zwischenwerte aus der massgebenden Kombination
     <b>${esc(fallBez(kk))}</b>; ihr η ist das der Umhüllenden.</p>
     <h3>§.1 Joch — Winkelgurte</h3>
@@ -501,6 +538,131 @@ function nachweise(d) {
       ? mastNachweis(erg.mast[e], namen[e] ? `Mast ${namen[e]}` : `Mast ${e}`, fallBez(erg.mast[e].fall))
       : '').join('') || '<p>Ohne Masten.</p>'}
     ${ankerBlock(4)}
+    ${fundamentBlock(d, anker.length ? 5 : 4)}
+  </section>`;
+}
+
+/* ===========================================================================
+ * >>> DAS MASTFUNDAMENT IM BERICHT (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «die Fundamente auch noch separat als ausnutzungsbeiwert in die
+ * nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung).» Wer
+ * das Tragwerk gesamtheitlich nachweist, muss es auch gesamtheitlich
+ * BERICHTEN - sonst steht das Fundament in der Anwendung im Urteil und
+ * fehlt in dem Papier, das die Prüfung liest.
+ *
+ * Es steht im Kapitel «Nachweise» neben dem Anker: beide messen gegen eine
+ * ZULÄSSIGE Last. Die Tabelle nennt je Zeile die Einwirkung, die
+ * zulässige Last und den Lastfall, aus dem sie kommt - ohne den Lastfall
+ * lässt sich keine Zahl nachvollziehen.
+ *
+ * >>> DER BERICHT RECHNET NICHT. <<< Wie überall hier: die Zwischenwerte
+ * kommen aus `core.fundament.js`, hier werden sie nur gesetzt. Die Marke
+ * `data-pruef` lässt den Prüfstand nachrechnen.
+ * ========================================================================= */
+function fundamentBlock(d, nr) {
+  const f = d.erg?.fundament;
+  if (!f || d.urteil?.nachweise?.fundament === false) return '';
+  const namen = d.erg.modell?.federn?.namen ?? {};
+  const gesehen = new Set();
+  const bloecke = ['A', 'B'].map((e) => {
+    const q = f[e];
+    if (!q) return '';
+    const name = namen[e] || `Ende ${e}`;
+    if (gesehen.has(name)) return '';
+    gesehen.add(name);
+    if (q.fehlt) {
+      return `<p><b>Mast ${esc(name)}:</b> für ${esc(q.profil ?? 'dieses Profil')} `
+           + `führt das Sortiment kein Standardfundament — Sonderfundament, `
+           + `in diesem Werkzeug nicht nachgewiesen.</p>`;
+    }
+    if (!q.nachweise?.length) return '';
+    const zeilen = q.nachweise.map((n) => [
+      esc(n.was), zahl(n.wert, 2), esc(n.einheit), zahl(n.zul, 2),
+      `<span data-pruef="fund-${esc(e)}-${esc(n.key)}">${zahl(n.eta, 3)}</span>`,
+      esc(n.bez ?? ''), urteilMarke(n.eta)]);
+    const heben = q.abheben
+      ? `<p class="klein"><b>Abheben:</b> ${zahl(q.abheben.wert, 1)} kN in `
+        + `«${esc(q.abheben.bez)}». Die zulässigen Lasten gelten für eine `
+        + `Vertikalkraft zwischen 0 und ${zahl(q.typ.Vmax, 0)} kN — ein `
+        + `abhebendes Fundament ist darin nicht abgedeckt.</p>` : '';
+    return `<h4>Mast ${esc(name)} — ${esc(q.typ.typ)}`
+         + `${q.gewaehlt ? ' (gewählt)' : ' (nach Masttyp)'}</h4>
+      <p class="klein">Fundamentkörper ${esc(q.typ.abmessung ?? '—')} m`
+         + `${q.typ.masttypen ? ` · Sortiment: ${esc(q.typ.masttypen)}` : ''}`
+         + `${q.typ.neubau === false ? ' · nur für Spezialfälle' : ''}</p>
+      ${tabelle(['Nachweis', 'Einwirkung', '', 'zulässig', 'η', 'massgebender Lastfall', ''],
+                zeilen, 'eng')}
+      ${(d.opt?.bilder?.fundament !== false && d.bilder?.fundament?.[e])
+        ? bild(d.bilder.fundament[e], `Mastfundament ${esc(name)} — η je Nachweis`) : ''}
+      ${heben}`;
+  }).join('');
+  if (!bloecke) return '';
+  return `<h3>§.${nr} Mastfundament</h3>
+    <p>Charakteristische Einwirkung am Fundamentkopf gegen die zulässige Last
+    des Standard-Mastfundaments — beides ohne Teilsicherheitsbeiwerte.
+    <b>Quer und längs zum Gleis werden einzeln nachgewiesen</b>, nicht
+    überlagert; die beiden Zeilen «veränderlicher Anteil» begrenzen den Teil
+    aus Wind und Schnee allein. Gerechnet ist Gelände mit höchstens 14°
+    Neigung.</p>
+    ${bloecke}`;
+}
+
+/* ===========================================================================
+ * >>> DIE GEBRAUCHSTAUGLICHKEIT ALS EIGENES KAPITEL (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «nimm noch die auswertung der verformung (Gebrauchstauglichkeit)
+ * mit.»
+ *
+ * Ein EIGENES Kapitel und kein Abschnitt unter «Nachweise»: sie steht auf
+ * einem anderen Lastniveau (Betriebswind ψ 0.70 statt Bemessungswerten),
+ * misst gegen Grenzmasse statt gegen Widerstände, und sie färbt kein
+ * Urteil (Entscheid vom 18. September). Unter die Tragsicherheit gemischt
+ * wäre sie eine Zahl, die aussieht wie die daneben und etwas anderes
+ * bedeutet.
+ * ========================================================================= */
+function gebrauchstauglichkeit(d) {
+  const v = d.erg?.verformung;
+  if (!v) return '';
+  const namen = d.erg.modell?.federn?.namen ?? {};
+  const gesehen = new Set();
+  const zeilen = [];
+  ['A', 'B'].forEach((e) => {
+    const q = v[e];
+    if (!q?.nachweise?.length) return;
+    const name = namen[e] || `Ende ${e}`;
+    if (gesehen.has(name)) return;
+    gesehen.add(name);
+    q.nachweise.forEach((n) => {
+      zeilen.push([esc(`Mast ${name}`), esc(n.was),
+        // In MILLIMETERN: die Grenzwerte heissen 40 mm und L/200.
+        zahl(n.wert * 1000, 1), zahl(n.grenz * 1000, 1),
+        esc(n.achse === 'x' ? 'quer' : 'längs'),
+        `<span data-pruef="verf-${esc(e)}">${zahl(n.eta, 3)}</span>`,
+        esc(n.bez ?? ''),
+        `<span class="marke ${n.ok ? 'ok' : 'nok'}">${n.ok ? 'erfüllt' : 'ÜBER'}</span>`]);
+    });
+  });
+  if (!zeilen.length) return '';
+  const psi = v.psi ?? 0.70;
+  return `<section><h2>§ Gebrauchstauglichkeit — Mastverformung</h2>
+    <p>Nachgewiesen wird die Verschiebung des Masten im Gebrauchszustand.
+    Maassgebend ist der <b>Betriebswind</b> mit ψ = ${zahl(psi, 2)}
+    (Wiederkehrperiode 5 Jahre). Grenzwerte: Mastspitze L/100 aus ständiger
+    und veränderlicher Last, L/200 aus Wind allein; auf Höhe Fahrdraht
+    bzw. Ausleger oder Jochauflager 40 mm quer zum Gleis.</p>
+    <p class="klein">Der Mast ist dabei als eingespannter Kragarm gerechnet,
+    quer zum Gleis über I und in Gleisrichtung über I<sub>q</sub>, mit
+    derselben Lastliste wie die Schnittgrössen (einschliesslich der
+    Haltekraft eines Ankers). <b>Diese Nachweise färben das
+    Tragsicherheitsurteil nicht</b> — sie stehen daneben.</p>
+    ${tabelle(['Bauteil', 'Nachweis', 'w [mm]', 'zulässig [mm]', 'Richtung',
+               'η', 'massgebender Lastfall', ''], zeilen, 'eng')}
+    ${(d.opt?.bilder?.verformung !== false && d.bilder?.verformung)
+      ? bild(d.bilder.verformung, 'Verformung über die Masthöhe — '
+           + 'w quer und in Gleisrichtung, Grenzlinie L/200') : ''}
   </section>`;
 }
 
@@ -542,11 +704,42 @@ function auflagerkraefte(d) {
   const { erg } = d;
   const namen = erg.modell?.federn?.namen ?? {};
   const z = mastFussZeilen(erg.mast, namen);
+  /* =======================================================================
+   * >>> BEMESSUNGSWERTE - UND DAS FUNDAMENT RECHNET MIT ANDEREN. <<<
+   * =====================================================================
+   *
+   * Hier stand «Bemessungswerte … Übergabe an den Fundamentnachweis». Das
+   * war richtig, solange es keinen Fundamentnachweis gab: die Zahlen
+   * gingen an eine Rechnung ausserhalb dieses Werkzeugs, und dort sind
+   * Bemessungswerte das Uebliche.
+   *
+   * Seit dem 24. September führt der Bericht den Nachweis selbst - und
+   * der steht auf CHARAKTERISTISCHEN Werten, weil er gegen zulässige
+   * Lasten misst. Wer die beiden Tabellen vergleicht, findet Zahlen, die
+   * um den Faktor 1.3 auseinanderliegen. Genau diese Falle hat am
+   * 11. September beim Anker schon einmal zugeschlagen (die Masttabelle
+   * zeigte 17.39 kN, die Kachel daneben 16.8).
+   *
+   * >>> UND DIE ACHSEN GEHOEREN ANGESCHRIEBEN. <<< «F_x» allein sagt
+   * nicht, wohin es zeigt; im ganzen übrigen Werkzeug steht die Richtung
+   * dabei.
+   * ===================================================================== */
   return `<section><h2>§ Kräfte am Mastfuss</h2>
-    <p>Bemessungswerte der massgebenden Kombination je Mast — Übergabe an den Fundamentnachweis.
-    Die Werte je Kombination stehen im Anhang.</p>
-    ${z.length ? tabelle(['Mast', 'F<sub>z</sub> [kN]', 'F<sub>x</sub> [kN]', 'F<sub>y</sub> [kN]',
+    <p><b>Bemessungswerte</b> der massgebenden Kombination je Mast — für eine
+    Fundamentbemessung ausserhalb dieses Werkzeugs. Die Werte je Kombination
+    stehen im Anhang.</p>
+    <p class="klein">Nicht zu verwechseln mit den Einwirkungen im
+    Fundamentnachweis: der misst gegen <b>zulässige</b> Lasten und steht
+    deshalb auf charakteristischen Werten — sie sind um die
+    Teilsicherheitsbeiwerte kleiner und stehen dort in einer eigenen
+    Spalte.</p>
+    ${z.length ? tabelle(['Mast', 'F<sub>z</sub> [kN]',
+      'F<sub>x</sub> quer [kN]', 'F<sub>y</sub> längs [kN]',
       'M<sub>quer</sub> [kNm]', 'M<sub>längs</sub> [kNm]', 'M<sub>t</sub> [kNm]'], z) : '<p>Ohne Masten.</p>'}
+    ${(d.opt?.bilder?.fusskraft !== false && d.bilder?.fusskraft)
+      ? bild(d.bilder.fusskraft, 'Momente am Mastfuss je Lastfall, charakteristisch — '
+           + 'MIT Vorzeichen: die Richtung entscheidet, welche Seite des '
+           + 'Fundaments getroffen wird') : ''}
   </section>`;
 }
 
@@ -652,7 +845,10 @@ function nummeriert(dd, o) {
       ? `<section><h2>§ Übersicht</h2>${bild(dd.bilder.modell3d, '3D-Ansicht mit Ausnutzung')}</section>` : ''],
     ['grundlagen', grundlagen(dd)], ['system', system(dd)], ['einwirkungen', einwirkungen(dd)],
     ['kombinationen', kombinationen(dd)], ['schnittgroessen', schnittgroessen(dd)],
-    ['nachweise', nachweise(dd)], ['pruefungen', pruefungen(dd)],
+    ['nachweise', nachweise(dd)],
+    // Die Gebrauchstauglichkeit steht NACH der Tragsicherheit: erst was
+    // traegt, dann wie weit es sich bewegt (wie in der Ergebnisleiste).
+    ['gebrauch', gebrauchstauglichkeit(dd)], ['pruefungen', pruefungen(dd)],
     ['nichtGefuehrt', nichtGefuehrt(dd)], ['auflager', auflagerkraefte(dd)],
   ].filter(([, html]) => html);
   const nr = {};
