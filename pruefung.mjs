@@ -29066,6 +29066,133 @@ if (AJ.abfangDbDa()) {
   }
 }
 
+titel('119  Stabwerksloeser: das Eigengewicht');
+/* ===========================================================================
+ * Weisung vom 24. September: «zuerst das eigengewicht nachrüsten».
+ *
+ * Gefunden beim Vergleich gegen PyNite: im Lastfall G stand überall u = 0.
+ * Der Grund ist kein Fehler der Ausleitung - sie schreibt für AxisVM, und
+ * AxisVM erzeugt das Eigengewicht SELBST (`Loads.AddBeamSelfWeight` je
+ * Stab). Die Datei trägt nur den Zuschlag. Wer sie liest und rechnet, ist
+ * in der Rolle von AxisVM - und muss dasselbe tun.
+ * ========================================================================= */
+{
+  const SW119 = await import(J('core.stabwerk.js'));
+  const AX119 = await import(J('export.axisvm.js'));
+  const V119 = await import(J('core.vierendeel.js'));
+  const N119 = await import(J('core.nachbarn.js'));
+
+  let w119 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w119.L = 8; w119.xLage = 0; w119.mastVorhanden = true;
+  const s119 = N119.rechensatzMitNachbarn(w119);
+  const e119 = V119.berechne(s119, ...N119.kernArgumente(s119));
+  const bau119 = AX119.stabmodell(e119.modell, { knotenmodell: 'anschnitt' });
+  const dat119 = AX119.stabmodellJson(e119.modell, { bau: bau119, knotenmodell: 'anschnitt' });
+
+  // --- a) Die Datei trägt es NICHT --------------------------------------
+  /*
+   * Das ist die Voraussetzung des Ganzen und zugleich eine Wache: sollte
+   * die Ausleitung eines Tages das Eigengewicht mitschreiben, stünde es
+   * doppelt da - und diese Kontrolle fällt.
+   */
+  {
+    const jeFall = {};
+    (dat119.lasten.strecke ?? []).forEach((q) => {
+      jeFall[q.lastfall] = (jeFall[q.lastfall] ?? 0) + 1;
+    });
+    wahr('Die AxisVM-Datei führt keine ständige Streckenlast',
+         !jeFall.G, JSON.stringify(jeFall));
+    pruef('… die Dichte steht aber darin', dat119.material.rho, 7850, 1e-12, 'kg/m³');
+  }
+
+  // --- b) Der Löser setzt es an, und zwar voreingestellt -----------------
+  {
+    const mit = SW119.loese(dat119);
+    const ohne = SW119.loese(dat119, { eigengewicht: false });
+    wahr('Voreingestellt setzt der Löser sein Eigengewicht an',
+         mit.eigengewicht > 0, `${mit.eigengewicht.toFixed(3)} kN`);
+    pruef('… abschaltbar', ohne.eigengewicht, 0, 1e-12, 'kN');
+
+    /* =====================================================================
+     * >>> DIE PROBE: WAS OBEN HINEINGEHT, KOMMT UNTEN HERAUS. <<<
+     *
+     * Das Gleichgewicht ist die unbestechlichste Kontrolle - sie hängt an
+     * keiner zweiten Rechnung. Die Summe der lotrechten Auflagerkräfte im
+     * Lastfall G muss genau das angesetzte Eigengewicht sein.
+     * =================================================================== */
+    const summeAuf = SW119.loese(dat119).auflagerkraefte('G')
+      .reduce((sum, a) => sum + a.uz, 0);
+    pruef('Gleichgewicht: Auflager tragen genau das Eigengewicht',
+          summeAuf, mit.eigengewicht, 1e-6, 'kN');
+    // Ohne Eigengewicht bleibt im ständigen Fall nichts übrig.
+    pruef('… ohne es bleibt der Lastfall leer',
+          ohne.auflagerkraefte('G').reduce((sum, a) => sum + a.uz, 0),
+          0, 1e-9, 'kN');
+  }
+
+  // --- c) NUR echte Stäbe --------------------------------------------------
+  /* =======================================================================
+   * >>> DIE REGEL DER BRÜCKE, UND WARUM SIE SO SCHARF IST. <<<
+   * =====================================================================
+   *
+   * `AxisVM_aufbauen.ps1`: «StabArt -ne 'stab' -> continue. Ein
+   * Starrkörper bekommt keins: er ist kein Stabelement, und sein
+   * Ersatzquerschnitt wäre ohnehin frei erfunden.»
+   *
+   * Der Ersatzquerschnitt misst 500 × 500 mm. Ihn mitzuwiegen machte aus
+   * einem Joch von 4.7 kN eines von 33 t - genau der Fehler, der am
+   * 20. September im Blattmodell steckte. Diese Kontrolle rechnet nach,
+   * was dann herauskäme.
+   * ===================================================================== */
+  {
+    const mit = SW119.loese(dat119);
+    const echte = dat119.staebe.filter((x) => (x.art || 'stab') === 'stab');
+    pruef('Ein Eintrag je echtem Stab', mit.eigenLasten, echte.length, 1e-12, 'Stk');
+    wahr('… und es gibt Starrelemente, die ausgenommen sind',
+         dat119.staebe.some((x) => x.art === 'starr'),
+         `${dat119.staebe.filter((x) => x.art === 'starr').length} starr`);
+
+    // Was die Starrelemente wögen, würde man sie mitrechnen.
+    const qs = new Map(dat119.querschnitte.map((q) => [q.name, q]));
+    const kn = new Map(dat119.knoten.map((k) => [k.name, k]));
+    let starrGewicht = 0;
+    dat119.staebe.filter((x) => x.art === 'starr').forEach((x) => {
+      const q = qs.get(x.querschnitt); if (!q) return;
+      let wte; try { wte = SW119.qsWerte(q); } catch { return; }
+      const a = kn.get(x.von), b = kn.get(x.bis); if (!a || !b) return;
+      starrGewicht += wte.A * 7850 * SW119.G_ERDE / 1000
+                    * Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    });
+    /*
+     * GEMESSEN, NICHT GESCHÄTZT: am J90/8 m wären es 163 kN gegen 18.8 -
+     * das Achtfache. Am grösseren Blattmodell vom 20. September waren es
+     * 327 kN (≈ 33 t) bei 476 Starrelementen; die Zahl hängt am Modell,
+     * die Grössenordnung nicht.
+     */
+    wahr('>>> Mitgewogen würden die Starrelemente das Joch vervielfachen <<<',
+         starrGewicht > 5 * mit.eigengewicht,
+         `${starrGewicht.toFixed(0)} kN gegen ${mit.eigengewicht.toFixed(1)} kN`
+         + ` = Faktor ${(starrGewicht / mit.eigengewicht).toFixed(1)}`);
+  }
+
+  // --- d) Die Laufmeterlast stimmt mit dem Profil überein ------------------
+  {
+    const qs = new Map(dat119.querschnitte.map((q) => [q.name, q]));
+    const mast = dat119.staebe.find((x) => /^MAST_/.test(x.name)
+                                         && (x.art || 'stab') === 'stab');
+    const wte = SW119.qsWerte(qs.get(mast.querschnitt));
+    const q = wte.A * dat119.material.rho * SW119.G_ERDE / 1000;
+    /*
+     * HEB 240: A = 106 cm², g = 83.2 kg/m nach Tabelle -> 0.816 kN/m.
+     * Die Gegenrechnung geht über die Fläche, nicht über die Tabelle -
+     * sonst prüfte sie sich selbst.
+     */
+    pruef('Mastprofil: Laufmeterlast aus Fläche und Dichte', q, 0.8163, 1e-3, 'kN/m');
+    pruef('Die Erdbeschleunigung ist der physikalische Wert',
+          SW119.G_ERDE, 9.81, 1e-12, 'm/s²');
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

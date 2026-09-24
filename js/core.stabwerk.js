@@ -294,6 +294,19 @@ export const STARR_FAKTOR = 10;
  */
 export const LINK_STARR = 1e9;
 
+/* ===========================================================================
+ * >>> DIE ERDBESCHLEUNIGUNG - HIER, WEIL SIE HIER GEBRAUCHT WIRD. <<<
+ *
+ * Die Datei traegt die Dichte in kg/m3 (`material.rho`, 7850 für Stahl).
+ * Daraus wird eine Laufmeterlast erst mit g.
+ *
+ * ZUR EINORDNUNG: das PyNite-Skript setzt 78.5 kN/m3 an, also g = 10.0 -
+ * die uebliche Rundung der Stahlwichte. Mit 9.81 sind es 77.0 kN/m3. Die
+ * beiden liegen 1.9 % auseinander; wer die Ergebnisse vergleicht, muss
+ * das wissen. Gerechnet wird hier mit dem physikalischen Wert.
+ * ========================================================================= */
+export const G_ERDE = 9.81;
+
 export function loese(dat, opt = {}) {
   const t0 = Date.now();
   const starrF = opt.starrFaktor ?? STARR_FAKTOR;
@@ -442,7 +455,58 @@ export function loese(dat, opt = {}) {
   });
   const eMap = new Map(elemente.map((e) => [e.s.name, e]));
   const streckeAuf = [];
-  (dat.lasten.strecke || []).forEach((l) => {
+
+  /* =======================================================================
+   * >>> DAS EIGENGEWICHT STEHT NICHT IN DER DATEI - ES MUSS HIER ENTSTEHEN.
+   * =====================================================================
+   *
+   * Gefunden am 24. September beim Vergleich gegen PyNite: im Lastfall G
+   * stand ueberall u = 0.
+   *
+   * Der Grund ist kein Fehler der Ausleitung. Sie schreibt fuer AxisVM,
+   * und AXISVM ERZEUGT DAS EIGENGEWICHT SELBST aus Wichte und Querschnitt
+   * (`Loads.AddBeamSelfWeight` je Stab); die Datei traegt deshalb nur den
+   * ZUSCHLAG fuer das, was in keinem Stab steckt (`gZusatz` in
+   * export.axisvm.js). Wer diese Datei liest und rechnet, ist in der
+   * Rolle von AxisVM - und muss dasselbe tun.
+   *
+   * >>> DIE REGEL IST DIE DER BRUECKE, WORTWOERTLICH. <<<
+   *
+   * `AxisVM_aufbauen.ps1` sagt: «StabArt -ne 'stab' -> continue. Ein
+   * Starrkoerper bekommt keins: er ist kein Stabelement, und sein
+   * Ersatzquerschnitt waere ohnehin frei erfunden.» Genau daran haengt
+   * mehr als eine Feinheit: der Ersatzquerschnitt eines Starrelements
+   * misst 500 x 500 mm, und ihn mitzuwiegen machte aus einem Joch von
+   * 4.7 kN eines von 33 t - der Fehler, der am 20. September im
+   * Blattmodell steckte.
+   *
+   * Abschaltbar ueber `opt.eigengewicht: false` - dann traegt es die
+   * Lastliste bei (so misst `vergleich_stabwerk.mjs` gegen PyNite, das
+   * seinerseits nur die Laufmeterlast des Jochs kennt und den Masten gar
+   * kein Eigengewicht gibt).
+   * ===================================================================== */
+  const eigenLasten = [];
+  if (opt.eigengewicht !== false) {
+    const rho = Number(dat.material?.rho);
+    // Der Lastfall der staendigen Einwirkung - wie in der Bruecke lf['G'].
+    const fallG = (dat.lastfaelle.find((l) => l.key === 'G')
+                   ?? dat.lastfaelle[0])?.key;
+    if (rho > 0 && fallG) {
+      dat.staebe.forEach((st) => {
+        if ((st.art || 'stab') !== 'stab') return;
+        const qq = qs.get(st.querschnitt);
+        if (!qq) return;
+        // A in m2, rho in kg/m3, g in m/s2 -> N/m, durch 1000 -> kN/m.
+        const q = (qq.A * rho * G_ERDE) / 1000;
+        if (!(q > 0)) return;
+        // Lotrecht nach unten, global.
+        eigenLasten.push({ stab: st.name, richtung: 'Z', wert: -q,
+                           lastfall: fallG });
+      });
+    }
+  }
+
+  [...(dat.lasten.strecke || []), ...eigenLasten].forEach((l) => {
     const e = eMap.get(l.stab);
     if (!e) throw new Error('Streckenlast ohne Stab ' + l.stab);
     const gv = [0, 0, 0]; gv[RICHT[l.richtung]] = l.wert;      // kN/m, global
@@ -636,8 +700,19 @@ export function loese(dat, opt = {}) {
     return { gross, wo, bezug };
   };
 
+  /*
+   * WAS AN EIGENGEWICHT ANGESETZT WURDE - als Zahl, nicht als Zusage.
+   * Wer ein Ergebnis liest, soll nachsehen koennen, ob das Tragwerk sein
+   * eigenes Gewicht traegt.
+   */
+  const eigengewicht = eigenLasten.reduce((sum, l) => {
+    const e = eMap.get(l.stab);
+    return sum + (e ? Math.abs(l.wert) * e.L : 0);
+  }, 0);
+
   return { n, bw, nK, knotenIdx: idx, faelle, u, stabkraft, auflagerkraefte,
            restkraft, restNachIteration: restGross,
+           eigengewicht, eigenLasten: eigenLasten.length,
            lastVoll: pVoll, elemente,
            zeit: { bau: tBau - t0, faktor: tFak - tBau, loesen: tLoes - tFak,
                    gesamt: tLoes - t0 } };

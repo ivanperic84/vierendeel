@@ -136,7 +136,30 @@ console.log(`Modell: ${dat.knoten.length} Knoten · ${dat.staebe.length} Stäbe`
 
 /* --- 1 · Der eigene Loeser ------------------------------------------------ */
 const t0 = Date.now();
-const lsg = SW.loese(dat);
+/*
+ * >>> OHNE EIGENES EIGENGEWICHT - DIE LASTLISTE HAT ES SCHON. <<<
+ *
+ * Oben steht `eigengewicht: true` an der Lastliste, und zwar in der
+ * Form, die PyNite kennt: die Laufmeterlast des Jochs auf die vier
+ * Gurte. Setzte der Loeser sein eigenes dazu, stuende es doppelt da -
+ * beim ersten Anlauf war genau das der Fall, und die Abweichung im
+ * Lastfall G wuchs von 1.5 auf 3.0.
+ *
+ * >>> UND ES WAERE OHNEHIN EIN ANDERES. <<<
+ *
+ * Der Loeser wiegt JEDEN echten Stab (wie AxisVM), PyNite nur die
+ * Jochgurte - den Masten gibt es gar keins. Am J90/8 m sind das 18.77
+ * gegen 4.71 kN. Verglichen werden sollen hier die LOESER, nicht zwei
+ * Auffassungen davon, was mitwiegt.
+ */
+const lsg = SW.loese(dat, { eigengewicht: false });
+{
+  // Zur Einordnung: was der Loeser beisteuern WUERDE, liesse man ihn.
+  const mitEigen = SW.loese(dat, { eigengewicht: true });
+  console.log('Eigengewicht: aus der Lastliste (PyNite-Form, nur das Joch).'
+    + ` Der Löser selbst würde ${mitEigen.eigengewicht.toFixed(2)} kN über`
+    + ` ${mitEigen.eigenLasten} Stäbe ansetzen — mit den Masten.`);
+}
 const tEigen = Date.now() - t0;
 console.log(`\nEigener Löser: ${lsg.n} Freiheitsgrade, Bandbreite ${lsg.bw},`
   + ` ${tEigen} ms für ${lsg.faelle.length} Lastfälle`);

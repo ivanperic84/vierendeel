@@ -201,7 +201,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5197 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5208 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -572,13 +572,19 @@ kann und was gemessen ist:
   falsch; `richtungKraft` daneben machte es von Anfang an richtig. Betroffen
   ist jede Streckenlast in Jochachse — am Tragjoch der Wind quer zum Gleis
   auf die Masten. Behoben.
-  (2) ⚠ **Der Löser rechnet ohne Eigengewicht.** Die AxisVM-Ausleitung
-  schreibt es NICHT als Last: AxisVM erzeugt es selbst aus Wichte und
-  Querschnitt, die Datei trägt nur den Zuschlag (`gZusatz`). Der Löser liest
-  diese Datei — im Lastfall G stand deshalb überall u = 0, während PyNite
-  −4.4e-4 m auswies. **Er muss es selbst beisteuern, wie AxisVM es tut**,
-  bevor er einen Nachweis tragen darf. Für den Vergleich bekommen beide
-  vorerst die Liste mit `eigengewicht: true`.
+  (2) **Der Löser rechnete ohne Eigengewicht — nachgerüstet am 24. Sept.**
+  Die AxisVM-Ausleitung schreibt es nicht als Last: AxisVM erzeugt es
+  selbst (`Loads.AddBeamSelfWeight` je Stab), die Datei trägt nur den
+  Zuschlag (`gZusatz`). Im Lastfall G stand deshalb überall u = 0. Der
+  Löser steuert es jetzt selbst bei (`opt.eigengewicht`, Vorgabe **an**,
+  Prüfstand Abschnitt 119), nach der **Regel der Brücke**: nur Stäbe mit
+  `art === 'stab'`, Starrkörper und Links nie — ihr Ersatzquerschnitt misst
+  500 × 500 mm und wöge am J90/8 m 163 statt 18.8 kN. Gemessen: 18.766 kN
+  über 210 Stäbe, und die Auflager tragen auf 1e-6 kN genau dieselbe Summe.
+  ⚠ **PyNite wiegt anders:** es setzt nur die Laufmeterlast des Jochs an
+  (4.71 kN) und gibt den **Masten gar kein Eigengewicht**. Für den
+  Vergleich bekommen deshalb beide die Liste mit `eigengewicht: true`,
+  und der Löser lässt seines weg.
   **Stand der Messung** (J90/8 m, 380 Knoten, 430 Stäbe): die
   Auflagerreaktionen liegen auf 3 % (WindY) bis 45 % (WindX) beieinander,
   die **Verschiebungen am Mastkopf noch um Faktor 6** auseinander. Der
@@ -723,10 +729,6 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
   *Laufende Arbeit*).
 
-- ⚠ **Der Stabwerkslöser rechnet ohne Eigengewicht** (24. Sept., beim
-  Vergleich gegen PyNite gefunden). Er liest die AxisVM-Datei, und die
-  trägt das Eigengewicht nicht — AxisVM erzeugt es selbst. Solange das so
-  ist, darf er an keinen Nachweis. Siehe *Laufende Arbeit*.
 - ⚠ **Löser gegen PyNite: Mastkopf weicht um Faktor 6 ab** (24. Sept.).
   Auflagerreaktionen liegen deutlich näher. Ursache offen.
 
@@ -789,7 +791,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5197 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5208 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
