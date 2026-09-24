@@ -1263,7 +1263,14 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
    * normalkraft und torsion aufnhemen zur auswahl»). N ist die Gurtkraft
    * aus dem Kraeftepaar, T das Torsionsmoment des Querschnitts.
    */
-  pruef('Sieben auftragbare Grössen', R.PLOTS.length, 7, 1e-12, 'Stk');
+  /*
+   * ACHT, seit die VERFORMUNG dazukam (24. September): «nimm die
+   * verformung in die resultat plot und mache entsprechende diagramme.»
+   * Sie ist die einzige Groesse, die nicht aus der Tragsicherheit kommt.
+   */
+  pruef('Acht auftragbare Grössen', R.PLOTS.length, 8, 1e-12, 'Stk');
+  wahr('… darunter die Verformung, in Millimetern',
+       R.PLOTS.some((p) => p.key === 'w' && p.feld === 'w' && p.einheit === 'mm'));
   wahr('Darunter Normalkraft und Torsion',
        ['N', 'T'].every((k) => R.PLOTS.some((p) => p.key === k)));
   wahr('Jede auftragbare Groesse nennt ihre Einheit und ihr Feld',
@@ -11593,7 +11600,7 @@ titel('42  Der lange Mast mit Zusatzleitern');
        */
       wahr('Die Breite der Bauteildiagramme ist ein Argument',
            appQ.includes('function weitereDiagramme(erg, breite)')
-           && appQ.includes('mastDiagramme(mn, { breite, name })'));
+           && appQ.includes('mastDiagramme(mn, { breite, name,'));
       /*
        * UND WAS ES NICHT GIBT, ZIEHT NICHTS AUF. Ein leeres Modellfenster
        * ist schlechter als gar keine Reaktion.
@@ -27923,6 +27930,131 @@ titel('113  Mastverformung im Gebrauchszustand');
     const ui113 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
     wahr('Die Kachel steht ohne Ampel da',
          /kachel\(`Verformung \$\{name\}`[\s\S]{0,400}?'',/.test(ui113));
+  }
+}
+
+titel('114  Diagramme: was die Seitenleiste zeigt, zieht die Buehne auf');
+/* ===========================================================================
+ * Gemeldet am 24. September: «die diagramme, lassen sich nicht gross machen
+ * bei gewissen tragwerksarten.»
+ *
+ * Am EINZELMASTEN tat ein Klick auf «Schnittgroessen ueber die Masthoehe»
+ * gar nichts. Der Grund: `diagrammSatz` rief `diagramme(erg)` unbesehen -
+ * die Funktion des JOCHS, die mit `erg.knoten.map(...)` beginnt. Ein
+ * Einzelmast hat keinen Ersatzbalken und keine Knoten; sie warf, bevor der
+ * Satz gebaut war, und damit fehlten auch die MASTDIAGRAMME, die danach
+ * hineingekommen waeren.
+ *
+ * Die Kontrolle prueft den Zusammenhang, nicht die Stelle: jede Kennung,
+ * die die Seitenleiste als Knopf anbietet, muss im Satz der Buehne stehen.
+ * ========================================================================= */
+{
+  const RC114 = await import(J('render.charts.js'));
+  const C114 = await import(J('core.constants.js'));
+  const V114 = await import(J('core.vierendeel.js'));
+  const N114 = await import(J('core.nachbarn.js'));
+  const A114 = await import(J('data.anbauteile.js'));
+  const CH114 = await import(J('core.checks.js'));
+  const VF114 = await import(J('core.verformung.js'));
+  const AK114 = await import(J('core.anker.js'));
+
+  /*
+   * DIE BEIDEN STELLEN, NACHGEBAUT. Sie stehen in app.js und haengen dort
+   * am Zustand; hier steht ihr Kern, damit der Zusammenhang messbar ist.
+   * Weicht app.js davon ab, faellt es in den Quelltextkontrollen unten auf.
+   */
+  const satzVon = (erg, breite) => {
+    const abD = erg.abfang ? RC114.abfangDiagramme(erg.abfang, breite) : null;
+    const haupt = abD ?? (erg.knoten?.length ? RC114.diagramme(erg, breite) : null);
+    const satz = {};
+    if (haupt) {
+      satz.schnittgroessen = haupt.schnittgroessen;
+      satz.ebene = haupt.ebene;
+      satz.ausnutzung = haupt.ausnutzung;
+    }
+    ['A', 'B'].forEach((ende) => { /* Platzhalter, siehe weiter unten */ });
+    let i = 0;
+    ['A', 'B'].forEach((ende) => {
+      const mn = erg.mast?.[ende] ?? null;
+      const ak = erg.anker?.[ende] ?? null;
+      if (!mn && !ak) return;
+      const md = mn ? RC114.mastDiagramme(mn, { breite, name: `Ende ${ende}` }) : null;
+      if (!md && !ak?.nachweis) return;
+      if (md?.schnitt) satz[`mast-schnitt-${i}`] = md.schnitt;
+      if (md?.ausnutzung) satz[`mast-eta-${i}`] = md.ausnutzung;
+      if (md?.verformung) satz[`mast-verf-${i}`] = md.verformung;
+      i += 1;
+    });
+    return satz;
+  };
+
+  const lauf = (w) => {
+    const s2 = N114.rechensatzMitNachbarn(w);
+    const v = V114.vergleichKombinationen(s2, ...N114.kernArgumente(s2));
+    const erg = V114.berechne(s2, ...N114.kernArgumente(s2));
+    erg.anker = AK114.ankerAuswertung(v, s2);
+    erg.verformung = VF114.verformungsNachweis(v);
+    return CH114.mitBauteilen(v.huellkurve ?? erg, erg, { mastErsatz: true });
+  };
+
+  const joch = () => {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    return C114.setzeAnbauteileAn(w, [{ ...A114.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }]);
+  };
+  const einzel = () => C114.setzeAnbauteileAn(
+    { ...standardwerte(), tragwerksart: 'einzelmast', mastLaenge: 10,
+      L: 0, xLage: 0, mastVorhanden: true },
+    [{ ...A114.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', hMast: 8.0 }]);
+
+  /* =====================================================================
+   * >>> DER BEFUND SELBST: AM EINZELMASTEN STAND NICHTS. <<<
+   * =================================================================== */
+  {
+    const e = lauf(einzel());
+    const satz = satzVon(e, 600);
+    wahr('Einzelmast: der Ersatzbalken faellt weg, nicht der ganze Satz',
+         !satz.schnittgroessen && Boolean(satz['mast-schnitt-0']),
+         Object.keys(satz).join(' ') || 'leer');
+    wahr('… und die Ausnutzung des Masten steht da',
+         Boolean(satz['mast-eta-0']));
+    wahr('… und die Verformung',
+         Boolean(satz['mast-verf-0']));
+    // Ohne Knoten darf `diagramme` gar nicht erst gerufen werden.
+    let warf = false;
+    try { RC114.diagramme({ knoten: undefined }, 600); } catch { warf = true; }
+    wahr('Die Jochfunktion braucht Knoten - genau darum die Weiche', warf);
+  }
+
+  /* Und am Joch bleibt alles, wie es war. */
+  {
+    const e = lauf(joch());
+    const satz = satzVon(e, 600);
+    wahr('Joch: die drei Jochdiagramme stehen da',
+         Boolean(satz.schnittgroessen && satz.ebene && satz.ausnutzung));
+    wahr('… dazu beide Masten mit Schnitt, Ausnutzung und Verformung',
+         ['mast-schnitt-0', 'mast-eta-0', 'mast-verf-0',
+          'mast-schnitt-1', 'mast-eta-1', 'mast-verf-1'].every((k) => satz[k]),
+         Object.keys(satz).join(' '));
+  }
+
+  /*
+   * DIE BEIDEN STELLEN IN app.js MUESSEN DIESELBEN KENNUNGEN VERGEBEN -
+   * die Seitenleiste als Knopf, die Buehne als Schluessel. Gingen sie
+   * auseinander, taete ein Klick wieder nichts.
+   */
+  {
+    const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    ['anker-bem', 'mast-schnitt', 'mast-eta', 'mast-verf'].forEach((k) => {
+      wahr(`«${k}» kennen beide Stellen`,
+           appQ.includes(`setz('${k}'`) && uiQ.includes(`\`${k}-\${i}\``),
+           `app ${appQ.includes(`setz('${k}'`)} · ui ${uiQ.includes(`\`${k}-\${i}\``)}`);
+      wahr(`… und die Buehne hat einen Titel dafuer`,
+           new RegExp(`'${k}':`).test(appQ));
+    });
+    wahr('Die Buehne baut den Ersatzbalken nur mit Knoten',
+         appQ.includes("erg.knoten?.length ? diagramme(erg, breite) : null"));
   }
 }
 

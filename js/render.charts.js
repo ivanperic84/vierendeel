@@ -674,6 +674,9 @@ export function mastDiagramme(mn, opt = {}) {
   const w = (f) => s.map((p) => p[f] ?? 0);
   const breite = opt.breite ?? 900;
   const nm = opt.name ? ` · ${opt.name}` : '';
+  // Die Verformung kommt aus demselben Durchgang (core.mast.js).
+  const verf = Array.isArray(mn?.verformung)
+    ? [...mn.verformung].sort((a, b) => (a.z ?? 0) - (b.z ?? 0)) : null;
   return {
     schnitt: linienDiagramm({
       titel: `Schnittgrössen über die Masthöhe${nm}`,
@@ -715,6 +718,33 @@ export function mastDiagramme(mn, opt = {}) {
       serien: [{ name: 'η Querschnitt', werte: w('eta'),
                  einheit: '', nk: 3 }],
     }),
+    /* =====================================================================
+     * >>> DIE VERFORMUNG (Weisung vom 24. September). <<<
+     * ===================================================================
+     *
+     * «nimm die verformung in die resultat plot und mache entsprechende
+     *  diagramme.»
+     *
+     * In MILLIMETERN, nicht in Metern: die Grenzwerte heissen 40 mm und
+     * L/200, und eine Kurve um 0.085 liest niemand.
+     *
+     * DIE GRENZE IST DIE DER MASTSPITZE (L/200, nur Wind) - sie ist die
+     * schaerfere der beiden und gilt der ganzen Hoehe als Bezugslinie.
+     * Was WIRKLICH nachgewiesen wird, steht in der Kachel daneben; das
+     * Diagramm zeigt den Verlauf, nicht das Urteil.
+     * =================================================================== */
+    verformung: verf && verf.length >= 2 ? linienDiagramm({
+      titel: `Verformung über die Masthöhe${nm}`,
+      breite, hoehe: 200, xLabel: 'z über Mastfuss [m]',
+      yLabel: 'w [mm]', punkte: verf.map((p) => p.z ?? 0),
+      grenze: opt.grenze ?? null,
+      serien: [
+        { name: 'w quer zum Gleis', werte: verf.map((p) => (p.x ?? 0) * 1000),
+          kurz: 'w_x', einheit: 'mm', nk: 1 },
+        { name: 'w in Gleisrichtung', werte: verf.map((p) => (p.y ?? 0) * 1000),
+          kurz: 'w_y', einheit: 'mm', nk: 1 },
+      ],
+    }) : null,
   };
 }
 

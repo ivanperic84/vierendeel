@@ -5920,6 +5920,16 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null) {
       teile.push(diagrammBlock(`mast-eta-${i}`,
         'Ausnutzung über die Höhe', w.ausnutzung));
     }
+    /*
+     * >>> UND DIE VERFORMUNG (Weisung vom 24. September). <<<
+     * «nimm die verformung in die resultat plot und mache entsprechende
+     *  diagramme.» Sie steht UNTER der Ausnutzung: erst was traegt, dann
+     * wie weit es sich bewegt.
+     */
+    if (w.verformung) {
+      teile.push(diagrammBlock(`mast-verf-${i}`,
+        'Verformung über die Höhe', w.verformung));
+    }
     if (!teile.length) return '';
     return abschnitt(w.titel ?? '') + teile.join('');
   }).join('');

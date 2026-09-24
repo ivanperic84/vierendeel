@@ -373,6 +373,26 @@ export function mastKoerper(o) {
    * einer Einzellast zu guenstig ein.
    */
   const st = nachweis?.stationen ?? [];
+  /*
+   * >>> DIE VERFORMUNG GEHOERT DAZU (Weisung vom 24. September). <<<
+   *
+   * «nimm die verformung in die resultat plot» - also faerbt sie den
+   * Masten wie jede andere Groesse. Sie kommt aus demselben Durchgang
+   * (`mastVerschiebungen` in core.mast.js) und steht an denselben
+   * Stationen; zugeordnet wird trotzdem ueber z und nicht ueber den
+   * Index - eine Reihenfolge, auf die sich zwei Dateien stillschweigend
+   * verlassen, haelt nicht lange.
+   *
+   * Aufgetragen wird die RESULTIERENDE der beiden Richtungen: wie weit
+   * der Punkt wirklich ausgewandert ist. Welche Richtung das war, sagt
+   * das Diagramm daneben.
+   */
+  const verf = new Map((nachweis?.verformung ?? [])
+    .map((v) => [Math.round((v.z ?? 0) * 1e6), v]));
+  const wBei = (z) => {
+    const v = verf.get(Math.round((z ?? 0) * 1e6));
+    return v ? Math.hypot(v.x ?? 0, v.y ?? 0) * 1000 : null;   // mm
+  };
   if (st.length >= 2) {
     for (let i = 0; i < st.length - 1; i += 1) {
       const u = st[i], ob = st[i + 1];
@@ -390,6 +410,13 @@ export function mastKoerper(o) {
         M: Math.max(arg('Myy'), arg('Mxx')),
         V: Math.max(arg('Fx'), arg('Fy')),
       };
+      // Der groessere der beiden Endwerte - wie bei allen uebrigen.
+      {
+        const wU = wBei(u.z), wO = wBei(ob.z);
+        if (wU !== null || wO !== null) {
+          werte.w = Math.max(Math.abs(wU ?? 0), Math.abs(wO ?? 0));
+        }
+      }
       const label = `${grund} · ${u.z.toFixed(2)} bis ${ob.z.toFixed(2)} m`
                   + ` über Fuss · η ${schlimmer.eta.toFixed(3)}`;
       flaechen.push(...prismaZ(poly, x, zu2, zo2, {

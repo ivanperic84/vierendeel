@@ -947,7 +947,15 @@ function weitereDiagramme(erg, breite) {
     if (!mn && !ak) return;
     // Der Mastnachweis fuehrt kein `name` - sein Schluessel ist das Ende.
     const name = `Ende ${ende}`;
-    const md = mn ? mastDiagramme(mn, { breite, name }) : null;
+    /*
+     * DIE GRENZLINIE IM VERFORMUNGSBILD ist die schaerfere der beiden
+     * Spitzengrenzen (L/200, nur Wind) - in MILLIMETERN, wie die Kurve.
+     */
+    const vq = erg.verformung?.[ende];
+    const grenze = vq?.nachweise
+      ?.find((x) => /nur Wind\)$/.test(x.was))?.grenz ?? null;
+    const md = mn ? mastDiagramme(mn, { breite, name,
+      grenze: grenze === null ? null : grenze * 1000 }) : null;
     let bem = null;
     if (ak?.nachweis) {
       const typ = ankerTypen().find((t) => t.id === ak.nachweis.typ);
@@ -959,7 +967,8 @@ function weitereDiagramme(erg, breite) {
     if (!md && !bem) return;
     liste.push({ titel: `Mast ${name}`, bemessung: bem,
                  schnitt: md?.schnitt ?? null,
-                 ausnutzung: md?.ausnutzung ?? null });
+                 ausnutzung: md?.ausnutzung ?? null,
+                 verformung: md?.verformung ?? null });
   });
   return liste;
 }
@@ -989,19 +998,39 @@ function weitereDiagramme(erg, breite) {
 /** Die Titel der Bauteildiagramme - dieselben wie in der Seitenleiste. */
 const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
                        'mast-schnitt': 'Schnittgrössen über die Höhe',
-                       'mast-eta': 'Ausnutzung über die Höhe' };
+                       'mast-eta': 'Ausnutzung über die Höhe',
+                       'mast-verf': 'Verformung über die Höhe' };
 
 /** Jedes Diagramm unter seinem Schluessel, mit Titel. */
 function diagrammSatz(erg, breite) {
   const abD = erg.abfang ? abfangDiagramme(erg.abfang, breite) : null;
-  const haupt = abD ?? diagramme(erg, breite);
-  const satz = {
-    schnittgroessen: { svg: haupt.schnittgroessen,
-                       titel: abD ? 'Schnittgrössen'
-                                  : 'Schnittgrössen Ersatzbalken' },
-    ebene: { svg: haupt.ebene, titel: 'Ebenenquerkräfte' },
-    ausnutzung: { svg: haupt.ausnutzung, titel: 'Ausnutzung' },
-  };
+  /* =======================================================================
+   * >>> OHNE KNOTEN KEIN ERSATZBALKEN (Befund vom 24. September). <<<
+   * =====================================================================
+   *
+   * Gemeldet: «die diagramme lassen sich nicht gross machen bei gewissen
+   * tragwerksarten.» Am EINZELMASTEN tat ein Klick auf «Schnittgrössen
+   * über die Masthöhe» gar nichts.
+   *
+   * Der Grund stand eine Zeile weiter: `diagramme(erg)` ist die Funktion
+   * des JOCHS, sie beginnt mit `erg.knoten.map(...)` - und ein Einzelmast
+   * hat keinen Ersatzbalken und keine Knoten. Sie warf, bevor der Satz
+   * gebaut war, und damit fehlten auch die MASTDIAGRAMME, die danach
+   * hineingekommen waeren. Die Seitenleiste macht es richtig - sie
+   * uebergibt dort `null` statt `dia` -, die Buehne rief unbesehen.
+   *
+   * Geprueft wird die VORAUSSETZUNG, nicht die Tragwerksart: was die
+   * Funktion braucht, sind Knoten.
+   * ===================================================================== */
+  const haupt = abD ?? (erg.knoten?.length ? diagramme(erg, breite) : null);
+  const satz = {};
+  if (haupt) {
+    satz.schnittgroessen = { svg: haupt.schnittgroessen,
+                             titel: abD ? 'Schnittgrössen'
+                                        : 'Schnittgrössen Ersatzbalken' };
+    satz.ebene = { svg: haupt.ebene, titel: 'Ebenenquerkräfte' };
+    satz.ausnutzung = { svg: haupt.ausnutzung, titel: 'Ausnutzung' };
+  }
   weitereDiagramme(erg, breite).forEach((w, i) => {
     const setz = (art, svg) => {
       if (!svg) return;
@@ -1010,6 +1039,7 @@ function diagrammSatz(erg, breite) {
     setz('anker-bem', w.bemessung);
     setz('mast-schnitt', w.schnitt);
     setz('mast-eta', w.ausnutzung);
+    setz('mast-verf', w.verformung);
   });
   return satz;
 }

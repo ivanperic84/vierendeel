@@ -2005,6 +2005,23 @@ export const PLOTS = [
     fussnote: 'Torsionsmoment des QUERSCHNITTS — es gehört der Station, '
             + 'nicht dem einzelnen Bauteil, und färbt deshalb alle Teile '
             + 'eines Schnitts gleich.' },
+  /*
+   * >>> DIE VERFORMUNG (Weisung vom 24. September). <<<
+   *
+   * «nimm die verformung in die resultat plot und mache entsprechende
+   *  diagramme.»
+   *
+   * Sie ist die einzige Groesse hier, die NICHT aus der Tragsicherheit
+   * kommt: sie steht im Gebrauchszustand, mit dem Betriebswind
+   * ψ = 0.70. Und sie gibt es nur am MASTEN - das Joch bleibt grau,
+   * wie bei der Querkraft die Gurte.
+   */
+  { key: 'w',     label: 'Verformung w',           kurz: 'w',    feld: 'w',
+    einheit: 'mm', nk: 1,
+    fussnote: 'Nur für die Masten ausgewiesen; das Joch bleibt grau. '
+            + 'Aufgetragen ist die Resultierende aus beiden Richtungen '
+            + 'im GEZEIGTEN Lastfall — der Nachweis daneben steht auf '
+            + 'dem Betriebswind ψ 0.70.' },
 ];
 
 export const MODI = [
