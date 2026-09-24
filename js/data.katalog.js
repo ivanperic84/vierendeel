@@ -232,6 +232,58 @@ export const ABSCHNITTE = [
       ], { pflicht: true, notiz: 'Charakteristische Laufmeterlast je Klasse.' }),
     ],
   },
+  /* -------------------------------------------------------------------------
+   * >>> DIE MASTFUNDAMENTE (24. September). <<<
+   *
+   * Weisung: «die Fundamentzuordnug zu den einzelnen Masttypen.» Sie steht
+   * im Sortiment der Masten, weil sie genau das ist: eine Zuordnung zum
+   * Masttyp.
+   *
+   * Die Werte sind ZULÄSSIGE Lasten am Fundamentkopf, charakteristisch.
+   * `Mq_ver` und `Hq_ver` gelten dem veränderlichen Anteil ALLEIN - sie
+   * sind die schärfere Bedingung und deshalb eigene Spalten.
+   * ---------------------------------------------------------------------- */
+  {
+    key: 'fundamente', db: 'masten', tabelle: 'fundamente', liste: 'fundamente',
+    titel: 'Mastfundamente', herkunft: 'sortiment', schluessel: 'typ',
+    notiz: 'Zulässige Lasten auf Standard-Mastfundamente, angreifend am '
+         + 'Fundamentkopf, charakteristische Werte. Gerechnet ist Gelände '
+         + 'mit höchstens 14° Neigung; an einer Boschung gelten Richtung '
+         + 'fallender Seite kleinere Werte. Quer und längs zum Gleis werden '
+         + 'einzeln nachgewiesen, nicht überlagert.',
+    felder: [
+      text('typ', 'Fundamenttyp', { pflicht: true }),
+      text('masttypen', 'für Masttyp',
+        { notiz: 'Bezeichnung des Sortiments, mehrere durch Komma.' }),
+      text('profile', 'Profile',
+        { notiz: 'Profilnamen der Anwendung, mehrere durch Komma. Leer: '
+               + 'das Sortiment führt diesen Masttyp nicht als Profil '
+               + '(Doppelmasten) — der Typ ist dann nur von Hand wählbar.' }),
+      f('steg', 'Stegrichtung', 'text',
+        { notiz: 'Nur wo sie die Zuordnung entscheidet: «jochachse» oder '
+               + '«quer». Leer heisst: gilt für beide Lagen.' }),
+      text('abmessung', 'Fundamentkörper',
+        { notiz: 'Querschnitt / Höhe in Metern, wie im Sortiment '
+               + 'angeschrieben.' }),
+      zahl('Vmax', 'Vertikalkraft V', 'kN',
+        { pflicht: true, von: 50, bis: 500,
+          notiz: 'Obere Grenze; die Tabelle gilt für V zwischen 0 und '
+               + 'diesem Wert.' }),
+      zahl('Mq', 'Moment quer M_q', 'kNm', { pflicht: true, von: 10, bis: 600 }),
+      zahl('Mq_ver', 'M_q veränderlich', 'kNm', { pflicht: true, von: 5, bis: 400,
+        notiz: 'Grenze für den veränderlichen Anteil allein.' }),
+      zahl('Ml', 'Moment längs M_l', 'kNm', { pflicht: true, von: 10, bis: 600 }),
+      zahl('Hq', 'Horizontalkraft quer H_q', 'kN', { pflicht: true, von: 1, bis: 100 }),
+      zahl('Hq_ver', 'H_q veränderlich', 'kN', { pflicht: true, von: 1, bis: 80,
+        notiz: 'Grenze für den veränderlichen Anteil allein.' }),
+      zahl('Hl', 'Horizontalkraft längs H_l', 'kN', { pflicht: true, von: 1, bis: 100 }),
+      zahl('T', 'Torsionsmoment T', 'kNm', { pflicht: true, von: 0.5, bis: 50 }),
+      bool('neubau', 'für Neubau',
+        { notiz: '«nein»: nur für Spezialfälle nach Vorgabe der '
+               + 'Projektleitung.' }),
+      text('zeichnung', 'Zeichnung'),
+    ],
+  },
   {
     key: 'tragjoche', db: 'tragjoche', tabelle: 'typen', liste: 'typen',
     titel: 'Tragjochtypen', herkunft: 'sortiment', schluessel: 'typ',

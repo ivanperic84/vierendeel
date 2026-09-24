@@ -207,6 +207,32 @@ export const NACHWEISGRUPPEN = [
    * heisst wie überall NICHT GERECHNET — σ_ω fällt auf null, und es steht
    * im Urteil, im Bericht und im Mastblatt.
    * ===================================================================== */
+  /* =======================================================================
+   * >>> DAS MASTFUNDAMENT (Weisung vom 24. September). <<<
+   * =====================================================================
+   *
+   * «die Fundamente auch noch separat als ausnutzungsbeiwert in die
+   * nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung).
+   * diesen nachweis auch unter optionen ausschaltbar machen.»
+   *
+   * Es ist eine GRUPPE geworden und kein eigener Schalter: hier stehen
+   * die abschaltbaren Nachweise schon, sie sind in den Optionen zu
+   * finden, und ein nicht geführter Nachweis erscheint von selbst
+   * unter «nicht geführt» - mit der Regel, dass er NIE als erfüllt
+   * zählt.
+   *
+   * VOREINGESTELLT AN: «gesamtheitliche Tragwerksbetrachtung» heisst,
+   * dass das Fundament dazugehört. Wer es ausschaltet, hat einen Grund
+   * (Sonderfundament, Bestand mit eigenem Nachweis) - und sieht es
+   * angeschrieben.
+   */
+  { key: 'fundament', titel: 'Mastfundament', vorhanden: true, standard: true,
+    was: 'Zulässige Lasten auf Standard-Mastfundamente am Fundamentkopf, '
+       + 'charakteristische Werte — Vertikalkraft, Moment und '
+       + 'Horizontalkraft je quer und längs zum Gleis, Torsion. Quer und '
+       + 'längs werden EINZELN nachgewiesen, nicht überlagert (so die '
+       + 'Quelle). Der Typ folgt Profil und Stegrichtung des Masten, '
+       + 'lässt sich aber wählen. Gerechnet ist Gelände bis 14° Neigung' },
   { key: 'torsionMast', titel: 'Torsion Mast', vorhanden: true, standard: true,
     was: 'Wölbkrafttorsion des offenen Profils — Bimoment am '
        + 'wölbeingespannten Fuss, σ_ω = B/(h_m·W_f) als Normalspannung im '
@@ -1750,6 +1776,8 @@ export function mitBauteilen(basis, erg, { mastErsatz = false } = {}) {
    * der Spalte. Dreimal ist genau das schon passiert (A2).
    */
   if (erg?.verformung) o.verformung = erg.verformung;
+  // Und das Fundament, aus demselben Grund (24. September).
+  if (erg?.fundament) o.fundament = erg.fundament;
   return o;
 }
 
@@ -1816,6 +1844,22 @@ export function bauteilUrteil(erg, nachweise, art = null) {
     const name = `${a.typ ?? 'Anker'} ${namen[ende] || ende}`;
     dazu('anker', name, a.eta, a.lieferbar === false ? true : null);
   });
+  /*
+   * >>> DAS FUNDAMENT GEHÖRT INS URTEIL (24. September). <<<
+   *
+   * «gesamtheitliche Tragwerksbetrachtung» - ein Joch, dessen Masten
+   * halten, dessen Fundament aber überschritten ist, ist nicht
+   * nachgewiesen. Es steht neben dem Anker, aus demselben Grund: beide
+   * messen gegen eine ZULÄSSIGE Last, nicht gegen einen
+   * Bemessungswiderstand.
+   */
+  if (nw.fundament) {
+    ['A', 'B'].forEach((ende) => {
+      const q = erg?.fundament?.[ende];
+      if (!q || q.fehlt || !q.nachweise?.length) return;
+      dazu('fundament', `Fundament ${namen[ende] || ende}`, q.eta);
+    });
+  }
   // Das massgebende: ein nicht lieferbares Bauteil vor jeder Zahl.
   const massgebend = liste.reduce((best, x) => {
     if (!best) return x;

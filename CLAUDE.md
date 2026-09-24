@@ -166,6 +166,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
 | Verformung im Plot und als Diagramm (24. Sept.) | «nimm die verformung in die resultat plot und mache entsprechende diagramme.» Neue Plotgrösse **w** (mm), nur an den Masten — das Joch bleibt grau, wie bei der Querkraft die Gurte. Aufgetragen ist die **Resultierende** aus beiden Richtungen im gezeigten Lastfall; welche Richtung es war, sagt das Diagramm. Neu je Mast ein Diagramm **«Verformung über die Höhe»** mit w_x und w_y in Millimetern und der Grenzlinie L/200. Es steht unter der Ausnutzung — erst was trägt, dann wie weit es sich bewegt |
 | Gebrauchstauglichkeit: Plot und Wahl (24. Sept.) | «setze noch ein resultat plott gebrauchstauglichkeit … Tragsicherheit Gebrauchstagulichkeit oder beide.» Auf Rückfrage: (1) Der Plot **«η w»** trägt das η **aus dem Nachweis, je Mast** — eine Farbe über die ganze Höhe, feste Skala 1.25 wie η. Ein Verlauf w(z) gegen L/200 wäre erfunden: die Grenzwerte gelten an **zwei** Stellen, dazwischen ist keiner definiert. Er folgt **nicht** dem Lastfallwähler (Betriebswind ψ 0.70). (2) Die Wahl **Tragsicherheit / Gebrauchstauglichkeit / beide** (Vorgabe **beide**) steht in der **Ergebnisleiste** und zieht die **Plotliste** mit (`modiFuer`, `modusKorrigieren`) — eine Stelle, kein zweiter Wähler. Weg fällt, was ein η der Tragsicherheit zeigt; Schnittgrössen und Hinweise bleiben. Die **Hauptkachel bleibt** — ein Anzeigefilter ändert kein Urteil. Ein Plot ohne `nachweisart` gilt der Tragsicherheit (vergessene Angabe führt zur harmloseren Zuordnung). Das Umschalten **rechnet nicht neu** |
+| Mastfundament im Nachweis (24. Sept.) | «die Fundamentzuordnug zu den einzelnen Masttypen … die Fundamente auch noch separat als ausnutzungsbeiwert in die nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung). diesen nachweis auch unter optionen ausschaltbar machen.» Quelle: `Grundlagen/Einwirkungen`, zulässige Standardlasten, **Block bis 14° Geländeneigung** («die Geländeneigung nicht berücksichtigen» — der zweite Block mit den kleineren Werten Richtung fallender Böschung bleibt drausssen; an einer Böschung rechnet das Werkzeug damit auf der unsicheren Seite, der Kachel-Titel sagt es). Acht Zeilen als zweite Tabelle **im Sortiment der Masten** (`data/masten.json`, Tabelle `fundamente`) — sie ist eine Zuordnung zum Masttyp, und so gehen sie ohne Zutun durch Datenpaket, Excel und Abgleich. **Die Zuordnung Masttyp → Profil ist gemessen:** die Windlasten je Einwirkungsklasse in `fl_bauteile.json` (mast-dp20 … mast-dpm24-p) stimmen ziffernweise mit denen der Profile — DP20 = HEB 200, DP22 = HEB 220, DP24 = HEB 240, DP26 = HEB 260, DPM24 = HEM 240. Beim **HEM 240 entscheidet die Stegrichtung mit** (einziges nicht quadratisches Mastprofil): starke Achse quer → HP1a/2.4 (M_q 230), gedreht → HP2a/2.4 (M_q 154); vertauscht wäre der Nachweis um ein Drittel zu schwach. Nachgewiesen wird in `core.fundament.js` über die **charakteristischen und aussergewöhnlichen** Lastfälle (wie beim Anker, alle Beiwerte 1 — Tragsicherheits-Kombinationen bleiben drausssen), **acht Einzelnachweise** am Mastfuss: V, M_q, M_l, H_q, H_l, T sowie **M_q und H_q für den veränderlichen Anteil allein** (eigene, schärfere Spalten der Quelle — am Standardjoch η 0.16 gegen 0.09). **Quer und längs werden nicht überlagert**, so die Quelle ausdrücklich; das Urteil ist das Maximum, keine Interaktionsformel. Der Typ folgt Profil und Stegrichtung, lässt sich in der Mastkachel aber wählen (`MASTFELDER`, gehört dem Masten — ein geteilter Mast hat ein Fundament). Abschaltbar als **Nachweisgruppe `fundament`** (Optionen → Nachweise, Vorgabe **an**) statt als eigener Schalter: dort stehen die abschaltbaren Nachweise schon, und ein nicht geführter zählt von selbst nie als erfüllt |
 | Höhe der Fahrdrahtverschiebung (24. Sept.) | «es sollte einen schieber geben welche höhe für die farhdrahtverschiebung massgebend ist.» Neues Feld **`fdHoehe`** (Gruppe *Masten*, Schieber, über dem Mastfuss gemessen). Die Automatik von `messStelle` (höchstes Drahtwerk → höchster Ausleger → Jochauflager) trifft den Regelfall, misst aber am **Anschlusspunkt** eines Teils — der Fahrdraht hängt darunter, und wie weit, weiss die Zeichnung. **0 = automatisch**, damit jeder gespeicherte Stand unverändert weiterrechnet; **über dem Mastkopf gilt die Eingabe nicht** (dort steht keine gerechnete Verschiebung, sie fällt auf die Automatik zurück). Der Nachweistext nennt seither die Höhe («Fahrdraht auf 5.50 m quer zum Gleis») — sonst stünde dieselbe Zeile da, gleichgültig ob 6.20 oder 8.00 m gemeint war. Gemessen am Einzelmast: Automatik 8.00 m → 8 mm, eingetragene 5.50 m → 5 mm, Grenzwert unverändert 40 mm |
 | Gemeinsame Kopfzahl bei «beide» (24. Sept.) | «wenn hier beide ausgewählt sind dann müsste es einen globalen ausnutzungfaktor haben der den gebrauchstauglichkeit auch berücksichtigt.» Die Hauptkachel trägt in dieser Stellung das **Maximum über beide Nachweisarten**, mit dem massgebenden Bauteil daneben («Verformung M2»). **Die Farbe folgt ihm** — auf Rückfrage ausdrücklich so entschieden und damit eine Änderung des Entscheids vom 18. September («die Urteilsfarbe folgt allein der Tragsicherheit»); eine Kachel, die η 1.97 zeigt und grün dasteht, ist ein Widerspruch. **Die Aussage wird nicht vermischt:** der Text nennt beide Urteile getrennt («Tragsicherheit erfüllt · Gebrauchstauglichkeit NICHT erfüllt»), denn die Zahlen stehen auf verschiedenen Lastniveaus. In den beiden anderen Stellungen zeigt die Kachel genau das, was darunter steht. **Einzellastfall** und **«nicht geführt»** bleiben unberührt — dort wird nicht geurteilt (`urteilMitGebrauch` in ui.js) |
 | Werte im Plot: einmal je Bauteil (24. Sept.) | «Die werteplotts sind nicht gut lesbar», mit dem Bild eines Masten: achtmal «1.97» untereinander. Grössen, die dem **Bauteil** gehören statt der Station, tragen an jedem Abschnitt denselben Wert; die Ausdünnung kannte nur Abstände im Bild, nicht die Frage, ob zwei Zahlen etwas Verschiedenes sagen. `entdoppelteWerte` lässt je Bauteil und gerundetem Wert **eine** Zahl stehen, und zwar die mittlere der Gruppe. Dazu getrennte Deckkraft: das Kästchen bleibt blass (0.62, die Fläche schimmert durch), die **Ziffer** steht mit 0.95 da — eine rote Ziffer mit 0.62 auf rotem Bauteil war nicht zu entziffern. Die Weisung vom 20. Sept. («transparenter») galt der verdeckten Fläche, nicht der Zahl |
@@ -197,12 +198,23 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5085 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5137 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **24. Sept., das Mastfundament wird nachgewiesen** (Prüfstand Abschnitt 116,
+  siehe *Entschieden*). Neue Tabelle im Masten-Sortiment, neues Modul
+  `core.fundament.js`, neue Nachweisgruppe. Zwei Befunde am Weg, beide von
+  den vorhandenen Wachen gefunden: die neue Tabelle brauchte ihren
+  **Katalogeintrag** (`data.katalog.js`, sonst «Spalte ohne Katalogeintrag»),
+  und **sechs Zeilen kamen über Excel verändert zurück** — sie trugen
+  `steg: ""`, und eine leere Zelle liest sich als «nicht gesetzt». Leere
+  Felder stehen jetzt gar nicht erst in der Datei.
+  ⚠ Offen: die **Doppelmasten** (DGP24, DGP26) stehen in der Tabelle, aber
+  das Sortiment der Anwendung führt sie nicht als Profil — ihre Fundamente
+  sind nur von Hand wählbar.
 - **24. Sept., die Messstelle lässt sich eintragen, und die Kopfzahl umfasst
   beide Arten** (Prüfstand Abschnitte 113 und 115, siehe *Entschieden*).
   Zwei Weisungen aus der Bedienung des Vortags: die Höhe der
@@ -582,7 +594,7 @@ zurückgestellte Kragarm-Modell des Tragauslegers.
 | A5 | Versionsanzeige immer «v2.0» → Datum und Commit aus dem Bündeln |
 | A6 | README veraltet (Kontrollenzahl, Excel-Skript) |
 
-**Datenstand:** `data/anbauteile.json` trägt seit 19. Sept. die Spalte `ort`
+**Datenstand:** `data/masten.json` trägt seit 24. Sept. die Tabelle `fundamente` (8 Standard-Mastfundamente, Sicherung davor: `data/sicherung/masten_vor_fundamenten_2026-09-24.json`). `data/anbauteile.json` trägt seit 19. Sept. die Spalte `ort`
 und fünf Mast-Vorlagen, `data/fl_bauteile.json` den Baustein
 `anbauteil-lampenrohr` (Sicherungen davor in `data/sicherung/…_2026-09-19`).
 `data/tragjoche.json` trägt seit 18. Sept. die J60-Bleche
@@ -720,7 +732,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5085 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5137 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

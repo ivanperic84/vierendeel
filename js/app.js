@@ -76,6 +76,7 @@ import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js'
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis } from './core.verformung.js';
+import { fundamentNachweis } from './core.fundament.js';
 import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
          ankerKnickenSicher } from './core.anker.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
@@ -764,6 +765,19 @@ function neuRechnen(neuZeichnen = true) {
      * Tragsicherheit (Entscheid vom 18. September).
      */
     erg.verformung = verformungsNachweis(kombi);
+    /*
+     * >>> UND DAS FUNDAMENT (24. September). <<<
+     *
+     * «die Fundamente auch noch separat als ausnutzungsbeiwert in die
+     * nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung).»
+     * Dieselbe Reihe wie Anker und Verformung, und dieselbe Bauart:
+     * eine Auswertung ueber Lastfaelle gegen eine ZULAESSIGE Last.
+     *
+     * Gerechnet wird immer; ob es ins Urteil zaehlt, entscheidet die
+     * Nachweisgruppe `fundament` (Optionen). Zwei Wege zum Abschalten
+     * waeren zwei Wahrheiten.
+     */
+    erg.fundament = fundamentNachweis(kombi, werte);
     const checks = mitJoch ? konstruktionsChecks(erg.modell, erg.abfang) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten

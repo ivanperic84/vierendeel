@@ -88,7 +88,17 @@ export const AUFBAU = {
   },
   masten: {
     titel: 'Masttypen',
-    listen: [{ name: 'typen', pfad: 'typen', schluessel: 'profil' }],
+    /*
+     * >>> DIE FUNDAMENTE STEHEN BEIM MASTEN (24. September). <<<
+     *
+     * Weisung: «die Fundamentzuordnug zu den einzelnen Masttypen». Sie
+     * ist keine eigene Datei geworden, sondern eine zweite Tabelle in
+     * diesem Sortiment - denn genau das ist sie: eine ZUORDNUNG zum
+     * Masttyp. Damit gehen sie ohne weiteres Zutun durch Datenpaket,
+     * Excel-Mappe und Abgleich, die alle ueber diesen Aufbau laufen.
+     */
+    listen: [{ name: 'typen', pfad: 'typen', schluessel: 'profil' },
+             { name: 'fundamente', pfad: 'fundamente', schluessel: 'typ' }],
   },
   tragjoche: {
     titel: 'Tragjochtypen',

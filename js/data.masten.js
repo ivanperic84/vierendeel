@@ -66,6 +66,78 @@ export async function ladeMasten(pfad = 'data/masten.json') {
 export const mastenDbDa = () => Boolean(SORT?.typen?.length);
 
 /* ===========================================================================
+ * >>> DIE FUNDAMENTE, UND WELCHER MAST AUF WELCHEM STEHT. <<<
+ * =========================================================================
+ *
+ * Weisung vom 24. September: «die Fundamentzuordnug zu den einzelnen
+ * Masttypen. Diese kannst du unter Grundlagen Einwirkungen finden im pdf
+ * zulässige Standardlsten (die Gelängeneigung nicht berücksichtigen).»
+ *
+ * Die Tabelle führt die zulässigen Lasten am FUNDAMENTKOPF, als
+ * CHARAKTERISTISCHE Werte - dieselbe Bauart wie beim Seilanker, und aus
+ * demselben Grund ohne Teilsicherheitsbeiwerte.
+ *
+ * >>> WIE DIE ZUORDNUNG ZUSTANDE KOMMT. <<<
+ *
+ * Die Quelle ordnet nach MASTTYP (DP20, DP22, …), die Anwendung führt
+ * ihre Masten seit dem 28. August unter dem PROFILNAMEN. Die Brücke ist
+ * gemessen, nicht geraten: die Windlasten je Einwirkungsklasse in
+ * data/fl_bauteile.json stimmen ziffernweise mit denen der Profile.
+ *
+ *   DP20 0.25/0.31/0.36 = HEB 200     DP24 0.30/0.37/0.44 = HEB 240
+ *   DP22 0.28/0.34/0.40 = HEB 220     DP26 0.33/0.40/0.47 = HEB 260
+ *   DPM24 quer 0.31 / längs 0.34 = HEM 240
+ *   DPM24-P mit vertauschten Werten  = HEM 240, um 90° gedreht
+ *
+ * Beim HEM 240 entscheidet deshalb die STEGRICHTUNG mit: er ist das
+ * einzige Mastprofil, das nicht quadratisch ist (270 × 248 mm), und die
+ * beiden Fundamente HP1a/HP2a haben Mq und Ml vertauscht - 230/154 gegen
+ * 154/230 kNm. Ein gedrehter Mast auf dem ungedrehten Fundament wäre um
+ * die starke Achse um ein Drittel zu schwach nachgewiesen.
+ *
+ * Die DG-Typen (Doppelmasten) stehen in der Tabelle, tragen aber kein
+ * Profil: das Sortiment der Anwendung führt sie nicht. Sie lassen sich
+ * von Hand wählen, sie werden nur nicht selbst gefunden.
+ * ========================================================================= */
+
+/** Alle Fundamenttypen des Sortiments. */
+export const fundamenttypen = () => SORT?.fundamente ?? [];
+
+/** Ob die Fundamenttabelle geladen ist. */
+export const fundamenteDa = () => Boolean(SORT?.fundamente?.length);
+
+/** Ein Fundamenttyp nach Namen, oder null. */
+export function getFundament(typ) {
+  const n = String(typ ?? '').trim();
+  if (!n) return null;
+  return fundamenttypen().find((f) => f.typ === n) ?? null;
+}
+
+/**
+ * DAS FUNDAMENT ZU EINEM MASTEN - Profil und Stegrichtung entscheiden.
+ *
+ * Die Spalte `profile` führt die Profilnamen, `steg` die Stegrichtung,
+ * WO SIE ENTSCHEIDET (nur beim HEM 240). Steht dort nichts, gilt die
+ * Zeile für beide Lagen.
+ *
+ * Passt keine Zeile, kommt null - und das ist eine Auskunft, kein
+ * Fehler: ein Profil ohne Standardfundament braucht ein Sonderfundament,
+ * und das rechnet dieses Werkzeug nicht.
+ */
+export function fundamentFuerMast(profil, stegrichtung = 'jochachse') {
+  const p = String(profil ?? '').trim();
+  if (!p) return null;
+  const steg = String(stegrichtung ?? 'jochachse').trim() || 'jochachse';
+  const passt = fundamenttypen().filter((f) => String(f.profile ?? '')
+    .split(',').map((x) => x.trim()).filter(Boolean).includes(p));
+  if (!passt.length) return null;
+  // Eine Zeile mit ausdruecklicher Stegrichtung geht vor der allgemeinen.
+  return passt.find((f) => String(f.steg ?? '').trim() === steg)
+      ?? passt.find((f) => !String(f.steg ?? '').trim())
+      ?? null;
+}
+
+/* ===========================================================================
  * >>> ZWEI QUELLEN FUER EINEN MASTEN. <<<
  * ===========================================================================
  *

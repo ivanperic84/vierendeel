@@ -10219,16 +10219,26 @@ titel('41  Welche Nachweise gefuehrt werden');
      * Querschnittsnachweis mitzunehmen - dann die Torsion, aus demselben
      * Grund und mit derselben Begruendung: der Ansatz rechnet einen
      * freistehenden Kragarm, und die Leiter halten den Kopf.
+     *
+     * SIEBEN SEIT DEM 24. SEPTEMBER: das MASTFUNDAMENT. Weisung: «die
+     * Fundamente auch noch separat als ausnutzungsbeiwert in die
+     * nachweisfuehrung aufnehmen (gesamtheitliche Tragwerksbetrachtung).
+     * diesen nachweis auch unter optionen ausschaltbar machen.» Es ist
+     * eine Gruppe geworden und kein eigener Schalter - hier stehen die
+     * abschaltbaren Nachweise, und ein nicht gefuehrter zaehlt von
+     * selbst nie als erfuellt.
      */
-    wahr('Sechs Gruppen, in der Reihenfolge der Weisungen',
+    wahr('Sieben Gruppen, in der Reihenfolge der Weisungen',
          g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,'
-                       + 'knickenMast,torsionMast',
+                       + 'knickenMast,fundament,torsionMast',
          g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Fuenf davon gibt es',
+    wahr('Sechs davon gibt es',
          da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast,'
-                        + 'torsionMast',
+                        + 'fundament,torsionMast',
          da.join(','));
+    wahr('Das Fundament ist voreingestellt an - es gehoert zum Tragwerk',
+         CH.NACHWEISGRUPPEN.find((x) => x.key === 'fundament')?.standard === true);
     wahr('Knicken ist nicht enthalten',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'knickenJoch').vorhanden === false);
     // Der Mast seit dem 28. August schon - und sein `was` sagt, was FEHLT.
@@ -23363,7 +23373,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
   const baum = Object.fromEntries(Object.entries(tab)
     .map(([s, t]) => [s, TBF.setzeZusammen(t)]));
 
-  pruef('Elf Abschnitte', K.ABSCHNITTE.length, 11, 1e-12, 'Stk');
+  // Zwoelf seit dem 24. September: die Mastfundamente (siehe data.katalog.js).
+  pruef('Zwoelf Abschnitte', K.ABSCHNITTE.length, 12, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23447,7 +23458,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle elf Abschnitte', gesamt.abschnitte.length, 11, 1e-12, 'Stk');
+    pruef('… ueber alle zwoelf Abschnitte', gesamt.abschnitte.length, 12, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23557,8 +23568,13 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     wahr('Norm: Stahlgueten und die drei Profiltabellen',
          norm.join(',') === 'stahlgueten,winkelprofile,walzprofile,mastprofile',
          norm.join(','));
-    wahr('Sortiment: sieben Abschnitte in sechs Dateien',
-         sort.length === 7 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    /*
+     * ACHT seit dem 24. September, weiter in SECHS Dateien: die
+     * Fundamenttabelle steht im Sortiment der Masten, weil sie genau
+     * das ist - eine Zuordnung zum Masttyp.
+     */
+    wahr('Sortiment: acht Abschnitte in sechs Dateien',
+         sort.length === 8 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -28392,6 +28408,257 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
       wahr(`${was}: der Plot findet seinen Wert`, mast.length > 0,
            `η ${mast[0]?.werte?.etaGzg?.toFixed(3) ?? '-'}`);
     });
+  }
+}
+
+titel('116  Mastfundament: Zuordnung und Nachweis');
+/* ===========================================================================
+ * Weisung vom 24. September, im Wortlaut:
+ *
+ *   «die Fundamentzuordnug zu den einzelnen Masttypen. Diese kannst du
+ *    unter Grundlagen Einwirkungen finden im pdf zulässige Standardlsten
+ *    (die Gelängeneigung nicht berücksichtigen. die Fundamente auch noch
+ *    separat als ausnutzungsbeiwert in die nachweisführung aufnehmen
+ *    (gesamtheitliche Tragwerksbetrachtung). diesen nachweis auch unter
+ *    optionen ausschaltbar machen.»
+ * ========================================================================= */
+{
+  const MA116 = await import(J('data.masten.js'));
+  const F116 = await import(J('core.fundament.js'));
+  const CH116 = await import(J('core.checks.js'));
+  const V116 = await import(J('core.vierendeel.js'));
+  const N116 = await import(J('core.nachbarn.js'));
+  const C116 = await import(J('core.constants.js'));
+  const A116 = await import(J('data.anbauteile.js'));
+
+  const kombi116 = (w) => {
+    const s2 = N116.rechensatzMitNachbarn(w);
+    return { k: V116.vergleichKombinationen(s2, ...N116.kernArgumente(s2)), s2 };
+  };
+
+  // --- a) Die Tabelle, gegen die Quelle ---------------------------------
+  /*
+   * >>> ACHT ZEILEN, UND ZWAR DIE OHNE GELAENDENEIGUNG. <<<
+   *
+   * Die Quelle fuehrt zwei Bloecke: bis 14 Grad und von 14 bis 33 Grad.
+   * Uebernommen ist auf Weisung der erste. Er ist daran zu erkennen, dass
+   * alle Werte symmetrisch sind - im zweiten steht Richtung fallender
+   * Boeschung ein kleinerer Wert («+ 200 / - 153»).
+   */
+  {
+    const f = MA116.fundamenttypen();
+    pruef('Acht Fundamenttypen', f.length, 8, 1e-12, 'Stk');
+    const von = (t) => f.find((x) => x.typ === t);
+    // Drei Stichproben ueber die ganze Breite der Tabelle.
+    const dp1a = von('DP1a / 1.8');
+    pruef('DP1a/1.8: M_q', dp1a.Mq, 80, 1e-12, 'kNm');
+    pruef('DP1a/1.8: M_q veraenderlich', dp1a.Mq_ver, 40, 1e-12, 'kNm');
+    pruef('DP1a/1.8: H_l', dp1a.Hl, 10, 1e-12, 'kN');
+    pruef('DP1a/1.8: T', dp1a.T, 3.3, 1e-12, 'kNm');
+    const dp2a = von('DP2a / 2.0');
+    pruef('DP2a/2.0: M_q', dp2a.Mq, 135, 1e-12, 'kNm');
+    pruef('DP2a/2.0: H_q veraenderlich', dp2a.Hq_ver, 8.5, 1e-12, 'kN');
+    /*
+     * HP1a UND HP2a SIND DIESELBE ABMESSUNG MIT VERTAUSCHTEN MOMENTEN -
+     * daran haengt die Stegrichtung (siehe unten).
+     */
+    const hp1 = von('HP1a / 2.4'), hp2 = von('HP2a / 2.4');
+    wahr('HP1a und HP2a: M_q und M_l sind vertauscht',
+         hp1.Mq === hp2.Ml && hp1.Ml === hp2.Mq,
+         `${hp1.Mq}/${hp1.Ml} gegen ${hp2.Mq}/${hp2.Ml}`);
+    wahr('… und die Horizontalkraefte ebenso',
+         hp1.Hq === hp2.Hl && hp1.Hl === hp2.Hq);
+    // Jede Zeile traegt V = 150 kN als obere Grenze.
+    wahr('Jede Zeile nennt V_max', f.every((x) => x.Vmax === 150));
+    /*
+     * KEINE ZEILE DES ZWEITEN BLOCKS. Sie waere daran zu erkennen, dass
+     * ein Fundament mit derselben Kennung eine andere Hoehe traegt -
+     * «DP1a / 2.1» etwa gibt es nur dort.
+     */
+    wahr('Die Zeilen mit Gelaendeneigung sind nicht dabei',
+         !f.some((x) => ['DP1a / 2.1', 'DP1a / 2.4', 'DP2a / 2.4',
+                         'DG1a / 2.7', 'DG3a / 3.0', 'HP1a / 2.9']
+                 .includes(x.typ)),
+         f.map((x) => x.typ).join(' '));
+  }
+
+  // --- b) Die Zuordnung zum Masttyp --------------------------------------
+  /*
+   * >>> GEMESSEN, NICHT GERATEN. <<<
+   *
+   * Die Quelle ordnet nach Masttyp (DP20 …), die Anwendung fuehrt Profile.
+   * Die Bruecke sind die Windlasten: die Saetze mast-dp20 … mast-dpm24-p
+   * in fl_bauteile.json tragen dieselben Zahlen wie die Profile in
+   * masten.json. Diese Kontrolle rechnet das nach - geht das Sortiment
+   * einmal auseinander, faellt sie.
+   */
+  {
+    const paare = [['HEB 200', 'DP1a / 1.5'], ['HEB 220', 'DP1a / 1.8'],
+                   ['HEB 240', 'DP2a / 2.0'], ['HEB 260', 'DP2a / 2.0']];
+    paare.forEach(([p, t]) => {
+      wahr(`${p} steht auf ${t}`,
+           MA116.fundamentFuerMast(p, 'jochachse')?.typ === t,
+           MA116.fundamentFuerMast(p, 'jochachse')?.typ ?? '-');
+    });
+    /*
+     * >>> BEIM HEM 240 ENTSCHEIDET DIE STEGRICHTUNG. <<<
+     *
+     * Er ist das einzige Mastprofil, das nicht quadratisch ist
+     * (270 x 248 mm). Ein gedrehter Mast auf dem ungedrehten Fundament
+     * waere um die starke Achse um ein Drittel zu schwach nachgewiesen:
+     * 154 statt 230 kNm.
+     */
+    const quer = MA116.fundamentFuerMast('HEM 240', 'jochachse');
+    const laengs = MA116.fundamentFuerMast('HEM 240', 'quer');
+    wahr('HEM 240 mit starker Achse quer: HP1a', quer?.typ === 'HP1a / 2.4', quer?.typ);
+    wahr('HEM 240 gedreht: HP2a', laengs?.typ === 'HP2a / 2.4', laengs?.typ);
+    wahr('… und das dreht das zulaessige Moment quer mit',
+         quer.Mq === 230 && laengs.Mq === 154,
+         `${quer.Mq} gegen ${laengs.Mq} kNm`);
+    // Ein Profil ohne Standardfundament ist eine Auskunft, kein Fehler.
+    wahr('Ohne Standardfundament kommt null, nicht ein falsches',
+         MA116.fundamentFuerMast('HEB 180', 'jochachse') === null);
+    // Die Doppelmasten stehen in der Tabelle, tragen aber kein Profil.
+    wahr('Die Doppelmasten sind nur von Hand waehlbar',
+         MA116.fundamenttypen().filter((x) => /^DG/.test(x.typ))
+           .every((x) => !x.profile));
+  }
+
+  // --- c) Der Nachweis, nachgerechnet -----------------------------------
+  {
+    const { k, s2 } = kombi116({ ...standardwerte(), xLage: 0 });
+    const r = F116.fundamentNachweis(k, s2);
+    wahr('Der Nachweis steht da', Boolean(r?.A?.nachweise?.length));
+    pruef('Acht Einzelnachweise', r.A.nachweise.length, 8, 1e-12, 'Stk');
+    wahr('Der Typ wurde gefunden, nicht gewaehlt', r.A.gewaehlt === false);
+    const nw = (key) => r.A.nachweise.find((x) => x.key === key);
+
+    /*
+     * >>> JEDES ETA IST KRAFT DURCH ZULAESSIGE KRAFT - und die Kraft
+     * steht am MASTFUSS des genannten Lastfalls. Hier wird sie von Hand
+     * dort geholt und nachgerechnet.
+     */
+    const fuss = (lfKey, feld) =>
+      Math.abs(k.ergebnisse[lfKey].mast.A.stationen[0][feld]);
+    ['V', 'Mq', 'Ml', 'Hq', 'Hl', 'T'].forEach((key) => {
+      const n = nw(key);
+      pruef(`η ${key} = Einwirkung / zulaessig`, n.eta, n.wert / n.zul, 1e-12, '–');
+      pruef(`… und die Einwirkung steht am Fuss von «${n.bez}»`,
+            n.wert, fuss(n.lastfall, n.feld), 1e-12, n.einheit);
+    });
+
+    /*
+     * >>> DIE SPALTE «VERAENDERLICH» NIMMT NUR FAELLE OHNE STAENDIGE LAST.
+     *
+     * Sie ist die schaerfere: am Standardjoch steht das Moment quer mit
+     * 11.5 von 135 kNm bei η 0.09, sein veraenderlicher Anteil mit 10.8
+     * von 67.5 bei η 0.16. Ohne diese Spalte waere der Nachweis um
+     * Faktor zwei zu guenstig.
+     */
+    const lfVon = (key) => k.lastfaelle.find((l) => l.key === key);
+    ['Mqver', 'Hqver'].forEach((key) => {
+      const n = nw(key);
+      wahr(`«${n.was}» steht auf einem Fall ohne staendige Last`,
+           Math.abs(Number(lfVon(n.lastfall)?.beiwerte?.G) || 0) < 1e-12,
+           n.bez);
+    });
+    wahr('… und sie ist hier die schaerfere Bedingung',
+         nw('Mqver').eta > nw('Mq').eta && nw('Hqver').eta > nw('Hq').eta,
+         `M_q ${nw('Mq').eta.toFixed(3)} gegen ${nw('Mqver').eta.toFixed(3)}`);
+
+    /*
+     * >>> QUER UND LAENGS WERDEN NICHT UEBERLAGERT. <<<
+     *
+     * Die Quelle sagt es ausdruecklich. Das Gesamt-η ist deshalb das
+     * MAXIMUM ueber die Einzelnachweise, nicht eine Summe oder eine
+     * Interaktionsformel.
+     */
+    pruef('Das Urteil ist das Maximum, keine Interaktion',
+          r.A.eta, Math.max(...r.A.nachweise.map((x) => x.eta)), 1e-12, '–');
+    wahr('… und das massgebende ist genau dieser Nachweis',
+         r.A.massgebend.eta === r.A.eta);
+
+    // Die Achsen richtig zugeordnet: H_q gehoert zu M_q (beide quer).
+    wahr('H_q und M_q messen quer zum Gleis (F_x, M_yy)',
+         nw('Hq').feld === 'Fx' && nw('Mq').feld === 'Myy');
+    wahr('H_l und M_l messen laengs (F_y, M_xx)',
+         nw('Hl').feld === 'Fy' && nw('Ml').feld === 'Mxx');
+  }
+
+  // --- d) Eingetragen geht vor gefunden ----------------------------------
+  {
+    const { k, s2 } = kombi116({ ...standardwerte(), xLage: 0,
+                                 mastFundament: 'DG3a / 2.6' });
+    const r = F116.fundamentNachweis(k, s2);
+    wahr('Ein gewaehlter Typ geht vor', r.A.typ.typ === 'DG3a / 2.6'
+         && r.A.gewaehlt === true, r.A.typ.typ);
+    // Und er rechnet mit SEINEN Werten, nicht mit denen der Zuordnung.
+    const ml = r.A.nachweise.find((x) => x.key === 'Ml');
+    pruef('… mit seinem zulaessigen Moment laengs', ml.zul, 92, 1e-12, 'kNm');
+  }
+
+  // --- e) Abschaltbar, und gesamtheitlich --------------------------------
+  /*
+   * «gesamtheitliche Tragwerksbetrachtung»: ein Joch, dessen Masten halten,
+   * dessen Fundament aber ueberschritten ist, ist nicht nachgewiesen.
+   */
+  {
+    const { k, s2 } = kombi116({ ...standardwerte(), xLage: 0 });
+    const erg = V116.berechne(s2, ...N116.kernArgumente(s2));
+    erg.fundament = F116.fundamentNachweis(k, s2);
+    // Kuenstlich ueberschritten - gesucht ist der WEG ins Urteil.
+    erg.fundament.A.eta = 1.4;
+    const mit = CH116.bauteilUrteil(erg, null, 'joch');
+    wahr('Das Fundament steht im Urteil',
+         mit.liste.some((b) => b.key === 'fundament'),
+         mit.liste.map((b) => b.key).join(' '));
+    wahr('… und ein ueberschrittenes Fundament wird massgebend',
+         mit.massgebend?.key === 'fundament' && mit.ueber === true,
+         `${mit.massgebend?.name} η ${mit.eta.toFixed(3)}`);
+    // Abgeschaltet zaehlt es nicht mehr mit.
+    const ohne = CH116.bauteilUrteil(erg, { fundament: false }, 'joch');
+    wahr('Abgeschaltet bleibt es draussen',
+         !ohne.liste.some((b) => b.key === 'fundament'),
+         ohne.liste.map((b) => b.key).join(' '));
+    wahr('… und das Urteil faellt auf die uebrigen Bauteile zurueck',
+         ohne.eta < 1.4 - 1e-9, ohne.eta.toFixed(3));
+  }
+
+  // --- f) Der Havariefall ist dabei --------------------------------------
+  /*
+   * Dieselbe Regel wie beim Anker (Entscheid vom 24. September): der Fall
+   * traegt alle Beiwerte 1 und steht damit auf demselben Niveau wie die
+   * zulaessige Last. Die Tragsicherheits-Kombinationen bleiben draussen -
+   * sie tragen Teilsicherheitsbeiwerte.
+   */
+  {
+    wahr('Charakteristisch und aussergewoehnlich, sonst nichts',
+         F116.FUNDAMENT_FALLARTEN.join(',') === 'charakteristisch,aussergewoehnlich',
+         F116.FUNDAMENT_FALLARTEN.join(','));
+    const teil = A116.neuesAnbauteil('hs-fahrdraht', 10);
+    const w = C116.setzeAnbauteileAn({ ...standardwerte(), xLage: 0 },
+      [{ ...teil, name: 'FL',
+         module: (teil.module ?? []).map((m) => ({ ...m, art: 'beidseitig',
+           richtung: 'p', bruch: true })) }]);
+    const { k, s2 } = kombi116(w);
+    const r = F116.fundamentNachweis(k, s2);
+    const arten = new Set(r.A.nachweise.map(
+      (n) => k.lastfaelle.find((l) => l.key === n.lastfall)?.art));
+    wahr('Kein Tragsicherheitsfall im Nachweis',
+         !arten.has('tragsicherheit'), [...arten].join(' '));
+  }
+
+  // --- g) Am Einzelmasten ebenso -----------------------------------------
+  {
+    const w = C116.setzeAnbauteileAn(
+      { ...standardwerte(), tragwerksart: 'einzelmast', mastLaenge: 10,
+        L: 0, xLage: 0, mastVorhanden: true },
+      [{ ...A116.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', hMast: 8.0 }]);
+    const { k, s2 } = kombi116(w);
+    const r = F116.fundamentNachweis(k, s2);
+    wahr('Einzelmast: auch er steht auf einem Fundament',
+         Boolean(r?.A?.nachweise?.length),
+         `${r?.A?.typ?.typ} η ${r?.A?.eta?.toFixed(3)}`);
   }
 }
 

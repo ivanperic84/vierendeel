@@ -5183,6 +5183,66 @@ export function bauteilKacheln(erg, urteil, ampelU) {
       }
     });
   }
+  /* =========================================================================
+   * >>> DAS FUNDAMENT (Weisung vom 24. September). <<<
+   * =======================================================================
+   *
+   * «die Fundamente auch noch separat als ausnutzungsbeiwert in die
+   * nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung).»
+   *
+   * Es steht NEBEN dem Anker und nicht beim Masten: es ist ein eigenes
+   * Bauteil mit einem eigenen Nachweis, und sein η bezieht sich - wie
+   * beim Anker - auf eine ZULÄSSIGE Last, nicht auf einen
+   * Bemessungswiderstand. Der Titel sagt es, damit niemand die Zahl
+   * neben der des Gurts liest, als wäre es dieselbe Art von η.
+   *
+   * Die Kachel nennt den MASSGEBENDEN der acht Einzelnachweise; alle
+   * acht stehen im Titel, damit man sieht, welcher knapp ist.
+   */
+  if (erg.fundament && urteil.nachweise?.fundament !== false) {
+    const namenF = erg.modell?.federn?.namen ?? {};
+    const gesehenF = new Set();
+    ['A', 'B'].forEach((ende) => {
+      const q = erg.fundament[ende];
+      if (!q) return;
+      const name = namenF[ende] || `Ende ${ende}`;
+      if (gesehenF.has(name)) return;
+      gesehenF.add(name);
+      /*
+       * KEIN STANDARDFUNDAMENT ist eine Auskunft, kein Nachweis. Es
+       * steht ein Strich da und daneben, warum - ein Sonderfundament
+       * rechnet dieses Werkzeug nicht.
+       */
+      if (q.fehlt) {
+        k.push(kachel(`Fundament ${name}`, '–',
+          `${q.profil ?? 'Profil'} · kein Standardtyp`, '', {
+            titel: 'Das Sortiment führt für dieses Profil kein '
+                 + 'Standardfundament. In der Mastkachel lässt sich einer '
+                 + 'wählen; sonst braucht es ein Sonderfundament, und das '
+                 + 'rechnet dieses Werkzeug nicht.',
+          }));
+        return;
+      }
+      if (!q.nachweise?.length) return;
+      const alle = q.nachweise
+        .map((x) => `${x.was}: ${x.wert.toFixed(2)} von ${x.zul} ${x.einheit}`
+                  + ` (η ${f3(x.eta)}) — ${x.bez}`)
+        .join('\n');
+      const hebt = q.abheben
+        ? `\n\nABHEBEN: ${q.abheben.wert.toFixed(1)} kN in «${q.abheben.bez}». `
+          + 'Die Tabelle gilt für V zwischen 0 und 150 kN — ein abhebendes '
+          + 'Fundament ist darin nicht abgedeckt.' : '';
+      k.push(kachel(`η Fundament ${name}`, f3(q.eta),
+        `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'} · ${q.massgebend.kurz ?? q.massgebend.key}`,
+        ampelU(q.eta), {
+          titel: `Charakteristische Einwirkung am Fundamentkopf gegen die `
+               + `zulässige Last — beides OHNE Teilsicherheitsbeiwerte, wie `
+               + `beim Anker. Quer und längs zum Gleis werden EINZELN `
+               + `nachgewiesen, nicht überlagert. Gelände bis 14° Neigung.`
+               + `\n\n${alle}${hebt}`,
+        }));
+    });
+  }
   return k;
 }
 

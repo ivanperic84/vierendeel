@@ -28,7 +28,9 @@ import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
          abfangMasse } from './data.abfangjoche.js';
-import { mastprofile, STEGRICHTUNGEN, mastWindBeide } from './data.masten.js';
+import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
+         fundamenttypen, fundamenteDa,
+         fundamentFuerMast } from './data.masten.js';
 import { ankerTypen, ankerDbDa, ANKER_BEFESTIGUNGEN,
          ankerGeometrie, ankerZulDruck, ankerZulZug,
          getAnkerTyp } from './data.anker.js';
@@ -937,6 +939,42 @@ export const FELDER = [
            + '0 = selbst bestimmt: höchstes Drahtwerk, sonst höchster '
            + 'Ausleger, sonst das Jochauflager. Über dem Mastkopf gilt die '
            + 'Eingabe nicht — dort steht keine gerechnete Verschiebung.' },
+  /* =========================================================================
+   * >>> DAS FUNDAMENT DES MASTEN (Weisung vom 24. September). <<<
+   * =======================================================================
+   *
+   * «die Fundamentzuordnug zu den einzelnen Masttypen … die Fundamente
+   * auch noch separat als ausnutzungsbeiwert in die nachweisführung
+   * aufnehmen (gesamtheitliche Tragwerksbetrachtung).»
+   *
+   * VORGABE IST DIE ZUORDNUNG des Sortiments - sie folgt Profil und
+   * Stegrichtung und trifft den Regelfall. Die Wahl ist für den
+   * Bestand da (ein vorhandenes Fundament unter einem neuen Masten)
+   * und für Sonderfälle.
+   *
+   * Der Hinweis nennt, WAS die Automatik nimmt - sonst wäre «nach
+   * Masttyp» eine Angabe, die man nicht nachprüfen kann.
+   */
+  { key: 'mastFundament', gruppe: 'mast', typ: 'auswahl',
+    label: 'Fundament', standard: '',
+    optionenAus: () => [{ wert: '', text: 'nach Masttyp (Vorgabe)' },
+      ...fundamenttypen().map((f) => ({ wert: f.typ,
+        text: `${f.typ}${f.neubau ? '' : ' — Spezialfall'}` }))],
+    wertAus: amMast('fundament', 'mastFundament'),
+    sichtbar: (w) => mastDa(w) && fundamenteDa(),
+    hinweis: (w) => {
+      const m = gewaehlterMast(w);
+      const f = fundamentFuerMast(m?.profil ?? w.mastProfil,
+                                  m?.steg ?? w.mastSteg);
+      return `Zulässige Lasten am Fundamentkopf, charakteristisch — `
+           + `quer und längs einzeln nachgewiesen, Gelände bis 14°. `
+           + (f ? `Nach Masttyp: ${f.typ} (M_q ${f.Mq} / M_l ${f.Ml} kNm, `
+                + `H_q ${f.Hq} / H_l ${f.Hl} kN).`
+                : 'Für dieses Profil führt das Sortiment kein '
+                + 'Standardfundament — bitte wählen.');
+    } },
+  { key: 'mastFundamentB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
+    label: 'Fundament Ende B', standard: '' },
   { key: 'mastZwei', gruppe: 'mast', typ: 'schalter', versteckt: true,
     label: 'Zweiter Mast am Ende B abweichend', standard: false },
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,

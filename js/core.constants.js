@@ -826,6 +826,19 @@ export const MASTFELDER = [
    * Seiten eines geteilten Masten derselbe - er kuerzt sich heraus.
    */
   { flach: 'mastFuss', flachB: 'mastFussB', am: 'fuss' },
+  /*
+   * >>> UND DAS FUNDAMENT (24. September). <<<
+   *
+   * Es gehört dem Masten aus demselben Grund wie der Fusspunkt - und
+   * der Satz drei Absaetze weiter oben sagt es bereits: zwei Joche am
+   * selben Masten dürfen verschieden hoch anschliessen, «aber sie
+   * stehen auf demselben Fundament».
+   *
+   * Leer heisst AUTOMATISCH: dann entscheiden Profil und Stegrichtung
+   * (`fundamentFuerMast`). Eingetragen geht vor - für Bestand und
+   * Sonderfälle.
+   */
+  { flach: 'mastFundament', flachB: 'mastFundamentB', am: 'fundament' },
 ];
 
 /* ===========================================================================
