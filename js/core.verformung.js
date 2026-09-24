@@ -64,6 +64,24 @@ export const VERFORMUNG_GRENZEN = {
 export function messStelle(m, g, ende = 'A') {
   const zKopf = g?.zKopf ?? 0;
   const imBild = (z) => Number.isFinite(z) && z > 0 && z <= zKopf + 1e-9;
+  /* =======================================================================
+   * >>> EINE EINGETRAGENE HOEHE GEHT VOR (Weisung vom 24. September). <<<
+   * =====================================================================
+   *
+   * «es sollte einen schieber geben welche höhe für die
+   * farhdrahtverschiebung massgebend ist.»
+   *
+   * Die Automatik darunter trifft den Regelfall, aber sie misst am
+   * ANSCHLUSSPUNKT eines Teils - der Fahrdraht hängt darunter, und wie
+   * weit, weiss die Zeichnung. Steht eine Zahl da, gilt sie.
+   *
+   * Ueber dem Mastkopf gilt sie NICHT: dort steht keine Verschiebung,
+   * die der Mastkern gerechnet hätte. Dann fällt sie auf die Automatik
+   * zurück, statt einen Wert an einer Stelle zu prüfen, die es nicht
+   * gibt.
+   * ===================================================================== */
+  const gesetzt = Number(m?.fdHoehe) || 0;
+  if (imBild(gesetzt)) return { z: gesetzt, was: 'Fahrdraht', eigen: true };
   const teile = (m?.anbauMastFlach ?? []).filter((t) => {
     if (t.aktiv === false) return false;
     const e = t.ort === 'mastB' ? 'B' : 'A';
@@ -172,7 +190,8 @@ export function verformungsNachweis(kombi) {
       pruef(spitzeW, L / VERFORMUNG_GRENZEN.spitzeWind,
             `Mastspitze, nur Wind (L/${VERFORMUNG_GRENZEN.spitzeWind})`),
       stelle ? pruef(querS, VERFORMUNG_GRENZEN.auslegerQuer,
-                     `${stelle.was} quer zum Gleis, nur Wind`) : null,
+                     `${stelle.was} auf ${stelle.z.toFixed(2)} m quer `
+                     + `zum Gleis, nur Wind`) : null,
     ].filter(Boolean);
     if (!nw.length) return;
     const schlimmste = nw.reduce((a, b) => (b.eta > a.eta ? b : a));

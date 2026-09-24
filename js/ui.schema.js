@@ -908,6 +908,35 @@ export const FELDER = [
    * anschliessen - deshalb hat sie seit dem 2. September ihren eigenen
    * Schalter (anschlusshoehe() in core.constants.js).
    */
+  /* =========================================================================
+   * >>> WELCHE HOEHE DER FAHRDRAHTVERSCHIEBUNG GILT (24. September). <<<
+   * =======================================================================
+   *
+   * Weisung: «es sollte einen schieber geben welche höhe für die
+   * farhdrahtverschiebung massgebend ist.»
+   *
+   * Der Nachweis «40 mm quer zum Gleis» braucht eine Stelle. Bis dahin
+   * suchte sie `messStelle` selbst: höchstes Drahtwerk, sonst höchster
+   * Ausleger, sonst Jochauflager. Das trifft den Regelfall - aber es misst
+   * am ANSCHLUSSPUNKT eines Teils, und der Fahrdraht hängt darunter.
+   *
+   * NULL = AUTOMATISCH. Das ist nicht nur Bequemlichkeit: jeder
+   * gespeicherte Stand trägt die Null, und er soll weiterrechnen wie
+   * bisher. Der Hinweis nennt deshalb, WAS die Automatik gerade nimmt.
+   * ======================================================================= */
+  { key: 'fdHoehe', gruppe: 'mast', typ: 'schieber',
+    label: 'Höhe Fahrdraht für die Verformung',
+    // Der Schieber rastet auf den halben Meter wie jede Laenge; das
+    // Zahlenfeld daneben bleibt fein - eine Fahrdrahthoehe steht auf der
+    // Zeichnung mit dem Zentimeter.
+    sym: 'z_Fd', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
+    min: 0, max: 25,
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Ueber dem Mastfuss gemessen. Dort wird die Seitenlage quer '
+           + 'zum Gleis gegen 40 mm nachgewiesen (Betriebswind ψ 0.70). '
+           + '0 = selbst bestimmt: höchstes Drahtwerk, sonst höchster '
+           + 'Ausleger, sonst das Jochauflager. Über dem Mastkopf gilt die '
+           + 'Eingabe nicht — dort steht keine gerechnete Verschiebung.' },
   { key: 'mastZwei', gruppe: 'mast', typ: 'schalter', versteckt: true,
     label: 'Zweiter Mast am Ende B abweichend', standard: false },
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,

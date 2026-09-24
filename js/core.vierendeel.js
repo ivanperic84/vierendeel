@@ -394,6 +394,20 @@ export function modellEinzelmast(inp, stahl) {
     anbauMast: amMasten.map((a) => ({ ...a, ort: 'mastA' })),
     anbauMastFlach: flach,
     /*
+     * >>> DIE HOEHE, DIE DER FAHRDRAHTVERSCHIEBUNG GILT (24. Sept.). <<<
+     *
+     * Weisung: «es sollte einen schieber geben welche höhe für die
+     * farhdrahtverschiebung massgebend ist.» Bis dahin suchte
+     * `messStelle` sie selbst - höchstes Drahtwerk, sonst höchster
+     * Ausleger, sonst Jochauflager. Das trifft den Regelfall, aber nicht
+     * die Anlage: der Fahrdraht hängt unter dem Ausleger, und wo genau,
+     * weiss die Zeichnung und nicht das Modell.
+     *
+     * NULL HEISST WEITERHIN AUTOMATISCH - so rechnet jeder alte Stand
+     * unverändert weiter.
+     */
+    fdHoehe: Number(inp.fdHoehe) || 0,
+    /*
      * >>> FUER DAS BILD: DIE GANZE LISTE, AM MASTEN (18. September). <<<
      *
      * Gemeldet: beim Einzelmasten stehen die Anbauteile nicht im Modell,
@@ -847,6 +861,20 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * beide in beiden Faellen, wer sie addierte, zaehlte doppelt.
      */
     nurLast,
+    /*
+     * >>> DIE HOEHE, DIE DER FAHRDRAHTVERSCHIEBUNG GILT (24. Sept.). <<<
+     *
+     * Weisung: «es sollte einen schieber geben welche höhe für die
+     * farhdrahtverschiebung massgebend ist.» Bis dahin suchte
+     * `messStelle` sie selbst - höchstes Drahtwerk, sonst höchster
+     * Ausleger, sonst Jochauflager. Das trifft den Regelfall, aber nicht
+     * die Anlage: der Fahrdraht hängt unter dem Ausleger, und wo genau,
+     * weiss die Zeichnung und nicht das Modell.
+     *
+     * NULL HEISST WEITERHIN AUTOMATISCH - so rechnet jeder alte Stand
+     * unverändert weiter.
+     */
+    fdHoehe: Number(inp.fdHoehe) || 0,
     anbauMastFlach: nurTeil(havarieEinsetzen(expandiereAnbauteile(amMasten, {
       ek: ekVonWindklasse(inp.windKlasse),
       R: inp.trasseRadius, spannweite: inp.flSpannweite,

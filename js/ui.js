@@ -4736,12 +4736,15 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     kachel('M_t · M_zz', f2(f.Mzz), 'kNm am Fuss'),
   ] : [];
 
+  // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
+  const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf, text: urteilText },
+                              zeig, nwArt, einzelLastfall);
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
-    <div class="urteil ${einzelLastfall ? 'ohne' : zustand}">
-      <span class="urteil-zahl">η ${f3(eKopf)}</span>
-      ${werKopf ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(werKopf)}</span>` : ''}
-      <span>${urteilText}${(!einzelLastfall && offeneNw)
+    <div class="urteil ${einzelLastfall ? 'ohne' : U.zustand}">
+      <span class="urteil-zahl">η ${f3(U.eta)}</span>
+      ${U.wer ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(U.wer)}</span>` : ''}
+      <span>${U.text}${(!einzelLastfall && offeneNw)
         ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
       ${!einzelLastfall && fallBez
         ? `<span class="urteil-fall" title="Massgebende Kombination des Masten">massgebend: ${esc(fallBez)}</span>`
@@ -4872,6 +4875,59 @@ function hatDrahtwerk(a) {
  * Die Kachel nennt den MASSGEBENDEN der drei Nachweise; alle drei stehen
  * im Titel, damit man sieht, welcher knapp ist und welcher nicht.
  * ========================================================================= */
+/* ===========================================================================
+ * >>> BEI «BEIDE» TRAEGT DIE HAUPTKACHEL BEIDE NACHWEISARTEN. <<<
+ * =========================================================================
+ *
+ * Weisung vom 24. September: «wenn hier beide ausgewählt sind dann müsste
+ * es einen globalen ausnutzungfaktor haben der den gebrauchstauglichkeit
+ * auch berücksichtigt.»
+ *
+ * Das ändert den Entscheid vom 18. September («die Urteilsfarbe folgt
+ * allein der Tragsicherheit») - auf Rückfrage ausdrücklich so gewollt:
+ * die FARBE folgt dem Maximum. Der Grund ist der augenfällige: eine
+ * Kachel, die η 1.97 zeigt und grün dasteht, ist ein Widerspruch.
+ *
+ * Was NICHT vermischt wird, ist die Aussage. Der Text nennt beide
+ * Urteile getrennt - «Tragsicherheit erfüllt · Gebrauchstauglichkeit
+ * NICHT erfüllt» -, denn die beiden Zahlen stehen auf verschiedenen
+ * Lastniveaus und messen gegen Verschiedenes. Nur die Frage «wie weit
+ * ist das Tragwerk ausgenutzt?» hat eine gemeinsame Antwort, und das ist
+ * die grössere der beiden.
+ *
+ * In den beiden anderen Stellungen zeigt die Kachel genau das, was
+ * darunter steht - sonst bezifferte sie etwas, das man gerade
+ * ausgeblendet hat.
+ * ========================================================================= */
+export function urteilMitGebrauch(basis, erg, art = 'beide', einzelLastfall = false) {
+  const v = erg?.verformung;
+  if (einzelLastfall || !v || art === 'trag') return basis;
+  const namen = erg?.modell?.federn?.namen ?? {};
+  // Das massgebende Ende - mit seinem Namen, wie bei den Bauteilen.
+  let wer = null, gEta = 0;
+  ['A', 'B'].forEach((ende) => {
+    const q = v[ende];
+    if (!q || !(q.eta > gEta)) return;
+    gEta = q.eta;
+    wer = `Verformung ${namen[ende] || `Ende ${ende}`}`;
+  });
+  if (!wer) return basis;
+  const gOk = v.ok !== false;
+  const gText = gOk ? 'Gebrauchstauglichkeit erfüllt'
+                    : 'Gebrauchstauglichkeit NICHT erfüllt';
+  if (art === 'gzg') {
+    return { eta: gEta, zustand: gOk ? 'ok' : 'nok', wer, text: gText };
+  }
+  return {
+    eta: Math.max(basis.eta ?? 0, gEta),
+    // «nicht geführt» (warn) bleibt, was es ist - es ist kein Urteil.
+    zustand: basis.zustand === 'warn' ? 'warn'
+      : ((basis.zustand === 'nok' || !gOk) ? 'nok' : 'ok'),
+    wer: gEta > (basis.eta ?? 0) ? wer : basis.wer,
+    text: `${basis.text} · ${gText}`,
+  };
+}
+
 export function gzgKacheln(erg) {
   const k = [];
   if (!erg?.verformung) return k;
@@ -5478,12 +5534,15 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
         : (zustand === 'ok'
             ? 'Tragsicherheit erfüllt'
             : 'Tragsicherheit NICHT erfüllt'));
+  // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
+  const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf, text: urteilText },
+                              erg, nwArt, einzelLastfall);
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
-    <div class="urteil ${einzelLastfall ? 'ohne' : zustand}">
-      <span class="urteil-zahl">η ${f3(eKopf)}</span>
-      ${werKopf ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(werKopf)}</span>` : ''}
-      <span>${urteilText}${
+    <div class="urteil ${einzelLastfall ? 'ohne' : U.zustand}">
+      <span class="urteil-zahl">η ${f3(U.eta)}</span>
+      ${U.wer ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(U.wer)}</span>` : ''}
+      <span>${U.text}${
         einzelLastfall ? '' : (urteil.alleOk
           ? '' : ` · ${urteil.anzahlVerletzt} Prüfung(en) verletzt`)}${
         (!einzelLastfall && offeneNw)

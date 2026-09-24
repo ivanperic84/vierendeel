@@ -11875,7 +11875,36 @@ titel('42  Der lange Mast mit Zusatzleitern');
       wahr('… und benutzt sie auch',
            (uq4.match(/ampelU\(/g) ?? []).length >= 8);
       wahr('Die Hauptkachel ist dann farblos, nicht gelb',
-           uq4.includes("einzelLastfall ? 'ohne' : zustand"));
+           (uq4.match(/einzelLastfall \? 'ohne' : U\.zustand/g) ?? []).length === 2);
+      /*
+       * Seit dem 24. September traegt die Kachel bei der Stellung «beide»
+       * das Maximum ueber beide Nachweisarten (urteilMitGebrauch). Der
+       * EINZELLASTFALL bleibt davon unberuehrt - dort wird nicht
+       * geurteilt, also gibt es auch nichts zu vereinigen.
+       */
+      {
+        const UIQ = await import(J('ui.js'));
+        const basis = { eta: 0.5, zustand: 'ok', wer: 'Mast M1', text: 'x' };
+        const erg = { verformung: { eta: 2, ok: false, A: { eta: 2 } },
+                      modell: { federn: { namen: { A: 'M1' } } } };
+        const U4 = UIQ.urteilMitGebrauch(basis, erg, 'beide', false);
+        pruef('«beide»: die Kopfzahl ist das Maximum', U4.eta, 2, 1e-12, '–');
+        wahr('… und die Farbe folgt ihm', U4.zustand === 'nok', U4.zustand);
+        wahr('… der Text nennt beide Urteile getrennt',
+             /x · Gebrauchstauglichkeit NICHT erfüllt/.test(U4.text), U4.text);
+        wahr('… und das massgebende Bauteil', U4.wer === 'Verformung M1', U4.wer);
+        wahr('Beim Einzellastfall bleibt alles, wie es war',
+             UIQ.urteilMitGebrauch(basis, erg, 'beide', true) === basis);
+        wahr('«Tragsicherheit» laesst die Verformung draussen',
+             UIQ.urteilMitGebrauch(basis, erg, 'trag', false) === basis);
+        const U5 = UIQ.urteilMitGebrauch(basis, erg, 'gzg', false);
+        wahr('«Gebrauchstauglichkeit» zeigt allein sie',
+             U5.eta === 2 && /^Gebrauchstauglichkeit/.test(U5.text), U5.text);
+        // «Nicht gefuehrt» ist kein Urteil und bleibt gelb.
+        wahr('«nicht gefuehrt» bleibt gelb',
+             UIQ.urteilMitGebrauch({ ...basis, zustand: 'warn' }, erg, 'beide', false)
+               .zustand === 'warn');
+      }
       const aq3 = APP_QUELLE();
       wahr('Die Pillen ebenso',
            aq3.includes("anzeigeKombi === 'umhuellend' ? stufe(v) : ''"));
@@ -27914,6 +27943,54 @@ titel('113  Mastverformung im Gebrauchszustand');
     wahr('Die Spitze mit staendig kommt aus der Betriebskombination',
          v.lastfaelle.find((z) => z.key === sG.lastfall)?.stufe === 'betrieb',
          sG.bez ?? '-');
+  }
+
+  // --- c2) Die Hoehe laesst sich eintragen -------------------------------
+  /* =======================================================================
+   * Weisung vom 24. September: «es sollte einen schieber geben welche
+   * höhe für die farhdrahtverschiebung massgebend ist.»
+   *
+   * Die Automatik misst am ANSCHLUSSPUNKT eines Teils; der Fahrdraht
+   * hängt darunter, und wie weit, weiss die Zeichnung.
+   * ===================================================================== */
+  {
+    const teil = A113.neuesAnbauteil('mast-nt-ausleger', 0);
+    const grund = C113.setzeAnbauteileAn({ ...nackt },
+      [{ ...teil, ort: 'mastA', hMast: 8.0 }]);
+    const ohne = VF113.verformungsNachweis(lauf(grund));
+    pruef('Ohne Eingabe bleibt es bei der Automatik',
+          ohne.A.stelle.z, 8.0, 1e-9, 'm');
+
+    // >>> EINE EINGETRAGENE HOEHE GEHT VOR. <<<
+    const mit = VF113.verformungsNachweis(lauf({ ...grund, fdHoehe: 5.5 }));
+    pruef('Die eingetragene Höhe gilt', mit.A.stelle.z, 5.5, 1e-9, 'm');
+    /*
+     * UND SIE AENDERT DEN NACHWEIS, nicht nur die Anschrift: tiefer am
+     * Masten ist die Verschiebung kleiner.
+     */
+    const quer = (n) => n.A.nachweise.find((x) => /quer zum Gleis/.test(x.was));
+    wahr('… und der gemessene Wert wird kleiner, weil sie tiefer liegt',
+         quer(mit).wert < quer(ohne).wert - 1e-9,
+         `${(quer(mit).wert * 1000).toFixed(1)} gegen ${
+           (quer(ohne).wert * 1000).toFixed(1)} mm`);
+    wahr('… der Nachweis nennt die Höhe, gegen die er läuft',
+         /5\.50 m/.test(quer(mit).was), quer(mit).was);
+    // Der Grenzwert bleibt, was er ist - 40 mm.
+    pruef('… gegen unveränderte 40 mm', quer(mit).grenz, 0.040, 1e-12, 'm');
+
+    /*
+     * UEBER DEM MASTKOPF GILT SIE NICHT. Dort steht keine Verschiebung,
+     * die der Mastkern gerechnet hätte; ein Nachweis an einer Stelle
+     * ausserhalb des Modells wäre eine Zahl ohne Grundlage.
+     */
+    const drueber = VF113.verformungsNachweis(lauf({ ...grund, fdHoehe: 99 }));
+    pruef('Über dem Mastkopf fällt sie auf die Automatik zurück',
+          drueber.A.stelle.z, 8.0, 1e-9, 'm');
+    // Und am Joch wirkt sie ebenso - beide Modellbauer führen das Feld.
+    let j2 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    j2.L = 20; j2.xLage = 0; j2.mastVorhanden = true; j2.fdHoehe = 6.0;
+    pruef('Am Joch ebenso',
+          VF113.verformungsNachweis(lauf(j2)).A.stelle.z, 6.0, 1e-9, 'm');
   }
 
   // --- d) Am Joch: das Jochauflager ist die Stelle -----------------------
