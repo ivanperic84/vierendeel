@@ -796,6 +796,12 @@ export function erzeugeSzene(m, erg) {
           profil: mast.profil, achse: mast.stegrichtung?.achse ?? 'y',
           x, zFuss: zF, zAnschluss: z0, zKopf, name, grund,
           nachweis: erg?.mast?.[name] ?? null,
+          /*
+           * >>> UND SEINE GEBRAUCHSTAUGLICHKEIT (24. September). <<<
+           * Wie beim Anker reicht die Szene nur die ZAHL weiter -
+           * `render.koerper.js` kennt keinen Nachweis.
+           */
+          etaGzg: erg?.verformung?.[name]?.eta ?? null,
           anker: mast.anker ?? null,
           /*
            * >>> UND IHRE AUSNUTZUNG (16. September). <<<
@@ -1932,6 +1938,45 @@ export const ANSICHTEN = [
  * @param {{x:number, betrag:number}[]} kandidaten
  * @param {number} spalten wieviele Bereiche über die Bildbreite
  */
+/* ===========================================================================
+ * >>> DIESELBE ZAHL AM SELBEN BAUTEIL STEHT EINMAL DA. <<<
+ * =========================================================================
+ *
+ * Gemeldet am 24. September mit dem Bild eines Masten: «Die werteplotts
+ * sind nicht gut lesbar» - achtmal «1.97» untereinander an einem Masten.
+ *
+ * Der Grund ist neu: Grössen, die dem BAUTEIL gehören statt der Station,
+ * tragen an jedem Abschnitt denselben Wert (η der Gebrauchstauglichkeit,
+ * 24. September). Die Ausdünnung kannte nur Abstände im Bild, nicht die
+ * Frage, ob zwei Zahlen überhaupt etwas Verschiedenes sagen - acht
+ * gleiche Zahlen bestanden sie anstandslos.
+ *
+ * Es trifft auch die übrigen Grössen: zwei benachbarte Abschnitte mit
+ * gleichem gerundetem Wert sind keine zwei Auskunft.
+ *
+ * Bleiben soll die MITTLERE der Gruppe: sie liegt am ehesten dort, wo man
+ * das Bauteil ansieht, und nicht an seinem abgeschnittenen Ende.
+ */
+export function entdoppelteWerte(kandidaten, nk = 2) {
+  const gruppen = new Map();
+  const frei = [];
+  kandidaten.forEach((k) => {
+    // Ohne Bauteilangabe gibt es nichts zu vergleichen.
+    if (!k.teil) { frei.push(k); return; }
+    const s = `${k.teil}|${k.v.toFixed(nk)}`;
+    const g = gruppen.get(s);
+    if (g) g.push(k); else gruppen.set(s, [k]);
+  });
+  gruppen.forEach((g) => {
+    if (g.length === 1) { frei.push(g[0]); return; }
+    const mx = g.reduce((s, q) => s + q.x, 0) / g.length;
+    const my = g.reduce((s, q) => s + q.y, 0) / g.length;
+    const ab = (q) => Math.hypot(q.x - mx, q.y - my);
+    frei.push(g.reduce((a, b) => (ab(b) < ab(a) ? b : a)));
+  });
+  return frei;
+}
+
 export function beschriftungsReihenfolge(kandidaten, spalten = 14) {
   const liste = [...kandidaten].sort((a, b) => b.betrag - a.betrag);
   if (liste.length < 2) return liste;
@@ -2017,11 +2062,35 @@ export const PLOTS = [
    * wie bei der Querkraft die Gurte.
    */
   { key: 'w',     label: 'Verformung w',           kurz: 'w',    feld: 'w',
-    einheit: 'mm', nk: 1,
-    fussnote: 'Nur für die Masten ausgewiesen; das Joch bleibt grau. '
-            + 'Aufgetragen ist die Resultierende aus beiden Richtungen '
-            + 'im GEZEIGTEN Lastfall — der Nachweis daneben steht auf '
-            + 'dem Betriebswind ψ 0.70.' },
+    einheit: 'mm', nk: 1, nachweisart: 'gzg',
+    // Kurz halten (Weisung, 24. September: «zu viel text») - die Legende
+    // steht im Bild, nicht im Bericht. Das Genaue sagt die Kachel.
+    fussnote: 'Nur an den Masten. Resultierende beider Richtungen im '
+            + 'gezeigten Lastfall.' },
+  /* =========================================================================
+   * >>> DIE AUSNUTZUNG DER GEBRAUCHSTAUGLICHKEIT (24. September). <<<
+   * =======================================================================
+   *
+   * Weisung: «setze noch ein resultat plott gebrauchstauglichkeit das
+   * müsste man dann auch irgendwie in den ergebnissen auswählbar machen,
+   * Tragsicherheit Gebrauchstagulichkeit oder beide.»
+   *
+   * «η w» neben «η»: dieselbe Skala, dieselbe Bedeutung (1.00 ist die
+   * Grenze), aber ein anderer Nachweis. Anders als η der Tragsicherheit
+   * ist sie NICHT stationsweise - sie kommt aus `core.verformung.js` und
+   * gilt dem Masten als Ganzem (Begründung in render.koerper.js).
+   *
+   * UND SIE FOLGT NICHT DEM LASTFALLWÄHLER. Der Nachweis steht auf dem
+   * Betriebswind ψ 0.70; welchen Lastfall das Bild sonst zeigt, ändert
+   * daran nichts. Die Fussnote sagt es, damit niemand die Zahl als
+   * Ergebnis des gezeigten Falls liest.
+   * ======================================================================= */
+  { key: 'etaGzg', label: 'Ausnutzung η (Gebrauchstauglichkeit)',
+    kurz: 'η w', feld: 'etaGzg',
+    einheit: '–', fest: 1.25, nk: 2, nachweisart: 'gzg',
+    fussnote: 'Feste Skala bis 1.25. Nur an den Masten, grösster der drei '
+            + 'Verformungsnachweise — deshalb über die Höhe gleich. '
+            + 'Betriebswind ψ 0.70, unabhängig vom Lastfall.' },
 ];
 
 export const MODI = [
@@ -3590,7 +3659,7 @@ export class Modellansicht {
       if (!Number.isFinite(v) || !f._2d?.length) return;
       const mx = f._2d.reduce((s, q) => s + q[0], 0) / f._2d.length;
       const my = f._2d.reduce((s, q) => s + q[1], 0) / f._2d.length;
-      kandidaten.push({ v, x: mx, y: my, betrag: Math.abs(v) });
+      kandidaten.push({ v, x: mx, y: my, betrag: Math.abs(v), teil: f.teil });
     });
     /*
      * >>> DIE ENDFELDER BLIEBEN LEER (Weisung, 28. August: «das Endfeld auf
@@ -3617,7 +3686,7 @@ export class Modellansicht {
      * bleibt in jedem Fall beschriftet, denn seine Spalte kommt in der
      * ersten Runde dran.
      */
-    const geordnet = beschriftungsReihenfolge(kandidaten);
+    const geordnet = beschriftungsReihenfolge(entdoppelteWerte(kandidaten, p.nk));
     kandidaten.length = 0;
     kandidaten.push(...geordnet);
     c.font = this._font(this.schriftLast);
@@ -3662,7 +3731,19 @@ export class Modellansicht {
       this._belegt.push({ x, y, w, h });
       belegt.push(k);
       gesetzt++;
-      this._beschriftung(c, t, text, k.x, k.y, farbeVon(k.v), 0.62);
+      /*
+       * >>> LESBAR, ABER NICHT AUFDRINGLICH. <<<
+       *
+       * Am 20. September hiess es «die werte transparenter gestalten», am
+       * 24.: «Die werteplotts sind nicht gut lesbar.» Beides stimmt -
+       * gemeint war die FLAECHE, die eine Zahl verdeckt, nicht die Zahl
+       * selbst. Eine rote Ziffer mit 0.62 auf einem roten Bauteil ist
+       * kaum zu entziffern.
+       *
+       * Deshalb getrennt: das Kaestchen bleibt blass (die Flaeche
+       * schimmert durch), die ZIFFER steht fast voll da.
+       */
+      this._beschriftung(c, t, text, k.x, k.y, farbeVon(k.v), 0.95, 0.62);
     }
   }
 
@@ -4096,11 +4177,16 @@ export class Modellansicht {
    * Zahl. Ohne Angabe bleibt es beim bisherigen Aussehen - die Marken und
    * Kraftanschriften sollen nicht mitverblassen.
    */
-  _beschriftung(c, t, text, x, y, farbe = null, deckung = 1) {
+  /**
+   * @param {number} deckung   Deckkraft der ZIFFER
+   * @param {number} saum      Deckkraft des Kaestchens dahinter; ohne
+   *                           Angabe wie die Ziffer (alter Aufrufweg)
+   */
+  _beschriftung(c, t, text, x, y, farbe = null, deckung = 1, saum = null) {
     const s = this._s;
     const hoehe = this.schriftLast * s;
     const b = this._textBreite(c, text) + 7 * s;
-    c.fillStyle = t.s1; c.globalAlpha = 0.78 * deckung;
+    c.fillStyle = t.s1; c.globalAlpha = 0.78 * (saum ?? deckung);
     c.fillRect(x - 3 * s, y - hoehe + 2 * s, b, hoehe + 3 * s);
     c.globalAlpha = deckung;
     c.fillStyle = farbe ?? t.on;

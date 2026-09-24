@@ -256,6 +256,42 @@ function lastartenVorhanden(app) {
  * da sein. Vorher lief beides über eine gemeinsame Abfrage, und der Schalter
  * war schon offen, wenn nur eines von beiden vorlag.
  */
+/* ===========================================================================
+ * >>> DIE PLOTLISTE FOLGT DER GEWAEHLTEN NACHWEISART (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «setze noch ein resultat plott gebrauchstauglichkeit das müsste
+ * man dann auch irgendwie in den ergebnissen auswählbar machen,
+ * Tragsicherheit Gebrauchstagulichkeit oder beide.» Auf Rückfrage: die Wahl
+ * wirkt auf die Ergebnisleiste UND auf die Plotliste.
+ *
+ * Ein Plot OHNE Angabe gehört der Tragsicherheit - η, σ, M, V, N, T stehen
+ * alle auf Bemessungswerten. Ausgezeichnet werden muss deshalb nur, was
+ * NICHT dorthin gehört (`nachweisart: 'gzg'` in render.3d.js); eine
+ * Angabe, die man vergessen kann, führt so zur harmloseren Zuordnung.
+ *
+ * Die Bauteilmodi (Positionen, Bauteile) tragen keine Grösse und bleiben
+ * immer da - sie zeigen das Modell, nicht ein Ergebnis.
+ * ========================================================================= */
+export function modiFuer(art = 'beide') {
+  if (art !== 'trag' && art !== 'gzg') return MODI;
+  return MODI.filter((m) => m.art !== 'plot' || (m.nachweisart ?? 'trag') === art);
+}
+
+/**
+ * Der aufgetragene Plot muss in der Liste stehen, die man sieht.
+ *
+ * Ohne das blättert die Wahl «nur Gebrauchstauglichkeit» einen Knopf weg,
+ * während das Modell weiter σ_v zeigt - mit einer Legende dazu und ohne
+ * eine Möglichkeit, es zurückzustellen.
+ */
+export function modusKorrigieren(app) {
+  const da = modiFuer(app.nachweisart);
+  if (da.some((m) => m.key === app.ansicht.modus)) return false;
+  app.ansicht.modus = (da.find((m) => m.art === 'plot') ?? da[0])?.key ?? 'neutral';
+  return true;
+}
+
 export function zeichneModellWerkzeuge(app) {
   const n = ui.el('ebenen-tools');
   if (!n) return;
@@ -271,10 +307,10 @@ export function zeichneModellWerkzeuge(app) {
   // Jede Gruppe hat einen HAUPTSCHALTER in der Kopfzeile. Ausgeschaltet
   // verschwindet die ganze Gruppe aus dem Bild und ihre Einzelschalter werden
   // ausgegraut - so sieht man, dass sie noch da sind, aber gerade nicht gelten.
-  const gruppe = (id, titel, an, inhalt) =>
+  const gruppe = (id, titel, an, inhalt, zusatz = '') =>
     `<div class="wz-gruppe${an ? '' : ' aus'}">
        <button class="wz-t wz-haupt${an ? ' on' : ''}" id="wz-g-${id}" type="button"
-         title="Gruppe ${esc(titel)} ${an ? 'ausschalten' : 'einschalten'}"
+         title="Gruppe ${esc(titel)} ${an ? 'ausschalten' : 'einschalten'}${esc(zusatz)}"
          aria-pressed="${an}">${esc(titel)}</button>
        <div class="wz-knoepfe">${inhalt}</div></div>`;
 
@@ -313,8 +349,18 @@ export function zeichneModellWerkzeuge(app) {
       schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
-      MODI.map((mo) => text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
-                            mo.label, mo.key === app.ansicht.modus, !gR)).join(''));
+      modiFuer(app.nachweisart).map((mo) =>
+        text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
+             mo.label, mo.key === app.ansicht.modus, !gR)).join(''),
+      /*
+       * WER EINEN KNOPF VERMISST, SOLL ERFAHREN WARUM. Die Wahl steht in
+       * der Ergebnisleiste, nicht hier - ohne diesen Satz sieht die
+       * gekürzte Liste wie ein Fehler aus.
+       */
+      app.nachweisart === 'trag'
+        ? ' — nur Tragsicherheit (Wahl in der Ergebnisleiste)'
+        : (app.nachweisart === 'gzg'
+          ? ' — nur Gebrauchstauglichkeit (Wahl in der Ergebnisleiste)' : ''));
 
   /*
    * DIE LEGENDE GEHOERT ZUM BILD (Weisung, 1. September).
@@ -364,7 +410,7 @@ export function zeichneModellWerkzeuge(app) {
   ui.el('wz-r-werte').onclick = () => {
     app.ansicht.werteAnschreiben = !app.ansicht.werteAnschreiben; nach();
   };
-  MODI.forEach((mo) => {
+  modiFuer(app.nachweisart).forEach((mo) => {
     ui.el(`wz-p-${mo.key}`).onclick = () => {
       app.ansicht.modus = mo.key;
       app.ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);

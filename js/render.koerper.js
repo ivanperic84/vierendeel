@@ -354,7 +354,7 @@ export function mastKoerper(o) {
   const flaechen = [];
   const linien = [];
   const { profil, achse = 'y', x, zFuss, zKopf, name = 'A',
-          grund = 'Mast', nachweis = null } = o;
+          grund = 'Mast', nachweis = null, etaGzg = null } = o;
   if (!profil) return { flaechen, linien };
   const poly = iProfilPoly(profil, achse);
   const teil = `MAST_${name}`;
@@ -389,6 +389,25 @@ export function mastKoerper(o) {
    */
   const verf = new Map((nachweis?.verformung ?? [])
     .map((v) => [Math.round((v.z ?? 0) * 1e6), v]));
+  /* =======================================================================
+   * >>> DIE AUSNUTZUNG DER GEBRAUCHSTAUGLICHKEIT (24. September). <<<
+   * =====================================================================
+   *
+   * Weisung: «setze noch ein resultat plott gebrauchstauglichkeit».
+   *
+   * Sie steht als EINE Zahl am ganzen Masten, nicht als Verlauf - und
+   * das ist kein Notbehelf, sondern der Nachweis selbst: seine drei
+   * Grenzwerte gelten an ZWEI Stellen (Mastspitze L/100 bzw. L/200,
+   * Fahrdraht-/Auslegerhoehe 40 mm). Dazwischen ist kein Grenzwert
+   * definiert, und einen zu interpolieren hiesse, eine Zahl zu
+   * erfinden, die niemand nachweisen kann.
+   *
+   * Auf Rueckfrage so entschieden: «η aus dem Nachweis, je Mast».
+   * Gefaerbt wird deshalb der ganze Koerper gleich - auch der
+   * Ueberstand ueber den Nachweisbereich, denn die Verformung der
+   * Spitze IST der Nachweis, den er traegt.
+   * ===================================================================== */
+  const wGzg = Number.isFinite(etaGzg) ? { etaGzg } : null;
   const wBei = (z) => {
     const v = verf.get(Math.round((z ?? 0) * 1e6));
     return v ? Math.hypot(v.x ?? 0, v.y ?? 0) * 1000 : null;   // mm
@@ -401,6 +420,7 @@ export function mastKoerper(o) {
       const arg = (f) => Math.max(Math.abs(u[f] ?? 0), Math.abs(ob[f] ?? 0));
       const schlimmer = u.eta >= ob.eta ? u : ob;
       const werte = {
+        ...(wGzg ?? {}),
         eta: schlimmer.eta,
         sig_v: schlimmer.sig,
         sig: Math.abs(schlimmer.sigN ?? 0),
@@ -441,10 +461,11 @@ export function mastKoerper(o) {
     const zLetzt = zFuss + st[st.length - 1].z;
     if (zKopf > zLetzt + 1e-9) {
       flaechen.push(...prismaZ(poly, x, zLetzt, zKopf, {
-        gruppe: 'mast', teil,
+        gruppe: 'mast', teil, werte: wGzg ?? undefined,
         label: `${grund} · Überstand über den Nachweis`,
       }));
       linien.push({ gruppe: 'mast', schwerachse: true,
+                    werte: wGzg ?? undefined,
                     label: `Schwerachse ${grund}`,
                     punkte: [[x, 0, zLetzt], [x, 0, zKopf]] });
     }
@@ -453,9 +474,11 @@ export function mastKoerper(o) {
     // eingefaerbt statt mit einer erfundenen Zahl.
     flaechen.push(...prismaZ(poly, x, zFuss, zKopf, {
       gruppe: 'mast', teil, farbeBauteil: o.farbeBauteil,
+      werte: wGzg ?? undefined,
       label: `${grund} · ${(zKopf - zFuss).toFixed(2)} m`,
     }));
     linien.push({ gruppe: 'mast', schwerachse: true,
+                  werte: wGzg ?? undefined,
                   label: `Schwerachse ${grund}`,
                   punkte: [[x, 0, zFuss], [x, 0, zKopf]] });
   }

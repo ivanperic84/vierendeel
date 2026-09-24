@@ -1212,6 +1212,29 @@ button.wz-haupt:hover { color: var(--on); }
    Antwort auf «und was jetzt», nicht Teil der Aussage selbst. */
 .urteil .btn-mini { margin-left: auto; align-self: center; }
 
+/* --- Wahl der Nachweisart in der Ergebnisleiste ---------------------------
+   Weisung vom 24. September: «Tragsicherheit Gebrauchstagulichkeit oder
+   beide.» Drei Stellungen, nebeneinander wie ein Segment - klein und blass,
+   denn sie ist ein Filter und kein Ergebnis. Die gewählte trägt die
+   Akzentfarbe, wie überall im Werkzeug.
+
+   Sie darf UMBRECHEN: «Gebrauchstauglichkeit» ist ein langes Wort, und auf
+   Laptopbreite ist die Seitenleiste schmal (Durchsicht U5). Abgeschnittene
+   Beschriftungen wären hier schlimmer als zwei Zeilen. */
+.nw-wahl { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 0 6px; }
+.nw-wahl button {
+  flex: 1 1 auto; min-height: 22px; padding: 3px 7px; cursor: pointer;
+  background: var(--s3); color: var(--dim); border: 1px solid var(--ol);
+  border-radius: var(--m-r1);
+  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .02em;
+  transition: background var(--t-schnell), color var(--t-schnell),
+              border-color var(--t-schnell);
+}
+.nw-wahl button:hover { color: var(--on); border-color: var(--ol2); }
+.nw-wahl button.on {
+  background: var(--acc-s); border-color: var(--acc); color: var(--acc);
+}
+
 .kennzahlen { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; }
 .kz {
   background: var(--s2); border: 1px solid var(--ol); border-radius: var(--m-r1);

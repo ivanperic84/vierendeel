@@ -118,7 +118,7 @@ import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontext
          kontextOffen } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
-import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen } from './app.layout.js';
+import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren } from './app.layout.js';
 import { setzenStarten, setzenEnde, stelleAus, vorlagenFuer, kopierbareHtml, vorwahlName, setzeVorlageAnStelle, setzeKopieAnStelle, setzeVorwahlAnStelle } from './app.setzen.js';
 
 const SPEICHER = 'tragjoch-stand-v2';
@@ -170,6 +170,7 @@ const app = {
   get tabAuswertung() { return tabAuswertung; }, set tabAuswertung(v) { tabAuswertung = v; },
   get tabEingabe() { return tabEingabe; }, set tabEingabe(v) { tabEingabe = v; },
   get anzeigeKombi() { return anzeigeKombi; }, set anzeigeKombi(v) { anzeigeKombi = v; },
+  get nachweisart() { return nachweisart; }, set nachweisart(v) { nachweisart = v; },
   dialogBauteildaten: (...a) => dialogBauteildaten(...a),
   dialogTasten: (...a) => dialogTasten(...a),
   themaWechseln: (...a) => themaWechseln(...a),
@@ -217,6 +218,15 @@ const app = {
 // Welche Einwirkungskombination im Modell dargestellt wird.
 // 'umhuellend' = ungünstigster Wert je Station über alle Kombinationen.
 let anzeigeKombi = 'umhuellend';
+/* ===========================================================================
+ * >>> WELCHE NACHWEISART DIE ERGEBNISSE ZEIGEN (24. September). <<<
+ *
+ * «Tragsicherheit Gebrauchstagulichkeit oder beide» - eine Frage der
+ * DARSTELLUNG, deshalb hier neben `anzeigeKombi` und nicht in `werte`:
+ * sie gehört keinem Tragwerk und verändert keine Zahl. Gerechnet wird
+ * unverändert beides.
+ * ========================================================================= */
+let nachweisart = 'beide';
 // Strukturkennung der Eingabemaske; siehe ui.maskenSignatur
 let maskeSig = null;
 // Welches Diagramm gerade das Modellfenster belegt (null = das 3D-Modell)
@@ -1081,6 +1091,34 @@ function zeichneBuehne() {
   verdrahteMessung(n);
 }
 
+/* ===========================================================================
+ * >>> DIE WAHL DER NACHWEISART, AN EINER STELLE (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «setze noch ein resultat plott gebrauchstauglichkeit das müsste
+ * man dann auch irgendwie in den ergebnissen auswählbar machen,
+ * Tragsicherheit Gebrauchstagulichkeit oder beide.» Auf Rückfrage: die Wahl
+ * wirkt auf die Ergebnisleiste UND auf die Plotliste.
+ *
+ * SIE RECHNET NICHT NEU. Gerechnet wird unverändert beides - es ist ein
+ * Filter der Anzeige, kein Umschalten des Nachweises. Deshalb läuft hier
+ * `neuRechnen()` NICHT: das würde den Verlauf (Rückgängig) mit einem
+ * Schritt füllen, der nichts verändert hat.
+ *
+ * Neu gezeichnet werden die drei Stellen, die sie betrifft: die
+ * Ergebnisleiste, das Werkzeugband mit der Plotliste und - falls die
+ * aufgetragene Grösse eben weggefiltert wurde - das Modell samt Legende.
+ * ========================================================================= */
+function setzeNachweisart(art) {
+  if (art !== 'beide' && art !== 'trag' && art !== 'gzg') return;
+  if (art === nachweisart) return;
+  nachweisart = art;
+  const gewechselt = modusKorrigieren(app);
+  zeichneAuswertung();
+  if (ui.el('ebenen-tools')?.children.length) zeichneModellWerkzeuge(app);
+  if (gewechselt) { ansicht.zeichne(); zeichneLegende(app); }
+}
+
 function zeichneAuswertung() {
   if (!letzte) return;
   /*
@@ -1112,6 +1150,8 @@ function zeichneAuswertung() {
       ui.zeichneEinzelmast(knoten, letzte, {
         quelle: anzeigeKombi,
         plastisch: werte.mastPlastisch === true,
+        nachweisart,
+        beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
         lastfallName: anzeigeKombi === 'umhuellend' ? null
           : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
@@ -1152,6 +1192,8 @@ function zeichneAuswertung() {
                          { bemessung: kombi.huellkurve ? letzte.bemessung : null,
                            quelle: anzeigeKombi,
                            plastisch: werte.mastPlastisch === true,
+                           nachweisart,
+                           beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
                            lastfallName: anzeigeKombi === 'umhuellend' ? null
                              : (kombi.lastfaelle
@@ -1295,6 +1337,7 @@ function blattSzene(erg) {
                      * ihn, ein Nachbar bliebe eine Behauptung.
                      */
                     ergMast: erg.mast ?? null,
+                    ergVerf: erg.verformung ?? null,
                     ergAnker: erg.anker ?? null,
                     lager: tragwerkSatz(werte),
                     ...abfangLastAngaben(tragwerkSatz(werte)),

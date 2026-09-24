@@ -679,6 +679,8 @@ export function abfangSzene(typ, jt, opt = {}) {
         zKopf: Math.max(hG / 2 + 0.5, md.ueberstand ?? 0),
         name, grund: `Mast ${md.name ?? name} · ${mp.name} · ${stegText}`,
         nachweis: opt.ergMast?.[name] ?? null,
+        // Wie in `render.3d.js`: die Szene reicht nur die Zahl weiter.
+        etaGzg: opt.ergVerf?.[name]?.eta ?? null,
         farbeBauteil: fb,
         anker: md.anker ?? null,
         // Wie in `render.3d.js`: das Sortiment gehoert nicht in die Szene.

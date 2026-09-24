@@ -1266,11 +1266,31 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
   /*
    * ACHT, seit die VERFORMUNG dazukam (24. September): «nimm die
    * verformung in die resultat plot und mache entsprechende diagramme.»
-   * Sie ist die einzige Groesse, die nicht aus der Tragsicherheit kommt.
+   * NEUN seit dem 25.: «setze noch ein resultat plott
+   * gebrauchstauglichkeit» - die Ausnutzung dazu.
    */
-  pruef('Acht auftragbare Grössen', R.PLOTS.length, 8, 1e-12, 'Stk');
+  pruef('Neun auftragbare Grössen', R.PLOTS.length, 9, 1e-12, 'Stk');
   wahr('… darunter die Verformung, in Millimetern',
        R.PLOTS.some((p) => p.key === 'w' && p.feld === 'w' && p.einheit === 'mm'));
+  /*
+   * >>> JEDE GROESSE GEHOERT EINER NACHWEISART. <<<
+   *
+   * Fehlt die Angabe, gilt TRAGSICHERHEIT - η, σ, M, V, N, T stehen alle
+   * auf Bemessungswerten. Das ist die harmlosere Zuordnung: eine
+   * vergessene Angabe lässt die Groesse bei «nur Tragsicherheit» stehen,
+   * statt sie in die Gebrauchstauglichkeit zu schieben, wo sie eine
+   * falsche Aussage wäre.
+   */
+  wahr('Genau zwei Grössen stehen im Gebrauchszustand',
+       R.PLOTS.filter((p) => p.nachweisart === 'gzg').map((p) => p.key).join(' ')
+       === 'w etaGzg',
+       R.PLOTS.filter((p) => p.nachweisart === 'gzg').map((p) => p.key).join(' '));
+  wahr('… die übrigen tragen keine Angabe und gelten damit der Tragsicherheit',
+       R.PLOTS.filter((p) => p.nachweisart !== 'gzg')
+        .every((p) => p.nachweisart === undefined));
+  wahr('η der Gebrauchstauglichkeit steht auf derselben Skala wie η',
+       R.PLOTS.find((p) => p.key === 'etaGzg')?.fest
+       === R.PLOTS.find((p) => p.key === 'eta')?.fest);
   wahr('Darunter Normalkraft und Torsion',
        ['N', 'T'].every((k) => R.PLOTS.some((p) => p.key === k)));
   wahr('Jede auftragbare Groesse nennt ihre Einheit und ihr Feld',
@@ -28055,6 +28075,246 @@ titel('114  Diagramme: was die Seitenleiste zeigt, zieht die Buehne auf');
     });
     wahr('Die Buehne baut den Ersatzbalken nur mit Knoten',
          appQ.includes("erg.knoten?.length ? diagramme(erg, breite) : null"));
+  }
+}
+
+titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
+/* ===========================================================================
+ * Weisung vom 24. September, im Wortlaut:
+ *
+ *   «setze noch ein resultat plott gebrauchstauglichkeit das müsste man
+ *    dann auch irgendwie in den ergebnissen auswählbar machen,
+ *    Tragsicherheit Gebrauchstagulichkeit oder beide.»
+ *
+ * Auf Rueckfrage entschieden:
+ *   - der Plot traegt η AUS DEM NACHWEIS, je Mast (nicht einen Verlauf
+ *     gegen einen Grenzwert, den es zwischen den beiden Nachweisstellen
+ *     gar nicht gibt);
+ *   - die Wahl wirkt auf die Ergebnisleiste UND auf die Plotliste.
+ * ========================================================================= */
+{
+  const R115 = await import(J('render.3d.js'));
+  const LY115 = await import(J('app.layout.js'));
+  const UI115 = await import(J('ui.js'));
+  const C115 = await import(J('core.constants.js'));
+  const V115 = await import(J('core.vierendeel.js'));
+  const N115 = await import(J('core.nachbarn.js'));
+  const A115 = await import(J('data.anbauteile.js'));
+  const CH115 = await import(J('core.checks.js'));
+  const VF115 = await import(J('core.verformung.js'));
+  const AK115 = await import(J('core.anker.js'));
+
+  const lauf = (w) => {
+    const s2 = N115.rechensatzMitNachbarn(w);
+    const v = V115.vergleichKombinationen(s2, ...N115.kernArgumente(s2));
+    const erg = V115.berechne(s2, ...N115.kernArgumente(s2));
+    erg.anker = AK115.ankerAuswertung(v, s2);
+    erg.verformung = VF115.verformungsNachweis(v);
+    return CH115.mitBauteilen(v.huellkurve ?? erg, erg, { mastErsatz: true });
+  };
+  const joch115 = () => {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    return C115.setzeAnbauteileAn(w, [{ ...A115.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }]);
+  };
+  const einzel115 = () => C115.setzeAnbauteileAn(
+    { ...standardwerte(), tragwerksart: 'einzelmast', mastLaenge: 10,
+      L: 0, xLage: 0, mastVorhanden: true },
+    [{ ...A115.neuesAnbauteil('mast-nt-ausleger', 0), ort: 'mastA', hMast: 8.0 }]);
+
+  // --- a) Der Mast traegt sein η der Gebrauchstauglichkeit --------------
+  /*
+   * >>> UND ZWAR GENAU DAS AUS DEM NACHWEIS. <<<
+   * Der Plot darf keine zweite Zahl bilden; er zeigt, was in der Kachel
+   * daneben steht.
+   */
+  {
+    const e = lauf(einzel115());
+    const sz = R115.erzeugeSzene(e.modell, e);
+    const mast = sz.flaechen.filter((f) => f.gruppe === 'mast' && f.werte);
+    wahr('Der Mast traegt η der Gebrauchstauglichkeit',
+         mast.length > 0 && mast.every((f) => Number.isFinite(f.werte.etaGzg)),
+         `${mast.length} Koerper`);
+    pruef('… und es ist das η des Nachweises',
+          mast[0].werte.etaGzg, e.verformung.A.eta, 1e-12, '–');
+    /*
+     * UEBER DIE GANZE HOEHE GLEICH - auch am Ueberstand ueber den
+     * Nachweisbereich. Der Nachweis gilt dem Masten, nicht der Station;
+     * ein Verlauf waere eine erfundene Zahl (siehe render.koerper.js).
+     */
+    wahr('… ueber die ganze Hoehe derselbe Wert',
+         new Set(mast.map((f) => f.werte.etaGzg.toFixed(12))).size === 1,
+         `${new Set(mast.map((f) => f.werte.etaGzg.toFixed(12))).size} verschiedene`);
+    // Die Schwerachse faerbt mit, wie bei jeder anderen Groesse.
+    wahr('Auch die Schwerachse des Masten traegt ihn',
+         (sz.linien ?? []).filter((l) => l.gruppe === 'mast' && l.schwerachse)
+           .every((l) => Number.isFinite(l.werte?.etaGzg)));
+    // Und η der Tragsicherheit steht unveraendert daneben.
+    wahr('… neben dem η der Tragsicherheit, nicht an seiner Stelle',
+         mast.every((f) => Number.isFinite(f.werte.eta)));
+  }
+
+  // --- b) Das Joch bleibt grau ------------------------------------------
+  {
+    const e = lauf(joch115());
+    const sz = R115.erzeugeSzene(e.modell, e);
+    const jochTeile = sz.flaechen.filter(
+      (f) => (f.gruppe === 'profil' || f.gruppe === 'blech') && f.werte);
+    wahr('Gurte und Bleche fuehren kein η der Gebrauchstauglichkeit',
+         jochTeile.length > 0
+         && jochTeile.every((f) => !Number.isFinite(f.werte.etaGzg)),
+         `${jochTeile.length} Teile geprueft`);
+    const mast = sz.flaechen.filter((f) => f.gruppe === 'mast' && f.werte?.etaGzg);
+    wahr('… die beiden Masten am Joch aber schon', mast.length > 0);
+  }
+
+  // --- c) Die Wahl filtert die Plotliste --------------------------------
+  {
+    const alle = LY115.modiFuer('beide').map((m) => m.key);
+    const trag = LY115.modiFuer('trag').map((m) => m.key);
+    const gzg = LY115.modiFuer('gzg').map((m) => m.key);
+    wahr('«beide» zeigt alles', alle.length === R115.MODI.length);
+    wahr('«Tragsicherheit» nimmt Verformung und η_w weg',
+         !trag.includes('w') && !trag.includes('etaGzg') && trag.includes('eta'),
+         trag.join(' '));
+    wahr('«Gebrauchstauglichkeit» laesst nur diese beiden stehen',
+         gzg.filter((k) => R115.MODI.find((m) => m.key === k)?.art === 'plot')
+           .join(' ') === 'w etaGzg',
+         gzg.join(' '));
+    /*
+     * DIE BAUTEILMODI BLEIBEN IMMER. Sie zeigen das Modell, nicht ein
+     * Ergebnis - waeren sie weg, liesse sich der Plot bei «nur
+     * Gebrauchstauglichkeit» nicht mehr abschalten.
+     */
+    wahr('Die Bauteilmodi stehen in jeder Stellung',
+         ['neutral', 'positionen'].every(
+           (k) => trag.includes(k) && gzg.includes(k)));
+  }
+
+  // --- d) Was weggefiltert wird, darf nicht aufgetragen bleiben ----------
+  /*
+   * Sonst zeigte das Modell weiter σ_v, mit Legende und ohne einen Knopf,
+   * es zurueckzustellen.
+   */
+  {
+    const app = { nachweisart: 'gzg', ansicht: { modus: 'sig_v' } };
+    wahr('Der weggefilterte Plot wird umgestellt', LY115.modusKorrigieren(app));
+    wahr('… auf eine Groesse, die es noch gibt',
+         LY115.modiFuer('gzg').some((m) => m.key === app.ansicht.modus),
+         app.ansicht.modus);
+    const app2 = { nachweisart: 'gzg', ansicht: { modus: 'w' } };
+    wahr('Ein Plot, der bleibt, wird nicht angetastet',
+         LY115.modusKorrigieren(app2) === false && app2.ansicht.modus === 'w');
+    const app3 = { nachweisart: 'trag', ansicht: { modus: 'etaGzg' } };
+    LY115.modusKorrigieren(app3);
+    wahr('… und in der Gegenrichtung ebenso',
+         app3.ansicht.modus !== 'etaGzg', app3.ansicht.modus);
+  }
+
+  // --- e) Die Kacheln sind zwei Gruppen ----------------------------------
+  /*
+   * >>> DIE VORAUSSETZUNG DAFUER, SIE WEGLASSEN ZU KOENNEN. <<<
+   * Bis zum 24. September standen die Verformungskacheln MITTEN unter den
+   * η-Kacheln der Tragsicherheit - auf einem anderen Lastniveau, gegen
+   * ein anderes Mass, ohne Ampel.
+   */
+  {
+    const e = lauf(einzel115());
+    const trag = UI115.bauteilKacheln(e, { nachweise: {} }, () => '');
+    const gzg = UI115.gzgKacheln(e);
+    wahr('Die Verformung steht nicht mehr bei den Tragsicherheitskacheln',
+         trag.every((h) => !/Verformung/.test(h)));
+    wahr('… sondern in ihrer eigenen Gruppe',
+         gzg.length > 0 && gzg.every((h) => /Verformung/.test(h)),
+         `${gzg.length} Kachel(n)`);
+    // Ohne Ampel - der Entscheid vom 18. September gilt weiter.
+    wahr('… ohne Ampelfarbe',
+         gzg.every((h) => !/kz (ok|warn|fail)/.test(h)));
+    const block = UI115.gzgBlockHtml(e);
+    wahr('Der Block nennt den Betriebswind', /ψ 0\.70/.test(block), block.slice(0, 120));
+    // Und er sagt es auch, wenn es nichts zu zeigen gibt.
+    wahr('Ohne Verformungsnachweis steht ein Satz statt einer Luecke',
+         /Kein Verformungsnachweis/.test(UI115.gzgBlockHtml({ })));
+  }
+
+  // --- f) Die Wahl steht an EINER Stelle und ist verdrahtet --------------
+  {
+    const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    const lyQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+    pruef('Drei Stellungen', UI115.NACHWEISARTEN.length, 3, 1e-12, 'Stk');
+    wahr('Vorgabe ist «beide» - wer nichts waehlt, sieht alles',
+         /nachweisart = 'beide'/.test(appQ)
+         && /opt\.nachweisart \?\? 'beide'/.test(uiQ));
+    wahr('Beide Uebersichten zeigen die Leiste',
+         (uiQ.match(/nachweisartLeiste\(nwArt\)/g) ?? []).length === 2);
+    wahr('… und verdrahten sie',
+         (uiQ.match(/verdrahteNachweisart\(node, opt\);/g) ?? []).length === 2);
+    wahr('… und app.js reicht die Wahl an beide',
+         (appQ.match(/beiNachweisart: setzeNachweisart/g) ?? []).length === 2);
+    /*
+     * SIE RECHNET NICHT NEU. Ein Anzeigefilter, der `neuRechnen` riefe,
+     * fuellte den Verlauf (Rueckgaengig) mit Schritten ohne Aenderung.
+     */
+    const fn = appQ.slice(appQ.indexOf('function setzeNachweisart'));
+    wahr('Das Umschalten rechnet nicht neu',
+         !/neuRechnen\(\)/.test(fn.slice(0, fn.indexOf('function zeichneAuswertung'))));
+    // Und die Plotliste haengt an derselben Wahl - kein zweiter Waehler.
+    wahr('Die Plotliste folgt derselben Wahl',
+         /modiFuer\(app\.nachweisart\)/.test(lyQ));
+  }
+
+  // --- f2) Achtmal dieselbe Zahl ist keine Auskunft ----------------------
+  /*
+   * Gemeldet am 24. September mit dem Bild eines Masten: «Die werteplotts
+   * sind nicht gut lesbar» - achtmal «1.97» untereinander. Die Ausduennung
+   * kannte nur Abstaende im Bild, nicht die Frage, ob zwei Zahlen etwas
+   * Verschiedenes sagen. Bei einer Groesse, die dem BAUTEIL gehoert statt
+   * der Station, sagen sie es nie.
+   */
+  {
+    const acht = Array.from({ length: 8 }, (_, i) =>
+      ({ v: 1.9663, x: 100, y: 50 + i * 40, betrag: 1.9663, teil: 'MAST_A' }));
+    const eins = R115.entdoppelteWerte(acht, 2);
+    pruef('Achtmal derselbe Wert am selben Bauteil: eine Zahl',
+          eins.length, 1, 1e-12, 'Stk');
+    wahr('… und zwar die mittlere, nicht das abgeschnittene Ende',
+         Math.abs(eins[0].y - 190) <= 20, `y = ${eins[0].y}`);
+    // Verschiedene Werte bleiben alle stehen - jeder ist eine eigene Auskunft.
+    const viele = [0.31, 0.44, 0.58, 0.72].map((v, i) =>
+      ({ v, x: 100, y: 50 + i * 40, betrag: v, teil: 'MAST_A' }));
+    pruef('Verschiedene Werte bleiben',
+          R115.entdoppelteWerte(viele, 2).length, 4, 1e-12, 'Stk');
+    // Gleiche Werte an VERSCHIEDENEN Bauteilen sind zwei Auskuenfte.
+    const zwei = ['MAST_A', 'MAST_B'].map((teil, i) =>
+      ({ v: 1.97, x: 100 + i * 50, y: 50, betrag: 1.97, teil }));
+    pruef('Gleicher Wert an zwei Bauteilen bleibt zweimal',
+          R115.entdoppelteWerte(zwei, 2).length, 2, 1e-12, 'Stk');
+    // Ohne Bauteilangabe wird nichts weggenommen.
+    pruef('Ohne Bauteilangabe bleibt alles',
+          R115.entdoppelteWerte([{ v: 1, x: 0, y: 0 }, { v: 1, x: 9, y: 9 }], 2).length,
+          2, 1e-12, 'Stk');
+    /*
+     * UND DIE ZIFFER IST LESBAR: das Kaestchen bleibt blass, die Zahl
+     * steht fast voll da. Eine rote Ziffer mit 0.62 auf einem roten
+     * Bauteil war kaum zu entziffern.
+     */
+    const q115 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+    wahr('Ziffer und Kaestchen haben eigene Deckkraft',
+         /farbeVon\(k\.v\), 0\.95, 0\.62\)/.test(q115)
+         && /saum \?\? deckung/.test(q115));
+  }
+
+  // --- g) Ueber alle vier Tragwerksarten ---------------------------------
+  {
+    const arten = [['Tragjoch', joch115()], ['Einzelmast', einzel115()]];
+    arten.forEach(([was, w]) => {
+      const e = lauf(w);
+      const sz = R115.erzeugeSzene(e.modell, e);
+      const mast = sz.flaechen.filter((f) => f.gruppe === 'mast' && f.werte?.etaGzg);
+      wahr(`${was}: der Plot findet seinen Wert`, mast.length > 0,
+           `η ${mast[0]?.werte?.etaGzg?.toFixed(3) ?? '-'}`);
+    });
   }
 }
 

@@ -4688,6 +4688,27 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const bem = letzte.bemessung ?? kombi?.huellkurve ?? erg;
   const zeig = einzelLastfall ? (anzeige ?? erg) : bem;
   const ampelU = (v) => (einzelLastfall ? '' : ampel(v));
+  /* =======================================================================
+   * >>> WELCHE NACHWEISE DIE LEISTE ZEIGT (Weisung vom 24. September). <<<
+   * =====================================================================
+   *
+   * «Tragsicherheit Gebrauchstagulichkeit oder beide.» Vorgabe ist
+   * BEIDE; wer nichts wählt, sieht alles.
+   *
+   * Was der Filter WEGNIMMT, ist genau das, was ein η der Tragsicherheit
+   * zeigt - Kacheln, nicht geführte Nachweise, die Tabelle der
+   * höchstbeanspruchten Stellen. Was nachweisunabhängig ist
+   * (Schnittgrössen, Hinweise zur Gültigkeit), bleibt stehen: es gehört
+   * keiner der beiden Arten.
+   *
+   * DIE HAUPTKACHEL BLEIBT, WIE SIE IST. Sie ist das Urteil des
+   * Tragwerks, nicht eine Anzeige - und ein Anzeigefilter ändert kein
+   * Urteil. Der Entscheid vom 18. September gilt weiter: die
+   * Urteilsfarbe folgt allein der Tragsicherheit.
+   * ===================================================================== */
+  const nwArt = opt.nachweisart ?? 'beide';
+  const zeigtTrag = nwArt !== 'gzg';
+  const zeigtGzg = nwArt !== 'trag';
   const mn = zeig?.mast?.A ?? null;
   const bt = urteil?.bauteile ?? null;
   const eBem = bt?.eta ?? (bem?.mast?.A?.etaMitStabilitaet ?? 0);
@@ -4726,11 +4747,12 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
         ? `<span class="urteil-fall" title="Massgebende Kombination des Masten">massgebend: ${esc(fallBez)}</span>`
         : ''}
     </div>
-    ${mn ? `${abschnitt('Nachweise')}
+    ${nachweisartLeiste(nwArt)}
+    ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
       <div class="kennzahlen">${bauteilKacheln(zeig, urteil ?? {}, ampelU).join('')}</div>
-      ${plastischHtml(opt, true)}`
+      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeig) : ''}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
-    ${nichtGefuehrtHtml(urteil)}
+    ${zeigtTrag ? nichtGefuehrtHtml(urteil) : ''}
     ${fuss.length ? klapp('einzelmast-fuss', 'Kräfte am Mastfuss',
         `<div class="kennzahlen">${fuss.join('')}</div>`,
         `M längs ${f2(f.Mxx)} kNm`) : ''}
@@ -4741,6 +4763,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ${mn ? mastblattHtml(zeig) : ''}`;
   verdrahteKlapp(node);
   verdrahtePlastisch(node, opt);
+  verdrahteNachweisart(node, opt);
 }
 
 /**
@@ -4827,6 +4850,107 @@ function hatDrahtwerk(a) {
  * Einzelmast. Vorher standen sie nur in der Uebersicht des Jochs; der
  * Einzelmast zeigte eine eigene, kuerzere Seite mit anderen Zahlen.
  */
+/* ===========================================================================
+ * >>> DIE GEBRAUCHSTAUGLICHKEIT IST EINE EIGENE GRUPPE (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «setze noch ein resultat plott gebrauchstauglichkeit das müsste
+ * man dann auch irgendwie in den ergebnissen auswählbar machen,
+ * Tragsicherheit Gebrauchstagulichkeit oder beide.»
+ *
+ * Die Verformungskacheln standen bis dahin MITTEN unter den η-Kacheln der
+ * Tragsicherheit. Dort waren sie am falschen Platz: sie stehen auf einem
+ * anderen Lastniveau (Betriebswind ψ 0.70 statt Bemessungswerte), messen
+ * gegen etwas anderes (Grenzmasse statt Widerstände) und färben nach dem
+ * Entscheid vom 18. September kein Urteil. Eine eigene Gruppe zu sein ist
+ * die Voraussetzung dafür, sie überhaupt weglassen zu können.
+ *
+ * >>> OHNE AMPEL. <<< Ein überschrittener Gebrauchswert wird ANGESCHRIEBEN
+ * - mit dem Wort «über» und dem Grenzwert daneben -, aber er färbt weder
+ * die Hauptkachel noch die Fussleiste.
+ *
+ * Die Kachel nennt den MASSGEBENDEN der drei Nachweise; alle drei stehen
+ * im Titel, damit man sieht, welcher knapp ist und welcher nicht.
+ * ========================================================================= */
+export function gzgKacheln(erg) {
+  const k = [];
+  if (!erg?.verformung) return k;
+  const namenV = erg.modell?.federn?.namen ?? {};
+  const gesehenV = new Set();
+  ['A', 'B'].forEach((ende) => {
+    const q = erg.verformung[ende];
+    if (!q?.massgebend) return;
+    const name = namenV[ende] || `Ende ${ende}`;
+    if (gesehenV.has(name)) return;
+    gesehenV.add(name);
+    const mg = q.massgebend;
+    const mm = (v) => `${(v * 1000).toFixed(0)} mm`;
+    const alle = q.nachweise
+      .map((x) => `${x.was}: ${mm(x.wert)} von ${mm(x.grenz)} (η ${f3(x.eta)})`)
+      .join('\n');
+    k.push(kachel(`Verformung ${name}`, mm(mg.wert),
+      `${q.ok ? '' : 'ÜBER · '}${mm(mg.grenz)} zulässig · ${mg.achse === 'x' ? 'quer' : 'längs'}`,
+      '', {
+        titel: `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
+             + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit — `
+             + `diese Kachel färbt kein Urteil.\n\n${alle}`,
+      }));
+  });
+  return k;
+}
+
+/**
+ * WELCHE NACHWEISART DIE ERGEBNISSE ZEIGEN - die Wahl selbst.
+ *
+ * Drei Stellungen, wie gefordert: Tragsicherheit, Gebrauchstauglichkeit,
+ * beide. Vorgabe ist BEIDE - wer nichts wählt, soll alles sehen; ein
+ * Filter, der beim Öffnen schon etwas wegnimmt, verschweigt einen
+ * Nachweis, ohne es zu sagen.
+ *
+ * >>> SIE STEHT AN EINER STELLE. <<< Von hier aus folgt ihr auch die
+ * Plotliste im Modellfenster (app.layout.js). Ein zweiter Wähler dort
+ * wäre eine zweite Wahrheit - dieselbe Regel wie beim Lastfallwähler.
+ */
+export const NACHWEISARTEN = [
+  ['beide', 'beide', 'Tragsicherheit und Gebrauchstauglichkeit'],
+  ['trag', 'Tragsicherheit', 'Nur die Tragsicherheit: η der Bauteile'],
+  ['gzg', 'Gebrauchstauglichkeit',
+   'Nur die Gebrauchstauglichkeit: Verformung im Betriebswind ψ 0.70'],
+];
+
+export function nachweisartLeiste(jetzt = 'beide') {
+  return `<div class="nw-wahl" role="group" aria-label="Nachweisart">${
+    NACHWEISARTEN.map(([k, t, titel]) =>
+      `<button type="button" data-nwart="${k}" class="${k === jetzt ? 'on' : ''}"
+         title="${esc(titel)}" aria-pressed="${k === jetzt}">${esc(t)}</button>`
+    ).join('')}</div>`;
+}
+
+/** Die Knöpfe der Leiste verdrahten. */
+export function verdrahteNachweisart(node, opt) {
+  if (!opt?.beiNachweisart) return;
+  node.querySelectorAll('[data-nwart]').forEach((b) => {
+    b.addEventListener('click', () => opt.beiNachweisart(b.dataset.nwart));
+  });
+}
+
+/**
+ * Der Block der Gebrauchstauglichkeit, fertig zum Einsetzen.
+ *
+ * Er sagt AUCH, wenn es nichts zu zeigen gibt. Ein leerer Abschnitt wäre
+ * zweideutig - «nicht gerechnet» und «nichts gefunden» sehen dann gleich
+ * aus, und das erste wäre ein Mangel.
+ */
+export function gzgBlockHtml(erg) {
+  const g = gzgKacheln(erg);
+  const psi = erg?.verformung?.psi;
+  return `${abschnitt('Gebrauchstauglichkeit',
+    psi ? `Betriebswind ψ ${psi.toFixed(2)} · färbt kein Urteil` : '')}
+    ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
+      : '<p class="leer">Kein Verformungsnachweis — er wird nur für '
+        + 'Masten geführt.</p>'}`;
+}
+
 export function bauteilKacheln(erg, urteil, ampelU) {
   const k = [];
   if (erg.mast && urteil.nachweise?.mast !== false) {
@@ -4885,45 +5009,6 @@ export function bauteilKacheln(erg, urteil, ampelU) {
    * «Druck» ist die Auskunft, an der man sieht, ob der Stab auf der
    * richtigen Seite steht.
    */
-  /* =========================================================================
-   * >>> DIE VERFORMUNG IM GEBRAUCHSZUSTAND (Weisung vom 24. September). <<<
-   * =========================================================================
-   *
-   * «Mastfervormung berechnen lassen infolge wind / ständige und deren
-   *  kombination … Die Gebrauchstauglichkeit kombination ist in diesem fall
-   *  der Wind bei 0.70 (Betriebswind Wiederkehrperioda 5 Jahre).»
-   *
-   * >>> OHNE AMPEL. <<< Die Urteilsfarbe folgt allein der Tragsicherheit
-   * (Entscheid vom 18. September). Ein überschrittener Gebrauchswert wird
-   * ANGESCHRIEBEN - mit dem Wort «über» und dem Grenzwert daneben -, aber
-   * er färbt weder die Hauptkachel noch die Fussleiste.
-   *
-   * Die Kachel nennt den MASSGEBENDEN der drei Nachweise; alle drei stehen
-   * im Titel, damit man sieht, welcher knapp ist und welcher nicht.
-   */
-  if (erg.verformung) {
-    const namenV = erg.modell.federn?.namen ?? {};
-    const gesehenV = new Set();
-    ['A', 'B'].forEach((ende) => {
-      const q = erg.verformung[ende];
-      if (!q?.massgebend) return;
-      const name = namenV[ende] || `Ende ${ende}`;
-      if (gesehenV.has(name)) return;
-      gesehenV.add(name);
-      const mg = q.massgebend;
-      const mm = (v) => `${(v * 1000).toFixed(0)} mm`;
-      const alle = q.nachweise
-        .map((x) => `${x.was}: ${mm(x.wert)} von ${mm(x.grenz)} (η ${f3(x.eta)})`)
-        .join('\n');
-      k.push(kachel(`Verformung ${name}`, mm(mg.wert),
-        `${q.ok ? '' : 'ÜBER · '}${mm(mg.grenz)} zulässig · ${mg.achse === 'x' ? 'quer' : 'längs'}`,
-        '', {
-          titel: `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
-               + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit — `
-               + `diese Kachel färbt kein Urteil.\n\n${alle}`,
-        }));
-    });
-  }
   if (erg.anker) {
     const namenA = erg.modell.federn?.namen ?? {};
     const gesehenA = new Set();
@@ -5055,6 +5140,27 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
   const einzelLastfall = opt.quelle && opt.quelle !== 'umhuellend';
   const bem = (einzelLastfall && opt.bemessung) ? opt.bemessung : erg;
   const zeig = erg;
+  /* =======================================================================
+   * >>> WELCHE NACHWEISE DIE LEISTE ZEIGT (Weisung vom 24. September). <<<
+   * =====================================================================
+   *
+   * «Tragsicherheit Gebrauchstagulichkeit oder beide.» Vorgabe ist
+   * BEIDE; wer nichts wählt, sieht alles.
+   *
+   * Was der Filter WEGNIMMT, ist genau das, was ein η der Tragsicherheit
+   * zeigt - Kacheln, nicht geführte Nachweise, die Tabelle der
+   * höchstbeanspruchten Stellen. Was nachweisunabhängig ist
+   * (Schnittgrössen, Hinweise zur Gültigkeit), bleibt stehen: es gehört
+   * keiner der beiden Arten.
+   *
+   * DIE HAUPTKACHEL BLEIBT, WIE SIE IST. Sie ist das Urteil des
+   * Tragwerks, nicht eine Anzeige - und ein Anzeigefilter ändert kein
+   * Urteil. Der Entscheid vom 18. September gilt weiter: die
+   * Urteilsfarbe folgt allein der Tragsicherheit.
+   * ===================================================================== */
+  const nwArt = opt.nachweisart ?? 'beide';
+  const zeigtTrag = nwArt !== 'gzg';
+  const zeigtGzg = nwArt !== 'trag';
   const m = zeig.modell, x = zeig.extrem;
   const e = zeig.max.etaGesamt;
   /*
@@ -5440,15 +5546,17 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
        * «Nicht geführte Nachweise» bleibt oben bei den Nachweisen. Es ist
        * keine Prüfung, sondern die Kehrseite der Kacheln daneben.
        */''}
-    ${abschnitt('Nachweise')}
+    ${nachweisartLeiste(nwArt)}
+    ${zeigtTrag ? `${abschnitt('Nachweise')}
     <div class="kennzahlen">${kz.join('')}</div>
     ${plastischHtml(opt, Boolean(erg.mast))}
-    ${nichtGefuehrtHtml(urteil)}
+    ${nichtGefuehrtHtml(urteil)}` : ''}
+    ${zeigtGzg ? gzgBlockHtml(erg) : ''}
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
             ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mzz ?? 0)} kNm`
                : `max M_y ${f2(x.MyMax)} kNm`)}
-    ${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
+    ${zeigtTrag ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>
         <th class="num">${ab ? 'η Gurt' : 'η Profil'}</th>
@@ -5459,7 +5567,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
           <td class="num">${f3(s.etaEcken)}</td><td class="num">${f3(s.etaBleche)}</td>
           <td class="num stark ${ampelU(s.eta)}">${f3(s.eta)}</td>
         </tr>`).join('')}</tbody>
-    </table></div>
+    </table></div>` : ''}
     ${pruefungenHtml(urteil)}
     ${hinweise.length ? klapp('uebersicht-hinweise', 'Hinweise zur Gültigkeit',
         `<div class="hinweisliste">${hinweise.map((h) =>
@@ -5483,6 +5591,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
   if (so && beiSortiment) so.addEventListener('click', () => beiSortiment());
   verdrahteKlapp(node);
   verdrahtePlastisch(node, opt);
+  verdrahteNachweisart(node, opt);
 }
 
 /**
