@@ -49,8 +49,9 @@ import { EINWIRKUNGEN } from './core.lasten.js';
 import { winkelwerteFuer } from './core.winkel.js';
 import { getProfil } from './data.profiles.js';
 import { ECKEN } from './geometry.js';
-import { stabmodell, lasten, stuetzung, blattWennMehrere }
+import { stabmodell, lasten, stuetzung, blattWennMehrere, stabmodellJson }
   from './export.axisvm.js';
+import { dreibein } from './core.stabwerk.js';
 import { herunterladen } from './export.xlsx.js';
 
 /** Rechteck: starke und schwache Achse sowie St-Venant (dünnes Rechteck). */
@@ -186,20 +187,69 @@ function querschnitte(bau, schubweich = true, gurteSchief = false) {
       zeilen.push({ name: q.name, A: q.A, Iy: q.Iz, Iz: q.Iy, J: q.It });
       return;
     }
+    /* =====================================================================
+     * >>> WER SEINE WERTE MITBRINGT, BEHAELT SIE. <<<
+     * ===================================================================
+     *
+     * Hier stand nur `q.parameter[0] x q.parameter[1]` als Rechteck. Fuer
+     * STARR (500x500), ARM und die Bleche ist das richtig - sie FUEHREN
+     * keine Werte, ihre Form ist die Angabe.
+     *
+     * Der MAST fuehrt seine Werte, und er fiel trotzdem in diesen Zweig:
+     * seine Parameter sind [h, b, s, t, r] eines I-Profils, und daraus
+     * wurde ein VOLLQUADRAT 240 x 240 mm. Am HEB 240:
+     *
+     *     A    0.0106 -> 0.0576 m2        (5.4-fach)
+     *     Iy   1.126e-4 -> 2.765e-4       (2.5-fach)
+     *     Iz   3.923e-5 -> 2.765e-4       (7.0-fach)
+     *
+     * Gefunden am 24. September: der Mastkopf stand gegen den eigenen
+     * Loeser um FAKTOR 7.02 daneben - genau das Verhaeltnis der Iz. Der
+     * Kommentar darunter sagte «STARR und ARM sind quadratisch»; das
+     * stimmte, als er geschrieben wurde. Die Masten kamen spaeter dazu.
+     *
+     * Und weil das Quadrat Iy = Iz hat, war der Mast in PyNite GEGEN JEDE
+     * DREHUNG UNEMPFINDLICH - die Stegrichtung, ueber die das Sortiment
+     * entscheidet, kam dort nie an.
+     * =================================================================== */
+    if (q.form !== 'Rectangle' && q.A != null && q.Iy != null && q.Iz != null) {
+      zeilen.push({ name: q.name, A: q.A, Iy: q.Iy, Iz: q.Iz,
+                    J: q.It ?? (q.Iy + q.Iz) / 2 });
+      return;
+    }
+
     const [a, b] = q.parameter;
     const r = rechteckWerte(a, b);
-    const blechV = istBlechV(q.name);
-    const blechH = istBlechH(q.name);
-    if (!blechV && !blechH) {
+    if (!istBlech(q.name)) {
       // STARR und ARM sind quadratisch - die Drehlage spielt keine Rolle
       zeilen.push({ name: q.name, A: r.A, Iy: r.stark, Iz: r.stark, J: r.J });
       return;
     }
+
+    /* =====================================================================
+     * >>> DIE BLECHE STEHEN IN IHREN EIGENEN ACHSEN - NICHT IM NAMEN. <<<
+     * ===================================================================
+     *
+     * Hier entschied bisher der NAME (BV/BH), welches Traegheitsmoment auf
+     * PyNites Iy kam: das liegende bekam die starke Achse auf Iy, das
+     * stehende auf Iz. Das war richtig gerechnet - und es war der ERSATZ
+     * dafuer, dass PyNite die Drehlage nicht bekam. Beides zusammen waere
+     * eine DOPPELTE Drehung; die waagrechten Bleche stuenden dann um 90
+     * Grad falsch, und bei Iy/Iz = 0.010 ist das Faktor 100.
+     *
+     * Also stehen die Werte jetzt so da, wie sie im Querschnitt liegen -
+     * die duenne Richtung auf Iy, die breite auf Iz, fuer BEIDE Lagen
+     * gleich (die Parameter sind ja dieselben). Wie das Blech im Raum
+     * steht, sagt allein `lcsZ`, genau wie beim Loeser.
+     *
+     * Physikalisch aendert das nichts. Was sich aendert, ist die BENENNUNG
+     * der lokalen Momente der liegenden Bleche in `pynite_staebe.csv`:
+     * ihre starke Biegung heisst jetzt Mz statt My. `kalibrieren.mjs`
+     * liest diese Spalten - es ist mitgezogen.
+     * =================================================================== */
     const satz = laengen.get(q.name);
     if (!satz || !satz.size) {
-      zeilen.push(blechV
-        ? { name: q.name, A: r.A, Iy: r.schwach, Iz: r.stark, J: r.J }
-        : { name: q.name, A: r.A, Iy: r.stark, Iz: r.schwach, J: r.J });
+      zeilen.push({ name: q.name, A: r.A, Iy: r.schwach, Iz: r.stark, J: r.J });
       return;
     }
     [...satz].sort((x, y) => x - y).forEach((L) => {
@@ -207,9 +257,8 @@ function querschnitte(bau, schubweich = true, gurteSchief = false) {
       const stark = r.stark / f;
       const nam = satz.size > 1 || schubweich
         ? `${q.name}_L${Math.round(L * 1000)}` : q.name;
-      zeilen.push(blechV
-        ? { name: nam, A: r.A, Iy: r.schwach, Iz: stark, J: r.J, quelle: q.name, L, phi: f - 1 }
-        : { name: nam, A: r.A, Iy: stark, Iz: r.schwach, J: r.J, quelle: q.name, L, phi: f - 1 });
+      zeilen.push({ name: nam, A: r.A, Iy: r.schwach, Iz: stark, J: r.J,
+                    quelle: q.name, L, phi: f - 1 });
     });
   });
   return zeilen;
@@ -289,11 +338,77 @@ export function pyniteSkript(m, opt = {}) {
   };
 
   const stabZeilen = bau.staebe.map((st) => {
-    const rot = drehung(st);
     return `M.add_member(${s(st.name)}, ${s(st.von)}, ${s(st.bis)}, 'STAHL', `
-         + `${s(qsName(st, bau, qs))}`
-         + (rot ? `, rotation=${py(rot)}` : '') + ')';
+         + `${s(qsName(st, bau, qs))}` + ')';
   });
+
+  /* =========================================================================
+   * >>> DIE DREHLAGE DER STAEBE - SIE HAT PyNite NIE ERREICHT. <<<
+   * =======================================================================
+   *
+   * Gefunden am 24. September beim Vergleich gegen den eigenen
+   * Stabwerksloeser: am Mastkopf standen die beiden um FAKTOR 7
+   * auseinander. Ein senkrechter Kragarm HEB 240, durch beide Loeser und
+   * gegen die geschlossene Loesung w = F L^3 / (3 E I), hat es
+   * entschieden:
+   *
+   *     Last quer (x)   Loeser -> Iy (stark), PyNite -> Iz (schwach)
+   *     Last laengs (y) Loeser -> Iz,         PyNite -> Iy
+   *
+   * BEIDE trafen ihre Loesung auf 1.000 genau. Keiner von beiden
+   * rechnete falsch - sie stellten das PROFIL um 90 Grad verschieden
+   * hin. Und das war kein Streit, sondern eine Luecke: hier wurde
+   * `rotation` nur an den Gurtwinkeln geschrieben (und auch das nur bei
+   * `gurteSchief`), jeder andere Stab ging mit der VORGABE von PyNite
+   * hinaus. Die Drehlage steht laengst in der Datei - `lcsZ` an jedem
+   * Stab -, sie wurde nur nicht uebersetzt.
+   *
+   * >>> WO ES WIRKT, UND WIE STARK. <<<
+   *
+   * Nur ein Querschnitt mit Iy != Iz merkt eine Drehung. Am J90/8 m:
+   *
+   *     Gurte, Starrglieder   372 Stueck   Iy/Iz = 1.000   ohne Wirkung
+   *     Bleche                 48 Stueck   Iy/Iz = 0.010   Faktor 100
+   *     Mast HEB 240           10 Stueck   Iy/Iz = 2.870
+   *
+   * Der Mast war der auffaellige Fall, die BLECHE sind der schwerere.
+   *
+   * >>> EINE QUELLE, NICHT ZWEI. <<<
+   *
+   * `bau.staebe` traegt die Drehlage nur dort, wo sie aus der Eingabe
+   * kommt (die zehn Maststaebe mit ihrer Stegrichtung); die der Gurte
+   * und Bleche entsteht erst in `stabmodellJson` aus der Einbaulage der
+   * Winkel. Diese Regel hier ein zweites Mal nachzubauen waere genau der
+   * Fehler, der am 24. September schon einmal gemacht war (die
+   * Abfangart stand in zwei Dateien und lief auseinander). Also wird
+   * gefragt, nicht nachgebaut - mit DEMSELBEN `bau`, damit kein zweites
+   * Modell entsteht. Gemessen: der Aufruf laesst `bau` unveraendert und
+   * gibt zweimal dasselbe.
+   * ======================================================================= */
+  const drehQuelle = new Map(
+    stabmodellJson(m, { bau, knotenmodell: km }).staebe
+      .map((x) => [x.name, x.lcsZ]));
+
+  const sollZeilen = bau.staebe.map((st) => {
+    const a = bau.knoten.get(st.von), b = bau.knoten.get(st.bis);
+    if (!a || !b) return null;
+    const lz = st.lcsZ ?? drehQuelle.get(st.name) ?? null;
+    const { R } = dreibein(b.x - a.x, b.y - a.y, b.z - a.z, lz);
+    const ez = R[2];
+    // Achsentausch wie bei den Knoten: unser (x, y, z) -> PyNite (x, z, y).
+    return `    ${s(st.name)}: (${py(ez[0])}, ${py(ez[2])}, ${py(ez[1])}),`;
+  }).filter(Boolean);
+
+  /*
+   * Der Zuschlag der Winkelprofile in ihre Hauptachsen bleibt, was er
+   * war: eine ZWEITE Aussage neben der Drehlage, und zwar ueber den
+   * Querschnitt. Er steht weiter unter `gurteSchief` (Vorgabe aus) und
+   * wird auf die ausgerichtete Lage aufaddiert.
+   */
+  const zuschlagZeilen = bau.staebe
+    .map((st) => [st.name, drehung(st)])
+    .filter(([, g]) => g)
+    .map(([n, g]) => `    ${s(n)}: ${py(g)},`);
 
   // Auflager. Unsere Freiheitsgrade in PyNite-Benennung:
   //   fix  (Torsion um die Jochachse)      -> RX
@@ -424,6 +539,55 @@ ${knotenZeilen.join('\n')}
 
 # --- Stäbe -------------------------------------------------------------------
 ${stabZeilen.join('\n')}
+
+# --- Drehlage der Stäbe ------------------------------------------------------
+# Die Soll-Richtung der lokalen z-Achse je Stab, in PyNite-Koordinaten.
+# Gesetzt wird sie NICHT mit einem hier ausgerechneten Winkel, sondern mit
+# dem, den PyNites EIGENE Transformationsmatrix dafür verlangt - dann hängt
+# nichts an einer Nachbildung seiner Konvention. Und danach wird nachgemessen.
+SOLL_EZ = {
+${sollZeilen.join('\n')}
+}
+ZUSCHLAG = {
+${zuschlagZeilen.join('\n')}
+}
+
+import math
+
+def _ausrichten():
+    for nam, soll in SOLL_EZ.items():
+        mm = M.members[nam]
+        T = mm.T()
+        ey0 = (T[1, 0], T[1, 1], T[1, 2])
+        ez0 = (T[2, 0], T[2, 1], T[2, 2])
+        # ez(a) = cos(a)*ez0 - sin(a)*ey0  ->  a aus den beiden Anteilen.
+        c = sum(soll[i] * ez0[i] for i in range(3))
+        sn = -sum(soll[i] * ey0[i] for i in range(3))
+        mm.rotation = math.degrees(math.atan2(sn, c)) + ZUSCHLAG.get(nam, 0.0)
+
+    # >>> GEGENPROBE: STEHT DIE ACHSE JETZT, WO SIE STEHEN SOLL? <<<
+    # Eine Drehung, die man setzt, ohne nachzusehen, ist eine Behauptung.
+    # Das Vorzeichen darf kippen - fuer die Steifigkeit ist -ez dieselbe
+    # Achse -, die Richtung nicht.
+    schief = []
+    for nam, soll in SOLL_EZ.items():
+        if ZUSCHLAG.get(nam):
+            continue          # bewusst verdreht, siehe ZUSCHLAG
+        T = M.members[nam].T()
+        ez = (T[2, 0], T[2, 1], T[2, 2])
+        gut = (all(abs(ez[i] - soll[i]) < 1e-6 for i in range(3))
+               or all(abs(ez[i] + soll[i]) < 1e-6 for i in range(3)))
+        if not gut:
+            schief.append((nam, soll, ez))
+    if schief:
+        print('ACHTUNG: %d Staebe stehen nicht in ihrer Drehlage.' % len(schief))
+        for nam, soll, ez in schief[:10]:
+            print('   %-20s soll %s  ist %s' % (nam, soll, ez))
+        sys.exit(1)
+    print('Drehlage: %d Staebe ausgerichtet und nachgemessen'
+          ' (%d davon mit Zuschlag).' % (len(SOLL_EZ), len(ZUSCHLAG)))
+
+_ausrichten()
 
 # --- Auflager ----------------------------------------------------------------
 # DX, DY, DZ, RX, RY, RZ - RX ist die Gabellagerung, RZ die Vertikalbiegung.

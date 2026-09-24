@@ -3578,12 +3578,52 @@ titel('20  PyNite-Ausleitung');
   pruef('Auflagerknoten: unser z steht an PyNites Y-Stelle', zahlen[1], 0, 1e-9, 'm');
   pruef('Auflagerknoten: unser y steht an PyNites Z-Stelle', zahlen[2], 0, 1e-9, 'm');
 
-  // Drehlage der Blechquerschnitte: starke Achse je nach Ebene
+  /* =========================================================================
+   * >>> DIE BLECHLAGE STEHT IN DER DREHLAGE, NICHT IM QUERSCHNITT. <<<
+   * =======================================================================
+   *
+   * Hier stand: «Vertikalblech: starke Achse ist Iz» und «Horizontalblech:
+   * starke Achse ist Iy». Das war richtig, solange der Export die Lage der
+   * Bleche ueber ihren NAMEN ausrichtete - er musste es, weil PyNite die
+   * Drehlage nicht bekam.
+   *
+   * Seit dem 24. September bekommt PyNite sie. Beide Lagen tragen jetzt
+   * dieselben Querschnittswerte - es sind dieselben Parameter -, und wie
+   * das Blech im Raum steht, sagt allein `SOLL_EZ`. Genau das wird hier
+   * gemessen: gleiche Werte, VERSCHIEDENE Lage.
+   * ======================================================================= */
   const qsV = r.querschnitte.find((q) => q.name.startsWith('BLECH_V'));
   const qsH = r.querschnitte.find((q) => q.name.startsWith('BLECH_H'));
-  wahr('Vertikalblech: starke Achse ist Iz', qsV.Iz > qsV.Iy * 10);
-  wahr('Horizontalblech: starke Achse ist Iy', qsH.Iy > qsH.Iz * 10);
+  wahr('Blech: die starke Achse ist Iz', qsV.Iz > qsV.Iy * 10);
+  wahr('… in beiden Lagen gleich', qsH.Iz > qsH.Iy * 10);
   pruef('Beide Ebenen, dieselbe Fläche', qsV.A, qsH.A, 1e-12, 'm2');
+  pruef('… und dasselbe Iy', qsV.Iy, qsH.Iy, 1e-15, 'm4');
+  {
+    // Die Lage: aus SOLL_EZ, in PyNite-Koordinaten (x, z, y).
+    /*
+     * NICHT NACH DEM NAMEN SUCHEN. Am Blechanschluss haengen
+     * STARRELEMENTE, die ebenfalls BV_/BH_ heissen und alle die Lage
+     * [1,0,0] tragen - der erste Anlauf dieser Kontrolle fand genau die
+     * und meldete «stehend und liegend sind gleich». Gefragt ist der Stab
+     * mit dem BLECH-Querschnitt.
+     */
+    const stabMitQs = (kenn) => {
+      const z = r.text.split('\n').find((x) => x.startsWith('M.add_member(')
+                                              && x.includes(`'${kenn}`, 20));
+      const t = z && /M\.add_member\('([^']*)'/.exec(z);
+      return t ? t[1] : null;
+    };
+    const ez = (kenn) => {
+      const stab = stabMitQs(kenn);
+      if (!stab) return null;
+      const t = new RegExp(`'${stab}':\\s*\\(([^)]*)\\)`).exec(r.text);
+      return t ? t[1].split(',').map(Number) : null;
+    };
+    const eV = ez('BLECH_V'); const eH = ez('BLECH_H');
+    wahr('Die Drehlage unterscheidet stehend und liegend',
+         !!eV && !!eH && eV.some((v, i) => Math.abs(v - eH[i]) > 1e-9),
+         `V ${JSON.stringify(eV)} · H ${JSON.stringify(eH)}`);
+  }
 
   // Gurt: unser I_y wirkt gegen die Vertikalbiegung, in PyNite ist das Iz
   const gurt = r.querschnitte.find((q) => q.name === 'GURT_OG');
@@ -15385,12 +15425,26 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    * Das ist die wichtigste der Kontrollen: was der Auftraggeber ausleitet,
    * fuehrt die Gurte schenkelparallel, wie jedes Pruefmodell.
    */
-  wahr('Der normale Export dreht keinen Stab', !normal.includes('rotation='));
+  /*
+   * >>> DER ZUSCHLAG IST NICHT MEHR DIE GANZE DREHUNG. <<<
+   *
+   * Bis zum 24. September stand die 45-Grad-Drehung der Winkelprofile als
+   * `rotation=` in `add_member`, und sonst drehte sich nichts - diese
+   * Kontrolle fragte deshalb nach der Zeichenkette. Seither richtet der
+   * Export JEDEN Stab nach seiner Drehlage aus (`SOLL_EZ`), und die 45
+   * Grad sind ein ZUSCHLAG obendrauf. Die Frage bleibt dieselbe - ohne
+   * die Option kein Zuschlag -, nur steht die Antwort woanders.
+   */
+  const zuschlag = (text) => [...text.matchAll(
+    /'((?:OG|UG)(?:L|R))_S\d+':\s*(-?[\d.]+),/g)]
+    .map((t) => ({ ecke: t[1], rot: Number(t[2]) }));
+  wahr('Der normale Export gibt keinem Gurt einen Zuschlag',
+       zuschlag(normal).length === 0);
+  wahr('… und richtet trotzdem jeden Stab aus',
+       normal.includes('SOLL_EZ') && normal.includes('_ausrichten()'));
 
   // MIT DER OPTION DREHEN GENAU DIE GURTE - und zwar gegeneinander.
-  const drehungen = [...schief.matchAll(
-    /add_member\('((?:OG|UG)(?:L|R))_S\d+'[^)]*rotation=(-?[\d.]+)/g)]
-    .map((t) => ({ ecke: t[1], rot: Number(t[2]) }));
+  const drehungen = zuschlag(schief);
   wahr('Mit der Option drehen sich Gurtstaebe', drehungen.length > 0);
   wahr('… und zwar um 45 Grad', drehungen.every((d) => Math.abs(d.rot) === 45));
   const je = (e) => drehungen.filter((d) => d.ecke === e).map((d) => d.rot);
@@ -26560,16 +26614,32 @@ titel('104  Blattmodell: Praefix darf Starrelemente und Stabachsen nicht verlier
   const satzR2 = N104.rechensatzMitNachbarn(reihe);
   const pyText = PY104.pyniteSkript(modellVon(satzR2), { knotenmodell: 'anschnitt',
     bau: AX104.blattWennMehrere(satzR2, deps, { knotenmodell: 'anschnitt' }) }).text;
-  // add_section('T1_BLECH_V_100x10', A, Iy, Iz, J) - stehend und liegend
-  // muessen sich in Iy/Iz unterscheiden, sonst ist die Drehlage verloren.
-  const qsZeile = (kenn) => {
-    const z = pyText.split('\n').find((r) => r.startsWith('M.add_section(') && r.includes(kenn));
-    return z ? z.replace(/^[^,]*,/, '').split(',').map((x) => parseFloat(x)) : null;
+  /*
+   * Stehend und liegend muessen sich unterscheiden, sonst ist die Drehlage
+   * verloren - der Kern dieser Kontrolle vom 20. September. Nur steht der
+   * Unterschied seit dem 24. September nicht mehr im QUERSCHNITT (beide
+   * tragen dieselben Werte), sondern in der DREHLAGE. Mit Praefix, denn
+   * genau darum geht es hier.
+   */
+    /*
+     * NICHT NACH DEM NAMEN SUCHEN. Am Blechanschluss haengen
+     * STARRELEMENTE, die ebenfalls BV_/BH_ heissen und alle die Lage
+     * [1,0,0] tragen - der erste Anlauf dieser Kontrolle fand genau die
+     * und meldete «stehend und liegend sind gleich». Gefragt ist der Stab
+     * mit dem BLECH-Querschnitt.
+     */
+  const ezBlatt = (kenn) => {
+    const z = pyText.split('\n').find((x) => x.startsWith('M.add_member(')
+                                            && x.includes(`${kenn}`, 20));
+    const st = z && /M\.add_member\('([^']*)'/.exec(z);
+    if (!st) return null;
+    const t = new RegExp(`'${st[1]}':\\s*\\(([^)]*)\\)`).exec(pyText);
+    return t ? t[1].split(',').map(Number) : null;
   };
-  const zV = qsZeile('BLECH_V_100x10'), zH = qsZeile('BLECH_H_100x10');
+  const zV = ezBlatt('BLECH_V'), zH = ezBlatt('BLECH_H');
   wahr('PyNite: stehende und liegende Bleche bleiben auch im Blatt unterschiedlich',
-       !!zV && !!zH && zV[1] !== zH[1] && zV[2] !== zH[2],
-       zV && zH ? `V Iy ${zV[1]} Iz ${zV[2]} · H Iy ${zH[1]} Iz ${zH[2]}` : 'Zeile nicht gefunden');
+       !!zV && !!zH && zV.some((v, i) => Math.abs(v - zH[i]) > 1e-9),
+       zV && zH ? `V ${JSON.stringify(zV)} · H ${JSON.stringify(zH)}` : 'Zeile nicht gefunden');
 
   // Und kein Starrelement traegt im Blatt den 500x500-Ersatzquerschnitt.
   const klotz = blatt.staebe.filter((s) => /(^|_)STARR$/.test(s.querschnitt) && s.art === 'stab').length;
@@ -29190,6 +29260,157 @@ titel('119  Stabwerksloeser: das Eigengewicht');
     pruef('Mastprofil: Laufmeterlast aus Fläche und Dichte', q, 0.8163, 1e-3, 'kN/m');
     pruef('Die Erdbeschleunigung ist der physikalische Wert',
           SW119.G_ERDE, 9.81, 1e-12, 'm/s²');
+  }
+}
+
+titel('120  PyNite: der Querschnitt und die Drehlage');
+/* ===========================================================================
+ * Weisung vom 24. September: «ja der mastkopf-abweichung nachgehen».
+ *
+ * >>> WAS DAHINTERSTECKTE. <<<
+ *
+ * Der Mastkopf stand zwischen dem eigenen Loeser und PyNite um FAKTOR 7
+ * auseinander. Ein senkrechter Kragarm HEB 240, durch beide Loeser und
+ * gegen w = F L^3 / (3 E I), hat BEIDE freigesprochen: jeder traf seine
+ * geschlossene Loesung auf 1.000. Der Unterschied lag im MODELL, und
+ * zwar an zwei Stellen der Ausleitung nach PyNite:
+ *
+ *   1. Der Mast ging als VOLLQUADRAT 240 x 240 mm hinaus. `querschnitte`
+ *      baute jeden Querschnitt, der kein Winkel und kein Blech ist, aus
+ *      `parameter[0] x parameter[1]` als Rechteck nach - beim I-Profil
+ *      sind das Hoehe und Breite. Iz wurde dadurch 7.05-fach zu gross,
+ *      und 7.05 ist der gemessene Faktor.
+ *
+ *   2. Die DREHLAGE (`lcsZ`) erreichte PyNite nie. Sie stand nur als
+ *      45-Grad-Zuschlag an den Gurtwinkeln, und auch das nur unter einer
+ *      Option. Fuer die Bleche war es ueber eine Namensregel (BV/BH)
+ *      ersetzt - richtig gerechnet, aber an der falschen Stelle.
+ *
+ * Beides zusammen hiess: die Stegrichtung des Masten, ueber die das
+ * Sortiment entscheidet, kam in PyNite nicht an - und KONNTE dort auch
+ * nicht ankommen, weil ein Quadrat Iy = Iz hat.
+ * ========================================================================= */
+{
+  const PY120 = await import(J('export.pynite.js'));
+  const AX120 = await import(J('export.axisvm.js'));
+  const V120 = await import(J('core.vierendeel.js'));
+  const N120 = await import(J('core.nachbarn.js'));
+  const SW120 = await import(J('core.stabwerk.js'));
+
+  let w120 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w120.L = 8; w120.xLage = 0; w120.mastVorhanden = true;
+  const s120 = N120.rechensatzMitNachbarn(w120);
+  const e120 = V120.berechne(s120, ...N120.kernArgumente(s120));
+  const bau120 = AX120.stabmodell(e120.modell, { knotenmodell: 'anschnitt' });
+  const dat120 = AX120.stabmodellJson(e120.modell, { bau: bau120, knotenmodell: 'anschnitt' });
+  const py120 = PY120.pyniteSkript(e120.modell, { bau: bau120, knotenmodell: 'anschnitt' });
+
+  const abschnitt = (von, bis) => {
+    const i = py120.text.indexOf(von);
+    return i < 0 ? '' : py120.text.slice(i, py120.text.indexOf(bis, i));
+  };
+  const sollEz = abschnitt('SOLL_EZ = {', '}');
+
+  // --- a) WER SEINE WERTE FUEHRT, BEHAELT SIE -----------------------------
+  /*
+   * Die allgemeine Form der Kontrolle, nicht die auf den Masten gemuenzte:
+   * JEDER Querschnitt, der in der Datei eigene Werte traegt, muss sie in
+   * PyNite wiederfinden. Damit faellt auch das naechste Profil auf, das
+   * dazukommt - der Tragausleger aus zwei UPE 140 zum Beispiel.
+   */
+  {
+    let gefuehrt = 0; let schlimmst = 0; let wo = '';
+    dat120.querschnitte.forEach((q) => {
+      if (q.form === 'Rectangle' || q.A == null || q.Iy == null) return;
+      gefuehrt += 1;
+      const zeile = py120.querschnitte.find((z) => z.name === q.name);
+      if (!zeile) { schlimmst = Infinity; wo = `${q.name} fehlt`; return; }
+      [['A', q.A, zeile.A], ['Iy', q.Iy, zeile.Iy], ['Iz', q.Iz, zeile.Iz]]
+        .forEach(([nam, soll, ist]) => {
+          const d = Math.abs(ist - soll) / Math.max(Math.abs(soll), 1e-30);
+          if (d > schlimmst) { schlimmst = d; wo = `${q.name}.${nam}`; }
+        });
+    });
+    wahr('Es gibt Querschnitte mit eigenen Werten', gefuehrt > 0, `${gefuehrt}`);
+    wahr('>>> Sie stehen in PyNite unveraendert <<<', schlimmst < 1e-12,
+         `groesste Abweichung ${schlimmst.toExponential(2)} bei ${wo || '-'}`);
+  }
+
+  // --- b) DER MAST IST KEIN QUADRAT ---------------------------------------
+  {
+    const mq = py120.querschnitte.find((z) => z.name === 'MAST_HEB240');
+    const dq = dat120.querschnitte.find((z) => z.name === 'MAST_HEB240');
+    pruef('Mast: A wie im Sortiment', mq.A, dq.A, 1e-12, 'm2');
+    pruef('Mast: Iy wie im Sortiment', mq.Iy, dq.Iy, 1e-15, 'm4');
+    pruef('Mast: Iz wie im Sortiment', mq.Iz, dq.Iz, 1e-15, 'm4');
+    /*
+     * >>> DIE EIGENTLICHE AUSSAGE: ER IST NICHT DREHSYMMETRISCH. <<<
+     * Ein HEB 240 hat Iy/Iz = 2.87; das Vollquadrat, das hier stand,
+     * hatte 1.000 - und war damit gegen jede Stegrichtung taub.
+     */
+    wahr('>>> Der Mast unterscheidet starke und schwache Achse <<<',
+         mq.Iy > mq.Iz * 2.5, `Iy/Iz = ${(mq.Iy / mq.Iz).toFixed(3)}`);
+    const quadrat = 0.24 ** 4 / 12;
+    wahr('… und ist kein Vollquadrat 240x240 mehr',
+         Math.abs(mq.Iz - quadrat) / quadrat > 0.5,
+         `Iz ${mq.Iz.toExponential(3)} gegen ${quadrat.toExponential(3)}`);
+  }
+
+  // --- c) JEDER STAB BEKOMMT SEINE DREHLAGE -------------------------------
+  {
+    const eintraege = [...sollEz.matchAll(/'([^']+)':\s*\(/g)].map((t) => t[1]);
+    pruef('Ein Eintrag je Stab', eintraege.length, bau120.staebe.length, 1e-12, 'Stk');
+    const fehlt = bau120.staebe.filter((st) => !eintraege.includes(st.name));
+    wahr('… und keiner fehlt', fehlt.length === 0,
+         fehlt.slice(0, 3).map((x) => x.name).join(' '));
+
+    /*
+     * >>> DIE RICHTUNG IST DIE GESPIEGELTE, NICHT DIE GLEICHE. <<<
+     * PyNite steht auf (x, z, y): unser z ist seine Vertikale. Wer die
+     * Drehlage unveraendert hinueberschreibt, dreht die halbe Statik um
+     * 90 Grad. Gemessen am Masten, dessen lcsZ [1,0,0] ist, und an einem
+     * Gurt, dessen Lage in y oder z zeigt.
+     */
+    const ez = (stab) => {
+      const t = new RegExp(`'${stab}':\\s*\\(([^)]*)\\)`).exec(sollEz);
+      return t ? t[1].split(',').map(Number) : null;
+    };
+    const mast = bau120.staebe.find((st) => /^MAST_B_S\d+$/.test(st.name));
+    const lz = mast.lcsZ;
+    const e = ez(mast.name);
+    wahr('Die Stegrichtung des Masten steht in der Datei',
+         !!lz, JSON.stringify(lz));
+    wahr('>>> und erreicht PyNite, auf dessen Achsen <<<',
+         !!e && Math.abs(e[0] - lz[0]) < 1e-9
+             && Math.abs(e[1] - lz[2]) < 1e-9
+             && Math.abs(e[2] - lz[1]) < 1e-9,
+         `lcsZ ${JSON.stringify(lz)} -> ${JSON.stringify(e)}`);
+
+    // Und das Skript misst selbst nach, statt es zu behaupten.
+    wahr('Das Skript richtet aus und prueft die Achse nach',
+         py120.text.includes('_ausrichten()')
+         && py120.text.includes('stehen nicht in ihrer Drehlage'));
+  }
+
+  // --- d) DIE MESSZAHL --------------------------------------------------
+  /* =======================================================================
+   * >>> WAS DIE BERICHTIGUNG WERT IST, IN EINER ZAHL. <<<
+   * =====================================================================
+   *
+   * Der Loeser rechnet den Masten mit den Werten der Datei. Wuerde PyNite
+   * weiter das Quadrat bekommen, waere seine Verschiebung in
+   * Gleisrichtung um Iz_Quadrat / Iz_HEB = 7.05 zu klein - genau die
+   * Abweichung, die am 24. September am Mastkopf stand (gemessen 7.02).
+   * Nach der Berichtigung: WindY auf 0.4 Prozent.
+   * ===================================================================== */
+  {
+    const dq = dat120.querschnitte.find((z) => z.name === 'MAST_HEB240');
+    const quadrat = 0.24 ** 4 / 12;
+    pruef('Das Quadrat war 7.05-fach steifer als der HEB um seine schwache Achse',
+          quadrat / dq.Iz, 7.05, 0.01, '-');
+    // Und der Loeser selbst nimmt die Werte der Datei, ungebogen.
+    const qq = SW120.qsWerte(dq);
+    pruef('Der Loeser rechnet mit demselben Iz', qq.Iz, dq.Iz, 1e-15, 'm4');
   }
 }
 

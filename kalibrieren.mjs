@@ -641,16 +641,27 @@ if (!NUR || NUR === 'endfeld') {
         const w = eingabe(typ, L, anordnung);
 
         // --- FEM: Blechmoment am Anschnitt, je Ort und Ebene ---------------
-        // Vertikalblech biegt um seine starke Achse = lokal z, das
-        // Horizontalblech um lokal y (siehe Achsenblock in export.pynite.js).
+        /* -------------------------------------------------------------
+         * BEIDE BLECHLAGEN BIEGEN UM IHRE LOKALE z-ACHSE.
+         *
+         * Hier stand: «Vertikalblech um lokal z, Horizontalblech um
+         * lokal y». Das war richtig, solange der PyNite-Export die
+         * Blechlage ueber den NAMEN ausrichtete (BV/BH) - er musste es,
+         * weil PyNite die Drehlage `lcsZ` nicht bekam.
+         *
+         * Seit dem 24. September bekommt PyNite sie (siehe den
+         * Drehlage-Block in export.pynite.js). Damit stehen die Werte in
+         * BEIDEN Lagen gleich im Querschnitt - die duenne Richtung auf
+         * Iy, die breite auf Iz -, und die starke Biegung heisst immer
+         * Mz. Physikalisch ist es dasselbe Blech mit demselben Moment;
+         * nur seine Spalte hat gewechselt.
+         * ----------------------------------------------------------- */
         const fem = new Map();          // fall|art|x -> groesstes |M|
         for (const s of lauf.staebe) {
           const m = /^B(V|H)_([LROU])_/.exec(String(s.Stab));
           if (!m || String(s.Querschnitt).startsWith('STARR')) continue;
           const art = m[1] === 'V' ? 'vertikal' : 'horizontal';
-          const M = art === 'vertikal'
-            ? Math.max(Math.abs(s.Mz_i), Math.abs(s.Mz_j))
-            : Math.max(Math.abs(s.My_i), Math.abs(s.My_j));
+          const M = Math.max(Math.abs(s.Mz_i), Math.abs(s.Mz_j));
           const x = orte.get(s.Stab);
           if (x === undefined) continue;
           const k = `${s.Lastfall}|${art}|${x.toFixed(3)}`;
@@ -815,9 +826,8 @@ if (NUR === 'schief') {
       const t = /^B(V|H)_([LROU])_/.exec(String(st.Stab));
       if (!t || String(st.Querschnitt).startsWith('STARR')) continue;
       const art = t[1] === 'V' ? 'vertikal' : 'horizontal';
-      const M = art === 'vertikal'
-        ? Math.max(Math.abs(st.Mz_i), Math.abs(st.Mz_j))
-        : Math.max(Math.abs(st.My_i), Math.abs(st.My_j));
+      // Beide Lagen um lokal z - siehe den Block weiter unten.
+      const M = Math.max(Math.abs(st.Mz_i), Math.abs(st.Mz_j));
       const x = orte.get(st.Stab);
       if (x === undefined) continue;
       const k = `${st.Lastfall}|${art}|${x.toFixed(3)}`;
@@ -1014,9 +1024,7 @@ if (NUR === 'oertlich') {
           if (!mm || String(s.Querschnitt).startsWith('STARR') || s.Lastfall !== 'WindY') continue;
           const id = `${mm[1]}_${mm[2]}`;
           const art = mm[1] === 'V' ? 'vertikal' : 'horizontal';
-          const M = art === 'vertikal'
-            ? Math.max(Math.abs(s.Mz_i), Math.abs(s.Mz_j))
-            : Math.max(Math.abs(s.My_i), Math.abs(s.My_j));
+          const M = Math.max(Math.abs(s.Mz_i), Math.abs(s.Mz_j));
           const xs = orte.get(s.Stab);
           if (xs === undefined) continue;
           const k = `${id}|${xs.toFixed(3)}`;

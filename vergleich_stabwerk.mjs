@@ -168,7 +168,56 @@ console.log(`\nEigener Löser: ${lsg.n} Freiheitsgrade, Bandbreite ${lsg.bw},`
 mkdirSync(ARBEIT, { recursive: true });
 const skript = PY.pyniteSkript(m, { bau, knotenmodell: 'anschnitt' });
 const knotenDatei = join(ARBEIT, 'pynite_knoten.csv');
-if (NEU || !existsSync(knotenDatei)) {
+
+/* ===========================================================================
+ * >>> GEHOERT DAS LIEGENGEBLIEBENE ERGEBNIS UEBERHAUPT ZU DIESEM MODELL? <<<
+ * =========================================================================
+ *
+ * PyNite braucht fuer dieses Bauwerk Minuten, deshalb wird sein Ergebnis
+ * aufgehoben. Das ist bequem und war eine Falle: am 24. September stand
+ * hier das Ergebnis eines J90/8 m, gerechnet wurde ein J90/20 m - und
+ * weil BEIDE Joche dieselben Knotennamen tragen (BV_R_12_v2, MAST_B_KOPF
+ * ...), fand der Vergleich zu jedem Namen einen Partner und meldete
+ * Abweichungen bis Faktor 39. Nicht ein Loeser war falsch, sondern die
+ * Gegenprobe.
+ *
+ * >>> EIN VERGLEICH, DER SEIN EIGENES MODELL NICHT KENNT, MISST NICHTS.
+ *
+ * Also steht neben den Ergebnissen jetzt, WORAUS sie stammen. Stimmt es
+ * nicht ueberein, wird neu gerechnet - ohne Frage und ohne Schalter.
+ * ========================================================================= */
+const kennDatei = join(ARBEIT, 'modell.json');
+/*
+ * >>> UND DAS SKRIPT SELBST GEHOERT IN DIE KENNUNG. <<<
+ *
+ * Der erste Anlauf dieser Wache fragte nur nach dem MODELL (Typ, Laenge,
+ * Knoten, Staebe). Das reichte nicht: als am 24. September der Export
+ * berichtigt wurde, blieben Knotenzahl und Staebe gleich - und der
+ * Vergleich nahm klaglos das Ergebnis des alten Exports. Er zeigte die
+ * alten Zahlen und sah dabei aus, als haette sich nichts gebessert.
+ *
+ * Also zaehlt, was PyNite wirklich vorgesetzt bekommt: der Text.
+ */
+const pruefsumme = (t) => {
+  let h = 5381;
+  for (let i = 0; i < t.length; i += 1) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+};
+const kennung = JSON.stringify({
+  typ: TYP, L: LAENGE,
+  knoten: dat.knoten.length, staebe: dat.staebe.length,
+  lastfaelle: (dat.lastfaelle ?? []).map((l) => l.key).join(','),
+  skript: pruefsumme(skript.text),
+});
+let alteKennung = null;
+try { alteKennung = readFileSync(kennDatei, 'utf8'); } catch { /* keine */ }
+const passt = alteKennung === kennung;
+if (!NEU && existsSync(knotenDatei) && !passt) {
+  console.log('Das liegende PyNite-Ergebnis gehoert zu einem anderen Modell'
+    + ` (${alteKennung ?? 'ohne Kennung'}) — es wird neu gerechnet.`);
+}
+
+if (NEU || !existsSync(knotenDatei) || !passt) {
   writeFileSync(join(ARBEIT, 'lauf.py'), skript.text);
   console.log('PyNite rechnet … (das dauert bei diesem Modell eine Weile)');
   const tp = Date.now();
@@ -184,6 +233,8 @@ if (NEU || !existsSync(knotenDatei)) {
     process.exit(1);
   }
   console.log(`PyNite: ${((Date.now() - tp) / 1000).toFixed(1)} s`);
+  // Erst NACH dem geglueckten Lauf - sonst gilt ein Abbruch als gerechnet.
+  writeFileSync(kennDatei, kennung);
 } else {
   console.log('PyNite: vorhandenes Ergebnis benutzt (--neu erzwingt neu)');
 }
@@ -240,39 +291,62 @@ const aufPy = existsSync(join(ARBEIT, 'pynite_auflager.csv'))
  * hatten es gesagt: genau 1.00 heisst «einer von beiden ist hier null»,
  * genau 2.00 heisst «dasselbe mit umgekehrtem Vorzeichen».
  * ========================================================================= */
-const FELD = [['DX', 'ux', 0, +1], ['DY', 'uz', 2, +1], ['DZ', 'uy', 1, +1],
-              ['RX', 'fix', 3, -1], ['RY', 'fiz', 5, -1], ['RZ', 'fiy', 4, -1]];
+/* ===========================================================================
+ * >>> EIN WEG UND EINE VERDREHUNG SIND NICHT DASSELBE MASS. <<<
+ * =========================================================================
+ *
+ * Hier standen alle sechs Freiheitsgrade in EINER Reihe, und die groesste
+ * Abweichung wurde am groessten Wert des Lastfalls gemessen - gleich ob
+ * der ein Weg in Metern oder eine Verdrehung im Bogenmass war.
+ *
+ * Das ist kein Massstab, sondern ein Zufall: am 24. September meldete der
+ * Lastfall G eine Abweichung von 1.29 an `OGL_8.000.fix`, einer
+ * VERDREHUNG - bezogen auf die groesste VERSCHIEBUNG des Lastfalls. Die
+ * Zahl sagt weder ueber das eine noch ueber das andere etwas.
+ *
+ * Also zwei Reihen, jede mit ihrem eigenen Bezug.
+ * ========================================================================= */
+const WEGE = [['DX', 'ux', 0, +1], ['DY', 'uz', 2, +1], ['DZ', 'uy', 1, +1]];
+// Die Verdrehungen wechseln das Vorzeichen: die Abbildung ist eine
+// Spiegelung, und Verdrehungen sind Pseudovektoren (siehe oben).
+const DREH = [['RX', 'fix', 3, -1], ['RY', 'fiz', 5, -1], ['RZ', 'fiy', 4, -1]];
 
 const zeile = (t) => console.log(t);
-zeile('\n' + '-'.repeat(96));
-zeile('KNOTENVERSCHIEBUNGEN  —  je Lastfall der grösste Unterschied');
-zeile('-'.repeat(96));
-zeile('Lastfall                        max |u| PyNite   grösste Abw.    relativ     wo');
-
-let schlimmsteRel = 0; let schlimmsteWo = '';
 const faelle = [...new Set(knPy.map((r) => r.Lastfall))];
-for (const fall of faelle) {
-  if (!lsg.u.has(fall)) { zeile(`${fall.padEnd(30)}  — im eigenen Löser nicht vorhanden`); continue; }
-  const uv = lsg.u.get(fall);
-  let maxPy = 0, maxAbw = 0, wo = '';
-  for (const r of knPy) {
-    if (r.Lastfall !== fall) continue;
-    const i = lsg.knotenIdx.get(r.Knoten);
-    if (i === undefined) continue;
-    for (const [py, ei, d6, vz] of FELD) {
-      const a = Number(r[py]);
-      const b = uv[i * 6 + d6] * vz;
-      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
-      maxPy = Math.max(maxPy, Math.abs(a));
-      const d = Math.abs(a - b);
-      if (d > maxAbw) { maxAbw = d; wo = `${r.Knoten}.${ei}`; }
+let schlimmsteRel = 0; let schlimmsteWo = '';
+
+const reihe = (ueberschrift, felder, einheit) => {
+  zeile('\n' + '-'.repeat(96));
+  zeile(ueberschrift);
+  zeile('-'.repeat(96));
+  zeile(`Lastfall                        max PyNite ${einheit.padEnd(5)}`
+    + '  grösste Abw.    relativ     wo');
+  for (const fall of faelle) {
+    if (!lsg.u.has(fall)) { zeile(`${fall.padEnd(30)}  — im eigenen Löser nicht vorhanden`); continue; }
+    const uv = lsg.u.get(fall);
+    let maxPy = 0, maxAbw = 0, wo = '';
+    for (const r of knPy) {
+      if (r.Lastfall !== fall) continue;
+      const i = lsg.knotenIdx.get(r.Knoten);
+      if (i === undefined) continue;
+      for (const [py, ei, d6, vz] of felder) {
+        const a = Number(r[py]);
+        const b = uv[i * 6 + d6] * vz;
+        if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+        maxPy = Math.max(maxPy, Math.abs(a));
+        const d = Math.abs(a - b);
+        if (d > maxAbw) { maxAbw = d; wo = `${r.Knoten}.${ei}`; }
+      }
     }
+    const rel = maxPy > 0 ? maxAbw / maxPy : 0;
+    if (rel > schlimmsteRel) { schlimmsteRel = rel; schlimmsteWo = `${fall} · ${wo}`; }
+    zeile(`${fall.padEnd(30)}  ${maxPy.toExponential(3).padStart(13)}`
+      + `  ${maxAbw.toExponential(3).padStart(13)}  ${rel.toExponential(2).padStart(10)}   ${wo}`);
   }
-  const rel = maxPy > 0 ? maxAbw / maxPy : 0;
-  if (rel > schlimmsteRel) { schlimmsteRel = rel; schlimmsteWo = `${fall} · ${wo}`; }
-  zeile(`${fall.padEnd(30)}  ${maxPy.toExponential(3).padStart(13)}`
-    + `  ${maxAbw.toExponential(3).padStart(13)}  ${rel.toExponential(2).padStart(10)}   ${wo}`);
-}
+};
+
+reihe('KNOTENWEGE  —  je Lastfall der grösste Unterschied', WEGE, '[m]');
+reihe('KNOTENVERDREHUNGEN  —  je Lastfall der grösste Unterschied', DREH, '[rad]');
 
 if (aufPy.length) {
   zeile('\n' + '-'.repeat(96));
@@ -310,7 +384,66 @@ if (aufPy.length) {
   }
 }
 
+/* ===========================================================================
+ * >>> DIE GEGENPROBE: LIEGT ES AM LOESER ODER AM MODELL? <<<
+ * =========================================================================
+ *
+ * Der Jochanschluss ist ein LINKELEMENT - so die stehende Vorgabe des
+ * Auftraggebers: «gelenkige Anschluesse als Linkelemente». Es traegt
+ * `kraftuebertragung: {z: Free, yy: Free, zz: Free}`, gibt also keine
+ * Biegemomente weiter. Der Loeser setzt das um (Punkt-zu-Punkt-Feder).
+ *
+ * PyNite kennt keine solche Feder. Die Ausleitung schreibt den Link
+ * deshalb als gewoehnlichen Stab mit dem Ersatzquerschnitt STARR - voll
+ * biegesteif. Damit wirkt das Joch dort als RAHMENRIEGEL: am J90/8 m
+ * nimmt es unter WindX ein Kraeftepaar von 0.835 kN auf, und 0.835 x 8 m
+ * = 6.68 kNm ist auf die Stelle genau die Differenz der beiden
+ * Fussmomente (2 x 3.34).
+ *
+ * >>> DAS IST KEIN RECHENFEHLER, SONDERN EIN ANDERES BAUWERK. <<<
+ *
+ * Um die LOESER zu vergleichen, bekommt der eigene hier einmal dasselbe
+ * Modell, das PyNite vorgesetzt bekommt: Links als starre Staebe. Was
+ * dann noch bleibt, geht wirklich auf sein Konto.
+ * ========================================================================= */
+{
+  const starr = JSON.parse(JSON.stringify(dat));
+  const links = starr.staebe.filter((x) => x.art === 'link');
+  links.forEach((x) => { x.art = 'stab'; delete x.kraftuebertragung; });
+  if (links.length && aufPy.length) {
+    const l2 = SW.loese(starr, { eigengewicht: false });
+    zeile('\n' + '-'.repeat(96));
+    zeile(`GEGENPROBE — derselbe Löser mit ${links.length} STARREN Links`
+      + ' (so sieht PyNite das Modell)');
+    zeile('-'.repeat(96));
+    const RF2 = [['FX', 'ux', +1], ['FY', 'uz', +1], ['FZ', 'uy', +1],
+                 ['MX', 'fix', -1], ['MY', 'fiz', -1], ['MZ', 'fiy', -1]];
+    for (const fall of faelle) {
+      const ak = l2.auflagerkraefte ? l2.auflagerkraefte(fall) : null;
+      if (!ak) continue;
+      const karte = new Map(ak.map((a) => [a.knoten, a]));
+      let maxPy = 0, maxAbw = 0, wo = '';
+      for (const r of aufPy) {
+        if (r.Lastfall !== fall) continue;
+        const a = karte.get(r.Knoten);
+        if (!a) continue;
+        for (const [pk, lk, vz] of RF2) {
+          const x = Number(r[pk]);
+          const y = Number(a[lk]) * vz;
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          maxPy = Math.max(maxPy, Math.abs(x));
+          const d = Math.abs(x - y);
+          if (d > maxAbw) { maxAbw = d; wo = `${r.Knoten}.${pk}`; }
+        }
+      }
+      if (!maxPy) continue;
+      zeile(`${fall.padEnd(30)}  Auflagerkräfte relativ`
+        + ` ${(maxAbw / maxPy).toExponential(2).padStart(10)}   ${wo}`);
+    }
+  }
+}
+
 zeile('\n' + '='.repeat(96));
-zeile(`GRÖSSTE RELATIVE ABWEICHUNG DER VERSCHIEBUNGEN: ${schlimmsteRel.toExponential(3)}`
+zeile(`GRÖSSTE RELATIVE ABWEICHUNG (Wege und Verdrehungen): ${schlimmsteRel.toExponential(3)}`
   + `  (${schlimmsteWo})`);
 zeile('='.repeat(96));

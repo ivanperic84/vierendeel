@@ -201,12 +201,25 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5208 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5225 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **24. Sept., die Mastkopf-Abweichung ist geklärt** (Prüfstand Abschnitt
+  120, Einzelheiten in *Laufende Arbeit*). Weisung: «ja der
+  mastkopf-abweichung nachgehen». Faktor 7 zwischen Löser und PyNite — und
+  **keiner von beiden rechnete falsch**: ein senkrechter Kragarm gegen
+  w = FL³/(3EI) traf bei beiden die geschlossene Lösung auf 1.000. Drei
+  Befunde in der PyNite-Ausleitung (Mast als Vollquadrat, fehlende
+  Drehlage, Blechachsen über den Namen), alle behoben; danach stimmen beide
+  in Gleisrichtung auf 1.1 % (Auflager 0.27 %). Was bleibt, ist ein
+  **Modellunterschied**, kein Rechenfehler: PyNite bekommt die gelenkigen
+  Linkelemente als starre Stäbe (siehe *Offene Punkte*, ⚠). Dazu zwei
+  Befunde am Messwerkzeug selbst — es verglich ein 20-m-Joch gegen die
+  Ergebnisse eines 8-m-Jochs («Faktor 39»), und es mass Verdrehungen an
+  Verschiebungen.
 - **24. Sept., die Abfangarten erreichen das Abfangjoch** (Prüfstand
   Abschnitt 118, siehe *Entschieden*). Damit ist der letzte ⚠-Punkt aus
   dem Umbau vom selben Tag erledigt. Ein Befund im Browser, der den Weg
@@ -585,13 +598,62 @@ kann und was gemessen ist:
   (4.71 kN) und gibt den **Masten gar kein Eigengewicht**. Für den
   Vergleich bekommen deshalb beide die Liste mit `eigengewicht: true`,
   und der Löser lässt seines weg.
-  **Stand der Messung** (J90/8 m, 380 Knoten, 430 Stäbe): die
-  Auflagerreaktionen liegen auf 3 % (WindY) bis 45 % (WindX) beieinander,
-  die **Verschiebungen am Mastkopf noch um Faktor 6** auseinander. Der
-  Mastkopf ist das freie Kragarmende über dem Jochanschluss — die
-  empfindlichste Stelle des Modells. Ursache noch offen; verdächtig ist die
-  Drehlage des Maststabs (`lcsZ [1,0,0]`) und ihre Abbildung nach PyNite.
-  **Der Löser ist damit nicht freigegeben.**
+- **Die Mastkopf-Abweichung ist geklärt (24. Sept.).** Weisung: «ja der
+  mastkopf-abweichung nachgehen». Sie lag **nicht am Löser** — und auch
+  nicht an PyNite. Ein senkrechter Kragarm HEB 240, durch beide und gegen
+  w = FL³/(3EI), sprach beide frei: jeder traf seine geschlossene Lösung
+  auf **1.000**. Sie stellten nur das Profil um 90° verschieden hin.
+  **Drei Befunde in der PyNite-Ausleitung, alle behoben:**
+  (1) **Der Mast ging als Vollquadrat 240 × 240 mm hinaus.**
+  `querschnitte()` baute jeden Querschnitt, der kein Winkel und kein Blech
+  ist, aus `parameter[0] × parameter[1]` als Rechteck nach — beim I-Profil
+  sind das Höhe und Breite. A 5.4-fach, I_z **7.05-fach** zu gross, und
+  7.05 ist genau der gemessene Faktor 7.02. Der Kommentar daneben sagte
+  «STARR und ARM sind quadratisch»; das stimmte, als er geschrieben wurde —
+  die Masten kamen später dazu. Wer eigene Werte führt, behält sie jetzt.
+  (2) **Die Drehlage (`lcsZ`) erreichte PyNite nie.** Sie stand nur als
+  45°-Zuschlag an den Gurtwinkeln, und auch das nur unter einer Option.
+  Wo sie wirkt, ist gemessen: Gurte und Starrglieder (372 Stück) haben
+  I_y = I_z und merken keine Drehung; die **Bleche** (48) hätten
+  I_y/I_z = 0.010 — Faktor 100 — und der **Mast** (10) 2.870. Jeder Stab
+  bekommt sie jetzt, **und zwar auf PyNites gespiegelten Achsen**. Den
+  Winkel rechnet nicht diese Datei aus, sondern das erzeugte Skript aus
+  **PyNites eigener Transformationsmatrix** — dann hängt nichts an einer
+  Nachbildung seiner Konvention —, und danach misst es jede Achse nach
+  und bricht ab, wenn eine schief steht.
+  (3) **Die Bleche wurden über ihren Namen ausgerichtet** (BV/BH). Das war
+  richtig gerechnet und der Ersatz für die fehlende Drehlage — zusammen
+  mit ihr wäre es eine doppelte Drehung gewesen. Die Namensregel ist weg;
+  `kalibrieren.mjs` liest die starke Blechbiegung jetzt in **beiden** Lagen
+  als `Mz`. **Gemessen, dass das nichts verschiebt:** am Kalibriermodell
+  (ohne Masten, wie `kalibrieren.mjs` rechnet) sind die Blechmomente
+  unverändert — grösste Abweichung 6·10⁻⁶ kNm bei 0.41 kNm, die Rundung
+  der CSV; 236 Zeilen haben nur die Spalte gewechselt. Die Kennwerte
+  (GURT_DAEMPFUNG u. a.) stehen unberührt.
+  **Danach am J90/8 m:** Wind in Gleisrichtung — Wege **1.1 %**,
+  Auflagerkräfte **0.27 %** (vorher Faktor 6 bzw. 3 %). Der Mastkopf:
+  59.04 gegen 58.82 mm.
+- **Zwei Befunde am Messwerkzeug selbst**, beide behoben:
+  (1) Es **prüfte nicht, ob das liegengebliebene PyNite-Ergebnis zum
+  gerechneten Modell gehört.** Am 24. September stand dort das Ergebnis
+  eines J90/8 m, gerechnet wurde ein J90/20 m — und weil beide Joche
+  dieselben Knotennamen tragen, fand der Vergleich zu jedem Namen einen
+  Partner und meldete Abweichungen bis **Faktor 39**. Nicht ein Löser war
+  falsch, sondern die Gegenprobe. Neben den Ergebnissen steht jetzt eine
+  Kennung — Modell **und Prüfsumme des erzeugten Skripts**, denn beim
+  ersten Anlauf reichte das Modell nicht: der berichtigte Export hat
+  dieselbe Knotenzahl, und das alte Ergebnis wurde klaglos weiterbenutzt.
+  (2) Es warf **Wege (m) und Verdrehungen (rad) in einen Topf** und mass
+  beide am grössten Weg. So meldete der Lastfall G eine Abweichung von
+  1.29 an einer Verdrehung, bezogen auf eine Verschiebung — eine Zahl,
+  die über keines von beiden etwas sagt. Zwei Reihen, jede mit ihrem
+  eigenen Bezug.
+  **Stand der Messung** (J90/8 m, 380 Knoten, 430 Stäbe): in
+  Gleisrichtung stimmen beide (Wege 1.1 %, Auflager 0.27 %); in der
+  **Jochebene** bleiben G 0.20 und Wind quer 0.53 — das ist der
+  Linkelement-Befund oben, keine Frage des Lösers. **Der Löser hängt
+  weiter an keinem Nachweis**; für die Freigabe fehlt der Entscheid, wie
+  das Prüfmodell die gelenkigen Anschlüsse führen soll.
 - **Nächster Schritt:** gegen PyNite messen — es **ist** installiert
   (Fassung 3.0.0, Modulname `Pynite` mit kleinem n; meine frühere Aussage
   «nicht installiert» war falsch, ich hatte nur `PyNite` geprüft). Danach
@@ -729,8 +791,22 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
   *Laufende Arbeit*).
 
-- ⚠ **Löser gegen PyNite: Mastkopf weicht um Faktor 6 ab** (24. Sept.).
-  Auflagerreaktionen liegen deutlich näher. Ursache offen.
+- ⚠ **PyNite kennt die gelenkigen Linkelemente nicht.** Der
+  Jochanschluss trägt `kraftuebertragung: {z, yy, zz: Free}` — er gibt
+  keine Biegemomente weiter (stehende Vorgabe: «gelenkige Anschlüsse als
+  Linkelemente»). Der Löser setzt das als Punkt-zu-Punkt-Feder um;
+  PyNite kennt keine solche Feder, und die Ausleitung schreibt den Link
+  als gewöhnlichen Stab mit dem Ersatzquerschnitt STARR — **voll
+  biegesteif**. Das Joch wirkt dort als Rahmenriegel: am J90/8 m nimmt
+  es unter Wind quer ein Kräftepaar von 0.835 kN auf, und 0.835 × 8 m =
+  6.68 kNm ist auf die Stelle genau die Differenz der beiden Fussmomente
+  (2 × 3.34; Löser 10.84, PyNite 7.50 kNm). **Kein Rechenfehler, ein
+  anderes Bauwerk** — die Gegenprobe im Vergleichswerkzeug belegt es:
+  gibt man dem Löser dieselben starren Links, stimmen beide auf 0.03 %
+  bis 0.3 % (G 2.7e-4, WindX 2.8e-3, WindY 7.8e-4). Entscheid des
+  Auftraggebers, wie das Prüfmodell aussehen soll; PyNite kann Gelenke
+  nur als Stabendfreigaben (`def_releases`), nicht als Feder, und an
+  beiden Enden zugleich freigegeben wäre das System labil.
 
 **AxisVM / COM**
 - Lastfallnamen «Havarie L1 …» in AxisVM nicht erprobt — die Modelle wurden
@@ -791,7 +867,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5208 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5225 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
