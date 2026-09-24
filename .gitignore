@@ -100,3 +100,16 @@ kalibrierung_abfang.json
 # Vermessungsbericht der AxisVM-Schnittstelle - gross und nur lokal von Wert
 com/erkundung_signaturen.txt
 com/AxisVM_Abfangjoch_*
+
+# Lose Arbeitsdateien im Projektstamm.
+#
+# Am 24. September geriet «.tab.txt» in einen Commit - die Rohextraktion
+# eines Betreiber-PDF, samt Zeichnungsnummern. Sie entstand hier, weil ein
+# Auswertungsskript sie in den Projektstamm schrieb statt in den
+# Arbeitsordner. Der Commit war noch nicht gepusht und liess sich
+# berichtigen; die Wache bleibt.
+#
+# REGEL: Zwischenstaende gehoeren in den Arbeitsordner ausserhalb des
+# Projekts, nicht hierher.
+.*.txt
+.tab.txt
