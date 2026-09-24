@@ -29,13 +29,15 @@ import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
-         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe, leiterKennung } from './data.anbauteile.js';
+         modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe,
+         leiterKennung, havarieAnteile } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger, achsfolge } from './core.anbauteile.js';
-import { EINWIRKUNGEN } from './core.lasten.js';
+import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE,
+         abfangart } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette, rechensatz } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
@@ -253,10 +255,19 @@ export function maskenSignatur(werte, tab) {
      * Kachel erst mit dem naechsten Neubau.
      */
     (werte.eigeneVorlagen ?? []).map((v) => `${v.id}:${v.name}`),
-    // Die Havarie-Uebersicht: welche Leiter es gibt und welche reissen.
+    /*
+     * Die Havarie-Uebersicht: welche Leiter es gibt, welche reissen - und
+     * seit dem 24. September die ABFANGART. Sie aendert die Struktur der
+     * Zeile: bei einseitiger Abfangung kommt die Richtung dazu, und die
+     * beiden Kraftspalten rechnen andere Werte. Ohne sie in der Signatur
+     * blieb die Zeile stehen, wie sie war - dieselbe Falle wie am
+     * 1. September bei der Stegskizze.
+     */
     gruppen.includes('havarie')
       ? [werte.havarieAus === true, havarieLeiter(werte).map((l) => l.key),
-         Object.entries(werte.havarie ?? {}).filter(([, v]) => v?.reisst).map(([k]) => k)]
+         Object.entries(werte.havarie ?? {}).filter(([, v]) => v?.reisst).map(([k]) => k),
+         Object.entries(werte.havarie ?? {})
+           .map(([k, v]) => `${k}:${v?.art ?? ''}:${v?.richtung ?? ''}`)]
       : null,
     /*
      * >>> DIE SIGNATUR ENTHAELT NUR, WAS DIE STRUKTUR AENDERT. <<<
@@ -366,21 +377,59 @@ function havarieHtml(g, werte) {
   const t0 = tragwerkeVon(werte)[0];
   const wo = (t) => (t.ort === 'joch' ? `x = ${f2(t.x ?? 0)} m`
     : `${mastNameAmEnde(werte, t0, t.ort === 'mastB' ? 'B' : 'A') || 'Mast'} · h = ${f2(t.hMast ?? 0)} m`);
-  const regel = abfang
-    ? 'Abfangjoch: der gerissene Leiter zieht nicht mehr, der volle Leiterzug der übrigen bleibt.'
-    : 'Tragjoch und Mast: 10 % der Leiterzugkraft bei −20 °C ziehen in Gleisrichtung, die Ablenkung des gerissenen Leiters wirkt zur Hälfte.';
+  /*
+   * >>> DIE REGEL HAENGT AM LEITER, NICHT AM TRAGWERK (24. September). <<<
+   * Sie steht deshalb je Zeile als Notiz, nicht mehr als ein Satz fuer
+   * alle - ein Tragjoch kann eine Abfangung tragen und ein Abfangjoch
+   * einen durchlaufenden Leiter.
+   */
+  const regel = 'Was beim Riss angesetzt wird, sagt die Abfangung des '
+    + 'Leiters; die Ablenkung des gerissenen Leiters wirkt zur Hälfte.';
   const zeilen = leiter.map((l) => {
     const e = wahl[l.key] ?? {};
-    const zahl = (feld) => (abfang ? '' : `<td><input class="hav-zahl" type="number" step="0.1" min="0"
+    const art = e.art ?? ABFANG_VORGABE;
+    const vz = e.richtung === '-y' ? -1 : 1;
+    const zahl = (feld) => `<td><input class="hav-zahl" type="number" step="0.1" min="0"
         data-hav-key="${esc(l.key)}" data-hav="${feld}" value="${e[feld] ?? ''}"
         placeholder="${l.zug20 ? f1(l.zug20) : '–'}"
-        title="Leiterzugkraft bei −20 °C in ${feld === 'zugP' ? '+y' : '−y'} [kN] — leer: aus der Reglagetabelle"></td>`);
+        title="Leiterzugkraft bei −20 °C in ${feld === 'zugP' ? '+y' : '−y'} [kN] — leer: aus der Reglagetabelle"></td>`;
+    /*
+     * >>> DIE ZAHL, NICHT NUR DER PROZENTSATZ (Frage vom 24. September:
+     * «wo sieht man den lastanteil beim havariefall?»). <<<
+     *
+     * Bis hierher stand hier der Prozentsatz als Satz - 10 %, aber nicht,
+     * wieviel das an DIESEM Leiter ist. Gerechnet wird mit derselben
+     * Funktion wie im Kern (`havarieAnteile`), damit die Karte nicht eine
+     * zweite Rechnung fuehrt, die auseinanderlaufen kann.
+     */
+    const bt = l.teile[0]?.bauteilId ?? null;
+    let ff = null;
+    if (bt) {
+      try {
+        const g0 = havarieAnteile({ id: bt, art, richtung: vz, bruch: false });
+        const b0 = havarieAnteile({ id: bt, art, richtung: vz, bruch: true,
+                                    zug20: e.zugP ?? null });
+        ff = { Gy: g0.Gy, riss: b0.Fy, ohne: g0.Fy };
+      } catch { ff = null; }
+    }
+    const kraft = (v) => (v === null || v === undefined || Math.abs(v) < 5e-3
+      ? '<span class="dim">–</span>' : f2(v));
     return `<tr>
       <td><input type="checkbox" data-hav-key="${esc(l.key)}" data-hav="reisst"
         data-hav-name="${esc(l.name)}"${e.reisst === true ? ' checked' : ''}
         title="Dieser Leiter kann reissen — er wird als eigener Havariefall gerechnet"></td>
       <td class="hav-name">${esc(l.name)}<span class="hav-wo">${esc(l.teile.map(wo).join(' · '))}</span></td>
-      <td class="num">${l.zug20 ? f1(l.zug20) : '–'}</td>
+      <td><select class="hav-art" data-hav-key="${esc(l.key)}" data-hav="art"
+        title="${esc(abfangart(art).notiz)}">${ABFANGARTEN.map((x) =>
+          `<option value="${x.key}"${x.key === art ? ' selected' : ''}>${esc(x.kurz)}</option>`).join('')}</select></td>
+      <td>${art === 'einseitig'
+        ? `<select class="hav-art" data-hav-key="${esc(l.key)}" data-hav="richtung"
+             title="In welche Richtung dieser Leiter zieht — nur so können sich mehrere Abfangungen aufheben">
+             <option value="+y"${vz > 0 ? ' selected' : ''}>+y</option>
+             <option value="-y"${vz < 0 ? ' selected' : ''}>−y</option></select>`
+        : '<span class="dim">–</span>'}</td>
+      <td class="num" title="Ständiger Längszug an diesem Tragwerk">${kraft(ff?.Gy)}</td>
+      <td class="num" title="Änderung in Gleisrichtung, wenn dieser Leiter reisst">${kraft(ff?.riss)}</td>
       ${zahl('zugP')}${zahl('zugM')}
     </tr>`;
   }).join('');
@@ -400,8 +449,13 @@ function havarieHtml(g, werte) {
       +y und −y, in dem nur er reisst; ein Kettenwerk (Fahrdraht + Tragseil) zählt als ein
       Leiter. Massgebend ist die Hülle. ${esc(regel)}</p>
     <table class="hav-tab">
-      <thead><tr><th title="kann reissen">reisst</th><th>Leiter</th><th>Z −20 °C</th>
-        ${abfang ? '' : '<th>Z +y</th><th>Z −y</th>'}</tr></thead>
+      <thead><tr><th title="kann reissen">reisst</th><th>Leiter</th>
+        <th title="Wie der Leiter geführt ist">Abfangung</th>
+        <th title="Zugrichtung der einseitigen Abfangung">Ri.</th>
+        <th title="Ständiger Längszug [kN]">G_y</th>
+        <th title="Änderung beim Riss dieses Leiters [kN]">Δ Riss</th>
+        <th title="Leiterzugkraft bei −20 °C in +y [kN] – leer: aus der Reglagetabelle">Z +y</th>
+        <th title="Leiterzugkraft bei −20 °C in −y [kN] – leer: aus der Reglagetabelle">Z −y</th></tr></thead>
       <tbody>${zeilen}</tbody>
     </table>
     <div class="hav-tun">
@@ -425,6 +479,13 @@ function verdrahteHavarie(container, werte, onChange) {
       if (inp.dataset.hav === 'reisst') {
         e.reisst = inp.checked;
         e.name = inp.dataset.havName ?? e.name;
+      } else if (inp.dataset.hav === 'art' || inp.dataset.hav === 'richtung') {
+        // Abfangart und Zugrichtung sind eine Wahl, keine Zahl. Die
+        // Vorgabe wird nicht gespeichert - ein alter Stand bleibt leer.
+        const vorgabe = inp.dataset.hav === 'art' ? ABFANG_VORGABE : '+y';
+        if (inp.value && inp.value !== vorgabe) e[inp.dataset.hav] = inp.value;
+        else delete e[inp.dataset.hav];
+        e.name = e.name ?? inp.closest('tr')?.querySelector('[data-hav-name]')?.dataset.havName;
       } else {
         const v = parseFloat(inp.value);
         if (Number.isFinite(v) && v > 0) e[inp.dataset.hav] = v; else delete e[inp.dataset.hav];

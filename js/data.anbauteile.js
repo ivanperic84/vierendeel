@@ -41,7 +41,8 @@ import { getFlBauteil, flLastwerte, leiterzug, istStreckenlast,
          windAusFlaeche, istKettenwerk, flZerlegung,
          flPaarung, abfangkraft } from './data.fl.js';
 import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
-import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG } from './core.lasten.js';
+import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
+         ABFANG_VORGABE } from './core.lasten.js';
 import { LEERE_KRAFT } from './core.anbauteile.js';
 
 let DB = null;
@@ -583,8 +584,14 @@ export function windAufTraeger(teile, a) {
  *   dFx   Ablenkkraft bei -20 °C minus die staendige bei +5 °C. Die
  *         Ablenkung waechst mit dem Zug; bricht der Leiter, wirkt sie nur
  *         noch zur Haelfte - der weiterfuehrende Leiter ist noch abgelenkt.
- *   Fy    der Laengszug des gebrochenen Leiters: 10 % von Z(-20 °C), der
- *         Rest wird von den Nachbartragwerken aufgenommen.
+ *   Fy    der Laengszug: was sich gegenueber dem STAENDIGEN Zustand
+ *         aendert. Wieviel das ist, sagt die Abfangart des Leiters
+ *         (`ABFANGARTEN` in core.lasten.js, Weisung vom 24. September):
+ *         durchgehend 10 % von Z(-20 °C), beidseitig der volle Zug,
+ *         einseitig die Aenderung gegenueber dem staendigen Zug.
+ *   Gy    der STAENDIGE Laengszug - nur die einseitige Abfangung hat
+ *         einen; bei den beiden anderen Arten heben sich die Zuege auf
+ *         oder laufen durch.
  *
  * `GxHier` ist die Ablenkkraft, die HIER ankommt (nach den Haken der
  * Karte), `zugHier` der Anteil des Leiterzugs, der hier haengt - ohne
@@ -595,12 +602,13 @@ export function windAufTraeger(teile, a) {
  * (`abfangkraft(...).ohneTabelle`).
  */
 export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier = 1,
-                                 zug20 = null }) {
+                                 zug20 = null, art = ABFANG_VORGABE,
+                                 richtung = 1 }) {
   let Z5 = 0, Z20 = 0;
   try {
     Z5 = leiterzug(id);
     Z20 = abfangkraft(id, { tempFall: 'havarie' }).Z;
-  } catch { return { dFx: 0, Fy: 0, Z20: 0, faktor: 1 }; }
+  } catch { return { dFx: 0, Fy: 0, Gy: 0, Z20: 0, faktor: 1 }; }
   /*
    * DER ZUG IN DIESE RICHTUNG, WO ER ANGEGEBEN IST (19. September): «diese
    * können unterschiedliche leiterzugkräfte haben in die beiden y
@@ -610,11 +618,31 @@ export function havarieAnteile({ id, n = 1, GxHier = 0, bruch = false, zugHier =
   const Zbruch = Number(zug20) > 0 ? Number(zug20) : Z20;
   const faktor = Z5 > 0 ? Z20 / Z5 : 1;
   const f = bruch ? HAVARIE_ABLENKUNG_BRUCH : 1;
-  return {
-    dFx: GxHier * (faktor * f - 1),
-    Fy: bruch ? HAVARIE_LAENGSZUG * Zbruch * n * Math.max(0, zugHier) : 0,
-    Z20, faktor,
-  };
+  // Der Anteil, der HIER haengt - ohne Fahrdraht nur das Tragseil.
+  const anteil = n * Math.max(0, zugHier);
+  const vz = Number(richtung) < 0 ? -1 : 1;
+  /* =====================================================================
+   * >>> DREI ARTEN, DREI ANSAETZE (Weisung vom 24. September). <<<
+   * ===================================================================
+   * Die lange Begruendung steht bei `ABFANGARTEN` in core.lasten.js.
+   * `Fy` ist immer die AENDERUNG gegenueber dem staendigen Zustand -
+   * so haelt es das Abfangjoch seit dem 20. September, und so bleibt
+   * die Kombination mit gamma = 1.0 lesbar.
+   * =================================================================== */
+  let Gy = 0;
+  let Fy = 0;
+  if (art === 'einseitig') {
+    // Staendig zieht er voll in seine Richtung.
+    Gy = vz * Z5 * anteil;
+    // Reisst er, faellt genau das weg. Sonst waechst der Zug auf Z(-20 °C).
+    Fy = bruch ? -Gy : vz * (Zbruch - Z5) * anteil;
+  } else if (art === 'beidseitig') {
+    // Staendig heben sich die beiden Zuege am Anschluss auf.
+    Fy = bruch ? Zbruch * anteil : 0;
+  } else {
+    Fy = bruch ? HAVARIE_LAENGSZUG * Zbruch * anteil : 0;
+  }
+  return { dFx: GxHier * (faktor * f - 1), Fy, Gy, Z20, faktor };
 }
 
 /**
@@ -688,7 +716,10 @@ export function leiterListe(anbauteile) {
       let z20 = null;
       try { z20 = abfangkraft(m.bauteil, { tempFall: 'havarie' }).Z; } catch { /* ohne Tabelle */ }
       const e = liste.get(key) ?? { key, teile: [], kettenwerk: key.startsWith('kw:') ? key.slice(3) : null };
-      e.teile.push({ baugruppe: a.id, modul: i, name: a.name, bauteil: b.name, ort,
+      // `bauteilId` fuer die Karte: sie rechnet die Anteile mit derselben
+      // Funktion wie der Kern und braucht dafuer den Tabelleneintrag.
+      e.teile.push({ baugruppe: a.id, modul: i, name: a.name, bauteil: b.name,
+                     bauteilId: m.bauteil, ort,
                      hMast: a.hMast ?? null, x: a.x ?? null, zug20: z20 });
       liste.set(key, e);
     });
@@ -751,16 +782,41 @@ export function havarieAnheben(w) {
  * setzen - fuer DIESEN Lastfall. Ohne Kandidat im Fall bleibt alles, wie es
  * aufgeloest wurde (kein Leiter gerissen).
  */
+/* ===========================================================================
+ * >>> WER DAS VORZEICHEN DES LAENGSZUGS SETZT (24. September). <<<
+ * ===========================================================================
+ *
+ * Es sass im BEIWERT des Lastfalls (`HavarieY: vz`), und das war richtig,
+ * solange jeder Leiter durchlief: zu welcher Seite der gerissene zieht,
+ * weiss niemand, also werden beide Richtungen geprueft.
+ *
+ * Bei einer EINSEITIGEN Abfangung ist die Richtung bekannt - der
+ * staendige Zug faellt weg, und zwar in seiner eigenen Richtung. Ein
+ * Beiwert -1 machte daraus eine zweite Zugkraft statt einer Entlastung;
+ * gemessen am Einzelmasten mit R-FL: eta 18.3 statt 12.1, und das auf
+ * der falschen Seite.
+ *
+ * Die Drehung steht deshalb jetzt HIER, wo bekannt ist, welcher Leiter
+ * fest haengt und welcher nicht (`havarieFest` am aufgeloesten Teil).
+ * Der Beiwert bleibt +1.
+ * ========================================================================= */
 export function havarieEinsetzen(flach, lf) {
-  const k = lf?.bruchLeiter;
-  if (!k) return flach;
-  const richtung = (lf.vorzeichen ?? 1) < 0 ? 'm' : 'p';
+  // Nur im Havariefall - sonst traegt HavarieY ohnehin den Beiwert 0.
+  if (!lf || lf.leit !== 'HavarieY') return flach;
+  const vz = (lf.vorzeichen ?? 1) < 0 ? -1 : 1;
+  const k = lf.bruchLeiter ?? null;
+  const richtung = vz < 0 ? 'm' : 'p';
   return (flach ?? []).map((t) => {
-    const je = t.havarieJe?.[k]?.[richtung];
-    if (!je) return t;
+    const je = k ? t.havarieJe?.[k]?.[richtung] : null;
+    const hatY = je || Number.isFinite(t.kraefte?.HavarieY?.Fy);
+    if (!je && !hatY) return t;
+    // Steht die Richtung fest, dreht der Lastfall sie nicht mehr.
+    const dreh = t.havarieFest === true ? 1 : vz;
+    const Fy = (je ? je.Fy : (t.kraefte?.HavarieY?.Fy ?? 0)) * dreh;
+    const Fx = je ? je.dFx : (t.kraefte?.HavarieX?.Fx ?? 0);
     return { ...t, kraefte: { ...t.kraefte,
-      HavarieX: { ...LEERE_KRAFT(), ...t.kraefte?.HavarieX, Fx: je.dFx },
-      HavarieY: { ...LEERE_KRAFT(), ...t.kraefte?.HavarieY, Fy: je.Fy } } };
+      HavarieX: { ...LEERE_KRAFT(), ...t.kraefte?.HavarieX, Fx },
+      HavarieY: { ...LEERE_KRAFT(), ...t.kraefte?.HavarieY, Fy } } };
   });
 }
 
@@ -953,14 +1009,34 @@ export function expandiereAnbauteile(liste, o = {}) {
         kraefte.Schnee.Fz = 0;
       }
       let havarieJe = null;
+      let festeRichtung = false;
       const leiter = drahtwerk ? leiterKennung(a, m, i) : null;
       if (drahtwerk) {
         const zugHier = wirkt('wirktAblenk') ? 1
           : (fdTeil ? 1 - leiterzug(fdTeil.id) / (leiterzug(m.bauteil) || 1) : 0);
-        const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier };
+        /*
+         * >>> WIE DIESER LEITER GEFUEHRT IST (Weisung vom 24. September). <<<
+         *
+         * Die Angabe steht je Leiter in der Havarie-Karte - dort, wo man
+         * alle Leiter des Tragwerks nebeneinander sieht. Sie gilt nicht nur
+         * dem Bruchfall: die einseitige Abfangung zieht STAENDIG, und genau
+         * dieses Gleichgewicht stoert der Riss.
+         *
+         * Sie wird fuer JEDEN Leiter gelesen, nicht nur fuer die
+         * angehakten - `havarieKandidaten` filtert auf `reisst`, der
+         * staendige Zug haengt daran aber nicht.
+         */
+        const wahlL = auswahl?.[leiter] ?? {};
+        const art = wahlL.art ?? ABFANG_VORGABE;
+        const richtung = wahlL.richtung === '-y' ? -1 : 1;
+        const basis = { id: m.bauteil, n, GxHier: kraefte.G.Fx, zugHier,
+                        art, richtung };
+        festeRichtung = art === 'einseitig';
         // Mit Auswahl: aufgeloest ohne Bruch - der Lastfall setzt ihn ein.
         const h = havarieAnteile({ ...basis,
           bruch: auswahl ? false : (roh.bruch ?? a.bruch) === true });
+        // Der STAENDIGE Leiterzug - nur die einseitige Abfangung hat einen.
+        kraefte.G.Fy = h.Gy;
         kraefte.HavarieX.Fx = h.dFx;
         kraefte.HavarieY.Fy = h.Fy;
         const eigen = kandidaten.find((c) => c.key === leiter);
@@ -978,6 +1054,9 @@ export function expandiereAnbauteile(liste, o = {}) {
         id: `${a.id}#${i}`, modulIndex: i, art: 'modul',
         bauteil: m.bauteil, bauteilName: b.name, rolle: b.rolle,
         ...(leiter ? { leiter } : {}), ...(havarieJe ? { havarieJe } : {}),
+        // Bei einseitiger Abfangung steht die Zugrichtung fest - der
+        // Lastfall darf sie nicht drehen (siehe `havarieEinsetzen`).
+        ...(drahtwerk && festeRichtung ? { havarieFest: true } : {}),
         name: `${a.name} · ${b.name}`,
         x: a.x + (m.x ?? 0), y, z, ev: -z, ex: y,
         // In welcher Folge die Kette die drei Achsen abfaehrt: die

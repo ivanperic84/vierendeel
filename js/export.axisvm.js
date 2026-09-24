@@ -3660,14 +3660,25 @@ export function lasten(m, bau, opt = {}) {
     havarieKandidaten(m.havarie).forEach((c) => {
       const je = (arm.teil.teile ?? [arm.teil])
         .filter((t) => t.havarieJe?.[c.key])
-        .map((t) => ({ ...t.havarieJe[c.key], basisX: t.kraefte?.HavarieX?.Fx ?? 0 }));
+        .map((t) => ({ ...t.havarieJe[c.key], basisX: t.kraefte?.HavarieX?.Fx ?? 0,
+                       fest: t.havarieFest === true }));
       if (!je.length) return;
       const s2 = (f) => je.reduce((a2, x) => a2 + f(x), 0);
+      /*
+       * >>> DAS VORZEICHEN STEHT IN DER LAST, NICHT IM FAKTOR (24. Sept.). <<<
+       *
+       * Die Kombination griff den Fall `...|m` frueher mit -1. Seit die
+       * einseitige Abfangung eine FESTE Zugrichtung hat, geht das nicht
+       * mehr ueber einen Faktor: er gilt allen Leitern des Falls
+       * gemeinsam. Gedreht wird deshalb hier, Leiter fuer Leiter - genau
+       * wie `havarieEinsetzen` es im Rechenkern tut.
+       */
       // Ablenkung: nur die KORREKTUR am gerissenen Leiter - die Aenderung
       // bei -20 °C an allen Leitern steht im gemeinsamen Fall HavarieX.
       [[`HavarieX|${c.key}`, 'X', s2((x) => x.p.dFx - x.basisX)],
        [`HavarieY|${c.key}|p`, 'Y', s2((x) => x.p.Fy)],
-       [`HavarieY|${c.key}|m`, 'Y', s2((x) => x.m.Fy)]].forEach(([fall, richtung, wert]) => {
+       [`HavarieY|${c.key}|m`, 'Y', s2((x) => (x.fest ? 1 : -1) * x.m.Fy)]]
+        .forEach(([fall, richtung, wert]) => {
         if (!wert) return;
         punkt.push({ name: `F${k}_${fall}_${richtung}`, knoten: arm.knoten,
                      richtung, wert: r6(wert), lastfall: fall });

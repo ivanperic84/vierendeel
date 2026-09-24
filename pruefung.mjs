@@ -24563,10 +24563,21 @@ titel('71  Havariefall am Tragjoch und am Masten');
     anbauteile: [{ ...A71.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }] };
   const lf = L71.lastfaelle(grund);
   const hav = lf.filter((l) => l.art === 'aussergewoehnlich');
+  /*
+   * >>> DAS VORZEICHEN STEHT IN DER KRAFT (24. September). <<<
+   *
+   * Hier wurde `beiwerte.HavarieY === -1` fuer den zweiten Fall geprueft.
+   * Der Beiwert gilt allen Leitern des Falls gemeinsam, und seit die
+   * einseitige Abfangung eine FESTE Zugrichtung hat, geht das nicht mehr:
+   * ihr Zug faellt beim Riss weg, er kehrt sich nicht um. Gedreht wird
+   * jetzt in `havarieEinsetzen`, Leiter fuer Leiter; der Beiwert bleibt
+   * +1. Die RICHTUNG des Falls steht weiterhin in `vorzeichen`.
+   */
   wahr('Mit Leiter gibt es zwei Havariefaelle, beide Richtungen',
        hav.length === 2 && hav.every((l) => l.nachweis && l.beiwerte.G === 1
-         && l.beiwerte.WindX === 0 && l.beiwerte.WindY === 0 && l.beiwerte.Schnee === 0)
-       && hav[0].beiwerte.HavarieY === 1 && hav[1].beiwerte.HavarieY === -1,
+         && l.beiwerte.WindX === 0 && l.beiwerte.WindY === 0 && l.beiwerte.Schnee === 0
+         && l.beiwerte.HavarieY === 1)
+       && hav[0].vorzeichen === 1 && hav[1].vorzeichen === -1,
        hav.map((l) => l.bez).join(' | '));
   wahr('Ohne Leiter keiner',
        !L71.lastfaelle({ ...grund, anbauteile: [] })
@@ -26232,8 +26243,13 @@ titel('101  Havarie je Leiter: nur einer reisst, Uebersicht, Ausleitung');
   const z20 = leiter[1].zug20;
   const m2 = jeFall.find(({ lf }) => lf.bruchLeiter === leiter[1].key && lf.vorzeichen < 0);
   const p2 = jeFall.find(({ lf }) => lf.bruchLeiter === leiter[1].key && lf.vorzeichen > 0);
+  /*
+   * Das Vorzeichen steht seit dem 24. September in der KRAFT, nicht mehr
+   * im Beiwert (siehe Abschnitt 71): der -y-Fall traegt darum -3.00 kN.
+   * Am Ergebnis aendert das nichts - fruehers +3.00 kN mal Beiwert -1.
+   */
   wahr('10 % des Zugs; in -y der angegebene Zug (30 kN), in +y die Tabelle',
-       Math.abs(m2.z[0].kraefte.HavarieY.Fy - 3.0) < 1e-9
+       Math.abs(m2.z[0].kraefte.HavarieY.Fy + 3.0) < 1e-9
        && Math.abs(p2.z[0].kraefte.HavarieY.Fy - 0.1 * z20) < 1e-9,
        `${p2.z[0].kraefte.HavarieY.Fy} / ${m2.z[0].kraefte.HavarieY.Fy}`);
   const ohne = hav.find((l) => !l.bruchLeiter);
@@ -27498,6 +27514,160 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
   }
 }
 
+
+titel('112  Leiter: durchgehend, beidseitig oder einseitig abgefangen');
+/* ===========================================================================
+ * Weisung vom 24. September, im Wortlaut:
+ *
+ *   «Die leiter koenen als durchgehend / beidseiig abgefangen / einseitig
+ *    abgefangen definiert werden. bei den durchgehenden wid ein 10% anteil
+ *    beim Leiterriss gerechnet. bei den beidseitig abgefangenen wid der
+ *    volle leiterzug einseitig angesezt und beim einseitg abgefangenen,
+ *    hebt sich der leiterzug auf, dies kann bei mehreren abfangungen an
+ *    einem abfangtraeger zu unguenstigen lastfaellen dann fuehren, die
+ *    massgebend sein koennen.»
+ *
+ * Rueckgefragt und bestaetigt: der Leiterzug wirkt auch STAENDIG, und die
+ * Wahl gilt allen vier Tragwerksarten.
+ * ========================================================================= */
+{
+  const A112 = await import(J('data.anbauteile.js'));
+  const L112 = await import(J('core.lasten.js'));
+  const C112 = await import(J('core.constants.js'));
+  const V112 = await import(J('core.vierendeel.js'));
+  const N112 = await import(J('core.nachbarn.js'));
+  const FL112 = await import(J('data.fl.js'));
+
+  // --- a) Die Anteile je Art, gegen die Reglagetabelle -------------------
+  const id = 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107';
+  const Z5 = FL112.leiterzug(id);
+  const Z20 = FL112.abfangkraft(id, { tempFall: 'havarie' }).Z;
+  pruef('N-FL: Zug bei +5 °C', Z5, 14.9, 1e-9, 'kN');
+  pruef('N-FL: Zug bei -20 °C', Z20, 16.5, 1e-9, 'kN');
+  const an = (art, o = {}) => A112.havarieAnteile({ id, art, ...o });
+  {
+    // DURCHGEHEND: staendig nichts, beim Riss 10 %.
+    pruef('durchgehend: kein staendiger Laengszug', an('durchgehend').Gy, 0, 1e-12, 'kN');
+    pruef('… beim Riss 10 % von Z(-20 °C)',
+          an('durchgehend', { bruch: true }).Fy, 0.1 * Z20, 1e-9, 'kN');
+    // BEIDSEITIG: staendig heben sich die Zuege auf, beim Riss der volle.
+    pruef('beidseitig: kein staendiger Laengszug', an('beidseitig').Gy, 0, 1e-12, 'kN');
+    pruef('… beim Riss der VOLLE Zug einseitig',
+          an('beidseitig', { bruch: true }).Fy, Z20, 1e-9, 'kN');
+    // EINSEITIG: staendig der volle Zug, beim Riss faellt er weg.
+    pruef('einseitig: staendig der volle Zug bei +5 °C', an('einseitig').Gy, Z5, 1e-9, 'kN');
+    pruef('… beim Riss faellt genau er weg',
+          an('einseitig', { bruch: true }).Fy, -Z5, 1e-9, 'kN');
+    pruef('… und ohne Riss waechst er auf Z(-20 °C)',
+          an('einseitig').Fy, Z20 - Z5, 1e-9, 'kN');
+    // Die Richtung spiegelt alles.
+    const m = an('einseitig', { richtung: -1 });
+    pruef('… in -y kehrt sich alles um', m.Gy, -Z5, 1e-9, 'kN');
+    wahr('… und der Betrag bleibt derselbe',
+         Math.abs(m.Fy + (Z20 - Z5)) < 1e-9, `${m.Fy}`);
+  }
+  // Ein alter Stand kennt keine Art - er rechnet weiter wie bisher.
+  wahr('Ohne Angabe gilt «durchgehend»',
+       Math.abs(A112.havarieAnteile({ id, bruch: true }).Fy - 0.1 * Z20) < 1e-9
+       && L112.ABFANG_VORGABE === 'durchgehend');
+
+  // --- b) Am Tragwerk: was jede Art bewirkt ------------------------------
+  const bau = (art, ri) => {
+    let w = { ...standardwerte(), tragwerksart: 'einzelmast', mastLaenge: 8.5,
+              L: 0, xLage: 0, mastVorhanden: true };
+    w = C112.setzeAnbauteileAn(w, [{ ...A112.neuesAnbauteil('mast-nt-ausleger', 0),
+                                     ort: 'mastA', hMast: 7.0 }]);
+    const l = A112.leiterListe(C112.rechensatz(w).anbauteile ?? [])[0];
+    return { ...w, havarie: { [l.key]: { reisst: true, name: l.name,
+      ...(art !== 'durchgehend' ? { art } : {}), ...(ri ? { richtung: ri } : {}) } } };
+  };
+  const etas = (art, ri) => {
+    const s2 = N112.rechensatzMitNachbarn(bau(art, ri));
+    const v = V112.vergleichKombinationen(s2, ...N112.kernArgumente(s2));
+    const e = (k) => v.ergebnisse[k]?.mast?.A?.etaMitStabilitaet ?? 0;
+    const bruch = v.lastfaelle.filter((z) => z.key.startsWith('havarie|'));
+    const wind = v.lastfaelle.filter((z) => z.nachweis && /wind/i.test(z.key));
+    return { wind: Math.max(...wind.map((z) => e(z.key)), 0),
+             bruch: Math.max(...bruch.map((z) => e(z.key)), 0) };
+  };
+  {
+    const dg = etas('durchgehend');
+    const bs = etas('beidseitig');
+    const es = etas('einseitig', '+y');
+    /*
+     * DER ALTE STAND BLEIBT DER ALTE. «durchgehend» rechnet, was die
+     * Anwendung seit dem 17. September rechnet - daran darf sich durch
+     * die neue Wahl nichts aendern.
+     */
+    wahr('durchgehend: staendig ohne Laengszug, der Riss bleibt klein',
+         Math.abs(dg.wind - 0.2704) < 5e-3 && Math.abs(dg.bruch - 0.9345) < 5e-3,
+         `Wind ${dg.wind.toFixed(4)} · Riss ${dg.bruch.toFixed(4)}`);
+    wahr('beidseitig: staendig gleich, der Riss aber zehnmal so gross',
+         Math.abs(bs.wind - dg.wind) < 1e-9 && bs.bruch > 9 * dg.bruch,
+         `Wind ${bs.wind.toFixed(4)} · Riss ${bs.bruch.toFixed(4)}`);
+    /*
+     * >>> UND HIER ZIEHT ER SCHON STAENDIG. <<<
+     * Ein einseitig abgefangener Leiter an einem Masten ohne Gegenzug
+     * erzeugt ein Moment, das der Mast allein nicht traegt - genau
+     * deshalb steht dort in der Praxis ein Anker. Der Riss ENTLASTET.
+     */
+    wahr('einseitig: staendig gross, der Riss entlastet',
+         es.wind > 10 * dg.wind && es.bruch < 0.2 * dg.bruch,
+         `Wind ${es.wind.toFixed(4)} · Riss ${es.bruch.toFixed(4)}`);
+  }
+
+  // --- c) Zwei Abfangungen, die sich aufheben ----------------------------
+  /* =====================================================================
+   * >>> DER FALL, VON DEM DIE WEISUNG SPRICHT. <<<
+   * «dies kann bei mehreren abfangungen an einem abfangtraeger zu
+   *  unguenstigen lastfaellen dann fuehren, die massgebend sein koennen.»
+   * ===================================================================== */
+  {
+    let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w.L = 20; w.xLage = 0; w.mastVorhanden = true;
+    w = C112.setzeAnbauteileAn(w, [
+      { ...A112.neuesAnbauteil('hs-fahrdraht', 7), name: 'FL Gleis 1' },
+      { ...A112.neuesAnbauteil('hs-fahrdraht', 13), name: 'FL Gleis 2' }]);
+    const leiter = A112.leiterListe(C112.rechensatz(w).anbauteile ?? []);
+    const hav = {};
+    leiter.forEach((l, i) => { hav[l.key] = { reisst: true, name: l.name,
+      art: 'einseitig', richtung: i === 0 ? '+y' : '-y' }; });
+    const s2 = N112.rechensatzMitNachbarn({ ...w, havarie: hav });
+    const v = V112.vergleichKombinationen(s2, ...N112.kernArgumente(s2));
+    const fy = (k) => (v.ergebnisse[k]?.modell?.anbauteileFlach ?? [])
+      .reduce((a2, t) => a2 + (t.kraefte?.G?.Fy ?? 0) + (t.kraefte?.HavarieY?.Fy ?? 0), 0);
+    const wind = v.lastfaelle.find((z) => z.nachweis && /wind/i.test(z.key));
+    pruef('Zwei entgegengesetzte Abfangungen heben sich auf', fy(wind.key), 0, 1e-9, 'kN');
+    const bruch = v.lastfaelle.filter((z) => z.key.startsWith('havarie|'));
+    wahr('… der Riss laesst den vollen Zug der anderen Seite stehen',
+         bruch.every((z) => Math.abs(Math.abs(fy(z.key)) - 16.5) < 1e-9),
+         bruch.map((z) => fy(z.key).toFixed(2)).join(' / '));
+    const eta = (k) => v.ergebnisse[k]?.mast?.A?.etaMitStabilitaet ?? 0;
+    wahr('… und einer dieser Faelle wird massgebend',
+         Math.max(...bruch.map((z) => eta(z.key)))
+           > Math.max(...v.lastfaelle.filter((z) => z.nachweis
+               && !z.key.startsWith('havarie')).map((z) => eta(z.key))) * 0.8,
+         `Riss ${Math.max(...bruch.map((z) => eta(z.key))).toFixed(4)}`);
+  }
+
+  // --- d) Die Karte zeigt die Zahl, nicht nur den Prozentsatz ------------
+  /*
+   * Frage vom 24. September: «wo sieht man den lastanteil beim
+   * havariefall?» - bis dahin stand dort der Prozentsatz als Satz, aber
+   * nicht, wieviel das an diesem Leiter ist.
+   */
+  {
+    const ui112 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Havarie-Karte fuehrt Abfangung und Richtung',
+         ui112.includes("data-hav=\"art\"") && ui112.includes("data-hav=\"richtung\""));
+    wahr('… und die Kraefte als Zahl, aus derselben Funktion wie der Kern',
+         ui112.includes('havarieAnteile({ id: bt'));
+    // Die Bauteil-Id reist dafuer mit der Leiterliste mit.
+    const l0 = A112.leiterListe([{ ...A112.neuesAnbauteil('hs-fahrdraht', 5), aktiv: true }])[0];
+    wahr('… die Leiterliste nennt den Tabelleneintrag',
+         Boolean(l0.teile[0].bauteilId), l0.teile[0].bauteilId ?? '-');
+  }
+}
 
 // ===========================================================================
 console.log('\n' + '='.repeat(104));

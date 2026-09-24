@@ -231,6 +231,68 @@ export const EINWIRKUNGEN = [
 export const HAVARIE_ABLENKUNG_BRUCH = 0.5;
 export const HAVARIE_LAENGSZUG = 0.10;
 
+/* ===========================================================================
+ * >>> WIE DER LEITER GEFUEHRT IST (Weisung vom 24. September). <<<
+ * ===========================================================================
+ *
+ * «Die leiter koenen als durchgehend / beidseiig abgefangen / einseitig
+ *  abgefangen definiert werden. bei den durchgehenden wid ein 10% anteil
+ *  beim Leiterriss gerechnet. bei den beidseitig abgefangenen wid der
+ *  volle leiterzug einseitig angesezt und beim einseitg abgefangenen,
+ *  hebt sich der leiterzug auf, dies kann bei mehreren abfangungen an
+ *  einem abfangtraeger zu unguenstigen lastfaellen dann fuehren, die
+ *  massgebend sein koennen.»
+ *
+ * Bis hierher entschied die TRAGWERKSART: am Abfangjoch der volle
+ * Leiterzug, am Tragjoch und am Masten 10 %. Jetzt entscheidet der
+ * LEITER - ein Tragjoch kann eine Abfangung tragen, ein Abfangjoch einen
+ * durchlaufenden Leiter (rueckgefragt und bestaetigt am 24. September).
+ *
+ * WAS JEDE ART ANSETZT - staendig (G) und als Aenderung im Havariefall:
+ *
+ *   durchgehend   staendig 0 (der Zug laeuft durch). Riss: 10 % von
+ *                 Z(-20 °C) in Gleisrichtung, beide Richtungen geprueft.
+ *                 Das ist der Stand seit dem 17. September.
+ *
+ *   beidseitig    staendig 0 - die beiden Zuege heben sich AM ANSCHLUSS
+ *                 auf (Fixpunkt). Riss: eine Seite faellt aus, es bleibt
+ *                 der VOLLE Zug der anderen, einseitig.
+ *
+ *   einseitig     staendig der VOLLE Zug in seine Richtung. Mehrere
+ *                 Abfangungen an einem Traeger heben sich gegenseitig
+ *                 auf; erst der Riss stoert dieses Gleichgewicht, und
+ *                 genau das kann massgebend werden. Riss: der gerissene
+ *                 zieht nicht mehr (-Z(+5 °C)), die uebrigen wechseln
+ *                 von Z(+5 °C) auf Z(-20 °C).
+ *
+ * DIE RICHTUNG gehoert dazu: ohne sie kann sich nichts aufheben. Sie
+ * steht je Leiter in der Havarie-Karte und gilt nur der einseitigen
+ * Abfangung - bei den beiden anderen Arten ist der staendige Zug null,
+ * und der Bruchfall wird ohnehin in beide Richtungen geprueft.
+ * ========================================================================= */
+export const ABFANGARTEN = [
+  { key: 'durchgehend', label: 'durchgehend',
+    kurz: 'durchgehend',
+    notiz: 'Der Zug läuft über das Tragwerk hinweg. Ständig ohne Längszug; '
+         + 'beim Riss 10 % von Z(−20 °C).' },
+  { key: 'beidseitig', label: 'beidseitig abgefangen',
+    kurz: 'beidseitig',
+    notiz: 'Auf beiden Seiten abgespannt – ständig heben sich die Züge am '
+         + 'Anschluss auf. Beim Riss bleibt der volle Zug einseitig.' },
+  { key: 'einseitig', label: 'einseitig abgefangen',
+    kurz: 'einseitig',
+    notiz: 'Endet hier – ständig zieht der volle Leiterzug in seine '
+         + 'Richtung. Mehrere Abfangungen an einem Träger heben sich auf; '
+         + 'der Riss stört dieses Gleichgewicht.' },
+];
+
+export const ABFANG_VORGABE = 'durchgehend';
+
+/** Die Art eines Leiters, mit Rueckfall auf die Vorgabe. */
+export function abfangart(key) {
+  return ABFANGARTEN.find((a) => a.key === key) ?? ABFANGARTEN[0];
+}
+
 /**
  * Fuehrt das Tragwerk einen Leiter, dessen Havariefall zu rechnen ist?
  * Gezaehlt wird am BAUTEIL, nicht an der Kraft - sonst verschwaenden die
@@ -438,7 +500,9 @@ export function standardLastfaelle(inp) {
           bez: `Havarie: ${v.name ?? key} reisst, Längszug ${zeichen}y`,
           art: 'aussergewoehnlich', nachweis: true, leit: 'HavarieY', vorzeichen: vz,
           tempFall: 'havarie', bruchLeiter: key,
-          beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: vz }),
+          // Das Vorzeichen setzt `havarieEinsetzen` in den Kraeften -
+          // die einseitige Abfangung zieht in eine feste Richtung.
+          beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: 1 }),
         });
       });
     });
@@ -449,7 +513,8 @@ export function standardLastfaelle(inp) {
         bez: `Havarie (−20 °C), Längszug ${zeichen}y`,
         art: 'aussergewoehnlich', nachweis: true, leit: 'HavarieY', vorzeichen: vz,
         tempFall: 'havarie',
-        beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: vz }),
+        // Vorzeichen: siehe oben, es steht in den Kraeften.
+        beiwerte: bw({ G: 1, HavarieX: 1, HavarieY: 1 }),
       });
     });
   }
