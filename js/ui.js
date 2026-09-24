@@ -4885,6 +4885,45 @@ export function bauteilKacheln(erg, urteil, ampelU) {
    * «Druck» ist die Auskunft, an der man sieht, ob der Stab auf der
    * richtigen Seite steht.
    */
+  /* =========================================================================
+   * >>> DIE VERFORMUNG IM GEBRAUCHSZUSTAND (Weisung vom 24. September). <<<
+   * =========================================================================
+   *
+   * «Mastfervormung berechnen lassen infolge wind / ständige und deren
+   *  kombination … Die Gebrauchstauglichkeit kombination ist in diesem fall
+   *  der Wind bei 0.70 (Betriebswind Wiederkehrperioda 5 Jahre).»
+   *
+   * >>> OHNE AMPEL. <<< Die Urteilsfarbe folgt allein der Tragsicherheit
+   * (Entscheid vom 18. September). Ein überschrittener Gebrauchswert wird
+   * ANGESCHRIEBEN - mit dem Wort «über» und dem Grenzwert daneben -, aber
+   * er färbt weder die Hauptkachel noch die Fussleiste.
+   *
+   * Die Kachel nennt den MASSGEBENDEN der drei Nachweise; alle drei stehen
+   * im Titel, damit man sieht, welcher knapp ist und welcher nicht.
+   */
+  if (erg.verformung) {
+    const namenV = erg.modell.federn?.namen ?? {};
+    const gesehenV = new Set();
+    ['A', 'B'].forEach((ende) => {
+      const q = erg.verformung[ende];
+      if (!q?.massgebend) return;
+      const name = namenV[ende] || `Ende ${ende}`;
+      if (gesehenV.has(name)) return;
+      gesehenV.add(name);
+      const mg = q.massgebend;
+      const mm = (v) => `${(v * 1000).toFixed(0)} mm`;
+      const alle = q.nachweise
+        .map((x) => `${x.was}: ${mm(x.wert)} von ${mm(x.grenz)} (η ${f3(x.eta)})`)
+        .join('\n');
+      k.push(kachel(`Verformung ${name}`, mm(mg.wert),
+        `${q.ok ? '' : 'ÜBER · '}${mm(mg.grenz)} zulässig · ${mg.achse === 'x' ? 'quer' : 'längs'}`,
+        '', {
+          titel: `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
+               + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit — `
+               + `diese Kachel färbt kein Urteil.\n\n${alle}`,
+        }));
+    });
+  }
   if (erg.anker) {
     const namenA = erg.modell.federn?.namen ?? {};
     const gesehenA = new Set();

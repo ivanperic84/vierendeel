@@ -75,7 +75,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { mastSteifigkeit, jochAnteile, konsolLaenge } from './core.auflager.js';
+import { mastSteifigkeit, jochAnteile, konsolLaenge, E_STAHL } from './core.auflager.js';
 import { ankerGeometrie, ankerTraegtDruck } from './data.anker.js';
 
 /** Erdbeschleunigung für das Eigengewicht des Mastes [m/s²]. */
@@ -515,6 +515,58 @@ function kragarmVerschiebung(a, { q = 0, L = 0, kraefte = [], momente = [] }) {
   return w;
 }
 
+/* ===========================================================================
+ * >>> DIE VERFORMUNG DES MASTEN (Weisung vom 24. September). <<<
+ * ===========================================================================
+ *
+ * «Mastfervormung berechnen lassen infolge wind / staendige und deren
+ *  kombination.»
+ *
+ * >>> DIESELBE LASTLISTE WIE DIE SCHNITTGROESSEN. <<<
+ *
+ * Sie wird deshalb HEREINGEREICHT, nicht noch einmal gebaut: in ihr steht
+ * bereits die Haltekraft des Ankers (`ankerImMast`) - und ob ein Seil in
+ * dieser Kombination ueberhaupt traegt. Zwei Wege zu derselben Lastliste
+ * waeren zwei Gelegenheiten, sich zu irren; genau davor warnt der
+ * Kommentar in `mastLasten`.
+ *
+ * >>> WELCHE ACHSE WOHIN BIEGT. <<<
+ *
+ *   x  quer zum Gleis, in der Jochachse. Traegheitsmoment `I` (bei
+ *      «Steg quer zum Gleis» die starke Achse).
+ *   y  in Gleisrichtung. Traegheitsmoment `Iq`.
+ *
+ * Die Momente folgen derselben Vorzeichenregel wie in `mastSchnitt`:
+ * dort ist `Myy += l.Fx*arm + l.Fz*l.ex + l.Myy` - alle drei Glieder
+ * drehen gleich, das eingepraegte Moment geht also unveraendert ein. In
+ * y steht `Mxx += -(l.Fy*arm + l.Fz*l.ey) + l.Mxx`: dort dreht `l.Mxx`
+ * GEGEN die Kraft in +y, und `l.Fz*l.ey` mit ihr. Deshalb das
+ * Minuszeichen vor `Mxx` und keines vor `Fz*ey`.
+ * ========================================================================= */
+export function mastVerschiebungen(g, lasten, stellen) {
+  const EIx = E_STAHL * (g?.I ?? 0);        // Biegung quer zum Gleis
+  const EIy = E_STAHL * (g?.Iq ?? 0);       // Biegung in Gleisrichtung
+  const L2 = g?.zKopf ?? 0;
+  const liste = lasten ?? [];
+  const kx = liste.filter((l) => l.Fx).map((l) => ({ F: l.Fx, z: l.z }));
+  const ky = liste.filter((l) => l.Fy).map((l) => ({ F: l.Fy, z: l.z }));
+  const mx = liste
+    .map((l) => ({ M: (l.Fz ?? 0) * (l.ex ?? 0) + (l.Myy ?? 0), z: l.z }))
+    .filter((q) => q.M);
+  const my = liste
+    .map((l) => ({ M: (l.Fz ?? 0) * (l.ey ?? 0) - (l.Mxx ?? 0), z: l.z }))
+    .filter((q) => q.M);
+  return (stellen ?? []).map((a) => ({
+    z: a,
+    x: EIx > 0
+      ? kragarmVerschiebung(a, { q: g.wQuer, L: L2, kraefte: kx, momente: mx }) / EIx
+      : null,
+    y: EIy > 0
+      ? kragarmVerschiebung(a, { q: g.wLaengs, L: L2, kraefte: ky, momente: my }) / EIy
+      : null,
+  }));
+}
+
 /**
  * DIE HALTEKRAFT AM ANKERPUNKT [kN], in x-Richtung.
  *
@@ -690,7 +742,16 @@ export function mastSchnitt(m, ende = 'A') {
     return { z, N, Fz: N, Fx, Fy, Myy, Mxx, Mzz };
   });
 
-  return { ...g, stationen, ankerkraft: ank?.kraft ?? null };
+  /*
+   * DIE VERFORMUNG AN DEN STELLEN, DIE ETWAS BEDEUTEN (24. September):
+   * die Mastspitze und die Anschlusshoehe - beim Joch das Jochauflager,
+   * am Einzelmasten die Hoehe des Auslegers bzw. des Fahrdrahts. Welche
+   * Stelle das genau ist, entscheidet `core.verformung.js`; hier stehen
+   * ALLE Stationen, damit auch ein Verlauf gezeichnet werden kann.
+   */
+  // `stationen` ist die SORTIERTE Liste - `stellen` ist ein Set.
+  const verformung = mastVerschiebungen(g, lasten, stationen.map((q) => q.z));
+  return { ...g, stationen, verformung, ankerkraft: ank?.kraft ?? null };
 }
 
 /**

@@ -1744,6 +1744,12 @@ export function mitBauteilen(basis, erg, { mastErsatz = false } = {}) {
   if (erg?.abfang?.auflager && erg.mast) o.mast = erg.mast;
   else if (mastErsatz && !o.mast && erg?.mast) o.mast = erg.mast;
   if (erg?.anker) o.anker = erg.anker;
+  /*
+   * >>> UND DIE VERFORMUNG (24. September). <<<
+   * Sie geht denselben Weg wie der Anker - sonst erscheint sie nicht in
+   * der Spalte. Dreimal ist genau das schon passiert (A2).
+   */
+  if (erg?.verformung) o.verformung = erg.verformung;
   return o;
 }
 

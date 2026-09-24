@@ -231,6 +231,17 @@ export const EINWIRKUNGEN = [
 export const HAVARIE_ABLENKUNG_BRUCH = 0.5;
 export const HAVARIE_LAENGSZUG = 0.10;
 
+/**
+ * >>> DER BETRIEBSWIND (Weisung vom 24. September). <<<
+ *
+ * «Die Gebrauchstauglichkeit kombination ist in diesem fall der Wind bei
+ * 0.70 (Betriebswind Wiederkehrperioda 5 Jahre).»
+ *
+ * Der Staudruck der Tabellen gilt dem Sturm; fuer die Verformung im
+ * Gebrauchszustand zaehlt der Wind, der im Betrieb wiederkehrt.
+ */
+export const BETRIEBSWIND = 0.70;
+
 /* ===========================================================================
  * >>> WIE DER LEITER GEFUEHRT IST (Weisung vom 24. September). <<<
  * ===========================================================================
@@ -520,18 +531,43 @@ export function standardLastfaelle(inp) {
   }
 
   // --- GEBRAUCHSTAUGLICHKEIT ------------------------------------------------
-  // NUR DIE SELTENE KOMBINATION: leitende Einwirkung 1.00, begleitende 0.50.
   // Alle Beiwerte auf Gebrauchsniveau, ohne γ.
   //
-  // Die HÄUFIGE Stufe (ψ = 0.70 mit 0.35 begleitend, im geprüften
-  // Referenzprojekt die Reihe G110…G123) ist bewusst NICHT geführt: sie
-  // verdoppelt die Zahl der Lastfälle, ohne einen Nachweis zu bedienen, den
-  // dieses Werkzeug führt. Wer sie braucht, ergänzt sie als eigenen Lastfall.
+  // SELTEN: leitende Einwirkung 1.00, begleitende 0.50.
   //
-  // Auch die seltene Stufe ist KEIN Nachweis (nachweis: false): sie liefert
-  // die Schnittgrössen für Verformungsbetrachtungen. Der Nachweis der
-  // Gebrauchstauglichkeit selbst - Durchbiegung, Verdrehung, Querverschiebung
-  // der Mastköpfe - ist im Werkzeug NICHT geführt.
+  // Die seltene Stufe ist KEIN Nachweis (nachweis: false): sie liefert die
+  // Schnittgrössen für Verformungsbetrachtungen.
+  /* =========================================================================
+   * >>> BETRIEBSWIND: ψ = 0.70 (Weisung vom 24. September). <<<
+   * =========================================================================
+   *
+   * «Die Gebrauchstauglichkeit kombination ist in diesem fall der Wind bei
+   *  0.70 (Betriebswind Wiederkehrperioda 5 Jahre).»
+   *
+   * Hier stand, die häufige Stufe sei bewusst NICHT geführt - sie verdopple
+   * die Lastfälle, ohne einen Nachweis zu bedienen, den dieses Werkzeug
+   * führt. Beides ist überholt: der Nachweis der MASTVERFORMUNG wird
+   * geführt (core.verformung.js), und er braucht genau diese Kombination.
+   *
+   * VIER FÄLLE, nicht acht. «Nur Wind» braucht keinen eigenen: die
+   * charakteristischen Windfälle tragen bereits den Wind allein mit
+   * Beiwert 1, und 0.70 davon ist derselbe Zustand - die Haltekraft eines
+   * Ankers skaliert mit, ihr Vorzeichen bleibt, also fällt kein Seil
+   * anders aus. Bei «ständig + Wind» ist das nicht so: G + 0.7·W ist ein
+   * anderer Zustand als G + 1.0·W, und der Anker kann darin anders stehen.
+   * ======================================================================= */
+  [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
+    .forEach(([tag, gruppe, richtung]) => {
+      [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
+        lf.push({
+          key: `gtbetriebW${tag}${suffix}`,
+          bez: `Betriebswind (ψ ${BETRIEBSWIND.toFixed(2)}): ständig + Wind ${zeichen}${richtung}`,
+          art: 'gebrauchstauglichkeit', nachweis: false,
+          leit: gruppe, vorzeichen: vz, stufe: 'betrieb',
+          beiwerte: bw({ G: 1, [gruppe]: vz * BETRIEBSWIND }),
+        });
+      });
+    });
   [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
     .forEach(([tag, gruppe, richtung]) => {
       [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {

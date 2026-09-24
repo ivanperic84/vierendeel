@@ -784,17 +784,48 @@ titel('15  Lastfälle');
   const nw = lf.filter((x) => x.nachweis && x.art === 'tragsicherheit');
   pruef('Acht Nachweislastfälle mit Schnee', nw.length, 8, 1e-12, 'Stk');
   // NUR die seltene Stufe: 4 Wind + 4 Schnee. Die häufige ist entfallen.
-  pruef('Acht Lastfälle der Gebrauchstauglichkeit',
-        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 8, 1e-12, 'Stk');
+  /*
+   * >>> ZWOELF, SEIT DER BETRIEBSWIND DAZUKAM (24. September). <<<
+   * Acht seltene (Wind +-x/+-y, Schnee mit Wind +-y/+-x) und vier
+   * Betriebswind-Faelle (staendig + Wind ψ 0.70, je Richtung).
+   */
+  pruef('Zwölf Lastfälle der Gebrauchstauglichkeit',
+        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 12, 1e-12, 'Stk');
   wahr('Der Wind steht in jeder Kombinationsart mit beiden Vorzeichen',
        ['WindX', 'WindY'].every((g) => ['charakteristisch', 'tragsicherheit',
          'gebrauchstauglichkeit'].every((art) => {
          const v = lf.filter((x) => x.art === art).map((x) => Math.sign(x.beiwerte[g]));
          return v.includes(1) && v.includes(-1);
        })));
-  wahr('Nur die seltene Stufe, keine häufige',
-       lf.filter((x) => x.art === 'gebrauchstauglichkeit')
-         .every((x) => x.stufe === 'selten'));
+  /* =======================================================================
+   * >>> DIE BETRIEBSSTUFE (Weisung vom 24. September). <<<
+   *
+   * «Die Gebrauchstauglichkeit kombination ist in diesem fall der Wind bei
+   *  0.70 (Betriebswind Wiederkehrperioda 5 Jahre).»
+   *
+   * Hier stand «nur die seltene Stufe, keine haeufige» - mit der
+   * Begruendung, die haeufige bediene keinen Nachweis, den dieses Werkzeug
+   * fuehrt. Seit dem Verformungsnachweis (core.verformung.js) tut sie es.
+   *
+   * VIER Faelle, nicht acht: «nur Wind» braucht keinen eigenen - die
+   * charakteristischen Windfaelle tragen den Wind allein mit Beiwert 1,
+   * und 0.70 davon ist derselbe Zustand.
+   * ===================================================================== */
+  {
+    const gzg = lf.filter((x) => x.art === 'gebrauchstauglichkeit');
+    const betrieb = gzg.filter((x) => x.stufe === 'betrieb');
+    pruef('Davon vier in der Betriebsstufe', betrieb.length, 4, 1e-12, 'Stk');
+    wahr('… die übrigen sind die seltene Stufe',
+         gzg.filter((x) => x.stufe !== 'betrieb').every((x) => x.stufe === 'selten'));
+    wahr('… Ständig mit 1.00, Wind mit ψ = 0.70',
+         betrieb.every((x) => x.beiwerte.G === 1
+           && Math.abs(Math.abs(x.beiwerte.WindX ?? 0) + Math.abs(x.beiwerte.WindY ?? 0)
+                       - L.BETRIEBSWIND) < 1e-12),
+         betrieb.map((x) => `${x.beiwerte.WindX}/${x.beiwerte.WindY}`).join(' '));
+    wahr('… und keiner ist ein Nachweis (die Tragsicherheit färbt allein)',
+         gzg.every((x) => x.nachweis === false));
+    pruef('Der Betriebswind ist ψ = 0.70', L.BETRIEBSWIND, 0.70, 1e-12, '–');
+  }
 
   // ZUOBERST DIE EINZELNEN LASTARTEN, jede für sich und charakteristisch.
   const chars = lf.filter((x) => x.art === 'charakteristisch');
@@ -855,9 +886,11 @@ titel('15  Lastfälle');
   // Ohne Schnee auf dem Joch, aber mit Q_z am Anbauteil bleibt die Gruppe aktiv
   const ohneSchnee = basis({ schneeAktiv: false, anbauteile: [] });
   const zaehl = (o, art) => L.lastfaelle(o).filter((x) => x.art === art).length;
+  // Vier Tragsicherheits-, vier seltene und vier Betriebswind-Faelle.
   wahr('Ohne Schnee und ohne Q_z: vier Nachweislastfälle',
        zaehl(ohneSchnee, 'tragsicherheit') === 4
-       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 4);
+       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 8,
+       `${zaehl(ohneSchnee, 'tragsicherheit')} / ${zaehl(ohneSchnee, 'gebrauchstauglichkeit')}`);
   wahr('Ohne Schnee entfällt auch der charakteristische Schneelastfall',
        !L.lastfaelle(ohneSchnee).some((x) => x.key === 'sk'));
   const mitQz = basis({ schneeAktiv: false,
@@ -27734,6 +27767,162 @@ titel('112  Leiter: durchgehend, beidseitig oder einseitig abgefangen');
      */
     wahr('… und die Tragsicherheits-Faelle bleiben draussen',
          !AK112.ANKER_FALLARTEN.includes('tragsicherheit'));
+  }
+}
+
+titel('113  Mastverformung im Gebrauchszustand');
+/* ===========================================================================
+ * Weisung vom 24. September, im Wortlaut:
+ *
+ *   «Mastfervormung berechnen lassen infolge wind / staendige und deren
+ *    kombination. die massgebende werte sind Mastspitze 1:100
+ *    (wind+staendige) / 1:200 (nur Wind) und auf hoehe Fahrdraht oder
+ *    vereinfacht auf hoehe Ausleger / Jochauflager -> hier ist der
+ *    Grenzwert 40mm. Die Gebrauchstauglichkeit kombination ist in diesem
+ *    fall der Wind bei 0.70 (Betriebswind Wiederkehrperioda 5 Jahre).»
+ *
+ * Auf Rueckfrage: die 40 mm QUER zum Gleis, die Spitze in BEIDEN
+ * Richtungen; die 40 mm gegen den Fall NUR WIND.
+ * ========================================================================= */
+{
+  const A113 = await import(J('data.anbauteile.js'));
+  const C113 = await import(J('core.constants.js'));
+  const V113 = await import(J('core.vierendeel.js'));
+  const N113 = await import(J('core.nachbarn.js'));
+  const VF113 = await import(J('core.verformung.js'));
+  const L113 = await import(J('core.lasten.js'));
+  const E = 210e6;                       // kN/m2, wie core.auflager.js
+
+  const lauf = (w) => {
+    const s2 = N113.rechensatzMitNachbarn(w);
+    return V113.vergleichKombinationen(s2, ...N113.kernArgumente(s2));
+  };
+  const nackt = { ...standardwerte(), tragwerksart: 'einzelmast', mastLaenge: 10,
+                  L: 0, xLage: 0, mastVorhanden: true, anbauteile: [] };
+
+  // --- a) Gegen die geschlossene Loesung --------------------------------
+  /*
+   * DER NACKTE MAST IST EIN KRAGARM MIT GLEICHLAST. Dafuer gibt es eine
+   * Formel, und sie ist der Massstab: w = q*L^4 / (8*E*I).
+   */
+  {
+    const v = lauf(nackt);
+    const f = v.lastfaelle.find((z) => z.art === 'charakteristisch'
+      && /Wind \+y/.test(z.bez ?? ''));
+    const g = v.ergebnisse[f.key].mast.A;
+    const kopf = g.verformung[g.verformung.length - 1];
+    pruef('Der Kopf liegt auf der Mastspitze', kopf.z, g.zKopf, 1e-9, 'm');
+    pruef('Kragarm mit Gleichlast: w = q L^4 / 8EI',
+          kopf.y, (g.wLaengs * g.zKopf ** 4) / (8 * E * g.Iq), 1e-12, 'm');
+    wahr('… und quer bewegt sich nichts, wo kein Querwind steht',
+         Math.abs(kopf.x) < 1e-12, `${kopf.x}`);
+    pruef('Am Fuss ist die Verformung null', g.verformung[0].y, 0, 1e-12, 'm');
+    /*
+     * DIE ACHSEN GEHOEREN RICHTIG ZUGEORDNET: quer zum Gleis biegt der
+     * Mast ueber `I`, in Gleisrichtung ueber `Iq`. Vertauscht waere die
+     * Verformung beim Regelfall (Steg quer) um Faktor 2.9 daneben.
+     */
+    const fx = v.lastfaelle.find((z) => z.art === 'charakteristisch'
+      && /Wind \+x/.test(z.bez ?? ''));
+    const gx = v.ergebnisse[fx.key].mast.A;
+    const kx = gx.verformung[gx.verformung.length - 1];
+    pruef('Querwind biegt ueber die starke Achse I',
+          kx.x, (gx.wQuer * gx.zKopf ** 4) / (8 * E * gx.I), 1e-12, 'm');
+  }
+
+  // --- b) Die Kombination ----------------------------------------------
+  /*
+   * >>> STAENDIG + 0.70 MAL WIND, UND ZWAR GERECHNET. <<<
+   * Die Verformung ist linear, also muss der Betriebswindfall genau die
+   * Summe sein - das prueft, dass die Beiwerte ankommen.
+   */
+  {
+    const teil = A113.neuesAnbauteil('leiter-traverse', 0);
+    const w = C113.setzeAnbauteileAn({ ...nackt }, [{ ...teil, ort: 'mastA',
+      hMast: 9.0, module: (teil.module ?? []).map((m) => ({ ...m, x: 1.5 })) }]);
+    const v = lauf(w);
+    const kopfVon = (k) => {
+      const g = v.ergebnisse[k]?.mast?.A;
+      return g ? g.verformung[g.verformung.length - 1] : null;
+    };
+    const stG = v.lastfaelle.find((z) => /Ständig \(Tragwerk\)/.test(z.bez ?? ''));
+    const wx = v.lastfaelle.find((z) => z.art === 'charakteristisch'
+      && /Wind \+x/.test(z.bez ?? ''));
+    const bx = v.lastfaelle.find((z) => z.stufe === 'betrieb'
+      && /Wind \+x/.test(z.bez ?? ''));
+    const g0 = kopfVon(stG.key), w0 = kopfVon(wx.key), b0 = kopfVon(bx.key);
+    wahr('Das exzentrische Gewicht biegt schon staendig quer',
+         Math.abs(g0.x) > 1e-4, `${(g0.x * 1000).toFixed(2)} mm`);
+    pruef('Betriebswind = staendig + 0.70 mal Wind',
+          b0.x, g0.x + L113.BETRIEBSWIND * w0.x, 1e-12, 'm');
+  }
+
+  // --- c) Die drei Grenzwerte -------------------------------------------
+  {
+    const teil = A113.neuesAnbauteil('mast-nt-ausleger', 0);
+    const w = C113.setzeAnbauteileAn({ ...nackt },
+      [{ ...teil, ort: 'mastA', hMast: 8.0 }]);
+    const v = lauf(w);
+    const n = VF113.verformungsNachweis(v);
+    wahr('Der Nachweis steht da', Boolean(n?.A?.nachweise?.length));
+    pruef('Drei Nachweise', n.A.nachweise.length, 3, 1e-12, 'Stk');
+    const finde = (re) => n.A.nachweise.find((x) => re.test(x.was));
+    const sG = finde(/ständig \+ Betriebswind/);
+    const sW = finde(/^Mastspitze, nur Wind/);
+    const qu = finde(/quer zum Gleis/);
+    pruef('Mastspitze mit staendig: Grenze L/100', sG.grenz, n.A.L / 100, 1e-12, 'm');
+    pruef('Mastspitze nur Wind: Grenze L/200', sW.grenz, n.A.L / 200, 1e-12, 'm');
+    pruef('Auf Ausleger-/Fahrdrahthoehe: 40 mm', qu.grenz, 0.040, 1e-12, 'm');
+    wahr('… und dort wird QUER gemessen', qu.achse === 'x', qu.achse);
+    wahr('… die Stelle ist der Fahrdraht, nicht die Spitze',
+         n.A.stelle && n.A.stelle.z < n.A.L - 1e-9,
+         `${n.A.stelle?.was} auf ${n.A.stelle?.z?.toFixed(2)} m`);
+    /*
+     * DIE 40 mm GEGEN NUR WIND (Rueckfrage vom 24. September) - also
+     * gegen denselben Fall wie L/200, nicht gegen die Kombination.
+     */
+    wahr('… gegen den Fall NUR WIND',
+         v.lastfaelle.find((z) => z.key === qu.lastfall)?.art === 'charakteristisch',
+         qu.bez ?? '-');
+    wahr('Die Spitze mit staendig kommt aus der Betriebskombination',
+         v.lastfaelle.find((z) => z.key === sG.lastfall)?.stufe === 'betrieb',
+         sG.bez ?? '-');
+  }
+
+  // --- d) Am Joch: das Jochauflager ist die Stelle -----------------------
+  {
+    let j = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    j.L = 20; j.xLage = 0; j.mastVorhanden = true;
+    j = C113.setzeAnbauteileAn(j, [{ ...A113.neuesAnbauteil('hs-fahrdraht', 10), name: 'FL' }]);
+    const n = VF113.verformungsNachweis(lauf(j));
+    wahr('Am Joch wird auf der Anschlusshoehe gemessen',
+         n?.A?.stelle?.was === 'Jochauflager',
+         `${n?.A?.stelle?.was} auf ${n?.A?.stelle?.z?.toFixed(2)} m`);
+    wahr('… und beide Masten stehen da', Boolean(n.A && n.B));
+  }
+
+  // --- e) Sie faerbt kein Urteil -----------------------------------------
+  /*
+   * Entscheid vom 18. September: die Urteilsfarbe folgt allein der
+   * Tragsicherheit. Ein ueberschrittener Gebrauchswert wird
+   * ANGESCHRIEBEN, faerbt aber nichts.
+   */
+  {
+    const CH113 = await import(J('core.checks.js'));
+    const v = lauf(nackt);
+    const erg = v.ergebnisse[v.massgebend ?? Object.keys(v.ergebnisse)[0]];
+    erg.verformung = VF113.verformungsNachweis(v);
+    const u = CH113.bauteilUrteil(erg, null, 'einzelmast');
+    wahr('Die Verformung steht nicht im Urteil',
+         u.liste.every((b) => b.key !== 'verformung'),
+         u.liste.map((b) => b.key).join(' '));
+    // Sie reist aber mit in die Anzeige - sonst faende sie die Spalte nie.
+    const mb = CH113.mitBauteilen({ }, erg);
+    wahr('… wandert aber mit `mitBauteilen` in die Anzeige',
+         Boolean(mb.verformung));
+    const ui113 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Kachel steht ohne Ampel da',
+         /kachel\(`Verformung \$\{name\}`[\s\S]{0,400}?'',/.test(ui113));
   }
 }
 

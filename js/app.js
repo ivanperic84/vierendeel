@@ -75,6 +75,7 @@ import { abfangAuswertung, abfangFyd, abfangStuetzweite,
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
+import { verformungsNachweis } from './core.verformung.js';
 import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
          ankerKnickenSicher } from './core.anker.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
@@ -744,6 +745,15 @@ function neuRechnen(neuZeichnen = true) {
     erg.anker = erg.abfang?.auflager
       ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager, werte)
       : ankerAuswertung(kombi, werte);
+    /*
+     * >>> DIE VERFORMUNG IM GEBRAUCHSZUSTAND (24. September). <<<
+     *
+     * Sie steht neben dem Anker, aus demselben Grund: eine Auswertung
+     * ueber Lastfaelle, nicht eine Rechnung am Querschnitt. Und sie
+     * faerbt das Urteil NICHT - die Urteilsfarbe folgt allein der
+     * Tragsicherheit (Entscheid vom 18. September).
+     */
+    erg.verformung = verformungsNachweis(kombi);
     const checks = mitJoch ? konstruktionsChecks(erg.modell, erg.abfang) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
