@@ -1031,9 +1031,13 @@ button.wz-haupt:hover { color: var(--on); }
   width: 11px; height: 11px; border-radius: 2px; flex: none;
   border: 1px solid rgba(255,255,255,.22);
 }
+/* KEINE SCHATTIERUNG AM UNTEREN RAND (Weisung, 20. September: «beim 3d
+   fenster die schattierung beim unteren rand wegnehmen»). Hier stand ein
+   Verlauf nach `--scrim`, der die Leiste vom Bild abheben sollte; er legte
+   sich ueber das untere Fuenftel der Szene und verdunkelte dort die
+   Bauteilfarben - genau die Farben, die den Nachweis tragen. */
 .viewer-fuss {
   position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px;
-  background: linear-gradient(transparent, var(--scrim) 45%);
   display: flex; align-items: center; gap: 12px;
 }
 .viewer-fuss #ansicht-tools-u { display: flex; gap: 4px; flex: none; }
@@ -1100,7 +1104,11 @@ button.wz-haupt:hover { color: var(--on); }
    fest. */
 .legende-bar {
   height: 8px; width: 100%; min-width: 190px; border-radius: 2px; margin: 5px 0 3px;
-  background: linear-gradient(90deg, rgb(60,92,168), rgb(74,158,172), rgb(190,178,86), rgb(214,132,60), rgb(198,62,62));
+  /* Dieselben Stuetzstellen wie etaFarbe() in design.js - ab 80 %
+     der Rampe (Ausnutzung 1.00) rot, Weisung vom 20. September. */
+  background: linear-gradient(90deg, rgb(60,92,168) 0%, rgb(74,158,172) 40%,
+    rgb(190,178,86) 60%, rgb(214,132,60) 72%, rgb(198,62,62) 80%,
+    rgb(150,34,34) 100%);
 }
 .legende-skala { display: flex; justify-content: space-between; min-width: 190px; }
 /* Wo eine Grösse nicht für jedes Bauteil definiert ist, sagt die Legende das.

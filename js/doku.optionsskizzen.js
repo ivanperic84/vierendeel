@@ -114,59 +114,26 @@ const knotenbereich = (wert) => {
  * waagrecht; die Biegung in dieser Ebene laeuft dann ueber die starke Achse.
  * Das ist der Normalfall: der Steg bildet die Normale zum Gleis.
  */
-const mastSteg = (wert, w) => {
-  const inJochachse = wert !== 'quer';
-  if (w?.tragwerksart === 'einzelmast') return mastStegAmGleis(inJochachse);
-  /*
-   * >>> EIN MASSSTAB FUER MAST UND JOCH (Weisung vom 17. September). <<<
-   *
-   * «der mast wird durch die gurte eingefasst (gabel). man sollte die
-   * masstäbe von mast und joch angleichen.» Gezeichnet 1 px = 5 mm, am
-   * Beispiel HEB 260 und J90 (Aussenmass ueber die Winkel 520 mm, Schenkel
-   * 90 mm, Blechraster 750 mm). Die Gurte laufen BEIDSEITS am Masten vorbei
-   * und fassen ihn ein; die Bleche liegen dazwischen, grau wie der Stahl.
-   */
-  const px = (mm) => mm / 5;
-  const cx = 200, cy = 58;
-  const h = px(260), b = px(260), tf = Math.max(3, px(17.5)), tw = Math.max(2.5, px(10));
-  const aussen = px(520) / 2, schenkel = px(90);
-  const r = (x, y, w, hh, cls = 'st') =>
-    `<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${hh}"/>`;
-  const I = inJochachse
-    // Steg WAAGRECHT, also in der Jochachse; h misst waagrecht.
-    ? r(cx - h / 2, cy - tw / 2, h, tw)
-      + r(cx - h / 2, cy - b / 2, tf, b)
-      + r(cx + h / 2 - tf, cy - b / 2, tf, b)
-    // Steg SENKRECHT, also laengs zum Gleis; waagrecht misst jetzt b.
-    : r(cx - tw / 2, cy - h / 2, tw, h)
-      + r(cx - b / 2, cy - h / 2, b, tf)
-      + r(cx - b / 2, cy + h / 2 - tf, b, tf);
-  const xVon = cx - px(260) / 2 - px(100);     // Gurtende 100 mm vor dem Masten
-  const xBis = 500;
-  /*
-   * ALS LINIEN, WIE IN DEN AUFLAGERSKIZZEN (Weisung vom 17. September: «das
-   * joch als linien element darstellen, sonst wirkt es nicht stimmig»).
-   * Die Gurtlinie liegt in der Schenkelmitte, die Bleche als Striche
-   * zwischen den Gurten. Beschriftungen entfallen - Feld und Auswahl sagen,
-   * was gilt.
-   */
-  const yG = aussen - schenkel / 2;
-  const bleche = [];
-  for (let x = cx + px(750) / 2; x < xBis - 8; x += px(750)) {
-    bleche.push(`<line class="b" x1="${x}" y1="${cy - yG}" x2="${x}" y2="${cy + yG}"/>`);
-  }
-  const gurt = (seite) =>
-    `<line class="b gurt" x1="${xVon}" y1="${cy + seite * yG}" x2="${xBis}" y2="${cy + seite * yG}"/>`;
-  return skizze(
-    inJochachse ? 'Steg quer zum Gleis, starke Achse quer zum Gleis'
-                : 'Steg laengs zum Gleis, schwache Achse quer zum Gleis',
-    '0 0 520 116', `
-    <line class="d" x1="20" y1="${cy}" x2="510" y2="${cy}"/>
-    ${bleche.join('')}
-    ${gurt(-1)}${gurt(+1)}
-    ${I}
-  `);
-};
+/*
+ * >>> EINE DARSTELLUNG FUER ALLE TRAGWERKSARTEN (20. September). <<<
+ *
+ * Weisung: «diese darstellung auch für die restlichen tragwerksarten
+ * verwenden.» Gemeint ist die Gleis-Draufsicht, die seit dem
+ * 18. September am Einzelmasten steht (`mastStegAmGleis`, unten).
+ *
+ * Das Gleis ist die Orientierung, die JEDE Art hat - ein Tragjoch hat
+ * nur das Tragjoch. Ein Abfangjoch, ein Mast mit Tragausleger und ein
+ * Einzelmast standen bis hierher vor einer Skizze, die ein Tragjoch
+ * zeichnete, das es bei ihnen gar nicht gibt.
+ *
+ * WAS DAMIT ENTFAELLT: die Joch-Draufsicht vom 17. September («der mast
+ * wird durch die gurte eingefasst (gabel). man sollte die masstaebe von
+ * mast und joch angleichen», gezeichnet 1 px = 5 mm am Beispiel HEB 260
+ * und J90). Ihr Massstabsentscheid wird gegenstandslos, nicht
+ * widerrufen; die Gabel zeigt weiterhin das 3D-Modell. Der Quelltext der
+ * abgeloesten Skizze steht im Git-Verlauf. Gemeldet.
+ */
+const mastSteg = (wert) => mastStegAmGleis(wert !== 'quer');
 
 /*
  * >>> AM EINZELMAST IST DAS GLEIS DIE ORIENTIERUNG (18. September). <<<
@@ -197,8 +164,27 @@ const mastStegAmGleis = (inJochachse) => {
       + r(cx - b / 2, cy + h / 2 - tf, b, tf);
   const xG = cx - px(3000);                  // Gleisachse
   const spur = px(1435) / 2;
-  const schwellen = [cy - px(600) * 1.5, cy - px(600) / 2, cy + px(600) / 2, cy + px(600) * 1.5]
-    .map((y) => r(xG - px(1300), y - 4, px(2600), 8, 'steif')).join('');
+  /*
+   * >>> NUR SCHWELLEN, DIE INS BILD PASSEN (20. September). <<<
+   *
+   * Hier standen vier Schwellen im Raster 600 mm um die Bildmitte - zwei
+   * davon lagen bei y = -36 und y = 148 und damit VOLLSTAENDIG ausserhalb
+   * des Rahmens (0 0 520 116). Zu sehen waren immer nur zwei; gezeichnet
+   * wurden vier. Aufgefallen ist es erst, als die Skizze fuer alle
+   * Tragwerksarten galt und die Rahmenkontrolle des Pruefstands sie zum
+   * ersten Mal traf (sie laeuft ueber `SKIZZEN_FELDER`, und mastSteg
+   * lieferte bis dahin die Joch-Draufsicht).
+   *
+   * Das Raster bleibt, was es ist - gezeichnet wird, was hineinpasst.
+   * Eine Schwelle halb abgeschnitten waere schlimmer als eine weniger:
+   * das Bild soll das Gleis zeigen, nicht seine Ausdehnung behaupten.
+   */
+  const schwelleH = 8;
+  const schwellen = [-1.5, -0.5, 0.5, 1.5]
+    .map((k) => cy + px(600) * k)
+    .filter((y) => y - schwelleH / 2 >= 0 && y + schwelleH / 2 <= 116)
+    .map((y) => r(xG - px(1300), y - schwelleH / 2, px(2600), schwelleH, 'steif'))
+    .join('');
   const schiene = (x) => `<line class="b" x1="${x}" y1="4" x2="${x}" y2="112"/>`;
   return skizze(
     inJochachse ? 'Steg quer zum Gleis, starke Achse quer zum Gleis'

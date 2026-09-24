@@ -173,6 +173,59 @@ export const KETTENRANG = { traeger: 0, aufbau: 1, drahtwerk: 2 };
  *   glieder   [{von, bis, rang, teil}] je NEUEM Punkt ein steifes Glied
  *   belegung  [{teil, punkt}] wo jedes Teil seine Last einträgt
  */
+/*
+ * >>> DIE REIHENFOLGE DER EINGABE IST DIE REIHENFOLGE DES WEGES. <<<
+ *
+ * Weisung vom 24. September: «bei den koordinaten eingabe in den
+ * anbauteilen, die reihenfolge beachten, jenachdem welcher wert zuerst
+ * eingegeben wird, wird dieser auch abgefahren. dies sollte dann global
+ * in der app gelten.»
+ *
+ * Das praezisiert die Weisung vom 20. September («zuerst die z komponente
+ * afahren»): z zuerst ist nicht das Gesetz, sondern der haeufigste Fall -
+ * das Rohr, das den Masten verlaengert, wird zuerst eingetippt. Wer
+ * dagegen zuerst den Ausleger in x setzt und dann den Leiter hoeher
+ * haengt, meint den anderen Weg.
+ *
+ * Gespeichert wird die Folge am MODUL als Zeichenkette (`folge`, z. B.
+ * «zy»): `achsfolge` schreibt sie bei jeder Eingabe fort. Achsen, die
+ * nicht darin stehen - ein alter Stand, ein nie gesetztes Feld -,
+ * folgen in der Vorgabe z, y, x. Ein alter Stand aendert sich damit
+ * nicht.
+ */
+export const FOLGE_VORGABE = 'zyx';
+
+/**
+ * Die Achsfolge fortschreiben, wenn ein Koordinatenfeld gesetzt wird.
+ *
+ * NUR BEIM ERSTEN MAL anhaengen: wer eine schon gesetzte Koordinate
+ * nachjustiert, soll den Weg nicht umlegen. Wer sie auf null stellt,
+ * nimmt die Achse wieder heraus - sie wird dann gar nicht mehr
+ * abgefahren.
+ *
+ * @param {string} folge bisherige Folge, z. B. 'zy'
+ * @param {string} feld  'x' | 'y' | 'z' (alles andere laesst sie stehen)
+ * @param {*} wert       der neue Wert des Feldes
+ * @returns {string} die neue Folge
+ */
+export function achsfolge(folge, feld, wert) {
+  const rein = String(folge ?? '').split('')
+    .filter((c, i, a) => 'xyz'.includes(c) && a.indexOf(c) === i);
+  if (!['x', 'y', 'z'].includes(feld)) return rein.join('');
+  const zahl = Number(wert);
+  const gesetzt = Number.isFinite(zahl) && Math.abs(zahl) > 1e-12;
+  if (!gesetzt) return rein.filter((c) => c !== feld).join('');
+  return rein.includes(feld) ? rein.join('') : [...rein, feld].join('');
+}
+
+/** Die volle Folge: erst das Eingegebene, dann der Rest in der Vorgabe. */
+export function achsenFolge(folge) {
+  const g = String(folge ?? '').split('')
+    .filter((c, i, a) => 'xyz'.includes(c) && a.indexOf(c) === i);
+  FOLGE_VORGABE.split('').forEach((c) => { if (!g.includes(c)) g.push(c); });
+  return g;
+}
+
 export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
   const r6 = (v) => Math.round(v * 1e6) / 1e6;
   const gleich = (a, b) => Math.abs(a - b) < 1e-9;
@@ -279,10 +332,17 @@ export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
      * darum bleibt es bei drei rechtwinkligen Schritten, nur in anderer
      * Folge.
      */
-    const zyx = (von) => {
-      dazu({ x: von.x, y: von.y, z: p.z });   // 1. lotrecht
-      dazu({ x: von.x, y: p.y, z: p.z });     // 2. quer zum Gleis
-      // 3. in Jochachse - das ist p selbst und braucht keinen Zwischenpunkt.
+    /*
+     * Abgefahren wird in der Folge, die am Zielpunkt steht (siehe
+     * `achsfolge` oben). Der letzte Schritt trifft p selbst; `dazu`
+     * laesst ihn weg, damit kein Zwischenpunkt auf dem Ziel liegt.
+     */
+    const nachFolge = (von) => {
+      const q = { x: von.x, y: von.y, z: von.z };
+      achsenFolge(p.folge).forEach((achse) => {
+        q[achse] = p[achse];
+        dazu({ ...q });
+      });
     };
     /*
      * GESTRECKT WIRD NUR EIN TRAEGER. An einem Aufbau (Traverse, Ausleger)
@@ -298,7 +358,7 @@ export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
         von = weg[weg.length - 1] ?? a;
       }
     }
-    zyx(von);
+    nachFolge(von);
     return weg;
   };
   const richtungVon = (a, b) => {
@@ -359,7 +419,9 @@ export function anbauKette(teile, { x0 = 0, zAn = 0, amMast = false } = {}) {
       // die Wurzel darf aus einem steifen Knotenbereich gerückt worden sein,
       // die Kette hängt trotzdem massgenau daran.
       const dx = (teil.x ?? 0) - (teil.stationX ?? teil.x ?? 0);
-      const p0 = { x: r6(x0 + dx), y: r6(teil.y ?? 0), z: r6(zAn + (teil.z ?? 0)) };
+      // `folge` reist mit dem Punkt: `knickPunkte` liest sie dort.
+      const p0 = { x: r6(x0 + dx), y: r6(teil.y ?? 0), z: r6(zAn + (teil.z ?? 0)),
+                   folge: teil.folge };
       const schluessel = `${p0.x}|${p0.y}|${p0.z}`;
       let punkt = punkte.get(schluessel);
       if (!punkt) {

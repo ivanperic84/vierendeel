@@ -13063,25 +13063,37 @@ titel('44  Skizzen an den Eingabefeldern');
     wahr('Laengs zum Gleis misst sie die Flanschbreite',
          l.inJochachse <= l.stegLaenge + 1e-9, `${l.inJochachse} / ${l.stegLaenge}`);
     /*
-     * DIE GURTE FASSEN DEN MASTEN EIN (Weisung vom 17. September) - und
-     * zwar im selben Massstab: die Gurte liegen aussen, der Mast dazwischen.
+     * >>> DIE JOCH-DRAUFSICHT IST ABGELOEST (20. September). <<<
+     *
+     * Hier stand, was sie zeigen musste: «die Gurte fassen den Masten ein»
+     * (Weisung vom 17. September) und «zwei Gurtlinien, beidseits am
+     * Masten vorbei». Seit «diese darstellung auch für die restlichen
+     * tragwerksarten verwenden» gilt überall die Gleis-Draufsicht; ein
+     * Tragjoch zeichnet diese Skizze nicht mehr.
+     *
+     * Was an ihre Stelle tritt: das GLEIS muss stimmen, und zwar in
+     * beiden Stellungen.
      */
     const g = OS.optionsSkizze('mastSteg', 'jochachse');
-    // Seit dem 17. September als Linien, wie in den Auflagerskizzen.
-    const gurte = [...g.matchAll(
-      /<line class="b gurt" x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/g)]
-      .map((m) => ({ x: +m[1], y: +m[2] }));
+    const gleisLinien = [...g.matchAll(/<line class="b" x1="([\d.]+)"/g)]
+      .map((m) => Number(m[1]));
+    pruef('Zwei Schienen', gleisLinien.length, 2, 1e-12, 'Stk');
+    // Spurweite 1435 mm im Massstab 1 px = 10 mm.
+    pruef('… auf Normalspur', Math.abs(gleisLinien[1] - gleisLinien[0]),
+          143.5, 1e-9, 'px');
+    const schwellen = [...g.matchAll(/<rect class="steif"[^>]*y="([\d.]+)"[^>]*height="([\d.]+)"/g)]
+      .map((m) => ({ y: Number(m[1]), h: Number(m[2]) }));
+    wahr('Die Schwellen liegen ganz im Bild', schwellen.length > 0
+         && schwellen.every((q) => q.y >= 0 && q.y + q.h <= 116),
+         schwellen.map((q) => `${q.y}..${q.y + q.h}`).join(' '));
+    // Das Mastprofil steht rechts, das Gleis links - sonst laege der Mast
+    // im Gleis.
     const st = [...g.matchAll(/<rect class="st" x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
       .map((m) => ({ x: +m[1], y: +m[2], b: +m[3], h: +m[4] }));
-    const mastOben = Math.min(...st.map((r) => r.y));
-    const mastUnten = Math.max(...st.map((r) => r.y + r.h));
-    const mastLinks = Math.min(...st.map((r) => r.x));
-    wahr('Zwei Gurtlinien, beidseits am Masten vorbei',
-         gurte.length === 2 && gurte.every((r) => r.x < mastLinks)
-         && Math.min(...gurte.map((r) => r.y)) < mastOben
-         && Math.max(...gurte.map((r) => r.y)) > mastUnten);
-    wahr('Ohne Beschriftung und ohne Flaechen fuer das Joch',
-         !/<text/.test(g) && !/Wind/.test(g) && !g.includes('blech'));
+    wahr('Der Mast steht neben dem Gleis, nicht darin',
+         Math.min(...st.map((q) => q.x)) > Math.max(...gleisLinien));
+    wahr('Die Skizze ist beschriftet und nennt das Gleis',
+         /aria-label="[^"]{10,}"/.test(g) && /Gleis</.test(g));
   }
 
   /*
@@ -25306,8 +25318,18 @@ titel('87  Einzelmast: Gleis in der Stegskizze, ein x-Feld, plastisch in der Nac
   const g2 = OS.optionsSkizze('mastSteg', 'quer', em);
   wahr('Stegskizze am Einzelmast zeigt das Gleis', /Gleis</.test(g1) && /Gleis</.test(g2));
   wahr('… und unterscheidet die beiden Stellungen', g1 !== g2);
-  wahr('Am Joch bleibt das Joch die Orientierung',
-       !/Gleis</.test(OS.optionsSkizze('mastSteg', 'jochachse', { tragwerksart: 'joch' })));
+  /*
+   * >>> UND AM JOCH DIESELBE (Weisung vom 20. September). <<<
+   * «diese darstellung auch für die restlichen tragwerksarten verwenden.»
+   * Hier stand «am Joch bleibt das Joch die Orientierung» - die
+   * Joch-Draufsicht ist abgeloest, das Gleis gilt überall.
+   */
+  ['joch', 'abfangjoch', 'tragausleger'].forEach((art) => {
+    wahr(`Auch am ${art} zeigt die Stegskizze das Gleis`,
+         /Gleis</.test(OS.optionsSkizze('mastSteg', 'jochachse', { tragwerksart: art })));
+  });
+  wahr('… und es ist wirklich dieselbe Skizze wie am Einzelmast',
+       OS.optionsSkizze('mastSteg', 'jochachse', { tragwerksart: 'joch' }) === g1);
   const C = await import(J('core.constants.js'));
   const joch = { ...typUebernehmen({ ...standardwerte(), bearbeiten: false, typ: 'J90' },
                                     T.getTragjoch('J90')), L: 20, mastVorhanden: true, anbauteile: [] };
@@ -25886,6 +25908,69 @@ titel('97  Teile am Masten: Weg und Skizze (Ansicht x-z, Draufsicht x-y)');
   wahr('Am Masten: zuerst lotrecht, dann y, dann x',
        JSON.stringify(k) === JSON.stringify([[0, 0, 0, 0, 0, -0.6], [0, 0, -0.6, 0, 0.5, -0.6],
                                              [0, 0.5, -0.6, 1, 0.5, -0.6]]), JSON.stringify(k));
+  /* =======================================================================
+   * >>> … SOFERN NICHTS ANDERES EINGEGEBEN WURDE (24. September). <<<
+   * =======================================================================
+   *
+   * Weisung: «bei den koordinaten eingabe in den anbauteilen, die
+   * reihenfolge beachten, jenachdem welcher wert zuerst eingegeben wird,
+   * wird dieser auch abgefahren. dies sollte dann global in der app
+   * gelten.»
+   *
+   * z, y, x ist damit nur noch die VORGABE - sie gilt, wo nichts
+   * mitgeschrieben ist (alter Stand, nie gesetztes Feld). Die Kontrolle
+   * darueber misst genau diesen Fall; hier steht der andere.
+   * ===================================================================== */
+  {
+    const ziel = (folge) => A97.anbauKette(
+      [{ rolle: 'drahtwerk', x: 1, y: 0.5, stationX: 0, z: -0.6, folge }],
+      { x0: 0, zAn: 0, amMast: true }).glieder
+      .map((g) => [g.bis.x, g.bis.y, g.bis.z]);
+    wahr('Zuerst x eingegeben: der Weg faengt in x an',
+         JSON.stringify(ziel('xyz')) === JSON.stringify(
+           [[1, 0, 0], [1, 0.5, 0], [1, 0.5, -0.6]]), JSON.stringify(ziel('xyz')));
+    wahr('Zuerst y eingegeben: der Weg faengt in y an',
+         JSON.stringify(ziel('yxz')) === JSON.stringify(
+           [[0, 0.5, 0], [1, 0.5, 0], [1, 0.5, -0.6]]), JSON.stringify(ziel('yxz')));
+    wahr('Nur x gesetzt: danach gilt wieder die Vorgabe z, y',
+         JSON.stringify(ziel('x')) === JSON.stringify(
+           [[1, 0, 0], [1, 0, -0.6], [1, 0.5, -0.6]]), JSON.stringify(ziel('x')));
+    wahr('Ohne Folge bleibt alles, wie es war',
+         JSON.stringify(ziel(undefined)) === JSON.stringify(ziel('zyx')));
+    /*
+     * DIE FOLGE ENTSTEHT BEIM TIPPEN - und nur beim ERSTEN Mal. Wer eine
+     * schon gesetzte Koordinate nachjustiert, soll den Weg nicht umlegen;
+     * wer sie auf null stellt, nimmt die Achse wieder heraus.
+     */
+    let f = '';
+    f = A97.achsfolge(f, 'z', 1.5); f = A97.achsfolge(f, 'x', 1.0);
+    f = A97.achsfolge(f, 'y', 0.5);
+    pruef('achsfolge: drei Eingaben, drei Achsen', f.length, 3, 1e-12, 'Stk');
+    wahr('… in der Reihenfolge der Eingabe', f === 'zxy', f);
+    wahr('… Nachjustieren legt den Weg nicht um',
+         A97.achsfolge(f, 'z', 2.0) === 'zxy', A97.achsfolge(f, 'z', 2.0));
+    wahr('… auf null gestellt faellt die Achse heraus',
+         A97.achsfolge(f, 'x', 0) === 'zy', A97.achsfolge(f, 'x', 0));
+    wahr('… und ein fremdes Feld laesst sie stehen',
+         A97.achsfolge(f, 'anzahl', 3) === 'zxy');
+    // Was nicht eingegeben wurde, folgt in der Vorgabe z, y, x.
+    wahr('achsenFolge fuellt den Rest in der Vorgabe auf',
+         JSON.stringify(A97.achsenFolge('x')) === JSON.stringify(['x', 'z', 'y'])
+         && JSON.stringify(A97.achsenFolge('')) === JSON.stringify(['z', 'y', 'x']),
+         JSON.stringify(A97.achsenFolge('x')));
+    /*
+     * >>> GLOBAL IN DER APP. <<< Die Weisung sagt es ausdruecklich, und es
+     * ist keine zweite Stelle noetig: Bild, Ausleitung und Rechenkern
+     * holen ihre Kette alle aus `anbauKette`. Gemessen wird hier, dass die
+     * Folge den ganzen Weg bis in die AxisVM-Datei ueberlebt.
+     */
+    const ui97 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Maske schreibt die Folge beim Tippen fort',
+         ui97.includes('achsfolge(m[mod].folge, feld, wert)'));
+    const da97 = readFileSync(join(HIER, 'js', 'data.anbauteile.js'), 'utf8');
+    wahr('… und sie reist mit dem flachen Teil mit',
+         da97.includes('...(m.folge ? { folge: m.folge } : {})'));
+  }
   const k0 = kette([{ rolle: 'drahtwerk', x: 0, y: 0, stationX: 0, z: -0.6 }]);
   wahr('… ohne Ausladung genau ein lotrechtes Glied', k0.length === 1
        && k0[0][3] === 0 && k0[0][5] === -0.6, JSON.stringify(k0));
@@ -26016,28 +26101,35 @@ titel('99  Anbauteile am Einzelmast: alle Eingabewege');
        `${U99.mastKopfHoehe(sE, 'A')} m, Anschlusshoehe ${sE.mastH} m`);
 
   /*
-   * >>> UND ZWEI METER DARUEBER HINAUS (Weisung vom 20. September). <<<
-   * «lasten oberhalb mastspitze zulassen.» Der Regler endete am Kopf; ein
-   * Aufsatz darueber liess sich gar nicht eingeben.
+   * >>> DER ANSCHLUSS BLEIBT AM MASTEN (Klarstellung vom 24. September). <<<
+   *
+   * «der anschlusspunkt liegt innerhalb der mastlänge, aber es sollte dann
+   * möglich sein die z koordinate des anbauteils oberhalb der mastspitze
+   * anzusetzen (Mastverlängerung mit Rohr)»
+   *
+   * Hier stand kurzzeitig «der Regler reicht zwei Meter ueber die
+   * Mastspitze hinaus» - meine erste Lesart der Weisung vom 20. September,
+   * und sie stellte den ANSCHLUSS in die Luft. Geschraubt wird am Masten;
+   * hinaus ragt das Rohr, also die z-Koordinate des Moduls.
    */
-  pruef('Der Regler reicht zwei Meter ueber die Mastspitze hinaus',
-        U99.mastReglerHoehe(sE, 'A') - U99.mastKopfHoehe(sE, 'A'), 2.0, 1e-9, 'm');
+  pruef('Der Regler endet an der Mastspitze',
+        U99.mastReglerHoehe(sE, 'A') - U99.mastKopfHoehe(sE, 'A'), 0, 1e-9, 'm');
 
-  // Duplizieren unterhalb der Reglerhoehe: die Kopie geht nach oben.
-  const teil = { id: 'AT-k', name: 'RL', ort: 'mastA', hMast: lang - 0.3, x: 0, module: [], lasten: [] };
+  // Duplizieren: die Kopie steigt, bis sie an die Spitze stoesst.
+  const teil = { id: 'AT-k', name: 'RL', ort: 'mastA', hMast: lang - 0.8, x: 0, module: [], lasten: [] };
   let gesetzt = null;
   K99.anbauteilDuplizieren({ werte: { ...sE, anbauteile: [teil] }, letzte: null,
     setzeAnbauteile: (l) => { gesetzt = l; }, meldeImBalken: () => {} }, 0);
-  wahr('Duplizieren nahe der Spitze: die Kopie darf darueber',
-       Math.abs(gesetzt?.[1]?.hMast - (lang + 0.2)) < 1e-9, `${gesetzt?.[1]?.hMast} m`);
+  wahr('Duplizieren unter der Spitze: die Kopie steht darueber',
+       Math.abs(gesetzt?.[1]?.hMast - (lang - 0.3)) < 1e-9, `${gesetzt?.[1]?.hMast} m`);
   {
-    // Ganz oben angelangt geht es wieder abwaerts - sonst wanderte die
-    // Kopie mit jedem Klick weiter in die Luft.
-    const oben = { ...teil, hMast: U99.mastReglerHoehe(sE, 'A') - 0.2 };
+    // An der Spitze geht es wieder abwaerts - sonst wanderte die Kopie
+    // mit jedem Klick weiter in die Luft.
+    const oben = { ...teil, hMast: lang - 0.2 };
     let g2 = null;
     K99.anbauteilDuplizieren({ werte: { ...sE, anbauteile: [oben] }, letzte: null,
       setzeAnbauteile: (l) => { g2 = l; }, meldeImBalken: () => {} }, 0);
-    wahr('… an der Reglerhoehe wieder darunter',
+    wahr('… an der Spitze wieder darunter',
          g2?.[1]?.hMast < oben.hMast, `${g2?.[1]?.hMast} m`);
   }
 
@@ -27030,6 +27122,50 @@ titel('110  Einzelmast: Durchlauf ueber Modellierung und Auswertung');
          !/über der Mastspitze/.test(hd)
          && (datei110(drin.s, drin.erg).tragwerk.anbauMastAus ?? []).length === 0,
          'Mast 12 m, Teil auf 9 m');
+  }
+
+  /* =====================================================================
+   * b2) DIE MASTVERLAENGERUNG MIT ROHR (Klarstellung vom 24. September)
+   * ===================================================================
+   * «der anschlusspunkt liegt innerhalb der mastlänge, aber es sollte dann
+   * möglich sein die z koordinate des anbauteils oberhalb der mastspitze
+   * anzusetzen (Mastverlängerung mit Rohr)»
+   *
+   * Das ist der Fall, um den es wirklich geht - und er laeuft ueber einen
+   * ganz anderen Weg als b): die Wurzel der Kette sitzt am Masten, das
+   * Rohr ist ein GLIED DER KETTE auf der Mastachse (seit der Folge z, y,
+   * x vom 20. September laeuft es lotrecht hinauf). Kein `MASTAUFSATZ`.
+   * ===================================================================== */
+  {
+    // Das Modul steigt ueber die Spitze - das Rohr. Gesetzt wird ueber
+    // `setzeAnbauteileAn`: ein Blattsatz fuehrt die Teile am aktiven
+    // Tragwerk, und ein Griff in `w.anbauteile` erreicht sie nicht.
+    const teilR = A110.neuesAnbauteil('leiter-traverse', 0);
+    const roh = C110.setzeAnbauteileAn(einzelmast({ laenge: 8.5 }), [{
+      ...teilR, hMast: 8.0, ort: 'mastA',
+      module: (teilR.module ?? []).map((m) => ({ ...m, z: (m.z ?? 0) + 1.5 })) }]);
+    const { s: sR, erg: eR } = rechne110(roh);
+    const dR = datei110(sR, eR);
+    const fuss = dR.knoten.find((k) => k.name === 'MAST_A_F').z;
+    const hoch = dR.knoten.filter((k) => k.z - fuss > 8.5 + 1e-9);
+    wahr('Rohr: der Lastpunkt steht ueber der Spitze', hoch.length > 0,
+         hoch.map((k) => `${k.name} ${(k.z - fuss).toFixed(2)} m`).join(' '));
+    const namen = new Set(hoch.map((k) => k.name));
+    wahr('… und seine Lasten stehen dort',
+         (dR.lasten.punkt ?? []).some((q) => namen.has(q.knoten)),
+         `${(dR.lasten.punkt ?? []).filter((q) => namen.has(q.knoten)).length} Punktlasten`);
+    wahr('… der Mast selbst endet an seiner Spitze',
+         dR.staebe.filter((x) => /^MAST_A_S\d+$/.test(x.name))
+           .every((x) => dR.knoten.find((k) => k.name === x.bis).z - fuss <= 8.5 + 1e-9));
+    wahr('… kein MASTAUFSATZ - das Rohr ist ein Glied der Kette',
+         dR.staebe.every((x) => !/MASTAUFSATZ/.test(x.name))
+         && dR.staebe.some((x) => /^ARMM/.test(x.name)));
+    wahr('… nichts faellt aus dem Modell',
+         (dR.tragwerk.anbauMastAus ?? []).length === 0);
+    const hR = CH110.hinweise(eR.modell).join(' ');
+    wahr('… und der Hinweis nennt die Mastverlaengerung',
+         /über der Mastspitze/.test(hR) && /Rohr/.test(hR),
+         hR.slice(0, 90) || 'kein Hinweis');
   }
 
   /* =====================================================================

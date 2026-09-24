@@ -980,6 +980,10 @@ export function expandiereAnbauteile(liste, o = {}) {
         ...(leiter ? { leiter } : {}), ...(havarieJe ? { havarieJe } : {}),
         name: `${a.name} · ${b.name}`,
         x: a.x + (m.x ?? 0), y, z, ev: -z, ex: y,
+        // In welcher Folge die Kette die drei Achsen abfaehrt: die
+        // Reihenfolge der Eingabe (Weisung, 24. September). Steht sie
+        // nicht da - alter Stand -, gilt die Vorgabe z, y, x.
+        ...(m.folge ? { folge: m.folge } : {}),
         anzahl: n, laenge, alpha, einheit: b.einheit,
         // Welche Anteile hier wirklich ankommen - die Ausleitung und die
         // Darstellung sollen es benennen koennen, nicht nur die Summe sehen.
@@ -1020,6 +1024,7 @@ export function expandiereAnbauteile(liste, o = {}) {
         id: `${a.id}!${i}`, lastIndex: i, art: 'last', einwirkung: g,
         name: `${a.name} · ${EINWIRKUNGEN.find((e) => e.key === g).label}`,
         x: a.x + (l.x ?? 0), y, z, ev: -z, ex: y,
+        ...(l.folge ? { folge: l.folge } : {}),
         kraefte,
       });
     });

@@ -34,7 +34,7 @@ import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
-         hatTraeger } from './core.anbauteile.js';
+         hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette, rechensatz } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
@@ -2426,8 +2426,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                          // Bis zum MASTKOPF, nicht bis zur Jochachse: ein
                          // langer Mast traegt oben Traversen mit
                          // Zusatzleitern, und der Regler muss dorthin reichen.
-                         // Und zwei Meter darueber hinaus - Lasten oberhalb
-                         // der Mastspitze sind zugelassen (20. September).
+                         // NICHT DARUEBER HINAUS: der Anschluss liegt am
+                         // Masten (24. September). Was hoeher sitzt, sagt
+                         // die z-Koordinate des Moduls weiter unten.
                          0.05, 0, mastReglerHoehe(werte, ortVon(a) === 'mastB' ? 'B' : 'A'))}
           ${/*
              * >>> DAS ABFANGJOCH HAT KEINE GURTEBENEN. <<<
@@ -3258,24 +3259,29 @@ export function mastKopfHoehe(werte, ende = 'A') {
 }
 
 /**
- * >>> WIE WEIT DARF DER HOEHENREGLER UEBER DIE MASTSPITZE (20. September)? <<<
+ * >>> DER ANSCHLUSS BLEIBT AM MASTEN (Klarstellung vom 24. September). <<<
  *
- * Weisung: «lasten oberhalb mastspitze zulassen.» Bis hierher endete der
- * Regler am Kopf - ein Aufsatz oder eine Traverse darueber liess sich gar
- * nicht eingeben, und wer den Masten hinterher kuerzte, konnte das Teil
- * nicht wieder erreichen.
+ * «der anschlusspunkt liegt innerhalb der mastlänge, aber es sollte dann
+ * möglich sein die z koordinate des anbauteils oberhalb der mastspitze
+ * anzusetzen (Mastverlängerung mit Rohr)»
  *
- * Gerechnet wird ein solches Teil auf seinem Hebelarm ueber dem Kopf, und
- * das ausgeleitete Modell haengt es an ein starres Stueck dort hinauf
- * (`MASTAUFSATZ_...` in export.axisvm.js). Die zwei Meter sind kein
- * Rechenwert, sondern das Mass des Reglers: so weit reicht ein Aufsatz auf
- * einem Fahrleitungsmasten. Eingetippt werden darf mehr - der Regler
- * begrenzt nur sich selbst.
+ * Damit ist die Weisung vom 20. September («lasten oberhalb mastspitze
+ * zulassen») praezisiert, und meine erste Umsetzung war zu weit: ich hatte
+ * den Regler zwei Meter über den Kopf hinaus laufen lassen, also den
+ * ANSCHLUSS in die Luft gestellt. Geschraubt wird aber am Masten.
+ *
+ * Was hinausragt, ist die z-Koordinate des MODULS - sie war nie begrenzt,
+ * und die Kette baut dafür seit dem 20. September ein starres Glied auf
+ * der Mastachse: genau das Rohr, das den Masten verlängert. Gemessen am
+ * Einzelmast 8.50 m, Anschluss 8.00 m, Modul z = +1.85: der Lastpunkt
+ * liegt bei 9.85 m, seine Lasten stehen dort, und nichts fällt aus dem
+ * Modell.
+ *
+ * `mastReglerHoehe` bleibt als EIN Name fuer die Grenze bestehen - Regler
+ * und Duplizieren lesen sie beide -, sie ist jetzt wieder der Kopf.
  */
-export const UEBER_MASTSPITZE = 2.0;
-
 export function mastReglerHoehe(werte, ende = 'A') {
-  return Math.round((mastKopfHoehe(werte, ende) + UEBER_MASTSPITZE) * 100) / 100;
+  return mastKopfHoehe(werte, ende);
 }
 
 /** Anzahl eines Moduls: ganze Stück, nie negativ. */
@@ -4289,7 +4295,21 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       onAnbau(l);
       return;
     }
-    m[mod] = { ...m[mod], [feld]: wert };
+    /*
+     * >>> DIE REIHENFOLGE DER EINGABE WIRD MITGESCHRIEBEN (24. Sept.). <<<
+     *
+     * Weisung: «bei den koordinaten eingabe in den anbauteilen, die
+     * reihenfolge beachten, jenachdem welcher wert zuerst eingegeben
+     * wird, wird dieser auch abgefahren.»
+     *
+     * Die Kette kann das nicht aus den Zahlen ablesen - x = 1.25 und
+     * z = 0.45 sagen nichts darueber, welches zuerst dastand. Also
+     * haelt es das Modul fest; `achsfolge` (core.anbauteile.js) ist
+     * die eine Stelle, die die Regel kennt.
+     */
+    const folge = achsfolge(m[mod].folge, feld, wert);
+    m[mod] = { ...m[mod], [feld]: wert,
+               ...(folge ? { folge } : { folge: undefined }) };
     l[idx] = { ...l[idx], module: m };
     onAnbau(l);
   };

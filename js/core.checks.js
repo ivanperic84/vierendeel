@@ -823,18 +823,28 @@ export function hinweise(m) {
     // Ohne eingetragene Gesamtlaenge gibt es keinen gesicherten Kopf.
     const kopf = md?.laenge > 0 ? md.laenge : null;
     if (kopf === null) return;
-    const h = Number(t.hMast) || 0;
+    /*
+     * >>> GEMESSEN WIRD DER LASTPUNKT, NICHT DER ANSCHLUSS (24. Sept.). <<<
+     *
+     * Hier stand `t.hMast` - die Hoehe, auf der die Baugruppe am Masten
+     * sitzt. Der Anschluss liegt aber laut Weisung ohnehin innerhalb der
+     * Mastlaenge; was hinausragt, ist die z-Koordinate des Moduls
+     * («Mastverlaengerung mit Rohr»). Mit dem Anschluss allein blieb der
+     * Hinweis genau in dem Fall stumm, fuer den er gedacht ist.
+     */
+    const h = (Number(t.hMast) || 0) + (Number(t.z) || 0);
     if (h <= kopf + 1e-9) return;
     const name = String(t.name ?? '').split(' · ')[0] || 'Anbauteil';
     const da = ueber.get(name);
     if (!da || h > da.h) ueber.set(name, { h, kopf, ende });
   });
   ueber.forEach((v, name) => {
-    h.push(`${name}: sitzt über der Mastspitze (h = ${v.h.toFixed(2)} m, `
-      + `Mast ${v.kopf.toFixed(2)} m). Das ist zugelassen: Nachweis und `
+    h.push(`${name}: der Lastpunkt liegt über der Mastspitze `
+      + `(${v.h.toFixed(2)} m, Mast ${v.kopf.toFixed(2)} m). Das ist `
+      + 'zugelassen – eine Mastverlängerung mit Rohr. Nachweis und '
       + 'Ausleitung rechnen die Last auf diesem Hebelarm, im Modell trägt '
-      + `sie ein starres Stück ${(v.h - v.kopf).toFixed(2)} m über dem Kopf. `
-      + 'Ein Mastprofil steht dort nicht mehr - der Aufsatz selbst ist nicht '
+      + `sie ein starres Glied ${(v.h - v.kopf).toFixed(2)} m über dem Kopf. `
+      + 'Ein Mastprofil steht dort nicht mehr – das Rohr selbst ist nicht '
       + 'nachgewiesen.');
   });
 

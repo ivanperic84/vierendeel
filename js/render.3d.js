@@ -3606,15 +3606,32 @@ export class Modellansicht {
     c.font = this._font(this.schriftLast);
     const belegt = [];
     let gesetzt = 0;
-    const grenze = 60;
+    /*
+     * >>> WENIGER ZAHLEN, UND SIE TRAGEN DIE FARBE DER SKALA
+     * (Weisung vom 20. September). <<<
+     *
+     * «die werte beim plot in der farbe der skala machen und die werte
+     * transparenter gestalten. die dichte der werte etwas zurücknehmen.»
+     *
+     * Hier standen 60 Zahlen im Raster 42 x 13 px. Am schlanken Bauteil -
+     * einem Einzelmasten über die ganze Bildhöhe - reihten sie sich dicht
+     * übereinander und verdeckten genau das, was sie beschriften.
+     * Jetzt 34 Zahlen im Raster 54 x 19 px; die Farbe kommt aus derselben
+     * Rampe wie die Fläche darunter (`etaFarbe`), damit eine Zahl auch
+     * ohne Vergleich mit der Legende zu lesen ist.
+     */
+    const grenze = 34;
     const s = this._s;
     const hoehe = this.schriftLast * s;
+    // Dieselbe Rampe wie `_grundfarbe` - eine Stelle, zwei Leser.
+    const maxW = p.fest ?? (this._bereichSichtbar(p.feld) || 1);
+    const farbeVon = (v) => etaFarbe((Math.abs(v) / (maxW || 1)) * (p.fest ?? 1.25));
     for (const k of kandidaten) {
       if (gesetzt >= grenze) break;
       // Unter sich halten die Zahlen ihren gewohnten Abstand - ein Raster,
       // kein Rechteck: sie sollen nicht Schulter an Schulter stehen.
-      if (belegt.some((b) => Math.abs(b.x - k.x) < 42 * this._s &&
-                             Math.abs(b.y - k.y) < 13 * this._s)) continue;
+      if (belegt.some((b) => Math.abs(b.x - k.x) < 54 * this._s &&
+                             Math.abs(b.y - k.y) < 19 * this._s)) continue;
       const text = k.v.toFixed(p.nk);
       // NUR GANZ ODER GAR NICHT. Am Bildrand schnitt der Canvas die Zahl ab,
       // und aus 118 wurde ein lesbares, aber falsches 18. Eine halbe Zahl ist
@@ -3628,7 +3645,7 @@ export class Modellansicht {
       this._belegt.push({ x, y, w, h });
       belegt.push(k);
       gesetzt++;
-      this._beschriftung(c, t, text, k.x, k.y);
+      this._beschriftung(c, t, text, k.x, k.y, farbeVon(k.v), 0.62);
     }
   }
 
@@ -4050,15 +4067,28 @@ export class Modellansicht {
   }
 
   /** Text mit Unterlage, damit er auf jedem Untergrund lesbar bleibt. */
-  _beschriftung(c, t, text, x, y, farbe = null) {
+  /**
+   * Eine Zahl auf ihrem Saum.
+   *
+   * >>> DURCHSCHEINEND (Weisung vom 20. September: «die werte
+   * transparenter gestalten»). <<<
+   *
+   * `deckung` gilt für Saum UND Schrift zusammen, nicht nur für die
+   * Schrift: ein voller Saum unter blasser Schrift wäre genauso
+   * undurchsichtig, und verdeckt wird das Bauteil vom Saum, nicht von der
+   * Zahl. Ohne Angabe bleibt es beim bisherigen Aussehen - die Marken und
+   * Kraftanschriften sollen nicht mitverblassen.
+   */
+  _beschriftung(c, t, text, x, y, farbe = null, deckung = 1) {
     const s = this._s;
     const hoehe = this.schriftLast * s;
     const b = this._textBreite(c, text) + 7 * s;
-    c.fillStyle = t.s1; c.globalAlpha = 0.78;
+    c.fillStyle = t.s1; c.globalAlpha = 0.78 * deckung;
     c.fillRect(x - 3 * s, y - hoehe + 2 * s, b, hoehe + 3 * s);
-    c.globalAlpha = 1;
+    c.globalAlpha = deckung;
     c.fillStyle = farbe ?? t.on;
     c.fillText(text, x, y);
+    c.globalAlpha = 1;
   }
 
   _marken(c, proj, t) {

@@ -86,15 +86,35 @@ export function ampel(eta) {
  * 0 -> gedämpftes Blau, 1 -> Rot. Bewusst nicht der klassische Regenbogen:
  * die Helligkeit wächst monoton, damit die Reihenfolge auch bei
  * Farbsehschwäche und im Ausdruck erkennbar bleibt.
+ *
+ * >>> AB DER AUSNUTZUNG 1.00 IST ES ROT (20. September). <<<
+ *
+ * Weisung: «die skala farben verschieben, ab einer ausnutzung von 1
+ * sollte es schon rot sein und nicht orange.»
+ *
+ * Die Skala läuft bis 1.25, und die Stützstellen sassen auf Bruchteilen
+ * dieser 1.25 statt auf den Werten, die etwas bedeuten: η = 1.00 fiel
+ * damit auf 0.80 der Rampe und traf das Orange. Ein überschrittener
+ * Nachweis sah aus wie ein knapper.
+ *
+ * Die Stützstellen stehen jetzt dort, wo `ampel()` ihre Grenzen zieht -
+ * eine Quelle für beide, sonst sagt die Kachel «rot» und das Bild
+ * «orange»:
+ *
+ *     η 0.00  blau      η 0.50  türkis     η 0.75  gelb
+ *     η 0.90  orange (ampel: warn)     η 1.00  rot (ampel: fail)
+ *     η 1.25  dunkelrot - damit der Überschritt noch eine Tiefe hat
  */
 export function etaFarbe(eta) {
   const t = Math.max(0, Math.min(1.25, Number.isFinite(eta) ? eta : 0)) / 1.25;
+  // Die erste Spalte ist die Lage auf der Rampe, also η / 1.25.
   const stufen = [
-    [0.00, [ 60,  92, 168]],
-    [0.35, [ 74, 158, 172]],
-    [0.60, [190, 178,  86]],
-    [0.80, [214, 132,  60]],
-    [1.00, [198,  62,  62]],
+    [0.00, [ 60,  92, 168]],   // η 0.00
+    [0.40, [ 74, 158, 172]],   // η 0.50
+    [0.60, [190, 178,  86]],   // η 0.75
+    [0.72, [214, 132,  60]],   // η 0.90 - ampel(): warn
+    [0.80, [198,  62,  62]],   // η 1.00 - ampel(): fail
+    [1.00, [150,  34,  34]],   // η 1.25
   ];
   for (let i = 1; i < stufen.length; i++) {
     if (t <= stufen[i][0] || i === stufen.length - 1) {
@@ -104,7 +124,7 @@ export function etaFarbe(eta) {
       return `rgb(${c[0]},${c[1]},${c[2]})`;
     }
   }
-  return 'rgb(198,62,62)';
+  return 'rgb(150,34,34)';
 }
 
 /**
