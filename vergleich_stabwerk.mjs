@@ -393,18 +393,20 @@ if (aufPy.length) {
  * `kraftuebertragung: {z: Free, yy: Free, zz: Free}`, gibt also keine
  * Biegemomente weiter. Der Loeser setzt das um (Punkt-zu-Punkt-Feder).
  *
- * PyNite kennt keine solche Feder. Die Ausleitung schreibt den Link
- * deshalb als gewoehnlichen Stab mit dem Ersatzquerschnitt STARR - voll
- * biegesteif. Damit wirkt das Joch dort als RAHMENRIEGEL: am J90/8 m
- * nimmt es unter WindX ein Kraeftepaar von 0.835 kN auf, und 0.835 x 8 m
- * = 6.68 kNm ist auf die Stelle genau die Differenz der beiden
- * Fussmomente (2 x 3.34).
+ * PyNite kennt keine solche Feder. Bis zum 24. September schrieb die
+ * Ausleitung den Link deshalb als gewoehnlichen Stab mit dem
+ * Ersatzquerschnitt STARR - voll biegesteif -, und das Joch wirkte dort
+ * als RAHMENRIEGEL: unter WindX nahm es ein Kraeftepaar von 0.835 kN
+ * auf, und 0.835 x 8 m = 6.68 kNm war auf die Stelle genau die Differenz
+ * der beiden Fussmomente (2 x 3.34).
  *
- * >>> DAS IST KEIN RECHENFEHLER, SONDERN EIN ANDERES BAUWERK. <<<
+ * >>> SEITHER BEKOMMT PyNite STABENDFREIGABEN. <<<
  *
- * Um die LOESER zu vergleichen, bekommt der eigene hier einmal dasselbe
- * Modell, das PyNite vorgesetzt bekommt: Links als starre Staebe. Was
- * dann noch bleibt, geht wirklich auf sein Konto.
+ * Weisung: «die links als stabendfreigaben in pynite nachruesten». Damit
+ * ist dieser Block nicht mehr die Erklaerung einer Abweichung, sondern
+ * die KONTROLLGRUPPE: er zeigt, was ohne die Freigaben herauskaeme. Je
+ * groesser er ausfaellt, desto mehr haengt am gelenkigen Anschluss - und
+ * desto wichtiger ist, dass er richtig steht.
  * ========================================================================= */
 {
   const starr = JSON.parse(JSON.stringify(dat));
@@ -413,8 +415,8 @@ if (aufPy.length) {
   if (links.length && aufPy.length) {
     const l2 = SW.loese(starr, { eigengewicht: false });
     zeile('\n' + '-'.repeat(96));
-    zeile(`GEGENPROBE — derselbe Löser mit ${links.length} STARREN Links`
-      + ' (so sieht PyNite das Modell)');
+    zeile(`KONTROLLGRUPPE — derselbe Löser mit ${links.length} STARREN Links`
+      + ' (so sähe PyNite das Modell ohne die Freigaben)');
     zeile('-'.repeat(96));
     const RF2 = [['FX', 'ux', +1], ['FY', 'uz', +1], ['FZ', 'uy', +1],
                  ['MX', 'fix', -1], ['MY', 'fiz', -1], ['MZ', 'fiy', -1]];

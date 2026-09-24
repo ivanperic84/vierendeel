@@ -385,9 +385,11 @@ export function pyniteSkript(m, opt = {}) {
    * Modell entsteht. Gemessen: der Aufruf laesst `bau` unveraendert und
    * gibt zweimal dasselbe.
    * ======================================================================= */
-  const drehQuelle = new Map(
+  const ausDatei = new Map(
     stabmodellJson(m, { bau, knotenmodell: km }).staebe
-      .map((x) => [x.name, x.lcsZ]));
+      .map((x) => [x.name, x]));
+  const drehQuelle = new Map(
+    [...ausDatei].map(([n, x]) => [n, x.lcsZ]));
 
   const sollZeilen = bau.staebe.map((st) => {
     const a = bau.knoten.get(st.von), b = bau.knoten.get(st.bis);
@@ -409,6 +411,71 @@ export function pyniteSkript(m, opt = {}) {
     .map((st) => [st.name, drehung(st)])
     .filter(([, g]) => g)
     .map(([n, g]) => `    ${s(n)}: ${py(g)},`);
+
+  /* =========================================================================
+   * >>> DIE GELENKIGEN ANSCHLUESSE - ALS STABENDFREIGABEN. <<<
+   * =======================================================================
+   *
+   * Weisung vom 24. September: «die links als stabendfreigaben in pynite
+   * nachruesten».
+   *
+   * Der Jochanschluss ist ein LINKELEMENT - stehende Vorgabe des
+   * Auftraggebers: «gelenkige Anschluesse als Linkelemente». Es traegt je
+   * Freiheitsgrad `Rigid` oder `Free`, und was frei ist, folgt dem
+   * Lagerungsentscheid vom 16. September (Obergurt x y, Untergurt y z):
+   *
+   *     OG-Link   x Rigid  y Rigid  z FREE   xx Rigid  yy FREE  zz FREE
+   *     UG-Link   x FREE   y Rigid  z Rigid  xx Rigid  yy FREE  zz FREE
+   *
+   * Bis hierher schrieb die Ausleitung den Link als GEWOEHNLICHEN Stab mit
+   * dem Ersatzquerschnitt STARR - voll biegesteif. Das Joch wirkte in
+   * PyNite dadurch als Rahmenriegel; am J90/8 m nahm es unter Wind quer
+   * ein Kraeftepaar von 0.835 kN auf, und 0.835 x 8 m = 6.68 kNm war auf
+   * die Stelle genau die Differenz der beiden Fussmomente.
+   *
+   * >>> WAS EXAKT GEHT UND WAS EINE NAEHERUNG BLEIBT. <<<
+   *
+   * Eine Feder haelt ihre sechs Komponenten UNABHAENGIG: sie kann eine
+   * Querkraft uebertragen, ohne ein Moment zu uebertragen. Ein Balken kann
+   * das nicht - bei ihm gilt V = dM/dx. Daraus folgt:
+   *
+   *   - Eine freie VERSCHIEBUNG (z beim OG, x beim UG) wird exakt: das
+   *     Ende traegt in dieser Richtung nichts, und beim OG faellt mit
+   *     `Dz` und `Ry` die ganze x-z-Ebene weg, genau wie bei der Feder.
+   *
+   *   - Eine freie VERDREHUNG bei starrer Querkraft (yy, zz) bleibt eine
+   *     Naeherung. Gibt man sie an BEIDEN Enden frei, faellt mit dem
+   *     Moment auch die Querkraft aus - der Anschluss truege dann gar
+   *     nichts mehr, und das waere schlechter als zu viel. Also an EINEM
+   *     Ende; am anderen bleibt ein Restmoment M = V x L.
+   *
+   * DER FEHLER IST DIE LINKLAENGE, und die ist 0.05 m. Wie gross er
+   * wirklich wird, misst `vergleich_stabwerk.mjs` und schreibt es hin -
+   * geschaetzt wird hier nichts.
+   *
+   * Freigegeben wird am ENDE AM GURT (j). Das Restmoment landet damit im
+   * starren Anschlussstiel zum Masten und nicht im Gurt - der Gurt ist
+   * das nachgewiesene Bauteil.
+   * ======================================================================= */
+  const FREIHEIT = [['x', 'Dx'], ['y', 'Dy'], ['z', 'Dz'],
+                    ['xx', 'Rx'], ['yy', 'Ry'], ['zz', 'Rz']];
+  const freigabeZeilen = [];
+  bau.staebe.forEach((st) => {
+    const d = ausDatei.get(st.name);
+    if (!d || d.art !== 'link') return;
+    const ku = d.kraftuebertragung || {};
+    /*
+     * Die lokalen Achsen sind dieselben - dafuer sorgt die Ausrichtung
+     * oben. Nur das lokale y kann das Vorzeichen wechseln (die Abbildung
+     * nach PyNite ist eine Spiegelung); fuer eine Freigabe ist das ohne
+     * Belang: frei bleibt frei.
+     */
+    const frei = FREIHEIT.filter(([unser]) => ku[unser] === 'Free')
+                         .map(([, py2]) => `${py2}j`);
+    if (!frei.length) return;
+    freigabeZeilen.push(`M.def_releases(${s(st.name)}, `
+      + frei.map((f) => `${f}=True`).join(', ') + ')');
+  });
 
   // Auflager. Unsere Freiheitsgrade in PyNite-Benennung:
   //   fix  (Torsion um die Jochachse)      -> RX
@@ -588,6 +655,12 @@ def _ausrichten():
           ' (%d davon mit Zuschlag).' % (len(SOLL_EZ), len(ZUSCHLAG)))
 
 _ausrichten()
+
+# --- Gelenkige Anschlüsse (Linkelemente) -------------------------------------
+# Freigegeben wird am Ende AM GURT (j); siehe den Block in export.pynite.js.
+${freigabeZeilen.length ? freigabeZeilen.join('\n')
+  + `\nprint('Gelenke: ${freigabeZeilen.length} Linkenden freigegeben.')`
+  : '# (keine Linkelemente in diesem Modell)'}
 
 # --- Auflager ----------------------------------------------------------------
 # DX, DY, DZ, RX, RY, RZ - RX ist die Gabellagerung, RZ die Vertikalbiegung.

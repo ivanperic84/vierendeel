@@ -29412,6 +29412,86 @@ titel('120  PyNite: der Querschnitt und die Drehlage');
     const qq = SW120.qsWerte(dq);
     pruef('Der Loeser rechnet mit demselben Iz', qq.Iz, dq.Iz, 1e-15, 'm4');
   }
+
+  // --- e) DIE GELENKIGEN ANSCHLUESSE --------------------------------------
+  /* =======================================================================
+   * Weisung vom 24. September: «die links als stabendfreigaben in pynite
+   * nachruesten».
+   *
+   * Der Link traegt je Freiheitsgrad `Rigid` oder `Free`. Was frei ist,
+   * muss in PyNite als Stabendfreigabe stehen - und was starr ist, darf
+   * NICHT freigegeben sein. Beide Richtungen zaehlen: eine Freigabe zu
+   * viel loest einen Anschluss, der halten soll.
+   * ===================================================================== */
+  {
+    const ausDatei = new Map(dat120.staebe.map((x) => [x.name, x]));
+    const links = dat120.staebe.filter((x) => x.art === 'link');
+    wahr('Das Modell fuehrt Linkelemente', links.length > 0, `${links.length}`);
+
+    const zeilen = py120.text.split('\n')
+      .filter((z) => z.startsWith('M.def_releases('));
+    pruef('Eine Freigabezeile je Link', zeilen.length, links.length, 1e-12, 'Stk');
+
+    const ABB = { x: 'Dx', y: 'Dy', z: 'Dz', xx: 'Rx', yy: 'Ry', zz: 'Rz' };
+    let falsch = 0; let zuviel = 0; let wo = '';
+    let anBeiden = 0;
+    zeilen.forEach((z) => {
+      const t = /M\.def_releases\('([^']+)', (.*)\)$/.exec(z.trim());
+      if (!t) { falsch += 1; return; }
+      const d = ausDatei.get(t[1]);
+      const ku = (d && d.kraftuebertragung) || {};
+      const gesetzt = t[2].split(',').map((x) => x.trim().replace('=True', ''));
+      // Jedes Free muss da sein - am j-Ende.
+      Object.entries(ABB).forEach(([unser, pyn]) => {
+        const soll = ku[unser] === 'Free';
+        const ist = gesetzt.includes(`${pyn}j`);
+        if (soll !== ist) { falsch += 1; wo = `${t[1]}.${unser}`; }
+        // Und nichts am i-Ende: an BEIDEN Enden frei hiesse, dass mit dem
+        // Moment auch die Querkraft ausfaellt.
+        if (gesetzt.includes(`${pyn}i`)) { anBeiden += 1; wo = `${t[1]}.${unser}`; }
+      });
+      gesetzt.forEach((g) => {
+        const unser = Object.entries(ABB).find(([, p]) => `${p}j` === g);
+        if (!unser) zuviel += 1;
+      });
+    });
+    wahr('>>> Jedes Free steht als Freigabe, jedes Rigid nicht <<<',
+         falsch === 0, falsch ? `${falsch} verkehrt, zuletzt ${wo}` : 'alle');
+    wahr('Nur am Gurtende (j), nie an beiden', anBeiden === 0,
+         anBeiden ? `${anBeiden}x auch am i-Ende, zuletzt ${wo}` : 'keins');
+    wahr('Keine Freigabe ohne Entsprechung', zuviel === 0, `${zuviel}`);
+
+    /*
+     * >>> UND KEIN ANDERER STAB BEKOMMT EINE. <<<
+     * Ein Gurt oder ein Blech, das versehentlich ein Gelenk bekaeme,
+     * waere im Nachweis nicht wiederzufinden - die Spannungen stuenden
+     * einfach niedriger da.
+     */
+    const namen = zeilen.map((z) => /'([^']+)'/.exec(z)[1]);
+    const fremd = namen.filter((n) => (ausDatei.get(n) || {}).art !== 'link');
+    wahr('Nur Linkelemente werden freigegeben', fremd.length === 0,
+         fremd.slice(0, 3).join(' '));
+
+    /*
+     * >>> DIE NAEHERUNG, BEZIFFERT. <<<
+     *
+     * Eine Feder haelt ihre Komponenten unabhaengig, ein Balken nicht:
+     * V = dM/dx. Eine freie VERDREHUNG bei starrer Querkraft laesst sich
+     * deshalb nur an EINEM Ende abbilden; am anderen bleibt M = V x L.
+     * Gemessen an PyNites Stabkraeften (J90/8 m): das Verhaeltnis
+     * M_i / (V x L) ist 1.000, das groesste Restmoment 0.0253 kNm gegen
+     * Fussmomente von 24 kNm. Der Fehler ist die Linklaenge - und die
+     * steht hier.
+     */
+    const kn120 = new Map(dat120.knoten.map((k) => [k.name, k]));
+    const laengen = links.map((x) => {
+      const a = kn120.get(x.von), b = kn120.get(x.bis);
+      return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    });
+    wahr('Der Link ist kurz - daran haengt die Genauigkeit',
+         Math.max(...laengen) <= 0.05 + 1e-9,
+         `laengster ${Math.max(...laengen).toFixed(3)} m`);
+  }
 }
 
 // ===========================================================================

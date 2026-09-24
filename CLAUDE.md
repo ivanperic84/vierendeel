@@ -164,6 +164,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Abfangjoch im Blattmodell (20. Sept.) | «checke die abfangjoch ausleitung auf denselben fehler» → Befund: auf einem Blatt mit mehreren Tragwerken wurde ein Abfangjoch als **Tragjoch** gebaut (vier Winkel L 90×90×9 statt zweier liegender Walzprofile mit Gabel und Kröpfung). Entscheid: **richtig einbauen**. Es baut jetzt sein eigenes Modell (`abfangBau`), örtlich 0…jt, das Blatt verschiebt; Masten unter dem Blattnamen (`MAST_<Stelle>_S<n>`, damit ein geteilter Mast verschmilzt). Lastgruppen: **Leiterzug → G_Ablenk** (ständig und waagrecht wie die Ablenkkräfte), **WindJoch → WindY** («nur ±y, wie die eigene Ausleitung»), SchneeJoch → Schnee, G/G_Anbau/WindX/WindY unverändert. Havarie («gleich mit einbauen»): im Blatt bleibt der Nachbar ständig (örtliche Havarie, 19. Sept.); die **eigene** Abfangjoch-Ausleitung legt je Leiter einen Fall an — geschrieben wird die **Änderung** gegenüber dem ständigen Leiterzug (gerissener −Z(+5 °C), übrige Z(−20 °C) − Z(+5 °C)), die Kombination greift beides mit γ = 1.0 ohne veränderliche Lasten. Sie steht auch dann da, wenn die Änderung null ist (fehlende Reglagetabelle, pauschale Abfangkraft) — die Beiwerte unterscheiden sie von der Tragsicherheit |
 | Abfangjoch: Masten und Länge (20. Sept.) | «die masten werden nach innen gesetzt wenn primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig den nächst längeren joch auswählen.» Das Sortiment führt je Länge einen **Bereich zulässiger Stützweiten** (Überstand 0.25–0.495 m je Seite). Vorgabe ist die **grösste** Stützweite, also 25 cm Überstand je Seite (`abfangUeberstand`). Die **Lage eines Abfangjochs ist sein erster Mast** (`lageOrtsnull` = Lage − Überstand), der Träger kragt darüber hinaus — sonst könnte es nie einen Masten mit dem Nachbarjoch teilen. Mastabstand = js = jt − 2·ü. Passt der Abstand vorhandener Masten nicht in den Bereich, nennt ein Hinweis das passende Joch (`abfangFuerStuetzweite`, kürzeste Länge des Typs, sonst nächster Typ); geändert wird nichts von selbst («Warnen, Berichtigung auf Klick») |
 | Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
+| Gelenkige Anschluesse in PyNite (24. Sept.) | «die links als stabendfreigaben in pynite nachrüsten». Die Linkelemente gehen als `def_releases` hinaus, **am Ende beim Gurt (j)** — dort landet kein Restmoment im nachgewiesenen Bauteil, sondern im starren Anschlussstiel. **Nur an einem Ende:** eine Feder hält ihre sechs Komponenten unabhängig, ein Balken nicht (V = dM/dx) — an beiden Enden freigegeben fiele mit dem Moment auch die **Querkraft** aus, und der Anschluss trüge gar nichts mehr. Die freien **Verschiebungen** (z am Obergurt, x am Untergurt) werden dadurch exakt; die freien **Verdrehungen** bei starrer Querkraft bleiben eine Näherung mit dem Restmoment M = V·L. Gemessen an PyNites Stabkräften: am freigegebenen Ende steht **0.00000 kNm** in jedem Lastfall, am anderen ist M/(V·L) = **1.000**, grösstes Restmoment **0.0253 kNm** gegen Fussmomente von 24 kNm — der Fehler ist die Linklänge, und die ist 0.05 m. Danach stimmen beide Löser am J90/8 m auf **0.005–0.25 %** in den Auflagerkräften (vorher bis 53 %), am J90/20 m auf 0.0007–0.4 %. Die **Kalibrierung ist nicht berührt**: ihr Modell rechnet ohne Masten und führt daher **null** Linkelemente — gemessen, die Blechmomente sind bitweise dieselben |
 | Verformung im Plot und als Diagramm (24. Sept.) | «nimm die verformung in die resultat plot und mache entsprechende diagramme.» Neue Plotgrösse **w** (mm), nur an den Masten — das Joch bleibt grau, wie bei der Querkraft die Gurte. Aufgetragen ist die **Resultierende** aus beiden Richtungen im gezeigten Lastfall; welche Richtung es war, sagt das Diagramm. Neu je Mast ein Diagramm **«Verformung über die Höhe»** mit w_x und w_y in Millimetern und der Grenzlinie L/200. Es steht unter der Ausnutzung — erst was trägt, dann wie weit es sich bewegt |
 | Gebrauchstauglichkeit: Plot und Wahl (24. Sept.) | «setze noch ein resultat plott gebrauchstauglichkeit … Tragsicherheit Gebrauchstagulichkeit oder beide.» Auf Rückfrage: (1) Der Plot **«η w»** trägt das η **aus dem Nachweis, je Mast** — eine Farbe über die ganze Höhe, feste Skala 1.25 wie η. Ein Verlauf w(z) gegen L/200 wäre erfunden: die Grenzwerte gelten an **zwei** Stellen, dazwischen ist keiner definiert. Er folgt **nicht** dem Lastfallwähler (Betriebswind ψ 0.70). (2) Die Wahl **Tragsicherheit / Gebrauchstauglichkeit / beide** (Vorgabe **beide**) steht in der **Ergebnisleiste** und zieht die **Plotliste** mit (`modiFuer`, `modusKorrigieren`) — eine Stelle, kein zweiter Wähler. Weg fällt, was ein η der Tragsicherheit zeigt; Schnittgrössen und Hinweise bleiben. Die **Hauptkachel bleibt** — ein Anzeigefilter ändert kein Urteil. Ein Plot ohne `nachweisart` gilt der Tragsicherheit (vergessene Angabe führt zur harmloseren Zuordnung). Das Umschalten **rechnet nicht neu** |
 | Abfangarten auch am Abfangjoch (24. Sept.) | «abfangjoch abfangarten nachziehen». Der Abfangjoch-Kern rechnete auf seinem eigenen Weg und behandelte damit jeden Leiter als «einseitig». Er liest die Wahl jetzt je Leiter (`abfangLeiterart`, `o.havarie` aus `core.nachbarn.js`) und wendet dieselbe Regel an wie das Tragjoch — sie steht weiter an einer Stelle (`ABFANGARTEN`, `HAVARIE_LAENGSZUG` in core.lasten.js) und ist hier nur angewendet. **Die Richtung kommt am Abfangjoch aus der Anbindung** (vorn/hinten), nicht aus dem «±y» der Havarie-Karte: sie steht dort längst, ist im Bild sichtbar, und dieselbe Angabe zweimal zu führen hiesse, auf den Tag zu warten, an dem sie sich widersprechen. **Die Vorgabe ist hier «einseitig», nicht «durchgehend»** (`abfangVorgabeFuer` in core.lasten.js): ein Abfangjoch heisst so, weil der Leiter dort endet — und ohne diese Ausnahme hätte jedes gespeicherte Abfangjoch von einem Tag auf den anderen **ohne ständigen Leiterzug** gerechnet, eine Entlastung um die grösste Last des Bauwerks, sichtbar nur an einem kleineren η. Gemessen am A240/12.5 m mit zwei Fahrleitungen (Z(+5) = 14.9, Z(−20) = 16.5 kN), Summe beider Auflagerkräfte: **einseitig** ständig 29.8 / Riss 16.5 (η 0.740, wie bisher); **beidseitig** 0 / 16.5 (η 0.365); **durchgehend** 0 / 1.65 (η 0.114) |
@@ -201,12 +202,22 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5225 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5232 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **24. Sept., die gelenkigen Anschlüsse erreichen PyNite** (Prüfstand
+  Abschnitt 120 e, siehe *Entschieden*). Weisung: «die links als
+  stabendfreigaben in pynite nachrüsten». Damit ist der letzte grosse
+  Unterschied zwischen den beiden Lösern weg: die **Auflagerkräfte**
+  stimmen am J90/8 m auf 0.005–0.25 %, am J90/20 m auf 0.0007–0.4 %
+  (vorher bis 53 % bzw. 88 %). Das Fussmoment unter Wind quer steht in
+  beiden bei 10.84 kNm. Die alte Gegenprobe ist zur **Kontrollgruppe**
+  geworden — sie zeigt jetzt, was ohne die Freigaben herauskäme, und ihr
+  Kommentar sagt das auch; eine Beschriftung, die noch das Gegenteil
+  behauptet hätte, wäre schlimmer als keine.
 - **24. Sept., die Mastkopf-Abweichung ist geklärt** (Prüfstand Abschnitt
   120, Einzelheiten in *Laufende Arbeit*). Weisung: «ja der
   mastkopf-abweichung nachgehen». Faktor 7 zwischen Löser und PyNite — und
@@ -791,22 +802,20 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
   *Laufende Arbeit*).
 
-- ⚠ **PyNite kennt die gelenkigen Linkelemente nicht.** Der
-  Jochanschluss trägt `kraftuebertragung: {z, yy, zz: Free}` — er gibt
-  keine Biegemomente weiter (stehende Vorgabe: «gelenkige Anschlüsse als
-  Linkelemente»). Der Löser setzt das als Punkt-zu-Punkt-Feder um;
-  PyNite kennt keine solche Feder, und die Ausleitung schreibt den Link
-  als gewöhnlichen Stab mit dem Ersatzquerschnitt STARR — **voll
-  biegesteif**. Das Joch wirkt dort als Rahmenriegel: am J90/8 m nimmt
-  es unter Wind quer ein Kräftepaar von 0.835 kN auf, und 0.835 × 8 m =
-  6.68 kNm ist auf die Stelle genau die Differenz der beiden Fussmomente
-  (2 × 3.34; Löser 10.84, PyNite 7.50 kNm). **Kein Rechenfehler, ein
-  anderes Bauwerk** — die Gegenprobe im Vergleichswerkzeug belegt es:
-  gibt man dem Löser dieselben starren Links, stimmen beide auf 0.03 %
-  bis 0.3 % (G 2.7e-4, WindX 2.8e-3, WindY 7.8e-4). Entscheid des
-  Auftraggebers, wie das Prüfmodell aussehen soll; PyNite kann Gelenke
-  nur als Stabendfreigaben (`def_releases`), nicht als Feder, und an
-  beiden Enden zugleich freigegeben wäre das System labil.
+- **Verdrehung um die Jochachse an den Blechknoten:** nach allen
+  Berichtigungen bleibt im Fall Wind längs eine Abweichung von **22 %**
+  in `fix` an einem Vertikalblech — in beiden gemessenen Modellen
+  (J90/8 m 0.228, J90/20 m 0.224), also systematisch. Die
+  **Auflagerkräfte stimmen dabei auf 0.4 %** und die Wege auf 1.1 %. Die
+  Torsionskonstanten der Bleche sind in beiden Programmen identisch
+  (Verhältnis 1.0000), an ihnen liegt es also nicht. Ungeklärt, aber
+  klein; vor einer Freigabe des Lösers anzusehen.
+- **Torsion der gedrungenen Ersatzquerschnitte** (STARR 500×500, ARM):
+  der Löser nimmt den exakten Beiwert (0.1406·a⁴ beim Quadrat), der
+  PyNite-Export die dünnwandige Näherung — 12 % Unterschied. Ohne Belang
+  (beide sind gestättigt steif: die Lösung hängt nicht am Starrfaktor),
+  aber es steht hier, damit niemand zweimal danach sucht. Bei dünnen
+  Blechen laufen die beiden Formeln zusammen (1.0000).
 
 **AxisVM / COM**
 - Lastfallnamen «Havarie L1 …» in AxisVM nicht erprobt — die Modelle wurden
@@ -867,7 +876,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5225 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5232 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
