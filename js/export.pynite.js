@@ -331,7 +331,26 @@ export function pyniteSkript(m, opt = {}) {
   const richtungMoment = { Mx: 'MX', My: 'MZ', Mz: 'MY' };
   const lastZeilen = [];
   l.strecke.forEach((q) => {
-    const dir = q.richtung === 'Z' ? 'FY' : 'FZ';
+    /* =====================================================================
+     * >>> DIE RICHTUNG EINER STRECKENLAST GEHT DENSELBEN WEG WIE DIE
+     *     EINER PUNKTLAST. <<<
+     * ===================================================================
+     *
+     * Hier stand `q.richtung === 'Z' ? 'FY' : 'FZ'` - richtig fuer Z,
+     * richtig fuer Y, und FALSCH fuer X: eine Streckenlast in der
+     * Jochachse landete auf PyNites FZ, also auf unserer y-Achse.
+     *
+     * Gefunden am 24. September beim Vergleich des eigenen
+     * Stabwerksloesers gegen PyNite: beim Lastfall WindX bewegte sich
+     * der Loeser in x, PyNite in y. Betroffen ist jede Streckenlast
+     * in Jochachse - am Tragjoch der Wind quer zum Gleis auf die
+     * Masten (WindX), also genau die Last, die das Joch laengs
+     * verbiegt.
+     *
+     * `richtungKraft` daneben hat es von Anfang an richtig gemacht;
+     * jetzt liest diese Zeile dieselbe Tabelle.
+     * =================================================================== */
+    const dir = richtungKraft[q.richtung] ?? 'FZ';
     lastZeilen.push(`M.add_member_dist_load(${s(q.stab)}, ${s(dir)}, `
       + `${py(q.wert)}, ${py(q.wert)}, case=${s(q.lastfall)})`);
   });
@@ -506,7 +525,46 @@ with open('pynite_stationen.csv', 'w', newline='') as f:
             w.writerow([round(x, 4), fall]
                        + [round(q, 4) for q in (N, Vz, Vy, My, Mz, Tx)] + [n_gurte])
 
-print('geschrieben: pynite_staebe.csv, pynite_stationen.csv')
+# =============================================================================
+# 3 · Knotenverschiebungen und Auflagerreaktionen
+# =============================================================================
+# >>> WOZU. <<< Die Stabkraefte oben sind eine ABGELEITETE Groesse - sie
+# entstehen erst aus den Verschiebungen. Wer zwei Loeser gegeneinander
+# haelt, muss das vergleichen, was sie loesen: u. Eine Abweichung in den
+# Verschiebungen sagt «anderes Gleichungssystem», eine allein in den
+# Kraeften «andere Auswertung».
+#
+# Die Reaktionen kommen dazu, weil sie das Gleichgewicht schliessen: was
+# oben hineingeht, muss unten herauskommen.
+with open('pynite_knoten.csv', 'w', newline='') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(['Knoten', 'Lastfall', 'DX', 'DY', 'DZ', 'RX', 'RY', 'RZ'])
+    for name, kn in M.nodes.items():
+        for fall in FAELLE:
+            w.writerow([name, fall,
+                        round(float(kn.DX[fall]), 9), round(float(kn.DY[fall]), 9),
+                        round(float(kn.DZ[fall]), 9), round(float(kn.RX[fall]), 9),
+                        round(float(kn.RY[fall]), 9), round(float(kn.RZ[fall]), 9)])
+
+with open('pynite_auflager.csv', 'w', newline='') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(['Knoten', 'Lastfall', 'FX', 'FY', 'FZ', 'MX', 'MY', 'MZ'])
+    for name, kn in M.nodes.items():
+        # Nur wo wirklich gehalten wird - sonst stuenden lauter Nullen da.
+        if not (kn.support_DX or kn.support_DY or kn.support_DZ
+                or kn.support_RX or kn.support_RY or kn.support_RZ
+                or kn.spring_DX[0] is not None or kn.spring_DY[0] is not None
+                or kn.spring_DZ[0] is not None or kn.spring_RX[0] is not None
+                or kn.spring_RY[0] is not None or kn.spring_RZ[0] is not None):
+            continue
+        for fall in FAELLE:
+            w.writerow([name, fall,
+                        round(float(kn.RxnFX[fall]), 6), round(float(kn.RxnFY[fall]), 6),
+                        round(float(kn.RxnFZ[fall]), 6), round(float(kn.RxnMX[fall]), 6),
+                        round(float(kn.RxnMY[fall]), 6), round(float(kn.RxnMZ[fall]), 6)])
+
+print('geschrieben: pynite_staebe.csv, pynite_stationen.csv,'
+      ' pynite_knoten.csv, pynite_auflager.csv')
 `;
 
   return { text, bau, lasten: l, faelle, querschnitte: qs };

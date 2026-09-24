@@ -561,6 +561,31 @@ kann und was gemessen ist:
   Matrixkopie). Der Steifigkeitsfaktor der Starrelemente gehört dann **klein**
   (1 bis 10) — darüber wird es nur ungenauer, das Ergebnis ändert sich nicht
   mehr.
+- **Begonnen (24. Sept.): der Vergleich gegen PyNite** (`vergleich_stabwerk.mjs`).
+  Beide Wege bauen auf demselben `stabmodell()` auf und bekommen denselben
+  `bau` gereicht; verglichen werden **Knotenverschiebungen** (die Unbekannte
+  des Systems) und **Auflagerreaktionen**. Dafür schreibt das PyNite-Skript
+  neu `pynite_knoten.csv` und `pynite_auflager.csv`.
+  **Zwei echte Befunde, beide in der Ausleitung, nicht im Löser:**
+  (1) **PyNite: Streckenlast in X landete auf der y-Achse.** `const dir =
+  q.richtung === 'Z' ? 'FY' : 'FZ'` war für Z und Y richtig und für X
+  falsch; `richtungKraft` daneben machte es von Anfang an richtig. Betroffen
+  ist jede Streckenlast in Jochachse — am Tragjoch der Wind quer zum Gleis
+  auf die Masten. Behoben.
+  (2) ⚠ **Der Löser rechnet ohne Eigengewicht.** Die AxisVM-Ausleitung
+  schreibt es NICHT als Last: AxisVM erzeugt es selbst aus Wichte und
+  Querschnitt, die Datei trägt nur den Zuschlag (`gZusatz`). Der Löser liest
+  diese Datei — im Lastfall G stand deshalb überall u = 0, während PyNite
+  −4.4e-4 m auswies. **Er muss es selbst beisteuern, wie AxisVM es tut**,
+  bevor er einen Nachweis tragen darf. Für den Vergleich bekommen beide
+  vorerst die Liste mit `eigengewicht: true`.
+  **Stand der Messung** (J90/8 m, 380 Knoten, 430 Stäbe): die
+  Auflagerreaktionen liegen auf 3 % (WindY) bis 45 % (WindX) beieinander,
+  die **Verschiebungen am Mastkopf noch um Faktor 6** auseinander. Der
+  Mastkopf ist das freie Kragarmende über dem Jochanschluss — die
+  empfindlichste Stelle des Modells. Ursache noch offen; verdächtig ist die
+  Drehlage des Maststabs (`lcsZ [1,0,0]`) und ihre Abbildung nach PyNite.
+  **Der Löser ist damit nicht freigegeben.**
 - **Nächster Schritt:** gegen PyNite messen — es **ist** installiert
   (Fassung 3.0.0, Modulname `Pynite` mit kleinem n; meine frühere Aussage
   «nicht installiert» war falsch, ich hatte nur `PyNite` geprüft). Danach
@@ -697,6 +722,13 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   `core.checks.js`). ⚠ Vorschlag «Mast als eigenständiges Element»
   vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
   *Laufende Arbeit*).
+
+- ⚠ **Der Stabwerkslöser rechnet ohne Eigengewicht** (24. Sept., beim
+  Vergleich gegen PyNite gefunden). Er liest die AxisVM-Datei, und die
+  trägt das Eigengewicht nicht — AxisVM erzeugt es selbst. Solange das so
+  ist, darf er an keinen Nachweis. Siehe *Laufende Arbeit*.
+- ⚠ **Löser gegen PyNite: Mastkopf weicht um Faktor 6 ab** (24. Sept.).
+  Auflagerreaktionen liegen deutlich näher. Ursache offen.
 
 **AxisVM / COM**
 - Lastfallnamen «Havarie L1 …» in AxisVM nicht erprobt — die Modelle wurden

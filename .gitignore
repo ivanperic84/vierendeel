@@ -113,3 +113,6 @@ com/AxisVM_Abfangjoch_*
 # Projekts, nicht hierher.
 .*.txt
 .tab.txt
+
+# Arbeitsordner des Loeser-Vergleichs (PyNite-Laeufe, CSV) - Zwischenstand
+.vergleich_stabwerk/
