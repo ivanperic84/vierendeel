@@ -299,6 +299,40 @@ export const ABFANGARTEN = [
 
 export const ABFANG_VORGABE = 'durchgehend';
 
+/* ===========================================================================
+ * >>> DAS ABFANGJOCH HAT EINE ANDERE VORGABE (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «abfangjoch abfangarten nachziehen». Dabei kam die Frage auf,
+ * was gilt, solange niemand etwas gewählt hat.
+ *
+ * Am Tragjoch und am Masten ist der Regelfall ein Leiter, der über das
+ * Tragwerk HINWEGLÄUFT - er zieht ständig nichts in Gleisrichtung, also
+ * «durchgehend».
+ *
+ * Am ABFANGJOCH ist der Regelfall der umgekehrte, und er steht in seinem
+ * Namen: hier ENDET der Leiter. Das ist «einseitig abgefangen», und genau
+ * so hat dieses Werkzeug das Abfangjoch immer gerechnet.
+ *
+ * >>> WARUM DAS EINE WACHE IST UND KEINE BEQUEMLICHKEIT. <<<
+ *
+ * Mit der Vorgabe des Tragjochs hätte jedes gespeicherte Abfangjoch von
+ * einem Tag auf den anderen OHNE ständigen Leiterzug gerechnet - eine
+ * Entlastung um die grösste Last des Bauwerks. Am Ergebnis hätte man nur
+ * ein kleineres η gesehen. Gemessen am A240/12.5 m mit zwei
+ * Fahrleitungen: η 0.74 gegen 0.11.
+ *
+ * >>> UND SIE STEHT HIER, DAMIT KARTE UND KERN DIESELBE LESEN. <<<
+ *
+ * Der erste Anlauf legte sie in `core.abfangjoch.js` ab. Im Browser
+ * zeigte die Havarie-Karte daraufhin «durchgehend», während der Kern
+ * «einseitig» rechnete - eine Anzeige, die etwas anderes behauptet als
+ * die Rechnung, ist schlimmer als eine fehlende.
+ * ========================================================================= */
+export function abfangVorgabeFuer(tragwerksart) {
+  return tragwerksart === 'abfangjoch' ? 'einseitig' : ABFANG_VORGABE;
+}
+
 /** Die Art eines Leiters, mit Rueckfall auf die Vorgabe. */
 export function abfangart(key) {
   return ABFANGARTEN.find((a) => a.key === key) ?? ABFANGARTEN[0];

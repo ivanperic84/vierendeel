@@ -116,6 +116,13 @@ function abfangEinmal(w, satzA, stahl, anbauteile) {
     fyd: abfangFyd(stahl, w.gammaM0),
     ek: satzA.ek, L_FL: satzA.L_FL, R: satzA.R,
     knotenbereich: 'anschnitt',
+    /*
+     * DIE WAHL JE LEITER (24. September): durchgehend, beidseitig
+     * oder einseitig abgefangen. Sie stand bis dahin nur dem Tragjoch
+     * und dem Masten zur Verfuegung - der Abfangjoch-Kern rechnete
+     * jeden Leiter als «einseitig».
+     */
+    havarie: satzA.havarie ?? null,
     ohneHavarie: satzA.havarieAus === true,
   });
 }

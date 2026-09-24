@@ -36,7 +36,7 @@ import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          PROFILBEIWERTE } from './data.fl.js';
 import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGesetzt,
          hatTraeger, achsfolge } from './core.anbauteile.js';
-import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE,
+import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
          abfangart } from './core.lasten.js';
 import { massketteLesen, fangeAufMasskette, rechensatz } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
@@ -387,7 +387,13 @@ function havarieHtml(g, werte) {
     + 'Leiters; die Ablenkung des gerissenen Leiters wirkt zur Hälfte.';
   const zeilen = leiter.map((l) => {
     const e = wahl[l.key] ?? {};
-    const art = e.art ?? ABFANG_VORGABE;
+    /*
+     * DIE VORGABE HÄNGT AN DER TRAGWERKSART (24. September): am
+     * Abfangjoch ist der Regelfall «einseitig», sonst «durchgehend».
+     * Sie kommt aus derselben Stelle wie im Kern - stand sie hier
+     * anders, behauptete die Karte etwas anderes als die Rechnung.
+     */
+    const art = e.art ?? abfangVorgabeFuer(tragwerksart(werte).key);
     const vz = e.richtung === '-y' ? -1 : 1;
     const zahl = (feld) => `<td><input class="hav-zahl" type="number" step="0.1" min="0"
         data-hav-key="${esc(l.key)}" data-hav="${feld}" value="${e[feld] ?? ''}"
@@ -482,7 +488,8 @@ function verdrahteHavarie(container, werte, onChange) {
       } else if (inp.dataset.hav === 'art' || inp.dataset.hav === 'richtung') {
         // Abfangart und Zugrichtung sind eine Wahl, keine Zahl. Die
         // Vorgabe wird nicht gespeichert - ein alter Stand bleibt leer.
-        const vorgabe = inp.dataset.hav === 'art' ? ABFANG_VORGABE : '+y';
+        const vorgabe = inp.dataset.hav === 'art'
+          ? abfangVorgabeFuer(tragwerksart(aktuelleWerte ?? {}).key) : '+y';
         if (inp.value && inp.value !== vorgabe) e[inp.dataset.hav] = inp.value;
         else delete e[inp.dataset.hav];
         e.name = e.name ?? inp.closest('tr')?.querySelector('[data-hav-name]')?.dataset.havName;

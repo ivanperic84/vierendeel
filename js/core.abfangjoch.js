@@ -55,7 +55,9 @@ import { getAbfangjoch, abfangAufbau, abfangBindeblech,
          abfangLaengen, abfangjoche } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { abfangkraft } from './data.fl.js';
-import { baugruppeSumme } from './data.anbauteile.js';
+import { baugruppeSumme, leiterKennung } from './data.anbauteile.js';
+import { HAVARIE_LAENGSZUG,
+         abfangVorgabeFuer } from './core.lasten.js';
 
 /**
  * DIE QUERSCHNITTSWERTE EINES ABFANGJOCHS.
@@ -1368,6 +1370,56 @@ export const ABFANG_FAELLE = [
 /** Bricht dieser Leiter im Havariefall? */
 export const abfangBricht = (t2) => t2?.bruch === true;
 
+/* ===========================================================================
+ * >>> DIE ABFANGART ERREICHT AUCH DAS ABFANGJOCH (24. September). <<<
+ * =========================================================================
+ *
+ * Weisung vom 24. September: «abfangjoch abfangarten nachziehen». Die
+ * Wahl je Leiter - durchgehend, beidseitig oder einseitig abgefangen -
+ * gilt seit dem Tag ALLEN vier Tragwerksarten; dieser Kern rechnete
+ * aber weiter auf seinem eigenen Weg und behandelte damit faktisch
+ * jeden Leiter als «einseitig».
+ *
+ * >>> DIE REGEL IST DIESELBE WIE IM TRAGJOCH. <<< Sie steht bei
+ * `ABFANGARTEN` in core.lasten.js und wird hier nicht zum zweiten Mal
+ * hingeschrieben, nur angewendet:
+ *
+ *   einseitig    zieht IMMER voll in seine Richtung; reisst er,
+ *                fällt genau das weg
+ *   beidseitig   ständig null (die beiden Züge heben sich am Anschluss
+ *                auf); beim Riss bleibt der volle Zug einseitig stehen
+ *   durchgehend  ständig null; beim Riss 10 % des Zugs
+ *
+ * >>> DIE RICHTUNG KOMMT HIER AUS DER ANBINDUNG, NICHT AUS DER KARTE.
+ *
+ * Das Abfangjoch führt sie längst: die Anbindungsseite («vorne» /
+ * «hinten») dreht das Vorzeichen von Z, sie steht in der Maske und man
+ * sieht sie im Bild. Die Havarie-Karte trägt daneben ein eigenes «±y» -
+ * beide zu lesen hiesse, dieselbe Angabe zweimal zu führen, und der
+ * Tag käme, an dem sie sich widersprechen. Hier gilt die Anbindung; die
+ * Karte steuert die ART.
+ *
+ * >>> UND DIE VORGABE IST HIER EINE ANDERE: EINSEITIG. <<<
+ *
+ * Sie steht in core.lasten.js (`abfangVorgabeFuer`) - dort, wo auch die
+ * Havarie-Karte sie holt. Die Begründung steht bei ihr; kurz: hier ENDET
+ * der Leiter, das ist «einseitig abgefangen», und genau so hat dieses
+ * Werkzeug das Abfangjoch immer gerechnet. Ist ein Teil NICHT abgefangen,
+ * ist `lw.Z` ohnehin null und die Art bleibt folgenlos.
+ * ========================================================================= */
+export const ABFANGJOCH_ART_VORGABE = abfangVorgabeFuer('abfangjoch');
+
+export function abfangLeiterart(at, auswahl = null) {
+  const module = Array.isArray(at?.module) ? at.module : [];
+  for (let i = 0; i < module.length; i += 1) {
+    const m = module[i];
+    if (!m || m.aktiv === false || !m.bauteil) continue;
+    const wahl = auswahl?.[leiterKennung(at, m, i)];
+    if (wahl?.art) return wahl.art;
+  }
+  return ABFANGJOCH_ART_VORGABE;
+}
+
 export function abfangAuswertung(o = {}) {
   const { typ, jt } = o;
   if (!abfangRechenbar(typ, jt)) return null;
@@ -1413,10 +1465,35 @@ export function abfangAuswertung(o = {}) {
                       tempFall: fall.tempFall };
     const teile2 = amJoch.map((t) => {
       const lw = abfangAnbauLasten(t, lastOpt);
-      // Der gebrochene Leiter zieht nicht mehr - alles andere bleibt.
       const bricht = fall.key === 'havarie' && abfangBricht(t);
+      /* ===================================================================
+       * >>> WAS DER LEITER ZIEHT, HAENGT AN SEINER ABFANGART. <<<
+       * =================================================================
+       *
+       * Hier stand nur «der gebrochene Leiter zieht nicht mehr» - der
+       * ungebrochene zog immer, in jedem Fall, mit der Kraft seiner
+       * Regliertemperatur. Das ist genau EINE der drei Arten, und die
+       * anderen beiden gab es hier nicht.
+       *
+       * `lw.Z` ist der volle Zug bei der Temperatur DIESES Falls, mit
+       * dem Vorzeichen der Anbindungsseite. Alles Weitere ist die
+       * Anwendung der Regel darauf - im Havariefall ist `lw.Z` der Zug
+       * bei -20 °C, und genau den verlangt die Regel dort.
+       */
+      const art = abfangLeiterart(t, o.havarie);
+      let Z = lw.Z;
+      if (art === 'einseitig') {
+        // Zieht immer; reisst er, faellt es weg.
+        Z = bricht ? 0 : lw.Z;
+      } else if (art === 'beidseitig') {
+        // Staendig heben sich die Zuege auf; beim Riss bleibt einer.
+        Z = bricht ? lw.Z : 0;
+      } else {
+        // Durchgehend: staendig nichts, beim Riss der Laengsanteil.
+        Z = bricht ? HAVARIE_LAENGSZUG * lw.Z : 0;
+      }
       return { t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt),
-               bricht, lw: bricht ? { ...lw, Z: 0 } : lw };
+               bricht, art, lw: { ...lw, Z } };
     });
     const Fstaendig = teile2.filter((p) => p.lw.Gz)
       .map((p) => ({ x: p.x, wert: Math.abs(p.lw.Gz) }));

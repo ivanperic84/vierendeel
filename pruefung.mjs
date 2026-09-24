@@ -28889,6 +28889,183 @@ titel('117  Neue Diagramme: Zahlen, Vorzeichen und Richtung');
   }
 }
 
+titel('118  Abfangjoch: die Abfangarten je Leiter');
+/* ===========================================================================
+ * Weisung vom 24. September: «abfangjoch abfangarten nachziehen».
+ *
+ * Die Wahl je Leiter - durchgehend, beidseitig oder einseitig abgefangen -
+ * gilt seit dem 24. September allen vier Tragwerksarten. Der
+ * Abfangjoch-Kern rechnete bis hierher auf seinem eigenen Weg und
+ * behandelte damit jeden Leiter als «einseitig».
+ * ========================================================================= */
+if (AJ.abfangDbDa()) {
+  const AB118 = await import(J('core.abfangjoch.js'));
+  const DA118 = await import(J('data.anbauteile.js'));
+  const FL118 = await import(J('data.fl.js'));
+  const LA118 = await import(J('core.lasten.js'));
+
+  const BT118 = 'drahtwerk-n-fl-ts-stcu-50-fd-cu-107';
+  const leiter118 = (id, x, verlauf = 'vorn') => ({
+    id, vorlage: 'hs-fahrdraht', name: id, x, ort: 'joch', aktiv: true,
+    anbindung: 'mitte', verlauf, module: [{ bauteil: BT118, anzahl: 1, z: 0 }],
+  });
+  const teile118 = [leiter118('L1', 4), leiter118('L2', 8)];
+  const kenn118 = (a) => DA118.leiterKennung(a, a.module[0], 0);
+
+  const lauf118 = (art, bruchAuf) => {
+    const hav = {};
+    teile118.forEach((a) => { hav[kenn118(a)] = { art, reisst: true, name: a.id }; });
+    const tt = teile118.map((a) => ({ ...a,
+      bruch: bruchAuf !== null && kenn118(a) === bruchAuf }));
+    return AB118.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: tt,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0,
+      havarie: art === null ? null : hav });
+  };
+  /*
+   * DIE SUMME BEIDER AUFLAGER IST DER ZUG, DER HINEINGEHT - dasselbe
+   * Gleichgewicht, das Abschnitt 79 schon nutzt. Es ist die
+   * unbestechlichste Probe: was oben hineingeht, kommt unten heraus.
+   */
+  const summeZ118 = (r, key) => {
+    const a = r?.auflager?.A?.faelle?.find((f) => f.key === key);
+    const b = r?.auflager?.B?.faelle?.find((f) => f.key === key);
+    return (a && b) ? a.anteile.Z + b.anteile.Z : null;
+  };
+  const havKey118 = (r) => (r?.auflager?.A?.faelle ?? [])
+    .map((f) => f.key).find((k) => /havarie/i.test(k));
+
+  const Z5 = FL118.abfangkraft(BT118, { tempFall: 'tragsicherheit' }).Z;
+  const Z20 = FL118.abfangkraft(BT118, { tempFall: 'havarie' }).Z;
+  pruef('Reglage: Z(+5 °C)', Z5, 14.9, 1e-9, 'kN');
+  pruef('Reglage: Z(−20 °C)', Z20, 16.5, 1e-9, 'kN');
+
+  // --- a) Ohne Wahl bleibt alles, wie es war -----------------------------
+  /* =======================================================================
+   * >>> DIE VORGABE IST HIER «EINSEITIG», NICHT «DURCHGEHEND». <<<
+   * =====================================================================
+   *
+   * Das ist keine Nachlässigkeit, sondern die Wache gegen einen stillen
+   * Rechenwechsel. Mit der Vorgabe des Tragjochs hätte jedes gespeicherte
+   * Abfangjoch von einem Tag auf den anderen OHNE ständigen Leiterzug
+   * gerechnet - eine Entlastung um die grösste Last des Bauwerks, und am
+   * Ergebnis hätte man nur ein kleineres η gesehen.
+   *
+   * Fachlich steht es ohnehin so: ein Abfangjoch heisst so, weil der
+   * Leiter dort ENDET. Die Anbindung sagt es (`abgefangen`), und ein
+   * abgefangener Leiter zieht.
+   * ===================================================================== */
+  {
+    wahr('Die Vorgabe am Abfangjoch ist «einseitig»',
+         LA118.abfangVorgabeFuer('abfangjoch') === 'einseitig',
+         LA118.abfangVorgabeFuer('abfangjoch'));
+    wahr('… und sie ist eine ANDERE als am Tragjoch',
+         LA118.abfangVorgabeFuer('joch') === LA118.ABFANG_VORGABE
+         && LA118.abfangVorgabeFuer('joch') !== LA118.abfangVorgabeFuer('abfangjoch'),
+         `${LA118.abfangVorgabeFuer('abfangjoch')} gegen ${LA118.abfangVorgabeFuer('joch')}`);
+    /*
+     * >>> UND DIE KARTE LIEST DIESELBE STELLE. <<<
+     *
+     * Im Browser gefunden: die Havarie-Karte zeigte am Abfangjoch
+     * «durchgehend», waehrend der Kern «einseitig» rechnete. Eine
+     * Anzeige, die etwas anderes behauptet als die Rechnung, ist
+     * schlimmer als eine fehlende.
+     */
+    const uq118 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    wahr('Die Karte holt die Vorgabe aus derselben Stelle',
+         (uq118.match(/abfangVorgabeFuer\(tragwerksart\(/g) ?? []).length === 2);
+    wahr('… und der Kern ebenso',
+         AB118.ABFANGJOCH_ART_VORGABE === LA118.abfangVorgabeFuer('abfangjoch'));
+    const ohne = lauf118(null, null);
+    const wie = lauf118('einseitig', null);
+    pruef('Ohne Wahl ziehen beide Leiter voll', summeZ118(ohne, 'wind+y'),
+          2 * Z5, 1e-6, 'kN');
+    pruef('… und «einseitig» rechnet genau dasselbe',
+          summeZ118(wie, 'wind+y'), summeZ118(ohne, 'wind+y'), 1e-12, 'kN');
+    pruef('… auch im η', wie.max.eta, ohne.max.eta, 1e-12, '–');
+  }
+
+  // --- b) Die drei Arten, gegen die Regel --------------------------------
+  /*
+   * Die Regel steht bei `ABFANGARTEN` in core.lasten.js und gilt allen
+   * Tragwerksarten. Hier wird sie am Abfangjoch nachgerechnet - über das
+   * Gleichgewicht der Auflager, nicht über eine Zwischenzahl.
+   */
+  {
+    const bruch = kenn118(teile118[0]);   // L1 reisst
+    const proben = [
+      ['einseitig',   2 * Z5, Z20,             'der übrige zieht kalt weiter'],
+      ['beidseitig',  0,      Z20,             'ständig heben sie sich auf, beim Riss bleibt einer'],
+      ['durchgehend', 0,      0.10 * Z20,      'ständig nichts, beim Riss der Längsanteil'],
+    ];
+    proben.forEach(([art, sollWind, sollHav, warum]) => {
+      const ohne = lauf118(art, null);
+      const mit = lauf118(art, bruch);
+      pruef(`${art}: ständiger Zug`, summeZ118(ohne, 'wind+y'), sollWind, 1e-6, 'kN');
+      pruef(`${art}: beim Riss (${warum})`,
+            summeZ118(mit, havKey118(mit)), sollHav, 1e-6, 'kN');
+    });
+    /*
+     * >>> UND DAS η FOLGT. <<< Die Arten sind nicht nur eine andere
+     * Anschrift: sie ändern den Nachweis. Am A240/12.5 m mit zwei
+     * Fahrleitungen sinkt η von 0.74 auf 0.37 und auf 0.11.
+     */
+    const eta = (art) => lauf118(art, bruch).max.eta;
+    wahr('η sinkt von einseitig über beidseitig zu durchgehend',
+         eta('einseitig') > eta('beidseitig')
+         && eta('beidseitig') > eta('durchgehend'),
+         `${eta('einseitig').toFixed(4)} > ${eta('beidseitig').toFixed(4)}`
+         + ` > ${eta('durchgehend').toFixed(4)}`);
+  }
+
+  // --- c) Die Richtung kommt aus der Anbindung ---------------------------
+  /*
+   * >>> EINE ANGABE, NICHT ZWEI. <<<
+   *
+   * Das Abfangjoch führt die Richtung längst über den Verlauf (vorn /
+   * hinten); die Havarie-Karte trägt daneben ein eigenes «±y». Beide zu
+   * lesen hiesse, dieselbe Angabe zweimal zu führen.
+   */
+  {
+    const gegen = [leiter118('L1', 4, 'vorn'), leiter118('L2', 8, 'hinten')];
+    const hav = {};
+    gegen.forEach((a) => { hav[kenn118(a)] = { art: 'einseitig', reisst: true }; });
+    const r = AB118.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: gegen,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0,
+      havarie: hav });
+    pruef('Zwei gegenläufige Leiter heben sich auf',
+          summeZ118(r, 'wind+y'), 0, 1e-9, 'kN');
+    /*
+     * DIE KARTE DREHT NICHTS: dieselben Teile mit «richtung: -y» in der
+     * Auswahl geben dasselbe. Würde die Karte gelesen, käme hier ein
+     * anderes Ergebnis - und niemand wüsste, welche der beiden Angaben
+     * gilt.
+     */
+    const hav2 = {};
+    gegen.forEach((a) => { hav2[kenn118(a)] = { art: 'einseitig', richtung: '-y' }; });
+    const r2 = AB118.abfangAuswertung({
+      typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: gegen,
+      gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0,
+      havarie: hav2 });
+    pruef('Die Karte dreht die Richtung hier nicht',
+          r2.max.eta, r.max.eta, 1e-12, '–');
+  }
+
+  // --- d) Der Weg von der Eingabe in den Kern ----------------------------
+  {
+    const nq = readFileSync(join(HIER, 'js', 'core.nachbarn.js'), 'utf8');
+    wahr('Die Auswahl wird an den Abfangjoch-Kern gereicht',
+         /havarie: satzA\.havarie/.test(nq));
+    const aq = readFileSync(join(HIER, 'js', 'core.abfangjoch.js'), 'utf8');
+    wahr('… und der Kern liest sie je Leiter',
+         /abfangLeiterart\(t, o\.havarie\)/.test(aq));
+    // Die Regel steht an EINER Stelle: die 10 % kommen aus core.lasten.js.
+    wahr('Die 10 % sind nicht zum zweiten Mal hingeschrieben',
+         /HAVARIE_LAENGSZUG/.test(aq) && !/0\.10\s*\*/.test(aq));
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
