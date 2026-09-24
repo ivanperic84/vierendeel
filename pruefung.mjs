@@ -27166,6 +27166,34 @@ titel('110  Einzelmast: Durchlauf ueber Modellierung und Auswertung');
     wahr('… und der Hinweis nennt die Mastverlaengerung',
          /über der Mastspitze/.test(hR) && /Rohr/.test(hR),
          hR.slice(0, 90) || 'kein Hinweis');
+    /* =====================================================================
+     * >>> UND DAS ROHR IST EIN ANBAUTEIL (Weisung vom 24. September). <<<
+     * ===================================================================
+     * «rohr / Mastaufsatz selbst ist als anbauteil zu verstehen, keine
+     * Ausnutzung bestimmen von diesen bauteilen.»
+     *
+     * Der Hinweis sagte bis hierher «das Rohr selbst ist nicht
+     * nachgewiesen» - das las sich wie ein Mangel. Er ist keiner: ein
+     * Anbauteil ist nicht Gegenstand des Nachweises, sondern der Weg, auf
+     * dem die Last ans Tragwerk kommt.
+     *
+     * GEMESSEN, NICHT BEHAUPTET: im Urteil stehen Joch, Mast und Anker -
+     * kein Anbauteil. Diese Wache schlaegt an, sobald eines hineinkaeme.
+     */
+    wahr('Der Hinweis nennt es ein Anbauteil, keinen Mangel',
+         /Anbauteil/.test(hR) && !/nicht nachgewiesen/.test(hR),
+         (hR.split(' – ').pop() ?? '').slice(0, 80));
+    {
+      const u = CH110.bauteilUrteil(eR, null, 'einzelmast');
+      const erlaubt = new Set(['joch', 'mast', 'anker']);
+      wahr('Im Urteil steht kein Anbauteil',
+           u.liste.every((b) => erlaubt.has(b.key)),
+           u.liste.map((b) => `${b.key}/${b.name}`).join(' · ') || 'leer');
+      // Und es traegt auch keinen Namen aus der Baugruppe.
+      wahr('… und keiner seiner Namen taucht darin auf',
+           u.liste.every((b) => !/Traverse|Leiter|Rohr|Ausleger/.test(b.name)),
+           u.liste.map((b) => b.name).join(' · '));
+    }
   }
 
   /* =====================================================================

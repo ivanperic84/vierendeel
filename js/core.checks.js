@@ -839,13 +839,29 @@ export function hinweise(m) {
     if (!da || h > da.h) ueber.set(name, { h, kopf, ende });
   });
   ueber.forEach((v, name) => {
+    /*
+     * >>> DAS ROHR IST EIN ANBAUTEIL (Weisung vom 24. September). <<<
+     *
+     * «rohr / Mastaufsatz selbst ist als anbauteil zu verstehen, keine
+     * Ausnutzung bestimmen von diesen bauteilen.»
+     *
+     * Hier stand «das Rohr selbst ist nicht nachgewiesen» - das las sich
+     * wie ein Mangel, der noch zu beheben waere. Er ist keiner: ein
+     * Anbauteil ist nicht Gegenstand des Nachweises, sondern der Weg, auf
+     * dem die Last ans Tragwerk kommt. `bauteilUrteil` fuehrt deshalb Joch,
+     * Mast und Anker - kein Anbauteil, und das Rohr macht keine Ausnahme.
+     *
+     * Was der Hinweis weiterhin sagt, ist die Stelle: ein Lastpunkt ueber
+     * der Mastspitze hat einen Hebelarm, den man beim Lesen des Modells
+     * kennen soll.
+     */
     h.push(`${name}: der Lastpunkt liegt über der Mastspitze `
       + `(${v.h.toFixed(2)} m, Mast ${v.kopf.toFixed(2)} m). Das ist `
       + 'zugelassen – eine Mastverlängerung mit Rohr. Nachweis und '
       + 'Ausleitung rechnen die Last auf diesem Hebelarm, im Modell trägt '
       + `sie ein starres Glied ${(v.h - v.kopf).toFixed(2)} m über dem Kopf. `
-      + 'Ein Mastprofil steht dort nicht mehr – das Rohr selbst ist nicht '
-      + 'nachgewiesen.');
+      + 'Das Rohr ist ein Anbauteil; für Anbauteile wird keine Ausnutzung '
+      + 'bestimmt.');
   });
 
   const unter = new Map();
