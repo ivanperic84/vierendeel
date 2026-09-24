@@ -27667,6 +27667,74 @@ titel('112  Leiter: durchgehend, beidseitig oder einseitig abgefangen');
     wahr('… die Leiterliste nennt den Tabelleneintrag',
          Boolean(l0.teile[0].bauteilId), l0.teile[0].bauteilId ?? '-');
   }
+
+  // --- e) Zuganker und Druckstuetze --------------------------------------
+  /* =====================================================================
+   * Frage vom 24. September: «wie wirken sich die abfangungen und der
+   * havariefall auf die zuganker und Druckstuezen aus?»
+   *
+   * Die Antwort war ein Befund: der staendige Zug einer Abfangung kam
+   * voll am Anker an, der HAVARIEFALL aber nicht - `ankerAuswertung`
+   * nahm nur die charakteristischen Faelle. Am ABFANGJOCH war er immer
+   * dabei (er ist einer der drei Faelle dort). Dieselbe Abspannung wurde
+   * also je nach Tragwerksart verschieden nachgewiesen.
+   *
+   * Weisung auf Rueckfrage: «Ja, gegen dieselbe zulaessige Kraft.»
+   * ===================================================================== */
+  {
+    const AK112 = await import(J('core.anker.js'));
+    const mitAnker = (art, typ, ri) => {
+      let w = { ...standardwerte(), tragwerksart: 'einzelmast', mastLaenge: 10,
+                L: 0, xLage: 0, mastVorhanden: true };
+      w = C112.setzeAnbauteileAn(w, [{ ...A112.neuesAnbauteil('mast-nt-ausleger', 0),
+                                       ort: 'mastA', hMast: 8.0 }]);
+      w = C112.setzeMastAnker(w, C112.mastenVon(w)[0].id,
+        { typ, a: 4.5, h: 7.8, richtung: 'y', seite: 'plus', befestigung: 'ankerplatte' });
+      const l = A112.leiterListe(C112.rechensatz(w).anbauteile ?? [])[0];
+      const s2 = N112.rechensatzMitNachbarn({ ...w, havarie: { [l.key]: {
+        reisst: true, name: l.name,
+        ...(art !== 'durchgehend' ? { art } : {}), ...(ri ? { richtung: ri } : {}) } } });
+      const v = V112.vergleichKombinationen(s2, ...N112.kernArgumente(s2));
+      return { an: AK112.ankerAuswertung(v, s2), v };
+    };
+    /*
+     * >>> DER STAENDIGE ZUG KOMMT VOLL AM ANKER AN. <<<
+     * Und die RICHTUNG entscheidet, ob er drueckt oder zieht - beim
+     * Seilanker also, ob er ueberhaupt traegt (Entscheid 16. September).
+     */
+    const ep = mitAnker('einseitig', 'U12', '+y').an;
+    const em = mitAnker('einseitig', 'U12', '-y').an;
+    pruef('Einseitig +y: der Leiter DRUECKT den Anker', ep.A.kraft.N, -49.54, 0.05, 'kN');
+    pruef('Einseitig -y: er ZIEHT ihn', em.A.kraft.N, 49.54, 0.05, 'kN');
+    wahr('… und Druck ist der ungleich schaerfere Fall (Knicken)',
+         ep.eta > 2 * em.eta, `${ep.eta.toFixed(3)} gegen ${em.eta.toFixed(3)}`);
+    {
+      const seil = mitAnker('einseitig', 'SA20', '+y').an;
+      wahr('Ein Seilanker haengt durch, wo die Stuetze drueckt',
+           seil.A.nachweis.grund === 'schlaff' || seil.A.kraft.N >= 0,
+           `${seil.A.kraft.N.toFixed(2)} kN · ${seil.A.nachweis.grund ?? '-'}`);
+    }
+    /* =====================================================================
+     * >>> UND DER HAVARIEFALL WIRD NACHGEWIESEN (24. September). <<<
+     * Bei BEIDSEITIGER Abfangung entsteht die grosse Ankerkraft ueberhaupt
+     * erst beim Riss - vorher stand dort eta 0.064 statt 0.763.
+     * =================================================================== */
+    const bs = mitAnker('beidseitig', 'U12').an;
+    wahr('Beidseitig: der Havariefall ist massgebend',
+         /Havarie/.test(bs.A.bez ?? ''), bs.A.bez ?? '-');
+    pruef('… mit dem vollen Leiterzug', bs.A.kraft.N, -45.72, 0.05, 'kN');
+    wahr('… und eta liegt zehnfach ueber dem Windfall',
+         bs.eta > 0.7 && bs.eta < 0.85, `${bs.eta.toFixed(3)}`);
+    wahr('Die Fallarten des Ankernachweises stehen an EINER Stelle',
+         JSON.stringify(AK112.ANKER_FALLARTEN)
+           === JSON.stringify(['charakteristisch', 'aussergewoehnlich']));
+    /*
+     * Die Tragsicherheits-Faelle bleiben draussen: sie tragen Teil-
+     * sicherheitsbeiwerte und gehoeren nicht gegen eine zulaessige Kraft.
+     */
+    wahr('… und die Tragsicherheits-Faelle bleiben draussen',
+         !AK112.ANKER_FALLARTEN.includes('tragsicherheit'));
+  }
 }
 
 // ===========================================================================

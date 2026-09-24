@@ -54,9 +54,39 @@ export function ankerKnickenSicher(typ, L, satz) {
   } catch { return null; }
 }
 
+/* ===========================================================================
+ * >>> DER HAVARIEFALL GEHOERT IN DEN ANKERNACHWEIS (24. September). <<<
+ * ===========================================================================
+ *
+ * Hier stand nur `art === 'charakteristisch'`. Der Grund war richtig - der
+ * Anker wird gegen ZULAESSIGE Kraefte nachgewiesen, nicht auf
+ * Bemessungsniveau (`vergleichsbasis: 'zulaessigeKraft'` in data.anker.js) -,
+ * die Folgerung war es nicht: auch der Havariefall traegt alle Beiwerte 1
+ * (G, HavarieX, HavarieY; Wind und Schnee null). Er steht damit auf
+ * demselben Niveau und laesst sich mit derselben zulaessigen Kraft
+ * vergleichen.
+ *
+ * WAS DAMIT AUFFIEL: am ABFANGJOCH war der Havariefall immer dabei - er ist
+ * einer der drei Faelle, ueber die `ankerAmAbfangjoch` ohnehin laeuft. Am
+ * Tragjoch und am Einzelmasten fiel er aus dem Filter. Dieselbe Abspannung
+ * wurde also je nach Tragwerksart verschieden nachgewiesen.
+ *
+ * Gemessen am Einzelmasten HEB 240 / 10 m mit einem BEIDSEITIG abgefangenen
+ * R-FL: nachgewiesen wurde mit -3.82 kN (eta 0.064), im Havariefall fielen
+ * +-45.72 kN an - Faktor 12 auf der unsicheren Seite. Bei beidseitiger
+ * Abfangung entsteht die grosse Ankerkraft ueberhaupt erst beim Riss.
+ *
+ * Weisung vom 24. September auf Rueckfrage: «Ja, gegen dieselbe zulaessige
+ * Kraft» - einheitlich ueber alle Tragwerksarten.
+ *
+ * Die TRAGSICHERHEITS-Faelle bleiben draussen: sie tragen Teilsicherheits-
+ * beiwerte und gehoeren nicht gegen eine zulaessige Kraft.
+ * ========================================================================= */
+export const ANKER_FALLARTEN = ['charakteristisch', 'aussergewoehnlich'];
+
 export function ankerAuswertung(kombi, satz) {
   const lf = (kombi?.lastfaelle ?? []).filter(
-    (l) => l.art === 'charakteristisch');
+    (l) => ANKER_FALLARTEN.includes(l.art));
   if (!lf.length) return null;
   const proEnde = {};
   ['A', 'B'].forEach((ende) => {
