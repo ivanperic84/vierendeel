@@ -202,12 +202,31 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**25. September 2026** · Prüfstand 5365 Kontrollen grün · `durchlauf.mjs`
+**25. September 2026** · Prüfstand 5380 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., die Nachweisart wird angekreuzt, nicht geschaltet**
+  (Prüfstand Abschnitt 115 f). Weisung, mit dem Bild der Leiste: «hier
+  anstatt buttons auswahlboxen machen, dann kann man beide auswählen oder
+  einzeln. meist rechnet man mit den beiden.» Aus den drei Knöpfen
+  «beide | Tragsicherheit | Gebrauchstauglichkeit» werden **zwei
+  Kästchen**: «beide» stand als dritte Sorte neben den zwei Sachen, die es
+  wirklich gibt. Als **Stellung** bleibt es (`trag` / `gzg` / `beide` —
+  daran hängen Plotliste, Kacheln und Hauptzahl), als Knopf nicht;
+  `kastenAn` und `artAusKasten` rechnen zwischen beidem um.
+  **Das letzte angekreuzte Kästchen ist gesperrt:** beide aus hiesse
+  «zeige nichts» — eine leere Auswertungsspalte, der man nicht ansieht, ob
+  etwas fehlt oder ob man es weggeklickt hat. Gesperrt und nicht bloss
+  zurückgesetzt; ein Kästchen, das beim Klick zurückspringt, sieht aus wie
+  ein Fehler. Die Sperren-Kontrolle zählt jetzt **sechs** Stellen.
+  ⚠ **Befund am Weg:** `.nw-wahl` trug **zwei** Widgets — diese Leiste
+  *und* die Nachweisliste im Optionen-Reiter. Die zweite Regel gewann und
+  legte der Optionenliste ein `display: flex` auf, obwohl ihr Erklärtext
+  unter dem Kreuz stehen soll. Die Leiste heisst jetzt `.nw-arten`; eine
+  Wache prüft, dass `.nw-wahl` nur noch ein Widget trägt.
 - **25. Sept., die Nachweiskarte ist gegliedert** (Prüfstand Abschnitt 127).
   Weisung: «ordne die nachweis karte joch mast fundament in der sidebar».
   Auf Rückfrage, wohin Zuganker und Druckstütze gehören: **eine eigene
@@ -1102,7 +1121,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5365 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5380 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

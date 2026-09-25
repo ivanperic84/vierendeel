@@ -4980,21 +4980,53 @@ export function gzgKacheln(erg) {
 /**
  * WELCHE NACHWEISART DIE ERGEBNISSE ZEIGEN - die Wahl selbst.
  *
- * Drei Stellungen, wie gefordert: Tragsicherheit, Gebrauchstauglichkeit,
- * beide. Vorgabe ist BEIDE - wer nichts wählt, soll alles sehen; ein
- * Filter, der beim Öffnen schon etwas wegnimmt, verschweigt einen
- * Nachweis, ohne es zu sagen.
+ * >>> ZWEI KAESTCHEN, NICHT DREI KNOEPFE (25. September). <<<
+ *
+ * Weisung, mit dem Bild der Leiste: «hier anstatt buttons auswahlboxen
+ * machen, dann kann man beide auswählen oder einzeln. meist rechnet man
+ * mit den beiden.»
+ *
+ * Die drei Knöpfe «beide | Tragsicherheit | Gebrauchstauglichkeit» waren
+ * eine Segmentwahl: «beide» stand als DRITTE Sorte neben den zwei Sachen,
+ * die es tatsächlich gibt. Es sind aber zwei Nachweisarten, jede an oder
+ * aus - und der Regelfall ist, dass beide an sind. Genau das sagen zwei
+ * Kreuze, und ein drittes Wort braucht es nicht.
+ *
+ * >>> DER GESPEICHERTE ZUSTAND BLEIBT EINE ZEICHENKETTE. <<<
+ * `trag`, `gzg` oder `beide` - daran hängen die Plotliste
+ * (`modiFuer` in app.layout.js), die Kacheln und die Hauptzahl. Die
+ * Kästchen sind die ANZEIGE dieser drei Stellungen, nicht ein zweiter
+ * Zustand daneben.
  *
  * >>> SIE STEHT AN EINER STELLE. <<< Von hier aus folgt ihr auch die
  * Plotliste im Modellfenster (app.layout.js). Ein zweiter Wähler dort
  * wäre eine zweite Wahrheit - dieselbe Regel wie beim Lastfallwähler.
  */
-export const NACHWEISARTEN = [
-  ['beide', 'beide', 'Tragsicherheit und Gebrauchstauglichkeit'],
-  ['trag', 'Tragsicherheit', 'Nur die Tragsicherheit: η der Bauteile'],
+export const NACHWEISKASTEN = [
+  ['trag', 'Tragsicherheit', 'η der Bauteile gegen die Bemessungswerte'],
   ['gzg', 'Gebrauchstauglichkeit',
-   'Nur die Gebrauchstauglichkeit: Verformung im Betriebswind ψ 0.70'],
+   'Verformung der Masten im Betriebswind ψ 0.70'],
 ];
+
+/** Welche Kästchen sind bei dieser Stellung angekreuzt? */
+export function kastenAn(art = 'beide') {
+  return art === 'beide' ? ['trag', 'gzg'] : [art];
+}
+
+/**
+ * Und umgekehrt: aus den angekreuzten Kästchen die Stellung.
+ *
+ * >>> KEINES ANGEKREUZT GIBT ES NICHT. <<<
+ * Es wäre die Stellung «zeige nichts» - eine Auswertungsspalte, die leer
+ * dasteht, ohne dass etwas fehlt. Das Kästchen, das als letztes übrig
+ * bleibt, ist deshalb gesperrt (siehe `nachweisartLeiste`); trifft diese
+ * Funktion trotzdem eine leere Liste, gilt «beide».
+ */
+export function artAusKasten(an) {
+  const a = (an ?? []).filter((k) => k === 'trag' || k === 'gzg');
+  if (a.length !== 1) return 'beide';
+  return a[0];
+}
 
 /* ===========================================================================
  * >>> DIE STABWERKSLEISTE: KNOPF, STAND UND ZAHL. <<<
@@ -5134,18 +5166,36 @@ export function verdrahteStabwerk(node, opt = {}) {
 }
 
 export function nachweisartLeiste(jetzt = 'beide') {
-  return `<div class="nw-wahl" role="group" aria-label="Nachweisart">${
-    NACHWEISARTEN.map(([k, t, titel]) =>
-      `<button type="button" data-nwart="${k}" class="${k === jetzt ? 'on' : ''}"
-         title="${esc(titel)}" aria-pressed="${k === jetzt}">${esc(t)}</button>`
-    ).join('')}</div>`;
+  const an = kastenAn(jetzt);
+  /*
+   * >>> DAS LETZTE KAESTCHEN LAESST SICH NICHT ABWAEHLEN. <<<
+   *
+   * Beide aus hiesse «zeige nichts» - eine leere Auswertungsspalte, der
+   * man nicht ansieht, ob etwas fehlt oder ob man selbst es weggeklickt
+   * hat. Es ist GESPERRT und nicht bloss zurückgesetzt: ein Kästchen, das
+   * beim Klick zurückspringt, sieht aus wie ein Fehler.
+   */
+  return `<div class="nw-arten" role="group" aria-label="Nachweisarten">${
+    NACHWEISKASTEN.map(([k, t, was]) => {
+      const ein = an.includes(k);
+      const letzte = ein && an.length === 1;
+      return `<label class="nw-art${ein ? ' on' : ''}"
+        title="${esc(letzte
+          ? `${was}. Mindestens eine Nachweisart muss gewählt sein.` : was)}">
+        <input type="checkbox" data-nwart="${k}"${ein ? ' checked' : ''}${
+          letzte ? ' disabled' : ''}>
+        <span>${esc(t)}</span>
+      </label>`;
+    }).join('')}</div>`;
 }
 
-/** Die Knöpfe der Leiste verdrahten. */
+/** Die Kästchen der Leiste verdrahten. */
 export function verdrahteNachweisart(node, opt) {
   if (!opt?.beiNachweisart) return;
-  node.querySelectorAll('[data-nwart]').forEach((b) => {
-    b.addEventListener('click', () => opt.beiNachweisart(b.dataset.nwart));
+  const kasten = [...node.querySelectorAll('[data-nwart]')];
+  kasten.forEach((b) => {
+    b.addEventListener('change', () => opt.beiNachweisart(
+      artAusKasten(kasten.filter((x) => x.checked).map((x) => x.dataset.nwart))));
   });
 }
 

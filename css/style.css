@@ -1214,26 +1214,44 @@ button.wz-haupt:hover { color: var(--on); }
 
 /* --- Wahl der Nachweisart in der Ergebnisleiste ---------------------------
    Weisung vom 24. September: «Tragsicherheit Gebrauchstagulichkeit oder
-   beide.» Drei Stellungen, nebeneinander wie ein Segment - klein und blass,
-   denn sie ist ein Filter und kein Ergebnis. Die gewählte trägt die
-   Akzentfarbe, wie überall im Werkzeug.
+   beide.» Am 25. September auf Kästchen umgestellt: «hier anstatt buttons
+   auswahlboxen machen, dann kann man beide auswählen oder einzeln. meist
+   rechnet man mit den beiden.»
+
+   >>> SIE HIESS BIS DAHIN `.nw-wahl` - UND SO HEISST AUCH ETWAS ANDERES. <<<
+
+   Denselben Namen trägt die Nachweisliste im Optionen-Reiter (ein Rahmen je
+   Nachweisgruppe, mit Kreuz und Erklärtext darunter). Die zweite Regel gewann
+   und legte ihr `display: flex` auf, obwohl der Erklärtext UNTER dem Kreuz
+   stehen soll. Zwei Widgets unter einem Klassennamen ist keine
+   Sparsamkeit, sondern eine Falle: wer den einen ändert, ändert den anderen
+   mit und sieht es nicht. Die Leiste heisst jetzt `.nw-arten`.
+
+   Klein und blass, denn sie ist ein Filter und kein Ergebnis; das
+   angekreuzte Kästchen trägt die Akzentfarbe wie überall im Werkzeug.
 
    Sie darf UMBRECHEN: «Gebrauchstauglichkeit» ist ein langes Wort, und auf
    Laptopbreite ist die Seitenleiste schmal (Durchsicht U5). Abgeschnittene
    Beschriftungen wären hier schlimmer als zwei Zeilen. */
-.nw-wahl { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 0 6px; }
-.nw-wahl button {
-  flex: 1 1 auto; min-height: 22px; padding: 3px 7px; cursor: pointer;
+.nw-arten { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 0 6px; }
+.nw-art {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 6px;
+  min-height: 22px; padding: 3px 7px; cursor: pointer;
   background: var(--s3); color: var(--dim); border: 1px solid var(--ol);
   border-radius: var(--m-r1);
   font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .02em;
   transition: background var(--t-schnell), color var(--t-schnell),
               border-color var(--t-schnell);
 }
-.nw-wahl button:hover { color: var(--on); border-color: var(--ol2); }
-.nw-wahl button.on {
+.nw-art:hover { color: var(--on); border-color: var(--ol2); }
+.nw-art.on {
   background: var(--acc-s); border-color: var(--acc); color: var(--acc);
 }
+.nw-art input { margin: 0; flex: 0 0 auto; }
+/* Das letzte angekreuzte Kaestchen ist gesperrt - es darf trotzdem nicht
+   wie abgeschaltet aussehen: es ist die Nachweisart, die gerade gilt. */
+.nw-art input:disabled { cursor: default; }
+.nw-art:has(input:disabled) { cursor: default; }
 
 .kennzahlen { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; }
 .kz {

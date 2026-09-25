@@ -7565,12 +7565,29 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      *
      * Er erfuellt die Regel des Hauses, denn er ZEIGT etwas, und er tut es
      * VORUEBERGEHEND: nach dem Neuzeichnen steht wieder ein bedienbarer
-     * Knopf da. Die Kontrolle zaehlt weiter mit, damit eine SECHSTE Stelle
-     * auffaellt.
+     * Knopf da.
+     */
+    /*
+     * >>> UND EINE SECHSTE (25. September). <<<
+     *
+     * Weisung: «hier anstatt buttons auswahlboxen machen, dann kann man
+     * beide auswählen oder einzeln.» Zwei Kästchen - und das LETZTE
+     * angekreuzte ist gesperrt.
+     *
+     * Es ist keine Attrappe: es ZEIGT die Nachweisart, die gerade gilt,
+     * und ist das Gegenteil von leer. Beide abzuwählen hiesse «zeige
+     * nichts» - eine leere Auswertungsspalte, der man nicht ansieht, ob
+     * etwas fehlt oder ob man es selbst weggeklickt hat. Gesperrt und
+     * nicht bloss zurueckgesetzt: ein Kästchen, das beim Klick
+     * zurueckspringt, sieht aus wie ein Fehler.
+     *
+     * Die Kontrolle zaehlt weiter mit, damit eine SIEBTE Stelle auffaellt.
      */
     const sperren = [...uq4.matchAll(/disabled/g)].length;
-    wahr('Es gibt genau fünf Stellen mit einer Sperre', sperren === 5,
+    wahr('Es gibt genau sechs Stellen mit einer Sperre', sperren === 6,
          `${sperren} Stellen`);
+    wahr('6 - das letzte angekreuzte Kaestchen der Nachweisarten',
+         uq4.includes("letzte ? ' disabled' : ''"));
     wahr('5 - der Knopf, der während der Rechnung «rechnet …» sagt',
          uq4.includes("b.disabled = true;")
          && uq4.includes("b.textContent = 'rechnet"));
@@ -28440,7 +28457,59 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
     const appQ = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
     const lyQ = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
-    pruef('Drei Stellungen', UI115.NACHWEISARTEN.length, 3, 1e-12, 'Stk');
+    /*
+     * >>> ZWEI KAESTCHEN STATT DREI KNOEPFE (25. September). <<<
+     * Weisung: «hier anstatt buttons auswahlboxen machen, dann kann man
+     * beide auswählen oder einzeln.» «beide» war die dritte Sorte neben
+     * den zwei Sachen, die es wirklich gibt; als Stellung bleibt es
+     * bestehen, als Knopf nicht.
+     */
+    pruef('Zwei Kaestchen', UI115.NACHWEISKASTEN.length, 2, 1e-12, 'Stk');
+    wahr('Die Leiste hat keine Knoepfe mehr',
+         !/<button[^>]*data-nwart/.test(UI115.nachweisartLeiste('beide')));
+    {
+      const kasten = (a) => [...UI115.nachweisartLeiste(a)
+        .matchAll(/data-nwart="(\w+)"([^>]*)>/g)]
+        .map((m) => ({ key: m[1], an: /checked/.test(m[2]),
+                       gesperrt: /disabled/.test(m[2]) }));
+      const b = kasten('beide');
+      wahr('«beide» kreuzt beide an', b.length === 2 && b.every((x) => x.an));
+      wahr('… und keines ist gesperrt', b.every((x) => !x.gesperrt));
+      /*
+       * >>> DAS LETZTE KAESTCHEN LAESST SICH NICHT ABWAEHLEN. <<<
+       * Beide aus hiesse «zeige nichts» - eine leere Auswertungsspalte,
+       * der man nicht ansieht, ob etwas fehlt oder ob man es weggeklickt
+       * hat. Gesperrt und nicht bloss zurueckgesetzt: ein Kaestchen, das
+       * beim Klick zurueckspringt, sieht aus wie ein Fehler.
+       */
+      ['trag', 'gzg'].forEach((a) => {
+        const k = kasten(a);
+        wahr(`«${a}» kreuzt nur ${a} an`,
+             k.filter((x) => x.an).map((x) => x.key).join() === a);
+        wahr(`>>> … und sperrt es, damit nicht beide aus sind <<<`,
+             k.find((x) => x.key === a).gesperrt
+             && !k.find((x) => x.key !== a).gesperrt);
+      });
+      // Hin und zurueck: die Stellung uebersteht den Weg durch die Maske.
+      ['beide', 'trag', 'gzg'].forEach((a) => wahr(
+        `Hin und zurueck: ${a}`,
+        UI115.artAusKasten(UI115.kastenAn(a)) === a));
+      wahr('Keines angekreuzt gibt es nicht - dann gilt «beide»',
+           UI115.artAusKasten([]) === 'beide');
+      /*
+       * >>> ZWEI WIDGETS UNTER EINEM KLASSENNAMEN IST EINE FALLE. <<<
+       * `.nw-wahl` trug bis zum 25. September BEIDES: die Leiste hier und
+       * die Nachweisliste im Optionen-Reiter. Die zweite Regel gewann und
+       * legte der Optionenliste ein `display: flex` auf, obwohl ihr
+       * Erklaertext unter dem Kreuz stehen soll.
+       */
+      const css115 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+      wahr('Das Stilblatt kennt .nw-arten', css115.includes('.nw-arten'));
+      wahr('>>> und .nw-wahl ist nur noch EIN Widget <<<',
+           !/\.nw-wahl \{[^}]*display:\s*flex/.test(css115));
+      wahr('Die Optionenliste benutzt .nw-wahl weiter',
+           uiQ.includes('class="nw-wahl'));
+    }
     wahr('Vorgabe ist «beide» - wer nichts waehlt, sieht alles',
          /nachweisart = 'beide'/.test(appQ)
          && /opt\.nachweisart \?\? 'beide'/.test(uiQ));
