@@ -239,6 +239,33 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (5.46 gegen 3.70 kN). Verdacht: die **Starrelemente** — AxisVM führt sie
   als echte Starrkörper, der Löser als steife Stäbe (`STARR_FAKTOR = 10`).
   Genau die Frage stand seit dem 20. September offen.
+  **Auf den Knoten genau nachgemessen** (Normalkraft im Masten M2, ständig,
+  von unten nach oben):
+
+  | Abschnitt | z von → bis | AxisVM N | Löser N |
+  |---|---|---|---|
+  | S1 | −7.50 → −0.32 | −12.820 / −6.958 | −12.819 / −6.958 |
+  | S2 | −0.32 → −0.22 | −1.077 / −1.000 | −6.958 / −6.881 |
+  | S3 | −0.22 → +0.22 | −1.000 / −0.633 | −6.881 / −6.514 |
+  | S4 | +0.22 → +0.32 | −0.633 / −0.555 | −6.514 / −6.436 |
+  | S5 | +0.32 → +1.00 | −0.555 / 0.000 | −0.555 / 0.000 |
+
+  **Der unterste und der oberste Abschnitt stimmen an beiden Enden** — nur
+  die drei kurzen Anschlussabschnitte dazwischen laufen auseinander. Und
+  der Grund steht in der Tabelle: **AxisVM leitet die halbe Jochlast
+  (5.88 kN) am UNTERgurt-Anschnitt ein (z = −0.32), der Löser am
+  OBERgurt-Anschnitt (z = +0.32)** — dort hängt `KONSOLE_M2_OG`, ein
+  Starrelement von 0.12 m, und es trägt genau diese 5.881 kN; die untere
+  Konsole trägt 0.000.
+  **AxisVM liegt richtig:** vertikal hält allein der Untergurt (Entscheid
+  vom 16. September, «Obergurt x y, Untergurt y z»), und der Link am
+  Obergurt gibt z frei. Warum die Last am Löser trotzdem dort
+  hineinkommt — an welchem Element sie am z-freien Link vorbeiläuft — ist
+  die nächste Frage.
+  **Was es nicht ändert:** die Auflagerkraft am Fuss (−12.8196 gegen
+  −12.8194) und die Gurtkräfte (0.71 %). Das Fussmoment ist beim
+  Mastnachweis massgebend, und dort stimmen beide — betroffen ist die
+  Normalkraft in drei kurzen Abschnitten.
   ⚠ **Zwei Fehler am Messweg selbst, beide behoben:**
   (1) Mein Erzeuger schrieb das **Eigengewicht als Streckenlast** in die
   Datei, und AxisVM setzt es selbst noch einmal an — Faktor 2 im Lastfall
@@ -252,9 +279,12 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   M_y 9.08 statt 0.26 kNm. Die Ergebnisdatei behauptete damit ein
   Stabende, das keines war — still. Die Brücke **fragt die Zahl der
   Schnitte jetzt ab** (hochzählen, bis nichts mehr kommt) und liest 1
-  und n. Bis das nachgemessen ist, vergleicht `vergleich_axisvm.mjs` nur
-  den **Stabanfang** — der ist vollständig, denn jeder Knoten ist der
-  Anfang irgendeines Stabes — und sagt, wie viele Endschnitte es hat
+  und n. **Nachgemessen am 26. September:** die Brücke meldet «Schnitte je
+  Stab: 11», der Vermerk «ohne Endschnitt» ist verschwunden, und die Zahl
+  der Vergleichspunkte hat sich verdoppelt (688 statt 344 je Gurtgrösse).
+  Die Abweichungen bleiben dabei, was sie waren — sie sind also echt und
+  kein Ablesefehler. `vergleich_axisvm.mjs` vergleicht das Ende nur, wenn
+  der letzte Schnitt auch dort liegt, und sagt sonst, wie viele es hat
   auslassen müssen.
   **Offen:** der Lauf mit der berichtigten Brücke, die **Jochreihe** (1879
   Stäbe) und die Frage nach den Starrelementen.
