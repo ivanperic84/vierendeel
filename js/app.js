@@ -1204,6 +1204,18 @@ function zeichneAuswertung() {
       ui.zeichneMastfuss(knoten, letzte.kombi);
     } else {
       ui.zeichneEinzelmast(knoten, letzte, {
+        /*
+         * >>> WIE EINE KOMBINATION HEISST (25. September). <<<
+         *
+         * Weisung: «was man noch aufführen müsste bei den nachweissen,
+         * ist die massgebende kombination.» Der Kern führt sie als
+         * SCHLUESSEL mit (`windYp`); den ausgeschriebenen Namen kennt nur
+         * die Lastfallliste, und die haengt am Blatt. Also reicht app.js
+         * den Aufloeser durch - `ui.js` kennt die Liste nicht und soll
+         * sie nicht kennen.
+         */
+        fallBez: (key) => kombi.lastfaelle
+          ?.find((l) => l.key === key)?.bez ?? null,
         quelle: anzeigeKombi,
         plastisch: werte.mastPlastisch === true,
         nachweisart,
@@ -1258,6 +1270,19 @@ function zeichneAuswertung() {
                                        // (Etappe 3, 25. September).
                                        grund: reiheOhneStabmodell(werte),
                                        ergebnis: stabwerk },
+                           /*
+                            * >>> WIE EINE KOMBINATION HEISST (25. Sept.). <<<
+                            *
+                            * Weisung: «was man noch aufführen müsste bei den
+                            * nachweissen, ist die massgebende kombination.»
+                            * Der Kern führt sie als SCHLUESSEL mit (`windYp`);
+                            * den ausgeschriebenen Namen kennt nur die
+                            * Lastfallliste, und die hängt am Blatt. Also
+                            * reicht app.js den Auflöser durch - `ui.js` kennt
+                            * die Liste nicht und soll sie nicht kennen.
+                            */
+                           fallBez: (key) => kombi.lastfaelle
+                             ?.find((l) => l.key === key)?.bez ?? null,
                            beiStabwerk: stabwerkRechnen,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),

@@ -4738,7 +4738,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
    * gibt kein Joch. Bleibt nur eine Gruppe übrig, lässt
    * `nachweisGruppenHtml` die Überschrift weg.
    */
-  const nwJeM = bauteilKachelnJe(zeig, urteil ?? {}, ampelU);
+  const nwJeM = bauteilKachelnJe(zeig, urteil ?? {}, ampelU, opt);
   const nwGruppenMast = [
     { titel: 'Mast', kacheln: nwJeM.mast },
     { titel: 'Anker', kacheln: nwJeM.anker },
@@ -4969,7 +4969,16 @@ export function gzgKacheln(erg) {
     k.push(kachel(`Verformung ${name}`, mm(mg.wert),
       `${q.ok ? '' : 'ÜBER · '}${mm(mg.grenz)} zulässig · ${mg.achse === 'x' ? 'quer' : 'längs'}`,
       '', {
-        titel: `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
+        /*
+         * Hier IMMER: die Gebrauchskombinationen sind andere als die der
+         * Tragsicherheit, und welche von ihnen massgebend wurde, steht
+         * sonst nirgends.
+         */
+        fall: fallKurz(mg.bez ?? ''),
+        titel: `Massgebende Kombination: ${mg.bez ?? '?'}
+
+`
+             + `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
              + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit — `
              + `diese Kachel färbt kein Urteil.\n\n${alle}`,
       }));
@@ -5236,10 +5245,58 @@ export function gzgBlockHtml(erg) {
  * Jochgruppe baut der Aufrufer - sie sieht am Tragjoch anders aus als am
  * Abfangjoch, und das ist seine Sache.
  */
-export function bauteilKachelnJe(erg, urteil, ampelU) {
+/* ===========================================================================
+ * >>> DIE MASSGEBENDE KOMBINATION GEHOERT ZU JEDER ZAHL. <<<
+ * =========================================================================
+ *
+ * Weisung vom 25. September: «was man noch aufführen müsste bei den
+ * nachweissen, ist die massgebende kombination.»
+ *
+ * Sie wird KURZ angeschrieben: die Kachel ist 88 px breit, und
+ * «Gebrauchstauglichkeit selten: Wind +y (Gleisrichtung)» verdrängte über
+ * drei Zeilen die Zahl, um die es geht. Weggelassen wird, was in Klammern
+ * steht (die Achsenangabe) und das angehängte «leitend» - beides sagt
+ * nichts über das Lastbild, sondern über die Schreibweise. Der VOLLE Name
+ * steht im Titel der Kachel.
+ */
+export function fallKurz(bez) {
+  if (!bez) return '';
+  return String(bez)
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s+leitend$/i, '')
+    /*
+     * «Gebrauchstauglichkeit selten: Wind −y» sind 37 Zeichen und brechen
+     * auf drei Zeilen um. Das Wort steht ohnehin über der Gruppe, in der
+     * diese Kacheln sitzen - hier sagt es nichts, was man nicht schon weiss.
+     */
+    .replace(/^Gebrauchstauglichkeit\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Die Zeile der massgebenden Kombination - oder null.
+ *
+ * >>> BEIM EINZELLASTFALL STEHT SIE NICHT DA. <<<
+ * Dort gilt sie allen Kacheln gemeinsam und steht schon in der Leiste
+ * darüber; je Kachel wiederholt wäre sie eine Spalte Rauschen.
+ *
+ * @param {object} erg   das angezeigte Ergebnis (nur die Hüllkurve nennt sie)
+ * @param {object} opt   mit `fallBez(key)` aus app.js
+ * @param {string} key   Schlüssel der Kombination (z. B. «windYp»)
+ * @param {string} bez   oder gleich der ausgeschriebene Name
+ */
+function fallZeile(erg, opt, key, bez = null) {
+  if (!erg?.istHuellkurve) return null;
+  const voll = bez ?? opt?.fallBez?.(key) ?? key ?? null;
+  return voll ? { kurz: fallKurz(voll), voll } : null;
+}
+
+export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
   const mast = [];
   const anker = [];
   const fundament = [];
+  const fz = (key, bez) => fallZeile(erg, opt, key, bez);
   if (erg.mast && urteil.nachweise?.mast !== false) {
     /*
      * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
@@ -5275,8 +5332,10 @@ export function bauteilKachelnJe(erg, urteil, ampelU) {
       // Ohne das stuende dort eine Zahl, deren Herkunft man raten muesste.
       const wodurch = (n.stabil?.eta ?? 0) > n.eta
         ? 'Knicken' : (n.plastischWirksam ? 'plastisch' : 'elastisch');
+      const f = fz(n.fall);
       mast.push(kachel(`η ${name}`, f3(eN),
-        `${n.profil.name} · ${wodurch}`, ampelU(eN)));
+        `${n.profil.name} · ${wodurch}`, ampelU(eN),
+        f ? { fall: f.kurz, titel: `Massgebende Kombination: ${f.voll}` } : null));
     });
   }
   /*
@@ -5345,11 +5404,13 @@ export function bauteilKachelnJe(erg, urteil, ampelU) {
           ? ` (müsste ${Math.abs(nw.NohneAusfall).toFixed(1)} kN drücken)` : '';
         anker.push(kachel(`η Anker ${name}`, '–',
           `${nw.typ} · hängt durch${ohne} · Mast trägt allein`, '',
-          { titel: nw.text }));
+          { titel: nw.text, ...(fz(e.lastfall, e.bez)
+              ? { fall: fz(e.lastfall, e.bez).kurz } : {}) }));
         return;
       }
       if (nw.eta === null || !Number.isFinite(nw.eta)) {
-        anker.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok'));
+        anker.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok',
+          fz(e.lastfall, e.bez) ? { fall: fz(e.lastfall, e.bez).kurz } : null));
         return;
       }
       /*
@@ -5362,11 +5423,18 @@ export function bauteilKachelnJe(erg, urteil, ampelU) {
        */
       if (nw.lieferbar === false) {
         anker.push(kachel(`η Anker ${name}`, f3(nw.eta),
-          `${wie} · ÜBER DEM SORTIMENT`, 'nok', { titel: nw.warnung ?? '' }));
+          `${wie} · ÜBER DEM SORTIMENT`, 'nok',
+          { titel: nw.warnung ?? '', ...(fz(e.lastfall, e.bez)
+              ? { fall: fz(e.lastfall, e.bez).kurz } : {}) }));
         return;
       }
+      const fA = fz(e.lastfall, e.bez);
       anker.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
-        titel: `Charakteristische Kraft gegen die zulässige des `
+        ...(fA ? { fall: fA.kurz } : {}),
+        titel: `${fA ? `Massgebende Kombination: ${fA.voll}
+
+` : ''}`
+             + `Charakteristische Kraft gegen die zulässige des `
              + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
              + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
              + `vergleichbar, die auf Bemessungswerten stehen.`,
@@ -5463,10 +5531,15 @@ export function bauteilKachelnJe(erg, urteil, ampelU) {
         ? `\n\nABHEBEN: ${q.abheben.wert.toFixed(1)} kN in «${q.abheben.bez}». `
           + 'Die Tabelle gilt für V zwischen 0 und 150 kN — ein abhebendes '
           + 'Fundament ist darin nicht abgedeckt.' : '';
+      const fF = fz(q.massgebend.fall, q.massgebend.bez);
       fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'} · ${q.massgebend.kurz ?? q.massgebend.key}`,
         ampelU(q.eta), {
-          titel: `Charakteristische Einwirkung am Fundamentkopf gegen die `
+          ...(fF ? { fall: fF.kurz } : {}),
+          titel: `${fF ? `Massgebende Kombination: ${fF.voll}
+
+` : ''}`
+               + `Charakteristische Einwirkung am Fundamentkopf gegen die `
                + `zulässige Last — beides OHNE Teilsicherheitsbeiwerte, wie `
                + `beim Anker. Quer und längs zum Gleis werden EINZELN `
                + `nachgewiesen, nicht überlagert. Gelände bis 14° Neigung.`
@@ -5681,22 +5754,40 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * derselbe, weil das Kraeftepaar sie gleich stark trifft. Dazu die
    * Bindebleche und, ab A240, die Quersteifen.
    */
+  /*
+   * >>> UND JEDE KACHEL NENNT IHRE KOMBINATION (25. September). <<<
+   *
+   * Weisung: «was man noch aufführen müsste bei den nachweissen, ist die
+   * massgebende kombination.» Bei der Hüllkurve kann sie je Bauteil eine
+   * ANDERE sein - der Obergurt unter Wind quer, das Blech unter Wind
+   * längs. Genau deshalb steht sie an der Kachel und nicht nur oben.
+   *
+   * Das Abfangjoch hat EINEN massgebenden Fall für seine Auswertung
+   * (`ab.fall`); «N Gurt» ist eine Schnittgrösse und bekommt ihn ebenso,
+   * denn auch sie stammt aus einem Lastbild.
+   */
+  const fzJ = (key, bez) => fallZeile(erg, opt, key, bez);
+  const mitFall = (ziel, f) => (f ? { ...(ziel ?? {}), fall: f.kurz } : ziel);
+  const fAb = ab ? fzJ(ab.fall, abFall?.bez) : null;
   const kz = ab ? [
     kachel('η Gurt', f3(ab.gurt?.eta ?? 0), ab.q.gurt.name,
-           ampelU(ab.gurt?.eta ?? 0), { x: ab.gurt?.x ?? 0 }),
+           ampelU(ab.gurt?.eta ?? 0), mitFall({ x: ab.gurt?.x ?? 0 }, fAb)),
     kachel('η Bindeblech', f3(ab.blech?.eta ?? 0),
            ab.blech ? `Station ${(ab.blech.x ?? 0).toFixed(2)} m` : 'kein Blech',
-           ampelU(ab.blech?.eta ?? 0), { x: ab.blech?.x ?? 0 }),
+           ampelU(ab.blech?.eta ?? 0), mitFall({ x: ab.blech?.x ?? 0 }, fAb)),
     kachel('N Gurt', `${(ab.gurt?.N ?? 0).toFixed(0)} kN`,
            `Kräftepaar · e = ${(ab.q.e).toFixed(1)} cm`, 'ok',
-           { x: ab.gurt?.x ?? 0 }),
+           mitFall({ x: ab.gurt?.x ?? 0 }, fAb)),
   ] : [
     kachel('η Obergurt', f3(erg.max.etaOG.og.eta), m.profOG.name,
-           ampelU(erg.max.etaOG.og.eta), bei(erg.max.etaOG)),
+           ampelU(erg.max.etaOG.og.eta),
+           mitFall(bei(erg.max.etaOG), fzJ(erg.max.etaOG.fall))),
     kachel('η Untergurt', f3(erg.max.etaUG.ug.eta), m.profUG.name,
-           ampelU(erg.max.etaUG.ug.eta), bei(erg.max.etaUG)),
+           ampelU(erg.max.etaUG.ug.eta),
+           mitFall(bei(erg.max.etaUG), fzJ(erg.max.etaUG.fall))),
     kachel('η Bindeblech', f3(erg.max.etaB.etaB), 'massgebende Ebene',
-           ampelU(erg.max.etaB.etaB), bei(erg.max.etaB)),
+           ampelU(erg.max.etaB.etaB),
+           mitFall(bei(erg.max.etaB), fzJ(erg.max.etaB.fall))),
   ];
   /*
    * DER MAST BEKOMMT SEINE EIGENE KACHEL (Weisung, 28. August: «in der
@@ -5732,7 +5823,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Blechkacheln, am Abfangjoch seine zwei Gurte. Die übrigen drei
    * hängen am Masten und kommen aus `bauteilKachelnJe`.
    */
-  const nwJe = bauteilKachelnJe(erg, urteil, ampelU);
+  const nwJe = bauteilKachelnJe(erg, urteil, ampelU, opt);
   const nwGruppen = [
     { titel: ab ? 'Abfangjoch' : 'Joch', kacheln: kz },
     { titel: 'Mast', kacheln: nwJe.mast },

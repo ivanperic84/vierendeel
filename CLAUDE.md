@@ -202,12 +202,86 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**25. September 2026** · Prüfstand 5380 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5410 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., im Browser geprüft — und warum es dreimal nicht ging**
+  (Weisung: «im browser prüfen»). Der Entwicklungsserver antwortete nicht,
+  weil **fünf `serve.py` gleichzeitig auf Port 8731 lagen**: das Skript
+  setzt `allow_reuse_address = True`, und das erlaubt unter Windows
+  mehreren Prozessen, denselben Port zu binden. Die Verbindung landete
+  zufällig bei einem toten und wurde ohne Antwort geschlossen — genau das
+  Bild, das ich zweimal als «Sandbox verweigert» gedeutet habe. Nach dem
+  Beenden aller fünf: **HTTP 200**.
+  Nachgeprüft und bestätigt: die **Stabwerksleiste** (Knopf, «veraltet»
+  ohne η-Zahl, nach dem Klick «gültig» mit η 1.504 und der Reihenzeile
+  «Mast M2 1.504 · Mast M1 1.175 · Mast M3 0.766 · Joch T2 0.727 · Joch T1
+  0.537», die überschrittenen in der Fehlfarbe), die **Gliederung** der
+  Nachweiskarte (Joch · Mast · Fundament; die leere Ankergruppe fällt weg)
+  und die **zwei Kästchen** der Nachweisart (beide angekreuzt, Akzentfarbe
+  `#7c8de0`, das letzte gesperrt, GZG-Block verschwindet und kommt
+  zurück). ⚠ Offen: `serve.py` sollte sich weigern zu starten, wenn der
+  Port schon belegt ist.
+- **26. Sept., die massgebende Kombination steht an jeder Nachweiszahl**
+  (Prüfstand Abschnitt 128 a). Weisung: «was man noch aufführen müsste bei
+  den nachweissen, ist die massgebende kombination.» Neue dritte Zeile in
+  der Kachel (`.kz-f`), kursiv und durch eine Haarlinie abgesetzt; **kurz**
+  angeschrieben («Wind +y» statt «Wind +y (Gleisrichtung) leitend» — die
+  Kachel ist 88 px breit), der volle Name im Titel. Sie steht **nur bei
+  der Hüllkurve**: beim Einzellastfall gilt sie allen Kacheln gemeinsam
+  und steht schon in der Leiste darüber.
+  Dafür merkt sich die Hüllkurve jetzt **je Station ihre Kombination**
+  (`fall` in `core.vierendeel.js`) — der Mast trug sie längst, die
+  Stationen nicht. Bei einer Hüllkurve ist das keine Kleinigkeit: die
+  massgebende Kombination kann von Station zu Station wechseln, und dann
+  ist sie je Bauteil eine andere. `app.js` reicht den Namensauflöser
+  (`fallBez`) an beide Seitenleisten; `ui.js` kennt die Lastfallliste
+  nicht und soll sie nicht kennen.
+- **26. Sept., die Verformung ist gegen das Stabwerk geprüft** (Abschnitt
+  128 b). Weisung: «zudem die verformung auch testen». Punkt für Punkt
+  verglichen — dieselbe Höhe, dieselbe Achse, dieselbe Kombination:
+
+  | Mastspitze längs | Kern | Stabwerk | Verh. |
+  |---|---|---|---|
+  | Einzeljoch, Randmast | 78.29 mm | 78.35 mm | 1.0008 |
+  | Reihe, geteilter Mast | 139.94 mm | 139.72 mm | 0.9984 |
+  | Reihe, Randmast | 78.29 mm | 78.51 mm | 1.0029 |
+
+  Damit ist auch die **Sofortmassnahme vom 19. September bestätigt**: die
+  Jochkräfte der Nachbarn, die sie dem geteilten Masten auflegt, geben in
+  Gleisrichtung dasselbe wie das gekoppelte Modell.
+  ⚠ **Quer zum Gleis laufen sie auseinander** (Jochauflager, nur Wind):
+  Einzeljoch Kern 5.47 / Stabwerk 4.69 mm (Kern +17 %), **Reihe am
+  geteilten Masten Kern 4.89 / Stabwerk 5.81 mm — Kern −16 %, also auf der
+  unsicheren Seite**. Die Zahlen sind klein (gegen 40 mm zulässig,
+  η ≈ 0.14) und ändern kein Urteil; festgehalten ist es trotzdem.
+- **26. Sept., Frage des Auftraggebers: wirkt das Joch stabilisierend?**
+  (Abschnitt 128 c). **Ja — aber fast nur quer zum Gleis.** Gemessen mit
+  1 kN waagrecht am Mastkopf (Steifigkeit, nicht Last — sonst wäre nicht
+  zu trennen, was Tragen und was Halten ist), J90/20 m, HEB 240:
+
+  | | Jochachse | Gleisrichtung |
+  |---|---|---|
+  | Mast allein | 8.669 mm/kN | 24.860 mm/kN |
+  | Einzeljoch, Randmast | 4.417 (**Faktor 1.96**) | 24.206 (**2.6 %**) |
+  | Reihe, Randmast | 3.009 (**Faktor 2.88**) | 22.847 (8.1 %) |
+  | Reihe, Mittelmast | 2.995 | 18.129 (**27 %**) |
+
+  In der **Jochachse** nimmt das Joch den Nachbarmasten auf 96 % mit
+  (4.417 gegen 4.252 mm), die Masten teilen sich die Last, und die
+  Kopfverschiebung sinkt um die **Anzahl der Masten**. In **Gleisrichtung**
+  folgt der Nachbar **nicht** (0.654 von 24.206 mm), und der Gewinn ist
+  entsprechend klein. Der Grund steht im Anschluss: die Linkelemente geben
+  die Momente um die lotrechte Achse frei (Entscheid vom 9. September,
+  «Drehfedern am Linkelement ganz raus»), und das Joch ist in seiner
+  eigenen waagrechten Ebene zu weich, um den Nachbarn mitzunehmen. Nur der
+  **Mittelmast** einer Reihe gewinnt spürbar — an ihm hängen zwei Joche.
+  **Und das ist die ungünstige Hälfte der Antwort:** der HEB 240 ist quer
+  2.87-mal steifer als längs — das Joch hilft dort, wo der Mast ohnehin
+  stark ist, und nicht in der Richtung, in der der Nachweis fällt.
 - **25. Sept., die Nachweisart wird angekreuzt, nicht geschaltet**
   (Prüfstand Abschnitt 115 f). Weisung, mit dem Bild der Leiste: «hier
   anstatt buttons auswahlboxen machen, dann kann man beide auswählen oder
@@ -1121,7 +1195,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5380 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5410 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -289,10 +289,29 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
     ? ` klick" data-kz-x="${ziel.x}" data-kz-station="${ziel.station ?? ''}` +
       `" title="Im Modell anfahren: x = ${ziel.x.toFixed(2)} m`
     : (ziel?.titel ? `" title="${esc(ziel.titel)}` : '');
+  /*
+   * >>> UND DIE MASSGEBENDE KOMBINATION, WENN SIE BEKANNT IST. <<<
+   *
+   * Weisung vom 25. September: «was man noch aufführen müsste bei den
+   * nachweissen, ist die massgebende kombination.»
+   *
+   * Sie steht als dritte Zeile IN der Kachel, nicht im Titel: ein eta ohne
+   * seinen Lastfall ist eine halbe Auskunft - zwei Bauteile desselben
+   * Tragwerks können ihr Maximum in verschiedenen Kombinationen haben, und
+   * welches Bild dahintersteht, entscheidet, was man ändert. Im Titel
+   * stand es bei manchen Kacheln schon; dort liest es nur, wer die Maus
+   * darauf hält.
+   *
+   * Sie wird KURZ angeschrieben («Wind +y»), der volle Name steht im Titel
+   * - die Kachel ist 88 px breit, und eine umbrechende Zeile
+   * «Gebrauchstauglichkeit selten: Wind +y (Gleisrichtung)» verdrängte die
+   * Zahl, um die es geht.
+   */
   return `<div class="kz${zustand ? ' ' + zustand : ''}${k}">
     <div class="kz-t">${esc(titel)}</div>
     <div class="kz-w">${esc(wert)}</div>
     ${einheit ? `<div class="kz-e">${esc(einheit)}</div>` : ''}
+    ${ziel?.fall ? `<div class="kz-f">${esc(ziel.fall)}</div>` : ''}
   </div>`;
 }
 

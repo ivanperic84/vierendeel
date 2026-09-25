@@ -30636,6 +30636,320 @@ titel('127  Die Nachweiskarte ist gegliedert: Joch, Mast, Anker, Fundament');
   }
 }
 
+titel('128  Die massgebende Kombination, die Verformung und das Joch als Riegel');
+/* ===========================================================================
+ * Drei Weisungen vom 25. September in einem Abschnitt, weil sie an
+ * derselben Rechnung haengen:
+ *
+ *   «zudem die verformung auch testen»
+ *   «frage, wirkt das joch stabilisierend?»
+ *   «was man noch aufführen müsste bei den nachweissen, ist die
+ *    massgebende kombination»
+ * ========================================================================= */
+{
+  const UI128 = await import(J('ui.js'));
+  const V128 = await import(J('core.vierendeel.js'));
+  const N128 = await import(J('core.nachbarn.js'));
+  const C128 = await import(J('core.constants.js'));
+  const P128 = await import(J('data.profiles.js'));
+  const AX128 = await import(J('export.axisvm.js'));
+  const SW128 = await import(J('core.stabwerk.js'));
+  const SN128 = await import(J('core.stabnachweis.js'));
+  const L128 = await import(J('core.lasten.js'));
+  const VF128 = await import(J('core.verformung.js'));
+
+  let w128 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w128 = { ...w128, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const reihe128 = C128.tragwerkHinzu(w128, 'joch', {});
+
+  const modellVon128 = (s) => V128.modell({ ...s, beiwerteFest: null },
+    P128.getProfil(s.profOG), P128.getProfil(s.profUG),
+    P128.getStahl(s.stahl), T.getTragjoch(s.typ));
+  const o128 = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+  const stabwerk128 = (w) => {
+    const satz = C128.rechensatz(w);
+    const m = modellVon128(satz);
+    const eingaben = (C128.sichtbareTragwerke(w) ?? [])
+      .map((t) => C128.tragwerkSatz(w, t.id));
+    const bau = AX128.blattWennMehrere(satz, { modellVon: modellVon128 }, o128)
+      ?? (() => {
+        const t = C128.tragwerkeVon(w)[0];
+        const [a, b] = C128.mastenFuer(w, t) ?? [];
+        const x = AX128.stabmodell(m, { ...o128,
+          mastNamen: { A: a?.id ?? 'A', B: b?.id ?? 'B' } });
+        x.lasten = AX128.lasten(m, x, o128);
+        return x;
+      })();
+    const dat = AX128.stabmodellJson(m, { ...o128, bau, eingabe: satz, eingaben });
+    return { dat, lsg: SW128.loese(dat, { eigengewicht: false }), satz };
+  };
+  // Die Wege einer Kombination - linear, also eine Summe der Grundfaelle.
+  const wege128 = (lsg, dat, lf) => {
+    const out = new Float64Array(lsg.n);
+    SN128.anteileFuer(lf, dat).forEach(({ lastfall, faktor }) => {
+      const u = lsg.u.get(lastfall);
+      if (!u || !faktor) return;
+      for (let i = 0; i < out.length; i += 1) out[i] += faktor * u[i];
+    });
+    return out;
+  };
+  const knotenAuf128 = (dat, mast, h) => {
+    const kn = dat.knoten.filter((k) => k.name.startsWith(`MAST_${mast}_`));
+    const fuss = Math.min(...kn.map((k) => k.z));
+    return kn.reduce((a, b) =>
+      (Math.abs(b.z - fuss - h) < Math.abs(a.z - fuss - h) ? b : a));
+  };
+
+  /* ---------------------------------------------------------------------
+   * a) DIE MASSGEBENDE KOMBINATION STEHT AN JEDER NACHWEISZAHL
+   * ------------------------------------------------------------------- */
+  /*
+   * >>> SIE KANN JE BAUTEIL EINE ANDERE SEIN. <<<
+   *
+   * Die Huellkurve nimmt je Station den unguenstigsten Knoten - aus
+   * welcher Kombination, wechselt von Station zu Station. Ein eta ohne
+   * seinen Lastfall ist deshalb eine halbe Auskunft: welches Lastbild
+   * dahintersteht, entscheidet, was man aendert.
+   */
+  wahr('Die Huellkurve merkt sich je Station ihre Kombination', (() => {
+    const s = N128.rechensatzMitNachbarn(w128);
+    const k = V128.vergleichKombinationen(s, P128.getProfil(s.profOG),
+      P128.getProfil(s.profUG), P128.getStahl(s.stahl), T.getTragjoch(s.typ));
+    return k.huellkurve.knoten.every((n) => typeof n.fall === 'string');
+  })());
+  /*
+   * Kurz angeschrieben, voll im Titel: die Kachel ist 88 px breit.
+   * Weggelassen wird, was in Klammern steht, und das angehaengte
+   * «leitend» - beides sagt etwas ueber die Schreibweise, nicht ueber
+   * das Lastbild.
+   */
+  [['Wind +y (Gleisrichtung) leitend', 'Wind +y'],
+   ['Ständig + Wind +x (Jochachse)', 'Ständig + Wind +x'],
+   ['Betriebswind (ψ 0.70): ständig + Wind +y (Gleisrichtung)',
+    'Betriebswind: ständig + Wind +y'],
+   ['Gebrauchstauglichkeit selten: Wind −y (Gleisrichtung)', 'selten: Wind −y'],
+   ['Havarie L1 +y', 'Havarie L1 +y'],
+   [null, ''], ['', '']].forEach(([lang, kurz]) =>
+    wahr(`fallKurz: ${JSON.stringify(lang)}`, UI128.fallKurz(lang) === kurz,
+         UI128.fallKurz(lang)));
+
+  {
+    const ampel128 = (v) => (v > 1 ? 'nok' : v > 0.9 ? 'warn' : 'ok');
+    const erg128 = {
+      istHuellkurve: true,
+      modell: { federn: { namen: { A: 'M1', B: 'M2' } } },
+      mast: { A: { eta: 0.62, etaMitStabilitaet: 0.78,
+                   profil: { name: 'HEB 240' }, stabil: { eta: 0.78 },
+                   fall: 'windYp' } },
+      anker: { A: { lastfall: 'gwk', bez: 'Ständig + Wind +y (Gleisrichtung)',
+                    nachweis: { typ: 'Zuganker', N: 24.3, eta: 0.44,
+                                lieferbar: true } } },
+      fundament: { A: { eta: 0.31, typ: { typ: 'HP1a/2.4' },
+        massgebend: { kurz: 'M quer', key: 'Mq', bez: 'Wind +x (Jochachse)' },
+        nachweise: [{ was: 'M quer', wert: 71.2, zul: 230, einheit: 'kNm',
+                      eta: 0.31, bez: 'Wind +x' }] } },
+    };
+    const bez128 = (k) => ({ windYp: 'Wind +y (Gleisrichtung) leitend' }[k] ?? null);
+    const je = UI128.bauteilKachelnJe(erg128, { nachweise: {} }, ampel128,
+                                      { fallBez: bez128 });
+    const alle = [...je.mast, ...je.anker, ...je.fundament];
+    wahr('>>> Jede Nachweiskachel nennt ihre Kombination <<<',
+         alle.length === 3 && alle.every((h) => /class="kz-f">/.test(h)),
+         alle.map((h) => /class="kz-f">([^<]*)/.exec(h)?.[1]).join(' | '));
+    wahr('… und zwar kurz', /class="kz-f">Wind \+y</.test(je.mast[0]));
+    wahr('… den vollen Namen im Titel',
+         /Massgebende Kombination: Wind \+y \(Gleisrichtung\) leitend/.test(je.mast[0]));
+    /*
+     * >>> BEIM EINZELLASTFALL NICHT. <<<
+     * Dort gilt sie allen Kacheln gemeinsam und steht schon in der Leiste
+     * darueber; je Kachel wiederholt waere sie eine Spalte Rauschen.
+     */
+    const je2 = UI128.bauteilKachelnJe({ ...erg128, istHuellkurve: false },
+      { nachweise: {} }, ampel128, { fallBez: bez128 });
+    wahr('>>> Beim Einzellastfall steht sie NICHT an der Kachel <<<',
+         ![...je2.mast, ...je2.anker, ...je2.fundament]
+           .some((h) => /class="kz-f">/.test(h)));
+    const css128 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    wahr('Das Stilblatt kennt .kz-f', css128.includes('.kz-f'));
+    /*
+     * Der Aufloeser kommt aus app.js - `ui.js` kennt die Lastfallliste
+     * nicht und soll sie nicht kennen. Wer ihn vergisst, bekommt den
+     * Schluessel statt des Namens; geprueft wird, dass beide Seitenleisten
+     * ihn reichen.
+     */
+    const appQ128 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+    wahr('>>> Beide Seitenleisten reichen den Namensaufloeser <<<',
+         (appQ128.match(/fallBez: \(key\) => kombi\.lastfaelle/g) ?? []).length === 2);
+  }
+
+  /* ---------------------------------------------------------------------
+   * b) DIE VERFORMUNG: KERN GEGEN STABWERK
+   * ------------------------------------------------------------------- */
+  /*
+   * >>> DER KERN RECHNET DEN MASTEN IN GLEISRICHTUNG ALS FREIEN KRAGARM.
+   *
+   * Ob das genuegt, sagt nur ein zweiter Weg. Verglichen wird Punkt fuer
+   * Punkt: dieselbe Hoehe, dieselbe Achse, dieselbe Kombination. Die
+   * charakteristischen Windfaelle mal 0.70 sind der Betriebswind - der
+   * Kern rechnet so, und der Loeser bekommt denselben Faktor.
+   *
+   * GEMESSEN (J90/20 m, HEB 240, H 7.50, Mast 8.50 m), Mastspitze laengs:
+   *
+   *     Einzeljoch, Randmast     Kern 78.29   Stabwerk 78.35   1.0008
+   *     Reihe, geteilter Mast    Kern 139.94  Stabwerk 139.72  0.9984
+   *     Reihe, Randmast          Kern 78.29   Stabwerk 78.51   1.0029
+   *
+   * Damit ist auch die SOFORTMASSNAHME vom 19. September bestaetigt: die
+   * Jochkraefte der Nachbarn, die sie dem geteilten Masten auflegt, geben
+   * in Gleisrichtung dasselbe wie das gekoppelte Modell.
+   */
+  {
+    const faelle = [];
+    [['Einzeljoch', w128, { A: 'M1', B: 'M2' }],
+     ['Reihe', reihe128, { A: 'M2', B: 'M3' }]].forEach(([name, w, zuMast]) => {
+      const { dat, lsg, satz } = stabwerk128(w);
+      const alle = L128.lastfaelle(satz);
+      const s2 = N128.rechensatzMitNachbarn(w);
+      const kombi = V128.vergleichKombinationen(s2, P128.getProfil(s2.profOG),
+        P128.getProfil(s2.profUG), P128.getStahl(s2.stahl), T.getTragjoch(s2.typ));
+      const vf = VF128.verformungsNachweis(kombi);
+      ['A', 'B'].forEach((ende) => {
+        const q = vf?.[ende];
+        if (!q) return;
+        q.nachweise.forEach((x) => {
+          const lf = alle.find((l) => l.key === x.lastfall);
+          if (!lf) return;
+          const h = /spitze/i.test(x.was) ? q.L : q.stelle.z;
+          const k = knotenAuf128(dat, zuMast[ende], h);
+          const i = lsg.knotenIdx.get(k.name);
+          const u = wege128(lsg, dat, lf);
+          const psi = lf.art === 'charakteristisch' ? 0.70 : 1.0;
+          const roh = Math.abs(x.achse === 'x' ? u[6 * i] : u[6 * i + 1]);
+          faelle.push({ name: `${name} ${zuMast[ende]}`, was: x.was,
+                        achse: x.achse, kern: x.wert * 1000,
+                        sw: roh * psi * 1000 });
+        });
+      });
+    });
+    const laengs = faelle.filter((f) => f.achse === 'y');
+    laengs.forEach((f) => pruef(`${f.name}: ${f.was.slice(0, 26)}`,
+      f.sw, f.kern, Math.max(0.5, 0.01 * f.kern), 'mm'));
+    /*
+     * >>> QUER ZUM GLEIS LAUFEN SIE AUSEINANDER - UND DAS IST DER BEFUND.
+     *
+     * Dort wirkt die Rahmenwirkung des Jochs, und der Kern bildet sie mit
+     * einer Feder nach. Gemessen am Jochauflager, «nur Wind»:
+     *
+     *     Einzeljoch, Randmast    Kern 5.47   Stabwerk 4.69   (Kern +17 %)
+     *     Reihe, geteilter Mast   Kern 4.89   Stabwerk 5.81   (Kern -16 %)
+     *
+     * Beim geteilten Masten liegt der Kern also auf der UNSICHEREN Seite.
+     * Die Zahlen sind klein (5-6 mm gegen 40 mm zulaessig, eta 0.14), das
+     * Urteil aendert sich dadurch nicht - aber es gehoert festgehalten,
+     * und diese Wache haelt es fest.
+     */
+    const quer = faelle.filter((f) => f.achse === 'x');
+    wahr('>>> Quer zum Gleis weicht der Kern vom Stabwerk ab <<<',
+         quer.length > 0 && quer.some((f) => Math.abs(f.sw / f.kern - 1) > 0.10),
+         quer.map((f) => `${f.name} ${f.kern.toFixed(2)}/${f.sw.toFixed(2)}`).join(' | '));
+    wahr('… bleibt aber klein gegen den Grenzwert von 40 mm',
+         quer.every((f) => f.kern < 15 && f.sw < 15));
+  }
+
+  /* ---------------------------------------------------------------------
+   * c) WIRKT DAS JOCH STABILISIEREND?
+   * ------------------------------------------------------------------- */
+  /*
+   * >>> GEMESSEN WIRD DIE STEIFIGKEIT, NICHT DIE LAST. <<<
+   *
+   * 1 kN waagrecht am Mastkopf, einmal mit Joch und einmal ohne. Mit den
+   * echten Lastfaellen waere die Antwort nicht zu trennen: das Joch
+   * TRAEGT auch, und was davon Last und was Steifigkeit ist, sagt erst
+   * die Einheitslast.
+   *
+   * GEMESSEN (J90/20 m, HEB 240), Kopfverschiebung je kN:
+   *
+   *                              in Jochachse   in Gleisrichtung
+   *     Mast allein                  8.669 mm       24.860 mm
+   *     Einzeljoch, Randmast         4.417          24.206
+   *     Reihe, Randmast              3.009          22.847
+   *     Reihe, Mittelmast            2.995          18.129
+   *
+   * >>> DIE ANTWORT: JA - ABER FAST NUR QUER ZUM GLEIS. <<<
+   *
+   * In der JOCHACHSE nimmt das Joch den Nachbarmasten mit (er folgt auf
+   * 96 %: 4.417 gegen 4.252), die Masten teilen sich die Last, und die
+   * Kopfverschiebung sinkt um den Faktor 1.96 beim Einzeljoch und 2.88 in
+   * der Reihe mit drei Masten - also um die ANZAHL der Masten.
+   *
+   * In GLEISRICHTUNG folgt der Nachbar NICHT (0.654 gegen 24.206, also
+   * 2.7 %), und der Gewinn ist entsprechend klein: 2.6 %. Der Grund steht
+   * im Anschluss selbst - die Linkelemente geben die Momente um die
+   * lotrechte Achse frei (Entscheid vom 9. September: «Drehfedern am
+   * Linkelement ganz raus»), und das Joch ist in seiner eigenen
+   * waagrechten Ebene zu weich, um den Nachbarmasten mitzunehmen.
+   *
+   * Nur der MITTELMAST einer Reihe gewinnt spuerbar (27 %): an ihm haengen
+   * zwei Joche, und jedes nimmt seinen Nachbarn ein Stueck weit mit.
+   *
+   * >>> UND GENAU DAS IST DIE RICHTUNG, IN DER DER MAST SCHWACH IST. <<<
+   * Der HEB 240 ist quer 2.87-mal steifer als laengs - das Joch hilft
+   * dort, wo der Mast ohnehin stark ist.
+   */
+  {
+    const kopflast = (dat, mast, richtung) => {
+      const kn = dat.knoten.filter((k) => k.name.startsWith(`MAST_${mast}_`));
+      const kopf = kn.reduce((a, b) => (b.z > a.z ? b : a));
+      return { ...dat, _kopf: kopf,
+        lasten: { punkt: [{ knoten: kopf.name, richtung, wert: 1, lastfall: 'P' }],
+                  moment: [], strecke: [] },
+        kombinationen: [],
+        lastfaelle: [{ key: 'P', label: 'Einheitslast', art: 'Others' }] };
+    };
+    const weg = (w, mast, richtung, anKnoten = null) => {
+      const dat = kopflast(stabwerk128(w).dat, mast, richtung);
+      const lsg = SW128.loese(dat, { eigengewicht: false });
+      const ziel = anKnoten
+        ? dat.knoten.filter((k) => k.name.startsWith(`MAST_${anKnoten}_`))
+            .reduce((a, b) => (b.z > a.z ? b : a))
+        : dat._kopf;
+      const i = lsg.knotenIdx.get(ziel.name);
+      const u = lsg.u.get('P');
+      return Math.abs(richtung === 'X' ? u[6 * i] : u[6 * i + 1]) * 1000;
+    };
+    const allein = { ...w128, tragwerksart: 'einzelmast' };
+    const freiX = weg(allein, 'M1', 'X');
+    const freiY = weg(allein, 'M1', 'Y');
+    const jochX = weg(w128, 'M1', 'X');
+    const jochY = weg(w128, 'M1', 'Y');
+    const reiheX = weg(reihe128, 'M1', 'X');
+    const mitteY = weg(reihe128, 'M2', 'Y');
+    /*
+     * Der Kragarm zuerst: er ist die Bezugsgroesse, und das Verhaeltnis
+     * der beiden Richtungen muss dem Traegheitsmoment folgen (HEB 240:
+     * I_y/I_z = 11260/3923 = 2.870). Stimmt das nicht, misst der Rest
+     * etwas anderes als gedacht.
+     */
+    pruef('Der freie Mast folgt seinem Traegheitsmoment',
+          freiY / freiX, 11260 / 3923, 0.01, '-');
+    wahr('>>> In der JOCHACHSE halbiert das Joch die Kopfverschiebung <<<',
+         freiX / jochX > 1.8 && freiX / jochX < 2.1,
+         `${freiX.toFixed(3)} -> ${jochX.toFixed(3)} mm, Faktor ${(freiX / jochX).toFixed(2)}`);
+    wahr('… und in der Reihe teilen sich DREI Masten die Last',
+         freiX / reiheX > 2.6 && freiX / reiheX < 3.1,
+         `Faktor ${(freiX / reiheX).toFixed(2)}`);
+    wahr('>>> In GLEISRICHTUNG wirkt es am Randmasten kaum <<<',
+         freiY / jochY < 1.06,
+         `${freiY.toFixed(3)} -> ${jochY.toFixed(3)} mm, ${((1 - jochY / freiY) * 100).toFixed(1)} %`);
+    wahr('… der Nachbarmast folgt dort nicht',
+         weg(w128, 'M1', 'Y', 'M2') / jochY < 0.10,
+         `${(weg(w128, 'M1', 'Y', 'M2')).toFixed(3)} von ${jochY.toFixed(3)} mm`);
+    wahr('… nur der Mittelmast einer Reihe gewinnt spuerbar',
+         freiY / mitteY > 1.2 && freiY / mitteY < 1.5,
+         `${freiY.toFixed(3)} -> ${mitteY.toFixed(3)} mm, ${((1 - mitteY / freiY) * 100).toFixed(0)} %`);
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

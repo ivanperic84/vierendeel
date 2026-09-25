@@ -1202,17 +1202,38 @@ export function huellkurve(liste) {
    * nicht gibt.
    */
   const SPANNGROESSEN = ['My', 'Vz', 'Mz', 'Tx'];
+  /*
+   * >>> JEDE STATION MERKT SICH IHRE KOMBINATION. <<<
+   *
+   * Weisung vom 25. September: «was man noch aufführen müsste bei den
+   * nachweissen, ist die massgebende kombination.»
+   *
+   * Der Mast trug sie längst (`mastNachweiseHuelle` setzt `fall`), die
+   * Stationen der Hüllkurve nicht - und damit stand «η Obergurt 0.40» da,
+   * ohne dass irgendwo zu lesen war, aus welchem Lastbild die Zahl kommt.
+   * Bei einer Hüllkurve ist das keine Kleinigkeit: die massgebende
+   * Kombination kann von Station zu Station WECHSELN (der Kommentar
+   * darueber sagt es), und dann ist sie je Bauteil eine andere.
+   *
+   * Die Auswahlregel bleibt Zeichen für Zeichen dieselbe - ECHT grösser,
+   * also gewinnt bei Gleichstand der erste Fall.
+   */
   const knotenH = erste.knoten.map((_, i) => {
-    const best = gueltig.reduce(
-      (a, e) => ((e.knoten[i]?.eta ?? -1) > (a?.eta ?? -1) ? e.knoten[i] : a),
-      erste.knoten[i]);
+    let best = erste.knoten[i];
+    let bestFall = erste.modell?.lastfall ?? null;
+    gueltig.forEach((e) => {
+      if ((e.knoten[i]?.eta ?? -1) > (best?.eta ?? -1)) {
+        best = e.knoten[i];
+        bestFall = e.modell?.lastfall ?? null;
+      }
+    });
     const spanne = {};
     SPANNGROESSEN.forEach((g) => {
       const werte = gueltig.map((e) => e.knoten[i]?.[g])
         .filter((v) => Number.isFinite(v));
       if (werte.length) spanne[g] = [Math.min(...werte), Math.max(...werte)];
     });
-    return { ...best, spanne };
+    return { ...best, fall: bestFall, spanne };
   });
   const argMax = (fn) => knotenH.reduce((a, r) => (fn(r) > fn(a) ? r : a), knotenH[0]);
   const etaGesamt = Math.max(...gueltig.map((e) => e.max.etaGesamt));

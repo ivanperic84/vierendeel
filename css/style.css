@@ -1272,6 +1272,15 @@ button.wz-haupt:hover { color: var(--on); }
 .kz-t { font-size: 9px; color: var(--dim); letter-spacing: .02em; line-height: 1.2; }
 .kz-w { font-family: var(--f-mono); font-size: 14px; font-weight: 500; margin: 1px 0 0; }
 .kz-e { font-family: var(--f-mono); font-size: 9px; color: var(--dim); line-height: 1.25; }
+/* Die massgebende Kombination (25. September). Sie steht unter der Kachel-
+   zeile, abgesetzt durch eine Haarlinie: sie sagt nichts über die Grösse,
+   sondern über das LASTBILD, aus dem sie stammt. Kursiv, damit man sie beim
+   Überfliegen der Zahlen nicht für eine Einheit hält. */
+.kz-f {
+  font-family: var(--f-mono); font-size: 8.5px; font-style: italic;
+  color: var(--dim); line-height: 1.2; margin-top: 3px; padding-top: 2px;
+  border-top: 1px solid var(--ol);
+}
 
 /* Kurzes Aufleuchten, wenn ein Mass im Modell sein Eingabefeld aufruft */
 @keyframes blitz { 0%, 100% { box-shadow: 0 0 0 0 transparent; }
