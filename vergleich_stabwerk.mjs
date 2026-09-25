@@ -445,6 +445,31 @@ if (aufPy.length) {
   }
 }
 
+/* ===========================================================================
+ * >>> WAS DANACH NOCH BLEIBT, IST DIE SCHUBWEICHHEIT DER BLECHE. <<<
+ * =========================================================================
+ *
+ * Der PyNite-Export mindert die Traegheitsmomente der Bleche ab, um ihre
+ * SCHUBVERFORMUNG nachzubilden (`schubweich`, Vorgabe an; Faktor 1 + phi in
+ * export.pynite.js). PyNite ist Euler-Bernoulli und kann sie nicht selbst.
+ * Am BLECH_V_100x10 macht das Iz = 8.333e-7 -> 6.387e-7, also 23 %.
+ *
+ * Der Loeser bekommt die VOLLEN Werte: er liest die AxisVM-Datei, und
+ * AxisVM rechnet die Schubverformung selbst. Er rechnet die Bleche also
+ * schubstarr - und das erklaert den ganzen Rest. Am J90/8 m gemessen, mit
+ * `schubweich: false` im Export:
+ *
+ *     Wege G              4.96e-2 -> 5.20e-4
+ *     Verdrehungen G      2.48e-2 -> 2.51e-4
+ *     Verdrehungen WindY  2.65e-3 -> 5.97e-4
+ *
+ * Alle sechs Groessen dann unter 6e-4. >>> DAMIT IST DER UNTERSCHIED
+ * ZWISCHEN DEN BEIDEN LOESERN VOLLSTAENDIG AUFGEKLAERT. <<<
+ *
+ * Ob der Loeser die Schubweichheit bekommen soll, ist ein Entscheid des
+ * Auftraggebers - bei gedrungenen Blechen ist sie erheblich. Siehe
+ * CLAUDE.md, Offene Punkte.
+ * ========================================================================= */
 zeile('\n' + '='.repeat(96));
 zeile(`GRÖSSTE RELATIVE ABWEICHUNG (Wege und Verdrehungen): ${schlimmsteRel.toExponential(3)}`
   + `  (${schlimmsteWo})`);

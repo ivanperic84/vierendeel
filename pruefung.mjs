@@ -29494,6 +29494,141 @@ titel('120  PyNite: der Querschnitt und die Drehlage');
   }
 }
 
+titel('121  Das Linkelement hat eine Laenge');
+/* ===========================================================================
+ * Weisung vom 25. September: «der verdrehung an den blechknoten nachgehen».
+ *
+ * >>> WAS DAHINTERSTECKTE. <<<
+ *
+ * Das Joch verdrehte sich gegen PyNite um 23 % zu viel, waehrend Mast und
+ * Anschluss auf 0.5 % stimmten - der Sprung sass genau ueber dem
+ * Linkelement. `kFeder` koppelte die sechs Freiheitsgrade PAARWEISE, als
+ * laegen die beiden Knoten aufeinander. Sie liegen 0.05 m auseinander.
+ *
+ * Damit verletzte das Element die STARRKOERPERKINEMATIK: eine Verdrehung
+ * des einen Knotens nahm den anderen nicht mit, obwohl beide in fuenf
+ * Richtungen starr gekoppelt waren. Genau das misst der Abschnitt hier -
+ * und zwar an einer geschlossenen Loesung, nicht an PyNite.
+ * ========================================================================= */
+{
+  const SW121 = await import(J('core.stabwerk.js'));
+
+  /* =======================================================================
+   * >>> DIE PROBE: EIN VOLL STARRER LINK IST EIN STARRKOERPER. <<<
+   * =====================================================================
+   *
+   * Aufbau:  FUSS --[Stab a]-- A --[Link L]-- B ,  Moment M an A um z.
+   *
+   * Der Kragarm gibt geschlossen
+   *     fi_A = M a / (E I)        u_A,y = M a^2 / (2 E I)
+   * und der starre Link haengt B daran:
+   *     u_B,y = u_A,y + fi_A * L        fi_B = fi_A
+   *
+   * Ohne den Hebelarm kaeme u_B,y = u_A,y heraus - der Link haette keine
+   * Laenge. Der Unterschied ist hier mit Absicht GROSS gewaehlt (L = 0.5 m
+   * gegen a = 1 m), damit die Kontrolle nicht an der Rundung haengt.
+   * ===================================================================== */
+  const E121 = 210000, a121 = 1.0, L121 = 0.5, M121 = 10.0;
+  const b121 = 0.2;                       // Rechteck 200 x 200 mm
+  const I121 = (b121 ** 4) / 12;
+  const EI = E121 * 1000 * I121;          // N/mm2 -> kN/m2
+
+  const bauLink = (kraft) => ({
+    material: { E: E121, G: 81000, rho: 7850 },
+    querschnitte: [{ name: 'Q', form: 'Rectangle', parameter: [200, 200] }],
+    knoten: [{ name: 'FUSS', x: 0, y: 0, z: 0 },
+             { name: 'A', x: a121, y: 0, z: 0 },
+             { name: 'B', x: a121 + L121, y: 0, z: 0 }],
+    staebe: [
+      { name: 'ST', von: 'FUSS', bis: 'A', querschnitt: 'Q', art: 'stab',
+        lcsZ: [0, 0, 1] },
+      { name: 'LK', von: 'A', bis: 'B', querschnitt: 'Q', art: 'link',
+        lcsZ: [0, 0, 1], kraftuebertragung: kraft },
+    ],
+    auflager: [{ knoten: 'FUSS', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                 fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' }],
+    lastfaelle: [{ key: 'M', name: 'Moment an A' }],
+    lasten: { punkt: [], moment: [{ knoten: 'A', richtung: 'Mz', wert: M121,
+                                    lastfall: 'M' }], strecke: [] },
+    kombinationen: [],
+  });
+
+  const ALLE_STARR = { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+                       xx: 'Rigid', yy: 'Rigid', zz: 'Rigid' };
+  {
+    const lsg = SW121.loese(bauLink(ALLE_STARR), { eigengewicht: false });
+    const hol = (kn, d) => lsg.u.get('M')[lsg.knotenIdx.get(kn) * 6 + d];
+    const fiSoll = (M121 * a121) / EI;
+    const uASoll = (M121 * a121 * a121) / (2 * EI);
+    const uBSoll = uASoll + fiSoll * L121;
+
+    pruef('Kragarm: Verdrehung am Knoten A', hol('A', 5), fiSoll, 1e-9, 'rad');
+    pruef('Kragarm: Verschiebung am Knoten A', hol('A', 1), uASoll, 1e-9, 'm');
+    /*
+     * >>> DAS IST DIE KONTROLLE, DIE GEFEHLT HAT. <<<
+     * Sie faellt, sobald das Linkelement seinen Hebelarm vergisst.
+     */
+    pruef('>>> Der starre Link nimmt B ueber seine Laenge mit <<<',
+          hol('B', 1), uBSoll, 1e-9, 'm');
+    pruef('… und dreht ihn gleich mit', hol('B', 5), fiSoll, 1e-9, 'rad');
+
+    // Ohne Hebelarm waere B nur so weit wie A - der Unterschied ist gross.
+    wahr('Der Unterschied ist nicht die Rundung',
+         Math.abs(uBSoll - uASoll) > 0.4 * uBSoll,
+         `u_B ${uBSoll.toExponential(4)} gegen u_A ${uASoll.toExponential(4)} m`);
+  }
+
+  /* --- Und die Gelenkigkeit bleibt eine Gelenkigkeit --------------------
+   * Der Hebelarm darf die freien Freiheitsgrade nicht heimlich fesseln:
+   * ein Link mit freier Verdrehung um z gibt das Moment nicht weiter, der
+   * Knoten B verdreht sich also NICHT mit A.
+   */
+  {
+    /*
+     * B BRAUCHT EINEN ROTATIONSHALT, sonst haengt er in der Luft: sein fiz
+     * kommt dann aus keinem Element mehr, und die Zerlegung bricht ab
+     * («nicht positiv definit»). Genau daran scheitert auch PyNite, wenn man
+     * ein Moment an BEIDEN Enden freigibt - siehe export.pynite.js.
+     * Gehalten wird deshalb nur fiz; alles andere traegt der Link.
+     */
+    const d = bauLink({ ...ALLE_STARR, zz: 'Free' });
+    d.auflager.push({ knoten: 'B', fiz: 'Rigid' });
+    const lsg = SW121.loese(d, { eigengewicht: false });
+    const hol = (kn, dd) => lsg.u.get('M')[lsg.knotenIdx.get(kn) * 6 + dd];
+    const fiSoll = (M121 * a121) / EI;
+    pruef('Mit Gelenk: A verdreht sich wie zuvor', hol('A', 5), fiSoll, 1e-9, 'rad');
+    /*
+     * >>> DAS GELENK WIRKT: DAS MOMENT KOMMT NICHT AN. <<<
+     * B ist um z gehalten - wuerde der Link ein Moment weitergeben, stuende
+     * es als Auflagerreaktion da.
+     */
+    const rB = lsg.auflagerkraefte('M').find((x) => x.knoten === 'B');
+    wahr('>>> Das Gelenk gibt kein Moment weiter <<<',
+         Math.abs(rB.fiz) < 1e-9 * M121,
+         `Reaktion ${rB.fiz.toExponential(3)} kNm gegen ${M121} kNm Last`);
+    /*
+     * Seine VERSCHIEBUNG folgt aber sehr wohl: die Translationen sind
+     * starr, und der Arm dreht sich mit A. Genau diese Kopplung fehlte.
+     */
+    const uBSoll = (M121 * a121 * a121) / (2 * EI) + fiSoll * L121;
+    pruef('… die Verschiebung von B folgt dem Arm', hol('B', 1), uBSoll, 1e-9, 'm');
+  }
+
+  /* --- Ein Link der Laenge null bleibt, was er war ----------------------
+   * Die aeltere Fassung ohne Hebelarm ist der Grenzfall L = 0. Wer ein
+   * solches Modell gerechnet hat, bekommt dieselben Zahlen wie vorher.
+   */
+  {
+    const d = bauLink(ALLE_STARR);
+    // Praktisch auf A - und zwar in z versetzt, damit der Link eine
+    // Richtung hat. Eine Drehung um z bewegt laengs z nichts.
+    d.knoten[2] = { name: 'B', x: a121, y: 0, z: 1e-6 };
+    const lsg = SW121.loese(d, { eigengewicht: false });
+    const hol = (kn, dd) => lsg.u.get('M')[lsg.knotenIdx.get(kn) * 6 + dd];
+    pruef('Link ohne Laenge: B liegt auf A', hol('B', 1), hol('A', 1), 1e-9, 'm');
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

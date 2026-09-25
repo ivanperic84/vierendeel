@@ -202,12 +202,34 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5232 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5241 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., das Linkelement hatte seine Länge vergessen** (Prüfstand
+  Abschnitt 121). Weisung: «der verdrehung an den blechknoten nachgehen».
+  `kFeder` in core.stabwerk.js koppelte die sechs Freiheitsgrade
+  **paarweise**, als lägen die beiden Knoten aufeinander — sie liegen
+  0.05 m auseinander. Damit verletzte das Element die
+  **Starrkörperkinematik**: eine Verdrehung des einen Knotens nahm den
+  anderen nicht mit, obwohl beide in fünf Richtungen starr gekoppelt sind.
+  Ein starrer Stiel mit einem Bolzen am Ende verhält sich nicht so. Die
+  Feder misst jetzt die Relativverformung des **materiellen Punktes**
+  (du = u_j − u_i + S(r)·fi_i; der Arm sitzt am i-Ende, das Gelenk am
+  j-Ende — dieselbe Aufteilung, die die PyNite-Ausleitung mit
+  `def_releases` trifft). Gemessen: die Verdrehung des Jochs
+  1.19089e-2 → **9.64742e-3** gegen PyNites 9.65468e-3, also von 23 % auf
+  **0.075 %**; die Auflagerkräfte auf 2e-5 bis 5e-4.
+  **Der Weg dorthin war Ausschliessen:** die Federsteifigkeit (von 1e8 bis
+  1e13 gesättigt), der Starrfaktor, die Torsionskonstanten (identisch) und
+  jede einzelne Freigabe — keines erklärte es. Der Hinweis lag in den
+  Zahlen: die Differenz war über das ganze Joch **konstant**, während Mast
+  und Anschluss auf 0.5 % stimmten.
+  ⚠ Der Prüfstand hatte die Kinematik des Links **nie** geprüft — das ist
+  die Lücke, durch die es kam. Abschnitt 121 prüft sie jetzt gegen eine
+  geschlossene Lösung (Kragarm + starrer Link, u_B = u_A + fi_A·L).
 - **24. Sept., die gelenkigen Anschlüsse erreichen PyNite** (Prüfstand
   Abschnitt 120 e, siehe *Entschieden*). Weisung: «die links als
   stabendfreigaben in pynite nachrüsten». Damit ist der letzte grosse
@@ -802,14 +824,20 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
   *Laufende Arbeit*).
 
-- **Verdrehung um die Jochachse an den Blechknoten:** nach allen
-  Berichtigungen bleibt im Fall Wind längs eine Abweichung von **22 %**
-  in `fix` an einem Vertikalblech — in beiden gemessenen Modellen
-  (J90/8 m 0.228, J90/20 m 0.224), also systematisch. Die
-  **Auflagerkräfte stimmen dabei auf 0.4 %** und die Wege auf 1.1 %. Die
-  Torsionskonstanten der Bleche sind in beiden Programmen identisch
-  (Verhältnis 1.0000), an ihnen liegt es also nicht. Ungeklärt, aber
-  klein; vor einer Freigabe des Lösers anzusehen.
+- ⚠ **Der Löser rechnet die Bleche schubstarr.** Damit ist der letzte
+  Unterschied zu PyNite benannt — und der einzige, der noch besteht. Der
+  PyNite-Export mindert die Trägheitsmomente der Bleche ab, um ihre
+  **Schubverformung** nachzubilden (`schubweich`, Vorgabe an); PyNite ist
+  Euler-Bernoulli und kann sie nicht selbst. Am BLECH_V_100x10 macht das
+  I_z = 8.333e-7 → 6.387e-7, also **23 %**. Der Löser bekommt die vollen
+  Werte, weil er die AxisVM-Datei liest und AxisVM die Schubverformung
+  selbst rechnet. Gemessen am J90/8 m mit `schubweich: false` im Export:
+  Wege G 4.96e-2 → **5.20e-4**, Verdrehungen G 2.48e-2 → **2.51e-4**,
+  Verdrehungen Wind längs 2.65e-3 → **5.97e-4** — alle sechs Grössen unter
+  6e-4. **Damit ist der Unterschied zwischen den beiden Lösern vollständig
+  aufgeklärt.** Ob der Löser die Schubweichheit bekommen soll, ist ein
+  Entscheid des Auftraggebers: bei gedrungenen Blechen ist sie erheblich,
+  und sie würde die Blechspannungen verändern.
 - **Torsion der gedrungenen Ersatzquerschnitte** (STARR 500×500, ARM):
   der Löser nimmt den exakten Beiwert (0.1406·a⁴ beim Quadrat), der
   PyNite-Export die dünnwandige Näherung — 12 % Unterschied. Ohne Belang
@@ -876,7 +904,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5232 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5241 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

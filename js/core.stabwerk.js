@@ -114,13 +114,75 @@ function kLokal(E, G, A, Iy, Iz, It, L) {
 }
 
 /** Punkt-zu-Punkt-Feder (Linkelement): je lokalem Freiheitsgrad eine Zahl. */
-function kFeder(cs) {
+/* ===========================================================================
+ * >>> DAS LINKELEMENT HAT EINE LAENGE - UND DIE GEHOERT IN DIE MATRIX. <<<
+ * =========================================================================
+ *
+ * Hier stand eine Feder, die die sechs Freiheitsgrade PAARWEISE koppelt:
+ * u_i gegen u_j, fi_i gegen fi_j, jeden fuer sich. Das ist die Feder
+ * ZWEIER AUFEINANDERLIEGENDER PUNKTE. Der Link am Jochanschluss ist aber
+ * 0.05 m lang, und damit war die Formulierung kinematisch falsch: eine
+ * Verdrehung des einen Knotens nahm den anderen NICHT mit, obwohl beide
+ * in fuenf Richtungen starr gekoppelt sind. Ein starrer Stiel mit einem
+ * Bolzen am Ende verhaelt sich nicht so - der Stiel dreht sich mit, und
+ * der Bolzen laesst allein die RELATIVE Verdrehung zu.
+ *
+ * Gefunden am 25. September, beim Nachgehen einer Verdrehung an den
+ * Blechknoten: das Joch verdrehte sich gegenueber PyNite um 23 % zu viel
+ * (1.191e-2 gegen 9.655e-3 rad), waehrend Mast und Anschluss auf 0.5 %
+ * stimmten - der Sprung sass genau ueber dem Link. Ausgeschlossen wurden
+ * der Reihe nach: die Federsteifigkeit (von 1e8 bis 1e13 gesaettigt), der
+ * Starrfaktor, die Torsionskonstanten (identisch) und die einzelnen
+ * Freigaben.
+ *
+ * >>> DIE RICHTIGE FORMULIERUNG. <<<
+ *
+ * Die Feder misst die Relativverformung des MATERIELLEN PUNKTES, nicht
+ * die der Knotenwerte:
+ *
+ *     du  = u_j - u_i + S(r) fi_i          dfi = fi_j - fi_i
+ *
+ * mit r = (L, 0, 0) im lokalen System (die Stabachse ist ex) und
+ * S(r) v = r x v. Daraus k = B^T C B mit der 6x12-Matrix B. Der starre
+ * Arm sitzt am i-Ende, das Gelenk am j-Ende - dieselbe Aufteilung, die
+ * die PyNite-Ausleitung mit ihren Stabendfreigaben trifft
+ * (`def_releases` am j-Ende, siehe export.pynite.js).
+ *
+ * >>> GEMESSEN (J90/8 m, Wind laengs, gegen PyNite): <<<
+ *
+ *     Verdrehung des Jochs   1.19089e-2 -> 9.64742e-3  (PyNite 9.65468e-3)
+ *     relative Abweichung          23 % -> 0.075 %
+ *     Verdrehungen insgesamt      0.228 -> 2.65e-3
+ *     Auflagerkraefte           2.50e-3 -> 5.44e-4
+ *
+ * Fuer einen Link der Laenge NULL ist die neue Fassung mit der alten
+ * identisch - S(r) verschwindet dann. Die geschlossenen Loesungen des
+ * Abschnitts 111 rechnen mit solchen und bleiben unberuehrt.
+ * ========================================================================= */
+function kFeder(cs, Larm = 0) {
+  /*
+   * B in Zeilen: 0..2 die Translationsdifferenz, 3..5 die Verdrehungs-
+   * differenz. Spalten: u_i (0..2), fi_i (3..5), u_j (6..8), fi_j (9..11).
+   */
+  const B = new Float64Array(6 * 12);
+  const setz = (z, sp, v) => { B[z * 12 + sp] = v; };
+  for (let d = 0; d < 3; d += 1) { setz(d, d, -1); setz(d, d + 6, +1); }
+  for (let d = 0; d < 3; d += 1) { setz(d + 3, d + 3, -1); setz(d + 3, d + 9, +1); }
+  // S(r) fuer r = (L, 0, 0):  [[0,0,0],[0,0,-L],[0,L,0]]
+  setz(1, 5, -Larm);
+  setz(2, 4, +Larm);
+
   const k = new Float64Array(144);
-  for (let d = 0; d < 6; d += 1) {
-    const c = cs[d];
-    if (!c) continue;
-    k[d * 12 + d] += c; k[(d + 6) * 12 + (d + 6)] += c;
-    k[d * 12 + (d + 6)] -= c; k[(d + 6) * 12 + d] -= c;
+  for (let a = 0; a < 12; a += 1) {
+    for (let b = 0; b < 12; b += 1) {
+      let sum = 0;
+      for (let d = 0; d < 6; d += 1) {
+        const c = cs[d];
+        if (!c) continue;
+        sum += B[d * 12 + a] * c * B[d * 12 + b];
+      }
+      k[a * 12 + b] = sum;
+    }
   }
   return k;
 }
@@ -335,7 +397,7 @@ export function loese(dat, opt = {}) {
         if (typeof ku[d] === 'number') return ku[d];
         return LINK_STARR;
       });
-      k = kFeder(c);
+      k = kFeder(c, db.L);
     } else {
       const w = qs.get(s.querschnitt);
       if (!w) throw new Error('Stab ' + s.name + ': Querschnitt ' + s.querschnitt + ' fehlt');
