@@ -932,7 +932,44 @@ function Lies-Schnittgroessen {
                 $liste = New-Object System.Collections.Generic.List[object]
                 foreach ($li in ($stabVon.Keys | Sort-Object)) {
                     $nm = $stabVon[$li]
-                    for ($si = 1; $si -le 2; $si++) {
+                    <#  >>> DER LETZTE SCHNITT IST NICHT DER ZWEITE. <<<
+
+                        BEFUND vom 26. September, beim Vergleich gegen den
+                        Stabwerksloeser. Hier stand
+                        `for ($si = 1; $si -le 2; $si++)` - in der Annahme,
+                        die Schnitte 1 und 2 seien die beiden STABENDEN.
+
+                        AxisVM teilt eine Linie aber in zehn Abschnitte:
+                        Schnitt 2 liegt bei x = L/10. Gemessen am Mast
+                        MAST_M1_S1 (L = 7.180 m): der zweite gelesene
+                        Schnitt stand bei x = 0.718, und dort ist M_y
+                        9.08 statt 0.26 kNm. Die Datei behauptete damit
+                        ein Stabende, das keines war - und zwar still.
+
+                        Wie viele es sind, wird nicht geraten, sondern
+                        ABGEFRAGT: der erste Stab wird hochgezaehlt, bis
+                        GetLineForceByLoadCaseId nichts mehr liefert. Die
+                        Zahl gilt dann fuer alle - AxisVM teilt jede
+                        gerade Linie gleich. Stimmt sie fuer einen Stab
+                        nicht, faellt der Schnitt weg statt falsch
+                        dazustehen ($ok -le 0 -> continue).             #>
+                    if ($null -eq $script:nSchnitte) {
+                        $script:nSchnitte = 2
+                        $li0 = ($stabVon.Keys | Sort-Object)[0]
+                        for ($p = 2; $p -le 40; $p++) {
+                            $vp = NeuerSatz 'RLineForceValues'
+                            $xp = 0.0; $tp = ''
+                            $okp = 0
+                            try {
+                                $okp = $m.Results.Forces.GetLineForceByLoadCaseId(
+                                    $li0, $p, $lfNr, 1, $atLinear, [ref]$vp, [ref]$xp, [ref]$tp)
+                            } catch { $okp = 0 }
+                            if ($okp -le 0) { break }
+                            $script:nSchnitte = $p
+                        }
+                        Schreib "  Schnitte je Stab: $($script:nSchnitte)"
+                    }
+                    foreach ($si in @(1, $script:nSchnitte)) {
                         $v = NeuerSatz 'RLineForceValues'
                         $x = 0.0; $txt = ''
                         $ok = $m.Results.Forces.GetLineForceByLoadCaseId(
@@ -949,7 +986,8 @@ function Lies-Schnittgroessen {
                 $liste = New-Object System.Collections.Generic.List[object]
                 foreach ($li in ($stabVon.Keys | Sort-Object)) {
                     $nm = $stabVon[$li]
-                    for ($si = 1; $si -le 2; $si++) {
+                    # Derselbe Befund wie oben: 1 und der LETZTE Schnitt, nicht 1 und 2.
+                    foreach ($si in @(1, $(if ($null -eq $script:nSchnitte) { 2 } else { $script:nSchnitte }))) {
                         $v = NeuerSatz 'RLineForceValues'
                         $x = 0.0; $txt = ''
                         $ok = $m.Results.Forces.LineForceByLoadCaseId(

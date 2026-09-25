@@ -208,6 +208,56 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., Etappe 4 begonnen: der Löser gegen AxisVM**
+  (`vergleich_axisvm.mjs`). Weisung: «mit axis testen». AxisVM baut,
+  rechnet linear statisch und liest aus (`AxisVM_aufbauen.cmd -Rechnen
+  -Auslesen`); am J90/20 m mit Masten dauert der Durchgang **rund 11
+  Minuten** (828 Knoten, 942 Stäbe, 8 Lastfälle).
+  **Das Ergebnis, soweit es steht** (verglichen am Stabanfang, Rolle für
+  Rolle, bezogen auf den grössten Wert der Grösse im Lastfall):
+
+  | Lastfall | Grösse | max \|AxisVM\| | Abweichung |
+  |---|---|---|---|
+  | Wind in Jochachse | Mast M_y | 10.8375 kNm | **0.00 %** |
+  | Wind in Jochachse | Mast V_z | 2.5500 kN | **0.00 %** |
+  | Wind in Gleisrichtung | Mast M_z | 43.0909 kNm | **0.19 %** |
+  | Wind in Gleisrichtung | Mast V_y | 6.8505 kN | 2.10 % |
+  | Wind in Gleisrichtung | Gurt N | 33.3367 kN | 12.41 % |
+  | Wind in Gleisrichtung | Blech V_y | 5.4649 kN | 32.35 % |
+  | Ständig | Gurt N | 31.0046 kN | 0.71 % |
+  | Ständig | Mast N | 12.8196 kN | 45.87 % |
+
+  **Die massgebenden Grössen am Masten stimmen** — das Fussmoment unter
+  Wind quer auf die Stelle, das Längsmoment auf 0.19 %. Die Summe des
+  Eigengewichts stimmt ebenfalls (2 × 12.8196 = 25.639 kN, genau der Wert
+  des Lösers).
+  ⚠ **Was NICHT stimmt und eine eigene Untersuchung braucht:** unter
+  **ständiger Last** läuft die Normalkraft im **oberen Mastabschnitt**
+  auseinander (AxisVM −0.63, Löser −6.51 kN am `MAST_M2_S4`) — als liefe
+  bei mir ein Teil der Jochlast über den **Obergurt**-Anschluss, der in z
+  frei sein müsste. Dazu am Jochende die Blechquerkraft unter Wind längs
+  (5.46 gegen 3.70 kN). Verdacht: die **Starrelemente** — AxisVM führt sie
+  als echte Starrkörper, der Löser als steife Stäbe (`STARR_FAKTOR = 10`).
+  Genau die Frage stand seit dem 20. September offen.
+  ⚠ **Zwei Fehler am Messweg selbst, beide behoben:**
+  (1) Mein Erzeuger schrieb das **Eigengewicht als Streckenlast** in die
+  Datei, und AxisVM setzt es selbst noch einmal an — Faktor 2 im Lastfall
+  G (N im Untergurt 62.35 statt 31.29 kN), alle übrigen Lastfälle
+  makellos. Die Datei für den Vergleich geht jetzt **ohne**, der Löser
+  steuert seines selbst bei.
+  (2) **Die Brücke hielt den zweiten von elf Schnitten für das Stabende.**
+  `for ($si = 1; $si -le 2; $si++)` — AxisVM teilt eine Linie in zehn
+  Abschnitte, Schnitt 2 liegt bei **x = L/10**. Gemessen am `MAST_M1_S1`
+  (L = 7.180 m): der zweite Schnitt stand bei x = 0.718, und dort ist
+  M_y 9.08 statt 0.26 kNm. Die Ergebnisdatei behauptete damit ein
+  Stabende, das keines war — still. Die Brücke **fragt die Zahl der
+  Schnitte jetzt ab** (hochzählen, bis nichts mehr kommt) und liest 1
+  und n. Bis das nachgemessen ist, vergleicht `vergleich_axisvm.mjs` nur
+  den **Stabanfang** — der ist vollständig, denn jeder Knoten ist der
+  Anfang irgendeines Stabes — und sagt, wie viele Endschnitte es hat
+  auslassen müssen.
+  **Offen:** der Lauf mit der berichtigten Brücke, die **Jochreihe** (1879
+  Stäbe) und die Frage nach den Starrelementen.
 - **26. Sept., im Browser geprüft — und warum es dreimal nicht ging**
   (Weisung: «im browser prüfen»). Der Entwicklungsserver antwortete nicht,
   weil **fünf `serve.py` gleichzeitig auf Port 8731 lagen**: das Skript
