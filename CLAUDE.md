@@ -208,6 +208,35 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., Kern, Löser und PyNite am selben Blech** (`vergleich_blech.mjs`).
+  Weisung: «vorschlag umsetzen und falls notwendig axis beiziehen», nachdem
+  der η-Vergleich die Bleche im Stabwerk 22 % höher gezeigt hatte. **Drei
+  Rechnungen entscheiden, was zwei nicht können:**
+  (1) **Die Schnittgrössen stimmen** — in der jeweils **tragenden** Ebene:
+  ständig/vertikal Löser/PyNite **1.0012**, Kern/PyNite **1.0091**; Wind
+  längs/horizontal **0.9994** und **0.9842**. Die grossen Verhältnisse (11,
+  14) stehen immer in der *nicht* tragenden Ebene, wo die Momente nahe null
+  sind. **Die Kalibrierung ist gültig, und der Löser auch.**
+  (2) **Der Unterschied kommt aus der Spannung, nicht aus den Kräften.** Am
+  massgebenden Blech trägt die Biegung um die **schwache** Achse (M_y)
+  23.84 von 81.52 N/mm² bei — 29 %. Ein Balken kann das **strukturell nicht
+  sehen**: er führt keine Information darüber, wie ein Blech aus seiner
+  Ebene heraus gebogen wird.
+  (3) **Und es ist echt.** PyNite zeigt denselben Anteil auf die Stelle
+  genau: je Blech gerechnet Löser 5.4 % / PyNite 5.4 % (ständig), 3.1 % /
+  3.1 % (Wind längs). ⚠ **Eine Zahl, die ich zuerst falsch rechnete:** der
+  erste Anlauf hielt das grösste M_y über alle Bleche gegen das grösste M_z
+  über alle Bleche — die stehen an verschiedenen Blechen. Daraus wurden
+  23 %; je Blech sind es 5.4.
+  (4) **Am Tragwerk mit Masten ist der Anteil viel grösser** (29 % gegen
+  5.4 %). Das Kalibriermodell rechnet **ohne Masten** (`kalibrieren.mjs`
+  Zeile 216) — und genau dort fehlt die Kopplung Joch–Mast, die dieses M_y
+  erzeugt. Derselbe Befund wie beim Biegemoment: der Ersatzbalken sieht das
+  Jochende **gelenkig** (`cA = cB = 0`), im Stabwerk ist es teilweise
+  eingespannt.
+  **AxisVM war dafür nicht nötig** — die Frage war, welcher der beiden Wege
+  recht hat, und dafür genügt eine dritte unabhängige Rechnung. Für die
+  **Freigabe** des Lösers bleibt AxisVM nötig; das ist Etappe 4.
 - **25. Sept., der Löser rechnet die Schubverformung** (Prüfstand Abschnitt
   122). Weisung: «ja die schubweichheit ebenfalls rechnen». Nicht über ein
   abgemindertes I wie die PyNite-Ausleitung (die **muss** so, weil PyNite

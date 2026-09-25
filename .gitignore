@@ -116,3 +116,4 @@ com/AxisVM_Abfangjoch_*
 
 # Arbeitsordner des Loeser-Vergleichs (PyNite-Laeufe, CSV) - Zwischenstand
 .vergleich_stabwerk/
+.vergleich_blech/
