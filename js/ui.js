@@ -8,6 +8,7 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
+import { RECHENVERFAHREN } from './core.stabnachweis.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
@@ -4758,6 +4759,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
         : ''}
     </div>
     ${nachweisartLeiste(nwArt)}
+    ${stabwerkLeiste(opt)}
     ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
       <div class="kennzahlen">${bauteilKacheln(zeig, urteil ?? {}, ampelU).join('')}</div>
       ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeig) : ''}`
@@ -4772,6 +4774,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
         hinw.length === 1 ? '1 Hinweis' : `${hinw.length} Hinweise`) : ''}
     ${mn ? mastblattHtml(zeig) : ''}`;
   verdrahteKlapp(node);
+  verdrahteStabwerk(node, opt);
   verdrahtePlastisch(node, opt);
   verdrahteNachweisart(node, opt);
 }
@@ -4980,6 +4983,105 @@ export const NACHWEISARTEN = [
   ['gzg', 'Gebrauchstauglichkeit',
    'Nur die Gebrauchstauglichkeit: Verformung im Betriebswind ψ 0.70'],
 ];
+
+/* ===========================================================================
+ * >>> DIE STABWERKSLEISTE: KNOPF, STAND UND ZAHL. <<<
+ * =========================================================================
+ *
+ * Weisung vom 25. September: «man könnte einen button zur auslösung der
+ * berechnung ansetzen der das finale modell berechnet und die werte setzt».
+ *
+ * >>> DREI ZUSTAENDE, UND DER DRITTE IST DER GEFAEHRLICHE. <<<
+ *
+ * Es gibt kein Ergebnis, ein gültiges, oder ein VERALTETES - eines, das
+ * zu einer früheren Eingabe gehört. Das letzte sieht aus wie das zweite,
+ * und genau daran ist der Vergleich gegen PyNite einmal gescheitert (ein
+ * 20-m-Joch gegen die Ergebnisse eines 8-m-Jochs). Deshalb steht der Stand
+ * hier immer dabei, und ein veraltetes Ergebnis wird NICHT als Zahl
+ * gezeigt - nur der Hinweis, dass neu zu rechnen ist.
+ * ========================================================================= */
+export function stabwerkLeiste(opt = {}) {
+  const sw = opt.stabwerk;
+  if (!sw || sw.verfahren !== 'stabwerk') return '';
+  const stand = sw.stand ?? 'fehlt';
+  const e = sw.ergebnis;
+
+  /* -----------------------------------------------------------------------
+   * >>> OHNE STABMODELL GIBT ES KEINEN KNOPF. <<<
+   *
+   * Ein Knopf, der nichts rechnen kann, ist schlimmer als keiner: man
+   * drueckt ihn und schliesst aus dem Ausbleiben einer Zahl auf einen
+   * Fehler. Hier steht statt dessen, WARUM es keine gibt.
+   * --------------------------------------------------------------------- */
+  if (stand === 'ohneModell') {
+    return `<div class="stabwerk-leiste ohneModell">
+      <span class="sw-marke">Ersatzbalken</span>
+      <span class="notiz">${esc(e?.ohneModell ?? sw.grund
+        ?? 'Für diese Tragwerksart gibt es kein Stabmodell.')}</span>
+    </div>`;
+  }
+
+  /* -----------------------------------------------------------------------
+   * >>> EIN VERALTETES ERGEBNIS ZEIGT SEINE ZAHL NICHT. <<<
+   *
+   * Weisung vom 25. September: «gib ein visuelles feedback wenn sich das
+   * tragwerk angepasst hat und noch nicht berechnet wurde».
+   *
+   * Die Zahl WEGZULASSEN ist das deutlichste Feedback, das es gibt - eine
+   * blasse oder durchgestrichene Zahl liest man trotzdem ab. Was bleibt,
+   * ist die Aufforderung und ein Knopf, der sich meldet.
+   * --------------------------------------------------------------------- */
+  const zahl = (stand === 'gueltig' && e && e.etaGesamt != null)
+    ? `<span class="urteil-zahl">η ${f3(e.etaGesamt)}</span>
+       <span class="urteil-fall">${esc(e.massgebend?.name ?? '')}</span>`
+    : '';
+
+  const marke = {
+    fehlt: '<span class="sw-marke">Ersatzbalken</span>',
+    veraltet: '<span class="sw-marke warn">Eingabe geändert</span>',
+    gueltig: '<span class="sw-marke ok">Stabwerk</span>',
+    fehler: '<span class="sw-marke warn">nicht gerechnet</span>',
+  }[stand] ?? '';
+
+  const text = {
+    fehlt: 'Angezeigt wird der Ersatzbalken. Das Stabwerk sieht auch die '
+         + 'Biegung der Bleche aus ihrer Ebene heraus.',
+    veraltet: 'Das Ergebnis gehört zu einem früheren Stand und wird deshalb '
+            + 'nicht gezeigt.',
+    gueltig: e ? `${e.staebe} Stäbe · ${e.freiheitsgrade} Freiheitsgrade`
+               + ` · ${e.faelle} Kombinationen · ${e.ms} ms` : '',
+    fehler: e?.fehler ? `${e.fehler}` : 'Die Rechnung ist nicht durchgelaufen.',
+  }[stand] ?? '';
+
+  // Der Knopf traegt die Akzentfarbe, solange etwas zu tun ist.
+  const dringend = stand === 'fehlt' || stand === 'veraltet' || stand === 'fehler';
+  const beschriftung = stand === 'fehlt' ? 'Stabwerk berechnen'
+    : stand === 'veraltet' ? 'Neu berechnen' : 'Nochmals rechnen';
+
+  return `<div class="stabwerk-leiste ${esc(stand)}">
+    <button type="button" class="btn${dringend ? ' btn-acc' : ''} sw-knopf"
+      data-stabwerk-rechnen>${beschriftung}</button>
+    ${marke}
+    ${zahl}
+    <span class="notiz">${esc(text)}</span>
+  </div>`;
+}
+
+/** Den Knopf der Stabwerksleiste verdrahten. */
+export function verdrahteStabwerk(node, opt = {}) {
+  const b = node.querySelector('[data-stabwerk-rechnen]');
+  if (!b || typeof opt.beiStabwerk !== 'function') return;
+  b.onclick = () => {
+    /*
+     * Der Knopf meldet sich, BEVOR gerechnet wird: 0.4 s ohne jede
+     * Rueckmeldung liest sich wie ein toter Knopf. Das Neuzeichnen
+     * uebernimmt der Aufrufer.
+     */
+    b.disabled = true;
+    b.textContent = 'rechnet …';
+    setTimeout(() => opt.beiStabwerk(), 0);
+  };
+}
 
 export function nachweisartLeiste(jetzt = 'beide') {
   return `<div class="nw-wahl" role="group" aria-label="Nachweisart">${
@@ -5673,6 +5775,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
        * keine Prüfung, sondern die Kehrseite der Kacheln daneben.
        */''}
     ${nachweisartLeiste(nwArt)}
+    ${stabwerkLeiste(opt)}
     ${zeigtTrag ? `${abschnitt('Nachweise')}
     <div class="kennzahlen">${kz.join('')}</div>
     ${plastischHtml(opt, Boolean(erg.mast))}
@@ -5716,6 +5819,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
   const so = node.querySelector('[data-sortiment]');
   if (so && beiSortiment) so.addEventListener('click', () => beiSortiment());
   verdrahteKlapp(node);
+  verdrahteStabwerk(node, opt);
   verdrahtePlastisch(node, opt);
   verdrahteNachweisart(node, opt);
 }
@@ -7062,7 +7166,7 @@ export function stuecklisteHtml(erg) {
  * die Sidebar auf Geometrie, Profile, Anbauteile und Lasten beschränkt bleibt.
  */
 export function optionenHtml(werte, thema = null) {
-  if (thema === 'nachweise') return nachweiseHtml(werte);
+  if (thema === 'nachweise') return verfahrenHtml(werte) + nachweiseHtml(werte);
   if (thema === 'daten') return datenbasisHtml();
   const teile = optionenFelder(werte, thema);
   // Ein einzelner Abschnitt im Reiter braucht seine Ueberschrift nicht: der
@@ -7118,6 +7222,39 @@ export function datenbasisHtml() {
  * Behauptung, der Nachweis sei vorhanden und nur gerade aus. Stattdessen
  * steht neben ihnen, warum es sie nicht gibt.
  */
+/* ===========================================================================
+ * >>> DAS RECHENVERFAHREN - EINE WAHL, KEIN SCHALTER. <<<
+ * =========================================================================
+ *
+ * Weisung vom 25. September: «ersatzbalken als optionales rechenverfahren
+ * in den optionen auswählbar machen, primär den löser nutzen».
+ *
+ * Die beiden Wege sind nicht «genauer» und «ungenauer» im Sinne einer
+ * Rundung - sie sehen VERSCHIEDENES. Der Ersatzbalken kann die Biegung
+ * eines Blechs aus seiner Ebene heraus gar nicht führen; am Tragwerk mit
+ * Masten sind das 29 % der Blechspannung (gemessen, `vergleich_blech.mjs`).
+ * Deshalb steht hier, was jeder Weg TUT, und nicht bloss ein Haken.
+ * ========================================================================= */
+export function verfahrenHtml(werte) {
+  const jetzt = werte?.rechenverfahren === 'ersatzbalken'
+    ? 'ersatzbalken' : 'stabwerk';
+  return `${abschnitt('Rechenverfahren')}
+    <p class="notiz">Beide rechnen dasselbe Tragwerk. Der Unterschied ist,
+      <b>was sie sehen können</b> — nicht, wie genau sie rundet.</p>`
+    + RECHENVERFAHREN.map((v) => `
+    <div class="nw-wahl">
+      <label>
+        <input type="radio" name="rechenverfahren" data-verfahren="${esc(v.key)}"
+          ${jetzt === v.key ? 'checked' : ''}>
+        <span class="nw-titel">${esc(v.titel)}</span>
+      </label>
+      <p class="notiz">${esc(v.was)}</p>
+    </div>`).join('')
+    + `<p class="notiz">Das Stabwerk rechnet <b>nicht bei jeder Eingabe</b>
+      mit — es läuft auf Knopfdruck, oben in den Ergebnissen. Bis dahin
+      zeigt die Anwendung den Ersatzbalken und sagt es dazu.</p>`;
+}
+
 export function nachweiseHtml(werte) {
   const nw = nachweiseAuswahl(werte.nachweise);
   /*

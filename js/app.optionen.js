@@ -367,6 +367,22 @@ export function dialogOptionen(app) {
         neu();
       };
     });
+
+    /*
+     * >>> DAS RECHENVERFAHREN. <<<
+     *
+     * Ein Wechsel rechnet NICHT von selbst nach: das Stabwerk braucht
+     * rund 0.4 s, und ein Dialogklick soll die Anwendung nicht anhalten.
+     * Er stellt nur um - gerechnet wird auf Knopfdruck in den Ergebnissen,
+     * und bis dahin sagt die Leiste, dass noch kein Ergebnis vorliegt.
+     */
+    rahmen.querySelectorAll('[data-verfahren]').forEach((inp) => {
+      inp.onchange = () => {
+        if (!inp.checked) return;
+        app.aendern('rechenverfahren', inp.dataset.verfahren);
+        neu();
+      };
+    });
   };
   /*
    * DER FOKUS UEBERLEBT DEN NEUAUFBAU.

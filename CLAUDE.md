@@ -202,12 +202,50 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5260 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5310 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., Etappe 2: Rechenverfahren wählbar, Knopf, Rückmeldung**
+  (Prüfstand 124 und 125). Weisung: «ersatzbalken als optionales
+  rechenverfahren in den optionen auswählbar machen, primär den löser
+  nutzen, man könnte einen button zur auslösung der berechnung ansetzen der
+  das finale modell berechnet und die werte setzt», dazu «mach eine prüfung
+  von verschiedenen tragwerksarten und verschiedenen zusammensetzungen» und
+  «mach den button klarer … gib ein visuelles feedback wenn sich das
+  tragwerk angepasst hat und noch nicht berechnet wurde».
+  **Neu:** `core.stabnachweis.js` (Spannungen je Stab, Hülle über die
+  Kombinationen, `RECHENVERFAHREN`), `app.stabwerk.js` (der Knopf), die Wahl
+  unter *Optionen → Nachweise* und die Stabwerksleiste in beiden
+  Seitenleisten.
+  ⚠ **Der Befund der Durchgangsprüfung — und er war schwerwiegend:**
+  `stabmodell()` biegt für den Einzelmasten ab, **nicht** für Abfangjoch
+  und Tragausleger. Beide bekamen das **Tragjoch-Modell mit 942 Stäben** und
+  lieferten ein η (0.8065 / 0.8066) mit `MAST_B_S1` als massgebendem Stab —
+  den es in keiner der beiden Arten gibt. Der Knopf hätte ein **fremdes
+  Tragwerk** gerechnet. Jetzt gibt `rechneStabwerk` eine Auskunft zurück
+  (`ohneStabmodell`), und die Leiste zeigt statt des Knopfes den Grund:
+  lieber keine Zahl als eine falsche.
+  **Die Rückmeldung:** vier Zustände — *fehlt* (Knopf in Akzentfarbe),
+  *veraltet* (Warnfarbe, linker Balken, **die η-Zahl wird weggelassen** —
+  eine blasse Zahl liest man trotzdem ab), *gültig* (ruhig, η gross),
+  *ohneModell* (grau, ohne Knopf). Die Kennung des Eingabestands erkennt
+  das Veralten; dieselbe Falle hatte beim PyNite-Vergleich ein 20-m-Joch
+  gegen ein 8-m-Ergebnis gehalten.
+  ⚠ **Zwei eigene Fehler:** (1) Das Prüfskript setzte `schnee` und
+  `mastStegrichtung` — **beide Felder gibt es nicht**, die Fälle rechneten
+  zifferngleich dasselbe wie der Grundfall, und das sah aus wie «geprüft».
+  Richtig: `schneeAktiv`, `mastSteg` (Werte `jochachse`/`quer`). (2) Das CSS
+  nutzte `var(--li)` und `var(--mu)` — die Variablen heissen `--ol` und
+  `--dim`; die Leiste wäre ohne Rahmen dagestanden. Beides hat der
+  Prüfstand nachträglich als Wache bekommen.
+  ⚠ **Nicht im Browser geprüft**: der Entwicklungsserver antwortet in
+  dieser Umgebung nicht, und die gebündelte Datei liess sich nicht öffnen.
+  Abschnitt 125 prüft dafür das erzeugte HTML (Knopf da / nicht da, Zahl
+  bei *veraltet* weg, Klassen im Stilblatt vorhanden) — **ein Ersatz, kein
+  Gleichwert.** Der Blick in den Browser steht noch aus.
 - **25. Sept., Kern, Löser und PyNite am selben Blech** (`vergleich_blech.mjs`).
   Weisung: «vorschlag umsetzen und falls notwendig axis beiziehen», nachdem
   der η-Vergleich die Bleche im Stabwerk 22 % höher gezeigt hatte. **Drei
@@ -958,7 +996,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5260 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5310 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

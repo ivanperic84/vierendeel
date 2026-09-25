@@ -3007,3 +3007,57 @@ body.datei-ueber::after {
 .hav-wo { display: block; font-size: 9.5px; color: var(--dim); }
 .hav-zahl { width: 54px; padding: 2px 4px; font-size: 11px; }
 .hav-tun { display: flex; gap: 4px; justify-content: flex-end; }
+
+/* ===========================================================================
+ * DIE STABWERKSLEISTE (25. September)
+ *
+ * Weisung: «mach den button klarer für die berechnung und gib ein visuelles
+ * feedback wenn sich das tragwerk angepasst hat und noch nicht berechnet
+ * wurde.»
+ *
+ * Vier Zustände, drei davon mit Farbe:
+ *
+ *   fehlt       neutral, Knopf in Akzentfarbe — es ist etwas zu tun
+ *   veraltet    WARNFARBE, linker Balken, Zahl weggelassen
+ *   gueltig     ruhig, grüner Punkt, η gross daneben
+ *   ohneModell  grau, ohne Knopf
+ *
+ * Der linke Balken ist es, der ins Auge fällt: die Leiste sitzt zwischen
+ * Urteil und Nachweiskacheln, und dort liest man von links.
+ * ========================================================================= */
+.stabwerk-leiste {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 8px 0; padding: 7px 10px;
+  border: 1px solid var(--ol); border-left: 3px solid var(--ol);
+  border-radius: 6px; background: var(--s2);
+}
+.stabwerk-leiste .notiz { margin: 0; flex: 1 1 180px; min-width: 120px; }
+.stabwerk-leiste .urteil-zahl { font-size: 17px; font-weight: 600; }
+
+.stabwerk-leiste.veraltet {
+  border-left-color: var(--warn); background: var(--warn-s);
+}
+.stabwerk-leiste.veraltet .notiz { color: var(--warn); }
+.stabwerk-leiste.gueltig  { border-left-color: var(--ok); }
+.stabwerk-leiste.fehler   { border-left-color: var(--fail); background: var(--fail-s); }
+.stabwerk-leiste.ohneModell { opacity: 0.8; }
+
+/* Die Marke sagt in einem Wort, worauf die Zahlen daneben stehen. */
+.sw-marke {
+  font-size: 10px; letter-spacing: 0.4px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 10px;
+  border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
+}
+.sw-marke.warn { border-color: var(--warn); color: var(--warn); }
+.sw-marke.ok   { border-color: var(--ok);   color: var(--ok); }
+
+/*
+ * Der Knopf darf nicht mitschrumpfen: er ist das, was man sucht.
+ * Bei «veraltet» trägt er zusätzlich die Warnfarbe — dieselbe wie der
+ * Balken, damit Auslöser und Hinweis zusammengehören.
+ */
+.sw-knopf { flex: 0 0 auto; font-weight: 600; }
+.stabwerk-leiste.veraltet .sw-knopf {
+  background: var(--warn-s); border-color: var(--warn); color: var(--warn);
+}
+.stabwerk-leiste.veraltet .sw-knopf:hover { background: var(--warn); color: var(--s1); }

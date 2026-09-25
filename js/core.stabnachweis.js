@@ -170,3 +170,142 @@ export function stabNachweise(dat, kraefte, fyd) {
 
   return { je, gruppen, hoechste, ohneWert };
 }
+
+/* ===========================================================================
+ * >>> DER GANZE WEG: VOM RECHENSATZ ZUM eta, UEBER DAS STABWERK. <<<
+ * =========================================================================
+ *
+ * Weisung vom 25. September: «ersatzbalken als optionales rechenverfahren in
+ * den optionen auswaehlbar machen, primaer den loeser nutzen, man koennte
+ * einen button zur ausloesung der berechnung ansetzen der das finale modell
+ * berechnet und die werte setzt».
+ *
+ * Genau das kapselt diese Funktion: Modell bauen, loesen, Kombinationen
+ * ueberlagern, Spannungen rechnen, das groesste eta je Bauteilgruppe
+ * zurueckgeben. Was hier NICHT passiert, ist Anzeige - das Ergebnis ist ein
+ * Datensatz, kein Zustand.
+ *
+ * >>> WARUM DAS NICHT BEI JEDER EINGABE LAUFEN KANN. <<<
+ *
+ * Gemessen am J90/20 m: der Ersatzbalken braucht fuer die ganze Huellkurve
+ * 4.7 ms, der Loeser 441 ms - das Neunzigfache. Bei jedem Tastendruck waere
+ * die Anwendung traege. Deshalb der Knopf.
+ *
+ * Die Aufteilung zeigt aber auch, wo es billig wird: die ZERLEGUNG (179 ms)
+ * haengt nur an der Geometrie, ein weiterer Lastfall kostet 23.5 ms, und die
+ * KOMBINATIONEN kosten gar nichts - das System ist linear, also ist jede
+ * Kombination eine Summe der acht Grundfaelle. Deshalb wird hier EINMAL
+ * geloest und danach ueberlagert.
+ * ========================================================================= */
+
+/** Die Einwirkungsgruppen der Datei je Beiwert-Schluessel des Kerns. */
+export const GRUPPEN_JE_BEIWERT = {
+  G: ['G', 'G_Anbau', 'G_Ablenk'],
+  WindX: ['WindX'], WindY: ['WindY'], Schnee: ['Schnee'],
+  HavarieX: ['HavarieX'], HavarieY: ['HavarieY'],
+};
+
+/**
+ * Kraefte einer Kombination aus den Grundfaellen ueberlagern.
+ * Linear - deshalb ist das eine Summe und keine neue Rechnung.
+ */
+export function kraefteKombiniert(lsg, beiwerte) {
+  const out = new Map();
+  Object.entries(beiwerte || {}).forEach(([gruppe, faktor]) => {
+    if (!faktor) return;
+    (GRUPPEN_JE_BEIWERT[gruppe] ?? [gruppe]).forEach((fall) => {
+      if (!lsg.u.has(fall)) return;
+      lsg.stabkraft(fall).forEach((f, name) => {
+        let ziel = out.get(name);
+        if (!ziel) { ziel = new Float64Array(12); out.set(name, ziel); }
+        for (let i = 0; i < 12; i += 1) ziel[i] += faktor * f[i];
+      });
+    });
+  });
+  return out;
+}
+
+/**
+ * Das Stabwerk ueber alle Nachweis-Kombinationen auswerten.
+ *
+ * @param {object} dat       Modell aus stabmodellJson()
+ * @param {object} lsg       Loesung aus loese()
+ * @param {Array} faelle     Kombinationen aus lastfaelle(), nur `nachweis`
+ * @param {number} fyd       Streckgrenze, Bemessungswert [N/mm²]
+ */
+export function stabwerkHuelle(dat, lsg, faelle, fyd) {
+  const gruppen = {};
+  let massgebend = null;
+  const jeFall = [];
+
+  faelle.forEach((lf) => {
+    const kraefte = kraefteKombiniert(lsg, lf.beiwerte);
+    const nw = stabNachweise(dat, kraefte, fyd);
+    jeFall.push({ key: lf.key, bez: lf.bez, gruppen: nw.gruppen,
+                  hoechste: nw.hoechste });
+    Object.entries(nw.gruppen).forEach(([rolle, g]) => {
+      const alt = gruppen[rolle];
+      if (!alt || g.sig > alt.sig) {
+        gruppen[rolle] = { ...g, fall: lf.key, bez: lf.bez };
+      }
+    });
+    if (nw.hoechste && (!massgebend || nw.hoechste.sig > massgebend.sig)) {
+      massgebend = { ...nw.hoechste, fall: lf.key, bez: lf.bez };
+    }
+  });
+
+  /*
+   * DAS URTEIL IST DAS MAXIMUM UEBER DIE GEFUEHRTEN BAUTEILE, MIT NAMEN -
+   * so, wie es der Auftraggeber am 17. September fuer den Kern entschieden
+   * hat. Ein zweiter Massstab fuer denselben Zweck waere eine Fehlerquelle.
+   */
+  return { gruppen, massgebend, jeFall,
+           etaGesamt: massgebend ? massgebend.eta : null };
+}
+
+/**
+ * Eine Kennung des Eingabezustands.
+ *
+ * >>> WOZU. <<<
+ *
+ * Das Stabwerksergebnis entsteht auf Knopfdruck und bleibt danach stehen,
+ * waehrend weitergetippt wird. Ohne eine Kennung stuende irgendwann ein eta
+ * da, das zu einer anderen Geometrie gehoert - und niemand saehe es an. Der
+ * Vergleich gegen PyNite ist genau in diese Falle gelaufen (ein 20-m-Joch
+ * gegen die Ergebnisse eines 8-m-Jochs, Abweichungen bis Faktor 39), und
+ * dort hat es eine Kennung geloest.
+ *
+ * Gezaehlt wird der EINGABESATZ, nicht das fertige Modell: er ist klein,
+ * und er ist das, was sich aendert.
+ */
+export function eingabeKennung(satz) {
+  let h = 5381;
+  const t = JSON.stringify(satz ?? null);
+  for (let i = 0; i < t.length; i += 1) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return `${t.length.toString(36)}-${h.toString(16)}`;
+}
+
+/* ===========================================================================
+ * >>> DIE BEIDEN RECHENWEGE. <<<
+ *
+ * Weisung vom 25. September: «ersatzbalken als optionales rechenverfahren in
+ * den optionen auswählbar machen, primär den löser nutzen».
+ *
+ * Sie stehen hier und nicht im app-Modul, weil die Maske sie braucht:
+ * `ui.js` darf kein app-Modul importieren - das waere eine Abhaengigkeit
+ * von unten nach oben, und der Buendler sortiert topologisch.
+ * ========================================================================= */
+export const RECHENVERFAHREN = [
+  { key: 'ersatzbalken', titel: 'Ersatzbalken (schnell)',
+    was: 'Balken mit Drehfedern, Schnittgrössen auf Gurte und Bleche aufgeteilt. Rechnet bei jeder Eingabe mit, rund 5 ms.' },
+  { key: 'stabwerk', titel: 'Stabwerk (genau)',
+    was: 'Jeder Gurt und jedes Blech ein eigener Stab. Läuft auf Knopfdruck, rund 0.4 s — dafür sieht er auch die Biegung der Bleche aus ihrer Ebene heraus, die ein Balken nicht führen kann.' },
+];
+
+export const RECHENVERFAHREN_VORGABE = 'stabwerk';
+
+/** Welches Verfahren gilt? Alte Staende kennen das Feld nicht. */
+export function verfahrenVon(werte) {
+  const k = werte?.rechenverfahren;
+  return RECHENVERFAHREN.some((v) => v.key === k) ? k : RECHENVERFAHREN_VORGABE;
+}

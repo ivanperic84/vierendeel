@@ -112,6 +112,8 @@ import { verlauf } from './verlauf.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
+import { ohneStabmodell, rechneStabwerk, stabwerkStand } from './app.stabwerk.js';
+import { verfahrenVon } from './core.stabnachweis.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
@@ -135,6 +137,18 @@ const VERSION = `v2.0 · ${STAND.datum.split('-').reverse().join('.')} · ${STAN
 
 let werte = null;
 let letzte = null;
+
+/* ===========================================================================
+ * >>> DAS STABWERKSERGEBNIS LEBT LAENGER ALS EIN RECHENDURCHGANG. <<<
+ *
+ * Es entsteht auf Knopfdruck (rund 0.4 s) und bleibt danach stehen,
+ * waehrend weitergetippt wird. Geloescht wird es dabei NICHT - es traegt
+ * die Kennung des Eingabestands, aus dem es kam, und die Leiste sagt,
+ * wenn sie nicht mehr passt. Ein stilles Loeschen bei jeder Eingabe
+ * haette denselben Zweck, waere aber unfreundlich: wer eine Zahl
+ * nachschlagen will, faende sie weg.
+ * ========================================================================= */
+let stabwerk = null;
 let ansicht = null;
 let station = null;
 let projekt = { id: null, name: 'Neues Tragjoch', projekt: '' };
@@ -155,6 +169,7 @@ const app = {
   // Zustand - gelesen immer der aktuelle; wo ein Modul schreibt, ein Setter.
   get werte() { return werte; }, set werte(v) { werte = v; },
   get letzte() { return letzte; },
+  get stabwerk() { return stabwerk; }, set stabwerk(v) { stabwerk = v; },
   get projekt() { return projekt; }, set projekt(v) { projekt = v; },
   get station() { return station; }, set station(v) { station = v; },
   get ungesichert() { return ungesichert; }, set ungesichert(v) { ungesichert = v; },
@@ -502,6 +517,22 @@ function wiederherstellen() {
   if (!w) return;
   hist.ruhend(() => { werte = w; neuRechnen(); });
   baueKopf();
+}
+
+/**
+ * Das aktive Tragwerk als Stabwerk rechnen - auf Knopfdruck.
+ *
+ * Die Rechnung laeuft synchron; die Leiste hat ihren Knopf vorher auf
+ * «rechnet …» gestellt, damit die halbe Sekunde nicht wie ein toter
+ * Knopf aussieht.
+ */
+function stabwerkRechnen() {
+  try {
+    stabwerk = rechneStabwerk(app);
+  } catch (e) {
+    stabwerk = { fehler: String(e?.message ?? e) };
+  }
+  neuRechnen();
 }
 
 function neuRechnen(neuZeichnen = true) {
@@ -1218,6 +1249,14 @@ function zeichneAuswertung() {
                            quelle: anzeigeKombi,
                            plastisch: werte.mastPlastisch === true,
                            nachweisart,
+                           stabwerk: { verfahren: verfahrenVon(werte),
+                                       stand: stabwerkStand(app),
+                                       // Der Grund steht auch dann bereit,
+                                       // wenn noch gar nicht gerechnet wurde.
+                                       grund: ohneStabmodell(
+                                         erg?.modell?.tragwerksart ?? 'joch'),
+                                       ergebnis: stabwerk },
+                           beiStabwerk: stabwerkRechnen,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
                            lastfallName: anzeigeKombi === 'umhuellend' ? null

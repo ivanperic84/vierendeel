@@ -7554,9 +7554,26 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      * Stellen mit `disabled` und nagelt fest, dass jede davon zu einer der
      * vier Sorten gehoert - wer eine fuenfte einbaut, faellt hier auf.
      */
+    /*
+     * >>> EINE FUENFTE SORTE, UND WARUM SIE DAZUGEHOERT (25. September). <<<
+     *
+     * Der Knopf der Stabwerksleiste sperrt sich, WAEHREND gerechnet wird -
+     * rund 0.4 s - und schreibt dabei «rechnet …» auf sich selbst. Das ist
+     * keine Attrappe, sondern das Gegenteil: ohne die Sperre sieht man
+     * einen Knopf, der auf den Klick nicht reagiert, und klickt noch
+     * einmal.
+     *
+     * Er erfuellt die Regel des Hauses, denn er ZEIGT etwas, und er tut es
+     * VORUEBERGEHEND: nach dem Neuzeichnen steht wieder ein bedienbarer
+     * Knopf da. Die Kontrolle zaehlt weiter mit, damit eine SECHSTE Stelle
+     * auffaellt.
+     */
     const sperren = [...uq4.matchAll(/disabled/g)].length;
-    wahr('Es gibt genau vier Stellen mit einer Sperre', sperren === 4,
+    wahr('Es gibt genau fünf Stellen mit einer Sperre', sperren === 5,
          `${sperren} Stellen`);
+    wahr('5 - der Knopf, der während der Rechnung «rechnet …» sagt',
+         uq4.includes("b.disabled = true;")
+         && uq4.includes("b.textContent = 'rechnet"));
     wahr('1 - der Katalogwert, den «Werte bearbeiten» freigibt',
          uq4.includes("const dis = gesperrt ? ' disabled' : '';"));
     /*
@@ -29926,6 +29943,203 @@ titel('123  Spannungen aus den Stabkraeften');
     const soll = WI.randspannung(WI.winkelwerteFuer(p), -50, 1.2, 0.4);
     pruef('Gurt: dieselbe Randspannung wie core.winkel', s.sig, soll.sig, 1e-12, 'N/mm2');
     wahr('… und sie ist nicht null', s.sig > 1);
+  }
+}
+
+titel('124  Der Stabwerksweg ueber die Tragwerksarten');
+/* ===========================================================================
+ * Weisung vom 25. September: «mach eine pruefung von verschiedenen
+ * tragwerksarten und verschiedenen zusammensetzungen».
+ *
+ * >>> DER BEFUND, DER DABEI HERAUSKAM. <<<
+ *
+ * `stabmodell()` biegt fuer den Einzelmasten ab, aber NICHT fuer das
+ * Abfangjoch und den Tragausleger - beide bekamen das Tragjoch-Modell mit
+ * 942 Staeben und lieferten ein eta (0.8065 bzw. 0.8066) mit `MAST_B_S1`
+ * als massgebendem Stab. Den gibt es in keiner der beiden Arten.
+ *
+ * Der Knopf haette dort ein FREMDES TRAGWERK gerechnet und dessen Zahl
+ * hingestellt. Lieber keine Zahl als eine falsche: `rechneStabwerk` gibt
+ * jetzt eine Auskunft zurueck, und die Leiste zeigt statt des Knopfes den
+ * Grund.
+ * ========================================================================= */
+{
+  const AS124 = await import(J('app.stabwerk.js'));
+  const V124 = await import(J('core.vierendeel.js'));
+  const N124 = await import(J('core.nachbarn.js'));
+
+  const grund = {
+    joch: null, einzelmast: null,
+    abfangjoch: 'hat ein eigenes Stabmodell', tragausleger: 'Kragarm-Modell',
+  };
+  Object.keys(grund).forEach((art) => {
+    const g = AS124.ohneStabmodell(art);
+    if (grund[art] === null) {
+      wahr(`${art}: rechnet als Stabwerk`, g === null);
+    } else {
+      wahr(`${art}: sagt, warum es (noch) keines gibt`,
+           typeof g === 'string' && g.length > 20, g ? g.slice(0, 48) : '(nichts)');
+    }
+  });
+  wahr('Eine unbekannte Art bekommt auch eine Auskunft',
+       typeof AS124.ohneStabmodell('erfunden') === 'string');
+
+  /*
+   * >>> UND DER KNOPF RECHNET DORT WIRKLICH NICHT. <<<
+   * Die Liste allein waere eine Behauptung; hier wird sie gefahren.
+   */
+  let w124 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w124 = { ...w124, L: 20, xLage: 0, mastVorhanden: true };
+  ['joch', 'einzelmast', 'tragausleger', 'abfangjoch'].forEach((art) => {
+    const w = { ...w124, tragwerksart: art };
+    const satz = N124.rechensatzMitNachbarn(w);
+    const erg = V124.berechne(satz, ...N124.kernArgumente(satz));
+    const r = AS124.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    if (grund[art] === null) {
+      wahr(`${art}: liefert ein eta`,
+           r && !r.ohneModell && Number.isFinite(r.etaGesamt),
+           r?.etaGesamt != null ? `eta ${r.etaGesamt.toFixed(4)}` : 'keins');
+    } else {
+      wahr(`>>> ${art}: KEINE Zahl, sondern die Auskunft <<<`,
+           Boolean(r && r.ohneModell) && r.etaGesamt === undefined,
+           r?.ohneModell ? 'Auskunft' : `eta ${r?.etaGesamt}`);
+    }
+  });
+
+  /*
+   * >>> ZUSAMMENSETZUNGEN, DIE ETWAS AENDERN MUESSEN. <<<
+   *
+   * Der erste Anlauf dieser Pruefung setzte `schnee` und
+   * `mastStegrichtung` - beide Felder gibt es nicht, und die Faelle
+   * rechneten ZIFFERNGLEICH dasselbe wie der Grundfall. Das sah aus wie
+   * «geprueft» und war «nichts veraendert». Richtig heissen sie
+   * `schneeAktiv` und `mastSteg` (Werte: jochachse / quer).
+   */
+  {
+    const rechne = (zusatz) => {
+      const w = { ...w124, ...zusatz };
+      const satz = N124.rechensatzMitNachbarn(w);
+      const erg = V124.berechne(satz, ...N124.kernArgumente(satz));
+      return AS124.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    };
+    const grundfall = rechne({});
+    const mitSchnee = rechne({ schneeAktiv: true });
+    const staerker = rechne({ mastProfil: 'HEM 240', mastProfilB: 'HEM 240' });
+    const laenger = rechne({ mastLaenge: 12, mastH: 11 });
+
+    wahr('Schnee erhoeht die Blechbeanspruchung',
+         mitSchnee.gruppen.blech.eta > grundfall.gruppen.blech.eta * 1.2,
+         `${grundfall.gruppen.blech.eta.toFixed(3)} -> ${mitSchnee.gruppen.blech.eta.toFixed(3)}`);
+    wahr('Das staerkere Mastprofil senkt sein eta',
+         staerker.gruppen.mast.eta < grundfall.gruppen.mast.eta * 0.7,
+         `${grundfall.gruppen.mast.eta.toFixed(3)} -> ${staerker.gruppen.mast.eta.toFixed(3)}`);
+    wahr('Der laengere Mast hebt es',
+         laenger.gruppen.mast.eta > grundfall.gruppen.mast.eta * 1.4,
+         `${grundfall.gruppen.mast.eta.toFixed(3)} -> ${laenger.gruppen.mast.eta.toFixed(3)}`);
+    wahr('Ohne Masten gibt es keine Mastgruppe',
+         !rechne({ mastVorhanden: false }).gruppen.mast);
+  }
+
+  /*
+   * >>> DAS VERALTETE ERGEBNIS. <<<
+   * Weisung: «gib ein visuelles feedback wenn sich das tragwerk angepasst
+   * hat und noch nicht berechnet wurde». Die Grundlage dafuer ist, dass
+   * der Stand es ueberhaupt merkt.
+   */
+  {
+    const satz = N124.rechensatzMitNachbarn(w124);
+    const erg = V124.berechne(satz, ...N124.kernArgumente(satz));
+    const app124 = { werte: w124, letzte: { erg }, stabwerk: null };
+    wahr('Ohne Rechnung: der Stand ist «fehlt»',
+         AS124.stabwerkStand(app124) === 'fehlt');
+    app124.stabwerk = AS124.rechneStabwerk(app124);
+    wahr('Nach der Rechnung: «gueltig»',
+         AS124.stabwerkStand(app124) === 'gueltig');
+    app124.werte = { ...w124, L: 21 };
+    wahr('>>> Eine geaenderte Eingabe macht es «veraltet» <<<',
+         AS124.stabwerkStand(app124) === 'veraltet');
+    // Und zurueck: derselbe Stand gilt wieder.
+    app124.werte = w124;
+    wahr('… und zurueckgestellt gilt es wieder',
+         AS124.stabwerkStand(app124) === 'gueltig');
+  }
+}
+
+titel('125  Die Stabwerksleiste: Knopf und Rueckmeldung');
+/* ===========================================================================
+ * Weisung vom 25. September: «mach den button klarer fuer die berechnung
+ * und gib ein visuelles feedback wenn sich das tragwerk angepasst hat und
+ * noch nicht berechnet wurde».
+ *
+ * >>> WAS HIER GEPRUEFT WIRD - UND WAS NICHT. <<<
+ *
+ * Dies ist KEIN Ersatz fuer den Blick in den Browser (die Hausregel
+ * verlangt ihn, und sie hat recht: der Pruefstand war schon gruen,
+ * waehrend ein Knopf nichts tat). Geprueft wird, was sich am erzeugten
+ * HTML pruefen laesst: dass der Knopf da ist, wo er da sein soll, dass er
+ * fehlt, wo er nichts koennte, und dass ein VERALTETES Ergebnis seine
+ * Zahl nicht zeigt.
+ * ========================================================================= */
+{
+  const UI125 = await import(J('ui.js'));
+  const erg125 = { etaGesamt: 0.8123, massgebend: { name: 'MAST_B_S1' },
+                   staebe: 942, freiheitsgrade: 4956, faelle: 4, ms: 210 };
+  const bau = (stand, extra = {}) => UI125.stabwerkLeiste({
+    stabwerk: { verfahren: 'stabwerk', stand, ergebnis: erg125, ...extra } });
+
+  // --- a) Der Ersatzbalken zeigt gar keine Leiste -----------------------
+  wahr('Beim Ersatzbalken steht keine Stabwerksleiste',
+       UI125.stabwerkLeiste({ stabwerk: { verfahren: 'ersatzbalken' } }) === '');
+
+  // --- b) Der Knopf -----------------------------------------------------
+  const knopf = (h) => /data-stabwerk-rechnen/.test(h);
+  wahr('«fehlt»: der Knopf steht da', knopf(bau('fehlt')));
+  wahr('… und heisst «Stabwerk berechnen»',
+       bau('fehlt').includes('Stabwerk berechnen'));
+  wahr('«veraltet»: der Knopf steht da', knopf(bau('veraltet')));
+  wahr('… und heisst «Neu berechnen»',
+       bau('veraltet').includes('Neu berechnen'));
+  wahr('«gueltig»: der Knopf steht auch da', knopf(bau('gueltig')));
+  /*
+   * >>> OHNE STABMODELL KEIN KNOPF. <<<
+   * Ein Knopf, der nichts rechnen kann, ist schlimmer als keiner: man
+   * drueckt ihn und schliesst aus dem Ausbleiben einer Zahl auf einen
+   * Fehler.
+   */
+  {
+    const h = bau('ohneModell', { grund: 'Das Abfangjoch bringt ein eigenes.' });
+    wahr('>>> «ohneModell»: KEIN Knopf, sondern der Grund <<<',
+         !knopf(h) && h.includes('Abfangjoch'));
+  }
+
+  // --- c) Die Rueckmeldung bei geaenderter Eingabe ----------------------
+  /*
+   * >>> DIE ZAHL WEGZULASSEN IST DAS DEUTLICHSTE FEEDBACK. <<<
+   * Eine blasse oder durchgestrichene Zahl liest man trotzdem ab.
+   */
+  wahr('«gueltig» zeigt das eta', bau('gueltig').includes('0.812'));
+  wahr('>>> «veraltet» zeigt es NICHT <<<', !bau('veraltet').includes('0.812'));
+  wahr('… sagt aber, dass die Eingabe sich geaendert hat',
+       /Eingabe geändert/.test(bau('veraltet')));
+  wahr('… und traegt die Warnklasse fuer den Farbbalken',
+       /class="stabwerk-leiste veraltet"/.test(bau('veraltet')));
+  wahr('«gueltig» traegt die ruhige Klasse',
+       /class="stabwerk-leiste gueltig"/.test(bau('gueltig')));
+
+  // --- d) Die Klassen stehen auch im Stilblatt --------------------------
+  /*
+   * Eine Klasse ohne Regel faerbt nichts - und genau das saehe man am
+   * erzeugten HTML nicht. Am 25. September standen hier zuerst `--li` und
+   * `--mu`; beide Variablen gibt es nicht (sie heissen `--ol` und
+   * `--dim`), und die Leiste waere ohne Rahmen dagestanden.
+   */
+  {
+    const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    ['.stabwerk-leiste', '.stabwerk-leiste.veraltet', '.sw-marke', '.sw-knopf']
+      .forEach((k) => wahr(`Stilblatt kennt ${k}`, css.includes(k)));
+    const teil = css.slice(css.indexOf('DIE STABWERKSLEISTE'));
+    wahr('>>> und benutzt nur Variablen, die es gibt <<<',
+         !/var\(--(li|mu)\)/.test(teil));
   }
 }
 
