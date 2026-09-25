@@ -156,7 +156,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Raster weiten (19. Sept.) | immer vom **Normalmass** der Baugruppe aus (`rasterNorm`), frei sitzend gilt wieder das Normalmass. Von Hand gesetztes Raster ist das neue Normalmass |
 | Namen nach dem Typ (19. Sept.) | «mach die bennenung entsprechend dem typ T A M MT»: **T** Tragjoch, **A** Abfangjoch, **M** Einzelmast, **MT** Mast mit Tragausleger, je Typ von links gezählt (`tragwerkPos`). Ein Einzelmast heisst wie sein Mast (eine M-Zählung für Einzel- und Jochmasten), der Mast des Tragauslegers MT… (`mastName`). P1… ist weg |
 | Tragwerksliste (19. Sept.) | «A mit dem Band»: **ein Lageband** für alle Lagen (Joche in Bahnen, Masten mit Namen), darunter **Baum** — je Tragwerk eine Zeile, seine Masten eingerückt, geteilter Mast einmal beim ersten mit «auch …», Lage als Zahl rechts. Löst die Mastzeilen vom 13. Sept. ab (Typ, Länge, H, η bleiben je Mast); die x-Anschrift unter dem Mast (13. Sept.) steht jetzt in der Lagespalte, im Band steht der Name |
-| Jochreihe gesamtheitlich (19. Sept.) | «die zusammenhängenden jochtragwerke sind als gesamtheitliches tragwerk zu betrachten». Gewählt: **gekoppelt** (ein Stabwerk: Joche und Masten der Reihe, Mastköpfe verschieblich, jeder Mast mit den Kräften aller anschliessenden Joche); ständig, Wind, Schnee **gleichzeitig** auf der ganzen Reihe; **Havarie örtlich**: «dieser kann entweder auf die joche wirken und die kraft teilt sich dann auf die beiden masten, oder wenn es zu einem leiterbruch am masten kommt ist dann nur dieser selbst betroffen»; Seitenleiste mit **Urteil der Reihe** (Maximum mit Namen). **Auch das Einzeljoch** läuft künftig über das Stabwerk («ja einzeljoch auch übers stabwerk»), ein Rechenweg. Umsetzung offen, siehe *Laufende Arbeit* |
+| Jochreihe gesamtheitlich (19. Sept.) | «die zusammenhängenden jochtragwerke sind als gesamtheitliches tragwerk zu betrachten». Gewählt: **gekoppelt** (ein Stabwerk: Joche und Masten der Reihe, Mastköpfe verschieblich, jeder Mast mit den Kräften aller anschliessenden Joche); ständig, Wind, Schnee **gleichzeitig** auf der ganzen Reihe; **Havarie örtlich**: «dieser kann entweder auf die joche wirken und die kraft teilt sich dann auf die beiden masten, oder wenn es zu einem leiterbruch am masten kommt ist dann nur dieser selbst betroffen»; Seitenleiste mit **Urteil der Reihe** (Maximum mit Namen). **Auch das Einzeljoch** läuft künftig über das Stabwerk («ja einzeljoch auch übers stabwerk»), ein Rechenweg. **Umgesetzt am 25. September** im Stabwerksweg (Etappe 3): der Knopf rechnet das ganze Blatt in einem Stabwerk, die geteilten Masten verschmolzen; gemessen am geteilten Masten einer Reihe 2 × J90/20 m η 0.7756 → **1.3525**. Der Ersatzbalken bleibt beim Einzelfeld mit der Sofortmassnahme |
 | Geteilter Mast, Sofortmassnahme (19. Sept.) | «ja sofortmassnahme zuerst»: bis zum gekoppelten Modell trägt der geteilte Mast die **Jochkräfte aller anschliessenden Tragwerke** im selben Lastfall (`core.nachbarn.js`, `rechensatzMitNachbarn`, in `mastLasten` als `nachbarjoch`); Mastköpfe starr. Havarie örtlich: der Nachbar nur ständig. Nachbar-Abfangjoch über Leiteinwirkung und Windrichtung zugeordnet |
 | `MAST_UNVERSCHIEBLICH` (19. Sept.) | **entfällt im gekoppelten Modell** («mast_unverschieblich entfällt»); bis dahin bleibt er im Einzelfeld-Kern |
 | Havarie je Leiter (19. Sept.) | «nur ein leiter [kann] im havariefall rissen», «als einzelner leiter zählt auch das kettenwerk Fd + Ts», Übersicht mit Auswahl: unter **Lasten → Havarie** je Leiter «kann reissen» und der Zug bei −20 °C in **+y und −y** (leer: Reglagetabelle). Je angehaktem Leiter ein Fall ±y, nur er reisst, dazu «ohne Leiterbruch»; Hülle. Tragjoch/Mast 10 %, Abfangjoch voller Leiterzug (je Kandidat eine Auswertung). Kettenwerk = Module gleicher Bezeichnung. AxisVM: je Leiter `HavarieX|…` (Korrektur), `HavarieY|…|p/m`, Namen kurz «Havarie L1 …». Alte Merker «Bruch» werden beim Laden zur Auswahl (`havarieAnheben`) |
@@ -202,12 +202,76 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5310 Kontrollen grün · `durchlauf.mjs`
+**25. September 2026** · Prüfstand 5342 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., Etappe 3: die Jochreihe ist EIN Stabwerk** (Prüfstand
+  Abschnitt 126). Weisung vom 19. September: «die zusammenhängenden
+  jochtragwerke sind als gesamtheitliches tragwerk zu betrachten», am 25.
+  priorisiert: «Die Jochreihe als gekoppeltes Tragwerk, Die Mastverformung
+  mit Rahmenwirkung. angehen und priorisieren.»
+  Der Knopf rechnet nicht mehr das aktive Tragwerk, sondern das **ganze
+  Blatt**: `rechneStabwerk` baut über `blattWennMehrere` alle sichtbaren
+  Tragwerke in ein Modell — dieselbe Stelle, aus der auch AxisVM sein
+  Blattmodell bekommt —, die geteilten Masten verschmolzen. **Die
+  Rahmenwirkung ist damit keine Zutat, sondern die Folge:** Joch und Mast
+  stehen im selben Gleichungssystem.
+  **Gemessen** (J90/20 m, HEB 240, Standardbelegung), η des geteilten
+  Masten M2:
+
+  | | η M2 | Randmast | Joch |
+  |---|---|---|---|
+  | Einzeljoch | 0.7756 | 0.7756 | 0.403 |
+  | Reihe 2 × J90/20 | **1.3525** (+74 %) | 0.777 | 0.493 |
+  | Reihe 3 × J90/20 | **1.3911** | 0.743 | 0.494 |
+  | J90/20 + J90/15 | **1.1601** | 0.796 | 0.465 |
+
+  Die Messung vom 19. September hatte +76 % am Längsmoment vorhergesagt;
+  das Stabwerk bestätigt sie. **Der Randmast bleibt, was er war** (0.7756 →
+  0.7766) — änderte er sich auch, spräche das für einen Modellfehler statt
+  für die Rahmenwirkung. Zwei Joche mit je 942 Stäben ergeben **1879**, nicht
+  1884: die fünf Abschnitte des gemeinsamen Masten stehen einmal da.
+  **Das Urteil der Reihe** (Entscheid 19. Sept., «Maximum mit Namen») steht
+  in der Stabwerksleiste: je Joch und je Mast eine Marke mit seiner Zahl,
+  absteigend, in der Ampelfarbe; die Kopfzahl nennt das **Bauteil**
+  («Mast M2») statt des Stabes («MAST_M2_S1»). Der Mast trägt kein Präfix —
+  er gehört der Reihe, nicht einem Joch.
+  **Alles oder nichts, mit Namen:** steht ein Tragausleger in der Reihe,
+  baute `stabmodell()` an seiner Stelle ein Tragjoch. In EINEM Stabwerk
+  fiele das nicht mehr auf. `reiheOhneStabmodell` prüft deshalb **jedes**
+  sichtbare Tragwerk und nennt es beim Namen («T3: Der Tragausleger wartet
+  auf sein Kragarm-Modell …»).
+  ⚠ **Zwei Befunde am Weg, beide auf der unsicheren Seite und beide älter
+  als Etappe 3:**
+  (1) **Der Leiterriss kam im Stabwerksweg nie an.** `GRUPPEN_JE_BEIWERT`
+  bildete den Beiwert `HavarieY` auf den Lastfall `HavarieY` ab; der heisst
+  seit dem 19. September `HavarieY|<Leiter>|p`, und der Sammelfall daneben
+  ist leer. Gemessen am J90/20 m mit zwei Fahrleitungen, grösste Stabkraft
+  je Havariefall: **vorher 39.79 | 39.79 | 39.79 | 39.79 | 39.79**, nachher
+  **39.79 | 50.68 | 50.68 | 52.51 | 52.51**. Fünf Fälle, zifferngleich —
+  dasselbe Muster wie bei den falschen Feldnamen am 25. September. Dieselbe
+  Lücke traf die charakteristischen Einzelfälle (`l.nur`). **Die
+  Kombinationen kommen jetzt aus der Datei** (`dat.kombinationen`,
+  `anteileFuer`) — derselben Liste, die AxisVM rechnet; eine zweite
+  Herleitung derselben Sache ist immer eine zweite Wahrheit.
+  (2) **Auf einem Blatt fehlte der Havarie-Lastfall des Nachbarjochs.**
+  Jedes Tragwerk schreibt seine Havarie-Lasten, die Lastfall-**Liste** und
+  die Kombinationen kamen aber aus dem aktiven allein. Gemessen an zwei
+  Jochen mit je einer reissenden Fahrleitung: `HavarieY|<L_links>|p/m`
+  **benutzt, aber nicht erklärt** — und in keiner Kombination. Das galt
+  auch für die **AxisVM-Datei**: eine Last, die auf einen Lastfall zeigt,
+  den es nicht gibt. `stabmodellJson` nimmt jetzt `opt.eingaben` (alle
+  Sätze des Blattes); `app.axisvm.js` reicht sie durch, und `durchlauf.mjs`
+  hat dafür eine neue Wache bekommen — sie fehlte.
+  ⚠ **Nicht im Browser geprüft**: der Entwicklungsserver ist in dieser
+  Umgebung nicht erreichbar (Verbindung wird ohne Antwort geschlossen), und
+  `file://` auf die gebündelte Datei bleibt verwehrt. Abschnitt 126 h prüft
+  das erzeugte HTML (Reihenzeile da / nicht da, Bauteilname statt Stabname,
+  je Bauteil eine Marke, Klassen im Stilblatt) — **ein Ersatz, kein
+  Gleichwert.**
 - **25. Sept., Etappe 2: Rechenverfahren wählbar, Knopf, Rückmeldung**
   (Prüfstand 124 und 125). Weisung: «ersatzbalken als optionales
   rechenverfahren in den optionen auswählbar machen, primär den löser
@@ -784,15 +848,25 @@ kann und was gemessen ist:
   Starrkörper als Zwangsbedingung statt als Ersatzsteifigkeit gehören.
 
 **Laufende Arbeit (19. Sept.): Jochreihe als gekoppeltes Tragwerk.**
-Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Noch nicht
-begonnen; Bauplan: (1) messen ✔, (2) räumlicher Stabwerkslöser im Kern,
-gegen PyNite gemessen, (3) Reihenmodell aus dem Blatt, (4) Lastfälle auf
-der ganzen Reihe, Havarie je Aufhängung, (5) Schnittgrössen in die
-Gurt-/Blechauswertung, Masten aus dem Stabwerk, Urteil der Reihe,
-(6) Bericht/Excel/Ausleitung, Vergleich mit AxisVM. Der Kern kennt heute
-nur das Einzelfeld (Ersatzbalken mit Drehfedern, `core.statics`/
-`core.auflager`). `MAST_UNVERSCHIEBLICH` entfällt dort. **Sofortmassnahme
-erledigt** (Nachbarkräfte am geteilten Masten, siehe *Entschieden*).
+Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Bauplan:
+(1) messen ✔, (2) räumlicher Stabwerkslöser im Kern, gegen PyNite
+gemessen ✔ (25. Sept.), (3) Reihenmodell aus dem Blatt ✔ (25. Sept.,
+über `blattWennMehrere`), (4) Lastfälle auf der ganzen Reihe, Havarie je
+Aufhängung ✔ (25. Sept., `opt.eingaben`), (5) Schnittgrössen in die
+Gurt-/Blechauswertung, Masten aus dem Stabwerk, Urteil der Reihe ✔
+(25. Sept., `stabwerkHuelle().reihe`), **(6) Bericht/Excel/Ausleitung,
+Vergleich mit AxisVM — offen (Etappe 4).**
+
+Was das heißt: der **Löser** rechnet die Reihe gekoppelt, der
+**Ersatzbalken** weiter das Einzelfeld (Drehfedern, `core.statics`/
+`core.auflager`) mit der **Sofortmassnahme** vom 19. September
+(Nachbarkräfte am geteilten Masten) und `MAST_UNVERSCHIEBLICH`. Beide
+Wege stehen nebeneinander, wählbar unter *Optionen → Nachweise*; der
+Stabwerksweg braucht keine der beiden Korrekturen, weil die Kopplung bei
+ihm echt ist. **Was dem Ersatzbalken bleibt:** die Hauptkacheln, die
+Verläufe, der Bericht und die Stabilität (Knicken, `core.mast.js`) — die
+rechnet der Löser nicht, und wer das übersieht, weist einen schlanken
+Masten um 8 Prozent zu günstig nach.
 
 **Messung 19. Sept.** (Überlagerung bei starren Mastköpfen, also noch
 ohne Rahmenwirkung; Nachrechnung = `mastSchnitt` exakt): am geteilten
@@ -902,9 +976,21 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Positionen 5–9, die 6 mm zurückgesetzt sind (Hebelarm 100 statt 112 mm).
   Im Modell sitzen alle bündig.
 
+- ⚠ **Zwei Rechenwege, zwei Zahlen für denselben Masten.** Seit dem
+  25. September rechnet der **Stabwerksweg** die Reihe gekoppelt (η des
+  geteilten Masten 0.7756 → 1.3525 an 2 × J90/20 m), der **Ersatzbalken**
+  weiter das Einzelfeld mit der Sofortmassnahme vom 19. September. Die
+  Hauptkacheln, die Verläufe und der **Bericht** stehen noch auf dem
+  Ersatzbalken — wer nur dorthin sieht, sieht die kleinere Zahl. Der
+  Stabwerkswert steht in der Stabwerksleiste daneben. Schritt (6) des
+  Bauplans (Bericht/Excel/Ausleitung) und die Freigabe gegen AxisVM
+  (Etappe 4) stehen aus; erst danach ist zu entscheiden, welcher Weg das
+  Urteil trägt.
 - **Geteilter Mast:** seit der Sofortmassnahme (19. Sept.) mit den
-  Jochkräften der Nachbarn; es fehlt noch die Rahmenwirkung (gekoppeltes
-  Modell). Rechenzeit je Eingabe mit zwei Nachbarn ≈ 80 ms.
+  Jochkräften der Nachbarn; die **Rahmenwirkung** rechnet seit dem
+  25. September der Stabwerksweg (gekoppeltes Blattmodell), der
+  Ersatzbalken nicht. Rechenzeit je Eingabe mit zwei Nachbarn ≈ 80 ms,
+  eine Reihe im Stabwerk ≈ 420 ms (2 Joche) bzw. 640 ms (3 Joche).
 - **Geteilter Mast im Nachweis** (19. Sept. nachgeprüft): seine Teile am
   Masten zählen in **beiden** Rechnungen (seit 2./18. Sept., `mastAnbauteile`
   mit `mastId`) — der frühere offene Punkt «Bauteil gehört nur einem
@@ -996,7 +1082,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5310 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5342 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

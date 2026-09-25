@@ -3056,6 +3056,32 @@ body.datei-ueber::after {
  * Bei «veraltet» trägt er zusätzlich die Warnfarbe — dieselbe wie der
  * Balken, damit Auslöser und Hinweis zusammengehören.
  */
+/* ---------------------------------------------------------------------------
+ * DAS URTEIL DER REIHE (Etappe 3, 25. September)
+ *
+ * Eine eigene Zeile UNTER der Leiste: je Joch und je Mast eine Marke mit
+ * seiner Zahl, absteigend. Sie bricht auf die volle Breite um (`flex-basis:
+ * 100%`), damit die Marken nicht zwischen Knopf und Notiz geraten — dort
+ * läse man sie als Fortsetzung des Satzes.
+ *
+ * Die Farbe ist dieselbe Ampel wie überall (0.90 orange, 1.00 rot); eine
+ * zweite Schwelle an dieser Stelle wäre eine zweite Wahrheit.
+ * ------------------------------------------------------------------------- */
+.stabwerk-leiste .sw-reihe {
+  flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--ol);
+}
+.sw-bauteil {
+  font-size: 11px; padding: 2px 7px; border-radius: 10px;
+  border: 1px solid var(--ol); color: var(--dim); white-space: nowrap;
+}
+.sw-bauteil b { font-weight: 600; }
+.sw-bauteil.ok   { border-color: var(--ok);   color: var(--ok); }
+.sw-bauteil.warn { border-color: var(--warn); color: var(--warn); }
+.sw-bauteil.fail {
+  border-color: var(--fail); color: var(--fail); background: var(--fail-s);
+}
+
 .sw-knopf { flex: 0 0 auto; font-weight: 600; }
 .stabwerk-leiste.veraltet .sw-knopf {
   background: var(--warn-s); border-color: var(--warn); color: var(--warn);

@@ -8,7 +8,8 @@
  * siehe das Kontextobjekt in app.js. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { mastenVon, rechensatz, tragwerkSatz, tragwerksart } from './core.constants.js';
+import { mastenVon, rechensatz, sichtbareTragwerke, tragwerkSatz,
+         tragwerksart } from './core.constants.js';
 import { berechne, modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { getTragjoch } from './data.tragjoche.js';
@@ -297,7 +298,21 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
                  modellVon: (satz) => modell({ ...satz, beiwerteFest: null },
                    getProfil(satz.profOG), getProfil(satz.profUG),
                    getStahl(satz.stahl), getTragjoch(satz.typ)) };
+  /*
+   * >>> DIE LASTFAELLE GEHOEREN DEM BLATT (25. September). <<<
+   *
+   * Gemessen an zwei Jochen mit je einer reissenden Fahrleitung: die
+   * Havarie-Lasten des Nachbarjochs standen in der Datei, sein Lastfall
+   * aber nicht - und in keiner Kombination. Die Liste kam aus dem
+   * AKTIVEN Tragwerk, die Lasten von allen. Mit `eingaben` fuehrt
+   * `stabmodellJson` beide aus derselben Quelle.
+   *
+   * Sichtbare Tragwerke, denn nur die stehen im Modell: ein
+   * ausgeblendetes brauchte einen Lastfall, den keine Last benutzt.
+   */
   const o = { knotenmodell, schottAusblenden, starrModell,
+              eingaben: (sichtbareTragwerke(app.werte) ?? [])
+                .map((t) => tragwerkSatz(app.werte, t.id)),
               auflagerModell: auflagerModell ?? auflagerVorgabe(m) };
   // Alle vier Wege durch dieselbe Klammer: was hier bricht, bricht sichtbar.
   const name = { json: 'COM-Ausleitung', dxf: 'DXF-Ausleitung',

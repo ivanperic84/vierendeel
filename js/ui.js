@@ -5031,9 +5031,39 @@ export function stabwerkLeiste(opt = {}) {
    * blasse oder durchgestrichene Zahl liest man trotzdem ab. Was bleibt,
    * ist die Aufforderung und ein Knopf, der sich meldet.
    * --------------------------------------------------------------------- */
+  /*
+   * >>> DAS URTEIL NENNT DAS BAUTEIL, NICHT DEN STAB. <<<
+   *
+   * Seit Etappe 3 (25. September) steht die ganze Reihe in einem Stabwerk,
+   * und `MAST_M2_S1` ist der unterste Abschnitt eines Masten - eine
+   * Angabe fuer den, der das Modell liest, nicht fuer den, der das
+   * Ergebnis liest. Angeschrieben wird «Mast M2»; der Stabname steht im
+   * Titel, fuer den Fall, dass man ihn doch braucht.
+   */
   const zahl = (stand === 'gueltig' && e && e.etaGesamt != null)
     ? `<span class="urteil-zahl">η ${f3(e.etaGesamt)}</span>
-       <span class="urteil-fall">${esc(e.massgebend?.name ?? '')}</span>`
+       <span class="urteil-fall" title="${esc(e.massgebend?.name ?? '')}">${
+         esc(e.massgebend?.bauteil ?? e.massgebend?.name ?? '')}</span>`
+    : '';
+
+  /* -----------------------------------------------------------------------
+   * >>> DAS URTEIL DER REIHE - JE BAUTEIL EINE ZAHL. <<<
+   *
+   * Entscheid vom 19. September zur gesamtheitlichen Betrachtung:
+   * «Seitenleiste mit Urteil der Reihe (Maximum mit Namen)». Das Maximum
+   * steht oben als eine Zahl; darunter steht, woraus es kommt - je Joch
+   * und je Mast. Ohne diese Zeile waere an der Reihe nur zu sehen, DASS
+   * sie gerechnet wurde, nicht WO sie klemmt.
+   *
+   * Nur bei mehr als einem Tragwerk: bei einem einzelnen sagen die
+   * Nachweiskacheln darunter dasselbe.
+   * --------------------------------------------------------------------- */
+  const reihe = (stand === 'gueltig' && e && (e.tragwerke ?? 1) > 1
+                 && Array.isArray(e.reihe) && e.reihe.length)
+    ? `<div class="sw-reihe">${e.reihe.map((b) => `
+        <span class="sw-bauteil ${ampel(b.eta)}" title="${esc(
+          `${b.wo ?? ''}${b.bez ? ` · ${b.bez}` : ''}`)}"
+          >${esc(b.name)} <b>${f3(b.eta)}</b></span>`).join('')}</div>`
     : '';
 
   const marke = {
@@ -5048,7 +5078,14 @@ export function stabwerkLeiste(opt = {}) {
          + 'Biegung der Bleche aus ihrer Ebene heraus.',
     veraltet: 'Das Ergebnis gehört zu einem früheren Stand und wird deshalb '
             + 'nicht gezeigt.',
-    gueltig: e ? `${e.staebe} Stäbe · ${e.freiheitsgrade} Freiheitsgrade`
+    /*
+     * Die Reihe zuerst: sie sagt, WAS gerechnet wurde. Die Kennzahlen
+     * dahinter sagen, wie gross es war.
+     */
+    gueltig: e ? `${(e.tragwerke ?? 1) > 1
+                    ? `Reihe: ${e.tragwerke} Tragwerke, ${e.masten} Masten in einem `
+                      + `Stabwerk · ` : ''}${e.staebe} Stäbe`
+               + ` · ${e.freiheitsgrade} Freiheitsgrade`
                + ` · ${e.faelle} Kombinationen · ${e.ms} ms` : '',
     fehler: e?.fehler ? `${e.fehler}` : 'Die Rechnung ist nicht durchgelaufen.',
   }[stand] ?? '';
@@ -5064,6 +5101,7 @@ export function stabwerkLeiste(opt = {}) {
     ${marke}
     ${zahl}
     <span class="notiz">${esc(text)}</span>
+    ${reihe}
   </div>`;
 }
 

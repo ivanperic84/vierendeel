@@ -30143,6 +30143,277 @@ titel('125  Die Stabwerksleiste: Knopf und Rueckmeldung');
   }
 }
 
+titel('126  Die Jochreihe als gekoppeltes Tragwerk (Etappe 3)');
+/* ===========================================================================
+ * Weisung vom 19. September: «die zusammenhängenden jochtragwerke sind als
+ * gesamtheitliches tragwerk zu betrachten», dazu am 25.: «Die Jochreihe als
+ * gekoppeltes Tragwerk, Die Mastverformung mit Rahmenwirkung. angehen und
+ * priorisieren.»
+ *
+ * >>> WAS SICH DADURCH AENDERT - UND ES IST VIEL. <<<
+ *
+ * Der Ersatzbalken rechnet ein FELD. Ein geteilter Mast kommt darin
+ * zweimal vor, je Joch einmal, und traegt nie beide Jochkraefte zugleich;
+ * die Sofortmassnahme vom 19. September legt sie ihm seither als aeussere
+ * Last auf. Im Stabwerk der Reihe ist er EIN Mast in EINEM
+ * Gleichungssystem - die Rahmenwirkung ist dann keine Zutat mehr, sondern
+ * die Folge.
+ *
+ * Gemessen (J90/20 m, HEB 240, Standardbelegung):
+ *
+ *     Einzeljoch          Mast M2  0.7756
+ *     Reihe 2 x J90/20    Mast M2  1.3525   (+74 %)
+ *     Reihe 3 x J90/20    Mast M2  1.3911
+ *     J90/20 + J90/15     Mast M2  1.1601
+ *
+ * Die Messung vom 19. September hatte +76 % am Laengsmoment vorhergesagt;
+ * das Stabwerk bestaetigt sie. >>> Die Anwendung wies den geteilten Masten
+ * bis hierher auf der unsicheren Seite nach. <<<
+ * ========================================================================= */
+{
+  const AS126 = await import(J('app.stabwerk.js'));
+  const V126 = await import(J('core.vierendeel.js'));
+  const N126 = await import(J('core.nachbarn.js'));
+  const C126 = await import(J('core.constants.js'));
+  const SN126 = await import(J('core.stabnachweis.js'));
+
+  const rechne = (w) => {
+    const satz = N126.rechensatzMitNachbarn(w);
+    const erg = V126.berechne(satz, ...N126.kernArgumente(satz));
+    return AS126.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  let w126 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w126 = { ...w126, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const eins = rechne(w126);
+  const zwei = rechne(C126.tragwerkHinzu(w126, 'joch', {}));
+
+  // --- a) Die Reihe ist EIN Stabwerk ------------------------------------
+  wahr('Das Einzeljoch bleibt ein Tragwerk', eins.tragwerke === 1);
+  wahr('Die Reihe fuehrt beide Tragwerke', zwei.tragwerke === 2);
+  /*
+   * >>> DER GETEILTE MAST STEHT EINMAL DA. <<<
+   * Zwei Joche mit je 942 Staeben ergaeben 1884, wenn jedes seinen Masten
+   * mitbraechte. Es sind 1879 - die fuenf Abschnitte des gemeinsamen
+   * Masten M2 sind verschmolzen. Stuenden sie doppelt da, waere der Mast
+   * doppelt so steif und doppelt so schwer.
+   */
+  wahr('>>> Der geteilte Mast ist EINMAL im Modell <<<',
+       zwei.staebe > 0 && zwei.staebe < 2 * eins.staebe,
+       `${eins.staebe} + ${eins.staebe} -> ${zwei.staebe}`);
+  wahr('Drei Masten statt vier', zwei.masten === 3, `${zwei.masten}`);
+
+  // --- b) Was der Mast dadurch traegt -----------------------------------
+  const hole = (r, name) => r.reihe.find((b) => b.name === name);
+  const m2eins = hole(eins, 'Mast M2');
+  const m2zwei = hole(zwei, 'Mast M2');
+  wahr('Der Mast heisst in beiden Faellen gleich',
+       Boolean(m2eins && m2zwei), 'Mast M2');
+  /*
+   * >>> DIE ZAHL, UM DIE ES GEHT. <<<
+   * Der Zwischenmast traegt in der Reihe die Kraefte BEIDER Joche. Waere
+   * das eta unveraendert, haette die Kopplung nicht gewirkt - und der
+   * ganze Schritt waere folgenlos geblieben.
+   */
+  wahr('>>> Der geteilte Mast traegt in der Reihe deutlich mehr <<<',
+       m2zwei.eta > 1.5 * m2eins.eta,
+       `einzeln ${m2eins.eta.toFixed(4)} -> in der Reihe ${m2zwei.eta.toFixed(4)}`);
+  /*
+   * >>> UND DIE RANDMASTEN BLEIBEN, WAS SIE WAREN. <<<
+   * Sie haengen nur an einem Joch. Aenderten sie sich ebenfalls, spraeche
+   * das fuer einen Modellfehler und nicht fuer die Rahmenwirkung.
+   */
+  const m1eins = hole(eins, 'Mast M1');
+  const m1zwei = hole(zwei, 'Mast M1');
+  wahr('Der Randmast bleibt beim Wert des Einzelfelds',
+       Math.abs(m1zwei.eta - m1eins.eta) < 0.02,
+       `${m1eins.eta.toFixed(4)} -> ${m1zwei.eta.toFixed(4)}`);
+
+  // --- c) Das Urteil der Reihe ------------------------------------------
+  /*
+   * Entscheid vom 19. September: «Seitenleiste mit Urteil der Reihe
+   * (Maximum mit Namen)» - also je Bauteil eine Zeile, und das Maximum
+   * darueber ist dasselbe, das die Kachel zeigt.
+   */
+  wahr('Je Joch und je Mast eine Zeile', zwei.reihe.length === 5,
+       zwei.reihe.map((b) => b.name).join(' | '));
+  wahr('Die Joche tragen den Namen ihres Tragwerks',
+       zwei.reihe.some((b) => b.name === 'Joch T1')
+       && zwei.reihe.some((b) => b.name === 'Joch T2'));
+  wahr('Absteigend sortiert - das Groesste oben',
+       zwei.reihe.every((b, k) => k === 0 || b.eta <= zwei.reihe[k - 1].eta));
+  wahr('>>> Das Urteil ist das Maximum der Reihe <<<',
+       Math.abs(zwei.etaGesamt - zwei.reihe[0].eta) < 1e-12,
+       `${zwei.etaGesamt.toFixed(4)} = ${zwei.reihe[0].name}`);
+  wahr('... und es nennt das Bauteil, nicht nur den Stab',
+       zwei.massgebend.bauteil === zwei.reihe[0].name
+       && zwei.massgebend.name !== zwei.massgebend.bauteil,
+       `${zwei.massgebend.name} = ${zwei.massgebend.bauteil}`);
+  /*
+   * >>> KEIN STAB OHNE NACHWEIS. <<<
+   * `stabRolle` kennt Gurte, Bleche und Masten. Taucht in einer Jochreihe
+   * etwas anderes auf, wird es NICHT nachgewiesen - und das muss
+   * auffallen, nicht durchgehen.
+   */
+  wahr('>>> Kein Stab der Reihe faellt aus dem Nachweis <<<',
+       zwei.ohneRolle.length === 0, zwei.ohneRolle.slice(0, 3).join(', '));
+
+  // --- d) Die Zuordnung Stab -> Bauteil ---------------------------------
+  wahr('Der Mast gehoert der Reihe, nicht einem Joch',
+       SN126.stabZuordnung('MAST_M2_S1').key === 'mast:M2');
+  wahr('Der Gurt gehoert seinem Tragwerk',
+       SN126.stabZuordnung('T2_OGR_S82').key === 'tragwerk:T2');
+  wahr('Das Blech ebenso',
+       SN126.stabZuordnung('T1_BH_O_27_2').key === 'tragwerk:T1');
+  wahr('Ohne Praefix heisst es schlicht Joch',
+       SN126.stabZuordnung('OGR_S3').name === 'Joch');
+
+  // --- e) Ein fremdes Tragwerk haelt die ganze Reihe auf ------------------
+  /*
+   * >>> ALLES ODER NICHTS, MIT NAMEN. <<<
+   * Ein Tragausleger in der Reihe wuerde von `stabmodell()` als Tragjoch
+   * gebaut (Befund vom 25. September, Abschnitt 124). In EINEM Stabwerk
+   * faellt das nicht mehr auf: die Reihe lieferte eine Zahl, und ein
+   * Bauteil darin gaebe es gar nicht.
+   */
+  {
+    const mitTa = C126.tragwerkHinzu(C126.tragwerkHinzu(w126, 'joch', {}),
+                                     'tragausleger', {});
+    const r = rechne(mitTa);
+    wahr('>>> Reihe mit Tragausleger: KEINE Zahl, sondern der Grund <<<',
+         Boolean(r && r.ohneModell) && r.etaGesamt === undefined,
+         r?.ohneModell ? r.ohneModell.slice(0, 44) : `eta ${r?.etaGesamt}`);
+    wahr('... und er nennt das Tragwerk beim Namen',
+         /^T\d+: /.test(r.ohneModell ?? ''), (r.ohneModell ?? '').slice(0, 12));
+  }
+
+  // --- f) Der Leiterriss erreicht den Nachweis ---------------------------
+  /*
+   * >>> BEFUND vom 25. September: FUENF HAVARIEFAELLE, ZIFFERNGLEICH. <<<
+   *
+   * `GRUPPEN_JE_BEIWERT` bildete den Beiwert `HavarieY` auf den Lastfall
+   * `HavarieY` ab. Der heisst seit dem 19. September aber
+   * `HavarieY|<Leiter>|p` - je Leiter einer -, und der Sammelfall daneben
+   * ist leer. Alle fuenf Faelle fielen damit auf das blosse Eigengewicht
+   * zusammen: der Leiterriss kam im Stabwerksweg NIE an.
+   *
+   * Gemessen am J90/20 m mit zwei Fahrleitungen, groesste Stabkraft:
+   *   vorher  39.79 | 39.79 | 39.79 | 39.79 | 39.79
+   *   nachher 39.79 | 50.68 | 50.68 | 52.51 | 52.51
+   *
+   * Die Kombinationen kommen jetzt aus der DATEI (`dat.kombinationen`) -
+   * derselben Liste, die AxisVM rechnet. Eine zweite Herleitung derselben
+   * Sache ist immer eine zweite Wahrheit.
+   */
+  {
+    const A126 = await import(J('data.anbauteile.js'));
+    const AX126 = await import(J('export.axisvm.js'));
+    const SW126 = await import(J('core.stabwerk.js'));
+    const L126 = await import(J('core.lasten.js'));
+    const P126 = await import(J('data.profiles.js'));
+    const ab = [{ ...A126.neuesAnbauteil('hs-fahrdraht', 6), name: 'FL 1' },
+                { ...A126.neuesAnbauteil('hs-fahrdraht', 14), name: 'FL 2' }];
+    const leiter = A126.leiterListe(ab);
+    const wh = { ...w126, anbauteile: ab,
+      havarie: Object.fromEntries(leiter.map((l) => [l.key,
+        { reisst: true, name: l.name }])) };
+    const satz = C126.rechensatz(wh);
+    const m = V126.modell({ ...satz, beiwerteFest: null },
+      P126.getProfil(satz.profOG), P126.getProfil(satz.profUG),
+      P126.getStahl(satz.stahl), T.getTragjoch(satz.typ));
+    const bau = AX126.stabmodell(m, { knotenmodell: 'anschnitt' });
+    bau.lasten = AX126.lasten(m, bau, { eigengewicht: true, gTrennen: true });
+    const dat = AX126.stabmodellJson(m, { knotenmodell: 'anschnitt', bau,
+                                          eingabe: satz, eingaben: [satz] });
+    const lsg = SW126.loese(dat, { eigengewicht: false });
+    const groesste = (lf) => {
+      const k = SN126.kraefteAusAnteilen(lsg, SN126.anteileFuer(lf, dat));
+      let mx = 0;
+      k.forEach((f) => { for (let q = 0; q < 12; q += 1) mx = Math.max(mx, Math.abs(f[q])); });
+      return mx;
+    };
+    const hav = L126.lastfaelle(satz).filter((l) => l.art === 'aussergewoehnlich');
+    wahr('Zwei reissende Leiter geben fuenf Havariefaelle', hav.length === 5);
+    const werte126 = hav.map(groesste);
+    const ohne = werte126[0];
+    wahr('>>> Der Leiterriss wirkt - die Faelle sind NICHT mehr gleich <<<',
+         hav.filter((l) => l.bruchLeiter).every((l, q) => werte126[q + 1] > ohne * 1.05),
+         werte126.map((v) => v.toFixed(2)).join(' | '));
+    wahr('Der Fall ohne Leiterbruch bleibt der kleinste',
+         werte126.every((v) => v >= ohne - 1e-9));
+  }
+
+  // --- g) Die Havarie des NACHBARN steht in der Datei ---------------------
+  /*
+   * >>> BEFUND vom 25. September, auf der unsicheren Seite. <<<
+   *
+   * Auf einem Blatt schreibt jedes Tragwerk seine Havarie-Lasten. Die
+   * Lastfall-LISTE und die Kombinationen kamen dagegen aus dem AKTIVEN
+   * Tragwerk allein. Die Lasten des Nachbarjochs zeigten damit auf einen
+   * Lastfall, den es nicht gab - im Nachweis wie in der AxisVM-Datei.
+   *
+   * Gerade dieser Fall macht am geteilten Masten den Laengszug, den sonst
+   * nichts erzeugt.
+   */
+  {
+    const A126 = await import(J('data.anbauteile.js'));
+    const AX126 = await import(J('export.axisvm.js'));
+    const P126 = await import(J('data.profiles.js'));
+    const mitFL = (w, name) => {
+      const ab = [{ ...A126.neuesAnbauteil('hs-fahrdraht', 10), name }];
+      const ll = A126.leiterListe(ab);
+      return { ...w, anbauteile: ab,
+        havarie: Object.fromEntries(ll.map((l) => [l.key,
+          { reisst: true, name: l.name }])) };
+    };
+    const a = mitFL(w126, 'FL links');
+    const b = mitFL(C126.tragwerkHinzu(a, 'joch', {}), 'FL rechts');
+    const satz = C126.rechensatz(b);
+    const eingaben = C126.tragwerkeVon(b).map((tw) => C126.tragwerkSatz(b, tw.id));
+    const modellVon = (s) => V126.modell({ ...s, beiwerteFest: null },
+      P126.getProfil(s.profOG), P126.getProfil(s.profUG),
+      P126.getStahl(s.stahl), T.getTragjoch(s.typ));
+    const o = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+    const bau = AX126.blattWennMehrere(satz, { modellVon }, o);
+    const m = modellVon(satz);
+    const dat = AX126.stabmodellJson(m, { ...o, bau, eingabe: satz, eingaben });
+    const erklaert = new Set(dat.lastfaelle.map((x) => x.key));
+    const benutzt = new Set([...dat.lasten.punkt, ...dat.lasten.moment,
+      ...dat.lasten.strecke].map((x) => x.lastfall));
+    const inKombi = new Set(dat.kombinationen.flatMap((k) =>
+      k.anteile.map((x) => x.lastfall)));
+    wahr('Beide Joche bringen ihre Havarie-Lasten mit',
+         [...benutzt].filter((k) => /^Havarie/.test(k)).length === 4,
+         [...benutzt].filter((k) => /^Havarie/.test(k)).length);
+    wahr('>>> Jede benutzte Last hat ihren Lastfall in der Datei <<<',
+         [...benutzt].every((k) => erklaert.has(k)),
+         [...benutzt].filter((k) => !erklaert.has(k)).join(' | '));
+    wahr('>>> Und jede steht in mindestens einer Kombination <<<',
+         [...benutzt].every((k) => inKombi.has(k)),
+         [...benutzt].filter((k) => !inKombi.has(k)).join(' | '));
+    wahr('Je Leiter ein eigener Havariefall - die Havarie bleibt OERTLICH',
+         dat.kombinationen.filter((k) => /^havarie\|/.test(k.key)).length === 4);
+  }
+
+  // --- h) Die Leiste zeigt die Reihe --------------------------------------
+  {
+    const UI126 = await import(J('ui.js'));
+    const h = UI126.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk',
+      stand: 'gueltig', ergebnis: zwei } });
+    wahr('Die Leiste nennt die Reihe', /Reihe: 2 Tragwerke, 3 Masten/.test(h));
+    wahr('... und schreibt das Bauteil an, nicht den Stab',
+         h.includes('Mast M2') && !/>MAST_M2_S1</.test(h));
+    wahr('... und fuehrt je Bauteil eine Marke',
+         (h.match(/class="sw-bauteil /g) ?? []).length === 5);
+    const eine = UI126.stabwerkLeiste({ stabwerk: { verfahren: 'stabwerk',
+      stand: 'gueltig', ergebnis: eins } });
+    wahr('Beim Einzeljoch steht keine Reihenzeile',
+         !eine.includes('sw-reihe'));
+    const css126 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    ['.sw-reihe', '.sw-bauteil'].forEach((k) =>
+      wahr(`Stilblatt kennt ${k}`, css126.includes(k)));
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

@@ -4321,6 +4321,45 @@ export function stabmodellJson(m, opt = {}) {
   const ausrUG = getAusrichtung(m.ausrUG ?? 'LA_SI');
   const eckeVon = (id) => ECKEN.find((e) => e.id === id);
 
+  /* =========================================================================
+   * >>> DIE LASTFAELLE GELTEN DEM BLATT, NICHT DEM AKTIVEN TRAGWERK. <<<
+   * =======================================================================
+   *
+   * BEFUND vom 25. September, beim Anschluss der Jochreihe an den Löser
+   * (Weisung vom 19.: «die zusammenhängenden jochtragwerke sind als
+   * gesamtheitliches tragwerk zu betrachten»). Gemessen an zwei Jochen mit
+   * je einer Fahrleitung, beide «kann reissen»:
+   *
+   *     BENUTZT :  HavarieY|<L_links>|p/m   HavarieY|<L_rechts>|p/m
+   *     ERKLAERT:                           HavarieY|<L_rechts>|p/m
+   *
+   * Die Havarie-Lasten des NACHBARJOCHS standen in der Datei, sein
+   * Lastfall aber nicht - und in keiner Kombination. Die Last zeigte auf
+   * etwas, das es nicht gab. Der Grund: `m.havarie` ist die Havarie des
+   * AKTIVEN Tragwerks, `bau.lasten` dagegen kommen von allen.
+   *
+   * Der Leiterriss des Nachbarn fiel damit aus dem Nachweis - und aus dem
+   * AxisVM-Modell. Das ist die unsichere Seite: genau dieser Fall macht am
+   * geteilten Masten den Längszug, den sonst nichts erzeugt.
+   *
+   * `opt.eingaben` führt deshalb ALLE Sätze des Blattes. Fehlt es, bleibt
+   * alles wie bisher (`opt.eingabe` allein, sonst nur das Modell).
+   * ======================================================================= */
+  const eingaben = opt.eingaben?.length ? opt.eingaben
+                 : (opt.eingabe ? [opt.eingabe] : []);
+  /*
+   * Woraus die reissenden Leiter kommen: aus den Eingaben, wenn es welche
+   * gibt - sonst aus dem Modell, wie vor dem 25. September.
+   */
+  const havarieQuellen = eingaben.length ? eingaben : [m];
+  const havKandidaten = [];
+  havarieQuellen.forEach((q) => {
+    (m.havarieAus === true ? [] : havarieKandidaten(q.havarie)).forEach((c) => {
+      if (!havKandidaten.some((x) => x.key === c.key)) havKandidaten.push(c);
+    });
+  });
+  const havNummer = (key) => havKandidaten.findIndex((c) => c.key === key) + 1;
+
   // Lokale z-Richtung je Stab: dieselbe Regel wie im SAF-Blatt. Sie entscheidet,
   // wie herum ein Blechrechteck steht - die Breite muss in die Jochachse.
   const lcs = (stab) => {
@@ -4587,7 +4626,7 @@ export function stabmodellJson(m, opt = {}) {
       // Je reissendem Leiter: Ablenkung und Laengszug in beide Richtungen.
       // Kurze Namen (AxisVM legt den Lastfall unter `label` an); der Leiter
       // steht ausgeschrieben in `leiter`.
-      ...(m.havarieAus === true ? [] : havarieKandidaten(m.havarie)).flatMap((c, i) => [
+      ...havKandidaten.flatMap((c, i) => [
         { key: `HavarieX|${c.key}`, label: `Havarie L${i + 1} Ablenkung`, art: 'Others', leiter: c.name },
         { key: `HavarieY|${c.key}|p`, label: `Havarie L${i + 1} Zug +y`, art: 'Others', leiter: c.name },
         { key: `HavarieY|${c.key}|m`, label: `Havarie L${i + 1} Zug -y`, art: 'Others', leiter: c.name },
@@ -4606,14 +4645,22 @@ export function stabmodellJson(m, opt = {}) {
      * Unterscheidung wandert als Art mit, damit sie in AxisVM als SLS statt
      * ULS ankommt.
      */
-    kombinationen: (opt.eingabe ? lastfaelle(opt.eingabe) : []).map((l) => ({
+    /*
+     * Je Satz des Blattes seine Kombinationen; gleiche Schluessel einmal.
+     * Die Faelle OHNE Leiterbruch sind in allen Saetzen dieselben (Wind,
+     * Schnee und die Beiwerte gehoeren dem Blatt) und wirken damit auf der
+     * ganzen Reihe gleichzeitig; die MIT Bruch tragen den Leiter im
+     * Schluessel und bleiben getrennt - genau die OERTLICHE Havarie, die
+     * der Entscheid vom 19. September verlangt.
+     */
+    kombinationen: eingaben.flatMap((e) => lastfaelle(e)).map((l) => ({
       key: l.key,
       // Der Havariefall eines Leiters heisst kurz nach seiner Nummer (L1 …),
       // wie seine Lastfaelle; der Leiter steht in `leiter`.
       bez: l.bruchLeiter
-        ? `Havarie L${havarieKandidaten(m.havarie).findIndex((c) => c.key === l.bruchLeiter) + 1} ${(l.vorzeichen ?? 1) < 0 ? '-y' : '+y'}`
+        ? `Havarie L${havNummer(l.bruchLeiter)} ${(l.vorzeichen ?? 1) < 0 ? '-y' : '+y'}`
         : l.bez,
-      ...(l.bruchLeiter ? { leiter: havarieKandidaten(m.havarie).find((c) => c.key === l.bruchLeiter)?.name ?? null } : {}),
+      ...(l.bruchLeiter ? { leiter: havKandidaten.find((c) => c.key === l.bruchLeiter)?.name ?? null } : {}),
       art: l.art,
       nachweis: l.nachweis !== false,
       anteile: EINWIRKUNGEN
@@ -4635,7 +4682,9 @@ export function stabmodellJson(m, opt = {}) {
           return [{ lastfall: e.key, faktor: f }];
         })
         .filter((a) => Math.abs(a.faktor) > 1e-9),
-    })).filter((l) => l.anteile.length > 0),
+    })).filter((l) => l.anteile.length > 0)
+      // Gleicher Schluessel aus zwei Saetzen: einmal, der erste zaehlt.
+      .filter((l, k, alle) => alle.findIndex((x) => x.key === l.key) === k),
     lasten: l,
   };
 }

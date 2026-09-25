@@ -112,7 +112,7 @@ import { verlauf } from './verlauf.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
-import { ohneStabmodell, rechneStabwerk, stabwerkStand } from './app.stabwerk.js';
+import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
 import { verfahrenVon } from './core.stabnachweis.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
@@ -1252,9 +1252,11 @@ function zeichneAuswertung() {
                            stabwerk: { verfahren: verfahrenVon(werte),
                                        stand: stabwerkStand(app),
                                        // Der Grund steht auch dann bereit,
-                                       // wenn noch gar nicht gerechnet wurde.
-                                       grund: ohneStabmodell(
-                                         erg?.modell?.tragwerksart ?? 'joch'),
+                                       // wenn noch gar nicht gerechnet wurde -
+                                       // und er gilt der ganzen Reihe,
+                                       // nicht nur dem aktiven Tragwerk
+                                       // (Etappe 3, 25. September).
+                                       grund: reiheOhneStabmodell(werte),
                                        ergebnis: stabwerk },
                            beiStabwerk: stabwerkRechnen,
                            beiNachweisart: setzeNachweisart,

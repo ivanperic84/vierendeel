@@ -213,7 +213,21 @@ for (const [name, bau] of FAELLE) {
         text: `${lose.length} Mastfuss/Mastfuesse nicht eingespannt: `
             + lose.map((x) => `${x.knoten} fiy ${x.fiy} fiz ${x.fiz}`).join(', ') });
     }
+    /*
+     * >>> UND ZEIGT JEDE LAST AUF EINEN LASTFALL, DEN ES GIBT? (25. Sept.) <<<
+     *
+     * Die Wache fehlte. Gefunden wurde die Luecke beim Anschluss der
+     * Jochreihe an den Loeser: auf einem Blatt schrieb jedes Tragwerk
+     * seine Havarie-Lasten, die Lastfall-LISTE kam aber aus dem aktiven
+     * allein. Die Lasten des Nachbarjochs zeigten auf einen Lastfall,
+     * den die Datei nicht fuehrte - und den AxisVM folglich nie rechnet.
+     */
+    const lfN = new Set((dat.lastfaelle ?? []).map((l) => l.key));
+    const alleLasten = [...dat.lasten.punkt, ...(dat.lasten.moment ?? []),
+                        ...dat.lasten.strecke];
     const zeigtInsLeere = [
+      ...[...new Set(alleLasten.map((l) => l.lastfall))]
+        .filter((k) => !lfN.has(k)).map((k) => `Lastfall ${k}`),
       ...dat.lasten.punkt.filter((l) => !knotenN.has(l.knoten)).map((l) => `Punktlast ${l.knoten}`),
       ...dat.lasten.strecke.filter((l) => !staebeN.has(l.stab)).map((l) => `Strecke ${l.stab}`),
       ...dat.staebe.filter((st) => !knotenN.has(st.von) || !knotenN.has(st.bis)).map((st) => `Stab ${st.name}`),
