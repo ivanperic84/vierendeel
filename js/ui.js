@@ -4733,6 +4733,18 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const fallBez = fallKey
     ? (kombi?.lastfaelle?.find((l) => l.key === fallKey)?.bez ?? fallKey) : null;
 
+  /*
+   * Geordnet wie am Joch (25. September) - hier ohne Jochgruppe, denn es
+   * gibt kein Joch. Bleibt nur eine Gruppe übrig, lässt
+   * `nachweisGruppenHtml` die Überschrift weg.
+   */
+  const nwJeM = bauteilKachelnJe(zeig, urteil ?? {}, ampelU);
+  const nwGruppenMast = [
+    { titel: 'Mast', kacheln: nwJeM.mast },
+    { titel: 'Anker', kacheln: nwJeM.anker },
+    { titel: 'Fundament', kacheln: nwJeM.fundament },
+  ];
+
   // Die Kräfte am Fuss - was das Fundament bekommt.
   const f = mn?.stationen?.[0];
   const fuss = f ? [
@@ -4761,7 +4773,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ${nachweisartLeiste(nwArt)}
     ${stabwerkLeiste(opt)}
     ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
-      <div class="kennzahlen">${bauteilKacheln(zeig, urteil ?? {}, ampelU).join('')}</div>
+      ${nachweisGruppenHtml(nwGruppenMast)}
       ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeig) : ''}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
     ${zeigtTrag ? nichtGefuehrtHtml(urteil) : ''}
@@ -5154,8 +5166,30 @@ export function gzgBlockHtml(erg) {
         + 'Masten geführt.</p>'}`;
 }
 
-export function bauteilKacheln(erg, urteil, ampelU) {
-  const k = [];
+/* ===========================================================================
+ * >>> DIE NACHWEISKARTE IST GEORDNET: JOCH, MAST, ANKER, FUNDAMENT. <<<
+ * =========================================================================
+ *
+ * Weisung vom 25. September: «ordne die nachweis karte joch mast fundament
+ * in der sidebar». Auf Rückfrage, wohin Zuganker und Druckstütze gehören:
+ * in eine EIGENE Gruppe.
+ *
+ * Der Grund ist nicht Ordnungsliebe, sondern das Lastniveau. Gurt, Blech
+ * und Mast stehen auf BEMESSUNGSWERTEN; Anker und Fundament messen eine
+ * charakteristische Kraft gegen eine ZULÄSSIGE - beides ohne
+ * Teilsicherheitsbeiwerte. Vier η in einer Reihe sahen aus wie vier
+ * vergleichbare Zahlen, und genau das sind sie nicht (derselbe Befund wie
+ * am 11. September, als 17.39 kN und 16.8 kN nebeneinanderstanden und der
+ * Unterschied nach einem Fehler aussah).
+ *
+ * Diese Funktion liefert die drei Gruppen, die am MASTEN hängen. Die
+ * Jochgruppe baut der Aufrufer - sie sieht am Tragjoch anders aus als am
+ * Abfangjoch, und das ist seine Sache.
+ */
+export function bauteilKachelnJe(erg, urteil, ampelU) {
+  const mast = [];
+  const anker = [];
+  const fundament = [];
   if (erg.mast && urteil.nachweise?.mast !== false) {
     /*
      * >>> BEIDE MASTEN, NICHT NUR DER MASSGEBENDE. <<<
@@ -5191,7 +5225,7 @@ export function bauteilKacheln(erg, urteil, ampelU) {
       // Ohne das stuende dort eine Zahl, deren Herkunft man raten muesste.
       const wodurch = (n.stabil?.eta ?? 0) > n.eta
         ? 'Knicken' : (n.plastischWirksam ? 'plastisch' : 'elastisch');
-      k.push(kachel(`η ${name}`, f3(eN),
+      mast.push(kachel(`η ${name}`, f3(eN),
         `${n.profil.name} · ${wodurch}`, ampelU(eN)));
     });
   }
@@ -5259,13 +5293,13 @@ export function bauteilKacheln(erg, urteil, ampelU) {
       if (nw.grund === 'schlaff') {
         const ohne = Number.isFinite(nw.NohneAusfall)
           ? ` (müsste ${Math.abs(nw.NohneAusfall).toFixed(1)} kN drücken)` : '';
-        k.push(kachel(`η Anker ${name}`, '–',
+        anker.push(kachel(`η Anker ${name}`, '–',
           `${nw.typ} · hängt durch${ohne} · Mast trägt allein`, '',
           { titel: nw.text }));
         return;
       }
       if (nw.eta === null || !Number.isFinite(nw.eta)) {
-        k.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok'));
+        anker.push(kachel(`η Anker ${name}`, '–', `${wie} · über dem Sortiment`, 'nok'));
         return;
       }
       /*
@@ -5277,11 +5311,11 @@ export function bauteilKacheln(erg, urteil, ampelU) {
        * nicht grün danebenstehen: das Sortiment führt diese Länge nicht.
        */
       if (nw.lieferbar === false) {
-        k.push(kachel(`η Anker ${name}`, f3(nw.eta),
+        anker.push(kachel(`η Anker ${name}`, f3(nw.eta),
           `${wie} · ÜBER DEM SORTIMENT`, 'nok', { titel: nw.warnung ?? '' }));
         return;
       }
-      k.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
+      anker.push(kachel(`η Anker ${name}`, f3(nw.eta), wie, ampelU(nw.eta), {
         titel: `Charakteristische Kraft gegen die zulässige des `
              + `Bemessungsdiagramms — beides OHNE Teilsicherheitsbeiwerte. `
              + `Dieses η ist deshalb nicht mit dem des Gurts oder des Masten `
@@ -5315,11 +5349,11 @@ export function bauteilKacheln(erg, urteil, ampelU) {
        * eine Angabe über M2 selbst.
        */
       if (e.knick && urteil.nachweise?.knickenMast !== false) {
-        // `kn`, nicht `k`: `k` ist die Kachelliste. So hiess es bis zum
-        // 18. September, und jede Druckstuetze unter Druck brach die
-        // Seitenleiste mit «k.push is not a function» ab.
+        // `kn`, nicht die Kachelliste daneben: bis zum 18. September hiess
+        // diese Hilfsgroesse wie die Liste, und jede Druckstuetze unter
+        // Druck brach die Seitenleiste mit «k.push is not a function» ab.
         const kn = e.knick;
-        k.push(kachel(`Knicken Stütze ${name}`, `${f0(kn.NbRd)} kN`,
+        anker.push(kachel(`Knicken Stütze ${name}`, `${f0(kn.NbRd)} kN`,
           `N_b,Rd · λ̄ ${f2(kn.lambda)} · χ ${f3(kn.chi)}`, '', {
             titel: `Euler und Knicklinie c SENKRECHT zur Spreizebene — dort `
                  + `ist der Querschnitt konstant (I = ${f0(kn.I)} cm⁴, ohne `
@@ -5361,7 +5395,7 @@ export function bauteilKacheln(erg, urteil, ampelU) {
        * rechnet dieses Werkzeug nicht.
        */
       if (q.fehlt) {
-        k.push(kachel(`Fundament ${name}`, '–',
+        fundament.push(kachel(`Fundament ${name}`, '–',
           `${q.profil ?? 'Profil'} · kein Standardtyp`, '', {
             titel: 'Das Sortiment führt für dieses Profil kein '
                  + 'Standardfundament. In der Mastkachel lässt sich einer '
@@ -5379,7 +5413,7 @@ export function bauteilKacheln(erg, urteil, ampelU) {
         ? `\n\nABHEBEN: ${q.abheben.wert.toFixed(1)} kN in «${q.abheben.bez}». `
           + 'Die Tabelle gilt für V zwischen 0 und 150 kN — ein abhebendes '
           + 'Fundament ist darin nicht abgedeckt.' : '';
-      k.push(kachel(`η Fundament ${name}`, f3(q.eta),
+      fundament.push(kachel(`η Fundament ${name}`, f3(q.eta),
         `${q.typ.typ}${q.gewaehlt ? '' : ' · nach Masttyp'} · ${q.massgebend.kurz ?? q.massgebend.key}`,
         ampelU(q.eta), {
           titel: `Charakteristische Einwirkung am Fundamentkopf gegen die `
@@ -5390,7 +5424,41 @@ export function bauteilKacheln(erg, urteil, ampelU) {
         }));
     });
   }
-  return k;
+  return { mast, anker, fundament };
+}
+
+/**
+ * Dieselben Kacheln als eine Liste - fuer Aufrufer, die nicht gruppieren.
+ */
+export function bauteilKacheln(erg, urteil, ampelU) {
+  const g = bauteilKachelnJe(erg, urteil, ampelU);
+  return [...g.mast, ...g.anker, ...g.fundament];
+}
+
+/**
+ * Die Nachweiskarte als geordnete Gruppen.
+ *
+ * >>> EINE GRUPPE OHNE KACHELN STEHT NICHT DA. <<<
+ * Eine leere Ueberschrift «Fundament» waere zweideutig: «nicht gerechnet»
+ * und «nichts gefunden» saehen gleich aus, und das erste ist ein Mangel.
+ * Was NICHT gefuehrt wird, sagt `nichtGefuehrtHtml` darunter - an einer
+ * Stelle und mit Grund.
+ *
+ * >>> UND BEI EINER EINZIGEN GRUPPE FAELLT DIE UEBERSCHRIFT WEG. <<<
+ * Ueber «Nachweise» steht schon eine; eine zweite daruntergesetzte, die
+ * nichts unterscheidet, ist nur eine Zeile mehr zwischen Urteil und Zahl.
+ *
+ * @param {{titel:string, kacheln:string[]}[]} gruppen
+ */
+export function nachweisGruppenHtml(gruppen) {
+  const voll = (gruppen ?? []).filter((g) => g?.kacheln?.length);
+  if (!voll.length) return '';
+  if (voll.length === 1) {
+    return `<div class="kennzahlen">${voll[0].kacheln.join('')}</div>`;
+  }
+  return voll.map((g) => `<div class="sec-klein">${esc(g.titel)}${
+    g.rechts ? `<span class="sec-r">${esc(g.rechts)}</span>` : ''}</div>
+    <div class="kennzahlen">${g.kacheln.join('')}</div>`).join('');
 }
 
 export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
@@ -5604,7 +5672,23 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Auflagerkraefte abgibt, wird der Nachweis mit IHNEN gebildet
    * (`quelle: 'abfangjoch'`), und die Kachel gehoert wieder her.
    */
-  kz.push(...bauteilKacheln(erg, urteil, ampelU));
+  /*
+   * >>> GEORDNET: JOCH, MAST, ANKER, FUNDAMENT (25. September). <<<
+   *
+   * Weisung: «ordne die nachweis karte joch mast fundament in der
+   * sidebar»; der Anker bekam auf Rückfrage eine eigene Gruppe.
+   *
+   * `kz` ist die Jochgruppe - am Tragjoch die drei Winkel- und
+   * Blechkacheln, am Abfangjoch seine zwei Gurte. Die übrigen drei
+   * hängen am Masten und kommen aus `bauteilKachelnJe`.
+   */
+  const nwJe = bauteilKachelnJe(erg, urteil, ampelU);
+  const nwGruppen = [
+    { titel: ab ? 'Abfangjoch' : 'Joch', kacheln: kz },
+    { titel: 'Mast', kacheln: nwJe.mast },
+    { titel: 'Anker', kacheln: nwJe.anker },
+    { titel: 'Fundament', kacheln: nwJe.fundament },
+  ];
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
   // Profilen; als «Kennzahl» hatten sie hier nichts verloren.
@@ -5815,7 +5899,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${nachweisartLeiste(nwArt)}
     ${stabwerkLeiste(opt)}
     ${zeigtTrag ? `${abschnitt('Nachweise')}
-    <div class="kennzahlen">${kz.join('')}</div>
+    ${nachweisGruppenHtml(nwGruppen)}
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(erg) : ''}

@@ -3057,6 +3057,18 @@ body.datei-ueber::after {
  * Balken, damit Auslöser und Hinweis zusammengehören.
  */
 /* ---------------------------------------------------------------------------
+ * DIE NACHWEISKARTE IST GEGLIEDERT (25. September)
+ *
+ * Weisung: «ordne die nachweis karte joch mast fundament in der sidebar»
+ * (der Anker bekam auf Rückfrage eine eigene Gruppe).
+ *
+ * Eine Gruppe, die auf eine vorige folgt, braucht mehr Luft als 7 px —
+ * sonst klebt ihre Überschrift an den Kacheln darüber und liest sich als
+ * deren Fusszeile statt als Titel der nächsten.
+ * ------------------------------------------------------------------------- */
+.kennzahlen + .sec-klein { margin-top: 13px; }
+
+/* ---------------------------------------------------------------------------
  * DAS URTEIL DER REIHE (Etappe 3, 25. September)
  *
  * Eine eigene Zeile UNTER der Leiste: je Joch und je Mast eine Marke mit

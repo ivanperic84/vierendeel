@@ -30414,6 +30414,159 @@ titel('126  Die Jochreihe als gekoppeltes Tragwerk (Etappe 3)');
   }
 }
 
+titel('127  Die Nachweiskarte ist gegliedert: Joch, Mast, Anker, Fundament');
+/* ===========================================================================
+ * Weisung vom 25. September: «ordne die nachweis karte joch mast fundament
+ * in der sidebar». Auf Rueckfrage, wohin Zuganker und Druckstuetze
+ * gehoeren: in eine EIGENE Gruppe.
+ *
+ * >>> DER GRUND IST NICHT ORDNUNGSLIEBE, SONDERN DAS LASTNIVEAU. <<<
+ *
+ * Gurt, Blech und Mast stehen auf BEMESSUNGSWERTEN; Anker und Fundament
+ * messen eine charakteristische Kraft gegen eine ZULAESSIGE - beides ohne
+ * Teilsicherheitsbeiwerte. Vier eta in einer Reihe sahen aus wie vier
+ * vergleichbare Zahlen. Derselbe Befund wie am 11. September, als 17.39 kN
+ * und 16.8 kN nebeneinanderstanden und der Unterschied nach einem Fehler
+ * aussah.
+ * ========================================================================= */
+{
+  const UI127 = await import(J('ui.js'));
+  const ampelU127 = (v) => (v > 1 ? 'nok' : v > 0.9 ? 'warn' : 'ok');
+
+  /*
+   * Ein Ergebnis von Hand: hier geht es um die ORDNUNG der Kacheln, nicht
+   * um ihre Zahlen. Die rechnet der Kern, und die pruefen die Abschnitte
+   * davor.
+   */
+  const erg127 = {
+    modell: { federn: { namen: { A: 'M1', B: 'M2' } } },
+    mast: {
+      A: { eta: 0.62, etaMitStabilitaet: 0.78, profil: { name: 'HEB 240' },
+           stabil: { eta: 0.78 } },
+      B: { eta: 0.55, etaMitStabilitaet: 0.61, profil: { name: 'HEB 240' },
+           stabil: { eta: 0.40 } },
+    },
+    anker: {
+      A: { nachweis: { typ: 'Zuganker', N: 24.3, eta: 0.44, lieferbar: true } },
+      B: { nachweis: { typ: 'Druckstütze', N: -49.5, eta: 0.83, lieferbar: true },
+           knick: { NbRd: 120, lambda: 1.2, chi: 0.42, I: 340, Ncr: 300,
+                    nichtEnthalten: 'Spreizebene steckt im Diagramm' } },
+    },
+    fundament: {
+      A: { eta: 0.31, typ: { typ: 'HP1a/2.4' }, gewaehlt: false,
+           massgebend: { kurz: 'M quer', key: 'Mq' },
+           nachweise: [{ was: 'M quer', wert: 71.2, zul: 230, einheit: 'kNm',
+                         eta: 0.31, bez: 'Wind +x' }] },
+      B: { fehlt: true, profil: 'DGP24' },
+    },
+  };
+  const je = UI127.bauteilKachelnJe(erg127, { nachweise: {} }, ampelU127);
+
+  // --- a) Jede Kachel in ihrer Gruppe -----------------------------------
+  wahr('Der Mast: eine Kachel je Mast', je.mast.length === 2,
+       `${je.mast.length}`);
+  wahr('Der Anker: beide Enden und die Knick-Kontrollrechnung',
+       je.anker.length === 3, `${je.anker.length}`);
+  wahr('Das Fundament: beide Enden, auch das ohne Standardtyp',
+       je.fundament.length === 2, `${je.fundament.length}`);
+  /*
+   * >>> KEINE KACHEL DARF IN DER FALSCHEN GRUPPE LANDEN. <<<
+   * Die Zuordnung steht an einer Stelle; eine verirrte Kachel faellt nur
+   * dann auf, wenn jemand die Gruppen gegen ihre Aufschrift haelt.
+   */
+  wahr('>>> Im Masten steht nur der Mast <<<',
+       je.mast.every((h) => /η M[12]/.test(h))
+       && !je.mast.some((h) => /Anker|Fundament|Stütze/.test(h)));
+  wahr('>>> Im Anker steht nur der Anker <<<',
+       je.anker.every((h) => /Anker|Stütze/.test(h)));
+  wahr('>>> Im Fundament steht nur das Fundament <<<',
+       je.fundament.every((h) => /Fundament/.test(h)));
+
+  // --- b) Die Sammelliste bleibt, was sie war ---------------------------
+  /*
+   * `bauteilKacheln` ist der alte Weg und wird weiter gebraucht. Gaebe er
+   * plotzlich weniger Kacheln zurueck, verschwaende ein Nachweis dort, wo
+   * niemand hinsieht.
+   */
+  const flach = UI127.bauteilKacheln(erg127, { nachweise: {} }, ampelU127);
+  wahr('Die flache Liste fuehrt alle Kacheln', flach.length === 7,
+       `${flach.length}`);
+
+  // --- c) Die Gruppen im HTML -------------------------------------------
+  const html = UI127.nachweisGruppenHtml([
+    { titel: 'Joch', kacheln: ['<span class="kz-t">η Obergurt</span>'] },
+    { titel: 'Mast', kacheln: je.mast },
+    { titel: 'Anker', kacheln: je.anker },
+    { titel: 'Fundament', kacheln: je.fundament },
+  ]);
+  ['Joch', 'Mast', 'Anker', 'Fundament'].forEach((t) =>
+    wahr(`Die Gruppe «${t}» ist angeschrieben`,
+         html.includes(`class="sec-klein">${t}<`)));
+  wahr('Die Reihenfolge ist Joch, Mast, Anker, Fundament',
+       ['Joch', 'Mast', 'Anker', 'Fundament']
+         .map((t) => html.indexOf(`sec-klein">${t}<`))
+         .every((v, i, a) => i === 0 || (v > a[i - 1] && v > 0)));
+  /*
+   * >>> EINE LEERE GRUPPE STEHT NICHT DA. <<<
+   * Eine Ueberschrift «Fundament» ohne Kachel waere zweideutig: «nicht
+   * gerechnet» und «nichts gefunden» saehen gleich aus, und das erste ist
+   * ein Mangel. Was nicht gefuehrt wird, sagt `nichtGefuehrtHtml`.
+   */
+  {
+    const h = UI127.nachweisGruppenHtml([
+      { titel: 'Joch', kacheln: ['<a>'] },
+      { titel: 'Mast', kacheln: [] },
+      { titel: 'Fundament', kacheln: ['<b>'] },
+    ]);
+    wahr('>>> Eine leere Gruppe faellt weg <<<', !h.includes('>Mast<'));
+    wahr('… die gefuellten bleiben', h.includes('>Joch<') && h.includes('>Fundament<'));
+  }
+  /*
+   * >>> BEI EINER EINZIGEN GRUPPE FAELLT DIE UEBERSCHRIFT WEG. <<<
+   * Ueber «Nachweise» steht schon eine; eine zweite, die nichts
+   * unterscheidet, ist nur eine Zeile zwischen Urteil und Zahl.
+   */
+  wahr('>>> Eine einzige Gruppe braucht keine Ueberschrift <<<',
+       !UI127.nachweisGruppenHtml([{ titel: 'Mast', kacheln: ['<a>'] },
+                                   { titel: 'Anker', kacheln: [] }])
+         .includes('sec-klein'));
+  wahr('Gar keine Kachel gibt gar kein HTML',
+       UI127.nachweisGruppenHtml([{ titel: 'Joch', kacheln: [] }]) === '');
+
+  // --- d) Und beide Seitenleisten benutzen sie --------------------------
+  /*
+   * >>> DER QUELLTEXT, NICHT DIE BEHAUPTUNG. <<<
+   * Die Gruppen zu bauen und dann doch die flache Liste auszugeben waere
+   * genau der Fehler, den ein gruener Pruefstand verdeckt: die Kontrollen
+   * oben blieben gruen, und in der Anwendung stuende alles wie vorher.
+   */
+  {
+    const src = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+    const stueck = (name) => {
+      const von = src.indexOf(`export function ${name}(`);
+      return von < 0 ? '' : src.slice(von, src.indexOf('\nexport function ', von + 10));
+    };
+    ['zeichneUebersicht', 'zeichneEinzelmast'].forEach((n) => {
+      const s = stueck(n);
+      /*
+       * >>> ZUERST: GIBT ES DIE FUNKTION UEBERHAUPT? <<<
+       * Ein leeres Stueck laesst jede VERNEINUNG durchgehen - «enthaelt
+       * nicht mehr die flache Liste» ist dann wahr, weil gar nichts da
+       * ist. Genau das passierte beim ersten Anlauf: der Name war
+       * geraten (`zeichneEinzelmastUebersicht` statt `zeichneEinzelmast`),
+       * und eine der beiden Kontrollen stand gruen da.
+       */
+      wahr(`${n} gibt es`, s.length > 200, `${s.length} Zeichen`);
+      wahr(`${n} gibt die Gruppen aus`, /nachweisGruppenHtml\(/.test(s));
+      wahr(`… und nicht mehr die flache Liste`,
+           !/bauteilKacheln\(/.test(s));
+    });
+    const css127 = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+    wahr('Das Stilblatt gibt der naechsten Gruppe Luft',
+         /\.kennzahlen \+ \.sec-klein/.test(css127));
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

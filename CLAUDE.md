@@ -202,12 +202,32 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**25. September 2026** · Prüfstand 5342 Kontrollen grün · `durchlauf.mjs`
+**25. September 2026** · Prüfstand 5365 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., die Nachweiskarte ist gegliedert** (Prüfstand Abschnitt 127).
+  Weisung: «ordne die nachweis karte joch mast fundament in der sidebar».
+  Auf Rückfrage, wohin Zuganker und Druckstütze gehören: **eine eigene
+  Gruppe**. Vier Gruppen mit Überschrift — **Joch** (Ober-/Untergurt,
+  Bindeblech; am Abfangjoch seine zwei Gurte), **Mast**, **Anker**,
+  **Fundament** — in beiden Seitenleisten, auch am Einzelmasten (dort ohne
+  Jochgruppe). Der Grund ist nicht Ordnungsliebe, sondern das
+  **Lastniveau**: Gurt, Blech und Mast stehen auf Bemessungswerten, Anker
+  und Fundament messen eine charakteristische Kraft gegen eine
+  **zulässige** — vier η in einer Reihe sahen aus wie vier vergleichbare
+  Zahlen. **Eine leere Gruppe steht nicht da** («nicht gerechnet» und
+  «nichts gefunden» sähen sonst gleich aus; was fehlt, sagt «Nicht
+  geführte Nachweise»), und bei einer einzigen Gruppe fällt die
+  Überschrift weg. Neu `bauteilKachelnJe` und `nachweisGruppenHtml`;
+  `bauteilKacheln` gibt weiter die flache Liste.
+  ⚠ **Ein eigener Fehler, vom Prüfstand gefunden:** die Kontrolle «beide
+  Seitenleisten benutzen die Gruppen» prüfte `zeichneEinzelmastUebersicht`
+  — die Funktion heißt `zeichneEinzelmast`. Das leere Quellstück ließ die
+  **Verneinung** («nicht mehr die flache Liste») grün durchgehen. Eine
+  Wache prüft jetzt zuerst, dass es die Funktion überhaupt gibt.
 - **25. Sept., Etappe 3: die Jochreihe ist EIN Stabwerk** (Prüfstand
   Abschnitt 126). Weisung vom 19. September: «die zusammenhängenden
   jochtragwerke sind als gesamtheitliches tragwerk zu betrachten», am 25.
@@ -1082,7 +1102,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5342 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5365 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
