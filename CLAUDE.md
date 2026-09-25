@@ -202,12 +202,35 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**24. September 2026** · Prüfstand 5241 Kontrollen grün · `durchlauf.mjs`
+**24. September 2026** · Prüfstand 5260 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **25. Sept., der Löser rechnet die Schubverformung** (Prüfstand Abschnitt
+  122). Weisung: «ja die schubweichheit ebenfalls rechnen». Nicht über ein
+  abgemindertes I wie die PyNite-Ausleitung (die **muss** so, weil PyNite
+  Euler-Bernoulli ist), sondern an der richtigen Stelle: in den vier
+  Biegetermen der Elementmatrix, mit φ = 12EI/(GκAL²). Für φ = 0 ist das
+  Zeichen für Zeichen die alte Matrix. **Nur echte Stäbe** — dieselbe Regel
+  wie beim Eigengewicht: ein Starrelement hätte φ = 6428 und würde damit
+  zum Gelenk.
+  Gemessen gegen PyNite (J90/8 m): Wege G 4.96e-2 → **1.43e-2**,
+  Verdrehungen G 2.48e-2 → **6.54e-3**, Verdrehungen Wind längs
+  2.65e-3 → **5.89e-4**; Auflagerkräfte alle ≤ 5.5e-4.
+  ⚠ **Zwei eigene Fehler dabei:** (1) Die sechs geschlossenen Lösungen des
+  Abschnitts 111 sind **Euler-Bernoulli** und lagen dadurch 0.05–0.77 %
+  daneben. Die Schranke zu lockern hätte die Kontrolle entwertet — sie
+  fahren jetzt mit `schubweich: false` und messen damit genau die
+  Biegematrix. (2) Ich hatte φ für den Masten auf 3e-5 **geschätzt**;
+  gemessen sind es 7.7e-3, Faktor 250. Die Kommentarzahlen stehen jetzt
+  alle gemessen da.
+  **Dabei gelernt:** φ ist eine **Element**grösse, keine Bauteilgrösse — am
+  Joch stehen Werte bis 43.9 an den kurzen Abschnitten. Das ist kein
+  Fehler: die Schubverformung wächst linear mit der Länge und ist damit
+  additiv. Abschnitt 122 misst es (derselbe Kragarm in 1, 2 und 10
+  Stücken: dasselbe Ergebnis, obwohl φ je Element 100-fach wächst).
 - **25. Sept., das Linkelement hatte seine Länge vergessen** (Prüfstand
   Abschnitt 121). Weisung: «der verdrehung an den blechknoten nachgehen».
   `kFeder` in core.stabwerk.js koppelte die sechs Freiheitsgrade
@@ -824,20 +847,22 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   vorgelegt; Entscheid 19. Sept.: gekoppeltes Gesamtmodell (siehe
   *Laufende Arbeit*).
 
-- ⚠ **Der Löser rechnet die Bleche schubstarr.** Damit ist der letzte
-  Unterschied zu PyNite benannt — und der einzige, der noch besteht. Der
-  PyNite-Export mindert die Trägheitsmomente der Bleche ab, um ihre
-  **Schubverformung** nachzubilden (`schubweich`, Vorgabe an); PyNite ist
-  Euler-Bernoulli und kann sie nicht selbst. Am BLECH_V_100x10 macht das
-  I_z = 8.333e-7 → 6.387e-7, also **23 %**. Der Löser bekommt die vollen
-  Werte, weil er die AxisVM-Datei liest und AxisVM die Schubverformung
-  selbst rechnet. Gemessen am J90/8 m mit `schubweich: false` im Export:
-  Wege G 4.96e-2 → **5.20e-4**, Verdrehungen G 2.48e-2 → **2.51e-4**,
-  Verdrehungen Wind längs 2.65e-3 → **5.97e-4** — alle sechs Grössen unter
-  6e-4. **Damit ist der Unterschied zwischen den beiden Lösern vollständig
-  aufgeklärt.** Ob der Löser die Schubweichheit bekommen soll, ist ein
-  Entscheid des Auftraggebers: bei gedrungenen Blechen ist sie erheblich,
-  und sie würde die Blechspannungen verändern.
+- ⚠ **Die PyNite-Ausleitung mindert nur die Bleche ab.** Seit dem
+  25. September rechnet der Löser die Schubverformung selbst, für **jeden**
+  echten Stab; die Ausleitung behilft sich mit I/(1+φ) und tut das nur bei
+  den Blechen. Der Löser rechnet damit **mehr** Schub als PyNite, und der
+  Unterschied sitzt an den Gurten: am J90/8 m 1.4 % in den Wegen des
+  Lastfalls G, Auflagerkräfte auf 5e-4. Ob die Ausleitung nachziehen soll,
+  ist ein Entscheid — `kalibrieren.mjs` liest genau dieses Modell, und die
+  Kennwerte (GURT_DAEMPFUNG u. a.) hängen daran.
+- ⚠ **Die Schubfläche ist ein Beiwert, kein Querschnittswert.** Gerechnet
+  wird mit dem Rechteckwert κ = 5/6 (wie die Ausleitung seit je). Für die
+  **Bleche** ist das richtig — sie *sind* Rechtecke. Beim **I-Profil** des
+  Masten wäre A_s näherungsweise die Stegfläche, rund ein Drittel davon:
+  der lange Mastschaft hätte statt φ = 0.0077 dann rund 0.023, also **1.5 %**
+  weniger Biegesteifigkeit. Klein, aber nicht nichts. Wer es genauer
+  braucht, muss die Schubfläche in die Datei bringen — AxisVM führt sie je
+  Querschnitt.
 - **Torsion der gedrungenen Ersatzquerschnitte** (STARR 500×500, ARM):
   der Löser nimmt den exakten Beiwert (0.1406·a⁴ beim Quadrat), der
   PyNite-Export die dünnwandige Näherung — 12 % Unterschied. Ohne Belang
@@ -904,7 +929,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5241 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5260 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

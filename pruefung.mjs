@@ -27475,6 +27475,24 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
     kombinationen: [],
   });
 
+  /* =========================================================================
+   * >>> DIE GESCHLOSSENEN LOESUNGEN MESSEN DIE BIEGUNG - OHNE SCHUB. <<<
+   * =======================================================================
+   *
+   * w = F L^3 / (3 E I) und was hier sonst gegengerechnet wird, sind
+   * EULER-BERNOULLI-Loesungen: sie kennen keine Schubverformung. Seit dem
+   * 25. September rechnet der Loeser sie mit (Weisung «ja die schubweichheit
+   * ebenfalls rechnen»), und damit lagen diese sechs Kontrollen um 0.05 bis
+   * 0.77 Prozent daneben - zu Recht, denn die Testquerschnitte sind kurz
+   * genug, dass Schub etwas ausmacht.
+   *
+   * Die Antwort ist nicht, die Schranke zu lockern: dann pruefte die
+   * Kontrolle nichts mehr. Sie fahren ohne Schub weiter und messen damit
+   * GENAU die Biegematrix. Dass der Schub richtig dazukommt, misst
+   * Abschnitt 122 - an seiner eigenen geschlossenen Loesung.
+   * ======================================================================= */
+  const loeseEB = (m, o = {}) => FEM.loese(m, { schubweich: false, ...o });
+
   /* Rechteck 100 x 200 mm: b in lokaler y, h in lokaler z. */
   const b0 = 0.1, h0 = 0.2;
   const A0 = b0 * h0;
@@ -27492,28 +27510,28 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
 
   // --- a) Kragarm: jede Steifigkeit einzeln ------------------------------
   {
-    let r = FEM.loese(modell111({ ...kragarm,
+    let r = loeseEB(modell111({ ...kragarm,
       punkt: [{ knoten: 'B', richtung: 'Z', wert: -F0, lastfall: 'L' }] }));
     pruef('Kragarm, Last z: Durchbiegung', uVon(r, 'B', 2),
           -(F0 * L0 ** 3) / (3 * Ek * Iy0), 1e-12, 'm');
     pruef('… Einspannmoment M_y', r.auflagerkraefte('L')[0].fiy, -F0 * L0, 1e-9, 'kNm');
 
-    r = FEM.loese(modell111({ ...kragarm,
+    r = loeseEB(modell111({ ...kragarm,
       punkt: [{ knoten: 'B', richtung: 'Y', wert: F0, lastfall: 'L' }] }));
     pruef('Kragarm, Last y: Verschiebung', uVon(r, 'B', 1),
           (F0 * L0 ** 3) / (3 * Ek * Iz0), 1e-12, 'm');
 
-    r = FEM.loese(modell111({ ...kragarm,
+    r = loeseEB(modell111({ ...kragarm,
       punkt: [{ knoten: 'B', richtung: 'X', wert: F0, lastfall: 'L' }] }));
     pruef('Kragarm, Laengskraft', uVon(r, 'B', 0), (F0 * L0) / (Ek * A0), 1e-12, 'm');
 
     const It0 = FEM.qsWerte(REC('R', 100, 200)).It;
-    r = FEM.loese(modell111({ ...kragarm,
+    r = loeseEB(modell111({ ...kragarm,
       moment: [{ knoten: 'B', richtung: 'Mx', wert: 5, lastfall: 'L' }] }));
     pruef('Kragarm, Torsion', uVon(r, 'B', 3), (5 * L0) / (Gk * It0), 1e-12, 'rad');
 
     const q0 = 3;
-    r = FEM.loese(modell111({ ...kragarm,
+    r = loeseEB(modell111({ ...kragarm,
       strecke: [{ stab: 'S', richtung: 'Z', wert: -q0, lastfall: 'L' }] }));
     pruef('Kragarm, Gleichlast: Durchbiegung', uVon(r, 'B', 2),
           -(q0 * L0 ** 4) / (8 * Ek * Iy0), 1e-12, 'm');
@@ -27526,7 +27544,7 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
   // --- b) Einfeldtraeger, Rahmen, Drehfeder ------------------------------
   {
     const q1 = 5, Ls = 6;
-    const r = FEM.loese(modell111({
+    const r = loeseEB(modell111({
       qs: [REC('R', 100, 200)],
       knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'M', x: Ls / 2, y: 0, z: 0 },
                { name: 'B', x: Ls, y: 0, z: 0 }],
@@ -27547,7 +27565,7 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
   {
     // Eingespannter Stiel mit Kragriegel: das Moment geht um die Ecke.
     const Fr = 8, hS = 5, lR = 3;
-    const r = FEM.loese(modell111({
+    const r = loeseEB(modell111({
       qs: [REC('R', 200, 200)],
       knoten: [{ name: 'F', x: 0, y: 0, z: 0 }, { name: 'K', x: 0, y: 0, z: hS },
                { name: 'E', x: lR, y: 0, z: hS }],
@@ -27563,7 +27581,7 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
   }
   {
     const Fd = 12, c = 4000;   // kNm/rad
-    const r = FEM.loese(modell111({ ...kragarm,
+    const r = loeseEB(modell111({ ...kragarm,
       auflager: [{ knoten: 'A', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
                    fix: 'Rigid', fiy: 'Flexible', fiz: 'Rigid', cFiy_kNm: c }],
       punkt: [{ knoten: 'B', richtung: 'Z', wert: -Fd, lastfall: 'L' }] }));
@@ -27580,7 +27598,7 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
      * w = F L^3 / (12 E I) statt / (3 E I).
      */
     const Fl = 6;
-    const r = FEM.loese(modell111({
+    const r = loeseEB(modell111({
       qs: [REC('R', 100, 200), REC('STARR', 500, 500)],
       knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 4, y: 0, z: 0 },
                { name: 'C', x: 4, y: 0.05, z: 0 }],
@@ -29626,6 +29644,189 @@ titel('121  Das Linkelement hat eine Laenge');
     const lsg = SW121.loese(d, { eigengewicht: false });
     const hol = (kn, dd) => lsg.u.get('M')[lsg.knotenIdx.get(kn) * 6 + dd];
     pruef('Link ohne Laenge: B liegt auf A', hol('B', 1), hol('A', 1), 1e-9, 'm');
+  }
+}
+
+titel('122  Die Schubverformung');
+/* ===========================================================================
+ * Weisung vom 25. September: «ja die schubweichheit ebenfalls rechnen».
+ *
+ * Ein Euler-Bernoulli-Balken nimmt an, dass Querschnitte senkrecht zur
+ * Stabachse bleiben. Ein kurzer, gedrungener Stab verformt sich aber zu
+ * einem guten Teil durch SCHIEBUNG. Das Mass dafuer ist
+ *
+ *     phi = 12 E I / (G kappa A L^2),
+ *
+ * und weil L im Quadrat steht, merkt ein schlanker Stab nichts und ein
+ * kurzer alles. Gegengerechnet wird hier an der geschlossenen Loesung des
+ * TIMOSHENKO-Kragarms - nicht an PyNite.
+ * ========================================================================= */
+{
+  const SW122 = await import(J('core.stabwerk.js'));
+  const E122 = 210000, G122 = 81000;          // N/mm2
+  const Ek = E122 * 1000, Gk = G122 * 1000;   // kN/m2
+  const KAP = SW122.SCHUB_KAPPA;
+  const b122 = 0.1, h122 = 0.2;               // Rechteck 100 x 200 mm
+  const A122 = b122 * h122;
+  const Iy122 = (b122 * h122 ** 3) / 12;      // Biegung in der x-z-Ebene
+
+  const kragarm = (Ln, F) => ({
+    material: { E: E122, G: G122, rho: 7850 },
+    querschnitte: [{ name: 'Q', form: 'Rectangle', parameter: [100, 200] }],
+    knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: Ln, y: 0, z: 0 }],
+    staebe: [{ name: 'ST', von: 'A', bis: 'B', querschnitt: 'Q', art: 'stab',
+               lcsZ: [0, 0, 1] }],
+    auflager: [{ knoten: 'A', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                 fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' }],
+    lastfaelle: [{ key: 'F', name: 'Kopflast' }],
+    lasten: { punkt: [{ knoten: 'B', richtung: 'Z', wert: -F, lastfall: 'F' }],
+              moment: [], strecke: [] },
+    kombinationen: [],
+  });
+  const wVon = (Ln, F, opt) => {
+    const l = SW122.loese(kragarm(Ln, F), { eigengewicht: false, ...opt });
+    return l.u.get('F')[l.knotenIdx.get('B') * 6 + 2];
+  };
+
+  // --- a) DIE GESCHLOSSENE LOESUNG ----------------------------------------
+  /* =======================================================================
+   * >>> w = F L^3 / (3 E I)  +  F L / (G kappa A) <<<
+   *
+   * Der zweite Summand IST die Schubverformung. Gemessen an drei
+   * Schlankheiten, damit nicht ein einzelner Zufallstreffer zaehlt.
+   * ===================================================================== */
+  [[2.0, 'schlank'], [1.0, 'mittel'], [0.4, 'gedrungen']].forEach(([Ln, wie]) => {
+    const F = 10;
+    const wBiege = (F * Ln ** 3) / (3 * Ek * Iy122);
+    const wSchub = (F * Ln) / (Gk * KAP * A122);
+    const phi = (12 * Ek * Iy122) / (Gk * KAP * A122 * Ln * Ln);
+    pruef(`Kragarm ${wie} (L = ${Ln.toFixed(2)} m): w mit Schub`,
+          -wVon(Ln, F), wBiege + wSchub, 1e-9, 'm');
+    pruef(`… ohne Schub bleibt die reine Biegung`,
+          -wVon(Ln, F, { schubweich: false }), wBiege, 1e-9, 'm');
+    /*
+     * Und die Probe auf die Theorie: beim Kragarm mit Kopflast ist das
+     * Verhaeltnis der beiden Anteile genau phi/4.
+     */
+    pruef(`… Schubanteil ist phi/4 der Biegung`,
+          wSchub / wBiege, phi / 4, 1e-12, '-');
+  });
+
+  // --- b) WER KEINEN SCHUB BEKOMMT ----------------------------------------
+  /* =======================================================================
+   * >>> EIN STARRELEMENT DARF NICHT SCHIEBEN. <<<
+   *
+   * Sein Ersatzquerschnitt misst 500 x 500 mm bei wenigen Millimetern
+   * Laenge. Die Schubzahl wird dadurch riesig - mit Schub waere das
+   * Starrelement um eben diesen Faktor WEICH, aus dem Kunstgriff wuerde
+   * ein Gelenk. Dieselbe Regel wie beim Eigengewicht: nur `art === 'stab'`.
+   * ===================================================================== */
+  {
+    const d = kragarm(0.011, 10);
+    d.querschnitte = [{ name: 'Q', form: 'Rectangle', parameter: [500, 500] }];
+    d.staebe[0].art = 'starr';
+    const mit = SW122.loese(d, { eigengewicht: false });
+    const ohne = SW122.loese(d, { eigengewicht: false, schubweich: false });
+    const holen = (l) => l.u.get('F')[l.knotenIdx.get('B') * 6 + 2];
+    pruef('>>> Das Starrelement schiebt nicht <<<',
+          holen(mit), holen(ohne), 1e-12, 'm');
+
+    // Was herauskaeme, liesse man es: die Schubzahl dieses Klotzes.
+    const Ast = 0.25, Ist = (0.5 ** 4) / 12, Lst = 0.011;
+    const phiSt = (12 * Ek * Ist) / (Gk * KAP * Ast * Lst * Lst);
+    wahr('>>> Mit Schub waere es um Tausende weicher <<<', phiSt > 1000,
+         `phi = ${phiSt.toFixed(0)}`);
+  }
+
+  // --- c) AM WIRKLICHEN BAUTEIL -------------------------------------------
+  /* =======================================================================
+   * Die Zahlen, um die es geht - am Joch selbst. Das BLECH ist der Fall,
+   * fuer den die Schubverformung gerechnet werden muss; der MAST ist der,
+   * bei dem sie in der sechsten Stelle verschwindet.
+   * ===================================================================== */
+  {
+    const AX122 = await import(J('export.axisvm.js'));
+    const V122 = await import(J('core.vierendeel.js'));
+    const N122 = await import(J('core.nachbarn.js'));
+    let w122 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w122.L = 8; w122.xLage = 0; w122.mastVorhanden = true;
+    const s122 = N122.rechensatzMitNachbarn(w122);
+    const e122 = V122.berechne(s122, ...N122.kernArgumente(s122));
+    const bau122 = AX122.stabmodell(e122.modell, { knotenmodell: 'anschnitt' });
+    const dat122 = AX122.stabmodellJson(e122.modell, { bau: bau122,
+                                                       knotenmodell: 'anschnitt' });
+    const kn = new Map(dat122.knoten.map((k) => [k.name, k]));
+    const qs = new Map(dat122.querschnitte.map((q) => [q.name, q]));
+    const phiVon = (st) => {
+      const a = kn.get(st.von), b = kn.get(st.bis);
+      const Ln = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+      const q = SW122.qsWerte(qs.get(st.querschnitt));
+      return (12 * Ek * Math.max(q.Iy, q.Iz)) / (Gk * KAP * q.A * Ln * Ln);
+    };
+    const blech = dat122.staebe.find((x) => /^BV_/.test(x.name)
+                                          && /BLECH/.test(String(x.querschnitt)));
+    const mast = dat122.staebe.find((x) => /^MAST_._S1$/.test(x.name));
+    wahr('>>> Das Blech schiebt spuerbar <<<', phiVon(blech) > 0.1,
+         `phi = ${phiVon(blech).toFixed(3)}`);
+    /*
+     * Beim langen Mastschaft ist die Schubzahl klein - aber nicht so klein,
+     * wie ich sie zuerst geschaetzt hatte (3e-5 stand im Kommentar,
+     * gemessen sind es 7.7e-3, Faktor 250). Die Schranke steht deshalb auf
+     * der GEMESSENEN Groessenordnung.
+     */
+    wahr('>>> Der lange Mastschaft praktisch nicht <<<', phiVon(mast) < 0.01,
+         `phi = ${phiVon(mast).toExponential(2)}`);
+
+    /* =====================================================================
+     * >>> UND DIE UNTERTEILUNG AENDERT NICHTS. <<<
+     *
+     * Am Joch stehen Abschnitte mit phi bis 43 - am 95 mm langen
+     * Maststueck zwischen den Jochanschluessen. Das sieht nach einem Fehler
+     * aus und ist keiner: die Schubverformung F L / (G kappa A) waechst
+     * LINEAR mit der Laenge und ist damit additiv. Wer denselben Balken
+     * feiner teilt, bekommt je Element ein groesseres phi und eine kleinere
+     * Verformung - die Summe bleibt.
+     *
+     * Genau das wird hier gemessen: derselbe Kragarm in 1, 2 und 10
+     * Stuecken, phi je Element 100-fach verschieden, Ergebnis gleich.
+     * =================================================================== */
+    {
+      const teile = (n) => {
+        const Ln = 1.0, F = 10;
+        const knoten = []; const staebe = [];
+        for (let i = 0; i <= n; i += 1) {
+          knoten.push({ name: `K${i}`, x: (Ln * i) / n, y: 0, z: 0 });
+          if (i > 0) staebe.push({ name: `S${i}`, von: `K${i - 1}`, bis: `K${i}`,
+                                   querschnitt: 'Q', art: 'stab', lcsZ: [0, 0, 1] });
+        }
+        const d = kragarm(Ln, F);
+        d.knoten = knoten; d.staebe = staebe;
+        d.auflager = [{ knoten: 'K0', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                        fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' }];
+        d.lasten.punkt = [{ knoten: `K${n}`, richtung: 'Z', wert: -F, lastfall: 'F' }];
+        const l = SW122.loese(d, { eigengewicht: false });
+        return l.u.get('F')[l.knotenIdx.get(`K${n}`) * 6 + 2];
+      };
+      const w1 = teile(1);
+      pruef('Derselbe Kragarm in 2 Stuecken', teile(2), w1, 1e-9, 'm');
+      pruef('… und in 10 Stuecken', teile(10), w1, 1e-9, 'm');
+      const phi1 = (12 * Ek * Iy122) / (Gk * KAP * A122 * 1.0);
+      const phi10 = (12 * Ek * Iy122) / (Gk * KAP * A122 * 0.01);
+      wahr('… obwohl phi je Element 100-fach waechst',
+           Math.abs(phi10 / phi1 - 100) < 1e-9,
+           `phi ${phi1.toFixed(4)} -> ${phi10.toFixed(2)}`);
+    }
+
+    /*
+     * Und die Wirkung auf das ganze Tragwerk: das Joch wird messbar
+     * weicher, die Auflagerkraefte bleiben im Gleichgewicht.
+     */
+    const mit = SW122.loese(dat122);
+    const ohne = SW122.loese(dat122, { schubweich: false });
+    wahr('Der Loeser rechnet den Schub voreingestellt', mit.schubweich === true);
+    wahr('… und laesst sich abschalten', ohne.schubweich === false);
+    const summe = (l) => l.auflagerkraefte('G').reduce((x, a) => x + a.uz, 0);
+    pruef('Das Gleichgewicht bleibt dasselbe', summe(mit), summe(ohne), 1e-9, 'kN');
   }
 }
 

@@ -91,25 +91,95 @@ export function dreibein(dx, dy, dz, lcsZ) {
 }
 
 /** 12x12 im lokalen System, Euler-Bernoulli. */
-function kLokal(E, G, A, Iy, Iz, It, L) {
+/* ===========================================================================
+ * >>> DIE SCHUBVERFORMUNG GEHOERT IN DIE MATRIX, NICHT IN DAS I. <<<
+ * =========================================================================
+ *
+ * Weisung vom 25. September: «ja die schubweichheit ebenfalls rechnen».
+ *
+ * Ein Euler-Bernoulli-Balken nimmt an, dass Querschnitte senkrecht zur
+ * Stabachse bleiben - er kennt nur Biegung. Ein kurzer, gedrungener Stab
+ * verformt sich aber zu einem guten Teil durch SCHIEBUNG: der Querschnitt
+ * kippt gegen die Achse. Das Mass dafuer ist die Timoshenko-Zahl
+ *
+ *     phi = 12 E I / (G kappa A L^2)
+ *
+ * - das Verhaeltnis von Biege- zu Schubnachgiebigkeit. Sie faellt mit dem
+ * QUADRAT der Laenge: ein schlanker Stab merkt nichts, ein kurzer alles.
+ *
+ * Am J90 / 8 m gemessen, ueber alle echten Staebe:
+ *
+ *     Bleche  (48)  L 0.260-0.340 m   phi 0.194 - 0.460
+ *     Gurte  (152)  L 0.040-0.651 m   phi 0.066 - 17.5
+ *     Mast    (10)  L 0.095-7.180 m   phi 0.0077 - 43.9
+ *
+ * >>> phi IST EINE ELEMENTGROESSE, KEINE BAUTEILGROESSE. <<<
+ *
+ * Die grossen Werte stehen an den KURZEN Abschnitten - am 95 mm langen
+ * Maststueck zwischen den beiden Jochanschluessen, an den steifen
+ * Gurtabschnitten im Knoten. Das ist kein Fehler und kein Grund, sie
+ * auszunehmen: die Schubverformung F L / (G kappa A) waechst LINEAR mit
+ * der Laenge und ist damit additiv. Teilt man denselben Balken in zehn
+ * Stuecke, bekommt jedes ein zehnmal groesseres phi und ein zehntel der
+ * Verformung - die Summe bleibt. Der Pruefstand misst genau das
+ * (Abschnitt 122: ein Kragarm in 1, 2 und 10 Stuecken).
+ *
+ * Der lange Mastschaft, der in einem Stueck steht, hat phi = 0.0077 -
+ * dort ist die Schubverformung wirklich klein.
+ *
+ * >>> WARUM NICHT EINFACH DAS I ABMINDERN. <<<
+ *
+ * Die PyNite-Ausleitung tut genau das (I / (1 + phi)) - sie MUSS es, weil
+ * PyNite Euler-Bernoulli rechnet und die Schubflaeche gar nicht kennt.
+ * Der Preis: das abgeminderte I steht dann auch in den Momenten- und
+ * Verdrehungstermen, wo es nichts zu suchen hat, und es haengt an der
+ * Stablaenge - derselbe Querschnitt braucht je Laenge einen eigenen
+ * Eintrag. Hier steht phi an seiner richtigen Stelle: in den vier
+ * Biegetermen der Elementmatrix.
+ *
+ *     k_ww   = 12 E I / (L^3 (1+phi))
+ *     k_wfi  =  6 E I / (L^2 (1+phi))
+ *     k_fifi = (4+phi) E I / (L (1+phi))   und  (2-phi) E I / (L (1+phi))
+ *
+ * Fuer phi = 0 ist das Zeichen fuer Zeichen die alte Matrix.
+ *
+ * >>> UND WER SIE NICHT BEKOMMT. <<<
+ *
+ * NUR echte Staebe (`art === 'stab'`) - dieselbe Regel wie beim
+ * Eigengewicht. Ein Starrelement ist kein Bauteil, sondern ein Kunstgriff;
+ * sein Ersatzquerschnitt misst 500 x 500 mm bei 11 mm Laenge, und daraus
+ * folgt phi = 6400. Mit Schub waere es um diesen Faktor WEICH - aus dem
+ * Starrelement wuerde ein Gelenk. Ein Linkelement ist eine Feder und
+ * kommt hier ohnehin nicht vorbei.
+ * ========================================================================= */
+function kLokal(E, G, A, Iy, Iz, It, L, schub = false) {
   const k = new Float64Array(144);
   const put = (i, j, v) => {
     k[i * 12 + j] += v;
     if (i !== j) k[j * 12 + i] += v;
   };
+  // Je Biegeebene eine eigene Schubzahl - sie haengt am I dieser Ebene.
+  const phiVon = (I) => (schub && A > 0 && G > 0
+    ? (12 * E * I) / (G * SCHUB_KAPPA * A * L * L) : 0);
+  const py = phiVon(Iy), pz = phiVon(Iz);
+
   const EA = (E * A) / L, GJ = (G * It) / L;
   put(0, 0, EA); put(6, 6, EA); put(0, 6, -EA);
   put(3, 3, GJ); put(9, 9, GJ); put(3, 9, -GJ);
   // Biegung in der lokalen x-z-Ebene: Traegheit Iy, w = dof 2/8, phi_y = 4/10.
-  const a = (12 * E * Iy) / L ** 3, b = (6 * E * Iy) / L ** 2, c = (E * Iy) / L;
+  const a = (12 * E * Iy) / (L ** 3 * (1 + py));
+  const b = (6 * E * Iy) / (L ** 2 * (1 + py));
+  const c = (E * Iy) / (L * (1 + py));
   put(2, 2, a); put(8, 8, a); put(2, 8, -a);
   put(2, 4, -b); put(2, 10, -b); put(8, 4, b); put(8, 10, b);
-  put(4, 4, 4 * c); put(10, 10, 4 * c); put(4, 10, 2 * c);
+  put(4, 4, (4 + py) * c); put(10, 10, (4 + py) * c); put(4, 10, (2 - py) * c);
   // Biegung in der lokalen x-y-Ebene: Iz, v = dof 1/7, phi_z = 5/11.
-  const a2 = (12 * E * Iz) / L ** 3, b2 = (6 * E * Iz) / L ** 2, c2 = (E * Iz) / L;
+  const a2 = (12 * E * Iz) / (L ** 3 * (1 + pz));
+  const b2 = (6 * E * Iz) / (L ** 2 * (1 + pz));
+  const c2 = (E * Iz) / (L * (1 + pz));
   put(1, 1, a2); put(7, 7, a2); put(1, 7, -a2);
   put(1, 5, b2); put(1, 11, b2); put(7, 5, -b2); put(7, 11, -b2);
-  put(5, 5, 4 * c2); put(11, 11, 4 * c2); put(5, 11, 2 * c2);
+  put(5, 5, (4 + pz) * c2); put(11, 11, (4 + pz) * c2); put(5, 11, (2 - pz) * c2);
   return k;
 }
 
@@ -369,12 +439,50 @@ export const LINK_STARR = 1e9;
  * ========================================================================= */
 export const G_ERDE = 9.81;
 
+/* ===========================================================================
+ * >>> DIE SCHUBFLAECHE - ALS EIN BEIWERT, UND WARUM. <<<
+ *
+ * Die Schubverformung braucht die SCHUBFLAECHE A_s, nicht die
+ * Querschnittsflaeche. Sie ist querschnittsabhaengig: beim Rechteck
+ * A_s = (5/6) A, beim I-Profil naeherungsweise die Stegflaeche allein.
+ *
+ * Die Datei fuehrt keine Schubflaeche. Gerechnet wird deshalb mit dem
+ * Rechteckwert - so, wie es die PyNite-Ausleitung seit je tut
+ * (`SCHUB_KAPPA` in export.pynite.js), damit beide Wege dieselbe Zahl
+ * benutzen und der Vergleich etwas misst.
+ *
+ * >>> WO DAS UNSCHARF IST, IST ES FOLGENLOS. <<<
+ *
+ * Fuer die BLECHE ist der Wert richtig: sie SIND Rechtecke, und sie sind
+ * der Fall, um den es geht (phi 0.19 bis 0.46).
+ *
+ * Beim I-Profil des Masten waere A_s kleiner - naeherungsweise die
+ * Stegflaeche, beim HEB 240 rund ein Drittel von (5/6) A. Dort ist der
+ * Beiwert also WIRKLICH UNSCHARF, und zwar messbar: der lange Mastschaft
+ * hat phi = 0.0077, mit der schaerferen Schubflaeche waeren es rund
+ * 0.023. Das sind 1.5 % seiner Biegesteifigkeit - klein, aber nicht
+ * nichts. Eine erste Fassung dieses Kommentars behauptete «die sechste
+ * Stelle»; das war geschaetzt und um den Faktor 250 daneben.
+ *
+ * Wer es genauer braucht, muss die Schubflaeche in die Datei bringen -
+ * AxisVM fuehrt sie je Querschnitt. Das ist ein eigener Schritt und
+ * steht als offener Punkt.
+ * ========================================================================= */
+export const SCHUB_KAPPA = 5 / 6;
+
 export function loese(dat, opt = {}) {
   const t0 = Date.now();
   const starrF = opt.starrFaktor ?? STARR_FAKTOR;
   const E0 = dat.material.E * 1000;        // N/mm2 -> kN/m2
   const G0 = dat.material.G * 1000;
   const fSteif = (dat.materialSteif && dat.materialSteif.faktor) || 1000;
+  /*
+   * Die Schubverformung ist VORGEGEBEN AN (Weisung vom 25. September).
+   * Abschaltbar bleibt sie, weil die geschlossenen Loesungen des
+   * Pruefstands Euler-Bernoulli sind und genau die Biegematrix messen
+   * sollen - mit Schub pruefte man zwei Dinge auf einmal.
+   */
+  const schubweich = opt.schubweich !== false;
 
   const idx = new Map();
   dat.knoten.forEach((k, i) => idx.set(k.name, i));
@@ -404,7 +512,12 @@ export function loese(dat, opt = {}) {
       let E = E0, G = G0;
       if (s.steifesMaterial) { E *= fSteif; G *= fSteif; }
       if (s.art === 'starr') { E = E0 * starrF; G = G0 * starrF; }
-      k = kLokal(E, G, w.A, w.Iy, w.Iz, w.It, db.L);
+      /*
+       * Nur echte Staebe schieben. Starrelemente und die steifen
+       * Knotenabschnitte sind Kunstgriffe - siehe den Block bei kLokal.
+       */
+      k = kLokal(E, G, w.A, w.Iy, w.Iz, w.It, db.L,
+                 schubweich && (s.art || 'stab') === 'stab');
     }
     return { s, L: db.L, R: db.R, kL: k, kG: drehen(k, db.R),
              i: idx.get(s.von), j: idx.get(s.bis) };
@@ -774,7 +887,7 @@ export function loese(dat, opt = {}) {
 
   return { n, bw, nK, knotenIdx: idx, faelle, u, stabkraft, auflagerkraefte,
            restkraft, restNachIteration: restGross,
-           eigengewicht, eigenLasten: eigenLasten.length,
+           eigengewicht, eigenLasten: eigenLasten.length, schubweich,
            lastVoll: pVoll, elemente,
            zeit: { bau: tBau - t0, faktor: tFak - tBau, loesen: tLoes - tFak,
                    gesamt: tLoes - t0 } };

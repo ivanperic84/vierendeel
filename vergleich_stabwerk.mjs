@@ -446,28 +446,33 @@ if (aufPy.length) {
 }
 
 /* ===========================================================================
- * >>> WAS DANACH NOCH BLEIBT, IST DIE SCHUBWEICHHEIT DER BLECHE. <<<
+/* ===========================================================================
+ * >>> WAS BLEIBT: BEIDE RECHNEN SCHUB, ABER NICHT AN DENSELBEN STAEBEN. <<<
  * =========================================================================
  *
- * Der PyNite-Export mindert die Traegheitsmomente der Bleche ab, um ihre
- * SCHUBVERFORMUNG nachzubilden (`schubweich`, Vorgabe an; Faktor 1 + phi in
- * export.pynite.js). PyNite ist Euler-Bernoulli und kann sie nicht selbst.
- * Am BLECH_V_100x10 macht das Iz = 8.333e-7 -> 6.387e-7, also 23 %.
+ * Seit dem 25. September rechnet der Loeser die Schubverformung selbst
+ * (Timoshenko, Weisung «ja die schubweichheit ebenfalls rechnen») - und zwar
+ * fuer JEDEN echten Stab.
  *
- * Der Loeser bekommt die VOLLEN Werte: er liest die AxisVM-Datei, und
- * AxisVM rechnet die Schubverformung selbst. Er rechnet die Bleche also
- * schubstarr - und das erklaert den ganzen Rest. Am J90/8 m gemessen, mit
- * `schubweich: false` im Export:
+ * Die PyNite-Ausleitung kann das nicht: PyNite ist Euler-Bernoulli und
+ * kennt keine Schubflaeche. Sie behilft sich, indem sie das
+ * Traegheitsmoment abmindert (I / (1 + phi)) - aber nur bei den BLECHEN,
+ * denn dort ist der Effekt gross und dort wurde er gebraucht. Die Gurte
+ * gehen mit ihrem vollen I hinaus.
  *
- *     Wege G              4.96e-2 -> 5.20e-4
- *     Verdrehungen G      2.48e-2 -> 2.51e-4
- *     Verdrehungen WindY  2.65e-3 -> 5.97e-4
+ * Also: der Loeser rechnet MEHR Schub als PyNite, und der Unterschied
+ * sitzt an den Gurten. Am J90/8 m sind das 1.4 % in den Wegen des
+ * Lastfalls G; die Auflagerkraefte bleiben auf 5e-4.
  *
- * Alle sechs Groessen dann unter 6e-4. >>> DAMIT IST DER UNTERSCHIED
- * ZWISCHEN DEN BEIDEN LOESERN VOLLSTAENDIG AUFGEKLAERT. <<<
+ * >>> DER SCHRITT DAVOR IST GEMESSEN. <<<
  *
- * Ob der Loeser die Schubweichheit bekommen soll, ist ein Entscheid des
- * Auftraggebers - bei gedrungenen Blechen ist sie erheblich. Siehe
+ * Vor dem Umbau rechnete der Loeser gar keinen Schub, und derselbe
+ * Vergleich stand bei: Wege G 4.96e-2, Verdrehungen G 2.48e-2,
+ * Verdrehungen Wind laengs 2.65e-3. Jetzt: 1.43e-2, 6.54e-3, 5.89e-4.
+ *
+ * Ob die Ausleitung nachziehen soll (Abminderung auch fuer die Gurte),
+ * ist ein Entscheid des Auftraggebers: `kalibrieren.mjs` liest genau
+ * dieses Modell, und die Kennwerte des Projekts haengen daran. Siehe
  * CLAUDE.md, Offene Punkte.
  * ========================================================================= */
 zeile('\n' + '='.repeat(96));
