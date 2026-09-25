@@ -29830,6 +29830,105 @@ titel('122  Die Schubverformung');
   }
 }
 
+titel('123  Spannungen aus den Stabkraeften');
+/* ===========================================================================
+ * Weisung vom 25. September: «primär den löser nutzen». Damit der Loeser
+ * einen Nachweis tragen kann, muss aus seinen Stabkraeften eine Spannung
+ * werden - `core.stabnachweis.js`. Hier die Formeln gegen Handrechnung.
+ * ========================================================================= */
+{
+  const SN123 = await import(J('core.stabnachweis.js'));
+
+  // --- a) Die Rolle eines Stabes -----------------------------------------
+  wahr('Ein Gurtstab wird als Gurt erkannt', SN123.stabRolle('OGL_S3') === 'gurt');
+  wahr('… auch mit Blattpraefix', SN123.stabRolle('T1_UGR_S12') === 'gurt');
+  wahr('Ein Blech als Blech', SN123.stabRolle('BV_L_12_v1') === 'blech');
+  wahr('Ein Mast als Mast', SN123.stabRolle('MAST_A_S1') === 'mast');
+  /*
+   * >>> WAS KEIN BAUTEIL IST, WIRD NICHT NACHGEWIESEN. <<<
+   * Dieselbe Regel wie beim Eigengewicht und beim Schub. Ein Starrelement
+   * traegt den Ersatzquerschnitt 500 x 500 mm - seine Spannung waere frei
+   * erfunden und stuende dann als Nachweis da.
+   */
+  wahr('Ein Starrelement ist kein Bauteil',
+       SN123.stabRolle('STARR_1', 'starr') === 'starr');
+  wahr('Ein Link ebenso', SN123.stabRolle('LINK_A_OGL', 'link') === 'link');
+
+  // --- b) Das Rechteck ----------------------------------------------------
+  {
+    /*
+     * Blech 100 x 10 mm: b = 0.1 m in lokaler y-, h = 0.01 m in lokaler
+     * z-Richtung. Von Hand: A = 1.0e-3 m2, Wy = b h^2/6 = 1.6667e-6 m3
+     * (schwache Richtung), Wz = h b^2/6 = 1.6667e-5 m3 (starke).
+     */
+    const qs = { name: 'BLECH_V_100x10', form: 'Rectangle', parameter: [100, 10] };
+    const f = new Float64Array(12); f[0] = 10;
+    const nurN = SN123.stabSpannung(qs, f, 'blech');
+    pruef('Blech: Spannung aus der Normalkraft', nurN.sig, 10 / 1e-3 / 1000, 1e-9, 'N/mm2');
+    const g = new Float64Array(12); g[4] = 0.5;
+    const nurM = SN123.stabSpannung(qs, g, 'blech');
+    pruef('… und aus dem Moment um die schwache Achse',
+          nurM.sig, 0.5 / (0.1 * 0.01 * 0.01 / 6) / 1000, 1e-9, 'N/mm2');
+    const h = new Float64Array(12); h[5] = 0.5;
+    const umZ = SN123.stabSpannung(qs, h, 'blech');
+    pruef('… um die starke Achse ist sie kleiner',
+          umZ.sig, 0.5 / (0.01 * 0.1 * 0.1 / 6) / 1000, 1e-9, 'N/mm2');
+    /*
+     * >>> DIE SPANNUNGEN STEHEN WIE b/h, NICHT WIE (b/h)^2. <<<
+     * Die TRAEGHEITSMOMENTE stehen wie 100: Iz/Iy = (b/h)^2. Beim
+     * Widerstandsmoment kuerzt sich eine Potenz mit der Randfaser heraus -
+     * Wz/Wy = (Iz/Iy) * (h/b) = 100/10 = 10. Eine erste Fassung dieser
+     * Kontrolle forderte 100; gemessen sind es 10, und die Rechnung gibt
+     * der Messung recht.
+     */
+    wahr('>>> Die Spannungen stehen wie b/h = 10 <<<',
+         Math.abs(nurM.sig / umZ.sig - 10) < 1e-9,
+         `${(nurM.sig / umZ.sig).toFixed(3)}`);
+    const k = new Float64Array(12); k[4] = 0.1; k[10] = 0.9;
+    wahr('Das groessere Ende ist massgebend',
+         SN123.stabSpannung(qs, k, 'blech').ende === 'j');
+  }
+
+  // --- c) Das I-Profil aus der Datei --------------------------------------
+  {
+    /*
+     * >>> W KOMMT AUS DER DATEI, NICHT AUS DEM SORTIMENT. <<<
+     * Der HEB 240 fuehrt Wy = 938.3 cm3 in der Tabelle. Aus Iy und der
+     * halben Hoehe: 1.126e-4 / 0.12 = 9.3833e-4 m3 = 938.33 cm3. Beide Wege
+     * treffen sich - und der ueber die Datei braucht kein Sortiment.
+     */
+    const qs = { name: 'MAST_HEB240', form: 'I', profil: 'HEB 240',
+                 parameter: [240, 240, 10, 17, 21.04],
+                 A: 0.0106, Iy: 0.0001126, Iz: 0.00003923, It: 0.000001027 };
+    const f = new Float64Array(12); f[4] = 100;
+    const s = SN123.stabSpannung(qs, f, 'mast');
+    const WyDatei = 0.0001126 / 0.12;
+    pruef('Mast: Spannung aus dem Moment', s.sig, 100 / WyDatei / 1000, 1e-9, 'N/mm2');
+    pruef('… und Wy trifft den Tabellenwert', WyDatei * 1e6, 938.3, 1e-3, 'cm3');
+  }
+
+  // --- d) Der Winkel laeuft ueber randspannung() --------------------------
+  /*
+   * Beim gleichschenkligen Winkel beantwortet ein W die Frage nicht, welche
+   * der sechs Ecken massgebend wird - das tut `randspannung()`, und zwar in
+   * den SCHENKELPARALLELEN Achsen. Genau in denen steht der Gurt im
+   * Stabwerksmodell; eine Drehung in die Hauptachsen braucht es nicht.
+   */
+  {
+    const WI = await import(J('core.winkel.js'));
+    const PR = await import(J('data.profiles.js'));
+    const p = PR.getProfil('L 90x90x9');
+    const qs = { name: 'GURT_OG', form: 'Angle', profil: 'L 90x90x9',
+                 parameter: [90, 90, 9, 10.12, 5.06], A: 0.00155 };
+    const f = new Float64Array(12);
+    f[0] = -50; f[4] = 1.2; f[5] = 0.4;
+    const s = SN123.stabSpannung(qs, f, 'gurt');
+    const soll = WI.randspannung(WI.winkelwerteFuer(p), -50, 1.2, 0.4);
+    pruef('Gurt: dieselbe Randspannung wie core.winkel', s.sig, soll.sig, 1e-12, 'N/mm2');
+    wahr('… und sie ist nicht null', s.sig > 1);
+  }
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
