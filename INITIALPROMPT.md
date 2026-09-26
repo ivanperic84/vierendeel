@@ -5,8 +5,9 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **26. September 2026**, `main` auf `971d650`, Arbeitsbaum sauber,
-Prüfstand 5410 Kontrollen grün.
+Stand: **26. September 2026**, Arbeitsbaum sauber, `main` und `origin/main`
+gleich; die letzten Commits sind die Übergabe selbst (`git log --oneline -6`),
+Prüfstand 5410 Kontrollen grün, `durchlauf.mjs` ohne Bruch.
 
 ---
 
@@ -33,8 +34,9 @@ Prüfstand 5410 Kontrollen grün.
 > Browser nachprüfen, nicht nur am Prüfstand. Ist eine Weisung mehrdeutig,
 > frag mit konkreten Varianten zurück, statt zu raten.
 >
-> Der Auftrag steht unten in dieser Datei, in drei Punkten und in dieser
-> Reihenfolge. Fang mit Punkt 1 an; was dabei offen bleibt, frag mich.
+> Der Auftrag steht in `INITIALPROMPT.md` im Projektstamm — drei Punkte in
+> dieser Reihenfolge, dazu was beim Wechsel des Kontos zu beachten ist. Lies
+> sie mit, fang mit Punkt 1 an, und was dabei offen bleibt, frag mich.
 
 ---
 
