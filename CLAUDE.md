@@ -208,6 +208,33 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., AxisVM bestätigt die Jochreihe — Etappe 4 ist damit für den
+  Masten erfüllt.** Die Reihe (2 × J90/20 m, 1650 Knoten, 1879 Stäbe) ist
+  durch AxisVM gelaufen: bauen, linear statisch rechnen, auslesen, rund
+  20 Minuten.
+  **Die eine Zahl, um die es geht** — das Längsmoment am Fuss des
+  **geteilten** Masten unter Wind in Gleisrichtung:
+
+  | | AxisVM | Löser | Abw. |
+  |---|---|---|---|
+  | Einzeljoch | 43.0908 kNm | 43.0914 kNm | **0.00 %** |
+  | Reihe 2 × J90/20 | **74.9685 kNm** | 75.4187 kNm | **0.60 %** |
+
+  **Beide Programme sagen unabhängig dasselbe: der geteilte Mast trägt in
+  der Reihe das 1.74-fache Längsmoment** (AxisVM 1.740, Löser 1.750). Die
+  Messung vom 19. September hatte +76 % vorhergesagt, Etappe 3 hat es
+  gerechnet, und AxisVM bestätigt es jetzt von aussen. Damit steht nicht
+  nur der Löser, sondern auch die **Sofortmassnahme** vom 19. September.
+  Weiter am Masten: Wind quer M_y 10.8375 kNm **0.00 %** an allen drei
+  Masten, V_z 2.5500 kN **0.00 %**, ständig N 18.7005 kN (der geteilte Mast
+  trägt zwei Joche) **0.00 %**, Wind längs V_y 1.52 %.
+  ⚠ **Was bleibt — und es ist nicht der Mast:** die **Bleche und Gurte**
+  laufen unter ständiger Last um 13–18 % auseinander (Gurt N 1.38 %, Gurt V
+  14.9 %, Blech N 12.8 %), unter Wind längs die Blechmomente um 25 %. Die
+  absoluten Werte sind klein (unter 0.35 kNm bzw. 0.35 kN), aber die
+  Blechspannung ist der Grund, aus dem es den Löser gibt — hier ist noch
+  nicht fertig gemessen. Verdacht weiterhin: die **Starrelemente** (AxisVM
+  echte Starrkörper, Löser steife Stäbe mit `STARR_FAKTOR = 10`).
 - **26. Sept., die Linkbedingung gilt GLOBAL — der Löser las sie lokal**
   (Prüfstand Abschnitt 111 c). **Der schwerste Befund dieser Sitzung**, und
   gefunden hat ihn erst AxisVM.
