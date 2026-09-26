@@ -208,6 +208,44 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., die Zwangsbedingung ist NICHT die Ursache — gemessen.**
+  Weisung: «mit optimierung der Zwangsbedingung weitermachen». Vor dem
+  Umbau der billige Test: den **Starrfaktor** hochdrehen. Ändert sich die
+  Abweichung gegen AxisVM, ist es die Nachgiebigkeit der Ersatzstäbe, und
+  eine echte Zwangsbedingung wäre ihr Grenzfall.
+
+  | Abweichung gegen AxisVM | f = 1 | f = 10 | f = 30 | f = 100 |
+  |---|---|---|---|---|
+  | ständig, Gurt M_y | 16.98 % | 16.98 % | 16.98 % | 16.98 % |
+  | ständig, Blech M_z | 18.23 % | 18.23 % | 18.23 % | 18.23 % |
+  | ständig, Gurt V_y | 13.63 % | 13.63 % | 13.63 % | 13.63 % |
+
+  **Nichts ändert sich.** Die Starrelemente sind längst gesättigt; eine
+  Zwangsbedingung hätte denselben Wert. Der Umbau wäre Arbeit am falschen
+  Ende — und bei f = 1000 bricht die Zerlegung ohnehin ab («nicht positiv
+  definit»), was die Konditionierungsgrenze vom 20. September bestätigt.
+  ⚠ **DIE RICHTIGE SPUR: das Deviationsmoment des Gurtwinkels.** Vier
+  Gurte an derselben Station, ständig, Stabanfang:
+
+  | `OGL_S40` | N | V_y | V_z | M_y | M_z |
+  |---|---|---|---|---|---|
+  | AxisVM | −30.947 | −0.0088 | 0.0925 | 0.0900 | **0.0653** |
+  | Löser | −31.091 | −0.0041 | 0.0925 | 0.0907 | **−0.0019** |
+
+  N und M_y stimmen auf 0.5–0.8 %, V_z exakt — **M_z gar nicht**. Eine
+  Achsendrehung erklärt es nicht (um 90°, −90° und 180° geprobt: alle
+  ≥ 72 % daneben). Die Erklärung ist das **Deviationsmoment I_yz**: die
+  Datei führt je Querschnitt nur A, I_y, I_z und I_t, und `kLokal` koppelt
+  y und z deshalb nicht — der Löser rechnet den L-Winkel, als wäre er
+  doppelt symmetrisch. AxisVM bekommt ihn als `form: 'Angle'` mit
+  `profil: 'L 90x90x9'` und kennt seine Hauptachsen.
+  **Das Werkzeug weiss es an einer Stelle schon:** `randspannung()` in
+  core.winkel.js rechnet die schiefe Biegung über I_yz (das Projekt leitet
+  es dort aus I_1 und I_2 her). Die **Spannung** kennt das Deviations-
+  moment also, die **Steifigkeit** nicht — und die Schnittgrössen kommen
+  aus der Steifigkeit.
+  **Nächster Schritt** (nicht mehr getan): I_yz in die Elementmatrix. Das
+  berührt `kLokal` im Kern des Lösers und gehört gemessen, nicht geraten.
 - **26. Sept., die Verformung wird nur noch an der Referenzhöhe
   nachgewiesen** (Prüfstand Abschnitt 113 c). Weisung: «lassen wir den
   nachweis für die mastspitze weg bei der verformung und nutzen nur die
