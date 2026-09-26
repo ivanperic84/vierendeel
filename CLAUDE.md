@@ -134,6 +134,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 |---|---|
 | Gurtspannung im Stabwerk (26. Sept.) | Auf Rückfrage nach dem Einbau von I_yz: **vorzeichenrichtig, nach Messung**. Die Hülle über ±M_y, ±M_z in `randspannung()` war für den Ersatzbalken gebaut (er führt Beträge); das Stabwerk kennt die Vorzeichen, und seit I_yz sind beide Komponenten gross (J90/20 m: Hülle η 0.4684, vorzeichenrichtig 0.3268). Zuerst wird die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von `randspannung`) an einer geschlossenen Lösung im Prüfstand gemessen, dann im Stabwerksweg umgestellt. **Der Ersatzbalken behält die Hülle** — er kennt die Vorzeichen nicht |
 | Nach I_yz zuerst der Anschluss (26. Sept.) | Auf die Frage, womit es weitergeht: **zuerst der Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss M_y ständig), danach Punkt 2 (Tragausleger). Ohne neuen AxisVM-Lauf, solange die Ergebnisse reichen |
+| Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
 | Torsionsmodell rechnen (26. Sept.) | Nach dem Zeigen der Modelldatei: **«ok rechnen lassen»** — Anweisung für EINEN AxisVM-Lauf von `com/AxisVM_Torsion_J90_20m.json` (bauen, linear statisch, auslesen), erstmals mit der berichtigten Lage der Linkverbindung |
 | Torsionsfall für den AxisVM-Vergleich (26. Sept.) | Vorschlag des Auftraggebers: «wäre es nicht noch interessant ein anbauteil zu legen das zusätzlich torsion im joch provoziert». Auf Rückfrage: eine quer versetzte Hängestütze «gibt es nicht, hier wäre eine hängestütze senkrecht und eine last zum beispiel infolge windangriff zu sezten. der fall mit einer zusätzlichen ausleger und leiter mit ablenkung wäre sicher auch interessant für die lokalen einwirkungen in die gurte.» Also zwei Fälle — **(1) senkrechte Hängestütze mit waagrechter Last (Wind) an ihrem Ende**, Torsion über den Hebel unter der Jochachse; **(2) Hängestütze mit Ausleger und Leiter mit Ablenkkraft**, örtliche Einleitung in die Gurte —, je **nahe am Jochende und in Feldmitte**, je ein eigener Lastfall. Gerechnet **nach der Auswertung** des Laufs mit den Knotenwegen |
 | Anschluss: AxisVM-Wege auslesen (26. Sept.) | Nach dem Eingrenzen (`vergleich_anschluss.mjs`, alle naheliegenden Modellgrössen gemessen ausgeschlossen) auf Rückfrage: **«Brücke erweitern und rechnen»** — die Auslesung um Knotenverschiebungen (und Linkkräfte, soweit die Schnittstelle sie hergibt) erweitern und das Einzeljoch J90/20 m in AxisVM neu rechnen (~11 Minuten). Das ist die ausdrückliche Anweisung für diesen einen Lauf |
@@ -215,12 +216,24 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5444 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5445 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., der Löser koppelt jedes Linkelement in der Linkmitte**
+  (Weisung «ja löser auf linkmitte umstellen», siehe *Entschieden*;
+  `kFeder` mit Hebel an beiden Knoten, Prüfstand Abschnitt 121). Gegen die
+  gemessene Arbeitskopie gehalten: dieselben Abweichungen gegen AxisVM auf
+  die Stelle (Torsionsmodell, alle 22 Fälle). Am Urteil: Einzeljoch Mast
+  0.7708 → 0.7713, Reihe 1.3493 → 1.3490, Havariefälle 53.71 → 52.74 /
+  53.87 kN. Die geschlossene Lösung in 121 hielt die alte Kinematik fest
+  (B folgt dem ganzen Arm) — sie prüft jetzt die neue (u_B = u_A +
+  φ_A·L/2, gemessen 2.6786e-4 m) und dass es die alte nicht mehr ist. Im
+  Browser: Reihe 2 × J90/20 m gerechnet, Mast M2 1.414, M3/M1 0.802/0.801,
+  Joch T1/T2 0.565/0.560 (vorher 0.800/0.800, 0.561/0.556), Konsole ohne
+  Fehler.
 - **26. Sept., der Torsionslauf in AxisVM** (Weisung «ok rechnen lassen»;
   `com/AxisVM_Torsion_J90_20m.json`, 22 Lastfälle, erstmals mit der
   berichtigten Linkverbindung, Protokoll: «halbe Linklaenge … 0.0250 m»).
@@ -1540,10 +1553,14 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   gegen PyNite (ohne Masten, null Links) und die Mastmomente der Etappe 4
   (0.00 % auch mit dem falschen Modell). Ob die Entscheide stehen, ist
   **nicht nachgemessen** — Entscheid des Auftraggebers, ob und welche.
-- **Lage der Verbindung im Löser:** der Löser koppelt am Gurtknoten (Arm am
-  i-Ende, Gelenk am j-Ende, wie `def_releases` in PyNite); die berichtigte
-  Brücke auf halber Linklänge (Weisung). Der Unterschied ist 0.025 m und
-  gemessen klein, aber nicht null — ⚠ ob der Löser nachziehen soll.
+- ⚠ **PyNite koppelt die Links weiter am Gurtknoten.** Löser und
+  COM-Brücke koppeln seit dem 26. September in der Linkmitte; die
+  PyNite-Ausleitung gibt die Momente mit `def_releases` am Gurtende frei,
+  das entspricht der alten Kinematik. `vergleich_stabwerk.mjs` wird
+  deshalb am Anschluss und an den Anbauteil-Links auseinanderlaufen, ohne
+  dass einer falsch wäre. Nachziehen hiesse, den Link in PyNite zu teilen
+  (Knoten in der Mitte, Freigabe dort) — berührt `kalibrieren.mjs` nicht
+  (null Links), aber die PyNite-Gegenprobe. Entscheid offen.
 - ⚠ **Die PyNite-Ausleitung steht auf der lokalen Link-Lesart.** Der Befund
   vom 26. September (die Linkbedingung gilt global) ist im Löser behoben, in
   `export.pynite.js` nicht: `def_releases` wirkt in PyNites eigenem
@@ -1722,7 +1739,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5444 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5445 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

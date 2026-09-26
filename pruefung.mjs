@@ -29834,8 +29834,24 @@ titel('121  Das Linkelement hat eine Laenge');
      * Seine VERSCHIEBUNG folgt aber sehr wohl: die Translationen sind
      * starr, und der Arm dreht sich mit A. Genau diese Kopplung fehlte.
      */
-    const uBSoll = (M121 * a121 * a121) / (2 * EI) + fiSoll * L121;
-    pruef('… die Verschiebung von B folgt dem Arm', hol('B', 1), uBSoll, 1e-9, 'm');
+    /*
+     * >>> DIE KOPPLUNG LIEGT IN DER LINKMITTE (26. September). <<<
+     * Weisung: «ja löser auf linkmitte umstellen». Bis dahin sass das
+     * Gelenk am j-Knoten, und B folgte dem VOLLEN Arm: u_B = u_A +
+     * fi_A L. Jetzt traegt die Haelfte zu A dessen Verdrehung, die Haelfte
+     * zu B die von B - und B ist um z gehalten:
+     *
+     *     u_B = u_A + fi_A L/2 + fi_B L/2 = u_A + fi_A L/2
+     *
+     * Beim Umstellen gemessen: 2.6786e-4 statt 3.5714e-4 m, und mit
+     * u_A = fi_A L = 1.7857e-4 ist das genau u_A + fi_A L/2.
+     */
+    const uBSoll = (M121 * a121 * a121) / (2 * EI) + fiSoll * L121 / 2;
+    pruef('… die Verschiebung von B folgt dem HALBEN Arm (Kopplung in der Mitte)',
+          hol('B', 1), uBSoll, 1e-9, 'm');
+    wahr('… und nicht mehr dem ganzen (Gelenk am j-Knoten, bis 26. Sept.)',
+         Math.abs(hol('B', 1) - ((M121 * a121 * a121) / (2 * EI) + fiSoll * L121))
+           > 0.1 * uBSoll);
   }
 
   /* --- Ein Link der Laenge null bleibt, was er war ----------------------

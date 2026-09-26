@@ -7,11 +7,12 @@ zu lesen, bevor etwas geändert wird.
 
 Stand: **26. September 2026**, Punkt 1 des Auftrags (I_yz, dazu die
 vorzeichenrichtige Gurtspannung) ist erledigt und committet, aber **nicht
-gepusht** (`git log --oneline -6`); Prüfstand 5444 Kontrollen grün,
+gepusht** (`git log --oneline -6`); Prüfstand 5445 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. **Der Anschluss Joch–Mast ist geklärt:** die
 COM-Brücke legte jede Linkverbindung 0.45 m ausserhalb des Links
 (`Position = 0.5` als Meter); mit dieser Lage trifft der Löser AxisVM auf
-0.0–1.5 %. Brücke berichtigt, **noch nicht in AxisVM gelaufen**; ⚠ welche
+0.0–1.5 %. Brücke berichtigt, Torsionsmodell in AxisVM gerechnet, Löser
+auf Kopplung in der Linkmitte umgestellt (Weisung); ⚠ welche
 früheren AxisVM-Entscheide davon berührt sind, steht in CLAUDE.md unter
 *Offene Punkte*.
 

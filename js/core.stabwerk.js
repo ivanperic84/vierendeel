@@ -301,7 +301,44 @@ function kLokalSchief(E, G, A, Iy, Iz, Iyz, It, L, schub = false) {
  * identisch - S(r) verschwindet dann. Die geschlossenen Loesungen des
  * Abschnitts 111 rechnen mit solchen und bleiben unberuehrt.
  * ========================================================================= */
-function kFeder(cs, arm = 0) {
+/* ===========================================================================
+ * >>> DIE KOPPLUNG LIEGT IN DER LINKMITTE (26. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «ja löser auf linkmitte umstellen». Bis hierher sass der
+ * Kopplungspunkt P am j-Knoten (Arm r_i = x_j - x_i am i-Ende, nichts am
+ * j-Ende). Die COM-Bruecke legt ihn seit demselben Tag auf die halbe
+ * Linklaenge (`Position`, vorher faelschlich 0.5 m - siehe
+ * AxisVM_aufbauen.ps1), und die Weisung «halbe Laenge» meinte ihn dort.
+ *
+ * Allgemein misst die Feder die Relativverschiebung am Punkt P, von beiden
+ * Knoten aus starr mitgenommen:
+ *
+ *     du  = (u_j + fi_j x r_j) - (u_i + fi_i x r_i)
+ *         = u_j - u_i + S(r_i) fi_i - S(r_j) fi_j        r = P - x
+ *     dfi = fi_j - fi_i
+ *
+ * (fi x r = -S(r) fi). In der Linkmitte ist r_i = +d/2, r_j = -d/2 mit
+ * d = x_j - x_i. Fuer `armJ = null` bleibt es die Fassung vom 25.
+ * September (P am j-Knoten); `loese` ruft sie so nicht mehr auf. Der
+ * Pruefstand (Abschnitt 121) haelt die neue Kinematik an ihrer
+ * geschlossenen Loesung fest: am Link mit freiem Gelenk um z und um z
+ * gehaltenem B folgt B dem HALBEN Arm, u_B = u_A + fi_A L/2 (vorher dem
+ * ganzen). Ganz starr bleibt der Link, was er war - dort ist P gleichgueltig.
+ *
+ * >>> GEMESSEN (Torsionsmodell J90/20 m gegen AxisVM, 26. September): <<<
+ *
+ *                                    P am Gurtknoten   P in der Linkmitte
+ *     G: Mastfuss M_y                     11.1 %             0.2 %
+ *     Umlenkung NT_Mitte: Blech M_z       98.0 %             3.6 %
+ *     Umlenkung NT_Mitte: Gurt M_y        82.1 %             2.1 %
+ *     Wind y: Gurt M_y                    19.4 %             4.5 %
+ *
+ * Am Urteil aendert es wenig (Einzeljoch Mast 0.7708 -> 0.7713, Reihe
+ * 1.3493 -> 1.3490) - oertlich an den 0.10 m langen Anbauteil-Links aber
+ * bis Faktor 2 bei kleinen Werten.
+ * ========================================================================= */
+function kFeder(cs, arm = 0, armJ = null) {
   /*
    * B in Zeilen: 0..2 die Translationsdifferenz, 3..5 die Verdrehungs-
    * differenz. Spalten: u_i (0..2), fi_i (3..5), u_j (6..8), fi_j (9..11).
@@ -327,6 +364,13 @@ function kFeder(cs, arm = 0) {
   setz(0, 4, -r[2]); setz(0, 5, +r[1]);
   setz(1, 3, +r[2]); setz(1, 5, -r[0]);
   setz(2, 3, -r[1]); setz(2, 4, +r[0]);
+  // Der Hebel am j-Ende: -S(r_j) an den Spalten fi_j (siehe oben).
+  if (armJ) {
+    const q = armJ;
+    setz(0, 10, +q[2]); setz(0, 11, -q[1]);
+    setz(1, 9, -q[2]); setz(1, 11, +q[0]);
+    setz(2, 9, +q[1]); setz(2, 10, -q[0]);
+  }
 
   const k = new Float64Array(144);
   for (let a = 0; a < 12; a += 1) {
@@ -629,8 +673,12 @@ export function loese(dat, opt = {}) {
        * demselben Fehler bestaetigen einander - deshalb braucht es den
        * dritten.
        * =================================================================== */
+      /*
+       * DIE KOPPLUNG IN DER LINKMITTE (Weisung 26. September, siehe
+       * kFeder): Hebel +d/2 am i-Knoten, -d/2 am j-Knoten.
+       */
       if (s.system === 'lokal') {
-        k = kFeder(c, [db.L, 0, 0]);
+        k = kFeder(c, [db.L / 2, 0, 0], [-db.L / 2, 0, 0]);
       } else {
         /*
          * Global aufgebaut - und danach ins Lokale zurueckgedreht, damit
@@ -640,7 +688,8 @@ export function loese(dat, opt = {}) {
         const rT = [[db.R[0][0], db.R[1][0], db.R[2][0]],
                     [db.R[0][1], db.R[1][1], db.R[2][1]],
                     [db.R[0][2], db.R[1][2], db.R[2][2]]];
-        k = drehen(kFeder(c, [b.x - a.x, b.y - a.y, b.z - a.z]), rT);
+        const halb = [(b.x - a.x) / 2, (b.y - a.y) / 2, (b.z - a.z) / 2];
+        k = drehen(kFeder(c, halb, halb.map((v) => -v)), rT);
       }
     } else {
       const w = qs.get(s.querschnitt);
