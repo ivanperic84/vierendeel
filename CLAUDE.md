@@ -1270,6 +1270,24 @@ dieser Lage im Löser nachgerechnet stimmen alle Grössen auf 0.0–1.5 %.
 **Offen:** ein Lauf mit der berichtigten Brücke — zusammen mit dem
 Torsionsfall (siehe *Entschieden*), dessen Grundfälle G / Wind x / Wind y
 zugleich die Gegenprobe der Berichtigung sind.
+**Die Modelldatei steht** (`node modell_torsion.mjs` →
+`com/AxisVM_Torsion_J90_20m.json`, 26. Sept., dem Auftraggeber gezeigt):
+J90/20 m mit Masten M1/M2 auf dem Weg des Stabwerksknopfs, 968 Knoten,
+1110 Stäbe, 40 Links (8 am Jochanschluss, 32 Übergänge zu den Anbauteilen),
+22 Lastfälle. Vier Teile: **HS_Ende / HS_Mitte** (`hs-nur` bei x = 1.20 /
+10.14, dazu 1.0 kN in y am Fuss, z = −2.925; M_x um die Jochachse
+3.791 kNm) und **NT_Ende / NT_Mitte** (`hs-nt-ausleger` bei x = 2.00 /
+11.00, R-FL mit Umlenkung 1.833 kN in x aus R = 600 m, c = 50 m). Die
+Lasten jedes Teils stehen in eigenen Fällen `<Gruppe>|<Teil>`; G, Wind x
+und Wind y tragen dieselben Lasten wie das Einzeljoch-Modell. Das
+Grundmodell ist Knoten für Knoten dasselbe; nur die Gurte sind an den
+Klemmpunkten feiner geteilt (86 → 100 Abschnitte je Gurt). Der Löser
+rechnet die Datei im Gleichgewicht (Torsion 3.791 kNm kommt an den Füssen
+an). Am Weg zwei eigene Fehler, beide vor dem Zeigen behoben: der erste
+Anlauf ging nicht über `mastNamen` (Masten hiessen A/B, 324 Stäbe und
+32 Knoten anders), und Hängestütze und NT-Ausleger hingen an denselben
+Klemmen. **Gerechnet wird nur auf Anweisung** (rund 15–20 Minuten bei
+22 Lastfällen).
 **Gewicht:** unter G am Mastfuss 1.66 gegen 0.31 kNm, bei Fussmomenten aus
 Wind von 10.8 (quer) bzw. 43.1 kNm (längs); unter WindY am Gurt des
 Jochendes bis 0.38 kNm Unterschied bei einem grössten Gurtmoment von
