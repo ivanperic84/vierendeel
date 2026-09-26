@@ -21053,7 +21053,11 @@ const CH9x = await import(J('core.checks.js'));
      * QUERSTEIFE von A240. Die Tabelle traegt beide Rollen, weil beide
      * dieselben Werte brauchen.
      */
-    wahr('Acht Walzprofile', PR.GURTPROFILE().length === 8);
+    // NEUN seit dem 26. September: UPE 140 fuer den Tragausleger, aus den
+    // Normmassen gerechnet und am UPE 160/200/240 der Tabelle nachgeprueft.
+    wahr('Neun Walzprofile', PR.GURTPROFILE().length === 9);
+    wahr('UPE 140 ist dabei - das Gurtprofil des Tragauslegers',
+         PR.GURTPROFILE().some((p) => p.name === 'UPE 140'));
     wahr('IPE 240 ist dabei - die Quersteife von A240',
          PR.GURTPROFILE().some((p) => p.name === 'IPE 240'));
     /*
@@ -23462,7 +23466,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     .map(([s, t]) => [s, TBF.setzeZusammen(t)]));
 
   // Zwoelf seit dem 24. September: die Mastfundamente (siehe data.katalog.js).
-  pruef('Zwoelf Abschnitte', K.ABSCHNITTE.length, 12, 1e-12, 'Stk');
+  // Dreizehn seit dem 26. September: der Tragausleger im Abfangjoch-Sortiment.
+  pruef('Dreizehn Abschnitte', K.ABSCHNITTE.length, 13, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23546,7 +23551,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle zwoelf Abschnitte', gesamt.abschnitte.length, 12, 1e-12, 'Stk');
+    pruef('… ueber alle dreizehn Abschnitte', gesamt.abschnitte.length, 13, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23659,10 +23664,11 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     /*
      * ACHT seit dem 24. September, weiter in SECHS Dateien: die
      * Fundamenttabelle steht im Sortiment der Masten, weil sie genau
-     * das ist - eine Zuordnung zum Masttyp.
+     * das ist - eine Zuordnung zum Masttyp. NEUN seit dem 26. September:
+     * der Tragausleger steht im Abfangjoch-Sortiment (gleiche Bauart).
      */
-    wahr('Sortiment: acht Abschnitte in sechs Dateien',
-         sort.length === 8 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    wahr('Sortiment: neun Abschnitte in sechs Dateien',
+         sort.length === 9 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));

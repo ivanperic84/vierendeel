@@ -129,7 +129,17 @@ export const AUFBAU = {
         { name: 'quersteifung', pfad: 'quersteifung' },
         { name: 'deckbleche', pfad: 'deckblech' },
       ],
-    }],
+    },
+    /*
+     * >>> DER TRAGAUSLEGER STEHT BEIM ABFANGJOCH (26. September). <<<
+     *
+     * Weisung: «die tragstruktur ist ähnlich der abfangjoche und der
+     * anschluss auch». Zwei UPE 140 mit Bindeblechen oben und unten, als
+     * Gabel um den Masten geklemmt - dasselbe Bauprinzip, deshalb dieselbe
+     * Datei, als zweite Liste wie die Fundamente beim Masten. Je Zeile eine
+     * Länge des Sortiments mit Blechraster und Aufhängung.
+     */
+    { name: 'tragausleger', pfad: 'tragausleger', schluessel: 'artikel' }],
   },
   anker: {
     titel: 'Zug- und Druckstützen',

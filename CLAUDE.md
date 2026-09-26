@@ -219,12 +219,27 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5445 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5447 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., Tragausleger Etappe 1: die Daten.** Quelle: die beiden
+  Zeichnungen unter `Grundlagen/Tragausleger` (Übersicht und Werkstatt-
+  zeichnung UPE 140). **UPE 140** in `data/normen.json` (verfolgt, Norm-
+  tabelle): aus den Normmassen h 140, b 65, t_w 5, t_f 9, r 12 gerechnet
+  (Raster 0.05 mm) — dieselbe Rechnung trifft UPE 160/200/240 der Tabelle
+  in A, I_y, I_z, W, i, G auf die Stelle; I_t = 3.96 cm⁴ (Formel ohne Kehlen
+  × 1.079, dem Mittel der drei Tabellenprofile, Spanne ±1.5 %).
+  **Tragausleger-Sortiment** als zweite Liste in `data/abfangjoche.json`
+  (`tragausleger`, 8 Längen 6–13 m: Blechraster a/b/Endmass, Stückzahl,
+  Gewicht, Aufhängung b/c₁/c₂/gts, V_zul 5 kN; Sicherung davor in
+  `data/sicherung/`). Beide Gegenproben der Zeichnung gehen bei allen acht
+  Zeilen auf: a + n·b + 60 = L und c₁ + c₂ + 0.25 = L (der Ausleger beginnt
+  0.25 m hinter der Mastachse). Katalog, Aufbau (`data.tabellen.js`) und
+  Zugriff (`tragauslegerTypen`, `getTragausleger`, `tragauslegerBlechachsen`)
+  stehen; das Datenpaket in `Versand/` trägt beides.
 - **26. Sept., der Löser koppelt jedes Linkelement in der Linkmitte**
   (Weisung «ja löser auf linkmitte umstellen», siehe *Entschieden*;
   `kFeder` mit Hebel an beiden Knoten, Prüfstand Abschnitt 121). Gegen die
@@ -1574,6 +1589,13 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Das **Abfangjoch** war ausdrücklich draussen (18. Sept.), der
   **Tragausleger** wartete auf sein Kragarm-Modell. Beides soll jetzt einen
   Bericht bekommen; der Entscheid vom 18. September ist damit aufgehoben.
+- ⚠ **e_y des UPE 160 in `data/normen.json` ist falsch: 1.84 statt
+  2.27 cm** (Schwerpunkt ab Stegrücken). Nachgerechnet aus den Normmassen
+  am 26. September; UPE 200 und 240 treffen die Tabelle auf die Stelle
+  (2.56, 2.79), nur der 160er nicht. Wirkung: Hebelarm des A160
+  e = d + 2·e_y 31.68 statt 32.54 cm, die Gurtkraft N = M/e damit 2.7 % zu
+  gross — **sichere Seite**. Nicht von selbst berichtigt, weil es einen
+  Nachweis verschiebt; Entscheid des Auftraggebers.
 - ⚠ **Doppelmasten ohne Fundamentzuordnung:** DGP24 und DGP26 stehen in
   der Fundamenttabelle, aber das Sortiment führt sie nicht als Profil —
   ihre Fundamente (DG1a, DG2a, DG3a) sind nur von Hand wählbar.
@@ -1742,7 +1764,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5445 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5447 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -507,6 +507,61 @@ export const ABSCHNITTE = [
       },
     },
   },
+  /* ----------------------------------------------------------------------
+   * DER TRAGAUSLEGER (26. September) - zweite Liste im Abfangjoch-Sortiment.
+   *
+   * Weisung: «die tragstruktur ist ähnlich der abfangjoche und der
+   * anschluss auch». Zwei UPE mit Bindeblechen oben und unten, als Gabel am
+   * Masten; aufgehängt an einem Schrägseil vom Masten (Höhe b über dem
+   * Ausleger) zum Punkt c₁, danach kragt er um c₂ aus. Die Aufhängung
+   * rechnet als gelenkig angeschlossener Pendelstab (Weisung).
+   *
+   * Zwei Gegenproben stehen in den Zahlen selbst und sind am Sortiment
+   * nachgerechnet: a + n·b + Endmass = L (n = Bleche/Ebenen - 1), und
+   * c₁ + c₂ = L - hinten (der Ausleger beginnt hinter der Mastachse).
+   * ---------------------------------------------------------------------- */
+  {
+    key: 'tragausleger', db: 'abfangjoche', tabelle: 'tragausleger',
+    liste: 'tragausleger',
+    titel: 'Tragausleger', herkunft: 'sortiment', schluessel: 'artikel',
+    notiz: 'Je Zeile eine Länge. Masse der Bleche in Millimetern, Längen der '
+         + 'Aufhängung in Metern ab Mastachse.',
+    felder: [
+      text('artikel', 'Artikel', { pflicht: true }),
+      zahl('L', 'Länge L', 'm', { pflicht: true, von: 2, bis: 20 }),
+      text('profil', 'Gurtprofil', { pflicht: true,
+        notiz: 'Verweist auf einen Satz der Walzprofile.' }),
+      mm('spreizung', 'Stegabstand (licht)', { pflicht: true,
+        notiz: 'Lichter Abstand der beiden Profile; die Gabel umfasst damit '
+             + 'den Masten.' }),
+      satz('blech', 'Bindeblech', [
+        mm('b', 'Breite'), mm('t', 'Dicke'), mm('l', 'Länge'),
+        zahl('ebenen', 'Ebenen', null, { notiz: 'Oben und unten: 2.' }),
+      ]),
+      satz('raster', 'Blechraster', [
+        mm('a', 'erstes Mass a', { notiz: 'Ab dem inneren Ende des Auslegers.' }),
+        mm('b', 'Teilung b'),
+        mm('ende', 'Endmass', { notiz: 'Letzte Blechachse bis zum äusseren Ende.' }),
+      ]),
+      zahl('bleche', 'Bindebleche', null, { von: 2, bis: 100,
+        notiz: 'Stückzahl über beide Ebenen.' }),
+      zahl('gewicht', 'Gewicht', 'kg', { von: 10, bis: 2000 }),
+      zahl('hinten', 'Überstand hinter der Mastachse', 'm', { von: 0, bis: 1 }),
+      satz('seil', 'Aufhängung', [
+        zahl('b', 'Höhe b über dem Ausleger', 'm'),
+        zahl('c1', 'Abstand c₁ ab Mastachse', 'm'),
+        zahl('c2', 'Auskragung c₂', 'm'),
+        zahl('gts', 'Seillänge gts', 'm'),
+        zahl('gts1', 'Seillänge mit Zugabe', 'm'),
+        zahl('anzahl', 'Seile', null),
+        zahl('querschnitt', 'Seilquerschnitt', 'mm²'),
+      ]),
+      zahl('Vzul', 'zulässige Belastung V', 'kN', { von: 0.5, bis: 50,
+        notiz: 'Kontrollwert der Zeichnung für den lotrechten Anteil der '
+             + 'Seilkraft aus Nutzlasten: V = Σ(F_V·x)/c₁ + Σ(F_H·z)/c₁.' }),
+      text('zeichnung', 'Zeichnung'),
+    ],
+  },
   {
     key: 'anker', db: 'anker', tabelle: 'typen', liste: 'typen',
     titel: 'Zug- und Druckstützen', herkunft: 'sortiment', schluessel: 'id',

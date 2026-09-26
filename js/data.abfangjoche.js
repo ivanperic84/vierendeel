@@ -116,6 +116,47 @@ export function getAbfangjoch(typ) {
   return a;
 }
 
+/* ===========================================================================
+ * >>> DER TRAGAUSLEGER (26. September). <<<
+ *
+ * Weisung: «die tragstruktur ist ähnlich der abfangjoche und der anschluss
+ * auch». Zweite Liste dieses Sortiments, je Zeile eine Länge: Profil,
+ * Blechraster, Aufhängung (Höhe b, c₁, c₂) und die zulässige Belastung.
+ *
+ * Wie beim Abfangjoch ist ihr Fehlen kein Fehler: ohne Tabelle gibt es
+ * keine Längen zur Wahl, und die Anwendung sagt es (`tragauslegerDa`).
+ * ========================================================================= */
+
+/** Alle Längen des Tragausleger-Sortiments, kürzeste zuerst. */
+export function tragauslegerTypen() {
+  const t = DB?.tragausleger ?? [];
+  return [...t].sort((a, b) => a.L - b.L);
+}
+
+/** Ob die Tabelle geladen ist. */
+export const tragauslegerDa = () => tragauslegerTypen().length > 0;
+
+/**
+ * Die Zeile zu einer Länge [m]. GENAU die Länge, nicht die nächste: das
+ * Sortiment führt je Länge ein eigenes Blechraster und eine eigene
+ * Aufhängung, und eine Nachbarzeile wäre ein anderes Bauteil.
+ * `null`, wenn es sie nicht gibt.
+ */
+export function getTragausleger(L) {
+  return tragauslegerTypen().find((t) => Math.abs(t.L - L) < 1e-6) ?? null;
+}
+
+/**
+ * Die Achsen der Bindebleche [m], ab dem inneren Ende des Auslegers:
+ * a, a + b, ... bis L - Endmass. Aus der Zeile, nicht hergeleitet - die
+ * Stückzahl ist die Gegenprobe (je Stelle eine Ebene oben und unten).
+ */
+export function tragauslegerBlechachsen(t) {
+  if (!t) return [];
+  const n = Math.round(t.bleche / (t.blech?.ebenen || 2));
+  return Array.from({ length: n }, (_, i) => (t.raster.a + i * t.raster.b) / 1000);
+}
+
 /**
  * Der Längenbereich eines Typs [m].
  *
