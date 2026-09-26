@@ -134,6 +134,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 |---|---|
 | Gurtspannung im Stabwerk (26. Sept.) | Auf Rückfrage nach dem Einbau von I_yz: **vorzeichenrichtig, nach Messung**. Die Hülle über ±M_y, ±M_z in `randspannung()` war für den Ersatzbalken gebaut (er führt Beträge); das Stabwerk kennt die Vorzeichen, und seit I_yz sind beide Komponenten gross (J90/20 m: Hülle η 0.4684, vorzeichenrichtig 0.3268). Zuerst wird die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von `randspannung`) an einer geschlossenen Lösung im Prüfstand gemessen, dann im Stabwerksweg umgestellt. **Der Ersatzbalken behält die Hülle** — er kennt die Vorzeichen nicht |
 | Nach I_yz zuerst der Anschluss (26. Sept.) | Auf die Frage, womit es weitergeht: **zuerst der Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss M_y ständig), danach Punkt 2 (Tragausleger). Ohne neuen AxisVM-Lauf, solange die Ergebnisse reichen |
+| Torsionsmodell rechnen (26. Sept.) | Nach dem Zeigen der Modelldatei: **«ok rechnen lassen»** — Anweisung für EINEN AxisVM-Lauf von `com/AxisVM_Torsion_J90_20m.json` (bauen, linear statisch, auslesen), erstmals mit der berichtigten Lage der Linkverbindung |
 | Torsionsfall für den AxisVM-Vergleich (26. Sept.) | Vorschlag des Auftraggebers: «wäre es nicht noch interessant ein anbauteil zu legen das zusätzlich torsion im joch provoziert». Auf Rückfrage: eine quer versetzte Hängestütze «gibt es nicht, hier wäre eine hängestütze senkrecht und eine last zum beispiel infolge windangriff zu sezten. der fall mit einer zusätzlichen ausleger und leiter mit ablenkung wäre sicher auch interessant für die lokalen einwirkungen in die gurte.» Also zwei Fälle — **(1) senkrechte Hängestütze mit waagrechter Last (Wind) an ihrem Ende**, Torsion über den Hebel unter der Jochachse; **(2) Hängestütze mit Ausleger und Leiter mit Ablenkkraft**, örtliche Einleitung in die Gurte —, je **nahe am Jochende und in Feldmitte**, je ein eigener Lastfall. Gerechnet **nach der Auswertung** des Laufs mit den Knotenwegen |
 | Anschluss: AxisVM-Wege auslesen (26. Sept.) | Nach dem Eingrenzen (`vergleich_anschluss.mjs`, alle naheliegenden Modellgrössen gemessen ausgeschlossen) auf Rückfrage: **«Brücke erweitern und rechnen»** — die Auslesung um Knotenverschiebungen (und Linkkräfte, soweit die Schnittstelle sie hergibt) erweitern und das Einzeljoch J90/20 m in AxisVM neu rechnen (~11 Minuten). Das ist die ausdrückliche Anweisung für diesen einen Lauf |
 | Reihenfolge der nächsten Arbeiten (26. Sept.) | **Zuerst I_yz im Löserkern**, dann der Tragausleger, dann die Nachweise. Auf die Frage, womit anzufangen sei, ausdrücklich so gewählt — obwohl der Tragausleger heute auf der unsicheren Seite liegt. Der Grund trägt: die Ursache der 13–25 % ist benannt und billig zu messen (die AxisVM-Ergebnisse liegen in `com/`, **kein neuer Lauf nötig**), und solange der Löser die Gurte falsch rechnet, übernimmt jeder weitere Schritt diesen Fehler — auch der Tragausleger, der ins selbe Stabwerk soll |
@@ -220,6 +221,38 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., der Torsionslauf in AxisVM** (Weisung «ok rechnen lassen»;
+  `com/AxisVM_Torsion_J90_20m.json`, 22 Lastfälle, erstmals mit der
+  berichtigten Linkverbindung, Protokoll: «halbe Linklaenge … 0.0250 m»).
+  Erstmals mit **Linkkräften** (40 Links je Fall; der leere Fall HavarieY
+  wird richtig als «Lastfall ohne Last» erkannt). Auslesen ≈ 40 Minuten.
+  **Befund:** die Lage der Linkverbindung wirkt stark, auch wenn sie AUF
+  dem Link liegt. Der Löser koppelt am Gurtknoten, AxisVM jetzt in der
+  Linkmitte (0.025 m am Jochanschluss, **0.05 m an den 0.10 m langen
+  Anbauteil-Links**). Gemessen, Löser wie heute → Löser mit Kopplung in
+  der Linkmitte (Arbeitskopie):
+
+  | gegen AxisVM | Gurtknoten | Linkmitte |
+  |---|---|---|
+  | G: Mast M_y | 11.1 % | **0.2 %** |
+  | G: Gurt M_y / Blech N | 11.2 / 18.0 % | **2.9 / 1.0 %** |
+  | WindY: Gurt M_y / V_y | 19.4 / 35.4 % | **4.5 / 8.9 %** |
+  | Umlenkung NT_Mitte: Blech M_z | 98.0 % | **3.6 %** |
+  | Umlenkung NT_Mitte: Gurt M_y | 82.1 % | **2.1 %** |
+  | Umlenkung NT_Ende: Gurt M_y | 74.4 % | **5.8 %** |
+  | Torsion HS_Ende: Blech V_z | 87.4 % | **17.9 %** (max 0.048 kN) |
+
+  Mit Kopplung in der Linkmitte bleibt über 8 % nur, was klein ist
+  (Torsion und Nebenmomente der Bleche, 0.005–0.05) oder örtlich an den
+  Klemmen des NT-Auslegers bei x = 2.0 liegt (Gurt V `OGR_S14` 0.108 gegen
+  0.024 kN bei einem grössten Wert von 0.33). **Die Linkkräfte selbst
+  stimmen** (NT_Ende oberer Link: 4.749 gegen 4.718 kN in Jochachse,
+  0.7 %; AxisVM gibt sie global aus), ebenso die Wege dort (≈ 1 %).
+  **Am Urteil ändert die Kopplungslage kaum etwas:** Einzeljoch Mast
+  0.7708 → 0.7713, Reihe 1.3493 → 1.3490, Gurt/Blech in der vierten
+  Stelle. Örtlich an Anbauteilen aber bis Faktor 2 bei kleinen Werten.
+  ⚠ Ob der Löser auf die Linkmitte umstellt, ist zu entscheiden (siehe
+  *Offene Punkte*, «Lage der Verbindung im Löser»).
 - **26. Sept., der Rest am Anschluss Joch–Mast war ein Fehler des
   AxisVM-Modells, nicht des Lösers** (Prüfstand Abschnitt 130). Auf
   Weisung («Brücke erweitern und rechnen») liest die Brücke jetzt je
