@@ -63,6 +63,16 @@
  * I_1 und I_2). Die SPANNUNG kennt das Deviationsmoment, die STEIFIGKEIT
  * nicht - und die Schnittgroessen kommen aus der Steifigkeit.
  *
+ * >>> SEIT DEM 26. SEPTEMBER EINGEBAUT (kLokalSchief). <<<  Dieselbe
+ * Tabelle danach, Lastfall G: Gurt M_y 16.98 -> 4.82 %, Gurt V_y
+ * 13.63 -> 0.98 %, Blech M_z 18.23 -> 2.68 %; Teil B zeigt an den vier
+ * Gurten der mittleren Station 1.7 % statt eines M_z mit verkehrtem
+ * Vorzeichen. Das umgekehrte Vorzeichen von I_yz verdoppelt die Fehler
+ * (35.17 / 27.69 / 38.69 %) - damit ist es gemessen, nicht angenommen.
+ * Was unter Wind in Gleisrichtung bleibt (Gurt M_y 55 %), sitzt am
+ * Anschluss Joch-Mast und aendert sich mit I_yz nicht - ein eigener
+ * Befund, siehe CLAUDE.md.
+ *
  * WIE ES LAEUFT
  *
  *   1. Modelldatei OHNE Eigengewicht erzeugen (AxisVM setzt es selbst an;
@@ -85,6 +95,7 @@ const J = (f) => pathToFileURL(join(HIER, 'js', f)).href;
 const NO = await import(J('data.normen.js'));
 NO.setzeNormen(JSON.parse(readFileSync(join(HIER, 'data', 'normen.json'), 'utf8')));
 const SW = await import(J('core.stabwerk.js'));
+const AX = await import(J('export.axisvm.js'));
 const SN = await import(J('core.stabnachweis.js'));
 
 const pfad = process.argv[2];
@@ -124,6 +135,20 @@ console.log(`MODELL     ${basename(modellPfad)}  -  ${dat.knoten.length} Knoten,
 console.log(`ERGEBNISSE ${basename(ergPfad)}  -  ${ax.erzeugt ?? '?'}`);
 console.log('='.repeat(78));
 
+/* ---------------------------------------------------------------------------
+ * DAS DEVIATIONSMOMENT - in Dateien vor dem 26. September nachgetragen.
+ *
+ * Seit dem 26. September schreibt die Ausleitung je Gurtwinkel I_yz, und
+ * der Loeser rechnet damit (kLokalSchief in core.stabwerk.js). Die Modelle
+ * in `com/` sind aelter, und neu ausleiten hiesse, sie juenger zu machen
+ * als ihre Ergebnisse. Nachgetragen wird deshalb aus DERSELBEN Quelle wie
+ * in der Ausleitung, am Profilnamen der Datei - und es wird gesagt.
+ * ------------------------------------------------------------------------- */
+const nachgetragen = AX.deviationNachtragen(dat);
+if (nachgetragen.length) {
+  console.log(`HINWEIS: I_yz nachgetragen (Datei vor dem 26. September): `
+    + nachgetragen.join(', '));
+}
 const art = new Map(dat.staebe.map((s) => [s.name, s.art ?? 'stab']));
 const knoten = new Map(dat.knoten.map((k) => [k.name, k]));
 const laenge = (n) => {

@@ -31073,6 +31073,153 @@ titel('128  Die massgebende Kombination, die Verformung und das Joch als Riegel'
 }
 
 // ===========================================================================
+titel('129  Das Deviationsmoment in der Elementmatrix (I_yz)');
+/* ===========================================================================
+ * Auftrag vom 26. September, Punkt 1: «I_yz in die Elementmatrix».
+ *
+ * Der Loeser rechnete den Gurtwinkel, als waere er doppelt symmetrisch -
+ * die Datei fuehrte kein I_yz, und `kLokal` koppelte die Biegeebenen nicht.
+ * Gegen AxisVM am J90/20 m, Lastfall G: Gurt M_y 16.98 %, V_y 13.63 %,
+ * Blech M_z 18.23 % daneben; in Feldmitte fehlte die gekoppelte Komponente
+ * ganz (OGL_S43 M_y AxisVM 0.1018, Loeser -0.0007 kNm).
+ *
+ * Geprueft wird hier an der GESCHLOSSENEN LOESUNG der schiefen Biegung,
+ * nicht an AxisVM: der Kragarm mit Kopflast F verschiebt sich um
+ *
+ *     delta = L^3 / (3 E) * S^-1 * F,    S = [[I_z, I_yz], [I_yz, I_y]]
+ *
+ * (Euler-Bernoulli). Mit Schub kommt je HAUPTachse L / (G kappa A) dazu,
+ * in beiden gleich - also delta_Schub = F L / (G kappa A) in Kraftrichtung.
+ * ========================================================================= */
+{
+  const SW129 = await import(J('core.stabwerk.js'));
+  const { winkelwerteFuer } = await import(J('core.winkel.js'));
+  const E129 = 210000, G129 = 81000;           // N/mm2
+  const Ek = E129 * 1000, Gk = G129 * 1000;    // kN/m2
+  const w90 = winkelwerteFuer(getProfil('L 90x90x9'));
+  const A = w90.A / 1e6, Iy = w90.Iy / 1e12, Iz = w90.Iz / 1e12;
+  const Iyz = w90.Iyz / 1e12;
+  const D = Iy * Iz - Iyz * Iyz;
+  const Ln = 2.0, F = 1.0;
+
+  const kragarm = (qs, lcsZ, richtung) => ({
+    material: { E: E129, G: G129, rho: 7850 },
+    querschnitte: [{ name: 'Q', form: 'Angle', A, Iy, Iz, It: 4e-8, ...qs }],
+    knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: Ln, y: 0, z: 0 }],
+    staebe: [{ name: 'ST', von: 'A', bis: 'B', querschnitt: 'Q', art: 'stab', lcsZ }],
+    auflager: [{ knoten: 'A', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                 fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' }],
+    lastfaelle: [{ key: 'F', name: 'Kopflast' }],
+    lasten: { punkt: [{ knoten: 'B', richtung, wert: F, lastfall: 'F' }],
+              moment: [], strecke: [] },
+    kombinationen: [],
+  });
+  const kopf = (d, opt = {}) => {
+    const l = SW129.loese(d, { eigengewicht: false, schubweich: false, ...opt });
+    const i = l.knotenIdx.get('B') * 6;
+    return l.u.get('F').slice(i, i + 6);
+  };
+  const k = Ln ** 3 / (3 * Ek * D);
+
+  // --- a) die geschlossene Loesung, Stab in seiner Grundlage --------------
+  /*
+   * lcsZ = [0,0,1]: lokales y = global Y, lokales z = global Z. Kraft in
+   * +Y gibt v = F Iy k und - das ist die Kopplung - w = -F Iyz k. Mit
+   * I_yz < 0 ist w positiv: der Winkel weicht nach oben aus.
+   */
+  {
+    const u = kopf(kragarm({ Iyz }, [0, 0, 1], 'Y'));
+    pruef('Kraft in y: Verschiebung in y  (F L^3 I_y / 3ED)', u[1], F * Iy * k, 1e-9, 'm');
+    pruef('>>> Kraft in y: Verschiebung in z  (-F L^3 I_yz / 3ED) <<<',
+          u[2], -F * Iyz * k, 1e-9, 'm');
+    const u2 = kopf(kragarm({ Iyz }, [0, 0, 1], 'Z'));
+    pruef('Kraft in z: Verschiebung in z  (F L^3 I_z / 3ED)', u2[2], F * Iz * k, 1e-9, 'm');
+    pruef('Kraft in z: Verschiebung in y  (-F L^3 I_yz / 3ED)', u2[1], -F * Iyz * k, 1e-9, 'm');
+    /*
+     * Die Probe auf die Physik, unabhaengig von der Formel: die Kraft
+     * unter 45 Grad in Richtung der SCHWACHEN Hauptachse biegt den Stab
+     * genau in diese Richtung, mit I_2. Bei I_yz < 0 ist das (1, 1)/√2.
+     */
+    const d45 = kragarm({ Iyz }, [0, 0, 1], 'Y');
+    d45.lasten.punkt = [
+      { knoten: 'B', richtung: 'Y', wert: F / Math.SQRT2, lastfall: 'F' },
+      { knoten: 'B', richtung: 'Z', wert: F / Math.SQRT2, lastfall: 'F' }];
+    const u45 = kopf(d45);
+    pruef('Kraft auf der schwachen Hauptachse: Weg F L^3 / 3 E I_2',
+          Math.hypot(u45[1], u45[2]), F * Ln ** 3 / (3 * Ek * w90.I2 / 1e12), 1e-9, 'm');
+    pruef('… und genau in Kraftrichtung (kein Seitenweg)', u45[1] - u45[2], 0, 1e-9, 'm');
+  }
+
+  // --- b) die gedrehte Lage: das Vorzeichen haengt am lokalen System ------
+  /*
+   * lcsZ = [0,-1,0]: lokales y = global Z, lokales z = global -Y - eine
+   * der vier Gurtlagen. Dieselbe Kraft in global Y ist dort lokal -z.
+   * Stimmte nur Lage a), waere die Drehung falsch eingebaut.
+   */
+  {
+    const u = kopf(kragarm({ Iyz }, [0, -1, 0], 'Y'));
+    pruef('Gedreht: Kraft in Y gibt Y = F I_z k', u[1], F * Iz * k, 1e-9, 'm');
+    pruef('>>> Gedreht: Kraft in Y gibt Z = F I_yz k <<<', u[2], F * Iyz * k, 1e-9, 'm');
+  }
+
+  // --- c) mit Schub: je Hauptachse, gleiche Schubzahl --------------------
+  {
+    const u = kopf(kragarm({ Iyz }, [0, 0, 1], 'Y'), { schubweich: true });
+    const schub = F * Ln / (Gk * SW129.SCHUB_KAPPA * A);
+    pruef('Mit Schub: y = Biegung + F L / (G kappa A)', u[1], F * Iy * k + schub, 1e-9, 'm');
+    pruef('Mit Schub: z bleibt die reine Kopplung', u[2], -F * Iyz * k, 1e-9, 'm');
+  }
+
+  // --- d) OHNE I_yz IST ES DIE ALTE MATRIX, ZEICHEN FUER ZEICHEN ---------
+  /*
+   * Nicht «fast gleich» - gleich. Iy und Iz verschieden, damit ein
+   * versehentlich gedrehtes Rechteck auffiele; mit und ohne Schub.
+   */
+  [false, true].forEach((schubweich) => {
+    const ohneFeld = kopf(kragarm({ Iz: Iz / 3 }, [0, 0, 1], 'Y'), { schubweich });
+    const mitNull = kopf(kragarm({ Iz: Iz / 3, Iyz: 0 }, [0, 0, 1], 'Y'), { schubweich });
+    wahr(`I_yz = 0 und kein Feld geben dieselben Bits${schubweich ? ' (mit Schub)' : ''}`,
+         ohneFeld.every((v, i) => Object.is(v, mitNull[i])));
+  });
+
+  // --- e) die Ausleitung schreibt es, aus DERSELBEN Stelle ---------------
+  {
+    const AX129 = await import(J('export.axisvm.js'));
+    const V129 = await import(J('core.vierendeel.js'));
+    const N129 = await import(J('core.nachbarn.js'));
+    let w129 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+    w129.L = 8; w129.xLage = 0; w129.mastVorhanden = true;
+    const s129 = N129.rechensatzMitNachbarn(w129);
+    const e129 = V129.berechne(s129, ...N129.kernArgumente(s129));
+    const dat129 = AX129.stabmodellJson(e129.modell, { knotenmodell: 'anschnitt' });
+    const winkel = dat129.querschnitte.filter((q) => q.form === 'Angle');
+    wahr('Jeder Gurtwinkel traegt ein I_yz', winkel.length > 0
+         && winkel.every((q) => Number.isFinite(q.Iyz)), `${winkel.length} Winkel`);
+    winkel.forEach((q) => pruef(`${q.name}: I_yz = winkelwerte(${q.profil}).Iyz`,
+      q.Iyz, winkelwerteFuer(getProfil(q.profil)).Iyz / 1e12, 1e-12, 'm4'));
+    wahr('… und es ist negativ (Schenkel nach +y und +z, gemessen gegen AxisVM)',
+         winkel.every((q) => q.Iyz < 0));
+    wahr('Kein anderer Querschnitt fuehrt eines',
+         dat129.querschnitte.every((q) => q.form === 'Angle' || q.Iyz == null));
+    /*
+     * Eine Datei vor dem 26. September bekommt es nachgetragen - aus
+     * derselben Quelle, sonst waeren die AxisVM-Vergleiche nicht mehr
+     * zu fahren (neu ausleiten macht das Modell juenger als die
+     * Ergebnisse). Ein schon gesetztes Feld bleibt unberuehrt.
+     */
+    const alt = structuredClone(dat129);
+    alt.querschnitte.forEach((q) => { delete q.Iyz; });
+    const neu = AX129.deviationNachtragen(alt);
+    wahr('Nachtrag: dieselben Querschnitte wie die Ausleitung',
+         neu.length === winkel.length);
+    wahr('Nachtrag: dieselben Zahlen wie die Ausleitung',
+         alt.querschnitte.every((q, i) => Object.is(q.Iyz, dat129.querschnitte[i].Iyz)));
+    wahr('Nachtrag: ein zweiter Lauf aendert nichts',
+         AX129.deviationNachtragen(alt).length === 0);
+  }
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

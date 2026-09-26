@@ -59,6 +59,8 @@ import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBlechVersatz } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { abfangBau } from './export.axisvm.abfang.js';
+import { winkelwerteFuer } from './core.winkel.js';
+import { getProfil } from './data.profiles.js';
 
 /** Wählbare Knotenmodelle. */
 export const KNOTENMODELLE = [
@@ -568,9 +570,69 @@ function gurtQuerschnitt(p, gurt) {
     A: p.A / 1e4,                                   // cm2 -> m2
     Iy: (p.iy * p.iy * p.A) / 1e8,                  // cm4 -> m4
     Iz: (p.iz * p.iz * p.A) / 1e8,
+    /*
+     * >>> DAS DEVIATIONSMOMENT - AUS DERSELBEN STELLE WIE DIE SPANNUNG. <<<
+     *
+     * Auftrag vom 26. September: «I_yz in die Elementmatrix». Der Loeser
+     * (kLokalSchief in core.stabwerk.js) rechnete den Winkel, als waere er
+     * doppelt symmetrisch - die Datei gab ihm nichts anderes. AxisVM liest
+     * das Feld nicht (es kennt den Winkel ueber `form` und `parameter`);
+     * es gehoert dem Loeser und jedem, der die Datei ohne AxisVM rechnet.
+     *
+     * Die Zahl wird NICHT hier hergeleitet: `winkelwerte()` in
+     * core.winkel.js tut es fuer `randspannung()` schon (aus I_1 und I_2,
+     * am L 100x100x10 auf die Stelle der AxisVM-Wert). Eine zweite
+     * Herleitung waere eine zweite Wahrheit.
+     *
+     * >>> DAS VORZEICHEN IST GEMESSEN, NICHT HERGELEITET. <<<
+     *
+     * `winkelwerte` rechnet mit den Schenkeln nach +y und +z (I_yz < 0).
+     * Genau so legt `lcs` jeden der vier Gurte in SEIN lokales System -
+     * «Ausgangslage ... Ferse unten, Schenkel nach +y und +z, von dort
+     * gedreht». Gemessen am J90/20 m gegen AxisVM, Lastfall G, Maximum
+     * ueber alle Gurte bzw. Bleche:
+     *
+     *                    ohne     I_yz < 0    I_yz > 0
+     *     Gurt M_y     16.98 %    4.82 %     35.17 %
+     *     Gurt V_y     13.63 %    0.98 %     27.69 %
+     *     Blech M_z    18.23 %    2.68 %     38.69 %
+     *
+     * Das falsche Vorzeichen verdoppelt den Fehler - und weil das Maximum
+     * ueber ALLE VIER Gurte genommen wird, ist das Vorzeichen fuer alle
+     * vier Drehlagen zugleich bestaetigt, nicht fuer eine.
+     */
+    Iyz: winkelwerteFuer(p).Iyz / 1e12,             // mm4 -> m4
     // St-Venant des offenen Winkels: I_t = Σ b·t³/3
     It: ((p.aH + p.aV) * p.t ** 3) / 3 / 1e12,
   };
+}
+
+/**
+ * I_yz in einer Datei nachtragen, die vor dem 26. September ausgeleitet wurde.
+ *
+ * WOZU: die AxisVM-Modelle in `com/` samt ihren Ergebnissen sind Messgut -
+ * rund 11 bzw. 20 Minuten Rechnung, und AxisVM rechnet nur auf Weisung.
+ * Neu ausleiten hiesse, das Modell juenger zu machen als seine Ergebnisse,
+ * und die Vergleichswerkzeuge brechen dann zu Recht ab. Die Geometrie ist
+ * dieselbe; es fehlt allein das Feld, das AxisVM ohnehin nicht liest.
+ *
+ * Nachgetragen wird aus DERSELBEN Quelle wie in `gurtQuerschnitt` - am
+ * Profilnamen, den die Datei fuehrt -, also nichts neu hergeleitet. Ein
+ * Winkel ohne bekanntes Profil bleibt ohne: lieber laut symmetrisch als
+ * still geraten.
+ *
+ * @returns {string[]} die Querschnitte, die ein I_yz bekommen haben
+ */
+export function deviationNachtragen(dat) {
+  const nachgetragen = [];
+  (dat.querschnitte ?? []).forEach((q) => {
+    if (q.form !== 'Angle' || q.Iyz != null || !q.profil) return;
+    let p;
+    try { p = getProfil(q.profil); } catch { return; }
+    q.Iyz = winkelwerteFuer(p).Iyz / 1e12;
+    nachgetragen.push(q.name);
+  });
+  return nachgetragen;
 }
 
 /**
@@ -4600,6 +4662,12 @@ export function stabmodellJson(m, opt = {}) {
       // (20. September, am aufgebauten Modell).
       ...(q.versatz !== undefined ? { versatz: q.versatz } : {}),
       A: q.A ?? null, Iy: q.Iy ?? null, Iz: q.Iz ?? null, It: q.It ?? null,
+      // Das DEVIATIONSMOMENT (26. September, siehe gurtQuerschnitt). Beim
+      // ersten Anlauf fehlte es hier - dieselbe Falle wie beim `versatz`:
+      // `gurtQuerschnitt` setzte es, und diese Feldliste liess es fallen.
+      // Der Pruefstand (Abschnitt 129 e) hat es gefunden. Nur wer eines
+      // hat, schreibt eines; die uebrigen Querschnitte bleiben, wie sie waren.
+      ...(Number.isFinite(q.Iyz) ? { Iyz: q.Iyz } : {}),
     })),
     knoten: [...bau.knoten.values()],
     staebe: bau.staebe.map((s) => ({

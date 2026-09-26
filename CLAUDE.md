@@ -210,12 +210,51 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5410 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5430 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., I_yz steht in der Elementmatrix** (Auftrag Punkt 1,
+  Prüfstand Abschnitt 129). `kLokalSchief` in core.stabwerk.js rechnet
+  einen Querschnitt mit Deviationsmoment in seinen **Hauptachsen** (dort
+  steht die geprüfte Matrix samt Schubverformung schon) und dreht die
+  Matrix um die Stabachse zurück; für I_yz = 0 ist es **derselbe Aufruf
+  wie vorher**, bitgleich gemessen. Die Zahl schreibt `gurtQuerschnitt`
+  aus `winkelwerteFuer()` — derselben Stelle, aus der `randspannung()` sie
+  hat. **Das Vorzeichen ist gemessen:** I_yz < 0 (Schenkel nach +y/+z)
+  gegen AxisVM, Maximum über alle vier Gurte zugleich:
+
+  | J90/20 m, G, gegen AxisVM | ohne | I_yz < 0 | I_yz > 0 |
+  |---|---|---|---|
+  | Gurt M_y | 16.98 % | **4.82 %** | 35.17 % |
+  | Gurt V_y | 13.63 % | **0.98 %** | 27.69 % |
+  | Blech N | 11.12 % | **1.37 %** | 21.07 % |
+  | Blech M_z | 18.23 % | **2.68 %** | 38.69 % |
+
+  Reihe 2 × J90/20 m, G: Gurt V_y 14.85 → **3.22 %**, M_y 17.29 →
+  **12.05 %**, Blech M_z 18.46 → **6.54 %**. In Feldmitte (`OGL_S43` bis
+  `UGR_S43`) stimmen alle vier Gurte auf **1.7 %** — vorher fehlte die
+  gekoppelte Komponente ganz (M_y AxisVM 0.1018, Löser −0.0007 kNm).
+  Masten unverändert (0.00 / 0.12 %).
+  **Am Urteil (Stabwerksweg):** Einzeljoch Gurt η 0.3902 → **0.4684**,
+  Blech 0.3422 → 0.3633, Mast 0.7708 unverändert; Reihe Mast M2 1.3465 →
+  **1.3493**, Gurt 0.4618 → 0.4775. Der Ersatzbalken ist nicht berührt.
+  ⚠ **Die +20 % am Gurt sind zum grossen Teil die Vorzeichen-Hülle** in
+  `randspannung()` (±M_y, ±M_z, gebaut für den Ersatzbalken, der Beträge
+  führt). Gemessen mit vorzeichenrichtiger Auswertung: **0.3268** statt
+  0.4684 (Reihe 0.3648 statt 0.4775); die Hülle trifft genau die
+  ungünstige der beiden Kombinationen. Nicht umgestellt — Entscheid des
+  Auftraggebers, siehe *Offene Punkte*.
+  ⚠ **Befund am Weg:** die Feldliste in `stabmodellJson` liess das neue
+  Feld still fallen — dieselbe Falle wie am 20. September beim `versatz`.
+  Abschnitt 129 e hat es gefunden.
+  **Die Modelle in `com/` tragen kein I_yz** (älter); neu ausleiten hiesse,
+  sie jünger zu machen als ihre Ergebnisse. `deviationNachtragen` trägt es
+  in den beiden Vergleichswerkzeugen aus derselben Quelle nach und sagt es.
+  **Was bleibt, liegt am Anschluss Joch–Mast und ändert sich mit I_yz
+  nicht** — siehe *Laufende Arbeit* und *Offene Punkte*.
 - **26. Sept., die Zwangsbedingung ist NICHT die Ursache — gemessen.**
   Weisung: «mit optimierung der Zwangsbedingung weitermachen». Vor dem
   Umbau der billige Test: den **Starrfaktor** hochdrehen. Ändert sich die
@@ -1095,8 +1134,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 
 **Auftrag für die nächste Sitzung (26. Sept., in dieser Reihenfolge entschieden):**
 
-1. **I_yz in die Elementmatrix** — siehe *Laufende Arbeit (26. Sept.)* unten,
-   vier Punkte und die Fallen. Kein neuer AxisVM-Lauf nötig.
+1. ~~**I_yz in die Elementmatrix**~~ — **erledigt am 26. September**
+   (siehe *Letzte Schritte*). Offen daraus: die Vorzeichen-Hülle am Gurt
+   (⚠ Entscheid) und der Anschluss Joch–Mast (siehe *Laufende Arbeit*).
 2. **Tragausleger:** eigener Kragarm-Kern für die Anzeige, Stabwerk für das
    Urteil (zwei UPE 140, Einspannung am Masten). Danach fällt die Warnung
    «Tragausleger NICHT nachgewiesen».
@@ -1107,58 +1147,49 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 
 **Laufende Arbeit (26. Sept.): Etappe 4 — der Löser gegen AxisVM.**
 Schritt (6) des Bauplans der Jochreihe. **Für den Masten ist die Freigabe
-erfüllt**, für Gurte und Bleche nicht — und die Ursache ist benannt, aber
-nicht behoben.
+erfüllt.** Für Gurte und Bleche ist seit dem Einbau von I_yz (26. Sept.)
+die **ständige Last im Feld** in Ordnung; was bleibt, sitzt am **Anschluss
+Joch–Mast**.
 
-| Gegen AxisVM gemessen | Abweichung |
-|---|---|
-| Mast, Fussmoment Wind quer (M_y 10.8375 kNm) | **0.00 %** |
-| Mast, Längsmoment Einzeljoch (43.0908 kNm) | **0.00 %** |
-| Mast, Längsmoment Reihe, geteilter Mast (74.9685 kNm) | **0.60 %** |
-| Mast, ständig N (18.7005 kN) | **0.00 %** |
-| Gurt N ständig | 0.78 % |
-| **Gurt V_y, M_y ständig** | **13.6 / 17.0 %** |
-| **Blech N, M_z ständig** | **11.1 / 18.2 %** |
-| **Blech M_z Wind längs** | **25.5 %** |
+| Gegen AxisVM gemessen (J90/20 m) | vor I_yz | mit I_yz |
+|---|---|---|
+| Mast, Fussmoment Wind quer (M_y 10.8375 kNm) | 0.00 % | **0.00 %** |
+| Mast, Längsmoment Einzeljoch (43.0908 kNm) | 0.13 % | **0.12 %** |
+| Mast, Längsmoment Reihe, geteilter Mast (74.9685 kNm) | 0.60 % | **0.82 %** |
+| Mast, ständig N | 0.00 % | **0.00 %** |
+| Gurt N / V_y / M_y ständig | 0.78 / 13.6 / 17.0 % | **0.55 / 0.98 / 4.82 %** |
+| Blech N / M_z ständig | 11.1 / 18.2 % | **1.37 / 2.68 %** |
+| **Blech M_z / V_y Wind längs** | 25.5 / 19.8 % | **28.1 / 19.6 %** |
+| **Gurt M_y Wind längs** | 47.1 % | **54.9 %** |
+| **Mast M_y ständig** (max 1.656 kNm) | 81.0 % | **81.1 %** |
 
-**Was es NICHT ist:** die Zwangsbedingung. Der Starrfaktor von 1 bis 100
-ändert keine Stelle (16.98 % bleibt 16.98 %), bei 1000 bricht die Zerlegung
-ab. Gemessen mit `vergleich_starrheit.mjs`, Teil A.
+**Die Zwangsbedingung war es nicht** (Starrfaktor 1–100 ändert keine
+Stelle, Teil A von `vergleich_starrheit.mjs`), **das Deviationsmoment
+schon** — eingebaut, siehe *Letzte Schritte*.
 
-**Was es ist:** das **Deviationsmoment I_yz** des Gurtwinkels. Teil B
-desselben Werkzeugs zeigt es an den vier Gurten einer Station: N, V_z und
-M_y stimmen, M_z nicht, und keine Drehung um die Stabachse (±90°, 180°)
-kommt näher als die ungedrehte Lesart.
+**Was bleibt: der Anschluss Joch–Mast.** Beide Reste sind vor und nach
+I_yz gleich, sie haben also eine andere Ursache:
+(1) **Wind längs, Jochende:** AxisVM leitet über den Überstand zwischen
+Endblech (x = 0) und Linkanschluss (x = 0.12) ein Kräftepaar — `OGL_S0`
+N −1.08 kN, Endblech `BV_L_0_2` V_y 1.08 kN, M_z 0.23 kNm —, der Löser
+praktisch nichts (0.008 kN). Das Endblech hängt nur über Starrelemente an
+den Gurtknoten; wie AxisVM dort eine Kraft durchleitet, ist offen.
+(2) **Ständig, Mastfuss M_y:** AxisVM −1.656, Löser −0.313 kNm — das Joch
+spannt den Masten in seiner Ebene bei AxisVM stärker ein.
+**Ausgeschlossen, gemessen:** die **Gelenklage im Linkelement** (Arm am
+i-Ende wie heute, am j-Ende, halbiert, ohne Länge): i/j/Mitte liegen für
+Wind längs Blech M_z bei 28.1 / 25.2 / 26.7 %, Mast M_y ständig bei 81 /
+72 / 76 % — keine erklärt es, «ohne Länge» ist klar schlechter.
+**Nächster Messschritt, wenn angewiesen:** die Knotenverschiebungen am
+Anschluss (ARM–ANS–Gurt) gegen AxisVM halten — die Ergebnisdatei führt
+Schnittgrössen, ob auch Wege, ist zu prüfen. Kein neuer AxisVM-Lauf nötig,
+solange die Ergebnisse reichen.
 
-**Der nächste Schritt, wenn der Auftraggeber ihn anweist** — er berührt den
-Kern des Lösers und gehört gemessen, nicht geraten:
-
-1. **I_yz in die Datei.** Je Querschnitt in `stabmodellJson`
-   (`export.axisvm.js`) schreiben. Die Zahl ist vorhanden, nicht neu zu
-   erfinden: `randspannung()` in `core.winkel.js` leitet sie für den Winkel
-   aus I_1 und I_2 her (Zeilen 24–40, 83). **Eine zweite Herleitung wäre
-   eine zweite Wahrheit** — dieselbe Stelle benutzen.
-2. **`kLokal` koppeln** (core.stabwerk.js): die Biegeterme um y und z
-   hängen dann zusammen. Für I_yz = 0 muss die Matrix **Zeichen für
-   Zeichen** die alte sein — dieselbe Auflage wie bei der Schubverformung
-   (φ = 0). Nur **echte Stäbe** (`art === 'stab'`): Starrelemente und Links
-   nie, dieselbe Regel wie beim Eigengewicht und beim Schub.
-3. **Das Vorzeichen hängt an der Drehlage.** Die vier Gurte stehen in vier
-   verschiedenen Lagen (`lcsZ` = [0,0,−1] / [0,1,0] / …). Der Umbau ist erst
-   richtig, wenn **alle vier** stimmen — einer allein lässt sich auch mit
-   dem falschen Vorzeichen treffen.
-4. **Messen in dieser Reihenfolge:** geschlossene Lösung für die schiefe
-   Biegung (neuer Abschnitt im Prüfstand) → `vergleich_starrheit.mjs`
-   → `vergleich_axisvm.mjs` → `pruefung.mjs` und `durchlauf.mjs`.
-
-⚠ **Fallen, die dabei sicher zuschlagen:**
-Die zwanzig geschlossenen Lösungen des Abschnitts 111 sind **doppelt
-symmetrisch** (I_yz = 0) und müssen unverändert durchgehen — tun sie es
-nicht, ist die Kopplung falsch und nicht die Schranke zu streng (die Falle
-vom 25. September bei der Schubverformung). Und **PyNite kennt kein I_yz**:
-`vergleich_stabwerk.mjs` und `kalibrieren.mjs` werden danach auseinander-
-laufen, ohne dass der Löser falsch wäre — dieselbe Lage wie bei der
-Schubverformung, siehe *Offene Punkte*.
+⚠ **PyNite kennt kein I_yz:** `vergleich_stabwerk.mjs` und
+`kalibrieren.mjs` rechnen den Winkel weiter doppelt symmetrisch und
+werden am Gurt vom Löser abweichen, ohne dass einer falsch wäre —
+dieselbe Lage wie bei der Schubverformung. Der Prüfstand blieb grün (er
+hält keine PyNite-Zahl am Gurt fest).
 
 **Die Modelle liegen bereit** (in `com/`, gitignoriert — bei einem
 Rechnerwechsel neu rechnen lassen): `AxisVM_Einzel_J90_20m.json` samt
@@ -1357,14 +1388,19 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **I_yz fehlt in der Elementmatrix — der nächste Schritt der Etappe 4.**
-  `kLokal` in core.stabwerk.js koppelt y und z nicht; der Löser rechnet den
-  Gurtwinkel, als wäre er doppelt symmetrisch. Gemessen am `OGL_S40`,
-  Lastfall G: N und M_y stimmen auf 0.5–0.8 %, **M_z gar nicht** (AxisVM
-  0.0653, Löser −0.0019 kNm). Das ist die benannte Ursache der 13–25 % an
-  Gurten und Blechen. Der Eingriff berührt den **Kern des Lösers** und die
-  Querschnittswerte der Ausleitungsdatei — siehe *Laufende Arbeit*,
-  Entscheid des Auftraggebers, ob er jetzt gemacht wird.
+- ⚠ **Gurtspannung im Stabwerk: Vorzeichen-Hülle oder vorzeichenrichtig?**
+  `randspannung()` (core.winkel.js) wertet ±M_y und ±M_z als Hülle aus —
+  gebaut für den Ersatzbalken, der die Momente als Beträge führt, und dort
+  «zugleich die sichere Seite». Das Stabwerk kennt die Vorzeichen, und seit
+  I_yz sind beide Komponenten gross. Gemessen (J90/20 m, Stabwerksweg):
+  Hülle **0.4684**, vorzeichenrichtig **0.3268** (Reihe 0.4775 / 0.3648).
+  Die Hülle trifft exakt die ungünstige Kombination. Bevor umgestellt wird,
+  gehört die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von
+  `randspannung`) an einer geschlossenen Lösung gemessen, und der
+  Entscheid gehört dem Auftraggeber (Auswertung der Spannungsverläufe).
+  Heute steht die Hülle — auf der sicheren Seite.
+- **Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss
+  M_y ständig): siehe *Laufende Arbeit (26. Sept.)*. Mit I_yz unverändert.
 - ⚠ **Die PyNite-Ausleitung steht auf der lokalen Link-Lesart.** Der Befund
   vom 26. September (die Linkbedingung gilt global) ist im Löser behoben, in
   `export.pynite.js` nicht: `def_releases` wirkt in PyNites eigenem
@@ -1543,7 +1579,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5410 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5430 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -5,9 +5,9 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **26. September 2026**, Arbeitsbaum sauber, `main` und `origin/main`
-gleich; die letzten Commits sind die Übergabe selbst (`git log --oneline -6`),
-Prüfstand 5410 Kontrollen grün, `durchlauf.mjs` ohne Bruch.
+Stand: **26. September 2026**, Punkt 1 des Auftrags (I_yz) ist erledigt und
+committet, aber **nicht gepusht** (`git log --oneline -6`); Prüfstand 5430
+Kontrollen grün, `durchlauf.mjs` ohne Bruch.
 
 ---
 
@@ -36,7 +36,8 @@ Prüfstand 5410 Kontrollen grün, `durchlauf.mjs` ohne Bruch.
 >
 > Der Auftrag steht in `INITIALPROMPT.md` im Projektstamm — drei Punkte in
 > dieser Reihenfolge, dazu was beim Wechsel des Kontos zu beachten ist. Lies
-> sie mit, fang mit Punkt 1 an, und was dabei offen bleibt, frag mich.
+> sie mit, fang mit dem ersten offenen Punkt an, und was dabei offen
+> bleibt, frag mich.
 
 ---
 
@@ -54,22 +55,22 @@ den Stabwerksweg**, und die Freigabe gegen AxisVM (**Etappe 4**).
 quer auf 0.00 %, das Längsmoment am geteilten Masten der Reihe auf 0.60 %,
 und damit ist auch die Sofortmassnahme vom 19. September von aussen belegt
 (beide Programme sagen unabhängig: 1.74-faches Längsmoment in der Reihe).
-Für **Gurte und Bleche nicht**: 13–18 % unter ständiger Last, 25 % bei den
-Blechmomenten unter Wind längs.
+Für **Gurte und Bleche** seit dem Einbau von I_yz unter ständiger Last im
+Feld **ja** (Gurt V_y 0.98 %, Blech M_z 2.68 % statt 13.6 / 18.2 %). Was
+bleibt, sitzt am **Anschluss Joch–Mast** (Wind längs am Jochende, Mastfuss
+M_y ständig) und ändert sich mit I_yz nicht — CLAUDE.md, *Laufende Arbeit
+(26. Sept.)*.
 
 ## Der Auftrag (entschieden am 26. September)
 
-**1. I_yz in die Elementmatrix.** Die Ursache der 13–25 % ist gemessen und
-benannt: die Modelldatei führt je Querschnitt nur A, I_y, I_z und I_t, und
-`kLokal` koppelt y und z deshalb nicht — der Löser rechnet den L-Winkel, als
-wäre er doppelt symmetrisch. `randspannung()` in `core.winkel.js` kennt das
-Deviationsmoment längst, also die **Spannung**; die **Steifigkeit** nicht —
-und die Schnittgrössen kommen aus der Steifigkeit.
-
-Der Eingriff berührt den **Kern des Lösers**. Vorgehen, Fallen und die
-Reihenfolge der Messungen stehen in CLAUDE.md unter *Laufende Arbeit
-(26. Sept.)*. **Kein neuer AxisVM-Lauf nötig** — die Ergebnisdateien liegen in
-`com/`, und `vergleich_starrheit.mjs` sagt in 30 Sekunden, ob es besser wurde.
+**1. ~~I_yz in die Elementmatrix~~ — erledigt am 26. September.**
+`kLokalSchief` (core.stabwerk.js) rechnet den Winkel in seinen Hauptachsen,
+die Ausleitung schreibt I_yz aus `winkelwerteFuer()`, das Vorzeichen ist
+gegen AxisVM gemessen (Prüfstand Abschnitt 129). Zwei Fragen daraus liegen
+beim Auftraggeber (CLAUDE.md, *Offene Punkte*): ⚠ ob der Gurt im Stabwerk
+**vorzeichenrichtig** statt über die ±M-Hülle ausgewertet werden soll
+(J90/20 m: η 0.3268 statt 0.4684), und ob der **Anschluss Joch–Mast**
+gegen AxisVM weiter verfolgt wird, bevor Punkt 2 beginnt.
 
 **2. Der Tragausleger — beide Wege.** Eigener Kragarm-Kern für die Anzeige
 (Hauptkacheln, Verläufe, Bericht), das **Stabwerk für das Urteil**; so steht es
@@ -142,7 +143,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5410 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5430 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

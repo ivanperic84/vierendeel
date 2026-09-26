@@ -52,15 +52,23 @@ function rechteckIt(a, b) {
   return beta * h * t ** 3;
 }
 
-/** A, Iy, Iz, It eines Querschnitts der Datei - in m2 bzw. m4. */
+/**
+ * A, Iy, Iz, Iyz, It eines Querschnitts der Datei - in m2 bzw. m4.
+ *
+ * `Iyz` ist das Deviationsmoment, Iyz = ∫ y z dA im lokalen System des
+ * Stabes. Es fehlt in jeder Datei vor dem 26. September und bei jedem
+ * doppelt symmetrischen Querschnitt - dann ist es null, und die Matrix ist
+ * die alte. Gefuehrt wird es heute nur vom Gurtwinkel (siehe kLokal).
+ */
 export function qsWerte(q) {
   if (q.A != null && q.Iy != null) {
-    return { A: q.A, Iy: q.Iy, Iz: q.Iz, It: q.It ?? (q.Iy + q.Iz) / 2 };
+    return { A: q.A, Iy: q.Iy, Iz: q.Iz, Iyz: q.Iyz ?? 0,
+             It: q.It ?? (q.Iy + q.Iz) / 2 };
   }
   if (q.form === 'Rectangle') {
     // parameter [b, h] in mm: b in lokaler y-, h in lokaler z-Richtung.
     const b = q.parameter[0] / 1000, h = q.parameter[1] / 1000;
-    return { A: b * h, Iy: (b * h ** 3) / 12, Iz: (h * b ** 3) / 12,
+    return { A: b * h, Iy: (b * h ** 3) / 12, Iz: (h * b ** 3) / 12, Iyz: 0,
              It: rechteckIt(b, h) };
   }
   throw new Error('Querschnitt ohne Werte: ' + q.name + ' (' + q.form + ')');
@@ -181,6 +189,70 @@ function kLokal(E, G, A, Iy, Iz, It, L, schub = false) {
   put(1, 5, b2); put(1, 11, b2); put(7, 5, -b2); put(7, 11, -b2);
   put(5, 5, (4 + pz) * c2); put(11, 11, (4 + pz) * c2); put(5, 11, (2 - pz) * c2);
   return k;
+}
+
+/* ===========================================================================
+ * >>> DER WINKEL IST NICHT DOPPELT SYMMETRISCH - DAS DEVIATIONSMOMENT. <<<
+ * =========================================================================
+ *
+ * Auftrag vom 26. September, Punkt 1: «I_yz in die Elementmatrix».
+ *
+ * Die Modelldatei fuehrte je Querschnitt nur A, I_y, I_z und I_t, und
+ * `kLokal` koppelt die beiden Biegeebenen nicht. Fuer den Gurtwinkel
+ * L 90x90x9 heisst das: I_y = I_z, und der Loeser rechnete ihn wie ein
+ * Rohr - jede Richtung gleich steif. Tatsaechlich liegen seine Hauptachsen
+ * unter 45 Grad zu den Schenkeln, mit I_1 = 3.90 I_2 (185.3 gegen
+ * 47.5 cm4, aus `winkelwerte`). Ein Moment um die
+ * schenkelparallele Achse biegt ihn deshalb AUCH um die andere.
+ *
+ * Gemessen am `OGL_S40`, Lastfall G, gegen AxisVM (26. September): N, V_z
+ * und M_y stimmten auf 0.5-0.8 %, M_z gar nicht (AxisVM 0.0653, Loeser
+ * -0.0019 kNm). Dieselbe Groesse kennt das Werkzeug an einer anderen
+ * Stelle laengst: `randspannung()` in core.winkel.js rechnet die SPANNUNG
+ * ueber I_yz. Die STEIFIGKEIT kannte es nicht - und die Schnittgroessen
+ * kommen aus der Steifigkeit.
+ *
+ * >>> WIE: UEBER DIE HAUPTACHSEN, NICHT UEBER EINE NEUE FORMEL. <<<
+ *
+ * Die gekoppelte Biegematrix laesst sich direkt anschreiben - fuer
+ * Euler-Bernoulli. Mit der Schubverformung (25. September) wird sie
+ * unuebersichtlich, weil phi am I der Ebene haengt, und es gibt keine
+ * «Ebene» mehr. In den Hauptachsen dagegen zerfaellt der Stab wieder in
+ * zwei ungekoppelte Ebenen, und dort steht die gepruefte Matrix schon:
+ *
+ *     S = [[I_z, I_yz], [I_yz, I_y]]      (= ∫[y², yz; yz, z²] dA)
+ *     theta = atan2(2 I_yz, I_z - I_y) / 2
+ *     e1 = (cos, sin), e2 = (-sin, cos)   in (y, z)
+ *     I_z' = e1ᵀ S e1,   I_y' = e2ᵀ S e2
+ *
+ * `kLokal` rechnet mit I_y', I_z' im gedrehten System (x, y', z'), und
+ * `drehen` bringt die Matrix um die Stabachse zurueck nach (x, y, z).
+ * Die Schubzahl phi steht damit je HAUPTachse - das ist die richtige
+ * Stelle, denn nur dort sind die Ebenen unabhaengig.
+ *
+ * >>> FUER I_yz = 0 IST ES DER ALTE AUFRUF, ZEICHEN FUER ZEICHEN. <<<
+ *
+ * Nicht «gedreht um null Grad» - gar nicht gedreht. Dieselbe Auflage wie
+ * bei der Schubverformung (phi = 0): die zwanzig geschlossenen Loesungen
+ * des Pruefstands sind doppelt symmetrisch und muessen unveraendert
+ * durchgehen.
+ *
+ * >>> DAS VORZEICHEN GEHOERT DER DATEI, NICHT DIESER STELLE. <<<
+ *
+ * I_yz ist hier ∫ y z dA im LOKALEN System des Stabes. Wohin die Schenkel
+ * darin zeigen, weiss nur die Ausleitung (`lcs` in export.axisvm.js dreht
+ * jeden der vier Gurte so, dass er in SEINEM System gleich liegt). Deshalb
+ * traegt die Datei das Vorzeichen, und hier wird nichts hergeleitet.
+ * ========================================================================= */
+function kLokalSchief(E, G, A, Iy, Iz, Iyz, It, L, schub = false) {
+  if (!Iyz) return kLokal(E, G, A, Iy, Iz, It, L, schub);
+  const th = Math.atan2(2 * Iyz, Iz - Iy) / 2;
+  const c = Math.cos(th), s = Math.sin(th);
+  const Izh = c * c * Iz + 2 * c * s * Iyz + s * s * Iy;   // ∫ y'² dA
+  const Iyh = s * s * Iz - 2 * c * s * Iyz + c * c * Iy;   // ∫ z'² dA
+  // Zeilen: die gedrehten Achsen (x, y', z'), ausgedrueckt in (x, y, z).
+  const R = [[1, 0, 0], [0, c, s], [0, -s, c]];
+  return drehen(kLokal(E, G, A, Iyh, Izh, It, L, schub), R);
 }
 
 /** Punkt-zu-Punkt-Feder (Linkelement): je lokalem Freiheitsgrad eine Zahl. */
@@ -580,8 +652,8 @@ export function loese(dat, opt = {}) {
        * Nur echte Staebe schieben. Starrelemente und die steifen
        * Knotenabschnitte sind Kunstgriffe - siehe den Block bei kLokal.
        */
-      k = kLokal(E, G, w.A, w.Iy, w.Iz, w.It, db.L,
-                 schubweich && (s.art || 'stab') === 'stab');
+      k = kLokalSchief(E, G, w.A, w.Iy, w.Iz, w.Iyz, w.It, db.L,
+                       schubweich && (s.art || 'stab') === 'stab');
     }
     return { s, L: db.L, R: db.R, kL: k, kG: drehen(k, db.R),
              i: idx.get(s.von), j: idx.get(s.bis) };

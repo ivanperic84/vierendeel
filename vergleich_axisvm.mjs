@@ -46,6 +46,7 @@ const J = (f) => pathToFileURL(join(HIER, 'js', f)).href;
 const NO = await import(J('data.normen.js'));
 NO.setzeNormen(JSON.parse(readFileSync(join(HIER, 'data', 'normen.json'), 'utf8')));
 const SW = await import(J('core.stabwerk.js'));
+const AX = await import(J('export.axisvm.js'));
 const SN = await import(J('core.stabnachweis.js'));
 
 const pfad = process.argv[2];
@@ -114,6 +115,20 @@ if (gSumme > 0.5) {
   console.log('  AxisVM setzt sein Eigengewicht SELBST an. Ist darin das Eigengewicht');
   console.log('  enthalten, steht es dort zweimal - der Lastfall G laeuft dann um');
   console.log('  Faktor 2 auseinander, die uebrigen bleiben makellos.');
+}
+/* ---------------------------------------------------------------------------
+ * DAS DEVIATIONSMOMENT - in Dateien vor dem 26. September nachgetragen.
+ *
+ * Seit dem 26. September schreibt die Ausleitung je Gurtwinkel I_yz, und
+ * der Loeser rechnet damit (kLokalSchief in core.stabwerk.js). Die Modelle
+ * in `com/` sind aelter, und neu ausleiten hiesse, sie juenger zu machen
+ * als ihre Ergebnisse. Nachgetragen wird deshalb aus DERSELBEN Quelle wie
+ * in der Ausleitung, am Profilnamen der Datei - und es wird gesagt.
+ * ------------------------------------------------------------------------- */
+const nachgetragen = AX.deviationNachtragen(dat);
+if (nachgetragen.length) {
+  console.log(`HINWEIS: I_yz nachgetragen (Datei vor dem 26. September): `
+    + nachgetragen.join(', '));
 }
 const lsg = SW.loese(dat, { eigengewicht: true });
 console.log(`\nLoeser: ${lsg.n} Freiheitsgrade, Bandbreite ${lsg.bw}, `
