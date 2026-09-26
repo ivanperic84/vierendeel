@@ -21,6 +21,11 @@ oder in einen Commit-Text.
    `data/*.json`, siehe *Umgebung*.
 5. Erst dann die neue Aufgabe angehen.
 
+Ein **Initialprompt** zum Einfügen in einen neuen Chat — Stand, offene
+Punkte und der nächste Schritt in Kurzform — steht in
+**[INITIALPROMPT.md](INITIALPROMPT.md)**. Er ist eine Abkürzung in die
+Arbeit, kein Ersatz für diese Datei.
+
 Weiterführend: **[README.md](README.md)** (Modell, Rechenweg, Dateien),
 **[com/LIESMICH.md](com/LIESMICH.md)** (vermessene AxisVM-Schnittstelle),
 das Handbuch in der Anwendung (`js/doku.handbuch.js`, Herleitung). Die
@@ -1085,9 +1090,81 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
+**Laufende Arbeit (26. Sept.): Etappe 4 — der Löser gegen AxisVM.**
+Schritt (6) des Bauplans der Jochreihe. **Für den Masten ist die Freigabe
+erfüllt**, für Gurte und Bleche nicht — und die Ursache ist benannt, aber
+nicht behoben.
+
+| Gegen AxisVM gemessen | Abweichung |
+|---|---|
+| Mast, Fussmoment Wind quer (M_y 10.8375 kNm) | **0.00 %** |
+| Mast, Längsmoment Einzeljoch (43.0908 kNm) | **0.00 %** |
+| Mast, Längsmoment Reihe, geteilter Mast (74.9685 kNm) | **0.60 %** |
+| Mast, ständig N (18.7005 kN) | **0.00 %** |
+| Gurt N ständig | 0.78 % |
+| **Gurt V_y, M_y ständig** | **13.6 / 17.0 %** |
+| **Blech N, M_z ständig** | **11.1 / 18.2 %** |
+| **Blech M_z Wind längs** | **25.5 %** |
+
+**Was es NICHT ist:** die Zwangsbedingung. Der Starrfaktor von 1 bis 100
+ändert keine Stelle (16.98 % bleibt 16.98 %), bei 1000 bricht die Zerlegung
+ab. Gemessen mit `vergleich_starrheit.mjs`, Teil A.
+
+**Was es ist:** das **Deviationsmoment I_yz** des Gurtwinkels. Teil B
+desselben Werkzeugs zeigt es an den vier Gurten einer Station: N, V_z und
+M_y stimmen, M_z nicht, und keine Drehung um die Stabachse (±90°, 180°)
+kommt näher als die ungedrehte Lesart.
+
+**Der nächste Schritt, wenn der Auftraggeber ihn anweist** — er berührt den
+Kern des Lösers und gehört gemessen, nicht geraten:
+
+1. **I_yz in die Datei.** Je Querschnitt in `stabmodellJson`
+   (`export.axisvm.js`) schreiben. Die Zahl ist vorhanden, nicht neu zu
+   erfinden: `randspannung()` in `core.winkel.js` leitet sie für den Winkel
+   aus I_1 und I_2 her (Zeilen 24–40, 83). **Eine zweite Herleitung wäre
+   eine zweite Wahrheit** — dieselbe Stelle benutzen.
+2. **`kLokal` koppeln** (core.stabwerk.js): die Biegeterme um y und z
+   hängen dann zusammen. Für I_yz = 0 muss die Matrix **Zeichen für
+   Zeichen** die alte sein — dieselbe Auflage wie bei der Schubverformung
+   (φ = 0). Nur **echte Stäbe** (`art === 'stab'`): Starrelemente und Links
+   nie, dieselbe Regel wie beim Eigengewicht und beim Schub.
+3. **Das Vorzeichen hängt an der Drehlage.** Die vier Gurte stehen in vier
+   verschiedenen Lagen (`lcsZ` = [0,0,−1] / [0,1,0] / …). Der Umbau ist erst
+   richtig, wenn **alle vier** stimmen — einer allein lässt sich auch mit
+   dem falschen Vorzeichen treffen.
+4. **Messen in dieser Reihenfolge:** geschlossene Lösung für die schiefe
+   Biegung (neuer Abschnitt im Prüfstand) → `vergleich_starrheit.mjs`
+   → `vergleich_axisvm.mjs` → `pruefung.mjs` und `durchlauf.mjs`.
+
+⚠ **Fallen, die dabei sicher zuschlagen:**
+Die zwanzig geschlossenen Lösungen des Abschnitts 111 sind **doppelt
+symmetrisch** (I_yz = 0) und müssen unverändert durchgehen — tun sie es
+nicht, ist die Kopplung falsch und nicht die Schranke zu streng (die Falle
+vom 25. September bei der Schubverformung). Und **PyNite kennt kein I_yz**:
+`vergleich_stabwerk.mjs` und `kalibrieren.mjs` werden danach auseinander-
+laufen, ohne dass der Löser falsch wäre — dieselbe Lage wie bei der
+Schubverformung, siehe *Offene Punkte*.
+
+**Die Modelle liegen bereit** (in `com/`, gitignoriert — bei einem
+Rechnerwechsel neu rechnen lassen): `AxisVM_Einzel_J90_20m.json` samt
+`_ergebnisse.json` (828 Knoten, rund 11 Minuten je Lauf) und
+`AxisVM_Reihe_2xJ90_20m.json` (1650 Knoten, 1879 Stäbe, rund 20 Minuten).
+Gebaut und gerechnet wird mit
+`com\AxisVM_aufbauen.cmd -Json <datei> -Rechnen -Auslesen -Stapel`;
+**AxisVM rechnet nur auf Anweisung des Auftraggebers.**
+
+⚠ **Der Arbeitsstand im Browser ist nicht unberührt:** er trägt seit dem
+Prüflauf vom 26. September ein **zweites Tragwerk T2**, das ich zum Prüfen
+der Reihenzeile angelegt habe, und `fdHoehe` hatte ich dabei auf 14 m
+verstellt (auf 5.50 zurückgesetzt). Wer das Standarddokument als Maßstab
+nimmt, soll wissen, dass es nicht das ursprüngliche ist.
+
 **Laufende Arbeit (20. Sept.): der Stabwerkslöser, Schritt 2 des Bauplans.**
 Er steht seit dem 20. September **im Projekt** (`js/core.stabwerk.js`,
-Prüfstand Abschnitt 111) und **hängt noch an keinem Nachweis**. Was er
+Prüfstand Abschnitt 111). ⚠ **ÜBERHOLT am 25. September:** er hängt seit
+Etappe 2 am Nachweis (wählbar unter *Optionen → Nachweise*, Knopf in der
+Stabwerksleiste) und rechnet seit Etappe 3 die ganze Reihe. Was der Block
+weiter wert ist, sind die **Messungen** — und die Lehren daraus. Was er
 kann und was gemessen ist:
 
 - Er frisst **die vorhandene AxisVM-Datei** (`stabmodellJson`) — kein zweiter
@@ -1185,14 +1262,16 @@ kann und was gemessen ist:
   **Stand der Messung** (J90/8 m, 380 Knoten, 430 Stäbe): in
   Gleisrichtung stimmen beide (Wege 1.1 %, Auflager 0.27 %); in der
   **Jochebene** bleiben G 0.20 und Wind quer 0.53 — das ist der
-  Linkelement-Befund oben, keine Frage des Lösers. **Der Löser hängt
-  weiter an keinem Nachweis**; für die Freigabe fehlt der Entscheid, wie
+  Linkelement-Befund oben, keine Frage des Lösers. ⚠ Der Satz «der Löser hängt
+  an keinem Nachweis» galt bis zum 25. September; für die Freigabe fehlte der Entscheid, wie
   das Prüfmodell die gelenkigen Anschlüsse führen soll.
-- **Nächster Schritt:** gegen PyNite messen — es **ist** installiert
+- **Damals nächster Schritt, seither erledigt:** gegen PyNite messen — es **ist** installiert
   (Fassung 3.0.0, Modulname `Pynite` mit kleinem n; meine frühere Aussage
   «nicht installiert» war falsch, ich hatte nur `PyNite` geprüft). Danach
   das Blatt (11 868 Freiheitsgrade) auf Zeit prüfen, dann entscheiden, ob
-  Starrkörper als Zwangsbedingung statt als Ersatzsteifigkeit gehören.
+  Starrkörper als Zwangsbedingung statt als Ersatzsteifigkeit gehören. Die
+  letzte Frage ist am 26. September **beantwortet: nein** — der Starrfaktor
+  ändert keine Stelle (siehe *Laufende Arbeit (26. Sept.)*).
 
 **Laufende Arbeit (19. Sept.): Jochreihe als gekoppeltes Tragwerk.**
 Entscheide siehe *Entschieden* («Jochreihe gesamtheitlich»). Bauplan:
@@ -1263,6 +1342,20 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **I_yz fehlt in der Elementmatrix — der nächste Schritt der Etappe 4.**
+  `kLokal` in core.stabwerk.js koppelt y und z nicht; der Löser rechnet den
+  Gurtwinkel, als wäre er doppelt symmetrisch. Gemessen am `OGL_S40`,
+  Lastfall G: N und M_y stimmen auf 0.5–0.8 %, **M_z gar nicht** (AxisVM
+  0.0653, Löser −0.0019 kNm). Das ist die benannte Ursache der 13–25 % an
+  Gurten und Blechen. Der Eingriff berührt den **Kern des Lösers** und die
+  Querschnittswerte der Ausleitungsdatei — siehe *Laufende Arbeit*,
+  Entscheid des Auftraggebers, ob er jetzt gemacht wird.
+- ⚠ **Die PyNite-Ausleitung steht auf der lokalen Link-Lesart.** Der Befund
+  vom 26. September (die Linkbedingung gilt global) ist im Löser behoben, in
+  `export.pynite.js` nicht: `def_releases` wirkt in PyNites eigenem
+  Stabsystem. Solange das so ist, bestätigen sich beide Wege gegenseitig
+  einen Fehler. Der Umbau berührt `kalibrieren.mjs` und damit die
+  Kennwerte (`GURT_DAEMPFUNG` u. a.) — deshalb nicht von selbst getan.
 - ⚠ **Bericht: zwei Tragwerksarten fehlen.** Das **Abfangjoch** ist
   ausdrücklich draussen (18. Sept.), der **Tragausleger** wartet auf sein
   Kragarm-Modell. Bei der Durchsicht vom 24. September bestätigt — beides
@@ -1397,6 +1490,12 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Wunsch.
 
 **Bedienung**
+- **`serve.py` sollte sich weigern zu starten, wenn Port 8731 belegt ist.**
+  Es setzt `allow_reuse_address = True`, und das erlaubt unter Windows
+  mehreren Prozessen, denselben Port zu binden. Am 26. September lagen fünf
+  Server gleichzeitig darauf; die Verbindung landete bei einem toten und
+  wurde ohne Antwort geschlossen — ein Bild, das wie eine verweigerte
+  Sandbox aussieht und zweimal so gedeutet wurde.
 - Der Einzelmast des Durchgangs trägt weder Anbauteile noch Anker (2 Knoten,
   1 Stab) — genau die Stelle, an der zweimal etwas fehlte. Ein Fall mit
   Teilen am Masten wäre die bessere Wache.
@@ -1434,6 +1533,8 @@ node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
+node vergleich_axisvm.mjs com/AxisVM_<name>.json      # Loeser gegen AxisVM, Stab fuer Stab
+node vergleich_starrheit.mjs com/AxisVM_<name>.json   # Starrfaktor-Reihe und Drehprobe an den Gurten
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```
@@ -1542,6 +1643,9 @@ d3f95be») — beide Änderungen gehören mit in den Commit.
 Prüfwerkzeuge im Stamm: `pruefung.mjs` (Bausteine), `durchlauf.mjs`
 (Durchgang), `kalibrieren.mjs` / `kalibrieren_abfang.mjs` (Messung gegen
 PyNite, Ergebnisse in `kalibrierung_*`), `vergleich_*` (gegen AxisVM).
+`vergleich_starrheit.mjs` ist der billige Test vor einem Umbau am
+Löserkern: Starrfaktor-Reihe und Drehprobe an den vier Gurten einer
+Station (26. Sept.).
 
 ## AxisVM über COM (nur Windows)
 
@@ -1597,6 +1701,9 @@ eintritt, nicht erst am Schluss:
   committen als ihn nur im Arbeitsverzeichnis liegen lassen.
 - **Teuer gelernte Regel** → zum Abschnitt, den sie betrifft.
 - Kontrollenzahl im *Stand* und unter *Arbeiten* nachführen.
+- **[INITIALPROMPT.md](INITIALPROMPT.md) mitführen**, sobald sich Stand oder
+  nächster Schritt ändern — sie ist der Einstieg in einen neuen Chat, und
+  ein veralteter Einstieg führt die nächste Sitzung an die falsche Stelle.
 
 Nichts davon gehört in einen persönlichen Gedächtnisspeicher des Werkzeugs;
 er wandert beim Kontowechsel nicht mit. Die Datei ist öffentlich: keine
