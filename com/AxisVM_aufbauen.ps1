@@ -1024,11 +1024,166 @@ function Lies-Schnittgroessen {
                 Mz   = [math]::Round([double]$v.lfvMz, 6)
             })
         }
+        <#  >>> DIE WEGE UND DIE LINKKRAEFTE (26. September). <<<
+
+            Weisung: "Bruecke erweitern und rechnen". Die Stabschnittgroessen
+            allein reichten nicht, um den Anschluss Joch-Mast zu klaeren
+            (vergleich_anschluss.mjs): unter G ist der ganze Unterschied die
+            Kraft in Jochachse am oberen Link, und die ist die Differenz
+            zweier Wege von rund 1 mm. Trennen laesst sie sich nur an den
+            WEGEN selbst.
+
+            VERMESSEN (Erkundung, IAxisVMDisplacements / IAxisVMForces):
+              GetNodalDisplacementByLoadCaseId(int, int, int, EAnalysisType,
+                  ELongBoolean, RDisplacementValues, string)
+              RDisplacementValues: ex ey ez Fx Fy Fz eR fR
+              GetLinkElementForcesByLoadCaseId(int, int, int, EAnalysisType,
+                  RLinkElementForces, string)
+              RLinkElementForces: lefSection1..3, je RLinkElementForceValues
+                  (lefvNx lefvVy lefvVz lefvTx lefvMy lefvMz)
+
+            NICHT VERMESSEN ist die Bedeutung des ELongBoolean. Uebergeben
+            wird lbFalse; die Parameternamen schreibt der Bericht einmal mit
+            (Signaturen), und die Gegenprobe steht in vergleich_anschluss.mjs:
+            der Fussknoten muss null sein, der Mastkopf unter Wind quer muss
+            den Loeser treffen (dort stimmen die Momente auf 0.00 %).
+
+            Der verschachtelte Satz der Linkkraefte ist derselbe Typ, an dem
+            GetRec schon scheiterte (Bericht 7b: leer zurueck). Kommt er
+            leer, wird das gesagt - eine Null ist hier kein Messwert.     #>
+        $wegeFall = $null; $linksFall = $null
+        $wegUngleichNull = $false
+        if ($script:wegeAus -ne $true) {
+            if ($null -eq $script:tWeg) {
+                $script:tWeg = $script:typen | Where-Object { $_.Name -eq 'RDisplacementValues' } |
+                               Select-Object -First 1
+                Signaturen 'IAxisVMDisplacements' 'GetNodalDisplacementByLoadCaseId'
+            }
+            if (-not $script:tWeg) {
+                Schreib '  >>> RDisplacementValues fehlt in der Typbibliothek - keine Knotenwege.'
+                $script:wegeAus = $true
+            } else {
+                $lbN = Aufzaehlung 'ELongBoolean' 'lbFalse'
+                if ($null -eq $lbN) { $lbN = 0 }
+                $wegeFall = [ordered]@{}
+                $nW = 0; $nWnein = 0; $meldungW = ''
+                foreach ($kname in $zu.knoten.PSObject.Properties.Name) {
+                    $kid = [int]$zu.knoten.$kname
+                    $dv = [Activator]::CreateInstance($script:tWeg)
+                    $kt = ''
+                    $okd = 0
+                    try {
+                        $okd = $m.Results.Displacements.GetNodalDisplacementByLoadCaseId(
+                                   $kid, $lfNr, 1, $atLinear, $lbN, [ref]$dv, [ref]$kt)
+                    } catch {
+                        $okd = 0
+                        if (-not $meldungW) { $meldungW = $_.Exception.Message -replace "`r?`n", ' ' }
+                    }
+                    if ($okd -le 0) { $nWnein++; continue }
+                    if ([math]::Abs([double]$dv.ex) + [math]::Abs([double]$dv.ey) +
+                        [math]::Abs([double]$dv.ez) -gt 0) { $wegUngleichNull = $true }
+                    $wegeFall[$kname] = @(
+                        [math]::Round([double]$dv.ex, 10), [math]::Round([double]$dv.ey, 10),
+                        [math]::Round([double]$dv.ez, 10), [math]::Round([double]$dv.Fx, 10),
+                        [math]::Round([double]$dv.Fy, 10), [math]::Round([double]$dv.Fz, 10))
+                    $nW++
+                }
+                Schreib ("    {0,-14} {1,5} Knotenwege{2}" -f $schl, $nW,
+                         $(if ($nWnein) { " ($nWnein nicht lesbar)" } else { '' }))
+                if ($nW -eq 0) {
+                    Schreib "  >>> Kein Knotenweg lesbar: $meldungW"
+                    Schreib '      Die Wege werden fuer die uebrigen Lastfaelle nicht mehr versucht.'
+                    $script:wegeAus = $true
+                    $wegeFall = $null
+                } elseif (-not $script:wegeGemeldet) {
+                    $gefunden.Add('Knotenwege -> Results.Displacements.GetNodalDisplacementByLoadCaseId')
+                    $script:wegeGemeldet = $true
+                }
+            }
+        }
+        if (-not $zu.links -or @($zu.links.PSObject.Properties).Count -eq 0) {
+            if (-not $script:linksGemeldet) {
+                Schreib '  Die Zuordnung fuehrt keine Linknummern (aeltere Fassung oder keine Links) - keine Linkkraefte.'
+                $script:linksGemeldet = $true
+            }
+        } elseif ($script:linksAus -ne $true) {
+            if ($null -eq $script:tLink) {
+                $script:tLink = $script:typen | Where-Object { $_.Name -eq 'RLinkElementForces' } |
+                                Select-Object -First 1
+                Signaturen 'IAxisVMForces' 'GetLinkElementForcesByLoadCaseId'
+            }
+            if (-not $script:tLink) {
+                Schreib '  >>> RLinkElementForces fehlt in der Typbibliothek - keine Linkkraefte.'
+                $script:linksAus = $true
+            } else {
+                $linksFall = [ordered]@{}
+                $nL = 0; $nLleer = 0; $meldungL = ''
+                foreach ($lname in $zu.links.PSObject.Properties.Name) {
+                    $lid = [int]$zu.links.$lname
+                    $lkSatz = [Activator]::CreateInstance($script:tLink)
+                    $lt = ''
+                    $okl = 0
+                    try {
+                        $okl = $m.Results.Forces.GetLinkElementForcesByLoadCaseId(
+                                   $lid, $lfNr, 1, $atLinear, [ref]$lkSatz, [ref]$lt)
+                    } catch {
+                        $okl = 0
+                        if (-not $meldungL) { $meldungL = $_.Exception.Message -replace "`r?`n", ' ' }
+                    }
+                    if ($okl -le 0) { continue }
+                    $abschnitte = New-Object System.Collections.Generic.List[object]
+                    $summe = 0.0
+                    foreach ($sn in @('lefSection1', 'lefSection2', 'lefSection3')) {
+                        $s = $lkSatz.$sn
+                        $werte = @([double]$s.lefvNx, [double]$s.lefvVy, [double]$s.lefvVz,
+                                   [double]$s.lefvTx, [double]$s.lefvMy, [double]$s.lefvMz)
+                        foreach ($w in $werte) { $summe += [math]::Abs($w) }
+                        $gerundet = New-Object System.Collections.Generic.List[double]
+                        foreach ($w in $werte) { $gerundet.Add([math]::Round($w, 8)) }
+                        $abschnitte.Add($gerundet.ToArray())
+                    }
+                    if ($summe -eq 0) { $nLleer++ }
+                    $linksFall[$lname] = $abschnitte.ToArray()
+                    $nL++
+                }
+                Schreib ("    {0,-14} {1,5} Linkelemente{2}" -f $schl, $nL,
+                         $(if ($nLleer) { " ($nLleer davon ganz null)" } else { '' }))
+                if ($nL -eq 0) {
+                    Schreib "  >>> Keine Linkkraft lesbar: $meldungL"
+                    $script:linksAus = $true
+                    $linksFall = $null
+                } elseif ($nLleer -eq $nL -and -not $wegUngleichNull) {
+                    <#  >>> EIN LEERER LASTFALL IST KEIN LEERER SATZ. <<<
+                        Beim ersten Lauf (26. September) war der erste Fall
+                        HavarieX - ohne jede Last. Alle Linkkraefte waren dort
+                        zu Recht null, und die Wache darunter schaltete die
+                        Linkkraefte fuer ALLE Faelle ab. Ob der Fall belastet
+                        ist, sagen die Wege; ohne Weg ist null ein Messwert. #>
+                    Schreib ("    {0,-14} keine Wege, keine Linkkraefte - Lastfall ohne Last" -f $schl)
+                } elseif ($nLleer -eq $nL) {
+                    <#  Alle Links, alle drei Abschnitte, alle sechs Werte null,
+                        obwohl sich das Tragwerk bewegt - das ist der leere Satz
+                        des Marshallers (wie bei GetRec, Bericht 7b), kein
+                        Ergebnis. Nicht als Zahl ablegen. #>
+                    Schreib '  >>> Alle Linkkraefte kamen als NULL zurueck - der Satz ist leer, kein Messwert.'
+                    Schreib '      Nicht abgelegt; die Linkkraefte werden nicht weiter versucht.'
+                    $script:linksAus = $true
+                    $linksFall = $null
+                } elseif (-not $script:linksGefunden) {
+                    $gefunden.Add('Linkkraefte -> Results.Forces.GetLinkElementForcesByLoadCaseId')
+                    $script:linksGefunden = $true
+                }
+            }
+        }
         $faelle[$schl] = [ordered]@{
             nummer = $lfNr
             name   = [string]$zu.lastfallNamen.$schl
             schnitte = $liste
         }
+        # Nur was gelesen wurde, steht in der Datei - ein fehlendes Feld
+        # sagt "nicht gelesen", eine Null wuerde "gemessen: null" sagen.
+        if ($wegeFall)  { $faelle[$schl]['wege']  = $wegeFall }
+        if ($linksFall) { $faelle[$schl]['links'] = $linksFall }
         $nGelesen++
         Schreib ("    {0,-14} {1,5} Schnitte" -f $schl, $liste.Count)
     }
@@ -1048,6 +1203,9 @@ function Lies-Schnittgroessen {
         quelle   = [string]$zu.quelle
         weg      = [string]$wegName
         einheiten = $zu.einheiten
+        # Reihenfolge der Werte in `wege` und `links` (26. September).
+        wegeFelder  = @('ex', 'ey', 'ez', 'fx', 'fy', 'fz')
+        linksFelder = @('Nx', 'Vy', 'Vz', 'Tx', 'My', 'Mz')
         faelle   = $faelle
     }
     $txt = $aus | ConvertTo-Json -Depth 8 -Compress
@@ -1743,7 +1901,44 @@ function LinkSetzen([int]$li, $sb, [int]$master) {
     # Lage der Verbindung auf halber Laenge (Weisung). Im Dialog von AxisVM
     # ist das "Lage der Verbindung"; ohne Angabe stuende sie auf 0, also am
     # Anfangsknoten.
-    $rec = SatzSetzen $rec @('Position') 0.5
+    <#  >>> POSITION IST EINE LAENGE IN METERN, KEIN ANTEIL (26. September). <<<
+
+        Hier stand seit dem 24. August `Position = 0.5` - gemeint als
+        "halbe Laenge". PositionType bleibt aber auf brdtLength, und das
+        heisst: 0.5 METER vom Anfang der Linie. Der Link am Jochanschluss
+        ist 0.05 m lang; die Verbindung lag damit 0.45 m AUSSERHALB des
+        Elements, ueber bzw. unter dem Gurt.
+
+        Gefunden an den Knotenwegen (erweiterte Auslesung, J90/20 m): unter
+        G rutschte der Obergurt gegen den "in x starren" Link um 1.18 mm,
+        und die Hoehe, auf der sich Mast und Gurt in x decken, lag in G und
+        in Wind x gleichermassen 0.500 m ueber dem Gurtknoten. Mit genau
+        dieser Lage im Stabwerksloeser nachgerechnet, fielen die Reste gegen
+        AxisVM von 81 % (Mastfuss M_y, G) und 55 % (Gurt M_y, Wind y) auf
+        0.6 % und 1.1 % - der Rest am Anschluss war ein Fehler DIESES
+        Modells, nicht des Loesers.
+
+        Jetzt: die halbe Linklaenge aus den Knoten der Datei, in Metern. #>
+    $laengeLink = 0.0
+    if ($null -eq $script:knotenXYZ) {
+        $script:knotenXYZ = @{}
+        foreach ($kk in $d.knoten) { $script:knotenXYZ[[string]$kk.name] = $kk }
+    }
+    $ka = $script:knotenXYZ[[string]$sb.von]; $kb = $script:knotenXYZ[[string]$sb.bis]
+    if ($ka -and $kb) {
+        $laengeLink = [math]::Sqrt([math]::Pow([double]$kb.x - [double]$ka.x, 2) +
+                                   [math]::Pow([double]$kb.y - [double]$ka.y, 2) +
+                                   [math]::Pow([double]$kb.z - [double]$ka.z, 2))
+    }
+    if (-not ($laengeLink -gt 0)) {
+        Schreib "  >>> Link $($sb.name): Laenge nicht bestimmbar - Verbindung am Anfangsknoten (Position 0)."
+    }
+    $rec = SatzSetzen $rec @('Position') ($laengeLink / 2)
+    if (-not $script:positionGemeldet) {
+        Schreib ("  Lage der Linkverbindung: halbe Linklaenge in Metern (erster Link {0}: {1:0.0000} m)" -f
+                 $sb.name, ($laengeLink / 2))
+        $script:positionGemeldet = $true
+    }
     foreach ($f in 'x', 'y', 'z', 'xx', 'yy', 'zz') {
         $wie = if ($sb.kraftuebertragung) { [string]$sb.kraftuebertragung.$f }
                else {
@@ -2598,6 +2793,10 @@ try {
         einheiten = $d.einheiten
         knoten   = $kn
         staebe   = $staebeZu
+        # Die Nummer, die AddNN zurueckgab - NICHT die Liniennummer unter
+        # `staebe`. Gebraucht fuer die Linkkraefte beim Zurueckleisen
+        # (26. September); ohne sie kaeme man an die Links nur im selben Lauf.
+        links    = $linkVon
         lastfaelle = $lf
         lastfallNamen = $lfName
         kombinationen = $kbId

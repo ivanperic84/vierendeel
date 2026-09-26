@@ -31278,6 +31278,51 @@ titel('129  Das Deviationsmoment in der Elementmatrix (I_yz)');
 }
 
 // ===========================================================================
+titel('130  Die Linkverbindung liegt auf dem Link (COM-Bruecke)');
+/* ===========================================================================
+ * BEFUND vom 26. September, an den Knotenwegen aus AxisVM: die Bruecke
+ * setzte seit dem 24. August `Position = 0.5` - gemeint als «halbe Laenge»
+ * (Weisung). PositionType steht aber auf brdtLength, und das ist eine
+ * LAENGE IN METERN. Der Link am Jochanschluss ist 0.05 m lang; die
+ * Verbindung lag 0.45 m ausserhalb des Elements. Mit genau dieser Lage im
+ * Loeser nachgerechnet, fielen die Reste gegen AxisVM von 81 % (Mastfuss
+ * M_y, G) auf 0.6 % und von 55 % (Gurt M_y, Wind y) auf 1.1 %.
+ *
+ * AxisVM rechnet hier nicht - geprueft wird der Text der Bruecke: keine
+ * feste Zahl mehr, sondern die halbe Linklaenge aus den Knoten.
+ * ========================================================================= */
+{
+  const ps1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('>>> Keine feste Position 0.5 mehr im Link-Satz <<<',
+       !/@\('Position'\)\s+0\.5\b/.test(ps1));
+  wahr('Position ist die halbe Linklaenge',
+       /@\('Position'\)\s+\(\$laengeLink \/ 2\)/.test(ps1));
+  wahr('… und die Laenge kommt aus den Knoten der Datei',
+       /\$laengeLink = \[math\]::Sqrt/.test(ps1));
+  /*
+   * Die Links der Ausleitung sind kurz - die Lage der Verbindung ist
+   * damit wenige Zentimeter, nicht ein halber Meter. Gemessen am
+   * J90/8 m, damit die Zahl nicht bloss behauptet ist.
+   */
+  const AX130 = await import(J('export.axisvm.js'));
+  const V130 = await import(J('core.vierendeel.js'));
+  const N130 = await import(J('core.nachbarn.js'));
+  let w130 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w130.L = 8; w130.xLage = 0; w130.mastVorhanden = true;
+  const s130 = N130.rechensatzMitNachbarn(w130);
+  const e130 = V130.berechne(s130, ...N130.kernArgumente(s130));
+  const d130 = AX130.stabmodellJson(e130.modell, { knotenmodell: 'anschnitt' });
+  const kn130 = new Map(d130.knoten.map((k) => [k.name, k]));
+  const laengen = d130.staebe.filter((s) => s.art === 'link').map((s) => {
+    const a = kn130.get(s.von), b = kn130.get(s.bis);
+    return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  });
+  wahr('Die Links des Jochanschlusses sind kurz (halbe Laenge < 0.1 m)',
+       laengen.length > 0 && laengen.every((l) => l / 2 < 0.1),
+       `${laengen.length} Links, halbe Laenge ${[...new Set(laengen.map((l) => (l / 2).toFixed(3)))].join(', ')} m`);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

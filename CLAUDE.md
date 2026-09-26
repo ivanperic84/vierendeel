@@ -134,6 +134,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 |---|---|
 | Gurtspannung im Stabwerk (26. Sept.) | Auf Rückfrage nach dem Einbau von I_yz: **vorzeichenrichtig, nach Messung**. Die Hülle über ±M_y, ±M_z in `randspannung()` war für den Ersatzbalken gebaut (er führt Beträge); das Stabwerk kennt die Vorzeichen, und seit I_yz sind beide Komponenten gross (J90/20 m: Hülle η 0.4684, vorzeichenrichtig 0.3268). Zuerst wird die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von `randspannung`) an einer geschlossenen Lösung im Prüfstand gemessen, dann im Stabwerksweg umgestellt. **Der Ersatzbalken behält die Hülle** — er kennt die Vorzeichen nicht |
 | Nach I_yz zuerst der Anschluss (26. Sept.) | Auf die Frage, womit es weitergeht: **zuerst der Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss M_y ständig), danach Punkt 2 (Tragausleger). Ohne neuen AxisVM-Lauf, solange die Ergebnisse reichen |
+| Torsionsfall für den AxisVM-Vergleich (26. Sept.) | Vorschlag des Auftraggebers: «wäre es nicht noch interessant ein anbauteil zu legen das zusätzlich torsion im joch provoziert». Auf Rückfrage: eine quer versetzte Hängestütze «gibt es nicht, hier wäre eine hängestütze senkrecht und eine last zum beispiel infolge windangriff zu sezten. der fall mit einer zusätzlichen ausleger und leiter mit ablenkung wäre sicher auch interessant für die lokalen einwirkungen in die gurte.» Also zwei Fälle — **(1) senkrechte Hängestütze mit waagrechter Last (Wind) an ihrem Ende**, Torsion über den Hebel unter der Jochachse; **(2) Hängestütze mit Ausleger und Leiter mit Ablenkkraft**, örtliche Einleitung in die Gurte —, je **nahe am Jochende und in Feldmitte**, je ein eigener Lastfall. Gerechnet **nach der Auswertung** des Laufs mit den Knotenwegen |
+| Anschluss: AxisVM-Wege auslesen (26. Sept.) | Nach dem Eingrenzen (`vergleich_anschluss.mjs`, alle naheliegenden Modellgrössen gemessen ausgeschlossen) auf Rückfrage: **«Brücke erweitern und rechnen»** — die Auslesung um Knotenverschiebungen (und Linkkräfte, soweit die Schnittstelle sie hergibt) erweitern und das Einzeljoch J90/20 m in AxisVM neu rechnen (~11 Minuten). Das ist die ausdrückliche Anweisung für diesen einen Lauf |
 | Reihenfolge der nächsten Arbeiten (26. Sept.) | **Zuerst I_yz im Löserkern**, dann der Tragausleger, dann die Nachweise. Auf die Frage, womit anzufangen sei, ausdrücklich so gewählt — obwohl der Tragausleger heute auf der unsicheren Seite liegt. Der Grund trägt: die Ursache der 13–25 % ist benannt und billig zu messen (die AxisVM-Ergebnisse liegen in `com/`, **kein neuer Lauf nötig**), und solange der Löser die Gurte falsch rechnet, übernimmt jeder weitere Schritt diesen Fehler — auch der Tragausleger, der ins selbe Stabwerk soll |
 | Tragausleger: beide Wege (26. Sept.) | **Eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil** — wie heute beim Joch. Der Kern liefert Hauptkacheln, Verläufe und Bericht ohne Umbau der Oberfläche, das Stabwerk das Einspannmoment am Masten aus dem System statt aus einer zweiten Herleitung. Nach Sortiment besteht der Ausleger aus **zwei UPE 140**, nicht aus vier Winkeln; heute rechnet der Kern ihn als Einfeldträger mit einem Phantom-Auflager am freien Ende (L = 12 m: M_A 10.9 statt 57.3 kNm) und ist deshalb als «NICHT nachgewiesen» gekennzeichnet |
 | Nachweise auf den Löser (26. Sept.) | «in den nachweisen die löser abbildungen übernehmen», dazu **Bericht und Excel auf den Stabwerksweg** (Schritt 6 des Bauplans) und ein **Bericht für Tragausleger und Abfangjoch** — damit ist der Entscheid vom 18. September («den abfangjoch weglassen») aufgehoben. ⚠ **Der Knicknachweis kann nicht mitwandern:** die Stabilität rechnet allein der Ersatzbalken (`core.mast.js`), der Löser führt sie nicht. Wer ganz umschaltet, weist einen schlanken Masten rund 8 % zu günstig nach. Die Abbildungen und Schnittgrössen kommen aus dem Löser, das Knicken bleibt beim Kern — und der Bericht muss sagen, woher welche Zahl stammt |
@@ -212,12 +214,41 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5440 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5444 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., der Rest am Anschluss Joch–Mast war ein Fehler des
+  AxisVM-Modells, nicht des Lösers** (Prüfstand Abschnitt 130). Auf
+  Weisung («Brücke erweitern und rechnen») liest die Brücke jetzt je
+  Lastfall die **Knotenwege** (`GetNodalDisplacementByLoadCaseId`, alle
+  828 Knoten) und die **Linkkräfte** (`GetLinkElementForcesByLoadCaseId`),
+  die Zuordnung führt die Linknummern (`links`). Der Lauf am J90/20 m
+  (bauen, rechnen, lesen) gab die Schnittgrössen des Laufs von heute Nacht
+  auf 3·10⁻⁶ wieder; Fussknoten null, Mastkopf unter Wind x 8.278 gegen
+  8.294 mm — die Wege sind global und brauchbar.
+  **Der Befund:** unter G rutschte der Obergurt gegen den «in x starren»
+  Link um 1.18 mm (`ANS_M1_OGL` 1.728, `OGL_0.120` 0.552 mm). Die Höhe, auf
+  der sich Mast und Gurt in x decken, lag in G **und** in Wind x bei
+  **0.500 m über dem Gurtknoten**. Ursache: die Brücke setzte seit dem
+  24. August (`72ae25e`) `Position = 0.5` für «halbe Länge» — bei
+  `PositionType = brdtLength` sind das **0.5 Meter**. Der Link ist 0.05 m
+  lang; die Verbindung lag 0.45 m ausserhalb des Elements.
+  **Gegenprobe im Löser** mit genau dieser Lage (Arbeitskopie, nicht im
+  Projekt): Mastfuss M_y G 81.1 → **0.6 %**, Gurt M_y Wind y 54.9 →
+  **1.1 %**, Blech M_z / V_y Wind y 28.1 / 19.6 → **0.7 / 0.7 %**,
+  Masttorsion 5.5 → **0.3 %**; alle nennenswerten Grössen 0.0–1.5 %.
+  **Löser und AxisVM rechnen dasselbe Tragwerk gleich.**
+  **Berichtigt:** die Brücke setzt die halbe Linklänge aus den Knoten der
+  Datei, in Metern (am Jochanschluss 0.025 m); Abschnitt 130 wacht darüber
+  und schlägt am alten Stand an. **Noch nicht in AxisVM gelaufen.**
+  ⚠ Ein eigener Fehler am Weg: die neue Wache gegen leere Linksätze hielt
+  den ersten Lastfall (`HavarieX`, in diesem Modell ohne Last) für einen
+  leeren Satz und schaltete die Linkkräfte für alle Fälle ab. Berichtigt
+  (leer nur, wenn sich das Tragwerk im selben Fall bewegt); der Lauf hat
+  deshalb Wege, aber keine Linkkräfte.
 - **26. Sept., die Gurtspannung im Stabwerk ist vorzeichenrichtig**
   (Entscheid siehe *Entschieden*, Prüfstand 123 d und 129 f).
   `randspannung()` hat die Option `vorzeichenrichtig`; nur `stabSpannung`
@@ -1233,11 +1264,12 @@ Obergurt zusätzlich gehalten (Mast M_y 788 % bzw. Blech N 94 %).
 (Bericht 7b: `GetRec` gibt den Satz leer zurück) — belegt ist ihre
 Wirkung bei den Verschiebungen (Mast N 0.00 %), bei den Drehungen nur
 indirekt (jede andere Lagerung passt schlechter).
-**Weiter geht es nur mit den WEGEN:** Knotenverschiebungen am Anschluss
-(Mastknoten, ARM, ANS, Gurtknoten) und die Linkkräfte aus AxisVM. Die
-Ergebnisdatei führt heute nur Stabschnittgrössen. Das braucht eine
-erweiterte Auslesung in der Brücke und einen Lauf (rund 11 Minuten) —
-beides nur auf Anweisung.
+**GEKLÄRT am 26. September mit den Wegen:** die Linkverbindung lag im
+AxisVM-Modell 0.45 m ausserhalb des Links (siehe *Letzte Schritte*). Mit
+dieser Lage im Löser nachgerechnet stimmen alle Grössen auf 0.0–1.5 %.
+**Offen:** ein Lauf mit der berichtigten Brücke — zusammen mit dem
+Torsionsfall (siehe *Entschieden*), dessen Grundfälle G / Wind x / Wind y
+zugleich die Gegenprobe der Berichtigung sind.
 **Gewicht:** unter G am Mastfuss 1.66 gegen 0.31 kNm, bei Fussmomenten aus
 Wind von 10.8 (quer) bzw. 43.1 kNm (längs); unter WindY am Gurt des
 Jochendes bis 0.38 kNm Unterschied bei einem grössten Gurtmoment von
@@ -1446,8 +1478,21 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- **Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss
-  M_y ständig): siehe *Laufende Arbeit (26. Sept.)*. Mit I_yz unverändert.
+- ⚠ **Jedes AxisVM-Modell mit Linkelementen seit dem 24. August hatte die
+  Verbindung 0.45 m ausserhalb des Links** (`Position = 0.5` als Meter,
+  siehe *Letzte Schritte*). Betroffen sind damit Messungen, die sich auf
+  AxisVM-Modelle mit Links stützen — soweit ich sehe: die **Lagerungsstudie
+  Tragjoch** (16. Sept., 13 Varianten, «Mast B 568 → 190»), **K_XX am
+  Abfangjoch** (17. Sept., 140 → 96), die **Drehfedern am Linkelement**
+  (9. Sept.), der **Längshalt** (27. Aug.) und `MAST_UNVERSCHIEBLICH`
+  («AxisVM ist das geprüfte Programm»). Nicht betroffen: die Kalibrierung
+  gegen PyNite (ohne Masten, null Links) und die Mastmomente der Etappe 4
+  (0.00 % auch mit dem falschen Modell). Ob die Entscheide stehen, ist
+  **nicht nachgemessen** — Entscheid des Auftraggebers, ob und welche.
+- **Lage der Verbindung im Löser:** der Löser koppelt am Gurtknoten (Arm am
+  i-Ende, Gelenk am j-Ende, wie `def_releases` in PyNite); die berichtigte
+  Brücke auf halber Linklänge (Weisung). Der Unterschied ist 0.025 m und
+  gemessen klein, aber nicht null — ⚠ ob der Löser nachziehen soll.
 - ⚠ **Die PyNite-Ausleitung steht auf der lokalen Link-Lesart.** Der Befund
   vom 26. September (die Linkbedingung gilt global) ist im Löser behoben, in
   `export.pynite.js` nicht: `def_releases` wirkt in PyNites eigenem
@@ -1626,7 +1671,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5440 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5444 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

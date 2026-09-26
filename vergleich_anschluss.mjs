@@ -39,9 +39,14 @@
  *   Gelenklage im Link (i/j/Mitte), Drehachsen des Links LOKAL statt
  *   global (G wird damit schlechter: Gurt M_y 4.8 -> 27 %).
  *
- * Weiter kommt man nur mit den WEGEN: Knotenverschiebungen am Anschluss
- * und die Kraefte in den Links aus AxisVM. Das braucht eine erweiterte
- * Auslesung in der Bruecke und einen Lauf - beides nur auf Anweisung.
+ * Weiter kam man nur mit den WEGEN - und die haben es geklaert (26.
+ * September, erweiterte Auslesung): die Bruecke legte jede Linkverbindung
+ * 0.45 m AUSSERHALB des 0.05 m langen Links (`Position = 0.5` als Meter
+ * gelesen). Die Hoehe, auf der sich Mast und Gurt in x decken, lag in G und
+ * in Wind x bei 0.500 m ueber dem Gurtknoten; mit genau dieser Lage im
+ * Loeser nachgerechnet, stimmen alle Groessen auf 0.0-1.5 %. Der Rest war
+ * ein Fehler des AxisVM-Modells, nicht des Loesers. Berichtigt in der
+ * Bruecke, bewacht in Pruefstand Abschnitt 130.
  *
  * AUFRUF
  *   node vergleich_anschluss.mjs com/AxisVM_<name>.json [Mast] [Lastfall]
@@ -127,5 +132,78 @@ for (const fall of faelle) {
   if (fa) {
     console.log(`  ${'Fuss'.padEnd(11)} AxisVM ` + G.map((g) => `${g}${zahl(fa[g])}`).join(' '));
     console.log(`  ${''.padEnd(11)} Loeser ` + G.map((g) => `${g}${zahl(fl[g])}`).join(' '));
+  }
+
+  /* -------------------------------------------------------------------------
+   * >>> DIE WEGE (seit der erweiterten Auslesung vom 26. September). <<<
+   *
+   * Die Bruecke schreibt je Lastfall `wege`: Knotenname -> [ex, ey, ez,
+   * fx, fy, fz] (m, rad). Welche Bedeutung das ELongBoolean beim Lesen
+   * hatte, ist NICHT vermessen - deshalb zuerst die beiden Gegenproben:
+   * der Fussknoten ist eingespannt und muss null sein, und der Mastkopf
+   * muss unter Wind quer den Loeser treffen (dort stimmen die Momente auf
+   * 0.00 %, also muessen es die Wege auch). Erst danach sagt der Vergleich
+   * am Anschluss etwas.
+   * ----------------------------------------------------------------------- */
+  const wege = ax.faelle[fall].wege;
+  if (wege) {
+    const uv = lsg.u.get(fall);
+    const loeW = (name) => {
+      const i = lsg.knotenIdx.get(name);
+      return i === undefined ? null : Array.from(uv.slice(i * 6, i * 6 + 6));
+    };
+    const zeile = (name) => {
+      const a = wege[name], l = loeW(name);
+      if (!a || !l) return null;
+      const f = (v, k) => (k < 3 ? (v * 1000).toFixed(4) : (v * 1000).toFixed(4)).padStart(9);
+      return `  ${name.padEnd(18)} AxisVM ${a.map(f).join('')}\n`
+           + `  ${''.padEnd(18)} Loeser ${l.map(f).join('')}`;
+    };
+    console.log(`  Wege [mm | mrad]            ${['ux', 'uy', 'uz', 'fx', 'fy', 'fz'].map((x) => x.padStart(9)).join('')}`);
+    const knoten = [`MAST_${mast}_F`, `MAST_${mast}_KOPF`, `MAST_${mast}_A_OG`,
+      `MAST_${mast}_A_UG`, `KONS_${mast}_OG`, `ARM_${mast}_OGL`, `ANS_${mast}_OGL`,
+      `ANS_${mast}_UGL`];
+    // Die Gurtknoten am Anschluss: ueber die Links des Masten gefunden.
+    dat.staebe.filter((s) => s.art === 'link' && s.name.includes(`_${mast}_`))
+      .forEach((s) => { if (!knoten.includes(s.bis)) knoten.push(s.bis); });
+    ['OGL_0.000', 'UGL_0.000', 'OGL_10.000', 'UGL_10.000'].forEach((n) => {
+      if (!knoten.includes(`${vor}${n}`)) knoten.push(`${vor}${n}`);
+    });
+    knoten.forEach((n) => { const z = zeile(n); if (z) console.log(z); });
+    // Und ueber alle Knoten: wie weit liegen die beiden Loesungen auseinander?
+    let dmax = 0, umax = 0, wo = '';
+    Object.entries(wege).forEach(([n, a]) => {
+      const l = loeW(n); if (!l) return;
+      for (let k = 0; k < 3; k += 1) {
+        umax = Math.max(umax, Math.abs(a[k]));
+        const d = Math.abs(a[k] - l[k]);
+        if (d > dmax) { dmax = d; wo = `${n}.${'xyz'[k]}`; }
+      }
+    });
+    if (umax > 0) {
+      console.log(`  alle Knoten: groesste Wegdifferenz ${(dmax * 1000).toFixed(4)} mm `
+        + `(${(dmax / umax * 100).toFixed(2)} % des groessten Weges ${(umax * 1000).toFixed(3)} mm) bei ${wo}`);
+    }
+  }
+
+  /* -------------------------------------------------------------------------
+   * DIE LINKKRAEFTE. AxisVM gibt drei Abschnitte je Link (lefSection1..3),
+   * der Loeser zwoelf Endkraefte im lokalen System des Links. Welche
+   * Achse bei AxisVM welche ist, wird an den Zahlen abgelesen, nicht
+   * vorausgesetzt - deshalb stehen beide roh da.
+   * ----------------------------------------------------------------------- */
+  const links = ax.faelle[fall].links;
+  if (links) {
+    console.log('  Linkkraefte              AxisVM: Abschnitt 1 / 2 / 3 (Nx Vy Vz Tx My Mz)');
+    console.log('                           Loeser: i-Ende und j-Ende, lokal (x y z xx yy zz)');
+    Object.entries(links).filter(([n]) => n.includes(`_${mast}_`)).forEach(([n, ab]) => {
+      console.log(`  ${n}`);
+      ab.forEach((w, i) => console.log(`    AxisVM ${i + 1} ` + w.map((v) => v.toFixed(4).padStart(9)).join('')));
+      const f = K.get(n);
+      if (f) {
+        console.log('    Loeser i ' + Array.from(f.slice(0, 6)).map((v) => v.toFixed(4).padStart(9)).join(''));
+        console.log('    Loeser j ' + Array.from(f.slice(6)).map((v) => v.toFixed(4).padStart(9)).join(''));
+      }
+    });
   }
 }
