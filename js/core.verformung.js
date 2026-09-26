@@ -34,11 +34,44 @@
 
 import { BETRIEBSWIND } from './core.lasten.js';
 
+/* ===========================================================================
+ * >>> DIE MASTSPITZE IST KEIN NACHWEIS MEHR (26. September). <<<
+ * =========================================================================
+ *
+ * Weisung: «lassen wir den nachweis für die mastspitze weg bei der
+ * verformung und nutzen nur die referenzhöhe (fahrdraht)».
+ *
+ * Vorausgegangen war die Frage, wie 150 mm zustande kommen. Gerechnet am
+ * geteilten Masten einer Reihe 2 × J90/20 m (HEB 240, Kopf 8.50 m), Wind
+ * in Gleisrichtung mal ψ 0.70:
+ *
+ *     Mastwind q = 0.300 kN/m                    16.6 mm   11 %
+ *     Jochreaktion T2 auf 7.50 m, F_y 4.575 kN   66.9 mm   44.5 %
+ *     Jochreaktion T1 auf 7.50 m, F_y 4.575 kN   66.9 mm   44.5 %
+ *                                               ------------------
+ *                                               150.5 mm
+ *
+ * Die Zahl ist richtig gerechnet - der Mast steht in Gleisrichtung als
+ * freier Kragarm auf seiner SCHWACHEN Achse (I_q 3923 gegen I 11260 cm⁴)
+ * und trägt am geteilten Punkt die Jochkräfte BEIDER Joche. Was sie nicht
+ * ist: ein brauchbarer Nachweis. Massgebend für den Betrieb ist die
+ * Seitenlage des Fahrdrahts, und die steht auf der Referenzhöhe.
+ *
+ * >>> WAS BLEIBT UND WAS GEHT. <<<
+ *
+ * Der NACHWEIS ist nur noch der an der Referenzhöhe (40 mm quer zum
+ * Gleis). Die Spitzenverschiebung bleibt als AUSKUNFT stehen - ohne
+ * Grenzwert, ohne η, ohne Anteil am Urteil. Sie ganz wegzuwerfen hiesse,
+ * die Frage von heute beim nächsten Mal wieder von vorn zu stellen: wer
+ * 150 mm nicht sieht, fragt auch nicht, woher sie kommen.
+ * ========================================================================= */
+
 /**
  * Die Grenzwerte, an EINER Stelle.
  *
- * `spitzeMitG` und `spitzeWind` sind Nenner einer Schlankheit (L/100,
- * L/200), `auslegerQuer` ein festes Mass in Metern.
+ * `auslegerQuer` ist ein festes Mass in Metern. Die beiden Schlankheiten
+ * der Mastspitze (L/100 mit ständig, L/200 nur Wind) stehen noch da, weil
+ * die Auskunft sie fuer den Vergleich nennt - sie tragen aber kein η mehr.
  */
 export const VERFORMUNG_GRENZEN = {
   spitzeMitG: 100,
@@ -82,6 +115,20 @@ export function messStelle(m, g, ende = 'A') {
    * ===================================================================== */
   const gesetzt = Number(m?.fdHoehe) || 0;
   if (imBild(gesetzt)) return { z: gesetzt, was: 'Fahrdraht', eigen: true };
+  /*
+   * >>> UND WENN SIE VERWORFEN WIRD, STEHT ES DA (26. September). <<<
+   *
+   * Der Entscheid vom 24. September - ueber dem Mastkopf gilt die Eingabe
+   * nicht - blieb bis hierher STUMM: wer 14 m eintraegt, bekommt einen
+   * Nachweis auf 7.50 m, ohne ein Wort. Gefunden beim Browserlauf vom
+   * 26. September, an einem Stand, in dem genau das stand.
+   *
+   * Seit die Mastspitze kein Nachweis mehr ist, haengt der GANZE Nachweis
+   * an dieser einen Stelle. Eine verworfene Eingabe ist dann keine
+   * Kleinigkeit mehr, sondern verschiebt das einzige eta, das es gibt.
+   */
+  const verworfen = gesetzt > 0 ? gesetzt : null;
+  const mit = (s) => (s && verworfen ? { ...s, verworfen } : s);
   const teile = (m?.anbauMastFlach ?? []).filter((t) => {
     if (t.aktiv === false) return false;
     const e = t.ort === 'mastB' ? 'B' : 'A';
@@ -95,11 +142,11 @@ export function messStelle(m, g, ende = 'A') {
     .sort((a, b) => b - a)[0] ?? null;
 
   const fd = hoechste('drahtwerk');
-  if (fd !== null) return { z: fd, was: 'Fahrdraht' };
+  if (fd !== null) return mit({ z: fd, was: 'Fahrdraht' });
   const arm = hoechste('aufbau');
-  if (arm !== null) return { z: arm, was: 'Ausleger' };
+  if (arm !== null) return mit({ z: arm, was: 'Ausleger' });
   const H = g?.H ?? 0;
-  if (imBild(H) && H < zKopf - 1e-9) return { z: H, was: 'Jochauflager' };
+  if (imBild(H) && H < zKopf - 1e-9) return mit({ z: H, was: 'Jochauflager' });
   /*
    * Kein Anhaltspunkt: dann fällt diese Stelle mit der Spitze zusammen, und
    * ein zweiter Wert daneben wäre nur eine Wiederholung. Die Auswertung
@@ -180,31 +227,65 @@ export function verformungsNachweis(kombi) {
     const spitzeW = grosste(nurW, BETRIEBSWIND, L, ['x', 'y']);
     const querS = stelle ? grosste(nurW, BETRIEBSWIND, stelle.z, ['x']) : null;
 
-    const pruef = (mess, grenz, was) => {
+    /*
+     * DIE HOEHE GEHOERT ZUM NACHWEIS. Ohne sie steht in der Kachel eine
+     * Zahl, von der niemand weiss, WO sie auftritt - genau die Frage vom
+     * 26. September.
+     */
+    const pruef = (mess, grenz, was, z) => {
       if (!mess || !(grenz > 0)) return null;
-      return { ...mess, grenz, eta: mess.wert / grenz, ok: mess.wert <= grenz + 1e-12, was };
+      return { ...mess, grenz, eta: mess.wert / grenz,
+               ok: mess.wert <= grenz + 1e-12, was, z };
     };
+    /*
+     * >>> EIN NACHWEIS, AN DER REFERENZHOEHE (26. September). <<<
+     * Siehe den Block oben. Die Mastspitze steht daneben als Auskunft.
+     */
     const nw = [
-      pruef(spitzeG, L / VERFORMUNG_GRENZEN.spitzeMitG,
-            `Mastspitze, ständig + Betriebswind (L/${VERFORMUNG_GRENZEN.spitzeMitG})`),
-      pruef(spitzeW, L / VERFORMUNG_GRENZEN.spitzeWind,
-            `Mastspitze, nur Wind (L/${VERFORMUNG_GRENZEN.spitzeWind})`),
       stelle ? pruef(querS, VERFORMUNG_GRENZEN.auslegerQuer,
                      `${stelle.was} auf ${stelle.z.toFixed(2)} m quer `
-                     + `zum Gleis, nur Wind`) : null,
+                     + `zum Gleis, nur Wind`, stelle.z) : null,
     ].filter(Boolean);
-    if (!nw.length) return;
+    /*
+     * DIE AUSKUNFT: dieselbe Rechnung, aber ohne Grenzwert und ohne eta.
+     * Sie sagt, wie weit sich der Mast bewegt - eine Zahl, nach der man
+     * fragt, sobald sie gross wird.
+     */
+    const auskunft = [
+      spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, ständig + Betriebswind',
+                  vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
+      spitzeW ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
+                  vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
+    ].filter(Boolean);
+    /*
+     * >>> OHNE MESSSTELLE KEIN NACHWEIS - UND DAS WIRD GESAGT. <<<
+     *
+     * Seit dem 26. September steht der Nachweis allein auf der
+     * Referenzhoehe (Fahrdraht, sonst Ausleger, sonst Jochauflager). Gibt
+     * es keine - ein Einzelmast ohne jedes Anbauteil -, dann gibt es auch
+     * keinen Nachweis. Still uebergangen saehe das aus wie «erfuellt»;
+     * deshalb kommt der Grund mit, und die Anzeige nennt ihn.
+     */
+    if (!nw.length) {
+      proEnde[ende] = { L, stelle: null, nachweise: [], auskunft,
+                        ohneStelle: true, eta: null, ok: null };
+      return;
+    }
+
     const schlimmste = nw.reduce((a, b) => (b.eta > a.eta ? b : a));
-    proEnde[ende] = { L, stelle, nachweise: nw, massgebend: schlimmste,
+    proEnde[ende] = { L, stelle, nachweise: nw, auskunft, massgebend: schlimmste,
                       eta: schlimmste.eta, ok: nw.every((q) => q.ok) };
   });
 
   const enden = Object.values(proEnde);
   if (!enden.length) return null;
+  // Enden ohne Messstelle tragen kein eta - sie zaehlen im Urteil nicht mit.
+  const gefuehrt = enden.filter((e) => Number.isFinite(e.eta));
   return {
     ...proEnde,
-    eta: Math.max(...enden.map((e) => e.eta)),
-    ok: enden.every((e) => e.ok),
+    eta: gefuehrt.length ? Math.max(...gefuehrt.map((e) => e.eta)) : null,
+    ok: gefuehrt.length ? gefuehrt.every((e) => e.ok) : null,
+    ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
   };
 }

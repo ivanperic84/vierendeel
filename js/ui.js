@@ -4966,8 +4966,50 @@ export function gzgKacheln(erg) {
     const alle = q.nachweise
       .map((x) => `${x.was}: ${mm(x.wert)} von ${mm(x.grenz)} (η ${f3(x.eta)})`)
       .join('\n');
+    /* ---------------------------------------------------------------------
+     * >>> DIE MASTSPITZE STEHT DANEBEN, ALS AUSKUNFT (26. September). <<<
+     *
+     * Weisung: «lassen wir den nachweis für die mastspitze weg bei der
+     * verformung und nutzen nur die referenzhöhe (fahrdraht)». Sie trägt
+     * kein η mehr und geht nicht ins Urteil — aber sie bleibt lesbar. Wer
+     * 150 mm nicht sieht, fragt auch nicht, woher sie kommen.
+     * ------------------------------------------------------------------- */
+    const dazu = (q.auskunft ?? [])
+      .map((x) => `${x.was}: ${mm(x.wert)}`
+        + (x.vergleich ? ` (zum Vergleich L/${Math.round(q.L / x.vergleich)}`
+                       + ` = ${mm(x.vergleich)})` : ''))
+      .join('\n');
+    /*
+     * >>> UND DIE HOEHE GEHOERT AN DIE KACHEL. <<<
+     * Sie stand nur im Titel, und die Frage vom 26. September war genau
+     * die: «auf welcher höhe werden die 150mm berechnet?»
+     */
+    const wo = Number.isFinite(mg.z)
+      ? `${q.stelle?.was ?? 'Messstelle'} ${mg.z.toFixed(2)} m · ` : '';
+    /*
+     * >>> EINE VERWORFENE EINGABE WIRD GENANNT (26. September). <<<
+     *
+     * Über dem Mastkopf gilt die eingetragene Fahrdrahthöhe nicht
+     * (Entscheid vom 24. September) — bis hierher fiel sie stumm durch.
+     * Seit die Mastspitze kein Nachweis mehr ist, hängt der ganze Nachweis
+     * an dieser Stelle, und eine still verworfene Eingabe verschiebt das
+     * einzige η, das es gibt.
+     */
+    const verw = q.stelle?.verworfen
+      ? `\n\nACHTUNG: die eingetragene Fahrdrahthöhe von `
+        + `${q.stelle.verworfen.toFixed(2)} m liegt ÜBER dem Mastkopf `
+        + `(${q.L.toFixed(2)} m) und gilt deshalb nicht. Gemessen wird auf `
+        + `${mg.z?.toFixed(2)} m — dort, wo der Kern eine Verschiebung `
+        + `rechnet.` : '';
     k.push(kachel(`Verformung ${name}`, mm(mg.wert),
-      `${q.ok ? '' : 'ÜBER · '}${mm(mg.grenz)} zulässig · ${mg.achse === 'x' ? 'quer' : 'längs'}`,
+      `${q.ok ? '' : 'ÜBER · '}${wo}${mm(mg.grenz)} zulässig · `
+      + `${mg.achse === 'x' ? 'quer' : 'längs'}`
+      /*
+       * Sichtbar, nicht nur im Titel: ein Tooltip liest, wer die Maus
+       * darauf hält - und wer eine Höhe eingetragen hat, die nicht gilt,
+       * hält sie nicht darauf.
+       */
+      + `${q.stelle?.verworfen ? ' · EINGABE VERWORFEN' : ''}`,
       '', {
         /*
          * Hier IMMER: die Gebrauchskombinationen sind andere als die der
@@ -4980,7 +5022,9 @@ export function gzgKacheln(erg) {
 `
              + `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
              + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit — `
-             + `diese Kachel färbt kein Urteil.\n\n${alle}`,
+             + `diese Kachel färbt kein Urteil.\n\n${alle}`
+             + (dazu ? `\n\nOHNE NACHWEIS, nur zur Auskunft:\n${dazu}` : '')
+             + verw,
       }));
   });
   return k;
@@ -5221,8 +5265,19 @@ export function gzgBlockHtml(erg) {
   return `${abschnitt('Gebrauchstauglichkeit',
     psi ? `Betriebswind ψ ${psi.toFixed(2)} · färbt kein Urteil` : '')}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
-      : '<p class="leer">Kein Verformungsnachweis — er wird nur für '
-        + 'Masten geführt.</p>'}`;
+      : `<p class="leer">${erg?.verformung?.ohneStelle
+        /*
+         * >>> OHNE MESSSTELLE KEIN NACHWEIS - MIT GRUND (26. September). <<<
+         *
+         * Seit der Weisung «lassen wir den nachweis für die mastspitze weg
+         * … und nutzen nur die referenzhöhe (fahrdraht)» hängt der Nachweis
+         * an EINER Stelle. Gibt es sie nicht, gibt es ihn nicht — und das
+         * muss dastehen. Eine leere Spalte liest sich wie «erfüllt».
+         */
+        ? 'Kein Verformungsnachweis — es gibt keine Referenzhöhe: weder '
+          + 'Fahrdraht noch Ausleger noch Jochauflager. Der Nachweis der '
+          + 'Seitenlage braucht eine Stelle, an der er gilt.'
+        : 'Kein Verformungsnachweis — er wird nur für Masten geführt.'}</p>`}`;
 }
 
 /* ===========================================================================

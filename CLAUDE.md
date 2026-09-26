@@ -174,7 +174,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Höhe der Fahrdrahtverschiebung (24. Sept.) | «es sollte einen schieber geben welche höhe für die farhdrahtverschiebung massgebend ist.» Neues Feld **`fdHoehe`** (Gruppe *Masten*, Schieber, über dem Mastfuss gemessen). Die Automatik von `messStelle` (höchstes Drahtwerk → höchster Ausleger → Jochauflager) trifft den Regelfall, misst aber am **Anschlusspunkt** eines Teils — der Fahrdraht hängt darunter, und wie weit, weiss die Zeichnung. **0 = automatisch**, damit jeder gespeicherte Stand unverändert weiterrechnet; **über dem Mastkopf gilt die Eingabe nicht** (dort steht keine gerechnete Verschiebung, sie fällt auf die Automatik zurück). Der Nachweistext nennt seither die Höhe («Fahrdraht auf 5.50 m quer zum Gleis») — sonst stünde dieselbe Zeile da, gleichgültig ob 6.20 oder 8.00 m gemeint war. Gemessen am Einzelmast: Automatik 8.00 m → 8 mm, eingetragene 5.50 m → 5 mm, Grenzwert unverändert 40 mm |
 | Gemeinsame Kopfzahl bei «beide» (24. Sept.) | «wenn hier beide ausgewählt sind dann müsste es einen globalen ausnutzungfaktor haben der den gebrauchstauglichkeit auch berücksichtigt.» Die Hauptkachel trägt in dieser Stellung das **Maximum über beide Nachweisarten**, mit dem massgebenden Bauteil daneben («Verformung M2»). **Die Farbe folgt ihm** — auf Rückfrage ausdrücklich so entschieden und damit eine Änderung des Entscheids vom 18. September («die Urteilsfarbe folgt allein der Tragsicherheit»); eine Kachel, die η 1.97 zeigt und grün dasteht, ist ein Widerspruch. **Die Aussage wird nicht vermischt:** der Text nennt beide Urteile getrennt («Tragsicherheit erfüllt · Gebrauchstauglichkeit NICHT erfüllt»), denn die Zahlen stehen auf verschiedenen Lastniveaus. In den beiden anderen Stellungen zeigt die Kachel genau das, was darunter steht. **Einzellastfall** und **«nicht geführt»** bleiben unberührt — dort wird nicht geurteilt (`urteilMitGebrauch` in ui.js) |
 | Werte im Plot: einmal je Bauteil (24. Sept.) | «Die werteplotts sind nicht gut lesbar», mit dem Bild eines Masten: achtmal «1.97» untereinander. Grössen, die dem **Bauteil** gehören statt der Station, tragen an jedem Abschnitt denselben Wert; die Ausdünnung kannte nur Abstände im Bild, nicht die Frage, ob zwei Zahlen etwas Verschiedenes sagen. `entdoppelteWerte` lässt je Bauteil und gerundetem Wert **eine** Zahl stehen, und zwar die mittlere der Gruppe. Dazu getrennte Deckkraft: das Kästchen bleibt blass (0.62, die Fläche schimmert durch), die **Ziffer** steht mit 0.95 da — eine rote Ziffer mit 0.62 auf rotem Bauteil war nicht zu entziffern. Die Weisung vom 20. Sept. («transparenter») galt der verdeckten Fläche, nicht der Zahl |
-| Mastverformung im Gebrauchszustand (24. Sept.) | «Mastfervormung berechnen lassen infolge wind / ständige und deren kombination. die massgebende werte sind Mastspitze 1:100 (wind+ständige) / 1:200 (nur Wind) und auf höhe Fahrdraht oder vereinfacht auf höhe Ausleger / Jochauflager -> hier ist der Grenzwert 40mm. Die Gebrauchstauglichkeit kombination ist in diesem fall der Wind bei 0.70 (Betriebswind Wiederkehrperioda 5 Jahre).» Auf Rückfrage: die **40 mm quer zum Gleis** (Seitenlage des Fahrdrahts), die Spitze in **beiden** Richtungen; die 40 mm gegen den Fall **nur Wind**. Gerechnet in `core.verformung.js` über `mastVerschiebungen` (core.mast.js) — dieselbe Lastliste wie die Schnittgrössen, also **mit** der Haltekraft des Ankers und mit dem Entscheid, ob ein Seil in dieser Kombination trägt. Quer biegt der Mast über `I`, längs über `Iq`. Neu vier Lastfälle **Betriebswind** (`gtbetriebW…`, G mit 1.00, Wind mit ψ = 0.70, `BETRIEBSWIND` in core.lasten.js); «nur Wind» braucht keinen eigenen — die charakteristischen Windfälle mal 0.70 sind exakt derselbe Zustand. Die Messstelle: Fahrdraht, sonst Ausleger, sonst Jochauflager (`messStelle`). Gegengerechnet am nackten Kragarm: w = qL⁴/8EI auf 1e-12. Die Kachel steht **ohne Ampel** — die Urteilsfarbe folgt allein der Tragsicherheit (18. Sept.) |
+| Mastverformung im Gebrauchszustand (24. Sept.) | «Mastfervormung berechnen lassen infolge wind / ständige und deren kombination. die massgebende werte sind Mastspitze 1:100 (wind+ständige) / 1:200 (nur Wind) und auf höhe Fahrdraht oder vereinfacht auf höhe Ausleger / Jochauflager -> hier ist der Grenzwert 40mm. Die Gebrauchstauglichkeit kombination ist in diesem fall der Wind bei 0.70 (Betriebswind Wiederkehrperioda 5 Jahre).» Auf Rückfrage: die **40 mm quer zum Gleis** (Seitenlage des Fahrdrahts), die Spitze in **beiden** Richtungen; die 40 mm gegen den Fall **nur Wind**. Gerechnet in `core.verformung.js` über `mastVerschiebungen` (core.mast.js) — dieselbe Lastliste wie die Schnittgrössen, also **mit** der Haltekraft des Ankers und mit dem Entscheid, ob ein Seil in dieser Kombination trägt. Quer biegt der Mast über `I`, längs über `Iq`. Neu vier Lastfälle **Betriebswind** (`gtbetriebW…`, G mit 1.00, Wind mit ψ = 0.70, `BETRIEBSWIND` in core.lasten.js); «nur Wind» braucht keinen eigenen — die charakteristischen Windfälle mal 0.70 sind exakt derselbe Zustand. Die Messstelle: Fahrdraht, sonst Ausleger, sonst Jochauflager (`messStelle`). Gegengerechnet am nackten Kragarm: w = qL⁴/8EI auf 1e-12. Die Kachel steht **ohne Ampel** — die Urteilsfarbe folgt allein der Tragsicherheit (18. Sept.) **Geändert am 26. September:** «lassen wir den nachweis für die mastspitze weg bei der verformung und nutzen nur die referenzhöhe (fahrdraht)» — der NACHWEIS ist nur noch der an der Referenzhöhe (40 mm quer). Die Spitzenverschiebung bleibt als **Auskunft** im Kacheltitel, ohne Grenzwert und ohne η. Ohne Referenzhöhe gibt es keinen Nachweis mehr, und die Anzeige sagt es |
 | Havariefall im Ankernachweis (24. Sept.) | Frage: «wie wirken sich die abfangungen und der havariefall auf die zuganker und Druckstüzen aus?» Gemessen am Einzelmast HEB 240/10 m, NT-Ausleger 8 m, R-FL, Anker a = 4.5 / h = 7.8: der **ständige** Zug einer Abfangung kommt voll am Anker an (einseitig ±49.5 kN gegen −3.8 kN bei durchgehend), und die **Zugrichtung** entscheidet Druck oder Zug — zieht der Leiter zur Ankerseite, hängt ein Seilanker durch (der Mast trägt allein, Entscheid 16. Sept.), eine Druckstütze nimmt 49.5 kN mit Knicken auf (η 0.83 gegen 0.37 bei Zug). Der **Havariefall** dagegen erreichte den Nachweis nicht: `ankerAuswertung` nahm nur die charakteristischen Fälle, die Havariefälle sind «aussergewöhnlich». Am **Abfangjoch** war er immer dabei (er ist einer der drei Fälle dort) — dieselbe Abspannung wurde je nach Tragwerksart verschieden nachgewiesen. Bei **beidseitiger** Abfangung entsteht die grosse Ankerkraft überhaupt erst beim Riss: nachgewiesen wurde mit −3.82 kN (η 0.064), angefallen sind ±45.72 kN — Faktor 12 auf der unsicheren Seite. Entscheid auf Rückfrage: **ja, gegen dieselbe zulässige Kraft** (`ANKER_FALLARTEN` in core.anker.js). Der Anker wird gegen zulässige Kräfte nachgewiesen, und der Havariefall trägt alle Beiwerte 1 — er steht auf demselben Niveau. Die Tragsicherheits-Fälle bleiben draussen (Teilsicherheitsbeiwerte). Danach: beidseitig η 0.763, durchgehend 0.076, einseitig unverändert (der Riss entlastet dort) |
 | Leiter: durchgehend / beidseitig / einseitig abgefangen (24. Sept.) | «Die leiter könen als durchgehend / beidseiig abgefangen / einseitig abgefangen definiert werden. bei den durchgehenden wid ein 10% anteil beim Leiterriss gerechnet. bei den beidseitig abgefangenen wid der volle leiterzug einseitig angesezt und beim einseitg abgefangenen, hebt sich der leiterzug auf, dies kann bei mehreren abfangungen an einem abfangträger zu ungünstigen lastfällen dann führen, die massgebend sein können.» Rückgefragt und bestätigt: der Leiterzug wirkt **auch ständig**, und die Wahl gilt **allen vier Tragwerksarten** — bis dahin entschied die Tragwerksart (Abfangjoch voller Zug, Tragjoch/Mast 10 %), jetzt der Leiter. Angesetzt wird (`ABFANGARTEN` in core.lasten.js, gemessen am N-FL mit Z(+5 °C) = 14.9 und Z(−20 °C) = 16.5 kN): **durchgehend** ständig 0, Riss 1.65 kN; **beidseitig** ständig 0 (die Züge heben sich am Anschluss auf), Riss 16.5 kN einseitig; **einseitig** ständig 14.9 kN in seine Richtung, Riss −14.9 (er fällt weg), ohne Riss +1.6 (Z steigt auf −20 °C). Die **Richtung** (+y/−y) gehört dazu — ohne sie kann sich nichts aufheben. Gemessen am J90/20 m mit zwei entgegengesetzten Abfangungen: ständig und bei Wind Σ F_y = 0, beim Riss bleiben 16.5 kN, und der Havariefall wird massgebend (η 1.61 gegen 1.80 bei Wind). Dabei musste das **Vorzeichen des Längszugs aus dem Beiwert in die Kräfte** wandern (`havarieEinsetzen`, `havarieFest`): ein Beiwert −1 gilt allen Leitern des Falls gemeinsam und machte aus dem Wegfall eine zweite Zugkraft (η 18.3 statt 12.1). Die Havarie-Karte zeigt je Leiter Abfangung, Richtung und die **Kräfte als Zahl** — die Frage «wo sieht man den lastanteil?» soll die Karte selbst beantworten. Seit dem 24. September liest das **Abfangjoch** sie ebenfalls (siehe die eigene Zeile darunter) |
 | Anbauteile tragen keine Ausnutzung (24. Sept.) | «rohr / Mastaufsatz selbst ist als anbauteil zu verstehen, keine Ausnutzung bestimmen von diesen bauteilen.» Ein Anbauteil ist **nicht Gegenstand des Nachweises**, sondern der Weg, auf dem die Last ans Tragwerk kommt — das gilt auch für das Rohr, das einen Masten verlängert. Der Rechenweg entsprach dem schon: `bauteilUrteil` führt Joch/Abfangjoch, Mast und Anker, kein Anbauteil (gemessen am Einzelmast mit Rohr über der Spitze: im Urteil steht allein «Mast M1», η 0.228). Geändert hat sich der **Hinweis**: er sagte «das Rohr selbst ist nicht nachgewiesen» und las sich damit wie ein Mangel, der noch zu beheben wäre. Er nennt jetzt die Regel. Was er weiter sagt, ist die Stelle: ein Lastpunkt über der Mastspitze hat einen Hebelarm, den man beim Lesen des Modells kennen soll. Eine Wache im Prüfstand schlägt an, sobald ein Anbauteil ins Urteil käme |
@@ -202,12 +202,57 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5412 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5410 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., die Verformung wird nur noch an der Referenzhöhe
+  nachgewiesen** (Prüfstand Abschnitt 113 c). Weisung: «lassen wir den
+  nachweis für die mastspitze weg bei der verformung und nutzen nur die
+  referenzhöhe (fahrdraht)».
+  Vorausgegangen war die Frage: «was undurchsichtig ist, wie wir zu so
+  hohen verformungen kommen. auf welcher höhe werden die 150mm berechnet?
+  und mit welcher kombination?» **Die Antwort, gerechnet:** an der
+  Mastspitze (8.50 m = Anschluss 7.50 + Überstand 1.00), in Gleisrichtung,
+  unter «Wind +y» charakteristisch × ψ 0.70; Grenzwert L/200 = 43 mm,
+  η 3.540. Aufgeschlüsselt am geteilten Masten einer Reihe 2 × J90/20 m:
+
+  | Last | z | F_y | Beitrag |
+  |---|---|---|---|
+  | Mastwind q = 0.300 kN/m | — | — | 16.6 mm (11 %) |
+  | Jochreaktion T2 | 7.50 m | 4.575 kN | 66.9 mm (44.5 %) |
+  | Jochreaktion T1 (Nachbar) | 7.50 m | 4.575 kN | 66.9 mm (44.5 %) |
+  | | | | **150.5 mm** |
+
+  **89 % kommen aus den beiden Jochreaktionen** — der geteilte Mast trägt
+  den Wind beider Joche, steht in Gleisrichtung als freier Kragarm und auf
+  seiner **schwachen** Achse (I_q 3923 gegen I 11260 cm⁴; quer wäre er
+  2.87-mal steifer, 52 statt 150 mm). Die Zahl war richtig gerechnet — was
+  sie nicht war: ein brauchbarer Nachweis.
+  **Jetzt:** ein Nachweis, an der Referenzhöhe (40 mm quer). Die
+  Spitzenverschiebung steht als **Auskunft** im Kacheltitel, ohne η und
+  ohne Anteil am Urteil — wer 150 mm nicht sieht, fragt auch nicht, woher
+  sie kommen. Am Standarddokument fällt das Urteil damit von η 3.540 auf
+  **0.178**, und die Gebrauchstauglichkeit ist erfüllt.
+  **Die Kachel sagt jetzt, WO gemessen wird** («Fahrdraht 5.50 m · 40 mm
+  zulässig · quer») — genau das fehlte.
+  ⚠ **Zwei Befunde am Weg:**
+  (1) **Ohne Referenzhöhe gibt es keinen Nachweis mehr** (ein Einzelmast
+  ohne jedes Anbauteil). Still übergangen läse sich eine leere Spalte wie
+  «erfüllt» — der Grund steht jetzt da.
+  (2) **Eine Fahrdrahthöhe über dem Mastkopf fiel stumm durch.** Der
+  Entscheid vom 24. September («über dem Mastkopf gilt die Eingabe nicht»)
+  war richtig, wurde aber nicht gesagt: wer 14 m einträgt, bekam einen
+  Nachweis auf 7.50 m ohne ein Wort. Seit der Nachweis an dieser EINEN
+  Stelle hängt, verschiebt das das einzige η, das es gibt. Die Kachel
+  schreibt jetzt «EINGABE VERWORFEN» an und nennt im Titel beide Höhen.
+  ⚠ **In eigener Sache:** dieser Befund kam zustande, weil ich beim
+  Browserlauf vom 26. September selbst `fdHoehe` im Arbeitsstand auf 14 m
+  verstellt hatte. Ich habe ihn auf 5.50 zurückgesetzt — und das Blatt
+  trägt seit dem Browserlauf ein **zweites Tragwerk T2**, das ich zum
+  Prüfen der Reihenzeile angelegt habe.
 - **26. Sept., AxisVM bestätigt die Jochreihe — Etappe 4 ist damit für den
   Masten erfüllt.** Die Reihe (2 × J90/20 m, 1650 Knoten, 1879 Stäbe) ist
   durch AxisVM gelaufen: bauen, linear statisch rechnen, auslesen, rund
@@ -1346,7 +1391,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5412 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5410 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

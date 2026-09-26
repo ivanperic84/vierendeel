@@ -28122,28 +28122,85 @@ titel('113  Mastverformung im Gebrauchszustand');
     const v = lauf(w);
     const n = VF113.verformungsNachweis(v);
     wahr('Der Nachweis steht da', Boolean(n?.A?.nachweise?.length));
-    pruef('Drei Nachweise', n.A.nachweise.length, 3, 1e-12, 'Stk');
+    /* =====================================================================
+     * >>> EIN NACHWEIS, NICHT DREI (26. September). <<<
+     *
+     * Weisung: «lassen wir den nachweis für die mastspitze weg bei der
+     * verformung und nutzen nur die referenzhöhe (fahrdraht)».
+     *
+     * Vorausgegangen war die Frage, wie 150 mm zustande kommen. Sie waren
+     * richtig gerechnet - der Mast steht in Gleisrichtung als freier
+     * Kragarm auf seiner schwachen Achse und traegt am geteilten Punkt
+     * die Jochkraefte BEIDER Joche (11 % Mastwind, 2 x 44.5 %
+     * Jochreaktion). Massgebend fuer den Betrieb ist aber die Seitenlage
+     * des Fahrdrahts, und die steht auf der Referenzhoehe.
+     * =================================================================== */
+    pruef('Ein Nachweis: die Referenzhoehe', n.A.nachweise.length, 1, 1e-12, 'Stk');
     const finde = (re) => n.A.nachweise.find((x) => re.test(x.was));
-    const sG = finde(/ständig \+ Betriebswind/);
-    const sW = finde(/^Mastspitze, nur Wind/);
     const qu = finde(/quer zum Gleis/);
-    pruef('Mastspitze mit staendig: Grenze L/100', sG.grenz, n.A.L / 100, 1e-12, 'm');
-    pruef('Mastspitze nur Wind: Grenze L/200', sW.grenz, n.A.L / 200, 1e-12, 'm');
+    wahr('>>> Die Mastspitze traegt kein eta mehr <<<',
+         !n.A.nachweise.some((x) => /Mastspitze/.test(x.was)),
+         n.A.nachweise.map((x) => x.was).join(' | '));
     pruef('Auf Ausleger-/Fahrdrahthoehe: 40 mm', qu.grenz, 0.040, 1e-12, 'm');
     wahr('… und dort wird QUER gemessen', qu.achse === 'x', qu.achse);
     wahr('… die Stelle ist der Fahrdraht, nicht die Spitze',
          n.A.stelle && n.A.stelle.z < n.A.L - 1e-9,
          `${n.A.stelle?.was} auf ${n.A.stelle?.z?.toFixed(2)} m`);
     /*
+     * >>> DIE HOEHE GEHOERT AN DEN NACHWEIS. <<<
+     * «auf welcher höhe werden die 150mm berechnet?» - ohne `z` steht in
+     * der Kachel eine Zahl, von der niemand weiss, wo sie auftritt.
+     */
+    pruef('Der Nachweis traegt seine Hoehe', qu.z, n.A.stelle.z, 1e-12, 'm');
+    /*
      * DIE 40 mm GEGEN NUR WIND (Rueckfrage vom 24. September) - also
-     * gegen denselben Fall wie L/200, nicht gegen die Kombination.
+     * gegen einen charakteristischen Windfall, nicht gegen die
+     * Betriebskombination.
      */
     wahr('… gegen den Fall NUR WIND',
          v.lastfaelle.find((z) => z.key === qu.lastfall)?.art === 'charakteristisch',
          qu.bez ?? '-');
-    wahr('Die Spitze mit staendig kommt aus der Betriebskombination',
-         v.lastfaelle.find((z) => z.key === sG.lastfall)?.stufe === 'betrieb',
-         sG.bez ?? '-');
+    /*
+     * >>> UND DIE SPITZE STEHT DANEBEN, ALS AUSKUNFT. <<<
+     * Sie ganz wegzuwerfen hiesse, die Frage beim naechsten Mal wieder
+     * von vorn zu stellen.
+     */
+    wahr('Die Mastspitze steht als Auskunft da', (n.A.auskunft ?? []).length === 2,
+         (n.A.auskunft ?? []).map((x) => x.was).join(' | '));
+    wahr('… ohne eta und ohne Grenzwert',
+         (n.A.auskunft ?? []).every((x) => x.eta === undefined && x.grenz === undefined));
+    wahr('… aber mit der Hoehe und einem Vergleichsmass',
+         (n.A.auskunft ?? []).every((x) => Math.abs(x.z - n.A.L) < 1e-12
+                                           && x.vergleich > 0));
+    /*
+     * >>> UND DAS URTEIL FOLGT NUR NOCH DEM NACHWEIS. <<<
+     * Bis zum 26. September trug die Spitze das eta - am Standardjoch
+     * 3.540 gegen 0.178 an der Referenzhoehe. Wer die Auskunft versehent-
+     * lich wieder ins eta zieht, faellt hier auf.
+     */
+    pruef('Das eta kommt von der Referenzhoehe', n.A.eta, qu.eta, 1e-12, '-');
+    /* =====================================================================
+     * >>> OHNE MESSSTELLE KEIN NACHWEIS - UND DAS WIRD GESAGT. <<<
+     *
+     * Seit der Nachweis allein an der Referenzhoehe haengt, gibt es ihn
+     * nicht mehr, wo keine Stelle zu finden ist: ein Einzelmast ohne
+     * jedes Anbauteil hat weder Fahrdraht noch Ausleger noch
+     * Jochauflager. Eine leere Spalte liest sich aber wie «erfuellt» -
+     * also muss der Grund dastehen.
+     * =================================================================== */
+    {
+      const ohne = VF113.verformungsNachweis(lauf(nackt));
+      wahr('>>> Ohne Referenzhoehe gibt es kein eta <<<',
+           ohne === null || ohne.eta === null,
+           ohne ? `eta ${ohne.eta}` : 'kein Nachweis');
+      if (ohne) {
+        wahr('… und der Grund steht im Ergebnis', ohne.ohneStelle === true);
+        const UIv = await import(J('ui.js'));
+        const blk = UIv.gzgBlockHtml({ verformung: ohne, modell: { federn: {} } });
+        wahr('… und die Anzeige nennt ihn',
+             /keine Referenzhöhe/.test(blk), blk.slice(-150));
+      }
+    }
   }
 
   // --- c2) Die Hoehe laesst sich eintragen -------------------------------
