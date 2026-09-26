@@ -132,6 +132,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Gurtspannung im Stabwerk (26. Sept.) | Auf Rückfrage nach dem Einbau von I_yz: **vorzeichenrichtig, nach Messung**. Die Hülle über ±M_y, ±M_z in `randspannung()` war für den Ersatzbalken gebaut (er führt Beträge); das Stabwerk kennt die Vorzeichen, und seit I_yz sind beide Komponenten gross (J90/20 m: Hülle η 0.4684, vorzeichenrichtig 0.3268). Zuerst wird die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von `randspannung`) an einer geschlossenen Lösung im Prüfstand gemessen, dann im Stabwerksweg umgestellt. **Der Ersatzbalken behält die Hülle** — er kennt die Vorzeichen nicht |
+| Nach I_yz zuerst der Anschluss (26. Sept.) | Auf die Frage, womit es weitergeht: **zuerst der Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss M_y ständig), danach Punkt 2 (Tragausleger). Ohne neuen AxisVM-Lauf, solange die Ergebnisse reichen |
 | Reihenfolge der nächsten Arbeiten (26. Sept.) | **Zuerst I_yz im Löserkern**, dann der Tragausleger, dann die Nachweise. Auf die Frage, womit anzufangen sei, ausdrücklich so gewählt — obwohl der Tragausleger heute auf der unsicheren Seite liegt. Der Grund trägt: die Ursache der 13–25 % ist benannt und billig zu messen (die AxisVM-Ergebnisse liegen in `com/`, **kein neuer Lauf nötig**), und solange der Löser die Gurte falsch rechnet, übernimmt jeder weitere Schritt diesen Fehler — auch der Tragausleger, der ins selbe Stabwerk soll |
 | Tragausleger: beide Wege (26. Sept.) | **Eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil** — wie heute beim Joch. Der Kern liefert Hauptkacheln, Verläufe und Bericht ohne Umbau der Oberfläche, das Stabwerk das Einspannmoment am Masten aus dem System statt aus einer zweiten Herleitung. Nach Sortiment besteht der Ausleger aus **zwei UPE 140**, nicht aus vier Winkeln; heute rechnet der Kern ihn als Einfeldträger mit einem Phantom-Auflager am freien Ende (L = 12 m: M_A 10.9 statt 57.3 kNm) und ist deshalb als «NICHT nachgewiesen» gekennzeichnet |
 | Nachweise auf den Löser (26. Sept.) | «in den nachweisen die löser abbildungen übernehmen», dazu **Bericht und Excel auf den Stabwerksweg** (Schritt 6 des Bauplans) und ein **Bericht für Tragausleger und Abfangjoch** — damit ist der Entscheid vom 18. September («den abfangjoch weglassen») aufgehoben. ⚠ **Der Knicknachweis kann nicht mitwandern:** die Stabilität rechnet allein der Ersatzbalken (`core.mast.js`), der Löser führt sie nicht. Wer ganz umschaltet, weist einen schlanken Masten rund 8 % zu günstig nach. Die Abbildungen und Schnittgrössen kommen aus dem Löser, das Knicken bleibt beim Kern — und der Bericht muss sagen, woher welche Zahl stammt |
@@ -210,12 +212,30 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5430 Kontrollen grün · `durchlauf.mjs`
+**26. September 2026** · Prüfstand 5440 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., die Gurtspannung im Stabwerk ist vorzeichenrichtig**
+  (Entscheid siehe *Entschieden*, Prüfstand 123 d und 129 f).
+  `randspannung()` hat die Option `vorzeichenrichtig`; nur `stabSpannung`
+  (Stabwerksweg) setzt sie, der Ersatzbalken behält die Hülle. Die
+  **Normalkraft bleibt beim Betrag** — gemessen, was das Vorzeichen von N
+  zusätzlich brächte: Einzeljoch nichts, Reihe 0.3648 → 0.3590 (1.6 %).
+  **Die Konvention ist gemessen, nicht angenommen:** Kragarm L 90×90×9,
+  Kopflast in acht Richtungen, Spannung aus der Krümmung E(−y v'' − z w'')
+  gegen die Spannung aus den Endkräften — auf die Stelle gleich in allen
+  acht. Die Hülle liegt in den beiden Richtungen der starken Hauptachse
+  darüber (151.3 statt 68.7 N/mm², Faktor 2.2); mit dem falschen relativen
+  Vorzeichen fiele die Kontrolle genau dort.
+  **Am Urteil** (Stabwerksweg, J90/20 m): Gurt η 0.4684 → **0.3268**; das
+  Joch wird jetzt vom Bindeblech bestimmt (0.3633). Reihe: Gurt 0.4775 →
+  **0.3648**, Joch T1/T2 0.4406/0.4407 (Blech). Masten unverändert.
+  Im Browser: Reihe 2 × J90/20 m (Standardbelegung der Anwendung) gerechnet,
+  Reihenzeile «Mast M2 1.414 · Mast M3 0.800 · Mast M1 0.800 · Joch T1
+  0.561 · Joch T2 0.556», Konsole ohne Fehler.
 - **26. Sept., I_yz steht in der Elementmatrix** (Auftrag Punkt 1,
   Prüfstand Abschnitt 129). `kLokalSchief` in core.stabwerk.js rechnet
   einen Querschnitt mit Deviationsmoment in seinen **Hauptachsen** (dort
@@ -246,7 +266,8 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   führt). Gemessen mit vorzeichenrichtiger Auswertung: **0.3268** statt
   0.4684 (Reihe 0.3648 statt 0.4775); die Hülle trifft genau die
   ungünstige der beiden Kombinationen. Nicht umgestellt — Entscheid des
-  Auftraggebers, siehe *Offene Punkte*.
+  Auftraggebers, siehe *Offene Punkte*. **Seither entschieden und
+  umgesetzt: vorzeichenrichtig** (siehe den Eintrag darüber).
   ⚠ **Befund am Weg:** die Feldliste in `stabmodellJson` liess das neue
   Feld still fallen — dieselbe Falle wie am 20. September beim `versatz`.
   Abschnitt 129 e hat es gefunden.
@@ -1135,8 +1156,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 **Auftrag für die nächste Sitzung (26. Sept., in dieser Reihenfolge entschieden):**
 
 1. ~~**I_yz in die Elementmatrix**~~ — **erledigt am 26. September**
-   (siehe *Letzte Schritte*). Offen daraus: die Vorzeichen-Hülle am Gurt
-   (⚠ Entscheid) und der Anschluss Joch–Mast (siehe *Laufende Arbeit*).
+   (siehe *Letzte Schritte*), samt der vorzeichenrichtigen Gurtspannung.
+   **Als Nächstes (entschieden): der Anschluss Joch–Mast** gegen AxisVM
+   (siehe *Laufende Arbeit*), danach Punkt 2.
 2. **Tragausleger:** eigener Kragarm-Kern für die Anzeige, Stabwerk für das
    Urteil (zwei UPE 140, Einspannung am Masten). Danach fällt die Warnung
    «Tragausleger NICHT nachgewiesen».
@@ -1388,17 +1410,6 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **Gurtspannung im Stabwerk: Vorzeichen-Hülle oder vorzeichenrichtig?**
-  `randspannung()` (core.winkel.js) wertet ±M_y und ±M_z als Hülle aus —
-  gebaut für den Ersatzbalken, der die Momente als Beträge führt, und dort
-  «zugleich die sichere Seite». Das Stabwerk kennt die Vorzeichen, und seit
-  I_yz sind beide Komponenten gross. Gemessen (J90/20 m, Stabwerksweg):
-  Hülle **0.4684**, vorzeichenrichtig **0.3268** (Reihe 0.4775 / 0.3648).
-  Die Hülle trifft exakt die ungünstige Kombination. Bevor umgestellt wird,
-  gehört die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von
-  `randspannung`) an einer geschlossenen Lösung gemessen, und der
-  Entscheid gehört dem Auftraggeber (Auswertung der Spannungsverläufe).
-  Heute steht die Hülle — auf der sicheren Seite.
 - **Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss
   M_y ständig): siehe *Laufende Arbeit (26. Sept.)*. Mit I_yz unverändert.
 - ⚠ **Die PyNite-Ausleitung steht auf der lokalen Link-Lesart.** Der Befund
@@ -1579,7 +1590,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5430 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5440 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

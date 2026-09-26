@@ -102,9 +102,51 @@ export function winkelwerte(p) {
  * @param {number} N  Normalkraft [kN]
  * @param {number} My Moment um die schenkelparallele y-Achse [kNm]
  * @param {number} Mz Moment um die schenkelparallele z-Achse [kNm]
+ * @param {object} [opt]
+ * @param {boolean} [opt.vorzeichenrichtig] die Momente mit IHREM Vorzeichen
+ *   statt der Hülle über ±M_y, ±M_z (siehe unten)
  * @returns {{sig:number, punkt:object, sigN:number}}
  */
-export function randspannung(w, N, My, Mz) {
+/* ===========================================================================
+ * >>> VORZEICHENRICHTIG - NUR WER DIE VORZEICHEN KENNT. <<<
+ * =========================================================================
+ *
+ * Entscheid vom 26. September, auf Rückfrage nach dem Einbau von I_yz in
+ * den Stabwerkslöser: «vorzeichenrichtig, nach Messung».
+ *
+ * Die Hülle über die vier Vorzeichenpaare ist für den ERSATZBALKEN richtig:
+ * er führt die Momente als Beträge, und welche Ecke massgebend wird, weiss
+ * er nicht. Das STABWERK weiss es - es gibt M_y und M_z mit Vorzeichen aus
+ * derselben Rechnung. Seit dem Deviationsmoment in der Elementmatrix sind
+ * am Gurt beide Komponenten gross, und die Hülle trifft dann genau die
+ * ungünstige Kombination, die im Stab nicht vorkommt. Gemessen am
+ * J90/20 m, Stabwerksweg, Gurt:
+ *
+ *     Hülle ±M             η 0.4684      Reihe 2 x J90/20   0.4775
+ *     vorzeichenrichtig    η 0.3268                         0.3648
+ *
+ * >>> DIE NORMALKRAFT BLEIBT BEIM BETRAG. <<<
+ *
+ * Aus demselben Grund wie oben: sie darf die Biegung nicht rechnerisch
+ * entlasten. Gemessen, wie viel das ausmacht, wenn auch N sein Vorzeichen
+ * behielte: Einzeljoch 0.3268 gleich, Reihe 0.3648 -> 0.3590 (1.6 %).
+ * Entschieden war die Hülle der MOMENTE; N bleibt auf der sicheren Seite.
+ *
+ * >>> DIE KONVENTION IST GEMESSEN. <<<
+ *
+ * Die Formel oben ist die Vektorkonvention (M_y = ∫σz dA, M_z = −∫σy dA),
+ * die Endkräfte des Lösers sind es ebenfalls. Dass die beiden zusammen-
+ * passen, prüft der Prüfstand (Abschnitt 129 f) an der geschlossenen
+ * Lösung: Kragarm, Kopflast in acht Richtungen, Spannung aus der
+ * Krümmung E(−y v'' − z w'') gegen diese Funktion. Mit dem falschen
+ * relativen Vorzeichen stimmten dort nur die Richtungen auf den Achsen.
+ *
+ * Die Enden: am i-Ende gibt der Löser die Kraft AUF den Stab, alle drei
+ * Grössen mit umgekehrtem Vorzeichen gegenüber der Schnittgrösse. Das
+ * dreht jede Spannung um - der Betrag bleibt. Es kommt nur auf das
+ * VERHÄLTNIS der Vorzeichen von M_y und M_z an, und das bleibt.
+ * ========================================================================= */
+export function randspannung(w, N, My, Mz, opt = {}) {
   const nenner = w.Iy * w.Iz - w.Iyz * w.Iyz;
   const sigN = (N * U.kN__N) / w.A;                       // N/mm²
   if (!(nenner > 0)) {
@@ -114,7 +156,10 @@ export function randspannung(w, N, My, Mz) {
   const mz = Math.abs(Mz) * U.kNm__Nmm;
 
   let sig = 0, punkt = null;
-  [+1, -1].forEach((sy) => [+1, -1].forEach((sz) => {
+  const paare = opt.vorzeichenrichtig
+    ? [[Math.sign(My) || 1, Math.sign(Mz) || 1]]
+    : [[+1, +1], [+1, -1], [-1, +1], [-1, -1]];
+  paare.forEach(([sy, sz]) => {
     const Myv = sy * my, Mzv = sz * mz;
     const ky = (Myv * w.Iz + Mzv * w.Iyz) / nenner;
     const kz = (Mzv * w.Iy + Myv * w.Iyz) / nenner;
@@ -124,7 +169,7 @@ export function randspannung(w, N, My, Mz) {
       const s = Math.abs(sigN) + Math.abs(ky * pt.z - kz * pt.y);
       if (s > sig) { sig = s; punkt = pt; }
     });
-  }));
+  });
   return { sig, punkt, sigN };
 }
 

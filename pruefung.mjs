@@ -30129,9 +30129,19 @@ titel('123  Spannungen aus den Stabkraeften');
     const f = new Float64Array(12);
     f[0] = -50; f[4] = 1.2; f[5] = 0.4;
     const s = SN123.stabSpannung(qs, f, 'gurt');
-    const soll = WI.randspannung(WI.winkelwerteFuer(p), -50, 1.2, 0.4);
-    pruef('Gurt: dieselbe Randspannung wie core.winkel', s.sig, soll.sig, 1e-12, 'N/mm2');
+    /*
+     * VORZEICHENRICHTIG seit dem 26. September (Entscheid nach dem Einbau
+     * von I_yz): das Stabwerk kennt die Vorzeichen der Momente, die Huelle
+     * ueber ±M gilt nur noch dem Ersatzbalken. Messung: Abschnitt 129 f.
+     */
+    const soll = WI.randspannung(WI.winkelwerteFuer(p), -50, 1.2, 0.4,
+                                 { vorzeichenrichtig: true });
+    pruef('Gurt: dieselbe Randspannung wie core.winkel (vorzeichenrichtig)',
+          s.sig, soll.sig, 1e-12, 'N/mm2');
     wahr('… und sie ist nicht null', s.sig > 1);
+    const huelle = WI.randspannung(WI.winkelwerteFuer(p), -50, 1.2, 0.4);
+    wahr('… die Huelle ueber ±M bleibt die obere Schranke',
+         huelle.sig >= s.sig, `${s.sig.toFixed(2)} <= ${huelle.sig.toFixed(2)} N/mm2`);
   }
 }
 
@@ -31093,7 +31103,7 @@ titel('129  Das Deviationsmoment in der Elementmatrix (I_yz)');
  * ========================================================================= */
 {
   const SW129 = await import(J('core.stabwerk.js'));
-  const { winkelwerteFuer } = await import(J('core.winkel.js'));
+  const { winkelwerteFuer, randspannung: randspannungH } = await import(J('core.winkel.js'));
   const E129 = 210000, G129 = 81000;           // N/mm2
   const Ek = E129 * 1000, Gk = G129 * 1000;    // kN/m2
   const w90 = winkelwerteFuer(getProfil('L 90x90x9'));
@@ -31216,6 +31226,54 @@ titel('129  Das Deviationsmoment in der Elementmatrix (I_yz)');
          alt.querschnitte.every((q, i) => Object.is(q.Iyz, dat129.querschnitte[i].Iyz)));
     wahr('Nachtrag: ein zweiter Lauf aendert nichts',
          AX129.deviationNachtragen(alt).length === 0);
+  }
+
+  // --- f) VORZEICHENRICHTIG: passen Loeser und randspannung zusammen? ----
+  /* =======================================================================
+   * Entscheid vom 26. September: die Gurtspannung im Stabwerk
+   * «vorzeichenrichtig, nach Messung». Das hier ist die Messung.
+   *
+   * Unabhaengig von jeder Momentformel: am Kragarm mit Kopflast ist die
+   * Biegelinie in beiden Ebenen dieselbe Kubik, also ist die Kruemmung an
+   * der Einspannung v'' = 3 v_B / L^2 und w'' = 3 w_B / L^2 - aus den
+   * WEGEN des Loesers. Die Spannung an jeder Ecke ist dann
+   *
+   *     sigma = E (-y v'' - z w'')
+   *
+   * und das Maximum ueber die sechs Ecken muss das sein, was
+   * `stabSpannung` aus den ENDKRAEFTEN des Loesers macht. Acht Richtungen
+   * der Kopflast, damit auch die beiden Diagonalen dabei sind: nur dort
+   * unterscheiden sich die beiden relativen Vorzeichen von M_y und M_z.
+   * ===================================================================== */
+  {
+    const SN129 = await import(J('core.stabnachweis.js'));
+    const qsGurt = { name: 'Q', form: 'Angle', profil: 'L 90x90x9', A, Iy, Iz, Iyz };
+    let huelleGroesser = 0;
+    for (let g = 0; g < 360; g += 45) {
+      const th = (g * Math.PI) / 180;
+      const d = kragarm({ Iyz }, [0, 0, 1], 'Y');
+      d.lasten.punkt = [
+        { knoten: 'B', richtung: 'Y', wert: F * Math.cos(th), lastfall: 'F' },
+        { knoten: 'B', richtung: 'Z', wert: F * Math.sin(th), lastfall: 'F' }];
+      const l = SW129.loese(d, { eigengewicht: false, schubweich: false });
+      const i = l.knotenIdx.get('B') * 6;
+      const vB = l.u.get('F')[i + 1], wB = l.u.get('F')[i + 2];
+      const kv = 3 * vB / Ln ** 2, kw = 3 * wB / Ln ** 2;          // 1/m
+      const soll = Math.max(...w90.punkte.map((pt) =>
+        Math.abs(E129 * (-(pt.y / 1000) * kv - (pt.z / 1000) * kw))));
+      const f = l.stabkraft('F').get('ST');
+      const ist = SN129.stabSpannung(qsGurt, f, 'gurt').sig;
+      pruef(`Kopflast unter ${String(g).padStart(3)} Grad: sigma aus Kraeften = aus Kruemmung`,
+            ist, soll, 1e-9, 'N/mm2');
+      const huelle = randspannungH(w90, -f[0], -f[4], -f[5]).sig;
+      if (huelle > soll * (1 + 1e-6)) huelleGroesser += 1;
+    }
+    /*
+     * Die Kontrolle hat Zaehne nur, wenn die Huelle irgendwo etwas ANDERES
+     * sagt - sonst haette sie auch die falsche Konvention durchgelassen.
+     */
+    wahr('>>> Die Huelle ueber ±M liegt in den Diagonalen darueber <<<',
+         huelleGroesser >= 2, `${huelleGroesser} von 8 Richtungen`);
   }
 }
 

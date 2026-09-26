@@ -154,7 +154,14 @@ export function stabSpannung(qs, f, rolle) {
     const w = winkelwerteFuer(p);
     let best = null;
     enden.forEach((e) => {
-      const r = randspannung(w, e.N, e.My, e.Mz);
+      /*
+       * VORZEICHENRICHTIG (Entscheid 26. September): das Stabwerk kennt
+       * die Vorzeichen von M_y und M_z aus derselben Rechnung - die Hülle
+       * über ±M ist nur dort richtig, wo man sie nicht kennt (Ersatz-
+       * balken, core.querschnitt.js). Begründung und Messung bei
+       * `randspannung` in core.winkel.js.
+       */
+      const r = randspannung(w, e.N, e.My, e.Mz, { vorzeichenrichtig: true });
       if (!best || r.sig > best.sig) best = { sig: r.sig, ende: e.name };
     });
     return best;

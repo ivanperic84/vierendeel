@@ -5,9 +5,10 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **26. September 2026**, Punkt 1 des Auftrags (I_yz) ist erledigt und
-committet, aber **nicht gepusht** (`git log --oneline -6`); Prüfstand 5430
-Kontrollen grün, `durchlauf.mjs` ohne Bruch.
+Stand: **26. September 2026**, Punkt 1 des Auftrags (I_yz, dazu die
+vorzeichenrichtige Gurtspannung) ist erledigt und committet, aber **nicht
+gepusht** (`git log --oneline -6`); Prüfstand 5440 Kontrollen grün,
+`durchlauf.mjs` ohne Bruch. **Als Nächstes: der Anschluss Joch–Mast.**
 
 ---
 
@@ -66,11 +67,11 @@ M_y ständig) und ändert sich mit I_yz nicht — CLAUDE.md, *Laufende Arbeit
 **1. ~~I_yz in die Elementmatrix~~ — erledigt am 26. September.**
 `kLokalSchief` (core.stabwerk.js) rechnet den Winkel in seinen Hauptachsen,
 die Ausleitung schreibt I_yz aus `winkelwerteFuer()`, das Vorzeichen ist
-gegen AxisVM gemessen (Prüfstand Abschnitt 129). Zwei Fragen daraus liegen
-beim Auftraggeber (CLAUDE.md, *Offene Punkte*): ⚠ ob der Gurt im Stabwerk
-**vorzeichenrichtig** statt über die ±M-Hülle ausgewertet werden soll
-(J90/20 m: η 0.3268 statt 0.4684), und ob der **Anschluss Joch–Mast**
-gegen AxisVM weiter verfolgt wird, bevor Punkt 2 beginnt.
+gegen AxisVM gemessen (Prüfstand Abschnitt 129). Auf Rückfrage entschieden:
+die Gurtspannung im Stabwerk ist seither **vorzeichenrichtig** (Konvention an
+der geschlossenen Lösung gemessen, 129 f; J90/20 m Gurt η 0.4684 → 0.3268),
+und **vor Punkt 2 kommt der Anschluss Joch–Mast** gegen AxisVM (Wind längs
+am Jochende, Mastfuss M_y ständig) — CLAUDE.md, *Laufende Arbeit (26. Sept.)*.
 
 **2. Der Tragausleger — beide Wege.** Eigener Kragarm-Kern für die Anzeige
 (Hauptkacheln, Verläufe, Bericht), das **Stabwerk für das Urteil**; so steht es
