@@ -134,6 +134,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 |---|---|
 | Gurtspannung im Stabwerk (26. Sept.) | Auf Rückfrage nach dem Einbau von I_yz: **vorzeichenrichtig, nach Messung**. Die Hülle über ±M_y, ±M_z in `randspannung()` war für den Ersatzbalken gebaut (er führt Beträge); das Stabwerk kennt die Vorzeichen, und seit I_yz sind beide Komponenten gross (J90/20 m: Hülle η 0.4684, vorzeichenrichtig 0.3268). Zuerst wird die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von `randspannung`) an einer geschlossenen Lösung im Prüfstand gemessen, dann im Stabwerksweg umgestellt. **Der Ersatzbalken behält die Hülle** — er kennt die Vorzeichen nicht |
 | Nach I_yz zuerst der Anschluss (26. Sept.) | Auf die Frage, womit es weitergeht: **zuerst der Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss M_y ständig), danach Punkt 2 (Tragausleger). Ohne neuen AxisVM-Lauf, solange die Ergebnisse reichen |
+| e_y des UPE 160 (26. Sept.) | Befund: 1.84 statt 2.27 cm in `data/normen.json` (aus den Normmassen gerechnet; UPE 200/240 stimmen). Auf Rückfrage: **«Berichtigen»** — Wirkung am A160 vorher → nachher gemessen, siehe *Letzte Schritte* |
 | Tragausleger: Modell und Nachweise (26. Sept.) | Auf Rückfrage: **Aufhängung als EIN Pendelstab mittig** (gelenkiges Starrelement vom Mast zur Mitte der Ankertraverse bei c₁, die Traverse verteilt starr auf beide Gurte). **Anschluss am Mast wie beim Abfangjoch** (Konsole 150 mm, Links 50 mm je Gurt): die Gurte liegen nebeneinander, deshalb ist der Anschluss um die Querachse von selbst gelenkig — wie es die Kontrollformel der Zeichnung voraussetzt, V = Σ(F_V·x)/c₁ + Σ(F_H·z)/c₁. **Nachweise:** UPE und Bindebleche (wie Abfangjoch), **Aufhängung gegen V_zul = 5 kN** (Kontrollwert der Zeichnung, darüber «separate statische Berechnung erforderlich»), Mast und Fundament. **Kern für die Anzeige: den Abfangjoch-Kern anpassen** (Gelenk am Mast, Seilauflager bei c₁, Kragarm c₂); das Urteil bleibt beim Stabwerk. **Längsverankerung** im Wortlaut: «1, wobei hier die 10m regel nicht berücksichtig werden soll. die längsverankerung ist entweder zuzuschalten mit angabe zur stelle x oder die gehängten kettenwerke oder rückleiter wirken stabilisierend (rückstellkraft) wie man diese am besten bestimmen könnte, können wir noch festlegen, ich stelle mir eine rückrechnung vor, die aus den einwirkungen resultiert und gemessen an den basiszugkräften der jeweiligen leiter eine prozentzahl ausgibt.» Also: **zuschaltbar mit Stelle x**, keine 10-m-Regel; die Rückstellkraft der Leiter ist ⚠ noch festzulegen |
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
@@ -225,6 +226,13 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **26. Sept., e_y des UPE 160 berichtigt: 1.84 → 2.27 cm** (Weisung
+  «Berichtigen»). Aus den Normmassen nachgerechnet; UPE 200/240 trafen die
+  Tabelle, der 160er nicht. Gemessen am A160: Hebelarm 31.68 → 32.54 cm,
+  Gurtkraft bei M = 50 kNm 157.83 → 153.66 kN (−2.6 %), η im Beispiel des
+  Prüfstands 0.977 → 0.968, Blech-η 1.7485 → 1.7471. Der alte Wert lag auf
+  der sicheren Seite. Eine Kontrolle trug 42 − 2·1.84 als feste Zahl; sie
+  rechnet jetzt mit 2.27 und nennt den Grund. Datenpaket neu in `Versand/`.
 - **26. Sept., Tragausleger Etappe 1: die Daten.** Quelle: die beiden
   Zeichnungen unter `Grundlagen/Tragausleger` (Übersicht und Werkstatt-
   zeichnung UPE 140). **UPE 140** in `data/normen.json` (verfolgt, Norm-
@@ -1589,13 +1597,6 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Das **Abfangjoch** war ausdrücklich draussen (18. Sept.), der
   **Tragausleger** wartete auf sein Kragarm-Modell. Beides soll jetzt einen
   Bericht bekommen; der Entscheid vom 18. September ist damit aufgehoben.
-- ⚠ **e_y des UPE 160 in `data/normen.json` ist falsch: 1.84 statt
-  2.27 cm** (Schwerpunkt ab Stegrücken). Nachgerechnet aus den Normmassen
-  am 26. September; UPE 200 und 240 treffen die Tabelle auf die Stelle
-  (2.56, 2.79), nur der 160er nicht. Wirkung: Hebelarm des A160
-  e = d + 2·e_y 31.68 statt 32.54 cm, die Gurtkraft N = M/e damit 2.7 % zu
-  gross — **sichere Seite**. Nicht von selbst berichtigt, weil es einen
-  Nachweis verschiebt; Entscheid des Auftraggebers.
 - ⚠ **Doppelmasten ohne Fundamentzuordnung:** DGP24 und DGP26 stehen in
   der Fundamenttabelle, aber das Sortiment führt sie nicht als Profil —
   ihre Fundamente (DG1a, DG2a, DG3a) sind nur von Hand wählbar.

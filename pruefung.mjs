@@ -21094,12 +21094,16 @@ const CH9x = await import(J('core.checks.js'));
      * Wirkung ist der Abstand der SCHWERACHSEN. Beim UPE liegt die Achse um
      * e_y innerhalb des Stegruckens, beim IPE in der Profilmitte.
      *
-     * Bei A160 sind das 38.3 statt 42.0 cm, bei A270 73.5 statt 87.0 - neun
+     * Bei A160 sind das 37.5 statt 42.0 cm, bei A270 73.5 statt 87.0 - neun
      * bis fuenfzehn Prozent, und sie gehen VOLL ins Moment. Mit k gerechnet
      * laege der Nachweis auf der unsicheren Seite.
+     *
+     * e_y des UPE 160 ist seit dem 26. September 2.27 cm (vorher 1.84 in
+     * der Normtabelle - aus den Normmassen nachgerechnet, UPE 200/240
+     * trafen die Tabelle, der 160er nicht; Weisung «Berichtigen»).
      */
     pruef('A160: Achsabstand statt Aussenmass',
-          PR.gurtAchsabstand('UPE 160', 42.0), 42.0 - 2 * 1.84, 1e-9, 'cm');
+          PR.gurtAchsabstand('UPE 160', 42.0), 42.0 - 2 * 2.27, 1e-9, 'cm');
     /*
      * >>> BEIM I IST `d` SCHON DER ACHSABSTAND. <<<
      *
