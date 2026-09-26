@@ -27625,31 +27625,79 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
 
   // --- c) Das Linkelement --------------------------------------------------
   {
-    /*
-     * Der Link liegt laengs y: seine lokale x-Achse ist global y, also
-     * haelt «xx: Rigid» die BIEGEVERDREHUNG des Kragarms. z bleibt frei -
-     * senkrecht traegt nur der Kragarm, aber mit gefuehrtem Ende:
-     * w = F L^3 / (12 E I) statt / (3 E I).
-     */
+    /* =====================================================================
+     * >>> DIE LINKBEDINGUNG GILT GLOBAL - AUSSER SIE SAGT ETWAS ANDERES.
+     * ===================================================================
+     *
+     * BEFUND vom 26. September, gegen AxisVM gemessen. Bis dahin las der
+     * Loeser die Federzahlen als LOKALE Richtungen, und diese Kontrolle
+     * war darauf gebaut - ihr Kommentar sagte es selbst: «der Link liegt
+     * laengs y, seine lokale x-Achse ist global y».
+     *
+     * Gemeint sind sie GLOBAL. `LINK_GRADE` (core.auflager.js) schreibt
+     * sie aus - x «Laengs, in der Jochachse», y «Quer, in
+     * Gleisrichtung», z «Lotrecht» -, und die COM-Bruecke setzt
+     * `SystemGLR = sysGlobal`, solange in der Datei nicht ausdruecklich
+     * `system: 'lokal'` steht.
+     *
+     * Geprueft werden deshalb BEIDE Lesarten am selben Tragwerk, und
+     * zwar so, dass sie verschiedene Antworten geben muessen: ein
+     * Kragarm mit gefuehrtem Ende traegt viermal steifer als einer mit
+     * freiem (w = F L³/12EI gegen F L³/3EI). Wer die Lesart vertauscht,
+     * faellt hier um den Faktor 4 auf.
+     * =================================================================== */
     const Fl = 6;
-    const r = loeseEB(modell111({
+    const linkModell = (ku, system) => modell111({
       qs: [REC('R', 100, 200), REC('STARR', 500, 500)],
       knoten: [{ name: 'A', x: 0, y: 0, z: 0 }, { name: 'B', x: 4, y: 0, z: 0 },
                { name: 'C', x: 4, y: 0.05, z: 0 }],
       staebe: [{ name: 'S', von: 'A', bis: 'B', querschnitt: 'R', art: 'stab', lcsZ: [0, 0, 1] },
                { name: 'LK', von: 'B', bis: 'C', querschnitt: 'STARR', art: 'link',
-                 lcsZ: [0, 0, 1],
-                 kraftuebertragung: { x: 'Rigid', y: 'Rigid', z: 'Free',
-                                      xx: 'Rigid', yy: 'Free', zz: 'Free' } }],
+                 lcsZ: [0, 0, 1], ...(system ? { system } : {}),
+                 kraftuebertragung: ku }],
       auflager: [{ knoten: 'A', ...FEST }, { knoten: 'C', ...FEST }],
       punkt: [{ knoten: 'B', richtung: 'Z', wert: -Fl, lastfall: 'L' }],
-    }));
+    });
     // Toleranz 1e-4: «Rigid» ist im Link eine ZAHL (LINK_STARR), kein
     // Zwang - der Rest ist das Verhaeltnis zur Stabsteifigkeit (1e-5).
-    pruef('Link: z frei, Ende gefuehrt', uVon(r, 'B', 2),
-          -(Fl * 4 ** 3) / (12 * Ek * Iy0), 1e-4, 'm');
-    wahr('… und das zweite Auflager traegt lotrecht nichts',
-         Math.abs(r.auflagerkraefte('L')[1].uz) < 1e-6);
+    const wGefuehrt = -(Fl * 4 ** 3) / (12 * Ek * Iy0);
+    const wFrei = -(Fl * 4 ** 3) / (3 * Ek * Iy0);
+    {
+      /*
+       * GLOBAL: die Biegeverdrehung des Kragarms geht um die globale
+       * y-Achse. Wer sie haelt, fuehrt das Ende - `yy: Rigid`.
+       */
+      const r = loeseEB(linkModell({ x: 'Rigid', y: 'Rigid', z: 'Free',
+                                     xx: 'Free', yy: 'Rigid', zz: 'Free' }, null));
+      pruef('Link global: z frei, Ende gefuehrt (yy)', uVon(r, 'B', 2),
+            wGefuehrt, 1e-4, 'm');
+      wahr('… und das zweite Auflager traegt lotrecht nichts',
+           Math.abs(r.auflagerkraefte('L')[1].uz) < 1e-6);
+    }
+    {
+      /*
+       * >>> DIESELBEN ZAHLEN, LOKAL GELESEN, GEBEN ETWAS ANDERES. <<<
+       * Der Link liegt laengs y; lokal ist `yy` dann die Drehung um die
+       * globale z-Achse, und die haelt den Kragarm nicht. Das Ende ist
+       * frei, und die Verschiebung ist die vierfache.
+       */
+      const r = loeseEB(linkModell({ x: 'Rigid', y: 'Rigid', z: 'Free',
+                                     xx: 'Free', yy: 'Rigid', zz: 'Free' }, 'lokal'));
+      pruef('>>> Link lokal: dieselben Zahlen, das Ende ist frei <<<',
+            uVon(r, 'B', 2), wFrei, 1e-4, 'm');
+    }
+    {
+      /*
+       * Und umgekehrt: lokal fuehrt `xx` das Ende, weil die lokale
+       * x-Achse die globale y-Achse ist. Das ist die Kontrolle, wie sie
+       * bis zum 26. September dastand - jetzt mit `system: 'lokal'`
+       * ausgeschrieben, statt stillschweigend angenommen.
+       */
+      const r = loeseEB(linkModell({ x: 'Rigid', y: 'Rigid', z: 'Free',
+                                     xx: 'Rigid', yy: 'Free', zz: 'Free' }, 'lokal'));
+      pruef('Link lokal: xx haelt das Ende', uVon(r, 'B', 2),
+            wGefuehrt, 1e-4, 'm');
+    }
   }
 
   // --- d) Am wirklichen Jochmodell: das Gleichgewicht ----------------------
@@ -27698,8 +27746,23 @@ titel('111  Stabwerksloeser (core.stabwerk.js)');
       const abw = Math.max(...['X', 'Y', 'Z'].map((d) => Math.abs(p[d] + sum[d]))) / gross;
       if (abw > schlimm) { schlimm = abw; woFall = lf.key; }
     });
+    /*
+     * >>> DIE SCHRANKE IST RELATIV - UND SIE WURDE AM 26. SEPTEMBER
+     *     GELOCKERT, VON 1e-8 AUF 5e-8. <<<
+     *
+     * Grund: seit die Linkbedingung GLOBAL aufgebaut wird (siehe
+     * core.stabwerk.js), hat die Federmatrix alle drei S(r)-Komponenten
+     * besetzt statt zweier. Es wird mehr summiert, und bei einer
+     * Steifigkeitsspanne von 1e15 kostet jede Summe Stellen. Gemessen am
+     * J90/20 m: 5.6e-10 vorher, 1.19e-8 nachher.
+     *
+     * Das ist Rundung und kein Modellfehler: ein fehlendes Auflager oder
+     * eine verlorene Last laegen bei 1e-3 und darueber, also fünf
+     * Groessenordnungen hoeher. Die Kontrolle bleibt damit scharf genug,
+     * um zu finden, wofuer sie da ist.
+     */
     wahr('Kraftgleichgewicht in jedem Lastfall',
-         schlimm < 1e-8, `groesste Abweichung ${(schlimm * 100).toExponential(2)} %`
+         schlimm < 5e-8, `groesste Abweichung ${(schlimm * 100).toExponential(2)} %`
          + (woFall ? ` (${woFall})` : ''));
     /*
      * DER REST DER GLEICHUNG - RELATIV, NICHT ABSOLUT.
@@ -30228,12 +30291,14 @@ titel('126  Die Jochreihe als gekoppeltes Tragwerk (Etappe 3)');
  * Gleichungssystem - die Rahmenwirkung ist dann keine Zutat mehr, sondern
  * die Folge.
  *
- * Gemessen (J90/20 m, HEB 240, Standardbelegung):
+ * Gemessen (J90/20 m, HEB 240, Standardbelegung; die Zahlen gelten seit
+ * der Linkberichtigung vom 26. September, davor lagen sie 0.4-0.6 %
+ * hoeher):
  *
- *     Einzeljoch          Mast M2  0.7756
- *     Reihe 2 x J90/20    Mast M2  1.3525   (+74 %)
- *     Reihe 3 x J90/20    Mast M2  1.3911
- *     J90/20 + J90/15     Mast M2  1.1601
+ *     Einzeljoch          Mast M1  0.7708
+ *     Reihe 2 x J90/20    Mast M2  1.3465   (+75 %)
+ *     Reihe 3 x J90/20    Mast M3  1.3878
+ *     J90/20 + J90/15     Mast M2  1.1535
  *
  * Die Messung vom 19. September hatte +76 % am Laengsmoment vorhergesagt;
  * das Stabwerk bestaetigt sie. >>> Die Anwendung wies den geteilten Masten

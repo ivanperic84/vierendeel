@@ -229,7 +229,7 @@ function kLokal(E, G, A, Iy, Iz, It, L, schub = false) {
  * identisch - S(r) verschwindet dann. Die geschlossenen Loesungen des
  * Abschnitts 111 rechnen mit solchen und bleiben unberuehrt.
  * ========================================================================= */
-function kFeder(cs, Larm = 0) {
+function kFeder(cs, arm = 0) {
   /*
    * B in Zeilen: 0..2 die Translationsdifferenz, 3..5 die Verdrehungs-
    * differenz. Spalten: u_i (0..2), fi_i (3..5), u_j (6..8), fi_j (9..11).
@@ -238,9 +238,23 @@ function kFeder(cs, Larm = 0) {
   const setz = (z, sp, v) => { B[z * 12 + sp] = v; };
   for (let d = 0; d < 3; d += 1) { setz(d, d, -1); setz(d, d + 6, +1); }
   for (let d = 0; d < 3; d += 1) { setz(d + 3, d + 3, -1); setz(d + 3, d + 9, +1); }
-  // S(r) fuer r = (L, 0, 0):  [[0,0,0],[0,0,-L],[0,L,0]]
-  setz(1, 5, -Larm);
-  setz(2, 4, +Larm);
+  /*
+   * >>> DER HEBELARM IST EIN VEKTOR, KEINE LAENGE (26. September). <<<
+   *
+   * Im LOKALEN System zeigt er die Stabachse entlang, r = (L, 0, 0) - und
+   * eine Zahl genuegte. Im GLOBALEN System (siehe unten, `system`) ist er
+   * der Verbindungsvektor der beiden Knoten, und dann braucht es alle
+   * drei Komponenten.
+   *
+   *     S(r) = [[0, -rz, ry], [rz, 0, -rx], [-ry, rx, 0]]
+   *
+   * Fuer r = (L, 0, 0) bleiben genau die beiden Eintraege von vorher
+   * stehen - die Verallgemeinerung aendert am lokalen Fall nichts.
+   */
+  const r = Array.isArray(arm) ? arm : [arm, 0, 0];
+  setz(0, 4, -r[2]); setz(0, 5, +r[1]);
+  setz(1, 3, +r[2]); setz(1, 5, -r[0]);
+  setz(2, 3, -r[1]); setz(2, 4, +r[0]);
 
   const k = new Float64Array(144);
   for (let a = 0; a < 12; a += 1) {
@@ -505,7 +519,57 @@ export function loese(dat, opt = {}) {
         if (typeof ku[d] === 'number') return ku[d];
         return LINK_STARR;
       });
-      k = kFeder(c, db.L);
+      /* =====================================================================
+       * >>> DIE LINKBEDINGUNG GILT GLOBAL, NICHT LOKAL. <<<
+       * ===================================================================
+       *
+       * BEFUND vom 26. September, beim Vergleich gegen AxisVM. Hier stand
+       * `kFeder(c, db.L)` - die Federzahlen wurden also als LOKALE
+       * Richtungen gelesen und danach mit dem Stab gedreht.
+       *
+       * Gemeint sind sie global. Das steht an drei Stellen:
+       *
+       *   1. `LINK_GRADE` (core.auflager.js) schreibt sie aus: x ist
+       *      «Laengs - in der Jochachse», y «Quer - in Gleisrichtung»,
+       *      z «Lotrecht - traegt Eigengewicht und Schnee ab».
+       *   2. Die COM-Bruecke setzt `SystemGLR = sysGlobal`, solange in der
+       *      Datei nicht ausdruecklich `system: 'lokal'` steht (nur der
+       *      Seilkopf tut das). AxisVM rechnet also global.
+       *   3. Der Entscheid vom 16. September - «Obergurt x y, Untergurt
+       *      y z» - meint die Achsen des Tragwerks, nicht die eines
+       *      5 cm langen Stiels.
+       *
+       * >>> WAS DER FEHLER ANRICHTETE. <<<
+       *
+       * Der Link am Jochanschluss ist LOTRECHT (0.05 m in z). Seine lokale
+       * x-Achse ist damit die globale z-Achse, seine lokale z-Achse die
+       * globale x-Achse - x und z waren vertauscht. Der Obergurt, der in z
+       * frei sein soll, war in z STARR; der Untergurt, der z tragen soll,
+       * war dort FREI.
+       *
+       * Gemessen am J90/20 m, staendige Last, Normalkraft im Masten:
+       * AxisVM leitet die halbe Jochlast (5.88 kN) am UNTERgurt-Anschnitt
+       * ein (z = -0.32), der Loeser am OBERgurt-Anschnitt (z = +0.32).
+       *
+       * Dass der Vergleich gegen PyNite den Fehler nicht zeigte, liegt
+       * daran, dass die PyNite-Ausleitung ihn TEILT: `def_releases` wirkt
+       * in PyNites eigenem Stabsystem, also ebenfalls lokal. Zwei Wege mit
+       * demselben Fehler bestaetigen einander - deshalb braucht es den
+       * dritten.
+       * =================================================================== */
+      if (s.system === 'lokal') {
+        k = kFeder(c, [db.L, 0, 0]);
+      } else {
+        /*
+         * Global aufgebaut - und danach ins Lokale zurueckgedreht, damit
+         * die Zeile unten (`kG: drehen(k, db.R)`) wieder genau diese
+         * Matrix ergibt. Rᵀ statt R kehrt die Drehung um.
+         */
+        const rT = [[db.R[0][0], db.R[1][0], db.R[2][0]],
+                    [db.R[0][1], db.R[1][1], db.R[2][1]],
+                    [db.R[0][2], db.R[1][2], db.R[2][2]]];
+        k = drehen(kFeder(c, [b.x - a.x, b.y - a.y, b.z - a.z]), rT);
+      }
     } else {
       const w = qs.get(s.querschnitt);
       if (!w) throw new Error('Stab ' + s.name + ': Querschnitt ' + s.querschnitt + ' fehlt');

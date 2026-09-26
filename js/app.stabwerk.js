@@ -64,7 +64,9 @@ import { blattWennMehrere, lasten, stabmodell, stabmodellJson } from './export.a
  * am Schlankheitsgrad und an den Beiwerten der SIA 263, nicht am
  * Rechenweg. Gemessen am J90/20 m, Mast HEB 240:
  *
- *     Querschnittsspannung   Kern 0.7770   Stabwerk 0.7756   (0.2 %)
+ *     Querschnittsspannung   Kern 0.7770   Stabwerk 0.7708   (0.8 %)
+ *                            (Stabwerk seit der Linkberichtigung vom
+ *                             26. September, vorher 0.7756)
  *     mit Stabilitaet        Kern 0.8386   Stabwerk -
  *
  * Die beiden Wege sind sich bei der SPANNUNG also einig; die Stabilitaet
