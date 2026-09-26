@@ -33,7 +33,8 @@ Prüfstand 5410 Kontrollen grün.
 > Browser nachprüfen, nicht nur am Prüfstand. Ist eine Weisung mehrdeutig,
 > frag mit konkreten Varianten zurück, statt zu raten.
 >
-> Dann warte auf meine Aufgabe.
+> Der Auftrag steht unten in dieser Datei, in drei Punkten und in dieser
+> Reihenfolge. Fang mit Punkt 1 an; was dabei offen bleibt, frag mich.
 
 ---
 
@@ -54,9 +55,9 @@ und damit ist auch die Sofortmassnahme vom 19. September von aussen belegt
 Für **Gurte und Bleche nicht**: 13–18 % unter ständiger Last, 25 % bei den
 Blechmomenten unter Wind längs.
 
-## Der nächste Schritt — er braucht eine Weisung
+## Der Auftrag (entschieden am 26. September)
 
-**I_yz in die Elementmatrix.** Die Ursache der 13–25 % ist gemessen und
+**1. I_yz in die Elementmatrix.** Die Ursache der 13–25 % ist gemessen und
 benannt: die Modelldatei führt je Querschnitt nur A, I_y, I_z und I_t, und
 `kLokal` koppelt y und z deshalb nicht — der Löser rechnet den L-Winkel, als
 wäre er doppelt symmetrisch. `randspannung()` in `core.winkel.js` kennt das
@@ -65,14 +66,35 @@ und die Schnittgrössen kommen aus der Steifigkeit.
 
 Der Eingriff berührt den **Kern des Lösers**. Vorgehen, Fallen und die
 Reihenfolge der Messungen stehen in CLAUDE.md unter *Laufende Arbeit
-(26. Sept.)*. Nicht ohne Weisung beginnen.
+(26. Sept.)*. **Kein neuer AxisVM-Lauf nötig** — die Ergebnisdateien liegen in
+`com/`, und `vergleich_starrheit.mjs` sagt in 30 Sekunden, ob es besser wurde.
+
+**2. Der Tragausleger — beide Wege.** Eigener Kragarm-Kern für die Anzeige
+(Hauptkacheln, Verläufe, Bericht), das **Stabwerk für das Urteil**; so steht es
+heute schon beim Joch. Nach Sortiment sind es **zwei UPE 140**, nicht vier
+Winkel. Heute rechnet der Kern ihn als Einfeldträger mit einem Phantom-Auflager
+am freien Ende und verliert damit das Einspannmoment am Masten (L = 12 m: 10.9
+statt 57.3 kNm) — deshalb steht er als «NICHT nachgewiesen» da. Diese Warnung
+fällt, wenn es stimmt.
+
+**3. Die Nachweise auf den Löser.** Die **Abbildungen und Schnittgrössen des
+Lösers** in die Nachweise übernehmen, **Bericht und Excel auf den Stabwerksweg**
+(Schritt 6 des Bauplans) und einen **Bericht auch für Tragausleger und
+Abfangjoch** — der Entscheid vom 18. September («den abfangjoch weglassen») ist
+damit aufgehoben.
+
+⚠ **Eine Sache kann nicht mitwandern: das Knicken.** Die Stabilität rechnet
+allein der Ersatzbalken (`core.mast.js`); der Löser führt sie nicht. Wer ganz
+umschaltet, weist einen schlanken Masten rund 8 % zu günstig nach. Die
+Schnittgrössen kommen aus dem Löser, das Knicken bleibt beim Kern — und der
+Bericht muss sagen, woher welche Zahl stammt.
 
 **Nicht die Ursache war die Zwangsbedingung** — gemessen, bevor gebaut
 wurde: der Starrfaktor von 1 bis 100 ändert keine Stelle (16.98 % bleibt
 16.98 %). Der Test ist als Werkzeug abgelegt:
 `node vergleich_starrheit.mjs com/AxisVM_Einzel_J90_20m.json`.
 
-## Was sonst offen ist
+## Was daneben offen bleibt
 
 - **Zwei Rechenwege, zwei Zahlen für denselben Masten:** Hauptkacheln,
   Verläufe und Bericht stehen auf dem **Ersatzbalken**, die Reihe rechnet

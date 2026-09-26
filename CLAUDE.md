@@ -132,6 +132,9 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Reihenfolge der nächsten Arbeiten (26. Sept.) | **Zuerst I_yz im Löserkern**, dann der Tragausleger, dann die Nachweise. Auf die Frage, womit anzufangen sei, ausdrücklich so gewählt — obwohl der Tragausleger heute auf der unsicheren Seite liegt. Der Grund trägt: die Ursache der 13–25 % ist benannt und billig zu messen (die AxisVM-Ergebnisse liegen in `com/`, **kein neuer Lauf nötig**), und solange der Löser die Gurte falsch rechnet, übernimmt jeder weitere Schritt diesen Fehler — auch der Tragausleger, der ins selbe Stabwerk soll |
+| Tragausleger: beide Wege (26. Sept.) | **Eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil** — wie heute beim Joch. Der Kern liefert Hauptkacheln, Verläufe und Bericht ohne Umbau der Oberfläche, das Stabwerk das Einspannmoment am Masten aus dem System statt aus einer zweiten Herleitung. Nach Sortiment besteht der Ausleger aus **zwei UPE 140**, nicht aus vier Winkeln; heute rechnet der Kern ihn als Einfeldträger mit einem Phantom-Auflager am freien Ende (L = 12 m: M_A 10.9 statt 57.3 kNm) und ist deshalb als «NICHT nachgewiesen» gekennzeichnet |
+| Nachweise auf den Löser (26. Sept.) | «in den nachweisen die löser abbildungen übernehmen», dazu **Bericht und Excel auf den Stabwerksweg** (Schritt 6 des Bauplans) und ein **Bericht für Tragausleger und Abfangjoch** — damit ist der Entscheid vom 18. September («den abfangjoch weglassen») aufgehoben. ⚠ **Der Knicknachweis kann nicht mitwandern:** die Stabilität rechnet allein der Ersatzbalken (`core.mast.js`), der Löser führt sie nicht. Wer ganz umschaltet, weist einen schlanken Masten rund 8 % zu günstig nach. Die Abbildungen und Schnittgrössen kommen aus dem Löser, das Knicken bleibt beim Kern — und der Bericht muss sagen, woher welche Zahl stammt |
 | Lagerung Tragjoch (16. Sept.) | Obergurt x y, Untergurt y z, **K_XX gehalten**. Studie mit 13 Varianten: Mast B 568 → 190 N/mm². Option «zweite Flanschkante quer halten» nur quer — lotrecht zwängt sie den Gurt |
 | Lagerung Abfangjoch (17. Sept.) | **K_XX gehalten** auch hier (140 → 96 N/mm²) |
 | Längshalt (27. Aug.) | **nur ein Knoten** hält in Jochachse; jeder weitere ist ein Zwang |
@@ -1090,6 +1093,18 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (Hebelgesetz um die Mastachsen, Anschlussmoment M − M_k); Seilanker nur
   Zug; Menüband in Gruppen, App-Name «Vierendeel»; Daten in Tabellenform.
 
+**Auftrag für die nächste Sitzung (26. Sept., in dieser Reihenfolge entschieden):**
+
+1. **I_yz in die Elementmatrix** — siehe *Laufende Arbeit (26. Sept.)* unten,
+   vier Punkte und die Fallen. Kein neuer AxisVM-Lauf nötig.
+2. **Tragausleger:** eigener Kragarm-Kern für die Anzeige, Stabwerk für das
+   Urteil (zwei UPE 140, Einspannung am Masten). Danach fällt die Warnung
+   «Tragausleger NICHT nachgewiesen».
+3. **Nachweise:** die Abbildungen und Schnittgrössen des Lösers übernehmen,
+   Bericht und Excel auf den Stabwerksweg, Bericht auch für Tragausleger und
+   Abfangjoch. ⚠ Das **Knicken bleibt beim Ersatzbalken** — es ist der einzige
+   Nachweis, den der Löser nicht führt.
+
 **Laufende Arbeit (26. Sept.): Etappe 4 — der Löser gegen AxisVM.**
 Schritt (6) des Bauplans der Jochreihe. **Für den Masten ist die Freigabe
 erfüllt**, für Gurte und Bleche nicht — und die Ursache ist benannt, aber
@@ -1356,10 +1371,10 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Stabsystem. Solange das so ist, bestätigen sich beide Wege gegenseitig
   einen Fehler. Der Umbau berührt `kalibrieren.mjs` und damit die
   Kennwerte (`GURT_DAEMPFUNG` u. a.) — deshalb nicht von selbst getan.
-- ⚠ **Bericht: zwei Tragwerksarten fehlen.** Das **Abfangjoch** ist
-  ausdrücklich draussen (18. Sept.), der **Tragausleger** wartet auf sein
-  Kragarm-Modell. Bei der Durchsicht vom 24. September bestätigt — beides
-  bleibt, bis der Auftraggeber es anders will.
+- **Bericht: zwei Tragwerksarten fehlen — seit dem 26. September beauftragt.**
+  Das **Abfangjoch** war ausdrücklich draussen (18. Sept.), der
+  **Tragausleger** wartete auf sein Kragarm-Modell. Beides soll jetzt einen
+  Bericht bekommen; der Entscheid vom 18. September ist damit aufgehoben.
 - ⚠ **Doppelmasten ohne Fundamentzuordnung:** DGP24 und DGP26 stehen in
   der Fundamenttabelle, aber das Sortiment führt sie nicht als Profil —
   ihre Fundamente (DG1a, DG2a, DG3a) sind nur von Hand wählbar.
