@@ -8,7 +8,10 @@ zu lesen, bevor etwas geändert wird.
 Stand: **26. September 2026**, Punkt 1 des Auftrags (I_yz, dazu die
 vorzeichenrichtige Gurtspannung) ist erledigt und committet, aber **nicht
 gepusht** (`git log --oneline -6`); Prüfstand 5440 Kontrollen grün,
-`durchlauf.mjs` ohne Bruch. **Als Nächstes: der Anschluss Joch–Mast.**
+`durchlauf.mjs` ohne Bruch. **Der Anschluss Joch–Mast ist eingegrenzt**
+(`vergleich_anschluss.mjs`); weiter geht es dort nur mit Knotenwegen und
+Linkkräften aus AxisVM — erweiterte Auslesung und ein Lauf, **nur auf
+Weisung** (CLAUDE.md, *Laufende Arbeit (26. Sept.)*).
 
 ---
 
@@ -150,6 +153,7 @@ python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 node vergleich_axisvm.mjs com/AxisVM_Einzel_J90_20m.json      # Loeser gegen AxisVM
 node vergleich_starrheit.mjs com/AxisVM_Einzel_J90_20m.json   # Starrfaktor und Drehprobe
+node vergleich_anschluss.mjs com/AxisVM_Einzel_J90_20m.json   # Kraefte der Konsolen am Masten
 ```
 
 Nach **jeder** Änderung an `js/` oder `css/` neu bündeln; nach jeder

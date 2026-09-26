@@ -1202,10 +1202,46 @@ spannt den Masten in seiner Ebene bei AxisVM stärker ein.
 i-Ende wie heute, am j-Ende, halbiert, ohne Länge): i/j/Mitte liegen für
 Wind längs Blech M_z bei 28.1 / 25.2 / 26.7 %, Mast M_y ständig bei 81 /
 72 / 76 % — keine erklärt es, «ohne Länge» ist klar schlechter.
-**Nächster Messschritt, wenn angewiesen:** die Knotenverschiebungen am
-Anschluss (ARM–ANS–Gurt) gegen AxisVM halten — die Ergebnisdatei führt
-Schnittgrössen, ob auch Wege, ist zu prüfen. Kein neuer AxisVM-Lauf nötig,
-solange die Ergebnisse reichen.
+**Am 26. September weiter eingegrenzt** (`vergleich_anschluss.mjs`, Sprung
+der Mastschnittgrössen an den Konsolenknoten, AxisVM / Löser):
+
+| J90/20 m, Mast M1 | Konsole UG | Konsole OG |
+|---|---|---|
+| G | N 5.8809 / 5.8810, M_y 0.7057 / 0.7057 | **V_z −0.1155 / +0.0508** |
+| WindY | V_y 2.151 / 2.034, M_z 0.223 / 0.172 | V_y 2.149 / 2.267, M_z −0.222 / −0.247 |
+
+Unter G ist der **ganze** Unterschied die Kraft in Jochachse am oberen Link,
+mit umgekehrtem Vorzeichen: 0.1155 · 7.82 + 0.706 + 0.047 = 1.656 kNm am
+Fuss, beim Löser −0.0508 · 7.82 + 0.706 + 0.005 = 0.313. Sie ist statisch
+unbestimmt — die Differenz zweier Wege von rund 1 mm (Obergurt des
+durchhängenden Jochs nach innen, Mastkopf unter der ausmittigen Jochlast
+ebenfalls nach innen). Unter WindY verteilen sich der Wind bei AxisVM
+**ungleich** auf die beiden liegenden Bindeblechebenen (oben V 4.96, unten
+5.46 kN; Löser 5.15 / 5.11), obwohl er an Ober- und Untergurt gleich
+angreift (je 0.215 kN/m) — das Joch verdrillt sich bei AxisVM, und die
+Endschleife Stummel–Endblech trägt das Wölbmuster (±1.08 kN).
+**Ausgeschlossen, gemessen** — keine dieser Grössen erklärt es, die
+Datei ist jeweils die beste oder nahe dran:
+I_yz; Schubverformung; Steifigkeit der Gurtabschnitte (Faktor 1 / 10 /
+1000); Starrfaktor 1–100; Gelenklage im Link (i / j / Mitte / ohne
+Länge); Drehachsen des Links lokal statt global (G Gurt M_y 4.8 → 27 %,
+also **widerlegt**); Drehlagerung der Links anders (yy gehalten G Gurt
+M_y 302 %, zz gehalten 28 %, xx frei 6.5 %); x am Untergurt bzw. z am
+Obergurt zusätzlich gehalten (Mast M_y 788 % bzw. Blech N 94 %).
+**Die Starrkörper baut die Brücke je Stummel einzeln** (wie der Löser).
+⚠ **Die Linkfreiheitsgrade liessen sich aus AxisVM nicht zurücklesen**
+(Bericht 7b: `GetRec` gibt den Satz leer zurück) — belegt ist ihre
+Wirkung bei den Verschiebungen (Mast N 0.00 %), bei den Drehungen nur
+indirekt (jede andere Lagerung passt schlechter).
+**Weiter geht es nur mit den WEGEN:** Knotenverschiebungen am Anschluss
+(Mastknoten, ARM, ANS, Gurtknoten) und die Linkkräfte aus AxisVM. Die
+Ergebnisdatei führt heute nur Stabschnittgrössen. Das braucht eine
+erweiterte Auslesung in der Brücke und einen Lauf (rund 11 Minuten) —
+beides nur auf Anweisung.
+**Gewicht:** unter G am Mastfuss 1.66 gegen 0.31 kNm, bei Fussmomenten aus
+Wind von 10.8 (quer) bzw. 43.1 kNm (längs); unter WindY am Gurt des
+Jochendes bis 0.38 kNm Unterschied bei einem grössten Gurtmoment von
+0.69 kNm.
 
 ⚠ **PyNite kennt kein I_yz:** `vergleich_stabwerk.mjs` und
 `kalibrieren.mjs` rechnen den Winkel weiter doppelt symmetrisch und
@@ -1597,6 +1633,7 @@ node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
 node datenpaket.mjs         # Datenstand aus data/ als Paket nach Versand/
 node vergleich_axisvm.mjs com/AxisVM_<name>.json      # Loeser gegen AxisVM, Stab fuer Stab
 node vergleich_starrheit.mjs com/AxisVM_<name>.json   # Starrfaktor-Reihe und Drehprobe an den Gurten
+node vergleich_anschluss.mjs com/AxisVM_<name>.json [M1] [G]   # was die Konsolen in den Masten einleiten
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
 ```
