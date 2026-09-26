@@ -112,6 +112,31 @@ dem Prüflauf vom 26. September ein zweites Tragwerk **T2** (zum Prüfen der
 Reihenzeile angelegt), und `fdHoehe` war dabei auf 14 m verstellt — auf 5.50
 zurückgesetzt.
 
+## Wenn die nächste Sitzung unter einem anderen Konto läuft
+
+**Am Projekt ändert sich nichts** — es liegt nicht im Benutzerordner. Auf
+demselben Rechner sind `data/*.json`, `Grundlagen/`, `Versand/` und
+`pruefung_axisvm/` weiter da (sie stehen nur nicht in der Ablage), AxisVM
+antwortet weiter über COM, und die Git-Anmeldung hängt am Windows-Benutzer,
+nicht am Konto — pushen geht also, **aber nur auf Weisung**.
+
+Zwei Dinge wandern nicht mit:
+
+- **Ein persönlicher Gedächtnisspeicher des Werkzeugs.** Deshalb steht alles,
+  was zählt, in `CLAUDE.md`, in den Commit-Texten und hier — und deshalb
+  gehört jede neue Weisung sofort dorthin, nicht erst am Sitzungsende.
+- **`.claude/settings.local.json`** (die erteilten Berechtigungen). Ein
+  anderes Konto auf demselben Windows-Benutzer liest sie weiter; ein anderer
+  **Windows**-Benutzer nicht — dann fragt das Werkzeug wieder bei jedem
+  Schritt, und die persönlichen globalen Regeln im Benutzerordner
+  (`~/.claude/CLAUDE.md`) wären ebenfalls neu zu hinterlegen.
+
+**Der Entwicklungsserver ist beendet** (Port 8731 frei). Das ist kein Zufall:
+`serve.py` setzt `allow_reuse_address = True`, mehrere Prozesse dürfen unter
+Windows denselben Port binden, und die Verbindung landet dann bei einem toten
+— ein Bild, das wie eine verweigerte Sandbox aussieht. Vor dem Start prüfen,
+ob schon einer läuft.
+
 ## Die Werkzeuge
 
 ```bash
