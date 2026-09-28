@@ -62,7 +62,21 @@ const { schnittgroessen, knotenraster, pruefeAbstaende } = await import(J('core.
 const { auflagermomente, biegesteifigkeitJoch, E_STAHL,
         MAST_UNVERSCHIEBLICH } = await import(J('core.auflager.js'));
 const { klassifiziereWinkel, klasseAuskragend } = await import(J('core.klassen.js'));
-const { standardwerte, typUebernehmen, FELDER } = await import(J('ui.schema.js'));
+const { standardwerte: standardwerteApp, typUebernehmen, FELDER } = await import(J('ui.schema.js'));
+/*
+ * >>> DER PRUEFSTAND RECHNET DAS KNICKEN MIT (28. September). <<<
+ *
+ * Weisung: «den knicknachweis deaktiviern beim start» - die ANWENDUNG
+ * startet seither ohne «Knicken Mast» (Abschnitt 135 prüft das). Die
+ * Kontrollen hier rechnen aber das Knicken selbst nach (Stabilität,
+ * Massen auf ihrer Höhe, Bericht, Druckstütze) und bauen dafür auf dem
+ * Standarddokument auf. Sie bekommen es deshalb MIT Knicken - sonst
+ * prüften sie eine Rechnung, die gar nicht läuft.
+ */
+const standardwerte = (...a) => {
+  const w = standardwerteApp(...a);
+  return { ...w, nachweise: { ...(w.nachweise ?? {}), knickenMast: true } };
+};
 const { verortung, verortungKurz } = await import(J('core.constants.js'));
 const A = await import(J('data.anbauteile.js'));
 A.setzeAnbauteilDB(JSON.parse(readFileSync(join(HIER, 'data', 'anbauteile.json'), 'utf8')));
@@ -10333,8 +10347,10 @@ titel('41  Welche Nachweise gefuehrt werden');
     const grp = (k) => CH.NACHWEISGRUPPEN.find((x) => x.key === k);
     wahr('Das Knicken des Masten ist eine eigene Gruppe',
          grp('knickenMast')?.vorhanden === true);
-    wahr('\u2026 und voreingestellt gefuehrt - der strengere Fall',
-         grp('knickenMast')?.standard === true);
+    // Seit dem 28. September voreingestellt AUS (\u00abden knicknachweis
+    // deaktiviern beim start\u00bb); vorher an, als der strengere Fall.
+    wahr('\u2026 und voreingestellt NICHT gefuehrt (Weisung 28. September)',
+         grp('knickenMast')?.standard === false);
     wahr('\u2026 der Mast selbst nennt es nicht mehr',
          !/Biegeknicken/.test(grp('mast').was));
     wahr('\u2026 dafuer die eigene Gruppe',
@@ -10420,8 +10436,11 @@ titel('41  Welche Nachweise gefuehrt werden');
     const std = u(undefined);
     // Seit dem 28. August ist der Mast dabei; nicht gefuehrt bleiben das
     // Auflager (ausgeschaltet) und das Knicken (nicht enthalten).
-    wahr('Voreingestellt sind ZWEI Nachweise nicht gefuehrt',
-         std.nichtGefuehrt.length === 2,
+    // Seit dem 28. September DREI: dazu das Knicken des Masten, das
+    // voreingestellt aus ist («den knicknachweis deaktiviern beim start»).
+    wahr('Voreingestellt sind DREI Nachweise nicht gefuehrt',
+         std.nichtGefuehrt.length === 3
+         && std.nichtGefuehrt.some((g) => g.key === 'knickenMast'),
          std.nichtGefuehrt.map((g) => `${g.titel} (${g.grund})`).join(', '));
     /*
      * DER GRUND MUSS STIMMEN. «Abgewaehlt» stand hier zuerst - es behauptet,
@@ -10443,8 +10462,8 @@ titel('41  Welche Nachweise gefuehrt werden');
          ab.nichtGefuehrt.find((g) => g.key === 'jochtragwerk')?.grund === 'ausgeschaltet');
     wahr('Und das Urteil weiss, dass eta keines mehr ist',
          ab.tragwerkGefuehrt === false);
-    wahr('Dann sind es drei - der Mast bleibt gefuehrt',
-         ab.nichtGefuehrt.length === 3,
+    wahr('Dann sind es vier - der Mast bleibt gefuehrt',
+         ab.nichtGefuehrt.length === 4,
          ab.nichtGefuehrt.map((g) => g.key).join(','));
 
     /*
@@ -31771,6 +31790,41 @@ titel('134  Der Schnitt im Stabwerksweg: Station und Stabliste');
   const app134 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('app.js reicht Stabwerk, Versatz und Sprung an den Schnitt',
        /ui\.zeichneSchnitt\([\s\S]{0,600}sw: g\.h[\s\S]{0,600}beiSprung: springeZu/.test(app134));
+}
+
+// ===========================================================================
+titel('135  Knicken Mast: voreingestellt aus (28. September)');
+/* ===========================================================================
+ * Frage: «ist das knicken über die optionen auch beim stabmodell möglich?»
+ * - ja: die Knick-Kachel des Stabwerkswegs kommt aus dem Kern und fällt mit
+ * dem Schalter weg. Weisung: «den knicknachweis deaktiviern beim start».
+ * Ein NEUES Dokument startet ohne; ein gespeicherter Stand behält seine
+ * ausdrückliche Wahl.
+ * ========================================================================= */
+{
+  const CH135 = await import(J('core.checks.js'));
+  const SN135 = await import(J('core.stabnachweis.js'));
+  const UI135 = await import(J('ui.js'));
+  const w0 = standardwerteApp();
+  wahr('>>> Ein neues Dokument startet OHNE Knicken Mast <<<',
+       w0.nachweise?.knickenMast === false);
+  wahr('… und traegt die Wahl ausdruecklich (ein spaeterer Wechsel der Vorgabe aendert es nicht)',
+       Object.prototype.hasOwnProperty.call(w0.nachweise ?? {}, 'knickenMast'));
+  wahr('Ein gespeicherter Stand mit Knicken rechnet weiter damit',
+       CH135.nachweiseAuswahl({ ...w0.nachweise, knickenMast: true }).knickenMast === true);
+  wahr('Nicht gefuehrt heisst: steht unter «nicht gefuehrt»',
+       CH135.urteilKonstruktion([], w0.nachweise).nichtGefuehrt
+         .some((g) => g.key === 'knickenMast' && g.grund === 'ausgeschaltet'));
+  /*
+   * IM STABWERKSWEG: ohne Knicken steht keine Knickzeile im Urteil - der
+   * Kern liefert kein `stabil`, `knickJe` bleibt leer.
+   */
+  const bt = { eta: 0.8, liste: [{ key: 'mast', name: 'Mast M1', eta: 0.8, ueber: false }] };
+  const h = { teile: {}, bauteile: { 'mast:M1': { eta: 0.7, fall: 'x', bez: 'x' } } };
+  const ohne = SN135.bauteileMitStabwerk(bt, h, { knick: UI135.knickJe({ mast: { A: { stabil: null } } }) });
+  wahr('Stabwerk ohne Knicken: keine Knickzeile, der Mast aus dem Stabwerk',
+       !ohne.liste.some((x) => x.key === 'knicken')
+       && ohne.liste.find((x) => x.name === 'Mast M1')?.quelle === 'stabwerk');
 }
 
 // ===========================================================================

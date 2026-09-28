@@ -170,13 +170,17 @@ export const NACHWEISGRUPPEN = [
    * als erfüllt, steht im Urteil und im Bericht ausdrücklich da, und η
    * fällt auf den Querschnitt zurück.
    *
-   * ER BLEIBT VOREINGESTELLT AN. Wer nichts einstellt, bekommt den
-   * strengeren Fall - das ist beim Auflagernachweis umgekehrt (der ist ab
-   * Werk aus), und zwar aus demselben Grund: dort ist die Grenzlast der
-   * Schrauben eine Angabe, die stimmen muss, hier ist der Kragarm die
-   * übliche Annahme.
+   * >>> SEIT DEM 28. SEPTEMBER VOREINGESTELLT AUS. <<<
+   *
+   * Weisung: «den knicknachweis deaktiviern beim start». Bis dahin stand
+   * hier «er bleibt voreingestellt an - wer nichts einstellt, bekommt den
+   * strengeren Fall». Ein NEUES Dokument startet jetzt ohne ihn; gespeicherte
+   * Stände tragen ihre Wahl ausdrücklich (`nachweiseStandard()` in
+   * standardwerte) und rechnen weiter, wie sie gespeichert wurden. Nicht
+   * geführt heisst wie überall: er zählt nie als erfüllt und steht unter
+   * «nicht geführt» - im Urteil, in der Fussleiste und im Bericht.
    * ======================================================================= */
-  { key: 'knickenMast', titel: 'Knicken Mast', vorhanden: true, standard: true,
+  { key: 'knickenMast', titel: 'Knicken Mast', vorhanden: true, standard: false,
     was: 'Biegeknicken nach SIA 263, Ziffer 4.5.1 und 5.1.10.1 — '
        + 'L_cr = β · Ersatzhöhe, β in den Optionen (Vorgabe 2.0, Kragarm). '
        + 'Abschaltbar: halten die Leiter den Masten — Rückleiter am Masten, '
