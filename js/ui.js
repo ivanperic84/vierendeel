@@ -4775,11 +4775,18 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   ] : [];
 
   // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
+  /*
+   * DIE VERFORMUNG AUS DEM STABWERK, wenn es gilt (28. September, «Ins
+   * Stabwerk») - dieselbe Gestalt wie die des Kerns, nur andere Wege.
+   */
+  const zeigV = swH?.verformung ? { ...zeig, verformung: swH.verformung } : zeig;
+  const gzgQuelle = swH?.verformung ? 'Stabwerk'
+    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : '');
   const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
                                 text: vorlaeufig
                                   ? `${urteilText} · vorläufig (Ersatzbalken)`
                                   : urteilText },
-                              zeig, nwArt, einzelLastfall);
+                              zeigV, nwArt, einzelLastfall);
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
     <div class="urteil ${einzelLastfall ? 'ohne' : U.zustand}">
@@ -4795,7 +4802,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ${stabwerkLeiste(opt)}
     ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
       ${nachweisGruppenHtml(nwGruppenMast)}
-      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeig) : ''}`
+      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle) : ''}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
     ${zeigtTrag ? nichtGefuehrtHtml(urteil) : ''}
     ${fuss.length ? klapp('einzelmast-fuss', 'Kräfte am Mastfuss',
@@ -5050,7 +5057,8 @@ export function gzgKacheln(erg) {
 
 `
              + `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
-             + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit; `
+             + `(Wiederkehrperiode 5 Jahre)${q.quelle === 'stabwerk'
+                 ? ', Wege aus dem Stabwerk' : ''}. Kein Teil der Tragsicherheit; `
              + `die Farbe folgt η = w / Grenzwert.\n\n${alle}`
              + (dazu ? `\n\nOHNE NACHWEIS, nur zur Auskunft:\n${dazu}` : '')
              + verw,
@@ -5333,11 +5341,13 @@ export function verdrahteNachweisart(node, opt) {
  * zweideutig - «nicht gerechnet» und «nichts gefunden» sehen dann gleich
  * aus, und das erste wäre ein Mangel.
  */
-export function gzgBlockHtml(erg) {
+export function gzgBlockHtml(erg, quelle = '') {
   const g = gzgKacheln(erg);
   const psi = erg?.verformung?.psi;
+  // Die Quelle steht dabei wie an den Gruppen der Nachweise (28. Sept.).
   return `${abschnitt('Gebrauchstauglichkeit',
-    psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / 40 mm` : '')}
+    [psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / 40 mm` : '', quelle]
+      .filter(Boolean).join(' · '))}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
       : `<p class="leer">${erg?.verformung?.ohneStelle
         /*
@@ -6176,11 +6186,15 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
             : 'Tragsicherheit NICHT erfüllt'));
   // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
   // Solange das gewählte Stabwerk nicht gilt, ist das Urteil vorläufig.
+  // Die Verformung aus dem Stabwerk, wenn es gilt (28. Sept., «Ins Stabwerk»).
+  const ergV = swH?.verformung ? { ...erg, verformung: swH.verformung } : erg;
+  const gzgQuelle = swH?.verformung ? 'Stabwerk'
+    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : '');
   const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
                                 text: vorlaeufig
                                   ? `${urteilText} · vorläufig (Ersatzbalken)`
                                   : urteilText },
-                              erg, nwArt, einzelLastfall);
+                              ergV, nwArt, einzelLastfall);
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
     <div class="urteil ${einzelLastfall ? 'ohne' : U.zustand}">
@@ -6255,7 +6269,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${nachweisGruppenHtml(nwGruppen)}
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
-    ${zeigtGzg ? gzgBlockHtml(erg) : ''}
+    ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle) : ''}
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
             ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mzz ?? 0)} kNm`

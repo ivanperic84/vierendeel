@@ -43,6 +43,7 @@ import { mastenFuer, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon } from './core.constants.js';
 import { lastfaelle } from './core.lasten.js';
 import { eingabeKennung, stabwerkHuelle } from './core.stabnachweis.js';
+import { verformungAusStabwerk } from './core.stabverformung.js';
 import { loese } from './core.stabwerk.js';
 import { modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
@@ -240,9 +241,21 @@ export function rechneStabwerk(app) {
     .filter((l) => l.nachweis !== false)
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd);
+  /*
+   * >>> DIE GEBRAUCHSTAUGLICHKEIT AUS DEM STABWERK (28. September). <<<
+   * Auf Rückfrage «Ins Stabwerk»: dieselben Fälle, dieselbe Messstelle wie
+   * der Kern (erg.verformung), die Wege aus dem Löser. Gebraucht werden
+   * auch die Fälle OHNE Tragsicherheitsnachweis - Betriebswind und die
+   * charakteristischen Windfälle -, deshalb nicht `faelle`.
+   */
+  const alleFaelle = eingaben.flatMap((s) => lastfaelle(s))
+    .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  const verformung = verformungAusStabwerk(erg.verformung ?? null, dat, lsg,
+    alleFaelle, erg.modell?.federn?.namen ?? {});
 
   return {
     ...huelle,
+    verformung,
     kennung: eingabeKennung(app.werte),
     fyd,
     knoten: dat.knoten.length,

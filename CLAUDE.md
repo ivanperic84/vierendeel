@@ -225,12 +225,33 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5489 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5508 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., die Gebrauchstauglichkeit kommt aus dem Stabwerk** (Entscheid
+  «Ins Stabwerk», Prüfstand Abschnitt 133, neues Modul
+  `core.stabverformung.js`). Dieselben Fälle, dieselbe Messstelle und
+  derselbe Grenzwert wie der Kern; nur die Wege kommen aus dem Löser, und
+  zwischen den Mastknoten wird mit der Biegelinie interpoliert (Hermite aus
+  Weg und Verdrehung, dazu q L⁴/(24EI) ξ²(1−ξ)² für den Mastwind im Feld).
+  **Gegen die geschlossene Lösung** (Kragarm 7 m in 4 + 3 m, q und F in x
+  und y, starke und schwache Achse) auf alle Stellen; ohne den Feldanteil
+  läge sie daneben (2.6595 gegen 2.6738 mm). **Gemessen am J90/20 m**, quer
+  auf 7.50 m: Einzeljoch Kern 5.474 → Stabwerk **5.309 mm**; Reihe
+  geteilter M2 4.886 → **4.897**, Randmast M3 5.474 → **5.727** (Kern
+  −4.4 %, unsicher). Mastspitze wie am 26. Sept. auf 0.1–0.3 %. Die −16 %
+  vom 26. September (4.89 / 5.81 mm) stehen so nicht mehr — seither
+  rechnet der Löser mit I_yz und koppelt in der Linkmitte. Die Anzeige
+  nimmt die Stabwerkswerte, sobald das Stabwerk gilt (Kopf des Blocks
+  «… · Stabwerk», Kacheltitel «Wege aus dem Stabwerk»), sonst den Kern
+  als «Ersatzbalken · vorläufig». Im Browser geprüft (M1/M2 6 mm auf
+  Fahrdraht 6.00 m, Ampel grün, Quelle Stabwerk). Dazu die
+  **Verformungskacheln mit Ampel** (Entscheid «Verformung mit Ampel»).
+  ⚠ **Befund dabei**, siehe *Offene Punkte*: «nur Wind» nimmt auch
+  «Ständig + Wind» mit.
 - **28. Sept., Fahrdrahtschieber und Auflagerskizzen** (Prüfstand
   Abschnitt 132). Gemeldet mit Bildern: «diesen schieber checken, diser
   steht vielmals auf 0 und die länge ist nicht auf die mastlänge
@@ -1629,6 +1650,15 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **«Nur Wind» im Verformungsnachweis nimmt auch «Ständig + Wind» mit**
+  (Befund 28. Sept.). `verformungsNachweis` (core.verformung.js) wählt
+  `art === 'charakteristisch'` mit Leiteinwirkung Wind — dazu gehören
+  auch `gwk`, `gwkm`, `gwkx`, `gwkxm` (G = 1). Mal ψ 0.70 wird daraus
+  0.7·G + 0.7·W. Entscheid vom 24. September: «die 40 mm gegen den Fall
+  NUR WIND». Gemessen am J90/20 m, quer auf 7.50 m: mit G **5.474 mm**
+  (massgebend `gwkx`), nur Wind **4.886 mm** (`wxk`), +12 % — auf der
+  sicheren Seite. Das Stabwerk übernimmt dieselbe Auswahl. Entscheid des
+  Auftraggebers.
 - ⚠ **Jedes AxisVM-Modell mit Linkelementen seit dem 24. August hatte die
   Verbindung 0.45 m ausserhalb des Links** (`Position = 0.5` als Meter,
   siehe *Letzte Schritte*). Betroffen sind damit Messungen, die sich auf
@@ -1834,7 +1864,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5489 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5508 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

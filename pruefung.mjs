@@ -31553,6 +31553,131 @@ titel('132  Fahrdrahtschieber und Auflagerskizzen (28. September)');
 }
 
 // ===========================================================================
+titel('133  Die Mastverformung aus dem Stabwerk (Gebrauchstauglichkeit)');
+/* ===========================================================================
+ * Frage vom 28. September: «wurde die gebrauchstauglichkeit auch in die
+ * stab nachweis methode überführt?» - Entscheid «Ins Stabwerk». Dieselben
+ * Fälle, dieselbe Messstelle wie der Kern, die Wege aus dem Löser; zwischen
+ * den Mastknoten die Biegelinie (Hermite + Feldanteil der Streckenlast).
+ *
+ * Gemessen am J90/20 m, quer auf 7.50 m (Jochauflager), nur Wind × 0.70:
+ *
+ *                            Kern       Stabwerk
+ *   Einzeljoch M1/M2         5.474 mm   5.309 mm
+ *   Reihe, geteilter M2      4.886 mm   4.897 mm
+ *   Reihe, Randmast M3       5.474 mm   5.727 mm   (Kern −4.4 %)
+ *
+ * Die −16 % vom 26. September (4.89 gegen 5.81 mm) stehen so nicht mehr -
+ * seither rechnet der Löser mit I_yz und koppelt in der Linkmitte.
+ * ========================================================================= */
+{
+  const SW133 = await import(J('core.stabwerk.js'));
+  const SV133 = await import(J('core.stabverformung.js'));
+  // --- a) Die geschlossene Loesung am senkrechten Kragarm ----------------
+  /*
+   * 7 m, in ZWEI UNGLEICHE Elemente geteilt (4 + 3 m), damit die Stelle
+   * nicht zufällig auf einen Knoten fällt. Streckenlast q in x UND y,
+   * dazu eine Kopflast. Rechteck 100 × 200 mm, lokal z = global x: in x
+   * biegt er über die starke, in y über die schwache Achse - vertauschte
+   * Achsen fielen auf.
+   *
+   *   w(z) = q z² (6L² − 4Lz + z²) / (24 EI)  +  F z² (3L − z) / (6 EI)
+   */
+  const Lk = 7, qx = 0.3, qy = 0.2, Fx = 2, Fy = 1.5;
+  const dat133 = {
+    material: { E: 210000, G: 81000, rho: 7850 },
+    querschnitte: [{ name: 'Q', form: 'Rectangle', parameter: [100, 200] }],
+    knoten: [{ name: 'F', x: 0, y: 0, z: 0 }, { name: 'M', x: 0, y: 0, z: 4 },
+             { name: 'K', x: 0, y: 0, z: Lk }],
+    staebe: [
+      { name: 'MAST_T_S1', von: 'F', bis: 'M', querschnitt: 'Q', art: 'stab', lcsZ: [1, 0, 0] },
+      { name: 'MAST_T_S2', von: 'M', bis: 'K', querschnitt: 'Q', art: 'stab', lcsZ: [1, 0, 0] }],
+    auflager: [{ knoten: 'F', ux: 'Rigid', uy: 'Rigid', uz: 'Rigid',
+                 fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid' }],
+    lastfaelle: [{ key: 'W', name: 'Wind' }],
+    lasten: {
+      punkt: [{ knoten: 'K', richtung: 'X', wert: Fx, lastfall: 'W' },
+              { knoten: 'K', richtung: 'Y', wert: Fy, lastfall: 'W' }],
+      moment: [],
+      strecke: ['MAST_T_S1', 'MAST_T_S2'].flatMap((s) => [
+        { stab: s, richtung: 'X', wert: qx, lastfall: 'W' },
+        { stab: s, richtung: 'Y', wert: qy, lastfall: 'W' }]),
+    },
+    kombinationen: [],
+  };
+  const l133 = SW133.loese(dat133, { eigengewicht: false, schubweich: false });
+  const Ek = 210000 * 1000;
+  const Istark = (0.1 * 0.2 ** 3) / 12, Ischwach = (0.2 * 0.1 ** 3) / 12;
+  const wSoll = (q, F, EI, z) => (q * z * z * (6 * Lk * Lk - 4 * Lk * z + z * z)) / (24 * EI)
+                              + (F * z * z * (3 * Lk - z)) / (6 * EI);
+  const zug = SV133.mastZug(dat133, 'T');
+  wahr('Der Mastzug: Fuss 0, Kopf 7 m, zwei Staebe', zug.kopf === 7 && zug.staebe.length === 2);
+  [1.3, 2.0, 4.0, 5.5, 7.0].forEach((z) => {
+    const u = SV133.mastWeg(dat133, l133, [{ lastfall: 'W', faktor: 1 }], zug, z);
+    pruef(`z = ${z.toFixed(1)} m, Richtung x (starke Achse)`,
+          u[0], wSoll(qx, Fx, Ek * Istark, z), 1e-9, 'm');
+    pruef(`z = ${z.toFixed(1)} m, Richtung y (schwache Achse)`,
+          u[1], wSoll(qy, Fy, Ek * Ischwach, z), 1e-9, 'm');
+  });
+  /*
+   * >>> OHNE DEN FELDANTEIL LAEGE ES DANEBEN. <<<
+   * Die blosse Hermite-Form aus den Knoten ist bei Last im Feld nicht
+   * exakt; der Anteil q L⁴/(24 EI) ξ²(1−ξ)² macht es exakt. Gemessen, dass
+   * er etwas tut: ohne Streckenlasten in der Liste weicht der Wert ab.
+   */
+  {
+    const ohne = { ...dat133, lasten: { ...dat133.lasten, strecke: [] } };
+    const u = SV133.mastWeg(ohne, l133, [{ lastfall: 'W', faktor: 1 }], zug, 2.0);
+    const soll = wSoll(qx, Fx, Ek * Istark, 2.0);
+    wahr('>>> Der Feldanteil der Streckenlast zaehlt (ohne ihn: daneben) <<<',
+         Math.abs(u[0] - soll) / soll > 1e-3,
+         `${(u[0] * 1000).toFixed(4)} gegen ${(soll * 1000).toFixed(4)} mm`);
+  }
+
+  // --- b) Am Joch: Stabwerk gegen Kern ------------------------------------
+  const AS133 = await import(J('app.stabwerk.js'));
+  const N133 = await import(J('core.nachbarn.js'));
+  const VF133 = await import(J('core.verformung.js'));
+  const VZ133 = await import(J('core.vierendeel.js'));
+  const C133 = await import(J('core.constants.js'));
+  const rechne = (w) => {
+    const satz = N133.rechensatzMitNachbarn(w);
+    const args = N133.kernArgumente(satz);
+    const erg = berechne(satz, ...args);
+    erg.verformung = VF133.verformungsNachweis(VZ133.vergleichKombinationen(satz, ...args));
+    return { erg, h: AS133.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+  };
+  let w133 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w133 = { ...w133, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const e1 = rechne(w133);
+  const v1 = e1.h.verformung;
+  wahr('Das Stabwerk fuehrt die Verformung, mit Quelle', v1?.quelle === 'stabwerk'
+       && v1.A?.quelle === 'stabwerk');
+  wahr('Dieselbe Messstelle wie der Kern',
+       v1.A.stelle?.z === e1.erg.verformung.A.stelle?.z
+       && v1.A.stelle?.was === e1.erg.verformung.A.stelle?.was,
+       `${v1.A.stelle?.was} ${v1.A.stelle?.z}`);
+  wahr('Derselbe Grenzwert (40 mm)', v1.A.massgebend.grenz === 0.040);
+  wahr('Quer, nur Wind (wie der Kern)', v1.A.massgebend.achse === 'x');
+  const mm = (v) => (v * 1000).toFixed(3);
+  pruef('Einzeljoch M1 quer auf 7.50 m, Stabwerk (gemessen 28. Sept.)',
+        v1.A.massgebend.wert * 1000, 5.309, 5e-3, 'mm');
+  /*
+   * DIE MASTSPITZE: dort stimmten Kern und Stabwerk schon am 26. September
+   * auf 0.1 % - die Gegenprobe, dass die Wege dieselben sind.
+   */
+  const spK = e1.erg.verformung.A.auskunft.find((a) => /nur Wind/.test(a.was));
+  const spS = v1.A.auskunft.find((a) => /nur Wind/.test(a.was));
+  wahr('Mastspitze nur Wind: Stabwerk und Kern auf 1 %',
+       Math.abs(spS.wert / spK.wert - 1) < 0.01, `${mm(spS.wert)} / ${mm(spK.wert)} mm`);
+  const e2 = rechne(C133.tragwerkHinzu(w133, 'joch', {}));
+  const v2 = e2.h.verformung;
+  wahr('Reihe: der Randmast steht im Stabwerk ueber dem Kern (Kern unsicher)',
+       v2.B.massgebend.wert > e2.erg.verformung.B.massgebend.wert,
+       `Stabwerk ${mm(v2.B.massgebend.wert)} / Kern ${mm(e2.erg.verformung.B.massgebend.wert)} mm`);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
