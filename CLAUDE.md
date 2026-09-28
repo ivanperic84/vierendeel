@@ -234,12 +234,29 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5657 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5665 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 3c: das 3D-Bild** (Weisung «mit 3c
+  weitermachen», Prüfstand Abschnitt 145, neues Modul
+  `render.tragausleger.js`). Die Szene kommt aus `tragauslegerModell` -
+  dieselben Knoten und Stäbe wie im Stabwerk, samt der Seite: zwei UPE
+  (Öffnung aussen), Bindebleche oben und unten, Ankertraverse,
+  Aufhängung, Anschluss am Masten, Längsanker (zwei Seile ±y), die
+  Anbauteile mit ihrer Kette (`anbauKette`) und ihren Kräften (global,
+  nicht gespiegelt), der Mast über `mastKoerper` mit dem Nachweis des
+  Kerns. **Gefärbt aus dem Stabwerk**, wenn es gilt (`jeStab`; das
+  grösste η im Bild ist das der Kachel, 1.029 gemessen), sonst neutral.
+  Ohne Modell (Länge ausserhalb des Sortiments) bleibt das Ersatzbild.
+  Im Browser: rechts und links im Iso-Blick, Mast «13.85 m». Dazu der
+  Längsanker unter dem Ausleger statt beim Masten (Weisung «diese Angaben
+  gehören auch zum Tragausleger und nicht zum Masten»).
+  ⚠ **Befund, offen:** ohne eingetragene Mastlänge rechnet das
+  Stabmodell mit H + b (13.85 m), der Kern und die Maske mit der Vorgabe
+  des Tragjochs H + jd/2 + 0.5 (8.50 m) - auch für die Knicklänge.
 - **28. Sept., Tragausleger links oder rechts; im Lageband** (Prüfstand
   Abschnitt 144). Feld `auslegerSeite`. Gespiegelt wird die GEOMETRIE, die
   Einwirkungen bleiben global (Trasse wie definiert): das Modell wird
@@ -1862,6 +1879,10 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Wind auf den Ausleger selbst fehlt noch (Sortiment ohne Windlast je
   Meter) — er käme dazu. Ob das Sortiment Hängestützen am Ausleger vorsieht
   bzw. wie der Anschluss die Torsion wirklich abgibt, ist zu klären.
+- ⚠ **Mastlänge am Tragausleger:** ohne Eintrag nimmt das Stabmodell
+  H + b (die Aufhängung braucht ihren Punkt am Masten), Kern und Maske
+  nehmen die Tragjoch-Vorgabe H + jd/2 + 0.5 m. L 13 m, H 7.5: 13.85
+  gegen 8.50 m, auch in der Knicklänge des Kerns. Entscheid offen.
 - ⚠ **Knicken am Joch weiter aus dem Kern.** Seit dem 28. September kann
   das Stabwerk das Knicken selbst liefern (`knickenAusStabwerk`); am Joch
   weicht es um 0.4 % ab (Jochlast am Konsolanschnitt). Ob das Joch es
@@ -2090,7 +2111,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5657 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5665 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

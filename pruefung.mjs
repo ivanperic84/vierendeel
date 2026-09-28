@@ -32572,6 +32572,56 @@ titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten
 }
 
 // ===========================================================================
+titel('145  Tragausleger Etappe 3c: das 3D-Bild aus dem Stabmodell');
+/* ===========================================================================
+ * Bis hierher zeigte das 3D-Bild beim Ausleger das Ersatzjoch (vier Winkel,
+ * zwei Masten, «J90 · 13.00 m»). Jetzt die Szene aus `tragauslegerModell` -
+ * dieselben Knoten und Stäbe, die das Stabwerk rechnet, samt der Seite.
+ * Im Browser: rechts und links im Iso-Blick, gefärbt aus dem Stabwerk.
+ * ========================================================================= */
+{
+  const RT145 = await import(J('render.tragausleger.js'));
+  const N145 = await import(J('core.nachbarn.js'));
+  const AS145 = await import(J('app.stabwerk.js'));
+  const basis = { ...standardwerte(), tragwerksart: 'tragausleger', L: 13, xLage: 0,
+                  mastVorhanden: true, twId: 'MT1', trasseRadius: 600, flSpannweite: 50,
+                  anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 12.35)] };
+  const mast = { profil: 'HEB 240', hoehe: 7.5, ueberstand: 0, stegrichtung: 'jochachse', name: 'MT1' };
+  const szene = (seite, extra = {}) => RT145.auslegerSzene(
+    N145.rechensatzMitNachbarn({ ...basis, auslegerSeite: seite }), { mast, ...extra });
+  const r = szene('rechts'), l = szene('links');
+  const teile = (sz, re) => sz.flaechen.filter((f) => re.test(f.teil ?? ''));
+  wahr('Zwei UPE, keine Winkel: Gurte vorn und hinten, kein Obergurt',
+       teile(r, /^GURT_V$/).length > 0 && teile(r, /^GURT_H$/).length > 0
+       && !r.flaechen.some((f) => /OG|UG/.test(f.teil ?? '') && f.gruppe === 'profil'));
+  wahr('Bindebleche oben und unten (13 × 2 bei L = 13 m)',
+       new Set(teile(r, /^BL_[OU]\d+$/).map((f) => f.teil)).size === 26);
+  wahr('Aufhängung, Traverse und Längsanker stehen im Bild',
+       ['AUFHAENGUNG', 'TRAVERSE', 'LAENGSANKER'].every((k) => teile(r, new RegExp(`^${k}$`)).length));
+  const xs = (sz) => teile(sz, /^GURT_/).flatMap((f) => f.punkte.map((p) => p[0]));
+  wahr('Rechts reicht der Ausleger bis +12.75 m, links bis −12.75 m',
+       Math.abs(Math.max(...xs(r)) - 12.75) < 1e-9 && Math.abs(Math.min(...xs(l)) + 12.75) < 1e-9
+       && Math.min(...xs(r)) > -0.3 && Math.max(...xs(l)) < 0.3);
+  const titel = r.bauteiltitel.find((b) => b.mastEnde === 'A' && /HEB 240/.test(b.text));
+  wahr('Der Mast trägt die Länge, die das Stabmodell baut (H + b ohne Eintrag)',
+       /13\.85 m/.test(titel?.text ?? ''), titel?.text);
+  wahr('Ohne Stabwerk kein η an den Gurten', teile(r, /^GURT_/).every((f) => f.werte.eta === undefined));
+  // Mit Stabwerk: jeder Gurtabschnitt trägt sein η.
+  const w = { ...basis };
+  const satz = N145.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N145.kernArgumente(satz));
+  const sw = AS145.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const g = RT145.auslegerSzene(satz, { mast, jeStab: sw.jeStab });
+  const etaMax = Math.max(...teile(g, /^(GURT_|BL_)/).map((f) => f.werte.eta ?? 0));
+  pruef('Mit Stabwerk: das grösste η im Bild ist das der Kachel', etaMax,
+        Math.max(sw.teile['tragwerk|UPE'].eta, sw.teile['tragwerk|blech'].eta), 1e-12, '');
+  const q = APP_QUELLE();
+  wahr('Die Anwendung zeichnet den Ausleger aus seiner Szene',
+       /tragwerksart\(werte\)\.key === 'tragausleger' \? taSzene\(\) : null/.test(q)
+       && /tragwerksart\(satz\)\.key === 'tragausleger'\) \{\s*return auslegerSzene/.test(q));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

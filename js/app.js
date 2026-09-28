@@ -74,6 +74,7 @@ import { abfangAuswertung, abfangFyd, abfangStuetzweite,
          abfangFuerStuetzweite } from './core.abfangjoch.js';
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 import { auslegerAuswertung, auslegerKombi } from './core.tragausleger.js';
+import { auslegerSzene } from './render.tragausleger.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis } from './core.verformung.js';
@@ -1568,6 +1569,10 @@ function szeneVonNebenan(t, zeichnen) {
     if (tragwerksart(satz).key === 'einzelmast') {
       return erzeugeSzene(mit(modellEinzelmast(satz, getStahl(satz.stahl))), null);
     }
+    // Der Tragausleger zeichnet sich aus seinem Stabmodell (28. September).
+    if (tragwerksart(satz).key === 'tragausleger') {
+      return auslegerSzene(satz, { mast: abfangMastenAngabe(satz, { A: mastName(werte, mastenFuer(werte, t)[0]) })?.A });
+    }
     const j = getTragjoch(satz.typ);
     return erzeugeSzene(mit(modell(satz, getProfil(satz.profOG),
                                    getProfil(satz.profUG),
@@ -1588,7 +1593,27 @@ function blattSzene(erg) {
   const alle = tragwerkeSortiert(werte)
     .filter((t) => !versteckt(t) || t.id === aktivId);
   const plan = mastZeichenplan(werte, aktivId);
-  const eigen = tragwerksart(werte).key === 'abfangjoch'
+  /*
+   * >>> DER TRAGAUSLEGER ZEICHNET SICH SELBST (28. September, Etappe 3c). <<<
+   * Bis hierher stand dort das Ersatzjoch des Ersatzbalkens - vier Winkel,
+   * zwei Masten. Die Szene kommt aus seinem Stabmodell, gefärbt aus dem
+   * Stabwerk, wenn es gilt; der Mast trägt den Nachweis des Kerns wie am
+   * Abfangjoch.
+   */
+  // Ohne Modell (Länge ausserhalb des Sortiments, kein Mast) bleibt das
+  // Ersatzbild - ein leeres Bild wäre die schlechtere Auskunft.
+  const taSzene = () => {
+    try {
+      const satz = rechensatz(werte);
+      const g = stabwerkGilt();
+      return auslegerSzene(satz, {
+        mast: abfangMastenAngabe(satz, erg.modell.federn?.namen)?.A,
+        ergMast: erg.mast ?? null, ergVerf: erg.verformung ?? null,
+        jeStab: g?.h?.jeStab ?? null, praefix: `${werte.twId ?? ''}_` });
+    } catch { return null; }
+  };
+  const ta = tragwerksart(werte).key === 'tragausleger' ? taSzene() : null;
+  const eigen = ta ?? (tragwerksart(werte).key === 'abfangjoch'
     ? abfangSzene(werte.abfangTyp, Number(werte.L),
                   { anbauteile: tragwerkSatz(werte).anbauteile ?? [],
                     mast: abfangMastAngabe(tragwerkSatz(werte)),
@@ -1611,7 +1636,7 @@ function blattSzene(erg) {
                      * eine Farbe aus der Skala waere dort eine Behauptung.
                      */
                     erg: erg.abfang ?? null })
-    : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg);
+    : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg));
   /*
    * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<
    *
