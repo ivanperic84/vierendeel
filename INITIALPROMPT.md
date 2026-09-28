@@ -6,7 +6,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 zu lesen, bevor etwas geändert wird.
 
 Stand: **28. September 2026**, committet, aber **nicht gepusht**
-(`git log --oneline -8`); Prüfstand 5511 Kontrollen grün, `durchlauf.mjs`
+(`git log --oneline -8`); Prüfstand 5523 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
@@ -14,6 +14,9 @@ Linkmitte). **Neu am 28. September: das Stabwerk führt die Anzeige**
 (Entscheid «Stabwerk führt, Knicken ergänzt», automatisch 1 s nach der
 letzten Eingabe) — Hauptkachel, Kacheln, Fussleiste, Schiene und Lageband
 zeigen eine Zahl, das Knicken steht als eigene Kachel aus dem Kern.
+Dazu am 28. September: Gebrauchstauglichkeit aus dem Stabwerk («nur
+Wind» heisst jetzt nur Wind), Verformungskacheln mit Ampel, Schnitt mit
+Station und Stabliste aus dem Stabwerk.
 **Als Nächstes: Tragausleger Etappe 2** — das Stabmodell
 (`js/export.axisvm.tragausleger.js`) steht als Entwurf, ist aber noch
 nirgends angeschlossen; die nächsten Schritte stehen in CLAUDE.md unter
@@ -154,7 +157,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5511 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5523 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

@@ -367,6 +367,7 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
   const gruppen = {};
   const bauteile = {};
   const teile = {};
+  const jeStab = {};
   let massgebend = null;
   const jeFall = [];
   const ohneRolle = new Set();
@@ -396,6 +397,20 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
     // Je Bauteil UND Teil (Obergurt, Untergurt, Bindeblech, Mast) - die
     // Kacheln der Seitenleiste zeigen diese Gliederung (28. September).
     nw.je.forEach((s) => {
+      /*
+       * >>> JE STAB SEIN MASSGEBENDER FALL, MIT DEN KRAEFTEN (28. Sept.). <<<
+       * Für den Schnitt im Stabwerksweg («Station + Stabliste»): an einer
+       * Station stehen die Stäbe mit ihren Endkräften, darunter die
+       * höchstbeanspruchten je Teil. Beides braucht die Kräfte des Falls,
+       * in dem der Stab massgebend wurde - nicht die des Grössten.
+       */
+      const vorS = jeStab[s.name];
+      if (!vorS || s.sig > vorS.sig) {
+        const f = kraefte.get(s.name);
+        jeStab[s.name] = { name: s.name, rolle: s.rolle, teil: stabTeil(s.name, s.rolle),
+                           sig: s.sig, eta: s.eta, ende: s.ende,
+                           fall: lf.key, bez: lf.bez, f: f ? Array.from(f) : null };
+      }
       const teil = stabTeil(s.name, s.rolle);
       if (!teil) return;
       const zu = stabZuordnung(s.name);
@@ -428,7 +443,18 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
   const reihe = Object.values(bauteile)
     .sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0));
 
-  return { gruppen, bauteile, teile, reihe, massgebend, jeFall,
+  // Die Lage jedes Stabes im Blatt - der Schnitt sucht danach.
+  const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+  dat.staebe.forEach((st) => {
+    const z = jeStab[st.name];
+    const a = kn.get(st.von), b = kn.get(st.bis);
+    if (!z || !a || !b) return;
+    z.x0 = Math.min(a.x, b.x); z.x1 = Math.max(a.x, b.x);
+    z.zm = (a.z + b.z) / 2; z.ym = (a.y + b.y) / 2;
+    z.bauteil = stabZuordnung(st.name).key;
+  });
+
+  return { gruppen, bauteile, teile, jeStab, reihe, massgebend, jeFall,
            /*
             * WER NICHT GEFUEHRT WIRD, STEHT HIER MIT NAMEN. Eine leere
             * Liste ist die Regel; eine volle sagt, dass ein Tragwerk im

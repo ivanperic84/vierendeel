@@ -4755,7 +4755,8 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const nwJeM = bauteilKachelnJe(zeig, urteil ?? {}, ampelU, { ...opt, swH });
   const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
     .some((k) => k.startsWith('mast:')));
-  const quelleM = (ausSw) => (ausSw ? 'Stabwerk · Knicken Ersatzbalken'
+  const quelleM = (ausSw) => (ausSw
+    ? (Object.keys(knickJe(bem)).length ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
     : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppenMast = [
     { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw) },
@@ -6043,8 +6044,11 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
     : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppen = [
     { titel: ab ? 'Abfangjoch' : 'Joch', kacheln: kz, rechts: quelle(jochAusSw) },
+    // «Knicken Ersatzbalken» nur, wenn das Knicken auch geführt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
-      rechts: mastAusSw ? 'Stabwerk · Knicken Ersatzbalken' : quelle(false) },
+      rechts: mastAusSw
+        ? (Object.keys(knickJe(erg)).length ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
+        : quelle(false) },
     { titel: 'Anker', kacheln: nwJe.anker, rechts: quelle(false) },
     { titel: 'Fundament', kacheln: nwJe.fundament, rechts: quelle(false) },
   ];
@@ -6325,7 +6329,129 @@ function ebenenAnteile(e) {
 }
 
 /** Schnittauswertung: je Eckwinkel und je Blechebene. */
-export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv) {
+/* ===========================================================================
+ * >>> DER SCHNITT AUS DEM STABWERK: STATION UND STABLISTE (28. Sept.). <<<
+ * =========================================================================
+ *
+ * Frage des Auftraggebers: «könnte man schnitt überarbeiten, dass es einen
+ * grösseren nutzen hat bei methode stab berechnung?» Auf Rückfrage:
+ * «Station + Stabliste».
+ *
+ * Der Ersatzbalken muss seine Schnittgrössen erst auf vier Winkel und zwei
+ * Blechebenen AUFTEILEN - daher die Tabellen darunter. Das Stabwerk kennt
+ * die Kräfte jedes Stabes direkt. An der Station stehen deshalb die vier
+ * Gurtstäbe, die dort durchlaufen, und die Bleche der beiden Nachbar-
+ * stationen - jeder mit den Endkräften des Falls, in dem ER massgebend
+ * wurde, seiner Randspannung und seinem η (dieselbe Zahl wie in den
+ * Kacheln). Darunter je Teil die zehn höchstbeanspruchten Stäbe; ein Klick
+ * fährt dorthin (Schnitt und Modell).
+ *
+ * Die Kräfte sind ENDKRÄFTE des Lösers im lokalen System des Stabes, am
+ * massgebenden Ende - so, wie sie in den Nachweis gehen. Sie sind keine
+ * Schnittgrössen nach Vorzeichenkonvention des Ersatzbalkens; der Titel
+ * der Tabelle sagt es.
+ * ========================================================================= */
+export function stabwerkSchnittHtml(sw, sn, o = {}) {
+  const js = sw?.jeStab;
+  if (!js) return '';
+  const jochKey = o.jochKey ?? 'tragwerk';
+  const alle = Object.values(js);
+  /*
+   * >>> DER VERSATZ KOMMT AUS DEM STABWERK, NICHT AUS DER EINGABE. <<<
+   * In einer Reihe liegt das Modell in Blattkoordinaten, und das rechte
+   * Joch ist dort um die Luft der Endbleche weiter gerückt
+   * (`lagenEntflechten`, 10 cm je Stoss) - gemessen: T2 mit Lage 20.0 m
+   * hat seine Gurte bei 20.100 … 40.100 m. Die Gurte beginnen örtlich bei
+   * x = 0; ihr Anfang im Stabwerk IST also der Versatz.
+   */
+  const gurtX = alle.filter((z) => z.rolle === 'gurt' && z.bauteil === jochKey)
+    .map((z) => z.x0);
+  const versatz = o.versatz ?? (gurtX.length ? Math.min(...gurtX) : 0);
+  const X = sn.x + versatz;
+  const kraft = (z) => {
+    const f = z.f ?? [];
+    const k = z.ende === 'j' ? 6 : 0;
+    return [f[k], f[k + 1], f[k + 2], f[k + 3], f[k + 4], f[k + 5]];
+  };
+  const xLokal = (z) => (((z.x0 ?? 0) + (z.x1 ?? 0)) / 2) - versatz;
+  const zeile = (z, text) => {
+    const [N, Vy, Vz, T, My, Mz] = kraft(z);
+    return `<tr class="klick${z.eta > 1 ? ' nok' : ''}" data-sw-x="${f2(xLokal(z))}"
+        title="Im Modell anfahren: x = ${f2(xLokal(z))} m">
+      <td class="sw-stab">${esc(text ?? z.name)}<br><span class="ablage-meta">${
+        esc(z.name)} · ${esc(z.ende)}</span></td>
+      <td class="num ${ampel(z.eta)}">${f3(z.eta)}</td>
+      <td class="num stark">${f1(z.sig)}</td>
+      <td class="ablage-meta">${esc(fallKurz(z.bez ?? z.fall ?? ''))}</td>
+      <td class="num">${f2(N)}</td><td class="num">${f2(Vy)}</td><td class="num">${f2(Vz)}</td>
+      <td class="num">${f3(T)}</td><td class="num">${f3(My)}</td><td class="num">${f3(Mz)}</td></tr>`;
+  };
+  /*
+   * η UND σ VORN: in der schmalen Schublade stehen sie sonst hinter einem
+   * Querscroll - und sie sind es, wonach man in der Liste sucht.
+   */
+  const kopf = `<thead><tr><th>Stab</th><th class="num">η</th><th class="num">σ</th>
+      <th>Kombination</th>
+      <th class="num">N</th><th class="num">V_y</th><th class="num">V_z</th>
+      <th class="num">T</th><th class="num">M_y</th><th class="num">M_z</th></tr></thead>`;
+  const tabelle = (zeilen) => `<div class="tabellenrahmen"><table class="dt sw-tabelle">
+      ${kopf}<tbody>${zeilen.join('')}</tbody></table></div>`;
+
+  // --- Die vier Gurte, die an der Station durchlaufen ----------------------
+  const gurtName = { OGL: 'OG links', OGR: 'OG rechts',
+                     UGL: 'UG links', UGR: 'UG rechts' };
+  const gurte = {};
+  alle.filter((z) => z.rolle === 'gurt' && z.bauteil === jochKey
+                  && z.x0 <= X + 1e-6 && z.x1 >= X - 1e-6)
+    .forEach((z) => {
+      const g = /(OG|UG)(L|R)_S\d+$/.exec(z.name);
+      const k = g ? g[1] + g[2] : z.name;
+      if (!gurte[k]) gurte[k] = z;
+    });
+  const gurtZeilen = ['OGL', 'OGR', 'UGL', 'UGR']
+    .filter((k) => gurte[k]).map((k) => zeile(gurte[k], gurtName[k]));
+
+  // --- Die Bleche der beiden Nachbarstationen --------------------------------
+  const stationen = [sn.nachbarn?.links?.stationX ?? sn.stationX,
+                     sn.nachbarn?.rechts?.stationX].filter(Number.isFinite);
+  const blechZeilen = [];
+  stationen.forEach((xs) => {
+    alle.filter((z) => z.rolle === 'blech' && z.bauteil === jochKey
+                    && Math.abs((z.x0 + z.x1) / 2 - (xs + versatz)) < 0.02)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((z) => blechZeilen.push(zeile(z, `Blech x ${f2(xs)}`)));
+  });
+
+  // --- Je Teil die zehn höchstbeanspruchten ---------------------------------
+  const TEILE = [['OG', 'Obergurt'], ['UG', 'Untergurt'], ['blech', 'Bindebleche'],
+                 ['mast', 'Masten']];
+  const masten = new Set((o.masten ?? []).map((m) => `mast:${m}`));
+  const listen = TEILE.map(([k, titel]) => {
+    const z = alle.filter((s) => s.teil === k
+        && (k === 'mast' ? masten.has(s.bauteil) : s.bauteil === jochKey))
+      .sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0)).slice(0, 10);
+    if (!z.length) return '';
+    return klapp(`sw-liste-${k}`, `${titel} — höchstbeanspruchte Stäbe`,
+      tabelle(z.map((s) => zeile(s, k === 'mast'
+        ? `${s.bauteil.replace('mast:', 'Mast ')} z ${f2(s.zm ?? 0)}`
+        : `x ${f2(xLokal(s))}`))),
+      `max η ${f3(z[0].eta ?? 0)}`, k !== 'mast');
+  }).join('');
+
+  return `${abschnitt('Stabwerk an der Station', `x = ${f2(sn.x)} m`)}
+    <p class="notiz" style="margin-top:0">Endkräfte des Lösers am massgebenden
+      Ende, lokal (kN, kNm), jeder Stab in SEINER massgebenden Kombination —
+      dieselben Zahlen, aus denen die Kacheln kommen. Ein Klick auf eine Zeile
+      fährt zur Stelle.</p>
+    ${gurtZeilen.length ? tabelle(gurtZeilen)
+      : '<p class="leer">Kein Gurtstab an dieser Stelle.</p>'}
+    ${blechZeilen.length ? `<div class="sec-klein">Bindebleche der Nachbarstationen</div>
+      ${tabelle(blechZeilen)}` : ''}
+    ${abschnitt('Stabliste', 'je Teil die zehn höchsten η')}
+    ${listen}`;
+}
+
+export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv, opt = {}) {
   const sn = erg.schnitt, m = erg.modell, q = sn.q;
   const orient = m.schnittOrientierung ?? 'quer';
   const aktiv = m.schnittAktiv === true;
@@ -6397,7 +6523,7 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
     ${klapp('schnitt-erklaerung', 'Warum hier geschnitten wird',
       `<div id="schnitt-erklaerung-text">${erklaerungHtml()}</div>`)}`;
 
-  const zahlenHtml = `
+  const zahlenHtmlKern = `
     <div class="kennzahlen">
       ${kachel('M_y,ed', f2(sn.My), 'kNm')}
       ${kachel('V_z,ed', f2(sn.Vz), 'kN')}
@@ -6454,6 +6580,17 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
       `max η ${f3(Math.max(...(sn.nachbarn?.links?.ebenen ?? sn.ebenen)
         .filter((e) => !e.blechFehlt).map((e) => e.eta)))}`, true)}`;
 
+  /*
+   * FUEHRT DAS STABWERK (28. September, «Station + Stabliste»), steht sein
+   * Block zuerst; die Aufteilung des Ersatzbalkens bleibt eingeklappt zum
+   * Vergleich darunter.
+   */
+  const swHtml = opt.sw ? stabwerkSchnittHtml(opt.sw, sn, opt) : '';
+  const zahlenHtml = swHtml
+    ? `${swHtml}${klapp('schnitt-ersatzbalken', 'Ersatzbalken — Aufteilung zum Vergleich',
+         zahlenHtmlKern, 'nicht massgebend', false)}`
+    : zahlenHtmlKern;
+
   const sig = JSON.stringify([sn.anzahlSchnitte,
                               SCHNITT_ORIENTIERUNGEN.map((o) => o.key)]);
   let st = node.querySelector('#schnitt-steuerung');
@@ -6498,6 +6635,12 @@ export function zeichneSchnitt(node, erg, beiSchnitt, beiOrientierung, beiAktiv)
     if (erk) erk.innerHTML = erklaerungHtml();
   }
 
+  // Ein Klick auf eine Stabzeile fährt dorthin (Schnitt und Modell).
+  if (opt.beiSprung) {
+    node.querySelectorAll('[data-sw-x]').forEach((tr) => {
+      tr.addEventListener('click', () => opt.beiSprung(undefined, +tr.dataset.swX));
+    });
+  }
   verdrahteKlapp(node);
 }
 

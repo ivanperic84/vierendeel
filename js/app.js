@@ -1389,9 +1389,21 @@ function zeichneAuswertung() {
      * und deshalb ist es nicht dieselbe Tabelle.
      */
     if (erg.abfang) ui.zeichneAbfangSchnitt(node, erg.abfang);
-    else ui.zeichneSchnitt(node, erg, waehleSchnittfeld,
-                           (o) => aendern('schnittOrientierung', o),
-                           schnittUmschalten);
+    else {
+      /*
+       * >>> FUEHRT DAS STABWERK, ZEIGT DER SCHNITT SEINE STAEBE (28. Sept.,
+       * «Station + Stabliste»). <<< Den Versatz einer Reihe (Blatt-
+       * koordinaten, entflochten) bestimmt der Schnitt selbst aus dem
+       * Anfang der Gurte im Stabwerk - siehe `stabwerkSchnittHtml`.
+       */
+      const g = stabwerkGilt();
+      ui.zeichneSchnitt(node, erg, waehleSchnittfeld,
+                        (o) => aendern('schnittOrientierung', o),
+                        schnittUmschalten,
+                        g ? { sw: g.h, jochKey: g.jochKey,
+                              masten: Object.values(erg.modell?.federn?.namen ?? {}),
+                              beiSprung: springeZu } : {});
+    }
   } else if (tabAuswertung === 'auflager') {
     /*
      * >>> DAS ABFANGJOCH HAT SEIN EIGENES AUFLAGERBLATT. <<<

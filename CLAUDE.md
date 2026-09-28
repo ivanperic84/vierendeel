@@ -226,12 +226,31 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5511 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5523 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., der Schnitt im Stabwerksweg: Station und Stabliste**
+  (Entscheid siehe *Entschieden*, Prüfstand Abschnitt 134). Die Hülle führt
+  je Stab den massgebenden Fall mit den zwölf Endkräften und seiner Lage
+  (`jeStab` in `stabwerkHuelle`). Der Reiter *Schnitt* zeigt, wenn das
+  Stabwerk gilt, zuerst «Stabwerk an der Station»: die vier Gurtstäbe, die
+  dort durchlaufen, und die Bleche der beiden Nachbarstationen — je Stab
+  η, σ, Kombination und die Endkräfte des Lösers am massgebenden Ende
+  (lokal). Darunter je Teil (Obergurt, Untergurt, Bindebleche, Masten) die
+  zehn höchsten η; ein Klick auf eine Zeile fährt zur Stelle
+  (`springeZu`). Die Aufteilung des Ersatzbalkens bleibt eingeklappt zum
+  Vergleich. η und σ stehen vorn — in der schmalen Schublade sonst hinter
+  einem Querscroll. **Befund am Weg:** in einer Reihe liegt das Stabwerk
+  in Blattkoordinaten, und das rechte Joch ist um die Luft der Endbleche
+  gerückt (`lagenEntflechten`): T2 mit Lage 20.0 m hat seine Gurte bei
+  20.100 … 40.100 m. Der Versatz kommt deshalb aus dem Anfang der Gurte im
+  Stabwerk, nicht aus der Eingabe. Im Browser: Klick auf `OGL_S39`
+  (η 0.492 = Kachel Obergurt) setzt den Schnitt auf das Feld bei 8.99 m.
+  Nebenbei: die Mastgruppe schreibt «Knicken Ersatzbalken» nur noch, wenn
+  das Knicken geführt wird.
 - **28. Sept., die Gebrauchstauglichkeit kommt aus dem Stabwerk** (Entscheid
   «Ins Stabwerk», Prüfstand Abschnitt 133, neues Modul
   `core.stabverformung.js`). Dieselben Fälle, dieselbe Messstelle und
@@ -1857,7 +1876,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5511 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5523 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -31697,6 +31697,83 @@ titel('133  Die Mastverformung aus dem Stabwerk (Gebrauchstauglichkeit)');
 }
 
 // ===========================================================================
+titel('134  Der Schnitt im Stabwerksweg: Station und Stabliste');
+/* ===========================================================================
+ * Frage vom 28. September: «könnte man schnitt überarbeiten, dass es einen
+ * grösseren nutzen hat bei methode stab berechnung?» - Entscheid «Station +
+ * Stabliste». Die Hülle führt je Stab den massgebenden Fall mit Kräften und
+ * Lage (`jeStab`); der Schnitt zeigt an der Station die vier Gurte und die
+ * Bleche der Nachbarstationen, darunter je Teil die zehn höchsten η.
+ * ========================================================================= */
+{
+  const AS134 = await import(J('app.stabwerk.js'));
+  const N134 = await import(J('core.nachbarn.js'));
+  const UI134 = await import(J('ui.js'));
+  let w134 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w134 = { ...w134, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const satz = N134.rechensatzMitNachbarn(w134);
+  const erg = berechne(satz, ...N134.kernArgumente(satz));
+  const h = AS134.rechneStabwerk({ werte: w134, letzte: { erg }, stabwerk: null });
+  const js = Object.values(h.jeStab ?? {});
+  wahr('Die Huelle fuehrt jeden nachgewiesenen Stab', js.length > 100, `${js.length} Staebe`);
+  wahr('… mit Kraeften, Fall und Lage',
+       js.every((z) => z.f?.length === 12 && z.fall && Number.isFinite(z.x0)
+                    && Number.isFinite(z.x1) && z.bauteil));
+  /*
+   * DIESELBE ZAHL WIE DIE KACHEL: das Grösste der Obergurtstäbe ist das η
+   * des Teils «Obergurt» - sonst zeigte die Liste etwas anderes als oben.
+   */
+  const maxOG = Math.max(...js.filter((z) => z.teil === 'OG').map((z) => z.eta));
+  wahr('>>> max η der Obergurtstaebe = Kachel Obergurt <<<',
+       Math.abs(maxOG - h.teile['tragwerk|OG'].eta) < 1e-12, maxOG.toFixed(4));
+  const sn = erg.schnitt;
+  const html = UI134.stabwerkSchnittHtml(h, sn, { jochKey: 'tragwerk', versatz: 0,
+                                                  masten: ['M1', 'M2'] });
+  wahr('Der Block steht da', /Stabwerk an der Station/.test(html) && /Stabliste/.test(html));
+  const gurtZeilen = ['OG links', 'OG rechts', 'UG links', 'UG rechts']
+    .filter((t) => html.includes(`>${t}<br>`));
+  wahr('An der Station stehen die vier Gurte', gurtZeilen.length === 4,
+       `x = ${sn.x.toFixed(2)} m: ${gurtZeilen.join(', ')}`);
+  wahr('… und die Bleche der Nachbarstationen', /Blech x /.test(html));
+  wahr('Jede Zeile ist anklickbar (fährt zur Stelle)',
+       (html.match(/data-sw-x="/g) ?? []).length >= 4 + 10);
+  wahr('Vier Listen: Obergurt, Untergurt, Bindebleche, Masten',
+       ['Obergurt', 'Untergurt', 'Bindebleche', 'Masten']
+         .every((t) => html.includes(`${t} — höchstbeanspruchte Stäbe`)));
+  wahr('Ohne Stabwerk kein Block', UI134.stabwerkSchnittHtml(null, sn) === '');
+  /*
+   * >>> IN DER REIHE: DER VERSATZ KOMMT AUS DEM STABWERK. <<<
+   * T2 liegt ab 20.0 m, im Stabwerk aber ab 20.100 m (Luft der Endbleche,
+   * `lagenEntflechten`). Mit dem Versatz der Eingabe fände der Schnitt an
+   * einer Station 0.1 m daneben die falschen Stäbe.
+   */
+  {
+    const C134 = await import(J('core.constants.js'));
+    const w2 = C134.tragwerkHinzu(w134, 'joch', {});
+    const s2 = N134.rechensatzMitNachbarn(w2);
+    const e2 = berechne(s2, ...N134.kernArgumente(s2));
+    const h2 = AS134.rechneStabwerk({ werte: w2, letzte: { erg: e2 }, stabwerk: null });
+    const key2 = `tragwerk:${w2.twId}`;
+    const g2 = Object.values(h2.jeStab).filter((z) => z.rolle === 'gurt' && z.bauteil === key2);
+    const anfang = Math.min(...g2.map((z) => z.x0));
+    wahr('Reihe: T2 beginnt im Stabwerk 0.1 m hinter seiner Lage (entflochten)',
+         Math.abs(anfang - 20.1) < 1e-9, anfang.toFixed(3));
+    const html2 = UI134.stabwerkSchnittHtml(h2, e2.schnitt, { jochKey: key2 });
+    const namen2 = [...html2.matchAll(/>(T2_(?:OG|UG)[LR]_S\d+) · /g)].map((m) => m[1]);
+    const X2 = e2.schnitt.x + anfang;
+    const passt = namen2.slice(0, 4).every((n) => {
+      const z = h2.jeStab[n];
+      return z.x0 <= X2 + 1e-6 && z.x1 >= X2 - 1e-6;
+    });
+    wahr('>>> Reihe: an der Station stehen die vier Gurte von T2, an der richtigen Stelle <<<',
+         namen2.length >= 4 && passt, `x = ${e2.schnitt.x.toFixed(2)} m: ${namen2.slice(0, 4).join(', ')}`);
+  }
+  const app134 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('app.js reicht Stabwerk, Versatz und Sprung an den Schnitt',
+       /ui\.zeichneSchnitt\([\s\S]{0,600}sw: g\.h[\s\S]{0,600}beiSprung: springeZu/.test(app134));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
