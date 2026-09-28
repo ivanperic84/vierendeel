@@ -1270,6 +1270,21 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
    Abfangjoch. ⚠ Das **Knicken bleibt beim Ersatzbalken** — es ist der einzige
    Nachweis, den der Löser nicht führt.
 
+**Laufende Arbeit (28. Sept.): Tragausleger Etappe 2 — das Stabmodell.**
+`js/export.axisvm.tragausleger.js` (`tragauslegerModell(satz)`) steht als
+Entwurf, **noch an nichts angeschlossen und nicht gemessen**: zwei UPE 140
+(Stege innen, e = 280 + 2·e_y), Bindebleche oben/unten bei z = ±59 mm
+(Schnitt A-A: Oberkante 6 mm unter der Flanschkante), Mast mit Anschluss
+wie am Abfangjoch (ohne Konsole in x, die Gurte laufen am Masten vorbei),
+beide Gurtlinks x y z + K_XX gehalten (⚠ Rückfrage: sonst Mechanismus um
+die Lotrechte), Ankertraverse bei c₁, Aufhängung als Link im Ortssystem
+(nur längs), Längsverankerung zuschaltbar, Anbauteile starr mit allen
+drei Momenten auf die Achse umgesetzt, Mastwind aus `mastWindBeide`.
+**Nächste Schritte:** Adapter ins Blattformat (aus `abfangBau` herauslösen,
+`eigeneLasten` in `lasten()`), Abzweig in `stabmodell()`, Satz im
+Einzelfall von `rechneStabwerk` durchreichen; messen: Seilkraft gegen
+V = Σ(F_V·x)/c₁ + Σ(F_H·z)/c₁ von Hand, Gleichgewicht, Prüfstand.
+
 **Laufende Arbeit (26. Sept.): Etappe 4 — der Löser gegen AxisVM.**
 Schritt (6) des Bauplans der Jochreihe. **Für den Masten ist die Freigabe
 erfüllt.** Für Gurte und Bleche ist seit dem Einbau von I_yz (26. Sept.)

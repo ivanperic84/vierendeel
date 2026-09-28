@@ -1,0 +1,415 @@
+/**
+ * export.axisvm.tragausleger.js
+ * ---------------------------------------------------------------------------
+ * DAS STABMODELL DES TRAGAUSLEGERS - im Austauschformat der COM-Bruecke und
+ * des Stabwerksloesers.
+ *
+ * Auftrag vom 26. September, Punkt 2: «Tragausleger - eigener Kern fuer die
+ * Anzeige, Stabwerk fuer das Urteil». Die Weisungen zur Bauform, im Wortlaut
+ * in CLAUDE.md:
+ *
+ *   «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch»
+ *   «die aufhängung kann über starrelemente erfolgen, die aber gelenkig
+ *    angeschlossen sind»
+ *   Aufhaengung als EIN Pendelstab mittig an der Ankertraverse (Rueckfrage)
+ *
+ * >>> WAS GEBAUT WIRD (Werkstattzeichnung UPE 140, Uebersicht Tragausleger) <<<
+ *
+ *   - zwei UPE 140, Stege innen (Ruecken gegen Ruecken, 280 mm), Flansche
+ *     nach aussen - Schnitt A-A; Achsabstand e = 280 + 2 e_y
+ *   - der Ausleger beginnt hinter der Mastachse (`hinten`, 0.25 m) und
+ *     reicht bis L - hinten; er umfasst den Masten als Gabel
+ *   - Bindebleche FL 100x10, 280 lang, OBEN UND UNTEN, Oberkante 6 mm unter
+ *     der Flanschkante (Schnitt A-A), an den Stationen der Tabelle
+ *     (a + n b + Endmass = L - am Sortiment nachgerechnet)
+ *   - Anschluss am Masten wie beim Abfangjoch: Konsolarm quer, Stiel,
+ *     Link 50 mm je Gurt - hier OHNE Konsole in x, weil die Gurte am
+ *     Masten vorbeilaufen (Gabel)
+ *   - Ankertraverse bei c1 auf der Oberkante, starr auf beide Gurte
+ *   - Aufhaengung: EIN Linkelement vom Mast (Hoehe b ueber dem Ausleger)
+ *     zur Mitte der Traverse, im Ortssystem nur laengs gehalten - ein
+ *     Pendelstab, der nur Laengskraft traegt
+ *   - Laengsverankerung zuschaltbar an der Stelle x (Weisung: «entweder
+ *     zuzuschalten mit angabe zur stelle x», ohne 10-m-Regel)
+ *
+ * >>> ACHSEN WIE UEBERALL: x Auslegerachse (quer zum Gleis), y Gleis-
+ * richtung, z lotrecht nach oben. x = 0 ist die Mastachse. <<<
+ * ---------------------------------------------------------------------------
+ */
+
+import { getTragausleger, tragauslegerTypen,
+         tragauslegerBlechachsen } from './data.abfangjoche.js';
+import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
+import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js';
+import { baugruppeSumme } from './data.anbauteile.js';
+import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
+import { linkBedingung } from './core.auflager.js';
+
+const r6 = (v) => Math.round(v * 1e6) / 1e6;
+const AUFL_LINK_LAENGE = 0.05;     // wie am Abfangjoch
+const AUFL_Z_LUFT = 0.05;          // Starrelemente unter dem Gurt, wie dort
+/*
+ * DIE LAGE DER BLECHE IM SCHNITT (Schnitt A-A der Werkstattzeichnung):
+ * Oberkante 6 mm unter der Flanschkante. Die Blechmitte liegt damit bei
+ * h/2 - 6 - t/2; beim UPE 140 und t = 10 bei 59 mm ueber der Achse.
+ */
+const BLECH_RUECKSPRUNG = 0.006;
+
+/*
+ * >>> DER ANSCHLUSS HAELT BEIDE GURTE IN x (26. September). <<<
+ *
+ * Das Abfangjoch laesst den VORDEREN Gurt laengs los - dort stehen zwei
+ * Masten, und ein zweiter Laengshalt waere ein Zwang. Der Tragausleger
+ * haengt an EINEM Masten. Das Kraeftepaar der beiden Gurtanschluesse in x
+ * ist das Einzige, was die Drehung des Auslegers um die Lotrechte haelt:
+ * die Aufhaengung liegt in der Ebene x-z und traegt quer dazu nichts. Mit
+ * der Vorgabe des Abfangjochs waere der Ausleger um die Mastachse drehbar -
+ * ein Mechanismus. K_XX gehalten wie am Abfangjoch (Weisung 17. September).
+ * Was in der Maske eingestellt ist (`auflagerLinks`), geht vor.
+ */
+const TA_LINK_VORGABE = { x: 'Rigid', y: 'Rigid', z: 'Rigid',
+                          xx: 'Rigid', yy: 'Free', zz: 'Free' };
+
+/** Die Laengen des Sortiments als Text - fuer die Meldung. */
+const sortimentText = () => tragauslegerTypen().map((t) => t.L.toFixed(1)).join(' / ');
+
+/**
+ * Das Modell des Tragauslegers, oertlich (x = 0 an der Mastachse).
+ *
+ * @param {object} satz Rechensatz dieses Tragwerks (L, mastH, mastLaenge,
+ *   mastProfil, mastSteg, windKlasse, anbauteile, trasseRadius,
+ *   flSpannweite, laengsverankerung, laengsverankerungX, auflagerLinks)
+ * @returns {{knoten, staebe, querschnitte, auflager, lasten, hinweise,
+ *            tragausleger}}
+ */
+export function tragauslegerModell(satz) {
+  const L = Number(satz.L);
+  const t = getTragausleger(L);
+  if (!t) {
+    throw new Error(`Tragausleger L = ${L} m steht nicht im Sortiment `
+      + `(${sortimentText() || 'Sortiment nicht geladen'} m) - kein Modell. `
+      + 'Das Sortiment führt je Länge ein eigenes Blechraster und eine '
+      + 'eigene Aufhängung; eine Zwischenlänge wäre ein anderes Bauteil.');
+  }
+  const hinweise = [];
+  const p = getGurtprofil(t.profil);
+  const h = p.h / 100;                                  // cm -> m
+  // Stegabstand d = Spreizung (Stege innen) - gurtAchsabstand: d + 2 e_y.
+  const e = gurtAchsabstand(p, null, t.spreizung / 10) / 100;
+  const d = t.spreizung / 1000;
+  const x0 = -t.hinten;
+  const xE = r6(t.L - t.hinten);
+  const c1 = t.seil.c1;
+  const bSeil = t.seil.b;
+  const blechX = tragauslegerBlechachsen(t).map((a) => r6(x0 + a));
+  const zBlech = r6(h / 2 - BLECH_RUECKSPRUNG - t.blech.t / 2000);
+
+  /* --- Mast ------------------------------------------------------------- */
+  const H = Number(satz.mastH) || 0;
+  const mastL = Number(satz.mastLaenge) || 0;
+  const mastProfil = satz.mastProfil;
+  const mitMast = satz.mastVorhanden !== false && H > 0 && Boolean(mastProfil);
+  if (!mitMast) {
+    throw new Error('Tragausleger ohne Masten (Profil oder Anschlusshöhe fehlt) '
+      + '- der Ausleger hängt am Masten, ohne ihn gibt es kein Tragwerk.');
+  }
+  const zKopf = r6((mastL > 0 ? mastL : H + bSeil) - H);
+  if (zKopf + 1e-9 < bSeil) {
+    throw new Error(`Die Aufhängung greift ${bSeil.toFixed(2)} m über dem `
+      + `Ausleger am Masten an, der Mast endet ${zKopf.toFixed(2)} m darüber `
+      + '- er ist für diesen Ausleger zu kurz.');
+  }
+
+  /* --- Laengsverankerung -------------------------------------------------- */
+  const lvX = satz.laengsverankerung === true
+    ? Number(satz.laengsverankerungX ?? xE) : null;
+  if (lvX !== null && !(lvX >= 0 && lvX <= xE + 1e-9)) {
+    throw new Error(`Längsverankerung bei x = ${lvX} m liegt nicht auf dem `
+      + `Ausleger (0 … ${xE.toFixed(2)} m).`);
+  }
+
+  /* --- Anbauteile: je Teil der Anschlusspunkt auf der Auslegerachse ------- */
+  const ek = ekVonWindklasse(satz.windKlasse);
+  const sOpt = { ek, R: Number(satz.trasseRadius) || 0,
+                 spannweite: Number(satz.flSpannweite) || 0 };
+  const teile = (satz.anbauteile ?? [])
+    .filter((a) => a?.aktiv !== false && (a.ort ?? 'joch') === 'joch')
+    .map((a) => ({ a, s: baugruppeSumme(a, sOpt) }));
+  const anbauX = teile.map(({ a }) => r6(Number(a.x) || 0));
+  anbauX.forEach((x, i) => {
+    if (x < x0 - 1e-9 || x > xE + 1e-9) {
+      hinweise.push(`Anbauteil «${teile[i].a.name ?? teile[i].a.vorlage}» bei `
+        + `x = ${x.toFixed(2)} m liegt nicht auf dem Ausleger - nicht angesetzt.`);
+    }
+  });
+
+  /* --- Stationen ---------------------------------------------------------- */
+  const stationen = [x0, 0, xE, c1, ...blechX,
+    ...(lvX !== null ? [lvX] : []),
+    ...anbauX.filter((x) => x >= x0 - 1e-9 && x <= xE + 1e-9)];
+  const xs = [...new Set(stationen.map(r6))].sort((u, v) => u - v);
+  const idx = (x) => xs.findIndex((v) => Math.abs(v - r6(x)) < 1e-9);
+  const nm = (g, i) => `${g}_${xs[i].toFixed(3)}`;
+
+  const knoten = [];
+  const staebe = [];
+  xs.forEach((x, i) => {
+    knoten.push({ name: nm('V', i), x, y: r6(e / 2), z: 0 });
+    knoten.push({ name: nm('H', i), x, y: r6(-e / 2), z: 0 });
+  });
+
+  /* --- Querschnitte (wie beim Abfangjoch) --------------------------------- */
+  const querschnitte = [{
+    name: 'GURT', form: 'Channel',
+    parameter: [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, (p.r ?? 1) * 10],
+    profil: p.name,
+    A: p.A / 1e4, Iy: p.Iy / 1e8, Iz: p.Iz / 1e8, It: p.It / 1e8,
+  }, {
+    /*
+     * Das Bindeblech LIEGT: Stab laengs y, Dicke in z. Rechteck [b, h] mit
+     * b in lokaler y- und h in lokaler z-Richtung; mit lcsZ = [0,0,1] liegt
+     * b = Blechbreite in der Auslegerachse und h = Dicke lotrecht. KEINE
+     * eigenen A/I-Werte: Loeser (qsWerte) und Bruecke rechnen sie aus den
+     * Massen - dieselbe Lesart an beiden Stellen.
+     */
+    name: 'BLECH_TA', form: 'Rectangle',
+    parameter: [t.blech.b, t.blech.t],
+    profil: `Flachstahl ${t.blech.b}/${t.blech.t}`,
+  }, {
+    name: 'STARR', form: 'Rectangle', parameter: [500, 500],
+    profil: 'steifer Stab, Konsole und Link',
+  }];
+
+  /* --- Gurte -------------------------------------------------------------- */
+  // Spiegelbildlich wie am Abfangjoch: das U laesst sich nicht spiegeln, die
+  // Drehung um 180 Grad um die Stabachse kehrt die Oeffnung um.
+  const lcsGurt = (g) => (g === 'V' ? [0, 0, 1] : [0, 0, -1]);
+  for (let i = 0; i < xs.length - 1; i++) {
+    for (const g of ['V', 'H']) {
+      staebe.push({ name: `${g}_S${i}`, von: nm(g, i), bis: nm(g, i + 1),
+        querschnitt: 'GURT', steifesMaterial: false, lcsZ: lcsGurt(g),
+        gelenkAnfang: null, gelenkEnde: null, art: 'stab' });
+    }
+  }
+
+  /* --- Bindebleche oben und unten ------------------------------------------ *
+   * Starrer Arm von der Gurtachse (y = +-e/2, z = 0) schraeg zum Blechende
+   * (y = +-d/2, z = +-zBlech) - «die Starrelemente sind bis zum Anfang /
+   * Ende der Bleche zu führen» (stehende Vorgabe).
+   */
+  blechX.forEach((xb, k) => {
+    const i = idx(xb);
+    for (const [o, z] of [['O', zBlech], ['U', -zBlech]]) {
+      const kV = `BL_${o}${k}_V`, kH = `BL_${o}${k}_H`;
+      knoten.push({ name: kV, x: xb, y: r6(d / 2), z });
+      knoten.push({ name: kH, x: xb, y: r6(-d / 2), z });
+      staebe.push({ name: `BLARM_${o}${k}_V`, von: nm('V', i), bis: kV,
+        querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
+      staebe.push({ name: `BLARM_${o}${k}_H`, von: nm('H', i), bis: kH,
+        querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
+      staebe.push({ name: `BL_${o}${k}`, von: kH, bis: kV,
+        querschnitt: 'BLECH_TA', steifesMaterial: false, lcsZ: [0, 0, 1],
+        gelenkAnfang: null, gelenkEnde: null, art: 'stab' });
+    }
+  });
+
+  /* --- Mast und Anschluss (Kette wie am Abfangjoch, ohne Konsole in x) ---- */
+  let sr = null;
+  try { sr = getStegrichtung(satz.mastSteg ?? 'jochachse'); }
+  catch { sr = getStegrichtung('jochachse'); }
+  const lcsMast = sr.achse === 'y' ? [1, 0, 0] : [0, 1, 0];
+  const pm = getMastprofil(mastProfil);
+  const restA = pm.A * 100 - 2 * pm.b * pm.tf - (pm.h - 2 * pm.tf) * pm.tw;
+  const Rm = restA > 0 ? Math.sqrt(restA / (4 - Math.PI)) : 0;
+  const mastQs = `MAST_${pm.name.replace(/\s+/g, '')}`;
+  querschnitte.push({
+    name: mastQs, form: 'I', profil: pm.name,
+    parameter: [pm.h, pm.b, pm.tw, pm.tf, r6(Rm)],
+    A: pm.A / 1e4, Iy: pm.Iy / 1e8, Iz: pm.Iz / 1e8, It: pm.It / 1e8,
+  });
+  const zV = r6(-(h / 2 + AUFL_Z_LUFT));
+  const mastPunkte = [
+    ['MAST_A_F', -H], ['MAST_A_A', zV], ['MAST_A_K', 0],
+    ['MAST_A_SEIL', bSeil], ...(zKopf > bSeil + 1e-9 ? [['MAST_A_KOPF', zKopf]] : []),
+  ];
+  mastPunkte.forEach(([n, z]) => knoten.push({ name: n, x: 0, y: 0, z: r6(z) }));
+  for (let i = 0; i < mastPunkte.length - 1; i++) {
+    staebe.push({ name: `MAST_A_S${i + 1}`, von: mastPunkte[i][0],
+      bis: mastPunkte[i + 1][0], querschnitt: mastQs, steifesMaterial: false,
+      lcsZ: lcsMast, art: 'stab' });
+  }
+  const i0 = idx(0);
+  for (const g of ['V', 'H']) {
+    const y = g === 'V' ? r6(e / 2) : r6(-e / 2);
+    knoten.push({ name: `ARM_A${g}`, x: 0, y, z: zV });
+    knoten.push({ name: `ANS_A${g}`, x: 0, y, z: -AUFL_LINK_LAENGE });
+    staebe.push({ name: `KONSARM_A${g}`, von: 'MAST_A_A', bis: `ARM_A${g}`,
+      querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
+    staebe.push({ name: `LINKSTIEL_A${g}`, von: `ARM_A${g}`, bis: `ANS_A${g}`,
+      querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0], art: 'starr' });
+    const gesetzt = satz.auflagerLinks?.[g];
+    staebe.push({ name: `LINK_A${g}`, von: `ANS_A${g}`, bis: nm(g, i0),
+      querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0],
+      gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
+      kraftuebertragung: gesetzt
+        ? linkBedingung({ auflagerLinks: satz.auflagerLinks }, 'abfangjoch', g)
+        : { ...TA_LINK_VORGABE } });
+  }
+  const auflager = [{
+    ende: 'A', knoten: 'MAST_A_F', x: 0, modell: 'mast',
+    ux: 'Rigid', uy: 'Rigid', uz: 'Rigid', fix: 'Rigid', fiy: 'Rigid', fiz: 'Rigid',
+    cFiy_MNm: null, cFiy_kNm: null, cUz_MN: null, cUz_kNm: null,
+  }];
+
+  /* --- Ankertraverse und Aufhaengung -------------------------------------- */
+  const iC = idx(c1);
+  knoten.push({ name: 'TRAVERSE_M', x: c1, y: 0, z: r6(h / 2) });
+  for (const g of ['V', 'H']) {
+    staebe.push({ name: `TRAVERSE_${g}`, von: 'TRAVERSE_M', bis: nm(g, iC),
+      querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
+  }
+  /*
+   * >>> DER PENDELSTAB: EIN LINK IM ORTSSYSTEM, NUR LAENGS GEHALTEN. <<<
+   * Weisung: «über starrelemente …, die aber gelenkig angeschlossen sind».
+   * Ein Starrelement mit Gelenken an beiden Enden traegt nur Laengskraft -
+   * genau das ist ein Linkelement, dessen einziger gehaltener Grad die
+   * Richtung seiner eigenen Achse ist. Global gelesen waere «x» die
+   * Auslegerachse und nicht die Seilrichtung.
+   */
+  staebe.push({ name: 'AUFHAENGUNG', von: 'MAST_A_SEIL', bis: 'TRAVERSE_M',
+    querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 1, 0],
+    gelenkAnfang: 'M', gelenkEnde: 'M', art: 'link', system: 'lokal',
+    kraftuebertragung: { x: 'Rigid', y: 'Free', z: 'Free',
+                         xx: 'Free', yy: 'Free', zz: 'Free' } });
+
+  /* --- Laengsverankerung --------------------------------------------------- */
+  if (lvX !== null) {
+    const i = idx(lvX);
+    knoten.push({ name: 'LV_M', x: r6(lvX), y: 0, z: 0 });
+    for (const g of ['V', 'H']) {
+      staebe.push({ name: `LVARM_${g}`, von: 'LV_M', bis: nm(g, i),
+        querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
+    }
+    auflager.push({ ende: 'LV', knoten: 'LV_M', x: r6(lvX), modell: 'laengsverankerung',
+      ux: 'Free', uy: 'Rigid', uz: 'Free', fix: 'Free', fiy: 'Free', fiz: 'Free' });
+  }
+
+  /* --- Lasten ------------------------------------------------------------- */
+  const punkt = [], moment = [], strecke = [];
+  /*
+   * DER MASTWIND - aus derselben Stelle wie im Kern (`mastWindBeide`),
+   * charakteristisch, je Richtung ein Lastfall. Fehlt die Tabellenzeile,
+   * fehlt die Last, und es wird gesagt (wie am 20. September entschieden).
+   */
+  const mw = mastWindBeide(pm.name, ek, sr.key);
+  const wx = Number.isFinite(mw.jochachse) ? Math.abs(mw.jochachse) : null;
+  const wy = Number.isFinite(mw.gleis) ? Math.abs(mw.gleis) : null;
+  if (wx === null || wy === null) {
+    hinweise.push(`Für ${pm.name} führt die Tabelle keinen Mastwind - der Wind `
+      + 'auf den Masten fehlt im Modell.');
+  }
+  staebe.filter((s) => s.name.startsWith('MAST_A_S')).forEach((s) => {
+    [['WindX', 'X', wx], ['WindY', 'Y', wy]].forEach(([fall, richtung, w]) => {
+      if (w > 0) {
+        strecke.push({ name: `Q_${fall}_${s.name}`, stab: s.name, richtung,
+                       wert: r6(w), lastfall: fall });
+      }
+    });
+  });
+  /*
+   * >>> DIE ANBAUTEILE: STARR AUF DIE AUSLEGERACHSE UMGESETZT. <<<
+   *
+   * Jede Kraft greift am Teil an (x, y, z der Kette), der Ausleger nimmt sie
+   * an der Station des Anschlusses auf. Umgesetzt wird sie dorthin mit
+   * ALLEN drei Momenten, M = r x F - nicht nur mit der Torsion wie am
+   * Abfangjoch: am Ausleger haengen die Teile 1-3 m tief, und genau dieser
+   * Hebel steht in der Kontrollformel der Zeichnung (Σ F_H z / c1).
+   * Die Kraefte gehen je zur Haelfte auf die beiden Gurtknoten, das Moment
+   * um die Auslegerachse als Kraeftepaar ±M_x/e in z, die beiden anderen
+   * Momente je zur Haelfte als Knotenmoment.
+   *
+   * Unter G gilt die Regel der Tragjoch-Ausleitung: was in der
+   * Auslegerachse (x) zieht, ist Ablenkkraft (G_Ablenk), alles uebrige
+   * Gewicht (G_Anbau). F_z zeigt im Kern nach UNTEN; hier wird gedreht.
+   *
+   * VEREINFACHT: die Kette selbst steht nicht im Modell - das Teil ist ein
+   * Starrkoerper an EINER Station statt an seinen beiden Klemmpunkten.
+   * Global ist das dasselbe, oertlich an der Klemme nicht.
+   */
+  teile.forEach(({ a, s }, k) => {
+    const xA = anbauX[k];
+    if (xA < x0 - 1e-9 || xA > xE + 1e-9) return;
+    const i = idx(xA);
+    const summen = {};
+    (s.teile ?? []).forEach((tp) => {
+      const r = [(Number.isFinite(Number(tp.x)) ? Number(tp.x) : xA) - xA,
+                 Number(tp.y) || 0, Number(tp.z) || 0];
+      EINWIRKUNGEN.forEach((ew) => {
+        const q = tp.kraefte?.[ew.key];
+        if (!q) return;
+        const F = [q.Fx ?? 0, q.Fy ?? 0, -(q.Fz ?? 0)];
+        const add = (fall, art, v) => {
+          if (!v.some((w) => w)) return;
+          const sm = summen[fall] ?? (summen[fall] = { F: [0, 0, 0], M: [0, 0, 0] });
+          v.forEach((w, j) => { sm[art][j] += w; });
+        };
+        /*
+         * JEDE KOMPONENTE MIT IHREM EIGENEN MOMENT IN IHREN LASTFALL.
+         * Die Ablenkkraft (x) geht unter G nach G_Ablenk - und ihr Hebel
+         * r x F_x mit ihr. Beim ersten Anlauf stand das Moment in G_Anbau:
+         * jeder der beiden Faelle waere fuer sich nicht mehr gleichwertig
+         * gewesen, nur ihre Summe.
+         */
+        [0, 1, 2].forEach((j) => {
+          if (!F[j]) return;
+          const Fj = [0, 0, 0]; Fj[j] = F[j];
+          const Mj = [r[1] * Fj[2] - r[2] * Fj[1],
+                      r[2] * Fj[0] - r[0] * Fj[2],
+                      r[0] * Fj[1] - r[1] * Fj[0]];
+          const fall = ew.key !== 'G' ? ew.key : (j === 0 ? 'G_Ablenk' : 'G_Anbau');
+          add(fall, 'F', Fj);
+          add(fall, 'M', Mj);
+        });
+        // Eigene Momente des Teils (im Sortiment meist null) - wie die
+        // Tragjoch-Ausleitung unter G zum Gewicht.
+        add(ew.key === 'G' ? 'G_Anbau' : ew.key, 'M',
+            [q.Mxx ?? 0, q.Myy ?? 0, q.Mzz ?? 0]);
+      });
+    });
+    Object.entries(summen).forEach(([fall, sm]) => {
+      ['X', 'Y', 'Z'].forEach((richtung, j) => {
+        if (!sm.F[j]) return;
+        for (const g of ['V', 'H']) {
+          punkt.push({ name: `F${k}_${g}_${fall}_${richtung}`, knoten: nm(g, i),
+                       richtung, wert: r6(sm.F[j] / 2), lastfall: fall });
+        }
+      });
+      if (sm.M[0]) {
+        // Moment um die Auslegerachse als Kraeftepaar in z: V liegt bei +e/2.
+        const f = sm.M[0] / e;
+        punkt.push({ name: `T${k}_V_${fall}`, knoten: nm('V', i), richtung: 'Z',
+                     wert: r6(f), lastfall: fall });
+        punkt.push({ name: `T${k}_H_${fall}`, knoten: nm('H', i), richtung: 'Z',
+                     wert: r6(-f), lastfall: fall });
+      }
+      [['My', 1], ['Mz', 2]].forEach(([richtung, j]) => {
+        if (!sm.M[j]) return;
+        for (const g of ['V', 'H']) {
+          moment.push({ name: `M${k}_${g}_${fall}_${richtung}`, knoten: nm(g, i),
+                        richtung, wert: r6(sm.M[j] / 2), lastfall: fall });
+        }
+      });
+    });
+  });
+  hinweise.push('Wind auf den Ausleger selbst ist nicht angesetzt - das '
+    + 'Sortiment führt für den Tragausleger keine Windlast je Meter.');
+
+  return {
+    knoten, staebe, querschnitte, auflager,
+    lasten: { punkt, moment, strecke },
+    hinweise,
+    tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil,
+                    c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
+                    Vzul: t.Vzul, laengsverankerung: lvX },
+  };
+}
