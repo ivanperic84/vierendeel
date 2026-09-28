@@ -31921,9 +31921,9 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
   wahr('>>> Die Aufhaengung zieht (Seil) <<<', S > 0, `${S.toFixed(4)} kN`);
   pruef('Seilkraft unter G: Loeser gegen Freikoerper (Momente um die Gelenkachse)',
         S, -MyG / MyEinheit, 1e-6, 'kN');
-  // Seit dem Seilwinkel (Vorgabe 30°, b = c₁·tan α statt der Tabellenspalte b)
-  // steiler bzw. flacher: 3.280 kN mit b nach Tabelle, 3.326 kN mit 30°.
-  pruef('… gemessen am 28. September (Seilwinkel 30°)', S, 3.3258, 1e-3, 'kN');
+  // Ohne eingetragenen Winkel gilt b der Tabelle (Rückfrage 28. September,
+  // «b der Tabelle»): 3.280 kN. Mit genau 30° wären es 3.326 kN.
+  pruef('… gemessen am 28. September (b nach Sortiment)', S, 3.2800, 1e-3, 'kN');
 
   // --- c) Die Kontrollformel der Zeichnung --------------------------------
   const vN = [...kn.keys()].find((n) => /^V_7\.750$/.test(n));
@@ -32116,8 +32116,8 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   const hs = ta('hs-fahrdraht', 13);
   const knT = SM138.knickenAusStabwerk(hs.dat, hs.lsg, hs.nw, 'M1', hs.basis, hs.erg.modell, {});
   const fT = SM138.fundamentAusStabwerk(hs.dat, hs.lsg, hs.alle, 'M1', hs.basis, hs.satz);
-  // Mit Seilwinkel 30° und Mastlänge H + b (28. September): 1.091 -> 1.106.
-  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.1061, 1e-3, '');
+  // Mastlänge H + b, b der Tabelle (28. September): 1.091 -> 1.107.
+  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.1069, 1e-3, '');
   /*
    * Der Kern des Phantomjochs lag bei 0.652 - vor allem, weil er mit der
    * Mastlänge des Tragjochs (8.5 m) rechnete. Seit sie H + b ist (14.0 m),
@@ -32177,7 +32177,7 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
   pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.209, 1e-3, '');
   pruef('Aufhängung gegen V_zul', z('Aufhängung')?.eta, 0.824, 1e-3, '');
   pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 2.1146, 1e-3, '');
-  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.1061, 1e-3, '');
+  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.1069, 1e-3, '');
   pruef('Fundament aus dem Stabwerk', z('Fundament MT1')?.eta, 1.445, 1e-3, '');
   wahr('Jede Zeile aus dem Stabwerk', n.liste.every((x) => x.quelle === 'stabwerk'));
   wahr('Das Urteil ist der Mast', n.massgebend?.name === 'Mast MT1' && Math.abs(n.eta - 2.1146) < 1e-3);
@@ -32380,7 +32380,8 @@ titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kraga
                              && x.k.aufhaengung.Sv <= 1.03 * x.sw.ausleger.aufhaengung.Sv),
        `${fl.k.aufhaengung.Sv.toFixed(3)}/${fl.sw.ausleger.aufhaengung.Sv.toFixed(3)} · `
        + `${hs.k.aufhaengung.Sv.toFixed(3)}/${hs.sw.ausleger.aufhaengung.Sv.toFixed(3)}`);
-  pruef('Fahrleitung direkt L 8: UPE lotrecht', fl.k.gurt.eta, 0.07026, 1e-3, '');
+  // b nach Sortiment; mit genau 30° wären es 0.07026.
+  pruef('Fahrleitung direkt L 8: UPE lotrecht', fl.k.gurt.eta, 0.07011, 1e-3, '');
   // Mit Mastlänge H + b (28. September): 0.590 (8.5 m) -> 0.922 (14.0 m).
   pruef('Hängestütze L 13: Mast (Kern, ohne Torsion)', hs.r.mast.A.eta, 0.9222, 1e-3, '');
   wahr('>>> Der Kern-Mast liegt UNTER dem Stabwerk - deshalb nur vorläufig <<<',
@@ -32641,10 +32642,12 @@ titel('146  Tragausleger: b und Winkel gekoppelt, Mastlänge H + b');
  * winkel kleiner oder grösser ist.» Auf Rückfrage: «Beide gekoppelt»
  * (gespeichert wird allein α, b = c₁ · tan α, Vorgabe 30°) und «H + b,
  * halber Meter» (Mastlänge ohne Eintrag; darunter «Mast zu kurz für die
- * Aufhängung»).
+ * Aufhängung»). Nach dem Befund, dass die Spalte b 30.1-30.6° entspricht,
+ * auf Rückfrage «b der Tabelle»: ohne eingetragenen Winkel gilt b des
+ * Sortiments (gespeichert 0), der Winkel wird daraus angezeigt.
  *
  * Gemessen L 13 m, H 7.5 m, Hängestütze ohne Längsanker (Stabwerk):
- *   Mast mit σ_ω 2.103 -> 2.1146, Knicken 1.091 -> 1.1061
+ *   Mast mit σ_ω 2.103 -> 2.1146, Knicken 1.091 -> 1.1069 (b der Tabelle; mit 30° 1.1061)
  *   (vorher b nach Sortiment und Mastlänge H + b des Sortiments, 13.85 m)
  * ========================================================================= */
 {
@@ -32657,19 +32660,37 @@ titel('146  Tragausleger: b und Winkel gekoppelt, Mastlänge H + b');
   const LA146 = await import(J('core.lasten.js'));
 
   // --- a) die Kopplung --------------------------------------------------
+  /*
+   * Rückfrage nach dem Einbau: das b der Tabelle entspricht 30.1-30.6°,
+   * genau 30° gab b um 3-10 cm kürzer. Entschieden: «b der Tabelle» -
+   * ohne Eintrag gilt die Spalte b, der Winkel wird daraus angezeigt.
+   */
   const a30 = DA146.tragauslegerAufhaengung({ L: 13 });
-  wahr('Ohne Eintrag gilt der Winkel der Normzeichnung, 30°', a30.alpha === 30);
-  pruef('b = c₁ · tan 30°', a30.b, a30.c1 * Math.tan(Math.PI / 6), 1e-6, 'm');
+  wahr('Ohne Eintrag gilt b des Sortiments', a30.nachSortiment === true && a30.b === a30.t.seil.b);
+  pruef('… und der Winkel folgt daraus (rund 30°)', a30.alpha,
+        Math.atan(a30.b / a30.c1) * 180 / Math.PI, 1e-4, '°');
+  wahr('… das Sortiment liegt bei jeder Länge zwischen 30.0 und 31.0°',
+       DA146.tragauslegerTypen().every((t) => {
+         const a = DA146.tragauslegerAufhaengung({ L: t.L }).alpha;
+         return a > 30 && a < 31;
+       }));
+  pruef('Eingetragene 30°: b = c₁ · tan 30°', DA146.tragauslegerAufhaengung({ L: 13, auslegerWinkel: 30 }).b,
+        a30.c1 * Math.tan(Math.PI / 6), 1e-6, 'm');
   pruef('α 45° gibt b = c₁', DA146.tragauslegerAufhaengung({ L: 13, auslegerWinkel: 45 }).b,
         a30.c1, 1e-6, 'm');
-  wahr('Ein unsinniger Winkel fällt auf die Vorgabe zurück (0°, 90°)',
-       [0, 90, -5, 'x'].every((w) => DA146.tragauslegerAufhaengung({ L: 13, auslegerWinkel: w }).alpha === 30));
+  wahr('0, leer oder Unsinn heisst «nach Sortiment» (0°, 90°, −5, x)',
+       [0, 90, -5, 'x', undefined].every((w) =>
+         DA146.tragauslegerAufhaengung({ L: 13, auslegerWinkel: w }).b === a30.b));
   wahr('Ohne Zeile im Sortiment keine Aufhängung', DA146.tragauslegerAufhaengung({ L: 3 }) === null);
   const fB = FELDER.find((f) => f.key === 'auslegerB');
   const fW = FELDER.find((f) => f.key === 'auslegerWinkel');
-  wahr('b ist ein abgeleitetes Feld (wertAus), der Winkel das gespeicherte (Vorgabe 30)',
-       typeof fB?.wertAus === 'function' && fW?.standard === 30
+  wahr('b ist ein abgeleitetes Feld (wertAus), der Winkel das gespeicherte (Vorgabe 0 = Sortiment)',
+       typeof fB?.wertAus === 'function' && fW?.standard === 0 && fW.min === 0
        && Math.abs(fB.wertAus({ L: 13, auslegerWinkel: 45 }) - a30.c1) < 1e-6);
+  wahr('Das Winkelfeld zeigt ohne Eintrag den Winkel des Sortiments und sagt es',
+       Math.abs(fW.wertAus({ L: 13 }) - a30.alpha) < 1e-9
+       && /^nach Sortiment: b /.test(fW.notiz({ tragwerksart: 'tragausleger', L: 13 }))
+       && /^eingetragen .* 0 setzt zurück/.test(fW.notiz({ tragwerksart: 'tragausleger', L: 13, auslegerWinkel: 35 })));
   wahr('Der Schieber des Winkels rastet auf fünf Grad', fW.zugSchritt === 5);
   wahr('Wer b eintippt, setzt den Winkel (app.js, atan(b / c₁))',
        /key === 'auslegerB'[\s\S]{0,200}Math\.atan\(Number\(wert\) \/ c1\)[\s\S]{0,120}aendern\('auslegerWinkel'/
@@ -32716,7 +32737,7 @@ titel('146  Tragausleger: b und Winkel gekoppelt, Mastlänge H + b');
        SCH146.mastZuKurzFuerAufhaengung({ ...ws, tragwerksart: 'joch', mastLaenge: 8 }) === 0);
   const fL = FELDER.find((f) => f.key === 'mastLaenge');
   wahr('Maske: die Notiz am Feld (bei jeder Eingabe nachgeführt) meldet es',
-       /^MAST ZU KURZ FÜR DIE AUFHÄNGUNG: mindestens 13\.78 m/.test(fL.notiz({ ...ws, mastLaenge: 13 }))
+       /^MAST ZU KURZ FÜR DIE AUFHÄNGUNG: mindestens 13\.85 m/.test(fL.notiz({ ...ws, mastLaenge: 13 }))
        && /Vorgabe H \+ b, auf den halben Meter: 14\.00 m/.test(fL.notiz({ ...ws, mastLaenge: 0 }))
        && fL.notiz({ ...ws, tragwerksart: 'joch' }) === '',
        fL.notiz({ ...ws, mastLaenge: 13 }));

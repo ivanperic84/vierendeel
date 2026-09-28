@@ -172,20 +172,34 @@ export function tragauslegerNaechsteLaenge(L) {
  * Rückfrage: b und Winkel GEKOPPELT, Vorgabe α = 30°.
  *
  * Der Winkel liegt zwischen Seil und Ausleger an der Ankertraverse:
- * tan α = b / c₁. Das Sortiment trifft ihn fast genau (L 8 m: 30.5°, L 13 m:
- * 30.3°). Gespeichert wird EIN Wert, der Winkel; b folgt daraus. c₁ - die
- * Lage der Traverse - bleibt nach Sortiment.
+ * tan α = b / c₁. Gespeichert wird EIN Wert, der Winkel; b folgt daraus.
+ * c₁ - die Lage der Traverse - bleibt nach Sortiment.
+ *
+ * >>> OHNE EINTRAG GILT DAS b DER TABELLE (Rückfrage, 28. September). <<<
+ * Befund nach dem Einbau: das b des Sortiments entspricht je Länge
+ * 30.1-30.6°, genau 30° gab b um 3-10 cm kürzer. Auf Rückfrage «b der
+ * Tabelle» - die stehende Regel «Massgebend sind die Daten». Ein leerer
+ * oder null gesetzter Winkel heisst deshalb «nach Sortiment»; der Winkel
+ * wird dann aus b und c₁ angezeigt. Wer α oder b einträgt, überschreibt.
  */
-export const TA_SEILWINKEL_VORGABE = 30;
+export const TA_SEILWINKEL_NORM = 30;   // Winkel der Normzeichnung (Auskunft)
 
-/** {t, c1, b, alpha} der Aufhängung eines Auslegers, oder null ohne Zeile. */
+/**
+ * {t, c1, b, alpha, nachSortiment} der Aufhängung eines Auslegers, oder
+ * null ohne Zeile.
+ */
 export function tragauslegerAufhaengung(inp) {
   const t = getTragausleger(Number(inp?.L));
   if (!t) return null;
-  const roh = Number(inp?.auslegerWinkel);
-  const alpha = roh > 0 && roh < 90 ? roh : TA_SEILWINKEL_VORGABE;
   const c1 = t.seil.c1;
-  return { t, c1, alpha, b: Math.round(c1 * Math.tan(alpha * Math.PI / 180) * 1e6) / 1e6 };
+  const roh = Number(inp?.auslegerWinkel);
+  if (roh > 0 && roh < 90) {
+    return { t, c1, alpha: roh, nachSortiment: false,
+             b: Math.round(c1 * Math.tan(roh * Math.PI / 180) * 1e6) / 1e6 };
+  }
+  const b = t.seil.b;
+  return { t, c1, b, nachSortiment: true,
+           alpha: Math.round(Math.atan(b / c1) * 180 / Math.PI * 1e4) / 1e4 };
 }
 
 /**

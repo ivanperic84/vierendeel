@@ -879,11 +879,27 @@ export const FELDER = [
     sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
     hinweis: 'Am Masten gemessen, von der Achse des Auslegers bis zum '
            + 'Aufhängepunkt. Gekoppelt mit dem Winkel: tan α = b / c₁.' },
+  /*
+   * GESPEICHERT 0 HEISST «NACH SORTIMENT» (Rückfrage, 28. September: «b der
+   * Tabelle»). Das Feld zeigt dann den Winkel, der aus b und c₁ der Tabelle
+   * folgt - wie der Fahrdrahtschieber seine Automatik; wer 0 einträgt,
+   * kehrt zur Tabelle zurück.
+   */
   { key: 'auslegerWinkel', gruppe: 'geo', typ: 'schieber',
     label: 'Winkel Seil – Ausleger', sym: 'α', einheit: '°',
-    standard: 30, schritt: 0.1, zugSchritt: 5, min: 10, max: 60,
+    standard: 0, schritt: 0.1, zugSchritt: 5, min: 0, max: 60,
+    wertAus: (w) => tragauslegerAufhaengung(w)?.alpha ?? 0,
     sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
-    hinweis: 'Normzeichnung 30° (Vorgabe); Spezialfälle kleiner oder grösser. '
+    notiz: (w) => {
+      const a = tragauslegerAufhaengung(w);
+      if (!a) return '';
+      return a.nachSortiment
+        ? `nach Sortiment: b ${a.b.toFixed(2)} m, α ${a.alpha.toFixed(2)}°`
+        : `eingetragen · Sortiment b ${a.t.seil.b.toFixed(2)} m `
+          + `(α ${(Math.atan(a.t.seil.b / a.c1) * 180 / Math.PI).toFixed(2)}°) - 0 setzt zurück`;
+    },
+    hinweis: 'Ohne Eintrag gilt b des Sortiments (Normzeichnung rund 30°); '
+           + 'Spezialfälle kleiner oder grösser. 0 = nach Sortiment. '
            + 'c₁ bleibt nach Sortiment.' },
   /* =========================================================================
    * >>> DER LÄNGSANKER DES TRAGAUSLEGERS (Weisung vom 28. September). <<<

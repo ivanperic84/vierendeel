@@ -114,9 +114,10 @@ export function tragauslegerModell(satz) {
   const xE = r6(t.L - t.hinten);
   const c1 = t.seil.c1;
   /*
-   * b AUS DEM WINKEL (28. September): «b» und «Winkel» sind gekoppelt,
-   * Vorgabe 30° - tan α = b / c₁ (`tragauslegerAufhaengung`). Die Spalte b
-   * des Sortiments trifft 30.3-30.5°.
+   * b UND WINKEL (28. September): gekoppelt, tan α = b / c₁
+   * (`tragauslegerAufhaengung`). Ohne eingetragenen Winkel gilt die Spalte
+   * b des Sortiments (Rückfrage «b der Tabelle»; sie entspricht
+   * 30.1-30.6°).
    */
   const aufh = tragauslegerAufhaengung(satz);
   const bSeil = aufh.b;
