@@ -31936,6 +31936,93 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
 }
 
 // ===========================================================================
+titel('137  Tragausleger Etappe 4a: UPE, Bindebleche und Aufhaengung im Stabwerk');
+/* ===========================================================================
+ * Entscheide vom 28. September: «Erst Nachweise im Stabwerk»; Aufhängung
+ * gegen V_zul = 5 kN «charakteristisch», dabei «nur wirkliche Zustände»
+ * (ganzes G, G + Wind, Havarie - nicht die Hälften von G, nicht Wind
+ * allein). Prüfbeispiele: die Fahrleitung direkt am Ausleger und - «es gibt
+ * hängestützen die den fahrdraht abziehen. die torsion entsteht dann aus dem
+ * wind auf die mitte der hängestütze» - die Hängestütze mit Fahrleitung.
+ *
+ * Gemessen L = 8 m, HEB 240, R 600 m, c 50 m, Teil 0.4 m vor der Spitze:
+ *
+ *                               UPE     Blech   Seil S_v / η
+ *   Fahrleitung direkt          0.064   0.002   2.83 kN / 0.565
+ *   Hängestütze mit Fahrleitung 0.311   1.135   3.45 kN / 0.691
+ *
+ * ⚠ Das Blech am Masten (BL_U0) ist mit der Hängestütze ÜBERSCHRITTEN. Die
+ * Torsion kommt allein aus dem Wind auf die Stütze in ihrer Mitte (0.550 kN
+ * auf 1.35 m = 0.743 kNm); die beiden UPE biegen sich lotrecht gegengleich,
+ * und das Blechpaar am eingespannten Ende hält das über seine starke Ebene.
+ * ========================================================================= */
+{
+  const N137 = await import(J('core.nachbarn.js'));
+  const AX137 = await import(J('export.axisvm.js'));
+  const SW137 = await import(J('core.stabwerk.js'));
+  const SN137 = await import(J('core.stabnachweis.js'));
+  const LA137 = await import(J('core.lasten.js'));
+
+  // --- a) Rollen und Widerstand des U --------------------------------------
+  wahr('Die UPE-Gurte haben eine eigene Rolle',
+       SN137.stabRolle('V_S3') === 'gurtU' && SN137.stabRolle('MT1_H_S0') === 'gurtU');
+  wahr('Die Bleche des Auslegers sind Bleche', SN137.stabRolle('BL_O1') === 'blech'
+       && SN137.stabRolle('MT1_BL_U0') === 'blech');
+  wahr('Ein Blech des Tragjochs bleibt, was es war', SN137.stabRolle('BV_L_0_2') === 'blech');
+  wahr('Der Tragausleger heisst MT…', SN137.stabZuordnung('MT1_V_S0').key === 'tragwerk:MT1');
+  /*
+   * >>> UM DIE SCHWACHE ACHSE ZÄHLT b − e_y, NICHT b/2. <<<
+   * Die Tabelle führt W_z = I_z/(b − e_y) = 18.19 cm³. Mit b/2 wäre
+   * W = 78.7/3.25 = 24.2 cm³ - ein Drittel zu günstig.
+   */
+  const f = new Float64Array(12); f[5] = 1;         // M_z = 1 kNm am Ende i
+  const s = SN137.stabSpannung({ form: 'Channel', profil: 'UPE 140',
+                                  parameter: [140, 65, 5, 9, 12] }, f, 'gurtU');
+  pruef('UPE 140, M_z = 1 kNm: σ = M/W_z aus der Tabelle', s.sig, 1 / 18.19e-6 / 1000, 1e-9, 'N/mm²');
+
+  // --- b) Die beiden Prüfbeispiele ---------------------------------------
+  const rechne = (vorlage, L = 8) => {
+    const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
+                mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
+                anbauteile: [A.neuesAnbauteil(vorlage, L - 0.25 - 0.4)] };
+    const satz = N137.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N137.kernArgumente(satz));
+    const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+    const bau = AX137.stabmodell(erg.modell, { ...opt, satz, mastNamen: { A: 'M1', B: 'M1' } });
+    bau.lasten = AX137.lasten(erg.modell, bau, opt);
+    const dat = AX137.stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz });
+    const lsg = SW137.loese(dat, { eigengewicht: false });
+    const alle = LA137.lastfaelle(satz);
+    return { h: SN137.stabwerkHuelle(dat, lsg, alle.filter((l) => l.nachweis !== false), 235 / 1.05),
+             a: SN137.aufhaengungNachweis(dat, lsg, alle, bau.tragausleger.Vzul), dat, lsg };
+  };
+  const fl = rechne('leiter-nfl');
+  const hs = rechne('hs-fahrdraht');
+  wahr('Kein Stab ohne Rolle', fl.h.ohneRolle.length === 0 && hs.h.ohneRolle.length === 0);
+  pruef('Fahrleitung direkt: UPE', fl.h.teile['tragwerk|UPE'].eta, 0.0643, 1e-3, '');
+  pruef('Fahrleitung direkt: Seil S_v', fl.a.Sv, 2.83, 5e-3, 'kN');
+  pruef('Hängestütze: UPE', hs.h.teile['tragwerk|UPE'].eta, 0.311, 1e-3, '');
+  pruef('Hängestütze: Blech am Masten (⚠ überschritten)', hs.h.teile['tragwerk|blech'].eta, 1.135, 1e-3, '');
+  wahr('… und zwar das erste Blech und unter Wind in Gleisrichtung',
+       /BL_[OU]0$/.test(hs.h.teile['tragwerk|blech'].wo) && /^windY/.test(hs.h.teile['tragwerk|blech'].fall),
+       `${hs.h.teile['tragwerk|blech'].wo}, ${hs.h.teile['tragwerk|blech'].fall}`);
+  pruef('Hängestütze: Seil S_v', hs.a.Sv, 3.45, 5e-3, 'kN');
+
+  // --- c) Nur wirkliche Zustände --------------------------------------------
+  wahr('>>> Das Seil sieht keine Hälfte von G und keinen Wind allein <<<',
+       ![fl.a.fall, hs.a.fall].some((k) => ['gk', 'ablk', 'wyk', 'wykm', 'wxk', 'wxkm'].includes(k)),
+       `${fl.a.fall}, ${hs.a.fall}`);
+  wahr('… und kein Druck in einem wirklichen Zustand', !fl.a.druck && !hs.a.druck);
+  /*
+   * Das ganze G steht als eigener Zustand da - es gibt keinen
+   * charakteristischen Fall «G gesamt», nur seine beiden Hälften.
+   */
+  const nurG = SN137.aufhaengungNachweis(hs.dat, hs.lsg, [], 5);
+  wahr('Das ganze G zaehlt als eigener Zustand', nurG?.fall === 'ganzesG' && nurG.Sv > 0,
+       `${nurG?.fall} S_v ${nurG?.Sv?.toFixed(3)} kN`);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

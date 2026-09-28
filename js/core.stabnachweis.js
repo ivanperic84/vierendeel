@@ -28,7 +28,7 @@
  */
 
 import { randspannung, winkelwerteFuer } from './core.winkel.js';
-import { getProfil } from './data.profiles.js';
+import { getProfil, getGurtprofil } from './data.profiles.js';
 
 /** Welche Rolle spielt dieser Stab im Tragwerk? */
 export function stabRolle(name, art = 'stab') {
@@ -38,6 +38,15 @@ export function stabRolle(name, art = 'stab') {
   if (/(^|_)(OG|UG)(L|R)_S\d+$/.test(n)) return 'gurt';
   if (/(^|_)B(V|H)_/.test(n)) return 'blech';
   if (/(^|_)MAST_/.test(n)) return 'mast';
+  /*
+   * >>> DER TRAGAUSLEGER (28. September, Etappe 4). <<<
+   * Zwei UPE als Gurte (V_S…, H_S… aus export.axisvm.tragausleger.js) und
+   * liegende Bindebleche oben/unten (BL_O…, BL_U…). Die Gurte sind U-Profile,
+   * keine Winkel - deshalb eine eigene Rolle: `randspannung` kennt nur den
+   * Winkel, das U rechnet über seine Tabellenwerte (`widerstand`).
+   */
+  if (/(^|_)(V|H)_S\d+$/.test(n)) return 'gurtU';
+  if (/(^|_)BL_[OU]\d+$/.test(n)) return 'blech';
   return 'sonst';
 }
 
@@ -71,7 +80,8 @@ export function stabZuordnung(name) {
     return { key: `mast:${mast[1]}`, name: `Mast ${mast[1]}`,
              art: 'mast', id: mast[1] };
   }
-  const tw = /^([TA]\d+)_/.exec(n);
+  // T Tragjoch, A Abfangjoch, MT Mast mit Tragausleger (Namen nach dem Typ).
+  const tw = /^((?:MT|[TA])\d+)_/.exec(n);
   if (tw) {
     return { key: `tragwerk:${tw[1]}`, name: `Joch ${tw[1]}`,
              art: 'tragwerk', id: tw[1] };
@@ -92,6 +102,24 @@ export function stabZuordnung(name) {
  * welche der sechs Ecken massgebend wird.
  * ========================================================================= */
 function widerstand(qs) {
+  /*
+   * >>> DAS U-PROFIL: DIE TABELLENWERTE (28. September). <<<
+   *
+   * Das U ist einfachsymmetrisch. Um die schwache Achse liegt die äussere
+   * Faser bei b − e_y (Flanschspitze), nicht bei b/2 - mit b/2 käme am
+   * UPE 140 eine um rund ein Drittel zu kleine Spannung heraus (b/2 = 32.5,
+   * b − e_y = 43.3 mm). Die Normtabelle führt W_z genau so
+   * (UPE 140: 78.7 / 4.33 = 18.19 cm³); genommen wird sie, nicht eine
+   * Herleitung. Beide Vorzeichen mit dem grösseren Abstand - die sichere
+   * Seite, der Rücken (e_y) wäre günstiger.
+   */
+  if (qs.form === 'Channel' && qs.profil) {
+    let p = null;
+    try { p = getGurtprofil(qs.profil); } catch { p = null; }
+    if (p && p.Wy > 0 && p.Wz > 0) {
+      return { A: p.A / 1e4, Wy: p.Wy / 1e6, Wz: p.Wz / 1e6 };
+    }
+  }
   if (qs.form === 'Rectangle') {
     // parameter [b, h] in mm: b in lokaler y-, h in lokaler z-Richtung.
     const b = qs.parameter[0] / 1000, h = qs.parameter[1] / 1000;
@@ -479,6 +507,8 @@ export function stabTeil(name, rolle = null) {
   }
   if (r === 'blech') return 'blech';
   if (r === 'mast') return 'mast';
+  // Die beiden UPE des Tragauslegers sind EIN Teil - «Gurt UPE».
+  if (r === 'gurtU') return 'UPE';
   return null;
 }
 
@@ -577,6 +607,68 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
     liste,
     stabwerk: liste.some((x) => x.quelle === 'stabwerk'),
   };
+}
+
+/* ===========================================================================
+ * >>> DIE AUFHAENGUNG DES TRAGAUSLEGERS GEGEN V_zul (28. September). <<<
+ * =========================================================================
+ *
+ * Weisung vom 26. September: «Aufhängung gegen V_zul = 5 kN» - der
+ * Kontrollwert der Zeichnung; darüber verlangt sie eine separate statische
+ * Berechnung. Auf Rückfrage am 28. September: «Charakteristisch».
+ *
+ * Verglichen wird der SENKRECHTE Anteil der Seilkraft - das ist das V der
+ * Kontrollformel V = Σ(F_V·x)/c₁ + Σ(F_H·z)/c₁. Die Fälle sind dieselben wie
+ * beim Anker (`ANKER_FALLARTEN`: charakteristisch und aussergewöhnlich,
+ * alle Beiwerte 1).
+ *
+ * >>> EIN GEDRÜCKTES SEIL IST EIN EIGENER BEFUND. <<<
+ * Das Stabwerk rechnet die Aufhängung als Pendelstab - er trägt auch Druck.
+ * Ein Seil tut das nicht: in einem Fall mit Druck fiele es aus, und der
+ * Ausleger hinge allein am Anschluss. Das steht dann da, mit dem Fall.
+ *
+ * @param {object} dat    Modell aus stabmodellJson()
+ * @param {object} lsg    Lösung aus loese()
+ * @param {Array} faelle  Lastfälle (alle; gefiltert wird hier)
+ * @param {number} Vzul   zulässige senkrechte Kraft [kN]
+ */
+export const AUFHAENGUNG_FALLARTEN = ['charakteristisch', 'aussergewoehnlich'];
+export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG') {
+  const st = dat.staebe.find((s) => s.name === name || s.name.endsWith(`_${name}`));
+  if (!st) return null;
+  const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+  const a = kn.get(st.von), b = kn.get(st.bis);
+  const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  const sinus = L > 0 ? Math.abs(b.z - a.z) / L : 0;
+  let best = null, druck = null;
+  /*
+   * >>> NUR WIRKLICHE ZUSTÄNDE (Entscheid 28. September). <<<
+   * Die charakteristischen Fälle führen G auch in zwei Hälften («Ständig
+   * (Tragwerk)», «Ablenkkräfte ständig», `nur`) und den Wind allein - für
+   * die Auflagerkräfte je Einwirkung gedacht, am Bauwerk kommen sie nicht
+   * vor. Gemessen L = 8 m mit Hängestütze: die Tragwerkshälfte allein gab
+   * S_v 5.54 kN (über 5), ganzes G 4.73 kN; die Ablenkhälfte allein
+   * drückte das Seil (−1.6 kN). Auf Rückfrage: «Nur wirkliche Zustände» -
+   * ganzes G, G + Wind je Richtung, Havarie.
+   */
+  const wirklich = (faelle ?? []).filter((l) => AUFHAENGUNG_FALLARTEN.includes(l.art)
+    && !l.nur && (l.art === 'aussergewoehnlich' || (Number(l.beiwerte?.G) || 0) !== 0));
+  const zustaende = [{ key: 'ganzesG', bez: 'Ständig (ganz)', beiwerte: { G: 1 } },
+                     ...wirklich];
+  zustaende.forEach((lf) => {
+    const f = kraefteAusAnteilen(lsg, anteileFuer(lf, dat)).get(st.name);
+    if (!f) return;
+    const N = -f[0];                         // Zug positiv
+    const Sv = N * sinus;
+    if (!best || Sv > best.Sv) best = { N, Sv, fall: lf.key, bez: lf.bez };
+    // Unter 0.01 kN ist es Rechenrauschen (reiner Wind am Masten verformt
+    // die Aufhängung um Bruchteile), kein Druck.
+    if (N < -0.01 && (!druck || N < druck.N)) druck = { N, fall: lf.key, bez: lf.bez };
+  });
+  if (!best) return null;
+  return { stab: st.name, Vzul, ...best, sinus,
+           eta: Vzul > 0 ? Math.max(0, best.Sv) / Vzul : null,
+           druck, ueber: (Vzul > 0 && best.Sv > Vzul) || Boolean(druck) };
 }
 
 /**

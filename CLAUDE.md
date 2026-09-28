@@ -139,6 +139,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| Tragausleger: Seil und Torsion (28. Sept.) | **Seil gegen V_zul: «Nur wirkliche Zustände»** — ganzes G, G + Wind je Richtung, Havarie; nicht die beiden Hälften von G («Ständig (Tragwerk)», «Ablenkkräfte ständig») und nicht Wind allein. Gemessen L = 8 m mit Hängestütze: Tragwerkshälfte allein S_v 5.54 kN, ganzes G 4.73 kN, die Ablenkhälfte allein drückte das Seil. **Hängestützen am Tragausleger:** zuerst «Fahrleitung hängt direkt», dann präzisiert: «es gibt hängestützen die den fahrdraht abziehen. die torsion entsteht dann aus dem wind auf die mitte der hängestütze.» Beide Fälle sind Prüfbeispiele; so setzt die Vorlage `hs-fahrdraht` den Wind der Stütze auch an (Modul bei z = −1.35 m, die Fahrleitung trägt in Gleisrichtung keinen Wind) |
+| Tragausleger: Nachweise vor dem Kern (28. Sept.) | Seit «Stabwerk führt» liefert der Kern nur noch die vorläufige Anzeige und das Knicken. Auf Rückfrage: **«Erst Nachweise im Stabwerk»** — Etappe 4 (UPE-Gurte, Bindebleche, Aufhängung, Mast, Fundament) vor Etappe 3 (Kern). **Aufhängung gegen V_zul = 5 kN: «Charakteristisch»** — senkrechter Anteil der Seilkraft aus dem Stabwerk über die charakteristischen Fälle (alle Beiwerte 1, wie Anker und Fundament); ein gedrücktes Seil ist ein eigener Befund. **Knicken und Fundament am Mast des Auslegers: «Aus dem Stabwerk»** — der Kern rechnet den Ausleger mit einem erfundenen Auflager am freien Ende, seine Mastkräfte gelten dort nicht |
 | Schnitt und Bilder im Stabwerksweg (28. Sept.) | Nach dem Einbau von «Station + Stabliste»: «ich bin mir nicht sicher ob der schnitt wirklich sinn macht, man sieht die ausnutzung und spannungsverteilung besser über visuelle abbildungen so wie unter verläufe oder dirkt im 3d beim resultat plott.» Befund dazu: **Verläufe und 3D-Resultatplot zeigen noch den Ersatzbalken**, während die Kacheln aus dem Stabwerk stehen. Auf Rückfrage: **«Erst Tragausleger»** — der Schnitt bleibt vorerst, wie er ist; danach die Bilder aufs Stabwerk (η/σ je Stab im 3D, Verläufe je Teil), und dann ist über den Schnitt neu zu entscheiden (Varianten: zurück auf den Ersatzbalken, nur Stabliste, im Stabwerksweg ausblenden) |
 | Knicken Mast: Vorgabe aus (28. Sept.) | Frage: «ist das knicken über die optionen auch beim stabmodell möglich?» — ja, die Knick-Kachel des Stabwerkswegs kommt aus dem Kern und fällt mit dem Schalter weg. Weisung: **«den knicknachweis deaktiviern beim start»** — `knickenMast` ist voreingestellt **aus** (`standard: false` in `NACHWEISGRUPPEN`). Ändert die Vorgabe vom 15. September («er bleibt voreingestellt an»). Ein neues Dokument trägt die Wahl ausdrücklich; gespeicherte Stände rechnen weiter mit ihrer. Nicht geführt heisst wie überall: steht unter «nicht geführt», zählt nie als erfüllt. ⚠ Wer es aus lässt, weist einen schlanken Masten um bis zu rund 8 % zu günstig nach (Messung HEB 260/12 m, 2. Sept.) — die Weisung vom 15. September begründet es mit den stabilisierenden Leitern. Der Prüfstand rechnet das Knicken weiter mit (er prüft die Rechnung selbst) |
 | «Nur Wind» im Verformungsnachweis (28. Sept.) | Befund beim Überführen ins Stabwerk: die Auswahl «nur Wind» nahm auch die vier Fälle «Ständig + Wind» (gwk…, G = 1) mit und rechnete 0.7·G + 0.7·W; massgebend war genau so ein Fall. Auf Rückfrage: **«Nur Wind»** — wie am 24. September entschieden. Eine Stelle für Kern und Stabwerk (`nurWindFaelle` in core.verformung.js). Gemessen am J90/20 m, quer auf 7.50 m: Kern 5.474 → **4.886 mm**, Stabwerk 5.309 → **4.897 mm**; am Randmast der Reihe Stabwerk 5.727 → 4.897. Damit stimmen Kern und Stabwerk überall auf 0.2 % — der ganze Unterschied sass im ständigen Anteil |
@@ -228,12 +230,23 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5540 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5555 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 4a: UPE, Bindebleche und Aufhängung im
+  Stabwerk** (Prüfstand Abschnitt 137, Entscheide siehe *Entschieden*).
+  Neue Rolle `gurtU` für die UPE (V_S…, H_S…); das U rechnet mit den
+  Tabellenwerten (W_z = I_z/(b − e_y) = 18.19 cm³ am UPE 140 — mit b/2
+  wäre es ein Drittel zu günstig); die Bleche des Auslegers (BL_O…, BL_U…)
+  laufen als Bleche. `aufhaengungNachweis`: senkrechter Anteil der
+  Seilkraft über die wirklichen charakteristischen Zustände gegen
+  V_zul = 5 kN, ein gedrücktes Seil als eigener Befund. Gemessen L = 8 m:
+  Fahrleitung direkt UPE 0.064, Blech 0.002, Seil 2.83 kN (η 0.565);
+  Hängestütze mit Fahrleitung UPE 0.311, **Blech 1.135**, Seil 3.45 kN
+  (0.691) — siehe *Offene Punkte*. Die Anzeige sperrt den Ausleger noch.
 - **28. Sept., Tragausleger Etappe 2: das Stabmodell im Stabwerk**
   (Prüfstand Abschnitt 136). `tragauslegerBau` geht denselben Weg wie das
   Abfangjoch: der Umbau aus `abfangBau` ist als `bausteinAusModell`
@@ -1396,15 +1409,14 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 
 **Laufende Arbeit (28. Sept.): Tragausleger — Etappe 2 erledigt.**
 Das Stabmodell (`export.axisvm.tragausleger.js`) hängt im Stabwerk und ist
-gemessen (siehe *Letzte Schritte*, Prüfstand 136): zwei UPE 140, Bleche
-oben/unten, Anschluss nach Entscheid «A», Aufhängung als Pendelstab,
-Eigengewicht aus der Liste. **Nächste Schritte:** (3) der Kern für die
-Anzeige (Abfangjoch-Kern anpassen: Gelenk am Mast, Seilauflager bei c₁,
-Kragarm c₂); (4) Nachweise im Stabwerk: die UPE-Gurte und Bindebleche
-bekommen eine Rolle in `stabRolle` (heute «sonst», nicht geführt), die
-**Aufhängung gegen V_zul = 5 kN**, Mast und Fundament; danach
-`ohneStabmodell('tragausleger')` aufheben und die Warnung «NICHT
-nachgewiesen» fallen lassen. Offen dazu: Havarie je Leiter im Ausleger,
+gemessen (siehe *Letzte Schritte*, Prüfstand 136, 137): zwei UPE 140,
+Bleche oben/unten, Anschluss nach Entscheid «A», Aufhängung als
+Pendelstab, Eigengewicht aus der Liste; UPE, Bleche und Aufhängung werden
+nachgewiesen (4a). **Nächste Schritte (Reihenfolge entschieden: Nachweise
+vor dem Kern):** (4b) Knicken und Fundament des Masten mit den Kräften
+aus dem Stabwerk; (4c) Anzeige: Kacheln UPE / Bindeblech / Aufhängung,
+`ohneStabmodell('tragausleger')` aufheben, Warnung «NICHT nachgewiesen»
+fallen lassen; danach (3) der Kern für die vorläufige Anzeige. Offen dazu: Havarie je Leiter im Ausleger,
 Feld und Stelle der Längsverankerung in der Maske, die Rückstellkraft
 der Leiter (⚠ festzulegen).
 
@@ -1706,6 +1718,18 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Tragausleger mit Hängestütze: das Bindeblech am Masten ist
+  überschritten** (Befund 28. Sept., Prüfstand 137). Die Torsion aus dem
+  Wind auf die Stütze in ihrer Mitte (0.550 kN auf 1.35 m = 0.743 kNm)
+  trägt der Ausleger so: die beiden UPE biegen sich lotrecht gegengleich,
+  und das Blechpaar am eingespannten Ende hält das über seine starke Ebene
+  (oben und unten gegengleiche Querkraft in x). Gemessen, Blech BL_U0 unter
+  Wind +y: L 6 / 8 / 13 m η **1.038 / 1.135 / 1.209**; UPE 0.28–0.37, Seil
+  0.66–0.82. Mit der Fahrleitung direkt am Ausleger: Blech 0.002. Das
+  Stabwerk hält die Enden durch den Anschluss «A» (beide Gurte x y z,
+  K_XX) fest; ob die Gabel am Masten die Verwölbung wirklich so hält, wäre
+  am AxisVM-Modell oder an der Zeichnung zu klären. Entscheid des
+  Auftraggebers.
 - ⚠ **Verläufe und 3D-Resultatplot zeigen den Ersatzbalken**, auch wenn das
   Stabwerk die Kacheln führt (Befund 28. Sept.). Nach dem Tragausleger
   aufs Stabwerk bringen; danach neu entscheiden, was der Reiter *Schnitt*
@@ -1915,7 +1939,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5540 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5555 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
