@@ -32456,6 +32456,11 @@ titel('143  Tragausleger: Maske ohne Joch, Auflager wie am Abfangjoch');
   wahr('Die Höhe steht beim Ausleger unter dem Ausleger, beim Joch unter den Masten',
        keys('geo', w).includes('mastH') && !keys('mast', w).includes('mastH')
        && keys('mast', wj).includes('mastH') && !keys('geo', wj).includes('mastH'));
+  // «diese Angaben gehören auch zum Tragausleger und nicht zum Masten»
+  const g143 = keys('geo', w);
+  wahr('Der Längsanker steht unter dem Ausleger, gleich unter der Höhe',
+       ['laengsverankerung', 'laengsverankerungX'].every((k) => g143.includes(k) && !keys('mast', w).includes(k))
+       && g143.indexOf('mastH') < g143.indexOf('laengsverankerung'), g143.join(' '));
   wahr('… und heisst «Höhe Ausleger über Fundament»',
        /^Höhe Ausleger/.test(S143.FELDER.find((f) => f.key === 'mastH').label(w)));
   wahr('Kein «Anschluss ans Joch» und keine Konsole beim Ausleger',

@@ -795,41 +795,6 @@ export const FELDER = [
     hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
            + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
            + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
-  /* =========================================================================
-   * >>> DER LÄNGSANKER DES TRAGAUSLEGERS (Weisung vom 28. September). <<<
-   * =======================================================================
-   *
-   * «beim tragausleger wid ein längsanker angebracht am ende des kragarms
-   * um die torsionseinwirkung abzufangen.» Auf Rückfrage: REGELFALL,
-   * abschaltbar, und «nur Zug, beidseitig» - zwei Seile, je eines nach +y
-   * und −y, ohne Vorspannung. Im linearen Stabwerk ist das ein fester Halt
-   * in Gleisrichtung: es trägt immer das Seil, zu dem hin gezogen wird.
-   * Die Stelle ist wählbar; 0 = Kragarmende (Vorgabe).
-   *
-   * Gemessen L = 13 m mit Hängestütze: Mast 2.103 -> 0.838, Fundament
-   * 1.445 -> 0.671. Das ersetzt den Entscheid vom 26. September
-   * («zuschaltbar», Vorgabe aus) in der Vorgabe, nicht in der Sache.
-   */
-  { key: 'laengsverankerung', gruppe: 'mast', typ: 'schalter',
-    label: 'Längsanker am Kragarm', standard: true,
-    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
-    hinweis: 'Zwei Seile in Gleisrichtung (+y und −y), nur Zug, ohne '
-           + 'Vorspannung - sie nehmen die Kraft in Gleisrichtung am Ausleger '
-           + 'auf, und die Torsion geht nicht mehr über den langen Hebel in '
-           + 'den Masten. Die Neigung der Seile ist nicht berücksichtigt.' },
-  /*
-   * Ein Schieber bis zum Kragarmende (Weisung 28. September: «die x werte
-   * sollten auf die länge limitiert werden») - als Zahlenfeld liess sich
-   * jede Zahl eintragen, und über dem Ende verweigerte sich das Stabmodell.
-   */
-  { key: 'laengsverankerungX', gruppe: 'mast', typ: 'schieber',
-    label: 'Stelle des Längsankers', sym: 'x_LA', einheit: 'm',
-    standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 13,
-    maxAus: (w) => kragarmEnde(w),
-    // 0 heisst Kragarmende - der Schieber zeigt dann das Ende, nicht den Masten.
-    wertAus: (w) => (Number(w.laengsverankerungX) > 0 ? Number(w.laengsverankerungX) : kragarmEnde(w)),
-    sichtbar: (w) => tragwerksart(w).key === 'tragausleger' && w.laengsverankerung !== false,
-    hinweis: 'Ab der Mastachse gemessen. 0 = am Ende des Kragarms (Vorgabe).' },
   { key: 'mastX', gruppe: 'mast', typ: 'zahl',
     label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
     sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
@@ -873,6 +838,45 @@ export const FELDER = [
      * einzelmastLaenge).
      */
     sichtbar: (w) => mastDa(w) && tragwerksart(w).key !== 'einzelmast' },
+  /* =========================================================================
+   * >>> DER LÄNGSANKER DES TRAGAUSLEGERS (Weisung vom 28. September). <<<
+   * =======================================================================
+   *
+   * «beim tragausleger wid ein längsanker angebracht am ende des kragarms
+   * um die torsionseinwirkung abzufangen.» Auf Rückfrage: REGELFALL,
+   * abschaltbar, und «nur Zug, beidseitig» - zwei Seile, je eines nach +y
+   * und −y, ohne Vorspannung. Im linearen Stabwerk ist das ein fester Halt
+   * in Gleisrichtung: es trägt immer das Seil, zu dem hin gezogen wird.
+   * Die Stelle ist wählbar; 0 = Kragarmende (Vorgabe).
+   *
+   * Gemessen L = 13 m mit Hängestütze: Mast 2.103 -> 0.838, Fundament
+   * 1.445 -> 0.671. Das ersetzt den Entscheid vom 26. September
+   * («zuschaltbar», Vorgabe aus) in der Vorgabe, nicht in der Sache.
+   *
+   * UNTER DEM AUSLEGER, nicht beim Masten (Weisung 28. September: «diese
+   * Angaben gehören auch zum Tragausleger und nicht zum Masten»), gleich
+   * unter seiner Höhe.
+   */
+  { key: 'laengsverankerung', gruppe: 'geo', typ: 'schalter',
+    label: 'Längsanker am Kragarm', standard: true,
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
+    hinweis: 'Zwei Seile in Gleisrichtung (+y und −y), nur Zug, ohne '
+           + 'Vorspannung - sie nehmen die Kraft in Gleisrichtung am Ausleger '
+           + 'auf, und die Torsion geht nicht mehr über den langen Hebel in '
+           + 'den Masten. Die Neigung der Seile ist nicht berücksichtigt.' },
+  /*
+   * Ein Schieber bis zum Kragarmende (Weisung 28. September: «die x werte
+   * sollten auf die länge limitiert werden») - als Zahlenfeld liess sich
+   * jede Zahl eintragen, und über dem Ende verweigerte sich das Stabmodell.
+   */
+  { key: 'laengsverankerungX', gruppe: 'geo', typ: 'schieber',
+    label: 'Stelle des Längsankers', sym: 'x_LA', einheit: 'm',
+    standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 13,
+    maxAus: (w) => kragarmEnde(w),
+    // 0 heisst Kragarmende - der Schieber zeigt dann das Ende, nicht den Masten.
+    wertAus: (w) => (Number(w.laengsverankerungX) > 0 ? Number(w.laengsverankerungX) : kragarmEnde(w)),
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger' && w.laengsverankerung !== false,
+    hinweis: 'Ab der Mastachse gemessen. 0 = am Ende des Kragarms (Vorgabe).' },
   /*
    * DER LANGE MAST MIT ZUSATZLEITERN.
    *
