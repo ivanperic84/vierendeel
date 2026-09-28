@@ -6038,7 +6038,24 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
 SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
                + 'ein Seil trägt keinen Druck.' : ''),
       }) : kachel('η Aufhängung', '–', 'nicht gerechnet', '');
-    return [k('UPE', 'η Gurt', 'UPE'), k('blech', 'η Bindeblech', 'massgebendes Blech'), aufh];
+    /*
+     * DER LÄNGSANKER (Regelfall seit 28. September) - als AUSKUNFT, ohne
+     * Ampel: das Sortiment führt für ihn keinen Widerstand. Genannt wird
+     * die Kraft im gezogenen Seil und welches es ist.
+     */
+    const la = swH.ausleger.laengsanker;
+    const lak = la?.charakteristisch
+      ? kachel('Längsanker', `${f2(Math.abs(la.charakteristisch.F))} kN`,
+          `Seil ${la.charakteristisch.seite} · char. · x ${f2(swH.ausleger.laengsankerX ?? 0)} m`, '', {
+            ...(la.charakteristisch.bez ? { fall: fallKurz(la.charakteristisch.bez) } : {}),
+            titel: 'Zwei Seile in Gleisrichtung, nur Zug, ohne Vorspannung - '
+                 + 'die Kraft steht im Seil, zu dem hin gezogen wird. '
+                 + `Bemessungswert ${f2(Math.abs(la.bemessung?.F ?? 0))} kN `
+                 + `(${la.bemessung?.bez ?? '-'}). Auskunft, kein Nachweis: das `
+                 + 'Sortiment führt für den Anker keinen Widerstand.',
+          })
+      : kachel('Längsanker', 'aus', 'abgeschaltet - die Torsion geht in den Masten', '');
+    return [k('UPE', 'η Gurt', 'UPE'), k('blech', 'η Bindeblech', 'massgebendes Blech'), aufh, lak];
   })() : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
     /*
      * DIE JOCHKACHELN AUS DEM STABWERK: je Teil das grösste eta über alle

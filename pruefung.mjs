@@ -31996,6 +31996,7 @@ titel('137  Tragausleger Etappe 4a: UPE, Bindebleche und Aufhaengung im Stabwerk
   const rechne = (vorlage, L = 8) => {
     const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
                 mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
+                laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an)
                 anbauteile: [A.neuesAnbauteil(vorlage, L - 0.25 - 0.4)] };
     const satz = N137.rechensatzMitNachbarn(w);
     const erg = berechne(satz, ...N137.kernArgumente(satz));
@@ -32108,6 +32109,7 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   // --- c) Am Tragausleger --------------------------------------------------
   const ta = (vorl, L) => lauf({ ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
     mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
+                laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an)
     anbauteile: [A.neuesAnbauteil(vorl, L - 0.25 - 0.4)] }, { mastNamen: { A: 'M1', B: 'M1' } });
   const hs = ta('hs-fahrdraht', 13);
   const knT = SM138.knickenAusStabwerk(hs.dat, hs.lsg, hs.nw, 'M1', hs.basis, hs.erg.modell, {});
@@ -32145,7 +32147,8 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
   const UI139 = await import(J('ui.js'));
   const L = 13;
   const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
-              mastVorhanden: true, trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
+              mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
+                laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an) twId: 'MT1',
               anbauteile: [A.neuesAnbauteil('hs-fahrdraht', L - 0.25 - 0.4)] };
   const satz = N139.rechensatzMitNachbarn(w);
   const args = N139.kernArgumente(satz);
@@ -32191,6 +32194,65 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
        /art\.key === 'tragausleger' && !\(t\.id === etaLeiste\?\.twId && etaLeiste\?\.ausleger\)/.test(ui139));
   const app139 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('Die Fussleiste nimmt dasselbe Urteil', /ui\.urteilMitStabwerk\(urteil, g\.h\)/.test(app139));
+}
+
+// ===========================================================================
+titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
+/* ===========================================================================
+ * Weisung vom 28. September: «beim tragausleger wid ein längsanker
+ * angebracht am ende des kragarms um die torsionseinwirkung abzufangen.»
+ * Auf Rückfrage: «Regelfall, abschaltbar» und «nur Zug, beidseitig» - zwei
+ * Seile ±y ohne Vorspannung, linear ein fester Halt in y.
+ *
+ * Gemessen L = 13 m mit Hängestütze, ohne -> mit Längsanker an der Spitze:
+ *   Mast 2.103 -> 0.838, Fundament 1.445 (T) -> 0.671 (H_q),
+ *   Knicken 1.091 -> 1.011, Bindeblech 1.209 -> 1.029, UPE 0.374 -> 0.259,
+ *   Seil 0.824 unverändert; Längsanker 0.538 kN char. (Seil +y),
+ *   0.699 kN Bemessung.
+ * Das Blech bleibt knapp über 1: der Anker auf Achshöhe nimmt die Kraft
+ * in y, nicht das Torsionsmoment um die Auslegerachse aus dem Wind in der
+ * Mitte der Hängestütze.
+ * ========================================================================= */
+{
+  const N140 = await import(J('core.nachbarn.js'));
+  const AS140 = await import(J('app.stabwerk.js'));
+  const S140 = await import(J('ui.schema.js'));
+  const w0 = standardwerteApp();
+  wahr('Ein neues Dokument hat den Längsanker an (Regelfall)', w0.laengsverankerung === true);
+  wahr('… an der Stelle 0 = Kragarmende', w0.laengsverankerungX === 0);
+  const f = S140.FELDER.find((x) => x.key === 'laengsverankerung');
+  wahr('Das Feld steht nur beim Tragausleger',
+       f.sichtbar({ ...w0, tragwerksart: 'tragausleger' }) && !f.sichtbar({ ...w0, tragwerksart: 'joch' }));
+  const rechne = (lv) => {
+    const L = 13;
+    const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0, mastVorhanden: true,
+                trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
+                nachweise: { ...standardwerte().nachweise, knickenMast: true },
+                anbauteile: [A.neuesAnbauteil('hs-fahrdraht', L - 0.25 - 0.4)],
+                ...(lv === undefined ? {} : { laengsverankerung: lv }) };
+    const satz = N140.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N140.kernArgumente(satz));
+    return AS140.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const ohne = rechne(false);
+  const mit = rechne(undefined);                  // die Vorgabe
+  wahr('Ohne Eintrag gilt der Längsanker (auch in alten Ständen)',
+       mit.ausleger.laengsankerX === 12.75 && ohne.ausleger.laengsanker === null,
+       `x ${mit.ausleger.laengsankerX}`);
+  pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 0.838, 1e-3, '');
+  pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 2.103, 1e-3, '');
+  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.671, 1e-3, '');
+  wahr('… nicht mehr die Torsion massgebend', mit.ausleger.fundament.A.massgebend.key !== 'T',
+       mit.ausleger.fundament.A.massgebend.key);
+  pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.029, 1e-3, '');
+  pruef('Längsanker: Seilkraft charakteristisch', Math.abs(mit.ausleger.laengsanker.charakteristisch.F), 0.538, 1e-3, 'kN');
+  wahr('… mit der Seite, die zieht', /^[+−]y$/.test(mit.ausleger.laengsanker.charakteristisch.seite),
+       mit.ausleger.laengsanker.charakteristisch.seite);
+  // Nicht exakt gleich - der Anker ändert die Verformung ein wenig -, aber
+  // die Aufhängung trägt senkrecht, der Anker waagrecht quer dazu.
+  wahr('Das Seil der Aufhängung ändert sich praktisch nicht (unter 0.5 %)',
+       Math.abs(mit.ausleger.aufhaengung.eta / ohne.ausleger.aufhaengung.eta - 1) < 0.005,
+       `${ohne.ausleger.aufhaengung.eta.toFixed(4)} -> ${mit.ausleger.aufhaengung.eta.toFixed(4)}`);
 }
 
 // ===========================================================================

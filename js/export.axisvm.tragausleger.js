@@ -121,9 +121,16 @@ export function tragauslegerModell(satz) {
       + '- er ist für diesen Ausleger zu kurz.');
   }
 
-  /* --- Laengsverankerung -------------------------------------------------- */
-  const lvX = satz.laengsverankerung === true
-    ? Number(satz.laengsverankerungX ?? xE) : null;
+  /* --- Laengsverankerung -------------------------------------------------- *
+   * Seit dem 28. September der REGELFALL («beim tragausleger wid ein
+   * längsanker angebracht am ende des kragarms um die torsionseinwirkung
+   * abzufangen»): an, solange nicht ausdrücklich abgeschaltet; die Stelle
+   * 0 (oder leer) heisst Kragarmende. Zwei Seile ±y, nur Zug, ohne
+   * Vorspannung - linear ein fester Halt in y.
+   */
+  const lvRoh = Number(satz.laengsverankerungX);
+  const lvX = satz.laengsverankerung !== false
+    ? (lvRoh > 0 ? lvRoh : xE) : null;
   if (lvX !== null && !(lvX >= 0 && lvX <= xE + 1e-9)) {
     throw new Error(`Längsverankerung bei x = ${lvX} m liegt nicht auf dem `
       + `Ausleger (0 … ${xE.toFixed(2)} m).`);
@@ -413,6 +420,12 @@ export function tragauslegerModell(satz) {
       });
     });
   });
+  hinweise.push(lvX !== null
+    ? `Längsanker bei x = ${lvX.toFixed(2)} m: zwei Seile in Gleisrichtung, `
+      + 'nur Zug, ohne Vorspannung - im Modell ein fester Halt in y; die '
+      + 'Neigung der Seile ist nicht berücksichtigt.'
+    : 'OHNE Längsanker: die Kraft in Gleisrichtung am Ausleger geht über den '
+      + 'Hebel als Torsion in den Masten.');
   hinweise.push('Wind auf den Ausleger selbst ist nicht angesetzt - das '
     + 'Sortiment führt für den Tragausleger keine Windlast je Meter.');
   if (havarieAus) {

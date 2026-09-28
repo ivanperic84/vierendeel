@@ -42,7 +42,8 @@
 import { mastenFuer, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon } from './core.constants.js';
 import { lastfaelle } from './core.lasten.js';
-import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis } from './core.stabnachweis.js';
+import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
+         laengsankerKraft } from './core.stabnachweis.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
 import { nachweiseAuswahl } from './core.checks.js';
@@ -294,6 +295,10 @@ export function rechneStabwerk(app) {
       name: `Mast ${erg.modell?.federn?.namen?.A || id}`,
       Vzul: bau.tragausleger.Vzul,
       aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, bau.tragausleger.Vzul),
+      // Der Längsanker (Regelfall seit 28. September) - Seilkraft als Auskunft.
+      laengsanker: bau.tragausleger.laengsverankerung !== null
+        ? laengsankerKraft(dat, lsg, alleFaelle, faelle) : null,
+      laengsankerX: bau.tragausleger.laengsverankerung,
       knick: nwA.knickenMast && basis.profil
         ? knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
                              { beta: beta > 0 ? beta : undefined }) : null,

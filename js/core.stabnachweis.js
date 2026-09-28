@@ -724,6 +724,42 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
  * @param {number} Vzul   zulässige senkrechte Kraft [kN]
  */
 export const AUFHAENGUNG_FALLARTEN = ['charakteristisch', 'aussergewoehnlich'];
+/** Die wirklichen charakteristischen Zustände (siehe unten) - für Seil und Längsanker. */
+export function wirklicheZustaende(faelle) {
+  const wirklich = (faelle ?? []).filter((l) => AUFHAENGUNG_FALLARTEN.includes(l.art)
+    && !l.nur && (l.art === 'aussergewoehnlich' || (Number(l.beiwerte?.G) || 0) !== 0));
+  return [{ key: 'ganzesG', bez: 'Ständig (ganz)', beiwerte: { G: 1 } }, ...wirklich];
+}
+
+/* ===========================================================================
+ * >>> DER LÄNGSANKER DES TRAGAUSLEGERS: DIE SEILKRAFT (28. September). <<<
+ * =========================================================================
+ *
+ * «beim tragausleger wid ein längsanker angebracht am ende des kragarms um
+ * die torsionseinwirkung abzufangen» - zwei Seile ±y, nur Zug, ohne
+ * Vorspannung. Das Modell hält dort starr in y; die Auflagerkraft IST die
+ * Kraft im gezogenen Seil, ihr Vorzeichen sagt, welches Seil zieht.
+ * Charakteristisch über die wirklichen Zustände (wie die Aufhängung) und
+ * als Bemessungswert über die Nachweis-Kombinationen - als AUSKUNFT; einen
+ * Widerstand des Ankers führt das Sortiment nicht.
+ */
+export function laengsankerKraft(dat, lsg, alleFaelle, nachweisFaelle, knoten = 'LV_M') {
+  const a = dat.auflager.find((x) => x.knoten === knoten || String(x.knoten).endsWith(`_${knoten}`));
+  if (!a) return null;
+  const Fy = (lf) => anteileFuer(lf, dat).reduce((sum, { lastfall, faktor }) => {
+    if (!faktor || !lsg.u.has(lastfall)) return sum;
+    const r = lsg.auflagerkraefte(lastfall).find((x) => x.knoten === a.knoten);
+    return sum + faktor * (r?.uy ?? 0);
+  }, 0);
+  const groesste = (liste) => liste.reduce((best, lf) => {
+    const f = Fy(lf);
+    return !best || Math.abs(f) > Math.abs(best.F)
+      ? { F: f, seite: f >= 0 ? '+y' : '−y', fall: lf.key, bez: lf.bez } : best;
+  }, null);
+  return { knoten: a.knoten,
+           charakteristisch: groesste(wirklicheZustaende(alleFaelle)),
+           bemessung: groesste(nachweisFaelle ?? []) };
+}
 export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG') {
   const st = dat.staebe.find((s) => s.name === name || s.name.endsWith(`_${name}`));
   if (!st) return null;
@@ -742,11 +778,7 @@ export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG'
    * drückte das Seil (−1.6 kN). Auf Rückfrage: «Nur wirkliche Zustände» -
    * ganzes G, G + Wind je Richtung, Havarie.
    */
-  const wirklich = (faelle ?? []).filter((l) => AUFHAENGUNG_FALLARTEN.includes(l.art)
-    && !l.nur && (l.art === 'aussergewoehnlich' || (Number(l.beiwerte?.G) || 0) !== 0));
-  const zustaende = [{ key: 'ganzesG', bez: 'Ständig (ganz)', beiwerte: { G: 1 } },
-                     ...wirklich];
-  zustaende.forEach((lf) => {
+  wirklicheZustaende(faelle).forEach((lf) => {
     const f = kraefteAusAnteilen(lsg, anteileFuer(lf, dat)).get(st.name);
     if (!f) return;
     const N = -f[0];                         // Zug positiv

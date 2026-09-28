@@ -761,6 +761,33 @@ export const FELDER = [
     hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
            + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
            + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
+  /* =========================================================================
+   * >>> DER LÄNGSANKER DES TRAGAUSLEGERS (Weisung vom 28. September). <<<
+   * =======================================================================
+   *
+   * «beim tragausleger wid ein längsanker angebracht am ende des kragarms
+   * um die torsionseinwirkung abzufangen.» Auf Rückfrage: REGELFALL,
+   * abschaltbar, und «nur Zug, beidseitig» - zwei Seile, je eines nach +y
+   * und −y, ohne Vorspannung. Im linearen Stabwerk ist das ein fester Halt
+   * in Gleisrichtung: es trägt immer das Seil, zu dem hin gezogen wird.
+   * Die Stelle ist wählbar; 0 = Kragarmende (Vorgabe).
+   *
+   * Gemessen L = 13 m mit Hängestütze: Mast 2.103 -> 0.838, Fundament
+   * 1.445 -> 0.671. Das ersetzt den Entscheid vom 26. September
+   * («zuschaltbar», Vorgabe aus) in der Vorgabe, nicht in der Sache.
+   */
+  { key: 'laengsverankerung', gruppe: 'mast', typ: 'schalter',
+    label: 'Längsanker am Kragarm', standard: true,
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
+    hinweis: 'Zwei Seile in Gleisrichtung (+y und −y), nur Zug, ohne '
+           + 'Vorspannung - sie nehmen die Kraft in Gleisrichtung am Ausleger '
+           + 'auf, und die Torsion geht nicht mehr über den langen Hebel in '
+           + 'den Masten. Die Neigung der Seile ist nicht berücksichtigt.' },
+  { key: 'laengsverankerungX', gruppe: 'mast', typ: 'zahl',
+    label: 'Stelle des Längsankers', sym: 'x_LA', einheit: 'm',
+    standard: 0, schritt: 0.05, min: 0,
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger' && w.laengsverankerung !== false,
+    hinweis: 'Ab der Mastachse gemessen. 0 = am Ende des Kragarms (Vorgabe).' },
   { key: 'mastX', gruppe: 'mast', typ: 'zahl',
     label: (w) => `Stelle ${mastName(w, gewaehlterMast(w))} auf dem Querprofil`,
     sym: 'x', einheit: 'm', standard: 0, schritt: 0.05,
