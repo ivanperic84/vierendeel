@@ -17444,11 +17444,14 @@ const CH9x = await import(J('core.checks.js'));
          aus.mast.etaNachweis < an.mast.etaNachweis,
          `${aus.mast.etaNachweis.toFixed(4)} gegen ${an.mast.etaNachweis.toFixed(4)}`);
     /*
-     * OHNE ANGABE GILT DIE VORGABE, und die ist AN. Wer nichts einstellt,
-     * bekommt den strengeren Fall - eine alte Datei ohne das Feld ebenso.
+     * OHNE ANGABE GILT DIE VORGABE - und die ist seit dem 28. September AUS
+     * («den knicknachweis deaktiviern beim start»). Vorher stand hier «AN,
+     * der strengere Fall». Kern und Urteil folgen derselben Regel; vorher
+     * rechnete der Kern bei fehlendem Eintrag Knicken, während das Urteil
+     * «nicht geführt» sagte.
      */
-    pruef('Ohne Angabe wird gefuehrt', vor.mast.etaNachweis,
-          an.mast.etaNachweis, 1e-12, '-');
+    pruef('Ohne Angabe wird NICHT gefuehrt (Vorgabe seit 28. September)',
+          vor.mast.etaNachweis, aus.mast.etaNachweis, 1e-12, '-');
     /*
      * UND ES STEHT IM URTEIL. Ein abgeschalteter Nachweis, den niemand
      * sieht, waere die gefaehrlichste Zeile dieser Anwendung.
@@ -32020,6 +32023,94 @@ titel('137  Tragausleger Etappe 4a: UPE, Bindebleche und Aufhaengung im Stabwerk
   const nurG = SN137.aufhaengungNachweis(hs.dat, hs.lsg, [], 5);
   wahr('Das ganze G zaehlt als eigener Zustand', nurG?.fall === 'ganzesG' && nurG.Sv > 0,
        `${nurG?.fall} S_v ${nurG?.Sv?.toFixed(3)} kN`);
+}
+
+// ===========================================================================
+titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
+/* ===========================================================================
+ * Entscheid vom 28. September: Knicken und Fundament am Mast des
+ * Tragauslegers «aus dem Stabwerk». Gerechnet mit den Funktionen des Kerns
+ * (`mastStabilitaet`, `fundamentNachweis`), die ein Mastergebnis aus dem
+ * Stabwerk bekommen (core.stabmast.js). Dazu im Querschnittsnachweis des
+ * Stabwerks die Wölbspannung σ_ω wie im Kern (`woelbtorsion`) - sie fehlte.
+ *
+ * GEGENPROBE AM JOCH (J90/20 m, Mast M1), wo der Kern stimmt:
+ *   Knicken  Kern 0.8386 / Stabwerk 0.8351 (Jochlast am Konsolanschnitt
+ *            7.18 m statt auf der Anschlusshöhe 7.50 m)
+ *   Fundament Kern 0.4029 / Stabwerk 0.4030
+ * σ_ω im Stabwerk: Einzeljoch Mast 0.7751 -> 0.7862, Reihe M1/M3 0.7778 ->
+ * 0.7951, der geteilte M2 bleibt (die Torsion der beiden Joche hebt sich).
+ *
+ * AM TRAGAUSLEGER (Kern mit Phantomauflager / Stabwerk), Teil 0.4 m vor der
+ * Spitze, R 600, c 50:
+ *   Fahrleitung direkt L 8   Knicken 0.489 / 0.566   Fundament 0.359 / 0.506
+ *   Hängestütze        L 13  Knicken 0.652 / 1.091   Fundament 0.391 / 1.445 (T)
+ *   Mastquerschnitt mit σ_ω, Hängestütze L 8 / 13: 1.274 / 2.103
+ * ========================================================================= */
+{
+  const N138 = await import(J('core.nachbarn.js'));
+  const AX138 = await import(J('export.axisvm.js'));
+  const SW138 = await import(J('core.stabwerk.js'));
+  const SN138 = await import(J('core.stabnachweis.js'));
+  const SM138 = await import(J('core.stabmast.js'));
+  const LA138 = await import(J('core.lasten.js'));
+  const VZ138 = await import(J('core.vierendeel.js'));
+  const FU138 = await import(J('core.fundament.js'));
+  const lauf = (w, satzOpt = {}) => {
+    const satz = N138.rechensatzMitNachbarn(w);
+    const args = N138.kernArgumente(satz);
+    const erg = berechne(satz, ...args);
+    const kombi = VZ138.vergleichKombinationen(satz, ...args);
+    const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+    const bau = AX138.stabmodell(erg.modell, { ...opt, satz, mastNamen: { A: 'M1', B: 'M2' }, ...satzOpt });
+    bau.lasten = AX138.lasten(erg.modell, bau, opt);
+    const dat = AX138.stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz });
+    const lsg = SW138.loese(dat, { eigengewicht: false });
+    const alle = LA138.lastfaelle(satz);
+    const basis = { profil: kombi.huellkurve.mast.A.profil,
+                    stegrichtung: kombi.huellkurve.mast.A.stegrichtung };
+    return { satz, erg, kombi, dat, lsg, alle, basis,
+             nw: alle.filter((l) => l.nachweis !== false) };
+  };
+
+  // --- a) Gegenprobe am Joch ---------------------------------------------
+  let wj = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  wj = { ...wj, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const j = lauf(wj);
+  const knJ = SM138.knickenAusStabwerk(j.dat, j.lsg, j.nw, 'M1', j.basis, j.erg.modell, {});
+  const hk = j.kombi.huellkurve.mast.A;
+  wahr('Joch: Knicken aus dem Stabwerk trifft den Kern auf 1 %',
+       Math.abs(knJ.eta / hk.stabil.eta - 1) < 0.01,
+       `${knJ.eta.toFixed(4)} / ${hk.stabil.eta.toFixed(4)}`);
+  pruef('… N_Ed wie im Kern', knJ.NEd, hk.stabil.NEd, 1e-3, 'kN');
+  const fJ = SM138.fundamentAusStabwerk(j.dat, j.lsg, j.alle, 'M1', j.basis, j.satz);
+  const fK = FU138.fundamentNachweis(j.kombi, j.satz);
+  pruef('Joch: Fundament aus dem Stabwerk wie im Kern', fJ.A.eta, fK.A.eta, 1e-3, '');
+  wahr('… mit derselben Quelle angeschrieben', fJ.quelle === 'stabwerk' && knJ.quelle === 'stabwerk');
+
+  // --- b) Die Wölbspannung im Stabwerk -------------------------------------
+  const ohneT = SN138.stabwerkHuelle(j.dat, j.lsg, j.nw, 235 / 1.05);
+  const mitT = SN138.stabwerkHuelle(j.dat, j.lsg, j.nw, 235 / 1.05, { torsion: true });
+  pruef('Mast ohne σ_ω (Stabwerk)', ohneT.bauteile['mast:M1'].eta, 0.7751, 1e-3, '');
+  pruef('Mast mit σ_ω (Stabwerk, 28. September)', mitT.bauteile['mast:M1'].eta, 0.7862, 1e-3, '');
+  wahr('Ohne Schalter keine Wölbspannung - das Joch bleibt unberührt',
+       ohneT.bauteile.tragwerk.eta === mitT.bauteile.tragwerk.eta);
+
+  // --- c) Am Tragausleger --------------------------------------------------
+  const ta = (vorl, L) => lauf({ ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
+    mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
+    anbauteile: [A.neuesAnbauteil(vorl, L - 0.25 - 0.4)] }, { mastNamen: { A: 'M1', B: 'M1' } });
+  const hs = ta('hs-fahrdraht', 13);
+  const knT = SM138.knickenAusStabwerk(hs.dat, hs.lsg, hs.nw, 'M1', hs.basis, hs.erg.modell, {});
+  const fT = SM138.fundamentAusStabwerk(hs.dat, hs.lsg, hs.alle, 'M1', hs.basis, hs.satz);
+  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.091, 1e-3, '');
+  wahr('… weit über dem Kern mit seinem Phantomauflager',
+       knT.eta > 1.5 * hs.kombi.huellkurve.mast.A.stabil.eta,
+       `Kern ${hs.kombi.huellkurve.mast.A.stabil.eta.toFixed(3)}`);
+  pruef('… Fundament aus dem Stabwerk, massgebend die Torsion', fT.A.eta, 1.445, 1e-3, '');
+  wahr('… massgebend T', fT.A.massgebend.key === 'T', fT.A.massgebend.key);
+  const hT = SN138.stabwerkHuelle(hs.dat, hs.lsg, hs.nw, 235 / 1.05, { torsion: true });
+  pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 2.103, 1e-3, '');
 }
 
 // ===========================================================================

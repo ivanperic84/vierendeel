@@ -230,12 +230,32 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5555 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5567 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 4b: Knicken und Fundament aus dem
+  Stabwerk; Wölbspannung im Stabwerk** (Prüfstand Abschnitt 138, neues
+  Modul `core.stabmast.js`). Die Regeln bleiben im Kern
+  (`mastStabilitaet`, `fundamentNachweis`); sie bekommen ein Mastergebnis
+  aus dem Stabwerk: Vertikallasten = Sprünge der Normalkraft an den
+  Mastknoten, Schnittgrössen aus den Endkräften, am Fuss die
+  Auflagerkräfte. **Gegenprobe am Joch** J90/20 m, Mast M1: Knicken Kern
+  0.8386 / Stabwerk 0.8351, Fundament 0.4029 / 0.4030. **Am Tragausleger**
+  (Kern mit Phantomauflager → Stabwerk): Fahrleitung direkt L 8 m Knicken
+  0.489 → 0.566, Fundament 0.359 → 0.506; Hängestütze L 13 m Knicken
+  0.652 → **1.091**, Fundament 0.391 → **1.445** (massgebend die Torsion T).
+  **Befund am Weg: das Stabwerk rechnete am Masten keine Wölbspannung**,
+  der Kern schon (Nachweisgruppe «Torsion Mast»). Jetzt dieselbe Funktion
+  (`woelbtorsion`) mit der Torsion aus dem Stabwerk, Kopf = zO (sichere
+  Seite). Joch: Mast 0.7751 → **0.7862**, Reihe M1/M3 0.7778 → 0.7951,
+  geteilter M2 unverändert 1.3528. Ausleger mit Hängestütze: Mast 0.557
+  → **1.274** (L 8), 0.899 → **2.103** (L 13) — Wind in Gleisrichtung am
+  langen Hebel geht nach Entscheid «A» als Torsion in den Masten. Dazu:
+  der Kern schaltete das Knicken bei fehlendem Eintrag noch EIN (`!==
+  false`), das Urteil seit heute aus — jetzt beide `=== true`.
 - **28. Sept., Tragausleger Etappe 4a: UPE, Bindebleche und Aufhängung im
   Stabwerk** (Prüfstand Abschnitt 137, Entscheide siehe *Entschieden*).
   Neue Rolle `gurtU` für die UPE (V_S…, H_S…); das U rechnet mit den
@@ -1413,8 +1433,8 @@ gemessen (siehe *Letzte Schritte*, Prüfstand 136, 137): zwei UPE 140,
 Bleche oben/unten, Anschluss nach Entscheid «A», Aufhängung als
 Pendelstab, Eigengewicht aus der Liste; UPE, Bleche und Aufhängung werden
 nachgewiesen (4a). **Nächste Schritte (Reihenfolge entschieden: Nachweise
-vor dem Kern):** (4b) Knicken und Fundament des Masten mit den Kräften
-aus dem Stabwerk; (4c) Anzeige: Kacheln UPE / Bindeblech / Aufhängung,
+vor dem Kern):** ~~(4b) Knicken und Fundament aus dem Stabwerk~~ (erledigt,
+`ausleger` im Ergebnis von `rechneStabwerk`); (4c) Anzeige: Kacheln UPE / Bindeblech / Aufhängung,
 `ohneStabmodell('tragausleger')` aufheben, Warnung «NICHT nachgewiesen»
 fallen lassen; danach (3) der Kern für die vorläufige Anzeige. Offen dazu: Havarie je Leiter im Ausleger,
 Feld und Stelle der Längsverankerung in der Maske, die Rückstellkraft
@@ -1718,6 +1738,20 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Tragausleger mit Hängestütze: Mast und Fundament deutlich
+  überschritten** (28. Sept., Prüfstand 138). L 13 m: Mastquerschnitt mit
+  σ_ω 2.103, Knicken 1.091, Fundament 1.445 (Torsion). Ursache ist die
+  Torsion aus Wind in Gleisrichtung am langen Hebel des Auslegers, die
+  nach Entscheid «A» (beide Gurte x-gehalten) in den Masten geht. Der
+  Wind auf den Ausleger selbst fehlt noch (Sortiment ohne Windlast je
+  Meter) — er käme dazu. Ob das Sortiment Hängestützen am Ausleger vorsieht
+  bzw. wie der Anschluss die Torsion wirklich abgibt, ist zu klären.
+- ⚠ **Knicken am Joch weiter aus dem Kern.** Seit dem 28. September kann
+  das Stabwerk das Knicken selbst liefern (`knickenAusStabwerk`); am Joch
+  weicht es um 0.4 % ab (Jochlast am Konsolanschnitt). Ob das Joch es
+  ebenfalls aus dem Stabwerk nehmen soll — am geteilten Masten der Reihe
+  wären die Kräfte die gekoppelten statt die der Sofortmassnahme —, ist
+  ein Entscheid des Auftraggebers.
 - ⚠ **Tragausleger mit Hängestütze: das Bindeblech am Masten ist
   überschritten** (Befund 28. Sept., Prüfstand 137). Die Torsion aus dem
   Wind auf die Stütze in ihrer Mitte (0.550 kN auf 1.35 m = 0.743 kNm)
@@ -1939,7 +1973,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5555 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5567 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

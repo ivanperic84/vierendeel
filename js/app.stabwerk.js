@@ -42,8 +42,10 @@
 import { mastenFuer, rechensatz, sichtbareTragwerke, tragwerkSatz,
          tragwerkeVon } from './core.constants.js';
 import { lastfaelle } from './core.lasten.js';
-import { eingabeKennung, stabwerkHuelle } from './core.stabnachweis.js';
+import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis } from './core.stabnachweis.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
+import { knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
+import { nachweiseAuswahl } from './core.checks.js';
 import { loese } from './core.stabwerk.js';
 import { modell } from './core.vierendeel.js';
 import { getProfil, getStahl } from './data.profiles.js';
@@ -243,7 +245,10 @@ export function rechneStabwerk(app) {
   const faelle = eingaben.flatMap((s) => lastfaelle(s))
     .filter((l) => l.nachweis !== false)
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
-  const huelle = stabwerkHuelle(dat, lsg, faelle, fyd);
+  // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
+  // geführt wird (28. September).
+  const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
+    { torsion: nachweiseAuswahl(satz.nachweise).torsionMast });
   /*
    * >>> DIE GEBRAUCHSTAUGLICHKEIT AUS DEM STABWERK (28. September). <<<
    * Auf Rückfrage «Ins Stabwerk»: dieselben Fälle, dieselbe Messstelle wie
@@ -256,9 +261,34 @@ export function rechneStabwerk(app) {
   const verformung = verformungAusStabwerk(erg.verformung ?? null, dat, lsg,
     alleFaelle, erg.modell?.federn?.namen ?? {});
 
+  /*
+   * >>> DER TRAGAUSLEGER: AUFHÄNGUNG, KNICKEN, FUNDAMENT (28. September). <<<
+   * Entscheide: Aufhängung gegen V_zul «charakteristisch», nur wirkliche
+   * Zustände; Knicken und Fundament «aus dem Stabwerk» - der Kern rechnet
+   * den Ausleger noch mit einem erfundenen Auflager am freien Ende.
+   */
+  let ausleger = null;
+  if (bau?.tragausleger) {
+    const id = bau.mastNamen?.A ?? 'A';
+    const basis = { profil: erg.mast?.A?.profil, stegrichtung: erg.mast?.A?.stegrichtung };
+    const nwA = nachweiseAuswahl(satz.nachweise);
+    const beta = Number(satz.knickBeiwert);
+    ausleger = {
+      name: `Mast ${erg.modell?.federn?.namen?.A || id}`,
+      Vzul: bau.tragausleger.Vzul,
+      aufhaengung: aufhaengungNachweis(dat, lsg, alleFaelle, bau.tragausleger.Vzul),
+      knick: nwA.knickenMast && basis.profil
+        ? knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
+                             { beta: beta > 0 ? beta : undefined }) : null,
+      fundament: nwA.fundament && basis.profil
+        ? fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis, satz) : null,
+    };
+  }
+
   return {
     ...huelle,
     verformung,
+    ausleger,
     kennung: eingabeKennung(app.werte),
     fyd,
     knoten: dat.knoten.length,

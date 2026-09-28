@@ -29,6 +29,7 @@
 
 import { randspannung, winkelwerteFuer } from './core.winkel.js';
 import { getProfil, getGurtprofil } from './data.profiles.js';
+import { woelbtorsion } from './core.mast.js';
 
 /** Welche Rolle spielt dieser Stab im Tragwerk? */
 export function stabRolle(name, art = 'stab') {
@@ -160,7 +161,7 @@ function widerstand(qs) {
  * @param {Float64Array} f  12 Endkraefte, wie `stabkraft()` sie gibt
  * @returns {{sig:number, ende:string}|null}  groesste Randspannung [N/mm²]
  */
-export function stabSpannung(qs, f, rolle) {
+export function stabSpannung(qs, f, rolle, torsion = null) {
   if (!qs || !f) return null;
 
   /*
@@ -197,13 +198,33 @@ export function stabSpannung(qs, f, rolle) {
 
   const wd = widerstand(qs);
   if (!wd) return null;
+  /*
+   * >>> DIE WÖLBSPANNUNG DES MASTEN (28. September). <<<
+   *
+   * Der Kern rechnet am Masten σ_ω aus der Torsion (Nachweisgruppe
+   * «Torsion Mast», `woelbtorsion` in core.mast.js: Fuss wölbeingespannt,
+   * Kopf wölbfrei). Das Stabwerk rechnete sie nicht - am Tragjoch ist die
+   * Masttorsion klein, am Tragausleger nicht: Wind in Gleisrichtung am
+   * langen Hebel geht nach Entscheid «A» als Torsion in den Masten.
+   * Dieselbe Funktion, dieselbe Addition (Beträge, Flanschspitze); nur
+   * die Torsion kommt aus dem Stabwerk. `torsion` = {z_i, z_j, zO} in m
+   * über dem Mastfuss, oder null (nicht geführt / kein Mast).
+   */
+  let wt = null;
+  if (rolle === 'mast' && torsion && Array.isArray(qs.parameter) && qs.Iz > 0 && qs.It > 0) {
+    wt = woelbtorsion({ h: qs.parameter[0], b: qs.parameter[1], tf: qs.parameter[3],
+                        Iz: qs.Iz * 1e8, It: qs.It * 1e8 }, torsion.zO);
+  }
   let best = null;
-  enden.forEach((e) => {
+  enden.forEach((e, k) => {
     // kN, kNm -> N/mm²: N/A in kN/m² = kPa -> /1000; M/W in kNm/m³ -> /1000.
+    const T = k === 0 ? f[3] : f[9];
+    const sigW = wt ? wt.sigma(T, k === 0 ? torsion.z_i : torsion.z_j) : 0;
     const sig = Math.abs(e.N) / wd.A / 1000
               + Math.abs(e.My) / wd.Wy / 1000
-              + Math.abs(e.Mz) / wd.Wz / 1000;
-    if (!best || sig > best.sig) best = { sig, ende: e.name };
+              + Math.abs(e.Mz) / wd.Wz / 1000
+              + sigW;
+    if (!best || sig > best.sig) best = { sig, ende: e.name, sigW };
   });
   return best;
 }
@@ -216,8 +237,26 @@ export function stabSpannung(qs, f, rolle) {
  * @param {number} fyd      Bemessungswert der Streckgrenze [N/mm²]
  * @returns {{je:Map, gruppen:object, hoechste:object}}
  */
-export function stabNachweise(dat, kraefte, fyd) {
+export function stabNachweise(dat, kraefte, fyd, opt = {}) {
   const qsMap = new Map(dat.querschnitte.map((q) => [q.name, q]));
+  /*
+   * Fuss und Kopf je Mast (Höhen der Knoten seiner Abschnitte) - für die
+   * Wölbspannung (`stabSpannung`). Ohne `opt.torsion === true` bleibt sie
+   * aus, wie im Kern bei abgeschalteter Nachweisgruppe.
+   */
+  const knZ = new Map(dat.knoten.map((k) => [k.name, k.z]));
+  const mastHoehe = new Map();
+  if (opt.torsion === true) {
+    dat.staebe.forEach((st) => {
+      const m = /(?:^|_)MAST_([^_]+)_S\d+$/.exec(st.name);
+      if (!m) return;
+      const h = mastHoehe.get(m[1]) ?? { fuss: Infinity, kopf: -Infinity };
+      [knZ.get(st.von), knZ.get(st.bis)].forEach((z) => {
+        if (Number.isFinite(z)) { h.fuss = Math.min(h.fuss, z); h.kopf = Math.max(h.kopf, z); }
+      });
+      mastHoehe.set(m[1], h);
+    });
+  }
   const je = new Map();
   const gruppen = {};
   // Je Bauteil der Reihe (Joch T1, Mast M2 …) das grösste eta.
@@ -250,7 +289,12 @@ export function stabNachweise(dat, kraefte, fyd) {
     if (rolle === 'sonst') { ohneRolle.push(st.name); return; }
     const f = kraefte.get(st.name);
     if (!f) return;
-    const s = stabSpannung(qsMap.get(st.querschnitt), f, rolle);
+    const mh = rolle === 'mast'
+      ? mastHoehe.get(/(?:^|_)MAST_([^_]+)_S\d+$/.exec(st.name)?.[1]) : null;
+    const torsion = mh ? { z_i: (knZ.get(st.von) ?? mh.fuss) - mh.fuss,
+                           z_j: (knZ.get(st.bis) ?? mh.fuss) - mh.fuss,
+                           zO: mh.kopf - mh.fuss } : null;
+    const s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion);
     if (!s) { ohneWert += 1; return; }
     const eta = fyd > 0 ? s.sig / fyd : null;
     const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta };
@@ -391,7 +435,7 @@ export function kraefteKombiniert(lsg, beiwerte) {
  * @param {Array} faelle     Kombinationen aus lastfaelle(), nur `nachweis`
  * @param {number} fyd       Streckgrenze, Bemessungswert [N/mm²]
  */
-export function stabwerkHuelle(dat, lsg, faelle, fyd) {
+export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
   const gruppen = {};
   const bauteile = {};
   const teile = {};
@@ -402,7 +446,7 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
 
   faelle.forEach((lf) => {
     const kraefte = kraefteAusAnteilen(lsg, anteileFuer(lf, dat));
-    const nw = stabNachweise(dat, kraefte, fyd);
+    const nw = stabNachweise(dat, kraefte, fyd, opt);
     jeFall.push({ key: lf.key, bez: lf.bez, gruppen: nw.gruppen,
                   hoechste: nw.hoechste });
     Object.entries(nw.gruppen).forEach(([rolle, g]) => {

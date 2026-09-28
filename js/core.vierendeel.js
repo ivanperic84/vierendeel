@@ -437,14 +437,17 @@ export function berechneEinzelmast(inp, stahl) {
   const m = modellEinzelmast(inp, stahl);
   /*
    * `knicken` FOLGT DER NACHWEISAUSWAHL (15. September). Fehlt die Angabe,
-   * gilt die Voreinstellung der Gruppe `knickenMast` - und die ist AN.
-   * Geschrieben steht das hier als `!== false`, nicht ueber
-   * `nachweiseAuswahl`: core.checks.js dafuer hereinzuholen hiesse, den
-   * Rechenkern von der Nachweisliste abhaengig zu machen.
+   * gilt die Voreinstellung der Gruppe `knickenMast` - und die ist seit dem
+   * 28. September AUS («den knicknachweis deaktiviern beim start»). Hier
+   * stand `!== false`, also «an, wenn nichts dasteht»: bei einem Stand ohne
+   * den Eintrag rechnete der Kern Knicken, während das Urteil «nicht
+   * geführt» sagte. Jetzt `=== true`, dieselbe Regel wie `nachweiseAuswahl`
+   * - ohne core.checks.js hereinzuholen (der Rechenkern hängt nicht an der
+   * Nachweisliste).
    */
   const mast = mastNachweise(m, { plastisch: inp.mastPlastisch === true,
                                   knickBeiwert: inp.knickBeiwert,
-                                  knicken: inp.nachweise?.knickenMast !== false,
+                                  knicken: inp.nachweise?.knickenMast === true,
                                   torsion: inp.nachweise?.torsionMast !== false });
   /*
    * >>> DAS URTEIL DES EINZELMASTEN IST DER NACHWEIS, nicht der Querschnitt.
@@ -1073,7 +1076,7 @@ export function berechne(inp, profOG, profUG, stahl, joch, massVariante) {
     stationen: n,
     mast: mastNachweise(m, { plastisch: inp.mastPlastisch === true,
                                   knickBeiwert: inp.knickBeiwert,
-                                  knicken: inp.nachweise?.knickenMast !== false,
+                                  knicken: inp.nachweise?.knickenMast === true,
                                   torsion: inp.nachweise?.torsionMast !== false }),
     schnitt: auswertungAn(m.xNachweis ?? m.L / 2, m),
     max: {
