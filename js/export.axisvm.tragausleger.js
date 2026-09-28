@@ -318,11 +318,21 @@ export function tragauslegerModell(satz) {
    * s = 0: ein Seil in der Achse, wie bis dahin.
    */
   const spreiz = tragauslegerSpreizung(satz);
+  /*
+   * NUR ZUG FUER AXISVM (Frage vom 28. September: «wie man es im axis
+   * modellieren will, dass es nur zug aufnimmt und kein druck»): dasselbe
+   * Merkmal wie der Seilkopf des Seilankers - die Bruecke setzt daraus
+   * lnlTensionOnly im Ortssystem der Linie. Es wirkt NUR in einer
+   * nichtlinearen Berechnung; linear traegt auch dieser Link Druck, und der
+   * Loeser hier rechnet linear (`aufhaengungNachweis` meldet ein
+   * gedruecktes Seil).
+   */
   const seilLink = (name, bis) => staebe.push({ name, von: 'MAST_A_SEIL', bis,
     querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 1, 0],
     gelenkAnfang: 'M', gelenkEnde: 'M', art: 'link', system: 'lokal',
     kraftuebertragung: { x: 'Rigid', y: 'Free', z: 'Free',
-                         xx: 'Free', yy: 'Free', zz: 'Free' } });
+                         xx: 'Free', yy: 'Free', zz: 'Free' },
+    nichtlinear: { x: 'nurZug' } });
   if (spreiz > 0) {
     for (const [k, y] of [['P', spreiz], ['N', -spreiz]]) {
       knoten.push({ name: `TRAVERSE_${k}`, x: c1, y: r6(y), z: r6(h / 2) });

@@ -32853,6 +32853,13 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
        seile.every((s) => Math.abs(Math.abs(kn.get(s.bis).y) - 1) < 1e-9
                           && kn.get(s.bis).z === kn.get('TRAVERSE_M').z)
        && seile[0].von === seile[1].von);
+  // COM-Schnittstelle: dasselbe Merkmal wie der Seilkopf des Seilankers;
+  // die Brücke setzt daraus lnlTensionOnly im Ortssystem der Linie.
+  wahr('Für AxisVM: beide Seile «nur Zug», im Ortssystem (in der Datei)',
+       seile.every((s) => s.nichtlinear?.x === 'nurZug' && s.system === 'lokal'));
+  const ps1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+  wahr('… und die Brücke liest beides (nichtlinear, system lokal)',
+       /\$sb\.nichtlinear/.test(ps1) && /\[string\]\$sb\.system -eq 'lokal'/.test(ps1));
   wahr('Spreizung 0: ein Seil in der Achse (wie bis dahin)',
        eins.dat.staebe.filter((s) => /AUFHAENGUNG/.test(s.name)).map((s) => s.name).join() === 'AUFHAENGUNG');
 
