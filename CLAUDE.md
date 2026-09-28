@@ -139,6 +139,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| Anzeige: Stabwerk führt (28. Sept.) | Frage des Auftraggebers mit Bild der Seitenleiste: «diese auswertung ist etwas irreführend wenn ich für stabwerk modell und balken verschieden ausnutzungwerte in einer maske sehe? wollen wir nach der berechnung nur auf die stabwerk ausnutzung setzen? was spricht dagegen?» Auf Rückfrage: **«Stabwerk führt, Knicken ergänzt»** — nach der Berechnung stehen Hauptkachel und Kacheln Joch/Mast aus dem Stabwerk; das **Knicken** des Masten bleibt beim Kern (der Löser rechnet keine Stabilität) als eigene Zeile, das Urteil ist das Maximum mit Quelle; Gebrauchstauglichkeit, Anker, Fundament vorerst aus dem Kern, als «Ersatzbalken» beschriftet; ohne gültiges Stabwerk der Kern mit Vermerk «vorläufig». **Auslösung automatisch, verzögert** (~1 s nach der letzten Eingabe; der Knopf bleibt für «jetzt rechnen») — das ändert die Weisung vom 25. September (nur Knopf). **Reihenfolge: erst die Anzeige**, dann der Tragausleger |
 | Torsionsmodell rechnen (26. Sept.) | Nach dem Zeigen der Modelldatei: **«ok rechnen lassen»** — Anweisung für EINEN AxisVM-Lauf von `com/AxisVM_Torsion_J90_20m.json` (bauen, linear statisch, auslesen), erstmals mit der berichtigten Lage der Linkverbindung |
 | Torsionsfall für den AxisVM-Vergleich (26. Sept.) | Vorschlag des Auftraggebers: «wäre es nicht noch interessant ein anbauteil zu legen das zusätzlich torsion im joch provoziert». Auf Rückfrage: eine quer versetzte Hängestütze «gibt es nicht, hier wäre eine hängestütze senkrecht und eine last zum beispiel infolge windangriff zu sezten. der fall mit einer zusätzlichen ausleger und leiter mit ablenkung wäre sicher auch interessant für die lokalen einwirkungen in die gurte.» Also zwei Fälle — **(1) senkrechte Hängestütze mit waagrechter Last (Wind) an ihrem Ende**, Torsion über den Hebel unter der Jochachse; **(2) Hängestütze mit Ausleger und Leiter mit Ablenkkraft**, örtliche Einleitung in die Gurte —, je **nahe am Jochende und in Feldmitte**, je ein eigener Lastfall. Gerechnet **nach der Auswertung** des Laufs mit den Knotenwegen |
 | Anschluss: AxisVM-Wege auslesen (26. Sept.) | Nach dem Eingrenzen (`vergleich_anschluss.mjs`, alle naheliegenden Modellgrössen gemessen ausgeschlossen) auf Rückfrage: **«Brücke erweitern und rechnen»** — die Auslesung um Knotenverschiebungen (und Linkkräfte, soweit die Schnittstelle sie hergibt) erweitern und das Einzeljoch J90/20 m in AxisVM neu rechnen (~11 Minuten). Das ist die ausdrückliche Anweisung für diesen einen Lauf |
@@ -220,12 +221,39 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**26. September 2026** · Prüfstand 5447 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5479 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Stabwerk führt die Anzeige, Knicken ergänzt** (Entscheid
+  siehe *Entschieden*, Prüfstand Abschnitt 131). Nach der Berechnung stehen
+  **Hauptkachel, Kacheln Joch/Mast, Fussleiste, rechte Schiene und
+  Lageband** aus dem Stabwerk — eine Maske, ein Satz Zahlen. Der Mast hat
+  zwei Kacheln: Querschnitt aus dem Stabwerk, **Knicken** aus dem Kern
+  (`bauteileMitStabwerk` in core.stabnachweis.js, jede Zeile mit `quelle`).
+  Die Stabwerksleiste zeigt **keine eigene Zahl** mehr (sie war das
+  Maximum ohne Knicken, Anker und Fundament — genau die zweite Zahl, die
+  der Auftraggeber «irreführend» nannte). Gruppen tragen ihre Quelle
+  rechts («Stabwerk», «Stabwerk · Knicken Ersatzbalken», «Ersatzbalken»);
+  ohne gültiges Stabwerk steht «vorläufig». **Automatisch, verzögert:**
+  1 s nach der letzten Eingabe (`planeStabwerk`, `STABWERK_VERZUG_MS`),
+  nur bei «fehlt»/«veraltet»; ein Fehler an einem alten Stand gilt als
+  «veraltet» und wird neu versucht. Die Hülle führt neu `teile`
+  (je Bauteil Obergurt/Untergurt/Bindeblech/Mast, `stabTeil`).
+  **Gemessen am J90/20 m** (Kern → Stabwerk): Einzeljoch Joch 0.3874 →
+  **0.3634** (Blech), Mast M1 0.8386 → Querschnitt **0.7713** + Knicken
+  **0.8386**; Reihe T2 Mast M2 1.4839 → **1.3490** + Knicken **1.4839**.
+  Die Kopfzahl bleibt dort gleich — das Knicken ist massgebend —, nennt
+  aber jetzt «Knicken M1». Im Browser (Standarddokument J90/20 m): nach
+  dem Laden «Ersatzbalken · vorläufig», nach rund 1 s von selbst
+  «Stabwerk», η 0.890 «Knicken M1» in Hauptkachel **und** Fussleiste;
+  Jochlänge 20 → 18 m: sofort «vorläufig» (0.831), eine Sekunde später
+  Stabwerk (Gurt 0.390/0.405, Blech 0.459, Mast 0.739/0.745, Knicken
+  0.820/0.831); zurück auf 20 m. Konsole ohne Fehler.
+  Dabei nachgeholt: `sw.js` führte das Tragausleger-Modul vom Vortag
+  nicht (dort war nicht gebündelt worden) — der Prüfstand fiel darauf.
 - **26. Sept., e_y des UPE 160 berichtigt: 1.84 → 2.27 cm** (Weisung
   «Berichtigen»). Aus den Normmassen nachgerechnet; UPE 200/240 trafen die
   Tabelle, der 160er nicht. Gemessen am A160: Hebelarm 31.68 → 32.54 cm,
@@ -1671,13 +1699,21 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - ⚠ **Zwei Rechenwege, zwei Zahlen für denselben Masten.** Seit dem
   25. September rechnet der **Stabwerksweg** die Reihe gekoppelt (η des
   geteilten Masten 0.7708 → 1.3465 an 2 × J90/20 m), der **Ersatzbalken**
-  weiter das Einzelfeld mit der Sofortmassnahme vom 19. September. Die
-  Hauptkacheln, die Verläufe und der **Bericht** stehen noch auf dem
-  Ersatzbalken — wer nur dorthin sieht, sieht die kleinere Zahl. Der
-  Stabwerkswert steht in der Stabwerksleiste daneben. Schritt (6) des
-  Bauplans (Bericht/Excel/Ausleitung) und die Freigabe gegen AxisVM
-  (Etappe 4) stehen aus; erst danach ist zu entscheiden, welcher Weg das
-  Urteil trägt.
+  weiter das Einzelfeld mit der Sofortmassnahme vom 19. September.
+  **Seit dem 28. September führt das Stabwerk die Anzeige** (Hauptkachel,
+  Kacheln, Fussleiste, Schiene, Lageband; siehe *Entschieden*). Auf dem
+  Ersatzbalken stehen noch die **Verläufe, der Schnitt, die Tabelle der
+  höchstbeanspruchten Stellen, der Bericht und Excel** — das ist Punkt 3
+  des Auftrags. Drei Dinge dazu, noch nicht entschieden:
+  (1) **Das Knicken rechnet mit den Schnittgrössen des Kerns.** Am
+  geteilten Masten der Reihe sind das die der Sofortmassnahme; gemessen
+  lag das Knick-η dort über dem Querschnitt des Stabwerks (1.4839 gegen
+  1.3490), ob es das immer tut, ist nicht belegt.
+  (2) Die **Hauptkachel urteilt über das aktive Tragwerk** mit seinen
+  Masten; die Masten der Nachbarjoche stehen nur in der Reihenzeile der
+  Stabwerksleiste.
+  (3) Am **Einzelmasten** zeigt die rechte Schiene weiter den Kern
+  (Pille «Ma»); Kacheln und Hauptkachel folgen dem Stabwerk.
 - **Geteilter Mast:** seit der Sofortmassnahme (19. Sept.) mit den
   Jochkräften der Nachbarn; die **Rahmenwirkung** rechnet seit dem
   25. September der Stabwerksweg (gekoppeltes Blattmodell), der
@@ -1780,7 +1816,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5447 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5479 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

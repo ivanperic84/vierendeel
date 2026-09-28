@@ -8,7 +8,7 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
-import { RECHENVERFAHREN } from './core.stabnachweis.js';
+import { RECHENVERFAHREN, bauteileMitStabwerk } from './core.stabnachweis.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
@@ -4718,7 +4718,16 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const zeigtTrag = nwArt !== 'gzg';
   const zeigtGzg = nwArt !== 'trag';
   const mn = zeig?.mast?.A ?? null;
-  const bt = urteil?.bauteile ?? null;
+  /*
+   * STABWERK FUEHRT, KNICKEN ERGAENZT (28. September) - am Einzelmasten
+   * wie am Joch: der Querschnitt aus dem Stabwerk, das Knicken aus dem
+   * Kern als eigene Zeile, Anker und Fundament aus dem Kern.
+   */
+  const swH = stabwerkFuehrt(opt, einzelLastfall);
+  const vorlaeufig = stabwerkVorlaeufig(opt, einzelLastfall);
+  const bt = swH
+    ? bauteileMitStabwerk(urteil?.bauteile, swH, { knick: knickJe(bem) })
+    : (urteil?.bauteile ?? null);
   const eBem = bt?.eta ?? (bem?.mast?.A?.etaMitStabilitaet ?? 0);
   const eKopf = einzelLastfall ? (mn?.etaMitStabilitaet ?? mn?.eta ?? 0) : eBem;
   const werKopf = !einzelLastfall && bt?.massgebend ? bt.massgebend.name : null;
@@ -4738,11 +4747,15 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
    * gibt kein Joch. Bleibt nur eine Gruppe übrig, lässt
    * `nachweisGruppenHtml` die Überschrift weg.
    */
-  const nwJeM = bauteilKachelnJe(zeig, urteil ?? {}, ampelU, opt);
+  const nwJeM = bauteilKachelnJe(zeig, urteil ?? {}, ampelU, { ...opt, swH });
+  const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
+    .some((k) => k.startsWith('mast:')));
+  const quelleM = (ausSw) => (ausSw ? 'Stabwerk · Knicken Ersatzbalken'
+    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppenMast = [
-    { titel: 'Mast', kacheln: nwJeM.mast },
-    { titel: 'Anker', kacheln: nwJeM.anker },
-    { titel: 'Fundament', kacheln: nwJeM.fundament },
+    { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw) },
+    { titel: 'Anker', kacheln: nwJeM.anker, rechts: quelleM(false) },
+    { titel: 'Fundament', kacheln: nwJeM.fundament, rechts: quelleM(false) },
   ];
 
   // Die Kräfte am Fuss - was das Fundament bekommt.
@@ -4757,7 +4770,10 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   ] : [];
 
   // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
-  const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf, text: urteilText },
+  const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
+                                text: vorlaeufig
+                                  ? `${urteilText} · vorläufig (Ersatzbalken)`
+                                  : urteilText },
                               zeig, nwArt, einzelLastfall);
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}
@@ -5137,11 +5153,18 @@ export function stabwerkLeiste(opt = {}) {
    * Ergebnis liest. Angeschrieben wird «Mast M2»; der Stabname steht im
    * Titel, fuer den Fall, dass man ihn doch braucht.
    */
-  const zahl = (stand === 'gueltig' && e && e.etaGesamt != null)
-    ? `<span class="urteil-zahl">η ${f3(e.etaGesamt)}</span>
-       <span class="urteil-fall" title="${esc(e.massgebend?.name ?? '')}">${
-         esc(e.massgebend?.bauteil ?? e.massgebend?.name ?? '')}</span>`
-    : '';
+  /*
+   * >>> SEIT DEM 28. SEPTEMBER OHNE EIGENE ZAHL. <<<
+   *
+   * Frage des Auftraggebers: «diese auswertung ist etwas irreführend wenn
+   * ich für stabwerk modell und balken verschieden ausnutzungwerte in
+   * einer maske sehe?» Entscheid «Stabwerk führt, Knicken ergänzt»: das
+   * Urteil steht EINMAL da, in der Hauptkachel - aus dem Stabwerk, mit
+   * Knicken, Anker und Fundament. Eine zweite Zahl hier wäre das Maximum
+   * OHNE diese drei und damit wieder eine andere Zahl in derselben Maske.
+   * Die Leiste sagt nur noch, WAS gerechnet wurde.
+   */
+  const zahl = '';
 
   /* -----------------------------------------------------------------------
    * >>> DAS URTEIL DER REIHE - JE BAUTEIL EINE ZAHL. <<<
@@ -5171,15 +5194,15 @@ export function stabwerkLeiste(opt = {}) {
   }[stand] ?? '';
 
   const text = {
-    fehlt: 'Angezeigt wird der Ersatzbalken. Das Stabwerk sieht auch die '
-         + 'Biegung der Bleche aus ihrer Ebene heraus.',
-    veraltet: 'Das Ergebnis gehört zu einem früheren Stand und wird deshalb '
-            + 'nicht gezeigt.',
+    fehlt: 'Angezeigt wird vorläufig der Ersatzbalken. Das Stabwerk sieht '
+         + 'auch die Biegung der Bleche aus ihrer Ebene heraus.',
+    veraltet: 'Die Eingabe hat sich geändert - angezeigt wird vorläufig der '
+            + 'Ersatzbalken, das Stabwerk rechnet gleich neu.',
     /*
      * Die Reihe zuerst: sie sagt, WAS gerechnet wurde. Die Kennzahlen
      * dahinter sagen, wie gross es war.
      */
-    gueltig: e ? `${(e.tragwerke ?? 1) > 1
+    gueltig: e ? `Hauptkachel und Kacheln Joch/Mast aus dem Stabwerk · ${(e.tragwerke ?? 1) > 1
                     ? `Reihe: ${e.tragwerke} Tragwerke, ${e.masten} Masten in einem `
                       + `Stabwerk · ` : ''}${e.staebe} Stäbe`
                + ` · ${e.freiheitsgrade} Freiheitsgrade`
@@ -5200,6 +5223,44 @@ export function stabwerkLeiste(opt = {}) {
     <span class="notiz">${esc(text)}</span>
     ${reihe}
   </div>`;
+}
+
+/* ===========================================================================
+ * >>> WANN DAS STABWERK DIE KACHELN TRAEGT (28. September). <<<
+ * =========================================================================
+ *
+ * Entscheid «Stabwerk führt, Knicken ergänzt»: nach der Berechnung stehen
+ * Hauptkachel und Kacheln Joch/Mast aus dem Stabwerk. Nur dann, wenn es
+ * gewählt ist, zum Eingabestand passt und die Bemessung gezeigt wird - ein
+ * veraltetes Ergebnis führt nichts, und beim Einzellastfall wird nicht
+ * geurteilt.
+ *
+ * @returns {object|null}  das Ergebnis aus rechneStabwerk() oder null
+ */
+export function stabwerkFuehrt(opt = {}, einzelLastfall = false) {
+  const sw = opt.stabwerk;
+  if (einzelLastfall || !sw || sw.verfahren !== 'stabwerk'
+      || sw.stand !== 'gueltig') return null;
+  return sw.ergebnis?.teile ? sw.ergebnis : null;
+}
+
+/** Steht das Stabwerk zur Wahl, ist aber (noch) nicht gültig? */
+export function stabwerkVorlaeufig(opt = {}, einzelLastfall = false) {
+  const sw = opt.stabwerk;
+  return !einzelLastfall && sw?.verfahren === 'stabwerk'
+    && sw.stand !== 'gueltig' && sw.stand !== 'ohneModell';
+}
+
+/** Das Knick-eta des Kerns je Mastname («Mast M1» → eta). */
+export function knickJe(erg) {
+  const namen = erg?.modell?.federn?.namen ?? {};
+  const out = {};
+  ['A', 'B'].forEach((ende) => {
+    const n = erg?.mast?.[ende];
+    if (!n?.stabil || !Number.isFinite(n.stabil.eta)) return;
+    out[namen[ende] ? `Mast ${namen[ende]}` : `Mast ${ende}`] = n.stabil.eta;
+  });
+  return out;
 }
 
 /** Den Knopf der Stabwerksleiste verdrahten. */
@@ -5382,6 +5443,39 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
       const name = namen[ende] || `Ende ${ende}`;
       if (gesehen.has(name)) return;
       gesehen.add(name);
+      /*
+       * >>> STABWERK FUEHRT, KNICKEN ERGAENZT (28. September). <<<
+       *
+       * Liegt ein gültiges Stabwerk vor, steht der Querschnitt des Masten
+       * aus dem Stabwerk da - und das Knicken als EIGENE Kachel aus dem
+       * Kern, denn der Löser rechnet keine Stabilität. Zusammengezogen wie
+       * bisher (`etaMitStabilitaet`) stünde am geteilten Masten einer Reihe
+       * die Zahl des Einzelfelds, sobald das Knicken überwiegt.
+       */
+      const sw = opt.swH?.bauteile?.[`mast:${name}`] ?? null;
+      if (sw) {
+        const fS = sw.bez ? { kurz: fallKurz(sw.bez), voll: sw.bez } : null;
+        mast.push(kachel(`η ${name}`, f3(sw.eta),
+          `${n.profil.name} · Stabwerk`, ampelU(sw.eta), {
+            ...(fS ? { fall: fS.kurz } : {}),
+            titel: `${fS ? `Massgebende Kombination: ${fS.voll}\n\n` : ''}`
+                 + `Querschnitt aus dem Stabwerk (${sw.wo ?? ''}). `
+                 + 'Die Stabilität rechnet der Löser nicht - sie steht '
+                 + 'in der Kachel «Knicken» daneben.',
+          }));
+        if (n.stabil && Number.isFinite(n.stabil.eta)) {
+          const fK = fz(n.stabil.fall ?? n.fall);
+          mast.push(kachel(`η Knicken ${name}`, f3(n.stabil.eta),
+            `${n.profil.name} · Ersatzbalken`, ampelU(n.stabil.eta), {
+              ...(fK ? { fall: fK.kurz } : {}),
+              titel: 'Knicken nach SIA 263 aus dem Ersatzbalken - der Löser '
+                   + 'rechnet keine Stabilität. ⚠ Mit den Schnittgrössen des '
+                   + 'Ersatzbalkens (Einzelfeld); am geteilten Masten einer '
+                   + 'Reihe sind sie kleiner als im Stabwerk.',
+            }));
+        }
+        return;
+      }
       const eN = n.etaMitStabilitaet ?? n.eta;
       // Die Kachel nennt, WAS massgebend ist - Querschnitt oder Knicken.
       // Ohne das stuende dort eine Zahl, deren Herkunft man raten muesste.
@@ -5787,10 +5881,28 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * welches Bauteil sie liefert. Beim Einzellastfall bleibt es bei der Zahl
    * des gezeigten Falls - dort wird nicht geurteilt.
    */
-  const bt = einzelLastfall ? null : urteil.bauteile;
+  /*
+   * >>> STABWERK FUEHRT, KNICKEN ERGAENZT (28. September). <<<
+   *
+   * Ist das Stabwerk gewählt und gültig, wird das Urteil aus ihm neu
+   * zusammengesetzt (`bauteileMitStabwerk`): Joch und Mast aus dem
+   * Stabwerk, das Knicken als eigene Zeile aus dem Kern, Anker und
+   * Fundament aus dem Kern. Eine Maske, ein Satz Zahlen.
+   */
+  const swH = stabwerkFuehrt(opt, einzelLastfall);
+  const vorlaeufig = stabwerkVorlaeufig(opt, einzelLastfall);
+  const jochKey = (swH?.tragwerke ?? 1) > 1 && opt.twId
+    ? `tragwerk:${opt.twId}` : 'tragwerk';
+  const bt = einzelLastfall ? null
+    : (swH ? bauteileMitStabwerk(urteil.bauteile, swH,
+                                 { jochKey, knick: knickJe(erg) })
+           : urteil.bauteile);
   const eKopf = bt ? bt.eta : eAn;
   const werKopf = bt?.massgebend && bt.liste.length > 1 ? bt.massgebend.name : null;
   const zustand = !gefuehrt ? 'warn'
+    // Mit dem Stabwerk zählt allein das zusammengesetzte Urteil - die
+    // Kernzahlen von Joch und Mast färben dann nicht mehr mit.
+    : swH ? (bt?.ueber || urteil.bindendVerletzt === true ? 'nok' : 'ok')
     /*
      * DER MAST ZAEHLT AUCH AM ABFANGJOCH INS URTEIL. Hier stand `!ab &&` -
      * richtig, solange sein Nachweis aus dem Tragjoch-Ersatzbalken kam.
@@ -5833,6 +5945,23 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
     kachel('N Gurt', `${(ab.gurt?.N ?? 0).toFixed(0)} kN`,
            `Kräftepaar · e = ${(ab.q.e).toFixed(1)} cm`, 'ok',
            mitFall({ x: ab.gurt?.x ?? 0 }, fAb)),
+  ] : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
+    /*
+     * DIE JOCHKACHELN AUS DEM STABWERK: je Teil das grösste eta über alle
+     * Stäbe und Kombinationen. Keine Stelle zum Anfahren - das Stabwerk
+     * nennt einen Stab, keine Station des Ersatzbalkens; der Stab steht im
+     * Titel.
+     */
+    ...[['OG', 'η Obergurt', m.profOG.name], ['UG', 'η Untergurt', m.profUG.name],
+        ['blech', 'η Bindeblech', 'massgebendes Blech']].map(([k, t, sub]) => {
+      const s = swH.teile[`${jochKey}|${k}`];
+      if (!s) return kachel(t, '–', `${sub} · Stabwerk`, '');
+      return kachel(t, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
+        ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
+        titel: `${s.bez ? `Massgebende Kombination: ${s.bez}\n\n` : ''}`
+             + `Aus dem Stabwerk, Stab ${s.wo}.`,
+      });
+    }),
   ] : [
     kachel('η Obergurt', f3(erg.max.etaOG.og.eta), m.profOG.name,
            ampelU(erg.max.etaOG.og.eta),
@@ -5878,12 +6007,23 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Blechkacheln, am Abfangjoch seine zwei Gurte. Die übrigen drei
    * hängen am Masten und kommen aus `bauteilKachelnJe`.
    */
-  const nwJe = bauteilKachelnJe(erg, urteil, ampelU, opt);
+  const nwJe = bauteilKachelnJe(erg, urteil, ampelU, { ...opt, swH });
+  /*
+   * DIE QUELLE STEHT AN DER GRUPPE: «Stabwerk» oder «Ersatzbalken», und
+   * «vorläufig», solange das gewählte Stabwerk noch nicht (wieder)
+   * gerechnet ist.
+   */
+  const jochAusSw = !!(swH && !ab && swH.teile?.[`${jochKey}|OG`]);
+  const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
+    .some((k) => k.startsWith('mast:')));
+  const quelle = (ausSw) => (ausSw ? 'Stabwerk'
+    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppen = [
-    { titel: ab ? 'Abfangjoch' : 'Joch', kacheln: kz },
-    { titel: 'Mast', kacheln: nwJe.mast },
-    { titel: 'Anker', kacheln: nwJe.anker },
-    { titel: 'Fundament', kacheln: nwJe.fundament },
+    { titel: ab ? 'Abfangjoch' : 'Joch', kacheln: kz, rechts: quelle(jochAusSw) },
+    { titel: 'Mast', kacheln: nwJe.mast,
+      rechts: mastAusSw ? 'Stabwerk · Knicken Ersatzbalken' : quelle(false) },
+    { titel: 'Anker', kacheln: nwJe.anker, rechts: quelle(false) },
+    { titel: 'Fundament', kacheln: nwJe.fundament, rechts: quelle(false) },
   ];
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den
@@ -6022,7 +6162,11 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
             ? 'Tragsicherheit erfüllt'
             : 'Tragsicherheit NICHT erfüllt'));
   // Siehe `urteilMitGebrauch`: bei «beide» das Maximum über beide Arten.
-  const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf, text: urteilText },
+  // Solange das gewählte Stabwerk nicht gilt, ist das Urteil vorläufig.
+  const U = urteilMitGebrauch({ eta: eKopf, zustand, wer: werKopf,
+                                text: vorlaeufig
+                                  ? `${urteilText} · vorläufig (Ersatzbalken)`
+                                  : urteilText },
                               erg, nwArt, einzelLastfall);
   node.innerHTML = `
     ${quellSchalter(opt, einzelLastfall, eBem)}

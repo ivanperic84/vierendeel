@@ -274,6 +274,15 @@ export function stabwerkStand(app) {
   const s = app.stabwerk;
   if (!s) return 'fehlt';
   if (s.ohneModell) return 'ohneModell';
-  if (s.fehler) return 'fehler';
+  /*
+   * EIN FEHLER GILT DEM STAND, AN DEM ER AUFTRAT (28. September). Seit das
+   * Stabwerk von selbst rechnet, darf ein Fehler an einem alten Stand die
+   * Auslösung nicht für immer blockieren: ändert sich die Eingabe, ist er
+   * «veraltet», und es wird neu versucht. Ohne Kennung (alter Weg) bleibt
+   * es beim Fehler.
+   */
+  if (s.fehler) {
+    return s.kennung && s.kennung !== eingabeKennung(app.werte) ? 'veraltet' : 'fehler';
+  }
   return s.kennung === eingabeKennung(app.werte) ? 'gueltig' : 'veraltet';
 }

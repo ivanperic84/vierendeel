@@ -113,7 +113,7 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
-import { verfahrenVon } from './core.stabnachweis.js';
+import { verfahrenVon, eingabeKennung, bauteileMitStabwerk } from './core.stabnachweis.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
@@ -218,6 +218,7 @@ const app = {
   weitereDiagramme: (...a) => weitereDiagramme(...a),
   aendern: (...a) => aendern(...a),
   neuRechnen: (...a) => neuRechnen(...a),
+  stabwerkGilt: () => stabwerkGilt(),
   speichern: (...a) => speichern(...a),
   laden: (...a) => laden(...a),
   frisch: (...a) => frisch(...a),
@@ -527,12 +528,77 @@ function wiederherstellen() {
  * Knopf aussieht.
  */
 function stabwerkRechnen() {
+  clearTimeout(stabwerkUhr);
+  stabwerkUhr = null;
   try {
     stabwerk = rechneStabwerk(app);
   } catch (e) {
-    stabwerk = { fehler: String(e?.message ?? e) };
+    // MIT KENNUNG: ein Fehler gilt dem Stand, an dem er auftrat. Ändert
+    // sich die Eingabe, ist er «veraltet» und die Auslösung versucht es
+    // von selbst noch einmal (stabwerkStand).
+    stabwerk = { fehler: String(e?.message ?? e), kennung: eingabeKennung(werte) };
   }
   neuRechnen();
+}
+
+/* ===========================================================================
+ * >>> DAS STABWERK RECHNET VON SELBST, VERZOEGERT (28. September). <<<
+ * =========================================================================
+ *
+ * Entscheid zur Frage «wollen wir nach der berechnung nur auf die stabwerk
+ * ausnutzung setzen?»: «Stabwerk führt, Knicken ergänzt», ausgelöst
+ * «Automatisch, verzögert». Das ändert die Weisung vom 25. September (nur
+ * auf Knopfdruck): führt das Stabwerk die Kacheln, darf es nicht davon
+ * abhängen, ob jemand den Knopf gedrückt hat.
+ *
+ * VERZOEGERT, weil der Löser am J90/20 m rund 0.4 s braucht, eine Reihe
+ * mehr - bei jedem Tastendruck wäre die Anwendung träge. Gerechnet wird
+ * STABWERK_VERZUG_MS nach der LETZTEN Eingabe; jede weitere schiebt die
+ * Uhr zurück. Bis dahin steht der Ersatzbalken da, als «vorläufig»
+ * beschriftet. Der Knopf bleibt für «jetzt rechnen».
+ *
+ * Nur bei «fehlt» und «veraltet»: ein gültiges Ergebnis braucht nichts,
+ * und ein Fehler am SELBEN Stand käme beim zweiten Versuch wieder.
+ */
+const STABWERK_VERZUG_MS = 1000;
+let stabwerkUhr = null;
+
+function planeStabwerk() {
+  clearTimeout(stabwerkUhr);
+  stabwerkUhr = null;
+  if (!letzte || verfahrenVon(werte) !== 'stabwerk') return;
+  const st = stabwerkStand(app);
+  if (st !== 'fehlt' && st !== 'veraltet') return;
+  stabwerkUhr = setTimeout(() => {
+    stabwerkUhr = null;
+    stabwerkRechnen();
+  }, STABWERK_VERZUG_MS);
+}
+
+/**
+ * Das Urteil, wie es die Hauptkachel zeigt - mit dem Stabwerk, wenn es
+ * gilt. Fussleiste und Hauptkachel sollen DIESELBE Zahl sagen (Entscheid
+ * vom 18. September: zwei Anzeigen derselben Sache dürfen einander nicht
+ * widersprechen).
+ */
+function urteilAngezeigt(urteil, bem) {
+  const g = stabwerkGilt();
+  if (!urteil?.bauteile || !g) return urteil;
+  return { ...urteil, bauteile: bauteileMitStabwerk(urteil.bauteile, g.h,
+                                                   { jochKey: g.jochKey, knick: ui.knickJe(bem) }) };
+}
+
+/**
+ * Führt das Stabwerk gerade die Anzeige? Dann sein Ergebnis und der
+ * Schlüssel des aktiven Jochs darin - sonst null. Eine Stelle für
+ * Hauptkachel, Fussleiste, Schiene und Lageband.
+ */
+function stabwerkGilt() {
+  if (verfahrenVon(werte) !== 'stabwerk' || stabwerkStand(app) !== 'gueltig'
+      || !stabwerk?.teile) return null;
+  // In einer Reihe tragen die Stäbe des aktiven Tragwerks sein Präfix.
+  return { h: stabwerk,
+           jochKey: (stabwerk.tragwerke ?? 1) > 1 ? `tragwerk:${werte.twId}` : 'tragwerk' };
 }
 
 function neuRechnen(neuZeichnen = true) {
@@ -933,6 +999,7 @@ function neuRechnen(neuZeichnen = true) {
      */
     {
       const anz = letzte?.anzeige ?? erg;
+      const swG = stabwerkGilt();
       const masten = {};
       ['A', 'B'].forEach((ende) => {
         const n = anz.mast?.[ende];
@@ -940,14 +1007,21 @@ function neuRechnen(neuZeichnen = true) {
         const id = mastenVon(werte).find(
           (x) => mastName(werte, x) === mastNameAmEnde(werte, null, ende))?.id;
         if (!id) return;
-        const v = n.etaMitStabilitaet ?? n.eta;
+        /*
+         * MIT DEM STABWERK (28. September): der Querschnitt aus dem
+         * Stabwerk, das Knicken aus dem Kern - das grössere zählt, wie in
+         * der Hauptkachel.
+         */
+        const swM = swG?.h?.bauteile?.[`mast:${mastNameAmEnde(werte, null, ende)}`];
+        const v = swM ? Math.max(swM.eta ?? 0, n.stabil?.eta ?? 0)
+          : (n.etaMitStabilitaet ?? n.eta);
         // Ein geteilter Mast steht in zwei Tragwerken; gezeigt wird der
         // groessere der beiden Nachweise, nicht der zuletzt geschriebene.
         masten[id] = Math.max(masten[id] ?? 0, Number(v) || 0);
       });
       ui.setzeEtaFuerLeiste({
         twId: werte.twId ?? 'T1',
-        tragwerk: anz.max?.etaGesamt,
+        tragwerk: swG?.h?.bauteile?.[swG.jochKey]?.eta ?? anz.max?.etaGesamt,
         masten,
       });
     }
@@ -959,7 +1033,7 @@ function neuRechnen(neuZeichnen = true) {
     // eingeklappter Schublade das Einzige, was von der Auswertung übrig ist.
     zeichneSchienen(app);
     aktualisiereModell(anzeige);
-    aktualisiereFuss(anzeige, urteil, joch);
+    aktualisiereFuss(anzeige, urteilAngezeigt(urteil, bemessung), joch);
   } catch (e) {
     letzte = null;
     zeichneEingabe();
@@ -968,6 +1042,7 @@ function neuRechnen(neuZeichnen = true) {
   }
   speichern();
   pruefeUngesichert();
+  planeStabwerk();
 }
 
 /**
@@ -1219,6 +1294,14 @@ function zeichneAuswertung() {
         quelle: anzeigeKombi,
         plastisch: werte.mastPlastisch === true,
         nachweisart,
+        /*
+         * DAS STABWERK AUCH AM EINZELMASTEN (28. September, «Stabwerk
+         * führt, Knicken ergänzt») - dieselbe Leiste und dieselbe Regel
+         * wie am Joch.
+         */
+        stabwerk: { verfahren: verfahrenVon(werte), stand: stabwerkStand(app),
+                    grund: reiheOhneStabmodell(werte), ergebnis: stabwerk },
+        beiStabwerk: stabwerkRechnen,
         beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
         lastfallName: anzeigeKombi === 'umhuellend' ? null
@@ -1259,6 +1342,9 @@ function zeichneAuswertung() {
     ui.zeichneUebersicht(node, erg, urteil, springeZu, station, hinw,
                          { bemessung: kombi.huellkurve ? letzte.bemessung : null,
                            quelle: anzeigeKombi,
+                           // Das aktive Tragwerk - im Stabwerk einer Reihe
+                           // tragen seine Stäbe dieses Präfix.
+                           twId: werte.twId,
                            plastisch: werte.mastPlastisch === true,
                            nachweisart,
                            stabwerk: { verfahren: verfahrenVon(werte),

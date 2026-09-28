@@ -5,16 +5,20 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **26. September 2026**, Punkt 1 des Auftrags (I_yz, dazu die
-vorzeichenrichtige Gurtspannung) ist erledigt und committet, aber **nicht
-gepusht** (`git log --oneline -6`); Prüfstand 5445 Kontrollen grün,
-`durchlauf.mjs` ohne Bruch. **Der Anschluss Joch–Mast ist geklärt:** die
-COM-Brücke legte jede Linkverbindung 0.45 m ausserhalb des Links
-(`Position = 0.5` als Meter); mit dieser Lage trifft der Löser AxisVM auf
-0.0–1.5 %. Brücke berichtigt, Torsionsmodell in AxisVM gerechnet, Löser
-auf Kopplung in der Linkmitte umgestellt (Weisung); ⚠ welche
-früheren AxisVM-Entscheide davon berührt sind, steht in CLAUDE.md unter
-*Offene Punkte*.
+Stand: **28. September 2026**, committet, aber **nicht gepusht**
+(`git log --oneline -8`); Prüfstand 5479 Kontrollen grün, `durchlauf.mjs`
+ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
+und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
+Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
+Linkmitte). **Neu am 28. September: das Stabwerk führt die Anzeige**
+(Entscheid «Stabwerk führt, Knicken ergänzt», automatisch 1 s nach der
+letzten Eingabe) — Hauptkachel, Kacheln, Fussleiste, Schiene und Lageband
+zeigen eine Zahl, das Knicken steht als eigene Kachel aus dem Kern.
+**Als Nächstes: Tragausleger Etappe 2** — das Stabmodell
+(`js/export.axisvm.tragausleger.js`) steht als Entwurf, ist aber noch
+nirgends angeschlossen; die nächsten Schritte stehen in CLAUDE.md unter
+*Laufende Arbeit (28. Sept.)*. ⚠ Welche früheren AxisVM-Entscheide von der
+falschen Linklage berührt sind, steht unter *Offene Punkte*.
 
 ---
 
@@ -106,10 +110,10 @@ wurde: der Starrfaktor von 1 bis 100 ändert keine Stelle (16.98 % bleibt
 
 ## Was daneben offen bleibt
 
-- **Zwei Rechenwege, zwei Zahlen für denselben Masten:** Hauptkacheln,
-  Verläufe und Bericht stehen auf dem **Ersatzbalken**, die Reihe rechnet
-  der **Stabwerksweg** (η des geteilten Masten 0.7708 → 1.3465). Welcher Weg
-  das Urteil trägt, ist nach der Freigabe zu entscheiden.
+- **Zwei Rechenwege:** seit dem 28. September führt das **Stabwerk** die
+  Anzeige; **Verläufe, Schnitt, Bericht und Excel** stehen noch auf dem
+  Ersatzbalken (Punkt 3 des Auftrags). Das Knicken rechnet weiter mit den
+  Schnittgrössen des Kerns — CLAUDE.md, *Offene Punkte*.
 - **Die PyNite-Ausleitung steht auf der lokalen Link-Lesart** — der Befund
   vom 26. September ist im Löser behoben, in `export.pynite.js` nicht.
 - **`serve.py` prüft den Port nicht** (fünf Server lagen gleichzeitig auf
@@ -150,7 +154,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5430 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5479 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

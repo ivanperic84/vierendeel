@@ -877,6 +877,8 @@ export function zeichneSchienen(app) {
   const r = ui.el('schiene-rechts');
   if (!r) return;
   const e = app.letzte?.anzeige;
+  // Führt das Stabwerk (28. September), zeigt die Schiene seine Zahlen.
+  const swG = app.stabwerkGilt?.() ?? null;
   /*
    * OHNE ZAHL KEINE AMPEL. Ueber der groessten lieferbaren Laenge gibt es
    * fuer den Anker kein eta - dort steht ein Strich, und der ist ein Befund:
@@ -938,6 +940,18 @@ export function zeichneSchienen(app) {
         ['G', e.abfang.gurt?.eta ?? 0, `Gurt ${e.abfang.q.gurt.name}`],
         ['Bl', e.abfang.blech?.eta ?? 0, 'Bindeblech, massgebende Station'],
       ] });
+    } else if (swG?.h?.teile?.[`${swG.jochKey}|OG`]) {
+      /*
+       * STABWERK FUEHRT (28. September): dieselben Zahlen wie die Kacheln
+       * der Auswertung - die Schiene ist bei eingeklappter Schublade das
+       * Einzige, was davon bleibt.
+       */
+      const t = (k) => swG.h.teile[`${swG.jochKey}|${k}`];
+      gruppen.push({ titel: 'Joch · Stabwerk', teile: [
+        ['OG', t('OG')?.eta ?? 0, `Obergurt ${e.modell.profOG.name} (Stabwerk)`],
+        ['UG', t('UG')?.eta ?? 0, `Untergurt ${e.modell.profUG.name} (Stabwerk)`],
+        ['Bl', t('blech')?.eta ?? 0, 'Bindeblech (Stabwerk)'],
+      ] });
     } else {
       gruppen.push({ titel: 'Joch', teile: [
         ['OG', e.max.etaOG.og.eta, `Obergurt ${e.modell.profOG.name}`],
@@ -982,6 +996,19 @@ export function zeichneSchienen(app) {
         const name = namen[ende] || `Ende ${ende}`;
         if (gesehen.has(name)) return;
         gesehen.add(name);
+        /*
+         * STABWERK FUEHRT, KNICKEN ERGAENZT (28. September): der
+         * Querschnitt aus dem Stabwerk, das Knicken als eigene Pille aus
+         * dem Kern - wie die Kacheln der Auswertung.
+         */
+        const swM = swG?.h?.bauteile?.[`mast:${name}`];
+        if (swM) {
+          teile.push([name, swM.eta ?? 0, `${name} Querschnitt (Stabwerk)`]);
+          if (Number.isFinite(n.stabil?.eta)) {
+            teile.push([`K${name}`, n.stabil.eta, `Knicken ${name} (Ersatzbalken)`]);
+          }
+          return;
+        }
         // Wie in den Kacheln: fuer das Urteil zaehlt der NACHWEIS, nicht
         // der Querschnitt allein - Stabilitaet eingeschlossen.
         teile.push([name, n.etaMitStabilitaet ?? n.eta ?? 0,

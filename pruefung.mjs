@@ -30342,7 +30342,17 @@ titel('125  Die Stabwerksleiste: Knopf und Rueckmeldung');
    * >>> DIE ZAHL WEGZULASSEN IST DAS DEUTLICHSTE FEEDBACK. <<<
    * Eine blasse oder durchgestrichene Zahl liest man trotzdem ab.
    */
-  wahr('«gueltig» zeigt das eta', bau('gueltig').includes('0.812'));
+  /*
+   * >>> SEIT DEM 28. SEPTEMBER ZEIGT AUCH «gueltig» KEINE EIGENE ZAHL. <<<
+   * Entscheid «Stabwerk führt, Knicken ergänzt»: das Urteil steht einmal
+   * da, in der Hauptkachel. Die Leiste nannte das Maximum OHNE Knicken,
+   * Anker und Fundament - eine zweite, andere Zahl in derselben Maske,
+   * genau das, was der Auftraggeber «irreführend» nannte.
+   */
+  wahr('>>> «gueltig» zeigt KEINE eigene Zahl mehr (Hauptkachel führt) <<<',
+       !bau('gueltig').includes('0.812'));
+  wahr('… sagt aber, dass die Kacheln aus dem Stabwerk stehen',
+       /aus dem Stabwerk/.test(bau('gueltig')));
   wahr('>>> «veraltet» zeigt es NICHT <<<', !bau('veraltet').includes('0.812'));
   wahr('… sagt aber, dass die Eingabe sich geaendert hat',
        /Eingabe geändert/.test(bau('veraltet')));
@@ -31346,6 +31356,159 @@ titel('130  Die Linkverbindung liegt auf dem Link (COM-Bruecke)');
   wahr('Die Links des Jochanschlusses sind kurz (halbe Laenge < 0.1 m)',
        laengen.length > 0 && laengen.every((l) => l / 2 < 0.1),
        `${laengen.length} Links, halbe Laenge ${[...new Set(laengen.map((l) => (l / 2).toFixed(3)))].join(', ')} m`);
+}
+
+// ===========================================================================
+titel('131  Stabwerk fuehrt, Knicken ergaenzt (Anzeige, 28. September)');
+/* ===========================================================================
+ * Frage des Auftraggebers mit dem Bild der Seitenleiste: «diese auswertung
+ * ist etwas irreführend wenn ich für stabwerk modell und balken verschieden
+ * ausnutzungwerte in einer maske sehe?» Entscheid: «Stabwerk führt, Knicken
+ * ergänzt». Nach der Berechnung stehen Hauptkachel und Kacheln Joch/Mast
+ * aus dem Stabwerk, das Knicken als eigene Zeile aus dem Kern (der Löser
+ * rechnet keine Stabilität), Anker und Fundament aus dem Kern - jede Zeile
+ * mit ihrer Quelle.
+ *
+ * Gemessen am J90/20 m (HEB 240):
+ *
+ *                    Kern (vorher)          Stabwerk (nachher)
+ *   Einzeljoch  Joch 0.3874                 0.3634 (Blech BH_U_1_2)
+ *               Mast M1 0.8386 (Knicken)    0.7713 + Knicken 0.8386
+ *   Reihe T2    Mast M2 1.4839 (Knicken)    1.3490 + Knicken 1.4839
+ *
+ * Die Kopfzahl ändert sich dort nicht - das Knicken des Kerns ist
+ * massgebend -, aber sie nennt jetzt, WAS sie ist («Knicken M1»), und die
+ * Leiste darunter zeigt keine zweite, andere Zahl mehr.
+ * ========================================================================= */
+{
+  const AS131 = await import(J('app.stabwerk.js'));
+  const V131 = await import(J('core.vierendeel.js'));
+  const N131 = await import(J('core.nachbarn.js'));
+  const C131 = await import(J('core.constants.js'));
+  const SN131 = await import(J('core.stabnachweis.js'));
+  const CH131 = await import(J('core.checks.js'));
+  const UI131 = await import(J('ui.js'));
+  const rechne = (w) => {
+    const satz = N131.rechensatzMitNachbarn(w);
+    const erg = V131.berechne(satz, ...N131.kernArgumente(satz));
+    return { erg, h: AS131.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+  };
+  let w131 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w131 = { ...w131, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+
+  // --- a) Der Teil eines Stabes ------------------------------------------
+  wahr('stabTeil: Obergurt', SN131.stabTeil('OGL_S3') === 'OG');
+  wahr('stabTeil: Untergurt mit Praefix', SN131.stabTeil('T2_UGR_S82') === 'UG');
+  wahr('stabTeil: Bindeblech', SN131.stabTeil('T1_BH_O_27_2') === 'blech');
+  wahr('stabTeil: Mast', SN131.stabTeil('MAST_M2_S1') === 'mast');
+  wahr('stabTeil: Starrelement hat keinen Teil',
+       SN131.stabTeil('ARM_1', 'starr') === null);
+
+  // --- b) Die Huelle fuehrt die Teile je Bauteil ---------------------------
+  const { erg: e1, h: h1 } = rechne(w131);
+  const t = h1.teile ?? {};
+  wahr('Einzeljoch: Obergurt, Untergurt, Bindeblech und beide Masten',
+       ['tragwerk|OG', 'tragwerk|UG', 'tragwerk|blech', 'mast:M1|mast', 'mast:M2|mast']
+         .every((k) => t[k]), Object.keys(t).join(', '));
+  /*
+   * >>> DIE TEILE GEHEN IM BAUTEIL AUF. <<<
+   * Das Grösste der drei Jochteile IST das eta des Jochs - sonst zeigten
+   * die Kacheln etwas anderes als die Hauptkachel.
+   */
+  const maxJoch = Math.max(...['OG', 'UG', 'blech'].map((k) => t[`tragwerk|${k}`]?.eta ?? 0));
+  wahr('>>> max(OG, UG, Blech) = eta des Jochs im Stabwerk <<<',
+       Math.abs(maxJoch - h1.bauteile.tragwerk.eta) < 1e-12,
+       `${maxJoch.toFixed(4)} / ${h1.bauteile.tragwerk.eta.toFixed(4)}`);
+  wahr('Jeder Teil nennt Stab und Kombination',
+       Object.values(t).every((x) => x.wo && x.fall));
+
+  // --- c) Das zusammengesetzte Urteil ----------------------------------------
+  const bt1 = CH131.bauteilUrteil(e1, w131.nachweise, 'joch');
+  const n1 = SN131.bauteileMitStabwerk(bt1, h1,
+    { jochKey: 'tragwerk', knick: UI131.knickJe(e1) });
+  const zeile = (l, name) => l.liste.find((x) => x.name === name);
+  wahr('Joch aus dem Stabwerk', zeile(n1, 'Joch')?.quelle === 'stabwerk'
+       && Math.abs(zeile(n1, 'Joch').eta - maxJoch) < 1e-12,
+       `${zeile(n1, 'Joch')?.eta?.toFixed(4)} (Kern ${zeile(bt1, 'Joch')?.eta?.toFixed(4)})`);
+  wahr('Mast M1 aus dem Stabwerk (Querschnitt)',
+       zeile(n1, 'Mast M1')?.quelle === 'stabwerk'
+       && Math.abs(zeile(n1, 'Mast M1').eta - h1.bauteile['mast:M1'].eta) < 1e-12,
+       `${zeile(n1, 'Mast M1')?.eta?.toFixed(4)}`);
+  /*
+   * >>> DAS KNICKEN STEHT ALS EIGENE ZEILE DA - AUS DEM KERN. <<<
+   * Der Löser rechnet keine Stabilität; ohne diese Zeile wiese das Stabwerk
+   * einen schlanken Masten zu günstig nach.
+   */
+  wahr('>>> Knicken M1 steht als eigene Zeile, Quelle Ersatzbalken <<<',
+       zeile(n1, 'Knicken M1')?.quelle === 'ersatzbalken'
+       && Math.abs(zeile(n1, 'Knicken M1').eta - e1.mast.A.stabil.eta) < 1e-12,
+       `${zeile(n1, 'Knicken M1')?.eta?.toFixed(4)}`);
+  wahr('Die Kopfzahl ist das Maximum aller Zeilen',
+       Math.abs(n1.eta - Math.max(...n1.liste.map((x) => x.eta ?? 0))) < 1e-12);
+  wahr('Das massgebende Bauteil traegt die Kopfzahl',
+       Math.abs((n1.massgebend?.eta ?? -1) - n1.eta) < 1e-12, n1.massgebend?.name);
+  wahr('Jede Zeile nennt ihre Quelle',
+       n1.liste.every((x) => x.quelle === 'stabwerk' || x.quelle === 'ersatzbalken'));
+
+  // --- d) Ohne Stabwerk bleibt der Kern, beschriftet ----------------------
+  const n0 = SN131.bauteileMitStabwerk(bt1, null, { knick: UI131.knickJe(e1) });
+  wahr('Ohne Stabwerk: dieselben Zahlen wie der Kern',
+       Math.abs(n0.eta - bt1.eta) < 1e-12
+       && n0.liste.length === bt1.liste.length);
+  wahr('… alle als «ersatzbalken» beschriftet, kein Knicken doppelt',
+       n0.liste.every((x) => x.quelle === 'ersatzbalken')
+       && !n0.liste.some((x) => x.key === 'knicken'));
+  // Anker und Fundament gehen durch, wie sie sind - mit ihrer Quelle.
+  const btF = { eta: 0.2, liste: [...bt1.liste,
+    { key: 'fundament', name: 'Fundament M1', eta: 1.2, ueber: true }] };
+  const nF = SN131.bauteileMitStabwerk(btF, h1, { jochKey: 'tragwerk' });
+  wahr('Ein Fundament ueber 1 bestimmt das Urteil und bleibt beim Kern',
+       nF.massgebend?.name === 'Fundament M1' && nF.ueber
+       && nF.massgebend.quelle === 'ersatzbalken');
+
+  // --- e) Die Reihe: das aktive Tragwerk mit Praefix ------------------------
+  const w2 = C131.tragwerkHinzu(w131, 'joch', {});
+  const { erg: e2, h: h2 } = rechne(w2);
+  const bt2 = CH131.bauteilUrteil(e2, w2.nachweise, 'joch');
+  const n2 = SN131.bauteileMitStabwerk(bt2, h2,
+    { jochKey: `tragwerk:${w2.twId}`, knick: UI131.knickJe(e2) });
+  wahr('Reihe: das Joch kommt aus dem Stabwerk des aktiven Tragwerks',
+       zeile(n2, 'Joch')?.quelle === 'stabwerk'
+       && Math.abs(zeile(n2, 'Joch').eta - h2.bauteile[`tragwerk:${w2.twId}`].eta) < 1e-12,
+       `${w2.twId} ${zeile(n2, 'Joch')?.eta?.toFixed(4)}`);
+  wahr('Reihe: der geteilte Mast aus dem Stabwerk, Knicken daneben',
+       zeile(n2, 'Mast M2')?.quelle === 'stabwerk' && !!zeile(n2, 'Knicken M2'),
+       `Stabwerk ${zeile(n2, 'Mast M2')?.eta?.toFixed(4)}, Knicken ${zeile(n2, 'Knicken M2')?.eta?.toFixed(4)}`);
+
+  // --- f) Wann das Stabwerk fuehrt --------------------------------------
+  const sw = (stand) => ({ stabwerk: { verfahren: 'stabwerk', stand, ergebnis: h1 } });
+  wahr('Gueltig und Bemessung: das Stabwerk fuehrt',
+       UI131.stabwerkFuehrt(sw('gueltig'), false) === h1);
+  wahr('>>> Veraltet fuehrt es NICHT <<<', UI131.stabwerkFuehrt(sw('veraltet'), false) === null);
+  wahr('Beim Einzellastfall fuehrt es nicht', UI131.stabwerkFuehrt(sw('gueltig'), true) === null);
+  wahr('Beim Ersatzbalken als Verfahren nie',
+       UI131.stabwerkFuehrt({ stabwerk: { verfahren: 'ersatzbalken', stand: 'gueltig',
+                                          ergebnis: h1 } }, false) === null);
+  wahr('«veraltet» und «fehlt» sind vorlaeufig',
+       UI131.stabwerkVorlaeufig(sw('veraltet')) && UI131.stabwerkVorlaeufig(sw('fehlt')));
+  wahr('«gueltig» und «ohneModell» nicht',
+       !UI131.stabwerkVorlaeufig(sw('gueltig')) && !UI131.stabwerkVorlaeufig(sw('ohneModell')));
+
+  // --- g) Die Ausloesung: verzoegert, nur bei fehlt/veraltet -------------
+  const app131 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('app.js plant das Stabwerk nach jeder Rechnung',
+       /pruefeUngesichert\(\);\s*planeStabwerk\(\);/.test(app131));
+  wahr('… mit einer Verzoegerung von rund einer Sekunde',
+       /STABWERK_VERZUG_MS = 1000/.test(app131));
+  wahr('… nur bei «fehlt» und «veraltet»',
+       /st !== 'fehlt' && st !== 'veraltet'/.test(app131));
+  wahr('Die Fussleiste nimmt dasselbe Urteil wie die Hauptkachel',
+       /aktualisiereFuss\(anzeige, urteilAngezeigt\(urteil, bemessung\), joch\)/.test(app131));
+  const k131 = SN131.eingabeKennung(w131);
+  wahr('Ein Fehler am selben Stand bleibt ein Fehler',
+       AS131.stabwerkStand({ werte: w131, stabwerk: { fehler: 'x', kennung: k131 } }) === 'fehler');
+  wahr('>>> Ein Fehler an einem alten Stand ist «veraltet» (neuer Versuch) <<<',
+       AS131.stabwerkStand({ werte: w131, stabwerk: { fehler: 'x', kennung: 'alt' } }) === 'veraltet');
 }
 
 // ===========================================================================

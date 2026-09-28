@@ -366,6 +366,7 @@ export function kraefteKombiniert(lsg, beiwerte) {
 export function stabwerkHuelle(dat, lsg, faelle, fyd) {
   const gruppen = {};
   const bauteile = {};
+  const teile = {};
   let massgebend = null;
   const jeFall = [];
   const ohneRolle = new Set();
@@ -392,6 +393,19 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
         bauteile[key] = { ...b, fall: lf.key, bez: lf.bez };
       }
     });
+    // Je Bauteil UND Teil (Obergurt, Untergurt, Bindeblech, Mast) - die
+    // Kacheln der Seitenleiste zeigen diese Gliederung (28. September).
+    nw.je.forEach((s) => {
+      const teil = stabTeil(s.name, s.rolle);
+      if (!teil) return;
+      const zu = stabZuordnung(s.name);
+      const k = `${zu.key}|${teil}`;
+      const vor = teile[k];
+      if (!vor || s.sig > vor.sig) {
+        teile[k] = { key: zu.key, name: zu.name, teil, sig: s.sig, eta: s.eta,
+                     wo: s.name, fall: lf.key, bez: lf.bez };
+      }
+    });
     (nw.ohneRolle ?? []).forEach((n) => ohneRolle.add(n));
     if (nw.hoechste && (!massgebend || nw.hoechste.sig > massgebend.sig)) {
       massgebend = { ...nw.hoechste, fall: lf.key, bez: lf.bez,
@@ -414,7 +428,7 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
   const reihe = Object.values(bauteile)
     .sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0));
 
-  return { gruppen, bauteile, reihe, massgebend, jeFall,
+  return { gruppen, bauteile, teile, reihe, massgebend, jeFall,
            /*
             * WER NICHT GEFUEHRT WIRD, STEHT HIER MIT NAMEN. Eine leere
             * Liste ist die Regel; eine volle sagt, dass ein Tragwerk im
@@ -422,6 +436,121 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd) {
             */
            ohneRolle: [...ohneRolle],
            etaGesamt: massgebend ? massgebend.eta : null };
+}
+
+/**
+ * Welcher Teil eines Bauteils ist dieser Stab? Obergurt, Untergurt,
+ * Bindeblech oder Mast - dieselbe Gliederung, die die Kacheln der
+ * Seitenleiste aus dem Kern kennen (Obergurt, Untergurt, Bindeblech).
+ * `null` für alles, was keine eigene Kachel hat.
+ */
+export function stabTeil(name, rolle = null) {
+  const n = String(name);
+  const r = rolle ?? stabRolle(n);
+  if (r === 'gurt') {
+    const g = /(?:^|_)(OG|UG)(?:L|R)_S\d+$/.exec(n);
+    return g ? g[1] : null;
+  }
+  if (r === 'blech') return 'blech';
+  if (r === 'mast') return 'mast';
+  return null;
+}
+
+/* ===========================================================================
+ * >>> STABWERK FUEHRT, KNICKEN ERGAENZT (28. September). <<<
+ * =========================================================================
+ *
+ * Frage des Auftraggebers mit dem Bild der Seitenleiste: «diese auswertung
+ * ist etwas irreführend wenn ich für stabwerk modell und balken verschieden
+ * ausnutzungwerte in einer maske sehe? wollen wir nach der berechnung nur
+ * auf die stabwerk ausnutzung setzen? was spricht dagegen?» Auf Rückfrage:
+ * «Stabwerk führt, Knicken ergänzt».
+ *
+ * Diese Funktion setzt das Urteil des Kerns (`bauteilUrteil`) mit dem
+ * Stabwerk neu zusammen - Eintrag für Eintrag, und JEDER trägt seine
+ * Quelle (`quelle: 'stabwerk' | 'ersatzbalken'`):
+ *
+ *   - Joch: das Grösste aus Obergurt, Untergurt und Bindeblech des
+ *     Stabwerks, sofern das Stabwerk das Joch kennt. Ein Abfangjoch führt
+ *     der Stabnachweis nicht (seine Träger haben keine Rolle) - dann bleibt
+ *     der Kern, beschriftet.
+ *   - Mast: der Querschnitt aus dem Stabwerk. Der Löser rechnet KEINE
+ *     Stabilität; deshalb steht das Knicken als EIGENE Zeile daneben, aus
+ *     dem Kern. Beide zählen, das Urteil ist das Maximum.
+ *   - Anker, Fundament: vorerst aus dem Kern, als «Ersatzbalken».
+ *
+ * >>> WARUM DAS KNICKEN NICHT EINFACH IM MAST AUFGEHT. <<<
+ *
+ * Der Kern rechnet `etaMitStabilitaet` = max(Querschnitt, Knicken) - mit
+ * SEINEN Schnittgrössen. Nähme man das als Mastzahl, stünde am geteilten
+ * Masten der Reihe wieder die kleinere Zahl des Einzelfelds da, sobald das
+ * Knicken die Querschnittszahl des Kerns überholt. Getrennt geführt sieht
+ * man beides mit seiner Herkunft.
+ *
+ * ⚠ Das Knicken rechnet mit den Schnittgrössen des KERNS, nicht des
+ * Stabwerks. Am geteilten Masten der Reihe sind diese kleiner (Einzelfeld
+ * mit Sofortmassnahme); die Zeile sagt deshalb, woher sie stammt.
+ *
+ * @param {object} bt  Urteil des Kerns aus bauteilUrteil()
+ * @param {object} h   Ergebnis aus stabwerkHuelle() (oder null)
+ * @param {object} o   { jochKey: 'tragwerk' | 'tragwerk:T1',
+ *                       knick: { 'Mast M1': eta, ... } }
+ */
+export function bauteileMitStabwerk(bt, h, o = {}) {
+  const liste = [];
+  const dazu = (x) => {
+    const e = Number.isFinite(x.eta) ? x.eta : null;
+    liste.push({ ...x, eta: e, ueber: x.ueber ?? (e !== null && e > 1) });
+  };
+  const teilVon = (key, teil) => h?.teile?.[`${key}|${teil}`] ?? null;
+  (bt?.liste ?? []).forEach((x) => {
+    if (x.key === 'joch') {
+      const t = ['OG', 'UG', 'blech']
+        .map((k) => teilVon(o.jochKey ?? 'tragwerk', k))
+        .filter(Boolean)
+        .sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0))[0];
+      if (t) {
+        dazu({ key: 'joch', name: x.name, eta: t.eta, quelle: 'stabwerk',
+               fall: t.fall, bez: t.bez, ueber: null });
+        return;
+      }
+      dazu({ ...x, quelle: 'ersatzbalken' });
+      return;
+    }
+    if (x.key === 'mast') {
+      const id = /^Mast (.+)$/.exec(x.name)?.[1] ?? null;
+      const t = id ? h?.bauteile?.[`mast:${id}`] : null;
+      if (t) {
+        dazu({ key: 'mast', name: x.name, eta: t.eta, quelle: 'stabwerk',
+               fall: t.fall, bez: t.bez, ueber: null });
+      } else {
+        dazu({ ...x, quelle: 'ersatzbalken' });
+      }
+      const kn = o.knick?.[x.name];
+      if (t && Number.isFinite(kn)) {
+        dazu({ key: 'knicken', name: `Knicken ${id ?? x.name}`, eta: kn,
+               quelle: 'ersatzbalken', ueber: null });
+      }
+      return;
+    }
+    dazu({ ...x, quelle: 'ersatzbalken' });
+  });
+  // Dieselbe Regel wie bauteilUrteil: ein nicht lieferbares Bauteil vor
+  // jeder Zahl, sonst das grösste eta.
+  const massgebend = liste.reduce((best, x) => {
+    if (!best) return x;
+    if (x.ueber && x.eta === null) return best.ueber && best.eta === null ? best : x;
+    if (best.ueber && best.eta === null) return best;
+    return (x.eta ?? 0) > (best.eta ?? 0) ? x : best;
+  }, null);
+  const zahlen = liste.map((x) => x.eta).filter((v) => v !== null);
+  return {
+    eta: zahlen.length ? Math.max(...zahlen) : (bt?.eta ?? 0),
+    massgebend,
+    ueber: liste.some((x) => x.ueber),
+    liste,
+    stabwerk: liste.some((x) => x.quelle === 'stabwerk'),
+  };
 }
 
 /**
