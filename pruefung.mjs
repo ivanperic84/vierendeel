@@ -32916,6 +32916,12 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
   const seilY = sz.flaechen.filter((f) => f.teil === 'AUFHAENGUNG')
     .flatMap((f) => f.punkte.map((p) => p[1]));
   wahr('… und zwei Seile, eines je Seite', Math.min(...seilY) < -0.9 && Math.max(...seilY) > 0.9);
+  // Titel in Kurzform wie die übrigen Bauteile, auf Rückfrage «TA» (28. Sept.);
+  // das b-Mass 1.0 m neben dem Masten («weiter weg vom bauteil»).
+  wahr('3D: Titel «TA · 2 × UPE 140 · 13.00 m», b-Mass 1.0 m neben dem Masten',
+       sz.bauteiltitel.some((b) => b.text === 'TA · 2 × UPE 140 · 13.00 m')
+       && sz.masse.find((m) => m.feld === 'auslegerB')?.d === 1.0,
+       sz.bauteiltitel.map((b) => b.text).join(' | '));
   wahr('Das Stabmodell nennt Spreizung und Seilzahl',
        TAX147.tragauslegerModell(s).tragausleger.seile === 2
        && TAX147.tragauslegerModell(s).tragausleger.spreizung === 1);

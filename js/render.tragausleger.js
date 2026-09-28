@@ -269,7 +269,10 @@ export function auslegerSzene(satz, opt = {}) {
   /* --- Titel und Masse ----------------------------------------------------- */
   const xE = xG(t.L - t.hinten), x0 = xG(-t.hinten);
   bauteiltitel.push({ p: [(x0 + xE) / 2, 0, hG / 2 + 0.25],
-                      text: `Tragausleger · 2 × ${p.name} · ${t.L.toFixed(2)} m`,
+                      // Kurzform wie bei den übrigen Bauteilen («T1 · J90 ·
+                      // 20.00 m»); auf Rückfrage (28. September) «TA», damit
+                      // er sich vom Masten MT1 unterscheidet.
+                      text: `TA · 2 × ${p.name} · ${t.L.toFixed(2)} m`,
                       feld: 'L', tab: 'system' });
   masse.push({ feld: 'L', tab: 'system', achse: 'x', p0: [Math.min(x0, xE), 0, 0],
                p1: [Math.max(x0, xE), 0, 0], ab: [0, 0, -1], d: 0.9,
@@ -277,8 +280,11 @@ export function auslegerSzene(satz, opt = {}) {
   masse.push({ tab: 'system', achse: 'x', p0: [Math.min(0, xG(t.seil.c1)), 0, 0],
                p1: [Math.max(0, xG(t.seil.c1)), 0, 0], ab: [0, 0, -1], d: 1.5,
                text: `c₁ = ${t.seil.c1.toFixed(2)} m` });
+  // Weiter weg vom Masten (Weisung 28. September: «die vertikale vermassung
+  // weiter weg vom bauteil setzen»): 1.0 statt 0.4 m, auf der Seite ohne
+  // Ausleger - bei 0.4 m lag die Anschrift auf dem Mastprofil.
   masse.push({ feld: 'auslegerB', tab: 'system', achse: 'z', p0: [0, 0, 0], p1: [0, 0, bS],
-               ab: [-sp, 0, 0], d: 0.4,
+               ab: [-sp, 0, 0], d: 1.0,
                text: `b = ${bS.toFixed(2)} m · α ${d.tragausleger.alpha.toFixed(1)}°` });
 
   /* --- Grenzen ------------------------------------------------------------- */
