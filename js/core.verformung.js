@@ -169,6 +169,23 @@ function beiZ(verformung, z) {
 }
 
 /**
+ * >>> «NUR WIND» HEISST NUR WIND (28. September). <<<
+ *
+ * Befund: hier standen alle charakteristischen Fälle mit Leiteinwirkung
+ * Wind - dazu gehören auch die vier «Ständig + Wind» (gwk…, G = 1). Mal
+ * ψ 0.70 wurde daraus 0.7·G + 0.7·W, und massgebend war genau ein solcher
+ * Fall. Gemessen am J90/20 m, quer auf 7.50 m: 5.474 mm mit G, 4.886 mm
+ * nur Wind. Auf Rückfrage: «Nur Wind» - wie am 24. September entschieden
+ * («die 40 mm gegen den Fall NUR WIND»). Eine Stelle für Kern und
+ * Stabwerk (core.stabverformung.js).
+ */
+export function nurWindFaelle(lf) {
+  return (lf ?? []).filter((l) => l.art === 'charakteristisch'
+    && (l.leit === 'WindX' || l.leit === 'WindY')
+    && !(Number(l.beiwerte?.G) || 0));
+}
+
+/**
  * DER NACHWEIS DER MASTVERFORMUNG.
  *
  * >>> WELCHE KOMBINATION WOHER KOMMT. <<<
@@ -190,8 +207,7 @@ function beiZ(verformung, z) {
 export function verformungsNachweis(kombi) {
   const lf = kombi?.lastfaelle ?? [];
   const mitG = lf.filter((l) => l.stufe === 'betrieb');
-  const nurW = lf.filter((l) => l.art === 'charakteristisch'
-                             && (l.leit === 'WindX' || l.leit === 'WindY'));
+  const nurW = nurWindFaelle(lf);
   if (!mitG.length && !nurW.length) return null;
 
   const proEnde = {};

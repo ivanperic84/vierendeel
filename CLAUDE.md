@@ -139,6 +139,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| «Nur Wind» im Verformungsnachweis (28. Sept.) | Befund beim Überführen ins Stabwerk: die Auswahl «nur Wind» nahm auch die vier Fälle «Ständig + Wind» (gwk…, G = 1) mit und rechnete 0.7·G + 0.7·W; massgebend war genau so ein Fall. Auf Rückfrage: **«Nur Wind»** — wie am 24. September entschieden. Eine Stelle für Kern und Stabwerk (`nurWindFaelle` in core.verformung.js). Gemessen am J90/20 m, quer auf 7.50 m: Kern 5.474 → **4.886 mm**, Stabwerk 5.309 → **4.897 mm**; am Randmast der Reihe Stabwerk 5.727 → 4.897. Damit stimmen Kern und Stabwerk überall auf 0.2 % — der ganze Unterschied sass im ständigen Anteil |
 | Gebrauchstauglichkeit ins Stabwerk (28. Sept.) | Frage des Auftraggebers: «wurde die gebrauchstauglichkeit auch in die stab nachweis methode überführt?» — nein, sie kam aus dem Ersatzbalken (gemessen 26. Sept.: am geteilten Masten der Reihe quer 4.89 statt 5.81 mm, −16 %, unsichere Seite). Auf Rückfrage: **«Ins Stabwerk»** — die Verschiebung an der Referenzhöhe kommt aus den Knotenwegen des Lösers unter den Betriebswind-Fällen (ψ 0.70), zwischen den Mastknoten nach der Biegelinie; ohne gültiges Stabwerk der Kern, «vorläufig» |
 | Verformung mit Ampel (28. Sept.) | «die kacheln haben keine farbe unter übersicht». Auf Rückfrage: **«Verformung mit Ampel»** — die Verformungskacheln tragen die Ampel wie die Nachweise (η = w / 40 mm). **Ändert den Entscheid vom 24. September** («Kachel ohne Ampel», «färbt kein Urteil») für die Kacheln |
 | Schnitt im Stabwerksweg (28. Sept.) | «könnte man schnitt überarbeiten, dass es einen grösseren nutzen hat bei methode stab berechnung?» Auf Rückfrage: **«Station + Stabliste»** — an der gewählten Station die Schnittgrössen der vier Gurte und der Bleche aus dem Stabwerk mit Randspannung und η (statt der Aufteilung des Ersatzbalkens); darunter je Teil die zehn höchstbeanspruchten Stäbe mit Kombination, ein Klick fährt ins Modell |
@@ -225,7 +226,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5508 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5511 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -250,8 +251,9 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   als «Ersatzbalken · vorläufig». Im Browser geprüft (M1/M2 6 mm auf
   Fahrdraht 6.00 m, Ampel grün, Quelle Stabwerk). Dazu die
   **Verformungskacheln mit Ampel** (Entscheid «Verformung mit Ampel»).
-  ⚠ **Befund dabei**, siehe *Offene Punkte*: «nur Wind» nimmt auch
-  «Ständig + Wind» mit.
+  **Befund dabei:** «nur Wind» nahm auch «Ständig + Wind» mit (0.7·G +
+  0.7·W). Auf Rückfrage **«Nur Wind»** (siehe *Entschieden*): danach
+  Kern 4.886 / Stabwerk 4.897 mm an allen Masten, auf 0.2 % gleich.
 - **28. Sept., Fahrdrahtschieber und Auflagerskizzen** (Prüfstand
   Abschnitt 132). Gemeldet mit Bildern: «diesen schieber checken, diser
   steht vielmals auf 0 und die länge ist nicht auf die mastlänge
@@ -1650,15 +1652,6 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- ⚠ **«Nur Wind» im Verformungsnachweis nimmt auch «Ständig + Wind» mit**
-  (Befund 28. Sept.). `verformungsNachweis` (core.verformung.js) wählt
-  `art === 'charakteristisch'` mit Leiteinwirkung Wind — dazu gehören
-  auch `gwk`, `gwkm`, `gwkx`, `gwkxm` (G = 1). Mal ψ 0.70 wird daraus
-  0.7·G + 0.7·W. Entscheid vom 24. September: «die 40 mm gegen den Fall
-  NUR WIND». Gemessen am J90/20 m, quer auf 7.50 m: mit G **5.474 mm**
-  (massgebend `gwkx`), nur Wind **4.886 mm** (`wxk`), +12 % — auf der
-  sicheren Seite. Das Stabwerk übernimmt dieselbe Auswahl. Entscheid des
-  Auftraggebers.
 - ⚠ **Jedes AxisVM-Modell mit Linkelementen seit dem 24. August hatte die
   Verbindung 0.45 m ausserhalb des Links** (`Position = 0.5` als Meter,
   siehe *Letzte Schritte*). Betroffen sind damit Messungen, die sich auf
@@ -1864,7 +1857,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5508 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5511 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

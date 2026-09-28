@@ -43,7 +43,7 @@
 
 import { qsWerte } from './core.stabwerk.js';
 import { anteileFuer } from './core.stabnachweis.js';
-import { VERFORMUNG_GRENZEN } from './core.verformung.js';
+import { VERFORMUNG_GRENZEN, nurWindFaelle } from './core.verformung.js';
 import { BETRIEBSWIND } from './core.lasten.js';
 
 const RICHT = { X: 0, Y: 1, Z: 2 };
@@ -148,8 +148,7 @@ export function mastWeg(dat, lsg, anteile, zug, h) {
 export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
   if (!kern) return null;
   const mitG = faelle.filter((l) => l.stufe === 'betrieb');
-  const nurW = faelle.filter((l) => l.art === 'charakteristisch'
-                               && (l.leit === 'WindX' || l.leit === 'WindY'));
+  const nurW = nurWindFaelle(faelle);
   const achsIdx = { x: 0, y: 1 };
   const proEnde = {};
   ['A', 'B'].forEach((ende) => {

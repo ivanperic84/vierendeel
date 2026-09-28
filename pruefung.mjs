@@ -31563,12 +31563,16 @@ titel('133  Die Mastverformung aus dem Stabwerk (Gebrauchstauglichkeit)');
  * Gemessen am J90/20 m, quer auf 7.50 m (Jochauflager), nur Wind × 0.70:
  *
  *                            Kern       Stabwerk
- *   Einzeljoch M1/M2         5.474 mm   5.309 mm
+ *   Einzeljoch M1/M2         4.886 mm   4.897 mm
  *   Reihe, geteilter M2      4.886 mm   4.897 mm
- *   Reihe, Randmast M3       5.474 mm   5.727 mm   (Kern −4.4 %)
+ *   Reihe, Randmast M3       4.886 mm   4.897 mm
  *
- * Die −16 % vom 26. September (4.89 gegen 5.81 mm) stehen so nicht mehr -
- * seither rechnet der Löser mit I_yz und koppelt in der Linkmitte.
+ * Bis zum Entscheid «Nur Wind» (28. September) zählten auch die Fälle
+ * «Ständig + Wind» mit (0.7·G + 0.7·W): Einzeljoch Kern 5.474 / Stabwerk
+ * 5.309, Randmast der Reihe 5.474 / 5.727 mm. Der ganze Unterschied
+ * zwischen den beiden Wegen sass im ständigen Anteil. Die −16 % vom
+ * 26. September (4.89 gegen 5.81 mm) stehen so nicht mehr - seither
+ * rechnet der Löser mit I_yz und koppelt in der Linkmitte.
  * ========================================================================= */
 {
   const SW133 = await import(J('core.stabwerk.js'));
@@ -31661,7 +31665,22 @@ titel('133  Die Mastverformung aus dem Stabwerk (Gebrauchstauglichkeit)');
   wahr('Quer, nur Wind (wie der Kern)', v1.A.massgebend.achse === 'x');
   const mm = (v) => (v * 1000).toFixed(3);
   pruef('Einzeljoch M1 quer auf 7.50 m, Stabwerk (gemessen 28. Sept.)',
-        v1.A.massgebend.wert * 1000, 5.309, 5e-3, 'mm');
+        v1.A.massgebend.wert * 1000, 4.897, 5e-3, 'mm');
+  /*
+   * >>> «NUR WIND» HEISST NUR WIND (Entscheid 28. September). <<<
+   * Massgebend ist ein reiner Windfall - kein «Ständig + Wind» (gwk…).
+   */
+  wahr('>>> Massgebend ist ein reiner Windfall, kein «Staendig + Wind» <<<',
+       !/^gwk/.test(v1.A.massgebend.lastfall)
+       && !/^gwk/.test(e1.erg.verformung.A.massgebend.lastfall),
+       `${v1.A.massgebend.lastfall} / ${e1.erg.verformung.A.massgebend.lastfall}`);
+  wahr('nurWindFaelle laesst jeden Fall mit G weg',
+       VF133.nurWindFaelle([
+         { key: 'a', art: 'charakteristisch', leit: 'WindX', beiwerte: { G: 0, WindX: 1 } },
+         { key: 'b', art: 'charakteristisch', leit: 'WindX', beiwerte: { G: 1, WindX: 1 } },
+       ]).map((l) => l.key).join() === 'a');
+  pruef('Kern quer auf 7.50 m, nur Wind (vorher 5.474 mit 0.7·G)',
+        e1.erg.verformung.A.massgebend.wert * 1000, 4.886, 5e-3, 'mm');
   /*
    * DIE MASTSPITZE: dort stimmten Kern und Stabwerk schon am 26. September
    * auf 0.1 % - die Gegenprobe, dass die Wege dieselben sind.
@@ -31672,8 +31691,8 @@ titel('133  Die Mastverformung aus dem Stabwerk (Gebrauchstauglichkeit)');
        Math.abs(spS.wert / spK.wert - 1) < 0.01, `${mm(spS.wert)} / ${mm(spK.wert)} mm`);
   const e2 = rechne(C133.tragwerkHinzu(w133, 'joch', {}));
   const v2 = e2.h.verformung;
-  wahr('Reihe: der Randmast steht im Stabwerk ueber dem Kern (Kern unsicher)',
-       v2.B.massgebend.wert > e2.erg.verformung.B.massgebend.wert,
+  wahr('Reihe, Randmast: Stabwerk und Kern auf 1 % (nur Wind)',
+       Math.abs(v2.B.massgebend.wert / e2.erg.verformung.B.massgebend.wert - 1) < 0.01,
        `Stabwerk ${mm(v2.B.massgebend.wert)} / Kern ${mm(e2.erg.verformung.B.massgebend.wert)} mm`);
 }
 
