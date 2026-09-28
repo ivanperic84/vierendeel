@@ -1910,8 +1910,11 @@ export function querprofilLeisteHtml(werte) {
     const einMast = art.masten < 2 ? eigeneMasten[0] : null;
     const marken = [
       einMast ? ankerChip(einMast) : '',
-      art.key === 'tragausleger'
-        ? '<span class="qp-chip warn" title="Kragarm-Modell fehlt - siehe Warnung in der Auswertung">nicht nachgewiesen</span>' : '',
+      // Seit dem 28. September: nur, solange das Stabwerk den Ausleger
+      // nicht nachgewiesen hat (Ersatzbalken als Verfahren, oder noch nicht
+      // gerechnet).
+      art.key === 'tragausleger' && !(t.id === etaLeiste?.twId && etaLeiste?.ausleger)
+        ? '<span class="qp-chip warn" title="Nachgewiesen wird der Tragausleger im Stabwerk - hier noch nicht gerechnet oder Ersatzbalken gewählt">nicht nachgewiesen</span>' : '',
       t.id === etaLeiste?.twId ? etaMarke(etaLeiste.tragwerk) : etaMarke(NaN),
     ].join('');
     const zeile = `<div class="qp-zeile qp-twzeile${an ? ' an' : ''}${aus ? ' aus' : ''}">
@@ -5266,6 +5269,26 @@ export function stabwerkFuehrt(opt = {}, einzelLastfall = false) {
   return sw.ergebnis?.teile ? sw.ergebnis : null;
 }
 
+/**
+ * Das Urteil des Kerns, angepasst an ein gültiges Stabwerk.
+ *
+ * >>> DER TRAGAUSLEGER IST MIT DEM STABWERK NACHGEWIESEN (28. Sept.). <<<
+ * Der Kern nennt ihn «NICHT nachgewiesen» (Phantomauflager, Entscheid vom
+ * 18. September). Liegt ein gültiges Stabwerk mit Ausleger vor, trägt das
+ * Stabwerk sein Urteil (UPE, Bleche, Aufhängung, Mast, Knicken, Fundament)
+ * - dann fallen Vermerk und «nicht geführt: Tragausleger» weg. Ohne
+ * gültiges Stabwerk bleibt es, wie der Kern es sagt.
+ */
+export function urteilMitStabwerk(urteil, swH) {
+  if (!urteil || !swH?.ausleger) return urteil;
+  return {
+    ...urteil,
+    tragwerkGefuehrt: urteil.nachweise?.jochtragwerk !== false,
+    nichtNachgewiesen: null,
+    nichtGefuehrt: (urteil.nichtGefuehrt ?? []).filter((g) => g.key !== 'tragausleger'),
+  };
+}
+
 /** Steht das Stabwerk zur Wahl, ist aber (noch) nicht gültig? */
 export function stabwerkVorlaeufig(opt = {}, einzelLastfall = false) {
   const sw = opt.stabwerk;
@@ -5477,6 +5500,9 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
        * die Zahl des Einzelfelds, sobald das Knicken überwiegt.
        */
       const sw = opt.swH?.bauteile?.[`mast:${name}`] ?? null;
+      // Am Tragausleger kennt der Kern einen Phantom-Masten (Auflager am
+      // freien Ende) - mit dem Stabwerk zählt nur der wirkliche.
+      if (opt.swH?.ausleger && !sw) return;
       if (sw) {
         const fS = sw.bez ? { kurz: fallKurz(sw.bez), voll: sw.bez } : null;
         mast.push(kachel(`η ${name}`, f3(sw.eta),
@@ -5487,7 +5513,17 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
                  + 'Die Stabilität rechnet der Löser nicht - sie steht '
                  + 'in der Kachel «Knicken» daneben.',
           }));
-        if (n.stabil && Number.isFinite(n.stabil.eta)) {
+        // Am Tragausleger das Knicken aus dem Stabwerk (Entscheid 28. Sept.).
+        const knA = opt.swH?.ausleger ? opt.swH.ausleger.knick : null;
+        if (knA && Number.isFinite(knA.eta)) {
+          mast.push(kachel(`η Knicken ${name}`, f3(knA.eta),
+            `${n.profil.name} · Stabwerk`, ampelU(knA.eta), {
+              ...(knA.bez ? { fall: fallKurz(knA.bez) } : {}),
+              titel: 'Knicken nach SIA 263 mit den Kräften des Stabwerks - '
+                   + 'Vertikallasten auf ihren Höhen, Schnittgrössen am Fuss '
+                   + '(core.stabmast.js).',
+            }));
+        } else if (!opt.swH?.ausleger && n.stabil && Number.isFinite(n.stabil.eta)) {
           const fK = fz(n.stabil.fall ?? n.fall);
           mast.push(kachel(`η Knicken ${name}`, f3(n.stabil.eta),
             `${n.profil.name} · Ersatzbalken`, ampelU(n.stabil.eta), {
@@ -5765,6 +5801,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Bemessung - beim Regelfall dasselbe Objekt.
    */
   const einzelLastfall = opt.quelle && opt.quelle !== 'umhuellend';
+  // Mit gültigem Stabwerk trägt es auch das Urteil des Tragauslegers.
+  urteil = urteilMitStabwerk(urteil, stabwerkFuehrt(opt, einzelLastfall));
   const bem = (einzelLastfall && opt.bemessung) ? opt.bemessung : erg;
   const zeig = erg;
   /* =======================================================================
@@ -5969,7 +6007,39 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
     kachel('N Gurt', `${(ab.gurt?.N ?? 0).toFixed(0)} kN`,
            `Kräftepaar · e = ${(ab.q.e).toFixed(1)} cm`, 'ok',
            mitFall({ x: ab.gurt?.x ?? 0 }, fAb)),
-  ] : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
+  ] : (swH?.ausleger && swH.teile?.[`${jochKey}|UPE`]) ? (() => {
+    /*
+     * >>> DER TRAGAUSLEGER AUS DEM STABWERK (28. September, Etappe 4c). <<<
+     * Zwei UPE, die Bindebleche und die Aufhängung gegen V_zul - statt der
+     * drei Kacheln des Phantomjochs, das der Kern rechnet.
+     */
+    const k = (teil, titel, sub) => {
+      const s = swH.teile[`${jochKey}|${teil}`];
+      if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
+      return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
+        ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
+        titel: `${s.bez ? `Massgebende Kombination: ${s.bez}
+
+` : ''}Aus dem Stabwerk, Stab ${s.wo}.`,
+      });
+    };
+    const a = swH.ausleger.aufhaengung;
+    const aufh = a ? kachel('η Aufhängung', f3(a.eta),
+      `S_v ${f2(a.Sv)} / ${f2(swH.ausleger.Vzul)} kN · char.${a.druck ? ' · SEIL GEDRÜCKT' : ''}`,
+      ampelU(a.druck ? 2 : a.eta), {
+        ...(a.bez ? { fall: fallKurz(a.bez) } : {}),
+        titel: `Senkrechter Anteil der Seilkraft (${f2(a.N)} kN Zug) gegen den `
+             + `Kontrollwert der Zeichnung V_zul = ${f2(swH.ausleger.Vzul)} kN, `
+             + 'charakteristisch, nur wirkliche Zustände (ganzes G, G + Wind, '
+             + 'Havarie). Darüber verlangt die Zeichnung eine separate statische '
+             + 'Berechnung.'
+             + (a.druck ? `
+
+SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
+               + 'ein Seil trägt keinen Druck.' : ''),
+      }) : kachel('η Aufhängung', '–', 'nicht gerechnet', '');
+    return [k('UPE', 'η Gurt', 'UPE'), k('blech', 'η Bindeblech', 'massgebendes Blech'), aufh];
+  })() : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
     /*
      * DIE JOCHKACHELN AUS DEM STABWERK: je Teil das grösste eta über alle
      * Stäbe und Kombinationen. Keine Stelle zum Anfahren - das Stabwerk
@@ -6031,26 +6101,32 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * Blechkacheln, am Abfangjoch seine zwei Gurte. Die übrigen drei
    * hängen am Masten und kommen aus `bauteilKachelnJe`.
    */
-  const nwJe = bauteilKachelnJe(erg, urteil, ampelU, { ...opt, swH });
+  // Am Tragausleger kommt das Fundament aus dem Stabwerk (28. September).
+  const nwJe = bauteilKachelnJe(swH?.ausleger
+    ? { ...erg, fundament: swH.ausleger.fundament } : erg, urteil, ampelU, { ...opt, swH });
   /*
    * DIE QUELLE STEHT AN DER GRUPPE: «Stabwerk» oder «Ersatzbalken», und
    * «vorläufig», solange das gewählte Stabwerk noch nicht (wieder)
    * gerechnet ist.
    */
-  const jochAusSw = !!(swH && !ab && swH.teile?.[`${jochKey}|OG`]);
+  const jochAusSw = !!(swH && !ab && (swH.teile?.[`${jochKey}|OG`]
+                                       || swH.teile?.[`${jochKey}|UPE`]));
   const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
     .some((k) => k.startsWith('mast:')));
   const quelle = (ausSw) => (ausSw ? 'Stabwerk'
     : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppen = [
-    { titel: ab ? 'Abfangjoch' : 'Joch', kacheln: kz, rechts: quelle(jochAusSw) },
+    { titel: ab ? 'Abfangjoch' : (swH?.ausleger ? 'Tragausleger' : 'Joch'),
+      kacheln: kz, rechts: quelle(jochAusSw) },
     // «Knicken Ersatzbalken» nur, wenn das Knicken auch geführt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
       rechts: mastAusSw
-        ? (Object.keys(knickJe(erg)).length ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
+        ? (swH?.ausleger || !Object.keys(knickJe(erg)).length
+            ? 'Stabwerk' : 'Stabwerk · Knicken Ersatzbalken')
         : quelle(false) },
     { titel: 'Anker', kacheln: nwJe.anker, rechts: quelle(false) },
-    { titel: 'Fundament', kacheln: nwJe.fundament, rechts: quelle(false) },
+    { titel: 'Fundament', kacheln: nwJe.fundament,
+      rechts: quelle(Boolean(swH?.ausleger?.fundament)) },
   ];
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den

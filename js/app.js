@@ -584,8 +584,10 @@ function planeStabwerk() {
 function urteilAngezeigt(urteil, bem) {
   const g = stabwerkGilt();
   if (!urteil?.bauteile || !g) return urteil;
-  return { ...urteil, bauteile: bauteileMitStabwerk(urteil.bauteile, g.h,
-                                                   { jochKey: g.jochKey, knick: ui.knickJe(bem) }) };
+  // Am Tragausleger trägt das Stabwerk auch den Vermerk (ui.urteilMitStabwerk).
+  return { ...ui.urteilMitStabwerk(urteil, g.h),
+           bauteile: bauteileMitStabwerk(urteil.bauteile, g.h,
+                                         { jochKey: g.jochKey, knick: ui.knickJe(bem) }) };
 }
 
 /**
@@ -1026,6 +1028,8 @@ function neuRechnen(neuZeichnen = true) {
         twId: werte.twId ?? 'T1',
         tragwerk: swG?.h?.bauteile?.[swG.jochKey]?.eta ?? anz.max?.etaGesamt,
         masten,
+        // Der Tragausleger ist mit dem Stabwerk nachgewiesen (28. September).
+        ausleger: Boolean(swG?.h?.ausleger),
       });
     }
 

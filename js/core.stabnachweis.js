@@ -603,15 +603,38 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
     liste.push({ ...x, eta: e, ueber: x.ueber ?? (e !== null && e > 1) });
   };
   const teilVon = (key, teil) => h?.teile?.[`${key}|${teil}`] ?? null;
+  /*
+   * >>> DER TRAGAUSLEGER (28. September, Etappe 4c). <<<
+   * Rechnet das Stabwerk einen Ausleger (`h.ausleger` aus rechneStabwerk),
+   * trägt es sein ganzes Urteil: Gurt (UPE) und Bindebleche statt des
+   * Phantomjochs des Kerns, dazu die Aufhängung gegen V_zul, das Knicken
+   * und das Fundament mit den Kräften des Stabwerks.
+   */
+  const ta = h?.ausleger ?? null;
+  /*
+   * DER KERN KENNT AM AUSLEGER EINEN ZWEITEN MASTEN, den es nicht gibt (das
+   * Phantomauflager am freien Ende, «Mast B»). Mit dem Stabwerk zählt nur
+   * der Mast des Auslegers - Phantom-Mast und -Fundament fallen weg.
+   */
+  const taId = ta ? /^Mast (.+)$/.exec(ta.name ?? '')?.[1] ?? null : null;
+  const phantom = (x) => ta && (x.key === 'mast' || x.key === 'fundament')
+    && /^(?:Mast|Fundament) (.+)$/.exec(x.name)?.[1] !== taId;
+  let fundamentDa = false;
   (bt?.liste ?? []).forEach((x) => {
+    if (phantom(x)) return;
     if (x.key === 'joch') {
-      const t = ['OG', 'UG', 'blech']
+      const t = ['OG', 'UG', 'blech', 'UPE']
         .map((k) => teilVon(o.jochKey ?? 'tragwerk', k))
         .filter(Boolean)
         .sort((a, b) => (b.eta ?? 0) - (a.eta ?? 0))[0];
       if (t) {
-        dazu({ key: 'joch', name: x.name, eta: t.eta, quelle: 'stabwerk',
-               fall: t.fall, bez: t.bez, ueber: null });
+        dazu({ key: 'joch', name: ta ? 'Tragausleger' : x.name, eta: t.eta,
+               quelle: 'stabwerk', fall: t.fall, bez: t.bez, ueber: null });
+        const a = ta?.aufhaengung;
+        if (a) {
+          dazu({ key: 'aufhaengung', name: 'Aufhängung', eta: a.eta, quelle: 'stabwerk',
+                 fall: a.fall, bez: a.bez, ueber: a.ueber });
+        }
         return;
       }
       dazu({ ...x, quelle: 'ersatzbalken' });
@@ -626,6 +649,14 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       } else {
         dazu({ ...x, quelle: 'ersatzbalken' });
       }
+      // Am Ausleger kommt das Knicken aus dem Stabwerk (Entscheid 28. Sept.).
+      if (t && ta) {
+        if (ta.knick && Number.isFinite(ta.knick.eta)) {
+          dazu({ key: 'knicken', name: `Knicken ${id ?? x.name}`, eta: ta.knick.eta,
+                 quelle: 'stabwerk', fall: ta.knick.fall, bez: ta.knick.bez, ueber: null });
+        }
+        return;
+      }
       const kn = o.knick?.[x.name];
       if (t && Number.isFinite(kn)) {
         dazu({ key: 'knicken', name: `Knicken ${id ?? x.name}`, eta: kn,
@@ -633,8 +664,24 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       }
       return;
     }
+    // Ebenso das Fundament des Auslegermasten.
+    if (x.key === 'fundament' && ta) {
+      const f = ta.fundament?.A;
+      fundamentDa = true;
+      if (f && Number.isFinite(f.eta)) {
+        dazu({ key: 'fundament', name: x.name, eta: f.eta, quelle: 'stabwerk',
+               fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: null });
+      }
+      return;
+    }
     dazu({ ...x, quelle: 'ersatzbalken' });
   });
+  // Liefert der Kern kein Fundament, steht das des Auslegermasten trotzdem da.
+  if (ta && !fundamentDa && Number.isFinite(ta.fundament?.A?.eta)) {
+    const f = ta.fundament.A;
+    dazu({ key: 'fundament', name: `Fundament ${taId}`, eta: f.eta, quelle: 'stabwerk',
+           fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: null });
+  }
   // Dieselbe Regel wie bauteilUrteil: ein nicht lieferbares Bauteil vor
   // jeder Zahl, sonst das grösste eta.
   const massgebend = liste.reduce((best, x) => {

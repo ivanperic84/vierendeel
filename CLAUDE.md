@@ -217,7 +217,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Testdaten (19. Sept., A3) | `testdaten/` ist **frei erfunden** und öffentlich (Typ «TEST-80», runde Werkstattgrössen, keine Zahl aus den Unterlagen); sie tragen nur den Rauchtest, nie eine Bemessung |
 | Kommentare (19. Sept., A4) | **nicht kürzen** — die Weisungszitate und das Warum bleiben im Code |
 | Erklärtexte (19. Sept., U4) | abschaltbar in Optionen → Darstellung → Bedienung, **Vorgabe ein**; gerechnete Notizen bleiben immer |
-| Tragausleger (18. Sept.) | bis zum Kragarm-Modell **Warnung statt Sperre**: «Tragausleger NICHT nachgewiesen», gelb, kein Urteil, Bericht nimmt ihn nicht |
+| Tragausleger (18. Sept.) | bis zum Kragarm-Modell **Warnung statt Sperre**: «Tragausleger NICHT nachgewiesen», gelb, kein Urteil, Bericht nimmt ihn nicht. **Seit dem 28. September gilt das nur noch ohne gültiges Stabwerk** (Rechenverfahren «Ersatzbalken» oder noch nicht gerechnet); mit dem Stabwerk ist er nachgewiesen (Etappe 4) |
 | Fundamentkote | **keine Last darunter**: die Eingabe hebt ein Teil auf die kleinste zulässige Höhe (`haengeTiefe`) und meldet es; ein alter Stand darunter steht als Hinweis |
 | Mast am Joch (18. Sept.) | Vorgabe: Mastachse **genau am Jochende**. Am Jochende stehen nur **stehende** Bleche (Seitenebenen, Gabel). P9 prüft nur die **liegenden** Bleche; P10 prüft die lichte Weite zwischen den Gurten (Grundriss verjüngt bei J60–J90 von 340 auf 260 mm) |
 | Stabilität am Masten (18. Sept.) | jede Masse auf ihrer **eigenen Höhe**, Jochlast auf H, Eigengewicht verteilt |
@@ -230,12 +230,28 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5567 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5585 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 4c: nachgewiesen im Stabwerk, in der
+  Anzeige** (Prüfstand Abschnitt 139). Die Sperre ist aufgehoben
+  (`ARTEN_MIT_STABMODELL`), in einer Reihe bleibt sie (Aufhängung, Knicken
+  und Fundament rechnet `rechneStabwerk` nur für den Ausleger allein).
+  Mit gültigem Stabwerk trägt es das ganze Urteil: Gurt UPE, Bindeblech,
+  Aufhängung, Mast, Knicken, Fundament; der Phantom-Mast B des Kerns und
+  der Vermerk «NICHT nachgewiesen» fallen weg (`urteilMitStabwerk` in
+  ui.js, auch in Fussleiste, Schiene und Tragwerksliste). Der Mast heisst
+  im Modell wie in den Kacheln (`federn.namen`, «MT1»). Der Hinweis des
+  Kerns sagt jetzt, dass das Stabwerk nachweist. **Im Browser** (Stand
+  vorher gesichert und danach Zeichen für Zeichen wiederhergestellt):
+  Ausleger L 13 m mit Hängestütze — Gurt 0.374, **Bindeblech 1.209**,
+  Aufhängung 0.824 (S_v 4.12 / 5.00 kN), **Mast MT1 2.103**, **Fundament
+  1.445**; vor dem Stabwerkslauf «nicht nachgewiesen η 0.35», danach
+  η 1.21 ohne Schild. Noch vom Kern: die Maske («Tragjoch-Typ … J90») und
+  das 3D-Bild zeigen beim Ausleger das Ersatzjoch.
 - **28. Sept., Tragausleger Etappe 4b: Knicken und Fundament aus dem
   Stabwerk; Wölbspannung im Stabwerk** (Prüfstand Abschnitt 138, neues
   Modul `core.stabmast.js`). Die Regeln bleiben im Kern
@@ -1433,10 +1449,11 @@ gemessen (siehe *Letzte Schritte*, Prüfstand 136, 137): zwei UPE 140,
 Bleche oben/unten, Anschluss nach Entscheid «A», Aufhängung als
 Pendelstab, Eigengewicht aus der Liste; UPE, Bleche und Aufhängung werden
 nachgewiesen (4a). **Nächste Schritte (Reihenfolge entschieden: Nachweise
-vor dem Kern):** ~~(4b) Knicken und Fundament aus dem Stabwerk~~ (erledigt,
-`ausleger` im Ergebnis von `rechneStabwerk`); (4c) Anzeige: Kacheln UPE / Bindeblech / Aufhängung,
-`ohneStabmodell('tragausleger')` aufheben, Warnung «NICHT nachgewiesen»
-fallen lassen; danach (3) der Kern für die vorläufige Anzeige. Offen dazu: Havarie je Leiter im Ausleger,
+vor dem Kern):** ~~(4b) Knicken und Fundament aus dem Stabwerk~~,
+~~(4c) Anzeige und Sperre~~ (beide erledigt am 28. September). **Offen:**
+(3) der Kern für die vorläufige Anzeige, dazu die Maske (zeigt noch
+«Tragjoch-Typ») und das 3D-Bild (zeigt das Ersatzjoch); der Ausleger in
+einer Reihe; Havarie je Leiter; Wind auf den Ausleger selbst. Offen dazu: Havarie je Leiter im Ausleger,
 Feld und Stelle der Längsverankerung in der Maske, die Rückstellkraft
 der Leiter (⚠ festzulegen).
 
@@ -1803,9 +1820,10 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - **Nachweisbericht:** Tragausleger fehlt noch (wartet auf die Modellfrage
   unten); die Systemskizze ist die Längsansicht des Modells, keine
   vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt.
-- **Mast mit Tragausleger — Ergebnisse auf der unsicheren Seite** (seit
-  18. Sept. als «NICHT nachgewiesen» gekennzeichnet, gelb, ohne Urteil;
-  offen bleibt das Kragarm-Modell). Der
+- **Mast mit Tragausleger — der KERN liegt auf der unsicheren Seite**
+  (seit dem 28. September im Stabwerk nachgewiesen, siehe *Letzte
+  Schritte*; offen bleibt der Kern für die vorläufige Anzeige, Etappe 3,
+  und der Ausleger in einer Reihe). Der
   Kern rechnet den Ausleger als Einfeldträger mit einem zweiten Auflager am
   freien Ende (Phantom «Mast B»). Gemessen an der Vorlage, Fahrleitung an
   der Spitze, G charakteristisch: L = 8 m → Kern M_A = 0, max M_y 5.0 kNm;
@@ -1973,7 +1991,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5567 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5585 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

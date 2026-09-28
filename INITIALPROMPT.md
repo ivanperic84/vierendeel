@@ -6,7 +6,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 zu lesen, bevor etwas geändert wird.
 
 Stand: **28. September 2026**, committet, aber **nicht gepusht**
-(`git log --oneline -8`); Prüfstand 5567 Kontrollen grün, `durchlauf.mjs`
+(`git log --oneline -8`); Prüfstand 5585 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
@@ -18,9 +18,10 @@ Dazu am 28. September: Gebrauchstauglichkeit aus dem Stabwerk («nur
 Wind» heisst jetzt nur Wind), Verformungskacheln mit Ampel, Schnitt mit
 Station und Stabliste aus dem Stabwerk.
 **Tragausleger Etappe 2 ist erledigt** (Stabmodell im Stabwerk,
-Seilkraft gemessen). Etappen 4a (UPE, Bleche, Aufhängung) und 4b (Knicken, Fundament aus dem
-Stabwerk, Wölbspannung im Stabwerk) stehen. **Als Nächstes: 4c (Anzeige,
-Sperre aufheben), danach 3 (Kern)** — CLAUDE.md, *Laufende
+Seilkraft gemessen). Etappe 4 ist erledigt: der Tragausleger ist im Stabwerk nachgewiesen
+(UPE, Bleche, Aufhängung, Mast mit Wölbspannung, Knicken, Fundament) und
+steht so in der Anzeige. **Als Nächstes: Etappe 3 (Kern für die vorläufige
+Anzeige, Maske, 3D-Bild), dann die Bilder aufs Stabwerk** — CLAUDE.md, *Laufende
 Arbeit (28. Sept.)*. Danach die Bilder (Verläufe, 3D-Plot) aufs Stabwerk. ⚠ Welche früheren AxisVM-Entscheide von der
 falschen Linklage berührt sind, steht unter *Offene Punkte*.
 
@@ -158,7 +159,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5567 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5585 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

@@ -940,6 +940,17 @@ export function zeichneSchienen(app) {
         ['G', e.abfang.gurt?.eta ?? 0, `Gurt ${e.abfang.q.gurt.name}`],
         ['Bl', e.abfang.blech?.eta ?? 0, 'Bindeblech, massgebende Station'],
       ] });
+    } else if (swG?.h?.ausleger && swG.h.teile?.[`${swG.jochKey}|UPE`]) {
+      // Der Tragausleger aus dem Stabwerk (28. September): Gurt, Blech, Seil.
+      const t = (k) => swG.h.teile[`${swG.jochKey}|${k}`];
+      const a = swG.h.ausleger.aufhaengung;
+      gruppen.push({ titel: 'Tragausleger · Stabwerk', teile: [
+        ['UPE', t('UPE')?.eta ?? 0, 'Gurt UPE (Stabwerk)'],
+        ['Bl', t('blech')?.eta ?? 0, 'Bindeblech (Stabwerk)'],
+        ['Se', a?.druck ? NaN : (a?.eta ?? 0),
+         a ? `Aufhängung S_v ${a.Sv.toFixed(2)} / ${swG.h.ausleger.Vzul} kN (charakteristisch)`
+           : 'Aufhängung nicht gerechnet'],
+      ] });
     } else if (swG?.h?.teile?.[`${swG.jochKey}|OG`]) {
       /*
        * STABWERK FUEHRT (28. September): dieselben Zahlen wie die Kacheln
@@ -1002,9 +1013,14 @@ export function zeichneSchienen(app) {
          * dem Kern - wie die Kacheln der Auswertung.
          */
         const swM = swG?.h?.bauteile?.[`mast:${name}`];
+        // Am Tragausleger gibt es keinen zweiten Masten (Phantom des Kerns).
+        if (swG?.h?.ausleger && !swM) return;
         if (swM) {
           teile.push([name, swM.eta ?? 0, `${name} Querschnitt (Stabwerk)`]);
-          if (Number.isFinite(n.stabil?.eta)) {
+          const knA = swG.h.ausleger?.knick;
+          if (knA && Number.isFinite(knA.eta)) {
+            teile.push([`K${name}`, knA.eta, `Knicken ${name} (Stabwerk)`]);
+          } else if (!swG.h.ausleger && Number.isFinite(n.stabil?.eta)) {
             teile.push([`K${name}`, n.stabil.eta, `Knicken ${name} (Ersatzbalken)`]);
           }
           return;

@@ -1209,10 +1209,18 @@ export function hinweise(m) {
     }
   }
   if (art.key === 'tragausleger') {
-    h.push(`Tragwerksart «${art.label}» gewählt — gerechnet wird weiterhin `
-      + 'das Tragjoch. Der Rechenkern für diese Art ist noch nicht gebaut; '
-      + 'alle folgenden Zahlen gelten dem Joch und nicht dem gewählten '
-      + 'Tragwerk.');
+    /*
+     * Seit dem 28. September trägt das STABWERK das Urteil des Auslegers
+     * (zwei UPE, Bindebleche, Aufhängung, Mast, Knicken, Fundament). Der
+     * Ersatzbalken rechnet weiter das Tragjoch - er liefert nur die
+     * vorläufige Anzeige, bis das Stabwerk gerechnet ist.
+     */
+    h.push(`Tragwerksart «${art.label}»: nachgewiesen wird im Stabwerk (zwei `
+      + 'UPE, Bindebleche, Aufhängung gegen V_zul, Mast, Knicken, Fundament). '
+      + 'Der Ersatzbalken rechnet dafür noch das Tragjoch mit einem Auflager '
+      + 'am freien Ende - seine Zahlen gelten nur als vorläufige Anzeige, und '
+      + 'mit dem Rechenverfahren «Ersatzbalken» ist der Ausleger nicht '
+      + 'nachgewiesen.');
   }
   /*
    * >>> EINE LABILE LAGERUNG STEHT AUCH HIER. <<<

@@ -15862,10 +15862,12 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * nicht unveraendert. Beim Einzelmast waere der Hinweis jetzt falsch.
      */
     const hE = hinweise({ ...mJ, tragwerksart: 'tragausleger' });
+    // Seit dem 28. September sagt er, dass das Stabwerk das Urteil trägt
+    // und der Ersatzbalken nur die vorläufige Anzeige liefert.
     wahr('Beim Joch kein solcher Hinweis',
-         !hJ.some((t) => /gerechnet wird weiterhin/.test(t)));
+         !hJ.some((t) => /nachgewiesen wird im Stabwerk/.test(t)));
     wahr('Beim Tragausleger steht er, und ganz oben',
-         /gerechnet wird weiterhin/.test(hE[0] ?? ''));
+         /nachgewiesen wird im Stabwerk/.test(hE[0] ?? ''));
     /*
      * UND DAS MODELL REICHT DIE ANGABEN WIRKLICH DURCH.
      *
@@ -15885,7 +15887,7 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
     wahr('… und die Anzahl auf dem Blatt', mA.tragwerkeAufBlatt === 3);
     const hM = hinweise(mA);
     wahr('Beide Hinweise stehen dann in der Liste',
-         hM.some((x) => /gerechnet wird weiterhin/.test(x))
+         hM.some((x) => /nachgewiesen wird im Stabwerk/.test(x))
          && hM.some((x) => /3 Tragwerke auf diesem Querprofil/.test(x)));
     wahr('Bei einem Tragwerk kein Anzahl-Hinweis',
          !hinweises1().some((x) => /Tragwerke auf diesem Querprofil/.test(x)));
@@ -30220,9 +30222,10 @@ titel('124  Der Stabwerksweg ueber die Tragwerksarten');
   const V124 = await import(J('core.vierendeel.js'));
   const N124 = await import(J('core.nachbarn.js'));
 
+  // Seit dem 28. September rechnet auch der Tragausleger im Stabwerk.
   const grund = {
-    joch: null, einzelmast: null,
-    abfangjoch: 'hat ein eigenes Stabmodell', tragausleger: 'Kragarm-Modell',
+    joch: null, einzelmast: null, tragausleger: null,
+    abfangjoch: 'hat ein eigenes Stabmodell',
   };
   Object.keys(grund).forEach((art) => {
     const g = AS124.ohneStabmodell(art);
@@ -30243,7 +30246,8 @@ titel('124  Der Stabwerksweg ueber die Tragwerksarten');
   let w124 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
   w124 = { ...w124, L: 20, xLage: 0, mastVorhanden: true };
   ['joch', 'einzelmast', 'tragausleger', 'abfangjoch'].forEach((art) => {
-    const w = { ...w124, tragwerksart: art };
+    // Der Tragausleger mit einer Länge aus seinem Sortiment (6 - 13 m).
+    const w = { ...w124, tragwerksart: art, ...(art === 'tragausleger' ? { L: 8 } : {}) };
     const satz = N124.rechensatzMitNachbarn(w);
     const erg = V124.berechne(satz, ...N124.kernArgumente(satz));
     const r = AS124.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
@@ -31932,10 +31936,15 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
        Sv < V && Sv > 0.95 * V,
        `S_v ${Sv.toFixed(4)} / V ${V.toFixed(4)} kN (${((Sv / V - 1) * 100).toFixed(2)} %)`);
 
-  // --- d) Im Stabwerksweg bleibt er vorerst gesperrt ----------------------
+  // --- d) Seit Etappe 4c im Stabwerksweg, in einer Reihe noch nicht ---------
   const AS136 = await import(J('app.stabwerk.js'));
-  wahr('Die Anzeige sperrt ihn weiter, bis die UPE nachgewiesen werden (Etappe 4)',
-       Boolean(AS136.ohneStabmodell('tragausleger')));
+  wahr('Der Tragausleger allein rechnet im Stabwerk (Etappe 4c)',
+       AS136.ohneStabmodell('tragausleger') === null);
+  const C136 = await import(J('core.constants.js'));
+  const reihe136 = C136.tragwerkHinzu({ ...standardwerte(), twId: 'T1', pos: 0 }, 'tragausleger');
+  wahr('… in einer Reihe noch nicht - mit Namen und Grund',
+       /Tragausleger in einer Reihe/.test(AS136.reiheOhneStabmodell(reihe136) ?? ''),
+       AS136.reiheOhneStabmodell(reihe136) ?? '(nichts)');
 }
 
 // ===========================================================================
@@ -32111,6 +32120,77 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   wahr('… massgebend T', fT.A.massgebend.key === 'T', fT.A.massgebend.key);
   const hT = SN138.stabwerkHuelle(hs.dat, hs.lsg, hs.nw, 235 / 1.05, { torsion: true });
   pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 2.103, 1e-3, '');
+}
+
+// ===========================================================================
+titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige');
+/* ===========================================================================
+ * Mit gültigem Stabwerk trägt das Stabwerk das ganze Urteil des Auslegers:
+ * Gurt UPE, Bindeblech, Aufhängung, Mast, Knicken, Fundament - der
+ * Phantom-Mast B des Kerns fällt weg, der Vermerk «NICHT nachgewiesen»
+ * ebenso. In einer Reihe bleibt er gesperrt.
+ *
+ * Gemessen L = 13 m mit Hängestütze und Fahrleitung an der Spitze, im
+ * Browser dieselben Zahlen (28. September): Gurt 0.374, Bindeblech 1.209,
+ * Aufhängung 0.824 (S_v 4.12 / 5.00 kN), Mast MT1 2.103, Knicken 1.091,
+ * Fundament 1.445 (Torsion); vorher Kern mit Phantom: Joch 0.349, Mast
+ * 0.652, «Mast B» 0.733.
+ * ========================================================================= */
+{
+  const N139 = await import(J('core.nachbarn.js'));
+  const AS139 = await import(J('app.stabwerk.js'));
+  const CH139 = await import(J('core.checks.js'));
+  const SN139 = await import(J('core.stabnachweis.js'));
+  const VZ139 = await import(J('core.vierendeel.js'));
+  const UI139 = await import(J('ui.js'));
+  const L = 13;
+  const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
+              mastVorhanden: true, trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
+              anbauteile: [A.neuesAnbauteil('hs-fahrdraht', L - 0.25 - 0.4)] };
+  const satz = N139.rechensatzMitNachbarn(w);
+  const args = N139.kernArgumente(satz);
+  const erg = berechne(satz, ...args);
+  const kombi = VZ139.vergleichKombinationen(satz, ...args);
+  const bem = CH139.mitBauteilen(kombi.huellkurve ?? erg, erg, { mastErsatz: true });
+  const bt = CH139.bauteilUrteil(bem, satz.nachweise, 'tragausleger');
+  const h = AS139.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+
+  wahr('Der Tragausleger rechnet im Stabwerk', !h.ohneModell && !h.fehler && h.ausleger,
+       h.ohneModell ?? h.fehler ?? 'ok');
+  wahr('Der Kern kennt einen Phantom-Masten B', bt.liste.some((x) => x.name === 'Mast B'));
+  const n = SN139.bauteileMitStabwerk(bt, h, { jochKey: 'tragwerk' });
+  const z = (name) => n.liste.find((x) => x.name === name);
+  wahr('>>> Mit dem Stabwerk ist der Phantom-Mast weg <<<', !z('Mast B'),
+       n.liste.map((x) => x.name).join(', '));
+  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.209, 1e-3, '');
+  pruef('Aufhängung gegen V_zul', z('Aufhängung')?.eta, 0.824, 1e-3, '');
+  pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 2.103, 1e-3, '');
+  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.091, 1e-3, '');
+  pruef('Fundament aus dem Stabwerk', z('Fundament MT1')?.eta, 1.445, 1e-3, '');
+  wahr('Jede Zeile aus dem Stabwerk', n.liste.every((x) => x.quelle === 'stabwerk'));
+  wahr('Das Urteil ist der Mast', n.massgebend?.name === 'Mast MT1' && Math.abs(n.eta - 2.103) < 1e-3);
+
+  // --- Der Vermerk «NICHT nachgewiesen» -------------------------------------
+  const u = CH139.urteilKonstruktion([], satz.nachweise, 'tragausleger');
+  wahr('Ohne Stabwerk: NICHT nachgewiesen', u.nichtNachgewiesen === 'Tragausleger'
+       && u.tragwerkGefuehrt === false);
+  const u2 = UI139.urteilMitStabwerk(u, h);
+  wahr('>>> Mit dem Stabwerk: nachgewiesen, kein Vermerk <<<',
+       u2.nichtNachgewiesen === null && u2.tragwerkGefuehrt === true
+       && !u2.nichtGefuehrt.some((g) => g.key === 'tragausleger'));
+  wahr('Ein Joch bleibt unberührt', UI139.urteilMitStabwerk(u, { teile: {} }) === u);
+
+  // --- Die Anzeige liest es ---------------------------------------------------
+  const ui139 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Übersicht passt das Urteil gleich am Anfang an',
+       /urteil = urteilMitStabwerk\(urteil, stabwerkFuehrt\(opt, einzelLastfall\)\)/.test(ui139));
+  wahr('Kacheln des Auslegers: Gurt, Bindeblech, Aufhängung',
+       /k\('UPE', 'η Gurt', 'UPE'\), k\('blech', 'η Bindeblech'/.test(ui139)
+       && /η Aufhängung/.test(ui139));
+  wahr('Das Schild «nicht nachgewiesen» fällt mit dem Stabwerk',
+       /art\.key === 'tragausleger' && !\(t\.id === etaLeiste\?\.twId && etaLeiste\?\.ausleger\)/.test(ui139));
+  const app139 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Die Fussleiste nimmt dasselbe Urteil', /ui\.urteilMitStabwerk\(urteil, g\.h\)/.test(app139));
 }
 
 // ===========================================================================

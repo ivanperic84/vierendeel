@@ -109,7 +109,14 @@ import { blattWennMehrere, lasten, stabmodell, stabmodellJson } from './export.a
  * gemessen hat. Der TRAGAUSLEGER wartet ohnehin auf sein Kragarm-Modell
  * und ist bis dahin «NICHT nachgewiesen» (Entscheid vom 18. September).
  * ========================================================================= */
-export const ARTEN_MIT_STABMODELL = ['joch', 'einzelmast'];
+/*
+ * >>> SEIT DEM 28. SEPTEMBER AUCH DER TRAGAUSLEGER. <<<
+ * Sein Stabmodell steht (export.axisvm.tragausleger.js), nachgewiesen
+ * werden UPE, Bindebleche, Aufhängung, Mast und Fundament (Etappen 4a/4b).
+ * In einer REIHE noch nicht: Aufhängung, Knicken und Fundament rechnet
+ * `rechneStabwerk` bisher nur für den Ausleger, der allein dasteht.
+ */
+export const ARTEN_MIT_STABMODELL = ['joch', 'einzelmast', 'tragausleger'];
 
 /** Warum diese Art (noch) kein Stabwerk rechnet - oder null, wenn sie es tut. */
 export function ohneStabmodell(art) {
@@ -117,10 +124,6 @@ export function ohneStabmodell(art) {
   if (art === 'abfangjoch') {
     return 'Das Abfangjoch bringt ein eigenes Stabmodell mit; es ist an '
          + 'diesen Rechenweg noch nicht angeschlossen.';
-  }
-  if (art === 'tragausleger') {
-    return 'Der Tragausleger wartet auf sein Kragarm-Modell und ist bis '
-         + 'dahin nicht nachgewiesen.';
   }
   return `Für die Tragwerksart «${art}» gibt es kein Stabmodell.`;
 }
@@ -143,6 +146,14 @@ export function ohneStabmodell(art) {
  */
 export function reiheOhneStabmodell(werte) {
   const alle = sichtbareTragwerke(werte) ?? [];
+  if (alle.length > 1) {
+    const ta = alle.find((t) => (t.tragwerksart ?? 'joch') === 'tragausleger');
+    if (ta) {
+      return `${ta.id}: Ein Tragausleger in einer Reihe ist noch nicht an das `
+           + 'Stabwerk angeschlossen (Aufhängung, Knicken und Fundament rechnet '
+           + 'es bisher nur für den Ausleger allein).';
+    }
+  }
   for (const t of alle) {
     const grund = ohneStabmodell(t.tragwerksart ?? 'joch');
     if (grund) {
@@ -213,8 +224,14 @@ export function rechneStabwerk(app) {
        */
       const t0T = tragwerkeVon(app.werte)[0];
       const [mA, mB] = t0T ? (mastenFuer(app.werte, t0T) ?? []) : [];
+      /*
+       * Der Mast heisst im Modell wie in den Kacheln (`federn.namen`): am
+       * Tragausleger «MT1», nicht nach seiner Kennung - sonst fände die
+       * Kachel ihren Stab nicht (28. September). Am Joch sind beide gleich.
+       */
+      const nm = erg.modell?.federn?.namen ?? {};
       bau = stabmodell(erg.modell, { ...opt,
-        mastNamen: { A: mA?.id ?? 'A', B: mB?.id ?? 'B' },
+        mastNamen: { A: nm.A || mA?.id || 'A', B: nm.B || mB?.id || 'B' },
         // Ein Tragwerk mit eigenem Baustein (Abfangjoch, Tragausleger)
         // baut aus dem Satz, nicht aus dem Jochmodell (28. September).
         satz });
