@@ -1951,6 +1951,21 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
                       border-top: 1px dashed var(--ol); }
 
 /* DIE MARKE IST EIN AUFLAGERDREIECK - die Zeichensprache des Schemas. */
+/* DER TRAGAUSLEGER IM LAGEBAND (Weisung 28. September): Arm, Aufhängung
+   und die Verlängerung des Masten bis zu ihr. Die Striche behalten ihre
+   Stärke, wie breit der Knopf auch wird (vector-effect). */
+.qp-ausleger {
+  position: absolute; height: 20px; padding: 0; border: none;
+  background: none; cursor: pointer; color: var(--dim);
+}
+.qp-ausleger svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.qp-ausleger line { stroke: currentColor; }
+.qp-ausleger .qp-ta-arm { stroke-width: 2; }
+.qp-ausleger .qp-ta-mast { stroke-width: 2; }
+.qp-ausleger .qp-ta-seil { stroke-width: 1; stroke-dasharray: 3 2; }
+.qp-ausleger:hover { color: var(--on2); }
+.qp-ausleger.an { color: var(--acc); }
+.qp-ausleger.aus { opacity: 0.45; }
 .qp-mast {
   position: absolute; top: 0; width: 22px; height: 20px;
   transform: translateX(-50%); padding: 0;

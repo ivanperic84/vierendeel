@@ -32484,6 +32484,89 @@ titel('143  Tragausleger: Maske ohne Joch, Auflager wie am Abfangjoch');
 }
 
 // ===========================================================================
+titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten global');
+/* ===========================================================================
+ * «der Ausleger kann zudem links oder rechts sein.» Auf Rückfrage «Ganz
+ * spiegeln», präzisiert: «es soll nur die geometrie gespiegelt werden. die
+ * einwirkungen das trasse bleiben so wie definiert. der masten kann somit in
+ * der kurven innen oder aussenseite stehen.»
+ *
+ * Die Probe: «links, R −600» ist das Spiegelbild von «rechts, R +600» (die
+ * ganze Welt gespiegelt) und muss in jeder Zahl gleich sein. «links, R +600»
+ * ist ein anderes Bauwerk - der Mast steht auf der anderen Seite der
+ * Kurve. Gemessen L 13 m, Hängestütze, Längsanker (Stabwerk):
+ *   rechts R +600  Seil 4.121 kN, UPE 0.259, Mast 0.838
+ *   links  R +600  Seil 4.722 kN, UPE 0.372, Mast 0.765
+ * ========================================================================= */
+{
+  const N144 = await import(J('core.nachbarn.js'));
+  const AS144 = await import(J('app.stabwerk.js'));
+  const LA144 = await import(J('core.lasten.js'));
+  const TA144 = await import(J('core.tragausleger.js'));
+  const TAX144 = await import(J('export.axisvm.tragausleger.js'));
+  const U144 = await import(J('ui.js'));
+  const rechne = (seite, R) => {
+    const L = 13;
+    const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0, mastVorhanden: true,
+                trasseRadius: R, flSpannweite: 50, twId: 'MT1', auslegerSeite: seite,
+                anbauteile: [A.neuesAnbauteil('hs-fahrdraht', L - 0.25 - 0.4)] };
+    const satz = N144.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N144.kernArgumente(satz));
+    const alle = LA144.lastfaelle(satz);
+    const k = TA144.auslegerAuswertung(satz, alle, 235 / 10 / 1.05);
+    const r = TA144.auslegerKombi(erg.modell, k, alle, { knicken: true, knickBeiwert: satz.knickBeiwert });
+    const sw = AS144.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    return { satz, zahlen: [k.gurt.eta, k.aufhaengung.Sv, r.mast.A.eta, sw.teile['tragwerk|UPE'].eta,
+      sw.teile['tragwerk|blech'].eta, sw.ausleger.aufhaengung.Sv, sw.bauteile['mast:MT1'].eta,
+      sw.ausleger.knick.eta, sw.ausleger.fundament.A.eta,
+      Math.abs(sw.ausleger.laengsanker.charakteristisch.F)] };
+  };
+  const rP = rechne('rechts', 600), lM = rechne('links', -600), lP = rechne('links', 600);
+  /*
+   * Der Kern (die ersten drei Zahlen) ist auf zwölf Stellen gleich. Im
+   * Stabwerk streut die sechste Stelle (Blech 1.0285690 / 1.0285705) - die
+   * Rechengenauigkeit des Lösers bei einer Steifigkeitsspanne von 1e15
+   * (Abschnitt 111), nicht die Spiegelung.
+   */
+  wahr('>>> links R −600 ist das Spiegelbild von rechts R +600: der Kern auf 1e-12 <<<',
+       rP.zahlen.slice(0, 3).every((v, i) => Math.abs(v - lM.zahlen[i]) < 1e-12 * Math.max(1, Math.abs(v))));
+  wahr('>>> … und das Stabwerk in jeder Zahl auf 1e-5 <<<',
+       rP.zahlen.every((v, i) => Math.abs(v - lM.zahlen[i]) < 1e-5 * Math.max(1, Math.abs(v))),
+       rP.zahlen.map((v, i) => `${v.toFixed(3)}/${lM.zahlen[i].toFixed(3)}`).join(' '));
+  pruef('rechts R +600: Seil (Stabwerk)', rP.zahlen[5], 4.121, 1e-3, 'kN');
+  pruef('links R +600: Seil (Stabwerk) - der Mast steht auf der anderen Kurvenseite',
+        lP.zahlen[5], 4.722, 1e-3, 'kN');
+  pruef('links R +600: UPE (Stabwerk)', lP.zahlen[3], 0.3716, 1e-3, '');
+  // Die Geometrie: Knoten bei −x, die Gurte laufen in +x (Stege innen).
+  const d = TAX144.tragauslegerModell({ ...lP.satz });
+  const kx = new Map(d.knoten.map((k) => [k.name, k]));
+  wahr('Links liegt der Ausleger bei −x (Spitze bei −12.75 m)',
+       Math.min(...d.knoten.map((k) => k.x)) === -12.75 && Math.max(...d.knoten.filter((k) => /^V_/.test(k.name)).map((k) => k.x)) === 0.25);
+  wahr('… und seine Gurte laufen weiter in +x (der U-Querschnitt steht wie rechts)',
+       d.staebe.filter((s) => /^[VH]_S\d+$/.test(s.name))
+         .every((s) => kx.get(s.bis).x > kx.get(s.von).x));
+  wahr('Die Kräfte der Anbauteile kommen global unverändert an (Summe in x je Fall)',
+       ['G_Ablenk', 'WindX'].every((f) => {
+         const sum = (m) => m.lasten.punkt.filter((l) => l.lastfall === f && l.richtung === 'X')
+           .reduce((a, l) => a + l.wert, 0);
+         return Math.abs(sum(d) - sum(TAX144.tragauslegerModell({ ...lP.satz, auslegerSeite: 'rechts' }))) < 1e-9;
+       }));
+  // Das Lageband zeichnet Ausleger und Aufhängung zur richtigen Seite.
+  const w0 = { ...standardwerteApp(), tragwerksart: 'tragausleger', L: 8, twId: 'MT1', xLage: 0 };
+  const bR = U144.querprofilLeisteHtml({ ...w0, auslegerSeite: 'rechts' });
+  const bL = U144.querprofilLeisteHtml({ ...w0, auslegerSeite: 'links' });
+  wahr('Im Lageband steht ein Ausleger mit Aufhängung',
+       /class="qp-ausleger/.test(bR) && /qp-ta-seil/.test(bR) && /qp-ta-arm/.test(bR));
+  const bereichR = U144.qpBereich({ ...w0, auslegerSeite: 'rechts' });
+  const bereichL = U144.qpBereich({ ...w0, auslegerSeite: 'links' });
+  wahr('… und der Bereich des Bandes reicht bis zum Kragarmende, zur richtigen Seite',
+       // Rand mindestens 1.5 m, und die 1 m am Nullpunkt - deshalb bis 2.5.
+       bereichR.bis > 7.75 && bereichR.von > -2 && bereichL.von < -7.75 && bereichL.bis <= 2.5,
+       `rechts ${bereichR.von.toFixed(1)}…${bereichR.bis.toFixed(1)}, links ${bereichL.von.toFixed(1)}…${bereichL.bis.toFixed(1)}`);
+  wahr('… mit der Seite im Titel', /links des Masten/.test(bL) && /rechts des Masten/.test(bR));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

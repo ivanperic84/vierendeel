@@ -1605,6 +1605,9 @@ function leisteNachfuehren(container, werte) {
   verdrahteTragwerkfeld(container, werte, leisteAendern);
 }
 
+/** +1 rechts (Vorgabe), −1 links - die Seite des Tragauslegers (28. Sept.). */
+const auslegerRichtung = (t) => (t?.auslegerSeite === 'links' ? -1 : 1);
+
 /** Blattkoordinate -> Prozent der Leistenbreite. */
 const qpPct = (x, von, bis) => ((x - von) / Math.max(1e-9, bis - von)) * 100;
 
@@ -1618,6 +1621,11 @@ export function qpBereich(werte) {
   const alle = tragwerkeSortiert(werte);
   const enden = alle.flatMap((t) => {
     const a = lageVon(t);
+    // Der Tragausleger reicht vom Masten bis zum Kragarmende, zu seiner
+    // Seite hin (28. September).
+    if (tragwerksart(t).key === 'tragausleger') {
+      return [a, a + auslegerRichtung(t) * kragarmEnde(t)];
+    }
     return [a, a + (tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0)];
   });
   const von = Math.min(...enden, 0), bis = Math.max(...enden, 1);
@@ -2024,7 +2032,15 @@ export function querprofilLeisteHtml(werte) {
     return { t, x0, x1, b };
   });
   const BAHN = 15;
-  const hoehe = bahnen.length * BAHN;
+  /*
+   * >>> DER TRAGAUSLEGER IM BAND (Weisung vom 28. September). <<<
+   * «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der
+   * Ausleger kann zudem links oder rechts sein.» Er braucht über dem
+   * Mastsymbol Platz für die Aufhängung - 12 px.
+   */
+  const ausleger = alle.filter((t) => tragwerksart(t).key === 'tragausleger');
+  const TA_LUFT = ausleger.length ? 12 : 0;
+  const hoehe = bahnen.length * BAHN + TA_LUFT;
   const bandLinien = linien.map(({ t, x0, x1, b }) => {
     const links = qpPct(x0, von, bis), breit = Math.max(qpPct(x1, von, bis) - links, 2.5);
     const an = t.id === aktivId, aus = versteckt(t);
@@ -2036,6 +2052,36 @@ export function querprofilLeisteHtml(werte) {
         ></button><span class="qp-bandname${an ? ' an' : ''}"
         style="left:${(links + breit / 2).toFixed(3)}%;top:${top - 3}px"
         data-rand="${anker(links + breit / 2)}">${esc(tragwerkPos(werte, t))}</span>`;
+  }).join('');
+  /*
+   * Ausleger, Aufhängung und die Verlängerung des Masten bis zu ihr - ein
+   * Knopf über der Strecke Mast … Kragarmende, gezeichnet in seinen eigenen
+   * Koordinaten (0 … 100 über die Breite, 0 … 20 px in der Höhe). Die
+   * Aufhängung greift bei c₁ an; ohne Sortimentszeile fehlt sie.
+   */
+  const bandAusleger = ausleger.map((t) => {
+    const x0 = lageVon(t), ri = auslegerRichtung(t), xE = kragarmEnde(t);
+    const xs = [x0, x0 + ri * xE];
+    const links = qpPct(Math.min(...xs), von, bis);
+    const breit = Math.max(qpPct(Math.max(...xs), von, bis) - links, 1);
+    const an = t.id === aktivId, aus = versteckt(t);
+    const zeile = getTragausleger(Number(t.L));
+    const c1 = zeile?.seil?.c1 ?? null;
+    const u = (d) => (ri > 0 ? d / xE * 100 : 100 - d / xE * 100);
+    const uM = u(0);
+    const nsl = 'vector-effect="non-scaling-stroke"';
+    return `<button type="button" class="qp-ausleger${an ? ' an' : ''}${aus ? ' aus' : ''}"
+        data-qp-tw="${esc(t.id)}"
+        style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;top:${hoehe - TA_LUFT}px"
+        title="${esc(`${tragwerkPos(werte, t)} · Tragausleger ${f2q(Number(t.L))} m, `
+          + `${ri > 0 ? 'rechts' : 'links'} des Masten`
+          + (c1 !== null ? ` · Aufhängung bei c₁ = ${f2q(c1)} m` : ''))}">
+        <svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
+          <line ${nsl} class="qp-ta-mast" x1="${uM}" y1="3" x2="${uM}" y2="16"/>
+          <line ${nsl} class="qp-ta-arm" x1="0" y1="16" x2="100" y2="16"/>
+          ${c1 !== null && c1 <= xE ? `<line ${nsl} class="qp-ta-seil" x1="${uM}" y1="3"
+            x2="${u(c1).toFixed(3)}" y2="16"/>` : ''}
+        </svg></button>`;
   }).join('');
   const bandMasten = masten.map((m) => {
     const an = m.id === gewMast?.id;
@@ -2058,7 +2104,7 @@ export function querprofilLeisteHtml(werte) {
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
       <div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
         <span class="qp-boden" style="top:${hoehe + 18}px"></span>
-        ${bandLinien}${bandMasten}
+        ${bandLinien}${bandAusleger}${bandMasten}
       </div>
       <div class="qp-skala"><span>${von.toFixed(1)} m</span>
         <span>Lage auf dem Querprofil</span><span>${bis.toFixed(1)} m</span></div>

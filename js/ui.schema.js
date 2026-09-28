@@ -532,6 +532,22 @@ export const FELDER = [
       : 'Schieberbereich = Sortiment des gewählten Typs. Der Schieber '
       + 'rastet auf den halben Meter; genauer geht es im Feld daneben.'),
   },
+  /*
+   * >>> DIE SEITE DES TRAGAUSLEGERS (28. September). <<<
+   *
+   * «der Ausleger kann zudem links oder rechts sein.» Auf Rückfrage: GANZ
+   * SPIEGELN - Kern, Stabwerk, AxisVM, 3D und Lageband. Die Lagen x der
+   * Anbauteile zählen weiter vom Masten aus ins Feld des Auslegers; die
+   * Kräfte bleiben global (die Ablenkkraft kommt aus der Trasse), so dass
+   * sie je nach Seite zum Masten hin oder von ihm weg ziehen.
+   */
+  { key: 'auslegerSeite', gruppe: 'geo', typ: 'auswahl',
+    label: 'Seite des Auslegers', standard: 'rechts',
+    optionen: [{ wert: 'rechts', text: 'rechts (+x, Jochachse)' },
+               { wert: 'links', text: 'links (−x)' }],
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
+    hinweis: 'Gespiegelt wird das ganze Modell. Die Kräfte bleiben global - '
+           + 'eine Ablenkkraft in +x zieht rechts vom Masten weg, links zu ihm hin.' },
   // a₁ ist NICHT die Regelteilung, sondern das Endfeld am Auflager (750 mm
   // nach Zeichnung). Wo eine Mass-Tabelle vorliegt, kommt die Teilung dazwischen
   // aus ihr und wird nicht gerechnet.

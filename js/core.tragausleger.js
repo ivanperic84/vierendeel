@@ -74,6 +74,13 @@ function gruppenFaktor(lf, gruppe) {
 export function auslegerLasten(satz) {
   const d = tragauslegerModell(satz);
   const t = getTragausleger(Number(satz.L));
+  /*
+   * DIE SEITE (28. September): ein Ausleger links steht im Modell bei −x.
+   * Der Kern rechnet örtlich (+x vom Masten weg) und spiegelt dafür zurück:
+   * x, F_x und M_y wechseln das Vorzeichen (siehe `spiegeln` in
+   * export.axisvm.tragausleger.js).
+   */
+  const sp = satz.auslegerSeite === 'links' ? -1 : 1;
   const kx = new Map(d.knoten.map((k) => [k.name, k]));
   const proStation = new Map();
   const eintrag = (x, gruppe) => {
@@ -84,18 +91,19 @@ export function auslegerLasten(satz) {
   d.lasten.punkt.forEach((p) => {
     const kn = kx.get(p.knoten);
     if (!kn) return;
-    const e = eintrag(kn.x, p.lastfall);
-    e.F['XYZ'.indexOf(p.richtung)] += Number(p.wert) || 0;
+    const e = eintrag(sp * kn.x, p.lastfall);
+    const j = 'XYZ'.indexOf(p.richtung);
+    e.F[j] += (j === 0 ? sp : 1) * (Number(p.wert) || 0);
   });
   d.lasten.moment.forEach((m) => {
     const kn = kx.get(m.knoten);
     if (!kn || m.richtung !== 'My') return;
-    eintrag(kn.x, m.lastfall).My += Number(m.wert) || 0;
+    eintrag(sp * kn.x, m.lastfall).My += sp * (Number(m.wert) || 0);
   });
   const x0 = -t.hinten;
   const xE = t.L - t.hinten;
   return {
-    t, x0, xE, c1: t.seil.c1, b: t.seil.b,
+    t, x0, xE, c1: t.seil.c1, b: t.seil.b, sp,
     // kg über die ganze Länge -> kN/m, nach unten
     q: (Number(t.gewicht) || 0) * G_ERD / 1000 / t.L,
     lasten: [...proStation.values()],
@@ -158,8 +166,9 @@ export function auslegerFall(la, lf) {
     stationen,
     /** Die Kräfte, die am Masten ankommen (F_z positiv nach UNTEN). */
     mast: [
-      { name: 'Ausleger, Gelenk', dz: 0, Fz: RAz, Fx: -RAx, Fy: sum(1) },
-      { name: 'Ausleger, Aufhängung', dz: b, Fz: Sv, Fx: H, Fy: 0 },
+      // Global: am Ausleger links zeigen die x-Kräfte andersherum.
+      { name: 'Ausleger, Gelenk', dz: 0, Fz: RAz, Fx: -RAx * (la.sp ?? 1), Fy: sum(1) },
+      { name: 'Ausleger, Aufhängung', dz: b, Fz: Sv, Fx: H * (la.sp ?? 1), Fy: 0 },
     ],
     // Probe: das Moment am Anfang des Auslegers muss verschwinden.
     restmoment: schnitt(x0 - 1e-9).M,

@@ -96,6 +96,15 @@ export function tragauslegerModell(satz) {
       + 'eigene Aufhängung; eine Zwischenlänge wäre ein anderes Bauteil.');
   }
   const hinweise = [];
+  /*
+   * >>> DIE SEITE (28. September, «Ganz spiegeln»). <<<
+   * Gebaut wird immer örtlich in +x. Ein Ausleger links bekommt die Kräfte
+   * seiner Anbauteile gespiegelt herein (F_x, M_yy, M_zz mit −1), und das
+   * fertige Modell wird am Ende an der Mastachse gespiegelt (`spiegeln`).
+   * Netto kommen die Kräfte unverändert global an - nur ihre Hebel stehen
+   * auf der anderen Seite.
+   */
+  const sp = satz.auslegerSeite === 'links' ? -1 : 1;
   const p = getGurtprofil(t.profil);
   const h = p.h / 100;                                  // cm -> m
   // Stegabstand d = Spreizung (Stege innen) - gurtAchsabstand: d + 2 e_y.
@@ -367,7 +376,7 @@ export function tragauslegerModell(satz) {
         }
         const q = tp.kraefte?.[ew.key];
         if (!q) return;
-        const F = [q.Fx ?? 0, q.Fy ?? 0, -(q.Fz ?? 0)];
+        const F = [sp * (q.Fx ?? 0), q.Fy ?? 0, -(q.Fz ?? 0)];
         const add = (fall, art, v) => {
           if (!v.some((w) => w)) return;
           const sm = summen[fall] ?? (summen[fall] = { F: [0, 0, 0], M: [0, 0, 0] });
@@ -393,7 +402,7 @@ export function tragauslegerModell(satz) {
         // Eigene Momente des Teils (im Sortiment meist null) - wie die
         // Tragjoch-Ausleitung unter G zum Gewicht.
         add(ew.key === 'G' ? 'G_Anbau' : ew.key, 'M',
-            [q.Mxx ?? 0, q.Myy ?? 0, q.Mzz ?? 0]);
+            [q.Mxx ?? 0, sp * (q.Myy ?? 0), sp * (q.Mzz ?? 0)]);
       });
     });
     Object.entries(summen).forEach(([fall, sm]) => {
@@ -434,13 +443,57 @@ export function tragauslegerModell(satz) {
       + 'NICHT angesetzt (sie gehört je Leiter in einen eigenen Lastfall).');
   }
 
-  return {
+  const modell = {
     knoten, staebe, querschnitte, auflager,
     lasten: { punkt, moment, strecke },
     hinweise,
     tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil,
                     c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
-                    Vzul: t.Vzul, laengsverankerung: lvX },
+                    Vzul: t.Vzul, laengsverankerung: lvX,
+                    seite: sp < 0 ? 'links' : 'rechts' },
+  };
+  return sp < 0 ? spiegeln(modell) : modell;
+}
+
+/**
+ * Das Modell an der Mastachse spiegeln (x -> −x).
+ *
+ * Knoten und Auflager wechseln die Seite, die Lasten der Anbauteile ihre
+ * x-Komponente und die Momente um y und z (ein Moment ist ein axialer
+ * Vektor: bei der Spiegelung an der Ebene x = 0 bleibt M_x, M_y und M_z
+ * kehren um). Der Mastwind (Streckenlast auf dem Masten) bleibt - der Mast
+ * steht auf der Achse, und der Wind kommt global.
+ *
+ * DIE GURTE LAUFEN UMGEKEHRT. Eine Spiegelung ist keine Drehung; behielte
+ * der Stab seine Richtung, zeigte seine örtliche y-Achse nach der anderen
+ * Seite, und die UPE öffneten nach innen statt nach aussen. Mit getauschten
+ * Enden läuft der Stab wieder in +x, und sein Querschnitt steht wie vorher
+ * (Stege innen). Linkelemente bleiben, wie sie sind: ihr Gelenk sitzt am
+ * Anfang, und ihre Bedingung ist global.
+ */
+function spiegeln(d) {
+  const kx = new Map(d.knoten.map((k) => [k.name, k]));
+  const staebe = d.staebe.map((s) => {
+    const a = kx.get(s.von), b = kx.get(s.bis);
+    const laengs = a && b && Math.abs(a.x - b.x) > 1e-9;
+    const lcsZ = Array.isArray(s.lcsZ) ? [-s.lcsZ[0], s.lcsZ[1], s.lcsZ[2]] : s.lcsZ;
+    return s.art === 'stab' && laengs
+      ? { ...s, von: s.bis, bis: s.von, lcsZ }
+      : { ...s, lcsZ };
+  });
+  return {
+    ...d,
+    knoten: d.knoten.map((k) => ({ ...k, x: r6(-k.x) })),
+    staebe,
+    auflager: d.auflager.map((a) => ({ ...a, x: r6(-(a.x ?? 0)) })),
+    lasten: {
+      punkt: d.lasten.punkt.map((l) => (l.richtung === 'X' ? { ...l, wert: r6(-l.wert) } : l)),
+      moment: d.lasten.moment.map((l) => (l.richtung === 'My' || l.richtung === 'Mz'
+        ? { ...l, wert: r6(-l.wert) } : l)),
+      strecke: d.lasten.strecke,
+    },
+    // Die Auskunft (`tragausleger`) bleibt: c1, Stelle des Ankers usw. sind
+    // Abstände vom Masten, keine Koordinaten.
   };
 }
 

@@ -6,7 +6,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 zu lesen, bevor etwas geändert wird.
 
 Stand: **28. September 2026**, gepusht bis `6ce4020` (Längsanker), danach
-committet, aber **nicht gepusht** (`git log --oneline -8`); Prüfstand 5645 Kontrollen grün, `durchlauf.mjs`
+committet, aber **nicht gepusht** (`git log --oneline -8`); Prüfstand 5656 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
@@ -160,7 +160,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5645 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5656 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
