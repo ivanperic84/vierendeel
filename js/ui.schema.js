@@ -323,11 +323,12 @@ export const GRUPPEN = [
    * die Profiluebersicht und der Stahl.
    */
   { id: 'prof',  titel: 'Profile' },
-  { id: 'blech', titel: 'Bindebleche', arten: ['joch', 'tragausleger'] },
+  // Der Tragausleger führt seine Bleche im Sortiment (Tafel unter «Geometrie»).
+  { id: 'blech', titel: 'Bindebleche', arten: ['joch'] },
   // Ohne eigene Eingabefelder: die Stückliste wird als Ergebnisstück
   // eingehängt (siehe extras in app.js).
   { id: 'stueck', titel: 'Stückliste und Eigengewicht',
-    arten: ['joch', 'tragausleger'] },
+    arten: ['joch'] },
   /*
    * >>> DIE TRASSE FAENGT ZUGEKLAPPT AN. <<<
    *
@@ -433,7 +434,11 @@ export const FELDER = [
      * Zwei Sortimente, zwei Felder. Sichtbar ist immer nur eines; welches,
      * sagt die Tragwerksart.
      */
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    /*
+     * Beim Tragausleger auch nicht (28. September): er hat kein Tragjoch,
+     * seine Länge wählt die Zeile seines Sortiments.
+     */
+    sichtbar: (w) => !['abfangjoch', 'tragausleger'].includes(tragwerksart(w).key),
     /*
      * DAS JOCH NENNT SEINE POSITION, wie der Mast seine Nummer.
      *
@@ -501,13 +506,18 @@ export const FELDER = [
      * Laenge ein.
      */
     key: 'L', gruppe: 'geo', typ: 'schieber', sym: 'jt',
-    label: (w) => `Jochlänge ${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
+    label: (w) => `${tragwerksart(w).key === 'tragausleger' ? 'Auslegerlänge' : 'Jochlänge'} `
+      + `${tragwerkPos(w, tragwerkeVon(w)[0])}`.trim(),
     einheit: 'm', standard: 20.0, min: 8, max: 34.5,
     // Der SCHIEBER rastet auf den halben Meter, das FELD auf den
     // Zentimeter (Weisung, 2. September). Ziehen ist die grobe Geste,
     // Tippen die genaue.
     schritt: 0.05, zugSchritt: 0.5,
-    hinweis: (w) => (tragwerksart(w).key === 'abfangjoch'
+    hinweis: (w) => (tragwerksart(w).key === 'tragausleger'
+      ? 'Länge des Sortiments Tragausleger (UPE 140). Sie wählt Blechraster '
+      + 'und Aufhängung; eine Zahl dazwischen rastet auf die nächste '
+      + 'geführte ein.'
+      : tragwerksart(w).key === 'abfangjoch'
       ? 'Schieberbereich = Sortiment des gewählten Typs. Das Abfangjoch '
       + 'führt nur die Längen im Halbmeterraster; eine Zahl dazwischen '
       + 'rastet auf die nächste geführte ein.'
@@ -531,7 +541,7 @@ export const FELDER = [
    */
   {
     key: 'masskette', fein: true, gruppe: 'geo', typ: 'text',
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     label: 'Masskette der Zeichnung', einheit: 'cm', standard: '',
     platzhalter: 'z. B. 15 209 474 735 885 983 1185 1200', laenge: 120,
     hinweis: 'Masse über dem Joch in cm ab linkem Jochende, wie auf der '
@@ -539,7 +549,7 @@ export const FELDER = [
            + 'Kette angeschrieben ist.',
   },
   { key: 'a1', fein: true, gruppe: 'geo', typ: 'schieber', label: 'Endfeld am Auflager',
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     sym: 'a₁', einheit: 'm', standard: 0.75, min: 0.3, max: 1.5, schritt: 0.05,
     ausDB: true,
     hinweis: 'Abstand Jochende bis erstes Bindeblech. Teilung dazwischen aus der '
@@ -547,13 +557,13 @@ export const FELDER = [
   // Bei verjüngten Enden und Grundrissknick sind das die Masse IM FELD; die
   // Werte am Jochende ergeben sich daraus über Voute und Knick.
   { key: 'jd', fein: true, gruppe: 'geo', typ: 'zahl', label: 'Gesamthöhe im Feld (Aussenmass)',
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     sym: 'jd', einheit: 'mm', standard: 500, schritt: 10, min: 50, ausDB: true },
   { key: 'jbbOG', fein: true, gruppe: 'geo', typ: 'zahl', label: 'Breite Obergurt im Feld (Aussenmass)',
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     sym: 'jbb,OG', einheit: 'mm', standard: 440, schritt: 10, min: 50, ausDB: true },
   { key: 'jbbUG', fein: true, gruppe: 'geo', typ: 'zahl', label: 'Breite Untergurt im Feld (Aussenmass)',
-    sichtbar: (w) => tragwerksart(w).key !== 'abfangjoch',
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     sym: 'jbb,UG', einheit: 'mm', standard: 440, schritt: 10, min: 50, ausDB: true },
   // Der Nachweisschnitt wird im Auswertungsreiter «Schnitt» feldweise gesetzt.
   // Ein zweiter Schieber hier wäre dieselbe Grösse ein zweites Mal.
@@ -1394,11 +1404,11 @@ export const FELDER = [
   { key: 'profOG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Obergurt',
     // Die Winkelgurte gibt es nur am Vierendeeltraeger; das Abfangjoch
     // fuehrt seine Gurte im Sortiment, der Einzelmast hat keine.
-    sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     standard: 'L 90x90x9',
     optionenAus: () => opt(PROFILE(), 'name', 'name'), ausDB: true },
   { key: 'profUG', gruppe: 'prof', typ: 'auswahl', label: 'Profil Untergurt',
-    sichtbar: (w) => ['joch', 'tragausleger'].includes(tragwerksart(w).key),
+    sichtbar: (w) => tragwerksart(w).key === 'joch',
     standard: 'L 90x90x9',
     optionenAus: () => opt(PROFILE(), 'name', 'name'), ausDB: true },
   { key: 'ausrOG', optionenDialog: true, gruppe: 'prof', typ: 'auswahl',

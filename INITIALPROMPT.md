@@ -5,8 +5,8 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **28. September 2026**, committet, aber **nicht gepusht**
-(`git log --oneline -8`); Prüfstand 5597 Kontrollen grün, `durchlauf.mjs`
+Stand: **28. September 2026**, gepusht bis `6ce4020` (Längsanker), danach
+committet, aber **nicht gepusht** (`git log --oneline -8`); Prüfstand 5610 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
@@ -20,8 +20,9 @@ Station und Stabliste aus dem Stabwerk.
 **Tragausleger Etappe 2 ist erledigt** (Stabmodell im Stabwerk,
 Seilkraft gemessen). Etappe 4 ist erledigt: der Tragausleger ist im Stabwerk nachgewiesen
 (UPE, Bleche, Aufhängung, Mast mit Wölbspannung, Knicken, Fundament) und
-steht so in der Anzeige. **Als Nächstes: Etappe 3 (Kern für die vorläufige
-Anzeige, Maske, 3D-Bild), dann die Bilder aufs Stabwerk** — CLAUDE.md, *Laufende
+steht so in der Anzeige. Etappe 3a (Maske nach dem Sortiment) ist
+erledigt. **Als Nächstes: Etappe 3b (Kragarm-Kern für die vorläufige
+Anzeige), 3c (3D-Bild), dann die Bilder aufs Stabwerk** — CLAUDE.md, *Laufende
 Arbeit (28. Sept.)*. Danach die Bilder (Verläufe, 3D-Plot) aufs Stabwerk. ⚠ Welche früheren AxisVM-Entscheide von der
 falschen Linklage berührt sind, steht unter *Offene Punkte*.
 
@@ -159,7 +160,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5597 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5610 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

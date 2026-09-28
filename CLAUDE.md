@@ -231,12 +231,32 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5597 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5610 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 3a: die Maske nach seinem Sortiment**
+  (Prüfstand Abschnitt 141; vorher auf Weisung gepusht: «pushen und weiter
+  mit etappe 3», `740a02d..6ce4020`). Beim Ausleger stand «Tragjoch-Typ
+  J90» mit Bauhöhe, Gurtbreiten, Endfeld, Masskette und Winkelgurten, dazu
+  die Blechübersicht und Stückliste des Tragjochs; die Länge lief über den
+  Bereich des Tragjochs, und ein Artwechsel liess die Jochlänge stehen
+  (20 m gibt es nicht - das Stabmodell verweigerte sich). Jetzt: Feld
+  «Auslegerlänge», Schieber 6 … 13 m, jede Eingabe rastet auf die nächste
+  geführte Länge (`tragauslegerNaechsteLaenge`), der Artwechsel setzt sie
+  (`artVorgabe`); die Felder des Tragjochs stehen nicht mehr da, an ihrer
+  Stelle unter «Masse aus dem Sortiment» die Zeile des Sortiments
+  (`auslegerUebersichtHtml`: 2 × UPE 140, e, Bleche, b, c₁, c₂, Raster,
+  V_zul). **Befund am Weg, auch am Abfangjoch:** das Zahlenfeld zeigte nach
+  dem Einrasten weiter die getippte Zahl («11.4», gerechnet mit 11 m) - das
+  Feld mit dem Fokus wird beim Nachführen übersprungen. Beim Verlassen
+  zeigt es jetzt den gespeicherten Wert. **Im Browser:** Joch 21.5 m →
+  Artwechsel → Ausleger 13 m, Tafel 13 × 2 Bleche, b 6.35, c₁ 10.88, Raster
+  1300 + 12·970 + 60 = 13 000 mm; Eingabe 9.6 → Feld und Speicher 10.
+  Noch vom Tragjoch: die Gruppe *Auflager* (Anschluss ans Joch) und das
+  3D-Bild - Etappe 3b/3c.
 - **28. Sept., der Längsanker am Kragarmende** (Entscheid siehe
   *Entschieden*, Prüfstand Abschnitt 140). Regelfall, abschaltbar, Stelle
   wählbar; linear ein fester Halt in Gleisrichtung. `laengsankerKraft`
@@ -1468,8 +1488,8 @@ Pendelstab, Eigengewicht aus der Liste; UPE, Bleche und Aufhängung werden
 nachgewiesen (4a). **Nächste Schritte (Reihenfolge entschieden: Nachweise
 vor dem Kern):** ~~(4b) Knicken und Fundament aus dem Stabwerk~~,
 ~~(4c) Anzeige und Sperre~~ (beide erledigt am 28. September). **Offen:**
-(3) der Kern für die vorläufige Anzeige, dazu die Maske (zeigt noch
-«Tragjoch-Typ») und das 3D-Bild (zeigt das Ersatzjoch); der Ausleger in
+(3) der Kern für die vorläufige Anzeige (3b) und das 3D-Bild (zeigt das
+Ersatzjoch, 3c) - ~~die Maske (3a)~~ erledigt am 28. September; der Ausleger in
 einer Reihe; Havarie je Leiter; Wind auf den Ausleger selbst. Offen dazu: Havarie je Leiter im Ausleger,
 Feld und Stelle der Längsverankerung in der Maske, die Rückstellkraft
 der Leiter (⚠ festzulegen).
@@ -2010,7 +2030,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5597 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5610 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -147,6 +147,29 @@ export function getTragausleger(L) {
 }
 
 /**
+ * Die nächste GEFÜHRTE Länge zu einer Zahl [m] - worauf Schieber und Feld
+ * der Maske einrasten (28. September, Etappe 3). Das Stabmodell baut nur
+ * Längen des Sortiments (`getTragausleger` sucht genau); eine Zahl
+ * dazwischen hätte kein Blechraster und keine Aufhängung. `null` ohne
+ * Tabelle.
+ */
+export function tragauslegerNaechsteLaenge(L) {
+  const liste = tragauslegerTypen().map((t) => t.L);
+  if (!liste.length) return null;
+  const ziel = Number(L);
+  if (!Number.isFinite(ziel)) return liste[0];
+  return liste.reduce((a, b) => (Math.abs(b - ziel) < Math.abs(a - ziel) ? b : a));
+}
+
+/** Der Längenbereich des Sortiments {min, max, text} - für den Schieber. */
+export function tragauslegerLaengenbereich() {
+  const liste = tragauslegerTypen().map((t) => t.L);
+  if (!liste.length) return null;
+  const min = liste[0], max = liste[liste.length - 1];
+  return { min, max, text: `${min}–${max} m` };
+}
+
+/**
  * Die Achsen der Bindebleche [m], ab dem inneren Ende des Auslegers:
  * a, a + b, ... bis L - Endmass. Aus der Zeile, nicht hergeleitet - die
  * Stückzahl ist die Gegenprobe (je Stelle eine Ebene oben und unten).

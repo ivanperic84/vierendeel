@@ -32256,6 +32256,52 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
 }
 
 // ===========================================================================
+titel('141  Tragausleger Etappe 3a: die Maske nach seinem Sortiment');
+/* ===========================================================================
+ * Beim Ausleger stand in der Maske «Tragjoch-Typ J90» mit Bauhöhe, Gurt-
+ * breiten und Winkelprofilen, und die Länge lief über den Bereich des
+ * Tragjochs. Das Stabmodell baut aber nur Längen des Sortiments (6 … 13 m,
+ * je Länge Blechraster und Aufhängung). Jetzt: die Länge rastet auf das
+ * Sortiment, die Felder des Tragjochs stehen nicht mehr da, an ihrer Stelle
+ * die Sortimentszeile. Im Browser: Joch 21.5 m -> Ausleger 13 m, Eingabe
+ * 9.6 -> 10 m in Feld und Speicher.
+ * ========================================================================= */
+{
+  const U141 = await import(J('ui.js'));
+  const S141 = await import(J('ui.schema.js'));
+  pruef('Nächste geführte Länge zu 21.5 m', AJ.tragauslegerNaechsteLaenge(21.5), 13, 1e-12, 'm');
+  pruef('… zu 9.6 m', AJ.tragauslegerNaechsteLaenge(9.6), 10, 1e-12, 'm');
+  pruef('… zu 2 m', AJ.tragauslegerNaechsteLaenge(2), 6, 1e-12, 'm');
+  const b = AJ.tragauslegerLaengenbereich();
+  wahr('Schieberbereich = Sortiment 6 … 13 m', b.min === 6 && b.max === 13, b.text);
+  const w = { ...standardwerteApp(), tragwerksart: 'tragausleger', L: 8, twId: 'MT1' };
+  const wj = { ...standardwerteApp(), tragwerksart: 'joch' };
+  const geo = (x) => S141.sichtbareFelder('geo', x).map((f) => f.key);
+  const prof = (x) => S141.sichtbareFelder('prof', x).map((f) => f.key);
+  wahr('Kein Tragjoch-Typ beim Ausleger', !geo(w).includes('typ') && geo(wj).includes('typ'));
+  wahr('Keine Masse des Tragjochs beim Ausleger (jd, jbb, a1, Masskette)',
+       ['jd', 'jbbOG', 'jbbUG', 'a1', 'masskette'].every((k) => !geo(w).includes(k)
+                                                          && geo(wj).includes(k)),
+       geo(w).join(' '));
+  wahr('Keine Winkelgurte beim Ausleger', !prof(w).includes('profOG') && prof(wj).includes('profOG'));
+  wahr('Keine Blech- und Stücklistengruppe des Tragjochs',
+       !S141.gruppeGilt('blech', w) && !S141.gruppeGilt('stueck', w)
+       && S141.gruppeGilt('blech', wj));
+  wahr('Die Länge heisst «Auslegerlänge»',
+       /^Auslegerlänge/.test(S141.FELDER.find((f) => f.key === 'L').label(w)));
+  const html = U141.auslegerUebersichtHtml(w);
+  wahr('Die Tafel nennt die Zeile: 2 × UPE 140, c₁ 5.95, b 3.50 m',
+       html.includes('2 × UPE 140') && html.includes('5.95') && html.includes('3.50'));
+  wahr('Eine Länge ausserhalb des Sortiments wird gesagt',
+       U141.auslegerUebersichtHtml({ ...w, L: 8.5 }).includes('nicht im Sortiment'));
+  const q = APP_QUELLE();
+  wahr('Der Artwechsel gibt dem Ausleger eine Sortimentslänge',
+       /art === 'tragausleger'[\s\S]{0,200}tragauslegerNaechsteLaenge/.test(q));
+  wahr('Die Eingabe rastet auf die Sortimentslänge',
+       /key === 'L' && tragwerksart\(werte\)\.key === 'tragausleger'[\s\S]{0,120}tragauslegerNaechsteLaenge/.test(q));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

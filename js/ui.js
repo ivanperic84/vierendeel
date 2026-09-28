@@ -24,7 +24,9 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
 // einen Wert zeigt.
 import { mastLaengeVorgabe, mastImModell, einzelmastLaenge } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
-import { abfangLaengenbereich } from './data.abfangjoche.js';
+import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
+         tragauslegerTypen } from './data.abfangjoche.js';
+import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe } from './ui.schema.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
@@ -614,6 +616,24 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
       else v = inp.value;
       onChange(key, v);
     });
+    /*
+     * >>> BEIM VERLASSEN ZEIGT DAS FELD, WAS GILT (28. September). <<<
+     *
+     * Das Feld unter dem Cursor wird beim Nachführen übersprungen, damit
+     * eine halb getippte Zahl stehen bleibt. Rastet die Anwendung aber ein
+     * (Längen des Abfangjochs und des Tragauslegers), blieb danach «11.4»
+     * stehen, während mit 11 m gerechnet wurde - gemessen im Browser. Beim
+     * Verlassen des Feldes steht deshalb der gespeicherte Wert.
+     */
+    if (ev === 'input' && (feld.typ === 'zahl' || feld.typ === 'schieber')
+        && inp.type !== 'range') {
+      inp.addEventListener('change', () => {
+        const soll = feldWert(feld, aktuelleWerte ?? werte);
+        if (Number.isFinite(Number(soll)) && Number(inp.value) !== Number(soll)) {
+          inp.value = soll;
+        }
+      });
+    }
   });
   container.querySelectorAll('[data-bauform]').forEach((b) => {
     b.addEventListener('click', () =>
@@ -858,6 +878,55 @@ export function aktualisiereMaske(container, werte, extras = {}) {
  * Plausibilitätsschranke: h kann nie grösser als jd und nie kleiner als
  * jd − 2·max(zs) sein.
  */
+/**
+ * >>> DER TRAGAUSLEGER NACH SEINEM SORTIMENT (28. September, Etappe 3). <<<
+ *
+ * Beim Ausleger stand in der Maske «Tragjoch-Typ J90» mit Bauhöhe, Gurt-
+ * breiten und Winkelprofilen - das Joch, das der Ersatzbalken für ihn
+ * rechnete. Das Bauteil sind aber zwei UPE 140, und seine Länge wählt eine
+ * Zeile des Sortiments: Blechraster, Aufhängung und zulässige Seilkraft.
+ * Genau diese Zeile steht hier, mit den Massen, die das Stabmodell baut
+ * (export.axisvm.tragausleger.js) - wer sie gegen die Zeichnung prüft,
+ * prüft gegen das gerechnete Bauteil.
+ */
+export function auslegerUebersichtHtml(w) {
+  const L = Number(w?.L);
+  const t = getTragausleger(L);
+  if (!t) {
+    const liste = tragauslegerTypen().map((z) => z.L).join(' / ');
+    return `${abschnitt('Tragausleger')}
+      <p class="hinweis warnt" style="margin:2px 0 0">
+        ${liste
+          ? `L = ${f2(L)} m steht nicht im Sortiment (${esc(liste)} m) - ohne
+             Zeile kein Blechraster und keine Aufhängung, das Stabwerk rechnet
+             ihn nicht.`
+          : 'Das Sortiment der Tragausleger ist nicht geladen (Bauteildaten).'}
+      </p>`;
+  }
+  let e = null;
+  try { e = gurtAchsabstand(getGurtprofil(t.profil), null, t.spreizung / 10); }
+  catch { e = null; }
+  const n = tragauslegerBlechachsen(t).length;
+  return `${abschnitt('Tragausleger nach Sortiment')}
+    <div class="kennzahlen">
+      ${kachel('Gurte', `2 × ${esc(t.profil)}`, `Stege innen · licht ${f0(t.spreizung)} mm`)}
+      ${kachel('e', f1(e), 'cm · Gurtschwerachsen')}
+      ${kachel('Bleche', `${n} × 2`, `FL ${f0(t.blech.b)}×${f0(t.blech.t)} oben und unten`)}
+    </div>
+    <div class="kennzahlen">
+      ${kachel('b', f2(t.seil.b), 'm · Aufhängung über dem Ausleger')}
+      ${kachel('c₁', f2(t.seil.c1), 'm · Mastachse bis Seilpunkt')}
+      ${kachel('c₂', f2(t.seil.c2), 'm · Auskragung')}
+    </div>
+    <p class="hinweis" style="margin:2px 0 0">
+      Der Ausleger beginnt ${f2(t.hinten)} m hinter der Mastachse und reicht bis
+      ${f2(t.L - t.hinten)} m (Gabel um den Masten). Blechraster a ${f0(t.raster.a)}
+      + n·${f0(t.raster.b)} + ${f0(t.raster.ende)} mm. Aufhängung
+      ${f0(t.seil.anzahl)} × ${f0(t.seil.querschnitt)} mm², zulässig
+      V = ${f1(t.Vzul)} kN lotrecht.
+    </p>`;
+}
+
 export function hebelarmUebersicht(erg) {
   const m = erg.modell;
   /* =========================================================================

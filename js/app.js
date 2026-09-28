@@ -81,7 +81,9 @@ import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
          ankerKnickenSicher } from './core.anker.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
-         getAbfangjoch, abfangDB, setzeAbfangDB } from './data.abfangjoche.js';
+         getAbfangjoch, abfangDB, setzeAbfangDB,
+         tragauslegerNaechsteLaenge,
+         tragauslegerLaengenbereich } from './data.abfangjoche.js';
 /*
  * DAS ANKERSORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten. Wie das
  * Abfangjoch-Sortiment ist es keine Voraussetzung: wer keinen Anker hat,
@@ -331,6 +333,17 @@ function einzelmastTeile(satz) {
  */
 function artVorgabe(art, w) {
   const v = {};
+  /*
+   * DER TRAGAUSLEGER BEKOMMT EINE LÄNGE SEINES SORTIMENTS (28. September).
+   * Vorher blieb die Länge des bisherigen Tragwerks stehen - ein Joch von
+   * 20 m wurde zum Ausleger von 20 m, den es nicht gibt, und das
+   * Stabmodell verweigerte sich. Die nächste geführte Länge.
+   */
+  if (art === 'tragausleger') {
+    const L = tragauslegerNaechsteLaenge(w?.L);
+    if (L !== null) v.L = L;
+    return v;
+  }
   if (art !== 'abfangjoch' || !abfangDbDa()) return v;
   const erst = abfangjoche()[0];
   v.abfangTyp = erst.typ;
@@ -619,6 +632,7 @@ function neuRechnen(neuZeichnen = true) {
     try { abfangB = abfangLaengenbereich(getAbfangjoch(werte.abfangTyp)); }
     catch { abfangB = null; }
   }
+  if (tragwerksart(werte).key === 'tragausleger') abfangB = tragauslegerLaengenbereich();
   setzeGrenzen(joch, werte.L, abfangB);
 
   // Die Eingabemaske zeigt Ergebnisse mit an (Querschnittsklassen, Lastfälle).
@@ -638,8 +652,15 @@ function neuRechnen(neuZeichnen = true) {
      * `kl` null ist: der erste Anlauf las die Klassifizierung blind und
      * brach mit «Cannot read properties of null (reading teile)» ab.
      */
+    /*
+     * DER TRAGAUSLEGER ZEIGT SEINE SORTIMENTSZEILE (28. September). Hebelarme,
+     * Blechübersicht und Stückliste darunter sind die des Tragjochs, das der
+     * Ersatzbalken für ihn rechnet - zwei UPE 140 haben keine vier Winkel.
+     */
+    const ausleger = tragwerksart(werte).key === 'tragausleger';
     const extras = letzte
-      ? { ...(letzte.mitJoch ? {
+      ? { ...(ausleger ? { geo: ui.auslegerUebersichtHtml(werte) } : {}),
+          ...(letzte.mitJoch && !ausleger ? {
             geo: ui.hebelarmUebersicht(letzte.anzeige ?? letzte.erg),
 
             blech: ui.blechUebersichtHtml(letzte.erg),
@@ -1924,6 +1945,12 @@ function aendern(key, wert) {
    */
   if (key === 'L' && tragwerksart(werte).key === 'abfangjoch') {
     const nah = abfangNaechsteLaenge(werte.abfangTyp, wert);
+    if (nah !== null) wert = nah;
+  }
+  // Dasselbe beim Tragausleger: je Länge ein eigenes Blechraster und eine
+  // eigene Aufhängung, eine Zwischenlänge gibt es nicht (28. September).
+  if (key === 'L' && tragwerksart(werte).key === 'tragausleger') {
+    const nah = tragauslegerNaechsteLaenge(wert);
     if (nah !== null) wert = nah;
   }
   /*
