@@ -1951,26 +1951,19 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
                       border-top: 1px dashed var(--ol); }
 
 /* DIE MARKE IST EIN AUFLAGERDREIECK - die Zeichensprache des Schemas. */
-/* DER TRAGAUSLEGER IM LAGEBAND (Weisung 28. September): Arm, Aufhängung
-   und die Verlängerung des Masten bis zu ihr. Die Striche behalten ihre
-   Stärke, wie breit der Knopf auch wird (vector-effect). */
-.qp-ausleger {
-  position: absolute; height: auto; padding: 0; border: none;
-  background: none; cursor: pointer; color: var(--dim);
+/* DER TRAGAUSLEGER IM LAGEBAND (Weisungen 28. September, Variante «A»):
+   eine Linie wie ein Joch, die Endmarke nur am Masten - das freie Ende
+   ist kein Auflager -, und eine hängende Marke bei c₁ für die Aufhängung
+   (die Zeichensprache der Auflagerdreiecke). Die Farbe folgt der Linie. */
+.qp-linie.qp-ta.rechts::after, .qp-linie.qp-ta.links::before { display: none; }
+.qp-ta-haken {
+  position: absolute; top: -6px; width: 0; height: 0; margin-left: -4px;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-top: 5px solid var(--dim); pointer-events: none;
 }
-/* Massstäblich ab dem Ausleger (28. September): der Platzhalter über dem
-   Band ist so hoch wie b im Massstab der Lage; der Ausleger selbst ist
-   unten am Band verankert und wächst in diesen Raum hinein. */
-.qp-ta-luft { display: grid; margin: 4px 8px 0; pointer-events: none; }
-.qp-ta-luft > span { grid-area: 1 / 1; display: block; }
-.qp-ausleger svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.qp-ausleger line { stroke: currentColor; }
-.qp-ausleger .qp-ta-arm { stroke-width: 2; }
-.qp-ausleger .qp-ta-mast { stroke-width: 2; }
-.qp-ausleger .qp-ta-seil { stroke-width: 1; stroke-dasharray: 3 2; }
-.qp-ausleger:hover { color: var(--on2); }
-.qp-ausleger.an { color: var(--acc); }
-.qp-ausleger.aus { opacity: 0.45; }
+.qp-linie:hover .qp-ta-haken { border-top-color: var(--on2); }
+.qp-linie.an .qp-ta-haken { border-top-color: var(--acc); }
+.qp-zeile.aus .qp-ta-haken, .qp-linie.aus .qp-ta-haken { border-top-color: var(--ol2); }
 .qp-mast {
   position: absolute; top: 0; width: 22px; height: 20px;
   transform: translateX(-50%); padding: 0;

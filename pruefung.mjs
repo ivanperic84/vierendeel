@@ -26118,8 +26118,11 @@ titel('96  Tragwerksliste: Baum mit Lageband, Namen nach dem Typ');
        h.indexOf('class="qp-band') >= 0 && h.indexOf('class="qp-band') < h.indexOf('qp-baum'));
   wahr('Der geteilte Mast bei 20 m steht einmal im Baum, mit «auch A1»',
        h.includes('>auch A1<'));
-  wahr('Im Band liegen Tragjoch und Abfangjoch in zwei Bahnen',
-       (h.match(/qp-bandlinie/g) ?? []).length === 2
+  // Seit dem 28. September (Variante «A») liegt auch der Tragausleger als
+  // Linie im Band - bei 60 m frei, also in der ersten Bahn.
+  wahr('Im Band liegen Tragjoch und Abfangjoch in zwei Bahnen (dazu der Ausleger)',
+       (h.match(/qp-bandlinie/g) ?? []).length === 3
+       && (h.match(/qp-bandlinie qp-ta /g) ?? []).length === 1
        && new Set([...h.matchAll(/qp-bandlinie[^"]*"[\s\S]*?top:(\d+)px/g)].map((m) => m[1])).size === 2);
   wahr('Der Tragausleger traegt «nicht nachgewiesen» in seiner Zeile',
        h.includes('>nicht nachgewiesen<'));
@@ -32581,8 +32584,17 @@ titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten
   const w0 = { ...standardwerteApp(), tragwerksart: 'tragausleger', L: 8, twId: 'MT1', xLage: 0 };
   const bR = U144.querprofilLeisteHtml({ ...w0, auslegerSeite: 'rechts' });
   const bL = U144.querprofilLeisteHtml({ ...w0, auslegerSeite: 'links' });
-  wahr('Im Lageband steht ein Ausleger mit Aufhängung',
-       /class="qp-ausleger/.test(bR) && /qp-ta-seil/.test(bR) && /qp-ta-arm/.test(bR));
+  // Seit dem 28. September (Variante «A»): eine Linie wie ein Joch, die
+  // Endmarke nur am Masten, die Aufhängung als hängende Marke bei c₁.
+  wahr('Im Lageband steht der Ausleger als Linie mit Aufhängemarke',
+       /class="qp-linie qp-bandlinie qp-ta rechts/.test(bR) && /qp-ta-haken/.test(bR)
+       && /class="qp-linie qp-bandlinie qp-ta links/.test(bL)
+       && !/qp-ausleger|qp-ta-luft/.test(bR));
+  const hakenPct = (h) => Number(/qp-ta-haken" style="left:([0-9.]+)%/.exec(h)?.[1]);
+  const t8 = AJ.getTragausleger(8);
+  pruef('… die Marke sitzt bei c₁ (rechts vom Masten aus gezählt)', hakenPct(bR),
+        t8.seil.c1 / (8 - 0.25) * 100, 1e-3, '%');
+  pruef('… und links gespiegelt', hakenPct(bL), 100 - t8.seil.c1 / (8 - 0.25) * 100, 1e-3, '%');
   const bereichR = U144.qpBereich({ ...w0, auslegerSeite: 'rechts' });
   const bereichL = U144.qpBereich({ ...w0, auslegerSeite: 'links' });
   wahr('… und der Bereich des Bandes reicht bis zum Kragarmende, zur richtigen Seite',

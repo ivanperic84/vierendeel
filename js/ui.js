@@ -26,7 +26,7 @@ import { mastLaengeVorgabe, mastImModell, einzelmastLaenge,
          mastLaengeFuer } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
-         tragauslegerAufhaengung,
+         tragauslegerAufhaengung, tragauslegerSpreizung,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
@@ -2026,85 +2026,64 @@ export function querprofilLeisteHtml(werte) {
 
   // --- Das Lageband --------------------------------------------------------
   // Joche in Bahnen: was sich deckt, kommt eine Bahn hoeher.
+  /*
+   * >>> DER TRAGAUSLEGER IM BAND (Weisungen vom 28. September). <<<
+   * «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der
+   * Ausleger kann zudem links oder rechts sein.» Zuerst flach über dem
+   * Mastsymbol, dann («diese proportion ist zu verzerrt vom mast zu
+   * ausleger») massstäblich ab dem Ausleger - das brach mit der
+   * Zeichensprache des Bands («das sieht nicht stimmig aus, in bezug auf
+   * die restlichen darstellungen der tragwerksteile»). Auf drei
+   * Gegenvorschläge: «A» - WIE EIN JOCH. Der Ausleger ist eine Linie in
+   * einer Bahn, Endmarke nur am Masten, Name darüber; die Aufhängung ist
+   * eine hängende Marke bei c₁ (die Zeichensprache der Auflagerdreiecke),
+   * das Seil steht im Titel. Die Höhe b zeigt das 3D-Bild.
+   */
   const bahnen = [];
-  const linien = alle.filter((t) => tragwerksart(t).masten >= 2).map((t) => {
-    const x0 = lageVon(t), x1 = x0 + (Number(t.L) || 0);
+  const imBand = alle.filter((t) => tragwerksart(t).masten >= 2
+    || tragwerksart(t).key === 'tragausleger');
+  const linien = imBand.map((t) => {
+    const ta = tragwerksart(t).key === 'tragausleger';
+    let x0, x1;
+    if (ta) {
+      const m = lageVon(t), e = m + auslegerRichtung(t) * kragarmEnde(t);
+      x0 = Math.min(m, e); x1 = Math.max(m, e);
+    } else {
+      x0 = lageVon(t); x1 = x0 + (Number(t.L) || 0);
+    }
     let b = bahnen.findIndex((ende) => ende <= x0 + 1e-6);
     if (b < 0) { bahnen.push(x1); b = bahnen.length - 1; } else bahnen[b] = x1;
-    return { t, x0, x1, b };
+    return { t, x0, x1, b, ta };
   });
   const BAHN = 15;
-  /*
-   * >>> DER TRAGAUSLEGER IM BAND (Weisung vom 28. September). <<<
-   * «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der
-   * Ausleger kann zudem links oder rechts sein.» Er braucht über dem
-   * Mastsymbol Platz für die Aufhängung - 12 px.
-   *
-   * >>> SEIT DEM 28. SEPTEMBER MASSSTÄBLICH AB DEM AUSLEGER. <<<
-   * «diese proportion ist zu verzerrt vom mast zu ausleger». Auf Rückfrage
-   * «Seil ab Ausleger massstäblich»: die Höhe b der Aufhängung steht im
-   * selben Massstab wie die Lage, der Seilwinkel ist der wahre; der Mast
-   * unter dem Ausleger bleibt das Symbol. Die Breite kennt das Band erst im
-   * Browser (Prozent) - die Höhe folgt ihr deshalb über `aspect-ratio`,
-   * und ein Platzhalter über dem Band hält den Raum frei (`qp-ta-luft`).
-   */
-  const ausleger = alle.filter((t) => tragwerksart(t).key === 'tragausleger');
-  const TA_LUFT = ausleger.length ? 2 : 0;
-  const hoehe = bahnen.length * BAHN + TA_LUFT;
-  const bandLinien = linien.map(({ t, x0, x1, b }) => {
+  const hoehe = bahnen.length * BAHN;
+  const bandLinien = linien.map(({ t, x0, x1, b, ta }) => {
     const links = qpPct(x0, von, bis), breit = Math.max(qpPct(x1, von, bis) - links, 2.5);
     const an = t.id === aktivId, aus = versteckt(t);
     const top = hoehe - (b + 1) * BAHN;
-    return `<button type="button" class="qp-linie qp-bandlinie${an ? ' an' : ''}${aus ? ' aus' : ''}"
+    let extra = '', klasse = '', titel = `${tragwerkPos(werte, t)} · ${tragwerkName(t, werte)} `
+      + `· x ${f2q(x0)}–${f2q(x1)} m`;
+    if (ta) {
+      const ri = auslegerRichtung(t), xE = kragarmEnde(t);
+      const a = tragauslegerAufhaengung(t);
+      const s = tragauslegerSpreizung(t);
+      klasse = ` qp-ta ${ri > 0 ? 'rechts' : 'links'}`;
+      if (a && a.c1 <= xE) {
+        const u = a.c1 / (x1 - x0) * 100;
+        extra = `<span class="qp-ta-haken" style="left:${(ri > 0 ? u : 100 - u).toFixed(3)}%"></span>`;
+      }
+      titel = `${tragwerkPos(werte, t)} · Tragausleger ${f2q(Number(t.L))} m, `
+        + `${ri > 0 ? 'rechts' : 'links'} des Masten`
+        + (a ? ` · Aufhängung bei c₁ = ${f2q(a.c1)} m, b = ${f2q(a.b)} m, `
+          + `α ${a.alpha.toFixed(1)}°, ${s > 0 ? `2 Seile ±${f2q(s)} m` : '1 Seil'}` : '');
+    }
+    return `<button type="button" class="qp-linie qp-bandlinie${klasse}${an ? ' an' : ''}${aus ? ' aus' : ''}"
         data-qp-tw="${esc(t.id)}"
         style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;top:${top + 7}px"
-        title="${esc(`${tragwerkPos(werte, t)} · ${tragwerkName(t, werte)} · x ${f2q(x0)}–${f2q(x1)} m`)}"
-        ></button><span class="qp-bandname${an ? ' an' : ''}"
+        title="${esc(titel)}"
+        >${extra}</button><span class="qp-bandname${an ? ' an' : ''}"
         style="left:${(links + breit / 2).toFixed(3)}%;top:${top - 3}px"
         data-rand="${anker(links + breit / 2)}">${esc(tragwerkPos(werte, t))}</span>`;
-  }).join('');
-  /*
-   * Ausleger, Aufhängung und die Verlängerung des Masten bis zu ihr - ein
-   * Knopf über der Strecke Mast … Kragarmende, gezeichnet in seinen eigenen
-   * Koordinaten (0 … 100 über die Breite, 0 … 20 px in der Höhe). Die
-   * Aufhängung greift bei c₁ an; ohne Sortimentszeile fehlt sie.
-   */
-  const taGeo = ausleger.map((t) => {
-    const x0 = lageVon(t), ri = auslegerRichtung(t), xE = kragarmEnde(t);
-    const xs = [x0, x0 + ri * xE];
-    const links = qpPct(Math.min(...xs), von, bis);
-    const breit = Math.max(qpPct(Math.max(...xs), von, bis) - links, 1);
-    const aufh = tragauslegerAufhaengung(t);
-    // Ohne Sortimentszeile keine Aufhängung - dann ein flacher Streifen.
-    const b = aufh?.b > 0 ? aufh.b : xE * 0.08;
-    return { t, ri, xE, links, breit, b, c1: aufh?.c1 ?? null };
-  });
-  // Der Platzhalter: je Ausleger ein Kasten mit demselben Seitenverhältnis,
-  // übereinander in einer Rasterzelle - die Höhe ist die des höchsten.
-  const taLuft = taGeo.length
-    ? `<div class="qp-ta-luft" aria-hidden="true">${taGeo.map((g) =>
-        `<span style="margin-left:${g.links.toFixed(3)}%;width:${g.breit.toFixed(3)}%;`
-        + `aspect-ratio:${g.xE.toFixed(3)} / ${g.b.toFixed(3)}"></span>`).join('')}</div>`
-    : '';
-  const bandAusleger = taGeo.map(({ t, ri, xE, links, breit, b, c1 }) => {
-    const an = t.id === aktivId, aus = versteckt(t);
-    const u = (d) => (ri > 0 ? d : xE - d);           // Meter im Bild
-    const uM = u(0);
-    const nsl = 'vector-effect="non-scaling-stroke"';
-    // Unten verankert: der Arm liegt 1 px über dem Mastsymbol.
-    return `<button type="button" class="qp-ausleger${an ? ' an' : ''}${aus ? ' aus' : ''}"
-        data-qp-tw="${esc(t.id)}"
-        style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;bottom:${34 + TA_LUFT - 1}px;`
-          + `aspect-ratio:${xE.toFixed(3)} / ${b.toFixed(3)}"
-        title="${esc(`${tragwerkPos(werte, t)} · Tragausleger ${f2q(Number(t.L))} m, `
-          + `${ri > 0 ? 'rechts' : 'links'} des Masten`
-          + (c1 !== null ? ` · Aufhängung bei c₁ = ${f2q(c1)} m, b = ${f2q(b)} m` : ''))}">
-        <svg viewBox="0 0 ${xE.toFixed(3)} ${b.toFixed(3)}" preserveAspectRatio="none" aria-hidden="true">
-          <line ${nsl} class="qp-ta-mast" x1="${uM}" y1="0" x2="${uM}" y2="${b.toFixed(3)}"/>
-          <line ${nsl} class="qp-ta-arm" x1="0" y1="${b.toFixed(3)}" x2="${xE.toFixed(3)}" y2="${b.toFixed(3)}"/>
-          ${c1 !== null && c1 <= xE ? `<line ${nsl} class="qp-ta-seil" x1="${uM}" y1="0"
-            x2="${u(c1).toFixed(3)}" y2="${b.toFixed(3)}"/>` : ''}
-        </svg></button>`;
   }).join('');
   const bandMasten = masten.map((m) => {
     const an = m.id === gewMast?.id;
@@ -2125,9 +2104,9 @@ export function querprofilLeisteHtml(werte) {
   }).join('');
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      ${taLuft}<div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
+      <div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
         <span class="qp-boden" style="top:${hoehe + 18}px"></span>
-        ${bandLinien}${bandAusleger}${bandMasten}
+        ${bandLinien}${bandMasten}
       </div>
       <div class="qp-skala"><span>${von.toFixed(1)} m</span>
         <span>Lage auf dem Querprofil</span><span>${bis.toFixed(1)} m</span></div>
