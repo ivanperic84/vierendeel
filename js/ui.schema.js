@@ -28,7 +28,8 @@ import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
          abfangMasse, getTragausleger,
-         tragauslegerAufhaengung } from './data.abfangjoche.js';
+         tragauslegerAufhaengung, tragauslegerSpreizung,
+         TA_SPREIZUNG_VORGABE } from './data.abfangjoche.js';
 import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
          fundamentFuerMast } from './data.masten.js';
@@ -901,6 +902,25 @@ export const FELDER = [
     hinweis: 'Ohne Eintrag gilt b des Sortiments (Normzeichnung rund 30°); '
            + 'Spezialfälle kleiner oder grösser. 0 = nach Sortiment. '
            + 'c₁ bleibt nach Sortiment.' },
+  /*
+   * ZWEI SEILE, GESPREIZT (Entscheid 28. September, «Ja, Spreizung als
+   * Eingabe»): je Seil der Abstand zur Auslegerachse in Gleisrichtung, an
+   * den Enden der Ankertraverse (Normzeichnung, Detail W). Vorgabe 1 m;
+   * 0 = ein Seil in der Achse.
+   */
+  { key: 'auslegerSpreizung', gruppe: 'geo', typ: 'schieber',
+    label: 'Spreizung der Aufhängung (je Seite)', sym: 's', einheit: 'm',
+    standard: TA_SPREIZUNG_VORGABE, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 2,
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
+    notiz: (w) => (tragwerksart(w).key === 'tragausleger'
+      ? (tragauslegerSpreizung(w) > 0
+        ? `2 Seile an der Ankertraverse, ${(2 * tragauslegerSpreizung(w)).toFixed(2)} m auseinander`
+        : '1 Seil in der Auslegerachse - hält keine Torsion bei c₁')
+      : ''),
+    hinweis: 'Je Seil der Abstand zur Auslegerachse in Gleisrichtung, an den '
+           + 'Enden der Ankertraverse; am Masten treffen sich beide Seile. '
+           + 'Gegengleiche Seilkräfte halten die Torsion schon bei c₁. '
+           + '0 = ein Seil in der Achse.' },
   /* =========================================================================
    * >>> DER LÄNGSANKER DES TRAGAUSLEGERS (Weisung vom 28. September). <<<
    * =======================================================================

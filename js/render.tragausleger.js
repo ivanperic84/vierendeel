@@ -126,16 +126,25 @@ export function auslegerSzene(satz, opt = {}) {
   const tr = kn.get('TRAVERSE_M');
   const seil = kn.get('MAST_A_SEIL');
   const fbAuf = farbeFuer('aufhaengung', `Aufhängung ${t.seil.anzahl} × ${t.seil.querschnitt} mm²`, 'anbau');
+  // Zwei Seile an den Enden der Traverse (Entscheid 28. September), sonst
+  // eines in der Achse - wie im Modell.
+  const enden = ['TRAVERSE_P', 'TRAVERSE_N'].map((n) => kn.get(n)).filter(Boolean);
+  const yT = Math.max(d2 / 2 + 0.03, ...enden.map((k) => Math.abs(k.y)));
   if (tr) {
-    flaechen.push(...stab([tr.x, -d2 / 2 - 0.03, tr.z], [tr.x, d2 / 2 + 0.03, tr.z], 0.05, {
+    flaechen.push(...stab([tr.x, -yT, tr.z], [tr.x, yT, tr.z], 0.05, {
       gruppe: 'anbau', teil: 'TRAVERSE', farbeBauteil: fbAuf, label: 'Ankertraverse' }));
   }
   if (tr && seil) {
-    flaechen.push(...schraegerStab([seil.x, seil.y, seil.z], [tr.x, tr.y, tr.z], 0.03, 0.03, {
-      gruppe: 'anbau', teil: 'AUFHAENGUNG', farbeBauteil: fbAuf,
-      label: `Aufhängung · c₁ ${t.seil.c1.toFixed(2)} m · b ${bS.toFixed(2)} m · α ${d.tragausleger.alpha.toFixed(1)}°`,
-      werte: OHNE_WERTE,
-    }));
+    const spz = d.tragausleger.spreizung > 0
+      ? ` · 2 Seile, Spreizung ±${d.tragausleger.spreizung.toFixed(2)} m` : '';
+    (enden.length ? enden : [tr]).forEach((e) => {
+      flaechen.push(...schraegerStab([seil.x, seil.y, seil.z], [e.x, e.y, e.z], 0.03, 0.03, {
+        gruppe: 'anbau', teil: 'AUFHAENGUNG', farbeBauteil: fbAuf,
+        label: `Aufhängung · c₁ ${t.seil.c1.toFixed(2)} m · b ${bS.toFixed(2)} m · `
+          + `α ${d.tragausleger.alpha.toFixed(1)}°${spz}`,
+        werte: OHNE_WERTE,
+      }));
+    });
     marken.push({ gruppe: 'anbau', art: 'anbau', teil: 'AUFHAENGUNG',
                   p: [(seil.x + tr.x) / 2, 0, (seil.z + tr.z) / 2 + 0.15], text: 'Seil' });
   }

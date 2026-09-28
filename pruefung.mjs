@@ -31858,8 +31858,11 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
   const N136 = await import(J('core.nachbarn.js'));
   const AX136 = await import(J('export.axisvm.js'));
   const SW136 = await import(J('core.stabwerk.js'));
+  // EIN Seil in der Achse (Spreizung 0): dieser Abschnitt prüft den
+  // Pendelstab am Freikörper. Seit dem 28. September sind es in der Vorgabe
+  // zwei gespreizte Seile - die prüft Abschnitt 147.
   const w = { ...standardwerte(), tragwerksart: 'tragausleger', L: 8, xLage: 0,
-              mastVorhanden: true };
+              mastVorhanden: true, auslegerSpreizung: 0 };
   const satz = N136.rechensatzMitNachbarn(w);
   const erg = berechne(satz, ...N136.kernArgumente(satz));
   const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
@@ -31999,6 +32002,7 @@ titel('137  Tragausleger Etappe 4a: UPE, Bindebleche und Aufhaengung im Stabwerk
     const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
                 mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
                 laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an)
+                auslegerSpreizung: 0,   // EIN Seil in der Achse: Befund des Pendelstabs (zwei Seile: 147)
                 anbauteile: [A.neuesAnbauteil(vorlage, L - 0.25 - 0.4)] };
     const satz = N137.rechensatzMitNachbarn(w);
     const erg = berechne(satz, ...N137.kernArgumente(satz));
@@ -32112,6 +32116,7 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   const ta = (vorl, L) => lauf({ ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
     mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
                 laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an)
+                auslegerSpreizung: 0,   // EIN Seil in der Achse: Befund des Pendelstabs (zwei Seile: 147)
     anbauteile: [A.neuesAnbauteil(vorl, L - 0.25 - 0.4)] }, { mastNamen: { A: 'M1', B: 'M1' } });
   const hs = ta('hs-fahrdraht', 13);
   const knT = SM138.knickenAusStabwerk(hs.dat, hs.lsg, hs.nw, 'M1', hs.basis, hs.erg.modell, {});
@@ -32156,8 +32161,9 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
   const UI139 = await import(J('ui.js'));
   const L = 13;
   const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0,
-              mastVorhanden: true, trasseRadius: 600, flSpannweite: 50,
-                laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an) twId: 'MT1',
+              mastVorhanden: true, trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
+                laengsverankerung: false,   // ohne Längsanker (seit 28. Sept. Vorgabe an)
+                auslegerSpreizung: 0,   // EIN Seil in der Achse: Befund des Pendelstabs (zwei Seile: 147)
               anbauteile: [A.neuesAnbauteil('hs-fahrdraht', L - 0.25 - 0.4)] };
   const satz = N139.rechensatzMitNachbarn(w);
   const args = N139.kernArgumente(satz);
@@ -32237,6 +32243,7 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
     const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0, mastVorhanden: true,
                 trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
                 nachweise: { ...standardwerte().nachweise, knickenMast: true },
+                auslegerSpreizung: 0,   // EIN Seil in der Achse: Befund des Pendelstabs (zwei Seile: 147)
                 anbauteile: [A.neuesAnbauteil('hs-fahrdraht', L - 0.25 - 0.4)],
                 ...(lv === undefined ? {} : { laengsverankerung: lv }) };
     const satz = N140.rechensatzMitNachbarn(w);
@@ -32513,6 +32520,9 @@ titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten
  * Kurve. Gemessen L 13 m, Hängestütze, Längsanker (Stabwerk):
  *   rechts R +600  Seil 4.121 kN, UPE 0.259, Mast 0.838
  *   links  R +600  Seil 4.722 kN, UPE 0.372, Mast 0.765
+ * Seit den zwei gespreizten Seilen (28. September, ±1 m; S_v gleich):
+ *   rechts R +600  UPE 0.252, Blech 0.208, Mast 0.849
+ *   links  R +600  UPE 0.331, Blech 0.208, Mast 0.775
  * ========================================================================= */
 {
   const N144 = await import(J('core.nachbarn.js'));
@@ -32552,7 +32562,7 @@ titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten
   pruef('rechts R +600: Seil (Stabwerk)', rP.zahlen[5], 4.121, 1e-3, 'kN');
   pruef('links R +600: Seil (Stabwerk) - der Mast steht auf der anderen Kurvenseite',
         lP.zahlen[5], 4.722, 1e-3, 'kN');
-  pruef('links R +600: UPE (Stabwerk)', lP.zahlen[3], 0.3716, 1e-3, '');
+  pruef('links R +600: UPE (Stabwerk, zwei Seile ±1 m)', lP.zahlen[3], 0.3305, 1e-3, '');
   // Die Geometrie: Knoten bei −x, die Gurte laufen in +x (Stege innen).
   const d = TAX144.tragauslegerModell({ ...lP.satz });
   const kx = new Map(d.knoten.map((k) => [k.name, k]));
@@ -32758,6 +32768,127 @@ titel('146  Tragausleger: b und Winkel gekoppelt, Mastlänge H + b');
   const d45 = TAX146.tragauslegerModell(N146.rechensatzMitNachbarn({ ...w, auslegerWinkel: 45 }));
   wahr('Das Stabmodell trägt Winkel und b', d45.tragausleger.alpha === 45
        && Math.abs(d45.tragausleger.b - a30.c1) < 1e-6);
+}
+
+// ===========================================================================
+titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
+/* ===========================================================================
+ * Frage des Auftraggebers: «würde es etwas bringen, wenn man wie in der
+ * normzeichnung zwei seilanker ansetzt die in einem abstand von 2 m jeweils
+ * 1 m ab kragarm achse in gleislängsrichtung? die frage ist wie man es im
+ * axis modellieren will, dass es nur zug aufnimmt und kein druck», dazu die
+ * Skizze der Ankertraverse (die Seile greifen an ihren Enden an). Auf
+ * Rückfrage: «Ja, Spreizung als Eingabe» (Vorgabe 1 m je Seite, 0 = ein
+ * Seil in der Achse); die Gurte bleiben um z frei («Frei lassen»: gemessen
+ * im Regelfall 1.029 -> 1.035, hilft dem Blech nicht).
+ *
+ * NUR ZUG: linear gerechnet, das Eigengewicht spannt beide Seile vor. Die
+ * Probe hier: in keinem Fall - charakteristisch wie Bemessung - drückt ein
+ * Seil. Müsste eines drücken, meldet es `aufhaengungNachweis` («druck»).
+ *
+ * Gemessen L 13 m mit Hängestütze (Stabwerk), ein Seil -> zwei Seile ±1 m:
+ *   mit Längsanker   Bindeblech 1.029 -> 0.208, UPE 0.259 -> 0.252
+ *   ohne Längsanker  Bindeblech 1.208 -> 0.316, UPE 0.374 -> 0.272
+ *   Mast, Knicken, Fundament praktisch unverändert; S_v gleich.
+ * ========================================================================= */
+{
+  const N147 = await import(J('core.nachbarn.js'));
+  const AX147 = await import(J('export.axisvm.js'));
+  const TAX147 = await import(J('export.axisvm.tragausleger.js'));
+  const SW147 = await import(J('core.stabwerk.js'));
+  const SN147 = await import(J('core.stabnachweis.js'));
+  const LA147 = await import(J('core.lasten.js'));
+  const TA147 = await import(J('core.tragausleger.js'));
+  const RT147 = await import(J('render.tragausleger.js'));
+  const DA147 = await import(J('data.abfangjoche.js'));
+  const lauf = (w) => {
+    const satz = N147.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N147.kernArgumente(satz));
+    const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+    const bau = AX147.stabmodell(erg.modell, { ...opt, satz, mastNamen: { A: 'M1', B: 'M1' } });
+    bau.lasten = AX147.lasten(erg.modell, bau, opt);
+    const dat = AX147.stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz });
+    const lsg = SW147.loese(dat, { eigengewicht: false });
+    const alle = LA147.lastfaelle(satz);
+    const nw = alle.filter((l) => l.nachweis !== false);
+    const h = SN147.stabwerkHuelle(dat, lsg, nw, 235 / 1.05, { torsion: true });
+    return { satz, dat, lsg, alle, nw, h,
+             aufh: SN147.aufhaengungNachweis(dat, lsg, alle, 5) };
+  };
+  const w = (spreiz, anker) => ({ ...standardwerte(), tragwerksart: 'tragausleger', L: 13,
+    xLage: 0, mastVorhanden: true, trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
+    laengsverankerung: anker, auslegerSpreizung: spreiz,
+    anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 12.35)] });
+
+  // --- a) Vorgabe und Feld ------------------------------------------------
+  wahr('Ohne Eintrag zwei Seile, je 1 m neben der Achse',
+       DA147.tragauslegerSpreizung({}) === 1 && DA147.tragauslegerSpreizung({ auslegerSpreizung: 0 }) === 0
+       && DA147.tragauslegerSpreizung({ auslegerSpreizung: 0.75 }) === 0.75);
+  const fS = FELDER.find((f) => f.key === 'auslegerSpreizung');
+  wahr('Feld «Spreizung» beim Ausleger, Vorgabe 1 m, Schieber auf den halben Meter',
+       fS?.standard === 1 && fS.zugSchritt === 0.5 && fS.min === 0
+       && fS.sichtbar({ tragwerksart: 'tragausleger' }) && !fS.sichtbar({ tragwerksart: 'joch' }));
+
+  // --- b) das Modell ------------------------------------------------------
+  const zwei = lauf(w(1, true)), eins = lauf(w(0, true));
+  const kn = new Map(zwei.dat.knoten.map((k) => [k.name, k]));
+  const seile = zwei.dat.staebe.filter((s) => /^AUFHAENGUNG_[PN]$/.test(s.name));
+  wahr('Zwei Seile, beide Links im Ortssystem, nur längs gehalten',
+       seile.length === 2 && !zwei.dat.staebe.some((s) => s.name === 'AUFHAENGUNG')
+       && seile.every((s) => s.art === 'link' && s.kraftuebertragung.x === 'Rigid'
+                            && s.kraftuebertragung.y === 'Free' && s.kraftuebertragung.z === 'Free'));
+  wahr('… an den Enden der Traverse, ±1 m in Gleisrichtung, am Masten im selben Punkt',
+       seile.every((s) => Math.abs(Math.abs(kn.get(s.bis).y) - 1) < 1e-9
+                          && kn.get(s.bis).z === kn.get('TRAVERSE_M').z)
+       && seile[0].von === seile[1].von);
+  wahr('Spreizung 0: ein Seil in der Achse (wie bis dahin)',
+       eins.dat.staebe.filter((s) => /AUFHAENGUNG/.test(s.name)).map((s) => s.name).join() === 'AUFHAENGUNG');
+
+  // --- c) Wirkung ----------------------------------------------------------
+  pruef('S_v gleich wie mit einem Seil (die lotrechte Ebene ändert sich nicht)',
+        zwei.aufh.Sv, eins.aufh.Sv, 1e-3, 'kN');
+  wahr('V_zul gegen die Summe beider Seile', zwei.aufh.seile === 2
+       && Math.abs(zwei.aufh.eta - zwei.aufh.Sv / 5) < 1e-12);
+  const G = zwei.lsg.stabkraft('G');
+  pruef('Unter G tragen beide Seile gleich', -G.get('AUFHAENGUNG_P')[0],
+        -G.get('AUFHAENGUNG_N')[0], 1e-6, 'kN');
+  const blech = (r) => r.h.teile['tragwerk|blech'].eta;
+  pruef('Bindeblech mit Längsanker, ein Seil (Befund)', blech(eins), 1.0285, 1e-3, '');
+  pruef('>>> Bindeblech mit Längsanker, zwei Seile ±1 m <<<', blech(zwei), 0.2078, 1e-3, '');
+  const zweiO = lauf(w(1, false)), einsO = lauf(w(0, false));
+  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.2083, 1e-3, '');
+  pruef('>>> … zwei Seile <<<', blech(zweiO), 0.3156, 1e-3, '');
+  pruef('Mast (mit Längsanker) praktisch unverändert', zwei.h.bauteile['mast:M1'].eta,
+        eins.h.bauteile['mast:M1'].eta, 2e-3, '');
+
+  // --- d) nur Zug: in keinem Fall drückt ein Seil ------------------------
+  const minN = (r) => Math.min(...[...SN147.wirklicheZustaende(r.alle), ...r.nw].flatMap((lf) => {
+    const kr = SN147.kraefteAusAnteilen(r.lsg, SN147.anteileFuer(lf, r.dat));
+    return ['AUFHAENGUNG_P', 'AUFHAENGUNG_N'].map((n) => -(kr.get(n)?.[0] ?? Infinity));
+  }));
+  const mZ = minN(zwei), mZO = minN(zweiO);
+  wahr('>>> Nur Zug: jedes Seil bleibt in jedem Fall gezogen (lineare Rechnung gilt) <<<',
+       mZ > 1 && mZO > 1, `kleinste Seilkraft ${mZ.toFixed(2)} / ${mZO.toFixed(2)} kN`);
+  wahr('… und der Nachweis meldet keinen Druck', zwei.aufh.druck === null && zweiO.aufh.druck === null);
+
+  // --- e) Kern und Bild ----------------------------------------------------
+  const s = N147.rechensatzMitNachbarn(w(1, true));
+  const k = TA147.auslegerAuswertung(s, LA147.lastfaelle(s), 235 / 10 / 1.05);
+  const neig = Math.hypot(k.c1, k.b, 1) / Math.hypot(k.c1, k.b);
+  pruef('Kern: Seilzug je Seil = N/2, aus der Ebene geneigt', k.aufhaengung.Nje,
+        k.aufhaengung.N / 2 * neig, 1e-12, 'kN');
+  const sz = RT147.auslegerSzene(s, { mast: { profil: 'HEB 240', hoehe: 7.5, ueberstand: 0,
+    stegrichtung: 'jochachse', name: 'MT1' } });
+  const trY = Math.max(...sz.flaechen.filter((f) => f.teil === 'TRAVERSE')
+    .flatMap((f) => f.punkte.map((p) => Math.abs(p[1]))));
+  wahr('Im Bild reicht die Traverse bis zu den Seilen (±1 m)', trY >= 1 - 1e-9 && trY < 1.1,
+       trY.toFixed(3));
+  const seilY = sz.flaechen.filter((f) => f.teil === 'AUFHAENGUNG')
+    .flatMap((f) => f.punkte.map((p) => p[1]));
+  wahr('… und zwei Seile, eines je Seite', Math.min(...seilY) < -0.9 && Math.max(...seilY) > 0.9);
+  wahr('Das Stabmodell nennt Spreizung und Seilzahl',
+       TAX147.tragauslegerModell(s).tragausleger.seile === 2
+       && TAX147.tragauslegerModell(s).tragausleger.spreizung === 1);
 }
 
 // ===========================================================================

@@ -184,6 +184,27 @@ export function tragauslegerNaechsteLaenge(L) {
  */
 export const TA_SEILWINKEL_NORM = 30;   // Winkel der Normzeichnung (Auskunft)
 
+/*
+ * >>> ZWEI SEILE, AN DER ANKERTRAVERSE GESPREIZT (Entscheid 28. September). <<<
+ * Frage des Auftraggebers: «würde es etwas bringen, wenn man wie in der
+ * normzeichnung zwei seilanker ansetzt die in einem abstand von 2 m jeweils
+ * 1 m ab kragarm achse in gleislängsrichtung?», dazu die Skizze der
+ * Ankertraverse (Detail W: die Seile greifen an ihren Enden an). Gemessen
+ * L 13 m mit Hängestütze: Bindeblech am Masten 1.029 -> 0.208 (mit
+ * Längsanker), 1.208 -> 0.316 (ohne). Auf Rückfrage «Ja, Spreizung als
+ * Eingabe»: je Seil der Abstand zur Auslegerachse, Vorgabe 1 m; 0 = ein
+ * Seil mittig (der Pendelstab bis dahin).
+ */
+export const TA_SPREIZUNG_VORGABE = 1.0;
+
+/** Spreizung der Aufhängung je Seite [m]; 0 = ein Seil in der Achse. */
+export function tragauslegerSpreizung(inp) {
+  const roh = inp?.auslegerSpreizung;
+  if (roh === undefined || roh === null || roh === '') return TA_SPREIZUNG_VORGABE;
+  const v = Number(roh);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
 /**
  * {t, c1, b, alpha, nachSortiment} der Aufhängung eines Auslegers, oder
  * null ohne Zeile.

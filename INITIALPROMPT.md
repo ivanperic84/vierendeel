@@ -6,7 +6,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 zu lesen, bevor etwas geändert wird.
 
 Stand: **28. September 2026**, gepusht bis `6ce4020` (Längsanker), danach
-committet, aber **nicht gepusht** (`git log --oneline -8`); Prüfstand 5693 Kontrollen grün, `durchlauf.mjs`
+committet, aber **nicht gepusht** (`git log --oneline -8`); Prüfstand 5712 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
@@ -24,7 +24,8 @@ steht so in der Anzeige. Etappe 3 ist erledigt (Maske, Kragarm-Kern lotrecht,
 3D-Bild; dazu Seite links/rechts und Lageband). **Als Nächstes: die Bilder
 aufs Stabwerk** (Verläufe, 3D-Plot je Stab); die Mastlänge am
 Ausleger ist entschieden (H + b; b und α gekoppelt, ohne Eintrag b
-der Tabelle). ⚠ Welche früheren AxisVM-Entscheide von der
+der Tabelle); die Aufhängung hat zwei an der Ankertraverse
+gespreizte Seile (Feld «Spreizung», Vorgabe ±1 m). ⚠ Welche früheren AxisVM-Entscheide von der
 falschen Linklage berührt sind, steht unter *Offene Punkte*.
 
 ---
@@ -161,7 +162,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5693 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5712 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

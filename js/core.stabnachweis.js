@@ -763,12 +763,21 @@ export function laengsankerKraft(dat, lsg, alleFaelle, nachweisFaelle, knoten = 
            bemessung: groesste(nachweisFaelle ?? []) };
 }
 export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG') {
-  const st = dat.staebe.find((s) => s.name === name || s.name.endsWith(`_${name}`));
-  if (!st) return null;
+  /*
+   * EIN ODER ZWEI SEILE (Entscheid 28. September: zwei Seile, an der
+   * Ankertraverse gespreizt). V_zul gilt dem AUSLEGER - verglichen wird die
+   * Summe der senkrechten Anteile; gedrückt sein darf keines.
+   */
+  const re = new RegExp(`(^|_)${name}(_[PN])?$`);
+  const seile = dat.staebe.filter((s) => re.test(s.name));
+  if (!seile.length) return null;
   const kn = new Map(dat.knoten.map((k) => [k.name, k]));
-  const a = kn.get(st.von), b = kn.get(st.bis);
-  const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
-  const sinus = L > 0 ? Math.abs(b.z - a.z) / L : 0;
+  const sinusVon = (st) => {
+    const a = kn.get(st.von), b = kn.get(st.bis);
+    const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    return L > 0 ? Math.abs(b.z - a.z) / L : 0;
+  };
+  const sinus = sinusVon(seile[0]);
   let best = null, druck = null;
   /*
    * >>> NUR WIRKLICHE ZUSTÄNDE (Entscheid 28. September). <<<
@@ -781,17 +790,26 @@ export function aufhaengungNachweis(dat, lsg, faelle, Vzul, name = 'AUFHAENGUNG'
    * ganzes G, G + Wind je Richtung, Havarie.
    */
   wirklicheZustaende(faelle).forEach((lf) => {
-    const f = kraefteAusAnteilen(lsg, anteileFuer(lf, dat)).get(st.name);
-    if (!f) return;
-    const N = -f[0];                         // Zug positiv
-    const Sv = N * sinus;
+    const kr = kraefteAusAnteilen(lsg, anteileFuer(lf, dat));
+    let Sv = 0, N = -Infinity, da = false;
+    seile.forEach((st) => {
+      const f = kr.get(st.name);
+      if (!f) return;
+      da = true;
+      const Ni = -f[0];                      // Zug positiv
+      Sv += Ni * sinusVon(st);
+      N = Math.max(N, Ni);
+      // Unter 0.01 kN ist es Rechenrauschen (reiner Wind am Masten verformt
+      // die Aufhängung um Bruchteile), kein Druck.
+      if (Ni < -0.01 && (!druck || Ni < druck.N)) {
+        druck = { N: Ni, seil: st.name, fall: lf.key, bez: lf.bez };
+      }
+    });
+    if (!da) return;
     if (!best || Sv > best.Sv) best = { N, Sv, fall: lf.key, bez: lf.bez };
-    // Unter 0.01 kN ist es Rechenrauschen (reiner Wind am Masten verformt
-    // die Aufhängung um Bruchteile), kein Druck.
-    if (N < -0.01 && (!druck || N < druck.N)) druck = { N, fall: lf.key, bez: lf.bez };
   });
   if (!best) return null;
-  return { stab: st.name, Vzul, ...best, sinus,
+  return { stab: seile[0].name, seile: seile.length, Vzul, ...best, sinus,
            eta: Vzul > 0 ? Math.max(0, best.Sv) / Vzul : null,
            druck, ueber: (Vzul > 0 && best.Sv > Vzul) || Boolean(druck) };
 }

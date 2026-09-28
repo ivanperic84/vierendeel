@@ -105,6 +105,7 @@ export function auslegerLasten(satz) {
   return {
     // b aus dem Winkel, wie das Modell es baut (28. September).
     t, x0, xE, c1: t.seil.c1, b: d.tragausleger.b, sp,
+    spreizung: d.tragausleger.spreizung ?? 0,
     // kg über die ganze Länge -> kN/m, nach unten
     q: (Number(t.gewicht) || 0) * G_ERD / 1000 / t.L,
     lasten: [...proStation.values()],
@@ -230,7 +231,17 @@ export function auslegerAuswertung(satz, faelle, fyd) {
     }
   });
   const Vzul = Number(la.t.Vzul) || 0;
-  const aufhaengung = aufh ? { ...aufh, Vzul, druck,
+  /*
+   * ZWEI SEILE (Entscheid 28. September): der Kern rechnet die lotrechte
+   * Ebene, S_v und N sind die Summe beider. Je Seil die Hälfte, aus der
+   * Ebene hinaus um die Spreizung s geneigt: N_je = N/2 · √(c₁² + b² + s²)
+   * / √(c₁² + b²). Die Torsion, die die Spreizung hält, sieht er nicht.
+   */
+  const s = Number(la.spreizung) || 0;
+  const seile = s > 0 ? 2 : 1;
+  const neig = s > 0 ? Math.hypot(la.c1, la.b, s) / Math.hypot(la.c1, la.b) : 1;
+  if (aufh) aufh.Nje = aufh.N / seile * neig;
+  const aufhaengung = aufh ? { ...aufh, seile, spreizung: s, Vzul, druck,
     eta: Vzul > 0 ? Math.max(0, aufh.Sv) / Vzul : null,
     ueber: (Vzul > 0 && aufh.Sv > Vzul) || Boolean(druck) } : null;
 

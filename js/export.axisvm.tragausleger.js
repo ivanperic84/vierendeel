@@ -37,7 +37,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { getTragausleger, tragauslegerTypen, tragauslegerAufhaengung,
+import { getTragausleger, tragauslegerTypen, tragauslegerAufhaengung, tragauslegerSpreizung,
          tragauslegerBlechachsen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js';
@@ -304,12 +304,35 @@ export function tragauslegerModell(satz) {
    * genau das ist ein Linkelement, dessen einziger gehaltener Grad die
    * Richtung seiner eigenen Achse ist. Global gelesen waere «x» die
    * Auslegerachse und nicht die Seilrichtung.
+   *
+   * >>> ZWEI SEILE, GESPREIZT (Entscheid 28. September). <<<
+   * Die Ankertraverse ragt um die Spreizung s nach beiden Seiten in
+   * Gleisrichtung aus (starr), an ihren Enden greift je ein Seil an; am
+   * Masten treffen sich beide im Punkt MAST_A_SEIL (die Haltewinkel links
+   * und rechts des Flanschs liegen ein paar Zentimeter auseinander - fuer
+   * die Torsion zaehlt der Hebel an der Traverse). Gegengleiche Seilkraefte
+   * halten so die Drehung des Auslegers um seine Achse schon bei c₁.
+   * NUR ZUG: linear gerechnet; das Eigengewicht spannt beide Seile vor
+   * (gemessen kleinste Kraft 2.2 kN bei L 8, 3.1 kN bei L 13 in allen
+   * Faellen). Muesste eines druecken, meldet es `aufhaengungNachweis`.
+   * s = 0: ein Seil in der Achse, wie bis dahin.
    */
-  staebe.push({ name: 'AUFHAENGUNG', von: 'MAST_A_SEIL', bis: 'TRAVERSE_M',
+  const spreiz = tragauslegerSpreizung(satz);
+  const seilLink = (name, bis) => staebe.push({ name, von: 'MAST_A_SEIL', bis,
     querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 1, 0],
     gelenkAnfang: 'M', gelenkEnde: 'M', art: 'link', system: 'lokal',
     kraftuebertragung: { x: 'Rigid', y: 'Free', z: 'Free',
                          xx: 'Free', yy: 'Free', zz: 'Free' } });
+  if (spreiz > 0) {
+    for (const [k, y] of [['P', spreiz], ['N', -spreiz]]) {
+      knoten.push({ name: `TRAVERSE_${k}`, x: c1, y: r6(y), z: r6(h / 2) });
+      staebe.push({ name: `TRAVARM_${k}`, von: 'TRAVERSE_M', bis: `TRAVERSE_${k}`,
+        querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
+      seilLink(`AUFHAENGUNG_${k}`, `TRAVERSE_${k}`);
+    }
+  } else {
+    seilLink('AUFHAENGUNG', 'TRAVERSE_M');
+  }
 
   /* --- Laengsverankerung --------------------------------------------------- */
   if (lvX !== null) {
@@ -459,7 +482,7 @@ export function tragauslegerModell(satz) {
     lasten: { punkt, moment, strecke },
     hinweise,
     tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil, alpha: aufh.alpha,
-                    c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
+                    spreizung: spreiz, seile: spreiz > 0 ? 2 : 1, c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
                     Vzul: t.Vzul, laengsverankerung: lvX,
                     seite: sp < 0 ? 'links' : 'rechts' },
   };

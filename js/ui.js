@@ -2039,9 +2039,17 @@ export function querprofilLeisteHtml(werte) {
    * «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der
    * Ausleger kann zudem links oder rechts sein.» Er braucht über dem
    * Mastsymbol Platz für die Aufhängung - 12 px.
+   *
+   * >>> SEIT DEM 28. SEPTEMBER MASSSTÄBLICH AB DEM AUSLEGER. <<<
+   * «diese proportion ist zu verzerrt vom mast zu ausleger». Auf Rückfrage
+   * «Seil ab Ausleger massstäblich»: die Höhe b der Aufhängung steht im
+   * selben Massstab wie die Lage, der Seilwinkel ist der wahre; der Mast
+   * unter dem Ausleger bleibt das Symbol. Die Breite kennt das Band erst im
+   * Browser (Prozent) - die Höhe folgt ihr deshalb über `aspect-ratio`,
+   * und ein Platzhalter über dem Band hält den Raum frei (`qp-ta-luft`).
    */
   const ausleger = alle.filter((t) => tragwerksart(t).key === 'tragausleger');
-  const TA_LUFT = ausleger.length ? 12 : 0;
+  const TA_LUFT = ausleger.length ? 2 : 0;
   const hoehe = bahnen.length * BAHN + TA_LUFT;
   const bandLinien = linien.map(({ t, x0, x1, b }) => {
     const links = qpPct(x0, von, bis), breit = Math.max(qpPct(x1, von, bis) - links, 2.5);
@@ -2061,28 +2069,41 @@ export function querprofilLeisteHtml(werte) {
    * Koordinaten (0 … 100 über die Breite, 0 … 20 px in der Höhe). Die
    * Aufhängung greift bei c₁ an; ohne Sortimentszeile fehlt sie.
    */
-  const bandAusleger = ausleger.map((t) => {
+  const taGeo = ausleger.map((t) => {
     const x0 = lageVon(t), ri = auslegerRichtung(t), xE = kragarmEnde(t);
     const xs = [x0, x0 + ri * xE];
     const links = qpPct(Math.min(...xs), von, bis);
     const breit = Math.max(qpPct(Math.max(...xs), von, bis) - links, 1);
+    const aufh = tragauslegerAufhaengung(t);
+    // Ohne Sortimentszeile keine Aufhängung - dann ein flacher Streifen.
+    const b = aufh?.b > 0 ? aufh.b : xE * 0.08;
+    return { t, ri, xE, links, breit, b, c1: aufh?.c1 ?? null };
+  });
+  // Der Platzhalter: je Ausleger ein Kasten mit demselben Seitenverhältnis,
+  // übereinander in einer Rasterzelle - die Höhe ist die des höchsten.
+  const taLuft = taGeo.length
+    ? `<div class="qp-ta-luft" aria-hidden="true">${taGeo.map((g) =>
+        `<span style="margin-left:${g.links.toFixed(3)}%;width:${g.breit.toFixed(3)}%;`
+        + `aspect-ratio:${g.xE.toFixed(3)} / ${g.b.toFixed(3)}"></span>`).join('')}</div>`
+    : '';
+  const bandAusleger = taGeo.map(({ t, ri, xE, links, breit, b, c1 }) => {
     const an = t.id === aktivId, aus = versteckt(t);
-    const zeile = getTragausleger(Number(t.L));
-    const c1 = zeile?.seil?.c1 ?? null;
-    const u = (d) => (ri > 0 ? d / xE * 100 : 100 - d / xE * 100);
+    const u = (d) => (ri > 0 ? d : xE - d);           // Meter im Bild
     const uM = u(0);
     const nsl = 'vector-effect="non-scaling-stroke"';
+    // Unten verankert: der Arm liegt 1 px über dem Mastsymbol.
     return `<button type="button" class="qp-ausleger${an ? ' an' : ''}${aus ? ' aus' : ''}"
         data-qp-tw="${esc(t.id)}"
-        style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;top:${hoehe - TA_LUFT}px"
+        style="left:${links.toFixed(3)}%;width:${breit.toFixed(3)}%;bottom:${34 + TA_LUFT - 1}px;`
+          + `aspect-ratio:${xE.toFixed(3)} / ${b.toFixed(3)}"
         title="${esc(`${tragwerkPos(werte, t)} · Tragausleger ${f2q(Number(t.L))} m, `
           + `${ri > 0 ? 'rechts' : 'links'} des Masten`
-          + (c1 !== null ? ` · Aufhängung bei c₁ = ${f2q(c1)} m` : ''))}">
-        <svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
-          <line ${nsl} class="qp-ta-mast" x1="${uM}" y1="3" x2="${uM}" y2="16"/>
-          <line ${nsl} class="qp-ta-arm" x1="0" y1="16" x2="100" y2="16"/>
-          ${c1 !== null && c1 <= xE ? `<line ${nsl} class="qp-ta-seil" x1="${uM}" y1="3"
-            x2="${u(c1).toFixed(3)}" y2="16"/>` : ''}
+          + (c1 !== null ? ` · Aufhängung bei c₁ = ${f2q(c1)} m, b = ${f2q(b)} m` : ''))}">
+        <svg viewBox="0 0 ${xE.toFixed(3)} ${b.toFixed(3)}" preserveAspectRatio="none" aria-hidden="true">
+          <line ${nsl} class="qp-ta-mast" x1="${uM}" y1="0" x2="${uM}" y2="${b.toFixed(3)}"/>
+          <line ${nsl} class="qp-ta-arm" x1="0" y1="${b.toFixed(3)}" x2="${xE.toFixed(3)}" y2="${b.toFixed(3)}"/>
+          ${c1 !== null && c1 <= xE ? `<line ${nsl} class="qp-ta-seil" x1="${uM}" y1="0"
+            x2="${u(c1).toFixed(3)}" y2="${b.toFixed(3)}"/>` : ''}
         </svg></button>`;
   }).join('');
   const bandMasten = masten.map((m) => {
@@ -2104,7 +2125,7 @@ export function querprofilLeisteHtml(werte) {
   }).join('');
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      <div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
+      ${taLuft}<div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
         <span class="qp-boden" style="top:${hoehe + 18}px"></span>
         ${bandLinien}${bandAusleger}${bandMasten}
       </div>
@@ -6173,7 +6194,8 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
       `S_v ${f2(a.Sv)} / ${f2(swH.ausleger.Vzul)} kN · char.${a.druck ? ' · SEIL GEDRÜCKT' : ''}`,
       ampelU(a.druck ? 2 : a.eta), {
         ...(a.bez ? { fall: fallKurz(a.bez) } : {}),
-        titel: `Senkrechter Anteil der Seilkraft (${f2(a.N)} kN Zug) gegen den `
+        titel: `Senkrechter Anteil der Seilkraft (${a.seile > 1 ? `${a.seile} Seile, `
+          + `das stärkere ${f2(a.N)} kN Zug` : `${f2(a.N)} kN Zug`}) gegen den `
              + `Kontrollwert der Zeichnung V_zul = ${f2(swH.ausleger.Vzul)} kN, `
              + 'charakteristisch, nur wirkliche Zustände (ganzes G, G + Wind, '
              + 'Havarie). Darüber verlangt die Zeichnung eine separate statische '
@@ -6386,7 +6408,9 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
     kachel('N', f2(taK.gurt.N), 'kN · beide UPE, Druck aus dem Seil', ''),
     ...(taK.aufhaengung ? [
       kachel('S_v', f2(taK.aufhaengung.Sv), 'kN · Seil lotrecht, char.', ''),
-      kachel('S', f2(taK.aufhaengung.N), `kN · Seilzug, char. · c₁ ${f2(taK.c1)} / b ${f2(taK.b)} m`, ''),
+      kachel('S', f2(taK.aufhaengung.Nje ?? taK.aufhaengung.N),
+        `kN · Seilzug${taK.aufhaengung.seile > 1 ? ' je Seil (2)' : ''}, char. · `
+        + `c₁ ${f2(taK.c1)} / b ${f2(taK.b)} m`, ''),
     ] : []),
   ] : [
     kachel('max M_y', f2(x.MyMax), `kNm · x=${f2(x.xMyMax)}`, '', { x: x.xMyMax }),
