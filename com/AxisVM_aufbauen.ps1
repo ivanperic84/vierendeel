@@ -2620,7 +2620,18 @@ foreach ($p in $d.lasten.moment) {
     $r.Fx = 0.0; $r.Fy = 0.0; $r.Fz = 0.0
     $r.Mx = 0.0; $r.My = 0.0; $r.Mz = 0.0
     $r.ReferenceId = 0
-    switch ($p.richtung) { 'X' { $r.Mx = $p.wert } 'Y' { $r.My = $p.wert } 'Z' { $r.Mz = $p.wert } }
+    <#  DIE RICHTUNG EINES MOMENTS HEISST IN DER DATEI Mx / My / Mz
+        (28. September). Die Ausleitung schreibt sie so - Tragjoch wie
+        Tragausleger -, und der Loeser der Anwendung liest sie so. Hier
+        stand nur 'X' / 'Y' / 'Z': jedes Punktmoment blieb null, und AxisVM
+        wies die leere Last ab (Rueckgabe -100031, Abbruch 9). Gefunden beim
+        ersten Aufbau eines Tragauslegers. Beide Schreibweisen gelten.   #>
+    switch ($p.richtung) {
+        { $_ -ceq 'X' -or $_ -ceq 'Mx' } { $r.Mx = $p.wert }
+        { $_ -ceq 'Y' -or $_ -ceq 'My' } { $r.My = $p.wert }
+        { $_ -ceq 'Z' -or $_ -ceq 'Mz' } { $r.Mz = $p.wert }
+        default { Beenden 9 "Punktmoment $($p.name): Richtung '$($p.richtung)' unbekannt." }
+    }
     $e = Versuche 'Punktmoment' @(
         @{ name = 'Loads.AddNodalForce(RLoadNodalForce), M-Anteil'; tu = { $m.Loads.AddNodalForce($r) } }
     ) -Leise:($nM -gt 0) -Positiv

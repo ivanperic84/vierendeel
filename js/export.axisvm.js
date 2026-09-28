@@ -4436,6 +4436,9 @@ export function stabmodellJson(m, opt = {}) {
    * nur das aktive Tragwerk zu sehen.
    */
   const bau = opt.bau ?? stabmodell(m, opt);
+  // Die Art des (aktiven) Tragwerks - für Kopfzeile, Drehfeder und die
+  // Namen der Lastfälle.
+  const artJson = tragwerksart(m).key;
   // Vom Blatt die GETRENNTE Form (siehe stabmodellBlatt); ohne Blatt
   // gleich so gebaut.
   const l = opt.bau?.lastenGetrennt ?? opt.bau?.lasten
@@ -4585,9 +4588,12 @@ export function stabmodellJson(m, opt = {}) {
       // herabgesetzte. Ausgeleitet wird die geometrische - der Gurtanschluss
       // ist ein eigener Nachweis (Prüfung A1). Steht hier, damit die Datei es
       // selbst sagt und nicht nachgeschlagen werden muss.
-      federArt: 'geometrisch',
-      federGeometrisch_kNm: r6(m.federn.roh?.cA ?? m.federn.cA),
-      federBegrenzt_kNm: m.federn.grenze ? r6(m.federn.cA) : null,
+      // Die Drehfeder ist die des JOCHS am Masten; Ausleger und Einzelmast
+      // haben keine (die Brücke schriebe sonst die des Phantomjochs in die
+      // Kopfzeile - gesehen beim Aufbau am 28. September).
+      federArt: artJson === 'joch' ? 'geometrisch' : null,
+      federGeometrisch_kNm: artJson === 'joch' ? r6(m.federn.roh?.cA ?? m.federn.cA) : null,
+      federBegrenzt_kNm: artJson === 'joch' && m.federn.grenze ? r6(m.federn.cA) : null,
       bauweise: m.bauweise ?? 'neu',
       // Schnitte, die zusammengelegt wurden, damit im Gurt keine
       // Millimeterstücke entstehen. Nachvollziehbar statt stillschweigend.
@@ -4705,8 +4711,17 @@ export function stabmodellJson(m, opt = {}) {
       // bleiben, und zusaetzlich in der Bezeichnung - die traegt der Bericht
       // der Bruecke als Kopfzeile, und dort will man sie lesen koennen.
       linie: m.linie ?? '', km: m.km ?? '', ortschaft: m.ortschaft ?? '',
-      bezeichnung: [`Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
-                    verortung(m)].filter(Boolean).join(' — '),
+      // Die Kopfzeile des Berichts der Brücke. Nach der Art: beim Ausleger
+      // stand «Tragjoch J90 L=11.00 m» da, beim Einzelmast «Tragjoch frei
+      // L=0.00 m» (offener Punkt seit dem 20. September).
+      art: artJson,
+      bezeichnung: [artJson === 'tragausleger'
+        ? `Tragausleger 2 × ${bau.tragausleger?.profil ?? 'UPE'} L=${Number(m.L).toFixed(2)} m`
+          + (bau.tragausleger?.seile ? `, ${bau.tragausleger.seile} Seil${bau.tragausleger.seile > 1 ? 'e' : ''}` : '')
+        : artJson === 'einzelmast' ? 'Einzelmast'
+        : artJson === 'abfangjoch' ? `Abfangjoch L=${Number(m.L).toFixed(2)} m`
+        : `Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,
+      verortung(m)].filter(Boolean).join(' — '),
     },
     material: { name: stahl, art: 'Steel', rho: 7850, E: 210000, G: 81000,
                 nu: 0.3, alpha: 0.000012, fy: m.stahl.fy ?? null },
@@ -4751,7 +4766,9 @@ export function stabmodellJson(m, opt = {}) {
       ...stuetzung(m, a),
     })),
     lastfaelle: [
-      ...G_TEILE.map((g) => ({ key: g.key, label: g.label, art: 'Others' })),
+      ...G_TEILE.map((g) => ({ key: g.key, art: 'Others',
+        // Beim Ausleger ist «Ständig · Joch» der falsche Name.
+        label: g.key === G_JOCH && artJson === 'tragausleger' ? 'Ständig · Tragausleger' : g.label })),
       // Havarie abgeschaltet: weder die gemeinsamen noch die Leiter-Faelle.
       ...EINWIRKUNGEN.filter((e) => e.key !== 'G')
         .filter((e) => !(m.havarieAus === true && /^Havarie/.test(e.key)))

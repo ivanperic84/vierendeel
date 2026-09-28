@@ -32886,6 +32886,31 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
          && !dA.staebe.some((x) => /^LINK_A_(OG|UG)/.test(x.name))
          && !dA.knoten.some((k) => /^MAST_B_/.test(k.name)),
          `${dA.knoten.length} Knoten, ${dA.staebe.length} Stäbe`);
+    /*
+     * Die Brücke verstand bei Punktmomenten nur 'X'/'Y'/'Z', die Datei
+     * schreibt 'Mx'/'My'/'Mz' - jedes Moment blieb null, AxisVM brach ab
+     * (Aufbau 28. September, Rückgabe 9). Jede Momentrichtung der Datei
+     * muss im switch der Brücke stehen.
+     */
+    const psB = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
+    const richt = [...new Set(dA.lasten.moment.map((l) => l.richtung))];
+    wahr('Die Momentrichtungen der Datei versteht die Brücke (Mx/My/Mz)',
+         richt.length > 0 && richt.every((r) => psB.includes(`$_ -ceq '${r}'`)),
+         richt.join(', '));
+    // Kopfzeile der Brücke nach der Art (Aufbau 28. September: dort stand
+    // «Tragjoch J90 L=11.00 m» mit der Drehfeder des Phantomjochs).
+    wahr('Kopfzeile «Tragausleger 2 × UPE 140 …», keine Joch-Drehfeder, G «Ständig · Tragausleger»',
+         /^Tragausleger 2 × UPE 140 L=13\.00 m, 2 Seile/.test(dA.tragwerk.bezeichnung)
+         && dA.tragwerk.federArt === null
+         && dA.lastfaelle.find((l) => l.key === 'G')?.label === 'Ständig · Tragausleger',
+         dA.tragwerk.bezeichnung);
+    const sE = N147.rechensatzMitNachbarn({ ...standardwerte(), tragwerksart: 'einzelmast',
+      mastVorhanden: true, twId: 'M1', xLage: 0, anbauteile: [] });
+    const dE = AX147.stabmodellJson(berechne(sE, ...N147.kernArgumente(sE)).modell,
+      { knotenmodell: 'anschnitt', eingabe: sE });
+    wahr('… und am Einzelmasten «Einzelmast» statt «Tragjoch frei L=0.00 m»',
+         /^Einzelmast/.test(dE.tragwerk.bezeichnung) && dE.tragwerk.federArt === null,
+         dE.tragwerk.bezeichnung);
     const PY147 = await import(J('export.pynite.js'));
     const py = PY147.pyniteSkript(mA, { knotenmodell: 'anschnitt', eingabe: sA });
     wahr('… und die PyNite-Ausleitung ebenso', py.bau.staebe.some((x) => /AUFHAENGUNG_P/.test(x.name ?? x.roh ?? '')),

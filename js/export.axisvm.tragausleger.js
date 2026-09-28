@@ -492,6 +492,7 @@ export function tragauslegerModell(satz) {
     lasten: { punkt, moment, strecke },
     hinweise,
     tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil, alpha: aufh.alpha,
+                    profil: t.profil,
                     spreizung: spreiz, seile: spreiz > 0 ? 2 : 1, c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
                     Vzul: t.Vzul, laengsverankerung: lvX,
                     seite: sp < 0 ? 'links' : 'rechts' },
