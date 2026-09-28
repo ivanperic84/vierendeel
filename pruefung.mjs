@@ -28293,8 +28293,10 @@ titel('113  Mastverformung im Gebrauchszustand');
     wahr('… wandert aber mit `mitBauteilen` in die Anzeige',
          Boolean(mb.verformung));
     const ui113 = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
-    wahr('Die Kachel steht ohne Ampel da',
-         /kachel\(`Verformung \$\{name\}`[\s\S]{0,400}?'',/.test(ui113));
+    // Seit dem 28. September MIT Ampel («Verformung mit Ampel», auf die
+    // Meldung «die kacheln haben keine farbe unter übersicht»).
+    wahr('Die Kachel traegt die Ampel (28. September)',
+         /kachel\(`Verformung \$\{name\}`[\s\S]{0,900}?ampel\(mg\.eta\)/.test(ui113));
   }
 }
 
@@ -28572,9 +28574,10 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
     wahr('… sondern in ihrer eigenen Gruppe',
          gzg.length > 0 && gzg.every((h) => /Verformung/.test(h)),
          `${gzg.length} Kachel(n)`);
-    // Ohne Ampel - der Entscheid vom 18. September gilt weiter.
-    wahr('… ohne Ampelfarbe',
-         gzg.every((h) => !/kz (ok|warn|fail)/.test(h)));
+    // MIT Ampel seit dem 28. September («Verformung mit Ampel») - vorher
+    // ohne, nach dem Entscheid vom 18./24. September.
+    wahr('… mit Ampelfarbe (28. September)',
+         gzg.every((h) => /kz (ok|warn|fail)/.test(h)), gzg[0]?.slice(0, 80));
     const block = UI115.gzgBlockHtml(e);
     wahr('Der Block nennt den Betriebswind', /ψ 0\.70/.test(block), block.slice(0, 120));
     // Und er sagt es auch, wenn es nichts zu zeigen gibt.

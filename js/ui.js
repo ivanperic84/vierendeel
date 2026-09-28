@@ -5031,7 +5031,15 @@ export function gzgKacheln(erg) {
        * hält sie nicht darauf.
        */
       + `${q.stelle?.verworfen ? ' · EINGABE VERWORFEN' : ''}`,
-      '', {
+      /*
+       * >>> MIT AMPEL (28. September). <<<
+       * «die kacheln haben keine farbe unter übersicht» - auf Rückfrage:
+       * «Verformung mit Ampel». Bis dahin stand die Kachel ohne Farbe
+       * (Entscheid 24. September, «färbt kein Urteil»); jetzt färbt sie
+       * wie jeder Nachweis nach η = w / 40 mm. Das Urteil in der
+       * Hauptkachel regelt weiter `urteilMitGebrauch`.
+       */
+      ampel(mg.eta), {
         /*
          * Hier IMMER: die Gebrauchskombinationen sind andere als die der
          * Tragsicherheit, und welche von ihnen massgebend wurde, steht
@@ -5042,8 +5050,8 @@ export function gzgKacheln(erg) {
 
 `
              + `Gebrauchstauglichkeit, Betriebswind ψ ${erg.verformung.psi.toFixed(2)} `
-             + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit — `
-             + `diese Kachel färbt kein Urteil.\n\n${alle}`
+             + `(Wiederkehrperiode 5 Jahre). Kein Teil der Tragsicherheit; `
+             + `die Farbe folgt η = w / Grenzwert.\n\n${alle}`
              + (dazu ? `\n\nOHNE NACHWEIS, nur zur Auskunft:\n${dazu}` : '')
              + verw,
       }));
@@ -5329,7 +5337,7 @@ export function gzgBlockHtml(erg) {
   const g = gzgKacheln(erg);
   const psi = erg?.verformung?.psi;
   return `${abschnitt('Gebrauchstauglichkeit',
-    psi ? `Betriebswind ψ ${psi.toFixed(2)} · färbt kein Urteil` : '')}
+    psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / 40 mm` : '')}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
       : `<p class="leer">${erg?.verformung?.ohneStelle
         /*
