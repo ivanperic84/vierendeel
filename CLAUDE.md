@@ -139,6 +139,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| Tragausleger: Anschluss am Masten (28. Sept.) | Auf Rückfrage mit zwei Varianten: **«A»** — **beide Gurte halten x, y, z und K_XX** (yy, zz frei). Die Gurte liegen 0.32 m nebeneinander; nur ihr Kräftepaar in x hält die Drehung um die Lotrechte (die Aufhängung liegt in der Ebene x–z und trägt quer dazu nichts). Seitenwind auf den Ausleger geht damit als **Torsion** in den Masten; um die Querachse bleibt der Anschluss gelenkig, wie die Kontrollformel der Zeichnung es voraussetzt. Variante B (nur ein Gurt in x) wäre ohne weitere Halterung ein Mechanismus. Im Code `TA_LINK_VORGABE` (export.axisvm.tragausleger.js) |
 | Anzeige: Stabwerk führt (28. Sept.) | Frage des Auftraggebers mit Bild der Seitenleiste: «diese auswertung ist etwas irreführend wenn ich für stabwerk modell und balken verschieden ausnutzungwerte in einer maske sehe? wollen wir nach der berechnung nur auf die stabwerk ausnutzung setzen? was spricht dagegen?» Auf Rückfrage: **«Stabwerk führt, Knicken ergänzt»** — nach der Berechnung stehen Hauptkachel und Kacheln Joch/Mast aus dem Stabwerk; das **Knicken** des Masten bleibt beim Kern (der Löser rechnet keine Stabilität) als eigene Zeile, das Urteil ist das Maximum mit Quelle; Gebrauchstauglichkeit, Anker, Fundament vorerst aus dem Kern, als «Ersatzbalken» beschriftet; ohne gültiges Stabwerk der Kern mit Vermerk «vorläufig». **Auslösung automatisch, verzögert** (~1 s nach der letzten Eingabe; der Knopf bleibt für «jetzt rechnen») — das ändert die Weisung vom 25. September (nur Knopf). **Reihenfolge: erst die Anzeige**, dann der Tragausleger |
 | Torsionsmodell rechnen (26. Sept.) | Nach dem Zeigen der Modelldatei: **«ok rechnen lassen»** — Anweisung für EINEN AxisVM-Lauf von `com/AxisVM_Torsion_J90_20m.json` (bauen, linear statisch, auslesen), erstmals mit der berichtigten Lage der Linkverbindung |
 | Torsionsfall für den AxisVM-Vergleich (26. Sept.) | Vorschlag des Auftraggebers: «wäre es nicht noch interessant ein anbauteil zu legen das zusätzlich torsion im joch provoziert». Auf Rückfrage: eine quer versetzte Hängestütze «gibt es nicht, hier wäre eine hängestütze senkrecht und eine last zum beispiel infolge windangriff zu sezten. der fall mit einer zusätzlichen ausleger und leiter mit ablenkung wäre sicher auch interessant für die lokalen einwirkungen in die gurte.» Also zwei Fälle — **(1) senkrechte Hängestütze mit waagrechter Last (Wind) an ihrem Ende**, Torsion über den Hebel unter der Jochachse; **(2) Hängestütze mit Ausleger und Leiter mit Ablenkkraft**, örtliche Einleitung in die Gurte —, je **nahe am Jochende und in Feldmitte**, je ein eigener Lastfall. Gerechnet **nach der Auswertung** des Laufs mit den Knotenwegen |
@@ -221,12 +222,26 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5479 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5489 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Fahrdrahtschieber und Auflagerskizzen** (Prüfstand
+  Abschnitt 132). Gemeldet mit Bildern: «diesen schieber checken, diser
+  steht vielmals auf 0 und die länge ist nicht auf die mastlänge
+  limitiert» und «die skizzen der auflger sind übereinander zu gross».
+  (1) `fdHoehe` endet jetzt am **Mastkopf** (`maxAus`, der höhere der
+  beiden Masten; vorher 25 m, und alles über dem Kopf wurde verworfen).
+  (2) Bei der Automatik (gespeichert 0) zeigt der Schieber die Höhe, die
+  gilt, und die Beschriftung sagt «automatisch (Jochauflager)»
+  (`setzeFdAutomatik` aus der letzten Rechnung); gespeichert bleibt die 0.
+  Im Browser: Grenze 8.5 m, Eingabe 0 → Schieber 7.5 «automatisch
+  (Jochauflager)», Nachweis «Jochauflager 7.50 m»; zurück auf 6.00 m.
+  `mastKopfHoehe` steht dafür jetzt in ui.schema.js (ui.js reicht sie
+  weiter). (3) Die beiden Auflagerskizzen sind auf **340 px** begrenzt und
+  zentriert — untereinander wuchsen sie auf die ganze Spaltenbreite.
 - **28. Sept., Stabwerk führt die Anzeige, Knicken ergänzt** (Entscheid
   siehe *Entschieden*, Prüfstand Abschnitt 131). Nach der Berechnung stehen
   **Hauptkachel, Kacheln Joch/Mast, Fussleiste, rechte Schiene und
@@ -1816,7 +1831,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5479 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5489 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

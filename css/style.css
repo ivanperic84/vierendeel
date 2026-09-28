@@ -2650,7 +2650,7 @@ body.datei-ueber::after {
   white-space: nowrap;
 }
 
-.al-bilder { display: flex; flex-wrap: wrap; gap: 5px;
+.al-bilder { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
              background: var(--s2); border: 1px solid var(--ol);
              border-radius: var(--m-r1); padding: 5px 6px 3px; }
 /* Die Schrift der Maskenskizze ist kleiner als die des Handbuchs - dort
@@ -2668,7 +2668,14 @@ body.datei-ueber::after {
 /* Die Achse, die aus der Ebene zeigt, steht zurueck. */
 .skizze .mt  { stroke: var(--xdim); stroke-width: 1; fill: none; }
 .skizze .mtf { fill: var(--xdim); stroke: none; }
-.al-skizze { margin: 0; flex: 1 1 168px; min-width: 0; }
+.al-skizze { margin: 0; flex: 1 1 168px; min-width: 0; max-width: 340px; }
+/* UNTEREINANDER NICHT GROESSER ALS NEBENEINANDER (28. September, «die
+   skizzen der auflger sind übereinander zu gross, kann man sie auf die
+   grösse limitieren wie im bild wo sie nebeneinander sind?»). Bricht der
+   Schnitt unter die Ansicht, nahm jedes Bild die ganze Spaltenbreite ein -
+   doppelt so gross wie nebeneinander, bei derselben Aussage. Die Obergrenze
+   ist die Breite, die ein Bild nebeneinander in der breiten Schublade hat;
+   zentriert, damit das Paar nicht links klebt. */
 /* DIE ANSCHRIFT SAGT, WAS MAN SIEHT (Weisung, 9. September: «kannst du noch
    die anschrift Ansicht und Schnitt etwas sichtbarer machen»). Sie stand in
    9 px Grau unter dem Bild und verschwand darin; jetzt traegt sie die

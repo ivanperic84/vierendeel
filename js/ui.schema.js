@@ -41,7 +41,7 @@ import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
 import { TORSIONSMODELLE } from './core.statics.js';
 
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
-         mastImModell, mastLaengeVorgabe } from './core.auflager.js';
+         mastImModell, mastLaengeVorgabe, einzelmastLaenge } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE, ekVonWindklasse } from './core.lasten.js';
@@ -926,19 +926,46 @@ export const FELDER = [
    * gespeicherte Stand trägt die Null, und er soll weiterrechnen wie
    * bisher. Der Hinweis nennt deshalb, WAS die Automatik gerade nimmt.
    * ======================================================================= */
+  /*
+   * >>> DER SCHIEBER ZEIGT, WAS GILT, UND ENDET AM MASTKOPF (28. Sept.). <<<
+   *
+   * Gemeldet mit dem Bild des Schiebers: «diser steht vielmals auf 0 und
+   * die länge ist nicht auf die mastlänge limitiert». Beides stimmte:
+   * (1) Die 0 ist die AUTOMATIK - gerechnet wurde auf einer ganz anderen
+   *     Höhe, aber der Schieber stand am linken Anschlag und sah aus wie
+   *     «nicht gesetzt» oder «Fahrdraht am Boden». Jetzt steht bei der
+   *     Automatik die Höhe da, auf der wirklich gemessen wird
+   *     (`setzeFdAutomatik`, aus der letzten Rechnung), und die
+   *     Beschriftung sagt «automatisch». Gespeichert bleibt die 0 - jeder
+   *     alte Stand rechnet weiter wie bisher; erst wer zieht oder tippt,
+   *     setzt eine eigene Höhe, und 0 führt zur Automatik zurück.
+   * (2) Der Schieber lief bis 25 m, der Mast endet bei 8.50. Über dem
+   *     Kopf gilt die Eingabe nicht (Entscheid 24. September) - ein
+   *     Bereich, in dem jede Stellung verworfen wird, ist eine Falle. Die
+   *     Grenze ist jetzt der Mastkopf (`maxAus`, der höhere der beiden
+   *     Masten, denn die Höhe gilt beiden).
+   */
   { key: 'fdHoehe', gruppe: 'mast', typ: 'schieber',
-    label: 'Höhe Fahrdraht für die Verformung',
+    label: (w) => (Number(w.fdHoehe) > 0
+      ? 'Höhe Fahrdraht für die Verformung'
+      : `Höhe Fahrdraht für die Verformung — automatisch${
+          fdAutomatik ? ` (${fdAutomatik.was})` : ''}`),
     // Der Schieber rastet auf den halben Meter wie jede Laenge; das
     // Zahlenfeld daneben bleibt fein - eine Fahrdrahthoehe steht auf der
     // Zeichnung mit dem Zentimeter.
     sym: 'z_Fd', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
     min: 0, max: 25,
+    maxAus: (w) => Math.max(mastKopfHoehe(w, 'A'),
+                            w.mastZwei ? mastKopfHoehe(w, 'B') : 0),
+    wertAus: (w) => (Number(w.fdHoehe) > 0 ? Number(w.fdHoehe)
+      : (fdAutomatik ? Math.round(fdAutomatik.z * 100) / 100 : 0)),
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Ueber dem Mastfuss gemessen. Dort wird die Seitenlage quer '
-           + 'zum Gleis gegen 40 mm nachgewiesen (Betriebswind ψ 0.70). '
-           + '0 = selbst bestimmt: höchstes Drahtwerk, sonst höchster '
-           + 'Ausleger, sonst das Jochauflager. Über dem Mastkopf gilt die '
-           + 'Eingabe nicht — dort steht keine gerechnete Verschiebung.' },
+    hinweis: 'Ueber dem Mastfuss gemessen, höchstens bis zum Mastkopf. Dort '
+           + 'wird die Seitenlage quer zum Gleis gegen 40 mm nachgewiesen '
+           + '(Betriebswind ψ 0.70). Automatisch (Eingabe 0): höchstes '
+           + 'Drahtwerk, sonst höchster Ausleger, sonst das Jochauflager — '
+           + 'der Schieber zeigt dann die Höhe, die gilt. Ziehen oder Tippen '
+           + 'setzt eine eigene Höhe; 0 führt zur Automatik zurück.' },
   /* =========================================================================
    * >>> DAS FUNDAMENT DES MASTEN (Weisung vom 24. September). <<<
    * =======================================================================
@@ -2143,3 +2170,38 @@ export function setzeGrenzen(joch, L, abfangBereich = null) {
   return b;
 }
 
+/* ===========================================================================
+ * >>> DIE AUTOMATISCHE MESSHOEHE, FUER DIE ANZEIGE (28. September). <<<
+ * =========================================================================
+ *
+ * Die Maske kennt die Rechnung nicht; app.js reicht nach jeder Rechnung die
+ * Stelle herein, auf der die Automatik misst ({z, was} aus `messStelle`).
+ * Nur Anzeige - gerechnet wird aus `fdHoehe` selbst.
+ */
+let fdAutomatik = null;
+export function setzeFdAutomatik(stelle) {
+  fdAutomatik = stelle && !stelle.eigen && Number.isFinite(stelle.z)
+    ? { z: stelle.z, was: stelle.was ?? '' } : null;
+}
+
+/**
+ * >>> WIE HOCH REICHT DIESER MAST? (19. September) <<<
+ *
+ * Der Regler «Höhe über Fundament» reichte bis max(mastH, mastLaenge) - am
+ * Einzelmast ist mastH aber die ausgeblendete Anschlusshoehe (7.50), und
+ * ohne eingetragene Laenge steht mastLaenge auf null. Ein neuer Einzelmast
+ * von 8.50 m liess sich damit nur bis 7.50 m bestuecken; Traverse (L - 0.5)
+ * und Rueckleiter oben waren mit dem Regler nicht erreichbar. Jetzt die
+ * Laenge, mit der gerechnet wird: am Einzelmast `einzelmastLaenge`, am Joch
+ * die eingetragene oder die Vorgabe des Feldes.
+ *
+ * Seit dem 28. September HIER statt in ui.js: auch die Grenze des
+ * Fahrdrahtschiebers braucht sie, und ui.schema.js darf ui.js nicht
+ * importieren (Kreis). ui.js reicht sie unter demselben Namen weiter.
+ */
+export function mastKopfHoehe(werte, ende = 'A') {
+  if (tragwerksart(werte).key === 'einzelmast') return einzelmastLaenge(werte) || 12;
+  const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;
+  const L = Number(ende === 'B' ? (werte.mastLaengeB || werte.mastLaenge) : werte.mastLaenge) || 0;
+  return L || (H > 0 ? mastLaengeVorgabe(H, werte.jd ?? 0) : 12);
+}

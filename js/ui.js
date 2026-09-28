@@ -25,6 +25,7 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
 import { mastLaengeVorgabe, mastImModell, einzelmastLaenge } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich } from './data.abfangjoche.js';
+import { mastKopfHoehe } from './ui.schema.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -694,7 +695,11 @@ export function aktualisiereMaske(container, werte, extras = {}) {
     // Der Schieberbereich folgt dem Sortiment des gewählten Typs
     if (inp.type === 'range' || f.typ === 'schieber') {
       if (f.min !== undefined) inp.min = f.min;
-      if (f.max !== undefined) inp.max = f.max;
+      const mx = feldMax(f, werte);
+      if (mx !== undefined) inp.max = mx;
+      // Die Skala unter dem Schieber nennt dieselbe Grenze.
+      const sk = inp.closest('.feld')?.querySelector('.rng-skala span:last-child');
+      if (sk && mx !== undefined && sk.textContent !== String(mx)) sk.textContent = String(mx);
     }
     if (String(inp.value) !== String(v)) inp.value = v;
   });
@@ -1060,6 +1065,18 @@ export function hinweisHtml(schluessel, text) {
  * −4.5 Grad, und beide sehen richtig aus. Gerechnet wird mit EINER Zahl; die
  * andere wird gezeigt.
  */
+/**
+ * Die obere Grenze eines Feldes - fest (`max`) oder aus dem Stand
+ * (`maxAus`, z. B. der Mastkopf beim Fahrdrahtschieber, 28. September).
+ */
+function feldMax(f, werte) {
+  if (typeof f.maxAus === 'function') {
+    const v = Number(f.maxAus(werte));
+    if (Number.isFinite(v) && v > 0) return Math.round(v * 100) / 100;
+  }
+  return f.max;
+}
+
 const feldWert = (f, werte) =>
   (typeof f.wertAus === 'function' ? f.wertAus(werte) : werte[f.key]);
 
@@ -2152,13 +2169,14 @@ export function feldHtml(f, wert, werte) {
      * grobe Stufe, die Sinn ergibt (das Endfeld am Auflager misst 0.75 m).
      */
     const rngSchritt = f.zugSchritt ?? f.schritt;
+    const mx = feldMax(f, werte);
     inp = `<div class="zahlfeld">
              <input class="rng" type="range" data-feld="${f.key}"
-               min="${f.min}" max="${f.max}" step="${rngSchritt}" value="${wert}"${dis}>
+               min="${f.min}" max="${mx}" step="${rngSchritt}" value="${wert}"${dis}>
              <input type="number" id="${id}" data-feld="${f.key}" class="kurz"
-               value="${wert}" step="${f.schritt}" min="${f.min}" max="${f.max}"${dis}>
+               value="${wert}" step="${f.schritt}" min="${f.min}" max="${mx}"${dis}>
              <span class="einheit">${esc(f.einheit ?? '')}</span></div>
-           <div class="rng-skala"><span>${f.min}</span><span>${f.max}</span></div>`;
+           <div class="rng-skala"><span>${f.min}</span><span>${mx}</span></div>`;
   } else {
     inp = `<div class="zahlfeld"><input type="number" id="${id}" data-feld="${f.key}"
              value="${wert}" step="${f.schritt ?? 'any'}"
@@ -3309,23 +3327,10 @@ function modWert(m, feld) {
   return v === null || v === undefined ? MODUL_VORGABE[feld] : v;
 }
 
-/**
- * >>> WIE HOCH REICHT DIESER MAST? (19. September) <<<
- *
- * Der Regler «Höhe über Fundament» reichte bis max(mastH, mastLaenge) - am
- * Einzelmast ist mastH aber die ausgeblendete Anschlusshoehe (7.50), und
- * ohne eingetragene Laenge steht mastLaenge auf null. Ein neuer Einzelmast
- * von 8.50 m liess sich damit nur bis 7.50 m bestuecken; Traverse (L - 0.5)
- * und Rueckleiter oben waren mit dem Regler nicht erreichbar. Jetzt die
- * Laenge, mit der gerechnet wird: am Einzelmast `einzelmastLaenge`, am Joch
- * die eingetragene oder die Vorgabe des Feldes.
- */
-export function mastKopfHoehe(werte, ende = 'A') {
-  if (tragwerksart(werte).key === 'einzelmast') return einzelmastLaenge(werte) || 12;
-  const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;
-  const L = Number(ende === 'B' ? (werte.mastLaengeB || werte.mastLaenge) : werte.mastLaenge) || 0;
-  return L || (H > 0 ? mastLaengeVorgabe(H, werte.jd ?? 0) : 12);
-}
+// Wie hoch reicht dieser Mast - steht seit dem 28. September in
+// ui.schema.js (auch der Fahrdrahtschieber braucht sie) und wird hier unter
+// demselben Namen weitergereicht.
+export { mastKopfHoehe };
 
 /**
  * >>> DER ANSCHLUSS BLEIBT AM MASTEN (Klarstellung vom 24. September). <<<

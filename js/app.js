@@ -57,7 +57,7 @@ import { verkleinere, bildAusEreignis, kalibriere, kalibriereFrei,
 import { erkenneTragwerk } from './bild.erkennung.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
-         setzeGrenzen, FELDER } from './ui.schema.js';
+         setzeGrenzen, setzeFdAutomatik, FELDER } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
          MASS, FARBEN as farben } from './design.js';
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haengeTiefe,
@@ -862,6 +862,9 @@ function neuRechnen(neuZeichnen = true) {
      * Tragsicherheit (Entscheid vom 18. September).
      */
     erg.verformung = verformungsNachweis(kombi);
+    // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
+    // misst (28. September) - sonst stand dort eine 0.
+    setzeFdAutomatik(erg.verformung?.A?.stelle ?? erg.verformung?.B?.stelle ?? null);
     /*
      * >>> UND DAS FUNDAMENT (24. September). <<<
      *

@@ -31512,6 +31512,44 @@ titel('131  Stabwerk fuehrt, Knicken ergaenzt (Anzeige, 28. September)');
 }
 
 // ===========================================================================
+titel('132  Fahrdrahtschieber und Auflagerskizzen (28. September)');
+/* ===========================================================================
+ * Gemeldet mit Bildern: «diesen schieber checken, diser steht vielmals auf 0
+ * und die länge ist nicht auf die mastlänge limitiert» und «die skizzen der
+ * auflger sind übereinander zu gross, kann man sie auf die grösse
+ * limitieren wie im bild wo sie nebeneinander sind?»
+ * ========================================================================= */
+{
+  const S132 = await import(J('ui.schema.js'));
+  const f = S132.FELDER.find((x) => x.key === 'fdHoehe');
+  const w = { ...standardwerte(), mastH: 7.5, mastLaenge: 8.5, fdHoehe: 0 };
+  wahr('Die Grenze des Schiebers ist der Mastkopf (8.50 m), nicht 25 m',
+       Math.abs(f.maxAus(w) - 8.5) < 1e-9, `${f.maxAus(w)}`);
+  wahr('… bei zwei Masten der hoehere',
+       Math.abs(f.maxAus({ ...w, mastZwei: true, mastLaengeB: 10 }) - 10) < 1e-9);
+  S132.setzeFdAutomatik({ z: 7.5, was: 'Jochauflager' });
+  wahr('>>> Automatik: der Schieber zeigt die Hoehe, die gilt, nicht 0 <<<',
+       f.wertAus(w) === 7.5, `${f.wertAus(w)}`);
+  wahr('… und die Beschriftung sagt «automatisch» mit der Stelle',
+       /automatisch \(Jochauflager\)/.test(f.label(w)));
+  wahr('Eine eigene Hoehe steht, wie sie eingetragen ist',
+       f.wertAus({ ...w, fdHoehe: 6 }) === 6 && !/automatisch/.test(f.label({ ...w, fdHoehe: 6 })));
+  wahr('Gespeichert bleibt die 0 (alte Staende rechnen wie bisher)',
+       f.standard === 0);
+  S132.setzeFdAutomatik({ z: 6, was: 'Fahrdraht', eigen: true });
+  wahr('Eine eigene Messstelle ist keine Automatik', f.wertAus(w) === 0);
+  S132.setzeFdAutomatik(null);
+  const UI132 = await import(J('ui.js'));
+  wahr('ui.js reicht mastKopfHoehe unveraendert weiter',
+       UI132.mastKopfHoehe(w) === S132.mastKopfHoehe(w) && UI132.mastKopfHoehe(w) === 8.5);
+
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Auflagerskizzen: Obergrenze der Breite, auch untereinander',
+       /\.al-skizze \{[^}]*max-width: 340px/.test(css));
+  wahr('… und zentriert', /\.al-bilder \{[^}]*justify-content: center/.test(css));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {
