@@ -31469,14 +31469,20 @@ titel('131  Stabwerk fuehrt, Knicken ergaenzt (Anzeige, 28. September)');
        && Math.abs(zeile(n1, 'Mast M1').eta - h1.bauteile['mast:M1'].eta) < 1e-12,
        `${zeile(n1, 'Mast M1')?.eta?.toFixed(4)}`);
   /*
-   * >>> DAS KNICKEN STEHT ALS EIGENE ZEILE DA - AUS DEM KERN. <<<
+   * >>> DAS KNICKEN STEHT ALS EIGENE ZEILE DA. <<<
    * Der Löser rechnet keine Stabilität; ohne diese Zeile wiese das Stabwerk
-   * einen schlanken Masten zu günstig nach.
+   * einen schlanken Masten zu günstig nach. Bis zum 28. September kam sie
+   * aus dem Kern; seither («Joch: Knicken aus dem Stabwerk») rechnet
+   * dieselbe Regel mit den Kräften des Stabwerks (`h.knick`,
+   * rechneStabwerk). J90/20 m, Mast M1: Kern 0.8386 -> Stabwerk 0.8351.
    */
-  wahr('>>> Knicken M1 steht als eigene Zeile, Quelle Ersatzbalken <<<',
-       zeile(n1, 'Knicken M1')?.quelle === 'ersatzbalken'
-       && Math.abs(zeile(n1, 'Knicken M1').eta - e1.mast.A.stabil.eta) < 1e-12,
-       `${zeile(n1, 'Knicken M1')?.eta?.toFixed(4)}`);
+  wahr('>>> Knicken M1 steht als eigene Zeile, Quelle Stabwerk <<<',
+       zeile(n1, 'Knicken M1')?.quelle === 'stabwerk'
+       && Math.abs(zeile(n1, 'Knicken M1').eta - h1.knick.M1.eta) < 1e-12,
+       `${zeile(n1, 'Knicken M1')?.eta?.toFixed(4)} (Kern ${e1.mast.A.stabil.eta.toFixed(4)})`);
+  pruef('… Einzeljoch J90/20 m: Knicken M1 aus dem Stabwerk', h1.knick.M1.eta, 0.8351, 1e-3, '');
+  wahr('Ohne Knick-Schalter rechnet das Stabwerk kein Knicken',
+       rechne({ ...w131, nachweise: { ...w131.nachweise, knickenMast: false } }).h.knick === null);
   wahr('Die Kopfzahl ist das Maximum aller Zeilen',
        Math.abs(n1.eta - Math.max(...n1.liste.map((x) => x.eta ?? 0))) < 1e-12);
   wahr('Das massgebende Bauteil traegt die Kopfzahl',
@@ -31513,6 +31519,11 @@ titel('131  Stabwerk fuehrt, Knicken ergaenzt (Anzeige, 28. September)');
   wahr('Reihe: der geteilte Mast aus dem Stabwerk, Knicken daneben',
        zeile(n2, 'Mast M2')?.quelle === 'stabwerk' && !!zeile(n2, 'Knicken M2'),
        `Stabwerk ${zeile(n2, 'Mast M2')?.eta?.toFixed(4)}, Knicken ${zeile(n2, 'Knicken M2')?.eta?.toFixed(4)}`);
+  // Am geteilten Masten rechnet das Knicken jetzt mit den gekoppelten
+  // Kräften statt denen der Sofortmassnahme (Kern).
+  wahr('Reihe: Knicken M2 aus dem Stabwerk (gekoppelt)',
+       zeile(n2, 'Knicken M2')?.quelle === 'stabwerk',
+       `Stabwerk ${h2.knick?.M2?.eta?.toFixed(4)}, Kern ${e2.mast?.A?.stabil?.eta?.toFixed(4)} / ${e2.mast?.B?.stabil?.eta?.toFixed(4)}`);
 
   // --- f) Wann das Stabwerk fuehrt --------------------------------------
   const sw = (stand) => ({ stabwerk: { verfahren: 'stabwerk', stand, ergebnis: h1 } });

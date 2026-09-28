@@ -39,8 +39,10 @@
  * als `app` (siehe das Kontextobjekt in app.js).
  * ---------------------------------------------------------------------------
  */
-import { mastenFuer, rechensatz, sichtbareTragwerke, tragwerkSatz,
-         tragwerkeVon } from './core.constants.js';
+import { mastenFuer, mastenVon, mastName, rechensatz, sichtbareTragwerke, tragwerkSatz,
+         tragwerkeVon, tragwerksart } from './core.constants.js';
+import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { mastZug } from './core.stabverformung.js';
 import { lastfaelle } from './core.lasten.js';
 import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
          laengsankerKraft } from './core.stabnachweis.js';
@@ -307,10 +309,44 @@ export function rechneStabwerk(app) {
     };
   }
 
+  /*
+   * >>> DAS KNICKEN DER JOCHMASTEN AUS DEM STABWERK (28. September). <<<
+   * Offener Punkt «Knicken am Joch weiter aus dem Kern»; Weisung «kannst
+   * du noch das knicken nachziehen», auf Rückfrage «Joch: Knicken aus dem
+   * Stabwerk». Dieselbe Regel wie am Ausleger (`mastStabilitaet`, SIA 263),
+   * nur die Kräfte kommen aus dem Stabwerk - am geteilten Masten einer
+   * Reihe damit die gekoppelten statt der Sofortmassnahme. Gerechnet für
+   * jeden Masten, der ein TRAGJOCH trägt; Einzelmast und Abfangjoch bleiben
+   * beim Kern (nicht Teil der Weisung).
+   */
+  let knick = null;
+  const nwK = nachweiseAuswahl(satz.nachweise);
+  if (!bau?.tragausleger && nwK.knickenMast) {
+    knick = {};
+    const beta = Number(satz.knickBeiwert);
+    const tws = new Map(tragwerkeVon(app.werte).map((t) => [t.id, t]));
+    mastenVon(app.werte).forEach((m) => {
+      const traegtJoch = (m.traegt ?? [])
+        .some((id) => tragwerksart(tws.get(id) ?? {}).key === 'joch');
+      if (!traegtJoch) return;
+      const id = mastName(app.werte, m);
+      if (!mastZug(dat, id)) return;
+      let basis;
+      try {
+        basis = { profil: getMastprofil(m.profil ?? satz.mastProfil),
+                  stegrichtung: getStegrichtung(m.steg ?? satz.mastSteg ?? 'jochachse') };
+      } catch { return; }
+      const k = knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
+                                   { beta: beta > 0 ? beta : undefined });
+      if (k && Number.isFinite(k.eta)) knick[id] = k;
+    });
+  }
+
   return {
     ...huelle,
     verformung,
     ausleger,
+    knick,
     kennung: eingabeKennung(app.werte),
     fyd,
     knoten: dat.knoten.length,

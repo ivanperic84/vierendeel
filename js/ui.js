@@ -5652,8 +5652,10 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
                  + 'Die Stabilität rechnet der Löser nicht - sie steht '
                  + 'in der Kachel «Knicken» daneben.',
           }));
-        // Am Tragausleger das Knicken aus dem Stabwerk (Entscheid 28. Sept.).
-        const knA = opt.swH?.ausleger ? opt.swH.ausleger.knick : null;
+        // Am Tragausleger das Knicken aus dem Stabwerk (Entscheid 28. Sept.),
+        // seit demselben Tag auch am Tragjoch (`knick` je Mast).
+        const knA = opt.swH?.ausleger ? opt.swH.ausleger.knick
+          : (opt.swH?.knick?.[name] ?? null);
         if (knA && Number.isFinite(knA.eta)) {
           mast.push(kachel(`η Knicken ${name}`, f3(knA.eta),
             `${n.profil.name} · Stabwerk`, ampelU(knA.eta), {
@@ -6317,9 +6319,11 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
       kacheln: kz, rechts: quelle(jochAusSw) },
     // «Knicken Ersatzbalken» nur, wenn das Knicken auch geführt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
+      // Seit dem 28. September kann das Knicken am Tragjoch aus dem
+      // Stabwerk kommen - die Anschrift liest es an der Zeile selbst ab.
       rechts: mastAusSw
-        ? (swH?.ausleger || !Object.keys(knickJe(erg)).length
-            ? 'Stabwerk' : 'Stabwerk · Knicken Ersatzbalken')
+        ? ((bt?.liste ?? []).some((x) => x.key === 'knicken' && x.quelle === 'ersatzbalken')
+            ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
         : quelle(false) },
     { titel: 'Anker', kacheln: nwJe.anker, rechts: quelle(false) },
     { titel: 'Fundament', kacheln: nwJe.fundament,

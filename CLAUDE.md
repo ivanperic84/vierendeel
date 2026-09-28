@@ -139,7 +139,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
-| Tragausleger: zwei Seile, gespreizt (28. Sept.) | Mit zwei Bildern (Anschluss am Masten, 3D): «beim auflager sollten die gurte um die z achse beim joch eingespannt sein, da sie vor und hinter dem masten gehalten sind. würde das das letzte blech entlasten? und würde es etwas bringen, wenn man wie in der normzeichnung zwei seilanker ansetzt die in einem abstand von 2 m jeweils 1 m ab kragarm achse in gleislängsrichtung? die frage ist wie man es im axis modellieren will, dass es nur zug aufnimmt und kein druck», dazu die Skizze der Ankertraverse (Detail W: die Seile greifen an ihren Enden an). Gemessen (Studie), dann auf Rückfrage: **zz am Link «Frei lassen»** - die Einspannung hilft dem Blech nicht (L 13 m mit Längsanker 1.029 → 1.035, ohne 1.208 → 1.155), es trägt die Torsion als gegengleiche Biegung der oberen und unteren Blechebene. **Zwei Seile «Ja, Spreizung als Eingabe»** - Feld `auslegerSpreizung` (je Seite, Vorgabe 1 m, 0 = ein Seil in der Achse); die Traverse ragt starr aus, je ein Seil an ihren Enden, am Masten ein Punkt; V_zul gegen die Summe der senkrechten Anteile. **Nur Zug:** linear gerechnet, das Eigengewicht spannt vor; gemessen bleibt jedes Seil in jedem Fall gezogen (kleinste 3.06 kN bei L 13); drückte eines, meldet es der Nachweis. In AxisVM hiesse echtes «nur Zug» nichtlineare Rechnung je Kombination - nicht gebaut. **Lageband: «Seil ab Ausleger massstäblich»** (Weisung «diese proportion ist zu verzerrt vom mast zu ausleger») |
+| Tragausleger: zwei Seile, gespreizt (28. Sept.) | Mit zwei Bildern (Anschluss am Masten, 3D): «beim auflager sollten die gurte um die z achse beim joch eingespannt sein, da sie vor und hinter dem masten gehalten sind. würde das das letzte blech entlasten? und würde es etwas bringen, wenn man wie in der normzeichnung zwei seilanker ansetzt die in einem abstand von 2 m jeweils 1 m ab kragarm achse in gleislängsrichtung? die frage ist wie man es im axis modellieren will, dass es nur zug aufnimmt und kein druck», dazu die Skizze der Ankertraverse (Detail W: die Seile greifen an ihren Enden an). Gemessen (Studie), dann auf Rückfrage: **zz am Link «Frei lassen»** - die Einspannung hilft dem Blech nicht (L 13 m mit Längsanker 1.029 → 1.035, ohne 1.208 → 1.155), es trägt die Torsion als gegengleiche Biegung der oberen und unteren Blechebene. **Zwei Seile «Ja, Spreizung als Eingabe»** - Feld `auslegerSpreizung` (je Seite, Vorgabe 1 m, 0 = ein Seil in der Achse); die Traverse ragt starr aus, je ein Seil an ihren Enden, am Masten ein Punkt; V_zul gegen die Summe der senkrechten Anteile. **Nur Zug:** linear gerechnet, das Eigengewicht spannt vor; gemessen bleibt jedes Seil in jedem Fall gezogen (kleinste 3.06 kN bei L 13); drückte eines, meldet es der Nachweis. In AxisVM hiesse echtes «nur Zug» nichtlineare Rechnung je Kombination - nicht gebaut. **Lageband:** zuerst «Seil ab Ausleger massstäblich» (Weisung «diese proportion ist zu verzerrt vom mast zu ausleger»), dann «das sieht nicht stimmig aus, in bezug auf die restlichen darstellungen der tragwerksteile. mach gegehvorschlag für den oberen teil.» - auf drei Gegenvorschläge **«A ausführen»**: der Ausleger ist eine Linie in einer Bahn wie ein Joch (Endmarke nur am Masten, Name darüber), die Aufhängung eine hängende Marke bei c₁, Seil, b, α und Seilzahl im Titel |
+| Knicken: Joch aus dem Stabwerk; Ausleger geklärt (28. Sept.) | «kannst du noch das knicken nachziehen und die com schnittstelle und die bauteildaten datei aktualisiseren». Auf Rückfrage: **«Joch: Knicken aus dem Stabwerk»** - dieselbe Regel (`mastStabilitaet`, SIA 263) mit den Kräften des Stabwerks für jeden Masten, der ein Tragjoch trägt (`knick` in rechneStabwerk; Kachel, Gruppe, Schiene, Tragwerksliste, Urteil); Einzelmast und Abfangjoch bleiben beim Kern. Und **«Tragausleger: Knicken 1.027 klären»** - gemessen, kein Fehler, keine Änderung (siehe *Letzte Schritte*). COM: die Seile tragen «nur Zug» für AxisVM; das Datenpaket liegt neu in `Versand/` |
 | Tragausleger: Aufhängung b und Mastlänge (28. Sept.) | Mit einer Skizze: «der mast hat eine gesamtlänge l oder h, am besten gleich geschriftet wie bei den übrigen masten. man muss aber den abschnitt b eingeben können. in der normzeichnung ist der winkel mit 30° angegeben, diesen wert kann man als start nehmen. es kann aber sein das man spezialfälle hat wo dieser winkel kleiner oder grösser ist.» Auf Rückfrage: **«Beide gekoppelt»** - Felder b und α unter dem Ausleger, gespeichert wird allein der Winkel (`auslegerWinkel`, Vorgabe **30°**, Schieber auf 5°), b = c₁ · tan α (c₁ nach Sortiment); wer b eintippt, setzt den Winkel. **Nachgefragt:** das b der Tabelle entspricht 30.1–30.6°, genau 30° gab b um 3–10 cm kürzer - Antwort **«b der Tabelle»** (Regel «Massgebend sind die Daten»): ohne Eintrag (gespeichert 0) gilt die Spalte b des Sortiments und der Winkel wird daraus angezeigt; ein eingetragener Winkel oder ein getipptes b überschreibt, 0 kehrt zur Tabelle zurück. **«H + b, halber Meter»** - die Mastlänge heisst wie bei den übrigen Masten und ist ohne Eintrag H + b, auf den halben Meter aufgerundet (`mastLaengeFuer`, eine Stelle für Maske, Kern, Stabwerk, Bild); eine eingetragene Länge unter H + b wird als **«Mast zu kurz für die Aufhängung»** gemeldet (Notiz am Feld, Hinweisliste; Kern und Stabwerk rechnen dann nicht) |
 | Tragausleger: Maske, Seite, Lageband (28. Sept.) | Mit Bild der Seitenleiste: «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der Ausleger kann zudem links oder rechts sein. bei der Eingabe der Länge steht noch Jochtyp. Die Masse sollten unter profile wandern. beim auflager ist auch noch alles mit joch benannt und die auflagerskizze sollte die vom abfangjoch übernommen werden, da die Bedingungen gleich sind. es stellt sich noch die frage ob man die Anschlusshöe besser unter dem auslger laufen lässt anstatt beim masten.» Auf Rückfrage: **Seite «Ganz spiegeln»** (Kern, Stabwerk, AxisVM, 3D, Lageband), präzisiert: «es soll nur die geometrie gespiegelt werden. die einwirkungen das trasse bleiben so wie definiert. der masten kann somit in der kurven innen oder aussenseite stehen.» - Feld `auslegerSeite` (Vorgabe rechts) und **Anschlusshöhe «Beim Ausleger»** (Feld «Höhe Ausleger über Fundament» in der Gruppe des Auslegers). Ebenso der Längsanker: «diese Angaben gehören auch zum Tragausleger und nicht zum Masten» - Schalter und Stelle stehen unter dem Ausleger, gleich unter der Höhe. Die Auflagerskizze führt Gurt vorn / hinten mit der Vorgabe «A» (`LINK_VORGABEN.tragausleger`, eine Stelle für Skizze und Modell) |
 | Tragausleger: Kragarm-Kern (28. Sept.) | Auf Rückfrage zum Umfang des Kerns (Etappe 3b): **«Lotrecht»** - nur die lotrechte Ebene: Gelenk am Masten, Seil bei c₁, Kragarm, Eigengewicht des Sortiments und Anbauteile; das ist die Kontrollformel der Zeichnung. Vorläufig stehen UPE (Biegung + Druck aus dem Seil), Aufhängung, Mast und Fundament auf seinen Kräften; **Bindebleche, Torsion und Längsanker nur im Stabwerk** (Kacheln «nur im Stabwerk»). Gemessen: Seil 1-2 % über dem Stabwerk, Mast weit darunter (L 13 m mit Hängestütze 0.590 gegen 2.103) - deshalb nur vorläufig und ohne Stabwerk «NICHT nachgewiesen» |
@@ -236,12 +237,37 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5712 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5719 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Knicken: Joch aus dem Stabwerk; Ausleger geklärt; COM;
+  Lageband «A»** (Entscheide siehe *Entschieden*, Prüfstand 131, 144,
+  147). **Joch:** Knicken je Mast aus dem Stabwerk, Einzeljoch J90/20 m
+  Mast M1 0.8386 (Kern) → **0.8351**, Reihe 2 × J90/20 m geteilter M2
+  1.4839 (Kern, Sofortmassnahme) → **1.4791** (gekoppelt); im Browser
+  (Standarddokument J90/20 m, 8.50 m) 0.890 → **0.870**, Kachel «Knicken
+  M1 · Stabwerk», Gruppe «Stabwerk», Schiene KM1/KM2 0.87, Fussleiste
+  «η 0.870 (Knicken M2)»; ohne Knick-Schalter rechnet das Stabwerk keins.
+  **Ausleger, Knicken 1.027 geklärt** (L 13 m, Hängestütze, Längsanker,
+  zwei Seile, HEB 240, 14.00 m): N/N_K 0.126 + M_y 0.330 + M_z **0.571**;
+  β = 2, z_N 9.77 m, L_cr 19.5 m, χ_z 0.075. Das Längsmoment am Fuss (28.8
+  kNm char. unter Wind y) ist mit Längsanker **ganz der Wind auf den Mast
+  selbst** (29.4 kNm aus seiner Streckenlast). **β = 2 gemessen bestätigt:**
+  1 kN in y am Seilpunkt gibt 107.40 mm (mit Längsanker und zwei Seilen)
+  gegen 107.50 mm am freien Kragarm - der Ausleger hält den Kopf nicht,
+  weil sich der offene Mast verdreht und der Ausleger mitdreht. Hebel sind
+  Profil (HEB 260 0.880, HEM 240 0.569) oder Mastlänge; Steg quer ist
+  schlechter (1.884, Wind x auf der schwachen Achse). Mein Verdacht eines
+  Fehlers in `mastAusStabwerk` bei gedrehtem Steg war falsch (anderer Fall
+  massgebend). **COM:** die Seile der Aufhängung tragen `nichtlinear: {x:
+  'nurZug'}` wie der Seilkopf des Seilankers; die Brücke setzt daraus
+  lnlTensionOnly (nur nichtlinear wirksam) und brauchte keine Änderung.
+  **Datenpaket** `Versand/Vierendeel_Datenpaket_2026-09-28.json` (351 kB,
+  alle sechs Sortimente). **Lageband «A»** im Browser geprüft. Der
+  Arbeitsstand ist nach dem Joch-Test Zeichen für Zeichen zurück.
 - **28. Sept., Tragausleger: zwei gespreizte Seile; Lageband massstäblich**
   (Entscheide siehe *Entschieden*, Prüfstand Abschnitt 147). Zuerst eine
   Studie ohne Änderung am Projekt (Stabwerk, L 8 / 13 m mit Hängestütze):
@@ -1933,7 +1959,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   seit demselben Tag Regelfall, Mast 0.838 und Fundament 0.671 — offen
   bleiben dann Bindeblech 1.029 und Knicken 1.011 bei L 13 m; seit
   Mastlänge H + b Mast 0.850, Fundament 0.677, Knicken 1.027; seit den
-  zwei gespreizten Seilen Blech 0.208 - offen bleibt das Knicken). L 13 m:
+  zwei gespreizten Seilen Blech 0.208 - offen bleibt das Knicken, 1.027:
+  gemessen der Wind auf den 14-m-Masten selbst um die schwache Achse,
+  β = 2 bestätigt, Abhilfe über das Profil). L 13 m:
   Mastquerschnitt mit σ_ω 2.115, Knicken 1.107, Fundament 1.445
   (Torsion). Ursache ist die
   Torsion aus Wind in Gleisrichtung am langen Hebel des Auslegers, die
@@ -1941,7 +1969,7 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Wind auf den Ausleger selbst fehlt noch (Sortiment ohne Windlast je
   Meter) — er käme dazu. Ob das Sortiment Hängestützen am Ausleger vorsieht
   bzw. wie der Anschluss die Torsion wirklich abgibt, ist zu klären.
-- ⚠ **Knicken am Joch weiter aus dem Kern.** Seit dem 28. September kann
+- **Erledigt (28. Sept., «Joch: Knicken aus dem Stabwerk»):** Knicken am Joch weiter aus dem Kern. Seit dem 28. September kann
   das Stabwerk das Knicken selbst liefern (`knickenAusStabwerk`); am Joch
   weicht es um 0.4 % ab (Jochlast am Konsolanschnitt). Ob das Joch es
   ebenfalls aus dem Stabwerk nehmen soll — am geteilten Masten der Reihe
@@ -2060,10 +2088,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Ersatzbalken stehen noch die **Verläufe, der Schnitt, die Tabelle der
   höchstbeanspruchten Stellen, der Bericht und Excel** — das ist Punkt 3
   des Auftrags. Drei Dinge dazu, noch nicht entschieden:
-  (1) **Das Knicken rechnet mit den Schnittgrössen des Kerns.** Am
-  geteilten Masten der Reihe sind das die der Sofortmassnahme; gemessen
-  lag das Knick-η dort über dem Querschnitt des Stabwerks (1.4839 gegen
-  1.3490), ob es das immer tut, ist nicht belegt.
+  (1) ~~**Das Knicken rechnet mit den Schnittgrössen des Kerns.**~~ Am
+  Tragjoch seit dem 28. September aus dem Stabwerk (geteilter M2 1.4839 →
+  1.4791); Einzelmast und Abfangjoch weiter aus dem Kern.
   (2) Die **Hauptkachel urteilt über das aktive Tragwerk** mit seinen
   Masten; die Masten der Nachbarjoche stehen nur in der Reihenzeile der
   Stabwerksleiste.
@@ -2171,7 +2198,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5712 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5719 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

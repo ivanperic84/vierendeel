@@ -1091,7 +1091,10 @@ function neuRechnen(neuZeichnen = true) {
          * der Hauptkachel.
          */
         const swM = swG?.h?.bauteile?.[`mast:${mastNameAmEnde(werte, null, ende)}`];
-        const v = swM ? Math.max(swM.eta ?? 0, n.stabil?.eta ?? 0)
+        // Das Knicken des Jochmasten seit dem 28. September auch aus dem
+        // Stabwerk (`h.knick`); ohne es das des Kerns.
+        const swK = swG?.h?.knick?.[mastNameAmEnde(werte, null, ende)];
+        const v = swM ? Math.max(swM.eta ?? 0, (swK ?? n.stabil)?.eta ?? 0)
           : (n.etaMitStabilitaet ?? n.eta);
         // Ein geteilter Mast steht in zwei Tragwerken; gezeigt wird der
         // groessere der beiden Nachweise, nicht der zuletzt geschriebene.

@@ -659,6 +659,14 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
         }
         return;
       }
+      // Am Tragjoch seit dem 28. September ebenfalls aus dem Stabwerk
+      // (`h.knick`, rechneStabwerk); ohne es der Kern.
+      const kS = id ? h?.knick?.[id] : null;
+      if (t && kS && Number.isFinite(kS.eta)) {
+        dazu({ key: 'knicken', name: `Knicken ${id}`, eta: kS.eta, quelle: 'stabwerk',
+               fall: kS.fall, bez: kS.bez, ueber: null });
+        return;
+      }
       const kn = o.knick?.[x.name];
       if (t && Number.isFinite(kn)) {
         dazu({ key: 'knicken', name: `Knicken ${id ?? x.name}`, eta: kn,

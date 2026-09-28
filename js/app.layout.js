@@ -1031,7 +1031,9 @@ export function zeichneSchienen(app) {
         if (swG?.h?.ausleger && !swM) return;
         if (swM) {
           teile.push([name, swM.eta ?? 0, `${name} Querschnitt (Stabwerk)`]);
-          const knA = swG.h.ausleger?.knick;
+          // Das Knicken aus dem Stabwerk: am Ausleger, seit dem 28. September
+          // auch am Tragjoch (`knick` je Mast); sonst das des Kerns.
+          const knA = swG.h.ausleger?.knick ?? swG.h.knick?.[name];
           if (knA && Number.isFinite(knA.eta)) {
             teile.push([`K${name}`, knA.eta, `Knicken ${name} (Stabwerk)`]);
           } else if (!swG.h.ausleger && Number.isFinite(n.stabil?.eta)) {
