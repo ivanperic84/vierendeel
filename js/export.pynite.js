@@ -294,7 +294,7 @@ export function pyniteSkript(m, opt = {}) {
    * die Rahmenwirkung der Reihe fehlte.
    */
   const bau = opt.bau ?? stabmodell(m, {
-    knotenmodell: km, schottAusblenden: opt.schottAusblenden,
+    knotenmodell: km, schottAusblenden: opt.schottAusblenden, eingabe: opt.eingabe,
     auflagerModell: opt.auflagerModell });
   // EIGENGEWICHT MUSS MIT. PyNite leitet es nicht aus den Stäben ab; ohne
   // diese Zeile fehlte im Modell die grösste Einzellast (am Signaljoch
@@ -817,7 +817,9 @@ export function exportierePynite(inp, deps, opt = {}) {
   const { modell, profOG, profUG, stahl, joch } = deps;
   const km = opt.knotenmodell ?? 'anschnitt';
   const m = modell({ ...inp, beiwerteFest: null }, profOG, profUG, stahl, joch);
-  const r = pyniteSkript(m, { knotenmodell: km,
+  // Der Satz geht mit: Abfangjoch und Tragausleger bauen aus ihm, nicht
+  // aus dem Jochmodell (Befund 28. September, siehe `stabmodell`).
+  const r = pyniteSkript(m, { knotenmodell: km, eingabe: inp,
                              schottAusblenden: opt.schottAusblenden,
                              bau: blattWennMehrere(inp, deps, { knotenmodell: km }) });
   const name = pyniteName(inp, km);

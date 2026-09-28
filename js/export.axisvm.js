@@ -2169,8 +2169,18 @@ export function stabmodell(m, opt = {}) {
    * Ausleitung nicht greift. Gebaut wird es jetzt von seinem eigenen Bauer
    * (`abfangBau`); der Satz des Tragwerks reicht das Blatt mit.
    */
-  if (tragwerksart(m).key === 'abfangjoch' && opt.satz) {
-    return abfangBau(opt.satz, opt);
+  /*
+   * >>> DER SATZ KOMMT AUCH ALS `eingabe` (Befund 28. September). <<<
+   * Die Ausleitungen (COM, SAF, DXF) reichen den Satz als `eingabe` an
+   * `stabmodellJson` - und von dort kam er hier nie als `satz` an. Beim
+   * Aufbau in AxisVM («checken mit aufbau in axisvm») stand deshalb für den
+   * Tragausleger das TRAGJOCH des Kerns in der Datei (vier Winkel-Links,
+   * zwei Masten, keine Seile), während das Stabwerk der Anwendung den
+   * richtigen Ausleger rechnete.
+   */
+  const satzOpt = opt.satz ?? opt.eingabe ?? null;
+  if (tragwerksart(m).key === 'abfangjoch' && satzOpt) {
+    return abfangBau(satzOpt, opt);
   }
   /*
    * >>> DER TRAGAUSLEGER EBENSO (28. September, Etappe 2). <<<
@@ -2179,8 +2189,8 @@ export function stabmodell(m, opt = {}) {
    * bliebe nur der alte Weg - der baute ein TRAGJOCH, und genau das ist
    * seit dem 25. September gesperrt (`ohneStabmodell`).
    */
-  if (tragwerksart(m).key === 'tragausleger' && opt.satz) {
-    return tragauslegerBau(opt.satz, opt);
+  if (tragwerksart(m).key === 'tragausleger' && satzOpt) {
+    return tragauslegerBau(satzOpt, opt);
   }
   const km = opt.knotenmodell ?? 'anschnitt';
   const s = opt.sammler ?? sammler(opt.praefix ?? '');

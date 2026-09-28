@@ -32871,6 +32871,26 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
   const ps1 = readFileSync(join(HIER, 'com', 'AxisVM_aufbauen.ps1'), 'utf8');
   wahr('… und die Brücke liest beides (nichtlinear, system lokal)',
        /\$sb\.nichtlinear/.test(ps1) && /\[string\]\$sb\.system -eq 'lokal'/.test(ps1));
+  /*
+   * >>> DER WEG DER AUSLEITUNG (Befund 28. September, Aufbau in AxisVM). <<<
+   * COM, SAF und DXF reichen den Satz als `eingabe` an stabmodellJson; bis
+   * dahin kam er nie als `satz` in `stabmodell` an, und die Datei trug das
+   * TRAGJOCH des Kerns (vier Winkel-Links, Masten A und B, kein Seil).
+   */
+  {
+    const sA = N147.rechensatzMitNachbarn(w(1, true));
+    const mA = berechne(sA, ...N147.kernArgumente(sA)).modell;
+    const dA = AX147.stabmodellJson(mA, { knotenmodell: 'anschnitt', eingabe: sA });
+    wahr('>>> Ausleitung (COM/SAF/DXF): der Ausleger, nicht das Phantomjoch <<<',
+         dA.staebe.some((x) => x.name === 'AUFHAENGUNG_P')
+         && !dA.staebe.some((x) => /^LINK_A_(OG|UG)/.test(x.name))
+         && !dA.knoten.some((k) => /^MAST_B_/.test(k.name)),
+         `${dA.knoten.length} Knoten, ${dA.staebe.length} Stäbe`);
+    const PY147 = await import(J('export.pynite.js'));
+    const py = PY147.pyniteSkript(mA, { knotenmodell: 'anschnitt', eingabe: sA });
+    wahr('… und die PyNite-Ausleitung ebenso', py.bau.staebe.some((x) => /AUFHAENGUNG_P/.test(x.name ?? x.roh ?? '')),
+         `${py.bau.staebe.length} Stäbe`);
+  }
   wahr('Spreizung 0: ein Seil in der Achse (wie bis dahin)',
        eins.dat.staebe.filter((s) => /AUFHAENGUNG/.test(s.name)).map((s) => s.name).join() === 'AUFHAENGUNG');
 
