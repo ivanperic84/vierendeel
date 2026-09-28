@@ -59,6 +59,7 @@ import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBlechVersatz } from './data.anker.js';
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { abfangBau } from './export.axisvm.abfang.js';
+import { tragauslegerBau } from './export.axisvm.tragausleger.js';
 import { winkelwerteFuer } from './core.winkel.js';
 import { getProfil } from './data.profiles.js';
 
@@ -2171,6 +2172,16 @@ export function stabmodell(m, opt = {}) {
   if (tragwerksart(m).key === 'abfangjoch' && opt.satz) {
     return abfangBau(opt.satz, opt);
   }
+  /*
+   * >>> DER TRAGAUSLEGER EBENSO (28. September, Etappe 2). <<<
+   * Zwei UPE 140 mit Bindeblechen, am Masten wie das Abfangjoch, an einer
+   * Aufhängung als Pendelstab (export.axisvm.tragausleger.js). Ohne Satz
+   * bliebe nur der alte Weg - der baute ein TRAGJOCH, und genau das ist
+   * seit dem 25. September gesperrt (`ohneStabmodell`).
+   */
+  if (tragwerksart(m).key === 'tragausleger' && opt.satz) {
+    return tragauslegerBau(opt.satz, opt);
+  }
   const km = opt.knotenmodell ?? 'anschnitt';
   const s = opt.sammler ?? sammler(opt.praefix ?? '');
   /*
@@ -3576,6 +3587,38 @@ export function stabmodell(m, opt = {}) {
  * und nur getrennte Lastfälle lassen sich hinterher Anteil für Anteil mit der
  * eigenen Rechnung vergleichen.
  */
+/* ===========================================================================
+ * >>> DAS EIGENGEWICHT DER STAEBE FUER DEN LOESER (28. September). <<<
+ * =========================================================================
+ *
+ * Mit `opt.eigengewicht` (Stabwerksknopf, PyNite) gehört das Eigengewicht
+ * in die Lastliste - der Löser rechnet dann ohne eigenes, damit nichts
+ * doppelt zählt. Der Jochweg schrieb dafür nur die Laufmeterlast des JOCHS
+ * (g_k); die MASTEN gingen leer aus. Gemessen am J90/20 m im Stabwerksweg:
+ * Summe der Auflagerkräfte unter G 11.773 kN = g_k · L, das Gewicht der
+ * beiden HEB 240 (rund 13.9 kN) fehlte. Bei einem eigenen Baustein
+ * (Tragausleger) fehlte es ganz - und dort geht es über den Hebel in die
+ * Seilkraft.
+ *
+ * Gerechnet wie AxisVM es selbst tut: Querschnitt × Wichte, nur echte
+ * Stäbe (Starrkörper und Links nie), lotrecht in G.
+ */
+const RHO_STAHL = 7850;         // kg/m³, wie dat.material.rho
+function eigengewichtAus(bau, auswahl) {
+  const qsMap = bau.querschnitte instanceof Map ? bau.querschnitte
+    : new Map((bau.querschnitte ?? []).map((q) => [q.name, q]));
+  const out = [];
+  bau.staebe.filter(auswahl).forEach((st) => {
+    const q = qsMap.get(st.qs ?? st.querschnitt);
+    const A = Number.isFinite(q?.A) ? q.A
+      : (q?.form === 'Rectangle' ? (q.parameter[0] * q.parameter[1]) / 1e6 : null);
+    if (!(A > 0)) return;
+    out.push({ name: `EG_${st.name}`, stab: st.name, richtung: 'Z',
+               wert: r6(-(A * RHO_STAHL * 9.81) / 1000), lastfall: 'G' });
+  });
+  return out;
+}
+
 export function lasten(m, bau, opt = {}) {
   /*
    * DAS ABFANGJOCH RECHNET SEINE LASTEN SELBST (20. September). Sie stehen
@@ -3583,7 +3626,14 @@ export function lasten(m, bau, opt = {}) {
    * (ABFANG_BLATTGRUPPE) - der Jochweg wuerde sie ein zweites Mal aus
    * einem Modell holen, das dieses Tragwerk gar nicht beschreibt.
    */
-  if (bau?.abfangLasten) return bau.abfangLasten;
+  // Seit dem 28. September für jeden eigenen Baustein (Abfangjoch,
+  // Tragausleger): `bausteinAusModell` in export.axisvm.abfang.js.
+  if (bau?.eigeneLasten) {
+    if (!opt.eigengewicht) return bau.eigeneLasten;
+    return { ...bau.eigeneLasten,
+             strecke: [...(bau.eigeneLasten.strecke ?? []),
+                       ...eigengewichtAus(bau, (st) => (st.artFest ?? 'stab') === 'stab')] };
+  }
   // Die Untergruppen der ständigen Last führt nur die COM-Ausleitung. Die
   // SAF-Mappe und die DXF-Zuordnung schreiben ihre Lastfallliste selbst;
   // dort verwiese eine Last sonst auf einen Fall, den es nicht gibt.
@@ -3673,6 +3723,11 @@ export function lasten(m, bau, opt = {}) {
                        richtung, wert: r6(wert), lastfall: gruppe });
       });
     });
+  }
+  // Das Eigengewicht der Masten, wenn die Liste es tragen soll (siehe
+  // `eigengewichtAus`) - das Joch steckt schon in g_k oben.
+  if (opt.eigengewicht && mastStaebe.length) {
+    strecke.push(...eigengewichtAus(bau, (st) => mastStaebe.includes(st)));
   }
 
   // Anbauteile: Kraft und Moment am wirklichen Angriffspunkt.

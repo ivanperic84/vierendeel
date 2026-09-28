@@ -1722,6 +1722,32 @@ export function abfangBau(satz, opt = {}) {
     schneeKlasse: satz.schneeKlasse,
     mast: opt.mast ?? null,
   });
+  const b = bausteinAusModell(d, opt, (g) => ABFANG_BLATTGRUPPE[g] ?? g);
+  return {
+    ...b,
+    // Fuer den Bericht: was hier steht, ist ein Abfangjoch, kein Tragjoch.
+    abfang: { typ: satz.abfangTyp, L: Number(satz.L),
+              merkmale: d.merkmale ?? [] },
+  };
+}
+
+/**
+ * EIN EIGENES MODELL ALS BAUSTEIN DES BLATTES.
+ *
+ * Herausgelöst aus `abfangBau` (28. September), weil der Tragausleger
+ * denselben Weg braucht: ein Tragwerk, das sein Modell selbst baut
+ * (Knoten, Stäbe, Querschnitte, Auflager, Lasten), wird in die Gestalt
+ * gebracht, die `stabmodell` liefert - Masten nach ihrer Stelle benannt,
+ * alles übrige mit dem Präfix des Tragwerks, die Lasten in den Gruppen
+ * des Blattes (`gruppe`).
+ *
+ * @param {object} d        Modell {knoten, staebe, querschnitte, auflager, lasten}
+ * @param {object} opt      { praefix, mastNamen, knotenmodell }
+ * @param {function} gruppe Lastfall des Modells -> Einwirkungsgruppe des Blattes
+ */
+export function bausteinAusModell(d, opt = {}, gruppe = (g) => g) {
+  const praefix = opt.praefix ?? '';
+  const mastNamen = opt.mastNamen ?? null;
 
   /*
    * DIE MASTEN HEISSEN WIE IM BLATT. Das Abfangjoch nennt sie nach seinem
@@ -1791,19 +1817,23 @@ export function abfangBau(satz, opt = {}) {
     ...l,
     name: praefix + String(l.name),
     [ortFeld]: voll(l[ortFeld]),
-    lastfall: ABFANG_BLATTGRUPPE[l.lastfall] ?? l.lastfall,
+    lastfall: gruppe(l.lastfall),
   });
-  const abfangLasten = {
+  /*
+   * DIE LASTEN BRINGT DER BAUSTEIN SELBST MIT (`eigeneLasten`, bis zum
+   * 28. September `abfangLasten`) - `lasten()` in export.axisvm.js nimmt
+   * sie, statt sie ein zweites Mal aus dem Jochmodell zu holen.
+   */
+  const eigeneLasten = {
     punkt: (d.lasten?.punkt ?? []).map((l) => umLast(l, 'knoten')),
     moment: (d.lasten?.moment ?? []).map((l) => umLast(l, 'knoten')),
     strecke: (d.lasten?.strecke ?? []).map((l) => umLast(l, 'stab')),
   };
 
   return {
-    knoten, staebe, querschnitte, auflager, abfangLasten,
-    // Fuer den Bericht: was hier steht, ist ein Abfangjoch, kein Tragjoch.
-    abfang: { typ: satz.abfangTyp, L: Number(satz.L),
-              merkmale: d.merkmale ?? [] },
+    knoten, staebe, querschnitte, auflager, eigeneLasten,
+    // Ein eigener Baustein bringt Drehlage und steife Abschnitte selbst mit.
+    eigenerBaustein: true,
     // Felder, die der Jochweg mitfuehrt; leer statt undefined, damit das
     // Vereinen im Blatt nicht auf halbem Weg abbricht.
     arme: [], ausKnotenVermerk: [], anbauMastAus: [], ankerAus: [],

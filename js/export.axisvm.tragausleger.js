@@ -44,6 +44,7 @@ import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js'
 import { baugruppeSumme } from './data.anbauteile.js';
 import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung } from './core.auflager.js';
+import { bausteinAusModell } from './export.axisvm.abfang.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 const AUFL_LINK_LAENGE = 0.05;     // wie am Abfangjoch
@@ -296,6 +297,7 @@ export function tragauslegerModell(satz) {
 
   /* --- Lasten ------------------------------------------------------------- */
   const punkt = [], moment = [], strecke = [];
+  let havarieAus = false;
   /*
    * DER MASTWIND - aus derselben Stelle wie im Kern (`mastWindBeide`),
    * charakteristisch, je Richtung ein Lastfall. Fehlt die Tabellenzeile,
@@ -345,6 +347,16 @@ export function tragauslegerModell(satz) {
       const r = [(Number.isFinite(Number(tp.x)) ? Number(tp.x) : xA) - xA,
                  Number(tp.y) || 0, Number(tp.z) || 0];
       EINWIRKUNGEN.forEach((ew) => {
+        /*
+         * DIE HAVARIE NOCH NICHT (28. September). Das Blatt führt sie je
+         * Leiter (`HavarieY|<Leiter>|p`); eine Last auf der blossen
+         * Sammelgruppe käme dort in keiner Kombination an. Bis der Ausleger
+         * sie je Leiter aufteilt, bleibt sie draussen - und es steht da.
+         */
+        if (ew.key === 'HavarieX' || ew.key === 'HavarieY') {
+          if (tp.kraefte?.[ew.key]) havarieAus = true;
+          return;
+        }
         const q = tp.kraefte?.[ew.key];
         if (!q) return;
         const F = [q.Fx ?? 0, q.Fy ?? 0, -(q.Fz ?? 0)];
@@ -403,6 +415,10 @@ export function tragauslegerModell(satz) {
   });
   hinweise.push('Wind auf den Ausleger selbst ist nicht angesetzt - das '
     + 'Sortiment führt für den Tragausleger keine Windlast je Meter.');
+  if (havarieAus) {
+    hinweise.push('Havarie der Leiter am Tragausleger ist im Stabmodell noch '
+      + 'NICHT angesetzt (sie gehört je Leiter in einen eigenen Lastfall).');
+  }
 
   return {
     knoten, staebe, querschnitte, auflager,
@@ -412,4 +428,21 @@ export function tragauslegerModell(satz) {
                     c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
                     Vzul: t.Vzul, laengsverankerung: lvX },
   };
+}
+
+/**
+ * Der Tragausleger als Baustein des Blattmodells - derselbe Weg wie das
+ * Abfangjoch (`bausteinAusModell`, 28. September): die Masten nach ihrer
+ * Stelle benannt (MAST_A_S1 -> MAST_M1_S1), alles übrige mit dem Präfix
+ * des Tragwerks, die Lasten in den Gruppen des Blattes. Die Gruppen des
+ * Modells SIND schon die des Blattes (G_Anbau, G_Ablenk, WindX, WindY,
+ * Schnee) - es gibt nichts umzubenennen.
+ *
+ * @param {object} satz Der Satz DIESES Tragwerks
+ * @param {object} opt  { praefix, mastNamen, knotenmodell }
+ */
+export function tragauslegerBau(satz, opt = {}) {
+  const d = tragauslegerModell(satz);
+  const b = bausteinAusModell(d, opt);
+  return { ...b, hinweise: d.hinweise, tragausleger: d.tragausleger };
 }

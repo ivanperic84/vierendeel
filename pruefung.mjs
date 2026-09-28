@@ -4622,7 +4622,9 @@ titel('29a PyNite-Export: das Eigengewicht muss mit');
   wahr('Mit Schalter die volle Laufmeterlast',
        Math.abs(gStrecke(mit) - m.char.gk) < 1e-6, `${gStrecke(mit).toFixed(4)} kN/m`);
   // Die Resultierende liegt auf der Jochachse: kein Torsionsmoment.
-  const je = new Set(mit.strecke.filter((q) => q.lastfall === 'G')
+  // Nur die Laufmeterlast des Jochs (Q_G_…) - seit dem 28. September
+  // tragen auch die Masten ihr Eigengewicht in der Liste (EG_MAST_…).
+  const je = new Set(mit.strecke.filter((q) => q.lastfall === 'G' && !/^EG_/.test(q.name))
     .map((q) => q.stab.slice(0, 3)));
   wahr('Auf alle vier Gurte gleich verteilt', je.size === 4,
        [...je].join(', '));
@@ -31825,6 +31827,112 @@ titel('135  Knicken Mast: voreingestellt aus (28. September)');
   wahr('Stabwerk ohne Knicken: keine Knickzeile, der Mast aus dem Stabwerk',
        !ohne.liste.some((x) => x.key === 'knicken')
        && ohne.liste.find((x) => x.name === 'Mast M1')?.quelle === 'stabwerk');
+}
+
+// ===========================================================================
+titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
+/* ===========================================================================
+ * Auftrag Punkt 2: «Tragausleger - eigener Kern für die Anzeige, Stabwerk
+ * für das Urteil». Etappe 2: das Modell (export.axisvm.tragausleger.js)
+ * geht als eigener Baustein ins Blatt (`tragauslegerBau`, derselbe Weg wie
+ * das Abfangjoch über `bausteinAusModell`) und wird gelöst. Anschluss am
+ * Masten nach Entscheid «A»: beide Gurte x y z + K_XX gehalten.
+ *
+ * Gemessen am Ausleger L = 8 m (c1 5.95, b 3.50 m), HEB 240:
+ *   Seilkraft unter Eigengewicht  Löser 3.2800 / Freikörper 3.2800 kN
+ *   1 kN an der Spitze (x 7.75)   S_v 1.2674 kN, Kontrollformel der
+ *                                 Zeichnung V = F x / c1 = 1.3025 kN
+ * Die Formel liegt 2.7 % darüber: die Traverse sitzt 0.095 m über der
+ * Gelenkachse, und die waagrechte Seilkomponente entlastet über diesen
+ * Hebel - das kennt die Formel nicht. Sie liegt damit auf der sicheren
+ * Seite.
+ * ========================================================================= */
+{
+  const N136 = await import(J('core.nachbarn.js'));
+  const AX136 = await import(J('export.axisvm.js'));
+  const SW136 = await import(J('core.stabwerk.js'));
+  const w = { ...standardwerte(), tragwerksart: 'tragausleger', L: 8, xLage: 0,
+              mastVorhanden: true };
+  const satz = N136.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N136.kernArgumente(satz));
+  const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+  const bau = AX136.stabmodell(erg.modell, { ...opt, satz, mastNamen: { A: 'M1', B: 'M1' } });
+  bau.lasten = AX136.lasten(erg.modell, bau, opt);
+  const dat = AX136.stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz });
+
+  // --- a) Das Modell ist der Tragausleger, nicht ein Tragjoch ---------------
+  wahr('Es ist der eigene Baustein (zwei UPE 140, kein Winkel)',
+       bau.tragausleger?.L === 8
+       && dat.querschnitte.some((q) => q.form === 'Channel' && /UPE 140/.test(q.profil ?? ''))
+       && !dat.querschnitte.some((q) => q.form === 'Angle'),
+       dat.querschnitte.map((q) => q.name).join(', '));
+  wahr('Der Mast heisst nach seiner Stelle (MAST_M1_S…)',
+       dat.staebe.some((s) => /^MAST_M1_S1$/.test(s.name))
+       && !dat.staebe.some((s) => /^MAST_A_/.test(s.name)));
+  wahr('Die Aufhaengung ist ein Link im Ortssystem, nur laengs gehalten',
+       (() => { const a = dat.staebe.find((s) => s.name === 'AUFHAENGUNG');
+                return a?.art === 'link' && a.kraftuebertragung?.x === 'Rigid'
+                  && a.kraftuebertragung?.z === 'Free'; })());
+  wahr('Anschluss «A»: beide Gurtlinks halten x, y, z und K_XX',
+       ['LINK_AV', 'LINK_AH'].every((n) => {
+         const k = dat.staebe.find((s) => s.name === n)?.kraftuebertragung ?? {};
+         return k.x === 'Rigid' && k.y === 'Rigid' && k.z === 'Rigid' && k.xx === 'Rigid'
+           && k.yy === 'Free' && k.zz === 'Free';
+       }));
+  /*
+   * >>> DAS EIGENGEWICHT STEHT IN DER LISTE (28. September). <<<
+   * Ein eigener Baustein bringt nur seine eigenen Lasten mit; ohne den
+   * Nachtrag in `lasten()` hing der Ausleger im Stabwerk gewichtslos.
+   */
+  const eg = dat.lasten.strecke.filter((l) => /^EG_/.test(l.name));
+  wahr('Eigengewicht an jedem echten Stab (Gurte, Bleche, Mast), an keinem Starrelement',
+       eg.length > 0 && eg.every((l) => dat.staebe.find((s) => s.name === l.stab)?.art === 'stab'),
+       `${eg.length} Stäbe`);
+  wahr('Keine Havarie-Last auf einer Sammelgruppe',
+       !dat.lasten.punkt.some((l) => /^Havarie/.test(l.lastfall)));
+
+  // --- b) Gleichgewicht und die Seilkraft am Freikoerper --------------------
+  const lsg = SW136.loese(dat, { eigengewicht: false });
+  const r = lsg.restkraft('G');
+  wahr('Gleichgewicht unter G', r.gross < 1e-4 * Math.max(1, r.bezug), r.gross.toExponential(2));
+  const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+  const st = new Map(dat.staebe.map((s) => [s.name, s]));
+  const la = st.get('LINK_AV');
+  const P = { x: 0, z: (kn.get(la.von).z + kn.get(la.bis).z) / 2 };
+  const au = st.get('AUFHAENGUNG');
+  const Mk = kn.get(au.von), TR = kn.get(au.bis);
+  const Ls = Math.hypot(Mk.x - TR.x, Mk.z - TR.z);
+  const u = { x: (Mk.x - TR.x) / Ls, z: (Mk.z - TR.z) / Ls };
+  const MyEinheit = (TR.z - P.z) * u.x - (TR.x - P.x) * u.z;
+  let MyG = 0;
+  dat.lasten.strecke.filter((l) => l.lastfall === 'G' && !/MAST_/.test(l.stab)).forEach((l) => {
+    const s = st.get(l.stab); const a = kn.get(s.von), b = kn.get(s.bis);
+    const F = l.wert * Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    if (l.richtung === 'Z') MyG += -((a.x + b.x) / 2 - P.x) * F;
+  });
+  const S = -lsg.stabkraft('G').get('AUFHAENGUNG')[0];
+  wahr('>>> Die Aufhaengung zieht (Seil) <<<', S > 0, `${S.toFixed(4)} kN`);
+  pruef('Seilkraft unter G: Loeser gegen Freikoerper (Momente um die Gelenkachse)',
+        S, -MyG / MyEinheit, 1e-6, 'kN');
+  pruef('… gemessen am 28. September', S, 3.28, 1e-3, 'kN');
+
+  // --- c) Die Kontrollformel der Zeichnung --------------------------------
+  const vN = [...kn.keys()].find((n) => /^V_7\.750$/.test(n));
+  const hN = [...kn.keys()].find((n) => /^H_7\.750$/.test(n));
+  const dat2 = { ...dat, lastfaelle: [...(dat.lastfaelle ?? []), { key: 'TIP', name: 'TIP' }],
+    lasten: { ...dat.lasten, punkt: [...dat.lasten.punkt,
+      { name: 'TIP_V', knoten: vN, richtung: 'Z', wert: -0.5, lastfall: 'TIP' },
+      { name: 'TIP_H', knoten: hN, richtung: 'Z', wert: -0.5, lastfall: 'TIP' }] } };
+  const Sv = -SW136.loese(dat2, { eigengewicht: false }).stabkraft('TIP').get('AUFHAENGUNG')[0] * u.z;
+  const V = 7.75 / 5.95;
+  wahr('Kontrollformel V = F x / c1: der Loeser liegt knapp darunter (Traverse ueber dem Gelenk)',
+       Sv < V && Sv > 0.95 * V,
+       `S_v ${Sv.toFixed(4)} / V ${V.toFixed(4)} kN (${((Sv / V - 1) * 100).toFixed(2)} %)`);
+
+  // --- d) Im Stabwerksweg bleibt er vorerst gesperrt ----------------------
+  const AS136 = await import(J('app.stabwerk.js'));
+  wahr('Die Anzeige sperrt ihn weiter, bis die UPE nachgewiesen werden (Etappe 4)',
+       Boolean(AS136.ohneStabmodell('tragausleger')));
 }
 
 // ===========================================================================

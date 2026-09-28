@@ -228,12 +228,41 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5528 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5540 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 2: das Stabmodell im Stabwerk**
+  (Prüfstand Abschnitt 136). `tragauslegerBau` geht denselben Weg wie das
+  Abfangjoch: der Umbau aus `abfangBau` ist als `bausteinAusModell`
+  herausgelöst (Abfangjoch unverändert, Abschnitt 105 grün), die Lasten
+  heissen jetzt `eigeneLasten`, `stabmodell()` zweigt für den Tragausleger
+  ab, `rechneStabwerk` reicht den Satz im Einzelfall durch. Die Havarie
+  bleibt im Ausleger-Modell vorerst draussen (das Blatt führt sie je
+  Leiter), ein Hinweis sagt es. **Gemessen am Ausleger L = 8 m** (c₁ 5.95,
+  b 3.50 m, HEB 240): Seilkraft unter Eigengewicht **3.2800 kN, Zug**,
+  gegen den Freikörper (Momente um die Gelenkachse durch die Linkmitten)
+  auf die Stelle; mit 1 kN an der Spitze S_v = 1.2674 kN gegen die
+  **Kontrollformel** der Zeichnung V = F·x/c₁ = 1.3025 kN — die Formel
+  liegt 2.7 % darüber, weil die Traverse 0.095 m über der Gelenkachse
+  sitzt und die waagrechte Seilkomponente über diesen Hebel entlastet.
+  Die Anzeige sperrt den Ausleger im Stabwerksweg weiter
+  (`ohneStabmodell`), bis die UPE nachgewiesen werden.
+- **28. Sept., Befund: im Stabwerksweg fehlte den Masten das
+  Eigengewicht.** `rechneStabwerk` rechnet den Löser ohne eigenes
+  Eigengewicht, die Lastliste trug mit `eigengewicht: true` aber nur die
+  Laufmeterlast des Jochs (g_k). Gemessen am J90/20 m: Summe unter G
+  11.773 kN = g_k · L, es fehlten die beiden HEB 240 (13.878 kN). Jetzt
+  steht das Eigengewicht der Masten (und bei eigenen Bausteinen jedes
+  echten Stabes) aus A · ρ · g in der Liste (`eigengewichtAus`), wie
+  AxisVM es selbst rechnet: 25.650 kN. Am Urteil: Einzeljoch Mast
+  0.7713 → **0.7751**, Reihe M2 1.3490 → **1.3528**, M1/M3 0.7740 →
+  0.7778; die Joche unverändert. Die AxisVM-Ausleitung ist nicht berührt
+  (dort ohne `eigengewicht`); die PyNite-Ausleitung bekommt die Masten
+  jetzt mit Gewicht. ⚠ Ein Anker (Druckstütze) trägt in der Liste noch
+  kein Eigengewicht.
 - **28. Sept., Knicken Mast voreingestellt aus** (siehe *Entschieden*,
   Prüfstand Abschnitt 135). Der Prüfstand baut auf dem Standarddokument
   auf und rechnet das Knicken nach; er nimmt es deshalb ausdrücklich
@@ -1365,20 +1394,19 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
    Abfangjoch. ⚠ Das **Knicken bleibt beim Ersatzbalken** — es ist der einzige
    Nachweis, den der Löser nicht führt.
 
-**Laufende Arbeit (28. Sept.): Tragausleger Etappe 2 — das Stabmodell.**
-`js/export.axisvm.tragausleger.js` (`tragauslegerModell(satz)`) steht als
-Entwurf, **noch an nichts angeschlossen und nicht gemessen**: zwei UPE 140
-(Stege innen, e = 280 + 2·e_y), Bindebleche oben/unten bei z = ±59 mm
-(Schnitt A-A: Oberkante 6 mm unter der Flanschkante), Mast mit Anschluss
-wie am Abfangjoch (ohne Konsole in x, die Gurte laufen am Masten vorbei),
-beide Gurtlinks x y z + K_XX gehalten (⚠ Rückfrage: sonst Mechanismus um
-die Lotrechte), Ankertraverse bei c₁, Aufhängung als Link im Ortssystem
-(nur längs), Längsverankerung zuschaltbar, Anbauteile starr mit allen
-drei Momenten auf die Achse umgesetzt, Mastwind aus `mastWindBeide`.
-**Nächste Schritte:** Adapter ins Blattformat (aus `abfangBau` herauslösen,
-`eigeneLasten` in `lasten()`), Abzweig in `stabmodell()`, Satz im
-Einzelfall von `rechneStabwerk` durchreichen; messen: Seilkraft gegen
-V = Σ(F_V·x)/c₁ + Σ(F_H·z)/c₁ von Hand, Gleichgewicht, Prüfstand.
+**Laufende Arbeit (28. Sept.): Tragausleger — Etappe 2 erledigt.**
+Das Stabmodell (`export.axisvm.tragausleger.js`) hängt im Stabwerk und ist
+gemessen (siehe *Letzte Schritte*, Prüfstand 136): zwei UPE 140, Bleche
+oben/unten, Anschluss nach Entscheid «A», Aufhängung als Pendelstab,
+Eigengewicht aus der Liste. **Nächste Schritte:** (3) der Kern für die
+Anzeige (Abfangjoch-Kern anpassen: Gelenk am Mast, Seilauflager bei c₁,
+Kragarm c₂); (4) Nachweise im Stabwerk: die UPE-Gurte und Bindebleche
+bekommen eine Rolle in `stabRolle` (heute «sonst», nicht geführt), die
+**Aufhängung gegen V_zul = 5 kN**, Mast und Fundament; danach
+`ohneStabmodell('tragausleger')` aufheben und die Warnung «NICHT
+nachgewiesen» fallen lassen. Offen dazu: Havarie je Leiter im Ausleger,
+Feld und Stelle der Längsverankerung in der Maske, die Rückstellkraft
+der Leiter (⚠ festzulegen).
 
 **Laufende Arbeit (26. Sept.): Etappe 4 — der Löser gegen AxisVM.**
 Schritt (6) des Bauplans der Jochreihe. **Für den Masten ist die Freigabe
@@ -1887,7 +1915,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5528 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5540 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

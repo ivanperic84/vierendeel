@@ -212,7 +212,10 @@ export function rechneStabwerk(app) {
       const t0T = tragwerkeVon(app.werte)[0];
       const [mA, mB] = t0T ? (mastenFuer(app.werte, t0T) ?? []) : [];
       bau = stabmodell(erg.modell, { ...opt,
-        mastNamen: { A: mA?.id ?? 'A', B: mB?.id ?? 'B' } });
+        mastNamen: { A: mA?.id ?? 'A', B: mB?.id ?? 'B' },
+        // Ein Tragwerk mit eigenem Baustein (Abfangjoch, Tragausleger)
+        // baut aus dem Satz, nicht aus dem Jochmodell (28. September).
+        satz });
       /*
        * MIT EIGENGEWICHT UND GETRENNTEM G - wie die COM-Ausleitung. Der
        * Loeser steuert sein Eigengewicht zwar selbst bei; hier kommt es aus
