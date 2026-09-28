@@ -595,10 +595,12 @@ export function zeichneMaske(container, werte, tab, onChange, onAnbau, extras = 
      */
     const inhalt = haupt.map((f) => feldHtml(f, feldWert(f, werte), werte))
       .join('') + feinBlock + (feinExtra ? '' : zusatz);
+    // Der Titel kann je Tragwerksart ein anderer sein (28. September).
+    const titel = g.titelJe?.[tragwerksart(werte).key] ?? g.titel;
     if (g.zugeklappt) {
-      return klapp(`gruppe-${gid}`, g.titel, inhalt, `${felder.length}`, false);
+      return klapp(`gruppe-${gid}`, titel, inhalt, `${felder.length}`, false);
     }
-    return abschnitt(g.titel, knopf) + inhalt;
+    return abschnitt(titel, knopf) + inhalt;
   }).join('');
 
   verdrahteHavarie(container, werte, onChange);
@@ -6935,14 +6937,22 @@ export function profilUebersicht(erg, werte) {
                   Wz: p.Wz, It: p.It, G: p.G, quelle: opt.quelle ?? '' });
   };
 
+  // Der Tragausleger mit seinen UPE, nicht den Winkeln des Ersatzjochs.
+  const taP = erg.ausleger?.profil ? (() => {
+    try { return getGurtprofil(erg.ausleger.profil); } catch { return null; }
+  })() : null;
   if (ab?.q?.gurt) {
     zu('Gurt', ab.q.gurt, { anzahl: 2,
       quelle: `Abfangjoch ${ab.typ}, zwei Gurte nebeneinander` });
+  } else if (taP) {
+    zu('Gurt', taP, { anzahl: 2, quelle: 'Tragausleger, zwei UPE nebeneinander' });
   } else if (m.profOG) {
     zu('Obergurt', m.profOG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel' });
     zu('Untergurt', m.profUG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel' });
   }
   ['A', 'B'].forEach((ende) => {
+    // Am Tragausleger gibt es nur Ende A - B war das Phantomauflager.
+    if (ende === 'B' && taP) return;
     const f = m.federn?.[`mast${ende}`] ?? (ende === 'A' ? m.federn?.mast : null);
     const name = m.federn?.namen?.[ende] || `Ende ${ende}`;
     if (f?.profil) zu(`Mast ${name}`, f.profil, { quelle: 'Mastsortiment' });

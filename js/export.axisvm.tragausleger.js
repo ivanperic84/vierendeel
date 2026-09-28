@@ -68,8 +68,11 @@ const BLECH_RUECKSPRUNG = 0.006;
  * ein Mechanismus. K_XX gehalten wie am Abfangjoch (Weisung 17. September).
  * Was in der Maske eingestellt ist (`auflagerLinks`), geht vor.
  */
-const TA_LINK_VORGABE = { x: 'Rigid', y: 'Rigid', z: 'Rigid',
-                          xx: 'Rigid', yy: 'Free', zz: 'Free' };
+/*
+ * Seit dem 28. September steht die Vorgabe in core.auflager.js
+ * (`LINK_VORGABEN.tragausleger`), dieselbe Stelle, aus der die Skizze der
+ * Maske liest - eine zweite Kopie hier wäre die zweite Wahrheit.
+ */
 
 /** Die Laengen des Sortiments als Text - fuer die Meldung. */
 const sortimentText = () => tragauslegerTypen().map((t) => t.L.toFixed(1)).join(' / ');
@@ -255,13 +258,11 @@ export function tragauslegerModell(satz) {
       querschnitt: 'STARR', steifesMaterial: true, lcsZ: [0, 0, 1], art: 'starr' });
     staebe.push({ name: `LINKSTIEL_A${g}`, von: `ARM_A${g}`, bis: `ANS_A${g}`,
       querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0], art: 'starr' });
-    const gesetzt = satz.auflagerLinks?.[g];
     staebe.push({ name: `LINK_A${g}`, von: `ANS_A${g}`, bis: nm(g, i0),
       querschnitt: 'STARR', steifesMaterial: true, lcsZ: [1, 0, 0],
       gelenkAnfang: 'M', gelenkEnde: null, art: 'link',
-      kraftuebertragung: gesetzt
-        ? linkBedingung({ auflagerLinks: satz.auflagerLinks }, 'abfangjoch', g)
-        : { ...TA_LINK_VORGABE } });
+      kraftuebertragung: linkBedingung({ auflagerLinks: satz.auflagerLinks },
+                                       'tragausleger', g) });
   }
   const auflager = [{
     ende: 'A', knoten: 'MAST_A_F', x: 0, modell: 'mast',

@@ -671,8 +671,7 @@ function neuRechnen(neuZeichnen = true) {
      */
     const ausleger = tragwerksart(werte).key === 'tragausleger';
     const extras = letzte
-      ? { ...(ausleger ? { geo: ui.auslegerUebersichtHtml(werte) } : {}),
-          ...(letzte.mitJoch && !ausleger ? {
+      ? { ...(letzte.mitJoch && !ausleger ? {
             geo: ui.hebelarmUebersicht(letzte.anzeige ?? letzte.erg),
 
             blech: ui.blechUebersichtHtml(letzte.erg),
@@ -694,7 +693,13 @@ function neuRechnen(neuZeichnen = true) {
            * wurden, die Tafel immer. `anzeige` statt `erg`, damit das
            * Abfangjoch seine eigenen Gurte zeigt.
            */
-          prof: (letzte.kl ? ui.qskMarke(letzte.kl) : '')
+          /*
+           * Beim Tragausleger steht die Zeile des Sortiments hier, nicht
+           * unter der Geometrie (Weisung 28. September: «Die Masse sollten
+           * unter profile wandern»).
+           */
+          prof: (ausleger ? ui.auslegerUebersichtHtml(werte) : '')
+              + (letzte.kl && !ausleger ? ui.qskMarke(letzte.kl) : '')
               + ui.profilUebersicht(letzte.anzeige ?? letzte.erg, werte),
           komb: ui.kombiMatrixHtml(letzte.kombi, erkenneNormensatz(werte)) }
       : {};

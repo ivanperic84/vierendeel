@@ -1091,8 +1091,15 @@ export const LINK_GRADE = [
 export const LINK_EBENEN = {
   joch: [{ key: 'OG', label: 'Obergurte', achse: 'z' },
          { key: 'UG', label: 'Untergurte', achse: 'z' }],
-  tragausleger: [{ key: 'OG', label: 'Obergurte', achse: 'z' },
-                 { key: 'UG', label: 'Untergurte', achse: 'z' }],
+  /*
+   * DER TRAGAUSLEGER WIE DAS ABFANGJOCH (Weisung 28. September: «die
+   * auflagerskizze sollte die vom abfangjoch übernommen werden, da die
+   * Bedingungen gleich sind»): zwei UPE nebeneinander. Vorher standen hier
+   * Ober- und Untergurt - und was man dort einstellte, las die Ausleitung
+   * nie (sie fragt nach V und H).
+   */
+  tragausleger: [{ key: 'V', label: 'Gurt vorn', achse: 'y' },
+                 { key: 'H', label: 'Gurt hinten', achse: 'y' }],
   /*
    * `achse` sagt, WORIN die beiden Ebenen auseinanderliegen: beim Tragjoch
    * in z (uebereinander), beim Abfangjoch in y (nebeneinander). Daran haengt,
@@ -1255,7 +1262,13 @@ const UG_TRAGJOCH = { ...VOLL, x: 'Free', xx: 'Rigid' };
 
 export const LINK_VORGABEN = {
   joch: { OG: OG_TRAGJOCH, UG: UG_TRAGJOCH },
-  tragausleger: { OG: LAENGS_FREI, UG: VOLL },
+  /*
+   * TRAGAUSLEGER: Entscheid «A» (28. September) - BEIDE Gurte halten x, y, z
+   * und K_XX. Nur ihr Kräftepaar in x hält die Drehung um die Lotrechte; ein
+   * Gurt längs frei wie am Abfangjoch wäre am einzelnen Masten ein
+   * Mechanismus.
+   */
+  tragausleger: { V: { ...VOLL, xx: 'Rigid' }, H: { ...VOLL, xx: 'Rigid' } },
   /*
    * K_XX GEHALTEN AUCH HIER (Weisung vom 17. September: «ja halten»).
    * Lagerungsstudie A240 / 8.00 m mit Masten: 96 statt 140 N/mm² im Gurt

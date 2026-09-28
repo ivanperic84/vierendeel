@@ -139,6 +139,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| Tragausleger: Maske, Seite, Lageband (28. Sept.) | Mit Bild der Seitenleiste: «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der Ausleger kann zudem links oder rechts sein. bei der Eingabe der Länge steht noch Jochtyp. Die Masse sollten unter profile wandern. beim auflager ist auch noch alles mit joch benannt und die auflagerskizze sollte die vom abfangjoch übernommen werden, da die Bedingungen gleich sind. es stellt sich noch die frage ob man die Anschlusshöe besser unter dem auslger laufen lässt anstatt beim masten.» Auf Rückfrage: **Seite «Ganz spiegeln»** (Kern, Stabwerk, AxisVM, 3D, Lageband; die Ablenkkraft bleibt global aus der Trasse) und **Anschlusshöhe «Beim Ausleger»** (Feld «Höhe Ausleger über Fundament» in der Gruppe des Auslegers). Die Auflagerskizze führt Gurt vorn / hinten mit der Vorgabe «A» (`LINK_VORGABEN.tragausleger`, eine Stelle für Skizze und Modell) |
 | Tragausleger: Kragarm-Kern (28. Sept.) | Auf Rückfrage zum Umfang des Kerns (Etappe 3b): **«Lotrecht»** - nur die lotrechte Ebene: Gelenk am Masten, Seil bei c₁, Kragarm, Eigengewicht des Sortiments und Anbauteile; das ist die Kontrollformel der Zeichnung. Vorläufig stehen UPE (Biegung + Druck aus dem Seil), Aufhängung, Mast und Fundament auf seinen Kräften; **Bindebleche, Torsion und Längsanker nur im Stabwerk** (Kacheln «nur im Stabwerk»). Gemessen: Seil 1-2 % über dem Stabwerk, Mast weit darunter (L 13 m mit Hängestütze 0.590 gegen 2.103) - deshalb nur vorläufig und ohne Stabwerk «NICHT nachgewiesen» |
 | Tragausleger: x auf die Länge (28. Sept.) | «ich habe die 6 eingetragen als test. die x werte sollten auf die länge limitiert werden.» Die Stelle des Längsankers (jetzt ein Schieber) und die Lage der Anbauteile am Ausleger enden am **Kragarmende L − 0.25** (`kragarmEnde`); eine grössere Eingabe wird darauf begrenzt, und wird der Ausleger kürzer, rückt der Längsanker mit |
 | Tragausleger: Längsanker (28. Sept.) | «beim tragausleger wid ein längsanker angebracht am ende des kragarms um die torsionseinwirkung abzufangen.» Auf Rückfrage: **«Regelfall, abschaltbar»** (Feld `laengsverankerung`, Vorgabe an; `laengsverankerungX`, 0 = Kragarmende) und **«Nur Zug, beidseitig»** — zwei Seile ±y ohne Vorspannung, im linearen Stabwerk ein fester Halt in y (es trägt das Seil, zu dem hin gezogen wird). Ersetzt die Vorgabe vom 26. September («zuschaltbar»). Die Seilkraft steht als **Auskunft** (kein Widerstand im Sortiment); die Neigung der Seile ist nicht berücksichtigt |
@@ -233,12 +234,24 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5636 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5645 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger: Maske ohne Joch, Auflager wie am Abfangjoch**
+  (Weisung und Rückfragen siehe *Entschieden*, Prüfstand Abschnitt 143).
+  Gruppe «Ausleger und Geometrie» (`titelJe`) mit Länge und «Höhe Ausleger
+  über Fundament» (`gruppeAus` am Feld `mastH`); die Sortimentszeile steht
+  unter *Profile*, die Profiltafel zeigt 2 × UPE 140 und nur den Mast MT1.
+  Im *Auflager* entfallen «Anschluss ans Joch» und die Konsole (beide
+  wirkten beim Ausleger nicht). **Befund:** die Auflagerskizze des
+  Auslegers war die des Tragjochs (OG/UG), die Ausleitung las aber V/H -
+  was man dort einstellte, kam nie im Modell an. Jetzt V/H wie am
+  Abfangjoch, die Vorgabe «A» steht in `LINK_VORGABEN.tragausleger` (die
+  Kopie `TA_LINK_VORGABE` ist weg); die Zahlen der Abschnitte 137-140
+  sind unverändert. Im Browser geprüft (Maske, Skizze, *Profile*).
 - **28. Sept., Tragausleger Etappe 3b: der Kragarm-Kern** (Entscheid
   «Lotrecht», Prüfstand Abschnitt 142, neues Modul `core.tragausleger.js`).
   Die Lasten liest er aus dem Stabmodell (`tragauslegerModell`), Kern und
@@ -2060,7 +2073,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5636 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5645 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

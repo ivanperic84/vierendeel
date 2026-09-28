@@ -32432,6 +32432,58 @@ titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kraga
 }
 
 // ===========================================================================
+titel('143  Tragausleger: Maske ohne Joch, Auflager wie am Abfangjoch');
+/* ===========================================================================
+ * Weisung vom 28. September: «bei der Eingabe der Länge steht noch Jochtyp.
+ * Die Masse sollten unter profile wandern. beim auflager ist auch noch alles
+ * mit joch benannt und die auflagerskizze sollte die vom abfangjoch
+ * übernommen werden, da die Bedingungen gleich sind.» Auf Rückfrage: die
+ * Anschlusshöhe «Beim Ausleger».
+ *
+ * Befund: die Skizze des Auslegers schrieb OG/UG, die Ausleitung las V/H -
+ * was man einstellte, wirkte nie. Jetzt V/H mit der Vorgabe «A».
+ * ========================================================================= */
+{
+  const S143 = await import(J('ui.schema.js'));
+  const AU143 = await import(J('core.auflager.js'));
+  const TAX143 = await import(J('export.axisvm.tragausleger.js'));
+  const w = { ...standardwerteApp(), tragwerksart: 'tragausleger', L: 8, twId: 'MT1', mastVorhanden: true };
+  const wj = { ...standardwerteApp(), tragwerksart: 'joch' };
+  const g = S143.GRUPPEN.find((x) => x.id === 'geo');
+  wahr('Die Gruppe heisst beim Ausleger «Ausleger und Geometrie»',
+       g.titelJe?.tragausleger === 'Ausleger und Geometrie');
+  const keys = (gr, x) => S143.sichtbareFelder(gr, x).map((f) => f.key);
+  wahr('Die Höhe steht beim Ausleger unter dem Ausleger, beim Joch unter den Masten',
+       keys('geo', w).includes('mastH') && !keys('mast', w).includes('mastH')
+       && keys('mast', wj).includes('mastH') && !keys('geo', wj).includes('mastH'));
+  wahr('… und heisst «Höhe Ausleger über Fundament»',
+       /^Höhe Ausleger/.test(S143.FELDER.find((f) => f.key === 'mastH').label(w)));
+  wahr('Kein «Anschluss ans Joch» und keine Konsole beim Ausleger',
+       !keys('aufl', w).includes('mastAnschluss') && !keys('aufl', w).includes('auflagerKonsole')
+       && keys('aufl', w).includes('auflagerLinks'));
+  wahr('Die Auflagerskizze führt Gurt vorn / hinten wie das Abfangjoch',
+       AU143.linkEbenen('tragausleger').map((e) => e.key).join() === 'V,H'
+       && AU143.linkGelenk('tragausleger').paarAchse === 'y');
+  const vor = AU143.linkBedingung({}, 'tragausleger', 'V');
+  wahr('Vorgabe «A»: beide Gurte x y z und K_XX',
+       ['x', 'y', 'z', 'xx'].every((k) => vor[k] === 'Rigid')
+       && ['yy', 'zz'].every((k) => vor[k] === 'Free')
+       && JSON.stringify(AU143.linkBedingung({}, 'tragausleger', 'H')) === JSON.stringify(vor));
+  const d = TAX143.tragauslegerModell({ ...w, mastH: 7.5, mastLaenge: 12, mastProfil: 'HEB 240',
+                                        anbauteile: [] });
+  const link = d.staebe.find((s) => s.name === 'LINK_AV');
+  wahr('Das Modell nimmt dieselbe Vorgabe', JSON.stringify(link.kraftuebertragung) === JSON.stringify(vor));
+  const frei = TAX143.tragauslegerModell({ ...w, mastH: 7.5, mastLaenge: 12, mastProfil: 'HEB 240',
+    anbauteile: [], auflagerLinks: { V: { x: 'Free' } } });
+  wahr('>>> Was in der Skizze steht, kommt jetzt im Modell an <<<',
+       frei.staebe.find((s) => s.name === 'LINK_AV').kraftuebertragung.x === 'Free'
+       && frei.staebe.find((s) => s.name === 'LINK_AH').kraftuebertragung.x === 'Rigid');
+  const q = APP_QUELLE();
+  wahr('Die Sortimentszeile steht unter Profile',
+       /prof: \(ausleger \? ui\.auslegerUebersichtHtml\(werte\) : ''\)/.test(q));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

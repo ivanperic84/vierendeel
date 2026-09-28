@@ -265,7 +265,15 @@ export const GRUPPEN = [
    * Tragjochquerschnitts (jd, jbb, Endfeld, Masskette) bleiben aus: sie
    * kommen beim Abfangjoch aus dem Sortiment und sind nicht einzustellen.
    */
+  /*
+   * Weisung vom 28. September zur Maske des Tragauslegers: «bei der Eingabe
+   * der Länge steht noch Jochtyp. Die Masse sollten unter profile wandern.
+   * beim auflager ist auch noch alles mit joch benannt und die
+   * auflagerskizze sollte die vom abfangjoch übernommen werden, da die
+   * Bedingungen gleich sind.» Der Titel hängt deshalb an der Art.
+   */
   { id: 'geo',   titel: 'Jochtyp und Geometrie',
+    titelJe: { tragausleger: 'Ausleger und Geometrie' },
     feinTitel: 'Masse aus dem Sortiment', extraFein: true,
     arten: ['joch', 'tragausleger', 'abfangjoch'] },
   /*
@@ -831,8 +839,16 @@ export const FELDER = [
    * Modell und Bild zur Deckung kommen - und dafür ist ein Regler das
    * Werkzeug, nicht ein Zahlenfeld, in das man tippt und wieder tippt.
    */
+  /*
+   * BEIM TRAGAUSLEGER STEHT SIE UNTER DEM AUSLEGER (Rückfrage 28. September:
+   * «Beim Ausleger») - sie legt fest, wo er und seine Aufhängung am Masten
+   * sitzen, und ist damit eine Angabe des Auslegers.
+   */
   { key: 'mastH', gruppe: 'mast', typ: 'schieber',
-    label: (w) => `Anschlusshöhe Ende A · Mast ${mastNameAmEnde(w, null, 'A')}`,
+    gruppeAus: (w) => (tragwerksart(w).key === 'tragausleger' ? 'geo' : 'mast'),
+    label: (w) => (tragwerksart(w).key === 'tragausleger'
+      ? `Höhe Ausleger über Fundament · Mast ${mastNameAmEnde(w, null, 'A')}`
+      : `Anschlusshöhe Ende A · Mast ${mastNameAmEnde(w, null, 'A')}`),
     sym: 'H', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
     /*
      * NICHT BEIM EINZELMAST (Weisung, 18. September: «beim einzelmast ohne
@@ -1231,6 +1247,11 @@ export const FELDER = [
    * haengt, soll dastehen. Dasselbe Vorgehen wie bei den Ausleitungswegen des
    * Abfangjochs.
    */
+  /*
+   * NICHT BEIM TRAGAUSLEGER (28. September): die Wahl wirkt allein im
+   * Ersatzbalken des Tragjochs; Kragarm-Kern und Stabwerk des Auslegers
+   * lesen sie nicht - sie stand dort wirkungslos und hiess «Joch».
+   */
   { key: 'mastAnschluss', gruppe: 'aufl', typ: 'auswahl', label: 'Anschluss ans Joch',
     standard: 'durchlaufend',
     optionen: opt(MASTANSCHLUESSE),
@@ -1258,6 +1279,7 @@ export const FELDER = [
      * gelenkig, und das Feld steht wirkungslos, aber nicht falsch da.
      */
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
+                  && tragwerksart(w).key !== 'tragausleger'
                   && (tragwerksart(w).key !== 'joch'
                       || w.endbedingung === 'mast' || w.endbedingung === 'links'),
     hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
@@ -1307,9 +1329,13 @@ export const FELDER = [
   { key: 'auflagerLinks', gruppe: 'aufl', typ: 'auflagerlinks',
     label: 'Auflagerbedingung am Masten', standard: null,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true,
-    hinweis: 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
-           + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
-           + 'der Anwendung rechnet weiter mit seiner Drehfeder.' },
+    hinweis: (w) => (tragwerksart(w).key === 'tragausleger'
+      ? 'Je Gurt (vorn, hinten) ein Linkelement zum Masten, wie beim '
+        + 'Abfangjoch. Gilt im Stabwerk und in der AxisVM-Ausleitung; der '
+        + 'Kragarm-Kern rechnet das Gelenk am Masten lotrecht.'
+      : 'Je Gurtebene ein Linkelement zum Masten. Gilt für die '
+        + 'AxisVM-Ausleitung mit Auflagermodell «Mast»; der Ersatzbalken '
+        + 'der Anwendung rechnet weiter mit seiner Drehfeder.') },
   /*
    * >>> DIE KONSOLE MISST EINE HALBE MASTBREITE. <<<
    *
@@ -1353,8 +1379,11 @@ export const FELDER = [
     sichtbar: (w) => tragwerksart(w).key === 'joch' },
   { key: 'auflagerKonsole', fein: true, gruppe: 'aufl', typ: 'zahl',
     label: 'Konsole am Masten', sym: 'a_K', einheit: 'mm',
+    // Beim Tragausleger nicht: die Gurte laufen als Gabel am Masten vorbei,
+    // das Stabmodell baut keine Konsole in x (28. September).
     standard: 0, schritt: 5, min: 0,
-    sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true,
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
+                  && tragwerksart(w).key !== 'tragausleger',
     hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung. '
            + '0 = eine halbe Mastbreite (HEB 240 → 120 mm). Gilt für die '
            + 'AxisVM-Ausleitung; der Ersatzbalken kennt sie nicht.' },
@@ -1969,7 +1998,13 @@ export function gruppeGilt(gid, werte) {
 }
 
 export function sichtbareFelder(gruppe, werte) {
-  return FELDER.filter((f) => f.gruppe === gruppe && !f.optionenDialog && !f.versteckt
+  /*
+   * `gruppeAus` lässt ein Feld je nach Art in einer anderen Gruppe stehen -
+   * die Anschlusshöhe steht beim Tragausleger unter dem Ausleger, nicht
+   * beim Masten (Entscheid 28. September).
+   */
+  return FELDER.filter((f) => (typeof f.gruppeAus === 'function' ? f.gruppeAus(werte) : f.gruppe) === gruppe
+                           && !f.optionenDialog && !f.versteckt
                            && (!f.sichtbar || f.sichtbar(werte)));
 }
 

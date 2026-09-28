@@ -350,6 +350,9 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
 
   // Die Ebenen liegen in z auseinander (Tragjoch) oder in y (Abfangjoch).
   const inY = gelenk.paarAchse === 'y';
+  // Beim Tragausleger heisst die Achse nach ihm (28. September).
+  const ta = art === 'tragausleger';
+  const achseName = ta ? 'Auslegerachse' : 'Jochachse';
 
   /*
    * >>> BEIDE BILDER IM SELBEN MASSSTAB. <<<
@@ -452,7 +455,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
     // Systemachse des Jochs.
     `<line class="d" x1="24" y1="${inY ? mitteL : 70}" x2="204" y2="${
       inY ? mitteL : 70}"/>`,
-    txt(34, inY ? mitteL + 22 : 82, 'Feld', 'dim', 'start'),
+    txt(34, inY ? mitteL + 22 : 82, ta ? 'Ausleger' : 'Feld', 'dim', 'start'),
     /*
      * >>> DIE BLECHE SIND HIER NUR BAUTEIL, NICHT THEMA. <<<
      *
@@ -587,10 +590,10 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
            `<b>Ansicht</b> — ${inY
              ? 'der Träger liegt, hinterer Gurt verdeckt'
              : 'Blick in Gleisrichtung'}`)}${
-    skizze('Schnitt — Blick in die Jochachse',
+    skizze(`Schnitt — Blick in die ${achseName}`,
            `0 0 ${BB[0]} ${BB[1]}`, quer.join('') + punkteQ.join('') + kreuz(achsenQ),
            'al-skizze', `<b>Schnitt</b> — ${
-             inY ? 'zwei Gurte nebeneinander' : 'Blick in die Jochachse'}`)}</div>`;
+             inY ? 'zwei Gurte nebeneinander' : `Blick in die ${achseName}`}`)}</div>`;
 
   // --- Die Schalter, einzeilig --------------------------------------------
   /*
@@ -647,7 +650,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    */
   const federKreuz = skizze('Achsen des Modells', '0 0 210 76',
     achsenkreuz([32, 46], { h: 'x', hRi: [-1, 0], v: 'z', vRi: [0, -1], t: 'y' }, 20)
-    + txt(78, 30, 'x  Jochachse', 'dim', 'start')
+    + txt(78, 30, `x  ${achseName}`, 'dim', 'start')
     + txt(78, 46, 'y  Gleisrichtung (⊙)', 'dim', 'start')
     + txt(78, 62, 'z  lotrecht', 'dim', 'start'),
     'al-skizze al-achsbild', '');
@@ -747,6 +750,7 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    */
   const gerechnet = !vorgabefeld && werte.endbedingung === 'links';
   const eWirkung = vorgabefeld ? ''
+    : ta ? ' Gilt im Stabwerk und in der AxisVM-Ausleitung.'
     : (gerechnet
       ? ' Der Nachweis rechnet damit — in Reihe mit dem Masten, wo einer steht.'
       : ' Geht in die AxisVM-Ausleitung; der Nachweis rechnet mit dem '
@@ -777,8 +781,8 @@ export function auflagerDiagrammHtml(werte, art, feld = 'auflagerLinks') {
    */
   const femHinweis = federGrade.some((g) => g.einstellbar)
     ? `<p class="al-fem-hinweis"><b>K_XX wirkt nur im FEM-Modell</b> (AxisVM, SAF,
-       PyNite), nicht im Ersatzbalken der Anwendung. Gehalten klemmt sie jeden
-       Gurt am Anschluss gegen Verdrehen; die Torsion des Jochs und die
+       PyNite${ta ? ', Stabwerk' : ''}), nicht im ${ta ? 'Kragarm-Kern' : 'Ersatzbalken'} der Anwendung. Gehalten klemmt sie jeden
+       Gurt am Anschluss gegen Verdrehen; die Torsion des ${ta ? 'Auslegers' : 'Jochs'} und die
        Spannungen am Auflager verteilen sich dann anders. Vorgabe: gehalten
        (Lagerungsstudie: 190 statt 249 N/mm² im Gurt am Link). «frei» oder 0
        gibt sie frei, «starr» hält sie, eine Zahl ist eine Feder.</p>`
