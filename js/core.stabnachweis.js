@@ -622,6 +622,8 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
   let fundamentDa = false;
   (bt?.liste ?? []).forEach((x) => {
     if (phantom(x)) return;
+    // Die Aufhaengung des Kragarm-Kerns ersetzt das Stabwerk (unten bei `joch`).
+    if (x.key === 'aufhaengung' && ta) return;
     if (x.key === 'joch') {
       const t = ['OG', 'UG', 'blech', 'UPE']
         .map((k) => teilVon(o.jochKey ?? 'tragwerk', k))

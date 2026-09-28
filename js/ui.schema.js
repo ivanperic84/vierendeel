@@ -27,7 +27,7 @@ import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
-         abfangMasse } from './data.abfangjoche.js';
+         abfangMasse, getTragausleger } from './data.abfangjoche.js';
 import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
          fundamentFuerMast } from './data.masten.js';
@@ -793,9 +793,17 @@ export const FELDER = [
            + 'Vorspannung - sie nehmen die Kraft in Gleisrichtung am Ausleger '
            + 'auf, und die Torsion geht nicht mehr über den langen Hebel in '
            + 'den Masten. Die Neigung der Seile ist nicht berücksichtigt.' },
-  { key: 'laengsverankerungX', gruppe: 'mast', typ: 'zahl',
+  /*
+   * Ein Schieber bis zum Kragarmende (Weisung 28. September: «die x werte
+   * sollten auf die länge limitiert werden») - als Zahlenfeld liess sich
+   * jede Zahl eintragen, und über dem Ende verweigerte sich das Stabmodell.
+   */
+  { key: 'laengsverankerungX', gruppe: 'mast', typ: 'schieber',
     label: 'Stelle des Längsankers', sym: 'x_LA', einheit: 'm',
-    standard: 0, schritt: 0.05, min: 0,
+    standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 13,
+    maxAus: (w) => kragarmEnde(w),
+    // 0 heisst Kragarmende - der Schieber zeigt dann das Ende, nicht den Masten.
+    wertAus: (w) => (Number(w.laengsverankerungX) > 0 ? Number(w.laengsverankerungX) : kragarmEnde(w)),
     sichtbar: (w) => tragwerksart(w).key === 'tragausleger' && w.laengsverankerung !== false,
     hinweis: 'Ab der Mastachse gemessen. 0 = am Ende des Kragarms (Vorgabe).' },
   { key: 'mastX', gruppe: 'mast', typ: 'zahl',
@@ -2236,6 +2244,22 @@ export function setzeFdAutomatik(stelle) {
  * Fahrdrahtschiebers braucht sie, und ui.schema.js darf ui.js nicht
  * importieren (Kreis). ui.js reicht sie unter demselben Namen weiter.
  */
+/**
+ * >>> WIE WEIT REICHT DER TRAGAUSLEGER? (28. September) <<<
+ *
+ * Weisung: «die x werte sollten auf die länge limitiert werden.» Der
+ * Ausleger beginnt `hinten` (0.25 m) hinter der Mastachse und endet bei
+ * L − hinten; die x-Werte zählen ab der Mastachse. Dorthin reichen die
+ * Stelle des Längsankers und die Lage der Anbauteile - darüber hinaus
+ * setzt das Stabmodell nichts mehr an (Anbauteil) bzw. verweigert sich
+ * (Längsanker). Ohne Sortimentszeile gilt L − 0.25.
+ */
+export function kragarmEnde(werte) {
+  const L = Number(werte?.L) || 0;
+  const t = getTragausleger(L);
+  return Math.round((L - (t ? Number(t.hinten) || 0 : 0.25)) * 1e6) / 1e6;
+}
+
 export function mastKopfHoehe(werte, ende = 'A') {
   if (tragwerksart(werte).key === 'einzelmast') return einzelmastLaenge(werte) || 12;
   const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;

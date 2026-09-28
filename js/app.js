@@ -57,7 +57,7 @@ import { verkleinere, bildAusEreignis, kalibriere, kalibriereFrei,
 import { erkenneTragwerk } from './bild.erkennung.js';
 import { handbuchHtml, handbuchDatei } from './doku.handbuch.js';
 import { standardwerte, typUebernehmen, setzeTypOptionen,
-         setzeGrenzen, setzeFdAutomatik, FELDER } from './ui.schema.js';
+         setzeGrenzen, setzeFdAutomatik, FELDER, kragarmEnde } from './ui.schema.js';
 import { uebertrageTokens, iconKnopf, esc, icon, abschnitt,
          MASS, FARBEN as farben } from './design.js';
 import { ladeAnbauteile, neuesAnbauteil, vorlagen, getVorlage, alsVorlage, haengeTiefe,
@@ -73,6 +73,7 @@ import { ladeFlBauteile, flBauteile, getFlBauteil, flDB,
 import { abfangAuswertung, abfangFyd, abfangStuetzweite,
          abfangFuerStuetzweite } from './core.abfangjoch.js';
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
+import { auslegerAuswertung, auslegerKombi } from './core.tragausleger.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis } from './core.verformung.js';
@@ -331,6 +332,17 @@ function einzelmastTeile(satz) {
  * Liste. Steht auch in `aendern('tragwerkNeu')`; die Funktion hält beide
  * Wege auf demselben Stand.
  */
+/**
+ * Die Optionen des Mastnachweises aus der Eingabe - dieselben, die der Kern
+ * in `berechne` setzt (core.vierendeel.js). Eine Stelle fuer Abfangjoch und
+ * Tragausleger, die ihren Masten neu bilden.
+ */
+function mastOptionen(w) {
+  return { plastisch: w.mastPlastisch === true, knickBeiwert: w.knickBeiwert,
+           knicken: w.nachweise?.knickenMast === true,
+           torsion: w.nachweise?.torsionMast !== false };
+}
+
 function artVorgabe(art, w) {
   const v = {};
   /*
@@ -781,8 +793,12 @@ function neuRechnen(neuZeichnen = true) {
        * Mastnachweise nebeneinander waeren einer zuviel.
        */
       if (erg.abfang?.auflager) {
-        const optM = { plastisch: werte.mastPlastisch === true,
-                       knickBeiwert: werte.knickBeiwert };
+        /*
+         * DIESELBEN OPTIONEN WIE IM KERN (28. September): hier fehlten
+         * `knicken` und `torsion` - der Mast des Abfangjochs rechnete das
+         * Knicken damit immer, auch wenn es abgeschaltet war.
+         */
+        const optM = mastOptionen(werte);
         /*
          * UEBER ALLE FAELLE, der Wind in beiden Richtungen (Weisung vom
          * 17. September: «die masten und anker nicht vergessen»). Vorher
@@ -860,6 +876,28 @@ function neuRechnen(neuZeichnen = true) {
      */
     const kombi = vergleichKombinationen(rs, profOG, profUG, stahl, joch);
     /*
+     * >>> DER TRAGAUSLEGER RECHNET SEINEN KRAGARM-KERN (28. September). <<<
+     *
+     * Etappe 3b, Entscheid «Lotrecht»: Gelenk am Masten, Seil bei c1,
+     * Kragarm - die Kontrollformel der Zeichnung (core.tragausleger.js).
+     * `berechne` oben rechnet fuer ihn weiter das Tragjoch mit einem
+     * Phantomauflager am freien Ende; daran haengen Bild und Verlaeufe, die
+     * NACHWEISE gelten ihm nicht. Wie am Abfangjoch wird der Mast mit den
+     * eigenen Kraeften NEU gebildet, und Anker, Verformung und Fundament
+     * lesen dieselbe Liste (`kombiMast`) statt der des Phantomjochs.
+     */
+    let kombiMast = kombi;
+    if (tragwerksart(werte).key === 'tragausleger') {
+      erg.ausleger = auslegerAuswertung(rs, kombi.lastfaelle ?? [],
+                                        abfangFyd(stahl, werte.gammaM0));
+      if (erg.ausleger && !erg.ausleger.fehler) {
+        const r = auslegerKombi(erg.modell, erg.ausleger, kombi.lastfaelle ?? [],
+                                mastOptionen(werte));
+        kombiMast = r.kombi;
+        erg.mast = r.mast;
+      }
+    }
+    /*
      * >>> DER ANKERNACHWEIS RECHNET CHARAKTERISTISCH. <<<
      *
      * Weisung vom 10. September: «nimm variante 3 und die charakteristische
@@ -875,7 +913,7 @@ function neuRechnen(neuZeichnen = true) {
     // Auch der Einzelmast traegt einen Anker - und bekommt seinen Nachweis.
     erg.anker = erg.abfang?.auflager
       ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager, werte)
-      : ankerAuswertung(kombi, werte);
+      : ankerAuswertung(kombiMast, werte);
     /*
      * >>> DIE VERFORMUNG IM GEBRAUCHSZUSTAND (24. September). <<<
      *
@@ -884,7 +922,7 @@ function neuRechnen(neuZeichnen = true) {
      * faerbt das Urteil NICHT - die Urteilsfarbe folgt allein der
      * Tragsicherheit (Entscheid vom 18. September).
      */
-    erg.verformung = verformungsNachweis(kombi);
+    erg.verformung = verformungsNachweis(kombiMast);
     // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
     // misst (28. September) - sonst stand dort eine 0.
     setzeFdAutomatik(erg.verformung?.A?.stelle ?? erg.verformung?.B?.stelle ?? null);
@@ -900,8 +938,11 @@ function neuRechnen(neuZeichnen = true) {
      * Nachweisgruppe `fundament` (Optionen). Zwei Wege zum Abschalten
      * waeren zwei Wahrheiten.
      */
-    erg.fundament = fundamentNachweis(kombi, werte);
-    const checks = mitJoch ? konstruktionsChecks(erg.modell, erg.abfang) : [];
+    erg.fundament = fundamentNachweis(kombiMast, werte);
+    // Am Tragausleger prüften sie das Ersatzjoch J90 (Bleche, Masten
+    // zwischen den Gurten) - ein Bauteil, das es dort nicht gibt (28. Sept.).
+    const checks = mitJoch && !erg.ausleger
+      ? konstruktionsChecks(erg.modell, erg.abfang) : [];
     // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
     // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
     // nur stört. Sie gehört ins Handbuch, sobald es eines gibt. Der Wert bleibt
@@ -1952,6 +1993,19 @@ function aendern(key, wert) {
   if (key === 'L' && tragwerksart(werte).key === 'tragausleger') {
     const nah = tragauslegerNaechsteLaenge(wert);
     if (nah !== null) wert = nah;
+    /*
+     * Wird der Ausleger kürzer, rückt ein Längsanker, der darüber läge, auf
+     * das neue Ende - sonst verweigerte sich das Stabmodell (28. September).
+     */
+    const ende = kragarmEnde({ ...werte, L: wert });
+    if ((Number(werte.laengsverankerungX) || 0) > ende) {
+      werte = { ...werte, laengsverankerungX: ende };
+    }
+  }
+  // Die Stelle des Längsankers liegt auf dem Ausleger (Weisung 28. Sept.:
+  // «die x werte sollten auf die länge limitiert werden»).
+  if (key === 'laengsverankerungX') {
+    wert = Math.min(Math.max(Number(wert) || 0, 0), kragarmEnde(werte));
   }
   /*
    * WER DEN TYP WECHSELT, BEKOMMT EINE LÄNGE, DIE ES GIBT.

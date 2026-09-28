@@ -32302,6 +32302,136 @@ titel('141  Tragausleger Etappe 3a: die Maske nach seinem Sortiment');
 }
 
 // ===========================================================================
+titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kragarmende');
+/* ===========================================================================
+ * Entscheid 26. September: «Kern für die Anzeige: den Abfangjoch-Kern
+ * anpassen (Gelenk am Mast, Seilauflager bei c₁, Kragarm c₂)»; auf
+ * Rückfrage am 28. September «Lotrecht» - die Kontrollformel der Zeichnung,
+ * ohne Bindebleche, Torsion und Längsanker (die rechnet nur das Stabwerk).
+ *
+ * Gemessen, Kern gegen Stabwerk (ohne Längsanker):
+ *                               Seil S_v          UPE            Mast
+ *   Fahrleitung direkt, L 8     2.884 / 2.827     0.070 / 0.064  0.360 / 0.492
+ *   Hängestütze, L 8            3.531 / 3.455     0.234 / 0.311  0.438 / 1.274
+ *   Hängestütze, L 13           4.168 / 4.121     0.245 / 0.374  0.590 / 2.103
+ * Das Seil liegt 1-2 % über dem Stabwerk (die Traverse sitzt über der
+ * Gelenkachse, siehe Abschnitt 136); der Mast weit darunter - die Torsion
+ * fehlt, und das sagt die Anzeige.
+ *
+ * Dazu die Weisung «die x werte sollten auf die länge limitiert werden»:
+ * Stelle des Längsankers und Lage der Anbauteile enden am Kragarmende
+ * L − 0.25. Und ein Befund: der Mast des Abfangjochs bekam den Knick-
+ * Schalter nicht mit (A200/15 m, Knicken aus: 0.6617 -> 0.6156).
+ * ========================================================================= */
+{
+  const N142 = await import(J('core.nachbarn.js'));
+  const TA142 = await import(J('core.tragausleger.js'));
+  const AS142 = await import(J('app.stabwerk.js'));
+  const LA142 = await import(J('core.lasten.js'));
+  const MA142 = await import(J('core.mast.js'));
+  const CH142 = await import(J('core.checks.js'));
+  const SN142 = await import(J('core.stabnachweis.js'));
+  const S142 = await import(J('ui.schema.js'));
+
+  // --- a) Die Kontrollformel an einer Einzellast -----------------------------
+  const la = { x0: -0.25, xE: 7.75, c1: 5.95, b: 3.5, q: 0,
+               lasten: [{ x: 7.35, gruppe: 'G_Anbau', F: [0, 0, -1], My: 0 }] };
+  const f1 = TA142.auslegerFall(la, { beiwerte: { G: 1 } });
+  pruef('1 kN an der Spitze: S_v = F·x/c₁ (Kontrollformel)', f1.Sv, 7.35 / 5.95, 1e-12, 'kN');
+  pruef('… das Gelenk trägt den Rest nach unten', f1.RAz, 1 - 7.35 / 5.95, 1e-12, 'kN');
+  pruef('… der Ausleger ist gedrückt mit H = S_v·c₁/b', -f1.stationen.find((s) => s.x === 0).N,
+        f1.Sv * 5.95 / 3.5, 1e-9, 'kN');
+  pruef('… und das Moment am Seilpunkt ist F·(x − c₁)', f1.stationen.find((s) => s.x === 5.95).M,
+        1.4, 1e-9, 'kNm');
+  const la2 = { ...la, lasten: [{ x: 7.35, gruppe: 'G_Ablenk', F: [-1, 0, 0], My: 1.35 }] };
+  pruef('Waagrechte Kraft 1.35 m unter dem Ausleger zum Masten: S_v = F_H·z/c₁',
+        TA142.auslegerFall(la2, { beiwerte: { G: 1 } }).Sv, 1.35 / 5.95, 1e-12, 'kN');
+
+  // --- b) Am Sortiment, gegen das Stabwerk -----------------------------------
+  const rechne = (vorlage, L) => {
+    const w = { ...standardwerte(), tragwerksart: 'tragausleger', L, xLage: 0, mastVorhanden: true,
+                trasseRadius: 600, flSpannweite: 50, twId: 'MT1', laengsverankerung: false,
+                anbauteile: [A.neuesAnbauteil(vorlage, L - 0.25 - 0.4)] };
+    const satz = N142.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N142.kernArgumente(satz));
+    const alle = LA142.lastfaelle(satz);
+    const k = TA142.auslegerAuswertung(satz, alle, 235 / 10 / 1.05);
+    const r = TA142.auslegerKombi(erg.modell, k, alle, { knickBeiwert: satz.knickBeiwert, knicken: true });
+    const sw = AS142.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+    return { k, r, sw, alle, erg };
+  };
+  const fl = rechne('leiter-nfl', 8);
+  const hs = rechne('hs-fahrdraht', 13);
+  wahr('Das Momentengleichgewicht geht in jedem Fall auf',
+       [fl, hs].every((x) => x.alle.every((lf) => Math.abs(x.k.fall(lf).restmoment) < 1e-6)));
+  pruef('Fahrleitung direkt L 8: Seil S_v (Kern)', fl.k.aufhaengung.Sv, 2.884, 1e-3, 'kN');
+  pruef('Hängestütze L 13: Seil S_v (Kern)', hs.k.aufhaengung.Sv, 4.168, 1e-3, 'kN');
+  wahr('Das Seil liegt 0-3 % über dem Stabwerk (Kontrollformel, sichere Seite)',
+       [fl, hs].every((x) => x.k.aufhaengung.Sv >= x.sw.ausleger.aufhaengung.Sv
+                             && x.k.aufhaengung.Sv <= 1.03 * x.sw.ausleger.aufhaengung.Sv),
+       `${fl.k.aufhaengung.Sv.toFixed(3)}/${fl.sw.ausleger.aufhaengung.Sv.toFixed(3)} · `
+       + `${hs.k.aufhaengung.Sv.toFixed(3)}/${hs.sw.ausleger.aufhaengung.Sv.toFixed(3)}`);
+  pruef('Fahrleitung direkt L 8: UPE lotrecht', fl.k.gurt.eta, 0.0701, 1e-3, '');
+  pruef('Hängestütze L 13: Mast (Kern, ohne Torsion)', hs.r.mast.A.eta, 0.590, 1e-3, '');
+  wahr('>>> Der Kern-Mast liegt UNTER dem Stabwerk - deshalb nur vorläufig <<<',
+       hs.r.mast.A.eta < hs.sw.bauteile['mast:MT1'].eta,
+       `${hs.r.mast.A.eta.toFixed(3)} gegen ${hs.sw.bauteile['mast:MT1'].eta.toFixed(3)}`);
+  wahr('Kein Phantom-Mast B mehr', hs.r.mast.B === null && hs.r.mast.A !== null);
+  wahr('Der Mast bekommt Gelenk UND Seilpunkt, je auf ihrer Höhe',
+       (() => { const ls = MA142.mastLasten(TA142.auslegerMastModell(hs.erg.modell, hs.k, hs.alle[0]), 'A').lasten
+                  .filter((l) => l.art === 'ausleger');
+                return ls.length === 2 && Math.abs(ls[1].z - ls[0].z - 6.35) < 1e-9; })());
+  wahr('Anker, Verformung und Fundament lesen die Liste des Kerns',
+       Object.keys(hs.r.kombi.ergebnisse).length === hs.alle.length
+       && hs.r.kombi.ergebnisse[hs.alle[0].key].mast.A !== null);
+
+  // --- c) Im Urteil: Tragausleger und Aufhängung, einmal ----------------------
+  const bt = CH142.bauteilUrteil({ ausleger: hs.k, mast: hs.r.mast, modell: hs.erg.modell },
+                                 standardwerte().nachweise, 'tragausleger');
+  wahr('Das Urteil führt «Tragausleger» und «Aufhängung» aus dem Kern',
+       bt.liste.some((x) => x.name === 'Tragausleger') && bt.liste.some((x) => x.name === 'Aufhängung'),
+       bt.liste.map((x) => x.name).join(', '));
+  const mitSw = SN142.bauteileMitStabwerk(bt, hs.sw, { jochKey: 'tragwerk' });
+  wahr('Mit dem Stabwerk steht die Aufhängung EINMAL da (die des Stabwerks)',
+       mitSw.liste.filter((x) => x.key === 'aufhaengung').length === 1
+       && mitSw.liste.find((x) => x.key === 'aufhaengung').quelle === 'stabwerk');
+
+  // --- d) Die x-Werte enden am Kragarmende -----------------------------------
+  pruef('Kragarmende bei L = 13 m', S142.kragarmEnde({ L: 13 }), 12.75, 1e-12, 'm');
+  const flx = S142.FELDER.find((f) => f.key === 'laengsverankerungX');
+  wahr('Die Stelle des Längsankers ist ein Schieber bis zum Kragarmende',
+       flx.typ === 'schieber' && flx.maxAus({ L: 8 }) === 7.75);
+  wahr('… und zeigt bei 0 (Vorgabe) das Ende', flx.wertAus({ L: 8, laengsverankerungX: 0 }) === 7.75);
+  const q142 = APP_QUELLE();
+  wahr('Eine Eingabe darüber wird auf das Ende begrenzt',
+       /key === 'laengsverankerungX'[\s\S]{0,120}Math\.min\(Math\.max\(Number\(wert\) \|\| 0, 0\), kragarmEnde\(werte\)\)/.test(q142));
+  wahr('Wird der Ausleger kürzer, rückt der Längsanker mit',
+       /const ende = kragarmEnde\(\{ \.\.\.werte, L: wert \}\)/.test(q142));
+  const uiQ = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Lage der Anbauteile endet am Tragausleger am Kragarmende',
+       /tragwerksart\(werte\)\.key === 'tragausleger'\)\s*\{\s*v = Math\.min\(Math\.max\(v, 0\), kragarmEnde\(werte\)\)/.test(uiQ));
+
+  // --- e) Befund: der Mast des Abfangjochs und der Knick-Schalter -------------
+  const AN142 = await import(J('core.anker.js'));
+  const abMast = (knick) => {
+    const w0 = standardwerteApp();
+    const w = { ...w0, tragwerksart: 'abfangjoch', abfangTyp: 'A200', L: 15, mastVorhanden: true,
+                nachweise: { ...w0.nachweise, knickenMast: knick } };
+    const satz = N142.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N142.kernArgumente(satz));
+    const ab = N142.abfangAuswertungFuer(w, getStahl(w.stahl));
+    return MA142.mastNachweiseHuelle(AN142.abfangVarianten(ab.auflager).map(({ fa, fb }) => ({
+      fall: fa.key, erg: MA142.mastNachweise(AN142.abfangModell(erg.modell, ab.auflager, fa, fb, false),
+        { knickBeiwert: w.knickBeiwert, knicken: knick, torsion: true }) })));
+  };
+  pruef('A200/15 m, Knicken aus: der Mast ohne Knicken', abMast(false).etaNachweis, 0.6156, 1e-3, '');
+  pruef('… Knicken an: mit Knicken', abMast(true).etaNachweis, 0.6617, 1e-3, '');
+  wahr('Die Anwendung reicht den Schalter am Abfangjoch durch (mastOptionen)',
+       /const optM = mastOptionen\(werte\)/.test(q142)
+       && /knicken: w\.nachweise\?\.knickenMast === true/.test(q142));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

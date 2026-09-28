@@ -951,6 +951,20 @@ export function zeichneSchienen(app) {
          a ? `Aufhängung S_v ${a.Sv.toFixed(2)} / ${swG.h.ausleger.Vzul} kN (charakteristisch)`
            : 'Aufhängung nicht gerechnet'],
       ] });
+    } else if (e.ausleger?.gurt) {
+      /*
+       * Ohne gueltiges Stabwerk der Kragarm-Kern (28. September, 3b): UPE
+       * lotrecht und das Seil. Kein Blech - das rechnet nur das Stabwerk,
+       * und eine Pille des Phantomjochs stuende fuer ein Bauteil, das es
+       * nicht gibt.
+       */
+      const a = e.ausleger.aufhaengung;
+      gruppen.push({ titel: 'Tragausleger · Kragarm-Kern', teile: [
+        ['UPE', e.ausleger.gurt.eta, `Gurt ${e.ausleger.profil}, lotrecht (Kragarm-Kern)`],
+        ['Se', a?.druck ? NaN : (a?.eta ?? 0),
+         a ? `Aufhängung S_v ${a.Sv.toFixed(2)} / ${e.ausleger.Vzul} kN (charakteristisch, Kragarm-Kern)`
+           : 'Aufhängung nicht gerechnet'],
+      ] });
     } else if (swG?.h?.teile?.[`${swG.jochKey}|OG`]) {
       /*
        * STABWERK FUEHRT (28. September): dieselben Zahlen wie die Kacheln

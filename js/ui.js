@@ -27,7 +27,7 @@ import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
-import { mastKopfHoehe } from './ui.schema.js';
+import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
 import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
          optionenFelder, optionenThemen,
          SCHNITT_ORIENTIERUNGEN } from './ui.schema.js';
@@ -2580,7 +2580,10 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
                    + 'Was am Masten hängt, geht NICHT in den Ersatzbalken ein — '
                    + 'es steht nur im Stabmodell mit Auflagermodell «Mast».')}
           ${ortVon(a) === 'joch'
-            ? atSchieber(i, 'x', 'Lage x', a.x, 'm', 0.1, 0, werte.L ?? 20)
+            // Am Tragausleger bis zum Kragarmende (28. September).
+            ? atSchieber(i, 'x', 'Lage x', a.x, 'm', 0.1, 0,
+                         tragwerksart(werte).key === 'tragausleger'
+                           ? kragarmEnde(werte) : (werte.L ?? 20))
             : atSchieber(i, 'hMast', 'Höhe über Fundament', a.hMast ?? 0, 'm',
                          // Bis zum MASTKOPF, nicht bis zur Jochachse: ein
                          // langer Mast traegt oben Traversen mit
@@ -4312,6 +4315,10 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
        */
       if (inp.dataset.k === 'x') {
         v = Math.round(v * 10) / 10;
+        // Am Tragausleger nicht über das Kragarmende hinaus (28. September).
+        if (tragwerksart(werte).key === 'tragausleger') {
+          v = Math.min(Math.max(v, 0), kragarmEnde(werte));
+        }
         v = fangeAufMasskette(v, massketteLesen(werte.masskette, werte.L).werte);
         // Das Teil aus DIESER Liste, nicht aus einem Helfer der Maske:
         // `teilVon` gehoert zu aktualisiereMaske und gibt es hier nicht.
@@ -4333,6 +4340,19 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       l[idx][inp.dataset.k] = v;
       onAnbau(l);
     });
+    /*
+     * Beim Verlassen zeigt das Zahlenfeld, was gilt - dieselbe Regel wie in
+     * der Maske (28. September): gefangen, gerundet oder am Kragarmende
+     * begrenzt blieb sonst die getippte Zahl stehen (15 statt 12.75).
+     */
+    if (inp.type === 'number') {
+      inp.addEventListener('change', () => {
+        const soll = liste()[+inp.closest('.at-karte').dataset.idx]?.[inp.dataset.k];
+        if (Number.isFinite(Number(soll)) && Number(inp.value) !== Number(soll)) {
+          inp.value = soll;
+        }
+      });
+    }
   });
 
   container.querySelectorAll('[data-loesch]').forEach((b) => {
@@ -5994,7 +6014,13 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
    * eine Ueberschrift ueber Kacheln, die etwas anderes sagen.
    */
   const ab = erg.abfang ?? null;
-  const eAn = ab ? ab.max.eta : e;
+  /*
+   * DER TRAGAUSLEGER HAT SEINEN KRAGARM-KERN (28. September, Etappe 3b):
+   * lotrecht, UPE und Aufhaengung. Ohne gueltiges Stabwerk stehen SEINE
+   * Zahlen da, nicht die des Phantomjochs.
+   */
+  const taK = !ab && erg.ausleger?.gurt ? erg.ausleger : null;
+  const eAn = ab ? ab.max.eta : (taK ? taK.max.eta : e);
   /*
    * >>> WELCHER FALL DAHINTERSTEHT. <<<
    *
@@ -6125,6 +6151,38 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
           })
       : kachel('Längsanker', 'aus', 'abgeschaltet - die Torsion geht in den Masten', '');
     return [k('UPE', 'η Gurt', 'UPE'), k('blech', 'η Bindeblech', 'massgebendes Blech'), aufh, lak];
+  })() : taK ? (() => {
+    /*
+     * >>> DER TRAGAUSLEGER AUS DEM KRAGARM-KERN (28. September, 3b). <<<
+     * Entscheid «Lotrecht»: UPE (Biegung + Druck aus dem Seil) und die
+     * Aufhaengung. Bindeblech und Laengsanker rechnet nur das Stabwerk -
+     * die Kacheln stehen trotzdem da und sagen es, damit die Gruppe gleich
+     * aussieht wie mit dem Stabwerk und nichts still fehlt.
+     */
+    const g = taK.gurt;
+    const fG = fzJ(g.fall, g.bez);
+    const a = taK.aufhaengung;
+    const nurSw = (t) => kachel(t, '–', 'nur im Stabwerk', '', {
+      titel: 'Der Kragarm-Kern rechnet nur die lotrechte Ebene (Entscheid '
+           + '«Lotrecht», 28. September); diese Grösse steht erst mit dem '
+           + 'Stabwerk da.' });
+    return [
+      kachel('η Gurt', f3(g.eta), `${taK.profil} · lotrecht`, ampelU(g.eta),
+        mitFall({ titel: `Je UPE: N/2 und M_y/2 - σ = ${f2(g.sigma * 10)} N/mm², `
+          + `bei x = ${f2(g.x)} m (M ${f2(g.M)} kNm, N ${f2(g.N)} kN). Ohne `
+          + 'Torsion und ohne die waagrechte Ebene.' }, fG)),
+      nurSw('η Bindeblech'),
+      a ? kachel('η Aufhängung', f3(a.eta),
+        `S_v ${f2(a.Sv)} / ${f2(a.Vzul)} kN · char.${a.druck ? ' · SEIL GEDRÜCKT' : ''}`,
+        ampelU(a.druck ? 2 : a.eta), {
+          ...(a.bez ? { fall: fallKurz(a.bez) } : {}),
+          titel: 'Senkrechter Anteil der Seilkraft aus dem Kragarm-Kern '
+               + '(Momente um das Gelenk am Masten, Kontrollformel der '
+               + `Zeichnung) gegen V_zul = ${f2(a.Vzul)} kN, charakteristisch, `
+               + 'nur wirkliche Zustände.' })
+        : kachel('η Aufhängung', '–', 'nicht gerechnet', ''),
+      nurSw('Längsanker'),
+    ];
   })() : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
     /*
      * DIE JOCHKACHELN AUS DEM STABWERK: je Teil das grösste eta über alle
@@ -6199,10 +6257,12 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
                                        || swH.teile?.[`${jochKey}|UPE`]));
   const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
     .some((k) => k.startsWith('mast:')));
+  // Am Tragausleger heisst der Kern, was er ist (28. September, 3b).
+  const kernName = taK ? 'Kragarm-Kern' : 'Ersatzbalken';
   const quelle = (ausSw) => (ausSw ? 'Stabwerk'
-    : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
+    : (swH || vorlaeufig ? `${kernName}${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppen = [
-    { titel: ab ? 'Abfangjoch' : (swH?.ausleger ? 'Tragausleger' : 'Joch'),
+    { titel: ab ? 'Abfangjoch' : (swH?.ausleger || taK ? 'Tragausleger' : 'Joch'),
       kacheln: kz, rechts: quelle(jochAusSw) },
     // «Knicken Ersatzbalken» nur, wenn das Knicken auch geführt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
@@ -6270,7 +6330,15 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
              `kN · x=${f2(ab.gurt?.x ?? 0)}`, '', { x: ab.gurt?.x ?? 0 }),
       zeileAuflager('A'), zeileAuflager('B'),
     ].filter(Boolean);
-  })() : [
+  })() : taK ? [
+    // Der Kragarm-Kern, lotrecht - statt der Extremwerte des Phantomjochs.
+    kachel('max M_y', f2(Math.abs(taK.gurt.M)), `kNm · x=${f2(taK.gurt.x)} · beide UPE`, ''),
+    kachel('N', f2(taK.gurt.N), 'kN · beide UPE, Druck aus dem Seil', ''),
+    ...(taK.aufhaengung ? [
+      kachel('S_v', f2(taK.aufhaengung.Sv), 'kN · Seil lotrecht, char.', ''),
+      kachel('S', f2(taK.aufhaengung.N), `kN · Seilzug, char. · c₁ ${f2(taK.c1)} / b ${f2(taK.b)} m`, ''),
+    ] : []),
+  ] : [
     kachel('max M_y', f2(x.MyMax), `kNm · x=${f2(x.xMyMax)}`, '', { x: x.xMyMax }),
     kachel('max V_z', f2(x.VzMax), `kN · x=${f2(x.xVzMax)}`, '', { x: x.xVzMax }),
     kachel('max M_z', f2(x.MzMax), `kNm · x=${f2(x.xMzMax)}`, '', { x: x.xMzMax }),
@@ -6439,8 +6507,14 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
             ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mzz ?? 0)} kNm`
+               : taK ? `max M_y ${f2(Math.abs(taK.gurt.M))} kNm`
                : `max M_y ${f2(x.MyMax)} kNm`)}
-    ${zeigtTrag ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
+    ${/*
+       * Am Tragausleger stuenden hier die Stationen des Phantomjochs - mit
+       * oder ohne Stabwerk. Die Stabliste des Stabwerks steht im Reiter
+       * «Schnitt».
+       */''}
+    ${zeigtTrag && !taK && !swH?.ausleger ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>
         <th class="num">${ab ? 'η Gurt' : 'η Profil'}</th>

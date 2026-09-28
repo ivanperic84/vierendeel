@@ -139,6 +139,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| Tragausleger: Kragarm-Kern (28. Sept.) | Auf Rückfrage zum Umfang des Kerns (Etappe 3b): **«Lotrecht»** - nur die lotrechte Ebene: Gelenk am Masten, Seil bei c₁, Kragarm, Eigengewicht des Sortiments und Anbauteile; das ist die Kontrollformel der Zeichnung. Vorläufig stehen UPE (Biegung + Druck aus dem Seil), Aufhängung, Mast und Fundament auf seinen Kräften; **Bindebleche, Torsion und Längsanker nur im Stabwerk** (Kacheln «nur im Stabwerk»). Gemessen: Seil 1-2 % über dem Stabwerk, Mast weit darunter (L 13 m mit Hängestütze 0.590 gegen 2.103) - deshalb nur vorläufig und ohne Stabwerk «NICHT nachgewiesen» |
+| Tragausleger: x auf die Länge (28. Sept.) | «ich habe die 6 eingetragen als test. die x werte sollten auf die länge limitiert werden.» Die Stelle des Längsankers (jetzt ein Schieber) und die Lage der Anbauteile am Ausleger enden am **Kragarmende L − 0.25** (`kragarmEnde`); eine grössere Eingabe wird darauf begrenzt, und wird der Ausleger kürzer, rückt der Längsanker mit |
 | Tragausleger: Längsanker (28. Sept.) | «beim tragausleger wid ein längsanker angebracht am ende des kragarms um die torsionseinwirkung abzufangen.» Auf Rückfrage: **«Regelfall, abschaltbar»** (Feld `laengsverankerung`, Vorgabe an; `laengsverankerungX`, 0 = Kragarmende) und **«Nur Zug, beidseitig»** — zwei Seile ±y ohne Vorspannung, im linearen Stabwerk ein fester Halt in y (es trägt das Seil, zu dem hin gezogen wird). Ersetzt die Vorgabe vom 26. September («zuschaltbar»). Die Seilkraft steht als **Auskunft** (kein Widerstand im Sortiment); die Neigung der Seile ist nicht berücksichtigt |
 | Tragausleger: Seil und Torsion (28. Sept.) | **Seil gegen V_zul: «Nur wirkliche Zustände»** — ganzes G, G + Wind je Richtung, Havarie; nicht die beiden Hälften von G («Ständig (Tragwerk)», «Ablenkkräfte ständig») und nicht Wind allein. Gemessen L = 8 m mit Hängestütze: Tragwerkshälfte allein S_v 5.54 kN, ganzes G 4.73 kN, die Ablenkhälfte allein drückte das Seil. **Hängestützen am Tragausleger:** zuerst «Fahrleitung hängt direkt», dann präzisiert: «es gibt hängestützen die den fahrdraht abziehen. die torsion entsteht dann aus dem wind auf die mitte der hängestütze.» Beide Fälle sind Prüfbeispiele; so setzt die Vorlage `hs-fahrdraht` den Wind der Stütze auch an (Modul bei z = −1.35 m, die Fahrleitung trägt in Gleisrichtung keinen Wind) |
 | Tragausleger: Nachweise vor dem Kern (28. Sept.) | Seit «Stabwerk führt» liefert der Kern nur noch die vorläufige Anzeige und das Knicken. Auf Rückfrage: **«Erst Nachweise im Stabwerk»** — Etappe 4 (UPE-Gurte, Bindebleche, Aufhängung, Mast, Fundament) vor Etappe 3 (Kern). **Aufhängung gegen V_zul = 5 kN: «Charakteristisch»** — senkrechter Anteil der Seilkraft aus dem Stabwerk über die charakteristischen Fälle (alle Beiwerte 1, wie Anker und Fundament); ein gedrücktes Seil ist ein eigener Befund. **Knicken und Fundament am Mast des Auslegers: «Aus dem Stabwerk»** — der Kern rechnet den Ausleger mit einem erfundenen Auflager am freien Ende, seine Mastkräfte gelten dort nicht |
@@ -231,12 +233,40 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5610 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5636 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger Etappe 3b: der Kragarm-Kern** (Entscheid
+  «Lotrecht», Prüfstand Abschnitt 142, neues Modul `core.tragausleger.js`).
+  Die Lasten liest er aus dem Stabmodell (`tragauslegerModell`), Kern und
+  Stabwerk sehen dieselben; S_v aus den Momenten um das Gelenk, H = S_v·c₁/b
+  drückt die UPE. Der Mast bekommt zwei Kräfte (Gelenk auf H, Seil auf
+  H + b, `auslegerAuflager` in core.mast.js, je auf ihrer Höhe auch für das
+  Knicken); kein Phantom-Mast B mehr. Anker, Verformung und Fundament lesen
+  die Liste des Kerns (`auslegerKombi`). Anzeige ohne gültiges Stabwerk:
+  Gruppe «Tragausleger» (η Gurt lotrecht, Aufhängung; Bindeblech und
+  Längsanker «nur im Stabwerk»), Schiene UPE/Se, Schnittgrössen des Kerns,
+  keine Tabelle der Stellen und keine Konstruktionsprüfungen des Ersatzjochs
+  mehr. **Gemessen** (Kern / Stabwerk, ohne Längsanker): Fahrleitung direkt
+  L 8 Seil 2.884 / 2.827 kN, UPE 0.070 / 0.064, Mast 0.360 / 0.492;
+  Hängestütze L 13 Seil 4.168 / 4.121, UPE 0.245 / 0.374, Mast 0.590 /
+  2.103. Die Kontrollformel geht an der Einzellast auf die Stelle auf.
+  **Weisung dazu:** «die x werte sollten auf die länge limitiert werden» -
+  Längsanker und Anbauteile enden am Kragarmende (siehe *Entschieden*); im
+  Browser 20 → 12.75 m und 15 → 12.75 m, auch im Zahlenfeld der Anbauteile.
+  **Befund am Weg:** der Mast des Abfangjochs bekam den Knick-Schalter nicht
+  mit (`optM` ohne `knicken`) - seit der Vorgabe «Knicken aus» stand dort
+  das Knicken im η, während «nicht geführt» dastand. A200/15 m: 0.6617 →
+  **0.6156**; mit Knicken an unverändert. Jetzt `mastOptionen` für beide.
+  **Im Browser:** Ersatzbalken-Verfahren → η 0.784 (Aufhängung, S_v 3.92 kN),
+  Gurt 0.236, Mast MT1 0.519, Fundament 0.459; zurück auf Stabwerk → η 1.060
+  (Bindeblech), Aufhängung einmal. Der Arbeitsstand steht wieder auf den
+  Werten des Auftraggebers (Ausleger 13 m, Anbauteil 10 m, Längsanker 6 m).
+  ⚠ Noch vom Ersatzjoch: Verläufe, Auflagerblatt, Gruppe *Auflager* der
+  Maske und das 3D-Bild (3c).
 - **28. Sept., Tragausleger Etappe 3a: die Maske nach seinem Sortiment**
   (Prüfstand Abschnitt 141; vorher auf Weisung gepusht: «pushen und weiter
   mit etappe 3», `740a02d..6ce4020`). Beim Ausleger stand «Tragjoch-Typ
@@ -1488,8 +1518,8 @@ Pendelstab, Eigengewicht aus der Liste; UPE, Bleche und Aufhängung werden
 nachgewiesen (4a). **Nächste Schritte (Reihenfolge entschieden: Nachweise
 vor dem Kern):** ~~(4b) Knicken und Fundament aus dem Stabwerk~~,
 ~~(4c) Anzeige und Sperre~~ (beide erledigt am 28. September). **Offen:**
-(3) der Kern für die vorläufige Anzeige (3b) und das 3D-Bild (zeigt das
-Ersatzjoch, 3c) - ~~die Maske (3a)~~ erledigt am 28. September; der Ausleger in
+(3c) das 3D-Bild (zeigt das Ersatzjoch) - ~~die Maske (3a)~~ und ~~der
+Kragarm-Kern (3b)~~ erledigt am 28. September; der Ausleger in
 einer Reihe; Havarie je Leiter; Wind auf den Ausleger selbst. Offen dazu: Havarie je Leiter im Ausleger,
 Feld und Stelle der Längsverankerung in der Maske, die Rückstellkraft
 der Leiter (⚠ festzulegen).
@@ -2030,7 +2060,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5610 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5636 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

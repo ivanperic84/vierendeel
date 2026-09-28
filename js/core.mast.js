@@ -336,6 +336,25 @@ export function mastLasten(m, ende = 'A') {
     ex: 0, eKonsole: exAnschluss, ey: eyAnschluss,
   }];
   /*
+   * >>> DER TRAGAUSLEGER GIBT ZWEI KRAEFTE AB (28. September, Etappe 3b). <<<
+   *
+   * Der Kragarm-Kern (core.tragausleger.js) rechnet den Ausleger lotrecht:
+   * Gelenk am Masten, Seil bei c1, Aufhaengung b ueber dem Ausleger. Am
+   * Masten kommen damit ZWEI Kraefte an - am Gelenk auf der Anschlusshoehe
+   * und am Seilpunkt darueber -, und nicht die Reaktion des Tragjoch-
+   * Ersatzbalkens mit seinem Phantomauflager am freien Ende. Sie ersetzen
+   * die Jochlast und stehen je auf ihrer eigenen Hoehe, auch fuer die
+   * Massen des Knicknachweises (`art: 'ausleger'`, nicht 'joch' - sonst
+   * rueckte der Seilzug auf die Anschlusshoehe hinunter).
+   */
+  const ta = m.auslegerAuflager?.[seite] ?? null;
+  if (ta) {
+    lasten.splice(0, 1, ...ta.map((l) => ({
+      art: 'ausleger', Fz: 0, Fx: 0, Fy: 0, Mxx: 0, Myy: 0, Mzz: 0,
+      ex: 0, ey: 0, eKonsole: 0, ...l,
+      z: H + (l.dz ?? 0), zAnschluss: H + (l.dz ?? 0) })));
+  }
+  /*
    * >>> DIE NACHBARSEITE DES GETEILTEN MASTEN (19. September). <<<
    *
    * Gemessen: ohne sie stand der Zwischenmast einer Jochreihe mit der
@@ -438,7 +457,7 @@ export function mastLasten(m, ende = 'A') {
             * Reaktionen des Tragjoch-Ersatzbalkens gelten am Abfangjoch
             * nicht, und umgekehrt.
             */
-           quelle: abE ? 'abfangjoch' : 'tragjoch',
+           quelle: ta ? 'tragausleger' : (abE ? 'abfangjoch' : 'tragjoch'),
            I: md.I, Iq: md.Iq, W: md.W_cm3, Wq: md.Wq_cm3 };
 }
 
@@ -1559,7 +1578,13 @@ export function mastNachweise(m, o = {}) {
    * Druckstuetze U12 stand dieses Phantom mit 0.191 im Urteil, der wirkliche
    * Mast mit 0.129.
    */
-  const B = m?.tragwerksart === 'einzelmast' ? null : mastNachweis(m, 'B', o);
+  /*
+   * Ebenso der Tragausleger, sobald sein Kragarm-Kern die Kraefte liefert
+   * (`auslegerAuflager`, 28. September): Ende B war das Phantomauflager am
+   * freien Ende des Ersatzjochs.
+   */
+  const B = m?.tragwerksart === 'einzelmast' || m?.auslegerAuflager
+    ? null : mastNachweis(m, 'B', o);
   if (!A && !B) return null;
   return mastZusammen(A, B);
 }

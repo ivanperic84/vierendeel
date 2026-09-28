@@ -1215,12 +1215,18 @@ export function hinweise(m) {
      * Ersatzbalken rechnet weiter das Tragjoch - er liefert nur die
      * vorläufige Anzeige, bis das Stabwerk gerechnet ist.
      */
+    /*
+     * Seit Etappe 3b (28. September) rechnet ein Kragarm-Kern die LOTRECHTE
+     * Ebene (Entscheid «Lotrecht»): UPE, Aufhaengung, Mast, Fundament auf
+     * seinen Kraeften. Was er nicht rechnet, steht hier.
+     */
     h.push(`Tragwerksart «${art.label}»: nachgewiesen wird im Stabwerk (zwei `
       + 'UPE, Bindebleche, Aufhängung gegen V_zul, Mast, Knicken, Fundament). '
-      + 'Der Ersatzbalken rechnet dafür noch das Tragjoch mit einem Auflager '
-      + 'am freien Ende - seine Zahlen gelten nur als vorläufige Anzeige, und '
-      + 'mit dem Rechenverfahren «Ersatzbalken» ist der Ausleger nicht '
-      + 'nachgewiesen.');
+      + 'Bis es gerechnet ist, zeigt der Kragarm-Kern die LOTRECHTE Ebene '
+      + '(Gelenk am Masten, Seil bei c₁, Kontrollformel der Zeichnung) - ohne '
+      + 'Bindebleche, ohne die Torsion aus Kräften in Gleisrichtung und ohne '
+      + 'Längsanker; Mast und Fundament stehen damit zu günstig da. Mit dem '
+      + 'Rechenverfahren «Ersatzbalken» ist der Ausleger nicht nachgewiesen.');
   }
   /*
    * >>> EINE LABILE LAGERUNG STEHT AUCH HIER. <<<
@@ -1715,10 +1721,11 @@ export function urteilKonstruktion(checks, nachweise, art = 'joch') {
   if (ausleger) {
     nichtGefuehrt.unshift({
       key: 'tragausleger', titel: 'Tragausleger (Kragarm)', grund: 'nicht enthalten',
-      was: 'Der Ausleger wird als Einfeldträger mit einem Auflager am freien Ende '
-         + 'gerechnet; Kragmoment und Einspannung in den Mast fehlen (L = 8 m: '
-         + 'M_A 0 statt 28.6 kNm). Die Ergebnisse liegen auf der unsicheren '
-         + 'Seite — der Tragausleger ist nicht nachgewiesen.' });
+      was: 'Der Kragarm-Kern rechnet nur die lotrechte Ebene (Gelenk am Masten, '
+         + 'Seil bei c₁); Bindebleche, die Torsion aus Kräften in Gleisrichtung '
+         + 'und der Längsanker fehlen. Mast und Fundament liegen damit auf der '
+         + 'unsicheren Seite (L = 13 m mit Hängestütze: Mast 0.59 gegen 2.10 im '
+         + 'Stabwerk) — nachgewiesen ist der Tragausleger erst im Stabwerk.' });
   }
   return {
     alleOk: harte.every((c) => c.ok),
@@ -1780,6 +1787,13 @@ export function mitBauteilen(basis, erg, { mastErsatz = false } = {}) {
   const o = { ...basis };
   if (erg?.abfang) o.abfang = erg.abfang;
   if (erg?.abfang?.auflager && erg.mast) o.mast = erg.mast;
+  /*
+   * DER TRAGAUSLEGER WIE DAS ABFANGJOCH (28. September): sein Kragarm-Kern
+   * und der Mast auf dessen Kraeften kommen aus `erg`, nicht aus der
+   * Huellkurve des Phantomjochs.
+   */
+  else if (erg?.ausleger?.gurt && erg.mast) o.mast = erg.mast;
+  if (erg?.ausleger) o.ausleger = erg.ausleger;
   else if (mastErsatz && !o.mast && erg?.mast) o.mast = erg.mast;
   if (erg?.anker) o.anker = erg.anker;
   /*
@@ -1839,6 +1853,17 @@ export function bauteilUrteil(erg, nachweise, art = null) {
   };
   if (erg?.abfang?.max) {
     dazu('joch', 'Abfangjoch', erg.abfang.max.eta);
+  } else if (erg?.ausleger?.gurt) {
+    /*
+     * DER TRAGAUSLEGER AUS SEINEM KRAGARM-KERN (28. September): die UPE
+     * lotrecht und die Aufhaengung gegen V_zul - unter denselben Namen wie
+     * aus dem Stabwerk, das sie ersetzt, sobald es gilt.
+     */
+    if (nw.jochtragwerk) {
+      dazu('joch', 'Tragausleger', erg.ausleger.gurt.eta);
+      const a = erg.ausleger.aufhaengung;
+      if (a) dazu('aufhaengung', 'Aufhängung', a.eta, a.ueber);
+    }
   } else if (tw !== 'einzelmast' && erg?.max && nw.jochtragwerk) {
     dazu('joch', 'Joch', erg.max.etaGesamt);
   }
