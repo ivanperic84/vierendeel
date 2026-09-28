@@ -84,7 +84,7 @@ import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
          getAbfangjoch, abfangDB, setzeAbfangDB,
-         tragauslegerNaechsteLaenge,
+         tragauslegerNaechsteLaenge, getTragausleger,
          tragauslegerLaengenbereich } from './data.abfangjoche.js';
 /*
  * DAS ANKERSORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten. Wie das
@@ -107,7 +107,8 @@ import { datenBereitstellen, paketAnwenden, paketAus, pruefePaket,
 import { mastWind, mastprofile, STEGRICHTUNGEN,
          ladeMasten, mastenDB, setzeMastenDB,
          mastenDbDa } from './data.masten.js';
-import { mastImModell, mastLaengeVorgabe, einzelmastLaenge } from './core.auflager.js';
+import { mastImModell, mastLaengeVorgabe, einzelmastLaenge,
+         mastLaengeFuer } from './core.auflager.js';
 import { ablenkwinkel, radiusAusWinkel, istGerade,
          R_GERADE } from './core.trasse.js';
 import { pwaEinrichten, kannInstallieren, installiere, alsProgramm,
@@ -955,6 +956,10 @@ function neuRechnen(neuZeichnen = true) {
     // in der Excel-Ausleitung erhalten.
     const flucht = mitJoch ? fluchtChecks(erg.modell) : { warnungen: [] };
     const hinw = hinweise(erg.modell);
+    // Hat der Ausleger kein Modell (Mast zu kurz für die Aufhängung, Länge
+    // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
+    // gehört in die Liste, sonst stünde nur das Phantomjoch da.
+    if (erg.ausleger?.fehler) hinw.push(`Tragausleger — ${erg.ausleger.fehler}`);
     /*
      * >>> WENN ES DEN STAB SO NICHT GIBT, STEHT ES IN DER LISTE. <<<
      *
@@ -1904,9 +1909,9 @@ function mastNachfuehrenGlobal() {
 function mastLaengeNachfuehren(w, feldL, altFrei, neuFrei) {
   const altL = Number(w?.[feldL]) || 0;
   const gekoppelt = altL === 0
-    || Math.abs(altL - mastLaengeVorgabe(altFrei, w?.jd)) < 1e-6;
+    || Math.abs(altL - mastLaengeFuer(w, altFrei)) < 1e-6;
   if (!gekoppelt) return null;
-  return { [feldL]: mastLaengeVorgabe(neuFrei, w?.jd) };
+  return { [feldL]: mastLaengeFuer(w, neuFrei) };
 }
 
 /** Der Fussversatz, der zu einem Laengenfeld gehoert [m]. */
@@ -2031,6 +2036,16 @@ function aendern(key, wert) {
     if ((Number(werte.laengsverankerungX) || 0) > ende) {
       werte = { ...werte, laengsverankerungX: ende };
     }
+  }
+  /*
+   * b SETZT DEN WINKEL (28. September): gespeichert wird allein α, b folgt
+   * als c₁ · tan α. Wer b eintippt, bekommt den Winkel, der dazu passt.
+   */
+  if (key === 'auslegerB') {
+    const c1 = getTragausleger(Number(werte.L))?.seil?.c1;
+    if (!(c1 > 0) || !(Number(wert) > 0)) { neuRechnen(); return; }
+    const a = Math.atan(Number(wert) / c1) * 180 / Math.PI;
+    return aendern('auslegerWinkel', Math.round(a * 1e4) / 1e4);
   }
   // Die Stelle des Längsankers liegt auf dem Ausleger (Weisung 28. Sept.:
   // «die x werte sollten auf die länge limitiert werden»).

@@ -103,7 +103,8 @@ export function auslegerLasten(satz) {
   const x0 = -t.hinten;
   const xE = t.L - t.hinten;
   return {
-    t, x0, xE, c1: t.seil.c1, b: t.seil.b, sp,
+    // b aus dem Winkel, wie das Modell es baut (28. September).
+    t, x0, xE, c1: t.seil.c1, b: d.tragausleger.b, sp,
     // kg über die ganze Länge -> kN/m, nach unten
     q: (Number(t.gewicht) || 0) * G_ERD / 1000 / t.L,
     lasten: [...proStation.values()],

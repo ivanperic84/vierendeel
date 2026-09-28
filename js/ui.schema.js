@@ -27,7 +27,8 @@ import { PROFILE, STAHLGUETEN } from './data.profiles.js';
 import { tragjoche, teilung, laengenbereich } from './data.tragjoche.js';
 import { abfangjoche, abfangLaengenbereich, abfangVollstaendig,
          abfangDbDa, abfangLaengen, getAbfangjoch,
-         abfangMasse, getTragausleger } from './data.abfangjoche.js';
+         abfangMasse, getTragausleger,
+         tragauslegerAufhaengung } from './data.abfangjoche.js';
 import { mastprofile, STEGRICHTUNGEN, mastWindBeide,
          fundamenttypen, fundamenteDa,
          fundamentFuerMast } from './data.masten.js';
@@ -41,7 +42,8 @@ import { TORSIONSVERTEILUNGEN, EBENEN_UEBERLAGERUNG, GURTAUFTEILUNGEN,
 import { TORSIONSMODELLE } from './core.statics.js';
 
 import { ENDBEDINGUNGEN, MASTANSCHLUESSE,
-         mastImModell, mastLaengeVorgabe, einzelmastLaenge } from './core.auflager.js';
+         mastImModell, mastLaengeVorgabe, einzelmastLaenge,
+         mastLaengeFuer } from './core.auflager.js';
 import { nachweiseStandard } from './core.checks.js';
 import { WIND_KLASSEN, SCHNEE_KLASSEN, LASTHERKUNFT,
          NORMENSAETZE, ekVonWindklasse } from './core.lasten.js';
@@ -157,6 +159,22 @@ const amAnker = (feld, std = '') => (w) => gewaehlterMast(w)?.anker?.[feld] ?? s
  */
 const freieLaengeVon = (w) => anschlusshoeheVon(w)
   - (Number(amMast('fuss', 'mastFuss')(w)) || 0);
+
+/**
+ * Mast zu kurz für die Aufhängung (Rückfrage vom 28. September: eine
+ * eingetragene Länge unter H + b wird gemeldet). Gibt die Mindestlänge
+ * zurück, wenn die EINGETRAGENE Länge darunter liegt, sonst 0 - ohne
+ * Eintrag gilt die Vorgabe, und die reicht immer. Dieselbe Grenze wie die
+ * Ausleitung (export.axisvm.tragausleger.js), die dann kein Modell baut.
+ */
+export function mastZuKurzFuerAufhaengung(w) {
+  if (tragwerksart(w).key !== 'tragausleger') return 0;
+  const v = Number(amMast('laenge', 'mastLaenge')(w)) || 0;
+  const a = tragauslegerAufhaengung(w);
+  if (!(v > 0) || !a) return 0;
+  const min = anschlusshoeheVon(w) + a.b;
+  return v + 1e-9 < min ? min : 0;
+}
 
 /** Steht an diesem Masten ein Anker? Nur dann gelten seine Felder. */
 const ankerDa = (w) => mastDa(w) && Boolean(gewaehlterMast(w)?.anker?.typ);
@@ -839,6 +857,35 @@ export const FELDER = [
      */
     sichtbar: (w) => mastDa(w) && tragwerksart(w).key !== 'einzelmast' },
   /* =========================================================================
+   * >>> DIE AUFHÄNGUNG: b UND WINKEL, GEKOPPELT (28. September). <<<
+   * =======================================================================
+   *
+   * «man muss aber den abschnitt b eingeben können. in der normzeichnung ist
+   * der winkel mit 30° angegeben, diesen wert kann man als start nehmen. es
+   * kann aber sein das man spezialfälle hat wo dieser winkel kleiner oder
+   * grösser ist.» Auf Rückfrage: beide Felder, gekoppelt, Vorgabe 30°.
+   *
+   * Gespeichert wird allein der WINKEL (`auslegerWinkel`); b zeigt
+   * c₁ · tan α, und wer b eintippt, setzt damit den Winkel (app.js). Zwei
+   * gespeicherte Zahlen für dieselbe Geometrie liefen beim nächsten
+   * Längenwechsel auseinander.
+   */
+  { key: 'auslegerB', gruppe: 'geo', typ: 'schieber',
+    label: 'Aufhängung über dem Ausleger', sym: 'b', einheit: 'm',
+    standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0.5, max: 12,
+    // Auf den Millimeter: b folgt aus dem gespeicherten Winkel, und ohne
+    // Rundung stand nach der Eingabe «6» im Feld «6.000004».
+    wertAus: (w) => Math.round((tragauslegerAufhaengung(w)?.b ?? 0) * 1000) / 1000,
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
+    hinweis: 'Am Masten gemessen, von der Achse des Auslegers bis zum '
+           + 'Aufhängepunkt. Gekoppelt mit dem Winkel: tan α = b / c₁.' },
+  { key: 'auslegerWinkel', gruppe: 'geo', typ: 'schieber',
+    label: 'Winkel Seil – Ausleger', sym: 'α', einheit: '°',
+    standard: 30, schritt: 0.1, zugSchritt: 5, min: 10, max: 60,
+    sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
+    hinweis: 'Normzeichnung 30° (Vorgabe); Spezialfälle kleiner oder grösser. '
+           + 'c₁ bleibt nach Sortiment.' },
+  /* =========================================================================
    * >>> DER LÄNGSANKER DES TRAGAUSLEGERS (Weisung vom 28. September). <<<
    * =======================================================================
    *
@@ -922,14 +969,34 @@ export const FELDER = [
       const v = amMast('laenge', 'mastLaenge')(w);
       // Vom FUSS gemessen: die Laenge ist Fuss bis Kopf, und seit dem
       // 12. September liegt der Fuss nicht mehr zwingend bei -H.
-      return v > 0 ? v : mastLaengeVorgabe(freieLaengeVon(w), w.jd);
+      return v > 0 ? v : mastLaengeFuer(w, freieLaengeVon(w));
     },
     sichtbar: (w) => mastDa(w),
-    hinweis: (w) => `Gesamtlänge wie angeschrieben. Vorgabe ist 0.50 m über `
+    /*
+     * Beim Ausleger haengt die Vorgabe an b (also am Winkel) - die Zahl
+     * steht deshalb in der NOTIZ, die bei jeder Eingabe nachgefuehrt wird;
+     * der Hinweis wird nur beim Aufbau der Maske geschrieben und stand nach
+     * einer Aenderung von b mit der alten Zahl da (im Browser gesehen,
+     * 28. September). Dort steht auch «Mast zu kurz für die Aufhängung».
+     */
+    notiz: (w) => {
+      if (tragwerksart(w).key !== 'tragausleger') return '';
+      const vorg = mastLaengeFuer(w, freieLaengeVon(w));
+      const min = mastZuKurzFuerAufhaengung(w);
+      if (min) {
+        return `MAST ZU KURZ FÜR DIE AUFHÄNGUNG: mindestens ${min.toFixed(2)} m `
+          + `(H + b), Vorgabe ${vorg?.toFixed(2) ?? '–'} m.`;
+      }
+      return vorg ? `Vorgabe H + b, auf den halben Meter: ${vorg.toFixed(2)} m.` : '';
+    },
+    hinweis: (w) => (tragwerksart(w).key === 'tragausleger'
+      ? 'Gesamtlänge wie angeschrieben. Ohne Eintrag reicht der Mastkopf bis '
+        + 'zur Aufhängung: H + b, auf den halben Meter aufgerundet.'
+      : `Gesamtlänge wie angeschrieben. Vorgabe ist 0.50 m über `
            + `Oberkante Obergurt, aufgerundet auf den halben Meter — hier ${
              mastLaengeVorgabe(freieLaengeVon(w), w.jd).toFixed(2)} m bei `
            + `H = ${freieLaengeVon(w).toFixed(2)} m und jd = ${
-             Math.round(Number(w.jd) || 0)} mm. Handbuch.` },
+             Math.round(Number(w.jd) || 0)} mm. Handbuch.`) },
   /*
    * >>> FUSSPUNKT UND ANSCHLUSSHOEHE SIND ZWEI MASSE. <<<
    *
@@ -2319,5 +2386,5 @@ export function mastKopfHoehe(werte, ende = 'A') {
   if (tragwerksart(werte).key === 'einzelmast') return einzelmastLaenge(werte) || 12;
   const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;
   const L = Number(ende === 'B' ? (werte.mastLaengeB || werte.mastLaenge) : werte.mastLaenge) || 0;
-  return L || (H > 0 ? mastLaengeVorgabe(H, werte.jd ?? 0) : 12);
+  return L || (H > 0 ? mastLaengeFuer(werte, H) : 12);
 }

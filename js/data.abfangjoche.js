@@ -161,6 +161,45 @@ export function tragauslegerNaechsteLaenge(L) {
   return liste.reduce((a, b) => (Math.abs(b - ziel) < Math.abs(a - ziel) ? b : a));
 }
 
+/* ===========================================================================
+ * >>> DIE AUFHÄNGUNG AUS DEM WINKEL (28. September). <<<
+ * =========================================================================
+ *
+ * Weisung mit der Übersichtszeichnung: «man muss aber den abschnitt b
+ * eingeben können. in der normzeichnung ist der winkel mit 30° angegeben,
+ * diesen wert kann man als start nehmen. es kann aber sein das man
+ * spezialfälle hat wo dieser winkel kleiner oder grösser ist.» Auf
+ * Rückfrage: b und Winkel GEKOPPELT, Vorgabe α = 30°.
+ *
+ * Der Winkel liegt zwischen Seil und Ausleger an der Ankertraverse:
+ * tan α = b / c₁. Das Sortiment trifft ihn fast genau (L 8 m: 30.5°, L 13 m:
+ * 30.3°). Gespeichert wird EIN Wert, der Winkel; b folgt daraus. c₁ - die
+ * Lage der Traverse - bleibt nach Sortiment.
+ */
+export const TA_SEILWINKEL_VORGABE = 30;
+
+/** {t, c1, b, alpha} der Aufhängung eines Auslegers, oder null ohne Zeile. */
+export function tragauslegerAufhaengung(inp) {
+  const t = getTragausleger(Number(inp?.L));
+  if (!t) return null;
+  const roh = Number(inp?.auslegerWinkel);
+  const alpha = roh > 0 && roh < 90 ? roh : TA_SEILWINKEL_VORGABE;
+  const c1 = t.seil.c1;
+  return { t, c1, alpha, b: Math.round(c1 * Math.tan(alpha * Math.PI / 180) * 1e6) / 1e6 };
+}
+
+/**
+ * >>> DIE MASTLÄNGE OHNE EINTRAG: H + b, AUF DEN HALBEN METER (28. Sept.). <<<
+ * Auf Rückfrage entschieden. Der Mastkopf reicht mindestens bis zur
+ * Aufhängung; Maske, Kern (Knicklänge), Stabwerk und Bild nehmen dieselbe
+ * Zahl. `frei` ist die Höhe des Auslegers über dem Mastfuss.
+ */
+export function tragauslegerMastVorgabe(inp, frei) {
+  const a = tragauslegerAufhaengung(inp);
+  if (!a || !(Number(frei) > 0)) return null;
+  return Math.ceil((Number(frei) + a.b) / 0.5 - 1e-9) * 0.5;
+}
+
 /** Der Längenbereich des Sortiments {min, max, text} - für den Schieber. */
 export function tragauslegerLaengenbereich() {
   const liste = tragauslegerTypen().map((t) => t.L);

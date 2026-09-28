@@ -26,6 +26,7 @@
  */
 
 import { getMastprofil, getStegrichtung } from './data.masten.js';
+import { tragauslegerMastVorgabe } from './data.abfangjoche.js';
 
 /** Elastizitätsmodul Baustahl [kN/m2]. */
 export const E_STAHL = 210e6;
@@ -298,6 +299,22 @@ export function mastLaengeVorgabe(H, jd = 0) {
  *
  * @returns {number} Laenge Fuss bis Kopf [m]
  */
+/**
+ * Die Mastlänge ohne Eintrag, je Tragwerksart - EINE Stelle für Maske,
+ * Kern und Modell. Beim Tragausleger H + b auf den halben Meter
+ * (28. September), sonst die Vorgabe des Tragjochs.
+ *
+ * @param {object} inp   der Satz des Tragwerks
+ * @param {number} frei  Höhe des Anschlusses über dem Mastfuss [m]
+ */
+export function mastLaengeFuer(inp, frei) {
+  if (inp?.tragwerksart === 'tragausleger') {
+    const v = tragauslegerMastVorgabe(inp, frei);
+    if (v !== null) return v;
+  }
+  return mastLaengeVorgabe(frei, inp?.jd);
+}
+
 export function einzelmastLaenge(inp) {
   const roh = Number(inp?.mastLaenge) || 0;
   if (roh > 0) return roh;
@@ -414,7 +431,7 @@ export function mastSteifigkeit(inp, ende = 'A', verschieblich = false) {
    */
   const rohLaenge = zwei ? (inp.mastLaengeB || inp.mastLaenge || 0)
                          : (inp.mastLaenge || 0);
-  let laenge = rohLaenge > 0 ? rohLaenge : mastLaengeVorgabe(H, inp?.jd);
+  let laenge = rohLaenge > 0 ? rohLaenge : mastLaengeFuer(inp, H);
   // Einzelmast: frei vom Fuss bis zum Kopf, kein Anschluss dazwischen.
   const einzel = istEinzelmast(inp);
   if (einzel) laenge = einzelmastLaenge(inp);

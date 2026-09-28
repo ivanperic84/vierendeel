@@ -62,6 +62,9 @@ export function auslegerSzene(satz, opt = {}) {
   const sp = satz.auslegerSeite === 'links' ? -1 : 1;
   const hG = p.h / 100;
   const kn = new Map(d.knoten.map((k) => [k.name, k]));
+  // b aus dem Winkel und der Mastkopf, wie das Modell sie baut (28. Sept.).
+  const bS = d.tragausleger.b;
+  const zKopfModell = Math.max(...d.knoten.filter((k) => /^MAST_A_/.test(k.name)).map((k) => k.z));
 
   const rohFlaechen = [];
   const flaechen = {
@@ -130,7 +133,7 @@ export function auslegerSzene(satz, opt = {}) {
   if (tr && seil) {
     flaechen.push(...schraegerStab([seil.x, seil.y, seil.z], [tr.x, tr.y, tr.z], 0.03, 0.03, {
       gruppe: 'anbau', teil: 'AUFHAENGUNG', farbeBauteil: fbAuf,
-      label: `Aufhängung · c₁ ${t.seil.c1.toFixed(2)} m · b ${t.seil.b.toFixed(2)} m`,
+      label: `Aufhängung · c₁ ${t.seil.c1.toFixed(2)} m · b ${bS.toFixed(2)} m · α ${d.tragausleger.alpha.toFixed(1)}°`,
       werte: OHNE_WERTE,
     }));
     marken.push({ gruppe: 'anbau', art: 'anbau', teil: 'AUFHAENGUNG',
@@ -231,7 +234,7 @@ export function auslegerSzene(satz, opt = {}) {
        * H + b - die Aufhängung braucht ihren Punkt am Masten
        * (tragauslegerModell). Die Anschrift nennt dieselbe Länge.
        */
-      const zKopf = (md.ueberstand ?? 0) > 0 ? md.ueberstand : t.seil.b;
+      const zKopf = zKopfModell;
       const mk = mastKoerper({
         profil: mp, achse, x: 0, zFuss: -md.hoehe, zAnschluss: 0, zKopf,
         name: 'A', grund: `Mast ${md.name ?? 'A'} · ${mp.name}`,
@@ -265,8 +268,9 @@ export function auslegerSzene(satz, opt = {}) {
   masse.push({ tab: 'system', achse: 'x', p0: [Math.min(0, xG(t.seil.c1)), 0, 0],
                p1: [Math.max(0, xG(t.seil.c1)), 0, 0], ab: [0, 0, -1], d: 1.5,
                text: `c₁ = ${t.seil.c1.toFixed(2)} m` });
-  masse.push({ tab: 'system', achse: 'z', p0: [0, 0, 0], p1: [0, 0, t.seil.b],
-               ab: [-sp, 0, 0], d: 0.4, text: `b = ${t.seil.b.toFixed(2)} m` });
+  masse.push({ feld: 'auslegerB', tab: 'system', achse: 'z', p0: [0, 0, 0], p1: [0, 0, bS],
+               ab: [-sp, 0, 0], d: 0.4,
+               text: `b = ${bS.toFixed(2)} m · α ${d.tragausleger.alpha.toFixed(1)}°` });
 
   /* --- Grenzen ------------------------------------------------------------- */
   let gx0 = Infinity, gx1 = -Infinity, gy0 = Infinity, gy1 = -Infinity, gz0 = Infinity, gz1 = -Infinity;

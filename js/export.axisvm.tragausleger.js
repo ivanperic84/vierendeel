@@ -37,13 +37,13 @@
  * ---------------------------------------------------------------------------
  */
 
-import { getTragausleger, tragauslegerTypen,
+import { getTragausleger, tragauslegerTypen, tragauslegerAufhaengung,
          tragauslegerBlechachsen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { getMastprofil, getStegrichtung, mastWindBeide } from './data.masten.js';
 import { baugruppeSumme } from './data.anbauteile.js';
 import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
-import { linkBedingung } from './core.auflager.js';
+import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -113,7 +113,13 @@ export function tragauslegerModell(satz) {
   const x0 = -t.hinten;
   const xE = r6(t.L - t.hinten);
   const c1 = t.seil.c1;
-  const bSeil = t.seil.b;
+  /*
+   * b AUS DEM WINKEL (28. September): «b» und «Winkel» sind gekoppelt,
+   * Vorgabe 30° - tan α = b / c₁ (`tragauslegerAufhaengung`). Die Spalte b
+   * des Sortiments trifft 30.3-30.5°.
+   */
+  const aufh = tragauslegerAufhaengung(satz);
+  const bSeil = aufh.b;
   const blechX = tragauslegerBlechachsen(t).map((a) => r6(x0 + a));
   const zBlech = r6(h / 2 - BLECH_RUECKSPRUNG - t.blech.t / 2000);
 
@@ -126,11 +132,15 @@ export function tragauslegerModell(satz) {
     throw new Error('Tragausleger ohne Masten (Profil oder Anschlusshöhe fehlt) '
       + '- der Ausleger hängt am Masten, ohne ihn gibt es kein Tragwerk.');
   }
-  const zKopf = r6((mastL > 0 ? mastL : H + bSeil) - H);
+  // Ohne Eintrag H + b auf den halben Meter (Entscheid 28. September) -
+  // dieselbe Stelle, aus der Maske und Kern ihre Länge haben.
+  const zKopf = r6((mastL > 0 ? mastL : mastLaengeFuer(satz, H)) - H);
   if (zKopf + 1e-9 < bSeil) {
-    throw new Error(`Die Aufhängung greift ${bSeil.toFixed(2)} m über dem `
-      + `Ausleger am Masten an, der Mast endet ${zKopf.toFixed(2)} m darüber `
-      + '- er ist für diesen Ausleger zu kurz.');
+    // Wortlaut der Rueckfrage vom 28. September: «Mast zu kurz für die
+    // Aufhängung» - so steht es in den Hinweisen und an der Mastlänge.
+    throw new Error(`Mast zu kurz für die Aufhängung: sie greift ${bSeil.toFixed(2)} m `
+      + `über dem Ausleger am Masten an, der Mast endet ${zKopf.toFixed(2)} m darüber `
+      + `(Mastlänge mindestens ${(H + bSeil).toFixed(2)} m).`);
   }
 
   /* --- Laengsverankerung -------------------------------------------------- *
@@ -447,7 +457,7 @@ export function tragauslegerModell(satz) {
     knoten, staebe, querschnitte, auflager,
     lasten: { punkt, moment, strecke },
     hinweise,
-    tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil,
+    tragausleger: { artikel: t.artikel, L: t.L, e: r6(e), c1, b: bSeil, alpha: aufh.alpha,
                     c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
                     Vzul: t.Vzul, laengsverankerung: lvX,
                     seite: sp < 0 ? 'links' : 'rechts' },

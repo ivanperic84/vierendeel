@@ -139,6 +139,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Tragausleger: Bauform und Aufhängung (26. Sept.) | «die tragstruktur ist ähnlich der abfangjoche und der anschluss auch» und «die aufhängung kann über starrelemente erfolgen, die aber gelenkig angeschlossen sind». Nach Zeichnung (Übersicht Tragausleger, Werkstattzeichnung UPE 140): **liegender Vierendeelträger aus zwei UPE 140**, 280 mm licht (410 mm aussen), Bindebleche FL 100×10, L = 280 mm, **oben und unten** (bei L = 6 m 6 Stellen × 2 = 12 Stück), Raster a + n·b + 60 mm nach Tabelle; am Masten als **Gabel** um den Mast geklemmt wie das Abfangjoch. Aufgehängt an einem **Schrägseil** (2 × Stahlkupferseil 50 mm²) vom Mast in der Höhe b über dem Ausleger zum Punkt im Abstand c₁, dann Auskragung c₂ (L 6–13 m: b 2.35–6.35, c₁ 3.97–10.88, c₂ 1.78–1.87 m). Die Aufhängung wird als **Starrelement mit gelenkigen Anschlüssen** abgebildet (Pendelstab, nur Längskraft) |
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
+| Tragausleger: Aufhängung b und Mastlänge (28. Sept.) | Mit einer Skizze: «der mast hat eine gesamtlänge l oder h, am besten gleich geschriftet wie bei den übrigen masten. man muss aber den abschnitt b eingeben können. in der normzeichnung ist der winkel mit 30° angegeben, diesen wert kann man als start nehmen. es kann aber sein das man spezialfälle hat wo dieser winkel kleiner oder grösser ist.» Auf Rückfrage: **«Beide gekoppelt»** - Felder b und α unter dem Ausleger, gespeichert wird allein der Winkel (`auslegerWinkel`, Vorgabe **30°**, Schieber auf 5°), b = c₁ · tan α (c₁ nach Sortiment); wer b eintippt, setzt den Winkel. **«H + b, halber Meter»** - die Mastlänge heisst wie bei den übrigen Masten und ist ohne Eintrag H + b, auf den halben Meter aufgerundet (`mastLaengeFuer`, eine Stelle für Maske, Kern, Stabwerk, Bild); eine eingetragene Länge unter H + b wird als **«Mast zu kurz für die Aufhängung»** gemeldet (Notiz am Feld, Hinweisliste; Kern und Stabwerk rechnen dann nicht) |
 | Tragausleger: Maske, Seite, Lageband (28. Sept.) | Mit Bild der Seitenleiste: «oben beim Mastsymbol noch einen Ausleger mit Aufhängung ergänzen. der Ausleger kann zudem links oder rechts sein. bei der Eingabe der Länge steht noch Jochtyp. Die Masse sollten unter profile wandern. beim auflager ist auch noch alles mit joch benannt und die auflagerskizze sollte die vom abfangjoch übernommen werden, da die Bedingungen gleich sind. es stellt sich noch die frage ob man die Anschlusshöe besser unter dem auslger laufen lässt anstatt beim masten.» Auf Rückfrage: **Seite «Ganz spiegeln»** (Kern, Stabwerk, AxisVM, 3D, Lageband), präzisiert: «es soll nur die geometrie gespiegelt werden. die einwirkungen das trasse bleiben so wie definiert. der masten kann somit in der kurven innen oder aussenseite stehen.» - Feld `auslegerSeite` (Vorgabe rechts) und **Anschlusshöhe «Beim Ausleger»** (Feld «Höhe Ausleger über Fundament» in der Gruppe des Auslegers). Ebenso der Längsanker: «diese Angaben gehören auch zum Tragausleger und nicht zum Masten» - Schalter und Stelle stehen unter dem Ausleger, gleich unter der Höhe. Die Auflagerskizze führt Gurt vorn / hinten mit der Vorgabe «A» (`LINK_VORGABEN.tragausleger`, eine Stelle für Skizze und Modell) |
 | Tragausleger: Kragarm-Kern (28. Sept.) | Auf Rückfrage zum Umfang des Kerns (Etappe 3b): **«Lotrecht»** - nur die lotrechte Ebene: Gelenk am Masten, Seil bei c₁, Kragarm, Eigengewicht des Sortiments und Anbauteile; das ist die Kontrollformel der Zeichnung. Vorläufig stehen UPE (Biegung + Druck aus dem Seil), Aufhängung, Mast und Fundament auf seinen Kräften; **Bindebleche, Torsion und Längsanker nur im Stabwerk** (Kacheln «nur im Stabwerk»). Gemessen: Seil 1-2 % über dem Stabwerk, Mast weit darunter (L 13 m mit Hängestütze 0.590 gegen 2.103) - deshalb nur vorläufig und ohne Stabwerk «NICHT nachgewiesen» |
 | Tragausleger: x auf die Länge (28. Sept.) | «ich habe die 6 eingetragen als test. die x werte sollten auf die länge limitiert werden.» Die Stelle des Längsankers (jetzt ein Schieber) und die Lage der Anbauteile am Ausleger enden am **Kragarmende L − 0.25** (`kragarmEnde`); eine grössere Eingabe wird darauf begrenzt, und wird der Ausleger kürzer, rückt der Längsanker mit |
@@ -234,12 +235,39 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5665 Kontrollen grün · `durchlauf.mjs`
+**28. September 2026** · Prüfstand 5690 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **28. Sept., Tragausleger: b und Winkel gekoppelt, Mastlänge H + b**
+  (Entscheid siehe *Entschieden*, Prüfstand Abschnitt 146). Unter dem
+  Ausleger stehen «Aufhängung über dem Ausleger b» und «Winkel Seil –
+  Ausleger α» (Vorgabe 30°); gespeichert ist nur α, b = c₁ · tan α
+  (`tragauslegerAufhaengung` in data.abfangjoche.js). Kern, Stabmodell,
+  Bild und Übersicht lesen b von dort, nicht mehr aus der Tabelle. Die
+  Mastlänge ohne Eintrag ist H + b auf den halben Meter
+  (`tragauslegerMastVorgabe`, `mastLaengeFuer` in core.auflager.js) - der
+  Befund vom Vormittag (Stabmodell 13.85 m, Kern und Maske 8.50 m) ist
+  damit weg. **Gemessen** L 13 m, H 7.5 m, Hängestütze (Stabwerk; Mast
+  jetzt 14.00 m statt 13.85, b 6.28 statt 6.35 m): ohne Längsanker Mast
+  mit σ_ω 2.103 → **2.1146**, Knicken 1.091 → **1.1061**; mit Längsanker
+  Mast 0.838 → **0.8498**, Fundament 0.671 → **0.6765**; Kern Mast
+  0.590 → **0.922** (vorher mit 8.50 m). L 8 m, Seilkraft unter G 3.280 →
+  3.326 kN (S_v unverändert, das Seil steht flacher). Eine Länge unter
+  H + b: Notiz am Feld «MAST ZU KURZ FÜR DIE AUFHÄNGUNG: mindestens …»,
+  in der Hinweisliste «Tragausleger — Mast zu kurz für die Aufhängung …»,
+  Kern und Stabwerk rechnen nicht. **Im Browser** (Arbeitsstand L 11 m):
+  b 5.15 / α 30° / Mast 13.00; b = 6 → α 33.93°, Vorgabe 14.00; Mast 12
+  → Meldung «mindestens 13.50 m»; α 20° → b 3.247, Meldung weg. Dabei
+  zwei Befunde an der Maske behoben: der Hinweis unter der Mastlänge
+  wurde nur beim Aufbau geschrieben (stand nach b = 6 weiter auf
+  «13.00 m») - die Zahl steht jetzt in der nachgeführten Notiz; und das
+  Zahlenfeld b zeigte «6.000004» (jetzt auf den Millimeter). Der
+  Arbeitsstand ist danach Zeichen für Zeichen wiederhergestellt.
+  ⚠ **Befund:** das b der Tabelle entspricht 30.1–30.6° (je Länge), 30°
+  gibt b um 3–10 cm kürzer - siehe *Offene Punkte*.
 - **28. Sept., Tragausleger Etappe 3c: das 3D-Bild** (Weisung «mit 3c
   weitermachen», Prüfstand Abschnitt 145, neues Modul
   `render.tragausleger.js`). Die Szene kommt aus `tragauslegerModell` -
@@ -254,9 +282,10 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   Im Browser: rechts und links im Iso-Blick, Mast «13.85 m». Dazu der
   Längsanker unter dem Ausleger statt beim Masten (Weisung «diese Angaben
   gehören auch zum Tragausleger und nicht zum Masten»).
-  ⚠ **Befund, offen:** ohne eingetragene Mastlänge rechnet das
-  Stabmodell mit H + b (13.85 m), der Kern und die Maske mit der Vorgabe
-  des Tragjochs H + jd/2 + 0.5 (8.50 m) - auch für die Knicklänge.
+  **Befund** (seither entschieden, siehe den Eintrag darüber): ohne
+  eingetragene Mastlänge rechnete das Stabmodell mit H + b (13.85 m), der
+  Kern und die Maske mit der Vorgabe des Tragjochs H + jd/2 + 0.5
+  (8.50 m) - auch für die Knicklänge.
 - **28. Sept., Tragausleger links oder rechts; im Lageband** (Prüfstand
   Abschnitt 144). Feld `auslegerSeite`. Gespiegelt wird die GEOMETRIE, die
   Einwirkungen bleiben global (Trasse wie definiert): das Modell wird
@@ -1872,17 +1901,22 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - ⚠ **Tragausleger mit Hängestütze OHNE Längsanker: Mast und Fundament
   deutlich überschritten** (28. Sept., Prüfstand 138; mit dem Längsanker,
   seit demselben Tag Regelfall, Mast 0.838 und Fundament 0.671 — offen
-  bleiben dann Bindeblech 1.029 und Knicken 1.011 bei L 13 m). L 13 m: Mastquerschnitt mit
-  σ_ω 2.103, Knicken 1.091, Fundament 1.445 (Torsion). Ursache ist die
+  bleiben dann Bindeblech 1.029 und Knicken 1.011 bei L 13 m; seit
+  α = 30° und Mastlänge H + b Mast 0.850, Fundament 0.677). L 13 m:
+  Mastquerschnitt mit σ_ω 2.115, Knicken 1.106, Fundament 1.445
+  (Torsion). Ursache ist die
   Torsion aus Wind in Gleisrichtung am langen Hebel des Auslegers, die
   nach Entscheid «A» (beide Gurte x-gehalten) in den Masten geht. Der
   Wind auf den Ausleger selbst fehlt noch (Sortiment ohne Windlast je
   Meter) — er käme dazu. Ob das Sortiment Hängestützen am Ausleger vorsieht
   bzw. wie der Anschluss die Torsion wirklich abgibt, ist zu klären.
-- ⚠ **Mastlänge am Tragausleger:** ohne Eintrag nimmt das Stabmodell
-  H + b (die Aufhängung braucht ihren Punkt am Masten), Kern und Maske
-  nehmen die Tragjoch-Vorgabe H + jd/2 + 0.5 m. L 13 m, H 7.5: 13.85
-  gegen 8.50 m, auch in der Knicklänge des Kerns. Entscheid offen.
+- ⚠ **Aufhängung: Tabelle oder 30°?** Das b der Sortimentstabelle
+  entspricht je Länge 30.1–30.6°; die Vorgabe α = 30° (Weisung vom
+  28. September) gibt b um 3–10 cm kürzer (L 13 m: 6.28 statt 6.35 m) -
+  das Seil steht flacher, die Kräfte liegen damit leicht auf der sicheren
+  Seite, der Mast wird ohne Eintrag unter Umständen einen halben Meter
+  kürzer. Die stehende Regel «Massgebend sind die Daten» spräche für das
+  b der Tabelle als Vorgabe. Entscheid des Auftraggebers.
 - ⚠ **Knicken am Joch weiter aus dem Kern.** Seit dem 28. September kann
   das Stabwerk das Knicken selbst liefern (`knickenAusStabwerk`); am Joch
   weicht es um 0.4 % ab (Jochlast am Konsolanschnitt). Ob das Joch es
@@ -2111,7 +2145,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5665 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5690 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

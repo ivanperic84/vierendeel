@@ -22,9 +22,11 @@ import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
 // Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
 // Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
 // einen Wert zeigt.
-import { mastLaengeVorgabe, mastImModell, einzelmastLaenge } from './core.auflager.js';
+import { mastLaengeVorgabe, mastImModell, einzelmastLaenge,
+         mastLaengeFuer } from './core.auflager.js';
 import { laengenbereich, getTragjoch } from './data.tragjoche.js';
 import { abfangLaengenbereich, getTragausleger, tragauslegerBlechachsen,
+         tragauslegerAufhaengung,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { getGurtprofil, gurtAchsabstand } from './data.profiles.js';
 import { mastKopfHoehe, kragarmEnde } from './ui.schema.js';
@@ -916,7 +918,7 @@ export function auslegerUebersichtHtml(w) {
       ${kachel('Bleche', `${n} × 2`, `FL ${f0(t.blech.b)}×${f0(t.blech.t)} oben und unten`)}
     </div>
     <div class="kennzahlen">
-      ${kachel('b', f2(t.seil.b), 'm · Aufhängung über dem Ausleger')}
+      ${kachel('b', f2(tragauslegerAufhaengung(w)?.b), `m · α ${f1(tragauslegerAufhaengung(w)?.alpha)}° · Tabelle ${f2(t.seil.b)}`)}
       ${kachel('c₁', f2(t.seil.c1), 'm · Mastachse bis Seilpunkt')}
       ${kachel('c₂', f2(t.seil.c2), 'm · Auskragung')}
     </div>
@@ -1888,13 +1890,13 @@ export function querprofilLeisteHtml(werte) {
     const ende = Math.abs(m.x - lageVon(t)) < 0.05 ? 'A' : 'B';
     const H = anschlusshoehe(t, ende);
     const fuss = Number(m.fuss) || 0;
-    return { H, fuss, frei: H - fuss, jd: t.jd };
+    return { H, fuss, frei: H - fuss, jd: t.jd, t };
   };
   const mastLaengeVon = (m) => {
     const v = Number(m.laenge) || 0;
     if (v > 0) return v;
-    const { frei, jd } = mastMasse(m);
-    return frei > 0 ? mastLaengeVorgabe(frei, jd) : 0;
+    const { frei, jd, t } = mastMasse(m);
+    return frei > 0 ? mastLaengeFuer({ ...t, jd }, frei) : 0;
   };
   const mastProfil = (m) => String(m.profil ?? '').trim() || 'ohne Profil';
   const mastText = (m) => {
@@ -3696,7 +3698,7 @@ function anbauteilSkizzeMast(a, werte) {
   const H = Number(ende === 'B' ? (werte.mastHB ?? werte.mastH) : werte.mastH) || 0;
   const laenge = Number(mast?.laenge) || Number(ende === 'B'
     ? (werte.mastLaengeB ?? werte.mastLaenge) : werte.mastLaenge)
-    || (H > 0 ? mastLaengeVorgabe(H - (Number(mast?.fuss) || 0), werte.jd ?? 0) : 0);
+    || (H > 0 ? mastLaengeFuer(werte, H - (Number(mast?.fuss) || 0)) : 0);
   const hoch = Math.max(laenge, hMast, 1);
   const steg = mast?.steg ?? (ende === 'B' ? (werte.mastStegB ?? werte.mastSteg)
                                            : werte.mastSteg) ?? 'jochachse';

@@ -31921,7 +31921,9 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
   wahr('>>> Die Aufhaengung zieht (Seil) <<<', S > 0, `${S.toFixed(4)} kN`);
   pruef('Seilkraft unter G: Loeser gegen Freikoerper (Momente um die Gelenkachse)',
         S, -MyG / MyEinheit, 1e-6, 'kN');
-  pruef('… gemessen am 28. September', S, 3.28, 1e-3, 'kN');
+  // Seit dem Seilwinkel (Vorgabe 30°, b = c₁·tan α statt der Tabellenspalte b)
+  // steiler bzw. flacher: 3.280 kN mit b nach Tabelle, 3.326 kN mit 30°.
+  pruef('… gemessen am 28. September (Seilwinkel 30°)', S, 3.3258, 1e-3, 'kN');
 
   // --- c) Die Kontrollformel der Zeichnung --------------------------------
   const vN = [...kn.keys()].find((n) => /^V_7\.750$/.test(n));
@@ -32114,14 +32116,21 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   const hs = ta('hs-fahrdraht', 13);
   const knT = SM138.knickenAusStabwerk(hs.dat, hs.lsg, hs.nw, 'M1', hs.basis, hs.erg.modell, {});
   const fT = SM138.fundamentAusStabwerk(hs.dat, hs.lsg, hs.alle, 'M1', hs.basis, hs.satz);
-  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.091, 1e-3, '');
-  wahr('… weit über dem Kern mit seinem Phantomauflager',
-       knT.eta > 1.5 * hs.kombi.huellkurve.mast.A.stabil.eta,
+  // Mit Seilwinkel 30° und Mastlänge H + b (28. September): 1.091 -> 1.106.
+  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.1061, 1e-3, '');
+  /*
+   * Der Kern des Phantomjochs lag bei 0.652 - vor allem, weil er mit der
+   * Mastlänge des Tragjochs (8.5 m) rechnete. Seit sie H + b ist (14.0 m),
+   * liegt er bei 1.075; das Stabwerk bleibt darüber.
+   */
+  wahr('… über dem Kern mit seinem Phantomauflager',
+       knT.eta > hs.kombi.huellkurve.mast.A.stabil.eta,
        `Kern ${hs.kombi.huellkurve.mast.A.stabil.eta.toFixed(3)}`);
   pruef('… Fundament aus dem Stabwerk, massgebend die Torsion', fT.A.eta, 1.445, 1e-3, '');
   wahr('… massgebend T', fT.A.massgebend.key === 'T', fT.A.massgebend.key);
   const hT = SN138.stabwerkHuelle(hs.dat, hs.lsg, hs.nw, 235 / 1.05, { torsion: true });
-  pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 2.103, 1e-3, '');
+  // Seilwinkel 30°, Mastlänge H + b (28. September): 2.103 -> 2.1146.
+  pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 2.1146, 1e-3, '');
 }
 
 // ===========================================================================
@@ -32167,11 +32176,11 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
        n.liste.map((x) => x.name).join(', '));
   pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.209, 1e-3, '');
   pruef('Aufhängung gegen V_zul', z('Aufhängung')?.eta, 0.824, 1e-3, '');
-  pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 2.103, 1e-3, '');
-  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.091, 1e-3, '');
+  pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 2.1146, 1e-3, '');
+  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.1061, 1e-3, '');
   pruef('Fundament aus dem Stabwerk', z('Fundament MT1')?.eta, 1.445, 1e-3, '');
   wahr('Jede Zeile aus dem Stabwerk', n.liste.every((x) => x.quelle === 'stabwerk'));
-  wahr('Das Urteil ist der Mast', n.massgebend?.name === 'Mast MT1' && Math.abs(n.eta - 2.103) < 1e-3);
+  wahr('Das Urteil ist der Mast', n.massgebend?.name === 'Mast MT1' && Math.abs(n.eta - 2.1146) < 1e-3);
 
   // --- Der Vermerk «NICHT nachgewiesen» -------------------------------------
   const u = CH139.urteilKonstruktion([], satz.nachweise, 'tragausleger');
@@ -32239,9 +32248,9 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
   wahr('Ohne Eintrag gilt der Längsanker (auch in alten Ständen)',
        mit.ausleger.laengsankerX === 12.75 && ohne.ausleger.laengsanker === null,
        `x ${mit.ausleger.laengsankerX}`);
-  pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 0.838, 1e-3, '');
-  pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 2.103, 1e-3, '');
-  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.671, 1e-3, '');
+  pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 0.8498, 1e-3, '');
+  pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 2.1146, 1e-3, '');
+  pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.6765, 1e-3, '');
   wahr('… nicht mehr die Torsion massgebend', mit.ausleger.fundament.A.massgebend.key !== 'T',
        mit.ausleger.fundament.A.massgebend.key);
   pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.029, 1e-3, '');
@@ -32371,8 +32380,9 @@ titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kraga
                              && x.k.aufhaengung.Sv <= 1.03 * x.sw.ausleger.aufhaengung.Sv),
        `${fl.k.aufhaengung.Sv.toFixed(3)}/${fl.sw.ausleger.aufhaengung.Sv.toFixed(3)} · `
        + `${hs.k.aufhaengung.Sv.toFixed(3)}/${hs.sw.ausleger.aufhaengung.Sv.toFixed(3)}`);
-  pruef('Fahrleitung direkt L 8: UPE lotrecht', fl.k.gurt.eta, 0.0701, 1e-3, '');
-  pruef('Hängestütze L 13: Mast (Kern, ohne Torsion)', hs.r.mast.A.eta, 0.590, 1e-3, '');
+  pruef('Fahrleitung direkt L 8: UPE lotrecht', fl.k.gurt.eta, 0.07026, 1e-3, '');
+  // Mit Mastlänge H + b (28. September): 0.590 (8.5 m) -> 0.922 (14.0 m).
+  pruef('Hängestütze L 13: Mast (Kern, ohne Torsion)', hs.r.mast.A.eta, 0.9222, 1e-3, '');
   wahr('>>> Der Kern-Mast liegt UNTER dem Stabwerk - deshalb nur vorläufig <<<',
        hs.r.mast.A.eta < hs.sw.bauteile['mast:MT1'].eta,
        `${hs.r.mast.A.eta.toFixed(3)} gegen ${hs.sw.bauteile['mast:MT1'].eta.toFixed(3)}`);
@@ -32380,7 +32390,7 @@ titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kraga
   wahr('Der Mast bekommt Gelenk UND Seilpunkt, je auf ihrer Höhe',
        (() => { const ls = MA142.mastLasten(TA142.auslegerMastModell(hs.erg.modell, hs.k, hs.alle[0]), 'A').lasten
                   .filter((l) => l.art === 'ausleger');
-                return ls.length === 2 && Math.abs(ls[1].z - ls[0].z - 6.35) < 1e-9; })());
+                return ls.length === 2 && Math.abs(ls[1].z - ls[0].z - hs.k.b) < 1e-9; })());
   wahr('Anker, Verformung und Fundament lesen die Liste des Kerns',
        Object.keys(hs.r.kombi.ergebnisse).length === hs.alle.length
        && hs.r.kombi.ergebnisse[hs.alle[0].key].mast.A !== null);
@@ -32603,8 +32613,8 @@ titel('145  Tragausleger Etappe 3c: das 3D-Bild aus dem Stabmodell');
        Math.abs(Math.max(...xs(r)) - 12.75) < 1e-9 && Math.abs(Math.min(...xs(l)) + 12.75) < 1e-9
        && Math.min(...xs(r)) > -0.3 && Math.max(...xs(l)) < 0.3);
   const titel = r.bauteiltitel.find((b) => b.mastEnde === 'A' && /HEB 240/.test(b.text));
-  wahr('Der Mast trägt die Länge, die das Stabmodell baut (H + b ohne Eintrag)',
-       /13\.85 m/.test(titel?.text ?? ''), titel?.text);
+  wahr('Der Mast trägt die Länge, die das Stabmodell baut (H + b auf den halben Meter)',
+       /14\.00 m/.test(titel?.text ?? ''), titel?.text);
   wahr('Ohne Stabwerk kein η an den Gurten', teile(r, /^GURT_/).every((f) => f.werte.eta === undefined));
   // Mit Stabwerk: jeder Gurtabschnitt trägt sein η.
   const w = { ...basis };
@@ -32619,6 +32629,114 @@ titel('145  Tragausleger Etappe 3c: das 3D-Bild aus dem Stabmodell');
   wahr('Die Anwendung zeichnet den Ausleger aus seiner Szene',
        /tragwerksart\(werte\)\.key === 'tragausleger' \? taSzene\(\) : null/.test(q)
        && /tragwerksart\(satz\)\.key === 'tragausleger'\) \{\s*return auslegerSzene/.test(q));
+}
+
+// ===========================================================================
+titel('146  Tragausleger: b und Winkel gekoppelt, Mastlänge H + b');
+/* ===========================================================================
+ * «der mast hat eine gesamtlänge l oder h, am besten gleich geschriftet wie
+ * bei den übrigen masten. man muss aber den abschnitt b eingeben können. in
+ * der normzeichnung ist der winkel mit 30° angegeben, diesen wert kann man
+ * als start nehmen. es kann aber sein das man spezialfälle hat wo dieser
+ * winkel kleiner oder grösser ist.» Auf Rückfrage: «Beide gekoppelt»
+ * (gespeichert wird allein α, b = c₁ · tan α, Vorgabe 30°) und «H + b,
+ * halber Meter» (Mastlänge ohne Eintrag; darunter «Mast zu kurz für die
+ * Aufhängung»).
+ *
+ * Gemessen L 13 m, H 7.5 m, Hängestütze ohne Längsanker (Stabwerk):
+ *   Mast mit σ_ω 2.103 -> 2.1146, Knicken 1.091 -> 1.1061
+ *   (vorher b nach Sortiment und Mastlänge H + b des Sortiments, 13.85 m)
+ * ========================================================================= */
+{
+  const DA146 = await import(J('data.abfangjoche.js'));
+  const AU146 = await import(J('core.auflager.js'));
+  const SCH146 = await import(J('ui.schema.js'));
+  const TA146 = await import(J('core.tragausleger.js'));
+  const TAX146 = await import(J('export.axisvm.tragausleger.js'));
+  const N146 = await import(J('core.nachbarn.js'));
+  const LA146 = await import(J('core.lasten.js'));
+
+  // --- a) die Kopplung --------------------------------------------------
+  const a30 = DA146.tragauslegerAufhaengung({ L: 13 });
+  wahr('Ohne Eintrag gilt der Winkel der Normzeichnung, 30°', a30.alpha === 30);
+  pruef('b = c₁ · tan 30°', a30.b, a30.c1 * Math.tan(Math.PI / 6), 1e-6, 'm');
+  pruef('α 45° gibt b = c₁', DA146.tragauslegerAufhaengung({ L: 13, auslegerWinkel: 45 }).b,
+        a30.c1, 1e-6, 'm');
+  wahr('Ein unsinniger Winkel fällt auf die Vorgabe zurück (0°, 90°)',
+       [0, 90, -5, 'x'].every((w) => DA146.tragauslegerAufhaengung({ L: 13, auslegerWinkel: w }).alpha === 30));
+  wahr('Ohne Zeile im Sortiment keine Aufhängung', DA146.tragauslegerAufhaengung({ L: 3 }) === null);
+  const fB = FELDER.find((f) => f.key === 'auslegerB');
+  const fW = FELDER.find((f) => f.key === 'auslegerWinkel');
+  wahr('b ist ein abgeleitetes Feld (wertAus), der Winkel das gespeicherte (Vorgabe 30)',
+       typeof fB?.wertAus === 'function' && fW?.standard === 30
+       && Math.abs(fB.wertAus({ L: 13, auslegerWinkel: 45 }) - a30.c1) < 1e-6);
+  wahr('Der Schieber des Winkels rastet auf fünf Grad', fW.zugSchritt === 5);
+  wahr('Wer b eintippt, setzt den Winkel (app.js, atan(b / c₁))',
+       /key === 'auslegerB'[\s\S]{0,200}Math\.atan\(Number\(wert\) \/ c1\)[\s\S]{0,120}aendern\('auslegerWinkel'/
+         .test(APP_QUELLE()));
+
+  // --- b) die Mastlänge ohne Eintrag ---------------------------------------
+  const inp = { tragwerksart: 'tragausleger', L: 13 };
+  const vorg = AU146.mastLaengeFuer(inp, 7.5);
+  pruef('Mastlänge ohne Eintrag: H + b auf den halben Meter aufgerundet', vorg,
+        Math.ceil((7.5 + a30.b) / 0.5 - 1e-9) * 0.5, 1e-12, 'm');
+  wahr('… liegt über H + b und weniger als 0.5 m darüber', vorg >= 7.5 + a30.b && vorg < 7.5 + a30.b + 0.5);
+  wahr('… und wächst mit dem Winkel',
+       AU146.mastLaengeFuer({ ...inp, auslegerWinkel: 40 }, 7.5) > vorg);
+  wahr('Das Tragjoch behält seine Vorgabe H + jd/2 + 0.5',
+       AU146.mastLaengeFuer({ tragwerksart: 'joch', jd: 1000 }, 7.5)
+         === AU146.mastLaengeVorgabe(7.5, 1000));
+
+  // --- c) Mast zu kurz für die Aufhängung ------------------------------------
+  const w = { ...standardwerte(), tragwerksart: 'tragausleger', L: 13, xLage: 0, mastH: 7.5,
+              mastVorhanden: true, trasseRadius: 600, flSpannweite: 50, twId: 'MT1',
+              anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 12.35)] };
+  const kurz = N146.rechensatzMitNachbarn({ ...w, mastLaenge: 13 });
+  let meldung = '';
+  try { TAX146.tragauslegerModell(kurz); } catch (e) { meldung = e.message; }
+  wahr('Eingetragene 13.00 m unter H + b: das Modell meldet «Mast zu kurz für die Aufhängung»',
+       /^Mast zu kurz für die Aufhängung/.test(meldung), meldung);
+  wahr('… mit der Mindestlänge', meldung.includes(`${(7.5 + a30.b).toFixed(2)} m`));
+  const kk = TA146.auslegerAuswertung(kurz, LA146.lastfaelle(kurz), 235 / 10 / 1.05);
+  wahr('Der Kern rechnet dann nicht und reicht die Meldung weiter', kk?.fehler === meldung);
+  wahr('Die Anwendung setzt sie in die Hinweise',
+       /if \(erg\.ausleger\?\.fehler\) hinw\.push\(`Tragausleger — \$\{erg\.ausleger\.fehler\}`\)/
+         .test(APP_QUELLE()));
+  let ok = true;
+  try { TAX146.tragauslegerModell(N146.rechensatzMitNachbarn({ ...w, mastLaenge: 14 })); }
+  catch { ok = false; }
+  wahr('14.00 m reichen', ok);
+  const ws = { ...standardwerteApp(), tragwerksart: 'tragausleger', L: 13, mastH: 7.5, twId: 'MT1' };
+  pruef('Maske: eingetragene 13.00 m sind zu kurz, gemeldet mit der Mindestlänge',
+        SCH146.mastZuKurzFuerAufhaengung({ ...ws, mastLaenge: 13 }), 7.5 + a30.b, 1e-9, 'm');
+  wahr('Maske: ohne Eintrag und mit 14.00 m keine Meldung',
+       SCH146.mastZuKurzFuerAufhaengung({ ...ws, mastLaenge: 0 }) === 0
+       && SCH146.mastZuKurzFuerAufhaengung({ ...ws, mastLaenge: 14 }) === 0);
+  wahr('Maske: am Tragjoch nie',
+       SCH146.mastZuKurzFuerAufhaengung({ ...ws, tragwerksart: 'joch', mastLaenge: 8 }) === 0);
+  const fL = FELDER.find((f) => f.key === 'mastLaenge');
+  wahr('Maske: die Notiz am Feld (bei jeder Eingabe nachgeführt) meldet es',
+       /^MAST ZU KURZ FÜR DIE AUFHÄNGUNG: mindestens 13\.78 m/.test(fL.notiz({ ...ws, mastLaenge: 13 }))
+       && /Vorgabe H \+ b, auf den halben Meter: 14\.00 m/.test(fL.notiz({ ...ws, mastLaenge: 0 }))
+       && fL.notiz({ ...ws, tragwerksart: 'joch' }) === '',
+       fL.notiz({ ...ws, mastLaenge: 13 }));
+  wahr('b im Zahlenfeld auf den Millimeter', fB.wertAus({ L: 13, auslegerWinkel: 33.9266 })
+       === Math.round(fB.wertAus({ L: 13, auslegerWinkel: 33.9266 }) * 1000) / 1000);
+
+  // --- d) der Winkel wirkt ------------------------------------------------
+  // S_v kommt aus den Momenten um das Gelenk und hängt nicht am Winkel;
+  // die waagrechte Seilkraft H = S_v · c₁ / b schon.
+  const k = (alpha) => {
+    const s = N146.rechensatzMitNachbarn({ ...w, auslegerWinkel: alpha });
+    return TA146.auslegerAuswertung(s, LA146.lastfaelle(s), 235 / 10 / 1.05);
+  };
+  const k30 = k(30), k45 = k(45);
+  pruef('S_v unabhängig vom Winkel', k45.aufhaengung.Sv, k30.aufhaengung.Sv, 1e-9, 'kN');
+  pruef('Seilkraft N = S_v / sin α (45° gegen 30°)', k45.aufhaengung.N / k30.aufhaengung.N,
+        Math.sin(Math.PI / 6) / Math.sin(Math.PI / 4), 1e-6, '');   // b auf 1e-6 m gerundet
+  const d45 = TAX146.tragauslegerModell(N146.rechensatzMitNachbarn({ ...w, auslegerWinkel: 45 }));
+  wahr('Das Stabmodell trägt Winkel und b', d45.tragausleger.alpha === 45
+       && Math.abs(d45.tragausleger.b - a30.c1) < 1e-6);
 }
 
 // ===========================================================================
