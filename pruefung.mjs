@@ -33062,6 +33062,63 @@ titel('149  Abfangung des Leiters: Eingabe beim Bauteil');
 }
 
 // ===========================================================================
+titel('150  3D-Resultatplot aus dem Stabwerk: Hülle je Stab');
+/* ===========================================================================
+ * Auf Rückfrage «Alles als Hülle je Stab»: gilt das Stabwerk, teilt die
+ * Joch-Szene die Gurte an den Stabgrenzen und trägt je Stab η, σ und die
+ * Hülle von N, V, M, T (render.stabwerk.js). Das grösste η im Bild ist das
+ * der Kacheln; die Legende nennt die Quelle.
+ * ========================================================================= */
+{
+  const R150 = await import(J('render.3d.js'));
+  const RS150 = await import(J('render.stabwerk.js'));
+  const N150 = await import(J('core.nachbarn.js'));
+  const AS150 = await import(J('app.stabwerk.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const satz = N150.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N150.kernArgumente(satz));
+  const sw = AS150.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const js = RS150.jochStaebe(sw.jeStab, 'tragwerk');
+  const teil = RS150.gurtTeilung(js);
+  wahr('Die Stäbe je Gurt, in örtlichen x ab 0', js && ['OG_L', 'OG_R', 'UG_L', 'UG_R']
+       .every((g) => js.gurt[g]?.length > 20) && Math.abs(js.gurt.OG_L[0].x0) < 1e-9,
+       Object.entries(js?.gurt ?? {}).map(([g, l]) => `${g} ${l.length}`).join(', '));
+  const alt = R150.erzeugeSzene(erg.modell, erg);
+  const sz = R150.erzeugeSzene({ ...erg.modell, gurtTeilung: teil }, erg);
+  // Ein Prisma je Längenfeld (x0-x1); die Deckelflächen haben keine Länge.
+  const prismen = (s, g) => new Set(s.flaechen.filter((f) => f.teil === g && f.gruppe === 'profil')
+    .map((f) => { const x = f.punkte.map((p) => p[0]); return [Math.min(...x), Math.max(...x)]; })
+    .filter(([a, b]) => b - a > 1e-9).map(([a, b]) => `${a.toFixed(4)}-${b.toFixed(4)}`)).size;
+  wahr('Feiner geteilt: je Gurt ein Prisma je Stabwerksstab statt je Feld',
+       prismen(sz, 'OG_L') === js.gurt.OG_L.length && prismen(alt, 'OG_L') < prismen(sz, 'OG_L'),
+       `${prismen(alt, 'OG_L')} → ${prismen(sz, 'OG_L')}`);
+  const n = RS150.stabwerkFaerben(sz, sw.jeStab, { jochKey: 'tragwerk',
+                                                   mastNamen: erg.modell.federn?.namen ?? {} });
+  wahr('Gefärbt: Gurte, Bleche und beide Masten tragen Werte des Stabwerks',
+       n > 100 && ['OG_L', 'V_L', 'H_O', 'MAST_A', 'MAST_B'].every((t) =>
+         sz.flaechen.some((f) => f.teil === t && f.stabwerk)), `${n} Flächen/Linien`);
+  const maxEta = (re) => Math.max(...sz.flaechen.filter((f) => f.stabwerk && re.test(f.teil))
+    .map((f) => f.werte.eta ?? 0));
+  pruef('>>> Das grösste η der Gurte im Bild ist das der Kachel <<<', maxEta(/^(OG|UG)_[LR]$/),
+        Math.max(sw.teile['tragwerk|OG'].eta, sw.teile['tragwerk|UG'].eta), 1e-12, '');
+  pruef('… ebenso der Bleche', maxEta(/^[VH]_[LROU]$/), sw.teile['tragwerk|blech'].eta, 1e-12, '');
+  pruef('… und des Masten M1 (Querschnitt)', maxEta(/^MAST_A$/), sw.bauteile['mast:M1'].eta, 1e-12, '');
+  wahr('Die Hülle der Schnittgrössen steht an jedem Stab (N, V, M, T, σ aus N)',
+       Object.values(sw.jeStab).filter((z) => /OG[LR]_S/.test(z.name))
+         .every((z) => ['N', 'V', 'M', 'T'].every((k) => Number.isFinite(z.huelle?.[k]))
+                       && Number.isFinite(z.huelle.sigN)));
+  wahr('Die Gurte tragen im Stabwerksweg auch V (der Kern liess sie grau)',
+       sz.flaechen.some((f) => f.teil === 'OG_L' && f.stabwerk && f.werte.V > 0));
+  wahr('Die Legende nennt die Quelle (Fussnote «aus dem Stabwerk»)',
+       /aus dem Stabwerk/i.test(RS150.STABWERK_FUSSNOTE.eta)
+       && Object.keys(RS150.STABWERK_FUSSNOTE).length === 7);
+  const q = APP_QUELLE();
+  wahr('Nur die Hülle kommt aus dem Stabwerk, ein Einzellastfall zeigt den Kern',
+       /anzeigeKombi === 'umhuellend'\s*\n?\s*\? stabwerkGilt\(\) : null/.test(q));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

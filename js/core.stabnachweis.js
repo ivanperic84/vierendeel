@@ -544,6 +544,7 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
     if (!z || !a || !b) return;
     z.x0 = Math.min(a.x, b.x); z.x1 = Math.max(a.x, b.x);
     z.zm = (a.z + b.z) / 2; z.ym = (a.y + b.y) / 2;
+    z.z0 = Math.min(a.z, b.z); z.z1 = Math.max(a.z, b.z);
     z.bauteil = stabZuordnung(st.name).key;
     const h = huelle[st.name];
     if (h) {

@@ -75,6 +75,7 @@ import { abfangAuswertung, abfangFyd, abfangStuetzweite,
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 import { auslegerAuswertung, auslegerKombi } from './core.tragausleger.js';
 import { auslegerSzene } from './render.tragausleger.js';
+import { gurtTeilung, jochStaebe, stabwerkFaerben } from './render.stabwerk.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis } from './core.verformung.js';
@@ -1590,6 +1591,27 @@ function szeneVonNebenan(t, zeichnen) {
   }
 }
 
+/*
+ * >>> DAS TRAGJOCH IM 3D AUS DEM STABWERK (29. September). <<<
+ * «Alles als Hülle je Stab»: gilt das Stabwerk, teilt die Szene die Gurte an
+ * den Stabgrenzen und trägt je Stab die Hülle aus dem Stabwerk
+ * (render.stabwerk.js). Sonst der Kern wie bisher.
+ */
+function jochSzeneMitStabwerk(erg, zeichnen) {
+  // Nur die HÜLLE kommt aus dem Stabwerk; ein gewählter Einzellastfall
+  // zeigt weiter den Kern (das Stabwerk führt je Stab nur die Hülle).
+  const g = tragwerksart(werte).key === 'joch' && anzeigeKombi === 'umhuellend'
+    ? stabwerkGilt() : null;
+  const js = g ? jochStaebe(g.h.jeStab, g.jochKey) : null;
+  const sz = erzeugeSzene({ ...erg.modell, mastZeichnen: zeichnen,
+                            ...(js ? { gurtTeilung: gurtTeilung(js) } : {}) }, erg);
+  if (js && sz) {
+    stabwerkFaerben(sz, g.h.jeStab, { jochKey: g.jochKey,
+                                     mastNamen: erg.modell?.federn?.namen ?? {} });
+  }
+  return sz;
+}
+
 function blattSzene(erg) {
   const aktivId = werte.twId ?? 'T1';
   /*
@@ -1644,7 +1666,7 @@ function blattSzene(erg) {
                      * eine Farbe aus der Skala waere dort eine Behauptung.
                      */
                     erg: erg.abfang ?? null })
-    : erzeugeSzene({ ...erg.modell, mastZeichnen: plan[aktivId] }, erg));
+    : jochSzeneMitStabwerk(erg, plan[aktivId]));
   /*
    * >>> DER MASTFUSS IST DER NULLPUNKT DES BLATTES. <<<
    *

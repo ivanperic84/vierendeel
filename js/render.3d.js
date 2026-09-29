@@ -36,6 +36,7 @@
  */
 
 import { querschnitt } from './geometry.js';
+import { STABWERK_FUSSNOTE } from './render.stabwerk.js';
 import { etaFarbe, tokens, bauteilFarbe } from './design.js';
 import { anschlussGurt, anbauKette } from './core.anbauteile.js';
 import { ortVon, amMast } from './data.anbauteile.js';
@@ -509,14 +510,27 @@ export function erzeugeSzene(m, erg) {
   };
 
   // --- Gurte: je Feld ein Prisma, damit die Farbe lokal wechseln kann ------
+  /*
+   * >>> FEINER, WENN DAS STABWERK GILT (29. September). <<<
+   * «Alles als Hülle je Stab»: mit `m.gurtTeilung` (render.stabwerk.js)
+   * wird jedes Feld an den Grenzen der Stabwerksstäbe weiter geteilt, damit
+   * jedes Prisma genau einem Stab gehört. Die Werte setzt danach
+   * `stabwerkFaerben`; hier stehen vorerst die des Kerns (Station i).
+   */
+  const teilen = (id, x0, x1) => {
+    const t = (m.gurtTeilung?.[id] ?? []).filter((x) => x > x0 + 1e-6 && x < x1 - 1e-6);
+    const g = [x0, ...t, x1];
+    return g.slice(0, -1).map((a, k) => [a, g[k + 1]]);
+  };
   qs.winkel.forEach((w) => {
     const fb = farbeFuer(`profil|${w.prof.name}`, w.prof.name, 'profil');
     for (let i = 0; i < stationen.length - 1; i++) {
-      const x0 = stationen[i].x, x1 = stationen[i + 1].x;
-      flaechen.push(...prisma(polyAn(w, x0), x0, x1, {
-        gruppe: 'profil', teil: w.id, station: i, farbeBauteil: fb,
-        werte: kennwerte(i, w.id), label: `${w.label} · ${w.prof.name}`,
-      }, versatz(w.gurt, x0), versatz(w.gurt, x1), polyAn(w, x1)));
+      teilen(w.id, stationen[i].x, stationen[i + 1].x).forEach(([x0, x1]) => {
+        flaechen.push(...prisma(polyAn(w, x0), x0, x1, {
+          gruppe: 'profil', teil: w.id, station: i, farbeBauteil: fb,
+          werte: kennwerte(i, w.id), label: `${w.label} · ${w.prof.name}`,
+        }, versatz(w.gurt, x0), versatz(w.gurt, x1), polyAn(w, x1)));
+      });
     }
   });
 
@@ -590,10 +604,12 @@ export function erzeugeSzene(m, erg) {
     const pt = (x) => [x, w.schwerpunkt.y * MM + s * breiteAus(w.gurt, x),
                        w.schwerpunkt.z * MM + versatz(w.gurt, x)];
     achsFelder.forEach((f) => {
-      linien.push({
-        gruppe: 'achse', gurt: true, stark: true, station: f.i,
-        werte: kennwerte(f.i, w.id), punkte: [pt(f.x0), pt(f.x1)],
-        label: `Schwerachse ${w.id}`,
+      teilen(w.id, f.x0, f.x1).forEach(([x0, x1]) => {
+        linien.push({
+          gruppe: 'achse', gurt: true, stark: true, station: f.i,
+          werte: kennwerte(f.i, w.id), punkte: [pt(x0), pt(x1)],
+          label: `Schwerachse ${w.id}`,
+        });
       });
     });
   });
@@ -3864,7 +3880,10 @@ export class Modellansicht {
     const p = PLOTS.find((x) => x.key === this.modus);
     if (!p) return null;
     const max = p.fest ?? this._bereichSichtbar(p.feld);
-    return { ...p, max };
+    // Im Stabwerksweg (29. September) die Fussnote des Stabwerks.
+    const sw = (this.szene?.flaechen ?? []).some((f) => f.stabwerk);
+    return { ...p, max, ...(sw && STABWERK_FUSSNOTE[p.key]
+      ? { fussnote: STABWERK_FUSSNOTE[p.key] } : {}) };
   }
 
   _schattiere(farbe, k) {
