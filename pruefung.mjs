@@ -1422,7 +1422,10 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
   /*
    * 4 - ERST WIE GELAGERT WIRD, DANN WAS DARUEBER HINAUSSTEHT.
    */
-  const ak = keys('aufl');
+  // Im ERSATZBALKEN-Verfahren: seit dem 29. Sept. stehen Endauflager und
+  // Anschluss ans Joch nur dort (Abschnitt 156).
+  const ak = U.sichtbareFelder('aufl', { ...w, rechenverfahren: 'ersatzbalken' })
+    .map((f) => f.key);
   const vor = (a, b) => ak.indexOf(a) >= 0 && ak.indexOf(a) < ak.indexOf(b);
   wahr('Das Endauflager steht vor den Kragarmen', vor('endbedingung', 'kragA'));
   wahr('Der Anschluss ans Joch auch', vor('mastAnschluss', 'kragA'));
@@ -6754,7 +6757,8 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      */
     {
       const SCH = await import(J('ui.schema.js'));
-      const std = SCH.standardwerte();
+      // Die Felder des Ersatzbalkens stehen nur in seinem Verfahren (29. Sept.).
+      const std = { ...SCH.standardwerte(), rechenverfahren: 'ersatzbalken' };
       wahr('Die Vorgabe des Endauflagers ist «links»',
            std.endbedingung === 'links', String(std.endbedingung));
       // Mit ihr gibt es nichts mehr zu vergleichen - A2 entfaellt.
@@ -15749,7 +15753,8 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
    * Auflagerung eines Jochs.
    */
   const em = { tragwerksart: 'einzelmast' };
-  const jo = { tragwerksart: 'joch' };
+  // Das Endauflager steht seit dem 29. Sept. nur beim Ersatzbalken.
+  const jo = { tragwerksart: 'joch', rechenverfahren: 'ersatzbalken' };
   /*
    * Die Gruppe 'typ' ist am 13. September in 'geo' aufgegangen - ein
    * Abschnitt mit einem einzigen Feld, dessen Masse im naechsten standen
@@ -33255,6 +33260,61 @@ titel('155  Einzelmast: die Auswertung greift nicht vor die Erklärung von «kom
   const zweig = a > 0 && b > a ? q.slice(a, b).replace(/\/\*[\s\S]*?\*\//g, '') : '';
   wahr('Der Einzelmast-Zweig steht vor der Erklärung (Wache greift)', zweig.length > 200);
   wahr('>>> und benutzt dort kein nacktes «kombi.» <<<', !/(^|[^.\w])kombi\./m.test(zweig));
+}
+
+titel('156  Durchsicht: Felder des Ersatzbalkens, Konsole in m, Kombination der Kopfzahl');
+/* ===========================================================================
+ * Weisungen 29. Sept.: «Endauflager nur Ersatzbalken, sonst ausblenden bei
+ * stabwerk», «können wir die konsole in m angeben?», «vorschlag umsetzen»
+ * (Kopfzahl des Einzelmasten nennt die Kombination ihres Bauteils),
+ * «kleinigkeiten korrigieren».
+ * ========================================================================= */
+{
+  const S156 = await import(J('ui.schema.js'));
+  const A156 = await import(J('core.auflager.js'));
+  const w = { ...standardwerte(), tragwerksart: 'joch', mastVorhanden: true };
+  const sw = S156.sichtbareFelder('aufl', w).map((f) => f.key);
+  const eb = S156.sichtbareFelder('aufl', { ...w, rechenverfahren: 'ersatzbalken' }).map((f) => f.key);
+  const nurEB = ['endbedingung', 'mastAnschluss', 'schraubenGrenze'];
+  wahr('Stabwerk (Vorgabe): Endauflager, Anschluss ans Joch, Begrenzung weg',
+       nurEB.every((k) => !sw.includes(k)), sw.join(', '));
+  wahr('Ersatzbalken: alle drei da', nurEB.every((k) => eb.includes(k)), eb.join(', '));
+  wahr('Was im Stabwerk wirkt, bleibt in beiden (Bedingung am Masten, Kragarm, Konsole)',
+       ['auflagerLinks', 'kragA'].every((k) => sw.includes(k) && eb.includes(k)));
+  wahr('c_φ von Hand nur beim Ersatzbalken',
+       !S156.sichtbareFelder('aufl', { ...w, endbedingung: 'manuell' }).some((f) => f.key === 'cPhi')
+       && S156.sichtbareFelder('aufl', { ...w, endbedingung: 'manuell', rechenverfahren: 'ersatzbalken' })
+         .some((f) => f.key === 'cPhi'));
+
+  // Konsole in m; alter Stand in mm liest sich gleich.
+  const hb = { b: 240 };
+  pruef('Konsole 0.15 m', A156.konsolLaenge({ auflagerKonsoleM: 0.15 }, hb), 0.15, 1e-12, 'm');
+  pruef('… alter Stand 150 mm gibt dasselbe', A156.konsolLaenge({ auflagerKonsole: 150 }, hb), 0.15, 1e-12, 'm');
+  pruef('… leer: halbe Mastbreite', A156.konsolLaenge({}, hb), 0.12, 1e-12, 'm');
+  pruef('… unter 5 mm: 5 mm (keine Knotenfalle mehr)', A156.konsolLaenge({ auflagerKonsoleM: 0.0003 }, hb),
+        0.005, 1e-12, 'm');
+  const h = A.standAnheben({ ...w, auflagerKonsole: 150, weitere: [{ id: 'T2', auflagerKonsole: 90 }] });
+  wahr('Beim Laden: mm → m, das alte Feld verschwindet',
+       h.auflagerKonsoleM === 0.15 && !('auflagerKonsole' in h)
+       && h.weitere[0].auflagerKonsoleM === 0.09);
+  wahr('Das Feld der Maske heisst auflagerKonsoleM, Einheit m',
+       S156.FELDER.some((f) => f.key === 'auflagerKonsoleM' && f.einheit === 'm')
+       && !S156.FELDER.some((f) => f.key === 'auflagerKonsole'));
+  const ax = readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8');
+  wahr('Die Abfangjoch-Ausleitung bekommt die Konsole jetzt mit', /auflagerKonsoleM: aktSatz\.auflagerKonsoleM/.test(ax));
+
+  const u = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Kopfzahl des Einzelmasten: Kombination des massgebenden Bauteils',
+       /Massgebende Kombination von \$\{esc\(werKopf/.test(u) && !/Massgebende Kombination des Masten/.test(u));
+  wahr('Kleinigkeiten: «teilweise –», «Über», kein «Kacheln Joch/Mast»',
+       A156.ENDBEDINGUNGEN.every((e) => !/teilweise\./.test(e.label))
+       && !/Ueber dem Mastfuss/.test(readFileSync(join(HIER, 'js', 'ui.schema.js'), 'utf8'))
+       && !/`Hauptkachel und Kacheln Joch\/Mast/.test(u));
+  wahr('Abfangungsfeld mit der Regel der übrigen Modulfelder',
+       /\.modul-abfang select \{ font-size: 11px; padding: 3px 5px/.test(readFileSync(join(HIER, 'css', 'style.css'), 'utf8')));
+  wahr('Ablenkung je Leiter: Trasse / Winkel / Spannweite, in der Signatur',
+       /data-mk="ablenkQuelle"/.test(u) && /map\(\(m\) => ablenkQuelle\(m\)\)/.test(u)
+       && /if \(feld === 'laengeFl'\) feld = 'laenge'/.test(u));
 }
 
 titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner');

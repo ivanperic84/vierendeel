@@ -69,9 +69,10 @@ export const C_STARR = 1e12;
  */
 export const ENDBEDINGUNGEN = [
   { key: 'gelenkig', label: 'gelenkig (c_φ = 0)' },
-  { key: 'mast',     label: 'teilweise. Steifigkeit aus Mast' },
-  { key: 'links',    label: 'teilweise. aus der Auflagerbedingung am Masten' },
-  { key: 'manuell',  label: 'teilweise. C_φ manuell' },
+  // «teilweise – …» statt «teilweise. …» (29. September, Kleinigkeit).
+  { key: 'mast',     label: 'teilweise – Steifigkeit aus Mast' },
+  { key: 'links',    label: 'teilweise – aus der Auflagerbedingung am Masten' },
+  { key: 'manuell',  label: 'teilweise – c_φ von Hand' },
   { key: 'voll',     label: 'voll eingespannt (c_φ = ∞)' },
 ];
 
@@ -1340,15 +1341,33 @@ export const LINK_VORGABEN = {
 /** Rueckfall ohne Mastprofil [m] - das Mass, das bis zum 12. September galt. */
 export const KONSOLE_OHNE_MAST = 0.15;
 
+/*
+ * >>> DIE KONSOLE IN METERN (29. September). <<<
+ *
+ * Weisung: «können wir die konsole in m angeben?» Bis dahin stand sie in mm
+ * (`auflagerKonsole`) als einziges Längenfeld der Maske in dieser Einheit.
+ * Wer 0.15 für 150 mm tippte, bekam 0.15 mm - und unter 1 mm brach das
+ * Stabwerk ab, weil zwei Knoten auf denselben Namen fielen («Knoten
+ * OGL_0.000 doppelt»). Neu `auflagerKonsoleM` in m; ein alter Stand trägt
+ * `auflagerKonsole` in mm und wird beim Laden umgesetzt (`standAnheben`),
+ * gelesen wird er hier trotzdem weiter. Eine Konsole unter 5 mm ist keine:
+ * gerechnet wird mit mindestens `KONSOLE_MIN`.
+ */
+export const KONSOLE_MIN = 0.005;
+
 /**
  * Auskragung der Konsole aus der Mastachse [m].
  *
- * @param inp     Eingabe (traegt `auflagerKonsole` in mm, 0 = automatisch)
+ * @param inp     Eingabe (`auflagerKonsoleM` in m, alt `auflagerKonsole` in
+ *                mm; 0 oder leer = automatisch)
  * @param profil  Mastprofil aus dem Katalog (`b` in mm)
  */
 export function konsolLaenge(inp, profil) {
-  const eigen = Number(inp?.auflagerKonsole);
-  if (Number.isFinite(eigen) && eigen > 0) return eigen / 1000;
+  const inM = Number(inp?.auflagerKonsoleM);
+  const inMm = Number(inp?.auflagerKonsole);
+  const eigen = Number.isFinite(inM) && inM > 0 ? inM
+    : (Number.isFinite(inMm) && inMm > 0 ? inMm / 1000 : 0);
+  if (eigen > 0) return Math.max(eigen, KONSOLE_MIN);
   const b = Number(profil?.b);
   return b > 0 ? b / 2000 : KONSOLE_OHNE_MAST;
 }

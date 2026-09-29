@@ -59,6 +59,20 @@ const opt = (arr, k = 'key', l = 'label') => arr.map((x) => ({ wert: x[k], text:
  */
 const mastDa = (w) => mastImModell(w);
 
+/*
+ * >>> FELDER, DIE NUR DER ERSATZBALKEN KENNT (29. September). <<<
+ *
+ * Weisung: «Endauflager nur Ersatzbalken, sonst ausblenden bei stabwerk.»
+ * Gemessen am J90/20 m mit Hängestütze: Endauflager (gelenkig / voll /
+ * aus Mast), «Anschluss ans Joch» (Kragmast) und die Begrenzung durch die
+ * Gurtverbindung ändern am Stabwerk keine Stelle (Joch 0.4819, Masten
+ * 0.8170 / 0.8178 in jeder Stellung) - das Stabwerk bildet Mast und
+ * Anschluss selbst ab. Im Ersatzbalken wirken sie (Mast 0.8222 → 0.9637
+ * bei «voll»). Die Vorgabe des Verfahrens ist das Stabwerk; nur wer den
+ * Ersatzbalken wählt, sieht sie.
+ */
+const nurErsatzbalken = (w) => w?.rechenverfahren === 'ersatzbalken';
+
 /**
  * Die Anschlusshoehe des ANGEWAEHLTEN Masten.
  *
@@ -685,14 +699,14 @@ export const FELDER = [
    */
   { key: 'endbedingung', gruppe: 'aufl', typ: 'auswahl', label: 'Endauflager',
     standard: 'links', optionen: opt(ENDBEDINGUNGEN),
-    sichtbar: (w) => tragwerksart(w).key === 'joch',
+    sichtbar: (w) => tragwerksart(w).key === 'joch' && nurErsatzbalken(w),
     hinweis: 'Wirkt auf die Vertikalbiegung; für Wind bleiben die Enden '
            + 'gelenkig. Die Vorgabe nimmt die Feder aus der '
            + 'Auflagerbedingung am Masten — dann rechnen Kern und '
            + 'ausgeleitetes Modell dasselbe Tragwerk.'},
   { key: 'cPhi', fein: true, gruppe: 'aufl', typ: 'zahl', label: 'Drehfedersteifigkeit',
     sym: 'c_φ', einheit: 'kNm/rad', standard: 5000, schritt: 500, min: 0,
-    sichtbar: (w) => tragwerksart(w).key === 'joch'
+    sichtbar: (w) => tragwerksart(w).key === 'joch' && nurErsatzbalken(w)
                   && w.endbedingung === 'manuell' },
   // Die Auflager stehen dort, wo die Maste stehen - nicht zwingend am Gurtende.
   // L bleibt die Länge der GURTE (daran hängt die Blecheinteilung), die
@@ -1144,7 +1158,7 @@ export const FELDER = [
     wertAus: (w) => (Number(w.fdHoehe) > 0 ? Number(w.fdHoehe)
       : (fdAutomatik ? Math.round(fdAutomatik.z * 100) / 100 : 0)),
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Ueber dem Mastfuss gemessen, höchstens bis zum Mastkopf. Dort '
+    hinweis: 'Über dem Mastfuss gemessen, höchstens bis zum Mastkopf. Dort '
            + 'wird die Seitenlage quer zum Gleis gegen 40 mm nachgewiesen '
            + '(Betriebswind ψ 0.70). Automatisch (Eingabe 0): höchstes '
            + 'Drahtwerk, sonst höchster Ausleger, sonst das Jochauflager — '
@@ -1402,7 +1416,7 @@ export const FELDER = [
      * gelenkig, und das Feld steht wirkungslos, aber nicht falsch da.
      */
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
-                  && tragwerksart(w).key !== 'tragausleger'
+                  && tragwerksart(w).key !== 'tragausleger' && nurErsatzbalken(w)
                   && (tragwerksart(w).key !== 'joch'
                       || w.endbedingung === 'mast' || w.endbedingung === 'links'),
     hinweis: 'Wirkt nur im verschieblichen Fall, also bei Wind in Jochachse und '
@@ -1500,16 +1514,18 @@ export const FELDER = [
   { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
     sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
     sichtbar: (w) => tragwerksart(w).key === 'joch' },
-  { key: 'auflagerKonsole', fein: true, gruppe: 'aufl', typ: 'zahl',
-    label: 'Konsole am Masten', sym: 'a_K', einheit: 'mm',
+  // In METERN seit dem 29. September («können wir die konsole in m
+  // angeben?») - vorher `auflagerKonsole` in mm, siehe `konsolLaenge`.
+  { key: 'auflagerKonsoleM', fein: true, gruppe: 'aufl', typ: 'zahl',
+    label: 'Konsole am Masten', sym: 'a_K', einheit: 'm',
     // Beim Tragausleger nicht: die Gurte laufen als Gabel am Masten vorbei,
     // das Stabmodell baut keine Konsole in x (28. September).
-    standard: 0, schritt: 5, min: 0,
+    standard: 0, schritt: 0.005, min: 0,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
                   && tragwerksart(w).key !== 'tragausleger',
-    hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung. '
-           + '0 = eine halbe Mastbreite (HEB 240 → 120 mm). Gilt für die '
-           + 'AxisVM-Ausleitung; der Ersatzbalken kennt sie nicht.' },
+    hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung, in m. '
+           + '0 = eine halbe Mastbreite (HEB 240 → 0.120 m); gerechnet wird mit '
+           + 'mindestens 0.005 m. Wirkt im Stabwerk und in der AxisVM-Ausleitung.' },
   /*
    * >>> ZWEITE FLANSCHKANTE, ALS OPTION (Weisung vom 16. September). <<<
    *
@@ -1554,7 +1570,7 @@ export const FELDER = [
    */
   { key: 'schraubenGrenze', fein: true, gruppe: 'aufl', typ: 'schalter',
     label: 'Einspannung durch die Gurtverbindung begrenzen', standard: false,
-    sichtbar: (w) => tragwerksart(w).key === 'joch'
+    sichtbar: (w) => tragwerksart(w).key === 'joch' && nurErsatzbalken(w)
                   && !['gelenkig', 'voll'].includes(w.endbedingung),
     hinweis: 'Die Drehfeder wird iterativ herabgesetzt, bis die Grenzlast der '
            + 'Gurtschrauben eingehalten ist.'},

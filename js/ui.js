@@ -342,6 +342,9 @@ export function maskenSignatur(werte, tab) {
                  `${abfangAnbindung(a).verlauf ?? ''}:` +
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
+                 // Woher der Leiter seine Ablenkung nimmt (29. Sept.): sie
+                 // entscheidet, welches Feld im Aufklappteil steht.
+                 (a.module ?? []).map((m) => ablenkQuelle(m)).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(',') + ':' +
                  // Die Abfangung der Leiter (29. September): «einseitig»
                  // bringt das Feld der Richtung - das ist Struktur.
@@ -852,8 +855,16 @@ export function aktualisiereMaske(container, werte, extras = {}) {
   container.querySelectorAll('.at-karte').forEach((karte) => {
     const a = teilVon(+karte.dataset.idx);
     if (!a) return;
-    const kopf = karte.querySelector('.klapp-r');
-    if (kopf) kopf.textContent = baugruppeKopf(a, trasse);
+    /*
+     * DIE KRAFTZEILE DER KARTE, NICHT DER ERSTE DECKEL (29. September).
+     * Hier stand `karte.querySelector('.klapp-r')` - aus der Zeit, als die
+     * Karte selbst ein Aufklappteil war. Seit sie eine Zeile hat, traf das
+     * den ersten INNEREN Deckel, den der Ablenkung: nach jeder Eingabe stand
+     * dort die Summe der Baugruppe statt des Winkels, und die Kraftzeile
+     * oben blieb auf dem alten Wert (F_x 1.35 statt 2.00 bei α 2.5°).
+     */
+    const kraftEl = karte.querySelector('.at-kraft');
+    if (kraftEl) kraftEl.textContent = `${baugruppeKraft(a, trasse)} kN`;
     karte.querySelectorAll('.modul[data-modul]').forEach((d) => {
       const m = (a.module ?? [])[+d.dataset.modul];
       if (!m) return;
@@ -874,6 +885,9 @@ export function aktualisiereMaske(container, werte, extras = {}) {
       });
       const l = baugruppeSumme({ ...a, module: [m], lasten: [] }, trasse);
       d.querySelector('.modul-lasten').innerHTML = modulLastenHtml(l, b);
+      // Der Deckel der Ablenkung zieht mit (29. September).
+      const ablD = b?.rolle === 'drahtwerk' ? d.querySelector('.klapp-r') : null;
+      if (ablD) ablD.textContent = ablenkDeckel(m, trasse);
     });
     karte.querySelectorAll('.lastblock[data-last]').forEach((d) => {
       const bl = (a.lasten ?? [])[+d.dataset.last];
@@ -2001,7 +2015,9 @@ export function querprofilLeisteHtml(werte) {
           + (andere.length ? ` · auch von ${andere.join(', ')} getragen` : '')
           + ' · Rechtsklick öffnet das Kontextmenü')}"
         ><span class="qp-ast" aria-hidden="true">└</span><b class="qp-kz">${esc(name)}</b>
-        <span class="qp-txt">${esc(mastText(m))}${lang
+        <span class="qp-txt">${/* Zahl und Einheit bleiben beisammen: in der
+          schmalen Leiste brach «8.50 m» sonst vor dem «m» um (29. Sept.). */
+          esc(mastText(m)).replace(/(\d) (m\b)/g, '$1&nbsp;$2')}${lang
           ? `<span class="qp-mastlang">${esc(lang)}</span>` : ''}</span></button>
       <span class="qp-marken">${andere.length
           ? `<span class="qp-chip" title="Geteilter Mast">auch ${esc(andere.join(', '))}</span>` : ''}${
@@ -2590,14 +2606,7 @@ function anbauteileHtml(g, werte) {
 
   const zeile = ({ a, i }) => {
     const offen = klappOffen(`at-${a.id}`);
-    const su = baugruppeSumme(a, trasse);
-    // F_x, nicht x: links in derselben Zeile steht die STATION x, und zwei
-    // Bedeutungen für denselben Buchstaben in einer Zeile liest niemand
-    // richtig.
-    const kraft = [['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy],
-                   ['F_z', su.Gz + su.Qz]]
-      .filter(([, v]) => Math.abs(v) > 0.005)
-      .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
+    const kraft = baugruppeKraft(a, trasse);
     // WAS IN DER ZEILE STEHT, MUSS AM ORT GEMESSEN SEIN. `x` ist am Masten
     // immer null; die Zeile behauptete damit, jedes Mastteil sitze am
     // Jochanfang.
@@ -3258,15 +3267,46 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
          * gerechnet wird, waere ein Versteck; einer, der es anschreibt, ist
          * eine Zusammenfassung.
          * =================================================================== */''}
-      ${drahtwerk ? klapp(`at-abl-${i}-${k}`, 'Ablenkung',
-        `<div class="at-gitter">
-        ${modFeld(i, k, 'winkel', 'Winkel α', modWert(m, 'winkel'), '°', 0.01,
-                  `aus R/L_FL: ${f3(alphaAuto)}°`)}
-        <span class="at-feld lesbar"><span>Spannweite <i>m</i></span>
-          <b>${f2(m.laenge ?? trasse.spannweite ?? 0)}</b>
-          <small class="hinweis">global, Gruppe «Trasse»</small></span>
-      </div>`,
-        `α ${f3(m.winkel ?? alphaAuto)}°`, false)
+      ${/* =====================================================================
+         * >>> WINKEL ODER SPANNWEITE JE LEITER, ZUGEKLAPPT (29. September). <<<
+         *
+         * Weisung: «hier bei den leitern sollte noch ein feld sein ob man einen
+         * individuellen ablenkwinke eintragen will oder die spannweite, am
+         * besten zugeklappt, dass es nicht viel platz braucht.»
+         *
+         * Drei Quellen, eine gilt: die TRASSE (R und L_FL global, Regelfall),
+         * ein eingetragener WINKEL (nur die Ablenkung) oder eine eigene
+         * SPANNWEITE (Ablenkung aus R und dieser Länge - und, wie der Kern es
+         * seit je rechnet, auch Gewicht und Wind des Leiters über diese
+         * Länge). Beim Wechsel wird die andere Angabe geleert, damit nicht
+         * eine vergessene Zahl still weiterrechnet; die neue startet mit dem
+         * Wert, der gerade gilt - so springt nichts.
+         * =================================================================== */''}
+      ${drahtwerk ? (() => {
+        const q = ablenkQuelle(m);
+        const Lg = trasse.spannweite ?? 0;
+        const wahl = `<label class="at-feld breit2"><span>Ablenkung aus</span>
+          <select class="mod" data-mk="ablenkQuelle" data-idx="${i}" data-mod="${k}"
+                  data-winkel="${f3(alphaAuto)}" data-laenge="${f2(m.laenge ?? Lg)}">
+            <option value="trasse"${q === 'trasse' ? ' selected' : ''}>Trasse (R, Spannweite global)</option>
+            <option value="winkel"${q === 'winkel' ? ' selected' : ''}>Winkel eintragen</option>
+            <option value="spannweite"${q === 'spannweite' ? ' selected' : ''}>Spannweite eintragen</option>
+          </select></label>`;
+        const feld = q === 'winkel'
+          ? modFeld(i, k, 'winkel', 'Winkel α', modWert(m, 'winkel'), '°', 0.01,
+                    `aus der Trasse: ${f3(alphaAuto)}°`)
+          : q === 'spannweite'
+            ? `${modFeld(i, k, 'laengeFl', 'Spannweite', m.laenge, 'm', 0.5,
+                         `global ${f2(Lg)} m`)}
+               <span class="at-feld lesbar"><span>Winkel α <i>°</i></span>
+                 <b>${f3(alphaAuto)}</b>
+                 <small class="hinweis">aus R und dieser Spannweite; sie gilt auch für Gewicht und Wind des Leiters</small></span>`
+            : `<span class="at-feld lesbar"><span>Spannweite <i>m</i></span>
+                 <b>${f2(Lg)}</b>
+                 <small class="hinweis">global, Gruppe «Trasse» · α ${f3(alphaAuto)}°</small></span>`;
+        return klapp(`at-abl-${i}-${k}`, 'Ablenkung',
+          `<div class="at-gitter">${wahl}${feld}</div>`, ablenkDeckel(m, trasse), false);
+      })()
       : streckenlast ? `<div class="at-gitter">
         ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
@@ -3426,21 +3466,17 @@ function lastblockListeHtml(a, i) {
       >${icon('neu', 13)} Freie Last</button>`;
 }
 
-/** Kopfzeile einer Baugruppe: was sie insgesamt einträgt. */
-function baugruppeKopf(a, trasse) {
-  const s = baugruppeSumme(a, trasse);
-  const stueck = [];
-  const n = (z, ein, mehr) => `${z} ${z === 1 ? ein : mehr}`;
-  if ((a.module ?? []).length) stueck.push(n(a.module.length, 'Teil', 'Teile'));
-  if ((a.lasten ?? []).length) stueck.push(n(a.lasten.length, 'Last', 'Lasten'));
-  // Alle drei Richtungen, aber nur die, die etwas tragen: eine Kopfzeile, die
-  // immer nur F_z zeigt, verschweigt gerade die Windlasten.
-  const kraft = [['F_x', s.Gx + s.Qx], ['F_y', s.Gy + s.Qy], ['F_z', s.Gz + s.Qz]]
+/**
+ * Die Kräfte einer Baugruppe in ihrer Zeile der Liste.
+ * F_x, nicht x: links in derselben Zeile steht die STATION x, und zwei
+ * Bedeutungen für denselben Buchstaben in einer Zeile liest niemand richtig.
+ * Eine Stelle für den Aufbau und das Nachführen (29. September).
+ */
+function baugruppeKraft(a, trasse) {
+  const su = baugruppeSumme(a, trasse);
+  return [['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy], ['F_z', su.Gz + su.Qz]]
     .filter(([, v]) => Math.abs(v) > 0.005)
-    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ');
-  return `${f2(a.x)} m · ${stueck.join(' + ') || 'leer'}` +
-         (kraft ? ` · ${kraft} kN` : ' · ohne Last') +
-         (Math.abs(s.Gx) > 0.005 ? ` · Umlenkung ${f2(s.Gx)} kN` : '');
+    .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
 }
 
 /** Trasseangaben aus den Eingabewerten. */
@@ -3478,8 +3514,29 @@ const MODUL_VORGABE = {
   winkel: undefined,
 };
 
+/*
+ * Woher der Ablenkwinkel eines Leiters kommt (29. September): ein gesetzter
+ * Winkel geht vor, dann eine eigene Spannweite, sonst die Trasse. Dieselbe
+ * Rangfolge wie `modulWinkel` und `umlenkkraft` im Kern.
+ */
+const ablenkQuelle = (m) => (Number.isFinite(m?.winkel) ? 'winkel'
+  : Number.isFinite(m?.laenge) && m.laenge > 0 ? 'spannweite' : 'trasse');
+
+/** Was der zugeklappte Deckel der Ablenkung zeigt - beim Aufbau und beim
+ *  Nachführen dieselbe Zeile (sonst stand beim Tippen der alte Winkel da). */
+function ablenkDeckel(m, trasse) {
+  const q = ablenkQuelle(m);
+  const alpha = modulWinkel({ ...m, winkel: null }, trasse);
+  return q === 'winkel' ? `α ${f3(m.winkel)}° eingetragen`
+    : q === 'spannweite' ? `L ${f2(m.laenge)} m · α ${f3(alpha)}°`
+    : `α ${f3(alpha)}°`;
+}
+
 /** Wert eines Modulfelds für die Anzeige - mit der Vorgabe von oben. */
 function modWert(m, feld) {
+  // Die Spannweite eines Leiters: leer heisst «global» - nicht die 1 m,
+  // die ein übriges Streckenteil ohne Angabe bekommt.
+  if (feld === 'laengeFl') return m?.laenge ?? undefined;
   const v = m?.[feld];
   return v === null || v === undefined ? MODUL_VORGABE[feld] : v;
 }
@@ -4588,6 +4645,25 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
      * haelt es das Modul fest; `achsfolge` (core.anbauteile.js) ist
      * die eine Stelle, die die Regel kennt.
      */
+    /*
+     * DIE QUELLE DER ABLENKUNG (29. September): Winkel, Spannweite oder
+     * Trasse. Die jeweils andere Angabe wird geleert, die neue startet mit
+     * dem gerade wirksamen Wert (aus dem Auswahlfeld mitgegeben).
+     */
+    if (feld === 'ablenkQuelle') {
+      const q = wert ?? {};
+      const alt = m[mod];
+      m[mod] = { ...alt,
+        winkel: q.art === 'winkel'
+          ? (Number.isFinite(alt.winkel) ? alt.winkel : q.winkel) : null,
+        laenge: q.art === 'spannweite'
+          ? (Number.isFinite(alt.laenge) && alt.laenge > 0 ? alt.laenge : q.laenge) : null };
+      l[idx] = { ...l[idx], module: m };
+      onAnbau(l);
+      return;
+    }
+    // Das Feld der Leiter-Spannweite schreibt in `laenge` (leer = global).
+    if (feld === 'laengeFl') feld = 'laenge';
     const folge = achsfolge(m[mod].folge, feld, wert);
     m[mod] = { ...m[mod], [feld]: wert,
                ...(folge ? { folge } : { folge: undefined }) };
@@ -4653,6 +4729,10 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       // Weisung vom 19. September: «Bei anzahl keine negativ eingabe
       // ermöglichen» - und keine halben Stück.
       if (inp.dataset.mk === 'anzahl' && wert !== null) wert = anzahlZulaessig(wert);
+      if (inp.dataset.mk === 'ablenkQuelle') {
+        wert = { art: inp.value, winkel: parseFloat(inp.dataset.winkel),
+                 laenge: parseFloat(inp.dataset.laenge) };
+      }
       setzeModul(+inp.dataset.idx, +inp.dataset.mod, inp.dataset.mk, wert);
     });
     if (inp.dataset.mk === 'anzahl') {
@@ -4950,9 +5030,33 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ? 'Einzellastfall — kein Tragsicherheitsurteil'
     : (zustand === 'ok' ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt')
       + (ohneKnicken ? ' · Biegeknicken nicht geführt' : '');
-  const fallKey = bem?.mast?.A?.fall;
-  const fallBez = fallKey
-    ? (kombi?.lastfaelle?.find((l) => l.key === fallKey)?.bez ?? fallKey) : null;
+  /*
+   * >>> DIE KOMBINATION DES MASSGEBENDEN BAUTEILS (29. September). <<<
+   *
+   * Befund der Durchsicht, auf Weisung umgesetzt («vorschlag umsetzen»):
+   * hier stand immer die Kombination des MASTEN, auch wenn Fundament oder
+   * Anker die Kopfzahl stellten - am Einzelmasten HEB 240 stand «η 0.300
+   * Fundament M1 · massgebend: Wind +y», während die Fundamentkachel
+   * darunter «Wind +x» nannte. Genommen wird jetzt die des Bauteils in
+   * der Kopfzahl: aus dem Stabwerk, wo es sie führt, sonst aus dem Kern.
+   */
+  const bezVon = (key, bez) => (bez ?? (key
+    ? (kombi?.lastfaelle?.find((l) => l.key === key)?.bez ?? key) : null));
+  const fallBez = (() => {
+    const mg = bt?.massgebend;
+    if (mg && (mg.fall || mg.bez)) return bezVon(mg.fall, mg.bez);
+    const wer = mg?.name ?? '';
+    if (/^Fundament/.test(wer)) {
+      const q = bem?.fundament?.A;
+      return q?.massgebend ? bezVon(q.massgebend.fall, q.massgebend.bez) : null;
+    }
+    if (/^Anker/.test(wer)) {
+      const e = bem?.anker?.A;
+      return e ? bezVon(e.lastfall, e.bez) : null;
+    }
+    if (/^Knicken/.test(wer)) return bezVon(bem?.mast?.A?.stabil?.fall ?? bem?.mast?.A?.fall);
+    return bezVon(bem?.mast?.A?.fall);
+  })();
 
   /*
    * Geordnet wie am Joch (25. September) - hier ohne Jochgruppe, denn es
@@ -5002,8 +5106,10 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
       ${U.wer ? `<span class="urteil-fall" title="Massgebendes Bauteil">${esc(U.wer)}</span>` : ''}
       <span>${U.text}${(!einzelLastfall && offeneNw)
         ? ` · ${offeneNw} Nachweis(e) nicht geführt` : ''}</span>
-      ${!einzelLastfall && fallBez
-        ? `<span class="urteil-fall" title="Massgebende Kombination des Masten">massgebend: ${esc(fallBez)}</span>`
+      ${/* Stellt die Verformung die Kopfzahl (Stellung «beide»), gehört
+           die Kombination der Tragsicherheit nicht dazu - dann keine. */''}
+      ${!einzelLastfall && fallBez && (!U.wer || U.wer === werKopf)
+        ? `<span class="urteil-fall" title="Massgebende Kombination von ${esc(werKopf ?? 'Mast')}">massgebend: ${esc(fallBez)}</span>`
         : ''}
     </div>
     ${nachweisartLeiste(nwArt)}
@@ -5431,7 +5537,9 @@ export function stabwerkLeiste(opt = {}) {
      * Die Reihe zuerst: sie sagt, WAS gerechnet wurde. Die Kennzahlen
      * dahinter sagen, wie gross es war.
      */
-    gueltig: e ? `Hauptkachel und Kacheln Joch/Mast aus dem Stabwerk · ${(e.tragwerke ?? 1) > 1
+    // «Kacheln Joch/Mast» stand auch am Einzelmasten, der kein Joch hat
+    // (29. Sept.) - welche Kachel woher kommt, sagt ihre Gruppe.
+    gueltig: e ? `Hauptkachel und Kacheln aus dem Stabwerk · ${(e.tragwerke ?? 1) > 1
                     ? `Reihe: ${e.tragwerke} Tragwerke, ${e.masten} Masten in einem `
                       + `Stabwerk · ` : ''}${e.staebe} Stäbe`
                + ` · ${e.freiheitsgrade} Freiheitsgrade`

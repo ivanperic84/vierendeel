@@ -304,6 +304,9 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
         anbauteile: aktSatz.anbauteile ?? [],
         // Die Auflagerbedingung je Gurt - vorn und hinten getrennt.
         auflagerLinks: aktSatz.auflagerLinks, auflagerVorgabe: app.werte.auflagerVorgabe,
+        // Die eingetragene Konsole (29. September): sie kam hier nie an -
+        // die Ausleitung nahm immer die halbe Mastbreite.
+        auflagerKonsoleM: aktSatz.auflagerKonsoleM, auflagerKonsole: aktSatz.auflagerKonsole,
         L_FL: Number(aktSatz.L_FL) || 0,
         R: Number(aktSatz.R) || 0,
         ek: aktSatz.ek,

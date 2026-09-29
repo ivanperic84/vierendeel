@@ -837,6 +837,12 @@ function tragwerkAnheben(t) {
     : [];
   // Den gewählten Lastfall kann es nach der Umstellung nicht mehr geben.
   if (['wind', 'schnee'].includes(w.lastfall)) delete w.lastfall;
+  // Die Konsole steht seit dem 29. September in m (`auflagerKonsoleM`).
+  if (w.auflagerKonsole !== undefined) {
+    const mm = Number(w.auflagerKonsole);
+    if (mm > 0 && !(Number(w.auflagerKonsoleM) > 0)) w.auflagerKonsoleM = mm / 1000;
+    delete w.auflagerKonsole;
+  }
   return w;
 }
 

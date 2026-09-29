@@ -686,7 +686,10 @@ input[type=range].rng {
 }
 .wirk-bez.fd { color: var(--acc); }
 
-.modul-kopf select, .modul-partner select { font-size: 11px; padding: 3px 5px; min-width: 0; }
+/* Auch die Abfangung (29. Sept.): «das feld mit durchgehend sollte gleich
+   hoch sein wie die anderen» - sie hatte die Regel nie bekommen. */
+.modul-kopf select, .modul-partner select,
+.modul-abfang select { font-size: 11px; padding: 3px 5px; min-width: 0; }
 /* Der Spiegelknopf steht neben der Bauteilwahl und darf nicht umbrechen -
    «x ⇄» auf zwei Zeilen liest sich wie zwei Knöpfe. */
 .modul-kopf [data-mod-spiegeln] {
