@@ -33320,6 +33320,24 @@ titel('156  Durchsicht: Felder des Ersatzbalkens, Konsole in m, Kombination der 
        !/— kein Nachweis'/.test(lay)
        && /Charakteristisch — Anker, Fundament, Aufhängung/.test(lay)
        && /Gebrauchstauglichkeit — Verformung \(Betriebswind\)/.test(lay));
+  // Freie Last, Variante (b): ein Punkt, eine Zeile je Lastart.
+  wahr('Freie Last: Punkte mit gemeinsamer Lage, Lastart hinzufügen, in der Signatur',
+       /class="modul lastpunkt"/.test(u) && /data-lastart-dazu=/.test(u)
+       && /class="lpunkt" data-lp=/.test(u)
+       && /\(a\.lasten \?\? \[\]\)\.map\(\(l, k\) => lastPunkt\(l, k\)\)/.test(u));
+  {
+    // Das Format bleibt: jeder Block trägt seine Lage und EINE Gruppe; die
+    // Kennung `punkt` überlebt das Normalisieren, und der Kern rechnet zwei
+    // Blöcke am selben Punkt wie zwei einzelne.
+    const tb = { ...A.neuesAnbauteil('hs-nur', 5), lasten: [
+      A.neuerLastblock('G', { z: -2, Fz: 1, punkt: 'P-t' }),
+      A.neuerLastblock('WindY', { z: -2, Fy: 0.5, punkt: 'P-t' })] };
+    const n = A.normalisiereAnbauteil(tb);
+    wahr('… «punkt» übersteht das Normalisieren', n.lasten.every((l) => l.punkt === 'P-t'));
+    const ohne = A.normalisiereAnbauteil({ ...tb, lasten: tb.lasten.map(({ punkt, ...r }) => r) });
+    const s1 = A.baugruppeSumme(n, {}), s2 = A.baugruppeSumme(ohne, {});
+    wahr('… und ändert an den Kräften nichts', JSON.stringify(s1) === JSON.stringify(s2));
+  }
   wahr('Ablenkung je Leiter: Trasse / Winkel / Spannweite, in der Signatur',
        /data-mk="ablenkQuelle"/.test(u) && /map\(\(m\) => ablenkQuelle\(m\)\)/.test(u)
        && /if \(feld === 'laengeFl'\) feld = 'laenge'/.test(u));

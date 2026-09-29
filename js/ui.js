@@ -346,6 +346,8 @@ export function maskenSignatur(werte, tab) {
                  // entscheidet, welches Feld im Aufklappteil steht.
                  (a.module ?? []).map((m) => ablenkQuelle(m)).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(',') + ':' +
+                 // Welche Lasten einen Punkt teilen (29. Sept.) - Struktur.
+                 (a.lasten ?? []).map((l, k) => lastPunkt(l, k)).join(',') + ':' +
                  // Die Abfangung der Leiter (29. September): «einseitig»
                  // bringt das Feld der Richtung - das ist Struktur.
                  (a.module ?? []).map((m, k) => {
@@ -897,6 +899,13 @@ export function aktualisiereMaske(container, werte, extras = {}) {
         const v = bl[inp.dataset.lk] ?? 0;
         if (String(inp.value) !== String(v)) inp.value = v;
       });
+    });
+    // Die Lage je Punkt - aus dem ersten Block des Punkts (29. September).
+    karte.querySelectorAll('.lpunkt').forEach((inp) => {
+      if (inp === aktiv) return;
+      const bl = (a.lasten ?? []).find((x, k) => lastPunkt(x, k) === inp.dataset.punkt);
+      const v = bl?.[inp.dataset.lp] ?? 0;
+      if (bl && String(inp.value) !== String(v)) inp.value = v;
     });
   });
   // Die mitgeführten Ergebnisstücke (Querschnittsklassen, Lastfallmatrix)
@@ -3402,26 +3411,48 @@ function momentHinweis(a) {
        + 'und wirkt am offenen Profil stark.';
 }
 
+/*
+ * >>> EIN PUNKT, MEHRERE LASTARTEN (29. September). <<<
+ *
+ * Frage des Auftraggebers: «kann man bei der freien last verschiedene
+ * lastarten eingeben, oder muss man hierfür immer ein neues elemente
+ * auswählen, obwohl der angriffspunkt der gleiche ist.» Auf Rückfrage:
+ * Variante (b) - ein Block, eine Zeile je Lastart unter einem gemeinsamen
+ * Punkt.
+ *
+ * GEBAUT OHNE FORMATWECHSEL. Jeder Lastblock trägt weiter seine eigene
+ * Lage und seine eine Einwirkungsgruppe - Kern, Ausleitung und alte Stände
+ * lesen ihn unverändert. Neu ist die Kennung `punkt`: Blöcke mit derselben
+ * stehen in der Karte als EIN Punkt, die Lage steht einmal oben und gilt
+ * allen, darunter je Lastart eine Zeile. Ein alter Block ohne Kennung ist
+ * ein Punkt mit einer Lastart.
+ */
+const lastPunkt = (l, k) => l?.punkt ?? `#${k}`;
+
+/** Die Blöcke einer Baugruppe nach Punkt geordnet, in ihrer Reihenfolge. */
+function lastPunkte(bloecke) {
+  const m = new Map();
+  bloecke.forEach((l, k) => {
+    const p = lastPunkt(l, k);
+    if (!m.has(p)) m.set(p, []);
+    m.get(p).push({ l, k });
+  });
+  return [...m.entries()].map(([punkt, zeilen]) => ({ punkt, zeilen }));
+}
+
 function lastblockListeHtml(a, i) {
   const bloecke = a.lasten ?? [];
-  const zeilen = bloecke.map((l, k) => {
+  const lastZeile = ({ l, k }) => {
     const g = EINWIRKUNGEN.find((e) => e.key === l.einwirkung) ?? EINWIRKUNGEN[0];
     const hatMoment = ['Mxx', 'Myy', 'Mzz'].some((f) => Math.abs(l[f] ?? 0) > 0);
-    return `<div class="modul lastblock" data-last="${k}">
+    return `<div class="lastblock lastart" data-last="${k}">
       <div class="modul-kopf">
         ${lastWahl(i, k, 'einwirkung', l.einwirkung,
                    EINWIRKUNGEN.filter((e) => !e.intern)
                      .map((e) => ({ key: e.key, label: e.label })))}
         <button class="loeschen" data-last-weg="${k}" data-idx="${i}"
-                title="Last entfernen">×</button>
+                title="Diese Lastart entfernen">×</button>
       </div>
-      <div class="sec-klein">Angriffspunkt${bezugsHinweis(a)}</div>
-      <div class="at-gitter">
-        ${lastFeld(i, k, 'x', 'x', l.x, 'm', 0.1)}
-        ${lastFeld(i, k, 'y', 'y', l.y, 'm', 0.1)}
-        ${lastFeld(i, k, 'z', 'z', l.z, 'm', 0.1)}
-      </div>
-      <div class="sec-klein">Kraft</div>
       <div class="at-gitter">
         ${lastFeld(i, k, 'Fx', 'F_x', l.Fx, 'kN', 0.5)}
         ${lastFeld(i, k, 'Fy', 'F_y', l.Fy, 'kN', 0.5)}
@@ -3442,6 +3473,25 @@ function lastblockListeHtml(a, i) {
           : '<span class="ablage-meta">kehrt mit dem Vorzeichen der Kombination</span>'}
       </div>
     </div>`;
+  };
+  const punkte = lastPunkte(bloecke);
+  const zeilen = punkte.map(({ punkt, zeilen: z }, n) => {
+    const erst = z[0].l;
+    const lp = (feld, label) => `<label class="at-feld" data-feldname="${feld}">
+      <span>${esc(label)} <i>m</i></span>
+      <input class="lpunkt" data-lp="${feld}" data-idx="${i}" data-punkt="${esc(punkt)}"
+             type="number" step="0.1" value="${erst[feld] ?? 0}"></label>`;
+    return `<div class="modul lastpunkt" data-punkt="${esc(punkt)}">
+      <div class="modul-kopf">
+        <span class="sec-klein" style="flex:1">Punkt ${n + 1}${bezugsHinweis(a)}</span>
+        <button class="loeschen" data-punkt-weg="${esc(punkt)}" data-idx="${i}"
+                title="Punkt mit allen Lastarten entfernen">×</button>
+      </div>
+      <div class="at-gitter">${lp('x', 'x')}${lp('y', 'y')}${lp('z', 'z')}</div>
+      ${z.map(lastZeile).join('')}
+      <button class="btn btn-mini" data-lastart-dazu="${esc(punkt)}" data-idx="${i}"
+              type="button">${icon('neu', 11)} Lastart</button>
+    </div>`;
   }).join('');
 
   /*
@@ -3460,7 +3510,8 @@ function lastblockListeHtml(a, i) {
       >${icon('neu', 13)} Freie Last</button>`;
   }
   return `<div class="sec">Freie Lasten<span class="sec-r"
-      >${bloecke.length} Block${bloecke.length === 1 ? '' : 'e'}</span></div>
+      >${punkte.length} Punkt${punkte.length === 1 ? '' : 'e'} · ${bloecke.length} Last${
+        bloecke.length === 1 ? '' : 'en'}</span></div>
     <div class="modul-liste">${zeilen}</div>
     <button class="btn btn-zufuegen" data-last-neu="${i}" type="button"
       >${icon('neu', 13)} Freie Last</button>`;
@@ -4786,13 +4837,57 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
       onAnbau(l);
     });
   });
+  // Ein neuer PUNKT: eigene Kennung, die Lage des letzten als Anfang.
+  const neuePunktId = () => `P-${Math.random().toString(36).slice(2, 8)}`;
   container.querySelectorAll('[data-last-neu]').forEach((b) => {
     b.addEventListener('click', () => {
       const l = liste(); const idx = +b.dataset.lastNeu;
       const vorhanden = l[idx].lasten ?? [];
       const letzter = vorhanden[vorhanden.length - 1];
       l[idx] = { ...l[idx], lasten: [...vorhanden, neuerLastblock('G',
-        { y: letzter?.y ?? 0, z: letzter?.z ?? 0 })] };
+        { y: letzter?.y ?? 0, z: letzter?.z ?? 0, punkt: neuePunktId() })] };
+      onAnbau(l);
+    });
+  });
+  /*
+   * DIE LAGE GILT DEM GANZEN PUNKT (29. September): jede Lastart darunter
+   * zieht mit. Ein alter Block ohne Kennung ist sein eigener Punkt.
+   */
+  container.querySelectorAll('.lpunkt').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const l = liste(); const idx = +inp.dataset.idx;
+      if (!l[idx]) return;
+      const wert = parseFloat(inp.value) || 0;
+      l[idx] = { ...l[idx], lasten: (l[idx].lasten ?? []).map((x, k) =>
+        (lastPunkt(x, k) === inp.dataset.punkt ? { ...x, [inp.dataset.lp]: wert } : x)) };
+      onAnbau(l);
+    });
+  });
+  container.querySelectorAll('[data-punkt-weg]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const l = liste(); const idx = +b.dataset.idx;
+      l[idx] = { ...l[idx], lasten: (l[idx].lasten ?? [])
+        .filter((x, k) => lastPunkt(x, k) !== b.dataset.punktWeg) };
+      onAnbau(l);
+    });
+  });
+  // Eine weitere Lastart am selben Punkt: dieselbe Lage, die nächste noch
+  // nicht belegte Gruppe. Ein alter Block bekommt dabei seine Kennung.
+  container.querySelectorAll('[data-lastart-dazu]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const l = liste(); const idx = +b.dataset.idx;
+      if (!l[idx]) return;
+      const alt = b.dataset.lastartDazu;
+      const neu = alt.startsWith('#') ? neuePunktId() : alt;
+      const bloecke = (l[idx].lasten ?? []).map((x, k) =>
+        (lastPunkt(x, k) === alt ? { ...x, punkt: neu } : x));
+      const drin = bloecke.filter((x) => x.punkt === neu);
+      const belegt = new Set(drin.map((x) => x.einwirkung));
+      const gruppe = EINWIRKUNGEN.filter((e) => !e.intern)
+        .find((e) => !belegt.has(e.key))?.key ?? 'G';
+      const p = drin[0] ?? {};
+      bloecke.push(neuerLastblock(gruppe, { x: p.x ?? 0, y: p.y ?? 0, z: p.z ?? 0, punkt: neu }));
+      l[idx] = { ...l[idx], lasten: bloecke };
       onAnbau(l);
     });
   });
