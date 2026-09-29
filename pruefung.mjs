@@ -33028,6 +33028,40 @@ titel('148  Tragausleger neben anderen Tragwerken: gerechnet wird, was zusammenh
 }
 
 // ===========================================================================
+titel('149  Abfangung des Leiters: Eingabe beim Bauteil');
+/* ===========================================================================
+ * «wie gibt man bei einem joch leiter ein die abgefangen sind (nicht
+ * durchgehend). die eingabe über die leiter sollte direkt bei den bauteilen
+ * erfolgen.» Die Bauteilkarte trägt je Leiter die Abfangung und bei
+ * «einseitig» die Zugrichtung; gespeichert wie bisher unter
+ * `werte.havarie[leiterKennung]`. Die Havarie-Karte zeigt sie nur noch an.
+ * ========================================================================= */
+{
+  const U149 = await import(J('ui.js'));
+  const A149 = await import(J('data.anbauteile.js'));
+  const a = { id: 'AT-x', name: 'Fahrleitung', module: [{ bauteil: 'drahtwerk-test' }] };
+  const key = A149.leiterKennung(a, a.module[0], 0);
+  const joch = { ...standardwerte(), tragwerksart: 'joch' };
+  const leer = U149.abfangungHtml(a, a.module[0], 0, joch);
+  wahr('Am Tragjoch ohne Eintrag: «durchgehend» gewählt, keine Richtung',
+       /value="durchgehend" selected/.test(leer) && !/data-hav="richtung"/.test(leer)
+       && new RegExp(`data-hav-key="${key}" data-hav="art"`).test(leer));
+  const eins = U149.abfangungHtml(a, a.module[0], 0,
+    { ...joch, havarie: { [key]: { art: 'einseitig', richtung: '-y' } } });
+  wahr('Einseitig: die Zugrichtung steht da, −y gewählt',
+       /value="einseitig" selected/.test(eins) && /data-hav="richtung"/.test(eins)
+       && /value="-y" selected/.test(eins));
+  const ab = U149.abfangungHtml(a, a.module[0], 0, { ...joch, tragwerksart: 'abfangjoch' });
+  wahr('Am Abfangjoch Vorgabe «einseitig», die Richtung kommt aus der Anbindung',
+       /value="einseitig" selected/.test(ab) && !/data-hav="richtung"/.test(ab));
+  const q = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Havarie-Karte zeigt die Abfangung nur noch an (kein Auswahlfeld mehr dort)',
+       !/class="hav-art" data-hav-key/.test(q) && /Eingabe beim Bauteil \(Reiter Anbauteile\)/.test(q));
+  wahr('Die Maskensignatur der Anbauteile kennt die Abfangung (sonst fehlt das Richtungsfeld)',
+       /werte\.havarie\?\.\[leiterKennung\(a, m, k\)\]/.test(q));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

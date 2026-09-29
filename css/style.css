@@ -636,6 +636,15 @@ input[type=range].rng {
   text-transform: uppercase; color: var(--dim); margin-bottom: 1px;
 }
 .modul-partner select { grid-column: 1; min-width: 0; }
+/* Die Abfangung des Leiters (29. September): dasselbe Muster wie der
+   Fahrdraht darueber - Beschriftung oben, darunter Art und (bei einseitig)
+   die Zugrichtung nebeneinander. */
+.modul-abfang {
+  display: grid; grid-template-columns: 1fr 1fr 20px; column-gap: 5px;
+  align-items: center; margin: -2px 0 5px 0;
+  font-size: 10.5px; color: var(--dim);
+}
+.modul-abfang select { min-width: 0; }
 /* Die gesperrte Fassung ist am 15. September entfallen - «dynamisch
    einblenden nicht abgehakt». Ein leeres Feld, das nichts zeigt und nichts
    kann, ist kein Platzhalter, sondern eine Attrappe. */

@@ -323,7 +323,13 @@ export function maskenSignatur(werte, tab) {
                  `${abfangAnbindung(a).verlauf ?? ''}:` +
                  `${klappOffen(`at-${a.id}`)}:${a.gleis ?? ''}:` +
                  (a.module ?? []).map((m) => m.bauteil).join(',') + ':' +
-                 (a.lasten ?? []).map((l) => l.einwirkung).join(','))
+                 (a.lasten ?? []).map((l) => l.einwirkung).join(',') + ':' +
+                 // Die Abfangung der Leiter (29. September): «einseitig»
+                 // bringt das Feld der Richtung - das ist Struktur.
+                 (a.module ?? []).map((m, k) => {
+                   const e = werte.havarie?.[leiterKennung(a, m, k)];
+                   return e ? `${e.art ?? ''}${e.richtung ?? ''}` : '';
+                 }).join(','))
       /*
        * DIE AUFLAGERBEDINGUNG GEHOERT DAZU. Ihr Diagramm ist gezeichnet,
        * kein Eingabefeld - `aktualisiereMaske` gleicht nur Feldwerte ab und
@@ -431,14 +437,15 @@ function havarieHtml(g, werte) {
         data-hav-name="${esc(l.name)}"${e.reisst === true ? ' checked' : ''}
         title="Dieser Leiter kann reissen — er wird als eigener Havariefall gerechnet"></td>
       <td class="hav-name">${esc(l.name)}<span class="hav-wo">${esc(l.teile.map(wo).join(' · '))}</span></td>
-      <td><select class="hav-art" data-hav-key="${esc(l.key)}" data-hav="art"
-        title="${esc(abfangart(art).notiz)}">${ABFANGARTEN.map((x) =>
-          `<option value="${x.key}"${x.key === art ? ' selected' : ''}>${esc(x.kurz)}</option>`).join('')}</select></td>
-      <td>${art === 'einseitig'
-        ? `<select class="hav-art" data-hav-key="${esc(l.key)}" data-hav="richtung"
-             title="In welche Richtung dieser Leiter zieht — nur so können sich mehrere Abfangungen aufheben">
-             <option value="+y"${vz > 0 ? ' selected' : ''}>+y</option>
-             <option value="-y"${vz < 0 ? ' selected' : ''}>−y</option></select>`
+      ${/* >>> DIE ABFANGUNG WIRD BEIM BAUTEIL EINGEGEBEN (29. September). <<<
+         * «wie gibt man bei einem joch leiter ein die abgefangen sind (nicht
+         * durchgehend). die eingabe über die leiter sollte direkt bei den
+         * bauteilen erfolgen.» Hier steht sie nur noch zur Übersicht - dieselbe
+         * Angabe an zwei Orten einzugeben hiesse, auf den Tag zu warten, an
+         * dem sie sich widersprechen. */''}
+      <td title="${esc(`${abfangart(art).notiz} — Eingabe beim Bauteil (Reiter Anbauteile)`)}"
+        >${esc(abfangart(art).kurz)}</td>
+      <td>${art === 'einseitig' && !abfang ? (vz > 0 ? '+y' : '−y')
         : '<span class="dim">–</span>'}</td>
       <td class="num" title="Ständiger Längszug an diesem Tragwerk">${kraft(ff?.Gy)}</td>
       <td class="num" title="Änderung in Gleisrichtung, wenn dieser Leiter reisst">${kraft(ff?.riss)}</td>
@@ -478,7 +485,11 @@ function havarieHtml(g, werte) {
 }
 
 function verdrahteHavarie(container, werte, onChange) {
-  const wahl = () => ({ ...(werte.havarie ?? {}) });
+  // Der NACHGEFUEHRTE Stand (`aktuelleWerte`), nicht der vom letzten vollen
+  // Aufbau: seit die Abfangung auch in der Bauteilkarte steht (29. Sept.),
+  // aendert man sie oft zweimal hintereinander, ohne dass die Maske neu
+  // gebaut wird - die zweite Aenderung haette die erste ueberschrieben.
+  const wahl = () => ({ ...((aktuelleWerte ?? werte).havarie ?? {}) });
   container.querySelectorAll('[data-hav-an]').forEach((inp) => {
     inp.addEventListener('change', () => onChange('havarieAus', !inp.checked));
   });
@@ -498,7 +509,8 @@ function verdrahteHavarie(container, werte, onChange) {
           ? abfangVorgabeFuer(tragwerksart(aktuelleWerte ?? {}).key) : '+y';
         if (inp.value && inp.value !== vorgabe) e[inp.dataset.hav] = inp.value;
         else delete e[inp.dataset.hav];
-        e.name = e.name ?? inp.closest('tr')?.querySelector('[data-hav-name]')?.dataset.havName;
+        e.name = e.name ?? inp.dataset.havName
+          ?? inp.closest('tr')?.querySelector('[data-hav-name]')?.dataset.havName;
       } else {
         const v = parseFloat(inp.value);
         if (Number.isFinite(v) && v > 0) e[inp.dataset.hav] = v; else delete e[inp.dataset.hav];
@@ -3165,6 +3177,7 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
                 title="Modul entfernen">×</button>
       </div>
       ${partnerFeld(m, k, i)}${drahtwerk ? wirkungHtml(i, k, m) : ''}
+      ${drahtwerk ? abfangungHtml(a, m, k, werte) : ''}
       ${kt ? `<div class="modul-kette">
         ${kt.rolle ? `<span class="rollen-marke r-${esc(kt.rolle)}"
             title="Rolle aus der Lasttabelle, sie bestimmt, was auf was sitzt"
@@ -3554,6 +3567,39 @@ const WIRKUNGEN = [
   { key: 'wirktQ', label: 'Wind/Schnee', bezug: 'fahrdraht',
     titel: 'Wind auf den Leiter und Schnee, veränderlich' },
 ];
+
+/**
+ * >>> DIE ABFANGUNG DES LEITERS, AM BAUTEIL (29. September). <<<
+ *
+ * Frage und Weisung: «wie gibt man bei einem joch leiter ein die abgefangen
+ * sind (nicht durchgehend). die eingabe über die leiter sollte direkt bei
+ * den bauteilen erfolgen.» Bis dahin stand sie nur unter Lasten → Havarie,
+ * wo man sie nicht sucht. Gespeichert wird wie bisher je Leiter
+ * (`werte.havarie[leiterKennung]`), dieselben Datenattribute - die Havarie-
+ * Karte zeigt sie seither nur noch an. Ein Kettenwerk ist ein Leiter: die
+ * Angabe gilt allen seinen Teilen.
+ *
+ * Am ABFANGJOCH kommt die Richtung aus der Anbindung (vorn/hinten,
+ * Entscheid 24. September) - das Feld dafür steht dort nicht.
+ */
+export function abfangungHtml(a, m, k, werte) {
+  const key = leiterKennung(a, m, k);
+  const e = werte?.havarie?.[key] ?? {};
+  const artTw = tragwerksart(werte ?? {}).key;
+  const art = e.art ?? abfangVorgabeFuer(artTw);
+  const vz = e.richtung === '-y' ? -1 : 1;
+  const name = `${a.name ?? 'Leiter'} · ${m.bauteil}`;
+  return `<label class="modul-abfang"><span class="modul-partner-t">Abfangung</span>
+      <select class="mod-abf" data-hav-key="${esc(key)}" data-hav="art" data-hav-name="${esc(name)}"
+        title="${esc(abfangart(art).notiz)}">${ABFANGARTEN.map((x) =>
+          `<option value="${x.key}"${x.key === art ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}</select>
+      ${art === 'einseitig' && artTw !== 'abfangjoch' ? `<select class="mod-abf" data-hav-key="${esc(key)}"
+        data-hav="richtung" data-hav-name="${esc(name)}"
+        title="In welche Richtung dieser Leiter zieht (Gleisrichtung) — nur so können sich mehrere Abfangungen aufheben">
+        <option value="+y"${vz > 0 ? ' selected' : ''}>zieht nach +y</option>
+        <option value="-y"${vz < 0 ? ' selected' : ''}>zieht nach −y</option></select>` : ''}
+    </label>`;
+}
 
 function wirkungHtml(i, k, m) {
   /*
