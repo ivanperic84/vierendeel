@@ -183,3 +183,113 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
   sz.quelleWerte = 'stabwerk';
   return n;
 }
+
+/* ===========================================================================
+ * >>> DIE VERLÄUFE AUS DEM STABWERK (29. September). <<<
+ * ===========================================================================
+ *
+ * Auf Rückfrage «Stabwerk, Ersatzbalken eingeklappt»: oben die Verläufe
+ * aus dem Stabwerk, darunter eingeklappt die des Ersatzbalkens zum
+ * Vergleich. Je Stab steht die Hülle - aufgetragen als TREPPE (zwei Punkte
+ * je Stab): ein Stab hat einen Wert, und eine schräge Linie dazwischen
+ * behauptete einen Verlauf, den es nicht gibt. Die Bindebleche stehen an
+ * ihren Stationen; die Linie verbindet sie wie im Ersatzbalken (je Station
+ * das grösste η der vier Ebenen).
+ * ========================================================================= */
+
+/** Treppe über gemeinsame Grenzen: je Intervall der Wert in seiner Mitte. */
+function treppe(grenzen, serien) {
+  const b = [...new Set(grenzen.map((x) => Math.round(x * 1e6) / 1e6))].sort((p, q) => p - q);
+  const punkte = [];
+  const werte = serien.map(() => []);
+  for (let i = 0; i < b.length - 1; i += 1) {
+    if (b[i + 1] - b[i] < 1e-6) continue;
+    const xm = (b[i] + b[i + 1]) / 2;
+    punkte.push(b[i], b[i + 1]);
+    serien.forEach((f, k) => { const v = f(xm); werte[k].push(v, v); });
+  }
+  return { punkte, werte };
+}
+
+/** Das Grösste der Stäbe, die x überdecken (Feld `feld` der Hülle bzw. η). */
+function ueber(liste, feld) {
+  return (x) => {
+    let m = 0;
+    liste.forEach((s) => {
+      if (x < s.x0 - 1e-9 || x > s.x1 + 1e-9) return;
+      const v = feld === 'eta' ? s.z.eta : s.z.huelle?.[feld];
+      if (Number.isFinite(v)) m = Math.max(m, v);
+    });
+    return m;
+  };
+}
+
+/**
+ * @param {Function} linienDiagramm  aus render.charts.js (hereingereicht,
+ *                                   damit dieses Modul nichts importiert)
+ * @returns {object|null} { gurt, blech, kraft, masten: [{name, eta, schnitt}] }
+ */
+export function stabwerkDiagramme(jeStab, jochKey, linienDiagramm, breite = 900) {
+  const js = jochStaebe(jeStab, jochKey);
+  if (!js) return null;
+  const og = [...(js.gurt.OG_L ?? []), ...(js.gurt.OG_R ?? [])];
+  const ug = [...(js.gurt.UG_L ?? []), ...(js.gurt.UG_R ?? [])];
+  const grenzen = [...og, ...ug].flatMap((s) => [s.x0, s.x1]);
+  const tEta = treppe(grenzen, [ueber(og, 'eta'), ueber(ug, 'eta')]);
+  const tN = treppe(grenzen, [ueber(og, 'N'), ueber(ug, 'N')]);
+  const zusatz = ' · Stabwerk, Hülle je Stab über alle Kombinationen';
+  const gurt = linienDiagramm({
+    titel: `Ausnutzung der Gurte${zusatz}`, breite, hoehe: 230,
+    xLabel: 'x [m]', yLabel: 'η [–]', punkte: tEta.punkte, grenze: 1.0,
+    serien: [{ name: 'Obergurt', werte: tEta.werte[0] },
+             { name: 'Untergurt', werte: tEta.werte[1] }],
+  });
+  const kraft = linienDiagramm({
+    titel: `Gurtkraft |N|${zusatz}`, breite, hoehe: 230,
+    xLabel: 'x [m]', yLabel: 'N [kN]', punkte: tN.punkte,
+    serien: [{ name: 'Obergurt', werte: tN.werte[0] },
+             { name: 'Untergurt', werte: tN.werte[1] }],
+  });
+  // Bleche: je Station das Grösste der vier Ebenen.
+  const stationen = new Map();
+  Object.values(js.blech).flat().forEach((q) => {
+    const k = Math.round(q.x * 1000) / 1000;
+    stationen.set(k, Math.max(stationen.get(k) ?? 0, q.z.eta ?? 0));
+  });
+  const xs = [...stationen.keys()].sort((p, q) => p - q);
+  const blech = xs.length > 1 ? linienDiagramm({
+    titel: `Ausnutzung der Bindebleche je Station${zusatz}`, breite, hoehe: 210,
+    xLabel: 'x [m]', yLabel: 'η [–]', punkte: xs, grenze: 1.0,
+    serien: [{ name: 'Bindeblech (grösstes der Station)', werte: xs.map((x) => stationen.get(x)) }],
+  }) : null;
+  // Masten: über die Höhe ab dem Fuss.
+  const masten = {};
+  Object.values(jeStab).forEach((z) => {
+    const m = MAST.exec(z.name);
+    if (!m || !Number.isFinite(z.z0)) return;
+    (masten[m[1]] ??= []).push(z);
+  });
+  const mastDia = Object.entries(masten).sort(([a], [b]) => a.localeCompare(b)).map(([name, l]) => {
+    const fuss = Math.min(...l.map((z) => z.z0));
+    const liste = l.map((z) => ({ z, x0: z.z0 - fuss, x1: z.z1 - fuss }));
+    const g = liste.flatMap((s) => [s.x0, s.x1]);
+    const tE = treppe(g, [ueber(liste, 'eta')]);
+    const tS = treppe(g, [ueber(liste, 'M'), ueber(liste, 'V'), ueber(liste, 'N')]);
+    return {
+      name,
+      eta: linienDiagramm({
+        titel: `Ausnutzung über die Höhe · Mast ${name}${zusatz}`, breite, hoehe: 210,
+        xLabel: 'z über Mastfuss [m]', yLabel: 'η [–]', punkte: tE.punkte, grenze: 1.0,
+        serien: [{ name: 'Querschnitt', werte: tE.werte[0] }],
+      }),
+      schnitt: linienDiagramm({
+        titel: `Schnittgrössen über die Höhe · Mast ${name}${zusatz}`, breite, hoehe: 230,
+        xLabel: 'z über Mastfuss [m]', yLabel: 'M [kNm] / V, N [kN]', punkte: tS.punkte,
+        serien: [{ name: '|M| (grösseres)', werte: tS.werte[0] },
+                 { name: '|V| (grösseres)', werte: tS.werte[1] },
+                 { name: '|N|', werte: tS.werte[2] }],
+      }),
+    };
+  });
+  return { gurt, blech, kraft, masten: mastDia };
+}

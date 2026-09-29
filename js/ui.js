@@ -7177,7 +7177,7 @@ function verdrahteDiagramme(node) {
 }
 
 /** Verläufe: Diagramme und der Massvarianten-Vergleich. */
-export function zeichneVerlauf(node, dia, vergleich, weitere = null) {
+export function zeichneVerlauf(node, dia, vergleich, weitere = null, sw = null) {
   /*
    * >>> OHNE VERGLEICH FAELLT DER BLOCK WEG, NICHT DIE SEITE. <<<
    *
@@ -7252,12 +7252,27 @@ export function zeichneVerlauf(node, dia, vergleich, weitere = null) {
     return abschnitt(w.titel ?? '') + teile.join('');
   }).join('');
 
-  node.innerHTML = `
+  const kern = `
     ${dia ? diagrammBlock('schnittgroessen', 'Schnittgrössen', dia.schnittgroessen) : ''}
     ${dia ? diagrammBlock('ebene', 'Ebenenquerkräfte', dia.ebene) : ''}
     ${dia ? diagrammBlock('ausnutzung', 'Ausnutzung', dia.ausnutzung) : ''}
     ${massBlock}
     ${extra}`;
+  /*
+   * >>> IM STABWERKSWEG OBEN DAS STABWERK (29. September). <<<
+   * «Stabwerk, Ersatzbalken eingeklappt»: die Verläufe des Stabwerks
+   * zuerst, die des Ersatzbalkens (samt Masten und Stützen aus dem Kern)
+   * eingeklappt darunter, zum Vergleich.
+   */
+  node.innerHTML = sw ? `
+    ${sw.gurt ? diagrammBlock('sw-gurt', 'Ausnutzung der Gurte · Stabwerk', sw.gurt) : ''}
+    ${sw.blech ? diagrammBlock('sw-blech', 'Ausnutzung der Bindebleche · Stabwerk', sw.blech) : ''}
+    ${sw.kraft ? diagrammBlock('sw-kraft', 'Gurtkraft · Stabwerk', sw.kraft) : ''}
+    ${sw.masten.map((m) => abschnitt(`Mast ${m.name} · Stabwerk`)
+      + diagrammBlock(`sw-mast-eta-${m.name}`, 'Ausnutzung über die Höhe', m.eta)
+      + diagrammBlock(`sw-mast-schnitt-${m.name}`, 'Schnittgrössen über die Höhe', m.schnitt)).join('')}
+    ${klapp('verlauf-ersatzbalken', 'Ersatzbalken zum Vergleich', kern, 'Kern')}`
+    : kern;
   verdrahteDiagramme(node);
   verdrahteKlapp(node);
 }

@@ -33119,6 +33119,41 @@ titel('150  3D-Resultatplot aus dem Stabwerk: Hülle je Stab');
 }
 
 // ===========================================================================
+titel('151  Verläufe im Stabwerksweg: Stabwerk oben, Ersatzbalken eingeklappt');
+/* ===========================================================================
+ * Auf Rückfrage «Stabwerk, Ersatzbalken eingeklappt»: η der Gurte als
+ * Treppe je Stab, Gurtkraft |N|, Bindebleche je Station, je Mast η und
+ * Schnittgrössen über die Höhe - alle als Hülle je Stab.
+ * ========================================================================= */
+{
+  const RS151 = await import(J('render.stabwerk.js'));
+  const RC151 = await import(J('render.charts.js'));
+  const N151 = await import(J('core.nachbarn.js'));
+  const AS151 = await import(J('app.stabwerk.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const satz = N151.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N151.kernArgumente(satz));
+  const sw = AS151.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  let gesehen = null;
+  const lin = (o) => { if (/Gurte/.test(o.titel)) gesehen = o; return RC151.linienDiagramm(o); };
+  const d = RS151.stabwerkDiagramme(sw.jeStab, 'tragwerk', lin, 900);
+  wahr('Gurte, Bindebleche, Gurtkraft und beide Masten', d && d.gurt && d.blech && d.kraft
+       && d.masten.map((m) => m.name).join(',') === 'M1,M2');
+  wahr('Treppe: zwei Punkte je Stab, beide mit demselben Wert',
+       gesehen.punkte.length % 2 === 0 && gesehen.serien[0].werte.every((v, i, a) => i % 2 === 1 || v === a[i + 1]));
+  pruef('>>> Das Grösste der Treppe Obergurt ist das η der Kachel <<<', Math.max(...gesehen.serien[0].werte),
+        sw.teile['tragwerk|OG'].eta, 1e-12, '');
+  pruef('… ebenso Untergurt', Math.max(...gesehen.serien[1].werte), sw.teile['tragwerk|UG'].eta, 1e-12, '');
+  wahr('Die Titel nennen die Quelle', /Stabwerk, Hülle je Stab/.test(d.gurt) && /Mast M1/.test(d.masten[0].eta));
+  const q = APP_QUELLE();
+  const u = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Bühne kennt dieselben Kennungen (Vergrössern)',
+       ['sw-gurt', 'sw-blech', 'sw-kraft', 'sw-mast-eta-', 'sw-mast-schnitt-'].every((k) => q.includes(`'${k}`) || q.includes(`\`${k}`)));
+  wahr('Der Ersatzbalken steht eingeklappt darunter', /klapp\('verlauf-ersatzbalken', 'Ersatzbalken zum Vergleich'/.test(u));
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

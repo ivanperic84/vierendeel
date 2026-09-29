@@ -20,7 +20,7 @@ import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bautei
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm,
-         mastDiagramme, verdrahteMessung } from './render.charts.js';
+         mastDiagramme, verdrahteMessung, linienDiagramm } from './render.charts.js';
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
@@ -75,7 +75,7 @@ import { abfangAuswertung, abfangFyd, abfangStuetzweite,
 import { abfangAuswertungFuer, rechensatzMitNachbarn } from './core.nachbarn.js';
 import { auslegerAuswertung, auslegerKombi } from './core.tragausleger.js';
 import { auslegerSzene } from './render.tragausleger.js';
-import { gurtTeilung, jochStaebe, stabwerkFaerben } from './render.stabwerk.js';
+import { gurtTeilung, jochStaebe, stabwerkDiagramme, stabwerkFaerben } from './render.stabwerk.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis } from './core.verformung.js';
@@ -1227,6 +1227,18 @@ const BUEHNE_TITEL = { 'anker-bem': 'Bemessungsdiagramm der Stütze',
                        'mast-verf': 'Verformung über die Höhe' };
 
 /** Jedes Diagramm unter seinem Schluessel, mit Titel. */
+/*
+ * >>> DIE VERLÄUFE AUS DEM STABWERK (29. September). <<<
+ * «Stabwerk, Ersatzbalken eingeklappt»: gilt das Stabwerk am Tragjoch und
+ * ist die Hülle gewählt, stehen oben seine Verläufe (render.stabwerk.js),
+ * die des Ersatzbalkens eingeklappt darunter.
+ */
+function stabwerkVerlaeufe(breite) {
+  const g = tragwerksart(werte).key === 'joch' && anzeigeKombi === 'umhuellend'
+    ? stabwerkGilt() : null;
+  return g ? stabwerkDiagramme(g.h.jeStab, g.jochKey, linienDiagramm, breite) : null;
+}
+
 function diagrammSatz(erg, breite) {
   const abD = erg.abfang ? abfangDiagramme(erg.abfang, breite) : null;
   /* =======================================================================
@@ -1255,6 +1267,17 @@ function diagrammSatz(erg, breite) {
                                         : 'Schnittgrössen Ersatzbalken' };
     satz.ebene = { svg: haupt.ebene, titel: 'Ebenenquerkräfte' };
     satz.ausnutzung = { svg: haupt.ausnutzung, titel: 'Ausnutzung' };
+  }
+  // Die Verläufe des Stabwerks - dieselben Kennungen wie in der Seitenleiste.
+  const sw = stabwerkVerlaeufe(breite);
+  if (sw) {
+    if (sw.gurt) satz['sw-gurt'] = { svg: sw.gurt, titel: 'Ausnutzung der Gurte · Stabwerk' };
+    if (sw.blech) satz['sw-blech'] = { svg: sw.blech, titel: 'Ausnutzung der Bindebleche · Stabwerk' };
+    if (sw.kraft) satz['sw-kraft'] = { svg: sw.kraft, titel: 'Gurtkraft · Stabwerk' };
+    sw.masten.forEach((m) => {
+      satz[`sw-mast-eta-${m.name}`] = { svg: m.eta, titel: `Mast ${m.name} · Ausnutzung · Stabwerk` };
+      satz[`sw-mast-schnitt-${m.name}`] = { svg: m.schnitt, titel: `Mast ${m.name} · Schnittgrössen · Stabwerk` };
+    });
   }
   weitereDiagramme(erg, breite).forEach((w, i) => {
     const setz = (art, svg) => {
@@ -1525,7 +1548,8 @@ function zeichneAuswertung() {
      * Kachel - `ankerKnickenSicher` ist dieselbe Funktion.
      */
     ui.zeichneVerlauf(node, abD ?? diagramme(erg, 860),
-                      abD ? null : vergleich, weitereDiagramme(erg, 860));
+                      abD ? null : vergleich, weitereDiagramme(erg, 860),
+                      abD ? null : stabwerkVerlaeufe(860));
   }
 }
 
