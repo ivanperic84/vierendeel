@@ -75,6 +75,9 @@ T.setzeDatenbank(daten('tragjoche.json'));
 const TYP = T.tragjoche().some((t) => t.typ === 'J90') ? 'J90' : T.tragjoche()[0].typ;
 A.setzeAnbauteilDB(daten('anbauteile.json'));
 FL.setzeFlDB(daten('fl_bauteile.json'));
+// Das Sortiment der Abfangjoche - darin stehen auch die Tragausleger (29. Sept.).
+const AJ = await import(J('data.abfangjoche.js'));
+try { AJ.setzeAbfangDB(daten('abfangjoche.json')); } catch { /* ohne - dann ohne Tragausleger */ }
 
 const befunde = [];
 /**
@@ -291,6 +294,127 @@ for (const [name, bau] of FAELLE) {
                   vgl.ok ? vgl.r : null,
                   CH.urteilKonstruktion(ck.ok ? ck.r : [], w.nachweise)));
   if (ex.ok) zeig('excel', 'ok');
+}
+
+/* ===========================================================================
+ * >>> DER TRAGAUSLEGER (29. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «checke nach dem fertig bauen die funktionalität des
+ * tragauslegers». Der Durchlauf fuhr ihn bis dahin gar nicht - Joch,
+ * Einzelmast und Reihe gehen über den Ersatzbalken, der Ausleger über sein
+ * eigenes Stabmodell. Je Variante: Kern, Stabwerk (Weg der Anwendung),
+ * 3D-Bild, Lageband, COM-Ausleitung und PyNite; dazu ein Ausleger neben
+ * einem Joch (eigener Mast) und einer am Jochmasten (gesperrt).
+ * ========================================================================= */
+console.log('\n=== Tragausleger ===');
+if (!AJ.tragauslegerDa()) {
+  console.log('  (kein Tragausleger-Sortiment in diesem Datenordner - übersprungen)');
+} else {
+  const TA = await import(J('core.tragausleger.js'));
+  const LA = await import(J('core.lasten.js'));
+  const AS = await import(J('app.stabwerk.js'));
+  const RT = await import(J('render.tragausleger.js'));
+  const U = await import(J('ui.js'));
+  const langen = AJ.tragauslegerTypen().map((t) => t.L);
+  const ta = (o = {}) => {
+    const L = o.L ?? langen[langen.length - 1];
+    return { ...std(), tragwerksart: 'tragausleger', L, xLage: 0, mastVorhanden: true,
+      twId: 'T1', trasseRadius: 600, flSpannweite: 50, mastH: 7.5,
+      anbauteile: [{ ...A.neuesAnbauteil(o.vorlage ?? 'hs-fahrdraht', L - 0.65), name: 'FL' }],
+      ...o };
+  };
+  const VARIANTEN = [
+    ['längster, rechts, Regelfall', {}],
+    ['kürzester', { L: langen[0] }],
+    ['links, R −600', { auslegerSeite: 'links', trasseRadius: -600 }],
+    ['ein Seil (Spreizung 0)', { auslegerSpreizung: 0 }],
+    ['ohne Längsanker', { laengsverankerung: false }],
+    ['Winkel 35° eingetragen', { auslegerWinkel: 35 }],
+    ['nur Hängestütze (hs-nur)', { vorlage: 'hs-nur' }],
+  ];
+  for (const [name, o] of VARIANTEN) {
+    const fall = `Tragausleger ${name}`;
+    const w0 = ta(o);
+    const w = NACH.rechensatzMitNachbarn(w0);
+    const erg = versuch(fall, 'berechne', () => V.berechne(w, ...NACH.kernArgumente(w)));
+    if (!erg.ok) continue;
+    const alle = LA.lastfaelle(w);
+    const k = versuch(fall, 'Kragarm-Kern', () => TA.auslegerAuswertung(w, alle, 235 / 10 / 1.05));
+    const sw = versuch(fall, 'Stabwerk (Weg der Anwendung)', () =>
+      AS.rechneStabwerk({ werte: w0, letzte: { erg: erg.r }, stabwerk: null }));
+    let zeile = `L ${w.L} m`;
+    if (k.ok && k.r && !k.r.fehler) {
+      zeile += ` · Kern Gurt ${k.r.gurt.eta.toFixed(3)} S_v ${k.r.aufhaengung.Sv.toFixed(2)}`;
+    }
+    if (sw.ok) {
+      const s = sw.r;
+      if (s.ohneModell || s.fehler) {
+        befunde.push({ fall, weg: 'Stabwerk', text: s.ohneModell ?? s.fehler });
+      } else {
+        const mast = Object.entries(s.bauteile).find(([kk]) => kk.startsWith('mast:'))?.[1]?.eta;
+        const zahl = [s.teile['tragwerk|UPE']?.eta, s.teile['tragwerk|blech']?.eta,
+                      s.ausleger?.aufhaengung?.eta, mast];
+        zeile += ` · Stabwerk UPE ${zahl[0]?.toFixed(3)} Blech ${zahl[1]?.toFixed(3)}`
+          + ` Seil ${zahl[2]?.toFixed(3)} Mast ${zahl[3]?.toFixed(3)}`;
+        if (!zahl.every(Number.isFinite)) {
+          befunde.push({ fall, weg: 'Stabwerk', text: `Zahl fehlt: ${zahl.join(', ')}` });
+        }
+        if (s.ausleger?.aufhaengung?.druck) {
+          befunde.push({ fall, weg: 'Stabwerk',
+            text: `Seil gedrückt (${s.ausleger.aufhaengung.druck.seil})` });
+        }
+      }
+    }
+    console.log(`  ${name.padEnd(28)}${zeile}`);
+    versuch(fall, '3D-Bild', () => {
+      const sz = RT.auslegerSzene(w, { mast: { profil: w.mastProfil ?? 'HEB 240', hoehe: 7.5,
+        ueberstand: 0, stegrichtung: 'jochachse', name: 'MT1' },
+        jeStab: sw.ok ? sw.r.jeStab : null });
+      if (!sz?.flaechen?.length) throw new Error('keine Flächen');
+      if (!sz.bauteiltitel.some((b) => /^TA · /.test(b.text))) throw new Error('Titel ohne «TA ·»');
+    });
+    versuch(fall, 'Lageband', () => {
+      const h = U.querprofilLeisteHtml(w0);
+      if (!/qp-ta-haken/.test(h)) throw new Error('keine Aufhängemarke');
+    });
+    const com = versuch(fall, 'COM-Ausleitung', () => AX.stabmodellJson(erg.r.modell,
+      { knotenmodell: 'anschnitt', eingabe: w }));
+    if (com.ok) {
+      const d = com.r;
+      const seile = d.staebe.filter((x) => /AUFHAENGUNG/.test(x.name));
+      const soll = (w.auslegerSpreizung ?? 1) > 0 ? 2 : 1;
+      if (seile.length !== soll || !seile.every((x) => x.nichtlinear?.x === 'nurZug')) {
+        befunde.push({ fall, weg: 'COM-Ausleitung',
+          text: `${seile.length} Seile statt ${soll} oder ohne «nur Zug»` });
+      }
+      if (d.staebe.some((x) => /^LINK_A_(OG|UG)/.test(x.name))) {
+        befunde.push({ fall, weg: 'COM-Ausleitung', text: 'Phantomjoch in der Datei' });
+      }
+      if (!/^Tragausleger /.test(d.tragwerk?.bezeichnung ?? '')) {
+        befunde.push({ fall, weg: 'COM-Ausleitung', text: `Kopfzeile «${d.tragwerk?.bezeichnung}»` });
+      }
+    }
+    versuch(fall, 'PyNite', () => PY.pyniteSkript(erg.r.modell,
+      { knotenmodell: 'anschnitt', eingabe: w }));
+  }
+  // Neben einem Joch: frei (eigener Mast) wird gerechnet, am Jochmasten gesperrt.
+  const nebenJoch = (x) => C.tragwerkHinzu(joch(), 'tragausleger', { xLage: x, L: langen[0] });
+  const frei = nebenJoch(40);
+  const wF = NACH.rechensatzMitNachbarn(frei);
+  const ergF = versuch('Tragausleger neben Joch', 'berechne', () => V.berechne(wF, ...NACH.kernArgumente(wF)));
+  if (ergF.ok) {
+    const s = versuch('Tragausleger neben Joch', 'Stabwerk', () =>
+      AS.rechneStabwerk({ werte: frei, letzte: { erg: ergF.r }, stabwerk: null }));
+    if (s.ok && (s.r.ohneModell || s.r.fehler)) {
+      befunde.push({ fall: 'Tragausleger neben Joch', weg: 'Stabwerk', text: s.r.ohneModell ?? s.r.fehler });
+    }
+    console.log(`  ${'neben einem Joch (x 40 m)'.padEnd(28)}${s.ok && !s.r.ohneModell
+      ? `gerechnet, ${s.r.staebe} Stäbe` : 'NICHT gerechnet'}`);
+  }
+  const geteilt = AS.reiheOhneStabmodell(nebenJoch(20));
+  console.log(`  ${'am Jochmasten (x 20 m)'.padEnd(28)}${geteilt ? 'gesperrt, mit Grund' : 'NICHT gesperrt'}`);
+  if (!geteilt) befunde.push({ fall: 'Tragausleger am Jochmasten', weg: 'Sperre', text: 'nicht gesperrt' });
 }
 
 /* ===========================================================================
