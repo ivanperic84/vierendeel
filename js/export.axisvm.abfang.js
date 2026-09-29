@@ -79,7 +79,8 @@ const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
  *
  * @param {string} typ   Abfangjochtyp (A160 … A360)
  * @param {number} jt    Jochlänge [m] — eine GEFÜHRTE Länge
- * @param {object} opt   { Fh: horizontale Abfangkraft [kN], gd, sd }
+ * @param {object} opt   { gd, sd, anbauteile, havarie, … } (die pauschale Fh
+ *                       entfällt seit dem 29. September)
  */
 /**
  * DIE AUSLEITUNG SCHREIBT DIE DATEI.
@@ -1231,7 +1232,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * Das Eigengewicht als Streckenlast in -z, je Gurt die Hälfte: quer zur
    * Rahmenebene trägt jeder Gurt für sich.
    */
-  const Fh = Number(opt.Fh) || 22;              // kN, Regelfall der Abfangung
+  // `opt.Fh` (pauschale Abfangkraft) wird seit dem 29. September nicht mehr
+  // gelesen - siehe «DIE PAUSCHALE Fh ENTFÄLLT» unten.
   const gd = Number(opt.gd ?? (a.gewicht / 100));   // kg/m -> kN/m
   /*
    * >>> DIE MITTE IST EIN ORT, KEIN INDEX. <<<
@@ -1279,14 +1281,16 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * ueber die Abfangung und nimmt den Regelfall: EIN Wert `Fh`, halbiert
    * auf beide Gurte in der Traegermitte.
    */
-  const leiterAusAnbau = anbau.some((t2) => abfangAnbindung(t2).art === 'mitte');
-  if (!leiterAusAnbau) {
-    for (const g of ['V', 'H']) {
-      punkt.push({ name: `FH_${g}`, knoten: anschlussKnoten(g, mitte),
-                   richtung: 'Y',
-                   wert: Fh / 2, lastfall: 'Leiterzug' });
-    }
-  }
+  /*
+   * >>> DIE PAUSCHALE Fh ENTFÄLLT (29. September). <<<
+   *
+   * Auf Rückfrage bestätigt: «Die pauschale Fh entfällt überall (auch in
+   * AxisVM).» Jeder Leiter zieht nach seiner Abfangart an seiner Stelle
+   * (`abfangAnbauLasten`, unten). Hier stand bis dahin: ohne Leiter auf
+   * «Mitte Träger» die pauschale Fh des Typs in Trägermitte - eine Last,
+   * die der Nachweis nie kannte (gemessen A160/11 m: Kern η 0.646, mit Fh
+   * im Stabwerk 3.035).
+   */
 
   /*
    * ================= DIE ANBAUTEILE AM ABFANGJOCH ========================
@@ -1371,8 +1375,12 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * durchgehender Leiter faengt nichts ab.
    */
   const ekAn = opt.ek ?? 'EK2';
+  // Mit der Auswahl je Leiter (Art, Richtung) - dieselbe Regel wie der Kern
+  // (29. September). Bis dahin schrieb diese Ausleitung jeden abgefangenen
+  // Leiter voll, also immer «einseitig».
   const lastOpt = { ek: ekAn, R: Number(opt.R) || 0,
-                    spannweite: Number(opt.L_FL) || 0, tempFall: opt.tempFall };
+                    spannweite: Number(opt.L_FL) || 0, tempFall: opt.tempFall,
+                    havarie: opt.havarie ?? null };
   anbauKnoten.forEach(({ name: knA, teil: t2 }, j) => {
     const lw = abfangAnbauLasten(t2, lastOpt);
     const Gz = lw.Gz, Qx = lw.Qx, Qy = lw.Qy, Zab = lw.Z;
@@ -1423,17 +1431,17 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * lesbar: man sieht, was die Havarie am staendigen Zustand aendert.
    */
   const havKandidaten = havarieKandidaten(opt.havarie);
-  const havBricht = (t2, key) => (t2?.module ?? [])
-    .some((mo, i) => leiterKennung(t2, mo, i) === key);
   /** Legt den Aenderungs-Lastfall fuer einen Kandidaten an. Gibt es Zug? */
   const havarieLastfall = (key) => {
     const fall = key ? `HavarieY|${key}` : 'HavarieY';
     let etwas = false;
     anbauKnoten.forEach(({ name: knA, teil: t2 }, j) => {
       const basis = abfangAnbauLasten(t2, lastOpt).Z ?? 0;
-      const kalt = key && havBricht(t2, key)
-        ? 0
-        : (abfangAnbauLasten(t2, { ...lastOpt, tempFall: 'havarie' }).Z ?? 0);
+      // Der Zug bei -20 °C, nach der Regel der Abfangart - der gerissene
+      // Leiter nach seiner (einseitig: fällt weg; beidseitig: voller Zug;
+      // durchgehend: 10 %), die übrigen nach ihrer.
+      const kalt = abfangAnbauLasten(t2, { ...lastOpt, tempFall: 'havarie',
+                                           bruch: key ?? null }).Z ?? 0;
       const dZ = kalt - basis;
       if (Math.abs(dZ) < 1e-9) return;
       etwas = true;
@@ -1452,9 +1460,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
    * veraenderlichen Lasten). Ohne sie fehlte der aussergewoehnliche Fall
    * ganz, und niemand saehe es der Datei an.
    */
-  // Gefragt ist, ob ueberhaupt ein Leiterzug im Modell steht - auch die
-  // pauschale Abfangkraft `Fh` zaehlt, wenn kein abgefangener Leiter
-  // erfasst ist. Sonst fehlte gerade dort der aussergewoehnliche Fall.
+  // Gefragt ist, ob ueberhaupt ein staendiger Leiterzug im Modell steht
+  // (seit dem 29. September nur noch aus den Leitern selbst).
   const hatZug = punkt.some((p2) => p2.lastfall === 'Leiterzug'
     && Math.abs(p2.wert) > 1e-9);
   const havFaelle = [];
@@ -1725,6 +1732,9 @@ export function abfangBau(satz, opt = {}) {
     schneeAktiv: satz.schneeAktiv,
     schneeKlasse: satz.schneeKlasse,
     mast: opt.mast ?? null,
+    // Art und Richtung je Leiter (29. September) - ohne sie zöge jeder
+    // Leiter nach der Vorgabe «einseitig» in +y.
+    havarie: satz.havarie ?? null,
   });
   const b = bausteinAusModell(d, opt, (g) => ABFANG_BLATTGRUPPE[g] ?? g);
   return {

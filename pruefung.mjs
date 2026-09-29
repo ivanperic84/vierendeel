@@ -19787,23 +19787,35 @@ const CH9x = await import(J('core.checks.js'));
          `${gVon(ohneAngaben)} gegen ${gVon(mitAngaben)}`);
 
     /*
-     * DAS TEIL TRAEGT EIN DRAHTWERK UND FAENGT NICHTS AB - weil seine
-     * Vorlage zur Gruppe `haengestuetze` gehoert. Der Hinweis nennt es.
+     * SEIT DEM 29. SEPTEMBER ZIEHT AUCH DIESER LEITER. Bis dahin fing ein
+     * Drahtwerk an einer Hängestütze (Anbindung über die Gurte) nichts ab,
+     * und ein Hinweis nannte es. Entscheid: «Jeder Leiter … zieht nach
+     * seiner Abfangart, gleichgültig woran er hängt» - Vorgabe am
+     * Abfangjoch «einseitig». Der Hinweis in core.checks.js ist entfallen.
      */
-    wahr('Ohne Abfangwirkung gibt es keine Laengskraft', lw.Z === 0);
-    const ohneZug = AB3.abfangZugOhneWirkung([teil]);
-    wahr('Das Werkzeug nennt das Teil beim Namen',
-         ohneZug.length === 1 && ohneZug[0].name === 'Fahrleitung Gleis 1');
-    /*
-     * UMGESTELLT AUF «MITTE TRAEGER» kommt die Kraft - und der Hinweis
-     * verschwindet. Beides muss gelten, sonst waere er ein Dauerzustand.
-     */
+    wahr('Der Leiter an der Hängestütze zieht nach seiner Abfangart (einseitig)',
+         Math.abs(lw.Z) > 0 && lw.leiter.every((l) => l.art === 'einseitig'),
+         `Z ${lw.Z.toFixed(2)} kN`);
     const abgefangen = { ...teil, anbindung: 'mitte', verlauf: 'vorn' };
     const lw2 = AB3.abfangAnbauLasten(abgefangen, { ...lastOpt, spannweite: 60 });
-    wahr('Auf «Mitte Traeger» zieht der Leiter', Math.abs(lw2.Z) > 0,
+    wahr('Auf «Mitte Traeger» zieht er gleich', Math.abs(lw2.Z - lw.Z) < 1e-9,
          `Z ${lw2.Z.toFixed(2)} kN`);
-    wahr('… und der Hinweis entfaellt',
-         AB3.abfangZugOhneWirkung([abgefangen]).length === 0);
+    const kL = lw.leiter[0]?.key;
+    const mitArt = (art, extra = {}) => AB3.abfangAnbauLasten(teil,
+      { ...lastOpt, havarie: { [kL]: { art, ...extra } } });
+    wahr('durchgehend: ständig kein Zug', mitArt('durchgehend').Z === 0);
+    wahr('beidseitig: ständig kein Zug', mitArt('beidseitig').Z === 0);
+    wahr('einseitig −y: derselbe Zug nach −y',
+         Math.abs(mitArt('einseitig', { richtung: '-y' }).Z + lw.Z) < 1e-9);
+    const riss = (art) => AB3.abfangAnbauLasten(teil,
+      { ...lastOpt, tempFall: 'havarie', bruch: kL, havarie: { [kL]: { art } } }).Z;
+    const kalt = AB3.abfangAnbauLasten(teil, { ...lastOpt, tempFall: 'havarie' }).Z;
+    wahr('Riss: einseitig fällt weg, beidseitig voller Zug, durchgehend 10 %',
+         riss('einseitig') === 0 && Math.abs(riss('beidseitig') - kalt) < 1e-9
+         && Math.abs(riss('durchgehend') - 0.1 * kalt) < 1e-9,
+         `${riss('einseitig')} / ${riss('beidseitig')} / ${riss('durchgehend')} (kalt ${kalt})`);
+    wahr('Der Hinweis «keine Abfangkraft» ist aus den Kontrollen entfernt',
+         !/abfangZugOhneWirkung\(/.test(readFileSync(join(HIER, 'js', 'core.checks.js'), 'utf8')));
     /*
      * EIN TEIL OHNE DRAHTWERK wird nicht genannt - sonst stuende der Hinweis
      * bei jedem Jochaufsatz.
@@ -23128,13 +23140,11 @@ const CH9x = await import(J('core.checks.js'));
            !mD.lasten.punkt.some((p2) => p2.name === 'FH_V'
                                       || p2.name === 'FH_H'));
       {
+        // Seit dem 29. September gibt es den Regelfall nicht mehr: «Die
+        // pauschale Fh entfällt überall (auch in AxisVM).»
         const mLeer = XA.abfangAxisvmModell('A300', 13.0, { anbauteile: [] });
-        wahr('Ohne jeden Leiter bleibt der Regelfall',
-             mLeer.lasten.punkt.some((p2) => p2.name === 'FH_V')
-             && mLeer.lasten.punkt.some((p2) => p2.name === 'FH_H'));
-        const mHs = XA.abfangAxisvmModell('A300', 13.0, { anbauteile: [hs] });
-        wahr('… und auch bei einem Teil, das kein Leiter ist',
-             mHs.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+        wahr('Ohne jeden Leiter: keine pauschale Fh mehr',
+             !mLeer.lasten.punkt.some((p2) => /^FH_[VH]$/.test(p2.name)));
       }
       wahr('Die Vorgabe ist als solche gekennzeichnet',
            AK.abfangAnbindung(nfl).vorgegeben);
@@ -23167,17 +23177,17 @@ const CH9x = await import(J('core.checks.js'));
       pruef('Der Leiter vorn zieht mit +14.9 kN', fh('FH_AT1').wert,
             14.9, 1e-9, 'kN');
       pruef('Der hintere mit -22', fh('FH_AT2').wert, -22, 1e-9, 'kN');
-      wahr('Die Haengestuetze traegt keinen Leiterzug', !fh('FH_AT3'));
+      // Seit dem 29. September zieht auch der Leiter an der Hängestütze
+      // (Abfangart am Leiter, Vorgabe einseitig, +y) - zentrisch, auf dem
+      // Knoten der Trägerachse.
+      wahr('Die Haengestuetze bringt den Zug ihres Leiters',
+           fh('FH_AT3') && fh('FH_AT3').wert > 0);
       wahr('Wohl aber Eigengewicht', fh('G_AT3').wert < 0);
-      /*
-       * DIE PAUSCHALE ABFANGKRAFT WEICHT, sobald abgefangene Leiter
-       * eingetragen sind - sonst stuende sie zusaetzlich in der Mitte.
-       */
-      wahr('Die pauschale Abfangkraft steht dann nicht mehr da',
-           !mA.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+      wahr('Keine pauschale Abfangkraft',
+           !mA.lasten.punkt.some((p2) => /^FH_[VH]$/.test(p2.name)));
       const mB = XA.abfangAxisvmModell('A300', 13.0, { anbauteile: [hs] });
-      wahr('Ohne Leiter bleibt sie',
-           mB.lasten.punkt.some((p2) => p2.name === 'FH_V'));
+      wahr('… auch nicht mit der Hängestütze allein',
+           !mB.lasten.punkt.some((p2) => /^FH_[VH]$/.test(p2.name)));
     }
 
     /*
@@ -23252,10 +23262,10 @@ const CH9x = await import(J('core.checks.js'));
      */
     wahr('Der Leiterzug wirkt in Gleisrichtung',
          m.lasten.punkt.every((l) => l.richtung === 'Y'));
-    pruef('Er teilt sich auf beide Gurte',
-          m.lasten.punkt.reduce((a2, l) => a2 + l.wert, 0), 22, 1e-9, 'kN');
-    wahr('Und beide bekommen gleich viel',
-         m.lasten.punkt[0].wert === m.lasten.punkt[1].wert);
+    // Ohne Leiter kein Zug - die pauschale 22 kN (FH_V/FH_H) entfällt seit
+    // dem 29. September.
+    pruef('Ohne Leiter kein Leiterzug', m.lasten.punkt.reduce((a2, l) => a2 + l.wert, 0),
+          0, 1e-9, 'kN');
     // Das Eigengewicht quer dazu, je Gurt die Haelfte.
     /*
      * DREI STRECKENLASTEN, DREI RICHTUNGEN. Bis zum 4. September trug das
@@ -29381,10 +29391,9 @@ if (AJ.abfangDbDa()) {
     pruef('Zwei gegenläufige Leiter heben sich auf',
           summeZ118(r, 'wind+y'), 0, 1e-9, 'kN');
     /*
-     * DIE KARTE DREHT NICHTS: dieselben Teile mit «richtung: -y» in der
-     * Auswahl geben dasselbe. Würde die Karte gelesen, käme hier ein
-     * anderes Ergebnis - und niemand wüsste, welche der beiden Angaben
-     * gilt.
+     * SEIT DEM 29. SEPTEMBER DREHT DIE ANGABE AM LEITER DIE RICHTUNG
+     * («Die Zugrichtung wählt man am Leiter (+y / −y) wie beim Tragjoch»).
+     * Beide Leiter nach −y: sie heben sich nicht mehr auf, sie addieren sich.
      */
     const hav2 = {};
     gegen.forEach((a) => { hav2[kenn118(a)] = { art: 'einseitig', richtung: '-y' }; });
@@ -29392,8 +29401,9 @@ if (AJ.abfangDbDa()) {
       typ: 'A240', jt: 12.5, gk: 0.42, wk: 0.31, sk: 0.24, anbauteile: gegen,
       gammaG: 1.3, gammaQ: 1.3, psi0: 0.5, fyd: 22.38, ek: 'EK2', L_FL: 0,
       havarie: hav2 });
-    pruef('Die Karte dreht die Richtung hier nicht',
-          r2.max.eta, r.max.eta, 1e-12, '–');
+    wahr('Die Richtung am Leiter gilt: beide nach −y addieren sich',
+         summeZ118(r2, 'wind+y') < -1 && r2.max.eta > r.max.eta,
+         `ΣZ ${summeZ118(r2, 'wind+y')} · η ${r2.max.eta.toFixed(3)} gegen ${r.max.eta.toFixed(3)}`);
   }
 
   // --- d) Der Weg von der Eingabe in den Kern ----------------------------
@@ -29402,8 +29412,9 @@ if (AJ.abfangDbDa()) {
     wahr('Die Auswahl wird an den Abfangjoch-Kern gereicht',
          /havarie: satzA\.havarie/.test(nq));
     const aq = readFileSync(join(HIER, 'js', 'core.abfangjoch.js'), 'utf8');
+    // Seit dem 29. September je LEITER in `abfangAnbauLasten`.
     wahr('… und der Kern liest sie je Leiter',
-         /abfangLeiterart\(t, o\.havarie\)/.test(aq));
+         /havarie: o\.havarie/.test(aq) && /opt\.havarie\?\.\[key\]/.test(aq));
     // Die Regel steht an EINER Stelle: die 10 % kommen aus core.lasten.js.
     wahr('Die 10 % sind nicht zum zweiten Mal hingeschrieben',
          /HAVARIE_LAENGSZUG/.test(aq) && !/0\.10\s*\*/.test(aq));
@@ -30233,10 +30244,10 @@ titel('124  Der Stabwerksweg ueber die Tragwerksarten');
   const V124 = await import(J('core.vierendeel.js'));
   const N124 = await import(J('core.nachbarn.js'));
 
-  // Seit dem 28. September rechnet auch der Tragausleger im Stabwerk.
+  // Seit dem 28. September rechnet auch der Tragausleger im Stabwerk, seit
+  // dem 29. das Abfangjoch («abfangjoch im stabwerk anschliessen»).
   const grund = {
-    joch: null, einzelmast: null, tragausleger: null,
-    abfangjoch: 'hat ein eigenes Stabmodell',
+    joch: null, einzelmast: null, tragausleger: null, abfangjoch: null,
   };
   Object.keys(grund).forEach((art) => {
     const g = AS124.ohneStabmodell(art);
@@ -30258,7 +30269,8 @@ titel('124  Der Stabwerksweg ueber die Tragwerksarten');
   w124 = { ...w124, L: 20, xLage: 0, mastVorhanden: true };
   ['joch', 'einzelmast', 'tragausleger', 'abfangjoch'].forEach((art) => {
     // Der Tragausleger mit einer Länge aus seinem Sortiment (6 - 13 m).
-    const w = { ...w124, tragwerksart: art, ...(art === 'tragausleger' ? { L: 8 } : {}) };
+    const w = { ...w124, tragwerksart: art, ...(art === 'tragausleger' ? { L: 8 } : {}),
+                ...(art === 'abfangjoch' ? { abfangTyp: 'A160', L: 11 } : {}) };
     const satz = N124.rechensatzMitNachbarn(w);
     const erg = V124.berechne(satz, ...N124.kernArgumente(satz));
     const r = AS124.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
@@ -33062,8 +33074,9 @@ titel('149  Abfangung des Leiters: Eingabe beim Bauteil');
        /value="einseitig" selected/.test(eins) && /data-hav="richtung"/.test(eins)
        && /value="-y" selected/.test(eins));
   const ab = U149.abfangungHtml(a, a.module[0], 0, { ...joch, tragwerksart: 'abfangjoch' });
-  wahr('Am Abfangjoch Vorgabe «einseitig», die Richtung kommt aus der Anbindung',
-       /value="einseitig" selected/.test(ab) && !/data-hav="richtung"/.test(ab));
+  // Seit dem 29. September auch dort die Richtung am Leiter.
+  wahr('Am Abfangjoch Vorgabe «einseitig», mit Richtung am Leiter',
+       /value="einseitig" selected/.test(ab) && /data-hav="richtung"/.test(ab));
   const q = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
   wahr('Die Havarie-Karte zeigt die Abfangung nur noch an (kein Auswahlfeld mehr dort)',
        !/class="hav-art" data-hav-key/.test(q) && /Eingabe beim Bauteil \(Reiter Anbauteile\)/.test(q));

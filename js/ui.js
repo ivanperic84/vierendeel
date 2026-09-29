@@ -408,7 +408,6 @@ export function havarieLeiter(werte) {
 function havarieHtml(g, werte) {
   const leiter = havarieLeiter(werte);
   const wahl = werte.havarie ?? {};
-  const abfang = tragwerksart(werte).key === 'abfangjoch';
   const n = leiter.filter((l) => wahl[l.key]?.reisst === true).length;
   const t0 = tragwerkeVon(werte)[0];
   const wo = (t) => (t.ort === 'joch' ? `x = ${f2(t.x ?? 0)} m`
@@ -469,7 +468,7 @@ function havarieHtml(g, werte) {
          * dem sie sich widersprechen. */''}
       <td title="${esc(`${abfangart(art).notiz} — Eingabe beim Bauteil (Reiter Anbauteile)`)}"
         >${esc(abfangart(art).kurz)}</td>
-      <td>${art === 'einseitig' && !abfang ? (vz > 0 ? '+y' : '−y')
+      <td>${art === 'einseitig' ? (vz > 0 ? '+y' : '−y')
         : '<span class="dim">–</span>'}</td>
       <td class="num" title="Ständiger Längszug an diesem Tragwerk">${kraft(ff?.Gy)}</td>
       <td class="num" title="Änderung in Gleisrichtung, wenn dieser Leiter reisst">${kraft(ff?.riss)}</td>
@@ -2886,8 +2885,9 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
   const nichtGetragen = tragwerksart(werte).key === 'abfangjoch'
     ? `<small class="hinweis" style="display:block;margin:0 0 7px">
          Eigengewicht, Wind und die Torsion aus der Exzentrizität gehen in
-         den Nachweis ein. Über die ABFANGKRAFT entscheidet die Anbindung:
-         nur «Mitte Träger» leitet den Leiterzug ein.
+         den Nachweis ein. Den LEITERZUG bestimmt die Abfangung am Leiter
+         (einseitig, beidseitig, durchgehend) mit ihrer Richtung; er greift
+         zentrisch in der Trägermittelebene an.
        </small>` : '';
   /*
    * DER LASTGENERATOR NUR MIT TRAEGER (Entscheid vom 18. September): er
@@ -3706,8 +3706,10 @@ const WIRKUNGEN = [
  * Karte zeigt sie seither nur noch an. Ein Kettenwerk ist ein Leiter: die
  * Angabe gilt allen seinen Teilen.
  *
- * Am ABFANGJOCH kommt die Richtung aus der Anbindung (vorn/hinten,
- * Entscheid 24. September) - das Feld dafür steht dort nicht.
+ * Am ABFANGJOCH kam die Richtung bis zum 29. September aus der Anbindung
+ * (vorn/hinten); seither steht sie auch dort am Leiter («Die Zugrichtung
+ * wählt man am Leiter (+y / −y) wie beim Tragjoch»). Ohne Eintrag gilt für
+ * alte Stände weiter die Seite der Anbindung.
  */
 export function abfangungHtml(a, m, k, werte) {
   const key = leiterKennung(a, m, k);
@@ -3720,7 +3722,9 @@ export function abfangungHtml(a, m, k, werte) {
       <select class="mod-abf" data-hav-key="${esc(key)}" data-hav="art" data-hav-name="${esc(name)}"
         title="${esc(abfangart(art).notiz)}">${ABFANGARTEN.map((x) =>
           `<option value="${x.key}"${x.key === art ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}</select>
-      ${art === 'einseitig' && artTw !== 'abfangjoch' ? `<select class="mod-abf" data-hav-key="${esc(key)}"
+      ${/* Seit dem 29. September auch am Abfangjoch: «Die Zugrichtung wählt
+           man am Leiter (+y / −y) wie beim Tragjoch.» */''}
+      ${art === 'einseitig' ? `<select class="mod-abf" data-hav-key="${esc(key)}"
         data-hav="richtung" data-hav-name="${esc(name)}"
         title="In welche Richtung dieser Leiter zieht (Gleisrichtung) — nur so können sich mehrere Abfangungen aufheben">
         <option value="+y"${vz > 0 ? ' selected' : ''}>zieht nach +y</option>
@@ -4031,7 +4035,7 @@ function anbauteilSkizzeAbfang(a, werte) {
   let lw = null;
   try {
     lw = abfangAnbauLasten(a, { ek: werte.ek, R: werte.R,
-                                spannweite: werte.L_FL });
+                                spannweite: werte.L_FL, havarie: werte.havarie });
   } catch { lw = null; }
 
   // --- links: Blick in die Jochachse --------------------------------------
@@ -6413,7 +6417,26 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
   const fzJ = (key, bez) => fallZeile(erg, opt, key, bez);
   const mitFall = (ziel, f) => (f ? { ...(ziel ?? {}), fall: f.kurz } : ziel);
   const fAb = ab ? fzJ(ab.fall, abFall?.bez) : null;
-  const kz = ab ? [
+  /*
+   * >>> DAS ABFANGJOCH AUS DEM STABWERK (29. September). <<<
+   * «abfangjoch im stabwerk anschliessen»: gilt das Stabwerk, stehen Gurt
+   * (mit Gabel) und Bindebleche aus ihm - wie beim Tragausleger. «N Gurt»
+   * ist eine Grösse des Ersatzbalkens (Kräftepaar) und entfällt dann.
+   */
+  const swTeil = (teil, titel, sub) => {
+    const s = swH?.teile?.[`${jochKey}|${teil}`];
+    if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
+    return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
+      ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
+      titel: `${s.bez ? `Massgebende Kombination: ${s.bez}
+
+` : ''}Aus dem Stabwerk, Stab ${s.wo}.`,
+    });
+  };
+  const kz = ab && swH?.teile?.[`${jochKey}|UPE`] ? [
+    swTeil('UPE', 'η Gurt', `${ab.q.gurt.name} · mit Gabel`),
+    swTeil('blech', 'η Bindeblech', 'massgebendes Blech'),
+  ] : ab ? [
     kachel('η Gurt', f3(ab.gurt?.eta ?? 0), ab.q.gurt.name,
            ampelU(ab.gurt?.eta ?? 0), mitFall({ x: ab.gurt?.x ?? 0 }, fAb)),
     kachel('η Bindeblech', f3(ab.blech?.eta ?? 0),
@@ -6574,8 +6597,9 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
    * «vorläufig», solange das gewählte Stabwerk noch nicht (wieder)
    * gerechnet ist.
    */
-  const jochAusSw = !!(swH && !ab && (swH.teile?.[`${jochKey}|OG`]
-                                       || swH.teile?.[`${jochKey}|UPE`]));
+  // Seit dem 29. September auch das Abfangjoch (`!ab` ist weg).
+  const jochAusSw = !!(swH && (swH.teile?.[`${jochKey}|OG`]
+                               || swH.teile?.[`${jochKey}|UPE`]));
   const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
     .some((k) => k.startsWith('mast:')));
   // Am Tragausleger heisst der Kern, was er ist (28. September, 3b).

@@ -1194,19 +1194,12 @@ export function hinweise(m) {
         + 'Ein fix abgefangener Leiter zieht kalt STÄRKER — der Schnee- und '
         + 'der Havariefall stehen damit zu günstig da.');
     }
-    const ohneZug = abfangZugOhneWirkung(m.anbauteile ?? [],
-                                         { tempFall: m.tempFall });
-    if (ohneZug.length) {
-      const eins = ohneZug.length === 1;
-      h.push(`${eins
-        ? 'Ein Anbauteil trägt ein Drahtwerk, ist'
-        : `${ohneZug.length} Anbauteile tragen ein Drahtwerk, sind`} `
-        + `aber über die GURTE angebunden und `
-        + `${eins ? 'bringt' : 'bringen'} deshalb KEINE Abfangkraft: `
-        + `${ohneZug.map((t2) => `${t2.name} bei ${t2.x.toFixed(2)} m`).join(', ')}. `
-        + 'Wird der Leiter dort abgefangen, gehört die Anbindung auf «Mitte '
-        + 'Träger» — sonst fehlt dem Joch die Last, für die es dasteht.');
-    }
+    /*
+     * Hier stand bis zum 29. September der Hinweis «Drahtwerk über die
+     * Gurte angebunden, bringt keine Abfangkraft». Seither zieht jeder Leiter
+     * nach seiner Abfangart, gleichgültig woran er hängt (Entscheid des
+     * Auftraggebers) - den Fall gibt es nicht mehr.
+     */
   }
   if (art.key === 'tragausleger') {
     /*

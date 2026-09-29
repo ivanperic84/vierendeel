@@ -47,7 +47,16 @@ export function stabRolle(name, art = 'stab') {
    * Winkel, das U rechnet über seine Tabellenwerte (`widerstand`).
    */
   if (/(^|_)(V|H)_S\d+$/.test(n)) return 'gurtU';
-  if (/(^|_)BL_[OU]\d+$/.test(n)) return 'blech';
+  /*
+   * >>> DAS ABFANGJOCH (29. September). <<<
+   * Seine Gurte heissen wie die des Auslegers (V_S…, H_S…); die Bleche
+   * tragen den Teil zwischen den Starrstücken als `BL_O3_2`, und die Gabel
+   * am Jochende ist ein Doppel-U (GABEL_V…, GABEL_H…) - ein Gurt, dessen
+   * Querschnitt verdoppelt ist («die Gabel zählt im Nachweisschnitt»,
+   * Entscheid vom 3. September). `widerstand` rechnet ihn als Doppel-U.
+   */
+  if (/(^|_)GABEL_(V|H)\d+$/.test(n)) return 'gurtU';
+  if (/(^|_)BL_[OU]\d+(_\d+)?$/.test(n)) return 'blech';
   return 'sonst';
 }
 
@@ -119,6 +128,23 @@ function widerstand(qs) {
     try { p = getGurtprofil(qs.profil); } catch { p = null; }
     if (p && p.Wy > 0 && p.Wz > 0) {
       return { A: p.A / 1e4, Wy: p.Wy / 1e6, Wz: p.Wz / 1e6 };
+    }
+  }
+  /*
+   * >>> DIE GABEL: ZWEI U NEBENEINANDER (29. September). <<<
+   * Datei: `form: 'DoppelU'`, `profil: '2 × UPE 160'`, `versatz` [mm] = Achs-
+   * abstand der beiden U in der schwachen Richtung. Gemessen an der Datei:
+   * I_y ist genau das Doppelte (dieselbe starke Achse), I_z trägt den
+   * Steiner-Anteil über versatz/2. Also: A und W_y doppelt aus der Tabelle,
+   * W_z = I_z / (versatz/2 + b − e_y) - der äusserste Rand, sichere Seite.
+   */
+  if (qs.form === 'DoppelU' && qs.profil && qs.Iz > 0) {
+    let p = null;
+    try { p = getGurtprofil(String(qs.profil).replace(/^\s*2\s*[×x]\s*/, '')); } catch { p = null; }
+    const v = Number(qs.versatz) / 1000;
+    if (p && p.Wy > 0 && p.b > 0 && Number.isFinite(p.ey) && v >= 0) {
+      const rand = v / 2 + (p.b - p.ey) / 100;   // b, ey in cm
+      return { A: 2 * p.A / 1e4, Wy: 2 * p.Wy / 1e6, Wz: qs.Iz / rand };
     }
   }
   if (qs.form === 'Rectangle') {

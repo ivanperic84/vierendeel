@@ -1124,21 +1124,57 @@ export function abfangAnbauLasten(at, opt = {}) {
   const TG = torsionAus('G', 'Fz');
   const TS = torsionAus('Schnee', 'Fz');
   const TW = torsionAus('WindY', 'Fy');
+  /* =========================================================================
+   * >>> JEDER LEITER ZIEHT NACH SEINER ABFANGART (29. September). <<<
+   * =========================================================================
+   *
+   * Auf Rückfrage bestätigt: «Jeder Leiter (Tragseil, Fahrdraht,
+   * Kettenwerk) zieht nach seiner Abfangart, gleichgültig woran er hängt …
+   * angesetzt zentrisch in der Trägermittelebene an seiner Stelle x … Die
+   * pauschale Fh entfällt überall … Die Zugrichtung wählt man am Leiter
+   * (+y / −y) wie beim Tragjoch.» Dazu der Auftraggeber: «die leiter werden
+   * am joch angesetzt und man gibt an ob sie durchgehend / einseitig oder
+   * beidseitg abgefangen sind … bei den fixpunkten … wird dann bei einem
+   * leiterbruch die kettenwerklast angesetzt» - das ist «beidseitig».
+   *
+   * Bis hierher zog ein Leiter nur, wenn sein ANBAUTEIL als «abgefangen,
+   * Mitte Träger» angebunden war. Eine Hängestütze mit Fahrleitung (Anbindung
+   * über die Gurte) zog damit nie, auch mit «einseitig» am Leiter -
+   * gemessen am A160/11 m: Kern ohne Zug η 0.646, während die AxisVM-
+   * Ausleitung dort die pauschale Fh von 22 kN ansetzte (Stabwerk η 3.035).
+   *
+   * Jetzt: je Drahtwerk-Modul sein Zug, mit dem Vorzeichen seiner Richtung
+   * (`havarie[leiterKennung].richtung`, ohne Eintrag die alte Seite der
+   * Anbindung, sonst +y), und darauf die Regel der Abfangart. `opt.bruch`
+   * nennt im Havariefall den gerissenen Leiter ('*' = alle dieses Teils,
+   * wie der alte Merker an der Baugruppe).
+   */
   let Z = 0, temperaturabhaengig = false, ohneTabelle = false;
-  if (an.abgefangen) {
-    (Array.isArray(at?.module) ? at.module : []).forEach((m) => {
-      if (!m || !m.bauteil) return;
-      try {
-        const k = abfangkraft(m.bauteil, { tempFall: opt.tempFall });
-        Z += k.Z * (m.anzahl || 1);
-        temperaturabhaengig = temperaturabhaengig || k.temperaturabhaengig;
-        ohneTabelle = ohneTabelle || k.ohneTabelle;
-      } catch { /* kein Drahtwerk - dann auch keine Abfangkraft */ }
-    });
-    // Ein Leiter, der von hinten kommt, zieht nach hinten.
-    if (an.seite === 'H') Z = -Z;
-  }
-  return { Gz: sum.Gz, Qx: sum.Qx, Qy: sum.Qy, Z,
+  const leiter = [];
+  const havarieFall = opt.tempFall === 'havarie';
+  (Array.isArray(at?.module) ? at.module : []).forEach((m, i) => {
+    if (!m || m.aktiv === false || !m.bauteil) return;
+    let k;
+    try { k = abfangkraft(m.bauteil, { tempFall: opt.tempFall }); } catch { return; }
+    if (!k || !Number.isFinite(k.Z) || k.Z === 0) return;   // kein Drahtwerk
+    const key = leiterKennung(at, m, i);
+    const e = opt.havarie?.[key] ?? {};
+    const vz = e.richtung === '-y' ? -1 : e.richtung === '+y' ? 1
+      : (an.seite === 'H' ? -1 : 1);
+    const voll = vz * Math.abs(k.Z) * (m.anzahl || 1);
+    // Der alte Verlauf «durchgehend» an der Anbindung (4. September) sagt
+    // dasselbe wie die Abfangart «durchgehend» - er gilt, solange am Leiter
+    // keine Art steht; so behält ein gespeicherter Stand seine Aussage.
+    const art = e.art ?? (an.art === 'mitte' && an.verlauf === 'durchgehend'
+      ? 'durchgehend' : ABFANGJOCH_ART_VORGABE);
+    const bricht = havarieFall && (opt.bruch === '*' || opt.bruch === key);
+    const zug = abfangZugNachArt(art, voll, bricht);
+    leiter.push({ key, art, voll, zug, bricht });
+    Z += zug;
+    temperaturabhaengig = temperaturabhaengig || k.temperaturabhaengig;
+    ohneTabelle = ohneTabelle || k.ohneTabelle;
+  });
+  return { Gz: sum.Gz, Qx: sum.Qx, Qy: sum.Qy, Z, leiter,
            /**
             * Torsionsmomente um die Traegerachse [kNm], je Einwirkung.
             * Der Leiterzug steht NICHT darin - er kommt zentrisch an,
@@ -1409,6 +1445,16 @@ export const abfangBricht = (t2) => t2?.bruch === true;
  * ========================================================================= */
 export const ABFANGJOCH_ART_VORGABE = abfangVorgabeFuer('abfangjoch');
 
+/**
+ * Was ein Leiter mit dem vollen Zug `voll` (vorzeichenbehaftet) in diesem
+ * Zustand zieht - die Regel von `ABFANGARTEN`, hier angewendet.
+ */
+export function abfangZugNachArt(art, voll, bricht) {
+  if (art === 'einseitig') return bricht ? 0 : voll;           // reisst: fällt weg
+  if (art === 'beidseitig') return bricht ? voll : 0;          // Fixpunkt: Kettenwerklast
+  return bricht ? HAVARIE_LAENGSZUG * voll : 0;                // durchgehend: 10 %
+}
+
 export function abfangLeiterart(at, auswahl = null) {
   const module = Array.isArray(at?.module) ? at.module : [];
   for (let i = 0; i < module.length; i += 1) {
@@ -1464,37 +1510,21 @@ export function abfangAuswertung(o = {}) {
     const lastOpt = { ek: o.ek, R: o.R, spannweite: o.L_FL,
                       tempFall: fall.tempFall };
     const teile2 = amJoch.map((t) => {
-      const lw = abfangAnbauLasten(t, lastOpt);
       const bricht = fall.key === 'havarie' && abfangBricht(t);
-      /* ===================================================================
-       * >>> WAS DER LEITER ZIEHT, HAENGT AN SEINER ABFANGART. <<<
-       * =================================================================
-       *
-       * Hier stand nur «der gebrochene Leiter zieht nicht mehr» - der
-       * ungebrochene zog immer, in jedem Fall, mit der Kraft seiner
-       * Regliertemperatur. Das ist genau EINE der drei Arten, und die
-       * anderen beiden gab es hier nicht.
-       *
-       * `lw.Z` ist der volle Zug bei der Temperatur DIESES Falls, mit
-       * dem Vorzeichen der Anbindungsseite. Alles Weitere ist die
-       * Anwendung der Regel darauf - im Havariefall ist `lw.Z` der Zug
-       * bei -20 °C, und genau den verlangt die Regel dort.
-       */
-      const art = abfangLeiterart(t, o.havarie);
-      let Z = lw.Z;
-      if (art === 'einseitig') {
-        // Zieht immer; reisst er, faellt es weg.
-        Z = bricht ? 0 : lw.Z;
-      } else if (art === 'beidseitig') {
-        // Staendig heben sich die Zuege auf; beim Riss bleibt einer.
-        Z = bricht ? lw.Z : 0;
-      } else {
-        // Durchgehend: staendig nichts, beim Riss der Laengsanteil.
-        Z = bricht ? HAVARIE_LAENGSZUG * lw.Z : 0;
-      }
-      return { t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt),
-               bricht, art, lw: { ...lw, Z } };
+      // Die Regel der Abfangart steht seit dem 29. September je Leiter in
+      // `abfangAnbauLasten` - hier nur, wer reisst.
+      const lw = abfangAnbauLasten(t, { ...lastOpt, havarie: o.havarie,
+                                        bruch: bricht ? (t.bruchLeiter ?? '*') : null });
+      return { t, x: Math.min(Math.max(Number(t.x) || 0, 0), jt), bricht,
+               art: lw.leiter[0]?.art ?? ABFANGJOCH_ART_VORGABE, lw };
     });
+    /*
+     * >>> WAS DER LEITER ZIEHT, HAENGT AN SEINER ABFANGART (24./29. Sept.). <<<
+     * Bis zum 29. September stand die Regel hier, je Anbauteil (die Art
+     * des ersten Leiters galt allen). Jetzt steht sie je Leiter in
+     * `abfangAnbauLasten` / `abfangZugNachArt` - eine Stelle für Kern,
+     * Bild und Ausleitung.
+     */
     const Fstaendig = teile2.filter((p) => p.lw.Gz)
       .map((p) => ({ x: p.x, wert: Math.abs(p.lw.Gz) }));
     const Fleiter = teile2.filter((p) => p.lw.Z)

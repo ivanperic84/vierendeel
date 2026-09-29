@@ -73,8 +73,11 @@ export function abfangAuswertungFuer(w, stahl) {
   // Abgeschaltet: kein Havarielauf, kein Havariefall (`ohneHavarie`).
   const kandidaten = satzA.havarieAus === true ? [] : havarieKandidaten(satzA.havarie);
   if (kandidaten.length) {
+    // Mit dem LEITER, der reisst (29. September): ein Anbauteil kann mehrere
+    // Leiter tragen, und nur einer reisst (Weisung vom 19. September).
     const mitBruch = (key) => (satzA.anbauteile ?? []).map((a) => ({ ...a,
-      bruch: key !== null && (a.module ?? []).some((m, i) => leiterKennung(a, m, i) === key) }));
+      bruch: key !== null && (a.module ?? []).some((m, i) => leiterKennung(a, m, i) === key),
+      bruchLeiter: key }));
     const lauf = (key) => { try { return abfangEinmal(w, satzA, stahl, mitBruch(key)); } catch { return null; } };
     const basis = lauf(null);
     const laeufe = kandidaten.map((c) => ({ c, r: lauf(c.key) })).filter((x) => x.r);

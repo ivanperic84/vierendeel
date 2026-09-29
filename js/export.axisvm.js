@@ -1844,7 +1844,9 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * eigene Ausleitung.
    */
   const mastFuerAbfang = (t, satzT) => {
-    if (opt.auflagerModell !== 'mast' || satzT?.mastVorhanden === false) return null;
+    // Ohne Angabe (das Stabwerk der Anwendung, 29. September) mit Mast - die
+    // Ausleitung nach AxisVM gibt das Auflagermodell immer ausdrücklich an.
+    if ((opt.auflagerModell ?? 'mast') !== 'mast' || satzT?.mastVorhanden === false) return null;
     const a = (mastenJe.get(t.id) ?? [])[0];
     const profil = a?.[1]?.profil;
     // Die Anschlusshoehe steht in `mastH` (siehe app.axisvm.js).

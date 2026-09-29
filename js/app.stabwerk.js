@@ -119,15 +119,19 @@ import { blattWennMehrere, lasten, stabmodell, stabmodellJson } from './export.a
  * In einer REIHE noch nicht: Aufhängung, Knicken und Fundament rechnet
  * `rechneStabwerk` bisher nur für den Ausleger, der allein dasteht.
  */
-export const ARTEN_MIT_STABMODELL = ['joch', 'einzelmast', 'tragausleger'];
+/*
+ * >>> SEIT DEM 29. SEPTEMBER AUCH DAS ABFANGJOCH. <<<
+ * Weisung: «abfangjoch im stabwerk anschliessen.» Sein Modell ist das der
+ * AxisVM-Ausleitung (`abfangBau`): zwei U-Gurte, Bindebleche oben/unten,
+ * die Gabel als Doppel-U, Masten mit Konsole und Link. Nachgewiesen werden
+ * Gurte (mit Gabel), Bleche und Masten; Knicken und Fundament bleiben beim
+ * Kern (wie am Einzelmasten).
+ */
+export const ARTEN_MIT_STABMODELL = ['joch', 'einzelmast', 'tragausleger', 'abfangjoch'];
 
 /** Warum diese Art (noch) kein Stabwerk rechnet - oder null, wenn sie es tut. */
 export function ohneStabmodell(art) {
   if (ARTEN_MIT_STABMODELL.includes(art)) return null;
-  if (art === 'abfangjoch') {
-    return 'Das Abfangjoch bringt ein eigenes Stabmodell mit; es ist an '
-         + 'diesen Rechenweg noch nicht angeschlossen.';
-  }
   return `Für die Tragwerksart «${art}» gibt es kein Stabmodell.`;
 }
 
@@ -282,11 +286,22 @@ export function rechneStabwerk(app) {
        * Kachel ihren Stab nicht (28. September). Am Joch sind beide gleich.
        */
       const nm = erg.modell?.federn?.namen ?? {};
+      /*
+       * DAS ABFANGJOCH BAUT SEINEN MASTEN NUR MIT ANGABE (29. September):
+       * Profil, Anschlusshöhe, Stegrichtung - wie die COM-Ausleitung
+       * (`mastFuerAbfang`). Ohne sie stünde es auf Punkten.
+       */
+      const abfangMast = tragwerksart(satz).key === 'abfangjoch'
+        && satz.mastVorhanden !== false && (mA?.profil ?? satz.mastProfil)
+        && Number(satz.mastH) > 0
+        ? { profil: mA?.profil ?? satz.mastProfil, hoehe: Number(satz.mastH),
+            stegrichtung: satz.mastSteg ?? 'jochachse' }
+        : null;
       bau = stabmodell(erg.modell, { ...opt,
         mastNamen: { A: nm.A || mA?.id || 'A', B: nm.B || mB?.id || 'B' },
         // Ein Tragwerk mit eigenem Baustein (Abfangjoch, Tragausleger)
         // baut aus dem Satz, nicht aus dem Jochmodell (28. September).
-        satz });
+        satz, mast: abfangMast });
       /*
        * MIT EIGENGEWICHT UND GETRENNTEM G - wie die COM-Ausleitung. Der
        * Loeser steuert sein Eigengewicht zwar selbst bei; hier kommt es aus

@@ -594,7 +594,7 @@ export function abfangSzene(typ, jt, opt = {}) {
      */
     const lw = abfangAnbauLasten(at, {
       ek: opt.ek ?? 'EK2', R: opt.R, spannweite: opt.L_FL,
-      tempFall: opt.tempFall });
+      tempFall: opt.tempFall, havarie: opt.havarie ?? null });
     const pAn = [x, 0, 0];
     const pfeil = (art, ri, wert, nm, p = pAn) => {
       if (!wert) return;
