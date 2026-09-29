@@ -435,11 +435,19 @@ export function zeichneEinwirkungswahl(app) {
    * betrifft. Die Nummern LF1 … bleiben - sie stehen so im Bericht und in
    * der Ausleitung.
    */
+  /*
+   * >>> WORAUF JEDE GRUPPE STEHT (29. September). <<<
+   *
+   * Auf Rückfrage «Die Gruppennamen wie vorgeschlagen»: hier stand zweimal
+   * «— kein Nachweis». Beides war überholt - auf den charakteristischen
+   * Fällen stehen Anker, Fundament und die Aufhängung des Tragauslegers
+   * (gegen zulässige Kräfte), auf dem Betriebswind die Verformung.
+   */
   const GRUPPE = [
     ['tragsicherheit', 'Tragsicherheit'],
     ['aussergewoehnlich', 'Aussergewöhnlich (Havarie)'],
-    ['charakteristisch', 'Charakteristisch — kein Nachweis'],
-    ['gebrauchstauglichkeit', 'Gebrauchstauglichkeit — kein Nachweis'],
+    ['charakteristisch', 'Charakteristisch — Anker, Fundament, Aufhängung'],
+    ['gebrauchstauglichkeit', 'Gebrauchstauglichkeit — Verformung (Betriebswind)'],
   ];
   const lf = [{ wert: 'umhuellend', text: 'umhüllend', gruppe: '' },
               ...app.letzte.kombi.lastfaelle.map((k, i) => ({

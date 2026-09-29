@@ -565,12 +565,8 @@ export function standardLastfaelle(inp) {
   }
 
   // --- GEBRAUCHSTAUGLICHKEIT ------------------------------------------------
-  // Alle Beiwerte auf Gebrauchsniveau, ohne γ.
-  //
-  // SELTEN: leitende Einwirkung 1.00, begleitende 0.50.
-  //
-  // Die seltene Stufe ist KEIN Nachweis (nachweis: false): sie liefert die
-  // Schnittgrössen für Verformungsbetrachtungen.
+  // Alle Beiwerte auf Gebrauchsniveau, ohne γ. Seit dem 29. September nur
+  // noch die Betriebsstufe (die seltene ist entfallen, siehe unten).
   /* =========================================================================
    * >>> BETRIEBSWIND: ψ = 0.70 (Weisung vom 24. September). <<<
    * =========================================================================
@@ -602,38 +598,16 @@ export function standardLastfaelle(inp) {
         });
       });
     });
-  [['Y', 'WindY', 'y (Gleisrichtung)'], ['X', 'WindX', 'x (Jochachse)']]
-    .forEach(([tag, gruppe, richtung]) => {
-      [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
-        lf.push({
-          key: `gtseltenW${tag}${suffix}`,
-          bez: `Gebrauchstauglichkeit selten: Wind ${zeichen}${richtung}`,
-          art: 'gebrauchstauglichkeit', nachweis: false,
-          leit: gruppe, vorzeichen: vz, stufe: 'selten',
-          beiwerte: bw({ G: 1, [gruppe]: vz }),
-        });
-      });
-    });
-  if (s) {
-    [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
-      lf.push({
-        key: `gtseltenS${suffix}`,
-        bez: `Gebrauchstauglichkeit selten: Schnee, Wind ${zeichen}y`,
-        art: 'gebrauchstauglichkeit', nachweis: false,
-        leit: 'Schnee', vorzeichen: vz, stufe: 'selten',
-        beiwerte: bw({ G: 1, WindY: vz * p, Schnee: 1 }),
-      });
-    });
-    [['p', +1, '+'], ['m', -1, '−']].forEach(([suffix, vz, zeichen]) => {
-      lf.push({
-        key: `gtseltenSX${suffix}`,
-        bez: `Gebrauchstauglichkeit selten: Schnee, Wind ${zeichen}x`,
-        art: 'gebrauchstauglichkeit', nachweis: false,
-        leit: 'Schnee', vorzeichen: vz, stufe: 'selten',
-        beiwerte: bw({ G: 1, WindX: vz * p, Schnee: 1 }),
-      });
-    });
-  }
+  /*
+   * >>> DIE SELTENE STUFE IST ENTFALLEN (29. September). <<<
+   *
+   * Auf Rückfrage zur Lastfallauswahl: «die seltenen Fälle weglassen».
+   * Hier standen acht Fälle «Gebrauchstauglichkeit selten» (ständig + Wind
+   * ±x/±y, Schnee mit Wind ±y/±x). Kein Nachweis las sie: die Verformung
+   * steht auf dem Betriebswind oben und auf «nur Wind» (die
+   * charakteristischen Windfälle mal ψ). Sie standen im Wähler, in der
+   * AxisVM-Datei und im Bericht und bedienten nichts.
+   */
   return lf;
 }
 

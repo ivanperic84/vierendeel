@@ -230,10 +230,11 @@ wäre falsch, und sie kehrt sich auch nicht mit dem Wind um.`)}
 <h4>3.4 Lastfälle</h4>
 <p><b>Zuoberst stehen die einzelnen Lastarten, jede für sich und
 charakteristisch</b> – Ständig, Ablenkkräfte, Schnee, Wind y, Wind x, dazu alles
-zusammen. Alle Beiwerte 1.00. Sie sind kein Nachweis, sondern der Massstab: nur
-an einer einzelnen Lastart lässt sich ablesen, ob der Lastweg stimmt, und nur so
-ist die Rechnung gegen ein FEM-Modell zu halten, das seine Lastfälle ebenfalls
-einzeln ausweist.</p>
+zusammen. Alle Beiwerte 1.00. Sie sind der Massstab: nur an einer einzelnen
+Lastart lässt sich ablesen, ob der Lastweg stimmt, und nur so ist die Rechnung
+gegen ein FEM-Modell zu halten, das seine Lastfälle ebenfalls einzeln ausweist.
+Zugleich sind sie die Grundlage der Nachweise gegen <b>zulässige Kräfte</b>:
+Anker, Fundament und Aufhängung des Tragauslegers.</p>
 
 <table><tr><th>Lastfall</th><th>zeigt</th></tr>
 <tr><td>Ständig (Tragwerk)</td><td>alle Gewichte: Joch, Masten und Anbauteile, ohne Ablenkkräfte</td></tr>
@@ -394,19 +395,18 @@ Havariefall stünden zu günstig da. Ihre Zugkraft ist dann von Hand
 einzusetzen.`)}
 
 <h4>3.7 Gebrauchstauglichkeit</h4>
-<p>Alle ständigen Beiwerte 1.0, die veränderlichen abgemindert. Geführt wird
-<b>nur die seltene Stufe</b>: leitende Einwirkung 1.00, begleitende 0.50.</p>
+<p>Geführt wird der <b>Betriebswind</b>: Ständig mit 1.00, Wind mit
+ψ = 0.70 (Wiederkehrperiode 5 Jahre), je Richtung und Vorzeichen – vier Fälle.
+Auf ihnen steht der Nachweis der <b>Mastverformung</b>: die Seitenlage quer zum
+Gleis an der Referenzhöhe (Fahrdraht, sonst Ausleger, sonst Jochauflager) gegen
+40 mm, für «nur Wind» (die charakteristischen Windfälle mal 0.70). Die
+Verschiebung der Mastspitze steht als Auskunft daneben.</p>
 
-<p>Die <b>häufige</b> Stufe des Referenzprojekts (ψ = 0.70 leitend, 0.35 = 0.70 ·
-0.50 begleitend) ist bewusst weggelassen. Sie verdoppelt die Zahl der Lastfälle,
-ohne einen Nachweis zu bedienen, den dieses Werkzeug führt; wer sie braucht,
-ergänzt sie als eigenen Lastfall.</p>
-
-${q(`Auch die seltene Stufe ist <b>kein Nachweis</b>. Sie liefert die
-Schnittgrössen für Verformungsbetrachtungen – der Nachweis der
-Gebrauchstauglichkeit selbst (Durchbiegung, Verdrehung des Jochs,
-Querverschiebung der Mastköpfe und damit die Solllage des Fahrdrahts) ist im
-Werkzeug <b>nicht geführt</b>. Sie erscheint deshalb nicht in η.`)}
+${q(`Die <b>seltene</b> Stufe (leitend 1.00, begleitend 0.50) ist seit dem
+29. September entfallen: kein Nachweis las sie. Die charakteristischen Fälle
+sind dagegen Nachweisgrundlage – für Anker, Fundament und die Aufhängung des
+Tragauslegers, die gegen zulässige Kräfte ohne Teilsicherheitsbeiwerte
+nachgewiesen werden.`)}
 
 <p class="hb-quelle">core.lasten.js · core.trasse.js · data.fl.js · core.abfangjoch.js</p>
 `,

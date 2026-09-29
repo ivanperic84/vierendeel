@@ -803,8 +803,10 @@ titel('15  Lastfälle');
    * Acht seltene (Wind +-x/+-y, Schnee mit Wind +-y/+-x) und vier
    * Betriebswind-Faelle (staendig + Wind ψ 0.70, je Richtung).
    */
-  pruef('Zwölf Lastfälle der Gebrauchstauglichkeit',
-        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 12, 1e-12, 'Stk');
+  // Seit dem 29. September nur noch vier: die seltene Stufe ist entfallen
+  // («die seltenen Fälle weglassen»).
+  pruef('Vier Lastfälle der Gebrauchstauglichkeit (Betriebswind)',
+        lf.filter((x) => x.art === 'gebrauchstauglichkeit').length, 4, 1e-12, 'Stk');
   wahr('Der Wind steht in jeder Kombinationsart mit beiden Vorzeichen',
        ['WindX', 'WindY'].every((g) => ['charakteristisch', 'tragsicherheit',
          'gebrauchstauglichkeit'].every((art) => {
@@ -829,8 +831,8 @@ titel('15  Lastfälle');
     const gzg = lf.filter((x) => x.art === 'gebrauchstauglichkeit');
     const betrieb = gzg.filter((x) => x.stufe === 'betrieb');
     pruef('Davon vier in der Betriebsstufe', betrieb.length, 4, 1e-12, 'Stk');
-    wahr('… die übrigen sind die seltene Stufe',
-         gzg.filter((x) => x.stufe !== 'betrieb').every((x) => x.stufe === 'selten'));
+    wahr('… und keine seltene Stufe mehr (29. Sept.)',
+         gzg.every((x) => x.stufe === 'betrieb') && !lf.some((x) => /^gtselten/.test(x.key)));
     wahr('… Ständig mit 1.00, Wind mit ψ = 0.70',
          betrieb.every((x) => x.beiwerte.G === 1
            && Math.abs(Math.abs(x.beiwerte.WindX ?? 0) + Math.abs(x.beiwerte.WindY ?? 0)
@@ -900,10 +902,11 @@ titel('15  Lastfälle');
   // Ohne Schnee auf dem Joch, aber mit Q_z am Anbauteil bleibt die Gruppe aktiv
   const ohneSchnee = basis({ schneeAktiv: false, anbauteile: [] });
   const zaehl = (o, art) => L.lastfaelle(o).filter((x) => x.art === art).length;
-  // Vier Tragsicherheits-, vier seltene und vier Betriebswind-Faelle.
+  // Vier Tragsicherheits- und vier Betriebswind-Faelle (die seltenen sind
+  // seit dem 29. September entfallen).
   wahr('Ohne Schnee und ohne Q_z: vier Nachweislastfälle',
        zaehl(ohneSchnee, 'tragsicherheit') === 4
-       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 8,
+       && zaehl(ohneSchnee, 'gebrauchstauglichkeit') === 4,
        `${zaehl(ohneSchnee, 'tragsicherheit')} / ${zaehl(ohneSchnee, 'gebrauchstauglichkeit')}`);
   wahr('Ohne Schnee entfällt auch der charakteristische Schneelastfall',
        !L.lastfaelle(ohneSchnee).some((x) => x.key === 'sk'));
@@ -33312,6 +33315,11 @@ titel('156  Durchsicht: Felder des Ersatzbalkens, Konsole in m, Kombination der 
        && !/`Hauptkachel und Kacheln Joch\/Mast/.test(u));
   wahr('Abfangungsfeld mit der Regel der übrigen Modulfelder',
        /\.modul-abfang select \{ font-size: 11px; padding: 3px 5px/.test(readFileSync(join(HIER, 'css', 'style.css'), 'utf8')));
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Lastfallgruppen: kein «kein Nachweis» mehr, die neuen Namen',
+       !/— kein Nachweis'/.test(lay)
+       && /Charakteristisch — Anker, Fundament, Aufhängung/.test(lay)
+       && /Gebrauchstauglichkeit — Verformung \(Betriebswind\)/.test(lay));
   wahr('Ablenkung je Leiter: Trasse / Winkel / Spannweite, in der Signatur',
        /data-mk="ablenkQuelle"/.test(u) && /map\(\(m\) => ablenkQuelle\(m\)\)/.test(u)
        && /if \(feld === 'laengeFl'\) feld = 'laenge'/.test(u));
