@@ -33177,6 +33177,67 @@ titel('152  Der Reiter «Schnitt» steht nur beim Ersatzbalken');
        && !/ui\.AUSWERTUNG_TABS\s*\n?\s*\.map/.test(lay));
 }
 
+titel('153  Alte Stände: ein Weg zum Anheben, Teile am Masten bleiben');
+/* ===========================================================================
+ * Gemeldet 29. Sept.: «Ich konnte heute die alten Modell nicht alle laden …
+ * die anbauteile an den masten checken.» Befunde: (1) das Laden aus der
+ * Ablage hob weniger an als der Start, und keiner der Wege die übrigen
+ * Tragwerke; (2) in der alten Ablageform (Mastteile im Tragwerk) gingen die
+ * Teile am Masten des zuvor aktiven Tragwerks beim Wechsel verloren.
+ * ========================================================================= */
+{
+  const N153 = await import(J('core.nachbarn.js'));
+  const C = await import(J('core.constants.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const a = A.neuesAnbauteil('hs-fahrdraht', 10);
+  const altTeil = { ...a, eigengewicht: 0.3, Qy: 0.2,
+    module: a.module.map((m) => ({ ...m, ev: -1.2, ex: 0 })) };
+  delete altTeil.lasten;
+  let b = C.tragwerkHinzu({ ...w, anbauteile: [a] }, 'joch', { xLage: 20 });
+  b = { ...b, weitere: b.weitere.map((t) => ({ ...t, anbauteile: [altTeil], lastfall: 'wind', leit: 1,
+    lastfallAnpassung: { windYp: { Wind: 1.2 } } })) };
+  const h = A.standAnheben(b);
+  const t1 = h.weitere[0];
+  wahr('Übriges Tragwerk: alte Felder weg, Lastfall «wind» weg',
+       !('leit' in t1) && !('lastfall' in t1));
+  wahr('… Windbeiwert auf beide Richtungen geteilt',
+       t1.lastfallAnpassung.windYp.WindX === 1.2 && t1.lastfallAnpassung.windYp.WindY === 1.2
+       && !('Wind' in t1.lastfallAnpassung.windYp));
+  wahr('… seine Anbauteile normalisiert (Lastblöcke, kein ev/ex)',
+       Array.isArray(t1.anbauteile[0].lasten) && t1.anbauteile[0].module.every((m) => !('ev' in m)));
+  wahr('Anheben zweimal = einmal', JSON.stringify(A.standAnheben(h)) === JSON.stringify(h));
+  wahr('Die Eingabe bleibt unberührt', b.weitere[0].lastfall === 'wind');
+
+  // Teile am Masten, alte Ablageform: im aktiven T2, keine Blattliste.
+  const mt = (vorlage, ort, hMast, name) => ({ ...A.neuesAnbauteil(vorlage, 0), name, ort, hMast });
+  let blatt = C.tragwerkHinzu({ ...w, anbauteile: [a] }, 'joch', { xLage: 20 });
+  blatt = C.setzeAnbauteileAn(blatt, [a, mt('mast-nt-ausleger', 'mastA', 6.5, 'NT am geteilten'),
+    mt('leiter-traverse', 'mastB', 7.0, 'Traverse Rand')]);
+  const altForm = JSON.parse(JSON.stringify(blatt));
+  altForm.anbauteile = C.anbauteileFuer(altForm, C.tragwerkeVon(altForm)[0]);
+  delete altForm.mastAnbauteile; delete altForm.masten;
+  const sichtT1 = (ww) => C.anbauteileFuer(C.tauscheAktives(ww, 'T1'),
+    C.tragwerkeVon(C.tauscheAktives(ww, 'T1'))[0]).filter(A.amMast).map((x) => x.name).join(',');
+  wahr('Befund: ohne Überführung sieht T1 nach dem Wechsel nichts am geteilten Masten',
+       sichtT1(altForm) === '');
+  const hb = A.standAnheben(altForm);
+  wahr('>>> angehoben: T1 sieht den Ausleger am geteilten Masten <<<', sichtT1(hb) === 'NT am geteilten');
+  wahr('… Blattliste mit beiden Teilen, Mastliste geschrieben',
+       hb.mastAnbauteile.map((x) => `${x.name}>${x.mastId}`).join(',') === 'NT am geteilten>M2,Traverse Rand>M3'
+       && hb.masten.map((m) => m.id).join(',') === 'M1,M2,M3');
+  const etaB = (ww) => { const ws = C.tauscheAktives(ww, 'T1'); const s = N153.rechensatzMitNachbarn(ws);
+    return berechne(s, ...N153.kernArgumente(s)).mast.B.eta; };
+  pruef('Geteilter Mast M2 aus Sicht T1, alter Weg (Ausleger verloren)', etaB(altForm), 1.4383, 5e-4, '');
+  pruef('… angehoben (Ausleger dabei, unsicher war −3.3 %)', etaB(hb), 1.4870, 5e-4, '');
+  const neueForm = A.standAnheben(JSON.parse(JSON.stringify(blatt)));
+  pruef('Heutige Form: Anheben ändert am Masten nichts', etaB(neueForm), etaB(blatt), 1e-12, '');
+  const qa = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  wahr('Start und Ablage heben über dieselbe Stelle an',
+       /return standAnheben\(w\)/.test(APP_QUELLE()) && /app\.werte = standAnheben\(\{ \.\.\.standardwerte\(\), \.\.\.s\.werte/.test(qa));
+  wahr('Das Laden aus der Ablage scheitert laut, mit Namen', /liess sich nicht laden/.test(qa));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

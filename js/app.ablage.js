@@ -9,7 +9,7 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { havarieAnheben } from './data.anbauteile.js';
+import { standAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
@@ -451,8 +451,9 @@ export async function zeichneSchublade(app) {
     const v = await store.vorlageLaden(b.dataset.vorlageAn);
     if (!confirm(`Vorlage «${v.name}» anwenden? Profile, Trasse, Anbauteile und ` +
                  'Lastfälle werden übernommen; die Jochlänge bleibt.')) return;
-    app.werte = { ...app.werte, ...v.werte, bearbeiten: false };
-    app.werte.anbauteile = (app.werte.anbauteile ?? []).map(normalisiereAnbauteil);
+    // Eine Vorlage ist so alt wie ihr Tag - sie wird angehoben wie ein
+    // gespeicherter Stand (29. Sept., `standAnheben`).
+    app.werte = standAnheben({ ...app.werte, ...v.werte, bearbeiten: false });
     app.werte.eigeneVorlagen = app.vorlagenZusammenfuehren(app.werte);
     setzeEigeneVorlagen(app.werte.eigeneVorlagen);
     app.station = null;
@@ -488,20 +489,41 @@ async function eintragLaden(app, id, fragen = true) {
     return;
   }
   const s = await store.laden(id);
-  app.werte = havarieAnheben({ ...standardwerte(), ...s.werte, bearbeiten: false });
-  app.werte.anbauteile = (app.werte.anbauteile ?? []).map(normalisiereAnbauteil);
-  app.mastNachfuehrenGlobal();   // siehe beim Start
-  app.projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung ?? '' };
-  neuesProjektOffen = false;
-  app.station = null;
-  // Frisch geladen heisst: der Stand entspricht der Ablage.
-  app.markiereGesichert();
-  schubladeSchliessen(app);
-  // Die hinterlegte Zeichnung gehört zum Tragwerk und kommt mit ihm.
-  await app.zeichnungHolen(s.id);
-  app.neuRechnen();
-  app.zeichneModellWerkzeuge();
-  app.ansicht.ganzesJoch();
+  /*
+   * >>> WIE BEIM START ANHEBEN, UND LAUT SCHEITERN (29. September). <<<
+   *
+   * Gemeldet: «Ich konnte heute die alten Modell nicht alle laden.» Der
+   * Start hob einen alten Stand vollständig an, dieser Weg nur zum Teil
+   * (siehe `standAnheben`). Und scheiterte etwas, blieb es still: die
+   * Ausnahme ging im Klick verloren, die Schublade stand offen, der alte
+   * Stand weiter da. Jetzt wird der vorige Stand wiederhergestellt und
+   * der Grund genannt - mit dem Namen des Eintrags.
+   */
+  const vorher = { werte: app.werte, projekt: app.projekt };
+  try {
+    app.werte = standAnheben({ ...standardwerte(), ...s.werte, bearbeiten: false });
+    app.mastNachfuehrenGlobal();   // siehe beim Start
+    app.projekt = { id: s.id, name: s.name, projekt: s.projekt, bemerkung: s.bemerkung ?? '' };
+    neuesProjektOffen = false;
+    app.station = null;
+    // Frisch geladen heisst: der Stand entspricht der Ablage.
+    app.markiereGesichert();
+    schubladeSchliessen(app);
+    // Die hinterlegte Zeichnung gehört zum Tragwerk und kommt mit ihm.
+    await app.zeichnungHolen(s.id);
+    app.neuRechnen();
+    app.zeichneModellWerkzeuge();
+    app.ansicht.ganzesJoch();
+  } catch (e) {
+    console.error('Laden fehlgeschlagen', s?.name, e);
+    app.werte = vorher.werte;
+    app.projekt = vorher.projekt;
+    try { app.neuRechnen(); } catch { /* der vorige Stand rechnete */ }
+    alert(`«${s.projekt ? `${s.projekt} · ` : ''}${s.name}» liess sich nicht laden:\n\n`
+          + `${e?.message ?? e}\n\nDer vorige Stand ist wiederhergestellt. `
+          + 'Bitte diese Meldung weitergeben - der Eintrag selbst ist unverändert.');
+    return;
+  }
   app.meldeImBalken(`Geladen: ${s.projekt ? `${s.projekt} · ` : ''}${s.name}`);
 }
 

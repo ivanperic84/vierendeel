@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { havarieAnheben } from './data.anbauteile.js';
+import { standAnheben } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -394,42 +394,10 @@ function laden() {
             && TRAGWERKSARTEN.find((a) => a.key === (w.tragwerksart ?? 'joch'))?.traeger)) {
       w.anbauteile = frisch().anbauteile;
     }
-    delete w.lastfaelle;
-    // Der Merker «Bruch» an der Baugruppe wird zur Havarie-Auswahl
-    // (19. September) - je Leiter ein Fall statt alle zugleich.
-    Object.assign(w, havarieAnheben(w));
-    // Stände vor der Lastfall-Umstellung: die Leiteinwirkung und die drei
-    // getrennten ψ₀ sind ersatzlos entfallen. Der Schalter für die
-    // Wirkungsweise der Umlenkung ebenso - die Richtung steckt jetzt im
-    // Vorzeichen des Radius (siehe core.trasse.js).
-    ['leit', 'psi0P', 'psi0w', 'psi0S', 'trasseWirkung'].forEach((k) => delete w[k]);
-    // Anbauteile in das neue Modell heben: Lastblöcke statt Einzelfelder,
-    // Koordinaten statt e_v/e_x.
-    w.anbauteile = (w.anbauteile ?? []).map(normalisiereAnbauteil);
-    if (!w.lastfallAnpassung || typeof w.lastfallAnpassung !== 'object') {
-      w.lastfallAnpassung = {};
-    }
-    // Angepasste Lastfälle aus der Zeit der EINEN Windgruppe: der Beiwert
-    // "Wind" galt für beide Richtungen und wird auf beide übertragen.
-    Object.values(w.lastfallAnpassung).forEach((b) => {
-      if (b && b.Wind !== undefined) {
-        if (b.WindX === undefined) b.WindX = b.Wind;
-        if (b.WindY === undefined) b.WindY = b.Wind;
-        delete b.Wind;
-      }
-    });
-    if (!Array.isArray(w.lastfaelleEigen)) w.lastfaelleEigen = [];
-    w.lastfaelleEigen.forEach((l) => {
-      const b = l?.beiwerte;
-      if (b && b.Wind !== undefined) {
-        if (b.WindX === undefined) b.WindX = b.Wind;
-        if (b.WindY === undefined) b.WindY = b.Wind;
-        delete b.Wind;
-      }
-    });
-    // Der gewählte Lastfall kann es nach der Umstellung nicht mehr geben.
-    if (['wind', 'schnee'].includes(w.lastfall)) delete w.lastfall;
-    return w;
+    // Havarie-Merker, alte Felder, Windgruppen, Anbauteile - für ALLE
+    // Tragwerke des Blattes und die Teile an den Masten. Dieselbe Stelle wie
+    // beim Laden aus der Ablage (29. September, `standAnheben`).
+    return standAnheben(w);
   } catch {
     return frisch();
   }

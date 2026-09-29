@@ -44,6 +44,7 @@ import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
 import { LEERE_KRAFT } from './core.anbauteile.js';
+import { mastAnbauVon, mastenVon } from './core.constants.js';
 
 let DB = null;
 
@@ -774,6 +775,107 @@ export function havarieAnheben(w) {
   const erg = { ...haupt.t };
   if (w.mastAnbauteile) erg.mastAnbauteile = haupt.mast;
   if (Array.isArray(w.weitere)) erg.weitere = w.weitere.map((t) => eins(t).t);
+  return erg;
+}
+
+/* ===========================================================================
+ * >>> EIN WEG, EINEN ALTEN STAND ANZUHEBEN (29. September). <<<
+ * ===========================================================================
+ *
+ * Gemeldet: «Ich konnte heute die alten Modell nicht alle laden, gibt es
+ * hier probleme mit den früheren modelleingaben? die anbauteile an den
+ * masten checken.»
+ *
+ * Befund: es gab ZWEI Ladewege mit verschiedenem Umfang. Der Start
+ * (`laden()` in app.js) hob den Arbeitsstand vollständig an - alte Felder
+ * weg, Windgruppe «Wind» auf WindX/WindY, gewählter Lastfall «wind» weg,
+ * Anbauteile normalisiert. Das Laden aus der PROJEKTABLAGE
+ * (`eintragLaden`) tat davon nur die Havarie und die Anbauteile des
+ * AKTIVEN Tragwerks. Und keiner der beiden Wege normalisierte die Anbau-
+ * teile der ÜBRIGEN Tragwerke eines Blattes (`weitere`) oder die Teile an
+ * den Masten (`mastAnbauteile`) - dort blieben Module mit `ev`/`ex`,
+ * Baugruppen ohne Lastblöcke und «Cu 95 (x2)» stehen, bis das Tragwerk
+ * aktiv wurde.
+ *
+ * Jetzt hebt diese eine Funktion jeden Satz an, auf allen Wegen. Sie ist
+ * rein und darf mehrfach laufen (angehoben ist angehoben).
+ */
+const ALTE_FELDER = ['leit', 'psi0P', 'psi0w', 'psi0S', 'trasseWirkung', 'lastfaelle'];
+
+function windGeteilt(b) {
+  if (b && typeof b === 'object' && b.Wind !== undefined) {
+    if (b.WindX === undefined) b.WindX = b.Wind;
+    if (b.WindY === undefined) b.WindY = b.Wind;
+    delete b.Wind;
+  }
+}
+
+function tragwerkAnheben(t) {
+  if (!t || typeof t !== 'object') return t;
+  const w = { ...t };
+  // Stände vor der Lastfall-Umstellung: die Leiteinwirkung und die drei
+  // getrennten ψ₀ sind ersatzlos entfallen, ebenso der Schalter für die
+  // Wirkungsweise der Umlenkung (die Richtung steckt im Vorzeichen des
+  // Radius, core.trasse.js).
+  ALTE_FELDER.forEach((k) => delete w[k]);
+  if (Array.isArray(w.anbauteile)) w.anbauteile = w.anbauteile.map(normalisiereAnbauteil);
+  if (!w.lastfallAnpassung || typeof w.lastfallAnpassung !== 'object'
+      || Array.isArray(w.lastfallAnpassung)) {
+    w.lastfallAnpassung = {};
+  } else {
+    // Aus der Zeit der EINEN Windgruppe: der Beiwert galt beiden Richtungen.
+    w.lastfallAnpassung = Object.fromEntries(Object.entries(w.lastfallAnpassung)
+      .map(([k, b]) => { const n = b && typeof b === 'object' ? { ...b } : b; windGeteilt(n); return [k, n]; }));
+  }
+  w.lastfaelleEigen = Array.isArray(w.lastfaelleEigen)
+    ? w.lastfaelleEigen.map((l) => {
+      if (!l || typeof l !== 'object') return l;
+      const n = { ...l, beiwerte: l.beiwerte ? { ...l.beiwerte } : l.beiwerte };
+      windGeteilt(n.beiwerte);
+      return n;
+    })
+    : [];
+  // Den gewählten Lastfall kann es nach der Umstellung nicht mehr geben.
+  if (['wind', 'schnee'].includes(w.lastfall)) delete w.lastfall;
+  return w;
+}
+
+export function standAnheben(w) {
+  if (!w || typeof w !== 'object') return w;
+  let erg = tragwerkAnheben(havarieAnheben(w));
+  if (Array.isArray(erg.weitere)) erg.weitere = erg.weitere.map(tragwerkAnheben);
+  /*
+   * >>> TEILE AM MASTEN IN DIE BLATTLISTE, SOFORT (29. September). <<<
+   *
+   * Seit dem 18. September haengen Teile am Masten an der Blattliste
+   * `mastAnbauteile`; aeltere Staende tragen sie im Tragwerk
+   * (`ort: 'mastA'|'mastB'`). `mastAnbauVon` liest beide Formen - die Liste
+   * entstand aber erst beim ersten SCHREIBEN (`mastenFest`). Wurde vorher
+   * das aktive Tragwerk gewechselt, raeumte `tragwerkTeil` die Mastteile aus
+   * dem weggelegten Tragwerk (sie gehoeren ja in die Liste) - und da es die
+   * Liste noch nicht gab, waren sie weg. Gemessen am Blatt T1 + T2 mit
+   * geteiltem Masten: nach dem Wechsel auf T1 sah weder T1 noch T2 die
+   * Traverse und den Ausleger an den Masten von T2.
+   * Die Ueberfuehrung ist `mastenFest` ohne dessen Bedingung, dass es schon
+   * eine Mastliste gibt: Liste und Nummern werden gemeinsam geschrieben,
+   * sonst wanderten die Teile beim naechsten neuen Tragwerk (18. Sept.).
+   */
+  const imTragwerk = [erg, ...(erg.weitere ?? [])]
+    .some((t) => (t?.anbauteile ?? []).some((a) => amMast(a)));
+  if (imTragwerk) {
+    erg = { ...erg, mastAnbauteile: mastAnbauVon(erg), masten: mastenVon(erg, 0.1, true) };
+  }
+  if (Array.isArray(erg.mastAnbauteile)) {
+    // Der Ort bleibt, wie er steht: die Blattliste wird ohnehin auf das
+    // jeweilige Mastende projiziert (`anbauteileFuer`), und ein fehlender
+    // Ort darf hier nicht zu «joch» werden.
+    erg.mastAnbauteile = erg.mastAnbauteile.map((a) => {
+      if (!a || typeof a !== 'object') return a;
+      const n = normalisiereAnbauteil(a);
+      if (a.ort === undefined) delete n.ort; else n.ort = a.ort;
+      return n;
+    });
+  }
   return erg;
 }
 
