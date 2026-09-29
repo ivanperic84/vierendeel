@@ -4890,14 +4890,19 @@ export function exportiereJson(inp, deps, opt = {}) {
   opt = { ...opt, eingabe: inp, bau: blattWennMehrere(inp, deps, opt) };
   const d = stabmodellJson(m, opt);
   const name = dateiname(inp, opt, m, 'json');
-  const blob = new Blob([JSON.stringify(d, null, 1)],
-                        { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  return { name, kennzahlen: { knoten: d.knoten.length, staebe: d.staebe.length,
+  const text = JSON.stringify(d, null, 1);
+  // `nurDaten`: der Aufrufer legt die Datei selbst ab - zusammen mit den
+  // Skripten der Bruecke in einen gewaehlten Ordner (29. September).
+  if (!opt.nurDaten) {
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  return { name, ...(opt.nurDaten ? { text } : {}),
+           kennzahlen: { knoten: d.knoten.length, staebe: d.staebe.length,
                                querschnitte: d.querschnitte.length,
                                lasten: d.lasten.punkt.length + d.lasten.moment.length
                                      + d.lasten.strecke.length } };

@@ -96,15 +96,19 @@ const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
 export function exportiereAbfangJson(typ, jt, opt = {}) {
   const d = abfangAxisvmModell(typ, jt, opt);
   const name = `AxisVM_Abfangjoch_${typ}_${Number(jt).toFixed(1)}m.json`;
-  const blob = new Blob([JSON.stringify(d, null, 1)],
-                        { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  const text = JSON.stringify(d, null, 1);
+  // `nurDaten`: der Aufrufer legt die Datei selbst ab - zusammen mit den
+  // Skripten der Bruecke in einen gewaehlten Ordner (29. September).
+  if (!opt.nurDaten) {
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
   return {
-    name,
+    name, ...(opt.nurDaten ? { text } : {}),
     kennzahlen: {
       knoten: d.knoten.length, staebe: d.staebe.length,
       querschnitte: d.querschnitte.length,

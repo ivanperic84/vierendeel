@@ -12,7 +12,7 @@
  * ============================================================================
  */
 
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync, readdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -33236,6 +33236,42 @@ titel('153  Alte Stände: ein Weg zum Anheben, Teile am Masten bleiben');
   wahr('Start und Ablage heben über dieselbe Stelle an',
        /return standAnheben\(w\)/.test(APP_QUELLE()) && /app\.werte = standAnheben\(\{ \.\.\.standardwerte\(\), \.\.\.s\.werte/.test(qa));
   wahr('Das Laden aus der Ablage scheitert laut, mit Namen', /liess sich nicht laden/.test(qa));
+}
+
+titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner');
+/* ===========================================================================
+ * Weisung 29. Sept.: «beim exportieren der axis modells, fragen ob man die
+ * scriptdatein, die man für den aufbau neötigt (com schnittstelle) mit
+ * generieren will im ausgewähltem ordner wie die json datei.»
+ * ========================================================================= */
+{
+  const CS = await import(J('export.comskripte.js'));
+  const py = readFileSync(join(HIER, 'build_html.py'), 'utf8');
+  const pyListe = /COM_SKRIPTE = \[([^\]]*)\]/.exec(py)?.[1].match(/"([^"]+)"/g)?.map((s) => s.slice(1, -1));
+  wahr('Bündler und Modul führen dieselben vier Skripte', JSON.stringify(pyListe) === JSON.stringify(CS.COM_SKRIPTE));
+  wahr('… und alle vier liegen in com/', CS.COM_SKRIPTE.every((n) => existsSync(join(HIER, 'com', n))));
+  wahr('Zeilenenden werden CR LF (cmd.exe), auch aus gemischten',
+       CS.mitCrlf('a\nb\r\nc') === 'a\r\nb\r\nc');
+  const idx = readFileSync(join(HIER, 'index.html'), 'utf8');
+  wahr('Platzhalter in index.html', idx.includes('<script type="application/json" id="com-skripte"></script>'));
+  wahr('Die Skripte stehen in der Fassung des Dienstarbeiters',
+       /COM_SKRIPTE if \(WURZEL \/ "com" \/ n\)\.is_file\(\)/.test(py));
+  const ax = readFileSync(join(HIER, 'js', 'app.axisvm.js'), 'utf8');
+  wahr('Der Dialog fragt - Kästchen, nur beim Format JSON',
+       /name="skripte"/.test(ax) && /skripteFeld\.hidden = f !== 'json'/.test(ax));
+  wahr('Tragjoch und Abfangjoch gehen beide über mitSkripten',
+       /mitSkripten\(app, name, \(\) => exportiereJson\(satz, deps, \{ \.\.\.o, nurDaten: true \}\)\)/.test(ax)
+       && /nurDaten: skripte/.test(ax));
+  wahr('Erst der Ordner, dann das Holen der Skripte (Benutzeraktion)',
+       /showDirectoryPicker\([^)]*\);[\s\S]{0,200}await holeDateien\(\)/.test(readFileSync(join(HIER, 'js', 'export.comskripte.js'), 'utf8')));
+  // nurDaten: Name und Text, kein Download (hier gibt es kein document).
+  const AB154 = await import(J('export.axisvm.abfang.js'));
+  const typ = AB154 && (await import(J('data.abfangjoche.js'))).abfangjoche?.()[0]?.typ;
+  if (typ) {
+    const r = AB154.exportiereAbfangJson(typ, 11, { nurDaten: true });
+    wahr('Abfangjoch mit nurDaten: Name und Text, kein Download',
+         /^AxisVM_Abfangjoch_/.test(r.name) && JSON.parse(r.text).knoten.length === r.kennzahlen.knoten);
+  }
 }
 
 // ===========================================================================

@@ -18,6 +18,7 @@ Aufruf:  python3 build_html.py
 """
 
 import hashlib
+import json
 import re
 import os
 import shutil
@@ -42,6 +43,11 @@ EINSTIEG = "app.js"
 SW = WURZEL / "sw.js"
 MANIFEST = WURZEL / "manifest.webmanifest"
 ICONS = WURZEL / "icons"
+# Die Skripte der COM-Bruecke, die beim Export mitgeliefert werden koennen -
+# dieselbe Liste wie COM_SKRIPTE in js/export.comskripte.js (der Pruefstand
+# vergleicht beide).
+COM_SKRIPTE = ["AxisVM_aufbauen.cmd", "AxisVM_aufbauen.ps1",
+               "AxisVM_auslesen.cmd", "AxisVM_pruefen.cmd"]
 
 RE_IMPORT_NAMED = re.compile(
     r"^\s*import\s*\{([^}]*)\}\s*from\s*['\"]\./([\w.\-]+)['\"]\s*;?\s*$", re.M)
@@ -221,6 +227,11 @@ def schale():
     if (WURZEL / "data" / "normen.json").is_file():
         dateien.append("data/normen.json")
     dateien += ["js/" + p.name for p in sorted(JS.glob("*.js"))]
+    # Die Skripte der COM-Bruecke (29. September): die Modulversion holt sie
+    # beim Export aus com/. Sie gehoeren in die FASSUNG - der Dienstarbeiter
+    # liefert Bausteine aus seiner Ablage, und eine berichtigte Bruecke kaeme
+    # sonst beim Benutzer nie an.
+    dateien += ["com/" + n for n in COM_SKRIPTE if (WURZEL / "com" / n).is_file()]
     dateien += ["icons/" + p.name for p in sorted(ICONS.glob("*"))
                 if p.suffix in (".png", ".svg")]
     return dateien
@@ -452,6 +463,29 @@ def main(ohne_daten=False):
     html = html.replace(
         TAG_NO,
         '<script type="application/json" id="normen-db">\n' + notext + "\n</script>")
+
+    # ---------------------------------------------------------------------
+    # DIE SKRIPTE DER COM-BRUECKE - IMMER, AUCH OHNE DATEN (29. September).
+    #
+    # Weisung: beim Export fragen, ob die Skripte fuer den Aufbau mit in den
+    # Ordner der Modelldatei sollen. Die Einzeldatei hat kein com/ daneben -
+    # sie traegt die Skripte deshalb selbst (js/export.comskripte.js liest
+    # sie). Sie sind Werkzeug, keine Betreiberdaten, und liegen in der
+    # Ablage. '</' wird als '<\/' geschrieben: gueltiges JSON, und der
+    # HTML-Parser sieht kein schliessendes Tag.
+    # ---------------------------------------------------------------------
+    TAG_COM = '<script type="application/json" id="com-skripte"></script>'
+    if TAG_COM not in html:
+        raise SystemExit("Platzhalter fehlt in index.html:\n  " + TAG_COM)
+    skripte = {}
+    for n in COM_SKRIPTE:
+        p = WURZEL / "com" / n
+        if not p.is_file():
+            raise SystemExit(f"com/{n} fehlt - die Bruecke waere unvollstaendig.")
+        skripte[n] = p.read_text(encoding="utf-8")
+    comtext = json.dumps(skripte, ensure_ascii=True).replace("</", "<\\/")
+    html = html.replace(
+        TAG_COM, '<script type="application/json" id="com-skripte">' + comtext + "</script>")
 
     # Die Einzeldatei hat keine Nachbardateien: kein Manifest, keine Symbole,
     # kein Dienstarbeiter. Ohne diese Zeile meldet der Browser nur ein

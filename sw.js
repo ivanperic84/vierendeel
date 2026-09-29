@@ -29,7 +29,7 @@
 /* eslint-env serviceworker */
 
 // === von build_html.py erzeugt - nicht von Hand ändern ======================
-const VERSION = '3bd33d14e074';
+const VERSION = '91d419fe8f39';
 const SCHALE = [
   './',
   'index.html',
@@ -92,6 +92,7 @@ const SCHALE = [
   'js/export.axisvm.js',
   'js/export.axisvm.tragausleger.js',
   'js/export.bericht.js',
+  'js/export.comskripte.js',
   'js/export.nachweisbericht.js',
   'js/export.pynite.js',
   'js/export.xlsx.js',
@@ -111,6 +112,10 @@ const SCHALE = [
   'js/ui.schema.js',
   'js/verlauf.js',
   'js/version.js',
+  'com/AxisVM_aufbauen.cmd',
+  'com/AxisVM_aufbauen.ps1',
+  'com/AxisVM_auslesen.cmd',
+  'com/AxisVM_pruefen.cmd',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-32.png',

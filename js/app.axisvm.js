@@ -17,6 +17,8 @@ import { esc } from './design.js';
 import { exportiereAbfangJson } from './export.axisvm.abfang.js';
 import { KNOTENMODELLE, auflagerAngebot, auflagerVorgabe, exportiereAxisvm, exportiereDxf, exportiereJson } from './export.axisvm.js';
 import { exportierePynite } from './export.pynite.js';
+import { COM_SKRIPTE, comSkripte, skripteGewaehlt, skripteMerken,
+         zusammenAblegen } from './export.comskripte.js';
 
 /**
  * AxisVM-Ausleitung (SAF).
@@ -117,7 +119,8 @@ export function dialogAxisvm(app, format = 'json') {
     <div class="feld"><label>Format</label>
       <label class="schalter"><input type="radio" name="fmt" value="json"${vorwahl === 'json' ? ' checked' : ''}>
         <span>JSON für die COM-Brücke, vollständig, ohne Zusatzmodul.
-              Datei neben <code>com/AxisVM_aufbauen.cmd</code> legen</span></label>
+              Datei neben <code>AxisVM_aufbauen.cmd</code> legen — oder die
+              Skripte gleich mitliefern (unten)</span></label>
       ${['saf', 'dxf', 'pynite'].map((f) => {
         const t = { saf: 'SAF-Mappe (.xlsx), vollständig, braucht aber das '
                        + 'SAF-Interface in AxisVM (kostenpflichtiges Modul)',
@@ -136,6 +139,16 @@ export function dialogAxisvm(app, format = 'json') {
           <span>${t}${istAbfang ? ' — für das Abfangjoch noch nicht gebaut' : ''}</span>
         </label>`;
       }).join('')}
+    </div>
+    <div class="feld" id="feld-skripte">
+      <label>COM-Brücke</label>
+      <label class="schalter"><input type="checkbox" name="skripte"${skripteGewaehlt() ? ' checked' : ''}>
+        <span>Skriptdateien mitliefern — ${COM_SKRIPTE.map((n) => `<code>${esc(n)}</code>`).join(', ')}
+              — in denselben Ordner wie die Modelldatei</span></label>
+      <p class="notiz">Der Browser fragt nach dem Ordner (Chrome, Edge); sonst
+         landen alle Dateien im Download-Ordner. Danach genügt ein
+         Doppelklick auf <code>AxisVM_aufbauen.cmd</code>: es baut die
+         jüngste Modelldatei daneben. Gerechnet wird nicht.</p>
     </div>
     ${istAbfang ? '' : `<div class="feld"><label>Knotenmodell</label>${wahl}</div>`}
     <div class="feld"><label>Auflagermodell</label>${lager}
@@ -178,9 +191,13 @@ export function dialogAxisvm(app, format = 'json') {
    * Wirkung, die es nicht gab.
    */
   const schottFeld = d.node.querySelector('#feld-schott');
+  // Die Skripte gehören zur COM-Brücke - bei SAF, DXF und PyNite hätten sie
+  // keinen Zweck (29. September).
+  const skripteFeld = d.node.querySelector('#feld-skripte');
   const schottZeigen = () => {
-    if (!schottFeld) return;
     const f = d.node.querySelector('input[name="fmt"]:checked')?.value;
+    if (skripteFeld) skripteFeld.hidden = f !== 'json';
+    if (!schottFeld) return;
     schottFeld.hidden = f !== 'pynite';
   };
   d.node.querySelectorAll('input[name="fmt"]').forEach((r) => {
@@ -200,13 +217,37 @@ export function dialogAxisvm(app, format = 'json') {
     const aus = lies('schott', false);
     const am = lies('am', 'punkt');
     const sm = lies('starr', 'koerper');
+    const sk = fmt === 'json' && d.node.querySelector('input[name="skripte"]')?.checked === true;
+    if (fmt === 'json') skripteMerken(sk);
     d.zu();
-    axisvmKlick(app, km, fmt, aus, am, sm);
+    axisvmKlick(app, km, fmt, aus, am, sm, sk);
   };
 }
 
+/**
+ * Modelldatei und Skripte der Brücke zusammen ablegen (29. September).
+ * `erzeuge` baut die Datei mit `nurDaten` - Name und Text, ohne Download.
+ */
+function mitSkripten(app, was, erzeuge) {
+  return app.handlung(was, () => {
+    const r = erzeuge();
+    zusammenAblegen(async () => [{ name: r.name, text: r.text, typ: 'application/json' },
+                                 ...await comSkripte()])
+      .then((e) => app.meldeImBalken(e.abgebrochen
+        ? `${was} abgebrochen — nichts gespeichert.`
+        : e.ordner
+          ? `${r.name} und ${COM_SKRIPTE.length} Skripte in «${e.ordner}» abgelegt.`
+          : `${r.name} und ${COM_SKRIPTE.length} Skripte heruntergeladen.`))
+      .catch((e) => {
+        app.meldeImBalken(`${was} nicht möglich: ${e.message}`);
+        console.error(was, e);
+      });
+    return r;
+  });
+}
+
 function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false,
-                    auflagerModell = null, starrModell = 'koerper') {
+                    auflagerModell = null, starrModell = 'koerper', skripte = false) {
   const m = app.letzte.erg.modell;
   /*
    * >>> DAS ABFANGJOCH GEHT SEINEN EIGENEN WEG. <<<
@@ -255,8 +296,10 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
       const stegrichtung = satz?.mastSteg ?? app.werte.mastSteg ?? 'jochachse';
       return hoehe > 0 ? { profil: m0.profil, hoehe, stegrichtung } : null;
     };
-    return app.handlung('COM-Ausleitung',
+    return (skripte ? (f) => mitSkripten(app, 'COM-Ausleitung', f)
+                    : (f) => app.handlung('COM-Ausleitung', f))(
       () => exportiereAbfangJson(typ, jt, {
+        nurDaten: skripte,
         knotenbereich: knotenmodell, auflagerModell,
         anbauteile: aktSatz.anbauteile ?? [],
         // Die Auflagerbedingung je Gurt - vorn und hinten getrennt.
@@ -326,6 +369,9 @@ function axisvmKlick(app, knotenmodell, format = 'saf', schottAusblenden = false
    * der Seilanker - das Modell in AxisVM lag auf der unsicheren Seite.
    */
   const satz = rechensatz(app.werte);
+  if (format === 'json' && skripte) {
+    return mitSkripten(app, name, () => exportiereJson(satz, deps, { ...o, nurDaten: true }));
+  }
   return app.handlung(name, () => {
     if (format === 'json') return exportiereJson(satz, deps, o);
     if (format === 'dxf') return exportiereDxf(satz, deps, o);
