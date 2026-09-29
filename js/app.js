@@ -1363,8 +1363,14 @@ function zeichneAuswertung() {
          * die Lastfallliste, und die haengt am Blatt. Also reicht app.js
          * den Aufloeser durch - `ui.js` kennt die Liste nicht und soll
          * sie nicht kennen.
+         *
+         * `letzte.kombi`, nicht `kombi` (29. September): dieser Zweig
+         * steht VOR der Zeile, die `kombi` aus `letzte` holt. Der Zugriff
+         * warf «Cannot access 'kombi' before initialization», sobald eine
+         * Kachel ihre Kombination nannte - und riss `neuRechnen` mit:
+         * am Einzelmasten kein Bild, keine Seitenleiste, kein Urteil.
          */
-        fallBez: (key) => kombi.lastfaelle
+        fallBez: (key) => letzte.kombi?.lastfaelle
           ?.find((l) => l.key === key)?.bez ?? null,
         quelle: anzeigeKombi,
         plastisch: werte.mastPlastisch === true,

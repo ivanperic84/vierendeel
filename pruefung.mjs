@@ -30984,7 +30984,9 @@ titel('128  Die massgebende Kombination, die Verformung und das Joch als Riegel'
      */
     const appQ128 = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
     wahr('>>> Beide Seitenleisten reichen den Namensaufloeser <<<',
-         (appQ128.match(/fallBez: \(key\) => kombi\.lastfaelle/g) ?? []).length === 2);
+         // Seit dem 29. Sept. liest der Einzelmast-Zweig `letzte.kombi`
+         // (er steht vor der Erklärung von `kombi`, Abschnitt 155).
+         (appQ128.match(/fallBez: \(key\) => (letzte\.)?kombi\??\.lastfaelle/g) ?? []).length === 2);
   }
 
   /* ---------------------------------------------------------------------
@@ -33236,6 +33238,23 @@ titel('153  Alte Stände: ein Weg zum Anheben, Teile am Masten bleiben');
   wahr('Start und Ablage heben über dieselbe Stelle an',
        /return standAnheben\(w\)/.test(APP_QUELLE()) && /app\.werte = standAnheben\(\{ \.\.\.standardwerte\(\), \.\.\.s\.werte/.test(qa));
   wahr('Das Laden aus der Ablage scheitert laut, mit Namen', /liess sich nicht laden/.test(qa));
+}
+
+titel('155  Einzelmast: die Auswertung greift nicht vor die Erklärung von «kombi»');
+/* ===========================================================================
+ * Befund 29. Sept. bei der Durchsicht der Karten: am Einzelmasten warf
+ * `zeichneAuswertung` «Cannot access 'kombi' before initialization», sobald
+ * eine Kachel ihre Kombination nannte (fallBez, 26. Sept.) - und riss
+ * `neuRechnen` mit: kein 3D-Bild, keine Seitenleiste, kein Urteil. Beim Laden
+ * aus der Ablage erschien das als «lässt sich nicht laden».
+ * ========================================================================= */
+{
+  const q = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  const a = q.indexOf('if (!letzte.mitJoch) {');
+  const b = q.indexOf('const { anzeige: erg, vergleich, kombi', a);
+  const zweig = a > 0 && b > a ? q.slice(a, b).replace(/\/\*[\s\S]*?\*\//g, '') : '';
+  wahr('Der Einzelmast-Zweig steht vor der Erklärung (Wache greift)', zweig.length > 200);
+  wahr('>>> und benutzt dort kein nacktes «kombi.» <<<', !/(^|[^.\w])kombi\./m.test(zweig));
 }
 
 titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner');
