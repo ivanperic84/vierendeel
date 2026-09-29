@@ -5,8 +5,8 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **28. September 2026**, alles gepusht (Weisung «checken mit aufbau in
-axisvm, optimieren und pushen»); Prüfstand 5725 Kontrollen grün, `durchlauf.mjs`
+Stand: **29. September 2026**, gepusht bis `4f491b0`, danach committet,
+aber **nicht gepusht**; Prüfstand 5755 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
@@ -21,8 +21,9 @@ Station und Stabliste aus dem Stabwerk.
 Seilkraft gemessen). Etappe 4 ist erledigt: der Tragausleger ist im Stabwerk nachgewiesen
 (UPE, Bleche, Aufhängung, Mast mit Wölbspannung, Knicken, Fundament) und
 steht so in der Anzeige. Etappe 3 ist erledigt (Maske, Kragarm-Kern lotrecht,
-3D-Bild; dazu Seite links/rechts und Lageband). **Als Nächstes: die Bilder
-aufs Stabwerk** (Verläufe, 3D-Plot je Stab); die Mastlänge am
+3D-Bild; dazu Seite links/rechts und Lageband). Die Bilder stehen seit dem 29. September auf dem Stabwerk (3D-Plot und
+Verläufe, Hülle je Stab). **Als Nächstes:** ⚠ die 15–20 % gegen AxisVM
+(Angaben des Auftraggebers nötig, *Offene Punkte*) und der Reiter *Schnitt*; die Mastlänge am
 Ausleger ist entschieden (H + b; b und α gekoppelt, ohne Eintrag b
 der Tabelle); die Aufhängung hat zwei an der Ankertraverse
 gespreizte Seile (Feld «Spreizung», Vorgabe ±1 m). Das Knicken der
@@ -163,7 +164,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5725 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5755 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

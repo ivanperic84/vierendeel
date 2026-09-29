@@ -140,6 +140,9 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Weiter mit dem Tragausleger (26. Sept.) | «weiter mit punkt 2 tragausleger. die zeichnung ist unter grundlagen zu finden.» (Nachricht danach abgebrochen) — Auftrag Punkt 2: eigener Kragarm-Kern für die Anzeige, Stabwerk für das Urteil, zwei UPE 140 nach Sortiment; die Quelle der Geometrie ist die Zeichnung unter `Grundlagen/` |
 | Linkkopplung im Löser (26. Sept.) | «ja löser auf linkmitte umstellen»: der Löser koppelt jedes Linkelement in der **Mitte des Links** (Hebel L/2 an beiden Knoten), wie die berichtigte COM-Brücke (`Position` = halbe Linklänge) und wie die Weisung «halbe Länge» es meint. Vorher: Arm am i-Ende, Gelenk am Gurtknoten. Gemessen am Torsionsmodell gegen AxisVM: G Mast M_y 11.1 → 0.2 %, Umlenkung Blech M_z 98 → 3.6 %; am Urteil Einzeljoch Mast 0.7708 → 0.7713, Reihe 1.3493 → 1.3490 |
 | Tragausleger: zwei Seile, gespreizt (28. Sept.) | Mit zwei Bildern (Anschluss am Masten, 3D): «beim auflager sollten die gurte um die z achse beim joch eingespannt sein, da sie vor und hinter dem masten gehalten sind. würde das das letzte blech entlasten? und würde es etwas bringen, wenn man wie in der normzeichnung zwei seilanker ansetzt die in einem abstand von 2 m jeweils 1 m ab kragarm achse in gleislängsrichtung? die frage ist wie man es im axis modellieren will, dass es nur zug aufnimmt und kein druck», dazu die Skizze der Ankertraverse (Detail W: die Seile greifen an ihren Enden an). Gemessen (Studie), dann auf Rückfrage: **zz am Link «Frei lassen»** - die Einspannung hilft dem Blech nicht (L 13 m mit Längsanker 1.029 → 1.035, ohne 1.208 → 1.155), es trägt die Torsion als gegengleiche Biegung der oberen und unteren Blechebene. **Zwei Seile «Ja, Spreizung als Eingabe»** - Feld `auslegerSpreizung` (je Seite, Vorgabe 1 m, 0 = ein Seil in der Achse); die Traverse ragt starr aus, je ein Seil an ihren Enden, am Masten ein Punkt; V_zul gegen die Summe der senkrechten Anteile. **Nur Zug:** linear gerechnet, das Eigengewicht spannt vor; gemessen bleibt jedes Seil in jedem Fall gezogen (kleinste 3.06 kN bei L 13); drückte eines, meldet es der Nachweis. In AxisVM hiesse echtes «nur Zug» nichtlineare Rechnung je Kombination - nicht gebaut. **Lageband:** zuerst «Seil ab Ausleger massstäblich» (Weisung «diese proportion ist zu verzerrt vom mast zu ausleger»), dann «das sieht nicht stimmig aus, in bezug auf die restlichen darstellungen der tragwerksteile. mach gegehvorschlag für den oberen teil.» - auf drei Gegenvorschläge **«A ausführen»**: der Ausleger ist eine Linie in einer Bahn wie ein Joch (Endmarke nur am Masten, Name darüber), die Aufhängung eine hängende Marke bei c₁, Seil, b, α und Seilzahl im Titel |
+| Bilder im Stabwerksweg (29. Sept.) | Auf Rückfrage: **3D-Plot «Alles als Hülle je Stab»** - η, σ und N, V, M, T je Stab als Maximum über alle Kombinationen, feiner als je Feld (je Stababschnitt); nur bei gewählter Hülle, ein Einzellastfall zeigt den Kern. **Verläufe «Stabwerk, Ersatzbalken eingeklappt»** - oben η der Gurte (Treppe je Stab), Bindebleche je Station, Gurtkraft, je Mast η und Schnittgrössen über die Höhe; der Ersatzbalken eingeklappt darunter. Über den Reiter *Schnitt* ist jetzt neu zu entscheiden (Entscheid «Schnitt und Bilder», 28. Sept.) |
+| Abfangung des Leiters beim Bauteil (29. Sept.) | «wie gibt man bei einem joch leiter ein die abgefangen sind (nivht durchgehend. die eingabe über die leiter sollte direkt bei den bauteilen erfolgen.» Die Bauteilkarte trägt je Leiter «Abfangung» (durchgehend / beidseitig / einseitig) und bei einseitig die Zugrichtung (am Abfangjoch ohne Richtung, sie kommt dort aus der Anbindung); die Havarie-Karte zeigt es nur noch an. Gespeichert wie bisher unter `werte.havarie[leiterKennung]` |
+| Tragausleger neben anderen Tragwerken (29. Sept.) | Gemeldet: «ich kann keinen tragausleger bauen, es kommen nur die joche als auswahl.» Der Dialog «Neues Tragwerk» führt beim Ausleger seine Längen und die Seite. Befund der Prüfung danach: ein Ausleger auf einem Blatt mit anderem Tragwerk wurde nie gerechnet und sperrte das Joch daneben mit. Gerechnet wird jetzt die **zusammenhängende Gruppe** (Tragwerke mit gemeinsamem Masten, `verbundeneTragwerke`); am geteilten Masten bleibt die Sperre |
 | Aufbau des Tragauslegers in AxisVM (28. Sept.) | «checken mit aufbau in axisvm, optimieren und pushen» - Anweisung für den AUFBAU (gebaut, nicht gerechnet), Behebungen, dann Push. Befunde und Behebungen siehe *Letzte Schritte* |
 | Tragausleger im 3D: Titel und b-Mass (28. Sept.) | Mit zwei Bildern: «hier auch kurzform bei Tragausleger wie bei den restlichen bauteilen. die vertikale vermassung weiter weg vom bauteil setzen.» Auf Rückfrage **«TA · 2 × UPE 140 · 11.00 m»** (eigenes Kürzel, damit er sich vom Masten MT1 unterscheidet); das Mass b steht 1.0 statt 0.4 m neben dem Masten, auf der Seite ohne Ausleger |
 | Knicken: Joch aus dem Stabwerk; Ausleger geklärt (28. Sept.) | «kannst du noch das knicken nachziehen und die com schnittstelle und die bauteildaten datei aktualisiseren». Auf Rückfrage: **«Joch: Knicken aus dem Stabwerk»** - dieselbe Regel (`mastStabilitaet`, SIA 263) mit den Kräften des Stabwerks für jeden Masten, der ein Tragjoch trägt (`knick` in rechneStabwerk; Kachel, Gruppe, Schiene, Tragwerksliste, Urteil); Einzelmast und Abfangjoch bleiben beim Kern. Und **«Tragausleger: Knicken 1.027 klären»** - gemessen, kein Fehler, keine Änderung (siehe *Letzte Schritte*). COM: die Seile tragen «nur Zug» für AxisVM; das Datenpaket liegt neu in `Versand/` |
@@ -239,12 +242,35 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**28. September 2026** · Prüfstand 5725 Kontrollen grün · `durchlauf.mjs`
+**29. September 2026** · Prüfstand 5755 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **29. Sept., fertig gebaut und geprüft** (Weisungen «Fertig bauen»,
+  «checke nach dem fertig bauen die funktionalität des tragauslegers»,
+  Abfangung beim Bauteil, AxisVM-Vergleich; Prüfstand 148–151).
+  **Dialog «Neues Tragwerk»:** beim Ausleger die Längen des Sortiments
+  (6–13 m) und die Seite statt der Joch-Typen. **Befund:** ein Ausleger
+  neben einem anderen Tragwerk wurde nie gerechnet (und sperrte das Joch
+  mit) - jetzt die zusammenhängende Gruppe (`rechenWerte`); im Browser
+  J90/20 m + Ausleger 10 m links bei 40 m: Gurt 0.087, Blech 0.009,
+  Aufhängung 0.390, Mast 0.532. **Abfangung beim Bauteil** (Bauteilkarte;
+  Havarie-Karte nur Anzeige), im Browser: einseitig −y → G_y −14.90 kN.
+  **3D-Plot aus dem Stabwerk** (neu `render.stabwerk.js`; J90/20 m je Gurt
+  28 → 86 Prismen, grösstes η im Bild = Kachel: Gurt 0.3268, Blech
+  0.3634, Mast M1 0.7862; Legende «aus dem Stabwerk …»). **Verläufe aus
+  dem Stabwerk** (Treppe je Stab, Maximum = Kachel), Ersatzbalken
+  eingeklappt. **Durchlauf fährt den Tragausleger** (7 Varianten, neben
+  Joch, am Jochmasten): kein Befund; links R −600 = rechts R +600, ein
+  Seil Blech 1.029 / zwei 0.208, ohne Längsanker Mast 2.115.
+  **AxisVM, 15–20 % höhere Spannungen im Joch (gemeldet):** neues
+  Werkzeug `vergleich_spannung.mjs` - dieselbe Spannungsformel mit AxisVMs
+  Kräften und mit denen des Lösers am Torsionslauf J90/20 m: Maxima
+  gleich auf 0.6–2.1 % (1.3(G+Wind y): Gurt 76.3 / 75.9, Blech 81.7 /
+  81.1 N/mm²), Schub ändert nichts. Die Kräfte erklären es nicht - siehe
+  *Offene Punkte*.
 - **28. Sept., der Tragausleger in AxisVM aufgebaut** (Weisung «checken
   mit aufbau in axisvm, optimieren und pushen»; nur gebaut, nicht
   gerechnet; Arbeitsstand L 11 m, HEB 260, Hängestütze, Längsanker, zwei
@@ -2021,10 +2047,19 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   K_XX) fest; ob die Gabel am Masten die Verwölbung wirklich so hält, wäre
   am AxisVM-Modell oder an der Zeichnung zu klären. Entscheid des
   Auftraggebers.
-- ⚠ **Verläufe und 3D-Resultatplot zeigen den Ersatzbalken**, auch wenn das
-  Stabwerk die Kacheln führt (Befund 28. Sept.). Nach dem Tragausleger
-  aufs Stabwerk bringen; danach neu entscheiden, was der Reiter *Schnitt*
-  im Stabwerksweg zeigt (siehe *Entschieden*, «Schnitt und Bilder»).
+- ⚠ **AxisVM zeigt teils 15–20 % höhere Spannungen im Joch** (gemeldet
+  29. Sept.). Gemessen (`vergleich_spannung.mjs`, Torsionslauf J90/20 m):
+  mit AxisVMs Kräften rechnet unsere Formel dieselben Maxima (0.6–2.1 %),
+  einzelne schwach beanspruchte Stäbe bis 14 %. Der Unterschied liegt
+  also in der Spannungsanzeige von AxisVM (Querschnittswerte des Polygons
+  ohne Ausrundung, Auswertepunkte, Spannungsart) oder im Vergleichswert.
+  Gebraucht: welches Modell, welcher Stab/Teil, welche Spannung in AxisVM
+  (σ_x, σ_v …), gegen welche Zahl der Anwendung.
+- **Verläufe und 3D-Resultatplot im Stabwerksweg** - erledigt am
+  29. September für das Tragjoch (Hülle); ein gewählter Einzellastfall,
+  Einzelmast und Abfangjoch zeigen weiter den Kern. ⚠ Neu zu entscheiden:
+  was der Reiter *Schnitt* im Stabwerksweg zeigt (siehe *Entschieden*,
+  «Schnitt und Bilder»).
 - ⚠ **Jedes AxisVM-Modell mit Linkelementen seit dem 24. August hatte die
   Verbindung 0.45 m ausserhalb des Links** (`Position = 0.5` als Meter,
   siehe *Letzte Schritte*). Betroffen sind damit Messungen, die sich auf
@@ -2229,7 +2264,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5725 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5755 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
