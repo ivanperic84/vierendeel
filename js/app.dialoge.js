@@ -10,7 +10,8 @@
  */
 import { einzelmastLaenge } from './core.auflager.js';
 import { TRAGWERKSARTEN, gewaehlterMast, lageVon, mastName, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkeSortiert, tragwerksart } from './core.constants.js';
-import { abfangLaengenbereich, abfangjoche, getAbfangjoch } from './data.abfangjoche.js';
+import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
+         tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
 import { STEGRICHTUNGEN, mastprofile } from './data.masten.js';
 import { getTragjoch, tragjoche } from './data.tragjoche.js';
@@ -460,6 +461,8 @@ export function dialogTragwerk(app, id = null, artVor = null) {
      * eigens verstellt ist. Das Feld sagt das auch.
      */
     H: hoeheVonM1(app, t ?? vorlage),
+    // Die Seite des Auslegers (28. September) - im Dialog wie in der Maske.
+    seite: (t ?? vorlage)?.auslegerSeite === 'links' ? 'links' : 'rechts',
   };
   /*
    * KOMMT DIE ART AUS DEM MENUE, bringt sie ihr eigenes Sortiment mit - die
@@ -475,6 +478,15 @@ export function dialogTragwerk(app, id = null, artVor = null) {
   const artDef = () => TRAGWERKSARTEN.find((a) => a.key === e.art)
                     ?? TRAGWERKSARTEN[0];
   const istAbfang = () => e.art === 'abfangjoch';
+  /*
+   * >>> DER TRAGAUSLEGER HAT SEIN EIGENES SORTIMENT (29. September). <<<
+   * Gemeldet mit Bild: «ich kann keinen tragausleger bauen, es kommen nur
+   * die joche als auswahl.» Der Dialog kannte nur «Abfangjoch oder sonst
+   * Tragjoch» und bot beim Ausleger J60 … J130 an. Hier wählt man seine
+   * LÄNGE aus dem Sortiment (6 … 13 m, 2 × UPE 140) und die Seite; die
+   * Länge ist zugleich sein Typ.
+   */
+  const istAusleger = () => e.art === 'tragausleger';
 
   /*
    * DIE LAENGE GIBT ES NUR, WO ES EINEN TRAEGER GIBT. Ein Einzelmast hat
@@ -504,12 +516,16 @@ export function dialogTragwerk(app, id = null, artVor = null) {
 
   const koerper = () => {
     const b = bereich();
-    const typListe = istAbfang()
+    if (istAusleger()) e.L = tragauslegerNaechsteLaenge(e.L) ?? e.L;
+    const typListe = istAusleger()
+      ? tragauslegerTypen().map((a) => ({ wert: String(a.L),
+          text: `Tragausleger ${Number(a.L).toFixed(2)} m · 2 × ${a.profil ?? 'UPE 140'}` }))
+      : istAbfang()
       ? abfangjoche().map((a) => ({ wert: a.typ,
           text: `${a.typ} · ${a.profil} · ${abfangLaengenbereich(a).text}` }))
       : tragjoche().map((j) => ({ wert: j.typ,
           text: `${j.typ} · jd ${j.jd} mm` }));
-    const typJetzt = istAbfang() ? e.abfangTyp : e.typ;
+    const typJetzt = istAusleger() ? String(e.L) : istAbfang() ? e.abfangTyp : e.typ;
     return `
     <div class="feld"><label>Welche Art</label>
       <div class="ank-lagen" role="radiogroup" aria-label="Tragwerksart">
@@ -523,14 +539,23 @@ export function dialogTragwerk(app, id = null, artVor = null) {
       <small class="hinweis">${esc(artDef().kurz)}</small></div>
 
     ${artDef().traeger ? `<div class="feld">
-      <label for="dlg-tw-typ">Welcher Typ</label>
+      <label for="dlg-tw-typ">${istAusleger() ? 'Auslegerlänge' : 'Welcher Typ'}</label>
       <select id="dlg-tw-typ">${typListe.map((o) =>
         `<option value="${esc(o.wert)}"${o.wert === typJetzt ? ' selected' : ''}
           >${esc(o.text)}</option>`).join('')}</select>
-      <small class="hinweis">${istAbfang()
+      <small class="hinweis">${istAusleger()
+        ? 'Länge des Sortiments — sie wählt Blechraster und Aufhängung.'
+        : istAbfang()
         ? 'Das Abfangjoch nimmt den Leiterzug auf — zwei Gurte nebeneinander.'
         : 'Das Tragjoch trägt Gewicht, Schnee und Wind — vier Winkelgurte.'}
       </small></div>` : ''}
+
+    ${istAusleger() ? `<div class="feld"><label>Seite des Auslegers</label>
+      <div class="ank-lagen" role="radiogroup" aria-label="Seite des Auslegers">
+        ${[['rechts', 'rechts (+x)'], ['links', 'links (−x)']].map(([k, txt]) => `
+          <button type="button" class="btn btn-mini${e.seite === k ? ' an' : ''}"
+            data-tw-seite="${k}" role="radio" aria-checked="${e.seite === k}">${txt}</button>`).join('')}
+      </div></div>` : ''}
 
     ${mitLaenge() ? `<div class="feld">
       <label for="dlg-tw-l">Stützweite</label>
@@ -540,7 +565,7 @@ export function dialogTragwerk(app, id = null, artVor = null) {
         ? ` · das Sortiment führt ${esc(b.text)}` : ''}</small></div>` : ''}
 
     ${artDef().masten >= 1 ? `<div class="feld">
-      <label for="dlg-tw-h">Anschlusshöhe</label>
+      <label for="dlg-tw-h">${istAusleger() ? 'Höhe Ausleger über Fundament' : 'Anschlusshöhe'}</label>
       <input id="dlg-tw-h" type="number" step="0.1" min="2" max="20"
              value="${e.H.toFixed(2)}">
       <small class="hinweis">m · über dem Mastfuss, gemessen an
@@ -591,8 +616,12 @@ export function dialogTragwerk(app, id = null, artVor = null) {
         neu();
       };
     });
+    n.querySelectorAll('[data-tw-seite]').forEach((b) => {
+      b.onclick = () => { e = { ...e, seite: b.dataset.twSeite }; neu(); };
+    });
     const typ = n.querySelector('#dlg-tw-typ');
     if (typ) typ.onchange = () => {
+      if (istAusleger()) { e.L = Number(typ.value); neu(); return; }
       if (istAbfang()) e.abfangTyp = typ.value; else e.typ = typ.value;
       const b2 = bereich();
       e.L = Math.min(Math.max(e.L, b2.min), b2.max);
@@ -615,6 +644,11 @@ export function dialogTragwerk(app, id = null, artVor = null) {
         app.aendern('tragwerkNeu', { art: e.art, xLage: e.x0 });
         // Typ und Laenge danach setzen: `tragwerkHinzu` bringt die Vorgabe
         // der Art mit, und die soll der Entwurf ueberschreiben.
+        if (istAusleger()) {
+          app.aendern('L', e.L);
+          app.aendern('auslegerSeite', e.seite);
+          return;
+        }
         if (artDef().traeger) {
           app.aendern(istAbfang() ? 'abfangTyp' : 'typ',
                   istAbfang() ? e.abfangTyp : e.typ);
@@ -627,7 +661,10 @@ export function dialogTragwerk(app, id = null, artVor = null) {
       } else if ((app.werte.twId ?? 'T1') !== id) {
         app.werte = tauscheAktives(app.werte, id);
       }
-      if (artDef().traeger) {
+      if (istAusleger()) {
+        app.aendern('L', e.L);
+        app.aendern('auslegerSeite', e.seite);
+      } else if (artDef().traeger) {
         app.aendern(istAbfang() ? 'abfangTyp' : 'typ',
                 istAbfang() ? e.abfangTyp : e.typ);
       }

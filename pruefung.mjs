@@ -30547,8 +30547,11 @@ titel('126  Die Jochreihe als gekoppeltes Tragwerk (Etappe 3)');
    * Bauteil darin gaebe es gar nicht.
    */
   {
+    // Am Masten des ersten Jochs (x = 0): ein GETEILTER Mast - seit dem
+    // 29. September zählt nur die zusammenhängende Gruppe, ein frei
+    // stehender Ausleger wird allein gerechnet (Abschnitt 148).
     const mitTa = C126.tragwerkHinzu(C126.tragwerkHinzu(w126, 'joch', {}),
-                                     'tragausleger', {});
+                                     'tragausleger', { xLage: 0 });
     const r = rechne(mitTa);
     wahr('>>> Reihe mit Tragausleger: KEINE Zahl, sondern der Grund <<<',
          Boolean(r && r.ohneModell) && r.etaGesamt === undefined,
@@ -31960,7 +31963,10 @@ titel('136  Tragausleger Etappe 2: das Stabmodell im Stabwerk');
   wahr('Der Tragausleger allein rechnet im Stabwerk (Etappe 4c)',
        AS136.ohneStabmodell('tragausleger') === null);
   const C136 = await import(J('core.constants.js'));
-  const reihe136 = C136.tragwerkHinzu({ ...standardwerte(), twId: 'T1', pos: 0 }, 'tragausleger');
+  // Am Masten des Jochs (x = 20 m, geteilter Mast); frei stehend rechnet
+  // er seit dem 29. September allein (Abschnitt 148).
+  const reihe136 = C136.tragwerkHinzu({ ...standardwerte(), twId: 'T1', pos: 0 }, 'tragausleger',
+                                      { xLage: 20 });
   wahr('… in einer Reihe noch nicht - mit Namen und Grund',
        /Tragausleger in einer Reihe/.test(AS136.reiheOhneStabmodell(reihe136) ?? ''),
        AS136.reiheOhneStabmodell(reihe136) ?? '(nichts)');
@@ -32970,6 +32976,55 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
   wahr('Das Stabmodell nennt Spreizung und Seilzahl',
        TAX147.tragauslegerModell(s).tragausleger.seile === 2
        && TAX147.tragauslegerModell(s).tragausleger.spreizung === 1);
+}
+
+// ===========================================================================
+titel('148  Tragausleger neben anderen Tragwerken: gerechnet wird, was zusammenhängt');
+/* ===========================================================================
+ * Gemeldet: «ich kann keinen tragausleger bauen, es kommen nur die joche als
+ * auswahl.» (Dialog «Neues Tragwerk»). Bei der Prüfung danach der Befund:
+ * stand irgendein anderes Tragwerk auf dem Blatt, galt der Ausleger als «in
+ * einer Reihe» und wurde nicht gerechnet - auch frei an seinem eigenen
+ * Masten; das Joch daneben war damit ebenso gesperrt. Zusammen gehören nur
+ * Tragwerke, die einen Masten teilen (`verbundeneTragwerke`).
+ * ========================================================================= */
+{
+  const C148 = await import(J('core.constants.js'));
+  const AS148 = await import(J('app.stabwerk.js'));
+  const N148 = await import(J('core.nachbarn.js'));
+  const D148 = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Dialog: beim Ausleger die Längen des Sortiments und die Seite, nicht die Joch-Typen',
+       /istAusleger\(\)\s*\n?\s*\? tragauslegerTypen\(\)/.test(D148)
+       && /data-tw-seite/.test(D148) && /app\.aendern\('auslegerSeite', e\.seite\)/.test(D148));
+  const w0 = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  const joch = { ...w0, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const frei = C148.tragwerkHinzu(joch, 'tragausleger', { xLage: 40, L: 13 });
+  const geteilt = C148.tragwerkHinzu(joch, 'tragausleger', { xLage: 20, L: 13 });
+  wahr('Frei stehend (eigener Mast bei 40 m): keine Sperre', AS148.reiheOhneStabmodell(frei) === null);
+  wahr('Am Jochmasten (geteilter Mast bei 20 m): gesperrt, mit Namen',
+       /^T2: Ein Tragausleger in einer Reihe/.test(AS148.reiheOhneStabmodell(geteilt) ?? ''));
+  const gr = AS148.verbundeneTragwerke(frei, frei.twId);
+  wahr('Die Gruppe des freien Auslegers ist er allein', gr.size === 1 && gr.has(frei.twId));
+  wahr('… die des geteilten Masten beide', AS148.verbundeneTragwerke(geteilt, geteilt.twId).size === 2);
+  wahr('Ohne Ausleger bleibt das ganze Blatt (Etappe 3 unverändert)',
+       AS148.rechenWerte(C148.tragwerkHinzu(joch, 'joch', {})) !== undefined
+       && (AS148.rechenWerte(C148.tragwerkHinzu(joch, 'joch', { xLage: 60 })).weitere ?? []).length === 1);
+  const rechne = (w) => {
+    const satz = N148.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N148.kernArgumente(satz));
+    return AS148.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  };
+  const rTa = rechne(frei);
+  wahr('>>> Der freie Ausleger wird gerechnet: Stabwerk mit Aufhängung, ohne Joch <<<',
+       !rTa.ohneModell && !rTa.fehler && rTa.ausleger?.aufhaengung
+       && !Object.keys(rTa.jeStab).some((n) => /OG[LR]_S/.test(n)),
+       rTa.ohneModell ?? rTa.fehler ?? `${rTa.staebe} Stäbe`);
+  const aufJoch = C148.tauscheAktives(frei, 'T1');
+  const rJ = rechne(aufJoch);
+  wahr('… und das Joch daneben ohne ihn (keine UPE im Stabwerk)',
+       !rJ.ohneModell && !rJ.fehler && !Object.keys(rJ.jeStab).some((n) => /(^|_)[VH]_S\d+$/.test(n))
+       && Object.keys(rJ.jeStab).some((n) => /OG[LR]_S/.test(n)),
+       rJ.ohneModell ?? rJ.fehler ?? `${rJ.staebe} Stäbe`);
 }
 
 // ===========================================================================

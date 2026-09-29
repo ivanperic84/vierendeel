@@ -443,6 +443,19 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
   let massgebend = null;
   const jeFall = [];
   const ohneRolle = new Set();
+  /*
+   * >>> DIE HUELLE DER SCHNITTGROESSEN JE STAB (28. September). <<<
+   * Für den 3D-Resultatplot und die Verläufe im Stabwerksweg. Auf Rückfrage
+   * «Alles als Hülle je Stab»: je Stab das grösste |N|, |V|, |M|, |T| über
+   * alle Kombinationen und beide Enden, dazu σ aus N allein - nicht die
+   * Kräfte des Falls, der das grösste η gab (die passen zu η, sind aber
+   * nicht die grössten). V und M sind je das Grössere der beiden
+   * Querrichtungen, wie der Ersatzbalken sie aufträgt.
+   */
+  const huelle = {};
+  const flaeche = new Map(dat.querschnitte.map((q) => [q.name, Number(q.A) || 0]));
+  const stabQs = new Map(dat.staebe.map((st) => [st.name, st.querschnitt]));
+  const betrag = (f, i, j) => Math.max(Math.abs(f[i]), Math.abs(f[j]));
 
   faelle.forEach((lf) => {
     const kraefte = kraefteAusAnteilen(lsg, anteileFuer(lf, dat));
@@ -476,6 +489,14 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
        * höchstbeanspruchten je Teil. Beides braucht die Kräfte des Falls,
        * in dem der Stab massgebend wurde - nicht die des Grössten.
        */
+      const fH = kraefte.get(s.name);
+      if (fH) {
+        const h = huelle[s.name] ?? (huelle[s.name] = { N: 0, V: 0, M: 0, T: 0 });
+        h.N = Math.max(h.N, betrag(fH, 0, 6));
+        h.V = Math.max(h.V, betrag(fH, 1, 7), betrag(fH, 2, 8));
+        h.T = Math.max(h.T, betrag(fH, 3, 9));
+        h.M = Math.max(h.M, betrag(fH, 4, 10), betrag(fH, 5, 11));
+      }
       const vorS = jeStab[s.name];
       if (!vorS || s.sig > vorS.sig) {
         const f = kraefte.get(s.name);
@@ -524,6 +545,11 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
     z.x0 = Math.min(a.x, b.x); z.x1 = Math.max(a.x, b.x);
     z.zm = (a.z + b.z) / 2; z.ym = (a.y + b.y) / 2;
     z.bauteil = stabZuordnung(st.name).key;
+    const h = huelle[st.name];
+    if (h) {
+      const A = flaeche.get(stabQs.get(st.name)) ?? 0;   // m²
+      z.huelle = { ...h, sigN: A > 0 ? h.N / A / 1000 : null };   // N/mm²
+    }
   });
 
   return { gruppen, bauteile, teile, jeStab, reihe, massgebend, jeFall,

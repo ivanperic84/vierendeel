@@ -147,7 +147,54 @@ export function ohneStabmodell(art) {
  * das fremde Tragwerk ausblenden - dann sagt das Blattmodell es ohnehin
  * (`blatt.versteckt`).
  */
-export function reiheOhneStabmodell(werte) {
+/* ===========================================================================
+ * >>> GERECHNET WIRD, WAS ZUSAMMENHAENGT (29. September). <<<
+ * =========================================================================
+ *
+ * Befund bei der Prüfung des Tragauslegers: stand irgendein anderes
+ * Tragwerk auf dem Blatt, galt der Ausleger als «in einer Reihe» und wurde
+ * nicht gerechnet - auch frei stehend an seinem eigenen Masten, 20 m neben
+ * dem Joch. Und das Joch daneben war damit ebenso gesperrt.
+ *
+ * Zusammen gehören nur Tragwerke, die einen MASTEN teilen - was keinen
+ * Masten teilt, wirkt nicht aufeinander. Steht ein Ausleger auf dem Blatt,
+ * rechnet das Stabwerk deshalb die zusammenhängende Gruppe des aktiven
+ * Tragwerks: ein freier Ausleger allein, ein Joch ohne den freien Ausleger.
+ * Teilt ein Ausleger einen Masten mit einem anderen Tragwerk, bleibt es
+ * bei der Sperre. Ohne Ausleger ändert sich nichts (das ganze Blatt, wie
+ * seit Etappe 3).
+ */
+export function verbundeneTragwerke(werte, id) {
+  const nachbarn = new Map();
+  (mastenVon(werte) ?? []).forEach((m) => {
+    const ids = m.traegt ?? [];
+    ids.forEach((a) => {
+      if (!nachbarn.has(a)) nachbarn.set(a, new Set());
+      ids.forEach((b) => { if (b !== a) nachbarn.get(a).add(b); });
+    });
+  });
+  const gruppe = new Set([id]);
+  const offen = [id];
+  while (offen.length) {
+    (nachbarn.get(offen.pop()) ?? new Set()).forEach((n) => {
+      if (!gruppe.has(n)) { gruppe.add(n); offen.push(n); }
+    });
+  }
+  return gruppe;
+}
+
+/** Die Eingabe, die das Stabwerk rechnet - siehe `verbundeneTragwerke`. */
+export function rechenWerte(werte) {
+  const alle = sichtbareTragwerke(werte) ?? [];
+  const ta = (t) => (t.tragwerksart ?? 'joch') === 'tragausleger';
+  if (alle.length < 2 || !alle.some(ta)) return werte;
+  const gruppe = verbundeneTragwerke(werte, werte.twId ?? alle[0]?.id);
+  if (alle.every((t) => gruppe.has(t.id))) return werte;
+  return { ...werte, weitere: (werte.weitere ?? []).filter((t) => gruppe.has(t.id)) };
+}
+
+export function reiheOhneStabmodell(werteRoh) {
+  const werte = rechenWerte(werteRoh);
   const alle = sichtbareTragwerke(werte) ?? [];
   if (alle.length > 1) {
     const ta = alle.find((t) => (t.tragwerksart ?? 'joch') === 'tragausleger');
@@ -176,8 +223,10 @@ export function rechneStabwerk(app) {
    */
   const grund = reiheOhneStabmodell(app.werte);
   if (grund) return { ohneModell: grund, kennung: eingabeKennung(app.werte) };
+  // Nur die zusammenhängende Gruppe (29. September, siehe oben).
+  const werte = rechenWerte(app.werte);
 
-  const satz = rechensatz(app.werte);
+  const satz = rechensatz(werte);
   /*
    * >>> DIE SAETZE ALLER TRAGWERKE, DAS AKTIVE ZUERST. <<<
    *
@@ -187,8 +236,8 @@ export function rechneStabwerk(app) {
    * Nachbarjochs aus dem Nachweis - gemessen am 25. September, siehe den
    * Befund in stabmodellJson().
    */
-  const saetze = (sichtbareTragwerke(app.werte) ?? [])
-    .map((t) => tragwerkSatz(app.werte, t.id));
+  const saetze = (sichtbareTragwerke(werte) ?? [])
+    .map((t) => tragwerkSatz(werte, t.id));
   const eingaben = [satz, ...saetze.filter((s) => s.twId !== satz.twId)];
 
   const t0 = Date.now();
@@ -225,8 +274,8 @@ export function rechneStabwerk(app) {
        * Namen, je nach Nachbarschaft; die Anwendung nennt ihn ueberall M1
        * (Entscheid vom 19. September: Namen nach dem Typ T A M MT).
        */
-      const t0T = tragwerkeVon(app.werte)[0];
-      const [mA, mB] = t0T ? (mastenFuer(app.werte, t0T) ?? []) : [];
+      const t0T = tragwerkeVon(werte)[0];
+      const [mA, mB] = t0T ? (mastenFuer(werte, t0T) ?? []) : [];
       /*
        * Der Mast heisst im Modell wie in den Kacheln (`federn.namen`): am
        * Tragausleger «MT1», nicht nach seiner Kennung - sonst fände die
@@ -324,8 +373,8 @@ export function rechneStabwerk(app) {
   if (!bau?.tragausleger && nwK.knickenMast) {
     knick = {};
     const beta = Number(satz.knickBeiwert);
-    const tws = new Map(tragwerkeVon(app.werte).map((t) => [t.id, t]));
-    mastenVon(app.werte).forEach((m) => {
+    const tws = new Map(tragwerkeVon(werte).map((t) => [t.id, t]));
+    mastenVon(werte).forEach((m) => {
       const traegtJoch = (m.traegt ?? [])
         .some((id) => tragwerksart(tws.get(id) ?? {}).key === 'joch');
       if (!traegtJoch) return;
