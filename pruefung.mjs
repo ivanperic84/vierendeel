@@ -73,9 +73,16 @@ const { standardwerte: standardwerteApp, typUebernehmen, FELDER } = await import
  * Standarddokument auf. Sie bekommen es deshalb MIT Knicken - sonst
  * prüften sie eine Rechnung, die gar nicht läuft.
  */
+/*
+ * Ebenso das MASTPROFIL: die Anwendung startet seit dem 29. September mit
+ * HEB 260 (Weisung «setze noch als startwert die HEB 260 Masten»). Die
+ * gemessenen Zahlen hier stehen auf dem HEB 240 des bisherigen Starts;
+ * sie bekommen ihn ausdruecklich, Abschnitt 157 prueft die neue Vorgabe.
+ */
 const standardwerte = (...a) => {
   const w = standardwerteApp(...a);
-  return { ...w, nachweise: { ...(w.nachweise ?? {}), knickenMast: true } };
+  return { ...w, mastProfil: 'HEB 240', mastProfilB: 'HEB 240',
+    nachweise: { ...(w.nachweise ?? {}), knickenMast: true } };
 };
 const { verortung, verortungKurz } = await import(J('core.constants.js'));
 const A = await import(J('data.anbauteile.js'));
@@ -1519,8 +1526,9 @@ titel('17  Modelldarstellung: Nachweisschnitt und Plotgrössen');
   {
     const gT = U.GRUPPEN.find((g) => g.id === 'trasse');
     wahr('Die Trasse faengt zugeklappt an', gT.zugeklappt === true);
+    // Drei Werte und seit dem 29. September der Schalter «nachfragen».
     wahr('… und hat wirklich Felder darin',
-         U.sichtbareFelder('trasse', w).length === 3,
+         U.sichtbareFelder('trasse', w).length === 4,
          `${U.sichtbareFelder('trasse', w).length} Felder`);
     // Die Gruppe der Bauteile selbst bleibt offen - sie IST der Reiter.
     const gA = U.GRUPPEN.find((g) => g.id === 'anbau');
@@ -28747,8 +28755,11 @@ titel('115  Gebrauchstauglichkeit: eigener Plot, eigene Wahl');
      * Bauteil war kaum zu entziffern.
      */
     const q115 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
-    wahr('Ziffer und Kaestchen haben eigene Deckkraft',
-         /farbeVon\(k\.v\), 0\.95, 0\.62\)/.test(q115)
+    // Seit dem 29. September («die werteplotts im 3d sichtbarer machen»):
+    // die Ziffer in der Textfarbe, voll; die Skalenfarbe als Streifen.
+    wahr('Die Ziffer steht voll in der Textfarbe, die Skalenfarbe daneben',
+         /_wertMarke\(c, t, text, k\.x, k\.y, farbeVon\(k\.v\)\)/.test(q115)
+         && /c\.fillStyle = t\.on;\s*c\.fillText\(text, x \+ st, y\)/.test(q115)
          && /saum \?\? deckung/.test(q115));
   }
 
@@ -32476,6 +32487,7 @@ titel('142  Tragausleger Etappe 3b: der Kragarm-Kern (lotrecht), x bis zum Kraga
   const abMast = (knick) => {
     const w0 = standardwerteApp();
     const w = { ...w0, tragwerksart: 'abfangjoch', abfangTyp: 'A200', L: 15, mastVorhanden: true,
+                mastProfil: 'HEB 240', mastProfilB: 'HEB 240',   // Zahlen vom Start mit HEB 240
                 nachweise: { ...w0.nachweise, knickenMast: knick } };
     const satz = N142.rechensatzMitNachbarn(w);
     const erg = berechne(satz, ...N142.kernArgumente(satz));
@@ -33390,6 +33402,85 @@ titel('154  COM-Ausleitung: die Skripte der Brücke auf Wunsch mit in den Ordner
     wahr('Abfangjoch mit nurDaten: Name und Text, kein Download',
          /^AxisVM_Abfangjoch_/.test(r.name) && JSON.parse(r.text).knoten.length === r.kennzahlen.knoten);
   }
+}
+
+titel('157  Startwert: Masten HEB 260');
+{
+  // Weisung 29. September: «setze noch als startwert die HEB 260 Masten».
+  const w = standardwerteApp();
+  wahr('Das Standarddokument startet mit HEB 260', w.mastProfil === 'HEB 260', w.mastProfil);
+  wahr('… auch am Ende B', w.mastProfilB === 'HEB 260', w.mastProfilB);
+  const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Der Mastdialog fällt ohne Eintrag ebenfalls auf HEB 260 zurück',
+       /app\.werte\.mastProfil \?\? 'HEB 260'/.test(dq) && !/'HEB 240'/.test(dq));
+}
+
+titel('158  Nachweiskachel zeigt den massgebenden Stab; Grundwerte beim neuen Tragwerk');
+/* ===========================================================================
+ * Weisungen vom 29. September: «beim anklicken der nachweiskachel auf
+ * massgebenden stab im modell klicken» und «die EK Eingabe die Spannweite
+ * und Radius eingabe … beim erstellen eines neuen tragwerks in einem modall
+ * festhalten … und eine checkbox nicht mehr nachfragen in deisem projekt».
+ * ========================================================================= */
+{
+  const R158 = await import(J('render.3d.js'));
+  const RS158 = await import(J('render.stabwerk.js'));
+  const N158 = await import(J('core.nachbarn.js'));
+  const AS158 = await import(J('app.stabwerk.js'));
+  const D158 = await import(J('design.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: 0, mastVorhanden: true, twId: 'T1', pos: 0 };
+  const satz = N158.rechensatzMitNachbarn(w);
+  const erg = berechne(satz, ...N158.kernArgumente(satz));
+  const sw = AS158.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const sz = R158.erzeugeSzene({ ...erg.modell,
+    gurtTeilung: RS158.gurtTeilung(RS158.jochStaebe(sw.jeStab, 'tragwerk')) }, erg);
+  RS158.stabwerkFaerben(sz, sw.jeStab, { jochKey: 'tragwerk',
+                                         mastNamen: erg.modell.federn?.namen ?? {} });
+  // Die Ansicht sucht über `_stabFlaechen` - ohne Canvas aufgerufen.
+  const finde = (name) => R158.Modellansicht.prototype._stabFlaechen.call({ szene: sz }, name);
+  [['OG', 'Obergurt'], ['UG', 'Untergurt'], ['blech', 'Bindeblech']].forEach(([k, was]) => {
+    const t = sw.teile[`tragwerk|${k}`];
+    const fl = finde(t.wo);
+    wahr(`${was}: der Stab der Kachel (${t.wo}) steht im Bild`, fl.length > 0, `${fl.length} Flächen`);
+    pruef(`… und die Fläche trägt das η der Kachel`,
+          Math.max(...fl.map((f) => f.werte?.eta ?? 0)), t.eta, 1e-12, '');
+  });
+  const m1 = sw.bauteile['mast:M1'];
+  const flM = finde(m1.wo);
+  wahr(`Mast M1: der massgebende Stab (${m1.wo}) steht im Bild, am Masten`,
+       flM.length > 0 && flM.every((f) => /^MAST_/.test(f.teil)), `${flM.length} Flächen`);
+  wahr('Ein unbekannter Stab gibt nichts (die App meldet es, statt still zu bleiben)',
+       finde('GIBT_ES_NICHT').length === 0
+       && /steht nicht im Bild/.test(APP_QUELLE()));
+  const k = D158.kachel('η Obergurt', '0.430', 'L 90', 'ok', { stab: 'OGL_S51', titel: 'T' });
+  wahr('Die Kachel wird anklickbar und nennt den Stab',
+       /class="kz ok klick"/.test(k) && /data-kz-stab="OGL_S51"/.test(k), k.slice(0, 120));
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Alle Kacheln aus dem Stabwerk reichen ihren Stab weiter (Joch, Abfangjoch, Ausleger, Mast)',
+       (uq.match(/\.\.\.\(s\.wo \? \{ stab: s\.wo \} : \{\}\)/g) ?? []).length === 3
+       && /\.\.\.\(sw\.wo \? \{ stab: sw\.wo \} : \{\}\)/.test(uq)
+       && /\[data-kz-stab\][\s\S]{0,120}opt\.beiStab\(k\.dataset\.kzStab\)/.test(uq));
+
+  // --- Die Grundwerte -------------------------------------------------------
+  const K158 = await import(J('core.constants.js'));
+  const S158 = await import(J('ui.schema.js'));
+  wahr('«Nachfragen» gehört dem Blatt, wie EK, Spannweite und Radius',
+       ['grundwerteFragen', 'windKlasse', 'flSpannweite', 'trasseRadius']
+         .every((f) => K158.BLATT_FELDER.includes(f)));
+  wahr('… und ist im neuen Dokument an', standardwerteApp().grundwerteFragen === true);
+  wahr('… in der Maske unter Trasse wieder einzuschalten',
+       S158.feld('grundwerteFragen').gruppe === 'trasse');
+  const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Der Dialog fragt nur beim NEUEN Tragwerk und nur, solange nicht abgewählt',
+       /const grundwerteFragen = neuesTragwerk && app\.werte\.grundwerteFragen !== false;/.test(dq));
+  wahr('… mit EK, Spannweite, Radius und dem Kästchen',
+       ['dlg-tw-ek', 'dlg-tw-spw', 'dlg-tw-r', 'dlg-tw-nichtmehr'].every((id) => dq.includes(`id="${id}"`))
+       && /In diesem Projekt nicht mehr nachfragen/.test(dq));
+  wahr('… und schreibt sie ins Blatt, das Kästchen als grundwerteFragen = false',
+       /app\.aendern\('windKlasse', e\.ek\)/.test(dq) && /app\.aendern\('flSpannweite', e\.spw\)/.test(dq)
+       && /app\.aendern\('trasseRadius', e\.R\)/.test(dq)
+       && /if \(e\.nichtMehr\) app\.aendern\('grundwerteFragen', false\)/.test(dq));
 }
 
 // ===========================================================================

@@ -16,6 +16,8 @@ import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.
 import { STEGRICHTUNGEN, mastprofile } from './data.masten.js';
 import { getTragjoch, tragjoche } from './data.tragjoche.js';
 import { esc } from './design.js';
+import { WIND_KLASSEN } from './core.lasten.js';
+import { istGerade } from './core.trasse.js';
 
 /* ===========================================================================
  * DER ZUGANKER ODER DIE DRUCKSTUETZE - IN EINEM FENSTER
@@ -278,7 +280,7 @@ export function dialogMast(app, mastId) {
   const m = alle.find((x) => x.id === mastId) ?? alle[0];
   if (!m) return null;
   let e = {
-    profil: m.profil ?? app.werte.mastProfil ?? 'HEB 240',
+    profil: m.profil ?? app.werte.mastProfil ?? 'HEB 260',
     steg: m.steg ?? app.werte.mastSteg ?? 'jochachse',
     H: Number(m.H) > 0 ? Number(m.H) : (Number(app.werte.mastH) || 7.5),
     laenge: Number(m.laenge) > 0 ? Number(m.laenge)
@@ -463,7 +465,27 @@ export function dialogTragwerk(app, id = null, artVor = null) {
     H: hoeheVonM1(app, t ?? vorlage),
     // Die Seite des Auslegers (28. September) - im Dialog wie in der Maske.
     seite: (t ?? vorlage)?.auslegerSeite === 'links' ? 'links' : 'rechts',
+    /*
+     * >>> DIE GRUNDWERTE DES QUERPROFILS (29. September). <<<
+     *
+     * Weisung: «was noch vergessen geht ist die EK Eingabe die Spannweite
+     * und Radius eingabe, diese könnte man beim erstellen eines neuen
+     * tragwerks in einem modall festhalten als eingabeparameter und eine
+     * checkbox nicht mehr nachfragen in deisem projekt.»
+     *
+     * Die drei Angaben gehören dem BLATT (`BLATT_FELDER`), nicht dem
+     * Tragwerk: sie gelten jedem Tragwerk des Querprofils. Der Dialog zeigt
+     * deshalb die geltenden Werte und schreibt sie ins Blatt zurück. Mit dem
+     * Kästchen merkt sich das Blatt, dass nicht mehr gefragt wird
+     * (`grundwerteFragen`, in der Maske unter *Lasten → Trasse* wieder
+     * einzuschalten).
+     */
+    ek: String(app.werte.windKlasse ?? '0.9'),
+    spw: Number(app.werte.flSpannweite) || 40,
+    R: Number(app.werte.trasseRadius) || 0,
+    nichtMehr: false,
   };
+  const grundwerteFragen = neuesTragwerk && app.werte.grundwerteFragen !== false;
   /*
    * KOMMT DIE ART AUS DEM MENUE, bringt sie ihr eigenes Sortiment mit - die
    * Vorlage daneben ist vielleicht ein Tragjoch, und «J90» steht in keiner
@@ -512,6 +534,39 @@ export function dialogTragwerk(app, id = null, artVor = null) {
       }
     } catch { /* ohne Sortiment freie Laenge */ }
     return { min: 4, max: 40, text: '' };
+  };
+
+  /** Kurzform der Grundwerte - für die Zeile, wenn nicht mehr gefragt wird. */
+  const grundwerteKurz = () => {
+    const ek = WIND_KLASSEN.find((k) => k.key === e.ek)?.ek ?? e.ek;
+    return `${ek} · Spannweite ${e.spw.toFixed(1)} m · `
+      + (istGerade(e.R) ? 'gerades Gleis' : `Radius ${e.R.toFixed(0)} m`);
+  };
+  const grundwerteHtml = () => {
+    if (!neuesTragwerk) return '';
+    if (!grundwerteFragen) {
+      return `<p class="notiz">Grundwerte des Querprofils: ${esc(grundwerteKurz())}
+        — unter <em>Lasten → Trasse</em> und <em>Einwirkungen</em> zu ändern.</p>`;
+    }
+    return `<fieldset class="dlg-grundwerte">
+      <legend>Grundwerte des Querprofils — gelten allen Tragwerken</legend>
+      <div class="feld"><label for="dlg-tw-ek">Einwirkungsklasse</label>
+        <select id="dlg-tw-ek">${WIND_KLASSEN.map((k) =>
+          `<option value="${esc(k.key)}"${k.key === e.ek ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}
+        </select>
+        <small class="hinweis">Aus der Linienkarte — sie wählt den Wind auf Joch,
+          Masten und Anbauteile.</small></div>
+      <div class="feld"><label for="dlg-tw-spw">Spannweite der Fahrleitung</label>
+        <input id="dlg-tw-spw" type="number" step="1" min="1" value="${e.spw.toFixed(1)}">
+        <small class="hinweis">m · Abstand zweier Aufhängungen, nicht der
+          Jochabstand.</small></div>
+      <div class="feld"><label for="dlg-tw-r">Radius der Trasse</label>
+        <input id="dlg-tw-r" type="number" step="50" value="${e.R.toFixed(0)}">
+        <small class="hinweis">m · 0 = gerades Gleis; R &gt; 0 lenkt in +x,
+          R &lt; 0 in −x.</small></div>
+      <label class="dlg-nicht-mehr"><input type="checkbox" id="dlg-tw-nichtmehr"${
+        e.nichtMehr ? ' checked' : ''}> In diesem Projekt nicht mehr nachfragen</label>
+    </fieldset>`;
   };
 
   const koerper = () => {
@@ -577,6 +632,8 @@ export function dialogTragwerk(app, id = null, artVor = null) {
       <small class="hinweis">m · quer zum Gleis, in der Jochachse, ab dem
         Nullpunkt der Zeichnung.</small></div>
 
+    ${grundwerteHtml()}
+
     <p class="notiz">${neuesTragwerk
       ? 'Profile, Bleche und Anbauteile übernimmt das neue Tragwerk vom '
         + 'zuletzt gewählten — sie lassen sich danach in der Maske ändern.'
@@ -638,10 +695,26 @@ export function dialogTragwerk(app, id = null, artVor = null) {
     zahl('#dlg-tw-l', 'L');
     zahl('#dlg-tw-h', 'H');
     zahl('#dlg-tw-x', 'x0');
+    zahl('#dlg-tw-spw', 'spw');
+    zahl('#dlg-tw-r', 'R');
+    const ek = n.querySelector('#dlg-tw-ek');
+    if (ek) ek.onchange = () => { e = { ...e, ek: ek.value }; };
+    const nm = n.querySelector('#dlg-tw-nichtmehr');
+    if (nm) nm.onchange = () => { e = { ...e, nichtMehr: nm.checked }; };
     n.querySelector('[data-tw-ok]').onclick = () => {
       d.zu();
       if (neuesTragwerk) {
         app.aendern('tragwerkNeu', { art: e.art, xLage: e.x0 });
+        /*
+         * Die Grundwerte gehören dem Blatt - geschrieben wird nur, was
+         * sich geändert hat, damit der Verlauf keine leeren Schritte führt.
+         */
+        if (grundwerteFragen) {
+          if (e.ek !== String(app.werte.windKlasse ?? '0.9')) app.aendern('windKlasse', e.ek);
+          if (e.spw > 0 && e.spw !== Number(app.werte.flSpannweite)) app.aendern('flSpannweite', e.spw);
+          if (e.R !== (Number(app.werte.trasseRadius) || 0)) app.aendern('trasseRadius', e.R);
+          if (e.nichtMehr) app.aendern('grundwerteFragen', false);
+        }
         // Typ und Laenge danach setzen: `tragwerkHinzu` bringt die Vorgabe
         // der Art mit, und die soll der Entwurf ueberschreiben.
         if (istAusleger()) {

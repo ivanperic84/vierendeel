@@ -3162,3 +3162,11 @@ body.datei-ueber::after {
 /* Schnitt im Stabwerksweg (28. September): die Stabspalte bricht nicht in
    vier Zeilen um - Name und Stab stehen je auf einer Zeile. */
 table.sw-tabelle td.sw-stab { white-space: nowrap; }
+
+/* Grundwerte des Querprofils im Dialog «Neues Tragwerk» (29. September):
+   EK, Spannweite, Radius - sie gehören dem Blatt, deshalb abgesetzt. */
+.dlg-grundwerte { border: 1px solid var(--ol); border-radius: 6px;
+  padding: 6px 10px 10px; margin: 10px 0; }
+.dlg-grundwerte legend { font-size: 11px; color: var(--dim); padding: 0 4px; }
+.dlg-nicht-mehr { display: flex; gap: 6px; align-items: center;
+  font-size: 12px; margin-top: 6px; cursor: pointer; }

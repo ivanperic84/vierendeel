@@ -136,19 +136,29 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
     const xs = (f.punkte ?? []).map((p) => p[0]);
     return xs.length ? { x0: Math.min(...xs), x1: Math.max(...xs) } : null;
   };
-  const werteFuer = (teil, f) => {
+  /*
+   * Welche Stäbe des Stabwerks eine Fläche zeigt. Die Kachel nennt ihren
+   * massgebenden Stab (29. September, «beim anklicken der nachweiskachel
+   * auf massgebenden stab im modell klicken»); über diese Liste findet
+   * die Ansicht die Flächen, die sie hervorhebt.
+   */
+  const staebeFuer = (teil, f) => {
     const b = ausX(f);
-    if (!b) return null;
+    if (!b) return [];
     const xm = (b.x0 + b.x1) / 2;
     if (js.gurt[teil]) {
       const s = js.gurt[teil].find((q) => xm >= q.x0 - 1e-6 && xm <= q.x1 + 1e-6);
-      return s ? plotWerte(s.z) : null;
+      return s ? [s.z] : [];
     }
     if (js.blech[teil]) {
       // Die Platte einer Station: ihre Stäbe liegen auf demselben x.
-      return js.blech[teil].filter((q) => Math.abs(q.x - xm) < 0.08)
-        .reduce((a, q) => groesser(a, plotWerte(q.z)), null);
+      return js.blech[teil].filter((q) => Math.abs(q.x - xm) < 0.08).map((q) => q.z);
     }
+    return null;
+  };
+  const werteFuer = (teil, f) => {
+    const l = staebeFuer(teil, f);
+    if (l) return l.reduce((a, z) => groesser(a, plotWerte(z)), null);
     const m = /^MAST_(A|B)$/.exec(teil ?? '');
     if (m) {
       const id = mastNamen[m[1]] ?? m[1];
@@ -157,6 +167,7 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
       const zs = (f.punkte ?? []).map((p) => p[2]);
       const h = (Math.min(...zs) + Math.max(...zs)) / 2 - szFuss[m[1]];
       const s = l.find((z) => h >= z.z0 - mastFuss[id] - 1e-6 && h <= z.z1 - mastFuss[id] + 1e-6);
+      if (s) f._mastStab = s.name;
       return s ? plotWerte(s) : null;
     }
     return null;
@@ -168,6 +179,8 @@ export function stabwerkFaerben(sz, jeStab, o = {}) {
     if (!w) return;
     f.werte = { ...(f.werte ?? {}), ...w };
     f.stabwerk = true;           // für die Legende (Fussnote)
+    f.staebe = (staebeFuer(f.teil, f) ?? []).map((z) => z.name);
+    if (f._mastStab) { f.staebe = [f._mastStab]; delete f._mastStab; }
     n += 1;
   });
   // Die Schwerachsen tragen dieselben Werte wie ihr Körper.

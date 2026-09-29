@@ -198,6 +198,8 @@ export const BLATT_FELDER = [
   'linie', 'ortschaft', 'km',
   // Trasse: Radius und Spannweite gelten der Linie, nicht dem Mast
   'flSpannweite', 'trasseRadius', 'trasseWinkel',
+  // Ob der Dialog «Neues Tragwerk» danach fragt (29. September).
+  'grundwerteFragen',
   // Einwirkungen aus den Linienkarten
   'windKlasse', 'schneeKlasse', 'schneeAktiv',
   // Lastfälle, Beiwerte und Rechenmodelle: sie beschreiben, WIE gerechnet

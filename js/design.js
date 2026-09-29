@@ -285,7 +285,16 @@ export function kachel(titel, wert, einheit = '', zustand = '', ziel = null) {
    * Beides in einem Feld, weil es dieselbe Frage beantwortet: was es mit
    * dieser Zahl auf sich hat.
    */
-  const k = ziel && Number.isFinite(ziel.x)
+  /*
+   * `{stab}` (29. September, Weisung «beim anklicken der nachweiskachel
+   * auf massgebenden stab im modell klicken»): die Kachel aus dem
+   * Stabwerk nennt ihren massgebenden Stab; ein Klick faehrt im Modell
+   * dorthin und hebt ihn hervor. Der Titel bleibt dabei stehen.
+   */
+  const k = ziel?.stab
+    ? ` klick" data-kz-stab="${esc(ziel.stab)}" title="${esc(
+        `${ziel.titel ? `${ziel.titel}\n\n` : ''}Klick: massgebenden Stab ${ziel.stab} im Modell zeigen`)}`
+    : ziel && Number.isFinite(ziel.x)
     ? ` klick" data-kz-x="${ziel.x}" data-kz-station="${ziel.station ?? ''}` +
       `" title="Im Modell anfahren: x = ${ziel.x.toFixed(2)} m`
     : (ziel?.titel ? `" title="${esc(ziel.titel)}` : '');

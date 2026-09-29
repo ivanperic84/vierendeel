@@ -5721,6 +5721,12 @@ export function knickJe(erg) {
 
 /** Den Knopf der Stabwerksleiste verdrahten. */
 export function verdrahteStabwerk(node, opt = {}) {
+  // Kacheln aus dem Stabwerk: Klick zeigt den massgebenden Stab im Modell.
+  if (typeof opt.beiStab === 'function') {
+    node.querySelectorAll('[data-kz-stab]').forEach((k) => {
+      k.addEventListener('click', () => opt.beiStab(k.dataset.kzStab));
+    });
+  }
   const b = node.querySelector('[data-stabwerk-rechnen]');
   if (!b || typeof opt.beiStabwerk !== 'function') return;
   b.onclick = () => {
@@ -5919,6 +5925,7 @@ export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
         mast.push(kachel(`η ${name}`, f3(sw.eta),
           `${n.profil.name} · Stabwerk`, ampelU(sw.eta), {
             ...(fS ? { fall: fS.kurz } : {}),
+            ...(sw.wo ? { stab: sw.wo } : {}),
             titel: `${fS ? `Massgebende Kombination: ${fS.voll}\n\n` : ''}`
                  + `Querschnitt aus dem Stabwerk (${sw.wo ?? ''}). `
                  + 'Die Stabilität rechnet der Löser nicht - sie steht '
@@ -6428,6 +6435,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
     if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
     return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
       ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
+      ...(s.wo ? { stab: s.wo } : {}),
       titel: `${s.bez ? `Massgebende Kombination: ${s.bez}
 
 ` : ''}Aus dem Stabwerk, Stab ${s.wo}.`,
@@ -6456,6 +6464,7 @@ export function zeichneUebersicht(node, erg, urteil, beiSprung, aktiveStation,
       if (!s) return kachel(titel, '–', `${sub} · Stabwerk`, '');
       return kachel(titel, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
         ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
+        ...(s.wo ? { stab: s.wo } : {}),
         titel: `${s.bez ? `Massgebende Kombination: ${s.bez}
 
 ` : ''}Aus dem Stabwerk, Stab ${s.wo}.`,
@@ -6530,9 +6539,9 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
   })() : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
     /*
      * DIE JOCHKACHELN AUS DEM STABWERK: je Teil das grösste eta über alle
-     * Stäbe und Kombinationen. Keine Stelle zum Anfahren - das Stabwerk
-     * nennt einen Stab, keine Station des Ersatzbalkens; der Stab steht im
-     * Titel.
+     * Stäbe und Kombinationen. Keine Station des Ersatzbalkens - das
+     * Stabwerk nennt einen Stab; seit dem 29. September fährt ein Klick
+     * im Modell zu ihm und hebt ihn hervor (`stab`).
      */
     ...[['OG', 'η Obergurt', m.profOG.name], ['UG', 'η Untergurt', m.profUG.name],
         ['blech', 'η Bindeblech', 'massgebendes Blech']].map(([k, t, sub]) => {
@@ -6540,6 +6549,7 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
       if (!s) return kachel(t, '–', `${sub} · Stabwerk`, '');
       return kachel(t, f3(s.eta), `${sub} · Stabwerk`, ampelU(s.eta), {
         ...(s.bez ? { fall: fallKurz(s.bez) } : {}),
+        ...(s.wo ? { stab: s.wo } : {}),
         titel: `${s.bez ? `Massgebende Kombination: ${s.bez}\n\n` : ''}`
              + `Aus dem Stabwerk, Stab ${s.wo}.`,
       });

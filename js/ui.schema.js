@@ -844,7 +844,7 @@ export const FELDER = [
            + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
            + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
-    standard: 'HEB 240', optionenAus: () => opt(mastprofile(), 'name', 'name'),
+    standard: 'HEB 260', optionenAus: () => opt(mastprofile(), 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),
     sichtbar: (w) => mastDa(w) },
   /*
@@ -1204,7 +1204,7 @@ export const FELDER = [
     label: 'Zweiter Mast am Ende B abweichend', standard: false },
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Mastprofil Ende B',
-    standard: 'HEB 240', optionenAus: () => opt(mastprofile(), 'name', 'name') },
+    standard: 'HEB 260', optionenAus: () => opt(mastprofile(), 'name', 'name') },
   { key: 'mastHZwei', fein: true, gruppe: 'mast', typ: 'schalter',
     label: (w) => `Anschlusshöhe am Ende B (Mast ${mastNameAmEnde(w, null, 'B')}) abweichend`,
     standard: false,
@@ -1684,6 +1684,16 @@ export const FELDER = [
     hinweis: 'Knick der Fahrleitung je Aufhängung, vorzeichenbehaftet. '
            + 'Umlenkkraft U = 2·Z·sin(α/2) je Drahtwerk. Schreibt den Radius '
            + 'daneben; am Drahtwerk überschreibbar.'},
+  /*
+   * Ob der Dialog «Neues Tragwerk» nach EK, Spannweite und Radius fragt
+   * (29. September, «eine checkbox nicht mehr nachfragen in deisem
+   * projekt»). Das Kästchen im Dialog schaltet ihn aus; hier kommt er
+   * wieder zurück. Gehört dem Blatt wie die drei Werte selbst.
+   */
+  { key: 'grundwerteFragen', gruppe: 'trasse', typ: 'schalter', standard: true,
+    label: 'Beim neuen Tragwerk nach EK, Spannweite und Radius fragen',
+    hinweis: 'Der Dialog «Neues Tragwerk» zeigt die Grundwerte des '
+           + 'Querprofils zum Bestätigen. Aus: er nennt sie nur.'},
 
   // --- Anbauteile ----------------------------------------------------------
   /*

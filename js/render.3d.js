@@ -1935,6 +1935,9 @@ export const ANSICHTEN = [
  * definiert (ui.schema.js) und geht so in die Drehfeder ein. Der Ueberstand
  * waechst nach OBEN, der Fuss bleibt, wo er ist - dort sitzt das Lager.
  */
+/** Breite des Farbstreifens links an einer Zahl des Werteplots (px bei s = 1). */
+const WERT_STREIFEN = 3;
+
 /**
  * IN WELCHER REIHENFOLGE DIE KENNZAHLEN GESETZT WERDEN.
  *
@@ -2333,10 +2336,84 @@ export class Modellansicht {
     return true;
   }
 
+  /**
+   * >>> DEN MASSGEBENDEN STAB ZEIGEN (29. September). <<<
+   *
+   * Weisung: «beim anklicken der nachweiskachel auf massgebenden stab im
+   * modell klicken». Die Kachel aus dem Stabwerk nennt ihren Stab
+   * (`wo` der Hülle); die Flächen der Szene tragen seit demselben Tag die
+   * Namen der Stäbe, deren Werte sie zeigen (`staebe`, render.stabwerk.js
+   * und render.tragausleger.js). Gefahren wird auf die Mitte dieser
+   * Flächen, und sie bleiben umrandet, bis man woanders hinfährt.
+   *
+   * @returns {boolean} ob der Stab im Bild steht - sonst sagt es der
+   *                    Aufrufer, statt still nichts zu tun
+   */
+  zeigeStab(name) {
+    const fl = this._stabFlaechen(name);
+    if (!fl.length) { this.markierung = null; this.zeichne(); return false; }
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    fl.forEach((f) => f.punkte.forEach((p) => p.forEach((v, i) => {
+      lo[i] = Math.min(lo[i], v); hi[i] = Math.max(hi[i], v);
+    })));
+    const mitte = lo.map((v, i) => (v + hi[i]) / 2);
+    const groesse = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+    // Ein Ausschnitt, der den Stab abschneidet, gilt nicht mehr.
+    this.fokus = null;
+    this.detail = null;
+    this.station = null;
+    this.kamera.pan = [0, 0, 0];
+    this.markierung = { name };
+    this._animiere(mitte, Math.max(groesse * 1.8, 4));
+    return true;
+  }
+
+  /** Die Flächen eines Stabes; ein geteilter Stab (…_1) auch über seinen Stamm. */
+  _stabFlaechen(name) {
+    const alle = this.szene?.flaechen ?? [];
+    const passt = (n) => alle.filter((f) => f.staebe?.includes(n));
+    let n = String(name ?? '');
+    let fl = passt(n);
+    while (!fl.length && /_\d+$/.test(n)) {
+      n = n.replace(/_\d+$/, '');
+      fl = passt(n);
+    }
+    return fl;
+  }
+
+  /** Umrandet die Flächen des gezeigten Stabes und schreibt seinen Namen an. */
+  _markierungMalen(c, t) {
+    const m = this.markierung;
+    if (!m) return;
+    const sichtbar = new Set(this._letzteFlaechen ?? []);
+    const fl = this._stabFlaechen(m.name).filter((f) => sichtbar.has(f) && f._2d?.length);
+    if (!fl.length) return;
+    const s = this._s;
+    c.save();
+    c.strokeStyle = t.acc ?? '#4aa3df';
+    c.lineWidth = 2.4 * s;
+    c.lineJoin = 'round';
+    let oben = null;
+    fl.forEach((f) => {
+      c.beginPath();
+      f._2d.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+      c.closePath();
+      c.stroke();
+      f._2d.forEach((p) => { if (!oben || p[1] < oben[1]) oben = p; });
+    });
+    c.restore();
+    if (oben) {
+      c.font = this._wertFont();
+      const text = `massgebend: ${m.name}`;
+      this._beschriftung(c, t, text, oben[0] + 8 * s, oben[1] - 8 * s, t.acc ?? '#4aa3df');
+    }
+  }
+
   /** Auf eine Stelle x fahren und heranzoomen. */
   zoomAuf(x, station = null, halbeBreite = null) {
     const g = this.szene?.grenzen;
     if (!g) return;
+    this.markierung = null;
     this.station = station;
     this.kamera.pan = [0, 0, 0];
     if (halbeBreite) {
@@ -2394,6 +2471,7 @@ export class Modellansicht {
   ganzesJoch() {
     const g = this.szene?.grenzen;
     if (!g) return;
+    this.markierung = null;
     this.fokus = null;
     this.detail = null;
     this.kamera.pan = [0, 0, 0];
@@ -3604,6 +3682,7 @@ export class Modellansicht {
       if (this._ebeneAn('masse')) this._masse(c, proj, t);
       this._bauteiltitel(c, proj, t);
       this._texte(c, t);
+      this._markierungMalen(c, t);
     }
     this._achsenkreuz(c, t);
     // GANZ ZULETZT: das Fadenkreuz liegt ueber allem, auch ueber den Marken -
@@ -3705,7 +3784,7 @@ export class Modellansicht {
     const geordnet = beschriftungsReihenfolge(entdoppelteWerte(kandidaten, p.nk));
     kandidaten.length = 0;
     kandidaten.push(...geordnet);
-    c.font = this._font(this.schriftLast);
+    c.font = this._wertFont();
     const belegt = [];
     let gesetzt = 0;
     /*
@@ -3724,7 +3803,7 @@ export class Modellansicht {
      */
     const grenze = 34;
     const s = this._s;
-    const hoehe = this.schriftLast * s;
+    const hoehe = this._wertGroesse() * s;
     // Dieselbe Rampe wie `_grundfarbe` - eine Stelle, zwei Leser.
     const maxW = p.fest ?? (this._bereichSichtbar(p.feld) || 1);
     const farbeVon = (v) => etaFarbe((Math.abs(v) / (maxW || 1)) * (p.fest ?? 1.25));
@@ -3732,16 +3811,16 @@ export class Modellansicht {
       if (gesetzt >= grenze) break;
       // Unter sich halten die Zahlen ihren gewohnten Abstand - ein Raster,
       // kein Rechteck: sie sollen nicht Schulter an Schulter stehen.
-      if (belegt.some((b) => Math.abs(b.x - k.x) < 54 * this._s &&
-                             Math.abs(b.y - k.y) < 19 * this._s)) continue;
+      if (belegt.some((b) => Math.abs(b.x - k.x) < 58 * this._s &&
+                             Math.abs(b.y - k.y) < 21 * this._s)) continue;
       const text = k.v.toFixed(p.nk);
       // NUR GANZ ODER GAR NICHT. Am Bildrand schnitt der Canvas die Zahl ab,
       // und aus 118 wurde ein lesbares, aber falsches 18. Eine halbe Zahl ist
       // schlimmer als keine - das Bauteil dazu liegt ohnehin halb draussen.
-      if (!this._imBild(c, text, k.x, k.y)) continue;
+      if (!this._imBild(c, text, k.x, k.y, this._wertGroesse(), WERT_STREIFEN)) continue;
       // Und gegenueber Bemassung, Marken und Pfeiltexten weicht die Zahl aus:
       // sie steht als Farbe ohnehin schon am Bauteil.
-      const w = this._textBreite(c, text) + 7 * s;
+      const w = this._textBreite(c, text) + (7 + WERT_STREIFEN) * s;
       const x = k.x - 3 * s, y = k.y - hoehe + 2 * s, h = hoehe + 3 * s;
       if (!this._frei(x, y, w, h)) continue;
       this._belegt.push({ x, y, w, h });
@@ -3758,9 +3837,51 @@ export class Modellansicht {
        *
        * Deshalb getrennt: das Kaestchen bleibt blass (die Flaeche
        * schimmert durch), die ZIFFER steht fast voll da.
+       *
+       * >>> UND SEIT DEM 29. SEPTEMBER DEUTLICH (Weisung «die werteplotts
+       * im 3d sichtbarer machen»). <<<
+       *
+       * Im Browser nachgesehen: blaue Ziffern auf einem blassen Kaestchen
+       * vor dem blau gefaerbten Gurt - bei kleinem η war die Zahl so gut
+       * wie unsichtbar, denn die Farbe der Skala ist am unteren Ende
+       * dunkel. Die Farbe traegt die Aussage aber schon auf der Flaeche.
+       * Jetzt: die ZIFFER in der Textfarbe des Themas, fett und einen Punkt
+       * groesser, auf einem fast deckenden Kaestchen; die Skalenfarbe steht
+       * als Streifen links daneben, damit die Zahl ihre Farbe behaelt.
        */
-      this._beschriftung(c, t, text, k.x, k.y, farbeVon(k.v), 0.95, 0.62);
+      this._wertMarke(c, t, text, k.x, k.y, farbeVon(k.v));
     }
+  }
+
+  /** Schriftgroesse der Werte im Plot: einen Punkt ueber der Lastschrift. */
+  _wertGroesse() { return this.schriftLast + 1; }
+
+  _wertFont() {
+    return `600 ${Math.round(this._wertGroesse() * this._s)}px ${SCHRIFT_MONO()}`;
+  }
+
+  /**
+   * Eine Zahl des Werteplots: Kaestchen fast deckend, Farbstreifen der
+   * Skala links, Ziffer in der Textfarbe. Die Masse misst `_imBild` mit
+   * denselben Zahlen.
+   */
+  _wertMarke(c, t, text, x, y, farbe) {
+    const s = this._s;
+    const hoehe = this._wertGroesse() * s;
+    const st = WERT_STREIFEN * s;
+    const b = this._textBreite(c, text) + 7 * s + st;
+    const x0 = x - 3 * s, y0 = y - hoehe + 2 * s, h = hoehe + 3 * s;
+    c.globalAlpha = 0.9;
+    c.fillStyle = t.s1;
+    c.fillRect(x0, y0, b, h);
+    c.globalAlpha = 1;
+    c.fillStyle = farbe;
+    c.fillRect(x0, y0, st, h);
+    c.strokeStyle = farbe;
+    c.lineWidth = 1 * s;
+    c.strokeRect(x0 + 0.5 * s, y0 + 0.5 * s, b - 1 * s, h - 1 * s);
+    c.fillStyle = t.on;
+    c.fillText(text, x + st, y);
   }
 
   /**
@@ -3768,10 +3889,10 @@ export class Modellansicht {
    * Die Masse sind dieselben wie in _beschriftung - dort wird der Saum
    * gezeichnet, hier wird er gemessen.
    */
-  _imBild(c, text, x, y) {
+  _imBild(c, text, x, y, groesse = this.schriftLast, zusatz = 0) {
     const s = this._s;
-    const hoehe = this.schriftLast * s;
-    const b = this._textBreite(c, text) + 7 * s;
+    const hoehe = groesse * s;
+    const b = this._textBreite(c, text) + (7 + zusatz) * s;
     return x - 3 * s >= 0 && x - 3 * s + b <= this.cv.width
         && y - hoehe + 2 * s >= 0 && y + 3 * s <= this.cv.height;
   }

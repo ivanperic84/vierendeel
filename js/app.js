@@ -1383,6 +1383,7 @@ function zeichneAuswertung() {
         stabwerk: { verfahren: verfahrenVon(werte), stand: stabwerkStand(app),
                     grund: reiheOhneStabmodell(werte), ergebnis: stabwerk },
         beiStabwerk: stabwerkRechnen,
+        beiStab: zeigeStab,
         beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
         lastfallName: anzeigeKombi === 'umhuellend' ? null
@@ -1455,6 +1456,7 @@ function zeichneAuswertung() {
                            fallBez: (key) => kombi.lastfaelle
                              ?.find((l) => l.key === key)?.bez ?? null,
                            beiStabwerk: stabwerkRechnen,
+                           beiStab: zeigeStab,
                            beiNachweisart: setzeNachweisart,
                            beiFeld: (k, v) => aendern(k, v),
                            lastfallName: anzeigeKombi === 'umhuellend' ? null
@@ -3738,6 +3740,20 @@ function waehleSchnittfeld(feld) {
   station = null;
   neuRechnen();
   if (werte.schnittAktiv) zeigeSchnittImModell();
+}
+
+/**
+ * Den massgebenden Stab einer Nachweiskachel im Modell zeigen (29. Sept.,
+ * «beim anklicken der nachweiskachel auf massgebenden stab im modell
+ * klicken»). Steht er nicht im Bild - etwa weil das Bild noch den
+ * Ersatzbalken zeigt -, sagt es die Meldung, statt dass der Klick
+ * wortlos verpufft.
+ */
+function zeigeStab(name) {
+  if (!name || !ansicht) return;
+  if (!ansicht.zeigeStab(name)) {
+    meldeImBalken(`Stab ${name} steht nicht im Bild (Resultatplot aus dem Stabwerk nötig).`, { dauer: 6000 });
+  }
 }
 
 /** Aus der Ergebnisliste auf eine Stelle springen und dort heranzoomen. */

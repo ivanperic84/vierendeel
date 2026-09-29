@@ -86,6 +86,8 @@ export function auslegerSzene(satz, opt = {}) {
     const s = opt.jeStab?.[`${opt.praefix ?? ''}${name}`] ?? opt.jeStab?.[name];
     return s ? { eta: s.eta, sig_v: s.sig, sig: s.sig } : OHNE_WERTE;
   };
+  // Unter welchen Namen die Kachel diesen Stab nennt (mit und ohne Präfix).
+  const stabNamen = (name) => [`${opt.praefix ?? ''}${name}`, name];
 
   /* --- Die Gurte: je Stab ein Prisma mit dem U-Umriss --------------------- *
    * Die Öffnung zeigt nach aussen, der Stegrücken innen (Schnitt A-A); das
@@ -103,6 +105,7 @@ export function auslegerSzene(satz, opt = {}) {
       gruppe: 'profil', teil: seite > 0 ? 'GURT_V' : 'GURT_H',
       station: Number(s.name.split('_S')[1]), farbeBauteil: fbGurt,
       werte: werteVon(s.name),
+      staebe: stabNamen(s.name),
       label: `Gurt ${seite > 0 ? 'vorn' : 'hinten'} · ${p.name} · ${s.name}`,
     }));
   });
@@ -118,6 +121,7 @@ export function auslegerSzene(satz, opt = {}) {
     flaechen.push(...platte(a.x, t.blech.b, 'z', oben ? zBl : -zBl, -d2 / 2, d2 / 2, {
       gruppe: 'blech', teil: s.name, dicke: t.blech.t, farbeBauteil: fb,
       werte: werteVon(s.name),
+      staebe: stabNamen(s.name),
       label: `Bindeblech ${oben ? 'oben' : 'unten'} · ${s.name}`,
     }));
   });
