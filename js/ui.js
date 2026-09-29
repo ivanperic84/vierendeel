@@ -8,7 +8,7 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
-import { RECHENVERFAHREN, bauteileMitStabwerk } from './core.stabnachweis.js';
+import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon } from './core.stabnachweis.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
 import { abfangAnbindung, abfangAnbauLasten, ABFANG_ANBINDUNGEN,
@@ -203,6 +203,25 @@ export const AUSWERTUNG_TABS = [
 
 /** Der Einzelmast hat keinen Schnitt durch ein Joch - die übrigen drei Reiter. */
 export const EINZELMAST_TABS = AUSWERTUNG_TABS.filter((t) => t.id !== 'schnitt');
+
+/*
+ * >>> DER SCHNITT GEHOERT DEM ERSATZBALKEN (29. September). <<<
+ *
+ * Auf die Rückfrage, was der Reiter «Schnitt» im Stabwerksweg zeigen soll
+ * (Entscheid «Schnitt und Bilder», 28. Sept.), im Wortlaut: «ausblenden und
+ * beim ersatzbalken auffführen.» Die Ausnutzung und Spannungsverteilung des
+ * Stabwerks zeigen Verläufe und 3D-Plot (Hülle je Stab); der Schnitt ist
+ * die Aufteilung des Ersatzbalkens auf Gurte und Bleche an einer Station
+ * und steht deshalb nur beim Rechenverfahren Ersatzbalken. Ausgeblendet
+ * wird nach dem VERFAHREN, nicht nach dem Stand der Rechnung - sonst
+ * tauchte der Reiter bei jeder Eingabe für eine Sekunde auf («vorläufig»)
+ * und verschwände wieder. Eine Stelle für Reiterleiste und Schiene.
+ */
+export function auswertungTabs(werte, mitJoch = true) {
+  if (!mitJoch) return EINZELMAST_TABS;
+  return verfahrenVon(werte) === 'stabwerk'
+    ? AUSWERTUNG_TABS.filter((t) => t.id !== 'schnitt') : AUSWERTUNG_TABS;
+}
 
 export function zeichneTabs(node, tabs, aktiv, beiWahl) {
   node.innerHTML = tabs.map((t) =>

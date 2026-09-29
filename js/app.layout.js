@@ -1101,7 +1101,9 @@ export function zeichneSchienen(app) {
   // verbleibende Höhe; ihre Beschriftung steht senkrecht, weil in 42 mm
   // Breite sonst nur zwei Zeichen Platz hätten.
   r.innerHTML =
-    ui.AUSWERTUNG_TABS
+    // Dieselben Reiter wie oben in der Leiste (ohne Schnitt am Einzelmasten
+    // und im Stabwerksweg, 29. Sept.) - eine Stelle, `auswertungTabs`.
+    ui.auswertungTabs(app.werte, app.letzte?.mitJoch !== false)
       .map((t) => knopf(t.id, t.icon, `${t.titel} öffnen`, t.id === app.tabAuswertung)).join('') +
     (gruppen.length ? '<div class="schiene-trenner"></div>' +
          `<div class="schiene-nw">${gruppen.map((g, i) =>

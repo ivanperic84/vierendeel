@@ -1418,7 +1418,11 @@ function zeichneAuswertung() {
     return;
   }
   const { anzeige: erg, vergleich, kombi, checks, hinw, kl, urteil } = letzte;
-  ui.zeichneTabs(ui.el('tabs-auswertung'), ui.AUSWERTUNG_TABS, tabAuswertung, (t) => {
+  // Im Stabwerksweg ohne Schnitt (29. Sept., «ausblenden und beim
+  // ersatzbalken auffführen») - wer dort stand, landet in der Übersicht.
+  const tabs = ui.auswertungTabs(werte);
+  if (!tabs.some((t) => t.id === tabAuswertung)) tabAuswertung = 'uebersicht';
+  ui.zeichneTabs(ui.el('tabs-auswertung'), tabs, tabAuswertung, (t) => {
     tabAuswertung = t; zeichneAuswertung();
   });
   const node = ui.el('auswertung');
@@ -1499,6 +1503,9 @@ function zeichneAuswertung() {
        * «Station + Stabliste»). <<< Den Versatz einer Reihe (Blatt-
        * koordinaten, entflochten) bestimmt der Schnitt selbst aus dem
        * Anfang der Gurte im Stabwerk - siehe `stabwerkSchnittHtml`.
+       * Seit dem 29. September steht der Reiter nur beim Ersatzbalken
+       * (`auswertungTabs`); `stabwerkGilt()` ist dort null, der Teil des
+       * Stabwerks bleibt also leer, solange niemand den Reiter zurückholt.
        */
       const g = stabwerkGilt();
       ui.zeichneSchnitt(node, erg, waehleSchnittfeld,

@@ -33153,6 +33153,30 @@ titel('151  Verläufe im Stabwerksweg: Stabwerk oben, Ersatzbalken eingeklappt')
   wahr('Der Ersatzbalken steht eingeklappt darunter', /klapp\('verlauf-ersatzbalken', 'Ersatzbalken zum Vergleich'/.test(u));
 }
 
+titel('152  Der Reiter «Schnitt» steht nur beim Ersatzbalken');
+/* ===========================================================================
+ * Weisung 29. Sept.: «ausblenden und beim ersatzbalken auffführen.»
+ * Nach dem Verfahren, nicht nach dem Rechenstand; eine Stelle für die
+ * Reiterleiste und die Schiene.
+ * ========================================================================= */
+{
+  const U152 = await import(J('ui.js'));
+  const ids = (t) => t.map((x) => x.id).join(',');
+  wahr('Stabwerk (Vorgabe, Feld fehlt): ohne Schnitt',
+       ids(U152.auswertungTabs({})) === 'uebersicht,verlauf,auflager');
+  wahr('Stabwerk ausdrücklich: ohne Schnitt',
+       !ids(U152.auswertungTabs({ rechenverfahren: 'stabwerk' })).includes('schnitt'));
+  wahr('Ersatzbalken: mit Schnitt, an zweiter Stelle wie bisher',
+       ids(U152.auswertungTabs({ rechenverfahren: 'ersatzbalken' })) === 'uebersicht,schnitt,verlauf,auflager');
+  wahr('Einzelmast: nie ein Schnitt, auch beim Ersatzbalken',
+       !ids(U152.auswertungTabs({ rechenverfahren: 'ersatzbalken' }, false)).includes('schnitt'));
+  const q = APP_QUELLE();
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  wahr('Reiterleiste und Schiene lesen dieselbe Stelle',
+       /ui\.auswertungTabs\(werte\)/.test(q) && /ui\.auswertungTabs\(app\.werte/.test(lay)
+       && !/ui\.AUSWERTUNG_TABS\s*\n?\s*\.map/.test(lay));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
