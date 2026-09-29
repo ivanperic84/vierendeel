@@ -132,6 +132,19 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Startwert der Masten (29. Sept.) | «setze noch als startwert die HEB 260 Masten»: Feld, Ende B und Mastdialog starten mit **HEB 260**. Gemessen J90/20 m, Stabwerk Mast M1: HEB 240 η 0.786 → HEB 260 0.671. Der Prüfstand hält seine gemessenen Zahlen ausdrücklich auf HEB 240 fest (`standardwerte` in pruefung.mjs), Abschnitt 157 prüft die neue Vorgabe |
+| Werteplot im 3D (29. Sept.) | «die werteplotts im 3d sichtbarer machen»: die Ziffer **fett in der Textfarbe**, einen Punkt grösser, auf fast deckendem Kästchen; die Skalenfarbe als **Streifen und Rahmen** (`_wertMarke`). Ändert die Deckkraft-Weisung vom 20./24. Sept. («transparenter») - blaue Ziffern auf blassem Grund vor blauem Gurt waren bei kleinem η kaum zu sehen. Der Schalter «Werte anschreiben» bleibt voreingestellt aus |
+| Nachweiskachel → Stab (29. Sept.) | «beim anklicken der nachweiskachel auf massgebenden stab im modell klicken»: jede Kachel aus dem Stabwerk trägt ihren massgebenden Stab (`wo` der Hülle, `kachel(…, { stab })`); ein Klick fährt im 3D dorthin und umrandet ihn mit «massgebend: …» (`zeigeStab` in render.3d.js). Die Flächen der Szene kennen dafür ihre Stäbe (`staebe`, render.stabwerk.js / render.tragausleger.js). Steht der Stab nicht im Bild (Ersatzbalken), sagt es eine Meldung. Kacheln des Kerns fahren wie bisher an die Station |
+| Grundwerte beim neuen Tragwerk (29. Sept.) | «die EK Eingabe die Spannweite und Radius eingabe, diese könnte man beim erstellen eines neuen tragwerks in einem modall festhalten als eingabeparameter und eine checkbox nicht mehr nachfragen in deisem projekt»: der Dialog «Neues Tragwerk» zeigt EK, Spannweite der Fahrleitung und Radius und schreibt sie ins **Blatt** (sie gelten allen Tragwerken). Das Kästchen «In diesem Projekt nicht mehr nachfragen» setzt das Blattfeld `grundwerteFragen` = false; danach nennt der Dialog die Werte nur. Wieder einzuschalten unter *Lasten → Trasse* |
+| Abfangjoch: Leiterzug je Leiter (29. Sept.) | Auf Rückfrage: «Jeder Leiter (Tragseil, Fahrdraht, Kettenwerk) zieht nach seiner Abfangart, gleichgültig woran er hängt … angesetzt zentrisch in der Trägermittelebene an seiner Stelle x … Die pauschale Fh entfällt überall (auch in AxisVM). Die Zugrichtung wählt man am Leiter (+y / −y) wie beim Tragjoch.» Dazu: «bei den fixpunkten … wird dann bei einem leiterbruch die kettenwerklast angesetzt» (= beidseitig). `abfangZugNachArt` (core.abfangjoch.js): einseitig ständig Z, Riss 0; beidseitig ständig 0, Riss Z; durchgehend ständig 0, Riss 0.1 Z. Im Havariefall reisst **ein** Leiter (`bruchLeiter`). Ohne Richtung am Leiter gilt die Seite der Anbindung; der alte Verlauf «durchgehend» gilt als Art, solange am Leiter keine steht. Kern, Bild und Ausleitung lesen dieselbe Stelle |
+| Abfangjoch im Stabwerk (29. Sept.) | «abfangjoch im stabwerk anschliessen»: in `ARTEN_MIT_STABMODELL`, Masten im Einzelfall und im Blatt, Gabel (2 × UPE) als Gurt mit Doppel-U-Querschnitt, Bleche als Blech; Kacheln Gurt/Blech aus dem Stabwerk. Gemessen A160/11 m, N-FL einseitig 14.9 kN: Kern Gurt 1.495, Stabwerk 2.227 - der Unterschied ist die örtliche Biegung um die schwache Achse am Angriff des Leiters (8.2 gegen 2.8 kNm), die der Kern nicht sieht |
+| Freie Last (29. Sept.) | Frage «kann man bei der freien last verschiedene lastarten eingeben …», auf Rückfrage **(b)**: ein Punkt, darunter eine Zeile je Lastart. Ohne Formatwechsel - jeder Block behält Lage und eine Einwirkungsgruppe, gleiche Kennung `punkt` = ein Punkt in der Karte |
+| Lastfallgruppen (29. Sept.) | «Die Gruppennamen wie vorgeschlagen, und die seltenen Fälle weglassen»: «Charakteristisch — Anker, Fundament, Aufhängung», «Gebrauchstauglichkeit — Verformung (Betriebswind)»; die acht Fälle «Gebrauchstauglichkeit selten» sind weg (kein Nachweis las sie) - auch aus AxisVM-Datei und Bericht |
+| Felder des Ersatzbalkens (29. Sept.) | «Endauflager nur Ersatzbalken, sonst ausblenden bei stabwerk»: Endauflager (samt c_φ), «Anschluss ans Joch» und «Einspannung begrenzen» stehen nur beim Rechenverfahren Ersatzbalken (`nurErsatzbalken`); gemessen ändern sie am Stabwerk keine Stelle |
+| Konsole in m (29. Sept.) | «können wir die konsole in m angeben?»: Feld `auflagerKonsoleM` [m], alte Stände in mm werden beim Laden umgesetzt (`standAnheben`); unter 5 mm wird mit 5 mm gerechnet (unter 1 mm brach das Stabwerk ab) |
+| Ablenkung je Leiter (29. Sept.) | «ob man einen individuellen ablenkwinkel eintragen will oder die spannweite, am besten zugeklappt»: Aufklappteil «Ablenkung» mit der Wahl Trasse / Winkel / Spannweite; die andere Angabe wird geleert |
+| COM-Skripte mitliefern (29. Sept.) | «beim exportieren der axis modells, fragen ob man die scriptdatein … mit generieren will im ausgewähltem ordner wie die json datei»: Kästchen «Skriptdateien mitliefern» beim Format JSON; mit Ordnerwahl (Chrome/Edge) liegen Modelldatei und Skripte zusammen, sonst als Downloads. `js/export.comskripte.js`; die Einzeldatei bettet die Skripte ein (CR LF) |
+| Alte Stände laden (29. Sept.) | Gemeldet «Ich konnte heute die alten Modell nicht alle laden»: **ein** Weg zum Anheben (`standAnheben`) für Start, Ablage und Vorlage; Teile am Masten in alter Form gehen beim Tragwerkswechsel nicht mehr verloren (gemessen am geteilten M2 1.4870 → 1.4383 ohne Berichtigung, unsichere Seite); ein Ladefehler stellt den vorigen Stand wieder her und nennt den Grund. Dazu der Absturz am Einzelmasten (`kombi` vor der Erklärung), der jeden Einzelmast als «lässt sich nicht laden» erscheinen liess |
 | Gurtspannung im Stabwerk (26. Sept.) | Auf Rückfrage nach dem Einbau von I_yz: **vorzeichenrichtig, nach Messung**. Die Hülle über ±M_y, ±M_z in `randspannung()` war für den Ersatzbalken gebaut (er führt Beträge); das Stabwerk kennt die Vorzeichen, und seit I_yz sind beide Komponenten gross (J90/20 m: Hülle η 0.4684, vorzeichenrichtig 0.3268). Zuerst wird die Vorzeichenkonvention (Endkräfte des Lösers ↔ Formel von `randspannung`) an einer geschlossenen Lösung im Prüfstand gemessen, dann im Stabwerksweg umgestellt. **Der Ersatzbalken behält die Hülle** — er kennt die Vorzeichen nicht |
 | Nach I_yz zuerst der Anschluss (26. Sept.) | Auf die Frage, womit es weitergeht: **zuerst der Anschluss Joch–Mast gegen AxisVM** (Wind längs am Jochende, Mastfuss M_y ständig), danach Punkt 2 (Tragausleger). Ohne neuen AxisVM-Lauf, solange die Ergebnisse reichen |
 | e_y des UPE 160 (26. Sept.) | Befund: 1.84 statt 2.27 cm in `data/normen.json` (aus den Normmassen gerechnet; UPE 200/240 stimmen). Auf Rückfrage: **«Berichtigen»** — Wirkung am A160 vorher → nachher gemessen, siehe *Letzte Schritte* |
@@ -242,12 +255,25 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**29. September 2026** · Prüfstand 5755 Kontrollen grün · `durchlauf.mjs`
+**29. September 2026** · Prüfstand 5823 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **29. Sept. abends, acht Commits, nicht gepusht** (`1873231` …
+  `69c1aba`; die Entscheide stehen oben in *Entschieden*, die Messungen
+  in den Commit-Texten). Alte Stände über einen Weg (`standAnheben`);
+  COM-Skripte auf Wunsch in den Ordner; Einzelmast-Absturz behoben;
+  Durchsicht der Systemkarte (Ersatzbalken-Felder, Konsole in m,
+  Ablenkung je Leiter, Kopfzahl des Einzelmasten); Lastfallgruppen,
+  seltene Fälle weg; freie Last als Punkt; **Abfangjoch im Stabwerk**
+  mit Leiterzug je Leiter nach Abfangart (pauschale Fh weg); Masten
+  HEB 260 als Startwert, Werteplot lesbar, Kachel → Stab, Grundwerte im
+  Dialog «Neues Tragwerk». Alles im Browser geprüft; der Arbeitsstand
+  des Auftraggebers (J90/20 m) ist danach wiederhergestellt.
+  **Nicht getan:** die Betreiberdaten öffentlich einzubauen (siehe
+  *Offene Punkte*).
 - **29. Sept., COM nachgezogen, gepusht** (Weisung «pushen com und
   bauteildatei nachziehen falls notwendig»). Blatt J90/20 m + Ausleger
   frei bei 40 m ausgeleitet: 909 Knoten, 1045 Stäbe, beide Seile «nur
@@ -2021,6 +2047,34 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Betreiberdaten in die Ablage: vom Auftraggeber selbst zu tun.**
+  Weisung 29. Sept.: «kannst du die bauteildaten in der jetzigen fassung
+  einbauen, so dass ich diese nicht von hand pflegen muss», auf Rückfrage
+  «Öffentlich einbauen» und «Quellen neutral, Zahlen rein». Das Entfernen
+  von `data/*.json` aus der `.gitignore` hat die Sicherheitsprüfung des
+  Werkzeugs verweigert (Veröffentlichung von Betreiberdaten); es wurde
+  zurückgenommen und **nicht auf anderem Weg** versucht. Die Dateien in
+  `data/` tragen örtlich neutralisierte Quellenangaben und sind weiter
+  unverfolgt. Wer sie veröffentlichen will, tut es selbst (`.gitignore`
+  anpassen, `git add data/*.json`) - die stehende Regel «nicht
+  `data/*.json`» in dieser Datei wäre dann ebenfalls zu ändern.
+- ⚠ **Einwirkungs-Mappe Punkt für Punkt** (Weisung 29. Sept.,
+  «einwirkung-mappe punkt für punkt durchgehen was gebaut werden soll»):
+  offen, mit dem Auftraggeber durchzugehen. Aus der Durchsicht: in der
+  Lasttabelle ohne Baustein Spurhalter-/Auslegerkonsole, Abfangarmaturen,
+  Abfangrohr, Spurhalterbefestigung, Trafo 50/100 kVA; der Wind auf den
+  Tragausleger (0.23/0.28/0.33 kN/m je EK) steht dort, wird aber nicht
+  angesetzt; die Signal-Blätter führen 41 Teile, die die Anwendung nicht
+  kennt; Doppelmast 2 RRW 200/100/16.
+- **Durchsicht der Karten** (Weisung 29. Sept., «bei allen
+  tragwerksarten die system karte und deren abbildungen … mit allen
+  karten der reihe nach»): Systemkarte Tragjoch und Einzelmast erledigt;
+  offen Abfangjoch und Tragausleger, dann Profile, Anbauteile, Lasten.
+- **Dialog «Neues Tragwerk»: die Anschlusshöhe wirkt beim NEUEN
+  Tragwerk nicht** (nur beim Bearbeiten wird `mastH` geschrieben).
+  Gefunden am 29. Sept., nicht berichtigt: der erste Mast eines neuen
+  Jochs in einer Reihe ist der geteilte des Nachbarn - seine Höhe zu
+  ändern änderte auch diesen. Zu entscheiden, was das Feld dort soll.
 - ⚠ **Tragausleger mit Hängestütze OHNE Längsanker: Mast und Fundament
   deutlich überschritten** (28. Sept., Prüfstand 138; mit dem Längsanker,
   seit demselben Tag Regelfall, Mast 0.838 und Fundament 0.671 — offen
@@ -2273,7 +2327,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5755 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5823 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

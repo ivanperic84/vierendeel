@@ -5,9 +5,22 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **29. September 2026**, alles gepusht (Weisung «pushen com und
-bauteildatei nachziehen falls notwendig»); Prüfstand 5755 Kontrollen grün, `durchlauf.mjs`
-ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
+Stand: **29./30. September 2026**; Prüfstand 5823 Kontrollen grün,
+`durchlauf.mjs` ohne Bruch. **Acht Commits seit dem letzten Push
+(`1873231` … `69c1aba`) sind NICHT gepusht** - pushen nur auf Weisung.
+Neu am 29. September abends (Einzelheiten in CLAUDE.md, *Entschieden*):
+alte Stände über einen Weg (`standAnheben`), COM-Skripte auf Wunsch in
+den Ordner, das **Abfangjoch im Stabwerk** mit Leiterzug je Leiter nach
+Abfangart (pauschale Fh weg), Lastfallgruppen ohne die seltenen Fälle,
+freie Last als Punkt, Konsole in m, Masten **HEB 260** als Startwert,
+lesbarer Werteplot, **Kachel → massgebender Stab** im 3D, Grundwerte
+(EK, Spannweite, Radius) im Dialog «Neues Tragwerk».
+⚠ **Betreiberdaten öffentlich einbauen** ist verweigert worden
+(Sicherheitsprüfung) und bleibt dem Auftraggeber selbst - CLAUDE.md,
+*Offene Punkte*. **Offen mit dem Auftraggeber:** die Einwirkungs-Mappe
+Punkt für Punkt und die Durchsicht der übrigen Karten.
+
+Davor (bis 29. September mittags, gepusht): Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der
 Linkmitte). **Neu am 28. September: das Stabwerk führt die Anzeige**
@@ -128,8 +141,8 @@ wurde: der Starrfaktor von 1 bis 100 ändert keine Stelle (16.98 % bleibt
   vom 26. September ist im Löser behoben, in `export.pynite.js` nicht.
 - **`serve.py` prüft den Port nicht** (fünf Server lagen gleichzeitig auf
   8731, die Verbindung landete bei einem toten).
-- Der **Tragausleger** wartet auf sein Kragarm-Modell, das **Abfangjoch**
-  hängt noch nicht am Stabwerksweg (`abfangBau`).
+- Tragausleger und Abfangjoch hängen beide am Stabwerksweg (Abfangjoch
+  seit dem 29. September); ihr **Bericht** fehlt noch (Punkt 3).
 
 ⚠ **Der Arbeitsstand im Browser ist nicht der ursprüngliche:** er trägt seit
 dem Prüflauf vom 26. September ein zweites Tragwerk **T2** (zum Prüfen der
@@ -164,7 +177,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5755 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5823 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
