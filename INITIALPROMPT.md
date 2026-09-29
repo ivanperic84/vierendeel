@@ -5,8 +5,8 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **29. September 2026**, gepusht bis `4f491b0`, danach committet,
-aber **nicht gepusht**; Prüfstand 5755 Kontrollen grün, `durchlauf.mjs`
+Stand: **29. September 2026**, alles gepusht (Weisung «pushen com und
+bauteildatei nachziehen falls notwendig»); Prüfstand 5755 Kontrollen grün, `durchlauf.mjs`
 ohne Bruch. Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
 Linkverbindung 0.45 m ausserhalb des Links; Löser koppelt seither in der

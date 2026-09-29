@@ -60,6 +60,7 @@ import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
 import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { abfangBau } from './export.axisvm.abfang.js';
 import { tragauslegerBau } from './export.axisvm.tragausleger.js';
+import { getTragausleger, tragauslegerSpreizung } from './data.abfangjoche.js';
 import { winkelwerteFuer } from './core.winkel.js';
 import { getProfil } from './data.profiles.js';
 
@@ -4716,8 +4717,16 @@ export function stabmodellJson(m, opt = {}) {
       // L=0.00 m» (offener Punkt seit dem 20. September).
       art: artJson,
       bezeichnung: [artJson === 'tragausleger'
-        ? `Tragausleger 2 × ${bau.tragausleger?.profil ?? 'UPE'} L=${Number(m.L).toFixed(2)} m`
-          + (bau.tragausleger?.seile ? `, ${bau.tragausleger.seile} Seil${bau.tragausleger.seile > 1 ? 'e' : ''}` : '')
+        // Im Blatt führt `bau` die Kennwerte des Auslegers nicht (29. Sept.,
+        // Joch + freier Ausleger: «2 × UPE» ohne Profil und Seile) - dann
+        // aus dem Sortiment und dem Satz.
+        ? `Tragausleger 2 × ${bau.tragausleger?.profil
+            ?? getTragausleger(Number(m.L))?.profil ?? 'UPE'} L=${Number(m.L).toFixed(2)} m`
+          + (() => {
+            const n = bau.tragausleger?.seile
+              ?? (opt.eingabe ? (tragauslegerSpreizung(opt.eingabe) > 0 ? 2 : 1) : null);
+            return n ? `, ${n} Seil${n > 1 ? 'e' : ''}` : '';
+          })()
         : artJson === 'einzelmast' ? 'Einzelmast'
         : artJson === 'abfangjoch' ? `Abfangjoch L=${Number(m.L).toFixed(2)} m`
         : `Tragjoch ${m.typ ?? 'frei'} L=${Number(m.L).toFixed(2)} m`,

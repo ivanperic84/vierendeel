@@ -412,6 +412,26 @@ if (!AJ.tragauslegerDa()) {
     console.log(`  ${'neben einem Joch (x 40 m)'.padEnd(28)}${s.ok && !s.r.ohneModell
       ? `gerechnet, ${s.r.staebe} Stäbe` : 'NICHT gerechnet'}`);
   }
+  // Die COM-Ausleitung desselben Blattes (29. Sept.): der Ausleger steht mit
+  // Präfix darin, beide Seile «nur Zug», jeder Verweis trifft.
+  versuch('Tragausleger neben Joch', 'COM-Ausleitung (Blatt)', () => {
+    const satzF = C.rechensatz(frei);
+    const deps = { modellVon: (s2) => V.modell({ ...s2, beiwerteFest: null },
+      P.getProfil(s2.profOG), P.getProfil(s2.profUG), P.getStahl(s2.stahl), T.getTragjoch(s2.typ)) };
+    const o = { knotenmodell: 'anschnitt',
+      eingaben: (C.sichtbareTragwerke(frei) ?? []).map((t) => C.tragwerkSatz(frei, t.id)) };
+    const d = AX.stabmodellJson(deps.modellVon(satzF),
+      { ...o, eingabe: satzF, bau: AX.blattWennMehrere(satzF, deps, o) });
+    const kn = new Set(d.knoten.map((x) => x.name));
+    const seile = d.staebe.filter((x) => /AUFHAENGUNG/.test(x.name));
+    const leer = d.staebe.filter((x) => !kn.has(x.von) || !kn.has(x.bis)).length
+      + d.lasten.punkt.filter((l) => !kn.has(l.knoten)).length;
+    if (seile.length !== 2 || !seile.every((x) => x.nichtlinear?.x === 'nurZug') || leer) {
+      throw new Error(`${seile.length} Seile, ${leer} Verweise ins Leere`);
+    }
+    console.log(`  ${'… COM-Datei des Blattes'.padEnd(28)}${d.knoten.length} Knoten, `
+      + `${d.staebe.length} Stäbe, 2 Seile «nur Zug», Kopf «${d.tragwerk.bezeichnung}»`);
+  });
   const geteilt = AS.reiheOhneStabmodell(nebenJoch(20));
   console.log(`  ${'am Jochmasten (x 20 m)'.padEnd(28)}${geteilt ? 'gesperrt, mit Grund' : 'NICHT gesperrt'}`);
   if (!geteilt) befunde.push({ fall: 'Tragausleger am Jochmasten', weg: 'Sperre', text: 'nicht gesperrt' });

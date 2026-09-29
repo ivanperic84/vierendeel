@@ -68,7 +68,7 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
   bündelt ohne Daten. Keine `gh`-CLI; Anmeldung über den Git Credential
   Manager von Windows.
   Seit dem 24. August wurde auf Weisung laufend gepusht (zuletzt
-  28. September, «checken mit aufbau in axisvm, optimieren und pushen»). Der Zweig `github-stand-vor-push` ist der alte, von Hand
+  29. September, «pushen com und bauteildatei nachziehen falls notwendig»). Der Zweig `github-stand-vor-push` ist der alte, von Hand
   hochgeladene Stand, nur örtlich von Wert.
 - **`Grundlagen/`** (im Projekt, nicht in der Ablage) — die fachliche
   Quelle der Daten: Sortimentsblätter und Werkstattzeichnungen der Tragjoche
@@ -248,6 +248,15 @@ Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **29. Sept., COM nachgezogen, gepusht** (Weisung «pushen com und
+  bauteildatei nachziehen falls notwendig»). Blatt J90/20 m + Ausleger
+  frei bei 40 m ausgeleitet: 909 Knoten, 1045 Stäbe, beide Seile «nur
+  Zug», kein Verweis ins Leere. **Befund:** im Blatt nannte die Kopfzeile
+  den Ausleger ohne Profil und Seilzahl (`bau.tragausleger` fehlt dort) -
+  jetzt aus Sortiment und Satz, «Tragausleger 2 × UPE 140 L=6.00 m,
+  2 Seile»; der Durchlauf prüft es. **Bauteildatei:** die Sortimente sind
+  seit dem 26. September unverändert, das Paket vom 28. September in
+  `Versand/` ist aktuell - nicht neu geschrieben.
 - **29. Sept., fertig gebaut und geprüft** (Weisungen «Fertig bauen»,
   «checke nach dem fertig bauen die funktionalität des tragauslegers»,
   Abfangung beim Bauteil, AxisVM-Vergleich; Prüfstand 148–151).
