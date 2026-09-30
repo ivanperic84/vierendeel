@@ -5,8 +5,8 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **30. September 2026**; Prüfstand 5865 Kontrollen grün,
-`durchlauf.mjs` ohne Bruch. **Acht Commits seit dem letzten Push
+Stand: **30. September 2026**; Prüfstand 5874 Kontrollen grün,
+`durchlauf.mjs` ohne Bruch. **Mehrere Commits seit dem letzten Push
 (`1873231` … `69c1aba`) sind NICHT gepusht** - pushen nur auf Weisung.
 Neu am 29. September abends (Einzelheiten in CLAUDE.md, *Entschieden*):
 alte Stände über einen Weg (`standAnheben`), COM-Skripte auf Wunsch in
@@ -26,6 +26,13 @@ Durchsicht der übrigen Karten; später das Galgen-Tragwerk für Signale.
 Neue Tragwerke entstehen seit dem 30. September über Kacheln (klicken oder
 ins 3D ziehen) und das Kontextmenü, mit Mastwahl im Dialog; die
 Tragwerksleiste zeigt nur noch das Lageband.
+Später am 30. September: Mastnummer in der Anzeige, Mausrad zoomt,
+**Mastspitze L/100** unter Betriebswind (abschaltbar, Unterpunkt
+Gebrauchstauglichkeit), Aufhängung des Tragauslegers **0.80 m**. **Als
+Nächstes aus derselben Weisung:** Signalbauer mit Bildern und
+Umschaltkacheln, Auswahlfenster «+ Bauteil aus der Lasttabelle»,
+«Fahrleitung als Auflager» nur mit Leiter, Rückstellkraft der Leiter am
+Joch («Halt in y, begrenzt», 10 %).
 
 Davor (bis 29. September mittags, gepusht): Punkt 1 des Auftrags (I_yz, vorzeichenrichtige Gurtspannung)
 und der Anschluss Joch–Mast sind erledigt (die COM-Brücke legte jede
@@ -46,7 +53,7 @@ Verläufe, Hülle je Stab). **Als Nächstes:** ⚠ die 15–20 % gegen AxisVM
 (Angaben des Auftraggebers nötig, *Offene Punkte*) und der Reiter *Schnitt*; die Mastlänge am
 Ausleger ist entschieden (H + b; b und α gekoppelt, ohne Eintrag b
 der Tabelle); die Aufhängung hat zwei an der Ankertraverse
-gespreizte Seile (Feld «Spreizung», Vorgabe ±1 m). Das Knicken der
+gespreizte Seile (Feld «Spreizung», seit 30. Sept. Vorgabe ±0.40 m). Das Knicken der
 Jochmasten kommt seit dem 28. September aus dem Stabwerk. ⚠ Welche früheren AxisVM-Entscheide von der
 falschen Linklage berührt sind, steht unter *Offene Punkte*.
 
@@ -184,7 +191,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5865 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5874 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
