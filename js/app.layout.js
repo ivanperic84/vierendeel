@@ -319,6 +319,7 @@ export function zeichneModellWerkzeuge(app) {
   const vorhanden = app.ansicht.szene ? app.ansicht.ebenenVorhanden() : null;
   const gM = app.ansicht.gruppen.modell, gL = app.ansicht.gruppen.lasten,
         gR = app.ansicht.gruppen.resultate, gZ = app.ansicht.gruppen.zeichnung;
+  const ohneBalken = app.ohneBalken;
 
   n.innerHTML =
     `<div class="wz-gruppe"><div class="wz-t">Blick</div><div class="wz-knoepfe">${
@@ -344,17 +345,22 @@ export function zeichneModellWerkzeuge(app) {
         s.haupt ? app.ansicht.ebenen.last : app.ansicht.lastarten[s.key], !gL || fehlt);
     }).join('')) +
     gruppe('resultate', 'Resultate', gR,
-      schalter('wz-r-kraefte', 'schnitt', 'Schnittkräfte am Nachweisschnitt',
-               app.ansicht.ebenen.kraefte, !gR) +
-      schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR) +
+      // Schnittkräfte am Nachweisschnitt und Schnittebene gehören dem
+      // Ersatzbalken; im Stabwerk gibt es keinen Nachweisschnitt (Weisung
+      // 30. September, «die zwei braucht es nicht wenn stabwerk aktiv»).
+      (ohneBalken ? '' :
+        schalter('wz-r-kraefte', 'schnitt', 'Schnittkräfte am Nachweisschnitt',
+                 app.ansicht.ebenen.kraefte, !gR) +
+        schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR)) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
-      // Die verformte Figur aus dem Stabwerk (30. September).
-      text('wz-r-verformt', 'δ', 'Verformte Figur (aus dem Stabwerk, überhöht)',
-           app.verformtAn, !gR) +
       modiFuer(app.nachweisart).map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
-             mo.label, mo.key === app.ansicht.modus, !gR)).join(''),
+             mo.label, mo.key === app.ansicht.modus, !gR)).join('') +
+      // Die verformte Figur aus dem Stabwerk (30. September) steht bei den
+      // Plotgrössen («nimm zudem die verformung zu den unteren symbolen»).
+      text('wz-r-verformt', 'δ', 'Verformte Figur (aus dem Stabwerk, überhöht)',
+           app.verformtAn, !gR),
       /*
        * WER EINEN KNOPF VERMISST, SOLL ERFAHREN WARUM. Die Wahl steht in
        * der Ergebnisleiste, nicht hier - ohne diesen Satz sieht die
@@ -404,12 +410,14 @@ export function zeichneModellWerkzeuge(app) {
       nach();
     };
   });
-  ui.el('wz-r-kraefte').onclick = () => {
-    app.ansicht.ebenen.kraefte = !app.ansicht.ebenen.kraefte; nach();
-  };
-  ui.el('wz-r-schnitt').onclick = () => {
-    app.ansicht.ebenen.schnitt = !app.ansicht.ebenen.schnitt; nach();
-  };
+  if (!ohneBalken) {
+    ui.el('wz-r-kraefte').onclick = () => {
+      app.ansicht.ebenen.kraefte = !app.ansicht.ebenen.kraefte; nach();
+    };
+    ui.el('wz-r-schnitt').onclick = () => {
+      app.ansicht.ebenen.schnitt = !app.ansicht.ebenen.schnitt; nach();
+    };
+  }
   ui.el('wz-r-werte').onclick = () => {
     app.ansicht.werteAnschreiben = !app.ansicht.werteAnschreiben; nach();
   };

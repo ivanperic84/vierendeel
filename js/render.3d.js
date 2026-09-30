@@ -4160,6 +4160,8 @@ export class Modellansicht {
 
   _ebeneAn(key) {
     if (!this.ebenen[key]) return false;
+    // Im Stabwerk gibt es keinen Nachweisschnitt (app.js, ohneBalken).
+    if (this.ohneBalken && (key === 'schnitt' || key === 'kraefte')) return false;
     const g = HAUPTSCHALTER[key];
     return !g || this.gruppen[g] !== false;
   }

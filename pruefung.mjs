@@ -34270,6 +34270,29 @@ titel('173  Verformte Figur im 3D; Reaktionskräfte auch am Einzelmasten');
        /ui\.zeichneMastfuss\(knoten, letzte\.kombi\);[\s\S]{0,200}reaktionsBlockEinfuegen\(knoten\);/.test(app));
 }
 
+titel('174  Resultatleiste im Stabwerk: ohne Nachweisschnitt, δ bei den Plots');
+/* ===========================================================================
+ * Weisung 30. September, mit dem Bild der Leiste: «die zwei braucht es
+ * nicht wenn stabwerk aktiv nimm zudem die verformung zu den unteren
+ * symboeln. da kann man den button schnitteben auch entfernen, da kein
+ * balken.»
+ * ========================================================================= */
+{
+  const lay = readFileSync(join(HIER, 'js', 'app.layout.js'), 'utf8');
+  const app = APP_QUELLE();
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Schnittkräfte und Schnittebene nur ohne Stabwerk angeboten',
+       /\(ohneBalken \? '' :\s*schalter\('wz-r-kraefte'[\s\S]{0,200}schalter\('wz-r-schnitt'/.test(lay)
+       && lay.includes('if (!ohneBalken) {'));
+  wahr('δ steht nach den Plotgrössen',
+       lay.indexOf("text('wz-r-verformt'") > lay.indexOf("text(`wz-p-${mo.key}`"));
+  wahr('Das Verfahren entscheidet (nicht das gültige Ergebnis), ohne Stabmodell bleibt der Balken',
+       app.includes("verfahrenVon(werte) === 'stabwerk' && stabwerkStand(app) !== 'ohneModell'")
+       && app.includes('ansicht.ohneBalken = ohneBalken();'));
+  wahr('Das 3D zeichnet Schnittebene und Schnittkräfte im Stabwerk nicht',
+       r3.includes("this.ohneBalken && (key === 'schnitt' || key === 'kraefte')"));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

@@ -198,6 +198,7 @@ const app = {
   get nachweisart() { return nachweisart; }, set nachweisart(v) { nachweisart = v; },
   // Die verformte Figur im 3D (30. September).
   get verformtAn() { return verformtAn; },
+  get ohneBalken() { return ohneBalken(); },
   verformtUmschalten: () => verformtUmschalten(),
   dialogBauteildaten: (...a) => dialogBauteildaten(...a),
   dialogTasten: (...a) => dialogTasten(...a),
@@ -1872,6 +1873,18 @@ function blattSzene(erg) {
  * ========================================================================= */
 let verformtAn = false;
 let verformtMerk = null;
+/**
+ * Rechnet das Stabwerk (Verfahren «Stabwerk» und ein Stabmodell vorhanden)?
+ * Dann gibt es keinen Nachweisschnitt des Ersatzbalkens: Schnittkräfte am
+ * Nachweisschnitt und Schnittebene fallen aus Leiste und Bild (Weisung
+ * 30. September: «die zwei braucht es nicht wenn stabwerk aktiv … da kann
+ * man den button schnitteben auch entfernen, da kein balken»). Am Verfahren
+ * und nicht am gültigen Ergebnis festgemacht - sonst tauchten die Knöpfe in
+ * der Sekunde bis zur selbsttätigen Rechnung auf und wieder ab.
+ */
+function ohneBalken() {
+  return verfahrenVon(werte) === 'stabwerk' && stabwerkStand(app) !== 'ohneModell';
+}
 function verformtSetzen() {
   if (!ansicht) return;
   const g = verformtAn ? stabwerkGilt() : null;
@@ -1927,6 +1940,7 @@ function aktualisiereModell(erg) {
   const szene = blattSzene(erg);
   uebernehmeAnsichtsoptionen();
   ansicht.station = station;
+  ansicht.ohneBalken = ohneBalken();
   verformtSetzen();
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
