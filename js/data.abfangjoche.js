@@ -195,7 +195,9 @@ export const TA_SEILWINKEL_NORM = 30;   // Winkel der Normzeichnung (Auskunft)
  * Eingabe»: je Seil der Abstand zur Auslegerachse, Vorgabe 1 m; 0 = ein
  * Seil mittig (der Pendelstab bis dahin).
  */
-export const TA_SPREIZUNG_VORGABE = 1.0;
+// ±0.40 m je Seite = 0.80 m zwischen den Seilen (30. September: «der abstand
+// der beiden aufhängungen beim tragausleger ist 0.80 m anstatt die 2m»).
+export const TA_SPREIZUNG_VORGABE = 0.4;
 
 /** Spreizung der Aufhängung je Seite [m]; 0 = ein Seil in der Achse. */
 export function tragauslegerSpreizung(inp) {

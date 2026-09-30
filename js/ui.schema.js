@@ -932,7 +932,7 @@ export const FELDER = [
    */
   { key: 'auslegerSpreizung', gruppe: 'geo', typ: 'schieber',
     label: 'Spreizung der Aufhängung (je Seite)', sym: 's', einheit: 'm',
-    standard: TA_SPREIZUNG_VORGABE, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 2,
+    standard: TA_SPREIZUNG_VORGABE, schritt: 0.05, min: 0, max: 1,
     sichtbar: (w) => tragwerksart(w).key === 'tragausleger',
     notiz: (w) => (tragwerksart(w).key === 'tragausleger'
       ? (tragauslegerSpreizung(w) > 0

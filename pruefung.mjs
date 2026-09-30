@@ -32744,12 +32744,13 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
     anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 12.35)] });
 
   // --- a) Vorgabe und Feld ------------------------------------------------
-  wahr('Ohne Eintrag zwei Seile, je 1 m neben der Achse',
-       DA147.tragauslegerSpreizung({}) === 1 && DA147.tragauslegerSpreizung({ auslegerSpreizung: 0 }) === 0
+  // Seit dem 30. September ±0.40 m (0.80 m zwischen den Seilen, Weisung).
+  wahr('Ohne Eintrag zwei Seile, je 0.40 m neben der Achse',
+       DA147.tragauslegerSpreizung({}) === 0.4 && DA147.tragauslegerSpreizung({ auslegerSpreizung: 0 }) === 0
        && DA147.tragauslegerSpreizung({ auslegerSpreizung: 0.75 }) === 0.75);
   const fS = FELDER.find((f) => f.key === 'auslegerSpreizung');
-  wahr('Feld «Spreizung» beim Ausleger, Vorgabe 1 m, Schieber auf den halben Meter',
-       fS?.standard === 1 && fS.zugSchritt === 0.5 && fS.min === 0
+  wahr('Feld «Spreizung» beim Ausleger, Vorgabe 0.40 m, Schieber bis 1 m',
+       fS?.standard === 0.4 && fS.max === 1 && fS.min === 0
        && fS.sichtbar({ tragwerksart: 'tragausleger' }) && !fS.sichtbar({ tragwerksart: 'joch' }));
 
   // --- b) das Modell ------------------------------------------------------
@@ -33664,6 +33665,17 @@ titel('164  Mastnummer in der Anzeige; Stegskizze schaltet; Titel ohne doppeltes
        /istEinzelmast && m\.twPos && m\.twPos !== mName/.test(rq));
   wahr('Die Zeichenfläche schreibt durch anzeigeText (Schreiben und Messen)',
        /this\.ctx\.fillText = \(t, \.\.\.r\) => schreibe\(this\.anzeigeText\(String\(t\)\), \.\.\.r\)/.test(rq));
+}
+
+titel('165  Spreizung der Aufhängung 0.80 m; alte Vorgabe wird angehoben');
+{
+  const alt = A.standAnheben({ ...standardwerte(), tragwerksart: 'tragausleger', auslegerSpreizung: 1,
+    weitere: [{ id: 'T2', tragwerksart: 'tragausleger', auslegerSpreizung: 0.75 }] });
+  wahr('Die alte Vorgabe ±1.0 m wird zu ±0.40 m, ein anderer Eintrag bleibt',
+       alt.auslegerSpreizung === 0.4 && alt.weitere[0].auslegerSpreizung === 0.75,
+       JSON.stringify([alt.auslegerSpreizung, alt.weitere[0].auslegerSpreizung]));
+  const nochmal = A.standAnheben({ ...alt, auslegerSpreizung: 1 });
+  wahr('Wer danach wieder 1.0 m einträgt, behält sie', nochmal.auslegerSpreizung === 1);
 }
 
 // ===========================================================================

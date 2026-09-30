@@ -906,6 +906,17 @@ function tragwerkAnheben(t) {
     if (mm > 0 && !(Number(w.auflagerKonsoleM) > 0)) w.auflagerKonsoleM = mm / 1000;
     delete w.auflagerKonsole;
   }
+  /*
+   * DIE SPREIZUNG DER AUFHÄNGUNG (30. September): «der abstand der beiden
+   * aufhängungen beim tragausleger ist 0.80 m anstatt die 2m die ich mal
+   * angegeben habe». Die frühere Vorgabe ±1.0 m stand in jedem Stand
+   * ausdrücklich (Standardwert); sie wird zur neuen ±0.40 m. Ein anderer
+   * eingetragener Wert bleibt.
+   */
+  if (Number(w.auslegerSpreizung) === 1 && !w.spreizungAngehoben) {
+    w.auslegerSpreizung = 0.4;
+  }
+  w.spreizungAngehoben = true;
   return w;
 }
 
