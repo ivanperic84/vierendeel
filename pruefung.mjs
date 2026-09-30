@@ -34450,6 +34450,9 @@ titel('176  Anbauteile ziehen, Esc ohne Zoom, Leiter an zwei Punkten, rechte Han
        r3.includes('  auswahlAufheben() {')
        && app.includes('if (ansicht?.detail) { zuletztGezoomt = null; ansicht.auswahlAufheben(); return; }')
        && app.includes('if (ansicht?.fokus) ansicht.auswahlAufheben();'));
+  // «das modell nicht schneiden, auch beim auswahl eines bauteils»
+  wahr('Der Blick auf ein Bauteil schneidet das Modell nicht mehr ab',
+       /_imFokus\(\) \{\s*return true;\s*\}/.test(r3));
   // Leiter direkt am Joch: eine Reihe in einer Gurtebene = zwei Punkte.
   const AV176 = await import(J('data.anbauteile.js'));
   const leiter = ['leiter-nfl', 'leiter-rfl', 'leiter-rl']

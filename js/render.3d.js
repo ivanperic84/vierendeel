@@ -3626,10 +3626,17 @@ export class Modellansicht {
     return this._letzteFlaechen ?? [];
   }
 
-  /** Liegt x im Fokusbereich? */
-  _imFokus(x) {
-    if (!this.fokus || x === undefined || x === null) return true;
-    return x >= this.fokus.von - 1e-9 && x <= this.fokus.bis + 1e-9;
+  /**
+   * Liegt x im Fokusbereich? - IMMER (30. September).
+   *
+   * Weisung mit Bild: «das modell nicht schneiden, auch beim auswahl eines
+   * bauteils.» Der Blick auf ein Bauteil (und auf eine Station) blendete bis
+   * hierher alles ausserhalb seines x-Bereichs aus; das Joch endete dann
+   * mitten im Feld. Der Bereich bestimmt weiter, wie nah die Kamera fährt
+   * und wieviele Marken Platz haben - weggeschnitten wird nichts mehr.
+   */
+  _imFokus() {
+    return true;
   }
 
   /**
@@ -4245,8 +4252,9 @@ export class Modellansicht {
 
   _raster(c, proj, t) {
     const g = this.szene.grenzen;
-    const von = this.fokus ? this.fokus.von : g.xMin;
-    const bis = this.fokus ? this.fokus.bis : g.xMax;
+    // Über die ganze Breite - das Modell wird nicht mehr geschnitten.
+    const von = g.xMin;
+    const bis = g.xMax;
     const z = g.zMin - 0.35;
     c.strokeStyle = t.ol; c.globalAlpha = 0.35; c.lineWidth = 0.5 * this._s;
     c.beginPath();
