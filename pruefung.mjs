@@ -5239,8 +5239,29 @@ titel('27  Navigation im Modell: schieben, drehen, auf den Zeiger zoomen');
     const b = ansicht(JOCH);
     const azB = b.kamera.az;
     b._drehe(800, 0);
+    // Seit der Basis nach der rechten Hand (30. September) mit −: die
+    // Richtung prüfen die Kontrollen «folgt der Hand» darüber.
     pruef('Eine volle Breite dreht um eine halbe Umdrehung',
-          b.kamera.az - azB, Math.PI, 1e-9, 'rad');
+          azB - b.kamera.az, Math.PI, 1e-9, 'rad');
+
+    // RECHTE HAND (30. September, «Beachte beim koordinatensystem die rechte
+    // hand regel im modell»): Bild-rechts × Bild-oben zeigt zum Betrachter.
+    // Vorher stand −1 da - das Bild war ein Spiegelbild.
+    const R3H = await import(J('render.3d.js'));
+    const dreh = R3H.ANSICHTEN.map((v) => {
+      const a = ansicht(JOCH);
+      a.kamera.az = v.az; a.kamera.el = v.el;
+      const { vor, rechts, hoch } = a._basis();
+      const k = [rechts[1] * hoch[2] - rechts[2] * hoch[1], rechts[2] * hoch[0] - rechts[0] * hoch[2],
+                 rechts[0] * hoch[1] - rechts[1] * hoch[0]];
+      return { key: v.key, s: k[0] * vor[0] + k[1] * vor[1] + k[2] * vor[2], rechts, hoch };
+    });
+    wahr('Jede Blickrichtung zeigt ein Rechtssystem (rechts × oben = zum Betrachter)',
+         dreh.every((d) => Math.abs(d.s - 1) < 1e-9), dreh.map((d) => `${d.key} ${d.s.toFixed(3)}`).join(', '));
+    const nach = (k) => dreh.find((d) => d.key === k);
+    wahr('Längsansicht: x nach rechts; Querschnitt: y nach rechts; Draufsicht: y nach oben',
+         nach('laengs').rechts[0] > 0.999 && nach('quer').rechts[1] > 0.999
+         && nach('oben').hoch[1] > 0.9);
 
     const c = ansicht(JOCH);
     c._drehe(37, 11, true);
@@ -34406,6 +34427,39 @@ titel('175  Blattmodell: Einzelmast und Kragarm-Joch am selben Masten, gemeinsam
        app.includes("if ((key === 'kragA' || key === 'kragB') && tragwerksart(werte).key === 'joch')")
        && app.includes("return aendern('L', Math.max(0, Number(wert) || 0) + kA + kB);")
        && app.includes('const auf = einzelmastenAufgehen(werte);'));
+}
+
+titel('176  Anbauteile ziehen, Esc ohne Zoom, Leiter an zwei Punkten, rechte Hand');
+/* ===========================================================================
+ * Weisung 30. September: «Abgesetzte Anbauteile per drad and drop
+ * verschieben können. Beim Esc nach der bauteileingabe nicht herauszoomen.
+ * Leiter an Joch sind nur über zwei punkte befestigt, als startwert
+ * ansetzen. Beachte beim koordinatensystem die rechte hand regel im modell
+ * sowie in der output liste / nachweise.»
+ * ========================================================================= */
+{
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const app = APP_QUELLE();
+  wahr('Ziehen: Griff «anbau» auf einem Anbauteil, Umriss als Fang, Vorschau auf 5 cm',
+       r3.includes("griff = { art: 'anbau'") && r3.includes('_anbauteilUnter(e) {')
+       && r3.includes('_ziehMalen(c, proj, t)') && r3.includes('Math.round(v * 20) / 20'));
+  wahr('… die App schreibt über setzeAnbauteile (Joch: x begrenzt, Mast: Höhe)',
+       app.includes('beiAnbauteilZiehen: (i, weg) => anbauteilZiehen(i, weg)')
+       && /function anbauteilZiehen[\s\S]{0,1600}setzeAnbauteile\(liste\)/.test(app));
+  wahr('Esc hebt Auswahl und Einzelheitsblick auf, ohne zu zoomen',
+       r3.includes('  auswahlAufheben() {')
+       && app.includes('if (ansicht?.detail) { zuletztGezoomt = null; ansicht.auswahlAufheben(); return; }')
+       && app.includes('if (ansicht?.fokus) ansicht.auswahlAufheben();'));
+  // Leiter direkt am Joch: eine Reihe in einer Gurtebene = zwei Punkte.
+  const AV176 = await import(J('data.anbauteile.js'));
+  const leiter = ['leiter-nfl', 'leiter-rfl', 'leiter-rl']
+    .map((id) => AV176.vorlagen().find((v) => v.id === id));
+  wahr('Leiter-Vorlagen am Joch: Raster 0 (eine Reihe, zwei Punkte) als Startwert',
+       leiter.every((v) => v && Number(v.raster) === 0 && v.befestigung !== 'durchgehend'),
+       leiter.map((v) => `${v?.id} ${v?.raster}`).join(', '));
+  const er = readFileSync(join(HIER, 'js', 'export.reaktionen.js'), 'utf8');
+  wahr('Reaktionstabelle: Y zum Betrachter (X × Y = Z bei Z nach unten)',
+       er.includes('x1="150" y1="58" x2="102" y2="100"') && er.includes('rechte Hand: X × Y = Z'));
 }
 
 // ===========================================================================

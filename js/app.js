@@ -3083,6 +3083,44 @@ function aendern(key, wert) {
 /** Nur die Teile, die an einem Masten haengen - die des Jochs gehen mit ihm. */
 const nurMastteile = (liste) => (liste ?? []).filter((a) => a?.ort === 'mastA' || a?.ort === 'mastB');
 
+/**
+ * >>> EIN ANBAUTEIL IM 3D GEZOGEN (30. September). <<<
+ *
+ * Weisung: «Abgesetzte Anbauteile per drag and drop verschieben können».
+ * Ein Teil am Joch wandert längs der Jochachse (x, im Tragwerk begrenzt),
+ * eines am Masten in der Höhe (hMast). Der Weg kommt auf 5 cm gerastet aus
+ * dem Bild; geschrieben wird über `setzeAnbauteile` - derselbe Weg wie jede
+ * Eingabe, samt Fundamentkote und Rückgängig.
+ */
+function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
+  const liste = [...(werte.anbauteile ?? [])];
+  const a = liste[i];
+  if (!a) return;
+  const r = (v) => Math.round(v * 1000) / 1000;
+  let neu, text;
+  if (amMast(a)) {
+    const alt = Number(a.hMast) || 0;
+    const h = r(Math.max(0, alt + dz));
+    if (Math.abs(h - alt) < 1e-9) return;
+    neu = { ...a, hMast: h };
+    text = `Höhe ${alt.toFixed(2)} → ${h.toFixed(2)} m`;
+  } else {
+    const t = tragwerkeVon(werte)[0];
+    // Beim links liegenden Tragausleger zählt x vom Masten nach links.
+    const richtung = tragwerksart(t).key === 'tragausleger' && t.auslegerSeite === 'links' ? -1 : 1;
+    const ende = tragwerksart(t).key === 'tragausleger' ? kragarmEnde(werte) : (Number(werte.L) || 0);
+    const alt = Number(a.x) || 0;
+    const x = r(Math.min(Math.max(alt + richtung * dx, 0), ende));
+    if (Math.abs(x - alt) < 1e-9) return;
+    neu = { ...a, x };
+    text = `x ${alt.toFixed(2)} → ${x.toFixed(2)} m`;
+  }
+  liste[i] = neu;
+  setzeAnbauteile(liste);
+  meldeImBalken(`${a.name ?? 'Anbauteil'} verschoben: ${text} · Strg+Z nimmt es zurück`,
+                { dauer: 5000 });
+}
+
 function setzeAnbauteile(liste) {
   /*
    * >>> NICHTS UNTER DIE FUNDAMENTKOTE (Weisung vom 18. September). <<<
@@ -3920,7 +3958,14 @@ function abbrechen() {
   const dlg = ui.el('ueberlagerung')?.firstElementChild;
   if (dlg) { dlg.querySelector('[data-zu]')?.click(); return; }
   if (schubladeIstOffen()) { schubladeSchliessen(app); return; }
-  if (ansicht?.detail) { anbauteilBlickZurueck(); return; }
+  /*
+   * >>> ESC ZOOMT NICHT HERAUS (30. September). <<<
+   * «Beim Esc nach der bauteileingabe nicht herauszoomen.» Nach dem Setzen
+   * steht der Blick auf dem neuen Teil (Einzelheitsblick); Esc hob ihn auf
+   * UND fuhr aufs ganze Joch zurück. Jetzt nur noch die Auswahl - wer das
+   * Ganze sehen will, hat «Ganzes Querprofil» unten links.
+   */
+  if (ansicht?.detail) { zuletztGezoomt = null; ansicht.auswahlAufheben(); return; }
   /*
    * DIE MARKIERUNG DES MASSGEBENDEN STABES (30. September: «mit esc die
    * aktivierung aufheben oder wenn man ins leere klickt im modell»).
@@ -3936,7 +3981,7 @@ function abbrechen() {
     return;
   }
   if (buehne) { buehne = null; zeichneBuehne(); return; }
-  if (ansicht?.fokus) ansicht.ganzesJoch();
+  if (ansicht?.fokus) ansicht.auswahlAufheben();
 }
 
 /** Zurück vom Einzelheitsblick auf das ganze Joch. */
@@ -5467,6 +5512,7 @@ export async function start() {
      */
     beiTragwerk: (id) => aendern('tragwerkAktiv', id),
     beiAnbauteil: (i) => zeigeAnbauteil(i),
+    beiAnbauteilZiehen: (i, weg) => anbauteilZiehen(i, weg),
     /*
      * DIE ZAHL IM BALKEN LAEUFT MIT DEM ZUG MIT.
      *

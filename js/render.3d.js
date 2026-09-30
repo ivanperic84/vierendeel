@@ -1883,8 +1883,10 @@ function dunkel(farbe) {
 
 export const ANSICHTEN = [
   { key: 'iso',    label: 'Isometrie',    az: -0.62,           el: 0.42 },
-  { key: 'laengs', label: 'Längsansicht', az: Math.PI / 2,     el: 0 },
-  { key: 'quer',   label: 'Querschnitt',  az: Math.PI,         el: 0 },
+  // Rechte Hand (30. September): die Längsansicht blickt von −y (x nach
+  // rechts, y vom Betrachter weg), der Querschnitt von +x (y nach rechts).
+  { key: 'laengs', label: 'Längsansicht', az: -Math.PI / 2,    el: 0 },
+  { key: 'quer',   label: 'Querschnitt',  az: 0,               el: 0 },
   { key: 'oben',   label: 'Draufsicht',   az: -Math.PI / 2,    el: 1.45 },
 ];
 
@@ -2405,6 +2407,37 @@ export class Modellansicht {
    * darunter links die Anschrift mit der Überhöhung - eine überhöhte Figur
    * ohne Faktor läse man als wirklichen Weg.
    */
+  /**
+   * Die Vorschau beim Ziehen eines Anbauteils: seine Flächen um den Weg
+   * versetzt, gestrichelt in der Akzentfarbe, dazu der Weg in Metern.
+   */
+  _ziehMalen(c, proj, t) {
+    const z = this._zieh;
+    const s = this._s;
+    c.save();
+    c.strokeStyle = t.acc ?? '#7c8de0';
+    c.lineWidth = 1.4 * s;
+    c.setLineDash([4 * s, 3 * s]);
+    let oben = null;
+    (this.szene?.flaechen ?? []).forEach((f) => {
+      if (f.teil !== z.teil || !f.punkte?.length) return;
+      const q = f.punkte.map((p) => proj([p[0] + z.dx, p[1], p[2] + z.dz]));
+      if (q.some((x) => !x)) return;
+      c.beginPath();
+      q.forEach((x, i) => (i ? c.lineTo(x[0], x[1]) : c.moveTo(x[0], x[1])));
+      c.closePath();
+      c.stroke();
+      q.forEach((x) => { if (!oben || x[1] < oben[1]) oben = x; });
+    });
+    c.restore();
+    if (oben) {
+      c.font = this._wertFont();
+      const w = z.vertikal ? z.dz : z.dx;
+      this._beschriftung(c, t, `${w >= 0 ? '+' : '−'}${Math.abs(w).toFixed(2)} m`,
+                         oben[0] + 6 * s, oben[1] - 8 * s, t.acc ?? '#7c8de0');
+    }
+  }
+
   _verformtMalen(c, proj, t) {
     const v = this.verformt;
     const s = this._s;
@@ -2520,6 +2553,19 @@ export class Modellansicht {
     if (this.fokus === null && this.ansichtKey === blick) return;
     this.station = null;
     this.blickrichtung(blick);
+  }
+
+  /**
+   * Auswahl, Einzelheitsblick und Ausblendung aufheben - OHNE die Kamera zu
+   * bewegen (30. September: «Beim Esc nach der bauteileingabe nicht
+   * herauszoomen»). `ganzesJoch` tut dasselbe und fährt zurück aufs Ganze.
+   */
+  auswahlAufheben() {
+    this.markierung = null;
+    this.fokus = null;
+    this.detail = null;
+    this.auswahlTeil = null;
+    this.zeichne();
   }
 
   ganzesJoch() {
@@ -2740,6 +2786,24 @@ export class Modellansicht {
         const bild = this.zeichnungSchieben && this.zeichnung?.kalibrierung;
         griff = { art: bild ? 'bild' : schiebemodus(e) ? 'schieben' : 'drehen',
                   bewegt: false, start: [e.clientX, e.clientY] };
+        /*
+         * >>> EIN ABGESETZTES ANBAUTEIL LÄSST SICH ZIEHEN (30. September). <<<
+         * Weisung: «Abgesetzte Anbauteile per drag and drop verschieben
+         * können». Wer auf ein Anbauteil des gerechneten Tragwerks drückt,
+         * greift das Teil statt der Kamera; ohne Bewegung bleibt es ein
+         * Klick (Auswahl). Nicht während Setzen, Einmessen oder Bildschieben.
+         */
+        if (griff.art === 'drehen' && e.button === 0 && this.opt.beiAnbauteilZiehen
+            && !this.beiStelle && !this.beiZeichnungsklick) {
+          const u = this._anbauteilUnter(e);
+          const [px, py] = this._geraetePunkt(e);
+          const w0 = u ? this.weltTreffer(px, py) : null;
+          if (u && w0) {
+            griff = { art: 'anbau', bewegt: false, start: [e.clientX, e.clientY],
+                      teil: u.b.teil, index: u.b.index, w0,
+                      vertikal: u.a?.ort === 'mastA' || u.a?.ort === 'mastB' };
+          }
+        }
         c.style.cursor = griff.art === 'drehen' ? 'move' : 'grabbing';
       } else if (zeiger.size === 2) {
         // Der zweite Finger beendet das Drehen; was bis hierher gedreht
@@ -2808,6 +2872,18 @@ export class Modellansicht {
       if (Math.abs(e.clientX - griff.start[0]) +
           Math.abs(e.clientY - griff.start[1]) > 3) griff.bewegt = true;
       const dx = jetzt[0] - vorher[0], dy = jetzt[1] - vorher[1];
+      if (griff.art === 'anbau') {
+        const w = this.weltTreffer(jetzt[0], jetzt[1]);
+        if (w && griff.bewegt) {
+          // Auf 5 cm, wie die Eingabe - die Vorschau zeigt, was ankommt.
+          const r = (v) => Math.round(v * 20) / 20;
+          this._zieh = { teil: griff.teil, vertikal: griff.vertikal,
+                         dx: griff.vertikal ? 0 : r(w.x - griff.w0.x),
+                         dz: griff.vertikal ? r(w.z - griff.w0.z) : 0 };
+          this.zeichne();
+        }
+        return;
+      }
       if (griff.art === 'bild') this.verschiebeZeichnung(dx, dy);
       else if (griff.art === 'schieben') this._schiebe(dx, dy);
       else this._drehe(dx, dy, e.shiftKey);
@@ -2815,6 +2891,25 @@ export class Modellansicht {
     });
 
     const beiHoch = (e) => {
+      if (griff?.art === 'anbau') {
+        const z = this._zieh;
+        this._zieh = null;
+        if (griff.bewegt && z && (z.dx || z.dz)) {
+          this.opt.beiAnbauteilZiehen(griff.index, { dx: z.dx, dz: z.dz });
+        } else if (griff.bewegt) {
+          this.zeichne();
+        } else {
+          // Ohne Bewegung ein Klick: das Teil wird gewählt - auch wenn der
+          // Zeiger neben seiner Linie im Umriss lag, wo `_klick` nichts fände.
+          if (this.auswahlTeil !== griff.teil) { this.auswahlTeil = griff.teil; this.zeichne(); }
+          this.opt.beiAnbauteil?.(griff.index, null);
+          zeiger.delete(e.pointerId);
+          try { c.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
+          c.style.cursor = '';
+          griff = null;
+          return;
+        }
+      }
       const ruhig = griff && griff.art !== 'kneifen' &&
                     zeiger.size === 1 && !griff.bewegt;
       zeiger.delete(e.pointerId);
@@ -2977,6 +3072,43 @@ export class Modellansicht {
     return { flaeche: beste, mitte };
   }
 
+  /**
+   * Welches Anbauteil des gerechneten Tragwerks liegt unter dem Zeiger?
+   * Erst eine seiner Flächen (Klemmen, Würfel); dann - wenn gar keine
+   * Fläche getroffen ist - sein Umriss aus dem Einzelheitsbereich, mit 6 px
+   * Rand. Hängestütze und Traverse stehen als Linien da und hätten sonst
+   * nur die Klemmen als Griff (gemessen: zwei Treffer im ganzen Bild).
+   * Trifft der Zeiger eine andere Fläche (Gurt, Mast), gilt sie.
+   */
+  _anbauteilUnter(e) {
+    const liste = this.szene?.anbauteile ?? [];
+    if (!liste.length) return null;
+    const tr = this._treffer(e);
+    if (tr) {
+      if (!tr.flaeche.anbauteil || tr.flaeche.passiv) return null;
+      const b = liste.find((d) => d.teil === tr.flaeche.teil);
+      return b ? { b, a: tr.flaeche.anbauteil } : null;
+    }
+    const [px, py] = this._geraetePunkt(e);
+    const proj = this._projektor();
+    const rand = 6 * this._s;
+    const im = liste.filter((b) => [b.xMin, b.xMax, b.zMin, b.zMax].every(Number.isFinite))
+      .map((b) => {
+        const q = [[b.xMin, b.zMin], [b.xMax, b.zMin], [b.xMin, b.zMax], [b.xMax, b.zMax]]
+          .map(([x, z]) => proj([x, 0, z])).filter(Boolean);
+        if (q.length < 4) return null;
+        const xs = q.map((p) => p[0]), ys = q.map((p) => p[1]);
+        const x0 = Math.min(...xs) - rand, x1 = Math.max(...xs) + rand;
+        const y0 = Math.min(...ys) - rand, y1 = Math.max(...ys) + rand;
+        if (px < x0 || px > x1 || py < y0 || py > y1) return null;
+        return { b, flaeche: (x1 - x0) * (y1 - y0) };
+      }).filter(Boolean).sort((p, q) => p.flaeche - q.flaeche);
+    if (!im.length) return null;
+    const b = im[0].b;
+    const a = (this.szene?.flaechen ?? []).find((f) => f.teil === b.teil && f.anbauteil)?.anbauteil ?? null;
+    return { b, a };
+  }
+
   /** Klick: erst Bemassung, dann Bauteil. */
   _klick(e) {
     if (!this.szene) return;
@@ -3085,8 +3217,19 @@ export class Modellansicht {
   _basis() {
     const { az, el } = this.kamera;
     const vor = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)];
-    const rechts = norm(kreuz(vor, [0, 0, 1]));
-    const hoch = kreuz(rechts, vor);
+    /*
+     * >>> RECHTE HAND (30. September). <<<
+     * Weisung: «Beachte beim koordinatensystem die rechte hand regel im
+     * modell». Hier stand rechts = vor × z, hoch = rechts × vor - dann ist
+     * rechts × hoch = −vor, zeigt also VOM Betrachter weg: das Bild war ein
+     * Spiegelbild (Linkssystem), zu sehen am Achsenkreuz unten links. Die
+     * Zahlen stimmten, nur die Darstellung nicht. Jetzt rechts = z × vor,
+     * hoch = vor × rechts: rechts × hoch = vor, zum Betrachter hin, wie es
+     * ein Rechtssystem verlangt. Die Blickvorgaben (ANSICHTEN) und das
+     * Vorzeichen beim Drehen (`_drehe`) sind darauf abgestimmt.
+     */
+    const rechts = norm(kreuz([0, 0, 1], vor));
+    const hoch = kreuz(vor, rechts);
     return { vor, rechts, hoch };
   }
 
@@ -3149,7 +3292,10 @@ export class Modellansicht {
     const breite = this.cv.getBoundingClientRect().width || 1;
     const s = Math.PI / Math.max(320, breite) / this._dpr();
     const k = this.kamera;
-    k.az += dx * s;
+    // Seit der Basis nach der rechten Hand (30. September) mit −: so folgt
+    // der zugewandte Punkt weiter der Hand (nachgerechnet: Bild-x des
+    // Punktes Ziel + r·vor ändert sich um −r·δaz).
+    k.az -= dx * s;
     k.el = Math.max(-1.45, Math.min(1.45, k.el + dy * s));
     if (raster) {
       const r = Math.PI / 12;                                        // 15°
@@ -3739,6 +3885,7 @@ export class Modellansicht {
     // Die verformte Figur über dem Modell (30. September), auch während
     // der Fahrt - sie ist das, was man dabei ansehen will.
     if (this.gruppen.resultate && this.verformt) this._verformtMalen(c, proj, t);
+    if (this._zieh) this._ziehMalen(c, proj, t);
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.

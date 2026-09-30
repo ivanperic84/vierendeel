@@ -301,6 +301,15 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = n
  * Das Achssystem der Tabelle: X quer, Y längs, Z nach unten - Druck auf das
  * Fundament positiv. Eigene Zeichnung, dieselbe Aussage wie die Skizze der
  * Einwirkungen.
+ *
+ * >>> RECHTE HAND (30. September). <<<
+ * «Beachte beim koordinatensystem die rechte hand regel im modell sowie in
+ * der output liste». Hier zeigte Y schräg nach hinten - mit X nach rechts
+ * und Z nach unten ist das ein Linkssystem. Rechtshändig zeigt Y ZUM
+ * Betrachter: X × Y = Z. Damit ist Y der Tabelle der y-Achse des 3D
+ * entgegengesetzt (dort vom Betrachter weg, Längsansicht von −y); X ist
+ * dasselbe. In der Tabelle ändert das keine Zahl - Horizontalkräfte und
+ * Momente stehen als ±Betrag, V zählt nach unten.
  */
 export function achsSvg() {
   return `<svg class="rk-achsen" viewBox="0 0 300 170" width="300" height="170"
@@ -310,22 +319,24 @@ export function achsSvg() {
     <style>line{stroke:#222;stroke-width:1.4}text{font:12px sans-serif;fill:#222}
       .klein{font-size:10px;fill:#555}.mast{stroke:#aaa;stroke-width:1;stroke-dasharray:5 3}
       .fund{fill:none;stroke:#bbb;stroke-width:1}</style>
-    <rect class="fund" x="120" y="62" width="44" height="34"/>
-    <line class="mast" x1="142" y1="8" x2="142" y2="62"/>
-    <text class="klein" x="148" y="16">Mastachse</text>
-    <line x1="142" y1="62" x2="262" y2="62" marker-end="url(#rk-pf)"/>
-    <text x="266" y="66">X</text>
-    <text class="klein" x="172" y="56">quer · F_x (H,q)</text>
-    <line x1="142" y1="62" x2="206" y2="22" marker-end="url(#rk-pf)"/>
-    <text x="210" y="22">Y</text>
-    <text class="klein" x="206" y="36">längs · F_y (H,l)</text>
-    <line x1="142" y1="62" x2="142" y2="150" marker-end="url(#rk-pf)"/>
-    <text x="148" y="158">Z</text>
-    <text class="klein" x="152" y="116">F_z (V) nach unten:</text>
-    <text class="klein" x="152" y="128">Druck positiv</text>
-    <text class="klein" x="4" y="84">M_y (M,q) um Y</text>
-    <text class="klein" x="4" y="96">M_x (M,l) um X</text>
-    <text class="klein" x="4" y="108">M_z (T) um Z</text>
+    <rect class="fund" x="128" y="58" width="44" height="34"/>
+    <line class="mast" x1="150" y1="6" x2="150" y2="58"/>
+    <text class="klein" x="156" y="14">Mastachse</text>
+    <line x1="150" y1="58" x2="270" y2="58" marker-end="url(#rk-pf)"/>
+    <text x="274" y="62">X</text>
+    <text class="klein" x="182" y="52">quer · F_x (H,q)</text>
+    <line x1="150" y1="58" x2="102" y2="100" marker-end="url(#rk-pf)"/>
+    <text x="88" y="112">Y</text>
+    <text class="klein" x="10" y="128">längs · F_y (H,l),</text>
+    <text class="klein" x="10" y="140">zum Betrachter</text>
+    <line x1="150" y1="58" x2="150" y2="150" marker-end="url(#rk-pf)"/>
+    <text x="156" y="160">Z</text>
+    <text class="klein" x="158" y="116">F_z (V) nach unten:</text>
+    <text class="klein" x="158" y="128">Druck positiv</text>
+    <text class="klein" x="4" y="20">M_y (M,q) um Y</text>
+    <text class="klein" x="4" y="32">M_x (M,l) um X</text>
+    <text class="klein" x="4" y="44">M_z (T) um Z</text>
+    <text class="klein" x="4" y="56">rechte Hand: X × Y = Z</text>
   </svg>`;
 }
 
@@ -418,7 +429,8 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
     <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten })}
       <figcaption>Übersicht quer zum Gleis, aus dem Stabmodell</figcaption></figure>
     <figure>${achsSvg()}
-      <figcaption>Achssystem der Tabelle. Das 3D der Anwendung zählt z nach oben.</figcaption></figure>
+      <figcaption>Achssystem der Tabelle, rechtshändig. X wie im 3D; das 3D zählt z nach
+        oben und y vom Betrachter weg.</figcaption></figure>
   </div>
   ${reaktionenTabelleHtml(daten, { havarie, standard })}
   ${hinweise ? `<h2 style="font-size:13px;margin:12px 0 0">Hinweise</h2>
