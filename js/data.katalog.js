@@ -722,6 +722,8 @@ export const ABSCHNITTE = [
           zahl('aQuer', 'Fläche quer', 'm²', { von: 0, bis: 20 }),
           zahl('aLaengs', 'Fläche längs', 'm²', { von: 0, bis: 20 }),
           zahl('cw', 'Kraftbeiwert c_w', null, { von: 0, bis: 3 }),
+          bool('signalbauer', 'Signalbauer',
+            { notiz: 'Freies Bauteil, dessen Gewicht und Flächen aus den gewählten Signalteilen summiert werden.' }),
         ],
       },
       lasten: {
@@ -736,6 +738,34 @@ export const ABSCHNITTE = [
         ],
       },
     },
+  },
+  /* ----------------------------------------------------------------------
+   * >>> SIGNALTEILE FÜR DEN SIGNALBAUER (30. September). <<<
+   *
+   * Aus den Signal-Blättern der Einwirkungs-Mappe. Die Mappe zählt x in
+   * Gleisrichtung: «Fläche längs (y-z-Ebene)» ist die Fläche, die der Wind
+   * LÄNGS zum Gleis trifft (eine Tafel hat nur diese), «quer» die, die der
+   * Wind quer zum Gleis trifft. Bei Tragwerksteilen gelten Fläche und Masse
+   * je Meter und werden mit der Länge multipliziert.
+   * ---------------------------------------------------------------------- */
+  {
+    key: 'signalteile', db: 'anbauteile', tabelle: 'signalteile', liste: 'signalteile',
+    titel: 'Signalteile', herkunft: 'sortiment', schluessel: 'id',
+    notiz: 'Der Signalbauer summiert: G = Σ n · Masse (· L) / 100 kN, '
+         + 'A = Σ n · Fläche (· L); Wind = A · q_ref(EK) · c.',
+    felder: [
+      text('id', 'Kurzzeichen', { pflicht: true }),
+      f('gruppe', 'Gruppe', 'wahl', { wahl: ['signal', 'korb', 'tragwerk'], pflicht: true,
+        notiz: 'Signale und Tafeln, Arbeitskorb/Schutz, Tragwerksteile der Aufhängung.' }),
+      zahl('nr', 'Position', null, { von: 0, bis: 999 }),
+      text('name', 'Bezeichnung', { pflicht: true }),
+      text('profil', 'Profil'),
+      zahl('laenge', 'Standardlänge', 'm', { von: 0, bis: 30,
+        notiz: '0: Stückteil. Sonst gelten Fläche und Masse je Meter.' }),
+      zahl('aLaengs', 'Fläche längs (Wind längs zum Gleis)', 'm² bzw. m²/m', { von: 0, bis: 20 }),
+      zahl('aQuer', 'Fläche quer (Wind quer zum Gleis)', 'm² bzw. m²/m', { von: 0, bis: 20 }),
+      zahl('masse', 'Masse', 'kg bzw. kg/m', { von: 0, bis: 5000 }),
+    ],
   },
 ];
 

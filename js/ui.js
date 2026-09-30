@@ -36,7 +36,8 @@ import { GRUPPEN, FELDER, sichtbareFelder, gruppeGilt,
 import { vorlagen, neuesAnbauteil, farbschluessel, baugruppeSumme,
          normalisiereAnbauteil, neuerLastblock, expandiereAnbauteile,
          modulWinkel, ANBAU_ORTE, ortVon, amMast, vorlagePasstAn, leiterListe,
-         leiterKennung, havarieAnteile } from './data.anbauteile.js';
+         leiterKennung, havarieAnteile, istSignalModul, signalFlaeche,
+         SIGNAL_CW } from './data.anbauteile.js';
 import { flBauteile, getFlBauteil, istStreckenlast, istKettenwerk,
          flZerlegung, flTragseile, flFahrdraehte, flPaarung,
          PROFILBEIWERTE } from './data.fl.js';
@@ -345,6 +346,10 @@ export function maskenSignatur(werte, tab) {
                  // Woher der Leiter seine Ablenkung nimmt (29. Sept.): sie
                  // entscheidet, welches Feld im Aufklappteil steht.
                  (a.module ?? []).map((m) => ablenkQuelle(m)).join(',') + ':' +
+                 // Die Auswahl des Signalbauers (30. Sept.): Liste und Summen
+                 // der Karte stehen im Aufbau, nicht in nachgeführten Feldern.
+                 (a.module ?? []).map((m) => (Array.isArray(m.signal)
+                   ? m.signal.map((s) => `${s.id}*${s.anzahl}*${s.laenge ?? ''}`).join('+') : '')).join(',') + ':' +
                  (a.lasten ?? []).map((l) => l.einwirkung).join(',') + ':' +
                  // Welche Lasten einen Punkt teilen (29. Sept.) - Struktur.
                  (a.lasten ?? []).map((l, k) => lastPunkt(l, k)).join(',') + ':' +
@@ -2552,6 +2557,7 @@ function anbauteileHtml(g, werte) {
     ['jochaufsatz', 'Jochaufsätze', 'grpJochaufsatz'],
     ['leiter', 'Leiter und Traversen', 'grpLeiter'],
     ['mast', 'Am Masten', 'grpUebrige'],
+    ['signal', 'Signale', 'grpUebrige'],
     ['uebrige', 'Übrige', 'grpUebrige'],
   ];
   /*
@@ -3319,7 +3325,31 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
       : streckenlast ? `<div class="at-gitter">
         ${modFeld(i, k, 'laenge', 'Länge', modWert(m, 'laenge'), 'm', 0.1)}
       </div>` : ''}
-      ${b?.freieFlaeche ? `<div class="sec-klein">Angriffsfläche</div>
+      ${b?.freieFlaeche && istSignalModul(m) ? (() => {
+        /*
+         * DAS SIGNAL (30. September): Gewicht und Flächen stehen nicht zur
+         * Eingabe - sie kommen aus der Auswahl im Signalbauer. Die Karte
+         * zeigt die Summe und die Teile; der Knopf öffnet den Bauer.
+         */
+        const sf = signalFlaeche(m.signal);
+        const liste = sf.zeilen.length
+          ? `<ul class="signal-liste">${sf.zeilen.map((z) => `<li>${z.anzahl} × ${esc(z.name)}${
+              z.laenge ? ` · L ${f2(z.laenge)} m` : ''}</li>`).join('')}</ul>`
+          : '<p class="notiz">Noch keine Signalteile gewählt.</p>';
+        return `<div class="sec-klein">Signal · ${sf.zeilen.length} Posten</div>
+        ${liste}
+        ${sf.fehlt.length ? `<p class="notiz warn">Nicht mehr in der Tabelle: ${esc(sf.fehlt.join(', '))}</p>` : ''}
+        <div class="at-gitter">
+          <span class="at-feld lesbar"><span>Eigengew. <i>kN</i></span><b>${f2(sf.eigengewicht)}</b></span>
+          <span class="at-feld lesbar"><span>A quer <i>m²</i></span><b>${f2(sf.aQuer)}</b></span>
+          <span class="at-feld lesbar"><span>A längs <i>m²</i></span><b>${f2(sf.aLaengs)}</b></span>
+          ${modWahl(i, k, 'cw', 'Profilbeiwert', m.cw ?? SIGNAL_CW,
+                    PROFILBEIWERTE.map((p) => ({ key: p.c, label: p.label })))}
+        </div>
+        <button class="btn btn-mini" type="button" data-signalbauer="${k}" data-idx="${i}"
+          >Signalbauer …</button>`;
+      })()
+      : b?.freieFlaeche ? `<div class="sec-klein">Angriffsfläche</div>
       <div class="at-gitter">
         ${modFeld(i, k, 'eigengewicht', 'Eigengew.', modWert(m, 'eigengewicht'), 'kN', 0.1)}
         ${modFeld(i, k, 'aQuer', 'A quer', modWert(m, 'aQuer'), 'm²', 0.05)}
@@ -4740,6 +4770,18 @@ function verdrahteAnbauteile(container, werte, onAnbau) {
    * Nur das Vorzeichen von x. Höhe, Lasten und Rolle bleiben - die Achse der
    * Hängestütze ist der Spiegel.
    */
+  // Der Signalbauer (30. September): der Dialog gehört der Anwendung
+  // (`setzeSignalbauer`), das Ergebnis geht über denselben Weg wie jede
+  // Moduleingabe zurück.
+  container.querySelectorAll('[data-signalbauer]').forEach((b) => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = +b.dataset.idx, mod = +b.dataset.signalbauer;
+      const m = liste()[idx]?.module?.[mod];
+      if (!m || typeof SIGNALBAUER !== 'function') return;
+      SIGNALBAUER(m.signal ?? [], (neu) => setzeModul(idx, mod, 'signal', neu));
+    });
+  });
   container.querySelectorAll('[data-mod-spiegeln]').forEach((b) => {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5720,6 +5762,14 @@ export function knickJe(erg) {
 }
 
 /** Den Knopf der Stabwerksleiste verdrahten. */
+/**
+ * Der Signalbauer ist ein Dialog der Anwendung (app.dialoge.js); die Karte
+ * kennt ihn nur als Aufruf. `fn(auswahl, fertig)` - `fertig(neu)` schreibt
+ * die neue Auswahl ins Modul.
+ */
+let SIGNALBAUER = null;
+export function setzeSignalbauer(fn) { SIGNALBAUER = fn; }
+
 export function verdrahteStabwerk(node, opt = {}) {
   // Kacheln aus dem Stabwerk: Klick zeigt den massgebenden Stab im Modell.
   if (typeof opt.beiStab === 'function') {

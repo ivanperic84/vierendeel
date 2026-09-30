@@ -122,7 +122,7 @@ import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwe
 import { verfahrenVon, eingabeKennung, bauteileMitStabwerk } from './core.stabnachweis.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
-import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
+import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
 import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
          kontextOffen } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
@@ -238,6 +238,9 @@ const app = {
   zeichnungSichernFallsMoeglich: (...a) => zeichnungSichernFallsMoeglich(app, ...a),
   dialogSpeichern: (...a) => dialogSpeichern(...a),
 };
+// Der Signalbauer der Anbauteil-Karte (30. September) ist ein Dialog der
+// Anwendung; die Karte kennt ihn nur als Aufruf.
+ui.setzeSignalbauer((auswahl, fertig) => dialogSignal(app, auswahl, fertig));
 // Welche Einwirkungskombination im Modell dargestellt wird.
 // 'umhuellend' = ungünstigster Wert je Station über alle Kombinationen.
 let anzeigeKombi = 'umhuellend';

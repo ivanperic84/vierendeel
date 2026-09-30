@@ -16,7 +16,9 @@ import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.
 import { STEGRICHTUNGEN, mastprofile } from './data.masten.js';
 import { getTragjoch, tragjoche } from './data.tragjoche.js';
 import { esc } from './design.js';
-import { WIND_KLASSEN } from './core.lasten.js';
+import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
+import { signalteile, signalFlaeche, SIGNAL_CW } from './data.anbauteile.js';
+import { windAusFlaeche } from './data.fl.js';
 import { istGerade } from './core.trasse.js';
 
 /* ===========================================================================
@@ -756,4 +758,105 @@ export function dialogTragwerk(app, id = null, artVor = null) {
     };
   }
   verdrahte();
+}
+
+/* ===========================================================================
+ * >>> DER SIGNALBAUER (30. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «die signaleteile zu einem separatem signalbauer, da kann man die
+ * teile auswählen und die resultierende last wird dann daraus berechnet und
+ * man muss nur noch den angriffspunkt wie bei den übrigen bauteilen
+ * definieren. Die Tragwerksteile für die Signalaufhängung können auch
+ * separat aufgeführt werden, da diese nur in ausnahmen an die FL-Tragwerke
+ * montiert werden.»
+ *
+ * Je Teil der Tabelle eine Anzahl; die Tragwerksteile stehen als eigene,
+ * eingeklappte Gruppe mit ihrer Länge (Fläche und Masse gelten je Meter).
+ * Unten die Summe, wie sie das Modul rechnen wird, samt Wind bei der EK des
+ * Blattes. Übernommen wird nur, was eine Anzahl hat.
+ * =========================================================================== */
+const SIGNAL_GRUPPEN = [
+  ['signal', 'Signale und Tafeln', true],
+  ['korb', 'Arbeitskorb und Schutz', true],
+  ['tragwerk', 'Tragwerksteile der Signalaufhängung — nur in Ausnahmen am FL-Tragwerk', false],
+];
+
+export function dialogSignal(app, auswahl, fertig) {
+  const teile = signalteile();
+  const ek = ekVonWindklasse(app.werte.windKlasse);
+  // Der Entwurf: je Teil Anzahl und Länge.
+  const e = new Map((auswahl ?? []).map((s) => [s.id, { anzahl: Number(s.anzahl) || 0,
+                                                     laenge: Number(s.laenge) || null }]));
+  const wert = (t) => e.get(t.id) ?? { anzahl: 0, laenge: null };
+  const zahl = (v, n = 2) => (Number(v) || 0).toFixed(n);
+
+  const zeile = (t) => {
+    const w = wert(t);
+    const jeMeter = (Number(t.laenge) || 0) > 0;
+    return `<tr${w.anzahl > 0 ? ' class="an"' : ''}>
+      <td>${esc(t.name)}${t.profil ? `<br><span class="ablage-meta">${esc(t.profil)}</span>` : ''}</td>
+      <td class="num">${zahl(t.aQuer)} / ${zahl(t.aLaengs)}${jeMeter ? '<br><span class="ablage-meta">je m</span>' : ''}</td>
+      <td class="num">${zahl(t.masse, 0)}${jeMeter ? ' /m' : ''}</td>
+      <td>${jeMeter ? `<input type="number" class="sig-l" data-sig="${esc(t.id)}" step="0.5" min="0"
+             value="${zahl(w.laenge ?? t.laenge)}" title="Länge [m]">` : ''}</td>
+      <td><input type="number" class="sig-n" data-sig="${esc(t.id)}" step="1" min="0"
+             value="${w.anzahl}"></td>
+    </tr>`;
+  };
+  const summeHtml = () => {
+    const sf = signalFlaeche(liste());
+    return `<b>Summe:</b> G ${zahl(sf.eigengewicht)} kN · A quer ${zahl(sf.aQuer)} m²
+      · A längs ${zahl(sf.aLaengs)} m² → Wind (${esc(ek)}, c ${SIGNAL_CW})
+      quer ${zahl(windAusFlaeche(sf.aQuer, ek, SIGNAL_CW))} kN,
+      längs ${zahl(windAusFlaeche(sf.aLaengs, ek, SIGNAL_CW))} kN`;
+  };
+  const liste = () => [...e.entries()]
+    .filter(([, w]) => w.anzahl > 0)
+    .map(([id, w]) => ({ id, anzahl: w.anzahl,
+                         ...(w.laenge ? { laenge: w.laenge } : {}) }));
+
+  const koerper = teile.length ? SIGNAL_GRUPPEN.map(([g, titel, offen]) => {
+    const l = teile.filter((t) => t.gruppe === g);
+    if (!l.length) return '';
+    const gewaehlt = l.some((t) => wert(t).anzahl > 0);
+    return `<details class="sig-gruppe"${offen || gewaehlt ? ' open' : ''}>
+      <summary>${esc(titel)} <span class="ablage-meta">${l.length} Teile</span></summary>
+      <table class="dt sig-tab"><thead><tr><th>Teil</th><th class="num">A quer / längs [m²]</th>
+        <th class="num">Masse [kg]</th><th>L [m]</th><th>Anzahl</th></tr></thead>
+        <tbody>${l.map(zeile).join('')}</tbody></table></details>`;
+  }).join('') + `<p class="notiz sig-summe">${summeHtml()}</p>
+    <p class="notiz">G = Anzahl · Masse / 100 kN (wie die Mappe, 10 N/kg);
+      A quer trifft der Wind quer zum Gleis (x), A längs der Wind längs zum Gleis (y).
+      Den Angriffspunkt setzt man danach in der Karte.</p>`
+    : '<p class="notiz">Die Datenbasis führt keine Signalteile (Tabelle «Signalteile» im Sortiment der Anbauteile).</p>';
+
+  const d = app.dialog('Signalbauer', koerper,
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-sig-ok${teile.length ? '' : ' disabled'}>Übernehmen</button>`,
+    'dialog-signal');
+  const n = d.node;
+  const neuSumme = () => { const p = n.querySelector('.sig-summe'); if (p) p.innerHTML = summeHtml(); };
+  n.querySelectorAll('.sig-n').forEach((inp) => {
+    inp.oninput = () => {
+      const id = inp.dataset.sig;
+      const v = Math.max(0, Math.round(parseFloat(inp.value) || 0));
+      e.set(id, { ...(e.get(id) ?? { laenge: null }), anzahl: v });
+      inp.closest('tr')?.classList.toggle('an', v > 0);
+      neuSumme();
+    };
+  });
+  n.querySelectorAll('.sig-l').forEach((inp) => {
+    inp.oninput = () => {
+      const id = inp.dataset.sig;
+      const v = parseFloat(inp.value);
+      e.set(id, { ...(e.get(id) ?? { anzahl: 0 }), laenge: v > 0 ? v : null });
+      neuSumme();
+    };
+  });
+  n.querySelector('[data-sig-ok]').onclick = () => {
+    d.zu();
+    fertig(liste());
+  };
+  return d;
 }

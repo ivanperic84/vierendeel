@@ -77,6 +77,69 @@ function db() {
   return DB;
 }
 
+/* ===========================================================================
+ * >>> DER SIGNALBAUER (30. September). <<<
+ * ===========================================================================
+ *
+ * Weisung: «die signaleteile zu einem separatem signalbauer, da kann man die
+ * teile auswählen und die resultierende last wird dann daraus berechnet und
+ * man muss nur noch den angriffspunkt wie bei den übrigen bauteilen
+ * definieren. Die Tragwerksteile für die Signalaufhängung können auch
+ * separat aufgeführt werden …». Auf Rückfrage: ein Signal-Anbauteil, das
+ * seine Auswahl behält und wieder bearbeitbar ist; die Tragwerksteile als
+ * eigene Gruppe im selben Bauer.
+ *
+ * Gerechnet wird wie in den Signal-Blättern der Mappe: G = n · Masse / 100
+ * (die Mappe setzt 10 N/kg an, gegen 9.81 um 2 % auf der sicheren Seite),
+ * A = n · Fläche; bei Tragwerksteilen beides je Meter mal Länge. Der Wind
+ * folgt dann wie beim freien Bauteil aus A · q_ref(EK) · c, mit dem
+ * Profilbeiwert 1.4 der Mappe (RTE 27200) als Vorgabe.
+ *
+ * Die Summe wird bei JEDER Rechnung aus der Tabelle gebildet, nicht
+ * abgelegt: «Massgebend sind die Daten» - ändert die Tabelle einen Wert,
+ * rechnet jedes gespeicherte Signal mit ihm.
+ * =========================================================================== */
+
+/** Profilbeiwert der Signal-Blätter (RTE 27200) - Vorgabe am Signalmodul. */
+export const SIGNAL_CW = 1.4;
+/** kN je kg, wie die Mappe rechnet (10 N/kg). */
+export const SIGNAL_KN_JE_KG = 0.01;
+
+/** Die Signalteile der Tabelle (leer ohne Tabelle). */
+export function signalteile() {
+  return Array.isArray(DB?.signalteile) ? DB.signalteile : [];
+}
+
+/** Ist dieses Modul ein Signal (Signalbauer)? */
+export const istSignalModul = (m) => m?.signalbauer === true || Array.isArray(m?.signal);
+
+/**
+ * Gewicht und Flächen einer Signalauswahl.
+ * @param {{id:string, anzahl:number, laenge?:number}[]} auswahl
+ * @returns {{eigengewicht:number, aQuer:number, aLaengs:number,
+ *            zeilen:object[], fehlt:string[]}}
+ */
+export function signalFlaeche(auswahl) {
+  const tab = new Map(signalteile().map((t) => [t.id, t]));
+  let G = 0, aQ = 0, aL = 0;
+  const zeilen = [], fehlt = [];
+  (auswahl ?? []).forEach((s) => {
+    const n = Math.max(0, Math.round(Number(s?.anzahl) || 0));
+    if (!n) return;
+    const t = tab.get(s.id);
+    if (!t) { fehlt.push(String(s.id)); return; }
+    const jeMeter = (Number(t.laenge) || 0) > 0;
+    const L = jeMeter ? (Number(s.laenge) > 0 ? Number(s.laenge) : Number(t.laenge)) : 1;
+    const g = n * (Number(t.masse) || 0) * L * SIGNAL_KN_JE_KG;
+    const q = n * (Number(t.aQuer) || 0) * L;
+    const l = n * (Number(t.aLaengs) || 0) * L;
+    G += g; aQ += q; aL += l;
+    zeilen.push({ id: t.id, name: t.name, gruppe: t.gruppe, anzahl: n,
+                  laenge: jeMeter ? L : null, G: g, aQuer: q, aLaengs: l });
+  });
+  return { eigengewicht: G, aQuer: aQ, aLaengs: aL, zeilen, fehlt };
+}
+
 /**
  * Eigene Vorlagen aus dem Projektstand.
  *
@@ -971,10 +1034,13 @@ export function expandiereAnbauteile(liste, o = {}) {
         ? (m.laenge ?? spannweite) : (m.laenge ?? LAENGE_STANDARD);
       const n = m.anzahl ?? 1;
       // Freies Bauteil: nicht aus der Tabelle, sondern über die Angriffsfläche.
+      // Beim Signal (30. Sept.) kommen Gewicht und Flächen aus der Auswahl.
+      const ff = b.freieFlaeche && istSignalModul(m)
+        ? { ...signalFlaeche(m.signal), cw: m.cw ?? SIGNAL_CW } : m;
       const w = b.freieFlaeche
-        ? { Gz: (m.eigengewicht ?? 0) * n,
-            Qx: windAusFlaeche(m.aQuer ?? 0, ek, m.cw ?? 1.4) * n,
-            Qy: windAusFlaeche(m.aLaengs ?? 0, ek, m.cw ?? 1.4) * n }
+        ? { Gz: (ff.eigengewicht ?? 0) * n,
+            Qx: windAusFlaeche(ff.aQuer ?? 0, ek, ff.cw ?? 1.4) * n,
+            Qy: windAusFlaeche(ff.aLaengs ?? 0, ek, ff.cw ?? 1.4) * n }
         : flLastwerte(m.bauteil, { ek, laenge, anzahl: n });
 
       // Umlenkkraft im Bogen: ständige Last in Jochachse. Das VORZEICHEN

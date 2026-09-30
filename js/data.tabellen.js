@@ -160,7 +160,15 @@ export const AUFBAU = {
         { name: 'module', pfad: 'module' },
         { name: 'lasten', pfad: 'lasten' },
       ],
-    }],
+    },
+    /*
+     * >>> DIE SIGNALTEILE (30. September). <<<
+     * Weisung: «die signaleteile zu einem separatem signalbauer, da kann man
+     * die teile auswählen und die resultierende last wird dann daraus
+     * berechnet». Die Liste der Signal-Blätter der Einwirkungs-Mappe - je
+     * Teil Flächen und Masse; der Signalbauer summiert daraus.
+     */
+    { name: 'signalteile', pfad: 'signalteile', schluessel: 'id' }],
   },
 };
 

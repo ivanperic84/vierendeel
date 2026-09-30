@@ -23523,7 +23523,8 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
 
   // Zwoelf seit dem 24. September: die Mastfundamente (siehe data.katalog.js).
   // Dreizehn seit dem 26. September: der Tragausleger im Abfangjoch-Sortiment.
-  pruef('Dreizehn Abschnitte', K.ABSCHNITTE.length, 13, 1e-12, 'Stk');
+  // Vierzehn seit dem 30. September: die Signalteile (Signalbauer).
+  pruef('Vierzehn Abschnitte', K.ABSCHNITTE.length, 14, 1e-12, 'Stk');
   wahr('Jeder Abschnitt nennt Sortiment, Tabelle und Schluessel',
        K.ABSCHNITTE.every((a) => TBF.SORTIMENTE.includes(a.db) && a.tabelle && a.schluessel));
   wahr('Jeder Abschnitt ist Norm oder Sortiment',
@@ -23607,7 +23608,7 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
     }
     const gesamt = K.pruefeBestand(baum);
     pruef('Die Pruefung am Baum sagt dasselbe', gesamt.fehler.length, 0, 1e-12, 'Stk');
-    pruef('… ueber alle dreizehn Abschnitte', gesamt.abschnitte.length, 13, 1e-12, 'Stk');
+    pruef('… ueber alle vierzehn Abschnitte', gesamt.abschnitte.length, 14, 1e-12, 'Stk');
   }
 
   // --- Was die Pruefung abweisen muss -----------------------------------------
@@ -23722,9 +23723,10 @@ titel('61  Der Feldkatalog und das Fenster der Bauteildaten');
      * Fundamenttabelle steht im Sortiment der Masten, weil sie genau
      * das ist - eine Zuordnung zum Masttyp. NEUN seit dem 26. September:
      * der Tragausleger steht im Abfangjoch-Sortiment (gleiche Bauart).
+     * ZEHN seit dem 30. September: die Signalteile bei den Anbauteilen.
      */
-    wahr('Sortiment: neun Abschnitte in sechs Dateien',
-         sort.length === 9 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
+    wahr('Sortiment: zehn Abschnitte in sechs Dateien',
+         sort.length === 10 && new Set(K.abschnitteVon('sortiment').map((a) => a.db)).size === 6,
          sort.join(','));
     wahr('Alle Normabschnitte stehen in der Normdatei',
          K.abschnitteVon('norm').every((a) => a.db === 'normen'));
@@ -33530,6 +33532,58 @@ titel('159  Einwirkungs-Mappe: Konsolen, Armaturen, Trafo, Wind auf den Tragausl
          && !(m.hinweise ?? []).some((h) => /nicht angesetzt - das Sortiment/.test(h)));
   }
   );
+}
+
+titel('160  Signalbauer: Auswahl, Summe wie die Mappe, Signal-Anbauteil');
+/* ===========================================================================
+ * Weisung 30. September («signalbauer»), auf Rückfrage: ein Signal-
+ * Anbauteil, das seine Auswahl behält; die Tragwerksteile als eigene Gruppe.
+ * Gegengerechnet am Beispiel der Signal-Blätter (Summenzeile der Mappe).
+ * ========================================================================= */
+{
+  const A160 = await import(J('data.anbauteile.js'));
+  const FL160 = await import(J('data.fl.js'));
+  const t = A160.signalteile();
+  wahr('Die Tabelle führt die Signalteile in drei Gruppen', t.length > 30
+       && ['signal', 'korb', 'tragwerk'].every((g) => t.some((x) => x.gruppe === g)),
+       `${t.length} Teile`);
+  // Das Beispiel der Mappe: hängendes Signal schmal, Hauptsignal N,
+  // Geschwindigkeitssignal N, Kennzeichnung - je 1.
+  const bsp = ['sig-12', 'sig-35', 'sig-36', 'sig-38'].map((id) => ({ id, anzahl: 1 }));
+  const sf = A160.signalFlaeche(bsp);
+  pruef('Beispiel der Mappe: Eigengewicht', sf.eigengewicht, 1.65, 1e-9, 'kN');
+  pruef('… Fläche quer', sf.aQuer, 0.78, 1e-9, 'm²');
+  pruef('… Fläche längs', sf.aLaengs, 1.30, 1e-9, 'm²');
+  pruef('… Wind quer EK2 (Summenzeile der Mappe)', FL160.windAusFlaeche(sf.aQuer, 'EK2', A160.SIGNAL_CW), 1.2012, 1e-9, 'kN');
+  pruef('… Wind längs EK2', FL160.windAusFlaeche(sf.aLaengs, 'EK2', A160.SIGNAL_CW), 2.002, 1e-9, 'kN');
+  // Ein Tragwerksteil rechnet je Meter: Ausleger RRW, Standardlänge und eigene.
+  const aus = t.find((x) => x.id === 'sig-01');
+  pruef('Tragwerksteil mit Standardlänge: G = Masse · L / 100',
+        A160.signalFlaeche([{ id: 'sig-01', anzahl: 1 }]).eigengewicht, aus.masse * aus.laenge / 100, 1e-9, 'kN');
+  pruef('… mit eigener Länge 3 m, zwei Stück: Fläche quer',
+        A160.signalFlaeche([{ id: 'sig-01', anzahl: 2, laenge: 3 }]).aQuer, 2 * aus.aQuer * 3, 1e-9, 'm²');
+  wahr('Ein Teil, das die Tabelle nicht mehr führt, wird genannt',
+       A160.signalFlaeche([{ id: 'sig-XX', anzahl: 1 }]).fehlt[0] === 'sig-XX');
+  // Das Anbauteil: Vorlage «signal», das Modul rechnet aus der Auswahl.
+  const a = A160.neuesAnbauteil('signal', 5);
+  wahr('Vorlage «Signal» legt ein Signalmodul an', A160.istSignalModul(a.module[0]));
+  const mit = { ...a, module: [{ ...a.module[0], signal: bsp }] };
+  const s = A160.baugruppeSumme(mit, { ek: 'EK2', spannweite: 40, R: 0 });
+  pruef('Das Signal-Anbauteil trägt G wie die Mappe', Math.abs(s.Gz), 1.65, 1e-9, 'kN');
+  pruef('… Wind quer', Math.abs(s.Qx), 1.2012, 1e-9, 'kN');
+  pruef('… Wind längs', Math.abs(s.Qy), 2.002, 1e-9, 'kN');
+  wahr('Die Auswahl übersteht das Normalisieren (Laden eines Standes)',
+       JSON.stringify(A160.normalisiereAnbauteil(mit).module[0].signal) === JSON.stringify(bsp));
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Die Karte zeigt die Summe und öffnet den Bauer; die Tragwerksteile eingeklappt im Bauer',
+       /data-signalbauer=/.test(uq) && /SIGNALBAUER\(m\.signal \?\? \[\], \(neu\) => setzeModul\(idx, mod, 'signal', neu\)\)/.test(uq)
+       && /\['tragwerk', 'Tragwerksteile der Signalaufhängung[^']*', false\]/.test(dq)
+       && /ui\.setzeSignalbauer\(/.test(APP_QUELLE()));
+  // Im Browser gefunden: die Karte blieb nach «Übernehmen» auf «0 Posten»
+  // stehen - die Auswahl fehlte in der Signatur der Maske.
+  wahr('Die Auswahl gehört zur Signatur der Anbauteil-Karte',
+       /Array\.isArray\(m\.signal\)\s*\? m\.signal\.map\(\(s\) => `\$\{s\.id\}\*\$\{s\.anzahl\}/.test(uq));
 }
 
 // ===========================================================================
