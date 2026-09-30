@@ -76,6 +76,8 @@ import { BETRIEBSWIND } from './core.lasten.js';
 export const VERFORMUNG_GRENZEN = {
   spitzeMitG: 100,
   spitzeWind: 200,
+  // Nachweis der Mastspitze seit dem 30. September: L/100 unter Betriebswind.
+  spitzeBetrieb: 100,
   auslegerQuer: 0.040,
 };
 
@@ -201,10 +203,22 @@ export function nurWindFaelle(lf) {
  *                    mit, ihr Vorzeichen bleibt, also fällt kein Seil
  *                    anders aus.
  *
+ * >>> DIE MASTSPITZE IST WIEDER EIN NACHWEIS (30. September). <<<
+ *
+ * Weisung: «bei der gebrauchstauglichkeit die mastspize auslenkung infolge
+ * wind 1:100 anwenden. und unter den optionen deaktivierbar machen als
+ * unterpunkt». Auf Rückfrage «Betriebswind ψ 0.70»: dieselben Fälle wie
+ * der 40-mm-Nachweis (nur Wind, charakteristisch × 0.70), Grenzwert
+ * Mastlänge/100, in Gleis- und in Querrichtung. Abschaltbar als
+ * Nachweisgruppe `spitzeMast` (core.checks.js), Vorgabe an. Ausgeschaltet
+ * bleibt die Spitze Auskunft wie seit dem 26. September.
+ *
  * @param {object} kombi Ergebnis aus `vergleichKombinationen`
+ * @param {object} [opt] { spitze: Nachweis der Mastspitze führen }
  * @returns {object|null} je Ende die massgebenden Werte, oder null
  */
-export function verformungsNachweis(kombi) {
+export function verformungsNachweis(kombi, opt = {}) {
+  const mitSpitze = opt.spitze === true;
   const lf = kombi?.lastfaelle ?? [];
   const mitG = lf.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(lf);
@@ -261,6 +275,7 @@ export function verformungsNachweis(kombi) {
       stelle ? pruef(querS, VERFORMUNG_GRENZEN.auslegerQuer,
                      `${stelle.was} auf ${stelle.z.toFixed(2)} m quer `
                      + `zum Gleis, nur Wind`, stelle.z) : null,
+      mitSpitze ? spitzeNachweis(spitzeW, L) : null,
     ].filter(Boolean);
     /*
      * DIE AUSKUNFT: dieselbe Rechnung, aber ohne Grenzwert und ohne eta.
@@ -270,7 +285,7 @@ export function verformungsNachweis(kombi) {
     const auskunft = [
       spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, ständig + Betriebswind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
-      spitzeW ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
+      spitzeW && !mitSpitze ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
     ].filter(Boolean);
     /*
@@ -283,8 +298,8 @@ export function verformungsNachweis(kombi) {
      * deshalb kommt der Grund mit, und die Anzeige nennt ihn.
      */
     if (!nw.length) {
-      proEnde[ende] = { L, stelle: null, nachweise: [], auskunft,
-                        ohneStelle: true, eta: null, ok: null };
+      proEnde[ende] = { L, stelle, nachweise: [], auskunft,
+                        ohneStelle: !stelle, eta: null, ok: null };
       return;
     }
 
@@ -303,5 +318,21 @@ export function verformungsNachweis(kombi) {
     ok: gefuehrt.length ? gefuehrt.every((e) => e.ok) : null,
     ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
+    spitze: mitSpitze,
   };
+}
+
+/**
+ * Der Nachweis der Mastspitze - eine Stelle für Kern und Stabwerk.
+ * `mess` ist der grösste Weg unter Betriebswind in x oder y (m), `L` die
+ * Mastlänge über dem Fundament.
+ */
+export function spitzeNachweis(mess, L) {
+  if (!mess || !(L > 0)) return null;
+  const grenz = L / VERFORMUNG_GRENZEN.spitzeBetrieb;
+  return { ...mess, grenz, eta: mess.wert / grenz, ok: mess.wert <= grenz + 1e-12,
+           z: L, spitze: true,
+           was: `Mastspitze auf ${L.toFixed(2)} m, `
+              + `${mess.achse === 'x' ? 'quer zum Gleis' : 'in Gleisrichtung'}, `
+              + `Betriebswind, L/${VERFORMUNG_GRENZEN.spitzeBetrieb}` };
 }

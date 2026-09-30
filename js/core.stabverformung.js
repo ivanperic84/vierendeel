@@ -43,7 +43,7 @@
 
 import { qsWerte } from './core.stabwerk.js';
 import { anteileFuer } from './core.stabnachweis.js';
-import { VERFORMUNG_GRENZEN, nurWindFaelle } from './core.verformung.js';
+import { VERFORMUNG_GRENZEN, nurWindFaelle, spitzeNachweis } from './core.verformung.js';
 import { BETRIEBSWIND } from './core.lasten.js';
 
 const RICHT = { X: 0, Y: 1, Z: 2 };
@@ -147,6 +147,7 @@ export function mastWeg(dat, lsg, anteile, zug, h) {
  */
 export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
   if (!kern) return null;
+  const mitSpitze = kern.spitze === true;
   const mitG = faelle.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(faelle);
   const achsIdx = { x: 0, y: 1 };
@@ -175,24 +176,25 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
     const auskunft = [
       spitzeG ? { ...spitzeG, z: L, was: 'Mastspitze, ständig + Betriebswind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
-      spitzeW ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
+      spitzeW && !mitSpitze ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
     ].filter(Boolean);
-    if (!stelle) {
-      proEnde[ende] = { ...k, auskunft, quelle: 'stabwerk' };
-      return;
-    }
-    const querS = grosste(nurW, BETRIEBSWIND, stelle.z, ['x']);
+    const querS = stelle ? grosste(nurW, BETRIEBSWIND, stelle.z, ['x']) : null;
     const grenz = VERFORMUNG_GRENZEN.auslegerQuer;
-    const nw = querS ? [{ ...querS, grenz, eta: querS.wert / grenz,
-      ok: querS.wert <= grenz + 1e-12, z: stelle.z,
-      was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` }] : [];
+    // Die Mastspitze L/100 (30. September) - geführt, wie der Kern es sagt.
+    const nw = [
+      querS ? { ...querS, grenz, eta: querS.wert / grenz,
+        ok: querS.wert <= grenz + 1e-12, z: stelle.z,
+        was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
+      mitSpitze ? spitzeNachweis(spitzeW, L) : null,
+    ].filter(Boolean);
     if (!nw.length) {
       proEnde[ende] = { ...k, auskunft, quelle: 'stabwerk' };
       return;
     }
-    proEnde[ende] = { L, stelle, nachweise: nw, auskunft, massgebend: nw[0],
-                      eta: nw[0].eta, ok: nw[0].ok, quelle: 'stabwerk',
+    const schlimmste = nw.reduce((a, b) => (b.eta > a.eta ? b : a));
+    proEnde[ende] = { L, stelle, nachweise: nw, auskunft, massgebend: schlimmste,
+                      eta: schlimmste.eta, ok: nw.every((q) => q.ok), quelle: 'stabwerk',
                       kern: k.massgebend?.wert ?? null };
   });
   const enden = Object.values(proEnde);
@@ -204,6 +206,7 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
     ok: gefuehrt.length ? gefuehrt.every((x) => x.ok) : null,
     ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
+    spitze: mitSpitze,
     quelle: 'stabwerk',
   };
 }

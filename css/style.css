@@ -1220,6 +1220,10 @@ button.wz-haupt:hover { color: var(--on); }
 .nw-wahl.fehlt label { cursor: default; opacity: .72; }
 .nw-titel { font-weight: 600; color: var(--on); }
 .nw-wahl .notiz { margin: 3px 0 0 24px; }
+/* Unterpunkt (30. September): die Mastspitze unter «Gebrauchstauglichkeit» */
+.nw-ober { margin: 12px 0 0; padding-top: 8px; border-top: 1px solid var(--ol); font-weight: 600; color: var(--dim); font-size: 12px; }
+.nw-wahl.nw-unter { margin-left: 18px; }
+.nw-ober + .nw-wahl { border-top: 0; }
 /* Der Knopf zur Sortimentssuche steht rechts im Urteil - er ist die
    Antwort auf «und was jetzt», nicht Teil der Aussage selbst. */
 .urteil .btn-mini { margin-left: auto; align-self: center; }
@@ -3004,7 +3008,17 @@ body.datei-ueber::after {
   line-height: 1; color: var(--dim); pointer-events: none; white-space: nowrap;
 }
 .qp-bandname.an { color: var(--acc); }
-.qp-band .qp-mastmass { padding-top: 21px; font-size: 9px; }
+.qp-band .qp-mastmass { padding-top: 34px; font-size: 9px; }
+/* HOEHER IM BAND (30. September): «diese schemaskizze kann etwas höher
+   sein, dann wirkt sie nicht so gestaucht.» Mast und Anker im Lageband
+   um das 1.6-Fache - der Anker behaelt seine Gestalt (viewBox skaliert),
+   sein Gelenk sitzt weiter knapp unter dem Mastkopf. Die Mastzeilen und
+   die Kacheln bleiben, wie sie sind. */
+.qp-band .qp-mast { height: 32px; }
+.qp-band .qp-mast-marke { height: 24px; }
+.qp-band .qp-mast-fuss { top: 25px; }
+.qp-band .qp-ankerstrich { width: 32px; height: 27px; }
+.qp-band .qp-ankerstrich svg { width: 32px; height: 27px; }
 .qp-band .qp-boden { height: 1px; }
 .qp-skala {
   display: flex; justify-content: space-between; margin: 0 8px 6px;

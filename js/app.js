@@ -16,7 +16,7 @@ import { berechne, modell, modellEinzelmast,
          vergleichMassvarianten, vergleichKombinationen,
          schnittstellen, auflagerBlatt } from './core.vierendeel.js';
 import { konstruktionsChecks, fluchtChecks, hinweise, urteilKonstruktion, bauteilUrteil,
-         klassifizierung, urteilFusszeile, mitBauteilen } from './core.checks.js';
+         klassifizierung, urteilFusszeile, mitBauteilen, nachweiseAuswahl } from './core.checks.js';
 import { spannweiteImSortiment, NORMENSAETZE, erkenneNormensatz,
          lastfaelle, ekVonWindklasse } from './core.lasten.js';
 import { diagramme, abfangDiagramme, ankerDiagramm,
@@ -921,7 +921,9 @@ function neuRechnen(neuZeichnen = true) {
      * faerbt das Urteil NICHT - die Urteilsfarbe folgt allein der
      * Tragsicherheit (Entscheid vom 18. September).
      */
-    erg.verformung = verformungsNachweis(kombiMast);
+    // Die Mastspitze L/100 ist abschaltbar (Nachweisgruppe `spitzeMast`, 30. Sept.).
+    erg.verformung = verformungsNachweis(kombiMast,
+      { spitze: nachweiseAuswahl(werte.nachweise).spitzeMast });
     // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
     // misst (28. September) - sonst stand dort eine 0.
     setzeFdAutomatik(erg.verformung?.A?.stelle ?? erg.verformung?.B?.stelle ?? null);

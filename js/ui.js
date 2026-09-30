@@ -2061,8 +2061,8 @@ export function querprofilLeisteHtml(werte) {
   }).join('');
 
   return `<div class="qp-leiste" data-qp-von="${von}" data-qp-bis="${bis}">
-      <div class="qp-band qp-bahn" style="height:${hoehe + 34}px">
-        <span class="qp-boden" style="top:${hoehe + 18}px"></span>
+      <div class="qp-band qp-bahn" style="height:${hoehe + 48}px">
+        <span class="qp-boden" style="top:${hoehe + 28}px"></span>
         ${bandLinien}${bandMasten}
       </div>
       <div class="qp-skala"><span>${von.toFixed(1)} m</span>
@@ -5369,7 +5369,8 @@ export function gzgKacheln(erg) {
      * die: «auf welcher höhe werden die 150mm berechnet?»
      */
     const wo = Number.isFinite(mg.z)
-      ? `${q.stelle?.was ?? 'Messstelle'} ${mg.z.toFixed(2)} m · ` : '';
+      // Die Mastspitze L/100 (30. September) nennt sich selbst.
+      ? `${mg.spitze ? 'Mastspitze' : (q.stelle?.was ?? 'Messstelle')} ${mg.z.toFixed(2)} m · ` : '';
     /*
      * >>> EINE VERWORFENE EINGABE WIRD GENANNT (26. September). <<<
      *
@@ -5811,7 +5812,8 @@ export function gzgBlockHtml(erg, quelle = '') {
   const psi = erg?.verformung?.psi;
   // Die Quelle steht dabei wie an den Gruppen der Nachweise (28. Sept.).
   return `${abschnitt('Gebrauchstauglichkeit',
-    [psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / 40 mm` : '', quelle]
+    [psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / `
+      + (erg.verformung.spitze ? '40 mm bzw. L/100' : '40 mm') : '', quelle]
       .filter(Boolean).join(' · '))}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
       : `<p class="leer">${erg?.verformung?.ohneStelle
@@ -8571,8 +8573,9 @@ export function nachweiseHtml(werte) {
   return `<p class="notiz">Ein nicht geführter Nachweis zählt <b>nie als
     erfüllt</b>. Er wird im Urteil, im Bericht und in der Ausleitung
     ausdrücklich als nicht geführt genannt.</p>`
-    + NACHWEISGRUPPEN.map((g) => `
-    <div class="nw-wahl${g.vorhanden ? '' : ' fehlt'}">
+    + NACHWEISGRUPPEN.map((g, i) => `${g.ober && NACHWEISGRUPPEN[i - 1]?.ober !== g.ober
+      ? `<p class="nw-ober">${esc(g.ober)}</p>` : ''}
+    <div class="nw-wahl${g.vorhanden ? '' : ' fehlt'}${g.ober ? ' nw-unter' : ''}">
       <label>
         <input type="checkbox" data-nachweis="${esc(g.key)}"
           ${nw[g.key] ? 'checked' : ''}${g.vorhanden ? '' : ' disabled'}>

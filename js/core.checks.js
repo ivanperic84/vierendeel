@@ -245,6 +245,23 @@ export const NACHWEISGRUPPEN = [
        + 'fällt kleiner aus als am freistehenden Kragarm. Der '
        + 'St.-Venant-Anteil bleibt in beiden Fällen aussen vor — am '
        + 'eingespannten Fuss trägt er nichts' },
+  /* =======================================================================
+   * >>> DIE MASTSPITZE L/100 - EIN UNTERPUNKT DER GEBRAUCHSTAUGLICHKEIT. <<<
+   * =====================================================================
+   *
+   * Weisung vom 30. September: «bei der gebrauchstauglichkeit die
+   * mastspize auslenkung infolge wind 1:100 anwenden. und unter den
+   * optionen deaktivierbar machen als unterpunkt». `ober` stellt ihn in
+   * den Optionen eingerückt unter die Überschrift «Gebrauchstauglichkeit».
+   * Vorgabe an. Er färbt wie die 40 mm am Fahrdraht nur die
+   * Gebrauchstauglichkeit, nicht die Tragsicherheit.
+   */
+  { key: 'spitzeMast', titel: 'Mastspitze L/100', vorhanden: true, standard: true,
+    ober: 'Gebrauchstauglichkeit',
+    was: 'Auslenkung der Mastspitze infolge Wind — Betriebswind ψ 0.70 '
+       + '(nur Wind, charakteristisch × 0.70), in Gleis- und in '
+       + 'Querrichtung, Grenzwert Mastlänge/100. Ausgeschaltet steht die '
+       + 'Auslenkung weiter als Auskunft da' },
 ];
 
 /** Voreinstellung je Gruppe. */

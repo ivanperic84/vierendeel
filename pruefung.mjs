@@ -10333,14 +10333,15 @@ titel('41  Welche Nachweise gefuehrt werden');
      * abschaltbaren Nachweise, und ein nicht gefuehrter zaehlt von
      * selbst nie als erfuellt.
      */
-    wahr('Sieben Gruppen, in der Reihenfolge der Weisungen',
+    // Seit dem 30. September acht: die Mastspitze L/100 als Unterpunkt.
+    wahr('Acht Gruppen, in der Reihenfolge der Weisungen',
          g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,'
-                       + 'knickenMast,fundament,torsionMast',
+                       + 'knickenMast,fundament,torsionMast,spitzeMast',
          g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Sechs davon gibt es',
+    wahr('Sieben davon gibt es',
          da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast,'
-                        + 'fundament,torsionMast',
+                        + 'fundament,torsionMast,spitzeMast',
          da.join(','));
     wahr('Das Fundament ist voreingestellt an - es gehoert zum Tragwerk',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'fundament')?.standard === true);
@@ -33676,6 +33677,44 @@ titel('165  Spreizung der Aufhängung 0.80 m; alte Vorgabe wird angehoben');
        JSON.stringify([alt.auslegerSpreizung, alt.weitere[0].auslegerSpreizung]));
   const nochmal = A.standAnheben({ ...alt, auslegerSpreizung: 1 });
   wahr('Wer danach wieder 1.0 m einträgt, behält sie', nochmal.auslegerSpreizung === 1);
+}
+
+titel('166  Gebrauchstauglichkeit: Mastspitze L/100 unter Betriebswind, abschaltbar');
+{
+  const N166 = await import(J('core.nachbarn.js'));
+  const V166 = await import(J('core.vierendeel.js'));
+  const VF166 = await import(J('core.verformung.js'));
+  const CH166 = await import(J('core.checks.js'));
+  const lauf = (w) => {
+    const s2 = N166.rechensatzMitNachbarn(w);
+    return V166.vergleichKombinationen(s2, ...N166.kernArgumente(s2));
+  };
+  const k = lauf({ ...standardwerte() });
+  const aus = VF166.verformungsNachweis(k);
+  const an = VF166.verformungsNachweis(k, { spitze: true });
+  const sp = an.A.nachweise.find((x) => x.spitze);
+  const ausk = aus.A.auskunft.find((x) => /nur Wind/.test(x.was));
+  wahr('Vorgabe an, Unterpunkt der Gebrauchstauglichkeit',
+       CH166.nachweiseStandard().spitzeMast === true
+       && CH166.NACHWEISGRUPPEN.find((g) => g.key === 'spitzeMast')?.ober === 'Gebrauchstauglichkeit');
+  wahr('Ausgeschaltet: kein Nachweis an der Spitze, sie bleibt Auskunft',
+       !aus.A.nachweise.some((x) => x.spitze) && !!ausk && aus.spitze === false);
+  pruef('Eingeschaltet: derselbe Weg wie die Auskunft (nur Wind × 0.70)',
+        sp?.wert, ausk?.wert, 1e-12, 'm');
+  pruef('Grenzwert Mastlänge / 100', sp?.grenz, an.A.L / 100, 1e-12, 'm');
+  wahr('Das eta der Kachel ist das grössere der beiden',
+       Math.abs(an.A.eta - Math.max(...an.A.nachweise.map((x) => x.eta))) < 1e-12,
+       `Spitze ${sp?.eta?.toFixed(4)} (${(sp?.wert * 1000).toFixed(1)} mm von `
+       + `${(sp?.grenz * 1000).toFixed(1)} mm, ${sp?.achse}), Fahrdraht ${aus.A.eta.toFixed(4)}`);
+  console.log(`      J90/20 m Standard: Spitze ${(sp.wert * 1000).toFixed(2)} mm / `
+    + `${(sp.grenz * 1000).toFixed(1)} mm (η ${sp.eta.toFixed(3)}, ${sp.achse}); `
+    + `Fahrdraht η ${aus.A.eta.toFixed(3)} -> Kachel η ${an.A.eta.toFixed(3)}`);
+  const uq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
+  wahr('Die Anwendung reicht die Wahl an den Kern',
+       /verformungsNachweis\(kombiMast,\s*\{ spitze: nachweiseAuswahl\(werte\.nachweise\)\.spitzeMast \}\)/.test(uq));
+  const sq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
+  wahr('Das Stabwerk folgt dem Kern (kern.spitze)',
+       /const mitSpitze = kern\.spitze === true/.test(sq) && /spitzeNachweis\(spitzeW, L\)/.test(sq));
 }
 
 // ===========================================================================
