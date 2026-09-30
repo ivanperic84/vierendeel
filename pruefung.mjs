@@ -33908,6 +33908,13 @@ titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einze
   wahr('Berichtsleiste im eigenen Fenster: frei bis zu den Knöpfen, ziehbar',
        /#bericht-ebene \.bericht-leiste \{[^}]*env\(titlebar-area-width[^}]*app-region: drag/.test(wco)
        && /#bericht-ebene \.bericht-leiste button, #bericht-ebene \.bericht-leiste label \{[^}]*app-region: no-drag/.test(wco));
+  // Befund 30. Sept.: die Regel stand VOR der Grundregel der Leiste, deren
+  // `padding` sie bei gleicher Spezifität wieder aufhob - sie war da und
+  // wirkte nicht. Sie muss danach stehen.
+  const grund = css.indexOf('#bericht-ebene .bericht-leiste { display: flex;');
+  const ausweich = css.indexOf('padding-right: calc(14px + 100vw - env(titlebar-area-width');
+  wahr('… und steht NACH der Grundregel der Leiste (sonst hebt deren padding sie auf)',
+       grund > 0 && ausweich > grund, `Grundregel ${grund}, Ausweichen ${ausweich}`);
 }
 
 titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt');
