@@ -8,8 +8,8 @@
  * Kontextobjekt aus app.js. Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { dialogMast, dialogTragwerk } from './app.dialoge.js';
-import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, tauscheAktives, tragwerkHinzu, tragwerkName, tragwerkPos, tragwerkTeil, tragwerkeSortiert, tragwerkeVon, tragwerksart, versteckt } from './core.constants.js';
+import { dialogAnker, dialogMast, dialogTragwerk } from './app.dialoge.js';
+import { TRAGWERKSARTEN, aufRaster, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkHinzu, tragwerkName, tragwerkPos, tragwerkTeil, tragwerkeSortiert, tragwerkeVon, tragwerksart, versteckt } from './core.constants.js';
 import { flBauteile, getFlBauteil } from './data.fl.js';
 import { hatTraeger, passeTraegerAn, rasterGesetzt, rasterNormVon } from './core.anbauteile.js';
 import { esc } from './design.js';
@@ -358,7 +358,8 @@ export function kontextMast(app, mastId, twId) {
    * Traeger gibt. Beim Einzelmasten waere «Masten ausschalten» der Auftrag,
    * das Tragwerk abzuschaffen.
    */
-  if (t && tragwerksart(t).traeger) {
+  // Nicht am Tragausleger - er hängt immer am Masten (30. September).
+  if (t && tragwerksart(t).traeger && tragwerksart(t).key !== 'tragausleger') {
     p.push('-');
     p.push({ text: `Masten von ${tragwerkPos(app.werte, t)} (${tragwerkName(t, app.werte)}) `
       + (t.mastVorhanden === false ? 'einschalten' : 'ausschalten'),
@@ -372,6 +373,41 @@ export function kontextMast(app, mastId, twId) {
    */
   traegt.forEach((tid) => p.push('-', ...tragwerkAbschnitt(app, tid)));
   return p;
+}
+
+/**
+ * >>> DER ANKER IM KONTEXTMENÜ (30. September). <<<
+ *
+ * Weisung: «kontext menue beim anker auch ergänzen, sinngemäss wie bei den
+ * restlichen tragwerksteilen.» Der Rechtsklick auf Stab oder Fundament des
+ * Ankers führte bis hierher ins Menü des Tragwerks - der Anker selbst kam
+ * darin nicht vor. Jetzt: bearbeiten (Dialog), in der Seitenleiste
+ * bearbeiten, entfernen, heranzoomen; darunter die Einträge seines Masten,
+ * dem er gehört.
+ */
+export function kontextAnker(app, mastId, twId) {
+  const m = mastenVon(app.werte).find((x) => x.id === mastId);
+  if (!m?.anker) return kontextMast(app, mastId, twId);
+  const name = mastName(app.werte, m);
+  return [
+    { kopf: `${m.anker.typ || 'Anker'} an ${name}` },
+    { text: 'Anker bearbeiten …', tun: () => dialogAnker(app, mastId) },
+    { text: 'In der Seitenleiste bearbeiten', tun: () => {
+      app.aendern('mastAktiv', mastId);
+      app.zeigeFeld('ankerTyp');
+    } },
+    { text: 'Auf den Anker zoomen',
+      tun: () => { app.station = null; app.ansicht.station = null;
+                   app.ansicht.zoomAuf(m.x, null, 2); } },
+    { text: 'Anker entfernen', tun: () => {
+      app.werte = setzeMastAnker(app.werte, mastId, null);
+      app.werte = { ...app.werte, mastAktiv: mastId };
+      app.neuRechnen();
+    } },
+    '-',
+    { kopf: name },
+    ...kontextMast(app, mastId, twId),
+  ];
 }
 
 /** Die Einträge eines Tragwerks unter seinem Namen - für Mast und Grund. */
@@ -687,12 +723,14 @@ export function naechsterMast(app, wo, bis) {
 export function kontextImModell(app, k) {
   const twId = k.twId ?? app.werte.twId ?? 'T1';
   let punkte;
-  if (k.was === 'mast') {
+  if (k.was === 'mast' || k.was === 'anker') {
     // Das Ende gehoert dem Tragwerk, an dem der Mast gezeichnet wurde.
     const t = tragwerkeSortiert(app.werte).find((x) => x.id === twId);
     const [a, b] = t ? mastenFuer(app.werte, t) : [null, null];
     const m = k.mastEnde === 'B' ? b : a;
-    punkte = m ? kontextMast(app, m.id, twId) : [];
+    punkte = !m ? []
+      : k.was === 'anker' ? kontextAnker(app, m.id, twId)
+      : kontextMast(app, m.id, twId);
   } else if (k.was === 'anbauteil' && k.anbauteil !== null) {
     punkte = kontextAnbauteil(app, k.anbauteil);
   } else if (k.was === 'tragwerk') {

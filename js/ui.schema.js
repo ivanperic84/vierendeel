@@ -824,7 +824,10 @@ export const FELDER = [
    */
   { key: 'mastVorhanden', gruppe: 'mast', typ: 'schalter',
     label: 'Tragwerk steht auf Masten', standard: true,
-    sichtbar: (w) => tragwerksart(w).traeger === true,
+    // Nicht beim Tragausleger (30. September): er hängt am Masten, ohne
+    // ihn gibt es ihn nicht.
+    sichtbar: (w) => tragwerksart(w).traeger === true
+      && tragwerksart(w).key !== 'tragausleger',
     hinweis: 'Aus: das Tragwerk wird ohne Masten gerechnet und gezeichnet — '
            + 'es steht dann auf der eingestellten Auflagerbedingung. Derselbe '
            + 'Schalter sitzt als Symbol in der Tragwerksleiste.' },
@@ -848,7 +851,9 @@ export const FELDER = [
     label: (w) => `Mastnummer ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: '', wertAus: amMast('nummer', 'mastNummer'),
     sichtbar: (w) => mastDa(w),
-    hinweis: 'Reale Nummer aus dem Querprofil (z. B. 16.2). Ersetzt M1 in '
+    // Meist ganze Zahlen (30. September: «die msten werden meist mit
+    // ganzen zahlen ohne punkt beschriftet»).
+    hinweis: 'Reale Nummer aus dem Querprofil (z. B. 14). Ersetzt M1 in '
            + 'Anzeige, Bericht und Excel; gerechnet und ausgeleitet wird '
            + 'weiter unter M1. Leer: M1.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
@@ -1081,7 +1086,9 @@ export const FELDER = [
     sym: 'Δz_F', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5,
     min: -3, max: 3,
     wertAus: amMast('fuss', 'mastFuss'),
-    sichtbar: (w) => mastDa(w),
+    // Nicht am Einzelmasten (30. September, Rückfrage «Ausblenden»): dort
+    // regiert die Länge; siehe `einzelmastFussAnheben`.
+    sichtbar: (w) => mastDa(w) && tragwerksart(w).key !== 'einzelmast',
     hinweis: (w) => `Versatz des Fusspunktes gegen die Bezugshöhe, positiv `
            + `nach oben. 0 = Fuss genau ${anschlusshoeheVon(w).toFixed(2)} m `
            + `unter der Jochachse; negativ bei fallendem Gelände oder tieferer `

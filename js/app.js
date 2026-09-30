@@ -87,7 +87,7 @@ import { ladeAbfangjoche, abfangjoche, abfangDbDa,
          abfangLaengenbereich, abfangLaengen,
          getAbfangjoch, abfangDB, setzeAbfangDB,
          tragauslegerNaechsteLaenge, getTragausleger,
-         tragauslegerLaengenbereich } from './data.abfangjoche.js';
+         tragauslegerLaengenbereich, tragauslegerMastVorgabe } from './data.abfangjoche.js';
 /*
  * DAS ANKERSORTIMENT - Zug-/Druckstuetzen und Seilanker am Masten. Wie das
  * Abfangjoch-Sortiment ist es keine Voraussetzung: wer keinen Anker hat,
@@ -2274,6 +2274,38 @@ function aendern(key, wert) {
       mastNachfuehren();
     }
     neuRechnen();
+    return;
+  }
+  /*
+   * >>> BEIM ANBAU EINES TRAGAUSLEGERS WAECHST DER MAST MIT (30. September). <<<
+   * Weisung: «beim anbau von tragauslegern den mast automatisch verlängern
+   * und mit info versehen wie bis anhin am oberen bildschimrand.» Die
+   * Aufhängung greift b über dem Ausleger am Masten an; ein Mast, der
+   * darunter endet, trägt sie nicht (Befund «Mast zu kurz»). Beim Anbau -
+   * aus dem Dialog, als neues Tragwerk oder als Artwechsel - wird er deshalb
+   * auf H + b (halber Meter) gebracht, wenn seine eingetragene Länge nicht
+   * reicht oder er einem anderen Tragwerk gehört (dort gilt sonst dessen
+   * kürzere Vorgabe). Danach bleibt die Länge dem Nutzer: wer sie später
+   * kürzer stellt, bekommt die Warnung, nicht ein zweites Verlängern.
+   */
+  if (key === 'auslegerMastAnbau') {
+    if (tragwerksart(werte).key !== 'tragausleger') return;
+    const satz = rechensatz(werte);
+    const H = Number(satz.mastH) || 0;
+    const noetig = tragauslegerMastVorgabe(satz, H);
+    const t = tragwerkeVon(werte).find((x) => x.id === (werte.twId ?? 'T1'));
+    const m = t ? mastenFuer(werte, t)[0] : null;
+    if (!m || !(noetig > 0)) return;
+    const eingetragen = Number(satz.mastLaenge) || 0;
+    const geteilt = tragwerkeVon(werte).some((x) => x.id !== t.id
+      && mastenFuer(werte, x).some((mm) => mm?.id === m.id));
+    const zuKurz = eingetragen > 0 ? eingetragen < noetig - 1e-9 : geteilt;
+    if (!zuKurz) return;
+    aendern('mastAktiv', m.id);
+    aendern('mastLaenge', noetig);
+    meldeImBalken(`Mast ${mastName(werte, m)} auf ${noetig.toFixed(2)} m verlängert`
+      + `${eingetragen > 0 ? ` (war ${eingetragen.toFixed(2)} m)` : ''} - die Aufhängung `
+      + 'des Tragauslegers greift b über dem Ausleger am Masten an.');
     return;
   }
   if (key === 'tragwerkWeg') {

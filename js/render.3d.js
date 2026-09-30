@@ -2642,7 +2642,10 @@ export class Modellansicht {
       const tr = this._treffer(e);
       const f = tr?.flaeche;
       const teil = typeof f?.teil === 'string' ? f.teil : '';
+      // Der Anker (Stab und Fundament) hat sein eigenes Menü (30. Sept.).
+      const anker = /^ANKER(FUNDAMENT)?_/.exec(teil);
       const was = teil.startsWith('MAST_') ? 'mast'
+        : anker ? 'anker'
         : f?.anbauteil ? 'anbauteil'
         : f ? 'tragwerk' : 'grund';
       this.opt.beiKontext({
@@ -2650,7 +2653,8 @@ export class Modellansicht {
         // Welches Tragwerk: die Flaeche traegt es seit der Blattszene. Fehlt
         // es, ist es das gerechnete - dann steht nur eines da.
         twId: f?.twId ?? null,
-        mastEnde: was === 'mast' ? teil.slice(5) : null,
+        mastEnde: was === 'mast' ? teil.slice(5)
+          : was === 'anker' ? teil.slice(anker[0].length) : null,
         anbauteil: was === 'anbauteil'
           ? (this.szene?.anbauteile ?? []).find((d) => d.teil === teil)?.index
           : null,

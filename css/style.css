@@ -2337,6 +2337,23 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
     -webkit-app-region: no-drag;
     app-region: no-drag;
   }
+  /* Die Leiste des Nachweisberichts liegt über dem Kopf und damit auch
+     unter den Fensterknöpfen (30. September: «bei der nachweisberichtseite
+     überlagert sich die fenstersteuerung mit dem button der appsteuerung»).
+     Dieselbe Regel wie der Kopf: frei bis zu den Knöpfen, ziehbar. */
+  #bericht-ebene .bericht-leiste {
+    min-height: env(titlebar-area-height, 0px);
+    box-sizing: border-box;
+    padding-left: calc(14px + env(titlebar-area-x, 0px));
+    padding-right: calc(14px + 100vw - env(titlebar-area-width, 100vw)
+                             - env(titlebar-area-x, 0px));
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+  #bericht-ebene .bericht-leiste button {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
 }
 
 /* Eine Datei schwebt über dem Fenster (dateiEmpfang in js/pwa.js). Nur ein

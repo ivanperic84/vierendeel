@@ -137,6 +137,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Mast wächst beim Anbau des Tragauslegers (30. Sept.) | «beim anbau von tragauslegern den mast automatisch verlängern und mit info versehen wie bis anhin am oberen bildschimrand» - beantwortet die Frage (a) automatisch / (b) Warnung. Nach «Setzen» im Dialog (neu oder Artwechsel) bringt `auslegerMastAnbau` (app.js) den Masten auf H + b (halber Meter), wenn seine eingetragene Länge nicht reicht oder ein anderes Tragwerk ihn trägt; Meldung im Balken oben. Danach bleibt die Länge dem Nutzer (kürzer gestellt: Warnung). Im Browser: Mast 14 auf 9 m, zweiter Ausleger L 10 m an Mast 14 → «Mast 14 auf 12.50 m verlängert (war 9.00 m)». Die Stabwerk-Sperre für einen Ausleger an einem geteilten Masten bleibt (*Offene Punkte*) |
+| Kleinigkeiten 30. Sept. (Anker, Masten-Schalter, Δz_F, Berichtsleiste) | «kontext menue beim anker auch ergänzen»: Rechtsklick auf Stab oder Fundament des Ankers → «Anker bearbeiten …», Seitenleiste, zoomen, entfernen, darunter die Einträge des Masten (`kontextAnker`). «diese option bei einem tragausleger entfernen» → «Tragwerk steht auf Masten» und «Masten … ausschalten» nicht beim Ausleger; alte Stände mit aus stehen wieder auf dem Masten. Δz_F am Einzelmasten auf Rückfrage **«Ausblenden»** (gemessen: mit Länge kein η, ohne Länge eine zweite Tür zur Länge); ein gespeicherter Versatz wird in die Länge überführt und auf 0 gesetzt (`einzelmastFussAnheben`), gleiches η. «die msten werden meist mit ganzen zahlen ohne punkt beschriftet» → Beispiel im Hinweis «z. B. 14». Leiste des Nachweisberichts weicht im installierten Fenster den Fensterknöpfen aus (Window Controls Overlay; im Browserbereich nicht prüfbar) |
 | Grenzwerte der Gebrauchstauglichkeit (30. Sept.) | «unter den optionen sollte man noch die grenzwerte definieren können für fahrdraht und mastspitze»: zwei Felder unter *Optionen → Nachweise*, unter der Gebrauchstauglichkeit - `gzgGrenzeFahrdraht` [mm], Vorgabe 40, und `gzgGrenzeSpitze` (n in L/n), Vorgabe 100; leer oder ≤ 0 = Vorgabe. Eine Stelle (`verformungGrenzen`, core.verformung.js); der Kern gibt die Zahlen im Ergebnis mit (`grenzen`), Stabwerk, Kachelkopf und Bericht lesen sie dort. Im Browser: 30 mm / L/150 → Kopf «η = w / 30 mm bzw. L/150», Kachel «Mastspitze 12.50 m · 83 mm zulässig» |
 | Tragausleger mit zu kurzem Mast (30. Sept.) | Gemeldet: «checke die mastschieber beim tragausleger, wenn ich da eine grenze über oder unterschreite blendet sich ein jochtragwerk ein». Befund: bei Mastlänge < H + b brach `tragauslegerModell` ab, das 3D fiel aufs Ersatzjoch (vier Winkel, zwei Masten) und die Seitenleiste zeigte Obergurt L 90×90×9, «Ende B», Anker, Fundament und η des Phantomjochs. Jetzt: das Bild baut weiter (`opt.bild`), zeigt den Masten in seiner eingetragenen Länge und die Warnung «MAST ZU KURZ FÜR DIE AUFHÄNGUNG · mindestens …» in der Fehlfarbe; die Seitenleiste zeigt «Tragausleger – nicht gerechnet», η «–», keine Mast-/Anker-/Fundament-/Verformungszahlen, keine Schnittgrössen oder Stellen des Ersatzjochs. Rechnen (Kern, Stabwerk, AxisVM) bricht weiter ab wie am 28. Sept. entschieden |
 | Kacheln und Farbpunkte (30. Sept.) | «mach den hintergrund highlight aus und nur an wenn man darüberfährt mit dem zeiger» - die Tragwerk-Kacheln sind durchsichtig, unter dem Zeiger `--acc-s`. Zu den Anbauteil-Vorlagen «ich verstehe die farbzuweisung hier nicht»: der Punkt ist die Befestigungsart (Feld `farbe` im Sortiment: hängend, aufgesetzt, seitlich, direkt) - jetzt als Titel am Punkt und als Legende über den Kacheln. **Vorgemerkt:** Symbolbilder statt Punkte, «diese könnte man aus den querprofilen ableiten»; danach eine «maschine … die automatisch die querprofile interpretieren kann und ein modell daraus ableiten kann» - ausdrücklich erst nach den offenen Punkten |
@@ -274,12 +276,22 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5897 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5912 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., Mast wächst mit dem Ausleger, Anker im Kontextmenü, Δz_F am
+  Einzelmasten weg, Berichtsleiste** (Prüfstand 168). Browserprobe in einem
+  eigenen Tab mit abgeschaltetem Speichern. **Beobachtet, nicht behoben:**
+  der Stab des Ankers ist im 3D nur rund 2 px dick und mit der Maus schwer
+  zu treffen; bei zwei Auslegern am selben Masten nennt das Kontextmenü
+  das zweite Tragwerk mit der alten Mastlänge («HEB 260 · 9.00 m»), der
+  bekannte Punkt «Geteilter Mast mit zwei verschiedenen Mastlängen».
+  Entschieden und noch zu bauen: Tabelle der Reaktionskräfte (Rückfragen
+  «Mit Havarie getrennt», «Beides») und das Vorzeichen der Eingabe
+  («Eingabe nach 3D»), siehe *Offene Punkte*.
 - **30. Sept., Grenzwerte GZG in den Optionen, Ausleger mit zu kurzem Mast,
   Kacheln** (Entscheide siehe *Entschieden*, Prüfstand 167). Im Browser in
   einem zweiten Tab mit abgeschaltetem Speichern geprüft - der Auftraggeber
@@ -2107,6 +2119,27 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- **Tabelle der Reaktionskräfte (30. Sept., entschieden, im Bau).**
+  Weisung: «kannst du noch die mappe wo die reaktionskräfte zusammengefasst
+  sind lesen und diese tabelle als output hier in der app anbieten, man
+  sollte die charakteristischen lasten hier aufführen (massgebend in quer
+  und längsrichtung) ohne abminderung der windlasten mit 0.7 faktor. bei
+  einer jochreihe alle Auflager aufführen. und in der tabelle
+  zusammentragen auf dem blatt noch eine kleine übersichtskizze zum
+  tragwerk aufführen. setze noch die hinweistexte und die konvention des
+  achssystem (beachte noch das die druckkräfte positiv sind auf der
+  tabelle)». Vorbild: Blatt «Zusammenfassung» der Einwirkungs-Mappe (je
+  Mast- und Ankerfundament V min/max, M_q, H_q, M_l, H_l, T, Aufteilung
+  ständig/veränderlich, Zeile der Standardlasten; Koordinaten X quer, Y
+  längs, Z nach unten). Auf Rückfrage: **Havarie als eigene Zeile**,
+  **im Reiter Auflager und als Blatt im Export**.
+- **Vorzeichen der lotrechten Eingabe (30. Sept., entschieden, offen).**
+  «bei uns ist es auch der fall bei der eingabe, aber die konvention gemäss
+  des achssystems im 3d wäre eigentlich negativ, dass sollten wir noch
+  berichtigen.» Auf Rückfrage **«Eingabe nach 3D»**: Eingabe und Anzeige
+  mit z nach oben (Gewicht negativ), alte Stände und Sortiment beim Laden
+  einmal umgerechnet, der Kern rechnet weiter mit dem Betrag; nur die
+  Reaktionstabelle zählt Druck positiv wie die Mappe.
 - ⚠ **Tragausleger am Masten eines Jochs wird im Stabwerk nicht gerechnet**
   (Sperre in `reiheOhneStabmodell`: Aufhängung, Knicken und Fundament des
   Auslegers rechnet `rechneStabwerk` nur für den Ausleger allein). Setzen
@@ -2410,7 +2443,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5897 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5912 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

@@ -33818,6 +33818,77 @@ titel('167  Tragausleger: zu kurzer Mast im Bild; Grenzwerte GZG in den Optionen
        uq.includes('class="kachel-legende"') && uq.includes('Befestigung: ${ANBAU_FARBE_NAME'));
 }
 
+titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einzelmasten, Berichtsleiste');
+/* ===========================================================================
+ * Weisungen 30. September: «beim anbau von tragauslegern den mast
+ * automatisch verlängern und mit info versehen», «kontext menue beim anker
+ * auch ergänzen», «diese option bei einem tragausleger entfernen» (Tragwerk
+ * steht auf Masten), «diese eingabe bei einzelmasten auf notwendigkeit
+ * prüfen» (Δz_F, Rückfrage «Ausblenden»), die Fensterknöpfe über der
+ * Leiste des Nachweisberichts, Mastnummer als ganze Zahl im Beispiel.
+ * ========================================================================= */
+{
+  const S168 = await import(J('ui.schema.js'));
+  const N168 = await import(J('core.nachbarn.js'));
+  const V168 = await import(J('core.vierendeel.js'));
+  const feld = (k) => S168.FELDER.find((f) => f.key === k);
+  const ta = { ...standardwerte(), tragwerksart: 'tragausleger', L: 11 };
+  const em = { ...standardwerte(), tragwerksart: 'einzelmast' };
+  wahr('«Tragwerk steht auf Masten» nicht beim Tragausleger, weiter beim Joch',
+       !feld('mastVorhanden').sichtbar(ta) && feld('mastVorhanden').sichtbar(standardwerte()));
+  wahr('Ein alter Ausleger mit Masten aus steht wieder auf dem Masten',
+       A.standAnheben({ ...ta, mastVorhanden: false }).mastVorhanden !== false);
+  const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('… und das Kontextmenü bietet «Masten ausschalten» dort nicht an',
+       kq.includes("tragwerksart(t).key !== 'tragausleger'"));
+  wahr('Mastnummer: das Beispiel ist eine ganze Zahl',
+       /z\. B\. 14\)/.test(String(feld('mastNummer').hinweis)));
+
+  // Beim Anbau wächst der Mast bis H + b.
+  const app = APP_QUELLE();
+  wahr('Der Dialog ruft nach dem Setzen «auslegerMastAnbau» (neu und Artwechsel)',
+       (app.match(/aendern\('auslegerMastAnbau', true\)/g) ?? []).length === 2);
+  wahr('… der verlängert auf die Vorgabe H + b und meldet es oben',
+       /key === 'auslegerMastAnbau'[\s\S]{0,1600}aendern\('mastLaenge', noetig\);[\s\S]{0,200}meldeImBalken\(`Mast \$\{mastName/.test(app));
+  pruef('Die Vorgabe: L 11 m, H 7.50 m -> H + b auf den halben Meter',
+        AJ.tragauslegerMastVorgabe({ L: 11 }, 7.5), 13.0, 1e-12, 'm');
+
+  // Der Anker im Kontextmenü.
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Ein Rechtsklick auf Stab oder Fundament des Ankers meldet «anker»',
+       r3.includes("/^ANKER(FUNDAMENT)?_/.exec(teil)") && r3.includes(": anker ? 'anker'"));
+  wahr('Das Menü: bearbeiten, Seitenleiste, zoomen, entfernen, dann der Mast',
+       ['Anker bearbeiten …', 'In der Seitenleiste bearbeiten', 'Auf den Anker zoomen',
+        'Anker entfernen', '...kontextMast(app, mastId, twId)'].every((t) => kq.includes(t))
+       && kq.includes("k.was === 'anker' ? kontextAnker(app, m.id, twId)"));
+
+  // Δz_F am Einzelmasten.
+  wahr('Δz_F steht am Einzelmasten nicht mehr, am Joch weiter',
+       !feld('mastFuss').sichtbar(em) && feld('mastFuss').sichtbar(standardwerte()));
+  const rechne = (w) => {
+    const s2 = N168.rechensatzMitNachbarn(w);
+    const k = V168.vergleichKombinationen(s2, ...N168.kernArgumente(s2));
+    return Math.max(...Object.values(k.ergebnisse).map((e) => e.mast?.A?.eta ?? 0));
+  };
+  const alt = { ...em, mastVorhanden: true, mastProfil: 'HEB 260', mastH: 9,
+                mastLaenge: 0, mastFuss: -1, xLage: 0 };
+  const neu = A.standAnheben(alt);
+  wahr('Ein alter Stand mit Δz_F −1 m und ohne Länge: Länge 11 m eingetragen, Δz_F 0',
+       neu.mastLaenge === 11 && neu.mastFuss === 0, `${neu.mastLaenge} / ${neu.mastFuss}`);
+  pruef('… und er rechnet gleich weiter', rechne(neu), rechne(alt), 1e-12);
+  const mitL = A.standAnheben({ ...alt, mastLaenge: 12 });
+  wahr('Mit eingetragener Länge bleibt sie, der Versatz fällt weg',
+       mitL.mastLaenge === 12 && mitL.mastFuss === 0);
+  wahr('Das Eingelesene selbst bleibt unverändert', alt.mastFuss === -1 && alt.mastLaenge === 0);
+
+  // Die Leiste des Berichts weicht den Fensterknöpfen aus.
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  const wco = css.slice(css.indexOf('@media (display-mode: window-controls-overlay) {'));
+  wahr('Berichtsleiste im eigenen Fenster: frei bis zu den Knöpfen, ziehbar',
+       /#bericht-ebene \.bericht-leiste \{[^}]*env\(titlebar-area-width[^}]*app-region: drag/.test(wco)
+       && /#bericht-ebene \.bericht-leiste button \{[^}]*app-region: no-drag/.test(wco));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

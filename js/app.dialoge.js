@@ -94,7 +94,7 @@ export function dialogAnker(app, mastId = null) {
     <div class="feld"><label for="dlg-ank-mast">An welchem Masten</label>
       <select id="dlg-ank-mast">${mastenVon(app.werte).map((x, j) =>
         `<option value="${esc(x.id)}"${x.id === m.id ? ' selected' : ''}
-          >M${j + 1} · ${esc(x.profil ?? 'ohne Profil')} · x ${
+          >${esc(mastName(app.werte, x) || `M${j + 1}`)} · ${esc(x.profil ?? 'ohne Profil')} · x ${
             x.x.toFixed(2)} m${x.anker?.typ
               ? ` — trägt schon ${esc(x.anker.typ)}` : ''}</option>`
         ).join('')}</select>
@@ -874,6 +874,8 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
         if (istAusleger()) {
           app.aendern('L', e.L);
           app.aendern('auslegerSeite', e.seite);
+          // Der Mast wächst bis zur Aufhängung mit (30. September).
+          app.aendern('auslegerMastAnbau', true);
           return;
         }
         if (artDef().traeger) {
@@ -907,6 +909,8 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
         app.aendern('mastAktiv', m1.id);
         app.aendern('mastH', e.H);
       }
+      // Nach der Höhe: der Mast wächst bis zur Aufhängung mit (30. Sept.).
+      if (istAusleger()) app.aendern('auslegerMastAnbau', true);
     };
   }
   verdrahte();

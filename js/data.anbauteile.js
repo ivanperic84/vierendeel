@@ -45,6 +45,7 @@ import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
 import { LEERE_KRAFT } from './core.anbauteile.js';
 import { mastAnbauVon, mastenVon } from './core.constants.js';
+import { einzelmastLaenge } from './core.auflager.js';
 
 let DB = null;
 
@@ -917,6 +918,15 @@ function tragwerkAnheben(t) {
     w.auslegerSpreizung = 0.4;
   }
   w.spreizungAngehoben = true;
+  /*
+   * DER TRAGAUSLEGER STEHT IMMER AUF SEINEM MASTEN (30. September: «diese
+   * option bei einem tragausleger entfernen» - gemeint «Tragwerk steht auf
+   * Masten»). Ohne Mast gibt es kein Tragwerk, das Modell bräche ab. Ein
+   * alter Stand mit dem Schalter aus steht wieder auf dem Masten.
+   */
+  if (w.tragwerksart === 'tragausleger' && w.mastVorhanden === false) {
+    delete w.mastVorhanden;
+  }
   return w;
 }
 
@@ -956,7 +966,44 @@ export function standAnheben(w) {
       return n;
     });
   }
-  return erg;
+  return einzelmastFussAnheben(erg);
+}
+
+/**
+ * >>> KEIN FUSSPUNKT AM EINZELMASTEN (30. September). <<<
+ *
+ * Weisung «diese eingabe bei einzelmasten auf notwendigkeit prüfen», auf
+ * Rückfrage «Ausblenden». Gemessen: mit eingetragener Länge änderte Δz_F
+ * kein η (HEB 260: 0.3379 bei 0, −1, +1 m), er verschob nur den Masten im
+ * Blatt; ohne Länge verlängerte er ihn (0.2353 → 0.2843 bei −1 m) - eine
+ * zweite Tür zur Mastlänge. Das Feld steht am Einzelmasten nicht mehr da;
+ * ein gespeicherter Versatz wird in die Länge überführt, die er bewirkte
+ * (ausdrücklich eingetragen), und auf 0 gesetzt - der Mast rechnet gleich.
+ * Masten, die auch ein anderes Tragwerk trägt, bleiben unberührt.
+ */
+function einzelmastFussAnheben(roh) {
+  // Kopien - der eingelesene Stand bleibt, wie er war.
+  const w = { ...roh,
+    ...(Array.isArray(roh.masten) ? { masten: roh.masten.map((m) => ({ ...m })) } : {}),
+    ...(Array.isArray(roh.weitere) ? { weitere: roh.weitere.map((t) => ({ ...t })) } : {}) };
+  const alle = [w, ...(Array.isArray(w.weitere) ? w.weitere : [])];
+  const nurEinzel = (x) => alle.filter((t) => Math.abs((Number(t?.xLage) || 0) - x) < 0.1)
+    .every((t) => t?.tragwerksart === 'einzelmast');
+  alle.forEach((t) => {
+    if (t?.tragwerksart !== 'einzelmast' || !nurEinzel(Number(t.xLage) || 0)) return;
+    const x = Number(t.xLage) || 0;
+    const m = Array.isArray(w.masten)
+      ? w.masten.find((mm) => Math.abs((Number(mm?.x) || 0) - x) < 0.1) : null;
+    const fuss = Number(m?.fuss ?? t.mastFuss) || 0;
+    if (!fuss) return;
+    const laengeRoh = Number(m?.laenge ?? t.mastLaenge) || 0;
+    const laenge = laengeRoh > 0 ? laengeRoh
+      : einzelmastLaenge({ ...t, mastLaenge: 0, mastFuss: fuss });
+    if (m) { m.laenge = laenge; m.fuss = 0; }
+    t.mastLaenge = laenge;
+    t.mastFuss = 0;
+  });
+  return w;
 }
 
 /**
