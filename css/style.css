@@ -2693,7 +2693,11 @@ body.datei-ueber::after {
 /* Die Achse, die aus der Ebene zeigt, steht zurueck. */
 .skizze .mt  { stroke: var(--xdim); stroke-width: 1; fill: none; }
 .skizze .mtf { fill: var(--xdim); stroke: none; }
-.al-skizze { margin: 0; flex: 1 1 168px; min-width: 0; max-width: 340px; }
+/* NEBENEINANDER AUCH IN DER GEWOHNTEN BREITE (30. September, «die linke
+   sidebar breite so einstellen, dass die ... skizzen nebeneinander zu liegen
+   kommen, da sie sonst übergross sind»): Mindestbreite 136 statt 168 px -
+   bei 386 px Seitenleiste passen beide in eine Zeile. */
+.al-skizze { margin: 0; flex: 1 1 136px; min-width: 0; max-width: 340px; }
 /* UNTEREINANDER NICHT GROESSER ALS NEBENEINANDER (28. September, «die
    skizzen der auflger sind übereinander zu gross, kann man sie auf die
    grösse limitieren wie im bild wo sie nebeneinander sind?»). Bricht der
@@ -3194,7 +3198,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
   align-items: center; gap: 3px; }
 /* Das Symbol oben, die Anschrift klein darunter (30. September). */
 .qp-kachel .qp-symbol { width: 44px; height: 29px; flex-shrink: 0; }
-.qp-kachel span { color: var(--on2); }
+.qp-kachel span { color: var(--on2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .qp-kachel:hover { background: var(--s2); }
 .qp-kachel:active { cursor: grabbing; }
 .qp-kachel-anker { border-style: dashed; background: transparent; color: var(--on2); }
@@ -3204,7 +3208,10 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
    Selbst gezeichnet statt accent-color - dort haben Balken und Punkt
    dieselbe Farbe. Gefüllt bis --p (ui.schieberFuellen).
    --------------------------------------------------------------------------- */
-:root { --schieber-fuell: color-mix(in srgb, var(--acc) 45%, #ffffff); }
+/* Balken zurückhaltender (30. Sept., «transparenter, sie wirken sonst zu
+   stark im Kontrast»): beide Teile durchscheinend, der Punkt voll. */
+:root { --schieber-fuell: color-mix(in srgb, var(--acc) 42%, transparent);
+        --schieber-leer: color-mix(in srgb, var(--ol2) 55%, transparent); }
 input[type=range] {
   -webkit-appearance: none; appearance: none; background: transparent;
   height: 18px; cursor: pointer;
@@ -3213,18 +3220,19 @@ input[type=range]:focus { outline: none; }
 input[type=range]::-webkit-slider-runnable-track {
   height: 4px; border-radius: 2px;
   background: linear-gradient(to right, var(--schieber-fuell) 0 var(--p, 0%),
-                                        var(--ol2) var(--p, 0%) 100%);
+                                        var(--schieber-leer) var(--p, 0%) 100%);
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
-  width: 14px; height: 14px; border-radius: 50%; margin-top: -5px;
-  background: var(--acc); border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--acc);
+  /* Ein einfacher Punkt, kein Doppelkreis (30. September). */
+  width: 12px; height: 12px; border-radius: 50%; margin-top: -4px;
+  background: var(--acc); border: none; box-shadow: none;
 }
-input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--acc-s), 0 0 0 1px var(--acc); }
-input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--ol2); }
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--acc-s); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--schieber-leer); }
 input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--schieber-fuell); }
 input[type=range]::-moz-range-thumb {
   width: 12px; height: 12px; border-radius: 50%;
-  background: var(--acc); border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--acc);
+  background: var(--acc); border: none; box-shadow: none;
 }
 input[type=range]:disabled { opacity: .45; cursor: default; }

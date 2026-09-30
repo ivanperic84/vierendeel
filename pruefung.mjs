@@ -33517,11 +33517,12 @@ titel('162  Kacheln mit Symbol; Schieber mit hellerem Balken; Ausleger am Jochma
   wahr('Jede Kachel trägt ein Symbol, die Anschrift darunter',
        ['joch', 'einzelmast', 'tragausleger', 'abfangjoch', 'anker']
          .every((k) => new RegExp(`${k}: tws\\(`).test(uq))
-       && /\$\{TW_SYMBOLE\[x\.key\] \?\? ''\}<span>\$\{esc\(x\.label\)\}<\/span>/.test(uq)
+       && /\$\{TW_SYMBOLE\[x\.key\] \?\? ''\}<span>\$\{esc\(KACHEL_NAME\[x\.key\] \?\? x\.label\)\}<\/span>/.test(uq)
        && /\.qp-kachel \.qp-symbol \{/.test(css));
   // Schieber: selbst gezeichnet, der Balken bis --p in der helleren Farbe.
   wahr('Der Balken ist heller als der Punkt (eigene Farbe, gefüllt bis --p)',
-       /--schieber-fuell: color-mix\(in srgb, var\(--acc\) 45%, #ffffff\)/.test(css)
+       // Seit dem 30. Sept. (zweite Weisung) durchscheinend: «transparenter».
+       /--schieber-fuell: color-mix\(in srgb, var\(--acc\) 42%, transparent\)/.test(css)
        && /::-webkit-slider-runnable-track \{[^}]*var\(--schieber-fuell\) 0 var\(--p, 0%\)/.test(css)
        && /::-webkit-slider-thumb \{[^}]*background: var\(--acc\)/.test(css));
   const el = { type: 'range', min: '8', max: '26.5', value: '20', style: { setProperty(k, v) { this[k] = v; } } };

@@ -2569,7 +2569,7 @@ export class Modellansicht {
    *             rechte/mittlere Taste schieben
    *             Alt + linke Taste     schieben (Geräte ohne rechte Taste)
    *             Rad                   zoomen, auf den Zeiger zu
-   *             Rad quer / Trackpad   schieben
+   *             Rad quer              schieben (senkrecht zoomt, 30. Sept.)
    *             Doppelklick           das getroffene Bauteil heranholen
    *
    *   Finger    ein Finger            drehen
@@ -2830,10 +2830,19 @@ export class Modellansicht {
        * Messung - deshalb bleibt das Kneifen der sichere Weg zum Zoom, und
        * die Tasten + und − tun es ohnehin.
        */
-      const raste = Math.abs(dy);
-      const ausRad = e.deltaMode !== 0
-        || (dx === 0 && raste >= 100 && (raste % 100 === 0 || raste % 120 === 0));
-      if (e.ctrlKey || ausRad) {
+      /*
+       * >>> SEIT DEM 30. SEPTEMBER: SENKRECHT ZOOMT IMMER. <<<
+       * Weisung: «wenn maussteuerung dann beim scrollen nicht nach oben oder
+       * unten schieben sonder zoomen. schieben wird schon mit der mittleren
+       * taste (scrollrad) ermöglicht und intuitiv will man hineinzoomen beim
+       * scroll. die bedienung beim touch so belassen.» Die Rasten-Heuristik
+       * darüber (Vielfache von 100/120 px) verfehlte Räder unter einer
+       * Anzeigeskalierung (125 % meldet 125 px) - sie schoben dann. Jetzt
+       * zoomt jede überwiegend senkrechte Radbewegung; nur waagrechtes
+       * Wischen (Trackpad, Rad quer) schiebt. Touch läuft über die
+       * Zeigerereignisse und ist davon nicht berührt.
+       */
+      if (e.ctrlKey || Math.abs(dy) >= Math.abs(dx)) {
         this._zoome(Math.exp(dy * 0.0012), px, py);
       } else {
         const s = this._dpr();

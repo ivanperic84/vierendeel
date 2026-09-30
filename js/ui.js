@@ -1551,18 +1551,22 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
 const tws = (inhalt) => `<svg class="qp-symbol" viewBox="0 0 48 32" aria-hidden="true"
   fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
   stroke-linejoin="round">${inhalt}</svg>`;
+// Einzeilige Anschrift, damit alle Kacheln gleich hoch sind (30. Sept.);
+// der volle Name steht im Titel.
+const KACHEL_NAME = { tragausleger: 'Tragausleger' };
 const TW_SYMBOLE = {
   joch: tws('<path d="M4 30h40M10 30V6M38 30V6"/>'
     + '<path d="M8 6h32M8 11h32M16 6v5M24 6v5M32 6v5"/>'),
-  einzelmast: tws('<path d="M4 30h40M24 30V4M20 9h8"/>'
-    + '<rect x="20" y="28" width="8" height="3" fill="currentColor" stroke="none"/>'),
-  tragausleger: tws('<path d="M4 30h40M12 30V3"/>'
-    + '<path d="M12 14h32M12 17h32M20 14v3M28 14v3M36 14v3"/>'
-    + '<path d="M12 4l22 10" stroke-dasharray="2.5 2"/>'),
+  // Einzelmast mit einem kurzen Ausleger angedeutet, Ausleger als einfacher
+  // Strich, Anker durchgezogen (Weisung 30. September).
+  einzelmast: tws('<path d="M4 30h40M22 30V4M22 9h12M34 9v4"/>'
+    + '<rect x="18" y="28" width="8" height="3" fill="currentColor" stroke="none"/>'),
+  tragausleger: tws('<path d="M4 30h40M12 30V3M12 15h32"/>'
+    + '<path d="M12 4l22 11" stroke-dasharray="2.5 2"/>'),
   abfangjoch: tws('<path d="M4 30h40M10 30V5M38 30V5"/>'
     + '<path d="M8 6h32M8 8.5h32M8 14h32M8 16.5h32"/>'),
   anker: tws('<path d="M4 30h40M14 30V4"/>'
-    + '<path d="M14 11l24 18" stroke-dasharray="3 2"/>'
+    + '<path d="M14 11l24 18"/>'
     + '<rect x="35" y="28" width="7" height="3" fill="currentColor" stroke="none"/>'),
 };
 
@@ -1590,11 +1594,11 @@ return querprofilLeisteHtml(werte)
         `<button type="button" class="qp-kachel" data-tw-neu="${esc(x.key)}" draggable="true"
            title="${esc(`${x.kurz} - anklicken oder ins 3D ziehen`
              + (x.key === 'tragausleger' ? '; auf einen vorhandenen Masten gezogen, hängt er dort an' : ''))}"
-           >${TW_SYMBOLE[x.key] ?? ''}<span>${esc(x.label)}</span></button>`).join('')
+           >${TW_SYMBOLE[x.key] ?? ''}<span>${esc(KACHEL_NAME[x.key] ?? x.label)}</span></button>`).join('')
     + `<button type="button" class="qp-kachel qp-kachel-anker" data-anker-neu draggable="true"
          title="${esc('Schräger Stab vom Masten zu einem eigenen Fundament, an beiden '
            + 'Enden gelenkig - er trägt nur Normalkraft. Anklicken oder auf einen Masten ziehen.')}"
-         >${TW_SYMBOLE.anker}<span>Zuganker / Druckstütze</span></button>`
+         >${TW_SYMBOLE.anker}<span>Anker</span></button>`
     + '</div>'
     + '<div class="qp-tun">'
     /*
