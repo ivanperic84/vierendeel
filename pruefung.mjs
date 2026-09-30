@@ -33530,7 +33530,7 @@ titel('162  Kacheln mit Symbol; Schieber mit hellerem Balken; Ausleger am Jochma
   wahr('Der Füllstand stimmt (L 20 auf 8 … 26.5 m: 64.86 %)', el.style['--p'] === '64.86%', el.style['--p']);
   wahr('… nachgeführt bei Eingabe, Neuaufbau und nach jeder Rechnung',
        /document\.addEventListener\('input', \(e\) => ui\.schieberFuellen\(e\.target\), true\)/.test(APP_QUELLE())
-       && /new MutationObserver/.test(APP_QUELLE()) && /ui\.schieberFuellenAlle\(\);\s*\}/.test(APP_QUELLE()));
+       && /new MutationObserver/.test(APP_QUELLE()) && /planeStabwerk\(\);\s*ui\.schieberFuellenAlle\(\);/.test(APP_QUELLE()));
   wahr('Neu als Schieber: Kragarm A/B, Konsole, Spannweite der Fahrleitung',
        ['kragA', 'kragB', 'auflagerKonsoleM', 'flSpannweite'].every((k) => S162.feld(k).typ === 'schieber'));
   // Ausleger am Masten eines Jochs: nach aussen, und ehrlich zur Sperre.
@@ -33634,6 +33634,36 @@ titel('163  Stabwerk: Seilanker nur Zug; Anker, Knicken, Fundament je Mast');
        && aq.indexOf('seilAusfall(dat, lsg, seile') < aq.indexOf('stabwerkHuelle(dat, lsg, faelle'));
   wahr('Knicken und Fundament für JEDEN Masten, Anker je Ende aus dem Stabwerk',
        !/traegtJoch/.test(aq) && /fundamentJe\[id\] = /.test(aq) && /ankerJe\[id\] = a/.test(aq));
+}
+
+titel('164  Mastnummer in der Anzeige; Stegskizze schaltet; Titel ohne doppeltes M1');
+{
+  const C164 = await import(J('core.constants.js'));
+  const k = new Map([['M1', '16.2'], ['MT1', 'A7']]);
+  wahr('Die Anzeige tauscht ganze Kennungen, keine Stabnamen',
+       C164.mastAnzeigeText('η M1 · Mast M1/M2 · MT1 · MAST_M1_S1', k)
+         === 'η 16.2 · Mast 16.2/M2 · A7 · MAST_M1_S1',
+       C164.mastAnzeigeText('η M1 · Mast M1/M2 · MT1 · MAST_M1_S1', k));
+  wahr('Ohne Nummern bleibt der Text, wie er ist', C164.mastAnzeigeText('Mast M1', new Map()) === 'Mast M1');
+  wahr('Die Nummer gehört dem Masten (MASTFELDER, «nummer»)',
+       C164.MASTFELDER.some((f) => f.flach === 'mastNummer' && f.am === 'nummer'));
+  const w0 = C164.mastenFest({ ...standardwerte(), tragwerksart: 'einzelmast', mastVorhanden: true, xLage: 0 });
+  const w = C164.setzeMastAngabe(w0, C164.mastenVon(w0)[0].id, 'mastNummer', '16.2');
+  if (w) {
+    const karte = C164.mastAnzeigeKarte(w);
+    wahr('Die Karte führt Kennung -> Nummer', karte.get('M1') === '16.2', JSON.stringify([...karte]));
+  }
+  const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  wahr('Kontextmenü Mast: Steg drehen', /text: `Steg drehen \(jetzt/.test(kq)
+       && /app\.aendern\('mastSteg', jetzt === 'quer' \? 'jochachse' : 'quer'\)/.test(kq));
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Klick auf die Stegskizze schaltet über das Auswahlfeld',
+       /closest\?\.\('\.opt-skizze'\)[\s\S]{0,300}select\[data-feld="mastSteg"\][\s\S]{0,300}sel\.selectedIndex = \(sel\.selectedIndex \+ 1\) % sel\.options\.length/.test(uq));
+  const rq = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Der Titel des Einzelmasten nennt den Namen einmal',
+       /istEinzelmast && m\.twPos && m\.twPos !== mName/.test(rq));
+  wahr('Die Zeichenfläche schreibt durch anzeigeText (Schreiben und Messen)',
+       /this\.ctx\.fillText = \(t, \.\.\.r\) => schreibe\(this\.anzeigeText\(String\(t\)\), \.\.\.r\)/.test(rq));
 }
 
 // ===========================================================================

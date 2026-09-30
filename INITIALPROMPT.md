@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **30. September 2026**; Prüfstand 5857 Kontrollen grün,
+Stand: **30. September 2026**; Prüfstand 5865 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. **Acht Commits seit dem letzten Push
 (`1873231` … `69c1aba`) sind NICHT gepusht** - pushen nur auf Weisung.
 Neu am 29. September abends (Einzelheiten in CLAUDE.md, *Entschieden*):
@@ -184,7 +184,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5857 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5865 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

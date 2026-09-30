@@ -843,6 +843,14 @@ export const FELDER = [
     hinweis: 'Folgt aus der Lage des Tragwerks und der Jochlänge. Am linken '
            + 'Ende verschiebt die Eingabe das Tragwerk, am rechten ändert sie '
            + 'die Jochlänge — dasselbe wie das Ziehen an der Marke.' },
+  // Die reale Mastnummer (30. September) - nur Anzeige, siehe MASTFELDER.
+  { key: 'mastNummer', gruppe: 'mast', typ: 'text',
+    label: (w) => `Mastnummer ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
+    standard: '', wertAus: amMast('nummer', 'mastNummer'),
+    sichtbar: (w) => mastDa(w),
+    hinweis: 'Reale Nummer aus dem Querprofil (z. B. 16.2). Ersetzt M1 in '
+           + 'Anzeige, Bericht und Excel; gerechnet und ausgeleitet wird '
+           + 'weiter unter M1. Leer: M1.' },
   { key: 'mastProfil', gruppe: 'mast', typ: 'auswahl', label: (w) => `Mastprofil ${gewaehlterMast(w) ? mastName(w, gewaehlterMast(w)) : ''}`.trim(),
     standard: 'HEB 260', optionenAus: () => opt(mastprofile(), 'name', 'name'),
     wertAus: amMast('profil', 'mastProfil'),

@@ -337,6 +337,18 @@ export function kontextMast(app, mastId, twId) {
       app.aendern('mastAktiv', mastId);
       app.zeigeFeld('mastProfil');
     } },
+    /*
+     * DIE STEGRICHTUNG DREHEN (30. September, «falls es nicht schon
+     * vorhanden ist, im kontext menue die option aufnehmen»). Sie gehört
+     * dem Masten; derselbe Weg wie das Feld in der Seitenleiste.
+     */
+    { text: `Steg drehen (jetzt ${(m.steg ?? app.werte.mastSteg ?? 'jochachse') === 'quer'
+        ? 'längs zum Gleis' : 'quer zum Gleis'})`,
+      tun: () => {
+        app.aendern('mastAktiv', mastId);
+        const jetzt = m.steg ?? app.werte.mastSteg ?? 'jochachse';
+        app.aendern('mastSteg', jetzt === 'quer' ? 'jochachse' : 'quer');
+      } },
     { text: 'Auf den Masten zoomen',
       tun: () => { app.station = null; app.ansicht.station = null;
                    app.ansicht.zoomAuf(m.x, null, 2); } },

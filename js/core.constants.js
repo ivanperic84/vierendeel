@@ -841,7 +841,39 @@ export const MASTFELDER = [
    * Sonderfälle.
    */
   { flach: 'mastFundament', flachB: 'mastFundamentB', am: 'fundament' },
+  /*
+   * >>> DIE REALE MASTNUMMER (30. September). <<<
+   * Weisung: «bei den Masten die möglichkeit geben, anstatt m1 eine reale
+   * Mastnummer zu schreiben.» Auf Rückfrage «Überall in der Anzeige»: die
+   * Nummer ersetzt M1 in allem, was man liest (Seitenleisten, Dialoge,
+   * 3D, Bericht, Excel); intern und in den AxisVM-Stabnamen bleibt M1
+   * (`mastName`), damit die Namen eindeutig und ohne Sonderzeichen bleiben.
+   */
+  { flach: 'mastNummer', flachB: 'mastNummerB', am: 'nummer' },
 ];
+
+/**
+ * Kennung -> eingetragene Mastnummer, nur für Masten mit Nummer.
+ * Die Kennung ist `mastName` (M1, MT1 …).
+ */
+export function mastAnzeigeKarte(w) {
+  const k = new Map();
+  (mastenVon(w, 0.1, true) ?? []).forEach((m) => {
+    const n = String(m.nummer ?? '').trim();
+    if (n) k.set(mastName(w, m), n);
+  });
+  return k;
+}
+
+/**
+ * Ein Text, wie man ihn liest: jede ganze Kennung M1, M2, MT1 … durch die
+ * Nummer ersetzt. Ganze Wörter - «MAST_M1_S1» (Stabname) bleibt, weil der
+ * Unterstrich zum Wort gehört.
+ */
+export function mastAnzeigeText(s, karte) {
+  if (!karte?.size || s === null || s === undefined) return s;
+  return String(s).replace(/\b(MT?\d+)\b/g, (t) => karte.get(t) ?? t);
+}
 
 /* ===========================================================================
  * WAS NUR DEM MASTEN GEHOERT

@@ -37,6 +37,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          tragwerksart,
          tragwerkTeil,
          MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
+         mastAnzeigeKarte, mastAnzeigeText,
          tragwerkeSortiert, tragwerkSatz, lageVon,
          tragwerkeVon, mastenFuer, lageOrtsnull,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
@@ -253,7 +254,11 @@ if (typeof document !== 'undefined') {
   new MutationObserver(() => {
     if (geplant) return;
     geplant = true;
-    requestAnimationFrame(() => { geplant = false; ui.schieberFuellenAlle(); });
+    requestAnimationFrame(() => {
+      geplant = false;
+      ui.schieberFuellenAlle();
+      ui.mastAnzeigeAnwenden(document.body, anzeigeKarte);
+    });
   }).observe(document.documentElement, { childList: true, subtree: true });
 }
 // Welche Einwirkungskombination im Modell dargestellt wird.
@@ -1071,7 +1076,17 @@ function neuRechnen(neuZeichnen = true) {
   pruefeUngesichert();
   planeStabwerk();
   ui.schieberFuellenAlle();
+  // Die Mastnummer (30. September): Zuordnung neu, auf Bild und Oberfläche.
+  anzeigeKarte = mastAnzeigeKarte(werte);
+  if (ansicht) {
+    const vorher = ansicht.anzeigeText;
+    ansicht.anzeigeText = (t) => mastAnzeigeText(t, anzeigeKarte);
+    if (anzeigeKarte.size || vorher) { ansicht._breiten?.clear?.(); ansicht.zeichne?.(); }
+  }
+  ui.mastAnzeigeAnwenden(document.body, anzeigeKarte);
 }
+/** Kennung -> Mastnummer (siehe MASTFELDER, «nummer»). */
+let anzeigeKarte = new Map();
 
 /**
  * Diagramm im Modellfenster gross zeigen.

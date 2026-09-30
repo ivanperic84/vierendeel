@@ -1779,7 +1779,9 @@ export function erzeugeSzene(m, erg) {
         p: [g.x, 0, g.zKopf + 0.55],
         // Beim Einzelmasten traegt diese eine Anschrift auch die Position -
         // sie ersetzt den Jochtitel, der dort keinen Gegenstand hat.
-        text: `${istEinzelmast && m.twPos ? `${m.twPos} · ` : ''}`
+        // Der Einzelmast heisst wie sein Mast (Entscheid 19. Sept.) - dann
+        // steht der Name einmal, nicht «M1 · M1» (gemeldet 30. Sept.).
+        text: `${istEinzelmast && m.twPos && m.twPos !== mName ? `${m.twPos} · ` : ''}`
             + `${mName ? `${mName} · ` : ''}${md.profil.name}`
             + ` · ${lang.toFixed(2)} m`,
         /*
@@ -2127,6 +2129,18 @@ export class Modellansicht {
   constructor(canvas, opt = {}) {
     this.cv = canvas;
     this.ctx = canvas.getContext('2d');
+    /*
+     * DIE MASTNUMMER AUCH IM BILD (30. September): jede Anschrift geht durch
+     * `anzeigeText` (von app.js gesetzt: M1 -> eingetragene Nummer). Am
+     * Schreiben und Messen zugleich, damit Kästchen und Text zusammenpassen.
+     */
+    this.anzeigeText = (t) => t;
+    if (this.ctx) {
+      const schreibe = this.ctx.fillText.bind(this.ctx);
+      const miss = this.ctx.measureText.bind(this.ctx);
+      this.ctx.fillText = (t, ...r) => schreibe(this.anzeigeText(String(t)), ...r);
+      this.ctx.measureText = (t) => miss(this.anzeigeText(String(t)));
+    }
     this.opt = opt;
     this.szene = null;
     // pan = Verschiebung im Raum; Auge und Blickziel wandern gemeinsam.

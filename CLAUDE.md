@@ -50,6 +50,11 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
   ein Knopf nichts tat.
 - Ehrlich melden: was nicht ging, was nicht geprüft wurde, wo die Anwendung
   auf der unsicheren Seite lag.
+- **Eine unerklärte Änderung im Arbeitsstand zuerst beim Auftraggeber
+  erfragen** (Weisung 30. Sept.: «ich habe die länge vorher geändert. bitte
+  schreibe das für das nächste mal, rückfrage an user»). Er arbeitet im
+  selben Browser mit; eine Zahl, die sich zwischen zwei Blicken geändert
+  hat, kann seine Eingabe sein. Erst fragen, dann suchen.
 - Dateien und Verzeichnisse ausserhalb dieses Projekts nur öffnen, wenn der
   Auftraggeber den Pfad genannt hat.
 - **Committen** nach jedem abgeschlossenen Schritt, auf `main`, Text auf
@@ -223,8 +228,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Havarie je Leiter (19. Sept.) | «nur ein leiter [kann] im havariefall rissen», «als einzelner leiter zählt auch das kettenwerk Fd + Ts», Übersicht mit Auswahl: unter **Lasten → Havarie** je Leiter «kann reissen» und der Zug bei −20 °C in **+y und −y** (leer: Reglagetabelle). Je angehaktem Leiter ein Fall ±y, nur er reisst, dazu «ohne Leiterbruch»; Hülle. Tragjoch/Mast 10 %, Abfangjoch voller Leiterzug (je Kandidat eine Auswertung). Kettenwerk = Module gleicher Bezeichnung. AxisVM: je Leiter `HavarieX|…` (Korrektur), `HavarieY|…|p/m`, Namen kurz «Havarie L1 …». Alte Merker «Bruch» werden beim Laden zur Auswahl (`havarieAnheben`) |
 | Havariefall abschaltbar (20. Sept.) | «den havarielastfall deaktivierbar machen (nachweis / export)»: Schalter **«Havariefall rechnen (Nachweis und Export)»** unter *Lasten → Havarie* (`havarieAus`, Vorgabe **ein**). Aus: keine aussergewöhnlichen Lastfälle (`havarieVorhanden` false) — kein Havarienachweis, keine Havariezeile in der Hülle und im Bericht; die AxisVM-Ausleitung führt weder die Gruppen `HavarieX/Y` noch die Fälle je Leiter, noch deren Lasten und Kombinationen; das Abfangjoch rechnet nur Wind und Schnee leitend (`ohneHavarie`, keine Läufe je Kandidat). Ein Hinweis nennt die Abschaltung, damit sie im Nachweis nicht untergeht |
 | Abfangjoch im Blattmodell (20. Sept.) | «checke die abfangjoch ausleitung auf denselben fehler» → Befund: auf einem Blatt mit mehreren Tragwerken wurde ein Abfangjoch als **Tragjoch** gebaut (vier Winkel L 90×90×9 statt zweier liegender Walzprofile mit Gabel und Kröpfung). Entscheid: **richtig einbauen**. Es baut jetzt sein eigenes Modell (`abfangBau`), örtlich 0…jt, das Blatt verschiebt; Masten unter dem Blattnamen (`MAST_<Stelle>_S<n>`, damit ein geteilter Mast verschmilzt). Lastgruppen: **Leiterzug → G_Ablenk** (ständig und waagrecht wie die Ablenkkräfte), **WindJoch → WindY** («nur ±y, wie die eigene Ausleitung»), SchneeJoch → Schnee, G/G_Anbau/WindX/WindY unverändert. Havarie («gleich mit einbauen»): im Blatt bleibt der Nachbar ständig (örtliche Havarie, 19. Sept.); die **eigene** Abfangjoch-Ausleitung legt je Leiter einen Fall an — geschrieben wird die **Änderung** gegenüber dem ständigen Leiterzug (gerissener −Z(+5 °C), übrige Z(−20 °C) − Z(+5 °C)), die Kombination greift beides mit γ = 1.0 ohne veränderliche Lasten. Sie steht auch dann da, wenn die Änderung null ist (fehlende Reglagetabelle, pauschale Abfangkraft) — die Beiwerte unterscheiden sie von der Tragsicherheit |
-| Abfangjoch: Masten und Länge (20. Sept.) | «die masten werden nach innen gesetzt wenn primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig den nächst längeren joch auswählen.» Das Sortiment führt je Länge einen **Bereich zulässiger Stützweiten** (Überstand 0.25–0.495 m je Seite). Vorgabe ist die **grösste** Stützweite, also 25 cm Überstand je Seite (`abfangUeberstand`). Die **Lage eines Abfangjochs ist sein erster Mast** (`lageOrtsnull` = Lage − Überstand), der Träger kragt darüber hinaus — sonst könnte es nie einen Masten mit dem Nachbarjoch teilen. Mastabstand = js = jt − 2·ü. Passt der Abstand vorhandener Masten nicht in den Bereich, nennt ein Hinweis das passende Joch (`abfangFuerStuetzweite`, kürzeste Länge des Typs, sonst nächster Typ); geändert wird nichts von selbst («Warnen, Berichtigung auf Klick») |
-| Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
+| Abfangjoch: Masten und Länge (20. Sept.) | «die masten werden nach innen gesetzt wenn primär ein jochtyp und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind sollte sich der jochtyp daran richten und wenn notwendig den nächst längeren joch auswählen.» Das Sortiment führt je Länge einen **Bereich zulässiger Stützweiten** (Überstand 0.25–0.495 m je Seite). Vorgabe ist die **grösste** Stützweite, also 25 cm Überstand je Seite (`abfangUeberstand`). Die **Lage eines Abfangjochs ist sein erster Mast** (`lageOrtsnull` = Lage − Überstand), der Träger kragt darüber hinaus — sonst könnte es nie einen Masten mit dem Nachbarjoch teilen. Mastabstand = js = jt − 2·ü. Passt der Abstand vorhandener Masten nicht in den Bereich, nennt ein Hinweis das passende Joch (`abfangFuerStuetzweite`, kürzeste Länge des Typs, sonst nächster Typ); geändert wird nichts von selbst («Warnen, Berichtigung auf Klick») |
+| Lastenkarte je Tragwerksart (20. Sept.) | «hier ist die windlast in y nicht aufgeführt beim einzelmasten. auch die angabe in der sidebar passt nicht ganz» und «man sollte die tragjoche und masten gleichwertig behandeln und nur die felder auflisten die auch im modell vorkommen». Der Reiter *Lasten* zeigt nur noch, **was bei dieser Art auch wirkt** — gemessen, nicht hergeleitet (Prüfstand 109 rechnet jedes ausgeblendete Feld gegen). Am Einzelmasten fallen die Laufmeterlasten des Jochs weg (g_k, w_k, s_k, Δg_k, Schneeklasse: der Kern rechnet dort L = 0) und der Schalter «Mastwind wirkt auf das Joch» (es gibt kein Jochende; am Abfangjoch ebenso, dort rechnet ein eigener Kern). Die **Windbelastung bleibt**: sie wählt die Zeile der Mastwindtabelle und die Windkräfte der Anbauteile. Der **Mastwind steht in beiden Richtungen** (w_Mast,x Jochachse, w_Mast,y Gleisrichtung) und ist **gesperrt**: er folgt immer der Tabelle (`mastWindBeide` in data.masten.js ist die eine Stelle, aus der Kern und Maske ihn holen) |
 | Gelenkige Anschluesse in PyNite (24. Sept.) | «die links als stabendfreigaben in pynite nachrüsten». Die Linkelemente gehen als `def_releases` hinaus, **am Ende beim Gurt (j)** — dort landet kein Restmoment im nachgewiesenen Bauteil, sondern im starren Anschlussstiel. **Nur an einem Ende:** eine Feder hält ihre sechs Komponenten unabhängig, ein Balken nicht (V = dM/dx) — an beiden Enden freigegeben fiele mit dem Moment auch die **Querkraft** aus, und der Anschluss trüge gar nichts mehr. Die freien **Verschiebungen** (z am Obergurt, x am Untergurt) werden dadurch exakt; die freien **Verdrehungen** bei starrer Querkraft bleiben eine Näherung mit dem Restmoment M = V·L. Gemessen an PyNites Stabkräften: am freigegebenen Ende steht **0.00000 kNm** in jedem Lastfall, am anderen ist M/(V·L) = **1.000**, grösstes Restmoment **0.0253 kNm** gegen Fussmomente von 24 kNm — der Fehler ist die Linklänge, und die ist 0.05 m. Danach stimmen beide Löser am J90/8 m auf **0.005–0.25 %** in den Auflagerkräften (vorher bis 53 %), am J90/20 m auf 0.0007–0.4 %. Die **Kalibrierung ist nicht berührt**: ihr Modell rechnet ohne Masten und führt daher **null** Linkelemente — gemessen, die Blechmomente sind bitweise dieselben |
 | Verformung im Plot und als Diagramm (24. Sept.) | «nimm die verformung in die resultat plot und mache entsprechende diagramme.» Neue Plotgrösse **w** (mm), nur an den Masten — das Joch bleibt grau, wie bei der Querkraft die Gurte. Aufgetragen ist die **Resultierende** aus beiden Richtungen im gezeigten Lastfall; welche Richtung es war, sagt das Diagramm. Neu je Mast ein Diagramm **«Verformung über die Höhe»** mit w_x und w_y in Millimetern und der Grenzlinie L/200. Es steht unter der Ausnutzung — erst was trägt, dann wie weit es sich bewegt |
 | Gebrauchstauglichkeit: Plot und Wahl (24. Sept.) | «setze noch ein resultat plott gebrauchstauglichkeit … Tragsicherheit Gebrauchstagulichkeit oder beide.» Auf Rückfrage: (1) Der Plot **«η w»** trägt das η **aus dem Nachweis, je Mast** — eine Farbe über die ganze Höhe, feste Skala 1.25 wie η. Ein Verlauf w(z) gegen L/200 wäre erfunden: die Grenzwerte gelten an **zwei** Stellen, dazwischen ist keiner definiert. Er folgt **nicht** dem Lastfallwähler (Betriebswind ψ 0.70). (2) Die Wahl **Tragsicherheit / Gebrauchstauglichkeit / beide** (Vorgabe **beide**) steht in der **Ergebnisleiste** und zieht die **Plotliste** mit (`modiFuer`, `modusKorrigieren`) — eine Stelle, kein zweiter Wähler. Weg fällt, was ein η der Tragsicherheit zeigt; Schnittgrössen und Hinweise bleiben. Die **Hauptkachel bleibt** — ein Anzeigefilter ändert kein Urteil. Ein Plot ohne `nachweisart` gilt der Tragsicherheit (vergessene Angabe führt zur harmloseren Zuordnung). Das Umschalten **rechnet nicht neu** |
@@ -243,7 +248,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Kette: Reihenfolge der Eingabe (20./24. Sept.) | «bei den koordinaten der anbauteile, zuerst die z komponente afahren» (20. Sept.), präzisiert am 24.: «die reihenfolge beachten, jenachdem welcher wert zuerst eingegeben wird, wird dieser auch abgefahren. dies sollte dann global in der app gelten.» Die Kette fährt die drei Achsen **in der Reihenfolge ab, in der sie eingetippt wurden**. Die Folge kann sie nicht aus den Zahlen ablesen, also hält das Modul sie als Zeichenkette fest (`folge`, z. B. «xz»); `achsfolge` in core.anbauteile.js ist die eine Stelle, die die Regel kennt: beim **ersten** Setzen wird die Achse angehängt, Nachjustieren legt den Weg nicht um, auf null gestellt fällt sie heraus. Was nicht darin steht — alter Stand, nie gesetztes Feld — folgt in der Vorgabe **z, y, x** (das ist die Regel vom 20. September, jetzt als Rückfall). Gemessen an einem Leiter (1.2 m aussen, 0.45 m höher): zuerst x getippt → (1.2, 0, 0) → (1.2, 0, 0.45); dieselben Zahlen ohne Folge → (0, 0, 0.45) → (1.2, 0, 0.45). **Global** gilt es ohne zweite Stelle: Bild, Ausleitung und Rechenkern holen ihre Kette alle aus `anbauKette`. **Was bleibt:** gestreckt wird nur ein *Träger* (der Jochaufsatz wird nicht länger, Befund vom 19. September), und kein Glied läuft schräg in x und y zugleich |
 | Auslegerwind auf den Masten (20. Sept.) | «bei den auslegern den windanteil auf den masten wirken lassen (ähnlich wie bei der hängestütze), da die leiter als quasi auflager wirken.» `windAufTraeger` setzte den halben Auslegerwind bisher nur auf die Achse einer **Hängestütze** ab und kehrte ohne sie um — genau die Ausleger **am Masten** haben keine, der Schalter stand da und tat nichts. Ohne Träger ist der Bezug jetzt die Achse des Tragwerks: am Masten die **Mastachse** (y = 0, Station der Baugruppe). Die beiden Vorlagen «NT-Ausleger am Mast» und «Rohrausleger am Mast» tragen `windAufTraeger` / 50 % wie die Hängestützen-Vorlagen (Sicherung `data/sicherung/anbauteile_vor_mastwind_2026-09-20.json`). Gemessen: NT 0.55 → 0.275 kN, und der Angriffspunkt rückt von 1.25 m aussen auf die Mastachse; Rohr 0.30 → 0.15 kN. Dabei fiel ein älterer Fehler auf: ein Teil, dessen Punkt **auf der Kettenwurzel** liegt, erbte den Anschlusskörper und damit dessen 0.1 m Versatz unter dem Gurt (−0.3246 statt −0.2246) — es bekommt jetzt seinen eigenen Knoten |
 | Darstellung im Modell (20. Sept.) | Fünf Weisungen auf einmal: «diese darstellung auch für die restlichen tragwerksarten verwenden. die werte beim plot in der farbe der skala machen und die werte transparenter gestalten. die dichte der werte etwas zurücknehmen. beim 3d fenster die schattierung beim unteren rand wegnehmen. die skala farben verschieben, ab einer ausnutzung von 1 sollte es schon rot sein und nicht orange.» (1) **Die Gleis-Draufsicht der Stegrichtung gilt für alle vier Tragwerksarten** — das Gleis hat jede, ein Tragjoch nur das Tragjoch. Die Joch-Draufsicht vom 17. September ist damit abgelöst (ihr Massstabsentscheid wird gegenstandslos, nicht widerrufen; die Gabel zeigt weiterhin das 3D-Modell). Dabei fiel auf: sie zeichnete **vier Schwellen, von denen zwei ganz ausserhalb des Rahmens lagen** — gezeichnet wird jetzt, was hineinpasst. (2) Die **Zahlen am Plot tragen die Farbe ihres Werts** (dieselbe Rampe wie die Fläche, `etaFarbe`) und stehen mit 62 % Deckkraft da — Saum und Schrift zusammen, denn verdeckt wird das Bauteil vom Saum. (3) **Dichte zurückgenommen:** 34 statt 60 Zahlen, Raster 54 × 19 statt 42 × 13 px; am schlanken Einzelmasten reihten sie sich dicht übereinander und verdeckten, was sie beschriften. (4) Die **Schattierung am unteren Rand** des 3D-Fensters ist weg (`.viewer-fuss`) — sie legte sich über das untere Fünftel der Szene und verdunkelte dort die Bauteilfarben. (5) Die **Ausnutzungsskala ist ab η = 1.00 rot**: die Stützstellen sassen auf Bruchteilen der 1.25 statt auf den Werten, die etwas bedeuten, und η = 1.00 traf das Orange — ein überschrittener Nachweis sah aus wie ein knapper. Sie stehen jetzt dort, wo `ampel()` ihre Grenzen zieht (0.90 orange = warn, 1.00 rot = fail, 1.25 dunkelrot), und der Legendenbalken trägt dieselben |
-| Daten: ein Fenster (20. Sept.) | «das einlesen der daten ist etwas komplizier, können wir dies vereinfachen.» Es gab zwei Türen mit ähnlichen Namen: das **Datenpaket** (Optionen → Datenbasis, ersetzt die ganze Basis) und das **Einlesen** je Sortiment (Fenster Bauteildaten, mit Abgleich). Gewählt: **ein Fenster für alles.** Ansehen, einlesen, laden und sichern stehen im Fenster *Bauteildaten*; der Knopf «Datenpaket laden …» nimmt **jede** Datei und erkennt selbst, was es ist (`dateiAnnehmen`). Der Reiter *Datenbasis* sagt nur noch, was hinterlegt ist, und führt dorthin. Der **Abgleichbericht** ist kurz: oben eine Zeile je geändertem Sortiment, die Tabellen klappen auf; Sortimente ohne Änderung stehen nur als Namen darunter. Fehler und «geprüfte Sätze ändern sich» bleiben offen — die soll niemand aufklappen müssen. **Weiter gebündelt** («kannst du die buttons weiter bündeln unter bauteildaten»): nur noch **«Daten laden …»** und **«Daten sichern ▾»**. Laden nimmt jede Datei — `leseDatei` liest Excel-Mappe, einzelne `data/…json` **und** ein ganzes Datenpaket, immer über den Abgleich. Sichern ist ein Aufklappmenü: *Datenpaket (.json)* zum Mitnehmen, *Alle Tabellen (Excel)* zum Bearbeiten. Über den Knöpfen steht in zwei Zeilen, wann man was nimmt — die Frage «wann muss man einlesen und datenpaket drücken» soll die Anwendung selbst beantworten. Die Datenbasis **rundweg zu ersetzen** bleibt der seltene Weg: beim Start ohne Daten und durch Hineinziehen der Datei |
+| Daten: ein Fenster (20. Sept.) | «das einlesen der daten ist etwas komplizier, können wir dies vereinfachen.» Es gab zwei Türen mit ähnlichen Namen: das **Datenpaket** (Optionen → Datenbasis, ersetzt die ganze Basis) und das **Einlesen** je Sortiment (Fenster Bauteildaten, mit Abgleich). Gewählt: **ein Fenster für alles.** Ansehen, einlesen, laden und sichern stehen im Fenster *Bauteildaten*; der Knopf «Datenpaket laden …» nimmt **jede** Datei und erkennt selbst, was es ist (`dateiAnnehmen`). Der Reiter *Datenbasis* sagt nur noch, was hinterlegt ist, und führt dorthin. Der **Abgleichbericht** ist kurz: oben eine Zeile je geändertem Sortiment, die Tabellen klappen auf; Sortimente ohne Änderung stehen nur als Namen darunter. Fehler und «geprüfte Sätze ändern sich» bleiben offen — die soll niemand aufklappen müssen. **Weiter gebündelt** («kannst du die buttons weiter bündeln unter bauteildaten»): nur noch **«Daten laden …»** und **«Daten sichern ▾»**. Laden nimmt jede Datei — `leseDatei` liest Excel-Mappe, einzelne `data/…json` **und** ein ganzes Datenpaket, immer über den Abgleich. Sichern ist ein Aufklappmenü: *Datenpaket (.json)* zum Mitnehmen, *Alle Tabellen (Excel)* zum Bearbeiten. Über den Knöpfen steht in zwei Zeilen, wann man was nimmt — die Frage «wann muss man einlesen und datenpaket drücken» soll die Anwendung selbst beantworten. Die Datenbasis **rundweg zu ersetzen** bleibt der seltene Weg: beim Start ohne Daten und durch Hineinziehen der Datei |
 | Vorlagen nach Ort (19. Sept.) | «die anbauteile template auf die tragwerksarten anpassen», «nach ort trennen»: Spalte `ort` (joch / mast / beide; leer: mit Träger Joch, sonst beide). **Am Masten:** Rückleiter direkt, Lampe LED/alt mit Rohr (Rohr vorläufig = Hängerohr, Baustein «Lampenrohr»), Fahrdrahtabzug mit Konsole 1 m (Fd ohne Gewicht), NT- und Rohrausleger (1.25 / 2.50 m wie am Joch), Traverse mit Zusatzleiter. Kachelliste am Einzelmast nur Mast-Vorlagen, am Joch alle (Gruppe «Am Masten») |
 | Teile am Masten: Weg und Skizze (19. Sept.) | Weg: auf der **Anschlusshöhe waagrecht** (y, dann x), dann lotrecht auf z (`anbauKette`, `amMast`) — nicht den Masten entlang (Starrstab auf der Mastachse). **Seit dem 20./24. September anders** (siehe «Kette: Reihenfolge der Eingabe»): abgefahren wird in der Reihenfolge der Eingabe, ohne Angabe z, y, x — auch am Masten. Skizze: «mach eine ansicht in xz und eine draufsicht in xy»; x an beiden Enden global |
 | Lastgenerator (18. Sept.) | nur bei Tragwerken mit Träger; am Einzelmast ausgeblendet |
@@ -263,7 +268,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5857 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5865 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2232,34 +2237,34 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 - **Druckstütze Stufe 2** (mehrteiliger Druckstab, EN 1993-1-1, 6.4): ⚠ es
   fehlen der Bezug des Spreizmasses (`bezug: null`) und die Bindelaschen
   (Anzahl, Abstand, Profil).
-- **Datenpaket ohne Masten-Sortiment:** ältere Pakete führen es nicht;
-  dann fehlt der Mastwind ganz (siehe oben, der Hinweis sagt es). Ein
-  neu gesichertes Paket enthält es.
-- ⚠ **Mastwind von Hand:** heute folgt er immer der Tabelle. Eine Eingabe
-  müsste **je Mast** stehen (in der Mastkachel), nicht als ein flaches Feld
-  für das ganze Blatt — sonst bekämen ein HEB 220 und ein HEM 240 densel-
-  ben Wert. Entscheid des Auftraggebers, ob es sie geben soll.
-- ⚠ **«Schnee ansetzen» am Einzelmasten und am Abfangjoch:** der Schalter
-  legt 9 zusätzliche Lastfälle an (sk, schnee±, schneeX±, gtseltenS…),
-  die dort **leer** sind — die Laufmeterlast liegt auf dem Joch. Schnee
-  auf Anbauteilen zählt unabhängig davon. Ausblenden würde einen alten
-  Stand mit eingeschaltetem Schnee unsichtbar weiterrechnen lassen;
-  deshalb steht er noch da, mit einem Hinweis. Entscheid offen.
-- ⚠ **Rechenmodelle, die dem Blatt gehören müssten:** `BLATT_FELDER`
-  (core.constants.js) führt `mastPlastisch`, aber **nicht**
-  `knickBeiwert`, `mastWindAufJoch` und `lastHerkunft`. Auf einem Blatt
-  könnten damit zwei Tragwerke mit verschiedenem Knicklängenbeiwert
-  gerechnet werden — nach der eigenen Regel der Liste («Zwei Tragwerke
-  auf einem Blatt verschieden zu rechnen wäre ein Fehler») gehören sie
-  hinein. Nicht von selbst geändert: es verschiebt Werte zwischen den
-  Tragwerken alter Stände.
-- ⚠ **`ebenenUeberlagerung` = «vorzeichenrichtig»:** am J90/20 m mit
-  1.5 m quer versetzter Hängestütze (T_xVz = −1.83 kNm, also Drehsinn
-  vorhanden) ändert die Option **keine Zahl** — η der Bleche bleibt
-  0.6578. Entweder erreicht `m.ebenenUeberlagerung` die Stelle in
-  `core.querschnitt.js` nicht, oder der Blechnachweis liest `jeEbene`
-  nicht. Braucht eine eigene Untersuchung; der Entscheid vom
-  17. September («Hüllkurve ist Vorgabe») bleibt davon unberührt.
+- **Datenpaket ohne Masten-Sortiment:** ältere Pakete führen es nicht;
+  dann fehlt der Mastwind ganz (siehe oben, der Hinweis sagt es). Ein
+  neu gesichertes Paket enthält es.
+- ⚠ **Mastwind von Hand:** heute folgt er immer der Tabelle. Eine Eingabe
+  müsste **je Mast** stehen (in der Mastkachel), nicht als ein flaches Feld
+  für das ganze Blatt — sonst bekämen ein HEB 220 und ein HEM 240 densel-
+  ben Wert. Entscheid des Auftraggebers, ob es sie geben soll.
+- ⚠ **«Schnee ansetzen» am Einzelmasten und am Abfangjoch:** der Schalter
+  legt 9 zusätzliche Lastfälle an (sk, schnee±, schneeX±, gtseltenS…),
+  die dort **leer** sind — die Laufmeterlast liegt auf dem Joch. Schnee
+  auf Anbauteilen zählt unabhängig davon. Ausblenden würde einen alten
+  Stand mit eingeschaltetem Schnee unsichtbar weiterrechnen lassen;
+  deshalb steht er noch da, mit einem Hinweis. Entscheid offen.
+- ⚠ **Rechenmodelle, die dem Blatt gehören müssten:** `BLATT_FELDER`
+  (core.constants.js) führt `mastPlastisch`, aber **nicht**
+  `knickBeiwert`, `mastWindAufJoch` und `lastHerkunft`. Auf einem Blatt
+  könnten damit zwei Tragwerke mit verschiedenem Knicklängenbeiwert
+  gerechnet werden — nach der eigenen Regel der Liste («Zwei Tragwerke
+  auf einem Blatt verschieden zu rechnen wäre ein Fehler») gehören sie
+  hinein. Nicht von selbst geändert: es verschiebt Werte zwischen den
+  Tragwerken alter Stände.
+- ⚠ **`ebenenUeberlagerung` = «vorzeichenrichtig»:** am J90/20 m mit
+  1.5 m quer versetzter Hängestütze (T_xVz = −1.83 kNm, also Drehsinn
+  vorhanden) ändert die Option **keine Zahl** — η der Bleche bleibt
+  0.6578. Entweder erreicht `m.ebenenUeberlagerung` die Stelle in
+  `core.querschnitt.js` nicht, oder der Blechnachweis liest `jeEbene`
+  nicht. Braucht eine eigene Untersuchung; der Entscheid vom
+  17. September («Hüllkurve ist Vorgabe») bleibt davon unberührt.
 - **Spannweitenkategorien:** Tabelle Radius ↔ zulässige Spannweite je EK.
 - **Örtlicher Anteil:** die Verteilung dicht an der Klemme (überschätzt dort
   bis Faktor 19).
@@ -2328,11 +2333,11 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   aufgebaut, aber ohne Havariefälle.
 - Am Einzelmasten folgt der Dateiname der ausgeleiteten Datei dem Joch
   des Blattes (die Kopfzeile sagt seit dem 28. September «Einzelmast»).
-- ⚠ Abfangjoch zwischen zwei **fremden** Masten (beide von Nachbarjochen
-  gehalten): die Länge müsste sich dann nach ihrem Abstand richten
-  (nächst längeres Joch). Heute setzt das Abfangjoch stattdessen seinen
-  eigenen zweiten Masten auf seine Stützweite; der Hinweis greift nur,
-  wenn beide Masten schon zugeordnet sind.
+- ⚠ Abfangjoch zwischen zwei **fremden** Masten (beide von Nachbarjochen
+  gehalten): die Länge müsste sich dann nach ihrem Abstand richten
+  (nächst längeres Joch). Heute setzt das Abfangjoch stattdessen seinen
+  eigenen zweiten Masten auf seine Stützweite; der Hinweis greift nur,
+  wenn beide Masten schon zugeordnet sind.
 - Seilkopf im nächsten Aufbau prüfen: lokale x-Achse des NN-Links, «nur Zug»
   (wirkt nur nichtlinear).
 - Ergebnisse zurücklesen ist gebaut, ein sauberer Durchstich fehlt; lokale
@@ -2387,7 +2392,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5857 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5865 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

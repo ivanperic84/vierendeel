@@ -5690,6 +5690,57 @@ export function schieberFuellenAlle(root = document) {
   root.querySelectorAll?.('input[type=range]').forEach(schieberFuellen);
 }
 
+/* ===========================================================================
+ * >>> DIE MASTNUMMER IN ALLEM, WAS MAN LIEST (30. September). <<<
+ *
+ * Auf Rückfrage «Überall in der Anzeige»: gerechnet wird unter M1, gelesen
+ * unter der eingetragenen Nummer. Statt an vierzig Stellen, an denen der
+ * Name zugleich Schlüssel ist, wird die Nummer auf das GEZEICHNETE
+ * angewendet: Textknoten und Titel der Oberfläche. Eingabefelder bleiben
+ * unberührt (ihr Wert ist Eingabe, nicht Anzeige).
+ * =========================================================================== */
+const MAST_WORT = /\b(MT?\d+)\b/;
+/*
+ * >>> DIE STEGSKIZZE SCHALTET UM (30. September). <<<
+ * Weisung: «hier mit draufklicken die mastausrichtung ändern.» Ein Klick
+ * auf die Skizze unter «Stegrichtung» wählt die andere Richtung - über das
+ * Auswahlfeld darüber, damit derselbe Weg wie jede Eingabe läuft.
+ */
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const sk = e.target?.closest?.('.opt-skizze');
+    if (!sk) return;
+    const sel = sk.closest('.feld')?.querySelector('select[data-feld="mastSteg"], select[data-feld="mastStegB"]');
+    if (!sel || sk.closest('.gesperrt') || sel.options.length < 2) return;
+    sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+export function mastAnzeigeAnwenden(root, karte) {
+  if (!root || !karte?.size || typeof document === 'undefined') return;
+  const tausch = (t) => t.replace(/\b(MT?\d+)\b/g, (w) => karte.get(w) ?? w);
+  const gang = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => {
+      const el = n.parentElement;
+      if (!el || /^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(el.tagName)) return NodeFilter.FILTER_REJECT;
+      return MAST_WORT.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    },
+  });
+  const knoten = [];
+  while (gang.nextNode()) knoten.push(gang.currentNode);
+  knoten.forEach((n) => {
+    const neu = tausch(n.nodeValue);
+    if (neu !== n.nodeValue) n.nodeValue = neu;
+  });
+  root.querySelectorAll('[title]').forEach((el) => {
+    const t = el.getAttribute('title');
+    if (!MAST_WORT.test(t)) return;
+    const neu = tausch(t);
+    if (neu !== t) el.setAttribute('title', neu);
+  });
+}
+
 let SIGNALBAUER = null;
 export function setzeSignalbauer(fn) { SIGNALBAUER = fn; }
 
