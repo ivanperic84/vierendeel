@@ -7614,9 +7614,20 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
      *
      * Die Kontrolle zaehlt weiter mit, damit eine SIEBTE Stelle auffaellt.
      */
+    /*
+     * >>> SIEBEN BIS NEUN (30. September). <<<
+     * Die Neuordnung der Gebrauchstauglichkeit («Oberschalter + drei»):
+     * Unterpunkt, Grenzwert und Referenzhöhe sind gesperrt, solange der
+     * Oberschalter aus ist. Keine Attrappe - sie ZEIGEN, was beim
+     * Wiedereinschalten gilt, und der Oberschalter daneben ist bedienbar.
+     */
     const sperren = [...uq4.matchAll(/disabled/g)].length;
-    wahr('Es gibt genau sechs Stellen mit einer Sperre', sperren === 6,
+    wahr('Es gibt genau neun Stellen mit einer Sperre', sperren === 9,
          `${sperren} Stellen`);
+    wahr('7-9 - Unterpunkt, Grenzwert und Referenzhöhe ohne Oberschalter',
+         uq4.includes("const gesperrt = !g.vorhanden || (g.unterVon && !nw[g.unterVon]);")
+         && uq4.includes("value=\"${esc(String(wert))}\"${gesperrt ? ' disabled' : ''}")
+         && uq4.includes("<select data-gzg-feld=\"gzgReferenz\"${gesperrt ? ' disabled' : ''}>"));
     wahr('6 - das letzte angekreuzte Kaestchen der Nachweisarten',
          uq4.includes("letzte ? ' disabled' : ''"));
     wahr('5 - der Knopf, der während der Rechnung «rechnet …» sagt',
@@ -7647,7 +7658,7 @@ titel('34  Teilweise Einspannung: vom Ersatzbalken ins Stabmodell');
     wahr('2 - die Option, die ihren Grund im Text traegt (bestaetigt 15.9.)',
          uq4.includes("o.aus ? ' disabled' : ''"));
     wahr('3 - die Nachweisgruppe, die es nicht gibt (bestaetigt 15.9.)',
-         uq4.includes("g.vorhanden ? '' : ' disabled'"));
+         uq4.includes("const gesperrt = !g.vorhanden ||"));
     /*
      * UND DIE AUSKUNFT, DIE BEIDE TRAGEN, MUSS STEHEN BLEIBEN. Eine
      * ausgegraute Zeile ohne Begruendung waere das Schlechteste von beidem:
@@ -10333,15 +10344,17 @@ titel('41  Welche Nachweise gefuehrt werden');
      * abschaltbaren Nachweise, und ein nicht gefuehrter zaehlt von
      * selbst nie als erfuellt.
      */
-    // Seit dem 30. September acht: die Mastspitze L/100 als Unterpunkt.
-    wahr('Acht Gruppen, in der Reihenfolge der Weisungen',
+    // Seit dem 30. September die Gebrauchstauglichkeit: Oberschalter und
+    // drei Prüfungen (Fahrdraht quer, Mastspitze, Mastverdrehung).
+    wahr('Elf Gruppen, in der Reihenfolge der Weisungen',
          g.join(',') === 'jochtragwerk,auflagerJoch,knickenJoch,mast,'
-                       + 'knickenMast,fundament,torsionMast,spitzeMast',
+                       + 'knickenMast,fundament,torsionMast,gebrauch,fahrdrahtQuer,'
+                       + 'spitzeMast,verdrehungMast',
          g.join(','));
     const da = CH.NACHWEISGRUPPEN.filter((x) => x.vorhanden).map((x) => x.key);
-    wahr('Sieben davon gibt es',
+    wahr('Zehn davon gibt es',
          da.join(',') === 'jochtragwerk,auflagerJoch,mast,knickenMast,'
-                        + 'fundament,torsionMast,spitzeMast',
+                        + 'fundament,torsionMast,gebrauch,fahrdrahtQuer,spitzeMast,verdrehungMast',
          da.join(','));
     wahr('Das Fundament ist voreingestellt an - es gehoert zum Tragwerk',
          CH.NACHWEISGRUPPEN.find((x) => x.key === 'fundament')?.standard === true);
@@ -32387,9 +32400,11 @@ titel('143  Tragausleger: Maske ohne Joch, Auflager wie am Abfangjoch');
   wahr('Die Gruppe heisst beim Ausleger «Ausleger und Geometrie»',
        g.titelJe?.tragausleger === 'Ausleger und Geometrie');
   const keys = (gr, x) => S143.sichtbareFelder(gr, x).map((f) => f.key);
-  wahr('Die Höhe steht beim Ausleger unter dem Ausleger, beim Joch unter den Masten',
+  // Seit dem 30. September auch beim Joch unter dem Joch («diese
+  // anschlusshöhe sollte unter der jochgruppe stehen und nicht beim masten»).
+  wahr('Die Höhe steht beim Ausleger unter dem Ausleger, beim Joch unter dem Joch',
        keys('geo', w).includes('mastH') && !keys('mast', w).includes('mastH')
-       && keys('mast', wj).includes('mastH') && !keys('geo', wj).includes('mastH'));
+       && keys('geo', wj).includes('mastH') && !keys('mast', wj).includes('mastH'));
   // «diese Angaben gehören auch zum Tragausleger und nicht zum Masten»
   const g143 = keys('geo', w);
   wahr('Der Längsanker steht unter dem Ausleger, gleich unter der Höhe',
@@ -33715,7 +33730,7 @@ titel('166  Gebrauchstauglichkeit: Mastspitze L/100 unter Betriebswind, abschalt
     + `Fahrdraht η ${aus.A.eta.toFixed(3)} -> Kachel η ${an.A.eta.toFixed(3)}`);
   const uq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('Die Anwendung reicht die Wahl an den Kern',
-       /verformungsNachweis\(kombiMast,\s*\{ spitze: nachweiseAuswahl\(werte\.nachweise\)\.spitzeMast,\s*grenzen: verformungGrenzen\(werte\) \}\)/.test(uq));
+       /verformungsNachweis\(kombiMast,\s*\{ gruppen: \{ fahrdraht: nwG\.fahrdrahtQuer, spitze: nwG\.spitzeMast,\s*verdrehung: nwG\.verdrehungMast \},\s*grenzen: verformungGrenzen\(werte\) \}\)/.test(uq));
   const sq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
   wahr('Das Stabwerk folgt dem Kern (kern.spitze)',
        /const mitSpitze = kern\.spitze === true/.test(sq) && /spitzeNachweis\(spitzeW, L, spitzeN\)/.test(sq));
@@ -34128,6 +34143,79 @@ titel('171  Nachweiskacheln: Verdrahtung geprüft; die Mastnummer wird nicht ver
   wahr('… eine eigene Nummer an Ende B bleibt', C171.mastenVon(w2)[1].nummer === '15');
   wahr('… und die Karte der Anzeige nennt nur M1 «14»',
        C171.mastAnzeigeKarte(w).size === 1);
+}
+
+titel('172  Gebrauchstauglichkeit neu geordnet: Oberschalter, drei Prüfungen, Referenzhöhe, Mastverdrehung');
+/* ===========================================================================
+ * Weisung 30. September: «man sollte die beiden grenzwertbetrachtungen
+ * aktiv inaktiv schalten können. oder zu oberst den kompletten
+ * gebrauchstauglichkeitnachweis. hinzu kommt noch die mastverdrehung 5° als
+ * dritte prüfung. dazu noch die eingabe der relevanten höhe … (fahrdraht /
+ * Tragjoch / Ausleger oder selbst eingegeben höhe)». Rückfragen: um die
+ * Mastachse, Betriebswind ψ 0.70, Schieber unter Masten weg, Oberschalter +
+ * drei. Dazu: «diese anschlusshöhe sollte unter der jochgruppe stehen».
+ * ========================================================================= */
+{
+  const CH = await import(J('core.checks.js'));
+  const VF = await import(J('core.verformung.js'));
+  const N172 = await import(J('core.nachbarn.js'));
+  const V172 = await import(J('core.vierendeel.js'));
+  const AS172 = await import(J('app.stabwerk.js'));
+  const S172 = await import(J('ui.schema.js'));
+  const U172 = await import(J('ui.js'));
+
+  // Oberschalter und Unterpunkte.
+  const aus = CH.nachweiseAuswahl({ gebrauch: false });
+  wahr('Oberschalter aus: alle drei Prüfungen nicht geführt',
+       !aus.fahrdrahtQuer && !aus.spitzeMast && !aus.verdrehungMast);
+  const an = CH.nachweiseAuswahl({ spitzeMast: false });
+  wahr('Oberschalter an: jede Prüfung nach ihrem Schalter',
+       an.gebrauch && an.fahrdrahtQuer && !an.spitzeMast && an.verdrehungMast);
+  pruef('Grenzwert der Verdrehung: Vorgabe 5°', VF.verformungGrenzen({}).verdrehungGrad, 5, 1e-12, '°');
+
+  // Referenzhöhe: am Standardjoch Automatik = Jochauflager; «eigen» mit Höhe.
+  const w0 = { ...standardwerte(), nachweise: { ...standardwerte().nachweise } };
+  const lauf = (w, gr) => {
+    const s = N172.rechensatzMitNachbarn(w);
+    const k = V172.vergleichKombinationen(s, ...N172.kernArgumente(s));
+    const erg = berechne(s, ...N172.kernArgumente(s));
+    erg.verformung = VF.verformungsNachweis(k, { gruppen: gr, grenzen: VF.verformungGrenzen(w) });
+    return { kern: erg.verformung, sw: AS172.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+  };
+  const alle = { fahrdraht: true, spitze: true, verdrehung: true };
+  const r0 = lauf(w0, alle);
+  wahr('Automatik am Standardjoch: Jochauflager', r0.kern.A.stelle?.was === 'Jochauflager');
+  const rE = lauf({ ...w0, gzgReferenz: 'eigen', fdHoehe: 5 }, alle);
+  wahr('«eigene Höhe» misst auf 5.00 m', rE.kern.A.stelle?.z === 5 && rE.kern.A.stelle?.eigen === true);
+  const rF = lauf({ ...w0, gzgReferenz: 'fahrdraht' }, alle);
+  wahr('«Fahrdraht» ohne Fahrdraht am Masten fällt auf die Automatik zurück und sagt es',
+       rF.kern.A.stelle?.was === 'Jochauflager' && /kein Fahrdraht/.test(rF.kern.A.stelle?.ersatz ?? ''));
+  wahr('Ein alter Stand mit eingetragener Höhe bekommt «eigen»',
+       A.standAnheben({ ...w0, fdHoehe: 6 }).gzgReferenz === 'eigen');
+
+  // Die Verdrehung: nur im Stabwerk, in rad, gegen 5°.
+  const v = r0.sw.verformung.A;
+  const phi = v.nachweise.find((n) => n.verdrehung);
+  wahr('Das Stabwerk weist die Verdrehung nach (Grad-Grenze in rad)',
+       !!phi && Math.abs(phi.grenz - 5 * Math.PI / 180) < 1e-12 && phi.einheit === 'rad');
+  console.log(`      J90/20 m, M1: φ ${(phi.wert * 180 / Math.PI).toFixed(3)}° auf ${phi.z.toFixed(2)} m (η ${phi.eta.toFixed(3)})`);
+  wahr('Der Kern allein rechnet keine Verdrehung', !r0.kern.A.nachweise.some((n) => n.verdrehung));
+  const ohne = lauf(w0, { fahrdraht: false, spitze: true, verdrehung: false });
+  const vo = ohne.sw.verformung.A;
+  wahr('Ausgeschaltet: Fahrdraht und Verdrehung bleiben Auskunft',
+       !vo.nachweise.some((n) => n.verdrehung || !n.spitze)
+       && vo.auskunft.some((n) => n.verdrehung) && vo.auskunft.some((n) => /quer zum Gleis/.test(n.was)));
+
+  // Oberfläche.
+  const html = U172.nachweiseHtml({ ...w0, nachweise: { gebrauch: false } });
+  wahr('Optionen: Referenzhöhe unter dem Oberschalter, Unterpunkte gesperrt ohne ihn',
+       html.includes('data-gzg-feld="gzgReferenz"') && html.includes('nw-gesperrt')
+       && html.includes('data-grenze="gzgGrenzeVerdrehung"'));
+  wahr('Der Schieber «Höhe Fahrdraht» steht nicht mehr unter Masten',
+       !S172.FELDER.find((f) => f.key === 'fdHoehe').sichtbar(w0));
+  const blk = U172.gzgBlockHtml({ verformung: r0.kern }, '', { gzgReferenz: 'auto' });
+  wahr('Übersicht: Referenzhöhe umschaltbar, Hinweis «nur aus dem Stabwerk» ohne Stabwerk',
+       blk.includes('data-gzg-feld="gzgReferenz"') && /nur aus dem Stabwerk/.test(blk));
 }
 
 // ===========================================================================

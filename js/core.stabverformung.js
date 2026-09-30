@@ -135,6 +135,35 @@ export function mastWeg(dat, lsg, anteile, zug, h) {
 }
 
 /**
+ * >>> DIE VERDREHUNG UM DIE MASTACHSE (30. September). <<<
+ * Weisung «hinzu kommt noch die mastverdrehung 5° als dritte prüfung», auf
+ * Rückfrage «um die Mastachse», «Betriebswind ψ 0.70». Die globale
+ * Knotenverdrehung um z an den beiden Enden des Mastabschnitts, linear
+ * dazwischen (reine St.-Venant-Torsion im Abschnitt). Der Löser führt keine
+ * Wölbkrafttorsion - der offene Mast ist darin weicher als in Wirklichkeit,
+ * der Wert liegt auf der sicheren Seite.
+ *
+ * @returns {number|null} φ_z in rad
+ */
+export function mastVerdrehung(dat, lsg, anteile, zug, h) {
+  if (!zug) return null;
+  const s = zug.staebe.find((x) => h >= x.h0 - 1e-9 && h <= x.h1 + 1e-9)
+    ?? (h > zug.kopf ? zug.staebe[zug.staebe.length - 1] : null);
+  if (!s) return null;
+  const e = (lsg.elemente ?? []).find((x) => x.s.name === s.name);
+  if (!e) return null;
+  const t = Math.min(1, Math.max(0, (h - s.h0) / (s.h1 - s.h0 || 1)));
+  const xi = s.unten ? t : 1 - t;                  // ab `von` gezählt
+  let phi = 0;
+  (anteile ?? []).forEach(({ lastfall, faktor }) => {
+    const uv = lsg.u.get(lastfall);
+    if (!faktor || !uv) return;
+    phi += faktor * (uv[e.i * 6 + 5] * (1 - xi) + uv[e.j * 6 + 5] * xi);
+  });
+  return phi;
+}
+
+/**
  * Der Verformungsnachweis aus dem Stabwerk - in der Gestalt, die
  * `verformungsNachweis` (core.verformung.js) liefert, damit die Anzeige
  * nichts unterscheiden muss.
@@ -148,6 +177,9 @@ export function mastWeg(dat, lsg, anteile, zug, h) {
 export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
   if (!kern) return null;
   const mitSpitze = kern.spitze === true;
+  // Die Schalter je Prüfung (30. September) - wie der Kern sie führt.
+  const mitFahrdraht = kern.gruppen?.fahrdraht !== false;
+  const mitVerdrehung = kern.gruppen?.verdrehung === true;
   const mitG = faelle.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(faelle);
   const achsIdx = { x: 0, y: 1 };
@@ -184,13 +216,37 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
     // Kern - dieselbe Zahl, keine zweite Lesart der Eingabe.
     const grenz = kern.grenzen?.fahrdraht ?? VERFORMUNG_GRENZEN.auslegerQuer;
     const spitzeN = kern.grenzen?.spitzeN ?? VERFORMUNG_GRENZEN.spitzeBetrieb;
+    // Die Verdrehung um die Mastachse auf der Referenzhöhe (sonst an der
+    // Spitze), nur Wind × ψ 0.70 - dieselben Fälle wie die übrigen.
+    const hV = stelle?.z ?? L;
+    let dreh = null;
+    nurW.forEach((l) => {
+      const phi = mastVerdrehung(dat, lsg, anteileFuer(l, dat), zug, hV);
+      if (!Number.isFinite(phi)) return;
+      const wert = Math.abs(phi * BETRIEBSWIND);
+      if (!dreh || wert > dreh.wert) dreh = { wert, lastfall: l.key, bez: l.bez };
+    });
+    const gradGrenz = kern.grenzen?.verdrehungGrad ?? VERFORMUNG_GRENZEN.verdrehungGrad;
+    const drehGrenz = gradGrenz * Math.PI / 180;
+    const drehWas = `Verdrehung um die Mastachse auf ${hV.toFixed(2)} m, Betriebswind`;
     // Die Mastspitze L/100 (30. September) - geführt, wie der Kern es sagt.
     const nw = [
-      querS ? { ...querS, grenz, eta: querS.wert / grenz,
+      querS && mitFahrdraht ? { ...querS, grenz, eta: querS.wert / grenz,
         ok: querS.wert <= grenz + 1e-12, z: stelle.z,
         was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
       mitSpitze ? spitzeNachweis(spitzeW, L, spitzeN) : null,
+      dreh && mitVerdrehung ? { ...dreh, grenz: drehGrenz, eta: dreh.wert / drehGrenz,
+        ok: dreh.wert <= drehGrenz + 1e-12, z: hV, einheit: 'rad', verdrehung: true,
+        was: drehWas } : null,
     ].filter(Boolean);
+    // Ausgeschaltet bleiben Fahrdraht und Verdrehung Auskunft.
+    if (querS && !mitFahrdraht) {
+      auskunft.push({ ...querS, z: stelle.z,
+        was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` });
+    }
+    if (dreh && !mitVerdrehung) {
+      auskunft.push({ ...dreh, z: hV, einheit: 'rad', verdrehung: true, was: drehWas });
+    }
     if (!nw.length) {
       proEnde[ende] = { ...k, auskunft, quelle: 'stabwerk' };
       return;
@@ -210,6 +266,7 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
     ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
     spitze: mitSpitze,
+    gruppen: kern.gruppen ?? null,
     grenzen: kern.grenzen ?? null,
     quelle: 'stabwerk',
   };

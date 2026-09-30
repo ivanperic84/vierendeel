@@ -927,6 +927,12 @@ function tragwerkAnheben(t) {
   if (w.tragwerksart === 'tragausleger' && w.mastVorhanden === false) {
     delete w.mastVorhanden;
   }
+  /*
+   * DIE REFERENZHÖHE DER GEBRAUCHSTAUGLICHKEIT (30. September, Rückfrage
+   * «Weg, Optionen führen»): wer die Fahrdrahthöhe eingetragen hatte,
+   * bekommt die Wahl «eigene Höhe» - er rechnet wie bisher.
+   */
+  if (w.gzgReferenz === undefined && Number(w.fdHoehe) > 0) w.gzgReferenz = 'eigen';
   return w;
 }
 

@@ -256,12 +256,40 @@ export const NACHWEISGRUPPEN = [
    * Vorgabe an. Er färbt wie die 40 mm am Fahrdraht nur die
    * Gebrauchstauglichkeit, nicht die Tragsicherheit.
    */
-  { key: 'spitzeMast', titel: 'Mastspitze L/100', vorhanden: true, standard: true,
-    ober: 'Gebrauchstauglichkeit',
-    was: 'Auslenkung der Mastspitze infolge Wind — Betriebswind ψ 0.70 '
-       + '(nur Wind, charakteristisch × 0.70), in Gleis- und in '
-       + 'Querrichtung, Grenzwert Mastlänge/100. Ausgeschaltet steht die '
-       + 'Auslenkung weiter als Auskunft da' },
+  /* =======================================================================
+   * >>> DIE GEBRAUCHSTAUGLICHKEIT: OBERSCHALTER UND DREI PRÜFUNGEN
+   *     (30. September). <<<
+   * =====================================================================
+   *
+   * Weisung: «diese aufteilung macht wenig sinn, man sollte die beiden
+   * grenzwertbetrachtungen aktiv inaktiv schalten können. oder zu oberst
+   * den kompletten gebrauchstauglichkeitnachweis. hinzu kommt noch die
+   * mastverdrehung 5° als dritte prüfung.» Auf Rückfrage: «Oberschalter +
+   * drei», die Verdrehung «um die Mastachse» unter «Betriebswind ψ 0.70».
+   * `unterVon` bindet eine Prüfung an ihren Oberschalter: ist er aus, ist
+   * sie es auch (`nachweiseAuswahl`). `grenze` nennt das Feld ihres
+   * Grenzwerts, das die Optionen neben dem Schalter zeigen. Ausgeschaltet
+   * bleibt der Wert als Auskunft stehen.
+   */
+  { key: 'gebrauch', titel: 'Gebrauchstauglichkeit', vorhanden: true, standard: true,
+    was: 'Verformung des Masten unter Betriebswind ψ 0.70 (nur Wind, '
+       + 'charakteristisch × 0.70). Aus: keine der drei Prüfungen wird '
+       + 'geführt; die Werte bleiben als Auskunft stehen' },
+  { key: 'fahrdrahtQuer', titel: 'Fahrdraht quer', vorhanden: true, standard: true,
+    ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
+    grenze: { feld: 'gzgGrenzeFahrdraht', vor: '', nach: 'mm', vorgabe: 40 },
+    was: 'Verschiebung quer zum Gleis auf der Referenzhöhe' },
+  // Weisung vom 30. September (Mastspitze 1:100, «deaktivierbar als
+  // unterpunkt»); seit der Neuordnung mit einstellbarem Grenzwert L/n.
+  { key: 'spitzeMast', titel: 'Mastspitze', vorhanden: true, standard: true,
+    ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
+    grenze: { feld: 'gzgGrenzeSpitze', vor: 'L /', nach: '', vorgabe: 100 },
+    was: 'Auslenkung der Mastspitze in Gleis- und in Querrichtung' },
+  { key: 'verdrehungMast', titel: 'Mastverdrehung', vorhanden: true, standard: true,
+    ober: 'Gebrauchstauglichkeit', unterVon: 'gebrauch',
+    grenze: { feld: 'gzgGrenzeVerdrehung', vor: '', nach: '°', vorgabe: 5 },
+    was: 'Verdrehung um die Mastachse auf der Referenzhöhe - nur aus dem '
+       + 'Stabwerk (ohne Wölbkrafttorsion, sichere Seite)' },
 ];
 
 /** Voreinstellung je Gruppe. */
@@ -275,8 +303,13 @@ export const nachweiseStandard = () => Object.fromEntries(
  */
 export function nachweiseAuswahl(gewaehlt) {
   const w = gewaehlt ?? {};
-  return Object.fromEntries(NACHWEISGRUPPEN.map((g) =>
+  const roh = Object.fromEntries(NACHWEISGRUPPEN.map((g) =>
     [g.key, g.vorhanden && (w[g.key] ?? g.standard) === true]));
+  // Ein Unterpunkt gilt nur mit seinem Oberschalter (30. September).
+  NACHWEISGRUPPEN.forEach((g) => {
+    if (g.unterVon) roh[g.key] = roh[g.key] && roh[g.unterVon] === true;
+  });
+  return roh;
 }
 
 /** Zu welcher Gruppe eine Prüfung gehört - oder null, wenn zu keiner. */

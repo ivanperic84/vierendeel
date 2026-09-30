@@ -79,6 +79,8 @@ export const VERFORMUNG_GRENZEN = {
   // Nachweis der Mastspitze seit dem 30. September: L/100 unter Betriebswind.
   spitzeBetrieb: 100,
   auslegerQuer: 0.040,
+  // Verdrehung um die Mastachse, Grad (30. September: «mastverdrehung 5°»).
+  verdrehungGrad: 5,
 };
 
 /**
@@ -97,9 +99,11 @@ export const VERFORMUNG_GRENZEN = {
 export function verformungGrenzen(werte) {
   const mm = Number(werte?.gzgGrenzeFahrdraht);
   const n = Number(werte?.gzgGrenzeSpitze);
+  const grad = Number(werte?.gzgGrenzeVerdrehung);
   return {
     fahrdraht: mm > 0 ? mm / 1000 : VERFORMUNG_GRENZEN.auslegerQuer,
     spitzeN: n > 0 ? n : VERFORMUNG_GRENZEN.spitzeBetrieb,
+    verdrehungGrad: grad > 0 ? grad : VERFORMUNG_GRENZEN.verdrehungGrad,
   };
 }
 
@@ -138,7 +142,22 @@ export function messStelle(m, g, ende = 'A') {
    * gibt.
    * ===================================================================== */
   const gesetzt = Number(m?.fdHoehe) || 0;
-  if (imBild(gesetzt)) return { z: gesetzt, was: 'Fahrdraht', eigen: true };
+  /*
+   * >>> DIE REFERENZHÖHE WIRD GEWÄHLT (30. September). <<<
+   * Weisung: «dazu noch die eingabe der relevanten höhe, was man auch beim
+   * fahrdraht in den optionen eingeben sollte können. (fahrdraht / Tragjoch
+   * / Ausleger oder selbst eingegeben höhe) … dann ist man auch nicht so
+   * abhängig von den automatismen.» `gzgReferenz`: auto | fahrdraht |
+   * ausleger | joch | eigen. Ohne Wahl gilt die Automatik; ein alter Stand
+   * mit eingetragener Höhe gilt als «eigen» - er rechnet wie bisher. Gibt
+   * es die gewählte Stelle nicht (kein Fahrdraht am Masten, kein Joch am
+   * Einzelmasten), fällt sie auf die Automatik zurück und sagt es
+   * (`ersatz`).
+   */
+  const ref = m?.gzgReferenz ?? (gesetzt > 0 ? 'eigen' : 'auto');
+  if (ref === 'eigen' && imBild(gesetzt)) {
+    return { z: gesetzt, was: 'eigene Höhe', eigen: true, referenz: ref };
+  }
   /*
    * >>> UND WENN SIE VERWORFEN WIRD, STEHT ES DA (26. September). <<<
    *
@@ -151,8 +170,9 @@ export function messStelle(m, g, ende = 'A') {
    * an dieser einen Stelle. Eine verworfene Eingabe ist dann keine
    * Kleinigkeit mehr, sondern verschiebt das einzige eta, das es gibt.
    */
-  const verworfen = gesetzt > 0 ? gesetzt : null;
-  const mit = (s) => (s && verworfen ? { ...s, verworfen } : s);
+  const verworfen = ref === 'eigen' && gesetzt > 0 ? gesetzt : null;
+  const mit = (s, ersatz = null) => (s ? { ...s, referenz: ref,
+    ...(verworfen ? { verworfen } : {}), ...(ersatz ? { ersatz } : {}) } : s);
   const teile = (m?.anbauMastFlach ?? []).filter((t) => {
     if (t.aktiv === false) return false;
     const e = t.ort === 'mastB' ? 'B' : 'A';
@@ -166,11 +186,20 @@ export function messStelle(m, g, ende = 'A') {
     .sort((a, b) => b - a)[0] ?? null;
 
   const fd = hoechste('drahtwerk');
-  if (fd !== null) return mit({ z: fd, was: 'Fahrdraht' });
   const arm = hoechste('aufbau');
-  if (arm !== null) return mit({ z: arm, was: 'Ausleger' });
   const H = g?.H ?? 0;
-  if (imBild(H) && H < zKopf - 1e-9) return mit({ z: H, was: 'Jochauflager' });
+  const joch = imBild(H) && H < zKopf - 1e-9 ? H : null;
+  // Die gewählte Stelle, wenn es sie gibt.
+  if (ref === 'fahrdraht' && fd !== null) return mit({ z: fd, was: 'Fahrdraht' });
+  if (ref === 'ausleger' && arm !== null) return mit({ z: arm, was: 'Ausleger' });
+  if (ref === 'joch' && joch !== null) return mit({ z: joch, was: 'Jochauflager' });
+  const ersatz = ref === 'auto' || ref === 'eigen' ? null
+    : { fahrdraht: 'kein Fahrdraht am Masten', ausleger: 'kein Ausleger am Masten',
+        joch: 'kein Jochauflager' }[ref] ?? null;
+  // Sonst die Automatik: Fahrdraht, Ausleger, Jochauflager.
+  if (fd !== null) return mit({ z: fd, was: 'Fahrdraht' }, ersatz);
+  if (arm !== null) return mit({ z: arm, was: 'Ausleger' }, ersatz);
+  if (joch !== null) return mit({ z: joch, was: 'Jochauflager' }, ersatz);
   /*
    * Kein Anhaltspunkt: dann fällt diese Stelle mit der Spitze zusammen, und
    * ein zweiter Wert daneben wäre nur eine Wiederholung. Die Auswertung
@@ -241,7 +270,17 @@ export function nurWindFaelle(lf) {
  * @returns {object|null} je Ende die massgebenden Werte, oder null
  */
 export function verformungsNachweis(kombi, opt = {}) {
-  const mitSpitze = opt.spitze === true;
+  /*
+   * >>> JE PRÜFUNG EIN SCHALTER (30. September). <<<
+   * `gruppen` = { fahrdraht, spitze, verdrehung } aus `nachweiseAuswahl`
+   * (Oberschalter schon eingerechnet). Ohne `gruppen` gilt der alte Aufruf:
+   * Fahrdraht an, Spitze nach `opt.spitze`, keine Verdrehung. Die
+   * Verdrehung rechnet nur das Stabwerk; der Kern merkt sich, dass sie
+   * geführt werden soll (`verdrehung`), damit die Anzeige es sagt.
+   */
+  const gruppen = opt.gruppen ?? { fahrdraht: true, spitze: opt.spitze === true, verdrehung: false };
+  const mitSpitze = gruppen.spitze === true;
+  const mitFahrdraht = gruppen.fahrdraht !== false;
   const grenzen = opt.grenzen ?? verformungGrenzen(null);
   const lf = kombi?.lastfaelle ?? [];
   const mitG = lf.filter((l) => l.stufe === 'betrieb');
@@ -296,7 +335,7 @@ export function verformungsNachweis(kombi, opt = {}) {
      * Siehe den Block oben. Die Mastspitze steht daneben als Auskunft.
      */
     const nw = [
-      stelle ? pruef(querS, grenzen.fahrdraht,
+      stelle && mitFahrdraht ? pruef(querS, grenzen.fahrdraht,
                      `${stelle.was} auf ${stelle.z.toFixed(2)} m quer `
                      + `zum Gleis, nur Wind`, stelle.z) : null,
       mitSpitze ? spitzeNachweis(spitzeW, L, grenzen.spitzeN) : null,
@@ -311,6 +350,9 @@ export function verformungsNachweis(kombi, opt = {}) {
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeMitG } : null,
       spitzeW && !mitSpitze ? { ...spitzeW, z: L, was: 'Mastspitze, nur Wind',
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
+      // Ausgeschaltet bleibt der Fahrdraht Auskunft (30. September).
+      querS && stelle && !mitFahrdraht ? { ...querS, z: stelle.z,
+                  was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
     ].filter(Boolean);
     /*
      * >>> OHNE MESSSTELLE KEIN NACHWEIS - UND DAS WIRD GESAGT. <<<
@@ -343,6 +385,7 @@ export function verformungsNachweis(kombi, opt = {}) {
     ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
     spitze: mitSpitze,
+    gruppen: { fahrdraht: mitFahrdraht, spitze: mitSpitze, verdrehung: gruppen.verdrehung === true },
     grenzen,
   };
 }

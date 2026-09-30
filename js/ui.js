@@ -5191,7 +5191,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
     ${stabwerkLeiste(opt)}
     ${mn ? `${zeigtTrag ? `${abschnitt('Nachweise')}
       ${nachweisGruppenHtml(nwGruppenMast)}
-      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle) : ''}`
+      ${plastischHtml(opt, true)}` : ''}${zeigtGzg ? gzgBlockHtml(zeigV, gzgQuelle, opt.gzg ?? null) : ''}`
       : '<p class="leer">Kein Mast im Modell — bitte ein Mastprofil wählen.</p>'}
     ${zeigtTrag ? nichtGefuehrtHtml(urteil) : ''}
     ${fuss.length ? klapp('einzelmast-fuss', 'Kräfte am Mastfuss',
@@ -5379,9 +5379,13 @@ export function gzgKacheln(erg) {
     if (gesehenV.has(name)) return;
     gesehenV.add(name);
     const mg = q.massgebend;
-    const mm = (v) => `${(v * 1000).toFixed(0)} mm`;
+    // Die Verdrehung in Grad, die Wege in mm (30. September).
+    const mmRoh = (v) => `${(v * 1000).toFixed(0)} mm`;
+    const gradVon = (v) => `${(v * 180 / Math.PI).toFixed(2)}°`;
+    const fmt = (x, v) => (x?.einheit === 'rad' ? gradVon(v) : mmRoh(v));
+    const mm = (v) => fmt(mg, v);
     const alle = q.nachweise
-      .map((x) => `${x.was}: ${mm(x.wert)} von ${mm(x.grenz)} (η ${f3(x.eta)})`)
+      .map((x) => `${x.was}: ${fmt(x, x.wert)} von ${fmt(x, x.grenz)} (η ${f3(x.eta)})`)
       .join('\n');
     /* ---------------------------------------------------------------------
      * >>> DIE MASTSPITZE STEHT DANEBEN, ALS AUSKUNFT (26. September). <<<
@@ -5392,9 +5396,9 @@ export function gzgKacheln(erg) {
      * 150 mm nicht sieht, fragt auch nicht, woher sie kommen.
      * ------------------------------------------------------------------- */
     const dazu = (q.auskunft ?? [])
-      .map((x) => `${x.was}: ${mm(x.wert)}`
+      .map((x) => `${x.was}: ${fmt(x, x.wert)}`
         + (x.vergleich ? ` (zum Vergleich L/${Math.round(q.L / x.vergleich)}`
-                       + ` = ${mm(x.vergleich)})` : ''))
+                       + ` = ${fmt(x, x.vergleich)})` : ''))
       .join('\n');
     /*
      * >>> UND DIE HOEHE GEHOERT AN DIE KACHEL. <<<
@@ -5403,7 +5407,8 @@ export function gzgKacheln(erg) {
      */
     const wo = Number.isFinite(mg.z)
       // Die Mastspitze L/100 (30. September) nennt sich selbst.
-      ? `${mg.spitze ? 'Mastspitze' : (q.stelle?.was ?? 'Messstelle')} ${mg.z.toFixed(2)} m · ` : '';
+      ? `${mg.verdrehung ? 'Mastverdrehung' : mg.spitze ? 'Mastspitze'
+        : (q.stelle?.was ?? 'Messstelle')} ${mg.z.toFixed(2)} m · ` : '';
     /*
      * >>> EINE VERWORFENE EINGABE WIRD GENANNT (26. September). <<<
      *
@@ -5420,8 +5425,8 @@ export function gzgKacheln(erg) {
         + `${mg.z?.toFixed(2)} m — dort, wo der Kern eine Verschiebung `
         + `rechnet.` : '';
     k.push(kachel(`Verformung ${name}`, mm(mg.wert),
-      `${q.ok ? '' : 'ÜBER · '}${wo}${mm(mg.grenz)} zulässig · `
-      + `${mg.achse === 'x' ? 'quer' : 'längs'}`
+      `${q.ok ? '' : 'ÜBER · '}${wo}${mm(mg.grenz)} zulässig`
+      + `${mg.verdrehung ? ' · um die Achse' : ` · ${mg.achse === 'x' ? 'quer' : 'längs'}`}`
       /*
        * Sichtbar, nicht nur im Titel: ein Tooltip liest, wer die Maus
        * darauf hält - und wer eine Höhe eingetragen hat, die nicht gilt,
@@ -5785,6 +5790,15 @@ export function verdrahteStabwerk(node, opt = {}) {
       k.addEventListener('click', () => opt.beiStab(k.dataset.kzStab));
     });
   }
+  // Die Referenzhöhe im GZG-Block (30. September) - wie in den Optionen.
+  if (typeof opt.beiFeld === 'function') {
+    node.querySelectorAll('[data-gzg-feld]').forEach((inp) => {
+      inp.addEventListener('change', () => {
+        const k = inp.dataset.gzgFeld;
+        opt.beiFeld(k, k === 'fdHoehe' ? (Number(inp.value) > 0 ? Number(inp.value) : 0) : inp.value);
+      });
+    });
+  }
   const b = node.querySelector('[data-stabwerk-rechnen]');
   if (!b || typeof opt.beiStabwerk !== 'function') return;
   b.onclick = () => {
@@ -5840,17 +5854,36 @@ export function verdrahteNachweisart(node, opt) {
  * zweideutig - «nicht gerechnet» und «nichts gefunden» sehen dann gleich
  * aus, und das erste wäre ein Mangel.
  */
-export function gzgBlockHtml(erg, quelle = '') {
+export function gzgBlockHtml(erg, quelle = '', gzg = null) {
   const g = gzgKacheln(erg);
-  const psi = erg?.verformung?.psi;
-  // Die Grenzwerte aus den Optionen (30. September), sonst die Vorgaben.
-  const gr = erg?.verformung?.grenzen;
-  const fdMm = `${Math.round((gr?.fahrdraht ?? 0.040) * 1000 * 10) / 10} mm`;
+  const v = erg?.verformung;
+  const psi = v?.psi;
+  // Die Grenzwerte aus den Optionen (30. September), sonst die Vorgaben;
+  // genannt werden nur die geführten Prüfungen.
+  const gr = v?.grenzen;
+  const gp = v?.gruppen ?? { fahrdraht: true, spitze: v?.spitze === true };
+  const grenzen = [
+    gp.fahrdraht ? `${Math.round((gr?.fahrdraht ?? 0.040) * 1000 * 10) / 10} mm` : '',
+    gp.spitze ? `L/${gr?.spitzeN ?? 100}` : '',
+    gp.verdrehung ? `${gr?.verdrehungGrad ?? 5}°` : '',
+  ].filter(Boolean);
+  /*
+   * >>> DIE MASTVERDREHUNG RECHNET NUR DAS STABWERK (30. September). <<<
+   * Geführt, aber ohne gültiges Stabwerk: das steht da, statt still zu
+   * fehlen.
+   */
+  const nurSw = gp.verdrehung && v?.quelle !== 'stabwerk'
+    ? '<p class="notiz">Mastverdrehung: nur aus dem Stabwerk - sie steht da, sobald es gerechnet ist.</p>' : '';
+  // Die Referenzhöhe, umschaltbar (Weisung 30. September: «unter
+  // gebauchstauglichkeit in der sidebar übersicht aufführen und
+  // umschaltbar machen»).
+  const referenz = gzg ? `<div class="gzg-referenz-zeile">${gzgReferenzHtml(gzg, false, true)}</div>` : '';
   // Die Quelle steht dabei wie an den Gruppen der Nachweise (28. Sept.).
   return `${abschnitt('Gebrauchstauglichkeit',
-    [psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / `
-      + (erg.verformung.spitze ? `${fdMm} bzw. L/${gr?.spitzeN ?? 100}` : fdMm) : '', quelle]
+    [psi ? (grenzen.length ? `Betriebswind ψ ${psi.toFixed(2)} · Grenzen ${grenzen.join(' · ')}`
+      : 'nicht geführt (Optionen → Nachweise)') : '', quelle]
       .filter(Boolean).join(' · '))}
+    ${referenz}${nurSw}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
       : `<p class="leer">${erg?.verformung?.ohneStelle
         /*
@@ -6955,7 +6988,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${nachweisGruppenHtml(nwGruppen)}
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
-    ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle) : ''}
+    ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle, opt.gzg ?? null) : ''}
     ${/* Ausleger ohne Modell (30. September): keine Schnittgrössen und
          keine Stellen des Ersatzjochs. */''}
     ${erg.ausleger?.fehler ? '' : klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
@@ -8617,51 +8650,75 @@ export function nachweiseHtml(werte) {
   return `<p class="notiz">Ein nicht geführter Nachweis zählt <b>nie als
     erfüllt</b>. Er wird im Urteil, im Bericht und in der Ausleitung
     ausdrücklich als nicht geführt genannt.</p>`
-    + NACHWEISGRUPPEN.map((g, i) => `${g.ober && NACHWEISGRUPPEN[i - 1]?.ober !== g.ober
-      ? `<p class="nw-ober">${esc(g.ober)}</p>` : ''}
-    <div class="nw-wahl${g.vorhanden ? '' : ' fehlt'}${g.ober ? ' nw-unter' : ''}">
-      <label>
-        <input type="checkbox" data-nachweis="${esc(g.key)}"
-          ${nw[g.key] ? 'checked' : ''}${g.vorhanden ? '' : ' disabled'}>
-        <span class="nw-titel">${esc(g.titel)}</span>
-      </label>
+    + NACHWEISGRUPPEN.map((g, i) => {
+      /*
+       * >>> OBERSCHALTER UND UNTERPUNKTE (30. September). <<<
+       * Ein Unterpunkt zeigt SEINE Wahl (nicht die mit dem Oberschalter
+       * verrechnete) und ist gesperrt, solange der Oberschalter aus ist -
+       * so kommt beim Wiedereinschalten zurück, was man vorher hatte. Der
+       * Grenzwert steht auf derselben Zeile; unter dem Oberschalter die
+       * Referenzhöhe.
+       */
+      const eigen = (werte.nachweise?.[g.key] ?? g.standard) === true;
+      const gesperrt = !g.vorhanden || (g.unterVon && !nw[g.unterVon]);
+      const kopf = g.ober && NACHWEISGRUPPEN[i - 1]?.ober !== g.ober
+        && NACHWEISGRUPPEN[i - 1]?.key !== g.unterVon;
+      return `${kopf ? `<p class="nw-ober">${esc(g.ober)}</p>` : ''}
+    <div class="nw-wahl${g.vorhanden ? '' : ' fehlt'}${g.ober ? ' nw-unter' : ''}${gesperrt && g.vorhanden ? ' nw-gesperrt' : ''}">
+      <div class="nw-zeile">
+        <label>
+          <input type="checkbox" data-nachweis="${esc(g.key)}"
+            ${(g.unterVon ? eigen : nw[g.key]) ? 'checked' : ''}${gesperrt ? ' disabled' : ''}>
+          <span class="nw-titel">${esc(g.titel)}</span>
+        </label>
+        ${g.grenze ? grenzFeldHtml(werte, g.grenze, gesperrt) : ''}
+      </div>
       <p class="notiz">${esc(wasVon(g))}</p>
       ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
         + 'enthalten, separat zu führen.</p>'}
-    </div>`).join('')
-    + grenzwerteHtml(werte);
+      ${g.key === 'gebrauch' ? `<div class="nw-referenz">${gzgReferenzHtml(werte, !nw.gebrauch)}</div>` : ''}
+    </div>`;
+    }).join('');
 }
 
-/*
- * >>> DIE GRENZWERTE DER GEBRAUCHSTAUGLICHKEIT (30. September). <<<
- *
- * Weisung: «unter den optionen sollte man noch die grenzwerte definieren
- * können für fahrdraht und mastspitze.» Sie stehen unter den Schaltern der
- * Gebrauchstauglichkeit, eingerückt wie diese. Leer heisst Vorgabe
- * (40 mm, L/100) - `verformungGrenzen` in core.verformung.js ist die eine
- * Stelle, die das auslegt.
- */
-function grenzwerteHtml(werte) {
+/** Das Zahlenfeld des Grenzwerts neben seinem Schalter (30. September). */
+function grenzFeldHtml(werte, gz, gesperrt) {
   const gr = verformungGrenzen(werte);
-  const feld = (key, titel, wert, einheit, vorgabe, notiz) => `
-    <label class="nw-grenze">
-      <span class="nw-titel">${esc(titel)}</span>
-      <span class="nw-grenze-eingabe">${einheit.vor ?? ''}<input type="number"
-        data-grenze="${esc(key)}" min="1" step="1" value="${esc(String(wert))}"
-        title="Vorgabe ${esc(String(vorgabe))} - leer setzt sie zurück">${einheit.nach ?? ''}</span>
-    </label>
-    <p class="notiz">${esc(notiz)}</p>`;
-  return `<div class="nw-wahl nw-unter">
-    ${feld('gzgGrenzeFahrdraht', 'Grenzwert Fahrdraht quer', Math.round(gr.fahrdraht * 1e4) / 10,
-           { nach: ' mm' }, 40,
-           'Verschiebung quer zum Gleis auf Höhe Fahrdraht (bzw. Ausleger oder '
-           + 'Jochauflager) unter Betriebswind, Wind allein. Vorgabe 40 mm.')}
-    ${feld('gzgGrenzeSpitze', 'Grenzwert Mastspitze', gr.spitzeN,
-           { vor: 'L / ' }, 100,
-           'Auslenkung der Mastspitze in Gleis- und in Querrichtung unter '
-           + 'Betriebswind; gilt, wenn «Mastspitze» oben angekreuzt ist. '
-           + 'Vorgabe L/100.')}
-  </div>`;
+  const wert = { gzgGrenzeFahrdraht: Math.round(gr.fahrdraht * 1e4) / 10,
+                 gzgGrenzeSpitze: gr.spitzeN, gzgGrenzeVerdrehung: gr.verdrehungGrad }[gz.feld];
+  return `<span class="nw-grenze-eingabe">${esc(gz.vor)}<input type="number"
+      data-grenze="${esc(gz.feld)}" min="0.1" step="${gz.feld === 'gzgGrenzeVerdrehung' ? 0.5 : 1}"
+      value="${esc(String(wert))}"${gesperrt ? ' disabled' : ''}
+      title="Vorgabe ${esc(String(gz.vorgabe))}${esc(gz.nach ? ` ${gz.nach}` : '')} - leer setzt sie zurück">${esc(gz.nach)}</span>`;
+}
+
+/* ===========================================================================
+ * >>> DIE REFERENZHÖHE (30. September). <<<
+ * Weisung: «dazu noch die eingabe der relevanten höhe, was man auch beim
+ * fahrdraht in den optionen eingeben sollte können. (fahrdraht / Tragjoch /
+ * Ausleger oder selbst eingegeben höhe) … man könnte diese grenze auch unter
+ * gebauchstauglichkeit in der sidebar übersicht aufführen und umschaltbar
+ * machen». Dieselbe Wahl in den Optionen und im GZG-Block der Übersicht;
+ * `data-gzg-feld` meldet `gzgReferenz` bzw. `fdHoehe` (die eigene Höhe).
+ * ========================================================================= */
+export const GZG_REFERENZEN = [
+  { key: 'auto', titel: 'automatisch (Fahrdraht, sonst Ausleger, sonst Jochauflager)' },
+  { key: 'fahrdraht', titel: 'Fahrdraht' },
+  { key: 'ausleger', titel: 'Ausleger' },
+  { key: 'joch', titel: 'Jochauflager' },
+  { key: 'eigen', titel: 'eigene Höhe' },
+];
+export function gzgReferenzHtml(werte, gesperrt = false, kurz = false) {
+  const ref = werte.gzgReferenz ?? (Number(werte.fdHoehe) > 0 ? 'eigen' : 'auto');
+  const h = Number(werte.fdHoehe) || 0;
+  return `<label class="gzg-referenz">
+      <span>Referenzhöhe</span>
+      <select data-gzg-feld="gzgReferenz"${gesperrt ? ' disabled' : ''}>${GZG_REFERENZEN.map((r) =>
+        `<option value="${r.key}"${r.key === ref ? ' selected' : ''}>${esc(kurz && r.key === 'auto' ? 'automatisch' : r.titel)}</option>`).join('')}</select>
+      ${ref === 'eigen' ? `<input type="number" data-gzg-feld="fdHoehe" min="0" step="0.05"
+        value="${h > 0 ? h : ''}" placeholder="m"${gesperrt ? ' disabled' : ''}
+        title="Über dem Mastfuss, höchstens bis zum Mastkopf"> m` : ''}
+    </label>`;
 }
 
 /**

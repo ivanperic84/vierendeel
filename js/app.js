@@ -996,8 +996,12 @@ function neuRechnen(neuZeichnen = true) {
      */
     // Die Mastspitze L/100 ist abschaltbar (Nachweisgruppe `spitzeMast`, 30. Sept.).
     // Die Grenzwerte (Fahrdraht, Mastspitze) stehen in den Optionen.
+    // Seit der Neuordnung (30. September) je Prüfung ein Schalter, der
+    // Oberschalter «Gebrauchstauglichkeit» ist in der Auswahl eingerechnet.
+    const nwG = nachweiseAuswahl(werte.nachweise);
     erg.verformung = verformungsNachweis(kombiMast,
-      { spitze: nachweiseAuswahl(werte.nachweise).spitzeMast,
+      { gruppen: { fahrdraht: nwG.fahrdrahtQuer, spitze: nwG.spitzeMast,
+                   verdrehung: nwG.verdrehungMast },
         grenzen: verformungGrenzen(werte) });
     // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
     // misst (28. September) - sonst stand dort eine 0.
@@ -1469,6 +1473,8 @@ function zeichneAuswertung() {
         beiStab: zeigeStab,
         beiNachweisart: setzeNachweisart,
         beiFeld: (k, v) => aendern(k, v),
+        // Die Referenzhöhe im GZG-Block (30. September).
+        gzg: { gzgReferenz: werte.gzgReferenz, fdHoehe: werte.fdHoehe },
         lastfallName: anzeigeKombi === 'umhuellend' ? null
           : (letzte.kombi?.lastfaelle?.find((k) => k.key === anzeigeKombi)?.bez ?? anzeigeKombi),
       });
@@ -1516,6 +1522,9 @@ function zeichneAuswertung() {
                            twId: werte.twId,
                            plastisch: werte.mastPlastisch === true,
                            nachweisart,
+                           // Die Referenzhöhe im GZG-Block (30. September).
+                           gzg: { gzgReferenz: werte.gzgReferenz, fdHoehe: werte.fdHoehe },
+                           beiFeld: (k, v) => aendern(k, v),
                            stabwerk: { verfahren: verfahrenVon(werte),
                                        stand: stabwerkStand(app),
                                        // Der Grund steht auch dann bereit,

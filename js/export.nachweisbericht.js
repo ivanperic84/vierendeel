@@ -636,10 +636,12 @@ function gebrauchstauglichkeit(d) {
     if (gesehen.has(name)) return;
     gesehen.add(name);
     q.nachweise.forEach((n) => {
+      // In MILLIMETERN, die Verdrehung um die Mastachse in GRAD (30. Sept.).
+      const grad = n.einheit === 'rad';
+      const w = (x) => (grad ? `${zahl(x * 180 / Math.PI, 2)}°` : zahl(x * 1000, 1));
       zeilen.push([esc(`Mast ${name}`), esc(n.was),
-        // In MILLIMETERN: die Grenzwerte heissen 40 mm und L/200.
-        zahl(n.wert * 1000, 1), zahl(n.grenz * 1000, 1),
-        esc(n.achse === 'x' ? 'quer' : 'längs'),
+        w(n.wert), w(n.grenz),
+        esc(grad ? 'um die Achse' : n.achse === 'x' ? 'quer' : 'längs'),
         `<span data-pruef="verf-${esc(e)}">${zahl(n.eta, 3)}</span>`,
         esc(n.bez ?? ''),
         `<span class="marke ${n.ok ? 'ok' : 'nok'}">${n.ok ? 'erfüllt' : 'ÜBER'}</span>`]);
@@ -654,10 +656,14 @@ function gebrauchstauglichkeit(d) {
    * Mastspitze L/n unter Betriebswind, beide in den Optionen einstellbar.
    */
   const fdMm = (v.grenzen?.fahrdraht ?? 0.040) * 1000;
-  const spitzeText = v.spitze
+  const gp = v.gruppen ?? { fahrdraht: true, spitze: v.spitze === true };
+  const spitzeText = (gp.spitze
     ? `; Mastspitze L/${zahl(v.grenzen?.spitzeN ?? 100, 0)} in Gleis- und in
        Querrichtung unter demselben Betriebswind`
-    : '; die Mastspitze steht als Auskunft, ohne Nachweis';
+    : '; die Mastspitze steht als Auskunft, ohne Nachweis')
+    // Die Mastverdrehung (30. September), nur aus dem Stabwerk.
+    + (gp.verdrehung ? `; Verdrehung um die Mastachse
+       ${zahl(v.grenzen?.verdrehungGrad ?? 5, 1)}° auf der Referenzhöhe (Stabwerk)` : '');
   return `<section><h2>§ Gebrauchstauglichkeit — Mastverformung</h2>
     <p>Nachgewiesen wird die Verschiebung des Masten im Gebrauchszustand.
     Maassgebend ist der <b>Betriebswind</b> mit ψ = ${zahl(psi, 2)}
@@ -669,7 +675,7 @@ function gebrauchstauglichkeit(d) {
     derselben Lastliste wie die Schnittgrössen (einschliesslich der
     Haltekraft eines Ankers). <b>Diese Nachweise färben das
     Tragsicherheitsurteil nicht</b> — sie stehen daneben.</p>
-    ${tabelle(['Bauteil', 'Nachweis', 'w [mm]', 'zulässig [mm]', 'Richtung',
+    ${tabelle(['Bauteil', 'Nachweis', 'w [mm] / φ', 'zulässig', 'Richtung',
                'η', 'massgebender Lastfall', ''], zeilen, 'eng')}
     ${(d.opt?.bilder?.verformung !== false && d.bilder?.verformung)
       ? bild(d.bilder.verformung, 'Verformung über die Masthöhe — '

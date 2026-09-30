@@ -1228,11 +1228,18 @@ button.wz-haupt:hover { color: var(--on); }
 /* Unterpunkt (30. September): die Mastspitze unter «Gebrauchstauglichkeit» */
 .nw-ober { margin: 12px 0 0; padding-top: 8px; border-top: 1px solid var(--ol); font-weight: 600; color: var(--dim); font-size: 12px; }
 .nw-wahl.nw-unter { margin-left: 18px; }
-/* Grenzwerte der Gebrauchstauglichkeit (30. September). */
-.nw-grenze { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.nw-grenze-eingabe { white-space: nowrap; color: var(--on2); font-size: 12px; }
-.nw-grenze input { width: 64px; text-align: right; }
-.nw-grenze + .notiz { margin-bottom: 8px; }
+/* Gebrauchstauglichkeit: Schalter mit Grenzwert auf einer Zeile, Unterpunkte
+   gesperrt ohne Oberschalter, darunter die Referenzhöhe (30. September). */
+.nw-zeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nw-grenze-eingabe { white-space: nowrap; color: var(--on2); font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px; }
+.nw-grenze-eingabe input { width: 64px; text-align: right; }
+.nw-wahl.nw-gesperrt { opacity: 0.5; }
+.nw-referenz { margin: 6px 0 2px; }
+.gzg-referenz { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--on2); }
+.gzg-referenz select { max-width: 100%; }
+.gzg-referenz input { width: 70px; text-align: right; }
 .nw-ober + .nw-wahl { border-top: 0; }
 /* Der Knopf zur Sortimentssuche steht rechts im Urteil - er ist die
    Antwort auf «und was jetzt», nicht Teil der Aussage selbst. */

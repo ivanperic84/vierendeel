@@ -373,6 +373,15 @@ export function dialogOptionen(app) {
      * (`change`), nicht bei jeder Taste - sonst rechnete «4» auf dem Weg zu
      * «45» einen Grenzwert von 4 mm. Leer oder nicht positiv: Vorgabe.
      */
+    // Die Referenzhöhe und die eigene Höhe (30. September) - dieselben
+    // Felder wie im GZG-Block der Übersicht.
+    rahmen.querySelectorAll('[data-gzg-feld]').forEach((inp) => {
+      inp.onchange = () => {
+        const k = inp.dataset.gzgFeld;
+        app.aendern(k, k === 'fdHoehe' ? (Number(inp.value) > 0 ? Number(inp.value) : 0) : inp.value);
+        neu();
+      };
+    });
     rahmen.querySelectorAll('[data-grenze]').forEach((inp) => {
       inp.onchange = () => {
         const z = Number(inp.value);

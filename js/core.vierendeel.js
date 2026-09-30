@@ -407,6 +407,8 @@ export function modellEinzelmast(inp, stahl) {
      * unverändert weiter.
      */
     fdHoehe: Number(inp.fdHoehe) || 0,
+    // Die gewählte Referenzhöhe der Gebrauchstauglichkeit (30. September).
+    gzgReferenz: inp.gzgReferenz ?? null,
     /*
      * >>> FUER DAS BILD: DIE GANZE LISTE, AM MASTEN (18. September). <<<
      *
@@ -879,6 +881,8 @@ export function modell(inp, profOG, profUG, stahl, joch, massVariante) {
      * unverändert weiter.
      */
     fdHoehe: Number(inp.fdHoehe) || 0,
+    // Die gewählte Referenzhöhe der Gebrauchstauglichkeit (30. September).
+    gzgReferenz: inp.gzgReferenz ?? null,
     anbauMastFlach: nurTeil(havarieEinsetzen(expandiereAnbauteile(amMasten, {
       ek: ekVonWindklasse(inp.windKlasse),
       R: inp.trasseRadius, spannweite: inp.flSpannweite,

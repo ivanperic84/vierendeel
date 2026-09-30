@@ -871,8 +871,15 @@ export const FELDER = [
    * «Beim Ausleger») - sie legt fest, wo er und seine Aufhängung am Masten
    * sitzen, und ist damit eine Angabe des Auslegers.
    */
+  /*
+   * >>> UND BEIM JOCH UNTER DEM JOCH (30. September). <<<
+   * Weisung: «diese anschlusshöhe sollte unter der jochgruppe stehen und
+   * nicht beim masten» - sie legt fest, wo das JOCH am Masten sitzt, und
+   * gehört dem Tragwerk (siehe `MASTFELDER`: die Anschlusshöhe bleibt beim
+   * Tragwerk). Ende B mit ihr (`mastHZwei`, `mastHB`).
+   */
   { key: 'mastH', gruppe: 'mast', typ: 'schieber',
-    gruppeAus: (w) => (tragwerksart(w).key === 'tragausleger' ? 'geo' : 'mast'),
+    gruppeAus: () => 'geo',
     label: (w) => (tragwerksart(w).key === 'tragausleger'
       ? `Höhe Ausleger über Fundament · Mast ${mastNameAmEnde(w, null, 'A')}`
       : `Anschlusshöhe Ende A · Mast ${mastNameAmEnde(w, null, 'A')}`),
@@ -1172,7 +1179,13 @@ export const FELDER = [
                             w.mastZwei ? mastKopfHoehe(w, 'B') : 0),
     wertAus: (w) => (Number(w.fdHoehe) > 0 ? Number(w.fdHoehe)
       : (fdAutomatik ? Math.round(fdAutomatik.z * 100) / 100 : 0)),
-    sichtbar: (w) => mastDa(w),
+    /*
+     * >>> NICHT MEHR UNTER MASTEN (30. September). <<<
+     * Die Referenzhöhe wählt man jetzt in den Optionen und im Block
+     * «Gebrauchstauglichkeit» der Übersicht (Rückfrage «Weg, Optionen
+     * führen»); `fdHoehe` bleibt der Wert der «eigenen Höhe».
+     */
+    sichtbar: () => false,
     hinweis: 'Über dem Mastfuss gemessen, höchstens bis zum Mastkopf. Dort '
            + 'wird die Seitenlage quer zum Gleis gegen 40 mm nachgewiesen '
            + '(Betriebswind ψ 0.70). Automatisch (Eingabe 0): höchstes '
@@ -1220,13 +1233,13 @@ export const FELDER = [
   { key: 'mastProfilB', gruppe: 'mast', typ: 'auswahl', versteckt: true,
     label: 'Mastprofil Ende B',
     standard: 'HEB 260', optionenAus: () => opt(mastprofile(), 'name', 'name') },
-  { key: 'mastHZwei', fein: true, gruppe: 'mast', typ: 'schalter',
+  { key: 'mastHZwei', fein: true, gruppe: 'mast', typ: 'schalter', gruppeAus: () => 'geo',
     label: (w) => `Anschlusshöhe am Ende B (Mast ${mastNameAmEnde(w, null, 'B')}) abweichend`,
     standard: false,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2,
     hinweis: 'Nur die Höhe, an der das Joch anschliesst. Das Profil des '
            + 'zweiten Mastes steht an seiner Kachel.' },
-  { key: 'mastHB', fein: true, gruppe: 'mast', typ: 'schieber',
+  { key: 'mastHB', fein: true, gruppe: 'mast', typ: 'schieber', gruppeAus: () => 'geo',
     label: (w) => `Anschlusshöhe Ende B · Mast ${mastNameAmEnde(w, null, 'B')}`,
     sym: 'H_B', einheit: 'm', standard: 7.5, schritt: 0.05, zugSchritt: 0.5, min: 2, max: 20,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).masten >= 2
