@@ -52,7 +52,7 @@ import { verortung, verortungKurz, tragwerksart,
 // Modellansicht zeichnet. Zwei eigene Fassungen waren der Grund, warum
 // Bild und ausgeleitetes Modell einmal auseinanderliefen.
 import { anbauKette, anschlussGurt } from './core.anbauteile.js';
-import { mastAchse, linkBedingung, konsolLaenge } from './core.auflager.js';
+import { mastAchse, linkBedingung, konsolLaenge, einzelmastLaenge } from './core.auflager.js';
 import { ankerTraegtDruck } from './data.anker.js';
 import { ankerQuerschnitt, ankerSpreizung, ankerAchsabstandAn,
          ankerBindebleche, ankerBlechSatz,
@@ -1725,7 +1725,7 @@ export function lagenEntflechten(alle, mastenJe) {
  * ist der Versatz. Ohne gemeinsamen Masten bleibt er null — dann steht das
  * Tragwerk für sich, und seine eigene Achse ist die Bezugshöhe.
  */
-function hoehenversatz(t, gesetzt, mastenJe) {
+function hoehenversatz(t, gesetzt, mastenJe, werte) {
   const meine = mastenJe.get(t.id) ?? [];
   for (const [ende, mast] of meine) {
     if (!mast) continue;
@@ -1734,10 +1734,48 @@ function hoehenversatz(t, gesetzt, mastenJe) {
         .find(([, mm]) => mm && mm.id === mast.id);
       if (!dort) continue;
       // EINE Regel, nicht zwei: `mastHB` gilt nur mit `mastZwei`.
-      return g.dz + (anschlusshoehe(t, ende) - anschlusshoehe(g.t, dort[0]));
+      return g.dz + (bezugshoehe(t, ende, werte) - bezugshoehe(g.t, dort[0], werte));
     }
   }
-  return 0;
+  /*
+   * >>> OHNE GEMEINSAMEN MASTEN AUF DEMSELBEN BODEN (30. September). <<<
+   *
+   * Hier stand `return 0`: ein Tragwerk ohne Masten des Vorgaengers legte
+   * seine Hoehennull (Jochachse) auf die Blattnull, gleichgueltig wie hoch
+   * es anschliesst. Am Beispiel des Auftraggebers standen damit zwei Joche
+   * mit derselben Anschlusshoehe 1.50 m einen Meter gegeneinander versetzt,
+   * weil die erste Gruppe an einem 2.50-m-Einzelmasten ausgerichtet war -
+   * und die verformte Figur und die Titel der Reaktionsskizze, die mit EINEM
+   * Versatz ins Bild rechnen, lagen beim zweiten daneben. Jetzt wird es am
+   * ersten gesetzten Tragwerk ueber die Bezugshoehe ausgerichtet: die Fuesse
+   * stehen auf demselben Boden wie im 3D.
+   */
+  const erst = gesetzt[0];
+  if (!erst) return 0;
+  return erst.dz + (bezugshoehe(t, 'A', werte) - bezugshoehe(erst.t, 'A', werte));
+}
+
+/**
+ * >>> WO DIE HOEHENNULL EINES TRAGWERKS UEBER DEM BODEN LIEGT [m]. <<<
+ *
+ * Beim Joch die Jochachse (`anschlusshoehe`). Beim EINZELMASTEN nicht: sein
+ * Modell legt die Null auf den Mastkopf, der Fuss steht bei -Laenge
+ * (`stabmodellEinzelmast`, H = Laenge). Die Anschlusshoehe `mastH` ist dort
+ * ausgeblendet und traegt einen Wert, den niemand gemeint hat.
+ *
+ * Befund 30. September am Beispiel des Auftraggebers («beim export der
+ * reaktionskräfte und beim aufbau in axis war der modellaufbau
+ * verfälscht»): ein Einzelmast (Mast 2.50 m, verborgenes mastH 7.50) auf
+ * demselben Masten wie ein Joch mit H = 1.50 m. Das Joch wurde um
+ * 1.50 - 7.50 = -6.00 m versetzt, seine Achse stand bei z -6.00, der
+ * gemeinsame Mast reichte von -6.36 bis 0 und der zweite Mast des Jochs
+ * stand 5 m unter den anderen Fuessen. Gerechnet wird mit der Laenge aus
+ * dem projizierten Satz (Mastliste), wie das Modell selbst.
+ */
+function bezugshoehe(t, ende, werte) {
+  if (tragwerksart(t).key !== 'einzelmast') return anschlusshoehe(t, ende);
+  const s = werte ? tragwerkSatz(werte, t.id) : t;
+  return einzelmastLaenge(s) + (Number(s?.mastFuss) || 0);
 }
 
 /**
@@ -1756,15 +1794,49 @@ function hoehenversatz(t, gesetzt, mastenJe) {
  * Gibt eine Abbildung fuer Streckenlasten zurueck: alte Last -> Lasten auf
  * den neuen Abschnitten.
  */
-function mastNeuAufreihen(staebe, knoten, mastZuege) {
+/*
+ * >>> ZU WELCHEM MASTEN EIN KNOTEN GEHOERT (30. September). <<<
+ *
+ * Die Anschlussknoten eines Jochs tragen die Hoehe im Namen
+ * (MAST_M1k-1000_A_UG, siehe `anschlussNamen`). Die Mittelung der Mastlage
+ * erkannte sie als eigenen Masten «M1k-1000» und liess sie an ihrer Stelle -
+ * steht das Joch mit Kragarm 0.20 m neben einem Einzelmasten am selben
+ * Masten, lag der Fuss bei x 0.10 und der Anschluss bei 0.20: ein
+ * geknickter Mast. Jetzt zaehlt der Teil vor «k» als Mast.
+ */
+const MAST_KNOTEN = /^MAST_([^_]+?)(?:k-?[0-9]+)?_/;
+
+function mastNeuAufreihen(staebe, knoten, mastZuege, gleich = new Map()) {
   const umbau = new Map();   // Mast-Id -> { alt: [Abschnitte], neu: [Abschnitte] }
   mastZuege.forEach((weitere, id) => {
     const re = new RegExp(`^MAST_${id}_S\\d+$`);
     const erste = staebe.filter((st) => re.test(st.name));
     const alt = [...erste, ...weitere];
     const z = (n) => knoten.get(n)?.z ?? 0;
-    const namen = [...new Set(alt.flatMap((st) => [st.von, st.bis]))]
+    const sortiert = [...new Set(alt.flatMap((st) => [st.von, st.bis]))]
       .sort((a, b) => z(a) - z(b));
+    /*
+     * >>> ZWEI KNOTEN AM SELBEN PUNKT SIND EINER (30. September). <<<
+     *
+     * Befund am Beispiel des Auftraggebers: ein Einzelmast und ein Joch auf
+     * demselben Masten. Der Einzelmast legt seinen Kopf (MAST_M1_OG) auf
+     * z = 0, das Joch den seinen (MAST_M1_KOPF) auf dieselbe Stelle - zwei
+     * Namen, ein Punkt. Aufgereiht gab das einen Abschnitt der Laenge null,
+     * und der Loeser lieferte NaN, ohne Meldung. Der spaetere Name wird auf
+     * den ersten umgeschrieben (`gleich`); Staebe, Lasten und Auflager
+     * folgen ihm in stabmodellBlatt.
+     */
+    const namen = [];
+    sortiert.forEach((n) => {
+      const vor = namen[namen.length - 1];
+      const a = vor && knoten.get(vor), b = knoten.get(n);
+      if (a && b && Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
+          && Math.abs(a.z - b.z) < 1e-6) {
+        gleich.set(n, vor);
+        return;
+      }
+      namen.push(n);
+    });
     const vorlage = erste[0];
     const neu = namen.slice(1).map((bis, i) => {
       const { roh, praefix, ...rest } = vorlage;
@@ -1884,7 +1956,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    */
   const mastAnbauVergeben = new Set();
   alle.forEach((t) => {
-    const dz = hoehenversatz(t, gesetzt, mastenJe);
+    const dz = hoehenversatz(t, gesetzt, mastenJe, werte);
     const ent = entflochten.get(t.id) ?? { dx: 0, mastDx: 0, wegen: null };
     const satzT = tragwerkSatz(werte, t.id, { mastAnbauAus: mastAnbauVergeben });
     let m;
@@ -1978,7 +2050,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
   const mastSoll = new Map();
   teile.forEach(({ bau, x0 }) => {
     bau.knoten.forEach((k, name) => {
-      const t = /^MAST_([^_]+)_/.exec(name);
+      const t = MAST_KNOTEN.exec(name);
       if (!t) return;
       const x = r6(k.x + x0);
       const da = mastSoll.get(t[1]);
@@ -1990,7 +2062,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
 
   teile.forEach(({ bau, dz, x0 }) => {
     const schieb = (k, name) => {
-      const t = /^MAST_([^_]+)_/.exec(name);
+      const t = MAST_KNOTEN.exec(name);
       const soll = t && mastSoll.get(t[1]);
       const x = soll ? r6(soll.summe / soll.n) : r6(k.x + x0);
       return { ...k, x, z: r6(k.z + dz) };
@@ -2041,7 +2113,15 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
    * Tragwerk, also wird je Tragwerk geholt und danach vereint. Die
    * Knotennamen tragen das Praefix und bleiben damit eindeutig.
    */
-  const mastUmbenannt = mastNeuAufreihen(staebe, knoten, mastZuege);
+  const gleich = new Map();
+  const mastUmbenannt = mastNeuAufreihen(staebe, knoten, mastZuege, gleich);
+  // Deckungsgleiche Mastknoten: jeder Verweis geht auf den verbliebenen.
+  const kn = (n) => gleich.get(n) ?? n;
+  if (gleich.size) {
+    staebe.forEach((st) => { st.von = kn(st.von); st.bis = kn(st.bis); });
+    gleich.forEach((_, n) => knoten.delete(n));
+  }
+  const aufKnoten = (l) => (gleich.has(l.knoten) ? { ...l, knoten: kn(l.knoten) } : l);
   /*
    * >>> ZWEIMAL GEBAUT, WEIL ZWEI AUSLEITUNGEN VERSCHIEDEN FRAGEN. <<<
    *
@@ -2071,8 +2151,8 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
     // einmal genuegt (siehe oben).
     const gesehen = new Set();
     return {
-      punkt: teilLasten.flatMap((l) => l.punkt),
-      moment: teilLasten.flatMap((l) => l.moment),
+      punkt: teilLasten.flatMap((l) => l.punkt).map(aufKnoten),
+      moment: teilLasten.flatMap((l) => l.moment).map(aufKnoten),
       strecke: teilLasten.flatMap((l) => l.strecke).flatMap(mastUmbenannt)
         .filter((l) => {
           const k = `${l.stab}|${l.lastfall}|${l.richtung}`;
@@ -2107,7 +2187,7 @@ export function stabmodellBlatt(werte, deps, opt = {}) {
      * x = 60. Gerechnet wird damit nichts (`stuetzung` verwirft es), gelesen
      * schon.
      */
-    auflager: teile.flatMap((t) => (t.bau.auflager ?? []).map((a) => (
+    auflager: teile.flatMap((t) => (t.bau.auflager ?? []).map((a) => aufKnoten(
       a.x === undefined ? a : { ...a, x: r6(a.x + (t.x0 ?? 0)) })))
       .filter((a, i, alle) => alle.findIndex((b) => b.knoten === a.knoten) === i),
     arme: teile.flatMap((x) => x.bau.arme ?? []),

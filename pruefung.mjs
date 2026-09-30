@@ -34293,6 +34293,69 @@ titel('174  Resultatleiste im Stabwerk: ohne Nachweisschnitt, δ bei den Plots')
        r3.includes("this.ohneBalken && (key === 'schnitt' || key === 'kraefte')"));
 }
 
+titel('175  Blattmodell: Einzelmast und Kragarm-Joch am selben Masten, gemeinsamer Boden');
+/* ===========================================================================
+ * Gemeldet 30. September mit einem Beispielblatt: «beim export der
+ * reaktionskräfte und beim aufbau in axis war der modellaufbau verfälscht».
+ * Befund (erfundener Fall nach demselben Muster): ein Einzelmast (Mast
+ * 2.50 m, verborgenes mastH 7.50) und ein Joch mit H 1.50 m und Kragarm
+ * 0.20 m am selben Masten M1, daneben ein unverbundenes Joch.
+ * Vorher: Füsse bei z -2.50 / -7.50 / -1.50 / -1.50, das Joch 6 m zu tief,
+ * M1 schräg (x 0.10 bis 0.20), M_q an M1/M2 4.01 / 4.41 statt 7.13 /
+ * 6.87 kNm (unsichere Seite). Fielen zwei Mastknoten zusammen, gab es einen
+ * Stab der Länge null und NaN ohne Meldung.
+ * ========================================================================= */
+{
+  const N175 = await import(J('core.nachbarn.js'));
+  const AS175 = await import(J('app.stabwerk.js'));
+  const A175 = await import(J('data.anbauteile.js'));
+  const sw0 = standardwerte();
+  const mast = (id, x, traegt) => ({ id, traegt, versteckt: false, ohneMast: false,
+    mitLage: true, x, profil: 'HEB 220', laenge: 2.5, steg: 'jochachse', fuss: 0, fundament: '' });
+  const joch = { typ: 'J90', L: 18, mastH: 1.5, mastLaenge: 2.5, mastLaengeB: 2.5,
+                 kragA: 0.2, kragB: 0.2, mastProfil: 'HEB 220', mastProfilB: 'HEB 220',
+                 anbauteile: [], rechenverfahren: 'stabwerk' };
+  const w = A175.standAnheben({ ...sw0, ...joch, tragwerksart: 'joch', xLage: 22,
+    twId: 'T3', id: 'T3',
+    masten: [mast('M1', 0, ['T1', 'T2']), mast('M2', 18, ['T2']),
+             mast('M3', 22, ['T3']), mast('M4', 40, ['T3'])],
+    weitere: [
+      { ...sw0, tragwerksart: 'einzelmast', twId: 'T1', id: 'T1', xLage: 0, mastH: 7.5,
+        mastLaenge: 0, anbauteile: [], rechenverfahren: 'stabwerk' },
+      { ...sw0, ...joch, tragwerksart: 'joch', twId: 'T2', id: 'T2', xLage: 0 },
+    ] });
+  const s = N175.rechensatzMitNachbarn(w);
+  const erg = berechne(s, ...N175.kernArgumente(s));
+  const sw = AS175.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  const dat = sw.roh.dat;
+  const kn = new Map(dat.knoten.map((k) => [k.name, k]));
+  const fuesse = dat.auflager.map((a) => kn.get(a.knoten).z);
+  wahr('Alle Mastfüsse auf demselben Boden (Einzelmast nach seiner Länge, nicht nach mastH)',
+       fuesse.length === 4 && fuesse.every((z) => Math.abs(z - fuesse[0]) < 1e-6),
+       fuesse.join(' / '));
+  const og = (p) => Math.min(...dat.knoten.filter((k) => k.name.startsWith(`${p}_OG`)).map((k) => k.z));
+  pruef('Beide Joche mit H 1.50 m auf gleicher Höhe, auch ohne gemeinsamen Masten',
+        og('T2'), og('T3'), 1e-6, 'm');
+  const m1x = dat.staebe.filter((st) => /^MAST_M1_S/.test(st.name))
+    .flatMap((st) => [kn.get(st.von).x, kn.get(st.bis).x]);
+  wahr('Der geteilte Mast bleibt gerade (Anschlussknoten zählen zur Mastlage)',
+       Math.max(...m1x) - Math.min(...m1x) < 1e-6, `${Math.min(...m1x)} … ${Math.max(...m1x)}`);
+  const laengen = dat.staebe.map((st) => {
+    const a = kn.get(st.von), b = kn.get(st.bis);
+    return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  });
+  wahr('Kein Stab der Länge null (deckungsgleiche Mastknoten zusammengelegt)',
+       Math.min(...laengen) > 1e-6 && dat.staebe.every((st) => kn.has(st.von) && kn.has(st.bis)),
+       Math.min(...laengen));
+  wahr('Die Reaktionen sind Zahlen', sw.reaktionen.length === 4
+       && sw.reaktionen.every((z) => Number.isFinite(z.haupt.Vmax.wert) && Number.isFinite(z.haupt.Mq.wert)));
+  pruef('M_q an M1 wie gemessen (vorher 4.01 kNm)', sw.reaktionen.find((z) => z.id === 'M1').haupt.Mq.wert,
+        7.132, 0.01, 'kNm');
+  const lay = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  wahr('Der Höhenversatz fragt die Bezugshöhe, nicht mastH', lay.includes('function bezugshoehe(t, ende, werte)')
+       && lay.includes('einzelmastLaenge(s) + (Number(s?.mastFuss) || 0)'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

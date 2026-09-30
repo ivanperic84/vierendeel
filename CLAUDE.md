@@ -283,12 +283,29 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5978 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5985 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., Blattmodell verfälscht bei Einzelmast und Kragarm-Joch am
+  selben Masten** (Prüfstand 175). Gemeldet mit einem Beispielblatt: «beim
+  export der reaktionskräfte und beim aufbau in axis war der modellaufbau
+  verfälscht». Drei Befunde in `stabmodellBlatt` (export.axisvm.js), alle
+  behoben: (1) der Höhenversatz las beim Einzelmasten das verborgene
+  `mastH` (7.50) statt der Länge, die sein Modell benutzt (2.50) - das Joch
+  daneben stand 6 m zu tief (`bezugshoehe`); (2) ein Tragwerk ohne
+  gemeinsamen Masten legte seine Jochachse auf die Blattnull statt auf den
+  gemeinsamen Boden - zwei Joche mit H 1.50 m standen 1 m versetzt;
+  (3) fielen zwei Mastknoten zusammen (Kopf des Einzelmasten, Kopf des
+  Jochmasten), entstand ein Stab der Länge null und der Löser gab NaN
+  ohne Meldung - jetzt zusammengelegt. Dazu zählen die Anschlussknoten
+  (`MAST_M1k…`) zur Mastlage, der geteilte Mast bleibt gerade. Gemessen am
+  Blatt des Auftraggebers M1 M_q 14.34 → 19.53, M_l 17.98 → 8.86, M2 M_q
+  11.15 → 4.55 kNm; im erfundenen Fall M_q M1/M2 4.01 / 4.41 → 7.13 /
+  6.87 kNm (vorher unsichere Seite). ⚠ Offen: Mastlage beim Kragarm und
+  Einzelmast unter dem Joch (siehe *Offene Punkte*).
 - **30. Sept., verformte Figur im 3D; Reaktionskräfte am Einzelmasten**
   (Prüfstand 173, siehe *Entschieden*). Im Browser geprüft (eigener Tab,
   Speichern abgeschaltet). Nicht gepusht.
@@ -2219,6 +2236,12 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   gerichtet; gerechnet wird dann nur der Ersatzbalken. Den Ausleger in die
   zusammenhängende Gruppe aufzunehmen ist der nächste Schritt dafür
   (Befragung offen).
+- ⚠ **Kragarm und Mastlage (30. Sept.):** beim Tragjoch mit Kragarm führt
+  die Mastliste die Masten an den Jochenden (`mastLagen` kennt nur den
+  Überstand des Abfangjochs), Modell und 3D setzen sie um `kragA`/`kragB`
+  nach innen (`mastAchse`). Teilt so ein Joch einen Masten mit einem
+  anderen Tragwerk, stehen zwei Lagen für denselben Masten; das Blatt
+  mittelt sie (am Beispiel M1 bei x 0.15 statt 0 bzw. 0.20).
 - ⚠ **Einzelmast unter einem neuen Joch:** legt man ein Joch auf einen
   Masten, der als eigenes Tragwerk «Einzelmast» steht, bleiben beide
   Tragwerke bestehen; das Stabwerk rechnet «3 Tragwerke, 3 Masten», der
@@ -2515,7 +2538,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5978 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5985 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
