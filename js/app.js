@@ -26,7 +26,7 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
 import { dialogBericht, berichtZeigen } from './app.bericht.js';
-import { reaktionenTabelleHtml, reaktionenBlattHtml } from './export.reaktionen.js';
+import { reaktionenKurzHtml, reaktionenBlattHtml } from './export.reaktionen.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -648,7 +648,13 @@ function reaktionsDaten() {
     // Stabwerk um die Luft der Endbleche entflochten (M2 bei 20.05 statt
     // 20.00). Die Skizze bleibt beim Modell (`xModell`), dort stimmt sie.
     return { ...z, xModell: z.x, x: Number.isFinite(m?.x) ? m.x : z.x,
-             name: mastAnzeigeText(z.id, anzeigeKarte), fundament: fund,
+             // Der Anker heisst nach seinem Masten mit «A» davor
+             // (Weisung 30. September: «beim Anker die Mastzahl nehmen und
+             // ein A vornedran machen»).
+             name: z.art === 'anker' ? `A${mastAnzeigeText(z.id, anzeigeKarte)}`
+               : z.art === 'laengsanker' ? 'Längsanker'
+               : mastAnzeigeText(z.id, anzeigeKarte),
+             fundament: fund,
              anker: z.art === 'anker' ? (m?.anker ?? null) : null };
   });
   return { zeilen, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
@@ -1565,7 +1571,7 @@ function zeichneAuswertung() {
       ${abschnitt('Reaktionskräfte, charakteristisch',
         'alle Auflager · Druck positiv · Wind ohne 0.7')}
       ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
-        : `<div class="tabellenrahmen">${reaktionenTabelleHtml(rd, { kurz: true })}</div>
+        : `<div class="rk-kurzliste">${reaktionenKurzHtml(rd)}</div>
            <button class="btn btn-mini" type="button" data-reaktionen-blatt>Blatt mit Skizze
              und Hinweisen …</button>`}
     </div>`);

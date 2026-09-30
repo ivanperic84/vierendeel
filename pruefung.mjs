@@ -33975,7 +33975,72 @@ titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt
   const app = APP_QUELLE();
   wahr('Export-Menü und Reiter Auflager führen sie',
        app.includes("{ text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt }")
-       && app.includes("reaktionenTabelleHtml(rd, { kurz: true })"));
+       && app.includes("reaktionenKurzHtml(rd)"));
+  // Im Reiter die gestürzte Form: je Auflager Grössen als Zeilen (30. Sept.).
+  const kurz = ER.reaktionenKurzHtml({ ...daten, zeilen: daten.zeilen.map((x) => (x.art === 'mast'
+    ? { ...x, fundament: { typ: 'Probe', Vmax: 150, Mq: 80, Mq_ver: 40, Ml: 80, Hq: 10, Hq_ver: 5, Hl: 10, T: 3.3 } }
+    : x)) });
+  wahr('Reiter: je Auflager eine Tabelle, Einwirkung / zulässig nebeneinander',
+       (kurz.match(/<table class="dt rk-kurz">/g) ?? []).length === daten.zeilen.length
+       && kurz.includes('>zulässig<') && kurz.includes('±M_y (M,q)'));
+}
+
+titel('169 b  Reaktionskräfte: Köpfe nach dem Achssystem, Anker A14, Skizze');
+/* ===========================================================================
+ * Weisung 30. September: «Das LA auflager (beim tragausleger) verwirrt die
+ * lesart, hier die aufhängeseile anzeigen. Die tabelle sollte geordneter
+ * daherkommen (gleiche zellenbreiten bei den werten. … benennung der
+ * reatktionskräfte mit dem achsystem ergänzen wie in der exceltabelle. mach
+ * ein einspannsymbol beim Mastfuss. beim Anker die Mastzahl nehmen und ein A
+ * vornedran machen. die Reaktion sollte dann beim Ankerfundament eine y und
+ * z komponente enthalten (wenn in längsrichtung angesetzt). deute den anker
+ * noch in der obigen scheaskizze an.»
+ * ========================================================================= */
+{
+  const ER = await import(J('export.reaktionen.js'));
+  const RK = await import(J('core.reaktionen.js'));
+  const b = (w, bez = 'Fall') => ({ wert: w, bez });
+  const zeile = (art, extra = {}) => ({
+    art, id: 'M3', name: art === 'anker' ? 'A14' : '14', x: 40, xModell: 40, z: 0,
+    haupt: { Vmin: b(-15.8), Vmax: b(15.83), Mq: b(1.1), Hq: b(0.13), Ml: b(0), Hl: b(8.84), T: b(0.6) },
+    havarie: null, anteil: {}, ...extra });
+  const anker = zeile('anker', { anker: { typ: 'U12', richtung: 'y', h: 6, a: 3.5 }, xModell: 40 });
+  const mast = zeile('mast', { fundament: null });
+  const html = ER.reaktionenTabelleHtml({ zeilen: [mast, anker] });
+  const ankerZeile = html.slice(html.indexOf('A14'));
+  const zellen = [...ankerZeile.matchAll(/<td class="num[^"]*"[^>]*>([^<]*)<\/td>/g)].map((m) => m[1]);
+  wahr('Anker längs: V (z) und F_y (y), keine Momente, kein F_x',
+       zellen[0] === '−15.80 / 15.83' && zellen[1] === '–' && zellen[2] === '–'
+       && zellen[3] === '–' && zellen[4] === '8.84' && zellen[5] === '–', zellen.join(' | '));
+  wahr('Köpfe nach dem Achssystem wie in der Excel-Tabelle',
+       ['F<sub>z</sub> (V)', '±M<sub>y</sub> (M,q)', '±F<sub>x</sub> (H,q)', '±M<sub>x</sub> (M,l)',
+        '±F<sub>y</sub> (H,l)', '±M<sub>z</sub> (T)', 'Lastfall quer zum Gleis',
+        'Lastfall längs zum Gleis'].every((t) => html.includes(t)));
+  wahr('Festes Raster: colgroup, sechs gleich breite Wertespalten',
+       /<colgroup>/.test(html)
+       && (html.match(/<col style="width:7\.2%">/g) ?? []).length === 5);
+  const app = APP_QUELLE();
+  wahr('Die Anwendung nennt den Anker «A» + Mastnummer',
+       app.includes("name: z.art === 'anker' ? `A${mastAnzeigeText(z.id, anzeigeKarte)}`"));
+  // Die Skizze.
+  const skizze = { linien: [[0, 0, 0, 10, 0], [0, 7, 13, 7, 0], [0, 12, 10, 7, 1]],
+                   grenzen: { x0: 0, x1: 13, z0: 0, z1: 12 } };
+  const la = { art: 'laengsanker', id: 'LV_M', name: 'Längsanker', x: 13, z: 7, haupt: null };
+  const svg = ER.skizzeSvg(skizze, [{ ...mast, x: 0, xModell: 0, name: '14' }, la,
+    { ...anker, x: 0, xModell: 0 }]);
+  wahr('Kein Lagersymbol «LA» am Längsanker; die Seile gestrichelt',
+       !/>LA</.test(svg) && svg.includes('class="sk-seil"'));
+  wahr('Einspannung am Mastfuss (Schraffur), Gelenk und Strebe am Anker',
+       svg.includes('sk-schraffur') && svg.includes('sk-gelenk') && svg.includes('sk-anker sk-umgeklappt')
+       && svg.includes('A14 (längs, umgeklappt)'));
+  wahr('Die Skizze nimmt lange Starrglieder (Anbauteile) und Seile mit',
+       /anbau = s\.art === 'starr' && laenge > 0\.4/.test(
+         readFileSync(join(HIER, 'js', 'core.reaktionen.js'), 'utf8')));
+  wahr('Havarie: der Leitername steht in den Hinweisen, die Zeile ist kurz',
+       ER.reaktionenTabelleHtml({ zeilen: [{ ...mast, havarie: { Vmin: b(1), Vmax: b(2),
+         Mq: b(3, 'Havarie: N-FL reisst, Längszug +y'), Hq: b(1), Ml: b(2, 'Havarie: N-FL reisst, Längszug −y'),
+         Hl: b(1), T: b(0) } }] }).includes('quer: Leiterriss, Längszug +y'));
+  wahr('… und RK.auflagerArt kennt den Längsanker weiter', RK.auflagerArt('LV_M').art === 'laengsanker');
 }
 
 // ===========================================================================

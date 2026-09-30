@@ -3297,3 +3297,24 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-tabelle .rk-x { color: var(--dim); font-size: 10px; }
 .rk-tabelle .rk-havarie td { color: var(--warn); }
 .rk-tabelle .rk-zul td { color: var(--dim); }
+/* Festes Raster, gleiche Breiten der Werte (30. September). */
+.rk-tabelle { table-layout: fixed; width: 100%; }
+.rk-tabelle th { font-size: 9.5px; line-height: 1.25; vertical-align: bottom; }
+.rk-tabelle td { vertical-align: middle; overflow-wrap: anywhere; }
+.rk-tabelle .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rk-tabelle .rk-name b { display: block; }
+.rk-tabelle .rk-x { display: block; }
+.rk-tabelle tbody tr.rk-haupt td { border-top: 1px solid var(--ol2, var(--ol)); }
+.rk-tabelle .rk-leer { color: var(--dim); opacity: 0.6; }
+.rk-tabelle .rk-art { color: var(--dim); }
+/* Die gestürzte Form im Reiter Auflager (30. September). */
+.rk-kurzliste { display: grid; gap: 8px; }
+.rk-kurz { table-layout: fixed; width: 100%; font-size: 11px; }
+.rk-kurz th, .rk-kurz td { padding: 2px 5px; }
+.rk-kurz thead th { vertical-align: bottom; }
+.rk-kurz thead th b { font-size: 12px; }
+.rk-kurz thead .rk-x { display: block; color: var(--dim); font-weight: 400; font-size: 10px; }
+.rk-kurz tbody th { font-weight: 400; color: var(--on2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-kurz .rk-einheit { color: var(--dim); font-size: 9.5px; }
+.rk-kurz .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rk-kurz .rk-zulw { color: var(--dim); font-style: italic; }
