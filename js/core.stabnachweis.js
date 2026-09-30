@@ -737,6 +737,32 @@ export function bauteileMitStabwerk(bt, h, o = {}) {
       }
       return;
     }
+    /*
+     * DAS FUNDAMENT JEDES MASTEN AUS DEM STABWERK (30. September) - am
+     * Tragjoch, Einzelmast und Abfangjoch, je Mast mit seinem Typ.
+     */
+    // Der Anker aus dem Stabwerk (30. September) - der Name endet mit dem Masten.
+    if (x.key === 'anker') {
+      const id = /(\S+)$/.exec(x.name)?.[1] ?? null;
+      const q = id ? h?.ankerJe?.[id]?.nachweis : null;
+      // Ein schlaffes Seil ist kein Nachweis (wie im Kern) - es fällt heraus.
+      if (q && q.grund === 'schlaff') return;
+      if (q) {
+        dazu({ key: 'anker', name: x.name, eta: Number.isFinite(q.eta) ? q.eta : null,
+               quelle: 'stabwerk', fall: h.ankerJe[id].lastfall, bez: h.ankerJe[id].bez,
+               ueber: q.lieferbar === false ? true : null });
+        return;
+      }
+    }
+    if (x.key === 'fundament') {
+      const id = /^Fundament (.+)$/.exec(x.name)?.[1] ?? null;
+      const f = id ? h?.fundamentJe?.[id] : null;
+      if (f && Number.isFinite(f.eta)) {
+        dazu({ key: 'fundament', name: x.name, eta: f.eta, quelle: 'stabwerk',
+               fall: f.massgebend?.lastfall, bez: f.massgebend?.bez, ueber: null });
+        return;
+      }
+    }
     dazu({ ...x, quelle: 'ersatzbalken' });
   });
   // Liefert der Kern kein Fundament, steht das des Auslegermasten trotzdem da.

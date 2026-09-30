@@ -5100,12 +5100,17 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   const mastAusSw = !!(swH && Object.keys(swH.bauteile ?? {})
     .some((k) => k.startsWith('mast:')));
   const quelleM = (ausSw) => (ausSw
-    ? (Object.keys(knickJe(bem)).length ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
+    // Seit dem 30. September kommt auch das Knicken des Einzelmasten aus
+    // dem Stabwerk (`swH.knick`); der Kern nur noch, wo es dort fehlt.
+    ? (Object.keys(knickJe(bem)).length && !Object.keys(swH?.knick ?? {}).length
+      ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
     : (swH || vorlaeufig ? `Ersatzbalken${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppenMast = [
     { titel: 'Mast', kacheln: nwJeM.mast, rechts: quelleM(mastAusSw) },
-    { titel: 'Anker', kacheln: nwJeM.anker, rechts: quelleM(false) },
-    { titel: 'Fundament', kacheln: nwJeM.fundament, rechts: quelleM(false) },
+    { titel: 'Anker', kacheln: nwJeM.anker,
+      rechts: quelleM(Object.keys(swH?.ankerJe ?? {}).length > 0) },
+    { titel: 'Fundament', kacheln: nwJeM.fundament,
+      rechts: quelleM(Object.keys(swH?.fundamentJe ?? {}).length > 0) },
   ];
 
   // Die Kräfte am Fuss - was das Fundament bekommt.
@@ -5837,6 +5842,29 @@ function fallZeile(erg, opt, key, bez = null) {
 }
 
 export function bauteilKachelnJe(erg, urteil, ampelU, opt = {}) {
+  /*
+   * DAS FUNDAMENT AUS DEM STABWERK (30. September): gilt das Stabwerk,
+   * ersetzt es je Mast das des Kerns - dieselbe Gestalt, andere Kräfte.
+   */
+  if (opt.swH?.fundamentJe && Object.keys(opt.swH.fundamentJe).length) {
+    const namenS = erg.modell?.federn?.namen ?? {};
+    const f = {};
+    ['A', 'B'].forEach((ende) => {
+      const q = opt.swH.fundamentJe[namenS[ende]];
+      if (q) f[ende] = q;
+    });
+    if (Object.keys(f).length) erg = { ...erg, fundament: { ...(erg.fundament ?? {}), ...f } };
+  }
+  // Ebenso der Anker (30. September): Kraft aus dem Stabwerk, Seil nur Zug.
+  if (opt.swH?.ankerJe && Object.keys(opt.swH.ankerJe).length) {
+    const namenS = erg.modell?.federn?.namen ?? {};
+    const a = {};
+    ['A', 'B'].forEach((ende) => {
+      const q = opt.swH.ankerJe[namenS[ende]];
+      if (q) a[ende] = q;
+    });
+    if (Object.keys(a).length) erg = { ...erg, anker: { ...(erg.anker ?? {}), ...a } };
+  }
   const mast = [];
   const anker = [];
   const fundament = [];
@@ -6591,9 +6619,11 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
         ? ((bt?.liste ?? []).some((x) => x.key === 'knicken' && x.quelle === 'ersatzbalken')
             ? 'Stabwerk · Knicken Ersatzbalken' : 'Stabwerk')
         : quelle(false) },
-    { titel: 'Anker', kacheln: nwJe.anker, rechts: quelle(false) },
+    { titel: 'Anker', kacheln: nwJe.anker,
+      rechts: quelle(Object.keys(swH?.ankerJe ?? {}).length > 0) },
     { titel: 'Fundament', kacheln: nwJe.fundament,
-      rechts: quelle(Boolean(swH?.ausleger?.fundament)) },
+      rechts: quelle(Boolean(swH?.ausleger?.fundament)
+        || Object.keys(swH?.fundamentJe ?? {}).length > 0) },
   ];
   // Schnittgrössen sind kein Nachweis - sie stehen in einem eigenen Block.
   // h/b und f_y/γ_M0 sind Eingaben und stehen in der Fussleiste bzw. bei den

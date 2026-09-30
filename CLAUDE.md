@@ -132,6 +132,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Nachweise aus dem Stabwerk, Seil nur Zug (30. Sept.) | «nachweis so wie vorgeschlagen umbauen» (Vorschlag: Anker, Fundament, Knicken für alle Tragwerksarten aus dem Stabwerk). Knicken und Fundament jetzt für JEDEN Masten aus dem Stabwerk (Fundament je Mast mit seinem Typ, `fundamentJe`), der Anker je Ende (`ankerJe`, core.stabseil.js: Seil = wirksame Kraft, Stütze = Fundamentreaktion auf der Achse, Regel `ankerAuswertung`). **Befund dabei, unsichere Seite:** das lineare Stabwerk liess den Seilanker DRÜCKEN (Einzelmast HEB 240, SA20 quer: Fundament Kern 0.300, Stabwerk 0.218; betraf auch die Mastkachel). Jetzt nach dem Entscheid vom 16. Sept.: je Seil ein Hilfslastfall (Kräftepaar an den Seilenden), in jeder Kombination mit Druck im Seil mit dem Faktor zugemischt, der die Seilkraft aufhebt - exakt linear, alle Nachweise lesen es über `anteileFuer`. Probe: hängt das Seil, trägt der Mastfuss wie ohne Anker (Rest ≤ 0.2 kNm = Eigengewicht des Seils); danach Fundament 0.299 (Kern 0.300). Anker SA20: Stabwerk 1.4 kN Zug (elastisches Seil), Kern 2.2 kN (steifer) |
 | Kachel-Symbole, Schieber, Ausleger am Joch (30. Sept.) | «kannst du hier die kacheln mit symbolzeichnung noch versehen den text kann man dann kleiner unterhalb des symbols aufführen. theoretisch kann ein Tragausleger auch an ein bestehendes Jochtragwerk auf die aussenseite angehängt werden, kann man in diesem fall die kachel für diesen fall auch nutzen? mach die schieber hier überall da wo es sinn macht. und mach den balken etwas heller als den punkt.» Kacheln mit Strichsymbol (`TW_SYMBOLE`: Vierendeel-Joch, Einzelmast, Ausleger mit Seil, Abfangjoch als zwei Träger übereinander, Anker als Strebe), Anschrift klein darunter. Schieber selbst gezeichnet: Punkt in der Akzentfarbe, Balken bis zum Wert heller (`--schieber-fuell`, `schieberFuellen`); neu als Schieber Kragarm A/B (rastet 0.5 m), Konsole, Spannweite der Fahrleitung (Radius und Lage x₀ bleiben Zahl: grosser bzw. offener Bereich). Ausleger an einem Jochmasten: Kachel oder Mastwahl - er zeigt von selbst nach aussen; ⚠ **das Stabwerk sperrt einen Ausleger am Masten eines anderen Tragwerks noch** (siehe *Offene Punkte*) |
 | Neues Tragwerk: Kontextmenü, Mastwahl, Kacheln (30. Sept.) | Weisung: «das kontextmenue beim 3d mit den optionen aus dem tragwerk (sidebar) ergänzen den Punkt Abfangjoch darüber setzen könnte man weglassen. das ist äusserst selten. was man aber machen könnte ist die auswahl der Masten anbieten wo der träger zu liegen kommen soll. man hat den fall das man schon zwei oder drei masten hat und dann ein joch dazwischen legen will. was ich mir auch vorstellen könnte ist, dass wir wieder auf die kacheln beim tragwerk gehen, diese könnte man dann per drag and drop auf die 3d fläche ziehen und man bekommt ein modalfenster mit den relevantesten eingaben zum tragwerk. was denkst du ist der kleverere weg?» Empfohlen: Kontextmenü mit Mastwahl (Masten sind feste Ziele, Ziehen landet auf 0.5 m); auf Rückfrage **«Beides»**. Gebaut: Dialog «Neues Tragwerk» mit **«Zwischen den Masten … und …»** (Tragausleger «An Mast»), Lage und Stützweite folgen (Tragjoch L = Abstand, sonst der erste passende Typ; Abfangjoch `abfangFuerStuetzweite`); Rechtsklick auf Mast/Grund bietet «… zwischen Mx und My …» bzw. öffnet den Dialog mit den Nachbarmasten vorgewählt (`vorbelegungAnStelle`), dazu die Einträge der Tragwerke; «Abfangjoch darüber setzen» ist weg. **Kacheln** statt «+ Tragwerk»: vier Arten und Zuganker/Druckstütze, anklicken oder ins 3D ziehen (Anker auf einen Masten, 2 m Fang) |
 | Tragwerksleiste ohne Baum (30. Sept.) | «in der Tragwerkgruppe sehe ich infos, die ich schon im 3d oder nebenan in der resultat sidebar sehe», auf Rückfrage **«Lageband behalten, Baum weg»**. Weg: Zeilen je Tragwerk und Mast mit η, Auge, Anker-Chip. Anklicken im Band wählt (ein Mast sein Tragwerk mit), Ausblenden im Kontextmenü, Anker als Strich im Band, η in der Resultatspalte |
@@ -262,7 +263,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5845 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5857 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2386,7 +2387,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5845 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5857 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

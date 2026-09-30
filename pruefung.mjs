@@ -31387,13 +31387,19 @@ titel('131  Stabwerk fuehrt, Knicken ergaenzt (Anzeige, 28. September)');
   wahr('… alle als «ersatzbalken» beschriftet, kein Knicken doppelt',
        n0.liste.every((x) => x.quelle === 'ersatzbalken')
        && !n0.liste.some((x) => x.key === 'knicken'));
-  // Anker und Fundament gehen durch, wie sie sind - mit ihrer Quelle.
+  // Seit dem 30. September («nachweis so wie vorgeschlagen umbauen») kommt
+  // das Fundament aus dem Stabwerk, wo es eines liefert; ohne es der Kern.
   const btF = { eta: 0.2, liste: [...bt1.liste,
     { key: 'fundament', name: 'Fundament M1', eta: 1.2, ueber: true }] };
-  const nF = SN131.bauteileMitStabwerk(btF, h1, { jochKey: 'tragwerk' });
-  wahr('Ein Fundament ueber 1 bestimmt das Urteil und bleibt beim Kern',
+  const nF = SN131.bauteileMitStabwerk(btF, { ...h1, fundamentJe: {} }, { jochKey: 'tragwerk' });
+  wahr('Ohne Fundament aus dem Stabwerk: das des Kerns bestimmt das Urteil, als Ersatzbalken',
        nF.massgebend?.name === 'Fundament M1' && nF.ueber
        && nF.massgebend.quelle === 'ersatzbalken');
+  const nF2 = SN131.bauteileMitStabwerk(btF, h1, { jochKey: 'tragwerk' });
+  const fz2 = nF2.liste.find((x) => x.name === 'Fundament M1');
+  wahr('Mit Fundament aus dem Stabwerk ersetzt es das des Kerns',
+       fz2?.quelle === 'stabwerk' && Math.abs(fz2.eta - h1.fundamentJe.M1.eta) < 1e-12,
+       `${fz2?.eta?.toFixed(4)}`);
 
   // --- e) Die Reihe: das aktive Tragwerk mit Praefix ------------------------
   const w2 = C131.tragwerkHinzu(w131, 'joch', {});
@@ -33533,6 +33539,100 @@ titel('162  Kacheln mit Symbol; Schieber mit hellerem Balken; Ausleger am Jochma
        && /Am Masten eines anderen Tragwerks rechnet das Stabwerk den/.test(dq));
   wahr('… und fängt beim Ablegen auf 2 m',
        /const nah = naechsterMast\(app, wo, 2\);/.test(readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8')));
+}
+
+titel('163  Stabwerk: Seilanker nur Zug; Anker, Knicken, Fundament je Mast');
+/* ===========================================================================
+ * Weisung 30. September «nachweis so wie vorgeschlagen umbauen»: Anker,
+ * Fundament und Knicken aus dem Stabwerk für alle Tragwerksarten. Befund
+ * dabei: das lineare Stabwerk liess den Seilanker drücken (Einzelmast
+ * HEB 240, SA20 quer: Fundament Kern 0.300, Stabwerk 0.218). Jetzt fällt
+ * das Seil aus, wo es drücken müsste (core.stabseil.js, Entscheid 16. Sept.).
+ * ========================================================================= */
+{
+  const N163 = await import(J('core.nachbarn.js'));
+  const AX163 = await import(J('export.axisvm.js'));
+  const SW163 = await import(J('core.stabwerk.js'));
+  const SS163 = await import(J('core.stabseil.js'));
+  const SN163 = await import(J('core.stabnachweis.js'));
+  const LA163 = await import(J('core.lasten.js'));
+  const C163 = await import(J('core.constants.js'));
+  const basis = { ...standardwerte(), tragwerksart: 'einzelmast', mastVorhanden: true, xLage: 0,
+    mastProfil: 'HEB 240', mastLaenge: 8.5, twId: 'T1' };
+  const m0 = C163.mastenVon(C163.mastenFest(basis))[0];
+  const mit = (typ) => C163.setzeMastAnker(basis, m0.id,
+    { typ, h: 6, a: 4, richtung: 'x', seite: 'plus', befestigung: 'ankerplatte' });
+  const bau = (w) => {
+    const satz = N163.rechensatzMitNachbarn(w);
+    const erg = berechne(satz, ...N163.kernArgumente(satz));
+    const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
+    const b = AX163.stabmodell(erg.modell, { ...opt, satz, mastNamen: { A: 'M1', B: 'M1' } });
+    b.lasten = AX163.lasten(erg.modell, b, opt);
+    return { satz, dat: AX163.stabmodellJson(erg.modell, { ...opt, bau: b, eingabe: satz }) };
+  };
+  const fuss = (dat, lsg, lf, knoten = 'MAST_M1_F') => {
+    const r = { ux: 0, uy: 0, uz: 0, fix: 0, fiy: 0, fiz: 0 };
+    SN163.anteileFuer(lf, dat).forEach(({ lastfall, faktor }) => {
+      if (!faktor || !lsg.u.has(lastfall)) return;
+      const x = lsg.auflagerkraefte(lastfall).find((q) => q.knoten === knoten);
+      if (x) Object.keys(r).forEach((k) => { r[k] += faktor * (x[k] ?? 0); });
+    });
+    return r;
+  };
+  const a = bau(mit('SA20')), o = bau(basis);
+  const seile = SS163.seilAnker(a.dat);
+  wahr('Der Seilanker wird erkannt (Seilkopf «nur Zug», Seilstab dahinter)',
+       seile.length === 1 && seile[0].stab === 'ANKER_M1', JSON.stringify(seile.map((s) => s.stab)));
+  const roh = JSON.parse(JSON.stringify(a.dat));             // ohne Ausfall, zum Vergleich
+  SS163.seilHilfsfaelle(a.dat, seile);
+  const lA = SW163.loese(a.dat, { eigengewicht: false });
+  const lO = SW163.loese(o.dat, { eigengewicht: false });
+  const lR = SW163.loese(roh, { eigengewicht: false });
+  const faelle = LA163.lastfaelle(a.satz);
+  const info = SS163.seilAusfall(a.dat, lA, seile, faelle);
+  const schlaff = faelle.filter((lf) => info.je.get(lf.key)?.get('ANKER_M1')?.schlaff);
+  const straff = faelle.filter((lf) => info.je.get(lf.key)?.get('ANKER_M1')?.N > 0.5);
+  wahr('Es gibt Kombinationen mit hängendem und mit gespanntem Seil',
+       schlaff.length > 0 && straff.length > 0, `${schlaff.length} / ${straff.length}`);
+  // Hängt das Seil, trägt der Mast wie ohne Anker (bis auf das Eigengewicht des Seils).
+  let abw = 0, abwRoh = 0;
+  schlaff.forEach((lf) => {
+    const rA = fuss(a.dat, lA, lf), rO = fuss(o.dat, lO, lf), rR = fuss(roh, lR, lf);
+    abw = Math.max(abw, Math.abs(rA.fiy - rO.fiy), Math.abs(rA.fix - rO.fix));
+    abwRoh = Math.max(abwRoh, Math.abs(rR.fiy - rO.fiy), Math.abs(rR.fix - rO.fix));
+  });
+  wahr('Seil hängt: Fussmoment wie ohne Anker (Rest = Eigengewicht des Seils, < 0.2 kNm)',
+       abw < 0.2, `${abw.toFixed(3)} kNm (ohne Ausfall wären es ${abwRoh.toFixed(3)} kNm)`);
+  wahr('… ohne den Ausfall lag es deutlich daneben (das Seil drückte)', abwRoh > 5 * abw + 0.5,
+       `${abwRoh.toFixed(3)} kNm`);
+  // Wind +x, charakteristisch: das Seil hängt; gerechnet am Beispiel.
+  const wxk = faelle.find((l) => l.key === 'wxk');
+  pruef('Wind +x char.: Fussmoment mit hängendem Seil', fuss(a.dat, lA, wxk).fiy, -10.802, 5e-3, 'kNm');
+  pruef('… ohne Anker', fuss(o.dat, lO, wxk).fiy, -10.837, 5e-3, 'kNm');
+  // Gespannt: die Kraft aus dem Ausfall trifft die Fundamentreaktion auf der Achse.
+  const kn = new Map(a.dat.knoten.map((k) => [k.name, k]));
+  const F = kn.get('ANKER_M1_F'), M = kn.get('MAST_M1_ANK');
+  const L = Math.hypot(F.x - M.x, F.y - M.y, F.z - M.z);
+  const e = [(F.x - M.x) / L, (F.y - M.y) / L, (F.z - M.z) / L];
+  let abwN = 0;
+  straff.forEach((lf) => {
+    const r = fuss(a.dat, lA, lf, 'ANKER_M1_F');
+    const Nr = r.ux * e[0] + r.uy * e[1] + r.uz * e[2];
+    abwN = Math.max(abwN, Math.abs(Nr - info.je.get(lf.key).get('ANKER_M1').N));
+  });
+  wahr('Gespannt: Seilkraft = Fundamentreaktion auf der Ankerachse (Vorzeichen der Stütze)',
+       abwN < 0.15, `${abwN.toFixed(3)} kN (Rest: Eigengewicht des Seils)`);
+  pruef('Wind −x char.: das Seil trägt', info.je.get('wxkm').get('ANKER_M1').N, 1.69, 0.01, 'kN');
+  // Die Druckstütze U12 bleibt linear: Zug in der einen, Druck in der anderen Richtung.
+  const u = bau(mit('U12'));
+  wahr('Die Druckstütze hat keinen Seilkopf - sie trägt beides', SS163.seilAnker(u.dat).length === 0);
+  // Der Weg in der Anwendung.
+  const aq = readFileSync(join(HIER, 'js', 'app.stabwerk.js'), 'utf8');
+  wahr('rechneStabwerk: Hilfsfälle vor dem Lösen, Ausfall vor der Hülle',
+       /seilHilfsfaelle\(dat, seile\);\s*lsg = loese/.test(aq)
+       && aq.indexOf('seilAusfall(dat, lsg, seile') < aq.indexOf('stabwerkHuelle(dat, lsg, faelle'));
+  wahr('Knicken und Fundament für JEDEN Masten, Anker je Ende aus dem Stabwerk',
+       !/traegtJoch/.test(aq) && /fundamentJe\[id\] = /.test(aq) && /ankerJe\[id\] = a/.test(aq));
 }
 
 // ===========================================================================

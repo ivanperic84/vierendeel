@@ -48,6 +48,8 @@ import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
          laengsankerKraft } from './core.stabnachweis.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
+import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
+import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
 import { loese } from './core.stabwerk.js';
 import { modell } from './core.vierendeel.js';
@@ -245,7 +247,7 @@ export function rechneStabwerk(app) {
   const eingaben = [satz, ...saetze.filter((s) => s.twId !== satz.twId)];
 
   const t0 = Date.now();
-  let dat = null; let lsg = null; let bau = null;
+  let dat = null; let lsg = null; let bau = null; let seile = [];
   const opt = { knotenmodell: 'anschnitt', eigengewicht: true, gTrennen: true };
   try {
     /*
@@ -312,6 +314,10 @@ export function rechneStabwerk(app) {
       bau.lasten = lasten(erg.modell, bau, opt);
     }
     dat = stabmodellJson(erg.modell, { ...opt, bau, eingabe: satz, eingaben });
+    // Seilanker nur auf Zug (30. September): je Seil ein Hilfsfall, VOR dem
+    // Lösen - siehe core.stabseil.js.
+    seile = seilAnker(dat);
+    seilHilfsfaelle(dat, seile);
     lsg = loese(dat, { eigengewicht: false });
   } catch (e) {
     return { fehler: String(e?.message ?? e), kennung: eingabeKennung(app.werte) };
@@ -329,6 +335,14 @@ export function rechneStabwerk(app) {
   const faelle = eingaben.flatMap((s) => lastfaelle(s))
     .filter((l) => l.nachweis !== false)
     .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  /*
+   * DER AUSFALL DER SEILE, bevor irgendetwas ausgewertet wird: er schreibt
+   * je Kombination den Hilfsfall in `dat.kombinationen`, und alles Folgende
+   * (Hülle, Knicken, Fundament, Verformung) liest ihn über `anteileFuer`.
+   */
+  const alleFaelleS = eingaben.flatMap((s) => lastfaelle(s))
+    .filter((l, i, alle) => alle.findIndex((x) => x.key === l.key) === i);
+  const seilInfo = seilAusfall(dat, lsg, seile, alleFaelleS);
   // Die Wölbspannung des Masten wie im Kern - nur wenn «Torsion Mast»
   // geführt wird (28. September).
   const huelle = stabwerkHuelle(dat, lsg, faelle, fyd,
@@ -383,16 +397,24 @@ export function rechneStabwerk(app) {
    * jeden Masten, der ein TRAGJOCH trägt; Einzelmast und Abfangjoch bleiben
    * beim Kern (nicht Teil der Weisung).
    */
+  /*
+   * >>> KNICKEN UND FUNDAMENT JEDES MASTEN AUS DEM STABWERK (30. Sept.). <<<
+   * Weisung: «nachweis so wie vorgeschlagen umbauen» - der Vorschlag:
+   * Knicken, Fundament und Anker bei Tragjoch, Einzelmast und Abfangjoch
+   * aus dem Stabwerk, damit alle Kacheln aus EINER Quelle kommen. Bis dahin
+   * rechnete das Stabwerk das Knicken nur an Masten eines Tragjochs und das
+   * Fundament nur am Tragausleger; die übrigen kamen aus dem Kern. Die
+   * Regeln bleiben dieselben (`mastStabilitaet`, `fundamentNachweis`), nur
+   * die Kräfte kommen aus dem Stabwerk - am Fundament je Mast mit SEINEM
+   * gewählten Typ (`m.fundament`, ein geteilter Mast hat eines).
+   */
   let knick = null;
+  const fundamentJe = {};
   const nwK = nachweiseAuswahl(satz.nachweise);
-  if (!bau?.tragausleger && nwK.knickenMast) {
-    knick = {};
+  if (!bau?.tragausleger) {
+    if (nwK.knickenMast) knick = {};
     const beta = Number(satz.knickBeiwert);
-    const tws = new Map(tragwerkeVon(werte).map((t) => [t.id, t]));
     mastenVon(werte).forEach((m) => {
-      const traegtJoch = (m.traegt ?? [])
-        .some((id) => tragwerksart(tws.get(id) ?? {}).key === 'joch');
-      if (!traegtJoch) return;
       const id = mastName(app.werte, m);
       if (!mastZug(dat, id)) return;
       let basis;
@@ -400,17 +422,45 @@ export function rechneStabwerk(app) {
         basis = { profil: getMastprofil(m.profil ?? satz.mastProfil),
                   stegrichtung: getStegrichtung(m.steg ?? satz.mastSteg ?? 'jochachse') };
       } catch { return; }
-      const k = knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
-                                   { beta: beta > 0 ? beta : undefined });
-      if (k && Number.isFinite(k.eta)) knick[id] = k;
+      if (knick) {
+        const k = knickenAusStabwerk(dat, lsg, faelle, id, basis, erg.modell,
+                                     { beta: beta > 0 ? beta : undefined });
+        if (k && Number.isFinite(k.eta)) knick[id] = k;
+      }
+      if (nwK.fundament) {
+        const f = fundamentAusStabwerk(dat, lsg, alleFaelle, id, basis,
+                                       { ...satz, mastFundament: m.fundament ?? '' });
+        if (f?.A) fundamentJe[id] = { ...f.A, quelle: 'stabwerk' };
+      }
     });
   }
+
+  /*
+   * >>> DER ANKER AUS DEM STABWERK (30. September). <<<
+   * Je Ende des gerechneten Tragwerks, mit Typ und Länge aus dem Kern und
+   * der Kraft von hier (core.stabseil.js).
+   */
+  const ankerJe = {};
+  const namenA = erg.modell?.federn?.namen ?? {};
+  const bemA = app.letzte?.bemessung?.anker ?? app.letzte?.erg?.anker ?? null;
+  ['A', 'B'].forEach((ende) => {
+    const id = namenA[ende];
+    const meta = bemA?.[ende]?.kraft;
+    if (!id || !meta || ankerJe[id]) return;
+    const a = ankerAusStabwerk(dat, lsg,
+      alleFaelleS.filter((l) => ANKER_FALLARTEN.includes(l.art)),
+      id, meta, seilInfo, satz, ankerAuswertung);
+    if (a) ankerJe[id] = a;
+  });
 
   return {
     ...huelle,
     verformung,
     ausleger,
     knick,
+    fundamentJe,
+    ankerJe,
+    seile: seile.length,
     kennung: eingabeKennung(app.werte),
     fyd,
     knoten: dat.knoten.length,
