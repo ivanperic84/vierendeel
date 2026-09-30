@@ -2203,6 +2203,8 @@ export class Modellansicht {
     this.gruppen = { modell: true, zeichnung: true, lasten: true, resultate: true };
     // Werte der aufgetragenen Grösse direkt ans Bauteil schreiben.
     this.werteAnschreiben = false;
+    // Die verformte Figur (30. September) - von app.js gesetzt, sonst null.
+    this.verformt = null;
     // Durchsichtigkeit der Volumenkörper (0 = deckend, 0.9 = fast klar). Bei
     // der Voreinstellung 0.5 bleiben Schwerachsen und dahinterliegende
     // Bauteile sichtbar, ohne dass das Bild seine Körperlichkeit verliert.
@@ -2393,6 +2395,41 @@ export class Modellansicht {
       fl = passt(n);
     }
     return fl;
+  }
+
+  /**
+   * >>> DIE VERFORMTE FIGUR (30. September). <<<
+   * `this.verformt` = { linien: [{punkte, wege}], faktor, text } in
+   * Szenenkoordinaten (app.js rechnet sie aus dem Stabwerk um). Gezeichnet
+   * wird Punkt + Faktor · Weg als Linienzug in der Warnfarbe über dem Modell,
+   * darunter links die Anschrift mit der Überhöhung - eine überhöhte Figur
+   * ohne Faktor läse man als wirklichen Weg.
+   */
+  _verformtMalen(c, proj, t) {
+    const v = this.verformt;
+    const s = this._s;
+    c.save();
+    c.strokeStyle = t.warn ?? '#e0a030';
+    c.lineWidth = 1.6 * s;
+    c.lineJoin = 'round';
+    c.globalAlpha = 0.95;
+    v.linien.forEach((l) => {
+      c.beginPath();
+      let offen = false;
+      l.punkte.forEach((p, i) => {
+        const w = l.wege[i];
+        const q = proj([p[0] + v.faktor * w[0], p[1] + v.faktor * w[1], p[2] + v.faktor * w[2]]);
+        if (!q) { offen = false; return; }
+        if (offen) c.lineTo(q[0], q[1]); else { c.moveTo(q[0], q[1]); offen = true; }
+      });
+      c.stroke();
+    });
+    c.restore();
+    if (v.text && !this.sparsam) {
+      c.font = this._wertFont();
+      // Über der unteren Werkzeugleiste, nicht hinter ihr.
+      this._beschriftung(c, t, v.text, 16 * s, this.cv.height - 112 * s, t.warn ?? '#e0a030');
+    }
   }
 
   /** Umrandet die Flächen des gezeigten Stabes und schreibt seinen Namen an. */
@@ -3696,6 +3733,9 @@ export class Modellansicht {
 
     this._lastflaechen(c, proj, t);
     if (this._ebeneAn('schnitt')) this._schnittebene(c, proj, t);
+    // Die verformte Figur über dem Modell (30. September), auch während
+    // der Fahrt - sie ist das, was man dabei ansehen will.
+    if (this.gruppen.resultate && this.verformt) this._verformtMalen(c, proj, t);
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.

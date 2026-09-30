@@ -135,6 +135,40 @@ export function mastWeg(dat, lsg, anteile, zug, h) {
 }
 
 /**
+ * >>> DIE VERFORMTE FIGUR (30. September). <<<
+ * Frage: «ist es möglich ein verformtes modell darzustellen im 3d? oder
+ * kostet das zu viel performance? es wäre nur ein nice to have». Die
+ * Knotenwege stehen in der Lösung; je echtem Stab werden `teilung` + 1
+ * Punkte mit ihrem Weg gebildet (Biegelinie im Stab wie beim
+ * Verformungsnachweis, `wegImStab`), Starrelemente und Links bleiben
+ * draussen. Gemessen am J90/20 m: rund 470 Stäbe, einige Millisekunden.
+ *
+ * @param {Array} anteile [{lastfall, faktor}] aus anteileFuer()
+ * @returns {{linien: Array<{punkte:number[][], wege:number[][]}>, max:number}}
+ */
+export function verformteFigur(dat, lsg, anteile, { teilung = 4 } = {}) {
+  const kn = new Map((dat?.knoten ?? []).map((k) => [k.name, k]));
+  const linien = [];
+  let max = 0;
+  (dat?.staebe ?? []).forEach((s) => {
+    if (s.art !== 'stab') return;
+    const a = kn.get(s.von), b = kn.get(s.bis);
+    if (!a || !b) return;
+    const punkte = [], wege = [];
+    for (let i = 0; i <= teilung; i += 1) {
+      const xi = i / teilung;
+      const u = wegImStab(dat, lsg, anteile, s.name, xi);
+      if (!u) return;
+      punkte.push([a.x + (b.x - a.x) * xi, a.y + (b.y - a.y) * xi, a.z + (b.z - a.z) * xi]);
+      wege.push(u);
+      max = Math.max(max, Math.hypot(u[0], u[1], u[2]));
+    }
+    linien.push({ name: s.name, punkte, wege });
+  });
+  return { linien, max };
+}
+
+/**
  * >>> DIE VERDREHUNG UM DIE MASTACHSE (30. September). <<<
  * Weisung «hinzu kommt noch die mastverdrehung 5° als dritte prüfung», auf
  * Rückfrage «um die Mastachse», «Betriebswind ψ 0.70». Die globale

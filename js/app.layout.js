@@ -349,6 +349,9 @@ export function zeichneModellWerkzeuge(app) {
       schalter('wz-r-schnitt', 'wuerfel', 'Schnittebene', app.ansicht.ebenen.schnitt, !gR) +
       schalter('wz-r-werte', 'info', 'Werte im Modell anschreiben',
                app.ansicht.werteAnschreiben, !gR) +
+      // Die verformte Figur aus dem Stabwerk (30. September).
+      text('wz-r-verformt', 'δ', 'Verformte Figur (aus dem Stabwerk, überhöht)',
+           app.verformtAn, !gR) +
       modiFuer(app.nachweisart).map((mo) =>
         text(`wz-p-${mo.key}`, mo.kurz ?? mo.label.slice(0, 3),
              mo.label, mo.key === app.ansicht.modus, !gR)).join(''),
@@ -410,6 +413,7 @@ export function zeichneModellWerkzeuge(app) {
   ui.el('wz-r-werte').onclick = () => {
     app.ansicht.werteAnschreiben = !app.ansicht.werteAnschreiben; nach();
   };
+  ui.el('wz-r-verformt').onclick = () => app.verformtUmschalten();
   modiFuer(app.nachweisart).forEach((mo) => {
     ui.el(`wz-p-${mo.key}`).onclick = () => {
       app.ansicht.modus = mo.key;

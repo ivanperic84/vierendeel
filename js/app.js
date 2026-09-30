@@ -121,7 +121,8 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 import { dialogAxisvm } from './app.axisvm.js';
 import { rechneStabwerk, reiheOhneStabmodell, stabwerkStand } from './app.stabwerk.js';
-import { verfahrenVon, eingabeKennung, bauteileMitStabwerk } from './core.stabnachweis.js';
+import { verfahrenVon, eingabeKennung, bauteileMitStabwerk, anteileFuer } from './core.stabnachweis.js';
+import { verformteFigur } from './core.stabverformung.js';
 import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeichern, sichereAktuell, dialogEinlesen,
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
@@ -195,6 +196,9 @@ const app = {
   get tabEingabe() { return tabEingabe; }, set tabEingabe(v) { tabEingabe = v; },
   get anzeigeKombi() { return anzeigeKombi; }, set anzeigeKombi(v) { anzeigeKombi = v; },
   get nachweisart() { return nachweisart; }, set nachweisart(v) { nachweisart = v; },
+  // Die verformte Figur im 3D (30. September).
+  get verformtAn() { return verformtAn; },
+  verformtUmschalten: () => verformtUmschalten(),
   dialogBauteildaten: (...a) => dialogBauteildaten(...a),
   dialogTasten: (...a) => dialogTasten(...a),
   themaWechseln: (...a) => themaWechseln(...a),
@@ -1412,6 +1416,28 @@ function setzeNachweisart(art) {
   if (gewechselt) { ansicht.zeichne(); zeichneLegende(app); }
 }
 
+/*
+ * >>> OBEN IM REITER AUFLAGER: DIE REAKTIONSKRÄFTE ALLER AUFLAGER
+ *     (30. September). <<<
+ * Auf Rückfrage «Beides»: kurz hier, ausführlich als Blatt im Export.
+ * Charakteristisch, Wind ohne 0.7, Druck positiv - darunter bleiben die
+ * Bemessungswerte des gewählten Lastfalls, wie bisher. Für Joch und
+ * Einzelmast (der Einzelmast hat seinen eigenen Reiter und bekam den Block
+ * zuerst nicht - gemeldet am selben Tag).
+ */
+function reaktionsBlockEinfuegen(node) {
+  const rd = reaktionsDaten();
+  node.insertAdjacentHTML('afterbegin', `<div class="rk-block">
+    ${abschnitt('Reaktionskräfte, charakteristisch',
+      'alle Auflager · Druck positiv · Wind ohne 0.7')}
+    ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
+      : `<div class="rk-kurzliste">${reaktionenKurzHtml(rd)}</div>
+         <button class="btn btn-mini" type="button" data-reaktionen-blatt>Blatt mit Skizze
+           und Hinweisen …</button>`}
+  </div>`);
+  node.querySelector('[data-reaktionen-blatt]')?.addEventListener('click', reaktionsBlatt);
+}
+
 function zeichneAuswertung() {
   if (!letzte) return;
   /*
@@ -1439,6 +1465,9 @@ function zeichneAuswertung() {
       ui.zeichneVerlauf(knoten, null, null, weitereDiagramme(zeig, 860));
     } else if (tabAuswertung === 'auflager') {
       ui.zeichneMastfuss(knoten, letzte.kombi);
+      // Auch am Einzelmasten (30. September: «warum kann ich hier nicht den
+      // reaktionskräfte output generieren bei masten ohne joch?»).
+      reaktionsBlockEinfuegen(knoten);
     } else {
       ui.zeichneEinzelmast(knoten, letzte, {
         /*
@@ -1595,22 +1624,7 @@ function zeichneAuswertung() {
      */
     if (erg.abfang?.auflager) ui.zeichneAbfangAuflager(node, erg.abfang, erg);
     else ui.zeichneAuflager(node, letzte.auflager, erg);
-    /*
-     * >>> OBEN DIE REAKTIONSKRÄFTE ALLER AUFLAGER (30. September). <<<
-     * Auf Rückfrage «Beides»: kurz hier, ausführlich als Blatt im Export.
-     * Charakteristisch, Wind ohne 0.7, Druck positiv - darunter bleiben
-     * die Bemessungswerte des gewählten Lastfalls, wie bisher.
-     */
-    const rd = reaktionsDaten();
-    node.insertAdjacentHTML('afterbegin', `<div class="rk-block">
-      ${abschnitt('Reaktionskräfte, charakteristisch',
-        'alle Auflager · Druck positiv · Wind ohne 0.7')}
-      ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
-        : `<div class="rk-kurzliste">${reaktionenKurzHtml(rd)}</div>
-           <button class="btn btn-mini" type="button" data-reaktionen-blatt>Blatt mit Skizze
-             und Hinweisen …</button>`}
-    </div>`);
-    node.querySelector('[data-reaktionen-blatt]')?.addEventListener('click', reaktionsBlatt);
+    reaktionsBlockEinfuegen(node);
   } else {
     /*
      * >>> DAS ABFANGJOCH ZEIGT SEINE EIGENEN VERLAEUFE. <<<
@@ -1838,10 +1852,82 @@ function blattSzene(erg) {
   return szenenVereinen(teile);
 }
 
+/* ===========================================================================
+ * >>> DIE VERFORMTE FIGUR IM 3D (30. September). <<<
+ * =========================================================================
+ *
+ * Frage: «ist es möglich ein verformtes modell darzustellen im 3d? oder
+ * kostet das zu viel performance? es wäre nur ein nice to have», dann
+ * «frage zum verformten modell angehen». Aus dem Stabwerk: die Knotenwege
+ * des gezeigten Lastfalls, bei «umhüllend» des Falls, der die
+ * Gebrauchstauglichkeit bestimmt (eine Hülle hat keine Figur). Überhöht auf
+ * rund 8 % der Modellgrösse, auf eine runde Zahl abgerundet; die Anschrift
+ * nennt Faktor, Fall und grössten Weg. Nur mit gültigem Stabwerk.
+ *
+ * Die Szene steht in Blattkoordinaten mit dem Mastfuss auf seinem
+ * Fussversatz, das Stabwerk örtlich (Einzeltragwerk) oder im Blatt (Reihe),
+ * die Jochachse auf z = 0. Verschoben wird um den Unterschied an einem
+ * Masten - an allen gleich (bis auf die Luft der Endbleche in einer Reihe,
+ * ein Zentimeterbetrag).
+ * ========================================================================= */
+let verformtAn = false;
+let verformtMerk = null;
+function verformtSetzen() {
+  if (!ansicht) return;
+  const g = verformtAn ? stabwerkGilt() : null;
+  const roh = g?.h?.roh;
+  if (!roh) { ansicht.verformt = null; verformtMerk = null; return; }
+  const umh = anzeigeKombi === 'umhuellend';
+  const mg = ['A', 'B'].map((e) => g.h.verformung?.[e]?.massgebend).filter(Boolean)
+    .sort((a, b) => b.eta - a.eta)[0];
+  const key = umh ? (mg?.lastfall ?? 'wyk') : anzeigeKombi;
+  const lf = roh.faelle.find((l) => l.key === key);
+  if (!lf) { ansicht.verformt = null; return; }
+  const merk = `${g.h.kennung}|${key}|${werte.twId}`;
+  if (verformtMerk?.merk === merk) { ansicht.verformt = verformtMerk.wert; return; }
+  const fig = verformteFigur(roh.dat, roh.lsg, anteileFuer(lf, roh.dat));
+  // Der Bezug: ein Mast, der im Modell und im Blatt steht.
+  const masten = mastenVon(werte);
+  const fuss = roh.dat.knoten.map((k) => ({ k, m: /(?:^|_)MAST_(.+)_F$/.exec(k.name) }))
+    .filter((x) => x.m).map((x) => ({ k: x.k, mast: masten.find((mm) => mastName(werte, mm) === x.m[1]) }))
+    .find((x) => x.mast);
+  const dx = fuss ? fuss.mast.x - fuss.k.x : 0;
+  const dz = fuss ? (Number(fuss.mast.fuss) || 0) - fuss.k.z : (Number(werte.mastH) || 0);
+  const linien = fig.linien.map((l) => ({ ...l, punkte: l.punkte.map((p) => [p[0] + dx, p[1], p[2] + dz]) }));
+  const xs = linien.flatMap((l) => l.punkte.map((p) => p[0]));
+  const zs = linien.flatMap((l) => l.punkte.map((p) => p[2]));
+  const groesse = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
+  let faktor = 0;
+  if (fig.max > 1e-9) {
+    const roh6 = (0.08 * groesse) / fig.max;
+    const p10 = 10 ** Math.floor(Math.log10(roh6));
+    faktor = [5, 2, 1].map((n) => n * p10).find((n) => n <= roh6) ?? p10;
+  }
+  const wert = faktor > 0 ? {
+    linien, faktor,
+    text: `Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht · `
+      + `${lf.bez}${umh ? ' (massgebend Gebrauchstauglichkeit)' : ''} · grösster Weg `
+      + `${(fig.max * 1000).toFixed(1)} mm`,
+  } : null;
+  verformtMerk = { merk, wert };
+  ansicht.verformt = wert;
+}
+function verformtUmschalten() {
+  verformtAn = !verformtAn;
+  verformtSetzen();
+  if (verformtAn && !ansicht.verformt) {
+    meldeImBalken('Die verformte Figur kommt aus dem Stabwerk - es ist noch nicht gerechnet '
+      + 'oder das Rechenverfahren steht auf Ersatzbalken.', { dauer: 5000 });
+  }
+  ansicht.zeichne();
+  zeichneModellWerkzeuge(app);
+}
+
 function aktualisiereModell(erg) {
   const szene = blattSzene(erg);
   uebernehmeAnsichtsoptionen();
   ansicht.station = station;
+  verformtSetzen();
   ansicht.setzeSzene(szene);
   if (ui.el('legende')) zeichneLegende(app);
   // Die Blickrichtung wird beim ersten Setzen der Szene festgelegt; die

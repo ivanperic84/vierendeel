@@ -463,7 +463,7 @@ export function rechneStabwerk(app) {
   const reaktionen = reaktionsZeilen(
     reaktionenAusStabwerk(dat, lsg, alleFaelleS, anteileFuer));
 
-  return {
+  const ergebnis = {
     ...huelle,
     verformung,
     reaktionen,
@@ -486,6 +486,16 @@ export function rechneStabwerk(app) {
     schubweich: lsg.schubweich === true,
     ms: Date.now() - t0,
   };
+  /*
+   * >>> DIE ROHDATEN FÜR DIE VERFORMTE FIGUR (30. September). <<<
+   * Frage «ist es möglich ein verformtes modell darzustellen im 3d?»: die
+   * Knotenwege stehen in der Lösung, gezeichnet werden sie aus Modell und
+   * Lösung. Nicht aufzählbar - sie gehören zu keinem gespeicherten Stand und
+   * zu keinem Vergleich, und JSON.stringify übergeht sie.
+   */
+  Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS },
+                                          enumerable: false });
+  return ergebnis;
 }
 
 /**

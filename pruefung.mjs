@@ -34218,6 +34218,58 @@ titel('172  Gebrauchstauglichkeit neu geordnet: Oberschalter, drei Prüfungen, R
        blk.includes('data-gzg-feld="gzgReferenz"') && /nur aus dem Stabwerk/.test(blk));
 }
 
+titel('173  Verformte Figur im 3D; Reaktionskräfte auch am Einzelmasten');
+/* ===========================================================================
+ * Frage 30. September: «ist es möglich ein verformtes modell darzustellen
+ * im 3d? oder kostet das zu viel performance?», dann «frage zum verformten
+ * modell angehen». Und: «warum kann ich hier nicht den reaktionskräfte
+ * output generieren bei masten ohne joch?»
+ * ========================================================================= */
+{
+  const N173 = await import(J('core.nachbarn.js'));
+  const AS173 = await import(J('app.stabwerk.js'));
+  const SV173 = await import(J('core.stabverformung.js'));
+  const SN173 = await import(J('core.stabnachweis.js'));
+  const w = { ...standardwerte() };
+  const s = N173.rechensatzMitNachbarn(w);
+  const erg = berechne(s, ...N173.kernArgumente(s));
+  const sw = AS173.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
+  wahr('Das Stabwerk behält Modell, Lösung und Fälle - nicht aufzählbar',
+       !!sw.roh?.dat && !!sw.roh?.lsg && Array.isArray(sw.roh?.faelle)
+       && !Object.keys(sw).includes('roh') && !JSON.stringify(Object.keys(sw)).includes('roh'));
+  const lf = sw.roh.faelle.find((l) => l.key === 'wyk');
+  const t0 = Date.now();
+  const fig = SV173.verformteFigur(sw.roh.dat, sw.roh.lsg, SN173.anteileFuer(lf, sw.roh.dat));
+  const ms = Date.now() - t0;
+  wahr('Je echter Stab ein Linienzug mit fünf Punkten, keine Starrelemente',
+       fig.linien.length === sw.roh.dat.staebe.filter((x) => x.art === 'stab').length
+       && fig.linien.every((l) => l.punkte.length === 5 && l.wege.length === 5));
+  // Der grösste Weg unter Wind +y: die Mastspitze in Gleisrichtung - derselbe
+  // Wert wie der Verformungsnachweis (dort × ψ 0.70).
+  const spitze = SV173.mastWeg(sw.roh.dat, sw.roh.lsg, SN173.anteileFuer(lf, sw.roh.dat),
+    SV173.mastZug(sw.roh.dat, 'M1'), SV173.mastZug(sw.roh.dat, 'M1').kopf);
+  // Am Masten derselbe Weg wie im Verformungsnachweis; das Joch weicht in
+  // Feldmitte weiter aus (Mastkopf + Biegung des Jochs in Gleisrichtung).
+  const mastL = fig.linien.filter((l) => /^MAST_M1_S\d+$/.test(l.name));
+  const kopfWeg = Math.max(...mastL.flatMap((l) => l.wege.map((u) => Math.hypot(...u))));
+  pruef('Mast M1 in der Figur = Mastweg des Nachweises (Spitze, Wind +y)', kopfWeg,
+        Math.hypot(...spitze), 1e-9, 'm');
+  wahr('… das Joch weicht in Feldmitte weiter aus', fig.max > kopfWeg,
+       `${(fig.max * 1000).toFixed(1)} gegen ${(kopfWeg * 1000).toFixed(1)} mm`);
+  console.log(`      J90/20 m, Wind +y: grösster Weg ${(fig.max * 1000).toFixed(1)} mm, `
+    + `${fig.linien.length} Stäbe, ${ms} ms`);
+  wahr('… und das kostet wenig (unter 2 s am Prüfrechner)', ms < 2000, `${ms} ms`);
+  const app = APP_QUELLE();
+  wahr('Schalter «δ» in der Resultatleiste, Lastfall oder massgebender GZG-Fall',
+       app.includes("text('wz-r-verformt', 'δ'") && app.includes('function verformtSetzen()')
+       && app.includes("mg?.lastfall ?? 'wyk'"));
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Das 3D zeichnet Punkt + Faktor · Weg und schreibt die Überhöhung an',
+       r3.includes('_verformtMalen(c, proj, t)') && r3.includes('p[0] + v.faktor * w[0]'));
+  wahr('Reaktionskräfte auch im Reiter Auflager des Einzelmasten',
+       /ui\.zeichneMastfuss\(knoten, letzte\.kombi\);[\s\S]{0,200}reaktionsBlockEinfuegen\(knoten\);/.test(app));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
