@@ -34092,6 +34092,20 @@ titel('169 c  Reaktionskräfte: Wahl der Zeilen, Titel in der Skizze; Lageband m
        `${bSechzig.von.toFixed(1)} … ${bSechzig.bis.toFixed(1)}`);
 }
 
+titel('170  Markierung des massgebenden Stabes: Esc und Klick ins Leere');
+// Weisung 30. September: «mit esc die aktivierung aufheben oder wenn man ins
+// leere klickt im modell».
+{
+  const app = APP_QUELLE();
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  const ab = app.slice(app.indexOf('function abbrechen()'), app.indexOf('function abbrechen()') + 3000);
+  wahr('Esc hebt die Markierung auf (vor Auswahl und Station)',
+       /if \(ansicht\?\.markierung\) \{ ansicht\.markierung = null; ansicht\.zeichne\(\); return; \}/.test(ab)
+       && ab.indexOf('ansicht?.markierung') < ab.indexOf('ansicht?.auswahlTeil'));
+  wahr('Ein Klick ins Leere hebt sie auf',
+       r3.includes('if (!tr && this.markierung) { this.markierung = null; this.zeichne(); }'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

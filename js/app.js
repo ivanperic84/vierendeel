@@ -3757,6 +3757,13 @@ function abbrechen() {
   if (dlg) { dlg.querySelector('[data-zu]')?.click(); return; }
   if (schubladeIstOffen()) { schubladeSchliessen(app); return; }
   if (ansicht?.detail) { anbauteilBlickZurueck(); return; }
+  /*
+   * DIE MARKIERUNG DES MASSGEBENDEN STABES (30. September: «mit esc die
+   * aktivierung aufheben oder wenn man ins leere klickt im modell»).
+   * Sie kommt vom Klick auf eine Nachweiskachel und stand bis hierher, bis
+   * man woanders hinfuhr.
+   */
+  if (ansicht?.markierung) { ansicht.markierung = null; ansicht.zeichne(); return; }
   if (ansicht?.auswahlTeil || station !== null) {
     ansicht.auswahlTeil = null;
     station = null; ansicht.station = null;

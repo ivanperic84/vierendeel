@@ -2978,6 +2978,12 @@ export class Modellansicht {
     if (mt) { this.opt.beiMass?.(mt.feld, mt.tab, mt.bt ?? null); return; }
     const tr = this._treffer(e);
     /*
+     * INS LEERE GEKLICKT: die Markierung des massgebenden Stabes geht weg
+     * (30. September: «oder wenn man ins leere klickt im modell»). Esc tut
+     * dasselbe (`abbrechen` in app.js).
+     */
+    if (!tr && this.markierung) { this.markierung = null; this.zeichne(); }
+    /*
      * EIN KLICK AUF EIN NICHT AKTIVES TRAGWERK MACHT ES AKTIV (Weisung,
      * 2. September).
      *
