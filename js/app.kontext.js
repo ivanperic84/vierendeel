@@ -167,24 +167,11 @@ export function kontextTragwerk(app, id) {
     p.push({ text: 'Alle wieder einblenden', tun: () => alleZeigen(app) });
   }
   /*
-   * >>> EIN ABFANGJOCH GEHOERT UEBER EIN BESTIMMTES JOCH. <<<
-   *
-   * «Neues Tragwerk bei x = 18.50 m» auf dem leeren Grund setzt es an die
-   * Stelle, auf die man gezeigt hat - das ist richtig, aber ungenau: ein
-   * Abfangjoch sitzt nicht IRGENDWO, sondern auf DEN MASTEN des Jochs
-   * darunter, ueber dessen ganze Strecke. Hier gezeigt, hier uebernommen:
-   * Lage und Laenge kommen vom angeklickten Tragwerk.
-   *
-   * Was danach noch zu setzen bleibt, ist die Anschlusshoehe - die eine
-   * Angabe, die zwei uebereinanderstehende Abfangjoche unterscheidet.
+   * «ABFANGJOCH DARÜBER SETZEN» ist weg (30. September): «den Punkt
+   * Abfangjoch darüber setzen könnte man weglassen. das ist äusserst
+   * selten.» Wer eines über ein Joch legen will, wählt im Dialog «Neues
+   * Tragwerk» dessen beide Masten.
    */
-  if (tragwerksart(t).masten >= 2) {
-    p.push('-');
-    p.push({ text: 'Abfangjoch darüber setzen', tun: () => {
-      if ((app.werte.twId ?? 'T1') !== id) app.werte = tauscheAktives(app.werte, id);
-      app.aendern('tragwerkNeu', { art: 'abfangjoch', xLage: lageVon(t) });
-    } });
-  }
   /* =========================================================================
    * >>> DIE ART LAESST SICH WECHSELN. <<<
    * =========================================================================
@@ -365,6 +352,57 @@ export function kontextMast(app, mastId, twId) {
       + (t.mastVorhanden === false ? 'einschalten' : 'ausschalten'),
       tun: () => app.aendern('tragwerkMasten', t.id) });
   }
+  p.push('-', ...neuesAnMast(app, m));
+  /*
+   * DIE TRAGWERKE DIESES MASTEN (30. September): «das kontextmenue beim 3d
+   * mit den optionen aus dem tragwerk (sidebar) ergänzen». Je Tragwerk,
+   * das der Mast trägt, dessen Einträge unter seinem Namen.
+   */
+  traegt.forEach((tid) => p.push('-', ...tragwerkAbschnitt(app, tid)));
+  return p;
+}
+
+/** Die Einträge eines Tragwerks unter seinem Namen - für Mast und Grund. */
+function tragwerkAbschnitt(app, id) {
+  const t = tragwerkeSortiert(app.werte).find((x) => x.id === id);
+  if (!t) return [];
+  return [{ kopf: `${tragwerkPos(app.werte, t)} · ${tragwerkName(t, app.werte)}` },
+          ...kontextTragwerk(app, id)];
+}
+
+/**
+ * >>> EIN NEUES TRAGWERK AN DIESEM MASTEN (30. September). <<<
+ *
+ * Weisung: «die auswahl der Masten anbieten wo der träger zu liegen kommen
+ * soll. man hat den fall das man schon zwei oder drei masten hat und dann
+ * ein joch dazwischen legen will.» Vom angeklickten Masten zum Nachbarn
+ * links bzw. rechts; der Dialog «Neues Tragwerk» öffnet mit beiden
+ * Masten gewählt, Lage und Stützweite folgen daraus.
+ */
+function neuesAnMast(app, m) {
+  const alle = mastenVon(app.werte).slice().sort((a, b) => a.x - b.x);
+  const i = alle.findIndex((x) => x.id === m.id);
+  const links = i > 0 ? alle[i - 1] : null;
+  const rechts = i >= 0 && i < alle.length - 1 ? alle[i + 1] : null;
+  const n = (x) => mastName(app.werte, x);
+  const p = [{ kopf: `Neues Tragwerk an ${n(m)}` }];
+  ['joch', 'abfangjoch'].forEach((art) => {
+    const label = TRAGWERKSARTEN.find((a) => a.key === art)?.label ?? art;
+    if (rechts) {
+      p.push({ text: `${label} zwischen ${n(m)} und ${n(rechts)} …`,
+               tun: () => dialogTragwerk(app, null, art, { mastA: m.id, mastB: rechts.id }) });
+    }
+    if (links) {
+      p.push({ text: `${label} zwischen ${n(links)} und ${n(m)} …`,
+               tun: () => dialogTragwerk(app, null, art, { mastA: links.id, mastB: m.id }) });
+    }
+    if (!links && !rechts) {
+      p.push({ text: `${label} ab ${n(m)} …`,
+               tun: () => dialogTragwerk(app, null, art, { mastA: m.id }) });
+    }
+  });
+  p.push({ text: `Mast mit Tragausleger an ${n(m)} …`,
+           tun: () => dialogTragwerk(app, null, 'tragausleger', { mastA: m.id }) });
   return p;
 }
 
@@ -559,10 +597,34 @@ export function kontextGrund(app, k) {
     const wo = aufRaster(k.welt.x);
     p.push('-');
     p.push({ kopf: `Neues Tragwerk bei x = ${wo.toFixed(2)} m` });
+    /*
+     * SEIT DEM 30. SEPTEMBER UEBER DEN DIALOG: er fragt die Grundwerte und
+     * die Masten. Stehen links und rechts der Stelle Masten, sind sie fuer
+     * die Arten mit zwei Masten schon gewaehlt - der Fall «ein Joch
+     * dazwischen legen».
+     */
+    const ms = mastenVon(app.werte);
+    const li = ms.filter((m) => m.x <= wo + 1e-9).sort((a, b) => b.x - a.x)[0] ?? null;
+    const re = ms.filter((m) => m.x > wo + 1e-9).sort((a, b) => a.x - b.x)[0] ?? null;
     TRAGWERKSARTEN.forEach((a) => {
-      p.push({ text: a.label,
-               tun: () => app.aendern('tragwerkNeu', { art: a.key, xLage: wo }) });
+      const vor = a.masten >= 2 && li
+        ? { x0: wo, mastA: li.id, mastB: re?.id ?? '' }
+        : { x0: wo };
+      p.push({ text: `${a.label} …`, tun: () => dialogTragwerk(app, null, a.key, vor) });
     });
+    /*
+     * DIE TRAGWERKE UNTER DER STELLE (30. September): zwischen den Gurten
+     * eines Jochs trifft der Zeiger keine Flaeche und landet hier. Wer dort
+     * klickt, meint meist das Joch - seine Eintraege stehen deshalb auch
+     * hier, je Tragwerk, dessen Strecke die Stelle ueberdeckt.
+     */
+    tragwerkeSortiert(app.werte)
+      .filter((t) => !versteckt(t) && tragwerksart(t).masten >= 2)
+      .filter((t) => {
+        const x0 = lageVon(t), L = Number(t.L) || 0;
+        return k.welt.x >= x0 - 0.3 && k.welt.x <= x0 + L + 0.3;
+      })
+      .forEach((t) => p.push('-', ...tragwerkAbschnitt(app, t.id)));
   }
   p.push('-');
   p.push({ text: app.setzen ? 'Bauteil setzen abbrechen' : 'Bauteil setzen',

@@ -14,12 +14,13 @@ import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteL
          tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
 import { STEGRICHTUNGEN, mastprofile } from './data.masten.js';
-import { getTragjoch, tragjoche } from './data.tragjoche.js';
+import { getTragjoch, laengenbereich, tragjoche } from './data.tragjoche.js';
 import { esc } from './design.js';
 import { WIND_KLASSEN, ekVonWindklasse } from './core.lasten.js';
 import { signalteile, signalFlaeche, SIGNAL_CW } from './data.anbauteile.js';
 import { windAusFlaeche } from './data.fl.js';
 import { istGerade } from './core.trasse.js';
+import { abfangFuerStuetzweite } from './core.abfangjoch.js';
 
 /* ===========================================================================
  * DER ZUGANKER ODER DIE DRUCKSTUETZE - IN EINEM FENSTER
@@ -429,7 +430,12 @@ function hoeheVonM1(app, t) {
   return Number.isFinite(h) && h > 0 ? h : (Number(app.werte.mastH) || 7.5);
 }
 
-export function dialogTragwerk(app, id = null, artVor = null) {
+/**
+ * @param {object} vor  Vorbelegung aus Kontextmenü oder Kachel (30. Sept.):
+ *                      {x0, mastA, mastB} - Lage bzw. die Masten, zwischen
+ *                      bzw. an denen das neue Tragwerk liegen soll
+ */
+export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
   const neuesTragwerk = !id;
   const alle = tragwerkeSortiert(app.werte);
   const t = id ? alle.find((x) => x.id === id) : null;
@@ -486,6 +492,8 @@ export function dialogTragwerk(app, id = null, artVor = null) {
     spw: Number(app.werte.flSpannweite) || 40,
     R: Number(app.werte.trasseRadius) || 0,
     nichtMehr: false,
+    // Die gewählten Masten (30. September) - leer heisst «neu setzen».
+    mA: '', mB: '',
   };
   const grundwerteFragen = neuesTragwerk && app.werte.grundwerteFragen !== false;
   /*
@@ -527,16 +535,109 @@ export function dialogTragwerk(app, id = null, artVor = null) {
         return { min: b.min, max: b.max, text: b.text };
       } catch { return { min: 5, max: 35, text: '' }; }
     }
+    /*
+     * Das Sortiment führt die Längen als laengeKurz / laengeNorm, nicht als
+     * Liste - hier stand `j.laengen`, das es nie gab, und der Dialog fiel
+     * immer auf 4 … 40 m zurück (gefunden 30. September).
+     */
     try {
       const j = getTragjoch(e.typ);
-      const ls = (j?.laengen ?? []).map(Number).filter(Number.isFinite);
-      if (ls.length) {
-        return { min: Math.min(...ls), max: Math.max(...ls),
-                 text: `${Math.min(...ls).toFixed(1)}–${Math.max(...ls).toFixed(1)} m` };
-      }
+      if (j) return laengenbereich(j);
     } catch { /* ohne Sortiment freie Laenge */ }
     return { min: 4, max: 40, text: '' };
   };
+
+  /* =======================================================================
+   * >>> ZWISCHEN WELCHEN MASTEN (30. September). <<<
+   * =======================================================================
+   *
+   * Weisung: «was man aber machen könnte ist die auswahl der Masten
+   * anbieten wo der träger zu liegen kommen soll. man hat den fall das man
+   * schon zwei oder drei masten hat und dann ein joch dazwischen legen
+   * will.» Gewählt werden die Masten, Lage und Stützweite folgen daraus:
+   * Tragjoch L = Abstand der Mastachsen (passt der Typ nicht, der erste des
+   * Sortiments, der ihn führt); Abfangjoch über `abfangFuerStuetzweite`
+   * (kürzeste passende Länge, sonst der nächste Typ - Entscheid 20. Sept.);
+   * Tragausleger an EINEM Masten. Geteilt werden die Masten danach über die
+   * Lage, wie überall auf dem Blatt.
+   * ===================================================================== */
+  const f2 = (v) => Number(v).toFixed(2);
+  const masten = () => mastenVon(app.werte).slice().sort((a, b) => a.x - b.x);
+  const mastVon = (mid) => masten().find((m) => m.id === mid) ?? null;
+  const mName = (m) => mastName(app.werte, m);
+  const mastWahl = () => neuesTragwerk && masten().length > 0 && e.art !== 'einzelmast';
+  let mastNotiz = '';
+  const passtJoch = (j, d) => {
+    const b = laengenbereich(j);
+    return d >= b.min - 1e-9 && d <= b.max + 1e-9;
+  };
+  const mastenAnwenden = (typFest = false) => {
+    mastNotiz = '';
+    const a = mastVon(e.mA);
+    if (!a) return;
+    if (artDef().masten < 2) {
+      e.x0 = a.x;
+      mastNotiz = `An ${mName(a)} bei x = ${f2(a.x)} m.`;
+      return;
+    }
+    const b = mastVon(e.mB);
+    if (!b) {
+      e.x0 = a.x;
+      mastNotiz = `Beginnt an ${mName(a)}; der zweite Mast wird neu gesetzt.`;
+      return;
+    }
+    const [l, r] = a.x <= b.x ? [a, b] : [b, a];
+    const d = r.x - l.x;
+    if (!(d > 0.05)) { mastNotiz = 'Die beiden Masten stehen an derselben Stelle.'; return; }
+    e.x0 = l.x;
+    if (istAbfang()) {
+      const k = abfangFuerStuetzweite(e.abfangTyp, d);
+      if (!k) { mastNotiz = `Kein Abfangjoch des Sortiments überspannt ${f2(d)} m.`; return; }
+      if (k.typ !== e.abfangTyp) mastNotiz = `${e.abfangTyp} überspannt ${f2(d)} m nicht - ${k.typ} gewählt. `;
+      e.abfangTyp = k.typ;
+      e.L = k.L;
+      const jsMax = k.js[1];
+      mastNotiz += d < jsMax - 0.01
+        ? `⚠ ${k.typ} L = ${f2(k.L)} m setzt seinen zweiten Mast auf die grösste Stützweite `
+          + `${f2(jsMax)} m (x = ${f2(l.x + jsMax)}); ${mName(r)} bei ${f2(r.x)} m wird nicht geteilt.`
+        : `${k.typ} L = ${f2(k.L)} m, Stützweite ${f2(d)} m zwischen ${mName(l)} und ${mName(r)}.`;
+      return;
+    }
+    e.L = d;
+    let j = null;
+    try { j = getTragjoch(e.typ); } catch { /* ohne Sortiment */ }
+    if (j && !passtJoch(j, d) && typFest) {
+      mastNotiz = `⚠ ${e.typ} führt ${f2(d)} m nicht. `;
+    } else if (j && !passtJoch(j, d)) {
+      const alt = String(e.typ).endsWith('-alt');
+      const n = tragjoche().find((x) => !/^SIGNAL/.test(x.typ)
+        && String(x.typ).endsWith('-alt') === alt && passtJoch(x, d));
+      if (n) {
+        mastNotiz = `${e.typ} führt ${f2(d)} m nicht - ${n.typ} gewählt. `;
+        e.typ = n.typ;
+      } else {
+        mastNotiz = `⚠ Kein Tragjoch des Sortiments führt ${f2(d)} m. `;
+      }
+    }
+    mastNotiz += `Stützweite ${f2(d)} m zwischen ${mName(l)} und ${mName(r)}.`;
+  };
+  const mastOptionen = (wert) => `<option value="">— neuer Mast —</option>${masten().map((m) =>
+    `<option value="${esc(m.id)}"${m.id === wert ? ' selected' : ''}>${esc(mName(m))} · x ${f2(m.x)} m</option>`).join('')}`;
+  const mastenHtml = () => {
+    if (!mastWahl()) return '';
+    const zwei = artDef().masten >= 2;
+    return `<div class="feld"><label>${zwei ? 'Zwischen den Masten' : 'An Mast'}</label>
+      <div class="dlg-masten">
+        <select id="dlg-tw-ma" aria-label="${zwei ? 'erster Mast' : 'Mast'}">${mastOptionen(e.mA)}</select>
+        ${zwei ? `<span>und</span><select id="dlg-tw-mb" aria-label="zweiter Mast">${mastOptionen(e.mB)}</select>` : ''}
+      </div>
+      <small class="hinweis">${esc(mastNotiz || (zwei
+        ? 'Vorhandene Masten wählen - Lage und Stützweite folgen daraus.'
+        : 'Vorhandenen Masten wählen - die Lage folgt daraus.'))}</small></div>`;
+  };
+  // Vorbelegung aus Kontextmenü oder Kachel.
+  if (Number.isFinite(vor.x0)) e.x0 = vor.x0;
+  if (vor.mastA) { e.mA = vor.mastA; e.mB = vor.mastB ?? ''; mastenAnwenden(); }
 
   /** Kurzform der Grundwerte - für die Zeile, wenn nicht mehr gefragt wird. */
   const grundwerteKurz = () => {
@@ -594,6 +695,8 @@ export function dialogTragwerk(app, id = null, artVor = null) {
             title="${esc(a.kurz)}">${esc(a.label)}</button>`).join('')}
       </div>
       <small class="hinweis">${esc(artDef().kurz)}</small></div>
+
+    ${mastenHtml()}
 
     ${artDef().traeger ? `<div class="feld">
       <label for="dlg-tw-typ">${istAusleger() ? 'Auslegerlänge' : 'Welcher Typ'}</label>
@@ -672,6 +775,8 @@ export function dialogTragwerk(app, id = null, artVor = null) {
         if (Number.isFinite(v.L)) e.L = v.L;
         const b2 = bereich();
         e.L = Math.min(Math.max(e.L, b2.min), b2.max);
+        // Gewählte Masten gelten auch für die neue Art (30. September).
+        if (e.mA) mastenAnwenden();
         neu();
       };
     });
@@ -682,10 +787,20 @@ export function dialogTragwerk(app, id = null, artVor = null) {
     if (typ) typ.onchange = () => {
       if (istAusleger()) { e.L = Number(typ.value); neu(); return; }
       if (istAbfang()) e.abfangTyp = typ.value; else e.typ = typ.value;
+      /*
+       * Sind Masten gewählt, bleibt die Stützweite ihr Abstand: beim
+       * Abfangjoch sucht die Regel von diesem Typ aus die passende Länge,
+       * beim Tragjoch bleibt der gewählte Typ und die Notiz sagt, wenn er
+       * den Abstand nicht führt.
+       */
+      if (e.mA && e.mB) { mastenAnwenden(!istAbfang()); neu(); return; }
       const b2 = bereich();
       e.L = Math.min(Math.max(e.L, b2.min), b2.max);
       neu();
     };
+    const ma = n.querySelector('#dlg-tw-ma'), mb = n.querySelector('#dlg-tw-mb');
+    if (ma) ma.onchange = () => { e = { ...e, mA: ma.value }; mastenAnwenden(); neu(); };
+    if (mb) mb.onchange = () => { e = { ...e, mB: mb.value }; mastenAnwenden(); neu(); };
     const zahl = (sel, feld) => {
       const el = n.querySelector(sel);
       if (!el) return;
@@ -697,6 +812,17 @@ export function dialogTragwerk(app, id = null, artVor = null) {
     zahl('#dlg-tw-l', 'L');
     zahl('#dlg-tw-h', 'H');
     zahl('#dlg-tw-x', 'x0');
+    // Wer Lage oder Länge von Hand setzt, verlässt die Mastwahl.
+    ['#dlg-tw-l', '#dlg-tw-x'].forEach((sel) => {
+      const el = n.querySelector(sel);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        if (!e.mA && !e.mB) return;
+        e = { ...e, mA: '', mB: '' };
+        if (ma) ma.value = '';
+        if (mb) mb.value = '';
+      });
+    });
     zahl('#dlg-tw-spw', 'spw');
     zahl('#dlg-tw-r', 'R');
     const ek = n.querySelector('#dlg-tw-ek');

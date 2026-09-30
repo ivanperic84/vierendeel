@@ -33586,6 +33586,37 @@ titel('160  Signalbauer: Auswahl, Summe wie die Mappe, Signal-Anbauteil');
        /Array\.isArray\(m\.signal\)\s*\? m\.signal\.map\(\(s\) => `\$\{s\.id\}\*\$\{s\.anzahl\}/.test(uq));
 }
 
+titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
+/* ===========================================================================
+ * Weisung 30. September: «das kontextmenue beim 3d mit den optionen aus dem
+ * tragwerk (sidebar) ergänzen den Punkt Abfangjoch darüber setzen könnte
+ * man weglassen … die auswahl der Masten anbieten wo der träger zu liegen
+ * kommen soll». Auf Rückfrage «Beides» (Kontextmenü + Kacheln).
+ * ========================================================================= */
+{
+  const kq = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('«Abfangjoch darüber setzen» steht nicht mehr im Menü',
+       !/text: 'Abfangjoch darüber setzen'/.test(kq));
+  wahr('Am Masten: neues Tragwerk zwischen ihm und dem Nachbarn, über den Dialog',
+       /dialogTragwerk\(app, null, art, \{ mastA: m\.id, mastB: rechts\.id \}\)/.test(kq)
+       && /dialogTragwerk\(app, null, art, \{ mastA: links\.id, mastB: m\.id \}\)/.test(kq)
+       && /dialogTragwerk\(app, null, 'tragausleger', \{ mastA: m\.id \}\)/.test(kq));
+  wahr('… und die Einträge der Tragwerke, die er trägt',
+       /traegt\.forEach\(\(tid\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, tid\)\)\)/.test(kq));
+  wahr('Auf dem Grund: der Dialog mit den Masten links und rechts der Stelle, dazu die Tragwerke darüber',
+       /dialogTragwerk\(app, null, a\.key, vor\)/.test(kq) && !/app\.aendern\('tragwerkNeu', \{ art: a\.key, xLage: wo \}\)/.test(kq)
+       && /\.forEach\(\(t\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, t\.id\)\)\)/.test(kq));
+  wahr('Der Dialog nimmt die Vorbelegung und rechnet Lage und Stützweite aus den Masten',
+       /export function dialogTragwerk\(app, id = null, artVor = null, vor = \{\}\)/.test(dq)
+       && /e\.L = d;/.test(dq) && /abfangFuerStuetzweite\(e\.abfangTyp, d\)/.test(dq)
+       && /id="dlg-tw-ma"/.test(dq) && /id="dlg-tw-mb"/.test(dq));
+  // Befund 30. Sept.: der Längenbereich las `j.laengen`, das es nicht gibt.
+  wahr('Der Längenbereich kommt aus laengenbereich (laengeKurz/laengeNorm)',
+       !/j\?\.laengen/.test(dq) && /return laengenbereich\(j\)/.test(dq));
+  pruef('… J90 führt 8 bis 26.5 m', T.laengenbereich(T.getTragjoch('J90')).max, 26.5, 1e-9, 'm');
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
