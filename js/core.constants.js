@@ -849,7 +849,14 @@ export const MASTFELDER = [
    * 3D, Bericht, Excel); intern und in den AxisVM-Stabnamen bleibt M1
    * (`mastName`), damit die Namen eindeutig und ohne Sonderzeichen bleiben.
    */
-  { flach: 'mastNummer', flachB: 'mastNummerB', am: 'nummer' },
+  /*
+   * `eigen`: die Nummer erbt Ende B NICHT von Ende A (30. September).
+   * Profil, Länge und Steg dürfen am zweiten Masten wie am ersten gelten;
+   * eine Nummer nicht - gefunden bei der Prüfung der Nachweiskacheln: nach
+   * dem Wechsel Tragausleger → Tragjoch hiessen M1 und der neue M2 beide
+   * «14», zwei Kacheln «η 14» mit 1.422 und 0.387.
+   */
+  { flach: 'mastNummer', flachB: 'mastNummerB', am: 'nummer', eigen: true },
 ];
 
 /**
@@ -904,7 +911,8 @@ function mastAus(t, ende, x) {
   const zwei = ende === 'B' && t?.mastZwei === true;
   const o = { x };
   MASTFELDER.forEach((f) => {
-    const v = zwei ? (t?.[f.flachB] ?? t?.[f.flach]) : t?.[f.flach];
+    const v = f.eigen && ende === 'B' ? t?.[f.flachB]
+      : zwei ? (t?.[f.flachB] ?? t?.[f.flach]) : t?.[f.flach];
     if (v !== undefined) o[f.am] = v;
   });
   return o;

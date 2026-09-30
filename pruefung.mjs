@@ -34106,6 +34106,30 @@ titel('170  Markierung des massgebenden Stabes: Esc und Klick ins Leere');
        r3.includes('if (!tr && this.markierung) { this.markierung = null; this.zeichne(); }'));
 }
 
+titel('171  Nachweiskacheln: Verdrahtung geprüft; die Mastnummer wird nicht vererbt');
+/* ===========================================================================
+ * Frage 30. September: «sind die stäbe nicht zu weich und die ausnutzung
+ * elastisch erscheint mir auch unplausibel … die nachweisboxen, ich war mir
+ * nicht sicher ob die verdrahtung richtig ist.» Gegengerechnet an einem
+ * Joch J90/15.50 m, M1 HEB 260/14.50 m (Steg Jochachse, Signal und
+ * NT-Ausleger), M2 HEB 260/13.00 m (Steg quer): jede Kachel = ihre Quelle
+ * (Hülle je Teil, Mast, Fundament je Mast, Verformung). Befund: M2 erbte
+ * die Nummer von M1 - zwei Kacheln «η 14».
+ * ========================================================================= */
+{
+  const C171 = await import(J('core.constants.js'));
+  const w = { ...standardwerte(), mastNummer: '14', mastZwei: false, masten: undefined };
+  delete w.masten;
+  const m = C171.mastenVon(w);
+  wahr('Ende B erbt Profil und Länge, aber nicht die Nummer',
+       m.length === 2 && m[0].nummer === '14' && m[1].nummer === undefined
+       && m[1].profil === m[0].profil, JSON.stringify(m.map((x) => x.nummer)));
+  const w2 = { ...w, mastZwei: true, mastNummerB: '15' };
+  wahr('… eine eigene Nummer an Ende B bleibt', C171.mastenVon(w2)[1].nummer === '15');
+  wahr('… und die Karte der Anzeige nennt nur M1 «14»',
+       C171.mastAnzeigeKarte(w).size === 1);
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
