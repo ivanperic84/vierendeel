@@ -132,6 +132,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Kachel-Symbole, Schieber, Ausleger am Joch (30. Sept.) | «kannst du hier die kacheln mit symbolzeichnung noch versehen den text kann man dann kleiner unterhalb des symbols aufführen. theoretisch kann ein Tragausleger auch an ein bestehendes Jochtragwerk auf die aussenseite angehängt werden, kann man in diesem fall die kachel für diesen fall auch nutzen? mach die schieber hier überall da wo es sinn macht. und mach den balken etwas heller als den punkt.» Kacheln mit Strichsymbol (`TW_SYMBOLE`: Vierendeel-Joch, Einzelmast, Ausleger mit Seil, Abfangjoch als zwei Träger übereinander, Anker als Strebe), Anschrift klein darunter. Schieber selbst gezeichnet: Punkt in der Akzentfarbe, Balken bis zum Wert heller (`--schieber-fuell`, `schieberFuellen`); neu als Schieber Kragarm A/B (rastet 0.5 m), Konsole, Spannweite der Fahrleitung (Radius und Lage x₀ bleiben Zahl: grosser bzw. offener Bereich). Ausleger an einem Jochmasten: Kachel oder Mastwahl - er zeigt von selbst nach aussen; ⚠ **das Stabwerk sperrt einen Ausleger am Masten eines anderen Tragwerks noch** (siehe *Offene Punkte*) |
 | Neues Tragwerk: Kontextmenü, Mastwahl, Kacheln (30. Sept.) | Weisung: «das kontextmenue beim 3d mit den optionen aus dem tragwerk (sidebar) ergänzen den Punkt Abfangjoch darüber setzen könnte man weglassen. das ist äusserst selten. was man aber machen könnte ist die auswahl der Masten anbieten wo der träger zu liegen kommen soll. man hat den fall das man schon zwei oder drei masten hat und dann ein joch dazwischen legen will. was ich mir auch vorstellen könnte ist, dass wir wieder auf die kacheln beim tragwerk gehen, diese könnte man dann per drag and drop auf die 3d fläche ziehen und man bekommt ein modalfenster mit den relevantesten eingaben zum tragwerk. was denkst du ist der kleverere weg?» Empfohlen: Kontextmenü mit Mastwahl (Masten sind feste Ziele, Ziehen landet auf 0.5 m); auf Rückfrage **«Beides»**. Gebaut: Dialog «Neues Tragwerk» mit **«Zwischen den Masten … und …»** (Tragausleger «An Mast»), Lage und Stützweite folgen (Tragjoch L = Abstand, sonst der erste passende Typ; Abfangjoch `abfangFuerStuetzweite`); Rechtsklick auf Mast/Grund bietet «… zwischen Mx und My …» bzw. öffnet den Dialog mit den Nachbarmasten vorgewählt (`vorbelegungAnStelle`), dazu die Einträge der Tragwerke; «Abfangjoch darüber setzen» ist weg. **Kacheln** statt «+ Tragwerk»: vier Arten und Zuganker/Druckstütze, anklicken oder ins 3D ziehen (Anker auf einen Masten, 2 m Fang) |
 | Tragwerksleiste ohne Baum (30. Sept.) | «in der Tragwerkgruppe sehe ich infos, die ich schon im 3d oder nebenan in der resultat sidebar sehe», auf Rückfrage **«Lageband behalten, Baum weg»**. Weg: Zeilen je Tragwerk und Mast mit η, Auge, Anker-Chip. Anklicken im Band wählt (ein Mast sein Tragwerk mit), Ausblenden im Kontextmenü, Anker als Strich im Band, η in der Resultatspalte |
 | Lampen und Trafos: Gruppe (30. Sept.) | «die lampen udn trafos in die gruppe übrige schieben»: die Vorlagen Lampe LED/alt mit Rohr und Trafo 50/100 kVA stehen unter «Übrige» statt «Am Masten» (`gruppe: 'uebrige'` in `data/anbauteile.json`, Sicherung `anbauteile_vor_gruppe_uebrige_2026-09-30.json`). Angeboten werden sie weiter nur am Masten - das regelt `ort`, nicht die Gruppe |
@@ -261,7 +262,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5838 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5845 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2082,6 +2083,13 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Tragausleger am Masten eines Jochs wird im Stabwerk nicht gerechnet**
+  (Sperre in `reiheOhneStabmodell`: Aufhängung, Knicken und Fundament des
+  Auslegers rechnet `rechneStabwerk` nur für den Ausleger allein). Setzen
+  lässt er sich seit dem 30. Sept. per Kachel/Mastwahl, nach aussen
+  gerichtet; gerechnet wird dann nur der Ersatzbalken. Den Ausleger in die
+  zusammenhängende Gruppe aufzunehmen ist der nächste Schritt dafür
+  (Befragung offen).
 - ⚠ **Einzelmast unter einem neuen Joch:** legt man ein Joch auf einen
   Masten, der als eigenes Tragwerk «Einzelmast» steht, bleiben beide
   Tragwerke bestehen; das Stabwerk rechnet «3 Tragwerke, 3 Masten», der
@@ -2378,7 +2386,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5838 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5845 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

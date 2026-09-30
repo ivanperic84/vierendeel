@@ -3189,8 +3189,42 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 .qp-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
   gap: 6px; margin: 8px 0 6px; }
 .qp-kachel { border: 1px solid var(--acc); background: var(--acc-s); color: var(--on);
-  border-radius: 6px; padding: 7px 6px; font-size: 11.5px; line-height: 1.2;
-  cursor: grab; text-align: center; }
+  border-radius: 6px; padding: 6px 4px 5px; font-size: 10px; line-height: 1.15;
+  cursor: grab; text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; }
+/* Das Symbol oben, die Anschrift klein darunter (30. September). */
+.qp-kachel .qp-symbol { width: 44px; height: 29px; flex-shrink: 0; }
+.qp-kachel span { color: var(--on2); }
 .qp-kachel:hover { background: var(--s2); }
 .qp-kachel:active { cursor: grabbing; }
 .qp-kachel-anker { border-style: dashed; background: transparent; color: var(--on2); }
+
+/* ---------------------------------------------------------------------------
+   Schieber (30. September): «mach den balken etwas heller als den punkt».
+   Selbst gezeichnet statt accent-color - dort haben Balken und Punkt
+   dieselbe Farbe. Gefüllt bis --p (ui.schieberFuellen).
+   --------------------------------------------------------------------------- */
+:root { --schieber-fuell: color-mix(in srgb, var(--acc) 45%, #ffffff); }
+input[type=range] {
+  -webkit-appearance: none; appearance: none; background: transparent;
+  height: 18px; cursor: pointer;
+}
+input[type=range]:focus { outline: none; }
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, var(--schieber-fuell) 0 var(--p, 0%),
+                                        var(--ol2) var(--p, 0%) 100%);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%; margin-top: -5px;
+  background: var(--acc); border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--acc);
+}
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--acc-s), 0 0 0 1px var(--acc); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--ol2); }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--schieber-fuell); }
+input[type=range]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--acc); border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--acc);
+}
+input[type=range]:disabled { opacity: .45; cursor: default; }

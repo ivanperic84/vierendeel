@@ -241,6 +241,21 @@ const app = {
 // Der Signalbauer der Anbauteil-Karte (30. September) ist ein Dialog der
 // Anwendung; die Karte kennt ihn nur als Aufruf.
 ui.setzeSignalbauer((auswahl, fertig) => dialogSignal(app, auswahl, fertig));
+/*
+ * Der Füllstand der Schieber (30. September, «den balken etwas heller als
+ * den punkt»): bei jeder Eingabe und nach jedem Neuaufbau eines Teils der
+ * Oberfläche. Gebündelt auf ein Bild, damit ein grosser Neuaufbau nicht
+ * hundertmal nachzieht.
+ */
+if (typeof document !== 'undefined') {
+  document.addEventListener('input', (e) => ui.schieberFuellen(e.target), true);
+  let geplant = false;
+  new MutationObserver(() => {
+    if (geplant) return;
+    geplant = true;
+    requestAnimationFrame(() => { geplant = false; ui.schieberFuellenAlle(); });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+}
 // Welche Einwirkungskombination im Modell dargestellt wird.
 // 'umhuellend' = ungünstigster Wert je Station über alle Kombinationen.
 let anzeigeKombi = 'umhuellend';
@@ -1055,6 +1070,7 @@ function neuRechnen(neuZeichnen = true) {
   speichern();
   pruefeUngesichert();
   planeStabwerk();
+  ui.schieberFuellenAlle();
 }
 
 /**

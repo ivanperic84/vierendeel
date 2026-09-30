@@ -639,7 +639,7 @@ export function kontextGrund(app, k) {
  * Die Vorbelegung des Dialogs «Neues Tragwerk» an einer Stelle x - für den
  * Rechtsklick auf den Grund und das Ablegen einer Kachel (30. September).
  * Stehen links und rechts der Stelle Masten, sind sie bei den Arten mit
- * zwei Masten gewählt; beim Tragausleger der Mast, der auf 1 m daneben
+ * zwei Masten gewählt; beim Tragausleger der Mast, der auf 2 m daneben
  * steht.
  */
 export function vorbelegungAnStelle(app, art, wo) {
@@ -651,7 +651,7 @@ export function vorbelegungAnStelle(app, art, wo) {
     return li ? { x0: wo, mastA: li.id, mastB: re?.id ?? '' } : { x0: wo };
   }
   if (art === 'tragausleger') {
-    const nah = naechsterMast(app, wo, 1);
+    const nah = naechsterMast(app, wo, 2);
     return nah ? { x0: nah.x, mastA: nah.id } : { x0: wo };
   }
   return { x0: wo };

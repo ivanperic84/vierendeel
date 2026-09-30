@@ -1538,6 +1538,34 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
  * der Maskensignatur, und jeder Rasterschritt des Laengenschiebers baute
  * die ganze Maske neu.
  */
+/*
+ * >>> DIE SYMBOLE DER KACHELN (30. September). <<<
+ * Weisung: «kannst du hier die kacheln mit symbolzeichnung noch versehen den
+ * text kann man dann kleiner unterhalb des symbols aufführen.» Ansicht quer
+ * zum Gleis, in der Strichsprache des Lagebands: Masten als Senkrechte auf
+ * dem Boden, das Tragjoch als Vierendeelträger (Gurte mit Pfosten), das
+ * Abfangjoch als zwei Träger übereinander (Tragseil- und
+ * Fahrdrahtabfangung), der Ausleger mit seinem Seil, der Anker als
+ * gestrichelte Strebe zu einem eigenen Fundament. Farbe = Schrift.
+ */
+const tws = (inhalt) => `<svg class="qp-symbol" viewBox="0 0 48 32" aria-hidden="true"
+  fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+  stroke-linejoin="round">${inhalt}</svg>`;
+const TW_SYMBOLE = {
+  joch: tws('<path d="M4 30h40M10 30V6M38 30V6"/>'
+    + '<path d="M8 6h32M8 11h32M16 6v5M24 6v5M32 6v5"/>'),
+  einzelmast: tws('<path d="M4 30h40M24 30V4M20 9h8"/>'
+    + '<rect x="20" y="28" width="8" height="3" fill="currentColor" stroke="none"/>'),
+  tragausleger: tws('<path d="M4 30h40M12 30V3"/>'
+    + '<path d="M12 14h32M12 17h32M20 14v3M28 14v3M36 14v3"/>'
+    + '<path d="M12 4l22 10" stroke-dasharray="2.5 2"/>'),
+  abfangjoch: tws('<path d="M4 30h40M10 30V5M38 30V5"/>'
+    + '<path d="M8 6h32M8 8.5h32M8 14h32M8 16.5h32"/>'),
+  anker: tws('<path d="M4 30h40M14 30V4"/>'
+    + '<path d="M14 11l24 18" stroke-dasharray="3 2"/>'
+    + '<rect x="35" y="28" width="7" height="3" fill="currentColor" stroke="none"/>'),
+};
+
 function tragwerkfeldHtml(werte) {
   const alle = tragwerkeSortiert(werte);
   const aktiv = alle.find((t) => t.id === (werte.twId ?? 'T1')) ?? alle[0];
@@ -1560,11 +1588,13 @@ return querprofilLeisteHtml(werte)
     + '<div class="qp-kacheln" role="group" aria-label="Neues Tragwerk">'
     + TRAGWERKSARTEN.map((x) =>
         `<button type="button" class="qp-kachel" data-tw-neu="${esc(x.key)}" draggable="true"
-           title="${esc(`${x.kurz} - anklicken oder ins 3D ziehen`)}">${esc(x.label)}</button>`).join('')
+           title="${esc(`${x.kurz} - anklicken oder ins 3D ziehen`
+             + (x.key === 'tragausleger' ? '; auf einen vorhandenen Masten gezogen, hängt er dort an' : ''))}"
+           >${TW_SYMBOLE[x.key] ?? ''}<span>${esc(x.label)}</span></button>`).join('')
     + `<button type="button" class="qp-kachel qp-kachel-anker" data-anker-neu draggable="true"
          title="${esc('Schräger Stab vom Masten zu einem eigenen Fundament, an beiden '
            + 'Enden gelenkig - er trägt nur Normalkraft. Anklicken oder auf einen Masten ziehen.')}"
-         >Zuganker / Druckstütze</button>`
+         >${TW_SYMBOLE.anker}<span>Zuganker / Druckstütze</span></button>`
     + '</div>'
     + '<div class="qp-tun">'
     /*
@@ -5629,6 +5659,28 @@ export function knickJe(erg) {
  * kennt ihn nur als Aufruf. `fn(auswahl, fertig)` - `fertig(neu)` schreibt
  * die neue Auswahl ins Modul.
  */
+/* ===========================================================================
+ * >>> DER BALKEN DES SCHIEBERS IST HELLER ALS SEIN PUNKT (30. September). <<<
+ *
+ * Weisung: «mach den balken etwas heller als den punkt.» Die Darstellung des
+ * Browsers (`accent-color`) zeichnet beide in derselben Farbe; das Stilblatt
+ * zeichnet den Schieber deshalb selbst und füllt den Balken bis zur
+ * Variablen --p. Die setzt diese Hilfe - bei jeder Eingabe, nach jedem
+ * Neuaufbau (MutationObserver in app.js) und am Ende jeder Rechnung, denn
+ * dort schreibt die Maske Werte, ohne dass sich das DOM ändert.
+ * =========================================================================== */
+export function schieberFuellen(el) {
+  if (!el || el.type !== 'range') return;
+  const min = Number(el.min) || 0;
+  const max = el.max === '' ? 100 : Number(el.max);
+  const v = Number(el.value);
+  const p = max > min ? Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100)) : 0;
+  el.style.setProperty('--p', `${p.toFixed(2)}%`);
+}
+export function schieberFuellenAlle(root = document) {
+  root.querySelectorAll?.('input[type=range]').forEach(schieberFuellen);
+}
+
 let SIGNALBAUER = null;
 export function setzeSignalbauer(fn) { SIGNALBAUER = fn; }
 

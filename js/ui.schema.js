@@ -1506,21 +1506,23 @@ export const FELDER = [
    * mitten in drei Fragen zur Lagerung. Sie gehoeren dahinter: was ueber
    * die Mastachse hinausragt, ergibt sich aus ihr.
    */
-  { key: 'kragA', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende A',
-    sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+  // Schieber seit dem 30. September («mach die schieber hier überall da wo
+  // es sinn macht»): begrenzte Längen, die man verstellt.
+  { key: 'kragA', gruppe: 'aufl', typ: 'schieber', label: 'Kragarm Ende A',
+    sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 3,
     sichtbar: (w) => tragwerksart(w).key === 'joch',
     hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
            + 'kragB; darüber hinaus wirkt das Joch als Kragarm.'},
-  { key: 'kragB', gruppe: 'aufl', typ: 'zahl', label: 'Kragarm Ende B',
-    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, min: 0,
+  { key: 'kragB', gruppe: 'aufl', typ: 'schieber', label: 'Kragarm Ende B',
+    sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 3,
     sichtbar: (w) => tragwerksart(w).key === 'joch' },
   // In METERN seit dem 29. September («können wir die konsole in m
   // angeben?») - vorher `auflagerKonsole` in mm, siehe `konsolLaenge`.
-  { key: 'auflagerKonsoleM', fein: true, gruppe: 'aufl', typ: 'zahl',
+  { key: 'auflagerKonsoleM', fein: true, gruppe: 'aufl', typ: 'schieber',
     label: 'Konsole am Masten', sym: 'a_K', einheit: 'm',
     // Beim Tragausleger nicht: die Gurte laufen als Gabel am Masten vorbei,
     // das Stabmodell baut keine Konsole in x (28. September).
-    standard: 0, schritt: 0.005, min: 0,
+    standard: 0, schritt: 0.005, min: 0, max: 0.5,
     sichtbar: (w) => mastDa(w) && tragwerksart(w).traeger === true
                   && tragwerksart(w).key !== 'tragausleger',
     hinweis: 'Auskragung der Konsole aus der Mastachse, in Jochrichtung, in m. '
@@ -1648,9 +1650,9 @@ export const FELDER = [
    * Spannweite der Radius. Sie hinter die beiden zu stellen hiess, die
    * Rechnung von unten nach oben zu lesen.
    */
-  { key: 'flSpannweite', gruppe: 'trasse', typ: 'zahl',
+  { key: 'flSpannweite', gruppe: 'trasse', typ: 'schieber',
     label: 'Spannweite der Fahrleitung', sym: 'L_FL', einheit: 'm',
-    standard: 40, schritt: 1, min: 1,
+    standard: 40, schritt: 1, min: 1, max: 100,
     notiz: (w) => winkelNotiz(w),
     hinweis: 'Abstand zweier Aufhängungen der Fahrleitung, nicht der '
            + 'Jochabstand. Einflusslänge für Eigengewicht und Wind am Drahtwerk.'},

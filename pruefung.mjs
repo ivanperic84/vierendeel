@@ -33494,6 +33494,47 @@ titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
        && /aendern\('ankerDialog', wo === null \? null : \(naechsterMast\(app, wo, 2\)\?\.id \?\? null\)\)/.test(APP_QUELLE()));
 }
 
+titel('162  Kacheln mit Symbol; Schieber mit hellerem Balken; Ausleger am Jochmasten');
+/* ===========================================================================
+ * Weisung 30. September: «kannst du hier die kacheln mit symbolzeichnung
+ * noch versehen den text kann man dann kleiner unterhalb des symbols
+ * aufführen. theoretisch kann ein Tragausleger auch an ein bestehendes
+ * Jochtragwerk auf die aussenseite angehängt werden ... mach die schieber
+ * hier überall da wo es sinn macht. und mach den balken etwas heller als
+ * den punkt.»
+ * ========================================================================= */
+{
+  const U162 = await import(J('ui.js'));
+  const S162 = await import(J('ui.schema.js'));
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Jede Kachel trägt ein Symbol, die Anschrift darunter',
+       ['joch', 'einzelmast', 'tragausleger', 'abfangjoch', 'anker']
+         .every((k) => new RegExp(`${k}: tws\\(`).test(uq))
+       && /\$\{TW_SYMBOLE\[x\.key\] \?\? ''\}<span>\$\{esc\(x\.label\)\}<\/span>/.test(uq)
+       && /\.qp-kachel \.qp-symbol \{/.test(css));
+  // Schieber: selbst gezeichnet, der Balken bis --p in der helleren Farbe.
+  wahr('Der Balken ist heller als der Punkt (eigene Farbe, gefüllt bis --p)',
+       /--schieber-fuell: color-mix\(in srgb, var\(--acc\) 45%, #ffffff\)/.test(css)
+       && /::-webkit-slider-runnable-track \{[^}]*var\(--schieber-fuell\) 0 var\(--p, 0%\)/.test(css)
+       && /::-webkit-slider-thumb \{[^}]*background: var\(--acc\)/.test(css));
+  const el = { type: 'range', min: '8', max: '26.5', value: '20', style: { setProperty(k, v) { this[k] = v; } } };
+  U162.schieberFuellen(el);
+  wahr('Der Füllstand stimmt (L 20 auf 8 … 26.5 m: 64.86 %)', el.style['--p'] === '64.86%', el.style['--p']);
+  wahr('… nachgeführt bei Eingabe, Neuaufbau und nach jeder Rechnung',
+       /document\.addEventListener\('input', \(e\) => ui\.schieberFuellen\(e\.target\), true\)/.test(APP_QUELLE())
+       && /new MutationObserver/.test(APP_QUELLE()) && /ui\.schieberFuellenAlle\(\);\s*\}/.test(APP_QUELLE()));
+  wahr('Neu als Schieber: Kragarm A/B, Konsole, Spannweite der Fahrleitung',
+       ['kragA', 'kragB', 'auflagerKonsoleM', 'flSpannweite'].every((k) => S162.feld(k).typ === 'schieber'));
+  // Ausleger am Masten eines Jochs: nach aussen, und ehrlich zur Sperre.
+  const dq = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Ausleger am Jochmasten zeigt nach aussen und nennt die Sperre des Stabwerks',
+       /e\.seite = links \? 'rechts' : 'links';/.test(dq)
+       && /Am Masten eines anderen Tragwerks rechnet das Stabwerk den/.test(dq));
+  wahr('… und fängt beim Ablegen auf 2 m',
+       /const nah = naechsterMast\(app, wo, 2\);/.test(readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8')));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

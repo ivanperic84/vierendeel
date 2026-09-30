@@ -578,6 +578,32 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     if (artDef().masten < 2) {
       e.x0 = a.x;
       mastNotiz = `An ${mName(a)} bei x = ${f2(a.x)} m.`;
+      /*
+       * >>> DER AUSLEGER AM MASTEN EINES JOCHS (30. September). <<<
+       * Frage: «theoretisch kann ein Tragausleger auch an ein bestehendes
+       * Jochtragwerk auf die aussenseite angehängt werden, kann man in diesem
+       * fall die kachel für diesen fall auch nutzen?» Ja: steht am gewählten
+       * Masten schon ein Tragwerk, zeigt der Ausleger von ihm weg - nach
+       * aussen. Liegt der Mast mitten in einer Reihe, bleibt die Seite, wie
+       * sie ist, und die Notiz sagt es.
+       */
+      if (istAusleger()) {
+        const fremde = (a.traegt ?? []).map((tid) => alle.find((x) => x.id === tid))
+          .filter((x) => x && tragwerksart(x).masten >= 2);
+        if (fremde.length) {
+          const links = fremde.some((x) => lageVon(x) < a.x - 0.05);
+          const rechts = fremde.some((x) => lageVon(x) + (Number(x.L) || 0) > a.x + 0.05);
+          if (links !== rechts) {
+            e.seite = links ? 'rechts' : 'links';
+            mastNotiz += ` Am Masten von ${fremde.map((x) => tragwerkName(x, app.werte)).join(', ')}`
+              + ` - Ausleger nach aussen (${e.seite}).`;
+          } else {
+            mastNotiz += ' Der Mast liegt zwischen zwei Tragwerken - die Seite bitte prüfen.';
+          }
+          mastNotiz += ' ⚠ Am Masten eines anderen Tragwerks rechnet das Stabwerk den'
+            + ' Ausleger noch nicht (Sperre); gerechnet wird dann nur der Ersatzbalken.';
+        }
+      }
       return;
     }
     const b = mastVon(e.mB);
