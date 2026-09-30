@@ -2258,13 +2258,29 @@ export const OPTIONEN_ABSCHNITTE = [
  * Die Abschnitte eines Reiters, mit ihren sichtbaren Feldern.
  * Ohne `thema` kommen alle - so bleibt der Aufruf ohne Reiter gueltig.
  */
+/*
+ * >>> NUR BEIM ERSATZBALKEN (30. September). <<<
+ *
+ * «der eintrag rechenmodell unter optionen macht so nicht wirklich sinn da
+ * man diese nur beim modell balken nutzen kann.» Gemessen am J90/20 m mit
+ * zwei Hängestützen und Jochaufsatz, Stabwerk, jede Wahl jedes Feldes: diese
+ * acht ändern keine Stelle (η je Bauteil, Reaktionen) - sie steuern die
+ * Aufteilung des Ersatzbalkens. Hebelarme, Blechbreiten und die Ausrichtung
+ * der Gurte bauen dagegen die Geometrie und wirken auch im Stabwerk (Joch
+ * η 0.567 → 0.520 … 0.610); sie bleiben.
+ */
+export const OPTIONEN_NUR_ERSATZBALKEN = new Set([
+  'torsionModell', 'torsionsverteilung', 'ebenenUeberlagerung', 'gurtaufteilung',
+  'spannungsmodell', 'knotenbereich', 'endfeldZuschlag', 'schiefeBiegung']);
+
 export function optionenFelder(werte, thema = null) {
   return OPTIONEN_ABSCHNITTE
     .filter((a) => !thema || a.thema === thema)
     .map((a) => ({
       titel: a.titel,
       felder: a.keys.map((k) => FELDER.find((f) => f.key === k))
-        .filter((f) => f && (!f.sichtbar || f.sichtbar(werte))),
+        .filter((f) => f && (!f.sichtbar || f.sichtbar(werte)))
+        .filter((f) => nurErsatzbalken(werte) || !OPTIONEN_NUR_ERSATZBALKEN.has(f.key)),
     })).filter((a) => a.felder.length);
 }
 

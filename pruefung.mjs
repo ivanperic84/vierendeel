@@ -5070,8 +5070,9 @@ titel('30  Schiefe Biegung der Gurtwinkel auf die Bindebleche');
   wahr('Abgeschaltet wird das vermerkt',
        hinweise(ohne.modell).join(' | ').includes('abgeschaltet'));
   const SCH = await import(J('ui.schema.js'));
-  wahr('Der Schalter steht im Optionen-Dialog',
-       SCH.optionenFelder(standardwerte())
+  // Seit dem 30. September nur beim Ersatzbalken (im Stabwerk ohne Wirkung).
+  wahr('Der Schalter steht im Optionen-Dialog (Rechenverfahren Ersatzbalken)',
+       SCH.optionenFelder({ ...standardwerte(), rechenverfahren: 'ersatzbalken' })
          .some((a) => a.felder.some((f) => f.key === 'schiefeBiegung')));
 }
 
@@ -34261,8 +34262,8 @@ titel('173  Verformte Figur im 3D; Reaktionskräfte auch am Einzelmasten');
     + `${fig.linien.length} Stäbe, ${ms} ms`);
   wahr('… und das kostet wenig (unter 2 s am Prüfrechner)', ms < 2000, `${ms} ms`);
   const app = APP_QUELLE();
-  wahr('Schalter «δ» in der Resultatleiste, Lastfall oder massgebender GZG-Fall',
-       app.includes("text('wz-r-verformt', 'δ'") && app.includes('function verformtSetzen()')
+  wahr('Schalter «δ» in der unteren Leiste, Lastfall oder massgebender GZG-Fall',
+       app.includes('id="v-verformt"') && app.includes('function verformtSetzen()')
        && app.includes("mg?.lastfall ?? 'wyk'"));
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   wahr('Das 3D zeichnet Punkt + Faktor · Weg und schreibt die Überhöhung an',
@@ -34285,8 +34286,19 @@ titel('174  Resultatleiste im Stabwerk: ohne Nachweisschnitt, δ bei den Plots')
   wahr('Schnittkräfte und Schnittebene nur ohne Stabwerk angeboten',
        /\(ohneBalken \? '' :\s*schalter\('wz-r-kraefte'[\s\S]{0,200}schalter\('wz-r-schnitt'/.test(lay)
        && lay.includes('if (!ohneBalken) {'));
-  wahr('δ steht nach den Plotgrössen',
-       lay.indexOf("text('wz-r-verformt'") > lay.indexOf("text(`wz-p-${mo.key}`"));
+  // Zweiter Anlauf, 30. September: «dieser soll unten zu den andern buttons
+  // und der schnitt botten soll weg und die info zum schnitt auch».
+  wahr('δ steht in der unteren Leiste und tauscht dort mit dem Schnitt-Knopf',
+       !lay.includes("'wz-r-verformt'") && lay.includes('id="v-verformt"')
+       && lay.includes('s.hidden = stab;') && lay.includes('v.hidden = !stab;'));
+  wahr('Die Anzeige des Nachweisschnitts bleibt im Stabwerk leer',
+       app.includes('if (erg.schnitt && !ohneBalken()) {'));
+  const SCH174 = await import(J('ui.schema.js'));
+  const felder = (v) => SCH174.optionenFelder({ ...standardwerte(), rechenverfahren: v }, 'modell')
+    .flatMap((a) => a.felder.map((f) => f.key));
+  wahr('Optionen → Rechenmodell: im Stabwerk nur, was dort wirkt (gemessen)',
+       JSON.stringify(felder('stabwerk')) === '["massVariante","blechQuelle","ausrOG","ausrUG"]'
+       && felder('ersatzbalken').length === 12, felder('stabwerk').join(','));
   wahr('Das Verfahren entscheidet (nicht das gültige Ergebnis), ohne Stabmodell bleibt der Balken',
        app.includes("verfahrenVon(werte) === 'stabwerk' && stabwerkStand(app) !== 'ohneModell'")
        && app.includes('ansicht.ohneBalken = ohneBalken();'));

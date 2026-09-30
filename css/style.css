@@ -159,6 +159,10 @@ body {
 }
 .btn-icon:hover { background: var(--s3); color: var(--on); }
 .btn-icon.on { background: var(--acc-s); border-color: var(--acc); color: var(--acc); }
+/* Ein Knopf, der gerade nicht gilt, steht nicht da (untere Leiste: Schnitt
+   beim Ersatzbalken, verformte Figur im Stabwerk, 30. September). */
+.btn-icon[hidden] { display: none; }
+#v-verformt { font-size: 15px; font-weight: 600; line-height: 1; }
 /* Ein Symbolknopf, der seinen Namen tragen darf: der Weg nach AxisVM ist
    der meist begangene und war als eines von sieben gleichen Symbolen
    nicht zu finden. */
@@ -1076,6 +1080,8 @@ button.wz-haupt:hover { color: var(--on); }
   padding: 3px 6px; white-space: nowrap;
   transition: color var(--t-schnell), background var(--t-schnell), border-color var(--t-schnell);
 }
+/* Leer (im Stabwerk kein Nachweisschnitt) steht kein Kästchen da. */
+.viewer-marke:empty { display: none; }
 .viewer-fuss:hover .viewer-marke {
   color: var(--on2); background: var(--s2); border-color: var(--ol);
 }
@@ -3242,7 +3248,9 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
   gap: 6px; margin: 8px 0 6px; }
 /* Hintergrund nur unter dem Zeiger (30. September: «mach den hintergrund
    highlight aus und nur an wenn man darüberfährt mit dem zeiger»). */
-.qp-kachel { border: 1px solid var(--acc); background: transparent; color: var(--on);
+/* Symbole im Grau des Ankers (30. September: «mach die in der gleichen
+   grauen farbe wie den anker»). */
+.qp-kachel { border: 1px solid var(--acc); background: transparent; color: var(--on2);
   border-radius: 6px; padding: 6px 4px 5px; font-size: 10px; line-height: 1.15;
   cursor: grab; text-align: center; display: flex; flex-direction: column;
   align-items: center; gap: 3px; }

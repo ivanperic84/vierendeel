@@ -8551,10 +8551,16 @@ export function optionenHtml(werte, thema = null) {
   // Reiter traegt sie bereits, und zweimal dasselbe Wort untereinander liest
   // sich wie ein Fehler.
   const titelZeigen = teile.length > 1;
+  // Im Stabwerk fehlen die Felder des Ersatzbalkens (OPTIONEN_NUR_ERSATZBALKEN);
+  // ein Satz sagt, wo sie sind - sonst sähe der Reiter wie beschnitten aus.
+  const ohne = thema === 'modell' && werte?.rechenverfahren !== 'ersatzbalken'
+    ? '<p class="notiz">Torsion, Aufteilung auf die Gurte, Knoten und Bindebleche '
+      + 'steuern nur den Ersatzbalken; im Stabwerk wirken sie nicht und stehen '
+      + 'deshalb nicht da (Rechenverfahren unter <b>Nachweise</b>).</p>' : '';
   return teile.map((a) =>
     (titelZeigen ? abschnitt(a.titel) : '')
     + a.felder.map((f) => feldHtml(f, feldWert(f, werte), werte)).join('')
-  ).join('');
+  ).join('') + ohne;
 }
 
 /**

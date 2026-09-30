@@ -1918,9 +1918,9 @@ function verformtSetzen() {
   }
   const wert = faktor > 0 ? {
     linien, faktor,
-    text: `Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht · `
-      + `${lf.bez}${umh ? ' (massgebend Gebrauchstauglichkeit)' : ''} · grösster Weg `
-      + `${(fig.max * 1000).toFixed(1)} mm`,
+    text: [`Verformte Figur · ${faktor >= 1 ? Math.round(faktor) : faktor.toPrecision(2)}-fach überhöht`,
+      `grösster Weg ${(fig.max * 1000).toFixed(1)} mm`,
+      `${lf.bez}${umh ? ' (massgebend GZG)' : ''}`],
   } : null;
   verformtMerk = { merk, wert };
   ansicht.verformt = wert;
@@ -1929,8 +1929,12 @@ function verformtUmschalten() {
   verformtAn = !verformtAn;
   verformtSetzen();
   if (verformtAn && !ansicht.verformt) {
-    meldeImBalken('Die verformte Figur kommt aus dem Stabwerk - es ist noch nicht gerechnet '
-      + 'oder das Rechenverfahren steht auf Ersatzbalken.', { dauer: 5000 });
+    // Im Stabwerk rechnet es eine Sekunde nach der Eingabe von selbst - dann
+    // erscheint die Figur ohne weiteren Klick.
+    meldeImBalken(verfahrenVon(werte) === 'stabwerk'
+      ? 'Die verformte Figur erscheint, sobald das Stabwerk gerechnet ist.'
+      : 'Die verformte Figur kommt aus dem Stabwerk - das Rechenverfahren steht auf Ersatzbalken.',
+    { dauer: 5000 });
   }
   ansicht.zeichne();
   zeichneModellWerkzeuge(app);
@@ -1954,7 +1958,9 @@ function aktualisiereModell(erg) {
    * Einzelmast hat keinen Schnitt zwischen Bindeblechen - dort steht, dass
    * die Ansicht noch fehlt, statt einer Feldnummer, die es nicht gibt.
    */
-  if (erg.schnitt) {
+  // Im Stabwerk gibt es keinen Nachweisschnitt (30. September: «die info
+  // zum schnitt auch, da dieser nicht vorhanden ist beim stabmodell»).
+  if (erg.schnitt && !ohneBalken()) {
     ui.el('pos-marke').textContent =
       `Schnitt x = ${erg.schnitt.x.toFixed(2)} m`;
     ui.el('pos-station').textContent =

@@ -2427,8 +2427,11 @@ export class Modellansicht {
     c.restore();
     if (v.text && !this.sparsam) {
       c.font = this._wertFont();
-      // Über der unteren Werkzeugleiste, nicht hinter ihr.
-      this._beschriftung(c, t, v.text, 16 * s, this.cv.height - 112 * s, t.warn ?? '#e0a030');
+      // Über der unteren Werkzeugleiste, nicht hinter ihr - und in kurzen
+      // Zeilen, damit die Legende daneben sie nicht zudeckt (30. September).
+      const zeilen = Array.isArray(v.text) ? v.text : [v.text];
+      zeilen.forEach((z, i) => this._beschriftung(c, t, z, 16 * s,
+        this.cv.height - (112 + 15 * (zeilen.length - 1 - i)) * s, t.warn ?? '#e0a030'));
     }
   }
 
