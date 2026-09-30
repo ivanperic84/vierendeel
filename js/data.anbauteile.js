@@ -44,7 +44,7 @@ import { umlenkkraft, ablenkwinkel } from './core.trasse.js';
 import { EINWIRKUNGEN, HAVARIE_ABLENKUNG_BRUCH, HAVARIE_LAENGSZUG,
          ABFANG_VORGABE } from './core.lasten.js';
 import { LEERE_KRAFT } from './core.anbauteile.js';
-import { mastAnbauVon, mastenVon } from './core.constants.js';
+import { mastAnbauVon, mastenVon, einzelmastenAufgehen } from './core.constants.js';
 import { einzelmastLaenge } from './core.auflager.js';
 
 let DB = null;
@@ -933,6 +933,33 @@ function tragwerkAnheben(t) {
    * bekommt die Wahl «eigene Höhe» - er rechnet wie bisher.
    */
   if (w.gzgReferenz === undefined && Number(w.fdHoehe) > 0) w.gzgReferenz = 'eigen';
+  /*
+   * >>> DIE MASTEN BLEIBEN, DAS JOCH RAGT (30. September). <<<
+   *
+   * Rückfrage «Stützweite eingeben»: beim Tragjoch mit Kragarm stehen die
+   * Masten dort, wo die Mastliste sie führte - an `xLage` und `xLage + L`
+   * -, und das Joch wird um die Kragarme länger. Vorher rechneten Kern,
+   * Modell und 3D die Masten um den Kragarm innen (Stützweite L − c_A − c_B),
+   * während Liste und Lageband sie an den Enden zeigten. Einmal je Stand:
+   * der Gurt beginnt um c_A früher, L wächst um c_A + c_B, die Teile auf
+   * dem Joch (lokal ab dem Gurtanfang) und die Nachweisstelle rücken um
+   * c_A mit - ihre Lage auf dem Blatt bleibt.
+   */
+  const art = w.tragwerksart ?? 'joch';
+  const kA = Math.max(0, Number(w.kragA) || 0), kB = Math.max(0, Number(w.kragB) || 0);
+  if (art === 'joch' && w.kragMasten !== true && (kA > 0 || kB > 0)) {
+    const r = (v) => Math.round(v * 1e6) / 1e6;
+    if (w.xLage !== null && w.xLage !== undefined && Number.isFinite(Number(w.xLage))) {
+      w.xLage = r(Number(w.xLage) - kA);
+    }
+    w.L = r((Number(w.L) || 0) + kA + kB);
+    if (kA > 0 && Array.isArray(w.anbauteile)) {
+      w.anbauteile = w.anbauteile.map((a) => (a && !amMast(a) && Number.isFinite(Number(a.x))
+        ? { ...a, x: r(Number(a.x) + kA) } : a));
+    }
+    if (kA > 0 && Number.isFinite(Number(w.xNachweis))) w.xNachweis = r(Number(w.xNachweis) + kA);
+  }
+  w.kragMasten = true;
   return w;
 }
 
@@ -972,7 +999,11 @@ export function standAnheben(w) {
       return n;
     });
   }
-  return einzelmastFussAnheben(erg);
+  /*
+   * Ein Einzelmast, dessen Masten ein anderes Tragwerk trägt, geht in ihm
+   * auf (Rückfrage 30. September, «Übergehen»; `einzelmastenAufgehen`).
+   */
+  return einzelmastenAufgehen(einzelmastFussAnheben(erg)).werte;
 }
 
 /**

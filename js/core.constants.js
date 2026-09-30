@@ -666,11 +666,29 @@ export function lageOrtsnull(t) {
   return lageVon(t) - abfangUeberstand(t);
 }
 
+/**
+ * >>> DIE KRAGARME EINES TRAGJOCHS [m]: Mastachse vom Gurtende, A und B. <<<
+ *
+ * Entscheid 30. September (Rückfrage «Stützweite eingeben»): die Masten
+ * stehen, wo sie stehen; das Joch ragt um die Kragarme über sie hinaus,
+ * L ist die Gurtlänge = Stützweite + c_A + c_B. Bis dahin führte die
+ * Mastliste die Masten an den Jochenden, Modell und 3D aber um den Kragarm
+ * innen (`mastAchse`) - zwei Lagen für denselben Masten. Andere Arten 0.
+ */
+export function kragarme(t) {
+  if (tragwerksart(t).key !== 'joch') return [0, 0];
+  return [Math.max(0, Number(t?.kragA) || 0), Math.max(0, Number(t?.kragB) || 0)];
+}
+
 export function mastLagen(t) {
   const x0 = lageVon(t);
   const art = tragwerksart(t);
   if (art.masten >= 2) {
     const L = Number(t?.L) || 0;
+    // Beim Tragjoch mit Kragarm stehen die Masten um ihn innen - wie im
+    // Modell und im 3D (`mastAchse`). `xLage` bleibt der Gurtanfang.
+    const [kA, kB] = kragarme(t);
+    if (kA > 0 || kB > 0) return [x0 + kA, x0 + Math.max(kA, L - kB)];
     /*
      * >>> DIE LAGE IST DER ERSTE MAST. <<<
      *
@@ -1876,6 +1894,38 @@ export function jochZuEinzelmasten(w, id, laengeVon) {
     if (laenge > 0) neu = setzeMastAngabe(neu, m.id, 'mastLaenge', laenge);
   });
   return tragwerkWeg(neu, id);
+}
+
+/**
+ * >>> EIN EINZELMAST GEHT IM TRAGWERK AUF, DAS SEINEN MASTEN TRÄGT
+ * (30. September). <<<
+ *
+ * Rückfrage, nachdem ein Beispielblatt einen Einzelmasten und ein Joch am
+ * selben Masten führte und das Modell dabei verfälscht war: «Übergehen».
+ * Trägt ein Joch, Abfangjoch oder Tragausleger den Masten eines
+ * Einzelmasten, fällt das Tragwerk «Einzelmast» weg; Profil, Länge, Anker
+ * und Teile am Masten gehören dem Masten und bleiben. Gerechnet hatte er
+ * nichts Eigenes mehr, aber seine verborgene Anschlusshöhe und seine
+ * Mastlage mitgebracht.
+ *
+ * @returns {{werte: object, weg: Array<{id:string, mast:string}>}}
+ */
+export function einzelmastenAufgehen(w) {
+  let erg = w;
+  const weg = [];
+  for (const t of tragwerkeVon(w)) {
+    if (tragwerksart(t).key !== 'einzelmast') continue;
+    const alle = tragwerkeVon(erg);
+    if (alle.length < 2 || !alle.some((x) => x.id === t.id)) continue;
+    const [m] = mastenFuer(erg, t);
+    if (!m) continue;
+    const traeger = alle.find((x) => x.id !== t.id && tragwerksart(x).key !== 'einzelmast'
+      && mastenFuer(erg, x).some((mm) => mm && mm.id === m.id));
+    if (!traeger) continue;
+    erg = tragwerkWeg(erg, t.id);
+    weg.push({ id: t.id, mast: m.id, traeger: traeger.id });
+  }
+  return { werte: erg, weg };
 }
 
 export function tragwerkWeg(w, id) {

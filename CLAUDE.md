@@ -141,6 +141,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 | Mast wächst beim Anbau des Tragauslegers (30. Sept.) | «beim anbau von tragauslegern den mast automatisch verlängern und mit info versehen wie bis anhin am oberen bildschimrand» - beantwortet die Frage (a) automatisch / (b) Warnung. Nach «Setzen» im Dialog (neu oder Artwechsel) bringt `auslegerMastAnbau` (app.js) den Masten auf H + b (halber Meter), wenn seine eingetragene Länge nicht reicht oder ein anderes Tragwerk ihn trägt; Meldung im Balken oben. Danach bleibt die Länge dem Nutzer (kürzer gestellt: Warnung). Im Browser: Mast 14 auf 9 m, zweiter Ausleger L 10 m an Mast 14 → «Mast 14 auf 12.50 m verlängert (war 9.00 m)». Die Stabwerk-Sperre für einen Ausleger an einem geteilten Masten bleibt (*Offene Punkte*) |
 | Kleinigkeiten 30. Sept. (Anker, Masten-Schalter, Δz_F, Berichtsleiste) | «kontext menue beim anker auch ergänzen»: Rechtsklick auf Stab oder Fundament des Ankers → «Anker bearbeiten …», Seitenleiste, zoomen, entfernen, darunter die Einträge des Masten (`kontextAnker`). «diese option bei einem tragausleger entfernen» → «Tragwerk steht auf Masten» und «Masten … ausschalten» nicht beim Ausleger; alte Stände mit aus stehen wieder auf dem Masten. Δz_F am Einzelmasten auf Rückfrage **«Ausblenden»** (gemessen: mit Länge kein η, ohne Länge eine zweite Tür zur Länge); ein gespeicherter Versatz wird in die Länge überführt und auf 0 gesetzt (`einzelmastFussAnheben`), gleiches η. «die msten werden meist mit ganzen zahlen ohne punkt beschriftet» → Beispiel im Hinweis «z. B. 14». Leiste des Nachweisberichts weicht im installierten Fenster den Fensterknöpfen aus (Window Controls Overlay; im Browserbereich nicht prüfbar) |
 | Verformte Figur im 3D (30. Sept.) | Frage «ist es möglich ein verformtes modell darzustellen im 3d? oder kostet das zu viel performance? es wäre nur ein nice to have», dann «frage zum verformten modell angehen». Schalter «δ» in der Resultatleiste: die echten Stäbe des Stabwerks (5 Punkte je Stab, Biegelinie `wegImStab`; `verformteFigur`) als Linienzug in der Warnfarbe über dem Modell, überhöht auf rund 8 % der Modellgrösse (runde Zahl), Anschrift mit Faktor, Fall und grösstem Weg. Fall: der gewählte, bei «umhüllend» der massgebende der Gebrauchstauglichkeit. Nur mit gültigem Stabwerk (Rohdaten `roh`, nicht aufzählbar, am Ergebnis). Gemessen J90/20 m, Wind +y: 466 Stäbe in 41-147 ms; grösster Weg 124.9 mm in Jochmitte, Mast M1 111.9 mm = Wert des Nachweises |
+| Kragarm: Masten bleiben, Joch ragt (30. Sept.) | Befund am Beispielblatt des Auftraggebers: die Mastliste führte die Masten eines Tragjochs mit Kragarm an den Jochenden, Kern, Modell und 3D um c_A / c_B innen - zwei Lagen für denselben Masten. Auf Rückfrage **«Stützweite eingeben»**: die Masten stehen, wo die Liste sie hat; L ist die Gurtlänge = Stützweite + c_A + c_B, `xLage` der Gurtanfang (`kragarme`, `mastLagen`). Kragarm verstellen verlängert das Joch nach aussen (am Ende A beginnt der Gurt früher, Teile auf dem Joch und Nachweisstelle rücken mit); neues Feld «Stützweite (Mastabstand)» (nur mit Kragarm, schreibt L); Mast ziehen und Dialog «zwischen den Masten» rechnen mit den Kragarmen. Alte Stände einmal umgesetzt (`kragMasten`): Gurt um c_A früher, L + c_A + c_B - ihre Masten bleiben, das Joch wird länger und rechnet damit anders. Im Browser am Stand des Auftraggebers: T2 J80 L 14.00 → 14.40, c_A 0.20 → 0.50 gibt L 14.70, Lage 19.00, Masten 19.50 / 33.50 unverändert; Stützweite 13 → L 13.70, M4 32.50 |
+| Einzelmast geht im Joch auf (30. Sept.) | Offene Frage «Einzelmast unter einem neuen Joch», auf Rückfrage **«Übergehen»**: trägt ein Joch, Abfangjoch oder Tragausleger den Masten eines Einzelmasten, fällt das Tragwerk «Einzelmast» weg (`einzelmastenAufgehen`); Profil, Länge, Anker und Teile gehören dem Masten und bleiben. Beim Laden (`standAnheben`) und nach jedem Umbau am Blatt (`mastNachfuehrenGlobal`, Meldung im Balken) |
 | Resultatleiste im Stabwerk (30. Sept.) | Mit Bild der Leiste: «die zwei braucht es nicht wenn stabwerk aktiv nimm zudem die verformung zu den unteren symboeln. da kann man den button schnitteben auch entfernen, da kein balken.» Bei Verfahren «Stabwerk» (und vorhandenem Stabmodell, `ohneBalken` in app.js) fehlen «Schnittkräfte am Nachweisschnitt» und «Schnittebene» in der Leiste, und das 3D zeichnet beide Ebenen nicht; am Verfahren festgemacht, nicht am gültigen Ergebnis (sonst tauchten die Knöpfe in der Sekunde bis zur Rechnung auf und ab). «δ» steht jetzt nach den Plotgrössen. Im Browser beide Richtungen umgeschaltet |
 | Reaktionskräfte am Einzelmasten (30. Sept.) | «warum kann ich hier nicht den reaktionskräfte output generieren bei masten ohne joch?» - der Einzelmast hat einen eigenen Reiter Auflager (`zeichneMastfuss`), der Block hing nur am Joch; jetzt `reaktionsBlockEinfuegen` in beiden. Das Blatt im Export ging schon |
 | Gebrauchstauglichkeit neu geordnet (30. Sept.) | «diese aufteilung macht wenig sinn, man sollte die beiden grenzwertbetrachtungen aktiv inaktiv schalten können. oder zu oberst den kompletten gebrauchstauglichkeitnachweis. hinzu kommt noch die mastverdrehung 5° als dritte prüfung. dazu noch die eingabe der relevanten höhe … (fahrdraht / Tragjoch / Ausleger oder selbst eingegeben höhe) … unter gebauchstauglichkeit in der sidebar übersicht aufführen und umschaltbar machen». Auf Rückfrage: **Oberschalter + drei** (Nachweisgruppen `gebrauch`, `fahrdrahtQuer`, `spitzeMast`, `verdrehungMast`; `unterVon` bindet sie an den Oberschalter), Grenzwert je Prüfung auf ihrer Zeile (`gzgGrenzeFahrdraht` mm, `gzgGrenzeSpitze` L/n, `gzgGrenzeVerdrehung` °, Vorgaben 40 / 100 / 5); **Verdrehung um die Mastachse** unter **Betriebswind ψ 0.70**, nur aus dem Stabwerk (Knotenverdrehung um z, linear im Abschnitt, ohne Wölbkrafttorsion = sichere Seite; `mastVerdrehung`), der Ersatzbalken sagt «nur aus dem Stabwerk»; **Referenzhöhe** `gzgReferenz` = auto / fahrdraht / ausleger / joch / eigen (`fdHoehe`), in den Optionen und im GZG-Block der Übersicht, **Schieber unter Masten weg**; fehlt die gewählte Stelle, gilt die Automatik mit Hinweis (`ersatz`); alte Stände mit Höhe → «eigen». Ausgeschaltet bleiben Werte Auskunft. Gemessen J90/15.50 m (M1 mit Signal und NT-Ausleger): automatisch M1 Fahrdraht 3.55 m 7.4 mm, φ 0.865°; Jochauflager 10.5 m 45.7 mm, φ 0.378°; J90/20 m Standard M1 φ 0.188° auf 7.50 m |
@@ -283,7 +285,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5985 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5990 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -304,8 +306,10 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
   (`MAST_M1k…`) zur Mastlage, der geteilte Mast bleibt gerade. Gemessen am
   Blatt des Auftraggebers M1 M_q 14.34 → 19.53, M_l 17.98 → 8.86, M2 M_q
   11.15 → 4.55 kNm; im erfundenen Fall M_q M1/M2 4.01 / 4.41 → 7.13 /
-  6.87 kNm (vorher unsichere Seite). ⚠ Offen: Mastlage beim Kragarm und
-  Einzelmast unter dem Joch (siehe *Offene Punkte*).
+  6.87 kNm (vorher unsichere Seite). Danach auf Rückfrage «Stützweite
+  eingeben» und «Übergehen» (siehe *Entschieden*); mit beiden am Blatt des
+  Auftraggebers: M1 V 11.23, M_q 19.48, M_l 9.02; M2 12.86 / 4.97 / 11.04;
+  M3 7.35 / 13.49 / 4.81; M4 6.65 / 3.93 / 5.24 kNm.
 - **30. Sept., verformte Figur im 3D; Reaktionskräfte am Einzelmasten**
   (Prüfstand 173, siehe *Entschieden*). Im Browser geprüft (eigener Tab,
   Speichern abgeschaltet). Nicht gepusht.
@@ -2236,18 +2240,6 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   gerichtet; gerechnet wird dann nur der Ersatzbalken. Den Ausleger in die
   zusammenhängende Gruppe aufzunehmen ist der nächste Schritt dafür
   (Befragung offen).
-- ⚠ **Kragarm und Mastlage (30. Sept.):** beim Tragjoch mit Kragarm führt
-  die Mastliste die Masten an den Jochenden (`mastLagen` kennt nur den
-  Überstand des Abfangjochs), Modell und 3D setzen sie um `kragA`/`kragB`
-  nach innen (`mastAchse`). Teilt so ein Joch einen Masten mit einem
-  anderen Tragwerk, stehen zwei Lagen für denselben Masten; das Blatt
-  mittelt sie (am Beispiel M1 bei x 0.15 statt 0 bzw. 0.20).
-- ⚠ **Einzelmast unter einem neuen Joch:** legt man ein Joch auf einen
-  Masten, der als eigenes Tragwerk «Einzelmast» steht, bleiben beide
-  Tragwerke bestehen; das Stabwerk rechnet «3 Tragwerke, 3 Masten», der
-  Einzelmast läuft als Nachbar mit (gemessen M3 0.760 mit, 0.755 ohne; der
-  Mastwind zählt nicht doppelt). Zu entscheiden: soll das Einzelmast-
-  Tragwerk dabei in den Jochmasten übergehen (Teile am Masten bleiben)?
 - **Stabwerksleiste nennt die Tragwerks-Id statt des Namens:** in der
   Reihenzeile stand «Joch T3» für das Joch, das in Leiste und Kacheln «T2»
   heisst (gesehen 30. Sept., nicht berichtigt).
@@ -2538,7 +2530,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5985 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5990 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

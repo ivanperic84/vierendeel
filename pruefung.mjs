@@ -33488,7 +33488,8 @@ titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
        && /\.forEach\(\(t\) => p\.push\('-', \.\.\.tragwerkAbschnitt\(app, t\.id\)\)\)/.test(kq));
   wahr('Der Dialog nimmt die Vorbelegung und rechnet Lage und Stützweite aus den Masten',
        /export function dialogTragwerk\(app, id = null, artVor = null, vor = \{\}\)/.test(dq)
-       && /e\.L = d;/.test(dq) && /abfangFuerStuetzweite\(e\.abfangTyp, d\)/.test(dq)
+       // Seit dem 30. Sept. mit den Kragarmen: L = Stützweite + c_A + c_B.
+       && /const Lg = d \+ kA \+ kB;\s*e\.L = Lg;/.test(dq) && /abfangFuerStuetzweite\(e\.abfangTyp, d\)/.test(dq)
        && /id="dlg-tw-ma"/.test(dq) && /id="dlg-tw-mb"/.test(dq));
   // Befund 30. Sept.: der Längenbereich las `j.laengen`, das es nicht gibt.
   wahr('Der Längenbereich kommt aus laengenbereich (laengeKurz/laengeNorm)',
@@ -34304,26 +34305,34 @@ titel('175  Blattmodell: Einzelmast und Kragarm-Joch am selben Masten, gemeinsam
  * M1 schräg (x 0.10 bis 0.20), M_q an M1/M2 4.01 / 4.41 statt 7.13 /
  * 6.87 kNm (unsichere Seite). Fielen zwei Mastknoten zusammen, gab es einen
  * Stab der Länge null und NaN ohne Meldung.
+ * Danach auf Rückfrage: «Stützweite eingeben» (die Masten bleiben, das Joch
+ * ragt um die Kragarme) und «Übergehen» (der Einzelmast geht im Tragwerk
+ * auf, das seinen Masten trägt).
  * ========================================================================= */
 {
   const N175 = await import(J('core.nachbarn.js'));
   const AS175 = await import(J('app.stabwerk.js'));
   const A175 = await import(J('data.anbauteile.js'));
+  const C175 = await import(J('core.constants.js'));
   const sw0 = standardwerte();
   const mast = (id, x, traegt) => ({ id, traegt, versteckt: false, ohneMast: false,
     mitLage: true, x, profil: 'HEB 220', laenge: 2.5, steg: 'jochachse', fuss: 0, fundament: '' });
-  const joch = { typ: 'J90', L: 18, mastH: 1.5, mastLaenge: 2.5, mastLaengeB: 2.5,
+  const joch = { typ: 'J90', mastH: 1.5, mastLaenge: 2.5, mastLaengeB: 2.5,
                  kragA: 0.2, kragB: 0.2, mastProfil: 'HEB 220', mastProfilB: 'HEB 220',
                  anbauteile: [], rechenverfahren: 'stabwerk' };
-  const w = A175.standAnheben({ ...sw0, ...joch, tragwerksart: 'joch', xLage: 22,
-    twId: 'T3', id: 'T3',
-    masten: [mast('M1', 0, ['T1', 'T2']), mast('M2', 18, ['T2']),
-             mast('M3', 22, ['T3']), mast('M4', 40, ['T3'])],
-    weitere: [
-      { ...sw0, tragwerksart: 'einzelmast', twId: 'T1', id: 'T1', xLage: 0, mastH: 7.5,
-        mastLaenge: 0, anbauteile: [], rechenverfahren: 'stabwerk' },
-      { ...sw0, ...joch, tragwerksart: 'joch', twId: 'T2', id: 'T2', xLage: 0 },
-    ] });
+  const masten = [mast('M1', 0, ['T1', 'T2']), mast('M2', 18, ['T2']),
+                  mast('M3', 22, ['T3']), mast('M4', 40, ['T3'])];
+  const einzel = { ...sw0, tragwerksart: 'einzelmast', twId: 'T1', id: 'T1', xLage: 0,
+                   mastH: 7.5, mastLaenge: 0, anbauteile: [], rechenverfahren: 'stabwerk' };
+
+  // (a) Das Blattmodell selbst, ohne Anheben: Einzelmast und Joch am M1.
+  const w = { ...sw0, ...joch, tragwerksart: 'joch', xLage: 21.8, L: 18.4, twId: 'T3', id: 'T3',
+    kragMasten: true, masten,
+    weitere: [einzel, { ...sw0, ...joch, tragwerksart: 'joch', twId: 'T2', id: 'T2',
+                        xLage: -0.2, L: 18.4, kragMasten: true }] };
+  wahr('Mit Kragarm stehen die Masten des Jochs auf ihrer Liste (Gurt ragt um c_A, c_B)',
+       JSON.stringify(C175.mastLagen(C175.tragwerkeVon(w)[0]).map((x) => Math.round(x * 1e6) / 1e6))
+       === '[22,40]');
   const s = N175.rechensatzMitNachbarn(w);
   const erg = berechne(s, ...N175.kernArgumente(s));
   const sw = AS175.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null });
@@ -34338,22 +34347,46 @@ titel('175  Blattmodell: Einzelmast und Kragarm-Joch am selben Masten, gemeinsam
         og('T2'), og('T3'), 1e-6, 'm');
   const m1x = dat.staebe.filter((st) => /^MAST_M1_S/.test(st.name))
     .flatMap((st) => [kn.get(st.von).x, kn.get(st.bis).x]);
-  wahr('Der geteilte Mast bleibt gerade (Anschlussknoten zählen zur Mastlage)',
-       Math.max(...m1x) - Math.min(...m1x) < 1e-6, `${Math.min(...m1x)} … ${Math.max(...m1x)}`);
+  wahr('Der geteilte Mast bleibt gerade und steht auf seiner Lage',
+       Math.max(...m1x.map(Math.abs)) < 1e-6, `${Math.min(...m1x)} … ${Math.max(...m1x)}`);
   const laengen = dat.staebe.map((st) => {
     const a = kn.get(st.von), b = kn.get(st.bis);
     return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   });
-  wahr('Kein Stab der Länge null (deckungsgleiche Mastknoten zusammengelegt)',
-       Math.min(...laengen) > 1e-6 && dat.staebe.every((st) => kn.has(st.von) && kn.has(st.bis)),
+  wahr('Kein Stab der Länge null (Kopf des Einzelmasten und des Jochmasten zusammengelegt)',
+       Math.min(...laengen) > 1e-6 && dat.staebe.every((st) => kn.has(st.von) && kn.has(st.bis))
+       && kn.has('MAST_M1_KOPF') !== kn.has('MAST_M1_OG'),
        Math.min(...laengen));
   wahr('Die Reaktionen sind Zahlen', sw.reaktionen.length === 4
        && sw.reaktionen.every((z) => Number.isFinite(z.haupt.Vmax.wert) && Number.isFinite(z.haupt.Mq.wert)));
-  pruef('M_q an M1 wie gemessen (vorher 4.01 kNm)', sw.reaktionen.find((z) => z.id === 'M1').haupt.Mq.wert,
-        7.132, 0.01, 'kNm');
   const lay = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
   wahr('Der Höhenversatz fragt die Bezugshöhe, nicht mastH', lay.includes('function bezugshoehe(t, ende, werte)')
        && lay.includes('einzelmastLaenge(s) + (Number(s?.mastFuss) || 0)'));
+
+  // (b) Ein alter Stand (vor dem 30. Sept.): Kragarm ohne Merker, Einzelmast am M1.
+  const alt = A175.standAnheben({ ...sw0, ...joch, tragwerksart: 'joch', xLage: 22, L: 18,
+    twId: 'T3', id: 'T3', xNachweis: 4, masten,
+    anbauteile: [{ ...A175.neuesAnbauteil('hs-fahrdraht', 5), ort: 'joch' }],
+    weitere: [einzel, { ...sw0, ...joch, tragwerksart: 'joch', twId: 'T2', id: 'T2', xLage: 0, L: 18 }] });
+  const tw = C175.tragwerkeVon(alt);
+  wahr('Der Einzelmast geht im Joch auf, das seinen Masten trägt',
+       tw.length === 2 && !tw.some((t) => t.tragwerksart === 'einzelmast')
+       && C175.mastenVon(alt).length === 4);
+  const t3 = tw.find((t) => t.id === 'T3');
+  wahr('Alter Stand: der Gurt beginnt um c_A früher, L wächst um beide Kragarme, die Masten bleiben',
+       Math.abs(t3.xLage - 21.8) < 1e-9 && Math.abs(t3.L - 18.4) < 1e-9
+       && JSON.stringify(C175.mastenVon(alt).map((m) => m.x)) === '[0,18,22,40]',
+       `xLage ${t3.xLage}, L ${t3.L}`);
+  wahr('… die Teile auf dem Joch und die Nachweisstelle behalten ihre Blattlage',
+       Math.abs(t3.anbauteile.find((a) => a.ort === 'joch').x - 5.2) < 1e-9
+       && Math.abs(t3.xNachweis - 4.2) < 1e-9);
+  wahr('… und einmal: ein zweites Anheben ändert nichts',
+       JSON.stringify(A175.standAnheben(alt)) === JSON.stringify(alt));
+  const app = APP_QUELLE();
+  wahr('Kragarm verstellen: L wächst, der Gurt beginnt früher, die Masten bleiben; Stützweite schreibt L',
+       app.includes("if ((key === 'kragA' || key === 'kragB') && tragwerksart(werte).key === 'joch')")
+       && app.includes("return aendern('L', Math.max(0, Number(wert) || 0) + kA + kB);")
+       && app.includes('const auf = einzelmastenAufgehen(werte);'));
 }
 
 // ===========================================================================

@@ -9,7 +9,7 @@
  * ---------------------------------------------------------------------------
  */
 import { einzelmastLaenge } from './core.auflager.js';
-import { TRAGWERKSARTEN, gewaehlterMast, lageVon, mastName, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkeSortiert, tragwerksart } from './core.constants.js';
+import { TRAGWERKSARTEN, gewaehlterMast, kragarme, lageVon, mastName, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkeSortiert, tragwerksart } from './core.constants.js';
 import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
@@ -607,16 +607,23 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
       return;
     }
     const b = mastVon(e.mB);
+    /*
+     * MIT KRAGARM beginnt der Gurt um c_A vor dem Masten, und L ist die
+     * Stützweite plus beide Kragarme (Rückfrage 30. September, «Stützweite
+     * eingeben»). Das neue Tragjoch übernimmt die Kragarme des bisherigen.
+     */
+    const [kA, kB] = istAbfang() ? [0, 0] : kragarme({ ...app.werte, tragwerksart: e.art });
     if (!b) {
-      e.x0 = a.x;
+      e.x0 = a.x - kA;
       mastNotiz = `Beginnt an ${mName(a)}; der zweite Mast wird neu gesetzt.`;
       return;
     }
     const [l, r] = a.x <= b.x ? [a, b] : [b, a];
     const d = r.x - l.x;
     if (!(d > 0.05)) { mastNotiz = 'Die beiden Masten stehen an derselben Stelle.'; return; }
-    e.x0 = l.x;
+    e.x0 = l.x - kA;
     if (istAbfang()) {
+      e.x0 = l.x;
       const k = abfangFuerStuetzweite(e.abfangTyp, d);
       if (!k) { mastNotiz = `Kein Abfangjoch des Sortiments überspannt ${f2(d)} m.`; return; }
       if (k.typ !== e.abfangTyp) mastNotiz = `${e.abfangTyp} überspannt ${f2(d)} m nicht - ${k.typ} gewählt. `;
@@ -629,23 +636,25 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
         : `${k.typ} L = ${f2(k.L)} m, Stützweite ${f2(d)} m zwischen ${mName(l)} und ${mName(r)}.`;
       return;
     }
-    e.L = d;
+    const Lg = d + kA + kB;
+    e.L = Lg;
     let j = null;
     try { j = getTragjoch(e.typ); } catch { /* ohne Sortiment */ }
-    if (j && !passtJoch(j, d) && typFest) {
-      mastNotiz = `⚠ ${e.typ} führt ${f2(d)} m nicht. `;
-    } else if (j && !passtJoch(j, d)) {
+    if (j && !passtJoch(j, Lg) && typFest) {
+      mastNotiz = `⚠ ${e.typ} führt ${f2(Lg)} m nicht. `;
+    } else if (j && !passtJoch(j, Lg)) {
       const alt = String(e.typ).endsWith('-alt');
       const n = tragjoche().find((x) => !/^SIGNAL/.test(x.typ)
-        && String(x.typ).endsWith('-alt') === alt && passtJoch(x, d));
+        && String(x.typ).endsWith('-alt') === alt && passtJoch(x, Lg));
       if (n) {
-        mastNotiz = `${e.typ} führt ${f2(d)} m nicht - ${n.typ} gewählt. `;
+        mastNotiz = `${e.typ} führt ${f2(Lg)} m nicht - ${n.typ} gewählt. `;
         e.typ = n.typ;
       } else {
-        mastNotiz = `⚠ Kein Tragjoch des Sortiments führt ${f2(d)} m. `;
+        mastNotiz = `⚠ Kein Tragjoch des Sortiments führt ${f2(Lg)} m. `;
       }
     }
-    mastNotiz += `Stützweite ${f2(d)} m zwischen ${mName(l)} und ${mName(r)}.`;
+    mastNotiz += `Stützweite ${f2(d)} m zwischen ${mName(l)} und ${mName(r)}`
+      + (kA > 0 || kB > 0 ? `, Kragarme ${f2(kA)} / ${f2(kB)} m, L = ${f2(Lg)} m.` : '.');
   };
   const mastOptionen = (wert) => `<option value="">— neuer Mast —</option>${masten().map((m) =>
     `<option value="${esc(m.id)}"${m.id === wert ? ' selected' : ''}>${esc(mName(m))} · x ${f2(m.x)} m</option>`).join('')}`;

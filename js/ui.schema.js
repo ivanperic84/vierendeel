@@ -566,6 +566,21 @@ export const FELDER = [
       + 'rastet auf den halben Meter; genauer geht es im Feld daneben.'),
   },
   /*
+   * >>> DIE STÜTZWEITE BEIM KRAGARM (30. September). <<<
+   * Rückfrage «Stützweite eingeben»: die Masten bleiben stehen, das Joch
+   * ragt um die Kragarme über sie hinaus - L = Stützweite + c_A + c_B.
+   * Kein eigener Wert: das Feld zeigt L − c_A − c_B und schreibt L
+   * (app.js, `stuetzweite`). Nur mit Kragarm; ohne ist es L.
+   */
+  { key: 'stuetzweite', gruppe: 'geo', typ: 'zahl', label: 'Stützweite (Mastabstand)',
+    sym: 'js', einheit: 'm', standard: 0, schritt: 0.05,
+    wertAus: (w) => Math.round(((Number(w.L) || 0) - Math.max(0, Number(w.kragA) || 0)
+      - Math.max(0, Number(w.kragB) || 0)) * 1000) / 1000,
+    sichtbar: (w) => tragwerksart(w).key === 'joch'
+      && ((Number(w.kragA) || 0) > 0 || (Number(w.kragB) || 0) > 0),
+    hinweis: 'Abstand der beiden Masten. Die Jochlänge L darüber ist die '
+           + 'Gurtlänge = Stützweite + Kragarm A + Kragarm B.' },
+  /*
    * >>> DIE SEITE DES TRAGAUSLEGERS (28. September). <<<
    *
    * «der Ausleger kann zudem links oder rechts sein.» Auf Rückfrage: GANZ
@@ -1540,7 +1555,8 @@ export const FELDER = [
     sym: 'c_A', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 3,
     sichtbar: (w) => tragwerksart(w).key === 'joch',
     hinweis: 'Abstand der Mastachse vom Gurtende. Stützweite = L − kragA − '
-           + 'kragB; darüber hinaus wirkt das Joch als Kragarm.'},
+           + 'kragB; darüber hinaus wirkt das Joch als Kragarm. Verstellen '
+           + 'verlängert das Joch, die Masten bleiben stehen.'},
   { key: 'kragB', gruppe: 'aufl', typ: 'schieber', label: 'Kragarm Ende B',
     sym: 'c_B', einheit: 'm', standard: 0, schritt: 0.05, zugSchritt: 0.5, min: 0, max: 3,
     sichtbar: (w) => tragwerksart(w).key === 'joch' },

@@ -6,7 +6,7 @@
  * ---------------------------------------------------------------------------
  */
 
-import { standAnheben } from './data.anbauteile.js';
+import { standAnheben, amMast } from './data.anbauteile.js';
 import { STAND } from './version.js';
 import { getProfil, getStahl } from './data.profiles.js';
 import { ladeDatenbank, getTragjoch, tragjoche, pruefeDatenbank,
@@ -43,7 +43,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          tragwerkeVon, mastenFuer, lageOrtsnull,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
-         jochZuEinzelmasten,
+         jochZuEinzelmasten, kragarme, einzelmastenAufgehen,
          mastenVon, mastName, mastNameAmEnde, tragwerkName, tragwerkPos, aufRaster,
          TRAGWERKSARTEN,
          mastZeichenplan,
@@ -2077,6 +2077,23 @@ function aktualisiereFuss(erg, urteil, joch) {
 // --- Ereignisse -------------------------------------------------------------
 
 function mastNachfuehrenGlobal() {
+  /*
+   * EIN EINZELMAST GEHT IM TRAGWERK AUF, DAS SEINEN MASTEN TRÄGT
+   * (30. September, «Übergehen»; `einzelmastenAufgehen`). Hier, weil jeder
+   * Umbau am Blatt hier vorbeikommt - neues Tragwerk, Mast gezogen, Lage
+   * geändert.
+   */
+  const auf = einzelmastenAufgehen(werte);
+  if (auf.weg.length) {
+    const alt = werte;
+    werte = auf.werte;
+    meldeImBalken(auf.weg.map((x) => {
+      const m = mastenVon(alt).find((mm) => mm.id === x.mast);
+      const tr = tragwerkeVon(alt).find((tt) => tt.id === x.traeger);
+      return `Einzelmast ${m ? mastAnzeigeText(mastName(alt, m), mastAnzeigeKarte(alt)) : x.mast} `
+        + `geht in ${tr ? tragwerkName(tr, alt) : x.traeger} auf`;
+    }).join(' · ') + ' - Profil, Länge, Anker und Teile bleiben am Masten.', { dauer: 6000 });
+  }
   const t = tragwerkeVon(werte)[0];
   const meine = mastenFuer(werte, t).filter(Boolean).map((m) => m.id);
   if (werte.mastAktiv && !meine.includes(werte.mastAktiv)) {
@@ -2347,6 +2364,37 @@ function aendern(key, wert) {
   // das Kontextmenue braucht ihn ebenfalls, und zwei Kopien waeren zwei
   // Gelegenheiten, eine zu vergessen.
   const mastNachfuehren = mastNachfuehrenGlobal;
+  /*
+   * >>> DER KRAGARM VERLÄNGERT DAS JOCH, DIE MASTEN BLEIBEN (30. September). <<<
+   *
+   * Rückfrage «Stützweite eingeben»: L = Stützweite + c_A + c_B. Wer einen
+   * Kragarm verstellt, schiebt das Gurtende über den stehenden Masten
+   * hinaus; am Ende A beginnt der Gurt früher, und die Teile auf dem Joch
+   * (lokal ab dem Gurtanfang) rücken mit - ihre Lage auf dem Blatt bleibt.
+   */
+  if ((key === 'kragA' || key === 'kragB') && tragwerksart(werte).key === 'joch') {
+    const r6 = (v) => Math.round(v * 1e6) / 1e6;
+    const neu = Math.max(0, Number(wert) || 0);
+    const d = neu - Math.max(0, Number(werte[key]) || 0);
+    let w2 = { ...werte, [key]: neu, kragMasten: true, L: r6((Number(werte.L) || 0) + d) };
+    if (key === 'kragA' && d !== 0) {
+      if (w2.xLage !== null && w2.xLage !== undefined && Number.isFinite(Number(w2.xLage))) {
+        w2.xLage = r6(Number(w2.xLage) - d);
+      }
+      w2.anbauteile = (w2.anbauteile ?? []).map((a) => (a && !amMast(a)
+        && Number.isFinite(Number(a.x)) ? { ...a, x: r6(Number(a.x) + d) } : a));
+      if (Number.isFinite(Number(w2.xNachweis))) w2.xNachweis = r6(Number(w2.xNachweis) + d);
+    }
+    werte = w2;
+    mastNachfuehren();
+    neuRechnen();
+    return;
+  }
+  // Die Stützweite ist kein eigenes Feld: sie schreibt L = s + c_A + c_B.
+  if (key === 'stuetzweite') {
+    const [kA, kB] = kragarme(werte);
+    return aendern('L', Math.max(0, Number(wert) || 0) + kA + kB);
+  }
   if (key === 'tragwerkAktiv') {
     werte = tauscheAktives(werte, wert);
     mastNachfuehren();
@@ -2633,7 +2681,8 @@ function aendern(key, wert) {
       if ((werte.twId ?? 'T1') !== r.alsB.t.id) {
         werte = tauscheAktives(werte, r.alsB.t.id);
       }
-      const roh = Math.max(0, wert.x - r.alsB.x0);
+      // Mit Kragarm ragt das Joch um c_B über den Masten (30. September).
+      const roh = Math.max(0, wert.x - r.alsB.x0) + kragarme(r.alsB.t)[1];
       werte = { ...werte, L: freieLaenge(werte, r.alsB.t.id, roh).L };
     }
     if (r.alsA) {
@@ -2649,7 +2698,7 @@ function aendern(key, wert) {
       if ((werte.twId ?? 'T1') !== r.alsA.t.id) {
         werte = tauscheAktives(werte, r.alsA.t.id);
       }
-      werte = { ...werte, xLage: freieLage(werte, r.alsA.t.id, wert.x).x };
+      werte = { ...werte, xLage: freieLage(werte, r.alsA.t.id, wert.x - kragarme(r.alsA.t)[0]).x };
     }
     mastNachfuehren();
     neuRechnen();
