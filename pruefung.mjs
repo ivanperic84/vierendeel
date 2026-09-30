@@ -32071,10 +32071,10 @@ titel('137  Tragausleger Etappe 4a: UPE, Bindebleche und Aufhaengung im Stabwerk
   const fl = rechne('leiter-nfl');
   const hs = rechne('hs-fahrdraht');
   wahr('Kein Stab ohne Rolle', fl.h.ohneRolle.length === 0 && hs.h.ohneRolle.length === 0);
-  pruef('Fahrleitung direkt: UPE', fl.h.teile['tragwerk|UPE'].eta, 0.0643, 1e-3, '');
+  pruef('Fahrleitung direkt: UPE', fl.h.teile['tragwerk|UPE'].eta, 0.3875, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.0643
   pruef('Fahrleitung direkt: Seil S_v', fl.a.Sv, 2.83, 5e-3, 'kN');
-  pruef('Hängestütze: UPE', hs.h.teile['tragwerk|UPE'].eta, 0.311, 1e-3, '');
-  pruef('Hängestütze: Blech am Masten (⚠ überschritten)', hs.h.teile['tragwerk|blech'].eta, 1.135, 1e-3, '');
+  pruef('Hängestütze: UPE', hs.h.teile['tragwerk|UPE'].eta, 0.6855, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.311
+  pruef('Hängestütze: Blech am Masten (⚠ überschritten)', hs.h.teile['tragwerk|blech'].eta, 1.4323, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.135
   wahr('… und zwar das erste Blech und unter Wind in Gleisrichtung',
        /BL_[OU]0$/.test(hs.h.teile['tragwerk|blech'].wo) && /^windY/.test(hs.h.teile['tragwerk|blech'].fall),
        `${hs.h.teile['tragwerk|blech'].wo}, ${hs.h.teile['tragwerk|blech'].fall}`);
@@ -32175,7 +32175,7 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   const knT = SM138.knickenAusStabwerk(hs.dat, hs.lsg, hs.nw, 'M1', hs.basis, hs.erg.modell, {});
   const fT = SM138.fundamentAusStabwerk(hs.dat, hs.lsg, hs.alle, 'M1', hs.basis, hs.satz);
   // Mastlänge H + b, b der Tabelle (28. September): 1.091 -> 1.107.
-  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.1069, 1e-3, '');
+  pruef('Ausleger 13 m mit Hängestütze: Knicken aus dem Stabwerk', knT.eta, 1.5520, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.1069
   /*
    * Der Kern des Phantomjochs lag bei 0.652 - vor allem, weil er mit der
    * Mastlänge des Tragjochs (8.5 m) rechnete. Seit sie H + b ist (14.0 m),
@@ -32184,11 +32184,11 @@ titel('138  Knicken, Fundament und Woelbtorsion des Masten aus dem Stabwerk');
   wahr('… über dem Kern mit seinem Phantomauflager',
        knT.eta > hs.kombi.huellkurve.mast.A.stabil.eta,
        `Kern ${hs.kombi.huellkurve.mast.A.stabil.eta.toFixed(3)}`);
-  pruef('… Fundament aus dem Stabwerk, massgebend die Torsion', fT.A.eta, 1.445, 1e-3, '');
+  pruef('… Fundament aus dem Stabwerk, massgebend die Torsion', fT.A.eta, 5.4213, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.445
   wahr('… massgebend T', fT.A.massgebend.key === 'T', fT.A.massgebend.key);
   const hT = SN138.stabwerkHuelle(hs.dat, hs.lsg, hs.nw, 235 / 1.05, { torsion: true });
   // Seilwinkel 30°, Mastlänge H + b (28. September): 2.103 -> 2.1146.
-  pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 2.1146, 1e-3, '');
+  pruef('… Mastquerschnitt mit σ_ω', hT.bauteile['mast:M1'].eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
 }
 
 // ===========================================================================
@@ -32233,13 +32233,13 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
   const z = (name) => n.liste.find((x) => x.name === name);
   wahr('>>> Mit dem Stabwerk ist der Phantom-Mast weg <<<', !z('Mast B'),
        n.liste.map((x) => x.name).join(', '));
-  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.209, 1e-3, '');
+  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.8438, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.209
   pruef('Aufhängung gegen V_zul', z('Aufhängung')?.eta, 0.824, 1e-3, '');
-  pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 2.1146, 1e-3, '');
-  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.1069, 1e-3, '');
-  pruef('Fundament aus dem Stabwerk', z('Fundament MT1')?.eta, 1.445, 1e-3, '');
+  pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
+  pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.5520, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.1069
+  pruef('Fundament aus dem Stabwerk', z('Fundament MT1')?.eta, 5.4213, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.445
   wahr('Jede Zeile aus dem Stabwerk', n.liste.every((x) => x.quelle === 'stabwerk'));
-  wahr('Das Urteil ist der Mast', n.massgebend?.name === 'Mast MT1' && Math.abs(n.eta - 2.1146) < 1e-3);
+  wahr('Das Urteil ist der Mast', n.massgebend?.name === 'Mast MT1' && Math.abs(n.eta - 5.8272) < 1e-3);   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
 
   // --- Der Vermerk «NICHT nachgewiesen» -------------------------------------
   const u = CH139.urteilKonstruktion([], satz.nachweise, 'tragausleger');
@@ -32308,13 +32308,13 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
   wahr('Ohne Eintrag gilt der Längsanker (auch in alten Ständen)',
        mit.ausleger.laengsankerX === 12.75 && ohne.ausleger.laengsanker === null,
        `x ${mit.ausleger.laengsankerX}`);
-  pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 0.8498, 1e-3, '');
-  pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 2.1146, 1e-3, '');
+  pruef('Mast mit Längsanker', mit.teile['tragwerk|UPE'] ? mit.bauteile['mast:MT1'].eta : NaN, 1.0552, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.8498
+  pruef('… ohne', ohne.bauteile['mast:MT1'].eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
   pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.6765, 1e-3, '');
   wahr('… nicht mehr die Torsion massgebend', mit.ausleger.fundament.A.massgebend.key !== 'T',
        mit.ausleger.fundament.A.massgebend.key);
-  pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.029, 1e-3, '');
-  pruef('Längsanker: Seilkraft charakteristisch', Math.abs(mit.ausleger.laengsanker.charakteristisch.F), 0.538, 1e-3, 'kN');
+  pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.1723, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.029
+  pruef('Längsanker: Seilkraft charakteristisch', Math.abs(mit.ausleger.laengsanker.charakteristisch.F), 2.0046, 1e-3, 'kN');   // Wind auf den Ausleger (30. Sept.): vorher 0.538
   wahr('… mit der Seite, die zieht', /^[+−]y$/.test(mit.ausleger.laengsanker.charakteristisch.seite),
        mit.ausleger.laengsanker.charakteristisch.seite);
   // Nicht exakt gleich - der Anker ändert die Verformung ein wenig -, aber
@@ -32616,7 +32616,7 @@ titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten
   pruef('rechts R +600: Seil (Stabwerk)', rP.zahlen[5], 4.121, 1e-3, 'kN');
   pruef('links R +600: Seil (Stabwerk) - der Mast steht auf der anderen Kurvenseite',
         lP.zahlen[5], 4.722, 1e-3, 'kN');
-  pruef('links R +600: UPE (Stabwerk, zwei Seile ±1 m)', lP.zahlen[3], 0.3305, 1e-3, '');
+  pruef('links R +600: UPE (Stabwerk, zwei Seile ±1 m)', lP.zahlen[3], 0.4307, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.3305
   // Die Geometrie: Knoten bei −x, die Gurte laufen in +x (Stege innen).
   const d = TAX144.tragauslegerModell({ ...lP.satz });
   const kx = new Map(d.knoten.map((k) => [k.name, k]));
@@ -32968,11 +32968,11 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
   pruef('Unter G tragen beide Seile gleich', -G.get('AUFHAENGUNG_P')[0],
         -G.get('AUFHAENGUNG_N')[0], 1e-6, 'kN');
   const blech = (r) => r.h.teile['tragwerk|blech'].eta;
-  pruef('Bindeblech mit Längsanker, ein Seil (Befund)', blech(eins), 1.0285, 1e-3, '');
-  pruef('>>> Bindeblech mit Längsanker, zwei Seile ±1 m <<<', blech(zwei), 0.2078, 1e-3, '');
+  pruef('Bindeblech mit Längsanker, ein Seil (Befund)', blech(eins), 1.1723, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.0285
+  pruef('>>> Bindeblech mit Längsanker, zwei Seile ±1 m <<<', blech(zwei), 0.2880, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.2078
   const zweiO = lauf(w(1, false)), einsO = lauf(w(0, false));
-  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.2083, 1e-3, '');
-  pruef('>>> … zwei Seile <<<', blech(zweiO), 0.3156, 1e-3, '');
+  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.8438, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.2083
+  pruef('>>> … zwei Seile <<<', blech(zweiO), 0.6849, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.3156
   pruef('Mast (mit Längsanker) praktisch unverändert', zwei.h.bauteile['mast:M1'].eta,
         eins.h.bauteile['mast:M1'].eta, 2e-3, '');
 
@@ -33481,6 +33481,55 @@ titel('158  Nachweiskachel zeigt den massgebenden Stab; Grundwerte beim neuen Tr
        /app\.aendern\('windKlasse', e\.ek\)/.test(dq) && /app\.aendern\('flSpannweite', e\.spw\)/.test(dq)
        && /app\.aendern\('trasseRadius', e\.R\)/.test(dq)
        && /if \(e\.nichtMehr\) app\.aendern\('grundwerteFragen', false\)/.test(dq));
+}
+
+titel('159  Einwirkungs-Mappe: Konsolen, Armaturen, Trafo, Wind auf den Tragausleger');
+/* ===========================================================================
+ * Auf Rückfrage (30. September) aufgenommen: Konsolen und Armaturen als
+ * wählbare Bausteine, der Trafo 50/100 kVA als Vorlage am Masten, und der
+ * Wind auf den Tragausleger aus der Zeile «Tragausleger übergreifend».
+ * ========================================================================= */
+{
+  const FL159 = await import(J('data.fl.js'));
+  const A159 = await import(J('data.anbauteile.js'));
+  const TA159 = await import(J('export.axisvm.tragausleger.js'));
+  const neu = ['anbauteil-spurhalterkonsole', 'anbauteil-auslegerkonsole',
+    'abfang-abfangarmatur-kompl-ohne-nachspannraeder', 'abfang-abfangarmatur-kompl-mit-nachspannraeder',
+    'abfang-abfangrohr', 'abfang-spurhalterbefestigung', 'diverses-trafo-50-kva', 'diverses-trafo-100-kva'];
+  const auf = new Set(FL159.flBauteile('aufbau').map((b) => b.id));
+  wahr('Konsolen, Armaturen und Trafos stehen in der Auswahl (Aufbauten)',
+       neu.every((id) => auf.has(id)), neu.filter((id) => !auf.has(id)).join(', '));
+  wahr('… auch die Konsole, die «Fahrdrahtabzug am Mast» schon benutzte',
+       auf.has('anbauteil-auslegerkonsole'));
+  [['50', 9, 1.9, 1.3], ['100', 13, 2.4, 1.6]].forEach(([kva, g, qx, qy]) => {
+    const v = A159.vorlagen().find((x) => x.id === `mast-trafo-${kva}`);
+    wahr(`Vorlage «Trafo ${kva} kVA am Mast» am Masten`, v?.ort === 'mast', v?.ort);
+    const s = A159.baugruppeSumme(A159.neuesAnbauteil(`mast-trafo-${kva}`, 0),
+                                  { ek: 'EK2', spannweite: 40, R: 0 });
+    pruef(`… Eigengewicht (Lasttabelle)`, Math.abs(s.Gz), g, 1e-9, 'kN');
+    pruef(`… Wind quer EK2`, Math.abs(s.Qx), qx, 1e-9, 'kN');
+    pruef(`… Wind längs EK2`, Math.abs(s.Qy), qy, 1e-9, 'kN');
+  });
+  // Der Wind auf den Ausleger: je Laufmeter der Lasttabelle, halb je UPE.
+  [['0.9', 0.23], ['1.1', 0.28], ['1.3', 0.33]].forEach(([wk, q]) => {
+    const m = TA159.tragauslegerModell({ ...standardwerte(), tragwerksart: 'tragausleger',
+      L: 13, xLage: 0, mastVorhanden: true, windKlasse: wk });
+    const st = new Map(m.staebe.map((s) => [s.name, s]));
+    const kn = new Map(m.knoten.map((k) => [k.name, k]));
+    const ql = (m.lasten?.strecke ?? m.strecke ?? []).filter((s) => /^Q_WindY_[VH]_S/.test(s.name));
+    const sum = ql.reduce((a, s) => {
+      const b = st.get(s.stab);
+      return a + s.wert * Math.abs(kn.get(b.bis).x - kn.get(b.von).x);
+    }, 0);
+    const lUPE = [...st.values()].filter((s) => /^V_S\d+$/.test(s.name))
+      .reduce((a, b) => a + Math.abs(kn.get(b.bis).x - kn.get(b.von).x), 0);
+    pruef(`Auslegerwind Windklasse ${wk}: Summe = q · Länge der UPE`, sum, q * lUPE, 1e-6, 'kN');
+    wahr('… nur in Gleisrichtung, im Lastfall WindY, und der Hinweis nennt ihn',
+         ql.every((s) => s.richtung === 'Y' && s.lastfall === 'WindY')
+         && (m.hinweise ?? []).some((h) => /Wind auf den Ausleger selbst: /.test(h))
+         && !(m.hinweise ?? []).some((h) => /nicht angesetzt - das Sortiment/.test(h)));
+  }
+  );
 }
 
 // ===========================================================================

@@ -45,6 +45,10 @@ import { baugruppeSumme } from './data.anbauteile.js';
 import { ekVonWindklasse, EINWIRKUNGEN } from './core.lasten.js';
 import { linkBedingung, mastLaengeFuer } from './core.auflager.js';
 import { bausteinAusModell } from './export.axisvm.abfang.js';
+import { flLastwerte } from './data.fl.js';
+
+/** Baustein der Lasttabelle, der den Wind auf den Ausleger selbst führt. */
+export const TA_WIND_BAUSTEIN = 'anbauteil-tragausleger-uebergreifend-fix';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 const AUFL_LINK_LAENGE = 0.05;     // wie am Abfangjoch
@@ -380,6 +384,28 @@ export function tragauslegerModell(satz) {
     });
   });
   /*
+   * >>> DER WIND AUF DEN AUSLEGER SELBST (30. September). <<<
+   *
+   * Aus der Einwirkungs-Mappe auf Rückfrage «Wind auf Tragausleger»: die
+   * Zeile «Tragausleger übergreifend (fix)» führt 0.23 / 0.28 / 0.33 kN/m
+   * je EK, und zwar nur LÄNGS zum Gleis - quer (in der Auslegerachse) steht
+   * nichts. Je Laufmeter Ausleger, halb auf jede UPE, im Lastfall WindY wie
+   * der Mastwind. Das Eigengewicht dieser Zeile bleibt draussen: es steht
+   * schon im Sortiment (gts) bzw. im Querschnitt. Fehlt die Zeile, fehlt die
+   * Last - und es steht da, wie beim Mastwind.
+   */
+  let wA = null;
+  try { wA = flLastwerte(TA_WIND_BAUSTEIN, { ek }).Qy; } catch { wA = null; }
+  if (wA > 0) {
+    staebe.filter((s) => /^[VH]_S\d+$/.test(s.name)).forEach((s) => {
+      strecke.push({ name: `Q_WindY_${s.name}`, stab: s.name, richtung: 'Y',
+                     wert: r6(wA / 2), lastfall: 'WindY' });
+    });
+  } else {
+    hinweise.push('Die Lasttabelle führt keinen Wind für den Tragausleger '
+      + `(${TA_WIND_BAUSTEIN}, ${ek}) - der Wind auf den Ausleger selbst fehlt im Modell.`);
+  }
+  /*
    * >>> DIE ANBAUTEILE: STARR AUF DIE AUSLEGERACHSE UMGESETZT. <<<
    *
    * Jede Kraft greift am Teil an (x, y, z der Kette), der Ausleger nimmt sie
@@ -480,8 +506,10 @@ export function tragauslegerModell(satz) {
       + 'Neigung der Seile ist nicht berücksichtigt.'
     : 'OHNE Längsanker: die Kraft in Gleisrichtung am Ausleger geht über den '
       + 'Hebel als Torsion in den Masten.');
-  hinweise.push('Wind auf den Ausleger selbst ist nicht angesetzt - das '
-    + 'Sortiment führt für den Tragausleger keine Windlast je Meter.');
+  if (wA > 0) {
+    hinweise.push(`Wind auf den Ausleger selbst: ${wA.toFixed(2)} kN/m in `
+      + `Gleisrichtung (${ek}, Lasttabelle «Tragausleger übergreifend»), halb auf jede UPE.`);
+  }
   if (havarieAus) {
     hinweise.push('Havarie der Leiter am Tragausleger ist im Stabmodell noch '
       + 'NICHT angesetzt (sie gehört je Leiter in einen eigenen Lastfall).');

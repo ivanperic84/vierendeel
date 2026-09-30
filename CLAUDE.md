@@ -132,6 +132,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Einwirkungs-Mappe: was gebaut wird (30. Sept.) | Auf Rückfrage gewählt: **Konsolen und Armaturen** (Spurhalter-/Auslegerkonsole, Abfangarmatur ohne/mit Nachspannrädern, Abfangrohr, Spurhalterbefestigung) als wählbare Bausteine (Rolle `aufbau` statt `stumm` in `fl_bauteile.json`); **Trafo 50/100 kVA** als Vorlagen am Masten (`mast-trafo-50/100`, Schwerpunkt vorläufig 0.50 m neben der Mastachse); **Wind auf den Tragausleger** (siehe eigene Zeile). **Doppelmast 2 RRW: «Später».** Zu den Signalteilen im Wortlaut: «die signaleteile zu einem separatem signalbauer, da kann man die teile auswählen und die resultierende last wird dann daraus berechnet und man muss nur noch den angriffspunkt wie bei den übrigen bauteilen definieren. Die Tragwerksteile für die Signalaufhängung können auch separat aufgeführt werden, da diese nur in ausnahmen an die FL-Tragwerke montiert werden. wir werden zu einem späteren zeitpunkt noch einen galgen tragwerk erstellen für die signale.» - ⚠ offen, siehe *Offene Punkte* |
+| Wind auf den Tragausleger (30. Sept.) | Aus der Mappe, Zeile «Tragausleger übergreifend (fix)»: 0.23 / 0.28 / 0.33 kN/m je EK, **nur längs zum Gleis** (quer führt die Tabelle nichts). Im Stabmodell als Streckenlast in y, halb auf jede UPE, Lastfall WindY (`TA_WIND_BAUSTEIN` in export.axisvm.tragausleger.js); das Eigengewicht der Zeile bleibt draussen (steht im Sortiment). Gemessen (EK1, L 13 m, Hängestütze): **mit Längsanker** Mast 0.850 → **1.055**, Blech zwei Seile 0.208 → 0.288, Längsanker 0.54 → 2.00 kN; **ohne Längsanker** Mast 2.115 → **5.827**, Fundament 1.445 → 5.421, Knicken 1.107 → 1.552; L 8 m Fahrleitung direkt UPE 0.064 → 0.387. Der Wind auf 13 m (2.99 kN) liegt am Masten als Torsion an - weit mehr als die Hängestütze (0.74 kNm) |
 | Startwert der Masten (29. Sept.) | «setze noch als startwert die HEB 260 Masten»: Feld, Ende B und Mastdialog starten mit **HEB 260**. Gemessen J90/20 m, Stabwerk Mast M1: HEB 240 η 0.786 → HEB 260 0.671. Der Prüfstand hält seine gemessenen Zahlen ausdrücklich auf HEB 240 fest (`standardwerte` in pruefung.mjs), Abschnitt 157 prüft die neue Vorgabe |
 | Werteplot im 3D (29. Sept.) | «die werteplotts im 3d sichtbarer machen»: die Ziffer **fett in der Textfarbe**, einen Punkt grösser, auf fast deckendem Kästchen; die Skalenfarbe als **Streifen und Rahmen** (`_wertMarke`). Ändert die Deckkraft-Weisung vom 20./24. Sept. («transparenter») - blaue Ziffern auf blassem Grund vor blauem Gurt waren bei kleinem η kaum zu sehen. Der Schalter «Werte anschreiben» bleibt voreingestellt aus |
 | Nachweiskachel → Stab (29. Sept.) | «beim anklicken der nachweiskachel auf massgebenden stab im modell klicken»: jede Kachel aus dem Stabwerk trägt ihren massgebenden Stab (`wo` der Hülle, `kachel(…, { stab })`); ein Klick fährt im 3D dorthin und umrandet ihn mit «massgebend: …» (`zeigeStab` in render.3d.js). Die Flächen der Szene kennen dafür ihre Stäbe (`staebe`, render.stabwerk.js / render.tragausleger.js). Steht der Stab nicht im Bild (Ersatzbalken), sagt es eine Meldung. Kacheln des Kerns fahren wie bisher an die Station |
@@ -255,12 +257,20 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**29. September 2026** · Prüfstand 5823 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5839 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., Einwirkungs-Mappe erster Teil** (Entscheide siehe
+  *Entschieden*, Prüfstand 159): Konsolen und Armaturen wählbar, Trafo
+  50/100 kVA als Vorlage am Masten, Wind auf den Tragausleger.
+  Sicherungen davor: `data/sicherung/fl_bauteile_vor_konsolen_2026-09-30.json`,
+  `anbauteile_vor_trafo_2026-09-30.json`; Datenpaket neu in `Versand/`.
+  Zwanzig Kontrollen zum Tragausleger tragen den neuen Messwert mit dem
+  alten im Kommentar. ⚠ Der Browser-Blick auf die neuen Vorlagen steht
+  noch aus (Sicherheitsprüfung lieferte kein Urteil).
 - **29. Sept. abends, acht Commits, nicht gepusht** (`1873231` …
   `69c1aba`; die Entscheide stehen oben in *Entschieden*, die Messungen
   in den Commit-Texten). Alte Stände über einen Weg (`standAnheben`);
@@ -2058,9 +2068,19 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   unverfolgt. Wer sie veröffentlichen will, tut es selbst (`.gitignore`
   anpassen, `git add data/*.json`) - die stehende Regel «nicht
   `data/*.json`» in dieser Datei wäre dann ebenfalls zu ändern.
-- ⚠ **Einwirkungs-Mappe Punkt für Punkt** (Weisung 29. Sept.,
+- ⚠ **Signalbauer** (Weisung 30. Sept., Wortlaut in *Entschieden*):
+  ein eigener Bauer, in dem man Signalteile auswählt, die resultierende
+  Last berechnet wird und nur noch der Angriffspunkt wie bei den übrigen
+  Bauteilen zu setzen ist; die Tragwerksteile der Signalaufhängung
+  separat; später ein Galgen-Tragwerk. Noch nicht begonnen - Aufbau
+  (Datentabelle der Signalteile, Summenregel, Oberfläche) mit dem
+  Auftraggeber abzustimmen.
+- ⚠ **Tragausleger mit Auslegerwind:** mit Längsanker bei L 13 m und
+  Hängestütze Mast η 1.055 (> 1), ohne Längsanker 5.8. Zu klären, ob der
+  Mast oder die Anordnung zu ändern ist.
+- ~~**Einwirkungs-Mappe Punkt für Punkt**~~ (Weisung 29. Sept.,
   «einwirkung-mappe punkt für punkt durchgehen was gebaut werden soll»):
-  offen, mit dem Auftraggeber durchzugehen. Aus der Durchsicht: in der
+  am 30. Sept. entschieden und zum grössten Teil gebaut, Signalbauer offen. Aus der Durchsicht: in der
   Lasttabelle ohne Baustein Spurhalter-/Auslegerkonsole, Abfangarmaturen,
   Abfangrohr, Spurhalterbefestigung, Trafo 50/100 kVA; der Wind auf den
   Tragausleger (0.23/0.28/0.33 kN/m je EK) steht dort, wird aber nicht
@@ -2327,7 +2347,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5823 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5839 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
