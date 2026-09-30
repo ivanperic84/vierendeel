@@ -79,7 +79,7 @@ import { auslegerSzene } from './render.tragausleger.js';
 import { gurtTeilung, jochStaebe, stabwerkDiagramme, stabwerkFaerben } from './render.stabwerk.js';
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
-import { verformungsNachweis } from './core.verformung.js';
+import { verformungsNachweis, verformungGrenzen } from './core.verformung.js';
 import { fundamentNachweis } from './core.fundament.js';
 import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
          ankerKnickenSicher } from './core.anker.js';
@@ -922,8 +922,10 @@ function neuRechnen(neuZeichnen = true) {
      * Tragsicherheit (Entscheid vom 18. September).
      */
     // Die Mastspitze L/100 ist abschaltbar (Nachweisgruppe `spitzeMast`, 30. Sept.).
+    // Die Grenzwerte (Fahrdraht, Mastspitze) stehen in den Optionen.
     erg.verformung = verformungsNachweis(kombiMast,
-      { spitze: nachweiseAuswahl(werte.nachweise).spitzeMast });
+      { spitze: nachweiseAuswahl(werte.nachweise).spitzeMast,
+        grenzen: verformungGrenzen(werte) });
     // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
     // misst (28. September) - sonst stand dort eine 0.
     setzeFdAutomatik(erg.verformung?.A?.stelle ?? erg.verformung?.B?.stelle ?? null);
@@ -940,6 +942,21 @@ function neuRechnen(neuZeichnen = true) {
      * waeren zwei Wahrheiten.
      */
     erg.fundament = fundamentNachweis(kombiMast, werte);
+    /*
+     * >>> OHNE MODELL DES AUSLEGERS KEINE ZAHLEN DES PHANTOMJOCHS (30. Sept.). <<<
+     * Gemeldet: «wenn ich da eine grenze über oder unterschreite blendet
+     * sich ein jochtragwerk ein». Mit zu kurzem Mast rechnet der Kragarm-
+     * Kern nicht; Mast, Anker, Verformung und Fundament kamen dann aus dem
+     * Ersatzjoch (vier Winkel, Phantom-Mast B), und die Seitenleiste zeigte
+     * Obergurt L 90×90×9 und «Ende B». Sie gelten dem Ausleger nicht - weg
+     * damit; der Grund steht in der Tragausleger-Gruppe und den Hinweisen.
+     */
+    if (erg.ausleger?.fehler) {
+      erg.mast = null;
+      erg.anker = null;
+      erg.verformung = null;
+      erg.fundament = null;
+    }
     // Am Tragausleger prüften sie das Ersatzjoch J90 (Bleche, Masten
     // zwischen den Gurten) - ein Bauteil, das es dort nicht gibt (28. Sept.).
     const checks = mitJoch && !erg.ausleger

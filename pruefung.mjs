@@ -15453,10 +15453,10 @@ titel('60  Die Hoehe des Optionsdialogs wandert');
      * bleibt dieselbe - nur der Rahmen leuchtet auf, nicht die Schrift.
      */
     const ab = r61.indexOf('const warm = this._titelUnterZeiger === bt;');
-    const koerper = ab > 0 ? r61.slice(ab, ab + 2600) : '';
+    const koerper = ab > 0 ? r61.slice(ab, ab + 3000) : '';
     wahr('Der Rahmen folgt dem Zeiger', koerper.includes('warm ? t.acc'));
     wahr('… die Schrift aber nicht',
-         koerper.includes('c.fillStyle = t.on2 ?? t.on;')
+         koerper.includes('c.fillStyle = bt.warnung ? (t.fail ?? t.on) : (t.on2 ?? t.on);')
          && !koerper.includes('warm ? t.acc : (t.on2'));
     wahr('… und der Grund behaelt seine Deckung',
          koerper.includes('c.globalAlpha = 0.72;'));
@@ -33711,10 +33711,111 @@ titel('166  Gebrauchstauglichkeit: Mastspitze L/100 unter Betriebswind, abschalt
     + `Fahrdraht η ${aus.A.eta.toFixed(3)} -> Kachel η ${an.A.eta.toFixed(3)}`);
   const uq = readFileSync(join(HIER, 'js', 'app.js'), 'utf8');
   wahr('Die Anwendung reicht die Wahl an den Kern',
-       /verformungsNachweis\(kombiMast,\s*\{ spitze: nachweiseAuswahl\(werte\.nachweise\)\.spitzeMast \}\)/.test(uq));
+       /verformungsNachweis\(kombiMast,\s*\{ spitze: nachweiseAuswahl\(werte\.nachweise\)\.spitzeMast,\s*grenzen: verformungGrenzen\(werte\) \}\)/.test(uq));
   const sq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
   wahr('Das Stabwerk folgt dem Kern (kern.spitze)',
-       /const mitSpitze = kern\.spitze === true/.test(sq) && /spitzeNachweis\(spitzeW, L\)/.test(sq));
+       /const mitSpitze = kern\.spitze === true/.test(sq) && /spitzeNachweis\(spitzeW, L, spitzeN\)/.test(sq));
+}
+
+titel('167  Tragausleger: zu kurzer Mast im Bild; Grenzwerte GZG in den Optionen; Kacheln');
+/* ===========================================================================
+ * (a) «checke die mastschieber beim tragausleger, wenn ich da eine grenze
+ *     über oder unterschreite blendet sich ein jochtragwerk ein» - ein zu
+ *     kurzer Mast brach das Modell ab, das 3D fiel aufs Ersatzjoch zurück.
+ * (b) «unter den optionen sollte man noch die grenzwerte definieren können
+ *     für fahrdraht und mastspitze».
+ * (c) Tragwerk-Kacheln ohne Hintergrund, nur unter dem Zeiger; Legende der
+ *     Befestigungsfarben über den Vorlagen.
+ * ========================================================================= */
+{
+  const RT167 = await import(J('render.tragausleger.js'));
+  const TAX167 = await import(J('export.axisvm.tragausleger.js'));
+  const N167 = await import(J('core.nachbarn.js'));
+  const V167 = await import(J('core.vierendeel.js'));
+  const VF167 = await import(J('core.verformung.js'));
+  const basis = { ...standardwerte(), tragwerksart: 'tragausleger', L: 11, xLage: 0,
+                  mastVorhanden: true, twId: 'MT1', mastH: 7.5, mastLaenge: 10,
+                  mastProfil: 'HEB 260', anbauteile: [] };
+  const satz = N167.rechensatzMitNachbarn(basis);
+  let fehler = '';
+  try { TAX167.tragauslegerModell(satz); } catch (e) { fehler = e.message; }
+  wahr('Rechnen mit zu kurzem Mast bricht weiter ab', /Mast zu kurz/.test(fehler), fehler);
+  const d = TAX167.tragauslegerModell(satz, { bild: true });
+  wahr('Für das Bild wird weitergebaut, der Mangel steht im Modell',
+       Math.abs(d.tragausleger.mastKopf - 2.5) < 1e-9
+       && d.hinweise.some((h) => /Mast zu kurz/.test(h)), JSON.stringify(d.tragausleger.mastKopf));
+  const mast = { profil: 'HEB 260', hoehe: 7.5, ueberstand: 0, stegrichtung: 'jochachse', name: 'MT1' };
+  const sz = RT167.auslegerSzene(satz, { mast });
+  wahr('Das 3D zeigt den Ausleger (UPE), kein Ersatzjoch',
+       sz.flaechen.some((f) => f.teil === 'GURT_V') && sz.flaechen.some((f) => f.teil === 'AUFHAENGUNG'));
+  const warn = sz.bauteiltitel.find((b) => b.warnung);
+  wahr('… mit der Warnung am Masten und der eingetragenen Länge',
+       /MAST ZU KURZ/.test(warn?.text ?? '')
+       && sz.bauteiltitel.some((b) => b.mastEnde === 'A' && /10\.00 m/.test(b.text)), warn?.text);
+  const uqA = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  const app = APP_QUELLE();
+  wahr('Die Szene des aktiven Auslegers geht über auslegerSzene (mit bild)',
+       /auslegerSzene\(satz, \{/.test(app)
+       && readFileSync(join(HIER, 'js', 'render.tragausleger.js'), 'utf8')
+         .includes("tragauslegerModell(satz, { bild: true })"));
+
+  // Die Anzeige: ohne Modell keine Zahlen des Phantomjochs (Mast B, Joch).
+  const CH167 = await import(J('core.checks.js'));
+  const fehlErg = { ausleger: { fehler: 'Mast zu kurz' }, max: { etaGesamt: 0.28 },
+                    mast: { A: { eta: 0.6 }, B: { eta: 0.2 } }, modell: { tragwerksart: 'tragausleger' } };
+  const mb = CH167.mitBauteilen({ mast: { A: { eta: 0.6 }, B: { eta: 0.2 } } }, fehlErg);
+  wahr('mitBauteilen nimmt Mast, Anker, Verformung, Fundament heraus',
+       mb.mast === null && mb.anker === null && mb.verformung === null && mb.fundament === null);
+  const ur = CH167.bauteilUrteil({ ...fehlErg, mast: null }, undefined, 'tragausleger');
+  wahr('Das Urteil hat kein Joch und keine Zahl', ur.liste.length === 0 && ur.eta === null);
+  wahr('Die Fussleiste schreibt einen Strich statt abzubrechen',
+       /\u03b7 = \u2013/.test(CH167.urteilFusszeile({ gut: false, eta: null, urteil: {} })));
+  wahr('Die Seitenleiste nennt den Grund statt der Ersatzjoch-Kacheln',
+       uqA.includes("erg.ausleger?.fehler ? [") && uqA.includes("'nicht gerechnet', 'fail'"));
+  wahr('app.js leert die Ergebnisse des Phantomjochs',
+       /if \(erg\.ausleger\?\.fehler\) \{\s*erg\.mast = null;/.test(APP_QUELLE()));
+
+  // (b) Grenzwerte
+  const g0 = VF167.verformungGrenzen({});
+  wahr('Ohne Eintrag die Vorgaben 40 mm und L/100',
+       Math.abs(g0.fahrdraht - 0.040) < 1e-12 && g0.spitzeN === 100);
+  const g1 = VF167.verformungGrenzen({ gzgGrenzeFahrdraht: 30, gzgGrenzeSpitze: 150 });
+  wahr('Eingetragen: 30 mm und L/150', Math.abs(g1.fahrdraht - 0.030) < 1e-12 && g1.spitzeN === 150);
+  wahr('Null oder negativ heisst Vorgabe',
+       VF167.verformungGrenzen({ gzgGrenzeFahrdraht: 0, gzgGrenzeSpitze: -5 }).spitzeN === 100);
+  const s2 = N167.rechensatzMitNachbarn({ ...standardwerte() });
+  const k = V167.vergleichKombinationen(s2, ...N167.kernArgumente(s2));
+  const vor = VF167.verformungsNachweis(k, { spitze: true });
+  const mit = VF167.verformungsNachweis(k, { spitze: true, grenzen: g1 });
+  const fd = (v) => v.A.nachweise.find((x) => !x.spitze);
+  const sp = (v) => v.A.nachweise.find((x) => x.spitze);
+  pruef('Fahrdraht: der Grenzwert folgt der Eingabe', fd(mit).grenz, 0.030, 1e-12, 'm');
+  pruef('… das eta mit ihm (40/30)', fd(mit).eta, fd(vor).eta * 40 / 30, 1e-12);
+  pruef('Mastspitze: L/150', sp(mit).grenz, mit.A.L / 150, 1e-12, 'm');
+  wahr('… und der Text nennt L/150', /L\/150/.test(sp(mit).was), sp(mit).was);
+  wahr('Das Ergebnis trägt die Grenzwerte für Stabwerk und Anzeige',
+       mit.grenzen === g1 && Math.abs(vor.grenzen.fahrdraht - 0.040) < 1e-12);
+  const sq = readFileSync(join(HIER, 'js', 'core.stabverformung.js'), 'utf8');
+  wahr('Das Stabwerk nimmt die Grenzwerte vom Kern',
+       sq.includes('kern.grenzen?.fahrdraht') && sq.includes('kern.grenzen?.spitzeN'));
+  const U167 = await import(J('ui.js'));
+  const html = U167.nachweiseHtml({ ...standardwerte(), gzgGrenzeFahrdraht: 35 });
+  wahr('Die Optionen führen beide Felder, mit dem eingetragenen Wert',
+       /data-grenze="gzgGrenzeFahrdraht"[^>]*value="35"/.test(html)
+       && /data-grenze="gzgGrenzeSpitze"[^>]*value="100"/.test(html));
+  const oq = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  wahr('… geschrieben beim Verlassen des Feldes, leer = Vorgabe',
+       /\[data-grenze\]'\)\.forEach\(\(inp\) => \{\s*inp\.onchange/.test(oq)
+       && oq.includes('z > 0 ? z : null'));
+
+  // (c) Kacheln
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Tragwerk-Kacheln ohne Hintergrund, nur unter dem Zeiger',
+       /\.qp-kachel \{[^}]*background: transparent/.test(css)
+       && /\.qp-kachel:hover[^{]*\{ background: var\(--acc-s\); \}/.test(css));
+  const uq = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Die Farbpunkte der Vorlagen sind erklärt (Titel und Legende)',
+       uq.includes('class="kachel-legende"') && uq.includes('Befestigung: ${ANBAU_FARBE_NAME'));
 }
 
 // ===========================================================================

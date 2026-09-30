@@ -90,7 +90,7 @@ const sortimentText = () => tragauslegerTypen().map((t) => t.L.toFixed(1)).join(
  * @returns {{knoten, staebe, querschnitte, auflager, lasten, hinweise,
  *            tragausleger}}
  */
-export function tragauslegerModell(satz) {
+export function tragauslegerModell(satz, opt = {}) {
   const L = Number(satz.L);
   const t = getTragausleger(L);
   if (!t) {
@@ -140,7 +140,22 @@ export function tragauslegerModell(satz) {
   // Ohne Eintrag H + b auf den halben Meter (Entscheid 28. September) -
   // dieselbe Stelle, aus der Maske und Kern ihre Länge haben.
   const zKopf = r6((mastL > 0 ? mastL : mastLaengeFuer(satz, H)) - H);
-  if (zKopf + 1e-9 < bSeil) {
+  /*
+   * >>> FUER DAS BILD WIRD WEITERGEBAUT (30. September). <<<
+   * Gemeldet: «checke die mastschieber beim tragausleger, wenn ich da eine
+   * grenze über oder unterschreite blendet sich ein jochtragwerk ein.» Der
+   * Abbruch hier liess das 3D-Bild auf das Ersatzjoch des Ersatzbalkens
+   * zurückfallen - vier Winkel und zwei Masten, wo ein Ausleger steht.
+   * Rechnen darf mit einem zu kurzen Masten weiter niemand (Kern, Stabwerk,
+   * AxisVM brechen ab wie bisher); das Bild (`opt.bild`) baut den Masten
+   * bis zum Seilpunkt und merkt sich, wo er wirklich endet - es zeichnet
+   * ihn dort und schreibt den Mangel an.
+   */
+  const mastZuKurz = zKopf + 1e-9 < bSeil;
+  if (mastZuKurz && opt.bild) {
+    hinweise.push(`Mast zu kurz für die Aufhängung (mindestens `
+      + `${(H + bSeil).toFixed(2)} m).`);
+  } else if (mastZuKurz) {
     // Wortlaut der Rueckfrage vom 28. September: «Mast zu kurz für die
     // Aufhängung» - so steht es in den Hinweisen und an der Mastlänge.
     throw new Error(`Mast zu kurz für die Aufhängung: sie greift ${bSeil.toFixed(2)} m `
@@ -523,7 +538,9 @@ export function tragauslegerModell(satz) {
                     profil: t.profil,
                     spreizung: spreiz, seile: spreiz > 0 ? 2 : 1, c2: t.seil.c2, hinten: t.hinten, bleche: blechX.length * 2,
                     Vzul: t.Vzul, laengsverankerung: lvX,
-                    seite: sp < 0 ? 'links' : 'rechts' },
+                    seite: sp < 0 ? 'links' : 'rechts',
+                    // Nur im Bild (opt.bild): wo der zu kurze Mast endet.
+                    ...(mastZuKurz ? { mastKopf: zKopf, mastMindest: r6(H + bSeil) } : {}) },
   };
   return sp < 0 ? spiegeln(modell) : modell;
 }

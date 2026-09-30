@@ -8,6 +8,7 @@
  */
 
 import { NACHWEISGRUPPEN, nachweiseAuswahl } from './core.checks.js';
+import { verformungGrenzen } from './core.verformung.js';
 import { RECHENVERFAHREN, bauteileMitStabwerk, verfahrenVon } from './core.stabnachweis.js';
 import { optionsSkizze, SKIZZEN_FELDER, bauformSkizze }
   from './doku.optionsskizzen.js';
@@ -2375,6 +2376,17 @@ const ANBAU_FARBE = {
   haengend: 'var(--acc)', aufgesetzt: 'var(--ok)',
   seitlich: 'var(--warn)', direkt: 'var(--dim)',
 };
+/*
+ * WAS DIE FARBE HEISST (30. September: «ich verstehe die farbzuweisung hier
+ * nicht»). Der Punkt ist die Befestigungsart der Vorlage (Feld `farbe` im
+ * Sortiment Anbauteile) - gesagt wurde es nirgends. Jetzt im Titel des
+ * Punkts und als Zeile über den Kacheln. Symbolbilder statt Punkte sind
+ * für später vorgemerkt (aus den Querprofilen abgeleitet).
+ */
+const ANBAU_FARBE_NAME = {
+  haengend: 'hängend (unter dem Joch)', aufgesetzt: 'aufgesetzt (auf dem Joch)',
+  seitlich: 'seitlich (am Joch oder am Masten)', direkt: 'direkt (ohne Träger)',
+};
 
 /**
  * Wo das Teil am Joch angeschlagen ist.
@@ -2434,7 +2446,8 @@ function anbauteileHtml(g, werte) {
     <span class="kachel-huelle">
       <button class="kachel${v.eigen ? ' eigen' : ''}" data-vorlage="${esc(v.id)}"
               draggable="true" title="${esc(v.beschreibung)}">
-        <span class="kachel-punkt" style="background:${ANBAU_FARBE[v.farbe] ?? 'var(--dim)'}"></span>
+        <span class="kachel-punkt" style="background:${ANBAU_FARBE[v.farbe] ?? 'var(--dim)'}"
+              title="${esc(`Befestigung: ${ANBAU_FARBE_NAME[v.farbe] ?? 'nicht angegeben'}`)}"></span>
         <span class="kachel-name">${esc(v.name)}</span>
         <span class="kachel-meta">${(v.module ?? []).length
           ? `${v.module.length} Teil${v.module.length === 1 ? '' : 'e'}`
@@ -2807,8 +2820,11 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
          title="Anbauteile über die Gleise verteilen">Lastgenerator</button>` : ''}
      </div>` +
     klapp('anbau-vorrat', 'Anbauteil hinzufügen', `
-      <p class="hinweis" style="margin:0 0 7px">Kachel anklicken oder ins
+      <p class="hinweis" style="margin:0 0 4px">Kachel anklicken oder ins
         Modell ziehen.</p>
+      <p class="kachel-legende">${Object.entries(ANBAU_FARBE_NAME).map(([k, n]) =>
+        `<span><span class="kachel-punkt" style="background:${ANBAU_FARBE[k]}"></span>${
+          esc(n.split(' (')[0])}</span>`).join('')}</p>
       ${kacheln}
       ${klapp('anbau-achsen', 'Befestigung und Achsen', `
         <p class="hinweis" style="margin:0">
@@ -5810,10 +5826,13 @@ export function verdrahteNachweisart(node, opt) {
 export function gzgBlockHtml(erg, quelle = '') {
   const g = gzgKacheln(erg);
   const psi = erg?.verformung?.psi;
+  // Die Grenzwerte aus den Optionen (30. September), sonst die Vorgaben.
+  const gr = erg?.verformung?.grenzen;
+  const fdMm = `${Math.round((gr?.fahrdraht ?? 0.040) * 1000 * 10) / 10} mm`;
   // Die Quelle steht dabei wie an den Gruppen der Nachweise (28. Sept.).
   return `${abschnitt('Gebrauchstauglichkeit',
     [psi ? `Betriebswind ψ ${psi.toFixed(2)} · η = w / `
-      + (erg.verformung.spitze ? '40 mm bzw. L/100' : '40 mm') : '', quelle]
+      + (erg.verformung.spitze ? `${fdMm} bzw. L/${gr?.spitzeN ?? 100}` : fdMm) : '', quelle]
       .filter(Boolean).join(' · '))}
     ${g.length ? `<div class="kennzahlen">${g.join('')}</div>`
       : `<p class="leer">${erg?.verformung?.ohneStelle
@@ -6585,7 +6604,12 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
         : kachel('η Aufhängung', '–', 'nicht gerechnet', ''),
       nurSw('Längsanker'),
     ];
-  })() : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
+  })() : erg.ausleger?.fehler ? [
+    // Ausleger ohne Modell (30. September): der Grund statt der Zahlen des
+    // Ersatzjochs, die dem Ausleger nicht gelten.
+    kachel('Tragausleger', '–', 'nicht gerechnet', 'fail',
+           { titel: erg.ausleger.fehler }),
+  ] : (swH && swH.teile?.[`${jochKey}|OG`]) ? [
     /*
      * DIE JOCHKACHELN AUS DEM STABWERK: je Teil das grösste eta über alle
      * Stäbe und Kombinationen. Keine Station des Ersatzbalkens - das
@@ -6666,7 +6690,8 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
   const quelle = (ausSw) => (ausSw ? 'Stabwerk'
     : (swH || vorlaeufig ? `${kernName}${vorlaeufig ? ' · vorläufig' : ''}` : ''));
   const nwGruppen = [
-    { titel: ab ? 'Abfangjoch' : (swH?.ausleger || taK ? 'Tragausleger' : 'Joch'),
+    { titel: ab ? 'Abfangjoch'
+        : (swH?.ausleger || taK || erg.ausleger?.fehler ? 'Tragausleger' : 'Joch'),
       kacheln: kz, rechts: quelle(jochAusSw) },
     // «Knicken Ersatzbalken» nur, wenn das Knicken auch geführt wird.
     { titel: 'Mast', kacheln: nwJe.mast,
@@ -6914,7 +6939,9 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
     ${plastischHtml(opt, Boolean(erg.mast))}
     ${nichtGefuehrtHtml(urteil)}` : ''}
     ${zeigtGzg ? gzgBlockHtml(ergV, gzgQuelle) : ''}
-    ${klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
+    ${/* Ausleger ohne Modell (30. September): keine Schnittgrössen und
+         keine Stellen des Ersatzjochs. */''}
+    ${erg.ausleger?.fehler ? '' : klapp('uebersicht-schnittgroessen', 'Schnittgrössen',
             `<div class="kennzahlen">${sg.join('')}</div>`,
             ab ? `M Rahmen ${f2(ab.gurt?.schnitt?.Mzz ?? 0)} kNm`
                : taK ? `max M_y ${f2(Math.abs(taK.gurt.M))} kNm`
@@ -6924,7 +6951,7 @@ diesen Lasten durchrechnen. Der Typ wird dabei NICHT gewechselt."
        * oder ohne Stabwerk. Die Stabliste des Stabwerks steht im Reiter
        * «Schnitt».
        */''}
-    ${zeigtTrag && !taK && !swH?.ausleger ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
+    ${zeigtTrag && !taK && !swH?.ausleger && !erg.ausleger?.fehler ? `${abschnitt('Höchstbeanspruchte Stellen', 'anklicken zum Heranzoomen')}
     <div class="tabellenrahmen"><table class="dt">
       <thead><tr><th>#</th><th class="num">x [m]</th><th>massgebend</th>
         <th class="num">${ab ? 'η Gurt' : 'η Profil'}</th>
@@ -8584,7 +8611,40 @@ export function nachweiseHtml(werte) {
       <p class="notiz">${esc(wasVon(g))}</p>
       ${g.vorhanden ? '' : '<p class="notiz stark">In diesem Werkzeug nicht '
         + 'enthalten, separat zu führen.</p>'}
-    </div>`).join('');
+    </div>`).join('')
+    + grenzwerteHtml(werte);
+}
+
+/*
+ * >>> DIE GRENZWERTE DER GEBRAUCHSTAUGLICHKEIT (30. September). <<<
+ *
+ * Weisung: «unter den optionen sollte man noch die grenzwerte definieren
+ * können für fahrdraht und mastspitze.» Sie stehen unter den Schaltern der
+ * Gebrauchstauglichkeit, eingerückt wie diese. Leer heisst Vorgabe
+ * (40 mm, L/100) - `verformungGrenzen` in core.verformung.js ist die eine
+ * Stelle, die das auslegt.
+ */
+function grenzwerteHtml(werte) {
+  const gr = verformungGrenzen(werte);
+  const feld = (key, titel, wert, einheit, vorgabe, notiz) => `
+    <label class="nw-grenze">
+      <span class="nw-titel">${esc(titel)}</span>
+      <span class="nw-grenze-eingabe">${einheit.vor ?? ''}<input type="number"
+        data-grenze="${esc(key)}" min="1" step="1" value="${esc(String(wert))}"
+        title="Vorgabe ${esc(String(vorgabe))} - leer setzt sie zurück">${einheit.nach ?? ''}</span>
+    </label>
+    <p class="notiz">${esc(notiz)}</p>`;
+  return `<div class="nw-wahl nw-unter">
+    ${feld('gzgGrenzeFahrdraht', 'Grenzwert Fahrdraht quer', Math.round(gr.fahrdraht * 1e4) / 10,
+           { nach: ' mm' }, 40,
+           'Verschiebung quer zum Gleis auf Höhe Fahrdraht (bzw. Ausleger oder '
+           + 'Jochauflager) unter Betriebswind, Wind allein. Vorgabe 40 mm.')}
+    ${feld('gzgGrenzeSpitze', 'Grenzwert Mastspitze', gr.spitzeN,
+           { vor: 'L / ' }, 100,
+           'Auslenkung der Mastspitze in Gleis- und in Querrichtung unter '
+           + 'Betriebswind; gilt, wenn «Mastspitze» oben angekreuzt ist. '
+           + 'Vorgabe L/100.')}
+  </div>`;
 }
 
 /**

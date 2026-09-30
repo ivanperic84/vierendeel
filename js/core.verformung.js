@@ -82,6 +82,28 @@ export const VERFORMUNG_GRENZEN = {
 };
 
 /**
+ * >>> DIE GRENZWERTE SIND EINSTELLBAR (30. September). <<<
+ *
+ * Weisung: «unter den optionen sollte man noch die grenzwerte definieren
+ * können für fahrdraht und mastspitze.» Zwei Felder unter *Optionen →
+ * Nachweise*: `gzgGrenzeFahrdraht` in mm (Vorgabe 40) und
+ * `gzgGrenzeSpitze` als n in L/n (Vorgabe 100). Leer, null oder nicht
+ * positiv heisst Vorgabe - ein gespeicherter Stand rechnet unverändert.
+ * Kern und Stabwerk lesen dieselbe Zahl: der Kern gibt sie im Ergebnis
+ * mit (`grenzen`), das Stabwerk nimmt sie von dort.
+ *
+ * @returns {{fahrdraht:number, spitzeN:number}} fahrdraht in m
+ */
+export function verformungGrenzen(werte) {
+  const mm = Number(werte?.gzgGrenzeFahrdraht);
+  const n = Number(werte?.gzgGrenzeSpitze);
+  return {
+    fahrdraht: mm > 0 ? mm / 1000 : VERFORMUNG_GRENZEN.auslegerQuer,
+    spitzeN: n > 0 ? n : VERFORMUNG_GRENZEN.spitzeBetrieb,
+  };
+}
+
+/**
  * WO GEMESSEN WIRD - die zweite Stelle neben der Mastspitze.
  *
  * «auf höhe Fahrdraht oder vereinfacht auf höhe Ausleger / Jochauflager».
@@ -214,11 +236,13 @@ export function nurWindFaelle(lf) {
  * bleibt die Spitze Auskunft wie seit dem 26. September.
  *
  * @param {object} kombi Ergebnis aus `vergleichKombinationen`
- * @param {object} [opt] { spitze: Nachweis der Mastspitze führen }
+ * @param {object} [opt] { spitze: Nachweis der Mastspitze führen,
+ *   grenzen: aus `verformungGrenzen` (ohne: die Vorgaben) }
  * @returns {object|null} je Ende die massgebenden Werte, oder null
  */
 export function verformungsNachweis(kombi, opt = {}) {
   const mitSpitze = opt.spitze === true;
+  const grenzen = opt.grenzen ?? verformungGrenzen(null);
   const lf = kombi?.lastfaelle ?? [];
   const mitG = lf.filter((l) => l.stufe === 'betrieb');
   const nurW = nurWindFaelle(lf);
@@ -272,10 +296,10 @@ export function verformungsNachweis(kombi, opt = {}) {
      * Siehe den Block oben. Die Mastspitze steht daneben als Auskunft.
      */
     const nw = [
-      stelle ? pruef(querS, VERFORMUNG_GRENZEN.auslegerQuer,
+      stelle ? pruef(querS, grenzen.fahrdraht,
                      `${stelle.was} auf ${stelle.z.toFixed(2)} m quer `
                      + `zum Gleis, nur Wind`, stelle.z) : null,
-      mitSpitze ? spitzeNachweis(spitzeW, L) : null,
+      mitSpitze ? spitzeNachweis(spitzeW, L, grenzen.spitzeN) : null,
     ].filter(Boolean);
     /*
      * DIE AUSKUNFT: dieselbe Rechnung, aber ohne Grenzwert und ohne eta.
@@ -319,6 +343,7 @@ export function verformungsNachweis(kombi, opt = {}) {
     ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
     spitze: mitSpitze,
+    grenzen,
   };
 }
 
@@ -327,12 +352,12 @@ export function verformungsNachweis(kombi, opt = {}) {
  * `mess` ist der grösste Weg unter Betriebswind in x oder y (m), `L` die
  * Mastlänge über dem Fundament.
  */
-export function spitzeNachweis(mess, L) {
-  if (!mess || !(L > 0)) return null;
-  const grenz = L / VERFORMUNG_GRENZEN.spitzeBetrieb;
+export function spitzeNachweis(mess, L, n = VERFORMUNG_GRENZEN.spitzeBetrieb) {
+  if (!mess || !(L > 0) || !(n > 0)) return null;
+  const grenz = L / n;
   return { ...mess, grenz, eta: mess.wert / grenz, ok: mess.wert <= grenz + 1e-12,
            z: L, spitze: true,
            was: `Mastspitze auf ${L.toFixed(2)} m, `
               + `${mess.achse === 'x' ? 'quer zum Gleis' : 'in Gleisrichtung'}, `
-              + `Betriebswind, L/${VERFORMUNG_GRENZEN.spitzeBetrieb}` };
+              + `Betriebswind, L/${n}` };
 }

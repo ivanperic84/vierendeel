@@ -369,6 +369,19 @@ export function dialogOptionen(app) {
     });
 
     /*
+     * DIE GRENZWERTE (30. September). Erst beim Verlassen des Feldes
+     * (`change`), nicht bei jeder Taste - sonst rechnete «4» auf dem Weg zu
+     * «45» einen Grenzwert von 4 mm. Leer oder nicht positiv: Vorgabe.
+     */
+    rahmen.querySelectorAll('[data-grenze]').forEach((inp) => {
+      inp.onchange = () => {
+        const z = Number(inp.value);
+        app.aendern(inp.dataset.grenze, z > 0 ? z : null);
+        neu();
+      };
+    });
+
+    /*
      * >>> DAS RECHENVERFAHREN. <<<
      *
      * Ein Wechsel rechnet NICHT von selbst nach: das Stabwerk braucht

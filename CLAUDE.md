@@ -137,6 +137,9 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Grenzwerte der Gebrauchstauglichkeit (30. Sept.) | «unter den optionen sollte man noch die grenzwerte definieren können für fahrdraht und mastspitze»: zwei Felder unter *Optionen → Nachweise*, unter der Gebrauchstauglichkeit - `gzgGrenzeFahrdraht` [mm], Vorgabe 40, und `gzgGrenzeSpitze` (n in L/n), Vorgabe 100; leer oder ≤ 0 = Vorgabe. Eine Stelle (`verformungGrenzen`, core.verformung.js); der Kern gibt die Zahlen im Ergebnis mit (`grenzen`), Stabwerk, Kachelkopf und Bericht lesen sie dort. Im Browser: 30 mm / L/150 → Kopf «η = w / 30 mm bzw. L/150», Kachel «Mastspitze 12.50 m · 83 mm zulässig» |
+| Tragausleger mit zu kurzem Mast (30. Sept.) | Gemeldet: «checke die mastschieber beim tragausleger, wenn ich da eine grenze über oder unterschreite blendet sich ein jochtragwerk ein». Befund: bei Mastlänge < H + b brach `tragauslegerModell` ab, das 3D fiel aufs Ersatzjoch (vier Winkel, zwei Masten) und die Seitenleiste zeigte Obergurt L 90×90×9, «Ende B», Anker, Fundament und η des Phantomjochs. Jetzt: das Bild baut weiter (`opt.bild`), zeigt den Masten in seiner eingetragenen Länge und die Warnung «MAST ZU KURZ FÜR DIE AUFHÄNGUNG · mindestens …» in der Fehlfarbe; die Seitenleiste zeigt «Tragausleger – nicht gerechnet», η «–», keine Mast-/Anker-/Fundament-/Verformungszahlen, keine Schnittgrössen oder Stellen des Ersatzjochs. Rechnen (Kern, Stabwerk, AxisVM) bricht weiter ab wie am 28. Sept. entschieden |
+| Kacheln und Farbpunkte (30. Sept.) | «mach den hintergrund highlight aus und nur an wenn man darüberfährt mit dem zeiger» - die Tragwerk-Kacheln sind durchsichtig, unter dem Zeiger `--acc-s`. Zu den Anbauteil-Vorlagen «ich verstehe die farbzuweisung hier nicht»: der Punkt ist die Befestigungsart (Feld `farbe` im Sortiment: hängend, aufgesetzt, seitlich, direkt) - jetzt als Titel am Punkt und als Legende über den Kacheln. **Vorgemerkt:** Symbolbilder statt Punkte, «diese könnte man aus den querprofilen ableiten»; danach eine «maschine … die automatisch die querprofile interpretieren kann und ein modell daraus ableiten kann» - ausdrücklich erst nach den offenen Punkten |
 | Mastspitze L/100 (30. Sept.) | «bei der gebrauchstauglichkeit die mastspize auslenkung infolge wind 1:100 anwenden. und unter den optionen deaktivierbar machen als unterpunkt». Auf Rückfrage **«Betriebswind ψ 0.70»**: nur Wind, charakteristisch × 0.70 (dieselben Fälle wie die 40 mm am Fahrdraht), in Gleis- und in Querrichtung, Grenzwert Mastlänge/100. Nachweisgruppe `spitzeMast` (Vorgabe an) als Unterpunkt «Gebrauchstauglichkeit» in *Optionen → Nachweise*; aus = Auskunft wie seit dem 26. Sept. `spitzeNachweis` (core.verformung.js) für Kern und Stabwerk. Ändert die Weisung vom 26. Sept. («lassen wir den nachweis für die mastspitze weg») für die Spitze unter Wind. Gemessen J90/20 m Standard (Kern): 78.3 / 85.0 mm, η 0.921 statt Fahrdraht 0.122 |
 | Aufhängung Tragausleger 0.80 m (30. Sept.) | «der abstand der beiden aufhängungen beim tragausleger ist 0.80 m anstatt die 2m die ich mal angegeben habe»: Vorgabe ±0.40 m (`TA_SPREIZUNG_VORGABE`), Schieber bis 1 m; gespeicherte 1.0 werden einmal zu 0.4 (`spreizungAngehoben`). Gemessen: ±1.0 und ±0.4 geben dieselben η (Seile starr), kein Seil gedrückt |
 | Bedienung 30. Sept. (Kacheln, Schieber, Rad, Mastnummer) | Aus einer Sammelweisung: Kacheln ohne doppelten Kreis, einzeilig, Einzelmast mit einfachem Ausleger, Anker durchgezogen, Tragausleger als einfache Linie; Auflagerskizzen nebeneinander; **Klick auf die Stegskizze dreht den Mast**, auch im Kontextmenü («Steg drehen»); Schieberbalken transparenter; **echte Mastnummer statt M1** (Feld `mastNummer` je Mast, Anzeige überall über `mastAnzeigeText`, Rechnung weiter mit M1…; auf Rückfrage «Überall in der Anzeige»); **Mausrad zoomt** statt zu schieben (waagrecht wischen schiebt, Touch unverändert). Lageband: «diese schemaskizze kann etwas höher sein, dann wirkt sie nicht so gestaucht» - Mast und Anker im Band 1.6-fach. **Noch offen aus derselben Weisung:** Signalbauer mit Bildern, Vorschau und Umschaltkacheln; «+ Bauteil aus der Lasttabelle» als Auswahlfenster; «Fahrleitung als Auflager ansetzen» nur mit Leiter; Rückstellkraft der Leiter am Joch (auf Rückfrage **«Halt in y, begrenzt»**: Halt in Gleislängsrichtung bis p · Z, Vorgabe 10 %, nur durchgehend/beidseitig abgefangen, nicht im Havariefall) |
@@ -271,12 +274,19 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5874 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5897 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., Grenzwerte GZG in den Optionen, Ausleger mit zu kurzem Mast,
+  Kacheln** (Entscheide siehe *Entschieden*, Prüfstand 167). Im Browser in
+  einem zweiten Tab mit abgeschaltetem Speichern geprüft - der Auftraggeber
+  arbeitete zugleich im ersten (Auslegerlänge 10 m, Mastlänge 12.5 m, seine
+  Eingaben; nicht angefasst). Mast 9 m → Ausleger im 3D, rote Warnung,
+  «η –»; 12.5 m → wieder gerechnet. Dabei der Berichtstext der
+  Gebrauchstauglichkeit berichtigt (nannte noch L/100 mit G und L/200).
 - **30. Sept., Mastspitze L/100, Aufhängung 0.80 m, Lageband höher**
   (Entscheide siehe *Entschieden*, Prüfstand 165, 166). Im Browser
   (Einzelmast 16.9, HEB 260/8.50 m, Anker SA20, Stabwerk): Kachel
@@ -2400,7 +2410,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5874 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5897 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

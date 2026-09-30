@@ -4753,10 +4753,12 @@ export class Modellansicht {
       c.roundRect(bx, by, bw, bh, 3 * s);
       c.fill();
       c.globalAlpha = 1;
-      c.strokeStyle = warm ? t.acc : (t.ol2 ?? t.dim);
+      // Ein Titel mit `warnung` (Mast zu kurz, 30. September) spricht in
+      // der Fehlfarbe - er meldet einen Mangel, keinen Namen.
+      c.strokeStyle = warm ? t.acc : (bt.warnung ? (t.fail ?? t.acc) : (t.ol2 ?? t.dim));
       c.lineWidth = (warm ? 1.3 : 1) * s;
       c.stroke();
-      c.fillStyle = t.on2 ?? t.on;
+      c.fillStyle = bt.warnung ? (t.fail ?? t.on) : (t.on2 ?? t.on);
       c.textAlign = 'center';
       c.fillText(bt.text, bx + bw / 2, by + bh - 6 * s);
       c.textAlign = 'left';

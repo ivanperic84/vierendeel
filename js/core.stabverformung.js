@@ -180,13 +180,16 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
                   vergleich: L / VERFORMUNG_GRENZEN.spitzeWind } : null,
     ].filter(Boolean);
     const querS = stelle ? grosste(nurW, BETRIEBSWIND, stelle.z, ['x']) : null;
-    const grenz = VERFORMUNG_GRENZEN.auslegerQuer;
+    // Die Grenzwerte aus den Optionen (30. September) nimmt das Stabwerk vom
+    // Kern - dieselbe Zahl, keine zweite Lesart der Eingabe.
+    const grenz = kern.grenzen?.fahrdraht ?? VERFORMUNG_GRENZEN.auslegerQuer;
+    const spitzeN = kern.grenzen?.spitzeN ?? VERFORMUNG_GRENZEN.spitzeBetrieb;
     // Die Mastspitze L/100 (30. September) - geführt, wie der Kern es sagt.
     const nw = [
       querS ? { ...querS, grenz, eta: querS.wert / grenz,
         ok: querS.wert <= grenz + 1e-12, z: stelle.z,
         was: `${stelle.was} auf ${stelle.z.toFixed(2)} m quer zum Gleis, nur Wind` } : null,
-      mitSpitze ? spitzeNachweis(spitzeW, L) : null,
+      mitSpitze ? spitzeNachweis(spitzeW, L, spitzeN) : null,
     ].filter(Boolean);
     if (!nw.length) {
       proEnde[ende] = { ...k, auskunft, quelle: 'stabwerk' };
@@ -207,6 +210,7 @@ export function verformungAusStabwerk(kern, dat, lsg, faelle, namen = {}) {
     ohneStelle: !gefuehrt.length,
     psi: BETRIEBSWIND,
     spitze: mitSpitze,
+    grenzen: kern.grenzen ?? null,
     quelle: 'stabwerk',
   };
 }

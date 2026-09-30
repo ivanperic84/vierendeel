@@ -56,7 +56,9 @@ const LASTART = { G: 'staendig', WindX: 'windX', WindY: 'windY', Schnee: 'schnee
  *                       ergVerf, jeStab, praefix }
  */
 export function auslegerSzene(satz, opt = {}) {
-  const d = tragauslegerModell(satz);
+  // `bild`: ein zu kurzer Mast bricht das Bild nicht ab (30. September) -
+  // sonst stand an seiner Stelle das Ersatzjoch des Ersatzbalkens.
+  const d = tragauslegerModell(satz, { bild: true });
   const t = getTragausleger(Number(satz.L));
   const p = getGurtprofil(t.profil);
   const sp = satz.auslegerSeite === 'links' ? -1 : 1;
@@ -247,7 +249,10 @@ export function auslegerSzene(satz, opt = {}) {
        * H + b - die Aufhängung braucht ihren Punkt am Masten
        * (tragauslegerModell). Die Anschrift nennt dieselbe Länge.
        */
-      const zKopf = zKopfModell;
+      // Ein zu kurzer Mast steht, wie er eingetragen ist; das Seil greift
+      // dann sichtbar über seinem Kopf an.
+      const zuKurz = d.tragausleger.mastKopf !== undefined;
+      const zKopf = zuKurz ? d.tragausleger.mastKopf : zKopfModell;
       const mk = mastKoerper({
         profil: mp, achse, x: 0, zFuss: -md.hoehe, zAnschluss: 0, zKopf,
         name: 'A', grund: `Mast ${md.name ?? 'A'} · ${mp.name}`,
@@ -267,6 +272,12 @@ export function auslegerSzene(satz, opt = {}) {
         mastEnde: 'A', feld: 'mastProfil', tab: 'system', gruppe: 'mast' });
       marken.push({ gruppe: 'auflager', art: 'auflager', p: [0, 0, fussUnten ?? -md.hoehe],
                     text: 'A', ohneSymbol: true });
+      if (zuKurz) {
+        bauteiltitel.push({ p: [0, 0, bS + 0.45],
+          text: `MAST ZU KURZ FÜR DIE AUFHÄNGUNG · mindestens `
+            + `${(md.hoehe + bS).toFixed(2)} m`,
+          feld: 'mastLaenge', tab: 'system', gruppe: 'mast', warnung: true });
+      }
     }
   }
 

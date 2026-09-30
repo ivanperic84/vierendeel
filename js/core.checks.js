@@ -1814,6 +1814,17 @@ export function mitBauteilen(basis, erg, { mastErsatz = false } = {}) {
   if (erg?.verformung) o.verformung = erg.verformung;
   // Und das Fundament, aus demselben Grund (24. September).
   if (erg?.fundament) o.fundament = erg.fundament;
+  /*
+   * AUSLEGER OHNE MODELL (Mast zu kurz, 30. September): auch die Hüllkurve
+   * der Basis trägt den Masten des Phantomjochs (Ende A und B) - er gilt
+   * dem Ausleger nicht und fällt heraus, wie Anker, Verformung, Fundament.
+   */
+  if (erg?.ausleger?.fehler) {
+    o.mast = null;
+    o.anker = null;
+    o.verformung = null;
+    o.fundament = null;
+  }
   return o;
 }
 
@@ -1825,7 +1836,8 @@ export function urteilFusszeile({ gut, eta, wer = '', urteil = {} }) {
     : (gut ? 'Tragsicherheit erfüllt' : 'Tragsicherheit NICHT erfüllt');
   const n = urteil.anzahlVerletzt ?? 0;
   const offen = urteil.nichtGefuehrt?.length ?? 0;
-  return `${kopf} · η = ${eta.toFixed(3)}${wer}`
+  // Ohne Zahl (Ausleger ohne Modell, 30. September) steht ein Strich.
+  return `${kopf} · η = ${Number.isFinite(eta) ? eta.toFixed(3) : '–'}${wer}`
     + (n ? ` · ${n} ${n === 1 ? 'Prüfung' : 'Prüfungen'} verletzt` : '')
     + (offen ? ` · ${offen} nicht geführt` : '');
 }
@@ -1874,6 +1886,9 @@ export function bauteilUrteil(erg, nachweise, art = null) {
       const a = erg.ausleger.aufhaengung;
       if (a) dazu('aufhaengung', 'Aufhängung', a.eta, a.ueber);
     }
+  } else if (erg?.ausleger?.fehler) {
+    // Ausleger ohne Modell (Mast zu kurz, 30. September): kein Joch im
+    // Urteil - das Ersatzjoch ist nicht das Bauteil.
   } else if (tw !== 'einzelmast' && erg?.max && nw.jochtragwerk) {
     dazu('joch', 'Joch', erg.max.etaGesamt);
   }
@@ -1916,7 +1931,10 @@ export function bauteilUrteil(erg, nachweise, art = null) {
   }, null);
   const zahlen = liste.map((x) => x.eta).filter((v) => v !== null);
   return {
-    eta: zahlen.length ? Math.max(...zahlen) : (erg?.max?.etaGesamt ?? 0),
+    // Ein Ausleger ohne Modell hat keine Zahl - nicht die des Ersatzjochs
+    // (30. September).
+    eta: zahlen.length ? Math.max(...zahlen)
+      : (erg?.ausleger?.fehler ? null : (erg?.max?.etaGesamt ?? 0)),
     massgebend,
     ueber: liste.some((x) => x.ueber),
     liste,

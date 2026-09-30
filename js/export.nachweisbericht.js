@@ -647,12 +647,23 @@ function gebrauchstauglichkeit(d) {
   });
   if (!zeilen.length) return '';
   const psi = v.psi ?? 0.70;
+  /*
+   * DIE GRENZWERTE AUS DER RECHNUNG (30. September). Hier stand der Stand
+   * vom 24. September (L/100 mit ständiger Last, L/200 aus Wind) - seit dem
+   * 26. bzw. 30. September gilt: Fahrdraht quer, nur Wind, und die
+   * Mastspitze L/n unter Betriebswind, beide in den Optionen einstellbar.
+   */
+  const fdMm = (v.grenzen?.fahrdraht ?? 0.040) * 1000;
+  const spitzeText = v.spitze
+    ? `; Mastspitze L/${zahl(v.grenzen?.spitzeN ?? 100, 0)} in Gleis- und in
+       Querrichtung unter demselben Betriebswind`
+    : '; die Mastspitze steht als Auskunft, ohne Nachweis';
   return `<section><h2>§ Gebrauchstauglichkeit — Mastverformung</h2>
     <p>Nachgewiesen wird die Verschiebung des Masten im Gebrauchszustand.
     Maassgebend ist der <b>Betriebswind</b> mit ψ = ${zahl(psi, 2)}
-    (Wiederkehrperiode 5 Jahre). Grenzwerte: Mastspitze L/100 aus ständiger
-    und veränderlicher Last, L/200 aus Wind allein; auf Höhe Fahrdraht
-    bzw. Ausleger oder Jochauflager 40 mm quer zum Gleis.</p>
+    (Wiederkehrperiode 5 Jahre), Wind allein. Grenzwerte: auf Höhe
+    Fahrdraht bzw. Ausleger oder Jochauflager ${zahl(fdMm, 1)} mm quer zum
+    Gleis${spitzeText}.</p>
     <p class="klein">Der Mast ist dabei als eingespannter Kragarm gerechnet,
     quer zum Gleis über I und in Gleisrichtung über I<sub>q</sub>, mit
     derselben Lastliste wie die Schnittgrössen (einschliesslich der
