@@ -32511,8 +32511,11 @@ titel('144  Tragausleger links oder rechts: die Geometrie gespiegelt, die Lasten
   const bereichR = U144.qpBereich({ ...w0, auslegerSeite: 'rechts' });
   const bereichL = U144.qpBereich({ ...w0, auslegerSeite: 'links' });
   wahr('… und der Bereich des Bandes reicht bis zum Kragarmende, zur richtigen Seite',
-       // Rand mindestens 1.5 m, und die 1 m am Nullpunkt - deshalb bis 2.5.
-       bereichR.bis > 7.75 && bereichR.von > -2 && bereichL.von < -7.75 && bereichL.bis <= 2.5,
+       // Seit dem 30. September ist das Band mindestens 20 m breit und um
+       // die Tragwerke zentriert - das Kragarmende liegt drin, und die Seite
+       // des Auslegers reicht weiter als die Gegenseite.
+       bereichR.bis > 7.75 && bereichR.bis > -bereichR.von && bereichL.von < -7.75
+       && -bereichL.von > bereichL.bis && bereichR.bis - bereichR.von >= 20,
        `rechts ${bereichR.von.toFixed(1)}…${bereichR.bis.toFixed(1)}, links ${bereichL.von.toFixed(1)}…${bereichL.bis.toFixed(1)}`);
   wahr('… mit der Seite im Titel', /links des Masten/.test(bL) && /rechts des Masten/.test(bR));
 }
@@ -33887,7 +33890,7 @@ titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einze
   const wco = css.slice(css.indexOf('@media (display-mode: window-controls-overlay) {'));
   wahr('Berichtsleiste im eigenen Fenster: frei bis zu den Knöpfen, ziehbar',
        /#bericht-ebene \.bericht-leiste \{[^}]*env\(titlebar-area-width[^}]*app-region: drag/.test(wco)
-       && /#bericht-ebene \.bericht-leiste button \{[^}]*app-region: no-drag/.test(wco));
+       && /#bericht-ebene \.bericht-leiste button, #bericht-ebene \.bericht-leiste label \{[^}]*app-region: no-drag/.test(wco));
 }
 
 titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt');
@@ -34041,6 +34044,52 @@ titel('169 b  Reaktionskräfte: Köpfe nach dem Achssystem, Anker A14, Skizze');
          Mq: b(3, 'Havarie: N-FL reisst, Längszug +y'), Hq: b(1), Ml: b(2, 'Havarie: N-FL reisst, Längszug −y'),
          Hl: b(1), T: b(0) } }] }).includes('quer: Leiterriss, Längszug +y'));
   wahr('… und RK.auflagerArt kennt den Längsanker weiter', RK.auflagerArt('LV_M').art === 'laengsanker');
+}
+
+titel('169 c  Reaktionskräfte: Wahl der Zeilen, Titel in der Skizze; Lageband mindestens 20 m');
+/* ===========================================================================
+ * Weisung 30. September: «beim output noch bestimmen können ob man den
+ * havariefall / standardlasten / Hinweistext mit plotten will», «die
+ * bauteiltypen und die längen sollten noch ergänzt werden in der skizze
+ * sinngemäss wie beim 3d textbox», und zum Lageband «wenn ich einen
+ * tragausleger bei x 60m habe und dann auf 0 das x stelle, entsteht ein
+ * überlanger ausleger».
+ * ========================================================================= */
+{
+  const ER = await import(J('export.reaktionen.js'));
+  const U = await import(J('ui.js'));
+  const b = (w, bez = 'Fall') => ({ wert: w, bez });
+  const zeile = { art: 'mast', id: 'M1', name: '12', x: 0, xModell: 0, z: 0,
+    fundament: { typ: 'DP2a / 2.0', Vmax: 150, Mq: 135, Mq_ver: 67.5, Ml: 135, Hq: 17, Hq_ver: 8.5, Hl: 17, T: 4.7 },
+    haupt: { Vmin: b(1), Vmax: b(2), Mq: b(3), Hq: b(1), Ml: b(2), Hl: b(1), T: b(0) },
+    havarie: { Vmin: b(1), Vmax: b(2), Mq: b(3, 'Havarie: RL reisst, Längszug +y'), Hq: b(1), Ml: b(2), Hl: b(1), T: b(0) },
+    anteil: {} };
+  const skizze = { linien: [[0, 0, 0, 8, 0], [0, 7, 20, 7, 0]], grenzen: { x0: 0, x1: 20, z0: 0, z1: 8 } };
+  const daten = { zeilen: [zeile], skizze, grenzen: { fahrdraht: 0.04, spitzeN: 100 },
+                  titel: [{ text: 'T1 · J90 · 20.00 m', x: 10, z: 7.4 }, { text: '12 · HEB 260 · 8.00 m', x: 0, z: 8.4 }] };
+  const alles = ER.reaktionenBlattHtml(daten);
+  const ohne = ER.reaktionenBlattHtml(daten, { havarie: false, standard: false, hinweise: true });
+  wahr('Alles an: Havarie, Standardlast, Hinweise stehen da',
+       alles.includes('class="rk-havarie"') && alles.includes('class="rk-zul"') && alles.includes('class="rk-hinweise"')
+       && alles.includes('reissen kann'));
+  wahr('Havarie und Standardlasten aus: keine Zeilen, keine Hinweise dazu, der Typ bleibt',
+       !ohne.includes('class="rk-havarie"') && !ohne.includes('class="rk-zul"') && !ohne.includes('reissen kann')
+       && !ohne.includes('Standardlasten: zulässige') && ohne.includes('DP2a / 2.0'));
+  wahr('Hinweise aus: kein Hinweisblock',
+       !ER.reaktionenBlattHtml(daten, { hinweise: false }).includes('class="rk-hinweise"'));
+  wahr('Die Skizze trägt die Titel wie das 3D',
+       (alles.match(/class="sk-titel"/g) ?? []).length === 2 && alles.includes('T1 · J90 · 20.00 m'));
+  const app = APP_QUELLE();
+  wahr('Die Anwendung reicht die Titel des 3D (mit Mastnummer) und die Kästchen weiter',
+       app.includes('ansicht?.szene?.bauteiltitel') && app.includes("{ key: 'havarie', label: 'Havariefall' }")
+       && readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8').includes('data-bericht-wahl'));
+  // Das Lageband: ein Ausleger allein füllt es nicht mehr.
+  const ta = { ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0, auslegerSeite: 'rechts' };
+  const bNull = U.qpBereich(ta), bSechzig = U.qpBereich({ ...ta, xLage: 60 });
+  pruef('Band bei x 0 mindestens 20 m (plus Rand)', bNull.bis - bNull.von,
+        Math.max(20, 9.75) + 2 * Math.max(1.5, 20 * 0.06), 1e-9, 'm');
+  wahr('… und bei x 60 wie bisher bis über das Kragarmende', bSechzig.bis > 69.75,
+       `${bSechzig.von.toFixed(1)} … ${bSechzig.bis.toFixed(1)}`);
 }
 
 // ===========================================================================

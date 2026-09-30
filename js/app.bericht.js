@@ -200,12 +200,20 @@ function berichtOeffnen(app, wahl) {
  * eingebettete Dokument, nicht die Anwendung dahinter.
  */
 // Auch das Blatt der Reaktionskräfte geht diesen Weg (30. September).
-export function berichtZeigen(html, titel = 'Nachweisbericht') {
+/*
+ * `wahl` (30. September, Blatt der Reaktionskräfte): Kästchen in der
+ * Leiste - { optionen: [{key, label}], zustand: {key: bool}, bauen(zustand)
+ * -> html }. Ein Klick baut das Dokument neu; gedruckt wird, was dasteht.
+ */
+export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
   document.getElementById('bericht-ebene')?.remove();
   const ebene = document.createElement('div');
   ebene.id = 'bericht-ebene';
+  const kaesten = (wahl?.optionen ?? []).map((o) => `<label class="bericht-wahl">
+      <input type="checkbox" data-bericht-wahl="${o.key}"${wahl.zustand?.[o.key] !== false
+        ? ' checked' : ''}> ${o.label}</label>`).join('');
   ebene.innerHTML = `<div class="bericht-leiste">
-      <b>${titel}</b>
+      <b>${titel}</b>${kaesten}
       <button class="btn btn-acc" id="bericht-drucken">Drucken / als PDF sichern</button>
       <button class="btn" id="bericht-zu">Schliessen</button></div>
     <iframe title="${titel}"></iframe>`;
@@ -213,5 +221,11 @@ export function berichtZeigen(html, titel = 'Nachweisbericht') {
   const rahmen = ebene.querySelector('iframe');
   rahmen.srcdoc = html;
   ebene.querySelector('#bericht-drucken').onclick = () => rahmen.contentWindow?.print();
+  ebene.querySelectorAll('[data-bericht-wahl]').forEach((k) => {
+    k.onchange = () => {
+      wahl.zustand = { ...(wahl.zustand ?? {}), [k.dataset.berichtWahl]: k.checked };
+      rahmen.srcdoc = wahl.bauen(wahl.zustand);
+    };
+  });
   ebene.querySelector('#bericht-zu').onclick = () => ebene.remove();
 }

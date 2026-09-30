@@ -64,7 +64,7 @@ function spaltenVon(z) {
  * @param {object} z   Zeile aus `reaktionsZeilen`, angereichert mit
  *                     name, fundament (Typ-Objekt), anker (Angaben)
  */
-function auflagerZeilen(z, { kurz = false } = {}) {
+function auflagerZeilen(z, { kurz = false, havarie = true, standard = true } = {}) {
   const mast = z.art === 'mast';
   const hat = spaltenVon(z);
   const titel = (b, key) => (b?.[key]?.bez ? ` title="${esc(b[key].bez)}"` : '');
@@ -88,24 +88,31 @@ function auflagerZeilen(z, { kurz = false } = {}) {
   const werte = (b) => REAKTION_SPALTEN.map((s) => (hat.has(s.key) && b
     ? `<td class="num"${titel(b, s.key)}>${f2(b[s.key]?.wert)}</td>`
     : '<td class="num rk-leer">–</td>')).join('');
-  const zul = mast && z.fundament ? z.fundament : null;
-  const n = 1 + (z.havarie ? 1 : 0) + (zul ? 1 : 0);
-  const fund = mast ? esc(zul?.typ ?? '–')
+  // Was aufs Blatt kommt, wählt man (30. September: «beim output noch
+  // bestimmen können ob man den havariefall / standardlasten / Hinweistext
+  // mit plotten will»).
+  const zul = standard && mast && z.fundament ? z.fundament : null;
+  const hav = havarie ? z.havarie : null;
+  const n = 1 + (hav ? 1 : 0) + (zul ? 1 : 0);
+  // Der Typ steht auch, wenn die Zeile der Standardlasten aus ist.
+  const fund = mast ? esc(z.fundament?.typ ?? '–')
     : z.art === 'laengsanker' ? 'Seil in Gleisrichtung'
     : esc([z.anker?.typ, z.anker?.richtung === 'y' ? 'längs' : z.anker?.richtung === 'x' ? 'quer' : '']
       .filter(Boolean).join(' · ') || 'Ankerfundament');
+  // «Längsanker» bricht in der schmalen Spalte an der Fuge, nicht irgendwo.
+  const nameHtml = esc(z.name).replace('Längsanker', 'Längs&shy;anker');
   const zeilen = [];
   zeilen.push(`<tr class="rk-haupt">
-    <td rowspan="${n}" class="rk-name"><b>${esc(z.name)}</b><span class="rk-x">x ${f2(z.x)} m</span></td>
+    <td rowspan="${n}" class="rk-name"><b>${nameHtml}</b><span class="rk-x">x ${f2(z.x)} m</span></td>
     <td rowspan="${n}" class="rk-fund">${fund}</td>
     <td class="rk-art">Einwirkung</td>
     <td class="num"${vTitel(z.haupt)}>${vText(z.haupt)}</td>${werte(z.haupt)}
     <td class="num"${anteilTitel(z.anteil?.quer)}>${mast ? anteil(z.anteil?.quer) : '–'}</td>
     ${kurz ? '' : `<td class="rk-anm">${esc(massgebend(z.haupt))}</td>`}</tr>`);
-  if (z.havarie) {
+  if (hav) {
     zeilen.push(`<tr class="rk-havarie"><td class="rk-art">Havarie</td>
-      <td class="num"${vTitel(z.havarie)}>${vText(z.havarie)}</td>${werte(z.havarie)}
-      <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(massgebend(z.havarie))}</td>`}</tr>`);
+      <td class="num"${vTitel(hav)}>${vText(hav)}</td>${werte(hav)}
+      <td class="num rk-leer">–</td>${kurz ? '' : `<td class="rk-anm">${esc(massgebend(hav))}</td>`}</tr>`);
   }
   if (zul) {
     zeilen.push(`<tr class="rk-zul"><td class="rk-art">Standardlast</td>
@@ -128,7 +135,7 @@ function auflagerZeilen(z, { kurz = false } = {}) {
  * (`table-layout: fixed`), die sechs Wertespalten gleich breit, rechtsbündig
  * mit Ziffern gleicher Breite.
  */
-export function reaktionenTabelleHtml(daten, { kurz = false } = {}) {
+export function reaktionenTabelleHtml(daten, { kurz = false, havarie = true, standard = true } = {}) {
   const zeilen = daten?.zeilen ?? [];
   if (!zeilen.length) return '';
   const breiten = kurz
@@ -148,7 +155,7 @@ export function reaktionenTabelleHtml(daten, { kurz = false } = {}) {
         ${['Mq', 'Hq', 'Ml', 'Hl', 'T'].map((k) =>
           `<th class="num">${KOPF[k][0]}<br>[${KOPF[k][1]}]</th>`).join('')}</tr>
     </thead>
-    <tbody>${zeilen.map((z) => auflagerZeilen(z, { kurz })).join('')}</tbody>
+    <tbody>${zeilen.map((z) => auflagerZeilen(z, { kurz, havarie, standard })).join('')}</tbody>
   </table>`;
 }
 
@@ -204,9 +211,11 @@ export function reaktionenKurzHtml(daten) {
  * Gelenk. Ein Anker in Gleisrichtung läge in dieser Ansicht auf dem
  * Masten; er wird seitlich umgeklappt gezeichnet und so angeschrieben.
  */
-export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 240 } = {}) {
+export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 260, daten = null } = {}) {
   if (!skizze?.linien?.length) return '';
   const g = { ...skizze.grenzen };
+  // Platz für die Titel über dem höchsten Bauteil.
+  if ((daten?.titel ?? []).length) g.z1 += Math.max(1.2, (g.z1 - g.z0) * 0.12);
   const liste = zeilen ?? [];
   // Umgeklappte Anker brauchen Platz neben dem Masten.
   liste.filter((z) => z.art === 'anker').forEach((z) => {
@@ -235,6 +244,20 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 240 } = {}) {
   };
   // Das Gelenk am Ankerfundament: Dreieck auf dem Grund.
   const gelenk = (x, y) => `<path class="sk-gelenk" d="M${r1(x)} ${r1(y)} l-5 8 h10 z"/>`;
+  /*
+   * Die Titel wie im 3D (Typ und Länge), über ihrem Bauteil; zwei, die sich
+   * überdecken, weichen nach oben aus - wie die Titel im 3D.
+   */
+  const belegt = [];
+  const titel = (daten?.titel ?? []).map((t) => {
+    const w = t.text.length * 5.1 + 6;
+    let x = X(t.x), y = Z(t.z) - 4;
+    x = Math.max(w / 2 + 2, Math.min(breite - w / 2 - 2, x));
+    for (let i = 0; i < 8 && belegt.some((b) => Math.abs(b.x - x) < (b.w + w) / 2
+      && Math.abs(b.y - y) < 11); i += 1) y -= 11;
+    belegt.push({ x, y, w });
+    return `<text class="sk-titel" x="${r1(x)}" y="${r1(y)}" text-anchor="middle">${esc(t.text)}</text>`;
+  }).join('');
   const marken = liste.map((z) => {
     if (z.art === 'mast') {
       const x = X(z.xModell ?? z.x), y = Z(z.z);
@@ -269,8 +292,9 @@ export function skizzeSvg(skizze, zeilen, { breite = 560, hoehe = 240 } = {}) {
       .sk-lager{stroke:#111;stroke-width:1.4}.sk-schraffur{stroke:#111;stroke-width:0.7}
       .sk-anker{stroke:#111;stroke-width:1.2}.sk-umgeklappt{stroke-dasharray:6 3}
       .sk-gelenk{fill:#fff;stroke:#111;stroke-width:0.9}
-      text{font:10px sans-serif;fill:#222}</style>
-    ${boden}${linien}${marken}</svg>`;
+      text{font:10px sans-serif;fill:#222}
+      .sk-titel{font:9px sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:3px}</style>
+    ${boden}${linien}${marken}${titel}</svg>`;
 }
 
 /**
@@ -317,7 +341,7 @@ function havarieLeiter(daten) {
 }
 
 /** Die Hinweise des Blattes. */
-export function hinweiseHtml(daten) {
+export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
   const g = daten?.grenzen;
   return `<ul class="rk-hinweise">
     <li>Charakteristische Werte: alle Teilsicherheitsbeiwerte 1, Wind <b>ohne
@@ -329,14 +353,17 @@ export function hinweiseHtml(daten) {
     <li><b>Druckkräfte sind positiv</b>, negative Vertikalkräfte abhebend.
       Momente, Horizontalkräfte und Torsion stehen als Betrag (±) - ihre
       Richtung wechselt mit dem Wind.</li>
-    <li>Der Havariefall (Leiterriss, aussergewöhnlich, Beiwerte 1) steht in
-      einer eigenen Zeile.</li>
-    <li>«ständig / veränderl.»: Anteil am Moment quer zum Gleis. In der Zeile
-      der Standardlasten der Anteil, den das Fundament für den veränderlichen
-      Teil zulässt (M_q, H_q veränderlich allein).</li>
-    <li>Standardlasten: zulässige Werte des Fundamenttyps für Gelände bis 14°
-      Neigung; bei steilerem Gelände gelten kleinere Werte.</li>
-    ${havarieLeiter(daten).length ? `<li>Havarie: reissen kann ${havarieLeiter(daten)
+    ${havarie ? `<li>Der Havariefall (Leiterriss, aussergewöhnlich, Beiwerte 1) steht in
+      einer eigenen Zeile.</li>` : ''}
+    <li>«ständig / veränderl.»: Anteil am Moment quer zum Gleis M_y (M,q) -
+      ständig ist der Betrag unter dem ganzen Eigengewicht G, veränderlich
+      der grösste aus Wind oder Schnee allein (Beiwert 1); gezeigt
+      ständig / (ständig + veränderlich).${standard ? ` In der Zeile der
+      Standardlasten der Anteil, den das Fundament für den veränderlichen
+      Teil zulässt (M_q veränderlich allein).` : ''}</li>
+    ${standard ? `<li>Standardlasten: zulässige Werte des Fundamenttyps für Gelände bis 14°
+      Neigung; bei steilerem Gelände gelten kleinere Werte.</li>` : ''}
+    ${havarie && havarieLeiter(daten).length ? `<li>Havarie: reissen kann ${havarieLeiter(daten)
       .map((n) => `«${esc(n)}»`).join(', ')} - je Leiter ein Fall mit Längszug ±y.</li>` : ''}
     ${g ? `<li>Gebrauchstauglichkeit (in der Anwendung eingestellt, Betriebswind
       ψ 0.70): Fahrdraht quer ${f1(g.fahrdraht * 1000)} mm, Mastspitze
@@ -351,7 +378,7 @@ export function hinweiseHtml(daten) {
  * Das Blatt als eigenständiges HTML-Dokument (A4 quer), zum Drucken oder
  * als PDF.
  */
-export function reaktionenBlattHtml(daten) {
+export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hinweise = true } = {}) {
   const kopf = [daten?.linie ? `Linie ${esc(daten.linie)}` : '',
     daten?.km ? `km ${esc(daten.km)}` : '', daten?.ortschaft ? esc(daten.ortschaft) : '']
     .filter(Boolean).join(' · ') || 'Linie / Station: –';
@@ -388,14 +415,14 @@ export function reaktionenBlattHtml(daten) {
   <h1>Reaktionskräfte · Charakteristische Werte</h1>
   <p class="unter">${kopf} · ${esc(daten?.datum ?? '')}</p>
   <div class="oben">
-    <figure>${skizzeSvg(daten?.skizze, daten?.zeilen)}
+    <figure>${skizzeSvg(daten?.skizze, daten?.zeilen, { daten })}
       <figcaption>Übersicht quer zum Gleis, aus dem Stabmodell</figcaption></figure>
     <figure>${achsSvg()}
       <figcaption>Achssystem der Tabelle. Das 3D der Anwendung zählt z nach oben.</figcaption></figure>
   </div>
-  ${reaktionenTabelleHtml(daten)}
-  <h2 style="font-size:13px;margin:12px 0 0">Hinweise</h2>
-  ${hinweiseHtml(daten)}
+  ${reaktionenTabelleHtml(daten, { havarie, standard })}
+  ${hinweise ? `<h2 style="font-size:13px;margin:12px 0 0">Hinweise</h2>
+  ${hinweiseHtml(daten, { havarie, standard })}` : ''}
   <p class="fuss">${esc(daten?.fassung ?? '')}</p>
   </body></html>`;
 }

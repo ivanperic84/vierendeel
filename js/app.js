@@ -657,16 +657,42 @@ function reaktionsDaten() {
              fundament: fund,
              anker: z.art === 'anker' ? (m?.anker ?? null) : null };
   });
-  return { zeilen, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
+  /*
+   * >>> TYPEN UND LÄNGEN IN DER SKIZZE (30. September). <<<
+   * «die bauteiltypen und die längen sollten noch ergänzt werden in der
+   * skizze sinngemäss wie beim 3d textbox»: dieselben Titel wie im 3D
+   * (Tragwerk, Mast, Ausleger), mit der Mastnummer. Das 3D steht in
+   * Blattkoordinaten mit dem Mastfuss auf z = 0, das Stabmodell kann örtlich
+   * liegen - verschoben um den Unterschied an einem Masten.
+   */
+  const bezug = zeilen.find((z) => z.art === 'mast');
+  const dx = bezug ? bezug.xModell - bezug.x : 0;
+  const dz = bezug ? bezug.z : 0;
+  const titel = (ansicht?.szene?.bauteiltitel ?? [])
+    .filter((b) => !b.warnung && Array.isArray(b.p) && b.text)
+    .map((b) => ({ text: mastAnzeigeText(b.text, anzeigeKarte),
+                   x: b.p[0] + dx, z: b.p[2] + dz, mast: Boolean(b.mastEnde) }));
+  return { zeilen, titel, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
            linie: werte.linie ?? '', km: werte.km ?? '', ortschaft: werte.ortschaft ?? '',
            datum: new Date().toLocaleDateString('de-CH'), fassung: `${APP_NAME} ${VERSION}` };
 }
 
 /** Das Blatt der Reaktionskräfte in der Ebene des Berichts. */
+// Was mitkommt, bleibt für die Sitzung gemerkt (30. September: «bestimmen
+// können ob man den havariefall / standardlasten / Hinweistext mit plotten
+// will»).
+let reaktionsWahl = { havarie: true, standard: true, hinweise: true };
 function reaktionsBlatt() {
   const d = reaktionsDaten();
   if (d.fehlt) { meldeImBalken(`Reaktionskräfte: ${d.fehlt}`); return; }
-  berichtZeigen(reaktionenBlattHtml(d), 'Reaktionskräfte');
+  const wahl = {
+    optionen: [{ key: 'havarie', label: 'Havariefall' },
+               { key: 'standard', label: 'Standardlasten' },
+               { key: 'hinweise', label: 'Hinweise' }],
+    zustand: reaktionsWahl,
+    bauen: (z) => { reaktionsWahl = z; return reaktionenBlattHtml(d, z); },
+  };
+  berichtZeigen(reaktionenBlattHtml(d, reaktionsWahl), 'Reaktionskräfte', wahl);
 }
 
 function neuRechnen(neuZeichnen = true) {

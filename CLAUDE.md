@@ -277,12 +277,26 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5940 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5947 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., Reaktionsblatt: Wahl der Zeilen, Titel in der Skizze;
+  Lageband mindestens 20 m** (Prüfstand 169 c). Weisungen: «beim output noch
+  bestimmen können ob man den havariefall / standardlasten / Hinweistext mit
+  plotten will» - drei Kästchen in der Leiste des Blatts, ein Klick baut es
+  neu, die Hinweise folgen der Wahl; «die bauteiltypen und die längen sollten
+  noch ergänzt werden in der skizze sinngemäss wie beim 3d textbox» - die
+  Titel des 3D mit Mastnummer; «wenn ich einen tragausleger bei x 60m habe
+  und dann auf 0 das x stelle, entsteht ein überlanger ausleger in der
+  tragweksskizze» - gemessen 12 % der Bandbreite bei x 60, 76 % bei x 0
+  (massstäblich, das Band schrumpfte auf −1.5 … 11.3 m); jetzt mindestens
+  20 m breit (`qpBereich`), bei x 0 42 %. Frage beantwortet: «ständig /
+  veränderlich» = |M_y| unter dem ganzen G gegen das grösste |M_y| aus Wind
+  oder Schnee allein, gezeigt ständig / (ständig + veränderlich); steht
+  jetzt auch in den Hinweisen. Nicht gepusht.
 - **30. Sept., Reaktionstabelle überarbeitet** (Prüfstand 169 b, siehe
   *Entschieden*). Beispielblatt der Jochreihe nur örtlich in
   `Versand/Beispiel_Reaktionskraefte_Jochreihe.html` (nicht in der Ablage).
@@ -2488,7 +2502,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5940 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5947 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

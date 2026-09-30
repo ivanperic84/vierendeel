@@ -2350,7 +2350,7 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
     -webkit-app-region: drag;
     app-region: drag;
   }
-  #bericht-ebene .bericht-leiste button {
+  #bericht-ebene .bericht-leiste button, #bericht-ebene .bericht-leiste label {
     -webkit-app-region: no-drag;
     app-region: no-drag;
   }
@@ -3318,3 +3318,7 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 .rk-kurz .rk-einheit { color: var(--dim); font-size: 9.5px; }
 .rk-kurz .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rk-kurz .rk-zulw { color: var(--dim); font-style: italic; }
+/* Kästchen in der Leiste des Blatts (30. September). */
+#bericht-ebene .bericht-wahl { display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--on2); }
+#bericht-ebene .bericht-leiste b + .bericht-wahl { margin-left: 8px; }

@@ -1697,7 +1697,24 @@ export function qpBereich(werte) {
     }
     return [a, a + (tragwerksart(t).masten >= 2 ? (Number(t.L) || 0) : 0)];
   });
-  const von = Math.min(...enden, 0), bis = Math.max(...enden, 1);
+  let von = Math.min(...enden, 0), bis = Math.max(...enden, 1);
+  /*
+   * >>> MINDESTENS 20 m BREIT (30. September). <<<
+   * Gemeldet: «wenn ich einen tragausleger bei x 60m habe und dann auf 0 das
+   * x stelle, entsteht ein überlanger ausleger in der tragweksskizze».
+   * Gemessen: bei x 60 reichte das Band bis 73.9 m, der Ausleger nahm 12 %
+   * der Breite; bei x 0 schrumpfte es auf −1.5 … 11.3 m, und derselbe
+   * 10-m-Ausleger füllte 76 % - massstäblich richtig, neben dem festen
+   * Mastsymbol aber überlang. Ein Band von mindestens einer üblichen
+   * Jochlänge hält ein einzelnes Tragwerk im Verhältnis; eine Reihe ist
+   * ohnehin breiter und bleibt unberührt.
+   */
+  const MIN = 20;
+  if (bis - von < MIN) {
+    const mitte = (von + bis) / 2;
+    von = mitte - MIN / 2;
+    bis = mitte + MIN / 2;
+  }
   const rand = Math.max(1.5, (bis - von) * 0.06);
   return { von: von - rand, bis: bis + rand };
 }
