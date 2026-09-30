@@ -124,7 +124,7 @@ import { schubladeUmschalten, schubladeSchliessen, zeichneSchublade, ablageSpeic
          schubladeIstOffen } from './app.ablage.js';
 import { dialogAnker, dialogMast, dialogSignal, dialogTragwerk } from './app.dialoge.js';
 import { kontextSchliessen, kontextZeigen, kontextTragwerk, kontextMast, kontextAnbauteil, anbauteilDuplizieren, kontextGrund, kontextImModell, tragwerkKopieren, nurDiesesZeigen, alleZeigen,
-         kontextOffen } from './app.kontext.js';
+         kontextOffen, vorbelegungAnStelle, naechsterMast } from './app.kontext.js';
 import { zeichnungEinlegen, zeichnungSichernFallsMoeglich, zeichnungHolen, zeichnungMenueUmschalten, zeichnungMenueEnde, zeichnungWaehlen, zeichnungEntfernen, bildSchiebenStarten, bildSchiebenEnde, kalibrierenStarten, kalibrierenEnde, freiesMassUebernehmen, ausrichtenStarten, ausrichtenWaehlen, ausrichtenEnde } from './app.zeichnung.js';
 import { dialogSortiment, dialogHandbuch, dialogOptionen, verdrahteExtras } from './app.optionen.js';
 import { baueModellWerkzeuge, zeichneModellWerkzeuge, zeichneEinwirkungswahl, zeichneLegende, zeigeFeld, baueLayout, zeichneSchienen, modusKorrigieren } from './app.layout.js';
@@ -4427,14 +4427,40 @@ function verdrahteAblegen() {
   const artVon = (dt) =>
     (dt.types.includes('text/tragjoch-baugruppe') ? 'kopie'
       : dt.types.includes('text/tragjoch-vorlage') ? 'vorlage' : null);
+  const kachel = (dt) => dt.types.includes('text/tragjoch-tragwerk')
+    || dt.types.includes('text/tragjoch-anker');
   v.addEventListener('dragover', (e) => {
-    if (!artVon(e.dataTransfer)) return;
+    if (!artVon(e.dataTransfer) && !kachel(e.dataTransfer)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     v.classList.add('ablegen');
   });
   v.addEventListener('dragleave', () => v.classList.remove('ablegen'));
   v.addEventListener('drop', (e) => {
+    /*
+     * >>> EINE TRAGWERKS-KACHEL (30. September). <<<
+     * «diese könnte man dann per drag and drop auf die 3d fläche ziehen und
+     * man bekommt ein modalfenster mit den relevantesten eingaben zum
+     * tragwerk». Abgelegt öffnet der Dialog «Neues Tragwerk» an der Stelle
+     * (auf den halben Meter), die Masten links und rechts vorgewählt - wie
+     * der Rechtsklick auf den Grund. Der Anker gehört dem Masten, auf den
+     * er gezogen wird (2 m Fang), sonst fragt der Dialog.
+     */
+    const tw = e.dataTransfer.getData('text/tragjoch-tragwerk');
+    const ak = e.dataTransfer.types.includes('text/tragjoch-anker');
+    if (tw || ak) {
+      e.preventDefault();
+      e.stopPropagation();
+      v.classList.remove('ablegen');
+      const w = ansicht.weltAusZeiger(e);
+      const wo = Number.isFinite(w?.x) ? aufRaster(w.x) : null;
+      if (ak) {
+        aendern('ankerDialog', wo === null ? null : (naechsterMast(app, wo, 2)?.id ?? null));
+        return;
+      }
+      dialogTragwerk(app, null, tw, wo === null ? {} : vorbelegungAnStelle(app, tw, wo));
+      return;
+    }
     const art = artVon(e.dataTransfer);
     if (!art) return;
     const id = e.dataTransfer.getData(

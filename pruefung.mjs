@@ -19563,7 +19563,8 @@ const CH9x = await import(J('core.checks.js'));
      * naechsten Mal wieder falsch.
      */
     wahr('Das Ablegen fragt dieselbe Stelle wie der Klick',
-         /v\.addEventListener\('drop'[\s\S]{0,900}?stelleAus\((app, )?w\)/.test(aq58));
+         // Vor dem Anbauteil steht seit dem 30. September der Zweig der Kacheln.
+         /v\.addEventListener\('drop'[\s\S]{0,2200}?stelleAus\((app, )?w\)/.test(aq58));
   }
 
   /*
@@ -19997,12 +19998,15 @@ const CH9x = await import(J('core.checks.js'));
     const ab = r.indexOf('export function verdrahteLeiste(');
     const koerper = ab > 0 ? r.slice(ab, r.indexOf('\n}\n', ab)) : '';
     // qp-sicht (das Auge) ist mit dem Baum weggefallen (30. September);
-    // Ausblenden steht im Kontextmenü.
-    ['qp-neu-auf', 'qp-mast', 'qp-tw'].forEach((d) => {
+    // Ausblenden steht im Kontextmenü. Das Aufklappmenü «+ Tragwerk» (qp-neu-auf)
+    // ist den Kacheln gewichen - sie verdrahtet verdrahteTragwerkfeld.
+    ['qp-mast', 'qp-tw'].forEach((d) => {
       wahr(`Die Leiste verdrahtet ${d}`, koerper.includes(d), d);
     });
-    wahr('Das Aufklappmenue schaltet `hidden`',
-         koerper.includes('liste.hidden = !liste.hidden'));
+    const tf = r.slice(r.indexOf('function verdrahteTragwerkfeld('));
+    wahr('Die Kacheln «Neues Tragwerk» sind verdrahtet: Klick und Ziehen',
+         /\[data-tw-neu\][\s\S]{0,400}'tragwerkDialog'[\s\S]{0,300}text\/tragjoch-tragwerk/.test(tf)
+         && /\[data-anker-neu\][\s\S]{0,300}text\/tragjoch-anker/.test(tf));
   }
 
   /*
@@ -33463,6 +33467,31 @@ titel('161  Neues Tragwerk zwischen vorhandenen Masten; Kontextmenü im 3D');
   wahr('Der Längenbereich kommt aus laengenbereich (laengeKurz/laengeNorm)',
        !/j\?\.laengen/.test(dq) && /return laengenbereich\(j\)/.test(dq));
   pruef('… J90 führt 8 bis 26.5 m', T.laengenbereich(T.getTragjoch('J90')).max, 26.5, 1e-9, 'm');
+
+  // --- Kacheln ins 3D: die Vorbelegung an der Stelle -------------------------
+  const K161 = await import(J('app.kontext.js'));
+  const C161 = await import(J('core.constants.js'));
+  let w = { ...standardwerte(), tragwerksart: 'joch', typ: 'J90', L: 20, xLage: 0,
+            mastVorhanden: true, twId: 'T1' };
+  w = C161.tragwerkHinzu(w, 'einzelmast', { xLage: 38 });
+  const app161 = { werte: w };
+  const ms = C161.mastenVon(w);
+  const id = (x) => ms.find((m) => Math.abs(m.x - x) < 1e-6)?.id;
+  const v = K161.vorbelegungAnStelle(app161, 'joch', 25);
+  wahr('Joch bei x = 25 abgelegt: die Masten links (20) und rechts (38) gewählt',
+       v.mastA === id(20) && v.mastB === id(38) && v.x0 === 25, JSON.stringify(v));
+  const vr = K161.vorbelegungAnStelle(app161, 'abfangjoch', 45);
+  wahr('… rechts aussen nur der linke Mast, der zweite wird neu',
+       vr.mastA === id(38) && vr.mastB === '', JSON.stringify(vr));
+  const va = K161.vorbelegungAnStelle(app161, 'tragausleger', 38.5);
+  wahr('Tragausleger neben einem Masten: an diesen Masten gesetzt',
+       va.mastA === id(38) && va.x0 === 38, JSON.stringify(va));
+  wahr('Einzelmast: nur die Stelle', JSON.stringify(K161.vorbelegungAnStelle(app161, 'einzelmast', 50)) === '{"x0":50}');
+  wahr('Anker: der Mast im Fang von 2 m, sonst keiner',
+       K161.naechsterMast(app161, 21.5, 2)?.id === id(20) && K161.naechsterMast(app161, 29, 2) === null);
+  wahr('Das Ablegen im 3D öffnet den Dialog mit dieser Vorbelegung',
+       /dialogTragwerk\(app, null, tw, wo === null \? \{\} : vorbelegungAnStelle\(app, tw, wo\)\)/.test(APP_QUELLE())
+       && /aendern\('ankerDialog', wo === null \? null : \(naechsterMast\(app, wo, 2\)\?\.id \?\? null\)\)/.test(APP_QUELLE()));
 }
 
 // ===========================================================================

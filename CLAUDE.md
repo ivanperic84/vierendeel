@@ -132,6 +132,8 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Neues Tragwerk: Kontextmenü, Mastwahl, Kacheln (30. Sept.) | Weisung: «das kontextmenue beim 3d mit den optionen aus dem tragwerk (sidebar) ergänzen den Punkt Abfangjoch darüber setzen könnte man weglassen. das ist äusserst selten. was man aber machen könnte ist die auswahl der Masten anbieten wo der träger zu liegen kommen soll. man hat den fall das man schon zwei oder drei masten hat und dann ein joch dazwischen legen will. was ich mir auch vorstellen könnte ist, dass wir wieder auf die kacheln beim tragwerk gehen, diese könnte man dann per drag and drop auf die 3d fläche ziehen und man bekommt ein modalfenster mit den relevantesten eingaben zum tragwerk. was denkst du ist der kleverere weg?» Empfohlen: Kontextmenü mit Mastwahl (Masten sind feste Ziele, Ziehen landet auf 0.5 m); auf Rückfrage **«Beides»**. Gebaut: Dialog «Neues Tragwerk» mit **«Zwischen den Masten … und …»** (Tragausleger «An Mast»), Lage und Stützweite folgen (Tragjoch L = Abstand, sonst der erste passende Typ; Abfangjoch `abfangFuerStuetzweite`); Rechtsklick auf Mast/Grund bietet «… zwischen Mx und My …» bzw. öffnet den Dialog mit den Nachbarmasten vorgewählt (`vorbelegungAnStelle`), dazu die Einträge der Tragwerke; «Abfangjoch darüber setzen» ist weg. **Kacheln** statt «+ Tragwerk»: vier Arten und Zuganker/Druckstütze, anklicken oder ins 3D ziehen (Anker auf einen Masten, 2 m Fang) |
+| Tragwerksleiste ohne Baum (30. Sept.) | «in der Tragwerkgruppe sehe ich infos, die ich schon im 3d oder nebenan in der resultat sidebar sehe», auf Rückfrage **«Lageband behalten, Baum weg»**. Weg: Zeilen je Tragwerk und Mast mit η, Auge, Anker-Chip. Anklicken im Band wählt (ein Mast sein Tragwerk mit), Ausblenden im Kontextmenü, Anker als Strich im Band, η in der Resultatspalte |
 | Lampen und Trafos: Gruppe (30. Sept.) | «die lampen udn trafos in die gruppe übrige schieben»: die Vorlagen Lampe LED/alt mit Rohr und Trafo 50/100 kVA stehen unter «Übrige» statt «Am Masten» (`gruppe: 'uebrige'` in `data/anbauteile.json`, Sicherung `anbauteile_vor_gruppe_uebrige_2026-09-30.json`). Angeboten werden sie weiter nur am Masten - das regelt `ort`, nicht die Gruppe |
 | Signalbauer (30. Sept.) | Auf Rückfrage: **«Signal-Anbauteil, wieder bearbeitbar»** und **«Im Signalbauer, eigene Gruppe»** für die Tragwerksteile. Vorlage «Signal (Signalbauer)» (Gruppe «Signale», am Joch und am Masten); ihr Modul ist ein freies Bauteil mit `signalbauer`, die Auswahl steht am Modul (`signal: [{id, anzahl, laenge}]`). Gewicht und Flächen werden bei jeder Rechnung aus der Tabelle `signalteile` (Sortiment Anbauteile, 41 Teile aus den Signal-Blättern der Mappe) summiert (`signalFlaeche`): G = n · Masse (· L) / 100 kN wie die Mappe (10 N/kg), A = n · Fläche (· L), Wind = A · q_ref · 1.4 (`SIGNAL_CW`). «Fläche längs» der Mappe ist die Fläche, die der Wind längs zum Gleis trifft (Q_y), «quer» die für Q_x - die Mappe zählt x in Gleisrichtung. Der Dialog «Signalbauer» (app.dialoge.js) zeigt Signale/Tafeln und Arbeitskorb/Schutz offen, die Tragwerksteile eingeklappt mit Länge; den Angriffspunkt setzt man in der Karte. Gegengerechnet an der Summenzeile der Mappe: G 1.65 kN, A 0.78 / 1.30 m², Wind EK2 1.2012 / 2.002 kN |
 | Einwirkungs-Mappe: was gebaut wird (30. Sept.) | Auf Rückfrage gewählt: **Konsolen und Armaturen** (Spurhalter-/Auslegerkonsole, Abfangarmatur ohne/mit Nachspannrädern, Abfangrohr, Spurhalterbefestigung) als wählbare Bausteine (Rolle `aufbau` statt `stumm` in `fl_bauteile.json`); **Trafo 50/100 kVA** als Vorlagen am Masten (`mast-trafo-50/100`, Schwerpunkt vorläufig 0.50 m neben der Mastachse); **Wind auf den Tragausleger** (siehe eigene Zeile). **Doppelmast 2 RRW: «Später».** Zu den Signalteilen im Wortlaut: «die signaleteile zu einem separatem signalbauer, da kann man die teile auswählen und die resultierende last wird dann daraus berechnet und man muss nur noch den angriffspunkt wie bei den übrigen bauteilen definieren. Die Tragwerksteile für die Signalaufhängung können auch separat aufgeführt werden, da diese nur in ausnahmen an die FL-Tragwerke montiert werden. wir werden zu einem späteren zeitpunkt noch einen galgen tragwerk erstellen für die signale.» - ⚠ offen, siehe *Offene Punkte* |
@@ -259,12 +261,22 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5855 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5838 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., neue Tragwerke über Masten, Kontextmenü und Kacheln; Leiste
+  ohne Baum** (Entscheide siehe *Entschieden*, Prüfstand 161; die
+  Kontrollzahl sank auf 5838, weil die Kontrollen des Baums entfielen).
+  Im Browser: M1 0 / M2 20 / Einzelmast M3 38, Rechtsklick bei x 20 →
+  «Tragjoch …» mit M2/M3 → L 18.00, gesetzt teilt T2 beide Masten; eine
+  Abfangjoch-Kachel zwischen M1 und M2 abgelegt → A270 L 20.50. **Befund:**
+  der Längenbereich im Dialog las `j.laengen`, das es nicht gibt (immer
+  4–40 m) - jetzt `laengenbereich`. Gemessen: bleibt das Einzelmast-
+  Tragwerk an einem Masten stehen, den ein neues Joch übernimmt, liegt der
+  Mast bei 0.760 statt 0.755 (siehe *Offene Punkte*).
 - **30. Sept., der Signalbauer** (Entscheid siehe *Entschieden*,
   Prüfstand 160). Neue Tabelle `signalteile` in `data/anbauteile.json`
   (Sicherung `data/sicherung/anbauteile_vor_signal_2026-09-30.json`),
@@ -2070,6 +2082,15 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- ⚠ **Einzelmast unter einem neuen Joch:** legt man ein Joch auf einen
+  Masten, der als eigenes Tragwerk «Einzelmast» steht, bleiben beide
+  Tragwerke bestehen; das Stabwerk rechnet «3 Tragwerke, 3 Masten», der
+  Einzelmast läuft als Nachbar mit (gemessen M3 0.760 mit, 0.755 ohne; der
+  Mastwind zählt nicht doppelt). Zu entscheiden: soll das Einzelmast-
+  Tragwerk dabei in den Jochmasten übergehen (Teile am Masten bleiben)?
+- **Stabwerksleiste nennt die Tragwerks-Id statt des Namens:** in der
+  Reihenzeile stand «Joch T3» für das Joch, das in Leiste und Kacheln «T2»
+  heisst (gesehen 30. Sept., nicht berichtigt).
 - ⚠ **Betreiberdaten in die Ablage: vom Auftraggeber selbst zu tun.**
   Weisung 29. Sept.: «kannst du die bauteildaten in der jetzigen fassung
   einbauen, so dass ich diese nicht von hand pflegen muss», auf Rückfrage
@@ -2356,7 +2377,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5855 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5838 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

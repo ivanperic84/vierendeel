@@ -603,13 +603,8 @@ export function kontextGrund(app, k) {
      * die Arten mit zwei Masten schon gewaehlt - der Fall «ein Joch
      * dazwischen legen».
      */
-    const ms = mastenVon(app.werte);
-    const li = ms.filter((m) => m.x <= wo + 1e-9).sort((a, b) => b.x - a.x)[0] ?? null;
-    const re = ms.filter((m) => m.x > wo + 1e-9).sort((a, b) => a.x - b.x)[0] ?? null;
     TRAGWERKSARTEN.forEach((a) => {
-      const vor = a.masten >= 2 && li
-        ? { x0: wo, mastA: li.id, mastB: re?.id ?? '' }
-        : { x0: wo };
+      const vor = vorbelegungAnStelle(app, a.key, wo);
       p.push({ text: `${a.label} …`, tun: () => dialogTragwerk(app, null, a.key, vor) });
     });
     /*
@@ -638,6 +633,36 @@ export function kontextGrund(app, k) {
     p.push({ text: 'Alle Tragwerke einblenden', tun: () => alleZeigen(app) });
   }
   return p;
+}
+
+/**
+ * Die Vorbelegung des Dialogs «Neues Tragwerk» an einer Stelle x - für den
+ * Rechtsklick auf den Grund und das Ablegen einer Kachel (30. September).
+ * Stehen links und rechts der Stelle Masten, sind sie bei den Arten mit
+ * zwei Masten gewählt; beim Tragausleger der Mast, der auf 1 m daneben
+ * steht.
+ */
+export function vorbelegungAnStelle(app, art, wo) {
+  const ms = mastenVon(app.werte);
+  const zwei = (TRAGWERKSARTEN.find((a) => a.key === art)?.masten ?? 1) >= 2;
+  if (zwei) {
+    const li = ms.filter((m) => m.x <= wo + 1e-9).sort((a, b) => b.x - a.x)[0] ?? null;
+    const re = ms.filter((m) => m.x > wo + 1e-9).sort((a, b) => a.x - b.x)[0] ?? null;
+    return li ? { x0: wo, mastA: li.id, mastB: re?.id ?? '' } : { x0: wo };
+  }
+  if (art === 'tragausleger') {
+    const nah = naechsterMast(app, wo, 1);
+    return nah ? { x0: nah.x, mastA: nah.id } : { x0: wo };
+  }
+  return { x0: wo };
+}
+
+/** Der Mast, der der Stelle am nächsten steht - höchstens `bis` Meter daneben. */
+export function naechsterMast(app, wo, bis) {
+  return mastenVon(app.werte)
+    .map((m) => ({ m, d: Math.abs(m.x - wo) }))
+    .filter((o) => o.d <= bis)
+    .sort((a, b) => a.d - b.d)[0]?.m ?? null;
 }
 
 /**

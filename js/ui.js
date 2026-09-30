@@ -1425,19 +1425,6 @@ export function verdrahteLeiste(container, werte, onChange) {
    * Der Pruefstand haelt das jetzt fest (siehe «Die Leiste bleibt
    * bedienbar»): jedes `data-...` der Leiste braucht seinen Horcher.
    */
-  const auf = container.querySelector('[data-qp-neu-auf]');
-  const liste = container.querySelector('.qp-neu-liste');
-  if (auf && liste) {
-    auf.addEventListener('click', (e) => {
-      e.stopPropagation();
-      liste.hidden = !liste.hidden;
-    });
-    document.addEventListener('click', function zu(e) {
-      if (!liste.isConnected) { document.removeEventListener('click', zu); return; }
-      if (!liste.contains(e.target) && e.target !== auf) liste.hidden = true;
-    });
-  }
-
   /*
    * DERSELBE GRUND WIE OBEN: das Ziehen des Tragwerksbalkens ist raus
    * (Weisung, 5. September). Anklicken waehlt, Rechtsklick oeffnet das
@@ -1517,6 +1504,11 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
    */
   container.querySelectorAll('[data-tw-neu]').forEach((b) => {
     b.addEventListener('click', () => onChange('tragwerkDialog', b.dataset.twNeu));
+    // Ins 3D ziehen (30. September): abgelegt wird in app.js.
+    b.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/tragjoch-tragwerk', b.dataset.twNeu);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
   });
   /*
    * DER ANKER MELDET SICH WIE JEDE ANDERE EINGABE - ueber `onChange`. Die
@@ -1525,6 +1517,10 @@ function verdrahteTragwerkfeld(container, werte, onChange) {
    */
   container.querySelectorAll('[data-anker-neu]').forEach((b) => {
     b.addEventListener('click', () => onChange('ankerDialog', null));
+    b.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/tragjoch-anker', '1');
+      e.dataTransfer.effectAllowed = 'copy';
+    });
   });
   // `data-tw-mast` gibt es nicht mehr - das Auge an der Mastkachel meldet
   // dieselbe Absicht (siehe `data-qp-mastsicht` in verdrahteLeiste).
@@ -1547,6 +1543,29 @@ function tragwerkfeldHtml(werte) {
   const aktiv = alle.find((t) => t.id === (werte.twId ?? 'T1')) ?? alle[0];
   const art = tragwerksart(aktiv);
 return querprofilLeisteHtml(werte)
+    /* =====================================================================
+     * >>> KACHELN STATT «+ TRAGWERK» (30. September). <<<
+     *
+     * Weisung: «was ich mir auch vorstellen könnte ist, dass wir wieder auf
+     * die kacheln beim tragwerk gehen, diese könnte man dann per drag and
+     * drop auf die 3d fläche ziehen und man bekommt ein modalfenster mit
+     * den relevantesten eingaben zum tragwerk», auf Rückfrage «Beides».
+     * Anklicken öffnet den Dialog wie bisher das Menü; ins 3D gezogen öffnet
+     * er ihn an der Stelle, die Masten links und rechts vorgewählt
+     * (app.js, `verdrahteAblegen`). Zuganker / Druckstütze steht als letzte
+     * Kachel da - auf einen Masten gezogen, gehört der Stab ihm.
+     * Farbig wie der Knopf vorher («mach den tragerk+ button farbig, da
+     * wichtig», 19. September).
+     * =================================================================== */
+    + '<div class="qp-kacheln" role="group" aria-label="Neues Tragwerk">'
+    + TRAGWERKSARTEN.map((x) =>
+        `<button type="button" class="qp-kachel" data-tw-neu="${esc(x.key)}" draggable="true"
+           title="${esc(`${x.kurz} - anklicken oder ins 3D ziehen`)}">${esc(x.label)}</button>`).join('')
+    + `<button type="button" class="qp-kachel qp-kachel-anker" data-anker-neu draggable="true"
+         title="${esc('Schräger Stab vom Masten zu einem eigenen Fundament, an beiden '
+           + 'Enden gelenkig - er trägt nur Normalkraft. Anklicken oder auf einen Masten ziehen.')}"
+         >Zuganker / Druckstütze</button>`
+    + '</div>'
     + '<div class="qp-tun">'
     /*
      * EIN MENUE STATT VIER KNOEPFEN. Die vier Bauformen standen als vier
@@ -1555,36 +1574,6 @@ return querprofilLeisteHtml(werte)
      */
     // Farbig (Weisung vom 19. September: «mach den tragerk+ button farbig,
     // da wichtig») - der Weg zu jedem weiteren Tragwerk des Blattes.
-    + '<span class="qp-tun-neu"><button type="button" class="btn btn-mini btn-acc"'
-    + ' data-qp-neu-auf>+ Tragwerk</button>'
-    + '<span class="qp-neu-liste" hidden>'
-    + TRAGWERKSARTEN.map((x) =>
-        `<button type="button" class="btn btn-mini" data-tw-neu="${esc(x.key)}"
-           title="${esc(x.kurz)}">${esc(x.label)}</button>`).join('')
-    /* =====================================================================
-     * >>> DER ANKER STEHT IN DERSELBEN LISTE - UND IST DOCH KEIN TRAGWERK.
-     * <<<
-     *
-     * Weisung vom 11. September: «nimm druckstütze und zuganker als
-     * +tragwerk zur auswahl mit auf.»
-     *
-     * Gesucht wird er dort, weil man ihn HINZUFÜGT wie alles andere auf dem
-     * Blatt. Gebaut wird er anders: er hängt an einem MASTEN, nicht am
-     * Querprofil, und ohne Masten gibt es ihn nicht. Würde er in
-     * `TRAGWERKSARTEN` stehen, legte `tragwerkNeu` ein Tragwerk an - eines,
-     * das nichts trägt und für das die halbe Maske keine Felder hätte.
-     *
-     * Deshalb ein eigener Schlüssel: er öffnet den Dialog, der fragt, an
-     * welchen Masten der Stab gehört und wie er liegt. Der Trennstrich
-     * davor sagt, dass hier etwas anderes beginnt.
-     * =================================================================== */
-    + '<span class="qp-neu-trenn" role="separator"></span>'
-    + `<button type="button" class="btn btn-mini" data-anker-neu
-         title="${esc('Schräger Stab vom Masten zu einem eigenen Fundament, '
-           + 'an beiden Enden gelenkig — er trägt nur Normalkraft. '
-           + 'Gehört einem Masten, nicht dem Querprofil.')}"
-         >Zuganker / Druckstütze…</button>`
-    + '</span></span>'
     /*
      * >>> DREI HANDLUNGEN AM TRAGWERK, RECHTS UND NUR ALS ZEICHEN. <<<
      *
