@@ -1032,54 +1032,11 @@ function neuRechnen(neuZeichnen = true) {
     letzte = { erg, anzeige, bemessung, vergleich, kombi, checks, auflager, mitJoch,
                warn: flucht.warnungen, hinw, kl, urteil };
 
-  /* =========================================================================
-     * >>> DIE LEISTE BEKOMMT DIE AUSNUTZUNG DESSEN, WAS GERECHNET IST. <<<
-     * =========================================================================
-     *
-     * Weisung vom 13. September: das eta je Bauteil in der Leiste.
-     *
-     * Gerechnet wird das AKTIVE Tragwerk; eine volle Huellkurve kostet
-     * nachgemessen 32 ms, bei drei Tragwerken also hundert Millisekunden bei
-     * jedem Tastendruck. Die uebrigen Zeilen tragen deshalb einen Strich -
-     * siehe `setzeEtaFuerLeiste` in ui.js.
-     *
-     * DAS ETA DES MASTEN IST `etaMitStabilitaet`, nicht `eta`: letzteres ist
-     * der QUERSCHNITT, an dem Farbskala und Hoehenverlauf haengen. Wer nach
-     * dem Nachweis fragt, bekommt den Nachweis - mit dem Knicken darin.
+    /*
+     * Die Ausnutzung je Zeile der Tragwerksleiste ist mit dem Baum
+     * weggefallen (30. September, «Lageband behalten, Baum weg»); sie steht
+     * in der Resultatspalte.
      */
-    {
-      const anz = letzte?.anzeige ?? erg;
-      const swG = stabwerkGilt();
-      const masten = {};
-      ['A', 'B'].forEach((ende) => {
-        const n = anz.mast?.[ende];
-        if (!n) return;
-        const id = mastenVon(werte).find(
-          (x) => mastName(werte, x) === mastNameAmEnde(werte, null, ende))?.id;
-        if (!id) return;
-        /*
-         * MIT DEM STABWERK (28. September): der Querschnitt aus dem
-         * Stabwerk, das Knicken aus dem Kern - das grössere zählt, wie in
-         * der Hauptkachel.
-         */
-        const swM = swG?.h?.bauteile?.[`mast:${mastNameAmEnde(werte, null, ende)}`];
-        // Das Knicken des Jochmasten seit dem 28. September auch aus dem
-        // Stabwerk (`h.knick`); ohne es das des Kerns.
-        const swK = swG?.h?.knick?.[mastNameAmEnde(werte, null, ende)];
-        const v = swM ? Math.max(swM.eta ?? 0, (swK ?? n.stabil)?.eta ?? 0)
-          : (n.etaMitStabilitaet ?? n.eta);
-        // Ein geteilter Mast steht in zwei Tragwerken; gezeigt wird der
-        // groessere der beiden Nachweise, nicht der zuletzt geschriebene.
-        masten[id] = Math.max(masten[id] ?? 0, Number(v) || 0);
-      });
-      ui.setzeEtaFuerLeiste({
-        twId: werte.twId ?? 'T1',
-        tragwerk: swG?.h?.bauteile?.[swG.jochKey]?.eta ?? anz.max?.etaGesamt,
-        masten,
-        // Der Tragausleger ist mit dem Stabwerk nachgewiesen (28. September).
-        ausleger: Boolean(swG?.h?.ausleger),
-      });
-    }
 
     zeichneEingabe();
     zeichneEinwirkungswahl(app);

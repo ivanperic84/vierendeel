@@ -88,8 +88,6 @@ export function setzeModellFuerLage(m) { modellFuerLage = m ?? null; }
  * leere Stelle liest sich wie «in Ordnung»; ein Strich sagt «hier steht
  * keine Zahl», und der Titel sagt warum.
  */
-let etaLeiste = null;
-export function setzeEtaFuerLeiste(o) { etaLeiste = o ?? null; }
 
 /*
  * >>> DER ANKER ALS STREBE (Weisung vom 17. September). <<<
@@ -1441,19 +1439,6 @@ export function verdrahteLeiste(container, werte, onChange) {
   }
 
   /*
-   * DAS KAESTCHEN IST DIE SICHTBARKEIT (Weisung, 3. September).
-   *
-   * Es schaltet dasselbe wie «ausblenden» im Kontextmenue - ein Tragwerk,
-   * das nicht zaehlt, verschwindet aus Bild, Bauteilliste, Ausleitung und
-   * Nachweis. Zwei Wege zur selben Sache, weil man sie an zwei Orten
-   * braucht; beide melden dieselbe Absicht.
-   */
-  container.querySelectorAll('[data-qp-sicht]').forEach((b) => {
-    b.addEventListener('click', () => onChange(
-      b.classList.contains('an') ? 'tragwerkAus' : 'tragwerkZeigen',
-      b.dataset.qpSicht));
-  });
-  /*
    * DERSELBE GRUND WIE OBEN: das Ziehen des Tragwerksbalkens ist raus
    * (Weisung, 5. September). Anklicken waehlt, Rechtsklick oeffnet das
    * Kontextmenue - und dort steht die Lage als Zahl.
@@ -1764,24 +1749,6 @@ export function qpBereich(werte) {
  */
 const MASS_PLATZ = 20;
 
-/**
- * Die Ausnutzung als kleine Marke im Kuerzel einer Leistenzeile.
- *
- * Drei Zustaende und ein vierter: erfuellt, knapp, verletzt - und «nicht
- * gerechnet». Die Schwelle bei 0.95 ist keine Norm, sondern eine Warnung
- * vor dem Rand: wer bei 0.97 steht, sollte es sehen, bevor eine Laenge um
- * zehn Zentimeter waechst.
- */
-function etaMarke(v, grund = '') {
-  if (!Number.isFinite(v)) {
-    return `<span class="qp-eta leer" title="${esc(grund
-      || 'nicht gerechnet — dieses Tragwerk anklicken')}">–</span>`;
-  }
-  const zustand = v > 1 ? 'fail' : v > 0.95 ? 'warn' : 'ok';
-  return `<span class="qp-eta ${zustand}" title="${esc(
-    `Ausnutzung η = ${v.toFixed(3)}`)}">η ${v.toFixed(2)}</span>`;
-}
-
 export function querprofilLeisteHtml(werte) {
   const alle = tragwerkeSortiert(werte);
   if (!alle.length) return '';
@@ -1942,26 +1909,6 @@ export function querprofilLeisteHtml(werte) {
    * zusammen ergeben die freie Laenge - das Mass, ueber das sich der Mast
    * biegt und aus dem die Laengenvorgabe folgt.
    */
-  const mastMasse = (m) => {
-    const t = alle.find((x) => (m.traegt ?? []).includes(x.id));
-    if (!t) return { H: 0, fuss: 0, frei: 0, jd: 0 };
-    const ende = Math.abs(m.x - lageVon(t)) < 0.05 ? 'A' : 'B';
-    const H = anschlusshoehe(t, ende);
-    const fuss = Number(m.fuss) || 0;
-    return { H, fuss, frei: H - fuss, jd: t.jd, t };
-  };
-  const mastLaengeVon = (m) => {
-    const v = Number(m.laenge) || 0;
-    if (v > 0) return v;
-    const { frei, jd, t } = mastMasse(m);
-    return frei > 0 ? mastLaengeFuer({ ...t, jd }, frei) : 0;
-  };
-  const mastProfil = (m) => String(m.profil ?? '').trim() || 'ohne Profil';
-  const mastText = (m) => {
-    const l = mastLaengeVon(m);
-    return [mastProfil(m), l > 0 ? `${l.toFixed(2)} m` : null]
-      .filter(Boolean).join(' · ');
-  };
   /* =========================================================================
    * >>> BAUM MIT LAGEBAND (Weisung vom 19. September). <<<
    * =========================================================================
@@ -1984,11 +1931,6 @@ export function querprofilLeisteHtml(werte) {
    * Zeile mit Typ und Laenge) nicht zurueck: jeder Mast behaelt seine Zeile
    * mit Profil, Laenge, H und η - nur steht sie jetzt unter ihrem Tragwerk.
    * ======================================================================= */
-  const mastVon = (id) => masten.find((m) => m.id === id);
-  const heimat = new Map();          // Mast -> erstes Tragwerk, das ihn traegt
-  alle.forEach((t) => (mastenFuer(werte, t) ?? []).filter(Boolean).forEach((m) => {
-    if (!heimat.has(m.id)) heimat.set(m.id, t.id);
-  }));
   const f2q = (v) => Number(v).toFixed(2);
   // Am Rand des Bandes steht die Anschrift nach innen, sonst schnitte der
   // Rand sie ab (MT1 bei 60 m auf einem Blatt bis 63.6 m).
@@ -2002,87 +1944,19 @@ export function querprofilLeisteHtml(werte) {
              titel: `${ak.typ} · ${laengs ? 'längs' : 'quer'} · `
                + `h_A ${Number(ak.h).toFixed(2)} m · a_A ${Number(ak.a).toFixed(2)} m` };
   };
-  const ankerChip = (m) => {
-    const d = ankerDaten(m);
-    return d ? `<button type="button" class="qp-chip qp-chip-knopf" data-qp-anker="${esc(m.id)}"
-        title="${esc(`Anker am Masten ${mastName(werte, m)} · ${d.titel} · anklicken zum Ändern`)}"
-        >${esc(d.ak.typ)} ${d.laengs ? 'längs' : 'quer'}</button>` : '';
-  };
-
-  // --- Der Baum ------------------------------------------------------------
-  const mastZeile = (m, t) => {
-    const an = m.id === gewMast?.id;
-    const andere = (m.traegt ?? []).filter((id) => id !== t.id)
-      .map((id) => alle.find((y) => y.id === id)).filter(Boolean)
-      .map((y) => tragwerkPos(werte, y));
-    const mm = mastMasse(m);
-    const lang = [mm.H > 0 ? `H ${f2q(mm.H)} m` : null,
-      Math.abs(mm.fuss) > 1e-9
-        ? `Fuss ${mm.fuss > 0 ? '+' : '−'}${f2q(Math.abs(mm.fuss))} m` : null]
-      .filter(Boolean).join(' · ');
-    const name = mastName(werte, m);
-    return `<div class="qp-zeile qp-mastzeile${an ? ' an' : ''}">
-      <span class="qp-auge-platz"></span>
-      <span class="qp-haupt"><button type="button" class="qp-name" data-qp-mast="${esc(m.id)}" aria-pressed="${an}"
-        title="${esc(`${name} · ${mastText(m)} bei x = ${f2q(m.x)} m`
-          + (andere.length ? ` · auch von ${andere.join(', ')} getragen` : '')
-          + ' · Rechtsklick öffnet das Kontextmenü')}"
-        ><span class="qp-ast" aria-hidden="true">└</span><b class="qp-kz">${esc(name)}</b>
-        <span class="qp-txt">${/* Zahl und Einheit bleiben beisammen: in der
-          schmalen Leiste brach «8.50 m» sonst vor dem «m» um (29. Sept.). */
-          esc(mastText(m)).replace(/(\d) (m\b)/g, '$1&nbsp;$2')}${lang
-          ? `<span class="qp-mastlang">${esc(lang)}</span>` : ''}</span></button>
-      <span class="qp-marken">${andere.length
-          ? `<span class="qp-chip" title="Geteilter Mast">auch ${esc(andere.join(', '))}</span>` : ''}${
-        ankerChip(m)}${etaMarke(etaLeiste?.masten?.[m.id],
-          'nicht gerechnet — er gehört keinem gerechneten Tragwerk')}</span></span>
-      <span class="qp-lage">${f2q(m.x)}</span>
-    </div>`;
-  };
-
-  const baum = alle.map((t) => {
-    const art = tragwerksart(t);
-    const x0 = lageVon(t);
-    const L = art.masten >= 2 ? (Number(t.L) || 0) : 0;
-    const an = t.id === aktivId;
-    const aus = versteckt(t);
-    const kz = tragwerkPos(werte, t);
-    const eigeneMasten = (mastenFuer(werte, t) ?? []).filter(Boolean);
-    const einMast = art.masten < 2 ? eigeneMasten[0] : null;
-    const marken = [
-      einMast ? ankerChip(einMast) : '',
-      // Seit dem 28. September: nur, solange das Stabwerk den Ausleger
-      // nicht nachgewiesen hat (Ersatzbalken als Verfahren, oder noch nicht
-      // gerechnet).
-      art.key === 'tragausleger' && !(t.id === etaLeiste?.twId && etaLeiste?.ausleger)
-        ? '<span class="qp-chip warn" title="Nachgewiesen wird der Tragausleger im Stabwerk - hier noch nicht gerechnet oder Ersatzbalken gewählt">nicht nachgewiesen</span>' : '',
-      t.id === etaLeiste?.twId ? etaMarke(etaLeiste.tragwerk) : etaMarke(NaN),
-    ].join('');
-    const zeile = `<div class="qp-zeile qp-twzeile${an ? ' an' : ''}${aus ? ' aus' : ''}">
-      <button type="button" class="qp-auge${aus ? '' : ' an'}" data-qp-sicht="${esc(t.id)}"
-              role="checkbox" aria-checked="${!aus}"
-              title="${esc(aus
-                ? 'Einblenden — zählt dann wieder in Bild, Bauteilliste, '
-                  + 'Ausleitung und Nachweis'
-                : 'Ausblenden — bleibt gespeichert, zählt aber nicht mehr')}"></button>
-      <span class="qp-haupt"><button type="button" class="qp-name" data-qp-tw="${esc(t.id)}"
-              title="${esc(`${kz} — ${art.label}, x₀ = ${f2q(x0)} m`
-                + (an ? ' · wird gerechnet' : ' · anklicken, um es zu rechnen')
-                + ' · Rechtsklick öffnet das Kontextmenü')}"
-        ><b class="qp-kz">${esc(kz)}</b><span class="qp-txt">${esc(tragwerkName(t, werte))}</span></button>
-      <span class="qp-marken">${marken}</span></span>
-      <span class="qp-lage">${L ? `${f2q(x0)}–${f2q(x0 + L)}` : f2q(x0)}</span>
-    </div>`;
-    // Die Masten eines Jochs darunter - jeder nur einmal, bei seinem ersten.
-    const unter = art.masten >= 2
-      ? eigeneMasten.filter((m, k, a) => a.indexOf(m) === k && heimat.get(m.id) === t.id)
-        .map((m) => mastZeile(mastVon(m.id) ?? m, t)).join('')
-      : '';
-    return zeile + unter;
-  }).join('');
-  // Masten ohne Tragwerk (sollte es nicht geben) - nicht verschweigen.
-  const lose = masten.filter((m) => !heimat.has(m.id))
-    .map((m) => mastZeile(m, { id: null })).join('');
+  /* =========================================================================
+   * >>> DER BAUM IST WEG, DAS BAND BLEIBT (30. September). <<<
+   * =========================================================================
+   *
+   * Weisung: «in der Tragwerkgruppe sehe ich infos, die ich schon im 3d oder
+   * nebenan in der resultat sidebar sehe ... so muss man nur selten in einer
+   * miniübersicht nach den tragwerken suchen, da man schon eine gute
+   * übersicht hat im 3d.» Auf Rückfrage «Lageband behalten, Baum weg». Was
+   * der Baum sonst noch trug, hat seinen Platz: Anklicken wählt im Band
+   * (ein Mast wählt sein Tragwerk mit), Ausblenden und alles Weitere steht
+   * im Kontextmenü (Rechtsklick im Band und im 3D), der Anker ist als
+   * Strich im Band anklickbar, η steht in der Resultatspalte.
+   * ======================================================================= */
 
   // --- Das Lageband --------------------------------------------------------
   // Joche in Bahnen: was sich deckt, kommt eine Bahn hoeher.
@@ -2170,7 +2044,6 @@ export function querprofilLeisteHtml(werte) {
       </div>
       <div class="qp-skala"><span>${von.toFixed(1)} m</span>
         <span>Lage auf dem Querprofil</span><span>${bis.toFixed(1)} m</span></div>
-      <div class="qp-liste qp-baum">${baum}${lose}</div>
     </div>`;
 }
 
