@@ -24284,10 +24284,11 @@ titel('68  Das Menueband und der Name der Anwendung');
   const menue = app.slice(app.indexOf('function exportMenue()'),
                           app.indexOf('function exportMenueVerdrahten'));
   const eintraege = [...menue.matchAll(/text: '([^']+)'/g)].map((m) => m[1]);
-  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Excel, Drucken',
-       eintraege.length === 7 && /COM/.test(eintraege[0])
+  // Seit dem 30. September dazu das Blatt der Reaktionskraefte (acht Eintraege).
+  wahr('Das Menue fuehrt AxisVM (JSON, SAF, DXF), PyNite, Bericht, Reaktionen, Excel, Drucken',
+       eintraege.length === 8 && /COM/.test(eintraege[0])
        && ["ax('json')", "ax('saf')", "ax('dxf')", "ax('pynite')", 'dialogBericht(app)',
-           'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
+           'reaktionsBlatt', 'exportKlick', 'window.print()'].every((t) => menue.includes(t)),
        eintraege.join(' · '));
   wahr('… und der AxisVM-Dialog nimmt das Format vorgewaehlt entgegen',
        /export function dialogAxisvm\(app, format = 'json'\)/.test(
@@ -33887,6 +33888,94 @@ titel('168  Mast mit Ausleger verlängert, Anker im Kontextmenü, Δz_F am Einze
   wahr('Berichtsleiste im eigenen Fenster: frei bis zu den Knöpfen, ziehbar',
        /#bericht-ebene \.bericht-leiste \{[^}]*env\(titlebar-area-width[^}]*app-region: drag/.test(wco)
        && /#bericht-ebene \.bericht-leiste button \{[^}]*app-region: no-drag/.test(wco));
+}
+
+titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt');
+/* ===========================================================================
+ * Weisung 30. September: die Tabelle der Reaktionskräfte wie die
+ * Zusammenfassung der Einwirkungs-Mappe, charakteristisch, Wind ohne 0.7,
+ * bei einer Jochreihe alle Auflager, Skizze, Hinweise, Achssystem, Druck
+ * positiv. Rückfragen: Havarie eigene Zeile; Reiter Auflager und Blatt.
+ * ========================================================================= */
+{
+  const RK = await import(J('core.reaktionen.js'));
+  const ER = await import(J('export.reaktionen.js'));
+  const N169 = await import(J('core.nachbarn.js'));
+  const V169 = await import(J('core.vierendeel.js'));
+  const AS169 = await import(J('app.stabwerk.js'));
+  const C169 = await import(J('core.constants.js'));
+
+  // (a) Die Regeln an erfundenen Zahlen.
+  const r = (uz, fiy, fix = 0, ux = 0, uy = 0, fiz = 0) => ({ ux, uy, uz, fix, fiy, fiz });
+  const faelle = [
+    { key: 'gk', art: 'charakteristisch', beiwerte: { G: 1 }, bez: 'Ständig (Tragwerk)' },
+    { key: 'ablk', art: 'charakteristisch', beiwerte: { G: 1 }, bez: 'Ablenkkräfte ständig' },
+    { key: 'wxk', art: 'charakteristisch', beiwerte: { G: 0, WindX: 1 }, leit: 'WindX', bez: 'Wind +x' },
+    { key: 'gwkx', art: 'charakteristisch', beiwerte: { G: 1, WindX: 1 }, leit: 'WindX', bez: 'Ständig + Wind +x' },
+    { key: 'gtb', art: 'gebrauchstauglichkeit', stufe: 'betrieb', beiwerte: { G: 1, WindX: 0.7 }, leit: 'WindX', bez: 'Betriebswind' },
+    { key: 'hav', art: 'aussergewoehnlich', beiwerte: { G: 1, HavarieY: 1 }, leit: 'HavarieY', bez: 'Havarie' },
+  ];
+  const roh = { faelle: faelle.filter((l) => l.art !== 'gebrauchstauglichkeit'), auflager: [{
+    knoten: 'MAST_M1_F', art: 'mast', id: 'M1', x: 0, y: 0, z: 0,
+    proFall: new Map([['gk', r(8, 1)], ['ablk', r(2, 2)], ['wxk', r(0, 10)],
+                      ['gwkx', r(10, 13)], ['gtb', r(10, 99)], ['hav', r(12, 3, 30)]]) }] };
+  const z = RK.reaktionsZeilen(roh)[0];
+  pruef('Das ständige G sind beide Hälften zusammen (V min)', z.haupt.Vmin.wert, 10, 1e-12, 'kN');
+  pruef('M_q ist das Maximum der wirklichen Zustände', z.haupt.Mq.wert, 13, 1e-12, 'kNm');
+  wahr('… aus «Ständig + Wind +x», nicht aus dem Betriebswind', z.haupt.Mq.bez === 'Ständig + Wind +x');
+  wahr('Die Havarie steht in eigener Zeile und nicht in der Hauptzeile',
+       z.havarie?.Ml.wert === 30 && z.haupt.Ml.wert === 0);
+  pruef('Anteil ständig am Moment quer: 3 / (3 + 10)', z.anteil.quer.prozent, 3 / 13, 1e-12);
+  wahr('Knotennamen: Mastfuss, Anker (auch mit Präfix), Längsanker',
+       RK.auflagerArt('MAST_M2_F').art === 'mast' && RK.auflagerArt('T1_ANKER_M1_F').id === 'M1'
+       && RK.auflagerArt('LV_M').art === 'laengsanker');
+
+  // (b) Am Stabwerk: J90/20 m, dieselben Zahlen wie der Fundamentnachweis.
+  const w = { ...standardwerte(), nachweise: { ...standardwerte().nachweise, fundament: true } };
+  const lauf = (werte) => {
+    const s = N169.rechensatzMitNachbarn(werte);
+    const erg = berechne(s, ...N169.kernArgumente(s));
+    return AS169.rechneStabwerk({ werte, letzte: { erg }, stabwerk: null });
+  };
+  const sw = lauf(w);
+  const m1 = sw.reaktionen.find((x) => x.id === 'M1');
+  const fM1 = sw.fundamentJe.M1.nachweise;
+  const fw = (k) => fM1.find((n) => n.key === k).wert;
+  ['Mq', 'Ml', 'Hq', 'Hl', 'T'].forEach((k) =>
+    pruef(`J90/20 m, M1: ${k} wie der Fundamentnachweis`, m1.haupt[k].wert, fw(k), 1e-9));
+  pruef('… V max wie der Fundamentnachweis (Druck positiv)', m1.haupt.Vmax.wert, fw('V'), 1e-9, 'kN');
+  console.log(`      J90/20 m M1: V ${m1.haupt.Vmax.wert.toFixed(3)} kN, M_q ${m1.haupt.Mq.wert.toFixed(3)}, `
+    + `M_l ${m1.haupt.Ml.wert.toFixed(3)} kNm`);
+
+  // (c) Die Jochreihe mit Anker: alle Auflager.
+  let reihe = C169.tragwerkHinzu({ ...w, L: 20, xLage: 0, twId: 'T1' }, 'joch', {});
+  const mA = C169.mastenVon(reihe)[0];
+  let at = null;
+  try { at = AN.ankerTypen()[0] ?? null; } catch { at = null; }
+  if (at) reihe = C169.setzeMastAnker(reihe, mA.id, { typ: at.id, richtung: 'y', seite: 'plus',
+                                                        h: 6, a: 3.5, befestigung: 'standard' });
+  const swR = lauf(reihe);
+  const arten = swR.reaktionen.map((x) => x.art).join(',');
+  wahr('Reihe 2 × J90/20 m: drei Mastfüsse und das Ankerfundament',
+       swR.reaktionen.filter((x) => x.art === 'mast').length === 3
+       && (!at || swR.reaktionen.some((x) => x.art === 'anker')), arten);
+  const m2 = swR.reaktionen.find((x) => x.id === 'M2');
+  pruef('Der geteilte M2 trägt beide Joche: M_l wie sein Fundamentnachweis',
+        m2.haupt.Ml.wert, swR.fundamentJe.M2.nachweise.find((n) => n.key === 'Ml').wert, 1e-9, 'kNm');
+  wahr('Die Skizze kommt aus dem Stabmodell', (swR.skizze?.linien.length ?? 0) > 50);
+
+  // (d) Die Ausgabe.
+  const daten = { zeilen: swR.reaktionen.map((x) => ({ ...x, name: x.id })),
+                  skizze: swR.skizze, grenzen: { fahrdraht: 0.04, spitzeN: 100 } };
+  const blatt = ER.reaktionenBlattHtml(daten);
+  wahr('Das Blatt: Tabelle, Skizze, Achssystem, Hinweise',
+       blatt.includes('rk-tabelle') && blatt.includes('rk-skizze') && blatt.includes('rk-achsen')
+       && blatt.includes('Druckkräfte sind positiv') && blatt.includes('ohne\n      Abminderung'));
+  wahr('Kein «−0.00» in der Tabelle', !ER.reaktionenTabelleHtml(daten).includes('−0.00'));
+  const app = APP_QUELLE();
+  wahr('Export-Menü und Reiter Auflager führen sie',
+       app.includes("{ text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt }")
+       && app.includes("reaktionenTabelleHtml(rd, { kurz: true })"));
 }
 
 // ===========================================================================

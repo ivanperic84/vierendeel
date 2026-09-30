@@ -199,15 +199,16 @@ function berichtOeffnen(app, wahl) {
  * installierten und der eigenstaendigen Fassung, und gedruckt wird nur das
  * eingebettete Dokument, nicht die Anwendung dahinter.
  */
-function berichtZeigen(html) {
+// Auch das Blatt der Reaktionskräfte geht diesen Weg (30. September).
+export function berichtZeigen(html, titel = 'Nachweisbericht') {
   document.getElementById('bericht-ebene')?.remove();
   const ebene = document.createElement('div');
   ebene.id = 'bericht-ebene';
   ebene.innerHTML = `<div class="bericht-leiste">
-      <b>Nachweisbericht</b>
+      <b>${titel}</b>
       <button class="btn btn-acc" id="bericht-drucken">Drucken / als PDF sichern</button>
       <button class="btn" id="bericht-zu">Schliessen</button></div>
-    <iframe title="Nachweisbericht"></iframe>`;
+    <iframe title="${titel}"></iframe>`;
   document.body.appendChild(ebene);
   const rahmen = ebene.querySelector('iframe');
   rahmen.srcdoc = html;

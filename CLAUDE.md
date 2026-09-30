@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Tabelle der Reaktionskräfte (30. Sept.) | Weisung (Wortlaut in `js/core.reaktionen.js`): die Zusammenfassung der Einwirkungs-Mappe als Output - charakteristisch, Wind ohne 0.7, bei einer Jochreihe alle Auflager, Übersichtsskizze, Hinweise, Achssystem, **Druck positiv**. Auf Rückfrage **Havarie als eigene Zeile** und **«Beides»** (Reiter Auflager oben, Blatt im Export «Reaktionskräfte (Blatt)», druckbar A4 quer). Aus dem **Stabwerk** (alle Auflager des Blattes in einem Modell): je Mastfuss, Ankerfundament und Längsanker V min/max, ±M_q, ±H_q, ±M_l, ±H_l, ±T mit massgebendem Fall, Anteil ständig/veränderlich am Moment quer, darunter die Standardlasten des Fundamenttyps. Zustände: G = beide ständigen Hälften zusammen, ständig + Wind/Schnee; Betriebswind und die G-Hälften allein zählen nicht. Skizze = echte Stäbe und Seile des Stabmodells in x–z. Gemessen: J90/20 m M1 V 12.825 kN, M_q 11.235, M_l 43.091 kNm - auf die Stelle wie der Fundamentnachweis; Reihe 2 × J90/20 m mit Anker: M1, Ankerfundament, geteilter M2 (M_l 70.014), M3. Ohne gültiges Stabwerk keine Tabelle, der Grund steht da |
 | Mast wächst beim Anbau des Tragauslegers (30. Sept.) | «beim anbau von tragauslegern den mast automatisch verlängern und mit info versehen wie bis anhin am oberen bildschimrand» - beantwortet die Frage (a) automatisch / (b) Warnung. Nach «Setzen» im Dialog (neu oder Artwechsel) bringt `auslegerMastAnbau` (app.js) den Masten auf H + b (halber Meter), wenn seine eingetragene Länge nicht reicht oder ein anderes Tragwerk ihn trägt; Meldung im Balken oben. Danach bleibt die Länge dem Nutzer (kürzer gestellt: Warnung). Im Browser: Mast 14 auf 9 m, zweiter Ausleger L 10 m an Mast 14 → «Mast 14 auf 12.50 m verlängert (war 9.00 m)». Die Stabwerk-Sperre für einen Ausleger an einem geteilten Masten bleibt (*Offene Punkte*) |
 | Kleinigkeiten 30. Sept. (Anker, Masten-Schalter, Δz_F, Berichtsleiste) | «kontext menue beim anker auch ergänzen»: Rechtsklick auf Stab oder Fundament des Ankers → «Anker bearbeiten …», Seitenleiste, zoomen, entfernen, darunter die Einträge des Masten (`kontextAnker`). «diese option bei einem tragausleger entfernen» → «Tragwerk steht auf Masten» und «Masten … ausschalten» nicht beim Ausleger; alte Stände mit aus stehen wieder auf dem Masten. Δz_F am Einzelmasten auf Rückfrage **«Ausblenden»** (gemessen: mit Länge kein η, ohne Länge eine zweite Tür zur Länge); ein gespeicherter Versatz wird in die Länge überführt und auf 0 gesetzt (`einzelmastFussAnheben`), gleiches η. «die msten werden meist mit ganzen zahlen ohne punkt beschriftet» → Beispiel im Hinweis «z. B. 14». Leiste des Nachweisberichts weicht im installierten Fenster den Fensterknöpfen aus (Window Controls Overlay; im Browserbereich nicht prüfbar) |
 | Grenzwerte der Gebrauchstauglichkeit (30. Sept.) | «unter den optionen sollte man noch die grenzwerte definieren können für fahrdraht und mastspitze»: zwei Felder unter *Optionen → Nachweise*, unter der Gebrauchstauglichkeit - `gzgGrenzeFahrdraht` [mm], Vorgabe 40, und `gzgGrenzeSpitze` (n in L/n), Vorgabe 100; leer oder ≤ 0 = Vorgabe. Eine Stelle (`verformungGrenzen`, core.verformung.js); der Kern gibt die Zahlen im Ergebnis mit (`grenzen`), Stabwerk, Kachelkopf und Bericht lesen sie dort. Im Browser: 30 mm / L/150 → Kopf «η = w / 30 mm bzw. L/150», Kachel «Mastspitze 12.50 m · 83 mm zulässig» |
@@ -276,12 +277,19 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**30. September 2026** · Prüfstand 5912 Kontrollen grün · `durchlauf.mjs`
+**30. September 2026** · Prüfstand 5930 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **30. Sept., Tabelle der Reaktionskräfte** (Entscheid siehe *Entschieden*,
+  Prüfstand 169, neue Module `core.reaktionen.js`, `export.reaktionen.js`).
+  Im Browser (eigener Tab, Speichern abgeschaltet; Stand des Auftraggebers:
+  Ausleger an Mast 14): Reiter Auflager «14 · DP2a / 2.0 · V 15.12 · M_q
+  43.68 · M_l 36.01 · 36 / 64 %», Längsanker H_l 1.22 kN; Blatt mit Skizze,
+  Achssystem und Hinweisen. Auf Weisung «pushen nach dem bau der tabelle»
+  gepusht.
 - **30. Sept., Mast wächst mit dem Ausleger, Anker im Kontextmenü, Δz_F am
   Einzelmasten weg, Berichtsleiste** (Prüfstand 168). Browserprobe in einem
   eigenen Tab mit abgeschaltetem Speichern. **Beobachtet, nicht behoben:**
@@ -2119,7 +2127,40 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- **Tabelle der Reaktionskräfte (30. Sept., entschieden, im Bau).**
+- **Nächste Wünsche (30. Sept., noch NICHT umgesetzt - Weisung «die
+  restlichen aufgaben noch nicht umsetzen, warten bis wir frische tokens
+  erhalten»):**
+  (1) Gebrauchstauglichkeit in den Optionen neu ordnen, im Wortlaut: «diese
+  aufteilung macht wenig sinn, man sollte die beiden grenzwertbetrachtungen
+  aktiv inaktiv schalten können. oder zu oberst den kompletten
+  gebrauchstauglichkeitnachweis. hinzu kommt noch die mastverdrehung 5° als
+  dritte prüfung. dazu noch die eingabe der relevanten höhe, was man auch
+  beim fahrdraht in den optionen eingeben sollte können. (fahrdraht /
+  Tragjoch / Ausleger oder selbst eingegeben höhe) dann muss man auch nicht
+  immer die überprüfung vornehmen in der sidebar. man könnte diese grenze
+  auch unter gebauchstauglichkeit in der sidebar übersicht aufführen und
+  umschaltbar machen falls notwendig, dann ist man auch nicht so abhängig
+  von den automatismen.»
+  (2) «beim Mast noch unter profile die querschnittsklasse angeben und
+  einen hinweis zur schweissnaht an fussplatte (durchgeschweisst). dies ist
+  bei den standardfussplatten schon der fall.»
+  (3) «unter profile könnte man da auf die einzelnen profile klicken und
+  ein fenster mit den hinterlegten kenndaten zum profil und eine svg
+  zeichnung des schnitts und mit vermassung und die angabe zur lage des
+  schwerpunktes, so lassen sich die werte mit der fachliteratur
+  abgleichen.»
+  (4) Frage «ist es möglich ein verformtes modell darzustellen im 3d? oder
+  kostet das zu viel performance? es wäre nur ein nice to have» - noch
+  nicht beantwortet.
+  Dazu offen aus der Sammelweisung: Vorzeichen der Eingabe nach dem 3D
+  (siehe unten), «+ Bauteil aus der Lasttabelle», «Fahrleitung als
+  Auflager» nur mit Leiter, Signalbauer mit Bildern, Rückstellkraft der
+  Leiter am Joch.
+- **Tabelle der Reaktionskräfte (30. Sept.) - gebaut**, siehe *Entschieden*.
+  Beobachtet: am Ankerfundament rechnet das Stabwerk kleine Momente
+  (0.4 kNm an einem U12) - die Tabelle führt dort «–»; ob das Fundament des
+  Ankers im Modell gelenkig sein müsste, ist nicht geprüft.
+  Bisheriger Wortlaut des Auftrags:
   Weisung: «kannst du noch die mappe wo die reaktionskräfte zusammengefasst
   sind lesen und diese tabelle als output hier in der app anbieten, man
   sollte die charakteristischen lasten hier aufführen (massgebend in quer
@@ -2443,7 +2484,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5912 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5930 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

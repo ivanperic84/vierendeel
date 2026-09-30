@@ -25,7 +25,8 @@ import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
 import { exportiere } from './export.bericht.js';
-import { dialogBericht } from './app.bericht.js';
+import { dialogBericht, berichtZeigen } from './app.bericht.js';
+import { reaktionenTabelleHtml, reaktionenBlattHtml } from './export.reaktionen.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
          auflagerAngebot, auflagerVorgabe } from './export.axisvm.js';
@@ -80,7 +81,7 @@ import { gurtTeilung, jochStaebe, stabwerkDiagramme, stabwerkFaerben } from './r
 // Der Mastnachweis - beim Abfangjoch mit dessen eigenen Auflagerkraeften.
 import { mastNachweise, mastNachweiseHuelle, mastSchnitt } from './core.mast.js';
 import { verformungsNachweis, verformungGrenzen } from './core.verformung.js';
-import { fundamentNachweis } from './core.fundament.js';
+import { fundamentNachweis, fundamentVon } from './core.fundament.js';
 import { ankerAuswertung, ankerAmAbfangjoch, abfangVarianten, abfangModell,
          ankerKnickenSicher } from './core.anker.js';
 import { ladeAbfangjoche, abfangjoche, abfangDbDa,
@@ -620,6 +621,46 @@ function stabwerkGilt() {
   // In einer Reihe tragen die Stäbe des aktiven Tragwerks sein Präfix.
   return { h: stabwerk,
            jochKey: (stabwerk.tragwerke ?? 1) > 1 ? `tragwerk:${werte.twId}` : 'tragwerk' };
+}
+
+/**
+ * >>> DIE DATEN DER TABELLE DER REAKTIONSKRÄFTE (30. September). <<<
+ * Aus dem Stabwerk (alle Auflager des Blattes), dazu was nur die Anwendung
+ * weiss: der angezeigte Name (Mastnummer), das Fundament je Mast, der Anker.
+ * Ohne gültiges Stabwerk keine Tabelle - der Grund kommt mit.
+ */
+function reaktionsDaten() {
+  const g = stabwerkGilt();
+  if (!g?.h?.reaktionen?.length) {
+    return { fehlt: verfahrenVon(werte) !== 'stabwerk'
+      ? 'Die Tabelle kommt aus dem Stabwerk; das Rechenverfahren steht auf Ersatzbalken.'
+      : 'Das Stabwerk ist noch nicht gerechnet - es läuft von selbst kurz nach der Eingabe.' };
+  }
+  const masten = mastenVon(werte);
+  const zeilen = g.h.reaktionen.map((z) => {
+    const m = masten.find((mm) => mastName(werte, mm) === z.id) ?? null;
+    const fund = z.art === 'mast'
+      ? fundamentVon({ profil: m?.profil ?? werte.mastProfil,
+                       stegrichtung: m?.steg ?? werte.mastSteg ?? 'jochachse',
+                       fundament: m?.fundament ?? '' })?.typ ?? null
+      : null;
+    // Die Lage des MASTEN, nicht die des Modells: in einer Reihe ist das
+    // Stabwerk um die Luft der Endbleche entflochten (M2 bei 20.05 statt
+    // 20.00). Die Skizze bleibt beim Modell (`xModell`), dort stimmt sie.
+    return { ...z, xModell: z.x, x: Number.isFinite(m?.x) ? m.x : z.x,
+             name: mastAnzeigeText(z.id, anzeigeKarte), fundament: fund,
+             anker: z.art === 'anker' ? (m?.anker ?? null) : null };
+  });
+  return { zeilen, skizze: g.h.skizze ?? null, grenzen: verformungGrenzen(werte),
+           linie: werte.linie ?? '', km: werte.km ?? '', ortschaft: werte.ortschaft ?? '',
+           datum: new Date().toLocaleDateString('de-CH'), fassung: `${APP_NAME} ${VERSION}` };
+}
+
+/** Das Blatt der Reaktionskräfte in der Ebene des Berichts. */
+function reaktionsBlatt() {
+  const d = reaktionsDaten();
+  if (d.fehlt) { meldeImBalken(`Reaktionskräfte: ${d.fehlt}`); return; }
+  berichtZeigen(reaktionenBlattHtml(d), 'Reaktionskräfte');
 }
 
 function neuRechnen(neuZeichnen = true) {
@@ -1513,6 +1554,22 @@ function zeichneAuswertung() {
      */
     if (erg.abfang?.auflager) ui.zeichneAbfangAuflager(node, erg.abfang, erg);
     else ui.zeichneAuflager(node, letzte.auflager, erg);
+    /*
+     * >>> OBEN DIE REAKTIONSKRÄFTE ALLER AUFLAGER (30. September). <<<
+     * Auf Rückfrage «Beides»: kurz hier, ausführlich als Blatt im Export.
+     * Charakteristisch, Wind ohne 0.7, Druck positiv - darunter bleiben
+     * die Bemessungswerte des gewählten Lastfalls, wie bisher.
+     */
+    const rd = reaktionsDaten();
+    node.insertAdjacentHTML('afterbegin', `<div class="rk-block">
+      ${abschnitt('Reaktionskräfte, charakteristisch',
+        'alle Auflager · Druck positiv · Wind ohne 0.7')}
+      ${rd.fehlt ? `<p class="leer">${esc(rd.fehlt)}</p>`
+        : `<div class="tabellenrahmen">${reaktionenTabelleHtml(rd, { kurz: true })}</div>
+           <button class="btn btn-mini" type="button" data-reaktionen-blatt>Blatt mit Skizze
+             und Hinweisen …</button>`}
+    </div>`);
+    node.querySelector('[data-reaktionen-blatt]')?.addEventListener('click', reaktionsBlatt);
   } else {
     /*
      * >>> DAS ABFANGJOCH ZEIGT SEINE EIGENEN VERLAEUFE. <<<
@@ -3832,6 +3889,8 @@ function exportMenue() {
     '-',
     { kopf: 'Dokumente' },
     { text: 'Nachweisbericht (PDF)', tun: () => dialogBericht(app) },
+    // Charakteristisch, alle Auflager des Blattes (30. September).
+    { text: 'Reaktionskräfte (Blatt)', tun: reaktionsBlatt },
     { text: 'Excel-Ausleitung (.xlsx)', tun: exportKlick },
     { text: 'Drucken', tun: () => handlung('Drucken', () => window.print()) },
   ];

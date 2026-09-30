@@ -48,6 +48,8 @@ import { eingabeKennung, stabwerkHuelle, aufhaengungNachweis,
          laengsankerKraft } from './core.stabnachweis.js';
 import { verformungAusStabwerk } from './core.stabverformung.js';
 import { knickenAusStabwerk, fundamentAusStabwerk } from './core.stabmast.js';
+import { anteileFuer } from './core.stabnachweis.js';
+import { reaktionenAusStabwerk, reaktionsZeilen, skizzeAusModell } from './core.reaktionen.js';
 import { seilAnker, seilHilfsfaelle, seilAusfall, ankerAusStabwerk } from './core.stabseil.js';
 import { ankerAuswertung, ANKER_FALLARTEN } from './core.anker.js';
 import { nachweiseAuswahl } from './core.checks.js';
@@ -453,9 +455,20 @@ export function rechneStabwerk(app) {
     if (a) ankerJe[id] = a;
   });
 
+  /*
+   * >>> DIE REAKTIONSKRÄFTE ALLER AUFLAGER (30. September). <<<
+   * Charakteristisch, Wind ohne ψ 0.70, Havarie eigene Zeile - für die
+   * Tabelle im Reiter Auflager und das Blatt im Export (core.reaktionen.js).
+   */
+  const reaktionen = reaktionsZeilen(
+    reaktionenAusStabwerk(dat, lsg, alleFaelleS, anteileFuer));
+
   return {
     ...huelle,
     verformung,
+    reaktionen,
+    // Die Übersichtsskizze des Blattes der Reaktionskräfte (x–z).
+    skizze: skizzeAusModell(dat),
     ausleger,
     knick,
     fundamentJe,

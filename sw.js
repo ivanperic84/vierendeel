@@ -29,7 +29,7 @@
 /* eslint-env serviceworker */
 
 // === von build_html.py erzeugt - nicht von Hand ändern ======================
-const VERSION = '841c1ae03142';
+const VERSION = '179c012df109';
 const SCHALE = [
   './',
   'index.html',
@@ -62,6 +62,7 @@ const SCHALE = [
   'js/core.mast.js',
   'js/core.nachbarn.js',
   'js/core.querschnitt.js',
+  'js/core.reaktionen.js',
   'js/core.stabmast.js',
   'js/core.stabnachweis.js',
   'js/core.stabseil.js',
@@ -96,6 +97,7 @@ const SCHALE = [
   'js/export.comskripte.js',
   'js/export.nachweisbericht.js',
   'js/export.pynite.js',
+  'js/export.reaktionen.js',
   'js/export.xlsx.js',
   'js/geometry.js',
   'js/pwa.js',

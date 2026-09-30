@@ -3283,3 +3283,17 @@ input[type=range]:disabled { opacity: .45; cursor: default; }
 /* Die Stegskizze ist anklickbar (30. September). */
 .feld:has(select[data-feld="mastSteg"]) .opt-skizze,
 .feld:has(select[data-feld="mastStegB"]) .opt-skizze { cursor: pointer; }
+
+/* ---------------------------------------------------------------------------
+   Reaktionskräfte, charakteristisch (30. September) - oben im Reiter
+   Auflager, alle Auflager des Blattes; das Blatt im Export trägt eigene
+   Stile (export.reaktionen.js).
+   --------------------------------------------------------------------------- */
+.rk-block { margin-bottom: 14px; }
+.rk-block .btn { margin-top: 6px; }
+.rk-tabelle { font-size: 11px; }
+.rk-tabelle th, .rk-tabelle td { padding: 3px 5px; }
+.rk-tabelle .rk-gruppe { text-align: center; }
+.rk-tabelle .rk-x { color: var(--dim); font-size: 10px; }
+.rk-tabelle .rk-havarie td { color: var(--warn); }
+.rk-tabelle .rk-zul td { color: var(--dim); }

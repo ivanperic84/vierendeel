@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **30. September 2026**; Prüfstand 5912 Kontrollen grün,
+Stand: **30. September 2026**; Prüfstand 5930 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. **Mehrere Commits seit dem letzten Push
 (`1873231` … `69c1aba`) sind NICHT gepusht** - pushen nur auf Weisung.
 Neu am 29. September abends (Einzelheiten in CLAUDE.md, *Entschieden*):
@@ -33,9 +33,14 @@ Gebrauchstauglichkeit), Aufhängung des Tragauslegers **0.80 m**; danach
 Vorgabe), ein zu kurzer Ausleger-Mast zeigt den Ausleger statt des
 Ersatzjochs, Tragwerk-Kacheln nur unter dem Zeiger hinterlegt; der Mast
 wächst beim Anbau eines Auslegers auf H + b, Anker mit Kontextmenü, Δz_F
-am Einzelmasten weg. **Im Bau: Tabelle der Reaktionskräfte** (Havarie
-eigene Zeile, Reiter Auflager und Blatt im Export), danach **Vorzeichen
-der Eingabe nach dem 3D** (siehe CLAUDE.md, Offene Punkte). **Als
+am Einzelmasten weg; **Tabelle der Reaktionskräfte** gebaut (Reiter
+Auflager und Export «Reaktionskräfte (Blatt)»), gepusht. **Warten auf
+Freigabe** («die restlichen aufgaben noch nicht umsetzen»): Neuordnung der
+Gebrauchstauglichkeit (Schalter je Grenzwert, Mastverdrehung 5°,
+Referenzhöhe in den Optionen), Querschnittsklasse und Fussnaht unter
+Profile, Profilfenster mit Kenndaten und Schnittzeichnung, Frage zum
+verformten Modell, **Vorzeichen der Eingabe nach dem 3D** - Wortlaut in
+CLAUDE.md, Offene Punkte. **Als
 Nächstes aus derselben Weisung:** Signalbauer mit Bildern und
 Umschaltkacheln, Auswahlfenster «+ Bauteil aus der Lasttabelle»,
 «Fahrleitung als Auflager» nur mit Leiter, Rückstellkraft der Leiter am
@@ -198,7 +203,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 5912 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 5930 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
