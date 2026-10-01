@@ -34625,6 +34625,67 @@ titel('180  Vorlage überschreiben oder neu; Hinweise des Reaktionsblatts nach d
        && readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8').includes('wahl.merken?.(rahmen);'));
 }
 
+titel('181  Jochreihe: Zwischenmast schieben, Kragarm am Zwischenmasten, neues Joch ohne Kragarm');
+/* ===========================================================================
+ * Gemeldet 1. Oktober: «wenn mehrere joche in reihe stehen, dann macht der
+ * überstand und das nachträgliche schieben des mittleren masten probleme.»
+ * Rückfragen: neues Joch «Ohne Kragarm», Kragarm am Zwischenmasten
+ * «Erlauben». Gemessen vorher: M2 20 → 22 m gab T1 0..20, T2 22..37 (vier
+ * Masten); mit Kragarm am Zwischenmasten riss die Reihe in beide
+ * Richtungen; ein angehängtes Joch erbte c_A und stand 0.50 m neben M2.
+ * ========================================================================= */
+{
+  const C181 = await import(J('core.constants.js'));
+  const U181 = await import(J('ui.js'));
+  const reihe = (t1 = {}, t2 = {}) => C181.tragwerkHinzu(
+    { typ: 'J90', L: 20, xLage: 0, mastProfil: 'HEB 260', mastVorhanden: true,
+      tragwerksart: 'joch', twId: 'T1', ...t1 },
+    'joch', { typ: 'J90', L: 15, xLage: 20, ...t2 });
+  const schieben = (w, x) => {
+    const m = C181.mastenVon(w).find((mm) => (mm.traegt ?? []).length === 2);
+    return U181.mastStelleSetzen(w, U181.mastRollen(w, m.id), x);
+  };
+  const lagen = (w) => C181.mastenVon(w).map((m) => `${m.x.toFixed(2)}:${(m.traegt ?? []).length}`).join(' ');
+  const faelle = [
+    ['ohne Kragarm', reihe()],
+    ['Kragarm aussen A an T1', reihe({ xLage: -0.5, L: 20.5, kragA: 0.5, kragMasten: true })],
+    ['Kragarm aussen B an T2', reihe({}, { L: 15.5, kragB: 0.5, kragMasten: true })],
+    ['Kragarm an beiden Seiten des Zwischenmasten',
+     reihe({ L: 20.5, kragB: 0.5, kragMasten: true }, { xLage: 19.5, L: 15.5, kragA: 0.5, kragMasten: true })],
+  ];
+  faelle.forEach(([name, w]) => {
+    const vor = C181.mastenVon(w);
+    wahr(`${name}: drei Masten, der mittlere geteilt`,
+         vor.length === 3 && (vor[1].traegt ?? []).length === 2, lagen(w));
+    [22, 18].forEach((x) => {
+      const n = schieben(w, x);
+      const m = C181.mastenVon(n);
+      wahr(`… M2 auf ${x} m: drei Masten, M2 geteilt bei ${x}, T2 behält seine Spannweite`,
+           m.length === 3 && Math.abs(m[1].x - x) < 1e-9 && (m[1].traegt ?? []).length === 2
+           && Math.abs(m[2].x - (x + 15)) < 1e-9 && Math.abs(m[0].x) < 1e-9, lagen(n));
+      wahr('… und meldet keine Kollision', C181.mastKollisionen(n).length === 0);
+    });
+  });
+  // Drei Joche: der mittlere Zug springt nicht über den Nachbarn.
+  const drei = C181.tragwerkHinzu(reihe(), 'joch', { typ: 'J90', L: 10, xLage: 35 });
+  wahr('Drei Joche: M2 gegen T3 gezogen bleibt stehen, T2 springt nicht hinter T3',
+       lagen(schieben(drei, 40)) === lagen(drei), lagen(schieben(drei, 40)));
+  // Neues Joch ohne Kragarm, angeschlossen am letzten MASTEN.
+  const krag = { typ: 'J90', L: 20.5, xLage: -0.5, kragA: 0.5, kragMasten: true,
+                 mastVorhanden: true, tragwerksart: 'joch', twId: 'T1' };
+  const neu = C181.tragwerkHinzu(krag, 'joch', {});
+  wahr('Ein neues Joch übernimmt keinen Kragarm und schliesst am letzten Masten an',
+       C181.kragarme(neu).join('/') === '0/0' && neu.xLage === 20
+       && C181.mastenVon(neu).length === 3, `${C181.kragarme(neu)} · x ${neu.xLage}`);
+  const kragB = { ...krag, L: 21, kragB: 0.5 };
+  pruef('… auch hinter einem Kragarm am Ende B (Anschluss am Masten, nicht am Gurtende)',
+        C181.tragwerkHinzu(kragB, 'joch', {}).xLage, 20, 1e-9, 'm');
+  wahr('Der Dialog «zwischen den Masten» setzt kein c_A/c_B mehr ein',
+       readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8').includes('const [kA, kB] = [0, 0];'));
+  wahr('Die App fährt den Zwischenmast über dieselbe Funktion',
+       APP_QUELLE().includes('werte = ui.mastStelleSetzen(werte, r, wert.x);'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

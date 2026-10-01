@@ -2716,41 +2716,9 @@ function aendern(key, wert) {
   if (key === 'mastStelle') {
     const r = ui.mastRollen(werte, wert.mastId);
     if (!r) return;
-    const setzeAn = (id, feld, v) => {
-      if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
-      werte = { ...werte, [feld]: v };
-    };
-    if (r.alsB) {
-      /*
-       * DIE LAENGE WAECHST NICHT UEBER EINEN FREMDEN MASTEN HINWEG.
-       *
-       * Am Ende B gezogen wird das Joch laenger - und koennte dabei den
-       * Masten schlucken, der daneben steht. `freieLaenge` haelt es an ihm
-       * an; das Ende darf darauf liegen, denn dort steht dann der
-       * gemeinsame Mast.
-       */
-      if ((werte.twId ?? 'T1') !== r.alsB.t.id) {
-        werte = tauscheAktives(werte, r.alsB.t.id);
-      }
-      // Mit Kragarm ragt das Joch um c_B über den Masten (30. September).
-      const roh = Math.max(0, wert.x - r.alsB.x0) + kragarme(r.alsB.t)[1];
-      werte = { ...werte, L: freieLaenge(werte, r.alsB.t.id, roh).L };
-    }
-    if (r.alsA) {
-      /*
-       * DAS RECHTE TRAGWERK BEHAELT SEINE LAENGE UND WANDERT MIT - aber
-       * nicht in seinen Nachbarn hinein. `freieLage` entscheidet, wohin es
-       * darf; die Regel steht dort und nicht ein zweites Mal hier.
-       *
-       * Beim GETEILTEN Masten laeuft das nach der Laengenaenderung des
-       * linken Jochs: dessen rechtes Ende steht dann schon an der neuen
-       * Stelle, und das rechte schliesst dort an.
-       */
-      if ((werte.twId ?? 'T1') !== r.alsA.t.id) {
-        werte = tauscheAktives(werte, r.alsA.t.id);
-      }
-      werte = { ...werte, xLage: freieLage(werte, r.alsA.t.id, wert.x - kragarme(r.alsA.t)[0]).x };
-    }
+    // Die Regel steht in ui.js (`mastStelleSetzen`), damit der Prüfstand sie
+    // ohne Oberfläche fährt (1. Oktober).
+    werte = ui.mastStelleSetzen(werte, r, wert.x);
     mastNachfuehren();
     neuRechnen();
     return;

@@ -19,7 +19,8 @@ import { auflagerDiagrammHtml, verdrahteAuflagerLinks }
 import { TRAGWERKSARTEN, tragwerksart, tragwerkeSortiert, tragwerkName,
          lageVon, tragwerkeVon, mastenFuer, mastenVon,
          gewaehlterMast, versteckt, anschlusshoehe,
-         aufRaster, mastNameAmEnde, tragwerkPos, mastName } from './core.constants.js';
+         aufRaster, mastNameAmEnde, tragwerkPos, mastName,
+         tauscheAktives, freieLage, freieLaenge } from './core.constants.js';
 // Die Leiste schreibt die Mastlaenge an. Steht keine da, gilt dieselbe
 // Vorgabe wie im Feld - sonst bliebe die Uebersicht leer, wo die Maske
 // einen Wert zeigt.
@@ -46,7 +47,7 @@ import { befestigungsArt, anbauKette, passeTraegerAn, rasterNormVon, rasterGeset
          hatTraeger, achsfolge } from './core.anbauteile.js';
 import { EINWIRKUNGEN, ABFANGARTEN, ABFANG_VORGABE, abfangVorgabeFuer,
          abfangart } from './core.lasten.js';
-import { massketteLesen, fangeAufMasskette, rechensatz } from './core.constants.js';
+import { massketteLesen, fangeAufMasskette, rechensatz, kragarme } from './core.constants.js';
 import { ausSpeicher } from './data.paket.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.js';
@@ -1315,12 +1316,87 @@ function bereichVonTyp(t) {
   }
 }
 
+/**
+ * >>> EINEN MASTEN AN EINE STELLE SETZEN - Länge des linken, Lage des
+ * rechten Tragwerks (aus app.js, 1. Oktober). <<<
+ *
+ * @param {object} werte   Blatt
+ * @param {object} r       `mastRollen(werte, mastId)`
+ * @param {number} xZiel   gewünschte Stelle [m]
+ * @returns {object} das neue Blatt
+ */
+export function mastStelleSetzen(werte, r, xZiel) {
+  const setzeAn = (id, feld, v) => {
+    if ((werte.twId ?? 'T1') !== id) werte = tauscheAktives(werte, id);
+    werte = { ...werte, [feld]: v };
+  };
+  /*
+   * >>> DER GETEILTE MAST: BEIDE JOCHE IN EINEM ZUG (1. Oktober). <<<
+   *
+   * Gemeldet: «wenn mehrere joche in reihe stehen, dann macht der überstand
+   * und das nachträgliche schieben des mittleren masten probleme.»
+   * Gemessen (2 × J90, 20 + 15 m, ohne Kragarm): Mast M2 von 20 auf 22 m
+   * gezogen ergab T1 0..20 und T2 22..37 - VIER Masten, die Reihe
+   * auseinander. Das linke Joch wurde zuerst verlängert, und `freieLaenge`
+   * hielt es am rechten an, das noch an der alten Stelle stand; danach
+   * wanderte das rechte allein. Nach links ging es, weil dort nichts im
+   * Weg stand. Mit Kragarm am Zwischenmasten riss die Reihe in beide
+   * Richtungen (die Gurte decken sich dort um c_B + c_A).
+   *
+   * Der Partner, der im selben Zug mitwandert, ist deshalb KEIN Hindernis
+   * (`ohne`). Zuerst die Lage des rechten (es behält seine Länge, darf aber
+   * nicht in den Dritten hinein), dann die Länge des linken bis genau
+   * dorthin; hält das linke früher an, rückt das rechte nach - die beiden
+   * Enden bleiben auf EINEM Masten.
+   */
+  const kB = r.alsB ? kragarme(r.alsB.t)[1] : 0;
+  const kA = r.alsA ? kragarme(r.alsA.t)[0] : 0;
+  let x = xZiel;
+  if (r.alsA && r.alsB) {
+    /*
+     * BEIM GETEILTEN MASTEN SPRINGT NICHTS. `freieLage` setzt ein Tragwerk,
+     * das mitten in einem anderen landet, auf die nähere Seite - auch
+     * HINTER den Nachbarn. Gemessen an drei Jochen (0/20/35/45 m): M2 auf
+     * 40 gezogen landete T2 hinter T3, und T1 endete auf T3. Hier wandert
+     * das rechte höchstens bis an das nächste Hindernis rechts von ihm:
+     * soweit kann es wachsen, so weit darf es rücken.
+     */
+    const L2 = Number(r.alsA.t.L) || 0;
+    const platz = freieLaenge(werte, r.alsA.t.id, Infinity, [r.alsB.t.id]).L - L2;
+    x = Math.min(x, r.x + Math.max(0, platz));
+  } else if (r.alsA) {
+    // DAS RECHTE TRAGWERK BEHAELT SEINE LAENGE UND WANDERT MIT - aber nicht
+    // in seinen Nachbarn hinein. `freieLage` entscheidet, wohin es darf.
+    x = freieLage(werte, r.alsA.t.id, x - kA).x + kA;
+  }
+  if (r.alsB) {
+    /*
+     * DIE LAENGE WAECHST NICHT UEBER EINEN FREMDEN MASTEN HINWEG.
+     *
+     * Am Ende B gezogen wird das Joch laenger - und koennte dabei den
+     * Masten schlucken, der daneben steht. `freieLaenge` haelt es an ihm
+     * an; das Ende darf darauf liegen, denn dort steht dann der
+     * gemeinsame Mast. Mit Kragarm ragt das Joch um c_B über den Masten
+     * (30. September).
+     */
+    const roh = Math.max(0, x - r.alsB.x0) + kB;
+    const L = freieLaenge(werte, r.alsB.t.id, roh, r.alsA ? [r.alsA.t.id] : []).L;
+    x = r.alsB.x0 + L - kB;
+    setzeAn(r.alsB.t.id, 'L', L);
+  }
+  if (r.alsA) setzeAn(r.alsA.t.id, 'xLage', x - kA);
+  return werte;
+}
+
 export function mastGrenzen(rollen, x) {
   let unten = -Infinity, oben = Infinity;
   if (rollen.alsB) {
     const b = bereichVonTyp(rollen.alsB.t);
-    unten = Math.max(unten, rollen.alsB.x0 + b.min);
-    oben = Math.min(oben, rollen.alsB.x0 + b.max);
+    // Der Bereich gilt der Gurtlänge; mit Kragarm steht der Mast um c_B
+    // innen (30. September), seine Grenzen also auch.
+    const kB = kragarme(rollen.alsB.t)[1];
+    unten = Math.max(unten, rollen.alsB.x0 + b.min - kB);
+    oben = Math.min(oben, rollen.alsB.x0 + b.max - kB);
   }
   /*
    * >>> DIE LAENGENGRENZE GILT NUR DEM ENDE B. <<<

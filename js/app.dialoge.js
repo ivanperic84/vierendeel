@@ -9,7 +9,7 @@
  * ---------------------------------------------------------------------------
  */
 import { einzelmastLaenge } from './core.auflager.js';
-import { TRAGWERKSARTEN, gewaehlterMast, kragarme, lageVon, mastName, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkeSortiert, tragwerksart } from './core.constants.js';
+import { TRAGWERKSARTEN, gewaehlterMast, lageVon, mastName, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkeSortiert, tragwerksart } from './core.constants.js';
 import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
@@ -614,9 +614,12 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     /*
      * MIT KRAGARM beginnt der Gurt um c_A vor dem Masten, und L ist die
      * Stützweite plus beide Kragarme (Rückfrage 30. September, «Stützweite
-     * eingeben»). Das neue Tragjoch übernimmt die Kragarme des bisherigen.
+     * eingeben»). Ein NEUES Tragjoch hat keinen (Rückfrage 1. Oktober, «Ohne
+     * Kragarm»): übernommen setzte ein Kragarm des bisherigen das neue Joch
+     * um c_A neben den gewählten Masten, und die Reihe stand getrennt da.
+     * Den Überstand setzt man danach am Joch selbst.
      */
-    const [kA, kB] = istAbfang() ? [0, 0] : kragarme({ ...app.werte, tragwerksart: e.art });
+    const [kA, kB] = [0, 0];
     if (!b) {
       e.x0 = a.x - kA;
       mastNotiz = `Beginnt an ${mName(a)}; der zweite Mast wird neu gesetzt.`;

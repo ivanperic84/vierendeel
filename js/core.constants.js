@@ -432,11 +432,21 @@ export function tragwerkBeiX(w, x, tol = 0.3) {
  * Ein Einzelmast ist ein Punkt - er bekommt keine Ausdehnung, sondern nur
  * seine Stelle. Zwei Masten an derselben Stelle waeren ein Eingabefehler,
  * kein Ueberschneiden.
+ *
+ * >>> BEIM TRAGJOCH MIT KRAGARM: VON MAST ZU MAST (1. Oktober). <<<
+ * Auf Rückfrage «Erlauben»: am geteilten Zwischenmasten dürfen beide Joche
+ * über den Masten hinausragen und sich überdecken (z. B. auf verschiedenen
+ * Höhen). Die Kollisionsregeln (`freieLage`, `freieLaenge`,
+ * `mastKollisionen`) und der Anschluss eines neuen Jochs (`tragwerkHinzu`)
+ * lesen deshalb die Strecke zwischen den Masten, nicht die Gurtlänge -
+ * mit der Gurtlänge hielten sie den eigenen Zwischenmasten für einen
+ * fremden im Feld. `x0` ist wie überall die Lage (Gurtanfang).
  */
 export function bereichVon(t, x0 = null) {
   const a = x0 === null ? lageVon(t) : x0;
   const L = tragwerksart(t).masten >= 2 ? (Number(t?.L) || 0) : 0;
-  return [a, a + L];
+  const [kA, kB] = kragarme(t);
+  return [a + kA, a + Math.max(kA, L - kB)];
 }
 
 /**
@@ -466,9 +476,9 @@ export function bereichVon(t, x0 = null) {
  * `mastenVon`, weil die abgeleitete Liste sich mitbewegt, sobald man eine
  * andere Lage durchprobiert.
  */
-function fremdeMastlagen(w, id) {
+function fremdeMastlagen(w, id, ohne = []) {
   return sichtbareTragwerke(w)
-    .filter((t) => t.id !== id && t.mastVorhanden !== false)
+    .filter((t) => t.id !== id && !ohne.includes(t.id) && t.mastVorhanden !== false)
     .flatMap((t) => mastLagen(t));
 }
 
@@ -497,14 +507,25 @@ function fremdeMastlagen(w, id) {
  * Behandelt werden die Masten deshalb wie Tragwerke ohne Laenge - dieselbe
  * Rechnung, ein Hindernis mehr in der Liste.
  *
+ * `ohne`: Tragwerke, die nicht als Hindernis zaehlen - beim geteilten
+ * Masten der Partner, der im selben Zug mitwandert (1. Oktober).
+ *
  * @returns {{x:number, geklemmt:boolean}}
  */
-export function freieLage(w, id, x) {
+export function freieLage(w, id, x, ohne = []) {
   const alle = tragwerkeSortiert(w);
   const t = alle.find((y) => y.id === id);
   if (!t) return { x, geklemmt: false };
-  const [, bis] = bereichVon(t, x);
-  const L = bis - x;
+  /*
+   * Gerechnet wird mit dem eigenen Bereich (von Mast zu Mast, siehe
+   * `bereichVon`); `d` ist der Kragarm am Ende A, um den die Lage davor
+   * liegt. Am Schluss wird auf die Lage zurückgerechnet.
+   */
+  const [von, bis] = bereichVon(t, x);
+  const d = von - x;
+  const L = bis - von;
+  const x0 = x;
+  x = von;
 
   /*
    * DIE HINDERNISSE, in einer Liste: die Bereiche der Tragwerke, durch die
@@ -513,7 +534,7 @@ export function freieLage(w, id, x) {
    */
   const hindernis = [];
   alle.forEach((y) => {
-    if (y.id === id) return;
+    if (y.id === id || ohne.includes(y.id)) return;
     /*
      * GESTAPELT WIRD NUR, WO ABGEFANGEN WIRD (Weisung, 3. September). Ein
      * Abfangjoch sitzt UEBER dem Tragjoch, auf denselben Masten; zwei
@@ -523,7 +544,7 @@ export function freieLage(w, id, x) {
                    || tragwerksart(t).key === 'abfangjoch';
     if (!stapelbar) hindernis.push(bereichVon(y));
   });
-  fremdeMastlagen(w, id).forEach((mx) => hindernis.push([mx, mx]));
+  fremdeMastlagen(w, id, ohne).forEach((mx) => hindernis.push([mx, mx]));
 
   let unten = -Infinity, oben = Infinity;
   hindernis.forEach(([a, b]) => {
@@ -548,7 +569,7 @@ export function freieLage(w, id, x) {
     }
   });
   const neu = Math.min(Math.max(x, unten), oben);
-  return { x: Number.isFinite(neu) ? neu : x,
+  return { x: Number.isFinite(neu) ? neu - d : x0,
            geklemmt: Math.abs(neu - x) > 1e-9 };
 }
 
@@ -563,22 +584,29 @@ export function freieLage(w, id, x) {
  * Die groesste zulaessige Laenge endet am naechsten Hindernis rechts. Das
  * ENDE darf darauf liegen - dort steht dann der gemeinsame Mast.
  *
+ * `ohne` wie bei `freieLage`.
+ *
  * @returns {{L:number, geklemmt:boolean}}
  */
-export function freieLaenge(w, id, L) {
+export function freieLaenge(w, id, L, ohne = []) {
   const alle = tragwerkeSortiert(w);
   const t = alle.find((y) => y.id === id);
   if (!t || tragwerksart(t).masten < 2) return { L, geklemmt: false };
   const x = lageVon(t);
+  // Gezählt ab dem eigenen Mast A; das Joch ragt um c_B über seinen
+  // Mast B hinaus (Kragarm), also endet L dort, wo Mast B das Hindernis
+  // erreicht, plus c_B.
+  const ref = bereichVon(t)[0];
+  const kB = kragarme(t)[1];
   let grenze = Infinity;
-  const nimm = (p) => { if (p > x + 1e-9) grenze = Math.min(grenze, p - x); };
+  const nimm = (p) => { if (p > ref + 1e-9) grenze = Math.min(grenze, p - x + kB); };
   alle.forEach((y) => {
-    if (y.id === id) return;
+    if (y.id === id || ohne.includes(y.id)) return;
     const stapelbar = tragwerksart(y).key === 'abfangjoch'
                    || tragwerksart(t).key === 'abfangjoch';
     if (!stapelbar) nimm(bereichVon(y)[0]);
   });
-  fremdeMastlagen(w, id).forEach(nimm);
+  fremdeMastlagen(w, id, ohne).forEach(nimm);
   const neu = Math.min(L, grenze);
   return { L: Number.isFinite(neu) ? neu : L,
            geklemmt: Math.abs(neu - L) > 1e-9 };
@@ -1858,7 +1886,14 @@ export function tragwerkHinzu(w, art, vorlage = {}) {
   const darueber = art === 'abfangjoch';
   const anschluss = darueber || !Number.isFinite(rechts)
     ? {} : { xLage: rechts + schritt };
-  return { ...w, ...anschluss, ...vorlage, tragwerksart: art,
+  /*
+   * >>> OHNE KRAGARM (Rückfrage 1. Oktober, «Ohne Kragarm»). <<<
+   * Übernommen setzte der Kragarm des bisherigen Jochs das neue um c_A neben
+   * den Masten, an den es anschliesst - die Reihe stand von Anfang an
+   * getrennt. Angeschlossen wird am letzten MASTEN (`bereichVon` endet
+   * dort, nicht am Gurtende). Eine Vorlage mit Kragarm (Duplizieren) geht vor.
+   */
+  return { ...w, ...anschluss, kragA: 0, kragB: 0, ...vorlage, tragwerksart: art,
            twId: `T${nr + 1}`, pos,
            weitere: [...rest, bisher] };
 }

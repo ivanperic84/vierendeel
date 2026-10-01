@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **30. September 2026**; Prüfstand 6026 Kontrollen grün,
+Stand: **1. Oktober 2026**; Prüfstand 6051 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. **Mehrere Commits seit dem letzten Push
 (`1873231` … `69c1aba`) sind NICHT gepusht** - pushen nur auf Weisung.
 Neu am 29. September abends (Einzelheiten in CLAUDE.md, *Entschieden*):
@@ -39,9 +39,11 @@ Mastspitze, Mastverdrehung 5° aus dem Stabwerk; Referenzhöhe in Optionen
 und Übersicht) und die Anschlusshöhe unter das Joch gestellt; die
 verformte Figur im 3D (Schalter «δ», aus dem Stabwerk). **Warten auf
 Freigabe:** Querschnittsklasse und Fussnaht unter
-Profile, Profilfenster mit Kenndaten und Schnittzeichnung, **Vorzeichen der
-Eingabe nach dem 3D** - Wortlaut in
-CLAUDE.md, Offene Punkte. **Als
+Profile, Profilfenster mit Kenndaten und Schnittzeichnung - Wortlaut in
+CLAUDE.md, Offene Punkte. (Vorzeichen der Eingabe nach dem 3D am
+1. Oktober gebaut; ebenso die Jochreihe: Zwischenmast schieben hält die
+Reihe zusammen, neues Joch ohne Kragarm, Kragarm am Zwischenmasten
+erlaubt.) **Als
 Nächstes aus derselben Weisung:** Signalbauer mit Bildern und
 Umschaltkacheln, Auswahlfenster «+ Bauteil aus der Lasttabelle»,
 «Fahrleitung als Auflager» nur mit Leiter, Rückstellkraft der Leiter am
@@ -204,7 +206,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6026 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6051 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html
