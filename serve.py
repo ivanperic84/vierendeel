@@ -22,6 +22,7 @@ Ausprobieren der installierbaren Fassung:
 import http.server
 import mimetypes
 import os
+import socket
 import socketserver
 import sys
 from pathlib import Path
@@ -50,6 +51,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         sys.stderr.write("%s\n" % (fmt % args))
 
 
+class Server(socketserver.ThreadingTCPServer):
+    """
+    >>> EIN PORT, EIN SERVER (1. Oktober). <<<
+
+    Hier stand `allow_reuse_address = True`. Unter Windows heisst das
+    SO_REUSEADDR, und das erlaubt MEHREREN Prozessen, denselben Port zu
+    binden. Am 26. September lagen fünf Server zugleich auf 8731; die
+    Verbindung landete bei einem toten und wurde ohne Antwort geschlossen -
+    ein Bild, das zweimal als verweigerte Sandbox gedeutet wurde.
+
+    Unter Windows bindet der Server jetzt exklusiv (SO_EXCLUSIVEADDRUSE) und
+    bricht ab, wenn der Port belegt ist. Anderswo bleibt SO_REUSEADDR - dort
+    erlaubt es nur, einen eben beendeten Port sofort wieder zu nehmen.
+    """
+    daemon_threads = True
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 if __name__ == "__main__":
     os.chdir(WURZEL)
     # MEHRFAEDIG, SONST STEHT DER MODULBAUM.
@@ -60,9 +84,14 @@ if __name__ == "__main__":
     # stehen, die Seite kam nie ueber readyState "interactive" hinaus und
     # stand ohne Gestaltung da - die Farbtokens setzt erst das Skript.
     # Bisher ging es gut; das war Glueck, nicht Bauart.
-    socketserver.ThreadingTCPServer.allow_reuse_address = True
-    socketserver.ThreadingTCPServer.daemon_threads = True
-    with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler) as httpd:
+    try:
+        httpd = Server(("127.0.0.1", PORT), Handler)
+    except OSError as e:
+        print(f"Port {PORT} ist belegt - läuft schon ein Server? ({e})", file=sys.stderr)
+        print("Den laufenden beenden oder einen anderen Port angeben: "
+              "python3 serve.py 8732", file=sys.stderr)
+        sys.exit(1)
+    with httpd:
         print(f"Server läuft:  http://localhost:{PORT}/index.html")
         print(f"Wurzel:        {WURZEL}")
         httpd.serve_forever()

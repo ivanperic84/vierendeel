@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **1. Oktober 2026**; Prüfstand 6051 Kontrollen grün,
+Stand: **1. Oktober 2026**; Prüfstand 6060 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. **Mehrere Commits seit dem letzten Push
 (`1873231` … `69c1aba`) sind NICHT gepusht** - pushen nur auf Weisung.
 Neu am 29. September abends (Einzelheiten in CLAUDE.md, *Entschieden*):
@@ -43,7 +43,8 @@ Profile, Profilfenster mit Kenndaten und Schnittzeichnung - Wortlaut in
 CLAUDE.md, Offene Punkte. (Vorzeichen der Eingabe nach dem 3D am
 1. Oktober gebaut; ebenso die Jochreihe: Zwischenmast schieben hält die
 Reihe zusammen, neues Joch ohne Kragarm, Kragarm am Zwischenmasten
-erlaubt.) **Als
+erlaubt. Danach die kleinen Befunde, darunter der Ankerfuss mit einem
+Gelenk für beide Profile - Mastfuss M_l +10 % bei U12 quer.) **Als
 Nächstes aus derselben Weisung:** Signalbauer mit Bildern und
 Umschaltkacheln, Auswahlfenster «+ Bauteil aus der Lasttabelle»,
 «Fahrleitung als Auflager» nur mit Leiter, Rückstellkraft der Leiter am
@@ -206,7 +207,7 @@ ob schon einer läuft.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6051 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6060 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

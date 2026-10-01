@@ -119,6 +119,19 @@ const norm = (a) => {
 };
 const punkt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
+/** Kleinster Abstand eines Bildpunkts vom Umriss eines Polygons [px]. */
+function randAbstand(x, y, p) {
+  let d = Infinity;
+  for (let i = 0; i < p.length; i++) {
+    const [ax, ay] = p[i], [bx, by] = p[(i + 1) % p.length];
+    const dx = bx - ax, dy = by - ay;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+    d = Math.min(d, Math.hypot(x - (ax + t * dx), y - (ay + t * dy)));
+  }
+  return d;
+}
+
 // --- Szenenaufbau -----------------------------------------------------------
 
 /**
@@ -3182,6 +3195,24 @@ export class Modellansicht {
       if (!pts || !this._imPolygon(px, py, pts)) return;
       if (f._tiefe < tiefe) { tiefe = f._tiefe; beste = f; }
     });
+    /*
+     * >>> DER ANKER BEKOMMT EINEN FANGRAND (1. Oktober). <<<
+     *
+     * Beobachtet am 30. September: der Stab des Ankers steht im Bild rund
+     * 2 px dick und war mit der Maus kaum zu treffen - Rechtsklick und
+     * Klick landeten auf dem Grund. Trifft der Zeiger keine Fläche, gilt
+     * eine Ankerfläche, deren Umriss höchstens 6 px entfernt ist (wie der
+     * Umriss der Anbauteile beim Ziehen).
+     */
+    if (!beste) {
+      const rand = 6 * (this._s || 1);
+      let nah = rand;
+      this._sichtbareFlaechen().forEach((f) => {
+        if (!/^ANKER(FUNDAMENT)?_/.test(String(f.teil ?? '')) || !f._2d) return;
+        const d = randAbstand(px, py, f._2d);
+        if (d <= nah) { nah = d; beste = f; }
+      });
+    }
     if (!beste) return null;
     const n = beste.punkte.length;
     const mitte = beste.punkte.reduce((s, p) => add(s, p), [0, 0, 0]).map((v) => v / n);

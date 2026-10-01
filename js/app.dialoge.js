@@ -915,6 +915,22 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
                   istAbfang() ? e.abfangTyp : e.typ);
         }
         if (mitLaenge()) app.aendern('L', e.L);
+        /*
+         * >>> UND DIE ANSCHLUSSHÖHE (1. Oktober). <<<
+         *
+         * Beim NEUEN Tragwerk stand das Feld da und wirkte nicht - geschrieben
+         * wurde es nur beim Bearbeiten (gefunden 29. September). Jetzt
+         * derselbe Weg: das neue Tragwerk ist das aktive, sein erster Mast
+         * wird angewählt, dann `mastH`. Ein geteilter Mast wird dabei nie
+         * unter das Nachbarjoch gekürzt (`mastLaengeMindestens`).
+         */
+        const tNeu = { id: app.werte.twId ?? 'T1' };
+        const m1Neu = erstenMastVon(app, tNeu);
+        if (artDef().masten >= 2 && m1Neu && Number.isFinite(e.H) && e.H > 0
+            && Math.abs(e.H - (Number(app.werte.mastH) || 0)) > 1e-9) {
+          app.aendern('mastAktiv', m1Neu.id);
+          app.aendern('mastH', e.H);
+        }
         return;
       }
       if (tragwerksart(t).key !== e.art) {

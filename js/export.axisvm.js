@@ -989,6 +989,27 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
      * unveraendert ueber das Bemessungsdiagramm (`ankerNachweis`) und
      * weiss davon nichts. Der Bericht sagt es.
      * ================================================================= */
+    /*
+     * >>> EIN GELENK, DAS AUCH DER EIGENE LÖSER SIEHT (1. Oktober). <<<
+     *
+     * `gelenkAnfang`/`gelenkEnde` an einem ECHTEN Stab liest nur die
+     * AxisVM-Brücke; der Stabwerkslöser kennt Gelenke allein als
+     * Linkelement. Gemessen am J90/20 m mit Seilanker SA20 quer: am
+     * Ankerfundament M_l 0.70, T 0.38 kNm - das Seil hing im Stabwerk
+     * biegesteif am Fundament. Das Gelenk steht deshalb wie bei den
+     * Profilen (Weisung 16. September) als kurzes Linkelement, 50 mm in der
+     * Stabachse, alle drei Momente frei: ein Modell, zwei Löser.
+     */
+    const gelenkVor = (name, kStab, kLager) => {
+      const pS = s.knoten.get(kStab), pL = s.knoten.get(kLager);
+      const L0 = Math.hypot(pS.x - pL.x, pS.y - pL.y, pS.z - pL.z);
+      const t0 = L0 > 4 * ANKER_GELENK ? ANKER_GELENK / L0 : 0.02;
+      const kG = s.kn(name, r6(pL.x + t0 * (pS.x - pL.x)),
+                      r6(pL.y + t0 * (pS.y - pL.y)), r6(pL.z + t0 * (pS.z - pL.z)));
+      s.stab(name.replace(/^ANKER_/, 'ANKERGELENK_'), qsStarr, kG, kLager,
+             { starrRolle: 'verbindung', gelenkAnfang: 'M' });
+      return kG;
+    };
     if (!einzeln && seil) {
       /* ===============================================================
        * >>> DER SEILANKER TRAEGT NUR ZUG. <<<
@@ -1042,10 +1063,15 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
         nichtlinear: { x: 'nurZug' },
         linkSystem: 'lokal',
       });
-      s.stab(`ANKER_${mn(ende)}`, qsAnker, kSeil, kAnkF, { gelenkEnde: 'M' });
+      // Am Fuss das Gelenk als Link (1. Oktober, siehe `gelenkVor`).
+      s.stab(`ANKER_${mn(ende)}`, qsAnker, kSeil,
+             gelenkVor(`ANKER_${mn(ende)}_FG`, kSeil, kAnkF));
     } else if (!einzeln) {
-      s.stab(`ANKER_${mn(ende)}`, qsAnker, kKons, kAnkF,
-             { gelenkAnfang: 'M', gelenkEnde: 'M' });
+      // Beide Enden als Link (1. Oktober): am Masten zur Konsole, am Fuss
+      // zum Fundament.
+      const kOben = gelenkVor(`ANKER_${mn(ende)}_KG`, kAnkF, kKons);
+      s.stab(`ANKER_${mn(ende)}`, qsAnker, kOben,
+             gelenkVor(`ANKER_${mn(ende)}_FG`, kOben, kAnkF));
     } else {
       const pK = s.knoten.get(kKons);
       const pF2 = s.knoten.get(kAnkF);
@@ -1142,6 +1168,12 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
       const reihen = {};
       // Station -> Knoten, je Seite (siehe unten).
       const stationKn = {};
+      /*
+       * DER EINE BOLZEN AM FUSS (1. Oktober): ein Knoten 50 mm in der
+       * Stützenachse über dem Lagerknoten, ein Link dazwischen mit allen
+       * drei Momenten frei; die beiden Profilenden hängen starr daran.
+       */
+      const kFussGelenk = gelenkVor(`ANKER_${mn(ende)}_FG`, kKons, kAnkF);
       [['L', -1], ['R', +1]].forEach(([seite, vz]) => {
         reihen[seite] = par.map((sv, i2) => {
           const p3 = punkt(sv, vz);
@@ -1193,8 +1225,19 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
         const gel = { starrRolle: 'verbindung', gelenkAnfang: 'M' };
         s.stab(`ANKERGELENK_${mn(ende)}_${seite}K`, qsStarr,
                rr[0], rr[1], gel);
-        s.stab(`ANKERGELENK_${mn(ende)}_${seite}F`, qsStarr,
-               rr[letzte], rr[letzte - 1], gel);
+        /*
+         * >>> AM FUNDAMENT EIN GELENK FÜR BEIDE (1. Oktober). <<<
+         *
+         * Rückfrage «Ein Gelenk für beide»: die Profile laufen am Fuss auf
+         * einen Bolzen zusammen. Bis dahin hatte jedes sein eigenes
+         * Gelenkstück, 104 mm licht auseinander (U12) - zwei Gelenke im
+         * Abstand halten ein Moment, und die Stütze wirkte quer zu ihrer
+         * Ebene als eingespannter Rahmen. Gemessen J90/20 m, U12 quer, am
+         * Ankerfundament M_l 4.10, T 2.62 kNm. Jetzt ist das Stück starr,
+         * und das eine Gelenk sitzt am Lagerknoten (`ANKERGELENK_…_F`).
+         */
+        s.stab(`ANKERFUSSSTUECK_${mn(ende)}_${seite}`, qsStarr,
+               rr[letzte], rr[letzte - 1], { starrRolle: 'verbindung' });
         /*
          * UND DIE BEIDEN STARREN ANSCHLUESSE - sie tragen die Momente
          * in den Lagerknoten und den Mastknoten. Ohne sie haetten beide
@@ -1206,7 +1249,7 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
         s.stab(`ANKERKOPF_${mn(ende)}_${seite}`, qsStarr,
                kKons, rr[0], fest);
         s.stab(`ANKERFUSS_${mn(ende)}_${seite}`, qsStarr,
-               kAnkF, rr[letzte], fest);
+               kFussGelenk, rr[letzte], fest);
       });
       /* =================================================================
        * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<

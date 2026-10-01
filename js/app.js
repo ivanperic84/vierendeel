@@ -40,7 +40,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          MASTFELDER, setzeMastAngabe, setzeMastAnker, rechensatz,
          mastAnzeigeKarte, mastAnzeigeText,
          tragwerkeSortiert, tragwerkSatz, lageVon,
-         tragwerkeVon, mastenFuer, lageOrtsnull,
+         tragwerkeVon, mastenFuer, lageOrtsnull, anschlusshoehe,
          blattNachLokal, lokalNachBlatt, tragwerkBeiX,
          anbauteileFuer, setzeAnbauteileAn, freieLage, freieLaenge, versteckt,
          jochZuEinzelmasten, kragarme, einzelmastenAufgehen,
@@ -1232,6 +1232,26 @@ function neuRechnen(neuZeichnen = true) {
 let anzeigeKarte = new Map();
 
 /**
+ * >>> WIE EIN BAUTEIL DER REIHE HEISST - WIE ÜBERALL SONST (1. Oktober). <<<
+ *
+ * Gesehen am 30. September: in der Reihenzeile der Stabwerksleiste stand
+ * «Joch T3» für das Joch, das in Lageband und Kacheln «T2» heisst. Der
+ * Stabname trägt die KENNUNG des Tragwerks (`T3_OGL_S0`, sie bleibt beim
+ * Löschen und Umordnen stehen), die Anzeige zählt nach der LAGE
+ * (`tragwerkPos`). Übersetzt wird hier, am Rand, damit das Modell seine
+ * stabilen Namen behält; der Mast bekommt seine eingetragene Nummer.
+ */
+function reiheName(b) {
+  if (b?.art === 'tragwerk' && b.id) {
+    const t = tragwerkeVon(werte).find((x) => x.id === b.id);
+    if (!t) return b.name;
+    const art = tragwerksart(t);
+    return `${art.key === 'joch' ? 'Joch' : art.label} ${tragwerkPos(werte, t)}`;
+  }
+  return mastAnzeigeText(b?.name, anzeigeKarte);
+}
+
+/**
  * Diagramm im Modellfenster gross zeigen.
  *
  * Dasselbe Diagramm noch einmal anfordern schaltet zurück auf das Modell -
@@ -1540,7 +1560,8 @@ function zeichneAuswertung() {
          * wie am Joch.
          */
         stabwerk: { verfahren: verfahrenVon(werte), stand: stabwerkStand(app),
-                    grund: reiheOhneStabmodell(werte), ergebnis: stabwerk },
+                    grund: reiheOhneStabmodell(werte), ergebnis: stabwerk,
+                    name: reiheName },
         beiStabwerk: stabwerkRechnen,
         beiStab: zeigeStab,
         beiNachweisart: setzeNachweisart,
@@ -1605,7 +1626,7 @@ function zeichneAuswertung() {
                                        // nicht nur dem aktiven Tragwerk
                                        // (Etappe 3, 25. September).
                                        grund: reiheOhneStabmodell(werte),
-                                       ergebnis: stabwerk },
+                                       ergebnis: stabwerk, name: reiheName },
                            /*
                             * >>> WIE EINE KOMBINATION HEISST (25. Sept.). <<<
                             *
@@ -2220,6 +2241,35 @@ function mastLaengeNachfuehren(w, feldL, altFrei, neuFrei) {
     || Math.abs(altL - mastLaengeFuer(w, altFrei)) < 1e-6;
   if (!gekoppelt) return null;
   return { [feldL]: mastLaengeFuer(w, neuFrei) };
+}
+
+/**
+ * >>> DIE LÄNGE, UNTER DIE EIN GETEILTER MAST NICHT FALLEN DARF (1. Oktober). <<<
+ *
+ * Die Mastlänge folgt der Anschlusshöhe (Weisung 5. September), aber die
+ * Länge gehört dem MASTEN, die Höhe dem Jochende. Am Zwischenmasten einer
+ * Reihe hängen zwei Joche; stellte man die Höhe des einen tiefer, zog die
+ * Kopplung den gemeinsamen Masten mit herunter - unter das andere Joch.
+ * Gefunden beim Nachholen der Anschlusshöhe im Dialog «Neues Tragwerk»:
+ * der erste Mast eines angehängten Jochs ist der des Nachbarn.
+ *
+ * Gezählt werden die übrigen Tragwerke mit zwei Masten an diesem Masten,
+ * jedes mit seiner Vorgabe für seine Höhe (wie `mastLaengeFuer`).
+ */
+function mastLaengeMindestens(w, mastId) {
+  if (!mastId) return 0;
+  const eigen = w?.twId ?? 'T1';
+  let min = 0;
+  tragwerkeVon(w).forEach((t) => {
+    if (t.id === eigen || versteckt(t) || tragwerksart(t).masten < 2) return;
+    const [a, b] = mastenFuer(w, t);
+    [[a, 'A'], [b, 'B']].forEach(([m, ende]) => {
+      if (m?.id !== mastId) return;
+      const frei = anschlusshoehe(t, ende) - (Number(m.fuss) || 0);
+      if (frei > 0) min = Math.max(min, mastLaengeFuer(t, frei));
+    });
+  });
+  return min;
 }
 
 /** Der Fussversatz, der zu einem Laengenfeld gehoert [m]. */
@@ -2907,7 +2957,12 @@ function aendern(key, wert) {
     const nach = mastLaengeNachfuehren(werte, feldL,
                                        (Number(werte?.[key]) || 0) - f,
                                        (Number(wert) || 0) - f);
-    if (nach) aendern(feldL, nach[feldL]);
+    if (nach) {
+      // Derselbe Mast, an den `aendern(feldL)` schreibt (MASTFELDER).
+      const [mA, mB] = mastenFuer(werte, tragwerkeVon(werte)[0]);
+      const ziel = werte.mastAktiv ?? (feldL === 'mastLaengeB' ? mB : mA)?.id;
+      aendern(feldL, Math.max(nach[feldL], mastLaengeMindestens(werte, ziel)));
+    }
   }
   /*
    * >>> DIE ANKERFELDER SCHREIBEN AN DEN MASTEN. <<<

@@ -10942,8 +10942,12 @@ titel('42  Der lange Mast mit Zusatzleitern');
          [...new Set(ansch.map((x) => x.art))].join(' '));
     const gelenke = (jA.staebe ?? [])
       .filter((x) => /^ANKERGELENK_/.test(x.name));
-    wahr('Acht Gelenkstuecke - je Anker zwei oben und zwei unten',
-         gelenke.length === 8, `${gelenke.length}`);
+    // Rückfrage 1. Oktober «Ein Gelenk für beide»: am Fundament EIN Gelenk,
+    // am Masten weiter je Profil eines.
+    wahr('Sechs Gelenkstuecke - je Anker zwei oben, eines am Fundament',
+         gelenke.length === 6
+         && gelenke.filter((x) => /_FG$/.test(x.name)).length === 2,
+         gelenke.map((x) => x.name).join(' '));
     wahr('Jedes gibt alle drei Momente frei',
          gelenke.every((x) => x.gelenkAnfang === 'M'));
     wahr('\u2026 und wird als Linkelement ausgeleitet',
@@ -10972,13 +10976,23 @@ titel('42  Der lange Mast mit Zusatzleitern');
        * liegen. Am Anker in der Jochachse heisst das: er muss sich in x
        * oder z vom Lagerknoten unterscheiden.
        */
+      /*
+       * Seit dem 1. Oktober («Ein Gelenk für beide») hängen die beiden
+       * Profilenden starr an EINEM Knoten 50 mm in der Stützenachse; das
+       * Gelenk dazwischen und dem Lagerknoten liegt in der Achse. Der
+       * Nullmodus von damals kann nicht mehr entstehen: Profilenden und
+       * Gelenkknoten sind ein Starrkörper.
+       */
+      const fussG = gelenke.find((x) => /^ANKERGELENK_A_FG$/.test(x.name));
+      const pG = knG.get(fussG.von), pLager = knG.get(fussG.bis);
+      const dQuer = Math.hypot(pG.x - pLager.x, pG.z - pLager.z);
+      wahr('Das Fussgelenk liegt in der Stützenachse über dem Lagerknoten',
+           dQuer > 0.02 && Math.abs(pG.y - pLager.y) < 1e-6,
+           `${(dQuer * 1000).toFixed(0)} mm, y ${pG.y} / ${pLager.y}`);
+      pruef('\u2026 und misst das Gelenkmass', lgG(fussG), 0.05, 2e-2, 'm');
       const fuss = ansch.find((x) => /^ANKERFUSS_A_L$/.test(x.name));
-      const pLager = knG.get(fuss.von), pEnde = knG.get(fuss.bis);
-      const dQuer = Math.hypot(pEnde.x - pLager.x, pEnde.z - pLager.z);
-      wahr('Das Starrelement reicht in die Profilachse hinein',
-           dQuer > 0.02,
-           `${(dQuer * 1000).toFixed(0)} mm neben der Spreizgeraden`);
-      pruef('\u2026 und zwar um das Gelenkmass', dQuer, 0.05, 2e-2, 'm');
+      wahr('Die Profilenden hängen am Gelenkknoten, nicht am Lager',
+           fuss?.von === fussG.von, `${fuss?.von} / ${fussG.von}`);
     }
     /* =====================================================================
      * >>> DIE BINDEBLECHE, ZWEI JE STATION. <<<
@@ -24255,8 +24269,14 @@ titel('67  Der Seilanker in der AxisVM-Ausleitung');
        && k.yy === 'Free' && k.zz === 'Free', JSON.stringify(k));
   wahr('Das Seil schliesst an den Seilkopf an',
        Boolean(seil) && seil.von === kopf?.bis, `${seil?.von} / ${kopf?.bis}`);
-  wahr('… ist ein Stab mit Gelenk nur am Fundament',
-       seil?.art === 'stab' && seil.gelenkEnde === 'M' && !seil.gelenkAnfang);
+  // Seit dem 1. Oktober steht das Gelenk am Fuss als Linkelement (der
+  // eigene Löser kennt keine Stabendgelenke): Seil -> ANKER_…_FG -> Lager.
+  const fussG = st('^ANKERGELENK_[^_]+_FG$');
+  wahr('… ist ein Stab, am Fundament über ein Gelenk-Linkelement (alle Momente frei)',
+       seil?.art === 'stab' && !seil.gelenkEnde && !seil.gelenkAnfang
+       && fussG?.art === 'link' && fussG.von === seil.bis
+       && ['xx', 'yy', 'zz'].every((c) => fussG.kraftuebertragung?.[c] === 'Free'),
+       `${seil?.bis} / ${fussG?.von}`);
   const kn = (n) => (j.knoten ?? []).find((x) => x.name === n);
   const a = kn(kopf?.von), b = kn(kopf?.bis), f = kn(seil?.bis);
   const lg = (p, q2) => Math.hypot(q2.x - p.x, q2.y - p.y, q2.z - p.z);
@@ -34684,6 +34704,69 @@ titel('181  Jochreihe: Zwischenmast schieben, Kragarm am Zwischenmasten, neues J
        readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8').includes('const [kA, kB] = [0, 0];'));
   wahr('Die App fährt den Zwischenmast über dieselbe Funktion',
        APP_QUELLE().includes('werte = ui.mastStelleSetzen(werte, r, wert.x);'));
+}
+
+titel('182  Kleine Befunde: Name in der Reihenzeile, Höhe im Dialog, Ankerfang, Mastlänge im Menü, Ankerfuss, serve.py');
+/* ===========================================================================
+ * Weisung 1. Oktober: «diese punke angehen» (die kleinen Befunde aus CLAUDE.md).
+ * Zum Ankerfuss auf Rückfrage «Ein Gelenk für beide».
+ * ========================================================================= */
+{
+  const app = APP_QUELLE();
+  const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  // (1) Reihenzeile: Name nach der Lage, Mast mit Nummer.
+  wahr('Reihenzeile der Stabwerksleiste: Name wie in der Anzeige (tragwerkPos, Mastnummer)',
+       app.includes('function reiheName(b)') && (app.match(/name: reiheName/g) ?? []).length === 2
+       && ui.includes('esc(sw.name?.(b) ?? b.name)'));
+  // (2) Anschlusshöhe im Dialog «Neues Tragwerk», geteilter Mast nie unter das Nachbarjoch.
+  const dlg = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  wahr('Dialog «Neues Tragwerk» schreibt die Anschlusshöhe des neuen Tragwerks',
+       dlg.includes('const m1Neu = erstenMastVon(app, tNeu);')
+       // Mastdialog, Tragwerk bearbeiten und jetzt das neue Tragwerk.
+       && (dlg.match(/app\.aendern\('mastH', e\.H\);/g) ?? []).length === 3);
+  wahr('… und die nachgezogene Länge eines geteilten Masten fällt nicht unter das Nachbarjoch',
+       app.includes('function mastLaengeMindestens(w, mastId)')
+       && app.includes('Math.max(nach[feldL], mastLaengeMindestens(werte, ziel))'));
+  // (3) Fangrand am Anker.
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Der Anker hat im 3D einen Fangrand von 6 px',
+       r3.includes('function randAbstand(x, y, p)')
+       && /ANKER\(FUNDAMENT\)\?_[\s\S]{0,200}randAbstand\(px, py, f\._2d\)/.test(r3));
+  // (4) Mastlänge im Namen aus der Mastliste.
+  const C182 = await import(J('core.constants.js'));
+  let w = { typ: 'J90', L: 20, xLage: 0, mastVorhanden: true, tragwerksart: 'joch', twId: 'T1' };
+  w = C182.tragwerkHinzu(w, 'einzelmast', { xLage: 40 });          // aktiv: T2
+  const [mE] = C182.mastenFuer(w, C182.tragwerkeVon(w)[0]);
+  w = C182.setzeMastAngabe(w, mE.id, 'mastLaenge', 12.5);
+  w = C182.tauscheAktives(w, 'T1');                                  // T2 jetzt passiv
+  const t2 = C182.tragwerkeVon(w).find((x) => x.id === 'T2');
+  wahr('Ein passives Tragwerk nennt die Mastlänge aus der Mastliste',
+       C182.tragwerkName(t2, w).includes('12.50 m'), C182.tragwerkName(t2, w));
+  // (5) Ankerfuss: ein Gelenk, keine Momente am Ankerfundament.
+  if (AN?.ankerTypen?.().some?.((x) => (x.id ?? x) === 'U12')) {
+    const N182 = await import(J('core.nachbarn.js'));
+    const AS182 = await import(J('app.stabwerk.js'));
+    const lauf = (typ) => {
+      let w2 = { ...standardwerte(), mastProfil: 'HEB 240' };
+      const m1 = C182.mastenVon(w2)[0];
+      w2 = C182.setzeMastAnker(w2, m1.id, { typ, h: 6.0, a: 4.0, richtung: 'x', seite: 'minus' });
+      const s2 = N182.rechensatzMitNachbarn(w2);
+      const erg = berechne(s2, ...N182.kernArgumente(s2));
+      return AS182.rechneStabwerk({ werte: w2, letzte: { erg }, stabwerk: null });
+    };
+    ['U12', 'SA20'].forEach((typ) => {
+      const sw = lauf(typ);
+      const a = sw.reaktionen?.find((r) => r.art === 'anker')?.haupt ?? {};
+      const m = Math.max(...['Mq', 'Ml', 'T'].map((k) => Math.abs(a[k]?.wert ?? 0)));
+      wahr(`${typ} quer: am Ankerfundament keine Momente (vorher U12 M_l 4.10, T 2.62; SA20 M_l 0.70 kNm)`,
+           m < 0.01, `grösstes ${m.toFixed(4)} kNm`);
+    });
+  }
+  // (6) serve.py bindet exklusiv.
+  const sv = readFileSync(join(HIER, 'serve.py'), 'utf8');
+  wahr('serve.py weist einen belegten Port ab (exklusiv unter Windows)',
+       sv.includes('SO_EXCLUSIVEADDRUSE') && sv.includes('allow_reuse_address = os.name != "nt"')
+       && sv.includes('sys.exit(1)'));
 }
 
 // ===========================================================================

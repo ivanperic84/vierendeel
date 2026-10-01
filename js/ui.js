@@ -5683,7 +5683,7 @@ export function stabwerkLeiste(opt = {}) {
     ? `<div class="sw-reihe">${e.reihe.map((b) => `
         <span class="sw-bauteil ${ampel(b.eta)}" title="${esc(
           `${b.wo ?? ''}${b.bez ? ` · ${b.bez}` : ''}`)}"
-          >${esc(b.name)} <b>${f3(b.eta)}</b></span>`).join('')}</div>`
+          >${esc(sw.name?.(b) ?? b.name)} <b>${f3(b.eta)}</b></span>`).join('')}</div>`
     : '';
 
   const marke = {

@@ -10,7 +10,7 @@
 
 // Nur fuer die Anschrift des Einzelmasten (tragwerkName) - core.auflager
 // haengt allein an den Datentabellen, ein Kreis entsteht nicht.
-import { einzelmastLaenge } from './core.auflager.js';
+import { einzelmastLaenge, mastLaengeFuer } from './core.auflager.js';
 import { abfangMasse } from './data.abfangjoche.js';
 
 /** Einheitenumrechnung. Alle Spannungen im Kern in N/mm². */
@@ -351,8 +351,22 @@ export function tragwerkName(t, w = null) {
             H > 0 ? `H ${Number(H).toFixed(2)} m` : null]
       .filter(Boolean).join(' · ');
   }
-  const p = t?.mastProfil;
-  const h = t?.mastLaenge > 0 ? t.mastLaenge : t?.mastH;
+  /*
+   * >>> DIE LÄNGE AUS DER MASTLISTE (1. Oktober). <<<
+   *
+   * Beobachtet am 30. September: zwei Ausleger am selben Masten, der Mast
+   * auf 12.50 m verlängert - das Kontextmenü nannte das zweite Tragwerk
+   * weiter «HEB 260 · 9.00 m». Die flachen Felder eines nicht gewählten
+   * Tragwerks sind die von seinem letzten Wechsel; die Länge gehört dem
+   * MASTEN und steht einmal in der Liste. Mit `w` wird sie dort gelesen
+   * (wie beim Einzelmast), ohne Eintrag die Vorgabe (`mastLaengeFuer`,
+   * beim Ausleger H + b).
+   */
+  const s = w ? tragwerkSatz(w, t?.id) : t;
+  const p = s?.mastProfil;
+  const frei = (Number(s?.mastH) || 0) - (Number(s?.mastFuss) || 0);
+  const h = s?.mastLaenge > 0 ? s.mastLaenge
+    : (w && frei > 0 ? mastLaengeFuer(s, frei) : s?.mastH);
   return [p || art.label, h > 0 ? `${Number(h).toFixed(2)} m` : null]
     .filter(Boolean).join(' · ');
 }
