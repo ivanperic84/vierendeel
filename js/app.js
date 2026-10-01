@@ -49,7 +49,7 @@ import { APP_NAME, verortung, fangeAufMasskette,
          mastZeichenplan,
          gewaehlterMast }
   from './core.constants.js';
-import { passeTraegerAn, hatTraeger } from './core.anbauteile.js';
+import { passeTraegerAn, hatTraeger, achsfolge } from './core.anbauteile.js';
 // STATISCH, nicht per import(): der Buendler folgt nur festen Importen,
 // und in der eigenstaendigen Datei gibt es keine Module mehr, die sich
 // zur Laufzeit nachladen liessen.
@@ -3128,6 +3128,44 @@ function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
                 { dauer: 5000 });
 }
 
+/**
+ * >>> EIN ANGRIFFSPUNKT AUF SEINER STABACHSE GEZOGEN (1. Oktober). <<<
+ *
+ * «die angriffspunkte auch per drag and drop schieben können, auf den
+ * vorgegebenen stabachsen.» Die Koordinate des Moduls (oder Lastblocks)
+ * auf dieser Achse wandert um den Weg, das Ergebnis auf 0.10 m. Geschrieben
+ * wird mit der Reihenfolge der Achsen (`achsfolge`), wie die Karte es tut.
+ */
+function punktZiehen(i, { modul = null, last = null, achse, d }) {
+  const liste = [...(werte.anbauteile ?? [])];
+  const a = liste[i];
+  if (!a || !['x', 'z'].includes(achse) || !d) return;
+  const r = (v) => Math.round(v * 10) / 10;
+  // Beim links liegenden Tragausleger zählt x vom Masten nach links.
+  const t = tragwerkeVon(werte)[0];
+  const richtung = achse === 'x' && tragwerksart(t).key === 'tragausleger'
+    && t.auslegerSeite === 'links' ? -1 : 1;
+  let name = a.name ?? 'Anbauteil', alt, neu;
+  if (Number.isInteger(modul) && a.module?.[modul]) {
+    const m = a.module.map((x) => ({ ...x }));
+    alt = Number(m[modul][achse]) || 0;
+    neu = r(alt + richtung * d);
+    const folge = achsfolge(m[modul].folge, achse, neu);
+    m[modul] = { ...m[modul], [achse]: neu, ...(folge ? { folge } : { folge: undefined }) };
+    liste[i] = { ...a, module: m };
+  } else if (Number.isInteger(last) && a.lasten?.[last]) {
+    const l = a.lasten.map((x) => ({ ...x }));
+    alt = Number(l[last][achse]) || 0;
+    neu = r(alt + richtung * d);
+    l[last] = { ...l[last], [achse]: neu };
+    liste[i] = { ...a, lasten: l };
+  } else return;
+  if (Math.abs(neu - alt) < 1e-9) return;
+  setzeAnbauteile(liste);
+  meldeImBalken(`${name}: Angriffspunkt ${achse} ${alt.toFixed(2)} → ${neu.toFixed(2)} m `
+    + '· Strg+Z nimmt es zurück', { dauer: 5000 });
+}
+
 function setzeAnbauteile(liste) {
   /*
    * >>> NICHTS UNTER DIE FUNDAMENTKOTE (Weisung vom 18. September). <<<
@@ -5581,6 +5619,7 @@ export async function start() {
     beiTragwerk: (id) => aendern('tragwerkAktiv', id),
     beiAnbauteil: (i) => zeigeAnbauteil(i),
     beiAnbauteilZiehen: (i, weg) => anbauteilZiehen(i, weg),
+    beiPunktZiehen: (i, weg) => punktZiehen(i, weg),
     /*
      * DIE ZAHL IM BALKEN LAEUFT MIT DEM ZUG MIT.
      *

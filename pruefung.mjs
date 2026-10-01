@@ -34535,6 +34535,16 @@ titel('178  Sammelweisung 1. Oktober: Absetzen, Duplizieren, neues Joch, Zeichnu
   const ohneWind = kr({ wirktQ: false }), ohneG = kr({ wirktG: false });
   wahr('Leiter: «Wind» abgewählt nimmt keinen Schnee mit; «Gewicht/Schnee» abgewählt nimmt ihn',
        ohneWind.S > 0 && ohneG.S === 0, `ohne Wind S ${ohneWind.S}, ohne G S ${ohneG.S}`);
+  // Angriffspunkte auf ihrer Stabachse ziehen.
+  const R178 = await import(J('render.3d.js'));
+  const CA178 = await import(J('core.anbauteile.js'));
+  const hs = A178.expandiereAnbauteile([A178.neuesAnbauteil('hs-fahrdraht', 10)], { ek: 'EK1' });
+  const kette = CA178.anbauKette(hs, { x0: 10, zAn: 0 });
+  wahr('Die Fahrleitung an der Hängestütze sitzt auf der lotrechten Achse (z)',
+       R178.achseZumPunkt(kette, hs.find((t) => t.rolle === 'drahtwerk')) === 'z');
+  wahr('Angriffspunkt ziehen: Griff «punkt», die App schreibt die Modulkoordinate mit achsfolge',
+       r3.includes("griff = { art: 'punkt'") && app.includes('beiPunktZiehen: (i, weg) => punktZiehen(i, weg)')
+       && /function punktZiehen[\s\S]{0,1400}achsfolge\(m\[modul\]\.folge, achse, neu\)/.test(app));
   wahr('Seitenleiste: das bediente Feld ist der Anker beim Neuaufbau',
        app.includes('function maskenAnkerHalten()') && (app.match(/maskenAnkerHalten\(\);/g) ?? []).length >= 2);
 }

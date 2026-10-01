@@ -1144,7 +1144,7 @@ export function erzeugeSzene(m, erg) {
           gruppe: 'last', punkt: true }));
       marken.push({ gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
                     text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
-                    titel: `${t.name} · Angriffspunkt` });
+                    titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t) });
       Object.entries(t.proGruppe ?? {}).forEach(([gruppe, kr]) => {
         [{ k: kr.Fz, ri: [0, 0, -1], nm: 'F_z', bez: 'vertikal' },
          { k: kr.Fy, ri: [0, 1, 0], nm: 'F_y', bez: 'Gleisrichtung' },
@@ -1340,7 +1340,7 @@ export function erzeugeSzene(m, erg) {
       marken.push({
         gruppe: 'last', art: 'lastknoten', p: pAn, teil: teilKey,
         text: t.rolle === 'drahtwerk' ? 'Leiter' : '',
-        titel: `${t.name} · Angriffspunkt`,
+        titel: `${t.name} · Angriffspunkt`, zieh: ziehAngabe(kette, t),
       });
 
       // Kraftpfeile am Angriffspunkt dieses Teils, JE LASTART.
@@ -1879,6 +1879,30 @@ function dunkel(farbe) {
   const v = parseInt(m[1], 16);
   const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+}
+
+/**
+ * >>> AUF WELCHER STABACHSE SITZT EIN ANGRIFFSPUNKT? (1. Oktober) <<<
+ * «die angriffspunkte auch per drag and drop schieben können, auf den
+ * vorgegebenen stabachsen.» Die Achse ist die des Glieds der Kette, das zum
+ * Punkt führt: eine Hängestütze lotrecht (z), ein Ausleger waagrecht (x).
+ * Sitzt der Punkt auf seinem Träger (kein eigenes Glied), gibt es keine.
+ */
+export function achseZumPunkt(kette, t) {
+  const p = (kette?.belegung ?? []).find((b) => b.teil === t)?.punkt;
+  const gl = p && (kette.glieder ?? []).find((g) => g.bis === p);
+  if (!gl) return null;
+  const d = [gl.bis.x - gl.von.x, gl.bis.y - gl.von.y, gl.bis.z - gl.von.z].map(Math.abs);
+  const i = d.indexOf(Math.max(...d));
+  return d[i] > 1e-6 ? 'xyz'[i] : null;
+}
+
+/** Was ein Angriffspunkt zum Ziehen mitbringt - Modul oder Lastblock. */
+function ziehAngabe(kette, t) {
+  if (t?.art !== 'modul' && t?.art !== 'last') return null;
+  const achse = achseZumPunkt(kette, t);
+  if (!achse) return null;
+  return { achse, modul: t.modulIndex ?? null, last: t.lastIndex ?? null };
 }
 
 export const ANSICHTEN = [
@@ -2438,6 +2462,28 @@ export class Modellansicht {
     }
   }
 
+  /** Vorschau beim Ziehen eines Angriffspunkts: Weg auf der Stabachse. */
+  _punktZiehMalen(c, proj, t) {
+    const z = this._ziehPunkt;
+    const s = this._s;
+    const q = [...z.p];
+    q[z.achse === 'x' ? 0 : 2] += z.d;
+    const a = proj(z.p), b = proj(q);
+    if (!a || !b) return;
+    c.save();
+    c.strokeStyle = t.acc ?? '#7c8de0';
+    c.lineWidth = 1.4 * s;
+    c.setLineDash([4 * s, 3 * s]);
+    c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+    c.setLineDash([]);
+    c.beginPath(); c.arc(b[0], b[1], 4.5 * s, 0, Math.PI * 2); c.stroke();
+    c.restore();
+    c.font = this._wertFont();
+    const zeichen = z.d >= 0 ? '+' : '−';
+    this._beschriftung(c, t, `Δ${z.achse} ${zeichen}${Math.abs(z.d).toFixed(2)} m`,
+                       b[0] + 8 * s, b[1] - 8 * s, t.acc ?? '#7c8de0');
+  }
+
   _verformtMalen(c, proj, t) {
     const v = this.verformt;
     const s = this._s;
@@ -2806,6 +2852,26 @@ export class Modellansicht {
          * greift das Teil statt der Kamera; ohne Bewegung bleibt es ein
          * Klick (Auswahl). Nicht während Setzen, Einmessen oder Bildschieben.
          */
+        /*
+         * >>> EIN ANGRIFFSPUNKT LÄSST SICH AUF SEINER STABACHSE ZIEHEN
+         * (1. Oktober). <<< Er geht vor dem Bauteil: wer den Kreis trifft,
+         * meint den Punkt, nicht die ganze Baugruppe.
+         */
+        if (griff.art === 'drehen' && e.button === 0 && this.opt.beiPunktZiehen
+            && !this.beiStelle && !this.beiZeichnungsklick) {
+          const [px, py] = this._geraetePunkt(e);
+          const fang = 8 * this._s;
+          const pt = (this._punktTreffer ?? [])
+            .map((q) => ({ q, d: Math.hypot(q.x - px, q.y - py) }))
+            .filter((q) => q.d <= fang).sort((a, b) => a.d - b.d)[0]?.q;
+          const b = pt ? (this.szene?.anbauteile ?? []).find((x) => x.teil === pt.teil) : null;
+          const w0 = b ? this.weltTreffer(px, py) : null;
+          if (b && w0) {
+            griff = { art: 'punkt', bewegt: false, start: [e.clientX, e.clientY],
+                      teil: b.teil, index: b.index, w0, achse: pt.achse,
+                      modul: pt.modul, last: pt.last, welt: pt.welt };
+          }
+        }
         if (griff.art === 'drehen' && e.button === 0 && this.opt.beiAnbauteilZiehen
             && !this.beiStelle && !this.beiZeichnungsklick) {
           const u = this._anbauteilUnter(e);
@@ -2885,6 +2951,16 @@ export class Modellansicht {
       if (Math.abs(e.clientX - griff.start[0]) +
           Math.abs(e.clientY - griff.start[1]) > 3) griff.bewegt = true;
       const dx = jetzt[0] - vorher[0], dy = jetzt[1] - vorher[1];
+      if (griff.art === 'punkt') {
+        const w = this.weltTreffer(jetzt[0], jetzt[1]);
+        if (w && griff.bewegt) {
+          const roh = griff.achse === 'x' ? w.x - griff.w0.x : w.z - griff.w0.z;
+          this._ziehPunkt = { p: griff.welt, achse: griff.achse,
+                              d: Math.round(roh * 10) / 10 };
+          this.zeichne();
+        }
+        return;
+      }
       if (griff.art === 'anbau') {
         const w = this.weltTreffer(jetzt[0], jetzt[1]);
         if (w && griff.bewegt) {
@@ -2905,6 +2981,25 @@ export class Modellansicht {
     });
 
     const beiHoch = (e) => {
+      if (griff?.art === 'punkt') {
+        const z = this._ziehPunkt;
+        this._ziehPunkt = null;
+        if (griff.bewegt && z && z.d) {
+          this.opt.beiPunktZiehen(griff.index, { modul: griff.modul, last: griff.last,
+                                                 achse: griff.achse, d: z.d });
+        } else if (griff.bewegt) {
+          this.zeichne();
+        }
+        if (griff.bewegt) {
+          zeiger.delete(e.pointerId);
+          try { c.releasePointerCapture(e.pointerId); } catch { /* schon frei */ }
+          c.style.cursor = '';
+          griff = null;
+          return;
+        }
+        // Ohne Bewegung: wie ein Klick auf das Teil.
+        griff = { ...griff, art: 'anbau' };
+      }
       if (griff?.art === 'anbau') {
         const z = this._zieh;
         this._zieh = null;
@@ -3785,6 +3880,7 @@ export class Modellansicht {
     c.fillRect(0, 0, w, h);
     this._massTreffer = [];
     this._titelTreffer = [];
+    this._punktTreffer = [];   // Angriffspunkte zum Ziehen (1. Oktober)
     // Belegte Bildstellen dieses Bildes. Bemassung und Anschriften teilen sie
     // sich, damit eine Masszahl nicht unter einem Bauteilnamen verschwindet.
     this._belegt = [];
@@ -3907,6 +4003,7 @@ export class Modellansicht {
     // der Fahrt - sie ist das, was man dabei ansehen will.
     if (this.gruppen.resultate && this.verformt) this._verformtMalen(c, proj, t);
     if (this._zieh) this._ziehMalen(c, proj, t);
+    if (this._ziehPunkt) this._punktZiehMalen(c, proj, t);
     // Im sparsamen Bild sind die Achsen das Einzige, was vom Joch übrig
     // bleibt - sie werden deshalb für die Dauer der Fahrt gezeichnet, auch
     // wenn ihr Schalter aus ist. Sonst stünde man 300 ms vor leerem Grund.
@@ -4657,6 +4754,11 @@ export class Modellansicht {
        */
       if (mk.art === 'auflagertext') return;
       if (mk.art === 'lastknoten') {
+        // Ziehbar auf seiner Stabachse (x oder z; y steht quer zur Ebene
+        // des Fangs und bleibt der Karte überlassen).
+        if (mk.zieh && mk.zieh.achse !== 'y') {
+          this._punktTreffer.push({ x: p[0], y: p[1], teil: mk.teil, welt: mk.p, ...mk.zieh });
+        }
         // Knotenpunkt der Lasteinleitung: ein Ring, damit der Angriffspunkt
         // auch dann zu sehen ist, wenn der Ständer davorliegt.
         c.strokeStyle = t.on2; c.lineWidth = 1.2 * s;
