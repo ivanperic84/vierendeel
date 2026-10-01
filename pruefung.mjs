@@ -34931,6 +34931,114 @@ titel('183  Bericht und Excel auf dem Stabwerksweg; Berichte für Abfangjoch und
        && APP_QUELLE().includes('exportiereStabwerk(werte, stabwerkBerichtDaten(app), letzte.erg)'));
 }
 
+titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit Kenndaten und Schnitt');
+/* ===========================================================================
+ * Weisung 2. Oktober «mit punkt 1 und 2 unter profile anfangen» - aus der
+ * Liste vom 30. September: (1) «beim Mast noch unter profile die
+ * querschnittsklasse angeben und einen hinweis zur schweissnaht an
+ * fussplatte (durchgeschweisst)», (2) «auf die einzelnen profile klicken und
+ * ein fenster mit den hinterlegten kenndaten zum profil und eine svg
+ * zeichnung des schnitts und mit vermassung und die angabe zur lage des
+ * schwerpunktes».
+ * Geprueft wird, dass das Blatt die HINTERLEGTEN Zahlen zeigt und S dort
+ * zeichnet, wo die Tabelle ihn hat - und dass die Klasse am Masten die des
+ * Nachweises ist, keine zweite.
+ * ========================================================================= */
+{
+  const PB = await import(J('ui.profilblatt.js'));
+  const U184 = await import(J('ui.js'));
+  const N184 = await import(J('core.nachbarn.js'));
+  const DA184 = await import(J('data.anker.js'));
+  const wink = NO.winkelprofile().find((p) => p.name === 'L 90x90x9');
+  const wink2 = NO.winkelprofile().find((p) => p.name === 'L 130x80x12');
+  const upe = NO.walzprofile().find((p) => p.name === 'UPE 140');
+  const ipe = NO.walzprofile().find((p) => p.name === 'IPE 300');
+  const heb = NO.mastprofileNorm().find((p) => p.name === 'HEB 260');
+  const unp = { ...DA184.ankerQuerschnitt('U12'), name: 'UNP 120' };
+
+  // (a) Die Geometrie in mm, aus der Einheit der jeweiligen Tabelle.
+  const gL = PB.profilGeometrie('winkel', wink2);
+  pruef('L 130x80x12: y_s = 10 · zsV (ab dem stehenden Schenkel)', gL.ys, wink2.zsV * 10, 1e-9, 'mm');
+  pruef('L 130x80x12: z_s = 10 · zsH (ab dem liegenden Schenkel)', gL.zs, wink2.zsH * 10, 1e-9, 'mm');
+  wahr('L 130x80x12: liegender Schenkel waagrecht (a_H = 130), stehender lotrecht (a_V = 80)',
+       gL.aH === 130 && gL.aV === 80);
+  const gU = PB.profilGeometrie('walz', upe);
+  wahr('UPE 140: Walzprofil cm → mm, U-Form, r = 12, e_y = 21.7',
+       gU.form === 'U' && gU.h === 140 && gU.b === 65 && Math.abs(gU.r - 12) < 1e-9
+       && Math.abs(gU.ys - 21.7) < 1e-9);
+  const gH = PB.profilGeometrie('mast', heb);
+  wahr('HEB 260: Mastprofil in mm, I-Form, ohne Ausrundung (keine hinterlegt)',
+       gH.form === 'I' && gH.h === 260 && gH.r === 0);
+  const gA = PB.profilGeometrie('anker', unp);
+  wahr('UNP 120 des Ankers: U-Form, mm, e_y = 16', gA.form === 'U' && gA.h === 120 && Math.abs(gA.ys - 16) < 1e-9);
+  wahr('Ohne Masse keine Geometrie (Seilanker)', PB.profilGeometrie('anker', { A: 1 }) === null);
+
+  // (b) S im Bild: Abstand des Kreises zur Bezugskante = Tabellenwert · Massstab.
+  const sLage = (g) => {
+    const svg = PB.profilSchnittSvg(g).svg;
+    const S = svg.match(/class="pb-s" cx="([\d.]+)" cy="([\d.]+)"/);
+    const M = svg.match(/class="pb-flaeche" d="M ([\d.]+) ([\d.]+)/);
+    return { svg, S: [+S[1], +S[2]], M: [+M[1], +M[2]] };
+  };
+  {
+    const { S, M } = sLage(gL);
+    const skala = 230 / Math.max(gL.aH, gL.aV);
+    // Der Pfad beginnt an der Aussenecke (unten links).
+    pruef('L 130x80x12 im Bild: S rechts der Aussenecke um y_s · Massstab', S[0] - M[0], gL.ys * skala, 0.02, 'px');
+    pruef('L 130x80x12 im Bild: S über der Aussenecke um z_s · Massstab', M[1] - S[1], gL.zs * skala, 0.02, 'px');
+  }
+  {
+    const { S, M } = sLage(gU);
+    const skala = 230 / Math.max(gU.b, gU.h);
+    // Der Pfad beginnt am Stegrücken, oben.
+    pruef('UPE 140 im Bild: S rechts des Stegrückens um e_y · Massstab', S[0] - M[0], gU.ys * skala, 0.02, 'px');
+    pruef('UPE 140 im Bild: S in halber Höhe', S[1] - M[1], gU.h / 2 * skala, 0.02, 'px');
+  }
+  // (c) Die Ausrundungen: je eine Bogenmarke, und nur, wo r hinterlegt ist.
+  const boegen = (g) => (PB.profilSchnittSvg(g).svg.match(/class="pb-flaeche" d="[^"]*"/)[0].match(/ A /g) ?? []).length;
+  wahr('Bögen: IPE 4, UPE 2, UNP 2, HEB 0 (kein r), Winkel 0',
+       boegen(PB.profilGeometrie('walz', ipe)) === 4 && boegen(gU) === 2 && boegen(gA) === 2
+       && boegen(gH) === 0 && boegen(gL) === 0,
+       [ipe, upe].map((p) => boegen(PB.profilGeometrie('walz', p))).join('/'));
+
+  // (d) Die Tabelle des Blattes: die Werte ungerundet, wie hinterlegt.
+  const html = PB.profilBlattHtml({ art: 'winkel', p: wink, name: wink.name, rolle: 'Obergurt' });
+  wahr('Blatt L 90x90x9: z_s und y_s mit dem Tabellenwert (2.54 cm), W_y 17.96',
+       html.includes('<td class="num">2.54</td>') && html.includes('<td class="num">17.96</td>'));
+  wahr('Blatt L 90x90x9: I_y als abgeleitet gekennzeichnet (i_y² · A)',
+       html.includes('pb-abgeleitet') && html.includes((wink.iy ** 2 * wink.A).toFixed(2)));
+  const hU = PB.profilBlattHtml({ art: 'walz', p: upe, name: upe.name });
+  wahr('Blatt UPE 140: I_t 3.96 und e_y 2.17, ohne Rundung', hU.includes('>3.96<') && hU.includes('>2.17<'));
+  wahr('Blatt UNP des Ankers: sagt, dass EIN Profil gezeichnet ist',
+       PB.profilBlattHtml({ art: 'anker', p: unp, name: 'UNP 120' }).includes('Gezeichnet ist EIN Profil'));
+
+  // (e) Die Tafel: Zeilen anklickbar, die Mastklasse aus dem Nachweis.
+  const w = standardwerte();
+  const s2 = N184.rechensatzMitNachbarn(w);
+  const erg = berechne(s2, ...N184.kernArgumente(s2));
+  const tafel = U184.profilUebersicht(erg, w);
+  const nZeilen = (tafel.match(/data-profil="/g) ?? []).length;
+  wahr('Tafel: jede Profilzeile anklickbar (Obergurt, Untergurt, Mast)', nZeilen >= 2, String(nZeilen));
+  const e0 = U184.profilEintrag(0);
+  wahr('Tafel: der Eintrag trägt Art und Rohprofil', e0?.art === 'winkel' && e0.p?.name === erg.modell.profOG.name);
+  const klA = erg.mast?.A?.klasse;
+  wahr('Mastklasse: dieselbe wie im Mastnachweis (Klasse, Flansch c/t)',
+       klA && tafel.includes(`Klasse ${klA.klasse}`) && tafel.includes(klA.flansch.ct.toFixed(1))
+       && tafel.includes('Mastnachweis, mit N_Ed,max'));
+  wahr('Fussnaht: durchgeschweisst, EN 1993-1-8, 4.7.1',
+       tafel.includes('durchgeschweisst') && tafel.includes('EN 1993-1-8, 4.7.1'));
+  // Ohne Mastnachweis rechnet die Tafel die Klasse unter reiner Biegung und sagt es.
+  const ohne = U184.profilUebersicht({ ...erg, mast: null }, w);
+  wahr('Ohne Mastnachweis: Klasse unter reiner Biegung, angeschrieben', ohne.includes('reine Biegung, N = 0'));
+
+  // (f) Die Verdrahtung.
+  const ao = readFileSync(join(HIER, 'js', 'app.optionen.js'), 'utf8');
+  wahr('Klick auf eine Profilzeile öffnet das Profilblatt',
+       ao.includes("querySelectorAll('[data-profil]')") && ao.includes('profilBlattHtml(e)'));
+  const css = readFileSync(join(HIER, 'css', 'style.css'), 'utf8');
+  wahr('Stilregeln des Profilblatts vorhanden', ['.pb-flaeche', '.pb-s ', 'tr.pb-zeile'].every((k) => css.includes(k)));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

@@ -1532,6 +1532,26 @@ figure.messbar svg:focus-visible { outline: 1px solid var(--acc); }
   display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px;
   border-top: 1px solid var(--ol);
 }
+/* --- Profilblatt (Weisung 2. Oktober: Kenndaten und Schnitt je Profil) ----- */
+.pb { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.pb-bild { flex: 0 1 390px; min-width: 0; }
+.pb-daten { flex: 1 1 300px; min-width: 0; }
+.pb-svg { display: block; max-width: 100%; height: auto; color: var(--on); }
+.pb-flaeche { fill: var(--acc-s); stroke: currentColor; stroke-width: 1.4; }
+.pb-mass { stroke: var(--on2); stroke-width: 1; }
+.pb-hilf { stroke: var(--dim); stroke-width: .7; }
+.pb-punkt { fill: var(--on2); }
+.pb-text { fill: var(--on); font-size: 11px; }
+.pb-achse { stroke: var(--dim); stroke-width: .8; stroke-dasharray: 6 3 1.5 3; }
+.pb-achstext { fill: var(--dim); font-size: 11px; font-style: italic; }
+.pb-s { fill: none; stroke: var(--acc); stroke-width: 1.6; }
+.pb-s-kreuz { stroke: var(--acc); stroke-width: 1.2; }
+.pb-s-text { fill: var(--acc); font-size: 12px; font-weight: 700; }
+.pb-s-zeile { margin: 4px 0 0; }
+.pb-abgeleitet td { font-style: italic; color: var(--dim); }
+tr.pb-zeile { cursor: pointer; }
+tr.pb-zeile:hover td { background: var(--acc-s); }
+
 /* --- Handbuch --------------------------------------------------------------
    Ein Fliesstext mit Formeln braucht Zeilenlänge und ein Verzeichnis, das
    mitläuft - sonst weiss man nach dem dritten Abschnitt nicht mehr, wo man

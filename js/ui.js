@@ -54,6 +54,7 @@ import { abschnitt, klapp, kachel, plakette, ampel, esc, icon } from './design.j
 // Fuer die Profiluebersicht: die Querschnittswerte des Ankers und
 // die Stahlguete stehen in ihren eigenen Datenmodulen.
 import { ankerQuerschnitt } from './data.anker.js';
+import { mastKlasse } from './core.mast.js';
 
 /*
  * DAS GERECHNETE MODELL, für die Lage eines Anbauteils.
@@ -7488,11 +7489,17 @@ export function profilUebersicht(erg, werte) {
   const m = erg.modell;
   const ab = erg.abfang ?? null;
   const zeilen = [];
+  const masten = [];
   const gesehen = new Set();
   /*
    * JEDES PROFIL EINMAL. Zwei Masten mit demselben HEB 240 sind eine Zeile -
    * zwei gleiche untereinander waeren keine Auskunft, sondern ein Verdacht.
    * Die Rolle sammelt sich dafuer in der ersten Spalte.
+   */
+  /*
+   * `art` und `roh` tragen das Profil, wie es in seiner Tabelle steht - fuer
+   * das Profilblatt, das ein Klick auf die Zeile oeffnet (Weisung 2. Oktober,
+   * siehe ui.profilblatt.js). Die Spalten der Tafel bleiben, wie sie waren.
    */
   const zu = (rolle, p, opt = {}) => {
     if (!p?.name) return;
@@ -7503,7 +7510,8 @@ export function profilUebersicht(erg, werte) {
     gesehen.add(s);
     zeilen.push({ s, rolle, name: p.name, anzahl: opt.anzahl ?? 1,
                   A: p.A, Iy: p.Iy ?? p.I, Iz: p.Iz, Wy: p.Wy ?? p.W,
-                  Wz: p.Wz, It: p.It, G: p.G, quelle: opt.quelle ?? '' });
+                  Wz: p.Wz, It: p.It, G: p.G, quelle: opt.quelle ?? '',
+                  art: opt.art ?? null, roh: opt.roh ?? p });
   };
 
   // Der Tragausleger mit seinen UPE, nicht den Winkeln des Ersatzjochs.
@@ -7512,31 +7520,42 @@ export function profilUebersicht(erg, werte) {
   })() : null;
   if (ab?.q?.gurt) {
     zu('Gurt', ab.q.gurt, { anzahl: 2,
-      quelle: `Abfangjoch ${ab.typ}, zwei Gurte nebeneinander` });
+      quelle: `Abfangjoch ${ab.typ}, zwei Gurte nebeneinander`, art: 'walz' });
   } else if (taP) {
-    zu('Gurt', taP, { anzahl: 2, quelle: 'Tragausleger, zwei UPE nebeneinander' });
+    zu('Gurt', taP, { anzahl: 2, quelle: 'Tragausleger, zwei UPE nebeneinander',
+                      art: 'walz' });
   } else if (m.profOG) {
-    zu('Obergurt', m.profOG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel' });
-    zu('Untergurt', m.profUG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel' });
+    zu('Obergurt', m.profOG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel', art: 'winkel' });
+    zu('Untergurt', m.profUG, { anzahl: 2, quelle: 'Tragjoch, zwei Winkel', art: 'winkel' });
   }
   ['A', 'B'].forEach((ende) => {
     // Am Tragausleger gibt es nur Ende A - B war das Phantomauflager.
     if (ende === 'B' && taP) return;
     const f = m.federn?.[`mast${ende}`] ?? (ende === 'A' ? m.federn?.mast : null);
     const name = m.federn?.namen?.[ende] || `Ende ${ende}`;
-    if (f?.profil) zu(`Mast ${name}`, f.profil, { quelle: 'Mastsortiment' });
+    if (f?.profil) {
+      zu(`Mast ${name}`, f.profil, { quelle: 'Mastsortiment', art: 'mast' });
+      masten.push({ ende, name, profil: f.profil });
+    }
     const ak = f?.anker;
     if (ak?.typ) {
       let qs = null;
       try { qs = ankerQuerschnitt(ak.typ); } catch { qs = null; }
       if (qs) {
+        // Ein Seilanker hat keinen Profilschnitt - er geht ohne Blatt.
+        const istProfil = Number.isFinite(qs.h) && Number.isFinite(qs.tw);
         zu(`Anker ${name}`, { name: `${ak.typ} · ${qs.anzahl ?? 2}× ${qs.profil}`,
                               A: qs.A, Iy: qs.Iy, Iz: qs.Iz, It: qs.It },
-           { quelle: qs.quelle ?? '' });
+           { quelle: qs.quelle ?? '', art: istProfil ? 'anker' : null,
+             roh: { ...qs, name: qs.profil } });
       }
     }
   });
   if (!zeilen.length) return '';
+  // Fuer den Klick: die Eintraege dieser Tafel, in ihrer Reihenfolge.
+  profilEintraege = zeilen.map((r) => (r.art
+    ? { art: r.art, p: r.roh, name: r.name, rolle: r.rolle, quelle: r.quelle }
+    : null));
 
   const z = (v, n = 1) => (Number.isFinite(v) ? f2(v) : '–');
   // Der Stahl steht im MODELL - ein zweiter Weg ueber den Katalog waere
@@ -7549,9 +7568,10 @@ export function profilUebersicht(erg, werte) {
         <th class="num">A [cm²]</th><th class="num">I_y [cm⁴]</th>
         <th class="num">I_z [cm⁴]</th><th class="num">W_y [cm³]</th>
         <th class="num">I_t [cm⁴]</th></tr></thead>
-      <tbody>${zeilen.map((r) => `
-        <tr title="${esc(r.quelle)}">
-          <td>${esc(r.rolle)}</td><td>${esc(r.name)}</td>
+      <tbody>${zeilen.map((r, i) => `
+        <tr${r.art ? ` class="pb-zeile" data-profil="${i}"` : ''}
+          title="${esc(r.quelle)}${r.art ? ' – anklicken: Kenndaten und Schnitt' : ''}">
+          <td>${esc(r.rolle)}</td><td>${r.art ? `<u>${esc(r.name)}</u>` : esc(r.name)}</td>
           <td class="num">${r.anzahl}</td>
           <td class="num">${z(r.A)}</td><td class="num">${z(r.Iy)}</td>
           <td class="num">${z(r.Iz)}</td><td class="num">${z(r.Wy)}</td>
@@ -7561,7 +7581,77 @@ export function profilUebersicht(erg, werte) {
     <p class="hinweis" style="margin:3px 0 0">Werte je EINZELPROFIL, «n» sagt,
       wie viele davon das Bauteil trägt. Ein Strich heisst: nicht erfasst —
       beim Anker etwa I_z, das mit der Spreizung über die Länge wächst.
-      ${st ? `Stahl ${esc(st.name)}, f_y ${f0(st.fy)} N/mm².` : ''}</p>`;
+      ${st ? `Stahl ${esc(st.name)}, f_y ${f0(st.fy)} N/mm².` : ''}
+      Ein Klick auf ein Profil zeigt seine hinterlegten Kenndaten und den
+      Schnitt.</p>
+    ${mastProfilHtml(erg, masten, st)}`;
+}
+
+/** Die Eintraege der zuletzt gezeichneten Profiltafel, fuer den Klick. */
+let profilEintraege = [];
+export const profilEintrag = (i) => profilEintraege[i] ?? null;
+
+/* ===========================================================================
+ * MAST: QUERSCHNITTSKLASSE UND FUSSNAHT
+ * ===========================================================================
+ *
+ * Weisung vom 2. Oktober (aus der Liste vom 30. September): «beim Mast noch
+ * unter profile die querschnittsklasse angeben und einen hinweis zur
+ * schweissnaht an fussplatte (durchgeschweisst). dies ist bei den
+ * standardfussplatten schon der fall.»
+ *
+ * >>> DIE KLASSE IST DIE DES NACHWEISES, KEINE ZWEITE. <<<
+ *
+ * `mastNachweis` (core.mast.js) klassiert jedes Ende mit `mastKlasse` unter
+ * der groessten Normalkraft der Bemessung - davon haengt ab, ob plastisch
+ * gerechnet werden darf. Genau diese Zahl steht hier. Nur wo kein
+ * Mastnachweis vorliegt, rechnet die Tafel dieselbe Funktion unter reiner
+ * Biegung (N = 0) und sagt es.
+ *
+ * Die Fussnaht ist ein Hinweis, keine Rechnung: eine durchgeschweisste
+ * Stumpfnaht traegt nach EN 1993-1-8, 4.7.1 wie der schwaechere der
+ * verbundenen Teile - der Nachweis des Mastquerschnitts am Fuss deckt sie,
+ * und eine eigene Nahtbemessung entfaellt.
+ */
+function mastProfilHtml(erg, masten, st) {
+  if (!masten.length) return '';
+  const fy = st?.fy ?? 235;
+  const zeilen = masten.map(({ ende, name, profil }) => {
+    const n = erg?.mast?.[ende];
+    let kl = n?.klasse ?? null;
+    let quelle = 'Mastnachweis, mit N_Ed,max';
+    if (!kl) {
+      try { kl = mastKlasse(profil, fy, 0); } catch { kl = null; }
+      quelle = 'reine Biegung, N = 0';
+    }
+    if (!kl) return '';
+    const stufe = kl.klasse <= 2 ? 'ok' : kl.klasse === 3 ? 'warn' : 'fail';
+    return `<tr>
+      <td>Mast ${esc(name)}</td><td>${esc(profil.name)}</td>
+      <td class="num">${f1(kl.flansch.ct)} / ${f2(kl.flansch.grenze)}</td>
+      <td class="num">${f1(kl.steg.ct)} / ${f2(kl.steg.grenze)}</td>
+      <td class="num">${plakette('Klasse ' + kl.klasse, stufe)}</td>
+      <td>${esc(quelle)}</td></tr>`;
+  }).join('');
+  if (!zeilen) return '';
+  return `${abschnitt('Mast: Querschnittsklasse und Fussnaht')}
+    <div class="tabellenrahmen"><table class="dt">
+      <thead><tr><th>Mast</th><th>Profil</th>
+        <th class="num">Flansch c/t / Grenze Kl. 1</th>
+        <th class="num">Steg c/t / Grenze Kl. 1</th>
+        <th class="num">QSK</th><th>Grundlage</th></tr></thead>
+      <tbody>${zeilen}</tbody>
+    </table></div>
+    <p class="hinweis" style="margin:3px 0 0">Querschnittsklasse nach
+      EN 1993-1-1, Tab. 5.2 (Flansch einseitig gestützt, Steg unter Druck und
+      Biegung), c ohne Ausrundung — auf der sicheren Seite. Klasse 1 und 2
+      lassen den plastischen Widerstand zu (Optionen).</p>
+    <p class="hinweis" style="margin:3px 0 0"><b>Fussplatte:</b> der Mast ist
+      mit der Fussplatte <b>durchgeschweisst</b> (Stumpfnaht mit voller
+      Durchschweissung) — bei den Standardfussplatten so ausgeführt. Die Naht
+      trägt damit wie der Mastquerschnitt (EN 1993-1-8, 4.7.1); der Nachweis
+      des Querschnitts am Fuss deckt sie, eine eigene Nahtbemessung entfällt.
+      Für eine abweichende Fussplatte gilt das nicht.</p>`;
 }
 
 export function qskMarke(kl) {

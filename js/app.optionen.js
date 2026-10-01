@@ -23,6 +23,7 @@ import { handbuchDatei, handbuchHtml } from './doku.handbuch.js';
 import * as store from './store.js';
 import * as ui from './ui.js';
 import { typUebernehmen } from './ui.schema.js';
+import { profilBlattHtml } from './ui.profilblatt.js';
 
 function dialogKlassen(app) {
   if (!app.letzte) return;
@@ -506,6 +507,13 @@ export function dialogOptionen(app) {
 export function verdrahteExtras(app) {
   ui.el('maske').querySelectorAll('[data-qsk]').forEach((b) => {
     b.onclick = () => dialogKlassen(app);
+  });
+  // Ein Profil der Tafel «Profile dieses Tragwerks»: Kenndaten und Schnitt.
+  ui.el('maske').querySelectorAll('[data-profil]').forEach((z) => {
+    z.onclick = () => {
+      const e = ui.profilEintrag(+z.dataset.profil);
+      if (e) app.dialog(`Profil ${e.name}`, profilBlattHtml(e), '');
+    };
   });
   verdrahteLastfaelle(app);
 }

@@ -5,11 +5,16 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **1. Oktober 2026**; Prüfstand 6089 Kontrollen grün,
-`durchlauf.mjs` ohne Bruch. **Alles gepusht** (Weisung «alles pushen und
-bereit machen für den account change»); pushen sonst nur auf Weisung.
+Stand: **2. Oktober 2026**; Prüfstand 6112 Kontrollen grün,
+`durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
+2. Oktober (Profile) ist committet, **nicht gepusht** - pushen nur auf Weisung.
 
-**Zuletzt gebaut (1. Oktober, Einzelheiten in CLAUDE.md, *Entschieden*):**
+**Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
+- **2. Oktober, unter *Profile*:** Querschnittsklasse je Mast (die des
+  Mastnachweises) und Hinweis zur durchgeschweissten Fussnaht; Klick auf
+  ein Profil öffnet das **Profilblatt** (`ui.profilblatt.js`): hinterlegte
+  Kenndaten ungerundet, massstäblicher Schnitt mit Vermassung und
+  Schwerpunkt.
 - **Bericht und Excel auf dem Stabwerksweg**, je ein Bericht auch für
   Abfangjoch und Tragausleger (`export.stabbericht.js`): ganzes Blatt,
   je Bauteil der massgebende Stab mit eingesetzter Formel und die zehn
@@ -32,8 +37,7 @@ bereit machen für den account change»); pushen sonst nur auf Weisung.
   oder neu, Hinweise des Reaktionsblatts bearbeitbar.
 
 **Warten auf den Auftraggeber (Wortlaut in CLAUDE.md, *Offene Punkte*):**
-Querschnittsklasse und Fussnaht unter *Profile*; Profilfenster mit
-Kenndaten und Schnittzeichnung; Signalbauer mit Bildern; «+ Bauteil aus
+Signalbauer mit Bildern; «+ Bauteil aus
 der Lasttabelle»; «Fahrleitung als Auflager» nur mit Leiter;
 Rückstellkraft der Leiter am Joch («Halt in y, begrenzt», 10 %).
 Entscheide offen (⚠): Tragausleger am Masten eines Jochs im Stabwerk;
@@ -102,7 +106,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6089 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6112 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

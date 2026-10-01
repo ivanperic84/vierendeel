@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Profile: Mastklasse, Fussnaht, Profilblatt (2. Oktober) | Weisung «mit punkt 1 und 2 unter profile anfangen» - aus der Liste vom 30. Sept.: «beim Mast noch unter profile die querschnittsklasse angeben und einen hinweis zur schweissnaht an fussplatte (durchgeschweisst). dies ist bei den standardfussplatten schon der fall.» und «unter profile könnte man da auf die einzelnen profile klicken und ein fenster mit den hinterlegten kenndaten zum profil und eine svg zeichnung des schnitts und mit vermassung und die angabe zur lage des schwerpunktes, so lassen sich die werte mit der fachliteratur abgleichen.» (1) Unter der Profiltafel der Block **«Mast: Querschnittsklasse und Fussnaht»**: je Mast die Klasse **des Mastnachweises** (`erg.mast[ende].klasse`, `mastKlasse` unter N_Ed,max - keine zweite Rechnung; ohne Nachweis dieselbe Funktion mit N = 0, angeschrieben), Flansch und Steg c/t gegen die Grenze; dazu der Hinweis: durchgeschweisste Stumpfnaht wie bei den Standardfussplatten, trägt wie der Querschnitt (EN 1993-1-8, 4.7.1), keine eigene Nahtbemessung. Im Browser J90/20 m, HEB 260: Flansch 7.1 / 9.00, Steg 22.5 / 69.13, Klasse 1. (2) **Profilblatt** (neues Modul `ui.profilblatt.js`): Klick auf eine Zeile der Tafel öffnet ein Fenster mit allen **hinterlegten** Werten, ungerundet und in der Einheit ihrer Tabelle (Winkel mm/cm, Walzprofile cm, Masten mm, UNP des Ankers mm), dazu massstäblicher Schnitt mit Vermassung (h, b, t_w, t_f, r bzw. a_H, a_V, t), Achsen y/z und Schwerpunkt S mit Abstand zur Bezugskante (Winkel y_s/z_s, U e_y). I der Winkel steht als «abgeleitet i² · A» gekennzeichnet. Ausrundungen nur, wo r hinterlegt ist (UPE/IPE, UNP); Winkel und Masten scharfkantig mit Vermerk; UNP ohne Flanschneigung, ein Profil. Seilanker ohne Blatt. Prüfstand 184 |
 | Bericht und Excel auf dem Stabwerksweg; Berichte für Abfangjoch und Tragausleger (1. Oktober) | Weisung: «Bericht und Excel auf den Stabwerksweg umstellen, dazu je ein Bericht für Abfangjoch und Tragausleger». Auf Rückfrage: **«Formel + Stabliste»** (je Bauteil der massgebende Stab mit Kombination, Endkräften und eingesetzter Spannungsformel, darunter die zehn höchstbeanspruchten Stäbe des Teils), **«Ganzes Blatt»** (ein Bericht über alle Tragwerke und Masten des Stabwerks, geteilte Masten einmal, Urteil des Blattes), **«Weg, ausser Knicken»** (keine Zahl des Ersatzbalkens; Knicken nach SIA 263 Gl. (50) mit den Kräften des Stabwerks), **«Erst rechnen»** (ohne gültiges Stabwerk rechnet der Knopf zuerst). Neues Modul `export.stabbericht.js` (`stabwerkBericht`, `blattUrteil`, `stabFormelHtml`); die Daten stellt `stabwerkBerichtDaten` (app.bericht.js) zusammen: je Tragwerk sein Kern über `rechneTragwerk` (aus `neuRechnen` herausgelöst, derselbe Rumpf) für Lasten, Prüfungen, Hinweise und die Messstelle, je Mast Knicken, Fundament und Anker aus dem Stabwerk (`ankerFuerMast`, `verformungFuer`). Die Zwischenwerte liefern `randspannung`/`stabSpannung` als `detail` (Winkel: A, I_y, I_z, I_yz, Ecke, k_y, k_z; sonst A, W, σ-Anteile). Der Bericht des Ersatzbalkens bleibt, wenn in den Optionen das Rechenverfahren Ersatzbalken steht (nur Tragjoch und Einzelmast); Abfangjoch und Tragausleger haben nur den des Stabwerks. **Excel** auf dem Stabwerksweg (`exportiereStabwerk`): Eingabe, Urteil, Massgebend (Zwischenwerte je Teil), Stabwerk (alle Stäbe), Masten (Knicken, Fundament, Anker), Reaktionen, Konstruktion, Profile; die knotenweise Rechnung und der Massvariantenvergleich entfallen. **Befund dabei, unsichere Seite:** das Stabwerk wies die Bindebleche ohne Schub nach; auf Rückfrage **«σ_v mit τ»** jetzt √(σ² + 3τ²), τ = 1.5 · V / A aus der grösseren Querkraft am Ende (nur Bleche). Gemessen J90/20 m Blech 0.3634 → 0.3715, Reihe 2 × J90/20 m 0.4403 → 0.4475, Tragausleger L 13 m mit Längsanker zwei Seile 0.2880 → 0.3013. Im Browser (Prüfseite): Tragjoch, Reihe (T1/T2, M1-M3), Einzelmast, Tragausleger, Abfangjoch - Deckblatt jeweils mit derselben Zahl wie die Fussleiste; Excel acht Blätter, Zwischenwerte wie im Bericht. Prüfstand 183 |
 | Kleine Befunde abgearbeitet (1. Oktober) | Weisung «diese punke angehen». (1) **Reihenzeile** der Stabwerksleiste nennt die Tragwerke wie Lageband und Kacheln (`reiheName` in app.js: Stabname trägt die Kennung, Anzeige `tragwerkPos`; Mast mit Nummer); im Browser `T3_…` → «Joch T1», `T1_…` → «Joch T2». (2) **Anschlusshöhe im Dialog «Neues Tragwerk»** wird geschrieben; die nachgezogene Länge eines geteilten Masten fällt nie unter das, was die übrigen Joche an ihm brauchen (`mastLaengeMindestens`) - im Browser T2 mit H 6.50 an M2: T1 bleibt 7.50, M2 bleibt 8.50 m. (3) **Anker im 3D** mit 6 px Fangrand (`randAbstand`): Rechtsklick trifft ihn auf 18 statt 4 px Zeilenbreite (gemessen, alter gegen neuen Stand). (4) **Mastlänge im Namen** eines Tragwerks aus der Mastliste (`tragwerkName` mit `w`, sonst Vorgabe; beim Ausleger H + b) - die Liste führt eine Länge je Mast, die Rechnung liest sie ohnehin dort. (5) **Ankerfuss** auf Rückfrage **«Ein Gelenk für beide»**: die zwei U-Profile laufen am Fundament auf einen Bolzen (`ANKERGELENK_…_FG`, Link 50 mm in der Achse; die Gelenkstücke je Profil bleiben am Masten). Dabei gefunden: der eigene Löser wertet `gelenkAnfang/gelenkEnde` an ECHTEN Stäben nicht aus - Seil (Fuss) und Ersatzstab (beide Enden) hingen biegesteif; jetzt ebenfalls als Link (`gelenkVor` in export.axisvm.js). Gemessen J90/20 m, Anker an M1 h 6.0 / a 4.0, am Ankerfundament: U12 quer M_l 4.10 → 0.004, T 2.62 → 0.003 kNm; U12 längs M_q 0.35 → 0.002; SA20 quer M_l 0.70 → 0. Dafür Mastfuss M1 M_l 39.33 → **43.31 kNm** (U12 quer, +10 %), SA20 42.38 → 43.09. (6) **serve.py** bindet unter Windows exklusiv (SO_EXCLUSIVEADDRUSE) und bricht bei belegtem Port ab. Prüfstand 182. **Nachgereicht** («mastdialog beheben»): der Mastdialog las `m.H`, das niemand setzt, und zeigte damit die Höhe des GEWÄHLTEN Tragwerks (M1 von T1 zeigte 6.50 von T2); jetzt liest er die Höhe des Tragwerks, das den Masten trägt, an dessen Ende (`anschlusshoehe`), nennt beides im Hinweis und schreibt ins Feld dieses Endes (`mastHB` bei eigener Höhe B). Im Browser: M1 7.50 (T1), M2/M3 6.50 (T2, «Ende B folgt Ende A»); M1 auf 7.00 → T1 7.00, T2 bleibt 6.50 |
 | Jochreihe: Zwischenmast schieben, Kragarm (1. Oktober) | Gemeldet: «der fussfehler ist seit letztem mal nicht mehr auf getretten. aber was beobachtet wurde wenn mehrere joche in reihe stehen, dann macht der überstand und das nachträgliche schieben des mittleren masten probleme.» Gemessen (2 × J90, 20 + 15 m): M2 von 20 auf 22 m geschoben ergab T1 0..20 und T2 22..37 - vier Masten, die Reihe auseinander, auch ohne Kragarm (das linke Joch hielt am rechten an, das noch an der alten Stelle stand); nach links ging es. Mit Kragarm am Zwischenmasten riss die Reihe in beide Richtungen; ein angehängtes Joch erbte die Kragarme des gewählten und stand um c_A neben dem Masten. Behoben: der geteilte Mast schiebt beide Joche in einem Zug, der Partner ist kein Hindernis, das rechte rückt höchstens bis an seinen Nachbarn (kein Sprung dahinter; `mastStelleSetzen` in ui.js); die Grenze am Ende B rechnet mit c_B. Auf Rückfrage **«Ohne Kragarm»**: ein neues Joch (Kachel, Dialog, «zwischen den Masten») startet mit c_A = c_B = 0 und schliesst am letzten MASTEN an. **«Erlauben»**: am Zwischenmasten dürfen beide Joche auskragen und sich überdecken - die Kollisionsregeln lesen dafür die Strecke von Mast zu Mast (`bereichVon`), nicht die Gurtlänge. Im Browser (Prüfseite): T1 mit c_A 0.50, T2 angehängt bei 20 (drei Masten), M2 → 22 / 18: geteilt, T1 22.50 m; T2 c_A 0.50, M2 → 20: Lage 19.5, L 21, drei Masten. Prüfstand 181 |
@@ -294,12 +295,16 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**1. Oktober 2026** · Prüfstand 6089 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6112 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **2. Okt., Profile: Querschnittsklasse und Fussnaht am Masten,
+  Profilblatt mit Kenndaten und Schnitt** (Prüfstand 184, siehe
+  *Entschieden*). Im Browser über eine Prüfseite mit abgeschaltetem
+  Speicher geprüft (danach gelöscht). Nicht gepusht.
 - **1. Okt., Bericht und Excel auf dem Stabwerksweg, Berichte für
   Abfangjoch und Tragausleger, Bindeblech mit Schub** (Prüfstand 183,
   Entscheide siehe *Entschieden*). Alles bis hierher gepusht
@@ -2197,7 +2202,7 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
-- **Nächste Wünsche (30. Sept.; (1) und (4) seither erledigt, siehe
+- **Nächste Wünsche (30. Sept.; (1) bis (4) seither erledigt, siehe
   *Entschieden*):**
   (1) ~~Gebrauchstauglichkeit in den Optionen neu ordnen~~, im Wortlaut: «diese
   aufteilung macht wenig sinn, man sollte die beiden grenzwertbetrachtungen
@@ -2210,14 +2215,10 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   auch unter gebauchstauglichkeit in der sidebar übersicht aufführen und
   umschaltbar machen falls notwendig, dann ist man auch nicht so abhängig
   von den automatismen.»
-  (2) «beim Mast noch unter profile die querschnittsklasse angeben und
-  einen hinweis zur schweissnaht an fussplatte (durchgeschweisst). dies ist
-  bei den standardfussplatten schon der fall.»
-  (3) «unter profile könnte man da auf die einzelnen profile klicken und
-  ein fenster mit den hinterlegten kenndaten zum profil und eine svg
-  zeichnung des schnitts und mit vermassung und die angabe zur lage des
-  schwerpunktes, so lassen sich die werte mit der fachliteratur
-  abgleichen.»
+  (2) ~~Querschnittsklasse und Fussnaht unter *Profile*~~ und
+  (3) ~~Profilblatt mit Kenndaten und Schnitt~~ - gebaut am 2. Oktober
+  (siehe *Entschieden*). Offen dazu: Ausrundungen der Winkel und
+  Mastprofile sind nicht hinterlegt (scharf gezeichnet).
   (4) ~~Frage «ist es möglich ein verformtes modell darzustellen im 3d? oder
   kostet das zu viel performance? es wäre nur ein nice to have»~~ - gebaut
   (Schalter «δ»).
@@ -2522,7 +2523,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6089 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6112 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
