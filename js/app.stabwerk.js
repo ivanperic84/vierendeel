@@ -493,9 +493,32 @@ export function rechneStabwerk(app) {
    * Lösung. Nicht aufzählbar - sie gehören zu keinem gespeicherten Stand und
    * zu keinem Vergleich, und JSON.stringify übergeht sie.
    */
-  Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS },
+  Object.defineProperty(ergebnis, 'roh', { value: { dat, lsg, faelle: alleFaelleS, seilInfo },
                                           enumerable: false });
   return ergebnis;
+}
+
+/*
+ * >>> ANKER UND VERFORMUNG FÜR JEDEN MASTEN DES BLATTES (1. Oktober). <<<
+ *
+ * Für den Bericht über das ganze Blatt (Rückfrage «Ganzes Blatt»):
+ * `rechneStabwerk` wertet Anker und Verformung an den Masten des AKTIVEN
+ * Tragwerks aus (`ankerJe`, `verformung`); die übrigen bekommen sie hier,
+ * aus derselben Lösung und nach denselben Regeln. Die Angaben je Mast
+ * (Ankertyp und Länge bzw. Messstelle) kommen aus dem Kern des jeweiligen
+ * Tragwerks (`rechneTragwerk` in app.js).
+ */
+export function ankerFuerMast(sw, id, meta, satz) {
+  const r = sw?.roh;
+  if (!r || !meta?.typ) return null;
+  return ankerAusStabwerk(r.dat, r.lsg,
+    r.faelle.filter((l) => ANKER_FALLARTEN.includes(l.art)),
+    id, meta, r.seilInfo, satz, ankerAuswertung);
+}
+
+export function verformungFuer(sw, kern, namen) {
+  const r = sw?.roh;
+  return r && kern ? verformungAusStabwerk(kern, r.dat, r.lsg, r.faelle, namen ?? {}) : null;
 }
 
 /**

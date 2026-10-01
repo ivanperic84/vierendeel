@@ -217,7 +217,20 @@ export function stabSpannung(qs, f, rolle, torsion = null) {
        * `randspannung` in core.winkel.js.
        */
       const r = randspannung(w, e.N, e.My, e.Mz, { vorzeichenrichtig: true });
-      if (!best || r.sig > best.sig) best = { sig: r.sig, ende: e.name };
+      /*
+       * DIE KETTE FÜR DEN BERICHT (1. Oktober, «Formel + Stabliste»): die
+       * Endkräfte am massgebenden Ende, die Querschnittswerte und die
+       * Zwischenwerte der Ecke. Der Bericht setzt sie ein; der Prüfstand
+       * rechnet die eingesetzte Formel nach (Abschnitt 183).
+       */
+      if (!best || r.sig > best.sig) {
+        best = { sig: r.sig, ende: e.name, art: 'winkel', profil: p.name,
+                 N: e.N, My: e.My, Mz: e.Mz,
+                 A: w.A, Iy: w.Iy, Iz: w.Iz, Iyz: w.Iyz,       // mm², mm⁴
+                 y: r.punkt?.y ?? null, z: r.punkt?.z ?? null,  // mm
+                 sigN: Math.abs(r.sigN), sigM: r.sigM ?? null,
+                 ky: r.ky ?? null, kz: r.kz ?? null };
+      }
     });
     return best;
   }
@@ -246,11 +259,32 @@ export function stabSpannung(qs, f, rolle, torsion = null) {
     // kN, kNm -> N/mm²: N/A in kN/m² = kPa -> /1000; M/W in kNm/m³ -> /1000.
     const T = k === 0 ? f[3] : f[9];
     const sigW = wt ? wt.sigma(T, k === 0 ? torsion.z_i : torsion.z_j) : 0;
-    const sig = Math.abs(e.N) / wd.A / 1000
-              + Math.abs(e.My) / wd.Wy / 1000
-              + Math.abs(e.Mz) / wd.Wz / 1000
-              + sigW;
-    if (!best || sig > best.sig) best = { sig, ende: e.name, sigW };
+    const sigN = Math.abs(e.N) / wd.A / 1000;
+    const sigMy = Math.abs(e.My) / wd.Wy / 1000;
+    const sigMz = Math.abs(e.Mz) / wd.Wz / 1000;
+    const sigNorm = sigN + sigMy + sigMz + sigW;
+    /*
+     * >>> DAS BLECH MIT SCHUB (1. Oktober). <<<
+     *
+     * Gemessen beim Umstellen des Berichts: das Stabwerk wies die
+     * Bindebleche mit der Normalspannung allein nach, der Ersatzbalken mit
+     * σ_v = √(σ² + 3τ²). Am J90/20 m gab die Querkraft im massgebenden
+     * Blech τ = 10.0 N/mm², η 0.3634 → 0.3715 (Reihe 2 × J90/20 m 0.4403 →
+     * 0.4475). Auf Rückfrage «σ_v mit τ»: dieselbe Regel wie im
+     * Ersatzbalken, τ = 1.5 · V / A aus der grösseren Querkraft am Ende.
+     * Gurte und Masten bleiben bei der Normalspannung.
+     */
+    const V = rolle === 'blech'
+      ? Math.max(Math.abs(k === 0 ? f[1] : f[7]), Math.abs(k === 0 ? f[2] : f[8])) : 0;
+    const tau = rolle === 'blech' ? 1.5 * V / wd.A / 1000 : 0;
+    const sig = tau > 0 ? Math.sqrt(sigNorm * sigNorm + 3 * tau * tau) : sigNorm;
+    // Mit der Kette für den Bericht (1. Oktober), siehe oben beim Winkel.
+    if (!best || sig > best.sig) {
+      best = { sig, ende: e.name, sigW, art: 'wd', N: e.N, My: e.My, Mz: e.Mz, T,
+               A: wd.A, Wy: wd.Wy, Wz: wd.Wz,                    // m², m³
+               sigN, sigMy, sigMz, form: qs.form ?? null,
+               ...(rolle === 'blech' ? { V, tau, sigNorm } : {}) };
+    }
   });
   return best;
 }
@@ -323,7 +357,7 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
     const s = stabSpannung(qsMap.get(st.querschnitt), f, rolle, torsion);
     if (!s) { ohneWert += 1; return; }
     const eta = fyd > 0 ? s.sig / fyd : null;
-    const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta };
+    const eintrag = { name: st.name, rolle, sig: s.sig, ende: s.ende, eta, detail: s };
     je.set(st.name, eintrag);
     const g = gruppen[rolle] ?? (gruppen[rolle] = { anzahl: 0, sig: 0, eta: 0, wo: null });
     g.anzahl += 1;
@@ -336,7 +370,7 @@ export function stabNachweise(dat, kraefte, fyd, opt = {}) {
       key: zu.key, name: zu.name, art: zu.art, id: zu.id,
       sig: 0, eta: null, wo: null, rolle: null });
     if (s.sig > b.sig) {
-      b.sig = s.sig; b.eta = eta; b.wo = st.name; b.rolle = rolle;
+      b.sig = s.sig; b.eta = eta; b.wo = st.name; b.rolle = rolle; b.detail = s;
     }
   });
 
@@ -537,7 +571,9 @@ export function stabwerkHuelle(dat, lsg, faelle, fyd, opt = {}) {
       const vor = teile[k];
       if (!vor || s.sig > vor.sig) {
         teile[k] = { key: zu.key, name: zu.name, teil, sig: s.sig, eta: s.eta,
-                     wo: s.name, fall: lf.key, bez: lf.bez };
+                     wo: s.name, fall: lf.key, bez: lf.bez,
+                     // Die Kette für den Bericht (1. Oktober).
+                     detail: s.detail ?? null };
       }
     });
     (nw.ohneRolle ?? []).forEach((n) => ohneRolle.add(n));

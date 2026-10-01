@@ -71,7 +71,7 @@ export function berichtVorgabe() {
 
 // --- Satz ------------------------------------------------------------------
 
-const esc = (s) => String(s ?? '').replace(/[&<>"]/g,
+export const esc = (s) => String(s ?? '').replace(/[&<>"]/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** Zahl mit festen Stellen, echtes Minuszeichen, Strich fuer «fehlt». */
@@ -81,12 +81,12 @@ export function zahl(v, n = 2) {
   return t.startsWith('-') && Number(t) !== 0 ? `−${t.slice(1)}` : t.replace(/^-/, '');
 }
 
-const tabelle = (kopf, zeilen, klasse = '') => `
+export const tabelle = (kopf, zeilen, klasse = '') => `
   <table class="${klasse}"><thead><tr>${kopf.map((k) => `<th>${k}</th>`).join('')}</tr></thead>
   <tbody>${zeilen.map((z) => `<tr>${z.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 
 /** Zweispaltige Angabentabelle: Bezeichnung | Wert. */
-const angaben = (paare) => `<table class="angaben"><tbody>${paare
+export const angaben = (paare) => `<table class="angaben"><tbody>${paare
   .filter(Boolean)
   .map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join('')}</tbody></table>`;
 
@@ -94,18 +94,18 @@ const angaben = (paare) => `<table class="angaben"><tbody>${paare
  * Eine Formelzeile: Symbol = Formel = eingesetzt = Ergebnis Einheit.
  * Alles schon gesetzt; hier nur die Anordnung.
  */
-const formel = (sym, form, eingesetzt, erg, einheit = '') =>
+export const formel = (sym, form, eingesetzt, erg, einheit = '') =>
   `<div class="formel"><span class="sym">${sym}</span> = <span class="form">${form}</span>`
   + (eingesetzt ? ` = <span class="ein">${eingesetzt}</span>` : '')
   + ` = <b>${erg}</b>${einheit ? ` ${einheit}` : ''}</div>`;
 
-const urteilMarke = (eta, ueber = false) => {
+export const urteilMarke = (eta, ueber = false) => {
   if (eta === null || eta === undefined) return '<span class="marke offen">ohne η</span>';
   const ok = !ueber && eta <= 1 + 1e-9;
   return `<span class="marke ${ok ? 'ok' : 'nok'}">${ok ? 'erfüllt' : 'NICHT erfüllt'}</span>`;
 };
 
-const bild = (inhalt, titel) => inhalt
+export const bild = (inhalt, titel) => inhalt
   ? `<figure>${String(inhalt).startsWith('<') ? inhalt
       : `<img src="${esc(inhalt)}" alt="${esc(titel)}">`}<figcaption>${esc(titel)}</figcaption></figure>`
   : '';
@@ -119,7 +119,7 @@ const istMast = (d) => tragwerksart(d.werte).key === 'einzelmast';
  * Die Rechenoptionen, die nur den Traeger betreffen - beim Einzelmast stehen
  * sie nicht im Bericht, weil nichts mit ihnen gerechnet wird.
  */
-const NUR_JOCH = ['massVariante', 'ausrOG', 'ausrUG', 'blechQuelle', 'lastHerkunft',
+export const NUR_JOCH = ['massVariante', 'ausrOG', 'ausrUG', 'blechQuelle', 'lastHerkunft',
   'auflagerVorgabe', 'torsionModell', 'torsionsverteilung', 'gurtaufteilung',
   'knotenbereich', 'endfeldZuschlag', 'schiefeBiegung', 'spannungsmodell',
   'ebenenUeberlagerung'];
@@ -159,7 +159,7 @@ function deckblatt(d) {
 }
 
 /** Wert einer Eingabe so, wie ihn die Maske anschreibt. */
-function feldText(f, werte) {
+export function feldText(f, werte) {
   const v = werte[f.key];
   if (f.typ === 'auswahl') {
     const liste = f.optionen ?? f.optionenAus?.(werte) ?? [];
@@ -434,7 +434,21 @@ export function mastNachweis(n, name, fallText) {
     ${formel('σ<sub>längs</sub>', 'M<sub>längs</sub> / W<sub>längs</sub>', `${zahl(Math.abs(q.Mxx), 2)} / ${zahl(n.Wl, 1)} cm³`, zahl(q.sigL, 2), 'N/mm²')}
     ${formel('σ', 'σ<sub>N</sub> + σ<sub>quer</sub> + σ<sub>längs</sub> + σ<sub>w</sub>', `${zahl(q.sigN, 2)} + ${zahl(q.sigQ, 2)} + ${zahl(q.sigL, 2)} + ${zahl(q.sigW, 2)}`, zahl(q.sig, 2), 'N/mm²')}
     ${formel('η', 'σ / f<sub>yd</sub>', `${zahl(q.sig, 2)} / ${zahl(n.fyd, 2)}`, zahl(q.eta ?? n.eta, 3))}`;
-  const stab = s && !s.ohneNachweis ? `
+  const stab = knickHtml(s);
+  return `<h3>${name.startsWith('§') ? name : esc(name)} — ${esc(n.profil?.name)}</h3>
+    ${fallText ? `<p class="klein">Massgebende Kombination: ${esc(fallText)}</p>` : ''}
+    ${quer}${stab}
+    <p>η = max(Querschnitt ${zahl(n.eta, 3)}; Stabilität ${zahl(s?.eta, 3)}) = <b>${zahl(n.etaMitStabilitaet ?? n.eta, 3)}</b>
+    ${urteilMarke(n.etaMitStabilitaet ?? n.eta)}</p>`;
+}
+
+/**
+ * Der Stabilitätsnachweis nach SIA 263, Gleichung (50) - als Baustein, seit
+ * der Stabwerksbericht ihn mit den Kräften des Stabwerks setzt (1. Oktober).
+ * `s` ist das Ergebnis von `mastStabilitaet` (Kern oder Stabwerk).
+ */
+export function knickHtml(s) {
+  return s && !s.ohneNachweis ? `
     <h4>Stabilität nach SIA 263, Ziffer 5.1.10.1</h4>
     <p>Knicklänge L<sub>cr</sub> = β · L = ${zahl(s.beta, 2)} · ${zahl(s.L, 2)} = ${zahl(s.Lcr, 2)} m ·
     γ<sub>M1</sub> = ${zahl(s.gammaM1, 2)} · ω = ${zahl(s.omega, 2)} (Ziffer 5.1.10.3)</p>
@@ -456,11 +470,6 @@ export function mastNachweis(n, name, fallText) {
     <p class="klein">Zum Vergleich Gleichung (51): η = ${zahl(s.eta51, 3)} (ausgewiesen, nicht geführt).
     Massgebend: ${esc(s.massgebend ?? '')}.</p>`
     : '<p>Stabilitätsnachweis nicht geführt.</p>';
-  return `<h3>${name.startsWith('§') ? name : esc(name)} — ${esc(n.profil?.name)}</h3>
-    ${fallText ? `<p class="klein">Massgebende Kombination: ${esc(fallText)}</p>` : ''}
-    ${quer}${stab}
-    <p>η = max(Querschnitt ${zahl(n.eta, 3)}; Stabilität ${zahl(s?.eta, 3)}) = <b>${zahl(n.etaMitStabilitaet ?? n.eta, 3)}</b>
-    ${urteilMarke(n.etaMitStabilitaet ?? n.eta)}</p>`;
 }
 
 function nachweise(d) {
@@ -580,6 +589,30 @@ function fundamentBlock(d, nr) {
            + `in diesem Werkzeug nicht nachgewiesen.</p>`;
     }
     if (!q.nachweise?.length) return '';
+    return fundamentHtml(q, name, e, (d.opt?.bilder?.fundament !== false && d.bilder?.fundament?.[e])
+      ? bild(d.bilder.fundament[e], `Mastfundament ${esc(name)} — η je Nachweis`) : '');
+  }).join('');
+  if (!bloecke) return '';
+  return `<h3>§.${nr} Mastfundament</h3>
+    ${FUNDAMENT_TEXT}
+    ${bloecke}`;
+}
+
+/** Was jede Fundamenttabelle voraussetzt - einmal geschrieben. */
+export const FUNDAMENT_TEXT = `<p>Charakteristische Einwirkung am Fundamentkopf gegen die zulässige Last
+    des Standard-Mastfundaments — beides ohne Teilsicherheitsbeiwerte.
+    <b>Quer und längs zum Gleis werden einzeln nachgewiesen</b>, nicht
+    überlagert; die beiden Zeilen «veränderlicher Anteil» begrenzen den Teil
+    aus Wind und Schnee allein. Gerechnet ist Gelände mit höchstens 14°
+    Neigung.</p>`;
+
+/**
+ * Die Tabelle eines Mastfundaments (Baustein, 1. Oktober). `schluessel`
+ * trägt die Marke, über die der Prüfstand die η nachrechnet.
+ */
+export function fundamentHtml(q, name, schluessel, bildHtml = '') {
+  {
+    const e = schluessel;
     const zeilen = q.nachweise.map((n) => [
       esc(n.was), zahl(n.wert, 2), esc(n.einheit), zahl(n.zul, 2),
       `<span data-pruef="fund-${esc(e)}-${esc(n.key)}">${zahl(n.eta, 3)}</span>`,
@@ -596,19 +629,9 @@ function fundamentBlock(d, nr) {
          + `${q.typ.neubau === false ? ' · nur für Spezialfälle' : ''}</p>
       ${tabelle(['Nachweis', 'Einwirkung', '', 'zulässig', 'η', 'massgebender Lastfall', ''],
                 zeilen, 'eng')}
-      ${(d.opt?.bilder?.fundament !== false && d.bilder?.fundament?.[e])
-        ? bild(d.bilder.fundament[e], `Mastfundament ${esc(name)} — η je Nachweis`) : ''}
+      ${bildHtml}
       ${heben}`;
-  }).join('');
-  if (!bloecke) return '';
-  return `<h3>§.${nr} Mastfundament</h3>
-    <p>Charakteristische Einwirkung am Fundamentkopf gegen die zulässige Last
-    des Standard-Mastfundaments — beides ohne Teilsicherheitsbeiwerte.
-    <b>Quer und längs zum Gleis werden einzeln nachgewiesen</b>, nicht
-    überlagert; die beiden Zeilen «veränderlicher Anteil» begrenzen den Teil
-    aus Wind und Schnee allein. Gerechnet ist Gelände mit höchstens 14°
-    Neigung.</p>
-    ${bloecke}`;
+  }
 }
 
 /* ===========================================================================
@@ -628,13 +651,29 @@ function fundamentBlock(d, nr) {
 function gebrauchstauglichkeit(d) {
   const v = d.erg?.verformung;
   if (!v) return '';
-  const namen = d.erg.modell?.federn?.namen ?? {};
+  return gebrauchKapitel([{ v, namen: d.erg.modell?.federn?.namen ?? {} }],
+    (d.opt?.bilder?.verformung !== false && d.bilder?.verformung)
+      ? bild(d.bilder.verformung, 'Verformung über die Masthöhe — '
+           + 'w quer und in Gleisrichtung, Grenzlinie L/200') : '');
+}
+
+/**
+ * Das Kapitel Gebrauchstauglichkeit über eine oder mehrere Verformungen
+ * (Baustein, 1. Oktober: der Stabwerksbericht führt je Tragwerk eine).
+ * Ein geteilter Mast steht einmal. `namen` übersetzt die Enden in
+ * Mastnamen, `anzeige` sie für den Text (Mastnummer).
+ */
+export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x) {
   const gesehen = new Set();
   const zeilen = [];
+  const erste = eintraege.find((x) => x?.v)?.v;
+  if (!erste) return '';
+  eintraege.forEach(({ v: vv, namen }) => {
+  if (!vv) return;
   ['A', 'B'].forEach((e) => {
-    const q = v[e];
+    const q = vv[e];
     if (!q?.nachweise?.length) return;
-    const name = namen[e] || `Ende ${e}`;
+    const name = anzeige(namen?.[e] || `Ende ${e}`);
     if (gesehen.has(name)) return;
     gesehen.add(name);
     q.nachweise.forEach((n) => {
@@ -649,7 +688,9 @@ function gebrauchstauglichkeit(d) {
         `<span class="marke ${n.ok ? 'ok' : 'nok'}">${n.ok ? 'erfüllt' : 'ÜBER'}</span>`]);
     });
   });
+  });
   if (!zeilen.length) return '';
+  const v = erste;
   const psi = v.psi ?? 0.70;
   /*
    * DIE GRENZWERTE AUS DER RECHNUNG (30. September). Hier stand der Stand
@@ -679,9 +720,7 @@ function gebrauchstauglichkeit(d) {
     Tragsicherheitsurteil nicht</b> — sie stehen daneben.</p>
     ${tabelle(['Bauteil', 'Nachweis', 'w [mm] / φ', 'zulässig', 'Richtung',
                'η', 'massgebender Lastfall', ''], zeilen, 'eng')}
-    ${(d.opt?.bilder?.verformung !== false && d.bilder?.verformung)
-      ? bild(d.bilder.verformung, 'Verformung über die Masthöhe — '
-           + 'w quer und in Gleisrichtung, Grenzlinie L/200') : ''}
+    ${bildHtml}
   </section>`;
 }
 
@@ -810,14 +849,14 @@ function anhang(d) {
  * Regeln reicht app.js als `d.stil` herein, damit sie nicht zweimal
  * gepflegt werden. Hier stehen nur die Farben dazu - hell, fuer Papier.
  */
-const FARBEN_DRUCK = `
+export const FARBEN_DRUCK = `
   :root { --acc: #1f5fbf; --fail: #b00020; --ok: #1a6b2a; --warn: #a86b00;
     --ol: #cfcfcf; --dim: #555; --xdim: #777; --on2: #222; --achse: #333;
     --s1: #fff; --f-mono: Consolas, "Courier New", monospace; }
   figure svg { background: #fff; }
 `;
 
-const STIL = `
+export const STIL = `
   @page { size: A4; margin: 18mm 16mm 20mm 20mm;
     @bottom-right { content: "Seite " counter(page) " / " counter(pages); font: 8pt sans-serif; color: #555; } }
   * { box-sizing: border-box; }

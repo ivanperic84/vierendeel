@@ -156,6 +156,9 @@ export function randspannung(w, N, My, Mz, opt = {}) {
   const mz = Math.abs(Mz) * U.kNm__Nmm;
 
   let sig = 0, punkt = null;
+  // Die Zwischenwerte der massgebenden Ecke - für den Bericht (1. Oktober):
+  // er setzt sie in die Formel ein und rechnet selbst nicht.
+  let best = null;
   const paare = opt.vorzeichenrichtig
     ? [[Math.sign(My) || 1, Math.sign(Mz) || 1]]
     : [[+1, +1], [+1, -1], [-1, +1], [-1, -1]];
@@ -167,10 +170,13 @@ export function randspannung(w, N, My, Mz, opt = {}) {
       // Normalkraft mit ihrem Betrag: sie kommt aus einer Hüllkurve und darf
       // die Biegung nicht rechnerisch entlasten.
       const s = Math.abs(sigN) + Math.abs(ky * pt.z - kz * pt.y);
-      if (s > sig) { sig = s; punkt = pt; }
+      if (s > sig) {
+        sig = s; punkt = pt;
+        best = { ky, kz, Myv, Mzv, sigM: Math.abs(ky * pt.z - kz * pt.y) };
+      }
     });
   });
-  return { sig, punkt, sigN };
+  return { sig, punkt, sigN, ...(best ?? {}) };
 }
 
 /**

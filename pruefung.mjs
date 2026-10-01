@@ -31994,7 +31994,7 @@ titel('137  Tragausleger Etappe 4a: UPE, Bindebleche und Aufhaengung im Stabwerk
   pruef('Fahrleitung direkt: UPE', fl.h.teile['tragwerk|UPE'].eta, 0.3875, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.0643
   pruef('Fahrleitung direkt: Seil S_v', fl.a.Sv, 2.83, 5e-3, 'kN');
   pruef('Hängestütze: UPE', hs.h.teile['tragwerk|UPE'].eta, 0.6855, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.311
-  pruef('Hängestütze: Blech am Masten (⚠ überschritten)', hs.h.teile['tragwerk|blech'].eta, 1.4323, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.135
+  pruef('Hängestütze: Blech am Masten (⚠ überschritten)', hs.h.teile['tragwerk|blech'].eta, 1.4964, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.4323; Wind auf den Ausleger (30. Sept.): vorher 1.135
   wahr('… und zwar das erste Blech und unter Wind in Gleisrichtung',
        /BL_[OU]0$/.test(hs.h.teile['tragwerk|blech'].wo) && /^windY/.test(hs.h.teile['tragwerk|blech'].fall),
        `${hs.h.teile['tragwerk|blech'].wo}, ${hs.h.teile['tragwerk|blech'].fall}`);
@@ -32153,7 +32153,7 @@ titel('139  Tragausleger Etappe 4c: das Urteil aus dem Stabwerk, in der Anzeige'
   const z = (name) => n.liste.find((x) => x.name === name);
   wahr('>>> Mit dem Stabwerk ist der Phantom-Mast weg <<<', !z('Mast B'),
        n.liste.map((x) => x.name).join(', '));
-  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.8438, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.209
+  pruef('Tragausleger (Gurt/Blech) aus dem Stabwerk', z('Tragausleger')?.eta, 1.9255, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.8438; Wind auf den Ausleger (30. Sept.): vorher 1.209
   pruef('Aufhängung gegen V_zul', z('Aufhängung')?.eta, 0.824, 1e-3, '');
   pruef('Mast MT1 mit σ_ω', z('Mast MT1')?.eta, 5.8272, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 2.1146
   pruef('Knicken aus dem Stabwerk', z('Knicken MT1')?.eta, 1.5520, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.1069
@@ -32234,7 +32234,7 @@ titel('140  Tragausleger: der Laengsanker am Kragarmende (Regelfall)');
   pruef('Fundament mit Längsanker', mit.ausleger.fundament.A.eta, 0.6765, 1e-3, '');
   wahr('… nicht mehr die Torsion massgebend', mit.ausleger.fundament.A.massgebend.key !== 'T',
        mit.ausleger.fundament.A.massgebend.key);
-  pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.1723, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.029
+  pruef('Bindeblech mit Längsanker (bleibt knapp über 1)', mit.teile['tragwerk|blech'].eta, 1.2254, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.1723; Wind auf den Ausleger (30. Sept.): vorher 1.029
   pruef('Längsanker: Seilkraft charakteristisch', Math.abs(mit.ausleger.laengsanker.charakteristisch.F), 2.0046, 1e-3, 'kN');   // Wind auf den Ausleger (30. Sept.): vorher 0.538
   wahr('… mit der Seite, die zieht', /^[+−]y$/.test(mit.ausleger.laengsanker.charakteristisch.seite),
        mit.ausleger.laengsanker.charakteristisch.seite);
@@ -32895,11 +32895,11 @@ titel('147  Tragausleger: zwei Seile, an der Ankertraverse gespreizt');
   pruef('Unter G tragen beide Seile gleich', -G.get('AUFHAENGUNG_P')[0],
         -G.get('AUFHAENGUNG_N')[0], 1e-6, 'kN');
   const blech = (r) => r.h.teile['tragwerk|blech'].eta;
-  pruef('Bindeblech mit Längsanker, ein Seil (Befund)', blech(eins), 1.1723, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.0285
-  pruef('>>> Bindeblech mit Längsanker, zwei Seile ±1 m <<<', blech(zwei), 0.2880, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.2078
+  pruef('Bindeblech mit Längsanker, ein Seil (Befund)', blech(eins), 1.2254, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.1723; Wind auf den Ausleger (30. Sept.): vorher 1.0285
+  pruef('>>> Bindeblech mit Längsanker, zwei Seile ±1 m <<<', blech(zwei), 0.3013, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 0.2880; Wind auf den Ausleger (30. Sept.): vorher 0.2078
   const zweiO = lauf(w(1, false)), einsO = lauf(w(0, false));
-  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.8438, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 1.2083
-  pruef('>>> … zwei Seile <<<', blech(zweiO), 0.6849, 1e-3, '');   // Wind auf den Ausleger (30. Sept.): vorher 0.3156
+  pruef('Bindeblech ohne Längsanker: ein Seil', blech(einsO), 1.9255, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 1.8438; Wind auf den Ausleger (30. Sept.): vorher 1.2083
+  pruef('>>> … zwei Seile <<<', blech(zweiO), 0.7143, 1e-3, '');   // Blech mit Schub (1. Okt.): vorher 0.6849; Wind auf den Ausleger (30. Sept.): vorher 0.3156
   pruef('Mast (mit Längsanker) praktisch unverändert', zwei.h.bauteile['mast:M1'].eta,
         eins.h.bauteile['mast:M1'].eta, 2e-3, '');
 
