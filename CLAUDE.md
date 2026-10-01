@@ -2182,6 +2182,21 @@ braucht ein **neu gesichertes Paket** — ältere Pakete kennen J60 ohne Bleche.
 Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
 
 **Fachlich**
+- **Sammelweisung 1. Oktober (in Arbeit), im Wortlaut:** «beim absetzen
+  eines bauteils im 3d auf die eingabe in der sidebar fahren. Beim setzen
+  eines neuen tragjochs auswahl, ohne bauteilbelegung. die angriffspunkte
+  auch per drag and drop schieben können, auf den vorgegebenen stabachsen.
+  Eingabe Mastfuss versatz in der höhe funktioniert nicht korrekt. Wenn man
+  beim ersten joch versatz eingibt beim zweiten masten und auf das nächste
+  joch klickt springt der mast auf neutrale position wieder. wurde das
+  behoben mit der letzen spannweiten definition der masten? Nach erfolgter
+  Eingabe springt die sidebar bei einigen stellen. Nach dem duplizieren
+  fragen wo man es absetzen will, dazu das gesamte tragwerksteil zeigen.
+  Beim Absetzen der Bauteile auf 0.10m den x oder z Wert runden. Transparenz
+  der Hintergrundzeichnung einstellen können. Bei der Auswahl der
+  Einwirkungen bei einem Leiter soll nur Wind stehen nicht noch Schnee
+  dazu, dieser ist dann wider eine vertikale belastung.» Danach der Umbau
+  «Eingabe nach 3D» (Auftrag 30. Sept.: «pushen und umbau angehen»).
 - **Nächste Wünsche (30. Sept., noch NICHT umgesetzt - Weisung «die
   restlichen aufgaben noch nicht umsetzen, warten bis wir frische tokens
   erhalten»):**
