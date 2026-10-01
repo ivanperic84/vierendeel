@@ -34583,6 +34583,12 @@ titel('179  F_z der Lastblöcke nach oben (Eingabe nach 3D, rechte Hand)');
        abl.includes('...fzNachObenAnheben(v.werte)')
        && readFileSync(join(HIER, 'js', 'store.js'), 'utf8').includes("'fzNachOben',"));
   const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  // Rückfrage «Wirkung, z nach oben»: Fuss- und Auflagerkräfte, F_z Druck negativ.
+  wahr('Fuss- und Auflagerkräfte: F_z nach oben, eine Stelle (fzAuf), auch in Bericht und Excel',
+       ui.includes('export const fzAuf = (v) => -(Number(v) || 0);')
+       && (ui.match(/fzAuf\(/g) ?? []).length >= 12
+       && readFileSync(join(HIER, 'js', 'export.nachweisbericht.js'), 'utf8').includes('zahl(-(st.Fz ?? 0), 2)')
+       && readFileSync(join(HIER, 'js', 'export.bericht.js'), 'utf8').includes('N3(-(st.Fz ?? 0))'));
   wahr('Anzeige der Anbauteilkräfte nach oben (Gewicht negativ), Feld «F_z ↑»',
        ui.includes("['F_z', -(su.Gz + su.Qz)]") && ui.includes("['G', 'F_z', -(l.Gz ?? 0)]")
        && ui.includes("'F_z ↑'"));

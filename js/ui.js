@@ -5161,7 +5161,7 @@ export function zeichneEinzelmast(node, letzte, opt = {}) {
   // Die Kräfte am Fuss - was das Fundament bekommt.
   const f = mn?.stationen?.[0];
   const fuss = f ? [
-    kachel('N · F_z', f2(f.Fz), 'kN am Fuss'),
+    kachel('F_z', f2(fzAuf(f.Fz)), 'kN am Fuss · Druck negativ'),
     kachel('V quer · F_x', f2(f.Fx), 'kN am Fuss'),
     kachel('V längs · F_y', f2(f.Fy), 'kN am Fuss'),
     kachel('M quer · M_yy', f2(f.Myy), 'kNm am Fuss'),
@@ -5225,7 +5225,7 @@ export function zeichneMastfuss(node, kombi) {
   const zeile = (l) => {
     const f = kombi?.ergebnisse?.[l.key]?.mast?.A?.stationen?.[0];
     if (!f) return '';
-    return `<tr><td>${esc(l.bez)}</td><td class="num">${f2(f.Fz)}</td>
+    return `<tr><td>${esc(l.bez)}</td><td class="num">${f2(fzAuf(f.Fz))}</td>
       <td class="num">${f2(f.Fx)}</td><td class="num">${f2(f.Fy)}</td>
       <td class="num">${f2(f.Myy)}</td><td class="num">${f2(f.Mxx)}</td>
       <td class="num">${f2(f.Mzz)}</td></tr>`;
@@ -6791,7 +6791,7 @@ SEIL GEDRÜCKT: ${f2(a.druck.N)} kN in «${a.druck.bez}» - `
       if (!a) return null;
       const name = erg.modell.federn?.namen?.[e] || `Ende ${e}`;
       return kachel(`Auflager ${name}`,
-        `${f2(a.Fy)} / ${f2(a.Fz)}`,
+        `${f2(a.Fy)} / ${f2(fzAuf(a.Fz))}`,
         `kN · F_y / F_z · ${a.fall}`, '',
         { x: e === 'A' ? (ab.ueberstand ?? 0) : ab.jt - (ab.ueberstand ?? 0) });
     };
@@ -7767,7 +7767,7 @@ export function zeichneAuflager(node, blatt, erg) {
   const zeile = (bez, z, seite, stark = false) => `
     <tr class="${stark ? 'aktiv' : ''}">
       <td>${esc(bez)}</td>
-      <td class="num${stark ? ' stark' : ''}">${f2(z[seite].Fz)}</td>
+      <td class="num${stark ? ' stark' : ''}">${f2(fzAuf(z[seite].Fz))}</td>
       <td class="num${stark ? ' stark' : ''}">${f2(z[seite].Fy)}</td>
       <td class="num">${f2(z[seite].My)}</td>
       <td class="num">${f3(z[seite].Mx)}</td>
@@ -7799,8 +7799,10 @@ export function zeichneAuflager(node, blatt, erg) {
     'Achsen, Vorzeichen und was nicht enthalten ist', `
       <p class="notiz" style="margin-top:0">Die Achsen sind global, wie
         überall im Werkzeug: <b>F_x</b> in der Jochachse, <b>F_y</b> in
-        Gleisrichtung, <b>F_z</b> lotrecht und positiv nach unten — negative
-        Werte sind <b>abhebend</b>. <b>M_xx</b> dreht um die Jochachse,
+        Gleisrichtung, <b>F_z</b> lotrecht nach der rechten Hand, positiv nach
+        OBEN: Druck auf Masten und Fundament ist negativ, positive Werte sind
+        <b>abhebend</b> (seit 1. Oktober; die Tabelle der Reaktionskräfte zählt
+        Druck positiv). <b>M_xx</b> dreht um die Jochachse,
         <b>M_yy</b> um y, <b>M_zz</b> um die Lotrechte.</p>
       <p class="notiz"><b>Der Mastfuss trägt Bemessungswerte</b> des oben
         gewählten Lastfalls — mit Beiwerten, fertig zum Weitergeben. Das
@@ -7822,8 +7824,8 @@ export function zeichneAuflager(node, blatt, erg) {
       ${abschnitt('Reaktionskräfte am Jochauflager',
                   'charakteristisch, ohne Beiwerte · kein Mast im Modell')}
       <div class="kennzahlen">
-        ${kachel('F_z Auflager A', f2(blatt.total.A.Fz), 'kN')}
-        ${kachel('F_z Auflager B', f2(blatt.total.B.Fz), 'kN')}
+        ${kachel('F_z Auflager A', f2(fzAuf(blatt.total.A.Fz)), 'kN · Druck negativ')}
+        ${kachel('F_z Auflager B', f2(fzAuf(blatt.total.B.Fz)), 'kN · Druck negativ')}
         ${kachel('F_y je Auflager', f2(blatt.total.A.Fy), 'kN · in Gleisrichtung')}
         ${kachel('F_x total', f2(blatt.total.Fx), 'kN · in der Jochachse')}
       </div>
@@ -7851,7 +7853,7 @@ export function zeichneAuflager(node, blatt, erg) {
    * steht - und das war der Punkt der Weisung.
    */
   const ZEILEN = [
-    { g: 'F_z', e: 'kN', f: (x) => f2(x.Fz ?? 0), stark: true,
+    { g: 'F_z', e: 'kN', f: (x) => f2(fzAuf(x.Fz)), stark: true,
       was: 'lotrecht' },
     { g: 'F_x', e: 'kN', f: (x) => f2(x.Fx ?? 0), was: 'in der Jochachse' },
     { g: 'F_y', e: 'kN', f: (x) => f2(x.Fy ?? 0), was: 'in Gleisrichtung' },
@@ -7888,7 +7890,7 @@ export function zeichneAuflager(node, blatt, erg) {
    */
   const kacheln = eines ? `
     <div class="kennzahlen">
-      ${kachel('F_z', f2(masten[0].fuss?.Fz ?? 0), 'kN · lotrecht')}
+      ${kachel('F_z', f2(fzAuf(masten[0].fuss?.Fz)), 'kN · lotrecht, Druck negativ')}
       ${kachel('F_y', f2(masten[0].fuss?.Fy ?? 0), 'kN · in Gleisrichtung')}
       ${kachel('M_yy', f2(masten[0].fuss?.Myy ?? 0), 'kNm · biegt quer')}
       ${kachel('M_xx', f2(masten[0].fuss?.Mxx ?? 0), 'kNm · biegt längs')}
@@ -7906,7 +7908,7 @@ export function zeichneAuflager(node, blatt, erg) {
     ${masten.map((mm) => mastKlappe(mm)).join('')}
     ${klapp('auflager-joch', 'Jochauflager, charakteristisch je Gruppe',
             jochTabellen,
-            `F_z ${f2(blatt.total.A.Fz)} / ${f2(blatt.total.B.Fz)} kN`)}
+            `F_z ${f2(fzAuf(blatt.total.A.Fz))} / ${f2(fzAuf(blatt.total.B.Fz))} kN`)}
     ${hinweise}`;
   verdrahteKlapp(node);
 }
@@ -8090,7 +8092,7 @@ export function zeichneAbfangAuflager(node, ab, erg) {
       <td class="num">${f2(f.anteile.S)}</td>
       <td class="num">${f2(f.anteile.Z)}</td>
       <td class="num">${f2(f.anteile.W)}</td>
-      <td class="num stark">${f2(f.Fz)}</td>
+      <td class="num stark">${f2(fzAuf(f.Fz))}</td>
       <td class="num stark">${f2(f.Fy)}</td>
     </tr>`;
 
@@ -8111,8 +8113,8 @@ export function zeichneAbfangAuflager(node, ab, erg) {
     <div class="kennzahlen">
       ${kachel(`F_y ${nam('A')}`, f2(A?.Fy ?? 0), 'kN · in Gleisrichtung')}
       ${kachel(`F_y ${nam('B')}`, f2(B?.Fy ?? 0), 'kN · in Gleisrichtung')}
-      ${kachel(`F_z ${nam('A')}`, f2(A?.Fz ?? 0), 'kN · lotrecht')}
-      ${kachel(`F_z ${nam('B')}`, f2(B?.Fz ?? 0), 'kN · lotrecht')}
+      ${kachel(`F_z ${nam('A')}`, f2(fzAuf(A?.Fz)), 'kN · lotrecht, Druck negativ')}
+      ${kachel(`F_z ${nam('B')}`, f2(fzAuf(B?.Fz)), 'kN · lotrecht, Druck negativ')}
       ${kachel('F_x total', f2(A?.Fxges ?? 0), 'kN · in Jochachse')}
       ${kachel('Kräftepaar Torsion', f2(A?.Ptors ?? 0),
                `kN je Gurt · Hebel ${f2(2 * (ab.auflager.ey ?? 0))} m`)}
@@ -8123,7 +8125,8 @@ export function zeichneAbfangAuflager(node, ab, erg) {
       <p class="notiz" style="margin-top:0">
         <b>F_y</b> läuft in GLEISRICHTUNG — der Leiterzug und der Wind auf das
         Joch. Das ist die grosse Kraft; sie steht am Mastkopf an und biegt ihn
-        über die volle Anschlusshöhe. <b>F_z</b> lotrecht, positiv nach unten.
+        über die volle Anschlusshöhe. <b>F_z</b> lotrecht, positiv nach oben
+        (rechte Hand) - Druck ist negativ.
         <b>F_x</b> in der Jochachse, aus Wind quer auf die Anbauteile: der
         liegende Träger leitet sie als Normalkraft an seine Enden, und wie sie
         sich auf die beiden Masten verteilt, entscheidet deren
@@ -8246,7 +8249,7 @@ function knickblatt(kS, n) {
       exakt. Die verteilte Last steht mit ihrem Integral
       ∫g dz = L²(¼ − 1/π²) im selben Quotienten.</p>
     ${hoch.length ? `<p class="notiz"><b>Über dem Anschluss:</b> ${
-      hoch.map((l) => `${esc(l.name)} auf ${f2(l.z)} m (${f2(l.Fz)} kN)`).join(', ')}
+      hoch.map((l) => `${esc(l.name)} auf ${f2(l.z)} m (F_z ${f2(fzAuf(l.Fz))} kN)`).join(', ')}
       — auf der eigenen Höhe gerechnet, nicht auf ${f2(kS.zAnschluss)} m.</p>` : ''}`
     : `<p class="notiz" style="margin:4px 0 0">Keine lotrechte Krafteinleitung
        — es gilt die ganze Mastlänge als Knicklänge.</p>`;
@@ -8331,7 +8334,7 @@ function mastEndeHtml(n, namenVon = {}, mitKopf = true) {
     const zeile = (st) => `
       <tr class="${st.z === n.massgebend.z ? 'aktiv' : ''}">
         <td class="num">${f2(st.z)}</td>
-        <td class="num">${f2(st.Fz)}</td>
+        <td class="num">${f2(fzAuf(st.Fz))}</td>
         <td class="num">${f2(st.Fx)}</td>
         <td class="num">${f2(st.Fy)}</td>
         <td class="num">${f2(st.Myy)}</td>
@@ -8759,6 +8762,18 @@ export function optionenReiterHtml(werte, jetzt) {
     `<button class="tab${t.key === jetzt ? ' on' : ''}" type="button"
        data-opt-thema="${esc(t.key)}">${esc(t.titel)}</button>`).join('')}</div>`;
 }
+
+/**
+ * >>> F_z DER KRÄFTE AM MASTFUSS UND AM AUFLAGER, NACH OBEN (1. Oktober). <<<
+ * Rückfrage «Wirkung, z nach oben»: Fuss- und Auflagerkräfte stehen als
+ * Wirkung auf Masten bzw. Fundament in Achsrichtung - F_x, F_y und die
+ * Momente wie bisher, F_z nach der rechten Hand nach oben: Druck ist
+ * negativ, wie ein Gewicht in der Eingabe. Der Kern führt F_z nach unten;
+ * gedreht wird nur hier, in der Anzeige. Die Reaktionstabelle und der
+ * Fundamentnachweis (V gegen die zulässigen Werte) zählen weiter Druck
+ * positiv.
+ */
+export const fzAuf = (v) => -(Number(v) || 0);
 
 /** Ereignisse des Optionen-Dialogs verdrahten. */
 /*

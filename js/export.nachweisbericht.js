@@ -378,7 +378,8 @@ function mastStationen(n) {
   if (!n?.stationen?.length) return '<p>Keine Werte.</p>';
   return tabelle(['z [m]', 'F<sub>z</sub> [kN]', 'F<sub>x</sub> [kN]', 'F<sub>y</sub> [kN]',
     'M<sub>yy</sub> [kNm]', 'M<sub>xx</sub> [kNm]', 'M<sub>zz</sub> [kNm]', 'σ [N/mm²]', 'η'],
-    n.stationen.map((st) => [zahl(st.z, 2), zahl(st.Fz, 2), zahl(st.Fx, 2), zahl(st.Fy, 2),
+    // F_z nach oben (rechte Hand, 1. Oktober): Druck negativ.
+    n.stationen.map((st) => [zahl(st.z, 2), zahl(-(st.Fz ?? 0), 2), zahl(st.Fx, 2), zahl(st.Fy, 2),
       zahl(st.Myy, 2), zahl(st.Mxx, 2), zahl(st.Mzz, 3), zahl(st.sig, 1), zahl(st.eta, 3)]), 'eng');
 }
 
@@ -713,7 +714,8 @@ function mastFussZeilen(mast, namen) {
   return ['A', 'B'].map((e) => {
     const f = mast?.[e]?.stationen?.[0];
     if (!f) return null;
-    return [esc(namen[e] ? `Mast ${namen[e]}` : `Mast ${e}`), zahl(f.Fz, 2), zahl(f.Fx, 2), zahl(f.Fy, 2),
+    // F_z nach oben (rechte Hand, 1. Oktober): Druck negativ.
+    return [esc(namen[e] ? `Mast ${namen[e]}` : `Mast ${e}`), zahl(-(f.Fz ?? 0), 2), zahl(f.Fx, 2), zahl(f.Fy, 2),
             zahl(f.Myy, 2), zahl(f.Mxx, 2), zahl(f.Mzz, 2)];
   }).filter(Boolean);
 }

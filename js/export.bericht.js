@@ -347,7 +347,8 @@ function blattMast(erg) {
        * (bis zum 15. September `Mt`). Gefunden beim Umstellen auf die
        * globalen Groessen.
        */
-      rows.push([N3(st.z), N3(st.Fz), N3(st.Fx), N3(st.Fy),
+      // F_z nach oben (rechte Hand, 1. Oktober): Druck negativ.
+      rows.push([N3(st.z), N3(-(st.Fz ?? 0)), N3(st.Fx), N3(st.Fy),
                  N3(st.Myy), N3(st.Mxx), N3(st.Mzz ?? 0),
                  N3(st.sigW ?? 0), N3(st.eta ?? 0)]);
     });
