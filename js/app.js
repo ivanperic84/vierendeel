@@ -517,8 +517,8 @@ function speichern() {
   } catch { /* Ablage nicht verfügbar, kein Grund abzubrechen */ }
 }
 
-const jochVonTyp = () =>
-  werte.typ && werte.typ !== 'frei' ? getTragjoch(werte.typ) : null;
+const jochVonTyp = (w = werte) =>
+  w.typ && w.typ !== 'frei' ? getTragjoch(w.typ) : null;
 
 // --- Hauptzyklus ------------------------------------------------------------
 
@@ -740,6 +740,381 @@ function reaktionsBlatt() {
   berichtZeigen(wahl.bauen(reaktionsWahl), 'Reaktionskräfte', wahl);
 }
 
+/**
+ * >>> DIE RECHNUNG EINES TRAGWERKS, OHNE OBERFLÄCHE (1. Oktober). <<<
+ *
+ * Herausgelöst aus `neuRechnen` für den Bericht über das ganze Blatt
+ * (Rückfrage «Ganzes Blatt»): er braucht je Tragwerk, was bisher nur das
+ * aktive bekam - Kombinationen, Mast, Anker, Verformung, Fundament,
+ * Prüfungen und Hinweise. Derselbe Rumpf, Zeichen für Zeichen; der Parameter
+ * heisst `werte` und verdeckt das Blatt, damit nichts umzuschreiben war.
+ * Was die Oberfläche angeht (Anzeigequelle, Fahrdrahtschieber), bleibt in
+ * `neuRechnen`.
+ *
+ * @param {object} werte  der flache Satz des Tragwerks (aktiv im Blatt)
+ * @param {object|null} joch  Typ aus dem Sortiment (`jochVonTyp`)
+ */
+function rechneTragwerk(werte, joch) {
+  const profOG = getProfil(werte.profOG);
+  const profUG = getProfil(werte.profUG);
+  const stahl = getStahl(werte.stahl);
+
+  // Windlast auf den Mast aus der Lasttabelle nachführen, solange sie nicht
+  // von Hand gesetzt ist.
+  // Sie haengt am MASTEN, nicht an der Endbedingung: seit dem 28. August
+  // sind das zwei Angaben (mastImModell in core.auflager.js).
+  // Steht ein Mast im Modell, faengt er Wind - das ist keine Einstellung.
+  // Nachgefuehrt wird, solange die Lastwerte nicht von Hand freigegeben
+  // sind; dann gilt, was dort steht (dasselbe Verhalten wie bei g_k, w_k
+  // und s_k des Jochs).
+  if (mastImModell(werte) && werte.lastenBearbeiten !== true) {
+    const ek = ekVonWindklasse(werte.windKlasse);
+    const w = mastWind(werte.mastProfil, ek, werte.mastSteg);
+    if (Number.isFinite(w)) werte.wMast = w;
+    // Ein anderes Profil am Ende B faengt anderen Wind.
+    const wB = werte.mastZwei
+      ? mastWind(werte.mastProfilB, ek, werte.mastStegB) : null;
+    werte.wMastB = Number.isFinite(wB) ? wB : null;
+  }
+
+  // Der Kern bekommt die Mastangaben aus der Liste, nicht aus dem Satz -
+  // und am geteilten Masten die Jochkraefte der Nachbarn (19. September,
+  // core.nachbarn.js). Einmal gerechnet, fuer Hauptdurchgang und Vergleiche.
+  const rs = rechensatzMitNachbarn(werte);
+  const erg = berechne(rs, profOG, profUG, stahl, joch);
+
+  /*
+   * >>> DAS ABFANGJOCH RECHNET SEINEN EIGENEN NACHWEIS. <<<
+   *
+   * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
+   *
+   * `berechne` oben ist der Kern des TRAGJOCHS - vier Winkelgurte, zwei
+   * Blechebenen, Torsion aus dem Anbauteilversatz. Er läuft weiter, weil
+   * das Blatt, die Masken und die Verläufe an seiner Gestalt hängen; seine
+   * NACHWEISE gelten für ein Abfangjoch aber nicht, und sie standen bis
+   * hierher trotzdem rechts in der Spalte.
+   *
+   * `abfangAuswertung` rechnet daneben, was diesem Tragwerk gehört: das
+   * Kräftepaar aus dem Moment in der waagrechten Rahmenebene, die örtliche
+   * Biegung des Gurtes zwischen zwei Blechen, die Bindebleche als Riegel.
+   * Die Beiwerte sind DIESELBEN wie beim Tragjoch — γ_G, γ_Q und ψ₀ aus
+   * der Eingabe; ein zweiter Satz wäre ein zweiter Ort, an dem eine
+   * Festlegung steht.
+   *
+   * Die Lasten des Jochs kommen aus der Sortimentstabelle (`erg.modell.char`
+   * spiegelt sie in die Felder), die der Anbauteile aus dem Bauteilkatalog
+   * über `abfangAnbauLasten` — dieselbe Quelle, aus der die Ausleitung und
+   * die Kraftpfeile im Bild kommen.
+   */
+  if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
+    try {
+      // Die Eingaben stehen jetzt im Kern (core.nachbarn.js), weil auch
+      // ein Nachbar-Abfangjoch sie braucht.
+      erg.abfang = abfangAuswertungFuer(werte, stahl);
+    } catch (e2) {
+      // Ein Typ ohne erfasste Blechlage ist nicht rechenbar - dann steht
+      // dort nichts, statt einer Zahl aus dem falschen Modell.
+      erg.abfang = null;
+      console.warn('Abfangjoch-Auswertung:', e2?.message ?? e2);
+    }
+    /*
+     * >>> UND DER MAST BEKOMMT SEINE KRAEFTE. <<<
+     *
+     * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
+     * machen.»
+     *
+     * `berechne` hat den Masten oben schon gerechnet - mit den Reaktionen
+     * des TRAGJOCH-Ersatzbalkens, denn etwas anderes kennt es nicht. Am
+     * Abfangjoch gelten sie nicht; deshalb stand dort bisher gar keine
+     * Mastkachel.
+     *
+     * Jetzt liegen die eigenen Auflagerkraefte vor, und der Nachweis wird
+     * mit ihnen NEU gebildet. Nicht ergaenzt, sondern ersetzt: zwei
+     * Mastnachweise nebeneinander waeren einer zuviel.
+     */
+    if (erg.abfang?.auflager) {
+      /*
+       * DIESELBEN OPTIONEN WIE IM KERN (28. September): hier fehlten
+       * `knicken` und `torsion` - der Mast des Abfangjochs rechnete das
+       * Knicken damit immer, auch wenn es abgeschaltet war.
+       */
+      const optM = mastOptionen(werte);
+      /*
+       * UEBER ALLE FAELLE, der Wind in beiden Richtungen (Weisung vom
+       * 17. September: «die masten und anker nicht vergessen»). Vorher
+       * bekam der Mast nur den einen Fall mit der groessten Kopfkraft -
+       * und einen Mastwind aus dem Tragjoch-Lastfall dazu.
+       */
+      erg.mast = mastNachweiseHuelle(abfangVarianten(erg.abfang.auflager)
+        .map(({ fa, fb }) => ({
+          fall: fa.key,
+          erg: mastNachweise(abfangModell(erg.modell, erg.abfang.auflager,
+                                          fa, fb, false), optM),
+        })));
+    }
+  }
+
+  /*
+   * WAS KEIN JOCH HAT, BEKOMMT KEINE JOCHAUSWERTUNG.
+   *
+   * Fuenf Schritte folgen sonst: die Tabellenlasten des Jochs, der
+   * Massvariantenvergleich, die Kombinationen, die Konstruktions- und die
+   * Fluchtkontrolle. Jeder einzelne greift auf Gurte, Bleche oder die
+   * Stuetzweite zu - beim Einzelmast gibt es davon nichts. Der erste, der
+   * es versuchte, brach mit «Cannot read properties of undefined (reading
+   * gk)» ab, und die ganze Auswertung stand still.
+   *
+   * Sie werden nicht abgesichert, sondern UEBERSPRUNGEN. Ein
+   * `char?.gk ?? 0` haette eine Null in ein Feld geschrieben, das dem
+   * Einzelmasten gar nicht gehoert.
+   */
+  const mitJoch = tragwerksart(werte).key !== 'einzelmast';
+
+  // Die Tabellenlasten in die gesperrten Felder spiegeln, damit man sie
+  // immer sieht - auch wenn gerade die Tabelle gilt.
+  if (mitJoch && !werte.lastenBearbeiten) {
+    const c = erg.modell.char;
+    werte.gkManuell = Math.round(c.gk * 1000) / 1000;
+    werte.wkManuell = Math.round(c.wk * 1000) / 1000;
+    werte.skManuell = Math.round(c.sk * 1000) / 1000;
+  }
+
+  /*
+   * >>> AUCH DIE VERGLEICHE RECHNEN MIT DEM RECHENSATZ. <<<
+   *
+   * Hier stand `werte` - der ROHE Satz, ohne die Projektion aus der
+   * Mastenliste. Der Hauptdurchgang oben nimmt `rechensatz(werte)`, die
+   * Vergleiche nahmen ihn nicht, und die ANGEZEIGTE Umhuellende kommt aus
+   * ihnen (`kombi.huellkurve`). Aufgefallen am 3. September an einer
+   * Kleinigkeit: die Mastkacheln der Auswertung hiessen «M1» und «Ende B»,
+   * waehrend das gerechnete Tragwerk auf M2 und M3 steht - die Namen
+   * wandern mit der Projektion, und die fehlte hier.
+   *
+   * Die Zahlen stimmten bisher, weil `aendern` die flachen Mastfelder nach
+   * jeder Aenderung zurueckschreibt. Darauf zu bauen hiesse, sich auf
+   * einen Nebeneffekt zu verlassen: jede Angabe, die NUR in der Liste
+   * steht, fehlte hier still.
+   */
+  const vergleich = mitJoch
+    ? vergleichMassvarianten(rs, profOG, profUG, stahl, joch) : null;
+  /*
+   * KEINE KOMBINATIONSTABELLE OHNE JOCH - aber die Form bleibt.
+   *
+   * `vergleichKombinationen` rechnet jede Lastfallkombination am Traeger
+   * durch. Beim Einzelmast gibt es das nicht; die Lastfallwahl ueber dem
+   * Modell liest trotzdem `kombi.lastfaelle`, und eine fehlende Liste
+   * brach sie mit «Cannot read properties of undefined (reading map)» ab.
+   * Leer heisst hier: nur die Umhuellende steht zur Wahl.
+   */
+  /*
+   * SEIT DEM 17. SEPTEMBER AUCH BEIM EINZELMASTEN. Er wurde bis dahin in
+   * EINEM Lastfall gerechnet - dem ersten Nachweisfall, Wind +y leitend.
+   * Der Wind in Gegenrichtung fehlte, und mit einem Seilanker, der dort
+   * durchhaengt, stand der Mast zu guenstig da (Meldung: «der wind in die
+   * gegenrichtung wird nicht angesetzt»). `huellkurve` bildet fuer ihn den
+   * Mastnachweis ueber alle Faelle.
+   */
+  const kombi = vergleichKombinationen(rs, profOG, profUG, stahl, joch);
+  /*
+   * >>> DER TRAGAUSLEGER RECHNET SEINEN KRAGARM-KERN (28. September). <<<
+   *
+   * Etappe 3b, Entscheid «Lotrecht»: Gelenk am Masten, Seil bei c1,
+   * Kragarm - die Kontrollformel der Zeichnung (core.tragausleger.js).
+   * `berechne` oben rechnet fuer ihn weiter das Tragjoch mit einem
+   * Phantomauflager am freien Ende; daran haengen Bild und Verlaeufe, die
+   * NACHWEISE gelten ihm nicht. Wie am Abfangjoch wird der Mast mit den
+   * eigenen Kraeften NEU gebildet, und Anker, Verformung und Fundament
+   * lesen dieselbe Liste (`kombiMast`) statt der des Phantomjochs.
+   */
+  let kombiMast = kombi;
+  if (tragwerksart(werte).key === 'tragausleger') {
+    erg.ausleger = auslegerAuswertung(rs, kombi.lastfaelle ?? [],
+                                      abfangFyd(stahl, werte.gammaM0));
+    if (erg.ausleger && !erg.ausleger.fehler) {
+      const r = auslegerKombi(erg.modell, erg.ausleger, kombi.lastfaelle ?? [],
+                              mastOptionen(werte));
+      kombiMast = r.kombi;
+      erg.mast = r.mast;
+    }
+  }
+  /*
+   * >>> DER ANKERNACHWEIS RECHNET CHARAKTERISTISCH. <<<
+   *
+   * Weisung vom 10. September: «nimm variante 3 und die charakteristische
+   * kraft.»
+   *
+   * Das Bemessungsblatt der Zug- und Druckstuetzen fuehrt ZULAESSIGE
+   * Kraefte - eine Groesse aus dem Verfahren der zulaessigen Spannungen.
+   * Ihr gegenueber steht die charakteristische Einwirkung, nicht der
+   * Bemessungswert. Der Hauptdurchgang `erg` rechnet mit Beiwerten; die
+   * charakteristischen Lastfaelle laufen daneben mit, und aus ihnen kommt
+   * die Zahl.
+   */
+  // Auch der Einzelmast traegt einen Anker - und bekommt seinen Nachweis.
+  erg.anker = erg.abfang?.auflager
+    ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager, werte)
+    : ankerAuswertung(kombiMast, werte);
+  /*
+   * >>> DIE VERFORMUNG IM GEBRAUCHSZUSTAND (24. September). <<<
+   *
+   * Sie steht neben dem Anker, aus demselben Grund: eine Auswertung
+   * ueber Lastfaelle, nicht eine Rechnung am Querschnitt. Und sie
+   * faerbt das Urteil NICHT - die Urteilsfarbe folgt allein der
+   * Tragsicherheit (Entscheid vom 18. September).
+   */
+  // Die Mastspitze L/100 ist abschaltbar (Nachweisgruppe `spitzeMast`, 30. Sept.).
+  // Die Grenzwerte (Fahrdraht, Mastspitze) stehen in den Optionen.
+  // Seit der Neuordnung (30. September) je Prüfung ein Schalter, der
+  // Oberschalter «Gebrauchstauglichkeit» ist in der Auswahl eingerechnet.
+  const nwG = nachweiseAuswahl(werte.nachweise);
+  erg.verformung = verformungsNachweis(kombiMast,
+    { gruppen: { fahrdraht: nwG.fahrdrahtQuer, spitze: nwG.spitzeMast,
+                 verdrehung: nwG.verdrehungMast },
+      grenzen: verformungGrenzen(werte) });
+  // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
+  // misst (28. September) - sonst stand dort eine 0.
+  const fdStelle = erg.verformung?.A?.stelle ?? erg.verformung?.B?.stelle ?? null;
+  /*
+   * >>> UND DAS FUNDAMENT (24. September). <<<
+   *
+   * «die Fundamente auch noch separat als ausnutzungsbeiwert in die
+   * nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung).»
+   * Dieselbe Reihe wie Anker und Verformung, und dieselbe Bauart:
+   * eine Auswertung ueber Lastfaelle gegen eine ZULAESSIGE Last.
+   *
+   * Gerechnet wird immer; ob es ins Urteil zaehlt, entscheidet die
+   * Nachweisgruppe `fundament` (Optionen). Zwei Wege zum Abschalten
+   * waeren zwei Wahrheiten.
+   */
+  erg.fundament = fundamentNachweis(kombiMast, werte);
+  /*
+   * >>> OHNE MODELL DES AUSLEGERS KEINE ZAHLEN DES PHANTOMJOCHS (30. Sept.). <<<
+   * Gemeldet: «wenn ich da eine grenze über oder unterschreite blendet
+   * sich ein jochtragwerk ein». Mit zu kurzem Mast rechnet der Kragarm-
+   * Kern nicht; Mast, Anker, Verformung und Fundament kamen dann aus dem
+   * Ersatzjoch (vier Winkel, Phantom-Mast B), und die Seitenleiste zeigte
+   * Obergurt L 90×90×9 und «Ende B». Sie gelten dem Ausleger nicht - weg
+   * damit; der Grund steht in der Tragausleger-Gruppe und den Hinweisen.
+   */
+  if (erg.ausleger?.fehler) {
+    erg.mast = null;
+    erg.anker = null;
+    erg.verformung = null;
+    erg.fundament = null;
+  }
+  // Am Tragausleger prüften sie das Ersatzjoch J90 (Bleche, Masten
+  // zwischen den Gurten) - ein Bauteil, das es dort nicht gibt (28. Sept.).
+  const checks = mitJoch && !erg.ausleger
+    ? konstruktionsChecks(erg.modell, erg.abfang) : [];
+  // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
+  // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
+  // nur stört. Sie gehört ins Handbuch, sobald es eines gibt. Der Wert bleibt
+  // in der Excel-Ausleitung erhalten.
+  const flucht = mitJoch ? fluchtChecks(erg.modell) : { warnungen: [] };
+  const hinw = hinweise(erg.modell);
+  // Hat der Ausleger kein Modell (Mast zu kurz für die Aufhängung, Länge
+  // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
+  // gehört in die Liste, sonst stünde nur das Phantomjoch da.
+  if (erg.ausleger?.fehler) hinw.push(`Tragausleger — ${erg.ausleger.fehler}`);
+  /*
+   * >>> WENN ES DEN STAB SO NICHT GIBT, STEHT ES IN DER LISTE. <<<
+   *
+   * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
+   * dann warnung angeben.» In der Kachel steht sie seither rot; hier
+   * steht sie ein zweites Mal, weil die Hinweisliste das ist, was in den
+   * Bericht geht - und dort fällt eine Farbe nicht auf.
+   *
+   * ANGEHAENGT UND NICHT IN `hinweise`: die Funktion sieht das MODELL, der
+   * Ankernachweis haengt aber an `erg.anker`. Ihn dort hineinzureichen
+   * hiesse, das Modell um ein Ergebnis zu erweitern - und dann stuende
+   * dieselbe Zahl an zwei Orten.
+   */
+  ['A', 'B'].forEach((ende) => {
+    const nw = erg.anker?.[ende]?.nachweis;
+    if (nw?.lieferbar === false && nw.warnung) {
+      hinw.push(`Zuganker/Druckstütze — ${nw.warnung}`
+        + (nw.eta === null ? ''
+          : ' Der Nachweis steht trotzdem da, weil die zulässige Kraft der'
+            + ' BEFESTIGUNG gilt und nicht der Länge; das Bauteil selbst ist'
+            + ' damit nicht belegt.'));
+    }
+  });
+  /* =====================================================================
+   * >>> DAS ABFANGJOCH UND SEINE MASTEN (20. September). <<<
+   * =====================================================================
+   *
+   * Weisung: «die masten werden nach innen gesetzt wenn primär ein jochtyp
+   * und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind
+   * sollte sich der jochtyp daran richten und wenn notwendig den nächst
+   * längeren joch auswählen.»
+   *
+   * Der erste Fall steckt in der Geometrie (`abfangUeberstand`,
+   * core.constants.js): ein neues Abfangjoch setzt seine Masten 25 cm
+   * innerhalb der Jochenden. Hier steht der ZWEITE: die Masten stehen
+   * schon. Traegt die gewaehlte Laenge ihren Abstand nicht, sagt der
+   * Hinweis, welches Joch ihn traegt - geaendert wird nichts von selbst
+   * («Warnen, Berichtigung auf Klick», Entscheid 20. September).
+   */
+  if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
+    const tAkt = tragwerkeVon(werte).find((t) => t.id === (werte.twId ?? werte.id));
+    const [mA, mB] = tAkt ? mastenFuer(werte, tAkt) : [];
+    const sw = abfangStuetzweite(werte.abfangTyp, Number(werte.L));
+    if (mA && mB && sw) {
+      const js = Math.abs(mB.x - mA.x);
+      if (js < sw.von - 1e-6 || js > sw.bis + 1e-6) {
+        const v = abfangFuerStuetzweite(werte.abfangTyp, js);
+        hinw.push(`Abfangjoch ${werte.abfangTyp} / ${Number(werte.L).toFixed(2)} m: `
+          + `die Masten stehen ${js.toFixed(2)} m auseinander, dieses Joch trägt `
+          + `${sw.von.toFixed(2)}–${sw.bis.toFixed(2)} m (Überstand 0.25–0.50 m je Seite). `
+          + (v ? `Passend wäre ${v.typ} / ${v.L.toFixed(2)} m.`
+               : 'Kein Joch des Sortiments trägt diese Stützweite.'));
+      }
+    }
+  }
+  const urteil = urteilKonstruktion(checks, werte.nachweise,
+                                    tragwerksart(werte).key);
+  const kl = mitJoch ? klassifizierung(erg.modell) : null;
+
+  // Für Modell und Auswertung gilt die gewählte Anzeigequelle
+  // Abfangjoch, Mast und Anker legt `mitBauteilen` dazu - siehe dort.
+  /** Die Bemessung mit allen Bauteilen - Urteil, Leiste, Bericht. */
+  const bemessung = mitBauteilen(kombi.huellkurve ?? erg, erg, { mastErsatz: true });
+  /*
+   * >>> DIE AUSWERTUNG SIEHT `anzeige`, NICHT `erg`. <<<
+   *
+   * Die rechte Spalte bekommt die Huellkurve der Kombinationen - ein
+   * eigenes Objekt, gebaut vom Kombinationsapparat des Tragjochs. Der
+   * Abfangjoch-Nachweis hing an `erg` und kam dort nie an; in der Spalte
+   * standen weiter «η Obergurt» und «η Untergurt», obwohl die Zahl
+   * daneben schon gerechnet war.
+   *
+   * Er wandert deshalb mit. Seine eigene Kombination steckt in ihm selbst
+   * (γ_G, γ_Q, ψ₀ ueber zwei Leitfaelle) - die Huellkurve des Tragjochs
+   * hat darauf keinen Einfluss.
+   */
+  /*
+   * (Vormals hier drei Zuweisungen an anzeige - Abfangjoch, Mast,
+   * Anker - von Hand und in die Huellkurve hinein. Seit dem
+   * 18. September in `mitBauteilen`.)
+   */
+  /*
+   * >>> DAS URTEIL UEBER ALLE BAUTEILE (Entscheid vom 17. September). <<<
+   *
+   * Es steht auf der BEMESSUNG, nicht auf dem gezeigten Lastfall - ein
+   * Einzellastfall traegt kein Urteil. Abfangjoch, Mast und Anker haengen
+   * an `erg`; sie werden dazugelegt wie oben bei `anzeige`.
+   */
+  urteil.bauteile = bauteilUrteil(bemessung, werte.nachweise, tragwerksart(werte).key);
+
+  // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
+  // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
+  const auflager = mitJoch
+    ? auflagerBlatt(werte, profOG, profUG, stahl, joch) : null;
+
+  return { erg, bemessung, vergleich, kombi, checks, auflager, mitJoch,
+           warn: flucht.warnungen, hinw, kl, urteil, fdStelle };
+}
+
 function neuRechnen(neuZeichnen = true) {
   // VOR der Rechnung: der Stand, der gleich gilt, gehoert in den Verlauf.
   if (hist.melde(werte)) baueKopf();
@@ -834,366 +1209,13 @@ function neuRechnen(neuZeichnen = true) {
   };
 
   try {
-    const profOG = getProfil(werte.profOG);
-    const profUG = getProfil(werte.profUG);
-    const stahl = getStahl(werte.stahl);
-
-    // Windlast auf den Mast aus der Lasttabelle nachführen, solange sie nicht
-    // von Hand gesetzt ist.
-    // Sie haengt am MASTEN, nicht an der Endbedingung: seit dem 28. August
-    // sind das zwei Angaben (mastImModell in core.auflager.js).
-    // Steht ein Mast im Modell, faengt er Wind - das ist keine Einstellung.
-    // Nachgefuehrt wird, solange die Lastwerte nicht von Hand freigegeben
-    // sind; dann gilt, was dort steht (dasselbe Verhalten wie bei g_k, w_k
-    // und s_k des Jochs).
-    if (mastImModell(werte) && werte.lastenBearbeiten !== true) {
-      const ek = ekVonWindklasse(werte.windKlasse);
-      const w = mastWind(werte.mastProfil, ek, werte.mastSteg);
-      if (Number.isFinite(w)) werte.wMast = w;
-      // Ein anderes Profil am Ende B faengt anderen Wind.
-      const wB = werte.mastZwei
-        ? mastWind(werte.mastProfilB, ek, werte.mastStegB) : null;
-      werte.wMastB = Number.isFinite(wB) ? wB : null;
-    }
-
-    // Der Kern bekommt die Mastangaben aus der Liste, nicht aus dem Satz -
-    // und am geteilten Masten die Jochkraefte der Nachbarn (19. September,
-    // core.nachbarn.js). Einmal gerechnet, fuer Hauptdurchgang und Vergleiche.
-    const rs = rechensatzMitNachbarn(werte);
-    const erg = berechne(rs, profOG, profUG, stahl, joch);
-
-    /*
-     * >>> DAS ABFANGJOCH RECHNET SEINEN EIGENEN NACHWEIS. <<<
-     *
-     * Weisung vom 4. September: «nachweise beim Abfangjoch aktualisieren.»
-     *
-     * `berechne` oben ist der Kern des TRAGJOCHS - vier Winkelgurte, zwei
-     * Blechebenen, Torsion aus dem Anbauteilversatz. Er läuft weiter, weil
-     * das Blatt, die Masken und die Verläufe an seiner Gestalt hängen; seine
-     * NACHWEISE gelten für ein Abfangjoch aber nicht, und sie standen bis
-     * hierher trotzdem rechts in der Spalte.
-     *
-     * `abfangAuswertung` rechnet daneben, was diesem Tragwerk gehört: das
-     * Kräftepaar aus dem Moment in der waagrechten Rahmenebene, die örtliche
-     * Biegung des Gurtes zwischen zwei Blechen, die Bindebleche als Riegel.
-     * Die Beiwerte sind DIESELBEN wie beim Tragjoch — γ_G, γ_Q und ψ₀ aus
-     * der Eingabe; ein zweiter Satz wäre ein zweiter Ort, an dem eine
-     * Festlegung steht.
-     *
-     * Die Lasten des Jochs kommen aus der Sortimentstabelle (`erg.modell.char`
-     * spiegelt sie in die Felder), die der Anbauteile aus dem Bauteilkatalog
-     * über `abfangAnbauLasten` — dieselbe Quelle, aus der die Ausleitung und
-     * die Kraftpfeile im Bild kommen.
-     */
-    if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
-      try {
-        // Die Eingaben stehen jetzt im Kern (core.nachbarn.js), weil auch
-        // ein Nachbar-Abfangjoch sie braucht.
-        erg.abfang = abfangAuswertungFuer(werte, stahl);
-      } catch (e2) {
-        // Ein Typ ohne erfasste Blechlage ist nicht rechenbar - dann steht
-        // dort nichts, statt einer Zahl aus dem falschen Modell.
-        erg.abfang = null;
-        console.warn('Abfangjoch-Auswertung:', e2?.message ?? e2);
-      }
-      /*
-       * >>> UND DER MAST BEKOMMT SEINE KRAEFTE. <<<
-       *
-       * Weisung vom 10. September: «den mastnachweis beim abfangjoch fertig
-       * machen.»
-       *
-       * `berechne` hat den Masten oben schon gerechnet - mit den Reaktionen
-       * des TRAGJOCH-Ersatzbalkens, denn etwas anderes kennt es nicht. Am
-       * Abfangjoch gelten sie nicht; deshalb stand dort bisher gar keine
-       * Mastkachel.
-       *
-       * Jetzt liegen die eigenen Auflagerkraefte vor, und der Nachweis wird
-       * mit ihnen NEU gebildet. Nicht ergaenzt, sondern ersetzt: zwei
-       * Mastnachweise nebeneinander waeren einer zuviel.
-       */
-      if (erg.abfang?.auflager) {
-        /*
-         * DIESELBEN OPTIONEN WIE IM KERN (28. September): hier fehlten
-         * `knicken` und `torsion` - der Mast des Abfangjochs rechnete das
-         * Knicken damit immer, auch wenn es abgeschaltet war.
-         */
-        const optM = mastOptionen(werte);
-        /*
-         * UEBER ALLE FAELLE, der Wind in beiden Richtungen (Weisung vom
-         * 17. September: «die masten und anker nicht vergessen»). Vorher
-         * bekam der Mast nur den einen Fall mit der groessten Kopfkraft -
-         * und einen Mastwind aus dem Tragjoch-Lastfall dazu.
-         */
-        erg.mast = mastNachweiseHuelle(abfangVarianten(erg.abfang.auflager)
-          .map(({ fa, fb }) => ({
-            fall: fa.key,
-            erg: mastNachweise(abfangModell(erg.modell, erg.abfang.auflager,
-                                            fa, fb, false), optM),
-          })));
-      }
-    }
-
-    /*
-     * WAS KEIN JOCH HAT, BEKOMMT KEINE JOCHAUSWERTUNG.
-     *
-     * Fuenf Schritte folgen sonst: die Tabellenlasten des Jochs, der
-     * Massvariantenvergleich, die Kombinationen, die Konstruktions- und die
-     * Fluchtkontrolle. Jeder einzelne greift auf Gurte, Bleche oder die
-     * Stuetzweite zu - beim Einzelmast gibt es davon nichts. Der erste, der
-     * es versuchte, brach mit «Cannot read properties of undefined (reading
-     * gk)» ab, und die ganze Auswertung stand still.
-     *
-     * Sie werden nicht abgesichert, sondern UEBERSPRUNGEN. Ein
-     * `char?.gk ?? 0` haette eine Null in ein Feld geschrieben, das dem
-     * Einzelmasten gar nicht gehoert.
-     */
-    const mitJoch = tragwerksart(werte).key !== 'einzelmast';
-
-    // Die Tabellenlasten in die gesperrten Felder spiegeln, damit man sie
-    // immer sieht - auch wenn gerade die Tabelle gilt.
-    if (mitJoch && !werte.lastenBearbeiten) {
-      const c = erg.modell.char;
-      werte.gkManuell = Math.round(c.gk * 1000) / 1000;
-      werte.wkManuell = Math.round(c.wk * 1000) / 1000;
-      werte.skManuell = Math.round(c.sk * 1000) / 1000;
-    }
-
-    /*
-     * >>> AUCH DIE VERGLEICHE RECHNEN MIT DEM RECHENSATZ. <<<
-     *
-     * Hier stand `werte` - der ROHE Satz, ohne die Projektion aus der
-     * Mastenliste. Der Hauptdurchgang oben nimmt `rechensatz(werte)`, die
-     * Vergleiche nahmen ihn nicht, und die ANGEZEIGTE Umhuellende kommt aus
-     * ihnen (`kombi.huellkurve`). Aufgefallen am 3. September an einer
-     * Kleinigkeit: die Mastkacheln der Auswertung hiessen «M1» und «Ende B»,
-     * waehrend das gerechnete Tragwerk auf M2 und M3 steht - die Namen
-     * wandern mit der Projektion, und die fehlte hier.
-     *
-     * Die Zahlen stimmten bisher, weil `aendern` die flachen Mastfelder nach
-     * jeder Aenderung zurueckschreibt. Darauf zu bauen hiesse, sich auf
-     * einen Nebeneffekt zu verlassen: jede Angabe, die NUR in der Liste
-     * steht, fehlte hier still.
-     */
-    const vergleich = mitJoch
-      ? vergleichMassvarianten(rs, profOG, profUG, stahl, joch) : null;
-    /*
-     * KEINE KOMBINATIONSTABELLE OHNE JOCH - aber die Form bleibt.
-     *
-     * `vergleichKombinationen` rechnet jede Lastfallkombination am Traeger
-     * durch. Beim Einzelmast gibt es das nicht; die Lastfallwahl ueber dem
-     * Modell liest trotzdem `kombi.lastfaelle`, und eine fehlende Liste
-     * brach sie mit «Cannot read properties of undefined (reading map)» ab.
-     * Leer heisst hier: nur die Umhuellende steht zur Wahl.
-     */
-    /*
-     * SEIT DEM 17. SEPTEMBER AUCH BEIM EINZELMASTEN. Er wurde bis dahin in
-     * EINEM Lastfall gerechnet - dem ersten Nachweisfall, Wind +y leitend.
-     * Der Wind in Gegenrichtung fehlte, und mit einem Seilanker, der dort
-     * durchhaengt, stand der Mast zu guenstig da (Meldung: «der wind in die
-     * gegenrichtung wird nicht angesetzt»). `huellkurve` bildet fuer ihn den
-     * Mastnachweis ueber alle Faelle.
-     */
-    const kombi = vergleichKombinationen(rs, profOG, profUG, stahl, joch);
-    /*
-     * >>> DER TRAGAUSLEGER RECHNET SEINEN KRAGARM-KERN (28. September). <<<
-     *
-     * Etappe 3b, Entscheid «Lotrecht»: Gelenk am Masten, Seil bei c1,
-     * Kragarm - die Kontrollformel der Zeichnung (core.tragausleger.js).
-     * `berechne` oben rechnet fuer ihn weiter das Tragjoch mit einem
-     * Phantomauflager am freien Ende; daran haengen Bild und Verlaeufe, die
-     * NACHWEISE gelten ihm nicht. Wie am Abfangjoch wird der Mast mit den
-     * eigenen Kraeften NEU gebildet, und Anker, Verformung und Fundament
-     * lesen dieselbe Liste (`kombiMast`) statt der des Phantomjochs.
-     */
-    let kombiMast = kombi;
-    if (tragwerksart(werte).key === 'tragausleger') {
-      erg.ausleger = auslegerAuswertung(rs, kombi.lastfaelle ?? [],
-                                        abfangFyd(stahl, werte.gammaM0));
-      if (erg.ausleger && !erg.ausleger.fehler) {
-        const r = auslegerKombi(erg.modell, erg.ausleger, kombi.lastfaelle ?? [],
-                                mastOptionen(werte));
-        kombiMast = r.kombi;
-        erg.mast = r.mast;
-      }
-    }
-    /*
-     * >>> DER ANKERNACHWEIS RECHNET CHARAKTERISTISCH. <<<
-     *
-     * Weisung vom 10. September: «nimm variante 3 und die charakteristische
-     * kraft.»
-     *
-     * Das Bemessungsblatt der Zug- und Druckstuetzen fuehrt ZULAESSIGE
-     * Kraefte - eine Groesse aus dem Verfahren der zulaessigen Spannungen.
-     * Ihr gegenueber steht die charakteristische Einwirkung, nicht der
-     * Bemessungswert. Der Hauptdurchgang `erg` rechnet mit Beiwerten; die
-     * charakteristischen Lastfaelle laufen daneben mit, und aus ihnen kommt
-     * die Zahl.
-     */
-    // Auch der Einzelmast traegt einen Anker - und bekommt seinen Nachweis.
-    erg.anker = erg.abfang?.auflager
-      ? ankerAmAbfangjoch(erg.modell, erg.abfang.auflager, werte)
-      : ankerAuswertung(kombiMast, werte);
-    /*
-     * >>> DIE VERFORMUNG IM GEBRAUCHSZUSTAND (24. September). <<<
-     *
-     * Sie steht neben dem Anker, aus demselben Grund: eine Auswertung
-     * ueber Lastfaelle, nicht eine Rechnung am Querschnitt. Und sie
-     * faerbt das Urteil NICHT - die Urteilsfarbe folgt allein der
-     * Tragsicherheit (Entscheid vom 18. September).
-     */
-    // Die Mastspitze L/100 ist abschaltbar (Nachweisgruppe `spitzeMast`, 30. Sept.).
-    // Die Grenzwerte (Fahrdraht, Mastspitze) stehen in den Optionen.
-    // Seit der Neuordnung (30. September) je Prüfung ein Schalter, der
-    // Oberschalter «Gebrauchstauglichkeit» ist in der Auswahl eingerechnet.
-    const nwG = nachweiseAuswahl(werte.nachweise);
-    erg.verformung = verformungsNachweis(kombiMast,
-      { gruppen: { fahrdraht: nwG.fahrdrahtQuer, spitze: nwG.spitzeMast,
-                   verdrehung: nwG.verdrehungMast },
-        grenzen: verformungGrenzen(werte) });
-    // Die Maske zeigt am Fahrdrahtschieber, auf welcher Höhe die Automatik
-    // misst (28. September) - sonst stand dort eine 0.
-    setzeFdAutomatik(erg.verformung?.A?.stelle ?? erg.verformung?.B?.stelle ?? null);
-    /*
-     * >>> UND DAS FUNDAMENT (24. September). <<<
-     *
-     * «die Fundamente auch noch separat als ausnutzungsbeiwert in die
-     * nachweisführung aufnehmen (gesamtheitliche Tragwerksbetrachtung).»
-     * Dieselbe Reihe wie Anker und Verformung, und dieselbe Bauart:
-     * eine Auswertung ueber Lastfaelle gegen eine ZULAESSIGE Last.
-     *
-     * Gerechnet wird immer; ob es ins Urteil zaehlt, entscheidet die
-     * Nachweisgruppe `fundament` (Optionen). Zwei Wege zum Abschalten
-     * waeren zwei Wahrheiten.
-     */
-    erg.fundament = fundamentNachweis(kombiMast, werte);
-    /*
-     * >>> OHNE MODELL DES AUSLEGERS KEINE ZAHLEN DES PHANTOMJOCHS (30. Sept.). <<<
-     * Gemeldet: «wenn ich da eine grenze über oder unterschreite blendet
-     * sich ein jochtragwerk ein». Mit zu kurzem Mast rechnet der Kragarm-
-     * Kern nicht; Mast, Anker, Verformung und Fundament kamen dann aus dem
-     * Ersatzjoch (vier Winkel, Phantom-Mast B), und die Seitenleiste zeigte
-     * Obergurt L 90×90×9 und «Ende B». Sie gelten dem Ausleger nicht - weg
-     * damit; der Grund steht in der Tragausleger-Gruppe und den Hinweisen.
-     */
-    if (erg.ausleger?.fehler) {
-      erg.mast = null;
-      erg.anker = null;
-      erg.verformung = null;
-      erg.fundament = null;
-    }
-    // Am Tragausleger prüften sie das Ersatzjoch J90 (Bleche, Masten
-    // zwischen den Gurten) - ein Bauteil, das es dort nicht gibt (28. Sept.).
-    const checks = mitJoch && !erg.ausleger
-      ? konstruktionsChecks(erg.modell, erg.abfang) : [];
-    // Die Fluchtkontrolle läuft weiter mit, wird aber nicht mehr angezeigt:
-    // sie erklärt einen Versatz im Zehntelmillimeterbereich, der beim Arbeiten
-    // nur stört. Sie gehört ins Handbuch, sobald es eines gibt. Der Wert bleibt
-    // in der Excel-Ausleitung erhalten.
-    const flucht = mitJoch ? fluchtChecks(erg.modell) : { warnungen: [] };
-    const hinw = hinweise(erg.modell);
-    // Hat der Ausleger kein Modell (Mast zu kurz für die Aufhängung, Länge
-    // ausserhalb des Sortiments), rechnen Kern und Stabwerk nicht - das
-    // gehört in die Liste, sonst stünde nur das Phantomjoch da.
-    if (erg.ausleger?.fehler) hinw.push(`Tragausleger — ${erg.ausleger.fehler}`);
-    /*
-     * >>> WENN ES DEN STAB SO NICHT GIBT, STEHT ES IN DER LISTE. <<<
-     *
-     * Weisung vom 11. September: «wenn die maximallänge überschritten ist,
-     * dann warnung angeben.» In der Kachel steht sie seither rot; hier
-     * steht sie ein zweites Mal, weil die Hinweisliste das ist, was in den
-     * Bericht geht - und dort fällt eine Farbe nicht auf.
-     *
-     * ANGEHAENGT UND NICHT IN `hinweise`: die Funktion sieht das MODELL, der
-     * Ankernachweis haengt aber an `erg.anker`. Ihn dort hineinzureichen
-     * hiesse, das Modell um ein Ergebnis zu erweitern - und dann stuende
-     * dieselbe Zahl an zwei Orten.
-     */
-    ['A', 'B'].forEach((ende) => {
-      const nw = erg.anker?.[ende]?.nachweis;
-      if (nw?.lieferbar === false && nw.warnung) {
-        hinw.push(`Zuganker/Druckstütze — ${nw.warnung}`
-          + (nw.eta === null ? ''
-            : ' Der Nachweis steht trotzdem da, weil die zulässige Kraft der'
-              + ' BEFESTIGUNG gilt und nicht der Länge; das Bauteil selbst ist'
-              + ' damit nicht belegt.'));
-      }
-    });
-    /* =====================================================================
-     * >>> DAS ABFANGJOCH UND SEINE MASTEN (20. September). <<<
-     * =====================================================================
-     *
-     * Weisung: «die masten werden nach innen gesetzt wenn primär ein jochtyp
-     * und länge ausgewählt wurde. wenn aber die masten schon vorhanden sind
-     * sollte sich der jochtyp daran richten und wenn notwendig den nächst
-     * längeren joch auswählen.»
-     *
-     * Der erste Fall steckt in der Geometrie (`abfangUeberstand`,
-     * core.constants.js): ein neues Abfangjoch setzt seine Masten 25 cm
-     * innerhalb der Jochenden. Hier steht der ZWEITE: die Masten stehen
-     * schon. Traegt die gewaehlte Laenge ihren Abstand nicht, sagt der
-     * Hinweis, welches Joch ihn traegt - geaendert wird nichts von selbst
-     * («Warnen, Berichtigung auf Klick», Entscheid 20. September).
-     */
-    if (tragwerksart(werte).key === 'abfangjoch' && abfangDbDa()) {
-      const tAkt = tragwerkeVon(werte).find((t) => t.id === (werte.twId ?? werte.id));
-      const [mA, mB] = tAkt ? mastenFuer(werte, tAkt) : [];
-      const sw = abfangStuetzweite(werte.abfangTyp, Number(werte.L));
-      if (mA && mB && sw) {
-        const js = Math.abs(mB.x - mA.x);
-        if (js < sw.von - 1e-6 || js > sw.bis + 1e-6) {
-          const v = abfangFuerStuetzweite(werte.abfangTyp, js);
-          hinw.push(`Abfangjoch ${werte.abfangTyp} / ${Number(werte.L).toFixed(2)} m: `
-            + `die Masten stehen ${js.toFixed(2)} m auseinander, dieses Joch trägt `
-            + `${sw.von.toFixed(2)}–${sw.bis.toFixed(2)} m (Überstand 0.25–0.50 m je Seite). `
-            + (v ? `Passend wäre ${v.typ} / ${v.L.toFixed(2)} m.`
-                 : 'Kein Joch des Sortiments trägt diese Stützweite.'));
-        }
-      }
-    }
-    const urteil = urteilKonstruktion(checks, werte.nachweise,
-                                      tragwerksart(werte).key);
-    const kl = mitJoch ? klassifizierung(erg.modell) : null;
-
-    // Für Modell und Auswertung gilt die gewählte Anzeigequelle
-    // Abfangjoch, Mast und Anker legt `mitBauteilen` dazu - siehe dort.
+    const r = rechneTragwerk(werte, joch);
+    const { erg, kombi, urteil, bemessung } = r;
+    setzeFdAutomatik(r.fdStelle);
+    // Für Modell und Auswertung gilt die gewählte Anzeigequelle.
     const anzeige = mitBauteilen(anzeigeKombi === 'umhuellend'
       ? (kombi.huellkurve ?? erg) : (kombi.ergebnisse?.[anzeigeKombi] ?? erg), erg);
-    /** Die Bemessung mit allen Bauteilen - Urteil, Leiste, Bericht. */
-    const bemessung = mitBauteilen(kombi.huellkurve ?? erg, erg, { mastErsatz: true });
-    /*
-     * >>> DIE AUSWERTUNG SIEHT `anzeige`, NICHT `erg`. <<<
-     *
-     * Die rechte Spalte bekommt die Huellkurve der Kombinationen - ein
-     * eigenes Objekt, gebaut vom Kombinationsapparat des Tragjochs. Der
-     * Abfangjoch-Nachweis hing an `erg` und kam dort nie an; in der Spalte
-     * standen weiter «η Obergurt» und «η Untergurt», obwohl die Zahl
-     * daneben schon gerechnet war.
-     *
-     * Er wandert deshalb mit. Seine eigene Kombination steckt in ihm selbst
-     * (γ_G, γ_Q, ψ₀ ueber zwei Leitfaelle) - die Huellkurve des Tragjochs
-     * hat darauf keinen Einfluss.
-     */
-    /*
-     * (Vormals hier drei Zuweisungen an anzeige - Abfangjoch, Mast,
-     * Anker - von Hand und in die Huellkurve hinein. Seit dem
-     * 18. September in `mitBauteilen`.)
-     */
-    /*
-     * >>> DAS URTEIL UEBER ALLE BAUTEILE (Entscheid vom 17. September). <<<
-     *
-     * Es steht auf der BEMESSUNG, nicht auf dem gezeigten Lastfall - ein
-     * Einzellastfall traegt kein Urteil. Abfangjoch, Mast und Anker haengen
-     * an `erg`; sie werden dazugelegt wie oben bei `anzeige`.
-     */
-    urteil.bauteile = bauteilUrteil(bemessung, werte.nachweise, tragwerksart(werte).key);
-
-    // Das Auflagerblatt weist die Reaktionen des JOCHS aus. Ein Einzelmast
-    // gibt seine Fussgroessen ueber den Mastnachweis aus, nicht hier.
-    const auflager = mitJoch
-      ? auflagerBlatt(werte, profOG, profUG, stahl, joch) : null;
-
-    letzte = { erg, anzeige, bemessung, vergleich, kombi, checks, auflager, mitJoch,
-               warn: flucht.warnungen, hinw, kl, urteil };
+    letzte = { ...r, anzeige };
 
     /*
      * Die Ausnutzung je Zeile der Tragwerksleiste ist mit dem Baum
