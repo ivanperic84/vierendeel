@@ -1825,7 +1825,9 @@ titel('22b  Lastblöcke: Angriffspunkt, Kraft, Moment');
   pruef('z = −2 m am UG ergibt e_v = 2.25 m', gTeil.ev, 2.25, 1e-12, 'm');
   pruef('Torsion aus F_y · e_v', r.teile.find((t) => t.einwirkung === 'WindY').Td,
         5 * 6 * 2.25, 1e-12, 'kNm');
-  pruef('Torsion aus F_z · y', gTeil.Td, 2 * 4 * 0.3, 1e-12, 'kNm');
+  // Rechte Hand (30. September): F_z nach unten bei +y dreht um −x - das
+  // Vorzeichen stand bis dahin wie beim Glied F_y · e_v, das um +x dreht.
+  pruef('Torsion aus F_z · y (rechte Hand: −y·F_z)', gTeil.Td, -2 * 4 * 0.3, 1e-12, 'kNm');
   // VORZEICHEN: e_v zaehlt nach unten, das Kraeftepaar r × F ist deshalb
   // NEGATIV im Zaehlsinn des Feldmoments (My positiv = Obergurt Druck).
   pruef('F_x am Hebelarm e_v gibt M_y', gTeil.Myd, -2 * 1 * 2.25, 1e-12, 'kNm');
@@ -34463,6 +34465,42 @@ titel('176  Anbauteile ziehen, Esc ohne Zoom, Leiter an zwei Punkten, rechte Han
   const er = readFileSync(join(HIER, 'js', 'export.reaktionen.js'), 'utf8');
   wahr('Reaktionstabelle: Y zum Betrachter (X × Y = Z bei Z nach unten)',
        er.includes('x1="150" y1="58" x2="102" y2="100"') && er.includes('rechte Hand: X × Y = Z'));
+}
+
+titel('177  Rechte Hand im Kern: Torsion aus einer Last mit Versatz y');
+/* ===========================================================================
+ * Weisung 30. September: «Beachte beim koordinatensystem die rechte hand
+ * regel im modell sowie in der output liste / nachweise». T_d = F_y·e_v −
+ * F_z·y (F_z nach unten, um +x). Vorher +F_z·y. Gemessen: J90/20 m, freie
+ * Last ständig 5 kN nach unten + 2 kN in +y, 1.35 m unter dem Untergurt;
+ * y +0.50 hebt sich physikalisch auf, y −0.50 addiert sich. Stabwerk
+ * 0.616 / 1.413; Kern vorher 1.989 / 1.394 (umgekehrt, der ungünstige Fall
+ * unter dem Stabwerk), nachher 1.394 / 1.989.
+ * ========================================================================= */
+{
+  const N177 = await import(J('core.nachbarn.js'));
+  const V177 = await import(J('core.vierendeel.js'));
+  const A177 = await import(J('data.anbauteile.js'));
+  const C177 = await import(J('core.constants.js'));
+  const AS177 = await import(J('app.stabwerk.js'));
+  const lauf = (y) => {
+    const teil = { ...A177.neuesAnbauteil('frei', 10), befestigung: 'unten', raster: 0,
+      lasten: [{ einwirkung: 'G', y, z: -1.35, Fz: 5 }, { einwirkung: 'G', y, z: -1.35, Fy: 2 }] };
+    const w = C177.setzeAnbauteileAn({ ...standardwerte(), rechenverfahren: 'stabwerk' }, [teil]);
+    const s = N177.rechensatzMitNachbarn(w);
+    const args = N177.kernArgumente(s);
+    const k = V177.vergleichKombinationen(s, ...args);
+    const kern = Math.max(...Object.values(k.ergebnisse).map((r) => r.max?.etaGesamt ?? 0));
+    const sw = AS177.rechneStabwerk({ werte: w, letzte: { erg: berechne(s, ...args) }, stabwerk: null });
+    return { kern, stab: sw.reihe.find((r) => r.art === 'tragwerk').eta };
+  };
+  const plus = lauf(0.5), minus = lauf(-0.5);
+  wahr('Stabwerk: y −0.50 (Momente addieren sich) ungünstiger als +0.50',
+       minus.stab > plus.stab * 1.5, `${minus.stab.toFixed(3)} / ${plus.stab.toFixed(3)}`);
+  wahr('Kern ordnet gleich (vorher umgekehrt)', minus.kern > plus.kern,
+       `${minus.kern.toFixed(3)} / ${plus.kern.toFixed(3)}`);
+  wahr('Kern im ungünstigen Fall nicht unter dem Stabwerk', minus.kern >= minus.stab,
+       `${minus.kern.toFixed(3)} gegen ${minus.stab.toFixed(3)}`);
 }
 
 // ===========================================================================

@@ -39,9 +39,12 @@
  *           negativ = OBERHALB  (Jochaufsatz)
  *      ex   Versatz in Gleisrichtung gegenüber der Jochachse      [m]
  *
- *    Torsion je Last:   T = Ph * ev  +  Pv * ex
+ *    Torsion je Last:   T = Ph * ev  −  Pv * ex      (um +x, rechte Hand)
  *      - die horizontale Last am Hebelarm ev (Hängestütze/Aufsatz)
- *      - die vertikale Last am Hebelarm ex (Versatz in Gleisrichtung)
+ *      - die vertikale Last am Hebelarm ex (Versatz in Gleisrichtung, +y);
+ *        Pv nach unten bei +y dreht um −x. Bis zum 30. September stand
+ *        hier «+ Pv * ex» - das Vorzeichen widersprach dem ersten Glied
+ *        (siehe core.anbauteile.js, T_d).
  *    Wer nur eine der beiden Wirkungen braucht, lässt das andere Mass auf 0.
  * ---------------------------------------------------------------------------
  */

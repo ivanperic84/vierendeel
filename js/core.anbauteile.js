@@ -567,7 +567,22 @@ export function anbauteilLasten(teile, inp, hebelarm, bGurt = null) {
 
     // 2. Torsion um die Jochachse: horizontale Last am Hebelarm e_v, vertikale
     //    am Versatz e_x, dazu ein von Hand eingeprägtes M_xx.
-    const Td = Fy * ev + Fz * ex + Mxx;
+    /*
+     * >>> RECHTE HAND (30. September). <<<
+     * Weisung: «Beachte beim koordinatensystem die rechte hand regel im
+     * modell sowie in der output liste / nachweise». T_d ist das Moment um
+     * die Jochachse +x nach der rechten Hand (z nach oben): F_y unter der
+     * Achse (e_v > 0) gibt +e_v·F_y, eine Last NACH UNTEN bei +y gibt −y·F_z
+     * (F_z hier positiv nach unten). Hier stand +F_z·e_x: das zweite Glied
+     * hatte das Vorzeichen des ersten nicht. Gemessen am J90/20 m, freie Last
+     * 5 kN nach unten + 2 kN Wind y, 1.35 m unter dem Untergurt bei y +0.50:
+     * der Kern nannte «Wind +y» massgebend, das Stabwerk «Wind −y» (dort
+     * addieren sich beide Momente). Die Hülle blieb im Betrag gleich, weil
+     * der Wind in ±y wirkt - nicht aber bei einer Last, die nur in eine
+     * Richtung zieht (einseitig abgefangener Leiter mit Versatz y).
+     * `M_xx` gilt im selben Sinn (+x, rechte Hand), wie in der Ausleitung.
+     */
+    const Td = Fy * ev - Fz * ex + Mxx;
     if (Td) { T.push({ x: x1, w: Td / 2, name: a.name }); T.push({ x: x2, w: Td / 2, name: a.name }); }
 
     // 3. Last in Jochachse: Normalkraft plus Moment aus dem Hebelarm; dazu
