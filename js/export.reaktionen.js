@@ -352,33 +352,52 @@ function havarieLeiter(daten) {
 }
 
 /** Die Hinweise des Blattes. */
+/*
+ * >>> DIE HINWEISE NACH DER EINWIRKUNGS-MAPPE (1. Oktober). <<<
+ *
+ * Weisung: «Die HInweise im Blatt reaktionskräfte überarbeiten, nimm die
+ * excel einwirkungen als vorlage. den textblock bearbeitbar machen und man
+ * sollte es als vorlage speichern können danach.» Aufbau und Reihenfolge
+ * wie der Block «Hinweise» der Zusammenfassung: Zusammensetzung, getrennte
+ * Betrachtung längs/quer, abhebende Vertikallasten, Grenzwerte der
+ * Gebrauchstauglichkeit - die Grenzwerte als die in der Anwendung
+ * eingestellten (das, was nachgewiesen wurde). Danach, was nur dieses Blatt
+ * hat. Ohne Regelwerksnummer und Betreibernamen (die Ablage ist
+ * öffentlich); wer sie will, schreibt sie auf dem Blatt dazu und speichert
+ * den Text als Vorlage - sie bleibt dann in seinem Browser.
+ */
 export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
   const g = daten?.grenzen;
-  return `<ul class="rk-hinweise">
-    <li>Charakteristische Werte: alle Teilsicherheitsbeiwerte 1, Wind <b>ohne
-      Abminderung</b> (nicht der Betriebswind ψ 0.70).</li>
-    <li>Die Werte setzen sich aus den ständigen und den veränderlichen Lasten
-      zusammen. Die veränderlichen Einwirkungen quer und längs zum Gleis sind
-      getrennt betrachtet, nicht überlagert; je Spalte steht der massgebende
-      Fall (in der letzten Spalte bzw. beim Überfahren der Zahl).</li>
-    <li><b>Druckkräfte sind positiv</b>, negative Vertikalkräfte abhebend.
-      Momente, Horizontalkräfte und Torsion stehen als Betrag (±) - ihre
-      Richtung wechselt mit dem Wind.</li>
+  const gzg = g ? [
+    `Mastspitze L/${Math.round(g.spitzeN)} quer und längs zum Gleis`,
+    `Fahrdraht quer zum Gleis ${f1(g.fahrdraht * 1000)} mm`,
+    Number.isFinite(g.verdrehungGrad) ? `Verdrehung des Masten um seine Achse ${f1(g.verdrehungGrad)}°` : '',
+  ].filter(Boolean) : [];
+  return `<h2 class="rk-hinweise-titel">Hinweise</h2>
+  <ul class="rk-hinweise">
+    <li>Die Werte setzen sich aus den veränderlichen und den ständigen Lasten
+      zusammen - charakteristisch, alle Teilsicherheitsbeiwerte 1, Wind
+      <b>ohne Abminderung</b> (nicht der Betriebswind ψ 0.70).</li>
+    <li>Die Einwirkungen aus den veränderlichen Lasten können bei den
+      jeweiligen Gefährdungsbildern längs und quer zum Gleis separat
+      betrachtet werden; sie sind nicht überlagert. Je Spalte steht der
+      massgebende Fall.</li>
+    <li>Die negativen Werte bei den Vertikallasten sind als <b>abhebend</b>
+      anzusetzen (Druck positiv). Momente, Horizontalkräfte und Torsion stehen
+      als Betrag (±) - ihre Richtung wechselt mit dem Wind.</li>
+    ${gzg.length ? `<li>Für die Gebrauchstauglichkeitsnachweise sind folgende Grenzwerte
+      einzuhalten (Betriebswind ψ 0.70):
+      <ul>${gzg.map((x) => `<li>${x}</li>`).join('')}</ul></li>` : ''}
     ${havarie ? `<li>Der Havariefall (Leiterriss, aussergewöhnlich, Beiwerte 1) steht in
-      einer eigenen Zeile.</li>` : ''}
+      einer eigenen Zeile${havarieLeiter(daten).length ? `; reissen kann ${havarieLeiter(daten)
+      .map((n) => `«${esc(n)}»`).join(', ')}, je Leiter ein Fall mit Längszug ±y` : ''}.</li>` : ''}
     <li>«ständig / veränderl.»: Anteil am Moment quer zum Gleis M_y (M,q) -
       ständig ist der Betrag unter dem ganzen Eigengewicht G, veränderlich
-      der grösste aus Wind oder Schnee allein (Beiwert 1); gezeigt
-      ständig / (ständig + veränderlich).${standard ? ` In der Zeile der
-      Standardlasten der Anteil, den das Fundament für den veränderlichen
-      Teil zulässt (M_q veränderlich allein).` : ''}</li>
+      der grösste aus Wind oder Schnee allein; gezeigt ständig / (ständig +
+      veränderlich).${standard ? ` In der Zeile der Standardlasten der Anteil,
+      den das Fundament für den veränderlichen Teil zulässt.` : ''}</li>
     ${standard ? `<li>Standardlasten: zulässige Werte des Fundamenttyps für Gelände bis 14°
       Neigung; bei steilerem Gelände gelten kleinere Werte.</li>` : ''}
-    ${havarie && havarieLeiter(daten).length ? `<li>Havarie: reissen kann ${havarieLeiter(daten)
-      .map((n) => `«${esc(n)}»`).join(', ')} - je Leiter ein Fall mit Längszug ±y.</li>` : ''}
-    ${g ? `<li>Gebrauchstauglichkeit (in der Anwendung eingestellt, Betriebswind
-      ψ 0.70): Fahrdraht quer ${f1(g.fahrdraht * 1000)} mm, Mastspitze
-      L/${Math.round(g.spitzeN)}.</li>` : ''}
     <li>Gerechnet im Stabwerk der Anwendung: alle Tragwerke des Querprofils in
       einem Modell, jeder Mast mit den Kräften aller anschliessenden
       Tragwerke.</li>
@@ -386,10 +405,23 @@ export function hinweiseHtml(daten, { havarie = true, standard = true } = {}) {
 }
 
 /**
+ * Ein bearbeiteter Hinweistext ist HTML aus dem Blatt. Was darin nichts zu
+ * suchen hat, fällt weg: Skripte, Ereignis-Attribute, eingebettete Rahmen.
+ */
+export function hinweiseBereinigen(html) {
+  return String(html ?? '')
+    .replace(/<\s*(script|style|iframe|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|style|iframe|object|embed)[^>]*\/?>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
+/**
  * Das Blatt als eigenständiges HTML-Dokument (A4 quer), zum Drucken oder
  * als PDF.
  */
-export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hinweise = true } = {}) {
+export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hinweise = true,
+                                              hinweisText = null } = {}) {
   const kopf = [daten?.linie ? `Linie ${esc(daten.linie)}` : '',
     daten?.km ? `km ${esc(daten.km)}` : '', daten?.ortschaft ? esc(daten.ortschaft) : '']
     .filter(Boolean).join(' · ') || 'Linie / Station: –';
@@ -419,8 +451,13 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
     .rk-zul td { color: #555; background: #f7f7f7; font-style: italic; }
     .rk-leer { color: #bbb; }
     .rk-anm { font-size: 9.5px; color: #444; white-space: normal; }
-    .rk-hinweise { margin: 10px 0 0 16px; padding: 0; }
+    .rk-hinweise { margin: 6px 0 0 16px; padding: 0; }
     .rk-hinweise li { margin: 2px 0; }
+    .rk-hinweise ul { margin: 2px 0 2px 16px; padding: 0; }
+    .rk-hinweise-titel { font-size: 13px; margin: 12px 0 0; }
+    /* Bearbeitbar - am Bildschirm angedeutet, im Druck unsichtbar. */
+    @media screen { #rk-hinweise { outline: 1px dashed #c8c8c8; outline-offset: 4px; border-radius: 2px; }
+      #rk-hinweise:focus { outline-color: #4a5cb8; } }
     .fuss { margin-top: 10px; font-size: 9.5px; color: #777; }
   </style></head><body>
   <h1>Reaktionskräfte · Charakteristische Werte</h1>
@@ -433,8 +470,9 @@ export function reaktionenBlattHtml(daten, { havarie = true, standard = true, hi
         oben und y vom Betrachter weg.</figcaption></figure>
   </div>
   ${reaktionenTabelleHtml(daten, { havarie, standard })}
-  ${hinweise ? `<h2 style="font-size:13px;margin:12px 0 0">Hinweise</h2>
-  ${hinweiseHtml(daten, { havarie, standard })}` : ''}
+  ${hinweise ? `<div id="rk-hinweise" contenteditable="true" spellcheck="false"
+    title="Text bearbeitbar - in der Leiste oben als Vorlage speichern">${
+    hinweisText ? hinweiseBereinigen(hinweisText) : hinweiseHtml(daten, { havarie, standard })}</div>` : ''}
   <p class="fuss">${esc(daten?.fassung ?? '')}</p>
   </body></html>`;
 }

@@ -212,8 +212,11 @@ export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
   const kaesten = (wahl?.optionen ?? []).map((o) => `<label class="bericht-wahl">
       <input type="checkbox" data-bericht-wahl="${o.key}"${wahl.zustand?.[o.key] !== false
         ? ' checked' : ''}> ${o.label}</label>`).join('');
+  // Knöpfe einer Seite (1. Oktober: Hinweise als Vorlage speichern).
+  const aktionen = (wahl?.aktionen ?? []).map((a) => `<button class="btn btn-mini"
+      data-bericht-aktion="${a.key}" title="${a.titel ?? ''}">${a.label}</button>`).join('');
   ebene.innerHTML = `<div class="bericht-leiste">
-      <b>${titel}</b>${kaesten}
+      <b>${titel}</b>${kaesten}${aktionen}
       <button class="btn btn-acc" id="bericht-drucken">Drucken / als PDF sichern</button>
       <button class="btn" id="bericht-zu">Schliessen</button></div>
     <iframe title="${titel}"></iframe>`;
@@ -223,9 +226,15 @@ export function berichtZeigen(html, titel = 'Nachweisbericht', wahl = null) {
   ebene.querySelector('#bericht-drucken').onclick = () => rahmen.contentWindow?.print();
   ebene.querySelectorAll('[data-bericht-wahl]').forEach((k) => {
     k.onchange = () => {
+      // Was auf dem Blatt bearbeitet wurde, übersteht den Neuaufbau.
+      wahl.merken?.(rahmen);
       wahl.zustand = { ...(wahl.zustand ?? {}), [k.dataset.berichtWahl]: k.checked };
       rahmen.srcdoc = wahl.bauen(wahl.zustand);
     };
+  });
+  ebene.querySelectorAll('[data-bericht-aktion]').forEach((b) => {
+    const a = (wahl?.aktionen ?? []).find((x) => x.key === b.dataset.berichtAktion);
+    b.onclick = () => a?.tun(rahmen, () => { rahmen.srcdoc = wahl.bauen(wahl.zustand); });
   });
   ebene.querySelector('#bericht-zu').onclick = () => ebene.remove();
 }

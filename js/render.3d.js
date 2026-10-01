@@ -2457,7 +2457,7 @@ export class Modellansicht {
     if (oben) {
       c.font = this._wertFont();
       const w = z.vertikal ? z.dz : z.dx;
-      this._beschriftung(c, t, `${w >= 0 ? '+' : '−'}${Math.abs(w).toFixed(2)} m`,
+      this._beschriftung(c, t, `${z.kopie ? 'Kopie ' : ''}${w >= 0 ? '+' : '−'}${Math.abs(w).toFixed(2)} m`,
                          oben[0] + 6 * s, oben[1] - 8 * s, t.acc ?? '#7c8de0');
     }
   }
@@ -2480,7 +2480,7 @@ export class Modellansicht {
     c.restore();
     c.font = this._wertFont();
     const zeichen = z.d >= 0 ? '+' : '−';
-    this._beschriftung(c, t, `Δ${z.achse} ${zeichen}${Math.abs(z.d).toFixed(2)} m`,
+    this._beschriftung(c, t, `${z.kopie ? 'Kopie ' : ''}Δ${z.achse} ${zeichen}${Math.abs(z.d).toFixed(2)} m`,
                        b[0] + 8 * s, b[1] - 8 * s, t.acc ?? '#7c8de0');
   }
 
@@ -2869,7 +2869,8 @@ export class Modellansicht {
           if (b && w0) {
             griff = { art: 'punkt', bewegt: false, start: [e.clientX, e.clientY],
                       teil: b.teil, index: b.index, w0, achse: pt.achse,
-                      modul: pt.modul, last: pt.last, welt: pt.welt };
+                      modul: pt.modul, last: pt.last, welt: pt.welt,
+                      kopie: e.ctrlKey || e.metaKey };
           }
         }
         if (griff.art === 'drehen' && e.button === 0 && this.opt.beiAnbauteilZiehen
@@ -2880,7 +2881,9 @@ export class Modellansicht {
           if (u && w0) {
             griff = { art: 'anbau', bewegt: false, start: [e.clientX, e.clientY],
                       teil: u.b.teil, index: u.b.index, w0,
-                      vertikal: u.a?.ort === 'mastA' || u.a?.ort === 'mastB' };
+                      vertikal: u.a?.ort === 'mastA' || u.a?.ort === 'mastB',
+                      // Mit Strg gezogen entsteht eine Kopie (1. Oktober).
+                      kopie: e.ctrlKey || e.metaKey };
           }
         }
         c.style.cursor = griff.art === 'drehen' ? 'move' : 'grabbing';
@@ -2956,7 +2959,8 @@ export class Modellansicht {
         if (w && griff.bewegt) {
           const roh = griff.achse === 'x' ? w.x - griff.w0.x : w.z - griff.w0.z;
           this._ziehPunkt = { p: griff.welt, achse: griff.achse,
-                              d: Math.round(roh * 10) / 10 };
+                              d: Math.round(roh * 10) / 10,
+                              kopie: griff.kopie || e.ctrlKey || e.metaKey };
           this.zeichne();
         }
         return;
@@ -2969,7 +2973,8 @@ export class Modellansicht {
           const r = (v) => Math.round(v * 10) / 10;
           this._zieh = { teil: griff.teil, vertikal: griff.vertikal,
                          dx: griff.vertikal ? 0 : r(w.x - griff.w0.x),
-                         dz: griff.vertikal ? r(w.z - griff.w0.z) : 0 };
+                         dz: griff.vertikal ? r(w.z - griff.w0.z) : 0,
+                         kopie: griff.kopie || e.ctrlKey || e.metaKey };
           this.zeichne();
         }
         return;
@@ -2986,7 +2991,8 @@ export class Modellansicht {
         this._ziehPunkt = null;
         if (griff.bewegt && z && z.d) {
           this.opt.beiPunktZiehen(griff.index, { modul: griff.modul, last: griff.last,
-                                                 achse: griff.achse, d: z.d });
+                                                 achse: griff.achse, d: z.d,
+                                                 kopie: z.kopie || e.ctrlKey || e.metaKey });
         } else if (griff.bewegt) {
           this.zeichne();
         }
@@ -3004,7 +3010,8 @@ export class Modellansicht {
         const z = this._zieh;
         this._zieh = null;
         if (griff.bewegt && z && (z.dx || z.dz)) {
-          this.opt.beiAnbauteilZiehen(griff.index, { dx: z.dx, dz: z.dz });
+          this.opt.beiAnbauteilZiehen(griff.index, { dx: z.dx, dz: z.dz,
+                                                     kopie: z.kopie || e.ctrlKey || e.metaKey });
         } else if (griff.bewegt) {
           this.zeichne();
         } else {

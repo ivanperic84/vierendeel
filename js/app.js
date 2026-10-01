@@ -689,17 +689,55 @@ function reaktionsDaten() {
 // können ob man den havariefall / standardlasten / Hinweistext mit plotten
 // will»).
 let reaktionsWahl = { havarie: true, standard: true, hinweise: true };
+/*
+ * >>> DIE HINWEISE DES REAKTIONSBLATTS ALS VORLAGE (1. Oktober). <<<
+ * «den textblock bearbeitbar machen und man sollte es als vorlage speichern
+ * können danach.» Gespeichert im Browser (wie die übrigen Einstellungen
+ * unter `tragjoch-`), gilt dann für jedes neue Blatt statt des erzeugten
+ * Textes. Was auf dem Blatt geändert, aber nicht gespeichert ist, gilt nur
+ * für dieses Blatt.
+ */
+const RK_HINWEIS_VORLAGE = 'tragjoch-vorlage-reaktionshinweise';
+const rkVorlage = () => { try { return localStorage.getItem(RK_HINWEIS_VORLAGE); } catch { return null; } };
 function reaktionsBlatt() {
   const d = reaktionsDaten();
   if (d.fehlt) { meldeImBalken(`Reaktionskräfte: ${d.fehlt}`); return; }
+  let entwurf = null;                         // bearbeitet, nur dieses Blatt
+  const merken = (rahmen) => {
+    const el = rahmen?.contentDocument?.getElementById('rk-hinweise');
+    if (el) entwurf = el.innerHTML;
+  };
   const wahl = {
     optionen: [{ key: 'havarie', label: 'Havariefall' },
                { key: 'standard', label: 'Standardlasten' },
                { key: 'hinweise', label: 'Hinweise' }],
     zustand: reaktionsWahl,
-    bauen: (z) => { reaktionsWahl = z; return reaktionenBlattHtml(d, z); },
+    merken,
+    bauen: (z) => { reaktionsWahl = z;
+                    return reaktionenBlattHtml(d, { ...z, hinweisText: entwurf ?? rkVorlage() }); },
+    aktionen: [
+      { key: 'rk-vorlage', label: 'Hinweise als Vorlage',
+        titel: 'Den Hinweistext, wie er auf dem Blatt steht, als Vorlage speichern - '
+             + 'er gilt dann für jedes neue Blatt (in diesem Browser).',
+        tun: (rahmen) => {
+          merken(rahmen);
+          if (!entwurf) return;
+          try {
+            localStorage.setItem(RK_HINWEIS_VORLAGE, entwurf);
+            meldeImBalken('Hinweistext als Vorlage gespeichert - er gilt für jedes neue Blatt.');
+          } catch { meldeImBalken('Die Vorlage liess sich in diesem Browser nicht speichern.'); }
+        } },
+      { key: 'rk-vorgabe', label: 'Vorlage löschen',
+        titel: 'Die gespeicherte Vorlage löschen und den erzeugten Hinweistext zeigen.',
+        tun: (rahmen, neu) => {
+          if (rkVorlage() && !window.confirm('Die gespeicherte Hinweis-Vorlage löschen?')) return;
+          try { localStorage.removeItem(RK_HINWEIS_VORLAGE); } catch { /* nichts gespeichert */ }
+          entwurf = null;
+          neu();
+        } },
+    ],
   };
-  berichtZeigen(reaktionenBlattHtml(d, reaktionsWahl), 'Reaktionskräfte', wahl);
+  berichtZeigen(wahl.bauen(reaktionsWahl), 'Reaktionskräfte', wahl);
 }
 
 function neuRechnen(neuZeichnen = true) {
@@ -3099,10 +3137,19 @@ const nurMastteile = (liste) => (liste ?? []).filter((a) => a?.ort === 'mastA' |
  * dem Bild; geschrieben wird über `setzeAnbauteile` - derselbe Weg wie jede
  * Eingabe, samt Fundamentkote und Rückgängig.
  */
-function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
+function anbauteilZiehen(i, { dx = 0, dz = 0, kopie = false }) {
   const liste = [...(werte.anbauteile ?? [])];
   const a = liste[i];
   if (!a) return;
+  /*
+   * >>> MIT STRG GEZOGEN: EINE KOPIE AN DER NEUEN STELLE (1. Oktober). <<<
+   * «wenn man ctrl hält und ein element per drag and drop verschiebt
+   * direkt eine kopie erstellt wird an der neuen stelle.» Das Original
+   * bleibt, die Kopie (neue Kennung, Module und Lasten mit) steht gleich
+   * dahinter in der Liste - wie beim Duplizieren.
+   */
+  const ziel = kopie ? JSON.parse(JSON.stringify(a)) : a;
+  if (kopie) { ziel.id = `AT-${Math.random().toString(36).slice(2, 8)}`; ziel.aktiv = true; }
   // Das Ergebnis auf 0.10 m (1. Oktober: «Beim Absetzen der Bauteile auf
   // 0.10m den x oder z Wert runden»).
   const r = (v) => Math.round(v * 10) / 10;
@@ -3111,7 +3158,7 @@ function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
     const alt = Number(a.hMast) || 0;
     const h = r(Math.max(0, alt + dz));
     if (Math.abs(h - alt) < 1e-9) return;
-    neu = { ...a, hMast: h };
+    neu = { ...ziel, hMast: h };
     text = `Höhe ${alt.toFixed(2)} → ${h.toFixed(2)} m`;
   } else {
     const t = tragwerkeVon(werte)[0];
@@ -3121,13 +3168,15 @@ function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
     const alt = Number(a.x) || 0;
     const x = r(Math.min(Math.max(alt + richtung * dx, 0), ende));
     if (Math.abs(x - alt) < 1e-9) return;
-    neu = { ...a, x };
+    neu = { ...ziel, x };
     text = `x ${alt.toFixed(2)} → ${x.toFixed(2)} m`;
   }
-  liste[i] = neu;
+  if (kopie) liste.splice(i + 1, 0, neu);
+  else liste[i] = neu;
   setzeAnbauteile(liste);
-  meldeImBalken(`${a.name ?? 'Anbauteil'} verschoben: ${text} · Strg+Z nimmt es zurück`,
-                { dauer: 5000 });
+  meldeImBalken(`${a.name ?? 'Anbauteil'} ${kopie ? 'kopiert' : 'verschoben'}: ${text}`
+    + ' · Strg+Z nimmt es zurück', { dauer: 5000 });
+  if (kopie) zeigeAnbauteil(i + 1);
 }
 
 /**
@@ -3138,7 +3187,7 @@ function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
  * auf dieser Achse wandert um den Weg, das Ergebnis auf 0.10 m. Geschrieben
  * wird mit der Reihenfolge der Achsen (`achsfolge`), wie die Karte es tut.
  */
-function punktZiehen(i, { modul = null, last = null, achse, d }) {
+function punktZiehen(i, { modul = null, last = null, achse, d, kopie = false }) {
   const liste = [...(werte.anbauteile ?? [])];
   const a = liste[i];
   if (!a || !['x', 'z'].includes(achse) || !d) return;
@@ -3153,19 +3202,22 @@ function punktZiehen(i, { modul = null, last = null, achse, d }) {
     alt = Number(m[modul][achse]) || 0;
     neu = r(alt + richtung * d);
     const folge = achsfolge(m[modul].folge, achse, neu);
-    m[modul] = { ...m[modul], [achse]: neu, ...(folge ? { folge } : { folge: undefined }) };
+    const gezogen = { ...m[modul], [achse]: neu, ...(folge ? { folge } : { folge: undefined }) };
+    // Mit Strg: das Modul bleibt, eine Kopie kommt an die neue Stelle.
+    if (kopie) m.splice(modul + 1, 0, gezogen); else m[modul] = gezogen;
     liste[i] = { ...a, module: m };
   } else if (Number.isInteger(last) && a.lasten?.[last]) {
     const l = a.lasten.map((x) => ({ ...x }));
     alt = Number(l[last][achse]) || 0;
     neu = r(alt + richtung * d);
-    l[last] = { ...l[last], [achse]: neu };
+    const gezogen = { ...l[last], [achse]: neu };
+    if (kopie) l.splice(last + 1, 0, gezogen); else l[last] = gezogen;
     liste[i] = { ...a, lasten: l };
   } else return;
   if (Math.abs(neu - alt) < 1e-9) return;
   setzeAnbauteile(liste);
-  meldeImBalken(`${name}: Angriffspunkt ${achse} ${alt.toFixed(2)} → ${neu.toFixed(2)} m `
-    + '· Strg+Z nimmt es zurück', { dauer: 5000 });
+  meldeImBalken(`${name}: Angriffspunkt ${kopie ? 'kopiert' : 'verschoben'}, ${achse} `
+    + `${alt.toFixed(2)} → ${neu.toFixed(2)} m · Strg+Z nimmt es zurück`, { dauer: 5000 });
 }
 
 function setzeAnbauteile(liste) {
@@ -3816,49 +3868,68 @@ function verdrahteZeichnung() {
 
 // --- Anbauteile: Vorlagen, Lage, Generator ----------------------------------
 
-/** Ein angelegtes Anbauteil als eigene Vorlage sichern. */
+/**
+ * Ein angelegtes Anbauteil als eigene Vorlage sichern.
+ *
+ * >>> ÜBERSCHREIBEN ODER NEU (1. Oktober). <<<
+ * Weisung: «beim speichern der bauteile frage nach ob man die vorlage
+ * überschreiben will oder einen neuen eintrag erstellen will.» Ein Dialog
+ * statt Namensfeld und OK/Abbrechen: stammt das Teil aus einer eigenen
+ * Vorlage, steht «Vorlage … überschreiben» vorne (Vorgabe), daneben «Neue
+ * Vorlage anlegen» mit Namen. Katalogvorlagen werden nie überschrieben - sie
+ * sind die gepflegte Grundlage; von ihnen gibt es nur «neu».
+ *
+ * >>> NICHT ZWEIMAL DASSELBE (Weisung vom 9. September). <<<
+ * «Die kacheln sind teilweise mehrfach enthalten, die ich mal definiert und
+ * gespeichert habe.» Ein neuer Eintrag mit einem schon vergebenen Namen
+ * bekommt einen eigenen («Name (2)»), statt eine zweite gleichnamige Kachel.
+ */
 function vorlageSichern(i) {
   const a = (werte.anbauteile ?? [])[i];
   if (!a) return;
-  const name = prompt('Name der Vorlage:', a.name);
-  if (!name) return;
-  const neu = alsVorlage(a, name);
   const alt = werte.eigeneVorlagen ?? [];
-  /*
-   * >>> NICHT ZWEIMAL DASSELBE. <<<
-   *
-   * Weisung vom 9. September: «Die kacheln sind teilweise mehrfach enthalten,
-   * die ich mal definiert und gespeichert habe.»
-   *
-   * Bisher wurde angehaengt. Wer denselben Namen ein zweites Mal bestaetigte,
-   * bekam eine zweite Kachel - und beim dritten Mal eine dritte. Jetzt wird
-   * gefragt: ERSETZEN heisst, die Vorlage ist neu gefasst; DANEBEN heisst,
-   * es sind zwei, und dann bekommt die zweite auch einen eigenen Namen.
-   */
-  const gleich = alt.findIndex(
-    (v) => String(v.name ?? '').trim() === name.trim());
-  let liste;
-  if (gleich >= 0) {
-    const ersetzen = confirm(
-      `Eine eigene Vorlage «${name}» gibt es schon.
-
-`
-      + 'OK ersetzt sie. Abbrechen legt die neue daneben — sie bekommt dann '
-      + 'einen eigenen Namen.');
-    if (ersetzen) {
-      liste = alt.map((v, k) => (k === gleich ? { ...neu, id: v.id } : v));
+  const herkunft = alt.find((v) => v.id === a.vorlage) ?? null;
+  const html = `
+    ${herkunft ? `<div class="feld"><label>Was soll geschehen?</label>
+      <div class="dlg-wahl dlg-wahl-spalte">
+        <label><input type="radio" name="vs-art" value="ueber" checked>
+          Vorlage «${esc(herkunft.name)}» überschreiben</label>
+        <label><input type="radio" name="vs-art" value="neu"> Neue Vorlage anlegen</label>
+      </div></div>` : ''}
+    <div class="feld" id="vs-name-feld"${herkunft ? ' hidden' : ''}>
+      <label for="vs-name">Name der neuen Vorlage</label>
+      <input id="vs-name" type="text" value="${esc(a.name ?? '')}"></div>
+    <p class="notiz">${herkunft
+      ? 'Überschreiben ändert die Kachel für alle künftigen Teile; schon gesetzte Teile bleiben, wie sie sind.'
+      : 'Das Teil stammt aus dem Katalog - der bleibt unverändert, die Vorlage kommt als eigene Kachel dazu.'}</p>`;
+  const d = dialog('Als Vorlage speichern', html,
+    `<button class="btn" data-zu>Abbrechen</button>
+     <button class="btn btn-acc" data-vs-ok>Speichern</button>`);
+  const n = d.node;
+  const art = () => n.querySelector('input[name="vs-art"]:checked')?.value ?? 'neu';
+  n.querySelectorAll('input[name="vs-art"]').forEach((r) => {
+    r.onchange = () => { n.querySelector('#vs-name-feld').hidden = art() !== 'neu'; };
+  });
+  n.querySelector('[data-vs-ok]').onclick = () => {
+    let liste;
+    if (herkunft && art() === 'ueber') {
+      const v = alsVorlage(a, herkunft.name);
+      liste = alt.map((x) => (x.id === herkunft.id ? { ...v, id: herkunft.id } : x));
+      meldeImBalken(`Vorlage «${herkunft.name}» überschrieben.`);
     } else {
-      const frei = (n) => (alt.some((v) => v.name === n)
-        ? frei(`${name} (${alt.filter((v) => v.name.startsWith(name)).length
-                          + 1})`) : n);
-      liste = [...alt, { ...neu, name: frei(`${name} (2)`) }];
+      const name = String(n.querySelector('#vs-name')?.value ?? '').trim();
+      if (!name) { n.querySelector('#vs-name')?.focus(); return; }
+      const vergeben = (x) => alt.some((v) => String(v.name ?? '').trim() === x);
+      let frei = name;
+      for (let k = 2; vergeben(frei); k++) frei = `${name} (${k})`;
+      liste = [...alt, alsVorlage(a, frei)];
+      meldeImBalken(`Neue Vorlage «${frei}» angelegt.`);
     }
-  } else {
-    liste = [...alt, neu];
-  }
-  werte = { ...werte, eigeneVorlagen: liste };
-  setzeEigeneVorlagen(liste);
-  neuRechnen();
+    d.zu();
+    werte = { ...werte, eigeneVorlagen: liste };
+    setzeEigeneVorlagen(liste);
+    neuRechnen();
+  };
 }
 
 function vorlageEntfernen(id) {

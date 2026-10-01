@@ -34022,7 +34022,9 @@ titel('169  Reaktionskräfte aller Auflager, charakteristisch - Reiter und Blatt
   const blatt = ER.reaktionenBlattHtml(daten);
   wahr('Das Blatt: Tabelle, Skizze, Achssystem, Hinweise',
        blatt.includes('rk-tabelle') && blatt.includes('rk-skizze') && blatt.includes('rk-achsen')
-       && blatt.includes('Druckkräfte sind positiv') && blatt.includes('ohne\n      Abminderung'));
+       // Seit dem 1. Oktober nach dem Hinweisblock der Einwirkungs-Mappe.
+       && blatt.includes('als <b>abhebend</b>') && blatt.includes('Druck positiv')
+       && blatt.includes('<b>ohne Abminderung</b>'));
   wahr('Kein «−0.00» in der Tabelle', !ER.reaktionenTabelleHtml(daten).includes('−0.00'));
   const app = APP_QUELLE();
   wahr('Export-Menü und Reiter Auflager führen sie',
@@ -34449,7 +34451,11 @@ titel('176  Anbauteile ziehen, Esc ohne Zoom, Leiter an zwei Punkten, rechte Han
        && r3.includes('_ziehMalen(c, proj, t)') && r3.includes('Math.round(v * 10) / 10'));
   wahr('… die App schreibt über setzeAnbauteile (Joch: x begrenzt, Mast: Höhe)',
        app.includes('beiAnbauteilZiehen: (i, weg) => anbauteilZiehen(i, weg)')
-       && /function anbauteilZiehen[\s\S]{0,1600}setzeAnbauteile\(liste\)/.test(app));
+       && /function anbauteilZiehen[\s\S]{0,3000}setzeAnbauteile\(liste\)/.test(app));
+  // Mit Strg gezogen entsteht eine Kopie (1. Oktober) - Bauteil und Angriffspunkt.
+  wahr('Strg + Ziehen legt eine Kopie ab (Bauteil: Liste dahinter; Punkt: Modul dahinter)',
+       r3.includes('kopie: e.ctrlKey || e.metaKey') && app.includes('if (kopie) liste.splice(i + 1, 0, neu);')
+       && app.includes('if (kopie) m.splice(modul + 1, 0, gezogen); else m[modul] = gezogen;'));
   wahr('Esc hebt Auswahl und Einzelheitsblick auf, ohne zu zoomen',
        r3.includes('  auswahlAufheben() {')
        && app.includes('if (ansicht?.detail) { zuletztGezoomt = null; ansicht.auswahlAufheben(); return; }')
@@ -34592,6 +34598,31 @@ titel('179  F_z der Lastblöcke nach oben (Eingabe nach 3D, rechte Hand)');
   wahr('Anzeige der Anbauteilkräfte nach oben (Gewicht negativ), Feld «F_z ↑»',
        ui.includes("['F_z', -(su.Gz + su.Qz)]") && ui.includes("['G', 'F_z', -(l.Gz ?? 0)]")
        && ui.includes("'F_z ↑'"));
+}
+
+titel('180  Vorlage überschreiben oder neu; Hinweise des Reaktionsblatts nach der Mappe, bearbeitbar');
+{
+  const app = APP_QUELLE();
+  wahr('Als Vorlage speichern: Dialog «überschreiben» (eigene Vorlage) oder «neu», Name frei gemacht',
+       app.includes('name="vs-art" value="ueber" checked') && app.includes('Neue Vorlage anlegen')
+       && app.includes('for (let k = 2; vergeben(frei); k++) frei = `${name} (${k})`;'));
+  const ER180 = await import(J('export.reaktionen.js'));
+  const h = ER180.hinweiseHtml({ grenzen: { fahrdraht: 0.04, spitzeN: 100, verdrehungGrad: 5 } });
+  wahr('Hinweise in der Reihenfolge der Mappe: Zusammensetzung, längs/quer getrennt, abhebend, Grenzwerte',
+       h.indexOf('setzen sich aus den veränderlichen') < h.indexOf('separat')
+       && h.indexOf('separat') < h.indexOf('als <b>abhebend</b>')
+       && h.indexOf('als <b>abhebend</b>') < h.indexOf('Grenzwerte')
+       && h.includes('L/100') && h.includes('40.0 mm') && h.includes('5.0°'));
+  wahr('… ohne Betreibernamen und Regelwerksnummer (die Ablage ist öffentlich)',
+       !/SBB|0161\./.test(readFileSync(join(HIER, 'js', 'export.reaktionen.js'), 'utf8')));
+  const blatt = ER180.reaktionenBlattHtml({ zeilen: [], grenzen: null },
+    { hinweisText: '<h2>Eigen</h2><script>alert(1)</script><p onclick="x()">Text</p>' });
+  wahr('Der Hinweisblock ist bearbeitbar; eine Vorlage ersetzt ihn, bereinigt',
+       blatt.includes('id="rk-hinweise" contenteditable="true"') && blatt.includes('<h2>Eigen</h2>')
+       && !blatt.includes('<script>alert') && !blatt.includes('onclick'));
+  wahr('Als Vorlage gespeichert im Browser, Bearbeitung übersteht den Neuaufbau',
+       app.includes("const RK_HINWEIS_VORLAGE = 'tragjoch-vorlage-reaktionshinweise';")
+       && readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8').includes('wahl.merken?.(rahmen);'));
 }
 
 // ===========================================================================

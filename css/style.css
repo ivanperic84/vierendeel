@@ -3229,6 +3229,7 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 /* Wahl der Anbauteile beim neuen Tragwerk (1. Oktober). */
 .dlg-wahl { display: flex; gap: 14px; flex-wrap: wrap; }
 .dlg-wahl label { display: inline-flex; align-items: center; gap: 5px; }
+.dlg-wahl-spalte { flex-direction: column; gap: 6px; }
 .dlg-masten select { flex: 1; min-width: 0; }
 
 /* Kacheln «Neues Tragwerk» (30. September): anklicken oder ins 3D ziehen.
