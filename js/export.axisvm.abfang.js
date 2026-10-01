@@ -69,10 +69,18 @@ import { linkBedingung, konsolLaenge } from './core.auflager.js';
 import { getMastprofil, getStegrichtung } from './data.masten.js';
 import { havarieKandidaten, leiterKennung } from './data.anbauteile.js';
 
-/** Ausrundungsradius je Profilreihe [mm] — aus dem Katalog des Profils. */
-const RADIUS = { 'UPE 160': 10, 'UPE 200': 11, 'UPE 240': 12,
-                 'IPE 240': 15, 'IPE 270': 15, 'IPE 300': 15,
-                 'IPE 330': 18, 'IPE 360': 18 };
+/**
+ * AUSRUNDUNGSRADIUS [mm] - aus der Profiltabelle (data/normen.json, `r` in cm).
+ *
+ * Bis zum 2. Oktober stand hier eine eigene Tabelle mit UPE 160/200/240 =
+ * 10/11/12 mm. Die Profilnorm (EN 10365) fuehrt 12/13/15 mm - nachgerechnet
+ * aus dem gerundeten Umriss treffen erst diese die Flaechen und
+ * Traegheitsmomente der Tabelle (auf 0.02 %, vergleich_profile.mjs); mit den
+ * alten lag A 0.7-0.9 % darunter. Der UPE 140 fehlte ganz und fiel auf den
+ * Rueckfall 10 mm. Eine zweite Radientabelle neben der Profiltabelle war
+ * eine zweite Wahrheit; der Rueckfall bleibt nur fuer ein Profil ohne r.
+ */
+const radius = (p, rueckfall) => (Number(p?.r) > 0 ? Math.round(p.r * 100) / 10 : rueckfall);
 
 /**
  * Das Stabmodell eines Abfangjochs im Austauschformat des Aufbauskripts.
@@ -212,8 +220,8 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
      * dort war die Belegung von Anfang an richtig.
      */
     parameter: istU
-      ? [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, RADIUS[p.name] ?? 10]
-      : [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, RADIUS[p.name] ?? 15],
+      ? [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, radius(p, 10)]
+      : [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10, radius(p, 15)],
     profil: p.name,
     A: p.A / 1e4, Iy: p.Iy / 1e8, Iz: p.Iz / 1e8, It: p.It / 1e8,
   }];
@@ -305,7 +313,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     querschnitte.push({
       name: 'GABEL', form: 'DoppelU', profil: `2 × ${p.name}`,
       parameter: [p.h * 10, p.b * 10, p.tw * 10, p.tf * 10,
-                  RADIUS[p.name] ?? 10],
+                  radius(p, 10)],
       versatz: gabelVersatz,
       A: A2 / 1e4,
       // Die starke Achse addiert sich schlicht - beide Profile stehen
@@ -337,7 +345,7 @@ export function abfangAxisvmModell(typ, jt, opt = {}) {
     querschnitte.push({
       name: 'STEIFE', form: 'I',
       parameter: [qsteife.h * 10, qsteife.b * 10,
-                  qsteife.tw * 10, qsteife.tf * 10, RADIUS[qsteife.name] ?? 15],
+                  qsteife.tw * 10, qsteife.tf * 10, radius(qsteife, 15)],
       profil: qsteife.name,
       A: qsteife.A / 1e4, Iy: qsteife.Iy / 1e8,
       Iz: qsteife.Iz / 1e8, It: qsteife.It / 1e8,

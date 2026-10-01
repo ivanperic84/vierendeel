@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **2. Oktober 2026**; Prüfstand 6112 Kontrollen grün,
+Stand: **2. Oktober 2026**; Prüfstand 6126 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
 2. Oktober (Profile) ist committet, **nicht gepusht** - pushen nur auf Weisung.
 
@@ -15,6 +15,11 @@ Stand: **2. Oktober 2026**; Prüfstand 6112 Kontrollen grün,
   ein Profil öffnet das **Profilblatt** (`ui.profilblatt.js`): hinterlegte
   Kenndaten ungerundet, massstäblicher Schnitt mit Vermassung und
   Schwerpunkt.
+- **2. Oktober, Profile nach Norm:** Ausrundungen in `data/normen.json`
+  (Winkel r1/r2 EN 10056-1, HEB/HEM r, UPE-Radien auf 12/13/15 mm
+  berichtigt), UNP mit 8 % Flanschneigung; `vergleich_profile.mjs` rechnet
+  jede Tabellenzeile aus ihrem Umriss nach - 14 von 246 Werten über 1 %
+  an vier Winkeln, gemeldet (⚠ in CLAUDE.md, *Offene Punkte*).
 - **Bericht und Excel auf dem Stabwerksweg**, je ein Bericht auch für
   Abfangjoch und Tragausleger (`export.stabbericht.js`): ganzes Blatt,
   je Bauteil der massgebende Stab mit eingesetzter Formel und die zehn
@@ -40,7 +45,8 @@ Stand: **2. Oktober 2026**; Prüfstand 6112 Kontrollen grün,
 Signalbauer mit Bildern; «+ Bauteil aus
 der Lasttabelle»; «Fahrleitung als Auflager» nur mit Leiter;
 Rückstellkraft der Leiter am Joch («Halt in y, begrenzt», 10 %).
-Entscheide offen (⚠): Tragausleger am Masten eines Jochs im Stabwerk;
+Entscheide offen (⚠): Abweichungen der Winkeltabelle (L 45x45x5 unsicher);
+Tragausleger am Masten eines Jochs im Stabwerk;
 Tragausleger mit Auslegerwind (Mast η 1.054); die 15–20 % gegen AxisVM
 (Angaben nötig); der Reiter *Schnitt* im Stabwerk; ältere AxisVM-Messungen
 mit falscher Linklage; PyNite-Links.
@@ -106,7 +112,7 @@ schon belegt ist — dann läuft noch einer, und der ist zu beenden.
 ## Die Werkzeuge
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6112 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6126 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 python3 build_html.py       # buendelt js/ + css/ -> vierendeel_tool.html
 python3 serve.py            # Modulversion: http://localhost:8731/index.html

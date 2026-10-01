@@ -14448,11 +14448,18 @@ titel('50  Der Winkel bekommt seine Ausrundung');
      * Kehle. Da gibt es nichts zurueckzurechnen. Ehrlich null ist besser als
      * eine erfundene Zahl - und es steht in der Ausleitung.
      */
+    /*
+     * SEIT DEM 2. OKTOBER TRAEGT DIE TABELLE DIE NORMRADIEN (Weisung «die
+     * profile sind gemäss szs c5 oder eurocode zu zeichnen»). Dann gilt der
+     * Tabellenwert - die Regel weiter unten («DIE DATEN SCHLAGEN DIE
+     * HERLEITUNG»). Die Rueckrechnung aus der Flaeche bleibt der Weg fuer ein
+     * Profil ohne r1. Die Flaechenprobe darueber gilt fuer beide.
+     */
     if (r.r1 > 0) {
       wahr(`${p.name}: der Radius ist plausibel`,
            r.r1 < 2.2 * p.t, `${r.r1} mm bei t = ${p.t}`);
-      wahr(`${p.name}: aus der Flaeche, nicht aus der Tabelle`,
-           r.quelle === 'flaeche');
+      wahr(`${p.name}: aus der Tabelle, wo sie ihn fuehrt, sonst aus der Flaeche`,
+           r.quelle === (Number.isFinite(p.r1) ? 'tabelle' : 'flaeche'), r.quelle);
     } else {
       wahr(`${p.name}: ohne Ausrundung, und es steht dabei`,
            r.quelle === 'keine', r.quelle);
@@ -34962,18 +34969,21 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
   pruef('L 130x80x12: z_s = 10 · zsH (ab dem liegenden Schenkel)', gL.zs, wink2.zsH * 10, 1e-9, 'mm');
   wahr('L 130x80x12: liegender Schenkel waagrecht (a_H = 130), stehender lotrecht (a_V = 80)',
        gL.aH === 130 && gL.aV === 80);
+  wahr('L 90x90x9: r1 und r2 aus der Tabelle (EN 10056-1: 11 / 5.5)',
+       PB.profilGeometrie('winkel', wink).r1 === 11 && PB.profilGeometrie('winkel', wink).r2 === 5.5);
   const gU = PB.profilGeometrie('walz', upe);
   wahr('UPE 140: Walzprofil cm → mm, U-Form, r = 12, e_y = 21.7',
        gU.form === 'U' && gU.h === 140 && gU.b === 65 && Math.abs(gU.r - 12) < 1e-9
        && Math.abs(gU.ys - 21.7) < 1e-9);
   const gH = PB.profilGeometrie('mast', heb);
-  wahr('HEB 260: Mastprofil in mm, I-Form, ohne Ausrundung (keine hinterlegt)',
-       gH.form === 'I' && gH.h === 260 && gH.r === 0);
+  wahr('HEB 260: Mastprofil in mm, I-Form, r = 24 aus der Tabelle (EN 10365)',
+       gH.form === 'I' && gH.h === 260 && gH.r === 24, String(gH.r));
   const gA = PB.profilGeometrie('anker', unp);
   wahr('UNP 120 des Ankers: U-Form, mm, e_y = 16', gA.form === 'U' && gA.h === 120 && Math.abs(gA.ys - 16) < 1e-9);
   wahr('Ohne Masse keine Geometrie (Seilanker)', PB.profilGeometrie('anker', { A: 1 }) === null);
 
   // (b) S im Bild: Abstand des Kreises zur Bezugskante = Tabellenwert · Massstab.
+  // Der Umriss beginnt an einer scharfen Ecke der Bezugskante (siehe `ecken`).
   const sLage = (g) => {
     const svg = PB.profilSchnittSvg(g).svg;
     const S = svg.match(/class="pb-s" cx="([\d.]+)" cy="([\d.]+)"/);
@@ -34994,12 +35004,45 @@ titel('184  Profile: Querschnittsklasse und Fussnaht am Masten; Profilblatt mit 
     pruef('UPE 140 im Bild: S rechts des Stegrückens um e_y · Massstab', S[0] - M[0], gU.ys * skala, 0.02, 'px');
     pruef('UPE 140 im Bild: S in halber Höhe', S[1] - M[1], gU.h / 2 * skala, 0.02, 'px');
   }
-  // (c) Die Ausrundungen: je eine Bogenmarke, und nur, wo r hinterlegt ist.
-  const boegen = (g) => (PB.profilSchnittSvg(g).svg.match(/class="pb-flaeche" d="[^"]*"/)[0].match(/ A /g) ?? []).length;
-  wahr('Bögen: IPE 4, UPE 2, UNP 2, HEB 0 (kein r), Winkel 0',
-       boegen(PB.profilGeometrie('walz', ipe)) === 4 && boegen(gU) === 2 && boegen(gA) === 2
-       && boegen(gH) === 0 && boegen(gL) === 0,
-       [ipe, upe].map((p) => boegen(PB.profilGeometrie('walz', p))).join('/'));
+  /*
+   * (c) Querschnittswerte aus dem gerundeten Umriss (Weisung 2. Oktober,
+   * «prüfe die angaben mit der berechnungsdatenbank ab»). Zuerst die Rechnung
+   * selbst gegen die geschlossene Lösung: ein I ohne Ausrundung.
+   */
+  {
+    const g0 = { form: 'I', h: 200, b: 100, tw: 10, tf: 20, r: 0, r1: 0 };
+    g0.ecken = PB.profilGeometrie('mast', { h: 200, b: 100, tw: 10, tf: 20 }).ecken;
+    const q0 = PB.querschnittAusUmriss(g0);
+    pruef('Umriss I 200x100x10x20 ohne r: A = 2bt_f + (h−2t_f)t_w', q0.A, (2 * 100 * 20 + 160 * 10) / 100, 1e-9, 'cm²');
+    pruef('Umriss I ohne r: I_y = (bh³ − (b−t_w)(h−2t_f)³)/12', q0.Iy,
+          (100 * 200 ** 3 - 90 * 160 ** 3) / 12 / 1e4, 1e-6, 'cm⁴');
+    pruef('Umriss I ohne r: I_z = (2t_f b³ + (h−2t_f) t_w³)/12', q0.Iz,
+          (2 * 20 * 100 ** 3 + 160 * 10 ** 3) / 12 / 1e4, 1e-6, 'cm⁴');
+  }
+  // Dann die Tabellen: mit den Normradien treffen A und I die hinterlegten Werte.
+  const qq = (art, p) => PB.querschnittAusUmriss(PB.profilGeometrie(art, p));
+  {
+    const q = qq('mast', heb);
+    pruef('HEB 260 mit r = 24: A wie die Tabelle', q.A, heb.A, 0.001 * heb.A, 'cm²');
+    pruef('HEB 260 mit r = 24: I_y wie die Tabelle', q.Iy, heb.Iy, 0.001 * heb.Iy, 'cm⁴');
+    const u160 = NO.walzprofile().find((p) => p.name === 'UPE 160');
+    const q2 = qq('walz', u160);
+    pruef('UPE 160 mit r = 12 (EN, vorher 10): A wie die Tabelle', q2.A, u160.A, 0.001 * u160.A, 'cm²');
+    pruef('UPE 160: e_y wie die Tabelle', q2.ys / 10, u160.ey, 0.002 * u160.ey, 'cm');
+    const q3 = qq('winkel', wink);
+    pruef('L 90x90x9 mit r1 11 / r2 5.5: A wie die Tabelle', q3.A, wink.A, 0.002 * wink.A, 'cm²');
+    pruef('L 90x90x9: Schwerpunkt wie die Tabelle', q3.zs / 10, wink.zsH, 0.002 * wink.zsH, 'cm');
+    const q4 = qq('anker', unp);
+    pruef('UNP 120 (Neigung 8 %, t_f bei b/2): A wie die Tabelle', q4.A, unp.AEinzel, 0.002 * unp.AEinzel, 'cm²');
+    pruef('UNP 120: I_y wie die Tabelle', q4.Iy, unp.IyEinzel, 0.002 * unp.IyEinzel, 'cm⁴');
+    // t_f gilt bei b/2 vom Stegruecken: dort hat der Flansch genau t_f.
+    const e = gA.ecken;
+    const zi = (y) => e[2][1] + (e[3][1] - e[2][1]) * (y - e[2][0]) / (e[3][0] - e[2][0]);
+    pruef('UNP 120: Flanschdicke bei b/2 = t_f', gA.h / 2 - zi(gA.b / 2), gA.tf, 1e-9, 'mm');
+    wahr('UNP 120: r₂ = r₁/2 an der Flanschspitze', gA.r2 === gA.r1 / 2);
+  }
+  // Der Winkel ohne Radien (L 130x80x12, Sollgeometrie) bleibt scharf und trifft so die Tabelle.
+  pruef('L 130x80x12 ohne Radien: A wie die Tabelle (Sollgeometrie)', qq('winkel', wink2).A, wink2.A, 1e-6, 'cm²');
 
   // (d) Die Tabelle des Blattes: die Werte ungerundet, wie hinterlegt.
   const html = PB.profilBlattHtml({ art: 'winkel', p: wink, name: wink.name, rolle: 'Obergurt' });
