@@ -24,8 +24,9 @@ import { diagramme, abfangDiagramme, ankerDiagramm,
 import { erzeugeSzene, szeneVerschieben, szenenVereinen,
          Modellansicht, ANSICHTEN, MODI,
          LASTARTEN } from './render.3d.js';
-import { exportiere } from './export.bericht.js';
-import { dialogBericht, berichtZeigen } from './app.bericht.js';
+import { exportiere, exportiereStabwerk } from './export.bericht.js';
+import { dialogBericht, berichtZeigen, berichtUeberStabwerk,
+         stabwerkBerichtDaten } from './app.bericht.js';
 import { reaktionenKurzHtml, reaktionenBlattHtml } from './export.reaktionen.js';
 import { exportiereAxisvm, exportiereDxf, exportiereJson,
          KNOTENMODELLE, AUFLAGERMODELLE, auflagerModelleFuer,
@@ -232,6 +233,11 @@ const app = {
   aendern: (...a) => aendern(...a),
   neuRechnen: (...a) => neuRechnen(...a),
   stabwerkGilt: () => stabwerkGilt(),
+  // Für den Bericht über das ganze Blatt (1. Oktober).
+  stabwerkRechnen: () => stabwerkRechnen(),
+  reaktionsDaten: () => reaktionsDaten(),
+  rechneTragwerk: (...a) => rechneTragwerk(...a),
+  jochVonTyp: (...a) => jochVonTyp(...a),
   speichern: (...a) => speichern(...a),
   laden: (...a) => laden(...a),
   frisch: (...a) => frisch(...a),
@@ -5358,6 +5364,15 @@ function handlung(was, fn) {
 
 function exportKlick() {
   if (!letzte) return;
+  /*
+   * AUF DEM STABWERKSWEG DIE MAPPE DES STABWERKS (1. Oktober) - dieselbe
+   * Wahl wie beim Bericht (`berichtUeberStabwerk`), dieselben Daten.
+   */
+  if (berichtUeberStabwerk(werte)) {
+    handlung('Excel-Ausleitung', () =>
+      exportiereStabwerk(werte, stabwerkBerichtDaten(app), letzte.erg));
+    return;
+  }
   handlung('Excel-Ausleitung', () =>
     exportiere(werte, letzte.erg, letzte.checks, letzte.hinw, letzte.warn,
                letzte.vergleich, letzte.urteil));

@@ -34776,6 +34776,161 @@ titel('182  Kleine Befunde: Name in der Reihenzeile, Höhe im Dialog, Ankerfang,
        && sv.includes('sys.exit(1)'));
 }
 
+titel('183  Bericht und Excel auf dem Stabwerksweg; Berichte für Abfangjoch und Tragausleger');
+/* ===========================================================================
+ * Weisung 1. Oktober: «Bericht und Excel auf den Stabwerksweg umstellen,
+ * dazu je ein Bericht für Abfangjoch und Tragausleger». Rückfragen: «Formel
+ * + Stabliste», «Ganzes Blatt», «Weg, ausser Knicken», «Erst rechnen»; dazu
+ * der Befund am Blech, «σ_v mit τ».
+ * Der Bericht rechnet nicht: hier wird jede Formel aus ihren Zwischenwerten
+ * nachgerechnet und gegen die Zahl gehalten, die im Bericht steht.
+ * ========================================================================= */
+{
+  const N183 = await import(J('core.nachbarn.js'));
+  const AS183 = await import(J('app.stabwerk.js'));
+  const SB183 = await import(J('export.stabbericht.js'));
+  const NB183 = await import(J('export.nachweisbericht.js'));
+  const C183 = await import(J('core.constants.js'));
+  const lauf = (w) => {
+    const s2 = N183.rechensatzMitNachbarn(w);
+    const erg = berechne(s2, ...N183.kernArgumente(s2));
+    return { erg, sw: AS183.rechneStabwerk({ werte: w, letzte: { erg }, stabwerk: null }) };
+  };
+  // Die Daten des Berichts, wie app.bericht.js sie zusammenstellt - ohne Oberfläche.
+  const daten = (w, erg, sw, art) => {
+    const namen = erg.modell?.federn?.namen ?? {};
+    const praefix = Object.keys(sw.teile ?? {}).some((k) => k.startsWith('tragwerk:'));
+    return {
+      blatt: { name: 'Prüfung', werte: w }, sw, faelle: sw.roh?.faelle ?? [],
+      tragwerke: [{ id: 'T1', nr: 1, pos: art === 'tragausleger' ? 'MT1' : art === 'abfangjoch' ? 'A1' : 'T1',
+                    label: 'Prüfung', art, x0: 0, satz: w, modell: erg.modell,
+                    stabKey: praefix ? 'tragwerk:T1' : 'tragwerk', checks: [], hinweise: [],
+                    namen, verformung: sw.verformung }],
+      masten: Object.keys(sw.bauteile ?? {}).filter((k) => k.startsWith('mast:')).map((k) => {
+        const id = k.slice(5);
+        const amAusleger = sw.ausleger?.name === `Mast ${id}`;
+        return { id, anzeige: id, profil: 'HEB', laenge: 8.5,
+                 knick: sw.knick?.[id] ?? (amAusleger ? sw.ausleger.knick : null),
+                 fundament: sw.fundamentJe?.[id] ?? (amAusleger ? sw.ausleger.fundament?.A : null),
+                 anker: sw.ankerJe?.[id] ?? null };
+      }),
+      nichtGefuehrt: [], anzeige: (x) => x, fassung: 'Prüfstand', datum: '1.10.2026',
+    };
+  };
+
+  // (a) Tragjoch J90/20 m: jede Formel aus ihren Zwischenwerten.
+  const w1 = { ...standardwerte(), nachweise: { ...standardwerte().nachweise, fundament: true } };
+  const { erg: e1, sw: sw1 } = lauf(w1);
+  const fyd = sw1.fyd;
+  const og = sw1.teile['tragwerk|OG'], bl = sw1.teile['tragwerk|blech'], ma = sw1.teile['mast:M1|mast'];
+  {
+    const d = og.detail;
+    const nen = d.Iy * d.Iz - d.Iyz * d.Iyz;
+    const ky = (d.My * 1e6 * d.Iz + d.Mz * 1e6 * d.Iyz) / nen;
+    const kz = (d.Mz * 1e6 * d.Iy + d.My * 1e6 * d.Iyz) / nen;
+    pruef('Winkel: σ_N = |N|·1000 / A', d.sigN, Math.abs(d.N) * 1000 / d.A, 1e-9, 'N/mm²');
+    pruef('Winkel: k_y aus M_y, M_z, I_y, I_z, I_yz', d.ky, ky, 1e-12, 'N/mm³');
+    pruef('Winkel: k_z', d.kz, kz, 1e-12, 'N/mm³');
+    pruef('Winkel: σ_M = |k_y·z − k_z·y|', d.sigM, Math.abs(ky * d.z - kz * d.y), 1e-9, 'N/mm²');
+    pruef('Winkel: σ = σ_N + σ_M, η = σ / f_yd', og.eta, (d.sigN + d.sigM) / fyd, 1e-12, '');
+  }
+  {
+    const d = bl.detail;
+    const sigNorm = Math.abs(d.N) / d.A / 1000 + Math.abs(d.My) / d.Wy / 1000 + Math.abs(d.Mz) / d.Wz / 1000;
+    pruef('Blech: σ = |N|/A + |M_y|/W_y + |M_z|/W_z', d.sigNorm, sigNorm, 1e-9, 'N/mm²');
+    pruef('Blech: τ = 1.5·V / A', d.tau, 1.5 * d.V / d.A / 1000, 1e-9, 'N/mm²');
+    pruef('Blech: η = √(σ² + 3τ²) / f_yd (σ_v mit τ, Rückfrage 1. Oktober)', bl.eta,
+          Math.sqrt(sigNorm ** 2 + 3 * d.tau ** 2) / fyd, 1e-12, '');
+    pruef('J90/20 m: Blech mit Schub (vorher 0.3634 ohne τ)', bl.eta, 0.3715, 2e-4, '');
+  }
+  {
+    const d = ma.detail;
+    pruef('Mast: σ = σ_N + σ_My + σ_Mz + σ_ω', d.sig, d.sigN + d.sigMy + d.sigMz + d.sigW, 1e-9, 'N/mm²');
+    wahr('Mast: kein Schub im Nachweis (nur Bleche)', !Number.isFinite(d.tau));
+  }
+  // (b) Der Bericht: die Zahlen der Formeln stehen darin, das Urteil ist das Maximum.
+  const d1 = daten(w1, e1, sw1, 'joch');
+  const html = SB183.stabwerkBericht(d1);
+  const z = NB183.zahl;
+  wahr('Bericht Tragjoch: die Kette des Obergurts steht eingesetzt da',
+       html.includes(`= <b>${z(og.detail.sigN, 2)}</b> N/mm²`) && html.includes(`= <b>${z(og.detail.sigM, 2)}</b> N/mm²`)
+       && html.includes(`= <b>${z(og.eta, 3)}</b>`));
+  wahr('… das Blech mit τ und σ_v', html.includes(`= <b>${z(bl.detail.tau, 2)}</b> N/mm²`)
+       && html.includes('√(σ² + 3 τ²)'));
+  const U = SB183.blattUrteil(d1);
+  pruef('Urteil des Blattes = grösstes η der Liste', U.eta, Math.max(...U.liste.map((x) => x.eta ?? 0)), 1e-12, '');
+  wahr('… und es steht auf dem Deckblatt', html.includes(`η = ${z(U.eta, 3)}`));
+  wahr('Keine Zahl des Ersatzbalkens: weder M/(2h) noch die Stationen',
+       !html.includes('M<sub>y</sub> / (2 h)') && !html.includes('Stationen der Umhüllenden'));
+  wahr('Die Stabliste je Teil steht da (zehn Zeilen beim Obergurt)',
+       SB183.stabListe(sw1, 'tragwerk', 'OG').length === 10);
+  // Die Verformung braucht den vollen Kern (rechneTragwerk in app.js); hier
+  // ohne ihn - das Kapitel prüft der Baustein unten.
+  wahr('Kapitel: Grundlagen, System, Einwirkungen, Kombinationen, Schnittgrössen, Nachweise, Reaktionen',
+       ['Grundlagen', 'System', 'Einwirkungen', 'Lastfälle und Kombinationen', 'Schnittgrössen (Stabwerk',
+        'Nachweise</h2>', 'Reaktionskräfte'].every((k) => html.includes(k)));
+  const vProbe = { A: { nachweise: [{ was: 'Jochauflager', wert: 0.006, grenz: 0.04, achse: 'x',
+                                      eta: 0.15, bez: 'Wind +x', ok: true }] } };
+  wahr('Die Gebrauchstauglichkeit sagt, dass die Wege aus dem Stabwerk kommen',
+       NB183.gebrauchKapitel([{ v: vProbe, namen: { A: 'M1' } }], '', (x) => x, 'stabwerk')
+         .includes('Die Wege kommen aus dem Stabwerk')
+       && NB183.gebrauchKapitel([{ v: vProbe, namen: { A: 'M1' } }]).includes('als eingespannter Kragarm'));
+  // (c) Knicken: Gleichung (50) mit den Kräften des Stabwerks, wenn geführt.
+  {
+    const wK = { ...w1, nachweise: { ...w1.nachweise, knickenMast: true } };
+    const { erg: eK, sw: swK } = lauf(wK);
+    const hK = SB183.stabwerkBericht(daten(wK, eK, swK, 'joch'));
+    wahr('Knicken nach SIA 263 (50) aus dem Stabwerk, mit seiner Zahl',
+         hK.includes('Stabilität nach SIA 263') && hK.includes(`= <b>${z(swK.knick.M1.eta50, 3)}</b>`));
+  }
+  // (d) Tragausleger und Abfangjoch haben ihren Bericht.
+  {
+    const wT = { ...standardwerte(), tragwerksart: 'tragausleger', L: 10, xLage: 0, twId: 'MT1',
+                 mastVorhanden: true, anbauteile: [A.neuesAnbauteil('hs-fahrdraht', 9)] };
+    const { erg: eT, sw: swT } = lauf(wT);
+    const dT = daten(wT, eT, swT, 'tragausleger');
+    const hT = SB183.stabwerkBericht(dT);
+    const UT = SB183.blattUrteil(dT);
+    wahr('Bericht Tragausleger: Gurte UPE, Bindebleche, Aufhängung, Mast',
+         ['Gurte UPE', 'Bindebleche', 'Aufhängung', 'S<sub>v</sub> / V<sub>zul</sub>'].every((k) => hT.includes(k))
+         && UT.liste.some((x) => x.key === 'aufhaengung'), UT.liste.map((x) => x.name).join(', '));
+    const wA = { ...standardwerte(), tragwerksart: 'abfangjoch', abfangTyp: 'A200', L: 15, xLage: 0,
+                 mastVorhanden: true, mastH: 8, anbauteile: [] };
+    const { erg: eA, sw: swA } = lauf(wA);
+    const hA = SB183.stabwerkBericht(daten(wA, eA, swA, 'abfangjoch'));
+    wahr('Bericht Abfangjoch: Gurte UPE und Bindebleche aus dem Stabwerk',
+         hA.includes('Gurte UPE') && hA.includes('Bindebleche') && !hA.includes('NaN'));
+  }
+  // (e) Reihe: zwei Joche, der geteilte Mast einmal.
+  {
+    const wR = C183.tragwerkHinzu({ ...standardwerte() }, 'joch', { L: 20 });
+    const { erg: eR, sw: swR } = lauf(wR);
+    const dR = daten(wR, eR, swR, 'joch');
+    dR.tragwerke = [{ ...dR.tragwerke[0], id: 'T1', pos: 'T1', stabKey: 'tragwerk:T1' },
+                    { ...dR.tragwerke[0], id: 'T2', pos: 'T2', nr: 2, stabKey: 'tragwerk:T2' }];
+    const UR = SB183.blattUrteil(dR);
+    wahr('Reihe: je Joch die Teile, je Mast einmal (M1, M2, M3)',
+         UR.liste.filter((x) => /^T[12] · Obergurt$/.test(x.name)).length === 2
+         && ['Mast M1', 'Mast M2', 'Mast M3'].every((n) => UR.liste.filter((x) => x.name === n).length === 1),
+         UR.liste.map((x) => x.name).join(', '));
+    pruef('Reihe: der geteilte Mast M2 mit der Zahl des Stabwerks', UR.liste.find((x) => x.name === 'Mast M2')?.eta,
+          swR.bauteile['mast:M2'].eta, 1e-12, '');
+  }
+  // (f) Die Verdrahtung.
+  const ab = readFileSync(join(HIER, 'js', 'app.bericht.js'), 'utf8');
+  wahr('Bericht: Stabwerksweg, wenn das Verfahren Stabwerk ist oder die Art nur ihn hat',
+       ab.includes("return verfahrenVon(werte) === 'stabwerk'\n    || !BERICHT_ARTEN.includes(tragwerksart(werte).key);")
+       || ab.includes("return verfahrenVon(werte) === 'stabwerk'\r\n    || !BERICHT_ARTEN.includes(tragwerksart(werte).key);"));
+  wahr('«Erst rechnen»: ohne gültiges Stabwerk wird es zuerst gerechnet',
+       ab.includes("if (stabwerkStand(app) !== 'gueltig') app.stabwerkRechnen();"));
+  wahr('Ohne Stabmodell sagt der Dialog den Grund', ab.includes('Nachweisbericht nicht möglich: ${grund}'));
+  const eb = readFileSync(join(HIER, 'js', 'export.bericht.js'), 'utf8');
+  wahr('Excel auf dem Stabwerksweg: Urteil, Massgebend, Stabwerk, Masten, Reaktionen, Konstruktion',
+       ["name: 'Urteil'", "name: 'Massgebend'", "name: 'Stabwerk'", "name: 'Masten'", "name: 'Reaktionen'",
+        "name: 'Konstruktion'"].every((k) => eb.includes(k))
+       && APP_QUELLE().includes('exportiereStabwerk(werte, stabwerkBerichtDaten(app), letzte.erg)'));
+}
+
 // ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);

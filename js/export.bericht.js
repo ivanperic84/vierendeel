@@ -11,6 +11,7 @@ import { STIL, arbeitsmappe, herunterladen } from './export.xlsx.js';
 import { FELDER, GRUPPEN, sichtbareFelder } from './ui.schema.js';
 import { MASSVARIANTEN } from './core.vierendeel.js';
 import { verortung, verortungKurz, tragwerksart } from './core.constants.js';
+import { blattUrteil, endkraefte, TEIL_NAMEN } from './export.stabbericht.js';
 
 const K = (t) => ({ v: t, s: STIL.KOPF });
 const B = (t) => ({ v: t, s: STIL.BLOCK });
@@ -28,7 +29,7 @@ const kopfzeile = (w) => [
 ].filter(Boolean).join(' · ');
 
 /** Blatt 1: Eingabewerte, so wie sie in der Maske stehen. */
-function blattEingabe(werte, erg) {
+function blattEingabe(werte, erg, opt = {}) {
   const wo = verortung(werte);
   const rows = [
     [{ v: 'Vierendeel – Eingabewerte', s: STIL.TITEL }],
@@ -88,6 +89,9 @@ function blattEingabe(werte, erg) {
   rows.push([]);
 
   const m = erg.modell;
+  // Auf dem Stabwerksweg (1. Oktober) ohne die Grössen des Ersatzbalkens
+  // (Auflagerkräfte, Stützmomente, Drehfeder, EI der Zwei-Gurt-Idealisierung).
+  if (opt.ohneAbgeleitete) return { name: 'Eingabe', rows, breiten: [38, 14, 14, 12, 12, 12, 12, 10] };
   /*
    * DIE ABGELEITETEN GROESSEN SIND JOCHGROESSEN.
    *
@@ -356,6 +360,153 @@ function blattMast(erg) {
   });
   if (rows.length === 3) rows.push([T('Kein Mast im Modell.')]);
   return { name: 'Mast', rows, breiten: [12, 12, 12, 12, 14, 14, 12, 10] };
+}
+
+
+/* ===========================================================================
+ * >>> DIE MAPPE AUS DEM STABWERK (1. Oktober). <<<
+ * ===========================================================================
+ *
+ * Weisung «Bericht und Excel auf den Stabwerksweg umstellen». Auf Rückfrage
+ * «Ganzes Blatt» und «Weg, ausser Knicken»: dieselben Daten wie der Bericht
+ * (`stabwerkBerichtDaten`, app.bericht.js) - keine Zahl des Ersatzbalkens
+ * mehr (die knotenweise Rechnung und der Massvariantenvergleich entfallen),
+ * das Knicken mit den Kräften des Stabwerks. Werte, keine Formeln; die
+ * Zwischenwerte des massgebenden Stabes je Teil stehen auf eigenem Blatt.
+ * ========================================================================= */
+function blattUrteilStab(d, U) {
+  const gut = U.eta !== null && !U.ueber;
+  const rows = [
+    [{ v: 'Urteil des Blattes – Stabwerk', s: STIL.TITEL }],
+    [{ v: 'Alle Tragwerke des Blattes in einem räumlichen Stabwerk. Werte, keine Formeln.', s: STIL.NOTIZ }],
+    [],
+    [B('Gesamturteil'), AMPEL(gut && U.eta <= 1, gut && U.eta <= 1 ? 'ALLE NACHWEISE ERFÜLLT' : 'NACHWEIS NICHT ERFÜLLT'),
+     T(`η = ${Number(U.eta ?? 0).toFixed(3)}${U.massgebend ? ` · massgebend: ${U.massgebend.name}` : ''}`)],
+    [K('Bauteil'), K('η'), K('massgebende Kombination'), K('Status')],
+  ];
+  U.liste.forEach((x) => rows.push([T(x.name), x.eta === null ? T('–') : N3(x.eta), T(x.bez ?? x.fall ?? ''),
+    AMPEL(!x.ueber, x.ueber ? (x.eta === null ? 'NICHT LIEFERBAR' : 'ÜBERSCHRITTEN') : 'OK')]));
+  const ng = d.nichtGefuehrt ?? [];
+  if (ng.length) {
+    rows.push([], [{ v: 'NICHT GEFÜHRTE NACHWEISE', s: STIL.NOK }]);
+    ng.forEach((g) => rows.push([{ v: `${g.titel} — ${g.grund}`, s: STIL.NOK }, { v: g.was, s: STIL.NOTIZ }]));
+  }
+  return { name: 'Urteil', rows, breiten: [34, 12, 44, 22] };
+}
+
+function blattMassgebend(d) {
+  const sw = d.sw;
+  const rows = [
+    [{ v: 'Massgebender Stab je Teil – Zwischenwerte', s: STIL.TITEL }],
+    [{ v: `f_yd = ${Number(sw.fyd).toFixed(2)} N/mm². Winkel: σ = |N|/A + |k_y·z − k_z·y| (Hauptachsen mit I_yz); `
+         + 'sonst σ = |N|/A + |M_y|/W_y + |M_z|/W_z (+ σ_ω); Bleche σ_v = √(σ² + 3τ²), τ = 1.5·V/A.', s: STIL.NOTIZ }],
+    [],
+    [K('Teil'), K('Stab'), K('Kombination'), K('Ende'), K('N [kN]'), K('M_y [kNm]'), K('M_z [kNm]'),
+     K('A'), K('σ_N'), K('σ_M bzw. σ_My'), K('σ_Mz'), K('σ_ω'), K('τ'), K('σ [N/mm²]'), K('η')],
+  ];
+  const zeile = (name, t) => {
+    const x = t?.detail;
+    if (!x) return;
+    const winkel = x.art === 'winkel';
+    rows.push([T(name), T(t.wo ?? ''), T(t.bez ?? ''), T(x.ende), N3(x.N), N3(x.My), N3(x.Mz),
+      T(winkel ? `${x.A.toFixed(1)} mm²` : `${(x.A * 1e4).toFixed(2)} cm²`), N2(x.sigN),
+      N2(winkel ? x.sigM : x.sigMy), winkel ? T('') : N2(x.sigMz), N2(x.sigW ?? 0),
+      Number.isFinite(x.tau) ? N2(x.tau) : T(''), N2(x.sig), N3(t.eta)]);
+  };
+  (d.tragwerke ?? []).forEach((tw) => ['OG', 'UG', 'UPE', 'blech'].forEach((teil) =>
+    zeile(`${tw.pos} · ${TEIL_NAMEN[teil]}`, sw.teile?.[`${tw.stabKey}|${teil}`])));
+  (d.masten ?? []).forEach((m) => zeile(`Mast ${m.anzeige}`, sw.teile?.[`mast:${m.id}|mast`]));
+  return { name: 'Massgebend', rows, breiten: [22, 16, 34, 6, 10, 10, 10, 12, 9, 11, 9, 8, 8, 11, 8] };
+}
+
+function blattStaebe(d) {
+  const rows = [
+    [{ v: 'Alle nachgewiesenen Stäbe – Stabwerk', s: STIL.TITEL }],
+    [{ v: 'Je Stab seine massgebende Kombination; Endkräfte am massgebenden Ende in Stabachsen.', s: STIL.NOTIZ }],
+    [],
+    [K('Stab'), K('Bauteil'), K('Teil'), K('Kombination'), K('Ende'), K('N [kN]'), K('V_y [kN]'),
+     K('V_z [kN]'), K('T [kNm]'), K('M_y [kNm]'), K('M_z [kNm]'), K('σ [N/mm²]'), K('η')],
+  ];
+  Object.values(d.sw.jeStab ?? {}).filter((z) => Number.isFinite(z.eta))
+    .sort((a, b) => b.eta - a.eta)
+    .forEach((z) => {
+      const k = endkraefte(z) ?? {};
+      rows.push([T(z.name), T(d.anzeige ? d.anzeige(String(z.bauteil ?? '').replace(/^mast:/, 'Mast ').replace(/^tragwerk:?/, 'Tragwerk ')) : z.bauteil),
+        T(TEIL_NAMEN[z.teil] ?? z.teil ?? ''), T(z.bez ?? ''), T(z.ende ?? ''),
+        N2(k.N), N2(k.Vy), N2(k.Vz), N3(k.T), N3(k.My), N3(k.Mz), N1(z.sig), N3(z.eta)]);
+    });
+  return { name: 'Stabwerk', rows, breiten: [18, 14, 14, 34, 6, 10, 10, 10, 10, 10, 10, 11, 8] };
+}
+
+function blattMastenStab(d) {
+  const rows = [
+    [{ v: 'Masten – Knicken, Fundament, Anker (Kräfte aus dem Stabwerk)', s: STIL.TITEL }],
+    [],
+    [K('Mast'), K('Profil'), K('Länge [m]'), K('η Querschnitt'), K('η Knicken (50)'), K('N_Ed [kN]'),
+     K('N_K,Rd [kN]'), K('L_cr [m]'), K('Fundament'), K('η Fundament'), K('Anker'), K('N_k Anker [kN]'), K('η Anker')],
+  ];
+  (d.masten ?? []).forEach((m) => {
+    const q = d.sw.teile?.[`mast:${m.id}|mast`];
+    const k = m.knick, f = m.fundament, a = m.anker?.nachweis;
+    rows.push([T(m.anzeige), T(m.profil ?? ''), N2(m.laenge), q ? N3(q.eta) : T('–'),
+      k ? N3(k.eta) : T('nicht geführt'), k ? N2(k.NEd) : T(''), k ? N1(k.NKRd) : T(''), k ? N2(k.Lcr) : T(''),
+      T(f?.typ?.typ ?? m.fundamentTyp ?? '–'), f && Number.isFinite(f.eta) ? N3(f.eta) : T('–'),
+      T(a?.typ ?? '–'), a ? N2(a.N) : T(''), a && Number.isFinite(a.eta) ? N3(a.eta) : T(a ? '–' : '')]);
+  });
+  return { name: 'Masten', rows, breiten: [8, 12, 10, 13, 14, 11, 12, 10, 14, 12, 10, 14, 10] };
+}
+
+function blattReaktionen(d) {
+  const rows = [
+    [{ v: 'Reaktionskräfte – charakteristisch, aus dem Stabwerk', s: STIL.TITEL }],
+    [{ v: 'Wind ohne ψ 0.70, Druck positiv (V), Havarie eigene Zeile.', s: STIL.NOTIZ }],
+    [],
+    [K('Auflager'), K('Fundament'), K('Zeile'), K('V min [kN]'), K('V max [kN]'), K('±M_y quer [kNm]'),
+     K('±F_x quer [kN]'), K('±M_x längs [kNm]'), K('±F_y längs [kN]'), K('±M_z [kNm]')],
+  ];
+  const w = (b, k) => (b?.[k] ? N2(b[k].wert) : T('–'));
+  (d.reaktionen ?? d.sw.reaktionen ?? []).forEach((z) => {
+    [['Einwirkung', z.haupt], ['Havarie', z.havarie]].forEach(([was, b]) => {
+      if (!b) return;
+      rows.push([T(z.name ?? z.id ?? ''), T(z.fundament?.typ ?? z.fundament ?? ''), T(was),
+        w(b, 'Vmin'), w(b, 'Vmax'), w(b, 'Mq'), w(b, 'Hq'), w(b, 'Ml'), w(b, 'Hl'), w(b, 'T')]);
+    });
+  });
+  return { name: 'Reaktionen', rows, breiten: [14, 14, 12, 11, 11, 14, 13, 14, 13, 11] };
+}
+
+function blattKonstruktionStab(d) {
+  const rows = [[{ v: 'Konstruktive Bedingungen je Tragwerk', s: STIL.TITEL }], []];
+  (d.tragwerke ?? []).forEach((tw) => {
+    rows.push([B(`${tw.pos} — ${tw.label}`)]);
+    if (!tw.checks?.length) { rows.push([T('Keine Konstruktionsprüfungen für diese Tragwerksart.')], []); return; }
+    rows.push([K('Nr.'), K('Bedingung'), K('vorhanden'), K('erforderlich'), K('Einheit'), K('Status')]);
+    tw.checks.forEach((c) => rows.push([T(c.id), T(c.text), N2(c.vorhanden), N2(c.erforderlich),
+      T(c.einheit), AMPEL(c.ok, c.status)]));
+    (tw.hinweise ?? []).forEach((h) => rows.push([{ v: h, s: STIL.NOTIZ }]));
+    rows.push([]);
+  });
+  return { name: 'Konstruktion', rows, breiten: [8, 62, 14, 14, 10, 22] };
+}
+
+export function exportiereStabwerk(werte, d, erg) {
+  const U = blattUrteil(d);
+  const jochModell = (d.tragwerke ?? []).find((tw) => tw.art === 'joch' && tw.modell?.profOG)?.modell;
+  const blaetter = [
+    blattEingabe(werte, erg, { ohneAbgeleitete: true }),
+    blattUrteilStab(d, U),
+    blattMassgebend(d),
+    blattStaebe(d),
+    blattMastenStab(d),
+    blattReaktionen(d),
+    blattKonstruktionStab(d),
+    ...(jochModell ? [blattProfile(jochModell)] : []),
+  ];
+  const wo = verortungKurz(werte);
+  const name = `Vierendeel_Stabwerk${wo ? `_${wo}` : ''}`
+    + `_${(d.tragwerke ?? []).map((tw) => tw.pos).join('-') || 'Blatt'}.xlsx`;
+  herunterladen(arbeitsmappe(blaetter), name);
+  return name;
 }
 
 export function exportiere(werte, erg, checks, hinw, warn, vergleich, urteil) {

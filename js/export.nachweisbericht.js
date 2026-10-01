@@ -663,7 +663,7 @@ function gebrauchstauglichkeit(d) {
  * Ein geteilter Mast steht einmal. `namen` übersetzt die Enden in
  * Mastnamen, `anzeige` sie für den Text (Mastnummer).
  */
-export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x) {
+export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x, quelle = 'kern') {
   const gesehen = new Set();
   const zeilen = [];
   const erste = eintraege.find((x) => x?.v)?.v;
@@ -713,10 +713,14 @@ export function gebrauchKapitel(eintraege, bildHtml = '', anzeige = (x) => x) {
     (Wiederkehrperiode 5 Jahre), Wind allein. Grenzwerte: auf Höhe
     Fahrdraht bzw. Ausleger oder Jochauflager ${zahl(fdMm, 1)} mm quer zum
     Gleis${spitzeText}.</p>
-    <p class="klein">Der Mast ist dabei als eingespannter Kragarm gerechnet,
+    <p class="klein">${quelle === 'stabwerk'
+      ? `Die Wege kommen aus dem Stabwerk - die Knotenwege des Lösers, zwischen
+    den Mastknoten nach der Biegelinie, mit der Kopplung durch Joch, Anker und
+    Nachbartragwerke.`
+      : `Der Mast ist dabei als eingespannter Kragarm gerechnet,
     quer zum Gleis über I und in Gleisrichtung über I<sub>q</sub>, mit
     derselben Lastliste wie die Schnittgrössen (einschliesslich der
-    Haltekraft eines Ankers). <b>Diese Nachweise färben das
+    Haltekraft eines Ankers).`} <b>Diese Nachweise färben das
     Tragsicherheitsurteil nicht</b> — sie stehen daneben.</p>
     ${tabelle(['Bauteil', 'Nachweis', 'w [mm] / φ', 'zulässig', 'Richtung',
                'η', 'massgebender Lastfall', ''], zeilen, 'eng')}

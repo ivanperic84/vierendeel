@@ -73,7 +73,7 @@ Befunde, Wortlaut der Weisungen — steht in der früheren Übergabe:
   bündelt ohne Daten. Keine `gh`-CLI; Anmeldung über den Git Credential
   Manager von Windows.
   Seit dem 24. August wurde auf Weisung laufend gepusht (zuletzt
-  29. September, «pushen com und bauteildatei nachziehen falls notwendig»). Der Zweig `github-stand-vor-push` ist der alte, von Hand
+  1. Oktober, «alles pushen und bereit machen für den account change»). Der Zweig `github-stand-vor-push` ist der alte, von Hand
   hochgeladene Stand, nur örtlich von Wert.
 - **`Grundlagen/`** (im Projekt, nicht in der Ablage) — die fachliche
   Quelle der Daten: Sortimentsblätter und Werkstattzeichnungen der Tragjoche
@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Bericht und Excel auf dem Stabwerksweg; Berichte für Abfangjoch und Tragausleger (1. Oktober) | Weisung: «Bericht und Excel auf den Stabwerksweg umstellen, dazu je ein Bericht für Abfangjoch und Tragausleger». Auf Rückfrage: **«Formel + Stabliste»** (je Bauteil der massgebende Stab mit Kombination, Endkräften und eingesetzter Spannungsformel, darunter die zehn höchstbeanspruchten Stäbe des Teils), **«Ganzes Blatt»** (ein Bericht über alle Tragwerke und Masten des Stabwerks, geteilte Masten einmal, Urteil des Blattes), **«Weg, ausser Knicken»** (keine Zahl des Ersatzbalkens; Knicken nach SIA 263 Gl. (50) mit den Kräften des Stabwerks), **«Erst rechnen»** (ohne gültiges Stabwerk rechnet der Knopf zuerst). Neues Modul `export.stabbericht.js` (`stabwerkBericht`, `blattUrteil`, `stabFormelHtml`); die Daten stellt `stabwerkBerichtDaten` (app.bericht.js) zusammen: je Tragwerk sein Kern über `rechneTragwerk` (aus `neuRechnen` herausgelöst, derselbe Rumpf) für Lasten, Prüfungen, Hinweise und die Messstelle, je Mast Knicken, Fundament und Anker aus dem Stabwerk (`ankerFuerMast`, `verformungFuer`). Die Zwischenwerte liefern `randspannung`/`stabSpannung` als `detail` (Winkel: A, I_y, I_z, I_yz, Ecke, k_y, k_z; sonst A, W, σ-Anteile). Der Bericht des Ersatzbalkens bleibt, wenn in den Optionen das Rechenverfahren Ersatzbalken steht (nur Tragjoch und Einzelmast); Abfangjoch und Tragausleger haben nur den des Stabwerks. **Excel** auf dem Stabwerksweg (`exportiereStabwerk`): Eingabe, Urteil, Massgebend (Zwischenwerte je Teil), Stabwerk (alle Stäbe), Masten (Knicken, Fundament, Anker), Reaktionen, Konstruktion, Profile; die knotenweise Rechnung und der Massvariantenvergleich entfallen. **Befund dabei, unsichere Seite:** das Stabwerk wies die Bindebleche ohne Schub nach; auf Rückfrage **«σ_v mit τ»** jetzt √(σ² + 3τ²), τ = 1.5 · V / A aus der grösseren Querkraft am Ende (nur Bleche). Gemessen J90/20 m Blech 0.3634 → 0.3715, Reihe 2 × J90/20 m 0.4403 → 0.4475, Tragausleger L 13 m mit Längsanker zwei Seile 0.2880 → 0.3013. Im Browser (Prüfseite): Tragjoch, Reihe (T1/T2, M1-M3), Einzelmast, Tragausleger, Abfangjoch - Deckblatt jeweils mit derselben Zahl wie die Fussleiste; Excel acht Blätter, Zwischenwerte wie im Bericht. Prüfstand 183 |
 | Kleine Befunde abgearbeitet (1. Oktober) | Weisung «diese punke angehen». (1) **Reihenzeile** der Stabwerksleiste nennt die Tragwerke wie Lageband und Kacheln (`reiheName` in app.js: Stabname trägt die Kennung, Anzeige `tragwerkPos`; Mast mit Nummer); im Browser `T3_…` → «Joch T1», `T1_…` → «Joch T2». (2) **Anschlusshöhe im Dialog «Neues Tragwerk»** wird geschrieben; die nachgezogene Länge eines geteilten Masten fällt nie unter das, was die übrigen Joche an ihm brauchen (`mastLaengeMindestens`) - im Browser T2 mit H 6.50 an M2: T1 bleibt 7.50, M2 bleibt 8.50 m. (3) **Anker im 3D** mit 6 px Fangrand (`randAbstand`): Rechtsklick trifft ihn auf 18 statt 4 px Zeilenbreite (gemessen, alter gegen neuen Stand). (4) **Mastlänge im Namen** eines Tragwerks aus der Mastliste (`tragwerkName` mit `w`, sonst Vorgabe; beim Ausleger H + b) - die Liste führt eine Länge je Mast, die Rechnung liest sie ohnehin dort. (5) **Ankerfuss** auf Rückfrage **«Ein Gelenk für beide»**: die zwei U-Profile laufen am Fundament auf einen Bolzen (`ANKERGELENK_…_FG`, Link 50 mm in der Achse; die Gelenkstücke je Profil bleiben am Masten). Dabei gefunden: der eigene Löser wertet `gelenkAnfang/gelenkEnde` an ECHTEN Stäben nicht aus - Seil (Fuss) und Ersatzstab (beide Enden) hingen biegesteif; jetzt ebenfalls als Link (`gelenkVor` in export.axisvm.js). Gemessen J90/20 m, Anker an M1 h 6.0 / a 4.0, am Ankerfundament: U12 quer M_l 4.10 → 0.004, T 2.62 → 0.003 kNm; U12 längs M_q 0.35 → 0.002; SA20 quer M_l 0.70 → 0. Dafür Mastfuss M1 M_l 39.33 → **43.31 kNm** (U12 quer, +10 %), SA20 42.38 → 43.09. (6) **serve.py** bindet unter Windows exklusiv (SO_EXCLUSIVEADDRUSE) und bricht bei belegtem Port ab. Prüfstand 182. **Nachgereicht** («mastdialog beheben»): der Mastdialog las `m.H`, das niemand setzt, und zeigte damit die Höhe des GEWÄHLTEN Tragwerks (M1 von T1 zeigte 6.50 von T2); jetzt liest er die Höhe des Tragwerks, das den Masten trägt, an dessen Ende (`anschlusshoehe`), nennt beides im Hinweis und schreibt ins Feld dieses Endes (`mastHB` bei eigener Höhe B). Im Browser: M1 7.50 (T1), M2/M3 6.50 (T2, «Ende B folgt Ende A»); M1 auf 7.00 → T1 7.00, T2 bleibt 6.50 |
 | Jochreihe: Zwischenmast schieben, Kragarm (1. Oktober) | Gemeldet: «der fussfehler ist seit letztem mal nicht mehr auf getretten. aber was beobachtet wurde wenn mehrere joche in reihe stehen, dann macht der überstand und das nachträgliche schieben des mittleren masten probleme.» Gemessen (2 × J90, 20 + 15 m): M2 von 20 auf 22 m geschoben ergab T1 0..20 und T2 22..37 - vier Masten, die Reihe auseinander, auch ohne Kragarm (das linke Joch hielt am rechten an, das noch an der alten Stelle stand); nach links ging es. Mit Kragarm am Zwischenmasten riss die Reihe in beide Richtungen; ein angehängtes Joch erbte die Kragarme des gewählten und stand um c_A neben dem Masten. Behoben: der geteilte Mast schiebt beide Joche in einem Zug, der Partner ist kein Hindernis, das rechte rückt höchstens bis an seinen Nachbarn (kein Sprung dahinter; `mastStelleSetzen` in ui.js); die Grenze am Ende B rechnet mit c_B. Auf Rückfrage **«Ohne Kragarm»**: ein neues Joch (Kachel, Dialog, «zwischen den Masten») startet mit c_A = c_B = 0 und schliesst am letzten MASTEN an. **«Erlauben»**: am Zwischenmasten dürfen beide Joche auskragen und sich überdecken - die Kollisionsregeln lesen dafür die Strecke von Mast zu Mast (`bereichVon`), nicht die Gurtlänge. Im Browser (Prüfseite): T1 mit c_A 0.50, T2 angehängt bei 20 (drei Masten), M2 → 22 / 18: geteilt, T1 22.50 m; T2 c_A 0.50, M2 → 20: Lage 19.5, L 21, drei Masten. Prüfstand 181 |
 | Tabelle der Reaktionskräfte (30. Sept.) | Weisung (Wortlaut in `js/core.reaktionen.js`): die Zusammenfassung der Einwirkungs-Mappe als Output - charakteristisch, Wind ohne 0.7, bei einer Jochreihe alle Auflager, Übersichtsskizze, Hinweise, Achssystem, **Druck positiv**. Auf Rückfrage **Havarie als eigene Zeile** und **«Beides»** (Reiter Auflager oben, Blatt im Export «Reaktionskräfte (Blatt)», druckbar A4 quer). Aus dem **Stabwerk** (alle Auflager des Blattes in einem Modell): je Mastfuss, Ankerfundament und Längsanker V min/max, ±M_q, ±H_q, ±M_l, ±H_l, ±T mit massgebendem Fall, Anteil ständig/veränderlich am Moment quer, darunter die Standardlasten des Fundamenttyps. Zustände: G = beide ständigen Hälften zusammen, ständig + Wind/Schnee; Betriebswind und die G-Hälften allein zählen nicht. Skizze = echte Stäbe und Seile des Stabmodells in x–z. Gemessen: J90/20 m M1 V 12.825 kN, M_q 11.235, M_l 43.091 kNm - auf die Stelle wie der Fundamentnachweis; Reihe 2 × J90/20 m mit Anker: M1, Ankerfundament, geteilter M2 (M_l 70.014), M3. Ohne gültiges Stabwerk keine Tabelle, der Grund steht da. **Überarbeitet am selben Tag** («Das LA auflager (beim tragausleger) verwirrt die lesart, hier die aufhängeseile anzeigen. Die tabelle sollte geordneter daherkommen (gleiche zellenbreiten bei den werten. überarbeite das design. dazu noch die benennung der reatktionskräfte mit dem achsystem ergänzen wie in der exceltabelle. mach ein einspannsymbol beim Mastfuss. beim Anker die Mastzahl nehmen und ein A vornedran machen. die Reaktion sollte dann beim Ankerfundament eine y und z komponente enthalten (wenn in längsrichtung angesetzt). deute den anker noch in der obigen scheaskizze an.»): Köpfe F_z (V), ±M_y (M,q), ±F_x (H,q), ±M_x (M,l), ±F_y (H,l), ±M_z (T) unter «Lastfall quer / längs zum Gleis»; festes Raster, Wertespalten gleich breit; Anker «A14» nur mit V und der Horizontalkraft seiner Richtung; Skizze mit Einspannung am Mastfuss, Anbauteilen (lange Starrglieder, blau), Seilen gestrichelt, Anker als Strebe mit Gelenk (längs: umgeklappt und so angeschrieben), kein Lagersymbol am Längsanker; Havarie knapp («Leiterriss, Längszug +y»), der Leiter steht in den Hinweisen. Im Reiter die **gestürzte Form** (je Auflager Grössen als Zeilen, Einwirkung / Havarie / zulässig als Spalten) - zehn Spalten waren in der Seitenleiste unlesbar. Beispiel «Jochreihe 2 × J90/20 m» (Masten 12/13/14, Hängestützen, Jochaufsätze, Zusatzleiter und Rückleiter an 12, NT-Ausleger und Rückleiter an 14, Anker längs an 14, ein Leiter reisst): 12 V 16.77/17.29, M_y 40.23, M_x 51.80; geteilter 13 M_x 87.45 kNm; 14 V 2.69/34.31; A14 V −15.80/15.83, F_y 8.84 kN |
@@ -293,17 +294,21 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**1. Oktober 2026** · Prüfstand 6061 Kontrollen grün · `durchlauf.mjs`
+**1. Oktober 2026** · Prüfstand 6089 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
 
 Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
+- **1. Okt., Bericht und Excel auf dem Stabwerksweg, Berichte für
+  Abfangjoch und Tragausleger, Bindeblech mit Schub** (Prüfstand 183,
+  Entscheide siehe *Entschieden*). Alles bis hierher gepusht
+  («alles pushen und bereit machen für den account change»).
 - **1. Okt., kleine Befunde abgearbeitet** (Reihenzeile, Höhe im Dialog,
   Ankerfang, Mastlänge im Namen, Ankerfuss mit einem Gelenk, serve.py;
-  Prüfstand 182, siehe *Entschieden*); danach der Mastdialog. Nicht gepusht.
+  Prüfstand 182, siehe *Entschieden*); danach der Mastdialog.
 - **1. Okt., Jochreihe: Zwischenmast schieben und Kragarm** (Prüfstand
-  181, Entscheide siehe *Entschieden*). Nicht gepusht.
+  181, Entscheide siehe *Entschieden*).
 - **30. Sept., Blattmodell verfälscht bei Einzelmast und Kragarm-Joch am
   selben Masten** (Prüfstand 175). Gemeldet mit einem Beispielblatt: «beim
   export der reaktionskräfte und beim aufbau in axis war der modellaufbau
@@ -1875,10 +1880,10 @@ Letzte Schritte (neueste zuerst; ältere stehen im Git-Verlauf):
 2. **Tragausleger:** eigener Kragarm-Kern für die Anzeige, Stabwerk für das
    Urteil (zwei UPE 140, Einspannung am Masten). Danach fällt die Warnung
    «Tragausleger NICHT nachgewiesen».
-3. **Nachweise:** die Abbildungen und Schnittgrössen des Lösers übernehmen,
+3. ~~**Nachweise:** die Abbildungen und Schnittgrössen des Lösers übernehmen,
    Bericht und Excel auf den Stabwerksweg, Bericht auch für Tragausleger und
-   Abfangjoch. ⚠ Das **Knicken bleibt beim Ersatzbalken** — es ist der einzige
-   Nachweis, den der Löser nicht führt.
+   Abfangjoch.~~ — **erledigt am 1. Oktober** (siehe *Entschieden*); das
+   Knicken rechnet seit dem 28./30. September mit den Kräften des Stabwerks.
 
 **Laufende Arbeit (28. Sept.): Tragausleger — Etappe 2 erledigt.**
 Das Stabmodell (`export.axisvm.tragausleger.js`) hängt im Stabwerk und ist
@@ -2346,16 +2351,13 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   Stabsystem. Solange das so ist, bestätigen sich beide Wege gegenseitig
   einen Fehler. Der Umbau berührt `kalibrieren.mjs` und damit die
   Kennwerte (`GURT_DAEMPFUNG` u. a.) — deshalb nicht von selbst getan.
-- **Bericht: zwei Tragwerksarten fehlen — seit dem 26. September beauftragt.**
-  Das **Abfangjoch** war ausdrücklich draussen (18. Sept.), der
-  **Tragausleger** wartete auf sein Kragarm-Modell. Beides soll jetzt einen
-  Bericht bekommen; der Entscheid vom 18. September ist damit aufgehoben.
 - ⚠ **Doppelmasten ohne Fundamentzuordnung:** DGP24 und DGP26 stehen in
   der Fundamenttabelle, aber das Sortiment führt sie nicht als Profil —
   ihre Fundamente (DG1a, DG2a, DG3a) sind nur von Hand wählbar.
-- **Nachweisbericht:** Tragausleger fehlt noch (wartet auf die Modellfrage
-  unten); die Systemskizze ist die Längsansicht des Modells, keine
-  vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt.
+- **Nachweisbericht:** die Systemskizze ist die Längsansicht des Modells,
+  keine vermasste Zeichnung; ein Handbuchkapitel zum Bericht fehlt. Der
+  Bericht des Stabwerks (1. Oktober) zeigt im Kapitel Schnittgrössen die
+  Verläufe des aktiven Tragwerks; die Tabelle der Hüllen gilt allen.
 - **Mast mit Tragausleger — der KERN liegt auf der unsicheren Seite**
   (seit dem 28. September im Stabwerk nachgewiesen, siehe *Letzte
   Schritte*; offen bleibt der Kern für die vorläufige Anzeige, Etappe 3,
@@ -2413,9 +2415,9 @@ Mit ⚠ markierte Punkte brauchen einen Entscheid des Auftraggebers.
   weiter das Einzelfeld mit der Sofortmassnahme vom 19. September.
   **Seit dem 28. September führt das Stabwerk die Anzeige** (Hauptkachel,
   Kacheln, Fussleiste, Schiene, Lageband; siehe *Entschieden*). Auf dem
-  Ersatzbalken stehen noch die **Verläufe, der Schnitt, die Tabelle der
-  höchstbeanspruchten Stellen, der Bericht und Excel** — das ist Punkt 3
-  des Auftrags. Drei Dinge dazu, noch nicht entschieden:
+  Ersatzbalken steht noch die Aufteilung im Reiter *Schnitt* (eingeklappt);
+  **Bericht und Excel kommen seit dem 1. Oktober aus dem Stabwerk**.
+  Drei Dinge dazu, noch nicht entschieden:
   (1) ~~**Das Knicken rechnet mit den Schnittgrössen des Kerns.**~~ Am
   Tragjoch seit dem 28. September aus dem Stabwerk (geteilter M2 1.4839 →
   1.4791); Einzelmast und Abfangjoch weiter aus dem Kern.
@@ -2520,7 +2522,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6061 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6089 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu
