@@ -212,6 +212,9 @@ export const BLATT_FELDER = [
   // Ansicht
   'projektion', 'blickwinkel', 'tastenkuerzel', 'modellTransparenz',
   'modellSchrift', 'modellSchriftLast', 'modellSchriftMass',
+  // Die Deckkraft der Hintergrundzeichnung (1. Oktober) gilt der Zeichnung,
+  // also dem Blatt.
+  'zeichnungDeckkraft',
   // Die Masskette beschreibt die ZEICHNUNG, nicht das Tragwerk. Sie wird
   // einmal abgeschrieben und gilt für alles, was auf dem Blatt steht.
   'masskette',

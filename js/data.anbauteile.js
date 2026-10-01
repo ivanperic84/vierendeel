@@ -1266,16 +1266,20 @@ export function expandiereAnbauteile(liste, o = {}) {
       const kraefte = leereKraefte();
       kraefte.G.Fz = wirkt('wirktG') ? w.Gz : 0;
       kraefte.G.Fx = wirkt('wirktAblenk') ? Gx : ohneFd(Gx, GxFd);
+      /*
+       * >>> SCHNEE GEHT MIT DEM GEWICHT, NICHT MIT DEM WIND (1. Oktober). <<<
+       * «Bei der Auswahl der Einwirkungen bei einem Leiter soll nur Wind
+       * stehen nicht noch Schnee dazu, dieser ist dann wider eine vertikale
+       * belastung.» Wer das Gewicht abwählt (Abzugsmast), nimmt auch den
+       * Schnee weg - beide sind lotrecht und hängen am Tragseil.
+       */
+      kraefte.Schnee.Fz = wirkt('wirktG') ? (m.Qz ?? 0) : 0;
       if (wirkt('wirktQ')) {
         kraefte.WindX.Fx = w.Qx;
         kraefte.WindY.Fy = w.Qy;
-        kraefte.Schnee.Fz = m.Qz ?? 0;
       } else {
         kraefte.WindX.Fx = ohneFd(w.Qx, wFd?.Qx ?? 0);
         kraefte.WindY.Fy = ohneFd(w.Qy, wFd?.Qy ?? 0);
-        // Der Schnee steht am Modul, nicht in der Tabelle - er laesst sich
-        // nicht in Tragseil und Fahrdraht zerlegen und faellt ganz weg.
-        kraefte.Schnee.Fz = 0;
       }
       let havarieJe = null;
       let festeRichtung = false;

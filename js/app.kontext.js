@@ -578,6 +578,20 @@ export function anbauteilDuplizieren(app, i) {
   const liste = [...(app.werte.anbauteile ?? [])];
   const a = liste[i];
   if (!a) return;
+  /*
+   * >>> ERST FRAGEN, WOHIN (1. Oktober). <<<
+   * «Nach dem duplizieren fragen wo man es absetzen will, dazu das gesamte
+   * tragwerksteil zeigen.» Das Duplizieren startet das Setzen mit der Kopie
+   * dieser Baugruppe als Vorwahl (derselbe Weg wie «Kopie setzen»): das
+   * Tragwerk steht ganz im Bild, der nächste Klick ins Modell setzt sie ab,
+   * Esc bricht ab. Die Kopie entsteht erst dort - mit ihren Modulen, Lasten
+   * und von Hand geänderten Zahlen.
+   */
+  if (app.setzenStarten && app.zoomAufTragwerk) {
+    app.zoomAufTragwerk(app.werte.twId ?? 'T1');
+    app.setzenStarten({ art: 'kopie', id: a.id });
+    return;
+  }
   let kopie = { ...a, id: `AT-${Math.random().toString(36).slice(2, 8)}`,
                 module: (a.module ?? []).map((m) => ({ ...m })),
                 lasten: (a.lasten ?? []).map((l) => ({ ...l })) };

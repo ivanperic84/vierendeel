@@ -2508,9 +2508,22 @@ export class Modellansicht {
                      bis: Math.min(g.xMax, x + halbeBreite) };
     }
     const ziel = [x, 0, (g.zMin + g.zMax) / 2];
-    const dist = halbeBreite
+    let dist = halbeBreite
       ? Math.max(halbeBreite * 2.6, (g.zMax - g.zMin) * 3.2)
       : Math.max((g.zMax - g.zMin) * 4.5, 1.6);
+    /*
+     * DER BEREICH SOLL GANZ INS BILD (1. Oktober: «dazu das gesamte
+     * tragwerksteil zeigen»). Die Faustformel reichte im schmalen,
+     * perspektivischen Bild nicht - das Joch lief rechts hinaus. Projiziert
+     * wird mit dem neuen Ziel; die Kamera fährt danach wie bisher hin.
+     */
+    if (halbeBreite) {
+      const alt = this.kamera.ziel;
+      this.kamera.ziel = ziel;
+      const noetig = this._noetigerAbstand();
+      this.kamera.ziel = alt;
+      if (noetig) dist = Math.max(dist, noetig);
+    }
     this._animiere(ziel, dist);
   }
 
@@ -2875,8 +2888,9 @@ export class Modellansicht {
       if (griff.art === 'anbau') {
         const w = this.weltTreffer(jetzt[0], jetzt[1]);
         if (w && griff.bewegt) {
-          // Auf 5 cm, wie die Eingabe - die Vorschau zeigt, was ankommt.
-          const r = (v) => Math.round(v * 20) / 20;
+          // Auf 0.10 m (1. Oktober: «Beim Absetzen der Bauteile auf 0.10m
+          // den x oder z Wert runden») - die Vorschau zeigt, was ankommt.
+          const r = (v) => Math.round(v * 10) / 10;
           this._zieh = { teil: griff.teil, vertikal: griff.vertikal,
                          dx: griff.vertikal ? 0 : r(w.x - griff.w0.x),
                          dz: griff.vertikal ? r(w.z - griff.w0.z) : 0 };

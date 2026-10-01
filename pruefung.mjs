@@ -34442,9 +34442,9 @@ titel('176  Anbauteile ziehen, Esc ohne Zoom, Leiter an zwei Punkten, rechte Han
 {
   const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
   const app = APP_QUELLE();
-  wahr('Ziehen: Griff «anbau» auf einem Anbauteil, Umriss als Fang, Vorschau auf 5 cm',
+  wahr('Ziehen: Griff «anbau» auf einem Anbauteil, Umriss als Fang, Vorschau auf 0.10 m',
        r3.includes("griff = { art: 'anbau'") && r3.includes('_anbauteilUnter(e) {')
-       && r3.includes('_ziehMalen(c, proj, t)') && r3.includes('Math.round(v * 20) / 20'));
+       && r3.includes('_ziehMalen(c, proj, t)') && r3.includes('Math.round(v * 10) / 10'));
   wahr('… die App schreibt über setzeAnbauteile (Joch: x begrenzt, Mast: Höhe)',
        app.includes('beiAnbauteilZiehen: (i, weg) => anbauteilZiehen(i, weg)')
        && /function anbauteilZiehen[\s\S]{0,1600}setzeAnbauteile\(liste\)/.test(app));
@@ -34501,6 +34501,42 @@ titel('177  Rechte Hand im Kern: Torsion aus einer Last mit Versatz y');
        `${minus.kern.toFixed(3)} / ${plus.kern.toFixed(3)}`);
   wahr('Kern im ungünstigen Fall nicht unter dem Stabwerk', minus.kern >= minus.stab,
        `${minus.kern.toFixed(3)} gegen ${minus.stab.toFixed(3)}`);
+}
+
+titel('178  Sammelweisung 1. Oktober: Absetzen, Duplizieren, neues Joch, Zeichnung, Leiter, Seitenleiste');
+{
+  const app = APP_QUELLE();
+  const st = readFileSync(join(HIER, 'js', 'app.setzen.js'), 'utf8');
+  const kt = readFileSync(join(HIER, 'js', 'app.kontext.js'), 'utf8');
+  const dl = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
+  const r3 = readFileSync(join(HIER, 'js', 'render.3d.js'), 'utf8');
+  wahr('Absetzen fährt die Seitenleiste auf die Karte (zeigeAnbauteil)',
+       st.includes('if (i >= 0) app.zeigeAnbauteil(i);'));
+  wahr('Absetzen rundet am Joch auf 0.10 m (ausser Fang auf die Masskette), am Masten ebenso',
+       st.includes('gefangen ? xr : Math.round(xr * 10) / 10') && st.includes('Math.round(hM * 10) / 10'));
+  wahr('Duplizieren startet das Setzen mit der Kopie und zeigt das ganze Tragwerk; Esc bricht ab',
+       kt.includes("app.setzenStarten({ art: 'kopie', id: a.id })")
+       && kt.includes("app.zoomAufTragwerk(app.werte.twId ?? 'T1')")
+       && app.includes('if (setzen) { setzenEnde(app); return; }'));
+  wahr('… und der Ausschnitt projiziert den Bereich (zoomAuf mit _noetigerAbstand)',
+       /if \(halbeBreite\) \{[\s\S]{0,200}_noetigerAbstand\(\)/.test(r3));
+  wahr('Neues Tragwerk mit Träger: Anbauteile «ohne» als Vorgabe, Mastteile bleiben',
+       dl.includes('teileMit: false,') && dl.includes("name=\"dlg-tw-teile\" value=\"ohne\"")
+       && dl.includes("if (artDef().traeger && !e.teileMit)"));
+  wahr('Deckkraft der Zeichnung einstellbar und im Blatt gespeichert',
+       app.includes('data-z-deck') && app.includes("aendern('zeichnungDeckkraft'")
+       && readFileSync(join(HIER, 'js', 'core.constants.js'), 'utf8').includes("'zeichnungDeckkraft',"));
+  // Leiter: Schnee geht mit dem Gewicht, nicht mit dem Wind.
+  const A178 = await import(J('data.anbauteile.js'));
+  const teil = (wirk) => ({ ...A178.neuesAnbauteil('leiter-rfl', 10),
+    module: A178.neuesAnbauteil('leiter-rfl', 10).module.map((m) => ({ ...m, ...wirk, Qz: 0.5 })) });
+  const kr = (wirk) => A178.expandiereAnbauteile([teil(wirk)], { ek: 'EK1' })
+    .reduce((s, t) => ({ S: s.S + (t.kraefte?.Schnee?.Fz ?? 0), W: s.W + (t.kraefte?.WindY?.Fy ?? 0) + (t.kraefte?.WindX?.Fx ?? 0) }), { S: 0, W: 0 });
+  const ohneWind = kr({ wirktQ: false }), ohneG = kr({ wirktG: false });
+  wahr('Leiter: «Wind» abgewählt nimmt keinen Schnee mit; «Gewicht/Schnee» abgewählt nimmt ihn',
+       ohneWind.S > 0 && ohneG.S === 0, `ohne Wind S ${ohneWind.S}, ohne G S ${ohneG.S}`);
+  wahr('Seitenleiste: das bediente Feld ist der Anker beim Neuaufbau',
+       app.includes('function maskenAnkerHalten()') && (app.match(/maskenAnkerHalten\(\);/g) ?? []).length >= 2);
 }
 
 // ===========================================================================

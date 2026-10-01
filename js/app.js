@@ -781,6 +781,7 @@ function neuRechnen(neuZeichnen = true) {
     if (sig === maskeSig && ui.el('maske').children.length) {
       ui.aktualisiereMaske(ui.el('maske'), werte, extras);
       verdrahteExtras(app);
+      maskenAnkerHalten();
       return;
     }
     maskeSig = sig;
@@ -789,6 +790,7 @@ function neuRechnen(neuZeichnen = true) {
     });
     ui.zeichneMaske(ui.el('maske'), werte, tabEingabe, aendern, setzeAnbauteile, extras);
     verdrahteExtras(app);
+    maskenAnkerHalten();
   };
 
   try {
@@ -1668,6 +1670,9 @@ function uebernehmeAnsichtsoptionen() {
   ansicht.schrift = werte.modellSchrift ?? 10;
   ansicht.schriftLast = werte.modellSchriftLast ?? ansicht.schrift;
   ansicht.schriftMass = werte.modellSchriftMass ?? ansicht.schrift;
+  // Deckkraft der Hintergrundzeichnung in Prozent (1. Oktober: «Transparenz
+  // der Hintergrundzeichnung einstellen können»); ohne Eintrag 45 % wie bisher.
+  ansicht.zeichnungDeckkraft = Math.max(0.05, Math.min(1, (werte.zeichnungDeckkraft ?? 45) / 100));
 }
 
 /*
@@ -3096,7 +3101,9 @@ function anbauteilZiehen(i, { dx = 0, dz = 0 }) {
   const liste = [...(werte.anbauteile ?? [])];
   const a = liste[i];
   if (!a) return;
-  const r = (v) => Math.round(v * 1000) / 1000;
+  // Das Ergebnis auf 0.10 m (1. Oktober: «Beim Absetzen der Bauteile auf
+  // 0.10m den x oder z Wert runden»).
+  const r = (v) => Math.round(v * 10) / 10;
   let neu, text;
   if (amMast(a)) {
     const alt = Number(a.hMast) || 0;
@@ -3607,7 +3614,24 @@ function zeichneBalken() {
       + '<button class="btn btn-mini" data-z-mess>Neu einmessen</button>'
       + '<button class="btn btn-mini" data-z-neu>Bild ersetzen</button>'
       + '<button class="btn btn-mini btn-fail" data-z-weg>Entfernen</button>'
+      /*
+       * >>> DIE DECKKRAFT DER ZEICHNUNG (1. Oktober). <<<
+       * «Transparenz der Hintergrundzeichnung einstellen können.» Ziehen
+       * zeichnet nur neu; gespeichert wird beim Loslassen (`change`) - sonst
+       * liefe jeder Pixel des Zugs durch den Verlauf.
+       */
+      + `<label class="z-deckkraft" title="Deckkraft der Zeichnung">Deckkraft
+           <input type="range" min="5" max="100" step="5" data-z-deck
+             value="${Math.round((werte.zeichnungDeckkraft ?? 45))}">
+           <span data-z-deck-wert>${Math.round(werte.zeichnungDeckkraft ?? 45)} %</span></label>`
       + '<button class="btn btn-mini" data-z-ab>Abbrechen</button>';
+    const deck = n.querySelector('[data-z-deck]');
+    deck.oninput = () => {
+      ansicht.zeichnungDeckkraft = Number(deck.value) / 100;
+      n.querySelector('[data-z-deck-wert]').textContent = `${deck.value} %`;
+      ansicht.zeichne();
+    };
+    deck.onchange = () => aendern('zeichnungDeckkraft', Number(deck.value));
     n.querySelector('[data-z-mess]').onclick = () => {
       zeichnungMenue = false; kalibrierenStarten(app);
     };
@@ -3943,6 +3967,8 @@ function zeigeAnbauteil(i) {
 function abbrechen() {
   // Das Kontextmenue geht zuerst: es liegt ueber allem anderen.
   if (kontextOffen()) { kontextSchliessen(app); return; }
+  // Ein laufendes Setzen (auch nach «Duplizieren», 1. Oktober) bricht Esc ab.
+  if (setzen) { setzenEnde(app); return; }
   /*
    * ESC BEENDET DAS SCHIEBEN, ohne es zurueckzunehmen.
    *
@@ -4720,6 +4746,48 @@ function plotNummer(n) {
   ansicht.modus = mo.key;
   ansicht.zeichne(); zeichneLegende(app); zeichneModellWerkzeuge(app);
 }
+
+/* ===========================================================================
+ * >>> DIE SEITENLEISTE SPRINGT NICHT (1. Oktober). <<<
+ *
+ * Weisung: «Nach erfolgter Eingabe springt die sidebar bei einigen
+ * stellen.» Gemessen am Standardjoch, jedes Feld der vier Reiter und der
+ * Bauteilkarte einmal verstellt: meist 0, an einigen 9-14 px (eine Notiz
+ * oder Zeile darüber wechselt die Höhe), beim Schalter «Tragwerk steht auf
+ * Masten» 272 px. Statt jede Stelle einzeln zu flicken: das bediente Feld
+ * ist der Anker. Vor der Eingabe merkt sich die Leiste, wo es im Bild
+ * stand; nach dem Neuaufbau rollt sie so nach, dass es wieder dort steht.
+ * Der Anker gilt drei Sekunden (das Stabwerk rechnet eine Sekunde später
+ * nach und baut die Leiste noch einmal) und fällt weg, sobald man selbst
+ * rollt.
+ * ========================================================================= */
+let maskenAnker = null;
+function ankerSelektor(f) {
+  if (f.id) return `#${CSS.escape(f.id)}`;
+  const a = [...f.attributes].filter((x) => x.name.startsWith('data-'))
+    .map((x) => `[${x.name}="${CSS.escape(x.value)}"]`).join('');
+  return a ? `${f.tagName.toLowerCase()}${a}` : null;
+}
+function maskenAnkerMerken(e) {
+  const m = ui.el('maske');
+  const f = e.target?.closest?.('input, select, textarea, button, [data-at-oeffnen], [data-klapp]');
+  if (!m || !f || !m.contains(f)) return;
+  const sel = ankerSelektor(f);
+  if (!sel) return;
+  maskenAnker = { sel, top: f.getBoundingClientRect().top, zeit: performance.now() };
+}
+function maskenAnkerHalten() {
+  const a = maskenAnker;
+  if (!a) return;
+  if (performance.now() - a.zeit > 3000) { maskenAnker = null; return; }
+  const m = ui.el('maske');
+  let f = null;
+  try { f = m?.querySelector(a.sel); } catch { f = null; }
+  if (!f || !f.offsetParent) return;
+  const d = f.getBoundingClientRect().top - a.top;
+  if (Math.abs(d) > 1) m.scrollTop += d;
+}
+function maskenAnkerLoesen() { maskenAnker = null; }
 
 function tastendruck(e) {
   if (e.key === 'Escape') { abbrechen(); return; }
@@ -5580,6 +5648,15 @@ export async function start() {
     schubladeSchliessen(app);
   });
   document.addEventListener('keydown', tastendruck);
+  {
+    // Der Anker der Seitenleiste: gemerkt beim Bedienen (vor dem Neuaufbau),
+    // gelöst, sobald man selbst rollt.
+    const m = ui.el('maske');
+    ['pointerdown', 'focusin', 'change'].forEach((ev) =>
+      m?.addEventListener(ev, maskenAnkerMerken, true));
+    ['wheel', 'touchmove'].forEach((ev) =>
+      m?.addEventListener(ev, maskenAnkerLoesen, { passive: true }));
+  }
   baueLayout(app);
   baueModellWerkzeuge(app);
   verdrahteZeichnung();

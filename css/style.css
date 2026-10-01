@@ -1080,6 +1080,9 @@ button.wz-haupt:hover { color: var(--on); }
   padding: 3px 6px; white-space: nowrap;
   transition: color var(--t-schnell), background var(--t-schnell), border-color var(--t-schnell);
 }
+/* Regler der Zeichnungs-Deckkraft im Balken (1. Oktober). */
+.z-deckkraft { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); }
+.z-deckkraft input[type=range] { width: 90px; accent-color: var(--acc); }
 /* Leer (im Stabwerk kein Nachweisschnitt) steht kein Kästchen da. */
 .viewer-marke:empty { display: none; }
 .viewer-fuss:hover .viewer-marke {
@@ -3223,6 +3226,9 @@ table.sw-tabelle td.sw-stab { white-space: nowrap; }
 
 /* Mastwahl im Dialog «Neues Tragwerk» (30. September). */
 .dlg-masten { display: flex; gap: 8px; align-items: center; }
+/* Wahl der Anbauteile beim neuen Tragwerk (1. Oktober). */
+.dlg-wahl { display: flex; gap: 14px; flex-wrap: wrap; }
+.dlg-wahl label { display: inline-flex; align-items: center; gap: 5px; }
 .dlg-masten select { flex: 1; min-width: 0; }
 
 /* Kacheln «Neues Tragwerk» (30. September): anklicken oder ins 3D ziehen.

@@ -492,6 +492,10 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     spw: Number(app.werte.flSpannweite) || 40,
     R: Number(app.werte.trasseRadius) || 0,
     nichtMehr: false,
+    // Anbauteile des Jochs: ohne (Vorgabe) oder vom gewählten übernehmen
+    // (1. Oktober: «Beim setzen eines neuen tragjochs auswahl, ohne
+    // bauteilbelegung»).
+    teileMit: false,
     // Die gewählten Masten (30. September) - leer heisst «neu setzen».
     mA: '', mB: '',
   };
@@ -774,9 +778,16 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
 
     ${grundwerteHtml()}
 
+    ${neuesTragwerk && artDef().traeger ? `<div class="feld"><label>Anbauteile am Träger</label>
+      <div class="dlg-wahl">
+        <label><input type="radio" name="dlg-tw-teile" value="ohne"${e.teileMit ? '' : ' checked'}> ohne</label>
+        <label><input type="radio" name="dlg-tw-teile" value="mit"${e.teileMit ? ' checked' : ''}>
+          vom gewählten Tragwerk übernehmen</label></div>
+      <small class="hinweis">Teile an den Masten gehören dem Masten und bleiben.</small></div>` : ''}
+
     <p class="notiz">${neuesTragwerk
-      ? 'Profile, Bleche und Anbauteile übernimmt das neue Tragwerk vom '
-        + 'zuletzt gewählten — sie lassen sich danach in der Maske ändern.'
+      ? 'Profile und Bleche übernimmt das neue Tragwerk vom zuletzt gewählten '
+        + '— sie lassen sich danach in der Maske ändern.'
       : 'Profile, Bleche, Masten und Anbauteile bleiben, wie sie sind. Ein '
         + 'Wechsel der ART setzt Typ und Länge auf das Sortiment der neuen '
         + 'Art — «J90» steht in keiner Abfangjoch-Liste.'}</p>`;
@@ -864,10 +875,19 @@ export function dialogTragwerk(app, id = null, artVor = null, vor = {}) {
     if (ek) ek.onchange = () => { e = { ...e, ek: ek.value }; };
     const nm = n.querySelector('#dlg-tw-nichtmehr');
     if (nm) nm.onchange = () => { e = { ...e, nichtMehr: nm.checked }; };
+    n.querySelectorAll('input[name="dlg-tw-teile"]').forEach((r) => {
+      r.onchange = () => { if (r.checked) e = { ...e, teileMit: r.value === 'mit' }; };
+    });
     n.querySelector('[data-tw-ok]').onclick = () => {
       d.zu();
       if (neuesTragwerk) {
         app.aendern('tragwerkNeu', { art: e.art, xLage: e.x0 });
+        // Ohne Bauteilbelegung: die Teile am Träger fallen weg, die an den
+        // Masten bleiben (sie gehören dem Masten).
+        if (artDef().traeger && !e.teileMit) {
+          app.setzeAnbauteile((app.werte.anbauteile ?? [])
+            .filter((a) => a?.ort === 'mastA' || a?.ort === 'mastB'));
+        }
         /*
          * Die Grundwerte gehören dem Blatt - geschrieben wird nur, was
          * sich geändert hat, damit der Verlauf keine leeren Schritte führt.

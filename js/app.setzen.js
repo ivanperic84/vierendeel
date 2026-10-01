@@ -98,9 +98,17 @@ export function stelleAus(app, w) {
    */
   const einzel = m.tragwerksart === 'einzelmast';
   if (!einzel && xl >= -0.3 && xl <= L + 0.3 && Math.abs(zl) <= h / 2 + 0.6) {
-    const xb = fangeAufMasskette(
-      lokalNachBlatt(t, Math.max(0, Math.min(L, xl))), m.masskette ?? []);
-    const x = Math.max(0, Math.min(L, blattNachLokal(t, xb)));
+    const roh = lokalNachBlatt(t, Math.max(0, Math.min(L, xl)));
+    const xb = fangeAufMasskette(roh, m.masskette ?? []);
+    /*
+     * >>> AUF 0.10 m GERUNDET (1. Oktober). <<<
+     * «Beim Absetzen der Bauteile auf 0.10m den x oder z Wert runden.»
+     * Ausser die Masskette der Zeichnung hat gefangen - deren Stelle ist
+     * gemessen und bleibt, wie sie ist.
+     */
+    const gefangen = Math.abs(xb - roh) > 1e-9;
+    const xr = blattNachLokal(t, xb);
+    const x = Math.max(0, Math.min(L, gefangen ? xr : Math.round(xr * 10) / 10));
     return { ort: 'joch', x: Math.round(x * 1000) / 1000 };
   }
   // Am Masten nur, wenn einer im Modell steht - sonst gibt es dort nichts,
@@ -124,11 +132,11 @@ export function stelleAus(app, w) {
   // bis dorthin, mit 30 cm Spiel darueber - wer auf den Kopf zielt, meint ihn.
   const grenze = einzel ? 0.3 : oben - H - (h / 2);
   if (H > 0 && (nahA || nahB) && zl < grenze + 1e-9) {
-    // AUF DEN SCHRITT DES REGLERS GERUNDET (5 cm). Sonst zeigt die Karte
-    // eine andere Zahl an, als der Klick gesetzt hat - der Regler rastet
-    // auf seinen Schritt, und der Anwender sieht 5.20, wo 5.15 steht.
+    // AUF 0.10 m GERUNDET (1. Oktober: «Beim Absetzen der Bauteile auf
+    // 0.10m den x oder z Wert runden»; vorher 5 cm, der Schritt des Reglers).
     const hM = Math.max(0, Math.min(oben, zl + H));
-    return { ort: nahA ? 'mastA' : 'mastB', hMast: Math.round(hM * 20) / 20 };
+    return { ort: nahA ? 'mastA' : 'mastB',
+             hMast: Math.min(Math.round(hM * 10) / 10, Math.floor(oben * 10) / 10) };
   }
   return null;
 }
@@ -286,11 +294,14 @@ function setzeBaugruppeAnStelle(app, roh) {
   (app.werte.anbauteile ?? []).forEach((x) => ui.setzeKlapp(`at-${x.id}`, false));
   ui.setzeKlapp(`at-${t.id}`, true);
   app.setzeAnbauteile([...(app.werte.anbauteile ?? []), t]);
-  if (st.ort === 'joch') {
-    // Im Blatt, nicht im Tragwerk - siehe `blattVersatz`.
-    app.ansicht.zoomAuf(app.blattVersatz() + t.x, null, Math.max(2, app.werte.L / 8));
-  }
-  else app.ansicht.zeigeAnbauteil((app.werte.anbauteile ?? []).length - 1);
+  /*
+   * >>> DIE SEITENLEISTE FÄHRT AUF DIE EINGABE (1. Oktober). <<<
+   * «beim absetzen eines bauteils im 3d auf die eingabe in der sidebar
+   * fahren.» Derselbe Weg wie ein Klick auf das Teil im Bild: Karte auf,
+   * Leiste ausgeklappt und dorthin gerollt, das Teil herangeholt.
+   */
+  const i = (app.werte.anbauteile ?? []).findIndex((x) => x.id === t.id);
+  if (i >= 0) app.zeigeAnbauteil(i);
 }
 
 /**

@@ -2578,7 +2578,7 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
         <button class="btn btn-mini" data-at-zoom="${i}"
                 title="Im Modell anfahren">${icon('zoom', 12)}</button>
         <button class="btn btn-mini" data-at-dup="${i}"
-                title="Duplizieren - die Kopie steht 0.50 m daneben (auch per Rechtsklick auf die Zeile)">${icon('kopie', 12)}</button>
+                title="Duplizieren - danach ins Modell klicken, wo die Kopie hin soll; Esc bricht ab (auch per Rechtsklick auf die Zeile)">${icon('kopie', 12)}</button>
         <button class="btn btn-mini" data-at-vorlage="${i}"
                 title="Als eigene Vorlage speichern">${icon('speichern', 12)}</button>
         <label class="schalter" title="Teil mitrechnen"><input class="at" data-k="aktiv"
@@ -3641,17 +3641,21 @@ function modFeld(i, k, feld, label, wert, einheit, schritt, hinweis = '') {
  * dass es dem Fahrdraht gilt wie daneben.
  * ========================================================================= */
 const WIRKUNGEN = [
-  { key: 'wirktG', label: 'Gewicht', bezug: 'beide',
-    titel: 'Eigengewicht des Leiters, ständig, Gruppe G. Gilt BEIDEN Leitern: '
-         + 'das Gewicht hängt am Tragseil. Abwählen beim Abzugsmast, der die '
-         + 'Leiter nur umlenkt.' },
+  // Schnee ist lotrecht und geht mit dem Gewicht (1. Oktober: «Bei der
+  // Auswahl der Einwirkungen bei einem Leiter soll nur Wind stehen nicht
+  // noch Schnee dazu, dieser ist dann wider eine vertikale belastung»).
+  { key: 'wirktG', label: 'Gewicht/Schnee', bezug: 'beide',
+    titel: 'Eigengewicht des Leiters (ständig, Gruppe G) und Schnee darauf '
+         + '(veränderlich) - beides lotrecht. Gilt BEIDEN Leitern: das Gewicht '
+         + 'hängt am Tragseil. Abwählen beim Abzugsmast, der die Leiter nur '
+         + 'umlenkt.' },
   { key: 'wirktAblenk', label: 'Ablenkung', bezug: 'fahrdraht',
     titel: 'Ablenkkraft aus dem Kurvenzug (Z·c/R), ebenfalls ständig. '
          + 'Abwählen, wenn dieser Anteil anderswo hingeht: beim Fahrdraht '
          + 'am Joch in die Drückstütze oder in einen Fahrdrahtabzug an der '
          + 'Hängestütze, am Ausleger in die Spurhaltertraverse.' },
-  { key: 'wirktQ', label: 'Wind/Schnee', bezug: 'fahrdraht',
-    titel: 'Wind auf den Leiter und Schnee, veränderlich' },
+  { key: 'wirktQ', label: 'Wind', bezug: 'fahrdraht',
+    titel: 'Wind auf den Leiter, veränderlich, waagrecht' },
 ];
 
 /**
