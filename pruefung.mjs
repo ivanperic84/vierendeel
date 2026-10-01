@@ -34722,8 +34722,9 @@ titel('182  Kleine Befunde: Name in der Reihenzeile, Höhe im Dialog, Ankerfang,
   const dlg = readFileSync(join(HIER, 'js', 'app.dialoge.js'), 'utf8');
   wahr('Dialog «Neues Tragwerk» schreibt die Anschlusshöhe des neuen Tragwerks',
        dlg.includes('const m1Neu = erstenMastVon(app, tNeu);')
-       // Mastdialog, Tragwerk bearbeiten und jetzt das neue Tragwerk.
-       && (dlg.match(/app\.aendern\('mastH', e\.H\);/g) ?? []).length === 3);
+       // Tragwerk bearbeiten und jetzt das neue Tragwerk (der Mastdialog
+       // schreibt seit dem 1. Oktober über `feldH`, siehe (7)).
+       && (dlg.match(/app\.aendern\('mastH', e\.H\);/g) ?? []).length === 2);
   wahr('… und die nachgezogene Länge eines geteilten Masten fällt nicht unter das Nachbarjoch',
        app.includes('function mastLaengeMindestens(w, mastId)')
        && app.includes('Math.max(nach[feldL], mastLaengeMindestens(werte, ziel))'));
@@ -34762,6 +34763,12 @@ titel('182  Kleine Befunde: Name in der Reihenzeile, Höhe im Dialog, Ankerfang,
            m < 0.01, `grösstes ${m.toFixed(4)} kNm`);
     });
   }
+  // (7) Mastdialog: Höhe des Tragwerks, das der Mast trägt, an seinem Ende.
+  wahr('Mastdialog liest die Höhe am tragenden Tragwerk und schreibt ins Feld seines Endes',
+       dlg.includes('const hTw = tZiel ? anschlusshoehe(tZiel, ende) : 0;')
+       && dlg.includes("const feldH = eigenB ? 'mastHB' : 'mastH';")
+       && dlg.includes('if (Math.abs(e.H - H0) > 1e-9) app.aendern(feldH, e.H);')
+       && !dlg.includes('Number(m.H) > 0'));
   // (6) serve.py bindet exklusiv.
   const sv = readFileSync(join(HIER, 'serve.py'), 'utf8');
   wahr('serve.py weist einen belegten Port ab (exklusiv unter Windows)',

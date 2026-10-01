@@ -9,7 +9,7 @@
  * ---------------------------------------------------------------------------
  */
 import { einzelmastLaenge } from './core.auflager.js';
-import { TRAGWERKSARTEN, gewaehlterMast, lageVon, mastName, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkeSortiert, tragwerksart } from './core.constants.js';
+import { TRAGWERKSARTEN, anschlusshoehe, gewaehlterMast, lageVon, mastName, mastenFuer, mastenVon, setzeMastAnker, tauscheAktives, tragwerkName, tragwerkPos, tragwerkeSortiert, tragwerkeVon, tragwerksart } from './core.constants.js';
 import { abfangLaengenbereich, abfangjoche, getAbfangjoch, tragauslegerNaechsteLaenge,
          tragauslegerTypen } from './data.abfangjoche.js';
 import { ANKER_BEFESTIGUNGEN, ankerTraegtDruck, ankerTypen } from './data.anker.js';
@@ -282,14 +282,36 @@ export function dialogMast(app, mastId) {
   const alle = mastenVon(app.werte);
   const m = alle.find((x) => x.id === mastId) ?? alle[0];
   if (!m) return null;
+  /*
+   * >>> DIE HÖHE DES TRAGWERKS, DAS DIESER MAST TRÄGT (1. Oktober). <<<
+   *
+   * Hier stand `m.H`, ersatzweise `werte.mastH` - und `m.H` setzt niemand.
+   * Der Dialog zeigte damit immer die Höhe des GEWÄHLTEN Tragwerks, auch
+   * für einen Masten, den nur ein anderes trägt (gesehen: M1 von T1 zeigte
+   * 6.50 von T2). Gelesen wird jetzt dort, wohin «Übernehmen» schreibt:
+   * am Tragwerk, das nach `mastAktiv` das gewählte ist (das bisherige, wenn
+   * es diesen Masten trägt, sonst sein erstes), an dem Ende, an dem der
+   * Mast steht (`anschlusshoehe`).
+   */
+  const jetzt = app.werte.twId ?? 'T1';
+  const tIds = m.traegt ?? [];
+  const tZiel = tragwerkeVon(app.werte).find((t) => t.id
+    === (tIds.includes(jetzt) ? jetzt : (tIds[0] ?? jetzt))) ?? null;
+  const [mA, mB] = tZiel ? mastenFuer(app.werte, tZiel) : [null, null];
+  const ende = mB?.id === m.id && mA?.id !== m.id ? 'B' : 'A';
+  // Am Ende B mit eigener Höhe `mastHB`; sonst folgt B der Höhe von A.
+  const eigenB = ende === 'B' && (tZiel?.mastHZwei ?? tZiel?.mastZwei) === true;
+  const feldH = eigenB ? 'mastHB' : 'mastH';
+  const hTw = tZiel ? anschlusshoehe(tZiel, ende) : 0;
   let e = {
-    profil: m.profil ?? app.werte.mastProfil ?? 'HEB 260',
-    steg: m.steg ?? app.werte.mastSteg ?? 'jochachse',
-    H: Number(m.H) > 0 ? Number(m.H) : (Number(app.werte.mastH) || 7.5),
-    laenge: Number(m.laenge) > 0 ? Number(m.laenge)
-                                 : (Number(app.werte.mastLaenge) || 0),
+    profil: m.profil ?? tZiel?.mastProfil ?? app.werte.mastProfil ?? 'HEB 260',
+    steg: m.steg ?? tZiel?.mastSteg ?? app.werte.mastSteg ?? 'jochachse',
+    H: hTw > 0 ? hTw : (Number(app.werte.mastH) || 7.5),
+    // Die Länge gehört dem Masten; ohne eigene zeigt das Feld die Vorgabe.
+    laenge: Number(m.laenge) > 0 ? Number(m.laenge) : 0,
     x: Number(m.x) || 0,
   };
+  const H0 = e.H;
   /*
    * DIE LAENGE FOLGT DER HOEHE, solange niemand sie eigens setzt: seit dem
    * 5. September ist die Vorgabe H + 0.50 m. Das Feld zeigt deshalb, was
@@ -332,8 +354,10 @@ export function dialogMast(app, mastId) {
     ${nurEinzel ? '' : `<div class="feld"><label for="dlg-m-h">Anschlusshöhe</label>
       <input id="dlg-m-h" type="number" step="0.1" min="2" max="20"
              value="${e.H.toFixed(2)}">
-      <small class="hinweis">m · über dem Mastfuss. Dieselbe Zahl steht im
-        Fenster des Tragwerks.</small></div>`}
+      <small class="hinweis">m · über dem Mastfuss, ${esc(tZiel
+        ? `${tragwerkPos(app.werte, tZiel)} am Ende ${ende}` : 'am Tragwerk')}${
+        ende === 'B' && !eigenB ? ' (Ende B folgt Ende A, gilt für beide)' : ''}.
+        Dieselbe Zahl steht im Fenster des Tragwerks.</small></div>`}
 
     <div class="feld"><label for="dlg-m-l">Mastlänge gesamt</label>
       <input id="dlg-m-l" type="number" step="0.1" min="2" max="25"
@@ -397,9 +421,9 @@ export function dialogMast(app, mastId) {
         app.aendern('mastProfil', e.profil);
       }
       if (e.steg !== (m.steg ?? app.werte.mastSteg)) app.aendern('mastSteg', e.steg);
-      if (Math.abs(e.H - (Number(m.H) || Number(app.werte.mastH) || 0)) > 1e-9) {
-        app.aendern('mastH', e.H);
-      }
+      // Verglichen mit der Zahl, die das Feld zeigte; geschrieben ins Feld
+      // des Endes, an dem der Mast steht.
+      if (Math.abs(e.H - H0) > 1e-9) app.aendern(feldH, e.H);
       if (Number.isFinite(e.laenge) && e.laenge > 0
           && Math.abs(e.laenge - (Number(m.laenge) || 0)) > 1e-9) {
         app.aendern('mastLaenge', e.laenge);
