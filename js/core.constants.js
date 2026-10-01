@@ -215,6 +215,9 @@ export const BLATT_FELDER = [
   // Die Deckkraft der Hintergrundzeichnung (1. Oktober) gilt der Zeichnung,
   // also dem Blatt.
   'zeichnungDeckkraft',
+  // Merker «F_z der Lastblöcke nach oben» (1. Oktober) - er gilt dem ganzen
+  // Stand, also allen Tragwerken des Blattes.
+  'fzNachOben',
   // Die Masskette beschreibt die ZEICHNUNG, nicht das Tragwerk. Sie wird
   // einmal abgeschrieben und gilt für alles, was auf dem Blatt steht.
   'masskette',

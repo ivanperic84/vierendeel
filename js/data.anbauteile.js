@@ -13,6 +13,12 @@
  *   z  vertikal, POSITIV NACH OBEN, 0 auf der Schwerachse des
  *      Anschlussgurtes (siehe core.anbauteile.js)
  *
+ * KRÄFTE DER LASTBLÖCKE (seit 1. Oktober nach der rechten Hand):
+ *   gespeichert und eingegeben mit z NACH OBEN - ein Gewicht ist F_z < 0.
+ *   Der Rechenkern führt F_z weiter positiv nach unten; umgerechnet wird an
+ *   EINER Stelle, beim Auflösen (`expandiereAnbauteile`). Alte Stände
+ *   werden einmal umgerechnet (`fzNachObenAnheben`, Merker `fzNachOben`).
+ *
  * BEFESTIGUNG
  *   Das Teil sitzt MITTIG auf den Schwerachsen der Gurte, über die Länge
  *   "raster" in Jochachse; die Last wird auf x − raster/2 und x + raster/2
@@ -412,11 +418,13 @@ export function normalisiereAnbauteil(a) {
       if (Object.values(o).every((v) => !v)) return;
       bloecke.push(neuerLastblock(gruppe, { x: 0, y, z, ...o }));
     };
-    setze('G', { Fz: (a.eigengewicht ?? 0) + (a.Gz ?? 0),
+    // Die älteste Form führte Gewicht und Schnee nach unten positiv; der
+    // Lastblock steht seit dem 1. Oktober nach oben (rechte Hand).
+    setze('G', { Fz: -((a.eigengewicht ?? 0) + (a.Gz ?? 0)),
                  Fx: a.Gx ?? 0, Fy: a.Gy ?? 0 });
     setze('WindX', { Fx: a.Qx ?? 0 });
     setze('WindY', { Fy: a.Qy ?? 0 });
-    setze('Schnee', { Fz: a.Qz ?? 0 });
+    setze('Schnee', { Fz: -(a.Qz ?? 0) });
     t.lasten = bloecke;
   } else {
     t.lasten = a.lasten.map((l) => neuerLastblock(gruppeOderG(l.einwirkung), l));
@@ -963,9 +971,45 @@ function tragwerkAnheben(t) {
   return w;
 }
 
+/**
+ * >>> F_z DER LASTBLÖCKE NACH OBEN (1. Oktober, Entscheid «Eingabe nach 3D»). <<<
+ *
+ * Auftrag 30. September: «… die konvention gemäss des achssystems im 3d
+ * wäre eigentlich negativ, dass sollten wir noch berichtigen», auf
+ * Rückfrage «Eingabe nach 3D»; dazu die Weisung «Beachte beim
+ * koordinatensystem die rechte hand regel im modell sowie in der output
+ * liste / nachweise». Bis hierher stand ein Gewicht im Lastblock als
+ * F_z > 0. Ein Stand ohne Merker trägt die alte Form: jedes F_z der
+ * Lastblöcke (am Joch, an den Masten, in den weiteren Tragwerken, in den
+ * eigenen Vorlagen) wechselt einmal das Vorzeichen. Rein: ein zweiter Lauf
+ * ändert nichts. Gerechnet wird danach genau wie vorher.
+ */
+export function fzNachObenAnheben(w) {
+  if (!w || typeof w !== 'object' || w.fzNachOben === true) return w;
+  const kehr = (l) => (l && typeof l === 'object' && Number(l.Fz)
+    ? { ...l, Fz: -Number(l.Fz) } : l);
+  const teil = (a) => (a && Array.isArray(a.lasten) ? { ...a, lasten: a.lasten.map(kehr) } : a);
+  const satz = (t) => (t && Array.isArray(t.anbauteile)
+    ? { ...t, anbauteile: t.anbauteile.map(teil) } : t);
+  const erg = satz({ ...w });
+  if (Array.isArray(erg.weitere)) erg.weitere = erg.weitere.map(satz);
+  if (Array.isArray(erg.mastAnbauteile)) erg.mastAnbauteile = erg.mastAnbauteile.map(teil);
+  if (Array.isArray(erg.eigeneVorlagen)) {
+    erg.eigeneVorlagen = erg.eigeneVorlagen.map((v) => (v && Array.isArray(v.lastbloecke)
+      ? { ...v, lastbloecke: v.lastbloecke.map(kehr) } : v));
+  }
+  erg.fzNachOben = true;
+  return erg;
+}
+
 export function standAnheben(w) {
   if (!w || typeof w !== 'object') return w;
-  let erg = tragwerkAnheben(havarieAnheben(w));
+  /*
+   * Die vorhandenen Lastblöcke ZUERST nach der rechten Hand: danach baut
+   * `tragwerkAnheben` aus der ältesten Form (Gz, Qz am Teil) Blöcke, und die
+   * entstehen schon nach oben - sie dürfen nicht ein zweites Mal kippen.
+   */
+  let erg = tragwerkAnheben(havarieAnheben(fzNachObenAnheben(w)));
   if (Array.isArray(erg.weitere)) erg.weitere = erg.weitere.map(tragwerkAnheben);
   /*
    * >>> TEILE AM MASTEN IN DIE BLATTLISTE, SOFORT (29. September). <<<
@@ -1367,7 +1411,9 @@ export function expandiereAnbauteile(liste, o = {}) {
       if (l.aktiv === false) return;
       const kraefte = leereKraefte();
       const g = gruppeOderG(l.einwirkung);
-      kraefte[g] = { Fx: l.Fx ?? 0, Fy: l.Fy ?? 0, Fz: l.Fz ?? 0,
+      // F_z steht im Block nach oben (rechte Hand, 1. Oktober), im Kern
+      // nach unten - hier, an dieser einen Stelle, wird umgerechnet.
+      kraefte[g] = { Fx: l.Fx ?? 0, Fy: l.Fy ?? 0, Fz: -(l.Fz ?? 0),
                      Mxx: l.Mxx ?? 0, Myy: l.Myy ?? 0, Mzz: l.Mzz ?? 0 };
       if (Object.values(kraefte[g]).every((v) => !v)) return;
       const z = l.z ?? 0, y = l.y ?? 0;

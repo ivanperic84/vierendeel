@@ -9,7 +9,7 @@
  * ungesichert). Es importiert app.js nicht zurueck.
  * ---------------------------------------------------------------------------
  */
-import { standAnheben } from './data.anbauteile.js';
+import { standAnheben, fzNachObenAnheben } from './data.anbauteile.js';
 import { rechensatzMitNachbarn } from './core.nachbarn.js';
 import { APP_NAME, mastenVon, rechensatz, tragwerksart } from './core.constants.js';
 import { berechne, vergleichKombinationen } from './core.vierendeel.js';
@@ -453,7 +453,9 @@ export async function zeichneSchublade(app) {
                  'Lastfälle werden übernommen; die Jochlänge bleibt.')) return;
     // Eine Vorlage ist so alt wie ihr Tag - sie wird angehoben wie ein
     // gespeicherter Stand (29. Sept., `standAnheben`).
-    app.werte = standAnheben({ ...app.werte, ...v.werte, bearbeiten: false });
+    // Die Vorlage für sich anheben (F_z ihrer Lastblöcke, 1. Oktober), dann
+    // einsetzen - gemischt trüge sie den Merker des offenen Standes.
+    app.werte = standAnheben({ ...app.werte, ...fzNachObenAnheben(v.werte), bearbeiten: false });
     app.werte.eigeneVorlagen = app.vorlagenZusammenfuehren(app.werte);
     setzeEigeneVorlagen(app.werte.eigeneVorlagen);
     app.station = null;
@@ -794,7 +796,9 @@ async function projektlisteDrucken(app, projektName) {
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'de', { numeric: true }));
   if (!eintraege.length) { alert('Das Projekt hat keine Tragwerke.'); return; }
   const zeilen = eintraege.map((e) => {
-    const w = { ...standardwerte(), ...e.werte };
+    // Angehoben wie beim Laden: ein Eintrag von vor dem 1. Oktober trägt die
+    // Lastblöcke noch mit F_z nach unten (`fzNachObenAnheben`).
+    const w = standAnheben({ ...standardwerte(), ...e.werte });
     let eta = null, etaMast = null, frisch = false;
     try {
       const joch = w.typ && w.typ !== 'frei' ? getTragjoch(w.typ) : null;

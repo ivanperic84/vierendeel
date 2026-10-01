@@ -1652,8 +1652,10 @@ titel('19  Lastgenerator');
   // e_v = 2 m unterhalb heisst im Koordinatenmodell z = −2 m
   pruef('Aus eigener Vorlage entsteht ein Teil mit ihren Werten',
         t.lasten.find((l) => l.einwirkung === 'G').z, -2, 1e-12, 'm');
-  pruef('Ständiger Anteil G_z + Eigengewicht übernommen',
-        t.lasten.find((l) => l.einwirkung === 'G').Fz, 4, 1e-12, 'kN');
+  // Der Lastblock steht seit dem 1. Oktober nach oben (rechte Hand):
+  // 3 kN + 1 kN Gewicht nach unten sind F_z = −4.
+  pruef('Ständiger Anteil G_z + Eigengewicht übernommen (F_z nach oben)',
+        t.lasten.find((l) => l.einwirkung === 'G').Fz, -4, 1e-12, 'kN');
   pruef('Q_y wandert in die Gruppe Wind y',
         t.lasten.find((l) => l.einwirkung === 'WindY').Fy, 2, 1e-12, 'kN');
   wahr('Befestigung wird mitgenommen', t.befestigung === 'durchgehend');
@@ -1807,9 +1809,9 @@ titel('22b  Lastblöcke: Angriffspunkt, Kraft, Moment');
   // Ein Lastblock trägt genau EINE Einwirkungsgruppe
   const at = { id: 'B', name: 'B', x: 10, raster: 0.4, befestigung: 'unten',
                aktiv: true, module: [],
-               lasten: [block({ einwirkung: 'G', z: -2, y: 0.3, Fz: 4, Fx: 1 }),
+               lasten: [block({ einwirkung: 'G', z: -2, y: 0.3, Fz: -4, Fx: 1 }),
                         block({ einwirkung: 'WindY', z: -2, Fy: 6 }),
-                        block({ einwirkung: 'Schnee', z: -2, Fz: 2 })] };
+                        block({ einwirkung: 'Schnee', z: -2, Fz: -2 })] };
   const flach = A5.expandiereAnbauteile([at], {});
   pruef('Je Lastblock ein aufgelöstes Teil', flach.length, 3, 1e-12, 'Stk');
 
@@ -2131,7 +2133,7 @@ titel('27  Lasteinleitung: Verteilung auf die Nachbarbleche');
     lastHerkunft: 'manuell', gkManuell: 0.6, wkManuell: 0.5, skManuell: 0,
     anbauteile: [{ ...teil({ name: 'HS', x: 10, z: -1.5, befestigung: 'durchgehend' }),
                    raster: r,
-                   lasten: [block({ einwirkung: 'G', z: -1.5, Fz: 5 }),
+                   lasten: [block({ einwirkung: 'G', z: -1.5, Fz: -5 }),
                             block({ einwirkung: 'WindY', z: -1.5, Fy: 4 })] }],
     // Das volle Kraeftepaar: abgemindert massgebt es hier nicht mehr, und
     // die Stetigkeit liesse sich nicht mehr ablesen.
@@ -2554,7 +2556,7 @@ titel('18j  Farblegende gegen die Plots');
   const e = basis({ lastfall: 'windYp',
     anbauteile: [{ ...teil({ name: 'HS', x: 8 }), raster: 0.4,
                    befestigung: 'durchgehend',
-                   lasten: [block({ einwirkung: 'G', z: -1.35, Fz: 3 }),
+                   lasten: [block({ einwirkung: 'G', z: -1.35, Fz: -3 }),
                             block({ einwirkung: 'WindY', z: -1.35, Fy: 4 })] }] });
   const erg = rechne(e);
   const szene = R.erzeugeSzene(erg.modell, erg);
@@ -2837,7 +2839,7 @@ titel('19  AxisVM-Export (SAF)');
     schneeAktiv: true,
     anbauteile: [{ ...teil({ name: 'HS', x: 7.5 }), raster: 0.4,
                    befestigung: 'unten',
-                   lasten: [block({ einwirkung: 'G', z: -1.35, Fz: 3 }),
+                   lasten: [block({ einwirkung: 'G', z: -1.35, Fz: -3 }),
                             block({ einwirkung: 'WindY', z: -1.35, Fy: 4 })] }],
   });
   const deps = { berechne, modell,
@@ -3534,7 +3536,7 @@ titel('20  PyNite-Ausleitung');
     schneeAktiv: true,
     anbauteile: [{ ...teil({ name: 'HS', x: 7.5 }), raster: 0.4,
                    befestigung: 'unten',
-                   lasten: [block({ einwirkung: 'G', z: -1.35, Fz: 3 }),
+                   lasten: [block({ einwirkung: 'G', z: -1.35, Fz: -3 }),
                             block({ einwirkung: 'WindY', z: -1.35, Fy: 4 })] }],
   });
   const m = modell(e, getProfil(e.profOG), getProfil(e.profUG),
@@ -4535,10 +4537,10 @@ titel('29b Zu enges Klemmenraster wird gemeldet');
                   endbedingung: 'gelenkig' };
   const mitEng = rechne({ ...grund,
     anbauteile: [teil({ id: 'E', x: 7.75, raster: 0.02, befestigung: 'durchgehend',
-      lasten: [block({ einwirkung: 'G', x: 0, z: -1.5, Fz: 2 })] })] });
+      lasten: [block({ einwirkung: 'G', x: 0, z: -1.5, Fz: -2 })] })] });
   const mitNorm = rechne({ ...grund,
     anbauteile: [teil({ id: 'N', x: 7.75, raster: 0.40, befestigung: 'durchgehend',
-      lasten: [block({ einwirkung: 'G', x: 0, z: -1.5, Fz: 2 })] })] });
+      lasten: [block({ einwirkung: 'G', x: 0, z: -1.5, Fz: -2 })] })] });
   wahr('20 mm Raster wird gemeldet',
        hw3(mitEng.modell).join(' | ').includes('Klemmenraster ungewöhnlich eng'));
   wahr('… mit dem Mass im Klartext',
@@ -6307,7 +6309,7 @@ titel('32  Anbauteile als Kette: Ausleger auf der Stuetze, Kettenwerk am Auslege
     const probe = (x, dx) => ({
       id: 'P', name: 'Probe', x, raster: 0.4, befestigung: 'unten', aktiv: true,
       module: [],
-      lasten: [{ einwirkung: 'G', x: dx, y: 0, z: -1, Fz: FZ, aktiv: true }],
+      lasten: [{ einwirkung: 'G', x: dx, y: 0, z: -1, Fz: -(FZ), aktiv: true }],
     });
     /*
      * AUSDRUECKLICH GELENKIG. Die Probe ist ein GLEICHGEWICHTSARGUMENT am
@@ -13438,7 +13440,7 @@ titel('45  Baugruppen am Masten haengen am Mastfuss');
     id: 'RL', name: 'Leiter RL', vorlage: 'direkt', x: 0, raster: 0,
     ort: 'mastA', hMast: 7.0, aktiv: true, module: [],
     lasten: [{ einwirkung: 'G', x: 0, y: 0, z: -0.35,
-               Fx: 0, Fy: 0, Fz: 0.30, Mxx: 0, Myy: 0, Mzz: 0 }],
+               Fx: 0, Fy: 0, Fz: -0.30, Mxx: 0, Myy: 0, Mzz: 0 }],
     ...o });
 
   const fussVon = (sz, ende) => {
@@ -13514,7 +13516,7 @@ titel('45  Baugruppen am Masten haengen am Mastfuss');
    */
   {
     const arm = { einwirkung: 'G', x: 1.5, y: 0, z: 0,
-                  Fx: 0, Fy: 0, Fz: 1.0, Mxx: 0, Myy: 0, Mzz: 0 };
+                  Fx: 0, Fy: 0, Fz: -1.0, Mxx: 0, Myy: 0, Mzz: 0 };
     const a = bauen({ anbauteile: [rueck({ id: 'AA', ort: 'mastA',
                                            lasten: [arm] })] });
     const b = bauen({ anbauteile: [rueck({ id: 'BB', ort: 'mastB',
@@ -13587,7 +13589,7 @@ titel('45  Baugruppen am Masten haengen am Mastfuss');
     const gross = { id: 'GR', name: 'Schweres Teil', vorlage: 'direkt', x: 7.5,
       raster: 0.4, befestigung: 'unten', aktiv: true, module: [],
       lasten: [{ einwirkung: 'G', x: 0, y: 0, z: -1.5,
-                 Fx: 0, Fy: 0, Fz: 20, Mxx: 0, Myy: 0, Mzz: 0 }] };
+                 Fx: 0, Fy: 0, Fz: -20, Mxx: 0, Myy: 0, Mzz: 0 }] };
     const b = bauen({ anbauteile: [gross, rueck()] });
     const laenge = (v) => Math.hypot(...v.v);
     const alle = b.sz.vektoren.filter((v) => v.art === 'last');
@@ -14000,7 +14002,7 @@ titel('48  Klemmen: Gurtebene mal Raster');
     const at = { id: 'K', name: 'Probe', vorlage: 'direkt', x: 8, raster,
       befestigung: bef, aktiv: true, module: [],
       lasten: [{ einwirkung: 'G', x: 0, y: 0.4, z: -1.2,
-                 Fx: 0, Fy: 0, Fz: 4, Mxx: 0, Myy: 0, Mzz: 0 }] };
+                 Fx: 0, Fy: 0, Fz: -4, Mxx: 0, Myy: 0, Mzz: 0 }] };
     const w = { ...standardwerte(), typ: 'J90', L: 20, endbedingung: 'gelenkig',
                 anbauteile: [at] };
     const erg = berechne(w, getProfil(w.profOG), getProfil(w.profUG),
@@ -14235,7 +14237,7 @@ titel('49  Der Mastnachweis');
       id: 'TR', name: 'Probe', vorlage: 'direkt', ort: 'mastA', hMast: 6.0,
       x: 0, raster: 0, aktiv: true, module: [],
       lasten: [{ einwirkung: 'G', x, y: 0, z: 0,
-                 Fx: 0, Fy: 0, Fz: 2.0, Mxx: 0, Myy: 0, Mzz: 0 }],
+                 Fx: 0, Fy: 0, Fz: -2.0, Mxx: 0, Myy: 0, Mzz: 0 }],
     });
     const ohne = rechne2({ anbauteile: [teil(0)] });
     const mit = rechne2({ anbauteile: [teil(1.5)] });
@@ -14904,7 +14906,7 @@ titel('53  Die Beschriftung laesst kein Endfeld leer');
     id, name: id, vorlage: 'direkt', x, raster: 0.4, befestigung: 'unten',
     aktiv: true, module: [],
     lasten: [{ einwirkung: 'G', x: 0, y: 0, z: -1.3,
-               Fx: -1.736842, Fy: 0, Fz: 0.6, Mxx: 0, Myy: 0, Mzz: 0 },
+               Fx: -1.736842, Fy: 0, Fz: -0.6, Mxx: 0, Myy: 0, Mzz: 0 },
              { einwirkung: 'WindX', x: 0, y: 0, z: -1.3,
                Fx: 0.72, Fy: 0, Fz: 0, Mxx: 0, Myy: 0, Mzz: 0 }] });
   const w = { ...standardwerte(), typ: 'J70', L: 15, a1: 0.75,
@@ -17329,7 +17331,7 @@ const CH9x = await import(J('core.checks.js'));
     const traverse = (id, h, Fz) => ({
       id, name: `Traverse ${id}`, ort: 'mastA', hMast: h, aktiv: true,
       raster: 0, module: [{ z: 0 }],
-      lasten: [{ einwirkung: 'G', z: 0, Fz }],
+      lasten: [{ einwirkung: 'G', z: 0, Fz: -Fz }],
     });
     const mitPunkten = mitAnschluss({ anbauteile: [
       traverse('oben', 11.0, 3), traverse('mitte', 7.0, 8),
@@ -17403,7 +17405,7 @@ const CH9x = await import(J('core.checks.js'));
     const haenge = {
       id: 'hs', name: 'Haengestuetze', ort: 'mastA', hMast: 9.0, aktiv: true,
       raster: 0, module: [{ z: -1.5 }],
-      lasten: [{ einwirkung: 'G', z: -1.5, Fz: 6 }],
+      lasten: [{ einwirkung: 'G', z: -1.5, Fz: -6 }],
     };
     const kh = M74.mastStabilitaet(mast({ anbauteile: [haenge] }).s,
                                    mast({ anbauteile: [haenge] }).m, {});
@@ -24465,7 +24467,7 @@ titel('69  Das auskragende Joch: was die Maste bekommen');
   const zweiAmMast = ['T1', 'T2'].map((id, i) => ({
     id, name: `Teil ${i + 1}`, vorlage: 'direkt', ort: 'mastA', hMast: 5.0,
     x: 0, y: 0, raster: 0, aktiv: true,
-    lasten: [block({ einwirkung: 'G', Fz: i ? 1.6 : 0.15 })] }));
+    lasten: [block({ einwirkung: 'G', Fz: -(i ? 1.6 : 0.15) })] }));
   const w3 = satz(0, { anbauteile: zweiAmMast });
   const j3 = AXk.stabmodellJson(lauf(w3).modell, { eingabe: w3, auflagerModell: 'mast' });
   const amMast = j3.lasten.punkt.filter((p) => p.richtung === 'Z'
@@ -33260,7 +33262,7 @@ titel('156  Durchsicht: Felder des Ersatzbalkens, Konsole in m, Kombination der 
     // Kennung `punkt` überlebt das Normalisieren, und der Kern rechnet zwei
     // Blöcke am selben Punkt wie zwei einzelne.
     const tb = { ...A.neuesAnbauteil('hs-nur', 5), lasten: [
-      A.neuerLastblock('G', { z: -2, Fz: 1, punkt: 'P-t' }),
+      A.neuerLastblock('G', { z: -2, Fz: -1, punkt: 'P-t' }),
       A.neuerLastblock('WindY', { z: -2, Fy: 0.5, punkt: 'P-t' })] };
     const n = A.normalisiereAnbauteil(tb);
     wahr('… «punkt» übersteht das Normalisieren', n.lasten.every((l) => l.punkt === 'P-t'));
@@ -34485,7 +34487,7 @@ titel('177  Rechte Hand im Kern: Torsion aus einer Last mit Versatz y');
   const AS177 = await import(J('app.stabwerk.js'));
   const lauf = (y) => {
     const teil = { ...A177.neuesAnbauteil('frei', 10), befestigung: 'unten', raster: 0,
-      lasten: [{ einwirkung: 'G', y, z: -1.35, Fz: 5 }, { einwirkung: 'G', y, z: -1.35, Fy: 2 }] };
+      lasten: [{ einwirkung: 'G', y, z: -1.35, Fz: -5 }, { einwirkung: 'G', y, z: -1.35, Fy: 2 }] };
     const w = C177.setzeAnbauteileAn({ ...standardwerte(), rechenverfahren: 'stabwerk' }, [teil]);
     const s = N177.rechensatzMitNachbarn(w);
     const args = N177.kernArgumente(s);
@@ -34547,6 +34549,43 @@ titel('178  Sammelweisung 1. Oktober: Absetzen, Duplizieren, neues Joch, Zeichnu
        && /function punktZiehen[\s\S]{0,1400}achsfolge\(m\[modul\]\.folge, achse, neu\)/.test(app));
   wahr('Seitenleiste: das bediente Feld ist der Anker beim Neuaufbau',
        app.includes('function maskenAnkerHalten()') && (app.match(/maskenAnkerHalten\(\);/g) ?? []).length >= 2);
+}
+
+titel('179  F_z der Lastblöcke nach oben (Eingabe nach 3D, rechte Hand)');
+/* ===========================================================================
+ * Auftrag 30. September («… die konvention gemäss des achssystems im 3d wäre
+ * eigentlich negativ, dass sollten wir noch berichtigen», Rückfrage «Eingabe
+ * nach 3D»; dann «pushen und umbau angehen»). Ein Gewicht steht im Lastblock
+ * als F_z < 0; der Kern rechnet unverändert (F_z intern nach unten).
+ * ========================================================================= */
+{
+  const A179 = await import(J('data.anbauteile.js'));
+  const alt = { anbauteile: [{ ...A179.neuesAnbauteil('frei', 5), lasten: [
+    { einwirkung: 'G', x: 0, y: 0, z: -1, Fz: 5 }, { einwirkung: 'Schnee', x: 0, y: 0, z: -1, Fz: 2 }] }],
+    eigeneVorlagen: [{ id: 'EV-x', name: 'x', lastbloecke: [{ einwirkung: 'G', Fz: 3 }], module: [] }],
+    mastAnbauteile: [{ id: 'AT-m', name: 'm', ort: 'mastA', hMast: 4, module: [],
+                       lasten: [{ einwirkung: 'G', z: 0, Fz: 1.5 }] }] };
+  const neu = A179.standAnheben(structuredClone(alt));
+  wahr('Ein alter Stand wird einmal umgerechnet: jedes F_z der Lastblöcke kippt, Merker gesetzt',
+       neu.fzNachOben === true && neu.anbauteile[0].lasten[0].Fz === -5
+       && neu.anbauteile[0].lasten[1].Fz === -2 && neu.eigeneVorlagen[0].lastbloecke[0].Fz === -3
+       && neu.mastAnbauteile[0].lasten[0].Fz === -1.5);
+  wahr('… ein zweites Anheben ändert nichts',
+       JSON.stringify(A179.standAnheben(structuredClone(neu)).anbauteile[0].lasten)
+       === JSON.stringify(neu.anbauteile[0].lasten));
+  const kraft = (teile) => A179.expandiereAnbauteile(teile, { ek: 'EK1' })
+    .reduce((s, t) => s + (t.kraefte?.G?.Fz ?? 0), 0);
+  pruef('Der Kern sieht dasselbe Gewicht wie vor dem Umbau (intern nach unten)',
+        kraft(neu.anbauteile), 5, 1e-12, 'kN');
+  const app = APP_QUELLE();
+  const abl = readFileSync(join(HIER, 'js', 'app.ablage.js'), 'utf8');
+  wahr('Eine Tragwerk-Vorlage wird für sich angehoben, bevor sie in den Stand kommt',
+       abl.includes('...fzNachObenAnheben(v.werte)')
+       && readFileSync(join(HIER, 'js', 'store.js'), 'utf8').includes("'fzNachOben',"));
+  const ui = readFileSync(join(HIER, 'js', 'ui.js'), 'utf8');
+  wahr('Anzeige der Anbauteilkräfte nach oben (Gewicht negativ), Feld «F_z ↑»',
+       ui.includes("['F_z', -(su.Gz + su.Qz)]") && ui.includes("['G', 'F_z', -(l.Gz ?? 0)]")
+       && ui.includes("'F_z ↑'"));
 }
 
 // ===========================================================================

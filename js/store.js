@@ -290,6 +290,9 @@ const VORLAGE_AUS = [
   'lastHerkunft', 'windKlasse', 'schneeAktiv', 'schneeKlasse', 'gZusatz',
   'normensatz', 'gammaG', 'gammaQ', 'psi0', 'gammaM0',
   'lastfallAnpassung', 'lastfaelleEigen',
+  // Der Merker reist mit: eine Vorlage von heute trägt F_z nach oben, eine
+  // von früher nicht (1. Oktober, `fzNachObenAnheben`).
+  'fzNachOben',
 ];
 
 /** Aus einem Eingabestand die Vorlagenfelder herauslösen. */

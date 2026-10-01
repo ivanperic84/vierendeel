@@ -90,8 +90,12 @@ wenn eine andere Teilung rechnerisch günstiger wäre.</p>
 <tr><td>z</td><td>vertikal, <b>positiv nach oben</b></td><td>Anschlussebene des Teils</td></tr>
 </table>
 
-<p>Kräfte tragen dieselben Indizes. <code>F_z</code> ist positiv nach unten
-angeschrieben – Lasten hängen –, alle übrigen folgen der Achse.</p>
+<p>Kräfte und Momente tragen dieselben Indizes und folgen den Achsen nach
+der <b>rechten Hand</b>: <code>F_z</code> ist positiv nach oben, ein Gewicht
+also negativ (seit dem 1. Oktober 2026; ältere Stände werden beim Laden einmal
+umgerechnet). Im 3D zeigt der Pfeil die Richtung, die Zahl daneben den Betrag.
+Ausnahme ist die <b>Tabelle der Reaktionskräfte</b>: sie zählt wie die
+Zusammenfassung der Einwirkungen Z nach unten, Druck positiv.</p>
 
 <h4>Der Nullpunkt von z</h4>
 <p>Das Mass <code>z</code> eines Anbauteils zählt <b>ab der Schwerachse des

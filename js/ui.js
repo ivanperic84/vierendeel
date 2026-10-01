@@ -2748,9 +2748,11 @@ ${offen ? 'Zuklappen' : 'Anklicken zum Bearbeiten'} · ins Modell ziehen legt ei
     </div>`;
   };
 
+  // F_z nach der rechten Hand (1. Oktober): nach oben positiv, das Gewicht
+  // also negativ. Der Kern führt es nach unten - hier wird gedreht.
   const summeGruppe = (teile) => teile.reduce((s, { a }) => {
     const k = baugruppeSumme(a, trasse);
-    return s + k.Gz + k.Qz;
+    return s - (k.Gz + k.Qz);
   }, 0);
 
   const zeilen = [...gruppen.entries()].map(([name, teile]) => `
@@ -3307,9 +3309,10 @@ Ausleger und alles, was weiter aussen an ihm hängt (Leiter, Kettenwerk).
  */
 function modulLastenHtml(l, b) {
   const drahtwerk = b?.rolle === 'drahtwerk';
+  // F_z nach oben (rechte Hand, 1. Oktober): Gewicht und Schnee negativ.
   const anteile = [
-    ['G', 'F_z', l.Gz], ['G', 'F_x', l.Gx], ['G', 'F_y', l.Gy],
-    ['W_x', 'F_x', l.Qx], ['W_y', 'F_y', l.Qy], ['S', 'F_z', l.Qz],
+    ['G', 'F_z', -(l.Gz ?? 0)], ['G', 'F_x', l.Gx], ['G', 'F_y', l.Gy],
+    ['W_x', 'F_x', l.Qx], ['W_y', 'F_y', l.Qy], ['S', 'F_z', -(l.Qz ?? 0)],
   ].filter(([, , v]) => Math.abs(v ?? 0) > 0.0005);
 
   // Kleine Beträge mit drei Stellen: "0.00" sagt nichts darüber, ob da etwas
@@ -3415,7 +3418,7 @@ function lastblockListeHtml(a, i) {
       <div class="at-gitter">
         ${lastFeld(i, k, 'Fx', 'F_x', l.Fx, 'kN', 0.5)}
         ${lastFeld(i, k, 'Fy', 'F_y', l.Fy, 'kN', 0.5)}
-        ${lastFeld(i, k, 'Fz', 'F_z', l.Fz, 'kN', 0.5)}
+        ${lastFeld(i, k, 'Fz', 'F_z ↑', l.Fz, 'kN', 0.5)}
       </div>
       ${klapp(`last-${a.id}-${k}`, 'Moment (optional)', `
         <div class="at-gitter">
@@ -3484,7 +3487,8 @@ function lastblockListeHtml(a, i) {
  */
 function baugruppeKraft(a, trasse) {
   const su = baugruppeSumme(a, trasse);
-  return [['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy], ['F_z', su.Gz + su.Qz]]
+  // F_z nach oben (rechte Hand, 1. Oktober).
+  return [['F_x', su.Gx + su.Qx], ['F_y', su.Gy + su.Qy], ['F_z', -(su.Gz + su.Qz)]]
     .filter(([, v]) => Math.abs(v) > 0.005)
     .map(([k, v]) => `${k} ${f2(v)}`).join(' · ') || '–';
 }

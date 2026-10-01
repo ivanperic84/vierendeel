@@ -80,7 +80,8 @@ function blattEingabe(werte, erg) {
       if (Object.values(k).every((v) => !v)) return;
       rows.push([T(t.name), T(t.vorlage ?? ''), N2(t.x), N2(t.y ?? 0), N2(t.z ?? 0),
                  N2(t.raster), T(t.befestigung ?? ''), T(gruppe),
-                 N2(k.Fx), N2(k.Fy), N2(k.Fz),
+                 // F_z nach oben (rechte Hand, 1. Oktober).
+                 N2(k.Fx), N2(k.Fy), N2(-(k.Fz ?? 0)),
                  N2(k.Mxx), N2(k.Myy), N2(k.Mzz)]);
     });
   });

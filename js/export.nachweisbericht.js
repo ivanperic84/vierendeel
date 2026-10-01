@@ -291,7 +291,8 @@ function einwirkungen(d) {
     <h3>§.2 Anbauteile am Masten (charakteristisch)</h3>
     ${am.length ? tabelle(['Bezeichnung', 'Höhe [m]', 'Ausladung [m]', 'G: F<sub>z</sub> [kN]',
       'Wind: F<sub>x</sub> [kN]', 'Wind: F<sub>y</sub> [kN]'],
-      am.map((t) => [esc(t.name), zahl(t.hMast, 2), zahl(t.x, 2), zahl(summe(t, 'G', 'Fz'), 3),
+      // F_z nach oben (rechte Hand, 1. Oktober): das Gewicht negativ.
+      am.map((t) => [esc(t.name), zahl(t.hMast, 2), zahl(t.x, 2), zahl(-summe(t, 'G', 'Fz'), 3),
         zahl(summe(t, 'WindX', 'Fx'), 3), zahl(summe(t, 'WindY', 'Fy'), 3)]), 'eng')
       : '<p>Keine Anbauteile am Masten.</p>'}
   </section>`;
@@ -309,7 +310,7 @@ function einwirkungen(d) {
     <h3>§.3 Anbauteile, aufgelöst (charakteristisch)</h3>
     ${at.length ? tabelle(['Bezeichnung', 'x [m]', 'y [m]', 'z [m]', 'G: F<sub>z</sub> [kN]', 'G: F<sub>y</sub> [kN]', 'Wind: F<sub>y</sub> [kN]'],
       at.map((t) => [esc(t.name), zahl(t.x, 2), zahl(t.y, 2), zahl(t.z, 2),
-        zahl(summe(t, 'G', 'Fz'), 3), zahl(summe(t, 'G', 'Fy'), 3), zahl(summe(t, 'WindY', 'Fy'), 3)]), 'eng')
+        zahl(-summe(t, 'G', 'Fz'), 3), zahl(summe(t, 'G', 'Fy'), 3), zahl(summe(t, 'WindY', 'Fy'), 3)]), 'eng')
       : '<p>Keine Anbauteile am Joch.</p>'}
   </section>`;
 }

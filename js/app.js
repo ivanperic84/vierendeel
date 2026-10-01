@@ -308,7 +308,9 @@ let zuletztGezoomt = null;
  * @param {string} art  Schlüssel aus TRAGWERKSARTEN, Vorgabe 'joch'
  */
 function frisch(art = 'joch') {
-  const std = { ...standardwerte(), bearbeiten: false };
+  // Ein neuer Stand trägt F_z schon nach oben (1. Oktober) - ohne Merker
+  // würde er beim nächsten Laden ein zweites Mal umgerechnet.
+  const std = { ...standardwerte(), bearbeiten: false, fzNachOben: true };
   let w = typUebernehmen(std, getTragjoch(std.typ));
   w.anbauteile = [{ ...neuesAnbauteil('hs-fahrdraht', 10), name: 'Fahrleitung Gleis 1' }];
   if (art && art !== 'joch') {
