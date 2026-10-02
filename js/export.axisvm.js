@@ -1431,6 +1431,17 @@ function ankerBauen({ s, md, ende, mn, x, h, zFuss, zOben, mastKn, qsStarr,
 }
 
 /**
+ * Liegt der Knoten `name` an der Stelle p? Dann wäre ein Stab dorthin einer
+ * der Länge null - der Löser teilt durch die Länge, und die ganze Lösung
+ * wird NaN (2. Oktober).
+ */
+function gleicheLage(s, name, p) {
+  const k = s.knoten.get(name);
+  return Boolean(k) && Math.abs(k.x - p[0]) < 1e-9 && Math.abs(k.y - p[1]) < 1e-9
+    && Math.abs(k.z - p[2]) < 1e-9;
+}
+
+/**
  * DIE TEILE AM MASTEN: Kette von der Mastachse zum Angriffspunkt, und die
  * Arme, an denen `lasten()` ihre Kraefte ansetzt.
  *
@@ -1449,18 +1460,32 @@ function mastTeileAnhaengen({ s, m, mn, mastFuss, qsArm, arme, opt }) {
   });
   [...mastGruppen.values()].forEach((a, k) => {
     const ende = a.ort === 'mastB' ? 'B' : 'A';
-    const xM = ende === 'A' ? 0 : r6(m.L);
     const wurzelKn = [...s.knoten.entries()].find(([nm, kn]) =>
       nm.startsWith(`MAST_${mn(ende)}_`)
       && Math.abs(kn.z - r6(mastFuss[ende] + (a.hMast ?? 0))) < 1e-9);
     if (!wurzelKn) return;               // ausserhalb - schon vermerkt
+    /*
+     * >>> AB DER MASTACHSE, NICHT AB DEM JOCHENDE (2. Oktober). <<<
+     *
+     * Hier stand xM = 0 bzw. L - das Jochende. Seit dem Kragarm (30. Sept.)
+     * steht der Mast um c_A bzw. c_B innen, und alle Teile am Masten lagen
+     * im Modell um den Kragarm zu weit aussen; das 3D-Bild rechnete richtig
+     * ab der Mastachse (`zeichneAmMast`). Gemeldet vom Arbeitsrechner:
+     * «bei einem jochtragwerk wird nicht mehr gerechnet. Die msten sind grau
+     * und die bleche auch. die nachweise stehen auf 0.0000» - am Stand
+     * J130/24.5 m, c_A = c_B = 0.20, Rückleiter an M2 mit x = −0.20: sein
+     * Punkt fiel im Modell genau auf die Mastachse, der Arm hatte die Länge
+     * null, und das ganze Stabwerk wurde NaN.
+     */
+    const xM = wurzelKn[1].x;
     // Die Wurzel liegt auf der Mastachse; jedes Teil sitzt relativ dazu.
     const kette = anbauKette(a.teile ?? [a], { x0: 0, zAn: 0, amMast: true });
     const knotenVon = new Map([[kette.wurzel, wurzelKn[0]]]);
     kette.glieder.forEach((g) => {
-      const kn = s.kn(`AM${k}_${g.bis.nr}`,
-                      r6(xM + g.bis.x), r6(g.bis.y),
-                      r6(wurzelKn[1].z + g.bis.z));
+      const p = [r6(xM + g.bis.x), r6(g.bis.y), r6(wurzelKn[1].z + g.bis.z)];
+      // Ein Glied ohne Länge ist kein Stab (sonst NaN im ganzen Stabwerk).
+      if (gleicheLage(s, knotenVon.get(g.von), p)) { knotenVon.set(g.bis, knotenVon.get(g.von)); return; }
+      const kn = s.kn(`AM${k}_${g.bis.nr}`, ...p);
       knotenVon.set(g.bis, kn);
       s.stab(`ARMM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
              opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }
@@ -3661,7 +3686,10 @@ export function stabmodell(m, opt = {}) {
     }
     const knotenVon = new Map([[kette.wurzel, wurzelKn]]);
     kette.glieder.forEach((g) => {
-      const kn = s.kn(`AL${k}_${g.bis.nr}`, r6(g.bis.x), r6(g.bis.y), r6(g.bis.z));
+      const p = [r6(g.bis.x), r6(g.bis.y), r6(g.bis.z)];
+      // Ein Glied ohne Länge ist kein Stab (2. Oktober, `gleicheLage`).
+      if (gleicheLage(s, knotenVon.get(g.von), p)) { knotenVon.set(g.bis, knotenVon.get(g.von)); return; }
+      const kn = s.kn(`AL${k}_${g.bis.nr}`, ...p);
       knotenVon.set(g.bis, kn);
       s.stab(`ARM${k}_${g.bis.nr}`, qsArm, knotenVon.get(g.von), kn,
              opt.anbauGelenk ? { gelenkAnfang: opt.anbauGelenk }

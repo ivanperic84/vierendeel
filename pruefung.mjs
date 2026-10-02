@@ -35409,6 +35409,48 @@ titel('188  Anker ohne UNP-Zeile in der Profiltabelle');
 }
 
 // ===========================================================================
+titel('189  Teile am Masten ab der Mastachse; kein Kettenglied der Länge null');
+/*
+ * Gemeldet 2. Oktober vom Arbeitsrechner: «bei einem jochtragwerk wird
+ * nicht mehr gerechnet. Die msten sind grau und die bleche auch. die
+ * nachweise stehen auf 0.0000». Am Stand (J130/24.5 m, c_A = c_B = 0.20,
+ * Rückleiter an M2 mit x = −0.20) setzte die Ausleitung die Teile am
+ * Masten ab dem JOCHENDE an statt ab der Mastachse; der Punkt fiel auf die
+ * Mastachse, der Arm hatte die Länge null, das Stabwerk wurde NaN. Nachher
+ * am Stand: Joch 0.827, M1 0.724, M2 0.628.
+ */
+{
+  const AB189 = await import(J('data.anbauteile.js'));
+  const N189 = await import(J('core.nachbarn.js'));
+  const S189 = await import(J('app.stabwerk.js'));
+  const C189 = await import(J('core.constants.js'));
+  let w = typUebernehmen({ ...standardwerte(), typ: 'J90' }, T.getTragjoch('J90'));
+  w = { ...w, L: 20, xLage: -0.2, kragA: 0.2, kragB: 0.2, kragMasten: true,
+        mastVorhanden: true, twId: 'T1', pos: 0 };
+  w = AB189.standAnheben(w);
+  const mB = C189.mastenVon(w)[1];
+  const rl = (x) => ({ id: 'RL', vorlage: 'leiter-rl', name: 'Leiter RL', x: 0, raster: 0.4,
+    befestigung: 'unten', aktiv: true, ort: 'mastB', hMast: 6.3, mastId: mB.id, lasten: [],
+    module: [{ bauteil: 'drahtwerk-cu-95', anzahl: 1, laenge: null, z: 0, y: 0, x,
+               umlenkung: true, folge: 'x' }] });
+  const lauf = (x) => {
+    const w2 = AB189.standAnheben({ ...w, mastAnbauteile: [rl(x)] });
+    const satz = N189.rechensatzMitNachbarn(w2);
+    const erg = berechne(satz, ...N189.kernArgumente(satz));
+    return { mast: C189.mastenVon(w2)[1], r: S189.rechneStabwerk({ werte: w2, letzte: { erg } }) };
+  };
+  const a = lauf(-0.2);
+  wahr('Rückleiter an Ende B, x −0.20 (Punkt auf der Mastachse) ohne Kragarm-Versatz: rechnet',
+       Number.isFinite(a.r?.etaGesamt) && a.r.etaGesamt > 0, String(a.r?.etaGesamt ?? a.r?.fehler));
+  const b2 = lauf(0.5);
+  wahr('… mit x +0.50 ebenfalls', Number.isFinite(b2.r?.etaGesamt) && b2.r.etaGesamt > 0);
+  const q = readFileSync(join(HIER, 'js', 'export.axisvm.js'), 'utf8');
+  wahr('Ausleitung: Teile am Masten ab dem Knoten auf der Mastachse', q.includes('const xM = wurzelKn[1].x;'));
+  wahr('Ausleitung: ein Glied ohne Länge wird zusammengelegt (Mast und Joch)',
+       (q.match(/if \(gleicheLage\(s, knotenVon\.get\(g\.von\), p\)\)/g) ?? []).length === 2);
+}
+
+// ===========================================================================
 console.log('\n' + '='.repeat(104));
 console.log(`ERGEBNIS:  ${bestanden} bestanden, ${gefallen} gefallen`);
 if (gefallen) {

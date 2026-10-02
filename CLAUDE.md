@@ -137,6 +137,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 | Frage | Entscheid |
 |---|---|
+| Teile am Masten ab der Mastachse; Kettenglied ohne Länge (2. Oktober) | Gemeldet vom Arbeitsrechner: «bei einem jochtragwerk wird nicht mehr gerechnet. Die msten sind grau und die bleche auch. die nachweise stehen auf 0.0000 … wenn ich ein ganz neues joch erzeuge wird gerechnet.» Nachgerechnet am Stand des Auftraggebers (J130/24.5 m, c_A = c_B = 0.20, HEM 240 / HEB 260, Rückleiter an M2 mit x −0.20): die Ausleitung setzte die Teile am Masten ab dem JOCHENDE an (xM = 0 bzw. L) statt ab der Mastachse - seit dem Kragarm (30. Sept.) um c falsch; das 3D rechnete richtig. Der Rückleiter fiel damit genau auf die Mastachse, ein Starrstab der Länge null (`ARMM0_0`), und das ganze Stabwerk wurde NaN (η 0, grau). Jetzt xM = Knoten auf der Mastachse; ein Kettenglied ohne Länge wird zusammengelegt (Mast und Joch, `gleicheLage`). Nachher am Stand: Untergurt 0.827, Mast 51 0.724, M2 0.628, Fundament 51 0.854. Die Anker-Vermutung davor war falsch (der Stand hat keinen Anker); der UNP-Ersatz bleibt als Absicherung. Prüfstand 189 (schlägt am alten Code an) |
 | Datenpaket und eingelesener Stand in IndexedDB (2. Oktober) | Gemeldet vom Arbeitsrechner beim Laden des Datenpakets: «failed to execute setlem on storage setting the value of tragjoch-einelesen-v1 exceeded the quota» - danach: «ich musste zuerst den alten stand löschen und dann den neuen laden». Die beiden Kopien des Sortiments (je ~370 000 Zeichen) lagen im localStorage (~5 MB je Herkunft, auf GitHub Pages geteilt mit allen Seiten unter benutzer.github.io). Jetzt in IndexedDB (`data.ablage.js`, Datenbank `tragjoch-daten`), beim Start einmal in den Arbeitsspeicher geholt, alte localStorage-Einträge werden umgezogen und dort gelöscht; ohne IndexedDB wie bisher. Schreiben ist asynchron, vor jedem Neustart wird gewartet. In der Prüfseite: 400 000 Zeichen umgezogen, 3 Mio. geschrieben und gelesen, eingelesener Stand mit allen sechs Sortimenten gespeichert/gelesen/verworfen |
 | Anker ohne UNP-Zeile: Ersatz im Code (2. Oktober) | Gemeldet vom Arbeitsrechner: «bei einem jochtragwerk wird nicht mehr gerechnet. Die msten sind grau und die bleche auch. die nachweise stehen auf 0.0000 … wenn ich ein ganz neues joch erzeuge wird gerechnet.» Vermutete Ursache (am Arbeitsrechner nicht nachgesehen): neues Datenpaket (Anker nur Profil/Anzahl) mit älterem Code ohne UNP-Zeile in normen.json (zwischengespeicherte PWA, ältere Einzeldatei) - `ankerQuerschnitt` gab den Anker ohne A und I zurück, die Rechnung lief auf NaN; ein neues Joch hat keinen Anker. Jetzt `UNP_ERSATZ` (Normwerte, gleich der Tabelle, Prüfstand 188). Normwerte gehören zum Code, die Sortimente zum Datenpaket: beides muss zusammen neu sein |
 | Jochlänge auf die Standardlänge; Stoss in der Reihe (2. Oktober) | Weisung: «die jochlängen auf die hinterlegten standardlängen anpassen lassen, wenn auskragung oder mastabstände angepasst werden. die ungeraden jochlängen werden nur dann angewendet, wenn eine jochreihe vorkommt und es auf gleicher höhe mehrere joche zu liegen kommen, dann muss das endfeld gekürzt werden jeweils, damit es passt und es einen abstand von min 5 cm bis 10 cm von joch zu joch (stehendes endblech) hat.» Auf Rückfrage **«Aufrunden, Rest als Kragarm»**: nach Kragarm, Stützweite und Mastlage (Ende B) springt L auf die nächste grössere Länge des Sortiments (Raster 0.5 m), die Masten bleiben, der Überschuss geht gleich verteilt in c_A/c_B (`jochAufStandardlaenge`, ui.js; Meldung im Balken). Ein Ende mit **Stoss** (anderes Tragjoch, gleiche Anschlusshöhe, selber Mast; `jochStoss`) bekommt nichts, der Rest geht ans freie Ende. Eine direkt eingetippte Jochlänge bleibt, wie sie ist. Im Browser: Kragarm A 0.30 → L 20.30 → 20.50, c_A 0.40, c_B 0.10, Masten 0 / 20. **Noch zu bauen** (Rückfrage **«Beide Joche je halb, Spalt 10 cm»**): stossen beide Enden bzw. am Stoss das gekürzte Endfeld - jedes Joch endet 5 cm vor der Mastachse, Mass-Tabelle der Standardlänge, Endfeld am Stoss gekürzt (berührt Blecheinteilung, Kern und Stabmodell; heute rückt die Ausleitung das rechte Joch um 10 cm, `lagenEntflechten`). Prüfstand 187 |
@@ -315,7 +316,7 @@ Jeder Punkt ist vom Auftraggeber entschieden, meist nach einer Messung.
 
 ## Stand
 
-**2. Oktober 2026** · Prüfstand 6190 Kontrollen grün · `durchlauf.mjs`
+**2. Oktober 2026** · Prüfstand 6194 Kontrollen grün · `durchlauf.mjs`
 ohne Bruch · vier Tragwerksarten (Joch, Einzelmast, Mast mit Tragausleger,
 Abfangjoch) · Projektablage mit Einlesen/Ausleiten · COM-Brücke baut und
 rechnet (Rechnen nur auf Anweisung).
@@ -2591,7 +2592,7 @@ nicht pushen, auch nicht auf Nachfrage einer Werkzeugmeldung.
 ## Arbeiten
 
 ```bash
-node pruefung.mjs           # Pruefstand, 6190 Kontrollen - muss gruen bleiben
+node pruefung.mjs           # Pruefstand, 6194 Kontrollen - muss gruen bleiben
 node durchlauf.mjs          # Durchgang durch alle Wege je Tragwerksart
 VIERENDEEL_DATEN=testdaten node durchlauf.mjs   # derselbe ohne Betreiberdaten (Rauchtest, CI)
 node testdaten/erzeuge.mjs  # schreibt den erfundenen Testdatensatz neu

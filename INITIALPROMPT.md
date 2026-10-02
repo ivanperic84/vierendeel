@@ -5,7 +5,7 @@ Zuruf: «lies INITIALPROMPT.md»). Sie ist die Abkürzung in die Arbeit —
 **das Gedächtnis des Projekts ist [CLAUDE.md](CLAUDE.md)**, und die ist ganz
 zu lesen, bevor etwas geändert wird.
 
-Stand: **2. Oktober 2026**; Prüfstand 6190 Kontrollen grün,
+Stand: **2. Oktober 2026**; Prüfstand 6194 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
 2. Oktober (Profile, Reaktionsblatt, Mast ziehen) ist committet, **nicht gepusht** -
 pushen nur auf Weisung.
