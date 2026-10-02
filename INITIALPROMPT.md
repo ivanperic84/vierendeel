@@ -9,6 +9,12 @@ Stand: **2. Oktober 2026**; Prüfstand 6130 Kontrollen grün,
 `durchlauf.mjs` ohne Bruch. Gepusht bis zum 1. Oktober; die Arbeit vom
 2. Oktober (Profile) ist committet, **nicht gepusht** - pushen nur auf Weisung.
 
+**Laufend (2. Oktober):** Bauteile bereinigen über markierte Querprofile.
+Der Auftraggeber markiert in `Grundlagen/QP` mit PDF-XChange
+(`Tragwerk: …`, `Bauteil: …`, `? …`); `python3 qp_markierungen.py` liest sie
+nach `Versand/qp_markierungen/`. Danach Abgleichtabelle und gemeinsame
+Durchsicht (CLAUDE.md, *Laufende Arbeit*).
+
 **Zuletzt gebaut (Einzelheiten in CLAUDE.md, *Entschieden*):**
 - **2. Oktober, unter *Profile*:** Querschnittsklasse je Mast (die des
   Mastnachweises) und Hinweis zur durchgeschweissten Fussnaht; Klick auf
